@@ -95,6 +95,8 @@ void free_node(struct db_node *node);
 /* Parsing topic from char* with '/' to char** */
 char **topic_parse(char *topic);
 
+void free_topic_queue(char **topic_queue);
+
 struct db_node *find_next(struct db_node *node, bool *equal, char
 		**topic_queue);
 

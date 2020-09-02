@@ -10,8 +10,8 @@
 
 #include "include/nanomq.h"
 #include "include/pub_handler.h"
-#include "include/subscribe_handle.h"
-#include "include/unsubscribe_handle.h"
+#include "include/sub_handler.h"
+#include "include/unsub_handler.h"
 
 // Parallel is the maximum number of outstanding requests we can handle.
 // This is *NOT* the number of threads in use, but instead represents
@@ -93,10 +93,9 @@ server_cb(void *arg)
 			debug_msg("RECVIED %d %x\n", work->ctx.id, nng_msg_cmd_type(msg));
 
 			if (nng_msg_cmd_type(msg) == CMD_DISCONNECT) {
-			  /**/
 				work->cparam = (conn_param *) nng_msg_get_conn_param(msg);
 				char                  *clientid = (char *) conn_param_get_clentid(work->cparam);
-				struct topic_and_node *tan      = nng_alloc(sizeof(struct topic_and_node));
+				struct topic_and_node tan;
 				struct client         *cli      = NULL;
 				struct topic_queue    *tq       = NULL;
 
@@ -105,28 +104,33 @@ server_cb(void *arg)
 					tq = get_topic(clientid);
 					while (tq) {
 						if (tq->topic) {
-							search_node(work->db, topic_parse(tq->topic), tan);
-							if ((cli = del_client(tan, clientid)) == NULL) {
+							char ** topics = topic_parse(tq->topic);
+							search_node(work->db, topics, &tan);
+							free_topic_queue(topics);
+							if ((cli = del_client(&tan, clientid)) == NULL) {
 								break;
 							}
-							del_pipe_id(pipe.id);
 						}
 						if (cli) {
-							del_node(tan->node);
+							del_node(tan.node);
 							debug_msg("Destroy CTX [%p] clientID: [%s]", cli->ctxt, cli->id);
 							destroy_sub_ctx(cli->ctxt, tq->topic); // only free work->sub_pkt
 							nng_free(cli, sizeof(struct client));
 						}
+						tq = tq->next;
+						/*
 						if (check_id(clientid)) {
 							tq = tq->next;
 						}
+						*/
 					}
-					del_topic_all(clientid);
-					del_pipe_id(pipe.id);
-					nng_free(tan, sizeof(struct topic_and_node));
 					debug_msg("INHASH: clientid [%s] exist?: [%d]; pipeid [%d] exist?: [%d]",
 					          clientid, (int) check_id(clientid), pipe.id, (int) check_pipe_id(pipe.id));
 				}
+
+				del_topic_all(clientid);
+				del_pipe_id(pipe.id);
+
 				work->state = RECV;
 				nng_msg_free(msg);
 				work->msg = NULL;
@@ -184,7 +188,7 @@ server_cb(void *arg)
 				    (reason = sub_ctx_handle(work)) != SUCCESS ||
 				    (reason = encode_suback_message(smsg, work->sub_pkt)) != SUCCESS) {
 					debug_msg("ERROR IN SUB_HANDLE: %d", reason);
-					// TODO free sub_pkt
+					destroy_sub_ctx(work, "");
 				} else {
 					// success but check info
 					debug_msg("In sub_pkt: pktid:%d, topicLen: %d, topic: %s", work->sub_pkt->packet_id,
@@ -292,7 +296,7 @@ server_cb(void *arg)
 				fatal("SEND nng_ctx_send", rv);
 			} else if ((smsg = nng_aio_get_msg(work->aio)) != NULL) {
 				nng_msg_free(smsg);
-                        }
+			}
 
 #if DISTRIBUTE_DIFF_MSG
 			if (work->pipe_msgs != NULL && work->pipe_msgs[work->index].pipe != 0) {

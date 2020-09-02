@@ -3,8 +3,8 @@
 #include <protocol/mqtt/mqtt_parser.h>
 #include <protocol/mqtt/mqtt.h>
 #include "include/nanomq.h"
-#include "include/subscribe_handle.h"
-#include "include/unsubscribe_handle.h"
+#include "include/sub_handler.h"
+#include "include/unsub_handler.h"
 
 uint8_t decode_unsub_message(nng_msg * msg, packet_unsubscribe * unsub_pkt){
 	uint8_t * variable_ptr;
@@ -162,8 +162,8 @@ uint8_t unsub_ctx_handle(emq_work * work){
 
 		debug_msg("finding client [%s] in topic [%s].", clientid, topic_str);
 
-		char ** topic_queue = topic_parse(topic_str);
-		search_node(work->db, topic_queue, tan);
+		char ** topics = topic_parse(topic_str);
+		search_node(work->db, topics, tan);
 
 		if(tan->topic == NULL){ // find the topic
 			cli = del_client(tan, clientid);
@@ -183,6 +183,7 @@ uint8_t unsub_ctx_handle(emq_work * work){
 			debug_msg("not find and response ack.");
 		}
 
+		free_topic_queue(topics);
 		// free local varibale
 		nng_free(topic_str, topic_node_t->it->topic_filter.len+1);
 		nng_free(tan, sizeof(struct topic_and_node));

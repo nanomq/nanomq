@@ -30,7 +30,7 @@ find_package(nanolib CONFIG REQUIRED)
 #	MESSAGE(FATAL_ERROR "nanolib library not found")
 
 
-add_executable(nanomq nanomq.c cmd.c file.c process.c apps.c pub_handler.c subscribe_handle.c unsubscribe_handle.c)
+add_executable(nanomq nanomq.c cmd.c file.c process.c apps.c pub_handler.c sub_handler.c unsub_handler.c)
 
 #target_link_libraries(nanomq apps nano_shared)
 target_link_libraries(nanomq apps nanolib)

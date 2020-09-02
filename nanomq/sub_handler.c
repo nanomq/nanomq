@@ -3,7 +3,7 @@
 #include <protocol/mqtt/mqtt_parser.h>
 #include <protocol/mqtt/mqtt.h>
 #include "include/nanomq.h"
-#include "include/subscribe_handle.h"
+#include "include/sub_handler.h"
 
 uint8_t decode_sub_message(nng_msg * msg, packet_subscribe * sub_pkt){
 	uint8_t *  variable_ptr;
@@ -183,9 +183,8 @@ uint8_t sub_ctx_handle(emq_work * work){
 		topic_str[topic_node_t->it->topic_filter.len] = '\0';
 		debug_msg("topicLen: [%d] Body: [%s]", topic_node_t->it->topic_filter.len, (char *)topic_str);
 
-		char ** topic_queue = topic_parse(topic_str);
-//		debug_msg("topic_queue: -%s -%s -%s -%s", *topic_queue, *(topic_queue+1), *(topic_queue+2), *(topic_queue+3));
-		search_node(work->db, topic_queue, tan);
+		char ** topics = topic_parse(topic_str);
+		search_node(work->db, topics, tan);
 
 		if(tan->topic){ // not contain the node
 			add_node(tan, client);
@@ -204,7 +203,7 @@ uint8_t sub_ctx_handle(emq_work * work){
 				//		client->id, q->next->topic);
 				add_client(tan, client);
 				// test
-				search_node(work->db, topic_queue, tan);
+				search_node(work->db, topics, tan);
 				struct client * cli = tan->node->sub_client;
 				while(cli){
 					debug_msg("client: %s", cli->id);
@@ -214,6 +213,8 @@ uint8_t sub_ctx_handle(emq_work * work){
 				work->sub_pkt->node->it->reason_code = 0x80;
 			}
 		}
+
+		free_topic_queue(topics);
 		nng_free(tan, sizeof(struct topic_and_node));
 		nng_free(topic_str, topic_node_t->it->topic_filter.len+1);
 		topic_node_t = topic_node_t->next;
@@ -243,7 +244,7 @@ void destroy_sub_ctx(void * ctxt, char * target_topic){
 	topic_node * before_topic_node = NULL;
 	while(topic_node_t){
 		if(!strncmp(topic_node_t->it->topic_filter.str_body, target_topic,
-					topic_node_t->it->topic_filter.len)){
+				topic_node_t->it->topic_filter.len) || !strcmp(target_topic, "")){
 			debug_msg("FREE in topic_node [%s] in tree", topic_node_t->it->topic_filter.str_body);
 			if(before_topic_node){
 				before_topic_node->next = topic_node_t->next;
