@@ -30,7 +30,13 @@ void create_db_tree(struct db_tree **db)
 void destory_db_tree(struct db_tree *db)
 {
 	log_info("DESTORY_DB_TREE");
-	/* TODO */
+	if (db) {
+		if (db->root) {
+			delete_db_node(db->root);
+		}
+		zfree(db);
+		db = NULL;
+	}
 
 }
 
@@ -50,6 +56,8 @@ void print_db_tree(struct db_tree *db)
 	assert(db);
 	struct db_nodes *tmps = NULL;
 	struct db_nodes *tmps_end = NULL;
+	struct db_nodes *for_free = NULL;
+
 	tmps = (struct db_nodes*)zmalloc(sizeof(struct db_nodes));
 	tmps->node = db->root;
 	int size = 1;
@@ -105,7 +113,10 @@ void print_db_tree(struct db_tree *db)
 				}
 			}
 			// debug("tmps next");
+			for_free = tmps;
 			tmps = tmps->next;
+			zfree(for_free);
+			for_free = NULL;
 		}
 
 		printf("\n");
@@ -117,6 +128,8 @@ void print_db_tree(struct db_tree *db)
 		len = size;
 
 	}
+	zfree(tmps);
+	tmps = NULL;
 
 	puts("-------------------DB_TREE---------------------\n");
 }
@@ -925,6 +938,23 @@ char **topic_parse(char *topic)
 
 	return topic_queue;
 }
+
+void free_topic_queue(char **topic_queue)
+{
+	char *t = NULL;
+	char **tt = topic_queue;
+
+	while (*topic_queue) {
+		t = *topic_queue;
+		topic_queue++;
+		zfree(t);
+		t = NULL;
+	}
+
+	zfree(tt);
+	topic_queue = NULL;
+}
+
 
 void hash_add_alias(int alias, char *topic_data)
 {

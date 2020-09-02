@@ -7,19 +7,22 @@
 #include <nng/protocol/mqtt/mqtt.h>
 
 struct work {
-	int index;
-	enum { INIT, RECV, WAIT, SEND } state;
-	nng_aio *aio;
-	nng_msg *msg;
-	nng_ctx  ctx;
-	nng_pipe pid;
-	nng_mtx *mutex;
+	enum {
+		INIT, RECV, WAIT, SEND
+	} state;
+
+	nng_aio        *aio;
+	nng_msg        *msg;
+	nng_ctx        ctx;
+	nng_pipe       pid;
+	nng_mtx        *mutex;
 	struct db_tree *db;
-	conn_param *cparam;
-	struct pub_packet_struct *pub_packet;
-	struct packet_subscribe * sub_pkt;
-	struct packet_unsubscribe * unsub_pkt;
-	struct pipe_nng_msg *pipe_msgs;
+
+	conn_param                *cparam;
+	struct pub_packet_struct  *pub_packet;
+	struct packet_subscribe   *sub_pkt;
+	struct packet_unsubscribe *unsub_pkt;
+	struct pipe_content       *pipe_ct;
 };
 
 

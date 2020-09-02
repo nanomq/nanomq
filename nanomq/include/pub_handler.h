@@ -9,8 +9,6 @@
 #include <apps/broker.h>
 #include "nng/protocol/mqtt/mqtt.h"
 
-#define DISTRIBUTE_DIFF_MSG 1
-
 typedef uint32_t variable_integer;
 
 struct variable_string {
@@ -109,16 +107,22 @@ struct pipe_nng_msg {
 	uint32_t pipe;
 	uint32_t index;
 	uint8_t  qos;
-	nng_msg  *msg; //nng_msg
+	nng_msg  *msg;
 };
 
-typedef void (*transmit_msgs)(nng_msg *, emq_work *, uint32_t *);
-typedef void (*handle_client)(struct client *sub_client, void **pipes, uint32_t *total, void *packet);
 
-void handle_pub(emq_work *work, nng_msg *send_msg, void **pipes, transmit_msgs tx_msgs);
+struct pipe_content {
+	uint32_t            total;
+	uint32_t            current_index;
+	struct pipe_nng_msg *pipe_msg;
+};
+
+typedef void (*handle_client)(struct client *sub_client, struct pipe_content  *pipes, void *packet);
+
+void init_pipe_content(struct pipe_content *pipe_ct);
+void handle_pub(emq_work *work, nng_msg *send_msg);
 bool encode_pub_message(nng_msg *dest_msg, struct pub_packet_struct *dest_pub_packet, const emq_work *work);
 reason_code decode_pub_message(emq_work *work);
-void foreach_client(struct clients *sub_clients, void **pipe_content, uint32_t *totals, void *packet,
-                    handle_client handle_cb);
+void foreach_client(struct clients *sub_clients, struct pipe_content  *pipe_content, void *packet, handle_client handle_cb);
 
 #endif //NNG_PUB_HANDLER_H

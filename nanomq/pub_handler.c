@@ -18,73 +18,68 @@
 
 #define SUPPORT_MQTT5_0 1
 
-static void handle_client_pipe_msgs(struct client *sub_client, void **pipe_content, uint32_t *total, void *pub_pucket);
-static void handle_client_pipes(struct client *sub_client, void **pipe_content, uint32_t *total, void *packet);
+static void handle_client_pipe_msgs(struct client *sub_client, struct pipe_content *in_pipe_content, void *pub_packet);
 
 static char *bytes_to_str(const unsigned char *src, char *dest, int src_len);
 static void print_hex(const char *prefix, const unsigned char *src, int src_len);
 static uint32_t append_bytes_with_type(nng_msg *msg, uint8_t type, uint8_t *content, uint32_t len);
+static void
+put_pipe_msgs(nng_msg *send_msg, emq_work *work, struct pipe_content *in_pipe_content, void *pub_packet, uint8_t qos);
 
-
-static void handle_client_pipe_msgs(struct client *sub_client, void **pipe_content, uint32_t *total, void *pub_pucket)
+void
+init_pipe_content(struct pipe_content *pipe_ct)
 {
+	pipe_ct->pipe_msg      = NULL;
+	pipe_ct->total         = 0;
+	pipe_ct->current_index = 0;
+}
 
-	nng_msg *msg;
-	nng_msg_alloc(&msg, 0);
+static void
+put_pipe_msgs(nng_msg *send_msg, emq_work *work, struct pipe_content *in_pipe_content, void *pub_packet, uint8_t qos)
+{
+	struct pub_packet_struct *pub_pk = (struct pub_packet_struct *) pub_packet;
+	struct pipe_content      *p_ct   = (struct pipe_content *) in_pipe_content;
 
-	emq_work                 *client_work  = (emq_work *) sub_client->ctxt;
-	uint32_t                 current_index = *total;
-	struct pub_packet_struct *pub_pk       = (struct pub_packet_struct *) pub_pucket;
-	*pipe_content = (struct pipe_nng_msg *) realloc(*pipe_content,
-	                                                sizeof(struct pipe_nng_msg) * (current_index + 2));
-	debug_msg("realloc for pipe_nng_msg: [%p],nmember: [%d], size: [%lu]", *pipe_content, current_index + 2,
-	          sizeof(struct pipe_nng_msg) * (current_index + 2));
-
-	struct pipe_nng_msg **pnm = (struct pipe_nng_msg **) pipe_content;
-
+	p_ct->pipe_msg = (struct pipe_nng_msg *) realloc(p_ct->pipe_msg, sizeof(struct pipe_nng_msg) * (p_ct->total + 1));
 	uint8_t temp_qos = pub_pk->fixed_header.qos;
-	pub_pk->fixed_header.qos = pub_pk->fixed_header.qos < client_work->sub_pkt->node->it->qos ?
-	                           pub_pk->fixed_header.qos : client_work->sub_pkt->node->it->qos;
-	debug_msg("set qos: [%d]", pub_pk->fixed_header.qos);
-	encode_pub_message(msg, pub_pk, client_work);
+	pub_pk->fixed_header.qos = qos;
 
-	debug_msg("put pipe content into pipe_nng_msg");
+	encode_pub_message(send_msg, pub_packet, work);
 
-	(*pnm)[current_index].index = current_index;
-	(*pnm)[current_index].pipe  = client_work->pid.id;
-	(*pnm)[current_index].qos   = pub_pk->fixed_header.qos;
-	(*pnm)[current_index].msg   = msg;
-
-	(*pnm)[current_index + 1].index = 0;
-	(*pnm)[current_index + 1].pipe  = 0;
-	(*pnm)[current_index + 1].qos   = 0;
-	(*pnm)[current_index + 1].msg   = NULL;
+	p_ct->pipe_msg[p_ct->total].index = p_ct->total;
+	p_ct->pipe_msg[p_ct->total].pipe  = work->pid.id;
+	p_ct->pipe_msg[p_ct->total].qos   = pub_pk->fixed_header.qos;
+	p_ct->pipe_msg[p_ct->total].msg   = send_msg;
 
 	pub_pk->fixed_header.qos = temp_qos;
-
-	*total = current_index + 1;
+	p_ct->total += 1;
 
 }
 
-static void handle_client_pipes(struct client *sub_client, void **pipe_content, uint32_t *total, void *packet)
+static void
+handle_client_pipe_msgs(struct client *sub_client, struct pipe_content *in_pipe_content, void *pub_packet)
 {
-	uint32_t current_index = *total;
-	uint32_t **pipes       = (uint32_t **) pipe_content;
+	nng_msg *msg;
+	int     rv;
 
-	emq_work *client_work = (emq_work *) sub_client->ctxt;
-	*pipes = realloc(*pipes, sizeof(uint32_t) * (current_index + 2));
+	if ((rv = nng_msg_alloc(&msg, 0)) != 0) {
+		debug_msg("nng_msg_alloc failed: %d", rv);
+		return;
+	}
 
-	(*pipes)[current_index]     = client_work->pid.id;
-	(*pipes)[current_index + 1] = 0;
+	emq_work                 *client_work = (emq_work *) sub_client->ctxt;
+	struct pub_packet_struct *pub_pk      = (struct pub_packet_struct *) pub_packet;
 
-	debug_msg("get pipe id, sub_pipes[%d]: [%d]", *total, (*pipes)[*total]);
+	uint8_t qos = pub_pk->fixed_header.qos < client_work->sub_pkt->node->it->qos ?
+	              pub_pk->fixed_header.qos : client_work->sub_pkt->node->it->qos;
 
-	*total = current_index + 1;
+	put_pipe_msgs(msg, client_work, in_pipe_content, pub_pk, qos);
+
 }
 
 
-void foreach_client(struct clients *sub_clients, void **pipe_content, uint32_t *totals, void *packet,
-                    handle_client handle_cb)
+void
+foreach_client(struct clients *sub_clients, struct pipe_content *pipe_content, void *packet, handle_client handle_cb)
 {
 	int  cols       = 1;
 	char **id_queue = NULL;
@@ -105,7 +100,7 @@ void foreach_client(struct clients *sub_clients, void **pipe_content, uint32_t *
 			if (equal == false) {
 				id_queue[cols - 1] = sub_client->id;
 				debug_msg("sub_client: [%p], id: [%s]\n", sub_client, sub_client->id);
-				handle_cb(sub_client, pipe_content, totals, packet);
+				handle_cb(sub_client, pipe_content, packet);
 				cols++;
 			}
 			sub_client = sub_client->next;
@@ -117,15 +112,11 @@ void foreach_client(struct clients *sub_clients, void **pipe_content, uint32_t *
 }
 
 
-void handle_pub(emq_work *work, nng_msg *send_msg, void **pipes, transmit_msgs tx_msgs)
+void
+handle_pub(emq_work *work, nng_msg *send_msg)
 {
 	char                  **topic_queue = NULL;
 	struct topic_and_node *tp_node      = NULL;
-	struct client         *sub_client   = NULL;
-
-	uint32_t self_pipe_id[2] = {work->pid.id, 0};
-	uint32_t total_sub_pipes;
-
 	bool                  free_packet   = true;
 
 	work->pub_packet = (struct pub_packet_struct *) nng_alloc(sizeof(struct pub_packet_struct));
@@ -144,22 +135,8 @@ void handle_pub(emq_work *work, nng_msg *send_msg, void **pipes, transmit_msgs t
 
 		switch (work->pub_packet->fixed_header.packet_type) {
 			case PUBLISH:
-				debug_msg("handling PUBLISH");
+				debug_msg("handling PUBLISH (qos %d)", work->pub_packet->fixed_header.qos);
 				topic_queue = topic_parse(work->pub_packet->variable_header.publish.topic_name.str_body);
-
-				struct clients *client_list = search_client(work->db->root, topic_queue);
-
-				total_sub_pipes = 0;
-
-				if (client_list != NULL) {
-#if DISTRIBUTE_DIFF_MSG
-					foreach_client(client_list, pipes, &total_sub_pipes, work->pub_packet, handle_client_pipe_msgs);
-#else
-					foreach_client(client_list, &pipes, &total_sub_pipes, NULL, handle_client_pipes);
-#endif
-				}
-
-				debug_msg("pipes: [%p], total_sub_pipes: [%d]", pipes, total_sub_pipes);
 
 				switch (work->pub_packet->fixed_header.qos) {
 					case 0:
@@ -167,36 +144,36 @@ void handle_pub(emq_work *work, nng_msg *send_msg, void **pipes, transmit_msgs t
 						break;
 					case 1:
 						pub_response.fixed_header.packet_type = PUBACK;
-						encode_pub_message(send_msg, &pub_response, work);
-						tx_msgs(send_msg, work, self_pipe_id);
-						work->pub_packet->fixed_header.dup = 0;//if publish first time
+						put_pipe_msgs(send_msg, work, work->pipe_ct, &pub_response,
+						              work->pub_packet->fixed_header.qos);
 						break;
 					case 2:
 						pub_response.fixed_header.packet_type = PUBREC;
-						encode_pub_message(send_msg, &pub_response, work);
-						tx_msgs(send_msg, work, self_pipe_id);
-						work->pub_packet->fixed_header.dup = 0;//if publish first time
+						put_pipe_msgs(send_msg, work, work->pipe_ct, &pub_response,
+						              work->pub_packet->fixed_header.qos);
 						break;
 					default:
 						debug_msg("invalid qos: %d", work->pub_packet->fixed_header.qos);
 						break;
 				}
 
+				struct clients *client_list = search_client(work->db->root, topic_queue);
+
+				if (client_list != NULL) {
+					foreach_client(client_list, work->pipe_ct, work->pub_packet, handle_client_pipe_msgs);
+				}
+
+				debug_msg("pipe_nng_msg size: [%d]", work->pipe_ct->total);
+
 				if (work->pub_packet->fixed_header.retain) {
-					debug_msg("handle retain message");
 					tp_node = nng_alloc(sizeof(struct topic_and_node));
 					search_node(work->db, topic_queue, tp_node);
-
-//					struct topic_and_node *temp_tan = tp_node;
-
-					debug_msg("search result, topic_and_node: [%p]", tp_node);
 
 					struct retain_msg *retain = NULL;
 
 					if (tp_node->topic == NULL) {
 
 						retain = get_retain_msg(tp_node->node);
-						debug_msg("get retain: [%p]", retain);
 
 						if (retain != NULL) {
 							if (retain->message != NULL) {
@@ -210,9 +187,7 @@ void handle_pub(emq_work *work, nng_msg *send_msg, void **pipes, transmit_msgs t
 						add_node(tp_node, NULL);
 					}
 
-					debug_msg("alloc retain ago");
 					retain = nng_alloc(sizeof(struct retain_msg));
-					debug_msg("alloc retain later: [%p]", retain);
 
 					retain->qos = work->pub_packet->fixed_header.qos;
 					if (work->pub_packet->payload_body.payload_len > 0) {
@@ -224,7 +199,6 @@ void handle_pub(emq_work *work, nng_msg *send_msg, void **pipes, transmit_msgs t
 						retain->message = NULL;
 					}
 
-//					search_node(work->db, topic_queue, tp_node); //FIXME should remove later
 					set_retain_msg(tp_node->node, retain);
 
 					if (tp_node != NULL) {
@@ -232,14 +206,8 @@ void handle_pub(emq_work *work, nng_msg *send_msg, void **pipes, transmit_msgs t
 						tp_node = NULL;
 						debug_msg("free memory topic_and_node");
 					}
-				}
 
-#if !DISTRIBUTE_DIFF_MSG
-				if (total_sub_pipes > 0) {
-					encode_pub_message(send_msg, work->pub_packet, work);
-					tx_msgs(send_msg, work, pipes);
 				}
-#endif
 
 				if (free_packet) {
 					if (work->pub_packet->variable_header.publish.topic_name.str_body != NULL) {
@@ -255,16 +223,9 @@ void handle_pub(emq_work *work, nng_msg *send_msg, void **pipes, transmit_msgs t
 						work->pub_packet->payload_body.payload = NULL;
 						debug_msg("free memory payload");
 					}
-
-					if (tp_node != NULL) {
-						nng_free(tp_node, sizeof(struct topic_and_node));
-						tp_node = NULL;
-						debug_msg("free memory topic_and_node");
-					}
 				}
 
-				zfree(*topic_queue);
-				zfree(topic_queue);
+				free_topic_queue(topic_queue);
 				break;
 
 			case PUBACK:
@@ -276,18 +237,14 @@ void handle_pub(emq_work *work, nng_msg *send_msg, void **pipes, transmit_msgs t
 				debug_msg("handling PUBREC");
 				pub_response.fixed_header.packet_type                 = PUBREL;
 				pub_response.variable_header.pubrel.packet_identifier = work->pub_packet->variable_header.pubrec.packet_identifier;
-				encode_pub_message(send_msg, &pub_response, work);
-				tx_msgs(send_msg, work, self_pipe_id);
-				//TODO
+				put_pipe_msgs(send_msg, work, work->pipe_ct, &pub_response, work->pub_packet->fixed_header.qos);
 				break;
 
 			case PUBREL:
 				debug_msg("handling PUBREL");
-				pub_response.fixed_header.packet_type                 = PUBCOMP;
-				pub_response.variable_header.pubrel.packet_identifier = work->pub_packet->variable_header.pubrel.packet_identifier;
-				encode_pub_message(send_msg, &pub_response, work);
-				tx_msgs(send_msg, work, self_pipe_id);
-				//TODO
+				pub_response.fixed_header.packet_type                  = PUBCOMP;
+				pub_response.variable_header.pubcomp.packet_identifier = work->pub_packet->variable_header.pubrel.packet_identifier;
+				put_pipe_msgs(send_msg, work, work->pipe_ct, &pub_response, work->pub_packet->fixed_header.qos);
 				break;
 
 			case PUBCOMP:
@@ -302,7 +259,6 @@ void handle_pub(emq_work *work, nng_msg *send_msg, void **pipes, transmit_msgs t
 	} else {
 		debug_msg("decode message failed: %d", result);
 		//TODO send DISCONNECT with reason_code if MQTT Version=5.0
-		// tx_msgs
 	}
 
 	if (free_packet && work->pub_packet != NULL) {
@@ -312,7 +268,8 @@ void handle_pub(emq_work *work, nng_msg *send_msg, void **pipes, transmit_msgs t
 	}
 }
 
-static uint32_t append_bytes_with_type(nng_msg *msg, uint8_t type, uint8_t *content, uint32_t len)
+static uint32_t
+append_bytes_with_type(nng_msg *msg, uint8_t type, uint8_t *content, uint32_t len)
 {
 	if (len > 0) {
 		nng_msg_append(msg, &type, 1);
@@ -325,7 +282,8 @@ static uint32_t append_bytes_with_type(nng_msg *msg, uint8_t type, uint8_t *cont
 
 }
 
-bool encode_pub_message(nng_msg *dest_msg, struct pub_packet_struct *dest_pub_packet, const emq_work *work)
+bool
+encode_pub_message(nng_msg *dest_msg, struct pub_packet_struct *dest_pub_packet, const emq_work *work)
 {
 	uint8_t         tmp[4]     = {0};
 	uint32_t        arr_len    = 0;
@@ -504,7 +462,8 @@ bool encode_pub_message(nng_msg *dest_msg, struct pub_packet_struct *dest_pub_pa
 }
 
 
-reason_code decode_pub_message(emq_work *work)
+reason_code
+decode_pub_message(emq_work *work)
 {
 	int     pos       = 0;
 	int     used_pos  = 0;
@@ -562,6 +521,7 @@ reason_code decode_pub_message(emq_work *work)
 
 				if (pub_packet->fixed_header.qos > 0) { //extract packet_identifier while qos > 0
 					NNI_GET16(msg_body + pos, pub_packet->variable_header.publish.packet_identifier);
+					debug_msg("identifier: [%d]", pub_packet->variable_header.publish.packet_identifier);
 					pos += 2;
 				}
 
@@ -797,7 +757,8 @@ reason_code decode_pub_message(emq_work *work)
  * @param src_len
  * @return
  */
-static char *bytes_to_str(const unsigned char *src, char *dest, int src_len)
+static char *
+bytes_to_str(const unsigned char *src, char *dest, int src_len)
 {
 	int  i;
 	char szTmp[3] = {0};
@@ -809,7 +770,8 @@ static char *bytes_to_str(const unsigned char *src, char *dest, int src_len)
 	return dest;
 }
 
-static void print_hex(const char *prefix, const unsigned char *src, int src_len)
+static void
+print_hex(const char *prefix, const unsigned char *src, int src_len)
 {
 	if (src_len > 0) {
 		char *dest = (char *) nng_alloc(src_len * 2);

@@ -21,7 +21,7 @@
 #include <mtd/mtd-user.h>
 #include <sys/ioctl.h>
 
-#define NG_MODE	(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
+#define MODE (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
 
 static char fpath_tmp[100];
 
@@ -31,7 +31,7 @@ int file_trunc_to_zero(const char *fpath)
 
 	debug_msg("fpath = %s\n", fpath);
 
-	fd = open(fpath, O_WRONLY | O_CREAT | O_TRUNC, NG_MODE);
+	fd = open(fpath, O_WRONLY | O_CREAT | O_TRUNC, MODE);
 	if (fd >= 0)
 		close(fd);
 
@@ -198,7 +198,7 @@ int file_write_int(int val, const char *fpath_fmt, ...)
 
 	buff_len = sprintf(buff, "%i\n", val);
 
-	fd = open(fpath_tmp, O_CREAT | O_WRONLY | O_TRUNC, NG_MODE);
+	fd = open(fpath_tmp, O_CREAT | O_WRONLY | O_TRUNC, MODE);
 	if (fd < 0) {
 		debug_msg("Error - can't open file '%s' to write pid: %s",
 			fpath_tmp, strerror(errno));
@@ -224,7 +224,7 @@ int file_write_string(const char *fpath, const char *string)
 
 	debug_msg("fpath = %s, string = '%s'", fpath, string);
 
-	fd = open(fpath, O_CREAT | O_WRONLY | O_TRUNC, NG_MODE);
+	fd = open(fpath, O_CREAT | O_WRONLY | O_TRUNC, MODE);
 	if (fd < 0) {
 		debug_msg("Error - can't open file '%s' to write string: %s",
 			fpath, strerror(errno));
@@ -258,7 +258,7 @@ int file_append_string(const char *fpath, const char *string_fmt, ...)
 	va_end(args);
 	debug_msg("fpath = %s, string = %s", fpath, string);
 
-	fd = open(fpath, O_CREAT | O_WRONLY | O_APPEND, NG_MODE);
+	fd = open(fpath, O_CREAT | O_WRONLY | O_APPEND, MODE);
 	if (fd < 0) {
 		debug_msg("Error - can't open file '%s' to append string: '%s'",
 			fpath, strerror(errno));
@@ -476,7 +476,7 @@ int file_truncr_to_sep(const char *fpath, char *separator)
 	free(line_ptr);
 
 write_sep:
-	fd = open(fpath, O_RDWR | O_CREAT, NG_MODE);
+	fd = open(fpath, O_RDWR | O_CREAT, MODE);
 	if (fd < 0)
 		return -1;
 
@@ -518,7 +518,7 @@ int file_append_int(const char *fpath, int value)
 
 	buff_len = sprintf(buff, "%i\n", value);
 
-	fd = open(fpath, O_CREAT | O_WRONLY | O_APPEND, NG_MODE);
+	fd = open(fpath, O_CREAT | O_WRONLY | O_APPEND, MODE);
 	if (fd < 0) {
 		debug_msg("Error - can't open file '%s' to append string: %s",
 			fpath, strerror(errno));

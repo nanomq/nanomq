@@ -7,6 +7,7 @@
 #include <nng.h>
 #include <mqtt_db.h>
 #include <hash.h>
+#include <zmalloc.h>
 
 #include "include/nanomq.h"
 #include "include/pub_handler.h"
@@ -23,7 +24,7 @@
 // #ifndef PARALLEL
 // #define PARALLEL 128
 // #endif
-#define PARALLEL 128
+#define PARALLEL 64
 
 // The server keeps a list of work items, sorted by expiration time,
 // so that we can use this to set the timeout to the correct value for
@@ -35,18 +36,6 @@ fatal(const char *func, int rv)
 	fprintf(stderr, "%s: %s\n", func, nng_strerror(rv));
 	exit(1);
 }
-
-void transmit_msgs_cb(nng_msg *send_msg, emq_work *work, uint32_t *pipes)
-{
-	work->state = SEND;
-	work->msg   = send_msg;//FIXME should be encode message for each sub cilent due to different minimum QoS
-	nng_aio_set_msg(work->aio, send_msg);
-	work->msg = NULL;
-
-	nng_aio_set_pipeline(work->aio, pipes);
-	nng_ctx_send(work->ctx, work->aio);
-}
-
 
 /*objective: 1 input/output low latency
 	     2 KV
@@ -62,9 +51,6 @@ server_cb(void *arg)
 	nng_pipe pipe;
 	int      rv;
 	uint32_t when;
-
-	uint32_t *pipes = NULL;
-//	struct pipe_nng_msg *pipe_msgs = NULL;
 
 	reason_code reason;
 	uint8_t     buf[2];
@@ -93,16 +79,15 @@ server_cb(void *arg)
 			debug_msg("RECVIED %d %x\n", work->ctx.id, nng_msg_cmd_type(msg));
 
 			if (nng_msg_cmd_type(msg) == CMD_DISCONNECT) {
-			  /**/
 				work->cparam = (conn_param *) nng_msg_get_conn_param(msg);
-				char                  *clientid = (char *) conn_param_get_clentid(work->cparam);
-				struct topic_and_node *tan      = nng_alloc(sizeof(struct topic_and_node));
-				struct client         *cli      = NULL;
-				struct topic_queue    *tq       = NULL;
+				char               *clientid = (char *) conn_param_get_clentid(work->cparam);
+				struct client      *cli      = NULL;
+				struct topic_queue *tq       = NULL;
 
 				debug_msg("##########DISCONNECT (clientID:[%s])##########", clientid);
 				if (check_id(clientid)) {
-					tq = get_topic(clientid);
+					tq                         = get_topic(clientid);
+					struct topic_and_node *tan = nng_alloc(sizeof(struct topic_and_node));
 					while (tq) {
 						if (tq->topic) {
 							search_node(work->db, topic_parse(tq->topic), tan);
@@ -236,48 +221,70 @@ server_cb(void *arg)
 			           nng_msg_cmd_type(work->msg) == CMD_PUBREL ||
 			           nng_msg_cmd_type(work->msg) == CMD_PUBCOMP) {
 
-				//nng_mtx_lock(work->mutex);
+//				nng_mtx_lock(work->mutex);
+
 				if ((rv = nng_aio_result(work->aio)) != 0) {
 					debug_msg("WAIT nng aio result error: %d", rv);
 					fatal("WAIT nng_ctx_recv/send", rv);
 					//nng_aio_wait(work->aio);
 					//break;
 				}
-
-#if DISTRIBUTE_DIFF_MSG
-				handle_pub(work, smsg, (void **) &work->pipe_msgs, NULL);
+				handle_pub(work, smsg);
+				nng_msg_free(work->msg);
+/*
+				char **topic_queue = NULL;
+				topic_queue = topic_parse("A/B/C");
+				search_client(work->db->root, topic_queue);
+				zfree(*topic_queue);
+				zfree(topic_queue);
 				nng_msg_free(work->msg);
 
-				if (work->pipe_msgs != NULL) {
-					debug_msg("set pipeline[%d]: [%d]", work->pipe_msgs[0].index, work->pipe_msgs[0].pipe);
-					work->msg = work->pipe_msgs[0].msg;
+*/
+				if (work->pipe_ct->total > 0) {
+					debug_msg("set pipeline[%d]: [%d], current pipeline: [%d]",
+					          work->pipe_ct->pipe_msg[work->pipe_ct->current_index].index,
+					          work->pipe_ct->pipe_msg[work->pipe_ct->current_index].pipe, work->pid.id);
+
+					work->msg = work->pipe_ct->pipe_msg[work->pipe_ct->current_index].msg;
 					nng_aio_set_msg(work->aio, work->msg);
 					work->msg   = NULL;
 					work->state = SEND;
 
-					nng_aio_set_pipeline(work->aio, work->pipe_msgs[0].pipe);
-					work->index = 1;
-					nng_ctx_send(work->ctx, work->aio);
-				}
-#else
-				handle_pub(work, smsg, pipes, transmit_msgs_cb);
+					if (work->pipe_ct->pipe_msg[work->pipe_ct->current_index].pipe != work->pid.id) {
+						nng_aio_set_pipeline(work->aio, work->pipe_ct->pipe_msg[work->pipe_ct->current_index].pipe);
+					}
 
-#endif
+					work->pipe_ct->current_index++;
+					if (work->pipe_ct->total == work->pipe_ct->current_index) {
+						free(work->pipe_ct->pipe_msg);
+						init_pipe_content(work->pipe_ct);
+					}
+
+					nng_msg_free(smsg);
+					nng_ctx_send(work->ctx, work->aio);
+					break;
+				}
+
 				if (work->state != SEND) {
 					nng_msg_free(smsg);
-					if (work->msg != NULL)
+					if (work->msg != NULL) {
 						nng_msg_free(work->msg);
+					}
+
 					work->msg   = NULL;
 					work->state = RECV;
 					nng_ctx_recv(work->ctx, work->aio);
 				}
-				//nng_mtx_unlock(work->mutex);
+//				nng_mtx_unlock(work->mutex);
 
 			} else {
 				debug_msg("broker has nothing to do");
-				nng_msg_free(smsg);
-				if (work->msg != NULL)
+				if (smsg != NULL) {
+					nng_msg_free(smsg);
+				}
+				if (work->msg != NULL) {
 					nng_msg_free(work->msg);
+				}
 				work->msg   = NULL;
 				work->state = RECV;
 				nng_ctx_recv(work->ctx, work->aio);
@@ -292,39 +299,35 @@ server_cb(void *arg)
 				fatal("SEND nng_ctx_send", rv);
 			} else if ((smsg = nng_aio_get_msg(work->aio)) != NULL) {
 				nng_msg_free(smsg);
-                        }
+			}
 
-#if DISTRIBUTE_DIFF_MSG
-			if (work->pipe_msgs != NULL && work->pipe_msgs[work->index].pipe != 0) {
-				debug_msg("set pipeline[%d] %d: [%d]", work->pipe_msgs[work->index].index, work->index, work->pipe_msgs[work->index].pipe);
-				work->msg = work->pipe_msgs[work->index].msg;
+			if (work->pipe_ct->total > work->pipe_ct->current_index) {
+				debug_msg("set pipeline[%d]: [%d]", work->pipe_ct->pipe_msg[work->pipe_ct->current_index].index,
+				          work->pipe_ct->pipe_msg[work->pipe_ct->current_index].pipe);
+
+				work->msg = work->pipe_ct->pipe_msg[work->pipe_ct->current_index].msg;
 				nng_aio_set_msg(work->aio, work->msg);
 				work->msg   = NULL;
 				work->state = SEND;
-				nng_aio_set_pipeline(work->aio, work->pipe_msgs[work->index].pipe);
-				work->index ++;
-				if (work->pipe_msgs[work->index].pipe == 0) {
-					free(work->pipe_msgs);
-					work->pipe_msgs = NULL;
+				if (work->pipe_ct->pipe_msg[work->pipe_ct->current_index].pipe != 0 &&
+				    work->pipe_ct->pipe_msg[work->pipe_ct->current_index].pipe != work->pid.id) {
+					nng_aio_set_pipeline(work->aio, work->pipe_ct->pipe_msg[work->pipe_ct->current_index].pipe);
 				}
+
+				work->pipe_ct->current_index++;
+				if (work->pipe_ct->total == work->pipe_ct->current_index) {
+					free(work->pipe_ct->pipe_msg);
+					init_pipe_content(work->pipe_ct);
+				}
+
 				nng_ctx_send(work->ctx, work->aio);
-				break;
 			} else {
 				work->msg   = NULL;
 				work->state = RECV;
 				nng_ctx_recv(work->ctx, work->aio);
-				break;
 			}
-#else
-			if (pipes != NULL) {
-				free(pipes);
-				pipes = NULL;
-			}
-#endif
-			work->msg   = NULL;
-			work->state = RECV;
-			nng_ctx_recv(work->ctx, work->aio);
 			break;
+
 		default:
 			fatal("bad state!", NNG_ESTATE);
 			break;
@@ -350,8 +353,9 @@ alloc_work(nng_socket sock)
 	if ((rv = nng_mtx_alloc(&w->mutex)) != 0) {
 		fatal("nng_mtx_alloc", rv);
 	}
-	w->pipe_msgs = NULL;
-	w->index = 0;
+
+	w->pipe_ct = nng_alloc(sizeof(struct pipe_content));
+	init_pipe_content(w->pipe_ct);
 
 	w->state = INIT;
 	return (w);
