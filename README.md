@@ -2,7 +2,7 @@
 
 Nano MQTT Broker
 
-A light-weight and Blazing-fast MQTT 5.0 Broker for IoT Edge platform.
+A light-weight and Blazing-fast MQTT Broker for IoT Edge platform.
 
 
 
@@ -34,7 +34,7 @@ $PROJECT_PATH/nanomq/build$ cmake -G Ninja ..
 $PROJECT_PATH/nanomq/build$ sudo ninja install
 
 or you can limit threads by
-cmake -G Ninja -DNNG_RESOLV_CONCURRENCY=1 -DNNG_NUM_TASKQ_THREADS=5 -DNNG_MAX_TASKQ_THREADS=5  ..
+$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DNNG_RESOLV_CONCURRENCY=1 -DNNG_NUM_TASKQ_THREADS=5 -DNNG_MAX_TASKQ_THREADS=5  ..
 
 or you can print log by
 
@@ -51,12 +51,10 @@ compile nanolib independently:
 $PROJECT_PATH/nanolib/build$ cmake -G Ninja ..
 $PROJECT_PATH/nanolib/build$ ninja install
 
-In short future, We will  implement a way to let nanomq support MQTT without damaging NNG's SP support.
-Also rewrite CMake and MakeFile so that user can easily choose which ver of nng to base on.
-
-TODO:
-
-more features coming
+Currently, NanoMQ only supports basic MQTT 3.1.1 Pub/Sub with Qos 0.
+In short future, We will release a roadmap, and next version of NanoMQ with full MQTT 5.0 support. 
+Also, in order to let NanoMQ be compatible with NNG library and SP, implementing a subsystem to let nanomq support MQTT without damaging NNG's SP support.
+Rewriting CMake and MakeFile so that users can easily choose which ver of nng to base on.
 
 ===============================================
 
@@ -66,7 +64,17 @@ more features coming
 sudo ./nanomq broker start 'tcp://localhost:1883' &
 
 #test POSIX message Queue
-sudo ./nanomq broker mq start/stop  
+sudo ./nanomq broker mq start/stop
+
+===============================================
+
+3. Debug:
+
+For Support & Debug, NanoMQ has a Debugging system which logs all information from all threads. It is enabled by default.
+And you can disable/enable it by:
+
+$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DNOLOG=1  ..
+$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DNOLOG=0  ..
 
 ## Communties
 
@@ -77,8 +85,6 @@ You can Join us on Slack channel:
 #nanomq-dev : for MQTT lover & developer
 
 #nanomq-nng : for users & nng project.
-
-
 
 More communities on github, slack, reddit, twitter, gitter, discord are coming soon.
 
