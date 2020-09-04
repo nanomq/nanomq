@@ -95,7 +95,7 @@ server_cb(void *arg)
 
 				debug_msg("##########DISCONNECT (clientID:[%s])##########", clientid);
 				if (check_id(clientid)) {
-					tq                         = get_topic(clientid);
+					tq = get_topic(clientid);
 					while (tq) {
 						if (tq->topic) {
 							char ** topics = topic_parse(tq->topic);
@@ -118,12 +118,12 @@ server_cb(void *arg)
 						}
 						*/
 					}
-					debug_msg("INHASH: clientid [%s] exist?: [%d]; pipeid [%d] exist?: [%d]",
-					          clientid, (int) check_id(clientid), pipe.id, (int) check_pipe_id(pipe.id));
 				}
 
 				del_topic_all(clientid);
 				del_pipe_id(pipe.id);
+				debug_msg("INHASH: clientid [%s] exist?: [%d]; pipeid [%d] exist?: [%d]",
+						clientid, (int) check_id(clientid), pipe.id, (int) check_pipe_id(pipe.id));
 
 				work->state = RECV;
 				nng_msg_free(msg);
