@@ -594,54 +594,43 @@ void search_node(struct db_tree *db, char **topic_queue, struct topic_and_node *
 
 void del_all(uint32_t pipe_id, void *ptr)
 {
-	char *client = get_client_id(pipe_id);
-	if (client == NULL) {
+	char *clientid = get_client_id(pipe_id);
+	if (clientid == NULL) {
 		log("no client is found");
 		return;
 	}
-	log("--PID %d--CLID %s--", pipe_id, client);
+	log("--PID %d--CLID %s--", pipe_id, clientid);
 	struct db_tree *db = ptr;
+	struct topic_and_node tan;
+	struct client * cli = NULL;
 
-	if (client) {
-		if (check_id(client)) {
-			struct topic_queue *tq = get_topic(client);
-			while (tq) {
-				char **topic_queue = topic_parse(tq->topic);
-				struct topic_and_node *tan = NULL;
-				tan = (struct topic_and_node*)zmalloc(sizeof(struct topic_and_node));
-				search_node(db, topic_queue, tan);
-				debug("%s", tan->node->topic);
-				del_client(tan, client);
-				// struct client * cli = del_client(tan, client);
-				// TODO free cli
-				// cli = NULL;
-				del_node(tan->node);
-
-				char *tmp = NULL;
-		 		char **tt = topic_queue;
-
-				while (*topic_queue) {
-					tmp = *topic_queue;
-					topic_queue++;
-					zfree(tmp);
-					tmp = NULL;
+	if (check_id(clientid)) {
+		struct topic_queue *tq = get_topic(clientid);
+		while (tq) {
+			if(tq->topic){
+				char ** topics = topic_parse(tq->topic);
+				search_node(db, topics, &tan);
+				free_topic_queue(topics);
+				if((cli = del_client(&tan, clientid)) == NULL) {
+					break;
 				}
-
-				zfree(tt);
-				topic_queue = NULL;
-
-				zfree(tan);
-				tan = NULL;
-
-				tq = tq->next;
 			}
-			del_topic_all(client);
-			del_pipe_id(pipe_id);
-			log("del all");
-		}  else {
-			log("no topic can be found");
+			if(cli) {
+				del_node(tan.node);
+				// free cli & ctxt
+				// destroy_sub_ctx(cli->ctxt, tq->topic); // only free work->sub_pkt
+				// nng_free(cli, sizeof(struct client));
+			}
+			tq = tq->next;
 		}
+		del_topic_all(clientid);
+		del_pipe_id(pipe_id);
+		log("del all");
+	} else {
+		log("no clientid can be found");
 	}
+	log("INHASH: clientid [%s] exist?: [%d]; pipeid [%d] exist?: [%d]",
+		clientid, (int) check_id(clientid), pipe_id, (int) check_pipe_id(pipe_id));
 	return;
 }
 
@@ -964,6 +953,15 @@ void free_topic_queue(char **topic_queue)
 	topic_queue = NULL;
 }
 
+void free_clients(struct clients *for_free)
+{
+	while (for_free) {
+		struct clients *t = for_free;
+		for_free = for_free->down;
+		zfree(t);
+		t = NULL;
+	}
+}
 
 void hash_add_alias(int alias, char *topic_data)
 {

@@ -70,10 +70,8 @@ union property_content {
 //Properties
 struct properties {
 	uint32_t               len; //property length, exclude itself,variable byte integer;
-//    struct property prop_content[PUBLISH_PROPERTIES_TOTAL];
 	union property_content content;
 };
-
 
 //MQTT Variable header
 union variable_header {
@@ -100,29 +98,35 @@ struct pub_packet_struct {
 	struct fixed_header   fixed_header;
 	union variable_header variable_header;
 	struct mqtt_payload   payload_body;
-
 };
 
-struct pipe_nng_msg {
+struct pipe_info {
+	uint8_t                   qos;
+	mqtt_control_packet_types cmd;
+
 	uint32_t pipe;
 	uint32_t index;
-	uint8_t  qos;
-	nng_msg  *msg;
+	emq_work *pub_work;
 };
-
 
 struct pipe_content {
-	uint32_t            total;
-	uint32_t            current_index;
-	struct pipe_nng_msg *pipe_msg;
+	uint32_t total;
+	uint32_t current_index;
+	bool (*encode_msg)(nng_msg *, const emq_work *, mqtt_control_packet_types, uint8_t, bool);
+	struct pipe_info *pipe_info;
 };
 
-typedef void (*handle_client)(struct client *sub_client, struct pipe_content  *pipes, void *packet);
+typedef void (*handle_client)(struct client *sub_client, emq_work *pub_work, struct pipe_content *pipe_ct);
 
-void init_pipe_content(struct pipe_content *pipe_ct);
-void handle_pub(emq_work *work, nng_msg *send_msg);
-bool encode_pub_message(nng_msg *dest_msg, struct pub_packet_struct *dest_pub_packet, const emq_work *work);
+bool
+encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_types cmd, uint8_t sub_qos, bool dup);
 reason_code decode_pub_message(emq_work *work);
-void foreach_client(struct clients *sub_clients, struct pipe_content  *pipe_content, void *packet, handle_client handle_cb);
+void
+foreach_client(struct clients *sub_clients, emq_work *pub_work, struct pipe_content *pipe_ct, handle_client handle_cb);
+void free_pub_packet(struct pub_packet_struct *pub_packet);
+void free_pipes_info(struct pipe_info *p_info);
+void init_pipe_content(struct pipe_content *pipe_ct);
+void handle_pub(emq_work *work, struct pipe_content *pipe_ct, nng_msg *send_msg);
+
 
 #endif //NNG_PUB_HANDLER_H

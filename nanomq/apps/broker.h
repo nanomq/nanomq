@@ -18,13 +18,13 @@ struct work {
 	nng_mtx        *mutex;
 	struct db_tree *db;
 
+	struct pipe_content       *pipe_ct;
 	conn_param                *cparam;
 	struct pub_packet_struct  *pub_packet;
 	struct packet_subscribe   *sub_pkt;
 	struct packet_unsubscribe *unsub_pkt;
-	struct pipe_content       *pipe_ct;
-};
 
+};
 
 typedef struct work emq_work;
 

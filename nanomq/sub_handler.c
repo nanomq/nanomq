@@ -86,11 +86,16 @@ uint8_t decode_sub_message(nng_msg * msg, packet_subscribe * sub_pkt){
 		topic_node_t->it = topic_option;
 		_topic_node = topic_node_t;
 
-		len_of_topic = get_utf8_str(&(topic_option->topic_filter.str_body), payload_ptr, &bpos); // len of topic filter
-		if(len_of_topic != -1){
+		NNI_GET16(payload_ptr+bpos, len_of_topic);
+		bpos += 2;
+
+		if(len_of_topic != 0){
 			topic_option->topic_filter.len = len_of_topic;
+			topic_option->topic_filter.str_body = nng_alloc(len_of_topic);
+			strncpy(topic_option->topic_filter.str_body, payload_ptr + bpos, topic_option->topic_filter.len);
+			bpos += len_of_topic;
 		}else {
-			debug_msg("NOT utf-8 format string. ");
+			debug_msg("Topic length Error.");
 			return PROTOCOL_ERROR;
 		}
 
@@ -228,7 +233,7 @@ uint8_t sub_ctx_handle(emq_work * work){
 		topic_node_t = topic_node_t->next;
 	}
 
-	// check treeDB
+	// check treeDhnmbB
 	print_db_tree(work->db);
 	debug_msg("End of sub ctx handle. \n");
 	return SUCCESS;
@@ -237,6 +242,7 @@ uint8_t sub_ctx_handle(emq_work * work){
 void destroy_sub_ctx(void * ctxt, char * target_topic){
 	emq_work * work = ctxt;
 	if(!work){
+		debug_msg("ERROR : ctx lost!");
 		return;
 	}
 	if(!work->sub_pkt){
@@ -252,16 +258,25 @@ void destroy_sub_ctx(void * ctxt, char * target_topic){
 	topic_node * before_topic_node = NULL;
 	while(topic_node_t){
 		if(!strncmp(topic_node_t->it->topic_filter.str_body, target_topic,
-				topic_node_t->it->topic_filter.len) || !strcmp(target_topic, "")){
+				topic_node_t->it->topic_filter.len)){
 			debug_msg("FREE in topic_node [%s] in tree", topic_node_t->it->topic_filter.str_body);
 			if(before_topic_node){
 				before_topic_node->next = topic_node_t->next;
 			}else{
 				sub_pkt->node = topic_node_t->next;
 			}
+			nng_free(topic_node_t->it->topic_filter.str_body, topic_node_t->it->topic_filter.len);
 			nng_free(topic_node_t->it, sizeof(topic_with_option));
 			nng_free(topic_node_t, sizeof(topic_node));
 			break;
+		}
+		// test
+		else{
+			char * t = nng_alloc(topic_node_t->it->topic_filter.len+1);
+			strncpy(t, topic_node_t->it->topic_filter.str_body, topic_node_t->it->topic_filter.len);
+			t[topic_node_t->it->topic_filter.len+1] = '\0';
+			debug_msg("a/topic b/topic [%s] [%s]", t, target_topic);
+			nng_free(t, topic_node_t->it->topic_filter.len+1);
 		}
         before_topic_node = topic_node_t;
 		topic_node_t = topic_node_t->next;
