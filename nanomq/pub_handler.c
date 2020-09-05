@@ -58,16 +58,19 @@ put_pipe_msgs(emq_work *sub_work, emq_work *pub_work, struct pipe_content *pipe_
 	pipe_ct->pipe_info[pipe_ct->total].cmd      = cmd;
 	pipe_ct->pipe_info[pipe_ct->total].pub_work = pub_work;
 
-	debug_msg("put pipe_info: index: [%d], "
+	debug_msg("put sub pipe_info: index: [%d], "
 	          "pipe: [%d], "
 	          "qos: [%d], "
 	          "cmd: [%d], "
-	          "pub pub_work: [%p]",
+	          "pub pub_work: [%p]"
+	          "pub pipe: [%d]",
 	          pipe_ct->pipe_info[pipe_ct->total].index,
 	          pipe_ct->pipe_info[pipe_ct->total].pipe,
 	          pipe_ct->pipe_info[pipe_ct->total].qos,
 	          pipe_ct->pipe_info[pipe_ct->total].cmd,
-	          pipe_ct->pipe_info[pipe_ct->total].pub_work);
+	          pipe_ct->pipe_info[pipe_ct->total].pub_work,
+	          pipe_ct->pipe_info[pipe_ct->total].pub_work->pid.id
+	);
 
 	pipe_ct->total += 1;
 	debug_msg("input cmd: %d, current total: %d", cmd, pipe_ct->total);
@@ -102,7 +105,8 @@ foreach_client(struct clients *sub_clients, emq_work *pub_work, struct pipe_cont
 
 			if (equal == false) {
 				id_queue[cols - 1] = sub_client->id;
-				debug_msg("sub_client: [%p], id: [%s]", sub_client, sub_client->id);
+				emq_work *sub_work = (emq_work *) sub_client->ctxt;
+				debug_msg("sub_client: [%p], id: [%s], pipe: [%d]", sub_client, sub_client->id, sub_work->pid.id);
 				handle_cb(sub_client, pub_work, pipe_ct);
 				cols++;
 			}
@@ -393,7 +397,7 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_
 		case PUBACK:
 		case PUBREC:
 		case PUBCOMP:
-			debug_msg("encode %d message",cmd);
+			debug_msg("encode %d message", cmd);
 			struct pub_packet_struct pub_response = {
 					.fixed_header.packet_type = cmd,
 					.fixed_header.dup = dup,
