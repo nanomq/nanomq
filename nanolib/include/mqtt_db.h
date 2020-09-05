@@ -97,6 +97,8 @@ char **topic_parse(char *topic);
 
 void free_topic_queue(char **topic_queue);
 
+void free_clients(struct clients *for_free);
+
 struct db_node *find_next(struct db_node *node, bool *equal, char
 		**topic_queue);
 

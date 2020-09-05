@@ -8,14 +8,12 @@
 //
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <time.h>
 
-#include <protocol/mqtt/mqtt_parser.h>
 #include <nng.h>
 #include <mqtt_db.h>
 #include <hash.h>
 #include <zmalloc.h>
+#include <protocol/mqtt/nano_tcp.h>
 
 #include "include/nanomq.h"
 #include "include/pub_handler.h"
@@ -53,15 +51,15 @@ void
 server_cb(void *arg)
 {
 	emq_work *work = arg;
-	nng_ctx  ctx2;
 	nng_msg  *msg;
-	nng_msg  *smsg;
+	nng_msg  *smsg = NULL;
 	nng_pipe pipe;
 	int      rv;
-	uint32_t when;
 
 	reason_code reason;
 	uint8_t     buf[2];
+
+	struct pipe_info p_info;
 
 	switch (work->state) {
 		case INIT:
@@ -98,10 +96,10 @@ server_cb(void *arg)
 					tq = get_topic(clientid);
 					while (tq) {
 						if (tq->topic) {
-							char ** topics = topic_parse(tq->topic);
+							char **topics = topic_parse(tq->topic);
 							search_node(work->db, topics, &tan);
 							free_topic_queue(topics);
-							if ((cli = del_client(&tan, clientid)) == NULL) {
+							if ((cli      = del_client(&tan, clientid)) == NULL) {
 								break;
 							}
 						}
@@ -123,7 +121,7 @@ server_cb(void *arg)
 				del_topic_all(clientid);
 				del_pipe_id(pipe.id);
 				debug_msg("INHASH: clientid [%s] exist?: [%d]; pipeid [%d] exist?: [%d]",
-						clientid, (int) check_id(clientid), pipe.id, (int) check_pipe_id(pipe.id));
+					  clientid, (int) check_id(clientid), pipe.id, (int) check_pipe_id(pipe.id));
 
 				work->state = RECV;
 				nng_msg_free(msg);
@@ -239,50 +237,50 @@ server_cb(void *arg)
 				if ((rv = nng_aio_result(work->aio)) != 0) {
 					debug_msg("WAIT nng aio result error: %d", rv);
 					fatal("WAIT nng_ctx_recv/send", rv);
-					//nng_aio_wait(work->aio);
-					//break;
 				}
-				handle_pub(work, smsg);
-				nng_msg_free(work->msg);
-/*
-				char **topic_queue = NULL;
-				topic_queue = topic_parse("A/B/C");
-				search_client(work->db->root, topic_queue);
-				zfree(*topic_queue);
-				zfree(topic_queue);
+
+				handle_pub(work, work->pipe_ct, smsg);
 				nng_msg_free(work->msg);
 
-*/
 				if (work->pipe_ct->total > 0) {
-					debug_msg("set pipeline[%d]: [%d], current pipeline: [%d]",
-					          work->pipe_ct->pipe_msg[work->pipe_ct->current_index].index,
-					          work->pipe_ct->pipe_msg[work->pipe_ct->current_index].pipe, work->pid.id);
+					p_info = work->pipe_ct->pipe_info[work->pipe_ct->current_index];
 
-					work->msg = work->pipe_ct->pipe_msg[work->pipe_ct->current_index].msg;
+					debug_msg("WAIT_STATE\t"
+					          "self work: [%p],self pipeline: [%d], p_info.index: [%d], p_info.pub_work: [%p], p_info.pipe: [%d]",
+					          work, work->pid.id, p_info.index, p_info.pub_work, p_info.pipe
+					);
+
+					if (smsg == NULL) nng_msg_alloc(&smsg, 0);
+
+					work->pipe_ct->encode_msg(smsg, p_info.pub_work, p_info.cmd, p_info.qos, 0);
+
+					work->msg = smsg;
 					nng_aio_set_msg(work->aio, work->msg);
-					work->msg   = NULL;
-					work->state = SEND;
+					work->msg = NULL;
 
-					if (work->pipe_ct->pipe_msg[work->pipe_ct->current_index].pipe != work->pid.id) {
-						nng_aio_set_pipeline(work->aio, work->pipe_ct->pipe_msg[work->pipe_ct->current_index].pipe);
+					if (p_info.pipe != 0 && p_info.pipe != work->pid.id) {
+						nng_aio_set_pipeline(work->aio, p_info.pipe);
+						debug_msg("nng_aio_set_pipeline aio: [%p], pipe: [%d]", work->aio, p_info.pipe);
 					}
 
 					work->pipe_ct->current_index++;
 					if (work->pipe_ct->total == work->pipe_ct->current_index) {
-						free(work->pipe_ct->pipe_msg);
+						free_pub_packet(work->pub_packet);
+						free_pipes_info(work->pipe_ct->pipe_info);
+//						free_pipe_info(work->pipe_ct);
 						init_pipe_content(work->pipe_ct);
 					}
-
-					nng_msg_free(smsg);
+					work->state = SEND;
 					nng_ctx_send(work->ctx, work->aio);
-					break;
+				} else {
+					free_pub_packet(work->pub_packet);
+					free_pipes_info(work->pipe_ct->pipe_info);
+//					free_pipe_info(work->pipe_ct);
+					init_pipe_content(work->pipe_ct);
 				}
 
 				if (work->state != SEND) {
-					nng_msg_free(smsg);
-					if (work->msg != NULL) {
-						nng_msg_free(work->msg);
-					}
+					if (work->msg != NULL) nng_msg_free(work->msg);
 
 					work->msg   = NULL;
 					work->state = RECV;
@@ -292,12 +290,8 @@ server_cb(void *arg)
 
 			} else {
 				debug_msg("broker has nothing to do");
-				if (smsg != NULL) {
-					nng_msg_free(smsg);
-				}
-				if (work->msg != NULL) {
+				if (work->msg != NULL)
 					nng_msg_free(work->msg);
-				}
 				work->msg   = NULL;
 				work->state = RECV;
 				nng_ctx_recv(work->ctx, work->aio);
@@ -310,29 +304,35 @@ server_cb(void *arg)
 			if ((rv = nng_aio_result(work->aio)) != 0) {
 				debug_msg("SEND nng aio result error: %d", rv);
 				fatal("SEND nng_ctx_send", rv);
-			} else if ((smsg = nng_aio_get_msg(work->aio)) != NULL) {
-				nng_msg_free(smsg);
 			}
 
 			if (work->pipe_ct->total > work->pipe_ct->current_index) {
-				debug_msg("set pipeline[%d]: [%d]", work->pipe_ct->pipe_msg[work->pipe_ct->current_index].index,
-				          work->pipe_ct->pipe_msg[work->pipe_ct->current_index].pipe);
+				p_info = work->pipe_ct->pipe_info[work->pipe_ct->current_index];
 
-				work->msg = work->pipe_ct->pipe_msg[work->pipe_ct->current_index].msg;
+				debug_msg("SEND_STATE\t"
+				          "self work: [%p],self pipeline: [%d], p_info.index: [%d], p_info.pub_work: [%p], p_info.pipe: [%d]",
+				          work, work->pid.id, p_info.index, p_info.pub_work, p_info.pipe);
+
+				if (smsg == NULL) nng_msg_alloc(&smsg, 0);
+				work->pipe_ct->encode_msg(smsg, p_info.pub_work, p_info.cmd, p_info.qos, 0);
+
+				work->msg = smsg;
 				nng_aio_set_msg(work->aio, work->msg);
-				work->msg   = NULL;
-				work->state = SEND;
-				if (work->pipe_ct->pipe_msg[work->pipe_ct->current_index].pipe != 0 &&
-				    work->pipe_ct->pipe_msg[work->pipe_ct->current_index].pipe != work->pid.id) {
-					nng_aio_set_pipeline(work->aio, work->pipe_ct->pipe_msg[work->pipe_ct->current_index].pipe);
+				work->msg = NULL;
+
+				if (p_info.pipe != 0 && p_info.pipe != work->pid.id) {
+					nng_aio_set_pipeline(work->aio, p_info.pipe);
+					debug_msg("nng_aio_set_pipeline aio: [%p], pipe: [%d]", work->aio, p_info.pipe);
 				}
 
 				work->pipe_ct->current_index++;
 				if (work->pipe_ct->total == work->pipe_ct->current_index) {
-					free(work->pipe_ct->pipe_msg);
+					free_pub_packet(work->pub_packet);
+					free_pipes_info(work->pipe_ct->pipe_info);
+//					free_pipe_info(work->pipe_ct);
 					init_pipe_content(work->pipe_ct);
 				}
-
+				work->state = SEND;
 				nng_ctx_send(work->ctx, work->aio);
 			} else {
 				work->msg   = NULL;
@@ -366,7 +366,6 @@ alloc_work(nng_socket sock)
 	if ((rv = nng_mtx_alloc(&w->mutex)) != 0) {
 		fatal("nng_mtx_alloc", rv);
 	}
-
 	w->pipe_ct = nng_alloc(sizeof(struct pipe_content));
 	init_pipe_content(w->pipe_ct);
 

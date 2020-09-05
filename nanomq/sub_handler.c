@@ -233,7 +233,7 @@ uint8_t sub_ctx_handle(emq_work * work){
 		topic_node_t = topic_node_t->next;
 	}
 
-	// check treeDB
+	// check treeDhnmbB
 	print_db_tree(work->db);
 	debug_msg("End of sub ctx handle. \n");
 	return SUCCESS;
@@ -269,6 +269,14 @@ void destroy_sub_ctx(void * ctxt, char * target_topic){
 			nng_free(topic_node_t->it, sizeof(topic_with_option));
 			nng_free(topic_node_t, sizeof(topic_node));
 			break;
+		}
+		// test
+		else{
+			char * t = nng_alloc(topic_node_t->it->topic_filter.len+1);
+			strncpy(t, topic_node_t->it->topic_filter.str_body, topic_node_t->it->topic_filter.len);
+			t[topic_node_t->it->topic_filter.len+1] = '\0';
+			debug_msg("a/topic b/topic [%s] [%s]", t, target_topic);
+			nng_free(t, topic_node_t->it->topic_filter.len+1);
 		}
         before_topic_node = topic_node_t;
 		topic_node_t = topic_node_t->next;
