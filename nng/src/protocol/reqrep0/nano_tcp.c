@@ -281,6 +281,7 @@ exit:
 		nni_msg_free(msg);
 		return;
 	}
+	p->tree = nni_aio_get_dbtree(aio);
 	if (!p->busy) {
 		p->busy = true;
 		len     = nni_msg_len(msg);
