@@ -239,6 +239,8 @@ server_cb(void *arg)
 					fatal("WAIT nng_ctx_recv/send", rv);
 				}
 
+				work->pid = nng_msg_get_pipe(work->msg);
+				debug_msg("get pub pipe id: %d",work->pid.id);
 				handle_pub(work, work->pipe_ct, smsg);
 				nng_msg_free(work->msg);
 
@@ -260,22 +262,25 @@ server_cb(void *arg)
 
 					if (p_info.pipe != 0 && p_info.pipe != work->pid.id) {
 						nng_aio_set_pipeline(work->aio, p_info.pipe);
-						debug_msg("nng_aio_set_pipeline aio: [%p], pipe: [%d]", work->aio, p_info.pipe);
+						debug_msg("WAIT nng_aio_set_pipeline aio: [%p], pipe: [%d]", work->aio, p_info.pipe);
+					} else {
+						debug_msg("WAIT error nng_aio_set_pipeline aio: [%p], pipe: [%d] ", work->aio, p_info.pipe);
 					}
+
+					debug_msg("work: [%p], sent total: [%d]", work, work->pipe_ct->current_index);
 
 					work->pipe_ct->current_index++;
 					if (work->pipe_ct->total == work->pipe_ct->current_index) {
 						free_pub_packet(work->pub_packet);
 						free_pipes_info(work->pipe_ct->pipe_info);
-//						free_pipe_info(work->pipe_ct);
 						init_pipe_content(work->pipe_ct);
 					}
+
 					work->state = SEND;
 					nng_ctx_send(work->ctx, work->aio);
 				} else {
 					free_pub_packet(work->pub_packet);
 					free_pipes_info(work->pipe_ct->pipe_info);
-//					free_pipe_info(work->pipe_ct);
 					init_pipe_content(work->pipe_ct);
 				}
 
@@ -322,17 +327,20 @@ server_cb(void *arg)
 
 				if (p_info.pipe != 0 && p_info.pipe != work->pid.id) {
 					nng_aio_set_pipeline(work->aio, p_info.pipe);
-					debug_msg("nng_aio_set_pipeline aio: [%p], pipe: [%d]", work->aio, p_info.pipe);
+					debug_msg("SEND nng_aio_set_pipeline aio: [%p], pipe: [%d]", work->aio, p_info.pipe);
+				} else {
+					debug_msg("SEND error nng_aio_set_pipeline aio: [%p], pipe: [%d] ", work->aio, p_info.pipe);
 				}
-
+				debug_msg("work: [%p], sent total: [%d]", work, work->pipe_ct->current_index);
 				work->pipe_ct->current_index++;
 				if (work->pipe_ct->total == work->pipe_ct->current_index) {
 					free_pub_packet(work->pub_packet);
 					free_pipes_info(work->pipe_ct->pipe_info);
-//					free_pipe_info(work->pipe_ct);
 					init_pipe_content(work->pipe_ct);
 				}
+
 				work->state = SEND;
+
 				nng_ctx_send(work->ctx, work->aio);
 			} else {
 				work->msg   = NULL;
