@@ -260,8 +260,6 @@ server_cb(void *arg)
 					if (p_info.pipe != 0 && p_info.pipe != work->pid.id) {
 						nng_aio_set_pipeline(work->aio, p_info.pipe);
 						debug_msg("WAIT nng_aio_set_pipeline aio: [%p], pipe: [%d]", work->aio, p_info.pipe);
-					} else {
-						debug_msg("WAIT error nng_aio_set_pipeline aio: [%p], pipe: [%d] ", work->aio, p_info.pipe);
 					}
 
 					debug_msg("work: [%p], sent total: [%d]", work, work->pipe_ct->current_index);
@@ -325,9 +323,8 @@ server_cb(void *arg)
 				if (p_info.pipe != 0 && p_info.pipe != work->pid.id) {
 					nng_aio_set_pipeline(work->aio, p_info.pipe);
 					debug_msg("SEND nng_aio_set_pipeline aio: [%p], pipe: [%d]", work->aio, p_info.pipe);
-				} else {
-					debug_msg("SEND error nng_aio_set_pipeline aio: [%p], pipe: [%d] ", work->aio, p_info.pipe);
 				}
+
 				debug_msg("work: [%p], sent total: [%d]", work, work->pipe_ct->current_index);
 				work->pipe_ct->current_index++;
 				if (work->pipe_ct->total == work->pipe_ct->current_index) {
