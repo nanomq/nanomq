@@ -294,7 +294,7 @@ exit:
 		return;
 	}
 
-	debug_msg("pipe %p jamed!", pipe);
+	debug_msg("pipe %p jamed! resending in cb!", pipe);
 	ctx->saio  = aio;
 	ctx->spipe = p;
 	ctx->rmsg  = msg;
@@ -699,6 +699,12 @@ nano_pipe_recv_cb(void *arg)
 			break;
 		case CMD_DISCONNECT:
 			break;
+		case CMD_UNSUBSCRIBE:
+			break;
+		case CMD_PINGREQ:
+			break;
+		default:
+			goto drop;
 	}
 
 	/*

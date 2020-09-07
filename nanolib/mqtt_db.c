@@ -596,7 +596,7 @@ void del_all(uint32_t pipe_id, void *ptr)
 {
 	char *clientid = get_client_id(pipe_id);
 	if (clientid == NULL) {
-		log("no client is found");
+		log("no clientid is found");
 		return;
 	}
 	log("--PID %d--CLID %s--", pipe_id, clientid);

@@ -32,7 +32,7 @@
 // #endif
 #define PARALLEL 64
 
-// The server keeps a list of work items, sorted by expiration time,
+  // The server keeps a list of work items, sorted by expiration time,
 // so that we can use this to set the timeout to the correct value for
 // use in poll.
 
@@ -121,7 +121,7 @@ server_cb(void *arg)
 				del_topic_all(clientid);
 				del_pipe_id(pipe.id);
 				debug_msg("INHASH: clientid [%s] exist?: [%d]; pipeid [%d] exist?: [%d]",
-				          clientid, (int) check_id(clientid), pipe.id, (int) check_pipe_id(pipe.id));
+					  clientid, (int) check_id(clientid), pipe.id, (int) check_pipe_id(pipe.id));
 
 				work->state = RECV;
 				nng_msg_free(msg);
