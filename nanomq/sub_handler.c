@@ -221,18 +221,12 @@ uint8_t sub_ctx_handle(emq_work *work)
 				// debug_msg("------CHECKHASHTABLE----clientid:%s---next-topic:%s",
 				//		client->id, q->next->topic);
 				add_client(tan, client);
-				// test
-				search_node(work->db, topics, tan);
-				struct client *cli = tan->node->sub_client;
-				while (cli) {
-					debug_msg("client: %s", cli->id);
-					cli = cli->next;
-				}
+
 			} else { // clientid already in hash
 				work->sub_pkt->node->it->reason_code = 0x80;
 			}
 		}
-		debug_msg("clientid:%s------pipeid:%d", client->id, work->pid.id);
+		debug_msg("clientid: [%s] ------ pipeid: [%d]", client->id, work->pid.id);
 
 		free_topic_queue(topics);
 		nng_free(tan, sizeof(struct topic_and_node));

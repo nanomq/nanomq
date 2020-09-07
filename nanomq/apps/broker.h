@@ -26,6 +26,12 @@ struct work {
 
 };
 
+struct client_ctx {
+	nng_pipe                 pid;
+	conn_param               *cparam;
+	struct packet_subscribe   *sub_pkt;
+};
+
 typedef struct work emq_work;
 
 int broker_start(int argc, char **argv);
