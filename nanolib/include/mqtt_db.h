@@ -6,6 +6,7 @@
 
 typedef enum {UNEQUAL = 0, EQUAL = 1 } state;
 
+
 struct client {
 	char				*id;
 	void			    *ctxt;
@@ -18,6 +19,10 @@ struct clients {
 	int					len;
 };
 
+struct retain_msg_node {
+	struct retain_msg		*ret_msg;
+	struct retain_msg_node	*down;
+};
 
 struct retain_msg {
 	uint8_t				qos;
@@ -103,6 +108,11 @@ struct db_node *find_next(struct db_node *node, bool *equal, char
 void set_retain_msg(struct db_node *node, struct retain_msg *retain);
 
 struct retain_msg *get_retain_msg(struct db_node *node);
+
+struct retain_msg_node *search_retain_msg(struct db_node *root, 
+		char **topic_queue); 
+
+void free_retain_node(struct retain_msg_node *msg_node);
 
 struct clients *search_client(struct db_node *root, char **topic_queue);
 
