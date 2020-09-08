@@ -1156,6 +1156,16 @@ void free_topic_queue(char **topic_queue)
 	topic_queue = NULL;
 }
 
+void free_clients(struct clients *for_free)
+{
+	while (for_free) {
+		struct clients *t = for_free;
+		for_free = for_free->down;
+		zfree(t);
+		t = NULL;
+	}
+}
+
 void hash_add_alias(int alias, char *topic_data)
 {
 	assert(topic_data);

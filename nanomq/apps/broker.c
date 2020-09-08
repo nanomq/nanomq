@@ -239,7 +239,6 @@ server_cb(void *arg)
 				}
 
 				work->pid = nng_msg_get_pipe(work->msg);
-				debug_msg("get pub pipe id: %d", work->pid.id);
 				handle_pub(work, work->pipe_ct, smsg);
 				nng_msg_free(work->msg);
 
