@@ -32,7 +32,7 @@
 // #endif
 #define PARALLEL 64
 
-  // The server keeps a list of work items, sorted by expiration time,
+// The server keeps a list of work items, sorted by expiration time,
 // so that we can use this to set the timeout to the correct value for
 // use in poll.
 
@@ -99,7 +99,7 @@ server_cb(void *arg)
 							char **topics = topic_parse(tq->topic);
 							search_node(work->db, topics, &tan);
 							free_topic_queue(topics);
-							if ((cli = del_client(&tan, clientid)) == NULL) {
+							if ((cli      = del_client(&tan, clientid)) == NULL) {
 								break;
 							}
 						}
@@ -166,9 +166,9 @@ server_cb(void *arg)
 				break;
 
 			} else if (nng_msg_cmd_type(work->msg) == CMD_SUBSCRIBE) {
-				work->pid = nng_msg_get_pipe(work->msg);
+				work->pid                  = nng_msg_get_pipe(work->msg);
 				debug_msg("get pipe!!  ^^^^^^^^^^^^^^^^^^^^^ %d %d\n", pipe.id, work->pid.id);
-				struct client_ctx * cli_ctx = nng_alloc(sizeof(client_ctx));
+				struct client_ctx *cli_ctx = nng_alloc(sizeof(client_ctx));
 				debug_msg("ALLOC [%p]", cli_ctx);
 				work->sub_pkt = nng_alloc(sizeof(packet_subscribe));
 				if ((reason = decode_sub_message(work->msg, work->sub_pkt)) != SUCCESS ||
@@ -178,7 +178,7 @@ server_cb(void *arg)
 
 					destroy_sub_ctx(cli_ctx);
 					del_sub_pipe_id(work->pid.id);
-					del_sub_client_id((char *)conn_param_get_clentid(work->cparam));
+					del_sub_client_id((char *) conn_param_get_clentid(work->cparam));
 				} else {
 					// success but check info
 					debug_msg("sub_pkt: pktid: [%d] topicLen: [%d] topic: [%s]", work->sub_pkt->packet_id,
@@ -239,17 +239,12 @@ server_cb(void *arg)
 				}
 
 				work->pid = nng_msg_get_pipe(work->msg);
-				debug_msg("get pub pipe id: %d",work->pid.id);
+				debug_msg("get pub pipe id: %d", work->pid.id);
 				handle_pub(work, work->pipe_ct, smsg);
 				nng_msg_free(work->msg);
 
 				if (work->pipe_ct->total > 0) {
 					p_info = work->pipe_ct->pipe_info[work->pipe_ct->current_index];
-
-					debug_msg("WAIT_STATE\t"
-					          "self work: [%p],self pipeline: [%d], p_info.index: [%d], p_info.pub_work: [%p], p_info.pipe: [%d]",
-					          work, work->pid.id, p_info.index, p_info.pub_work, p_info.pipe
-					);
 
 					if (smsg == NULL) nng_msg_alloc(&smsg, 0);
 
@@ -261,10 +256,7 @@ server_cb(void *arg)
 
 					if (p_info.pipe != 0 && p_info.pipe != work->pid.id) {
 						nng_aio_set_pipeline(work->aio, p_info.pipe);
-						debug_msg("WAIT nng_aio_set_pipeline aio: [%p], pipe: [%d]", work->aio, p_info.pipe);
 					}
-
-					debug_msg("work: [%p], sent total: [%d]", work, work->pipe_ct->current_index);
 
 					work->pipe_ct->current_index++;
 					if (work->pipe_ct->total == work->pipe_ct->current_index) {
@@ -311,23 +303,17 @@ server_cb(void *arg)
 			if (work->pipe_ct->total > work->pipe_ct->current_index) {
 				p_info = work->pipe_ct->pipe_info[work->pipe_ct->current_index];
 
-				debug_msg("SEND_STATE\t"
-				          "self work: [%p],self pipeline: [%d], p_info.index: [%d], p_info.pub_work: [%p], p_info.pipe: [%d]",
-				          work, work->pid.id, p_info.index, p_info.pub_work, p_info.pipe);
-
 				if (smsg == NULL) nng_msg_alloc(&smsg, 0);
-				work->pipe_ct->encode_msg(smsg, p_info.pub_work, p_info.cmd, p_info.qos, 0);
 
+				work->pipe_ct->encode_msg(smsg, p_info.pub_work, p_info.cmd, p_info.qos, 0);
 				work->msg = smsg;
 				nng_aio_set_msg(work->aio, work->msg);
 				work->msg = NULL;
 
 				if (p_info.pipe != 0 && p_info.pipe != work->pid.id) {
 					nng_aio_set_pipeline(work->aio, p_info.pipe);
-					debug_msg("SEND nng_aio_set_pipeline aio: [%p], pipe: [%d]", work->aio, p_info.pipe);
 				}
 
-				debug_msg("work: [%p], sent total: [%d]", work, work->pipe_ct->current_index);
 				work->pipe_ct->current_index++;
 				if (work->pipe_ct->total == work->pipe_ct->current_index) {
 					free_pub_packet(work->pub_packet);
