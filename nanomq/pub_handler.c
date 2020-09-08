@@ -20,7 +20,7 @@
 #include "include/pub_handler.h"
 #include "include/sub_handler.h"
 
-#define ENABLE_RETAIN 0
+#define ENABLE_RETAIN   0
 #define SUPPORT_MQTT5_0 1
 
 static char *bytes_to_str(const unsigned char *src, char *dest, int src_len);
@@ -306,7 +306,7 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_
 			work->pub_packet->fixed_header.qos         = work->pub_packet->fixed_header.qos < sub_qos ?
 			                                             work->pub_packet->fixed_header.qos : sub_qos;
 			work->pub_packet->fixed_header.dup         = dup;
-			append_res = nng_msg_header_append(dest_msg, (uint8_t * ) & work->pub_packet->fixed_header, 1);
+			append_res = nng_msg_header_append(dest_msg, (uint8_t *) &work->pub_packet->fixed_header, 1);
 
 			arr_len                               = put_var_integer(tmp, work->pub_packet->fixed_header.remain_len);
 			append_res                            = nng_msg_header_append(dest_msg, tmp, arr_len);
@@ -409,7 +409,7 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_
 			};
 
 			/*fixed header*/
-			nng_msg_header_append(dest_msg, (uint8_t * ) & pub_response.fixed_header, 1);
+			nng_msg_header_append(dest_msg, (uint8_t *) &pub_response.fixed_header, 1);
 			arr_len = put_var_integer(tmp, pub_response.fixed_header.remain_len);
 			nng_msg_header_append(dest_msg, tmp, arr_len);
 
@@ -420,7 +420,7 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_
 			//reason code
 			if (pub_response.fixed_header.remain_len > 2) {
 				uint8_t reason_code = pub_response.variable_header.pub_arrc.reason_code;
-				nng_msg_append(dest_msg, (uint8_t * ) & reason_code, sizeof(reason_code));
+				nng_msg_append(dest_msg, (uint8_t *) &reason_code, sizeof(reason_code));
 
 #if SUPPORT_MQTT5_0
 				if (PROTOCOL_VERSION_v5 == proto_ver) {
@@ -673,12 +673,12 @@ decode_pub_message(emq_work *work)
 #endif
 
 				//payload
-				pub_packet->payload_body.payload_len             = (uint32_t)(msg_len - (size_t) used_pos);
+				pub_packet->payload_body.payload_len             = (uint32_t) (msg_len - (size_t) used_pos);
 
 				if (pub_packet->payload_body.payload_len > 0) {
 					pub_packet->payload_body.payload = nng_alloc(pub_packet->payload_body.payload_len + 1);
 					memset(pub_packet->payload_body.payload, 0, pub_packet->payload_body.payload_len + 1);
-					memcpy(pub_packet->payload_body.payload, (uint8_t * )(msg_body + pos),
+					memcpy(pub_packet->payload_body.payload, (uint8_t *) (msg_body + pos),
 					       pub_packet->payload_body.payload_len);
 //					debug_msg("payload: [%s], len = %u", pub_packet->payload_body.payload,
 //					          pub_packet->payload_body.payload_len);
