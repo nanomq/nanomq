@@ -99,29 +99,23 @@ server_cb(void *arg)
 							char **topics = topic_parse(tq->topic);
 							search_node(work->db, topics, &tan);
 							free_topic_queue(topics);
-							if ((cli      = del_client(&tan, clientid)) == NULL) {
+							if ((cli = del_client(&tan, clientid)) == NULL) {
 								break;
 							}
 						}
 						if (cli) {
 							del_node(tan.node);
-							debug_msg("Destroy CTX [%p] clientID: [%s]", cli->ctxt, cli->id);
-							destroy_sub_ctx(cli->ctxt, tq->topic); // only free work->sub_pkt
+							debug_msg("destroy ctx: [%p] clientid: [%s]", cli->ctxt, cli->id);
+							// TODO free client_ctx rather than work->sub_ctx
+							del_sub_ctx(cli->ctxt, tq->topic); // only free work->sub_pkt
 							nng_free(cli, sizeof(struct client));
 						}
 						tq = tq->next;
-						/*
-						if (check_id(clientid)) {
-							tq = tq->next;
-						}
-						*/
 					}
 				}
 
-				del_topic_all(clientid);
-				del_pipe_id(pipe.id);
-				debug_msg("INHASH: clientid [%s] exist?: [%d]; pipeid [%d] exist?: [%d]",
-					  clientid, (int) check_id(clientid), pipe.id, (int) check_pipe_id(pipe.id));
+				del_sub_client_id(clientid);
+				del_sub_pipe_id(pipe.id);
 
 				work->state = RECV;
 				nng_msg_free(msg);
@@ -172,21 +166,25 @@ server_cb(void *arg)
 				break;
 
 			} else if (nng_msg_cmd_type(work->msg) == CMD_SUBSCRIBE) {
-				pipe = nng_msg_get_pipe(work->msg);
-				work->pid = pipe;
+				work->pid = nng_msg_get_pipe(work->msg);
 				debug_msg("get pipe!!  ^^^^^^^^^^^^^^^^^^^^^ %d %d\n", pipe.id, work->pid.id);
-				work->sub_pkt = nng_alloc(sizeof(struct packet_subscribe));
+				struct client_ctx * cli_ctx = nng_alloc(sizeof(client_ctx));
+				debug_msg("ALLOC [%p]", cli_ctx);
+				work->sub_pkt = nng_alloc(sizeof(packet_subscribe));
 				if ((reason = decode_sub_message(work->msg, work->sub_pkt)) != SUCCESS ||
-				    (reason = sub_ctx_handle(work)) != SUCCESS ||
+				    (reason = sub_ctx_handle(work, cli_ctx)) != SUCCESS ||
 				    (reason = encode_suback_message(smsg, work->sub_pkt)) != SUCCESS) {
-					debug_msg("ERROR IN SUB_HANDLE: %d", reason);
-					destroy_sub_ctx(work, "");
+					debug_msg("ERROR IN SUB_HANDLE: [%d]", reason);
+
+					destroy_sub_ctx(cli_ctx);
+					del_sub_pipe_id(work->pid.id);
+					del_sub_client_id((char *)conn_param_get_clentid(work->cparam));
 				} else {
 					// success but check info
-					debug_msg("In sub_pkt: pktid:%d, topicLen: %d, topic: %s", work->sub_pkt->packet_id,
+					debug_msg("sub_pkt: pktid: [%d] topicLen: [%d] topic: [%s]", work->sub_pkt->packet_id,
 					          work->sub_pkt->node->it->topic_filter.len,
 					          work->sub_pkt->node->it->topic_filter.str_body);
-					debug_msg("SUBACK: Header Len: %ld, Body Len: %ld. In Body. TYPE:%x LEN:%x PKTID: %x %x.",
+					debug_msg("suback: headerLen: [%ld] bodyLen: [%ld] type: [%x] len:[%x] pakcetid: [%x %x].",
 					          nng_msg_header_len(smsg), nng_msg_len(smsg), *((uint8_t *) nng_msg_header(smsg)),
 					          *((uint8_t *) nng_msg_header(smsg) + 1), *((uint8_t *) nng_msg_body(smsg)),
 					          *((uint8_t *) nng_msg_body(smsg) + 1));
@@ -207,16 +205,17 @@ server_cb(void *arg)
 				    (reason = unsub_ctx_handle(work)) != SUCCESS ||
 				    (reason = encode_unsuback_message(smsg, work->unsub_pkt)) != SUCCESS) {
 					debug_msg("ERROR IN UNSUB_HANDLE: %d", reason);
-					// TODO free unsub_pkt
 				} else {
 					// check info
-					debug_msg("In unsub_pkt: pktid:%d, topicLen: %d", work->unsub_pkt->packet_id,
+					debug_msg("unsub_pkt: pktid: [%d] topicLen: [%d]", work->unsub_pkt->packet_id,
 					          work->unsub_pkt->node->it->topic_filter.len);
-					debug_msg("Header Len: %ld, Body Len: %ld.", nng_msg_header_len(smsg), nng_msg_len(smsg));
-					debug_msg("In Body. TYPE:%x LEN:%x PKTID: %x %x.", *((uint8_t *) nng_msg_header(smsg)),
+					debug_msg("headerLen: [%ld] bodyLen: [%ld].", nng_msg_header_len(smsg), nng_msg_len(smsg));
+					debug_msg("body type: [%x] len: [%x] packetid: [%x %x].", *((uint8_t *) nng_msg_header(smsg)),
 					          *((uint8_t *) nng_msg_header(smsg) + 1), *((uint8_t *) nng_msg_body(smsg)),
 					          *((uint8_t *) nng_msg_body(smsg) + 1));
 				}
+				// free unsub_pkt
+				destroy_unsub_ctx(work);
 				nng_msg_free(work->msg);
 
 				work->msg = smsg;
