@@ -106,6 +106,7 @@ server_cb(void *arg)
 						if (cli) {
 							del_node(tan.node);
 							debug_msg("destroy ctx: [%p] clientid: [%s]", cli->ctxt, cli->id);
+							// TODO free client_ctx rather than work->sub_ctx
 							del_sub_ctx(cli->ctxt, tq->topic); // only free work->sub_pkt
 							nng_free(cli, sizeof(struct client));
 						}
@@ -167,16 +168,17 @@ server_cb(void *arg)
 			} else if (nng_msg_cmd_type(work->msg) == CMD_SUBSCRIBE) {
 				work->pid = nng_msg_get_pipe(work->msg);
 				debug_msg("get pipe!!  ^^^^^^^^^^^^^^^^^^^^^ %d %d\n", pipe.id, work->pid.id);
-				work->sub_pkt = nng_alloc(sizeof(struct packet_subscribe));
+				struct client_ctx * cli_ctx = nng_alloc(sizeof(client_ctx));
+				debug_msg("ALLOC [%p]", cli_ctx);
+				work->sub_pkt = nng_alloc(sizeof(packet_subscribe));
 				if ((reason = decode_sub_message(work->msg, work->sub_pkt)) != SUCCESS ||
-				    (reason = sub_ctx_handle(work)) != SUCCESS ||
+				    (reason = sub_ctx_handle(work, cli_ctx)) != SUCCESS ||
 				    (reason = encode_suback_message(smsg, work->sub_pkt)) != SUCCESS) {
 					debug_msg("ERROR IN SUB_HANDLE: [%d]", reason);
-					if(work->sub_pkt){
-						destroy_sub_ctx(work);
-						del_sub_pipe_id(work->pid.id);
-						del_sub_client_id((char *)conn_param_get_clentid(work->cparam));
-					}
+
+					destroy_sub_ctx(cli_ctx);
+					del_sub_pipe_id(work->pid.id);
+					del_sub_client_id((char *)conn_param_get_clentid(work->cparam));
 				} else {
 					// success but check info
 					debug_msg("sub_pkt: pktid: [%d] topicLen: [%d] topic: [%s]", work->sub_pkt->packet_id,

@@ -172,7 +172,7 @@ uint8_t encode_suback_message(nng_msg * msg, packet_subscribe * sub_pkt){
 	return SUCCESS;
 }
 
-uint8_t sub_ctx_handle(emq_work * work){
+uint8_t sub_ctx_handle(emq_work * work, client_ctx * cli_ctx){
 	// generate ctx for each topic
 	int count = 0;
 	bool version_v5 = false;
@@ -187,8 +187,13 @@ uint8_t sub_ctx_handle(emq_work * work){
 
 		//setting client
 		client->id = (char *)conn_param_get_clentid((conn_param *)nng_msg_get_conn_param(work->msg));
-		client->ctxt = work;
+		client->ctxt = cli_ctx;
 		client->next = NULL;
+
+		// setting client_ctx
+		cli_ctx->pid = work->pid;
+		cli_ctx->cparam = work->cparam;
+		cli_ctx->sub_pkt = work->sub_pkt;
 
 		topic_str = (char *)nng_alloc(topic_node_t->it->topic_filter.len + 1);
 		strncpy(topic_str, topic_node_t->it->topic_filter.str_body, topic_node_t->it->topic_filter.len);
@@ -240,17 +245,17 @@ uint8_t sub_ctx_handle(emq_work * work){
 }
 
 void del_sub_ctx(void * ctxt, char * target_topic){
-	emq_work * work = ctxt;
-	if(!work){
+	client_ctx * cli_ctx = ctxt;
+	if(!cli_ctx){
 		debug_msg("ERROR : ctx lost!");
 		return;
 	}
-	if(!work->sub_pkt){
+	if(!cli_ctx->sub_pkt){
 		debug_msg("ERROR : ctx->sub is nil");
 		return;
 	}
-	packet_subscribe * sub_pkt = work->sub_pkt;
-	if(!(sub_pkt->node->it)){
+	packet_subscribe * sub_pkt = cli_ctx->sub_pkt;
+	if(!(sub_pkt->node)){
 		debug_msg("ERROR : not find topic");
 		return;
 	}
@@ -266,6 +271,7 @@ void del_sub_ctx(void * ctxt, char * target_topic){
 			}else{
 				sub_pkt->node = topic_node_t->next;
 			}
+
 			nng_free(topic_node_t->it->topic_filter.str_body, topic_node_t->it->topic_filter.len);
 			nng_free(topic_node_t->it, sizeof(topic_with_option));
 			nng_free(topic_node_t, sizeof(topic_node));
@@ -282,23 +288,28 @@ void del_sub_ctx(void * ctxt, char * target_topic){
 
 	if(sub_pkt->node == NULL){
 		nng_free(sub_pkt, sizeof(packet_subscribe));
-		work->sub_pkt = NULL;
+		// TODO free conn_param
+		debug_msg("Free [%p]", cli_ctx);
+		nng_free(cli_ctx, sizeof(client_ctx));
+		cli_ctx = NULL;
 	}
 }
 
 void destroy_sub_ctx(void * ctxt){
-	emq_work * work = ctxt;
-	if(!work){
+	client_ctx * cli_ctx = ctxt;
+	if(!cli_ctx){
 		debug_msg("ERROR : ctx lost!");
 		return;
 	}
-	if(!work->sub_pkt){
+	if(!cli_ctx->sub_pkt){
 		debug_msg("ERROR : ctx->sub is nil");
 		return;
 	}
-	packet_subscribe * sub_pkt = work->sub_pkt;
-	if(!(sub_pkt->node->it)){
-		debug_msg("ERROR : not find topic");
+	packet_subscribe * sub_pkt = cli_ctx->sub_pkt;
+	if(!(sub_pkt->node)){
+		nng_free(sub_pkt, sizeof(packet_subscribe));
+		nng_free(cli_ctx, sizeof(client_ctx));
+		cli_ctx = NULL;
 		return;
 	}
 
@@ -314,7 +325,9 @@ void destroy_sub_ctx(void * ctxt){
 
 	if(sub_pkt->node == NULL){
 		nng_free(sub_pkt, sizeof(packet_subscribe));
-		work->sub_pkt = NULL;
+		// TODO free conn_param
+		nng_free(cli_ctx, sizeof(client_ctx));
+		cli_ctx = NULL;
 	}
 }
 
