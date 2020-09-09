@@ -126,7 +126,7 @@ foreach_client(struct clients *sub_clients, emq_work *pub_work, struct pipe_cont
 void free_pub_packet(struct pub_packet_struct *pub_packet);
 void free_pipes_info(struct pipe_info *p_info);
 void init_pipe_content(struct pipe_content *pipe_ct);
-void handle_pub(emq_work *work, struct pipe_content *pipe_ct, nng_msg *send_msg);
+void handle_pub(emq_work *work, struct pipe_content *pipe_ct);
 
 
 #endif //NNG_PUB_HANDLER_H

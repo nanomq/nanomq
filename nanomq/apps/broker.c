@@ -231,16 +231,16 @@ server_cb(void *arg)
 			           nng_msg_cmd_type(work->msg) == CMD_PUBREL ||
 			           nng_msg_cmd_type(work->msg) == CMD_PUBCOMP) {
 
-//				nng_mtx_lock(work->mutex);
-
 				if ((rv = nng_aio_result(work->aio)) != 0) {
 					debug_msg("WAIT nng aio result error: %d", rv);
 					fatal("WAIT nng_ctx_recv/send", rv);
 				}
 
+//				nng_mtx_lock(work->mutex);
 				work->pid = nng_msg_get_pipe(work->msg);
-				handle_pub(work, work->pipe_ct, smsg);
+				handle_pub(work, work->pipe_ct);
 				nng_msg_free(work->msg);
+//				nng_mtx_unlock(work->mutex);
 
 				if (work->pipe_ct->total > 0) {
 					p_info = work->pipe_ct->pipe_info[work->pipe_ct->current_index];
@@ -248,7 +248,6 @@ server_cb(void *arg)
 					if (smsg == NULL) nng_msg_alloc(&smsg, 0);
 
 					work->pipe_ct->encode_msg(smsg, p_info.pub_work, p_info.cmd, p_info.qos, 0);
-
 					work->msg = smsg;
 					nng_aio_set_msg(work->aio, work->msg);
 					work->msg = NULL;
@@ -279,7 +278,7 @@ server_cb(void *arg)
 					work->state = RECV;
 					nng_ctx_recv(work->ctx, work->aio);
 				}
-//				nng_mtx_unlock(work->mutex);
+
 
 			} else {
 				debug_msg("broker has nothing to do");

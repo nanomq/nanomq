@@ -20,7 +20,7 @@
 #include "include/pub_handler.h"
 #include "include/sub_handler.h"
 
-#define ENABLE_RETAIN   0
+#define ENABLE_RETAIN   1
 #define SUPPORT_MQTT5_0 1
 
 static char *bytes_to_str(const unsigned char *src, char *dest, int src_len);
@@ -30,6 +30,8 @@ static void
 put_pipe_msgs(client_ctx *sub_ctx, emq_work *pub_work, struct pipe_content *pipe_ct,
               mqtt_control_packet_types cmd);
 static void handle_client_pipe_msgs(struct client *sub_client, emq_work *pub_work, struct pipe_content *pipe_ct);
+
+static void handle_pub_retain(const emq_work *work, const char **topic_queue);
 
 void
 init_pipe_content(struct pipe_content *pipe_ct)
@@ -122,10 +124,9 @@ foreach_client(struct clients *sub_clients, emq_work *pub_work, struct pipe_cont
 
 
 void
-handle_pub(emq_work *work, struct pipe_content *pipe_ct, nng_msg *send_msg)
+handle_pub(emq_work *work, struct pipe_content *pipe_ct)
 {
-	char                  **topic_queue = NULL;
-	struct topic_and_node *tp_node      = NULL;
+	char **topic_queue = NULL;
 
 	work->pub_packet = (struct pub_packet_struct *) nng_alloc(sizeof(struct pub_packet_struct));
 
@@ -154,7 +155,6 @@ handle_pub(emq_work *work, struct pipe_content *pipe_ct, nng_msg *send_msg)
 
 				struct clients *client_list = search_client(work->db->root, topic_queue);
 
-				uint32_t total = 0;
 				if (client_list != NULL) {
 					foreach_client(client_list, work, pipe_ct, handle_client_pipe_msgs);
 					free_clients(client_list);
@@ -163,46 +163,7 @@ handle_pub(emq_work *work, struct pipe_content *pipe_ct, nng_msg *send_msg)
 				debug_msg("pipe_info size: [%d]", pipe_ct->total);
 
 #if ENABLE_RETAIN
-				if (work->pub_packet->fixed_header.retain) {
-					tp_node = nng_alloc(sizeof(struct topic_and_node));
-					search_node(work->db, topic_queue, tp_node);
-
-					struct retain_msg *retain = NULL;
-
-					if (tp_node->topic == NULL) {
-						retain = get_retain_msg(tp_node->node);
-
-						if (retain != NULL) {
-							if (retain->message != NULL) {
-								nng_free(retain->message, sizeof(struct pub_packet_struct));
-								retain->message = NULL;
-							}
-							nng_free(retain, sizeof(struct retain_msg));
-							retain = NULL;
-						}
-					} else {
-						add_node(tp_node, NULL);
-					}
-
-					retain = nng_alloc(sizeof(struct retain_msg));
-
-					retain->qos = work->pub_packet->fixed_header.qos;
-					if (work->pub_packet->payload_body.payload_len > 0) {
-						retain->exist   = true;
-						retain->message = work->pub_packet; //TODO malloc new memory to save
-					} else {
-						retain->exist   = false;
-						retain->message = NULL;
-					}
-
-					set_retain_msg(tp_node->node, retain);
-
-					if (tp_node != NULL) {
-						nng_free(tp_node, sizeof(struct topic_and_node));
-						tp_node = NULL;
-						debug_msg("free memory topic_and_node");
-					}
-				}
+				handle_pub_retain(work, (const char **) topic_queue);
 #endif
 
 				free_topic_queue(topic_queue);
@@ -238,20 +199,84 @@ handle_pub(emq_work *work, struct pipe_content *pipe_ct, nng_msg *send_msg)
 	}
 }
 
+static void handle_pub_retain(const emq_work *work, const char **topic_queue)
+{
+	struct topic_and_node *tp_node = NULL;
+	struct retain_msg     *retain  = NULL;
+
+	if (work->pub_packet->fixed_header.retain) {
+		tp_node = nng_alloc(sizeof(struct topic_and_node));
+		search_node(work->db, topic_queue, tp_node);
+
+		if (tp_node->topic == NULL) { //node exist
+			retain = get_retain_msg(tp_node->node);
+
+			if (retain != NULL) {
+				if (retain->message != NULL) {
+					free_pub_packet(retain->message);
+				}
+				nng_free(retain, sizeof(struct retain_msg));
+				retain = NULL;
+			}
+		} else {
+			add_node(tp_node, NULL);
+		}
+
+		retain = nng_alloc(sizeof(struct retain_msg));
+		retain->qos = work->pub_packet->fixed_header.qos;
+
+		if (work->pub_packet->payload_body.payload_len > 0) {
+			struct pub_packet_struct *packet = nng_alloc(sizeof(struct pub_packet_struct));
+			packet->variable_header.publish.topic_name.str_body = nng_alloc(
+					work->pub_packet->variable_header.publish.topic_name.str_len);
+			memcpy(packet->variable_header.publish.topic_name.str_body,
+			       work->pub_packet->variable_header.publish.topic_name.str_body,
+			       work->pub_packet->variable_header.publish.topic_name.str_len);
+			packet->variable_header.publish.topic_name.str_len = work->pub_packet->variable_header.publish.topic_name.str_len;
+
+			packet->payload_body.payload = nng_alloc(work->pub_packet->payload_body.payload_len);
+			memcpy(packet->payload_body.payload, work->pub_packet->payload_body.payload,
+			       work->pub_packet->payload_body.payload_len);
+			packet->payload_body.payload_len = work->pub_packet->payload_body.payload_len;
+
+			retain->message = packet;
+			retain->exist   = true;
+			debug_msg("update/add retain message");
+		} else {
+//			free_pub_packet(retain->message);
+			retain->exist   = false;
+			retain->message = NULL;
+			debug_msg("delete retain message");
+		}
+
+		set_retain_msg(tp_node->node, retain);
+
+		if (tp_node != NULL) {
+			nng_free(tp_node, sizeof(struct topic_and_node));
+			tp_node = NULL;
+			debug_msg("free memory topic_and_node");
+		}
+	}
+}
+
 void free_pub_packet(struct pub_packet_struct *pub_packet)
 {
 	if (pub_packet != NULL) {
 		if (pub_packet->fixed_header.packet_type == PUBLISH) {
-			if (pub_packet->variable_header.publish.topic_name.str_body != NULL) {
+			if (pub_packet->variable_header.publish.topic_name.str_body != NULL &&
+			    pub_packet->variable_header.publish.topic_name.str_len > 0) {
 				nng_free(pub_packet->variable_header.publish.topic_name.str_body,
 				         pub_packet->variable_header.publish.topic_name.str_len + 1);
 				pub_packet->variable_header.publish.topic_name.str_body = NULL;
+				pub_packet->variable_header.publish.topic_name.str_len  = 0;
 				debug_msg("free memory topic");
 			}
 
-			if (pub_packet->payload_body.payload != NULL) {
+			if (pub_packet->payload_body.payload != NULL &&
+			    pub_packet->payload_body.payload_len > 0) {
 				nng_free(pub_packet->payload_body.payload, pub_packet->payload_body.payload_len + 1);
-				pub_packet->payload_body.payload = NULL;
+				pub_packet->payload_body.payload     = NULL;
+				pub_packet->payload_body.payload_len = 0;
 				debug_msg("free memory payload");
 			}
 		}
