@@ -160,7 +160,7 @@ uint8_t unsub_ctx_handle(emq_work * work){
 
 	// delete ctx_unsub in treeDB
 	while(topic_node_t){
-		struct topic_and_node *tan = nng_alloc(sizeof(struct topic_and_node));
+		struct topic_and_node tan;
 		clientid = (char *)conn_param_get_clentid((conn_param *)nng_msg_get_conn_param(work->msg));
 
 		// parse topic string
@@ -171,18 +171,18 @@ uint8_t unsub_ctx_handle(emq_work * work){
 		debug_msg("finding client [%s] in topic [%s].", clientid, topic_str);
 
 		char ** topics = topic_parse(topic_str);
-		search_node(work->db, topics, tan);
+		search_node(work->db, topics, &tan);
 
-		if(tan->topic == NULL){ // find the topic
-			cli = del_client(tan, clientid);
+		if(tan.topic == NULL){ // find the topic
+			cli = del_client(&tan, clientid);
 			if(cli != NULL){
 				// FREE clientinfo in dbtree and hashtable
-				destroy_sub_ctx(cli->ctxt, topic_str);
+				del_sub_ctx(cli->ctxt, topic_str);
 				del_topic_one(clientid, topic_str);
 				nng_free(cli, sizeof(struct client));
 				debug_msg("INHASH: clientid [%s] exist?: [%d]", clientid, (int)check_id(clientid));
 			}
-			del_node(tan->node);
+			del_node(tan.node);
 
 			topic_node_t->it->reason_code = 0x00;
 			debug_msg("find and delete this client.");
@@ -191,10 +191,9 @@ uint8_t unsub_ctx_handle(emq_work * work){
 			debug_msg("not find and response ack.");
 		}
 
-		free_topic_queue(topics);
 		// free local varibale
+		free_topic_queue(topics);
 		nng_free(topic_str, topic_node_t->it->topic_filter.len+1);
-		nng_free(tan, sizeof(struct topic_and_node));
 
 		topic_node_t = topic_node_t->next;
 	}
@@ -204,5 +203,36 @@ uint8_t unsub_ctx_handle(emq_work * work){
 
 	debug_msg("End of unsub ctx handle.\n");
 	return SUCCESS;
+}
+
+void destroy_unsub_ctx(void * ctxt){
+	emq_work * work = ctxt;
+	if(!work){
+		debug_msg("ERROR : ctx lost!");
+		return;
+	}
+	if(!work->unsub_pkt){
+		debug_msg("ERROR : ctx->sub is nil");
+		return;
+	}
+	packet_unsubscribe * unsub_pkt = work->unsub_pkt;
+	if(!(unsub_pkt->node->it)){
+		debug_msg("NOT FIND TOPIC");
+		return;
+	}
+
+	topic_node * topic_node_t = unsub_pkt->node;
+	topic_node * next_topic_node;
+	while(topic_node_t){
+		next_topic_node = topic_node_t->next;
+		nng_free(topic_node_t->it, sizeof(topic_with_option));
+		nng_free(topic_node_t, sizeof(topic_node));
+		topic_node_t = next_topic_node;
+	}
+
+	if(unsub_pkt->node == NULL){
+		nng_free(unsub_pkt, sizeof(packet_unsubscribe));
+		work->unsub_pkt = NULL;
+	}
 }
 

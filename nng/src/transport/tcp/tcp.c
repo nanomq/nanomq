@@ -31,8 +31,8 @@ struct tcptran_pipe {
 	tcptran_ep *    ep;
 	nni_atomic_flag reaped;
 	nni_reap_item   reap;
-	uint8_t         txlen[EMQ_MAX_PACKET_LEN];
-	uint8_t         rxlen[EMQ_MAX_PACKET_LEN];
+	uint8_t         txlen[NANO_MIN_PACKET_LEN];
+	uint8_t         rxlen[NANO_MAX_PACKET_LEN];
 	size_t          gottxhead;
 	size_t          gotrxhead;
 	size_t          wanttxhead;
@@ -224,7 +224,7 @@ tcptran_pipe_nego_cb(void *arg)
 	uint32_t      len;
 	int           rv,pos;
 
-	debug_msg("start tcptran_pipe_nego_cb max len %d\n", EMQ_CONNECT_PACKET_LEN);
+	debug_msg("start tcptran_pipe_nego_cb max len %d\n", NANO_CONNECT_PACKET_LEN);
 	nni_mtx_lock(&ep->mtx);
 
 	if ((rv = nni_aio_result(aio)) != 0) {
@@ -387,9 +387,9 @@ tcptran_pipe_send_cb(void *arg)
 static void
 tcptran_pipe_recv_cb(void *arg)
 {
+	uint8_t *     header_ptr = NULL, * variable_ptr = NULL, * payload_ptr = NULL;
 	nni_aio *     aio;
 	nni_iov       iov;
-	int           rv, pos = 1;
 	uint8_t	      type;
 	uint16_t      fixed_header;
 	uint32_t      len = 0, var_len = 0;
@@ -398,9 +398,8 @@ tcptran_pipe_recv_cb(void *arg)
 	tcptran_pipe *p = arg;
 	nni_aio *     rxaio = p->rxaio;
 	nni_aio *     txaio = p->txaio;
-	uint8_t *     header_ptr = NULL, * variable_ptr = NULL, * payload_ptr = NULL;
-
-	conn_param	*cparam;
+	int           rv, pos = 1;
+	conn_param    *cparam;
 
 	debug_msg("tcptran_pipe_recv_cb\n");
 	nni_mtx_lock(&p->mtx);
@@ -827,7 +826,7 @@ tcptran_pipe_start(tcptran_pipe *p, nng_stream *conn, tcptran_ep *ep)
 	//TODO abide with CONNECT header
 	p->gotrxhead  = 0;
 	p->gottxhead  = 0;
-	p->wantrxhead = EMQ_CONNECT_PACKET_LEN;		//packet type 1 + remaining length 1 + protocal name 8 = 10
+	p->wantrxhead = NANO_CONNECT_PACKET_LEN;		//packet type 1 + remaining length 1 + protocal name 8 = 10
 	p->wanttxhead = 4;
 	iov.iov_len   = EMQ_MIN_HEADER_LEN;	//dynamic
 	iov.iov_buf   = &p->txlen[0];

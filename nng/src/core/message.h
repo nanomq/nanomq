@@ -29,11 +29,11 @@ struct conn_param {
 	uint8_t		clean_start;
 	uint8_t		will_flag;
 	uint8_t		will_retain;
-	uint8_t		clientid[64];
-	uint8_t		will_topic[64];
-	uint8_t		will_msg[256];
+	uint8_t		clientid[32];
+	uint8_t		will_topic[32];
+	uint8_t		will_msg[32];
 	uint8_t		username[64];
-	uint8_t		password[64];
+	uint8_t		password[16];
 	uint8_t		will_qos;
 	//conn_propt	ppt;
 };

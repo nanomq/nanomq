@@ -391,8 +391,9 @@ nni_msg_alloc(nni_msg **mp, size_t sz)
 	// to allow for inlining backtraces, etc.  We also allow the
 	// amount of space at the end for the same reason.  Large aligned
 	// allocations are unmolested to avoid excessive overallocation.
+	// In MQTT no need to alloc 32 more bytes everytime; only for fixed header
 	if ((sz < 1024) || ((sz & (sz - 1)) != 0)) {
-		rv = nni_chunk_grow(&m->m_body, sz + 32, 32);
+		rv = nni_chunk_grow(&m->m_body, sz + 8, 0);
 	} else {
 		rv = nni_chunk_grow(&m->m_body, sz, 0);
 	}

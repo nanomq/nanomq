@@ -20,14 +20,15 @@
 #include "include/pub_handler.h"
 #include "include/sub_handler.h"
 
-#define ENABLE_RETAIN 0
+#define ENABLE_RETAIN   0
 #define SUPPORT_MQTT5_0 1
 
 static char *bytes_to_str(const unsigned char *src, char *dest, int src_len);
 static void print_hex(const char *prefix, const unsigned char *src, int src_len);
 static uint32_t append_bytes_with_type(nng_msg *msg, uint8_t type, uint8_t *content, uint32_t len);
 static void
-put_pipe_msgs(emq_work *sub_work, emq_work *pub_work, struct pipe_content *pipe_ct, mqtt_control_packet_types cmd);
+put_pipe_msgs(client_ctx *sub_ctx, emq_work *pub_work, struct pipe_content *pipe_ct,
+              mqtt_control_packet_types cmd);
 static void handle_client_pipe_msgs(struct client *sub_client, emq_work *pub_work, struct pipe_content *pipe_ct);
 
 void
@@ -41,16 +42,17 @@ init_pipe_content(struct pipe_content *pipe_ct)
 }
 
 static void
-put_pipe_msgs(emq_work *sub_work, emq_work *pub_work, struct pipe_content *pipe_ct, mqtt_control_packet_types cmd)
+put_pipe_msgs(client_ctx *sub_ctx, emq_work *pub_work, struct pipe_content *pipe_ct,
+              mqtt_control_packet_types cmd)
 {
 
 	pipe_ct->pipe_info = (struct pipe_info *) zrealloc(pipe_ct->pipe_info,
 	                                                   sizeof(struct pipe_info) * (pipe_ct->total + 1));
 
 	pipe_ct->pipe_info[pipe_ct->total].index    = pipe_ct->total;
-	if (PUBLISH == cmd && sub_work != NULL) {
-		pipe_ct->pipe_info[pipe_ct->total].pipe = sub_work->pid.id;
-		pipe_ct->pipe_info[pipe_ct->total].qos  = sub_work->sub_pkt->node->it->qos;
+	if (PUBLISH == cmd && sub_ctx != NULL) {
+		pipe_ct->pipe_info[pipe_ct->total].pipe = sub_ctx->pid.id;
+		pipe_ct->pipe_info[pipe_ct->total].qos  = sub_ctx->sub_pkt->node->it->qos;
 	} else {
 		pipe_ct->pipe_info[pipe_ct->total].pipe = pub_work->pid.id;
 		pipe_ct->pipe_info[pipe_ct->total].qos  = pub_work->pub_packet->fixed_header.qos;
@@ -58,26 +60,28 @@ put_pipe_msgs(emq_work *sub_work, emq_work *pub_work, struct pipe_content *pipe_
 	pipe_ct->pipe_info[pipe_ct->total].cmd      = cmd;
 	pipe_ct->pipe_info[pipe_ct->total].pub_work = pub_work;
 
-	debug_msg("put pipe_info: index: [%d], "
+/*	debug_msg("put sub pipe_info: index: [%d], "
 	          "pipe: [%d], "
 	          "qos: [%d], "
 	          "cmd: [%d], "
-	          "pub pub_work: [%p]",
+	          "pub pub_work: [%p]"
+	          "pub pipe: [%d]",
 	          pipe_ct->pipe_info[pipe_ct->total].index,
 	          pipe_ct->pipe_info[pipe_ct->total].pipe,
 	          pipe_ct->pipe_info[pipe_ct->total].qos,
 	          pipe_ct->pipe_info[pipe_ct->total].cmd,
-	          pipe_ct->pipe_info[pipe_ct->total].pub_work);
+	          pipe_ct->pipe_info[pipe_ct->total].pub_work,
+	          pipe_ct->pipe_info[pipe_ct->total].pub_work->pid.id
+	);*/
 
 	pipe_ct->total += 1;
-	debug_msg("input cmd: %d, current total: %d", cmd, pipe_ct->total);
 }
 
 static void
 handle_client_pipe_msgs(struct client *sub_client, emq_work *pub_work, struct pipe_content *pipe_ct)
 {
-	emq_work *sub_work = (emq_work *) sub_client->ctxt;
-	put_pipe_msgs(sub_work, pub_work, pipe_ct, PUBLISH);
+	struct client_ctx *ctx = (struct client_ctx *) sub_client->ctxt;
+	put_pipe_msgs(ctx, pub_work, pipe_ct, PUBLISH);
 }
 
 void
@@ -102,7 +106,8 @@ foreach_client(struct clients *sub_clients, emq_work *pub_work, struct pipe_cont
 
 			if (equal == false) {
 				id_queue[cols - 1] = sub_client->id;
-				debug_msg("sub_client: [%p], id: [%s]", sub_client, sub_client->id);
+				struct client_ctx *ctx = (struct client_ctx *) sub_client->ctxt;
+//				debug_msg("sub_client: [%p], id: [%s], pipe: [%d]", sub_client, sub_client->id, ctx->pid.id);
 				handle_cb(sub_client, pub_work, pipe_ct);
 				cols++;
 			}
@@ -393,7 +398,7 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_
 		case PUBACK:
 		case PUBREC:
 		case PUBCOMP:
-			debug_msg("encode %d message",cmd);
+			debug_msg("encode %d message", cmd);
 			struct pub_packet_struct pub_response = {
 					.fixed_header.packet_type = cmd,
 					.fixed_header.dup = dup,
@@ -507,7 +512,7 @@ decode_pub_message(emq_work *work)
 					}
 				}
 
-				debug_msg("topic: [%s]", pub_packet->variable_header.publish.topic_name.str_body);
+//				debug_msg("topic: [%s]", pub_packet->variable_header.publish.topic_name.str_body);
 
 				if (pub_packet->fixed_header.qos > 0) { //extract packet_identifier while qos > 0
 					NNI_GET16(msg_body + pos, pub_packet->variable_header.publish.packet_identifier);
@@ -675,8 +680,8 @@ decode_pub_message(emq_work *work)
 					memset(pub_packet->payload_body.payload, 0, pub_packet->payload_body.payload_len + 1);
 					memcpy(pub_packet->payload_body.payload, (uint8_t *) (msg_body + pos),
 					       pub_packet->payload_body.payload_len);
-					debug_msg("payload: [%s], len = %u", pub_packet->payload_body.payload,
-					          pub_packet->payload_body.payload_len);
+//					debug_msg("payload: [%s], len = %u", pub_packet->payload_body.payload,
+//					          pub_packet->payload_body.payload_len);
 				}
 				break;
 

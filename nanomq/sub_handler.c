@@ -70,7 +70,7 @@ uint8_t decode_sub_message(nng_msg * msg, packet_subscribe * sub_pkt){
 		}
 	}
 
-	debug_msg("Remain_len: [%ld] packet_id : [%d]", remaining_len, sub_pkt->packet_id);
+	debug_msg("remainLen: [%ld] packetid : [%d]", remaining_len, sub_pkt->packet_id);
 	// handle payload
 	payload_ptr = nng_msg_payload_ptr(msg);
 
@@ -95,15 +95,13 @@ uint8_t decode_sub_message(nng_msg * msg, packet_subscribe * sub_pkt){
 			strncpy(topic_option->topic_filter.str_body, payload_ptr + bpos, topic_option->topic_filter.len);
 			bpos += len_of_topic;
 		}else {
-			debug_msg("Topic length Error.");
+			debug_msg("ERROR : topic length error.");
 			return PROTOCOL_ERROR;
 		}
 
-		debug_msg("Length of topic: %d topic_node: %x %x. ", len_of_topic, (uint8_t)(topic_option->topic_filter.str_body[0]), (uint8_t)(topic_option->topic_filter.str_body[1]));
-
 		memcpy(topic_option, payload_ptr+bpos, 1);
 
-		debug_msg("Bpos+Vpos: [%d] Remain_len:%ld.", bpos+vpos, remaining_len);
+		debug_msg("bpos+vpos: [%d] remainLen: [%ld].", bpos+vpos, remaining_len);
 		if(++bpos < remaining_len - vpos){
 			topic_node_t = nng_alloc(sizeof(topic_node));
 			topic_node_t->next = NULL;
@@ -169,11 +167,12 @@ uint8_t encode_suback_message(nng_msg * msg, packet_subscribe * sub_pkt){
 		return PROTOCOL_ERROR;
 	}
 
-	debug_msg("remain: [%d] varint: [%d %d %d %d] len: [%d] packet_id: [%x %x]", remaining_len, varint[0], varint[1], varint[2], varint[3], len_of_varint, packet_id[0], packet_id[1]);
+	debug_msg("remain: [%d] varint: [%d %d %d %d] len: [%d] packetid: [%x %x]", remaining_len,
+			varint[0], varint[1], varint[2], varint[3], len_of_varint, packet_id[0], packet_id[1]);
 	return SUCCESS;
 }
 
-uint8_t sub_ctx_handle(emq_work * work){
+uint8_t sub_ctx_handle(emq_work * work, client_ctx * cli_ctx){
 	// generate ctx for each topic
 	int count = 0;
 	bool version_v5 = false;
@@ -188,13 +187,18 @@ uint8_t sub_ctx_handle(emq_work * work){
 
 		//setting client
 		client->id = (char *)conn_param_get_clentid((conn_param *)nng_msg_get_conn_param(work->msg));
-		client->ctxt = work;
+		client->ctxt = cli_ctx;
 		client->next = NULL;
+
+		// setting client_ctx
+		cli_ctx->pid = work->pid;
+		cli_ctx->cparam = work->cparam;
+		cli_ctx->sub_pkt = work->sub_pkt;
 
 		topic_str = (char *)nng_alloc(topic_node_t->it->topic_filter.len + 1);
 		strncpy(topic_str, topic_node_t->it->topic_filter.str_body, topic_node_t->it->topic_filter.len);
 		topic_str[topic_node_t->it->topic_filter.len] = '\0';
-		debug_msg("topicLen: [%d] Body: [%s]", topic_node_t->it->topic_filter.len, (char *)topic_str);
+		debug_msg("topicLen: [%d] body: [%s]", topic_node_t->it->topic_filter.len, (char *)topic_str);
 
 		char ** topics = topic_parse(topic_str);
 		search_node(work->db, topics, tan);
@@ -204,7 +208,7 @@ uint8_t sub_ctx_handle(emq_work * work){
 			add_topic(client->id, topic_str);
 			add_pipe_id(work->pid.id, client->id);
 			struct topic_queue * q = get_topic(client->id);
-			debug_msg("-----CHECKHASHTABLE----clientid:%s---topic:%s---pipeid:%d",
+			debug_msg("-----CHECKHASHTABLE----clientid: [%s]---topic: [%s]---pipeid: [%d]",
 					client->id, q->topic, work->pid.id);
 		}else{
 			// not contain clientid
@@ -215,13 +219,14 @@ uint8_t sub_ctx_handle(emq_work * work){
 				// debug_msg("------CHECKHASHTABLE----clientid:%s---next-topic:%s",
 				//		client->id, q->next->topic);
 				add_client(tan, client);
-				// test
+				/* test
 				search_node(work->db, topics, tan);
 				struct client * cli = tan->node->sub_client;
 				while(cli){
 					debug_msg("client: %s", cli->id);
 					cli = cli->next;
 				}
+				*/
 			}else{ // clientid already in hash
 				work->sub_pkt->node->it->reason_code = 0x80;
 			}
@@ -233,58 +238,110 @@ uint8_t sub_ctx_handle(emq_work * work){
 		topic_node_t = topic_node_t->next;
 	}
 
-	// check treeDhnmbB
+	// check treeDB
 	print_db_tree(work->db);
-	debug_msg("End of sub ctx handle. \n");
+	debug_msg("end of sub ctx handle. \n");
 	return SUCCESS;
 }
 
-void destroy_sub_ctx(void * ctxt, char * target_topic){
-	emq_work * work = ctxt;
-	if(!work){
+void del_sub_ctx(void * ctxt, char * target_topic){
+	client_ctx * cli_ctx = ctxt;
+	if(!cli_ctx){
 		debug_msg("ERROR : ctx lost!");
 		return;
 	}
-	if(!work->sub_pkt){
+	if(!cli_ctx->sub_pkt){
 		debug_msg("ERROR : ctx->sub is nil");
 		return;
 	}
-	packet_subscribe * sub_pkt = work->sub_pkt;
-	if(!(sub_pkt->node->it)){
-		debug_msg("NOT FIND TOPIC");
+	packet_subscribe * sub_pkt = cli_ctx->sub_pkt;
+	if(!(sub_pkt->node)){
+		debug_msg("ERROR : not find topic");
 		return;
 	}
+
 	topic_node * topic_node_t = sub_pkt->node;
 	topic_node * before_topic_node = NULL;
 	while(topic_node_t){
 		if(!strncmp(topic_node_t->it->topic_filter.str_body, target_topic,
 				topic_node_t->it->topic_filter.len)){
-			debug_msg("FREE in topic_node [%s] in tree", topic_node_t->it->topic_filter.str_body);
+//			debug_msg("FREE in topic_node [%s] in tree", topic_node_t->it->topic_filter.str_body);
 			if(before_topic_node){
 				before_topic_node->next = topic_node_t->next;
 			}else{
 				sub_pkt->node = topic_node_t->next;
 			}
+
 			nng_free(topic_node_t->it->topic_filter.str_body, topic_node_t->it->topic_filter.len);
 			nng_free(topic_node_t->it, sizeof(topic_with_option));
 			nng_free(topic_node_t, sizeof(topic_node));
 			break;
 		}
-		// test
+		/* test
 		else{
-			char * t = nng_alloc(topic_node_t->it->topic_filter.len+1);
-			strncpy(t, topic_node_t->it->topic_filter.str_body, topic_node_t->it->topic_filter.len);
-			t[topic_node_t->it->topic_filter.len+1] = '\0';
-			debug_msg("a/topic b/topic [%s] [%s]", t, target_topic);
-			nng_free(t, topic_node_t->it->topic_filter.len+1);
+			debug_msg("a/topic b/topic [%s] [%s]", topic_node_t->it->topic_filter.str_body, target_topic);
 		}
+		*/
         before_topic_node = topic_node_t;
 		topic_node_t = topic_node_t->next;
 	}
 
 	if(sub_pkt->node == NULL){
 		nng_free(sub_pkt, sizeof(packet_subscribe));
-		work->sub_pkt = NULL;
+		// TODO free conn_param
+		debug_msg("Free [%p]", cli_ctx);
+		nng_free(cli_ctx, sizeof(client_ctx));
+		cli_ctx = NULL;
+	}
+}
+
+void destroy_sub_ctx(void * ctxt){
+	client_ctx * cli_ctx = ctxt;
+	if(!cli_ctx){
+		debug_msg("ERROR : ctx lost!");
+		return;
+	}
+	if(!cli_ctx->sub_pkt){
+		debug_msg("ERROR : ctx->sub is nil");
+		return;
+	}
+	packet_subscribe * sub_pkt = cli_ctx->sub_pkt;
+	if(!(sub_pkt->node)){
+		nng_free(sub_pkt, sizeof(packet_subscribe));
+		nng_free(cli_ctx, sizeof(client_ctx));
+		cli_ctx = NULL;
+		return;
+	}
+
+	topic_node * topic_node_t = sub_pkt->node;
+	topic_node * next_topic_node = NULL;
+	while(topic_node_t){
+		next_topic_node = topic_node_t->next;
+		nng_free(topic_node_t->it->topic_filter.str_body, topic_node_t->it->topic_filter.len);
+		nng_free(topic_node_t->it, sizeof(topic_with_option));
+		nng_free(topic_node_t, sizeof(topic_node));
+		topic_node_t = next_topic_node;
+	}
+
+	if(sub_pkt->node == NULL){
+		nng_free(sub_pkt, sizeof(packet_subscribe));
+		// TODO free conn_param
+		nng_free(cli_ctx, sizeof(client_ctx));
+		cli_ctx = NULL;
+	}
+}
+
+void del_sub_pipe_id(uint32_t pipe_id)
+{
+	if (check_pipe_id(pipe_id)) {
+		del_pipe_id(pipe_id);
+	}
+}
+
+void del_sub_client_id(char * clientid)
+{
+	if (check_id(clientid)) {
+		del_topic_all(clientid);
 	}
 }
 

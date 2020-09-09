@@ -26,18 +26,18 @@ static void nano_pipe_fini(void *);
 
 //huge context/ dynamic context?
 struct nano_ctx {
-	nano_sock *   sock;
-	uint32_t      pipe_id;
+	nano_sock *sock;
+	uint32_t pipe_id;
 	//uint32_t      resend_count;
 	//uint32_t      pipe_len;	//record total length of pipe_id queue when resending
-	nano_pipe *   spipe; // send pipe
-	nni_aio *     saio;  // send aio
-	nni_aio *     raio;  // recv aio
+	nano_pipe *spipe; // send pipe
+	nni_aio   *saio;  // send aio
+	nni_aio   *raio;  // recv aio
 	//uint32_t*     rspipes;// pub resend pipe queue Qos 1/2
 	//nni_list      send_queue; // contexts waiting to send.
 	nni_list_node sqnode;
 	nni_list_node rqnode;
-	nni_msg *     rmsg;
+	nni_msg *rmsg;
 	//size_t        pp_len;			//property Header
 	//uint32_t      pp[NNI_EMQ_MAX_PROPERTY_SIZE + 1];
 };
@@ -46,43 +46,43 @@ struct nano_ctx {
 struct nano_sock {
 	nni_mtx        lk;
 	nni_atomic_int ttl;
-	nni_idhash *   pipes;
-	nni_list       recvpipes; // list of pipes with data to receive
-	nni_list       recvq;
-	nano_ctx       ctx;		//base socket
-	nni_pollable   readable;
-	nni_pollable   writable;
+	nni_idhash *pipes;
+	nni_list     recvpipes; // list of pipes with data to receive
+	nni_list     recvq;
+	nano_ctx     ctx;        //base socket
+	nni_pollable readable;
+	nni_pollable writable;
 };
 
 // nano_pipe is our per-pipe protocol private structure.
 struct nano_pipe {
-	nni_pipe *    pipe;
-	nano_sock *   rep;
-	uint32_t      id;
+	nni_pipe  *pipe;
+	nano_sock *rep;
+	uint32_t id;
 	//uint8_t       retry;
-	void *        tree;	//mqtt_db tree root
+	void *tree;    //mqtt_db tree root
 	nni_aio       aio_send;
 	nni_aio       aio_recv;
 	nni_list_node rnode; // receivable list linkage
 	nni_list      sendq; // contexts waiting to send
-	bool          busy;
-	bool          closed;
+	bool busy;
+	bool closed;
 };
 
 static void
 nano_ctx_close(void *arg)
 {
-	nano_ctx * ctx = arg;
-	nano_sock *s   = ctx->sock;
-	nni_aio *  aio;
+	nano_ctx *ctx = arg;
+	nano_sock *s = ctx->sock;
+	nni_aio *aio;
 
 	debug_msg("nano_ctx_close");
 	nni_mtx_lock(&s->lk);
 	if ((aio = ctx->saio) != NULL) {
 		nano_pipe *pipe = ctx->spipe;
-		ctx->saio       = NULL;
-		ctx->spipe      = NULL;
-		ctx->rmsg	= NULL;
+		ctx->saio  = NULL;
+		ctx->spipe = NULL;
+		ctx->rmsg  = NULL;
 		nni_list_remove(&pipe->sendq, ctx);
 		nni_aio_finish_error(aio, NNG_ECLOSED);
 	}
@@ -105,16 +105,16 @@ nano_ctx_fini(void *arg)
 static int
 nano_ctx_init(void *carg, void *sarg)
 {
-	nano_sock *s   = sarg;
-	nano_ctx * ctx = carg;
+	nano_sock *s = sarg;
+	nano_ctx *ctx = carg;
 
 	debug_msg("&&&&&&&& nano_ctx_init &&&&&&&&&");
 	NNI_LIST_NODE_INIT(&ctx->sqnode);
 	NNI_LIST_NODE_INIT(&ctx->rqnode);
 	//TODO send list??
 	//ctx->pp_len = 0;
-	ctx->sock       = s;
-	ctx->pipe_id    = 0;
+	ctx->sock    = s;
+	ctx->pipe_id = 0;
 
 	return (0);
 }
@@ -122,8 +122,8 @@ nano_ctx_init(void *carg, void *sarg)
 static void
 nano_ctx_cancel_send(nni_aio *aio, void *arg, int rv)
 {
-	nano_ctx * ctx = arg;
-	nano_sock *s   = ctx->sock;
+	nano_ctx *ctx = arg;
+	nano_sock *s = ctx->sock;
 
 	nni_mtx_lock(&s->lk);
 	if (ctx->saio != aio) {
@@ -141,15 +141,15 @@ nano_ctx_cancel_send(nni_aio *aio, void *arg, int rv)
 static void
 nano_ctx_send(void *arg, nni_aio *aio)
 {
-	nano_ctx * ctx = arg;
-	nano_sock *s   = ctx->sock;
+	nano_ctx *ctx = arg;
+	nano_sock *s  = ctx->sock;
 	nano_pipe *p;
-	nni_msg *  msg;
-	int        rv;
-	size_t     len;
+	nni_msg *msg;
+	int      rv;
+	size_t   len;
 	//uint32_t * pipes; // pipes id
-	uint32_t   pipe;
-	uint32_t   p_id[2],i = 0,fail_count = 0, need_resend = 0;
+	uint32_t pipe;
+	uint32_t p_id[2], i = 0, fail_count = 0, need_resend = 0;
 
 	msg = nni_aio_get_msg(aio);
 
@@ -161,7 +161,7 @@ nano_ctx_send(void *arg, nni_aio *aio)
 	nni_mtx_lock(&s->lk);
 	//len  = ctx->pp_len;
 	//if ((pipes = nni_aio_get_pipeline(aio)) != NULL){
-	if ((pipe = nni_aio_get_pipeline(aio)) != 0){
+	if ((pipe = nni_aio_get_pipeline(aio)) != 0) {
 		nni_aio_set_pipeline(aio, 0);
 	} else {
 		//p_id[0] = ctx->pipe_id;
@@ -171,7 +171,7 @@ nano_ctx_send(void *arg, nni_aio *aio)
 	}
 
 	//ctx->pp_len = 0;
-	ctx->pipe_id    = 0;		//ensure PING/DISCONNECT/PUBACK only sends once
+	ctx->pipe_id = 0;        //ensure PING/DISCONNECT/PUBACK only sends once
 
 	if (ctx == &s->ctx) {
 		//in prototype, we only send once in each sock.
@@ -281,9 +281,10 @@ exit:
 		nni_msg_free(msg);
 		return;
 	}
+	p->tree = nni_aio_get_dbtree(aio);
 	if (!p->busy) {
 		p->busy = true;
-		len     = nni_msg_len(msg);
+		len = nni_msg_len(msg);
 		nni_aio_set_msg(&p->aio_send, msg);
 		nni_pipe_send(p->pipe, &p->aio_send);
 		nni_mtx_unlock(&s->lk);
@@ -293,7 +294,7 @@ exit:
 		return;
 	}
 
-	debug_msg("pipe %p jamed!", pipe);
+	debug_msg("pipe %p jamed! resending in cb!", pipe);
 	ctx->saio  = aio;
 	ctx->spipe = p;
 	ctx->rmsg  = msg;
@@ -317,7 +318,7 @@ static int
 nano_sock_init(void *arg, nni_sock *sock)
 {
 	nano_sock *s = arg;
-	int        rv;
+	int       rv;
 
 	NNI_ARG_UNUSED(sock);
 
@@ -370,7 +371,7 @@ static void
 nano_pipe_fini(void *arg)
 {
 	nano_pipe *p = arg;
-	nng_msg *  msg;
+	nng_msg *msg;
 
 	if ((msg = nni_aio_get_msg(&p->aio_recv)) != NULL) {
 		nni_aio_set_msg(&p->aio_recv, NULL);
@@ -407,7 +408,7 @@ nano_pipe_start(void *arg)
 {
 	nano_pipe *p = arg;
 	nano_sock *s = p->rep;
-	int        rv;
+	int       rv;
 	//TODO check MQTT protocol version here
 	debug_msg("##########nano_pipe_start################");
 	/*
@@ -433,8 +434,8 @@ nano_pipe_close(void *arg)
 {
 	nano_pipe *p = arg;
 	nano_sock *s = p->rep;
-	nano_ctx * ctx;
-	void *     tree;
+	nano_ctx *ctx;
+	void     *tree;
 
 	debug_msg("#################nano_pipe_close!!##############");
 	nni_mtx_lock(&s->lk);
@@ -459,9 +460,9 @@ nano_pipe_close(void *arg)
 		// Pipe was closed.  To avoid pushing an error back to the
 		// entire socket, we pretend we completed this successfully.
 		nni_list_remove(&p->sendq, ctx);
-		aio       = ctx->saio;
+		aio = ctx->saio;
 		ctx->saio = NULL;
-		msg       = nni_aio_get_msg(aio);
+		msg = nni_aio_get_msg(aio);
 		nni_aio_set_msg(aio, NULL);
 		nni_aio_finish(aio, 0, nni_msg_len(msg));
 		nni_msg_free(msg);
@@ -478,14 +479,14 @@ nano_pipe_close(void *arg)
 static void
 nano_pipe_send_cb(void *arg)
 {
-	nano_pipe *p = arg;
-	nano_sock *s = p->rep;
-	nano_ctx * ctx;
-	nni_aio *  aio;
-	nni_msg *  msg;
-	size_t     len;
-	uint32_t   index = 0;
-	uint32_t * pipes;
+	nano_pipe *p   = arg;
+	nano_sock *s   = p->rep;
+	nano_ctx *ctx;
+	nni_aio  *aio;
+	nni_msg  *msg;
+	size_t   len;
+	uint32_t index = 0;
+	uint32_t *pipes;
 
 	debug_msg("##########nano_pipe_send_cb################");
 	//retry here
@@ -508,13 +509,13 @@ nano_pipe_send_cb(void *arg)
 	}
 
 	nni_list_remove(&p->sendq, ctx);
-	aio        = ctx->saio;
-	ctx->saio  = NULL;
-	p          = ctx->spipe;  //should be as same as orignal p?
+	aio = ctx->saio;
+	ctx->saio = NULL;
+	p = ctx->spipe;  //should be as same as orignal p?
 	ctx->spipe = NULL;
 	p->busy    = true;
-	msg        = ctx->rmsg;
-	len        = nni_msg_len(msg);
+	msg = ctx->rmsg;
+	len = nni_msg_len(msg);
 	nni_aio_set_msg(aio, NULL);
 	nni_aio_set_msg(&p->aio_send, msg);
 	nni_pipe_send(p->pipe, &p->aio_send);
@@ -588,8 +589,8 @@ drop:
 static void
 nano_cancel_recv(nni_aio *aio, void *arg, int rv)
 {
-	nano_ctx * ctx = arg;
-	nano_sock *s   = ctx->sock;
+	nano_ctx *ctx = arg;
+	nano_sock *s = ctx->sock;
 
 	nni_mtx_lock(&s->lk);
 	if (ctx->raio == aio) {
@@ -603,11 +604,11 @@ nano_cancel_recv(nni_aio *aio, void *arg, int rv)
 static void
 nano_ctx_recv(void *arg, nni_aio *aio)
 {
-	nano_ctx * ctx = arg;
-	nano_sock *s   = ctx->sock;
+	nano_ctx *ctx = arg;
+	nano_sock *s = ctx->sock;
 	nano_pipe *p;
-	size_t     len;
-	nni_msg *  msg;
+	size_t    len;
+	nni_msg *msg;
 
 	if (nni_aio_begin(aio) != 0) {
 		return;
@@ -648,7 +649,7 @@ nano_ctx_recv(void *arg, nni_aio *aio)
 
 	//TODO MQTT 5 property
 
-	ctx->pipe_id    = nni_pipe_id(p->pipe);
+	ctx->pipe_id = nni_pipe_id(p->pipe);
 	debug_msg("nano_ctx_recv ends %p pipe: %p pipe_id: %d", ctx, p, ctx->pipe_id);
 	nni_mtx_unlock(&s->lk);
 
@@ -663,13 +664,13 @@ nano_pipe_recv_cb(void *arg)
 {
 	nano_pipe *p = arg;
 	nano_sock *s = p->rep;
-	nano_ctx *  ctx;
-	nni_msg *  msg;
-	uint8_t *  body, *header;
-	nni_aio *  aio;
-	size_t     len;
-	int        hops;
-	int        ttl;
+	nano_ctx *ctx;
+	nni_msg  *msg;
+	uint8_t  *body, *header;
+	nni_aio *aio;
+	size_t len;
+	int    hops;
+	int    ttl;
 
 	if (nni_aio_result(&p->aio_recv) != 0) {
 		nni_pipe_close(p->pipe);
@@ -683,7 +684,8 @@ nano_pipe_recv_cb(void *arg)
 	}
 
 	header = nng_msg_header(msg);
-	debug_msg("start nano_pipe_recv_cb pipe: %p p_id %d TYPE: %x ===== header: %x %x header len: %d\n",p ,p->id, nng_msg_cmd_type(msg), *header, *(header+1), nng_msg_header_len(msg));
+	debug_msg("start nano_pipe_recv_cb pipe: %p p_id %d TYPE: %x ===== header: %x %x header len: %d\n", p, p->id,
+	          nng_msg_cmd_type(msg), *header, *(header + 1), nng_msg_header_len(msg));
 	//ttl = nni_atomic_get(&s->ttl);
 	nni_msg_set_pipe(msg, p->id);
 
@@ -697,6 +699,12 @@ nano_pipe_recv_cb(void *arg)
 			break;
 		case CMD_DISCONNECT:
 			break;
+		case CMD_UNSUBSCRIBE:
+			break;
+		case CMD_PINGREQ:
+			break;
+		default:
+			goto drop;
 	}
 
 	/*
@@ -731,7 +739,7 @@ nano_pipe_recv_cb(void *arg)
 	}
 
 	nni_list_remove(&s->recvq, ctx);
-	aio       = ctx->raio;
+	aio = ctx->raio;
 	ctx->raio = NULL;
 	nni_aio_set_msg(&p->aio_recv, NULL);
 	if ((ctx == &s->ctx) && !p->busy) {
@@ -742,7 +750,7 @@ nano_pipe_recv_cb(void *arg)
 	nni_pipe_recv(p->pipe, &p->aio_recv);
 
 	//ctx->pp_len = len;		//TODO Rewrite mqtt header length
-	ctx->pipe_id = p->id;			//use pipe id to identify which client
+	ctx->pipe_id = p->id;            //use pipe id to identify which client
 	debug_msg("pipe_id: %d", p->id);
 
 	nni_mtx_unlock(&s->lk);
@@ -753,7 +761,7 @@ nano_pipe_recv_cb(void *arg)
 	debug_msg("end of nano_pipe_recv_cb %p", ctx);
 	return;
 
-drop:
+	drop:
 	nni_msg_free(msg);
 	nni_aio_set_msg(&p->aio_recv, NULL);
 	nni_pipe_recv(p->pipe, &p->aio_recv);
@@ -764,8 +772,8 @@ static int
 nano_sock_set_max_ttl(void *arg, const void *buf, size_t sz, nni_opt_type t)
 {
 	nano_sock *s = arg;
-	int        ttl;
-	int        rv;
+	int       ttl;
+	int       rv;
 
 	if ((rv = nni_copyin_int(&ttl, buf, sz, 1, NNI_MAX_MAX_TTL, t)) == 0) {
 		nni_atomic_set(&s->ttl, ttl);
@@ -785,8 +793,8 @@ static int
 nano_sock_get_sendfd(void *arg, void *buf, size_t *szp, nni_opt_type t)
 {
 	nano_sock *s = arg;
-	int        rv;
-	int        fd;
+	int       rv;
+	int       fd;
 
 	if ((rv = nni_pollable_getfd(&s->writable, &fd)) != 0) {
 		return (rv);
@@ -798,8 +806,8 @@ static int
 nano_sock_get_recvfd(void *arg, void *buf, size_t *szp, nni_opt_type t)
 {
 	nano_sock *s = arg;
-	int        rv;
-	int        fd;
+	int       rv;
+	int       fd;
 
 	if ((rv = nni_pollable_getfd(&s->readable, &fd)) != 0) {
 		return (rv);
@@ -827,66 +835,66 @@ nano_sock_recv(void *arg, nni_aio *aio)
 // This is the global protocol structure -- our linkage to the core.
 // This should be the only global non-static symbol in this file.
 static nni_proto_pipe_ops nano_pipe_ops = {
-	.pipe_size  = sizeof(nano_pipe),
-	.pipe_init  = nano_pipe_init,
-	.pipe_fini  = nano_pipe_fini,
-	.pipe_start = nano_pipe_start,
-	.pipe_close = nano_pipe_close,
-	.pipe_stop  = nano_pipe_stop,
+		.pipe_size  = sizeof(nano_pipe),
+		.pipe_init  = nano_pipe_init,
+		.pipe_fini  = nano_pipe_fini,
+		.pipe_start = nano_pipe_start,
+		.pipe_close = nano_pipe_close,
+		.pipe_stop  = nano_pipe_stop,
 };
 
 static nni_proto_ctx_ops nano_ctx_ops = {
-	.ctx_size = sizeof(nano_ctx),
-	.ctx_init = nano_ctx_init,
-	.ctx_fini = nano_ctx_fini,
-	.ctx_send = nano_ctx_send,
-	.ctx_recv = nano_ctx_recv,
+		.ctx_size = sizeof(nano_ctx),
+		.ctx_init = nano_ctx_init,
+		.ctx_fini = nano_ctx_fini,
+		.ctx_send = nano_ctx_send,
+		.ctx_recv = nano_ctx_recv,
 };
 
 static nni_option nano_sock_options[] = {
-	{
-	    .o_name = NNG_OPT_MAXTTL,
-	    .o_get  = nano_sock_get_max_ttl,
-	    .o_set  = nano_sock_set_max_ttl,
-	},
-	{
-	    .o_name = NNG_OPT_RECVFD,
-	    .o_get  = nano_sock_get_recvfd,
-	},
-	{
-	    .o_name = NNG_OPT_SENDFD,
-	    .o_get  = nano_sock_get_sendfd,
-	},
-	//{
-	//    .o_name = NNG_OPT_REQ_RESENDTIME,
-	//    .o_get  = req0_ctx_get_resend_time,
-	//    .o_set  = req0_ctx_set_resend_time,
-	//},
-	// terminate list
-	{
-	    .o_name = NULL,
-	},
+		{
+				.o_name = NNG_OPT_MAXTTL,
+				.o_get  = nano_sock_get_max_ttl,
+				.o_set  = nano_sock_set_max_ttl,
+		},
+		{
+				.o_name = NNG_OPT_RECVFD,
+				.o_get  = nano_sock_get_recvfd,
+		},
+		{
+				.o_name = NNG_OPT_SENDFD,
+				.o_get  = nano_sock_get_sendfd,
+		},
+		//{
+		//    .o_name = NNG_OPT_REQ_RESENDTIME,
+		//    .o_get  = req0_ctx_get_resend_time,
+		//    .o_set  = req0_ctx_set_resend_time,
+		//},
+		// terminate list
+		{
+				.o_name = NULL,
+		},
 };
 
 static nni_proto_sock_ops nano_sock_ops = {
-	.sock_size    = sizeof(nano_sock),
-	.sock_init    = nano_sock_init,
-	.sock_fini    = nano_sock_fini,
-	.sock_open    = nano_sock_open,
-	.sock_close   = nano_sock_close,
-	.sock_options = nano_sock_options,
-	.sock_send    = nano_sock_send,
-	.sock_recv    = nano_sock_recv,
+		.sock_size    = sizeof(nano_sock),
+		.sock_init    = nano_sock_init,
+		.sock_fini    = nano_sock_fini,
+		.sock_open    = nano_sock_open,
+		.sock_close   = nano_sock_close,
+		.sock_options = nano_sock_options,
+		.sock_send    = nano_sock_send,
+		.sock_recv    = nano_sock_recv,
 };
 
 static nni_proto nano_tcp_proto = {
-	.proto_version  = NNI_PROTOCOL_VERSION,
-	.proto_self     = { NNG_NANO_TCP_SELF, NNG_NANO_TCP_SELF_NAME },
-	.proto_peer     = { NNG_NANO_TCP_PEER, NNG_NANO_TCP_PEER_NAME },
-	.proto_flags    = NNI_PROTO_FLAG_SNDRCV | NNI_PROTO_FLAG_NOMSGQ,
-	.proto_sock_ops = &nano_sock_ops,
-	.proto_pipe_ops = &nano_pipe_ops,
-	.proto_ctx_ops  = &nano_ctx_ops,
+		.proto_version  = NNI_PROTOCOL_VERSION,
+		.proto_self     = {NNG_NANO_TCP_SELF, NNG_NANO_TCP_SELF_NAME},
+		.proto_peer     = {NNG_NANO_TCP_PEER, NNG_NANO_TCP_PEER_NAME},
+		.proto_flags    = NNI_PROTO_FLAG_SNDRCV | NNI_PROTO_FLAG_NOMSGQ,
+		.proto_sock_ops = &nano_sock_ops,
+		.proto_pipe_ops = &nano_pipe_ops,
+		.proto_ctx_ops  = &nano_ctx_ops,
 };
 
 int

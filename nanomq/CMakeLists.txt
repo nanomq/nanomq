@@ -20,9 +20,9 @@ add_subdirectory(apps)
 
 set(PARALLEL 128 CACHE STRING "Parallelism (min 4, max 1000)")
 
-# Call this from your own project's makefile.
-find_package(nng CONFIG REQUIRED)
-find_package(nanolib CONFIG REQUIRED)
+#find_package(nng CONFIG REQUIRED)
+#find_package(nanolib CONFIG REQUIRED)
+
 #if (NANOLIB_FOUND)
 #	INCLUDE_DIRECTORIES(${NANOLIB_INCLUDE_DIR})
 #	TARGET_LINK_LIBRARIES(nanomq ${NANOLIB_LIBRARY})
