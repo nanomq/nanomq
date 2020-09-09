@@ -5,8 +5,8 @@
 #include "include/packet.h"
 #include "apps/broker.h"
 
-uint8_t decode_sub_message(nng_msg *, packet_subscribe *);
-uint8_t encode_suback_message(nng_msg *, packet_subscribe *);
+uint8_t decode_sub_message(emq_work *);
+uint8_t encode_suback_message(nng_msg *, emq_work *);
 uint8_t sub_ctx_handle(emq_work *, client_ctx *);
 void del_sub_ctx(void *, char *);
 void destroy_sub_ctx(void *);

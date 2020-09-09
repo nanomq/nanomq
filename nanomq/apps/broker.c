@@ -86,7 +86,7 @@ server_cb(void *arg)
 
 			if (nng_msg_cmd_type(msg) == CMD_DISCONNECT) {
 				work->cparam = (conn_param *) nng_msg_get_conn_param(msg);
-				char                  *clientid = (char *) conn_param_get_clentid(work->cparam);
+				char   *clientid = (char *) conn_param_get_clentid(work->cparam);
 				struct topic_and_node tan;
 				struct client         *cli      = NULL;
 				struct topic_queue    *tq       = NULL;
@@ -106,7 +106,7 @@ server_cb(void *arg)
 						if (cli) {
 							del_node(tan.node);
 							debug_msg("destroy ctx: [%p] clientid: [%s]", cli->ctxt, cli->id);
-							// TODO free client_ctx rather than work->sub_ctx
+							// TODO free conn_paran & pub_pkt
 							del_sub_ctx(cli->ctxt, tq->topic); // only free work->sub_pkt
 							nng_free(cli, sizeof(struct client));
 						}
@@ -137,23 +137,19 @@ server_cb(void *arg)
 			work->cparam = (conn_param *) nng_msg_get_conn_param(work->msg);
 			//debug_msg("WAIT   %x %s %d pipe: %d\n", nng_msg_cmd_type(work->msg),
 			//conn_param_get_clentid(work->cparam), work->ctx.id, work->pid.id);
-/*
-        if ((rv = nng_msg_append_u32(msg, msec)) != 0) {
-                fatal("nng_msg_append_u32", rv);
-        }
-*/
+
 			//reply to client if needed. nng_send_aio vs nng_sendmsg? async or sync? BETTER sync due to realtime requirement
 			//TODO
 			if ((rv = nng_msg_alloc(&smsg, 0)) != 0) {
-				debug_msg("error nng_msg_alloc^^^^^^^^^^^^^^^^^^^^^");
+				debug_msg("ERROR: nng_msg_alloc [%d]", rv);
 			}
 			if (nng_msg_cmd_type(work->msg) == CMD_PINGREQ) {
+				debug_msg("\nPINGRESP");
 				buf[0] = CMD_PINGRESP;
 				buf[1] = 0x00;
-				debug_msg("reply PINGRESP\n");
 
 				if ((rv = nng_msg_header_append(smsg, buf, 2)) != 0) {
-					debug_msg("error nng_msg_append^^^^^^^^^^^^^^^^^^^^^");
+					debug_msg("ERROR: nng_msg_header_append [%d]", rv);
 				}
 				nng_msg_free(work->msg);
 				work->msg = smsg;
@@ -167,27 +163,44 @@ server_cb(void *arg)
 
 			} else if (nng_msg_cmd_type(work->msg) == CMD_SUBSCRIBE) {
 				work->pid = nng_msg_get_pipe(work->msg);
-				debug_msg("get pipe!!  ^^^^^^^^^^^^^^^^^^^^^ %d %d\n", pipe.id, work->pid.id);
-				struct client_ctx * cli_ctx = nng_alloc(sizeof(client_ctx));
-				debug_msg("ALLOC [%p]", cli_ctx);
+				struct client_ctx * cli_ctx;
+				if ((cli_ctx = nng_alloc(sizeof(client_ctx))) == NULL) {
+					debug_msg("ERROR: nng_alloc");
+				}
 				work->sub_pkt = nng_alloc(sizeof(packet_subscribe));
-				if ((reason = decode_sub_message(work->msg, work->sub_pkt)) != SUCCESS ||
-				    (reason = sub_ctx_handle(work, cli_ctx)) != SUCCESS ||
-				    (reason = encode_suback_message(smsg, work->sub_pkt)) != SUCCESS) {
-					debug_msg("ERROR IN SUB_HANDLE: [%d]", reason);
+				if (work->sub_pkt == NULL) {
+					debug_msg("ERROR: nng_alloc");
+				}
+
+				if ((reason = decode_sub_message(work))          != SUCCESS ||
+				    (reason = sub_ctx_handle(work, cli_ctx))     != SUCCESS ||
+				    (reason = encode_suback_message(smsg, work)) != SUCCESS) {
+					debug_msg("ERROR: sub_handler: [%d]", reason);
 
 					destroy_sub_ctx(cli_ctx);
 					del_sub_pipe_id(work->pid.id);
 					del_sub_client_id((char *)conn_param_get_clentid(work->cparam));
 				} else {
 					// success but check info
-					debug_msg("sub_pkt: pktid: [%d] topicLen: [%d] topic: [%s]", work->sub_pkt->packet_id,
-					          work->sub_pkt->node->it->topic_filter.len,
-					          work->sub_pkt->node->it->topic_filter.str_body);
-					debug_msg("suback: headerLen: [%ld] bodyLen: [%ld] type: [%x] len:[%x] pakcetid: [%x %x].",
-					          nng_msg_header_len(smsg), nng_msg_len(smsg), *((uint8_t *) nng_msg_header(smsg)),
-					          *((uint8_t *) nng_msg_header(smsg) + 1), *((uint8_t *) nng_msg_body(smsg)),
-					          *((uint8_t *) nng_msg_body(smsg) + 1));
+					debug_msg("sub_pkt:"
+						" pktid: [%d]"
+						" topicLen: [%d]"
+						" topic: [%s]",
+						work->sub_pkt->packet_id,
+						work->sub_pkt->node->it->topic_filter.len,
+						work->sub_pkt->node->it->topic_filter.str_body);
+					debug_msg("suback:"
+						" headerLen: [%ld]"
+						" bodyLen: [%ld]"
+						" type: [%x]"
+						" len:[%x]"
+						" pakcetid: [%x %x].",
+						nng_msg_header_len(smsg),
+						nng_msg_len(smsg),
+						*((uint8_t *) nng_msg_header(smsg)),
+						*((uint8_t *) nng_msg_header(smsg) + 1),
+						*((uint8_t *) nng_msg_body(smsg)),
+						*((uint8_t *) nng_msg_body(smsg) + 1));
 				}
 				nng_msg_free(work->msg);
 
@@ -198,24 +211,38 @@ server_cb(void *arg)
 				work->state = SEND;
 				nng_ctx_send(work->ctx, work->aio);
 				break;
-				//nng_send_aio
 			} else if (nng_msg_cmd_type(work->msg) == CMD_UNSUBSCRIBE) {
-				work->unsub_pkt = nng_alloc(sizeof(struct packet_unsubscribe));
-				if ((reason = decode_unsub_message(work->msg, work->unsub_pkt)) != SUCCESS ||
-				    (reason = unsub_ctx_handle(work)) != SUCCESS ||
-				    (reason = encode_unsuback_message(smsg, work->unsub_pkt)) != SUCCESS) {
-					debug_msg("ERROR IN UNSUB_HANDLE: %d", reason);
+				work->unsub_pkt = nng_alloc(sizeof(packet_unsubscribe));
+				if (work->unsub_pkt == NULL) {
+					debug_msg("ERROR: nng_alloc");
+				}
+
+				if ((reason = decode_unsub_message(work))          != SUCCESS ||
+				    (reason = unsub_ctx_handle(work))              != SUCCESS ||
+				    (reason = encode_unsuback_message(smsg, work)) != SUCCESS) {
+					debug_msg("ERROR: unsub_handler [%d]", reason);
 				} else {
-					// check info
-					debug_msg("unsub_pkt: pktid: [%d] topicLen: [%d]", work->unsub_pkt->packet_id,
-					          work->unsub_pkt->node->it->topic_filter.len);
-					debug_msg("headerLen: [%ld] bodyLen: [%ld].", nng_msg_header_len(smsg), nng_msg_len(smsg));
-					debug_msg("body type: [%x] len: [%x] packetid: [%x %x].", *((uint8_t *) nng_msg_header(smsg)),
-					          *((uint8_t *) nng_msg_header(smsg) + 1), *((uint8_t *) nng_msg_body(smsg)),
-					          *((uint8_t *) nng_msg_body(smsg) + 1));
+					// success but check info
+					debug_msg("unsub_pkt:"
+						" pktid: [%d]"
+						" topicLen: [%d]",
+						work->unsub_pkt->packet_id,
+						work->unsub_pkt->node->it->topic_filter.len);
+					debug_msg("unsuback:"
+						" headerLen: [%ld]"
+						" bodyLen: [%ld]."
+						" bodyType: [%x]"
+						" len: [%x]"
+						" packetid: [%x %x].",
+						nng_msg_header_len(smsg),
+						nng_msg_len(smsg),
+						*((uint8_t *) nng_msg_header(smsg)),
+						*((uint8_t *) nng_msg_header(smsg) + 1),
+						*((uint8_t *) nng_msg_body(smsg)),
+						*((uint8_t *) nng_msg_body(smsg) + 1));
 				}
 				// free unsub_pkt
-				destroy_unsub_ctx(work);
+				destroy_unsub_ctx(work->unsub_pkt);
 				nng_msg_free(work->msg);
 
 				work->msg = smsg;
