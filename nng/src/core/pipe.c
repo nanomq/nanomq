@@ -22,7 +22,7 @@
 // performed in the context of the protocol.
 
 static nni_idhash *nni_pipes;
-static nni_mtx     nni_pipe_lk;
+static nni_mtx    nni_pipe_lk;
 
 int
 nni_pipe_sys_init(void)
@@ -41,7 +41,7 @@ nni_pipe_sys_init(void)
 	// value "1" has a bias -- its roughly twice as likely to be
 	// chosen as any other value.  This does not mater.)
 	nni_idhash_set_limits(
-	    nni_pipes, 1, 0x7fffffff, nni_random() & 0x7fffffffu);
+			nni_pipes, 1, 0x7fffffff, nni_random() & 0x7fffffffu);
 
 	return (0);
 }
@@ -102,7 +102,7 @@ pipe_destroy(nni_pipe *p)
 int
 nni_pipe_find(nni_pipe **pp, uint32_t id)
 {
-	int       rv;
+	int      rv;
 	nni_pipe *p;
 	nni_mtx_lock(&nni_pipe_lk);
 
@@ -143,9 +143,12 @@ nni_pipe_recv(nni_pipe *p, nni_aio *aio)
 	p->p_tran_ops.p_recv(p->p_tran_data, aio);
 }
 
+static int count = 0;
+
 void
 nni_pipe_send(nni_pipe *p, nni_aio *aio)
 {
+	debug_msg("nni_pipe: %d, count: %d", p->p_id, count++);
 	p->p_tran_ops.p_send(p->p_tran_data, aio);
 }
 
@@ -187,14 +190,14 @@ nni_pipe_peer(nni_pipe *p)
 static int
 pipe_create(nni_pipe **pp, nni_sock *sock, nni_tran *tran, void *tdata)
 {
-	nni_pipe *          p;
-	int                 rv;
-	void *              sdata = nni_sock_proto_data(sock);
+	nni_pipe           *p;
+	int                rv;
+	void               *sdata = nni_sock_proto_data(sock);
 	nni_proto_pipe_ops *pops  = nni_sock_proto_pipe_ops(sock);
-	nni_pipe_stats *    st;
-	size_t sz;
+	nni_pipe_stats     *st;
+	size_t             sz;
 
-	sz = NNI_ALIGN_UP(sizeof (*p)) + pops->pipe_size;
+	sz = NNI_ALIGN_UP(sizeof(*p)) + pops->pipe_size;
 
 	if ((p = nni_zalloc(sz)) == NULL) {
 		// In this case we just toss the pipe...
@@ -202,7 +205,7 @@ pipe_create(nni_pipe **pp, nni_sock *sock, nni_tran *tran, void *tdata)
 		return (NNG_ENOMEM);
 	}
 
-	p->p_size = sz;
+	p->p_size       = sz;
 	p->p_proto_data = p + 1;
 	p->p_tran_ops   = *tran->tran_pipe;
 	p->p_tran_data  = tdata;
@@ -211,7 +214,7 @@ pipe_create(nni_pipe **pp, nni_sock *sock, nni_tran *tran, void *tdata)
 	p->p_closed     = false;
 	p->p_cbs        = false;
 	p->p_refcnt     = 0;
-	st              = &p->p_stats;
+	st = &p->p_stats;
 
 	nni_atomic_flag_reset(&p->p_stop);
 	NNI_LIST_NODE_INIT(&p->p_sock_node);
@@ -234,7 +237,7 @@ pipe_create(nni_pipe **pp, nni_sock *sock, nni_tran *tran, void *tdata)
 	nni_stat_add(&st->s_root, &st->s_id);
 
 	nni_stat_init_id(&st->s_sock_id, "socket", "socket for pipe",
-	    nni_sock_id(p->p_sock));
+	                 nni_sock_id(p->p_sock));
 	nni_stat_add(&st->s_root, &st->s_sock_id);
 	nni_stat_init_atomic(&st->s_rxmsgs, "rxmsgs", "messages received");
 	nni_stat_set_unit(&st->s_rxmsgs, NNG_UNIT_MESSAGES);
@@ -263,9 +266,9 @@ pipe_create(nni_pipe **pp, nni_sock *sock, nni_tran *tran, void *tdata)
 int
 nni_pipe_create_dialer(nni_pipe **pp, nni_dialer *d, void *tdata)
 {
-	int            rv;
-	nni_tran *     tran = d->d_tran;
-	nni_pipe *     p;
+	int           rv;
+	nni_tran      *tran = d->d_tran;
+	nni_pipe      *p;
 	nni_stat_item *st;
 #ifdef NNG_ENABLE_STATS
 	uint64_t id = nni_dialer_id(d);
@@ -274,7 +277,7 @@ nni_pipe_create_dialer(nni_pipe **pp, nni_dialer *d, void *tdata)
 	if ((rv = pipe_create(&p, d->d_sock, tran, tdata)) != 0) {
 		return (rv);
 	}
-	st          = &p->p_stats.s_ep_id;
+	st      = &p->p_stats.s_ep_id;
 	p->p_dialer = d;
 	nni_stat_init_id(st, "dialer", "dialer for pipe", id);
 	nni_pipe_add_stat(p, st);
@@ -285,9 +288,9 @@ nni_pipe_create_dialer(nni_pipe **pp, nni_dialer *d, void *tdata)
 int
 nni_pipe_create_listener(nni_pipe **pp, nni_listener *l, void *tdata)
 {
-	int            rv;
-	nni_tran *     tran = l->l_tran;
-	nni_pipe *     p;
+	int           rv;
+	nni_tran      *tran = l->l_tran;
+	nni_pipe      *p;
 	nni_stat_item *st;
 #ifdef NNG_ENABLE_STATS
 	uint64_t id = nni_listener_id(l);
@@ -296,7 +299,7 @@ nni_pipe_create_listener(nni_pipe **pp, nni_listener *l, void *tdata)
 	if ((rv = pipe_create(&p, l->l_sock, tran, tdata)) != 0) {
 		return (rv);
 	}
-	st            = &p->p_stats.s_ep_id;
+	st      = &p->p_stats.s_ep_id;
 	p->p_listener = l;
 	nni_stat_init_id(st, "listener", "listener for pipe", id);
 	nni_pipe_add_stat(p, st);
@@ -306,7 +309,7 @@ nni_pipe_create_listener(nni_pipe **pp, nni_listener *l, void *tdata)
 
 int
 nni_pipe_getopt(
-    nni_pipe *p, const char *name, void *val, size_t *szp, nni_opt_type t)
+		nni_pipe *p, const char *name, void *val, size_t *szp, nni_opt_type t)
 {
 	int rv;
 
