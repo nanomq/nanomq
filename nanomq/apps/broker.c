@@ -247,17 +247,17 @@ server_cb(void *arg)
 
 					if (smsg == NULL) nng_msg_alloc(&smsg, 0);
 
-					work->pipe_ct->encode_msg(smsg, p_info.pub_work, p_info.cmd, p_info.qos, 0);
+					work->pipe_ct->encode_msg(smsg, p_info.work, p_info.cmd, p_info.qos, 0);
 					work->msg = smsg;
 					nng_aio_set_msg(work->aio, work->msg);
 					work->msg = NULL;
 
-					if (p_info.pipe != 0 && p_info.pipe != work->pid.id) {
+					if (p_info.pipe != 0 /*&& p_info.pipe != work->pid.id*/) {
 						nng_aio_set_pipeline(work->aio, p_info.pipe);
 					}
 
 					work->pipe_ct->current_index++;
-					if (work->pipe_ct->total == work->pipe_ct->current_index) {
+					if (work->pipe_ct->total <= work->pipe_ct->current_index) {
 						free_pub_packet(work->pub_packet);
 						free_pipes_info(work->pipe_ct->pipe_info);
 						init_pipe_content(work->pipe_ct);
@@ -303,12 +303,12 @@ server_cb(void *arg)
 
 				if (smsg == NULL) nng_msg_alloc(&smsg, 0);
 
-				work->pipe_ct->encode_msg(smsg, p_info.pub_work, p_info.cmd, p_info.qos, 0);
+				work->pipe_ct->encode_msg(smsg, p_info.work, p_info.cmd, p_info.qos, 0);
 				work->msg = smsg;
 				nng_aio_set_msg(work->aio, work->msg);
 				work->msg = NULL;
 
-				if (p_info.pipe != 0 && p_info.pipe != work->pid.id) {
+				if (p_info.pipe != 0 /*&& p_info.pipe != work->pid.id*/) {
 					nng_aio_set_pipeline(work->aio, p_info.pipe);
 				}
 

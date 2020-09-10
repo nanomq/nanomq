@@ -693,14 +693,16 @@ nano_pipe_recv_cb(void *arg)
 
 	//TODO HOOK
 	switch (nng_msg_cmd_type(msg)) {
-		case CMD_SUBSCRIBE:
-			break;
 		case CMD_PUBLISH:
-			break;
+		case CMD_PUBACK:
+		case CMD_PUBREC:
+		case CMD_PUBREL:
+		case CMD_PUBCOMP:
 		case CMD_DISCONNECT:
-			break;
 		case CMD_UNSUBSCRIBE:
-			break;
+		case CMD_UNSUBACK:
+		case CMD_SUBSCRIBE:
+		case CMD_SUBACK:
 		case CMD_PINGREQ:
 			break;
 		default:

@@ -908,7 +908,7 @@ void free_retain_node(struct retain_msg_node *msg_node)
 {
 	struct reatain_msg_node *t = NULL;
 	while (msg_node->down) {
-		log("free ret_msg: %p", msg_node->down->ret_msg);
+		log("free msg_node: %p", msg_node);
 		t = msg_node;
 		msg_node = msg_node->down;
 		zfree(t);
