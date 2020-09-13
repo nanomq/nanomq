@@ -101,6 +101,13 @@ foreach_client(struct clients *sub_clients, emq_work *pub_work, struct pipe_cont
 					break;
 				}
 			}
+			// TODO NL (no_local in sub): don't send to self
+			// NEED: sub_pkt->node->it->no_local
+			/*
+			if (sub_pkt->node->it->no_local && !strcmp(sub_client->id, pub_work->pid.id)) {
+				equal = true;
+			}
+			*/
 
 			if (equal == false) {
 				id_queue[cols - 1] = sub_client->id;

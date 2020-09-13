@@ -84,8 +84,8 @@ uint8_t decode_sub_message(emq_work * work)
 	payload_ptr = nng_msg_payload_ptr(msg);
 
 	debug_msg("V:[%x %x %x %x] P:[%x %x %x %x].",
-			variable_ptr[0], variable_ptr[1], variable_ptr[2], variable_ptr[3],
-			payload_ptr[0], payload_ptr[1], payload_ptr[2], payload_ptr[3]);
+		variable_ptr[0], variable_ptr[1], variable_ptr[2], variable_ptr[3],
+		payload_ptr[0], payload_ptr[1], payload_ptr[2], payload_ptr[3]);
 
 	if ((topic_node_t = nng_alloc(sizeof(topic_node))) == NULL) {
 		debug_msg("ERROR: nng_alloc");
@@ -120,6 +120,11 @@ uint8_t decode_sub_message(emq_work * work)
 		}
 
 		memcpy(topic_option, payload_ptr + bpos, 1);
+		if (topic_option->retain_handling > 2) {
+			debug_msg("ERROR: error inretain_handling flag setting");
+			return PROTOCOL_ERROR;
+		}
+		// TODO sub action when retain_handling equal 0 or 1 or 2
 
 		debug_msg("bpos+vpos: [%d] remainLen: [%ld].", bpos+vpos, remaining_len);
 		if (++bpos < remaining_len - vpos) {
@@ -143,7 +148,7 @@ uint8_t encode_suback_message(nng_msg * msg, emq_work * work)
 	uint8_t  packet_id[2];
 	uint8_t  varint[4];
 	uint8_t  reason_code, cmd;
-	uint32_t remaining_len;
+	uint32_t remaining_len, len_of_properties;
 	int      len_of_varint, rv;
 	topic_node * node;
 
@@ -159,6 +164,13 @@ uint8_t encode_suback_message(nng_msg * msg, emq_work * work)
 
 #if SUPPORT_MQTT5_0
 	if (PROTOCOL_VERSION_v5 == proto_ver) { // add property in variable
+		// 31(0x1f)ReasonCode - utf-8 string
+		// 38(0x26)UserProperty - string pair
+		len_of_properties = 0;
+		if ((rv = nng_msg_append(msg, len_of_properties, 1)) != 0) {
+			debug_msg("ERROR: nng_msg_appened [%d]", rv);
+			return PROTOCOL_ERROR;
+		}
 	}
 #endif
 
@@ -188,7 +200,7 @@ uint8_t encode_suback_message(nng_msg * msg, emq_work * work)
 		return PROTOCOL_ERROR;
 	}
 
-	remaining_len = (uint32_t) nng_msg_len(msg);
+	remaining_len = (uint32_t)nng_msg_len(msg);
 	len_of_varint = put_var_integer(varint, remaining_len);
 	if ((rv = nng_msg_header_append(msg, varint, len_of_varint)) != 0) {
 		debug_msg("ERROR: nng_msg_header_append [%d]", rv);
@@ -239,7 +251,7 @@ uint8_t sub_ctx_handle(emq_work * work, client_ctx * cli_ctx)
 		}
 		strncpy(topic_str, topic_node_t->it->topic_filter.str_body, topic_node_t->it->topic_filter.len);
 		topic_str[topic_node_t->it->topic_filter.len] = '\0';
-		debug_msg("topicLen: [%d] body: [%s]", topic_node_t->it->topic_filter.len, (char *) topic_str);
+		debug_msg("topicLen: [%d] body: [%s]", topic_node_t->it->topic_filter.len, (char *)topic_str);
 
 		char ** topics = topic_parse(topic_str);
 		search_node(work->db, topics, &tan);
@@ -389,7 +401,7 @@ void del_sub_pipe_id(uint32_t pipe_id)
 	}
 }
 
-void del_sub_client_id(char *clientid)
+void del_sub_client_id(char * clientid)
 {
 	if (check_id(clientid)) {
 		del_topic_all(clientid);
