@@ -8,10 +8,12 @@
 #undef DEBUG_CONSOLE
 #undef DEBUG_FILE
 #undef DEBUG_SYSLOG
+#undef DEBUG_TRACE
 #else 
 #define DEBUG_CONSOLE
 #define DEBUG_FILE
 #define DEBUG_SYSLOG
+#define DEBUG_TRACE
 #endif
 
 #undef LIBNANO_DEBUG

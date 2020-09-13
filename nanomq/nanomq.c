@@ -53,7 +53,7 @@ static int print_avail_apps(void)
 	return 1;
 }
 
-#if !defined(DEBUG_TRACE)
+#if defined(DEBUG_TRACE)
 static int check_trace(char *name)
 {
 	int pid, traced;
@@ -85,7 +85,7 @@ err:
 	return -1;
 }
 #else
-static int check_trace(char DASH_UNUSED(*name))
+static int check_trace(char NANO_UNUSED(*name))
 {
 	return 0;
 }
