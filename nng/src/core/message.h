@@ -17,7 +17,7 @@
 typedef struct conn_param conn_param;
 typedef struct conn_propt conn_propt;
 struct conn_propt {
-	u_int8_t	session_exp_int[5];
+	uint8_t	session_exp_int[5];
 };
 
 //TODO use ZALLOC later
