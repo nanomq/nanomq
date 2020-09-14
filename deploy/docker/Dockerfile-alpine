@@ -1,0 +1,24 @@
+FROM alpine:3.11 as builder
+
+COPY . /nanomq
+
+RUN apk add gcc g++ cmake ninja
+
+WORKDIR /nanomq/build
+
+RUN cmake -G Ninja -DNOLOG=1 .. && ninja install
+
+FROM alpine:3.11
+
+COPY --from=builder /nanomq/build/nanomq /usr/local/nanomq
+COPY --from=builder /nanomq/build/nanolib/libnano_shared.so /usr/lib/
+COPY --from=builder /usr/lib/libgcc_s.so.1 /usr/lib/
+COPY --from=builder /usr/lib/libstdc++.so.6 /usr/lib/
+
+WORKDIR /usr/local/nanomq
+
+RUN ln -s /usr/local/nanomq/nanomq /usr/bin/nanomq
+
+EXPOSE 1883
+
+CMD ["/usr/bin/nanomq", "broker", "start", "tcp://0.0.0.0:1883"]
