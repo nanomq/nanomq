@@ -20,15 +20,14 @@
 #include "include/pub_handler.h"
 #include "include/sub_handler.h"
 
-#define ENABLE_RETAIN 0
+#define ENABLE_RETAIN   0
 #define SUPPORT_MQTT5_0 1
 
 static char *bytes_to_str(const unsigned char *src, char *dest, int src_len);
 static void print_hex(const char *prefix, const unsigned char *src, int src_len);
 static uint32_t append_bytes_with_type(nng_msg *msg, uint8_t type, uint8_t *content, uint32_t len);
-static void
-put_pipe_msgs(emq_work *sub_work, emq_work *pub_work, struct pipe_content *pipe_ct, mqtt_control_packet_types cmd);
 static void handle_client_pipe_msgs(struct client *sub_client, emq_work *pub_work, struct pipe_content *pipe_ct);
+static void handle_pub_retain(const emq_work *work, const char **topic_queue);
 
 void
 init_pipe_content(struct pipe_content *pipe_ct)
@@ -40,44 +39,47 @@ init_pipe_content(struct pipe_content *pipe_ct)
 	pipe_ct->encode_msg    = encode_pub_message;
 }
 
-static void
-put_pipe_msgs(emq_work *sub_work, emq_work *pub_work, struct pipe_content *pipe_ct, mqtt_control_packet_types cmd)
+void
+put_pipe_msgs(client_ctx *sub_ctx, emq_work *self_work, struct pipe_content *pipe_ct,
+              mqtt_control_packet_types cmd)
 {
 
 	pipe_ct->pipe_info = (struct pipe_info *) zrealloc(pipe_ct->pipe_info,
 	                                                   sizeof(struct pipe_info) * (pipe_ct->total + 1));
 
-	pipe_ct->pipe_info[pipe_ct->total].index    = pipe_ct->total;
-	if (PUBLISH == cmd && sub_work != NULL) {
-		pipe_ct->pipe_info[pipe_ct->total].pipe = sub_work->pid.id;
-		pipe_ct->pipe_info[pipe_ct->total].qos  = sub_work->sub_pkt->node->it->qos;
+	pipe_ct->pipe_info[pipe_ct->total].index = pipe_ct->total;
+	if (PUBLISH == cmd && sub_ctx != NULL) {
+		pipe_ct->pipe_info[pipe_ct->total].pipe = sub_ctx->pid.id;
+		pipe_ct->pipe_info[pipe_ct->total].qos  = sub_ctx->sub_pkt->node->it->qos;
 	} else {
-		pipe_ct->pipe_info[pipe_ct->total].pipe = pub_work->pid.id;
-		pipe_ct->pipe_info[pipe_ct->total].qos  = pub_work->pub_packet->fixed_header.qos;
+		pipe_ct->pipe_info[pipe_ct->total].pipe = self_work->pid.id;
+		pipe_ct->pipe_info[pipe_ct->total].qos  = self_work->pub_packet->fixed_header.qos;
 	}
-	pipe_ct->pipe_info[pipe_ct->total].cmd      = cmd;
-	pipe_ct->pipe_info[pipe_ct->total].pub_work = pub_work;
+	pipe_ct->pipe_info[pipe_ct->total].cmd   = cmd;
+	pipe_ct->pipe_info[pipe_ct->total].work  = self_work;
 
-	debug_msg("put pipe_info: index: [%d], "
+/*	debug_msg("put sub pipe_info: index: [%d], "
 	          "pipe: [%d], "
 	          "qos: [%d], "
 	          "cmd: [%d], "
-	          "pub pub_work: [%p]",
+	          "self_work: [%p], "
+	          "self pipe: [%d]",
 	          pipe_ct->pipe_info[pipe_ct->total].index,
 	          pipe_ct->pipe_info[pipe_ct->total].pipe,
 	          pipe_ct->pipe_info[pipe_ct->total].qos,
 	          pipe_ct->pipe_info[pipe_ct->total].cmd,
-	          pipe_ct->pipe_info[pipe_ct->total].pub_work);
+	          pipe_ct->pipe_info[pipe_ct->total].work,
+	          pipe_ct->pipe_info[pipe_ct->total].work->pid.id
+	);*/
 
 	pipe_ct->total += 1;
-	debug_msg("input cmd: %d, current total: %d", cmd, pipe_ct->total);
 }
 
 static void
 handle_client_pipe_msgs(struct client *sub_client, emq_work *pub_work, struct pipe_content *pipe_ct)
 {
-	emq_work *sub_work = (emq_work *) sub_client->ctxt;
-	put_pipe_msgs(sub_work, pub_work, pipe_ct, PUBLISH);
+	struct client_ctx *ctx = (struct client_ctx *) sub_client->ctxt;
+	put_pipe_msgs(ctx, pub_work, pipe_ct, PUBLISH);
 }
 
 void
@@ -102,7 +104,8 @@ foreach_client(struct clients *sub_clients, emq_work *pub_work, struct pipe_cont
 
 			if (equal == false) {
 				id_queue[cols - 1] = sub_client->id;
-				debug_msg("sub_client: [%p], id: [%s]", sub_client, sub_client->id);
+				struct client_ctx *ctx = (struct client_ctx *) sub_client->ctxt;
+//				debug_msg("sub_client: [%p], id: [%s], pipe: [%d]", sub_client, sub_client->id, ctx->pid.id);
 				handle_cb(sub_client, pub_work, pipe_ct);
 				cols++;
 			}
@@ -117,10 +120,9 @@ foreach_client(struct clients *sub_clients, emq_work *pub_work, struct pipe_cont
 
 
 void
-handle_pub(emq_work *work, struct pipe_content *pipe_ct, nng_msg *send_msg)
+handle_pub(emq_work *work, struct pipe_content *pipe_ct)
 {
-	char                  **topic_queue = NULL;
-	struct topic_and_node *tp_node      = NULL;
+	char **topic_queue = NULL;
 
 	work->pub_packet = (struct pub_packet_struct *) nng_alloc(sizeof(struct pub_packet_struct));
 
@@ -149,7 +151,6 @@ handle_pub(emq_work *work, struct pipe_content *pipe_ct, nng_msg *send_msg)
 
 				struct clients *client_list = search_client(work->db->root, topic_queue);
 
-				uint32_t total = 0;
 				if (client_list != NULL) {
 					foreach_client(client_list, work, pipe_ct, handle_client_pipe_msgs);
 					free_clients(client_list);
@@ -158,46 +159,7 @@ handle_pub(emq_work *work, struct pipe_content *pipe_ct, nng_msg *send_msg)
 				debug_msg("pipe_info size: [%d]", pipe_ct->total);
 
 #if ENABLE_RETAIN
-				if (work->pub_packet->fixed_header.retain) {
-					tp_node = nng_alloc(sizeof(struct topic_and_node));
-					search_node(work->db, topic_queue, tp_node);
-
-					struct retain_msg *retain = NULL;
-
-					if (tp_node->topic == NULL) {
-						retain = get_retain_msg(tp_node->node);
-
-						if (retain != NULL) {
-							if (retain->message != NULL) {
-								nng_free(retain->message, sizeof(struct pub_packet_struct));
-								retain->message = NULL;
-							}
-							nng_free(retain, sizeof(struct retain_msg));
-							retain = NULL;
-						}
-					} else {
-						add_node(tp_node, NULL);
-					}
-
-					retain = nng_alloc(sizeof(struct retain_msg));
-
-					retain->qos = work->pub_packet->fixed_header.qos;
-					if (work->pub_packet->payload_body.payload_len > 0) {
-						retain->exist   = true;
-						retain->message = work->pub_packet; //TODO malloc new memory to save
-					} else {
-						retain->exist   = false;
-						retain->message = NULL;
-					}
-
-					set_retain_msg(tp_node->node, retain);
-
-					if (tp_node != NULL) {
-						nng_free(tp_node, sizeof(struct topic_and_node));
-						tp_node = NULL;
-						debug_msg("free memory topic_and_node");
-					}
-				}
+				handle_pub_retain(work, (const char **) topic_queue);
 #endif
 
 				free_topic_queue(topic_queue);
@@ -233,20 +195,94 @@ handle_pub(emq_work *work, struct pipe_content *pipe_ct, nng_msg *send_msg)
 	}
 }
 
+static void handle_pub_retain(const emq_work *work, const char **topic_queue)
+{
+	struct topic_and_node *tp_node = NULL;
+	struct retain_msg     *retain  = NULL;
+
+	if (work->pub_packet->fixed_header.retain) {
+		tp_node = nng_alloc(sizeof(struct topic_and_node));
+		search_node(work->db, topic_queue, tp_node);
+
+		if (tp_node->topic == NULL) { //node exist
+			retain = get_retain_msg(tp_node->node);
+
+			if (retain != NULL) {
+				if (retain->message != NULL) {
+					free_pub_packet(retain->message);
+				}
+				nng_free(retain, sizeof(struct retain_msg));
+				retain = NULL;
+			}
+		} else {
+			add_node(tp_node, NULL);
+		}
+
+
+		if (work->pub_packet->payload_body.payload_len > 0) {
+			retain = nng_alloc(sizeof(struct retain_msg));
+			retain->qos = work->pub_packet->fixed_header.qos;
+			struct pub_packet_struct *packet = copy_pub_packet(work->pub_packet);
+
+			retain->message = packet;
+			retain->exist   = true;
+			debug_msg("update/add retain message");
+		} else {
+			retain->exist   = false;
+			retain->message = NULL;
+			retain = NULL;
+			debug_msg("delete retain message");
+		}
+
+		set_retain_msg(tp_node->node, retain);
+
+		if (tp_node != NULL) {
+			nng_free(tp_node, sizeof(struct topic_and_node));
+			tp_node = NULL;
+			debug_msg("free memory topic_and_node");
+		}
+	}
+}
+
+
+struct pub_packet_struct *copy_pub_packet(struct pub_packet_struct *src_pub_packet)
+{
+	struct pub_packet_struct *packet = nng_alloc(sizeof(struct pub_packet_struct));
+	packet->variable_header.publish.topic_name.str_body = nng_alloc(
+			src_pub_packet->variable_header.publish.topic_name.str_len + 1);
+	memset(packet->variable_header.publish.topic_name.str_body, 0,
+	       src_pub_packet->variable_header.publish.topic_name.str_len + 1);
+	memcpy(packet->variable_header.publish.topic_name.str_body,
+	       src_pub_packet->variable_header.publish.topic_name.str_body,
+	       src_pub_packet->variable_header.publish.topic_name.str_len);
+	packet->variable_header.publish.topic_name.str_len = src_pub_packet->variable_header.publish.topic_name.str_len;
+
+	packet->payload_body.payload = nng_alloc(src_pub_packet->payload_body.payload_len);
+	memset(packet->payload_body.payload, 0, src_pub_packet->payload_body.payload_len + 1);
+	memcpy(packet->payload_body.payload, src_pub_packet->payload_body.payload,
+	       src_pub_packet->payload_body.payload_len);
+	packet->payload_body.payload_len = src_pub_packet->payload_body.payload_len;
+	return packet;
+}
+
 void free_pub_packet(struct pub_packet_struct *pub_packet)
 {
 	if (pub_packet != NULL) {
 		if (pub_packet->fixed_header.packet_type == PUBLISH) {
-			if (pub_packet->variable_header.publish.topic_name.str_body != NULL) {
+			if (pub_packet->variable_header.publish.topic_name.str_body != NULL &&
+			    pub_packet->variable_header.publish.topic_name.str_len > 0) {
 				nng_free(pub_packet->variable_header.publish.topic_name.str_body,
 				         pub_packet->variable_header.publish.topic_name.str_len + 1);
 				pub_packet->variable_header.publish.topic_name.str_body = NULL;
+				pub_packet->variable_header.publish.topic_name.str_len  = 0;
 				debug_msg("free memory topic");
 			}
 
-			if (pub_packet->payload_body.payload != NULL) {
+			if (pub_packet->payload_body.payload != NULL &&
+			    pub_packet->payload_body.payload_len > 0) {
 				nng_free(pub_packet->payload_body.payload, pub_packet->payload_body.payload_len + 1);
-				pub_packet->payload_body.payload = NULL;
+				pub_packet->payload_body.payload     = NULL;
+				pub_packet->payload_body.payload_len = 0;
 				debug_msg("free memory payload");
 			}
 		}
@@ -393,7 +429,7 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_
 		case PUBACK:
 		case PUBREC:
 		case PUBCOMP:
-			debug_msg("encode %d message",cmd);
+			debug_msg("encode %d message", cmd);
 			struct pub_packet_struct pub_response = {
 					.fixed_header.packet_type = cmd,
 					.fixed_header.dup = dup,
@@ -507,7 +543,7 @@ decode_pub_message(emq_work *work)
 					}
 				}
 
-				debug_msg("topic: [%s]", pub_packet->variable_header.publish.topic_name.str_body);
+//				debug_msg("topic: [%s]", pub_packet->variable_header.publish.topic_name.str_body);
 
 				if (pub_packet->fixed_header.qos > 0) { //extract packet_identifier while qos > 0
 					NNI_GET16(msg_body + pos, pub_packet->variable_header.publish.packet_identifier);
@@ -675,8 +711,8 @@ decode_pub_message(emq_work *work)
 					memset(pub_packet->payload_body.payload, 0, pub_packet->payload_body.payload_len + 1);
 					memcpy(pub_packet->payload_body.payload, (uint8_t *) (msg_body + pos),
 					       pub_packet->payload_body.payload_len);
-					debug_msg("payload: [%s], len = %u", pub_packet->payload_body.payload,
-					          pub_packet->payload_body.payload_len);
+//					debug_msg("payload: [%s], len = %u", pub_packet->payload_body.payload,
+//					          pub_packet->payload_body.payload_len);
 				}
 				break;
 

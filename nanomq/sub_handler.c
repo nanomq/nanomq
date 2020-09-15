@@ -10,6 +10,7 @@
 #include <nanolib.h>
 #include <protocol/mqtt/mqtt_parser.h>
 #include <protocol/mqtt/mqtt.h>
+#include <include/pub_handler.h>
 #include "include/nanomq.h"
 #include "include/sub_handler.h"
 
@@ -44,7 +45,7 @@ uint8_t decode_sub_message(emq_work * work)
 	// Only Mqtt_v5 include property. 
 	if (PROTOCOL_VERSION_v5 == proto_ver) {
 		// length of property in varibale
-		len_of_properties = get_var_integer(variable_ptr+vpos, &len_of_varint);
+		len_of_properties = get_var_integer(variable_ptr + vpos, &len_of_varint);
 		vpos += len_of_varint;
 
 		// parse property in variable
@@ -53,7 +54,7 @@ uint8_t decode_sub_message(emq_work * work)
 				property_id = variable_ptr[vpos++];
 				switch (property_id) {
 					case SUBSCRIPTION_IDENTIFIER:
-						sub_pkt->sub_id.varint = get_var_integer(variable_ptr+vpos, &len_of_varint);
+						sub_pkt->sub_id.varint = get_var_integer(variable_ptr + vpos, &len_of_varint);
 						vpos += len_of_varint;
 						break;
 					case USER_PROPERTY:
@@ -91,7 +92,7 @@ uint8_t decode_sub_message(emq_work * work)
 		return NNG_ENOMEM;
 	}
 	topic_node_t->next = NULL;
-	sub_pkt->node = topic_node_t;
+	sub_pkt->node      = topic_node_t;
 
 	while (1) {
 		if ((topic_option = nng_alloc(sizeof(topic_with_option))) == NULL) {
@@ -101,7 +102,7 @@ uint8_t decode_sub_message(emq_work * work)
 		topic_node_t->it = topic_option;
 		_topic_node = topic_node_t;
 
-		NNI_GET16(payload_ptr+bpos, len_of_topic);
+		NNI_GET16(payload_ptr + bpos, len_of_topic);
 		bpos += 2;
 
 		if (len_of_topic != 0) {
@@ -118,7 +119,7 @@ uint8_t decode_sub_message(emq_work * work)
 			return PROTOCOL_ERROR;
 		}
 
-		memcpy(topic_option, payload_ptr+bpos, 1);
+		memcpy(topic_option, payload_ptr + bpos, 1);
 
 		debug_msg("bpos+vpos: [%d] remainLen: [%ld].", bpos+vpos, remaining_len);
 		if (++bpos < remaining_len - vpos) {
@@ -187,7 +188,7 @@ uint8_t encode_suback_message(nng_msg * msg, emq_work * work)
 		return PROTOCOL_ERROR;
 	}
 
-	remaining_len = (uint32_t)nng_msg_len(msg);
+	remaining_len = (uint32_t) nng_msg_len(msg);
 	len_of_varint = put_var_integer(varint, remaining_len);
 	if ((rv = nng_msg_header_append(msg, varint, len_of_varint)) != 0) {
 		debug_msg("ERROR: nng_msg_header_append [%d]", rv);
@@ -238,7 +239,7 @@ uint8_t sub_ctx_handle(emq_work * work, client_ctx * cli_ctx)
 		}
 		strncpy(topic_str, topic_node_t->it->topic_filter.str_body, topic_node_t->it->topic_filter.len);
 		topic_str[topic_node_t->it->topic_filter.len] = '\0';
-		debug_msg("topicLen: [%d] body: [%s]", topic_node_t->it->topic_filter.len, (char *)topic_str);
+		debug_msg("topicLen: [%d] body: [%s]", topic_node_t->it->topic_filter.len, (char *) topic_str);
 
 		char ** topics = topic_parse(topic_str);
 		search_node(work->db, topics, &tan);
@@ -268,6 +269,17 @@ uint8_t sub_ctx_handle(emq_work * work, client_ctx * cli_ctx)
 			} else { // clientid already in hash
 				work->sub_pkt->node->it->reason_code = 0x80;
 			}
+			/*//---------------------->
+			struct retain_msg_node *msg_node = search_retain_msg(work->db->root, topics);
+
+			for (struct retain_msg_node *i = msg_node->down; i != NULL; i = i->down) {
+				debug_msg("found retain [%p], message: [%p]", i->ret_msg, i->ret_msg->message);
+				work->pub_packet = copy_pub_packet(i->ret_msg->message);
+				put_pipe_msgs(cli_ctx, work, work->pipe_ct, PUBLISH);
+			}
+			free_retain_node(msg_node);
+			//--------------------->
+*/
 		}
 
 		free_topic_queue(topics);
@@ -377,7 +389,7 @@ void del_sub_pipe_id(uint32_t pipe_id)
 	}
 }
 
-void del_sub_client_id(char * clientid)
+void del_sub_client_id(char *clientid)
 {
 	if (check_id(clientid)) {
 		del_topic_all(clientid);
