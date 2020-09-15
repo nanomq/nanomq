@@ -15,6 +15,7 @@
 #include "include/hash.h"
 #include "include/dbg.h"
 
+typedef enum {PRINT_DB_TREE, SEARCH_RET} WHICH_WORK;
 
 /* 
  ** Create a db_tree
@@ -46,12 +47,124 @@ void destory_db_tree(struct db_tree *db)
 		zfree(db);
 		db = NULL;
 	}
+}
+
+static void *print_db_node(struct db_node *node)
+{
+	struct db_node *tmp = node;
+	printf("\"%s\" ", tmp->topic);
+	printf("%d", tmp->hashtag);
+	printf("%d ", tmp->plus);
+	if (tmp->sub_client) {
+		printf("%s ", tmp->sub_client->id);
+		if (tmp->sub_client->next) {
+			printf("and more ");
+		} else {
+			printf("no more ");
+		}
+
+	} else {
+		printf("-- ");
+	}
+	if (tmp->up) {
+		if (strcmp("#", tmp->topic)) {
+			printf("\"%s\"\t ", tmp->up->topic);
+		} else {
+			printf("<-\t ");
+		}
+
+	} else {
+		printf("--\t");
+	}
+
+	return NULL;
+}
+
+/*
+** TODO
+*/
+static void *iterate(struct db_node *root, void *(*fun_cb)(struct db_node *node), WHICH_WORK WORK)
+{
+	assert(root);
+	struct db_nodes *tmps = NULL;
+	struct db_nodes *tmps_end = NULL;
+	struct db_nodes *for_free = NULL;
+
+	/*******************************************************/
+	struct retain_msg_node *res = NULL;
+	struct retain_msg_node *ret = NULL;
+	ret = (struct retain_msg_node*)zmalloc(sizeof(struct retain_msg_node));
+	res = ret;
+	/******************************************************/
+
+
+	tmps = (struct db_nodes*)zmalloc(sizeof(struct db_nodes));
+	tmps->node = root;
+	int size = 1;
+	int len = size;
+	tmps->next = NULL;
+	tmps_end = tmps;
+
+	while (tmps) {
+		size = 0;
+		while (len-- && tmps) {
+			struct db_node *tmp = tmps->node;
+			while (tmp) {
+				if (WORK == PRINT_DB_TREE) {
+					fun_cb(tmp);
+				} else if (WORK == SEARCH_RET) {
+					if (fun_cb(tmp)) {
+						ret->down = fun_cb(tmp);
+						ret = ret->down;
+						ret->down = NULL;
+					}
+				}
+
+				if (tmp->down) {
+					size++;
+					tmps_end->next = (struct db_nodes*)zmalloc(sizeof(struct db_nodes));
+					tmps_end = tmps_end->next;
+					tmps_end->node = tmp->down;
+					tmps_end->next = NULL;
+				}
+
+				if (tmp) {
+					tmp = tmp->next;
+				}
+			}
+			for_free = tmps;
+			tmps = tmps->next;
+			zfree(for_free);
+			for_free = NULL;
+		}
+
+		if (WORK == PRINT_DB_TREE) {
+			printf("\n");
+		}
+		if (size == 0) {
+			break;
+		}
+		if (WORK == PRINT_DB_TREE) {
+			puts("----------------------------------------------");
+		}
+
+		len = size;
+
+	}
+
+	zfree(tmps);
+	tmps = NULL;
+	if (WORK == PRINT_DB_TREE) {
+		zfree(ret);
+		return NULL;
+	}
+	return res;
 
 }
 
 /*
  ** Print db_tree
- ** For debugging, you can output all node 
+ ** For debugging, you can output all node
  ** & node info
  */
 #ifdef NOLOG
@@ -62,87 +175,14 @@ void print_db_tree(struct db_tree *db)
 #else
 void print_db_tree(struct db_tree *db)
 {
-	assert(db);
-	struct db_nodes *tmps = NULL;
-	struct db_nodes *tmps_end = NULL;
-	struct db_nodes *for_free = NULL;
-
-	tmps = (struct db_nodes*)zmalloc(sizeof(struct db_nodes));
-	tmps->node = db->root;
-	int size = 1;
-	int len = size;
-	tmps->next = NULL;
-	tmps_end = tmps;
-
 	puts("-------------------DB_TREE---------------------");
 	puts("TOPIC | HASHTAG&PLUS | CLIENTID | FATHER_NODE");
 	puts("-----------------------------------------------");
 
-	while (tmps) {
-		size = 0;
-		while (len-- && tmps) {
-			struct db_node *tmp = tmps->node;
-			while (tmp) {
-				printf("\"%s\" ", tmp->topic);
-				printf("%d", tmp->hashtag);
-				printf("%d ", tmp->plus);
-				if (tmp->sub_client) {
-					printf("%s ", tmp->sub_client->id);
-					if (tmp->sub_client->next) {
-						printf("and more ");
-					} else {
-						printf("no more ");
-					}
-
-				} else {
-					printf("-- ");
-				}
-				if (tmp->up) {
-					if (strcmp("#", tmp->topic)) {
-						printf("\"%s\"\t ", tmp->up->topic);
-					} else {
-						printf("<-\t ");
-					}
-
-				} else {
-					printf("--\t");
-				}
-
-				if (tmp->down) {
-					// debug("sth new");
-					size++;
-					tmps_end->next = (struct db_nodes*)zmalloc(sizeof(struct db_nodes));
-					tmps_end = tmps_end->next;
-					tmps_end->node = tmp->down;
-					tmps_end->next = NULL;
-				}
-				if (tmp) {
-					// debug("tmp next");
-					tmp = tmp->next;
-				}
-			}
-			// debug("tmps next");
-			for_free = tmps;
-			tmps = tmps->next;
-			zfree(for_free);
-			for_free = NULL;
-		}
-
-		printf("\n");
-		if (size == 0) {
-			break;
-		}
-		puts("----------------------------------------------");
-
-		len = size;
-
-	}
-	zfree(tmps);
-	tmps = NULL;
-
-	puts("-------------------DB_TREE---------------------\n");
+	assert(db);
+	iterate(db->root, print_db_node, PRINT_DB_TREE);
+	puts("-------------------DB_TREE---------------------");
 }
-
 #endif
 
 /*
@@ -181,6 +221,7 @@ struct db_node *new_db_node(char *topic)
 	node->next = NULL;
 	node->down = NULL;
 	node->up = NULL;
+	node->retain = NULL;
 	node->sub_client = NULL;
 	return node;
 }
@@ -221,7 +262,7 @@ void insert_db_node(struct db_node *new_node, struct db_node *old_node)
 		struct db_node *tmp_node = NULL;
 		tmp_node = old_node->next;
 		old_node->next = new_node;
-		new_node->next = tmp_node->next;
+		new_node->next = tmp_node;
 	}
 	new_node->up = old_node->up ? old_node->up : old_node;
 	return;
@@ -344,7 +385,7 @@ void del_node(struct db_node *node)
 {
 	assert(node);
 	log_info("DEL_NODE_START");
-	if (node->sub_client || node->down || node->hashtag) {
+	if (node->sub_client || node->down || node->hashtag || node->retain) {
 		log("Node can't be deleted!");
 		return;
 	}
@@ -389,15 +430,16 @@ void del_node(struct db_node *node)
 		if (tmp_node->down == node) {
 			tmp_node->down = NULL;
 		} else {
-			tmp_node = tmp_node->down;
-			while (tmp_node->next != node) {
-				tmp_node = tmp_node->next;
+			struct db_node *t_node = tmp_node->down;
+			while (t_node->next != node) {
+				t_node = t_node->next;
 			}
-			if (tmp_node->hashtag) {
-				tmp_node->hashtag = false;
-				tmp_node->next = tmp_node->next->next;
+			if (t_node->hashtag) {
+				t_node->hashtag = false;
+				t_node->next = t_node->next->next;
+				tmp_node = t_node;
 			} else {
-				tmp_node->next = tmp_node->next->next;
+				t_node->next = t_node->next->next;
 			}
 		}
 		delete_db_node(node);
@@ -418,6 +460,7 @@ void del_node(struct db_node *node)
 
 void set_retain_msg(struct db_node *node, struct retain_msg *retain)
 {
+	log("ret_msg: %p", retain);
 	node->retain = retain;
 }
 
@@ -565,7 +608,9 @@ void search_node(struct db_tree *db, char **topic_queue, struct topic_and_node *
 		if (node->hashtag && check_hashtag(*(topic_queue+1))) {
 			log("searching # with hashtag");
 			set_topic_and_node(NULL, true, EQUAL, node->next, tan);
-			debug("%s", node->next->sub_client->id);
+			if (node->next->sub_client) {
+				debug("%s", node->next->sub_client->id);
+			}
 			break;
 		} else if (check_hashtag(*(topic_queue+1))) {
 			log("searching # no hashtag");
@@ -594,52 +639,57 @@ void search_node(struct db_tree *db, char **topic_queue, struct topic_and_node *
 
 void del_all(uint32_t pipe_id, void *ptr)
 {
-	char *clientid = get_client_id(pipe_id);
-	if (clientid == NULL) {
-		log("no clientid is found");
+	char *client = get_client_id(pipe_id);
+	if (client == NULL) {
+		log("no client is found");
 		return;
 	}
-	log("--PID %d--CLID %s--", pipe_id, clientid);
+	log("--PID %d--CLID %s--", pipe_id, client);
 	struct db_tree *db = ptr;
-	struct topic_and_node tan;
-	struct client * cli = NULL;
 
-	if (check_id(clientid)) {
-		struct topic_queue *tq = get_topic(clientid);
-		while (tq) {
-			if(tq->topic){
-				char ** topics = topic_parse(tq->topic);
-				search_node(db, topics, &tan);
-				free_topic_queue(topics);
-				if((cli = del_client(&tan, clientid)) == NULL) {
-					break;
+	if (client) {
+		if (check_id(client)) {
+			struct topic_queue *tq = get_topic(client);
+			while (tq) {
+				char **topic_queue = topic_parse(tq->topic);
+				struct topic_and_node *tan = NULL;
+				tan = (struct topic_and_node*)zmalloc(sizeof(struct topic_and_node));
+				search_node(db, topic_queue, tan);
+				debug("%s", tan->node->topic);
+				del_client(tan, client);
+				// struct client * cli = del_client(tan, client);
+				// TODO free cli
+				// cli = NULL;
+				del_node(tan->node);
+
+				char *tmp = NULL;
+		 		char **tt = topic_queue;
+
+				while (*topic_queue) {
+					tmp = *topic_queue;
+					topic_queue++;
+					zfree(tmp);
+					tmp = NULL;
 				}
+
+				zfree(tt);
+				topic_queue = NULL;
+
+				zfree(tan);
+				tan = NULL;
+
+				tq = tq->next;
 			}
-			if(cli) {
-				del_node(tan.node);
-				// free cli & ctxt
-				// destroy_sub_ctx(cli->ctxt, tq->topic); // only free work->sub_pkt
-				// nng_free(cli, sizeof(struct client));
-			}
-			tq = tq->next;
+			del_topic_all(client);
+			del_pipe_id(pipe_id);
+			log("del all");
+		}  else {
+			log("no topic can be found");
 		}
-		del_topic_all(clientid);
-		del_pipe_id(pipe_id);
-		log("del all");
-	} else {
-		log("no clientid can be found");
 	}
-	log("INHASH: clientid [%s] exist?: [%d]; pipeid [%d] exist?: [%d]",
-		clientid, (int) check_id(clientid), pipe_id, (int) check_pipe_id(pipe_id));
 	return;
 }
 
-void *get_client_info(struct db_node *node)
-{
-	/* TODO */
-	return NULL;
-
-}
 
 struct client **iterate_client(struct clients *sub_clients, int *cols)
 {
@@ -704,6 +754,168 @@ struct db_node *find_next(struct db_node *node, bool *equal, char **topic_queue)
 		}
 	}
 	return t;
+}
+
+static struct retain_msg_node *new_ret_node(struct db_node *node)
+{
+	assert(node);
+	struct retain_msg_node * res = NULL;
+	if (get_retain_msg(node)) {
+		log("@new retain msg %s", node->topic);
+		res = (struct retain_msg_node *)zmalloc(sizeof(struct retain_msg_node));
+		res->ret_msg = get_retain_msg(node);
+		res->down = NULL;
+	}
+	return res;
+}
+
+static struct retain_msg_node *iterate_node(struct db_node *node)
+{
+	WHICH_WORK WORK = SEARCH_RET;
+	log("$$$$$$$$$$$$:%s", node->topic);
+	return iterate(node, new_ret_node, WORK);
+}
+
+static struct retain_msg_node *iterate_node_level(struct db_node *node)
+{
+	struct retain_msg_node *res = NULL;
+	struct retain_msg_node *tmp = NULL;
+	tmp = (struct retain_msg_node *)zmalloc(sizeof(struct retain_msg_node));
+	res = tmp;
+	while (node) {
+		log("node->topic %s", node->topic);
+		if (get_retain_msg(node)) {
+			tmp->down = new_ret_node(node);
+			log("@node->topic %s", node->topic);
+			tmp = tmp->down;
+			tmp->down = NULL;
+		}
+		node = node->next;
+	}
+	tmp->down = NULL;
+
+	return res;
+}
+
+struct retain_msg_node *search_retain_msg(struct db_node *root, char **topic_queue)
+{
+	assert(root && topic_queue);
+	struct db_node *node = root;
+	struct retain_msg_node *tmp = NULL;
+    tmp = (struct retain_msg_node*)zmalloc(sizeof(struct retain_msg_node));
+	struct retain_msg_node *res = tmp;
+
+	log("search entry");
+	while (*topic_queue && node) {
+		log ("%s", *topic_queue);
+		if (check_hashtag(*topic_queue)) {
+			log("check hashtag");
+			struct retain_msg_node *t = iterate_node(node->up);
+			if (t->down) {
+				tmp->down = t->down;
+				log("t: %p", t->down->ret_msg);
+				zfree(t);
+				t = NULL;
+			}
+			break;
+		} else if (check_plus(*topic_queue)) {
+			log("check plus");
+			if (*(topic_queue+1)) {
+				while (node) {
+					log("find recursive");
+					if (node->down) {
+						struct retain_msg_node *t = search_retain_msg(node->down, topic_queue+1);
+						if (t == NULL) {
+							node = node->next;
+							continue;
+						}
+						if (t->down) {
+							// log("t: %p", t->down->ret_msg);
+							tmp->down = t->down;
+							tmp = tmp->down;
+							while (tmp->down != NULL && tmp != tmp->down) {
+
+								// log("t: %p", tmp->down->ret_msg);
+								tmp = tmp->down;
+							}
+						}
+
+						zfree(t);
+						t = NULL;
+
+					}
+					log("node->topic: %s", node->topic);
+					node = node->next;
+				}
+			} else {
+				log("search node level");
+				struct retain_msg_node *t = iterate_node_level(node->up->down);
+				if (t->down) {
+					tmp->down = t->down;
+					log("t: %p", t->down->ret_msg);
+					zfree(t);
+					t = NULL;
+
+				}
+			}
+			break;
+		} else {
+			log("check normal");
+			if (strcmp(node->topic, *topic_queue)) {
+				bool equal = false;
+				node = find_next(node, &equal, topic_queue);
+				if (equal == false) {
+					log("not find retain msg");
+					return NULL;
+				}
+			}
+
+			if (*(topic_queue+1) == NULL) {
+				if (get_retain_msg(node)) {
+					log("find retain msg");
+					tmp->down = new_ret_node(node);
+					// log("ret_msg: %p", tmp->down->ret_msg);
+
+					tmp = tmp->down;
+				} else {
+					log("not find retain msg");
+				}
+				break;
+			} else if (node->down == NULL) {
+				log("check hashtag in normal");
+				if (check_hashtag(*(topic_queue+1))) {
+					tmp->down =  iterate_node(node);
+					break;
+
+				} else {
+					return NULL;
+				}
+			} else {
+				log("go deep");
+				topic_queue++;
+				node = node->down;
+			}
+		}
+	}
+	// log("fun");
+	// log("ret_msg: %p", res->down->ret_msg);
+
+	return res;
+}
+
+
+void free_retain_node(struct retain_msg_node *msg_node)
+{
+	struct reatain_msg_node *t = NULL;
+	while (msg_node->down) {
+		log("free msg_node: %p", msg_node);
+		t = msg_node;
+		msg_node = msg_node->down;
+		zfree(t);
+		t = NULL;
+	}
+
+	return;
 }
 
 
