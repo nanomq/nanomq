@@ -1,0 +1,76 @@
+name: Build packages
+
+on:
+  push:
+  pull_request:
+  release:
+    types:
+    - published
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        suffix:
+        - fat
+        - slim
+        - alpine
+          
+    steps:
+    - uses: actions/checkout@v1 
+    - name: build docker
+      if: matrix.suffix == 'fat'
+      run: docker build -t nanomq/nanomq:$(git describe --tags --always) -f deploy/docker/Dockerfile .
+    - name: build docker
+      if: matrix.suffix != 'fat'
+      run: docker build -t nanomq/nanomq:$(git describe --tags --always)-${{ matrix.suffix }} -f deploy/docker/Dockerfile-${{ matrix.suffix }} .
+    - name: test docker
+      run: |
+        set -e -x -u
+        sudo apt update && sudo apt install -y mosquitto-clients
+        ip_address=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $(docker run -d $(docker images nanomq/nanomq -q | head -1)))
+        sleep 5
+        mosquitto_pub -h $ip_address -t 'topic/A' -m 'test'
+        docker rm -f $(docker ps -a -q)
+    - name: update docker
+      if: github.event_name == 'release'
+      run: |
+        sudo apt-get remove docker docker-engine docker.io containerd runc
+        sudo apt-get update
+        sudo apt-get install apt-transport-https ca-certificates curl gnupg-agent software-properties-common
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+        sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+        sudo apt-get update
+        sudo apt-get install docker-ce docker-ce-cli containerd.io
+    - name: prepare docker
+      if: github.event_name == 'release'
+      run: |
+        mkdir -p $HOME/.docker
+        echo '{ "experimental": "enabled" }' | tee $HOME/.docker/config.json
+        echo '{ "experimental": true, "storage-driver": "overlay2", "max-concurrent-downloads": 50, "max-concurrent-uploads": 50, "graph": "/mnt/docker" }' | sudo tee /etc/docker/daemon.json
+        sudo systemctl restart docker
+        docker version
+        docker buildx create --use --name mybuild
+        docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+    - name: cross build docker images
+      if: (matrix.suffix == 'fat') && (github.event_name == 'release')
+      run: |
+        set -e -u -x
+        echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u ${{ secrets.DOCKERHUB_USER }} --password-stdin
+        docker buildx build --no-cache \
+        --platform=linux/amd64,linux/arm64,linux/arm/v7,linux/s390x,linux/ppc64le \
+        -t nanomq/nanomq:$(git describe --tags --always) \
+        -f deploy/docker/Dockerfile . \
+        --push
+    - name: cross build docker images
+      if: (matrix.suffix != 'fat') && (github.event_name == 'release')
+      run: |
+        set -e -u -x
+        echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u ${{ secrets.DOCKERHUB_USER }} --password-stdin
+        docker buildx build --no-cache \
+        --platform=linux/amd64,linux/arm64,linux/arm/v7,linux/s390x,linux/ppc64le \
+        -t nanomq/nanomq:$(git describe --tags --always)-${{ matrix.suffix }} \
+        -f deploy/docker/Dockerfile-${{ matrix.suffix }} . \
+        --push

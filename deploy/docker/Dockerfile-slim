@@ -1,0 +1,23 @@
+FROM gcc:10 as builder
+
+COPY . /nanomq
+
+RUN apt update && apt install -y cmake ninja-build
+
+WORKDIR /nanomq/build
+
+RUN cmake -G Ninja -DNOLOG=1 .. && ninja install
+
+FROM debian:10
+
+COPY --from=builder /nanomq/build/nanomq /usr/local/nanomq
+
+WORKDIR /usr/local/nanomq
+
+RUN ln -s /usr/local/nanomq/nanomq /usr/bin/nanomq
+
+RUN apt update && apt install -y libatomic1
+
+EXPOSE 1883
+
+CMD ["/usr/bin/nanomq", "broker", "start", "tcp://0.0.0.0:1883"]
