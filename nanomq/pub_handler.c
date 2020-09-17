@@ -20,7 +20,7 @@
 #include "include/pub_handler.h"
 #include "include/sub_handler.h"
 
-#define ENABLE_RETAIN   0
+#define ENABLE_RETAIN   1
 #define SUPPORT_MQTT5_0 1
 
 static char *bytes_to_str(const unsigned char *src, char *dest, int src_len);

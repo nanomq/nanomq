@@ -281,17 +281,33 @@ uint8_t sub_ctx_handle(emq_work * work, client_ctx * cli_ctx)
 			} else { // clientid already in hash
 				work->sub_pkt->node->it->reason_code = 0x80;
 			}
-			/*//---------------------->
+
 			struct retain_msg_node *msg_node = search_retain_msg(work->db->root, topics);
 
 			for (struct retain_msg_node *i = msg_node->down; i != NULL; i = i->down) {
 				debug_msg("found retain [%p], message: [%p]", i->ret_msg, i->ret_msg->message);
 				work->pub_packet = copy_pub_packet(i->ret_msg->message);
+				work->pub_packet->fixed_header.retain = 1;
+				work->pub_packet->fixed_header.remain_len = work->pub_packet->payload_body.payload_len
+					+ work->pub_packet->variable_header.publish.topic_name.str_len+2
+					+ (work->pub_packet->fixed_header.qos == 0 ? 0 : 2);
 				put_pipe_msgs(cli_ctx, work, work->pipe_ct, PUBLISH);
+				// TODO WARNING!!!! remainlen is same only in pub
+				/* check info in pub_packet
+				debug_msg("retain %d"
+					" payloadLen %d"
+					" remainLen %d"
+					" qos %d"
+					" packetid %d",
+					work->pub_packet->fixed_header.retain,
+					work->pub_packet->payload_body.payload_len,
+					work->pub_packet->fixed_header.remain_len,
+					work->pub_packet->fixed_header.qos,
+					work->pub_packet->variable_header.publish.packet_identifier);
+				*/
 			}
 			free_retain_node(msg_node);
-			//--------------------->
-*/
+
 		}
 
 		free_topic_queue(topics);
