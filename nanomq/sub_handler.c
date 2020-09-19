@@ -14,7 +14,7 @@
 #include "include/nanomq.h"
 #include "include/sub_handler.h"
 
-#define SUPPORT_MQTT5_0 0
+#define SUPPORT_MQTT5_0 1
 
 uint8_t decode_sub_message(emq_work * work)
 {
@@ -59,19 +59,28 @@ uint8_t decode_sub_message(emq_work * work)
 						break;
 					case USER_PROPERTY:
 						// key
-						len_of_str = get_utf8_str(&(sub_pkt->user_property.strpair.str_key), variable_ptr, &vpos);
+						NNI_GET16(variable_ptr + vpos, len_of_str);
+						if ((sub_pkt->user_property.strpair.str_key = nng_alloc(len_of_str)) == 0) {
+							debug_msg("ERROR: nng_alloc");
+							return NNG_ENOMEM;
+						}
 						sub_pkt->user_property.strpair.len_key = len_of_str;
-						// vpos += len_of_str;
+						vpos += (len_of_str + 2);
 
 						// value
-						len_of_str = get_utf8_str(&(sub_pkt->user_property.strpair.str_value), variable_ptr, &vpos);
+						NNI_GET16(variable_ptr + vpos, len_of_str);
+						if ((sub_pkt->user_property.strpair.str_value = nng_alloc(len_of_str)) == 0) {
+							debug_msg("ERROR: nng_alloc");
+							return NNG_ENOMEM;
+						}
 						sub_pkt->user_property.strpair.len_value = len_of_str;
-						// vpos += len_of_str;
+						vpos += (len_of_str + 2);
+
 						break;
 					default:
 						// avoid error
 						if (vpos > remaining_len) {
-							debug_msg("ERROR_IN_LEN_VPOS");
+							debug_msg("ERROR:_length exceeds remainlen");
 						}
 				}
 			}
@@ -158,7 +167,7 @@ uint8_t encode_suback_message(nng_msg * msg, emq_work * work)
 	// handle variable header first
 	NNI_PUT16(packet_id, sub_pkt->packet_id);
 	if ((rv = nng_msg_append(msg, packet_id, 2)) != 0) {
-		debug_msg("ERROR: nng_msg_appened [%d]", rv);
+		debug_msg("ERROR: nng_msg_append [%d]", rv);
 		return PROTOCOL_ERROR;
 	}
 
@@ -166,9 +175,10 @@ uint8_t encode_suback_message(nng_msg * msg, emq_work * work)
 	if (PROTOCOL_VERSION_v5 == proto_ver) { // add property in variable
 		// 31(0x1f)ReasonCode - utf-8 string
 		// 38(0x26)UserProperty - string pair
-		len_of_properties = 0;
-		if ((rv = nng_msg_append(msg, len_of_properties, 1)) != 0) {
-			debug_msg("ERROR: nng_msg_appened [%d]", rv);
+		len_of_varint = put_var_integer(varint, 0); // len_of_properties = 0
+		debug_msg("length of property [%d] [%x %x]", len_of_varint, varint[0], varint[1]);
+		if ((rv = nng_msg_append(msg, varint, len_of_varint)) != 0) {
+			debug_msg("ERROR: nng_msg_append [%d]", rv);
 			return PROTOCOL_ERROR;
 		}
 	}
@@ -332,6 +342,7 @@ void del_sub_ctx(void * ctxt, char * target_topic)
 		debug_msg("ERROR : ctx->sub is nil");
 		return;
 	}
+	const uint8_t      proto_ver = conn_param_get_protover(cli_ctx->cparam);
 	packet_subscribe * sub_pkt = cli_ctx->sub_pkt;
 	if (!(sub_pkt->node)) {
 		debug_msg("ERROR : not find topic");
@@ -365,6 +376,12 @@ void del_sub_ctx(void * ctxt, char * target_topic)
 	}
 
 	if (sub_pkt->node == NULL) {
+#if SUPPORT_MQTT5_0
+		if (PROTOCOL_VERSION_v5 == proto_ver) {
+			nng_free(sub_pkt->user_property.strpair.str_key, sub_pkt->user_property.strpair.len_key);
+			nng_free(sub_pkt->user_property.strpair.str_value, sub_pkt->user_property.strpair.len_value);
+		}
+#endif
 		nng_free(sub_pkt, sizeof(packet_subscribe));
 		// TODO free conn_param
 		// debug_msg("Free--clientctx: [%p]----pipeid: [%d]", cli_ctx, cli_ctx->pid.id);
@@ -384,6 +401,7 @@ void destroy_sub_ctx(void * ctxt)
 		debug_msg("ERROR : ctx->sub is nil");
 		return;
 	}
+	const uint8_t      proto_ver = conn_param_get_protover(cli_ctx->cparam);
 	packet_subscribe * sub_pkt = cli_ctx->sub_pkt;
 	if (!(sub_pkt->node)) {
 		nng_free(sub_pkt, sizeof(packet_subscribe));
@@ -403,6 +421,13 @@ void destroy_sub_ctx(void * ctxt)
 	}
 
 	if (sub_pkt->node == NULL) {
+#if SUPPORT_MQTT5_0
+		if (PROTOCOL_VERSION_v5 == proto_ver) {
+			nng_free(sub_pkt->user_property.strpair.str_key, sub_pkt->user_property.strpair.len_key);
+			nng_free(sub_pkt->user_property.strpair.str_value, sub_pkt->user_property.strpair.len_value);
+		}
+#endif
+
 		nng_free(sub_pkt, sizeof(packet_subscribe));
 		// TODO free conn_param
 		nng_free(cli_ctx, sizeof(client_ctx));

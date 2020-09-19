@@ -66,7 +66,7 @@ uint8_t decode_unsub_message(emq_work * work)
 	}
 #endif
 
-	debug_msg("Remain_len: [%ld] packet_id : [%d]", remaining_len, unsub_pkt->packet_id);
+	debug_msg("remain_len: [%ld] packet_id : [%d]", remaining_len, unsub_pkt->packet_id);
 
 	// handle payload
 	payload_ptr = nng_msg_payload_ptr(msg);
@@ -100,14 +100,14 @@ uint8_t decode_unsub_message(emq_work * work)
 		}
 
 		debug_msg("bpos+vpos: [%d] remain_len: [%ld]", bpos+vpos, remaining_len);
-		if(bpos < remaining_len - vpos){
+		if (bpos < remaining_len - vpos) {
 			if ((topic_node_t = nng_alloc(sizeof(topic_node))) == NULL) {
 				debug_msg("ERROR: nng_alloc");
 				return NNG_ENOMEM;
 			}
 			topic_node_t->next = NULL;
 			_topic_node->next = topic_node_t;
-		}else{
+		} else {
 			break;
 		}
 	}
@@ -120,7 +120,7 @@ uint8_t encode_unsuback_message(nng_msg * msg, emq_work * work)
 
 	uint8_t  packet_id[2];
 	uint8_t  varint[4];
-	uint8_t  reason_code, cmd;
+	uint8_t  reason_code, cmd, property_len = 0;
 	uint32_t remaining_len;
 	int      len_of_varint, rv;
 	topic_node * node;
@@ -137,6 +137,7 @@ uint8_t encode_unsuback_message(nng_msg * msg, emq_work * work)
 
 #if SUPPORT_MQTT5_0
 	if (PROTOCOL_VERSION_v5 == proto_ver) {
+		nng_msg_append(msg, property_len, 1);
 	}
 
 	// handle payload
@@ -243,7 +244,7 @@ void destroy_unsub_ctx(packet_unsubscribe * unsub_pkt)
 		return;
 	}
 	if (!(unsub_pkt->node->it)) {
-		debug_msg("NOT FIND TOPIC");
+		debug_msg("ERROR : not find topic");
 		return;
 	}
 
