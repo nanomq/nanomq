@@ -15,7 +15,7 @@
 #include <stdbool.h>
 
 struct mqtt_string {
-	char *  str_body;
+	char *  body;
 	int     len;
 };
 typedef struct mqtt_string mqtt_string;
@@ -27,16 +27,16 @@ struct mqtt_string_node {
 typedef struct mqtt_string_node mqtt_string_node;
 
 struct mqtt_binary {
-	unsigned char * str_body;
-	int             len;
+	char * body;
+	int    len;
 };
 typedef struct mqtt_binary mqtt_binary;
 
 struct mqtt_str_pair {
-	char *	str_key; // key
+	char *	key; // key
 	int 	len_key;
-	char *	str_value; // value
-	int 	len_value;
+	char *	val; // value
+	int 	len_val;
 };
 typedef struct mqtt_str_pair mqtt_str_pair;
 

@@ -161,7 +161,7 @@ int utf8_check(const char *str, size_t len)
 	const unsigned char *ustr = (const unsigned char *) str;
 
 	if (!str) return ERR_INVAL;
-	if (len < 0 || len > 65536) return ERR_INVAL;
+	if (len > 65536) return ERR_INVAL;
 
 	for (i = 0; i < len; i++) {
 		if (ustr[i] == 0) {
@@ -285,8 +285,10 @@ static char *client_id_gen(int *idlen, const char *auto_id_prefix, int auto_id_p
 int32_t conn_handler(uint8_t *packet, conn_param *cparam)
 {
 
-	uint32_t	len, tmp, pos = 0;
+	uint32_t	len, tmp, pos = 0, len_of_properties = 0;
+	int         len_of_str = 0;
 	int32_t		rv = 0;
+	uint8_t     property_id;
 
 	if (packet[pos] != CMD_CONNECT) {
 		rv = -1;
@@ -295,9 +297,9 @@ int32_t conn_handler(uint8_t *packet, conn_param *cparam)
 		pos++;
 	}
 	//remaining length
-	len = get_var_integer(packet, &pos);
+	len = (uint32_t)get_var_integer(packet, &pos);
 	//protocol name
-	rv = copy_utf8_str(cparam->pro_name, packet, &pos);
+	rv = (uint32_t)copy_utf8_str(cparam->pro_name, packet, &pos);
 	debug_msg("pro_name: %s", cparam->pro_name);
 	//protocol ver
 	cparam->pro_ver = packet[pos];
@@ -315,19 +317,161 @@ int32_t conn_handler(uint8_t *packet, conn_param *cparam)
 	cparam->keepalive_mqtt = tmp;
 	pos+=2;
 	//properties
-	if (cparam->pro_ver == 5) {
-		//TODO
+	if (cparam->pro_ver == PROTOCOL_VERSION_v5) {
 		debug_msg("MQTT 5 Properties");
+		len_of_properties = (uint32_t)get_var_integer(packet, &pos);
+		uint32_t target_pos = pos + len_of_properties;
+		debug_msg("propertyLen in variable [%d]", len_of_properties);
+
+		// parse property in variable header
+		if (len_of_properties > 0) {
+			while (1) {
+				property_id = packet[pos++];
+				switch (property_id) {
+					case SESSION_EXPIRY_INTERVAL:
+						debug_msg("SESSION_EXPIRY_INTERVAL");
+						NNI_GET32(packet+pos, cparam->session_expiry_interval);
+						pos += 4;
+						break;
+					case RECEIVE_MAXIMUM:
+						debug_msg("RECEIVE_MAXIMUM");
+						NNI_GET16(packet+pos, cparam->rx_max);
+						pos += 2;
+						break;
+					case MAXIMUM_PACKET_SIZE:
+						debug_msg("MAXIMUM_PACKET_SIZE");
+						NNI_GET32(packet+pos, cparam->max_packet_size);
+						pos += 4;
+						break;
+					case TOPIC_ALIAS_MAXIMUM:
+						debug_msg("TOPIC_ALIAS_MAXIMUM");
+						NNI_GET16(packet+pos, cparam->topic_alias_max);
+						pos += 2;
+						break;
+					case REQUEST_RESPONSE_INFORMATION:
+						debug_msg("REQUEST_RESPONSE_INFORMATION");
+						cparam->req_resp_info = packet[pos++];
+						break;
+					case REQUEST_PROBLEM_INFORMATION:
+						debug_msg("REQUEST_PROBLEM_INFORMATION");
+						cparam->req_problem_info = packet[pos++];
+						break;
+					case USER_PROPERTY:
+						debug_msg("USER_PROPERTY");
+						// key
+						copy_utf8_str(cparam->user_property.key, packet, &len_of_str);
+						pos += (uint32_t)len_of_str;
+						cparam->user_property.len_key = len_of_str;
+						len_of_str = 0;
+						// value
+						copy_utf8_str(cparam->user_property.val, packet, &len_of_str);
+						pos += (uint32_t)len_of_str;
+						cparam->user_property.len_val = len_of_str;
+						len_of_str = 0;
+						break;
+					case AUTHENTICATION_METHOD:
+						debug_msg("AUTHENTICATION_METHOD");
+						copy_utf8_str(cparam->auth_method.body, packet, &len_of_str);
+						pos += (uint32_t)len_of_str;
+						cparam->auth_method.len = len_of_str;
+						len_of_str = 0;
+						break;
+					case AUTHENTICATION_DATA:
+						debug_msg("AUTHENTICATION_DATA");
+						copy_utf8_str(cparam->auth_data.body, packet, &len_of_str);
+						pos += (uint32_t)len_of_str;
+						cparam->auth_data.len = len_of_str;
+						len_of_str = 0;
+						break;
+					default:
+						break;
+				}
+				if (pos == target_pos) {
+					break;
+				} else if (pos > target_pos) {
+					debug_msg("ERROR: protocol error");
+					return PROTOCOL_ERROR;
+				}
+			}
+		}
 	}
 	//payload client_id
-	rv =rv|copy_utf8_str(cparam->clientid, packet, &pos);
-	debug_msg("clientid: %s %d", cparam->clientid, rv);
-	//will properties
-	if (cparam->pro_ver == 5) {
-		debug_msg("MQTT 5 Will Properties");
-	}
+	rv = rv|copy_utf8_str(cparam->clientid, packet, &pos);
+	debug_msg("clientid: [%s] [%d]", cparam->clientid, rv);
 	//will topic
-	if(cparam->will_flag != 0) {
+	if (cparam->will_flag != 0) {
+		if (cparam->pro_ver == PROTOCOL_VERSION_v5) {
+			len_of_properties = get_var_integer(packet, &pos);
+			uint32_t target_pos = pos + len_of_properties;
+			debug_msg("propertyLen in payload [%d]", len_of_properties);
+
+			// parse property in variable header
+			if (len_of_properties > 0) {
+				while (1) {
+					property_id = packet[pos++];
+					switch (property_id) {
+						case WILL_DELAY_INTERVAL:
+							debug_msg("WILL_DELAY_INTERVAL");
+							NNI_GET32(packet+pos, cparam->will_delay_interval);
+							pos += 4;
+							break;
+						case PAYLOAD_FORMAT_INDICATOR:
+							debug_msg("PAYLOAD_FORMAT_INDICATOR");
+							cparam->payload_format_indicator = packet[pos++];
+							break;
+						case MESSAGE_EXPIRY_INTERVAL:
+							debug_msg("MESSAGE_EXPIRY_INTERVAL");
+							NNI_GET32(packet+pos, cparam->msg_expiry_interval);
+							pos += 4;
+							break;
+						case CONTENT_TYPE:
+							debug_msg("CONTENT_TYPE");
+							rv = rv|copy_utf8_str(cparam->content_type.body, packet, &len_of_str);
+							pos += (uint32_t)len_of_str;
+							len_of_str = 0;
+							debug_msg("content type: %s %d", cparam->content_type.body, rv);
+							break;
+						case RESPONSE_TOPIC:
+							debug_msg("RESPONSE_TOPIC");
+							rv = rv|copy_utf8_str(cparam->resp_topic.body, packet, &len_of_str);
+							pos += (uint32_t)len_of_str;
+							cparam->resp_topic.len = len_of_str;
+							len_of_str = 0;
+							debug_msg("resp topic: %s %d", cparam->resp_topic.body, rv);
+							break;
+						case CORRELATION_DATA:
+							debug_msg("CORRELATION_DATA");
+							rv = rv|copy_utf8_str(cparam->corr_data.body, packet, &len_of_str);
+							pos += (uint32_t)len_of_str;
+							cparam->corr_data.len = len_of_str;
+							len_of_str = 0;
+							debug_msg("corr_data: %s %d", cparam->corr_data.body, rv);
+							break;
+						case USER_PROPERTY:
+							debug_msg("USER_PROPERTY");
+							// key
+							copy_utf8_str(cparam->payload_user_property.key, packet, &len_of_str);
+							pos += (uint32_t)len_of_str;
+							cparam->payload_user_property.len_key = len_of_str;
+							len_of_str = 0;
+							// value
+							copy_utf8_str(cparam->payload_user_property.val, packet, &len_of_str);
+							pos += (uint32_t)len_of_str;
+							cparam->payload_user_property.len_val = len_of_str;
+							len_of_str = 0;
+							break;
+						default:
+							break;
+					}
+					if (pos == target_pos) {
+						break;
+					}else if (pos > target_pos) {
+						debug_msg("ERROR: protocol error");
+						return PROTOCOL_ERROR;
+					}
+				}
+			}
+		}
 		rv =rv|copy_utf8_str(cparam->will_topic, packet, &pos);
 		debug_msg("will_topic: %s %d", cparam->will_topic, rv);
 		//will msg

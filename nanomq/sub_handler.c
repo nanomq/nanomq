@@ -47,6 +47,7 @@ uint8_t decode_sub_message(emq_work * work)
 		// length of property in varibale
 		len_of_properties = get_var_integer(variable_ptr + vpos, &len_of_varint);
 		vpos += len_of_varint;
+		int target_pos = vpos + len_of_properties;
 
 		// parse property in variable
 		if (len_of_properties > 0) {
@@ -60,28 +61,33 @@ uint8_t decode_sub_message(emq_work * work)
 					case USER_PROPERTY:
 						// key
 						NNI_GET16(variable_ptr + vpos, len_of_str);
-						if ((sub_pkt->user_property.strpair.str_key = nng_alloc(len_of_str)) == 0) {
+						if ((sub_pkt->user_property.strpair.key = nng_alloc(len_of_str)) == 0) {
 							debug_msg("ERROR: nng_alloc");
 							return NNG_ENOMEM;
 						}
 						sub_pkt->user_property.strpair.len_key = len_of_str;
 						vpos += (len_of_str + 2);
+						len_of_str = 0;
 
 						// value
 						NNI_GET16(variable_ptr + vpos, len_of_str);
-						if ((sub_pkt->user_property.strpair.str_value = nng_alloc(len_of_str)) == 0) {
+						if ((sub_pkt->user_property.strpair.val = nng_alloc(len_of_str)) == 0) {
 							debug_msg("ERROR: nng_alloc");
 							return NNG_ENOMEM;
 						}
-						sub_pkt->user_property.strpair.len_value = len_of_str;
+						sub_pkt->user_property.strpair.len_val = len_of_str;
 						vpos += (len_of_str + 2);
+						len_of_str = 0;
 
 						break;
 					default:
-						// avoid error
-						if (vpos > remaining_len) {
-							debug_msg("ERROR:_length exceeds remainlen");
-						}
+						break;
+				}
+				if (vpos >= target_pos) {
+					break;
+				}else if (vpos > target_pos) {
+					debug_msg("ERROR: protocol error");
+					return PROTOCOL_ERROR;
 				}
 			}
 		}
@@ -116,12 +122,12 @@ uint8_t decode_sub_message(emq_work * work)
 
 		if (len_of_topic != 0) {
 			topic_option->topic_filter.len = len_of_topic;
-			topic_option->topic_filter.str_body = nng_alloc(len_of_topic);
-			if (topic_option->topic_filter.str_body == NULL) {
+			topic_option->topic_filter.body = nng_alloc(len_of_topic);
+			if (topic_option->topic_filter.body == NULL) {
 				debug_msg("ERROR: nng_alloc");
 				return NNG_ENOMEM;
 			}
-			strncpy(topic_option->topic_filter.str_body, payload_ptr + bpos, len_of_topic);
+			strncpy(topic_option->topic_filter.body, payload_ptr + bpos, len_of_topic);
 			bpos += len_of_topic;
 		} else {
 			debug_msg("ERROR : topic length error.");
@@ -259,7 +265,7 @@ uint8_t sub_ctx_handle(emq_work * work, client_ctx * cli_ctx)
 			debug_msg("ERROR: nng_alloc");
 			return NNG_ENOMEM;
 		}
-		strncpy(topic_str, topic_node_t->it->topic_filter.str_body, topic_node_t->it->topic_filter.len);
+		strncpy(topic_str, topic_node_t->it->topic_filter.body, topic_node_t->it->topic_filter.len);
 		topic_str[topic_node_t->it->topic_filter.len] = '\0';
 		debug_msg("topicLen: [%d] body: [%s]", topic_node_t->it->topic_filter.len, (char *)topic_str);
 
@@ -350,7 +356,7 @@ void del_sub_ctx(void * ctxt, char * target_topic)
 	topic_node * topic_node_t      = sub_pkt->node;
 	topic_node * before_topic_node = NULL;
 	while (topic_node_t) {
-		if (!strncmp(topic_node_t->it->topic_filter.str_body, target_topic,
+		if (!strncmp(topic_node_t->it->topic_filter.body, target_topic,
 			topic_node_t->it->topic_filter.len)) {
 //			debug_msg("FREE in topic_node [%s] in tree", topic_node_t->it->topic_filter.str_body);
 			if (before_topic_node) {
@@ -359,7 +365,7 @@ void del_sub_ctx(void * ctxt, char * target_topic)
 				sub_pkt->node = topic_node_t->next;
 			}
 
-			nng_free(topic_node_t->it->topic_filter.str_body, topic_node_t->it->topic_filter.len);
+			nng_free(topic_node_t->it->topic_filter.body, topic_node_t->it->topic_filter.len);
 			nng_free(topic_node_t->it, sizeof(topic_with_option));
 			nng_free(topic_node_t, sizeof(topic_node));
 			break;
@@ -376,8 +382,8 @@ void del_sub_ctx(void * ctxt, char * target_topic)
 	if (sub_pkt->node == NULL) {
 #if SUPPORT_MQTT5_0
 		if (PROTOCOL_VERSION_v5 == proto_ver) {
-			nng_free(sub_pkt->user_property.strpair.str_key, sub_pkt->user_property.strpair.len_key);
-			nng_free(sub_pkt->user_property.strpair.str_value, sub_pkt->user_property.strpair.len_value);
+			nng_free(sub_pkt->user_property.strpair.key, sub_pkt->user_property.strpair.len_key);
+			nng_free(sub_pkt->user_property.strpair.val, sub_pkt->user_property.strpair.len_val);
 		}
 #endif
 		nng_free(sub_pkt, sizeof(packet_subscribe));
@@ -412,7 +418,7 @@ void destroy_sub_ctx(void * ctxt)
 	topic_node * next_topic_node = NULL;
 	while (topic_node_t) {
 		next_topic_node = topic_node_t->next;
-		nng_free(topic_node_t->it->topic_filter.str_body, topic_node_t->it->topic_filter.len);
+		nng_free(topic_node_t->it->topic_filter.body, topic_node_t->it->topic_filter.len);
 		nng_free(topic_node_t->it, sizeof(topic_with_option));
 		nng_free(topic_node_t, sizeof(topic_node));
 		topic_node_t = next_topic_node;
@@ -421,8 +427,8 @@ void destroy_sub_ctx(void * ctxt)
 	if (sub_pkt->node == NULL) {
 #if SUPPORT_MQTT5_0
 		if (PROTOCOL_VERSION_v5 == proto_ver) {
-			nng_free(sub_pkt->user_property.strpair.str_key, sub_pkt->user_property.strpair.len_key);
-			nng_free(sub_pkt->user_property.strpair.str_value, sub_pkt->user_property.strpair.len_value);
+			nng_free(sub_pkt->user_property.strpair.key, sub_pkt->user_property.strpair.len_key);
+			nng_free(sub_pkt->user_property.strpair.val, sub_pkt->user_property.strpair.len_val);
 		}
 #endif
 

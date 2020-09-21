@@ -182,7 +182,7 @@ server_cb(void *arg)
 						" topic: [%s]",
 						work->sub_pkt->packet_id,
 						work->sub_pkt->node->it->topic_filter.len,
-						work->sub_pkt->node->it->topic_filter.str_body);
+						work->sub_pkt->node->it->topic_filter.body);
 					debug_msg("suback:"
 						" headerLen: [%ld]"
 						" bodyLen: [%ld]"

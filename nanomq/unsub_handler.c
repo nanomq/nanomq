@@ -51,11 +51,11 @@ uint8_t decode_unsub_message(emq_work * work)
 				switch (property_id) {
 					case USER_PROPERTY:
 						// key
-						len_of_str = get_utf8_str(&(unsub_pkt->user_property.strpair.str_key), variable_ptr, &vpos);
+						len_of_str = get_utf8_str(&(unsub_pkt->user_property.strpair.key), variable_ptr, &vpos);
 						unsub_pkt->user_property.strpair.len_key = len_of_str;
 						// value
-						len_of_str = get_utf8_str(&(unsub_pkt->user_property.strpair.str_value), variable_ptr, &vpos);
-						unsub_pkt->user_property.strpair.len_value = len_of_str;
+						len_of_str = get_utf8_str(&(unsub_pkt->user_property.strpair.val), variable_ptr, &vpos);
+						unsub_pkt->user_property.strpair.len_val = len_of_str;
 					default:
 						if (vpos > remaining_len) {
 							debug_msg("ERROR_IN_LEN_VPOS");
@@ -91,7 +91,7 @@ uint8_t decode_unsub_message(emq_work * work)
 		topic_node_t->it = topic_option;
 		_topic_node = topic_node_t;
 
-		len_of_topic = get_utf8_str(&(topic_option->topic_filter.str_body), payload_ptr, &bpos); // len of topic filter
+		len_of_topic = get_utf8_str(&(topic_option->topic_filter.body), payload_ptr, &bpos); // len of topic filter
 		if (len_of_topic != -1) {
 			topic_option->topic_filter.len = len_of_topic;
 		} else {
@@ -197,7 +197,7 @@ uint8_t unsub_ctx_handle(emq_work * work)
 
 		// parse topic string
 		topic_str = (char *)nng_alloc(topic_node_t->it->topic_filter.len + 1);
-		strncpy(topic_str, topic_node_t->it->topic_filter.str_body, topic_node_t->it->topic_filter.len);
+		strncpy(topic_str, topic_node_t->it->topic_filter.body, topic_node_t->it->topic_filter.len);
 		topic_str[topic_node_t->it->topic_filter.len] = '\0';
 
 		debug_msg("finding client [%s] in topic [%s].", clientid, topic_str);
