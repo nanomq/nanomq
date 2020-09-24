@@ -24,7 +24,7 @@ uint8_t decode_sub_message(emq_work * work)
 	int        bpos = 0; // pos in payload
 
 	int        len_of_varint = 0, len_of_property = 0, len_of_properties = 0;
-	int        len_of_str, len_of_topic;
+	uint32_t   len_of_str, len_of_topic;
 	nng_msg    *msg = work->msg;
 	size_t     remaining_len = nng_msg_remaining_len(msg);
 
@@ -306,7 +306,7 @@ uint8_t sub_ctx_handle(emq_work * work, client_ctx * cli_ctx)
 			work->pub_packet = copy_pub_packet(i->ret_msg->message);
 			work->pub_packet->fixed_header.retain = 1;
 			work->pub_packet->fixed_header.remain_len = work->pub_packet->payload_body.payload_len
-				+ work->pub_packet->variable_header.publish.topic_name.str_len+2
+				+ work->pub_packet->variable_header.publish.topic_name.len+2
 				+ (work->pub_packet->fixed_header.qos == 0 ? 0 : 2);
 			put_pipe_msgs(cli_ctx, work, work->pipe_ct, PUBLISH);
 			// TODO WARNING!!!! remainlen is same only in pub
