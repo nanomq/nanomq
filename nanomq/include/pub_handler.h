@@ -121,5 +121,6 @@ void free_pipes_info(struct pipe_info *p_info);
 void init_pipe_content(struct pipe_content *pipe_ct);
 void handle_pub(emq_work *work, struct pipe_content *pipe_ct);
 struct pub_packet_struct *copy_pub_packet(struct pub_packet_struct *src_pub_packet);
+void init_pub_packet_property(struct pub_packet_struct *pub_packet);
 
 #endif //NNG_PUB_HANDLER_H
