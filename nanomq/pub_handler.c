@@ -584,6 +584,7 @@ decode_pub_message(emq_work *work)
 			}
 
 			used_pos = pos;
+			pub_packet->variable_header.publish.properties.len = 0;
 
 #if SUPPORT_MQTT5_0
 			if (PROTOCOL_VERSION_v5 == proto_ver) {
@@ -680,10 +681,11 @@ decode_pub_message(emq_work *work)
 						}
 					}
 				}
+				used_pos += pub_packet->variable_header.publish.properties.len + 1;
 			}
 #endif
 
-			used_pos += pub_packet->variable_header.publish.properties.len + 1;
+			debug_msg("used pos: [%d]", used_pos);
 			//payload
 			pub_packet->payload_body.payload_len = (uint32_t) (msg_len - (size_t) used_pos);
 
@@ -744,12 +746,8 @@ decode_pub_message(emq_work *work)
 
 		default:
 			break;
-		}
-		return SUCCESS;
-
 	}
-
-	return UNSPECIFIED_ERROR;
+	return SUCCESS;
 }
 
 /**

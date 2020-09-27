@@ -524,7 +524,6 @@ tcptran_pipe_recv_cb(void *arg)
 	nni_msg_set_remaining_len(msg, p->remain_len);
 	nni_msg_set_cmd_type(msg, type);
 	debug_msg("len %d!! pre len %d  %s %s\n", len, p->remain_len,  cparam->clientid, cparam->username);
-	debug_msg("REMAINING LENGTH SETTING IN MSG..............");
 
 	header_ptr = nni_msg_header(msg);
 	variable_ptr = nni_msg_variable_ptr(msg);

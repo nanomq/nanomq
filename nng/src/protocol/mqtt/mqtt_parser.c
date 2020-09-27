@@ -395,9 +395,11 @@ int32_t conn_handler(uint8_t *packet, conn_param *cparam)
 			}
 		}
 	}
+	debug_msg("pos after property: [%d]", pos);
 	//payload client_id
-	rv = rv|copy_utf8_str(cparam->clientid, packet, &pos);
-	debug_msg("clientid: [%s] [%d]", cparam->clientid, rv);
+	len_of_str = copy_utf8_str(cparam->clientid, packet, &pos);
+	debug_msg("clientid: [%s] [%d]", cparam->clientid, len_of_str);
+	len_of_str = 0;
 	//will topic
 	if (cparam->will_flag != 0) {
 		if (cparam->pro_ver == PROTOCOL_VERSION_v5) {
