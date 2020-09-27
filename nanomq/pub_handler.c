@@ -374,6 +374,7 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_
 				memset(tmp, 0, sizeof(tmp));
 				arr_len = put_var_integer(tmp, work->pub_packet->variable_header.publish.properties.len);
 				nng_msg_append(dest_msg, tmp, arr_len);
+				debug_msg("arr_len [%d]", arr_len);
 
 				//Payload Format Indicator
 				if (work->pub_packet->variable_header.publish.properties.content.publish.payload_fmt_indicator.has_value){
@@ -575,7 +576,7 @@ decode_pub_message(emq_work *work)
 				}
 			}
 
-//			debug_msg("topic: [%s]", pub_packet->variable_header.publish.topic_name.body);
+			debug_msg("topic: [%s]", pub_packet->variable_header.publish.topic_name.body);
 
 			if (pub_packet->fixed_header.qos > 0) { //extract packet_identifier while qos > 0
 				NNI_GET16(msg_body + pos, pub_packet->variable_header.publish.packet_identifier);
@@ -682,6 +683,10 @@ decode_pub_message(emq_work *work)
 					}
 				}
 				used_pos += pub_packet->variable_header.publish.properties.len + 1;
+			}
+			/* check */
+			else {
+				debug_msg("NOMQTT5ERR [%d] [%d]", proto_ver, PROTOCOL_VERSION_v5);
 			}
 #endif
 

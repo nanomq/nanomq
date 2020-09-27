@@ -16,6 +16,13 @@
 
 #define SUPPORT_MQTT5_0 1
 
+void init_sub_property(packet_subscribe * sub_pkt)
+{
+	sub_pkt->sub_id.varint = 0;
+	sub_pkt->user_property.strpair.len_key = 0;
+	sub_pkt->user_property.strpair.len_val = 0;
+}
+
 uint8_t decode_sub_message(emq_work * work)
 {
 	uint8_t    *variable_ptr;
@@ -44,6 +51,7 @@ uint8_t decode_sub_message(emq_work * work)
 #if SUPPORT_MQTT5_0
 	// Only Mqtt_v5 include property. 
 	if (PROTOCOL_VERSION_v5 == proto_ver) {
+		init_sub_property(sub_pkt);
 		// length of property in varibale
 		len_of_properties = get_var_integer(variable_ptr + vpos, &len_of_varint);
 		vpos += len_of_varint;
@@ -286,18 +294,21 @@ uint8_t sub_ctx_handle(emq_work * work, client_ctx * cli_ctx)
 				add_topic(client->id, topic_str);
 				add_pipe_id(work->pid.id, client->id);
 				add_client(&tan, client);
-				/* check
-				search_node(work->db, topics, &tan);
-				struct client * cli = tan.node->sub_client;
-				while(cli){
-					debug_msg("client: %s", cli->id);
-					cli = cli->next;
-				}
-				*/
 			} else { // clientid already in hash
 				work->sub_pkt->node->it->reason_code = 0x80;
 			}
 		}
+//		/* check
+		search_node(work->db, topics, &tan);
+		struct client * cli = tan.node->sub_client;
+		int count = 0;
+		while(cli){
+//			debug_msg("client: %s", cli->id);
+			cli = cli->next;
+			count++;
+		}
+		debug_msg("client count [%d]", count);
+//		*/
 
 		struct retain_msg_node *msg_node = search_retain_msg(work->db->root, topics);
 
@@ -358,7 +369,7 @@ void del_sub_ctx(void * ctxt, char * target_topic)
 	while (topic_node_t) {
 		if (!strncmp(topic_node_t->it->topic_filter.body, target_topic,
 			topic_node_t->it->topic_filter.len)) {
-//			debug_msg("FREE in topic_node [%s] in tree", topic_node_t->it->topic_filter.str_body);
+			debug_msg("FREE in topic_node [%s] in tree", topic_node_t->it->topic_filter.body);
 			if (before_topic_node) {
 				before_topic_node->next = topic_node_t->next;
 			} else {
@@ -372,7 +383,7 @@ void del_sub_ctx(void * ctxt, char * target_topic)
 		}
 		/* check
 		else{
-			debug_msg("a/topic b/topic [%s] [%s]", topic_node_t->it->topic_filter.str_body, target_topic);
+			debug_msg("a/topic b/topic [%s] [%s]", topic_node_t->it->topic_filter.body, target_topic);
 		}
 		*/
 		before_topic_node = topic_node_t;
@@ -382,8 +393,10 @@ void del_sub_ctx(void * ctxt, char * target_topic)
 	if (sub_pkt->node == NULL) {
 #if SUPPORT_MQTT5_0
 		if (PROTOCOL_VERSION_v5 == proto_ver) {
-			nng_free(sub_pkt->user_property.strpair.key, sub_pkt->user_property.strpair.len_key);
-			nng_free(sub_pkt->user_property.strpair.val, sub_pkt->user_property.strpair.len_val);
+			if (sub_pkt->user_property.strpair.len_key) {
+				nng_free(sub_pkt->user_property.strpair.key, sub_pkt->user_property.strpair.len_key);
+				nng_free(sub_pkt->user_property.strpair.val, sub_pkt->user_property.strpair.len_val);
+			}
 		}
 #endif
 		nng_free(sub_pkt, sizeof(packet_subscribe));
