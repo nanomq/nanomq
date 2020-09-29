@@ -15,28 +15,28 @@
 #include <stdbool.h>
 
 struct mqtt_string {
-	char *  str_body;
-	int     len;
+	char   * body;
+	uint32_t len;
 };
 typedef struct mqtt_string mqtt_string;
 
 struct mqtt_string_node {
-	struct mqtt_string_node *  next;
-	mqtt_string *       it;
+	struct mqtt_string_node * next;
+	mqtt_string *             it;
 };
 typedef struct mqtt_string_node mqtt_string_node;
 
 struct mqtt_binary {
-	unsigned char * str_body;
-	int             len;
+	uint8_t* body;
+	uint32_t len;
 };
 typedef struct mqtt_binary mqtt_binary;
 
 struct mqtt_str_pair {
-	char *	str_key; // key
-	int 	len_key;
-	char *	str_value; // value
-	int 	len_value;
+	char *	 key; // key
+	uint32_t len_key;
+	char *	 val; // value
+	uint32_t len_val;
 };
 typedef struct mqtt_str_pair mqtt_str_pair;
 
@@ -56,14 +56,6 @@ struct property {
 	struct property * 	next;
 };
 typedef struct property property;
-
-struct mqtt_property {
-	uint32_t            len;
-	uint32_t			count;
-	struct property *   property;
-	struct property *	property_end;
-};
-typedef struct mqtt_property mqtt_property;
 
 //variable header in mqtt_packet_subscribe
 struct topic_with_option {

@@ -282,8 +282,16 @@ tcptran_pipe_nego_cb(void *arg)
 	if (p->gottxhead < p->wanttxhead && p->gotrxhead >= p->wantrxhead) {
 		nni_iov iov;
 		if (conn_handler(p->rxlen, &p->tcp_cparam) > 0) {
+			if (p->tcp_cparam.pro_ver == PROTOCOL_VERSION_v5) {
+				p->wanttxhead += 1;
+				// p->gottxhead += 1;
+				p->txlen[1] = 3; // setting remainlen
+				p->txlen[4] = 0x00; // property len
+			}
 			iov.iov_len = p->wanttxhead - p->gottxhead;
 			iov.iov_buf = &p->txlen[p->gottxhead];
+			debug_msg("[%ld] body [%x %x %x %x %x]", iov.iov_len,
+				p->txlen[0], p->txlen[1], p->txlen[2], p->txlen[3], p->txlen[4]);
 			// send it down...
 			nni_aio_set_iov(aio, 1, &iov);
 			nng_stream_send(p->conn, aio);
@@ -516,27 +524,29 @@ tcptran_pipe_recv_cb(void *arg)
 	nni_msg_set_remaining_len(msg, p->remain_len);
 	nni_msg_set_cmd_type(msg, type);
 	debug_msg("len %d!! pre len %d  %s %s\n", len, p->remain_len,  cparam->clientid, cparam->username);
-	debug_msg("REMAINING LENGTH SETTING IN MSG..............");
 
 	header_ptr = nni_msg_header(msg);
 	variable_ptr = nni_msg_variable_ptr(msg);
+	int len_of_varint = 0;
 
 	// set the payload pointer of msg according to packet_type
 	debug_msg("The type of msg is %x", type);
 	if(type == CMD_SUBSCRIBE){
-		debug_msg("The Type is SUBSCRIBE...........");
-		// mqtt_v5
-		// len = get_var_integer(variable_ptr + 2, &len_of_varint);
-		// payload_ptr = variable_ptr + 2 + len + len_of_varint;
-		// mqtt_v3
-		payload_ptr = variable_ptr + 2;
-		debug_msg("VARIABLE: %x %x %x %x. ", variable_ptr[0], variable_ptr[1], variable_ptr[2], variable_ptr[3]);
+		if (cparam->pro_ver == PROTOCOL_VERSION_v5) {
+			len_of_varint = 0;
+			len = get_var_integer(variable_ptr + 2, &len_of_varint);
+			payload_ptr = variable_ptr + 2 + len + len_of_varint;
+		} else {
+			payload_ptr = variable_ptr + 2;
+		}
 	}else if(type == CMD_UNSUBSCRIBE){
-		// mqtt_v5
-		// len = get_var_integer(variable_ptr + 2, &len_of_varint);
-		// payload_ptr = variable_ptr + 2 + len + len_of_varint;
-		// mqtt_v3
-		payload_ptr = variable_ptr + 2;
+		if (cparam->pro_ver == PROTOCOL_VERSION_v5) {
+			len_of_varint = 0;
+			len = get_var_integer(variable_ptr + 2, &len_of_varint);
+			payload_ptr = variable_ptr + 2 + len + len_of_varint;
+		} else {
+			payload_ptr = variable_ptr + 2;
+		}
 	}else if(type == CMD_PUBLISH){
 	}else{
 		payload_ptr = NULL;

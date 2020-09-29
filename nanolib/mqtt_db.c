@@ -802,7 +802,9 @@ struct retain_msg_node *search_retain_msg(struct db_node *root, char **topic_que
 	assert(root && topic_queue);
 	struct db_node *node = root;
 	struct retain_msg_node *tmp = NULL;
-    tmp = (struct retain_msg_node*)zmalloc(sizeof(struct retain_msg_node));
+	tmp = (struct retain_msg_node*)zmalloc(sizeof(struct retain_msg_node));
+	tmp->down = NULL;
+	tmp->ret_msg = NULL;
 	struct retain_msg_node *res = tmp;
 
 	log("search entry");
@@ -906,7 +908,7 @@ struct retain_msg_node *search_retain_msg(struct db_node *root, char **topic_que
 
 void free_retain_node(struct retain_msg_node *msg_node)
 {
-	struct reatain_msg_node *t = NULL;
+	struct retain_msg_node *t = NULL;
 	while (msg_node->down) {
 		log("free msg_node: %p", msg_node);
 		t = msg_node;

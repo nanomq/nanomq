@@ -8,18 +8,9 @@
 #include <nng/nng.h>
 #include <apps/broker.h>
 #include "nng/protocol/mqtt/mqtt.h"
+#include "include/packet.h"
 
 typedef uint32_t variable_integer;
-
-struct variable_string {
-	uint32_t str_len;
-	char     *str_body;
-};
-
-struct variable_binary {
-	uint32_t data_len;
-	uint8_t  *data;
-};
 
 //MQTT Fixed header
 struct fixed_header {
@@ -52,18 +43,18 @@ struct property_u32 {
 //Special for publish message data structure
 union property_content {
 	struct {
-		struct property_u8     payload_fmt_indicator;
-		struct property_u32    msg_expiry_interval;
-		struct property_u16    topic_alias;
-		struct variable_string response_topic;
-		struct variable_binary correlation_data;
-		struct variable_string user_property;
-		struct property_u32    subscription_identifier;
-		struct variable_string content_type;
+		struct property_u8   payload_fmt_indicator;
+		struct property_u32  msg_expiry_interval;
+		struct property_u16  topic_alias;
+		struct mqtt_string   response_topic;
+		struct mqtt_binary   correlation_data;
+		struct mqtt_str_pair user_property;
+		struct property_u32  subscription_identifier;
+		struct mqtt_string   content_type;
 	} publish;
 	struct {
-		struct variable_string reason_string;
-		struct variable_string user_property;
+		struct mqtt_string   reason_string;
+		struct mqtt_str_pair user_property;
 	} pub_arrc, puback, pubrec, pubrel, pubcomp;
 };
 
@@ -76,9 +67,9 @@ struct properties {
 //MQTT Variable header
 union variable_header {
 	struct {
-		uint16_t               packet_identifier;
-		struct variable_string topic_name;
-		struct properties      properties;
+		uint16_t           packet_identifier;
+		struct mqtt_string topic_name;
+		struct properties  properties;
 	} publish;
 
 	struct {
@@ -130,5 +121,6 @@ void free_pipes_info(struct pipe_info *p_info);
 void init_pipe_content(struct pipe_content *pipe_ct);
 void handle_pub(emq_work *work, struct pipe_content *pipe_ct);
 struct pub_packet_struct *copy_pub_packet(struct pub_packet_struct *src_pub_packet);
+void init_pub_packet_property(struct pub_packet_struct *pub_packet);
 
 #endif //NNG_PUB_HANDLER_H

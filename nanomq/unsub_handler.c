@@ -51,11 +51,11 @@ uint8_t decode_unsub_message(emq_work * work)
 				switch (property_id) {
 					case USER_PROPERTY:
 						// key
-						len_of_str = get_utf8_str(&(unsub_pkt->user_property.strpair.str_key), variable_ptr, &vpos);
+						len_of_str = get_utf8_str(&(unsub_pkt->user_property.strpair.key), variable_ptr, &vpos);
 						unsub_pkt->user_property.strpair.len_key = len_of_str;
 						// value
-						len_of_str = get_utf8_str(&(unsub_pkt->user_property.strpair.str_value), variable_ptr, &vpos);
-						unsub_pkt->user_property.strpair.len_value = len_of_str;
+						len_of_str = get_utf8_str(&(unsub_pkt->user_property.strpair.val), variable_ptr, &vpos);
+						unsub_pkt->user_property.strpair.len_val = len_of_str;
 					default:
 						if (vpos > remaining_len) {
 							debug_msg("ERROR_IN_LEN_VPOS");
@@ -66,7 +66,7 @@ uint8_t decode_unsub_message(emq_work * work)
 	}
 #endif
 
-	debug_msg("Remain_len: [%ld] packet_id : [%d]", remaining_len, unsub_pkt->packet_id);
+	debug_msg("remain_len: [%ld] packet_id : [%d]", remaining_len, unsub_pkt->packet_id);
 
 	// handle payload
 	payload_ptr = nng_msg_payload_ptr(msg);
@@ -91,7 +91,7 @@ uint8_t decode_unsub_message(emq_work * work)
 		topic_node_t->it = topic_option;
 		_topic_node = topic_node_t;
 
-		len_of_topic = get_utf8_str(&(topic_option->topic_filter.str_body), payload_ptr, &bpos); // len of topic filter
+		len_of_topic = get_utf8_str(&(topic_option->topic_filter.body), payload_ptr, &bpos); // len of topic filter
 		if (len_of_topic != -1) {
 			topic_option->topic_filter.len = len_of_topic;
 		} else {
@@ -100,14 +100,14 @@ uint8_t decode_unsub_message(emq_work * work)
 		}
 
 		debug_msg("bpos+vpos: [%d] remain_len: [%ld]", bpos+vpos, remaining_len);
-		if(bpos < remaining_len - vpos){
+		if (bpos < remaining_len - vpos) {
 			if ((topic_node_t = nng_alloc(sizeof(topic_node))) == NULL) {
 				debug_msg("ERROR: nng_alloc");
 				return NNG_ENOMEM;
 			}
 			topic_node_t->next = NULL;
 			_topic_node->next = topic_node_t;
-		}else{
+		} else {
 			break;
 		}
 	}
@@ -120,7 +120,7 @@ uint8_t encode_unsuback_message(nng_msg * msg, emq_work * work)
 
 	uint8_t  packet_id[2];
 	uint8_t  varint[4];
-	uint8_t  reason_code, cmd;
+	uint8_t  reason_code, cmd, property_len = 0;
 	uint32_t remaining_len;
 	int      len_of_varint, rv;
 	topic_node * node;
@@ -137,6 +137,7 @@ uint8_t encode_unsuback_message(nng_msg * msg, emq_work * work)
 
 #if SUPPORT_MQTT5_0
 	if (PROTOCOL_VERSION_v5 == proto_ver) {
+		nng_msg_append(msg, property_len, 1);
 	}
 
 	// handle payload
@@ -196,7 +197,7 @@ uint8_t unsub_ctx_handle(emq_work * work)
 
 		// parse topic string
 		topic_str = (char *)nng_alloc(topic_node_t->it->topic_filter.len + 1);
-		strncpy(topic_str, topic_node_t->it->topic_filter.str_body, topic_node_t->it->topic_filter.len);
+		strncpy(topic_str, topic_node_t->it->topic_filter.body, topic_node_t->it->topic_filter.len);
 		topic_str[topic_node_t->it->topic_filter.len] = '\0';
 
 		debug_msg("finding client [%s] in topic [%s].", clientid, topic_str);
@@ -243,7 +244,7 @@ void destroy_unsub_ctx(packet_unsubscribe * unsub_pkt)
 		return;
 	}
 	if (!(unsub_pkt->node->it)) {
-		debug_msg("NOT FIND TOPIC");
+		debug_msg("ERROR : not find topic");
 		return;
 	}
 
