@@ -88,11 +88,13 @@ foreach_client(struct clients *sub_clients, emq_work *pub_work, struct pipe_cont
 	int  cols       = 1;
 	char **id_queue = NULL;
 	bool equal      = false;
+	packet_subscribe *sub_pkt;
 
 	while (sub_clients) {
 		struct client *sub_client = sub_clients->sub_client;
 		while (sub_client) {
 			equal    = false;
+			// TODO change realloc to something like chunk
 			id_queue = (char **) zrealloc(id_queue, cols * sizeof(char *));
 
 			for (int i = 0; i < cols - 1; i++) {
@@ -101,13 +103,11 @@ foreach_client(struct clients *sub_clients, emq_work *pub_work, struct pipe_cont
 					break;
 				}
 			}
-			// TODO NL (no_local in sub): don't send to self
-			// NEED: sub_pkt->node->it->no_local
-			/*
+			// NL (no_local in sub)
+			sub_pkt = (packet_subscribe *)sub_client->ctxt;
 			if (sub_pkt->node->it->no_local && !strcmp(sub_client->id, pub_work->pid.id)) {
 				equal = true;
 			}
-			*/
 
 			if (equal == false) {
 				id_queue[cols - 1] = sub_client->id;
@@ -438,6 +438,10 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_
 					    (uint8_t *) work->pub_packet->variable_header.publish.properties.content.publish.content_type.body,
 					    work->pub_packet->variable_header.publish.properties.content.publish.content_type.len);
 				}
+			}
+			/* check */
+			else {
+				debug_msg("pro_ver [%d]", proto_ver);
 			}
 #endif
 			debug_msg("property len in msg already [%d]", nng_msg_len(dest_msg));
