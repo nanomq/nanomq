@@ -14,7 +14,8 @@ typedef enum{
 	TEST_RETAIN_MSG,
 	TEST_HASH_ALIAS,
 	TEST_TOPIC_HASH,
-	TEST_PIPE_HASH
+	TEST_PIPE_HASH,
+	TEST_MSG_QUEUE_HASH
 } TEST_STATE;
 
 
@@ -424,7 +425,25 @@ static void Test_pipe_hash(void)
 	}
 }
 
-
+static void Test_msg_queue_hash(void)
+{
+	char* clientid[] = {"111111", "222222", "333333", "000000"};
+	char* msg[]      = {"msg111", "msg222", "msg333", "msg000", "msg112"};
+	for (int i = 0; i < 5; i++) {
+		printf("clientid: %s ,find? %d. \n", clientid[i%4], check_msg_queue_clientid(clientid[i%4]));
+		add_msg_queue(clientid[i%4], msg[i]);
+		struct msg_queue * mq = get_msg_queue(clientid[i%4]);
+		printf("msg: ");
+		while (mq) {
+			printf("%s ", mq->msg);
+			mq = mq->next;
+		}
+		printf("\n\n");
+	}
+	for (int i = 0; i < 4; i++){
+		del_msg_queue_all(clientid[i]);
+	}
+}
 
 
 
@@ -465,6 +484,9 @@ void test(TEST_STATE WHAT)
 		case TEST_PIPE_HASH:
 			Test_pipe_hash();
 			break;
+		case TEST_MSG_QUEUE_HASH:
+			Test_msg_queue_hash();
+			break;
 		default:
 			log("No this state");
 			break;
@@ -486,6 +508,7 @@ void help()
 	printf(" test_hash_alias,       8\n");
 	printf(" test_topic_hash,       9\n");
 	printf(" test_pipe_hash,       10\n");
+	printf(" test_msg_queue_hash,  11\n");
 	printf(" quit                   q\n");
 	printf(" help                   h\n");
 }
