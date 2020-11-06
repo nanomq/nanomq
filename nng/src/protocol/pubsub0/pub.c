@@ -9,7 +9,6 @@
 //
 
 #include <string.h>
-#include <stdio.h>
 
 #include "core/nng_impl.h"
 #include "nng/protocol/pubsub0/pub.h"
@@ -374,7 +373,6 @@ static nni_proto pub0_proto_raw = {
 int
 nng_pub0_open(nng_socket *sidp)
 {
-	printf("pub.c: nng pub0 open!\n");
 	return (nni_proto_open(sidp, &pub0_proto));
 }
 

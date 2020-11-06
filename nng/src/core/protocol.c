@@ -66,7 +66,6 @@ nni_proto_open(nng_socket *sockidp, const nni_proto *proto)
 		s.id     = nni_sock_id(sock); // Keep socket held open.
 		*sockidp = s;
 	}
-
 	return (rv);
 }
 

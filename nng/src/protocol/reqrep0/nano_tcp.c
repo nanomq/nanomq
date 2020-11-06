@@ -46,7 +46,7 @@ struct nano_ctx {
 struct nano_sock {
 	nni_mtx        lk;
 	nni_atomic_int ttl;
-	nni_idhash *   pipes;
+	nni_id_map     pipes;
 	nni_list       recvpipes; // list of pipes with data to receive
 	nni_list       recvq;
 	nano_ctx       ctx;		//base socket
@@ -178,11 +178,6 @@ nano_ctx_send(void *arg, nni_aio *aio)
 		//TODO qos 1/2
 		nni_pollable_clear(&s->writable);
 	}
-	if ((rv = nni_aio_schedule(aio, nano_ctx_cancel_send, ctx)) != 0) {
-		nni_mtx_unlock(&s->lk);
-		nni_aio_finish_error(aio, rv);
-		return;
-	}
 
 	/*
 	//TODO MQTT 5
@@ -271,7 +266,7 @@ exit:
 	return;*/
 
 	debug_msg("***************************working with pipe id : %d***************************", pipe);
-	if (nni_idhash_find(s->pipes, pipe, (void **) &p) != 0) {
+	if ((p = nni_id_get(&s->pipes, p_id)) == NULL) {
 		// Pipe is gone.  Make this look like a good send to avoid
 		// disrupting the state machine.  We don't care if the peer
 		// lost interest in our reply.
@@ -294,6 +289,11 @@ exit:
 		return;
 	}
 
+	if ((rv = nni_aio_schedule(aio, nano_ctx_cancel_send, ctx)) != 0) {
+		nni_mtx_unlock(&s->lk);
+		nni_aio_finish_error(aio, rv);
+		return;
+	}
 	debug_msg("pipe %p jamed! resending in cb!", pipe);
 	ctx->saio  = aio;
 	ctx->spipe = p;
@@ -307,7 +307,7 @@ nano_sock_fini(void *arg)
 {
 	nano_sock *s = arg;
 
-	nni_idhash_fini(s->pipes);
+	nni_id_map_fini(&s->pipes);
 	nano_ctx_fini(&s->ctx);
 	nni_pollable_fini(&s->writable);
 	nni_pollable_fini(&s->readable);
@@ -318,16 +318,12 @@ static int
 nano_sock_init(void *arg, nni_sock *sock)
 {
 	nano_sock *s = arg;
-	int        rv;
 
 	NNI_ARG_UNUSED(sock);
 
 	nni_mtx_init(&s->lk);
-	if ((rv = nni_idhash_init(&s->pipes)) != 0) {
-		nano_sock_fini(s);
-		return (rv);
-	}
 
+	nni_id_map_init(&s->pipes, 0, 0, false);
 	NNI_LIST_INIT(&s->recvq, nano_ctx, rqnode);
 	NNI_LIST_INIT(&s->recvpipes, nano_pipe, rnode);
 	nni_atomic_init(&s->ttl);
@@ -420,7 +416,10 @@ nano_pipe_start(void *arg)
 	*/
 
 	//debug_msg("nano_pipe_start peep ver: %s", p->pipe);
-	if ((rv = nni_idhash_insert(s->pipes, nni_pipe_id(p->pipe), p)) != 0) {
+        nni_mtx_lock(&s->lk);
+        rv = nni_id_set(&s->pipes, nni_pipe_id(p->pipe), p);
+        nni_mtx_unlock(&s->lk);
+        if (rv != 0) {
 		return (rv);
 	}
 	// By definition, we have not received a request yet on this pipe,
@@ -472,7 +471,7 @@ nano_pipe_close(void *arg)
 		// accept a message and discard it.)
 		nni_pollable_raise(&s->writable);
 	}
-	nni_idhash_remove(s->pipes, nni_pipe_id(p->pipe));
+	nni_id_remove(&s->pipes, nni_pipe_id(p->pipe));
 	nni_mtx_unlock(&s->lk);
 }
 

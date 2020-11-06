@@ -59,7 +59,6 @@ extern void nni_taskq_sys_fini(void);
 // nni_task_framework.  Placing here allows for inlining this in
 // consuming structures.
 struct nni_task {
-	unsigned char task_name;
 	nni_list_node task_node;
 	void *        task_arg;
 	nni_cb        task_cb;

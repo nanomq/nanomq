@@ -35,18 +35,20 @@ nni_taskq_thread(void *self)
 	nni_taskq *    tq  = thr->tqt_tq;
 	nni_task *     task;
 
-	nni_mtx_lock(&tq->tq_mtx);
+        nni_thr_set_name(NULL, "nng:task");
+
+        nni_mtx_lock(&tq->tq_mtx);
 	for (;;) {
-		debug_msg("----- nni_taskq_thread start ---\n");
 		if ((task = nni_list_first(&tq->tq_tasks)) != NULL) {
 
 			nni_mtx_lock(&task->task_mtx);
-			nni_list_remove(&tq->tq_tasks, task);			//find first link node
+			nni_list_remove(&tq->tq_tasks, task);
 			nni_mtx_unlock(&task->task_mtx);
 
 			nni_mtx_unlock(&tq->tq_mtx);
-			debug_msg("task-cb start");
+
 			task->task_cb(task->task_arg);
+
 			nni_mtx_lock(&task->task_mtx);
 			task->task_busy--;
 			if (task->task_busy == 0) {
@@ -55,17 +57,15 @@ nni_taskq_thread(void *self)
 			nni_mtx_unlock(&task->task_mtx);
 
 			nni_mtx_lock(&tq->tq_mtx);
-			debug_msg("continue");
+
 			continue;
 		}
 
 		if (!tq->tq_run) {
-			debug_msg("task not running");
 			break;
 		}
 		debug_msg("----- wait conditional variable here! ---\n");
 		nni_cv_wait(&tq->tq_sched_cv);
-		debug_msg("----- wait conditional variable ends! ---\n");
 	}
 	nni_mtx_unlock(&tq->tq_mtx);
 }
@@ -151,7 +151,6 @@ nni_task_exec(nni_task *task)
 		nni_cv_wake(&task->task_cv);
 	}
 	nni_mtx_unlock(&task->task_mtx);
-	debug_msg("task exec ends");
 }
 
 void
@@ -237,7 +236,6 @@ nni_task_fini(nni_task *task)
 	nni_mtx_fini(&task->task_mtx);
 }
 
-//limit taskq threads! to reduce memory usage. Author recommend IO Completion taskq > 2
 int
 nni_taskq_sys_init(void)
 {
@@ -253,8 +251,9 @@ nni_taskq_sys_init(void)
 		nthrs = NNG_MAX_TASKQ_THREADS;
 	}
 #endif
+
 	debug_msg("taskq number: %d\n", nthrs);
-	return (nni_taskq_init(&nni_taskq_systq, 2));
+	return (nni_taskq_init(&nni_taskq_systq, nthrs));
 }
 
 void

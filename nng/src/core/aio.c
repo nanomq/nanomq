@@ -9,8 +9,8 @@
 //
 
 #include "core/nng_impl.h"
-#include "include/nng_debug.h"
 #include <string.h>
+#include "include/nng_debug.h"
 
 static nni_mtx nni_aio_lk;
 // These are used for expiration.
@@ -68,11 +68,10 @@ void
 nni_aio_init(nni_aio *aio, nni_cb cb, void *arg)
 {
 	memset(aio, 0, sizeof(*aio));
-	nni_task_init(&aio->a_task, NULL, cb, arg);			//create async thread??
+	nni_task_init(&aio->a_task, NULL, cb, arg);
 	aio->a_expire  = NNI_TIME_NEVER;
 	aio->a_timeout = NNG_DURATION_INFINITE;
-	aio->pipe = 0;
-	//aio->pipes = NULL;
+	aio->pipe      = 0;
 }
 
 void
@@ -324,7 +323,6 @@ nni_aio_begin(nni_aio *aio)
 	return (0);
 }
 
-//NNG SP close the aio/socket after async io complete. Need to rewrite it.
 int
 nni_aio_schedule(nni_aio *aio, nni_aio_cancelfn cancelfn, void *data)
 {
@@ -351,7 +349,7 @@ nni_aio_schedule(nni_aio *aio, nni_aio_cancelfn cancelfn, void *data)
 		return (NNG_ECLOSED);
 	}
 
-	NNI_ASSERT(aio->a_cancel_fn == NULL);			//BUG?
+	NNI_ASSERT(aio->a_cancel_fn == NULL);
 	aio->a_cancel_fn  = cancelfn;
 	aio->a_cancel_arg = data;
 
@@ -422,7 +420,6 @@ nni_aio_finish(nni_aio *aio, int result, size_t count)
 void
 nni_aio_finish_synch(nni_aio *aio, int result, size_t count)
 {
-	debug_msg("aio finish synch\n");
 	nni_aio_finish_impl(aio, result, count, NULL, true);
 }
 
@@ -436,7 +433,6 @@ nni_aio_finish_error(nni_aio *aio, int result)
 void
 nni_aio_finish_msg(nni_aio *aio, nni_msg *msg)
 {
-	debug_msg("aio finish msg\n");
 	NNI_ASSERT(msg != NULL);
 	nni_aio_finish_impl(aio, 0, nni_msg_len(msg), msg, false);
 }
@@ -463,7 +459,7 @@ nni_aio_list_remove(nni_aio *aio)
 /**
  * determine whether the aio is active or not
  * 0 = null non exist 1 = existed
- */
+*/
 int
 nni_aio_list_active(nni_aio *aio)
 {
@@ -499,6 +495,8 @@ nni_aio_expire_loop(void *unused)
 	nni_list *aios = &nni_aio_expire_aios;
 
 	NNI_ARG_UNUSED(unused);
+
+        nni_thr_set_name(NULL, "nng:aio:expire");
 
 	for (;;) {
 		nni_aio_cancelfn fn;
@@ -710,38 +708,28 @@ nni_aio_sys_init(void)
 	return (0);
 }
 
-void
-nni_aio_set_sockaddr(nni_aio *aio, const nng_sockaddr *sa)
-{
-	memcpy(&aio->a_sockaddr, sa, sizeof(*sa));
-}
-
-void
-nni_aio_get_sockaddr(nni_aio *aio, nng_sockaddr *sa)
-{
-	memcpy(sa, &aio->a_sockaddr, sizeof(*sa));
-}
-
+//NANOMQ APIs
 void
 nni_aio_set_pipeline(nni_aio *aio, uint32_t id)
 {
-	aio->pipe = id;
+       aio->pipe = id;
 }
 
 uint32_t
 nni_aio_get_pipeline(nni_aio *aio)
 {
-	return aio->pipe;
+       return aio->pipe;
 }
 
 void nni_aio_set_dbtree(nni_aio *aio, void *db)
 {
-	debug_msg("dbtree %p ===========================================;;;;;;;;;;;;;;;;;;;;;;;;;;;;", db);
-	aio->db = db;
+       debug_msg("set dbtree address: %p", db);
+       aio->db = db;
 }
 
 void*
 nni_aio_get_dbtree(nni_aio *aio)
 {
-	return(aio->db);
+       return(aio->db);
 }
+

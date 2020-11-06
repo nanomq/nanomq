@@ -22,7 +22,6 @@
 
 #include "core/nng_impl.h"
 #include "platform/posix/posix_pollq.h"
-#include "include/nng_debug.h"
 
 typedef struct nni_posix_pollq nni_posix_pollq;
 
@@ -62,8 +61,8 @@ struct nni_posix_pollq {
 };
 
 struct nni_posix_pfd {
+        nni_list_node    node;
 	nni_posix_pollq *pq;
-	nni_list_node    node;
 	int              fd;
 	nni_posix_pfd_cb cb;
 	void *           arg;
@@ -97,7 +96,6 @@ nni_posix_pfd_init(nni_posix_pfd **pfdp, int fd)
 	nni_mtx_init(&pfd->mtx);
 	nni_cv_init(&pfd->cv, &pq->mtx);
 
-	nni_mtx_lock(&pfd->mtx);
 	pfd->pq      = pq;
 	pfd->fd      = fd;
 	pfd->cb      = NULL;
@@ -107,7 +105,6 @@ nni_posix_pfd_init(nni_posix_pfd **pfdp, int fd)
 	pfd->closed  = false;
 
 	NNI_LIST_NODE_INIT(&pfd->node);
-	nni_mtx_unlock(&pfd->mtx);
 
 	// notifications disabled to begin with
 	ev.events   = 0;
@@ -116,6 +113,7 @@ nni_posix_pfd_init(nni_posix_pfd **pfdp, int fd)
 	if (epoll_ctl(pq->epfd, EPOLL_CTL_ADD, fd, &ev) != 0) {
 		rv = nni_plat_errno(errno);
 		nni_cv_fini(&pfd->cv);
+		nni_mtx_fini(&pfd->mtx);
 		NNI_FREE_STRUCT(pfd);
 		return (rv);
 	}
@@ -134,7 +132,6 @@ nni_posix_pfd_arm(nni_posix_pfd *pfd, unsigned events)
 	// forth.  This turns out to be true both for Linux and the illumos
 	// epoll implementation.
 
-	debug_msg("nni_posix_pfd_arm epoll");
 	nni_mtx_lock(&pfd->mtx);
 	if (!pfd->closing) {
 		struct epoll_event ev;
@@ -145,7 +142,6 @@ nni_posix_pfd_arm(nni_posix_pfd *pfd, unsigned events)
 		ev.data.ptr = pfd;
 
 		if (epoll_ctl(pq->epfd, EPOLL_CTL_MOD, pfd->fd, &ev) != 0) {
-			debug_msg("error nni_posix_pfd_arm epoll error!");
 			int rv = nni_plat_errno(errno);
 			nni_mtx_unlock(&pfd->mtx);
 			return (rv);
@@ -381,6 +377,7 @@ nni_posix_pollq_create(nni_posix_pollq *pq)
 		nni_mtx_fini(&pq->mtx);
 		return (rv);
 	}
+	nni_thr_set_name(&pq->thr, "nng:poll:epoll");
 	nni_thr_run(&pq->thr);
 	return (0);
 }

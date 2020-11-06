@@ -33,6 +33,10 @@
 #define MSG_NOSIGNAL 0
 #endif
 
+#ifndef SOL_LOCAL
+#define SOL_LOCAL 0
+#endif
+
 #include "posix_ipc.h"
 
 typedef struct nni_ipc_conn ipc_conn;
@@ -318,7 +322,7 @@ ipc_peerid(ipc_conn *c, uint64_t *euid, uint64_t *egid, uint64_t *prid,
     uint64_t *znid)
 {
 	int fd = nni_posix_pfd_fd(c->pfd);
-#if defined(NNG_HAVE_GETPEEREID)
+#if defined(NNG_HAVE_GETPEEREID) && !defined(NNG_HAVE_LOCALPEERCRED)
 	uid_t uid;
 	gid_t gid;
 
@@ -373,7 +377,7 @@ ipc_peerid(ipc_conn *c, uint64_t *euid, uint64_t *egid, uint64_t *prid,
 	*egid = xu.cr_gid;
 	*prid = (uint64_t) -1;
 	*znid = (uint64_t) -1;
-#if defined(LOCAL_PEERPID) // present (undocumented) on macOS
+#if defined(NNG_HAVE_LOCALPEERPID) // documented on macOS since 10.8
 	{
 		pid_t pid;
 		if (getsockopt(fd, SOL_LOCAL, LOCAL_PEERPID, &pid, &len) ==
@@ -381,7 +385,7 @@ ipc_peerid(ipc_conn *c, uint64_t *euid, uint64_t *egid, uint64_t *prid,
 			*prid = (uint64_t) pid;
 		}
 	}
-#endif                     // LOCAL_PEERPID
+#endif                     // NNG_HAVE_LOCALPEERPID
 	return (0);
 #else
 	if (fd < 0) {

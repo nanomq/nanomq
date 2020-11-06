@@ -315,41 +315,13 @@ nng_ctx_send(nng_ctx cid, nng_aio *aio)
 		return;
 	}
 	if ((rv = nni_ctx_find(&ctx, cid.id, false)) != 0) {
-		debug_msg("error: canot find context");
 		if (nni_aio_begin(aio) == 0) {
 			nni_aio_finish_error(aio, rv);
 		}
 		return;
 	}
-	debug_msg("send context id %d rv: %d\n", cid.id, rv);
-	//TODO pipe_id
-	nni_ctx_send(ctx, aio);
-	nni_ctx_rele(ctx);
-}
-
-void
-nng_ctx_pub(nng_ctx cid, nng_aio *aio, uint32_t **list)
-{
-	int      rv;
-	nni_ctx *ctx;
-	nni_msg *msg;
-
-	msg = nni_aio_get_msg(aio);
-	if (msg == NULL) {
-		if (nni_aio_begin(aio) == 0) {
-			nni_aio_finish_error(aio, NNG_EINVAL);
-		}
-		return;
-	}
-	if ((rv = nni_ctx_find(&ctx, cid.id, false)) != 0) {
-		printf("error: canot find context");
-		if (nni_aio_begin(aio) == 0) {
-			nni_aio_finish_error(aio, rv);
-		}
-		return;
-	}
-	printf("context id %d rv: %d\n", cid.id, rv);
-	//TODO pipe_id
+        debug_msg("send context id %d rv: %d\n", cid.id, rv);
+        //TODO pipe_id
 	nni_ctx_send(ctx, aio);
 	nni_ctx_rele(ctx);
 }
@@ -1149,48 +1121,6 @@ nng_msg_chop(nng_msg *msg, size_t sz)
 }
 
 int
-nng_msg_cmd_type(nng_msg *msg)
-{
-	return (nni_msg_cmd_type(msg));
-}
-
-
-size_t
-nng_msg_remaining_len(nng_msg *msg)
-{
-	return (nni_msg_remaining_len(msg));
-}
-
-uint8_t *
-nng_msg_header_ptr(nng_msg *msg)
-{
-	return (nni_msg_header_ptr(msg));
-}
-
-uint8_t *
-nng_msg_variable_ptr(nng_msg *msg)
-{
-	return (nni_msg_variable_ptr(msg));
-}
-
-uint8_t *
-nng_msg_payload_ptr(nng_msg *msg)
-{
-	return (nni_msg_payload_ptr(msg));
-}
-
-void
-nng_msg_set_payload_ptr(nng_msg *msg, uint8_t *ptr){
-	nni_msg_set_payload_ptr(msg, ptr);
-}
-
-void
-nng_msg_set_remaining_len(nng_msg *msg, size_t len)
-{
-	nni_msg_set_remaining_len(msg, len);
-}
-
-int
 nng_msg_header_trim(nng_msg *msg, size_t sz)
 {
 	return (nni_msg_header_trim(msg, sz));
@@ -1459,12 +1389,6 @@ nng_aio_free(nng_aio *aio)
 }
 
 void
-nng_msg_clone(nng_msg *msg)
-{
-	nni_msg_clone(msg);
-}
-
-void
 nng_sleep_aio(nng_duration ms, nng_aio *aio)
 {
 	nni_sleep_aio(ms, aio);
@@ -1510,17 +1434,6 @@ void
 nng_aio_set_msg(nng_aio *aio, nng_msg *msg)
 {
 	nni_aio_set_msg(aio, msg);
-}
-
-void
-nng_aio_set_pipeline(nng_aio *aio, uint32_t id)
-{
-	nni_aio_set_pipeline(aio, id);
-}
-void
-nng_aio_set_dbtree(nng_aio *aio, void *db)
-{
-	nni_aio_set_dbtree(aio, db);
 }
 
 nng_msg *
@@ -1636,104 +1549,164 @@ nng_version(void)
 	    NNG_PATCH_VERSION) NNG_RELEASE_SUFFIX);
 }
 
-//NANOMQ API
+//NANOMQ MQTT APIs
+int
+nng_msg_cmd_type(nng_msg *msg)
+{
+        return (nni_msg_cmd_type(msg));
+}
+
+size_t
+nng_msg_remaining_len(nng_msg *msg)
+{
+        return (nni_msg_remaining_len(msg));
+}
+
+uint8_t *
+nng_msg_header_ptr(nng_msg *msg)
+{
+        return (nni_msg_header_ptr(msg));
+}
+
+uint8_t *
+nng_msg_variable_ptr(nng_msg *msg)
+{
+        return (nni_msg_variable_ptr(msg));
+}
+
+uint8_t *
+nng_msg_payload_ptr(nng_msg *msg)
+{
+        return (nni_msg_payload_ptr(msg));
+}
+
+void
+nng_msg_set_payload_ptr(nng_msg *msg, uint8_t *ptr)
+{
+        nni_msg_set_payload_ptr(msg, ptr);
+}
+
+void
+nng_msg_set_remaining_len(nng_msg *msg, size_t len)
+{
+        nni_msg_set_remaining_len(msg, len);
+}
+
+void
+nng_msg_clone(nng_msg *msg)
+{
+        nni_msg_clone(msg);
+}
+
+void
+nng_aio_set_pipeline(nng_aio *aio, uint32_t id)
+{
+        nni_aio_set_pipeline(aio, id);
+}
+void
+nng_aio_set_dbtree(nng_aio *aio, void *db)
+{
+        nni_aio_set_dbtree(aio, db);
+}
+
 const conn_param *
 nng_msg_get_conn_param(nng_msg *msg)
 {
-	return ((conn_param *)nni_msg_get_conn_param(msg));
+        return ((conn_param *)nni_msg_get_conn_param(msg));
 }
 
 const uint8_t *
 conn_param_get_clentid(conn_param *cparam)
 {
-	return cparam->clientid;
+        return cparam->clientid;
 }
 
 const uint8_t * 
 conn_param_get_pro_name(conn_param *cparam)
 {
-	return cparam->pro_name;
+        return cparam->pro_name;
 }
 
 const uint8_t * 
 conn_param_get_will_topic(conn_param *cparam)
 {
-	if (cparam->will_flag) {
-		return cparam->will_topic;
-	} else {
-		return NULL;
-	}
+        if (cparam->will_flag) {
+                return cparam->will_topic;
+        } else {
+                return NULL;
+        }
 }
 
 const uint8_t * 
 conn_param_get_will_msg(conn_param *cparam)
 {
-	if (cparam->will_flag) {
-		return cparam->will_msg;
-	} else {
-		return NULL;
-	}
+        if (cparam->will_flag) {
+                return cparam->will_msg;
+        } else {
+                return NULL;
+        }
 }
 
 const uint8_t * 
 conn_param_get_username(conn_param *cparam)
 {
-	if (cparam->con_flag & 0x80) {
-		return cparam->username;
-	} else {
-		return NULL;
-	}
+        if (cparam->con_flag & 0x80) {
+                return cparam->username;
+        } else {
+                return NULL;
+        }
 }
 
 const uint8_t * 
 conn_param_get_password(conn_param *cparam)
 {
-	if (cparam->con_flag & 0x40) {
-		return cparam->password;
-	} else {
-		return NULL;
-	}
+        if (cparam->con_flag & 0x40) {
+                return cparam->password;
+        } else {
+                return NULL;
+        }
 }
 
 const uint8_t
 conn_param_get_con_flag(conn_param *cparam)
 {
-	return cparam->con_flag;
+        return cparam->con_flag;
 }
 
 const uint8_t
 conn_param_get_clean_start(conn_param *cparam)
 {
-	return cparam->clean_start;
+        return cparam->clean_start;
 }
 
 const uint8_t
 conn_param_get_will_flag(conn_param *cparam)
 {
-	return cparam->will_flag;
+        return cparam->will_flag;
 }
 
 const uint8_t
 conn_param_get_will_qos(conn_param *cparam)
 {
-	return cparam->will_qos;
+        return cparam->will_qos;
 }
 
 const uint8_t
 conn_param_get_will_retain(conn_param *cparam)
 {
-	return cparam->will_retain;
+        return cparam->will_retain;
 }
 
 const uint16_t
 conn_param_get_keepalive(conn_param *cparam)
 {
-	return cparam->keepalive_mqtt;
+        return cparam->keepalive_mqtt;
 }
 
 const uint8_t
 conn_param_get_protover(conn_param *cparam)
 {
-	return cparam->pro_ver;
+        return cparam->pro_ver;
 }
+
 

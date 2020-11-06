@@ -29,7 +29,7 @@ nni_zalloc(size_t sz)
 void *
 nni_zalloc_n(size_t sz, int n)
 {
-	return (sz > 0 ? calloc(n, sz) : NULL);
+        return (sz > 0 ? calloc(n, sz) : NULL);
 }
 
 void

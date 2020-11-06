@@ -31,6 +31,7 @@ add_library(${PROJECT_NAME}
 # for deleting node when client closed abnormally
 include_directories(${CMAKE_SOURCE_DIR}/nanolib/include)
 
+
 if (NNG_TESTS)
     add_library(${PROJECT_NAME}_testlib STATIC
             nng.c
@@ -175,6 +176,7 @@ if (NNG_PLATFORM_WINDOWS)
             )
 endif ()
 
+add_subdirectory(protocol/mqtt)
 
 add_subdirectory(compat/nanomsg)
 
@@ -185,7 +187,6 @@ add_subdirectory(protocol/pipeline0)
 add_subdirectory(protocol/pubsub0)
 add_subdirectory(protocol/reqrep0)
 add_subdirectory(protocol/survey0)
-add_subdirectory(protocol/mqtt)
 
 add_subdirectory(transport/inproc)
 add_subdirectory(transport/ipc)

@@ -11,12 +11,11 @@
 #include <string.h>
 
 #include "core/nng_impl.h"
-//#include "nng/protocol/mqtt/mqtt_parser.h"
+#include "nng/protocol/mqtt/mqtt_parser.h"
 
 // Message API.
 
-// Message chunk, internal to MQTT the message implementation.
-// TODO dynamic length to be efficient on memory allocation
+// Message chunk, internal to the message implementation.
 typedef struct {
 	size_t   ch_cap; // allocated size
 	size_t   ch_len; // length in use
@@ -24,22 +23,22 @@ typedef struct {
 	uint8_t *ch_ptr; // pointer to actual data
 } nni_chunk;
 
-// Underlying message structure. TODO MQTT message length
+// Underlying message structure.
 struct nng_msg {
-	//uint32_t       m_header_buf[(NNI_MAX_MAX_TTL + 1)];
-	uint8_t        m_header_buf[NNI_EMQ_MAX_HEADER_SIZE + 1];	//only fixed header
-	//uint8_t	m_variable_header_buf[];		//TODO independent variable header?
+        uint8_t        m_header_buf[NNI_EMQ_MAX_HEADER_SIZE + 1];       //only fixed header
+        //uint8_t       m_variable_header_buf[];                //TODO independent variable header?
 	size_t         m_header_len;
-	nni_chunk      m_body;	//variable header + payload
-	uint32_t       m_pipe; // set on receive unique pipe id to identify which tcp to send
-	nni_list       pipeline;	//TODO for broadcast msg
+	nni_chunk      m_body;
+	uint32_t       m_pipe; // set on receive
+	//nni_list       pipeline;
 	nni_atomic_int m_refcnt;
-//FOR EMQ MQTT
-	size_t		 remaining_len;
-	uint8_t		 CMD_TYPE;
-//	uint8_t		 *variable_ptr;		//equal to m_body
-	uint8_t		 *payload_ptr;		//payload
-	nano_conn_param	 *cparam;
+	//FOR NANOMQ
+       size_t           remaining_len;
+       uint8_t          CMD_TYPE;
+       //uint8_t          *variable_ptr;         //equal to m_body
+       uint8_t          *payload_ptr;          //payload
+       nano_conn_param  *cparam;
+
 };
 
 #if 0
@@ -102,8 +101,6 @@ nni_msg_dump(const char *banner, const nni_msg *msg)
 // Note that having some headroom is useful when data must be prepended
 // to a message - it avoids having to perform extra data copies, so we
 // encourage initial allocations to start with sufficient room.
-
-//TODO consumes most memory
 static int
 nni_chunk_grow(nni_chunk *ch, size_t newsz, size_t headwanted)
 {
@@ -391,9 +388,9 @@ nni_msg_alloc(nni_msg **mp, size_t sz)
 	// to allow for inlining backtraces, etc.  We also allow the
 	// amount of space at the end for the same reason.  Large aligned
 	// allocations are unmolested to avoid excessive overallocation.
-	// In MQTT no need to alloc 32 more bytes everytime; only for fixed header
 	if ((sz < 1024) || ((sz & (sz - 1)) != 0)) {
 		rv = nni_chunk_grow(&m->m_body, sz + 8, 0);
+		//rv = nni_chunk_grow(&m->m_body, sz + 32, 32);
 	} else {
 		rv = nni_chunk_grow(&m->m_body, sz, 0);
 	}
@@ -411,18 +408,6 @@ nni_msg_alloc(nni_msg **mp, size_t sz)
 	nni_atomic_set(&m->m_refcnt, 1);
 	*mp = m;
 	return (0);
-}
-
-int
-nni_msg_cmd_type(nni_msg *m)
-{
-	return(m->CMD_TYPE);
-}
-
-size_t
-nni_msg_remain_len(nni_msg *m)
-{
-	return(m->remaining_len);
 }
 
 int
@@ -498,54 +483,6 @@ size_t
 nni_msg_len(const nni_msg *m)
 {
 	return (m->m_body.ch_len);
-}
-
-uint8_t *
-nni_msg_header_ptr(const nni_msg *m)
-{
-	return (m->m_header_buf);
-}
-
-uint8_t *
-nni_msg_variable_ptr(const nni_msg *m)
-{
-	return (m->m_body.ch_ptr);
-}
-
-uint8_t *
-nni_msg_payload_ptr(const nni_msg *m)
-{
-	return (m->payload_ptr);
-}
-
-size_t
-nni_msg_remaining_len(const nni_msg *m)
-{
-	return (m->remaining_len);
-}
-
-void
-nni_msg_set_payload_ptr(nni_msg *m, uint8_t *ptr)
-{
-	m->payload_ptr = ptr;
-}
-
-void
-nni_msg_set_conn_param(nni_msg *m, void *ptr)
-{
-	m->cparam = ptr;
-}
-
-void *
-nni_msg_get_conn_param(nni_msg *m)
-{
-	return m->cparam;
-}
-
-void
-nni_msg_set_remaining_len(nni_msg *m, size_t len)
-{
-	m->remaining_len = len;
 }
 
 int
@@ -668,14 +605,77 @@ nni_msg_set_pipe(nni_msg *m, uint32_t pid)
 	m->m_pipe = pid;
 }
 
-void
-nni_msg_set_cmd_type(nni_msg *m, uint8_t cmd)
-{
-	m->CMD_TYPE = cmd;
-}
-
 uint32_t
 nni_msg_get_pipe(const nni_msg *m)
 {
 	return (m->m_pipe);
 }
+
+//NAOMQ APIs
+int
+nni_msg_cmd_type(nni_msg *m)
+{
+       return(m->CMD_TYPE);
+}
+
+size_t
+nni_msg_remain_len(nni_msg *m)
+{
+       return(m->remaining_len);
+}
+
+uint8_t *
+nni_msg_header_ptr(const nni_msg *m)
+{
+       return (m->m_header_buf);
+}
+
+uint8_t *
+nni_msg_variable_ptr(const nni_msg *m)
+{
+       return (m->m_body.ch_ptr);
+}
+
+uint8_t *
+nni_msg_payload_ptr(const nni_msg *m)
+{
+       return (m->payload_ptr);
+}
+
+size_t
+nni_msg_remaining_len(const nni_msg *m)
+{
+       return (m->remaining_len);
+}
+
+void
+nni_msg_set_payload_ptr(nni_msg *m, uint8_t *ptr)
+{
+       m->payload_ptr = ptr;
+}
+
+void
+nni_msg_set_conn_param(nni_msg *m, void *ptr)
+{
+       m->cparam = ptr;
+}
+
+void *
+nni_msg_get_conn_param(nni_msg *m)
+{
+       return m->cparam;
+}
+
+void
+nni_msg_set_remaining_len(nni_msg *m, size_t len)
+{
+       m->remaining_len = len;
+}
+
+void
+nni_msg_set_cmd_type(nni_msg *m, uint8_t cmd)
+{
+       m->CMD_TYPE = cmd;
+}
+
+

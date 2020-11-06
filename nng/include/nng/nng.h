@@ -47,13 +47,11 @@ extern "C" {
 
 // NNG Library & API version.
 // We use SemVer, and these versions are about the API, and
-// may not necessarily match the ABI versions. Right now at
-// version 0, you should not be making any forward compatibility
-// assumptions.
+// may not necessarily match the ABI versions.
 #define NNG_MAJOR_VERSION 1
-#define NNG_MINOR_VERSION 3
+#define NNG_MINOR_VERSION 4
 #define NNG_PATCH_VERSION 0
-#define NNG_RELEASE_SUFFIX "" // if non-empty, this is a pre-release
+#define NNG_RELEASE_SUFFIX "DEV" // if non-empty, this is a pre-release
 
 // Maximum length of a socket address. This includes the terminating NUL.
 // This limit is built into other implementations, so do not change it.
@@ -95,10 +93,6 @@ typedef struct nng_socket_s {
 	uint32_t id;
 } nng_socket;
 
-//EMQ MQTT variables
-typedef struct conn_param conn_param;
-typedef struct pub_packet_struct pub_packet_struct;
-
 typedef int32_t         nng_duration; // in milliseconds
 typedef struct nng_msg  nng_msg;
 typedef struct nng_stat nng_stat;
@@ -134,6 +128,7 @@ struct nng_sockaddr_in6 {
 	uint16_t sa_family;
 	uint16_t sa_port;
 	uint8_t  sa_addr[16];
+	uint32_t sa_scope;
 };
 typedef struct nng_sockaddr_in6 nng_sockaddr_in6;
 typedef struct nng_sockaddr_in6 nng_sockaddr_udp6;
@@ -661,8 +656,6 @@ NNG_DECL int nng_aio_set_iov(nng_aio *, unsigned, const nng_iov *);
 // further action on the aio.
 NNG_DECL bool nng_aio_begin(nng_aio *);
 
-NNG_DECL void nng_aio_set_pipeline(nng_aio *aio, uint32_t id);
-
 // nng_aio_finish is used to "finish" an asynchronous operation.
 // It should only be called by "providers" (such as HTTP server API users).
 // The argument is the value that nng_aio_result() should return.
@@ -700,7 +693,6 @@ NNG_DECL int      nng_msg_append(nng_msg *, const void *, size_t);
 NNG_DECL int      nng_msg_insert(nng_msg *, const void *, size_t);
 NNG_DECL int      nng_msg_trim(nng_msg *, size_t);
 NNG_DECL int      nng_msg_chop(nng_msg *, size_t);
-NNG_DECL int      nng_msg_cmd_type(nng_msg *msg);
 NNG_DECL int      nng_msg_header_append(nng_msg *, const void *, size_t);
 NNG_DECL int      nng_msg_header_insert(nng_msg *, const void *, size_t);
 NNG_DECL int      nng_msg_header_trim(nng_msg *, size_t);
@@ -734,34 +726,6 @@ NNG_DECL void     nng_msg_clear(nng_msg *);
 NNG_DECL void     nng_msg_header_clear(nng_msg *);
 NNG_DECL void     nng_msg_set_pipe(nng_msg *, nng_pipe);
 NNG_DECL nng_pipe nng_msg_get_pipe(const nng_msg *);
-NNG_DECL int      nng_msg_cmd_type(nng_msg *);
-NNG_DECL size_t   nng_msg_remaining_len(nng_msg *);
-NNG_DECL uint8_t* nng_msg_header_ptr(nng_msg *);
-NNG_DECL uint8_t* nng_msg_variable_ptr(nng_msg *);
-NNG_DECL uint8_t* nng_msg_payload_ptr(nng_msg *);
-NNG_DECL void     nng_msg_set_payload_ptr(nng_msg *, uint8_t *);
-NNG_DECL void     nng_msg_set_remaining_len(nng_msg *, size_t);
-NNG_DECL void     nng_msg_clone(nng_msg *msg);
-
-//NANOMQ
-NNG_DECL const uint8_t * conn_param_get_clentid(conn_param *cparam);
-NNG_DECL const conn_param *   nng_msg_get_conn_param(nng_msg *msg);
-NNG_DECL const uint8_t * conn_param_get_pro_name(conn_param *cparam);
-NNG_DECL const uint8_t * conn_param_get_will_topic(conn_param *cparam);
-NNG_DECL const uint8_t * conn_param_get_will_msg(conn_param *cparam);
-NNG_DECL const uint8_t * conn_param_get_username(conn_param *cparam);
-NNG_DECL const uint8_t * conn_param_get_password(conn_param *cparam);
-NNG_DECL const uint8_t   conn_param_get_con_flag(conn_param *cparam);
-NNG_DECL const uint8_t   conn_param_get_clean_start(conn_param *cparam);
-NNG_DECL const uint8_t   conn_param_get_will_flag(conn_param *cparam);
-NNG_DECL const uint8_t   conn_param_get_will_qos(conn_param *cparam);
-NNG_DECL const uint8_t   conn_param_get_will_retain(conn_param *cparam);
-NNG_DECL const uint16_t  conn_param_get_keepalive(conn_param *cparam);
-NNG_DECL const uint8_t   conn_param_get_protover(conn_param *cparam);
-NNG_DECL void nng_aio_set_dbtree(nng_aio *aio, void *db);
-
-
-
 
 // nng_msg_getopt is defunct, and should not be used by programs. It
 // always returns NNG_ENOTSUP.
@@ -798,10 +762,8 @@ NNG_DECL nng_dialer   nng_pipe_dialer(nng_pipe);
 NNG_DECL nng_listener nng_pipe_listener(nng_pipe);
 
 // Flags.
-enum nng_flag_enum {
-	NNG_FLAG_ALLOC    = 1, // Recv to allocate receive buffer.
-	NNG_FLAG_NONBLOCK = 2  // Non-blocking operations.
-};
+#define NNG_FLAG_ALLOC 1u // Recv to allocate receive buffer
+#define NNG_FLAG_NONBLOCK 2u // Non-blocking operations
 
 // Options.
 #define NNG_OPT_SOCKNAME "socket-name"
@@ -971,10 +933,31 @@ enum nng_flag_enum {
 // to send more data than this in a single message, it will be dropped.
 #define NNG_OPT_WS_RECVMAXFRAME "ws:rxframe-max"
 
-// NNG_OPT_WS_PROTOCOL is the "websocket subprotocol" -- it's a string.
+// NNG_OPT_WS_PROTOCOL is the "websocket sub-protocol" -- it's a string.
 // This is also known as the Sec-WebSocket-Protocol header. It is treated
 // specially.  This is part of the websocket handshake.
 #define NNG_OPT_WS_PROTOCOL "ws:protocol"
+
+// NNG_OPT_WS_SEND_TEXT is a boolean used to tell the WS stream
+// transport to send text messages.  This is not supported for the
+// core WebSocket transport, but when using streams it might be useful
+// to speak with 3rd party WebSocket applications.  This mode should
+// not be used unless absolutely required. No validation of the message
+// contents is performed by NNG; applications are expected to honor
+// the requirement to send only valid UTF-8.  (Compliant applications
+// will close the socket if they see this message type with invalid UTF-8.)
+#define NNG_OPT_WS_SEND_TEXT "ws:send-text"
+
+// NNG_OPT_WS_RECV_TEXT is a boolean that enables NNG to receive
+// TEXT frames.  This is only useful for stream mode applications --
+// SP protocol requires the use of binary frames.  Note also that
+// NNG does not validate the message contents for valid UTF-8; this
+// means it will not be conformant with RFC-6455 on it's own. Applications
+// that need this should check the message contents themselves, and
+// close the connection if invalid UTF-8 is received.  This option
+// should not be used unless required to communication with 3rd party
+// peers that cannot be coerced into sending binary frames.
+#define NNG_OPT_WS_RECV_TEXT "ws:recv-text"
 
 // XXX: TBD: priorities, ipv4only
 
@@ -1293,6 +1276,14 @@ NNG_DECL int nng_stream_listener_set_ptr(
     nng_stream_listener *, const char *, void *);
 NNG_DECL int nng_stream_listener_set_addr(
     nng_stream_listener *, const char *, const nng_sockaddr *);
+
+//NANOMQ MQTT variables & APIs
+NNG_DECL int      nng_msg_cmd_type(nng_msg *msg);
+
+typedef struct conn_param conn_param;
+typedef struct pub_packet_struct pub_packet_struct;
+
+NNG_DECL void nng_aio_set_pipeline(nng_aio *aio, uint32_t id);
 
 #ifdef __cplusplus
 }

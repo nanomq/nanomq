@@ -39,10 +39,6 @@ typedef nng_aio           nni_aio;
 typedef struct nng_event  nni_event;
 typedef struct nng_notify nni_notify;
 
-//nanomq
-typedef struct conn_param nano_conn_param;
-typedef struct conn_propt nano_conn_propt;
-
 // These are our own names.
 typedef struct nni_socket   nni_sock;
 typedef struct nni_ctx      nni_ctx;
@@ -166,6 +162,15 @@ typedef enum {
 
 typedef nni_type nni_opt_type;
 
+//nanomq
+typedef struct conn_param nano_conn_param;
+typedef struct conn_propt nano_conn_propt;
+//NANOMQ Tcp layer
+#define NNI_EMQ_MAX_PACKET_SIZE sizeof(uint16_t)*512	//switch to alloc
+#define NNI_EMQ_MAX_HEADER_SIZE sizeof(uint8_t)*5      //ONLY FIXED HEADER
+#define NNI_EMQ_MAX_PROPERTY_SIZE sizeof(uint8_t)*32
+#define NNI_NANO_MAX_PUB_CLIENT 256
+
 // NNI_MAX_MAX_TTL is the maximum value that MAX_TTL can be set to -
 // i.e. the number of nng_device boundaries that a message can traverse.
 // This value drives the size of pre-allocated headers and back-trace
@@ -176,12 +181,6 @@ typedef nni_type nni_opt_type;
 #ifndef NNI_MAX_MAX_TTL
 #define NNI_MAX_MAX_TTL 15
 #endif
-
-//EMQ Tcp layer
-#define NNI_EMQ_MAX_PACKET_SIZE sizeof(uint16_t)*512
-#define NNI_EMQ_MAX_HEADER_SIZE sizeof(uint8_t)*5	//ONLY FIXED HEADER
-#define NNI_EMQ_MAX_PROPERTY_SIZE sizeof(uint8_t)*32
-#define NNI_NANO_MAX_PUB_CLIENT 256
 
 // NNI_MAX_HEADER_SIZE is our header size.
 #define NNI_MAX_HEADER_SIZE ((NNI_MAX_MAX_TTL + 1) * sizeof(uint32_t))
