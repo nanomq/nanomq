@@ -306,10 +306,10 @@ int32_t conn_handler(uint8_t *packet, conn_param *cparam)
 	pos ++;
 	//connect flag
 	cparam->con_flag = packet[pos];
-	cparam->clean_start = cparam->con_flag & 0x02;
-	cparam->will_flag   = cparam->con_flag & 0x04;
-	cparam->will_qos    = cparam->con_flag & 0x18;
-	cparam->will_retain = cparam->con_flag & 0x20;
+	cparam->clean_start = (cparam->con_flag & 0x02) >> 1;
+	cparam->will_flag   = (cparam->con_flag & 0x04) >> 2;
+	cparam->will_qos    = (cparam->con_flag & 0x18) >> 3;
+	cparam->will_retain = (cparam->con_flag & 0x20) >> 5;
 	debug_msg("conn flag:%x", cparam->con_flag);
 	pos ++;
 	//keepalive
