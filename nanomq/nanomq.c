@@ -53,43 +53,51 @@ static int print_avail_apps(void)
 	return 1;
 }
 
-#if defined(DEBUG_TRACE)
+/* #if defined(DEBUG_TRACE)
 static int check_trace(char *name)
 {
 	int pid, traced;
 
 	switch(pid = fork()) {
-	case  0:
-		pid = getppid();
-		traced = ptrace(PTRACE_ATTACH, pid, 0, 0);
+		case  0:
+			pid = getppid();
 
-		if (!traced) {
-			process_send_signal(pid, SIGCONT);
-			_exit(EXIT_SUCCESS);
-		}
 
-		perror(name);
-		process_send_signal(pid, SIGKILL);
-		goto err;
-	case -1:
-		break;
-	default:
-		if (pid == waitpid(pid, 0, 0))
-			return EXIT_SUCCESS;
+#ifdef __APPLE__
+			traced = ptrace(PT_ATTACHEXC, pid, 0, 0);
+#elif __linux__
+			traced = ptrace(PTRACE_ATTACH, pid, 0, 0);
+#else
+#   error "Unknown compiler"
+#endif
 
-		break;
+			if (!traced) {
+				process_send_signal(pid, SIGCONT);
+				_exit(EXIT_SUCCESS);
+			}
+
+			perror(name);
+			process_send_signal(pid, SIGKILL);
+			goto err;
+		case -1:
+			break;
+		default:
+			if (pid == waitpid(pid, 0, 0))
+				return EXIT_SUCCESS;
+
+			break;
 	}
 
 	perror(name);
 err:
 	return -1;
 }
-#else
+#else */
 static int check_trace(char NANO_UNUSED(*name))
 {
 	return 0;
 }
-#endif
+// #endif
 
 static int handle_app(int res)
 {

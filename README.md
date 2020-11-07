@@ -76,6 +76,14 @@ And you can disable/enable it by:
 $PROJECT_PATH/nanomq/build$ cmake -G Ninja -DNOLOG=1  ..
 $PROJECT_PATH/nanomq/build$ cmake -G Ninja -DNOLOG=0  ..
 
+
+4. Mqueue support:
+
+For macos, mqueue is not support, you can set -DMQ=0 to disable it. It is enabled by default.
+
+$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DMQ=1  ..
+$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DMQ=0  ..
+
 ## Communties
 
 You can Join us on Slack channel:

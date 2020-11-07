@@ -21,8 +21,9 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
-#include <mqueue.h>
 
+#if defined(MQ)
+#include <mqueue.h>
 
 #define FILEMODE (S_IRUSR | S_IWUSR | S_IRGRP |S_IWGRP)
 struct mq_attr attr;
@@ -132,3 +133,5 @@ int dashboard_data_sync(int argc, char **argv, char NANO_UNUSED(*extra_arg))
 		exit(0);
 	}
 }
+
+#endif
