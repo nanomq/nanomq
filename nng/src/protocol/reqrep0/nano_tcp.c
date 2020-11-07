@@ -266,7 +266,7 @@ exit:
 	return;*/
 
 	debug_msg("***************************working with pipe id : %d***************************", pipe);
-	if ((p = nni_id_get(&s->pipes, p_id)) == NULL) {
+	if ((p = nni_id_get(&s->pipes, pipe)) == NULL) {
 		// Pipe is gone.  Make this look like a good send to avoid
 		// disrupting the state machine.  We don't care if the peer
 		// lost interest in our reply.

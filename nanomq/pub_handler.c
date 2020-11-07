@@ -78,7 +78,6 @@ put_pipe_msgs(client_ctx *sub_ctx, emq_work *self_work, struct pipe_content *pip
 static void
 handle_client_pipe_msgs(struct client *sub_client, emq_work *pub_work, struct pipe_content *pipe_ct)
 {
-  debug_msg("!!!!");
 	struct client_ctx *ctx = (struct client_ctx *) sub_client->ctxt;
 	put_pipe_msgs(ctx, pub_work, pipe_ct, PUBLISH);
 }
@@ -90,6 +89,7 @@ foreach_client(struct clients *sub_clients, emq_work *pub_work, struct pipe_cont
 	char **id_queue = NULL;
 	bool equal      = false;
 	packet_subscribe *sub_pkt;
+	struct client_ctx * ctx;
 
 	while (sub_clients) {
 		struct client *sub_client = sub_clients->sub_client;
@@ -105,14 +105,14 @@ foreach_client(struct clients *sub_clients, emq_work *pub_work, struct pipe_cont
 				}
 			}
 			// NL (no_local in sub)
-			sub_pkt = (packet_subscribe *)sub_client->ctxt;
-			if (sub_pkt->node->it->no_local && !strcmp(sub_client->id, pub_work->pid.id)) {
+			ctx = (struct client_ctx *)sub_client->ctxt;
+			sub_pkt = ctx->sub_pkt;
+			if (sub_pkt->node->it->no_local && ctx->pid.id == pub_work->pid.id) {
 				equal = true;
 			}
 
 			if (equal == false) {
 				id_queue[cols - 1] = sub_client->id;
-				struct client_ctx *ctx = (struct client_ctx *) sub_client->ctxt;
 //				debug_msg("sub_client: [%p], id: [%s], pipe: [%d]", sub_client, sub_client->id, ctx->pid.id);
 				handle_cb(sub_client, pub_work, pipe_ct);
 				cols++;
