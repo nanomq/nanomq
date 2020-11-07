@@ -163,7 +163,6 @@ server_cb(void *arg)
 				if (work->sub_pkt == NULL) {
 					debug_msg("ERROR: nng_alloc");
 				}
-
 				if ((reason = decode_sub_message(work))          != SUCCESS ||
 				    (reason = sub_ctx_handle(work, cli_ctx))     != SUCCESS ||
 				    (reason = encode_suback_message(smsg, work)) != SUCCESS) {

@@ -1278,13 +1278,41 @@ NNG_DECL int nng_stream_listener_set_addr(
     nng_stream_listener *, const char *, const nng_sockaddr *);
 
 //NANOMQ MQTT variables & APIs
-NNG_DECL int          nng_msg_cmd_type(nng_msg *msg);
-NNG_DECL void *       nng_msg_get_conn_param(nng_msg *msg);
-
 typedef struct conn_param conn_param;
 typedef struct pub_packet_struct pub_packet_struct;
 
+NNG_DECL int          nng_msg_cmd_type(nng_msg *msg);
+NNG_DECL void *       nng_msg_get_conn_param(nng_msg *msg);
+NNG_DECL size_t       nng_msg_remaining_len(nng_msg *msg);
+NNG_DECL uint8_t * nng_msg_header_ptr(nng_msg *msg);
+NNG_DECL uint8_t * nng_msg_variable_ptr(nng_msg *msg);
+NNG_DECL uint8_t * nng_msg_payload_ptr(nng_msg *msg);
+NNG_DECL void nng_msg_set_payload_ptr(nng_msg *msg, uint8_t *ptr);
+NNG_DECL void nng_msg_set_remaining_len(nng_msg *msg, size_t len);
+NNG_DECL void nng_msg_clone(nng_msg *msg);
 NNG_DECL void nng_aio_set_pipeline(nng_aio *aio, uint32_t id);
+NNG_DECL void nng_aio_set_dbtree(nng_aio *aio, void *db);
+NNG_DECL void * nng_msg_get_conn_param(nng_msg *msg);
+
+NNG_DECL const uint8_t * conn_param_get_clentid(conn_param *cparam);
+NNG_DECL const uint8_t * conn_param_get_pro_name(conn_param *cparam);
+NNG_DECL const uint8_t * conn_param_get_will_topic(conn_param *cparam);
+NNG_DECL const uint8_t * conn_param_get_will_msg(conn_param *cparam);
+NNG_DECL const uint8_t * conn_param_get_username(conn_param *cparam);
+NNG_DECL const uint8_t * conn_param_get_password(conn_param *cparam);
+NNG_DECL const uint8_t   conn_param_get_con_flag(conn_param *cparam);
+NNG_DECL const uint8_t   conn_param_get_clean_start(conn_param *cparam);
+NNG_DECL const uint8_t   conn_param_get_will_flag(conn_param *cparam);
+NNG_DECL const uint8_t   conn_param_get_will_qos(conn_param *cparam);
+NNG_DECL const uint8_t   conn_param_get_will_retain(conn_param *cparam);
+NNG_DECL const uint16_t  conn_param_get_keepalive(conn_param *cparam);
+NNG_DECL const uint8_t   conn_param_get_protover(conn_param *cparam);
+
+
+
+
+
+
 
 #ifdef __cplusplus
 }

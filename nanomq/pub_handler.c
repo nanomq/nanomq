@@ -78,6 +78,7 @@ put_pipe_msgs(client_ctx *sub_ctx, emq_work *self_work, struct pipe_content *pip
 static void
 handle_client_pipe_msgs(struct client *sub_client, emq_work *pub_work, struct pipe_content *pipe_ct)
 {
+  debug_msg("!!!!");
 	struct client_ctx *ctx = (struct client_ctx *) sub_client->ctxt;
 	put_pipe_msgs(ctx, pub_work, pipe_ct, PUBLISH);
 }
