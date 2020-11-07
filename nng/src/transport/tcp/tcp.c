@@ -503,7 +503,7 @@ tcptran_pipe_recv_cb(void *arg)
 			iov.iov_len = len;
 
 			nni_aio_set_iov(rxaio, 1, &iov);
-			debug_msg("second recv action+++++++++++++++++++++++++++++++++");
+			debug_msg("second recv action+++++++++++");
 			nng_stream_recv(p->conn, rxaio);
 			nni_mtx_unlock(&p->mtx);
 			return;
@@ -520,10 +520,10 @@ tcptran_pipe_recv_cb(void *arg)
 	type	 = p->rxlen[0]&0xf0;
 
 	fixed_header_adaptor(p->rxlen, msg);
-	nni_msg_set_conn_param(msg, cparam);
+	nni_msg_set_conn_param(msg, &p->tcp_cparam);
 	nni_msg_set_remaining_len(msg, p->remain_len);
 	nni_msg_set_cmd_type(msg, type);
-	debug_msg("len %d!! pre len %d  %s %s\n", len, p->remain_len,  cparam->clientid, cparam->username);
+	debug_msg("len %d!! remain_len %d cparam %p clientid %s username %s proto %d\n", len, p->remain_len, cparam, cparam->clientid, cparam->username, cparam->pro_ver);
 
 	header_ptr = nni_msg_header(msg);
 	variable_ptr = nni_msg_variable_ptr(msg);

@@ -1609,10 +1609,13 @@ nng_aio_set_dbtree(nng_aio *aio, void *db)
         nni_aio_set_dbtree(aio, db);
 }
 
-const conn_param *
+void *
 nng_msg_get_conn_param(nng_msg *msg)
 {
-        return ((conn_param *)nni_msg_get_conn_param(msg));
+  conn_param *p;
+  p = nni_msg_get_conn_param(msg);
+  debug_msg("nng %p %d", p, p->pro_ver);
+        return p;
 }
 
 const uint8_t *

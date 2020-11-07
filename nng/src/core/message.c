@@ -12,6 +12,7 @@
 
 #include "core/nng_impl.h"
 #include "nng/protocol/mqtt/mqtt_parser.h"
+#include "include/nng_debug.h"
 
 // Message API.
 
@@ -660,7 +661,7 @@ nni_msg_set_conn_param(nni_msg *m, void *ptr)
        m->cparam = ptr;
 }
 
-void *
+conn_param *
 nni_msg_get_conn_param(nni_msg *m)
 {
        return m->cparam;

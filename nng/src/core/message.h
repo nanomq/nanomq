@@ -65,7 +65,8 @@ extern void     nni_msg_set_payload_ptr(nni_msg *m, uint8_t * ptr);
 extern void     nni_msg_set_remaining_len(nni_msg *m, size_t len);
 extern void     nni_msg_set_cmd_type(nni_msg *m, uint8_t cmd);
 extern void     nni_msg_set_conn_param(nni_msg *m, void *ptr);
-extern void *   nni_msg_get_conn_param(nni_msg *m);
+
+extern conn_param *   nni_msg_get_conn_param(nni_msg *m);
 
 typedef struct conn_param conn_param;
 typedef struct conn_propt conn_propt;
