@@ -105,12 +105,12 @@ struct conn_param {
         uint8_t         clean_start;
         uint8_t         will_flag;
         uint8_t         will_retain;
-        uint8_t         clientid[32];
-        uint8_t         will_topic[32];
-        uint8_t         will_msg[32];
-        uint8_t         username[64];
-        uint8_t         password[16];
         uint8_t         will_qos;
+        struct mqtt_string      clientid;
+        struct mqtt_string      will_topic;
+        struct mqtt_string      will_msg;
+        struct mqtt_string      username;
+        struct mqtt_binary      password;
         //conn_propt    ppt;
         //mqtt_v5
         //variable header
@@ -124,9 +124,9 @@ struct conn_param {
         struct mqtt_binary      auth_data;
         struct mqtt_string_pair user_property;
         //payload
-        uint32_t    will_delay_interval;
-        uint8_t     payload_format_indicator;
-        uint32_t    msg_expiry_interval;
+        uint32_t        will_delay_interval;
+        uint8_t         payload_format_indicator;
+        uint32_t        msg_expiry_interval;
         struct mqtt_string      content_type;
         struct mqtt_string      resp_topic;
         struct mqtt_binary      corr_data;

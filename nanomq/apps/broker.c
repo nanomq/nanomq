@@ -14,6 +14,7 @@
 #include <hash.h>
 #include <zmalloc.h>
 #include <protocol/mqtt/nano_tcp.h>
+#include <protocol/mqtt/mqtt_parser.h>
 
 #include "include/nanomq.h"
 #include "include/pub_handler.h"
@@ -109,7 +110,8 @@ server_cb(void *arg)
 					}
 				}
 
-				nng_free(work->cparam, 0);
+				debug_msg("destroy conn_param");
+				destroy_conn_param(work->cparam);
 				del_sub_client_id(clientid);
 				del_sub_pipe_id(pipe.id);
 

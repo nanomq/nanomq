@@ -525,7 +525,7 @@ tcptran_pipe_recv_cb(void *arg)
 	nni_msg_set_conn_param(msg, cparam);
 	nni_msg_set_remaining_len(msg, p->remain_len);
 	nni_msg_set_cmd_type(msg, type);
-	debug_msg("len %d!! remain_len %d cparam %p clientid %s username %s proto %d\n", len, p->remain_len, cparam, cparam->clientid, cparam->username, cparam->pro_ver);
+	debug_msg("len %d!! remain_len %d cparam %p clientid %s username %s proto %d\n", len, p->remain_len, cparam, cparam->clientid.body, cparam->username.body, cparam->pro_ver);
 
 	header_ptr = nni_msg_header(msg);
 	variable_ptr = nni_msg_variable_ptr(msg);

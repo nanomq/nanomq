@@ -1620,7 +1620,7 @@ nng_msg_get_conn_param(nng_msg *msg)
 const uint8_t *
 conn_param_get_clentid(conn_param *cparam)
 {
-        return cparam->clientid;
+        return cparam->clientid.body;
 }
 
 const uint8_t * 
@@ -1629,21 +1629,21 @@ conn_param_get_pro_name(conn_param *cparam)
         return cparam->pro_name;
 }
 
-const uint8_t * 
+const void * 
 conn_param_get_will_topic(conn_param *cparam)
 {
         if (cparam->will_flag) {
-                return cparam->will_topic;
+                return (void *)&(cparam->will_topic);
         } else {
                 return NULL;
         }
 }
 
-const uint8_t * 
+const void * 
 conn_param_get_will_msg(conn_param *cparam)
 {
         if (cparam->will_flag) {
-                return cparam->will_msg;
+                return (void *)&(cparam->will_msg);
         } else {
                 return NULL;
         }
@@ -1653,7 +1653,7 @@ const uint8_t *
 conn_param_get_username(conn_param *cparam)
 {
         if (cparam->con_flag & 0x80) {
-                return cparam->username;
+                return cparam->username.body;
         } else {
                 return NULL;
         }
@@ -1663,7 +1663,7 @@ const uint8_t *
 conn_param_get_password(conn_param *cparam)
 {
         if (cparam->con_flag & 0x40) {
-                return cparam->password;
+                return cparam->password.body;
         } else {
                 return NULL;
         }

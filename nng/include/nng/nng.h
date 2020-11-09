@@ -1296,8 +1296,8 @@ NNG_DECL void * nng_msg_get_conn_param(nng_msg *msg);
 
 NNG_DECL const uint8_t * conn_param_get_clentid(conn_param *cparam);
 NNG_DECL const uint8_t * conn_param_get_pro_name(conn_param *cparam);
-NNG_DECL const uint8_t * conn_param_get_will_topic(conn_param *cparam);
-NNG_DECL const uint8_t * conn_param_get_will_msg(conn_param *cparam);
+NNG_DECL const void    * conn_param_get_will_topic(conn_param *cparam);
+NNG_DECL const void    * conn_param_get_will_msg(conn_param *cparam);
 NNG_DECL const uint8_t * conn_param_get_username(conn_param *cparam);
 NNG_DECL const uint8_t * conn_param_get_password(conn_param *cparam);
 NNG_DECL const uint8_t   conn_param_get_con_flag(conn_param *cparam);

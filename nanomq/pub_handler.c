@@ -349,7 +349,7 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_
 
 			arr_len    = put_var_integer(tmp, work->pub_packet->fixed_header.remain_len);
 			append_res = nng_msg_header_append(dest_msg, tmp, arr_len);
-			debug_msg("header len [%d] remain len [%d]", nng_msg_header_len(dest_msg), work->pub_packet->fixed_header.remain_len);
+			debug_msg("header len [%ld] remain len [%d]", nng_msg_header_len(dest_msg), work->pub_packet->fixed_header.remain_len);
 
 			/*variable header*/
 			//topic name
@@ -366,7 +366,7 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_
 			if (work->pub_packet->fixed_header.qos > 0) {
 				append_res = nng_msg_append_u16(dest_msg, work->pub_packet->variable_header.publish.packet_identifier);
 			}
-			debug_msg("after topic and id len in msg already [%d]", nng_msg_len(dest_msg));
+			debug_msg("after topic and id len in msg already [%ld]", nng_msg_len(dest_msg));
 
 #if SUPPORT_MQTT5_0
 			if (PROTOCOL_VERSION_v5 == proto_ver) {
@@ -445,7 +445,7 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_
 				debug_msg("pro_ver [%d]", proto_ver);
 			}
 #endif
-			debug_msg("property len in msg already [%d]", nng_msg_len(dest_msg));
+			debug_msg("property len in msg already [%ld]", nng_msg_len(dest_msg));
 			
 			//payload
 			if (work->pub_packet->payload_body.payload_len > 0) {
@@ -455,7 +455,7 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_
 //				debug_msg("payload [%s] len [%d]", (char *)work->pub_packet->payload_body.payload, work->pub_packet->payload_body.payload_len);
 			}
 
-			debug_msg("after payload len in msg already [%d]", nng_msg_len(dest_msg));
+			debug_msg("after payload len in msg already [%ld]", nng_msg_len(dest_msg));
 			break;
 
 		case PUBREL:
@@ -564,7 +564,7 @@ decode_pub_message(emq_work *work)
 			memset((char *) pub_packet->variable_header.publish.topic_name.body, '\0',
 			       pub_packet->variable_header.publish.topic_name.len + 1);
 
-			len = copy_utf8_str((uint8_t *) pub_packet->variable_header.publish.topic_name.body, msg_body + pos, &pos);
+			pub_packet->variable_header.publish.topic_name.body = copy_utf8_str(msg_body, &pos, &len);
 
 			if (pub_packet->variable_header.publish.topic_name.len > 0) {
 				if (strchr(pub_packet->variable_header.publish.topic_name.body, '+') != NULL ||
