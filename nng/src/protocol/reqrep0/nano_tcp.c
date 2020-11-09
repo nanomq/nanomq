@@ -443,6 +443,8 @@ nano_pipe_close(void *arg)
 
 	if (p->tree != NULL) {
 //		del_all(p->id, p->tree);
+//		TODO
+//		nng_free(cparam);
 	}
 	nni_aio_close(&p->aio_send);
 	nni_aio_close(&p->aio_recv);

@@ -109,6 +109,7 @@ server_cb(void *arg)
 					}
 				}
 
+				nng_free(work->cparam, 0);
 				del_sub_client_id(clientid);
 				del_sub_pipe_id(pipe.id);
 

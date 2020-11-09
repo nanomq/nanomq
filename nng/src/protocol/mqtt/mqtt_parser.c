@@ -278,6 +278,10 @@ static char *client_id_gen(int *idlen, const char *auto_id_prefix, int auto_id_p
 	return client_id;
 }
 
+conn_param * copy_conn_param(conn_param * des, conn_param * src){
+	return (conn_param *)memcpy((void *)des, (const void *)src, sizeof(struct conn_param));
+}
+
 /**
  * TODO length limitation
  * 

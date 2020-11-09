@@ -520,7 +520,9 @@ tcptran_pipe_recv_cb(void *arg)
 	type	 = p->rxlen[0]&0xf0;
 
 	fixed_header_adaptor(p->rxlen, msg);
-	nni_msg_set_conn_param(msg, &p->tcp_cparam);
+	cparam = (conn_param *)nng_alloc(sizeof(struct conn_param));
+	copy_conn_param(cparam, &p->tcp_cparam);
+	nni_msg_set_conn_param(msg, cparam);
 	nni_msg_set_remaining_len(msg, p->remain_len);
 	nni_msg_set_cmd_type(msg, type);
 	debug_msg("len %d!! remain_len %d cparam %p clientid %s username %s proto %d\n", len, p->remain_len, cparam, cparam->clientid, cparam->username, cparam->pro_ver);
