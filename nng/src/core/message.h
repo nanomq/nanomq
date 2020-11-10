@@ -99,13 +99,13 @@ typedef struct mqtt_binary mqtt_binary;
 //TODO use ZALLOC later
 struct conn_param {
         uint8_t         pro_ver;
-        uint8_t         pro_name[10];
         uint8_t         con_flag;
         uint16_t        keepalive_mqtt;
         uint8_t         clean_start;
         uint8_t         will_flag;
         uint8_t         will_retain;
         uint8_t         will_qos;
+        struct mqtt_string      pro_name;
         struct mqtt_string      clientid;
         struct mqtt_string      will_topic;
         struct mqtt_string      will_msg;

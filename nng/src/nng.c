@@ -1626,7 +1626,7 @@ conn_param_get_clentid(conn_param *cparam)
 const uint8_t * 
 conn_param_get_pro_name(conn_param *cparam)
 {
-        return cparam->pro_name;
+        return (const uint8_t *)cparam->pro_name.body;
 }
 
 const void * 

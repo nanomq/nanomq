@@ -110,7 +110,6 @@ server_cb(void *arg)
 					}
 				}
 
-				debug_msg("destroy conn_param");
 				destroy_conn_param(work->cparam);
 				del_sub_client_id(clientid);
 				del_sub_pipe_id(pipe.id);

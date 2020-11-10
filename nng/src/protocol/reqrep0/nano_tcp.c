@@ -441,10 +441,10 @@ nano_pipe_close(void *arg)
 	debug_msg("deleting %d", p->id);
 	debug_msg("tree : %p", p->tree);
 
+	// TODO
+	// destroy_conn_param();
 	if (p->tree != NULL) {
 //		del_all(p->id, p->tree);
-//		TODO
-//		nng_free(cparam);
 	}
 	nni_aio_close(&p->aio_send);
 	nni_aio_close(&p->aio_recv);

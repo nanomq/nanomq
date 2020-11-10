@@ -308,8 +308,10 @@ int32_t conn_handler(uint8_t *packet, conn_param *cparam)
 	//remaining length
 	len = (uint32_t)get_var_integer(packet, &pos);
 	//protocol name
-	rv = (uint32_t)get_utf8_str(&(cparam->pro_name), packet, &pos);
-	debug_msg("pro_name: %s", cparam->pro_name);
+	cparam->pro_name.body = copy_utf8_str(packet, &pos, &len_of_str);
+	cparam->pro_name.len = len_of_str;
+	rv = rv | len_of_str;
+	debug_msg("pro_name: %s", cparam->pro_name.body);
 	//protocol ver
 	cparam->pro_ver = packet[pos];
 	pos ++;
@@ -370,19 +372,23 @@ int32_t conn_handler(uint8_t *packet, conn_param *cparam)
 						// key
 						cparam->user_property.key = (char *)copy_utf8_str(packet, &pos, &len_of_str);
 						cparam->user_property.len_key = len_of_str;
+						rv = rv | len_of_str;
 						// value
 						cparam->user_property.val = (char *)copy_utf8_str(packet, &pos, &len_of_str);
 						cparam->user_property.len_val = len_of_str;
+						rv = rv | len_of_str;
 						break;
 					case AUTHENTICATION_METHOD:
 						debug_msg("AUTHENTICATION_METHOD");
 						cparam->auth_method.body = (char *)copy_utf8_str(packet, &pos, &len_of_str);
+						rv = rv | len_of_str;
 						cparam->auth_method.len = len_of_str;
 						len_of_str = 0;
 						break;
 					case AUTHENTICATION_DATA:
 						debug_msg("AUTHENTICATION_DATA");
 						cparam->auth_data.body = (char *)copy_utf8_str(packet, &pos, &len_of_str);
+						rv = rv | len_of_str;
 						cparam->auth_data.len = len_of_str;
 						break;
 					default:
@@ -400,6 +406,7 @@ int32_t conn_handler(uint8_t *packet, conn_param *cparam)
 	debug_msg("pos after property: [%d]", pos);
 	//payload client_id
 	cparam->clientid.body = (char *)copy_utf8_str(packet, &pos, &len_of_str);
+	rv = rv | len_of_str;
 	cparam->clientid.len = len_of_str;
 	debug_msg("clientid: [%s] [%d]", cparam->clientid.body, len_of_str);
 	//will topic
@@ -432,18 +439,21 @@ int32_t conn_handler(uint8_t *packet, conn_param *cparam)
 							debug_msg("CONTENT_TYPE");
 							cparam->content_type.body = (char *)copy_utf8_str(packet, &pos, &len_of_str);
 							cparam->content_type.len = len_of_str;
+							rv = rv | len_of_str;
 							debug_msg("content type: %s %d", cparam->content_type.body, rv);
 							break;
 						case RESPONSE_TOPIC:
 							debug_msg("RESPONSE_TOPIC");
 							cparam->resp_topic.body = (char *)copy_utf8_str(packet, &pos, &len_of_str);
 							cparam->resp_topic.len = len_of_str;
+							rv = rv | len_of_str;
 							debug_msg("resp topic: %s %d", cparam->resp_topic.body, rv);
 							break;
 						case CORRELATION_DATA:
 							debug_msg("CORRELATION_DATA");
 							cparam->corr_data.body = (char *)copy_utf8_str(packet, &pos, &len_of_str);
 							cparam->corr_data.len = len_of_str;
+							rv = rv | len_of_str;
 							debug_msg("corr_data: %s %d", cparam->corr_data.body, rv);
 							break;
 						case USER_PROPERTY:
@@ -451,9 +461,11 @@ int32_t conn_handler(uint8_t *packet, conn_param *cparam)
 							// key
 							cparam->payload_user_property.key = (char *)copy_utf8_str(packet, &pos, &len_of_str);
 							cparam->payload_user_property.len_key = len_of_str;
+							rv = rv | len_of_str;
 							// value
 							cparam->payload_user_property.val = (char *)copy_utf8_str(packet, &pos, &len_of_str);
 							cparam->payload_user_property.len_val = len_of_str;
+							rv = rv | len_of_str;
 							break;
 						default:
 							break;
@@ -469,22 +481,26 @@ int32_t conn_handler(uint8_t *packet, conn_param *cparam)
 		}
 		cparam->will_topic.body = (char *)copy_utf8_str(packet, &pos, &len_of_str);
 		cparam->will_topic.len = len_of_str;
+		rv = rv | len_of_str;
 		debug_msg("will_topic: %s %d", cparam->will_topic.body, rv);
 		//will msg
 		cparam->will_msg.body = copy_utf8_str(packet, &pos, &len_of_str);
 		cparam->will_msg.len = len_of_str;
+		rv = rv | len_of_str;
 		debug_msg("will_msg: %s %d", cparam->will_msg.body, rv);
 	}
 	//username
 	if ((cparam->con_flag & 0x80) > 0) {
 		cparam->username.body = (char *)copy_utf8_str(packet, &pos, &len_of_str);
 		cparam->username.len = len_of_str;
+		rv = rv | len_of_str;
 		debug_msg("username: %s %d %d", cparam->username.body, rv, 3 & 4);
 	}
 	//password
 	if ((cparam->con_flag & 0x40) > 0) {
 		cparam->password.body = (char *)copy_utf8_str(packet, &pos, &len_of_str);
 		cparam->password.len = len_of_str;
+		rv = rv | len_of_str;
 		debug_msg("password: %s %d", cparam->password.body, rv);
 	}
 	//what if rv = 0?
@@ -493,21 +509,23 @@ int32_t conn_handler(uint8_t *packet, conn_param *cparam)
 
 void destroy_conn_param(conn_param * cparam)
 {
-	nng_free(cparam->clientid.body, 0);
-	nng_free(cparam->will_topic.body, 0);
-	nng_free(cparam->will_msg.body, 0);
-	nng_free(cparam->username.body, 0);
-	nng_free(cparam->password.body, 0);
-	nng_free(cparam->auth_method.body, 0);
-	nng_free(cparam->auth_data.body, 0);
-	nng_free(cparam->user_property.key, 0);
-	nng_free(cparam->user_property.val, 0);
-	nng_free(cparam->content_type.body, 0);
-	nng_free(cparam->resp_topic.body, 0);
-	nng_free(cparam->corr_data.body, 0);
-	nng_free(cparam->payload_user_property.key, 0);
-	nng_free(cparam->payload_user_property.val, 0);
-	nng_free(cparam, 0);
+	debug_msg("destroy conn param");
+	nng_free(cparam->pro_name.body, cparam->pro_name.len);
+	nng_free(cparam->clientid.body, cparam->clientid.len);
+	nng_free(cparam->will_topic.body, cparam->will_topic.len);
+	nng_free(cparam->will_msg.body, cparam->will_msg.len);
+	nng_free(cparam->username.body, cparam->username.len);
+	nng_free(cparam->password.body, cparam->password.len);
+	nng_free(cparam->auth_method.body, cparam->auth_method.len);
+	nng_free(cparam->auth_data.body, cparam->auth_data.len);
+	nng_free(cparam->user_property.key, cparam->user_property.len_key);
+	nng_free(cparam->user_property.val, cparam->user_property.len_val);
+	nng_free(cparam->content_type.body, cparam->content_type.len);
+	nng_free(cparam->resp_topic.body, cparam->resp_topic.len);
+	nng_free(cparam->corr_data.body, cparam->corr_data.len);
+	nng_free(cparam->payload_user_property.key, cparam->payload_user_property.len_key);
+	nng_free(cparam->payload_user_property.val, cparam->payload_user_property.len_val);
+	nng_free(cparam, sizeof(struct conn_param));
 	cparam = NULL;
 }
 
