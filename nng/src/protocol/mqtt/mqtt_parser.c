@@ -14,8 +14,9 @@
 #include "nng/protocol/mqtt/mqtt.h"
 #include "include/nng_debug.h"
 
-static uint8_t get_value_size(uint64_t value);
+static uint8_t  get_value_size(uint64_t value);
 static uint64_t power(uint64_t x, uint32_t n);
+static void     init_conn_param(conn_param *);
 
 static uint64_t power(uint64_t x, uint32_t n)
 {
@@ -305,6 +306,8 @@ int32_t conn_handler(uint8_t *packet, conn_param *cparam)
 	} else {
 		pos++;
 	}
+
+	init_conn_param(cparam);
 	//remaining length
 	len = (uint32_t)get_var_integer(packet, &pos);
 	//protocol name
@@ -527,5 +530,39 @@ void destroy_conn_param(conn_param * cparam)
 	nng_free(cparam->payload_user_property.val, cparam->payload_user_property.len_val);
 	nng_free(cparam, sizeof(struct conn_param));
 	cparam = NULL;
+}
+
+static void init_conn_param(conn_param *cparam)
+{
+	cparam->pro_name.len = 0;
+	cparam->pro_name.body = NULL;
+	cparam->clientid.len = 0;
+	cparam->clientid.body = NULL;
+	cparam->will_topic.body = NULL;
+	cparam->will_topic.len = 0;
+	cparam->will_msg.body = NULL;
+	cparam->will_msg.len = 0;
+	cparam->username.body = NULL;
+	cparam->username.len = 0;
+	cparam->password.body = NULL;
+	cparam->password.len = 0;
+	cparam->auth_method.body = NULL;
+	cparam->auth_method.len = 0;
+	cparam->auth_data.body = NULL;
+	cparam->auth_data.len = 0;
+	cparam->user_property.key = NULL;
+	cparam->user_property.len_key;
+	cparam->user_property.val = NULL;
+	cparam->user_property.len_val = 0;
+	cparam->content_type.body = NULL;
+	cparam->content_type.len = 0;
+	cparam->resp_topic.body = NULL;
+	cparam->resp_topic.len = 0;
+	cparam->corr_data.body = NULL;
+	cparam->corr_data.len = 0;
+	cparam->payload_user_property.key = NULL;
+	cparam->payload_user_property.len_key = 0;
+	cparam->payload_user_property.val = NULL;
+	cparam->payload_user_property.len_val = 0;
 }
 

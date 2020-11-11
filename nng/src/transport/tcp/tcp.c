@@ -45,7 +45,7 @@ struct tcptran_pipe {
 	nni_msg *       rxmsg;
 	nni_mtx         mtx;
 	uint32_t	remain_len;
-	conn_param	tcp_cparam;
+	conn_param*	tcp_cparam;
 	//uint8_t	sli_win[5];	//use aio multiple times instead of seperating 2 packets manually
 };
 
@@ -281,8 +281,9 @@ tcptran_pipe_nego_cb(void *arg)
 	//reply error/CONNECT ACK
 	if (p->gottxhead < p->wanttxhead && p->gotrxhead >= p->wantrxhead) {
 		nni_iov iov;
-		if (conn_handler(p->rxlen, &p->tcp_cparam) > 0) {
-			if (p->tcp_cparam.pro_ver == PROTOCOL_VERSION_v5) {
+		p->tcp_cparam = nng_alloc(sizeof(struct conn_param));
+		if (conn_handler(p->rxlen, p->tcp_cparam) > 0) {
+			if (p->tcp_cparam->pro_ver == PROTOCOL_VERSION_v5) {
 				p->wanttxhead += 1;
 				// p->gottxhead += 1;
 				p->txlen[1] = 3; // setting remainlen
@@ -472,7 +473,7 @@ tcptran_pipe_recv_cb(void *arg)
 
 	//finish fixed header
 	p->wantrxhead = len + p->gotrxhead;
-	cparam = &p->tcp_cparam;
+	cparam = p->tcp_cparam;
 
 	// If we don't have a message yet, we were reading the fixed message
 	// header, which is just the length and type.  This tells us the size of the
@@ -520,8 +521,9 @@ tcptran_pipe_recv_cb(void *arg)
 	type	 = p->rxlen[0]&0xf0;
 
 	fixed_header_adaptor(p->rxlen, msg);
-	cparam = (conn_param *)nng_alloc(sizeof(struct conn_param));
-	copy_conn_param(cparam, &p->tcp_cparam);
+//	cparam = (conn_param *)nng_alloc(sizeof(struct conn_param));
+//	copy_conn_param(cparam, &p->tcp_cparam);
+	cparam = p->tcp_cparam;
 	nni_msg_set_conn_param(msg, cparam);
 	nni_msg_set_remaining_len(msg, p->remain_len);
 	nni_msg_set_cmd_type(msg, type);
@@ -602,7 +604,7 @@ close:
 	hh[0]	 = CMD_DISCONNECT;
 	hh[1]	 = 0xFF;
 
-	cparam = &p->tcp_cparam;
+	cparam = p->tcp_cparam;
 	nni_msg_header_append(msg, hh, 2);
 	nni_msg_set_conn_param(msg, cparam);
 	nni_msg_set_remaining_len(msg, 0);
