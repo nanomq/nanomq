@@ -387,7 +387,7 @@ tcptran_pipe_send_cb(void *arg)
 
 	nni_aio_set_msg(aio, NULL);
 	nni_msg_free(msg);
-	nni_aio_finish_synch(aio, 0, n);
+	nni_aio_finish_sync(aio, 0, n);
 }
 
 /*
@@ -566,7 +566,7 @@ tcptran_pipe_recv_cb(void *arg)
 
 	nni_aio_set_msg(aio, msg);
 	// finish IO expose msg to EMQ_NANO protocl level
-	nni_aio_finish_synch(aio, 0, n);
+	nni_aio_finish_sync(aio, 0, n);
 	debug_msg("end of tcptran_pipe_recv_cb: synch!\n");
 	return;
 
@@ -612,7 +612,7 @@ close:
 	nni_mtx_unlock(&p->mtx);
 	nni_aio_set_msg(aio, msg);
 	// finish IO expose msg to EMQ_NANO protocl level
-	nni_aio_finish_synch(aio, 0, 2);
+	nni_aio_finish_sync(aio, 0, 2);
 	debug_msg("tcptran_pipe_recv_cb: disconnect rv: %d\n", rv);
 }
 

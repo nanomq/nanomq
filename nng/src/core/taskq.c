@@ -9,7 +9,6 @@
 //
 
 #include "core/nng_impl.h"
-#include "include/nng_debug.h"
 
 typedef struct nni_taskq_thr nni_taskq_thr;
 struct nni_taskq_thr {
@@ -41,9 +40,7 @@ nni_taskq_thread(void *self)
 	for (;;) {
 		if ((task = nni_list_first(&tq->tq_tasks)) != NULL) {
 
-			nni_mtx_lock(&task->task_mtx);
 			nni_list_remove(&tq->tq_tasks, task);
-			nni_mtx_unlock(&task->task_mtx);
 
 			nni_mtx_unlock(&tq->tq_mtx);
 
@@ -64,7 +61,6 @@ nni_taskq_thread(void *self)
 		if (!tq->tq_run) {
 			break;
 		}
-		debug_msg("----- wait conditional variable here! ---\n");
 		nni_cv_wait(&tq->tq_sched_cv);
 	}
 	nni_mtx_unlock(&tq->tq_mtx);
@@ -252,7 +248,6 @@ nni_taskq_sys_init(void)
 	}
 #endif
 
-	debug_msg("taskq number: %d\n", nthrs);
 	return (nni_taskq_init(&nni_taskq_systq, nthrs));
 }
 

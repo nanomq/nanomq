@@ -523,7 +523,7 @@ nano_pipe_send_cb(void *arg)
 
 	nni_mtx_unlock(&s->lk);
 
-	nni_aio_finish_synch(aio, 0, len);
+	nni_aio_finish_sync(aio, 0, len);
 	/*
 	// pub to mulitple clients/pipes within single aio/ctx
 	aio   = ctx->saio;
@@ -580,7 +580,7 @@ drop:
 
 	//trigger application level
 	if (ctx->resend_count <= 0) {
-		nni_aio_finish_synch(aio, 0, len);
+		nni_aio_finish_sync(aio, 0, len);
 	} //else 
 	 // nni_aio_finish(aio,0,len);
 	debug_msg("end of nano_pipe_send_cb ctx : %p", ctx);
@@ -716,7 +716,7 @@ nano_pipe_recv_cb(void *arg)
 		ctx->pipe_id = p->id;
 		nni_mtx_unlock(&s->lk);
 		nni_aio_set_msg(aio, msg);
-		nni_aio_finish_synch(aio, 0, 2);
+		nni_aio_finish_sync(aio, 0, 2);
 		debug_msg("client is dead!!");
 		return;
 	}*/
@@ -757,7 +757,7 @@ nano_pipe_recv_cb(void *arg)
 
 	nni_aio_set_msg(aio, msg);
 	//trigger application level
-	nni_aio_finish_synch(aio, 0, nni_msg_len(msg));
+	nni_aio_finish_sync(aio, 0, nni_msg_len(msg));
 	debug_msg("end of nano_pipe_recv_cb %p", ctx);
 	return;
 
