@@ -486,8 +486,8 @@ nano_pipe_send_cb(void *arg)
 	nni_aio *  aio;
 	nni_msg *  msg;
 	size_t     len;
-	uint32_t   index = 0;
-	uint32_t * pipes;
+	//uint32_t   index = 0;
+	//uint32_t * pipes;
 
 	debug_msg("##########nano_pipe_send_cb################");
 	//retry here
@@ -608,7 +608,7 @@ nano_ctx_recv(void *arg, nni_aio *aio)
 	nano_ctx * ctx = arg;
 	nano_sock *s   = ctx->sock;
 	nano_pipe *p;
-	size_t     len;
+	//size_t     len;
 	nni_msg *  msg;
 
 	if (nni_aio_begin(aio) != 0) {
@@ -665,13 +665,13 @@ nano_pipe_recv_cb(void *arg)
 {
 	nano_pipe *p = arg;
 	nano_sock *s = p->rep;
-	nano_ctx *  ctx;
-	nni_msg *  msg;
-	uint8_t *  body, *header;
-	nni_aio *  aio;
-	size_t     len;
-	int        hops;
-	int        ttl;
+	nano_ctx  *    ctx;
+	nni_msg   *    msg;
+	uint8_t   *    header;
+	nni_aio   *    aio;
+	//size_t         len;
+	//int        hops;
+	//int        ttl;
 
 	if (nni_aio_result(&p->aio_recv) != 0) {
 		nni_pipe_close(p->pipe);

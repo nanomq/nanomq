@@ -17,7 +17,7 @@ int fixed_header_adaptor(uint8_t *packet, nng_msg *dst);
 //parser 
 NNG_DECL uint8_t put_var_integer(uint8_t *dest, uint32_t value);
 
-NNG_DECL uint32_t get_var_integer(const uint8_t *buf, int *pos);
+NNG_DECL uint32_t get_var_integer(const uint8_t *buf, uint32_t *pos);
 
 NNG_DECL int32_t get_utf8_str(char **dest, const uint8_t *src, uint32_t *pos);
 NNG_DECL uint8_t * copy_utf8_str(const uint8_t *src, uint32_t *pos, int *str_len);

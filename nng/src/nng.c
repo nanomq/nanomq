@@ -1669,43 +1669,43 @@ conn_param_get_password(conn_param *cparam)
         }
 }
 
-const uint8_t
+uint8_t
 conn_param_get_con_flag(conn_param *cparam)
 {
         return cparam->con_flag;
 }
 
-const uint8_t
+uint8_t
 conn_param_get_clean_start(conn_param *cparam)
 {
         return cparam->clean_start;
 }
 
-const uint8_t
+uint8_t
 conn_param_get_will_flag(conn_param *cparam)
 {
         return cparam->will_flag;
 }
 
-const uint8_t
+uint8_t
 conn_param_get_will_qos(conn_param *cparam)
 {
         return cparam->will_qos;
 }
 
-const uint8_t
+uint8_t
 conn_param_get_will_retain(conn_param *cparam)
 {
         return cparam->will_retain;
 }
 
-const uint16_t
+uint16_t
 conn_param_get_keepalive(conn_param *cparam)
 {
         return cparam->keepalive_mqtt;
 }
 
-const uint8_t
+uint8_t
 conn_param_get_protover(conn_param *cparam)
 {
         return cparam->pro_ver;

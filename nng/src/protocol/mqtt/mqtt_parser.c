@@ -83,12 +83,12 @@ uint8_t put_var_integer(uint8_t *dest, uint32_t value)
  * @param pos
  * @return Integer value
  */
-uint32_t get_var_integer(const uint8_t *buf, int *pos)
+uint32_t get_var_integer(const uint8_t *buf, uint32_t *pos)
 {
 	uint8_t  temp;
 	uint32_t result = 0;
 
-	int p = *pos;
+	uint32_t p = *pos;
 	int i = 0;
 
 	do {
@@ -258,38 +258,38 @@ int fixed_header_adaptor(uint8_t *packet, nng_msg *dst)
 {
 	nni_msg  *m;
 	int      rv, pos = 1;
-	uint32_t len;
 
 	m   = (nni_msg *)dst;
-	len = get_var_integer(packet, &pos);
+	get_var_integer(packet, &pos);
 
 	rv = nni_msg_header_append(m, packet, pos);
 	return rv;
 }
 
+/*
 int variable_header_adaptor(uint8_t *packet, nni_msg *dst)
 {
 	nni_msg  *m;
 	int      pos = 0;
 	uint32_t len;
-
 	return 0;
 }
-
-
+*/
+/*
 static char *client_id_gen(int *idlen, const char *auto_id_prefix, int auto_id_prefix_len)
 {
 	char *client_id;
-
 	return client_id;
 }
 
 conn_param * copy_conn_param(conn_param * des, conn_param * src){
 	return (conn_param *)memcpy((void *)des, (const void *)src, sizeof(struct conn_param));
 }
+*/
+
 
 /**
- * TODO length limitation
+ * only use in nego_cb !!!
  * 
  */
 int32_t conn_handler(uint8_t *packet, conn_param *cparam)
@@ -551,7 +551,7 @@ static void init_conn_param(conn_param *cparam)
 	cparam->auth_data.body = NULL;
 	cparam->auth_data.len = 0;
 	cparam->user_property.key = NULL;
-	cparam->user_property.len_key;
+	cparam->user_property.len_key = 0;
 	cparam->user_property.val = NULL;
 	cparam->user_property.len_val = 0;
 	cparam->content_type.body = NULL;
