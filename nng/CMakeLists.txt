@@ -119,7 +119,7 @@ if (NOT WIN32)
     mark_as_advanced(NNG_SETSTACKSIZE)
 endif ()
 
-option(NNG_ENABLE_STATS "Enable statistics" ON)
+option(NNG_ENABLE_STATS "Enable statistics" OFF)
 if (NNG_ENABLE_STATS)
     add_definitions(-DNNG_ENABLE_STATS)
 endif ()

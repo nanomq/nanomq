@@ -69,7 +69,9 @@ struct tcptran_ep {
 	nni_reap_item        reap;
 	//nng_stream_dialer *  dialer;
 	nng_stream_listener *listener;
-	nni_stat_item        st_rcvmaxsz;
+#ifdef NNG_ENABLE_STATS
+       nni_stat_item 	     st_rcv_max;
+#endif
 };
 
 static void tcptran_pipe_send_start(tcptran_pipe *);
@@ -175,7 +177,8 @@ tcptran_pipe_alloc(tcptran_pipe **pipep)
 	nni_mtx_init(&p->mtx);
 	if (((rv = nni_aio_alloc(&p->txaio, tcptran_pipe_send_cb, p)) != 0) ||
 	    ((rv = nni_aio_alloc(&p->rxaio, tcptran_pipe_recv_cb, p)) != 0) ||
-	    ((rv = nni_aio_alloc(&p->negoaio, tcptran_pipe_nego_cb, p)) != 0)) {
+	    ((rv = nni_aio_alloc(&p->negoaio, tcptran_pipe_nego_cb, p)) != 0)) 
+	{
 		tcptran_pipe_fini(p);
 		return (rv);
 	}
@@ -1098,10 +1101,16 @@ tcptran_ep_init(tcptran_ep **epp, nng_url *url, nni_sock *sock)
 
 	//ep->proto = nni_sock_proto_id(sock);
 	ep->url   = url;
-
-	nni_stat_init(&ep->st_rcvmaxsz, "rcvmaxsz", "maximum receive size");
-	nni_stat_set_type(&ep->st_rcvmaxsz, NNG_STAT_LEVEL);
-	nni_stat_set_unit(&ep->st_rcvmaxsz, NNG_UNIT_BYTES);
+#ifdef NNG_ENABLE_STATS
+        static const nni_stat_info rcv_max_info = {
+            .si_name   = "rcv_max",
+            .si_desc   = "maximum receive size",
+            .si_type   = NNG_STAT_LEVEL,
+            .si_unit   = NNG_UNIT_BYTES,
+            .si_atomic = true,
+        };
+        nni_stat_init(&ep->st_rcv_max, &rcv_max_info);
+#endif
 
 	*epp = ep;
 	return (0);
@@ -1111,47 +1120,6 @@ static int
 tcptran_dialer_init(void **dp, nng_url *url, nni_dialer *ndialer)
 {
 	debug_msg("tcptran_dialer_init");
-/*
-	tcptran_ep * ep;
-	int          rv;
-	nng_sockaddr srcsa;
-	nni_sock *   sock = nni_dialer_sock(ndialer);
-	nng_url      myurl;
-
-	// Check for invalid URL components.
-	if ((strlen(url->u_path) != 0) && (strcmp(url->u_path, "/") != 0)) {
-		return (NNG_EADDRINVAL);
-	}
-	if ((url->u_fragment != NULL) || (url->u_userinfo != NULL) ||
-	    (url->u_query != NULL) || (strlen(url->u_hostname) == 0) ||
-	    (strlen(url->u_port) == 0)) {
-		return (NNG_EADDRINVAL);
-	}
-
-	if ((rv = tcptran_url_parse_source(&myurl, &srcsa, url)) != 0) {
-		return (rv);
-	}
-
-	if ((rv = tcptran_ep_init(&ep, url, sock)) != 0) {
-		return (rv);
-	}
-
-	if ((rv != 0) ||
-	    ((rv = nni_aio_alloc(&ep->connaio, tcptran_dial_cb, ep)) != 0) ||
-	    ((rv = nng_stream_dialer_alloc_url(&ep->dialer, &myurl)) != 0)) {
-		tcptran_ep_fini(ep);
-		return (rv);
-	}
-	if ((srcsa.s_family != NNG_AF_UNSPEC) &&
-	    ((rv = nni_stream_dialer_setx(ep->dialer, NNG_OPT_LOCADDR, &srcsa,
-	          sizeof(srcsa), NNI_TYPE_SOCKADDR)) != 0)) {
-		tcptran_ep_fini(ep);
-		return (rv);
-	}
-
-	nni_dialer_add_stat(ndialer, &ep->st_rcvmaxsz);
-	*dp = ep;
-*/
 	return (0);
 }
 
@@ -1181,8 +1149,10 @@ tcptran_listener_init(void **lp, nng_url *url, nni_listener *nlistener)
 		tcptran_ep_fini(ep);
 		return (rv);
 	}
-	nni_listener_add_stat(nlistener, &ep->st_rcvmaxsz);
 
+#ifdef NNG_ENABLE_STATS
+        nni_listener_add_stat(nlistener, &ep->st_rcv_max);
+#endif
 	*lp = ep;
 	return (0);
 }
@@ -1285,8 +1255,10 @@ tcptran_ep_set_recvmaxsz(void *arg, const void *v, size_t sz, nni_opt_type t)
 		NNI_LIST_FOREACH (&ep->busypipes, p) {
 			p->rcvmax = val;
 		}
-		nni_stat_set_value(&ep->st_rcvmaxsz, val);
 		nni_mtx_unlock(&ep->mtx);
+#ifdef NNG_ENABLE_STATS
+		nni_stat_set_value(&ep->st_rcv_max, val);
+#endif  
 	}
 	return (rv);
 }
