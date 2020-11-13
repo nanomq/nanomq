@@ -18,10 +18,15 @@ set(CMAKE_MODULE_PATH
 )
 
 option(NOLOG "build this project nolog" OFF)
+option(MQ "build this project suport mq" ON)
 
 if (NOLOG)
 	add_definitions(-DNOLOG)
 endif (NOLOG)
+
+if (MQ)
+	add_definitions(-DMQ)
+endif (MQ)
 
 #add_executable(nanomq-nng nanomq/nanomq.c)
 
