@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Staysail Systems, Inc. <info@staysail.tech>
+// Copyright 2020 Staysail Systems, Inc. <info@staysail.tech>
 // Copyright 2018 Capitar IT Group BV <info@capitar.com>
 // Copyright 2018 Devolutions <info@devolutions.net>
 //
@@ -21,21 +21,14 @@ static void listener_accept_start(nni_listener *);
 static void listener_accept_cb(void *);
 static void listener_timer_cb(void *);
 
-static nni_idhash *listeners;
-static nni_mtx     listeners_lk;
-
-#define BUMP_STAT(x) nni_stat_inc_atomic(x, 1)
+static nni_id_map listeners;
+static nni_mtx    listeners_lk;
 
 int
 nni_listener_sys_init(void)
 {
-	int rv;
-
-	if ((rv = nni_idhash_init(&listeners)) != 0) {
-		return (rv);
-	}
+	nni_id_map_init(&listeners, 1, 0x7fffffff, false);
 	nni_mtx_init(&listeners_lk);
-	nni_idhash_set_limits(listeners, 1, 0x7fffffff, 1);
 
 	return (0);
 }
@@ -45,8 +38,7 @@ nni_listener_sys_fini(void)
 {
 	nni_reap_drain();
 	nni_mtx_fini(&listeners_lk);
-	nni_idhash_fini(listeners);
-	listeners = NULL;
+	nni_id_map_fini(&listeners);
 }
 
 uint32_t
@@ -58,11 +50,11 @@ nni_listener_id(nni_listener *l)
 void
 nni_listener_destroy(nni_listener *l)
 {
-	nni_aio_stop(l->l_acc_aio);
-	nni_aio_stop(l->l_tmo_aio);
+	nni_aio_stop(&l->l_acc_aio);
+	nni_aio_stop(&l->l_tmo_aio);
 
-	nni_aio_free(l->l_acc_aio);
-	nni_aio_free(l->l_tmo_aio);
+	nni_aio_fini(&l->l_acc_aio);
+	nni_aio_fini(&l->l_tmo_aio);
 
 	if (l->l_data != NULL) {
 		l->l_ops.l_fini(l->l_data);
@@ -71,56 +63,122 @@ nni_listener_destroy(nni_listener *l)
 	NNI_FREE_STRUCT(l);
 }
 
+#ifdef NNG_ENABLE_STATS
+static void
+listener_stat_init(
+    nni_listener *l, nni_stat_item *item, const nni_stat_info *info)
+{
+	nni_stat_init(item, info);
+	nni_stat_add(&l->st_root, item);
+}
+
 static void
 listener_stats_init(nni_listener *l)
 {
-	nni_listener_stats *st   = &l->l_stats;
-	nni_stat_item *     root = &st->s_root;
+	static const nni_stat_info root_info = {
+		.si_name = "listener",
+		.si_desc = "listener statistics",
+		.si_type = NNG_STAT_SCOPE,
+	};
+	static const nni_stat_info id_info = {
+		.si_name = "id",
+		.si_desc = "listener id",
+		.si_type = NNG_STAT_ID,
+	};
+	static const nni_stat_info sock_info = {
+		.si_name = "socket",
+		.si_desc = "socket id",
+		.si_type = NNG_STAT_ID,
+	};
+	static const nni_stat_info url_info = {
+		.si_name  = "url",
+		.si_desc  = "listener url",
+		.si_type  = NNG_STAT_STRING,
+		.si_alloc = true,
+	};
+	static const nni_stat_info pipes_info = {
+		.si_name   = "pipes",
+		.si_desc   = "open pipes",
+		.si_type   = NNG_STAT_COUNTER,
+		.si_atomic = true,
+	};
+	static const nni_stat_info accept_info = {
+		.si_name   = "accept",
+		.si_desc   = "connections accepted",
+		.si_type   = NNG_STAT_COUNTER,
+		.si_atomic = true,
+	};
+	static const nni_stat_info disconnect_info = {
+		.si_name   = "disconnect",
+		.si_desc   = "remote disconnects",
+		.si_type   = NNG_STAT_COUNTER,
+		.si_atomic = true,
+	};
+	static const nni_stat_info canceled_info = {
+		.si_name   = "canceled",
+		.si_desc   = "canceled connections",
+		.si_type   = NNG_STAT_COUNTER,
+		.si_atomic = true,
+	};
+	static const nni_stat_info other_info = {
+		.si_name   = "other",
+		.si_desc   = "other errors",
+		.si_type   = NNG_STAT_COUNTER,
+		.si_atomic = true,
+	};
+	static const nni_stat_info timeout_info = {
+		.si_name   = "timeout",
+		.si_desc   = "timeout errors",
+		.si_type   = NNG_STAT_COUNTER,
+		.si_atomic = true,
+	};
+	static const nni_stat_info proto_info = {
+		.si_name   = "proto",
+		.si_desc   = "protocol errors",
+		.si_type   = NNG_STAT_COUNTER,
+		.si_atomic = true,
+	};
+	static const nni_stat_info auth_info = {
+		.si_name   = "auth",
+		.si_desc   = "auth errors",
+		.si_type   = NNG_STAT_COUNTER,
+		.si_atomic = true,
+	};
+	static const nni_stat_info oom_info = {
+		.si_name   = "oom",
+		.si_desc   = "allocation failures",
+		.si_type   = NNG_STAT_COUNTER,
+		.si_atomic = true,
+	};
+	static const nni_stat_info reject_info = {
+		.si_name   = "reject",
+		.si_desc   = "rejected pipes",
+		.si_type   = NNG_STAT_COUNTER,
+		.si_atomic = true,
+	};
 
-	nni_stat_init_scope(root, st->s_scope, "listener statistics");
+	nni_stat_init(&l->st_root, &root_info);
 
-	// NB: This will be updated later.
-	nni_stat_init_id(&st->s_id, "id", "listener id", l->l_id);
-	nni_stat_add(root, &st->s_id);
+	listener_stat_init(l, &l->st_id, &id_info);
+	listener_stat_init(l, &l->st_sock, &sock_info);
+	listener_stat_init(l, &l->st_url, &url_info);
+	listener_stat_init(l, &l->st_pipes, &pipes_info);
+	listener_stat_init(l, &l->st_accept, &accept_info);
+	listener_stat_init(l, &l->st_disconnect, &disconnect_info);
+	listener_stat_init(l, &l->st_canceled, &canceled_info);
+	listener_stat_init(l, &l->st_other, &other_info);
+	listener_stat_init(l, &l->st_timeout, &timeout_info);
+	listener_stat_init(l, &l->st_proto, &proto_info);
+	listener_stat_init(l, &l->st_auth, &auth_info);
+	listener_stat_init(l, &l->st_oom, &oom_info);
+	listener_stat_init(l, &l->st_reject, &reject_info);
 
-	nni_stat_init_id(&st->s_sock, "socket", "socket for listener",
-	    nni_sock_id(l->l_sock));
-	nni_stat_add(root, &st->s_sock);
-
-	nni_stat_init_string(
-	    &st->s_url, "url", "listener url", l->l_url->u_rawurl);
-	nni_stat_add(root, &st->s_url);
-
-	nni_stat_init_atomic(&st->s_npipes, "npipes", "open pipes");
-	nni_stat_add(root, &st->s_npipes);
-
-	nni_stat_init_atomic(&st->s_accept, "accept", "connections accepted");
-	nni_stat_add(root, &st->s_accept);
-
-	nni_stat_init_atomic(&st->s_discon, "discon", "remote disconnects");
-	nni_stat_add(root, &st->s_discon);
-
-	nni_stat_init_atomic(&st->s_canceled, "canceled", "canceled");
-	nni_stat_add(root, &st->s_canceled);
-
-	nni_stat_init_atomic(&st->s_othererr, "othererr", "other errors");
-	nni_stat_add(root, &st->s_othererr);
-
-	nni_stat_init_atomic(&st->s_etimedout, "timedout", "timed out");
-	nni_stat_add(root, &st->s_etimedout);
-
-	nni_stat_init_atomic(&st->s_eproto, "protoerr", "protcol errors");
-	nni_stat_add(root, &st->s_eproto);
-
-	nni_stat_init_atomic(&st->s_eauth, "autherr", "auth errors");
-	nni_stat_add(root, &st->s_eauth);
-
-	nni_stat_init_atomic(&st->s_enomem, "nomem", "out of memory");
-	nni_stat_add(root, &st->s_enomem);
-
-	nni_stat_init_atomic(&st->s_reject, "reject", "pipes rejected");
-	nni_stat_add(root, &st->s_reject);
+	nni_stat_set_id(&l->st_root, l->l_id);
+	nni_stat_set_id(&l->st_id, l->l_id);
+	nni_stat_set_string(&l->st_url, l->l_url->u_rawurl);
+	nni_stat_register(&l->st_root);
 }
+#endif // NNG_ENABLE_STATS
 
 void
 nni_listener_bump_error(nni_listener *l, int err)
@@ -129,31 +187,28 @@ nni_listener_bump_error(nni_listener *l, int err)
 	switch (err) {
 	case NNG_ECONNABORTED:
 	case NNG_ECONNRESET:
-		BUMP_STAT(&l->l_stats.s_discon);
+		nni_stat_inc(&l->st_disconnect, 1);
 		break;
 	case NNG_ECANCELED:
-		BUMP_STAT(&l->l_stats.s_canceled);
+		nni_stat_inc(&l->st_canceled, 1);
 		break;
 	case NNG_ETIMEDOUT:
-		BUMP_STAT(&l->l_stats.s_etimedout);
+		nni_stat_inc(&l->st_timeout, 1);
 		break;
 	case NNG_EPROTO:
-		BUMP_STAT(&l->l_stats.s_eproto);
+		nni_stat_inc(&l->st_proto, 1);
 		break;
 	case NNG_EPEERAUTH:
 	case NNG_ECRYPTO:
-		BUMP_STAT(&l->l_stats.s_eauth);
+		nni_stat_inc(&l->st_auth, 1);
 		break;
 	case NNG_ENOMEM:
-		BUMP_STAT(&l->l_stats.s_enomem);
+		nni_stat_inc(&l->st_oom, 1);
 		break;
 	default:
-		BUMP_STAT(&l->l_stats.s_othererr);
+		nni_stat_inc(&l->st_other, 1);
 		break;
 	}
-#else
-	NNI_ARG_UNUSED(l);
-	NNI_ARG_UNUSED(err);
 #endif
 }
 
@@ -182,7 +237,7 @@ nni_listener_create(nni_listener **lp, nni_sock *s, const char *url_str)
 	l->l_closed  = false;
 	l->l_closing = false;
 	l->l_data    = NULL;
-	l->l_refcnt  = 1;
+	l->l_ref     = 1;
 	l->l_sock    = s;
 	l->l_tran    = tran;
 	nni_atomic_flag_reset(&l->l_started);
@@ -194,22 +249,29 @@ nni_listener_create(nni_listener **lp, nni_sock *s, const char *url_str)
 
 	NNI_LIST_NODE_INIT(&l->l_node);
 	NNI_LIST_INIT(&l->l_pipes, nni_pipe, p_ep_node);
-	listener_stats_init(l);
 
-	if (((rv = nni_aio_alloc(&l->l_acc_aio, listener_accept_cb, l)) != 0) ||
-	    ((rv = nni_aio_alloc(&l->l_tmo_aio, listener_timer_cb, l)) != 0) ||
-	    ((rv = l->l_ops.l_init(&l->l_data, url, l)) != 0) ||
-	    ((rv = nni_idhash_alloc32(listeners, &l->l_id, l)) != 0) ||
+	nni_aio_init(&l->l_acc_aio, listener_accept_cb, l);
+	nni_aio_init(&l->l_tmo_aio, listener_timer_cb, l);
+
+	nni_mtx_lock(&listeners_lk);
+	rv = nni_id_alloc(&listeners, &l->l_id, l);
+	nni_mtx_unlock(&listeners_lk);
+
+#ifdef NNG_ENABLE_STATS
+	listener_stats_init(l);
+#endif
+
+	if ((rv != 0) || ((rv = l->l_ops.l_init(&l->l_data, url, l)) != 0) ||
 	    ((rv = nni_sock_add_listener(s, l)) != 0)) {
+		nni_mtx_lock(&listeners_lk);
+		nni_id_remove(&listeners, l->l_id);
+		nni_mtx_unlock(&listeners_lk);
+#ifdef NNG_ENABLE_STATS
+		nni_stat_unregister(&l->st_root);
+#endif
 		nni_listener_destroy(l);
 		return (rv);
 	}
-
-	// Update a few stat bits, and register them.
-	snprintf(l->l_stats.s_scope, sizeof(l->l_stats.s_scope), "listener%u",
-	    l->l_id);
-	nni_stat_set_value(&l->l_stats.s_id, l->l_id);
-	nni_stat_register(&l->l_stats.s_root);
 
 	*lp = l;
 	return (0);
@@ -226,16 +288,12 @@ nni_listener_find(nni_listener **lp, uint32_t id)
 	}
 
 	nni_mtx_lock(&listeners_lk);
-	if ((rv = nni_idhash_find(listeners, id, (void **) &l)) == 0) {
-		if (l->l_closed) {
-			rv = NNG_ECLOSED;
-		} else {
-			l->l_refcnt++;
-			*lp = l;
-		}
+	if ((l = nni_id_get(&listeners, id)) != NULL) {
+		l->l_ref++;
+		*lp = l;
 	}
 	nni_mtx_unlock(&listeners_lk);
-	return (rv);
+	return (l == NULL ? NNG_ENOENT : 0);
 }
 
 int
@@ -246,7 +304,7 @@ nni_listener_hold(nni_listener *l)
 	if (l->l_closed) {
 		rv = NNG_ECLOSED;
 	} else {
-		l->l_refcnt++;
+		l->l_ref++;
 		rv = 0;
 	}
 	nni_mtx_unlock(&listeners_lk);
@@ -257,8 +315,8 @@ void
 nni_listener_rele(nni_listener *l)
 {
 	nni_mtx_lock(&listeners_lk);
-	l->l_refcnt--;
-	if ((l->l_refcnt == 0) && (l->l_closed)) {
+	l->l_ref--;
+	if ((l->l_ref == 0) && (l->l_closed)) {
 		nni_reap(&l->l_reap, (nni_cb) nni_listener_reap, l);
 	}
 	nni_mtx_unlock(&listeners_lk);
@@ -274,13 +332,8 @@ nni_listener_close(nni_listener *l)
 		return;
 	}
 	l->l_closed = true;
+	nni_id_remove(&listeners, l->l_id);
 	nni_mtx_unlock(&listeners_lk);
-
-	// Remove us from the table so we cannot be found.
-	// This is done fairly early in the teardown process.
-	// If we're here, either the socket or the listener has been
-	// closed at the user request, so there would be a race anyway.
-	nni_idhash_remove(listeners, l->l_id);
 
 	nni_listener_shutdown(l);
 
@@ -298,23 +351,18 @@ nni_listener_close_rele(nni_listener *l)
 		return;
 	}
 	l->l_closed = true;
+	nni_id_remove(&listeners, l->l_id);
 	nni_mtx_unlock(&listeners_lk);
 
-	// Remove us from the table so we cannot be found.
-	// This is done fairly early in the teardown process.
-	// If we're here, either the socket or the listener has been
-	// closed at the user request, so there would be a race anyway.
-	nni_idhash_remove(listeners, l->l_id);
 	nni_listener_rele(l); // This will trigger a reap if id count is zero.
 }
 
 static void
 listener_timer_cb(void *arg)
 {
-	nni_listener *l   = arg;
-	nni_aio *     aio = l->l_tmo_aio;
+	nni_listener *l = arg;
 
-	if (nni_aio_result(aio) == 0) {
+	if (nni_aio_result(&l->l_tmo_aio) == 0) {
 		listener_accept_start(l);
 	}
 }
@@ -323,12 +371,14 @@ static void
 listener_accept_cb(void *arg)
 {
 	nni_listener *l   = arg;
-	nni_aio *     aio = l->l_acc_aio;
-	int rv;
+	nni_aio *     aio = &l->l_acc_aio;
+	int           rv;
 
 	switch ((rv = nni_aio_result(aio))) {
 	case 0:
-		BUMP_STAT(&l->l_stats.s_accept);
+#ifdef NNG_ENABLE_STATS
+		nni_stat_inc(&l->st_accept, 1);
+#endif
 		nni_listener_add_pipe(l, nni_aio_get_output(aio, 0));
 		listener_accept_start(l);
 		break;
@@ -350,7 +400,7 @@ listener_accept_cb(void *arg)
 		// by not thrashing we give the system a chance to
 		// recover.  100 ms is enough to cool down.
 		nni_listener_bump_error(l, rv);
-		nni_sleep_aio(100, l->l_tmo_aio);
+		nni_sleep_aio(100, &l->l_tmo_aio);
 		break;
 	}
 }
@@ -358,16 +408,14 @@ listener_accept_cb(void *arg)
 static void
 listener_accept_start(nni_listener *l)
 {
-	nni_aio *aio = l->l_acc_aio;
-
 	// Call with the listener lock held.
-	l->l_ops.l_accept(l->l_data, aio);
+	l->l_ops.l_accept(l->l_data, &l->l_acc_aio);
 }
 
 int
 nni_listener_start(nni_listener *l, int flags)
 {
-	int rv = 0;
+	int rv;
 	NNI_ARG_UNUSED(flags);
 
 	if (nni_atomic_flag_test_and_set(&l->l_started)) {
@@ -456,7 +504,12 @@ nni_listener_getopt(
 }
 
 void
-nni_listener_add_stat(nni_listener *l, nni_stat_item *stat)
+nni_listener_add_stat(nni_listener *l, nni_stat_item *item)
 {
-	nni_stat_add(&l->l_stats.s_root, stat);
+#if NNG_ENABLE_STATS
+	nni_stat_add(&l->st_root, item);
+#else
+	NNI_ARG_UNUSED(l);
+	NNI_ARG_UNUSED(item);
+#endif
 }

@@ -17,7 +17,7 @@ static nni_mtx nni_aio_lk;
 static nni_cv   nni_aio_expire_cv;
 static int      nni_aio_expire_run;
 static nni_thr  nni_aio_expire_thr;
-static nni_list nni_aio_expire_aios;
+static nni_list nni_aio_expire_list;
 static nni_aio *nni_aio_expire_aio;
 
 // Design notes.
@@ -42,7 +42,7 @@ static nni_aio *nni_aio_expire_aio;
 // expiring, and wait for that record to be cleared (or at least not
 // equal to the aio) before destroying it.
 //
-// The aio framework is tightly bound up with the taskq framework. We
+// The aio framework is tightly bound up with the task framework. We
 // "prepare" the task for an aio when a caller marks an aio as starting
 // (with nni_aio_begin), and that marks the task as busy. Then, all we have
 // to do is wait for the task to complete (the busy flag to be cleared)
@@ -68,17 +68,16 @@ void
 nni_aio_init(nni_aio *aio, nni_cb cb, void *arg)
 {
 	memset(aio, 0, sizeof(*aio));
-	nni_task_init(&aio->a_task, NULL, cb, arg);			//create async thread??
+	nni_task_init(&aio->a_task, NULL, cb, arg);
 	aio->a_expire  = NNI_TIME_NEVER;
 	aio->a_timeout = NNG_DURATION_INFINITE;
-	aio->pipe = 0;
-	//aio->pipes = NULL;
+	aio->pipe      = 0;
 }
 
 void
 nni_aio_fini(nni_aio *aio)
 {
-	nni_aio_cancelfn fn;
+	nni_aio_cancel_fn fn;
 	void *           arg;
 
 	// TODO: This probably could just use nni_aio_stop.
@@ -116,7 +115,7 @@ nni_aio_fini(nni_aio *aio)
 }
 
 int
-nni_aio_alloc(nni_aio **aiop, nni_cb cb, void *arg)
+nni_aio_alloc(nni_aio **aio_p, nni_cb cb, void *arg)
 {
 	nni_aio *aio;
 
@@ -124,7 +123,7 @@ nni_aio_alloc(nni_aio **aiop, nni_cb cb, void *arg)
 		return (NNG_ENOMEM);
 	}
 	nni_aio_init(aio, cb, arg);
-	*aiop          = aio;
+	*aio_p = aio;
 	return (0);
 }
 
@@ -138,21 +137,21 @@ nni_aio_free(nni_aio *aio)
 }
 
 int
-nni_aio_set_iov(nni_aio *aio, unsigned niov, const nni_iov *iov)
+nni_aio_set_iov(nni_aio *aio, unsigned nio, const nni_iov *iov)
 {
 
-	if (niov > NNI_NUM_ELEMENTS((aio->a_iov))) {
+	if (nio > NNI_NUM_ELEMENTS((aio->a_iov))) {
 		return (NNG_EINVAL);
 	}
 
 	// Sometimes we are resubmitting our own io vector, with
 	// just a smaller count.  We copy them only if we are not.
 	if (iov != &aio->a_iov[0]) {
-		for (unsigned i = 0; i < niov; i++) {
+		for (unsigned i = 0; i < nio; i++) {
 			aio->a_iov[i] = iov[i];
 		}
 	}
-	aio->a_niov = niov;
+	aio->a_nio = nio;
 	return (0);
 }
 
@@ -166,7 +165,7 @@ void
 nni_aio_stop(nni_aio *aio)
 {
 	if (aio != NULL) {
-		nni_aio_cancelfn fn;
+		nni_aio_cancel_fn fn;
 		void *           arg;
 
 		nni_mtx_lock(&nni_aio_lk);
@@ -189,7 +188,7 @@ void
 nni_aio_close(nni_aio *aio)
 {
 	if (aio != NULL) {
-		nni_aio_cancelfn fn;
+		nni_aio_cancel_fn fn;
 		void *           arg;
 
 		nni_mtx_lock(&nni_aio_lk);
@@ -222,23 +221,6 @@ nni_msg *
 nni_aio_get_msg(nni_aio *aio)
 {
 	return (aio->a_msg);
-}
-
-void
-nni_aio_set_data(nni_aio *aio, unsigned index, void *data)
-{
-	if (index < NNI_NUM_ELEMENTS(aio->a_user_data)) {
-		aio->a_user_data[index] = data;
-	}
-}
-
-void *
-nni_aio_get_data(nni_aio *aio, unsigned index)
-{
-	if (index < NNI_NUM_ELEMENTS(aio->a_user_data)) {
-		return (aio->a_user_data[index]);
-	}
-	return (NULL);
 }
 
 void
@@ -324,9 +306,8 @@ nni_aio_begin(nni_aio *aio)
 	return (0);
 }
 
-//NNG SP close the aio/socket after async io complete. Need to rewrite it.
 int
-nni_aio_schedule(nni_aio *aio, nni_aio_cancelfn cancelfn, void *data)
+nni_aio_schedule(nni_aio *aio, nni_aio_cancel_fn cancel, void *data)
 {
 	if (!aio->a_sleep) {
 		// Convert the relative timeout to an absolute timeout.
@@ -351,8 +332,8 @@ nni_aio_schedule(nni_aio *aio, nni_aio_cancelfn cancelfn, void *data)
 		return (NNG_ECLOSED);
 	}
 
-	NNI_ASSERT(aio->a_cancel_fn == NULL);			//BUG?
-	aio->a_cancel_fn  = cancelfn;
+	NNI_ASSERT(aio->a_cancel_fn == NULL);
+	aio->a_cancel_fn  = cancel;
 	aio->a_cancel_arg = data;
 
 	if (aio->a_expire != NNI_TIME_NEVER) {
@@ -367,7 +348,7 @@ nni_aio_schedule(nni_aio *aio, nni_aio_cancelfn cancelfn, void *data)
 void
 nni_aio_abort(nni_aio *aio, int rv)
 {
-	nni_aio_cancelfn fn;
+	nni_aio_cancel_fn fn;
 	void *           arg;
 
 	nni_mtx_lock(&nni_aio_lk);
@@ -387,7 +368,7 @@ nni_aio_abort(nni_aio *aio, int rv)
 
 static void
 nni_aio_finish_impl(
-    nni_aio *aio, int rv, size_t count, nni_msg *msg, bool synch)
+    nni_aio *aio, int rv, size_t count, nni_msg *msg, bool sync)
 {
 	nni_mtx_lock(&nni_aio_lk);
 
@@ -405,7 +386,7 @@ nni_aio_finish_impl(
 	aio->a_sleep  = false;
 	nni_mtx_unlock(&nni_aio_lk);
 
-	if (synch) {
+	if (sync) {
 		nni_task_exec(&aio->a_task);
 	} else {
 		nni_task_dispatch(&aio->a_task);
@@ -415,14 +396,12 @@ nni_aio_finish_impl(
 void
 nni_aio_finish(nni_aio *aio, int result, size_t count)
 {
-	debug_msg("aio %p finish : %d result %d\n", aio, count, result);
 	nni_aio_finish_impl(aio, result, count, NULL, false);
 }
 
 void
-nni_aio_finish_synch(nni_aio *aio, int result, size_t count)
+nni_aio_finish_sync(nni_aio *aio, int result, size_t count)
 {
-	debug_msg("aio finish synch\n");
 	nni_aio_finish_impl(aio, result, count, NULL, true);
 }
 
@@ -436,7 +415,6 @@ nni_aio_finish_error(nni_aio *aio, int result)
 void
 nni_aio_finish_msg(nni_aio *aio, nni_msg *msg)
 {
-	debug_msg("aio finish msg\n");
 	NNI_ASSERT(msg != NULL);
 	nni_aio_finish_impl(aio, 0, nni_msg_len(msg), msg, false);
 }
@@ -460,10 +438,6 @@ nni_aio_list_remove(nni_aio *aio)
 	nni_list_node_remove(&aio->a_prov_node);
 }
 
-/**
- * determine whether the aio is active or not
- * 0 = null non exist 1 = existed
- */
 int
 nni_aio_list_active(nni_aio *aio)
 {
@@ -473,19 +447,19 @@ nni_aio_list_active(nni_aio *aio)
 static void
 nni_aio_expire_add(nni_aio *aio)
 {
-	nni_list *list = &nni_aio_expire_aios;
-	nni_aio * naio;
+	nni_list *list = &nni_aio_expire_list;
+	nni_aio * prev;
 
 	// This is a reverse walk of the list.  We're more likely to find
 	// a match at the end of the list.
-	for (naio = nni_list_last(list); naio != NULL;
-	     naio = nni_list_prev(list, naio)) {
-		if (aio->a_expire >= naio->a_expire) {
-			nni_list_insert_after(list, aio, naio);
+	for (prev = nni_list_last(list); prev != NULL;
+	     prev = nni_list_prev(list, prev)) {
+		if (aio->a_expire >= prev->a_expire) {
+			nni_list_insert_after(list, aio, prev);
 			break;
 		}
 	}
-	if (naio == NULL) {
+	if (prev == NULL) {
 		// This has the shortest time, so insert at the start.
 		nni_list_prepend(list, aio);
 		// And, as we are the latest, kick the thing.
@@ -496,12 +470,14 @@ nni_aio_expire_add(nni_aio *aio)
 static void
 nni_aio_expire_loop(void *unused)
 {
-	nni_list *aios = &nni_aio_expire_aios;
+	nni_list *list = &nni_aio_expire_list;
 
 	NNI_ARG_UNUSED(unused);
 
+        nni_thr_set_name(NULL, "nng:aio:expire");
+
 	for (;;) {
-		nni_aio_cancelfn fn;
+		nni_aio_cancel_fn fn;
 		nni_time         now;
 		nni_aio *        aio;
 		int              rv;
@@ -510,7 +486,7 @@ nni_aio_expire_loop(void *unused)
 
 		nni_mtx_lock(&nni_aio_lk);
 
-		if ((aio = nni_list_first(aios)) == NULL) {
+		if ((aio = nni_list_first(list)) == NULL) {
 
 			if (nni_aio_expire_run == 0) {
 				nni_mtx_unlock(&nni_aio_lk);
@@ -529,9 +505,9 @@ nni_aio_expire_loop(void *unused)
 			continue;
 		}
 
-		// This aio's time has come.  Expire it, canceling any
+		// The time has come for this aio.  Expire it, canceling any
 		// outstanding I/O.
-		nni_list_remove(aios, aio);
+		nni_list_remove(list, aio);
 		rv = aio->a_expire_ok ? 0 : NNG_ETIMEDOUT;
 
 		if ((fn = aio->a_cancel_fn) != NULL) {
@@ -570,10 +546,10 @@ nni_aio_set_prov_extra(nni_aio *aio, unsigned index, void *data)
 }
 
 void
-nni_aio_get_iov(nni_aio *aio, unsigned *niovp, nni_iov **iovp)
+nni_aio_get_iov(nni_aio *aio, unsigned *nio_p, nni_iov **iov_p)
 {
-	*niovp = aio->a_niov;
-	*iovp  = aio->a_iov;
+	*nio_p = aio->a_nio;
+	*iov_p = aio->a_iov;
 }
 
 void
@@ -593,33 +569,33 @@ nni_aio_bump_count(nni_aio *aio, size_t n)
 size_t
 nni_aio_iov_count(nni_aio *aio)
 {
-	size_t resid = 0;
+	size_t residual = 0;
 
-	for (unsigned i = 0; i < aio->a_niov; i++) {
-		resid += aio->a_iov[i].iov_len;
+	for (unsigned i = 0; i < aio->a_nio; i++) {
+		residual += aio->a_iov[i].iov_len;
 	}
-	return (resid);
+	return (residual);
 }
 
 size_t
 nni_aio_iov_advance(nni_aio *aio, size_t n)
 {
-	size_t resid = n;
+	size_t residual = n;
 	while (n) {
-		NNI_ASSERT(aio->a_niov != 0);
+		NNI_ASSERT(aio->a_nio != 0);
 		if (aio->a_iov[0].iov_len > n) {
 			aio->a_iov[0].iov_len -= n;
 			NNI_INCPTR(aio->a_iov[0].iov_buf, n);
 			return (0); // we used all of "n"
 		}
-		resid -= aio->a_iov[0].iov_len;
+		residual -= aio->a_iov[0].iov_len;
 		n -= aio->a_iov[0].iov_len;
-		aio->a_niov--;
-		for (unsigned i = 0; i < aio->a_niov; i++) {
+		aio->a_nio--;
+		for (unsigned i = 0; i < aio->a_nio; i++) {
 			aio->a_iov[i] = aio->a_iov[i + 1];
 		}
 	}
-	return (resid); // we might not have used all of n for this iov
+	return (residual); // we might not have used all of n for this iov
 }
 
 static void
@@ -696,7 +672,7 @@ nni_aio_sys_init(void)
 	nni_cv * cv  = &nni_aio_expire_cv;
 	nni_thr *thr = &nni_aio_expire_thr;
 
-	NNI_LIST_INIT(&nni_aio_expire_aios, nni_aio, a_expire_node);
+	NNI_LIST_INIT(&nni_aio_expire_list, nni_aio, a_expire_node);
 	nni_mtx_init(mtx);
 	nni_cv_init(cv, mtx);
 
@@ -710,38 +686,28 @@ nni_aio_sys_init(void)
 	return (0);
 }
 
-void
-nni_aio_set_sockaddr(nni_aio *aio, const nng_sockaddr *sa)
-{
-	memcpy(&aio->a_sockaddr, sa, sizeof(*sa));
-}
-
-void
-nni_aio_get_sockaddr(nni_aio *aio, nng_sockaddr *sa)
-{
-	memcpy(sa, &aio->a_sockaddr, sizeof(*sa));
-}
-
+//NANOMQ APIs
 void
 nni_aio_set_pipeline(nni_aio *aio, uint32_t id)
 {
-	aio->pipe = id;
+       aio->pipe = id;
 }
 
 uint32_t
 nni_aio_get_pipeline(nni_aio *aio)
 {
-	return aio->pipe;
+       return aio->pipe;
 }
 
 void nni_aio_set_dbtree(nni_aio *aio, void *db)
 {
-	debug_msg("dbtree %p ===========================================;;;;;;;;;;;;;;;;;;;;;;;;;;;;", db);
-	aio->db = db;
+       debug_msg("set dbtree address: %p", db);
+       aio->db = db;
 }
 
 void*
 nni_aio_get_dbtree(nni_aio *aio)
 {
-	return(aio->db);
+       return(aio->db);
 }
+

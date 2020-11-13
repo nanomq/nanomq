@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Staysail Systems, Inc. <info@staysail.tech>
+// Copyright 2020 Staysail Systems, Inc. <info@staysail.tech>
 //
 // This software is supplied under the terms of the MIT License, a
 // copy of which should be located in the distribution where this
@@ -16,7 +16,6 @@
 #include <nng/supplemental/tls/tls.h>
 
 #include "core/tcp.h"
-#include "include/nng_debug.h"
 #include "supplemental/tls/tls_api.h"
 #include "supplemental/websocket/websocket.h"
 
@@ -33,7 +32,23 @@ static struct {
 	    .listener_alloc = nni_ipc_listener_alloc,
 	    .checkopt       = nni_ipc_checkopt,
 	},
+#ifdef NNG_PLATFORM_POSIX
 	{
+	    .scheme         = "unix",
+	    .dialer_alloc   = nni_ipc_dialer_alloc,
+	    .listener_alloc = nni_ipc_listener_alloc,
+	    .checkopt       = nni_ipc_checkopt,
+	},
+#endif
+#ifdef NNG_HAVE_ABSTRACT_SOCKETS
+	{
+            .scheme         = "abstract",
+            .dialer_alloc   = nni_ipc_dialer_alloc,
+            .listener_alloc = nni_ipc_listener_alloc,
+            .checkopt       = nni_ipc_checkopt,
+        },
+#endif
+        {
 	    .scheme         = "tcp",
 	    .dialer_alloc   = nni_tcp_dialer_alloc,
 	    .listener_alloc = nni_tcp_listener_alloc,
@@ -75,7 +90,19 @@ static struct {
 	    .listener_alloc = nni_ws_listener_alloc,
 	    .checkopt       = nni_ws_checkopt,
 	},
-	{
+        {
+            .scheme         = "ws4",
+            .dialer_alloc   = nni_ws_dialer_alloc,
+            .listener_alloc = nni_ws_listener_alloc,
+            .checkopt       = nni_ws_checkopt,
+        },
+        {
+            .scheme         = "ws6",
+            .dialer_alloc   = nni_ws_dialer_alloc,
+            .listener_alloc = nni_ws_listener_alloc,
+            .checkopt       = nni_ws_checkopt,
+        },
+        {
 	    .scheme         = "wss",
 	    .dialer_alloc   = nni_ws_dialer_alloc,
 	    .listener_alloc = nni_ws_listener_alloc,
@@ -106,7 +133,6 @@ nng_stream_send(nng_stream *s, nng_aio *aio)
 	s->s_send(s, aio);
 }
 
-//TODO Hook here
 void
 nng_stream_recv(nng_stream *s, nng_aio *aio)
 {

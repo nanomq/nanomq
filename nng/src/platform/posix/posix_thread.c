@@ -1,5 +1,5 @@
 //
-// Copyright 2018 Staysail Systems, Inc. <info@staysail.tech>
+// Copyright 2020 Staysail Systems, Inc. <info@staysail.tech>
 // Copyright 2018 Capitar IT Group BV <info@capitar.com>
 //
 // This software is supplied under the terms of the MIT License, a
@@ -11,7 +11,6 @@
 // POSIX threads.
 
 #include "core/nng_impl.h"
-#include "include/nng_debug.h"
 
 #ifdef NNG_PLATFORM_POSIX
 
@@ -59,7 +58,6 @@ nni_plat_mtx_init(nni_plat_mtx *mtx)
 	// The symptom will be an apparently stuck application spinning
 	// every 10 ms trying to allocate this lock.
 
-	//platforms optimization
 	while ((pthread_mutex_init(&mtx->mtx, &nni_mxattr) != 0) &&
 	    (pthread_mutex_init(&mtx->mtx, NULL) != 0)) {
 		// We must have memory exhaustion -- ENOMEM, or
@@ -119,7 +117,6 @@ nni_pthread_cond_wait(pthread_cond_t *c, pthread_mutex_t *m)
 {
 	int rv;
 
-	debug_msg("nni_pthread_cond_wait!");
 	if ((rv = pthread_cond_wait(c, m)) != 0) {
 		nni_panic("pthread_cond_wait: %s", strerror(rv));
 	}
@@ -254,6 +251,31 @@ bool
 nni_plat_thr_is_self(nni_plat_thr *thr)
 {
 	return (pthread_self() == thr->tid);
+}
+
+void
+nni_plat_thr_set_name(nni_plat_thr *thr, const char *name)
+{
+#if defined(NNG_HAVE_PTHREAD_SET_NAME_NP)
+	if (thr == NULL) {
+		pthread_set_name_np(pthread_self(), name);
+	} else {
+        	pthread_set_name_np(thr->tid, name);
+	}
+#elif defined(NNG_HAVE_PTHREAD_SETNAME_NP)
+#if defined(__APPLE__)
+	// Darwin is weird, it can only set the name of pthread_self.
+	if ((thr == NULL) || (pthread_self() == thr->tid)) {
+        	pthread_setname_np(name);
+	}
+#else
+	if (thr == NULL) {
+                pthread_setname_np(pthread_self(), name);
+	} else {
+                pthread_setname_np(thr->tid, name);
+	}
+#endif
+#endif
 }
 
 void

@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Staysail Systems, Inc. <info@staysail.tech>
+// Copyright 2020 Staysail Systems, Inc. <info@staysail.tech>
 // Copyright 2018 Capitar IT Group BV <info@capitar.com>
 //
 // This software is supplied under the terms of the MIT License, a
@@ -9,7 +9,6 @@
 //
 
 #include "core/nng_impl.h"
-#include "include/nng_debug.h"
 #include "platform/posix/posix_pollq.h"
 
 #include <errno.h>
@@ -169,7 +168,6 @@ nni_posix_pfd_arm(nni_posix_pfd *pfd, unsigned events)
 {
 	nni_posix_pollq *pq = pfd->pq;
 
-	debug_msg("nni_posix_pfd_arm poll!");
 	nni_mtx_lock(&pfd->mtx);
 	pfd->events |= events;
 	nni_mtx_unlock(&pfd->mtx);
@@ -331,6 +329,7 @@ nni_posix_pollq_create(nni_posix_pollq *pq)
 		nni_plat_pipe_close(pq->wakewfd, pq->wakerfd);
 		return (rv);
 	}
+	nni_thr_set_name(&pq->thr, "nng:poll:poll");
 	nni_mtx_init(&pq->mtx);
 	nni_thr_run(&pq->thr);
 	return (0);

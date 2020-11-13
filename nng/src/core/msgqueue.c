@@ -7,8 +7,9 @@
 // file was obtained (LICENSE.txt).  A copy of the license may also be
 // found online at https://opensource.org/licenses/MIT.
 //
-#include "include/nng_debug.h"
+
 #include "nng_impl.h"
+#include "include/nng_debug.h"
 
 // Message queue.  These operate in some respects like Go channels,
 // but as we have access to the internals, we have made some fundamental
@@ -105,8 +106,6 @@ nni_msgq_run_putq(nni_msgq *mq)
 {
 	nni_aio *waio;
 
-	debug_msg("MSGQUEUE nni_msgq_run_putq");
-	//get first aio in the list
 	while ((waio = nni_list_first(&mq->mq_aio_putq)) != NULL) {
 		nni_msg *msg = nni_aio_get_msg(waio);
 		size_t   len = nni_msg_len(msg);
@@ -120,7 +119,6 @@ nni_msgq_run_putq(nni_msgq *mq)
 			nni_aio_set_msg(waio, NULL);
 			nni_aio_list_remove(waio);
 			nni_aio_list_remove(raio);
-			debug_msg("empty queue!!!!");
 			nni_aio_finish_msg(raio, msg);
 			nni_aio_finish(waio, 0, len);
 			continue;
@@ -136,11 +134,9 @@ nni_msgq_run_putq(nni_msgq *mq)
 			mq->mq_len++;
 			nni_aio_set_msg(waio, NULL);
 			nni_aio_finish(waio, 0, len);
-			debug_msg(" Otherwise if we have room in the buffer, just queue it.");
 			continue;
 		}
 
-		debug_msg("Unable to make progress, leave the aio where it is.");
 		// Unable to make progress, leave the aio where it is.
 		break;
 	}
@@ -192,7 +188,6 @@ nni_msgq_run_getq(nni_msgq *mq)
 static void
 nni_msgq_run_notify(nni_msgq *mq)
 {
-	debug_msg("nni_msgq_run_notify");
 	if (mq->mq_len < mq->mq_cap || !nni_list_empty(&mq->mq_aio_getq)) {
 		nni_pollable_raise(mq->mq_sendable);
 	} else {
@@ -231,7 +226,6 @@ nni_msgq_aio_put(nni_msgq *mq, nni_aio *aio)
 
 	// If this is an instantaneous poll operation, and the queue has
 	// no room, nobody is waiting to receive, then report NNG_ETIMEDOUT.
-	debug_msg("XREP0 nni_msgq_aio_put ");
 	rv = nni_aio_schedule(aio, nni_msgq_cancel, mq);
 	if ((rv != 0) && (mq->mq_len >= mq->mq_cap) &&
 	    (nni_list_empty(&mq->mq_aio_getq))) {
@@ -249,9 +243,8 @@ nni_msgq_aio_put(nni_msgq *mq, nni_aio *aio)
 void
 nni_msgq_aio_get(nni_msgq *mq, nni_aio *aio)
 {
-	int rv = 0;
+	int rv;
 
-	debug_msg("nni_msgq_aio_get\n");
 	if (nni_aio_begin(aio) != 0) {
 		return;
 	}

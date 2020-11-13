@@ -10,7 +10,6 @@
 //
 
 #include "core/nng_impl.h"
-#include "include/nng_debug.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -103,7 +102,6 @@ tcp_doread(nni_tcp_conn *c)
 	nni_aio *aio;
 	int      fd;
 
-	debug_msg("do tcp_doread!!!\n");
 	if (c->closed || ((fd = nni_posix_pfd_fd(c->pfd)) < 0)) {
 		return;
 	}
@@ -122,7 +120,6 @@ tcp_doread(nni_tcp_conn *c)
 			nni_aio_finish_error(aio, NNG_EINVAL);
 			continue;
 		}
-
 		for (niov = 0, i = 0; i < naiov; i++) {
 			if (aiov[i].iov_len != 0) {
 				iovec[niov].iov_len  = aiov[i].iov_len;
@@ -134,13 +131,10 @@ tcp_doread(nni_tcp_conn *c)
 		if ((n = readv(fd, iovec, niov)) < 0) {
 			switch (errno) {
 			case EINTR:
-			  debug_msg("EINTR\n");
 				continue;
 			case EAGAIN:
-			  debug_msg("EAGAIN\n");
 				return;
 			default:
-				debug_msg("default erro %d", errno);
 				nni_aio_list_remove(aio);
 				nni_aio_finish_error(
 				    aio, nni_plat_errno(errno));
@@ -155,7 +149,7 @@ tcp_doread(nni_tcp_conn *c)
 			nni_aio_finish_error(aio, NNG_ECONNSHUT);
 			continue;
 		}
-		debug_msg("############ POSIX readv %d readn: %d read data: %s %x %x length: %d #################", niov, n, iovec[0].iov_base, *((char *)iovec[0].iov_base), *((char *)iovec[0].iov_base+1), iovec[0].iov_len);
+
 		nni_aio_bump_count(aio, n);
 
 		// We completed the entire operation on this aio.
@@ -234,18 +228,16 @@ static void
 tcp_cb(nni_posix_pfd *pfd, unsigned events, void *arg)
 {
 	nni_tcp_conn *c = arg;
-	debug_msg("////////////////  tcp_cb start ////////////////");
+
 	if (events & (NNI_POLL_HUP | NNI_POLL_ERR | NNI_POLL_INVAL)) {
 		tcp_error(c, NNG_ECONNSHUT);
 		return;
 	}
 	nni_mtx_lock(&c->mtx);
 	if ((events & NNI_POLL_IN) != 0) {
-	        debug_msg("//////// tcp_cb: tcp_doread///////// \n");
 		tcp_doread(c);
 	}
 	if ((events & NNI_POLL_OUT) != 0) {
-		debug_msg("//////// tcp_cb: tcp_dowrite///////// \n");
 		tcp_dowrite(c);
 	}
 	events = 0;
@@ -259,7 +251,6 @@ tcp_cb(nni_posix_pfd *pfd, unsigned events, void *arg)
 		nni_posix_pfd_arm(pfd, events);
 	}
 	nni_mtx_unlock(&c->mtx);
-	debug_msg("////////end of tcp_cb////////// \n");
 }
 
 static void
@@ -281,7 +272,6 @@ tcp_send(void *arg, nni_aio *aio)
 	nni_tcp_conn *c = arg;
 	int           rv;
 
-	debug_msg("tcp_sending !");
 	if (nni_aio_begin(aio) != 0) {
 		return;
 	}
@@ -292,10 +282,7 @@ tcp_send(void *arg, nni_aio *aio)
 		nni_aio_finish_error(aio, rv);
 		return;
 	}
-	if (nni_aio_list_active(aio) == 0) {
-		nni_aio_list_append(&c->writeq, aio);
-	}
-
+	nni_aio_list_append(&c->writeq, aio);
 
 	if (nni_list_first(&c->writeq) == aio) {
 		tcp_dowrite(c);
@@ -314,22 +301,19 @@ tcp_recv(void *arg, nni_aio *aio)
 {
 	nni_tcp_conn *c = arg;
 	int           rv;
-	debug_msg("tcp socket_recv\n");
+
 	if (nni_aio_begin(aio) != 0) {
-		debug_msg("nni_aio_begin FAILED\n");
 		return;
 	}
 	nni_mtx_lock(&c->mtx);
 
 	if ((rv = nni_aio_schedule(aio, tcp_cancel, c)) != 0) {
-		printf("nni_aio_schedule\n");
 		nni_mtx_unlock(&c->mtx);
 		nni_aio_finish_error(aio, rv);
 		return;
 	}
-	if (nni_aio_list_active(aio) == 0) {
-		nni_aio_list_append(&c->readq, aio);
-	}
+	nni_aio_list_append(&c->readq, aio);
+
 	// If we are only job on the list, go ahead and try to do an
 	// immediate transfer. This allows for faster completions in
 	// many cases.  We also need not arm a list if it was already
@@ -339,13 +323,11 @@ tcp_recv(void *arg, nni_aio *aio)
 		// If we are still the first thing on the list, that
 		// means we didn't finish the job, so arm the poller to
 		// complete us.
-		debug_msg("epoll starts");
 		if (nni_list_first(&c->readq) == aio) {
 			nni_posix_pfd_arm(c->pfd, POLLIN);
 		}
 	}
 	nni_mtx_unlock(&c->mtx);
-	debug_msg("end of tcp_recv!");
 }
 
 static int
@@ -353,15 +335,15 @@ tcp_get_peername(void *arg, void *buf, size_t *szp, nni_type t)
 {
 	nni_tcp_conn *          c = arg;
 	struct sockaddr_storage ss;
-	socklen_t               sslen = sizeof(ss);
+	socklen_t               len = sizeof(ss);
 	int                     fd    = nni_posix_pfd_fd(c->pfd);
 	int                     rv;
 	nng_sockaddr            sa;
 
-	if (getpeername(fd, (void *) &ss, &sslen) != 0) {
+	if (getpeername(fd, (void *) &ss, &len) != 0) {
 		return (nni_plat_errno(errno));
 	}
-	if ((rv = nni_posix_sockaddr2nn(&sa, &ss)) == 0) {
+	if ((rv = nni_posix_sockaddr2nn(&sa, &ss, len)) == 0) {
 		rv = nni_copyout_sockaddr(&sa, buf, szp, t);
 	}
 	return (rv);
@@ -372,15 +354,15 @@ tcp_get_sockname(void *arg, void *buf, size_t *szp, nni_type t)
 {
 	nni_tcp_conn *          c = arg;
 	struct sockaddr_storage ss;
-	socklen_t               sslen = sizeof(ss);
+	socklen_t               len = sizeof(ss);
 	int                     fd    = nni_posix_pfd_fd(c->pfd);
 	int                     rv;
 	nng_sockaddr            sa;
 
-	if (getsockname(fd, (void *) &ss, &sslen) != 0) {
+	if (getsockname(fd, (void *) &ss, &len) != 0) {
 		return (nni_plat_errno(errno));
 	}
-	if ((rv = nni_posix_sockaddr2nn(&sa, &ss)) == 0) {
+	if ((rv = nni_posix_sockaddr2nn(&sa, &ss, len)) == 0) {
 		rv = nni_copyout_sockaddr(&sa, buf, szp, t);
 	}
 	return (rv);
@@ -534,5 +516,6 @@ nni_posix_tcp_start(nni_tcp_conn *c, int nodelay, int keepalive)
 	    &nodelay, sizeof(int));
 	(void) setsockopt(nni_posix_pfd_fd(c->pfd), SOL_SOCKET, SO_KEEPALIVE,
 	    &keepalive, sizeof(int));
+
 	nni_posix_pfd_set_cb(c->pfd, tcp_cb, c);
 }

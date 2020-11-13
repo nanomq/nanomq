@@ -89,6 +89,7 @@ foreach_client(struct clients *sub_clients, emq_work *pub_work, struct pipe_cont
 	char **id_queue = NULL;
 	bool equal      = false;
 	packet_subscribe *sub_pkt;
+	struct client_ctx * ctx;
 
 	while (sub_clients) {
 		struct client *sub_client = sub_clients->sub_client;
@@ -104,14 +105,14 @@ foreach_client(struct clients *sub_clients, emq_work *pub_work, struct pipe_cont
 				}
 			}
 			// NL (no_local in sub)
-			sub_pkt = (packet_subscribe *)sub_client->ctxt;
-			if (sub_pkt->node->it->no_local && !strcmp(sub_client->id, pub_work->pid.id)) {
+			ctx = (struct client_ctx *)sub_client->ctxt;
+			sub_pkt = ctx->sub_pkt;
+			if (sub_pkt->node->it->no_local && ctx->pid.id == pub_work->pid.id) {
 				equal = true;
 			}
 
 			if (equal == false) {
 				id_queue[cols - 1] = sub_client->id;
-				struct client_ctx *ctx = (struct client_ctx *) sub_client->ctxt;
 //				debug_msg("sub_client: [%p], id: [%s], pipe: [%d]", sub_client, sub_client->id, ctx->pid.id);
 				handle_cb(sub_client, pub_work, pipe_ct);
 				cols++;
@@ -348,7 +349,7 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_
 
 			arr_len    = put_var_integer(tmp, work->pub_packet->fixed_header.remain_len);
 			append_res = nng_msg_header_append(dest_msg, tmp, arr_len);
-			debug_msg("header len [%d] remain len [%d]", nng_msg_header_len(dest_msg), work->pub_packet->fixed_header.remain_len);
+			debug_msg("header len [%ld] remain len [%d]", nng_msg_header_len(dest_msg), work->pub_packet->fixed_header.remain_len);
 
 			/*variable header*/
 			//topic name
@@ -365,7 +366,7 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_
 			if (work->pub_packet->fixed_header.qos > 0) {
 				append_res = nng_msg_append_u16(dest_msg, work->pub_packet->variable_header.publish.packet_identifier);
 			}
-			debug_msg("after topic and id len in msg already [%d]", nng_msg_len(dest_msg));
+			debug_msg("after topic and id len in msg already [%ld]", nng_msg_len(dest_msg));
 
 #if SUPPORT_MQTT5_0
 			if (PROTOCOL_VERSION_v5 == proto_ver) {
@@ -444,7 +445,7 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_
 				debug_msg("pro_ver [%d]", proto_ver);
 			}
 #endif
-			debug_msg("property len in msg already [%d]", nng_msg_len(dest_msg));
+			debug_msg("property len in msg already [%ld]", nng_msg_len(dest_msg));
 			
 			//payload
 			if (work->pub_packet->payload_body.payload_len > 0) {
@@ -454,7 +455,7 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_
 //				debug_msg("payload [%s] len [%d]", (char *)work->pub_packet->payload_body.payload, work->pub_packet->payload_body.payload_len);
 			}
 
-			debug_msg("after payload len in msg already [%d]", nng_msg_len(dest_msg));
+			debug_msg("after payload len in msg already [%ld]", nng_msg_len(dest_msg));
 			break;
 
 		case PUBREL:
@@ -563,7 +564,7 @@ decode_pub_message(emq_work *work)
 			memset((char *) pub_packet->variable_header.publish.topic_name.body, '\0',
 			       pub_packet->variable_header.publish.topic_name.len + 1);
 
-			len = copy_utf8_str((uint8_t *) pub_packet->variable_header.publish.topic_name.body, msg_body + pos, &pos);
+			pub_packet->variable_header.publish.topic_name.body = copy_utf8_str(msg_body, &pos, &len);
 
 			if (pub_packet->variable_header.publish.topic_name.len > 0) {
 				if (strchr(pub_packet->variable_header.publish.topic_name.body, '+') != NULL ||

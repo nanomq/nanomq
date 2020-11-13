@@ -10,7 +10,6 @@
 //
 
 #include "core/nng_impl.h"
-#include "include/nng_debug.h"
 
 #include <arpa/inet.h>
 #include <errno.h>
@@ -169,7 +168,6 @@ tcp_listener_cb(nni_posix_pfd *pfd, unsigned events, void *arg)
 	nni_tcp_listener *l = arg;
 	NNI_ARG_UNUSED(pfd);
 
-	debug_msg("tcp_listener_cb\n");
 	nni_mtx_lock(&l->mtx);
 	if ((events & NNI_POLL_INVAL) != 0) {
 		tcp_listener_doclose(l);
@@ -211,7 +209,7 @@ nni_tcp_listener_listen(nni_tcp_listener *l, const nni_sockaddr *sa)
 	    ((ss.ss_family != AF_INET) && (ss.ss_family != AF_INET6))) {
 		return (NNG_EADDRINVAL);
 	}
-	debug_msg("start listening!!\n");
+
 	nni_mtx_lock(&l->mtx);
 	if (l->started) {
 		nni_mtx_unlock(&l->mtx);
@@ -267,7 +265,7 @@ nni_tcp_listener_listen(nni_tcp_listener *l, const nni_sockaddr *sa)
 	l->pfd     = pfd;
 	l->started = true;
 	nni_mtx_unlock(&l->mtx);
-	debug_msg("end of nni_tcp_listener_listen!!\n");
+
 	return (0);
 }
 
@@ -297,7 +295,6 @@ nni_tcp_listener_accept(nni_tcp_listener *l, nni_aio *aio)
 	// need to wait for the socket to be readable to indicate an incoming
 	// connection is ready for us.  There isn't anything else for us to
 	// do really, as that will have been done in listen.
-	debug_msg("nni_tcp_listener_accept\n");
 	if (nni_aio_begin(aio) != 0) {
 		return;
 	}
@@ -336,7 +333,7 @@ tcp_listener_get_locaddr(void *arg, void *buf, size_t *szp, nni_type t)
 		socklen_t               len = sizeof(ss);
 		(void) getsockname(
 		    nni_posix_pfd_fd(l->pfd), (void *) &ss, &len);
-		(void) nni_posix_sockaddr2nn(&sa, &ss);
+		(void) nni_posix_sockaddr2nn(&sa, &ss, len);
 	} else {
 		sa.s_family = NNG_AF_UNSPEC;
 	}

@@ -26,12 +26,6 @@ nni_zalloc(size_t sz)
 	return (sz > 0 ? calloc(1, sz) : NULL);
 }
 
-void *
-nni_zalloc_n(size_t sz, int n)
-{
-	return (sz > 0 ? calloc(n, sz) : NULL);
-}
-
 void
 nni_free(void *ptr, size_t size)
 {

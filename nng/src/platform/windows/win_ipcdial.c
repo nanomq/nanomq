@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Staysail Systems, Inc. <info@staysail.tech>
+// Copyright 2020 Staysail Systems, Inc. <info@staysail.tech>
 // Copyright 2018 Capitar IT Group BV <info@capitar.com>
 // Copyright 2019 Devolutions <info@devolutions.net>
 //
@@ -228,7 +228,8 @@ nni_ipc_dialer_alloc(nng_stream_dialer **dp, const nng_url *url)
 	int         rv;
 
 	if ((strcmp(url->u_scheme, "ipc") != 0) || (url->u_path == NULL) ||
-	    (strlen(url->u_path) == 0)) {
+	    (strlen(url->u_path) == 0)||
+	    (strlen(url->u_path) >= NNG_MAXADDRLEN)) {
 		return (NNG_EADDRINVAL);
 	}
 	if ((d = NNI_ALLOC_STRUCT(d)) == NULL) {
@@ -269,7 +270,7 @@ nni_win_ipc_sysinit(void)
 	if (rv != 0) {
 		return (rv);
 	}
-
+        nni_thr_set_name(&worker->thr, "nng:ipc:dial");
 	nni_thr_run(&worker->thr);
 
 	return (0);

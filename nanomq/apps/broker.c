@@ -14,6 +14,7 @@
 #include <hash.h>
 #include <zmalloc.h>
 #include <protocol/mqtt/nano_tcp.h>
+#include <protocol/mqtt/mqtt_parser.h>
 
 #include "include/nanomq.h"
 #include "include/pub_handler.h"
@@ -109,6 +110,7 @@ server_cb(void *arg)
 					}
 				}
 
+//				destroy_conn_param(work->cparam);
 				del_sub_client_id(clientid);
 				del_sub_pipe_id(pipe.id);
 
@@ -130,10 +132,7 @@ server_cb(void *arg)
 			debug_msg("WAIT ^^^^^^^^^^^^^^^^^^^^^ %d ^^^^", work->ctx.id);
 			// We could add more data to the message here.
 			work->msg = nng_aio_get_msg(work->aio);
-			work->cparam = (conn_param *) nng_msg_get_conn_param(work->msg);
-			debug_msg("find-where-change [%d]", conn_param_get_protover(work->cparam));
-			//debug_msg("WAIT   %x %s %d pipe: %d\n", nng_msg_cmd_type(work->msg),
-			//conn_param_get_clentid(work->cparam), work->ctx.id, work->pid.id);
+			work->cparam = nng_msg_get_conn_param(work->msg);
 			//reply to client if needed. nng_send_aio vs nng_sendmsg? async or sync? BETTER sync due to realtime requirement
 			//TODO
 			if ((rv = nng_msg_alloc(&smsg, 0)) != 0) {
@@ -156,7 +155,6 @@ server_cb(void *arg)
 				work->state = SEND;
 				nng_ctx_send(work->ctx, work->aio);
 				break;
-
 			} else if (nng_msg_cmd_type(work->msg) == CMD_SUBSCRIBE) {
 				work->pid = nng_msg_get_pipe(work->msg);
 				struct client_ctx * cli_ctx;
@@ -167,7 +165,6 @@ server_cb(void *arg)
 				if (work->sub_pkt == NULL) {
 					debug_msg("ERROR: nng_alloc");
 				}
-
 				if ((reason = decode_sub_message(work))          != SUCCESS ||
 				    (reason = sub_ctx_handle(work, cli_ctx))     != SUCCESS ||
 				    (reason = encode_suback_message(smsg, work)) != SUCCESS) {

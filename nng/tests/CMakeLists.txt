@@ -1,5 +1,5 @@
 #
-#   Copyright 2019 Staysail Systems, Inc. <info@staysail.tech>
+#   Copyright 2020 Staysail Systems, Inc. <info@staysail.tech>
 #   Copyright 2018 Capitar IT Group BV <info@capitar.com>
 #   Copyright (c) 2012 Martin Sustrik  All rights reserved.
 #   Copyright (c) 2013 GoPivotal, Inc.  All rights reserved.
@@ -54,9 +54,9 @@ if (NNG_TESTS)
     macro(add_nng_test NAME TIMEOUT)
         add_executable(${NAME} ${NAME}.c convey.c)
         target_link_libraries(${NAME} ${PROJECT_NAME}_testlib ${THRLIB})
-        add_test(NAME ${NAME} COMMAND ${NAME} -v -p TEST_PORT=${NNG_TEST_PORT})
+        add_test(NAME ${PROJECT_NAME}.${NAME} COMMAND ${NAME} -v -p TEST_PORT=${NNG_TEST_PORT})
         math(EXPR TIMEOUT ${TIMEOUT}*${TIMEOUT_FACTOR})
-        set_tests_properties(${NAME} PROPERTIES TIMEOUT ${TIMEOUT})
+        set_tests_properties(${PROJECT_NAME}.${NAME} PROPERTIES TIMEOUT ${TIMEOUT})
         math(EXPR NNG_TEST_PORT "${NNG_TEST_PORT}+20")
     endmacro(add_nng_test)
 
@@ -69,8 +69,8 @@ if (NNG_TESTS)
         target_include_directories(${NAME} PRIVATE
                 ${PROJECT_SOURCE_DIR}/src/compat
                 ${PROJECT_SOURCE_DIR}/include)
-        add_test(NAME ${NAME} COMMAND ${NAME} ${NNG_TEST_PORT})
-        set_tests_properties(${NAME} PROPERTIES TIMEOUT ${TIMEOUT})
+        add_test(NAME ${PROJECT_NAME}.${NAME} COMMAND ${NAME} ${NNG_TEST_PORT})
+        set_tests_properties(${PROJECT_NAME}.${NAME} PROPERTIES TIMEOUT ${TIMEOUT})
         math(EXPR NNG_TEST_PORT "${NNG_TEST_PORT}+20")
     endmacro(add_nng_compat_test)
 
@@ -79,8 +79,8 @@ if (NNG_TESTS)
             enable_language(CXX)
             add_executable(${NAME} ${NAME}.cc)
             target_link_libraries(${NAME} ${PROJECT_NAME}_testlib)
-            add_test(NAME ${NAME} COMMAND ${NAME} ${TEST_PORT})
-            set_tests_properties(${NAME} PROPERTIES TIMEOUT ${TIMEOUT})
+            add_test(NAME ${PROJECT_NAME}.${NAME} COMMAND ${NAME} ${TEST_PORT})
+            set_tests_properties(${PROJECT_NAME}.${NAME} PROPERTIES TIMEOUT ${TIMEOUT})
             math(EXPR TEST_PORT "${NNG_TEST_PORT}+20")
         endif ()
     endmacro(add_nng_cpp_test)
@@ -126,16 +126,19 @@ endif ()
 
 nng_test(aio)
 nng_test(bufsz)
+nng_test(bug1247)
+nng_test(id)
 nng_test(platform)
 nng_test(reconnect)
+nng_test(resolv)
 nng_test(sock)
+
 
 add_nng_test(device 5)
 add_nng_test(errors 2)
 add_nng_test(files 5)
 add_nng_test1(httpclient 60 NNG_SUPP_HTTP)
 add_nng_test1(httpserver 30 NNG_SUPP_HTTP)
-add_nng_test(idhash 30)
 add_nng_test(inproc 5)
 add_nng_test(ipc 5)
 add_nng_test(ipcperms 5)
@@ -148,7 +151,6 @@ add_nng_test(nonblock 60)
 add_nng_test(options 5)
 add_nng_test(pipe 5)
 add_nng_test(pollfd 5)
-add_nng_test1(resolv 10 NNG_STATIC_LIB)
 add_nng_test(scalability 20 ON)
 add_nng_test(set_recvmaxsize 2)
 add_nng_test1(stats 5 NNG_ENABLE_STATS)
@@ -189,7 +191,6 @@ add_nng_compat_test(compat_survey 10)
 add_nng_compat_test(compat_reqttl 10)
 add_nng_compat_test(compat_shutdown 10)
 add_nng_compat_test(compat_surveyttl 10)
-add_nng_compat_test(compat_ws 60)
 
 # These are special tests for compat mode, not inherited from the
 # legacy libnanomsg suite.

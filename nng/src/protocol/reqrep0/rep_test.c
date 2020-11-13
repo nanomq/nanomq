@@ -12,6 +12,7 @@
 #include <nng/nng.h>
 #include <nng/protocol/reqrep0/rep.h>
 #include <nng/protocol/reqrep0/req.h>
+#include <nng/supplemental/util/platform.h>
 
 #include <acutest.h>
 #include <testutil.h>
@@ -407,6 +408,86 @@ test_rep_close_context_send(void)
 	TEST_NNG_PASS(nng_close(rep));
 }
 
+void
+test_rep_close_recv(void)
+{
+	nng_socket rep;
+	nng_socket req;
+	nng_aio *  aio;
+
+	TEST_NNG_PASS(nng_rep0_open(&rep));
+	TEST_NNG_PASS(nng_req0_open_raw(&req));
+	TEST_NNG_PASS(nng_setopt_ms(rep, NNG_OPT_RECVTIMEO, 1000));
+	TEST_NNG_PASS(nng_setopt_ms(rep, NNG_OPT_SENDTIMEO, 1000));
+	TEST_NNG_PASS(nng_setopt_ms(req, NNG_OPT_SENDTIMEO, 1000));
+
+	TEST_NNG_PASS(testutil_marry(req, rep));
+	TEST_NNG_PASS(nng_aio_alloc(&aio, NULL, NULL));
+	nng_recv_aio(rep, aio);
+	TEST_NNG_PASS(nng_close(rep));
+	TEST_NNG_PASS(nng_close(req));
+	nng_aio_wait(aio);
+	TEST_NNG_FAIL(nng_aio_result(aio), NNG_ECLOSED);
+	nng_aio_free(aio);
+}
+
+struct rep_close_recv_cb_state {
+	nng_aio *aio;
+	nng_mtx *mtx;
+	nng_cv * cv;
+	int      done;
+	int      result;
+	nng_msg *msg;
+};
+
+static void
+rep_close_recv_cb(void *arg)
+{
+	struct rep_close_recv_cb_state *state = arg;
+
+	nng_mtx_lock(state->mtx);
+	state->result = nng_aio_result(state->aio);
+	state->msg    = nng_aio_get_msg(state->aio);
+	state->done   = true;
+	nng_cv_wake(state->cv);
+	nng_mtx_unlock(state->mtx);
+}
+
+void
+test_rep_close_recv_cb(void)
+{
+	nng_socket                     rep;
+	nng_socket                     req;
+	struct rep_close_recv_cb_state state;
+
+	memset(&state, 0, sizeof(state));
+	TEST_NNG_PASS(nng_mtx_alloc(&state.mtx));
+	TEST_NNG_PASS(nng_cv_alloc(&state.cv, state.mtx));
+
+	TEST_NNG_PASS(nng_rep0_open(&rep));
+	TEST_NNG_PASS(nng_req0_open_raw(&req));
+	TEST_NNG_PASS(nng_setopt_ms(rep, NNG_OPT_RECVTIMEO, 1000));
+	TEST_NNG_PASS(nng_setopt_ms(rep, NNG_OPT_SENDTIMEO, 1000));
+	TEST_NNG_PASS(nng_setopt_ms(req, NNG_OPT_SENDTIMEO, 1000));
+
+	TEST_NNG_PASS(testutil_marry(req, rep));
+	TEST_NNG_PASS(nng_aio_alloc(&state.aio, rep_close_recv_cb, &state));
+	nng_recv_aio(rep, state.aio);
+	TEST_NNG_PASS(nng_close(rep));
+	TEST_NNG_PASS(nng_close(req));
+	nng_mtx_lock(state.mtx);
+	while (!state.done) {
+		TEST_NNG_PASS(nng_cv_until(state.cv, nng_clock() + 1000));
+	}
+	nng_mtx_unlock(state.mtx);
+	TEST_CHECK(state.done != 0);
+	TEST_NNG_FAIL(nng_aio_result(state.aio), NNG_ECLOSED);
+	TEST_CHECK(nng_aio_get_msg(state.aio) == NULL);
+	nng_aio_free(state.aio);
+	nng_cv_free(state.cv);
+	nng_mtx_free(state.mtx);
+}
+
 static void
 test_rep_ctx_recv_nonblock(void)
 {
@@ -434,12 +515,12 @@ test_rep_ctx_send_nonblock(void)
 	nng_socket req;
 	nng_ctx    ctx;
 	nng_aio *  aio;
-	nng_msg *msg;
+	nng_msg *  msg;
 
 	TEST_NNG_PASS(nng_req0_open(&req));
 	TEST_NNG_PASS(nng_rep0_open(&rep));
 	TEST_NNG_PASS(nng_setopt_ms(req, NNG_OPT_SENDTIMEO, 1000));
-	TEST_NNG_PASS(nng_setopt_ms(rep, NNG_OPT_RECVTIMEO, 1000));
+	TEST_NNG_PASS(nng_setopt_ms(rep, NNG_OPT_RECVTIMEO, 2000));
 	TEST_NNG_PASS(nng_setopt_ms(rep, NNG_OPT_SENDTIMEO, 1000));
 	TEST_NNG_PASS(nng_ctx_open(&ctx, rep));
 	TEST_NNG_PASS(nng_aio_alloc(&aio, NULL, NULL));
@@ -456,12 +537,103 @@ test_rep_ctx_send_nonblock(void)
 	nng_ctx_send(ctx, aio);
 
 	nng_aio_wait(aio);
-	TEST_NNG_FAIL(nng_aio_result(aio), NNG_ETIMEDOUT);
+	TEST_NNG_PASS(nng_aio_result(aio));
 	TEST_NNG_PASS(nng_close(rep));
 	TEST_NNG_PASS(nng_close(req));
 	nng_aio_free(aio);
-	nng_msg_free(msg);
+}
 
+static void
+test_rep_ctx_send_nonblock2(void)
+{
+	nng_socket rep;
+	nng_socket req;
+	nng_ctx    rep_ctx[10];
+	nng_aio *  rep_aio[10];
+	int        num_good = 0;
+	int        num_fail = 0;
+
+	// We are going to send a bunch of requests, receive them,
+	// but then see that non-block pressure exerts for some, but
+	// that at least one non-blocking send works.
+	TEST_NNG_PASS(nng_req0_open_raw(&req));
+	TEST_NNG_PASS(nng_rep0_open(&rep));
+	TEST_NNG_PASS(nng_setopt_ms(req, NNG_OPT_SENDTIMEO, 1000));
+	TEST_NNG_PASS(nng_setopt_ms(rep, NNG_OPT_RECVTIMEO, 1000));
+	TEST_NNG_PASS(nng_setopt_ms(rep, NNG_OPT_SENDTIMEO, 1000));
+	for (int i = 0; i < 10; i++) {
+		TEST_NNG_PASS(nng_ctx_open(&rep_ctx[i], rep));
+		TEST_NNG_PASS(nng_aio_alloc(&rep_aio[i], NULL, NULL));
+	}
+	TEST_NNG_PASS(testutil_marry(req, rep));
+
+	for (int i = 0; i < 10; i++) {
+		nng_msg *msg;
+		TEST_NNG_PASS(nng_msg_alloc(&msg, 4));
+		TEST_NNG_PASS(
+		    nng_msg_append_u32(msg, (unsigned) i | 0x80000000u));
+		nng_ctx_recv(rep_ctx[i], rep_aio[i]);
+		TEST_NNG_PASS(nng_sendmsg(req, msg, 0));
+	}
+	for (int i = 0; i < 10; i++) {
+		nng_msg *msg;
+		nng_aio_wait(rep_aio[i]);
+		TEST_NNG_PASS(nng_aio_result(rep_aio[i]));
+		msg = nng_aio_get_msg(rep_aio[i]);
+		nng_aio_set_timeout(rep_aio[i], 0);
+		nng_aio_set_msg(rep_aio[i], msg);
+		nng_ctx_send(rep_ctx[i], rep_aio[i]);
+	}
+
+	for (int i = 0; i < 10; i++) {
+		int rv;
+		nng_aio_wait(rep_aio[i]);
+		rv = nng_aio_result(rep_aio[i]);
+		if (rv == 0) {
+			num_good++;
+		} else {
+			TEST_NNG_FAIL(rv, NNG_ETIMEDOUT);
+			nng_msg_free(nng_aio_get_msg(rep_aio[i]));
+			num_fail++;
+		}
+	}
+
+	TEST_ASSERT(num_good > 0);
+	TEST_ASSERT(num_fail > 0);
+
+	for (int i = 0; i < 10; i++) {
+		nng_aio_free(rep_aio[i]);
+		nng_ctx_close(rep_ctx[i]);
+	}
+	TEST_NNG_PASS(nng_close(rep));
+	TEST_NNG_PASS(nng_close(req));
+}
+
+static void
+test_rep_send_nonblock(void)
+{
+	nng_socket rep;
+	nng_socket req;
+	int        rv;
+
+	TEST_NNG_PASS(nng_req0_open(&req));
+	TEST_NNG_PASS(nng_rep0_open(&rep));
+	TEST_NNG_PASS(nng_setopt_ms(req, NNG_OPT_SENDTIMEO, 1000));
+	TEST_NNG_PASS(nng_setopt_ms(rep, NNG_OPT_RECVTIMEO, 1000));
+	TEST_NNG_PASS(nng_setopt_ms(rep, NNG_OPT_SENDTIMEO, 1000));
+	TEST_NNG_PASS(nng_setopt_ms(rep, NNG_OPT_SENDTIMEO, 1000));
+	TEST_NNG_PASS(testutil_marry(req, rep));
+
+	TEST_NNG_SEND_STR(req, "SEND");
+	TEST_NNG_RECV_STR(rep, "SEND");
+
+	// Use the nonblock flag
+	rv = nng_send(rep, "RECV", 5, NNG_FLAG_NONBLOCK);
+
+	TEST_NNG_PASS(rv);
+	TEST_NNG_RECV_STR(req, "RECV");
+	TEST_NNG_PASS(nng_close(rep));
+	TEST_NNG_PASS(nng_close(req));
 }
 
 void
@@ -496,12 +668,16 @@ TEST_LIST = {
 	{ "rep context does not poll", test_rep_context_no_poll },
 	{ "rep validate peer", test_rep_validate_peer },
 	{ "rep double recv", test_rep_double_recv },
+	{ "rep send nonblock", test_rep_send_nonblock },
 	{ "rep close pipe before send", test_rep_close_pipe_before_send },
 	{ "rep close pipe during send", test_rep_close_pipe_during_send },
 	{ "rep recv aio ctx stopped", test_rep_ctx_recv_aio_stopped },
 	{ "rep close pipe context send", test_rep_close_pipe_context_send },
 	{ "rep close context send", test_rep_close_context_send },
+	{ "rep close recv", test_rep_close_recv },
+	{ "rep close recv cb", test_rep_close_recv_cb },
 	{ "rep context send nonblock", test_rep_ctx_send_nonblock },
+	{ "rep context send nonblock 2", test_rep_ctx_send_nonblock2 },
 	{ "rep context recv nonblock", test_rep_ctx_recv_nonblock },
 	{ "rep recv garbage", test_rep_recv_garbage },
 	{ NULL, NULL },

@@ -21,7 +21,11 @@
 
 // THIS FEATURE IS DEPRECATED.  We discourage use in new applications.
 
-#define BUMP_STAT(x) nni_stat_inc_atomic(x, 1)
+#ifdef NNG_ENABLE_STATS
+#define BUMP_STAT(x) nni_stat_inc(x, 1)
+#else
+#define BUMP_STAT(x)
+#endif
 
 typedef struct pair1poly_pipe pair1poly_pipe;
 typedef struct pair1poly_sock pair1poly_sock;
@@ -40,7 +44,7 @@ struct pair1poly_sock {
 	nni_sock *     sock;
 	nni_atomic_int ttl;
 	nni_mtx        mtx;
-	nni_idhash *   pipes;
+	nni_id_map     pipes;
 	nni_list       plist;
 	bool           started;
 	nni_aio        aio_get;
@@ -72,62 +76,101 @@ pair1poly_sock_fini(void *arg)
 	pair1poly_sock *s = arg;
 
 	nni_aio_fini(&s->aio_get);
-	nni_idhash_fini(s->pipes);
+	nni_id_map_fini(&s->pipes);
 	nni_mtx_fini(&s->mtx);
 }
+
+#ifdef NNG_ENABLE_STATS
+static void
+pair1_add_sock_stat(
+    pair1poly_sock *s, nni_stat_item *item, const nni_stat_info *info)
+{
+	nni_stat_init(item, info);
+	nni_sock_add_stat(s->sock, item);
+}
+#endif
 
 static int
 pair1poly_sock_init(void *arg, nni_sock *sock)
 {
 	pair1poly_sock *s = arg;
 
-	if (nni_idhash_init(&s->pipes) != 0) {
-		return (NNG_ENOMEM);
-	}
+	nni_id_map_init(&s->pipes, 0, 0, false);
 	NNI_LIST_INIT(&s->plist, pair1poly_pipe, node);
+	s->sock = sock;
 
 	// Raw mode uses this.
 	nni_mtx_init(&s->mtx);
 
 	nni_aio_init(&s->aio_get, pair1poly_sock_get_cb, s);
 
-	nni_stat_init_bool(
-	    &s->stat_poly, "polyamorous", "polyamorous mode?", true);
-	nni_sock_add_stat(sock, &s->stat_poly);
+#ifdef NNG_ENABLE_STATS
+	static const nni_stat_info poly_info = {
+		.si_name = "poly",
+		.si_desc = "polyamorous mode?",
+		.si_type = NNG_STAT_BOOLEAN,
+	};
+	static const nni_stat_info raw_info = {
+		.si_name = "raw",
+		.si_desc = "raw mode?",
+		.si_type = NNG_STAT_BOOLEAN,
+	};
+	static const nni_stat_info mismatch_info = {
+		.si_name   = "mismatch",
+		.si_desc   = "pipes rejected (protocol mismatch)",
+		.si_type   = NNG_STAT_COUNTER,
+		.si_atomic = true,
+	};
+	static const nni_stat_info already_info = {
+		.si_name   = "already",
+		.si_desc   = "pipes rejected (already connected)",
+		.si_type   = NNG_STAT_COUNTER,
+		.si_atomic = true,
+	};
+	static const nni_stat_info ttl_drop_info = {
+		.si_name   = "ttl_drop",
+		.si_desc   = "messages dropped due to too many hops",
+		.si_type   = NNG_STAT_COUNTER,
+		.si_unit   = NNG_UNIT_MESSAGES,
+		.si_atomic = true,
+	};
+	static const nni_stat_info tx_drop_info = {
+		.si_name   = "tx_drop",
+		.si_desc   = "messages dropped undeliverable",
+		.si_type   = NNG_STAT_COUNTER,
+		.si_unit   = NNG_UNIT_MESSAGES,
+		.si_atomic = true,
+	};
+	static const nni_stat_info rx_malformed_info = {
+		.si_name   = "rx_malformed",
+		.si_desc   = "malformed messages received",
+		.si_type   = NNG_STAT_COUNTER,
+		.si_unit   = NNG_UNIT_MESSAGES,
+		.si_atomic = true,
+	};
+	static const nni_stat_info tx_malformed_info = {
+		.si_name   = "tx_malformed",
+		.si_desc   = "malformed messages not sent",
+		.si_type   = NNG_STAT_COUNTER,
+		.si_unit   = NNG_UNIT_MESSAGES,
+		.si_atomic = true,
+	};
 
-	nni_stat_init_bool(&s->stat_raw, "raw", "raw mode?", false);
+	pair1_add_sock_stat(s, &s->stat_poly, &poly_info);
+	pair1_add_sock_stat(s, &s->stat_raw, &raw_info);
+	pair1_add_sock_stat(s, &s->stat_reject_mismatch, &mismatch_info);
+	pair1_add_sock_stat(s, &s->stat_reject_already, &already_info);
+	pair1_add_sock_stat(s, &s->stat_ttl_drop, &ttl_drop_info);
+	pair1_add_sock_stat(s, &s->stat_tx_drop, &tx_drop_info);
+	pair1_add_sock_stat(s, &s->stat_rx_malformed, &rx_malformed_info);
+	pair1_add_sock_stat(s, &s->stat_tx_malformed, &tx_malformed_info);
 
-	nni_stat_init_atomic(&s->stat_reject_mismatch, "mismatch",
-	    "pipes rejected (protocol mismatch)");
-	nni_sock_add_stat(sock, &s->stat_reject_mismatch);
+	nni_stat_set_bool(&s->stat_raw, false);
+	nni_stat_set_bool(&s->stat_poly, true);
+#endif
 
-	nni_stat_init_atomic(&s->stat_reject_already, "already",
-	    "pipes rejected (already connected)");
-	nni_sock_add_stat(sock, &s->stat_reject_already);
-
-	nni_stat_init_atomic(&s->stat_ttl_drop, "ttl_drop",
-	    "messages dropped due to too many hops");
-	nni_stat_set_unit(&s->stat_ttl_drop, NNG_UNIT_MESSAGES);
-	nni_sock_add_stat(sock, &s->stat_ttl_drop);
-
-	// This can only increment in polyamorous mode.
-	nni_stat_init_atomic(
-	    &s->stat_tx_drop, "tx_drop", "messages dropped undeliverable");
-	nni_stat_set_unit(&s->stat_tx_drop, NNG_UNIT_MESSAGES);
-	nni_sock_add_stat(sock, &s->stat_tx_drop);
-
-	nni_stat_init_atomic(&s->stat_rx_malformed, "rx_malformed",
-	    "malformed messages received");
-	nni_stat_set_unit(&s->stat_rx_malformed, NNG_UNIT_MESSAGES);
-	nni_sock_add_stat(sock, &s->stat_rx_malformed);
-
-	nni_stat_init_atomic(&s->stat_tx_malformed, "tx_malformed",
-	    "malformed messages not sent");
-	nni_stat_set_unit(&s->stat_tx_malformed, NNG_UNIT_MESSAGES);
-
-	s->sock = sock;
-	s->uwq  = nni_sock_sendq(sock);
-	s->urq  = nni_sock_recvq(sock);
+	s->uwq = nni_sock_sendq(sock);
+	s->urq = nni_sock_recvq(sock);
 	nni_atomic_init(&s->ttl);
 	nni_atomic_set(&s->ttl, 8);
 
@@ -196,7 +239,7 @@ pair1poly_pipe_start(void *arg)
 	}
 
 	id = nni_pipe_id(p->pipe);
-	if ((rv = nni_idhash_insert(s->pipes, id, p)) != 0) {
+	if ((rv = nni_id_set(&s->pipes, id, p)) != 0) {
 		nni_mtx_unlock(&s->mtx);
 		return (rv);
 	}
@@ -231,7 +274,7 @@ pair1poly_pipe_close(void *arg)
 	nni_aio_close(&p->aio_get);
 
 	nni_mtx_lock(&s->mtx);
-	nni_idhash_remove(s->pipes, nni_pipe_id(p->pipe));
+	nni_id_remove(&s->pipes, nni_pipe_id(p->pipe));
 	nni_list_node_remove(&p->node);
 	nni_mtx_unlock(&s->mtx);
 
@@ -311,7 +354,7 @@ pair1poly_sock_get_cb(void *arg)
 	    (!nni_list_empty(&s->plist))) {
 		p = nni_list_first(&s->plist);
 	} else {
-		nni_idhash_find(s->pipes, id, (void **) &p);
+		p = nni_id_get(&s->pipes, id);
 	}
 
 	// Try a non-blocking send.  If this fails we just discard the

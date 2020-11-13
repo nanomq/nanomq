@@ -312,7 +312,7 @@ uint8_t sub_ctx_handle(emq_work * work, client_ctx * cli_ctx)
 
 		struct retain_msg_node *msg_node = search_retain_msg(work->db->root, topics);
 
-		for (struct retain_msg_node *i = msg_node->down; i != NULL; i = i->down) {
+		for (struct retain_msg_node *i = msg_node->down; i != NULL && i->ret_msg != NULL; i = i->down) {
 			debug_msg("found retain [%p], message: [%p]", i->ret_msg, i->ret_msg->message);
 			work->pub_packet = copy_pub_packet(i->ret_msg->message);
 			work->pub_packet->fixed_header.retain = 1;

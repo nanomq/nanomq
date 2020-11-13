@@ -33,6 +33,10 @@
 #define MSG_NOSIGNAL 0
 #endif
 
+#ifndef SOL_LOCAL
+#define SOL_LOCAL 0
+#endif
+
 #include "posix_ipc.h"
 
 typedef struct nni_ipc_conn ipc_conn;
@@ -318,7 +322,7 @@ ipc_peerid(ipc_conn *c, uint64_t *euid, uint64_t *egid, uint64_t *prid,
     uint64_t *znid)
 {
 	int fd = nni_posix_pfd_fd(c->pfd);
-#if defined(NNG_HAVE_GETPEEREID)
+#if defined(NNG_HAVE_GETPEEREID) && !defined(NNG_HAVE_LOCALPEERCRED)
 	uid_t uid;
 	gid_t gid;
 
@@ -373,7 +377,7 @@ ipc_peerid(ipc_conn *c, uint64_t *euid, uint64_t *egid, uint64_t *prid,
 	*egid = xu.cr_gid;
 	*prid = (uint64_t) -1;
 	*znid = (uint64_t) -1;
-#if defined(LOCAL_PEERPID) // present (undocumented) on macOS
+#if defined(NNG_HAVE_LOCALPEERPID) // documented on macOS since 10.8
 	{
 		pid_t pid;
 		if (getsockopt(fd, SOL_LOCAL, LOCAL_PEERPID, &pid, &len) ==
@@ -381,7 +385,7 @@ ipc_peerid(ipc_conn *c, uint64_t *euid, uint64_t *egid, uint64_t *prid,
 			*prid = (uint64_t) pid;
 		}
 	}
-#endif                     // LOCAL_PEERPID
+#endif // NNG_HAVE_LOCALPEERPID
 	return (0);
 #else
 	if (fd < 0) {
@@ -401,7 +405,7 @@ ipc_get_peer_uid(void *arg, void *buf, size_t *szp, nni_type t)
 	ipc_conn *c = arg;
 	int       rv;
 	uint64_t  ignore;
-	uint64_t  id;
+	uint64_t  id = 0;
 
 	if ((rv = ipc_peerid(c, &id, &ignore, &ignore, &ignore)) != 0) {
 		return (rv);
@@ -415,7 +419,7 @@ ipc_get_peer_gid(void *arg, void *buf, size_t *szp, nni_type t)
 	ipc_conn *c = arg;
 	int       rv;
 	uint64_t  ignore;
-	uint64_t  id;
+	uint64_t  id = 0;
 
 	if ((rv = ipc_peerid(c, &ignore, &id, &ignore, &ignore)) != 0) {
 		return (rv);
@@ -429,7 +433,7 @@ ipc_get_peer_zoneid(void *arg, void *buf, size_t *szp, nni_type t)
 	ipc_conn *c = arg;
 	int       rv;
 	uint64_t  ignore;
-	uint64_t  id;
+	uint64_t  id = 0;
 
 	if ((rv = ipc_peerid(c, &ignore, &ignore, &ignore, &id)) != 0) {
 		return (rv);
@@ -447,7 +451,7 @@ ipc_get_peer_pid(void *arg, void *buf, size_t *szp, nni_type t)
 	ipc_conn *c = arg;
 	int       rv;
 	uint64_t  ignore;
-	uint64_t  id;
+	uint64_t  id = 0;
 
 	if ((rv = ipc_peerid(c, &ignore, &ignore, &id, &ignore)) != 0) {
 		return (rv);
@@ -462,20 +466,8 @@ ipc_get_peer_pid(void *arg, void *buf, size_t *szp, nni_type t)
 static int
 ipc_get_addr(void *arg, void *buf, size_t *szp, nni_type t)
 {
-	ipc_conn *              c = arg;
-	nni_sockaddr            sa;
-	struct sockaddr_storage ss;
-	socklen_t               sslen = sizeof(ss);
-	int                     fd    = nni_posix_pfd_fd(c->pfd);
-	int                     rv;
-
-	if (getsockname(fd, (void *) &ss, &sslen) != 0) {
-		return (nni_plat_errno(errno));
-	}
-	if ((rv = nni_posix_sockaddr2nn(&sa, &ss)) != 0) {
-		return (rv);
-	}
-	return (nni_copyout_sockaddr(&sa, buf, szp, t));
+	ipc_conn *c = arg;
+	return (nni_copyout_sockaddr(&c->sa, buf, szp, t));
 }
 
 void
@@ -553,7 +545,7 @@ ipc_setx(void *arg, const char *name, const void *val, size_t sz, nni_type t)
 }
 
 int
-nni_posix_ipc_alloc(nni_ipc_conn **cp, nni_ipc_dialer *d)
+nni_posix_ipc_alloc(nni_ipc_conn **cp, nni_sockaddr *sa, nni_ipc_dialer *d)
 {
 	ipc_conn *c;
 
@@ -569,6 +561,7 @@ nni_posix_ipc_alloc(nni_ipc_conn **cp, nni_ipc_dialer *d)
 	c->stream.s_recv  = ipc_recv;
 	c->stream.s_getx  = ipc_getx;
 	c->stream.s_setx  = ipc_setx;
+	c->sa             = *sa;
 
 	nni_mtx_init(&c->mtx);
 	nni_aio_list_init(&c->readq);

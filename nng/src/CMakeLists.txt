@@ -40,7 +40,9 @@ if (NNG_TESTS)
 endif ()
 
 set(NNG_SRCS
+
         core/defs.h
+
         core/aio.c
         core/aio.h
         core/clock.c
@@ -149,32 +151,10 @@ if (NNG_PLATFORM_POSIX)
     endif ()
 endif ()
 
-if (NNG_PLATFORM_WINDOWS)
-    set(NNG_SRCS ${NNG_SRCS}
-            platform/windows/win_impl.h
-            platform/windows/win_ipc.h
-            platform/windows/win_tcp.h
-
-            platform/windows/win_clock.c
-            platform/windows/win_debug.c
-            platform/windows/win_file.c
-            platform/windows/win_io.c
-            platform/windows/win_ipcconn.c
-            platform/windows/win_ipcdial.c
-            platform/windows/win_ipclisten.c
-            platform/windows/win_pipe.c
-            platform/windows/win_rand.c
-            platform/windows/win_resolv.c
-            platform/windows/win_sockaddr.c
-            platform/windows/win_tcp.c
-            platform/windows/win_tcpconn.c
-            platform/windows/win_tcpdial.c
-            platform/windows/win_tcplisten.c
-            platform/windows/win_thread.c
-            platform/windows/win_udp.c
-            )
-endif ()
-
+add_subdirectory(platform/windows)
+#NANOMQ MQTT library
+add_subdirectory(protocol/mqtt)
+#more industrial protols comming soon!
 
 add_subdirectory(compat/nanomsg)
 
@@ -185,7 +165,6 @@ add_subdirectory(protocol/pipeline0)
 add_subdirectory(protocol/pubsub0)
 add_subdirectory(protocol/reqrep0)
 add_subdirectory(protocol/survey0)
-add_subdirectory(protocol/mqtt)
 
 add_subdirectory(transport/inproc)
 add_subdirectory(transport/ipc)

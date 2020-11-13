@@ -11,37 +11,25 @@
 
 #include "core/nng_impl.h"
 #include "sockimpl.h"
-#include "include/nng_debug.h"
 
 #include <stdio.h>
-#include <string.h>
 
 // This file contains functions relating to pipes.
 //
 // Operations on pipes (to the transport) are generally blocking operations,
 // performed in the context of the protocol.
 
-static nni_idhash *nni_pipes;
-static nni_mtx     nni_pipe_lk;
+static nni_id_map pipes;
+static nni_mtx    pipes_lk;
 
 int
 nni_pipe_sys_init(void)
 {
-	int rv;
+	nni_mtx_init(&pipes_lk);
 
-	nni_mtx_init(&nni_pipe_lk);
-
-	if ((rv = nni_idhash_init(&nni_pipes)) != 0) {
-		return (rv);
-	}
-
-	// Note that pipes have their own namespace.  ID hash will
-	// guarantee the that the first value is reasonable (non-zero),
-	// if we supply an out of range value (0).  (Consequently the
-	// value "1" has a bias -- its roughly twice as likely to be
-	// chosen as any other value.  This does not mater.)
-	nni_idhash_set_limits(
-	    nni_pipes, 1, 0x7fffffff, nni_random() & 0x7fffffffu);
+	// Pipe IDs needs to have high order bit clear, and we want
+	// them to start at a random value.
+	nni_id_map_init(&pipes, 1, 0x7fffffff, true);
 
 	return (0);
 }
@@ -50,11 +38,8 @@ void
 nni_pipe_sys_fini(void)
 {
 	nni_reap_drain();
-	nni_mtx_fini(&nni_pipe_lk);
-	if (nni_pipes != NULL) {
-		nni_idhash_fini(nni_pipes);
-		nni_pipes = NULL;
-	}
+	nni_mtx_fini(&pipes_lk);
+	nni_id_map_fini(&pipes);
 }
 
 static void
@@ -68,15 +53,15 @@ pipe_destroy(nni_pipe *p)
 
 	// Make sure any unlocked holders are done with this.
 	// This happens during initialization for example.
-	nni_mtx_lock(&nni_pipe_lk);
+	nni_mtx_lock(&pipes_lk);
 	if (p->p_id != 0) {
-		nni_idhash_remove(nni_pipes, p->p_id);
+		nni_id_remove(&pipes, p->p_id);
 	}
 	// This wait guarantees that all callers are done with us.
-	while (p->p_refcnt != 0) {
+	while (p->p_ref != 0) {
 		nni_cv_wait(&p->p_cv);
 	}
-	nni_mtx_unlock(&nni_pipe_lk);
+	nni_mtx_unlock(&pipes_lk);
 
 	if (p->p_proto_data != NULL) {
 		p->p_proto_ops.pipe_stop(p->p_proto_data);
@@ -85,7 +70,9 @@ pipe_destroy(nni_pipe *p)
 		p->p_tran_ops.p_stop(p->p_tran_data);
 	}
 
-	nni_stat_unregister(&p->p_stats.s_root);
+#ifdef NNG_ENABLE_STATS
+	nni_stat_unregister(&p->st_root);
+#endif
 	nni_pipe_remove(p);
 
 	if (p->p_proto_data != NULL) {
@@ -102,31 +89,30 @@ pipe_destroy(nni_pipe *p)
 int
 nni_pipe_find(nni_pipe **pp, uint32_t id)
 {
-	int       rv;
 	nni_pipe *p;
-	nni_mtx_lock(&nni_pipe_lk);
 
 	// We don't care if the pipe is "closed".  End users only have
 	// access to the pipe in order to obtain properties (which may
 	// be retried during the post-close notification callback) or to
 	// close the pipe.
-	if ((rv = nni_idhash_find(nni_pipes, id, (void **) &p)) == 0) {
-		p->p_refcnt++;
+	nni_mtx_lock(&pipes_lk);
+	if ((p = nni_id_get(&pipes, id)) != NULL) {
+		p->p_ref++;
 		*pp = p;
 	}
-	nni_mtx_unlock(&nni_pipe_lk);
-	return (rv);
+	nni_mtx_unlock(&pipes_lk);
+	return (p == NULL ? NNG_ENOENT : 0);
 }
 
 void
 nni_pipe_rele(nni_pipe *p)
 {
-	nni_mtx_lock(&nni_pipe_lk);
-	p->p_refcnt--;
-	if (p->p_refcnt == 0) {
+	nni_mtx_lock(&pipes_lk);
+	p->p_ref--;
+	if (p->p_ref == 0) {
 		nni_cv_wake(&p->p_cv);
 	}
-	nni_mtx_unlock(&nni_pipe_lk);
+	nni_mtx_unlock(&pipes_lk);
 }
 
 // nni_pipe_id returns the 32-bit pipe id, which can be used in backtraces.
@@ -139,7 +125,6 @@ nni_pipe_id(nni_pipe *p)
 void
 nni_pipe_recv(nni_pipe *p, nni_aio *aio)
 {
-	debug_syslog("order nni_pipe_recv\n");
 	p->p_tran_ops.p_recv(p->p_tran_data, aio);
 }
 
@@ -152,11 +137,9 @@ nni_pipe_send(nni_pipe *p, nni_aio *aio)
 // nni_pipe_close closes the underlying connection.  It is expected that
 // subsequent attempts to receive or send (including any waiting receive) will
 // simply return NNG_ECLOSED.
-//	CLOSE HERE!!!!!!!!!!!!!!!!
 void
 nni_pipe_close(nni_pipe *p)
 {
-	debug_syslog("nni_pipe_close\n");
 	nni_mtx_lock(&p->p_mtx);
 	if (p->p_closed) {
 		// We already did a close.
@@ -184,6 +167,75 @@ nni_pipe_peer(nni_pipe *p)
 	return (p->p_tran_ops.p_peer(p->p_tran_data));
 }
 
+#ifdef NNG_ENABLE_STATS
+static void
+pipe_stat_init(nni_pipe *p, nni_stat_item *item, const nni_stat_info *info)
+{
+	nni_stat_init(item, info);
+	nni_stat_add(&p->st_root, item);
+}
+
+static void
+pipe_stats_init(nni_pipe *p)
+{
+	static const nni_stat_info root_info = {
+		.si_name = "pipe",
+		.si_desc = "pipe statistics",
+		.si_type = NNG_STAT_SCOPE,
+	};
+	static const nni_stat_info id_info = {
+		.si_name = "id",
+		.si_desc = "pipe id",
+		.si_type = NNG_STAT_ID,
+	};
+	static const nni_stat_info socket_info = {
+		.si_name = "socket",
+		.si_desc = "socket for pipe",
+		.si_type = NNG_STAT_ID,
+	};
+	static const nni_stat_info rx_msgs_info = {
+		.si_name   = "rx_msgs",
+		.si_desc   = "messages received",
+		.si_type   = NNG_STAT_COUNTER,
+		.si_unit   = NNG_UNIT_MESSAGES,
+		.si_atomic = true,
+	};
+	static const nni_stat_info tx_msgs_info = {
+	    .si_name   = "tx_msgs",
+	    .si_desc   = "messages sent",
+	    .si_type   = NNG_STAT_COUNTER,
+	    .si_unit   = NNG_UNIT_MESSAGES,
+	    .si_atomic = true,
+	};
+	static const nni_stat_info rx_bytes_info = {
+	    .si_name   = "rx_bytes",
+	    .si_desc   = "bytes received",
+	    .si_type   = NNG_STAT_COUNTER,
+	    .si_unit   = NNG_UNIT_BYTES,
+	    .si_atomic = true,
+	};
+	static const nni_stat_info tx_bytes_info = {
+	    .si_name   = "tx_bytes",
+	    .si_desc   = "bytes sent",
+	    .si_type   = NNG_STAT_COUNTER,
+	    .si_unit   = NNG_UNIT_BYTES,
+	    .si_atomic = true,
+	};
+
+	nni_stat_init(&p->st_root, &root_info);
+	pipe_stat_init(p, &p->st_id, &id_info);
+	pipe_stat_init(p, &p->st_sock_id, &socket_info);
+	pipe_stat_init(p, &p->st_rx_msgs, &rx_msgs_info);
+	pipe_stat_init(p, &p->st_tx_msgs, &tx_msgs_info);
+	pipe_stat_init(p, &p->st_rx_bytes, &rx_bytes_info);
+	pipe_stat_init(p, &p->st_tx_bytes, &tx_bytes_info);
+
+	nni_stat_set_id(&p->st_root, p->p_id);
+	nni_stat_set_id(&p->st_id, p->p_id);
+	nni_stat_set_id(&p->st_sock_id, nni_sock_id(p->p_sock));
+}
+#endif // NNG_ENABLE_STATS
+
 static int
 pipe_create(nni_pipe **pp, nni_sock *sock, nni_tran *tran, void *tdata)
 {
@@ -191,10 +243,9 @@ pipe_create(nni_pipe **pp, nni_sock *sock, nni_tran *tran, void *tdata)
 	int                 rv;
 	void *              sdata = nni_sock_proto_data(sock);
 	nni_proto_pipe_ops *pops  = nni_sock_proto_pipe_ops(sock);
-	nni_pipe_stats *    st;
-	size_t sz;
+	size_t              sz;
 
-	sz = NNI_ALIGN_UP(sizeof (*p)) + pops->pipe_size;
+	sz = NNI_ALIGN_UP(sizeof(*p)) + pops->pipe_size;
 
 	if ((p = nni_zalloc(sz)) == NULL) {
 		// In this case we just toss the pipe...
@@ -202,7 +253,7 @@ pipe_create(nni_pipe **pp, nni_sock *sock, nni_tran *tran, void *tdata)
 		return (NNG_ENOMEM);
 	}
 
-	p->p_size = sz;
+	p->p_size       = sz;
 	p->p_proto_data = p + 1;
 	p->p_tran_ops   = *tran->tran_pipe;
 	p->p_tran_data  = tdata;
@@ -210,44 +261,24 @@ pipe_create(nni_pipe **pp, nni_sock *sock, nni_tran *tran, void *tdata)
 	p->p_sock       = sock;
 	p->p_closed     = false;
 	p->p_cbs        = false;
-	p->p_refcnt     = 0;
-	st              = &p->p_stats;
+	p->p_ref        = 0;
 
 	nni_atomic_flag_reset(&p->p_stop);
 	NNI_LIST_NODE_INIT(&p->p_sock_node);
 	NNI_LIST_NODE_INIT(&p->p_ep_node);
 
 	nni_mtx_init(&p->p_mtx);
-	nni_cv_init(&p->p_cv, &nni_pipe_lk);
+	nni_cv_init(&p->p_cv, &pipes_lk);
 
-	nni_mtx_lock(&nni_pipe_lk);
-	if ((rv = nni_idhash_alloc32(nni_pipes, &p->p_id, p)) == 0) {
-		p->p_refcnt = 1;
+	nni_mtx_lock(&pipes_lk);
+	if ((rv = nni_id_alloc(&pipes, &p->p_id, p)) == 0) {
+		p->p_ref = 1;
 	}
-	nni_mtx_unlock(&nni_pipe_lk);
+	nni_mtx_unlock(&pipes_lk);
 
-	snprintf(st->s_scope, sizeof(st->s_scope), "pipe%u", p->p_id);
-
-	nni_stat_init_scope(&st->s_root, st->s_scope, "pipe statistics");
-
-	nni_stat_init_id(&st->s_id, "id", "pipe id", p->p_id);
-	nni_stat_add(&st->s_root, &st->s_id);
-
-	nni_stat_init_id(&st->s_sock_id, "socket", "socket for pipe",
-	    nni_sock_id(p->p_sock));
-	nni_stat_add(&st->s_root, &st->s_sock_id);
-	nni_stat_init_atomic(&st->s_rxmsgs, "rxmsgs", "messages received");
-	nni_stat_set_unit(&st->s_rxmsgs, NNG_UNIT_MESSAGES);
-	nni_stat_add(&st->s_root, &st->s_rxmsgs);
-	nni_stat_init_atomic(&st->s_txmsgs, "txmsgs", "messages sent");
-	nni_stat_set_unit(&st->s_txmsgs, NNG_UNIT_MESSAGES);
-	nni_stat_add(&st->s_root, &st->s_txmsgs);
-	nni_stat_init_atomic(&st->s_rxbytes, "rxbytes", "bytes received");
-	nni_stat_set_unit(&st->s_rxbytes, NNG_UNIT_BYTES);
-	nni_stat_add(&st->s_root, &st->s_rxbytes);
-	nni_stat_init_atomic(&st->s_txbytes, "txbytes", "bytes sent");
-	nni_stat_set_unit(&st->s_txbytes, NNG_UNIT_BYTES);
-	nni_stat_add(&st->s_root, &st->s_txbytes);
+#ifdef NNG_ENABLE_STATS
+	pipe_stats_init(p);
+#endif
 
 	if ((rv != 0) || ((rv = p->p_tran_ops.p_init(tdata, p)) != 0) ||
 	    ((rv = pops->pipe_init(p->p_proto_data, p, sdata)) != 0)) {
@@ -266,18 +297,20 @@ nni_pipe_create_dialer(nni_pipe **pp, nni_dialer *d, void *tdata)
 	int            rv;
 	nni_tran *     tran = d->d_tran;
 	nni_pipe *     p;
-	nni_stat_item *st;
-#ifdef NNG_ENABLE_STATS
-	uint64_t id = nni_dialer_id(d);
-#endif
 
 	if ((rv = pipe_create(&p, d->d_sock, tran, tdata)) != 0) {
 		return (rv);
 	}
-	st          = &p->p_stats.s_ep_id;
 	p->p_dialer = d;
-	nni_stat_init_id(st, "dialer", "dialer for pipe", id);
-	nni_pipe_add_stat(p, st);
+#ifdef NNG_ENABLE_STATS
+	static const nni_stat_info dialer_info = {
+		.si_name = "dialer",
+		.si_desc = "dialer for pipe",
+		.si_type = NNG_STAT_ID,
+	};
+	pipe_stat_init(p, &p->st_ep_id, &dialer_info);
+	nni_stat_set_id(&p->st_ep_id, nni_dialer_id(d));
+#endif
 	*pp = p;
 	return (0);
 }
@@ -288,18 +321,20 @@ nni_pipe_create_listener(nni_pipe **pp, nni_listener *l, void *tdata)
 	int            rv;
 	nni_tran *     tran = l->l_tran;
 	nni_pipe *     p;
-	nni_stat_item *st;
-#ifdef NNG_ENABLE_STATS
-	uint64_t id = nni_listener_id(l);
-#endif
 
 	if ((rv = pipe_create(&p, l->l_sock, tran, tdata)) != 0) {
 		return (rv);
 	}
-	st            = &p->p_stats.s_ep_id;
 	p->p_listener = l;
-	nni_stat_init_id(st, "listener", "listener for pipe", id);
-	nni_pipe_add_stat(p, st);
+#if NNG_ENABLE_STATS
+	static const nni_stat_info listener_info = {
+	    .si_name = "listener",
+	    .si_desc = "listener for pipe",
+	    .si_type = NNG_STAT_ID,
+	};
+	pipe_stat_init(p, &p->st_ep_id, &listener_info);
+	nni_stat_set_id(&p->st_ep_id, nni_listener_id(l));
+#endif
 	*pp = p;
 	return (0);
 }
@@ -350,18 +385,24 @@ nni_pipe_dialer_id(nni_pipe *p)
 	return (p->p_dialer ? nni_dialer_id(p->p_dialer) : 0);
 }
 
+
 void
 nni_pipe_add_stat(nni_pipe *p, nni_stat_item *item)
 {
-	nni_stat_add(&p->p_stats.s_root, item);
+#ifdef NNG_ENABLE_STATS
+	nni_stat_add(&p->st_root, item);
+#else
+	NNI_ARG_UNUSED(p);
+	NNI_ARG_UNUSED(item);
+#endif
 }
 
 void
 nni_pipe_bump_rx(nni_pipe *p, size_t nbytes)
 {
 #ifdef NNG_ENABLE_STATS
-	nni_stat_inc_atomic(&p->p_stats.s_rxbytes, nbytes);
-	nni_stat_inc_atomic(&p->p_stats.s_rxmsgs, 1);
+	nni_stat_inc(&p->st_rx_bytes, nbytes);
+	nni_stat_inc(&p->st_rx_msgs, 1);
 #else
 	NNI_ARG_UNUSED(p);
 	NNI_ARG_UNUSED(nbytes);
@@ -372,8 +413,8 @@ void
 nni_pipe_bump_tx(nni_pipe *p, size_t nbytes)
 {
 #ifdef NNG_ENABLE_STATS
-	nni_stat_inc_atomic(&p->p_stats.s_txbytes, nbytes);
-	nni_stat_inc_atomic(&p->p_stats.s_txmsgs, 1);
+	nni_stat_inc(&p->st_tx_bytes, nbytes);
+	nni_stat_inc(&p->st_tx_msgs, 1);
 #else
 	NNI_ARG_UNUSED(p);
 	NNI_ARG_UNUSED(nbytes);
