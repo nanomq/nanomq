@@ -93,6 +93,7 @@ struct nni_listener {
 #endif
 };
 
+//per sock per pipe. bind with any tcp socket var/action
 struct nni_pipe {
 	uint32_t           p_id;
 	nni_tran_pipe_ops  p_tran_ops;
@@ -112,6 +113,7 @@ struct nni_pipe {
 	nni_mtx            p_mtx;
 	nni_cv             p_cv;
 	nni_reap_item      p_reap;
+    conn_param *       conn_param;
 
 #ifdef NNG_ENABLE_STATS
 	nni_stat_item st_root;

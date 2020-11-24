@@ -9,6 +9,7 @@
 
 #include "include/nng_debug.h"
 #include "core/nng_impl.h"
+
 #include "nng/protocol/mqtt/mqtt_parser.h"
 #include "nng/protocol/mqtt/mqtt.h"
 
@@ -22,7 +23,7 @@ typedef struct tcptran_ep   tcptran_ep;
 // tcp_pipe is one end of a TCP connection.
 struct tcptran_pipe {
 	nng_stream *    conn;
-	//nni_pipe *      npipe;	// for statitical
+	nni_pipe *      npipe;	// for statitical
 	//uint16_t        peer;		//reserved for MQTT sdk version
 	//uint16_t        proto;
 	size_t          rcvmax;
@@ -122,8 +123,10 @@ tcptran_pipe_stop(void *arg)
 static int
 tcptran_pipe_init(void *arg, nni_pipe *npipe)
 {
+    debug_msg("************tcptran_pipe_init************");
 	tcptran_pipe *p = arg;
-	//p->npipe        = npipe;
+    nni_pipe_set_conn_param(npipe, p->tcp_cparam);
+	p->npipe        = npipe;
 
 	return (0);
 }
@@ -351,16 +354,16 @@ tcptran_pipe_send_cb(void *arg)
 	aio = nni_list_first(&p->sendq);
 
 	debug_msg("###############tcptran_pipe_send_cb################");
-	/*
+	/**/
 	if (aio == NULL) {
-		//nni_pipe_bump_tx(p->npipe, n);
+		nni_pipe_bump_tx(p->npipe, n);
 		// be aware null aio BUG
 		nni_mtx_unlock(&p->mtx);
 		return;
-	}*/
+	}
 
 	if ((rv = nni_aio_result(txaio)) != 0) {
-		//nni_pipe_bump_error(p->npipe, rv);
+		nni_pipe_bump_error(p->npipe, rv);
 		// Intentionally we do not queue up another transfer.
 		// There's an excellent chance that the pipe is no longer
 		// usable, with a partial transfer.
@@ -385,7 +388,7 @@ tcptran_pipe_send_cb(void *arg)
 	tcptran_pipe_send_start(p);	//just for trigger next layer AIO;
 	msg = nni_aio_get_msg(aio);
 	n   = nni_msg_len(msg);
-	//nni_pipe_bump_tx(p->npipe, n);
+	nni_pipe_bump_tx(p->npipe, n);
 	nni_mtx_unlock(&p->mtx);
 
 	nni_aio_set_msg(aio, NULL);
@@ -562,7 +565,7 @@ tcptran_pipe_recv_cb(void *arg)
 
 
 	//keep connection & Schedule next receive
-	//nni_pipe_bump_rx(p->npipe, n);
+	nni_pipe_bump_rx(p->npipe, n);
 	tcptran_pipe_recv_start(p);
 	nni_mtx_unlock(&p->mtx);
 
@@ -577,7 +580,7 @@ recv_error:
 	nni_aio_list_remove(aio);
 	msg      = p->rxmsg;
 	p->rxmsg = NULL;
-	//nni_pipe_bump_error(p->npipe, rv);
+	nni_pipe_bump_error(p->npipe, rv);
 	// Intentionally, we do not queue up another receive.
 	// The protocol should notice this error and close the pipe.
 	nni_mtx_unlock(&p->mtx);

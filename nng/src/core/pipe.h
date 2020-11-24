@@ -69,4 +69,9 @@ extern void nni_pipe_bump_rx(nni_pipe *, size_t);
 extern void nni_pipe_bump_tx(nni_pipe *, size_t);
 extern void nni_pipe_bump_error(nni_pipe *, int);
 
+//NanoMQ APIs
+extern void nni_pipe_set_conn_param(nni_pipe *p, conn_param *c);
+conn_param* nni_pipe_get_conn_param(nni_pipe* p);
+
+
 #endif // CORE_PIPE_H

@@ -32,7 +32,7 @@ static void handle_pub_retain(const emq_work *work, const char **topic_queue);
 void
 init_pipe_content(struct pipe_content *pipe_ct)
 {
-	debug_msg("init pipe_info");
+	debug_msg("pub_handler: init pipe_info");
 	pipe_ct->pipe_info     = NULL;
 	pipe_ct->total         = 0;
 	pipe_ct->current_index = 0;

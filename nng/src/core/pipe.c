@@ -430,3 +430,16 @@ nni_pipe_bump_error(nni_pipe *p, int err)
 		nni_listener_bump_error(p->p_listener, err);
 	}
 }
+
+//NanoMQ APIs
+void
+nni_pipe_set_conn_param(nni_pipe *p, conn_param *c)
+{
+    p->conn_param = c;
+}
+
+conn_param *
+nni_pipe_get_conn_param(nni_pipe *p)
+{
+    return p->conn_param;
+}
