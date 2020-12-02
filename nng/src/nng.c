@@ -297,7 +297,7 @@ nng_ctx_recv(nng_ctx cid, nng_aio *aio)
 		}
 		return;
 	}
-	debug_msg("recv context id %d rv: %d\n", cid.id, rv);
+	debug_msg("########nng_ctx_recv context id %d rv: %d##########", cid.id, rv);
 	nni_ctx_recv(ctx, aio);
 	nni_ctx_rele(ctx);
 }
@@ -1617,10 +1617,16 @@ nng_msg_get_conn_param(nng_msg *msg)
 	return p;
 }
 
+void
+nng_msg_set_cmd_type(nng_msg *m, uint8_t cmd)
+{
+    nni_msg_set_cmd_type(m, cmd);
+}
+
 const uint8_t *
 conn_param_get_clentid(conn_param *cparam)
 {
-        return cparam->clientid.body;
+        return (const uint8_t *)cparam->clientid.body;
 }
 
 const uint8_t * 

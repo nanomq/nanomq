@@ -35,7 +35,7 @@ struct nano_ctx {
 	uint32_t       pipe_id;
 	//uint32_t      resend_count;
 	//uint32_t      pipe_len;	//record total length of pipe_id queue when resending
-	nano_pipe *    spipe; // send pipe
+	nano_pipe *    spipe, * qos_pipe; // send pipe
 	nni_aio *      saio;  // send aio
 	nni_aio *      raio;  // recv aio
 	//uint32_t*     rspipes;// pub resend pipe queue Qos 1/2
@@ -43,6 +43,7 @@ struct nano_ctx {
 	nni_list_node  sqnode;
 	nni_list_node  rqnode;
 	nni_msg *      rmsg;
+    nni_msg *      smsg;
 	nni_timer_node qos_timer;
 	nni_duration   retry;
 	//size_t        pp_len;			//property Header
@@ -104,11 +105,18 @@ nano_keepalive(nano_pipe *p, void *arg)
 static void
 nano_ctx_timeout(void *arg)
 {
-	nano_ctx * ctx = arg;
-	nano_sock *s   = ctx->sock;
+	nano_ctx  * ctx = arg;
+	nano_sock * s   = ctx->sock;
+    nano_pipe * p   = ctx->qos_pipe;
+    nni_msg   * msg = ctx->smsg;
 
 	nni_mtx_lock(&s->lk);
-    debug_msg("ctx timeout triggered!*************************************");
+    debug_msg("ctx timeout triggered! %x %s*************************************", nni_msg_cmd_type(msg), nni_msg_body(msg));
+    p->busy = true;
+    //len     = nni_msg_len(msg);
+    nni_aio_set_msg(&p->aio_send, msg);
+    nni_pipe_send(p->pipe, &p->aio_send);       //Bug in qos 1 due to msg free
+    //nni_timer_schedule(&ctx->qos_timer, nni_clock() + NNI_SECOND * 8);
 	nni_mtx_unlock(&s->lk);
 }
 
@@ -125,6 +133,7 @@ nano_ctx_close(void *arg)
 		nano_pipe *pipe = ctx->spipe;
 		ctx->saio       = NULL;
 		ctx->spipe      = NULL;
+        ctx->qos_pipe   = NULL;
 		ctx->rmsg	= NULL;
 		nni_list_remove(&pipe->sendq, ctx);
 		nni_aio_finish_error(aio, NNG_ECLOSED);
@@ -199,7 +208,7 @@ nano_ctx_send(void *arg, nni_aio *aio)
 	size_t     len;
 	//uint32_t * pipes; // pipes id
 	uint32_t   pipe;
-	uint32_t   p_id[2],i = 0,fail_count = 0, need_resend = 0;
+	//uint32_t   p_id[2],i = 0,fail_count = 0, need_resend = 0;
 
 	msg = nni_aio_get_msg(aio);
 
@@ -327,6 +336,16 @@ exit:
 		return;
 	}
 	p->tree = nni_aio_get_dbtree(aio);
+    //if qos =1/2
+    if (nni_msg_cmd_type(msg) == CMD_PUBLISH) {
+        if (nni_msg_get_pub_qos(msg) > 0) {
+            debug_msg("qos timer started!!!!!!!!!!!!!!!!!!!!!!!11!!!!!!!!!!!!!!!!");
+            ctx->qos_pipe = p;
+            ctx->smsg = msg;
+            nni_msg_clone(msg);
+            nni_timer_schedule(&ctx->qos_timer, nni_clock() + NNI_SECOND * 6);
+        }
+    }
 	if (!p->busy) {
 		p->busy = true;
 		len     = nni_msg_len(msg);
@@ -344,7 +363,7 @@ exit:
 		nni_aio_finish_error(aio, rv);
 		return;
 	}
-	debug_msg("pipe %p jamed! resending in cb!", pipe);
+	debug_msg("ERROR: pipe %d jamed! resending in cb!", pipe);
 	ctx->saio  = aio;
 	ctx->spipe = p;
 	ctx->rmsg  = msg;
@@ -412,6 +431,7 @@ nano_pipe_timeout(void *arg)
     uint16_t    interval;
 
     if (!p->ka_refresh) {
+        debug_msg("Warning: close pipe & kick client due to KeepAlive timeout!");
         nano_pipe_close(p);
         return;
     }
@@ -606,6 +626,7 @@ nano_pipe_send_cb(void *arg)
 	nni_mtx_unlock(&s->lk);
 
 	nni_aio_finish_sync(aio, 0, len);
+    debug_msg("end of nano_pipe_send_cb ctx : %p", ctx);
 	/*
 	// pub to mulitple clients/pipes within single aio/ctx
 	aio   = ctx->saio;
@@ -665,7 +686,6 @@ drop:
 		nni_aio_finish_sync(aio, 0, len);
 	} //else 
 	 // nni_aio_finish(aio,0,len);
-	debug_msg("end of nano_pipe_send_cb ctx : %p", ctx);
 	*/
 }
 
@@ -767,12 +787,12 @@ nano_pipe_recv_cb(void *arg)
 	}
 
 	header = nng_msg_header(msg);
-	debug_msg("start nano_pipe_recv_cb pipe: %p p_id %d TYPE: %x ===== header: %x %x header len: %d\n",p ,p->id, nng_msg_cmd_type(msg), *header, *(header+1), nng_msg_header_len(msg));
+	debug_msg("start nano_pipe_recv_cb pipe: %p p_id %d TYPE: %x ===== header: %x %x header len: %zu\n",
+              p ,p->id, nng_msg_cmd_type(msg), *header, *(header+1), nng_msg_header_len(msg));
 	//ttl = nni_atomic_get(&s->ttl);
 	nni_msg_set_pipe(msg, p->id);
-
 	nni_mtx_lock(&s->lk);
-
+    p->ka_refresh = true;
 	//TODO HOOK
 	switch (nng_msg_cmd_type(msg)) {
 		case CMD_SUBSCRIBE:
@@ -784,8 +804,10 @@ nano_pipe_recv_cb(void *arg)
 		case CMD_UNSUBSCRIBE:
 			break;
 		case CMD_PINGREQ:
-            p->ka_refresh = true;
 			break;
+        case CMD_PUBACK:
+            debug_msg("puback received!");
+            break;
 		default:
 			goto drop;
 	}
@@ -848,7 +870,7 @@ drop:
 	nni_msg_free(msg);
 	nni_aio_set_msg(&p->aio_recv, NULL);
 	nni_pipe_recv(p->pipe, &p->aio_recv);
-	debug_msg("drop of nano_pipe_recv_cb %p", ctx);
+	debug_msg("drop of msg: nano_pipe_recv_cb");
 }
 
 static int

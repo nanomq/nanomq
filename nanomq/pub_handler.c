@@ -341,6 +341,7 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_
 	switch (cmd) {
 		case PUBLISH:
 			/*fixed header*/
+            nng_msg_set_cmd_type(dest_msg, CMD_PUBLISH);
 			work->pub_packet->fixed_header.packet_type = cmd;
 			work->pub_packet->fixed_header.qos = work->pub_packet->fixed_header.qos < sub_qos ?
 				work->pub_packet->fixed_header.qos : sub_qos;
@@ -459,10 +460,17 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_
 			break;
 
 		case PUBREL:
+            nng_msg_set_cmd_type(dest_msg, CMD_PUBREL);
+            break;
 		case PUBACK:
+            nng_msg_set_cmd_type(dest_msg, CMD_PUBACK);
+            //break;
 		case PUBREC:
+            //nng_msg_set_cmd_type(dest_msg, CMD_PUBREC);
+            //break;
 		case PUBCOMP:
 			debug_msg("encode %d message", cmd);
+            //nng_msg_set_cmd_type(dest_msg, CMD_PUBCOMP);
 			struct pub_packet_struct pub_response = {
 					.fixed_header.packet_type = cmd,
 					.fixed_header.dup = dup,

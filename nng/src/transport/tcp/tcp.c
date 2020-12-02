@@ -490,8 +490,8 @@ tcptran_pipe_recv_cb(void *arg)
 		// We should have gotten a message header. len -> remaining length to define how many bytes left
 		//NNI_GET64(p->rxlen, len);	
 		//p->remain_len = len;
-		debug_msg("header got: %x %x %x %x %x, %d!!\n",
-			  p->rxlen[0],p->rxlen[1], p->rxlen[2], p->rxlen[3], p->rxlen[4], p->wantrxhead);
+		debug_msg("pipe %p header got: %x %x %x %x %x, %ld!!\n",
+			      p, p->rxlen[0],p->rxlen[1], p->rxlen[2], p->rxlen[3], p->rxlen[4], p->wantrxhead);
 		// Make sure the message payload is not too big.  If it is
 		// the caller will shut down the pipe.
 		if ((len > p->rcvmax) && (p->rcvmax > 0)) {
@@ -501,7 +501,7 @@ tcptran_pipe_recv_cb(void *arg)
 		}
 
 		if ((rv = nni_msg_alloc(&p->rxmsg, (size_t) len)) != 0) {
-			debug_msg("mem error %d\n", (size_t)len);
+			debug_msg("mem error %ld\n", (size_t)len);
 			goto recv_error;
 		}
 
@@ -537,7 +537,7 @@ tcptran_pipe_recv_cb(void *arg)
 	debug_msg("remain_len %d cparam %p clientid %s username %s proto %d\n", len, cparam, &cparam->clientid.body, &cparam->username.body, cparam->pro_ver);
 	//header_ptr = nni_msg_header(msg);
 	variable_ptr = nni_msg_variable_ptr(msg);
-	int len_of_varint = 0;
+	uint32_t len_of_varint = 0;
 
 	// set the payload pointer of msg according to packet_type
 	debug_msg("The type of msg is %x", type);
@@ -563,17 +563,15 @@ tcptran_pipe_recv_cb(void *arg)
 	}
 	nni_msg_set_payload_ptr(msg, payload_ptr);
 
-
 	//keep connection & Schedule next receive
 	nni_pipe_bump_rx(p->npipe, n);
 	tcptran_pipe_recv_start(p);
 	nni_mtx_unlock(&p->mtx);
 
-
 	nni_aio_set_msg(aio, msg);
 	// finish IO expose msg to EMQ_NANO protocl level
 	nni_aio_finish_sync(aio, 0, n);
-	debug_msg("end of tcptran_pipe_recv_cb: synch!\n");
+	debug_msg("end of tcptran_pipe_recv_cb: synch! %p\n", p);
 	return;
 
 recv_error:

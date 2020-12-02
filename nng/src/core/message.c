@@ -26,19 +26,19 @@ typedef struct {
 
 // Underlying message structure.
 struct nng_msg {
-        uint8_t        m_header_buf[NNI_EMQ_MAX_HEADER_SIZE + 1];       //only fixed header
-        //uint8_t       m_variable_header_buf[];                //TODO independent variable header?
+    uint8_t        m_header_buf[NNI_EMQ_MAX_HEADER_SIZE + 1];       //only fixed header
+    //uint8_t       m_variable_header_buf[];                //TODO independent variable header?
 	size_t         m_header_len;
 	nni_chunk      m_body;
 	uint32_t       m_pipe; // set on receive
 	//nni_list       pipeline;
 	nni_atomic_int m_refcnt;
 	//FOR NANOMQ
-       size_t           remaining_len;
-       uint8_t          CMD_TYPE;
-       //uint8_t          *variable_ptr;         //equal to m_body
-       uint8_t          *payload_ptr;          //payload
-       nano_conn_param  *cparam;
+    size_t           remaining_len;
+    uint8_t          CMD_TYPE;
+    //uint8_t          *variable_ptr;         //equal to m_body
+    uint8_t          *payload_ptr;          //payload
+    nano_conn_param  *cparam;
 
 };
 
@@ -679,4 +679,15 @@ nni_msg_set_cmd_type(nni_msg *m, uint8_t cmd)
        m->CMD_TYPE = cmd;
 }
 
+uint8_t
+nni_msg_get_pub_qos(nni_msg *m)
+{
+    uint8_t qos;
 
+    if (nni_msg_cmd_type(m) != 0x30)
+    {
+        return -1;
+    }
+    qos = (m->m_header_buf[0] & 0x06) >> 1;
+    return qos;
+}
