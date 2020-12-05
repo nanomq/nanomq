@@ -26,18 +26,19 @@ typedef struct {
 
 // Underlying message structure.
 struct nng_msg {
-    uint8_t        m_header_buf[NNI_EMQ_MAX_HEADER_SIZE + 1];       //only fixed header
+    uint8_t           m_header_buf[NNI_EMQ_MAX_HEADER_SIZE + 1];       //only fixed header
     //uint8_t       m_variable_header_buf[];                //TODO independent variable header?
-	size_t         m_header_len;
-	nni_chunk      m_body;
-	uint32_t       m_pipe; // set on receive
+	size_t            m_header_len;
+	nni_chunk         m_body;
+	uint32_t          m_pipe; // set on receive
 	//nni_list       pipeline;
-	nni_atomic_int m_refcnt;
+	nni_atomic_int    m_refcnt;
 	//FOR NANOMQ
-    size_t           remaining_len;
-    uint8_t          CMD_TYPE;
+    size_t            remaining_len;
+    uint8_t           CMD_TYPE;
     //uint8_t          *variable_ptr;         //equal to m_body
     uint8_t          *payload_ptr;          //payload
+    nni_time          times;
     nano_conn_param  *cparam;
 
 };
@@ -628,7 +629,7 @@ nni_msg_remain_len(nni_msg *m)
 uint8_t *
 nni_msg_header_ptr(const nni_msg *m)
 {
-       return (m->m_header_buf);
+       return ((uint8_t *)m->m_header_buf);
 }
 
 uint8_t *
@@ -690,4 +691,16 @@ nni_msg_get_pub_qos(nni_msg *m)
     }
     qos = (m->m_header_buf[0] & 0x06) >> 1;
     return qos;
+}
+
+void
+nni_msg_set_timestamp(nni_msg *m, nni_time time)
+{
+    m->times = time;
+}
+
+nni_time
+nni_msg_get_timestamp(nni_msg *m)
+{
+    return m->times;
 }

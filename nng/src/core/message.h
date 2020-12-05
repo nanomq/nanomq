@@ -55,11 +55,14 @@ extern nni_msg *nni_msg_pull_up(nni_msg *);
 
 
 //NANOMQ MQTT
+extern nni_time nni_msg_get_timestamp(nni_msg *m);
+extern void nni_msg_set_timestamp(nni_msg *m, nni_time time);
 extern size_t   nni_msg_remain_len(nni_msg *m);
-extern int     nni_msg_cmd_type(nni_msg *m);
+extern int      nni_msg_cmd_type(nni_msg *m);
 extern uint8_t *nni_msg_header_ptr(const nni_msg *m);
 extern uint8_t *nni_msg_variable_ptr(const nni_msg *m);
 extern uint8_t *nni_msg_payload_ptr(const nni_msg *m);
+extern uint8_t  nni_msg_get_pub_qos(nni_msg *m);
 extern size_t   nni_msg_remaining_len(const nni_msg *m);
 extern void     nni_msg_set_payload_ptr(nni_msg *m, uint8_t * ptr);
 extern void     nni_msg_set_remaining_len(nni_msg *m, size_t len);
@@ -68,7 +71,6 @@ extern void     nni_msg_set_conn_param(nni_msg *m, void *ptr);
 
 extern conn_param *   nni_msg_get_conn_param(nni_msg *m);
 
-typedef struct conn_param conn_param;
 typedef struct conn_propt conn_propt;
 typedef struct mqtt_string mqtt_string;
 typedef struct mqtt_str_pair mqtt_str_pair;

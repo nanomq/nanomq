@@ -20,11 +20,12 @@ typedef struct nano_pipe nano_pipe;
 typedef struct nano_sock nano_sock;
 typedef struct nano_ctx  nano_ctx;
 
+static void nano_ctx_timeout(void *);
 static void nano_pipe_send_cb(void *);
 static void nano_pipe_recv_cb(void *);
 static void nano_pipe_fini(void *);
-static void nano_ctx_timeout(void *);
 static void nano_pipe_timeout(void *);
+static void nano_pipe_qos_timeout(void *);
 static void nano_pipe_close(void *);
 static void nano_period_check(nano_sock *s, nni_list *sent_list, void *arg);
 static void nano_keepalive(nano_pipe *p, void *arg);
@@ -45,7 +46,7 @@ struct nano_ctx {
 	nni_msg *      rmsg;
     nni_msg *      smsg;
 	nni_timer_node qos_timer;
-	nni_duration   retry;
+	//nni_duration   retry;
 	//size_t        pp_len;			//property Header
 	//uint32_t      pp[NNI_EMQ_MAX_PROPERTY_SIZE + 1];
 };
@@ -71,13 +72,16 @@ struct nano_pipe {
 	void *          tree;	//mqtt_db tree root
 	nni_aio         aio_send;
 	nni_aio         aio_recv;
+    nni_msg *       tmp_msg;
 	nni_list_node   rnode; // receivable list linkage
 	nni_list        sendq; // contexts waiting to send
 	bool            busy;
 	bool            closed;
     bool            ka_refresh;
+    //uint8_t         qos_retry;      //for marking qos retry type
     conn_param *    conn_param;
     nni_timer_node  ka_timer;
+    nni_timer_node  pipe_qos_timer;
 };
 
 static void
@@ -111,11 +115,11 @@ nano_ctx_timeout(void *arg)
     nni_msg   * msg = ctx->smsg;
 
 	nni_mtx_lock(&s->lk);
-    debug_msg("ctx timeout triggered! %x %s*************************************", nni_msg_cmd_type(msg), nni_msg_body(msg));
+    debug_msg("************* ctx timeout triggered! %x %p %s *************", nni_msg_cmd_type(msg), ctx, nni_msg_body(msg));
     p->busy = true;
     //len     = nni_msg_len(msg);
     nni_aio_set_msg(&p->aio_send, msg);
-    nni_pipe_send(p->pipe, &p->aio_send);       //Bug in qos 1 due to msg free
+    nni_pipe_send(p->pipe, &p->aio_send);
     //nni_timer_schedule(&ctx->qos_timer, nni_clock() + NNI_SECOND * 8);
 	nni_mtx_unlock(&s->lk);
 }
@@ -324,7 +328,7 @@ exit:
 	nni_msg_free(msg);
 	return;*/
     //nni_timer_cancel(&ctx->timer);
-	debug_msg("***************************working with pipe id : %d***************************", pipe);
+	debug_msg("***************************working with pipe id : %d ctx***************************", pipe);
 	if ((p = nni_id_get(&s->pipes, pipe)) == NULL) {
 		// Pipe is gone.  Make this look like a good send to avoid
 		// disrupting the state machine.  We don't care if the peer
@@ -339,11 +343,14 @@ exit:
     //if qos =1/2
     if (nni_msg_cmd_type(msg) == CMD_PUBLISH) {
         if (nni_msg_get_pub_qos(msg) > 0) {
-            debug_msg("qos timer started!!!!!!!!!!!!!!!!!!!!!!!11!!!!!!!!!!!!!!!!");
+            debug_msg("qos timer started %p!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", p);
+            //p->qos_retry = p->qos_retry+1;
             ctx->qos_pipe = p;
             ctx->smsg = msg;
+            p->tmp_msg = msg;
             nni_msg_clone(msg);
-            nni_timer_schedule(&ctx->qos_timer, nni_clock() + NNI_SECOND * 6);
+            //nni_timer_schedule(&ctx->qos_timer, nni_clock() + NNI_SECOND * 10);
+            nni_timer_schedule(&p->pipe_qos_timer, nni_clock() + NNI_SECOND * 5);
         }
     }
 	if (!p->busy) {
@@ -444,6 +451,25 @@ nano_pipe_timeout(void *arg)
 }
 
 static void
+nano_pipe_qos_timeout(void *arg)
+{
+	nano_pipe * p = arg;
+	nano_sock * s = p->rep;
+    nni_msg   * m = p->tmp_msg;
+
+	nni_mtx_lock(&s->lk);
+    debug_msg("pipe_qos timeout triggered!*****************************************************************************");
+    p->busy = true;
+    //len     = nni_msg_len(m);
+    nni_aio_set_msg(&p->aio_send, m);
+    //nni_msg_clone(m);
+    nni_pipe_send(p->pipe, &p->aio_send);
+    //nni_timer_schedule(&ctx->qos_timer, nni_clock() + NNI_SECOND * 8);
+    //nni_timer_schedule(&p->pipe_qos_timer, nni_clock() + NNI_SECOND * 30);  //should be configurable
+	nni_mtx_unlock(&s->lk);
+}
+
+static void
 nano_pipe_stop(void *arg)
 {
 	nano_pipe *p = arg;
@@ -474,7 +500,9 @@ nano_pipe_fini(void *arg)
 	nni_aio_fini(&p->aio_recv);
 
     nni_timer_cancel(&p->ka_timer);
+    nni_timer_cancel(&p->pipe_qos_timer);
 	nni_timer_fini(&p->ka_timer);
+    nni_timer_fini(&p->pipe_qos_timer);
 }
 
 static int
@@ -493,8 +521,10 @@ nano_pipe_init(void *arg, nni_pipe *pipe, void *s)
 	p->rep        = s;
     p->conn_param = nni_pipe_get_conn_param(pipe);
     p->ka_refresh = true;
+    //p->qos_retry  = 0;
 
     nni_timer_init(&p->ka_timer, nano_pipe_timeout, p);
+    nni_timer_init(&p->pipe_qos_timer, nano_pipe_qos_timeout, p);
 
 	return (0);
 }
@@ -591,7 +621,7 @@ nano_pipe_send_cb(void *arg)
 	//uint32_t   index = 0;
 	//uint32_t * pipes;
 
-	debug_msg("##########nano_pipe_send_cb################");
+	debug_msg("################ nano_pipe_send_cb %d ################", p->id);
 	//retry here
 	if (nni_aio_result(&p->aio_send) != 0) {
 		nni_msg_free(nni_aio_get_msg(&p->aio_send));
@@ -601,6 +631,7 @@ nano_pipe_send_cb(void *arg)
 	}
 	nni_mtx_lock(&s->lk);
 	p->busy = false;
+    // TODO send qos_msgs in sequence
 	if ((ctx = nni_list_first(&p->sendq)) == NULL) {
 		// Nothing else to send.
 		if (p->id == s->ctx.pipe_id) {
@@ -807,6 +838,7 @@ nano_pipe_recv_cb(void *arg)
 			break;
         case CMD_PUBACK:
             debug_msg("puback received!");
+            //nanomq sdk
             break;
 		default:
 			goto drop;
@@ -856,7 +888,7 @@ nano_pipe_recv_cb(void *arg)
 
 	//ctx->pp_len = len;		//TODO Rewrite mqtt header length
 	ctx->pipe_id = p->id;			//use pipe id to identify which client
-	debug_msg("pipe_id: %d", p->id);
+	debug_msg("currently processing pipe_id: %d", p->id);
 
 	nni_mtx_unlock(&s->lk);
 
@@ -870,7 +902,7 @@ drop:
 	nni_msg_free(msg);
 	nni_aio_set_msg(&p->aio_recv, NULL);
 	nni_pipe_recv(p->pipe, &p->aio_recv);
-	debug_msg("drop of msg: nano_pipe_recv_cb");
+	debug_msg("Warning:dropping msg");
 }
 
 static int
