@@ -169,6 +169,8 @@ typedef struct conn_propt nano_conn_propt;
 #define NNI_EMQ_MAX_PACKET_SIZE sizeof(uint16_t)*512	//switch to alloc
 #define NNI_EMQ_MAX_HEADER_SIZE sizeof(uint8_t)*5      //ONLY FIXED HEADER
 #define NNI_EMQ_MAX_PROPERTY_SIZE sizeof(uint8_t)*32
+#define NNI_NANO_MAX_QOS_LEN 8
+#define NNI_NANO_QOS_TIMER 6
 #define NNI_NANO_MAX_PUB_CLIENT 256
 
 // NNI_MAX_MAX_TTL is the maximum value that MAX_TTL can be set to -
