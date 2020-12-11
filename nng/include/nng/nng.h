@@ -677,6 +677,9 @@ NNG_DECL bool nng_aio_begin(nng_aio *);
 // given aio.
 NNG_DECL void nng_aio_finish(nng_aio *, int);
 
+NNG_DECL void nng_aio_finish_error(nng_aio *aio, int rv);
+NNG_DECL void nng_aio_finish_sync(nng_aio *aio, int rv);
+
 // nng_aio_defer is used to register a cancellation routine, and indicate
 // that the operation will be completed asynchronously.  It must only be
 // called once per operation on an aio, and must only be called by providers.

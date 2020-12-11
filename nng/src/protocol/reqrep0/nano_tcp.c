@@ -188,6 +188,7 @@ nano_ctx_cancel_send(nni_aio *aio, void *arg, int rv)
 	nano_ctx * ctx = arg;
 	nano_sock *s   = ctx->sock;
 
+    debug_msg("*********** nano_ctx_cancel_send ***********");
 	nni_mtx_lock(&s->lk);
 	if (ctx->saio != aio) {
 		nni_mtx_unlock(&s->lk);
@@ -220,7 +221,8 @@ nano_ctx_send(void *arg, nni_aio *aio)
 		return;
 	}
 
-	debug_msg("############### nano_ctx_send with ctx %p ###############", ctx);
+	debug_msg("############### nano_ctx_send with ctx %p msg type %x ###############",
+              ctx, nni_msg_cmd_type(msg));
 	nni_mtx_lock(&s->lk);
 	//len  = ctx->pp_len;
 	//if ((pipes = nni_aio_get_pipeline(aio)) != NULL){
@@ -377,6 +379,7 @@ exit:
 		return;
 	}
 	debug_msg("ERROR: pipe %d jamed! resending in cb!", pipe);
+    //printf("ERROR: pipe %d jamed! resending in cb!\n", pipe);
 	ctx->saio  = aio;
 	ctx->spipe = p;
 	ctx->rmsg  = msg;
@@ -696,6 +699,7 @@ qos:
         p->qos_retry = 0;
 	}
     nni_mtx_unlock(&s->lk);
+    printf("resend!\n");
     debug_msg("nano_pipe_send_cb: end of qos logic ctx : %p", ctx);
     return;
 	/*
@@ -766,6 +770,7 @@ nano_cancel_recv(nni_aio *aio, void *arg, int rv)
 	nano_ctx * ctx = arg;
 	nano_sock *s   = ctx->sock;
 
+    debug_msg("*********** nano_cancel_recv ***********");
 	nni_mtx_lock(&s->lk);
 	if (ctx->raio == aio) {
 		nni_list_remove(&s->recvq, ctx);
@@ -842,7 +847,7 @@ nano_pipe_recv_cb(void *arg)
 	nni_msg   *    msg;
 	uint8_t   *    header;
 	nni_aio   *    aio;
-	size_t         len;
+	size_t         len, index;
 	//int        hops;
 	//int        ttl;
 
@@ -882,7 +887,9 @@ nano_pipe_recv_cb(void *arg)
             uint16_t ackid, pubid;
             nni_msg *lmq_msg;
             //TODO Attention! go thru lmq will disorder qos pub msg
-            while(nni_lmq_getq(&p->qlmq, &lmq_msg) == 0) {
+            len = nni_lmq_len(&p->qlmq);
+            index = 0;
+            while(nni_lmq_getq(&p->qlmq, &lmq_msg) == 0 && index <= len) {
                 ptr = nni_msg_variable_ptr(msg);
                 NNI_GET16(ptr, ackid);
                 debug_msg("ack packet ID: %x !!!!!", ackid);
@@ -898,6 +905,7 @@ nano_pipe_recv_cb(void *arg)
                     nni_msg_free(lmq_msg);
                     break;
                 }
+                index++;
             }
             //nanomq sdk
             break;

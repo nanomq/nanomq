@@ -65,7 +65,7 @@ server_cb(void *arg)
 			debug_msg("INIT!!\n");
 			break;
 		case RECV:
-			debug_msg("RECV  ^^^^^^^^^^^^^^^^^^^^^ %d ^^^^\n", work->ctx.id);
+			debug_msg("RECV  ^^^^^^^^^^^^^^^^^^^^^ ctx%d ^^^^\n", work->ctx.id);
 			if ((rv = nng_aio_result(work->aio)) != 0) {
 				debug_msg("ERROR: RECV nng aio result error: %d", rv);
 				nng_aio_wait(work->aio);
@@ -109,7 +109,6 @@ server_cb(void *arg)
 						tq = tq->next;
 					}
 				}
-
 //				destroy_conn_param(work->cparam);
 				del_sub_client_id(clientid);
 				del_sub_pipe_id(pipe.id);
@@ -126,10 +125,13 @@ server_cb(void *arg)
 			work->state = WAIT;
 			debug_msg("RECV ********************* msg: %s %x******************************************\n",
 			          (char *) nng_msg_body(work->msg), nng_msg_cmd_type(work->msg));
-			nng_sleep_aio(200, work->aio);
+			//nng_sleep_aio(200, work->aio);
+            //nng_aio_finish_error(work->aio, 0);       //TODO reduce waiting time.
+            //nng_aio_finish(work->aio, 0);
+            nng_aio_finish_sync(work->aio, 0);
 			break;
 		case WAIT:
-			debug_msg("WAIT ^^^^^^^^^^^^^^^^^^^^^ %d ^^^^", work->ctx.id);
+			debug_msg("WAIT ^^^^^^^^^^^^^^^^^^^^^ ctx%d ^^^^", work->ctx.id);
 			// We could add more data to the message here.
 			work->msg = nng_aio_get_msg(work->aio);
 			work->cparam = nng_msg_get_conn_param(work->msg);
@@ -137,6 +139,7 @@ server_cb(void *arg)
 			//TODO
 			if ((rv = nng_msg_alloc(&smsg, 0)) != 0) {
 				debug_msg("ERROR: nng_msg_alloc [%d]", rv);
+                fatal("WAIT msg alloc error", rv);
 			}
 			if (nng_msg_cmd_type(work->msg) == CMD_PINGREQ) {
 				debug_msg("\nPINGRESP");
@@ -312,7 +315,7 @@ server_cb(void *arg)
 			break;
 
 		case SEND:
-			debug_msg("SEND  ^^^^^^^^^^^^^^^^^^^^^ %d ^^^^\n", work->ctx.id);
+			debug_msg("SEND  ^^^^^^^^^^^^^^^^^^^^^ ctx%d ^^^^\n", work->ctx.id);
 			if ((rv = nng_aio_result(work->aio)) != 0) {
 				debug_msg("SEND nng aio result error: %d", rv);
 				fatal("SEND nng_ctx_send", rv);

@@ -320,8 +320,7 @@ nng_ctx_send(nng_ctx cid, nng_aio *aio)
 		}
 		return;
 	}
-        debug_msg("send context id %d rv: %d\n", cid.id, rv);
-        //TODO pipe_id
+    debug_msg("send context id %d rv: %d\n", cid.id, rv);
 	nni_ctx_send(ctx, aio);
 	nni_ctx_rele(ctx);
 }
@@ -1505,6 +1504,19 @@ nng_aio_finish(nng_aio *aio, int rv)
 	// Preserve the count.
 	nni_aio_finish(aio, rv, nni_aio_count(aio));
 }
+
+void
+nng_aio_finish_error(nng_aio *aio, int rv)
+{
+    nni_aio_finish_error(aio, rv);
+}
+
+void
+nng_aio_finish_sync(nng_aio *aio, int rv)
+{
+	nni_aio_finish_sync(aio, rv, 0);
+}
+
 
 void
 nng_aio_defer(nng_aio *aio, nng_aio_cancelfn fn, void *arg)
