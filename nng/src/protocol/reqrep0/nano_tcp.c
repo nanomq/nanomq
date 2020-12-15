@@ -79,7 +79,7 @@ struct nano_pipe {
     bool            ka_refresh;
     uint8_t         qos_retry;      //for marking qos retry type
     conn_param *    conn_param;
-    nni_lmq         qlmq;
+    nni_lmq         qlmq, rlmq;
     nni_timer_node  ka_timer;
     nni_timer_node  pipe_qos_timer;
 };
@@ -169,7 +169,7 @@ nano_ctx_init(void *carg, void *sarg)
 	nano_sock *s   = sarg;
 	nano_ctx * ctx = carg;
 
-	debug_msg("&&&&&&&& nano_ctx_init &&&&&&&&&");
+	debug_msg("&&&&&&&& nano_ctx_init %p &&&&&&&&&", ctx);
 	NNI_LIST_NODE_INIT(&ctx->sqnode);
 	NNI_LIST_NODE_INIT(&ctx->rqnode);
 
@@ -207,12 +207,12 @@ nano_ctx_send(void *arg, nni_aio *aio)
 {
 	nano_ctx * ctx = arg;
 	nano_sock *s   = ctx->sock;
-	nano_pipe *p;
+	nano_pipe *p, *p1;
 	nni_msg *  msg;
+    uint32_t * pipes;
 	int        rv;
 	size_t     len;
-	//uint32_t * pipes; // pipes id
-	uint32_t   pipe;
+	uint32_t   pipe, i;
 	//uint32_t   p_id[2],i = 0,fail_count = 0, need_resend = 0;
 
 	msg = nni_aio_get_msg(aio);
@@ -232,7 +232,7 @@ nano_ctx_send(void *arg, nni_aio *aio)
 		//p_id[0] = ctx->pipe_id;
 		//p_id[1] = 0;
 		//pipes = &p_id;
-		pipe = ctx->pipe_id;
+		pipe = ctx->pipe_id;   //reply to self
 	}
 
 	//ctx->pp_len = 0;
@@ -244,93 +244,62 @@ nano_ctx_send(void *arg, nni_aio *aio)
 		nni_pollable_clear(&s->writable);
 	}
 
-	/*
-	//TODO MQTT 5
-	if (len == 0) {
-		nni_mtx_unlock(&s->lk);
-		debug_msg("length : %d!", len);
-		nni_aio_finish_error(aio, NNG_ESTATE);
-		return;
-	}
-	if ((rv = nni_msg_header_append(msg, ctx->property, len)) != 0) {
-		nni_mtx_unlock(&s->lk);
-		debug_msg("header rv : %d!", rv);
-		nni_aio_finish_error(aio, rv);
-		return;
+	len     = nni_msg_len(msg);
+    //if qos =1/2
+	if (aio->pipe_len > 0) {
+		pipes = nni_aio_get_pipes(aio);
 	}
 
-	//pub mutiple clients/pipes in single aio/ctx
-	while (*(pipes+i) != 0) {
-		debug_msg("***************************working with pipe id : %d***************************", *(pipes+i));
-		if (nni_idhash_find(s->pipes, *(pipes+i), (void **) &p) != 0) {
-			// Pipe is gone.  Make this look like a good send to avoid
-			// disrupting the state machine.  We don't care if the peer
-			// lost interest in our reply.
-			debug_msg("pipe %d is gone sth went wrong!", *(pipes+i));
-			i++;
-			fail_count++;
-			continue;
-		}
-		p->tree = nni_aio_get_dbtree(aio);		//TODO only set db_tree when reply suback first time
-		nni_msg_clone(msg);
-		if (!p->busy) {
-			uint8_t  *header;
-			p->busy = true;
-			len     = nni_msg_len(msg);
-			header  = nng_msg_header(msg);
-			debug_msg("send msg :%s header[0]:%x header[1]:%x msg_len:%d", nng_msg_body(msg),*header,*(header+1),len);
-			nni_aio_set_msg(&p->aio_send, msg);
-			nni_pipe_send(p->pipe, &p->aio_send);
-			*(pipes+i) = 0;
-		} else {
-			ctx->saio  = aio;
-			ctx->spipe = p;
-			ctx->rmsg  = msg;
-			//save ctx to start another round
-			debug_msg("pipe %p jamed!", p);
-			if (nni_list_first(&p->sendq) == NULL) {
-				//nni_list_append(&p->sendq, ctx);
-			}
-			need_resend++;
-		}
-		i++;
-	}
-	if (fail_count == i) {
-		goto exit;
-	}
+    if (nni_msg_cmd_type(msg) == CMD_PUBLISH) {
+			i = 0;
+            debug_msg("pipe in queue is %d of %d", pipes[i], aio->pipe_len);
+            while (i < aio->pipe_len) {
+				if ((p = nni_id_get(&s->pipes, pipes[i])) == NULL) {
+					debug_msg("Warning: Pub pipe is gone!");
+					i++;
+					continue;
+				}
+				nni_msg_clone(msg);
+        		if (nni_msg_get_pub_qos(msg) > 0) {
+            		debug_msg("******** processing QoS pubmsg with pipe: %p ********", p);
+            		p->qos_retry = 0;
+            // ctx->qos_pipe = p;
+            // ctx->smsg = msg;
+            		nni_msg_clone(msg);
 
-	//as long as one pipe sucess, aio is sucessd. TODO qos1/2 broker need to ensure all aio completed.
-	debug_msg("pub/reply total %d resend %d fail %d", i, need_resend, fail_count);
-	if (need_resend == 0) {
-		nni_mtx_unlock(&s->lk);
-		nni_aio_set_msg(aio, NULL);
-		debug_msg("send sucessfully ctx %p", ctx);
-		nni_aio_finish(aio, 0, len);
-		return;
-	} else if (nni_list_first(&p->sendq) == NULL) {
-		ctx->resend_count = need_resend;
-		ctx->pipe_len     = i;
-		ctx->rspipes      = pipes;
-		nni_list_append(&p->sendq, ctx);
-		//goto exit;
-	} else {
-		debug_msg("message dropped!!");
-		nni_mtx_unlock(&s->lk);
-		nni_aio_set_msg(aio, NULL);
-		nni_aio_finish(aio, 0, len);
-		return;
-	}
-	nni_mtx_unlock(&s->lk);
-	return;
-exit:
-	nni_mtx_unlock(&s->lk);
-	nni_aio_set_msg(aio, NULL);
-	nni_aio_finish(aio, 0 ,nni_msg_len(msg));
-	//nni_aio_finish_error(aio, 0);
-	nni_msg_free(msg);
-	return;*/
-    //nni_timer_cancel(&ctx->timer);
-	debug_msg("***************************working with pipe id : %d ctx***************************", pipe);
+					if (nni_lmq_full(&p->qlmq)) {
+						// Make space for the new message.
+                		debug_msg("Warning: QoS message dropped");
+						nni_msg *old1;
+						(void) nni_lmq_getq(&p->qlmq, &old1);
+						nni_msg_free(old1);
+					}
+					nni_lmq_putq(&p->qlmq, msg);
+        		}
+				if (p->busy || nni_lmq_len(&p->rlmq) > 0 || nni_aio_list_active(&p->aio_send) || nni_aio_result(&p->aio_send) != 0) {
+					if (nni_lmq_full(&p->rlmq)) {
+						// Make space for the new message.
+						nni_msg *old;
+						(void) nni_lmq_getq(&p->rlmq, &old);
+						nni_msg_free(old);
+					}
+					nni_lmq_putq(&p->rlmq, msg);
+				} else {
+					p->busy = true;
+            		nni_aio_set_msg(&p->aio_send, msg);
+            		nni_pipe_send(p->pipe, &p->aio_send); 
+				}
+            	i++;
+            }
+            nni_mtx_unlock(&s->lk);
+            nng_msg_free(msg);
+            nni_aio_set_msg(aio, NULL);
+			debug_msg("ctx send over");
+            nni_aio_finish(aio, 0, len);
+            return;
+    }
+
+	debug_msg("*************************** working with pipe id : %d ctx***************************", pipe);
 	if ((p = nni_id_get(&s->pipes, pipe)) == NULL) {
 		// Pipe is gone.  Make this look like a good send to avoid
 		// disrupting the state machine.  We don't care if the peer
@@ -342,26 +311,7 @@ exit:
 		return;
 	}
 	p->tree = nni_aio_get_dbtree(aio);
-    //if qos =1/2
-    if (nni_msg_cmd_type(msg) == CMD_PUBLISH) {
-        if (nni_msg_get_pub_qos(msg) > 0) {
-            debug_msg("******** processing QoS pubmsg with pipe: %p ********", p);
-            p->qos_retry = 0;
-            ctx->qos_pipe = p;
-            ctx->smsg = msg;
-            nni_msg_clone(msg);
-
-			if (nni_lmq_full(&p->qlmq)) {
-				// Make space for the new message.
-                debug_msg("Warning: QoS message dropped");
-				nni_msg *old;
-				(void) nni_lmq_getq(&p->qlmq, &old);
-				nni_msg_free(old);
-			}
-			nni_lmq_putq(&p->qlmq, msg);
-        }
-    }
-	if (!p->busy) {
+	if (!p->busy && !nni_aio_list_active(&p->aio_send) && nni_aio_result(&p->aio_send) == 0) {
 		p->busy = true;
 		len     = nni_msg_len(msg);
 		nni_aio_set_msg(&p->aio_send, msg);
@@ -379,11 +329,20 @@ exit:
 		return;
 	}
 	debug_msg("ERROR: pipe %d jamed! resending in cb!", pipe);
-    //printf("ERROR: pipe %d jamed! resending in cb!\n", pipe);
-	ctx->saio  = aio;
-	ctx->spipe = p;
-	ctx->rmsg  = msg;
-	nni_list_append(&p->sendq, ctx);
+					if (nni_lmq_full(&p->rlmq)) {
+						// Make space for the new message.
+						nni_msg *old;
+						(void) nni_lmq_getq(&p->rlmq, &old);
+						nni_msg_free(old);
+					}
+					nni_lmq_putq(&p->rlmq, msg);
+    nni_aio_finish(aio, 0, 0);
+	// ctx->saio  = aio;
+	// ctx->spipe = p;
+	// ctx->rmsg  = msg;
+	// //if (nni_list_active(&p->sendq, ctx))		//ctx1 on ping1 -busy jamed - ctx on ping 2 - busy jamed -BOOM
+	// //	nni_list_remove(&p->sendq, ctx);
+	// nni_list_append(&p->sendq, ctx);
 	nni_mtx_unlock(&s->lk);
 }
 
@@ -411,6 +370,7 @@ nano_sock_init(void *arg, nni_sock *sock)
 	nni_id_map_init(&s->pipes, 0, 0, false);
 	NNI_LIST_INIT(&s->recvq, nano_ctx, rqnode);
 	NNI_LIST_INIT(&s->recvpipes, nano_pipe, rnode);
+
 	nni_atomic_init(&s->ttl);
 	nni_atomic_set(&s->ttl, 8);
 
@@ -514,6 +474,7 @@ nano_pipe_fini(void *arg)
 	nni_aio_fini(&p->aio_send);
 	nni_aio_fini(&p->aio_recv);
     nni_lmq_fini(&p->qlmq);
+	nni_lmq_fini(&p->rlmq);
 
     nni_timer_cancel(&p->ka_timer);
     nni_timer_cancel(&p->pipe_qos_timer);
@@ -529,6 +490,7 @@ nano_pipe_init(void *arg, nni_pipe *pipe, void *s)
     debug_msg("##########nano_pipe_init###############");
 
     nni_lmq_init(&p->qlmq, NNI_NANO_MAX_QOS_LEN);
+	nni_lmq_init(&p->rlmq, NNI_NANO_MAX_QOS_LEN);
 	nni_aio_init(&p->aio_send, nano_pipe_send_cb, p);
 	nni_aio_init(&p->aio_recv, nano_pipe_recv_cb, p);
 
@@ -604,7 +566,9 @@ nano_pipe_close(void *arg)
 		// We are no longer "receivable".
 		nni_list_remove(&s->recvpipes, p);
 	}
+
 	nni_lmq_flush(&p->qlmq);
+	nni_lmq_flush(&p->rlmq);
 	while ((ctx = nni_list_first(&p->sendq)) != NULL) {
 		nni_aio *aio;
 		nni_msg *msg;
@@ -651,6 +615,21 @@ nano_pipe_send_cb(void *arg)
 	nni_mtx_lock(&s->lk);
 	p->busy = false;
 
+    //printf("before : rlmq msg resending! %ld %p \n", nni_lmq_len(&p->rlmq), &p->rlmq);
+       if (nni_lmq_getq(&p->rlmq, &msg) == 0) {
+        p->busy    = true;
+        len        = nni_msg_len(msg);
+               nni_aio_set_msg(&p->aio_send, msg);
+        //nni_msg_clone(msg);
+        debug_msg("rlmq msg resending! %ld left\n", nni_lmq_len(&p->rlmq));
+               nni_pipe_send(p->pipe, &p->aio_send);
+        //nni_aio_finish_sync(aio, 0, len);
+               nni_mtx_unlock(&s->lk);
+               return;
+       } else {
+               p->busy = false;
+       }
+
 	if ((ctx = nni_list_first(&p->sendq)) == NULL) {
         //check qos msg then
         if(p->qos_retry > 0) {
@@ -681,7 +660,7 @@ nano_pipe_send_cb(void *arg)
 
 	nni_mtx_unlock(&s->lk);
 
-	nni_aio_finish_sync(aio, 0, len);
+	nni_aio_finish(aio, 0, len);
     debug_msg("nano_pipe_send_cb: end of republish ctx : %p", ctx);
     return;
 qos:
@@ -690,7 +669,7 @@ qos:
         p->busy    = true;
         len        = nni_msg_len(msg);
 		nni_aio_set_msg(&p->aio_send, msg);
-        nni_msg_clone(msg);
+        //nni_msg_clone(msg);
         debug_msg("Warning: qos msg resending!");
 		nni_pipe_send(p->pipe, &p->aio_send);
         //nni_aio_finish_sync(aio, 0, len);
@@ -699,7 +678,6 @@ qos:
         p->qos_retry = 0;
 	}
     nni_mtx_unlock(&s->lk);
-    printf("resend!\n");
     debug_msg("nano_pipe_send_cb: end of qos logic ctx : %p", ctx);
     return;
 	/*
@@ -880,6 +858,7 @@ nano_pipe_recv_cb(void *arg)
 		case CMD_UNSUBSCRIBE:
 			break;
 		case CMD_PINGREQ:
+			p->ka_refresh = true;
 			break;
         case CMD_PUBACK:
             debug_msg("puback received!");
@@ -892,12 +871,10 @@ nano_pipe_recv_cb(void *arg)
             while(nni_lmq_getq(&p->qlmq, &lmq_msg) == 0 && index <= len) {
                 ptr = nni_msg_variable_ptr(msg);
                 NNI_GET16(ptr, ackid);
-                debug_msg("ack packet ID: %x !!!!!", ackid);
                 ptr = nni_msg_variable_ptr(lmq_msg);
                 NNI_GET16(ptr, pubid);
                 ptr = ptr + 2 + pubid;
                 NNI_GET16(ptr, pubid);
-                debug_msg("pub packet ID: %x !!!!!", pubid);
                 if(pubid != ackid) {
                     (void) nni_lmq_putq(&p->qlmq, lmq_msg);
                 } else {
@@ -941,6 +918,7 @@ nano_pipe_recv_cb(void *arg)
 		nni_pollable_raise(&s->readable);
 		nni_mtx_unlock(&s->lk);
 		debug_msg("ERROR: no ctx found!! create more ctxs!");
+		printf("ERROR: no ctx found!! create more ctxs!\n");
 		return;
 	}
 
@@ -963,7 +941,7 @@ nano_pipe_recv_cb(void *arg)
 
 	nni_aio_set_msg(aio, msg);
 	//trigger application level
-	nni_aio_finish_sync(aio, 0, nni_msg_len(msg));
+	nni_aio_finish(aio, 0, nni_msg_len(msg));
 	debug_msg("end of nano_pipe_recv_cb %p", ctx);
 	return;
 
@@ -1109,3 +1087,90 @@ nng_nano_tcp0_open(nng_socket *sidp)
 	//TODO Global binary tree init here
 	return (nni_proto_open(sidp, &nano_tcp_proto));
 }
+
+	/*
+	//TODO MQTT 5
+	if (len == 0) {
+		nni_mtx_unlock(&s->lk);
+		debug_msg("length : %d!", len);
+		nni_aio_finish_error(aio, NNG_ESTATE);
+		return;
+	}
+	if ((rv = nni_msg_header_append(msg, ctx->property, len)) != 0) {
+		nni_mtx_unlock(&s->lk);
+		debug_msg("header rv : %d!", rv);
+		nni_aio_finish_error(aio, rv);
+		return;
+	}
+
+	//pub mutiple clients/pipes in single aio/ctx
+	while (*(pipes+i) != 0) {
+		debug_msg("***************************working with pipe id : %d***************************", *(pipes+i));
+		if (nni_idhash_find(s->pipes, *(pipes+i), (void **) &p) != 0) {
+			// Pipe is gone.  Make this look like a good send to avoid
+			// disrupting the state machine.  We don't care if the peer
+			// lost interest in our reply.
+			debug_msg("pipe %d is gone sth went wrong!", *(pipes+i));
+			i++;
+			fail_count++;
+			continue;
+		}
+		p->tree = nni_aio_get_dbtree(aio);		//TODO only set db_tree when reply suback first time
+		nni_msg_clone(msg);
+		if (!p->busy) {
+			uint8_t  *header;
+			p->busy = true;
+			len     = nni_msg_len(msg);
+			header  = nng_msg_header(msg);
+			debug_msg("send msg :%s header[0]:%x header[1]:%x msg_len:%d", nng_msg_body(msg),*header,*(header+1),len);
+			nni_aio_set_msg(&p->aio_send, msg);
+			nni_pipe_send(p->pipe, &p->aio_send);
+			*(pipes+i) = 0;
+		} else {
+			ctx->saio  = aio;
+			ctx->spipe = p;
+			ctx->rmsg  = msg;
+			//save ctx to start another round
+			debug_msg("pipe %p jamed!", p);
+			if (nni_list_first(&p->sendq) == NULL) {
+				//nni_list_append(&p->sendq, ctx);
+			}
+			need_resend++;
+		}
+		i++;
+	}
+	if (fail_count == i) {
+		goto exit;
+	}
+
+	//as long as one pipe sucess, aio is sucessd. TODO qos1/2 broker need to ensure all aio completed.
+	debug_msg("pub/reply total %d resend %d fail %d", i, need_resend, fail_count);
+	if (need_resend == 0) {
+		nni_mtx_unlock(&s->lk);
+		nni_aio_set_msg(aio, NULL);
+		debug_msg("send sucessfully ctx %p", ctx);
+		nni_aio_finish(aio, 0, len);
+		return;
+	} else if (nni_list_first(&p->sendq) == NULL) {
+		ctx->resend_count = need_resend;
+		ctx->pipe_len     = i;
+		ctx->rspipes      = pipes;
+		nni_list_append(&p->sendq, ctx);
+		//goto exit;
+	} else {
+		debug_msg("message dropped!!");
+		nni_mtx_unlock(&s->lk);
+		nni_aio_set_msg(aio, NULL);
+		nni_aio_finish(aio, 0, len);
+		return;
+	}
+	nni_mtx_unlock(&s->lk);
+	return;
+exit:
+	nni_mtx_unlock(&s->lk);
+	nni_aio_set_msg(aio, NULL);
+	nni_aio_finish(aio, 0 ,nni_msg_len(msg));
+	//nni_aio_finish_error(aio, 0);
+	nni_msg_free(msg);
+	return;*/
+    //nni_timer_cancel(&ctx->timer);

@@ -167,7 +167,9 @@ extern void nni_aio_set_pipeline(nni_aio *aio, uint32_t id);
 extern void nni_aio_set_dbtree(nni_aio *aio, void *db);
 extern void* nni_aio_get_dbtree(nni_aio *aio);
 extern uint32_t nni_aio_get_pipeline(nni_aio *aio);
-
+extern void nni_aio_set_pipes(nni_aio *aio, uint32_t *pipes);
+extern void nni_aio_set_pipelength(nni_aio *aio, uint32_t len);
+extern uint32_t* nni_aio_get_pipes(nni_aio *aio);
 
 // An nni_aio is an async I/O handle.  The details of this aio structure
 // are private to the AIO framework.  The structure has the public name
@@ -208,9 +210,10 @@ struct nng_aio {
 	nni_list_node a_expire_node;
 
 	// NanoMQ var
-        //uint32_t      *pipes;
-        void *           db;
-        uint32_t        pipe;
+    uint32_t *      pipes;
+    uint32_t        pipe_len;
+    void *          db;
+    uint32_t        pipe;
 };
 
 #endif // CORE_AIO_H

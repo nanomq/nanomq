@@ -352,13 +352,15 @@ tcptran_pipe_send_cb(void *arg)
 
 	nni_mtx_lock(&p->mtx);
 	aio = nni_list_first(&p->sendq);
+	//nni_list_remove(&p->sendq, aio);
 
-	debug_msg("###############tcptran_pipe_send_cb################");
+	debug_msg("############### tcptran_pipe_send_cb ################");
 	/**/
 	if (aio == NULL) {
 		nni_pipe_bump_tx(p->npipe, n);
 		// be aware null aio BUG
 		nni_mtx_unlock(&p->mtx);
+		debug_msg("ERROR: NULL aio in tcptran_pipe_send_cb");
 		return;
 	}
 
@@ -385,7 +387,7 @@ tcptran_pipe_send_cb(void *arg)
 		return;
 	}
 	nni_aio_list_remove(aio);
-	tcptran_pipe_send_start(p);	//just for trigger next layer AIO;
+	tcptran_pipe_send_start(p);	//just for trigger next layer AIO? what does this for?
 	msg = nni_aio_get_msg(aio);
 	n   = nni_msg_len(msg);
 	nni_pipe_bump_tx(p->npipe, n);
@@ -616,7 +618,7 @@ close:
 	nni_mtx_unlock(&p->mtx);
 	nni_aio_set_msg(aio, msg);
 	// finish IO expose msg to EMQ_NANO protocl level
-	nni_aio_finish_sync(aio, 0, 2);
+	nni_aio_finish(aio, 0, 2);
 	debug_msg("tcptran_pipe_recv_cb: disconnect rv: %d\n", rv);
 }
 

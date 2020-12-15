@@ -1729,4 +1729,14 @@ conn_param_get_protover(conn_param *cparam)
         return cparam->pro_ver;
 }
 
+void
+nng_aio_set_pipes(nng_aio *aio, uint32_t *pipes)
+{
+    nni_aio_set_pipes(aio, pipes);
+}
 
+void
+nng_aio_set_pipelength(nng_aio *aio, uint32_t len)
+{
+    nni_aio_set_pipelength(aio, len);
+}
