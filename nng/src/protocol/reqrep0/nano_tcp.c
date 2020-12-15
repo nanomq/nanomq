@@ -240,12 +240,10 @@ nano_ctx_send(void *arg, nni_aio *aio)
 
 	if (ctx == &s->ctx) {
 		//in prototype, we only send once in each sock.
-		//TODO qos 1/2
 		nni_pollable_clear(&s->writable);
 	}
 
 	len     = nni_msg_len(msg);
-    //if qos =1/2
 	if (aio->pipe_len > 0) {
 		pipes = nni_aio_get_pipes(aio);
 	}
@@ -263,8 +261,6 @@ nano_ctx_send(void *arg, nni_aio *aio)
         		if (nni_msg_get_pub_qos(msg) > 0) {
             		debug_msg("******** processing QoS pubmsg with pipe: %p ********", p);
             		p->qos_retry = 0;
-            // ctx->qos_pipe = p;
-            // ctx->smsg = msg;
             		nni_msg_clone(msg);
 
 					if (nni_lmq_full(&p->qlmq)) {
@@ -583,11 +579,6 @@ nano_pipe_close(void *arg)
 		nni_msg_free(msg);
         //TODO when to clean the timer&msg? how many times does broker need to retry?
 	}
-	if (p->id == s->ctx.pipe_id) {
-		// We "can" send.  (Well, not really, but we will happily
-		// accept a message and discard it.)
-		nni_pollable_raise(&s->writable);
-	}
 	nni_id_remove(&s->pipes, nni_pipe_id(p->pipe));
 	nni_mtx_unlock(&s->lk);
 }
@@ -637,10 +628,6 @@ nano_pipe_send_cb(void *arg)
             goto qos;
         }
         // Nothing else to send.
-		if (p->id == s->ctx.pipe_id) {
-			// Mark us ready for the other side to send!
-			nni_pollable_raise(&s->writable);
-		}
 		nni_mtx_unlock(&s->lk);
 		return;
 	}

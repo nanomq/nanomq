@@ -126,8 +126,8 @@ server_cb(void *arg)
 			debug_msg("RECV ********************* msg: %s %x******************************************\n",
 			          (char *) nng_msg_body(work->msg), nng_msg_cmd_type(work->msg));
             //nng_aio_finish_error(work->aio, 0);       //TODO reduce waiting time.
-            //nng_aio_finish(work->aio, 0);
-            nng_aio_finish_sync(work->aio, 0);
+            nng_aio_finish(work->aio, 0);
+            //nng_aio_finish_sync(work->aio, 0);
 			break;
 		case WAIT:
 			debug_msg("WAIT ^^^^^^^^^^^^^^^^^^^^^ ctx%d ^^^^", work->ctx.id);
