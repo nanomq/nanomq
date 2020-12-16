@@ -310,6 +310,7 @@ uint8_t sub_ctx_handle(emq_work * work, client_ctx * cli_ctx)
 		debug_msg("client count [%d]", count);
 //		*/
 
+        /*
 		struct retain_msg_node *msg_node = search_retain_msg(work->db->root, topics);
 
 		for (struct retain_msg_node *i = msg_node->down; i != NULL && i->ret_msg != NULL; i = i->down) {
@@ -320,20 +321,9 @@ uint8_t sub_ctx_handle(emq_work * work, client_ctx * cli_ctx)
 				+ work->pub_packet->variable_header.publish.topic_name.len+2
 				+ (work->pub_packet->fixed_header.qos == 0 ? 0 : 2);
 			put_pipe_msgs(cli_ctx, work, work->pipe_ct, PUBLISH);
-			// TODO WARNING!!!! remainlen is same only in pub
-			/* check info in pub_packet
-			debug_msg("retain %d"
-				" payloadLen %d"
-				" remainLen %d"
-				" qos %d"
-				" packetid %d",
-				work->pub_packet->fixed_header.retain,
-				work->pub_packet->payload_body.payload_len,
-				work->pub_packet->fixed_header.remain_len,
-				work->pub_packet->fixed_header.qos,
-				work->pub_packet->variable_header.publish.packet_identifier);					*/
 		}
 		free_retain_node(msg_node);
+        */
 
 		free_topic_queue(topics);
 		nng_free(topic_str, topic_node_t->it->topic_filter.len+1);

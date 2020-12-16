@@ -126,8 +126,9 @@ server_cb(void *arg)
 			work->state = WAIT;
 			debug_msg("RECV ********************* msg: %s %x******************************************\n",
 			          (char *) nng_msg_body(work->msg), nng_msg_cmd_type(work->msg));
-			nng_sleep_aio(200, work->aio);
-			break;
+			//nng_sleep_aio(200, work->aio);
+			nng_aio_finish(work->aio, 0);
+            break;
 		case WAIT:
 			debug_msg("WAIT ^^^^^^^^^^^^^^^^^^^^^ %d ^^^^", work->ctx.id);
 			// We could add more data to the message here.
