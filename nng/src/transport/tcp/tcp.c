@@ -352,17 +352,8 @@ tcptran_pipe_send_cb(void *arg)
 
 	nni_mtx_lock(&p->mtx);
 	aio = nni_list_first(&p->sendq);
-	//nni_list_remove(&p->sendq, aio);
 
 	debug_msg("############### tcptran_pipe_send_cb ################");
-	/**/
-	if (aio == NULL) {
-		nni_pipe_bump_tx(p->npipe, n);
-		// be aware null aio BUG
-		nni_mtx_unlock(&p->mtx);
-		debug_msg("ERROR: NULL aio in tcptran_pipe_send_cb");
-		return;
-	}
 
 	if ((rv = nni_aio_result(txaio)) != 0) {
 		nni_pipe_bump_error(p->npipe, rv);
@@ -411,14 +402,13 @@ tcptran_pipe_recv_cb(void *arg)
 	nni_iov       iov;
 	uint8_t	      type;
 	//uint16_t      fixed_header;
-	uint32_t      len = 0;
+	uint32_t      len = 0, rv, pos = 1;
 	size_t        n;
 	nni_msg *     msg;
-	tcptran_pipe *p = arg;
+	tcptran_pipe* p = arg;
 	nni_aio *     rxaio = p->rxaio;
 	//nni_aio *     txaio = p->txaio;
-	int           rv, pos = 1;
-	conn_param    *cparam;
+	conn_param *  cparam;
 
 	debug_msg("tcptran_pipe_recv_cb %p\n", p);
 	nni_mtx_lock(&p->mtx);
@@ -656,7 +646,7 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 	nni_iov  iov[3];
 	//uint64_t len;
 
-	debug_msg("####################tcptran_pipe_send_start###########");
+	debug_msg("########### tcptran_pipe_send_start ###########");
 	if (p->closed) {
 		while ((aio = nni_list_first(&p->sendq)) != NULL) {
 			nni_list_remove(&p->sendq, aio);

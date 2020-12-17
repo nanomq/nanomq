@@ -380,6 +380,7 @@ nni_aio_finish_impl(
 	aio->a_count      = count;
 	aio->a_cancel_fn  = NULL;
 	aio->a_cancel_arg = NULL;
+    //NanoMQ param
 	aio->pipe_len	  = 0;
 	if (msg) {
 		aio->a_msg = msg;

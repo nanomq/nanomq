@@ -75,7 +75,7 @@ server_cb(void *arg)
 			msg     = nng_aio_get_msg(work->aio);
 			if (msg == NULL) {        //BUG
 				debug_msg("ERROR: RECV NULL msg");
-				//fatal("RECV NULL MSG", rv);
+				fatal("RECV NULL MSG", rv);
 			}
 			pipe = nng_msg_get_pipe(msg);
 			debug_msg("RECVIED %d %x\n", work->ctx.id, nng_msg_cmd_type(msg));
@@ -116,7 +116,6 @@ server_cb(void *arg)
 				work->state = RECV;
 				nng_msg_free(msg);
 				work->msg = NULL;
-				nng_aio_abort(work->aio, 31);
 				nng_ctx_recv(work->ctx, work->aio);
 				break;
 			}
@@ -198,10 +197,9 @@ server_cb(void *arg)
 						*((uint8_t *) nng_msg_body(smsg) + 1));
 				}
 				nng_msg_set_cmd_type(smsg, CMD_SUBACK);
-				nng_msg_free(work->msg);
+				nng_msg_free(work->msg);        //TODO msg reuse?
 
 				work->msg = smsg;
-				// We could add more data to the message here.
 				nng_aio_set_msg(work->aio, work->msg);
 				work->msg   = NULL;
 				work->state = SEND;
@@ -281,13 +279,6 @@ server_cb(void *arg)
 					if (p_info.pipe != 0 /*&& p_info.pipe != work->pid.id*/) {
 						nng_aio_set_pipeline(work->aio, p_info.pipe);
 					}
-					//work->pipe_ct->current_index++;
-					//if (work->pipe_ct->total <= work->pipe_ct->current_index) {
-					// if (work->pipe_ct->total == 1) {
-					// 	free_pub_packet(work->pub_packet);
-					// 	free_pipes_info(work->pipe_ct->pipe_info);
-					// 	init_pipe_content(work->pipe_ct);
-					// }
 
 					work->state = SEND;
                     for (i =0;i<work->pipe_ct->total; i++) {
@@ -336,38 +327,6 @@ server_cb(void *arg)
 				work->state = RECV;
 				nng_ctx_recv(work->ctx, work->aio);
                 break;
-			/*
-			if (work->pipe_ct->total > work->pipe_ct->current_index) {
-				p_info = work->pipe_ct->pipe_info[work->pipe_ct->current_index];
-
-				if (smsg == NULL) nng_msg_alloc(&smsg, 0);
-
-				work->pipe_ct->encode_msg(smsg, p_info.work, p_info.cmd, p_info.qos, 0);
-				work->msg = smsg;
-				nng_aio_set_msg(work->aio, work->msg);
-				work->msg = NULL;
-
-				if (p_info.pipe != 0 ) {    //&& p_info.pipe != work->pid.id
-					nng_aio_set_pipeline(work->aio, p_info.pipe);
-				}
-
-				work->pipe_ct->current_index++;
-				if (work->pipe_ct->total == work->pipe_ct->current_index) {
-					free_pub_packet(work->pub_packet);
-					free_pipes_info(work->pipe_ct->pipe_info);
-					init_pipe_content(work->pipe_ct);
-				}
-
-				work->state = SEND;
-
-				nng_ctx_send(work->ctx, work->aio);
-			} else {
-				work->msg   = NULL;
-				work->state = RECV;
-				nng_ctx_recv(work->ctx, work->aio);
-			}
-			break;
-			*/
 		default:
 			fatal("bad state!", NNG_ESTATE);
 			break;
@@ -425,7 +384,6 @@ server(const char *url)
 		works[i] = alloc_work(sock);
 		works[i]->db = db;
 		nng_aio_set_dbtree(works[i]->aio, db);
-//		works[i]->pid = pipe_id;
 	}
 
 	if ((rv = nng_listen(sock, url, NULL, 0)) != 0) {
