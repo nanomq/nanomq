@@ -31,3 +31,7 @@
 # Debug files
 *.dSYM/
 *.su
+.idea/
+.vscode/
+build/
+cmake-build-debug/
