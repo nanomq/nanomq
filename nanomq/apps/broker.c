@@ -334,6 +334,9 @@ server_cb(void *arg)
 
 		case SEND:
 			debug_msg("SEND  ^^^^^^^^^^^^^^^^^^^^^ ctx%d ^^^^\n", work->ctx.id);
+			while(smsg) {
+				nng_msg_free(smsg);	//qos 1 2 ?
+			}
 			if ((rv = nng_aio_result(work->aio)) != 0) {
 				debug_msg("SEND nng aio result error: %d", rv);
 				fatal("SEND nng_ctx_send", rv);

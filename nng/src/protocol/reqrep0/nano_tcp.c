@@ -248,6 +248,17 @@ nano_ctx_send(void *arg, nni_aio *aio)
 		pipes = nni_aio_get_pipes(aio);
 	}
 
+	debug_msg("*************************** working with pipe id : %d ctx***************************", pipe);
+	if ((p = nni_id_get(&s->pipes, pipe)) == NULL) {
+		// Pipe is gone.  Make this look like a good send to avoid
+		// disrupting the state machine.  We don't care if the peer
+		// lost interest in our reply.
+		nni_mtx_unlock(&s->lk);
+		nni_aio_set_msg(aio, NULL);
+		//nni_aio_finish(aio, 0, nni_msg_len(msg));
+		nni_msg_free(msg);
+		return;
+	}
     if (nni_msg_cmd_type(msg) == CMD_PUBLISH) {
     	if (nni_msg_get_pub_qos(msg) > 0) {
         	debug_msg("******** processing QoS pubmsg with pipe: %p ********", p);
@@ -265,17 +276,6 @@ nano_ctx_send(void *arg, nni_aio *aio)
     	}
     }
 
-	debug_msg("*************************** working with pipe id : %d ctx***************************", pipe);
-	if ((p = nni_id_get(&s->pipes, pipe)) == NULL) {
-		// Pipe is gone.  Make this look like a good send to avoid
-		// disrupting the state machine.  We don't care if the peer
-		// lost interest in our reply.
-		nni_mtx_unlock(&s->lk);
-		nni_aio_set_msg(aio, NULL);
-		//nni_aio_finish(aio, 0, nni_msg_len(msg));
-		nni_msg_free(msg);
-		return;
-	}
 	p->tree = nni_aio_get_dbtree(aio);
 	if (!p->busy) {
 		p->busy = true;
@@ -777,6 +777,7 @@ nano_pipe_recv_cb(void *arg)
                 NNI_GET16(ptr, pubid);
                 ptr = ptr + 2 + pubid;
                 NNI_GET16(ptr, pubid);
+				debug_msg("%d %d", pubid, ackid);
                 if(pubid != ackid) {
                     (void) nni_lmq_putq(&p->qlmq, lmq_msg);
                 } else {

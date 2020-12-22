@@ -1632,7 +1632,7 @@ nng_msg_get_conn_param(nng_msg *msg)
 void
 nng_msg_set_cmd_type(nng_msg *m, uint8_t cmd)
 {
-	if (nni_msg_cmd_type(m) == 0x00) {
+	if (nni_msg_cmd_type(m) == 0x00 || cmd == 0x00) {
     	nni_msg_set_cmd_type(m, cmd);
 	}
 }
