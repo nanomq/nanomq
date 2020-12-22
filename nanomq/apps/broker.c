@@ -109,7 +109,7 @@ server_cb(void *arg)
 						tq = tq->next;
 					}
 				}
-//				destroy_conn_param(work->cparam);
+				destroy_conn_param(work->cparam);
 				del_sub_client_id(clientid);
 				del_sub_pipe_id(pipe.id);
 

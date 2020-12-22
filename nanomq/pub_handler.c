@@ -563,12 +563,6 @@ decode_pub_message(emq_work *work)
 			//variable header
 			//topic length
 			NNI_GET16(msg_body + pos, pub_packet->variable_header.publish.topic_name.len);
-			pub_packet->variable_header.publish.topic_name.body = (char *) nng_alloc(
-				pub_packet->variable_header.publish.topic_name.len + 1);
-
-			memset((char *) pub_packet->variable_header.publish.topic_name.body, '\0',
-			       pub_packet->variable_header.publish.topic_name.len + 1);
-
 			pub_packet->variable_header.publish.topic_name.body = copy_utf8_str(msg_body, &pos, &len);
 
 			if (pub_packet->variable_header.publish.topic_name.len > 0) {
