@@ -333,8 +333,11 @@ nni_aio_schedule(nni_aio *aio, nni_aio_cancel_fn cancel, void *data)
 		nni_mtx_unlock(&nni_aio_lk);
 		return (NNG_ECLOSED);
 	}
-
+#if defined(DEBUG)
+	debug_msg("aio->a_cancel_fn NULL %d?", (aio->a_cancel_fn == NULL));
+#else
 	NNI_ASSERT(aio->a_cancel_fn == NULL);
+#endif
 	aio->a_cancel_fn  = cancel;
 	aio->a_cancel_arg = data;
 

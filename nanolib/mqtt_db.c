@@ -731,7 +731,7 @@ struct clients *new_clients(struct client *sub_client)
 		sub_clients = (struct clients*)zmalloc(sizeof(struct clients));
 		sub_clients->sub_client = sub_client;
 		sub_clients->down = NULL;
-		debug("first client is %s", sub_clients->sub_client->id);
+		//debug("first client is %s", sub_clients->sub_client->id);
 	}
 	return sub_clients;
 }
@@ -995,7 +995,7 @@ struct clients *search_client(struct db_node *root, char **topic_queue)
 		if (node->plus) { 
 			log("Find the sign of +");
 			if (*(topic_queue+2) == NULL) {
-				debug("When plus is the last one");
+				//debug("When plus is the last one");
 				if (node->down->hashtag) {
 					log("Find the sign of #. Add it if sub_client of # is exist!");
 					if (node->down->next->sub_client) {

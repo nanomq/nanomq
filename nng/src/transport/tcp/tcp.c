@@ -914,8 +914,7 @@ tcptran_ep_close(void *arg)
 
 // This parses off the optional source address that this transport uses.
 // The special handling of this URL format is quite honestly an historical
-// mistake, which we would remove if we could.
-static int
+// mistake, which we would remove if we could.static int
 tcptran_url_parse_source(nng_url *url, nng_sockaddr *sa, const nng_url *surl)
 {
 	int      af;
@@ -961,11 +960,8 @@ tcptran_url_parse_source(nng_url *url, nng_sockaddr *sa, const nng_url *surl)
 		return (rv);
 	}
 
-	nni_tcp_resolv(src, 0, af, 1, aio);
+	nni_resolv_ip(src, "0", af, true, sa, aio);
 	nni_aio_wait(aio);
-	if ((rv = nni_aio_result(aio)) == 0) {
-		nni_aio_get_sockaddr(aio, sa);
-	}
 	nni_aio_free(aio);
 	nni_free(src, len + 1);
 	return (rv);
