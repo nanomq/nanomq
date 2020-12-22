@@ -329,6 +329,7 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_
 	uint8_t  tmp[4]     = {0};
 	uint32_t arr_len    = 0;
 	int      append_res = 0;
+	int      qos_pub    = 0;
 
 	properties_type prop_type;
 
@@ -343,12 +344,17 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_
 			/*fixed header*/
             nng_msg_set_cmd_type(dest_msg, CMD_PUBLISH);
 			work->pub_packet->fixed_header.packet_type = cmd;
+			qos_pub = work->pub_packet->fixed_header.qos;
 			work->pub_packet->fixed_header.qos = work->pub_packet->fixed_header.qos < sub_qos ?
 				work->pub_packet->fixed_header.qos : sub_qos;
 			work->pub_packet->fixed_header.dup = dup;
 			append_res = nng_msg_header_append(dest_msg, (uint8_t *) &work->pub_packet->fixed_header, 1);
 
 			arr_len    = put_var_integer(tmp, work->pub_packet->fixed_header.remain_len);
+			if (qos_pub > 0 && work->pub_packet->fixed_header.qos == 0) {
+				// remain len-2 due to qos change
+				arr_len = put_var_integer(tmp, work->pub_packet->fixed_header.remain_len-2);
+			}
 			append_res = nng_msg_header_append(dest_msg, tmp, arr_len);
 			debug_msg("header len [%ld] remain len [%d]", nng_msg_header_len(dest_msg), work->pub_packet->fixed_header.remain_len);
 
