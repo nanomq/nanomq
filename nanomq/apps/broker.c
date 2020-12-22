@@ -155,6 +155,7 @@ server_cb(void *arg)
 				work->state = SEND;
 				nng_aio_set_pipelength(work->aio, 0);
 				nng_ctx_send(work->ctx, work->aio);
+				nng_aio_finish(work->aio, 0);
 				break;
 			} else if (nng_msg_cmd_type(work->msg) == CMD_SUBSCRIBE) {
 				work->pid = nng_msg_get_pipe(work->msg);
@@ -205,6 +206,7 @@ server_cb(void *arg)
 				work->state = SEND;
 				nng_aio_set_pipelength(work->aio, 0);
 				nng_ctx_send(work->ctx, work->aio);
+				nng_aio_finish(work->aio, 0);
 				break;
 			} else if (nng_msg_cmd_type(work->msg) == CMD_UNSUBSCRIBE) {
 				work->unsub_pkt = nng_alloc(sizeof(packet_unsubscribe));
@@ -247,13 +249,9 @@ server_cb(void *arg)
 				work->state = SEND;
 				nng_aio_set_pipelength(work->aio, 0);
 				nng_ctx_send(work->ctx, work->aio);
+				nng_aio_finish(work->aio, 0);
 				break;
-			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBLISH ||
-			           nng_msg_cmd_type(work->msg) == CMD_PUBACK ||
-			           nng_msg_cmd_type(work->msg) == CMD_PUBREC ||
-			           nng_msg_cmd_type(work->msg) == CMD_PUBREL ||
-			           nng_msg_cmd_type(work->msg) == CMD_PUBCOMP) {
-
+			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBLISH) {
 				if ((rv = nng_aio_result(work->aio)) != 0) {
 					debug_msg("WAIT nng aio result error: %d", rv);
 					fatal("WAIT nng_ctx_recv/send", rv);
@@ -266,29 +264,48 @@ server_cb(void *arg)
 //				nng_mtx_unlock(work->mutex);
 
                 debug_msg("total pipes: %d", work->pipe_ct->total);
+				if (smsg == NULL) {
+					nng_msg_alloc(&smsg, 0);
+				}
 				if (work->pipe_ct->total > 0) {
 					p_info = work->pipe_ct->pipe_info[work->pipe_ct->current_index];
-
-					if (smsg == NULL) nng_msg_alloc(&smsg, 0);
-
 					work->pipe_ct->encode_msg(smsg, p_info.work, p_info.cmd, p_info.qos, 0);
-					work->msg = smsg;
-					nng_aio_set_msg(work->aio, work->msg);
-					work->msg = NULL;
-
-					if (p_info.pipe != 0 /*&& p_info.pipe != work->pid.id*/) {
-						nng_aio_set_pipeline(work->aio, p_info.pipe);
+					if (nng_msg_cmd_type(smsg) != CMD_PUBLISH) {
+						nng_msg_clone(smsg);
+						work->msg = smsg;
+						nng_aio_set_msg(work->aio, work->msg);
+						work->msg = NULL;
+						if (p_info.pipe != 0 /*&& p_info.pipe != work->pid.id*/) {
+							nng_aio_set_pipeline(work->aio, p_info.pipe);
+						}
+						work->pipe_ct->current_index++;
+						nng_ctx_send(work->ctx, work->aio);
+						p_info = work->pipe_ct->pipe_info[work->pipe_ct->current_index];
+						work->pipe_ct->encode_msg(smsg, p_info.work, p_info.cmd, p_info.qos, 0);
 					}
+					while(work->pipe_ct->total > work->pipe_ct->current_index){
+						p_info = work->pipe_ct->pipe_info[work->pipe_ct->current_index];
+						nng_msg_clone(smsg);
+						work->msg = smsg;
+						nng_aio_set_msg(work->aio, work->msg);
+						work->msg = NULL;
 
-					work->state = SEND;
-                    for (i =0;i<work->pipe_ct->total; i++) {
-                        p_info = work->pipe_ct->pipe_info[i];
-                        debug_msg("pipe id %d in %d of %d", p_info.pipe, i, work->pipe_ct->total);
-                        work->pipes[i] = p_info.pipe;
-                    }
-                    nng_aio_set_pipes(work->aio, work->pipes);
-                    nng_aio_set_pipelength(work->aio, work->pipe_ct->total);
-					nng_ctx_send(work->ctx, work->aio);
+						if (p_info.pipe != 0 /*&& p_info.pipe != work->pid.id*/) {
+							nng_aio_set_pipeline(work->aio, p_info.pipe);
+						}
+
+						work->pipe_ct->current_index++;
+						if (work->pipe_ct->total <= work->pipe_ct->current_index) {
+							free_pub_packet(work->pub_packet);
+							free_pipes_info(work->pipe_ct->pipe_info);
+							init_pipe_content(work->pipe_ct);
+						}
+						work->state = SEND;
+						nng_ctx_send(work->ctx, work->aio);
+					}
+					nng_msg_free(smsg);
+					nng_aio_finish(work->aio, 0);
+					break;
 				} else {
 					free_pub_packet(work->pub_packet);
 					free_pipes_info(work->pipe_ct->pipe_info);
@@ -301,6 +318,9 @@ server_cb(void *arg)
 					work->state = RECV;
 					nng_ctx_recv(work->ctx, work->aio);
 				}
+			} else if( nng_msg_cmd_type(work->msg) == CMD_PUBREC ||
+			           nng_msg_cmd_type(work->msg) == CMD_PUBREL ||
+			           nng_msg_cmd_type(work->msg) == CMD_PUBCOMP ) {
 			} else {
 				debug_msg("broker has nothing to do");
 				if (work->msg != NULL)

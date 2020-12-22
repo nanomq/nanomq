@@ -677,7 +677,7 @@ nni_msg_set_remaining_len(nni_msg *m, size_t len)
 void
 nni_msg_set_cmd_type(nni_msg *m, uint8_t cmd)
 {
-       m->CMD_TYPE = cmd;
+	m->CMD_TYPE = cmd;
 }
 
 uint8_t

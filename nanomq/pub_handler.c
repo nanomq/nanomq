@@ -337,7 +337,7 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_
 	debug_msg("start encode message");
 
 	if (dest_msg != NULL) nng_msg_clear(dest_msg);
-
+	nng_msg_set_cmd_type(dest_msg, CMD_UNKNOWN);
 	switch (cmd) {
 		case PUBLISH:
 			/*fixed header*/
@@ -466,11 +466,11 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_
             nng_msg_set_cmd_type(dest_msg, CMD_PUBACK);
             //break;
 		case PUBREC:
-            //nng_msg_set_cmd_type(dest_msg, CMD_PUBREC);
+            nng_msg_set_cmd_type(dest_msg, CMD_PUBREC);
             //break;
 		case PUBCOMP:
 			debug_msg("encode %d message", cmd);
-            //nng_msg_set_cmd_type(dest_msg, CMD_PUBCOMP);
+            nng_msg_set_cmd_type(dest_msg, CMD_PUBCOMP);
 			struct pub_packet_struct pub_response = {
 					.fixed_header.packet_type = cmd,
 					.fixed_header.dup = dup,
@@ -520,15 +520,12 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_
 #endif
 			}
 			break;
-
 		default:
 			break;
-
 	}
 
 	debug_msg("end encode message");
 	return true;
-
 }
 
 

@@ -1035,44 +1035,7 @@ error:
 static void
 tcptran_dial_cb(void *arg)
 {
-/*
-	tcptran_ep *  ep  = arg;
-	nni_aio *     aio = ep->connaio;
-	tcptran_pipe *p;
-	int           rv;
-	nng_stream *  conn;
-
-	if ((rv = nni_aio_result(aio)) != 0) {
-		goto error;
-	}
-
-	conn = nni_aio_get_output(aio, 0);
-	if ((rv = tcptran_pipe_alloc(&p)) != 0) {
-		nng_stream_free(conn);
-		goto error;
-	}
-	nni_mtx_lock(&ep->mtx);
-	if (ep->closed) {
-		tcptran_pipe_fini(p);
-		nng_stream_free(conn);
-		rv = NNG_ECLOSED;
-		nni_mtx_unlock(&ep->mtx);
-		goto error;
-	} else {
-		tcptran_pipe_start(p, conn, ep);
-	}
-	nni_mtx_unlock(&ep->mtx);
 	return;
-
-error:
-	// Error connecting.  We need to pass this straight back
-	// to the user.
-	nni_mtx_lock(&ep->mtx);
-	if ((aio = ep->useraio) != NULL) {
-		ep->useraio = NULL;
-		nni_aio_finish_error(aio, rv);
-	}
-	nni_mtx_unlock(&ep->mtx);*/
 }
 
 static int
@@ -1162,34 +1125,6 @@ static void
 tcptran_ep_connect(void *arg, nni_aio *aio)
 {
 	debug_msg("tcptran_ep_connect ");
-/*
-	tcptran_ep *ep = arg;
-	int         rv;
-
-	if (nni_aio_begin(aio) != 0) {
-		return;
-	}
-	nni_mtx_lock(&ep->mtx);
-	if (ep->closed) {
-		nni_mtx_unlock(&ep->mtx);
-		nni_aio_finish_error(aio, NNG_ECLOSED);
-		return;
-	}
-	if (ep->useraio != NULL) {
-		nni_mtx_unlock(&ep->mtx);
-		nni_aio_finish_error(aio, NNG_EBUSY);
-		return;
-	}
-	if ((rv = nni_aio_schedule(aio, tcptran_ep_cancel, ep)) != 0) {
-		nni_mtx_unlock(&ep->mtx);
-		nni_aio_finish_error(aio, rv);
-		return;
-	}
-	ep->useraio = aio;
-
-	nng_stream_dialer_dial(ep->dialer, ep->connaio);
-	nni_mtx_unlock(&ep->mtx);
-*/
 }
 
 //TODO network interface bind
@@ -1331,32 +1266,14 @@ static int
 tcptran_dialer_getopt(
     void *arg, const char *name, void *buf, size_t *szp, nni_type t)
 {
-/*
-	tcptran_ep *ep = arg;
-	int         rv;
-
-	rv = nni_stream_dialer_getx(ep->dialer, name, buf, szp, t);
-	if (rv == NNG_ENOTSUP) {
-		rv = nni_getopt(tcptran_ep_opts, name, ep, buf, szp, t);
-	}
-	return (rv);
-*/
+	return 0;
 }
 
 static int
 tcptran_dialer_setopt(
     void *arg, const char *name, const void *buf, size_t sz, nni_type t)
 {
-/*
-	tcptran_ep *ep = arg;
-	int         rv;
-
-	rv = nni_stream_dialer_setx(ep->dialer, name, buf, sz, t);
-	if (rv == NNG_ENOTSUP) {
-		rv = nni_setopt(tcptran_ep_opts, name, ep, buf, sz, t);
-	}
-	return (rv);
-*/
+	return 0;
 }
 
 static int
