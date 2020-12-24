@@ -378,7 +378,7 @@ tcptran_pipe_send_cb(void *arg)
 		return;
 	}
 	nni_aio_list_remove(aio);
-	tcptran_pipe_send_start(p);	//just for trigger next layer AIO? what does this for?
+	tcptran_pipe_send_start(p);
 	msg = nni_aio_get_msg(aio);
 	n   = nni_msg_len(msg);
 	nni_pipe_bump_tx(p->npipe, n);

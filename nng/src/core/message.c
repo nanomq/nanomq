@@ -704,3 +704,104 @@ nni_msg_get_timestamp(nni_msg *m)
 {
     return m->times;
 }
+
+
+nano_pipe_db *
+nano_msg_get_subtopic(nni_msg *msg)
+{
+	char *topic;
+	nano_pipe_db *root = NULL, *db = NULL, *tmp = NULL;
+	uint8_t		bpos = 0, len_of_topic = 0, *payload_ptr;;
+	size_t		remain = 0;
+
+	payload_ptr = nni_msg_payload_ptr(msg);
+	remain 		= nni_msg_remain_len(msg) - 2;
+
+	if (nni_msg_cmd_type(msg) != 0x80)
+		return NULL;
+
+	while (bpos < remain){
+		NNI_GET16(payload_ptr + bpos, len_of_topic);
+		if (len_of_topic != 0) {
+			if (NULL != db) {
+				tmp = db;
+				db = db->next;
+			}
+			db = nng_alloc(sizeof(nano_pipe_db));
+			topic = nng_alloc(len_of_topic + 1);
+			db->prev = tmp;
+			if (bpos == 0) {
+				root = db;
+			} else {
+				tmp->next = db;
+			}
+			db->root = root;
+			if (topic == NULL || db == NULL) {
+				NNI_ASSERT("ERROR: nng_alloc");
+				return NULL;
+			} else {
+				bpos += 2;
+			}
+			strncpy(topic, payload_ptr + bpos, len_of_topic);
+			topic[len_of_topic] = 0x00;
+			db->topic = topic;
+			bpos += len_of_topic;
+		} else {
+			NNI_ASSERT("ERROR : topic length error.");
+			return NULL;
+		}
+		db->qos = *(payload_ptr + bpos);
+		db->next= NULL;
+		debug_msg("sub topic: %s qos : %x\n", db->topic, db->qos);
+		bpos += 1;
+	}
+
+	return root;
+}
+
+void
+nano_msg_free_pipedb(nano_pipe_db *db)
+{
+	uint8_t	 	  len;
+
+	if (NULL == db) {
+		return;
+	}
+	db = db->root;
+
+	while (db) {
+		len = strlen(db->topic);
+		nng_free(db->topic, len);
+		nng_free(db, sizeof(nano_pipe_db));
+		db = db->next;
+	}
+	return;
+}
+
+void
+nano_msg_ubsub_free(nano_pipe_db *db)
+{
+	nano_pipe_db *ptr,*tmp;
+	uint8_t	 	  len;
+
+	if (NULL == db) {
+		return;
+	}
+	if (db == db->root) {
+		ptr = db;
+		tmp = db->next;
+		while(ptr) {
+			ptr->root = tmp;
+			ptr = ptr->next;
+		}
+	} else {
+		tmp = db->prev;
+		tmp->next = db->next;
+		db->next->prev = tmp;
+	}
+
+	len = strlen(db->topic);
+	nng_free(db->topic, len);
+	nng_free(db, sizeof(nano_pipe_db));
+	return;
+}

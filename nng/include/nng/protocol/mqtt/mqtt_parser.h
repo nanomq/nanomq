@@ -9,6 +9,7 @@
 //
 //uint32_t htoi(char *str);
 
+
 //MQTT CONNECT
 int32_t conn_handler(uint8_t *packet, conn_param *conn_param);
 void destroy_conn_param(conn_param * cparam);
@@ -26,6 +27,6 @@ NNG_DECL int utf8_check(const char *str, size_t length);
 
 NNG_DECL uint16_t get_variable_binary(uint8_t **dest, const uint8_t *src);
 
-
-
+NNG_DECL uint32_t DJBHash(char *str);
+NNG_DECL uint64_t nano_hash(char *str);
 #endif // NNG_MQTT_H

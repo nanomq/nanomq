@@ -566,3 +566,24 @@ static void init_conn_param(conn_param *cparam)
 	cparam->payload_user_property.len_val = 0;
 }
 
+uint32_t DJBHash(char *str)
+{
+    unsigned int hash = 5381;
+    while (*str){
+        hash = ((hash << 5) + hash) + (*str++); /* times 33 */
+    }
+    hash &= ~(1 << 31); /* strip the highest bit */
+    return hash;
+}
+
+uint64_t
+nano_hash(char *str)
+{
+    uint64_t hash = 5381;
+    int c;
+
+    while (c = *str++)
+        hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+		//hash = hash * 33 + c;
+    return hash;
+}

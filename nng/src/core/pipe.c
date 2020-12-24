@@ -443,3 +443,9 @@ nni_pipe_get_conn_param(nni_pipe *p)
 {
     return p->conn_param;
 }
+
+nni_id_map *
+nni_pipe_get_idhash(nni_pipe *p)
+{
+	return &p->pipedb;
+}

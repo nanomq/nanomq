@@ -1297,6 +1297,7 @@ NNG_DECL int nng_stream_listener_set_addr(
 //NANOMQ MQTT variables & APIs
 typedef struct conn_param conn_param;
 typedef struct pub_packet_struct pub_packet_struct;
+typedef struct pipe_db nano_pipe_db;
 
 NNG_DECL int          nng_msg_cmd_type(nng_msg *msg);
 NNG_DECL void *       nng_msg_get_conn_param(nng_msg *msg);

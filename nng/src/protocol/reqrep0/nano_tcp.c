@@ -12,6 +12,7 @@
 
 #include "core/nng_impl.h"
 #include "nng/protocol/mqtt/nano_tcp.h"
+#include "nng/protocol/mqtt/mqtt_parser.h"
 
 #include "nng/protocol/mqtt/mqtt.h"
 //TODO rewrite as nano_mq protocol with RPC support
@@ -68,8 +69,7 @@ struct nano_pipe {
 	nni_pipe *      pipe;
 	nano_sock *     rep;
 	uint32_t        id;
-	//uint8_t       retry;
-	void *          tree;	//mqtt_db tree root
+	void *          tree;	//root node of db tree
 	nni_aio         aio_send;
 	nni_aio         aio_recv;
 	nni_list_node   rnode; // receivable list linkage
@@ -79,6 +79,7 @@ struct nano_pipe {
     bool            ka_refresh;
     uint8_t         qos_retry;      //for marking qos retry type
     conn_param *    conn_param;
+	nano_pipe_db *  pipedb_root;
     nni_lmq         qlmq, rlmq;
     nni_timer_node  ka_timer;
     nni_timer_node  pipe_qos_timer;
@@ -454,6 +455,7 @@ nano_pipe_fini(void *arg)
 	nni_aio_fini(&p->aio_recv);
     nni_lmq_fini(&p->qlmq);
 	nni_lmq_fini(&p->rlmq);
+	nni_id_map_fini(nni_pipe_get_idhash(&p->pipe));
 
     nni_timer_cancel(&p->ka_timer);
     nni_timer_cancel(&p->pipe_qos_timer);
@@ -472,6 +474,7 @@ nano_pipe_init(void *arg, nni_pipe *pipe, void *s)
 	nni_lmq_init(&p->rlmq, NNI_NANO_MAX_MSQ_LEN);
 	nni_aio_init(&p->aio_send, nano_pipe_send_cb, p);
 	nni_aio_init(&p->aio_recv, nano_pipe_recv_cb, p);
+	nni_id_map_init(nni_pipe_get_idhash(&p->pipe), 0, 0, false);
 
 	//NNI_LIST_INIT(&p->sendq, nano_ctx, sqnode);
 
@@ -571,6 +574,8 @@ nano_pipe_close(void *arg)
 
 	nni_lmq_flush(&p->qlmq);
 	nni_lmq_flush(&p->rlmq);
+	nano_msg_free_pipedb(p->pipedb_root);
+
 	while ((ctx = nni_list_first(&p->sendq)) != NULL) {
 		nni_aio *aio;
 		nni_msg *msg;
@@ -727,7 +732,9 @@ nano_pipe_recv_cb(void *arg)
 	nni_msg   *    msg;
 	uint8_t   *    header;
 	nni_aio   *    aio;
+	nano_pipe_db * pipe_db;
 	size_t         len, index;
+	int			   rv;
 	//int        hops;
 	//int        ttl;
 
@@ -752,6 +759,14 @@ nano_pipe_recv_cb(void *arg)
 	//TODO HOOK
 	switch (nng_msg_cmd_type(msg)) {
 		case CMD_SUBSCRIBE:
+			//TODO put hash table to tcp layer
+			pipe_db = nano_msg_get_subtopic(msg);	//potential memleak when sub failed
+			p->pipedb_root = pipe_db;
+			while (pipe_db) {
+				rv = nni_id_set(nni_pipe_get_idhash(&p->pipe), DJBHash(pipe_db->topic), pipe_db);
+				pipe_db = pipe_db->next;
+			}
+			//pipe_db = nni_id_get(nni_pipe_get_idhash(&p->pipe), DJBHash("msg"));
 			break;
 		case CMD_PUBLISH:
 			break;
@@ -760,7 +775,6 @@ nano_pipe_recv_cb(void *arg)
 		case CMD_UNSUBSCRIBE:
 			break;
 		case CMD_PINGREQ:
-			p->ka_refresh = true;
 			break;
         case CMD_PUBACK:
             debug_msg("puback received!");

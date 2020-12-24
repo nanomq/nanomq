@@ -71,6 +71,7 @@ extern void nni_pipe_bump_error(nni_pipe *, int);
 
 //NanoMQ APIs
 extern void nni_pipe_set_conn_param(nni_pipe *p, conn_param *c);
+extern nni_id_map* nni_pipe_get_idhash(nni_pipe *p);
 conn_param* nni_pipe_get_conn_param(nni_pipe* p);
 
 
