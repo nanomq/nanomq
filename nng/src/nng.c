@@ -1637,6 +1637,12 @@ nng_msg_set_cmd_type(nng_msg *m, uint8_t cmd)
 	}
 }
 
+void
+nng_msg_preset_qos(nng_msg *m, uint8_t qos)
+{
+	nni_msg_set_qos(m, qos);
+}
+
 const uint8_t *
 conn_param_get_clentid(conn_param *cparam)
 {
@@ -1728,7 +1734,17 @@ conn_param_get_keepalive(conn_param *cparam)
 uint8_t
 conn_param_get_protover(conn_param *cparam)
 {
+	if (NULL == cparam )
+		return 0;
+	else
         return cparam->pro_ver;
+}
+
+/*
+void
+nng_aio_set_pipelength(nng_aio *aio, uint32_t len)
+{
+    nni_aio_set_pipelength(aio, len);
 }
 
 void
@@ -1736,9 +1752,4 @@ nng_aio_set_pipes(nng_aio *aio, uint32_t *pipes)
 {
     nni_aio_set_pipes(aio, pipes);
 }
-
-void
-nng_aio_set_pipelength(nng_aio *aio, uint32_t len)
-{
-    nni_aio_set_pipelength(aio, len);
-}
+*/

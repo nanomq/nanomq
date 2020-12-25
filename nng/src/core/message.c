@@ -31,7 +31,6 @@ struct nng_msg {
 	size_t            m_header_len;
 	nni_chunk         m_body;
 	uint32_t          m_pipe; // set on receive
-	//nni_list       pipeline;
 	nni_atomic_int    m_refcnt;
 	//FOR NANOMQ
     size_t            remaining_len;
@@ -40,7 +39,7 @@ struct nng_msg {
     uint8_t          *payload_ptr;          //payload
     nni_time          times;
     nano_conn_param  *cparam;
-
+	uint8_t			  qos;
 };
 
 #if 0
@@ -620,12 +619,6 @@ nni_msg_cmd_type(nni_msg *m)
        return(m->CMD_TYPE);
 }
 
-size_t
-nni_msg_remain_len(nni_msg *m)
-{
-       return(m->remaining_len);
-}
-
 uint8_t *
 nni_msg_header_ptr(const nni_msg *m)
 {
@@ -705,6 +698,18 @@ nni_msg_get_timestamp(nni_msg *m)
     return m->times;
 }
 
+//TODO qos validation
+uint8_t
+nni_msg_get_preset_qos(nni_msg *m)
+{
+	return m->qos;
+}
+
+void
+nni_msg_set_qos(nni_msg *m, uint8_t qos)
+{
+	m->qos = qos;
+}
 
 nano_pipe_db *
 nano_msg_get_subtopic(nni_msg *msg)
@@ -715,7 +720,7 @@ nano_msg_get_subtopic(nni_msg *msg)
 	size_t		remain = 0;
 
 	payload_ptr = nni_msg_payload_ptr(msg);
-	remain 		= nni_msg_remain_len(msg) - 2;
+	remain 		= nni_msg_remaining_len(msg) - 2;
 
 	if (nni_msg_cmd_type(msg) != 0x80)
 		return NULL;

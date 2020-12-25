@@ -262,6 +262,7 @@ pipe_create(nni_pipe **pp, nni_sock *sock, nni_tran *tran, void *tdata)
 	p->p_closed     = false;
 	p->p_cbs        = false;
 	p->p_ref        = 0;
+	p->packet_id	= 0;
 
 	nni_atomic_flag_reset(&p->p_stop);
 	NNI_LIST_NODE_INIT(&p->p_sock_node);
@@ -444,8 +445,20 @@ nni_pipe_get_conn_param(nni_pipe *p)
     return p->conn_param;
 }
 
+uint16_t
+nni_pipe_inc_packetid(nni_pipe *p)
+{
+	uint16_t pid;
+	p->packet_id++;
+	NNI_GET16(&p->packet_id, pid);
+	return pid;
+}
+
+
+/*
 nni_id_map *
 nni_pipe_get_idhash(nni_pipe *p)
 {
 	return &p->pipedb;
 }
+*/

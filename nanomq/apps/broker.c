@@ -153,7 +153,6 @@ server_cb(void *arg)
 
 				work->msg   = NULL;
 				work->state = SEND;
-				nng_aio_set_pipelength(work->aio, 0);
 				nng_ctx_send(work->ctx, work->aio);
 				nng_aio_finish(work->aio, 0);
 				break;
@@ -204,7 +203,6 @@ server_cb(void *arg)
 				nng_aio_set_msg(work->aio, work->msg);
 				work->msg   = NULL;
 				work->state = SEND;
-				nng_aio_set_pipelength(work->aio, 0);
 				nng_ctx_send(work->ctx, work->aio);
 				nng_aio_finish(work->aio, 0);
 				break;
@@ -247,7 +245,6 @@ server_cb(void *arg)
 				nng_aio_set_msg(work->aio, work->msg);
 				work->msg   = NULL;
 				work->state = SEND;
-				nng_aio_set_pipelength(work->aio, 0);
 				nng_ctx_send(work->ctx, work->aio);
 				nng_aio_finish(work->aio, 0);
 				break;
@@ -267,6 +264,7 @@ server_cb(void *arg)
 				if (smsg == NULL) {
 					nng_msg_alloc(&smsg, 0);
 				}
+				//TODO rewrite this part.
 				if (work->pipe_ct->total > 0) {
 					p_info = work->pipe_ct->pipe_info[work->pipe_ct->current_index];
 					work->pipe_ct->encode_msg(smsg, p_info.work, p_info.cmd, p_info.qos, 0);
@@ -280,9 +278,13 @@ server_cb(void *arg)
 						}
 						work->pipe_ct->current_index++;
 						nng_ctx_send(work->ctx, work->aio);
+					}
+
+					if (work->pipe_ct->total > work->pipe_ct->current_index) {
 						p_info = work->pipe_ct->pipe_info[work->pipe_ct->current_index];
 						work->pipe_ct->encode_msg(smsg, p_info.work, p_info.cmd, p_info.qos, 0);
 					}
+
 					while(work->pipe_ct->total > work->pipe_ct->current_index){
 						p_info = work->pipe_ct->pipe_info[work->pipe_ct->current_index];
 						nng_msg_clone(smsg);
@@ -295,13 +297,13 @@ server_cb(void *arg)
 						}
 
 						work->pipe_ct->current_index++;
-						if (work->pipe_ct->total <= work->pipe_ct->current_index) {
-							free_pub_packet(work->pub_packet);
-							free_pipes_info(work->pipe_ct->pipe_info);
-							init_pipe_content(work->pipe_ct);
-						}
 						work->state = SEND;
 						nng_ctx_send(work->ctx, work->aio);
+					}
+					if (work->pipe_ct->total <= work->pipe_ct->current_index) {
+						free_pub_packet(work->pub_packet);
+						free_pipes_info(work->pipe_ct->pipe_info);
+						init_pipe_content(work->pipe_ct);
 					}
 					nng_msg_free(smsg);
 					nng_aio_finish(work->aio, 0);

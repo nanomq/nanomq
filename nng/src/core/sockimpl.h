@@ -113,8 +113,9 @@ struct nni_pipe {
 	nni_mtx            p_mtx;
 	nni_cv             p_cv;
 	nni_reap_item      p_reap;
-	nni_id_map		   pipedb;
     conn_param *       conn_param;
+	uint16_t		   packet_id;
+	//nni_id_map		   pipedb;
 
 #ifdef NNG_ENABLE_STATS
 	nni_stat_item st_root;

@@ -576,6 +576,18 @@ uint32_t DJBHash(char *str)
     return hash;
 }
 
+uint32_t DJBHashn(char *str, uint16_t len)
+{
+    unsigned int hash = 5381;
+	uint16_t i = 0;
+    while (i<len){
+        hash = ((hash << 5) + hash) + (*str++); /* times 33 */
+		i++;
+    }
+    hash &= ~(1 << 31); /* strip the highest bit */
+    return hash;
+}
+
 uint64_t
 nano_hash(char *str)
 {

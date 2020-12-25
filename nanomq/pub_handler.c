@@ -329,7 +329,6 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_
 	uint8_t  tmp[4]     = {0};
 	uint32_t arr_len    = 0;
 	int      append_res = 0;
-	int      qos_pub    = 0;
 
 	properties_type prop_type;
 
@@ -344,18 +343,14 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_
 			/*fixed header*/
             nng_msg_set_cmd_type(dest_msg, CMD_PUBLISH);
 			work->pub_packet->fixed_header.packet_type = cmd;
-			qos_pub = work->pub_packet->fixed_header.qos;
-			work->pub_packet->fixed_header.qos = work->pub_packet->fixed_header.qos < sub_qos ?
-				work->pub_packet->fixed_header.qos : sub_qos;
+			//work->pub_packet->fixed_header.qos = work->pub_packet->fixed_header.qos < sub_qos ? work->pub_packet->fixed_header.qos : sub_qos;
 			work->pub_packet->fixed_header.dup = dup;
 			append_res = nng_msg_header_append(dest_msg, (uint8_t *) &work->pub_packet->fixed_header, 1);
 
 			arr_len    = put_var_integer(tmp, work->pub_packet->fixed_header.remain_len);
-			if (qos_pub > 0 && work->pub_packet->fixed_header.qos == 0) {
-				// remain len-2 due to qos change
-				arr_len = put_var_integer(tmp, work->pub_packet->fixed_header.remain_len-2);
-			}
+
 			append_res = nng_msg_header_append(dest_msg, tmp, arr_len);
+			nng_msg_set_remaining_len(dest_msg, work->pub_packet->fixed_header.remain_len);
 			debug_msg("header len [%ld] remain len [%d]", nng_msg_header_len(dest_msg), work->pub_packet->fixed_header.remain_len);
 
 			/*variable header*/
@@ -373,6 +368,7 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_
 			if (work->pub_packet->fixed_header.qos > 0) {
 				append_res = nng_msg_append_u16(dest_msg, work->pub_packet->variable_header.publish.packet_identifier);
 			}
+			nng_msg_preset_qos(dest_msg, work->pub_packet->fixed_header.qos);
 			debug_msg("after topic and id len in msg already [%ld]", nng_msg_len(dest_msg));
 
 #if SUPPORT_MQTT5_0
@@ -456,6 +452,7 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_
 			
 			//payload
 			if (work->pub_packet->payload_body.payload_len > 0) {
+				//nng_msg_set_payload_ptr(msg, nng_msg_body());
 				append_res = nng_msg_append(dest_msg,
 					work->pub_packet->payload_body.payload,
 					work->pub_packet->payload_body.payload_len);

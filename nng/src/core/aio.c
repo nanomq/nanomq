@@ -72,8 +72,9 @@ nni_aio_init(nni_aio *aio, nni_cb cb, void *arg)
 	aio->a_expire  = NNI_TIME_NEVER;
 	aio->a_timeout = NNG_DURATION_INFINITE;
 	aio->pipe      = 0;
-	aio->pipes	   = NULL;
-	aio->pipe_len  = 0;
+	aio->db		   = NULL;
+	//aio->pipes	   = NULL;
+	//aio->pipe_len  = 0;
 }
 
 void
@@ -383,8 +384,6 @@ nni_aio_finish_impl(
 	aio->a_count      = count;
 	aio->a_cancel_fn  = NULL;
 	aio->a_cancel_arg = NULL;
-    //NanoMQ param
-	aio->pipe_len	  = 0;
 	if (msg) {
 		aio->a_msg = msg;
 	}
@@ -720,7 +719,7 @@ nni_aio_get_dbtree(nni_aio *aio)
 {
        return(aio->db);
 }
-
+/*
 void
 nni_aio_set_pipes(nni_aio *aio, uint32_t *pipes)
 {
@@ -732,6 +731,7 @@ nni_aio_get_pipes(nni_aio *aio)
 {
     return aio->pipes;
 }
+
 
 void
 nni_aio_set_pipelength(nni_aio *aio, uint32_t len)
@@ -748,3 +748,4 @@ nni_aio_get_pipelength(nni_aio *aio)
 {
     return aio->pipe_len;
 }
+*/

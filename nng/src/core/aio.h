@@ -210,8 +210,8 @@ struct nng_aio {
 	nni_list_node a_expire_node;
 
 	// NanoMQ var
-    uint32_t *      pipes;
-    uint32_t        pipe_len;
+    //uint32_t *      pipes;
+    //uint32_t        pipe_len;
     void *          db;
     uint32_t        pipe;
 };
