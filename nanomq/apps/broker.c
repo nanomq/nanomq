@@ -278,10 +278,13 @@ server_cb(void *arg)
 						}
 						work->pipe_ct->current_index++;
 						nng_ctx_send(work->ctx, work->aio);
+						nng_msg_alloc(&smsg, 0);
 					}
 					//nng_msg_free(smsg);
 					if (work->pipe_ct->total > work->pipe_ct->current_index) {
-						nng_msg_alloc(&smsg, 0);
+						if (smsg == NULL) {
+							
+						}
 						p_info = work->pipe_ct->pipe_info[work->pipe_ct->current_index];
 						work->pipe_ct->encode_msg(smsg, p_info.work, p_info.cmd, p_info.qos, 0);
 					}
