@@ -541,7 +541,7 @@ tcptran_pipe_recv_cb(void *arg)
 		} else {
 			payload_ptr = variable_ptr + 2;
 		}
-	}else if(type == CMD_UNSUBSCRIBE){
+	}else if(type == CMD_UNSUBSCRIBE) {
 		if (cparam->pro_ver == PROTOCOL_VERSION_v5) {
 			len_of_varint = 0;
 			len = get_var_integer(variable_ptr + 2, &len_of_varint);

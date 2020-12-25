@@ -269,7 +269,7 @@ server_cb(void *arg)
 					p_info = work->pipe_ct->pipe_info[work->pipe_ct->current_index];
 					work->pipe_ct->encode_msg(smsg, p_info.work, p_info.cmd, p_info.qos, 0);
 					if (nng_msg_cmd_type(smsg) != CMD_PUBLISH) {
-						nng_msg_clone(smsg);
+						//nng_msg_clone(smsg);
 						work->msg = smsg;
 						nng_aio_set_msg(work->aio, work->msg);
 						work->msg = NULL;
@@ -279,8 +279,9 @@ server_cb(void *arg)
 						work->pipe_ct->current_index++;
 						nng_ctx_send(work->ctx, work->aio);
 					}
-
+					//nng_msg_free(smsg);
 					if (work->pipe_ct->total > work->pipe_ct->current_index) {
+						nng_msg_alloc(&smsg, 0);
 						p_info = work->pipe_ct->pipe_info[work->pipe_ct->current_index];
 						work->pipe_ct->encode_msg(smsg, p_info.work, p_info.cmd, p_info.qos, 0);
 					}
@@ -321,8 +322,14 @@ server_cb(void *arg)
 					nng_ctx_recv(work->ctx, work->aio);
 				}
 			} else if( nng_msg_cmd_type(work->msg) == CMD_PUBREC ||
+					   nng_msg_cmd_type(work->msg) == CMD_PUBACK ||
 			           nng_msg_cmd_type(work->msg) == CMD_PUBREL ||
 			           nng_msg_cmd_type(work->msg) == CMD_PUBCOMP ) {
+				if (work->msg != NULL)
+					nng_msg_free(work->msg);
+				work->msg   = NULL;
+				work->state = RECV;
+				nng_ctx_recv(work->ctx, work->aio);
 			} else {
 				debug_msg("broker has nothing to do");
 				if (work->msg != NULL)
