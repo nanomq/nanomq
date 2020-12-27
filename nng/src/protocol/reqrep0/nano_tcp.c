@@ -273,7 +273,11 @@ nano_ctx_send(void *arg, nni_aio *aio)
 			}
 			nni_lmq_putq(&p->qlmq, msg);
     	}
-    }
+    } else if (nni_msg_cmd_type(msg) == CMD_PUBREL) {
+		uint8_t *tmp;
+		tmp = nni_msg_header(msg);
+		*tmp = 0x62;
+	}
 
 	p->tree = nni_aio_get_dbtree(aio);
 	if (!p->busy) {
@@ -771,9 +775,19 @@ nano_pipe_recv_cb(void *arg)
 			break;
 		case CMD_DISCONNECT:
 			break;
+		case CMD_PUBREL:
+			printf("pubrel\n");
+			//nni_msg_set_cmd_type(msg, CMD_PUBREL);
+			break;
+		case CMD_PUBREC:
+			//nni_msg_set_cmd_type(msg, CMD_PUBREC);
+			printf("pubrec\n");
+			break;
 		case CMD_UNSUBSCRIBE:
 			break;
 		case CMD_PINGREQ:
+			break;
+		case CMD_PUBCOMP:
 			break;
         case CMD_PUBACK:
             debug_msg("puback received!");

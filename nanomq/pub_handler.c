@@ -464,13 +464,10 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_
 
 		case PUBREL:
             nng_msg_set_cmd_type(dest_msg, CMD_PUBREL);
-            break;
 		case PUBACK:
             nng_msg_set_cmd_type(dest_msg, CMD_PUBACK);
-            //break;
 		case PUBREC:
             nng_msg_set_cmd_type(dest_msg, CMD_PUBREC);
-            //break;
 		case PUBCOMP:
 			debug_msg("encode %d message", cmd);
             nng_msg_set_cmd_type(dest_msg, CMD_PUBCOMP);

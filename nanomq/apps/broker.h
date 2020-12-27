@@ -23,8 +23,6 @@ struct work {
 	struct pub_packet_struct  *pub_packet;
 	struct packet_subscribe   *sub_pkt;
 	struct packet_unsubscribe *unsub_pkt;
-    uint32_t      pipes[1000];
-
 };
 
 struct client_ctx {

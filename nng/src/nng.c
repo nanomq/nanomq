@@ -1610,6 +1610,14 @@ nng_msg_clone(nng_msg *msg)
         nni_msg_clone(msg);
 }
 
+nng_msg*
+nng_msg_unique(nng_msg *m)
+{
+		nng_msg *m2;
+		m2= nni_msg_unique(m);
+		return m2;
+}
+
 void
 nng_aio_set_pipeline(nng_aio *aio, uint32_t id)
 {
