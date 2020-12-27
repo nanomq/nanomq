@@ -66,6 +66,8 @@ server_cb(void *arg)
 			break;
 		case RECV:
 			debug_msg("RECV  ^^^^^^^^^^^^^^^^^^^^^ ctx%d ^^^^\n", work->ctx.id);
+			if(smsg != NULL) 
+				nng_msg_free(smsg);
 			if ((rv = nng_aio_result(work->aio)) != 0) {
 				debug_msg("ERROR: RECV nng aio result error: %d", rv);
 				nng_aio_wait(work->aio);
@@ -133,11 +135,17 @@ server_cb(void *arg)
 			// We could add more data to the message here.
 			work->msg = nng_aio_get_msg(work->aio);
 			work->cparam = nng_msg_get_conn_param(work->msg);
+							if (smsg == NULL) {
+					nng_msg_alloc(&smsg, 0);
+				} else {
+					nng_msg_header_clear(smsg);
+					nng_msg_clear(smsg);
+				}
 			//reply to client if needed. nng_send_aio vs nng_sendmsg? async or sync? BETTER sync due to realtime requirement
-			if ((rv = nng_msg_alloc(&smsg, 0)) != 0) {
-				debug_msg("ERROR: nng_msg_alloc [%d]", rv);
-                fatal("WAIT msg alloc error", rv);
-			}
+			// if ((rv = nng_msg_alloc(&smsg, 0)) != 0) {
+			// 	debug_msg("ERROR: nng_msg_alloc [%d]", rv);
+            //     fatal("WAIT msg alloc error", rv);
+			// }
 			if (nng_msg_cmd_type(work->msg) == CMD_PINGREQ) {
 				debug_msg("\nPINGRESP");
 				buf[0] = CMD_PINGRESP;
@@ -261,9 +269,6 @@ server_cb(void *arg)
 //				nng_mtx_unlock(work->mutex);
 
                 debug_msg("total pipes: %d", work->pipe_ct->total);
-				if (smsg == NULL) {
-					nng_msg_alloc(&smsg, 0);
-				}
 				//TODO rewrite this part.
 				if (work->pipe_ct->total > 0) {
 					p_info = work->pipe_ct->pipe_info[work->pipe_ct->current_index];
@@ -326,6 +331,7 @@ server_cb(void *arg)
 					   nng_msg_cmd_type(work->msg) == CMD_PUBCOMP ) {
 				if (work->msg != NULL)
 					nng_msg_free(work->msg);
+					nng_msg_free(smsg);
 				work->msg   = NULL;
 				work->state = RECV;
 				nng_ctx_recv(work->ctx, work->aio);
