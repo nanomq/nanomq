@@ -512,6 +512,9 @@ int32_t conn_handler(uint8_t *packet, conn_param *cparam)
 
 void destroy_conn_param(conn_param * cparam)
 {
+	if (cparam == NULL) {
+		return;
+	}
 	debug_msg("destroy conn param");
 	nng_free(cparam->pro_name.body, cparam->pro_name.len);
 	nng_free(cparam->clientid.body, cparam->clientid.len);

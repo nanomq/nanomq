@@ -9,6 +9,7 @@
 
 #include <string.h>
 #include <mqtt_db.h>
+#include <hash.h>
 
 #include "core/nng_impl.h"
 #include "nng/protocol/mqtt/nano_tcp.h"
@@ -66,6 +67,7 @@ struct nano_sock {
 struct nano_pipe {
 	nni_pipe *      pipe;
 	nni_id_map      nano_db;
+	nni_id_map      retain_db; // hash clientid->lmq[msg ptr1...N]
 	nano_sock *     rep;
 	uint32_t        id;
 	void *          tree;	//root node of db tree
@@ -544,17 +546,25 @@ nano_pipe_close(void *arg)
 	nano_sock *s = p->rep;
 	nano_ctx * ctx;
 	void *     tree;
+	char *     client_id = NULL;
 
 	debug_msg("################# nano_pipe_close ##############");
 	nni_mtx_lock(&s->lk);
 	debug_msg("deleting %d", p->id);
 	debug_msg("tree : %p", p->tree);
 
-	// TODO free conn_param after one to many pub completed
-	// destroy_conn_param();
 	if (p->tree != NULL) {
 //		del_all(p->id, p->tree);
 	}
+	if ((client_id = get_client_id(p->id)) != NULL) {
+		del_topic_all(client_id);
+	}
+	if (check_pipe_id(p->id)) {
+		del_pipe_id(p->id);
+	}
+	// TODO free conn_param after one to many pub completed
+	// destroy_conn_param(p->conn_param);
+
 	nni_aio_close(&p->aio_send);
 	nni_aio_close(&p->aio_recv);
 
