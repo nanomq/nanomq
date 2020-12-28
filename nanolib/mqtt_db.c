@@ -18,12 +18,13 @@
 typedef enum {PRINT_DB_TREE, SEARCH_RET} WHICH_WORK;
 
 /* 
- ** Create a db_tree
- ** Declare a global variable as func para 
- ** struct db_tree *db;
- */
+** Create a db_tree
+** Declare a global variable as func para 
+** struct db_tree *db;
+*/
 void create_db_tree(struct db_tree **db)
 {
+	puts("create db tree");
 	log_info("CREATE_DB_TREE");
 	*db = (struct db_tree *)zmalloc(sizeof(struct db_tree));
 	memset(*db, 0, sizeof(struct db_tree));
@@ -34,9 +35,9 @@ void create_db_tree(struct db_tree **db)
 }
 
 /*
- ** Destory db tree 
- ** destory all node & db_tree
- */
+** Destory db tree 
+** destory all node & db_tree
+*/
 void destory_db_tree(struct db_tree *db)
 {
 	log_info("DESTORY_DB_TREE");
@@ -49,6 +50,9 @@ void destory_db_tree(struct db_tree *db)
 	}
 }
 
+/*
+** We will print db_node in uniform style
+*/
 static void *print_db_node(struct db_node *node)
 {
 	struct db_node *tmp = node;
@@ -81,7 +85,8 @@ static void *print_db_node(struct db_node *node)
 }
 
 /*
-** TODO
+** This func is used to traverse db_tree, the func_cb 
+** you offered is depend on WHICH_WORK for differrnt tasks
 */
 static void *iterate(struct db_node *root, void *(*fun_cb)(struct db_node *node), WHICH_WORK WORK)
 {
@@ -163,10 +168,10 @@ static void *iterate(struct db_node *root, void *(*fun_cb)(struct db_node *node)
 }
 
 /*
- ** Print db_tree
- ** For debugging, you can output all node
- ** & node info
- */
+** Print db_tree
+** For debugging, you can output all node
+** & node info
+*/
 #ifdef NOLOG
 void print_db_tree(struct db_tree *db)
 {
@@ -186,9 +191,9 @@ void print_db_tree(struct db_tree *db)
 #endif
 
 /*
- ** Determine if the current topic data is "#"
- ** or not.
- */
+** Determine if the current topic data is "#"
+** or not.
+*/
 bool check_hashtag(char *topic_data)
 {
 	if (topic_data == NULL) {
@@ -198,9 +203,9 @@ bool check_hashtag(char *topic_data)
 }
 
 /*
- ** Determine if the current topic data is "+"
- ** or not.
- */
+** Determine if the current topic data is "+"
+** or not.
+*/
 bool check_plus(char *topic_data)
 {
 	if (topic_data == NULL) {
@@ -458,7 +463,7 @@ void del_node(struct db_node *node)
 }
 
 
-void set_retain_msg(struct db_node *node, struct retain_msg *retain)
+void set_retain_msg( struct db_node *node, struct retain_msg *retain)
 {
 	log("ret_msg: %p", retain);
 	node->retain = retain;
@@ -901,6 +906,8 @@ struct retain_msg_node *search_retain_msg(struct db_node *root, char **topic_que
 	}
 	// log("fun");
 	// log("ret_msg: %p", res->down->ret_msg);
+	puts("search retain message finished");
+	fflush(stdout);
 
 	return res;
 }

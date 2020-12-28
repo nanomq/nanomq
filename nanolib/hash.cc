@@ -15,6 +15,11 @@
 
 using namespace std;
 
+/*
+ * A thread safe hash table
+ * baseed on unordered_map
+ */ 
+
 template<typename K, typename V>
 class mqtt_hash {
 	public:
@@ -116,14 +121,14 @@ static struct topic_queue *new_topic_queue(char *val)
 
 	tq = (struct topic_queue*)malloc(sizeof(struct topic_queue));
 	if (!tq) {
-		fprintf(stderr, "zmalloc: Out of memory\n");
+		fprintf(stderr, "malloc: Out of memory\n");
 		fflush(stderr);
 		abort();
 
 	}
 	tq->topic = (char*)malloc(sizeof(char)*(len+1));
 	if (!tq->topic) {
-		fprintf(stderr, "zmalloc: Out of memory\n");
+		fprintf(stderr, "malloc: Out of memory\n");
 		fflush(stderr);
 		abort();
 
