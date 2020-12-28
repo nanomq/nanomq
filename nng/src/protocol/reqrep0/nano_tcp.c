@@ -28,7 +28,7 @@ static void nano_pipe_fini(void *);
 static void nano_pipe_timeout(void *);
 static void nano_pipe_qos_timeout(void *);
 static void nano_pipe_close(void *);
-static void nano_period_check(nano_sock *s, nni_list *sent_list, void *arg);
+//static void nano_period_check(nano_sock *s, nni_list *sent_list, void *arg);
 static void nano_keepalive(nano_pipe *p, void *arg);
 static void nano_qos_msg_repack(nni_msg *msg, nano_pipe *p);
 
@@ -48,9 +48,6 @@ struct nano_ctx {
 	nni_msg *      rmsg;
     nni_msg *      smsg;
 	nni_timer_node qos_timer;
-	//nni_duration   retry;
-	//size_t        pp_len;			//property Header
-	//uint32_t      pp[NNI_EMQ_MAX_PROPERTY_SIZE + 1];
 };
 
 // nano_sock is our per-socket protocol private structure.
@@ -86,17 +83,15 @@ struct nano_pipe {
     nni_timer_node  ka_timer;
     nni_timer_node  pipe_qos_timer;
 };
-
+/*
 static void
 nano_period_check(nano_sock *s, nni_list *sent_list, void *arg)
 {
     nano_ctx *ctx;
 	nni_aio * aio;
-
-    while ((ctx = nni_list_first(&s->recvq)) != NULL) {
-    }
     debug_msg("periodcal task over");
 }
+*/
 
 static void
 nano_keepalive(nano_pipe *p, void *arg)
@@ -226,14 +221,10 @@ nano_ctx_send(void *arg, nni_aio *aio)
 	debug_msg("############### nano_ctx_send with ctx %p msg type %x ###############",
               ctx, nni_msg_cmd_type(msg));
 	nni_mtx_lock(&s->lk);
-	//len  = ctx->pp_len;
-	//if ((pipes = nni_aio_get_pipeline(aio)) != NULL){
+
 	if ((pipe = nni_aio_get_pipeline(aio)) != 0){
 		nni_aio_set_pipeline(aio, 0);
 	} else {
-		//p_id[0] = ctx->pipe_id;
-		//p_id[1] = 0;
-		//pipes = &p_id;
 		pipe = ctx->pipe_id;   //reply to self
 	}
 
@@ -377,7 +368,7 @@ nano_pipe_timeout(void *arg)
 
     if (!p->ka_refresh) {
         debug_msg("Warning: close pipe & kick client due to KeepAlive timeout!");
-        //nano_pipe_close(p);
+        nano_pipe_close(p);
         return;
     }
 	nni_mtx_lock(&s->lk);
@@ -396,7 +387,7 @@ nano_pipe_timeout(void *arg)
     p->ka_refresh = false;
     debug_msg("*************** KeepAlive timeout triggered ***************");
     interval = conn_param_get_keepalive(p->conn_param);
-    nni_timer_schedule(&p->ka_timer, nni_clock() + NNI_SECOND * interval);
+    nni_timer_schedule(&p->ka_timer, nni_clock() + NNI_SECOND * interval * 2);
 	nni_mtx_unlock(&s->lk);
 }
 
@@ -776,12 +767,6 @@ nano_pipe_recv_cb(void *arg)
 		case CMD_DISCONNECT:
 			break;
 		case CMD_PUBREL:
-			printf("pubrel\n");
-			//nni_msg_set_cmd_type(msg, CMD_PUBREL);
-			break;
-		case CMD_PUBREC:
-			//nni_msg_set_cmd_type(msg, CMD_PUBREC);
-			printf("pubrec\n");
 			break;
 		case CMD_UNSUBSCRIBE:
 			break;
@@ -790,6 +775,7 @@ nano_pipe_recv_cb(void *arg)
 		case CMD_PUBCOMP:
 			break;
         case CMD_PUBACK:
+		case CMD_PUBREC:
             debug_msg("puback received!");
             uint8_t *ptr;
             uint16_t ackid, pubid;
@@ -964,12 +950,12 @@ nano_qos_msg_repack(nni_msg *msg, nano_pipe *p)
 		idm = &p->nano_db;
 		if ((db = nni_id_get(&p->nano_db, DJBHashn(body+2, tlen))) == NULL) {
 			return;
-		} else if (qos_pac == db->qos) {
-			return;
 		}
 		debug_msg("qos_pac %d pub %d sub %d\n", qos_pac, qos_pub, db->qos);
 		switch (qos_pub & db->qos) {
 			case 0x00:
+				if ((db->qos | qos_pub) == 0x03)
+					goto qos1;
 				if (qos_pub > 0) {
 					//set QoS
 					*header = *header & 0xF9;
@@ -991,7 +977,7 @@ nano_qos_msg_repack(nni_msg *msg, nano_pipe *p)
 				break;
 			case 0x01:
 			case 0x02:
-				if ((qos_pub & db->qos) == 0x01)
+qos1:			if (qos_pub == 1 || db->qos == 1)
 					*header = *header | 0x02;
 				else
 					*header = *header | 0x04;

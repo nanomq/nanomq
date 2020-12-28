@@ -644,6 +644,8 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 	nni_msg *msg;
 	int      niov;
 	nni_iov  iov[3];
+	//uint8_t	*pos;
+	//uint16_t pid;
 	//uint64_t len;
 
 	debug_msg("########### tcptran_pipe_send_start ###########");
@@ -670,6 +672,11 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 	//iov[0].iov_buf = p->txlen;
 	//iov[0].iov_len = sizeof(p->txlen);
 	//niov++;
+	// if (nni_msg_cmd_type(msg) == CMD_PUBREL) {
+	// 	pos = nni_msg_header(msg);
+	// 	pid = nni_pipe_inc_packetid(p->npipe);
+	// 	memcpy(pos + 2, &pid, 2);
+	// }
 	if (nni_msg_header_len(msg) > 0) {
 		iov[niov].iov_buf = nni_msg_header(msg);
 		iov[niov].iov_len = nni_msg_header_len(msg);

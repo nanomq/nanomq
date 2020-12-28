@@ -29,7 +29,7 @@
 // descriptors if you set this too high. (If not for that limit, this could
 // be set in the thousands, each context consumes a couple of KB.)
 #ifndef PARALLEL
-#define PARALLEL 512
+#define PARALLEL 128
 #endif
 
 // The server keeps a list of work items, sorted by expiration time,
@@ -46,6 +46,7 @@ fatal(const char *func, int rv)
 static int
 check_alloc_msg(nng_msg **msg)
 {
+	//TODO what if ctx got reused, but smsg still in rlmq/qlmq?
 	int rv = 0;
 	if (*msg == NULL) {
 		if ((rv = nng_msg_alloc(msg, 0)) != 0) {
