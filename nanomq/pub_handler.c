@@ -331,8 +331,7 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work,
 	uint32_t arr_len    = 0;
 	int      append_res = 0;
 
-	properties_type          prop_type;
-	struct pub_packet_struct pub_response;
+	properties_type prop_type;
 
 	const uint8_t proto_ver = conn_param_get_protover(work->cparam);
 
@@ -529,121 +528,108 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work,
 			append_res = nng_msg_append(dest_msg,
 			    work->pub_packet->payload_body.payload,
 			    work->pub_packet->payload_body.payload_len);
-			//				debug_msg("payload [%s] len
+			//				debug_msg("payload [%s]
+			// len
 			//[%d]", (char
 			//*)work->pub_packet->payload_body.payload,
-			//work->pub_packet->payload_body.payload_len);
+			// work->pub_packet->payload_body.payload_len);
 		}
 
 		debug_msg("after payload len in msg already [%ld]",
 		    nng_msg_len(dest_msg));
-		return true;
-		
-	} else if (cmd == PUBACK) {
-		nng_msg_set_cmd_type(dest_msg, CMD_PUBACK);
-		pub_response.fixed_header.packet_type = cmd;
-		pub_response.fixed_header.dup         = dup;
-		pub_response.fixed_header.qos         = 0;
-		pub_response.fixed_header.retain      = 0;
-		// TODO may change if handle MQTT5.0 packet
-		pub_response.fixed_header.remain_len = 2;
-		pub_response.variable_header.pub_arrc.packet_identifier =
-		    work->pub_packet->variable_header.publish
-		        .packet_identifier;
-	} else if (cmd == PUBREC) {
-		nng_msg_set_cmd_type(dest_msg, CMD_PUBREC);
-		nng_msg_set_cmd_type(dest_msg, CMD_PUBREC);
-		pub_response.fixed_header.packet_type = cmd;
-		pub_response.fixed_header.dup         = dup;
-		pub_response.fixed_header.qos         = 0;
-		pub_response.fixed_header.retain      = 0;
-		// TODO may change if handle MQTT5.0 packet
-		pub_response.fixed_header.remain_len = 2;
-		pub_response.variable_header.pub_arrc.packet_identifier =
-		    work->pub_packet->variable_header.publish
-		        .packet_identifier;
-	} else if (cmd == PUBREL) {
-		nng_msg_set_cmd_type(dest_msg, CMD_PUBREL);
-		pub_response.fixed_header.packet_type = cmd;
-		pub_response.fixed_header.dup         = dup;
-		pub_response.fixed_header.qos         = 1;
-		pub_response.fixed_header.retain      = 0;
-		// TODO may change if handle MQTT5.0 packet
-		pub_response.fixed_header.remain_len = 2;
-		pub_response.variable_header.pub_arrc.packet_identifier =
-		    work->pub_packet->variable_header.publish
-		        .packet_identifier;
-	} else if (cmd == PUBCOMP) {
-		nng_msg_set_cmd_type(dest_msg, CMD_PUBCOMP);
-		pub_response.fixed_header.packet_type = cmd;
-		pub_response.fixed_header.dup         = dup;
-		pub_response.fixed_header.qos         = 0;
-		pub_response.fixed_header.retain      = 0;
-		// TODO may change if handle MQTT5.0 packet
-		pub_response.fixed_header.remain_len = 2;
-		pub_response.variable_header.pub_arrc.packet_identifier =
-		    work->pub_packet->variable_header.publish
-		        .packet_identifier;
-	}
 
-	/*fixed header*/
-	nng_msg_header_append(
-	    dest_msg, (uint8_t *) &pub_response.fixed_header, 1);
-	arr_len = put_var_integer(tmp, pub_response.fixed_header.remain_len);
-	nng_msg_header_append(dest_msg, tmp, arr_len);
+	} else {
 
-	/*variable header*/
-	// identifier
-	nng_msg_append_u16(
-	    dest_msg, pub_response.variable_header.pub_arrc.packet_identifier);
+		struct pub_packet_struct pub_response = {
+			.fixed_header.packet_type = cmd,
+			.fixed_header.qos         = 0,
+			.fixed_header.dup         = dup,
+			.fixed_header.retain      = 0,
+			// TODO may change if handle MQTT5.0 packet
+			.fixed_header.remain_len = 2,
+			.variable_header.pub_arrc.packet_identifier =
+			    work->pub_packet->variable_header.publish
+			        .packet_identifier
+		};
 
-	// reason code
-	if (pub_response.fixed_header.remain_len > 2) {
-		uint8_t reason_code =
-		    pub_response.variable_header.pub_arrc.reason_code;
-		nng_msg_append(
-		    dest_msg, (uint8_t *) &reason_code, sizeof(reason_code));
+		if (cmd == PUBACK) {
+			nng_msg_set_cmd_type(dest_msg, CMD_PUBACK);
+		} else if (cmd == PUBREC) {
+			nng_msg_set_cmd_type(dest_msg, CMD_PUBREC);
+		} else if (cmd == PUBREL) {
+			nng_msg_set_cmd_type(dest_msg, CMD_PUBREL);
+			pub_response.fixed_header.qos = 1;
+		} else if (cmd == PUBCOMP) {
+			nng_msg_set_cmd_type(dest_msg, CMD_PUBCOMP);
+		}
+
+		/*fixed header*/
+		nng_msg_header_append(
+		    dest_msg, (uint8_t *) &pub_response.fixed_header, 1);
+		arr_len =
+		    put_var_integer(tmp, pub_response.fixed_header.remain_len);
+		nng_msg_header_append(dest_msg, tmp, arr_len);
+
+		/*variable header*/
+		// identifier
+		nng_msg_append_u16(dest_msg,
+		    pub_response.variable_header.pub_arrc.packet_identifier);
+
+		// reason code
+		if (pub_response.fixed_header.remain_len > 2) {
+			uint8_t reason_code =
+			    pub_response.variable_header.pub_arrc.reason_code;
+			nng_msg_append(dest_msg, (uint8_t *) &reason_code,
+			    sizeof(reason_code));
 
 #if SUPPORT_MQTT5_0
-		if (PROTOCOL_VERSION_v5 == proto_ver) {
-			// properties
-			if (pub_response.fixed_header.remain_len >= 4) {
+			if (PROTOCOL_VERSION_v5 == proto_ver) {
+				// properties
+				if (pub_response.fixed_header.remain_len >=
+				    4) {
 
-				memset(tmp, 0, sizeof(tmp));
-				arr_len = put_var_integer(tmp,
-				    pub_response.variable_header.pub_arrc
-				        .properties.len);
-				nng_msg_append(dest_msg, tmp, arr_len);
+					memset(tmp, 0, sizeof(tmp));
+					arr_len = put_var_integer(tmp,
+					    pub_response.variable_header
+					        .pub_arrc.properties.len);
+					nng_msg_append(dest_msg, tmp, arr_len);
 
-				// reason string
-				append_bytes_with_type(dest_msg, REASON_STRING,
-				    (uint8_t *) pub_response.variable_header
-				        .pub_arrc.properties.content.pub_arrc
-				        .reason_string.body,
-				    pub_response.variable_header.pub_arrc
-				        .properties.content.pub_arrc
-				        .reason_string.len);
+					// reason string
+					append_bytes_with_type(dest_msg,
+					    REASON_STRING,
+					    (uint8_t *) pub_response
+					        .variable_header.pub_arrc
+					        .properties.content.pub_arrc
+					        .reason_string.body,
+					    pub_response.variable_header
+					        .pub_arrc.properties.content
+					        .pub_arrc.reason_string.len);
 
-				// user properties
-				append_bytes_with_type(dest_msg, USER_PROPERTY,
-				    (uint8_t *) pub_response.variable_header
-				        .pub_arrc.properties.content.pub_arrc
-				        .user_property.key,
-				    pub_response.variable_header.pub_arrc
-				        .properties.content.pub_arrc
-				        .user_property.len_key);
-				nng_msg_append(dest_msg,
-				    (uint8_t *) pub_response.variable_header
-				        .pub_arrc.properties.content.pub_arrc
-				        .user_property.val,
-				    pub_response.variable_header.pub_arrc
-				        .properties.content.pub_arrc
-				        .user_property.len_val);
+					// user properties
+					append_bytes_with_type(dest_msg,
+					    USER_PROPERTY,
+					    (uint8_t *) pub_response
+					        .variable_header.pub_arrc
+					        .properties.content.pub_arrc
+					        .user_property.key,
+					    pub_response.variable_header
+					        .pub_arrc.properties.content
+					        .pub_arrc.user_property
+					        .len_key);
+					nng_msg_append(dest_msg,
+					    (uint8_t *) pub_response
+					        .variable_header.pub_arrc
+					        .properties.content.pub_arrc
+					        .user_property.val,
+					    pub_response.variable_header
+					        .pub_arrc.properties.content
+					        .pub_arrc.user_property
+					        .len_val);
+				}
 			}
-		}
 #endif
+		}
 	}
-
 	debug_msg("end encode message");
 	return true;
 }
