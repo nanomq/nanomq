@@ -273,11 +273,7 @@ nano_ctx_send(void *arg, nni_aio *aio)
 			}
 			nni_lmq_putq(&p->qlmq, msg);
     	}
-    } else if (nni_msg_cmd_type(msg) == CMD_PUBREL) {
-		uint8_t *tmp;
-		tmp = nni_msg_header(msg);
-		*tmp = 0x62;
-	}
+    }
 
 	p->tree = nni_aio_get_dbtree(aio);
 	if (!p->busy) {
