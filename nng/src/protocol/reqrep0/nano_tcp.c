@@ -988,7 +988,7 @@ qos1:			if (qos_pub == 1 || db->qos == 1)
 					nni_msg_header_append(msg, tmp, len);
 					//modify variable header
 					pid = nni_pipe_inc_packetid(p->pipe);
-					memcpy(&topic_len, body, 2);
+					NNI_PUT16(&topic_len, pid);
 					len = tlen + 2;
 					nni_msg_trim(msg, len);
 					len = NNI_GET16(body, len);
@@ -1002,7 +1002,7 @@ qos1:			if (qos_pub == 1 || db->qos == 1)
 					pid = nni_pipe_inc_packetid(p->pipe);
 					body = nni_msg_body(msg);
 					len = tlen + 2;
-					memcpy(body+len, &pid, 2);
+					NNI_PUT16(body+len, pid);
 				}
 				break;
 			default:

@@ -448,10 +448,8 @@ nni_pipe_get_conn_param(nni_pipe *p)
 uint16_t
 nni_pipe_inc_packetid(nni_pipe *p)
 {
-	uint16_t pid;
 	p->packet_id++;
-	NNI_GET16(&p->packet_id, pid);
-	return pid;
+	return p->packet_id;
 }
 
 
