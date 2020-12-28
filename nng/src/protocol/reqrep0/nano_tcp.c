@@ -257,27 +257,27 @@ nano_ctx_send(void *arg, nni_aio *aio)
 		nni_msg_free(msg);
 		return;
 	}
-    // if (nni_msg_cmd_type(msg) == CMD_PUBLISH) {
-	// 	nano_qos_msg_repack(msg, p);
-    // 	if (nni_msg_get_pub_qos(msg) > 0) {
-    //     	debug_msg("******** processing QoS pubmsg with pipe: %p ********", p);
-    //     	p->qos_retry = 0;
-    //     	nni_msg_clone(msg);
-	// 		if (nni_lmq_full(&p->qlmq)) {
-	// 			// Make space for the new message.
-    //      		debug_msg("Warning: QoS message dropped");
-    //             printf("Warning: QoS message dropped\n");
-	// 			nni_msg *old1;
-	// 			(void) nni_lmq_getq(&p->qlmq, &old1);
-	// 			nni_msg_free(old1);
-	// 		}
-	// 		nni_lmq_putq(&p->qlmq, msg);
-    // 	}
-    // } else if (nni_msg_cmd_type(msg) == CMD_PUBREL) {
-	// 	uint8_t *tmp;
-	// 	tmp = nni_msg_header(msg);
-	// 	*tmp = 0x62;
-	// }
+    if (nni_msg_cmd_type(msg) == CMD_PUBLISH) {
+		nano_qos_msg_repack(msg, p);
+    	if (nni_msg_get_pub_qos(msg) > 0) {
+        	debug_msg("******** processing QoS pubmsg with pipe: %p ********", p);
+        	p->qos_retry = 0;
+        	nni_msg_clone(msg);
+			if (nni_lmq_full(&p->qlmq)) {
+				// Make space for the new message.
+         		debug_msg("Warning: QoS message dropped");
+                printf("Warning: QoS message dropped\n");
+				nni_msg *old1;
+				(void) nni_lmq_getq(&p->qlmq, &old1);
+				nni_msg_free(old1);
+			}
+			nni_lmq_putq(&p->qlmq, msg);
+    	}
+    } else if (nni_msg_cmd_type(msg) == CMD_PUBREL) {
+		uint8_t *tmp;
+		tmp = nni_msg_header(msg);
+		*tmp = 0x62;
+	}
 
 	p->tree = nni_aio_get_dbtree(aio);
 	if (!p->busy) {
@@ -288,12 +288,6 @@ nano_ctx_send(void *arg, nni_aio *aio)
 
 		nni_aio_set_msg(aio, NULL);
 		//nni_aio_finish(aio, 0, len);
-		return;
-	} else {
-				nni_mtx_unlock(&s->lk);
-		nni_aio_set_msg(aio, NULL);
-		//nni_aio_finish(aio, 0, nni_msg_len(msg));
-		nni_msg_free(msg);
 		return;
 	}
 

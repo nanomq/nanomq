@@ -8,7 +8,7 @@
 
 struct work {
 	enum {
-		INIT, RECV, WAIT, SEND
+		INIT, RECV, WAIT, SEND, RESEND, FREE
 	} state;
 
 	nng_aio       * aio;
