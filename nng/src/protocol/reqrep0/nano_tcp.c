@@ -964,6 +964,8 @@ nano_qos_msg_repack(nni_msg *msg, nano_pipe *p)
 		idm = &p->nano_db;
 		if ((db = nni_id_get(&p->nano_db, DJBHashn(body+2, tlen))) == NULL) {
 			return;
+		} else if (qos_pac == db->qos) {
+			return;
 		}
 		debug_msg("qos_pac %d pub %d sub %d\n", qos_pac, qos_pub, db->qos);
 		switch (qos_pub & db->qos) {

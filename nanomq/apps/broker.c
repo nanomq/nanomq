@@ -55,6 +55,7 @@ check_alloc_msg(nng_msg **msg)
 	} else {
 			nng_msg_header_clear(*msg);
 			nng_msg_clear(*msg);
+			nng_msg_set_cmd_type(*msg, CMD_UNKNOWN);
 	}
 	return rv;
 }
@@ -64,7 +65,7 @@ server_cb(void *arg)
 {
 	emq_work *work = arg;
 	nng_msg  *msg;
-	nng_msg  *smsg = NULL;
+	nng_msg  *smsg = NULL, *tmsg = NULL;
 	nng_pipe pipe;
 	int      rv, i;
 
@@ -147,7 +148,7 @@ server_cb(void *arg)
 			work->msg = nng_aio_get_msg(work->aio);
 			work->cparam = nng_msg_get_conn_param(work->msg);
 			if (nng_msg_cmd_type(work->msg) == CMD_PINGREQ) {
-				debug_msg("\nPINGRESP");
+				check_alloc_msg(&smsg);
 				buf[0] = CMD_PINGRESP;
 				buf[1] = 0x00;
 
@@ -347,7 +348,6 @@ server_cb(void *arg)
 					p_info = work->pipe_ct->pipe_info[work->pipe_ct->current_index];
 					work->pipe_ct->encode_msg(smsg, p_info.work, p_info.cmd, p_info.qos, 0);
 
-					nng_msg_clone(smsg);
 					work->msg = smsg;
 					nng_aio_set_msg(work->aio, work->msg);
 					work->msg = NULL;
@@ -364,7 +364,6 @@ server_cb(void *arg)
 						free_pipes_info(work->pipe_ct->pipe_info);
 						init_pipe_content(work->pipe_ct);
 					}
-					nng_msg_free(smsg);
 					work->state = SEND;
 					nng_aio_finish(work->aio, 0);
 					break;
@@ -380,7 +379,6 @@ server_cb(void *arg)
 					work->state = RECV;
 					nng_ctx_recv(work->ctx, work->aio);
 				}
-
 			} else {
 				debug_msg("broker has nothing to do");
 				if (work->msg != NULL)
