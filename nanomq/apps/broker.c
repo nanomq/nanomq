@@ -111,9 +111,9 @@ server_cb(void *arg)
 						tq = tq->next;
 					}
 				}
-				destroy_conn_param(work->cparam);
 				del_sub_client_id(clientid);
 				del_sub_pipe_id(pipe.id);
+				destroy_conn_param(work->cparam);
 
 				work->state = RECV;
 				nng_msg_free(msg);
@@ -135,12 +135,12 @@ server_cb(void *arg)
 			// We could add more data to the message here.
 			work->msg = nng_aio_get_msg(work->aio);
 			work->cparam = nng_msg_get_conn_param(work->msg);
-							if (smsg == NULL) {
-					nng_msg_alloc(&smsg, 0);
-				} else {
-					nng_msg_header_clear(smsg);
-					nng_msg_clear(smsg);
-				}
+			if (smsg == NULL) {
+				nng_msg_alloc(&smsg, 0);
+			} else {
+				nng_msg_header_clear(smsg);
+				nng_msg_clear(smsg);
+			}
 			//reply to client if needed. nng_send_aio vs nng_sendmsg? async or sync? BETTER sync due to realtime requirement
 			// if ((rv = nng_msg_alloc(&smsg, 0)) != 0) {
 			// 	debug_msg("ERROR: nng_msg_alloc [%d]", rv);
@@ -331,7 +331,7 @@ server_cb(void *arg)
 					   nng_msg_cmd_type(work->msg) == CMD_PUBCOMP ) {
 				if (work->msg != NULL)
 					nng_msg_free(work->msg);
-					nng_msg_free(smsg);
+				nng_msg_free(smsg);
 				work->msg   = NULL;
 				work->state = RECV;
 				nng_ctx_recv(work->ctx, work->aio);
@@ -346,18 +346,18 @@ server_cb(void *arg)
 					p_info = work->pipe_ct->pipe_info[work->pipe_ct->current_index];
 					work->pipe_ct->encode_msg(smsg, p_info.work, p_info.cmd, p_info.qos, 0);
 
-						nng_msg_clone(smsg);
-						work->msg = smsg;
-						nng_aio_set_msg(work->aio, work->msg);
-						work->msg = NULL;
+					nng_msg_clone(smsg);
+					work->msg = smsg;
+					nng_aio_set_msg(work->aio, work->msg);
+					work->msg = NULL;
 
-						if (p_info.pipe != 0 /*&& p_info.pipe != work->pid.id*/) {
-							nng_aio_set_pipeline(work->aio, p_info.pipe);
-						}
+					if (p_info.pipe != 0 /*&& p_info.pipe != work->pid.id*/) {
+						nng_aio_set_pipeline(work->aio, p_info.pipe);
+					}
 
-						work->pipe_ct->current_index++;
-						work->state = SEND;
-						nng_ctx_send(work->ctx, work->aio);
+					work->pipe_ct->current_index++;
+					work->state = SEND;
+					nng_ctx_send(work->ctx, work->aio);
 					if (work->pipe_ct->total <= work->pipe_ct->current_index) {
 						free_pub_packet(work->pub_packet);
 						free_pipes_info(work->pipe_ct->pipe_info);
@@ -400,14 +400,14 @@ server_cb(void *arg)
 				fatal("SEND nng_ctx_send", rv);
 			}
 			if (work->pipe_ct->total > 0) {
-					free_pub_packet(work->pub_packet);
-					free_pipes_info(work->pipe_ct->pipe_info);
-					init_pipe_content(work->pipe_ct);
+				free_pub_packet(work->pub_packet);
+				free_pipes_info(work->pipe_ct->pipe_info);
+				init_pipe_content(work->pipe_ct);
 			}
-				work->msg   = NULL;
-				work->state = RECV;
-				nng_ctx_recv(work->ctx, work->aio);
-                break;
+			work->msg   = NULL;
+			work->state = RECV;
+			nng_ctx_recv(work->ctx, work->aio);
+			break;
 		default:
 			fatal("bad state!", NNG_ESTATE);
 			break;

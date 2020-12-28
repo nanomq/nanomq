@@ -130,12 +130,13 @@ uint8_t decode_sub_message(emq_work * work)
 
 		if (len_of_topic != 0) {
 			topic_option->topic_filter.len = len_of_topic;
-			topic_option->topic_filter.body = nng_alloc(len_of_topic);
+			topic_option->topic_filter.body = nng_alloc(len_of_topic+1);
 			if (topic_option->topic_filter.body == NULL) {
 				debug_msg("ERROR: nng_alloc");
 				return NNG_ENOMEM;
 			}
 			strncpy(topic_option->topic_filter.body, payload_ptr + bpos, len_of_topic);
+			topic_option->topic_filter.body[len_of_topic] = '\0';
 			bpos += len_of_topic;
 		} else {
 			debug_msg("ERROR : topic length error.");

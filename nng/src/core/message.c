@@ -767,7 +767,8 @@ nano_msg_get_subtopic(nni_msg *msg)
 void
 nano_msg_free_pipedb(nano_pipe_db *db)
 {
-	uint8_t	 	  len;
+	uint8_t	 	   len;
+	nano_pipe_db * db_next;
 
 	if (NULL == db) {
 		return;
@@ -777,8 +778,9 @@ nano_msg_free_pipedb(nano_pipe_db *db)
 	while (db) {
 		len = strlen(db->topic);
 		nng_free(db->topic, len);
+		db_next = db->next;
 		nng_free(db, sizeof(nano_pipe_db));
-		db = db->next;
+		db = db_next;
 	}
 	return;
 }
