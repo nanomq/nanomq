@@ -336,6 +336,7 @@ server_cb(void *arg)
 					nng_ctx_recv(work->ctx, work->aio);
 				}
 			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBACK ||
+					   nng_msg_cmd_type(work->msg) == CMD_PUBREC ||
 					   nng_msg_cmd_type(work->msg) == CMD_PUBCOMP ) {
 				if (work->msg != NULL)
 					nng_msg_free(work->msg);
@@ -345,8 +346,7 @@ server_cb(void *arg)
 				work->state = RECV;
 				nng_ctx_recv(work->ctx, work->aio);
 				break;
-			} else if( nng_msg_cmd_type(work->msg) == CMD_PUBREC ||
-			           nng_msg_cmd_type(work->msg) == CMD_PUBREL  ) {
+			} else if(nng_msg_cmd_type(work->msg) == CMD_PUBREL) {
 				work->pid = nng_msg_get_pipe(work->msg);
 				handle_pub(work, work->pipe_ct);
 				nng_msg_free(work->msg);

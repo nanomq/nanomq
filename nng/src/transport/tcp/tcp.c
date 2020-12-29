@@ -575,6 +575,18 @@ tcptran_pipe_recv_cb(void *arg)
 
 			p->cmd = CMD_PUBREC;
 			nng_stream_send(p->conn, qsaio);
+	} else if (type == CMD_PUBREC){
+		uint8_t *tmp;
+			p->txlen[0] = 0X62;
+			p->txlen[1] = 0x02;
+			tmp = nni_msg_body(msg);
+			memcpy(p->txlen + 2, tmp, 2);
+			iov.iov_len = 4;
+			iov.iov_buf = &p->txlen;
+			// send it down...
+			nni_aio_set_iov(qsaio, 1, &iov);
+			p->cmd = CMD_PUBREL;
+			nng_stream_send(p->conn, qsaio);
 	}else{
 		payload_ptr = NULL;
 	}
