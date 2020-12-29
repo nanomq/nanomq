@@ -560,21 +560,23 @@ tcptran_pipe_recv_cb(void *arg)
 		uint8_t qos_pac;
 		uint16_t pid;
 		qos_pac = nni_msg_get_pub_qos(msg);
-		if (qos_pac == 1) {
-			p->txlen[0] = CMD_PUBACK;
-		} else if (qos_pac == 2) {
-			p->txlen[0] = CMD_PUBREC;
-		}
-			p->txlen[1] = 0x02;
-			pid = nni_msg_get_pub_pid(msg);
-			NNI_PUT16(p->txlen + 2, pid);
-			iov.iov_len = 4;
-			iov.iov_buf = &p->txlen;
-			// send it down...
-			nni_aio_set_iov(qsaio, 1, &iov);
+		if (qos_pac > 0) {
+			if (qos_pac == 1) {
+				p->txlen[0] = CMD_PUBACK;
+			} else if (qos_pac == 2) {
+				p->txlen[0] = CMD_PUBREC;
+			}
+				p->txlen[1] = 0x02;
+				pid = nni_msg_get_pub_pid(msg);
+				NNI_PUT16(p->txlen + 2, pid);
+				iov.iov_len = 4;
+				iov.iov_buf = &p->txlen;
+				// send it down...
+				nni_aio_set_iov(qsaio, 1, &iov);
 
-			p->cmd = CMD_PUBREC;
-			nng_stream_send(p->conn, qsaio);
+				p->cmd = CMD_PUBREC;
+				nng_stream_send(p->conn, qsaio);	
+		}
 	} else if (type == CMD_PUBREC){
 		uint8_t *tmp;
 			p->txlen[0] = 0X62;
