@@ -22,6 +22,8 @@ macro (CheckSanitizer)
     set (NNG_SANITIZER none CACHE STRING "Sanitizer to use (clang or gcc).")
     set_property(CACHE NNG_SANITIZER PROPERTY STRINGS ${NNG_SAN_LIST})
     mark_as_advanced (NNG_SANITIZER)
+	set (NNG_SANITIZER address)
+	message(${NNG_SANITIZER})
 
     if (NOT NNG_SANITIZER STREQUAL "none")
         set (NNG_C_FLAG_SANITIZER "-fsanitize=${NNG_SANITIZER}")

@@ -8,6 +8,7 @@
 //
 #include <stdio.h>
 #include <stdlib.h>
+#include <signal.h>
 
 #include <nng.h>
 #include <mqtt_db.h>
@@ -29,7 +30,7 @@
 // descriptors if you set this too high. (If not for that limit, this could
 // be set in the thousands, each context consumes a couple of KB.)
 #ifndef PARALLEL
-#define PARALLEL 128
+#define PARALLEL 512
 #endif
 
 // The server keeps a list of work items, sorted by expiration time,
@@ -59,6 +60,13 @@ check_alloc_msg(nng_msg **msg)
 			nng_msg_set_cmd_type(*msg, CMD_UNKNOWN);
 	}
 	return rv;
+}
+
+keepRunning = 1;
+
+void intHandler(int dummy) {
+	printf("enddddd");
+    keepRunning = 0;
 }
 
 void
@@ -223,6 +231,7 @@ server_cb(void *arg)
 					debug_msg("ERROR: nng_alloc");
 				}
 				check_alloc_msg(&smsg);
+
 				if ((reason = decode_unsub_message(work))          != SUCCESS ||
 				    (reason = unsub_ctx_handle(work))              != SUCCESS ||
 				    (reason = encode_unsuback_message(smsg, work)) != SUCCESS) {
@@ -380,6 +389,7 @@ server_cb(void *arg)
 					work->state = RECV;
 					nng_ctx_recv(work->ctx, work->aio);
 				}
+
 			} else {
 				debug_msg("broker has nothing to do");
 				if (work->msg != NULL)
@@ -394,7 +404,7 @@ server_cb(void *arg)
 		case SEND:
 			debug_msg("SEND  ^^^^^^^^^^^^^^^^^^^^^ ctx%d ^^^^\n", work->ctx.id);
 			// if (NULL != smsg)
-			// 	nng_msg_free(smsg);
+			//	nng_msg_free(smsg);
 			if ((rv = nng_aio_result(work->aio)) != 0) {
 				debug_msg("SEND nng aio result error: %d", rv);
 				fatal("SEND nng_ctx_send", rv);
@@ -475,8 +485,13 @@ server(const char *url)
 		server_cb(works[i]); // this starts them going (INIT state)
 	}
 
+	signal(SIGINT, intHandler);
 	for (;;) {
-		nng_msleep(3600000); // neither pause() nor sleep() portable
+		if (keepRunning == 0) {
+			exit(0);
+		}
+		nng_msleep(10000); // neither pause() nor sleep() portable
+		// nng_msleep(3600000); // neither pause() nor sleep() portable
 	}
 }
 

@@ -9,6 +9,8 @@ cmake_minimum_required (VERSION 2.8.8)
 project(nanomq)
 SET(CMAKE_C_FLAGS "-std=c99")
 SET(CMAKE_CXX_FLAGS "-std=c++11 -O3")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -fsanitize=address")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -fsanitize=address")
 
 aux_source_directory(. DIRSRCS)
 
