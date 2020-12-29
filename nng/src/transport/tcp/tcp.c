@@ -42,11 +42,12 @@ struct tcptran_pipe {
 	nni_list        sendq;
 	nni_aio *       txaio;
 	nni_aio *       rxaio;
+	nni_aio *		qsaio;
 	nni_aio *       negoaio;
 	nni_msg *       rxmsg;
 	nni_mtx         mtx;
-	//uint32_t      remain_len;
 	conn_param *    tcp_cparam;
+	uint8_t			cmd;
 	//uint8_t       sli_win[5];	//use aio multiple times instead of seperating 2 packets manually
 };
 
@@ -79,6 +80,7 @@ static void tcptran_pipe_send_start(tcptran_pipe *);
 static void tcptran_pipe_recv_start(tcptran_pipe *);
 static void tcptran_pipe_send_cb(void *);
 static void tcptran_pipe_recv_cb(void *);
+static void tcptran_pipe_quic_cb(void *arg);
 static void tcptran_pipe_nego_cb(void *);
 static void tcptran_ep_fini(void *);
 
@@ -104,6 +106,7 @@ tcptran_pipe_close(void *arg)
 
 	nni_aio_close(p->rxaio);
 	nni_aio_close(p->txaio);
+	nni_aio_close(p->qsaio);
 	nni_aio_close(p->negoaio);
 
 	nng_stream_close(p->conn);
@@ -115,6 +118,7 @@ tcptran_pipe_stop(void *arg)
 {
 	tcptran_pipe *p = arg;
 
+	nni_aio_stop(p->qsaio);
 	nni_aio_stop(p->rxaio);
 	nni_aio_stop(p->txaio);
 	nni_aio_stop(p->negoaio);
@@ -148,6 +152,7 @@ tcptran_pipe_fini(void *arg)
 		nni_mtx_unlock(&ep->mtx);
 	}
 
+	nni_aio_free(p->qsaio);
 	nni_aio_free(p->rxaio);
 	nni_aio_free(p->txaio);
 	nni_aio_free(p->negoaio);
@@ -179,8 +184,9 @@ tcptran_pipe_alloc(tcptran_pipe **pipep)
 	}
 	nni_mtx_init(&p->mtx);
 	if (((rv = nni_aio_alloc(&p->txaio, tcptran_pipe_send_cb, p)) != 0) ||
+		((rv = nni_aio_alloc(&p->qsaio, tcptran_pipe_quic_cb, p)) != 0) ||
 	    ((rv = nni_aio_alloc(&p->rxaio, tcptran_pipe_recv_cb, p)) != 0) ||
-	    ((rv = nni_aio_alloc(&p->negoaio, tcptran_pipe_nego_cb, p)) != 0)) 
+	    ((rv = nni_aio_alloc(&p->negoaio, tcptran_pipe_nego_cb, p)) != 0))
 	{
 		tcptran_pipe_fini(p);
 		return (rv);
@@ -277,10 +283,6 @@ tcptran_pipe_nego_cb(void *arg)
 		return;
 	}
 
-// 	for (i = 0; i<p->wantrxhead; i++) {
-// 		printf("index %d: %x ", i, p->rxlen[i]);
-// 	}
-
 	// We have both sent and received the CONNECT headers.  Lets check TODO CONNECT packet serialization
 	debug_msg("******** %d %d %d %d nego msg: %s ----- %x\n",p->gottxhead, p->gotrxhead, p->wantrxhead, p->wanttxhead, p->rxlen, p->rxlen[0]);
 	//header_adaptor();
@@ -341,6 +343,13 @@ error:
 }
 
 static void
+tcptran_pipe_quic_cb(void *arg)
+{
+	tcptran_pipe *p = arg;
+	return;
+}
+
+static void
 tcptran_pipe_send_cb(void *arg)
 {
 	tcptran_pipe *p = arg;
@@ -379,6 +388,7 @@ tcptran_pipe_send_cb(void *arg)
 	}
 	nni_aio_list_remove(aio);
 	tcptran_pipe_send_start(p);
+
 	msg = nni_aio_get_msg(aio);
 	n   = nni_msg_len(msg);
 	nni_pipe_bump_tx(p->npipe, n);
@@ -407,7 +417,8 @@ tcptran_pipe_recv_cb(void *arg)
 	nni_msg *     msg;
 	tcptran_pipe* p = arg;
 	nni_aio *     rxaio = p->rxaio;
-	//nni_aio *     txaio = p->txaio;
+	nni_aio *     txaio = p->txaio;
+	nni_aio *     qsaio = p->qsaio;
 	conn_param *  cparam;
 
 	debug_msg("tcptran_pipe_recv_cb %p\n", p);
@@ -450,26 +461,22 @@ tcptran_pipe_recv_cb(void *arg)
 		nni_mtx_unlock(&p->mtx);
 		return;
 	} else if (len == 0 && n == 2) {
-		debug_msg("PINGREQ or DISCONNECT(V3.1.1)");
-		//BUG? PINGRESP (PUBACK SUBACK) here
 		if ((p->rxlen[0]&0XFF) == CMD_PINGREQ) {
-		/*
+		/**/
 			p->txlen[0] = CMD_PINGRESP;
 			p->txlen[1] = 0x00;
 			iov.iov_len = 2;
 			iov.iov_buf = &p->txlen;
 			// send it down...
-			nni_aio_set_iov(txaio, 1, &iov);
-			nng_stream_send(p->conn, txaio);
-			goto quit;
-		*/
+			nni_aio_set_iov(qsaio, 1, &iov);
+			p->cmd = CMD_PINGRESP;
+			nng_stream_send(p->conn, qsaio);
 		} else if ((p->rxlen[0]&0XFF) == CMD_DISCONNECT) {
 			//goto recv_error;
 			//debug_msg("disconnect");
 			//return;
 		}
 	}
-
 
 	//finish fixed header
 	p->wantrxhead = len + p->gotrxhead;
@@ -550,6 +557,24 @@ tcptran_pipe_recv_cb(void *arg)
 			payload_ptr = variable_ptr + 2;
 		}
 	}else if(type == CMD_PUBLISH){
+		uint8_t qos_pac;
+		uint16_t pid;
+		qos_pac = nni_msg_get_pub_qos(msg);
+		if (qos_pac == 1) {
+			p->txlen[0] = CMD_PUBACK;
+		} else if (qos_pac == 2) {
+			p->txlen[0] = CMD_PUBREC;
+		}
+			p->txlen[1] = 0x02;
+			pid = nni_msg_get_pub_pid(msg);
+			NNI_PUT16(p->txlen + 2, pid);
+			iov.iov_len = 4;
+			iov.iov_buf = &p->txlen;
+			// send it down...
+			nni_aio_set_iov(qsaio, 1, &iov);
+
+			p->cmd = CMD_PUBREC;
+			nng_stream_send(p->conn, qsaio);
 	}else{
 		payload_ptr = NULL;
 	}
@@ -581,17 +606,17 @@ recv_error:
 	return;
 quit:
 	nni_aio_list_remove(aio);
+	nni_list_append(&p->sendq, aio);
 	//simply quit after reply PINGRESP to clinet
 	tcptran_pipe_recv_start(p);
 	nni_mtx_unlock(&p->mtx);
-	nni_aio_finish_error(aio, 0);
 	return;
 close:
 	nni_aio_list_remove(aio);
-		if ((rv = nni_msg_alloc(&p->rxmsg, 2)) != 0) {
-			debug_msg("mem error %d\n", 2);
-			goto recv_error;
-		}
+	if ((rv = nni_msg_alloc(&p->rxmsg, 2)) != 0) {
+		debug_msg("mem error %d\n", 2);
+		goto recv_error;
+	}
 	msg      = p->rxmsg;
 	p->rxmsg = NULL;
 	n        = nni_msg_len(msg);

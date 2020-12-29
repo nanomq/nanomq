@@ -48,16 +48,19 @@ check_alloc_msg(nng_msg **msg)
 {
 	//TODO what if ctx got reused, but smsg still in rlmq/qlmq?
 	int rv = 0;
-	if (*msg == NULL) {
-		if ((rv = nng_msg_alloc(msg, 0)) != 0) {
-			debug_msg("ERROR: nng_msg_alloc [%d]", rv);
-       	 	fatal("WAIT msg alloc error", rv);
-		}
-	} else {
-			nng_msg_header_clear(*msg);
-			nng_msg_clear(*msg);
-			nng_msg_set_cmd_type(*msg, CMD_UNKNOWN);
-	}
+	if (*msg != NULL)
+		nng_msg_free(*msg);
+	rv = nng_msg_alloc(msg, 0);
+	// if (*msg == NULL) {
+	// 	if ((rv = nng_msg_alloc(msg, 0)) != 0) {
+	// 		debug_msg("ERROR: nng_msg_alloc [%d]", rv);
+    //    	 	fatal("WAIT msg alloc error", rv);
+	// 	}
+	// } else {
+	// 		nng_msg_header_clear(*msg);
+	// 		nng_msg_clear(*msg);
+	// 		nng_msg_set_cmd_type(*msg, CMD_UNKNOWN);
+	// }
 	return rv;
 }
 
@@ -83,6 +86,8 @@ server_cb(void *arg)
 			break;
 		case RECV:
 			debug_msg("RECV  ^^^^^^^^^^^^^^^^^^^^^ ctx%d ^^^^\n", work->ctx.id);
+			if (smsg != NULL)
+				nng_msg_free(smsg);
 			if ((rv = nng_aio_result(work->aio)) != 0) {
 				debug_msg("ERROR: RECV nng aio result error: %d", rv);
 				nng_aio_wait(work->aio);
@@ -264,6 +269,8 @@ server_cb(void *arg)
 					debug_msg("WAIT nng aio result error: %d", rv);
 					fatal("WAIT nng_ctx_recv/send", rv);
 				}
+				if (smsg != NULL)
+					nng_msg_free(smsg);
 				check_alloc_msg(&smsg);
 
 				work->pid = nng_msg_get_pipe(work->msg);
@@ -275,22 +282,22 @@ server_cb(void *arg)
 				if (work->pipe_ct->total > 0) {
 					p_info = work->pipe_ct->pipe_info[work->pipe_ct->current_index];
 					work->pipe_ct->encode_msg(smsg, p_info.work, p_info.cmd, p_info.qos, 0);
-					if (nng_msg_cmd_type(smsg) != CMD_PUBLISH) {
-						//nng_msg_clone(smsg);
-						work->msg = smsg;
-						nng_aio_set_msg(work->aio, work->msg);
-						work->msg = NULL;
-						if (p_info.pipe != 0 /*&& p_info.pipe != work->pid.id*/) {
-							nng_aio_set_pipeline(work->aio, p_info.pipe);
-						}
-						work->pipe_ct->current_index++;
-						nng_ctx_send(work->ctx, work->aio);
-						nng_msg_alloc(&smsg, 0);
-					}
-					if (work->pipe_ct->total > work->pipe_ct->current_index) {
-						p_info = work->pipe_ct->pipe_info[work->pipe_ct->current_index];
-						work->pipe_ct->encode_msg(smsg, p_info.work, p_info.cmd, p_info.qos, 0);
-					}
+					// if (nng_msg_cmd_type(smsg) != CMD_PUBLISH) {
+					// 	//nng_msg_clone(smsg);
+					// 	work->msg = smsg;
+					// 	nng_aio_set_msg(work->aio, work->msg);
+					// 	work->msg = NULL;
+					// 	if (p_info.pipe != 0 /*&& p_info.pipe != work->pid.id*/) {
+					// 		nng_aio_set_pipeline(work->aio, p_info.pipe);
+					// 	}
+					// 	work->pipe_ct->current_index++;
+					// 	nng_ctx_send(work->ctx, work->aio);
+					// 	nng_msg_alloc(&smsg, 0);//bug
+					// }
+					// if (work->pipe_ct->total > work->pipe_ct->current_index) {
+					// 	p_info = work->pipe_ct->pipe_info[work->pipe_ct->current_index];
+					// 	work->pipe_ct->encode_msg(smsg, p_info.work, p_info.cmd, p_info.qos, 0);
+					// }
 
 					while(work->pipe_ct->total > work->pipe_ct->current_index){
 						p_info = work->pipe_ct->pipe_info[work->pipe_ct->current_index];
@@ -393,8 +400,8 @@ server_cb(void *arg)
 
 		case SEND:
 			debug_msg("SEND  ^^^^^^^^^^^^^^^^^^^^^ ctx%d ^^^^\n", work->ctx.id);
-			// if (NULL != smsg)
-			// 	nng_msg_free(smsg);
+			if (NULL != smsg)
+			 	nng_msg_free(smsg);
 			if ((rv = nng_aio_result(work->aio)) != 0) {
 				debug_msg("SEND nng aio result error: %d", rv);
 				fatal("SEND nng_ctx_send", rv);

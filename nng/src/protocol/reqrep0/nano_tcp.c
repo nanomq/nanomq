@@ -781,6 +781,7 @@ nano_pipe_recv_cb(void *arg)
 		case CMD_UNSUBSCRIBE:
 			break;
 		case CMD_PINGREQ:
+			goto drop;
 			break;
 		case CMD_PUBCOMP:
 			break;
@@ -872,10 +873,12 @@ nano_pipe_recv_cb(void *arg)
 	return;
 
 drop:
-	nni_msg_free(msg);
 	nni_aio_set_msg(&p->aio_recv, NULL);
 	nni_pipe_recv(p->pipe, &p->aio_recv);
+	nni_mtx_unlock(&s->lk);
+	nni_msg_free(msg);
 	debug_msg("Warning:dropping msg");
+	return;
 }
 
 static int
@@ -942,6 +945,7 @@ nano_sock_recv(void *arg, nni_aio *aio)
 	nano_ctx_recv(&s->ctx, aio);
 }
 
+//TODO Move to tcp layer
 static void
 nano_qos_msg_repack(nni_msg *msg, nano_pipe *p)
 {
@@ -987,8 +991,10 @@ nano_qos_msg_repack(nni_msg *msg, nano_pipe *p)
 				break;
 			case 0x01:
 			case 0x02:
-qos1:			if (qos_pub == 1 || db->qos == 1)
+qos1:			if (qos_pub == 1 || db->qos == 1) {
 					*header = *header | 0x02;
+					*header = *header & 0xFB;
+				}
 				else
 					*header = *header | 0x04;
 				if (qos_pac == 0) {

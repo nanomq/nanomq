@@ -147,10 +147,10 @@ handle_pub(emq_work *work, struct pipe_content *pipe_ct)
 					case 0:
 						break;
 					case 1:
-						put_pipe_msgs(NULL, work, pipe_ct, PUBACK);
+						//put_pipe_msgs(NULL, work, pipe_ct, PUBACK);
 						break;
 					case 2:
-						put_pipe_msgs(NULL, work, pipe_ct, PUBREC);
+						//put_pipe_msgs(NULL, work, pipe_ct, PUBREC);
 						break;
 					default:
 						debug_msg("invalid qos: %d", work->pub_packet->fixed_header.qos);
