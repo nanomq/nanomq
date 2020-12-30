@@ -282,11 +282,12 @@ nano_ctx_send(void *arg, nni_aio *aio)
 
 	if ((rv = nni_aio_schedule(aio, nano_ctx_cancel_send, ctx)) != 0) {
 		nni_mtx_unlock(&s->lk);
+		printf("ERROR aio canceld!!!!!!!!\n");
 		//nni_aio_finish_error(aio, rv);
 		return;
 	}
-	debug_msg("ERROR: pipe %d occupied! resending in cb!", pipe);
-	//printf("ERROR: pipe %d occupied! resending in cb!\n", pipe);
+	debug_msg("WARNING: pipe %d occupied! resending in cb!", pipe);
+	printf("WARNING: pipe %d occupied! resending in cb!\n", pipe);
     if (nni_lmq_full(&p->rlmq)) {
         // Make space for the new message.
 		debug_msg("warning msg dropped!");
@@ -619,6 +620,7 @@ nano_pipe_send_cb(void *arg)
         len        = nni_msg_len(msg);
         nni_aio_set_msg(&p->aio_send, msg);
         debug_msg("rlmq msg resending! %ld msgs left\n", nni_lmq_len(&p->rlmq));
+		printf("rlmq of %ld msg resending! %ld msgs left\n",p->id, nni_lmq_len(&p->rlmq));
         nni_pipe_send(p->pipe, &p->aio_send);
         nni_mtx_unlock(&s->lk);
         return;
@@ -773,6 +775,7 @@ nano_pipe_recv_cb(void *arg)
 		case CMD_DISCONNECT:
 			break;
 		case CMD_PUBREL:
+			goto drop;
 			break;
 		case CMD_UNSUBSCRIBE:
 			break;
@@ -780,6 +783,7 @@ nano_pipe_recv_cb(void *arg)
 			goto drop;
 			break;
 		case CMD_PUBCOMP:
+			goto drop;
 			break;
         case CMD_PUBACK:
 		case CMD_PUBREC:
@@ -808,6 +812,7 @@ nano_pipe_recv_cb(void *arg)
                 index++;
             }
             //nanomq sdk
+			goto drop;
             break;
 		default:
 			goto drop;

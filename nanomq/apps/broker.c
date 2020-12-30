@@ -153,27 +153,15 @@ server_cb(void *arg)
 			// We could add more data to the message here.
 			work->msg = nng_aio_get_msg(work->aio);
 			work->cparam = nng_msg_get_conn_param(work->msg);
+			nng_msg_alloc(&smsg, 0);
 			if (nng_msg_cmd_type(work->msg) == CMD_PINGREQ) {
-				check_alloc_msg(&smsg);
-				buf[0] = CMD_PINGRESP;
-				buf[1] = 0x00;
-
-				if ((rv = nng_msg_header_append(smsg, buf, 2)) != 0) {
-					debug_msg("ERROR: nng_msg_header_append [%d]", rv);
-				}
-				nng_msg_free(work->msg);
-				work->msg = smsg;
-				// We could add more data to the message here.
-				nng_aio_set_msg(work->aio, work->msg);
-
+				if (work->msg != NULL) nng_msg_free(work->msg);
 				work->msg   = NULL;
-				work->state = SEND;
-				nng_ctx_send(work->ctx, work->aio);
-				nng_aio_finish(work->aio, 0);
+				work->state = RECV;
+				nng_ctx_recv(work->ctx, work->aio);
 				break;
 			} else if (nng_msg_cmd_type(work->msg) == CMD_SUBSCRIBE) {
 				work->pid = nng_msg_get_pipe(work->msg);
-				check_alloc_msg(&smsg);
 				struct client_ctx * cli_ctx;
 				if ((cli_ctx = nng_alloc(sizeof(client_ctx))) == NULL) {
 					debug_msg("ERROR: nng_alloc");
@@ -227,7 +215,6 @@ server_cb(void *arg)
 				if (work->unsub_pkt == NULL) {
 					debug_msg("ERROR: nng_alloc");
 				}
-				check_alloc_msg(&smsg);
 				if ((reason = decode_unsub_message(work))          != SUCCESS ||
 				    (reason = unsub_ctx_handle(work))              != SUCCESS ||
 				    (reason = encode_unsuback_message(smsg, work)) != SUCCESS) {
@@ -269,9 +256,6 @@ server_cb(void *arg)
 					debug_msg("WAIT nng aio result error: %d", rv);
 					fatal("WAIT nng_ctx_recv/send", rv);
 				}
-				if (smsg != NULL)
-					nng_msg_free(smsg);
-				check_alloc_msg(&smsg);
 
 				work->pid = nng_msg_get_pipe(work->msg);
 				handle_pub(work, work->pipe_ct);
@@ -337,56 +321,14 @@ server_cb(void *arg)
 				}
 			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBACK ||
 					   nng_msg_cmd_type(work->msg) == CMD_PUBREC ||
+					   nng_msg_cmd_type(work->msg) == CMD_PUBREL ||
 					   nng_msg_cmd_type(work->msg) == CMD_PUBCOMP ) {
-				if (work->msg != NULL)
-					nng_msg_free(work->msg);
-				if (smsg != NULL)
-					nng_msg_free(smsg);
+				nng_msg_free(work->msg);
+				nng_msg_free(smsg);
 				work->msg   = NULL;
 				work->state = RECV;
 				nng_ctx_recv(work->ctx, work->aio);
 				break;
-			} else if(nng_msg_cmd_type(work->msg) == CMD_PUBREL) {
-				work->pid = nng_msg_get_pipe(work->msg);
-				handle_pub(work, work->pipe_ct);
-				nng_msg_free(work->msg);
-				check_alloc_msg(&smsg);
-
-				if (work->pipe_ct->total > 0) {
-					p_info = work->pipe_ct->pipe_info[work->pipe_ct->current_index];
-					work->pipe_ct->encode_msg(smsg, p_info.work, p_info.cmd, p_info.qos, 0);
-
-					work->msg = smsg;
-					nng_aio_set_msg(work->aio, work->msg);
-					work->msg = NULL;
-
-					if (p_info.pipe != 0 /*&& p_info.pipe != work->pid.id*/) {
-						nng_aio_set_pipeline(work->aio, p_info.pipe);
-					}
-
-					work->pipe_ct->current_index++;
-					work->state = SEND;
-					nng_ctx_send(work->ctx, work->aio);
-					if (work->pipe_ct->total <= work->pipe_ct->current_index) {
-						free_pub_packet(work->pub_packet);
-						free_pipes_info(work->pipe_ct->pipe_info);
-						init_pipe_content(work->pipe_ct);
-					}
-					work->state = SEND;
-					nng_aio_finish(work->aio, 0);
-					break;
-				} else {
-					free_pub_packet(work->pub_packet);
-					free_pipes_info(work->pipe_ct->pipe_info);
-					init_pipe_content(work->pipe_ct);
-				}
-
-				if (work->state != SEND) {
-					if (work->msg != NULL) nng_msg_free(work->msg);
-					work->msg   = NULL;
-					work->state = RECV;
-					nng_ctx_recv(work->ctx, work->aio);
-				}
 			} else {
 				debug_msg("broker has nothing to do");
 				if (work->msg != NULL)
