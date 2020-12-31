@@ -43,27 +43,6 @@ fatal(const char *func, int rv)
 	exit(1);
 }
 
-static int
-check_alloc_msg(nng_msg **msg)
-{
-	//TODO what if ctx got reused, but smsg still in rlmq/qlmq?
-	int rv = 0;
-	if (*msg != NULL)
-		nng_msg_free(*msg);
-	rv = nng_msg_alloc(msg, 0);
-	// if (*msg == NULL) {
-	// 	if ((rv = nng_msg_alloc(msg, 0)) != 0) {
-	// 		debug_msg("ERROR: nng_msg_alloc [%d]", rv);
-    //    	 	fatal("WAIT msg alloc error", rv);
-	// 	}
-	// } else {
-	// 		nng_msg_header_clear(*msg);
-	// 		nng_msg_clear(*msg);
-	// 		nng_msg_set_cmd_type(*msg, CMD_UNKNOWN);
-	// }
-	return rv;
-}
-
 void
 server_cb(void *arg)
 {
@@ -155,7 +134,6 @@ server_cb(void *arg)
 			// We could add more data to the message here.
 			work->msg = nng_aio_get_msg(work->aio);
 			work->cparam = nng_msg_get_conn_param(work->msg);
-			nng_msg_alloc(&smsg, 0);
 			if (nng_msg_cmd_type(work->msg) == CMD_PINGREQ) {
 				if (work->msg != NULL) nng_msg_free(work->msg);
 				work->msg   = NULL;
@@ -163,6 +141,7 @@ server_cb(void *arg)
 				nng_ctx_recv(work->ctx, work->aio);
 				break;
 			} else if (nng_msg_cmd_type(work->msg) == CMD_SUBSCRIBE) {
+				nng_msg_alloc(&smsg, 0);
 				work->pid = nng_msg_get_pipe(work->msg);
 				struct client_ctx * cli_ctx;
 				if ((cli_ctx = nng_alloc(sizeof(client_ctx))) == NULL) {
@@ -214,6 +193,7 @@ server_cb(void *arg)
 				nng_aio_finish(work->aio, 0);
 				break;
 			} else if (nng_msg_cmd_type(work->msg) == CMD_UNSUBSCRIBE) {
+				nng_msg_alloc(&smsg, 0);
 				work->unsub_pkt = nng_alloc(sizeof(packet_unsubscribe));
 				if (work->unsub_pkt == NULL) {
 					debug_msg("ERROR: nng_alloc");
@@ -260,6 +240,7 @@ server_cb(void *arg)
 					debug_msg("WAIT nng aio result error: %d", rv);
 					fatal("WAIT nng_ctx_recv/send", rv);
 				}
+				nng_msg_alloc(&smsg, 0);
 
 				work->pid = nng_msg_get_pipe(work->msg);
 				handle_pub(work, work->pipe_ct);
@@ -270,22 +251,6 @@ server_cb(void *arg)
 				if (work->pipe_ct->total > 0) {
 					p_info = work->pipe_ct->pipe_info[work->pipe_ct->current_index];
 					work->pipe_ct->encode_msg(smsg, p_info.work, p_info.cmd, p_info.qos, 0);
-					// if (nng_msg_cmd_type(smsg) != CMD_PUBLISH) {
-					// 	//nng_msg_clone(smsg);
-					// 	work->msg = smsg;
-					// 	nng_aio_set_msg(work->aio, work->msg);
-					// 	work->msg = NULL;
-					// 	if (p_info.pipe != 0 /*&& p_info.pipe != work->pid.id*/) {
-					// 		nng_aio_set_pipeline(work->aio, p_info.pipe);
-					// 	}
-					// 	work->pipe_ct->current_index++;
-					// 	nng_ctx_send(work->ctx, work->aio);
-					// 	nng_msg_alloc(&smsg, 0);//bug
-					// }
-					// if (work->pipe_ct->total > work->pipe_ct->current_index) {
-					// 	p_info = work->pipe_ct->pipe_info[work->pipe_ct->current_index];
-					// 	work->pipe_ct->encode_msg(smsg, p_info.work, p_info.cmd, p_info.qos, 0);
-					// }
 
 					while(work->pipe_ct->total > work->pipe_ct->current_index){
 						p_info = work->pipe_ct->pipe_info[work->pipe_ct->current_index];
@@ -328,8 +293,6 @@ server_cb(void *arg)
 					   nng_msg_cmd_type(work->msg) == CMD_PUBREL ||
 					   nng_msg_cmd_type(work->msg) == CMD_PUBCOMP ) {
 				nng_msg_free(work->msg);
-				nng_msg_free(smsg);
-				smsg = NULL;
 				work->msg   = NULL;
 				work->state = RECV;
 				nng_ctx_recv(work->ctx, work->aio);
@@ -382,7 +345,6 @@ alloc_work(nng_socket sock)
 	if ((rv = nng_aio_alloc(&w->aio, server_cb, w)) != 0) {
 		fatal("nng_aio_alloc", rv);
 	}
-	//not pipe id; max id = uint32_t
 	if ((rv = nng_ctx_open(&w->ctx, sock)) != 0) {
 		fatal("nng_ctx_open", rv);
 	}
@@ -395,10 +357,8 @@ alloc_work(nng_socket sock)
 	w->state = INIT;
 	return (w);
 }
-
-// The server runs forever.
 int
-server(const char *url)
+broker(const char *url)
 {
 	nng_socket     sock;
 	nng_pipe       pipe_id;
@@ -443,7 +403,7 @@ int broker_start(int argc, char **argv)
 		fprintf(stderr, "Usage: broker start <url>\n");
 		exit(EXIT_FAILURE);
 	}
-	rc = server(argv[0]);
+	rc = broker(argv[0]);
 	exit(rc == 0 ? EXIT_SUCCESS : EXIT_FAILURE);
 }
 
