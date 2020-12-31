@@ -8,14 +8,14 @@
 
 struct work {
 	enum {
-		INIT, RECV, WAIT, SEND
+		INIT, RECV, WAIT, SEND, RESEND, FREE
 	} state;
 
-	nng_aio        *aio;
-	nng_msg        *msg;
-	nng_ctx        ctx;
-	nng_pipe       pid;
-	nng_mtx        *mutex;
+	nng_aio       * aio;
+	nng_msg       * msg;
+	nng_ctx         ctx;
+	nng_pipe        pid;
+	nng_mtx       * mutex;
 	struct db_tree *db;
 
 	struct pipe_content       *pipe_ct;
@@ -23,7 +23,6 @@ struct work {
 	struct pub_packet_struct  *pub_packet;
 	struct packet_subscribe   *sub_pkt;
 	struct packet_unsubscribe *unsub_pkt;
-
 };
 
 struct client_ctx {

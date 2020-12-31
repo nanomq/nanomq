@@ -72,6 +72,9 @@ nni_aio_init(nni_aio *aio, nni_cb cb, void *arg)
 	aio->a_expire  = NNI_TIME_NEVER;
 	aio->a_timeout = NNG_DURATION_INFINITE;
 	aio->pipe      = 0;
+	aio->db		   = NULL;
+	//aio->pipes	   = NULL;
+	//aio->pipe_len  = 0;
 }
 
 void
@@ -331,8 +334,11 @@ nni_aio_schedule(nni_aio *aio, nni_aio_cancel_fn cancel, void *data)
 		nni_mtx_unlock(&nni_aio_lk);
 		return (NNG_ECLOSED);
 	}
-
+#if defined(DEBUG)
+	debug_msg("aio->a_cancel_fn NULL %d?", (aio->a_cancel_fn == NULL));
+#else
 	NNI_ASSERT(aio->a_cancel_fn == NULL);
+#endif
 	aio->a_cancel_fn  = cancel;
 	aio->a_cancel_arg = data;
 
@@ -386,6 +392,7 @@ nni_aio_finish_impl(
 	aio->a_sleep  = false;
 	nni_mtx_unlock(&nni_aio_lk);
 
+    //TODO clean aio->pipes not in ctxs
 	if (sync) {
 		nni_task_exec(&aio->a_task);
 	} else {
@@ -396,12 +403,14 @@ nni_aio_finish_impl(
 void
 nni_aio_finish(nni_aio *aio, int result, size_t count)
 {
+	debug_msg("aio finish");
 	nni_aio_finish_impl(aio, result, count, NULL, false);
 }
 
 void
 nni_aio_finish_sync(nni_aio *aio, int result, size_t count)
 {
+	debug_msg("aio finish sync");
 	nni_aio_finish_impl(aio, result, count, NULL, true);
 }
 
@@ -710,4 +719,33 @@ nni_aio_get_dbtree(nni_aio *aio)
 {
        return(aio->db);
 }
+/*
+void
+nni_aio_set_pipes(nni_aio *aio, uint32_t *pipes)
+{
+    aio->pipes = pipes;
+}
 
+uint32_t*
+nni_aio_get_pipes(nni_aio *aio)
+{
+    return aio->pipes;
+}
+
+
+void
+nni_aio_set_pipelength(nni_aio *aio, uint32_t len)
+{
+    if (aio->pipes == NULL) {
+        aio->pipe_len = 0;
+        return;
+    }
+    aio->pipe_len = len;
+}
+
+uint32_t
+nni_aio_get_pipelength(nni_aio *aio)
+{
+    return aio->pipe_len;
+}
+*/

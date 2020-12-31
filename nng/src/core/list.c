@@ -55,8 +55,8 @@ void
 nni_list_append(nni_list *list, void *item)
 {
 	nni_list_node *node = NODE(list, item);
-
 	if ((node->ln_next != NULL) || (node->ln_prev != NULL)) {
+		// return;
 		nni_panic("appending node already on a list or not inited");
 	}
 	node->ln_prev          = list->ll_head.ln_prev;

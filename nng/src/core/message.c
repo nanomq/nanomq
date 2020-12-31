@@ -26,20 +26,20 @@ typedef struct {
 
 // Underlying message structure.
 struct nng_msg {
-        uint8_t        m_header_buf[NNI_EMQ_MAX_HEADER_SIZE + 1];       //only fixed header
-        //uint8_t       m_variable_header_buf[];                //TODO independent variable header?
-	size_t         m_header_len;
-	nni_chunk      m_body;
-	uint32_t       m_pipe; // set on receive
-	//nni_list       pipeline;
-	nni_atomic_int m_refcnt;
+    uint8_t           m_header_buf[NNI_EMQ_MAX_HEADER_SIZE + 1];       //only fixed header
+    //uint8_t       m_variable_header_buf[];                //TODO independent variable header?
+	size_t            m_header_len;
+	nni_chunk         m_body;
+	uint32_t          m_pipe; // set on receive
+	nni_atomic_int    m_refcnt;
 	//FOR NANOMQ
-       size_t           remaining_len;
-       uint8_t          CMD_TYPE;
-       //uint8_t          *variable_ptr;         //equal to m_body
-       uint8_t          *payload_ptr;          //payload
-       nano_conn_param  *cparam;
-
+    size_t            remaining_len;
+    uint8_t           CMD_TYPE;
+    //uint8_t          *variable_ptr;         //equal to m_body
+    uint8_t          *payload_ptr;          //payload
+    nni_time          times;
+    nano_conn_param  *cparam;
+	uint8_t			  qos;
 };
 
 #if 0
@@ -619,16 +619,10 @@ nni_msg_cmd_type(nni_msg *m)
        return(m->CMD_TYPE);
 }
 
-size_t
-nni_msg_remain_len(nni_msg *m)
-{
-       return(m->remaining_len);
-}
-
 uint8_t *
 nni_msg_header_ptr(const nni_msg *m)
 {
-       return (m->m_header_buf);
+       return ((uint8_t *)m->m_header_buf);
 }
 
 uint8_t *
@@ -676,7 +670,159 @@ nni_msg_set_remaining_len(nni_msg *m, size_t len)
 void
 nni_msg_set_cmd_type(nni_msg *m, uint8_t cmd)
 {
-       m->CMD_TYPE = cmd;
+	m->CMD_TYPE = cmd;
 }
 
+uint8_t
+nni_msg_get_pub_qos(nni_msg *m)
+{
+    uint8_t qos;
 
+    if (nni_msg_cmd_type(m) != 0x30)
+    {
+        return -1;
+    }
+    qos = (m->m_header_buf[0] & 0x06) >> 1;
+    return qos;
+}
+
+uint16_t
+nni_msg_get_pub_pid(nni_msg *m)
+{
+    uint16_t pid;
+	uint8_t *pos, len;
+	size_t		remain = 0;
+	remain 		= nni_msg_remaining_len(m) - 2;
+
+	pos = nni_msg_body(m);
+	NNI_GET16(pos, len);
+	NNI_GET16(pos + len + 2, pid);
+	return pid;
+}
+
+void
+nni_msg_set_timestamp(nni_msg *m, nni_time time)
+{
+    m->times = time;
+}
+
+nni_time
+nni_msg_get_timestamp(nni_msg *m)
+{
+    return m->times;
+}
+
+//TODO qos validation
+uint8_t
+nni_msg_get_preset_qos(nni_msg *m)
+{
+	return m->qos;
+}
+
+void
+nni_msg_set_qos(nni_msg *m, uint8_t qos)
+{
+	m->qos = qos;
+}
+
+nano_pipe_db *
+nano_msg_get_subtopic(nni_msg *msg)
+{
+	char *topic;
+	nano_pipe_db *root = NULL, *db = NULL, *tmp = NULL;
+	uint8_t		bpos = 0, len_of_topic = 0, *payload_ptr;;
+	size_t		remain = 0;
+
+	payload_ptr = nni_msg_payload_ptr(msg);
+	remain 		= nni_msg_remaining_len(msg) - 2;
+
+	if (nni_msg_cmd_type(msg) != 0x80)
+		return NULL;
+
+	while (bpos < remain){
+		NNI_GET16(payload_ptr + bpos, len_of_topic);
+		if (len_of_topic != 0) {
+			if (NULL != db) {
+				tmp = db;
+				db = db->next;
+			}
+			db = nng_alloc(sizeof(nano_pipe_db));
+			topic = nng_alloc(len_of_topic + 1);
+			db->prev = tmp;
+			if (bpos == 0) {
+				root = db;
+			} else {
+				tmp->next = db;
+			}
+			db->root = root;
+			if (topic == NULL || db == NULL) {
+				NNI_ASSERT("ERROR: nng_alloc");
+				return NULL;
+			} else {
+				bpos += 2;
+			}
+			strncpy(topic, payload_ptr + bpos, len_of_topic);
+			topic[len_of_topic] = 0x00;
+			db->topic = topic;
+			bpos += len_of_topic;
+		} else {
+			NNI_ASSERT("ERROR : topic length error.");
+			return NULL;
+		}
+		db->qos = *(payload_ptr + bpos);
+		db->next= NULL;
+		debug_msg("sub topic: %s qos : %x\n", db->topic, db->qos);
+		bpos += 1;
+	}
+
+	return root;
+}
+
+void
+nano_msg_free_pipedb(nano_pipe_db *db)
+{
+	uint8_t	 	   len;
+	nano_pipe_db * db_next;
+
+	if (NULL == db) {
+		return;
+	}
+	db = db->root;
+
+	while (db) {
+		len = strlen(db->topic);
+		nng_free(db->topic, len);
+		db_next = db->next;
+		nng_free(db, sizeof(nano_pipe_db));
+		db = db_next;
+	}
+	return;
+}
+
+void
+nano_msg_ubsub_free(nano_pipe_db *db)
+{
+	nano_pipe_db *ptr,*tmp;
+	uint8_t	 	  len;
+
+	if (NULL == db) {
+		return;
+	}
+	if (db == db->root) {
+		ptr = db;
+		tmp = db->next;
+		while(ptr) {
+			ptr->root = tmp;
+			ptr = ptr->next;
+		}
+	} else {
+		tmp = db->prev;
+		tmp->next = db->next;
+		db->next->prev = tmp;
+	}
+
+	len = strlen(db->topic);
+	nng_free(db->topic, len);
+	nng_free(db, sizeof(nano_pipe_db));
+	return;
+}

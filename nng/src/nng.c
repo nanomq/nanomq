@@ -297,7 +297,7 @@ nng_ctx_recv(nng_ctx cid, nng_aio *aio)
 		}
 		return;
 	}
-	debug_msg("recv context id %d rv: %d\n", cid.id, rv);
+	debug_msg("########nng_ctx_recv context id %d rv: %d##########", cid.id, rv);
 	nni_ctx_recv(ctx, aio);
 	nni_ctx_rele(ctx);
 }
@@ -320,8 +320,7 @@ nng_ctx_send(nng_ctx cid, nng_aio *aio)
 		}
 		return;
 	}
-        debug_msg("send context id %d rv: %d\n", cid.id, rv);
-        //TODO pipe_id
+    debug_msg("send context id %d rv: %d\n", cid.id, rv);
 	nni_ctx_send(ctx, aio);
 	nni_ctx_rele(ctx);
 }
@@ -1507,6 +1506,19 @@ nng_aio_finish(nng_aio *aio, int rv)
 }
 
 void
+nng_aio_finish_error(nng_aio *aio, int rv)
+{
+    nni_aio_finish_error(aio, rv);
+}
+
+void
+nng_aio_finish_sync(nng_aio *aio, int rv)
+{
+	nni_aio_finish_sync(aio, rv, 0);
+}
+
+
+void
 nng_aio_defer(nng_aio *aio, nng_aio_cancelfn fn, void *arg)
 {
 	nni_aio_schedule(aio, fn, arg);
@@ -1598,6 +1610,14 @@ nng_msg_clone(nng_msg *msg)
         nni_msg_clone(msg);
 }
 
+nng_msg*
+nng_msg_unique(nng_msg *m)
+{
+		nng_msg *m2;
+		m2= nni_msg_unique(m);
+		return m2;
+}
+
 void
 nng_aio_set_pipeline(nng_aio *aio, uint32_t id)
 {
@@ -1617,10 +1637,24 @@ nng_msg_get_conn_param(nng_msg *msg)
 	return p;
 }
 
+void
+nng_msg_set_cmd_type(nng_msg *m, uint8_t cmd)
+{
+	if (nni_msg_cmd_type(m) == 0x00 || cmd == 0x00) {
+    	nni_msg_set_cmd_type(m, cmd);
+	}
+}
+
+void
+nng_msg_preset_qos(nng_msg *m, uint8_t qos)
+{
+	nni_msg_set_qos(m, qos);
+}
+
 const uint8_t *
 conn_param_get_clentid(conn_param *cparam)
 {
-        return cparam->clientid.body;
+        return (const uint8_t *)cparam->clientid.body;
 }
 
 const uint8_t * 
@@ -1708,7 +1742,22 @@ conn_param_get_keepalive(conn_param *cparam)
 uint8_t
 conn_param_get_protover(conn_param *cparam)
 {
+	if (NULL == cparam )
+		return 0;
+	else
         return cparam->pro_ver;
 }
 
+/*
+void
+nng_aio_set_pipelength(nng_aio *aio, uint32_t len)
+{
+    nni_aio_set_pipelength(aio, len);
+}
 
+void
+nng_aio_set_pipes(nng_aio *aio, uint32_t *pipes)
+{
+    nni_aio_set_pipes(aio, pipes);
+}
+*/

@@ -11,6 +11,7 @@
 #define CORE_NNG_IMPL_H
 
 #include "nng/nng.h"
+#include "include/nng_debug.h"
 
 // Internal implementation things for NNG, common definitions, etc.
 // All internal modules wind up including this file to avoid having

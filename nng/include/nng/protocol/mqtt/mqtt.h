@@ -27,6 +27,7 @@
 #define NANO_CONNECT_PACKET_LEN sizeof(uint8_t)*12
 
 /* Message types */
+#define CMD_UNKNOWN 0x00
 #define CMD_CONNECT 0x10
 #define CMD_CONNACK 0x20
 #define CMD_PUBLISH 0x30

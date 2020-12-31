@@ -130,12 +130,13 @@ uint8_t decode_sub_message(emq_work * work)
 
 		if (len_of_topic != 0) {
 			topic_option->topic_filter.len = len_of_topic;
-			topic_option->topic_filter.body = nng_alloc(len_of_topic);
+			topic_option->topic_filter.body = nng_alloc(len_of_topic+1);
 			if (topic_option->topic_filter.body == NULL) {
 				debug_msg("ERROR: nng_alloc");
 				return NNG_ENOMEM;
 			}
 			strncpy(topic_option->topic_filter.body, payload_ptr + bpos, len_of_topic);
+			topic_option->topic_filter.body[len_of_topic] = '\0';
 			bpos += len_of_topic;
 		} else {
 			debug_msg("ERROR : topic length error.");
@@ -310,20 +311,20 @@ uint8_t sub_ctx_handle(emq_work * work, client_ctx * cli_ctx)
 		debug_msg("client count [%d]", count);
 //		*/
 
-        /*
 		struct retain_msg_node *msg_node = search_retain_msg(work->db->root, topics);
 
-		for (struct retain_msg_node *i = msg_node->down; i != NULL && i->ret_msg != NULL; i = i->down) {
-			debug_msg("found retain [%p], message: [%p]", i->ret_msg, i->ret_msg->message);
-			work->pub_packet = copy_pub_packet(i->ret_msg->message);
-			work->pub_packet->fixed_header.retain = 1;
-			work->pub_packet->fixed_header.remain_len = work->pub_packet->payload_body.payload_len
-				+ work->pub_packet->variable_header.publish.topic_name.len+2
-				+ (work->pub_packet->fixed_header.qos == 0 ? 0 : 2);
-			put_pipe_msgs(cli_ctx, work, work->pipe_ct, PUBLISH);
+		if (msg_node != NULL) {
+			for (struct retain_msg_node *i = msg_node->down; i != NULL && i->ret_msg != NULL; i = i->down) {
+				debug_msg("found retain [%p], message: [%p]", i->ret_msg, i->ret_msg->message);
+				work->pub_packet = copy_pub_packet(i->ret_msg->message);
+				work->pub_packet->fixed_header.retain = 1;
+				work->pub_packet->fixed_header.remain_len = work->pub_packet->payload_body.payload_len
+					+ work->pub_packet->variable_header.publish.topic_name.len+2
+					+ (work->pub_packet->fixed_header.qos == 0 ? 0 : 2);
+				put_pipe_msgs(cli_ctx, work, work->pipe_ct, PUBLISH);
+			}
+			free_retain_node(msg_node);
 		}
-		free_retain_node(msg_node);
-        */
 
 		free_topic_queue(topics);
 		nng_free(topic_str, topic_node_t->it->topic_filter.len+1);

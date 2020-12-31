@@ -103,6 +103,7 @@ struct pipe_info {
 struct pipe_content {
 	uint32_t total;
 	uint32_t current_index;
+    uint32_t *pipes;        //queue of nng_pipes
 	bool (*encode_msg)(nng_msg *, const emq_work *, mqtt_control_packet_types, uint8_t, bool);
 	struct pipe_info *pipe_info;
 };

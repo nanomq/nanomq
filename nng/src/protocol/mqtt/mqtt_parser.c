@@ -512,6 +512,9 @@ int32_t conn_handler(uint8_t *packet, conn_param *cparam)
 
 void destroy_conn_param(conn_param * cparam)
 {
+	if (cparam == NULL) {
+		return;
+	}
 	debug_msg("destroy conn param");
 	nng_free(cparam->pro_name.body, cparam->pro_name.len);
 	nng_free(cparam->clientid.body, cparam->clientid.len);
@@ -566,3 +569,36 @@ static void init_conn_param(conn_param *cparam)
 	cparam->payload_user_property.len_val = 0;
 }
 
+uint32_t DJBHash(char *str)
+{
+    unsigned int hash = 5381;
+    while (*str){
+        hash = ((hash << 5) + hash) + (*str++); /* times 33 */
+    }
+    hash &= ~(1 << 31); /* strip the highest bit */
+    return hash;
+}
+
+uint32_t DJBHashn(char *str, uint16_t len)
+{
+    unsigned int hash = 5381;
+	uint16_t i = 0;
+    while (i<len){
+        hash = ((hash << 5) + hash) + (*str++); /* times 33 */
+		i++;
+    }
+    hash &= ~(1 << 31); /* strip the highest bit */
+    return hash;
+}
+
+uint64_t
+nano_hash(char *str)
+{
+    uint64_t hash = 5381;
+    int c;
+
+    while (c = *str++)
+        hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+		//hash = hash * 33 + c;
+    return hash;
+}

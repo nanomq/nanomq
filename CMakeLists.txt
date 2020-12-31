@@ -19,11 +19,18 @@ set(CMAKE_MODULE_PATH
 
 option(NOLOG "build this project nolog" OFF)
 option(MQ "build this project suport mq" ON)
+option(DEBUG "gdb support" OFF)
 
 if (NOLOG)
 	add_definitions(-DNOLOG)
 endif (NOLOG)
 
+if (DEBUG)
+  SET(CMAKE_BUILD_TYPE "Debug")
+  SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -Wall -g2 -ggdb")
+  SET(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -O3 -Wall")
+  add_definitions(-DDEBUG)
+endif(DEBUG)
 if (MQ)
 	add_definitions(-DMQ)
 endif (MQ)

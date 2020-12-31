@@ -36,8 +36,6 @@ extern void     nni_msg_dump(const char *, const nni_msg *);
 extern void     nni_msg_header_append_u32(nni_msg *, uint32_t);
 extern uint32_t nni_msg_header_trim_u32(nni_msg *);
 extern uint32_t nni_msg_trim_u32(nni_msg *);
-extern void     nni_msg_set_pipe(nni_msg *, uint32_t);
-extern uint32_t nni_msg_get_pipe(const nni_msg *);
 
 // Reference counting messages. This allows the same message to be
 // cheaply reused instead of copied over and over again.  Callers of
@@ -55,20 +53,29 @@ extern nni_msg *nni_msg_pull_up(nni_msg *);
 
 
 //NANOMQ MQTT
-extern size_t   nni_msg_remain_len(nni_msg *m);
-extern int     nni_msg_cmd_type(nni_msg *m);
+extern nni_time nni_msg_get_timestamp(nni_msg *m);
+extern void nni_msg_set_timestamp(nni_msg *m, nni_time time);
+extern int      nni_msg_cmd_type(nni_msg *m);
 extern uint8_t *nni_msg_header_ptr(const nni_msg *m);
 extern uint8_t *nni_msg_variable_ptr(const nni_msg *m);
 extern uint8_t *nni_msg_payload_ptr(const nni_msg *m);
+extern uint8_t  nni_msg_get_pub_qos(nni_msg *m);
 extern size_t   nni_msg_remaining_len(const nni_msg *m);
 extern void     nni_msg_set_payload_ptr(nni_msg *m, uint8_t * ptr);
 extern void     nni_msg_set_remaining_len(nni_msg *m, size_t len);
 extern void     nni_msg_set_cmd_type(nni_msg *m, uint8_t cmd);
 extern void     nni_msg_set_conn_param(nni_msg *m, void *ptr);
+extern nano_pipe_db *   nano_msg_get_subtopic(nni_msg *msg);
+extern void     nano_msg_free_pipedb(nano_pipe_db *db);
+extern void     nano_msg_ubsub_free(nano_pipe_db *db);
+extern void     nni_msg_set_pipe(nni_msg *, uint32_t);
+extern uint32_t nni_msg_get_pipe(const nni_msg *);
+extern uint8_t  nni_msg_get_preset_qos(nni_msg *m);
+extern uint16_t nni_msg_get_pub_pid(nni_msg *m);
+extern void     nni_msg_set_qos(nni_msg *m, uint8_t qos);
 
 extern conn_param *   nni_msg_get_conn_param(nni_msg *m);
 
-typedef struct conn_param conn_param;
 typedef struct conn_propt conn_propt;
 typedef struct mqtt_string mqtt_string;
 typedef struct mqtt_str_pair mqtt_str_pair;
@@ -76,6 +83,18 @@ typedef struct mqtt_str_pair mqtt_str_pair;
 struct conn_propt {
        uint8_t session_exp_int[5];
 };
+
+struct pipe_db {
+	//uint32_t           p_id;
+    uint8_t            qos;
+    char       *       topic;
+    //conn_param *       conn_param;
+    //TODO MQTT5 property
+    struct pipe_db    *       next;
+    struct pipe_db    *       prev;
+    struct pipe_db    *       root;
+};
+
 
 struct mqtt_string {
         char   * body;

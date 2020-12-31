@@ -32,7 +32,7 @@ static void handle_pub_retain(const emq_work *work, const char **topic_queue);
 void
 init_pipe_content(struct pipe_content *pipe_ct)
 {
-	debug_msg("init pipe_info");
+	debug_msg("pub_handler: init pipe_info");
 	pipe_ct->pipe_info     = NULL;
 	pipe_ct->total         = 0;
 	pipe_ct->current_index = 0;
@@ -147,10 +147,10 @@ handle_pub(emq_work *work, struct pipe_content *pipe_ct)
 					case 0:
 						break;
 					case 1:
-						put_pipe_msgs(NULL, work, pipe_ct, PUBACK);
+						//put_pipe_msgs(NULL, work, pipe_ct, PUBACK);
 						break;
 					case 2:
-						put_pipe_msgs(NULL, work, pipe_ct, PUBREC);
+						//put_pipe_msgs(NULL, work, pipe_ct, PUBREC);
 						break;
 					default:
 						debug_msg("invalid qos: %d", work->pub_packet->fixed_header.qos);
@@ -337,18 +337,20 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_
 	debug_msg("start encode message");
 
 	if (dest_msg != NULL) nng_msg_clear(dest_msg);
-
+	nng_msg_set_cmd_type(dest_msg, CMD_UNKNOWN);
 	switch (cmd) {
 		case PUBLISH:
 			/*fixed header*/
+            nng_msg_set_cmd_type(dest_msg, CMD_PUBLISH);
 			work->pub_packet->fixed_header.packet_type = cmd;
-			work->pub_packet->fixed_header.qos = work->pub_packet->fixed_header.qos < sub_qos ?
-				work->pub_packet->fixed_header.qos : sub_qos;
+			//work->pub_packet->fixed_header.qos = work->pub_packet->fixed_header.qos < sub_qos ? work->pub_packet->fixed_header.qos : sub_qos;
 			work->pub_packet->fixed_header.dup = dup;
 			append_res = nng_msg_header_append(dest_msg, (uint8_t *) &work->pub_packet->fixed_header, 1);
 
 			arr_len    = put_var_integer(tmp, work->pub_packet->fixed_header.remain_len);
+
 			append_res = nng_msg_header_append(dest_msg, tmp, arr_len);
+			nng_msg_set_remaining_len(dest_msg, work->pub_packet->fixed_header.remain_len);
 			debug_msg("header len [%ld] remain len [%d]", nng_msg_header_len(dest_msg), work->pub_packet->fixed_header.remain_len);
 
 			/*variable header*/
@@ -366,6 +368,7 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_
 			if (work->pub_packet->fixed_header.qos > 0) {
 				append_res = nng_msg_append_u16(dest_msg, work->pub_packet->variable_header.publish.packet_identifier);
 			}
+			nng_msg_preset_qos(dest_msg, work->pub_packet->fixed_header.qos);
 			debug_msg("after topic and id len in msg already [%ld]", nng_msg_len(dest_msg));
 
 #if SUPPORT_MQTT5_0
@@ -449,6 +452,7 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_
 			
 			//payload
 			if (work->pub_packet->payload_body.payload_len > 0) {
+				//nng_msg_set_payload_ptr(msg, nng_msg_body());
 				append_res = nng_msg_append(dest_msg,
 					work->pub_packet->payload_body.payload,
 					work->pub_packet->payload_body.payload_len);
@@ -459,10 +463,14 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_
 			break;
 
 		case PUBREL:
+            nng_msg_set_cmd_type(dest_msg, CMD_PUBREL);
 		case PUBACK:
+            nng_msg_set_cmd_type(dest_msg, CMD_PUBACK);
 		case PUBREC:
+            nng_msg_set_cmd_type(dest_msg, CMD_PUBREC);
 		case PUBCOMP:
 			debug_msg("encode %d message", cmd);
+            nng_msg_set_cmd_type(dest_msg, CMD_PUBCOMP);
 			struct pub_packet_struct pub_response = {
 					.fixed_header.packet_type = cmd,
 					.fixed_header.dup = dup,
@@ -512,15 +520,12 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_
 #endif
 			}
 			break;
-
 		default:
 			break;
-
 	}
 
 	debug_msg("end encode message");
 	return true;
-
 }
 
 
@@ -558,12 +563,6 @@ decode_pub_message(emq_work *work)
 			//variable header
 			//topic length
 			NNI_GET16(msg_body + pos, pub_packet->variable_header.publish.topic_name.len);
-			pub_packet->variable_header.publish.topic_name.body = (char *) nng_alloc(
-				pub_packet->variable_header.publish.topic_name.len + 1);
-
-			memset((char *) pub_packet->variable_header.publish.topic_name.body, '\0',
-			       pub_packet->variable_header.publish.topic_name.len + 1);
-
 			pub_packet->variable_header.publish.topic_name.body = copy_utf8_str(msg_body, &pos, &len);
 
 			if (pub_packet->variable_header.publish.topic_name.len > 0) {
