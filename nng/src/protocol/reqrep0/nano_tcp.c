@@ -287,7 +287,7 @@ nano_ctx_send(void *arg, nni_aio *aio)
 		return;
 	}
 	debug_msg("WARNING: pipe %d occupied! resending in cb!", pipe);
-	printf("WARNING: pipe %d occupied! resending in cb!\n", pipe);
+	//printf("WARNING: pipe %d occupied! resending in cb!\n", pipe);
     if (nni_lmq_full(&p->rlmq)) {
         // Make space for the new message.
 		debug_msg("warning msg dropped!");
@@ -406,7 +406,7 @@ nano_pipe_qos_timeout(void *arg)
             p->busy = true;
             nni_aio_set_msg(&p->aio_send, m);
             p->qos_retry = 1;
-            nni_msg_clone(m);
+            //nni_msg_clone(m);
             nni_pipe_send(p->pipe, &p->aio_send);
         } else {
             debug_msg("Nothing to do, restart the timer");
@@ -620,7 +620,7 @@ nano_pipe_send_cb(void *arg)
         len        = nni_msg_len(msg);
         nni_aio_set_msg(&p->aio_send, msg);
         debug_msg("rlmq msg resending! %ld msgs left\n", nni_lmq_len(&p->rlmq));
-		printf("rlmq of %ld msg resending! %ld msgs left\n",p->id, nni_lmq_len(&p->rlmq));
+		//printf("rlmq of %ld msg resending! %ld msgs left\n",p->id, nni_lmq_len(&p->rlmq));
         nni_pipe_send(p->pipe, &p->aio_send);
         nni_mtx_unlock(&s->lk);
         return;

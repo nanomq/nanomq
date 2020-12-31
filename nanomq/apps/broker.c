@@ -86,8 +86,10 @@ server_cb(void *arg)
 			break;
 		case RECV:
 			debug_msg("RECV  ^^^^^^^^^^^^^^^^^^^^^ ctx%d ^^^^\n", work->ctx.id);
-			if (smsg != NULL)
+			if (smsg != NULL) {
 				nng_msg_free(smsg);
+				smsg = NULL;
+			}
 			if ((rv = nng_aio_result(work->aio)) != 0) {
 				debug_msg("ERROR: RECV nng aio result error: %d", rv);
 				nng_aio_wait(work->aio);
@@ -208,6 +210,7 @@ server_cb(void *arg)
 				work->msg   = NULL;
 				work->state = SEND;
 				nng_ctx_send(work->ctx, work->aio);
+				smsg = NULL;
 				nng_aio_finish(work->aio, 0);
 				break;
 			} else if (nng_msg_cmd_type(work->msg) == CMD_UNSUBSCRIBE) {
@@ -249,6 +252,7 @@ server_cb(void *arg)
 				work->msg   = NULL;
 				work->state = SEND;
 				nng_ctx_send(work->ctx, work->aio);
+				smsg = NULL;
 				nng_aio_finish(work->aio, 0);
 				break;
 			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBLISH) {
@@ -325,6 +329,7 @@ server_cb(void *arg)
 					   nng_msg_cmd_type(work->msg) == CMD_PUBCOMP ) {
 				nng_msg_free(work->msg);
 				nng_msg_free(smsg);
+				smsg = NULL;
 				work->msg   = NULL;
 				work->state = RECV;
 				nng_ctx_recv(work->ctx, work->aio);
@@ -342,8 +347,10 @@ server_cb(void *arg)
 
 		case SEND:
 			debug_msg("SEND  ^^^^^^^^^^^^^^^^^^^^^ ctx%d ^^^^\n", work->ctx.id);
-			if (NULL != smsg)
+			if (NULL != smsg) {
 			 	nng_msg_free(smsg);
+				smsg = NULL;
+			}
 			if ((rv = nng_aio_result(work->aio)) != 0) {
 				debug_msg("SEND nng aio result error: %d", rv);
 				fatal("SEND nng_ctx_send", rv);
