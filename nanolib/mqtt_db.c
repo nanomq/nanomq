@@ -24,7 +24,6 @@ typedef enum {PRINT_DB_TREE, SEARCH_RET} WHICH_WORK;
 */
 void create_db_tree(struct db_tree **db)
 {
-	puts("create db tree");
 	log_info("CREATE_DB_TREE");
 	*db = (struct db_tree *)zmalloc(sizeof(struct db_tree));
 	memset(*db, 0, sizeof(struct db_tree));
@@ -906,7 +905,6 @@ struct retain_msg_node *search_retain_msg(struct db_node *root, char **topic_que
 	}
 	// log("fun");
 	// log("ret_msg: %p", res->down->ret_msg);
-	puts("search retain message finished");
 	fflush(stdout);
 
 	return res;
