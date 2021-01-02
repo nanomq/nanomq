@@ -1,7 +1,6 @@
 # NanoMQ
 
 Nano MQTT Broker
-
 A light-weight and Blazing-fast MQTT Broker for IoT Edge platform.
 
 
@@ -35,7 +34,6 @@ $PROJECT_PATH/nanomq/build$ sudo ninja install
 
 or you can limit threads by
 $PROJECT_PATH/nanomq/build$ cmake -G Ninja -DNNG_RESOLV_CONCURRENCY=1 -DNNG_NUM_TASKQ_THREADS=5 -DNNG_MAX_TASKQ_THREADS=5  ..
-
 or you can print log by
 
 cmake -DNOLOG=0
@@ -73,17 +71,42 @@ sudo ./nanomq broker mq start/stop
 For Support & Debug, NanoMQ has a Debugging system which logs all information from all threads. It is enabled by default.
 And you can disable/enable it by:
 
+```
 $PROJECT_PATH/nanomq/build$ cmake -G Ninja -DNOLOG=1  ..
 $PROJECT_PATH/nanomq/build$ cmake -G Ninja -DNOLOG=0  ..
-
+```
 
 4. Mqueue support:
 
 For macos, mqueue is not support, you can set -DMQ=0 to disable it. It is enabled by default.
-
+```
 $PROJECT_PATH/nanomq/build$ cmake -G Ninja -DMQ=1  ..
 $PROJECT_PATH/nanomq/build$ cmake -G Ninja -DMQ=0  ..
+```
+5. More parameter support:
+For macos, mqueue is not support, you can set -DMQ=0 to disable it. It is enabled by default.
+```
+set max emq packet size, default is 512
+$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DEMQ_PACKET_SIZE=set ..
 
+set max emq header size, default is 5
+$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DEMQ_HEADER_SIZE=set ..
+
+set emq property size, default is 32
+$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DEMQ_PROPERTY_SIZE=set ..
+
+set nano qos length, default is 64
+$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DNANO_QOS_LEN=set ..
+
+set nano msq length, default is 64
+$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DNANO_MSQ_LEN=set ..
+
+set nano qos timer, default is 30
+$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DDNANO_QOS_TIMER=set ..
+
+set nano publish client, default is 256
+$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DNANO_PUB_CLIENT=set ..
+```
 ## Communties
 
 You can Join us on Slack channel:

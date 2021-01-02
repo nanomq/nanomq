@@ -41,6 +41,14 @@ include(FindUnixCommands)
 
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
+set(EMQ_PACKET_SIZE 512 CACHE STRING "set max packet size")
+set(EMQ_HEADER_SIZE 5 CACHE STRING "set max header size")
+set(EMQ_PROPERTY_SIZE 32 CACHE STRING "set property size")
+set(NANO_QOS_LEN 64 CACHE STRING "set qos length")
+set(NANO_MSQ_LEN 64 CACHE STRING "set msq length")
+set(NANO_QOS_TIMER 30 CACHE STRING "set qos timer")
+set(NANO_PUB_CLIENT 256 CACHE STRING "set nano pub client")
+
 if (POLICY CMP0042)
     # Newer cmake on MacOS should use @rpath
     cmake_policy(SET CMP0042 NEW)
@@ -151,9 +159,9 @@ endif ()
 
 include(CheckSanitizer)
 CheckSanitizer()
-if (NOT NNG_SANITIZER STREQUAL "none")
-    set(NNG_SANITIZER_FLAGS "-fsanitize=${NNG_SANITIZER}")
-endif ()
+# if (NOT NNG_SANITIZER STREQUAL "none")
+#     set(NNG_SANITIZER_FLAGS "-fsanitize=${NNG_SANITIZER}")
+# endif ()
 
 if (NNG_ENABLE_COVERAGE)
     # NB: This only works for GCC and Clang 3.0 and newer.  If your stuff
@@ -506,6 +514,14 @@ set(CPACK_SOURCE_PACKAGE_FILE_NAME
 set(CPACK_RESOURCE_FILE_LICENSE ${CMAKE_CURRENT_SOURCE_DIR}/LICENSE.txt)
 set(CPACK_PACKAGE_INSTALL_DIRECTORY "nng")
 set(CPACK_PACKAGE_FILE_NAME "${PROJECT_NAME}-v${NNG_PACKAGE_VERSION}")
+
+target_compile_definitions(nng PRIVATE -DEMQ_PACKET_SIZE=${EMQ_PACKET_SIZE})
+target_compile_definitions(nng PRIVATE -DEMQ_HEADER_SIZE=${EMQ_HEADER_SIZE})
+target_compile_definitions(nng PRIVATE -DEMQ_PROPERTY_SIZE=${EMQ_PROPERTY_SIZE})
+target_compile_definitions(nng PRIVATE -DNANO_QOS_LEN=${NANO_QOS_LEN})
+target_compile_definitions(nng PRIVATE -DNANO_MSQ_LEN=${NANO_MSQ_LEN})
+target_compile_definitions(nng PRIVATE -DNANO_QOS_TIMER=${NANO_QOS_TIMER})
+target_compile_definitions(nng PRIVATE -DNANO_PUB_CLIENT=${NANO_PUB_CLIENT})
 
 add_custom_target(dist COMMAND ${CMAKE_MAKE_PROGRAM} package_source)
 include(CPack)
