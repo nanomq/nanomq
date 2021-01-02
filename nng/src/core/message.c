@@ -686,6 +686,20 @@ nni_msg_get_pub_qos(nni_msg *m)
     return qos;
 }
 
+uint16_t
+nni_msg_get_pub_pid(nni_msg *m)
+{
+    uint16_t pid;
+	uint8_t *pos, len;
+	size_t		remain = 0;
+	remain 		= nni_msg_remaining_len(m) - 2;
+
+	pos = nni_msg_body(m);
+	NNI_GET16(pos, len);
+	NNI_GET16(pos + len + 2, pid);
+	return pid;
+}
+
 void
 nni_msg_set_timestamp(nni_msg *m, nni_time time)
 {

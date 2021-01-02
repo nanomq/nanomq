@@ -259,18 +259,14 @@ nano_ctx_send(void *arg, nni_aio *aio)
 			if (nni_lmq_full(&p->qlmq)) {
 				// Make space for the new message.
          		debug_msg("Warning: QoS message dropped");
-                printf("Warning: QoS message dropped\n");
+                //printf("Warning: QoS message dropped\n");
 				nni_msg *old1;
 				(void) nni_lmq_getq(&p->qlmq, &old1);
 				nni_msg_free(old1);
 			}
 			nni_lmq_putq(&p->qlmq, msg);
     	}
-    } else if (nni_msg_cmd_type(msg) == CMD_PUBREL) {
-		uint8_t *tmp;
-		tmp = nni_msg_header(msg);
-		*tmp = 0x62;
-	}
+    }
 
 	p->tree = nni_aio_get_dbtree(aio);
 	if (!p->busy) {
@@ -289,8 +285,8 @@ nano_ctx_send(void *arg, nni_aio *aio)
 		//nni_aio_finish_error(aio, rv);
 		return;
 	}
-	debug_msg("ERROR: pipe %d occupied! resending in cb!", pipe);
-	//printf("ERROR: pipe %d occupied! resending in cb!\n", pipe);
+	debug_msg("WARNING: pipe %d occupied! resending in cb!", pipe);
+	//printf("WARNING: pipe %d occupied! resending in cb!\n", pipe);
     if (nni_lmq_full(&p->rlmq)) {
         // Make space for the new message.
 		debug_msg("warning msg dropped!");
@@ -582,8 +578,6 @@ nano_pipe_close(void *arg)
 	while ((ctx = nni_list_first(&p->sendq)) != NULL) {
 		nni_aio *aio;
 		nni_msg *msg;
-		// Pipe was closed.  To avoid pushing an error back to the
-		// entire socket, we pretend we completed this successfully.
 		nni_list_remove(&p->sendq, ctx);
 		aio       = ctx->saio;
 		ctx->saio = NULL;
@@ -620,9 +614,9 @@ nano_pipe_send_cb(void *arg)
 
     //printf("before : rlmq msg resending! %ld %p \n", nni_lmq_len(&p->rlmq), &p->rlmq);
     if (nni_lmq_getq(&p->rlmq, &msg) == 0) {
-        len        = nni_msg_len(msg);
         nni_aio_set_msg(&p->aio_send, msg);
         debug_msg("rlmq msg resending! %ld msgs left\n", nni_lmq_len(&p->rlmq));
+		//printf("rlmq of %ld msg resending! %ld msgs left\n",p->id, nni_lmq_len(&p->rlmq));
         nni_pipe_send(p->pipe, &p->aio_send);
         nni_mtx_unlock(&s->lk);
         return;
@@ -635,7 +629,7 @@ nano_pipe_send_cb(void *arg)
         //TODO check timestamp of each msg, whether send it or not
         if (nni_lmq_getq(&p->qlmq, &msg) == 0) {
             p->busy    = true;
-            len        = nni_msg_len(msg);
+			nni_msg_clone(msg);
             nni_aio_set_msg(&p->aio_send, msg);
             debug_msg("Warning: qos msg resending!");
             nni_pipe_send(p->pipe, &p->aio_send);
@@ -721,7 +715,6 @@ nano_ctx_recv(void *arg, nni_aio *aio)
 	debug_msg("nano_ctx_recv ends %p pipe: %p pipe_id: %d", ctx, p, ctx->pipe_id);
 	nni_mtx_unlock(&s->lk);
 
-	//nni_msg_header_clear(msg);
 	nni_aio_set_msg(aio, msg);
 	nni_aio_finish(aio, 0, nni_msg_len(msg));
 }
@@ -769,20 +762,21 @@ nano_pipe_recv_cb(void *arg)
 				rv = nni_id_set(&p->nano_db, DJBHash(pipe_db->topic), pipe_db);
 				pipe_db = pipe_db->next;
 			}
-			//pipe_db = nni_id_get(&p->nano_db, DJBHash("msg"));
-			//printf("cccccc idm %p %s %p hash %u\n", &p->nano_db, pipe_db->topic, &p->pipe, DJBHash("msg"));
 			break;
 		case CMD_PUBLISH:
 			break;
 		case CMD_DISCONNECT:
 			break;
 		case CMD_PUBREL:
+			goto drop;
 			break;
 		case CMD_UNSUBSCRIBE:
 			break;
 		case CMD_PINGREQ:
+			goto drop;
 			break;
 		case CMD_PUBCOMP:
+			goto drop;
 			break;
         case CMD_PUBACK:
 		case CMD_PUBREC:
@@ -811,24 +805,12 @@ nano_pipe_recv_cb(void *arg)
                 index++;
             }
             //nanomq sdk
+			goto drop;
             break;
 		default:
 			goto drop;
 	}
 
-	/*
-	if (nng_msg_cmd_type(msg) == CMD_DISCONNECT && (ctx = nni_list_first(&s->recvq)) != NULL)
-	{
-		aio       = ctx->raio;
-		ctx->raio = NULL;
-		nni_aio_set_msg(&p->aio_recv, NULL);
-		ctx->pipe_id = p->id;
-		nni_mtx_unlock(&s->lk);
-		nni_aio_set_msg(aio, msg);
-		nni_aio_finish_sync(aio, 0, 2);
-		debug_msg("client is dead!!");
-		return;
-	}*/
 	if (p->closed) {
 		// If we are closed, then we can't return data.
 		nni_aio_set_msg(&p->aio_recv, NULL);
@@ -872,10 +854,12 @@ nano_pipe_recv_cb(void *arg)
 	return;
 
 drop:
-	nni_msg_free(msg);
 	nni_aio_set_msg(&p->aio_recv, NULL);
 	nni_pipe_recv(p->pipe, &p->aio_recv);
+	nni_mtx_unlock(&s->lk);
+	nni_msg_free(msg);
 	debug_msg("Warning:dropping msg");
+	return;
 }
 
 static int
@@ -942,6 +926,7 @@ nano_sock_recv(void *arg, nni_aio *aio)
 	nano_ctx_recv(&s->ctx, aio);
 }
 
+//TODO Move to tcp layer
 static void
 nano_qos_msg_repack(nni_msg *msg, nano_pipe *p)
 {
@@ -987,8 +972,10 @@ nano_qos_msg_repack(nni_msg *msg, nano_pipe *p)
 				break;
 			case 0x01:
 			case 0x02:
-qos1:			if (qos_pub == 1 || db->qos == 1)
+qos1:			if (qos_pub == 1 || db->qos == 1) {
 					*header = *header | 0x02;
+					*header = *header & 0xFB;
+				}
 				else
 					*header = *header | 0x04;
 				if (qos_pac == 0) {
@@ -1055,12 +1042,6 @@ static nni_option nano_sock_options[] = {
 	    .o_name = NNG_OPT_SENDFD,
 	    .o_get  = nano_sock_get_sendfd,
 	},
-	//{
-	//    .o_name = NNG_OPT_REQ_RESENDTIME,
-	//    .o_get  = req0_ctx_get_resend_time,
-	//    .o_set  = req0_ctx_set_resend_time,
-	//},
-	// terminate list
 	{
 	    .o_name = NULL,
 	},
