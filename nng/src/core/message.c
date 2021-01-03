@@ -26,7 +26,7 @@ typedef struct {
 
 // Underlying message structure.
 struct nng_msg {
-    uint8_t           m_header_buf[NNI_EMQ_MAX_HEADER_SIZE + 1];       //only fixed header
+    uint8_t           m_header_buf[NNI_NANO_MAX_HEADER_SIZE + 1];       //only fixed header
     //uint8_t       m_variable_header_buf[];                //TODO independent variable header?
 	size_t            m_header_len;
 	nni_chunk         m_body;

@@ -1,8 +1,8 @@
 # NanoMQ
 
 Nano MQTT Broker
-
 A light-weight and Blazing-fast MQTT Broker for IoT Edge platform.
+NanoMQ is base on NNG's asynchronous I/O threading model. With an extension of MQTT support in the protocol layer and reworked transport layer. Plus an enhanced asynchronous IO mechanism to maximize the throughout capacity.
 
 
 
@@ -21,11 +21,9 @@ A light-weight and Blazing-fast MQTT Broker for IoT Edge platform.
 
 1. Compile & Install
 
-NanoMQ is base on NNG's asynchronous I/O threading model. With rewriting the TCP/SP part with self-added protocol: nano_tcp.
+To build NanoMQ, you will need a C99 & C++11 compatible compiler and [CMake](http://www.cmake.org/) version 3.13 or newer.
 
-To build this whole project, you will need a C99 compatible & C++11 compiler and [CMake](http://www.cmake.org/) version 3.13 or newer.
-
-Basically you just need to simply compile and install nanomq by:
+Basically, you need to compile and install NanoMQ by following steps :
 
 $PROJECT_PATH/nanomq$ mkdir build & cd build
 
@@ -33,16 +31,14 @@ $PROJECT_PATH/nanomq/build$ cmake -G Ninja ..
 
 $PROJECT_PATH/nanomq/build$ sudo ninja install
 
-or you can limit threads by
-$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DNNG_RESOLV_CONCURRENCY=1 -DNNG_NUM_TASKQ_THREADS=5 -DNNG_MAX_TASKQ_THREADS=5  ..
+Or you can compile it without ninja:
+$PROJECT_PATH/nanomq$ mkdir build ; cd build; cmake .. ; make
 
-or you can print log by
+2. Compile dependency
 
-cmake -DNOLOG=0
+Please be aware that NanoMQ depends on nanolib & nng(nanonng for MQTT)
 
-Please be aware that nanomq depends on nanolib & nng (MQTT ver)
-
-both dependencies can be complied independently
+both dependencies can be compiled independently
 
 $PROJECT_PATH/nanomq/nng/build$ cmake -G Ninja .. 
 $PROJECT_PATH/nanomq/nng/build$ ninja install
@@ -51,42 +47,66 @@ compile nanolib independently:
 $PROJECT_PATH/nanolib/build$ cmake -G Ninja ..
 $PROJECT_PATH/nanolib/build$ ninja install
 
-Currently, NanoMQ only supports basic MQTT 3.1.1 Pub/Sub with Qos 0.
-In short future, We will release a roadmap, and next version of NanoMQ with full MQTT 5.0 support. 
-Also, in order to let NanoMQ be compatible with NNG library and SP, implementing a subsystem to let nanomq support MQTT without damaging NNG's SP support.
-Rewriting CMake and MakeFile so that users can easily choose which ver of nng to base on.
 
-===============================================
+##  Configuration
+NanoMQ provides serval options for optimizing performance according to your system.
 
-2. Usage:
+limiting the number of threads:
 
-#ongoing MQTT Broker
-sudo ./nanomq broker start 'tcp://localhost:1883' &
+$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DNNG_RESOLV_CONCURRENCY=1 -DNNG_NUM_TASKQ_THREADS=5 -DNNG_MAX_TASKQ_THREADS=5  ..
 
-#test POSIX message Queue
-sudo ./nanomq broker mq start/stop
 
-===============================================
-
-3. Debug:
-
-For Support & Debug, NanoMQ has a Debugging system which logs all information from all threads. It is enabled by default.
+For debugging, NanoMQ has a Debugging system that logs all information from all threads. Which is aligned with Syslog standard.
 And you can disable/enable it by:
 
+```
 $PROJECT_PATH/nanomq/build$ cmake -G Ninja -DNOLOG=1  ..
 $PROJECT_PATH/nanomq/build$ cmake -G Ninja -DNOLOG=0  ..
+```
 
-
-4. Mqueue support:
+Mqueue support:
 
 For macos, mqueue is not support, you can set -DMQ=0 to disable it. It is enabled by default.
-
+```
 $PROJECT_PATH/nanomq/build$ cmake -G Ninja -DMQ=1  ..
 $PROJECT_PATH/nanomq/build$ cmake -G Ninja -DMQ=0  ..
+```
+System tunning parameters:
+```
+set max size of fixed header + variable header for MQTT packet , default is 64 bytes
+$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DNANO_PACKET_SIZE=set ..
 
-## Communties
+set max fixed header size for MQTT packet, default is 5
+$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DNANO_HEADER_SIZE=set ..
 
-You can Join us on Slack channel:
+set max property size for MQTT packet, default is 32
+$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DNANO_PROPERTY_SIZE=set ..
+
+set queue length for QoS message, default is 64
+$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DNANO_QOS_LEN=set ..
+
+set queue length for resending message, default is 64
+$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DNANO_MSQ_LEN=set ..
+
+set nano qos timer, default is 30 seconds
+$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DDNANO_QOS_TIMER=set ..
+
+```
+For more information about these parameters, please refer to the project's Wiki
+
+## Usage
+
+#Start MQTT Broker
+nanomq broker start 'tcp://localhost:1883' &
+
+Currently, NanoMQ only supports MQTT 3.1.1, partially supports MQTT 5.0
+
+#test POSIX message Queue
+nanomq broker mq start/stop
+
+## Communities
+
+You can join us on the Slack channel:
 
 #nanomq: general usage
 
@@ -94,7 +114,7 @@ You can Join us on Slack channel:
 
 #nanomq-nng : for users & nng project.
 
-More communities on github, slack, reddit, twitter, gitter, discord are coming soon.
+More communities on GitHub, Slack, Reddit, Twitter, Gitter, Discord are coming soon.
 
 ## Authors
 

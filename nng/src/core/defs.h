@@ -166,13 +166,49 @@ typedef nni_type nni_opt_type;
 typedef struct conn_param nano_conn_param;
 typedef struct conn_propt nano_conn_propt;
 //NANOMQ Tcp layer
-#define NNI_EMQ_MAX_PACKET_SIZE sizeof(uint16_t)*512	//switch to alloc
-#define NNI_EMQ_MAX_HEADER_SIZE sizeof(uint8_t)*5      //ONLY FIXED HEADER
-#define NNI_EMQ_MAX_PROPERTY_SIZE sizeof(uint8_t)*32
-#define NNI_NANO_MAX_QOS_LEN 64
-#define NNI_NANO_MAX_MSQ_LEN 64
-#define NNI_NANO_QOS_TIMER 30
-#define NNI_NANO_MAX_PUB_CLIENT 256
+
+#ifdef NANO_PACKET_SIZE 
+	#define NNI_NANO_MAX_PACKET_SIZE sizeof(uint8_t)*NANO_PACKET_SIZE	//switch to alloc
+#else
+	#define NNI_NANO_MAX_PACKET_SIZE sizeof(uint8_t)*64	//switch to alloc
+#endif
+
+#ifdef NANO_HEADER_SIZE 
+	#define NNI_NANO_MAX_HEADER_SIZE sizeof(uint8_t)*NANO_HEADER_SIZE      //ONLY FIXED HEADER
+#else
+	#define NNI_NANO_MAX_HEADER_SIZE sizeof(uint8_t)*5      		//ONLY FIXED HEADER
+#endif
+
+#ifdef NANO_PROPERTY_SIZE 
+	#define NNI_NANO_MAX_PROPERTY_SIZE sizeof(uint8_t)*NANO_PROPERTY_SIZE
+#else
+	#define NNI_NANO_MAX_PROPERTY_SIZE sizeof(uint8_t)*32
+#endif
+
+#ifdef NANO_QOS_LEN 
+	#define NNI_NANO_MAX_QOS_LEN NANO_QOS_LEN
+#else
+	#define NNI_NANO_MAX_QOS_LEN 64
+#endif
+
+#ifdef NANO_MSQ_LEN 
+	#define NNI_NANO_MAX_MSQ_LEN NANO_MSQ_LEN
+#else
+	#define NNI_NANO_MAX_MSQ_LEN 64
+#endif
+
+#ifdef NANO_QOS_TIMER 
+	#define NNI_NANO_QOS_TIMER NANO_QOS_TIMER
+#else
+	#define NNI_NANO_QOS_TIMER 30
+#endif
+
+#ifdef NANO_PUB_CLIENT 
+	#define NNI_NANO_MAX_PUB_CLIENT NANO_PUB_CLIENT
+#else
+	#define NNI_NANO_MAX_PUB_CLIENT 256
+#endif
+
 
 // NNI_MAX_MAX_TTL is the maximum value that MAX_TTL can be set to -
 // i.e. the number of nng_device boundaries that a message can traverse.
