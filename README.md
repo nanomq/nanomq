@@ -25,14 +25,15 @@ To build NanoMQ, you will need a C99 & C++11 compatible compiler and [CMake](htt
 
 Basically, you need to compile and install NanoMQ by following steps :
 
-$PROJECT_PATH/nanomq$ mkdir build & cd build
+`$PROJECT_PATH/nanomq$ mkdir build & cd build`
 
-$PROJECT_PATH/nanomq/build$ cmake -G Ninja .. 
+`$PROJECT_PATH/nanomq/build$ cmake -G Ninja ..` 
 
-$PROJECT_PATH/nanomq/build$ sudo ninja install
+`$PROJECT_PATH/nanomq/build$ sudo ninja install`
 
 Or you can compile it without ninja:
-$PROJECT_PATH/nanomq$ mkdir build ; cd build; cmake .. ; make
+
+`$PROJECT_PATH/nanomq$ mkdir build ; cd build; cmake .. ; make`
 
 2. Compile dependency
 
@@ -40,23 +41,27 @@ Please be aware that NanoMQ depends on nanolib & nng(nanonng for MQTT)
 
 both dependencies can be compiled independently
 
-$PROJECT_PATH/nanomq/nng/build$ cmake -G Ninja .. 
-$PROJECT_PATH/nanomq/nng/build$ ninja install
+`$PROJECT_PATH/nanomq/nng/build$ cmake -G Ninja ..` 
+`$PROJECT_PATH/nanomq/nng/build$ ninja install`
 
 compile nanolib independently:
-$PROJECT_PATH/nanolib/build$ cmake -G Ninja ..
-$PROJECT_PATH/nanolib/build$ ninja install
+
+`$PROJECT_PATH/nanolib/build$ cmake -G Ninja ..`
+`$PROJECT_PATH/nanolib/build$ ninja install`
+
+
 
 
 ##  Configuration
-NanoMQ provides serval options for optimizing performance according to your system.
+NanoMQ provides several options for optimizing performance according to your system.
+
+
 
 limiting the number of threads:
 
-$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DNNG_RESOLV_CONCURRENCY=1 -DNNG_NUM_TASKQ_THREADS=5 -DNNG_MAX_TASKQ_THREADS=5  ..
+`$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DNNG_RESOLV_CONCURRENCY=1 -DNNG_NUM_TASKQ_THREADS=5 -DNNG_MAX_TASKQ_THREADS=5  ..`
 
-
-For debugging, NanoMQ has a Debugging system that logs all information from all threads. Which is aligned with Syslog standard.
+For debugging, NanoMQ has a debugging system that logs all information from all threads. Which is aligned with Syslog standard.
 And you can disable/enable it by:
 
 ```
@@ -64,7 +69,7 @@ $PROJECT_PATH/nanomq/build$ cmake -G Ninja -DNOLOG=1  ..
 $PROJECT_PATH/nanomq/build$ cmake -G Ninja -DNOLOG=0  ..
 ```
 
-Mqueue support:
+Message queue support:
 
 For macos, mqueue is not support, you can set -DMQ=0 to disable it. It is enabled by default.
 ```
@@ -91,18 +96,22 @@ $PROJECT_PATH/nanomq/build$ cmake -G Ninja -DNANO_MSQ_LEN=set ..
 set nano qos timer, default is 30 seconds
 $PROJECT_PATH/nanomq/build$ cmake -G Ninja -DDNANO_QOS_TIMER=set ..
 
+set logical concurrency limitation by *-DPARALLEL*, default is 32
+$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DPARALLEL=32 ..
 ```
 For more information about these parameters, please refer to the project's Wiki
 
 ## Usage
 
 #Start MQTT Broker
-nanomq broker start 'tcp://localhost:1883' &
+
+`nanomq broker start 'tcp://localhost:1883' &`
 
 Currently, NanoMQ only supports MQTT 3.1.1, partially supports MQTT 5.0
 
 #test POSIX message Queue
-nanomq broker mq start/stop
+
+`nanomq broker mq start/stop`
 
 ## Communities
 
