@@ -9,7 +9,7 @@
 #
 
 #  PAIRv0 protocol
-option (NNG_PROTO_PAIR0 "Enable PAIRv0 protocol." ON)
+option (NNG_PROTO_PAIR0 "Enable PAIRv0 protocol." OFF)
 mark_as_advanced(NNG_PROTO_PAIR0)
 
 nng_sources_if(NNG_PROTO_PAIR0 pair.c)

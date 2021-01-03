@@ -33,7 +33,7 @@ struct tcptran_pipe {
 	nni_atomic_flag reaped;
 	nni_reap_item   reap;
 	uint8_t         txlen[NANO_MIN_PACKET_LEN];
-	uint8_t         rxlen[NANO_MAX_PACKET_LEN];
+	uint8_t         rxlen[NNI_NANO_MAX_PACKET_SIZE];
 	size_t          gottxhead;
 	size_t          gotrxhead;
 	size_t          wanttxhead;
@@ -344,7 +344,6 @@ error:
 static void
 tcptran_pipe_quic_cb(void *arg)
 {
-	tcptran_pipe *p = arg;
 	return;
 }
 

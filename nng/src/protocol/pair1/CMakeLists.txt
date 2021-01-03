@@ -9,7 +9,7 @@
 #
 
 #  PAIRv1 protocol
-option (NNG_PROTO_PAIR1 "Enable PAIRv1 protocol." ON)
+option (NNG_PROTO_PAIR1 "Enable PAIRv1 protocol." OFF)
 mark_as_advanced(NNG_PROTO_PAIR1)
 
 # XXX: break pair1_poly into an ifdef.

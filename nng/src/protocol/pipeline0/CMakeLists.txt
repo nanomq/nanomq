@@ -9,10 +9,10 @@
 #
 
 #  Pipeline protocol
-option (NNG_PROTO_PUSH0 "Enable PUSHv0 protocol." ON)
+option (NNG_PROTO_PUSH0 "Enable PUSHv0 protocol." OFF)
 mark_as_advanced(NNG_PROTO_PUSH0)
 
-option (NNG_PROTO_PULL0 "Enable PULLv0 protocol." ON)
+option (NNG_PROTO_PULL0 "Enable PULLv0 protocol." OFF)
 mark_as_advanced(NNG_PROTO_PULL0)
 
 nng_sources_if(NNG_PROTO_PUSH0 push.c)

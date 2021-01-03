@@ -5,6 +5,7 @@
 #   Copyright (c) 2015-2016 Jack R. Dunaway. All rights reserved.
 #   Copyright 2016 Franklin "Snaipe" Mathieu <franklinmathieu@gmail.com>
 #   Copyright 2018 Capitar IT Group BV <info@capitar.com>
+#   Copyright 2020 EMQX. All rights reserved.
 #
 #   Permission is hereby granted, free of charge, to any person obtaining a copy
 #   of this software and associated documentation files (the "Software"),
@@ -40,6 +41,14 @@ include(TestBigEndian)
 include(FindUnixCommands)
 
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
+
+set(NANO_PACKET_SIZE 64 CACHE STRING "set max packet size")
+set(NANO_HEADER_SIZE 5 CACHE STRING "set max header size")
+set(NANO_PROPERTY_SIZE 32 CACHE STRING "set property size")
+set(NANO_QOS_LEN 64 CACHE STRING "set qos length")
+set(NANO_MSQ_LEN 64 CACHE STRING "set msq length")
+set(NANO_QOS_TIMER 30 CACHE STRING "set qos timer")
+set(NANO_PUB_CLIENT 256 CACHE STRING "set nano pub client")
 
 if (POLICY CMP0042)
     # Newer cmake on MacOS should use @rpath
@@ -151,9 +160,9 @@ endif ()
 
 include(CheckSanitizer)
 CheckSanitizer()
-if (NOT NNG_SANITIZER STREQUAL "none")
-    set(NNG_SANITIZER_FLAGS "-fsanitize=${NNG_SANITIZER}")
-endif ()
+# if (NOT NNG_SANITIZER STREQUAL "none")
+#     set(NNG_SANITIZER_FLAGS "-fsanitize=${NNG_SANITIZER}")
+# endif ()
 
 if (NNG_ENABLE_COVERAGE)
     # NB: This only works for GCC and Clang 3.0 and newer.  If your stuff
@@ -506,6 +515,14 @@ set(CPACK_SOURCE_PACKAGE_FILE_NAME
 set(CPACK_RESOURCE_FILE_LICENSE ${CMAKE_CURRENT_SOURCE_DIR}/LICENSE.txt)
 set(CPACK_PACKAGE_INSTALL_DIRECTORY "nng")
 set(CPACK_PACKAGE_FILE_NAME "${PROJECT_NAME}-v${NNG_PACKAGE_VERSION}")
+
+target_compile_definitions(nng PRIVATE -DNANO_PACKET_SIZE=${NANO_PACKET_SIZE})
+target_compile_definitions(nng PRIVATE -DNANO_HEADER_SIZE=${NANO_HEADER_SIZE})
+target_compile_definitions(nng PRIVATE -DNANO_PROPERTY_SIZE=${NANO_PROPERTY_SIZE})
+target_compile_definitions(nng PRIVATE -DNANO_QOS_LEN=${NANO_QOS_LEN})
+target_compile_definitions(nng PRIVATE -DNANO_MSQ_LEN=${NANO_MSQ_LEN})
+target_compile_definitions(nng PRIVATE -DNANO_QOS_TIMER=${NANO_QOS_TIMER})
+target_compile_definitions(nng PRIVATE -DNANO_PUB_CLIENT=${NANO_PUB_CLIENT})
 
 add_custom_target(dist COMMAND ${CMAKE_MAKE_PROGRAM} package_source)
 include(CPack)

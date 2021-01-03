@@ -35,7 +35,7 @@
 static void print_version(void)
 {
 	printf("%s v.01-%s\n", NANO_BRAND, FW_EV_VER_ID_SHORT);
-	printf("Copyright (C) 2012-2020 EMQ X Jaylin.\n");
+	printf("Copyright 2020 EMQ X Edge Team\n");
 	printf("\n");
 }
 

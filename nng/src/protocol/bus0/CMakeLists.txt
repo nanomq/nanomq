@@ -9,7 +9,7 @@
 #
 
 #  Bus protocol
-option (NNG_PROTO_BUS0 "Enable BUSv0 protocol." ON)
+option (NNG_PROTO_BUS0 "Enable BUSv0 protocol." OFF)
 mark_as_advanced(NNG_PROTO_BUS0)
 
 nng_sources_if(NNG_PROTO_BUS0 bus.c)
