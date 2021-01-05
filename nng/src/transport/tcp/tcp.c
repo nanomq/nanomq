@@ -42,9 +42,10 @@ struct tcptran_pipe {
 	nni_list        sendq;
 	nni_aio *       txaio;
 	nni_aio *       rxaio;
-	nni_aio *		qsaio;
+	nni_aio *       qsaio;
 	nni_aio *       negoaio;
 	nni_msg *       rxmsg;
+	uint8_t *       conn_buf;
 	nni_mtx         mtx;
 	conn_param *    tcp_cparam;
 	uint8_t			cmd;
@@ -234,7 +235,7 @@ tcptran_pipe_nego_cb(void *arg)
 	nni_aio *     aio = p->negoaio;
 	nni_aio *     uaio;
 	uint32_t      len;
-	int           rv,pos;
+	int           rv, len_of_varint=0;
 
 	debug_msg("start tcptran_pipe_nego_cb max len %d pipe_addr %p\n",
 		  NANO_CONNECT_PACKET_LEN, p);
@@ -247,9 +248,6 @@ tcptran_pipe_nego_cb(void *arg)
 	// calculate number of bytes received
 	// TODO cannot differ send/receive IO, so skip tx calculation
 	// TODO NNG_EMSGSIZE what if received too much garbage ?
-// 	if (p->gottxhead < p->wanttxhead) {
-// 		p->gottxhead += nni_aio_count(aio);
-//         } else
 	if (p->gotrxhead < p->wantrxhead) {
 		p->gotrxhead += nni_aio_count(aio);
 	} /*else if (p->gotrxhead >= p->wantrxhead && p->gottxhead >= p->wanttxhead) {
@@ -259,20 +257,18 @@ tcptran_pipe_nego_cb(void *arg)
 	}*/
 
 	debug_msg("current header : gottx %d gotrx %d needrx %d needtx %d\n",p->gottxhead, p->gotrxhead, p->wantrxhead, p->wanttxhead);
-	if (p->gotrxhead >= EMQ_MAX_FIXED_HEADER_LEN && p->gottxhead < p->wanttxhead) {
-		pos = 1;
+	if (p->gotrxhead >= p->wantrxhead && p->gottxhead < p->wanttxhead) {
 		if (p->rxlen[0] != CMD_CONNECT) {
 			debug_msg("CMD TYPE %x", p->rxlen[0]);
 			rv = NNG_EPROTO;		//in nng error return value must be defined. TODO inject EMQ error enum into NNG? 
 			goto error;
 		}
-		len = get_var_integer(p->rxlen, &pos);
+		len = get_var_integer(p->rxlen+1, &len_of_varint);
 		debug_msg("CMD TYPE %x REMAINING LENGTH %d", p->rxlen[0], len);
-		p->wantrxhead = len + 2;
+		p->wantrxhead = len + 1 + len_of_varint;
 	}
-
-	//after fixed header but not receive complete Header. continue receving variable header; in case wantrxhead set less than EMQ_FIXED_HEADER_LEN(BUG)
-	if (p->gotrxhead < p->wantrxhead || p->gotrxhead < EMQ_MAX_FIXED_HEADER_LEN) {
+	// recv fixed header
+	if (p->gotrxhead < EMQ_MAX_FIXED_HEADER_LEN) {
 		nni_iov iov;
 		iov.iov_len = p->wantrxhead - p->gotrxhead;
 		iov.iov_buf = &p->rxlen[p->gotrxhead];
@@ -283,6 +279,20 @@ tcptran_pipe_nego_cb(void *arg)
 		return;
 	}
 
+	//after fixed header but not receive complete Header. continue receving variable header; in case wantrxhead set less than EMQ_FIXED_HEADER_LEN(BUG)
+	if (p->gotrxhead < p->wantrxhead && p->gotrxhead >= EMQ_MAX_FIXED_HEADER_LEN) {
+		nni_iov iov;
+		iov.iov_len = p->wantrxhead - p->gotrxhead;
+		p->conn_buf = nng_alloc(p->wantrxhead);
+		memcpy(p->conn_buf, p->rxlen, p->gotrxhead);
+		iov.iov_buf = &p->conn_buf[p->gotrxhead];
+		nni_aio_set_iov(aio, 1, &iov);
+		nng_stream_recv(p->conn, aio);
+		nni_mtx_unlock(&ep->mtx);
+		debug_msg("variable and payload : gottx %d gotrx %d needrx %d needtx %d hex: %x %x\n", p->gottxhead, p->gotrxhead, p->wantrxhead, p->wanttxhead, p->rxlen[0], p->rxlen[1]);
+		return;
+	}
+
 	// We have both sent and received the CONNECT headers.  Lets check TODO CONNECT packet serialization
 	debug_msg("******** %d %d %d %d nego msg: %s ----- %x\n",p->gottxhead, p->gotrxhead, p->wantrxhead, p->wanttxhead, p->rxlen, p->rxlen[0]);
 
@@ -290,7 +300,8 @@ tcptran_pipe_nego_cb(void *arg)
 	if (p->gottxhead < p->wanttxhead && p->gotrxhead >= p->wantrxhead) {
 		nni_iov iov;
 		p->tcp_cparam = nng_alloc(sizeof(struct conn_param));
-		if (conn_handler(p->rxlen, p->tcp_cparam) > 0) {
+		if (conn_handler(p->conn_buf, p->tcp_cparam) > 0) {
+			nng_free(p->conn_buf, p->wantrxhead);
 			if (p->tcp_cparam->pro_ver == PROTOCOL_VERSION_v5) {
 				p->wanttxhead += 1;
 				// p->gottxhead += 1;
@@ -501,6 +512,25 @@ tcptran_pipe_recv_cb(void *arg)
 			nni_mtx_unlock(&p->mtx);
 			return;
 		}
+	}
+
+	// solve the error due to out of p->rcvmax ? if so, cancel the size_error above
+	if (len > nni_msg_len(p->rxmsg)) {
+		if ((rv = nni_msg_realloc(p->rxmsg, (size_t) len)) != 0) {
+			debug_msg("mem error %ld\n", (size_t)len);
+			goto recv_error;
+		}
+
+		// Submit the rest of the data for a read -- seperate Fixed header with variable header and so on
+		//  we want to read the entire message now.
+		iov.iov_buf = nni_msg_body(p->rxmsg);
+		iov.iov_len = len;
+
+		nni_aio_set_iov(rxaio, 1, &iov);
+		debug_msg("second recv action+++++++++++");
+		nng_stream_recv(p->conn, rxaio);
+		nni_mtx_unlock(&p->mtx);
+		return;
 	}
 
 	//TODO reply ACK?
@@ -845,7 +875,7 @@ tcptran_pipe_start(tcptran_pipe *p, nng_stream *conn, tcptran_ep *ep)
 	//TODO abide with CONNECT header
 	p->gotrxhead  = 0;
 	p->gottxhead  = 0;
-	p->wantrxhead = NANO_CONNECT_PACKET_LEN;		//packet type 1 + remaining length 1 + protocal name 8 = 10
+	p->wantrxhead = NANO_CONNECT_PACKET_LEN;		//packet type 1 + remaining length 1 + protocal name 7 + flag 1 + keepalive 2 = 12
 	p->wanttxhead = 4;
 	iov.iov_len   = EMQ_MIN_HEADER_LEN;	//dynamic
 	iov.iov_buf   = &p->txlen[0];
