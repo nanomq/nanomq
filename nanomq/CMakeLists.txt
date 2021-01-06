@@ -36,3 +36,12 @@ add_executable(nanomq nanomq.c cmd.c process.c apps.c pub_handler.c sub_handler.
 target_link_libraries(nanomq apps nanolib)
 target_link_libraries(nanomq nng)
 target_compile_definitions(nanomq PRIVATE -DPARALLEL=${PARALLEL})
+
+install(TARGETS nanomq EXPORT nanomqConfig
+    # ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    # LIBRARY  DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME  DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME})
+
+install(EXPORT nanomqConfig DESTINATION share/nanomq/cmake)
