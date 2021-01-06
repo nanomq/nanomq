@@ -17,7 +17,7 @@ set(CMAKE_MODULE_PATH
   "${CMAKE_CURRENT_LIST_DIR}/cmake"
 )
 
-option(NOLOG "build this project nolog" OFF)
+option(NOLOG "build this project nolog" ON)
 option(MQ "build this project suport mq" ON)
 option(DEBUG "gdb support" OFF)
 
