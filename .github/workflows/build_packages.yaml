@@ -8,18 +8,60 @@ on:
     - published
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    
+  build_packages:
+    runs-on: ubuntu-20.04
+
+    steps:
+    - name: install lib
+      run: sudo apt update && sudo apt install -y cmake ninja-build rpm checkinstall
+    - uses: actions/checkout@v1
+    - name: build nanomq
+      run: |
+        set -eu
+        mkdir -p build
+        cd build
+        cmake ..
+        make
+    - name: build deb
+      run: |
+        set -eu
+        cd build
+        mkdir -p _packages
+        sudo checkinstall --backup=no --install=no --type=debian --arch=amd64  --pkgname=nanomq --pkgversion=$(git describe --abbrev=0 --tags) --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
+    - name: build rpm
+      shell: bash
+      run: |
+        set -eu
+        cd build
+        mkdir -p _packages
+        sudo mkdir -p /root/rpmbuild/SOURCES
+        sudo mkdir -p /root/rpmbuild/BUILD
+        sudo mkdir -p /root/rpmbuild/BUILDROOT
+        sudo checkinstall --backup=no --install=no --type=rpm --arch=amd64  --pkgname=nanomq --pkgversion=$(git describe --abbrev=0 --tags) --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
+    - uses: actions/upload-artifact@v2
+      with:
+        name: packages
+        path: "build/_packages/*"
+    - uses: zhanghongtong/upload-release-asset@v1
+      if: github.event_name == 'release'
+      with:
+        owner: ${{ github.repository_owner }} 
+        repo: nanomq
+        token: ${{ secrets.GITHUB_TOKEN }}
+        path: "build/_packages/nanomq*"
+
+  build_docker:
+    runs-on: ubuntu-20.04
+
     strategy:
       matrix:
         suffix:
         - fat
         - slim
         - alpine
-          
+
     steps:
-    - uses: actions/checkout@v1 
+    - uses: actions/checkout@v1
     - name: build docker
       if: matrix.suffix == 'fat'
       run: docker build -t nanomq/nanomq:$(git describe --tags --always) -f deploy/docker/Dockerfile .
