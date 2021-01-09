@@ -26,20 +26,21 @@ typedef struct {
 
 // Underlying message structure.
 struct nng_msg {
-    uint8_t           m_header_buf[NNI_NANO_MAX_HEADER_SIZE + 1];       //only fixed header
-    //uint8_t       m_variable_header_buf[];                //TODO independent variable header?
-	size_t            m_header_len;
-	nni_chunk         m_body;
-	uint32_t          m_pipe; // set on receive
-	nni_atomic_int    m_refcnt;
-	//FOR NANOMQ
-    size_t            remaining_len;
-    uint8_t           CMD_TYPE;
-    //uint8_t          *variable_ptr;         //equal to m_body
-    uint8_t          *payload_ptr;          //payload
-    nni_time          times;
-    nano_conn_param  *cparam;
-	uint8_t			  qos;
+	uint8_t m_header_buf[NNI_NANO_MAX_HEADER_SIZE + 1]; // only fixed header
+	// uint8_t       m_variable_header_buf[];                //TODO
+	// independent variable header?
+	size_t         m_header_len;
+	nni_chunk      m_body;
+	uint32_t       m_pipe; // set on receive
+	nni_atomic_int m_refcnt;
+	// FOR NANOMQ
+	size_t  remaining_len;
+	uint8_t CMD_TYPE;
+	// uint8_t          *variable_ptr;         //equal to m_body
+	uint8_t *        payload_ptr; // payload
+	nni_time         times;
+	nano_conn_param *cparam;
+	uint8_t          qos;
 };
 
 #if 0
@@ -390,8 +391,7 @@ nni_msg_alloc(nni_msg **mp, size_t sz)
 	// amount of space at the end for the same reason.  Large aligned
 	// allocations are unmolested to avoid excessive overallocation.
 	if ((sz < 1024) || ((sz & (sz - 1)) != 0)) {
-		rv = nni_chunk_grow(&m->m_body, sz + 8, 0);
-		//rv = nni_chunk_grow(&m->m_body, sz + 32, 32);
+		rv = nni_chunk_grow(&m->m_body, sz + 32, 32);
 	} else {
 		rv = nni_chunk_grow(&m->m_body, sz, 0);
 	}
@@ -590,7 +590,6 @@ nni_msg_header_append_u32(nni_msg *m, uint32_t val)
 void
 nni_msg_clear(nni_msg *m)
 {
-	m->m_header_len = 0;
 	nni_chunk_clear(&m->m_body);
 }
 

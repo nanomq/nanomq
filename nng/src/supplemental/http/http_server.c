@@ -64,7 +64,7 @@ typedef struct http_sconn {
 	nni_aio *         rxaio;
 	nni_aio *         txaio;
 	nni_aio *         txdataio;
-	nni_reap_item     reap;
+	nni_reap_node     reap;
 } http_sconn;
 
 typedef struct http_error {
@@ -82,6 +82,7 @@ struct nng_http_server {
 	nni_list             handlers;
 	nni_list             conns;
 	nni_mtx              mtx;
+	nni_cv               cv;
 	bool                 closed;
 	nni_aio *            accaio;
 	nng_stream_listener *listener;
@@ -89,7 +90,21 @@ struct nng_http_server {
 	char *               hostname;
 	nni_list             errors;
 	nni_mtx              errors_mtx;
-	nni_reap_item        reap;
+	nni_reap_node        reap;
+};
+
+static void http_sc_reap(void *);
+
+static nni_reap_list http_sc_reap_list = {
+	.rl_offset = offsetof(http_sconn, reap),
+	.rl_func   = http_sc_reap,
+};
+
+static void http_server_fini(nni_http_server *);
+
+static nni_reap_list http_server_reap_list = {
+	.rl_offset = offsetof(nni_http_server, reap),
+	.rl_func   = (nni_cb) http_server_fini,
 };
 
 int
@@ -268,7 +283,7 @@ static nni_list http_servers;
 static nni_mtx  http_servers_lk;
 
 static void
-http_sconn_reap(void *arg)
+http_sc_reap(void *arg)
 {
 	http_sconn *     sc = arg;
 	nni_http_server *s  = sc->server;
@@ -294,13 +309,16 @@ http_sconn_reap(void *arg)
 	if (nni_list_node_active(&sc->node)) {
 		nni_list_remove(&s->conns, sc);
 	}
+	if (nni_list_empty(&s->conns)) {
+		nni_cv_wake(&s->cv);
+	}
 	nni_mtx_unlock(&s->mtx);
 
 	NNI_FREE_STRUCT(sc);
 }
 
 static void
-http_sconn_close_locked(http_sconn *sc)
+http_sc_close_locked(http_sconn *sc)
 {
 	nni_http_conn *conn;
 
@@ -318,7 +336,7 @@ http_sconn_close_locked(http_sconn *sc)
 	if ((conn = sc->conn) != NULL) {
 		nni_http_conn_close(conn);
 	}
-	nni_reap(&sc->reap, http_sconn_reap, sc);
+	nni_reap(&http_sc_reap_list, sc);
 }
 
 static void
@@ -328,7 +346,7 @@ http_sconn_close(http_sconn *sc)
 	s = sc->server;
 
 	nni_mtx_lock(&s->mtx);
-	http_sconn_close_locked(sc);
+	http_sc_close_locked(sc);
 	nni_mtx_unlock(&s->mtx);
 }
 
@@ -700,8 +718,10 @@ http_sconn_rxdone(void *arg)
 	if ((h->getbody) &&
 	    ((cls = nni_http_req_get_header(req, "Content-Length")) != NULL)) {
 		uint64_t len;
+		char *   end;
 
-		if ((nni_strtou64(cls, &len) != 0) || (len > h->maxbody)) {
+		len = strtoull(cls, &end, 10);
+		if ((end == NULL) || (*end != '\0') || (len > h->maxbody)) {
 			nni_mtx_unlock(&s->mtx);
 			http_sconn_error(sc, NNG_HTTP_STATUS_BAD_REQUEST);
 			return;
@@ -731,14 +751,16 @@ finish:
 	nni_aio_set_input(sc->cbaio, 1, h);
 	nni_aio_set_input(sc->cbaio, 2, sc->conn);
 
+	// Set a reference -- this because the callback may be running
+	// asynchronously even after it gets removed from the server.
+	nni_atomic_inc64(&h->ref);
+
 	// Documented that we call this on behalf of the callback.
 	if (nni_aio_begin(sc->cbaio) != 0) {
 		nni_mtx_unlock(&s->mtx);
 		return;
 	}
-	// Set a reference -- this because the callback may be running
-	// asynchronously even after it gets removed from the server.
-	nni_atomic_inc64(&h->ref);
+
 	nni_mtx_unlock(&s->mtx);
 	h->cb(sc->cbaio);
 }
@@ -894,9 +916,9 @@ http_server_fini(nni_http_server *s)
 
 	nni_mtx_lock(&s->mtx);
 	if (!nni_list_empty(&s->conns)) {
-		// Try to reap later, after the sconns are done reaping.
-		// (Note, sconns will all have been closed already.)
-		nni_reap(&s->reap, (nni_cb) http_server_fini, s);
+		// Try to reap later, after the connections are done reaping.
+		// (Note, connections will all have been closed already.)
+		nni_reap(&http_server_reap_list, s);
 		nni_mtx_unlock(&s->mtx);
 		return;
 	}
@@ -916,6 +938,7 @@ http_server_fini(nni_http_server *s)
 	nni_mtx_fini(&s->errors_mtx);
 
 	nni_aio_free(s->accaio);
+	nni_cv_fini(&s->cv);
 	nni_mtx_fini(&s->mtx);
 	nni_strfree(s->hostname);
 	NNI_FREE_STRUCT(s);
@@ -926,33 +949,22 @@ http_server_init(nni_http_server **serverp, const nni_url *url)
 {
 	nni_http_server *s;
 	int              rv;
-	nng_url          myurl;
+	nng_url          my_url;
+	const char *     scheme;
 
-	// Rewrite URLs to either TLS or TCP.
-	memcpy(&myurl, url, sizeof(myurl));
-	if ((strcmp(url->u_scheme, "http") == 0) ||
-	    (strcmp(url->u_scheme, "ws") == 0)) {
-		myurl.u_scheme = "tcp";
-	} else if ((strcmp(url->u_scheme, "https") == 0) ||
-	    (strcmp(url->u_scheme, "wss") == 0)) {
-		myurl.u_scheme = "tls+tcp";
-	} else if (strcmp(url->u_scheme, "ws4") == 0) {
-		myurl.u_scheme = "tcp4";
-	} else if (strcmp(url->u_scheme, "ws6") == 0) {
-		myurl.u_scheme = "tcp6";
-	} else if (strcmp(url->u_scheme, "wss4") == 0) {
-		myurl.u_scheme = "tls+tcp4";
-	} else if (strcmp(url->u_scheme, "wss6") == 0) {
-		myurl.u_scheme = "tls+tcp6";
-	} else {
+	if ((scheme = nni_http_stream_scheme(url->u_scheme)) == NULL) {
 		return (NNG_EADDRINVAL);
 	}
+	// Rewrite URLs to either TLS or TCP.
+	memcpy(&my_url, url, sizeof(my_url));
+	my_url.u_scheme = (char *) scheme;
 
 	if ((s = NNI_ALLOC_STRUCT(s)) == NULL) {
 		return (NNG_ENOMEM);
 	}
 	nni_mtx_init(&s->mtx);
 	nni_mtx_init(&s->errors_mtx);
+	nni_cv_init(&s->cv, &s->mtx);
 	NNI_LIST_INIT(&s->handlers, nni_http_handler, node);
 	NNI_LIST_INIT(&s->conns, http_sconn, node);
 
@@ -973,7 +985,7 @@ http_server_init(nni_http_server **serverp, const nni_url *url)
 		return (NNG_ENOMEM);
 	}
 
-	if ((rv = nng_stream_listener_alloc_url(&s->listener, &myurl)) != 0) {
+	if ((rv = nng_stream_listener_alloc_url(&s->listener, &my_url)) != 0) {
 		http_server_fini(s);
 		return (rv);
 	}
@@ -1063,7 +1075,11 @@ http_server_stop(nni_http_server *s)
 	// Stopping the server is a hard stop -- it aborts any work
 	// being done by clients.  (No graceful shutdown).
 	NNI_LIST_FOREACH (&s->conns, sc) {
-		http_sconn_close_locked(sc);
+		http_sc_close_locked(sc);
+	}
+
+	while (!nni_list_empty(&s->conns)) {
+		nni_cv_wait(&s->cv);
 	}
 }
 
@@ -1868,35 +1884,30 @@ nni_http_handler_init_static(nni_http_handler **hpp, const char *uri,
 int
 nni_http_server_set_tls(nni_http_server *s, nng_tls_config *tls)
 {
-	int rv;
-	rv = nni_stream_listener_setx(s->listener, NNG_OPT_TLS_CONFIG, &tls,
-	    sizeof(tls), NNI_TYPE_POINTER);
-	return (rv);
+	return (
+	    nng_stream_listener_set_ptr(s->listener, NNG_OPT_TLS_CONFIG, tls));
 }
 
 int
 nni_http_server_get_tls(nni_http_server *s, nng_tls_config **tlsp)
 {
-	size_t sz = sizeof(*tlsp);
-	int    rv;
-	rv = nni_stream_listener_getx(
-	    s->listener, NNG_OPT_TLS_CONFIG, tlsp, &sz, NNI_TYPE_POINTER);
-	return (rv);
+	return (nng_stream_listener_get_ptr(
+	    s->listener, NNG_OPT_TLS_CONFIG, (void **) tlsp));
 }
 
 int
-nni_http_server_setx(nni_http_server *s, const char *name, const void *buf,
+nni_http_server_set(nni_http_server *s, const char *name, const void *buf,
     size_t sz, nni_type t)
 {
 	// We have no local options, but we just pass them straight through.
-	return (nni_stream_listener_setx(s->listener, name, buf, sz, t));
+	return (nni_stream_listener_set(s->listener, name, buf, sz, t));
 }
 
 int
-nni_http_server_getx(
+nni_http_server_get(
     nni_http_server *s, const char *name, void *buf, size_t *szp, nni_type t)
 {
-	return (nni_stream_listener_getx(s->listener, name, buf, szp, t));
+	return (nni_stream_listener_get(s->listener, name, buf, szp, t));
 }
 
 void
@@ -1909,7 +1920,7 @@ nni_http_server_fini(nni_http_server *s)
 		http_server_stop(s);
 		nni_mtx_unlock(&s->mtx);
 		nni_list_remove(&http_servers, s);
-		nni_reap(&s->reap, (nni_cb) http_server_fini, s);
+		nni_reap(&http_server_reap_list, s);
 	}
 	nni_mtx_unlock(&http_servers_lk);
 }

@@ -9,7 +9,6 @@
 //
 
 #include "nng_impl.h"
-#include "include/nng_debug.h"
 
 // Message queue.  These operate in some respects like Go channels,
 // but as we have access to the internals, we have made some fundamental

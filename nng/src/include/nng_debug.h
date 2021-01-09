@@ -2,7 +2,6 @@
 #ifndef __NNG_NANO_H__
 #define __NNG_NANO_H__
 
-#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdint.h>
 
