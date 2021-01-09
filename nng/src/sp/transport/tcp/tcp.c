@@ -286,16 +286,18 @@ tcptran_pipe_nego_cb(void *arg)
 		nni_aio_set_iov(aio, 1, &iov);
 		nng_stream_recv(p->conn, aio);
 		nni_mtx_unlock(&ep->mtx);
-		debug_msg("fixed header : gottx %d gotrx %d needrx %d needtx %d CONNECT Need more bytes msg: str: %s hex: %x %x\n", p->gottxhead, p->gotrxhead, p->wantrxhead, p->wanttxhead, &p->rxlen, p->rxlen[0], p->rxlen[1]);
 		return;
 	}
+	debug_msg("fixed header : gottx %d gotrx %d needrx %d needtx %d CONNECT Need more bytes hex: %x %x\n", p->gottxhead, p->gotrxhead, p->wantrxhead, p->wanttxhead, p->rxlen[0], p->rxlen[1]);
 
 	//after fixed header but not receive complete Header. continue receving variable header; in case wantrxhead set less than EMQ_FIXED_HEADER_LEN(BUG)
 	if (p->gotrxhead < p->wantrxhead && p->gotrxhead >= EMQ_MAX_FIXED_HEADER_LEN) {
 		nni_iov iov;
 		iov.iov_len = p->wantrxhead - p->gotrxhead;
-		p->conn_buf = nng_alloc(p->wantrxhead);
-		memcpy(p->conn_buf, p->rxlen, p->gotrxhead);
+		if (p->conn_buf == NULL) {
+			p->conn_buf = nng_alloc(p->wantrxhead);
+			memcpy(p->conn_buf, p->rxlen, p->gotrxhead);
+		}
 		iov.iov_buf = &p->conn_buf[p->gotrxhead];
 		nni_aio_set_iov(aio, 1, &iov);
 		nng_stream_recv(p->conn, aio);
@@ -310,12 +312,14 @@ tcptran_pipe_nego_cb(void *arg)
 	//reply error/CONNECT ACK
 	if (p->gottxhead < p->wanttxhead && p->gotrxhead >= p->wantrxhead) {
 		nni_iov iov;
-		p->tcp_cparam = nng_alloc(sizeof(struct conn_param));
+		if (p->tcp_cparam == NULL) {
+			p->tcp_cparam = nng_alloc(sizeof(struct conn_param));
+		}
 		if (conn_handler(p->conn_buf, p->tcp_cparam) > 0) {
 			nng_free(p->conn_buf, p->wantrxhead);
+			p->conn_buf = NULL;
 			if (p->tcp_cparam->pro_ver == PROTOCOL_VERSION_v5) {
 				p->wanttxhead += 1;
-				// p->gottxhead += 1;
 				p->txlen[1] = 3; // setting remainlen
 				p->txlen[4] = 0x00; // property len
 			}
@@ -435,6 +439,7 @@ tcptran_pipe_recv_cb(void *arg)
 	nni_aio *     txaio = p->txaio;
 	nni_aio *     qsaio = p->qsaio;
 	conn_param *  cparam;
+	uint32_t      len_of_varint = 0;
 
 	debug_msg("tcptran_pipe_recv_cb %p\n", p);
 	nni_mtx_lock(&p->mtx);
@@ -461,7 +466,7 @@ tcptran_pipe_recv_cb(void *arg)
 		nng_stream_recv(p->conn, rxaio);
 		nni_mtx_unlock(&p->mtx);
 		return;
-	} else if (p->rxlen[p->gotrxhead - 1] > 0x7f && p->gotrxhead <= EMQ_MAX_FIXED_HEADER_LEN) {
+	} else if (p->gotrxhead <= EMQ_MAX_FIXED_HEADER_LEN && p->rxlen[p->gotrxhead - 1] > 0x7f) {
 		//length error
 		if (p->gotrxhead == EMQ_MAX_FIXED_HEADER_LEN) {
 			rv = NNG_EMSGSIZE;
@@ -494,8 +499,6 @@ tcptran_pipe_recv_cb(void *arg)
 
 	if (p->rxmsg == NULL) {
 		// We should have gotten a message header. len -> remaining length to define how many bytes left
-		//NNI_GET64(p->rxlen, len);	
-		//p->remain_len = len;
 		debug_msg("pipe %p header got: %x %x %x %x %x, %ld!!\n",
 			      p, p->rxlen[0],p->rxlen[1], p->rxlen[2], p->rxlen[3], p->rxlen[4], p->wantrxhead);
 		// Make sure the message payload is not too big.  If it is
@@ -525,27 +528,6 @@ tcptran_pipe_recv_cb(void *arg)
 		}
 	}
 
-	// solve the error due to out of p->rcvmax ? if so, cancel the size_error above
-	if (len > nni_msg_len(p->rxmsg)) {
-		if ((rv = nni_msg_realloc(p->rxmsg, (size_t) len)) != 0) {
-			debug_msg("mem error %ld\n", (size_t)len);
-			goto recv_error;
-		}
-
-		// Submit the rest of the data for a read -- seperate Fixed header with variable header and so on
-		//  we want to read the entire message now.
-		iov.iov_buf = nni_msg_body(p->rxmsg);
-		iov.iov_len = len;
-
-		nni_aio_set_iov(rxaio, 1, &iov);
-		debug_msg("second recv action+++++++++++");
-		nng_stream_recv(p->conn, rxaio);
-		nni_mtx_unlock(&p->mtx);
-		return;
-	}
-
-	//TODO reply ACK?
-
 	// We read a message completely.  Let the user know the good news. use as application message callback of users
 	nni_aio_list_remove(aio);		//need this to align with nng 
 	msg      = p->rxmsg;
@@ -554,15 +536,11 @@ tcptran_pipe_recv_cb(void *arg)
 	type	 = p->rxlen[0]&0xf0;
 
 	fixed_header_adaptor(p->rxlen, msg);
-//	cparam = (conn_param *)nng_alloc(sizeof(struct conn_param));
-//	copy_conn_param(cparam, &p->tcp_cparam);
 	nni_msg_set_conn_param(msg, cparam);
 	nni_msg_set_remaining_len(msg, len);
 	nni_msg_set_cmd_type(msg, type);
 	debug_msg("remain_len %d cparam %p clientid %s username %s proto %d\n", len, cparam, &cparam->clientid.body, &cparam->username.body, cparam->pro_ver);
-	//header_ptr = nni_msg_header(msg);
 	variable_ptr = nni_msg_variable_ptr(msg);
-	uint32_t len_of_varint = 0;
 
 	// set the payload pointer of msg according to packet_type
 	debug_msg("The type of msg is %x", type);
@@ -592,16 +570,16 @@ tcptran_pipe_recv_cb(void *arg)
 			} else if (qos_pac == 2) {
 				p->txlen[0] = CMD_PUBREC;
 			}
-				p->txlen[1] = 0x02;
-				pid = nni_msg_get_pub_pid(msg);
-				NNI_PUT16(p->txlen + 2, pid);
-				iov.iov_len = 4;
-				iov.iov_buf = &p->txlen;
-				// send it down...
-				nni_aio_set_iov(qsaio, 1, &iov);
+			p->txlen[1] = 0x02;
+			pid = nni_msg_get_pub_pid(msg);
+			NNI_PUT16(p->txlen + 2, pid);
+			iov.iov_len = 4;
+			iov.iov_buf = &p->txlen;
+			// send it down...
+			nni_aio_set_iov(qsaio, 1, &iov);
 
-				p->cmd = CMD_PUBREC;
-				nng_stream_send(p->conn, qsaio);	
+			p->cmd = CMD_PUBREC;
+			nng_stream_send(p->conn, qsaio);
 		}
 	} else if (type == CMD_PUBREC){
 		uint8_t *tmp;
