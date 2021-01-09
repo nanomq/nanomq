@@ -37,7 +37,7 @@ struct nni_dialer {
 	nni_duration        d_currtime; // current time for reconnect
 	nni_duration        d_inirtime; // initial time for reconnect
 	nni_time            d_conntime; // time of last good connect
-	nni_reap_item       d_reap;
+	nni_reap_node       d_reap;
 
 #ifdef NNG_ENABLE_STATS
 	nni_stat_item st_root;
@@ -73,7 +73,7 @@ struct nni_listener {
 	nni_list              l_pipes;
 	nni_aio               l_acc_aio;
 	nni_aio               l_tmo_aio;
-	nni_reap_item         l_reap;
+	nni_reap_node         l_reap;
 
 #ifdef NNG_ENABLE_STATS
 	nni_stat_item st_root;
@@ -93,7 +93,6 @@ struct nni_listener {
 #endif
 };
 
-//per sock per pipe. bind with any tcp socket var/action
 struct nni_pipe {
 	uint32_t           p_id;
 	nni_tran_pipe_ops  p_tran_ops;
@@ -112,10 +111,7 @@ struct nni_pipe {
 	int                p_ref;
 	nni_mtx            p_mtx;
 	nni_cv             p_cv;
-	nni_reap_item      p_reap;
-    conn_param *       conn_param;
-	uint16_t		   packet_id;
-	//nni_id_map		   pipedb;
+	nni_reap_node      p_reap;
 
 #ifdef NNG_ENABLE_STATS
 	nni_stat_item st_root;
@@ -126,8 +122,12 @@ struct nni_pipe {
 	nni_stat_item st_tx_msgs;
 	nni_stat_item st_rx_bytes;
 	nni_stat_item st_tx_bytes;
-
 #endif
+
+	// NanoMQ
+	conn_param *conn_param;
+	uint16_t    packet_id;
+	// nni_id_map		   pipedb;
 };
 
 extern int nni_sock_add_dialer(nni_sock *, nni_dialer *);

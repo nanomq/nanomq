@@ -84,7 +84,6 @@ typedef struct {
 #define NNI_FREE_STRUCT(s) nni_free((s), sizeof(*s))
 #define NNI_ALLOC_STRUCTS(s, n) nni_zalloc(sizeof(*s) * n)
 #define NNI_FREE_STRUCTS(s, n) nni_free(s, sizeof(*s) * n)
-#define NNI_ARRAY_SIZE(x) (sizeof(x)/sizeof(uint32_t))
 
 #define NNI_PUT16(ptr, u)                                    \
 	do {                                                 \
@@ -162,11 +161,10 @@ typedef enum {
 
 typedef nni_type nni_opt_type;
 
-//nanomq
+//NANOMQ Tcp layer
+#define NNI_ARRAY_SIZE(x) (sizeof(x)/sizeof(uint32_t))
 typedef struct conn_param nano_conn_param;
 typedef struct conn_propt nano_conn_propt;
-//NANOMQ Tcp layer
-
 #ifdef NANO_PACKET_SIZE 
 	#define NNI_NANO_MAX_PACKET_SIZE sizeof(uint8_t)*NANO_PACKET_SIZE	//switch to alloc
 #else
@@ -208,7 +206,6 @@ typedef struct conn_propt nano_conn_propt;
 #else
 	#define NNI_NANO_MAX_PUB_CLIENT 256
 #endif
-
 
 // NNI_MAX_MAX_TTL is the maximum value that MAX_TTL can be set to -
 // i.e. the number of nng_device boundaries that a message can traverse.

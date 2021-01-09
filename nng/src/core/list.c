@@ -1,7 +1,6 @@
 //
-// Copyright 2017 Garrett D'Amore <garrett@damore.org>
 // Copyright 2017 Capitar IT Group BV <info@capitar.com>
-// Copyright 2017 Staysail Systems, Inc. <info@staysail.tech>
+// Copyright 2020 Staysail Systems, Inc. <info@staysail.tech>
 //
 // This software is supplied under the terms of the MIT License, a
 // copy of which should be located in the distribution where this
@@ -55,8 +54,8 @@ void
 nni_list_append(nni_list *list, void *item)
 {
 	nni_list_node *node = NODE(list, item);
+
 	if ((node->ln_next != NULL) || (node->ln_prev != NULL)) {
-		// return;
 		nni_panic("appending node already on a list or not inited");
 	}
 	node->ln_prev          = list->ll_head.ln_prev;
@@ -114,7 +113,7 @@ nni_list_next(const nni_list *list, void *item)
 {
 	nni_list_node *node = NODE(list, item);
 
-	if ((node = node->ln_next) == &list->ll_head) {
+	if (((node = node->ln_next) == &list->ll_head) || (node == NULL)) {
 		return (NULL);
 	}
 	return (ITEM(list, node));
@@ -125,7 +124,7 @@ nni_list_prev(const nni_list *list, void *item)
 {
 	nni_list_node *node = NODE(list, item);
 
-	if ((node = node->ln_prev) == &list->ll_head) {
+	if (((node = node->ln_prev) == &list->ll_head) || (node == NULL)) {
 		return (NULL);
 	}
 	return (ITEM(list, node));

@@ -608,6 +608,9 @@ nng_http_handler_collect_body(nng_http_handler *h, bool want, size_t len)
 	nni_http_handler_collect_body(h, want, len);
 	return (0);
 #else
+	NNI_ARG_UNUSED(h);
+	NNI_ARG_UNUSED(want);
+	NNI_ARG_UNUSED(len);
 	return (NNG_ENOTSUP);
 #endif
 }
@@ -779,29 +782,29 @@ nng_http_server_set_tls(nng_http_server *srv, struct nng_tls_config *cfg)
 }
 
 int
-nng_http_server_get_tls(nng_http_server *srv, struct nng_tls_config **cfgp)
+nng_http_server_get_tls(nng_http_server *srv, struct nng_tls_config **cfg)
 {
 #if defined(NNG_SUPP_HTTP) && defined(NNG_SUPP_TLS)
-	return (nni_http_server_get_tls(srv, cfgp));
+	return (nni_http_server_get_tls(srv, cfg));
 #else
 	NNI_ARG_UNUSED(srv);
-	NNI_ARG_UNUSED(cfgp);
+	NNI_ARG_UNUSED(cfg);
 	return (NNG_ENOTSUP);
 #endif
 }
 
 int
-nng_http_server_get_addr(nng_http_server *srv, nng_sockaddr *addrp)
+nng_http_server_get_addr(nng_http_server *srv, nng_sockaddr *addr)
 {
 #ifdef NNG_SUPP_HTTP
 	size_t size = sizeof(nng_sockaddr);
-	if (srv == NULL || addrp == NULL)
+	if (srv == NULL || addr == NULL)
 		return NNG_EINVAL;
-	return (nni_http_server_getx(
-	    srv, NNG_OPT_LOCADDR, addrp, &size, NNI_TYPE_SOCKADDR));
+	return (nni_http_server_get(
+	    srv, NNG_OPT_LOCADDR, addr, &size, NNI_TYPE_SOCKADDR));
 #else
 	NNI_ARG_UNUSED(srv);
-	NNI_ARG_UNUSED(addrp);
+	NNI_ARG_UNUSED(addr);
 	return (NNG_ENOTSUP);
 #endif
 }
@@ -926,6 +929,8 @@ nng_http_req_reset(nng_http_req *req)
 {
 #ifdef NNG_SUPP_HTTP
 	nni_http_req_reset(req);
+#else
+	NNI_ARG_UNUSED(req);
 #endif
 }
 
@@ -934,5 +939,7 @@ nng_http_res_reset(nng_http_res *res)
 {
 #ifdef NNG_SUPP_HTTP
 	nni_http_res_reset(res);
+#else
+	NNI_ARG_UNUSED(res);
 #endif
 }

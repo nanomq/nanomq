@@ -209,6 +209,9 @@ nni_listener_bump_error(nni_listener *l, int err)
 		nni_stat_inc(&l->st_other, 1);
 		break;
 	}
+#else
+	NNI_ARG_UNUSED(l);
+	NNI_ARG_UNUSED(err);
 #endif
 }
 
@@ -314,12 +317,15 @@ nni_listener_hold(nni_listener *l)
 void
 nni_listener_rele(nni_listener *l)
 {
+	bool reap;
+
 	nni_mtx_lock(&listeners_lk);
 	l->l_ref--;
-	if ((l->l_ref == 0) && (l->l_closed)) {
-		nni_reap(&l->l_reap, (nni_cb) nni_listener_reap, l);
-	}
+	reap = ((l->l_ref == 0) && (l->l_closed));
 	nni_mtx_unlock(&listeners_lk);
+	if (reap) {
+		nni_listener_reap(l);
+	}
 }
 
 void

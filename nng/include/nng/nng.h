@@ -215,34 +215,6 @@ NNG_DECL int nng_close(nng_socket);
 // if the socket is not valid.
 NNG_DECL int nng_socket_id(nng_socket);
 
-// nng_closeall closes all open sockets. Do not call this from
-// a library; it will affect all sockets.
-NNG_DECL void nng_closeall(void);
-
-// nng_setopt sets an option for a specific socket.
-NNG_DECL int nng_setopt(nng_socket, const char *, const void *, size_t);
-NNG_DECL int nng_setopt_bool(nng_socket, const char *, bool);
-NNG_DECL int nng_setopt_int(nng_socket, const char *, int);
-NNG_DECL int nng_setopt_ms(nng_socket, const char *, nng_duration);
-NNG_DECL int nng_setopt_size(nng_socket, const char *, size_t);
-NNG_DECL int nng_setopt_uint64(nng_socket, const char *, uint64_t);
-NNG_DECL int nng_setopt_string(nng_socket, const char *, const char *);
-NNG_DECL int nng_setopt_ptr(nng_socket, const char *, void *);
-
-// nng_socket_getopt obtains the option for a socket.
-NNG_DECL int nng_getopt(nng_socket, const char *, void *, size_t *);
-NNG_DECL int nng_getopt_bool(nng_socket, const char *, bool *);
-NNG_DECL int nng_getopt_int(nng_socket, const char *, int *);
-NNG_DECL int nng_getopt_ms(nng_socket, const char *, nng_duration *);
-NNG_DECL int nng_getopt_size(nng_socket, const char *, size_t *);
-NNG_DECL int nng_getopt_uint64(nng_socket, const char *, uint64_t *);
-NNG_DECL int nng_getopt_ptr(nng_socket, const char *, void **);
-
-// nng_getopt_string is special -- it allocates a string to hold the
-// resulting string, which should be freed with nng_strfree when it is
-// no logner needed.
-NNG_DECL int nng_getopt_string(nng_socket, const char *, char **);
-
 NNG_DECL int nng_socket_set(nng_socket, const char *, const void *, size_t);
 NNG_DECL int nng_socket_set_bool(nng_socket, const char *, bool);
 NNG_DECL int nng_socket_set_int(nng_socket, const char *, int);
@@ -331,35 +303,6 @@ NNG_DECL int nng_dialer_id(nng_dialer);
 // invalid.
 NNG_DECL int nng_listener_id(nng_listener);
 
-// nng_dialer_setopt sets an option for a specific dialer.  Note
-// dialer options may not be altered on a running dialer.
-NNG_DECL int nng_dialer_setopt(nng_dialer, const char *, const void *, size_t);
-NNG_DECL int nng_dialer_setopt_bool(nng_dialer, const char *, bool);
-NNG_DECL int nng_dialer_setopt_int(nng_dialer, const char *, int);
-NNG_DECL int nng_dialer_setopt_ms(nng_dialer, const char *, nng_duration);
-NNG_DECL int nng_dialer_setopt_size(nng_dialer, const char *, size_t);
-NNG_DECL int nng_dialer_setopt_uint64(nng_dialer, const char *, uint64_t);
-NNG_DECL int nng_dialer_setopt_ptr(nng_dialer, const char *, void *);
-NNG_DECL int nng_dialer_setopt_string(nng_dialer, const char *, const char *);
-
-// nng_dialer_getopt obtains the option for a dialer. This will
-// fail for options that a particular dialer is not interested in,
-// even if they were set on the socket.
-NNG_DECL int nng_dialer_getopt(nng_dialer, const char *, void *, size_t *);
-NNG_DECL int nng_dialer_getopt_bool(nng_dialer, const char *, bool *);
-NNG_DECL int nng_dialer_getopt_int(nng_dialer, const char *, int *);
-NNG_DECL int nng_dialer_getopt_ms(nng_dialer, const char *, nng_duration *);
-NNG_DECL int nng_dialer_getopt_size(nng_dialer, const char *, size_t *);
-NNG_DECL int nng_dialer_getopt_sockaddr(
-    nng_dialer, const char *, nng_sockaddr *);
-NNG_DECL int nng_dialer_getopt_uint64(nng_dialer, const char *, uint64_t *);
-NNG_DECL int nng_dialer_getopt_ptr(nng_dialer, const char *, void **);
-
-// nng_dialer_getopt_string is special -- it allocates a string to hold the
-// resulting string, which should be freed with nng_strfree when it is
-// no logner needed.
-NNG_DECL int nng_dialer_getopt_string(nng_dialer, const char *, char **);
-
 NNG_DECL int nng_dialer_set(nng_dialer, const char *, const void *, size_t);
 NNG_DECL int nng_dialer_set_bool(nng_dialer, const char *, bool);
 NNG_DECL int nng_dialer_set_int(nng_dialer, const char *, int);
@@ -380,41 +323,6 @@ NNG_DECL int nng_dialer_get_string(nng_dialer, const char *, char **);
 NNG_DECL int nng_dialer_get_ptr(nng_dialer, const char *, void **);
 NNG_DECL int nng_dialer_get_ms(nng_dialer, const char *, nng_duration *);
 NNG_DECL int nng_dialer_get_addr(nng_dialer, const char *, nng_sockaddr *);
-
-// nng_listener_setopt sets an option for a dialer.  This value is
-// not stored in the socket.  Subsequent setopts on the socket may
-// override these value however.  Note listener options may not be altered
-// on a running listener.
-NNG_DECL int nng_listener_setopt(
-    nng_listener, const char *, const void *, size_t);
-NNG_DECL int nng_listener_setopt_bool(nng_listener, const char *, bool);
-NNG_DECL int nng_listener_setopt_int(nng_listener, const char *, int);
-NNG_DECL int nng_listener_setopt_ms(nng_listener, const char *, nng_duration);
-NNG_DECL int nng_listener_setopt_size(nng_listener, const char *, size_t);
-NNG_DECL int nng_listener_setopt_uint64(nng_listener, const char *, uint64_t);
-NNG_DECL int nng_listener_setopt_ptr(nng_listener, const char *, void *);
-NNG_DECL int nng_listener_setopt_string(
-    nng_listener, const char *, const char *);
-
-// nng_listener_getopt obtains the option for a listener.  This will
-// fail for options that a particular listener is not interested in,
-// even if they were set on the socket.
-NNG_DECL int nng_listener_getopt(nng_listener, const char *, void *, size_t *);
-NNG_DECL int nng_listener_getopt_bool(nng_listener, const char *, bool *);
-NNG_DECL int nng_listener_getopt_int(nng_listener, const char *, int *);
-NNG_DECL int nng_listener_getopt_ms(
-    nng_listener, const char *, nng_duration *);
-NNG_DECL int nng_listener_getopt_size(nng_listener, const char *, size_t *);
-NNG_DECL int nng_listener_getopt_sockaddr(
-    nng_listener, const char *, nng_sockaddr *);
-NNG_DECL int nng_listener_getopt_uint64(
-    nng_listener, const char *, uint64_t *);
-NNG_DECL int nng_listener_getopt_ptr(nng_listener, const char *, void **);
-
-// nng_listener_getopt_string is special -- it allocates a string to hold the
-// resulting string, which should be freed with nng_strfree when it is
-// no logner needed.
-NNG_DECL int nng_listener_getopt_string(nng_listener, const char *, char **);
 
 NNG_DECL int nng_listener_set(
     nng_listener, const char *, const void *, size_t);
@@ -517,26 +425,6 @@ NNG_DECL void nng_ctx_recv(nng_ctx, nng_aio *);
 // uses a local context instead of the socket global context.
 NNG_DECL void nng_ctx_send(nng_ctx, nng_aio *);
 
-// nng_ctx_getopt is used to retrieve a context-specific option.  This
-// can only be used for those options that relate to specific context
-// tunables (which does include NNG_OPT_SENDTIMEO and NNG_OPT_RECVTIMEO);
-// see the protocol documentation for more details.
-NNG_DECL int nng_ctx_getopt(nng_ctx, const char *, void *, size_t *);
-NNG_DECL int nng_ctx_getopt_bool(nng_ctx, const char *, bool *);
-NNG_DECL int nng_ctx_getopt_int(nng_ctx, const char *, int *);
-NNG_DECL int nng_ctx_getopt_ms(nng_ctx, const char *, nng_duration *);
-NNG_DECL int nng_ctx_getopt_size(nng_ctx, const char *, size_t *);
-
-// nng_ctx_setopt is used to set a context-specific option.  This
-// can only be used for those options that relate to specific context
-// tunables (which does include NNG_OPT_SENDTIMEO and NNG_OPT_RECVTIMEO);
-// see the protocol documentation for more details.
-NNG_DECL int nng_ctx_setopt(nng_ctx, const char *, const void *, size_t);
-NNG_DECL int nng_ctx_setopt_bool(nng_ctx, const char *, bool);
-NNG_DECL int nng_ctx_setopt_int(nng_ctx, const char *, int);
-NNG_DECL int nng_ctx_setopt_ms(nng_ctx, const char *, nng_duration);
-NNG_DECL int nng_ctx_setopt_size(nng_ctx, const char *, size_t);
-
 NNG_DECL int nng_ctx_get(nng_ctx, const char *, void *, size_t *);
 NNG_DECL int nng_ctx_get_bool(nng_ctx, const char *, bool *);
 NNG_DECL int nng_ctx_get_int(nng_ctx, const char *, int *);
@@ -599,6 +487,13 @@ NNG_DECL int nng_aio_alloc(nng_aio **, void (*)(void *), void *);
 // nng_aio_free frees the AIO and any associated resources.
 // It *must not* be in use at the time it is freed.
 NNG_DECL void nng_aio_free(nng_aio *);
+
+// nng_aio_reap is like nng_aio_free, but calls it from a background
+// reaper thread.  This can be useful to free aio objects from aio
+// callbacks (e.g. when the result of the callback is to discard
+// the object in question.)  The aio object must be in further use
+// when this is called.
+NNG_DECL void nng_aio_reap(nng_aio *);
 
 // nng_aio_stop stops any outstanding operation, and waits for the
 // AIO to be free, including for the callback to have completed
@@ -677,9 +572,6 @@ NNG_DECL bool nng_aio_begin(nng_aio *);
 // given aio.
 NNG_DECL void nng_aio_finish(nng_aio *, int);
 
-NNG_DECL void nng_aio_finish_error(nng_aio *aio, int rv);
-NNG_DECL void nng_aio_finish_sync(nng_aio *aio, int rv);
-
 // nng_aio_defer is used to register a cancellation routine, and indicate
 // that the operation will be completed asynchronously.  It must only be
 // called once per operation on an aio, and must only be called by providers.
@@ -744,24 +636,10 @@ NNG_DECL void     nng_msg_header_clear(nng_msg *);
 NNG_DECL void     nng_msg_set_pipe(nng_msg *, nng_pipe);
 NNG_DECL nng_pipe nng_msg_get_pipe(const nng_msg *);
 
-// nng_msg_getopt is defunct, and should not be used by programs. It
-// always returns NNG_ENOTSUP.
-NNG_DECL int nng_msg_getopt(nng_msg *, int, void *, size_t *);
-
 // Pipe API. Generally pipes are only "observable" to applications, but
 // we do permit an application to close a pipe. This can be useful, for
 // example during a connection notification, to disconnect a pipe that
 // is associated with an invalid or untrusted remote peer.
-NNG_DECL int nng_pipe_getopt(nng_pipe, const char *, void *, size_t *);
-NNG_DECL int nng_pipe_getopt_bool(nng_pipe, const char *, bool *);
-NNG_DECL int nng_pipe_getopt_int(nng_pipe, const char *, int *);
-NNG_DECL int nng_pipe_getopt_ms(nng_pipe, const char *, nng_duration *);
-NNG_DECL int nng_pipe_getopt_size(nng_pipe, const char *, size_t *);
-NNG_DECL int nng_pipe_getopt_sockaddr(nng_pipe, const char *, nng_sockaddr *);
-NNG_DECL int nng_pipe_getopt_uint64(nng_pipe, const char *, uint64_t *);
-NNG_DECL int nng_pipe_getopt_ptr(nng_pipe, const char *, void **);
-NNG_DECL int nng_pipe_getopt_string(nng_pipe, const char *, char **);
-
 NNG_DECL int nng_pipe_get(nng_pipe, const char *, void *, size_t *);
 NNG_DECL int nng_pipe_get_bool(nng_pipe, const char *, bool *);
 NNG_DECL int nng_pipe_get_int(nng_pipe, const char *, int *);
@@ -1062,6 +940,11 @@ enum nng_unit_enum {
 // snapshot was updated, and are undefined until an update is performed.
 NNG_DECL uint64_t nng_stat_value(nng_stat *);
 
+// nng_stat_value returns returns the actual value of the statistic.
+// Statistic values reflect their value at the time that the corresponding
+// snapshot was updated, and are undefined until an update is performed.
+NNG_DECL bool nng_stat_bool(nng_stat *);
+
 // nng_stat_string returns the string associated with a string statistic,
 // or NULL if the statistic is not part of the string.  The value returned
 // is valid until the associated statistic is freed.
@@ -1294,44 +1177,146 @@ NNG_DECL int nng_stream_listener_set_ptr(
 NNG_DECL int nng_stream_listener_set_addr(
     nng_stream_listener *, const char *, const nng_sockaddr *);
 
-//NANOMQ MQTT variables & APIs
-typedef struct conn_param conn_param;
+
+#ifndef NNG_ELIDE_DEPRECATED
+// These are legacy APIs that have been deprecated.
+// Their use is strongly discouraged.
+
+// nng_msg_getopt is defunct, and should not be used by programs. It
+// always returns NNG_ENOTSUP.
+NNG_DECL int nng_msg_getopt(nng_msg *, int, void *, size_t *);
+
+// Socket options.  Use nng_socket_get and nng_socket_set isnetadl
+NNG_DECL int nng_getopt(nng_socket, const char *, void *, size_t *);
+NNG_DECL int nng_getopt_bool(nng_socket, const char *, bool *);
+NNG_DECL int nng_getopt_int(nng_socket, const char *, int *);
+NNG_DECL int nng_getopt_ms(nng_socket, const char *, nng_duration *);
+NNG_DECL int nng_getopt_size(nng_socket, const char *, size_t *);
+NNG_DECL int nng_getopt_uint64(nng_socket, const char *, uint64_t *);
+NNG_DECL int nng_getopt_ptr(nng_socket, const char *, void **);
+NNG_DECL int nng_getopt_string(nng_socket, const char *, char **);
+NNG_DECL int nng_setopt(nng_socket, const char *, const void *, size_t);
+NNG_DECL int nng_setopt_bool(nng_socket, const char *, bool);
+NNG_DECL int nng_setopt_int(nng_socket, const char *, int);
+NNG_DECL int nng_setopt_ms(nng_socket, const char *, nng_duration);
+NNG_DECL int nng_setopt_size(nng_socket, const char *, size_t);
+NNG_DECL int nng_setopt_uint64(nng_socket, const char *, uint64_t);
+NNG_DECL int nng_setopt_string(nng_socket, const char *, const char *);
+NNG_DECL int nng_setopt_ptr(nng_socket, const char *, void *);
+
+// Context options.  Use nng_ctx_get and nng_ctx_set instead.
+NNG_DECL int nng_ctx_getopt(nng_ctx, const char *, void *, size_t *);
+NNG_DECL int nng_ctx_getopt_bool(nng_ctx, const char *, bool *);
+NNG_DECL int nng_ctx_getopt_int(nng_ctx, const char *, int *);
+NNG_DECL int nng_ctx_getopt_ms(nng_ctx, const char *, nng_duration *);
+NNG_DECL int nng_ctx_getopt_size(nng_ctx, const char *, size_t *);
+NNG_DECL int nng_ctx_setopt(nng_ctx, const char *, const void *, size_t);
+NNG_DECL int nng_ctx_setopt_bool(nng_ctx, const char *, bool);
+NNG_DECL int nng_ctx_setopt_int(nng_ctx, const char *, int);
+NNG_DECL int nng_ctx_setopt_ms(nng_ctx, const char *, nng_duration);
+NNG_DECL int nng_ctx_setopt_size(nng_ctx, const char *, size_t);
+
+// Dialer options.  Use nng_dialer_get and nng_dialer_set instead.
+NNG_DECL int nng_dialer_getopt(nng_dialer, const char *, void *, size_t *);
+NNG_DECL int nng_dialer_getopt_bool(nng_dialer, const char *, bool *);
+NNG_DECL int nng_dialer_getopt_int(nng_dialer, const char *, int *);
+NNG_DECL int nng_dialer_getopt_ms(nng_dialer, const char *, nng_duration *);
+NNG_DECL int nng_dialer_getopt_size(nng_dialer, const char *, size_t *);
+NNG_DECL int nng_dialer_getopt_sockaddr(
+    nng_dialer, const char *, nng_sockaddr *);
+NNG_DECL int nng_dialer_getopt_uint64(nng_dialer, const char *, uint64_t *);
+NNG_DECL int nng_dialer_getopt_ptr(nng_dialer, const char *, void **);
+NNG_DECL int nng_dialer_getopt_string(nng_dialer, const char *, char **);
+NNG_DECL int nng_dialer_setopt(nng_dialer, const char *, const void *, size_t);
+NNG_DECL int nng_dialer_setopt_bool(nng_dialer, const char *, bool);
+NNG_DECL int nng_dialer_setopt_int(nng_dialer, const char *, int);
+NNG_DECL int nng_dialer_setopt_ms(nng_dialer, const char *, nng_duration);
+NNG_DECL int nng_dialer_setopt_size(nng_dialer, const char *, size_t);
+NNG_DECL int nng_dialer_setopt_uint64(nng_dialer, const char *, uint64_t);
+NNG_DECL int nng_dialer_setopt_ptr(nng_dialer, const char *, void *);
+NNG_DECL int nng_dialer_setopt_string(nng_dialer, const char *, const char *);
+
+// Listener options.  Use nng_listener_get and nng_listener_set instead.
+NNG_DECL int nng_listener_getopt(nng_listener, const char *, void *, size_t *);
+NNG_DECL int nng_listener_getopt_bool(nng_listener, const char *, bool *);
+NNG_DECL int nng_listener_getopt_int(nng_listener, const char *, int *);
+NNG_DECL int nng_listener_getopt_ms(
+    nng_listener, const char *, nng_duration *);
+NNG_DECL int nng_listener_getopt_size(nng_listener, const char *, size_t *);
+NNG_DECL int nng_listener_getopt_sockaddr(
+    nng_listener, const char *, nng_sockaddr *);
+NNG_DECL int nng_listener_getopt_uint64(
+    nng_listener, const char *, uint64_t *);
+NNG_DECL int nng_listener_getopt_ptr(nng_listener, const char *, void **);
+NNG_DECL int nng_listener_getopt_string(nng_listener, const char *, char **);
+NNG_DECL int nng_listener_setopt(
+    nng_listener, const char *, const void *, size_t);
+NNG_DECL int nng_listener_setopt_bool(nng_listener, const char *, bool);
+NNG_DECL int nng_listener_setopt_int(nng_listener, const char *, int);
+NNG_DECL int nng_listener_setopt_ms(nng_listener, const char *, nng_duration);
+NNG_DECL int nng_listener_setopt_size(nng_listener, const char *, size_t);
+NNG_DECL int nng_listener_setopt_uint64(nng_listener, const char *, uint64_t);
+NNG_DECL int nng_listener_setopt_ptr(nng_listener, const char *, void *);
+NNG_DECL int nng_listener_setopt_string(
+    nng_listener, const char *, const char *);
+
+// Pipe options.  Use nng_pipe_get instead.
+NNG_DECL int nng_pipe_getopt(nng_pipe, const char *, void *, size_t *);
+NNG_DECL int nng_pipe_getopt_bool(nng_pipe, const char *, bool *);
+NNG_DECL int nng_pipe_getopt_int(nng_pipe, const char *, int *);
+NNG_DECL int nng_pipe_getopt_ms(nng_pipe, const char *, nng_duration *);
+NNG_DECL int nng_pipe_getopt_size(nng_pipe, const char *, size_t *);
+NNG_DECL int nng_pipe_getopt_sockaddr(nng_pipe, const char *, nng_sockaddr *);
+NNG_DECL int nng_pipe_getopt_uint64(nng_pipe, const char *, uint64_t *);
+NNG_DECL int nng_pipe_getopt_ptr(nng_pipe, const char *, void **);
+NNG_DECL int nng_pipe_getopt_string(nng_pipe, const char *, char **);
+
+// nng_closeall closes all open sockets. Do not call this from
+// a library; it will affect all sockets.
+NNG_DECL void nng_closeall(void);
+
+#endif
+
+// NANOMQ MQTT variables & APIs
+typedef struct conn_param        conn_param;
 typedef struct pub_packet_struct pub_packet_struct;
-typedef struct pipe_db nano_pipe_db;
+typedef struct pipe_db           nano_pipe_db;
 
-NNG_DECL int          nng_msg_cmd_type(nng_msg *msg);
-NNG_DECL void *       nng_msg_get_conn_param(nng_msg *msg);
-NNG_DECL size_t       nng_msg_remaining_len(nng_msg *msg);
-NNG_DECL uint8_t * nng_msg_header_ptr(nng_msg *msg);
-NNG_DECL uint8_t * nng_msg_variable_ptr(nng_msg *msg);
-NNG_DECL uint8_t * nng_msg_payload_ptr(nng_msg *msg);
-NNG_DECL void nng_msg_set_payload_ptr(nng_msg *msg, uint8_t *ptr);
-NNG_DECL void nng_msg_set_remaining_len(nng_msg *msg, size_t len);
-NNG_DECL void nng_msg_clone(nng_msg *msg);
-NNG_DECL void nng_msg_set_cmd_type(nng_msg *m, uint8_t cmd);
-NNG_DECL void nng_msg_preset_qos(nng_msg *m, uint8_t qos);
-NNG_DECL nng_msg* nng_msg_unique(nng_msg *m);
-
-//NNG_DECL void nng_aio_set_pipes(nng_aio *aio, uint32_t *pipes);
-NNG_DECL uint32_t* nng_aio_get_pipes(nng_aio *aio);
-NNG_DECL void nng_aio_set_pipeline(nng_aio *aio, uint32_t id);
-//NNG_DECL void nng_aio_set_pipelength(nng_aio *aio, uint32_t len);
-NNG_DECL void nng_aio_set_dbtree(nng_aio *aio, void *db);
+NNG_DECL void   nng_aio_finish_error(nng_aio *aio, int rv);
+NNG_DECL void   nng_aio_finish_sync(nng_aio *aio, int rv);
+NNG_DECL int    nng_msg_cmd_type(nng_msg *msg);
 NNG_DECL void * nng_msg_get_conn_param(nng_msg *msg);
+NNG_DECL size_t nng_msg_remaining_len(nng_msg *msg);
+NNG_DECL uint8_t *nng_msg_header_ptr(nng_msg *msg);
+NNG_DECL uint8_t *nng_msg_variable_ptr(nng_msg *msg);
+NNG_DECL uint8_t *nng_msg_payload_ptr(nng_msg *msg);
+NNG_DECL void     nng_msg_set_payload_ptr(nng_msg *msg, uint8_t *ptr);
+NNG_DECL void     nng_msg_set_remaining_len(nng_msg *msg, size_t len);
+NNG_DECL void     nng_msg_clone(nng_msg *msg);
+NNG_DECL void     nng_msg_set_cmd_type(nng_msg *m, uint8_t cmd);
+NNG_DECL void     nng_msg_preset_qos(nng_msg *m, uint8_t qos);
+NNG_DECL nng_msg *nng_msg_unique(nng_msg *m);
 
-NNG_DECL const uint8_t * conn_param_get_clentid(conn_param *cparam);
-NNG_DECL const uint8_t * conn_param_get_pro_name(conn_param *cparam);
-NNG_DECL const void    * conn_param_get_will_topic(conn_param *cparam);
-NNG_DECL const void    * conn_param_get_will_msg(conn_param *cparam);
-NNG_DECL const uint8_t * conn_param_get_username(conn_param *cparam);
-NNG_DECL const uint8_t * conn_param_get_password(conn_param *cparam);
-NNG_DECL uint8_t   conn_param_get_con_flag(conn_param *cparam);
-NNG_DECL uint8_t   conn_param_get_clean_start(conn_param *cparam);
-NNG_DECL uint8_t   conn_param_get_will_flag(conn_param *cparam);
-NNG_DECL uint8_t   conn_param_get_will_qos(conn_param *cparam);
-NNG_DECL uint8_t   conn_param_get_will_retain(conn_param *cparam);
-NNG_DECL uint16_t  conn_param_get_keepalive(conn_param *cparam);
-NNG_DECL uint8_t   conn_param_get_protover(conn_param *cparam);
+// NNG_DECL void nng_aio_set_pipes(nng_aio *aio, uint32_t *pipes);
+NNG_DECL uint32_t *nng_aio_get_pipes(nng_aio *aio);
+NNG_DECL void      nng_aio_set_pipeline(nng_aio *aio, uint32_t id);
+// NNG_DECL void nng_aio_set_pipelength(nng_aio *aio, uint32_t len);
+NNG_DECL void  nng_aio_set_dbtree(nng_aio *aio, void *db);
+NNG_DECL void *nng_msg_get_conn_param(nng_msg *msg);
+
+NNG_DECL const uint8_t *conn_param_get_clentid(conn_param *cparam);
+NNG_DECL const uint8_t *conn_param_get_pro_name(conn_param *cparam);
+NNG_DECL const void *   conn_param_get_will_topic(conn_param *cparam);
+NNG_DECL const void *   conn_param_get_will_msg(conn_param *cparam);
+NNG_DECL const uint8_t *conn_param_get_username(conn_param *cparam);
+NNG_DECL const uint8_t *conn_param_get_password(conn_param *cparam);
+NNG_DECL uint8_t        conn_param_get_con_flag(conn_param *cparam);
+NNG_DECL uint8_t        conn_param_get_clean_start(conn_param *cparam);
+NNG_DECL uint8_t        conn_param_get_will_flag(conn_param *cparam);
+NNG_DECL uint8_t        conn_param_get_will_qos(conn_param *cparam);
+NNG_DECL uint8_t        conn_param_get_will_retain(conn_param *cparam);
+NNG_DECL uint16_t       conn_param_get_keepalive(conn_param *cparam);
+NNG_DECL uint8_t        conn_param_get_protover(conn_param *cparam);
 
 #ifdef __cplusplus
 }

@@ -7,9 +7,8 @@
 # found online at https://opensource.org/licenses/MIT.
 #
 
-#set(COMPAT_SOURCES compat/nanomsg/nn.c)
 nng_sources(nn.c)
 
-#set(NNG_SRCS ${NNG_SRCS} ${COMPAT_SOURCES} PARENT_SCOPE)
+set(NNG_TEST_PREFIX ${NNG_TEST_PREFIX}.compat.nanomsg)
 
 nng_test(compat_tcp_test)
