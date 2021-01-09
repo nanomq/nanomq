@@ -13,6 +13,7 @@
 
 #include "core/defs.h"
 #include "core/list.h"
+#include "core/reap.h"
 #include "core/taskq.h"
 #include "core/thread.h"
 
@@ -27,6 +28,10 @@ extern void nni_aio_init(nni_aio *, nni_cb, void *arg);
 // nni_aio_fini finalizes an aio object, releasing associated resources.
 // It waits for the callback to complete.
 extern void nni_aio_fini(nni_aio *);
+
+// nni_aio_reap is used to asynchronously reap the aio.  It can
+// be called even from the callback of the aio itself.
+extern void nni_aio_reap(nni_aio *);
 
 // nni_aio_alloc allocates an aio object and initializes it.  The callback
 // is called with the supplied argument when the operation is complete.
@@ -160,16 +165,18 @@ extern void nni_sleep_aio(nni_duration, nni_aio *);
 extern int  nni_aio_sys_init(void);
 extern void nni_aio_sys_fini(void);
 
-//NANOMQ APIs
-extern void nni_aio_set_sockaddr(nni_aio *aio, const nng_sockaddr *);
-extern void nni_aio_get_sockaddr(nni_aio *aio, nng_sockaddr *);
-extern void nni_aio_set_pipeline(nni_aio *aio, uint32_t id);
-extern void nni_aio_set_dbtree(nni_aio *aio, void *db);
-extern void* nni_aio_get_dbtree(nni_aio *aio);
-extern uint32_t nni_aio_get_pipeline(nni_aio *aio);
-extern void nni_aio_set_pipes(nni_aio *aio, uint32_t *pipes);
-extern void nni_aio_set_pipelength(nni_aio *aio, uint32_t len);
-extern uint32_t* nni_aio_get_pipes(nni_aio *aio);
+// NANOMQ APIs
+extern void      nni_aio_set_sockaddr(nni_aio *aio, const nng_sockaddr *);
+extern void      nni_aio_get_sockaddr(nni_aio *aio, nng_sockaddr *);
+extern void      nni_aio_set_pipeline(nni_aio *aio, uint32_t id);
+extern void      nni_aio_set_dbtree(nni_aio *aio, void *db);
+extern void *    nni_aio_get_dbtree(nni_aio *aio);
+extern uint32_t  nni_aio_get_pipeline(nni_aio *aio);
+extern void      nni_aio_set_pipes(nni_aio *aio, uint32_t *pipes);
+extern void      nni_aio_set_pipelength(nni_aio *aio, uint32_t len);
+extern uint32_t *nni_aio_get_pipes(nni_aio *aio);
+
+typedef struct nni_aio_expire_q nni_aio_expire_q;
 
 // An nni_aio is an async I/O handle.  The details of this aio structure
 // are private to the AIO framework.  The structure has the public name
@@ -206,14 +213,14 @@ struct nng_aio {
 	nni_list_node     a_prov_node;     // Linkage on provider list.
 	void *            a_prov_extra[2]; // Extra data used by provider
 
-	// Expire node.
-	nni_list_node a_expire_node;
-
+	nni_aio_expire_q *a_expire_q;
+	nni_list_node     a_expire_node; // Expiration node
+	nni_reap_node     a_reap_node;
 	// NanoMQ var
-    //uint32_t *      pipes;
-    //uint32_t        pipe_len;
-    void *          db;
-    uint32_t        pipe;
+	// uint32_t *      pipes;
+	// uint32_t        pipe_len;
+	void *   db;
+	uint32_t pipe;
 };
 
 #endif // CORE_AIO_H

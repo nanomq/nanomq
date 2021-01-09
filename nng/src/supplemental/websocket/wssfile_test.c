@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Staysail Systems, Inc. <info@staysail.tech>
+// Copyright 2020 Staysail Systems, Inc. <info@staysail.tech>
 // Copyright 2018 Capitar IT Group BV <info@capitar.com>
 //
 // This software is supplied under the terms of the MIT License, a
@@ -8,17 +8,11 @@
 // found online at https://opensource.org/licenses/MIT.
 //
 
-#include <nng/nng.h>
-#include <nng/protocol/pair1/pair.h>
-#include <nng/supplemental/tls/tls.h>
-#include <nng/supplemental/util/platform.h>
-#include <nng/transport/ws/websocket.h>
-
 #include "core/nng_impl.h"
 
-#include "acutest.h"
-#include "testutil.h"
+#include <nuts.h>
 
+#ifdef NNG_SUPP_TLS
 // These keys are for demonstration purposes ONLY.  DO NOT USE.
 // The certificate is valid for 100 years, because I don't want to
 // have to regenerate it ever again. The CN is 127.0.0.1, and self-signed.
@@ -96,105 +90,8 @@ static const char key[] =
     "cL9dYcwse5FhNMjrQ/OKv6B38SIXpoKQUtjgkaMtmpK8cXX1eqEMNkM=\n"
     "-----END RSA PRIVATE KEY-----\n";
 
-#if 0
-static int
-validloopback(nng_sockaddr *sa)
-{
-	char ipv6[16];
-	memset(ipv6, 0, sizeof(ipv6));
-	ipv6[15] = 1;
-
-	switch (sa->s_family) {
-	case NNG_AF_INET:
-		if (sa->s_in.sa_port == 0) {
-			return (0);
-		}
-		if (sa->s_in.sa_addr != htonl(0x7f000001)) {
-			return (0);
-		}
-		return (1);
-
-	case NNG_AF_INET6:
-		if (sa->s_in6.sa_port == 0) {
-			return (0);
-		}
-		if (memcmp(sa->s_in6.sa_addr, ipv6, sizeof(ipv6)) != 0) {
-			return (0);
-		}
-		return (1);
-
-	default:
-		return (0);
-	}
-}
-
-static int
-check_props(nng_msg *msg)
-{
-	nng_pipe     p;
-	size_t       z;
-	nng_sockaddr la;
-	nng_sockaddr ra;
-	char *       buf;
-	size_t       len;
-
-	p = nng_msg_get_pipe(msg);
-	So(nng_pipe_id(p) > 0);
-
-	// Typed
-	z = sizeof(nng_sockaddr);
-	So(nng_pipe_getopt_sockaddr(p, NNG_OPT_LOCADDR, &la) == 0);
-	So(z == sizeof(la));
-	So(validloopback(&la));
-
-	// Untyped
-	z = sizeof(nng_sockaddr);
-	So(nng_pipe_getopt(p, NNG_OPT_REMADDR, &ra, &z) == 0);
-	So(z == sizeof(ra));
-	So(validloopback(&ra));
-
-	// Bad type
-	So(nng_pipe_getopt_size(p, NNG_OPT_LOCADDR, &z) == NNG_EBADTYPE);
-
-	// Request header
-	z   = 0;
-	buf = NULL;
-	So(nng_pipe_getopt(p, NNG_OPT_WS_REQUEST_HEADERS, buf, &z) ==
-	    NNG_EINVAL);
-	So(z > 0);
-	len = z;
-	So((buf = nng_alloc(len)) != NULL);
-	So(nng_pipe_getopt(p, NNG_OPT_WS_REQUEST_HEADERS, buf, &z) == 0);
-	So(strstr(buf, "Sec-WebSocket-Key") != NULL);
-	So(z == len);
-	nng_free(buf, len);
-	So(nng_pipe_getopt_string(p, NNG_OPT_WS_REQUEST_HEADERS, &buf) == 0);
-	So(strlen(buf) == len - 1);
-	nng_strfree(buf);
-
-	// Response header
-	z   = 0;
-	buf = NULL;
-	So(nng_pipe_getopt(p, NNG_OPT_WS_RESPONSE_HEADERS, buf, &z) ==
-	    NNG_EINVAL);
-	So(z > 0);
-	len = z;
-	So((buf = nng_alloc(len)) != NULL);
-	So(nng_pipe_getopt(p, NNG_OPT_WS_RESPONSE_HEADERS, buf, &z) == 0);
-	So(strstr(buf, "Sec-WebSocket-Accept") != NULL);
-	So(z == len);
-	nng_free(buf, len);
-	So(nng_pipe_getopt_string(p, NNG_OPT_WS_RESPONSE_HEADERS, &buf) == 0);
-	So(strlen(buf) == len - 1);
-	nng_strfree(buf);
-
-	return (0);
-}
-
-#endif
-
 #define CACERT "wss_test_ca_cert.pem"
-#define CERTKEY "wss_test_certkey.pem"
+#define CERT_KEY "wss_test_cert_key.pem"
 
 static void
 init_dialer_wss_file(nng_dialer d)
@@ -202,13 +99,13 @@ init_dialer_wss_file(nng_dialer d)
 	char *tmpdir;
 	char *pth;
 
-	TEST_ASSERT((tmpdir = nni_plat_temp_dir()) != NULL);
-	TEST_ASSERT((pth = nni_file_join(tmpdir, CACERT)) != NULL);
-	nni_strfree(tmpdir);
-	TEST_NNG_PASS(nni_file_put(pth, cert, strlen(cert)));
-	TEST_NNG_PASS(nng_dialer_setopt_string(d, NNG_OPT_TLS_CA_FILE, pth));
+	NUTS_ASSERT((tmpdir = nni_plat_temp_dir()) != NULL);
+	NUTS_ASSERT((pth = nni_file_join(tmpdir, CACERT)) != NULL);
+	nng_strfree(tmpdir);
+	NUTS_PASS(nni_file_put(pth, cert, strlen(cert)));
+	NUTS_PASS(nng_dialer_set_string(d, NNG_OPT_TLS_CA_FILE, pth));
 	nni_file_delete(pth);
-	nni_strfree(pth);
+	nng_strfree(pth);
 }
 
 static void
@@ -216,114 +113,116 @@ init_listener_wss_file(nng_listener l)
 {
 	char *tmpdir;
 	char *pth;
-	char *certkey;
+	char *cert_key;
 
-	TEST_ASSERT((tmpdir = nni_plat_temp_dir()) != NULL);
-	TEST_ASSERT((pth = nni_file_join(tmpdir, CERTKEY)) != NULL);
-	nni_strfree(tmpdir);
+	NUTS_ASSERT((tmpdir = nni_plat_temp_dir()) != NULL);
+	NUTS_ASSERT((pth = nni_file_join(tmpdir, CERT_KEY)) != NULL);
+	nng_strfree(tmpdir);
 
-	TEST_NNG_PASS(nni_asprintf(&certkey, "%s\r\n%s\r\n", cert, key));
+	NUTS_PASS(nni_asprintf(&cert_key, "%s\r\n%s\r\n", cert, key));
 
-	TEST_NNG_PASS(nni_file_put(pth, certkey, strlen(certkey)));
-	nni_strfree(certkey);
-	TEST_NNG_PASS(
-	    nng_listener_setopt_string(l, NNG_OPT_TLS_CERT_KEY_FILE, pth));
+	NUTS_PASS(nni_file_put(pth, cert_key, strlen(cert_key)));
+	nng_strfree(cert_key);
+	NUTS_PASS(nng_listener_set_string(l, NNG_OPT_TLS_CERT_KEY_FILE, pth));
 
 	nni_file_delete(pth);
-	nni_strfree(pth);
+	nng_strfree(pth);
 }
 
-void
+static void
 test_invalid_verify(void)
 {
-	uint16_t     port = testutil_next_port();
+	uint16_t     port = nuts_next_port();
 	nng_socket   s1;
 	nng_socket   s2;
 	nng_listener l;
-	char         addr[32];
+	nng_dialer   d;
+	char         addr[40];
 
-	snprintf(addr, sizeof(addr), "wss://:%u/test", port);
+	(void) snprintf(addr, sizeof(addr), "wss4://:%u/test", port);
 
-	TEST_NNG_PASS(nng_pair_open(&s1));
-	TEST_NNG_PASS(nng_pair_open(&s2));
-	TEST_NNG_PASS(nng_listener_create(&l, s1, addr));
+	NUTS_PASS(nng_pair_open(&s1));
+	NUTS_PASS(nng_pair_open(&s2));
+	NUTS_PASS(nng_listener_create(&l, s1, addr));
 	init_listener_wss_file(l);
-	TEST_NNG_PASS(nng_listener_start(l, 0));
+	NUTS_PASS(nng_listener_start(l, 0));
 
 	nng_msleep(100);
 
 	snprintf(addr, sizeof(addr), "wss://127.0.0.1:%u/test", port);
-
-	TEST_NNG_PASS(nng_setopt_int(
-	    s2, NNG_OPT_TLS_AUTH_MODE, NNG_TLS_AUTH_MODE_REQUIRED));
 
 	// We find that sometimes this fails due to NNG_EPEERAUTH, but it
 	// can also fail due to NNG_ECLOSED.  This seems to be timing
 	// dependent, based on receive vs. send timing most likely.
 	// Applications shouldn't really depend that much on this.
 	int rv;
-	rv = nng_dial(s2, addr, NULL, 0);
-	TEST_CHECK(rv != 0);
-	TEST_CHECK_((rv == NNG_EPEERAUTH) || (rv == NNG_ECLOSED) ||
-	        (rv == NNG_ECRYPTO),
-	    "result from dial: %d %s", rv, nng_strerror(rv));
 
-	TEST_NNG_PASS(nng_close(s1));
-	TEST_NNG_PASS(nng_close(s2));
+	NUTS_PASS(nng_dialer_create(&d, s2, addr));
+	NUTS_PASS(nng_dialer_set_int(
+	    d, NNG_OPT_TLS_AUTH_MODE, NNG_TLS_AUTH_MODE_REQUIRED));
+	rv = nng_dialer_start(d, 0);
+
+	NUTS_TRUE(rv != 0);
+	NUTS_TRUE((rv == NNG_EPEERAUTH) || (rv == NNG_ECLOSED) ||
+	    (rv == NNG_ECRYPTO));
+
+	NUTS_PASS(nng_close(s1));
+	NUTS_PASS(nng_close(s2));
 }
 
-void
+static void
 test_no_verify(void)
 {
 	nng_socket   s1;
 	nng_socket   s2;
 	nng_listener l;
 	nng_dialer   d;
-	char         addr[NNG_MAXADDRLEN];
+	char         addr[64];
 	nng_msg *    msg;
 	nng_pipe     p;
 	bool         b;
 	uint16_t     port;
 
-	TEST_NNG_PASS(nng_pair_open(&s1));
-	TEST_NNG_PASS(nng_pair_open(&s2));
-	port = testutil_next_port();
-	(void) snprintf(addr, sizeof(addr), "wss://:%u/test", port);
-	TEST_NNG_PASS(nng_listener_create(&l, s1, addr));
-	TEST_NNG_PASS(nng_setopt_ms(s1, NNG_OPT_SENDTIMEO, 5000));
+	NUTS_PASS(nng_pair_open(&s1));
+	NUTS_PASS(nng_pair_open(&s2));
+	NUTS_PASS(nng_socket_set_ms(s1, NNG_OPT_SENDTIMEO, 5000));
+	NUTS_PASS(nng_socket_set_ms(s2, NNG_OPT_RECVTIMEO, 5000));
+
+	port = nuts_next_port();
+	(void) snprintf(addr, sizeof(addr), "wss4://:%u/test", port);
+	NUTS_PASS(nng_listener_create(&l, s1, addr));
 	init_listener_wss_file(l);
-	TEST_NNG_PASS(nng_listener_start(l, 0));
+	NUTS_PASS(nng_listener_start(l, 0));
 
 	nng_msleep(100);
 	snprintf(addr, sizeof(addr), "wss://127.0.0.1:%u/test", port);
-	TEST_NNG_PASS(nng_dialer_create(&d, s2, addr));
+	NUTS_PASS(nng_dialer_create(&d, s2, addr));
 	init_dialer_wss_file(d);
-	TEST_NNG_PASS(nng_dialer_setopt_int(
+	NUTS_PASS(nng_dialer_set_int(
 	    d, NNG_OPT_TLS_AUTH_MODE, NNG_TLS_AUTH_MODE_OPTIONAL));
-	TEST_NNG_PASS(nng_dialer_setopt_string(
-	    d, NNG_OPT_TLS_SERVER_NAME, "example.com"));
+	NUTS_PASS(
+	    nng_dialer_set_string(d, NNG_OPT_TLS_SERVER_NAME, "example.com"));
 
-	TEST_NNG_PASS(nng_setopt_ms(s2, NNG_OPT_RECVTIMEO, 5000));
-	TEST_NNG_PASS(nng_dialer_start(d, 0));
+	NUTS_PASS(nng_dialer_start(d, 0));
 	nng_msleep(100);
 
-	TEST_NNG_PASS(nng_send(s1, "hello", 6, 0));
-	TEST_NNG_PASS(nng_recvmsg(s2, &msg, 0));
-	TEST_ASSERT(msg != NULL);
-	TEST_CHECK(nng_msg_len(msg) == 6);
-	TEST_CHECK(strcmp(nng_msg_body(msg), "hello") == 0);
+	NUTS_PASS(nng_send(s1, "hello", 6, 0));
+	NUTS_PASS(nng_recvmsg(s2, &msg, 0));
+	NUTS_ASSERT(msg != NULL);
+	NUTS_TRUE(nng_msg_len(msg) == 6);
+	NUTS_MATCH(nng_msg_body(msg), "hello");
 
 	p = nng_msg_get_pipe(msg);
-	TEST_CHECK(nng_pipe_id(p) > 0);
-	TEST_NNG_PASS(nng_pipe_getopt_bool(p, NNG_OPT_TLS_VERIFIED, &b));
-	TEST_CHECK(b == false);
+	NUTS_TRUE(nng_pipe_id(p) > 0);
+	NUTS_PASS(nng_pipe_get_bool(p, NNG_OPT_TLS_VERIFIED, &b));
+	NUTS_TRUE(b == false);
 
 	nng_msg_free(msg);
-	TEST_NNG_PASS(nng_close(s1));
-	TEST_NNG_PASS(nng_close(s2));
+	NUTS_CLOSE(s1);
+	NUTS_CLOSE(s2);
 }
 
-void
+static void
 test_verify_works(void)
 {
 	nng_socket   s1;
@@ -336,65 +235,65 @@ test_verify_works(void)
 	bool         b;
 	uint16_t     port;
 
-	TEST_NNG_PASS(nng_pair_open(&s1));
-	TEST_NNG_PASS(nng_pair_open(&s2));
-	port = testutil_next_port();
-	(void) snprintf(addr, sizeof(addr), "wss://:%u/test", port);
-	TEST_NNG_PASS(nng_listener_create(&l, s1, addr));
-	TEST_NNG_PASS(nng_setopt_ms(s1, NNG_OPT_SENDTIMEO, 5000));
+	NUTS_PASS(nng_pair_open(&s1));
+	NUTS_PASS(nng_pair_open(&s2));
+	NUTS_PASS(nng_socket_set_ms(s1, NNG_OPT_SENDTIMEO, 5000));
+	NUTS_PASS(nng_socket_set_ms(s2, NNG_OPT_RECVTIMEO, 5000));
+	port = nuts_next_port();
+	(void) snprintf(addr, sizeof(addr), "wss4://:%u/test", port);
+	NUTS_PASS(nng_listener_create(&l, s1, addr));
 	init_listener_wss_file(l);
-	TEST_NNG_PASS(nng_listener_start(l, 0));
+	NUTS_PASS(nng_listener_start(l, 0));
 
 	// It can take a bit for the listener to start up in clouds.
 	nng_msleep(200);
-	snprintf(addr, sizeof(addr), "wss://localhost:%u/test", port);
-	TEST_NNG_PASS(nng_dialer_create(&d, s2, addr));
+	snprintf(addr, sizeof(addr), "wss4://localhost:%u/test", port);
+	NUTS_PASS(nng_dialer_create(&d, s2, addr));
 	init_dialer_wss_file(d);
 
-	TEST_NNG_PASS(nng_setopt_ms(s2, NNG_OPT_RECVTIMEO, 5000));
-	TEST_NNG_PASS(nng_dialer_start(d, 0));
+	NUTS_PASS(nng_dialer_start(d, 0));
 	nng_msleep(100);
 
-	TEST_NNG_PASS(nng_send(s1, "hello", 6, 0));
-	TEST_NNG_PASS(nng_recvmsg(s2, &msg, 0));
-	TEST_ASSERT(msg != NULL);
-	TEST_CHECK(nng_msg_len(msg) == 6);
-	TEST_CHECK(strcmp(nng_msg_body(msg), "hello") == 0);
+	NUTS_PASS(nng_send(s1, "hello", 6, 0));
+	NUTS_PASS(nng_recvmsg(s2, &msg, 0));
+	NUTS_ASSERT(msg != NULL);
+	NUTS_TRUE(nng_msg_len(msg) == 6);
+	NUTS_MATCH(nng_msg_body(msg), "hello");
 
 	p = nng_msg_get_pipe(msg);
-	TEST_CHECK(nng_pipe_id(p) > 0);
-	TEST_NNG_PASS(nng_pipe_getopt_bool(p, NNG_OPT_TLS_VERIFIED, &b));
-	TEST_CHECK(b == true);
+	NUTS_TRUE(nng_pipe_id(p) > 0);
+	NUTS_PASS(nng_pipe_get_bool(p, NNG_OPT_TLS_VERIFIED, &b));
+	NUTS_TRUE(b == true);
 
 	nng_msg_free(msg);
-	TEST_NNG_PASS(nng_close(s1));
-	TEST_NNG_PASS(nng_close(s2));
+	NUTS_PASS(nng_close(s1));
+	NUTS_PASS(nng_close(s2));
 }
 
-void
+static void
 test_cert_file_not_present(void)
 {
 	nng_socket   s1;
 	nng_listener l;
-	char         addr[NNG_MAXADDRLEN];
-	uint16_t     port;
 
-	TEST_NNG_PASS(nng_pair_open(&s1));
-	port = testutil_next_port();
-	(void) snprintf(addr, sizeof(addr), "wss://:%u/test", port);
-	TEST_NNG_PASS(nng_listener_create(&l, s1, addr));
+	NUTS_PASS(nng_pair_open(&s1));
+	NUTS_PASS(nng_listener_create(&l, s1, "wss4://:0/test"));
 
-	TEST_NNG_FAIL(nng_listener_setopt_string(
-	                  l, NNG_OPT_TLS_CERT_KEY_FILE, "no-such-file.pem"),
+	NUTS_FAIL(nng_listener_set_string(
+	              l, NNG_OPT_TLS_CERT_KEY_FILE, "no-such-file.pem"),
 	    NNG_ENOENT);
 
-	TEST_NNG_PASS(nng_close(s1));
+	NUTS_PASS(nng_close(s1));
 }
 
-TEST_LIST = {
+#endif
+
+NUTS_TESTS = {
+#ifdef NNG_SUPP_TLS
 	{ "wss file invalid verify", test_invalid_verify },
 	{ "wss file no verify", test_no_verify },
 	{ "wss file verify works", test_verify_works },
-	{ "wss file cacert missing", test_cert_file_not_present },
+	{ "wss file ca cert missing", test_cert_file_not_present },
+#endif
 	{ NULL, NULL },
 };

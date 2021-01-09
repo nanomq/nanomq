@@ -9,7 +9,6 @@
 //
 
 #include "core/nng_impl.h"
-#include "include/nng_debug.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -105,11 +104,14 @@ void
 nni_timer_schedule(nni_timer_node *node, nni_time when)
 {
 	nni_timer *timer = &nni_global_timer;
+
 	nni_mtx_lock(&timer->t_mx);
 	node->t_expire = when;
+
 	if (nni_list_active(&timer->t_entries, node)) {
 		nni_list_remove(&timer->t_entries, node);
 	}
+
 	if (when != NNI_TIME_NEVER) {
 		nni_timer_node *srch = nni_list_first(&timer->t_entries);
 		while ((srch != NULL) && (srch->t_expire < node->t_expire)) {

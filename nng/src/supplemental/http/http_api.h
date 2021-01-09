@@ -205,9 +205,9 @@ extern int nni_http_server_set_tls(nni_http_server *, struct nng_tls_config *);
 extern int nni_http_server_get_tls(
     nni_http_server *, struct nng_tls_config **);
 
-extern int nni_http_server_setx(
+extern int nni_http_server_set(
     nni_http_server *, const char *, const void *, size_t, nni_type);
-extern int nni_http_server_getx(
+extern int nni_http_server_get(
     nni_http_server *, const char *, void *, size_t *, nni_type);
 
 // nni_http_server_start starts listening on the supplied port.
@@ -359,9 +359,9 @@ extern int nni_http_client_set_tls(nni_http_client *, struct nng_tls_config *);
 extern int nni_http_client_get_tls(
     nni_http_client *, struct nng_tls_config **);
 
-extern int nni_http_client_setx(
-    nni_http_client *, const char *, const void *, size_t, nni_type);
-extern int nni_http_client_getx(
+extern int nni_http_client_set(
+    nni_http_client *, const char *, const void *buf, size_t, nni_type);
+extern int nni_http_client_get(
     nni_http_client *, const char *, void *, size_t *, nni_type);
 
 extern void nni_http_client_connect(nni_http_client *, nni_aio *);
@@ -381,5 +381,9 @@ extern void nni_http_transact_conn(
 // to reply with a chunked transfer encoding.
 extern void nni_http_transact(
     nni_http_client *, nni_http_req *, nni_http_res *, nni_aio *);
+
+// nni_http_stream_scheme returns the underlying stream scheme for a given
+// upper layer scheme.
+extern const char *nni_http_stream_scheme(const char *);
 
 #endif // NNG_SUPPLEMENTAL_HTTP_HTTP_API_H

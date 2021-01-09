@@ -493,11 +493,15 @@ ipc_reap(void *arg)
 	NNI_FREE_STRUCT(c);
 }
 
+static nni_reap_list ipc_reap_list = {
+	.rl_offset = offsetof(ipc_conn, reap),
+	.rl_func   = ipc_reap,
+};
 static void
 ipc_free(void *arg)
 {
 	ipc_conn *c = arg;
-	nni_reap(&c->reap, ipc_reap, c);
+	nni_reap(&ipc_reap_list, c);
 }
 
 static const nni_option ipc_options[] = {
@@ -531,14 +535,14 @@ static const nni_option ipc_options[] = {
 };
 
 static int
-ipc_getx(void *arg, const char *name, void *val, size_t *szp, nni_type t)
+ipc_get(void *arg, const char *name, void *val, size_t *szp, nni_type t)
 {
 	ipc_conn *c = arg;
 	return (nni_getopt(ipc_options, name, c, val, szp, t));
 }
 
 static int
-ipc_setx(void *arg, const char *name, const void *val, size_t sz, nni_type t)
+ipc_set(void *arg, const char *name, const void *val, size_t sz, nni_type t)
 {
 	ipc_conn *c = arg;
 	return (nni_setopt(ipc_options, name, c, val, sz, t));
@@ -559,8 +563,8 @@ nni_posix_ipc_alloc(nni_ipc_conn **cp, nni_sockaddr *sa, nni_ipc_dialer *d)
 	c->stream.s_close = ipc_close;
 	c->stream.s_send  = ipc_send;
 	c->stream.s_recv  = ipc_recv;
-	c->stream.s_getx  = ipc_getx;
-	c->stream.s_setx  = ipc_setx;
+	c->stream.s_get   = ipc_get;
+	c->stream.s_set   = ipc_set;
 	c->sa             = *sa;
 
 	nni_mtx_init(&c->mtx);
