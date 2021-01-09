@@ -311,6 +311,7 @@ uint8_t sub_ctx_handle(emq_work * work, client_ctx * cli_ctx)
 		debug_msg("client count [%d]", count);
 //		*/
 
+/*
 		struct retain_msg_node *msg_node = search_retain_msg(work->db->root, topics);
 
 		if (msg_node != NULL) {
@@ -325,6 +326,7 @@ uint8_t sub_ctx_handle(emq_work * work, client_ctx * cli_ctx)
 			}
 			free_retain_node(msg_node);
 		}
+*/
 
 		free_topic_queue(topics);
 		nng_free(topic_str, topic_node_t->it->topic_filter.len+1);
