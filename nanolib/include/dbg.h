@@ -23,7 +23,7 @@ static inline char *nano_get_time()
 	return buffer;
 }
 
-
+// log
 #ifdef NDEBUG
 #define debug(M, ...)
 #else
@@ -31,36 +31,34 @@ static inline char *nano_get_time()
 		__FILE__, __LINE__, ##__VA_ARGS__)
 #endif
 
-#define clean_errno() (errno == 0 ? "None" : strerror(errno))
-
-#define log_err(M, ...) fprintf(stderr,\
-		"[ERROR] (%s:%d: errno: %s) " M "\n", __FILE__, __LINE__,\
-		clean_errno(), ##__VA_ARGS__)
-
-#define log_warn(M, ...) fprintf(stderr,\
-		"[WARN] (%s:%d: errno: %s) " M "\n",\
-		__FILE__, __LINE__, clean_errno(), ##__VA_ARGS__)
-
 #ifdef NOLOG
 #define log(M, ...)
 #define log_info(M, ...)
 #else
-#define log_info(M, ...) fprintf(stderr, "[INFO] (%s:%d) =========>> " M "\n",\
+#define log_info(M, ...) fprintf(stderr, "[INFO] (%s:%d) ===>> " M "\n",\
 		__FILE__, __LINE__, ##__VA_ARGS__)
-
 #define log(M, ...) fprintf(stderr, "[INFO] %s (%lu:%s:%d) " M "\n",\
 		nano_get_time(), pthread_self(), __FUNCTION__, __LINE__, ##__VA_ARGS__)
 #endif
 
-#define check(A, M, ...) if(!(A)) {\
-	log_err(M, ##__VA_ARGS__); errno=0; goto error; }
-
-#define sentinel(M, ...)  { log_err(M, ##__VA_ARGS__);\
-	errno=0; goto error; }
-
-#define check_mem(A) check((A), "Out of memory.")
-
-#define check_debug(A, M, ...) if(!(A)) { debug(M, ##__VA_ARGS__);\
-	errno=0; goto error; }
-
+// Test
+#ifdef NOLOG
+#define CHECK(A)
+#define RUN_TESTS(name) int main(int argc, char *argv[]) {\
+	fprintf(stderr, "----\n[RUN_TESTS]\n----");\
+	name();\
+}
+#else
+#define CHECK(A) if(!(A)) {fprintf(stderr,\
+		"[CHECK] (%s:%d) expression not equal.\n", __FUNCTION__, __LINE__);}
+#define RUN_TESTS(name) int main(int argc, char *argv[]) {\
+	argc = 1; \
+	fprintf(stderr, "\n----[RUN_TESTS]----\n");\
+	do{\
+		name();\
+	}while(0);\
+	exit(0);\
+}
 #endif
+#endif
+

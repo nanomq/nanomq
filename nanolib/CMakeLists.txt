@@ -10,8 +10,6 @@ SET(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 
 project(nanolib)
 
-SET(CMAKE_CXX_FLAGS "-std=c++11 -O3")
-
 set(DEFAULT_BUILD_TYPE "Release")
 
 
@@ -25,14 +23,13 @@ endif()
 #aux_source_directory(. DIRSRCS)
 
 include_directories(./include)
-
-#add_subdirectory(./packet_parser)
+include_directories(${CMAKE_SOURCE_DIR}/nng/include/nng)
 
 # Call this from your own project's makefile.
 # find_package(nng CONFIG REQUIRED)
 
 # list of source files
-set(libsrc hash.cc mqtt_db.c zmalloc.c)
+set(libsrc hash.cc mqtt_db.c zmalloc.c msg_pool.c)
 
 # this is the "object library" target: compiles the sources only once
 add_library(nanolib OBJECT ${libsrc})
@@ -49,11 +46,15 @@ set_property(TARGET nanolib PROPERTY POSITION_INDEPENDENT_CODE 1)
 # shared and static libraries built from the same object files
 add_library(nano_shared SHARED $<TARGET_OBJECTS:nanolib>)
 #add_library(nanolib_static STATIC $<TARGET_OBJECTS:nanolib>)
-
+#target_link_libraries(nano_shared nng)
 
 add_executable(test test.c)
 target_link_libraries(test nano_shared)
+target_link_libraries(test nng)
 
+add_executable(msg_pool testsrc/msg_pool.c)
+target_link_libraries(msg_pool nano_shared)
+target_link_libraries(msg_pool nng)
 
 install(TARGETS nano_shared EXPORT nanolibConfig
     ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
