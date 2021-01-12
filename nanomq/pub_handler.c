@@ -180,12 +180,12 @@ handle_pub(emq_work *work, struct pipe_content *pipe_ct)
 
 			case PUBREC:
 				debug_msg("handling PUBREC");
-				put_pipe_msgs(NULL, work, pipe_ct, PUBREL);
+				// put_pipe_msgs(NULL, work, pipe_ct, PUBREL);
 				break;
 
 			case PUBREL:
 				debug_msg("handling PUBREL");
-				put_pipe_msgs(NULL, work, pipe_ct, PUBCOMP);
+				// put_pipe_msgs(NULL, work, pipe_ct, PUBCOMP);
 				break;
 
 			case PUBCOMP:
@@ -196,7 +196,6 @@ handle_pub(emq_work *work, struct pipe_content *pipe_ct)
 			default:
 				break;
 		}
-
 	} else {
 		debug_msg("decode message failed: %d", result);
 		//TODO send DISCONNECT with reason_code if MQTT Version=5.0

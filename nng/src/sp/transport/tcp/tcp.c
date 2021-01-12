@@ -70,7 +70,6 @@ struct tcptran_ep {
 	nni_list             waitpipes; // pipes waiting to match to socket
 	nni_list             negopipes; // pipes busy negotiating
 	nni_reap_node   	 reap;
-	//nng_stream_dialer *  dialer;
 	nng_stream_listener *listener;
 #ifdef NNG_ENABLE_STATS
        nni_stat_item 	     st_rcv_max;
@@ -143,6 +142,7 @@ tcptran_pipe_init(void *arg, nni_pipe *npipe)
 	tcptran_pipe *p = arg;
     nni_pipe_set_conn_param(npipe, p->tcp_cparam);
 	p->npipe        = npipe;
+	p->conn_buf		= NULL;
 
 	return (0);
 }
@@ -290,7 +290,7 @@ tcptran_pipe_nego_cb(void *arg)
 	}
 	debug_msg("fixed header : gottx %d gotrx %d needrx %d needtx %d CONNECT Need more bytes hex: %x %x\n", p->gottxhead, p->gotrxhead, p->wantrxhead, p->wanttxhead, p->rxlen[0], p->rxlen[1]);
 
-	//after fixed header but not receive complete Header. continue receving variable header; in case wantrxhead set less than EMQ_FIXED_HEADER_LEN(BUG)
+	//after fixed header but not receive complete Header. continue receving rest header (7 bytes);
 	if (p->gotrxhead < p->wantrxhead && p->gotrxhead >= EMQ_MAX_FIXED_HEADER_LEN) {
 		nni_iov iov;
 		iov.iov_len = p->wantrxhead - p->gotrxhead;
@@ -472,7 +472,7 @@ tcptran_pipe_recv_cb(void *arg)
 			rv = NNG_EMSGSIZE;
 			goto recv_error;
 		}
-		//same packet
+		//same packet, continue receving next byte of remaining length
 		iov.iov_buf = &p->rxlen[p->gotrxhead];
 		iov.iov_len = 1;
 		nni_aio_set_iov(rxaio, 1, &iov);
