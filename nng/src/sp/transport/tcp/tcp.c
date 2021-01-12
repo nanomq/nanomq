@@ -80,7 +80,7 @@ static void tcptran_pipe_send_start(tcptran_pipe *);
 static void tcptran_pipe_recv_start(tcptran_pipe *);
 static void tcptran_pipe_send_cb(void *);
 static void tcptran_pipe_recv_cb(void *);
-static void tcptran_pipe_quic_cb(void *arg);
+static void tcptran_pipe_quic_cb(void *arg);	//reserved for qsaio
 static void tcptran_pipe_nego_cb(void *);
 static void tcptran_ep_fini(void *);
 static void tcptran_pipe_fini(void *);
@@ -196,7 +196,7 @@ tcptran_pipe_alloc(tcptran_pipe **pipep)
 	}
 	nni_mtx_init(&p->mtx);
 	if (((rv = nni_aio_alloc(&p->txaio, tcptran_pipe_send_cb, p)) != 0) ||
-		((rv = nni_aio_alloc(&p->qsaio, tcptran_pipe_quic_cb, p)) != 0) ||
+		((rv = nni_aio_alloc(&p->qsaio, NULL, p)) != 0) ||
 	    ((rv = nni_aio_alloc(&p->rxaio, tcptran_pipe_recv_cb, p)) != 0) ||
 	    ((rv = nni_aio_alloc(&p->negoaio, tcptran_pipe_nego_cb, p)) != 0))
 	{
