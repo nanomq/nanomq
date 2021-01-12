@@ -251,7 +251,7 @@ nano_ctx_send(void *arg, nni_aio *aio)
 	nni_mtx_unlock(&s->lk);
 	nni_mtx_lock(&p->lk);
     if (nni_msg_cmd_type(msg) == CMD_PUBLISH) {
-		//nano_qos_msg_repack(msg, p);
+		nano_qos_msg_repack(msg, p);
     	if (nni_msg_get_pub_qos(msg) > 0) {
         	debug_msg("******** processing QoS pubmsg with pipe: %p ********", p);
         	p->qos_retry = 0;
@@ -569,7 +569,6 @@ nano_pipe_close(void *arg)
 	//nni_mtx_lock(&s->lk);
 	p->closed = true;
 	if (nni_list_active(&s->recvpipes, p)) {
-		// We are no longer "receivable".
 		nni_list_remove(&s->recvpipes, p);
 	}
 
@@ -753,36 +752,32 @@ nano_pipe_recv_cb(void *arg)
 	//ttl = nni_atomic_get(&s->ttl);
 	nni_msg_set_pipe(msg, p->id);
     p->ka_refresh = true;
-	nni_mtx_lock(&s->lk);
 	//TODO HOOK
 	switch (nng_msg_cmd_type(msg)) {
 		case CMD_SUBSCRIBE:
 			//TODO put hash table to tcp layer
+			nni_mtx_lock(&p->lk);
 			pipe_db = nano_msg_get_subtopic(msg);	//potential memleak when sub failed
 			p->pipedb_root = pipe_db;
 			while (pipe_db) {
 				rv = nni_id_set(&p->nano_db, DJBHash(pipe_db->topic), pipe_db);
 				pipe_db = pipe_db->next;
 			}
+			nni_mtx_unlock(&p->lk);
 			break;
 		case CMD_PUBLISH:
-			break;
 		case CMD_DISCONNECT:
-			break;
-		case CMD_PUBREL:
-			goto drop;
-			break;
 		case CMD_UNSUBSCRIBE:
 			break;
 		case CMD_PINGREQ:
-			goto drop;
-			break;
 		case CMD_PUBCOMP:
+		case CMD_PUBREL:
 			goto drop;
 			break;
         case CMD_PUBACK:
 		case CMD_PUBREC:
             debug_msg("puback received!");
+			nni_mtx_lock(&p->lk);
             uint8_t *ptr;
             uint16_t ackid, pubid;
             nni_msg *lmq_msg;
@@ -807,6 +802,7 @@ nano_pipe_recv_cb(void *arg)
                 index++;
             }
             //nanomq sdk
+			nni_mtx_unlock(&p->lk);
 			goto drop;
             break;
 		default:
@@ -816,12 +812,12 @@ nano_pipe_recv_cb(void *arg)
 	if (p->closed) {
 		// If we are closed, then we can't return data.
 		nni_aio_set_msg(&p->aio_recv, NULL);
-		nni_mtx_unlock(&s->lk);
 		nni_msg_free(msg);
 		debug_msg("ERROR: pipe is closed abruptly!!");
 		return;
 	}
 
+	nni_mtx_lock(&s->lk);
 	if ((ctx = nni_list_first(&s->recvq)) == NULL) {
 		// No one waiting to receive yet, holding pattern.
 		nni_list_append(&s->recvpipes, p);
@@ -857,7 +853,6 @@ nano_pipe_recv_cb(void *arg)
 drop:
 	nni_aio_set_msg(&p->aio_recv, NULL);
 	nni_pipe_recv(p->pipe, &p->aio_recv);
-	nni_mtx_unlock(&s->lk);
 	nni_msg_free(msg);
 	debug_msg("Warning:dropping msg");
 	return;
