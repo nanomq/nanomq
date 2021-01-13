@@ -1942,9 +1942,15 @@ nng_msg_clone(nng_msg *msg)
 nng_msg*
 nng_msg_unique(nng_msg *m)
 {
-		nng_msg *m2;
-		m2= nni_msg_unique(m);
-		return m2;
+        nng_msg *m2;
+        m2= nni_msg_unique(m);
+        return m2;
+}
+
+int
+nng_msg_refcnt(nng_msg *m)
+{
+        return nni_msg_refcnt(m);
 }
 
 void
@@ -1952,10 +1958,17 @@ nng_aio_set_pipeline(nng_aio *aio, uint32_t id)
 {
         nni_aio_set_pipeline(aio, id);
 }
+
 void
 nng_aio_set_dbtree(nng_aio *aio, void *db)
 {
         nni_aio_set_dbtree(aio, db);
+}
+
+void
+nng_aio_set_msg_pool(nng_aio *aio, void *msg_pool)
+{
+        nni_aio_set_msg_pool(aio, msg_pool);
 }
 
 void *
