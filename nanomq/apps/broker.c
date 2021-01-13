@@ -11,6 +11,7 @@
 
 #include <nng.h>
 #include <mqtt_db.h>
+#include <msg_pool.h>
 #include <hash.h>
 #include <zmalloc.h>
 #include <protocol/mqtt/nano_tcp.h>
@@ -66,7 +67,11 @@ server_cb(void *arg)
 		case RECV:
 			debug_msg("RECV  ^^^^^^^^^^^^^^^^^^^^^ ctx%d ^^^^\n", work->ctx.id);
 			if (smsg != NULL) {
-				nng_msg_free(smsg);
+				if (nng_msg_refcnt(smsg) > 1) {
+					nng_msg_free(smsg);
+				} else {
+					nnl_msg_put(work->msg_pool, &smsg);
+				}
 				smsg = NULL;
 			}
 			if ((rv = nng_aio_result(work->aio)) != 0) {
@@ -116,7 +121,11 @@ server_cb(void *arg)
 				destroy_conn_param(work->cparam);
 
 				work->state = RECV;
-				nng_msg_free(msg);
+				if (nng_msg_refcnt(msg) > 1) {
+					nng_msg_free(msg);
+				} else {
+					nnl_msg_put(work->msg_pool, &msg);
+				}
 				work->msg = NULL;
 				nng_ctx_recv(work->ctx, work->aio);
 				break;
@@ -135,13 +144,19 @@ server_cb(void *arg)
 			work->msg = nng_aio_get_msg(work->aio);
 			work->cparam = nng_msg_get_conn_param(work->msg);
 			if (nng_msg_cmd_type(work->msg) == CMD_PINGREQ) {
-				if (work->msg != NULL) nng_msg_free(work->msg);
+				if (work->msg != NULL){
+					if (nng_msg_refcnt(msg) > 1) {
+						nng_msg_free(msg);
+					} else {
+						nnl_msg_put(work->msg_pool, &msg);
+					}
+				}
 				work->msg   = NULL;
 				work->state = RECV;
 				nng_ctx_recv(work->ctx, work->aio);
 				break;
 			} else if (nng_msg_cmd_type(work->msg) == CMD_SUBSCRIBE) {
-				nng_msg_alloc(&smsg, 0);
+				nnl_msg_get(work->msg_pool, &smsg);
 				work->pid = nng_msg_get_pipe(work->msg);
 				struct client_ctx * cli_ctx;
 				if ((cli_ctx = nng_alloc(sizeof(client_ctx))) == NULL) {
@@ -182,7 +197,7 @@ server_cb(void *arg)
 						*((uint8_t *) nng_msg_body(smsg) + 1));
 				}
 				nng_msg_set_cmd_type(smsg, CMD_SUBACK);
-				nng_msg_free(work->msg);
+				nnl_msg_put(work->msg_pool, &work->msg);
 
 				work->msg = smsg;
 				nng_aio_set_msg(work->aio, work->msg);
@@ -193,7 +208,7 @@ server_cb(void *arg)
 				nng_aio_finish(work->aio, 0);
 				break;
 			} else if (nng_msg_cmd_type(work->msg) == CMD_UNSUBSCRIBE) {
-				nng_msg_alloc(&smsg, 0);
+				nnl_msg_get(work->msg_pool, &smsg);
 				work->unsub_pkt = nng_alloc(sizeof(packet_unsubscribe));
 				if (work->unsub_pkt == NULL) {
 					debug_msg("ERROR: nng_alloc");
@@ -224,7 +239,7 @@ server_cb(void *arg)
 				}
 				// free unsub_pkt
 				destroy_unsub_ctx(work->unsub_pkt);
-				nng_msg_free(work->msg);
+				nnl_msg_put(work->msg_pool, &work->msg);
 
 				work->msg = smsg;
 				// We could add more data to the message here.
@@ -240,11 +255,15 @@ server_cb(void *arg)
 					debug_msg("WAIT nng aio result error: %d", rv);
 					fatal("WAIT nng_ctx_recv/send", rv);
 				}
-				nng_msg_alloc(&smsg, 0);
+				nnl_msg_get(work->msg_pool, &smsg);
 
 				work->pid = nng_msg_get_pipe(work->msg);
 				handle_pub(work, work->pipe_ct);
-				nng_msg_free(work->msg);
+				if (nng_msg_refcnt(work->msg) > 1) {
+					nng_msg_free(work->msg);
+				} else {
+					nnl_msg_put(work->msg_pool, &work->msg);
+				}
 
                 debug_msg("total pipes: %d", work->pipe_ct->total);
 				//TODO rewrite this part.
@@ -273,7 +292,11 @@ server_cb(void *arg)
 						init_pipe_content(work->pipe_ct);
 					}
 					work->state = SEND;
-					nng_msg_free(smsg);
+					if (nng_msg_refcnt(smsg) > 1) {
+						nng_msg_free(smsg);
+					} else {
+						nnl_msg_put(work->msg_pool, &smsg);
+					}
 					nng_aio_finish(work->aio, 0);
 					break;
 				} else {
@@ -283,7 +306,9 @@ server_cb(void *arg)
 				}
 
 				if (work->state != SEND) {
-					if (work->msg != NULL) nng_msg_free(work->msg);
+					if (work->msg != NULL) {
+						nnl_msg_put(work->msg_pool, &work->msg);
+					}
 					work->msg   = NULL;
 					work->state = RECV;
 					nng_ctx_recv(work->ctx, work->aio);
@@ -292,15 +317,24 @@ server_cb(void *arg)
 					   nng_msg_cmd_type(work->msg) == CMD_PUBREC ||
 					   nng_msg_cmd_type(work->msg) == CMD_PUBREL ||
 					   nng_msg_cmd_type(work->msg) == CMD_PUBCOMP ) {
-				nng_msg_free(work->msg);
+				if (nng_msg_refcnt(work->msg) > 1) {
+					nng_msg_free(work->msg);
+				} else {
+					nnl_msg_put(work->msg_pool, &work->msg);
+				}
 				work->msg   = NULL;
 				work->state = RECV;
 				nng_ctx_recv(work->ctx, work->aio);
 				break;
 			} else {
 				debug_msg("broker has nothing to do");
-				if (work->msg != NULL)
-					nng_msg_free(work->msg);
+				if (work->msg != NULL) {
+					if (nng_msg_refcnt(work->msg) > 1) {
+						nng_msg_free(work->msg);
+					} else {
+						nnl_msg_put(work->msg_pool, &work->msg);
+					}
+				}
 				work->msg   = NULL;
 				work->state = RECV;
 				nng_ctx_recv(work->ctx, work->aio);
@@ -311,7 +345,11 @@ server_cb(void *arg)
 		case SEND:
 			debug_msg("SEND  ^^^^^^^^^^^^^^^^^^^^^ ctx%d ^^^^\n", work->ctx.id);
 			if (NULL != smsg) {
-			 	nng_msg_free(smsg);
+				if (nng_msg_refcnt(smsg) > 1) {
+					nng_msg_free(smsg);
+				} else {
+					nnl_msg_put(work->msg_pool, &smsg);
+				}
 				smsg = NULL;
 			}
 			if ((rv = nng_aio_result(work->aio)) != 0) {
@@ -367,7 +405,11 @@ broker(const char *url)
 	int            i;
 	// init tree
 	struct db_tree *db = NULL;
+	nnl_msg_pool * msg_pool = NULL;
+
 	create_db_tree(&db);
+	rv = nnl_msg_pool_create(&msg_pool);
+	if (rv != 0) fatal("msg_pool create error.", rv);
 
 	/*  Create the socket. */
 	rv = nng_nano_tcp0_open(&sock);
@@ -380,7 +422,9 @@ broker(const char *url)
 	for (i = 0; i < PARALLEL; i++) {
 		works[i] = alloc_work(sock);
 		works[i]->db = db;
+		works[i]->msg_pool = msg_pool;
 		nng_aio_set_dbtree(works[i]->aio, db);
+		nng_aio_set_msg_pool(works[i]->aio, msg_pool);
 	}
 
 	if ((rv = nng_listen(sock, url, NULL, 0)) != 0) {

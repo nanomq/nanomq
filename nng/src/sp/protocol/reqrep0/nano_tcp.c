@@ -9,6 +9,7 @@
 
 #include <string.h>
 #include <mqtt_db.h>
+#include <msg_pool.h>
 #include <hash.h>
 
 #include "core/nng_impl.h"
@@ -84,6 +85,7 @@ struct nano_pipe {
     nni_lmq         qlmq, rlmq;
     nni_timer_node  ka_timer;
     nni_timer_node  pipe_qos_timer;
+	nnl_msg_pool *  msg_pool;
 };
 /*
 static void
@@ -205,16 +207,18 @@ nano_ctx_cancel_send(nni_aio *aio, void *arg, int rv)
 static void
 nano_ctx_send(void *arg, nni_aio *aio)
 {
-	nano_ctx * ctx = arg;
-	nano_sock *s   = ctx->sock;
-	nano_pipe *p;
-	nni_msg *  msg;
-	int        rv;
-	size_t     len;
-	uint32_t   pipe;
+	nano_ctx     *ctx = arg;
+	nano_sock    *s   = ctx->sock;
+	nano_pipe    *p;
+	nni_msg      *msg;
+	int           rv;
+	size_t        len;
+	uint32_t      pipe;
+	nnl_msg_pool *msg_pool;
 	//uint32_t   p_id[2],i = 0,fail_count = 0, need_resend = 0;
 
 	msg = nni_aio_get_msg(aio);
+	msg_pool = (nnl_msg_pool *)nni_aio_get_msg_pool(aio);
 
 	if (nni_aio_begin(aio) != 0) {
 		return;
@@ -247,9 +251,17 @@ nano_ctx_send(void *arg, nni_aio *aio)
 		nni_mtx_unlock(&s->lk);
 		nni_aio_set_msg(aio, NULL);
 		//nni_aio_finish(aio, 0, nni_msg_len(msg));
-		nni_msg_free(msg);
+		while (nni_msg_refcnt(msg) > 1) {
+			nni_msg_free(msg);
+		}
+		nnl_msg_put(msg_pool, &msg);
 		return;
 	}
+
+	// TODO should be init in other function
+	p->msg_pool = msg_pool;
+	p->tree     = nni_aio_get_dbtree(aio);
+
     if (nni_msg_cmd_type(msg) == CMD_PUBLISH) {
 		nano_qos_msg_repack(msg, p);
     	if (nni_msg_get_pub_qos(msg) > 0) {
@@ -262,13 +274,16 @@ nano_ctx_send(void *arg, nni_aio *aio)
                 //printf("Warning: QoS message dropped\n");
 				nni_msg *old1;
 				(void) nni_lmq_getq(&p->qlmq, &old1);
-				nni_msg_free(old1);
+				if (nng_msg_refcnt(old1) > 1) {
+					nni_msg_free(old1);
+				} else {
+					nnl_msg_put(msg_pool, &old1);
+				}
 			}
 			nni_lmq_putq(&p->qlmq, msg);
     	}
     }
 
-	p->tree = nni_aio_get_dbtree(aio);
 	if (!p->busy) {
 		p->busy = true;
 		nni_aio_set_msg(&p->aio_send, msg);
@@ -293,7 +308,11 @@ nano_ctx_send(void *arg, nni_aio *aio)
 		printf("warning msg dropped!\n");
         nni_msg *old;
         (void) nni_lmq_getq(&p->rlmq, &old);
-        nni_msg_free(old);
+		if (nng_msg_refcnt(old) > 1) {
+			nni_msg_free(old);
+		} else {
+			nnl_msg_put(msg_pool, &old);
+		}
     }
     nni_lmq_putq(&p->rlmq, msg);
 
@@ -429,21 +448,27 @@ static void
 nano_pipe_fini(void *arg)
 {
 	nano_pipe *p = arg;
-	nng_msg *  msg;
+	nng_msg   *msg;
+	nnl_msg_pool *msg_pool;
 
     debug_msg("##########nano_pipe_fini###############");
+	msg_pool = p->msg_pool;
+
 	if ((msg = nni_aio_get_msg(&p->aio_recv)) != NULL) {
 		nni_aio_set_msg(&p->aio_recv, NULL);
-		nni_msg_free(msg);
+		msg = nni_msg_unique(msg);
+		nnl_msg_put(msg_pool, &msg);
 	}
 
 	if ((msg = nni_aio_get_msg(&p->aio_send)) != NULL) {
 		nni_aio_set_msg(&p->aio_recv, NULL);
-		nni_msg_free(msg);
+		msg = nni_msg_unique(msg);
+		nnl_msg_put(msg_pool, &msg);
 	}
 
 	nni_aio_fini(&p->aio_send);
 	nni_aio_fini(&p->aio_recv);
+	// TODO lmq will nni_msg_free msg, and it should work with nnl_msg_pool
     nni_lmq_fini(&p->qlmq);
 	nni_lmq_fini(&p->rlmq);
 	nni_id_map_fini(&p->nano_db);
@@ -543,6 +568,8 @@ nano_pipe_close(void *arg)
 	nano_ctx * ctx;
 	void *     tree;
 	char *     client_id = NULL;
+	nni_aio   *aio;
+	nni_msg   *msg;
 
 	debug_msg("################# nano_pipe_close ##############");
 	nni_mtx_lock(&s->lk);
@@ -576,15 +603,17 @@ nano_pipe_close(void *arg)
 	nano_msg_free_pipedb(p->pipedb_root);
 
 	while ((ctx = nni_list_first(&p->sendq)) != NULL) {
-		nni_aio *aio;
-		nni_msg *msg;
 		nni_list_remove(&p->sendq, ctx);
 		aio       = ctx->saio;
 		ctx->saio = NULL;
 		msg       = nni_aio_get_msg(aio);
 		nni_aio_set_msg(aio, NULL);
 		nni_aio_finish(aio, 0, nni_msg_len(msg));
-		nni_msg_free(msg);
+		if (nni_msg_refcnt(msg) > 1) {
+			nni_msg_free(msg);
+		} else {
+			nnl_msg_put(p->msg_pool, &msg);
+		}
 	}
 	nni_id_remove(&s->pipes, nni_pipe_id(p->pipe));
 	nni_mtx_unlock(&s->lk);
@@ -605,7 +634,12 @@ nano_pipe_send_cb(void *arg)
 	debug_msg("################ nano_pipe_send_cb %d ################", p->id);
 	//retry here
 	if (nni_aio_result(&p->aio_send) != 0) {
-		nni_msg_free(nni_aio_get_msg(&p->aio_send));
+		msg = nni_aio_get_msg(&p->aio_send);
+		if (nni_msg_refcnt(msg) > 1) {
+			nni_msg_free(msg);
+		} else {
+			nnl_msg_put(p->msg_pool, &msg);
+		}
 		nni_aio_set_msg(&p->aio_send, NULL);
 		nni_pipe_close(p->pipe);
 		return;
@@ -794,12 +828,16 @@ nano_pipe_recv_cb(void *arg)
                 NNI_GET16(ptr, pubid);
                 ptr = ptr + 2 + pubid;
                 NNI_GET16(ptr, pubid);
-				debug_msg("%d %d", pubid, ackid);
+                debug_msg("%d %d", pubid, ackid);
                 if(pubid != ackid) {
                     (void) nni_lmq_putq(&p->qlmq, lmq_msg);
                 } else {
                     debug_msg("Found ACK msg packet id: %d deleting msg", ackid);
-                    nni_msg_free(lmq_msg);
+                    if (nni_msg_refcnt(lmq_msg) > 1) {
+                        nni_msg_free(lmq_msg);
+                    } else {
+                        nnl_msg_put(p->msg_pool, &lmq_msg);
+                    }
                     break;
                 }
                 index++;
@@ -815,7 +853,10 @@ nano_pipe_recv_cb(void *arg)
 		// If we are closed, then we can't return data.
 		nni_aio_set_msg(&p->aio_recv, NULL);
 		nni_mtx_unlock(&s->lk);
-		nni_msg_free(msg);
+		while (nni_msg_refcnt(msg) > 1) {
+			nni_msg_free(msg);
+		}
+		nnl_msg_put(p->msg_pool, &msg);
 		debug_msg("ERROR: pipe is closed abruptly!!");
 		return;
 	}
@@ -857,7 +898,10 @@ drop:
 	nni_aio_set_msg(&p->aio_recv, NULL);
 	nni_pipe_recv(p->pipe, &p->aio_recv);
 	nni_mtx_unlock(&s->lk);
-	nni_msg_free(msg);
+	while (nni_msg_refcnt(msg) > 1) {
+		nni_msg_free(msg);
+	}
+	nnl_msg_put(p->msg_pool, &msg);
 	debug_msg("Warning:dropping msg");
 	return;
 }
