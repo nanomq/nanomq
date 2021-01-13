@@ -48,13 +48,14 @@ uint8_t nnl_msg_put(nnl_msg_pool * pool, nng_msg ** msgp)
 {
 	uint8_t rv = 0;
 	if (*msgp == NULL) {
-		log("msg is empty.");
+		log("NNL_ERROR!!! msg is empty.");
 	}
 	if (nnl_msg_pool_full(pool)) {
 		rv = 1;
 	}
 	if (rv == 0) {
 		pool->pool[pool->footer] = *msgp;
+		*msgp = NULL;
 		pool->footer = (pool->footer+1)%pool->capacity;
 		pool->used--;
 	}
