@@ -1292,6 +1292,7 @@ NNG_DECL uint8_t *nng_msg_variable_ptr(nng_msg *msg);
 NNG_DECL uint8_t *nng_msg_payload_ptr(nng_msg *msg);
 NNG_DECL void     nng_msg_set_payload_ptr(nng_msg *msg, uint8_t *ptr);
 NNG_DECL void     nng_msg_set_remaining_len(nng_msg *msg, size_t len);
+NNG_DECL int      nng_msg_refcnt(nng_msg *m);
 NNG_DECL void     nng_msg_clone(nng_msg *msg);
 NNG_DECL void     nng_msg_set_cmd_type(nng_msg *m, uint8_t cmd);
 NNG_DECL void     nng_msg_preset_qos(nng_msg *m, uint8_t qos);
@@ -1302,6 +1303,7 @@ NNG_DECL uint32_t *nng_aio_get_pipes(nng_aio *aio);
 NNG_DECL void      nng_aio_set_pipeline(nng_aio *aio, uint32_t id);
 // NNG_DECL void nng_aio_set_pipelength(nng_aio *aio, uint32_t len);
 NNG_DECL void  nng_aio_set_dbtree(nng_aio *aio, void *db);
+NNG_DECL void  nng_aio_set_msg_pool(nng_aio *, void *);
 NNG_DECL void *nng_msg_get_conn_param(nng_msg *msg);
 
 NNG_DECL const uint8_t *conn_param_get_clentid(conn_param *cparam);

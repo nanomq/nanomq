@@ -338,6 +338,11 @@ nni_msg_unique(nni_msg *m)
 	return (m2);
 }
 
+int nni_msg_refcnt(nni_msg *m)
+{
+	return nni_atomic_get(&m->m_refcnt);
+}
+
 // nni_msg_pull_up ensures that the message is unique, and that any header
 // is merged with the message.  The main purpose of doing this is to break
 // up the inproc binding -- protocols send messages to inproc with a
