@@ -35,13 +35,13 @@ char * test_msg_pool()
 	rv = 0;
 	for(int i=0; i<65; i++){
 		rv |= nnl_msg_get(mp, &msgs[i]);
-		log("rv: [%d] address [%x]", rv, msgs[i]);
+		log("rv: [%d] address [%p]", rv, msgs[i]);
 	}
 	rv = 0;
 	log("boundary test1 for put msg?");
 	for(int i=0; i<65; i++){
 		rv |= nnl_msg_put(mp, &msgs[i]);
-		log("rv: [%d] address [%x]", rv, msgs[i]);
+		log("rv: [%d] address [%p]", rv, msgs[i]);
 	}
 	log("resize 64 ?");
 	CHECK(nnl_msg_pool_resize(mp, 64) == 0);
@@ -51,7 +51,7 @@ char * test_msg_pool()
 	rv = 0;
 	for(int i=0; i<32; i++){
 		rv |= nnl_msg_get(mp, &msgs[i]);
-		log("rv: [%d] address [%x]", rv, msgs[i]);
+		log("rv: [%d] address [%p]", rv, msgs[i]);
 	}
 	log("resize 32 ?");
 	CHECK(nnl_msg_pool_resize(mp, 32) == 0);
@@ -61,7 +61,7 @@ char * test_msg_pool()
 	log("boundary test2 for put msg?");
 	for(int i=0; i<32; i++){
 		rv |= nnl_msg_put(mp, &msgs[i]);
-		log("rv: [%d] address [%x]", rv, msgs[i]);
+		log("rv: [%d] address [%p]", rv, msgs[i]);
 	}
 	log("delete msg pool.");
 	nnl_msg_pool_delete(mp);
