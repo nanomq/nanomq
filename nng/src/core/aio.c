@@ -834,6 +834,19 @@ nni_aio_get_dbtree(nni_aio *aio)
 {
        return(aio->db);
 }
+
+void
+nni_aio_set_msg_pool(nni_aio *aio, void *msg_pool)
+{
+       aio->msg_pool = msg_pool;
+}
+
+void*
+nni_aio_get_msg_pool(nni_aio *aio)
+{
+       return(aio->msg_pool);
+}
+
 /*
 void
 nni_aio_set_pipes(nni_aio *aio, uint32_t *pipes)
