@@ -68,7 +68,7 @@ uint8_t nnl_msg_pool_put(nnl_msg_pool * pool, nng_msg * msg)
 uint8_t nnl_msg_get(nnl_msg_pool * pool, nng_msg ** msgp)
 {
 	uint8_t rv = 0;
-	if (nnl_msg_pool_empty(pool)) {
+	if (nnl_msg_pool_used(pool)/nnl_msg_pool_capacity(pool) > 2/3) {
 		rv |= nnl_msg_pool_resize(pool, 2 * pool->capacity);
 	}
 	if (rv == 0) {
@@ -119,6 +119,7 @@ uint8_t nnl_msg_pool_resize(nnl_msg_pool * pool, uint32_t size)
 	nng_mtx_lock(pool_mutex);
 	nng_mtx_lock(msg_mutex);
 
+	debug("resize to [%d]", size);
 	if (rv == 0) {
 		newpool = (nng_msg **)zmalloc(size * sizeof(nng_msg*));
 		for (i=0; i<size; i++) {
@@ -191,6 +192,31 @@ uint32_t nnl_msg_pool_capacity(nnl_msg_pool * pool)
 uint32_t nnl_msg_pool_used(nnl_msg_pool * pool)
 {
 	return (pool->fronter-pool->footer)%pool->capacity;
+}
+
+uint8_t nnl_msg_put_force(nnl_msg_pool * pool, nng_msg ** msgp)
+{
+	uint8_t  rv  = 0;
+	nng_msg *msg = *msgp;
+
+	if (msg == NULL) {
+		log("NNL_ERROR!!! msg is empty.");
+		rv = 1;
+	}
+	if (nnl_msg_pool_full(pool)) {
+		rv = 1;
+	}
+	if (rv == 0) {
+		nng_mtx_lock(msg_mutex);
+		while (nng_msg_refcnt(msg) > 1) {
+			nng_msg_free(msg);
+		}
+		rv = nnl_msg_pool_put(pool, msg);
+		*msgp = NULL;
+		nng_mtx_unlock(msg_mutex);
+	}
+	log("---------FORCE------------MSG PUTTED AND USED NOW IS (%d)", pool->used);
+	return rv;
 }
 
 
