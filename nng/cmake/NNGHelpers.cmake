@@ -94,6 +94,8 @@ function(nng_test NAME)
     if (NNG_TESTS)
         add_executable(${NAME} ${NAME}.c ${ARGN})
         target_link_libraries(${NAME} nng_testing)
+        target_link_libraries(${NAME} nanolib)
+        target_link_libraries(${NAME} nng)
         target_include_directories(${NAME} PRIVATE
                 ${PROJECT_SOURCE_DIR}/tests
                 ${PROJECT_SOURCE_DIR}/src
@@ -107,6 +109,7 @@ function(nng_test_if COND NAME)
     if (${COND} AND NNG_TESTS)
         add_executable(${NAME} ${NAME}.c ${ARGN})
         target_link_libraries(${NAME} nng_testing)
+        target_link_libraries(${NAME} nanolib)
         target_include_directories(${NAME} PRIVATE
                 ${PROJECT_SOURCE_DIR}/tests
                 ${PROJECT_SOURCE_DIR}/src
