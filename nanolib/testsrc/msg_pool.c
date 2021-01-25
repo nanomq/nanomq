@@ -11,10 +11,6 @@ char * test_msg_pool()
 	uint8_t rv = 0;
 	log("create msg pool?");
 	CHECK(nnl_msg_pool_create(&mp) == 0);
-	log("capacity 64?");
-	CHECK(nnl_msg_pool_capacity(mp) == 64);
-	log("used 0 ?");
-	CHECK(nnl_msg_pool_used(mp) == 0);
 	log("get?");
 	CHECK(nnl_msg_get(mp, &msg) == 0);
 	log("used 1 ?");
