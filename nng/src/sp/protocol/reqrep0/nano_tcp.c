@@ -220,7 +220,7 @@ nano_ctx_send(void *arg, nni_aio *aio)
 	//uint32_t   p_id[2],i = 0,fail_count = 0, need_resend = 0;
 
 	msg = nni_aio_get_msg(aio);
-	msg_pool = (nnl_msg_pool *)nni_aio_get_msg_pool(aio);
+	msg_pool = nni_msg_get_msg_pool(msg);
 
 	if (nni_aio_begin(aio) != 0) {
 		return;
@@ -251,10 +251,7 @@ nano_ctx_send(void *arg, nni_aio *aio)
 		nni_aio_set_msg(aio, NULL);
 		//nni_aio_finish(aio, 0, nni_msg_len(msg));
 		nni_println("ERROR: pipe is gone, pub failed");
-		while (nni_msg_refcnt(msg) > 1) {
-			nni_msg_free(msg);
-		}
-		nnl_msg_put(msg_pool, &msg);
+		nnl_msg_put_force(msg_pool, &msg);
 		return;
 	}
 	nni_mtx_unlock(&s->lk);
@@ -286,11 +283,7 @@ nano_ctx_send(void *arg, nni_aio *aio)
          		debug_msg("Warning: QoS message dropped");
 				nni_msg *old1;
 				(void) nni_lmq_getq(&p->qlmq, &old1);
-				if (nng_msg_refcnt(old1) > 1) {
-					nni_msg_free(old1);
-				} else {
-					nnl_msg_put(msg_pool, &old1);
-				}
+				nnl_msg_put(msg_pool, &old1);
 			}
 			nni_lmq_putq(&p->qlmq, msg);
     	}
@@ -309,7 +302,7 @@ nano_ctx_send(void *arg, nni_aio *aio)
 	}
 
 	if ((rv = nni_aio_schedule(aio, nano_ctx_cancel_send, ctx)) != 0) {
-		nni_msg_free(msg);
+		nnl_msg_put(msg_pool, &msg);
 		nni_mtx_unlock(&p->lk);
 		//nni_aio_finish_error(aio, rv);
 		return;
@@ -322,11 +315,7 @@ nano_ctx_send(void *arg, nni_aio *aio)
 		printf("warning msg dropped!\n");
         nni_msg *old;
         (void) nni_lmq_getq(&p->rlmq, &old);
-		if (nng_msg_refcnt(old) > 1) {
-			nni_msg_free(old);
-		} else {
-			nnl_msg_put(msg_pool, &old);
-		}
+        nnl_msg_put(msg_pool, &old);
     }
     nni_lmq_putq(&p->rlmq, msg);
 
@@ -462,6 +451,7 @@ static void
 nano_pipe_fini(void *arg)
 {
 	nano_pipe *p = arg;
+<<<<<<< HEAD
 	nng_msg *  msg;
 	nnl_msg_pool *msg_pool;
 	void *     tree;
@@ -474,14 +464,18 @@ nano_pipe_fini(void *arg)
 
 	if ((msg = nni_aio_get_msg(&p->aio_recv)) != NULL) {
 		nni_aio_set_msg(&p->aio_recv, NULL);
-		msg = nni_msg_unique(msg);
-		nnl_msg_put(msg_pool, &msg);
+		msg_pool = nni_msg_get_msg_pool(msg);
+		if (msg_pool) {
+			nnl_msg_put_force(msg_pool, &msg);
+		}
 	}
 
 	if ((msg = nni_aio_get_msg(&p->aio_send)) != NULL) {
 		nni_aio_set_msg(&p->aio_recv, NULL);
-		msg = nni_msg_unique(msg);
-		nnl_msg_put(msg_pool, &msg);
+		msg_pool = nni_msg_get_msg_pool(msg);
+		if (msg_pool) {
+			nnl_msg_put_force(msg_pool, &msg);
+		}
 	}
 
 	//MQTT_DB
@@ -609,6 +603,8 @@ nano_pipe_close(void *arg)
 	nano_pipe *p = arg;
 	nano_sock *s = p->rep;
 	nano_ctx * ctx;
+	nni_msg   *msg;
+	nnl_msg_pool * msg_pool;
 
 	debug_msg("################# nano_pipe_close ##############");
 	nni_mtx_lock(&s->lk);
@@ -633,11 +629,8 @@ nano_pipe_close(void *arg)
 		msg       = nni_aio_get_msg(aio);
 		nni_aio_set_msg(aio, NULL);
 		nni_aio_finish(aio, 0, nni_msg_len(msg));
-		if (nni_msg_refcnt(msg) > 1) {
-			nni_msg_free(msg);
-		} else {
-			nnl_msg_put(p->msg_pool, &msg);
-		}
+		msg_pool = nni_msg_get_msg_pool(msg);
+		nnl_msg_put(msg_pool, &msg);
 	}
 	nni_id_remove(&s->pipes, nni_pipe_id(p->pipe));
 	nni_mtx_unlock(&s->lk);
@@ -652,6 +645,7 @@ nano_pipe_send_cb(void *arg)
 	nni_aio *  aio;
 	nni_msg *  msg;
 	size_t     len;
+	nnl_msg_pool * msg_pool;
 	//uint32_t   index = 0;
 	//uint32_t * pipes;
 
@@ -659,11 +653,8 @@ nano_pipe_send_cb(void *arg)
 	//retry here
 	if (nni_aio_result(&p->aio_send) != 0) {
 		msg = nni_aio_get_msg(&p->aio_send);
-		if (nni_msg_refcnt(msg) > 1) {
-			nni_msg_free(msg);
-		} else {
-			nnl_msg_put(p->msg_pool, &msg);
-		}
+		msg_pool = nni_msg_get_msg_pool(msg);
+		nnl_msg_put(msg_pool, &msg);
 		nni_aio_set_msg(&p->aio_send, NULL);
 		nni_pipe_close(p->pipe);
 		return;
@@ -780,6 +771,7 @@ nano_ctx_recv(void *arg, nni_aio *aio)
 static void
 nano_pipe_recv_cb(void *arg)
 {
+<<<<<<< HEAD
 	nano_pipe *   p = arg;
 	nano_sock *   s = p->rep;
 	nano_ctx *    ctx;
@@ -787,6 +779,7 @@ nano_pipe_recv_cb(void *arg)
 	uint8_t *     header;
 	nni_aio *     aio;
 	nano_pipe_db *pipe_db;
+	nnl_msg_pool *msg_pool;
 	size_t        len, index;
 	nni_pipe *    npipe;
 	int           rv;
@@ -803,6 +796,7 @@ nano_pipe_recv_cb(void *arg)
 	if (msg == NULL) {
 		goto drop;
 	}
+	msg_pool = nni_msg_get_msg_pool(msg);
 
 	header = nng_msg_header(msg);
 	debug_msg("start nano_pipe_recv_cb pipe: %p p_id %d TYPE: %x ===== header: %x %x header len: %zu\n",
@@ -856,11 +850,7 @@ nano_pipe_recv_cb(void *arg)
                     (void) nni_lmq_putq(&p->qlmq, lmq_msg);
                 } else {
                     debug_msg("Found ACK msg packet id: %d deleting msg", ackid);
-                    if (nni_msg_refcnt(lmq_msg) > 1) {
-                        nni_msg_free(lmq_msg);
-                    } else {
-                        nnl_msg_put(p->msg_pool, &lmq_msg);
-                    }
+                    nnl_msg_put(msg_pool, &lmq_msg);
                     break;
                 }
                 index++;
@@ -876,10 +866,8 @@ nano_pipe_recv_cb(void *arg)
 	if (p->closed) {
 		// If we are closed, then we can't return data.
 		nni_aio_set_msg(&p->aio_recv, NULL);
-		while (nni_msg_refcnt(msg) > 1) {
-			nni_msg_free(msg);
-		}
-		nnl_msg_put(p->msg_pool, &msg);
+		nnl_msg_put_force(msg_pool, &msg);
+		debug_msg("----------------------msg pool size %d", nnl_msg_pool_used(msg_pool));
 		debug_msg("ERROR: pipe is closed abruptly!!");
 		return;
 	}
@@ -920,10 +908,8 @@ nano_pipe_recv_cb(void *arg)
 drop:
 	nni_aio_set_msg(&p->aio_recv, NULL);
 	nni_pipe_recv(p->pipe, &p->aio_recv);
-	while (nni_msg_refcnt(msg) > 1) {
-		nni_msg_free(msg);
-	}
-	nnl_msg_put(p->msg_pool, &msg);
+	nnl_msg_put_force(msg_pool, &msg);
+	debug_msg("----------------------msg pool size %d", nnl_msg_pool_used(msg_pool));
 	debug_msg("Warning:dropping msg");
 	return;
 }

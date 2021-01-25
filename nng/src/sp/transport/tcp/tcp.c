@@ -6,6 +6,7 @@
 #include <string.h>
 #include <poll.h>
 #include <mqtt_db.h>
+#include <msg_pool.h>
 
 #include "include/nng_debug.h"
 #include "core/nng_impl.h"
@@ -14,6 +15,7 @@
 #include "nng/protocol/mqtt/mqtt_parser.h"
 #include "nng/protocol/mqtt/mqtt.h"
 
+static nnl_msg_pool * msg_pool;
 
 // TCP transport.   Platform specific TCP operations must be
 // supplied as well.
@@ -173,7 +175,7 @@ tcptran_pipe_fini(void *arg)
 	nni_aio_free(p->txaio);
 	nni_aio_free(p->negoaio);
 	nng_stream_free(p->conn);
-	nni_msg_free(p->rxmsg);
+	nnl_msg_put_force(msg_pool, &p->rxmsg);
 	nni_mtx_fini(&p->mtx);
 	NNI_FREE_STRUCT(p);
 }
@@ -393,6 +395,7 @@ tcptran_pipe_send_cb(void *arg)
 	debug_msg("############### tcptran_pipe_send_cb ################");
 
 	if ((rv = nni_aio_result(txaio)) != 0) {
+		debug_msg("-------- error so i retrun");
 		nni_pipe_bump_error(p->npipe, rv);
 		nni_aio_list_remove(aio);
 		nni_mtx_unlock(&p->mtx);
@@ -422,7 +425,7 @@ tcptran_pipe_send_cb(void *arg)
 	nni_mtx_unlock(&p->mtx);
 
 	nni_aio_set_msg(aio, NULL);
-	nni_msg_free(msg);
+	nnl_msg_put(msg_pool, &msg);
 	nni_aio_finish_sync(aio, 0, n);
 }
 
@@ -517,10 +520,18 @@ tcptran_pipe_recv_cb(void *arg)
 			goto recv_error;
 		}
 
+		if(rv = nnl_msg_get(msg_pool, &p->rxmsg) != 0) {
+			debug_msg("mem error %ld\n", (size_t)len);
+			goto recv_error;
+		}
+		nni_msg_realloc(p->rxmsg, (size_t)len);
+		nni_msg_set_msg_pool(p->rxmsg, msg_pool);
+		/*
 		if ((rv = nni_msg_alloc(&p->rxmsg, (size_t) len)) != 0) {
 			debug_msg("mem error %ld\n", (size_t)len);
 			goto recv_error;
 		}
+		*/
 
 		// Submit the rest of the data for a read -- seperate Fixed header with variable header and so on
 		//  we want to read the entire message now.
@@ -640,7 +651,7 @@ recv_error:
 	nni_pipe_bump_error(p->npipe, rv);
 	nni_mtx_unlock(&p->mtx);
 
-	nni_msg_free(msg);
+	nnl_msg_put_force(msg_pool, &msg);
 	nni_aio_finish_error(aio, rv);
 	debug_msg("tcptran_pipe_recv_cb: recv error rv: %d\n", rv);
 	return;
@@ -1318,6 +1329,12 @@ tcptran_ep_bind(void *arg)
 	nni_mtx_lock(&ep->mtx);
 	rv = nng_stream_listener_listen(ep->listener);
 	nni_mtx_unlock(&ep->mtx);
+
+	if ((rv = (int)nnl_msg_pool_create(&msg_pool)) != 0) {
+		nnl_msg_pool_delete(msg_pool);
+		return (rv);
+	}
+	debug_msg("----------------------------msg pool create(CAP %d)", nnl_msg_pool_capacity(msg_pool));
 
 	return (rv);
 }
