@@ -14,7 +14,6 @@ struct nnl_msg_pool {
 	uint32_t    used;
 	uint32_t    fronter;
 	uint32_t    footer;
-	uint8_t     mutex;
 	nng_msg  ** pool_start;
 	nng_msg  ** pool;
 };
@@ -23,6 +22,8 @@ typedef struct nnl_msg_pool nnl_msg_pool;
 uint8_t nnl_msg_pool_create(nnl_msg_pool **);
 uint8_t nnl_msg_get(nnl_msg_pool *, nng_msg **);
 uint8_t nnl_msg_put(nnl_msg_pool *, nng_msg **);
+uint8_t nnl_msg_pool_get(nnl_msg_pool *, nng_msg **);
+uint8_t nnl_msg_pool_put(nnl_msg_pool *, nng_msg *);
 uint32_t nnl_msg_pool_capacity(nnl_msg_pool *);
 uint32_t nnl_msg_pool_used(nnl_msg_pool *);
 uint8_t nnl_msg_pool_resize(nnl_msg_pool *, uint32_t);
