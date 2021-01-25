@@ -1286,6 +1286,7 @@ NNG_DECL void   nng_aio_finish_error(nng_aio *aio, int rv);
 NNG_DECL void   nng_aio_finish_sync(nng_aio *aio, int rv);
 NNG_DECL int    nng_msg_cmd_type(nng_msg *msg);
 NNG_DECL void * nng_msg_get_conn_param(nng_msg *msg);
+NNG_DECL void * nng_msg_get_msg_pool(nng_msg *msg);
 NNG_DECL size_t nng_msg_remaining_len(nng_msg *msg);
 NNG_DECL uint8_t *nng_msg_header_ptr(nng_msg *msg);
 NNG_DECL uint8_t *nng_msg_variable_ptr(nng_msg *msg);

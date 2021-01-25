@@ -9,6 +9,7 @@
 //
 
 #include <string.h>
+#include <msg_pool.h>
 
 #include "core/nng_impl.h"
 #include "nng/protocol/mqtt/mqtt_parser.h"
@@ -36,11 +37,11 @@ struct nng_msg {
 	// FOR NANOMQ
 	size_t  remaining_len;
 	uint8_t CMD_TYPE;
-	// uint8_t          *variable_ptr;         //equal to m_body
 	uint8_t *        payload_ptr; // payload
 	nni_time         times;
 	nano_conn_param *cparam;
 	uint8_t          qos;
+	nnl_msg_pool    *msg_pool;
 };
 
 #if 0
@@ -315,6 +316,7 @@ nni_chunk_trim_u32(nni_chunk *ch)
 void
 nni_msg_clone(nni_msg *m)
 {
+	debug_msg("--------------NNG MSG CLONE");
 	nni_atomic_inc(&m->m_refcnt);
 }
 
@@ -446,6 +448,7 @@ void
 nni_msg_free(nni_msg *m)
 {
 	if ((m != NULL) && (nni_atomic_dec_nv(&m->m_refcnt) == 0)) {
+	//	debug_msg("-------------------NNG MSG FREE");
 		nni_chunk_free(&m->m_body);
 		NNI_FREE_STRUCT(m);
 	}
@@ -830,3 +833,16 @@ nano_msg_ubsub_free(nano_pipe_db *db)
 	nng_free(db, sizeof(nano_pipe_db));
 	return;
 }
+
+void
+nni_msg_set_msg_pool(nni_msg * msg, nnl_msg_pool * msg_pool)
+{
+	msg->msg_pool = msg_pool;
+}
+
+nnl_msg_pool *
+nni_msg_get_msg_pool(nni_msg * msg)
+{
+	return msg->msg_pool;
+}
+

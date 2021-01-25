@@ -12,6 +12,7 @@
 #define CORE_MESSAGE_H
 
 #include <packet.h>
+#include <msg_pool.h>
 
 // Internally used message API.  Again, this is not part of our public API.
 // "trim" operations work from the front, and "chop" work from the end.
@@ -75,6 +76,8 @@ extern uint8_t       nni_msg_get_preset_qos(nni_msg *m);
 extern uint16_t      nni_msg_get_pub_pid(nni_msg *m);
 extern void          nni_msg_set_qos(nni_msg *m, uint8_t qos);
 extern int           nni_msg_refcnt(nni_msg *m);
+extern void          nni_msg_set_msg_pool(nni_msg *, nnl_msg_pool *);
+extern nnl_msg_pool *nni_msg_get_msg_pool(nni_msg *);
 
 extern conn_param *nni_msg_get_conn_param(nni_msg *m);
 

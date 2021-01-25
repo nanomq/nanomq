@@ -1979,6 +1979,12 @@ nng_msg_get_conn_param(nng_msg *msg)
 	return p;
 }
 
+void *
+nng_msg_get_msg_pool(nng_msg *msg)
+{
+	return nni_msg_get_msg_pool(msg);
+}
+
 void
 nng_msg_set_cmd_type(nng_msg *m, uint8_t cmd)
 {
