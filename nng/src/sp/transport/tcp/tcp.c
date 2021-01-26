@@ -511,11 +511,13 @@ tcptran_pipe_recv_cb(void *arg)
 			goto recv_error;
 		}
 
-		if(rv = nnl_msg_get(msg_pool, &p->rxmsg) != 0) {
+		if (rv = nnl_msg_get(msg_pool, &p->rxmsg) != 0) {
 			debug_msg("mem error %ld\n", (size_t)len);
 			goto recv_error;
 		}
-		nni_msg_realloc(p->rxmsg, (size_t)len);
+		if (len > NNL_MSG_SIZE_DEFAULT) {
+			nni_msg_realloc(p->rxmsg, (size_t)len);
+		}
 		nni_msg_set_msg_pool(p->rxmsg, msg_pool);
 		/*
 		if ((rv = nni_msg_alloc(&p->rxmsg, (size_t) len)) != 0) {

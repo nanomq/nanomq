@@ -220,7 +220,6 @@ struct nng_aio {
 	// uint32_t *      pipes;
 	// uint32_t        pipe_len;
 	void *   db;
-	void *   msg_pool;
 	uint32_t pipe;
 };
 

@@ -86,7 +86,6 @@ struct nano_pipe {
     nni_lmq         qlmq, rlmq;
     nni_timer_node  ka_timer;
     nni_timer_node  pipe_qos_timer;
-	nnl_msg_pool *  msg_pool;
 };
 /*
 static void
@@ -256,7 +255,6 @@ nano_ctx_send(void *arg, nni_aio *aio)
 	nni_mtx_lock(&p->lk);
 
 	// TODO should be init in other function
-	p->msg_pool = msg_pool;
 	p->tree     = nni_aio_get_dbtree(aio);
 
     if (nni_msg_cmd_type(msg) == CMD_PUBLISH) {
