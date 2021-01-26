@@ -1965,12 +1965,6 @@ nng_aio_set_dbtree(nng_aio *aio, void *db)
         nni_aio_set_dbtree(aio, db);
 }
 
-void
-nng_aio_set_msg_pool(nng_aio *aio, void *msg_pool)
-{
-        nni_aio_set_msg_pool(aio, msg_pool);
-}
-
 void *
 nng_msg_get_conn_param(nng_msg *msg)
 {

@@ -837,7 +837,6 @@ nano_pipe_recv_cb(void *arg)
 		// If we are closed, then we can't return data.
 		nni_aio_set_msg(&p->aio_recv, NULL);
 		nnl_msg_put_force(msg_pool, &msg);
-		debug_msg("----------------------msg pool size %d", nnl_msg_pool_used(msg_pool));
 		debug_msg("ERROR: pipe is closed abruptly!!");
 		return;
 	}
@@ -879,7 +878,6 @@ drop:
 	nni_aio_set_msg(&p->aio_recv, NULL);
 	nni_pipe_recv(p->pipe, &p->aio_recv);
 	nnl_msg_put_force(msg_pool, &msg);
-	debug_msg("----------------------msg pool size %d", nnl_msg_pool_used(msg_pool));
 	debug_msg("Warning:dropping msg");
 	return;
 }
