@@ -171,8 +171,6 @@ extern void      nni_aio_get_sockaddr(nni_aio *, nng_sockaddr *);
 extern void      nni_aio_set_pipeline(nni_aio *, uint32_t id);
 extern void      nni_aio_set_dbtree(nni_aio *, void *);
 extern void *    nni_aio_get_dbtree(nni_aio *);
-extern void      nni_aio_set_msg_pool(nni_aio *, void *);
-extern void *    nni_aio_get_msg_pool(nni_aio *);
 extern uint32_t  nni_aio_get_pipeline(nni_aio *);
 extern void      nni_aio_set_pipes(nni_aio *, uint32_t *);
 extern void      nni_aio_set_pipelength(nni_aio *, uint32_t);

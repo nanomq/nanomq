@@ -391,7 +391,6 @@ tcptran_pipe_send_cb(void *arg)
 	debug_msg("############### tcptran_pipe_send_cb ################");
 
 	if ((rv = nni_aio_result(txaio)) != 0) {
-		debug_msg("-------- error so i retrun");
 		nni_pipe_bump_error(p->npipe, rv);
 		nni_aio_list_remove(aio);
 		nni_mtx_unlock(&p->mtx);
