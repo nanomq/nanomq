@@ -5,6 +5,10 @@
 #include <stdint.h>
 #include <nng/nng.h>
 
+#ifndef NNL_MSG_SIZE_DEFAULT
+#define NNL_MSG_SIZE_DEFAULT 64
+#endif
+
 #ifndef NANOLIB_MSG_POOL_SIZE
 #define NANOLIB_MSG_POOL_SIZE 64
 #endif

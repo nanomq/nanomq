@@ -25,7 +25,7 @@ uint8_t nnl_msg_pool_create(nnl_msg_pool ** poolp)
 
 	if (pool->pool != NULL && rv == 0) {
 		for (i=0; i<pool->capacity; i++) {
-			rv = rv | nng_msg_alloc(&pool->pool[i], 0);
+			rv = rv | nng_msg_alloc(&pool->pool[i], NNL_MSG_SIZE_DEFAULT);
 		}
 	}
 
@@ -144,7 +144,7 @@ uint8_t nnl_msg_pool_resize(nnl_msg_pool * pool, uint32_t size)
 		// resize to a larger list
 		for (i=0; i<size; i++) {
 			if (newpool[i] == NULL) {
-				rv = rv | nng_msg_alloc(&newpool[i], 0);
+				rv = rv | nng_msg_alloc(&newpool[i], NNL_MSG_SIZE_DEFAULT);
 				log_info("alloc [%d] [%p]", i%size, newpool[i]);
 			}
 		}
