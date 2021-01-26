@@ -15,7 +15,7 @@ if (NNG_TESTS)
      macro (add_nng_perf NAME)
         add_executable (${NAME} perf.c)
         target_link_libraries (${NAME} nng nng_private)
-		target_link_libraries(${NAME} nanolib)
+        target_link_libraries (${NAME} nanolib)
     endmacro (add_nng_perf)
 
     add_nng_perf(remote_lat)

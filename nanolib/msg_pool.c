@@ -33,7 +33,7 @@ uint8_t nnl_msg_pool_create(nnl_msg_pool ** poolp)
 		rv |= (uint8_t)nng_mtx_alloc(&msg_mutex);
 		rv |= (uint8_t)nng_mtx_alloc(&pool_mutex);
 		if (msg_mutex == 0 || pool_mutex == 0) {
-			log("error in msg mutex ------------------------------------");
+			log_err("error in msg mutex ------------------------------------");
 		}
 	}
 
@@ -76,7 +76,7 @@ uint8_t nnl_msg_get(nnl_msg_pool * pool, nng_msg ** msgp)
 		nnl_msg_pool_get(pool, msgp);
 		nng_mtx_unlock(msg_mutex);
 	}
-	log("--------------------------MSG GETTED AND USED NOW IS (%d)", pool->used);
+	log_info("--------------------------MSG GETTED AND USED NOW IS (%d)", pool->used);
 	return rv;
 }
 
@@ -86,7 +86,7 @@ uint8_t nnl_msg_put(nnl_msg_pool * pool, nng_msg ** msgp)
 	nng_msg *msg = *msgp;
 
 	if (msg == NULL) {
-		log("NNL_ERROR!!! msg is empty.");
+		log_err("NNL_ERROR!!! msg is empty.");
 		rv = 1;
 	}
 	if (nnl_msg_pool_full(pool)) {
@@ -102,7 +102,7 @@ uint8_t nnl_msg_put(nnl_msg_pool * pool, nng_msg ** msgp)
 		}
 		nng_mtx_unlock(msg_mutex);
 	}
-	log("--------------------------MSG PUTTED AND USED NOW IS (%d)", pool->used);
+	log_info("--------------------------MSG PUTTED AND USED NOW IS (%d)", pool->used);
 	return rv;
 }
 
@@ -133,19 +133,19 @@ uint8_t nnl_msg_pool_resize(nnl_msg_pool * pool, uint32_t size)
 		end = start + (size < pool->capacity ? size : pool->capacity);
 		// copy msgs using & remain
 		for (i=start; i<end; i++) {
-			log("copy [%d] -> [%d] [%p]", i%pool->capacity, i-start, pool->pool[i%pool->capacity]);
+			log_info("copy [%d] -> [%d] [%p]", i%pool->capacity, i-start, pool->pool[i%pool->capacity]);
 			newpool[i-start] = pool->pool[i%pool->capacity];
 		}
 		// resize to a smaller list
 		for (i=end; i<start+pool->capacity; i++) {
-			log("free [%d] [%p]", i%pool->capacity, pool->pool[i%pool->capacity]);
+			log_info("free [%d] [%p]", i%pool->capacity, pool->pool[i%pool->capacity]);
 			nng_msg_free(pool->pool[i%pool->capacity]);
 		}
 		// resize to a larger list
 		for (i=0; i<size; i++) {
 			if (newpool[i] == NULL) {
 				rv = rv | nng_msg_alloc(&newpool[i], 0);
-				log("alloc [%d] [%p]", i%size, newpool[i]);
+				log_info("alloc [%d] [%p]", i%size, newpool[i]);
 			}
 		}
 		zfree(pool->pool);
@@ -200,7 +200,7 @@ uint8_t nnl_msg_put_force(nnl_msg_pool * pool, nng_msg ** msgp)
 	nng_msg *msg = *msgp;
 
 	if (msg == NULL) {
-		log("NNL_ERROR!!! msg is empty.");
+		log_err("NNL_ERROR!!! msg is empty.");
 		rv = 1;
 	}
 	if (nnl_msg_pool_full(pool)) {
@@ -215,7 +215,7 @@ uint8_t nnl_msg_put_force(nnl_msg_pool * pool, nng_msg ** msgp)
 		*msgp = NULL;
 		nng_mtx_unlock(msg_mutex);
 	}
-	log("---------FORCE------------MSG PUTTED AND USED NOW IS (%d)", pool->used);
+	log_info("---------FORCE------------MSG PUTTED AND USED NOW IS (%d)", pool->used);
 	return rv;
 }
 
