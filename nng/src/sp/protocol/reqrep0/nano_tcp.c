@@ -12,6 +12,7 @@
 #include <hash.h>
 
 #include "core/nng_impl.h"
+#include "core/sockimpl.h"
 #include "nng/protocol/mqtt/nano_tcp.h"
 #include "nng/protocol/mqtt/mqtt_parser.h"
 
@@ -67,8 +68,6 @@ struct nano_sock {
 struct nano_pipe {
 	nni_mtx         lk;
 	nni_pipe *      pipe;
-	nni_id_map      nano_db;
-	nni_id_map      retain_db; // hash clientid->lmq[msg ptr1...N]
 	nano_sock *     rep;
 	uint32_t        id;
 	void *          tree;	//root node of db tree
@@ -251,7 +250,7 @@ nano_ctx_send(void *arg, nni_aio *aio)
 	nni_mtx_unlock(&s->lk);
 	nni_mtx_lock(&p->lk);
     if (nni_msg_cmd_type(msg) == CMD_PUBLISH) {
-		nano_qos_msg_repack(msg, p);
+		//nano_qos_msg_repack(msg, p);
     	if (nni_msg_get_pub_qos(msg) > 0) {
         	debug_msg("******** processing QoS pubmsg with pipe: %p ********", p);
         	p->qos_retry = 0;
@@ -447,7 +446,6 @@ nano_pipe_fini(void *arg)
 	nni_aio_fini(&p->aio_recv);
     nni_lmq_fini(&p->qlmq);
 	nni_lmq_fini(&p->rlmq);
-	nni_id_map_fini(&p->nano_db);
 
     nni_timer_cancel(&p->ka_timer);
     nni_timer_cancel(&p->pipe_qos_timer);
@@ -467,7 +465,6 @@ nano_pipe_init(void *arg, nni_pipe *pipe, void *s)
 	nni_lmq_init(&p->rlmq, NNI_NANO_MAX_MSQ_LEN);
 	nni_aio_init(&p->aio_send, nano_pipe_send_cb, p);
 	nni_aio_init(&p->aio_recv, nano_pipe_recv_cb, p);
-	nni_id_map_init(&p->nano_db, 0, 0, false);
 
 	//NNI_LIST_INIT(&p->sendq, nano_ctx, sqnode);
 
@@ -723,15 +720,16 @@ nano_ctx_recv(void *arg, nni_aio *aio)
 static void
 nano_pipe_recv_cb(void *arg)
 {
-	nano_pipe *p = arg;
-	nano_sock *s = p->rep;
-	nano_ctx  *    ctx;
-	nni_msg   *    msg;
-	uint8_t   *    header;
-	nni_aio   *    aio;
-	nano_pipe_db * pipe_db;
-	size_t         len, index;
-	int			   rv;
+	nano_pipe *   p = arg;
+	nano_sock *   s = p->rep;
+	nano_ctx *    ctx;
+	nni_msg *     msg;
+	uint8_t *     header;
+	nni_aio *     aio;
+	nano_pipe_db *pipe_db;
+	size_t        len, index;
+	nni_pipe *    npipe;
+	int           rv;
 	//int        hops;
 	//int        ttl;
 
@@ -760,7 +758,8 @@ nano_pipe_recv_cb(void *arg)
 			pipe_db = nano_msg_get_subtopic(msg);	//potential memleak when sub failed
 			p->pipedb_root = pipe_db;
 			while (pipe_db) {
-				rv = nni_id_set(&p->nano_db, DJBHash(pipe_db->topic), pipe_db);
+				npipe = p->pipe;
+				rv = nni_id_set(&npipe->nano_db, DJBHash(pipe_db->topic), pipe_db);
 				pipe_db = pipe_db->next;
 			}
 			nni_mtx_unlock(&p->lk);
@@ -930,7 +929,7 @@ nano_qos_msg_repack(nni_msg *msg, nano_pipe *p)
 	uint16_t	topic_len, pid;
 	size_t	 len, tlen;
 	nano_pipe_db *db;
-	nni_id_map   *idm;
+	nni_pipe * pipe;
 	//QoS TODO optimize log2(n)
 	if (nni_msg_cmd_type(msg) == CMD_PUBLISH) {
 		qos_pub = nni_msg_get_preset_qos(msg);
@@ -938,8 +937,11 @@ nano_qos_msg_repack(nni_msg *msg, nano_pipe *p)
 		body    = nni_msg_body(msg);
 		header  = nni_msg_header(msg);
 		NNI_GET16(body, tlen);
-		idm = &p->nano_db;
-		if ((db = nni_id_get(&p->nano_db, DJBHashn(body+2, tlen))) == NULL) {
+		pipe = p->pipe;
+		if ((db = nni_id_get(&pipe->nano_db, DJBHashn(body+2, tlen))) == NULL) {
+			return;
+		}
+		if ((db = nni_id_get(&pipe->nano_db, DJBHashn(body+2, tlen))) == NULL) {
 			return;
 		}
 		debug_msg("qos_pac %d pub %d sub %d\n", qos_pac, qos_pub, db->qos);
