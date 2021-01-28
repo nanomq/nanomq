@@ -334,8 +334,7 @@ nni_aio_begin(nni_aio *aio)
 #if defined(DEBUG)
     debug_msg("aio->a_cancel_fn NULL %d?", (aio->a_cancel_fn == NULL));
 #else
-
-    NNI_ASSERT(aio->a_cancel_fn == NULL);
+    //NNI_ASSERT(aio->a_cancel_fn == NULL);
 #endif
 	NNI_ASSERT(!nni_list_node_active(&aio->a_expire_node));
 

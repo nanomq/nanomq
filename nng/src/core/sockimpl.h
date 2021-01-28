@@ -112,6 +112,7 @@ struct nni_pipe {
 	nni_mtx            p_mtx;
 	nni_cv             p_cv;
 	nni_reap_node      p_reap;
+	nni_id_map		   nano_db;
 
 #ifdef NNG_ENABLE_STATS
 	nni_stat_item st_root;

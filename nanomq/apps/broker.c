@@ -274,6 +274,7 @@ server_cb(void *arg)
 					}
 					work->state = SEND;
 					nng_msg_free(smsg);
+					smsg = NULL;
 					nng_aio_finish(work->aio, 0);
 					break;
 				} else {
