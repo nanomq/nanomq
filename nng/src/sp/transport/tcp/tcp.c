@@ -9,6 +9,7 @@
 
 #include "include/nng_debug.h"
 #include "core/nng_impl.h"
+#include "core/sockimpl.h"
 
 #include "nng/protocol/mqtt/mqtt_parser.h"
 #include "nng/protocol/mqtt/mqtt.h"
@@ -667,14 +668,13 @@ tcptran_pipe_send_cancel(nni_aio *aio, void *arg, int rv)
 static void
 tcptran_pipe_send_start(tcptran_pipe *p)
 {
-	nni_aio *aio;
-	nni_aio *txaio;
-	nni_msg *msg;
-	int      niov;
-	nni_iov  iov[3];
-	//uint8_t	*pos;
-	//uint16_t pid;
-	//uint64_t len;
+	nni_aio *    aio;
+	nni_aio *    txaio;
+	nni_msg *    msg;
+	nni_pipe *   pipe;
+	int          niov;
+	nni_iov      iov[4];
+	nano_pipe_db * db;
 
 	debug_msg("########### tcptran_pipe_send_start ###########");
 	if (p->closed) {
@@ -692,19 +692,88 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 
 	// This runs to send the message.
 	msg = nni_aio_get_msg(aio);
-	//len = nni_msg_len(msg) + nni_msg_header_len(msg);
-	//NNI_PUT64(p->txlen, len);
+
+	//never modify msg
+	if (nni_msg_cmd_type(msg) == CMD_PUBLISH) {
+		uint8_t *body, *header, qos_pub, qos_pac;
+		uint8_t  varheader[2], fixheader[NNI_NANO_MAX_HEADER_SIZE],
+		    tmp[4] = { 0 };
+		uint16_t      pid;
+		size_t        len, tlen;
+		nano_pipe_db *db;
+
+		qos_pub = nni_msg_get_preset_qos(msg);
+		qos_pac = nni_msg_get_pub_qos(msg);
+		body    = nni_msg_body(msg);
+		header  = nni_msg_header(msg);
+		NNI_GET16(body, tlen);
+		pipe = p->npipe;
+
+		if ((db = nni_id_get(
+		         &pipe->nano_db, DJBHashn(body + 2, tlen))) == NULL) {
+			// shouldn't get here
+			return;
+		}
+		debug_msg(
+		    "qos_pac %d pub %d sub %d\n", qos_pac, qos_pub, db->qos);
+		memcpy(fixheader, header, NNI_NANO_MAX_HEADER_SIZE);
+
+		txaio = p->txaio;
+		niov  = 0;
+		if (qos_pub > db->qos) {
+			if (db->qos == 1) {
+				// set qos to 1
+				fixheader[0] = fixheader[0] & 0xF9;
+				fixheader[0] = fixheader[0] | 0x02;
+			} else {
+				// set qos to 0
+				fixheader[0] = fixheader[0] & 0xF9;
+				// mdf remaining length
+				len = put_var_integer(
+				    tmp, nni_msg_remaining_len(msg) - 2);
+				memcpy(fixheader + 1, tmp, len);
+				printf("len %d rlen %d\n", len,
+				    nni_msg_remaining_len(msg));
+			}
+		} else if (qos_pub <= db->qos) {
+			// TODO
+		}
+		// fixed header
+		iov[niov].iov_buf = fixheader;
+		iov[niov].iov_len = nni_msg_header_len(msg);
+		niov++;
+		// 1st part of variable header
+		iov[niov].iov_buf = body;
+		len               = NNI_GET16(body, len); // get topic length
+		iov[niov].iov_len = len + 2;
+		niov++;
+		// packet id
+		if (db->qos > 0 && qos_pac > 0) {
+			// set pid
+			pid = nni_pipe_inc_packetid(pipe);
+			NNI_PUT16(varheader, pid);
+			iov[niov].iov_buf = varheader;
+			iov[niov].iov_len = 2;
+			niov++;
+		}
+		// payload
+		if (qos_pac > 0) { // determine if it needs to skip packet id field
+			iov[niov].iov_buf = body + 2 + len + 2;
+			iov[niov].iov_len = nni_msg_len(msg) - 4 - len;
+		} else {
+			iov[niov].iov_buf = body + 2 + len;
+			iov[niov].iov_len = nni_msg_len(msg) - 2 - len;
+		}
+		niov++;
+
+		nni_aio_set_iov(txaio, niov, iov);
+		nng_stream_send(p->conn, txaio);
+		return;
+	}
 
 	txaio          = p->txaio;
 	niov           = 0;
-	//iov[0].iov_buf = p->txlen;
-	//iov[0].iov_len = sizeof(p->txlen);
-	//niov++;
-	// if (nni_msg_cmd_type(msg) == CMD_PUBREL) {
-	// 	pos = nni_msg_header(msg);
-	// 	pid = nni_pipe_inc_packetid(p->npipe);
-	// 	memcpy(pos + 2, &pid, 2);
-	// }
+
 	if (nni_msg_header_len(msg) > 0) {
 		iov[niov].iov_buf = nni_msg_header(msg);
 		iov[niov].iov_len = nni_msg_header_len(msg);
