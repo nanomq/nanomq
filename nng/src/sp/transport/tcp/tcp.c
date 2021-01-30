@@ -704,6 +704,9 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 
 		qos_pub = nni_msg_get_preset_qos(msg);
 		qos_pac = nni_msg_get_pub_qos(msg);
+		if (qos_pub == db->qos) {
+			goto send;
+		}
 		body    = nni_msg_body(msg);
 		header  = nni_msg_header(msg);
 		NNI_GET16(body, tlen);
@@ -735,7 +738,7 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 				printf("len %d rlen %d\n", len,
 				    nni_msg_remaining_len(msg));
 			}
-		} else if (qos_pub <= db->qos) {
+		} else if (qos_pub < db->qos) {
 			// TODO
 		}
 		// fixed header
@@ -770,7 +773,7 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 		nng_stream_send(p->conn, txaio);
 		return;
 	}
-
+send:
 	txaio          = p->txaio;
 	niov           = 0;
 
