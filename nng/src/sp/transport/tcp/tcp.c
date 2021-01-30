@@ -692,10 +692,10 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 	// This runs to send the message.
 	msg = nni_aio_get_msg(aio);
 
-	//never modify msg
+	//never modify msg 
 	if (nni_msg_cmd_type(msg) == CMD_PUBLISH) {
-		uint8_t *body, *header, qos_pub, qos_pac;
-		uint8_t  varheader[2], fixheader[NNI_NANO_MAX_HEADER_SIZE], tmp[4] = { 0 };
+		uint8_t      *body, *header, qos_pub, qos_pac;
+		uint8_t       varheader[2], fixheader[NNI_NANO_MAX_HEADER_SIZE], tmp[4] = { 0 };
 		nni_pipe     *pipe;
 		uint16_t      pid;
 		size_t        len, tlen;
@@ -713,7 +713,6 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 		qos_pub = nni_msg_get_preset_qos(msg);
 		qos_pac = nni_msg_get_pub_qos(msg);
 		if (qos_pac == db->qos) {
-			printf("qospac %d qosdb %d |", qos_pac, db->qos);
 			//save time for non-upgrade/degrade publish
 			goto send;
 		}
