@@ -773,7 +773,7 @@ nano_pipe_recv_cb(void *arg)
 			break;
         case CMD_PUBACK:
 		case CMD_PUBREC:
-            debug_msg("puback received!");
+            debug_msg("ack received!");
 			nni_mtx_lock(&p->lk);
             uint8_t *ptr;
             uint16_t ackid, pubid;
@@ -788,7 +788,6 @@ nano_pipe_recv_cb(void *arg)
                 NNI_GET16(ptr, pubid);
                 ptr = ptr + 2 + pubid;
                 NNI_GET16(ptr, pubid);
-				debug_msg("%d %d", pubid, ackid);
                 if(pubid != ackid) {
                     (void) nni_lmq_putq(&p->qlmq, lmq_msg);
                 } else {

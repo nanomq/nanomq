@@ -582,7 +582,7 @@ tcptran_pipe_recv_cb(void *arg)
 			p->cmd = CMD_PUBREC;
 			nng_stream_send(p->conn, qsaio);
 		}
-	} else if (type == CMD_PUBREC){
+	} else if (type == CMD_PUBREC) {
 		uint8_t *tmp;
 		p->txlen[0] = 0X62;
 		p->txlen[1] = 0x02;
@@ -594,7 +594,7 @@ tcptran_pipe_recv_cb(void *arg)
 		nni_aio_set_iov(qsaio, 1, &iov);
 		p->cmd = CMD_PUBREL;
 		nng_stream_send(p->conn, qsaio);
-	}else if (type == CMD_PUBREL){
+	}else if (type == CMD_PUBREL) {
 		uint8_t *tmp;
 		p->txlen[0] = CMD_PUBCOMP;
 		p->txlen[1] = 0x02;
@@ -671,7 +671,6 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 	nni_aio *    aio;
 	nni_aio *    txaio;
 	nni_msg *    msg;
-	nni_pipe *   pipe;
 	int          niov;
 	nni_iov      iov[4];
 	nano_pipe_db * db;
@@ -696,34 +695,35 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 	//never modify msg
 	if (nni_msg_cmd_type(msg) == CMD_PUBLISH) {
 		uint8_t *body, *header, qos_pub, qos_pac;
-		uint8_t  varheader[2], fixheader[NNI_NANO_MAX_HEADER_SIZE],
-		    tmp[4] = { 0 };
+		uint8_t  varheader[2], fixheader[NNI_NANO_MAX_HEADER_SIZE], tmp[4] = { 0 };
+		nni_pipe     *pipe;
 		uint16_t      pid;
 		size_t        len, tlen;
 		nano_pipe_db *db;
 
-		qos_pub = nni_msg_get_preset_qos(msg);
-		qos_pac = nni_msg_get_pub_qos(msg);
-		if (qos_pub == db->qos) {
-			goto send;
-		}
+		pipe    = p->npipe;
 		body    = nni_msg_body(msg);
 		header  = nni_msg_header(msg);
 		NNI_GET16(body, tlen);
-		pipe = p->npipe;
-
-		if ((db = nni_id_get(
-		         &pipe->nano_db, DJBHashn(body + 2, tlen))) == NULL) {
-			// shouldn't get here
-			return;
+		if ((db = nni_id_get(&pipe->nano_db, DJBHashn(body + 2, tlen))) == NULL) {
+			//shouldn't get here BUG TODO
+			nni_println("ERROR: nano_db subscription topic missing!");
+			goto send;
 		}
-		debug_msg(
-		    "qos_pac %d pub %d sub %d\n", qos_pac, qos_pub, db->qos);
+		qos_pub = nni_msg_get_preset_qos(msg);
+		qos_pac = nni_msg_get_pub_qos(msg);
+		if (qos_pac == db->qos) {
+			printf("qospac %d qosdb %d |", qos_pac, db->qos);
+			//save time for non-upgrade/degrade publish
+			goto send;
+		}
+
+		debug_msg("qos_pac %d pub %d sub %d\n", qos_pac, qos_pub, db->qos);
 		memcpy(fixheader, header, NNI_NANO_MAX_HEADER_SIZE);
 
 		txaio = p->txaio;
 		niov  = 0;
-		if (qos_pub > db->qos) {
+		if (qos_pac > db->qos) {
 			if (db->qos == 1) {
 				// set qos to 1
 				fixheader[0] = fixheader[0] & 0xF9;
@@ -732,13 +732,10 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 				// set qos to 0
 				fixheader[0] = fixheader[0] & 0xF9;
 				// mdf remaining length
-				len = put_var_integer(
-				    tmp, nni_msg_remaining_len(msg) - 2);
+				len = put_var_integer(tmp, nni_msg_remaining_len(msg) - 2);
 				memcpy(fixheader + 1, tmp, len);
-				printf("len %d rlen %d\n", len,
-				    nni_msg_remaining_len(msg));
 			}
-		} else if (qos_pub < db->qos) {
+		} else if (qos_pac < db->qos) {
 			// TODO
 		}
 		// fixed header
