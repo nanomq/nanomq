@@ -31,4 +31,7 @@ NNG_DECL uint32_t DJBHash(char *str);
 NNG_DECL uint32_t DJBHashn(char *str, uint16_t len);
 NNG_DECL uint64_t nano_hash(char *str);
 
+//repack
+NNG_DECL void nano_qos_msg_repack(nng_msg *msg, nano_pipe_db *db);
+
 #endif // NNG_MQTT_H
