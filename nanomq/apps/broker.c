@@ -16,6 +16,10 @@
 #include <protocol/mqtt/nano_tcp.h>
 #include <protocol/mqtt/mqtt_parser.h>
 
+#if (defined DEBUG) && (defined ASAN)
+#include <signal.h>
+#endif
+
 #include "include/nanomq.h"
 #include "include/pub_handler.h"
 #include "include/sub_handler.h"
@@ -35,6 +39,14 @@
 // The server keeps a list of work items, sorted by expiration time,
 // so that we can use this to set the timeout to the correct value for
 // use in poll.
+
+#if (defined DEBUG) && (defined ASAN)
+int keepRunning = 1;
+void intHandler(int dummy) {
+	keepRunning = 0;
+	fprintf(stderr, "\nBroker exit(0).\n");
+}
+#endif
 
 void
 fatal(const char *func, int rv)
@@ -392,9 +404,19 @@ broker(const char *url)
 		server_cb(works[i]); // this starts them going (INIT state)
 	}
 
+#if (defined DEBUG) && (defined ASAN)
+	signal(SIGINT, intHandler);
+	for (;;) {
+		if (keepRunning == 0) {
+			exit(0);
+		}
+		nng_msleep(6000);
+	}
+#else
 	for (;;) {
 		nng_msleep(3600000); // neither pause() nor sleep() portable
 	}
+#endif
 }
 
 int broker_start(int argc, char **argv)
