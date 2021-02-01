@@ -134,7 +134,7 @@ uint8_t nnl_msg_pool_resize(nnl_msg_pool * pool, uint32_t size)
 	}
 
 	log_info(stderr, "resize to [%d]\n", size);
-	debug(stderr, "resize !!!!!!!!! to [%d]\n", size);
+	debug("resize !!!!!!!!! to [%d]\n", size);
 	if (rv == 0) {
 		newpool = (nng_msg **)zmalloc(size * sizeof(nng_msg*));
 		for (i=0; i<size; i++) {

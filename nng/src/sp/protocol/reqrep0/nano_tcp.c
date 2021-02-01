@@ -248,17 +248,17 @@ nano_ctx_send(void *arg, nni_aio *aio)
 		nni_mtx_unlock(&s->lk);
 		nni_aio_set_msg(aio, NULL);
 		//nni_aio_finish(aio, 0, nni_msg_len(msg));
-		nnl_msg_put_force(msg_pool, &msg);
+		nnl_msg_put(msg_pool, &msg);
 		return;
 	}
 	nni_mtx_unlock(&s->lk);
 	nni_mtx_lock(&p->lk);
 
 	// TODO should be init in other function
-	p->tree     = nni_aio_get_dbtree(aio);
+//	p->tree     = nni_aio_get_dbtree(aio);
 
     if (nni_msg_cmd_type(msg) == CMD_PUBLISH) {
-		nano_qos_msg_repack(msg, p);
+//		nano_qos_msg_repack(msg, p);
     	if (nni_msg_get_pub_qos(msg) > 0) {
         	debug_msg("******** processing QoS pubmsg with pipe: %p ********", p);
         	p->qos_retry = 0;
@@ -444,7 +444,7 @@ nano_pipe_fini(void *arg)
 		nni_aio_set_msg(&p->aio_recv, NULL);
 		msg_pool = nni_msg_get_msg_pool(msg);
 		if (msg_pool) {
-			nnl_msg_put_force(msg_pool, &msg);
+			nnl_msg_put(msg_pool, &msg);
 		}
 	}
 
@@ -452,7 +452,7 @@ nano_pipe_fini(void *arg)
 		nni_aio_set_msg(&p->aio_recv, NULL);
 		msg_pool = nni_msg_get_msg_pool(msg);
 		if (msg_pool) {
-			nnl_msg_put_force(msg_pool, &msg);
+			nnl_msg_put(msg_pool, &msg);
 		}
 	}
 
@@ -834,7 +834,7 @@ nano_pipe_recv_cb(void *arg)
 	if (p->closed) {
 		// If we are closed, then we can't return data.
 		nni_aio_set_msg(&p->aio_recv, NULL);
-		nnl_msg_put_force(msg_pool, &msg);
+		nnl_msg_put(msg_pool, &msg);
 		debug_msg("ERROR: pipe is closed abruptly!!");
 		return;
 	}
@@ -875,7 +875,7 @@ nano_pipe_recv_cb(void *arg)
 drop:
 	nni_aio_set_msg(&p->aio_recv, NULL);
 	nni_pipe_recv(p->pipe, &p->aio_recv);
-	nnl_msg_put_force(msg_pool, &msg);
+	nnl_msg_put(msg_pool, &msg);
 	debug_msg("Warning:dropping msg");
 	return;
 }
