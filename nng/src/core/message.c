@@ -144,6 +144,8 @@ nni_chunk_grow(nni_chunk *ch, size_t newsz, size_t headwanted)
 		if ((newbuf = nni_zalloc(newsz + headwanted)) == NULL) {
 			return (NNG_ENOMEM);
 		}
+//		fprintf(stderr, "----hw %d chunklen %d chunkcap %d newsz %d ----\n", headwanted, ch->ch_len, ch->ch_cap, newsz);
+
 		// Copy all the data, but not header or trailer.
 		if (ch->ch_len > 0) {
 			memcpy(newbuf + headwanted, ch->ch_ptr, ch->ch_len);
@@ -162,6 +164,7 @@ nni_chunk_grow(nni_chunk *ch, size_t newsz, size_t headwanted)
 		if ((newbuf = nni_zalloc(newsz + headwanted)) == NULL) {
 			return (NNG_ENOMEM);
 		}
+//		fprintf(stderr, "--first zalloc--hw %d chunklen %d chunkcap %d newsz %d ----\n", headwanted, ch->ch_len, ch->ch_cap, newsz);
 		nni_free(ch->ch_buf, ch->ch_cap);
 		ch->ch_cap = newsz + headwanted;
 		ch->ch_buf = newbuf;
@@ -316,7 +319,6 @@ nni_chunk_trim_u32(nni_chunk *ch)
 void
 nni_msg_clone(nni_msg *m)
 {
-	debug_msg("--------------NNG MSG CLONE");
 	nni_atomic_inc(&m->m_refcnt);
 }
 
@@ -343,6 +345,11 @@ nni_msg_unique(nni_msg *m)
 int nni_msg_refcnt(nni_msg *m)
 {
 	return nni_atomic_get(&m->m_refcnt);
+}
+
+void nni_msg_set_refcnt(nni_msg *m, int cnt)
+{
+	nni_atomic_set(&m->m_refcnt, cnt);
 }
 
 // nni_msg_pull_up ensures that the message is unique, and that any header
@@ -448,7 +455,6 @@ void
 nni_msg_free(nni_msg *m)
 {
 	if ((m != NULL) && (nni_atomic_dec_nv(&m->m_refcnt) == 0)) {
-	//	debug_msg("-------------------NNG MSG FREE");
 		nni_chunk_free(&m->m_body);
 		NNI_FREE_STRUCT(m);
 	}

@@ -76,6 +76,7 @@ extern uint8_t       nni_msg_get_preset_qos(nni_msg *m);
 extern uint16_t      nni_msg_get_pub_pid(nni_msg *m);
 extern void          nni_msg_set_qos(nni_msg *m, uint8_t qos);
 extern int           nni_msg_refcnt(nni_msg *m);
+extern void          nni_msg_set_refcnt(nni_msg *m, int);
 extern void          nni_msg_set_msg_pool(nni_msg *, nnl_msg_pool *);
 extern nnl_msg_pool *nni_msg_get_msg_pool(nni_msg *);
 
