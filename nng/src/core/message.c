@@ -108,6 +108,7 @@ static int
 nni_chunk_grow(nni_chunk *ch, size_t newsz, size_t headwanted)
 {
 	uint8_t *newbuf;
+//	size_t   len = ch->ch_len;
 
 	// We assume that if the pointer is a valid pointer, and inside
 	// the backing store, then the entire data length fits.  In this
@@ -121,6 +122,8 @@ nni_chunk_grow(nni_chunk *ch, size_t newsz, size_t headwanted)
 	// No shrinking (violets)
 	if (newsz < ch->ch_len) {
 		newsz = ch->ch_len;
+//	if (newsz < len) {
+//		newsz = len;
 	}
 
 	if ((ch->ch_ptr >= ch->ch_buf) &&
@@ -144,8 +147,13 @@ nni_chunk_grow(nni_chunk *ch, size_t newsz, size_t headwanted)
 		if ((newbuf = nni_zalloc(newsz + headwanted)) == NULL) {
 			return (NNG_ENOMEM);
 		}
+		fprintf(stderr, "----hw %d chunklen %d chunkcap %d newsz %d ----\n", headwanted, ch->ch_len, ch->ch_cap, newsz);
+
 		// Copy all the data, but not header or trailer.
 		if (ch->ch_len > 0) {
+	//		if (ch->ch_len > newsz) {
+	//	if (len > 0) {
+	//		memcpy(newbuf + headwanted, ch->ch_ptr, len);
 			memcpy(newbuf + headwanted, ch->ch_ptr, ch->ch_len);
 		}
 		nni_free(ch->ch_buf, ch->ch_cap);
@@ -162,6 +170,7 @@ nni_chunk_grow(nni_chunk *ch, size_t newsz, size_t headwanted)
 		if ((newbuf = nni_zalloc(newsz + headwanted)) == NULL) {
 			return (NNG_ENOMEM);
 		}
+		fprintf(stderr, "--first zalloc--hw %d chunklen %d chunkcap %d newsz %d ----\n", headwanted, ch->ch_len, ch->ch_cap, newsz);
 		nni_free(ch->ch_buf, ch->ch_cap);
 		ch->ch_cap = newsz + headwanted;
 		ch->ch_buf = newbuf;
@@ -188,6 +197,9 @@ static void
 nni_chunk_clear(nni_chunk *ch)
 {
 	ch->ch_len = 0;
+	if (ch->ch_cap > 1024 || ch->ch_len > 1024) {
+		fprintf(stderr, "LEAKNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN");
+	}
 }
 
 // nni_chunk_chop truncates bytes from the end of the chunk.
@@ -212,6 +224,7 @@ nni_chunk_trim(nni_chunk *ch, size_t len)
 	// Don't advance the pointer if we are just removing the whole content
 	if (ch->ch_len != 0) {
 		ch->ch_ptr += len;
+		fprintf(stderr, "----headtrim change [%ld]----", len);
 	}
 	return (0);
 }
@@ -255,6 +268,11 @@ nni_chunk_append(nni_chunk *ch, const void *data, size_t len)
 		memcpy(ch->ch_ptr + ch->ch_len, data, len);
 	}
 	ch->ch_len += len;
+	if (ch->ch_len > 360) {
+		fprintf(stderr, "len overflow in chunk 0 [%d] [%d]\n", len, ch->ch_len-len);
+		uint8_t * t = ch->ch_ptr;
+		t[ch->ch_len] = t[ch->ch_len];
+	}
 	return (0);
 }
 
@@ -284,18 +302,23 @@ nni_chunk_insert(nni_chunk *ch, const void *data, size_t len)
 	    (len <= (size_t)(ch->ch_ptr - ch->ch_buf))) {
 		// There is already enough room at the beginning.
 		ch->ch_ptr -= len;
+		fprintf(stderr, "----headinsert change [%ld]----", len);
 	} else if ((ch->ch_len + len) <= ch->ch_cap) {
 		// We had enough capacity, just shuffle data down.
 		memmove(ch->ch_ptr + len, ch->ch_ptr, ch->ch_len);
 	} else if ((rv = nni_chunk_grow(ch, 0, len)) == 0) {
 		// We grew the chunk, so adjust.
 		ch->ch_ptr -= len;
+		fprintf(stderr, "----headinsert change [%ld]----", len);
 	} else {
 		// Couldn't grow the chunk either.  Error.
 		return (rv);
 	}
 
 	ch->ch_len += len;
+	if (ch->ch_len > 300) {
+		fprintf(stderr, "len overflow in chunk 1 [%d]\n", ch->ch_len);
+	}
 	if (data != NULL) {
 		memcpy(ch->ch_ptr, data, len);
 	}
@@ -343,6 +366,11 @@ nni_msg_unique(nni_msg *m)
 int nni_msg_refcnt(nni_msg *m)
 {
 	return nni_atomic_get(&m->m_refcnt);
+}
+
+void nni_msg_set_refcnt(nni_msg *m, int cnt)
+{
+	nni_atomic_set(&m->m_refcnt, cnt);
 }
 
 // nni_msg_pull_up ensures that the message is unique, and that any header
@@ -448,7 +476,6 @@ void
 nni_msg_free(nni_msg *m)
 {
 	if ((m != NULL) && (nni_atomic_dec_nv(&m->m_refcnt) == 0)) {
-	//	debug_msg("-------------------NNG MSG FREE");
 		nni_chunk_free(&m->m_body);
 		NNI_FREE_STRUCT(m);
 	}
@@ -460,6 +487,9 @@ nni_msg_realloc(nni_msg *m, size_t sz)
 	if (m->m_body.ch_len < sz) {
 		int rv =
 		    nni_chunk_append(&m->m_body, NULL, sz - m->m_body.ch_len);
+		if (m->m_body.ch_len > 360) {
+			fprintf(stderr, "len overflow in chunk 2 [%d]\n", m->m_body.ch_len);
+		}
 		if (rv != 0) {
 			return (rv);
 		}

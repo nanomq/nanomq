@@ -39,8 +39,7 @@ uint8_t nnl_msg_pool_create(nnl_msg_pool ** poolp)
 
 	if (rv != 0) {
 		nnl_msg_pool_delete(pool);
-	}
-
+	} 
 	*poolp = pool;
 	return rv;
 }
@@ -49,6 +48,9 @@ uint8_t nnl_msg_pool_get(nnl_msg_pool * pool, nng_msg ** msgp)
 {
 	uint8_t rv = 0;
 	*msgp = pool->pool[pool->fronter];
+	nng_msg_clear(*msgp);
+	nng_msg_header_clear(*msgp);
+	nng_msg_set_refcnt(*msgp, 1);
 	pool->fronter = (pool->fronter+1)%pool->capacity;
 	pool->used++;
 	return rv;
@@ -57,8 +59,11 @@ uint8_t nnl_msg_pool_get(nnl_msg_pool * pool, nng_msg ** msgp)
 uint8_t nnl_msg_pool_put(nnl_msg_pool * pool, nng_msg * msg)
 {
 	uint8_t rv = 0;
+
+//	nng_msg_free(msg);
+//	nng_msg_alloc(&msg, NNL_MSG_SIZE_DEFAULT);
+
 	nng_msg_clear(msg);
-	nng_msg_header_clear(msg);
 	pool->pool[pool->footer] = msg;
 	pool->footer = (pool->footer+1)%pool->capacity;
 	pool->used--;
@@ -69,14 +74,21 @@ uint8_t nnl_msg_get(nnl_msg_pool * pool, nng_msg ** msgp)
 {
 	uint8_t rv = 0;
 	if (nnl_msg_pool_used(pool)/nnl_msg_pool_capacity(pool) > 2/3) {
+		nng_mtx_lock(msg_mutex);
 		rv |= nnl_msg_pool_resize(pool, 2 * pool->capacity);
+		nng_mtx_unlock(msg_mutex);
 	}
 	if (rv == 0) {
 		nng_mtx_lock(msg_mutex);
-		nnl_msg_pool_get(pool, msgp);
+		rv |= nnl_msg_pool_get(pool, msgp);
 		nng_mtx_unlock(msg_mutex);
 	}
 	log_info("--------------------------MSG GETTED AND USED NOW IS (%d)", pool->used);
+#if DEBUG
+	if (rv == 1) {
+		debug("ERROR in msg get!!!!!!!!!");
+	}
+#endif
 	return rv;
 }
 
@@ -86,14 +98,36 @@ uint8_t nnl_msg_put(nnl_msg_pool * pool, nng_msg ** msgp)
 	nng_msg *msg = *msgp;
 
 	if (msg == NULL) {
-		log_err("NNL_ERROR!!! msg is empty.");
+		debug("NNL_ERROR!!! msg is empty.");
+#if DEBUG
+		nng_msg_refcnt(msg); // for backtrace
+#endif
 		rv = 1;
 	}
+	if (!pool) return 1;
+	if (nnl_msg_pool_used(pool) > 6 &&
+		nnl_msg_pool_used(pool)/nnl_msg_pool_capacity(pool) < 1/3) {
+		nng_mtx_lock(msg_mutex);
+		rv |= nnl_msg_pool_resize(pool, pool->capacity / 2);
+		nng_mtx_unlock(msg_mutex);
+	}
+	/*
 	if (nnl_msg_pool_full(pool)) {
 		rv = 1;
 	}
+	*/
 	if (rv == 0) {
 		nng_mtx_lock(msg_mutex);
+		if (nng_msg_refcnt(msg) < 1) {
+			debug("ERROR: ------refcnt 0!!!!!!!!!!!");
+			log_err("ERROR: ------refcnt 0!!!!!!!!!!!");
+			nng_msg_set_refcnt(msg, 1);
+			nng_msg_clear(msg);
+			nng_msg_header_clear(msg);
+			nng_mtx_unlock(msg_mutex);
+			*msgp = NULL;
+			return 1;
+		}
 		if (nng_msg_refcnt(msg) > 1) {
 			nng_msg_free(msg);
 		} else {
@@ -115,11 +149,15 @@ uint8_t nnl_msg_pool_resize(nnl_msg_pool * pool, uint32_t size)
 	if (size < pool->used) {
 		rv = 1;
 	}
+	if (size < NANOLIB_MSG_POOL_SIZE) {
+		rv = 1;
+	}
 
-	nng_mtx_lock(pool_mutex);
-	nng_mtx_lock(msg_mutex);
+	if (nnl_msg_pool_used(pool)/nnl_msg_pool_capacity(pool) < 2/3) {
+		return rv;
+	}
 
-	debug("resize to [%d]", size);
+	fprintf(stderr, "resize !!!!!!!!! to [%d]\n", size);
 	if (rv == 0) {
 		newpool = (nng_msg **)zmalloc(size * sizeof(nng_msg*));
 		for (i=0; i<size; i++) {
@@ -128,7 +166,6 @@ uint8_t nnl_msg_pool_resize(nnl_msg_pool * pool, uint32_t size)
 	}
 
 	if (newpool != NULL) {
-		for (i=0; i<size; i++) newpool[i] = NULL;
 		start = pool->footer;
 		end = start + (size < pool->capacity ? size : pool->capacity);
 		// copy msgs using & remain
@@ -139,7 +176,9 @@ uint8_t nnl_msg_pool_resize(nnl_msg_pool * pool, uint32_t size)
 		// resize to a smaller list
 		for (i=end; i<start+pool->capacity; i++) {
 			log_info("free [%d] [%p]", i%pool->capacity, pool->pool[i%pool->capacity]);
-			nng_msg_free(pool->pool[i%pool->capacity]);
+			while (nng_msg_refcnt(pool->pool[i%pool->capacity] > 0)) { 
+				nng_msg_free(pool->pool[i%pool->capacity]);
+			}
 		}
 		// resize to a larger list
 		for (i=0; i<size; i++) {
@@ -154,18 +193,22 @@ uint8_t nnl_msg_pool_resize(nnl_msg_pool * pool, uint32_t size)
 		pool->fronter  = pool->used;
 		pool->footer   = 0;
 	}
-	nng_mtx_unlock(msg_mutex);
-	nng_mtx_unlock(pool_mutex);
 	return rv;
 }
 
 uint8_t nnl_msg_pool_empty(nnl_msg_pool * pool)
 {
+	if (pool == NULL) {
+		return 1;
+	}
 	return (uint8_t)(pool->used == pool->capacity);
 }
 
 uint8_t nnl_msg_pool_full(nnl_msg_pool * pool)
 {
+	if (pool == NULL) {
+		return 1;
+	}
 	return (uint8_t)(pool->used == 0);
 }
 
@@ -175,6 +218,9 @@ void nnl_msg_pool_delete(nnl_msg_pool * pool)
 	uint32_t i;
 	if (pool && pool->pool) {
 		for (i=0; i<pool->capacity; i++) {
+			while (nng_msg_refcnt(pool->pool[i]) > 1) {
+				nng_msg_free(pool->pool[i]);
+			}
 			nng_msg_free(pool->pool[i]);
 		}
 	}
@@ -186,12 +232,15 @@ void nnl_msg_pool_delete(nnl_msg_pool * pool)
 
 uint32_t nnl_msg_pool_capacity(nnl_msg_pool * pool)
 {
+	if (!pool) return NANOLIB_MSG_POOL_SIZE;
 	return pool->capacity;
 }
 
 uint32_t nnl_msg_pool_used(nnl_msg_pool * pool)
 {
-	return (pool->fronter-pool->footer)%pool->capacity;
+	if (!pool) return 0;
+	return pool->used;
+//	return (pool->fronter-pool->footer)%pool->capacity;
 }
 
 uint8_t nnl_msg_put_force(nnl_msg_pool * pool, nng_msg ** msgp)

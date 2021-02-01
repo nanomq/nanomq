@@ -1294,6 +1294,7 @@ NNG_DECL uint8_t *nng_msg_payload_ptr(nng_msg *msg);
 NNG_DECL void     nng_msg_set_payload_ptr(nng_msg *msg, uint8_t *ptr);
 NNG_DECL void     nng_msg_set_remaining_len(nng_msg *msg, size_t len);
 NNG_DECL int      nng_msg_refcnt(nng_msg *m);
+NNG_DECL void     nng_msg_set_refcnt(nng_msg *m, int);
 NNG_DECL void     nng_msg_clone(nng_msg *msg);
 NNG_DECL void     nng_msg_set_cmd_type(nng_msg *m, uint8_t cmd);
 NNG_DECL void     nng_msg_preset_qos(nng_msg *m, uint8_t qos);
