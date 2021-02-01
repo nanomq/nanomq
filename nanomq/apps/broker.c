@@ -17,6 +17,10 @@
 #include <protocol/mqtt/nano_tcp.h>
 #include <protocol/mqtt/mqtt_parser.h>
 
+#if (defined DEBUG) && (defined ASAN)
+#include <signal.h>
+#endif
+
 #include "include/nanomq.h"
 #include "include/pub_handler.h"
 #include "include/sub_handler.h"
@@ -36,6 +40,14 @@
 // The server keeps a list of work items, sorted by expiration time,
 // so that we can use this to set the timeout to the correct value for
 // use in poll.
+
+#if (defined DEBUG) && (defined ASAN)
+int keepRunning = 1;
+void intHandler(int dummy) {
+	keepRunning = 0;
+	fprintf(stderr, "\nBroker exit(0).\n");
+}
+#endif
 
 void
 fatal(const char *func, int rv)
@@ -246,6 +258,7 @@ server_cb(void *arg)
 				nnl_msg_get(msg_pool, &smsg);
 
 				work->pid = nng_msg_get_pipe(work->msg);
+				init_pipe_content(work->pipe_ct);
 				handle_pub(work, work->pipe_ct);
 				nnl_msg_put(msg_pool, &work->msg);
 
@@ -280,9 +293,9 @@ server_cb(void *arg)
 					nng_aio_finish(work->aio, 0);
 					break;
 				} else {
-					free_pub_packet(work->pub_packet);
-					free_pipes_info(work->pipe_ct->pipe_info);
-					init_pipe_content(work->pipe_ct);
+//					free_pub_packet(work->pub_packet);
+//					free_pipes_info(work->pipe_ct->pipe_info);
+//					init_pipe_content(work->pipe_ct);
 				}
 
 				if (work->state != SEND) {
@@ -398,9 +411,19 @@ broker(const char *url)
 		server_cb(works[i]); // this starts them going (INIT state)
 	}
 
+#if (defined DEBUG) && (defined ASAN)
+	signal(SIGINT, intHandler);
+	for (;;) {
+		if (keepRunning == 0) {
+			exit(0);
+		}
+		nng_msleep(6000);
+	}
+#else
 	for (;;) {
 		nng_msleep(3600000); // neither pause() nor sleep() portable
 	}
+#endif
 }
 
 int broker_start(int argc, char **argv)

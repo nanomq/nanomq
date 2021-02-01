@@ -10,10 +10,10 @@ project(nanomq)
 SET(CMAKE_C_FLAGS "-std=c99")
 SET(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 
-if (DEBUG)
+if (DEBUG AND ASAN)
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -fsanitize=address")
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -fsanitize=address")
-endif (DEBUG)
+endif (DEBUG AND ASAN)
 
 aux_source_directory(. DIRSRCS)
 
