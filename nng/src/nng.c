@@ -1954,6 +1954,12 @@ nng_msg_refcnt(nng_msg *m)
 }
 
 void
+nng_msg_set_refcnt(nng_msg *m, int cnt)
+{
+        return nni_msg_set_refcnt(m, cnt);
+}
+
+void
 nng_aio_set_pipeline(nng_aio *aio, uint32_t id)
 {
         nni_aio_set_pipeline(aio, id);
