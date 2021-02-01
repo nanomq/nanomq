@@ -218,11 +218,11 @@ struct pub_packet_struct *copy_pub_packet(struct pub_packet_struct *src_pub_pack
 	struct pub_packet_struct *packet = nng_alloc(sizeof(struct pub_packet_struct));
 	packet->variable_header.publish.topic_name.body = nng_alloc(
 			src_pub_packet->variable_header.publish.topic_name.len + 1);
-	memset(packet->variable_header.publish.topic_name.body, 0,
-	       src_pub_packet->variable_header.publish.topic_name.len + 1);
 	memcpy(packet->variable_header.publish.topic_name.body,
 	       src_pub_packet->variable_header.publish.topic_name.body,
 	       src_pub_packet->variable_header.publish.topic_name.len);
+	packet->variable_header.publish.topic_name.body[
+		src_pub_packet->variable_header.publish.topic_name.len] = '\0';
 	packet->variable_header.publish.topic_name.len = src_pub_packet->variable_header.publish.topic_name.len;
 
 	packet->payload_body.payload = nng_alloc(src_pub_packet->payload_body.payload_len+1);
@@ -514,7 +514,7 @@ decode_pub_message(emq_work *work)
 	          pub_packet->fixed_header.remain_len);
 
 	if (pub_packet->fixed_header.remain_len > msg_len) {
-		debug_msg("ERROR: remainlen > msg_len");
+		debug_msg("ERROR: remainlen > msg_len [%d]", msg_len);
 		return PROTOCOL_ERROR;
 	}
 
@@ -661,10 +661,10 @@ decode_pub_message(emq_work *work)
 			if (pub_packet->payload_body.payload_len > 0) {
 				pub_packet->payload_body.payload = nng_alloc(pub_packet->payload_body.payload_len + 1);
 				memset(pub_packet->payload_body.payload, 0, pub_packet->payload_body.payload_len + 1);
-				memcpy(pub_packet->payload_body.payload, (uint8_t *) (msg_body + pos),
-				       pub_packet->payload_body.payload_len);
 				debug_msg("payload: [%s], len = %u", pub_packet->payload_body.payload,
 				          pub_packet->payload_body.payload_len);
+				memcpy(pub_packet->payload_body.payload, (uint8_t *) (msg_body + pos),
+				       pub_packet->payload_body.payload_len);
 			}
 			break;
 

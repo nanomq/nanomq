@@ -175,7 +175,10 @@ tcptran_pipe_fini(void *arg)
 	nni_aio_free(p->txaio);
 	nni_aio_free(p->negoaio);
 	nng_stream_free(p->conn);
-	nnl_msg_put_force(msg_pool, &p->rxmsg);
+	if (p->rxmsg) {
+		fprintf(stderr, "tcp_pipe_finish: nnl_msg_pool error \n");
+		nnl_msg_put(msg_pool, &p->rxmsg);
+	}
 	nni_mtx_fini(&p->mtx);
 	NNI_FREE_STRUCT(p);
 }
@@ -519,14 +522,17 @@ tcptran_pipe_recv_cb(void *arg)
 			goto recv_error;
 		}
 
-		if (rv = nnl_msg_get(msg_pool, &p->rxmsg) != 0) {
+		if (rv = nnl_msg_get(msg_pool, &msg) != 0) {
 			debug_msg("mem error %ld\n", (size_t)len);
 			goto recv_error;
 		}
-		if (len > NNL_MSG_SIZE_DEFAULT) {
-			nni_msg_realloc(p->rxmsg, (size_t)len);
+		if (nni_msg_len(msg) > 0) {
+			fprintf(stderr, "ERROR: error len in nnl_msg_get size [%d] [%d] ref [%d]\n",
+			        nni_msg_len(msg), len, nng_msg_refcnt(msg));
 		}
-		nni_msg_set_msg_pool(p->rxmsg, msg_pool);
+		nni_msg_realloc(msg, (size_t)len);
+		nni_msg_set_msg_pool(msg, msg_pool);
+		p->rxmsg = msg;
 		/*
 		if ((rv = nni_msg_alloc(&p->rxmsg, (size_t) len)) != 0) {
 			debug_msg("mem error %ld\n", (size_t)len);
@@ -537,7 +543,7 @@ tcptran_pipe_recv_cb(void *arg)
 		// Submit the rest of the data for a read -- seperate Fixed header with variable header and so on
 		//  we want to read the entire message now.
 		if (len != 0) {
-			iov.iov_buf = nni_msg_body(p->rxmsg);
+			iov.iov_buf = nni_msg_body(msg);
 			iov.iov_len = len;
 
 			nni_aio_set_iov(rxaio, 1, &iov);
@@ -559,7 +565,8 @@ tcptran_pipe_recv_cb(void *arg)
 	nni_msg_set_conn_param(msg, cparam);
 	nni_msg_set_remaining_len(msg, len);
 	nni_msg_set_cmd_type(msg, type);
-	debug_msg("remain_len %d cparam %p clientid %s username %s proto %d\n", len, cparam, &cparam->clientid.body, &cparam->username.body, cparam->pro_ver);
+	debug_msg("remain_len %d cparam %p clientid %s username %s proto %d\n",
+	        len, cparam, &cparam->clientid.body, &cparam->username.body, cparam->pro_ver);
 	variable_ptr = nni_msg_variable_ptr(msg);
 
 	// set the payload pointer of msg according to packet_type
@@ -652,7 +659,10 @@ recv_error:
 	nni_pipe_bump_error(p->npipe, rv);
 	nni_mtx_unlock(&p->mtx);
 
-	nnl_msg_put_force(msg_pool, &msg);
+	if (msg) {
+		fprintf(stderr, "tcptran_pipe_recv_cb: nnl_msg_pool recv error rv: %d\n", rv);
+		nnl_msg_put(msg_pool, &msg);
+	}
 	nni_aio_finish_error(aio, rv);
 	debug_msg("tcptran_pipe_recv_cb: recv error rv: %d\n", rv);
 	return;

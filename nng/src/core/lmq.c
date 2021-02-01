@@ -8,6 +8,7 @@
 //
 
 #include "nng_impl.h"
+#include <msg_pool.h>
 
 // Light-weight message queue. These are derived from our heavy-weight
 // message queues, but are less "featureful", but more useful for
@@ -43,6 +44,7 @@ nni_lmq_init(nni_lmq *lmq, size_t cap)
 void
 nni_lmq_fini(nni_lmq *lmq)
 {
+	nnl_msg_pool * msg_pool = NULL;
 	if (lmq == NULL) {
 		return;
 	}
@@ -52,7 +54,9 @@ nni_lmq_fini(nni_lmq *lmq)
 		nng_msg *msg = lmq->lmq_msgs[lmq->lmq_get++];
 		lmq->lmq_get &= lmq->lmq_mask;
 		lmq->lmq_len--;
-		nni_msg_free(msg);
+		msg_pool = nng_msg_get_msg_pool(msg);
+		nnl_msg_put(msg_pool, &msg);
+		// nni_msg_free(msg);
 	}
 
 	nni_free(lmq->lmq_msgs, lmq->lmq_alloc * sizeof(nng_msg *));
@@ -61,11 +65,14 @@ nni_lmq_fini(nni_lmq *lmq)
 void
 nni_lmq_flush(nni_lmq *lmq)
 {
+	nnl_msg_pool * msg_pool = NULL;
 	while (lmq->lmq_len > 0) {
 		nng_msg *msg = lmq->lmq_msgs[lmq->lmq_get++];
 		lmq->lmq_get &= lmq->lmq_mask;
 		lmq->lmq_len--;
-		nni_msg_free(msg);
+		msg_pool = nng_msg_get_msg_pool(msg);
+		nnl_msg_put(msg_pool, &msg);
+		// nni_msg_free(msg);
 	}
 }
 

@@ -250,13 +250,13 @@ nano_ctx_send(void *arg, nni_aio *aio)
 		nni_aio_set_msg(aio, NULL);
 		//nni_aio_finish(aio, 0, nni_msg_len(msg));
 		nni_println("ERROR: pipe is gone, pub failed");
-		nnl_msg_put_force(msg_pool, &msg);
+		nnl_msg_put(msg_pool, &msg);
 		return;
 	}
 	nni_mtx_unlock(&s->lk);
 	nni_mtx_lock(&p->lk);
 	// TODO should be init in other function
-	p->tree     = nni_aio_get_dbtree(aio);
+//	p->tree     = nni_aio_get_dbtree(aio);
 
     while (nni_msg_cmd_type(msg) == CMD_PUBLISH) {
 		nni_pipe * npipe;
@@ -449,7 +449,6 @@ static void
 nano_pipe_fini(void *arg)
 {
 	nano_pipe *p = arg;
-<<<<<<< HEAD
 	nng_msg *  msg;
 	nnl_msg_pool *msg_pool;
 	void *     tree;
@@ -464,7 +463,7 @@ nano_pipe_fini(void *arg)
 		nni_aio_set_msg(&p->aio_recv, NULL);
 		msg_pool = nni_msg_get_msg_pool(msg);
 		if (msg_pool) {
-			nnl_msg_put_force(msg_pool, &msg);
+			nnl_msg_put(msg_pool, &msg);
 		}
 	}
 
@@ -472,7 +471,7 @@ nano_pipe_fini(void *arg)
 		nni_aio_set_msg(&p->aio_recv, NULL);
 		msg_pool = nni_msg_get_msg_pool(msg);
 		if (msg_pool) {
-			nnl_msg_put_force(msg_pool, &msg);
+			nnl_msg_put(msg_pool, &msg);
 		}
 	}
 
@@ -769,7 +768,6 @@ nano_ctx_recv(void *arg, nni_aio *aio)
 static void
 nano_pipe_recv_cb(void *arg)
 {
-<<<<<<< HEAD
 	nano_pipe *   p = arg;
 	nano_sock *   s = p->rep;
 	nano_ctx *    ctx;
@@ -864,7 +862,7 @@ nano_pipe_recv_cb(void *arg)
 	if (p->closed) {
 		// If we are closed, then we can't return data.
 		nni_aio_set_msg(&p->aio_recv, NULL);
-		nnl_msg_put_force(msg_pool, &msg);
+		nnl_msg_put(msg_pool, &msg);
 		debug_msg("ERROR: pipe is closed abruptly!!");
 		return;
 	}
@@ -905,7 +903,7 @@ nano_pipe_recv_cb(void *arg)
 drop:
 	nni_aio_set_msg(&p->aio_recv, NULL);
 	nni_pipe_recv(p->pipe, &p->aio_recv);
-	nnl_msg_put_force(msg_pool, &msg);
+	nnl_msg_put(msg_pool, &msg);
 	debug_msg("Warning:dropping msg");
 	return;
 }
