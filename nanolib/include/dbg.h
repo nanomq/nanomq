@@ -8,8 +8,7 @@
 #include <time.h>
 
 static inline char *nano_get_time()
-{
-	char *buffer;
+{ char *buffer;
 	time_t now;
 
 	now = time(NULL);
@@ -22,7 +21,6 @@ static inline char *nano_get_time()
 
 	return buffer;
 }
-
 
 #ifdef NDEBUG
 #define debug(M, ...)
@@ -40,7 +38,7 @@ static inline char *nano_get_time()
 #define log_warn(M, ...) fprintf(stderr,\
 		"[WARN] (%s:%d: errno: %s) " M "\n",\
 		__FILE__, __LINE__, clean_errno(), ##__VA_ARGS__)
-
+#define NOLOG
 #ifdef NOLOG
 #define log(M, ...)
 #define log_info(M, ...)
