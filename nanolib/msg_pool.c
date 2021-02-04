@@ -133,7 +133,7 @@ uint8_t nnl_msg_pool_resize(nnl_msg_pool * pool, uint32_t size)
 		return rv;
 	}
 
-	log_info(stderr, "resize to [%d]\n", size);
+	log_info("resize to [%d]\n", size);
 	debug("resize !!!!!!!!! to [%d]\n", size);
 	if (rv == 0) {
 		newpool = (nng_msg **)zmalloc(size * sizeof(nng_msg*));
@@ -153,7 +153,7 @@ uint8_t nnl_msg_pool_resize(nnl_msg_pool * pool, uint32_t size)
 		// resize to a smaller list
 		for (i=end; i<start+pool->capacity; i++) {
 			log_info("free [%d] [%p]", i%pool->capacity, pool->pool[i%pool->capacity]);
-			while (nng_msg_refcnt(pool->pool[i%pool->capacity] > 0)) {
+			while (nng_msg_refcnt(pool->pool[i%pool->capacity]) > 0) {
 				nng_msg_free(pool->pool[i%pool->capacity]);
 			}
 		}
