@@ -763,11 +763,11 @@ cvector(s_client*) search_client(db_tree *db, char *topic)
  */
 static void *delete_db_client(db_node *node, s_client *client)
 {
+	pthread_rwlock_wrlock(&(node->rwlock));
         int index = 0;
         void * ctxt = NULL;
 
         // TODO maybe ctxt need to be protected
-	pthread_rwlock_wrlock(&(node->rwlock));
         print_client(node->clients);
         if (true == binary_search((void**)node->clients, 0, &index, client, client_cmp)) {
                 cvector_erase(node->clients, index);

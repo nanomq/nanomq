@@ -6,7 +6,8 @@
 db_tree *db = NULL;
 
 ///////////for wildcard////////////
-char topic0[] = "zhang/bei/hai"; char topic1[] = "zhang/#";
+char topic0[] = "zhang/bei/hai"; 
+char topic1[] = "zhang/#";
 char topic2[] = "#";
 char topic3[] = "zhang/bei/#";
 char topic4[] = "zhang/+/hai";
@@ -169,7 +170,7 @@ static void *test_unique(void *t)
         s_client *c = (s_client*)t;
         // search_and_insert(db, topic0, c);
         // search_and_insert(db, topic0, c);
-        // search_and_insert(db, topic0, c);
+        search_and_insert(db, topic0, c);
         // print_db_tree(db);
         search_and_delete(db, topic0, c);
         pthread_exit(NULL);
