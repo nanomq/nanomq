@@ -63,6 +63,7 @@ static inline int client_cmp(void *x, char *y)
 {
         s_client *ele_x = (s_client*) x;
         s_client *ele_y = (s_client*) y;
+        printf("\ncompare: %s, %s\n", ele_x->id, ele_y->id);
         return strcmp(ele_x->id, ele_y->id);
 }
 

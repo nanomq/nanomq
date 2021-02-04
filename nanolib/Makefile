@@ -10,7 +10,7 @@ DESTDIR = /usr/local/include/
 
 
 all:nanolib test.c
-	$(CC) -o nano test.c $(CFLAGS) $(LDFLAGS) $(DLIBS) $(RPATH)
+	$(CC) -o nano test.c $(CFLAGS) $(LDFLAGS) $(DLIBS) $(RPATH) -lpthread
 	# valgrind ./nano
 	./nano
 
