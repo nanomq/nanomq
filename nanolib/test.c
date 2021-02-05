@@ -58,25 +58,25 @@ s_client client[] = {
 
 static void test_insert() 
 {
-        search_and_insert(db, topic0, &client0);
+        search_and_insert(db, topic0, client0.id, NULL);
         print_db_tree(db);
-        search_and_insert(db, topic1, &client1);
+        search_and_insert(db, topic1, client1.id, NULL);
         print_db_tree(db);
-        search_and_insert(db, topic2, &client2);
+        search_and_insert(db, topic2, client2.id, NULL);
         print_db_tree(db);
-        search_and_insert(db, topic3, &client3);
+        search_and_insert(db, topic3, client3.id, NULL);
         print_db_tree(db);
-        search_and_insert(db, topic4, &client4);
+        search_and_insert(db, topic4, client4.id, NULL);
         print_db_tree(db);
-        search_and_insert(db, topic5, &client5);
+        search_and_insert(db, topic5, client5.id, NULL);
         print_db_tree(db);
-        search_and_insert(db, topic6, &client6);
+        search_and_insert(db, topic6, client6.id, NULL);
         print_db_tree(db);
-        search_and_insert(db, topic7, &client7);
+        search_and_insert(db, topic7, client7.id, NULL);
         print_db_tree(db);
-        search_and_insert(db, topic8, &client8);
+        search_and_insert(db, topic8, client8.id, NULL);
         print_db_tree(db);
-        search_and_insert(db, topic9, &client9);
+        search_and_insert(db, topic9, client9.id, NULL);
         print_db_tree(db);
 
 
@@ -140,30 +140,30 @@ static void test_delete()
 }
 
 
-static void test_search_client()
-{
-        cvector(s_client*) v =  NULL;
-        v = search_client(db, topic0);
-
-        puts("================Return client==============");
-        if (v) {
-                for (int i = 0; i < cvector_size(v); ++i) {
-                        log("client id: %s", v[i]->id);
-                }
-        }
-
-        // if (v) {
-        // 	for (int i = 0; i < cvector_size(v); ++i) {
-        //                 for (int j = 0; j < cvector_size(v[i]); j++) {
-        //                         log("client id: %s", v[i][j]->id);
-        //                 }
-        //         }
-
-        // }
-
-
-
-}
+// static void test_search_client()
+// {
+//         cvector(s_client*) v =  NULL;
+//         v = search_client(db, topic0);
+// 
+//         puts("================Return client==============");
+//         if (v) {
+//                 for (int i = 0; i < cvector_size(v); ++i) {
+//                         log("client id: %s", v[i]->id);
+//                 }
+//         }
+// 
+//         // if (v) {
+//         // 	for (int i = 0; i < cvector_size(v); ++i) {
+//         //                 for (int j = 0; j < cvector_size(v[i]); j++) {
+//         //                         log("client id: %s", v[i][j]->id);
+//         //                 }
+//         //         }
+// 
+//         // }
+// 
+// 
+// 
+// }
 
 static void *test_unique(void *t)
 {
@@ -172,7 +172,7 @@ static void *test_unique(void *t)
         for (int i = 0; i < 10000; i++) {
                 // search_and_insert(db, topic0, c);
                 // search_and_insert(db, topic0, c);
-                search_and_insert(db, topic0, c);
+                search_and_insert(db, topic0, c->id, NULL);
                 // cvector(s_client*) v =  NULL;
                 // v = search_client(db, topic0);
                 // print_db_tree(db);
@@ -219,14 +219,11 @@ int main(int argc, char *argv[])
 
 
         test_concurrent();
-        //for (int i = 0; i < 10000; i++) {
-        //        test_insert();
-        //        //test_search_client();
-        //}
-
-        // test_delete();
-        test_search_client();
-        print_db_tree(db);
+        test_insert();
+        test_delete();
+        // test_search_client();
+        
+        // print_db_tree(db);
 
         puts("---------------TEST FINISHED----------------\n");
         destory_db_tree(db);
