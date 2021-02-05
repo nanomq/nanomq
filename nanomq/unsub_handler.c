@@ -187,13 +187,13 @@ uint8_t unsub_ctx_handle(emq_work * work)
 {
 	topic_node * topic_node_t = work->unsub_pkt->node;
 	char * topic_str;
-	char * clientid;
+	char * client_id;
 	struct client * cli = NULL;
+	void * cli_ctx = NULL;
 
 	// delete ctx_unsub in treeDB
 	while (topic_node_t) {
-		struct topic_and_node tan;
-		clientid = (char *)conn_param_get_clentid((conn_param *)nng_msg_get_conn_param(work->msg));
+		client_id = (char *)conn_param_get_clentid((conn_param *)nng_msg_get_conn_param(work->msg));
 
 		// parse topic string
 		topic_str = (char *)nng_alloc(topic_node_t->it->topic_filter.len + 1);
@@ -202,29 +202,19 @@ uint8_t unsub_ctx_handle(emq_work * work)
 
 		debug_msg("finding client [%s] in topic [%s].", clientid, topic_str);
 
-		char ** topics = topic_parse(topic_str);
-		search_node(work->db, topics, &tan);
+		cli_ctx = search_and_delete(work->db, topic_str, (s_client *)client_id);
+		del_topic_one(client_id, topic_str);
 
-		if (tan.topic == NULL) { // find the topic
-			cli = del_client(&tan, clientid);
-			if (cli != NULL) {
-				// FREE clientinfo in dbtree and hashtable
-				del_sub_ctx(cli->ctxt, topic_str);
-				del_topic_one(clientid, topic_str);
-				nng_free(cli, sizeof(struct client));
-				debug_msg("INHASH: clientid [%s] exist?: [%d]", clientid, (int)check_id(clientid));
-			}
-			del_node(tan.node);
-
+		if (cli_ctx != NULL) {// find the topic
 			topic_node_t->it->reason_code = 0x00;
 			debug_msg("find and delete this client.");
 		} else { // not find the topic
 			topic_node_t->it->reason_code = 0x11;
 			debug_msg("not find and response ack.");
 		}
+		del_sub_ctx(cli_ctx, topic_str);
 
 		// free local varibale
-		free_topic_queue(topics);
 		nng_free(topic_str, topic_node_t->it->topic_filter.len+1);
 
 		topic_node_t = topic_node_t->next;

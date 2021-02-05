@@ -20,13 +20,12 @@
 #include "include/pub_handler.h"
 #include "include/sub_handler.h"
 
-#define ENABLE_RETAIN   1
+#define ENABLE_RETAIN   0
 #define SUPPORT_MQTT5_0 1
 
 static char *bytes_to_str(const unsigned char *src, char *dest, int src_len);
 static void print_hex(const char *prefix, const unsigned char *src, int src_len);
 static uint32_t append_bytes_with_type(nng_msg *msg, uint8_t type, uint8_t *content, uint32_t len);
-static void handle_client_pipe_msgs(struct client *sub_client, emq_work *pub_work, struct pipe_content *pipe_ct);
 static void handle_pub_retain(const emq_work *work, const char **topic_queue);
 
 void
@@ -43,7 +42,6 @@ void
 put_pipe_msgs(client_ctx *sub_ctx, emq_work *self_work, struct pipe_content *pipe_ct,
               mqtt_control_packet_types cmd)
 {
-
 	pipe_ct->pipe_info = (struct pipe_info *) zrealloc(pipe_ct->pipe_info,
 		sizeof(struct pipe_info) * (pipe_ct->total + 1));
 
@@ -75,55 +73,34 @@ put_pipe_msgs(client_ctx *sub_ctx, emq_work *self_work, struct pipe_content *pip
 	pipe_ct->total += 1;
 }
 
-static void
-handle_client_pipe_msgs(struct client *sub_client, emq_work *pub_work, struct pipe_content *pipe_ct)
-{
-	struct client_ctx *ctx = (struct client_ctx *) sub_client->ctxt;
-	put_pipe_msgs(ctx, pub_work, pipe_ct, PUBLISH);
-}
-
 void
-foreach_client(struct clients *sub_clients, emq_work *pub_work, struct pipe_content *pipe_ct, handle_client handle_cb)
+foreach_client(void ** cli_ctx_list, emq_work *pub_work, struct pipe_content *pipe_ct)
 {
-	int  cols       = 1;
-	char **id_queue = NULL;
-	bool equal      = false;
-	packet_subscribe *sub_pkt;
+	bool equal = false;
+	packet_subscribe  * sub_pkt;
 	struct client_ctx * ctx;
 
-	while (sub_clients) {
-		struct client *sub_client = sub_clients->sub_client;
-		while (sub_client) {
-			equal    = false;
-			// TODO change realloc to something like chunk
-			id_queue = (char **) zrealloc(id_queue, cols * sizeof(char *));
+	for (int i=0; i<cvector_size(cli_ctx_list); i++) {
+		equal = false;
+		ctx = (struct client_ctx *)cli_ctx_list[i];
+		sub_pkt = ctx->sub_pkt;
+		// NO LOCAL
 
-			for (int i = 0; i < cols - 1; i++) {
-				if (!strcmp(sub_client->id, id_queue[i])) {
-					equal = true;
-					break;
-				}
-			}
-			// NL (no_local in sub)
-			ctx = (struct client_ctx *)sub_client->ctxt;
-			sub_pkt = ctx->sub_pkt;
-			if (sub_pkt->node->it->no_local && ctx->pid.id == pub_work->pid.id) {
-				equal = true;
-			}
-
-			if (equal == false) {
-				id_queue[cols - 1] = sub_client->id;
-//				debug_msg("sub_client: [%p], id: [%s], pipe: [%d]", sub_client, sub_client->id, ctx->pid.id);
-				handle_cb(sub_client, pub_work, pipe_ct);
-				cols++;
-			}
-			sub_client = sub_client->next;
+		debug_msg("sub pkt %p", sub_pkt);
+		debug_msg("pid1 %d", ctx->pid.id);
+		// printf("pid1 %d\n", ctx->pid.id);
+		debug_msg("pid2 %d", pub_work->pid.id);
+		if (sub_pkt->node->it->no_local && ctx->pid.id == pub_work->pid.id) {
+			equal = true;
 		}
-		sub_clients               = sub_clients->down;
 
+		if (equal == false) {
+//			debug_msg("sub_client: [%p], id: [%s], pipe: [%d]", sub_client, sub_client->id, ctx->pid.id);
+			// struct client_ctx *ctx = (struct client_ctx *) ctx;
+		        // printf("pid1 %d\n", ctx->pid.id);
+			put_pipe_msgs(ctx, pub_work, pipe_ct, PUBLISH);
+		}
 	}
-
-	zfree(id_queue);
 }
 
 
@@ -141,7 +118,6 @@ handle_pub(emq_work *work, struct pipe_content *pipe_ct)
 		switch (work->pub_packet->fixed_header.packet_type) {
 			case PUBLISH:
 				debug_msg("handling PUBLISH (qos %d)", work->pub_packet->fixed_header.qos);
-				topic_queue = topic_parse(work->pub_packet->variable_header.publish.topic_name.body);
 
 				switch (work->pub_packet->fixed_header.qos) {
 					case 0:
@@ -157,12 +133,14 @@ handle_pub(emq_work *work, struct pipe_content *pipe_ct)
 						break;
 				}
 
-				struct clients *client_list = search_client(work->db->root, topic_queue);
+				void ** cli_ctx_list = search_client(work->db,
+				        work->pub_packet->variable_header.publish.topic_name.body);
 
-				if (client_list != NULL) {
-					foreach_client(client_list, work, pipe_ct, handle_client_pipe_msgs);
-					free_clients(client_list);
+				if (cli_ctx_list != NULL) {
+					foreach_client(cli_ctx_list, work, pipe_ct);
 				}
+
+                                cvector_free(cli_ctx_list);
 
 				debug_msg("pipe_info size: [%d]", pipe_ct->total);
 
@@ -170,7 +148,6 @@ handle_pub(emq_work *work, struct pipe_content *pipe_ct)
 				handle_pub_retain(work, (const char **) topic_queue);
 #endif
 
-				free_topic_queue(topic_queue);
 				break;
 
 			case PUBACK:
@@ -202,6 +179,7 @@ handle_pub(emq_work *work, struct pipe_content *pipe_ct)
 	}
 }
 
+#if ENABLE_RETAIN
 static void handle_pub_retain(const emq_work *work, const char **topic_queue)
 {
 	struct topic_and_node *tp_node = NULL;
@@ -250,7 +228,7 @@ static void handle_pub_retain(const emq_work *work, const char **topic_queue)
 		}
 	}
 }
-
+#endif
 
 struct pub_packet_struct *copy_pub_packet(struct pub_packet_struct *src_pub_packet)
 {

@@ -769,7 +769,7 @@ static void **iterate_client(s_client ***v)
  */
 void **search_client(db_tree *db, char *topic)
 {
-	// pthread_rwlock_rdlock(&(db->rwlock));
+	pthread_rwlock_rdlock(&(db->rwlock));
         assert(db && topic);
         log("______FUCK______");
         char **topic_queue = topic_parse(topic);
@@ -793,16 +793,21 @@ void **search_client(db_tree *db, char *topic)
 
                 clients_all = collect_clients(clients_all, nodes, &nodes_t, topic_queue);
                 topic_queue++;
+                if (*topic_queue == NULL) {
+                        break;
+                }
                 clients_all = collect_clients(clients_all, nodes_t, &nodes, topic_queue);
                 topic_queue++;
 
         }
         void **ret = iterate_client(clients_all);
+
         topic_queue_free(for_free); 
+        cvector_free(clients_all);
         cvector_free(nodes);
         cvector_free(nodes_t);
 
-	// pthread_rwlock_unlock(&(db->rwlock));
+	pthread_rwlock_unlock(&(db->rwlock));
         return ret;
 }
 

@@ -11,7 +11,8 @@
 #include <protocol/mqtt/mqtt_parser.h>
 #include <protocol/mqtt/mqtt.h>
 #include <include/pub_handler.h>
-#include "include/nanomq.h"
+#include <include/nanomq.h>
+
 #include "include/sub_handler.h"
 
 #define SUPPORT_MQTT5_0 1
@@ -43,6 +44,8 @@ uint8_t decode_sub_message(emq_work * work)
 
 	// handle variable header
 	variable_ptr = nng_msg_variable_ptr(msg);
+	fprintf(stderr, "111111111111111111\n");
+	debug_msg("22222222222222222222222");
 
 	packet_subscribe * sub_pkt = work->sub_pkt;
 	NNI_GET16(variable_ptr + vpos, sub_pkt->packet_id);
@@ -245,71 +248,46 @@ uint8_t encode_suback_message(nng_msg * msg, emq_work * work)
 }
 
 // generate ctx for each topic
-uint8_t sub_ctx_handle(emq_work * work, client_ctx * cli_ctx)
+uint8_t sub_ctx_handle(emq_work * work)
 {
 	topic_node * topic_node_t = work->sub_pkt->node;
-	char * topic_str;
-	struct client * client;
-	struct topic_queue * tq;
+	char * topic_str = NULL;
+	char * client_id = NULL;
+	int    topic_len = 0;
+        struct topic_queue * tq = NULL;
 
 	// insert ctx_sub into treeDB
 	while (topic_node_t) {
-		struct topic_and_node tan;
-		if ((client = nng_alloc(sizeof(struct client))) == NULL) {
-			debug_msg("ERROR: nng_alloc");
-			return NNG_ENOMEM;
-		}
-
-		//setting client
-		client->id = (char *)conn_param_get_clentid((conn_param *)nng_msg_get_conn_param(work->msg));
-		client->ctxt = cli_ctx;
-		client->next = NULL;
-
-		// setting client_ctx
-		cli_ctx->pid.id = work->pid.id;
-		cli_ctx->cparam = work->cparam;
+		client_ctx * cli_ctx = nng_alloc(sizeof(client_ctx));
 		cli_ctx->sub_pkt = work->sub_pkt;
-
-		if ((topic_str = nng_alloc(topic_node_t->it->topic_filter.len + 1)) == NULL) {
+		cli_ctx->cparam  = work->cparam;
+		cli_ctx->pid = work->pid;
+		topic_len = topic_node_t->it->topic_filter.len;
+		if ((topic_str = nng_alloc(topic_len + 1)) == NULL) {
 			debug_msg("ERROR: nng_alloc");
 			return NNG_ENOMEM;
 		}
-		strncpy(topic_str, topic_node_t->it->topic_filter.body, topic_node_t->it->topic_filter.len);
-		topic_str[topic_node_t->it->topic_filter.len] = '\0';
-		debug_msg("topicLen: [%d] body: [%s]", topic_node_t->it->topic_filter.len, (char *)topic_str);
+		strncpy(topic_str, topic_node_t->it->topic_filter.body, topic_len);
+		topic_str[topic_len] = '\0';
+		debug_msg("topicLen: [%d] body: [%s]", topic_len, topic_str);
 
-		char ** topics = topic_parse(topic_str);
-		search_node(work->db, topics, &tan);
+		client_id = (char *)conn_param_get_clentid((conn_param *)nng_msg_get_conn_param(work->msg));
+		search_and_insert(work->db, topic_str, client_id, cli_ctx);
+		fprintf(stderr, "111 cli ctx [%p]\n", cli_ctx);
 
-		if (tan.topic) { // not contain the node
-			add_node(&tan, client);
-			add_topic(client->id, topic_str);
-			add_pipe_id(work->pid.id, client->id);
-			// check
-			tq = get_topic(client->id);
-			debug_msg("-----CHECKHASHTABLE----clientid: [%s]---topic: [%s]---pipeid: [%d]",
-				client->id, tq->topic, work->pid.id);
-		} else {
-			// not contain clientid
-			if (tan.node->sub_client==NULL || check_client(tan.node, client->id)) {
-				add_topic(client->id, topic_str);
-				add_pipe_id(work->pid.id, client->id);
-				add_client(&tan, client);
-			} else { // clientid already in hash
-				work->sub_pkt->node->it->reason_code = 0x80;
-			}
-		}
-//		/* check
-		search_node(work->db, topics, &tan);
-		struct client * cli = tan.node->sub_client;
-		int count = 0;
-		while(cli){
-//			debug_msg("client: %s", cli->id);
-			cli = cli->next;
-			count++;
-		}
-		debug_msg("client count [%d]", count);
-//		*/
+                add_topic(client_id, topic_str);
+                add_pipe_id(work->pid.id, client_id);
+                         // check
+                tq = get_topic(client_id);
+                debug_msg("-----CHECKHASHTABLE----clientid: [%s]---topic: [%s]---pipeid: [%d]",
+                        client_id, tq->topic, work->pid.id);
+
+#ifdef DEBUG
+		// check
+		// client_ctx ** cli= (client_ctx **)search_client(work->db, topic_str);
+		// fprintf(stderr, "222 cli ctx [%p]\n", cli[0]);
+		// debug_msg("client count [%d]", cvector_size(cli));
+#endif
 
 /*
 		struct retain_msg_node *msg_node = search_retain_msg(work->db->root, topics);
@@ -328,7 +306,6 @@ uint8_t sub_ctx_handle(emq_work * work, client_ctx * cli_ctx)
 		}
 */
 
-		free_topic_queue(topics);
 		nng_free(topic_str, topic_node_t->it->topic_filter.len+1);
 		topic_node_t = topic_node_t->next;
 	}
