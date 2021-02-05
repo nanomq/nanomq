@@ -6,7 +6,8 @@
 #include "../include/msg_pool.h"
 #include "../include/dbg.h"
 
-#define NUM_THREADS 5
+#define NUM_THREADS 256
+#define MSG_NUM_IN_THREAD 1000
 
 typedef struct thread_args {
 	int num;
@@ -97,11 +98,11 @@ void * thread_test_one_get_one_put(void * t)
 uint8_t test_two_concurrent()
 {
 	uint8_t   rv = 0;
-	pthread_t threads[200];
+	pthread_t threads[NUM_THREADS];
 	void * status;
-	int num = 200;
+	int num = MSG_NUM_IN_THREAD;
 
-	for (int i=0; i<200; i++) {
+	for (int i=0; i<NUM_THREADS; i++) {
 		targs * t = malloc(sizeof(targs));
 		rv |= pthread_create(&threads[i], NULL, thread_test_one_get_one_put, (void *)t);
 		if (rv) {
@@ -111,8 +112,8 @@ uint8_t test_two_concurrent()
 	}
 
 	if (!rv) {
-		for (int i=0; i<200; i++) {
-			rv |= pthread_join(threads[0], &status);
+		for (int i=0; i<NUM_THREADS; i++) {
+			rv |= pthread_join(threads[i], &status);
 			log("rv about Tx [%d]", rv);
 		}
 	}
