@@ -108,13 +108,11 @@ struct pipe_content {
 	struct pipe_info *pipe_info;
 };
 
-typedef void (*handle_client)(struct client *sub_client, emq_work *pub_work, struct pipe_content *pipe_ct);
-
 bool
 encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_types cmd, uint8_t sub_qos, bool dup);
 reason_code decode_pub_message(emq_work *work);
 void
-foreach_client(struct clients *sub_clients, emq_work *pub_work, struct pipe_content *pipe_ct, handle_client handle_cb);
+foreach_client(void ** cli_ctx_list, emq_work *pub_work, struct pipe_content *pipe_ct);
 void
 put_pipe_msgs(client_ctx *sub_ctx, emq_work *self_work, struct pipe_content *pipe_ct, mqtt_control_packet_types cmd);
 void free_pub_packet(struct pub_packet_struct *pub_packet);

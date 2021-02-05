@@ -5,11 +5,13 @@
 # found online at https://opensource.org/licenses/MIT.
 
 cmake_minimum_required (VERSION 2.8.8)
-SET(CMAKE_C_FLAGS "-std=c99")
+#SET(CMAKE_C_FLAGS "-std=c99")
+SET(CMAKE_C_FLAGS "-std=gnu99")
 SET(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 
 project(nanolib)
 
+SET(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 SET(DEFAULT_BUILD_TYPE "Release")
 
 if (DEBUG AND ASAN)
@@ -27,6 +29,7 @@ endif()
 #aux_source_directory(. DIRSRCS)
 
 include_directories(./include)
+find_package(Threads)
 
 #add_subdirectory(./packet_parser)
 
@@ -51,6 +54,7 @@ set_property(TARGET nanolib PROPERTY POSITION_INDEPENDENT_CODE 1)
 # shared and static libraries built from the same object files
 add_library(nano_shared SHARED $<TARGET_OBJECTS:nanolib>)
 #add_library(nanolib_static STATIC $<TARGET_OBJECTS:nanolib>)
+target_link_libraries(nano_shared ${CMAKE_THREAD_LIBS_INIT})
 
 
 add_executable(test test.c)

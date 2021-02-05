@@ -93,30 +93,18 @@ server_cb(void *arg)
 			if (nng_msg_cmd_type(msg) == CMD_DISCONNECT) {
 				work->cparam = (conn_param *) nng_msg_get_conn_param(msg);
 				//TODO replace it with buffer id
-				char   *clientid = (char *) conn_param_get_clentid(work->cparam);
-				struct topic_and_node tan;
-				struct client         *cli      = NULL;
-				struct topic_queue    *tq       = NULL;
+				char * clientid = (char *) conn_param_get_clentid(work->cparam);
+				void * cli_ctx  = NULL;
+				struct topic_queue *tq = NULL;
 
 				debug_msg("##########DISCONNECT (clientID:[%s])##########", clientid);
 				if (check_id(clientid)) {
 					tq = get_topic(clientid);
 					while (tq) {
 						if (tq->topic) {
-							char **topics = topic_parse(tq->topic);
-							search_node(work->db, topics, &tan);
-							free_topic_queue(topics);
-							if ((cli      = del_client(&tan, clientid)) == NULL) {
-								break;
-							}
+							cli_ctx = search_and_delete(work->db, tq->topic, (s_client *)clientid);
 						}
-						if (cli) {
-							del_node(tan.node);
-							debug_msg("destroy ctx: [%p] clientid: [%s]", cli->ctxt, cli->id);
-							// TODO free client_ctx rather than work->sub_ctx / pub_pkt?
-							del_sub_ctx(cli->ctxt, tq->topic); // only free work->sub_pkt
-							nng_free(cli, sizeof(struct client));
-						}
+						del_sub_ctx(cli_ctx, tq->topic); // only free work->sub_pkt
 						tq = tq->next;
 					}
 				}
@@ -152,20 +140,16 @@ server_cb(void *arg)
 			} else if (nng_msg_cmd_type(work->msg) == CMD_SUBSCRIBE) {
 				nng_msg_alloc(&smsg, 0);
 				work->pid = nng_msg_get_pipe(work->msg);
-				struct client_ctx * cli_ctx;
-				if ((cli_ctx = nng_alloc(sizeof(client_ctx))) == NULL) {
-					debug_msg("ERROR: nng_alloc");
-				}
 				work->sub_pkt = nng_alloc(sizeof(packet_subscribe));
 				if (work->sub_pkt == NULL) {
 					debug_msg("ERROR: nng_alloc");
 				}
 				if ((reason = decode_sub_message(work))          != SUCCESS ||
-				    (reason = sub_ctx_handle(work, cli_ctx))     != SUCCESS ||
+				    (reason = sub_ctx_handle(work))              != SUCCESS ||
 				    (reason = encode_suback_message(smsg, work)) != SUCCESS) {
 					debug_msg("ERROR: sub_handler: [%d]", reason);
 
-					destroy_sub_ctx(cli_ctx);
+				//	destroy_sub_ctx(cli_ctx);
 					del_sub_pipe_id(work->pid.id);
 					del_sub_client_id((char *)conn_param_get_clentid(work->cparam));
 				} else {
@@ -379,8 +363,11 @@ broker(const char *url)
 	int            rv;
 	int            i;
 	// init tree
-	struct db_tree *db = NULL;
+	db_tree *db = NULL;
 	create_db_tree(&db);
+	if (db == NULL) {
+		debug_msg("NNL_ERROR error in db create");
+	}
 
 	/*  Create the socket. */
 	rv = nng_nano_tcp0_open(&sock);
