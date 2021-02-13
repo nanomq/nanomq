@@ -335,7 +335,8 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_
 
 	debug_msg("start encode message");
 
-	if (dest_msg != NULL) nng_msg_clear(dest_msg);
+	nng_msg_clear(dest_msg);
+	nng_msg_header_clear(dest_msg);
 	nng_msg_set_cmd_type(dest_msg, CMD_UNKNOWN);
 	switch (cmd) {
 		case PUBLISH:

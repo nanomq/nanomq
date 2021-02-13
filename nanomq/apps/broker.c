@@ -77,10 +77,6 @@ server_cb(void *arg)
 			break;
 		case RECV:
 			debug_msg("RECV  ^^^^^^^^^^^^^^^^^^^^^ ctx%d ^^^^\n", work->ctx.id);
-			if (smsg != NULL) {
-				nng_msg_free(smsg);
-				smsg = NULL;
-			}
 			if ((rv = nng_aio_result(work->aio)) != 0) {
 				debug_msg("ERROR: RECV nng aio result error: %d", rv);
 				nng_aio_wait(work->aio);
@@ -138,8 +134,8 @@ server_cb(void *arg)
 			work->state = WAIT;
 			debug_msg("RECV ********************* msg: %x*****************\n",
 			          nng_msg_cmd_type(work->msg));
-            nng_aio_finish(work->aio, 0);
-            //nng_aio_finish_sync(work->aio, 0);
+            //nng_aio_finish(work->aio, 0);
+            nng_aio_finish_sync(work->aio, 0);
 			break;
 		case WAIT:
 			debug_msg("WAIT ^^^^^^^^^^^^^^^^^^^^^ ctx%d ^^^^", work->ctx.id);
@@ -324,7 +320,6 @@ server_cb(void *arg)
 		case SEND:
 			debug_msg("SEND  ^^^^^^^^^^^^^^^^^^^^^ ctx%d ^^^^\n", work->ctx.id);
 			if (NULL != smsg) {
-			 	nng_msg_free(smsg);
 				smsg = NULL;
 			}
 			if ((rv = nng_aio_result(work->aio)) != 0) {

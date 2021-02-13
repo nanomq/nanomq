@@ -693,7 +693,8 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 	msg = nni_aio_get_msg(aio);
 
 	//never modify msg 
-	if (nni_msg_cmd_type(msg) == CMD_PUBLISH) {
+	if (nni_msg_header_len(msg) > 0 &&
+	    nni_msg_cmd_type(msg) == CMD_PUBLISH) {
 		uint8_t      *body, *header, qos_pub, qos_pac;
 		uint8_t       varheader[2], fixheader[NNI_NANO_MAX_HEADER_SIZE], tmp[4] = { 0 };
 		nni_pipe     *pipe;
@@ -712,13 +713,13 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 		}
 		qos_pub = nni_msg_get_preset_qos(msg);
 		qos_pac = nni_msg_get_pub_qos(msg);
-		if (qos_pac == db->qos) {
-			//save time for non-upgrade/degrade publish
+		if (qos_pac == 0 && db->qos == 0) {
+			//save time for QoS 0 publish
 			goto send;
 		}
 
 		debug_msg("qos_pac %d pub %d sub %d\n", qos_pac, qos_pub, db->qos);
-		memcpy(fixheader, header, NNI_NANO_MAX_HEADER_SIZE);
+		memcpy(fixheader, header, nni_msg_header_len(msg));
 
 		txaio = p->txaio;
 		niov  = 0;
@@ -730,18 +731,24 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 			} else {
 				// set qos to 0
 				fixheader[0] = fixheader[0] & 0xF9;
-				// mdf remaining length
+				// mdf remaining length TODO get remaining len from packet
 				len = put_var_integer(tmp, nni_msg_remaining_len(msg) - 2);
 				memcpy(fixheader + 1, tmp, len);
 			}
 		} else if (qos_pac < db->qos) {
-			// TODO
+			if (qos_pac == 1) {
+				//QoS 1 publish to Qos 2
+				//TODO
+			} else {
+				//QoS 0 publish to QoS 1/2 nothing to do
+				goto send;
+			}
 		}
 		// fixed header
 		iov[niov].iov_buf = fixheader;
 		iov[niov].iov_len = nni_msg_header_len(msg);
 		niov++;
-		// 1st part of variable header
+		// 1st part of variable header: topic
 		iov[niov].iov_buf = body;
 		len               = NNI_GET16(body, len); // get topic length
 		iov[niov].iov_len = len + 2;
@@ -756,14 +763,15 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 			niov++;
 		}
 		// payload
-		if (qos_pac > 0) { // determine if it needs to skip packet id field
+		if (nni_msg_len(msg) > 0 && qos_pac > 0) { // determine if it needs to skip packet id field
 			iov[niov].iov_buf = body + 2 + len + 2;
 			iov[niov].iov_len = nni_msg_len(msg) - 4 - len;
-		} else {
+			niov++;
+		} else if (nni_msg_len(msg) > 0){
 			iov[niov].iov_buf = body + 2 + len;
 			iov[niov].iov_len = nni_msg_len(msg) - 2 - len;
+			niov++;
 		}
-		niov++;
 
 		nni_aio_set_iov(txaio, niov, iov);
 		nng_stream_send(p->conn, txaio);
