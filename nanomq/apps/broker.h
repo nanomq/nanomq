@@ -11,6 +11,7 @@ struct work {
 		INIT, RECV, WAIT, SEND, RESEND, FREE
 	} state;
 
+	uint8_t			proto;
 	nng_aio       * aio;
 	nng_msg       * msg;
 	nng_ctx         ctx;

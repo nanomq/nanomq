@@ -165,6 +165,7 @@ tcptran_pipe_fini(void *arg)
 		nni_mtx_unlock(&ep->mtx);
 	}
 
+	//nng_free(p->tcp_cparam, sizeof(struct conn_param));
 	nni_aio_free(p->qsaio);
 	nni_aio_free(p->rxaio);
 	nni_aio_free(p->txaio);
