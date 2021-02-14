@@ -243,13 +243,29 @@ nano_ctx_send(void *arg, nni_aio *aio)
 		nni_mtx_unlock(&s->lk);
 		nni_aio_set_msg(aio, NULL);
 		//nni_aio_finish(aio, 0, nni_msg_len(msg));
+		nni_println("ERROR: pipe is gone, pub failed");
 		nni_msg_free(msg);
 		return;
 	}
 	nni_mtx_unlock(&s->lk);
 	nni_mtx_lock(&p->lk);
     if (nni_msg_cmd_type(msg) == CMD_PUBLISH) {
-    	if (nni_msg_get_pub_qos(msg) > 0) {
+		nni_pipe * npipe;
+		uint8_t *body;
+		size_t   tlen;
+		npipe = p->pipe;
+		body = nni_msg_body(msg);
+		NNI_GET16(body, tlen);
+		nano_pipe_db *db;
+
+		if ((db = nni_id_get(&npipe->nano_db, DJBHashn(body + 2, tlen))) == NULL) {
+			//shouldn't get here BUG TODO
+			nni_println("ERROR: nano_db subscription topic missing!");
+			nni_msg_free(msg);
+			nni_mtx_unlock(&p->lk);
+			return;
+		}
+    	if (nni_msg_get_pub_qos(msg) > 0 && db->qos > 0) {
         	debug_msg("******** processing QoS pubmsg with pipe: %p ********", p);
         	p->qos_retry = 0;
         	nni_msg_clone(msg);
@@ -278,6 +294,7 @@ nano_ctx_send(void *arg, nni_aio *aio)
 	}
 
 	if ((rv = nni_aio_schedule(aio, nano_ctx_cancel_send, ctx)) != 0) {
+		nni_msg_free(msg);
 		nni_mtx_unlock(&p->lk);
 		//nni_aio_finish_error(aio, rv);
 		return;
@@ -556,7 +573,7 @@ nano_pipe_close(void *arg)
 		del_pipe_id(p->id);
 	}
 	// TODO free conn_param after one to many pub completed
-	// destroy_conn_param(p->conn_param);
+	destroy_conn_param(p->conn_param);
 
 	nni_aio_close(&p->aio_send);
 	nni_aio_close(&p->aio_recv);
@@ -763,6 +780,8 @@ nano_pipe_recv_cb(void *arg)
 			nni_mtx_unlock(&p->lk);
 			break;
 		case CMD_PUBLISH:
+			//TODO QoS 1/2 sender side cache
+			break;
 		case CMD_DISCONNECT:
 		case CMD_UNSUBSCRIBE:
 			break;
