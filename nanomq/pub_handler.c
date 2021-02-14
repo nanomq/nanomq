@@ -331,8 +331,6 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_
 
 	properties_type prop_type;
 
-	const uint8_t proto_ver = conn_param_get_protover(work->cparam);
-
 	debug_msg("start encode message");
 
 	nng_msg_clear(dest_msg);
@@ -372,7 +370,7 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_
 			debug_msg("after topic and id len in msg already [%ld]", nng_msg_len(dest_msg));
 
 #if SUPPORT_MQTT5_0
-			if (PROTOCOL_VERSION_v5 == proto_ver) {
+			if (PROTOCOL_VERSION_v5 == work->proto) {
 				//properties
 				//properties length
 				memset(tmp, 0, sizeof(tmp));
@@ -445,7 +443,7 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_
 			}
 			/* check */
 			else {
-				debug_msg("pro_ver [%d]", proto_ver);
+				debug_msg("pro_ver [%d]", work->proto);
 			}
 #endif
 			debug_msg("property len in msg already [%ld]", nng_msg_len(dest_msg));
@@ -495,7 +493,7 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work, mqtt_control_packet_
 				nng_msg_append(dest_msg, (uint8_t *) &reason_code, sizeof(reason_code));
 
 #if SUPPORT_MQTT5_0
-				if (PROTOCOL_VERSION_v5 == proto_ver) {
+				if (PROTOCOL_VERSION_v5 == work->proto) {
 					//properties
 					if (pub_response.fixed_header.remain_len >= 4) {
 
@@ -536,6 +534,7 @@ decode_pub_message(emq_work *work)
 	int     used_pos  = 0;
 	int     len, len_of_varint;
 	uint8_t proto_ver = conn_param_get_protover(work->cparam);
+	work->proto = proto_ver;
 
 	nng_msg *msg      = work->msg;
 	struct pub_packet_struct *pub_packet = work->pub_packet;

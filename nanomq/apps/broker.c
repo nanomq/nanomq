@@ -121,7 +121,7 @@ server_cb(void *arg)
 				}
 				del_sub_client_id(clientid);
 				del_sub_pipe_id(pipe.id);
-				destroy_conn_param(work->cparam);
+				//destroy_conn_param(work->cparam);
 
 				work->state = RECV;
 				nng_msg_free(msg);
@@ -250,7 +250,6 @@ server_cb(void *arg)
 				}
 				nng_msg_alloc(&smsg, 0);
 
-				work->pid = nng_msg_get_pipe(work->msg);
 				handle_pub(work, work->pipe_ct);
 				nng_msg_free(work->msg);
 
@@ -282,6 +281,7 @@ server_cb(void *arg)
 					}
 					work->state = SEND;
 					nng_msg_free(smsg);
+					work->proto = 0;
 					smsg = NULL;
 					nng_aio_finish(work->aio, 0);
 					break;
@@ -289,6 +289,7 @@ server_cb(void *arg)
 					free_pub_packet(work->pub_packet);
 					free_pipes_info(work->pipe_ct->pipe_info);
 					init_pipe_content(work->pipe_ct);
+					work->proto = 0;
 				}
 
 				if (work->state != SEND) {
@@ -330,6 +331,7 @@ server_cb(void *arg)
 				free_pub_packet(work->pub_packet);
 				free_pipes_info(work->pipe_ct->pipe_info);
 				init_pipe_content(work->pipe_ct);
+				work->proto = 0;
 			}
 			work->msg   = NULL;
 			work->state = RECV;
