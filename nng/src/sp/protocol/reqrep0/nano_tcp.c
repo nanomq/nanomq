@@ -444,8 +444,10 @@ nano_pipe_fini(void *arg)
 {
 	nano_pipe *p = arg;
 	nng_msg *  msg;
+	void *     tree;
+	char *     client_id = NULL;
 
-    debug_msg("##########nano_pipe_fini###############");
+    debug_msg("########## nano_pipe_fini ###############");
 	if ((msg = nni_aio_get_msg(&p->aio_recv)) != NULL) {
 		nni_aio_set_msg(&p->aio_recv, NULL);
 		nni_msg_free(msg);
@@ -455,6 +457,22 @@ nano_pipe_fini(void *arg)
 		nni_aio_set_msg(&p->aio_recv, NULL);
 		nni_msg_free(msg);
 	}
+
+	//MQTT_DB
+	debug_msg("deleting %d", p->id);
+	debug_msg("tree : %p", p->tree);
+
+	if (p->tree != NULL) {
+//		del_all(p->id, p->tree);
+	}
+	if ((client_id = get_client_id(p->id)) != NULL) {
+		del_topic_all(client_id);
+	}
+	if (check_pipe_id(p->id)) {
+		del_pipe_id(p->id);
+	}
+	// TODO free conn_param after one to many pub completed
+	destroy_conn_param(p->conn_param);
 
 	nni_mtx_fini(&p->lk);
 	nni_aio_fini(&p->aio_send);
@@ -555,25 +573,9 @@ nano_pipe_close(void *arg)
 	nano_pipe *p = arg;
 	nano_sock *s = p->rep;
 	nano_ctx * ctx;
-	void *     tree;
-	char *     client_id = NULL;
 
 	debug_msg("################# nano_pipe_close ##############");
 	nni_mtx_lock(&s->lk);
-	debug_msg("deleting %d", p->id);
-	debug_msg("tree : %p", p->tree);
-
-	if (p->tree != NULL) {
-//		del_all(p->id, p->tree);
-	}
-	if ((client_id = get_client_id(p->id)) != NULL) {
-		del_topic_all(client_id);
-	}
-	if (check_pipe_id(p->id)) {
-		del_pipe_id(p->id);
-	}
-	// TODO free conn_param after one to many pub completed
-	destroy_conn_param(p->conn_param);
 
 	nni_aio_close(&p->aio_send);
 	nni_aio_close(&p->aio_recv);
