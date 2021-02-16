@@ -92,6 +92,7 @@ server_cb(void *arg)
 
 			if (nng_msg_cmd_type(msg) == CMD_DISCONNECT) {
 				work->cparam = (conn_param *) nng_msg_get_conn_param(msg);
+				//TODO replace it with buffer id
 				char   *clientid = (char *) conn_param_get_clentid(work->cparam);
 				struct topic_and_node tan;
 				struct client         *cli      = NULL;
