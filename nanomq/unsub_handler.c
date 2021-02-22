@@ -202,8 +202,8 @@ uint8_t unsub_ctx_handle(emq_work * work)
 
 		debug_msg("finding client [%s] in topic [%s].", clientid, topic_str);
 
-		cli_ctx = search_and_delete(work->db, topic_str, (s_client *)client_id);
-		del_topic_one(client_id, topic_str);
+		cli_ctx = search_and_delete(work->db, topic_str, work->pid.id);
+		del_topic_one(work->pid.id, topic_str);
 
 		if (cli_ctx != NULL) {// find the topic
 			topic_node_t->it->reason_code = 0x00;

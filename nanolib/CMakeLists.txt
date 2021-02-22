@@ -5,19 +5,14 @@
 # found online at https://opensource.org/licenses/MIT.
 
 cmake_minimum_required (VERSION 2.8.8)
-#SET(CMAKE_C_FLAGS "-std=c99")
+# SET(CMAKE_C_FLAGS "-std=c99")
 SET(CMAKE_C_FLAGS "-std=gnu99")
 SET(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 
 project(nanolib)
 
 SET(CMAKE_CXX_FLAGS "-std=c++11 -O3")
-SET(DEFAULT_BUILD_TYPE "Release")
 
-if (DEBUG AND ASAN)
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -fsanitize=address")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -fsanitize=address")
-endif (DEBUG AND ASAN)
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   message(STATUS "Setting build type to '${DEFAULT_BUILD_TYPE}' as none was specified.")
@@ -56,6 +51,7 @@ add_library(nano_shared SHARED $<TARGET_OBJECTS:nanolib>)
 #add_library(nanolib_static STATIC $<TARGET_OBJECTS:nanolib>)
 target_link_libraries(nano_shared ${CMAKE_THREAD_LIBS_INIT})
 
+target_link_libraries(nano_shared ${CMAKE_THREAD_LIBS_INIT})
 
 add_executable(test test.c)
 target_link_libraries(test nano_shared)

@@ -11,8 +11,7 @@ DESTDIR = /usr/local/include/
 
 all:nanolib test.c
 	$(CC) -o nano test.c $(CFLAGS) $(LDFLAGS) $(DLIBS) $(RPATH) -lpthread # -fsanitize=thread -g -O1
-	# ./nano
-	valgrind ./nano
+	./nano
 
 %.o:%.c $(INC) 
 	$(CC)  -c -o $@ $< $(CFLAGS) 
@@ -26,6 +25,12 @@ nanolib:$(OBJ)
 
 dbkiller:nanolib dbkiller.c
 	$(CC) -o dbkiller dbkiller.c $(CFLAGS) $(LDFLAGS) -lnano -ldill -lpthread $(RPATH)
+
+check:nano
+	valgrind ./nano
+        
+check-s:nano
+	valgrind -s ./nano
 
 .PHONY:clean
 clean:

@@ -30,15 +30,15 @@ void del_val(int key);
 
 // @obj. _topic_hash
 
-void add_topic(char *id, char *val);
+void add_topic(uint32_t id, char *val);
 
-struct topic_queue *get_topic(char *id); 
+struct topic_queue *get_topic(uint32_t id); 
 
-void del_topic_one(char *id, char *topic);
+void del_topic_one(uint32_t id, char *topic);
 
-void del_topic_all(char *id);
+void del_topic_all(uint32_t id);
 
-bool check_id(char *id);
+bool check_id(uint32_t id);
 
 // @obj. _pipe_hash
 

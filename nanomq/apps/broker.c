@@ -93,24 +93,23 @@ server_cb(void *arg)
 			if (nng_msg_cmd_type(msg) == CMD_DISCONNECT) {
 				work->cparam = (conn_param *) nng_msg_get_conn_param(msg);
 				//TODO replace it with buffer id
-				char * clientid = (char *) conn_param_get_clentid(work->cparam);
 				void * cli_ctx  = NULL;
 				struct topic_queue *tq = NULL;
 
-				debug_msg("##########DISCONNECT (clientID:[%s])##########", clientid);
-				if (check_id(clientid)) {
-					tq = get_topic(clientid);
+				debug_msg("##########DISCONNECT (pipe_id:[%d])##########", pipe.id);
+				if (check_id(pipe.id)) {
+					tq = get_topic(pipe.id);
 					while (tq) {
 						if (tq->topic) {
-							cli_ctx = search_and_delete(work->db, tq->topic, (s_client *)clientid);
+							cli_ctx = search_and_delete(work->db, tq->topic, pipe.id);
 						}
 						del_sub_ctx(cli_ctx, tq->topic); // only free work->sub_pkt
 						tq = tq->next;
 					}
 				}
-				del_sub_client_id(clientid);
-				del_sub_pipe_id(pipe.id);
-				//destroy_conn_param(work->cparam);
+
+				// del_sub_topic_all(pipe.id); // has deleted in pipe_fini
+				// destroy_conn_param(work->cparam); // has deleted in pipe_fini
 
 				work->state = RECV;
 				nng_msg_free(msg);
@@ -148,10 +147,9 @@ server_cb(void *arg)
 				    (reason = sub_ctx_handle(work))              != SUCCESS ||
 				    (reason = encode_suback_message(smsg, work)) != SUCCESS) {
 					debug_msg("ERROR: sub_handler: [%d]", reason);
-
-				//	destroy_sub_ctx(cli_ctx);
-					del_sub_pipe_id(work->pid.id);
-					del_sub_client_id((char *)conn_param_get_clentid(work->cparam));
+					if (check_id(work->pid.id)) {
+						del_topic_all(work->pid.id);
+					}
 				} else {
 					// success but check info
 					debug_msg("sub_pkt:"

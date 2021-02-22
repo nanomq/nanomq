@@ -44,8 +44,6 @@ uint8_t decode_sub_message(emq_work * work)
 
 	// handle variable header
 	variable_ptr = nng_msg_variable_ptr(msg);
-	fprintf(stderr, "111111111111111111\n");
-	debug_msg("22222222222222222222222");
 
 	packet_subscribe * sub_pkt = work->sub_pkt;
 	NNI_GET16(variable_ptr + vpos, sub_pkt->packet_id);
@@ -272,15 +270,13 @@ uint8_t sub_ctx_handle(emq_work * work)
 		debug_msg("topicLen: [%d] body: [%s]", topic_len, topic_str);
 
 		client_id = (char *)conn_param_get_clentid((conn_param *)nng_msg_get_conn_param(work->msg));
-		search_and_insert(work->db, topic_str, client_id, cli_ctx);
-		fprintf(stderr, "111 cli ctx [%p]\n", cli_ctx);
+		search_and_insert(work->db, topic_str, client_id, cli_ctx, work->pid.id);
 
-                add_topic(client_id, topic_str);
-                add_pipe_id(work->pid.id, client_id);
-                         // check
-                tq = get_topic(client_id);
-                debug_msg("-----CHECKHASHTABLE----clientid: [%s]---topic: [%s]---pipeid: [%d]",
-                        client_id, tq->topic, work->pid.id);
+		add_topic(work->pid.id, topic_str);
+		// check
+		tq = get_topic(work->pid.id);
+		debug_msg("-----CHECKHASHTABLE----clientid: [%s]---topic: [%s]---pipeid: [%d]",
+                client_id, tq->topic, work->pid.id);
 
 #ifdef DEBUG
 		// check
@@ -419,20 +415,6 @@ void destroy_sub_ctx(void * ctxt)
 		// TODO free conn_param
 		nng_free(cli_ctx, sizeof(client_ctx));
 		cli_ctx = NULL;
-	}
-}
-
-void del_sub_pipe_id(uint32_t pipe_id)
-{
-	if (check_pipe_id(pipe_id)) {
-		del_pipe_id(pipe_id);
-	}
-}
-
-void del_sub_client_id(char * clientid)
-{
-	if (check_id(clientid)) {
-		del_topic_all(clientid);
 	}
 }
 
