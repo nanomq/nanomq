@@ -219,7 +219,7 @@
 	                if ((i) < cv_sz) {                                 \
 	                	cvector_set_size((vec), cv_sz + 1);            \
 	                	size_t cv_x;                                   \
-	                	for (cv_x = cv_sz; cv_x > (i); cv_x--) { \
+	                	for (cv_x = (cv_sz); cv_x > (i); cv_x--) { \
 	                		(vec)[cv_x] = (vec)[cv_x-1];             \
 	                	}                                              \
 		                vec[i] = (value);                          				\

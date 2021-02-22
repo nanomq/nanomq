@@ -465,14 +465,12 @@ nano_pipe_fini(void *arg)
 	if (p->tree != NULL) {
 //		del_all(p->id, p->tree);
 	}
-	if ((client_id = get_client_id(p->id)) != NULL) {
-		del_topic_all(client_id);
-	}
-	if (check_pipe_id(p->id)) {
-		del_pipe_id(p->id);
+
+	if ((check_id(p->id)) == true) {
+	     del_topic_all(p->id);
 	}
 	// TODO free conn_param after one to many pub completed
-	destroy_conn_param(p->conn_param);
+	// destroy_conn_param(p->conn_param);
 
 	nni_mtx_fini(&p->lk);
 	nni_aio_fini(&p->aio_send);

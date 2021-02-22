@@ -112,7 +112,158 @@ void del_val(int key)
  * @val. topic_queue.
  */
 
-mqtt_hash<char *, topic_queue *> _topic_hash;
+// mqtt_hash<char *, topic_queue *> _topic_hash;
+// 
+// static struct topic_queue *new_topic_queue(char *val)
+// {
+// 	struct topic_queue *tq = NULL;
+// 	int len = strlen(val);
+// 
+// 	tq = (struct topic_queue*)malloc(sizeof(struct topic_queue));
+// 	if (!tq) {
+// 		fprintf(stderr, "malloc: Out of memory\n");
+// 		fflush(stderr);
+// 		abort();
+// 
+// 	}
+// 	tq->topic = (char*)malloc(sizeof(char)*(len+1));
+// 	if (!tq->topic) {
+// 		fprintf(stderr, "malloc: Out of memory\n");
+// 		fflush(stderr);
+// 		abort();
+// 
+// 	}
+// 	memcpy(tq->topic, val, len);
+// 	tq->topic[len] = '\0';
+// 	tq->next = NULL;
+// 
+// 	return tq;
+// }
+// 
+// static void delete_topic_queue(struct topic_queue *tq)
+// {
+// 	if (tq) {
+// 		if (tq->topic) {
+// 			log("delete topic:%s", tq->topic);
+// 			free(tq->topic);
+// 			tq->topic = NULL;
+// 		}
+// 		free(tq);
+// 		tq = NULL;
+// 	}
+// 	return;
+// }
+// 
+// /*
+//  * @obj. _topic_hash.
+//  * @id. clientid.
+//  * @val. topic_queue.
+//  */
+// 
+// void add_topic(char *id, char *val)
+// {
+// 	struct topic_queue *ntq = new_topic_queue(val);
+// 	struct topic_queue *tq = _topic_hash[id];
+// 	if (tq == NULL) {
+// 		_topic_hash[id] = ntq;
+// 		log("add_topic:%s",_topic_hash[id]->topic);
+// 	} else {
+//                 struct topic_queue *tmp = tq->next;
+// 		tq->next = ntq;
+// 		ntq->next = tmp;
+// 		log("add_topic:%s", tq->next->topic);
+// 	}
+// 
+// }
+// 
+// /*
+//  * @obj. _topic_hash.
+//  * @id. clientid.
+//  */
+// 
+// struct topic_queue *get_topic(char *id) 
+// {
+// 	if (_topic_hash[id]) {
+// 		return _topic_hash[id];
+// 	} 
+// 
+// 	return NULL;
+// }
+// 
+// /*
+//  * @obj. _topic_hash.
+//  * @id. clientid.
+//  */
+// 
+// void del_topic_one(char *id, char *topic)
+// {
+// 	struct topic_queue *tt = _topic_hash[id];
+// 	struct topic_queue *tb = NULL;
+// 
+// 	if (!strcmp(tt->topic, topic) && tt->next == NULL) {
+// 		_topic_hash.del(id);
+// 		delete_topic_queue(tt);
+// 		return;
+// 	}
+// 
+// 	if (!strcmp(tt->topic, topic)) {
+// 		_topic_hash[id] = tt->next;
+// 		delete_topic_queue(tt);
+// 		return;
+// 	}
+// 
+// 	while (tt) {
+// 		if (!strcmp(tt->topic, topic)) {
+// 			if (tt->next == NULL) {
+// 				tb->next = NULL;
+// 			} else {
+// 				tb->next = tt->next;
+// 			}
+// 			break;
+// 		}
+// 		tb = tt;
+// 		tt = tt->next;
+// 	}
+// 
+// 	delete_topic_queue(tt);
+// 
+// 	return;
+// }
+// 
+// /*
+//  * @obj. _topic_hash.
+//  * @id. clientid.
+//  */
+// 
+// void del_topic_all(char *id)
+// {
+// 	struct topic_queue *tq = _topic_hash[id];
+// 	_topic_hash.del(id);
+// 	while (tq) {
+// 		struct topic_queue *tt = tq;
+// 		tq = tq->next;
+// 		delete_topic_queue(tt);
+// 	}
+// 	return;
+// }
+// 
+// /*
+//  * @obj. _topic_hash.
+//  */
+// 
+// bool check_id(char *id)
+// {
+// 	return _topic_hash.find(id);
+// }
+
+
+/*
+ * @obj. _topic_hash.
+ * @key. clientid.
+ * @val. topic_queue.
+ */
+
+mqtt_hash<uint32_t, topic_queue *> _topic_hash;
 
 static struct topic_queue *new_topic_queue(char *val)
 {
@@ -160,7 +311,7 @@ static void delete_topic_queue(struct topic_queue *tq)
  * @val. topic_queue.
  */
 
-void add_topic(char *id, char *val)
+void add_topic(uint32_t id, char *val)
 {
 	struct topic_queue *ntq = new_topic_queue(val);
 	struct topic_queue *tq = _topic_hash[id];
@@ -168,7 +319,7 @@ void add_topic(char *id, char *val)
 		_topic_hash[id] = ntq;
 		log("add_topic:%s",_topic_hash[id]->topic);
 	} else {
-        struct topic_queue *tmp = tq->next;
+                struct topic_queue *tmp = tq->next;
 		tq->next = ntq;
 		ntq->next = tmp;
 		log("add_topic:%s", tq->next->topic);
@@ -181,7 +332,7 @@ void add_topic(char *id, char *val)
  * @id. clientid.
  */
 
-struct topic_queue *get_topic(char *id) 
+struct topic_queue *get_topic(uint32_t id) 
 {
 	if (_topic_hash[id]) {
 		return _topic_hash[id];
@@ -195,7 +346,7 @@ struct topic_queue *get_topic(char *id)
  * @id. clientid.
  */
 
-void del_topic_one(char *id, char *topic)
+void del_topic_one(uint32_t id, char *topic)
 {
 	struct topic_queue *tt = _topic_hash[id];
 	struct topic_queue *tb = NULL;
@@ -235,7 +386,7 @@ void del_topic_one(char *id, char *topic)
  * @id. clientid.
  */
 
-void del_topic_all(char *id)
+void del_topic_all(uint32_t id)
 {
 	struct topic_queue *tq = _topic_hash[id];
 	_topic_hash.del(id);
@@ -251,10 +402,13 @@ void del_topic_all(char *id)
  * @obj. _topic_hash.
  */
 
-bool check_id(char *id)
+bool check_id(uint32_t id)
 {
 	return _topic_hash.find(id);
 }
+
+
+
 
 /*
  * @obj. _pipe_hash.
