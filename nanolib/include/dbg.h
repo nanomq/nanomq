@@ -50,7 +50,7 @@ static inline char *nano_get_time()
 
 // Test
 #ifdef NOLOG
-#define CHECK(A)
+#define CHECK(A) if(A){};
 #define RUN_TESTS(name) int main(int argc, char *argv[]) {\
 	fprintf(stderr, "\n----[RUN_TESTS(NOLOG)]----\n");\
 	do{\

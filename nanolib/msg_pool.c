@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <time.h>
 #include <nng/nng.h>
 #include <nng/supplemental/util/platform.h>
 
@@ -128,6 +129,7 @@ uint8_t nnl_msg_pool_resize(nnl_msg_pool * pool, uint32_t size)
 
 	if (size < pool->used || size < NANOLIB_MSG_POOL_SIZE) {
 		rv = 1;
+		return rv;
 	}
 	if (nnl_msg_pool_used(pool)/nnl_msg_pool_capacity(pool) < 2/3) {
 		return rv;
@@ -244,4 +246,16 @@ uint8_t nnl_msg_put_force(nnl_msg_pool * pool, nng_msg ** msgp)
 	return rv;
 }
 
+uint64_t nnl_now()
+{
+	uint64_t msec;
+	struct timespec ts;
+	if (clock_gettime(CLOCK_REALTIME, &ts) != 0) {
+		log("ERROR in get time");
+	}
+	msec = ts.tv_sec;
+	msec *= 1000;
+	msec += (ts.tv_nsec / 1000000);
+	return (msec);
+}
 
