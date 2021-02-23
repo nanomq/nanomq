@@ -35,5 +35,6 @@ uint8_t nnl_msg_pool_empty(nnl_msg_pool *);
 uint8_t nnl_msg_pool_full(nnl_msg_pool *);
 void nnl_msg_pool_delete(nnl_msg_pool *);
 uint8_t nnl_msg_put_force(nnl_msg_pool *, nng_msg **);
+uint64_t nnl_now();
 
 #endif

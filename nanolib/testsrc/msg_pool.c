@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <time.h>
 
 #include "../include/msg_pool.h"
 #include "../include/dbg.h"
@@ -123,7 +124,7 @@ uint8_t test_two_concurrent()
 
 char * test_msg_pool()
 {
-	uint8_t      rv = 0;
+	uint8_t rv = 0;
 	log("create msg pool?");
 	CHECK(nnl_msg_pool_create(&mp) == 0);
 	CHECK(test_two_concurrent() == 0);
@@ -132,4 +133,32 @@ char * test_msg_pool()
 	return NULL;
 }
 
-RUN_TESTS(test_msg_pool)
+char * test_compare_malloc_msg_pool_get()
+{
+	uint8_t rv = 0;
+	uint32_t num = 8190;
+	uint64_t now;
+	nng_msg * mq[num];
+	CHECK(nnl_msg_pool_create(&mp) == 0);
+	now = nnl_now();
+	for(int i=0; i<num; i++) {
+		nng_msg_alloc(&mq[i], 256);
+	}
+	debug("[%ld]", nnl_now()-now);
+	for(int i=0; i<num; i++) {
+		nng_msg_free(mq[i]);
+	}
+
+	now = nnl_now();
+	nnl_msg_get(mp, &mq[0]);
+	for(int i=1; i<num; i++) {
+		nnl_msg_get(mp, &mq[i]);
+	}
+	debug("[%ld]", nnl_now()-now);
+	for(int i=0; i<num; i++) {
+		nnl_msg_put(mp, &mq[i]);
+	}
+}
+
+// RUN_TESTS(test_msg_pool)
+RUN_TESTS(test_compare_malloc_msg_pool_get)
