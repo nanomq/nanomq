@@ -30,7 +30,7 @@ uint8_t nnl_msg_pool_get(nnl_msg_pool *, nng_msg **);
 uint8_t nnl_msg_pool_put(nnl_msg_pool *, nng_msg *);
 uint32_t nnl_msg_pool_capacity(nnl_msg_pool *);
 uint32_t nnl_msg_pool_used(nnl_msg_pool *);
-uint8_t nnl_msg_pool_resize(nnl_msg_pool *, uint32_t);
+uint8_t nnl_msg_pool_resize(nnl_msg_pool *);
 uint8_t nnl_msg_pool_empty(nnl_msg_pool *);
 uint8_t nnl_msg_pool_full(nnl_msg_pool *);
 void nnl_msg_pool_delete(nnl_msg_pool *);

@@ -107,7 +107,7 @@ uint8_t test_two_concurrent()
 		targs * t = malloc(sizeof(targs));
 		rv |= pthread_create(&threads[i], NULL, thread_test_one_get_one_put, (void *)t);
 		if (rv) {
-			log("ERROR in thread create");
+			debug("ERROR in thread create");
 			break;
 		}
 	}
@@ -115,8 +115,8 @@ uint8_t test_two_concurrent()
 	if (!rv) {
 		for (int i=0; i<NUM_THREADS; i++) {
 			rv |= pthread_join(threads[i], &status);
-			log("rv about Tx [%d]", rv);
 		}
+		debug("rv about Tx [%d]", rv);
 	}
 
 	return rv;
@@ -125,10 +125,10 @@ uint8_t test_two_concurrent()
 char * test_msg_pool()
 {
 	uint8_t rv = 0;
-	log("create msg pool?");
+	debug("create msg pool?");
 	CHECK(nnl_msg_pool_create(&mp) == 0);
 	CHECK(test_two_concurrent() == 0);
-	log("delete msg pool.");
+	debug("delete msg pool.");
 	nnl_msg_pool_delete(mp);
 	return NULL;
 }
@@ -160,5 +160,5 @@ char * test_compare_malloc_msg_pool_get()
 	}
 }
 
-// RUN_TESTS(test_msg_pool)
-RUN_TESTS(test_compare_malloc_msg_pool_get)
+RUN_TESTS(test_msg_pool)
+// RUN_TESTS(test_compare_malloc_msg_pool_get)
