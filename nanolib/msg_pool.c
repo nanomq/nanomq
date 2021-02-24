@@ -7,8 +7,12 @@
 #include "zmalloc.h"
 #include "dbg.h"
 
-static nng_mtx * msg_mutex;
-static nng_mtx * pool_mutex;
+static nng_mtx * msg_mutex;     // mutex when msg get/put
+static nng_mtx * pool_mutex;    // mutex when resize
+static nng_cv  * pool_cv;       // cv when resize
+static nng_mtx * pool_cv_mutex; // cv alloc needed
+static nng_aio * aio_resize;
+static uint32_t  target_sz = 0;
 
 uint8_t nnl_msg_pool_create(nnl_msg_pool ** poolp)
 {
@@ -33,6 +37,9 @@ uint8_t nnl_msg_pool_create(nnl_msg_pool ** poolp)
 	if (rv == 0) {
 		rv |= (uint8_t)nng_mtx_alloc(&msg_mutex);
 		rv |= (uint8_t)nng_mtx_alloc(&pool_mutex);
+		rv |= (uint8_t)nng_mtx_alloc(&pool_cv_mutex);
+		rv |= (uint8_t)nng_cv_alloc(&pool_cv, pool_cv_mutex);
+		rv |= (int)nng_aio_alloc(&aio_resize, nnl_msg_pool_resize, pool);
 	}
 
 	if (rv != 0) {
@@ -69,18 +76,31 @@ uint8_t nnl_msg_get(nnl_msg_pool * pool, nng_msg ** msgp)
 	uint8_t rv = 0;
 	if (nnl_msg_pool_used(pool)/nnl_msg_pool_capacity(pool) > 2/3) {
 		nng_mtx_lock(msg_mutex);
-		rv |= nnl_msg_pool_resize(pool, 2 * pool->capacity);
+		if (target_sz <= pool->capacity) {
+			target_sz = 2 * pool->capacity;
+			nng_aio_finish_sync(aio_resize, 0);
+		}
+		// rv |= nnl_msg_pool_resize(pool, 2 * pool->capacity);
 		nng_mtx_unlock(msg_mutex);
 	}
+
+	nng_mtx_lock(pool_cv_mutex);
+	if (pool->used >= pool->capacity) {
+		nng_cv_wait(pool_cv);
+	}
+	nng_mtx_unlock(pool_cv_mutex);
+
 	if (rv == 0) {
 		nng_mtx_lock(msg_mutex);
 		rv |= nnl_msg_pool_get(pool, msgp);
 		nng_mtx_unlock(msg_mutex);
 	}
 	log_info("MSG GETTED AND USED NOW IS (%d)", pool->used);
+#ifdef DEBUG
 	if (rv == 1) {
 		log_err("ERROR: error in msg get!!");
 	}
+#endif
 	return rv;
 }
 
@@ -121,22 +141,25 @@ uint8_t nnl_msg_put(nnl_msg_pool * pool, nng_msg ** msgp)
 	return rv;
 }
 
-uint8_t nnl_msg_pool_resize(nnl_msg_pool * pool, uint32_t size)
+uint8_t nnl_msg_pool_resize(nnl_msg_pool * pool)
 {
 	uint8_t  rv = 0;
-	uint32_t start = 0, end = 0, i = 0;
+	uint32_t start = 0, end = 0, i = 0, size = target_sz;
 	nng_msg ** newpool = NULL;
 
 	if (size < pool->used || size < NANOLIB_MSG_POOL_SIZE) {
-		rv = 1;
-		return rv;
-	}
-	if (nnl_msg_pool_used(pool)/nnl_msg_pool_capacity(pool) < 2/3) {
-		return rv;
+		return 1;
 	}
 
+	nng_mtx_lock(pool_mutex);
+
+	if (nnl_msg_pool_used(pool)/nnl_msg_pool_capacity(pool) < 2/3) {
+		nng_mutex_unlock(pool_mutex);
+		return rv;
+	}
 	log_info("resize to [%d]\n", size);
 	debug("resize !!!!!!!!! to [%d]\n", size);
+
 	if (rv == 0) {
 		newpool = (nng_msg **)zmalloc(size * sizeof(nng_msg*));
 		for (i=0; i<size; i++) {
@@ -172,6 +195,11 @@ uint8_t nnl_msg_pool_resize(nnl_msg_pool * pool, uint32_t size)
 		pool->fronter  = pool->used;
 		pool->footer   = 0;
 	}
+	nng_mtx_unlock(pool_mutex);
+
+	nng_mtx_lock(pool_cv_mutex);
+	nng_cv_wake(pool_cv);
+	nng_mtx_unlock(pool_cv_mutex);
 	return rv;
 }
 
@@ -209,6 +237,9 @@ void nnl_msg_pool_delete(nnl_msg_pool * pool)
 	zfree(pool);
 	nng_mtx_free(msg_mutex);
 	nng_mtx_free(pool_mutex);
+	nng_mtx_free(pool_cv_mutex);
+	nng_cv_free(pool_cv);
+	nng_aio_free(aio_resize);
 }
 
 uint32_t nnl_msg_pool_capacity(nnl_msg_pool * pool)
