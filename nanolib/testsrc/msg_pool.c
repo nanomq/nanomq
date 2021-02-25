@@ -17,19 +17,19 @@ typedef struct thread_args {
 
 nnl_msg_pool * mp;
 
-uint8_t test_one_get_one_put()
+int test_one_get_one_put()
 {
-	uint8_t rv = 0;
+	int rv = 0;
 	nng_msg * msg;
 	rv |= nnl_msg_get(mp, &msg);
 	rv |= nnl_msg_put(mp, &msg);
 	return rv;
 }
 
-uint8_t test_multi_get(int n, nng_msg ** msgs)
+int test_multi_get(int n, nng_msg ** msgs)
 {
 	nng_msg * msg;
-	uint8_t rv = 0;
+	int rv = 0;
 	for(int i=0; i<n; i++){
 		rv |= nnl_msg_get(mp, &msgs[i]);
 		if(rv) log("rv: [%d] address [%p]", rv, msgs[i]);
@@ -37,10 +37,10 @@ uint8_t test_multi_get(int n, nng_msg ** msgs)
 	return rv;
 }
 
-uint8_t test_multi_put(int n, nng_msg ** msgs)
+int test_multi_put(int n, nng_msg ** msgs)
 {
 	nng_msg * msg;
-	uint8_t rv = 0;
+	int rv = 0;
 	for(int i=0; i<n; i++){
 		if (msgs[i]) {
 			rv |= nnl_msg_put(mp, &msgs[i]);
@@ -56,19 +56,19 @@ nng_msg * msgs[1000];
 
 void * thread_test_multi_get(void * n)
 {
-	uint8_t rv = test_multi_get(*(int *)n, msgs);
+	int rv = test_multi_get(*(int *)n, msgs);
 	pthread_exit((void *)rv);
 }
 
 void * thread_test_multi_put(void * n)
 {
-	uint8_t rv = test_multi_put(*(int *)n, msgs);
+	int rv = test_multi_put(*(int *)n, msgs);
 	pthread_exit((void *)rv);
 }
 
 uint8_t test_one_concurrent()
 {
-	uint8_t   rv;
+	int rv;
 	pthread_t threads[2];
 	void * status;
 	int num[1] = {1000};
@@ -88,7 +88,7 @@ uint8_t test_one_concurrent()
 
 void * thread_test_one_get_one_put(void * t)
 {
-	uint8_t rv = 0;
+	int rv = 0;
 	targs * ta = t;
 	for (int i=0; i<ta->num; i++)
 		rv += test_one_get_one_put();
@@ -96,9 +96,9 @@ void * thread_test_one_get_one_put(void * t)
 	pthread_exit((void *)&rv);
 }
 
-uint8_t test_two_concurrent()
+int test_two_concurrent()
 {
-	uint8_t   rv = 0;
+	int rv = 0;
 	pthread_t threads[NUM_THREADS];
 	void * status;
 	int num = MSG_NUM_IN_THREAD;
@@ -124,7 +124,6 @@ uint8_t test_two_concurrent()
 
 char * test_msg_pool()
 {
-	uint8_t rv = 0;
 	debug("create msg pool?");
 	CHECK(nnl_msg_pool_create(&mp) == 0);
 	CHECK(test_two_concurrent() == 0);
@@ -135,7 +134,6 @@ char * test_msg_pool()
 
 char * test_compare_malloc_msg_pool_get()
 {
-	uint8_t rv = 0;
 	uint32_t num = 8190;
 	uint64_t now;
 	nng_msg * mq[num];
