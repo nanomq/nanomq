@@ -253,6 +253,7 @@ server_cb(void *arg)
 
 				handle_pub(work, work->pipe_ct);
 				nng_msg_free(work->msg);
+				work->msg = NULL;
 
                 debug_msg("total pipes: %d", work->pipe_ct->total);
 				//TODO rewrite this part.
@@ -282,11 +283,12 @@ server_cb(void *arg)
 					}
 					work->state = SEND;
 					nng_msg_free(smsg);
-					work->proto = 0;
 					smsg = NULL;
+					work->proto = 0;
 					nng_aio_finish(work->aio, 0);
 					break;
 				} else {
+					if (smsg) nng_msg_free(smsg);
 					free_pub_packet(work->pub_packet);
 					free_pipes_info(work->pipe_ct->pipe_info);
 					init_pipe_content(work->pipe_ct);
