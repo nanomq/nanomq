@@ -39,6 +39,7 @@ struct tcptran_pipe {
 	size_t          gotrxhead;
 	size_t          wanttxhead;
 	size_t          wantrxhead;
+	size_t			qlength;
 	nni_list        recvq;
 	nni_list        sendq;
 	nni_aio *       txaio;
@@ -47,6 +48,7 @@ struct tcptran_pipe {
 	nni_aio *       negoaio;
 	nni_msg *       rxmsg;
 	uint8_t *       conn_buf;
+	uint8_t *       qos_buf;
 	nni_mtx         mtx;
 	conn_param *    tcp_cparam;
 	uint8_t			cmd;
@@ -413,6 +415,10 @@ tcptran_pipe_send_cb(void *arg)
 	msg = nni_aio_get_msg(aio);
 	n   = nni_msg_len(msg);
 	nni_pipe_bump_tx(p->npipe, n);
+	//free qos buffer
+	if (p->qlength > 0) {
+		nng_free(p->qos_buf, p->qlength);
+	}
 	nni_mtx_unlock(&p->mtx);
 
 	nni_aio_set_msg(aio, NULL);
@@ -697,16 +703,18 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 	if (nni_msg_header_len(msg) > 0 &&
 	    nni_msg_cmd_type(msg) == CMD_PUBLISH) {
 		uint8_t      *body, *header, qos_pub, qos_pac;
-		uint8_t       varheader[2], fixheader[NNI_NANO_MAX_HEADER_SIZE], tmp[4] = { 0 };
+		uint8_t       varheader[2], fixheader[NNI_NANO_MAX_HEADER_SIZE] = { 0 }, tmp[4] = { 0 };
 		nni_pipe     *pipe;
 		uint16_t      pid;
-		size_t        len, tlen;
+		size_t        len, tlen, rlen;
 		nano_pipe_db *db;
 
 		pipe    = p->npipe;
 		body    = nni_msg_body(msg);
 		header  = nni_msg_header(msg);
+		p->qlength = 0;
 		NNI_GET16(body, tlen);
+
 		if ((db = nni_id_get(&pipe->nano_db, DJBHashn(body + 2, tlen))) == NULL) {
 			//shouldn't get here BUG TODO
 			nni_println("ERROR: nano_db subscription topic missing!");
@@ -714,8 +722,8 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 		}
 		qos_pub = nni_msg_get_preset_qos(msg);
 		qos_pac = nni_msg_get_pub_qos(msg);
-		if (qos_pac == 0 && db->qos == 0) {
-			//save time for QoS 0 publish
+		if (qos_pac == 0 /*&& db->qos == 0*/) {
+			//save time & space for QoS 0 publish
 			goto send;
 		}
 
@@ -729,12 +737,13 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 				// set qos to 1
 				fixheader[0] = fixheader[0] & 0xF9;
 				fixheader[0] = fixheader[0] | 0x02;
+				rlen = put_var_integer(tmp, nni_msg_remaining_len(msg));
 			} else {
 				// set qos to 0
 				fixheader[0] = fixheader[0] & 0xF9;
 				// mdf remaining length TODO get remaining len from packet
-				len = put_var_integer(tmp, nni_msg_remaining_len(msg) - 2);
-				memcpy(fixheader + 1, tmp, len);
+				rlen = put_var_integer(tmp, nni_msg_remaining_len(msg) - 2);
+				memcpy(fixheader + 1, tmp, rlen);
 			}
 		} else if (qos_pac < db->qos) {
 			if (qos_pac == 1) {
@@ -745,32 +754,38 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 				goto send;
 			}
 		}
+
 		// fixed header
-		iov[niov].iov_buf = fixheader;
-		iov[niov].iov_len = nni_msg_header_len(msg);
-		niov++;
+		p->qlength += rlen + 1; //strlen(fixheader)
 		// 1st part of variable header: topic
-		iov[niov].iov_buf = body;
-		len               = NNI_GET16(body, len); // get topic length
-		iov[niov].iov_len = len + 2;
-		niov++;
+
+		p->qlength += tlen + 2;				// get topic length
 		// packet id
 		if (db->qos > 0 && qos_pac > 0) {
 			// set pid
 			pid = nni_pipe_inc_packetid(pipe);
 			NNI_PUT16(varheader, pid);
-			iov[niov].iov_buf = varheader;
-			iov[niov].iov_len = 2;
-			niov++;
+			p->qlength += 2;
 		}
+
+		p->qos_buf = nng_alloc(sizeof(uint8_t) * (p->qlength));
+		memcpy(p->qos_buf, fixheader, rlen+1);
+		memcpy(p->qos_buf+rlen+1, body, tlen + 2);
+		if (db->qos > 0 && qos_pac > 0) {
+			memcpy(p->qos_buf+rlen + tlen + 3, varheader, 2);
+		}
+		iov[niov].iov_buf = p->qos_buf;
+		iov[niov].iov_len = p->qlength;
+		niov++;
+
 		// payload
 		if (nni_msg_len(msg) > 0 && qos_pac > 0) { // determine if it needs to skip packet id field
-			iov[niov].iov_buf = body + 2 + len + 2;
-			iov[niov].iov_len = nni_msg_len(msg) - 4 - len;
+			iov[niov].iov_buf = body + 2 + tlen + 2;
+			iov[niov].iov_len = nni_msg_len(msg) - 4 - tlen;
 			niov++;
-		} else if (nni_msg_len(msg) > 0){
-			iov[niov].iov_buf = body + 2 + len;
-			iov[niov].iov_len = nni_msg_len(msg) - 2 - len;
+		} else if (nni_msg_len(msg) > 0) {
+			iov[niov].iov_buf = body + 2 + tlen;
+			iov[niov].iov_len = nni_msg_len(msg) - 2 - tlen;
 			niov++;
 		}
 
