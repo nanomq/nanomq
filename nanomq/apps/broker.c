@@ -153,6 +153,10 @@ server_cb(void *arg)
 						del_topic_all(work->pid.id);
 					}
 				} else {
+					if (work->msg_ret) {
+						nng_msg * m = work->msg_ret[0];
+						fprintf(stderr, "%p,%s,%x,%d\n", m,nng_msg_payload_ptr(m), nng_msg_cmd_type(m), nng_msg_remaining_len(m));
+					}
 					// success but check info
 					debug_msg("sub_pkt:"
 						" pktid: [%d]"

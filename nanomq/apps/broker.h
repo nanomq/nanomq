@@ -15,6 +15,7 @@ struct work {
 	uint8_t			proto;
 	nng_aio       * aio;
 	nng_msg       * msg;
+	nng_msg      ** msg_ret;
 	nng_ctx         ctx;
 	nng_pipe        pid;
 	nng_mtx       * mutex;
