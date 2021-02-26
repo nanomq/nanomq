@@ -730,14 +730,12 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 		debug_msg("qos_pac %d pub %d sub %d\n", qos_pac, qos_pub, db->qos);
 		memcpy(fixheader, header, nni_msg_header_len(msg));
 
-		txaio = p->txaio;
-		niov  = 0;
 		if (qos_pac > db->qos) {
 			if (db->qos == 1) {
 				// set qos to 1
 				fixheader[0] = fixheader[0] & 0xF9;
 				fixheader[0] = fixheader[0] | 0x02;
-				rlen = put_var_integer(tmp, nni_msg_remaining_len(msg));
+				rlen = nni_msg_header_len(msg) - 1;
 			} else {
 				// set qos to 0
 				fixheader[0] = fixheader[0] & 0xF9;
@@ -749,12 +747,17 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 			if (qos_pac == 1) {
 				//QoS 1 publish to Qos 2
 				//TODO
+				rlen = nni_msg_header_len(msg) - 1;
 			} else {
 				//QoS 0 publish to QoS 1/2 nothing to do
 				goto send;
 			}
+		} else {
+			rlen = nni_msg_header_len(msg) - 1;
 		}
 
+		txaio = p->txaio;
+		niov  = 0;
 		// fixed header
 		p->qlength += rlen + 1; //strlen(fixheader)
 		// 1st part of variable header: topic
@@ -768,6 +771,7 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 			p->qlength += 2;
 		}
 
+		//TODO optimize the performance of QoS 1to1 2to2 by reduce the length of qlength
 		p->qos_buf = nng_alloc(sizeof(uint8_t) * (p->qlength));
 		memcpy(p->qos_buf, fixheader, rlen+1);
 		memcpy(p->qos_buf+rlen+1, body, tlen + 2);
