@@ -20,13 +20,13 @@
 #include "include/pub_handler.h"
 #include "include/sub_handler.h"
 
-#define ENABLE_RETAIN   0
+#define ENABLE_RETAIN   1
 #define SUPPORT_MQTT5_0 1
 
 static char *bytes_to_str(const unsigned char *src, char *dest, int src_len);
 static void print_hex(const char *prefix, const unsigned char *src, int src_len);
 static uint32_t append_bytes_with_type(nng_msg *msg, uint8_t type, uint8_t *content, uint32_t len);
-static void handle_pub_retain(const emq_work *work, const char **topic_queue);
+static void handle_pub_retain(const emq_work *work, char *topic);
 
 void
 init_pipe_content(struct pipe_content *pipe_ct)
@@ -135,6 +135,8 @@ handle_pub(emq_work *work, struct pipe_content *pipe_ct)
 
 				void ** cli_ctx_list = search_client(work->db,
 				        work->pub_packet->variable_header.publish.topic_name.body);
+                                
+                                printf("cli_ctx_size: %ld\n", cvector_size(cli_ctx_list));
 
 				if (cli_ctx_list != NULL) {
 					foreach_client(cli_ctx_list, work, pipe_ct);
@@ -145,7 +147,7 @@ handle_pub(emq_work *work, struct pipe_content *pipe_ct)
 				debug_msg("pipe_info size: [%d]", pipe_ct->total);
 
 #if ENABLE_RETAIN
-				handle_pub_retain(work, (const char **) topic_queue);
+				handle_pub_retain(work, work->pub_packet->variable_header.publish.topic_name.body);
 #endif
 
 				break;
@@ -180,29 +182,12 @@ handle_pub(emq_work *work, struct pipe_content *pipe_ct)
 }
 
 #if ENABLE_RETAIN
-static void handle_pub_retain(const emq_work *work, const char **topic_queue)
+static void handle_pub_retain(const emq_work *work, char *topic)
 {
-	struct topic_and_node *tp_node = NULL;
 	struct retain_msg     *retain  = NULL;
 
 	if (work->pub_packet->fixed_header.retain) {
-		tp_node = nng_alloc(sizeof(struct topic_and_node));
-		search_node(work->db, topic_queue, tp_node);
-
-		if (tp_node->topic == NULL) { //node exist
-			retain = get_retain_msg(tp_node->node);
-
-			if (retain != NULL) {
-				if (retain->message != NULL) {
-					free_pub_packet(retain->message);
-				}
-				nng_free(retain, sizeof(struct retain_msg));
-				retain = NULL;
-			}
-		} else {
-			add_node(tp_node, NULL);
-		}
-
+                retain_msg *r = NULL;
 
 		if (work->pub_packet->payload_body.payload_len > 0) {
 			retain = nng_alloc(sizeof(struct retain_msg));
@@ -211,21 +196,68 @@ static void handle_pub_retain(const emq_work *work, const char **topic_queue)
 
 			retain->message = packet;
 			retain->exist   = true;
+                        retain->m = NULL;
 			debug_msg("update/add retain message");
+		        printf("found retain [%p], message: [%p]\n", retain, retain->message);
+                        r = search_insert_retain(work->db_ret, topic, retain);
 		} else {
-			retain->exist   = false;
-			retain->message = NULL;
-			retain = NULL;
+			// retain->exist   = false;
+			// retain->message = NULL;
+			// retain = NULL;
 			debug_msg("delete retain message");
+                        r = search_delete_retain(work->db_ret, topic);
+		}
+                
+                retain_msg *ret = (retain_msg*) r; 
+
+		if (ret != NULL) {
+			if (ret->message != NULL) {
+				free_pub_packet(ret->message);
+			}
+			nng_free(ret, sizeof(struct retain_msg));
+			ret = NULL;
 		}
 
-		set_retain_msg(tp_node->node, retain);
+		// tp_node = nng_alloc(sizeof(struct topic_and_node));
+		// search_node(work->db, topic_queue, tp_node);
 
-		if (tp_node != NULL) {
-			nng_free(tp_node, sizeof(struct topic_and_node));
-			tp_node = NULL;
-			debug_msg("free memory topic_and_node");
-		}
+		// if (tp_node->topic == NULL) { //node exist
+		// 	retain = get_retain_msg(tp_node->node);
+
+		// 	if (retain != NULL) {
+		// 		if (retain->message != NULL) {
+		// 			free_pub_packet(retain->message);
+		// 		}
+		// 		nng_free(retain, sizeof(struct retain_msg));
+		// 		retain = NULL;
+		// 	}
+		// } else {
+		// 	add_node(tp_node, NULL);
+		// }
+
+
+		// if (work->pub_packet->payload_body.payload_len > 0) {
+		// 	retain = nng_alloc(sizeof(struct retain_msg));
+		// 	retain->qos = work->pub_packet->fixed_header.qos;
+		// 	struct pub_packet_struct *packet = copy_pub_packet(work->pub_packet);
+
+		// 	retain->message = packet;
+		// 	retain->exist   = true;
+		// 	debug_msg("update/add retain message");
+		// } else {
+		// 	retain->exist   = false;
+		// 	retain->message = NULL;
+		// 	retain = NULL;
+		// 	debug_msg("delete retain message");
+		// }
+
+		// set_retain_msg(tp_node->node, retain);
+
+		// if (tp_node != NULL) {
+		// 	nng_free(tp_node, sizeof(struct topic_and_node));
+		// 	tp_node = NULL;
+		// 	debug_msg("free memory topic_and_node");
+		// }
 	}
 }
 #endif
@@ -242,7 +274,7 @@ struct pub_packet_struct *copy_pub_packet(struct pub_packet_struct *src_pub_pack
 	       src_pub_packet->variable_header.publish.topic_name.len);
 	packet->variable_header.publish.topic_name.len = src_pub_packet->variable_header.publish.topic_name.len;
 
-	packet->payload_body.payload = nng_alloc(src_pub_packet->payload_body.payload_len);
+	packet->payload_body.payload = nng_alloc(src_pub_packet->payload_body.payload_len+1);
 	memset(packet->payload_body.payload, 0, src_pub_packet->payload_body.payload_len + 1);
 	memcpy(packet->payload_body.payload, src_pub_packet->payload_body.payload,
 	       src_pub_packet->payload_body.payload_len);

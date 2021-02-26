@@ -364,8 +364,13 @@ broker(const char *url)
 	int            i;
 	// init tree
 	db_tree *db = NULL;
+	db_tree *db_ret = NULL;
 	create_db_tree(&db);
 	if (db == NULL) {
+		debug_msg("NNL_ERROR error in db create");
+	}
+	create_db_tree(&db_ret);
+	if (db_ret == NULL) {
 		debug_msg("NNL_ERROR error in db create");
 	}
 
@@ -380,6 +385,7 @@ broker(const char *url)
 	for (i = 0; i < PARALLEL; i++) {
 		works[i] = alloc_work(sock);
 		works[i]->db = db;
+		works[i]->db_ret = db_ret;
 		nng_aio_set_dbtree(works[i]->aio, db);
 	}
 
