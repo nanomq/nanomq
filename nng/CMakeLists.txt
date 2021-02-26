@@ -269,6 +269,7 @@ endif ()
 # add_subdirectory(docs/man)
 
 include_directories(${CMAKE_SOURCE_DIR}/nanolib/include)
+include_directories(${CMAKE_SOURCE_DIR}/nanomq/include)
 
 set(CPACK_PACKAGE_NAME ${PROJECT_NAME})
 set(CPACK_PACKAGE_VERSION ${NNG_PACKAGE_VERSION})

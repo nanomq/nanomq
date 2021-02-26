@@ -18,7 +18,8 @@ endif (DEBUG AND ASAN)
 
 aux_source_directory(. DIRSRCS)
 
-include_directories(./ ./apps ./include)
+include_directories(./)
+include_directories(${CMAKE_SOURCE_DIR}/nanomq/include)
 include_directories(${CMAKE_SOURCE_DIR}/nng/include/nng)
 include_directories(${CMAKE_SOURCE_DIR}/nanolib/include)
 

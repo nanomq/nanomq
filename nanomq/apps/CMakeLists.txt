@@ -1,5 +1,5 @@
 aux_source_directory(. DIR_LIB_SRCS)
-include_directories(../include)
+include_directories(${CMAKE_SOURCE_DIR}/nanomq/include)
 include_directories(${CMAKE_SOURCE_DIR}/nng/include/nng)
 include_directories(${CMAKE_SOURCE_DIR}/nanolib/include)
 

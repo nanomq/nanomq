@@ -91,6 +91,7 @@ server_cb(void *arg)
 			pipe = nng_msg_get_pipe(msg);
 
 			if (nng_msg_cmd_type(msg) == CMD_DISCONNECT) {
+/*
 				work->cparam = (conn_param *) nng_msg_get_conn_param(msg);
 				//TODO replace it with buffer id
 				void * cli_ctx  = NULL;
@@ -110,6 +111,7 @@ server_cb(void *arg)
 
 				// del_sub_topic_all(pipe.id); // has deleted in pipe_fini
 				// destroy_conn_param(work->cparam); // has deleted in pipe_fini
+*/
 
 				work->state = RECV;
 				nng_msg_free(msg);
