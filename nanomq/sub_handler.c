@@ -290,19 +290,20 @@ uint8_t sub_ctx_handle(emq_work * work)
 #endif
 
 		retain_msg **r = search_retain(work->db_ret, topic_str);
+		work->msg_ret = nng_alloc(cvector_size(r)*sizeof(nng_msg *));
                 if (r != NULL) {
                         for (int i = 0; i < cvector_size(r); i++) {
                                 if (r[i]) {
-		        		printf("found retain [%p], message: [%p]\n", r[i], r[i]->message);
+		                printf("found retain [%p], message: [%p][%s] sz [%d]\n", r[i], r[i]->message, nng_msg_payload_ptr(r[i]->message), cvector_size(r));
 		        		debug_msg("found retain [%p], message: [%p]", r[i], r[i]->message);
-		        		work->pub_packet = copy_pub_packet(r[i]->message);
-		        		work->pub_packet->fixed_header.retain = 1;
+						work->msg_ret[i] = (nng_msg *)r[i]->message;
+		        		// work->pub_packet = copy_pub_packet(r[i]->message);
+		        		// work->pub_packet->fixed_header.retain = 1;
 		        		// work->pub_packet->fixed_header.remain_len = work->pub_packet->payload_body.payload_len
 		        		// 	+ work->pub_packet->variable_header.publish.topic_name.len+2
 		        		// 	+ (work->pub_packet->fixed_header.qos == 0 ? 0 : 2);
-		        		put_pipe_msgs(cli_ctx, work, work->pipe_ct, PUBLISH);
+		        		// put_pipe_msgs(cli_ctx, work, work->pipe_ct, PUBLISH);
                                 }
-
                         }
                 }
 
