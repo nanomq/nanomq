@@ -248,6 +248,30 @@ static void test_insert_retain()
 
 }
 
+static void test_delete_retain()
+{
+        search_delete_retain(db_ret, topic00);
+        print_db_tree(db_ret);                      
+        search_delete_retain(db_ret, topic01);
+        print_db_tree(db_ret);                  
+        search_delete_retain(db_ret, topic02);
+        print_db_tree(db_ret);                  
+        search_delete_retain(db_ret, topic03);
+        print_db_tree(db_ret);                  
+        search_delete_retain(db_ret, topic04);
+        print_db_tree(db_ret);                
+        search_delete_retain(db_ret, topic05);
+        print_db_tree(db_ret);               
+        search_delete_retain(db_ret, topic06);
+        print_db_tree(db_ret);                 
+        search_delete_retain(db_ret, topic07);
+        print_db_tree(db_ret);                  
+        search_delete_retain(db_ret, topic08);
+        print_db_tree(db_ret);                  
+        search_delete_retain(db_ret, topic09);
+        print_db_tree(db_ret);                          
+
+}
 
 
 
@@ -283,11 +307,12 @@ int main(int argc, char *argv[])
                 }
 
         }
-
         puts("");
+        puts("=======================================");
+        test_delete_retain();
         
 
-        // destory_db_tree(db_ret);
+        destory_db_tree(db_ret);
         puts("---------------TEST FINISHED----------------\n");
 
         return 0;

@@ -421,7 +421,7 @@ void destory_db_tree(db_tree *db)
  * @param args - client
  * @return 
  */
-static int insert_db_client(db_node *node, void *args)
+static void *insert_db_client(db_node *node, void *args)
 {
         pthread_rwlock_wrlock(&(node->rwlock));
 
@@ -442,7 +442,7 @@ static int insert_db_client(db_node *node, void *args)
 
         pthread_rwlock_unlock(&(node->rwlock));
 
-        return 0;
+        return NULL;
 }
 
 /**
@@ -588,7 +588,7 @@ static db_node *insert_db_node(db_node *node, char **topic_queue)
  * @param client - client
  * @return 
  */
-static int search_insert_node(db_tree *db, char *topic, void *args, int (*inserter)(db_node *node, void *args))
+static void *search_insert_node(db_tree *db, char *topic, void *args, void *(*inserter)(db_node *node, void *args))
 {
         assert(db->root && topic);
 
@@ -643,11 +643,11 @@ static int search_insert_node(db_tree *db, char *topic, void *args, int (*insert
                  }
         }
 
-        inserter(node, args); 
+        void *ret = inserter(node, args); 
 
         pthread_rwlock_unlock(&(db->rwlock));
         topic_queue_free(for_free); 
-        return 0;
+        return ret;
 }
 
 
@@ -661,7 +661,7 @@ static int search_insert_node(db_tree *db, char *topic, void *args, int (*insert
  * @param client - client
  * @return 
  */
-int search_and_insert(db_tree *db, char *topic, char *id, void *ctxt, uint32_t pipe_id)
+void *search_and_insert(db_tree *db, char *topic, char *id, void *ctxt, uint32_t pipe_id)
 {
 
         s_client *client = new_db_client(id, ctxt, pipe_id);
@@ -672,7 +672,7 @@ typedef s_client *s_client_ptr;
 typedef db_node *db_node_ptr; 
 
 /**
- * @brief collect_clients - insert node until topic_queue is NULL
+ * @brief collect_clients - Get all clients in nodes
  * @param vec - all clients obey this rule will insert 
  * @param nodes - all node need to be compare
  * @param nodes_t - all node need to be compare next time
@@ -1064,20 +1064,20 @@ mem_free:
 }
 
 
-static int insert_db_retain(db_node *node, void *args)
+static void *insert_db_retain(db_node *node, void *args)
 {
         retain_msg *retain = (retain_msg *) args;
+        void *ret = NULL;
         pthread_rwlock_wrlock(&(node->rwlock));
         if (node->retain != NULL) {
-                // TODO free retain;
-                // zfree(node->retain);
+                ret = node->retain;
         }
 
         node->retain = retain;
 
         pthread_rwlock_unlock(&(node->rwlock));
 
-        return 0;
+        return ret;
 }
 
 
@@ -1091,7 +1091,7 @@ static int insert_db_retain(db_node *node, void *args)
  * @param client - client
  * @return 
  */
-int search_insert_retain(db_tree *db, char *topic, retain_msg *ret_msg)
+void *search_insert_retain(db_tree *db, char *topic, retain_msg *ret_msg)
 {
         return search_insert_node(db, topic, ret_msg, insert_db_retain);
 }
@@ -1136,7 +1136,7 @@ retain_msg **collect_retain_well(retain_msg **vec, db_node *node)
 }
 
 /**
- * @brief collect_clients - insert node until topic_queue is NULL
+ * @brief collect_retains - Get all retain in nodes
  * @param vec - all clients obey this rule will insert 
  * @param nodes - all node need to be compare
  * @param nodes_t - all node need to be compare next time
@@ -1213,7 +1213,7 @@ static retain_msg **collect_retains(retain_msg **vec, db_node **nodes, db_node *
 }
 
 /**
- * @brief search_client - Get all subscribers to this topic.
+ * @brief search_retain - Get all retain message to this topic.
  * @param db - db_tree
  * @param topic - topic
  * @return retain_msg pointer vector 
@@ -1235,9 +1235,6 @@ retain_msg **search_retain(db_tree *db, char *topic)
                 cvector_push_back(nodes, node);
         }
 
-        // log("node->topic %s, topic_queue %s", node->topic, *topic_queue);
-        // printf("node->topic %s, topic_queue %s\n", node->topic, *topic_queue);
-
         while (*topic_queue && (!cvector_empty(nodes))) {
 
                 rets = collect_retains(rets, nodes, &nodes_t, topic_queue);
@@ -1257,6 +1254,105 @@ retain_msg **search_retain(db_tree *db, char *topic)
         cvector_free(nodes_t);
 
         return rets;
+}
+
+static void *delete_db_retain(db_node *node)
+{
+        assert(node);
+        void *retain = NULL;
+        if (node) {
+                retain = node->retain;
+                node->retain = NULL;
+
+        }
+        
+        return retain;
+}
+
+/**
+ * @brief search_and_delete - check if this
+ * topic and client id is exist on the tree, if 
+ * there is exist, this func will delete 
+ * related node and client on the tree
+ * @param db - db_node
+ * @param topic - topic
+ * @param client - client
+ * @return ctxt or NULL, if client can be delete or not 
+ */
+void *search_delete_retain(db_tree *db, char *topic)
+{
+        assert(db->root && topic);
+        pthread_rwlock_wrlock(&(db->rwlock));
+
+        char **topic_queue = topic_parse(topic);
+        char **for_free = topic_queue; 
+        db_node *node = db->root;
+        db_node **node_buf = NULL;
+        int *vec = NULL;
+        void *ret = NULL;
+        int index = 0;
+
+        while (*topic_queue && node->child && *node->child) {
+                index = 0;
+                db_node *node_t = *node->child;
+                log("topic is: %s, node->topic is: %s", *topic_queue, node_t->topic);
+                if (strcmp(node_t->topic, *topic_queue)) { 
+                        bool equal = false;
+
+                        // TODO node_t or node->child[index], to determine if node_t is needed
+                        node_t = find_next(node, &equal, topic_queue, &index);
+                        if (equal == false) {
+                                log("searching unequal");
+                                goto mem_free;
+                        } 
+                }
+
+
+                if (node_t->child && *node_t->child && *(topic_queue+1)) {
+                        topic_queue++;
+                        cvector_push_back(node_buf, node); 
+                        cvector_push_back(vec, index); 
+                        node = node_t;
+
+
+                } else if (*(topic_queue+1) == NULL) {
+                        log("Search and delete retain");
+                        log("node->topic: %s", node->topic);
+                        break;
+                } else {
+                        log("No node and client need to be delete");
+                        goto mem_free;
+                }
+        }
+
+        if (node->child) {
+                ret = delete_db_retain(node->child[index]);
+                // print_client(node->child[index]->clients);
+                delete_db_node(node, index);
+                // print_client(node->child[index]->clients);
+        }
+
+        // print_db_tree(db);
+
+        while (!cvector_empty(node_buf) && !cvector_empty(vec)) {
+                db_node *t = *(cvector_end(node_buf)-1);
+                int i = *(cvector_end(vec)-1);
+                cvector_pop_back(node_buf);
+                cvector_pop_back(vec);
+
+                delete_db_node(t, i);
+                // print_db_tree(db);
+        }
+
+        pthread_rwlock_unlock(&(db->rwlock));
+
+
+mem_free:
+        cvector_free(node_buf);
+        topic_queue_free(for_free); 
+        cvector_free(vec);
+
+        return ret;
 }
 
 void hash_add_alias(int alias, char *topic)

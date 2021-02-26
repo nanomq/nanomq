@@ -717,6 +717,7 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 
 		if ((db = nni_id_get(&pipe->nano_db, DJBHashn(body + 2, tlen))) == NULL) {
 			//shouldn't get here BUG TODO
+                        printf("________");
 			nni_println("ERROR: nano_db subscription topic missing!");
 			goto send;
 		}

@@ -272,6 +272,10 @@ uint8_t sub_ctx_handle(emq_work * work)
 		client_id = (char *)conn_param_get_clentid((conn_param *)nng_msg_get_conn_param(work->msg));
 		search_and_insert(work->db, topic_str, client_id, cli_ctx, work->pid.id);
 
+		// client_ctx ** cli= (client_ctx **)search_client(work->db, topic_str);
+		// fprintf(stderr, "222 cli ctx [%p]\n", cli[0]);
+                // printf("cli_ctx_size: %d\n", cvector_size(cli));
+
 		add_topic(work->pid.id, topic_str);
 		// check
 		tq = get_topic(work->pid.id);
@@ -285,22 +289,35 @@ uint8_t sub_ctx_handle(emq_work * work)
 		// debug_msg("client count [%d]", cvector_size(cli));
 #endif
 
-/*
-		struct retain_msg_node *msg_node = search_retain_msg(work->db->root, topics);
+		retain_msg **r = search_retain(work->db_ret, topic_str);
+                if (r != NULL) {
+                        for (int i = 0; i < cvector_size(r); i++) {
+                                if (r[i]) {
+		        		printf("found retain [%p], message: [%p]\n", r[i], r[i]->message);
+		        		debug_msg("found retain [%p], message: [%p]", r[i], r[i]->message);
+		        		work->pub_packet = copy_pub_packet(r[i]->message);
+		        		work->pub_packet->fixed_header.retain = 1;
+		        		// work->pub_packet->fixed_header.remain_len = work->pub_packet->payload_body.payload_len
+		        		// 	+ work->pub_packet->variable_header.publish.topic_name.len+2
+		        		// 	+ (work->pub_packet->fixed_header.qos == 0 ? 0 : 2);
+		        		put_pipe_msgs(cli_ctx, work, work->pipe_ct, PUBLISH);
+                                }
 
-		if (msg_node != NULL) {
-			for (struct retain_msg_node *i = msg_node->down; i != NULL && i->ret_msg != NULL; i = i->down) {
-				debug_msg("found retain [%p], message: [%p]", i->ret_msg, i->ret_msg->message);
-				work->pub_packet = copy_pub_packet(i->ret_msg->message);
-				work->pub_packet->fixed_header.retain = 1;
-				work->pub_packet->fixed_header.remain_len = work->pub_packet->payload_body.payload_len
-					+ work->pub_packet->variable_header.publish.topic_name.len+2
-					+ (work->pub_packet->fixed_header.qos == 0 ? 0 : 2);
-				put_pipe_msgs(cli_ctx, work, work->pipe_ct, PUBLISH);
-			}
-			free_retain_node(msg_node);
-		}
-*/
+                        }
+                }
+
+		// if (msg_node != NULL) {
+		// 	for (struct retain_msg_node *i = msg_node->down; i != NULL && i->ret_msg != NULL; i = i->down) {
+		// 		debug_msg("found retain [%p], message: [%p]", i->ret_msg, i->ret_msg->message);
+		// 		work->pub_packet = copy_pub_packet(i->ret_msg->message);
+		// 		work->pub_packet->fixed_header.retain = 1;
+		// 		work->pub_packet->fixed_header.remain_len = work->pub_packet->payload_body.payload_len
+		// 			+ work->pub_packet->variable_header.publish.topic_name.len+2
+		// 			+ (work->pub_packet->fixed_header.qos == 0 ? 0 : 2);
+		// 		put_pipe_msgs(cli_ctx, work, work->pipe_ct, PUBLISH);
+		// 	}
+		// 	free_retain_node(msg_node);
+		// }
 
 		nng_free(topic_str, topic_node_t->it->topic_filter.len+1);
 		topic_node_t = topic_node_t->next;

@@ -4,6 +4,7 @@
 #include <stdbool.h> 
 #include <stdint.h>
 #include <pthread.h>
+#include <string.h>
 #include "cvector.h"
 
 typedef enum {Hash, Vec} type;
@@ -74,13 +75,15 @@ void destory_db_tree(db_tree *db);
 
 void print_db_tree(db_tree *db);
 
-int search_and_insert(db_tree *db, char *topic, char *id, void *ctxt, uint32_t pipe_id);
+void *search_and_insert(db_tree *db, char *topic, char *id, void *ctxt, uint32_t pipe_id);
 
 void *search_and_delete(db_tree *db, char *topic, uint32_t pipe_id);
 
 void **search_client(db_tree *db, char *topic);
 
-int search_insert_retain(db_tree *db, char *topic, retain_msg *ret_msg);
+void *search_insert_retain(db_tree *db, char *topic, retain_msg *ret_msg);
+
+void *search_delete_retain(db_tree *db, char *topic);
 
 retain_msg **search_retain(db_tree *db, char *topic);
 
