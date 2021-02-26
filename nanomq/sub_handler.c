@@ -10,9 +10,9 @@
 #include <nanolib.h>
 #include <protocol/mqtt/mqtt_parser.h>
 #include <protocol/mqtt/mqtt.h>
-#include <include/pub_handler.h>
-#include <include/nanomq.h>
 
+#include "include/pub_handler.h"
+#include "include/nanomq.h"
 #include "include/sub_handler.h"
 
 #define SUPPORT_MQTT5_0 1
@@ -314,27 +314,25 @@ uint8_t sub_ctx_handle(emq_work * work)
 
 void del_sub_ctx(void * ctxt, char * target_topic)
 {
+	uint8_t proto_ver = 0;
 	client_ctx * cli_ctx = ctxt;
-	if (!cli_ctx) {
-		debug_msg("ERROR : ctx lost!");
-		return;
-	}
-	if (!cli_ctx->sub_pkt) {
-		debug_msg("ERROR : ctx->sub is nil");
-		return;
-	}
-	const uint8_t      proto_ver = conn_param_get_protover(cli_ctx->cparam);
-	packet_subscribe * sub_pkt = cli_ctx->sub_pkt;
-	if (!(sub_pkt->node)) {
-		debug_msg("ERROR : not find topic");
+	topic_node * topic_node_t    = NULL;
+	topic_node * before_topic_node = NULL;
+	packet_subscribe * sub_pkt   = NULL;
+
+	if (!cli_ctx || !cli_ctx->sub_pkt) {
+		debug_msg("ERROR : ctx or sub_pkt is null!");
 		return;
 	}
 
-	topic_node * topic_node_t      = sub_pkt->node;
-	topic_node * before_topic_node = NULL;
+	sub_pkt   = cli_ctx->sub_pkt;
+	proto_ver = (uint8_t)conn_param_get_protover(cli_ctx->cparam);
+	topic_node_t = sub_pkt->node;
+	before_topic_node = NULL;
+
 	while (topic_node_t) {
 		if (!strncmp(topic_node_t->it->topic_filter.body, target_topic,
-			topic_node_t->it->topic_filter.len)) {
+		             topic_node_t->it->topic_filter.len)) {
 			debug_msg("FREE in topic_node [%s] in tree", topic_node_t->it->topic_filter.body);
 			if (before_topic_node) {
 				before_topic_node->next = topic_node_t->next;
@@ -350,8 +348,7 @@ void del_sub_ctx(void * ctxt, char * target_topic)
 		/* check
 		else{
 			debug_msg("a/topic b/topic [%s] [%s]", topic_node_t->it->topic_filter.body, target_topic);
-		}
-		*/
+		}*/
 		before_topic_node = topic_node_t;
 		topic_node_t = topic_node_t->next;
 	}
@@ -375,26 +372,22 @@ void del_sub_ctx(void * ctxt, char * target_topic)
 
 void destroy_sub_ctx(void * ctxt)
 {
+	uint8_t proto_ver = 0;
 	client_ctx * cli_ctx = ctxt;
-	if (!cli_ctx) {
-		debug_msg("ERROR : ctx lost!");
-		return;
-	}
-	if (!cli_ctx->sub_pkt) {
-		debug_msg("ERROR : ctx->sub is nil");
-		return;
-	}
-	const uint8_t      proto_ver = conn_param_get_protover(cli_ctx->cparam);
-	packet_subscribe * sub_pkt = cli_ctx->sub_pkt;
-	if (!(sub_pkt->node)) {
-		nng_free(sub_pkt, sizeof(packet_subscribe));
-		nng_free(cli_ctx, sizeof(client_ctx));
-		cli_ctx = NULL;
+	topic_node * topic_node_t    = NULL;
+	topic_node * next_topic_node = NULL;
+	packet_subscribe * sub_pkt   = NULL;
+
+	if (!cli_ctx || !cli_ctx->sub_pkt) {
+		debug_msg("ERROR : ctx or sub_pkt is null!");
 		return;
 	}
 
-	topic_node * topic_node_t = sub_pkt->node;
-	topic_node * next_topic_node = NULL;
+	sub_pkt   = cli_ctx->sub_pkt;
+	proto_ver = (uint8_t)conn_param_get_protover(cli_ctx->cparam);
+	topic_node_t = sub_pkt->node;
+	next_topic_node = NULL;
+
 	while (topic_node_t) {
 		next_topic_node = topic_node_t->next;
 		nng_free(topic_node_t->it->topic_filter.body, topic_node_t->it->topic_filter.len);
@@ -403,18 +396,20 @@ void destroy_sub_ctx(void * ctxt)
 		topic_node_t = next_topic_node;
 	}
 
-	if (sub_pkt->node == NULL) {
+	if (sub_pkt) {
 #if SUPPORT_MQTT5_0
 		if (PROTOCOL_VERSION_v5 == proto_ver) {
 			nng_free(sub_pkt->user_property.strpair.key, sub_pkt->user_property.strpair.len_key);
 			nng_free(sub_pkt->user_property.strpair.val, sub_pkt->user_property.strpair.len_val);
 		}
 #endif
-
-		nng_free(sub_pkt, sizeof(packet_subscribe));
-		// TODO free conn_param
-		nng_free(cli_ctx, sizeof(client_ctx));
-		cli_ctx = NULL;
 	}
+
+	if (sub_pkt) {
+		nng_free(sub_pkt, sizeof(packet_subscribe));
+		cli_ctx->sub_pkt = NULL;
+	}
+	nng_free(cli_ctx, sizeof(client_ctx));
+	cli_ctx = NULL;
 }
 

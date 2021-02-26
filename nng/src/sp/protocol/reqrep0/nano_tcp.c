@@ -17,6 +17,9 @@
 #include "nng/protocol/mqtt/mqtt_parser.h"
 
 #include "nng/protocol/mqtt/mqtt.h"
+
+#include <sub_handler.h>
+
 //TODO rewrite as nano_mq protocol with RPC support
 
 typedef struct nano_pipe nano_pipe;
@@ -446,6 +449,8 @@ nano_pipe_fini(void *arg)
 	nng_msg *  msg;
 	void *     tree;
 	char *     client_id = NULL;
+	void *     cli_ctx = NULL;
+	struct topic_queue * tq = NULL;
 
     debug_msg("########## nano_pipe_fini ###############");
 	if ((msg = nni_aio_get_msg(&p->aio_recv)) != NULL) {
@@ -463,12 +468,19 @@ nano_pipe_fini(void *arg)
 	debug_msg("tree : %p", p->tree);
 
 	if (p->tree != NULL) {
-//		del_all(p->id, p->tree);
+		if (check_id(p->id)) {
+			tq = get_topic(p->id);
+			while (tq) {
+				if (tq->topic) {
+					cli_ctx = search_and_delete(p->tree, tq->topic, p->id);
+				}
+				del_sub_ctx(cli_ctx, tq->topic);
+				tq = tq->next;
+			}
+			del_topic_all(p->id);
+		}
 	}
 
-	if ((check_id(p->id)) == true) {
-	     del_topic_all(p->id);
-	}
 	// TODO free conn_param after one to many pub completed
 	// destroy_conn_param(p->conn_param);
 
