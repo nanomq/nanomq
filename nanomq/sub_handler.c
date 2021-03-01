@@ -294,7 +294,7 @@ uint8_t sub_ctx_handle(emq_work * work)
                 if (r != NULL) {
                         for (int i = 0; i < cvector_size(r); i++) {
                                 if (r[i]) {
-		                printf("found retain [%p], message: [%p][%s] sz [%d]\n", r[i], r[i]->message, nng_msg_payload_ptr(r[i]->message), cvector_size(r));
+		                printf("found retain [%p], message: [%p][%p] sz [%d]\n", r[i], r[i]->message, nng_msg_payload_ptr(r[i]->message), cvector_size(r));
 		        		debug_msg("found retain [%p], message: [%p]", r[i], r[i]->message);
 						work->msg_ret[i] = (nng_msg *)r[i]->message;
 		        		// work->pub_packet = copy_pub_packet(r[i]->message);

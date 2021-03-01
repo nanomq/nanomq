@@ -198,8 +198,8 @@ static void handle_pub_retain(const emq_work *work, char *topic)
 			retain->exist   = true;
                         retain->m = NULL;
 			debug_msg("update/add retain message");
-		        printf("found retain [%p], message: [%p][%s]\n", retain, retain->message, nng_msg_payload_ptr(retain->message));
-                        r = search_insert_retain(work->db_ret, topic, retain);
+			printf("found retain [%p], message: [%p][%p]\n", retain, retain->message, nng_msg_payload_ptr(retain->message));
+			r = search_insert_retain(work->db_ret, topic, retain);
 		} else {
 			// retain->exist   = false;
 			// retain->message = NULL;
@@ -212,7 +212,7 @@ static void handle_pub_retain(const emq_work *work, char *topic)
 
 		if (ret != NULL) {
 			if (ret->message != NULL) {
-				free_pub_packet(ret->message);
+				nng_msg_free(ret->message);
 			}
 			nng_free(ret, sizeof(struct retain_msg));
 			ret = NULL;
