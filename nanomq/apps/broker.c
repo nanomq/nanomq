@@ -153,10 +153,6 @@ server_cb(void *arg)
 						del_topic_all(work->pid.id);
 					}
 				} else {
-					if (work->msg_ret) {
-						nng_msg * m = work->msg_ret[0];
-						fprintf(stderr, "%p,%p,%x,%d\n", m,nng_msg_payload_ptr(m), nng_msg_cmd_type(m), nng_msg_remaining_len(m));
-					}
 					// success but check info
 					debug_msg("sub_pkt:"
 						" pktid: [%d]"
@@ -178,10 +174,25 @@ server_cb(void *arg)
 						*((uint8_t *) nng_msg_body(smsg)),
 						*((uint8_t *) nng_msg_body(smsg) + 1));
 				}
-				nng_msg_set_cmd_type(smsg, CMD_SUBACK);
 				nng_msg_free(work->msg);
+				// handle retain
+				if (work->msg_ret) {
+					printf("retain msg [%p] \n", work->msg_ret);
+					for (int i=0; i<cvector_size(work->msg_ret); i++) {
+						nng_msg * m = work->msg_ret[i];
+						nng_msg_clone(m);
+						work->msg = m;
+						nng_aio_set_msg(work->aio, work->msg);
+						nng_aio_set_pipeline(work->aio, work->pid.id);
+						nng_ctx_send(work->ctx, work->aio);
+					}
+					printf("retain msg size [%d] \n", cvector_size(work->msg_ret));
+					cvector_free(work->msg_ret);
+				}
 
+				nng_msg_set_cmd_type(smsg, CMD_SUBACK);
 				work->msg = smsg;
+				nng_aio_set_pipeline(work->aio, work->pid.id);
 				nng_aio_set_msg(work->aio, work->msg);
 				work->msg   = NULL;
 				work->state = SEND;
