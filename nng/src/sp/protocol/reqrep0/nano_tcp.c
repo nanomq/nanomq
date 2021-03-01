@@ -239,6 +239,7 @@ nano_ctx_send(void *arg, nni_aio *aio)
 	len     = nni_msg_len(msg);
 	nni_mtx_lock(&s->lk);
 	debug_msg("*************************** working with pipe id : %d ctx***************************", pipe);
+	// printf("*************************** working with pipe id : %d ctx***************************\n", pipe);
 	if ((p = nni_id_get(&s->pipes, pipe)) == NULL) {
 		// Pipe is gone.  Make this look like a good send to avoid
 		// disrupting the state machine.  We don't care if the peer
@@ -555,6 +556,7 @@ nano_pipe_start(void *arg)
 	int        rv;
 	//TODO check MQTT protocol version here
 	debug_msg("##########nano_pipe_start################");
+	// printf("##########nano_pipe_start################(%d)\n", nni_pipe_id(p->pipe));
 	/*
 	// TODO check peer protocol
 	if (nni_pipe_peer(p->pipe) != NNG_NANO_TCP_PEER) {
