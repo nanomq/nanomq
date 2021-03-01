@@ -252,7 +252,8 @@ uint8_t sub_ctx_handle(emq_work * work)
 	char * topic_str = NULL;
 	char * client_id = NULL;
 	int    topic_len = 0;
-        struct topic_queue * tq = NULL;
+	struct topic_queue * tq = NULL;
+	work->msg_ret = NULL;
 
 	// insert ctx_sub into treeDB
 	while (topic_node_t) {
@@ -272,10 +273,6 @@ uint8_t sub_ctx_handle(emq_work * work)
 		client_id = (char *)conn_param_get_clentid((conn_param *)nng_msg_get_conn_param(work->msg));
 		search_and_insert(work->db, topic_str, client_id, cli_ctx, work->pid.id);
 
-		// client_ctx ** cli= (client_ctx **)search_client(work->db, topic_str);
-		// fprintf(stderr, "222 cli ctx [%p]\n", cli[0]);
-                // printf("cli_ctx_size: %d\n", cvector_size(cli));
-
 		add_topic(work->pid.id, topic_str);
 		// check
 		tq = get_topic(work->pid.id);
@@ -286,39 +283,19 @@ uint8_t sub_ctx_handle(emq_work * work)
 		// check
 		// client_ctx ** cli= (client_ctx **)search_client(work->db, topic_str);
 		// fprintf(stderr, "222 cli ctx [%p]\n", cli[0]);
-		// debug_msg("client count [%d]", cvector_size(cli));
 #endif
 
 		retain_msg **r = search_retain(work->db_ret, topic_str);
-		work->msg_ret = nng_alloc(cvector_size(r)*sizeof(nng_msg *));
-                if (r != NULL) {
-                        for (int i = 0; i < cvector_size(r); i++) {
-                                if (r[i]) {
-		                printf("found retain [%p], message: [%p][%p] sz [%d]\n", r[i], r[i]->message, nng_msg_payload_ptr(r[i]->message), cvector_size(r));
-		        		debug_msg("found retain [%p], message: [%p]", r[i], r[i]->message);
-						work->msg_ret[i] = (nng_msg *)r[i]->message;
-		        		// work->pub_packet = copy_pub_packet(r[i]->message);
-		        		// work->pub_packet->fixed_header.retain = 1;
-		        		// work->pub_packet->fixed_header.remain_len = work->pub_packet->payload_body.payload_len
-		        		// 	+ work->pub_packet->variable_header.publish.topic_name.len+2
-		        		// 	+ (work->pub_packet->fixed_header.qos == 0 ? 0 : 2);
-		        		// put_pipe_msgs(cli_ctx, work, work->pipe_ct, PUBLISH);
-                                }
-                        }
-                }
-
-		// if (msg_node != NULL) {
-		// 	for (struct retain_msg_node *i = msg_node->down; i != NULL && i->ret_msg != NULL; i = i->down) {
-		// 		debug_msg("found retain [%p], message: [%p]", i->ret_msg, i->ret_msg->message);
-		// 		work->pub_packet = copy_pub_packet(i->ret_msg->message);
-		// 		work->pub_packet->fixed_header.retain = 1;
-		// 		work->pub_packet->fixed_header.remain_len = work->pub_packet->payload_body.payload_len
-		// 			+ work->pub_packet->variable_header.publish.topic_name.len+2
-		// 			+ (work->pub_packet->fixed_header.qos == 0 ? 0 : 2);
-		// 		put_pipe_msgs(cli_ctx, work, work->pipe_ct, PUBLISH);
-		// 	}
-		// 	free_retain_node(msg_node);
-		// }
+		if (r != NULL) {
+			for (int i = 0; i < cvector_size(r); i++) {
+				if (r[i]) {
+					debug_msg("found retain [%p], message: [%p][%p] sz [%d]\n",
+					        r[i], r[i]->message, nng_msg_payload_ptr(r[i]->message), cvector_size(r));
+					cvector_push_back(work->msg_ret, (nng_msg*)r[i]->message);
+				}
+			}
+		}
+		cvector_free(r);
 
 		nng_free(topic_str, topic_node_t->it->topic_filter.len+1);
 		topic_node_t = topic_node_t->next;
