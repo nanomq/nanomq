@@ -155,7 +155,7 @@ server_cb(void *arg)
 				} else {
 					if (work->msg_ret) {
 						nng_msg * m = work->msg_ret[0];
-						fprintf(stderr, "%p,%s,%x,%d\n", m,nng_msg_payload_ptr(m), nng_msg_cmd_type(m), nng_msg_remaining_len(m));
+						fprintf(stderr, "%p,%p,%x,%d\n", m,nng_msg_payload_ptr(m), nng_msg_cmd_type(m), nng_msg_remaining_len(m));
 					}
 					// success but check info
 					debug_msg("sub_pkt:"
