@@ -571,11 +571,11 @@ tcptran_pipe_recv_cb(void *arg)
 	}else if(type == CMD_PUBLISH){
 		uint8_t qos_pac;
 		uint16_t pid;
+		size_t   tlen;
+		NNI_GET16(variable_ptr, tlen);
 		qos_pac = nni_msg_get_pub_qos(msg);
 		if (cparam->pro_ver != PROTOCOL_VERSION_v5) {
-			len_of_varint = 0;
-			len = get_var_integer(variable_ptr + 2, &len_of_varint);
-			payload_ptr = variable_ptr + len + len_of_varint + (qos_pac>0?2:0);
+			payload_ptr = variable_ptr + tlen + 2 + (qos_pac>0?2:0);
 		}
 		if (qos_pac > 0) {
 			if (qos_pac == 1) {
