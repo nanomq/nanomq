@@ -470,20 +470,25 @@ nano_pipe_fini(void *arg)
 
 	if (p->tree != NULL) {
 		if (check_id(p->id)) {
+			fprintf(stderr, "qid  -- [%d]\n", p->id);
 			tq = get_topic(p->id);
 			while (tq) {
 				if (tq->topic) {
 					cli_ctx = search_and_delete(p->tree, tq->topic, p->id);
 				}
+				fprintf(stderr, "tq: [%s]\n", tq->topic);
 				del_sub_ctx(cli_ctx, tq->topic);
 				tq = tq->next;
 			}
-			del_topic_all(p->id);
 		}
 	}
 
+	if (check_id(p->id)) {
+		del_topic_all(p->id);
+	}
+
 	// TODO free conn_param after one to many pub completed
-	// destroy_conn_param(p->conn_param);
+	destroy_conn_param(p->conn_param);
 
 	nni_mtx_fini(&p->lk);
 	nni_aio_fini(&p->aio_send);

@@ -256,8 +256,8 @@ uint8_t sub_ctx_handle(emq_work * work)
 	work->msg_ret = NULL;
 
 	// insert ctx_sub into treeDB
+	client_ctx * cli_ctx = nng_alloc(sizeof(client_ctx));
 	while (topic_node_t) {
-		client_ctx * cli_ctx = nng_alloc(sizeof(client_ctx));
 		cli_ctx->sub_pkt = work->sub_pkt;
 		cli_ctx->cparam  = work->cparam;
 		cli_ctx->pid = work->pid;
@@ -348,6 +348,7 @@ void del_sub_ctx(void * ctxt, char * target_topic)
 		topic_node_t = topic_node_t->next;
 	}
 
+	printf("sub pkt node [%p]\n", sub_pkt->node);
 	if (sub_pkt->node == NULL) {
 #if SUPPORT_MQTT5_0
 		if (PROTOCOL_VERSION_v5 == proto_ver) {
@@ -358,8 +359,6 @@ void del_sub_ctx(void * ctxt, char * target_topic)
 		}
 #endif
 		nng_free(sub_pkt, sizeof(packet_subscribe));
-		// TODO free conn_param
-		// debug_msg("Free--clientctx: [%p]----pipeid: [%d]", cli_ctx, cli_ctx->pid.id);
 		nng_free(cli_ctx, sizeof(client_ctx));
 		cli_ctx = NULL;
 	}
