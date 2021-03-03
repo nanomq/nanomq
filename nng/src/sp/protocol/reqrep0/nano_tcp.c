@@ -239,7 +239,6 @@ nano_ctx_send(void *arg, nni_aio *aio)
 	len     = nni_msg_len(msg);
 	nni_mtx_lock(&s->lk);
 	debug_msg("*************************** working with pipe id : %d ctx***************************", pipe);
-	// printf("*************************** working with pipe id : %d ctx***************************\n", pipe);
 	if ((p = nni_id_get(&s->pipes, pipe)) == NULL) {
 		// Pipe is gone.  Make this look like a good send to avoid
 		// disrupting the state machine.  We don't care if the peer
@@ -276,7 +275,6 @@ nano_ctx_send(void *arg, nni_aio *aio)
 			if (nni_lmq_full(&p->qlmq)) {
 				// Make space for the new message.
          		debug_msg("Warning: QoS message dropped");
-                //printf("Warning: QoS message dropped\n");
 				nni_msg *old1;
 				(void) nni_lmq_getq(&p->qlmq, &old1);
 				nni_msg_free(old1);
@@ -470,13 +468,12 @@ nano_pipe_fini(void *arg)
 
 	if (p->tree != NULL) {
 		if (check_id(p->id)) {
-			fprintf(stderr, "qid  -- [%d]\n", p->id);
 			tq = get_topic(p->id);
 			while (tq) {
 				if (tq->topic) {
 					cli_ctx = search_and_delete(p->tree, tq->topic, p->id);
 				}
-				fprintf(stderr, "tq: [%s]\n", tq->topic);
+				debug_msg("delete pipe id [%d] topic: [%s]",p->id, tq->topic);
 				del_sub_ctx(cli_ctx, tq->topic);
 				tq = tq->next;
 			}

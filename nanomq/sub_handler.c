@@ -282,7 +282,7 @@ uint8_t sub_ctx_handle(emq_work * work)
 #ifdef DEBUG
 		// check
 		// client_ctx ** cli= (client_ctx **)search_client(work->db, topic_str);
-		// fprintf(stderr, "222 cli ctx [%p]\n", cli[0]);
+		// debug("cli ctx [%p]\n", cli[0]);
 #endif
 
 		retain_msg **r = search_retain(work->db_ret, topic_str);
@@ -348,7 +348,7 @@ void del_sub_ctx(void * ctxt, char * target_topic)
 		topic_node_t = topic_node_t->next;
 	}
 
-	printf("sub pkt node [%p]\n", sub_pkt->node);
+	debug_msg("info: sub pkt node handling [%p]\n", sub_pkt->node);
 	if (sub_pkt->node == NULL) {
 #if SUPPORT_MQTT5_0
 		if (PROTOCOL_VERSION_v5 == proto_ver) {
