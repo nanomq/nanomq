@@ -252,7 +252,7 @@ nano_ctx_send(void *arg, nni_aio *aio)
 	}
 	nni_mtx_unlock(&s->lk);
 	nni_mtx_lock(&p->lk);
-    if (nni_msg_cmd_type(msg) == CMD_PUBLISH) {
+    while (nni_msg_cmd_type(msg) == CMD_PUBLISH) {
 		nni_pipe * npipe;
 		uint8_t *body;
 		size_t   tlen;
@@ -264,9 +264,7 @@ nano_ctx_send(void *arg, nni_aio *aio)
 		if ((db = nni_id_get(&npipe->nano_db, DJBHashn(body + 2, tlen))) == NULL) {
 			//shouldn't get here BUG TODO
 			nni_println("ERROR: nano_db subscription topic missing!");
-			nni_msg_free(msg);
-			nni_mtx_unlock(&p->lk);
-			return;
+			break;
 		}
     	if (nni_msg_get_pub_qos(msg) > 0 && db->qos > 0) {
         	debug_msg("******** processing QoS pubmsg with pipe: %p ********", p);
@@ -281,6 +279,7 @@ nano_ctx_send(void *arg, nni_aio *aio)
 			}
 			nni_lmq_putq(&p->qlmq, msg);
     	}
+		break;
     }
 
 	p->tree = nni_aio_get_dbtree(aio);
@@ -558,7 +557,6 @@ nano_pipe_start(void *arg)
 	int        rv;
 	//TODO check MQTT protocol version here
 	debug_msg("##########nano_pipe_start################");
-	// printf("##########nano_pipe_start################(%d)\n", nni_pipe_id(p->pipe));
 	/*
 	// TODO check peer protocol
 	if (nni_pipe_peer(p->pipe) != NNG_NANO_TCP_PEER) {
