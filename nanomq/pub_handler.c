@@ -88,16 +88,13 @@ foreach_client(void ** cli_ctx_list, emq_work *pub_work, struct pipe_content *pi
 
 		debug_msg("sub pkt %p", sub_pkt);
 		debug_msg("pid1 %d", ctx->pid.id);
-		// printf("pid1 %d\n", ctx->pid.id);
 		debug_msg("pid2 %d", pub_work->pid.id);
 		if (sub_pkt->node->it->no_local && ctx->pid.id == pub_work->pid.id) {
 			equal = true;
 		}
 
 		if (equal == false) {
-//			debug_msg("sub_client: [%p], id: [%s], pipe: [%d]", sub_client, sub_client->id, ctx->pid.id);
-			// struct client_ctx *ctx = (struct client_ctx *) ctx;
-		        // printf("pid1 %d\n", ctx->pid.id);
+			// debug_msg("sub_client: [%p], id: [%s], pipe: [%d]", sub_client, sub_client->id, ctx->pid.id);
 			put_pipe_msgs(ctx, pub_work, pipe_ct, PUBLISH);
 		}
 	}
@@ -196,8 +193,8 @@ static void handle_pub_retain(const emq_work *work, char *topic)
 			retain->exist   = true;
 			retain->m = NULL;
 			debug_msg("update/add retain message");
-			// printf("found retain [%p], message: [%p][%p]\n",
-			//     retain, retain->message, nng_msg_payload_ptr(retain->message));
+			debug("found retain [%p], message: [%p][%p]\n",
+			        retain, retain->message, nng_msg_payload_ptr(retain->message));
 			r = search_insert_retain(work->db_ret, topic, retain);
 		} else {
 			debug_msg("delete retain message");
