@@ -177,7 +177,7 @@ server_cb(void *arg)
 				nng_msg_free(work->msg);
 				// handle retain
 				if (work->msg_ret) {
-					printf("retain msg [%p] \n", work->msg_ret);
+					debug_msg("retain msg [%p] size [%d] \n", work->msg_ret, cvector_size(work->msg_ret));
 					for (int i=0; i<cvector_size(work->msg_ret); i++) {
 						nng_msg * m = work->msg_ret[i];
 						nng_msg_clone(m);
@@ -186,7 +186,6 @@ server_cb(void *arg)
 						nng_aio_set_pipeline(work->aio, work->pid.id);
 						nng_ctx_send(work->ctx, work->aio);
 					}
-					printf("retain msg size [%d] \n", cvector_size(work->msg_ret));
 					cvector_free(work->msg_ret);
 				}
 
