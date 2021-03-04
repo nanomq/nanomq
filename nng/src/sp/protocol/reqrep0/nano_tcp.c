@@ -457,7 +457,6 @@ nano_pipe_fini(void *arg)
 	struct topic_queue * tq = NULL;
 
     debug_msg("########## nano_pipe_fini ###############");
-	msg_pool = p->msg_pool;
 
 	if ((msg = nni_aio_get_msg(&p->aio_recv)) != NULL) {
 		nni_aio_set_msg(&p->aio_recv, NULL);
@@ -601,6 +600,7 @@ nano_pipe_close(void *arg)
 	nano_sock *s = p->rep;
 	nano_ctx * ctx;
 	nni_msg   *msg;
+	nni_aio   *aio;
 	nnl_msg_pool * msg_pool;
 
 	debug_msg("################# nano_pipe_close ##############");

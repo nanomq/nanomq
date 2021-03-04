@@ -11,8 +11,6 @@ SET(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 
 project(nanolib)
 
-set(DEFAULT_BUILD_TYPE "Release")
-
 if (DEBUG)
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g")
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
@@ -32,7 +30,6 @@ endif()
 #aux_source_directory(. DIRSRCS)
 
 include_directories(./include)
-find_package(Threads)
 
 include_directories(${CMAKE_SOURCE_DIR}/nng/include/nng)
 

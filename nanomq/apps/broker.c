@@ -79,10 +79,6 @@ server_cb(void *arg)
 			break;
 		case RECV:
 			debug_msg("RECV  ^^^^^^^^^^^^^^^^^^^^^ ctx%d ^^^^\n", work->ctx.id);
-			if (smsg != NULL) {
-				nnl_msg_put(msg_pool, &smsg);
-				smsg = NULL;
-			}
 			if ((rv = nng_aio_result(work->aio)) != 0) {
 				debug_msg("ERROR: RECV nng aio result error: %d", rv);
 				nng_aio_wait(work->aio);
@@ -288,6 +284,7 @@ server_cb(void *arg)
 					}
 					work->state = SEND;
 					nnl_msg_put(msg_pool, &smsg);
+					work->proto = 0;
 					nng_aio_finish(work->aio, 0);
 					break;
 				} else {
@@ -302,7 +299,6 @@ server_cb(void *arg)
 					if (work->msg != NULL) {
 						nnl_msg_put(msg_pool, &work->msg);
 					}
-					work->msg   = NULL;
 					work->state = RECV;
 					nng_ctx_recv(work->ctx, work->aio);
 				}
@@ -330,7 +326,7 @@ server_cb(void *arg)
 		case SEND:
 			debug_msg("SEND  ^^^^^^^^^^^^^^^^^^^^^ ctx%d ^^^^\n", work->ctx.id);
 			if (NULL != smsg) {
-				nnl_msg_put(msg_pool, &smsg);
+				// ??? nnl_msg_put(msg_pool, &smsg);
 				smsg = NULL;
 			}
 			if ((rv = nng_aio_result(work->aio)) != 0) {
@@ -386,9 +382,17 @@ broker(const char *url)
 	int            rv;
 	int            i;
 	// init tree
-	struct db_tree *db = NULL;
+	db_tree *db = NULL;
+	db_tree *db_ret = NULL;
 
 	create_db_tree(&db);
+	if (db == NULL) {
+		debug_msg("NNL_ERROR error in db create");
+	}
+	create_db_tree(&db_ret);
+	if (db_ret == NULL) {
+		debug_msg("NNL_ERROR error in db create");
+	}
 
 	/*  Create the socket. */
 	rv = nng_nano_tcp0_open(&sock);
