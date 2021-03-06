@@ -14,6 +14,7 @@
 #include "nng/protocol/mqtt/mqtt_parser.h"
 #include "nng/protocol/mqtt/mqtt.h"
 
+#define QOSBUFLEN 360
 
 // TCP transport.   Platform specific TCP operations must be
 // supplied as well.
@@ -146,6 +147,7 @@ tcptran_pipe_init(void *arg, nni_pipe *npipe)
     nni_pipe_set_conn_param(npipe, p->tcp_cparam);
 	p->npipe        = npipe;
 	p->conn_buf		= NULL;
+	p->qos_buf      = nng_alloc(sizeof(uint8_t) * QOSBUFLEN);
 
 	return (0);
 }
@@ -167,6 +169,7 @@ tcptran_pipe_fini(void *arg)
 		nni_mtx_unlock(&ep->mtx);
 	}
 
+	nng_free(p->qos_buf, QOSBUFLEN);
 	//nng_free(p->tcp_cparam, sizeof(struct conn_param));
 	nni_aio_free(p->qsaio);
 	nni_aio_free(p->rxaio);
@@ -416,8 +419,9 @@ tcptran_pipe_send_cb(void *arg)
 	n   = nni_msg_len(msg);
 	nni_pipe_bump_tx(p->npipe, n);
 	//free qos buffer
-	if (p->qlength > 0) {
+	if (p->qlength > QOSBUFLEN) {
 		nng_free(p->qos_buf, p->qlength);
+		p->qos_buf = nng_alloc(QOSBUFLEN);
 	}
 	nni_mtx_unlock(&p->mtx);
 
@@ -777,7 +781,10 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 		}
 
 		//TODO optimize the performance of QoS 1to1 2to2 by reduce the length of qlength
-		p->qos_buf = nng_alloc(sizeof(uint8_t) * (p->qlength));
+		if (p->qlength > QOSBUFLEN) {
+			nng_free(p->qos_buf, QOSBUFLEN);
+			p->qos_buf = nng_alloc(sizeof(uint8_t) * (p->qlength));
+		}
 		memcpy(p->qos_buf, fixheader, rlen+1);
 		memcpy(p->qos_buf+rlen+1, body, tlen + 2);
 		if (db->qos > 0 && qos_pac > 0) {
