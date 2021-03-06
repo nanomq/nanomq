@@ -25,6 +25,10 @@ if (NOLOG)
 	add_definitions(-DNOLOG)
 endif (NOLOG)
 
+if (NOWARNING)
+	add_definitions(-DNOWARNING)
+endif (NOWARNING)
+
 if (DEBUG)
   SET(CMAKE_BUILD_TYPE "Debug")
   SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -Wall -g2 -ggdb")

@@ -35,24 +35,32 @@ static inline char *nano_get_time()
 #ifdef NOLOG
 #define log(M, ...)
 #define log_info(M, ...)
-#define log_err(M, ...)
+
+#ifdef NOWARNING
 #define log_warn(M, ...)
 #else
+#define log_warn(M, ...) fprintf(stderr,\
+		"[WARN] (%s:%s:%d) " M "\n", __FUNCTION__, __FILE__, __LINE__, ##__VA_ARGS__)
+#endif
+
+#else
+
 #define log_info(M, ...) fprintf(stderr,\
 		"[INFO] (%s:%s:%d) ===>> " M "\n", __FUNCTION__, __FILE__, __LINE__, ##__VA_ARGS__)
-#define log_err(M, ...) fprintf(stderr,\
-		"\n[ERROR] (%s:%s:%d) " M "\n\n", __FUNCTION__, __FILE__, __LINE__, ##__VA_ARGS__)
 #define log_warn(M, ...) fprintf(stderr,\
 		"[WARN] (%s:%s:%d) " M "\n", __FUNCTION__, __FILE__, __LINE__, ##__VA_ARGS__)
 #define log(M, ...) fprintf(stderr, "[INFO] %s (%lu:%s:%d) " M "\n",\
 		nano_get_time(), pthread_self(), __FUNCTION__, __LINE__, ##__VA_ARGS__)
 #endif
 
+#define log_err(M, ...) fprintf(stderr,\
+		"\n[ERROR] (%s:%s:%d) " M "\n\n", __FUNCTION__, __FILE__, __LINE__, ##__VA_ARGS__)
+
 // Test
 #ifdef NOLOG
 #define CHECK(A) if(A){};
 #define RUN_TESTS(name) int main(int argc, char *argv[]) {\
-	fprintf(stderr, "\n----[RUN_TESTS(NOLOG)]----\n");\
+	fprintf(stderr, "----[RUN_TESTS(NOLOG)]----\n");\
 	do{\
 		name();\
 	}while(0);\
@@ -66,7 +74,7 @@ static inline char *nano_get_time()
 
 #define RUN_TESTS(name) int main(int argc, char *argv[]) {\
 	argc = 1; \
-	fprintf(stderr, "\n----[RUN_TESTS]----\n");\
+	fprintf(stderr, "----[RUN_TESTS]----\n");\
 	do{\
 		name();\
 	}while(0);\

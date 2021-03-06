@@ -69,6 +69,13 @@ $PROJECT_PATH/nanomq/build$ cmake -G Ninja -DNOLOG=1  ..
 $PROJECT_PATH/nanomq/build$ cmake -G Ninja -DNOLOG=0  ..
 ```
 
+Besides, you can disable/enable the warning logs. The ones that produce warnings will not affect the general usage of NanoMQ by far. But the existence of these warnings show the possibilites of a memory leak or other similar issues.
+
+```
+$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DNOWARNING=1  ..
+$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DNOWARNING=0  ..
+```
+
 Message queue support:
 
 For macos, mqueue is not support, you can set -DMQ=0 to disable it. It is enabled by default.
