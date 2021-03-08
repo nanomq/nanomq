@@ -574,7 +574,7 @@ nano_pipe_start(void *arg)
 	}
 	// By definition, we have not received a request yet on this pipe,
 	// so it cannot cause us to become writable.
-	nni_timer_schedule(&p->pipe_qos_timer, nni_clock() + NNI_SECOND * NNI_NANO_QOS_TIMER);
+	//nni_timer_schedule(&p->pipe_qos_timer, nni_clock() + NNI_SECOND * NNI_NANO_QOS_TIMER);
 	nni_pipe_recv(p->pipe, &p->aio_recv);
 	return (0);
 }
@@ -647,30 +647,22 @@ nano_pipe_send_cb(void *arg)
         nni_pipe_send(p->pipe, &p->aio_send);
         nni_mtx_unlock(&p->lk);
         return;
+    }
+    //TODO check what if there are too much msgs with a busy pipe, could qos retry break ctx cb chain?
+    //TODO check timestamp of each msg, whether send it or not
+    if (nni_lmq_getq(&p->qlmq, &msg) == 0) {
+        p->busy    = true;
+		nni_msg_clone(msg);
+        nni_aio_set_msg(&p->aio_send, msg);
+        debug_msg("Warning: qos msg resending!");
+        nni_pipe_send(p->pipe, &p->aio_send);
+        //nni_aio_finish_sync(aio, 0, len);
     } else {
         p->busy = false;
+        p->qos_retry = 0;
     }
-
-    if(p->qos_retry > 0) {
-        //TODO check what if there are too much msgs with a busy pipe, could qos retry break ctx cb chain?
-        //TODO check timestamp of each msg, whether send it or not
-        if (nni_lmq_getq(&p->qlmq, &msg) == 0) {
-            p->busy    = true;
-			nni_msg_clone(msg);
-            nni_aio_set_msg(&p->aio_send, msg);
-            debug_msg("Warning: qos msg resending!");
-            nni_pipe_send(p->pipe, &p->aio_send);
-            //nni_aio_finish_sync(aio, 0, len);
-        } else {
-            p->busy = false;
-            p->qos_retry = 0;
-        }
-        nni_mtx_unlock(&p->lk);
-        debug_msg("nano_pipe_send_cb: end of qos logic ctx : %p", ctx);
-        return;
-    }
-    // Nothing else to send.
     nni_mtx_unlock(&p->lk);
+    debug_msg("nano_pipe_send_cb: end of qos logic ctx : %p", ctx);
     return;
 }
 
