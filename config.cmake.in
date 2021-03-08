@@ -1,0 +1,25 @@
+#
+# This software is supplied under the terms of the MIT License, a
+# copy of which should be located in the distribution where this
+# file was obtained (LICENSE.txt).  A copy of the license may also be
+# found online at https://opensource.org/licenses/MIT.
+#
+
+option(NOLOG "run NanoMQ without printing log" ON)
+option(NOWARNING "run NanoMQ without printing warning" OFF)
+option(MQ "build this project suport mq" ON)
+option(DEBUG "gdb support" ON)
+option(ASAN "asan support" ON)
+
+# TODO add cache string
+
+SET(NANO_PACKET_SIZE 64)
+SET(NANO_HEADER_SIZE 5)
+SET(NANO_PROPERTY_SIZE 32)
+SET(NANO_QOS_LEN 64)
+SET(NANO_MSQ_LEN 64)
+SET(NANO_QOS_TIMER 30)
+SET(PARALLEL 32)
+
+# Reference the Wiki or README for details of parameter above.
+

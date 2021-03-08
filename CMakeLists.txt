@@ -1,4 +1,3 @@
-
 #
 # This software is supplied under the terms of the MIT License, a
 # copy of which should be located in the distribution where this
@@ -17,13 +16,19 @@ set(CMAKE_MODULE_PATH
   "${CMAKE_CURRENT_LIST_DIR}/cmake"
 )
 
-option(NOLOG "build this project nolog" ON)
-option(MQ "build this project suport mq" ON)
-option(DEBUG "gdb support" OFF)
+include(config.cmake.in)
 
 if (NOLOG)
 	add_definitions(-DNOLOG)
 endif (NOLOG)
+
+if (NOWARNING)
+	add_definitions(-DNOWARNING)
+endif (NOWARNING)
+
+if (MQ)
+	add_definitions(-DMQ)
+endif (MQ)
 
 if (DEBUG)
   SET(CMAKE_BUILD_TYPE "Debug")
@@ -36,9 +41,6 @@ if (DEBUG)
     add_definitions(-DASAN)
   endif (ASAN)
 endif(DEBUG)
-if (MQ)
-	add_definitions(-DMQ)
-endif (MQ)
 
 #add_executable(nanomq-nng nanomq/nanomq.c)
 

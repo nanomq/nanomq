@@ -94,7 +94,7 @@ set queue length for resending message, default is 64
 $PROJECT_PATH/nanomq/build$ cmake -G Ninja -DNANO_MSQ_LEN=set ..
 
 set nano qos timer, default is 30 seconds
-$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DDNANO_QOS_TIMER=set ..
+$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DNANO_QOS_TIMER=set ..
 
 set logical concurrency limitation by *-DPARALLEL*, default is 32
 $PROJECT_PATH/nanomq/build$ cmake -G Ninja -DPARALLEL=32 ..

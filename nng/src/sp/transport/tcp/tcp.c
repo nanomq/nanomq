@@ -14,8 +14,6 @@
 #include "nng/protocol/mqtt/mqtt_parser.h"
 #include "nng/protocol/mqtt/mqtt.h"
 
-#define QOSBUFLEN 360
-
 // TCP transport.   Platform specific TCP operations must be
 // supplied as well.
 
@@ -52,7 +50,7 @@ struct tcptran_pipe {
 	uint8_t *       qos_buf;
 	nni_mtx         mtx;
 	conn_param *    tcp_cparam;
-	uint8_t			cmd;
+	uint8_t         cmd;
 	//uint8_t       sli_win[5];	//use aio multiple times instead of seperating 2 packets manually
 };
 
@@ -146,8 +144,8 @@ tcptran_pipe_init(void *arg, nni_pipe *npipe)
 	tcptran_pipe *p = arg;
     nni_pipe_set_conn_param(npipe, p->tcp_cparam);
 	p->npipe        = npipe;
-	p->conn_buf		= NULL;
-	p->qos_buf      = nng_alloc(sizeof(uint8_t) * QOSBUFLEN);
+	p->conn_buf     = NULL;
+	p->qos_buf      = nng_alloc(64+NNI_NANO_MAX_PACKET_SIZE);
 
 	return (0);
 }
@@ -169,7 +167,7 @@ tcptran_pipe_fini(void *arg)
 		nni_mtx_unlock(&ep->mtx);
 	}
 
-	nng_free(p->qos_buf, QOSBUFLEN);
+	nng_free(p->qos_buf, 64+NNI_NANO_MAX_PACKET_SIZE);
 	//nng_free(p->tcp_cparam, sizeof(struct conn_param));
 	nni_aio_free(p->qsaio);
 	nni_aio_free(p->rxaio);
@@ -419,9 +417,9 @@ tcptran_pipe_send_cb(void *arg)
 	n   = nni_msg_len(msg);
 	nni_pipe_bump_tx(p->npipe, n);
 	//free qos buffer
-	if (p->qlength > QOSBUFLEN) {
+	if (p->qlength > 64+NNI_NANO_MAX_PACKET_SIZE) {
 		nng_free(p->qos_buf, p->qlength);
-		p->qos_buf = nng_alloc(QOSBUFLEN);
+		p->qos_buf = nng_alloc(64+NNI_NANO_MAX_PACKET_SIZE);
 	}
 	nni_mtx_unlock(&p->mtx);
 
@@ -781,8 +779,8 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 		}
 
 		//TODO optimize the performance of QoS 1to1 2to2 by reduce the length of qlength
-		if (p->qlength > QOSBUFLEN) {
-			nng_free(p->qos_buf, QOSBUFLEN);
+		if (p->qlength > 64+NNI_NANO_MAX_PACKET_SIZE) {
+			nng_free(p->qos_buf, 64+NNI_NANO_MAX_PACKET_SIZE);
 			p->qos_buf = nng_alloc(sizeof(uint8_t) * (p->qlength));
 		}
 		memcpy(p->qos_buf, fixheader, rlen+1);
