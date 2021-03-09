@@ -1,0 +1,44 @@
+#
+# This software is supplied under the terms of the MIT License, a
+# copy of which should be located in the distribution where this
+# file was obtained (LICENSE.txt).  A copy of the license may also be
+# found online at https://opensource.org/licenses/MIT.
+#
+
+macro (NANO_SET arg val)
+  if (DEFINED ${arg})
+    message(FATAL_ERROR
+      "[${arg}:${val}] has been defined, remove CMakeCache.txt and retry.")
+  endif ()
+  SET(${arg} ${val})
+endmacro ()
+
+# run NanoMQ without printing log
+NANO_SET(NOLOG 1)
+# build this project suport mq
+NANO_SET(MQ 1)
+# run NanoMQ without printing warning
+NANO_SET(NOWARNING 0)
+# gdb support
+NANO_SET(DEBUG 0)
+# asan support
+NANO_SET(ASAN 0)
+# set max packet size
+NANO_SET(NANO_PACKET_SIZE 64)
+# set max header size
+NANO_SET(NANO_HEADER_SIZE 5)
+# set property size
+NANO_SET(NANO_PROPERTY_SIZE 32)
+# set qos length
+NANO_SET(NANO_QOS_LEN 64)
+# set msq length
+NANO_SET(NANO_MSQ_LEN 64)
+# set qos timer
+NANO_SET(NANO_QOS_TIMER 10)
+# set nano pub client
+NANO_SET(NANO_PUB_CLIENT 1024)
+# Parallelism (min 4, max 1000)
+NANO_SET(PARALLEL 32)
+
+# Reference the Wiki or README for details of parameter above.
+

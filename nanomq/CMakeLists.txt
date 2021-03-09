@@ -25,7 +25,7 @@ include_directories(${CMAKE_SOURCE_DIR}/nanolib/include)
 
 add_subdirectory(apps)
 
-set(PARALLEL 128 CACHE STRING "Parallelism (min 4, max 1000)")
+# set(PARALLEL 128 CACHE STRING "Parallelism (min 4, max 1000)")
 
 #find_package(nng CONFIG REQUIRED)
 #find_package(nanolib CONFIG REQUIRED)
