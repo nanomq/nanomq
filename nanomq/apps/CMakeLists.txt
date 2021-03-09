@@ -5,7 +5,7 @@ include_directories(${CMAKE_SOURCE_DIR}/nanolib/include)
 
 # find_library(LIBRT rt) 
 
-set(PARALLEL 128 CACHE STRING "Parallelism (min 4, max 1000)")
+# set(PARALLEL 128 CACHE STRING "Parallelism (min 4, max 1000)")
 
 add_library (apps ${DIR_LIB_SRCS})
 # target_link_libraries(apps ${LIBRT})

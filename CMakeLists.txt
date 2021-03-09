@@ -1,4 +1,3 @@
-
 #
 # This software is supplied under the terms of the MIT License, a
 # copy of which should be located in the distribution where this
@@ -17,28 +16,61 @@ set(CMAKE_MODULE_PATH
   "${CMAKE_CURRENT_LIST_DIR}/cmake"
 )
 
-option(NOLOG "build this project nolog" ON)
-option(MQ "build this project suport mq" ON)
-option(DEBUG "gdb support" OFF)
+if (NOT DEFINED CFG_METHOD)
+  message(STATUS "Default config method [CMAKE_CONFIG]")
+  SET (CFG_METHOD CMAKE_CONFIG)
+endif ()
 
+if ("${CFG_METHOD}" STREQUAL "FILE_CONFIG")
+  include(${CMAKE_CURRENT_SOURCE_DIR}/config.cmake.in)
+elseif ("${CFG_METHOD}" STREQUAL "CMAKE_CONFIG")
+  SET(NOLOG 1 CACHE STRING "run NanoMQ without printing log")
+  SET(MQ 1 CACHE STRING "build this project suport mq")
+  SET(NOWARNING 0 CACHE STRING "run NanoMQ without printing warning")
+  SET(DEBUG 0 CACHE STRING "gdb support")
+  SET(ASAN 0 CACHE STRING "asan support")
+  # TODO add cache string
+  SET(NANO_PACKET_SIZE 64 CACHE STRING "set max packet size")
+  SET(NANO_HEADER_SIZE 5 CACHE STRING "set max header size")
+  SET(NANO_PROPERTY_SIZE 32 CACHE STRING "set property size")
+  SET(NANO_QOS_LEN 64 CACHE STRING "set qos length")
+  SET(NANO_MSQ_LEN 64 CACHE STRING "set msq length")
+  SET(NANO_QOS_TIMER 10 CACHE STRING "set qos timer")
+  SET(NANO_PUB_CLIENT 1024 CACHE STRING "set nano pub client")
+  SET(PARALLEL 32 CACHE STRING "Parallelism (min 4, max 1000)")
+else ()
+  message(FATAL_ERROR "CFG_METHOD ERROR.")
+endif ()
+
+message("--configure--")
 if (NOLOG)
-	add_definitions(-DNOLOG)
+  message("NOLOG")
+  add_definitions(-DNOLOG)
 endif (NOLOG)
 
+if (NOWARNING)
+  message("NOWARNING")
+  add_definitions(-DNOWARNING)
+endif (NOWARNING)
+
+if (MQ)
+  add_definitions(-DMQ)
+endif (MQ)
+
 if (DEBUG)
+  message("DEBUG ")
   SET(CMAKE_BUILD_TYPE "Debug")
   SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -Wall -g2 -ggdb")
   SET(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -O3 -Wall")
   add_definitions(-DDEBUG)
   if (ASAN)
+    message("ASAN")
     SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -fsanitize=address")
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -fsanitize=address")
     add_definitions(-DASAN)
   endif (ASAN)
 endif(DEBUG)
-if (MQ)
-	add_definitions(-DMQ)
-endif (MQ)
+message("-------------")
 
 #add_executable(nanomq-nng nanomq/nanomq.c)
 
