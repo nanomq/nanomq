@@ -26,15 +26,12 @@ typedef struct nano_pipe nano_pipe;
 typedef struct nano_sock nano_sock;
 typedef struct nano_ctx  nano_ctx;
 
-static void nano_ctx_timeout(void *);
 static void nano_pipe_send_cb(void *);
 static void nano_pipe_recv_cb(void *);
 static void nano_pipe_fini(void *);
-static void nano_pipe_timeout(void *);
-static void nano_pipe_qos_timeout(void *);
 static void nano_pipe_close(void *);
 //static void nano_period_check(nano_sock *s, nni_list *sent_list, void *arg);
-static void nano_keepalive(nano_pipe *p, void *arg);
+//static void nano_keepalive(nano_pipe *p, void *arg);
 
 //huge context/ dynamic context?
 struct nano_ctx {
@@ -95,7 +92,6 @@ nano_period_check(nano_sock *s, nni_list *sent_list, void *arg)
 	nni_aio * aio;
     debug_msg("periodcal task over");
 }
-*/
 
 static void
 nano_keepalive(nano_pipe *p, void *arg)
@@ -107,24 +103,7 @@ nano_keepalive(nano_pipe *p, void *arg)
     //20% KeepAlive as buffer time for multi-threading
     nni_timer_schedule(&p->ka_timer, nni_clock() + NNI_SECOND * interval * 0.8);
 }
-
-static void
-nano_ctx_timeout(void *arg)
-{
-	nano_ctx  * ctx = arg;
-	nano_sock * s   = ctx->sock;
-    nano_pipe * p   = ctx->qos_pipe;
-    nni_msg   * msg = ctx->smsg;
-
-	nni_mtx_lock(&s->lk);
-    debug_msg("************* ctx timeout triggered! %x %p %s *************", nni_msg_cmd_type(msg), ctx, nni_msg_body(msg));
-    p->busy = true;
-    //len     = nni_msg_len(msg);
-    nni_aio_set_msg(&p->aio_send, msg);
-    nni_pipe_send(p->pipe, &p->aio_send);
-    //nni_timer_schedule(&ctx->qos_timer, nni_clock() + NNI_SECOND * 8);
-	nni_mtx_unlock(&s->lk);
-}
+*/
 
 static void
 nano_ctx_close(void *arg)
@@ -175,7 +154,6 @@ nano_ctx_init(void *carg, void *sarg)
 	NNI_LIST_NODE_INIT(&ctx->sqnode);
 	NNI_LIST_NODE_INIT(&ctx->rqnode);
 
-    nni_timer_init(&ctx->qos_timer, nano_ctx_timeout, ctx);
 	//TODO send list??
 	//ctx->pp_len = 0;
 	ctx->sock       = s;
@@ -372,65 +350,6 @@ nano_sock_close(void *arg)
 }
 
 static void
-nano_pipe_timeout(void *arg)
-{
-	nano_pipe * p = arg;
-	nano_sock * s = p->rep;
-    uint16_t    interval;
-    nni_msg   * msg;
-
-    if (!p->ka_refresh) {
-        debug_msg("Warning: close pipe & kick client due to KeepAlive timeout!");
-        nano_pipe_close(p);
-        return;
-    }
-	nni_mtx_lock(&p->lk);
-
-    //retry rlmq msgs
-    if (!p->busy) {
-        if (nni_lmq_getq(&p->rlmq, &msg) == 0) {
-            p->busy = true;
-            nni_aio_set_msg(&p->aio_send, msg);
-            //nni_msg_clone(msg);
-            debug_msg("rlmq msg resending! %ld msgs left\n", nni_lmq_len(&p->rlmq));
-            nni_pipe_send(p->pipe, &p->aio_send);
-        }
-    }
-
-    p->ka_refresh = false;
-    debug_msg("*************** KeepAlive timeout triggered ***************");
-    interval = conn_param_get_keepalive(p->conn_param);
-    nni_timer_schedule(&p->ka_timer, nni_clock() + NNI_SECOND * interval * 2);
-	nni_mtx_unlock(&p->lk);
-}
-
-static void
-nano_pipe_qos_timeout(void *arg)
-{
-	nano_pipe * p = arg;
-	nano_sock * s = p->rep;
-    nni_msg   * m;
-
-	nni_mtx_lock(&p->lk);
-    debug_msg("********** pipe_qos timeout triggered **********");
-
-    //TODO check timestamp of each msg, whether send it or not
-    if (!p->busy) {
-        if (nni_lmq_getq(&p->qlmq, &m) == 0) {
-            p->busy = true;
-            nni_aio_set_msg(&p->aio_send, m);
-            p->qos_retry = 1;
-            nni_msg_clone(m);
-            nni_pipe_send(p->pipe, &p->aio_send);
-        } else {
-            debug_msg("Nothing to do, restart the timer");
-        }
-    }
-    nni_timer_schedule(&p->pipe_qos_timer, nni_clock() + NNI_SECOND * NNI_NANO_QOS_TIMER);  //should be configurable
-	nni_mtx_unlock(&p->lk);
-}
-
-static void
 nano_pipe_stop(void *arg)
 {
 	nano_pipe *p = arg;
@@ -520,9 +439,6 @@ nano_pipe_init(void *arg, nni_pipe *pipe, void *s)
     p->ka_refresh = true;
     p->qos_retry  = 0;
 
-    nni_timer_init(&p->ka_timer, nano_pipe_timeout, p);
-    nni_timer_init(&p->pipe_qos_timer, nano_pipe_qos_timeout, p);
-
 	return (0);
 }
 
@@ -567,7 +483,7 @@ nano_pipe_start(void *arg)
     nni_mtx_lock(&s->lk);
     rv = nni_id_set(&s->pipes, nni_pipe_id(p->pipe), p);
     nni_aio_get_output(&p->aio_recv, 1);
-    nano_keepalive(p, NULL);
+    //nano_keepalive(p, NULL);
     nni_mtx_unlock(&s->lk);
     if (rv != 0) {
 		return (rv);
