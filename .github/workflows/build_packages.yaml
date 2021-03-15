@@ -61,7 +61,7 @@ jobs:
         aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws configure set default.region us-west-2
-        aws s3 cp --recursive _packages s3://packages.emqx/nanomq/$(git describe --abbrev=0 --tags)
+        aws s3 cp --recursive build/_packages s3://packages.emqx/nanomq/$(git describe --abbrev=0 --tags)
 
   build_docker:
     runs-on: ubuntu-20.04
