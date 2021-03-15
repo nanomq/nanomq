@@ -344,7 +344,6 @@ tcptran_pipe_nego_cb(void *arg)
 			debug_msg("tcptran_pipe_nego_cb: reply ACK\n");
 			p->gottxhead = p->wanttxhead;
 			nni_mtx_unlock(&ep->mtx);
-			nni_sleep_aio(p->tcp_cparam->keepalive_mqtt * 1200, p->tmaio);
 			return;
 		} else {
 			debug_msg("%d", rv);
@@ -363,6 +362,7 @@ tcptran_pipe_nego_cb(void *arg)
 
 	tcptran_ep_match(ep);
 	nni_mtx_unlock(&ep->mtx);
+	nni_sleep_aio(p->tcp_cparam->keepalive_mqtt * 2 * 1250, p->tmaio);
 	debug_msg("^^^^^^^^^^^^^^end of tcptran_pipe_nego_cb^^^^^^^^^^^^^^^^^^^^\n");
 	return;
 
@@ -384,20 +384,16 @@ tcptran_pipe_timer_cb(void *arg)
 {
 	tcptran_pipe *p = arg;
 
-	nni_mtx_lock(&p->mtx);
 	if ( nng_aio_result(p->tmaio) != 0) {
-		nni_mtx_unlock(&p->mtx);
         return;
     }
     if (!p->ka_refresh) {
         debug_msg("Warning: close pipe & kick client due to KeepAlive timeout!");
-		nni_mtx_unlock(&p->mtx);
         tcptran_pipe_close(p);
         return;
     }
 	p->ka_refresh = false;
-	nni_mtx_unlock(&p->mtx);
-	nni_sleep_aio(p->tcp_cparam->keepalive_mqtt*1250, p->tmaio);
+	nni_sleep_aio(p->tcp_cparam->keepalive_mqtt * 1250, p->tmaio);
 	return;
 }
 
@@ -1005,7 +1001,7 @@ tcptran_pipe_start(tcptran_pipe *p, nng_stream *conn, tcptran_ep *ep)
 	//reply to client immediately if needed otherwise just trigger next IO
 	//nng_stream_send(p->conn, p->negoaio);
 
-	nni_aio_set_timeout(p->negoaio, 15000); // 15 sec timeout to negotiate abide with emqx
+	nni_aio_set_timeout(p->negoaio, 150000); // 15 sec timeout to negotiate abide with emqx
 	nni_aio_finish(p->negoaio, 0, 0);
 }
 
