@@ -28,6 +28,9 @@ jobs:
         cd build
         mkdir -p _packages
         sudo checkinstall --backup=no --install=no --type=debian --arch=amd64  --pkgname=nanomq --pkgversion=$(git describe --abbrev=0 --tags) --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
+        pkg_name="nanomq-$(git describe --abbrev=0 --tags)-linux-amd64.deb"
+        sudo mv _packages/nanomq_$(git describe --abbrev=0 --tags)-1_amd64.deb _packages/$pkg_name
+        cd _packages; echo $(sha256sum $pkg_name | awk '{print $1}') > $pkg_name.sha256
     - name: build rpm
       shell: bash
       run: |
@@ -38,17 +41,27 @@ jobs:
         sudo mkdir -p /root/rpmbuild/BUILD
         sudo mkdir -p /root/rpmbuild/BUILDROOT
         sudo checkinstall --backup=no --install=no --type=rpm --arch=amd64  --pkgname=nanomq --pkgversion=$(git describe --abbrev=0 --tags) --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
+        pkg_name="nanomq-$(git describe --abbrev=0 --tags)-linux-amd64.rpm"
+        sudo mv _packages/nanomq-$(git describe --abbrev=0 --tags)-1.amd64.rpm _packages/$pkg_name
+        cd _packages; echo $(sha256sum $pkg_name | awk '{print $1}') > $pkg_name.sha256
     - uses: actions/upload-artifact@v2
       with:
         name: packages
         path: "build/_packages/*"
-    - uses: zhanghongtong/upload-release-asset@v1
+    - uses: Rory-Z/upload-release-asset@v1
       if: github.event_name == 'release'
       with:
         owner: ${{ github.repository_owner }} 
         repo: nanomq
         token: ${{ secrets.GITHUB_TOKEN }}
         path: "build/_packages/nanomq*"
+    - name: upload to aws s3
+      if: github.event_name == 'release'
+      run: |
+        aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws configure set default.region us-west-2
+        aws s3 cp --recursive _packages s3://packages.emqx/nanomq/$(git describe --abbrev=0 --tags)
 
   build_docker:
     runs-on: ubuntu-20.04
