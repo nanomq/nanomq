@@ -77,10 +77,9 @@ struct nano_pipe {
 	bool            busy;
 	bool            closed;
     bool            ka_refresh;
-    uint8_t         qos_retry;      //for marking qos retry type
     conn_param *    conn_param;
 	nano_pipe_db *  pipedb_root;
-    nni_lmq         qlmq, rlmq;
+    nni_lmq         rlmq;
     nni_timer_node  ka_timer;
     nni_timer_node  pipe_qos_timer;
 };
@@ -244,19 +243,6 @@ nano_ctx_send(void *arg, nni_aio *aio)
 			nni_println("ERROR: nano_db subscription topic missing!");
 			break;
 		}
-    	if (nni_msg_get_pub_qos(msg) > 0 && db->qos > 0) {
-        	debug_msg("******** processing QoS pubmsg with pipe: %p ********", p);
-        	p->qos_retry = 0;
-        	nni_msg_clone(msg);
-			if (nni_lmq_full(&p->qlmq)) {
-				// Make space for the new message.
-         		debug_msg("Warning: QoS message dropped");
-				nni_msg *old1;
-				(void) nni_lmq_getq(&p->qlmq, &old1);
-				nni_msg_free(old1);
-			}
-			nni_lmq_putq(&p->qlmq, msg);
-    	}
 		break;
     }
 
@@ -408,7 +394,6 @@ nano_pipe_fini(void *arg)
 	nni_mtx_fini(&p->lk);
 	nni_aio_fini(&p->aio_send);
 	nni_aio_fini(&p->aio_recv);
-    nni_lmq_fini(&p->qlmq);
 	nni_lmq_fini(&p->rlmq);
 
     nni_timer_cancel(&p->ka_timer);
@@ -425,7 +410,6 @@ nano_pipe_init(void *arg, nni_pipe *pipe, void *s)
     debug_msg("##########nano_pipe_init###############");
 
 	nni_mtx_init(&p->lk);
-    nni_lmq_init(&p->qlmq, NNI_NANO_MAX_QOS_LEN);
 	nni_lmq_init(&p->rlmq, NNI_NANO_MAX_MSQ_LEN);
 	nni_aio_init(&p->aio_send, nano_pipe_send_cb, p);
 	nni_aio_init(&p->aio_recv, nano_pipe_recv_cb, p);
@@ -437,7 +421,6 @@ nano_pipe_init(void *arg, nni_pipe *pipe, void *s)
 	p->rep        = s;
     p->conn_param = nni_pipe_get_conn_param(pipe);
     p->ka_refresh = true;
-    p->qos_retry  = 0;
 
 	return (0);
 }
@@ -514,7 +497,6 @@ nano_pipe_close(void *arg)
 		nni_list_remove(&s->recvpipes, p);
 	}
 
-	nni_lmq_flush(&p->qlmq);
 	nni_lmq_flush(&p->rlmq);
 	nano_msg_free_pipedb(p->pipedb_root);
 
@@ -538,6 +520,7 @@ nano_pipe_send_cb(void *arg)
 {
 	nano_pipe *p = arg;
 	nano_sock *s = p->rep;
+	nni_pipe  *npipe;
 	nano_ctx * ctx;
 	nni_aio *  aio;
 	nni_msg *  msg;
@@ -566,17 +549,7 @@ nano_pipe_send_cb(void *arg)
     }
     //TODO check what if there are too much msgs with a busy pipe, could qos retry break ctx cb chain?
     //TODO check timestamp of each msg, whether send it or not
-    if (nni_lmq_getq(&p->qlmq, &msg) == 0) {
-        p->busy    = true;
-		nni_msg_clone(msg);
-        nni_aio_set_msg(&p->aio_send, msg);
-        debug_msg("Warning: qos msg resending!");
-        nni_pipe_send(p->pipe, &p->aio_send);
-        //nni_aio_finish_sync(aio, 0, len);
-    } else {
-        p->busy = false;
-        p->qos_retry = 0;
-    }
+	p->busy = false;
     nni_mtx_unlock(&p->lk);
     debug_msg("nano_pipe_send_cb: end of qos logic ctx : %p", ctx);
     return;
@@ -657,16 +630,15 @@ nano_ctx_recv(void *arg, nni_aio *aio)
 static void
 nano_pipe_recv_cb(void *arg)
 {
+	int           rv;
 	nano_pipe *   p = arg;
 	nano_sock *   s = p->rep;
-	nano_ctx *    ctx;
-	nni_msg *     msg;
-	uint8_t *     header;
-	nni_aio *     aio;
+	nano_ctx  *   ctx;
+	nni_msg   *   msg, *qos_msg;
+	uint8_t   *   header;
+	nni_aio   *   aio;
 	nano_pipe_db *pipe_db;
-	size_t        len, index;
-	nni_pipe *    npipe;
-	int           rv;
+	nni_pipe *    npipe = p->pipe;
 	//int        hops;
 	//int        ttl;
 
@@ -692,10 +664,9 @@ nano_pipe_recv_cb(void *arg)
 		case CMD_SUBSCRIBE:
 			//TODO put hash table to tcp layer
 			nni_mtx_lock(&p->lk);
-			pipe_db = nano_msg_get_subtopic(msg);	//potential memleak when sub failed
+			pipe_db = nano_msg_get_subtopic(msg);	//TODO potential memleak when sub failed
 			p->pipedb_root = pipe_db;
 			while (pipe_db) {
-				npipe = p->pipe;
 				rv = nni_id_set(&npipe->nano_db, DJBHash(pipe_db->topic), pipe_db);
 				pipe_db = pipe_db->next;
 			}
@@ -708,40 +679,12 @@ nano_pipe_recv_cb(void *arg)
 		case CMD_UNSUBSCRIBE:
 			break;
 		case CMD_PINGREQ:
-		case CMD_PUBCOMP:
+		case CMD_PUBREC:
 		case CMD_PUBREL:
 			goto drop;
-			break;
         case CMD_PUBACK:
-		case CMD_PUBREC:
-            debug_msg("ack received!");
-			nni_mtx_lock(&p->lk);
-            uint8_t *ptr;
-            uint16_t ackid, pubid;
-            nni_msg *lmq_msg;
-            //TODO Attention! go thru lmq will disorder qos pub msg
-            len = nni_lmq_len(&p->qlmq);
-            index = 0;
-            while(nni_lmq_getq(&p->qlmq, &lmq_msg) == 0 && index <= len) {
-                ptr = nni_msg_variable_ptr(msg);
-                NNI_GET16(ptr, ackid);
-                ptr = nni_msg_variable_ptr(lmq_msg);
-                NNI_GET16(ptr, pubid);
-                ptr = ptr + 2 + pubid;
-                NNI_GET16(ptr, pubid);
-                if(pubid != ackid) {
-                    (void) nni_lmq_putq(&p->qlmq, lmq_msg);
-                } else {
-                    debug_msg("Found ACK msg packet id: %d deleting msg", ackid);
-                    nni_msg_free(lmq_msg);
-                    break;
-                }
-                index++;
-            }
-            //nanomq sdk
-			nni_mtx_unlock(&p->lk);
+		case CMD_PUBCOMP:
 			goto drop;
-            break;
 		default:
 			goto drop;
 	}
