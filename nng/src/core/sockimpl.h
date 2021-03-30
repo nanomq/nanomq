@@ -93,6 +93,7 @@ struct nni_listener {
 #endif
 };
 
+
 struct nni_pipe {
 	uint32_t           p_id;
 	nni_tran_pipe_ops  p_tran_ops;
@@ -112,7 +113,6 @@ struct nni_pipe {
 	nni_mtx            p_mtx;
 	nni_cv             p_cv;
 	nni_reap_node      p_reap;
-	nni_id_map		   nano_db;
 
 #ifdef NNG_ENABLE_STATS
 	nni_stat_item st_root;
@@ -126,9 +126,10 @@ struct nni_pipe {
 #endif
 
 	// NanoMQ
-	conn_param *conn_param;
-	uint16_t    packet_id;
-	// nni_id_map		   pipedb;
+	conn_param *		conn_param;
+	uint16_t    		packet_id;
+	nni_id_map		    nano_db;			//storing subscription topics
+	nni_id_map		    nano_qos_db;		//storing qos backup msgs
 };
 
 extern int nni_sock_add_dialer(nni_sock *, nni_dialer *);

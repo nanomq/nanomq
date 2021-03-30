@@ -165,6 +165,7 @@ typedef nni_type nni_opt_type;
 #define NNI_ARRAY_SIZE(x) (sizeof(x)/sizeof(uint32_t))
 typedef struct conn_param nano_conn_param;
 typedef struct conn_propt nano_conn_propt;
+
 #ifdef NANO_PACKET_SIZE 
 	#define NNI_NANO_MAX_PACKET_SIZE sizeof(uint8_t)*NANO_PACKET_SIZE
 #else

@@ -47,4 +47,7 @@ extern int nni_id_set(nni_id_map *, uint32_t, void *);
 extern int nni_id_alloc(nni_id_map *, uint32_t *, void *);
 extern int nni_id_remove(nni_id_map *, uint32_t);
 
+//NanoMQ
+void *nni_id_get_any(nni_id_map *m, uint16_t *pid);
+
 #endif // CORE_IDHASH_H
