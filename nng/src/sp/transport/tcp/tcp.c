@@ -417,7 +417,8 @@ tcptran_pipe_timer_cb(void *arg)
 		int         niov  = 0;
 		size_t	    tlen  = 0;
 		uint8_t *   body  = nni_msg_body(msg);
-
+   		//TODO check what if there are too much msgs with a busy pipe, could qos retry break ctx cb chain?
+    	//TODO check timestamp of each msg, whether send it or not
 		NNI_GET16(body, tlen);
 		NNI_PUT16(p->qos_buf, pid);
 		if (nni_msg_header_len(msg) > 0) {
@@ -436,7 +437,6 @@ tcptran_pipe_timer_cb(void *arg)
 			iov[niov].iov_len = nni_msg_len(msg) - 4 - tlen;
 			niov++;
 		}
-		//TODO msgid
 		nng_aio_wait(rsaio);
 		nni_aio_set_iov(rsaio, niov, &iov);
 		nng_stream_send(p->conn, rsaio);
@@ -671,18 +671,7 @@ tcptran_pipe_recv_cb(void *arg)
 			nng_stream_send(p->conn, qsaio);
 		}
 	} else if (type == CMD_PUBREC) {
-		uint8_t *tmp;
-		p->txlen[0] = 0X62;
-		p->txlen[1] = 0x02;
-		tmp = nni_msg_body(msg);
-		memcpy(p->txlen + 2, tmp, 2);
-		iov.iov_len = 4;
-		iov.iov_buf = &p->txlen;
-		// send it down...
-		nng_aio_wait(qsaio);
-		nni_aio_set_iov(qsaio, 1, &iov);
-		p->cmd = CMD_PUBREL;
-		nng_stream_send(p->conn, qsaio);
+		//TODO
 	} else if (type == CMD_PUBREL) {
 		uint8_t *tmp;
 		p->txlen[0] = CMD_PUBCOMP;

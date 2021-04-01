@@ -227,24 +227,8 @@ nano_ctx_send(void *arg, nni_aio *aio)
 		nni_msg_free(msg);
 		return;
 	}
-	nni_mtx_unlock(&s->lk);
 	nni_mtx_lock(&p->lk);
-    while (nni_msg_cmd_type(msg) == CMD_PUBLISH) {
-		nni_pipe * npipe;
-		uint8_t *body;
-		size_t   tlen;
-		npipe = p->pipe;
-		body = nni_msg_body(msg);
-		NNI_GET16(body, tlen);
-		nano_pipe_db *db;
-
-		if ((db = nni_id_get(&npipe->nano_db, DJBHashn(body + 2, tlen))) == NULL) {
-			//shouldn't get here BUG TODO
-			nni_println("ERROR: nano_db subscription topic missing!");
-			break;
-		}
-		break;
-    }
+	nni_mtx_unlock(&s->lk);
 
 	p->tree = nni_aio_get_dbtree(aio);
 	if (!p->busy) {
@@ -547,8 +531,7 @@ nano_pipe_send_cb(void *arg)
         nni_mtx_unlock(&p->lk);
         return;
     }
-    //TODO check what if there are too much msgs with a busy pipe, could qos retry break ctx cb chain?
-    //TODO check timestamp of each msg, whether send it or not
+
 	p->busy = false;
     nni_mtx_unlock(&p->lk);
     debug_msg("nano_pipe_send_cb: end of qos logic ctx : %p", ctx);
@@ -678,8 +661,9 @@ nano_pipe_recv_cb(void *arg)
 		case CMD_DISCONNECT:
 		case CMD_UNSUBSCRIBE:
 			break;
-		case CMD_PINGREQ:
 		case CMD_PUBREC:
+			break;
+		case CMD_PINGREQ:
 		case CMD_PUBREL:
 			goto drop;
         case CMD_PUBACK:
