@@ -65,7 +65,7 @@ server_cb(void *arg)
 	int      rv, i;
 
 	reason_code reason;
-	uint8_t     buf[2];
+	uint8_t     *ptr;
 
 	struct pipe_info p_info;
 
@@ -138,6 +138,21 @@ server_cb(void *arg)
 				work->state = RECV;
 				nng_ctx_recv(work->ctx, work->aio);
 				break;
+			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBREC) {
+				smsg = work->msg;
+				ptr = nng_msg_header(smsg);
+				ptr[0] = 0x62;
+				ptr[1] = 0x02;
+				nng_msg_set_cmd_type(smsg, CMD_PUBREL);
+				work->msg = smsg;
+				work->pid = nng_msg_get_pipe(work->msg);
+				nng_aio_set_pipeline(work->aio, work->pid.id);
+				nng_aio_set_msg(work->aio, work->msg);
+				work->msg   = NULL;
+				work->state = SEND;
+				nng_ctx_send(work->ctx, work->aio);
+				smsg = NULL;
+				nng_aio_finish(work->aio, 0);
 			} else if (nng_msg_cmd_type(work->msg) == CMD_SUBSCRIBE) {
 				nng_msg_alloc(&smsg, 0);
 				work->pid = nng_msg_get_pipe(work->msg);
@@ -300,7 +315,6 @@ server_cb(void *arg)
 					nng_ctx_recv(work->ctx, work->aio);
 				}
 			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBACK ||
-					   nng_msg_cmd_type(work->msg) == CMD_PUBREC ||
 					   nng_msg_cmd_type(work->msg) == CMD_PUBREL ||
 					   nng_msg_cmd_type(work->msg) == CMD_PUBCOMP ) {
 				nng_msg_free(work->msg);
@@ -322,6 +336,7 @@ server_cb(void *arg)
 		case SEND:
 			debug_msg("SEND  ^^^^^^^^^^^^^^^^^^^^^ ctx%d ^^^^\n", work->ctx.id);
 			if (NULL != smsg) {
+				// nng_msg_free(smsg);
 				smsg = NULL;
 			}
 			if ((rv = nng_aio_result(work->aio)) != 0) {
