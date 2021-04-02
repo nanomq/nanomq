@@ -72,25 +72,63 @@ struct nano_pipe {
 	void *          tree;	//root node of db tree
 	nni_aio         aio_send;
 	nni_aio         aio_recv;
+	nni_aio         aio_timer;
 	nni_list_node   rnode; // receivable list linkage
 	nni_list        sendq; // contexts waiting to send
 	bool            busy;
 	bool            closed;
+	uint8_t		 	ka_refresh;
     conn_param *    conn_param;
 	nano_pipe_db *  pipedb_root;
     nni_lmq         rlmq;
     nni_timer_node  ka_timer;
     nni_timer_node  pipe_qos_timer;
 };
-/*
+
 static void
-nano_period_check(nano_sock *s, nni_list *sent_list, void *arg)
+nano_pipe_timer_cb(void *arg)
 {
-    nano_ctx *ctx;
-	nni_aio * aio;
-    debug_msg("periodcal task over");
+	nano_pipe *	   p      = arg;
+	nni_msg   *	   msg;
+	nni_time       time;
+	nni_pipe  *    npipe  = p->pipe;
+	uint16_t	   pid;
+
+
+	if ( nng_aio_result(&p->aio_timer) != 0) {
+        return;
+    }
+	nni_mtx_lock(&p->lk);
+    if (p->ka_refresh * NNI_NANO_QOS_TIMER > p->conn_param->keepalive_mqtt) {
+        printf("Warning: close pipe & kick client due to KeepAlive timeout!");
+		//TODO check keepalived timer interval
+		nni_mtx_unlock(&p->lk);
+        nano_pipe_close(p);
+        return;
+    }
+	p->ka_refresh++;
+	if (!p->busy) {
+		msg = nni_id_get_any(&npipe->nano_qos_db, &pid);
+		if (msg != NULL) {
+			time = nni_msg_get_timestamp(msg);
+			uint64_t div = nni_clock() - time;
+			if ((nni_clock() - time) >= NNI_NANO_QOS_TIMER * 1250) {
+				p->busy = true;
+				nni_msg_clone(msg);
+				nni_aio_set_packetid(&p->aio_send, pid);
+				nni_aio_set_msg(&p->aio_send, msg);
+				debug_msg("resending qos msg!\n");
+				nni_pipe_send(p->pipe, &p->aio_send);
+			}
+		}
+	}
+
+	nni_mtx_unlock(&p->lk);
+	nni_sleep_aio(NNI_NANO_QOS_TIMER * 1000, &p->aio_timer);
+	return;
 }
 
+/*
 static void
 nano_keepalive(nano_pipe *p, void *arg)
 {
@@ -230,6 +268,7 @@ nano_ctx_send(void *arg, nni_aio *aio)
 	nni_mtx_unlock(&s->lk);
 
 	p->tree = nni_aio_get_dbtree(aio);
+	nni_msg_set_timestamp(msg, nni_clock());
 	if (!p->busy) {
 		p->busy = true;
 		nni_aio_set_msg(&p->aio_send, msg);
@@ -325,6 +364,7 @@ nano_pipe_stop(void *arg)
 
     debug_msg("##########nano_pipe_stop###############");
 	nni_aio_stop(&p->aio_send);
+	nni_aio_stop(&p->aio_timer);
 	nni_aio_stop(&p->aio_recv);
 }
 
@@ -377,6 +417,7 @@ nano_pipe_fini(void *arg)
 	nni_mtx_fini(&p->lk);
 	nni_aio_fini(&p->aio_send);
 	nni_aio_fini(&p->aio_recv);
+	nni_aio_fini(&p->aio_timer);
 	nni_lmq_fini(&p->rlmq);
 
     nni_timer_cancel(&p->ka_timer);
@@ -395,6 +436,7 @@ nano_pipe_init(void *arg, nni_pipe *pipe, void *s)
 	nni_mtx_init(&p->lk);
 	nni_lmq_init(&p->rlmq, NNI_NANO_MAX_MSQ_LEN);
 	nni_aio_init(&p->aio_send, nano_pipe_send_cb, p);
+	nni_aio_init(&p->aio_timer, nano_pipe_timer_cb, p);
 	nni_aio_init(&p->aio_recv, nano_pipe_recv_cb, p);
 
 	//NNI_LIST_INIT(&p->sendq, nano_ctx, sqnode);
@@ -402,6 +444,7 @@ nano_pipe_init(void *arg, nni_pipe *pipe, void *s)
 	p->id         = nni_pipe_id(pipe);
 	p->pipe       = pipe;
 	p->rep        = s;
+	p->ka_refresh = 0;
     p->conn_param = nni_pipe_get_conn_param(pipe);
 
 	return (0);
@@ -448,6 +491,7 @@ nano_pipe_start(void *arg)
     nni_mtx_lock(&s->lk);
     rv = nni_id_set(&s->pipes, nni_pipe_id(p->pipe), p);
     nni_aio_get_output(&p->aio_recv, 1);
+	nni_sleep_aio(NNI_NANO_QOS_TIMER * 1200, &p->aio_timer);
     //nano_keepalive(p, NULL);
     nni_mtx_unlock(&s->lk);
     if (rv != 0) {
@@ -472,6 +516,7 @@ nano_pipe_close(void *arg)
 
 	nni_aio_close(&p->aio_send);
 	nni_aio_close(&p->aio_recv);
+	nni_aio_close(&p->aio_timer);
 
 	//nni_mtx_lock(&s->lk);
 	p->closed = true;
@@ -521,6 +566,7 @@ nano_pipe_send_cb(void *arg)
 	nni_mtx_lock(&p->lk);
 
     //printf("before : rlmq msg resending! %ld %p \n", nni_lmq_len(&p->rlmq), &p->rlmq);
+	nni_aio_set_packetid(&p->aio_send, 0);
     if (nni_lmq_getq(&p->rlmq, &msg) == 0) {
         nni_aio_set_msg(&p->aio_send, msg);
         debug_msg("rlmq msg resending! %ld msgs left\n", nni_lmq_len(&p->rlmq));
@@ -639,6 +685,7 @@ nano_pipe_recv_cb(void *arg)
               p ,p->id, nng_msg_cmd_type(msg), *header, *(header+1), nng_msg_header_len(msg));
 	//ttl = nni_atomic_get(&s->ttl);
 	nni_msg_set_pipe(msg, p->id);
+	p->ka_refresh = 0;
 	//TODO HOOK
 	switch (nng_msg_cmd_type(msg)) {
 		case CMD_SUBSCRIBE:
@@ -659,7 +706,7 @@ nano_pipe_recv_cb(void *arg)
 		case CMD_UNSUBSCRIBE:
 			break;
 		case CMD_PUBREC:
-			break;
+			// break;
 		case CMD_PINGREQ:
 		case CMD_PUBREL:
 			goto drop;
