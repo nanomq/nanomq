@@ -33,7 +33,6 @@ struct tcptran_pipe {
 	size_t          wantrxhead;
 	size_t			qlength;
 	bool            closed;
-	uint8_t         ka_refresh;
 	uint8_t         cmd;
 	uint8_t         txlen[NANO_MIN_PACKET_LEN];
 	uint8_t         rxlen[NNI_NANO_MAX_PACKET_SIZE];
@@ -158,7 +157,6 @@ tcptran_pipe_init(void *arg, nni_pipe *npipe)
 	p->npipe        = npipe;
 	p->conn_buf     = NULL;
 	p->qos_buf      = nng_alloc(16+NNI_NANO_MAX_PACKET_SIZE);
-	p->ka_refresh   = 0;
 	return (0);
 }
 
@@ -375,7 +373,7 @@ tcptran_pipe_nego_cb(void *arg)
 
 	tcptran_ep_match(ep);
 	nni_mtx_unlock(&ep->mtx);
-	nni_sleep_aio(NNI_NANO_QOS_TIMER * 1000, p->tmaio);
+	//nni_sleep_aio(NNI_NANO_QOS_TIMER * 1000, p->tmaio);
 	debug_msg("^^^^^^^^^^^^^^end of tcptran_pipe_nego_cb^^^^^^^^^^^^^^^^^^^^\n");
 	return;
 
@@ -402,52 +400,6 @@ tcptran_pipe_timer_cb(void *arg)
 	nni_aio		 * rsaio = p->rsaio;
 	nni_pipe	 * npipe = p->npipe;
 
-	if ( nng_aio_result(p->tmaio) != 0) {
-        return;
-    }
-    if (p->ka_refresh * NNI_NANO_QOS_TIMER > p->tcp_cparam->keepalive_mqtt) {
-        debug_msg("Warning: close pipe & kick client due to KeepAlive timeout!");
-		//TODO check keepalived timer interval
-        tcptran_pipe_close(p);
-        return;
-    }
-	p->ka_refresh++;
-	nni_mtx_lock(&p->mtx);
-	msg = nni_id_get_any(&npipe->nano_qos_db, &pid);
-	if (msg == NULL) {
-		nni_mtx_unlock(&p->mtx);
-		nni_sleep_aio(NNI_NANO_QOS_TIMER * 1000, p->tmaio);
-		return;
-	} else {
-		int         niov  = 0;
-		size_t	    tlen  = 0;
-		uint8_t *   body  = nni_msg_body(msg);
-   		//TODO check what if there are too much msgs with a busy pipe, could qos retry break ctx cb chain?
-    	//TODO check timestamp of each msg, whether send it or not
-		NNI_GET16(body, tlen);
-		NNI_PUT16(p->qos_buf, pid);
-		if (nni_msg_header_len(msg) > 0) {
-			iov[niov].iov_buf = nni_msg_header(msg);
-			iov[niov].iov_len = nni_msg_header_len(msg);
-			niov++;
-		}
-		if (nni_msg_len(msg) > 0) {
-			iov[niov].iov_buf = body;
-			iov[niov].iov_len = 2 + tlen;
-			niov++;
-			iov[niov].iov_buf = p->qos_buf;
-			iov[niov].iov_len = 2;
-			niov++;
-			iov[niov].iov_buf = body + 2 + tlen + 2;
-			iov[niov].iov_len = nni_msg_len(msg) - 4 - tlen;
-			niov++;
-		}
-		nng_aio_wait(rsaio);
-		nni_aio_set_iov(rsaio, niov, &iov);
-		nng_stream_send(p->conn, rsaio);
-	}
-	nni_mtx_unlock(&p->mtx);
-	nni_sleep_aio(NNI_NANO_QOS_TIMER * 1000, p->tmaio);
 	return;
 }
 
@@ -574,6 +526,7 @@ tcptran_pipe_recv_cb(void *arg)
 			nni_aio_set_iov(qsaio, 1, &iov);
 			p->cmd = CMD_PINGRESP;
 			nng_stream_send(p->conn, qsaio);
+			goto quit;
 		} else if ((p->rxlen[0]&0XFF) == CMD_DISCONNECT) {
 		}
 	}
@@ -624,7 +577,6 @@ tcptran_pipe_recv_cb(void *arg)
 	nni_msg_set_conn_param(msg, cparam);
 	nni_msg_set_remaining_len(msg, len);
 	nni_msg_set_cmd_type(msg, type);
-	p->ka_refresh = 0;
 	debug_msg("remain_len %d cparam %p clientid %s username %s proto %d\n", len, cparam, &cparam->clientid.body, &cparam->username.body, cparam->pro_ver);
 	variable_ptr = nni_msg_variable_ptr(msg);
 
@@ -646,7 +598,7 @@ tcptran_pipe_recv_cb(void *arg)
 		} else {
 			payload_ptr = variable_ptr + 2;
 		}
-	}else if(type == CMD_PUBLISH){
+	}else if(type == CMD_PUBLISH) {
 		uint8_t 		qos_pac;
 		uint16_t 		pid;
 		size_t   		tlen;
@@ -659,7 +611,7 @@ tcptran_pipe_recv_cb(void *arg)
 			payload_ptr = variable_ptr + tlen + 2 + (qos_pac>0?2:0);
 		}
 		if (qos_pac > 0) {
-			nng_aio_wait(qsaio);
+			nng_aio_wait(p->rsaio);
 			if (qos_pac == 1) {
 				p->txlen[0] = CMD_PUBACK;
 			} else if (qos_pac == 2) {
@@ -671,25 +623,25 @@ tcptran_pipe_recv_cb(void *arg)
 			iov.iov_len = 4;
 			iov.iov_buf = &p->txlen;
 			// send it down...
-			nni_aio_set_iov(qsaio, 1, &iov);
+			nni_aio_set_iov(p->rsaio, 1, &iov);
 
 			p->cmd = CMD_PUBREC;
-			nng_stream_send(p->conn, qsaio);
+			nng_stream_send(p->conn, p->rsaio);
 		}
 	} else if (type == CMD_PUBREC) {
 		//TODO
-		// uint8_t *tmp;
-		// nng_aio_wait(p->rpaio);
-		// p->txlen[0] = 0X62;
-		// p->txlen[1] = 0x02;
-		// tmp = nni_msg_body(msg);
-		// memcpy(p->txlen + 2, tmp, 2);
-		// iov.iov_len = 4;
-		// iov.iov_buf = &p->txlen;
-		// // send it down...
-		// nni_aio_set_iov(p->rpaio, 1, &iov);
-		// p->cmd = CMD_PUBREL;
-		// nng_stream_send(p->conn, p->rpaio);
+		uint8_t *tmp;
+		nng_aio_wait(p->rpaio);
+		p->txlen[0] = 0X62;
+		p->txlen[1] = 0x02;
+		tmp = nni_msg_body(msg);
+		memcpy(p->txlen + 2, tmp, 2);
+		iov.iov_len = 4;
+		iov.iov_buf = &p->txlen;
+		// send it down...
+		nni_aio_set_iov(p->rpaio, 1, &iov);
+		p->cmd = CMD_PUBREL;
+		nng_stream_send(p->conn, p->rpaio);
 	} else if (type == CMD_PUBREL) {
 		uint8_t *tmp;
 		nng_aio_wait(qsaio);
@@ -746,9 +698,8 @@ recv_error:
 	debug_msg("tcptran_pipe_recv_cb: recv error rv: %d\n", rv);
 	return;
 quit:
-	nni_aio_list_remove(aio);
-	nni_list_append(&p->sendq, aio);
-	//simply quit after reply PINGRESP to clinet
+	//nni_aio_list_remove(aio);
+	nni_pipe_bump_rx(p->npipe, n);
 	tcptran_pipe_recv_start(p);
 	nni_mtx_unlock(&p->mtx);
 	return;
@@ -806,6 +757,7 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 	msg = nni_aio_get_msg(aio);
 	if (msg == NULL) {
 		//TODO potential risk bug
+		nni_println("ERROR: sending NULL msg!");
 		return;
 	}
 
@@ -878,20 +830,22 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 			// set pid
 			int 			rv;
 			nni_msg	*		old;
-
-			pid = nni_pipe_inc_packetid(pipe);
+			pid = nni_aio_get_packetid(aio);
+			if (pid == 0) {
+				pid = nni_pipe_inc_packetid(pipe);
+				// store msg for qos retrying
+        		debug_msg("******** processing QoS pubmsg with pipe: %p ********", p);
+        		nni_msg_clone(msg);
+				if ((old = nni_id_get(&pipe->nano_qos_db, pid)) != NULL) {
+					//TODO  shouldn't get here BUG 
+					nni_println("ERROR: packet id duplicates in nano_qos_db");
+					nni_msg_free(old);
+					//nni_id_remove(&pipe->nano_qos_db, pid);
+				}
+				rv = nni_id_set(&pipe->nano_qos_db, pid, msg);
+			}
 			NNI_PUT16(varheader, pid);
 			p->qlength += 2;
-			// store msg for qos retrying
-        	debug_msg("******** processing QoS pubmsg with pipe: %p ********", p);
-        	nni_msg_clone(msg);
-			if ((old = nni_id_get(&pipe->nano_qos_db, pid)) != NULL) {
-				//TODO  shouldn't get here BUG 
-				nni_println("ERROR: packet id duplicates in nano_qos_db");
-				nni_msg_free(old);
-				//nni_id_remove(&pipe->nano_qos_db, pid);
-			}
-			rv = nni_id_set(&pipe->nano_qos_db, pid, msg);
 		}
 		//TODO optimize the performance of QoS 1to1 2to2 by reduce the length of qlength
 		if (p->qlength > 16+NNI_NANO_MAX_PACKET_SIZE) {
