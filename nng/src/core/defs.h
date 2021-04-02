@@ -196,6 +196,7 @@ typedef struct conn_propt nano_conn_propt;
 	#define NNI_NANO_MAX_MSQ_LEN 64
 #endif
 
+// Do not set this lower than 30 if you are trying to get high throughput.
 #ifdef NANO_QOS_TIMER 
 	#define NNI_NANO_QOS_TIMER NANO_QOS_TIMER
 #else

@@ -108,7 +108,8 @@ nni_aio_init(nni_aio *aio, nni_cb cb, void *arg)
 	aio->a_expire  = NNI_TIME_NEVER;
 	aio->a_timeout = NNG_DURATION_INFINITE;
     aio->pipe      = 0;
-    aio->db            = NULL;
+	aio->packet_id = 0;
+    aio->db        = NULL;
     // aio->pipes       = NULL;
     // aio->pipe_len  = 0;
 	aio->a_expire_q =
@@ -810,27 +811,39 @@ nni_aio_sys_init(void)
 
 //NANOMQ APIs
 void
+nni_aio_set_packetid(nni_aio *aio, uint16_t id)
+{
+    aio->packet_id = id;
+}
+
+uint16_t
+nni_aio_get_packetid(nni_aio *aio)
+{
+    return aio->packet_id;
+}
+
+void
 nni_aio_set_pipeline(nni_aio *aio, uint32_t id)
 {
-       aio->pipe = id;
+    aio->pipe = id;
 }
 
 uint32_t
 nni_aio_get_pipeline(nni_aio *aio)
 {
-       return aio->pipe;
+    return aio->pipe;
 }
 
 void nni_aio_set_dbtree(nni_aio *aio, void *db)
 {
-       debug_msg("set dbtree address: %p", db);
-       aio->db = db;
+    debug_msg("set dbtree address: %p", db);
+    aio->db = db;
 }
 
 void*
 nni_aio_get_dbtree(nni_aio *aio)
 {
-       return(aio->db);
+    return(aio->db);
 }
 /*
 void
