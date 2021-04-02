@@ -76,7 +76,6 @@ struct nano_pipe {
 	nni_list        sendq; // contexts waiting to send
 	bool            busy;
 	bool            closed;
-    bool            ka_refresh;
     conn_param *    conn_param;
 	nano_pipe_db *  pipedb_root;
     nni_lmq         rlmq;
@@ -404,7 +403,6 @@ nano_pipe_init(void *arg, nni_pipe *pipe, void *s)
 	p->pipe       = pipe;
 	p->rep        = s;
     p->conn_param = nni_pipe_get_conn_param(pipe);
-    p->ka_refresh = true;
 
 	return (0);
 }
@@ -641,7 +639,6 @@ nano_pipe_recv_cb(void *arg)
               p ,p->id, nng_msg_cmd_type(msg), *header, *(header+1), nng_msg_header_len(msg));
 	//ttl = nni_atomic_get(&s->ttl);
 	nni_msg_set_pipe(msg, p->id);
-    p->ka_refresh = true;
 	//TODO HOOK
 	switch (nng_msg_cmd_type(msg)) {
 		case CMD_SUBSCRIBE:

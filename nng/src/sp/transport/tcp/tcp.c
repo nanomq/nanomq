@@ -27,33 +27,34 @@ struct tcptran_pipe {
 	//uint16_t        peer;		//reserved for MQTT sdk version
 	//uint16_t        proto;
 	size_t          rcvmax;
-	bool            closed;
-	bool            ka_refresh;
-	nni_list_node   node;
-	tcptran_ep *    ep;
-	nni_atomic_flag reaped;
-	nni_reap_node   reap;
-	uint8_t         txlen[NANO_MIN_PACKET_LEN];
-	uint8_t         rxlen[NNI_NANO_MAX_PACKET_SIZE];
 	size_t          gottxhead;
 	size_t          gotrxhead;
 	size_t          wanttxhead;
 	size_t          wantrxhead;
 	size_t			qlength;
-	nni_list        recvq;
-	nni_list        sendq;
+	bool            closed;
+	uint8_t         ka_refresh;
+	uint8_t         cmd;
+	uint8_t         txlen[NANO_MIN_PACKET_LEN];
+	uint8_t         rxlen[NNI_NANO_MAX_PACKET_SIZE];
+	uint8_t *       conn_buf;
+	uint8_t *       qos_buf;
 	nni_aio *       txaio;
 	nni_aio *       rxaio;
 	nni_aio *       qsaio;
 	nni_aio *       rsaio;
 	nni_aio *		tmaio;
+	nni_aio *		rpaio;
 	nni_aio *       negoaio;
 	nni_msg *       rxmsg;
-	uint8_t *       conn_buf;
-	uint8_t *       qos_buf;
 	nni_mtx         mtx;
 	conn_param *    tcp_cparam;
-	uint8_t         cmd;
+	nni_list        recvq;
+	nni_list        sendq;
+	nni_list_node   node;
+	tcptran_ep *    ep;
+	nni_atomic_flag reaped;
+	nni_reap_node   reap;
 	//uint8_t       sli_win[5];	//use aio multiple times instead of seperating 2 packets manually
 };
 
@@ -85,7 +86,7 @@ static void tcptran_pipe_send_start(tcptran_pipe *);
 static void tcptran_pipe_recv_start(tcptran_pipe *);
 static void tcptran_pipe_send_cb(void *);
 static void tcptran_pipe_recv_cb(void *);
-static void tcptran_pipe_timer_cb(void *arg);	//reserved for qsaio
+static void tcptran_pipe_timer_cb(void *);
 static void tcptran_pipe_nego_cb(void *);
 static void tcptran_ep_fini(void *);
 static void tcptran_pipe_fini(void *);
@@ -122,6 +123,7 @@ tcptran_pipe_close(void *arg)
 	nni_mtx_unlock(&p->mtx);
 
 	nni_aio_close(p->rxaio);
+	nni_aio_close(p->rpaio);
 	nni_aio_close(p->txaio);
 	nni_aio_close(p->rsaio);
 	nni_aio_close(p->qsaio);
@@ -139,6 +141,7 @@ tcptran_pipe_stop(void *arg)
 
 	nni_aio_stop(p->qsaio);
 	nni_aio_stop(p->rsaio);
+	nni_aio_stop(p->rpaio);
 	nni_aio_stop(p->rxaio);
 	nni_aio_stop(p->txaio);
 	nni_aio_stop(p->tmaio);
@@ -155,7 +158,7 @@ tcptran_pipe_init(void *arg, nni_pipe *npipe)
 	p->npipe        = npipe;
 	p->conn_buf     = NULL;
 	p->qos_buf      = nng_alloc(16+NNI_NANO_MAX_PACKET_SIZE);
-	p->ka_refresh   = true;
+	p->ka_refresh   = 0;
 	return (0);
 }
 
@@ -180,6 +183,7 @@ tcptran_pipe_fini(void *arg)
 	nng_free(p->qos_buf, 16+NNI_NANO_MAX_PACKET_SIZE);
 	//nng_free(p->tcp_cparam, sizeof(struct conn_param));
 	nni_aio_free(p->qsaio);
+	nni_aio_free(p->rpaio);
 	nni_aio_free(p->rsaio);
 	nni_aio_free(p->rxaio);
 	nni_aio_free(p->txaio);
@@ -214,6 +218,7 @@ tcptran_pipe_alloc(tcptran_pipe **pipep)
 	nni_mtx_init(&p->mtx);
 	if (((rv = nni_aio_alloc(&p->txaio, tcptran_pipe_send_cb, p)) != 0) ||
 		((rv = nni_aio_alloc(&p->qsaio, NULL, p)) != 0) ||
+		((rv = nni_aio_alloc(&p->rpaio, NULL, p)) != 0) ||
 		((rv = nni_aio_alloc(&p->rsaio, NULL, p)) != 0) ||
 		((rv = nni_aio_alloc(&p->tmaio, tcptran_pipe_timer_cb, p)) != 0) ||
 	    ((rv = nni_aio_alloc(&p->rxaio, tcptran_pipe_recv_cb, p)) != 0) ||
@@ -370,7 +375,7 @@ tcptran_pipe_nego_cb(void *arg)
 
 	tcptran_ep_match(ep);
 	nni_mtx_unlock(&ep->mtx);
-	nni_sleep_aio(360000, p->tmaio);
+	nni_sleep_aio(NNI_NANO_QOS_TIMER * 1000, p->tmaio);
 	debug_msg("^^^^^^^^^^^^^^end of tcptran_pipe_nego_cb^^^^^^^^^^^^^^^^^^^^\n");
 	return;
 
@@ -400,18 +405,18 @@ tcptran_pipe_timer_cb(void *arg)
 	if ( nng_aio_result(p->tmaio) != 0) {
         return;
     }
-    if (!p->ka_refresh) {
+    if (p->ka_refresh * NNI_NANO_QOS_TIMER > p->tcp_cparam->keepalive_mqtt) {
         debug_msg("Warning: close pipe & kick client due to KeepAlive timeout!");
 		//TODO check keepalived timer interval
         tcptran_pipe_close(p);
         return;
     }
-	p->ka_refresh = false;
+	p->ka_refresh++;
 	nni_mtx_lock(&p->mtx);
 	msg = nni_id_get_any(&npipe->nano_qos_db, &pid);
 	if (msg == NULL) {
 		nni_mtx_unlock(&p->mtx);
-		nni_sleep_aio(360000, p->tmaio);
+		nni_sleep_aio(NNI_NANO_QOS_TIMER * 1000, p->tmaio);
 		return;
 	} else {
 		int         niov  = 0;
@@ -442,7 +447,7 @@ tcptran_pipe_timer_cb(void *arg)
 		nng_stream_send(p->conn, rsaio);
 	}
 	nni_mtx_unlock(&p->mtx);
-	nni_sleep_aio(360000, p->tmaio);
+	nni_sleep_aio(NNI_NANO_QOS_TIMER * 1000, p->tmaio);
 	return;
 }
 
@@ -516,6 +521,7 @@ tcptran_pipe_recv_cb(void *arg)
 	nni_aio *     rxaio = p->rxaio;
 	nni_aio *     txaio = p->txaio;
 	nni_aio *     qsaio = p->qsaio;
+	nni_aio *     rpaio = p->rpaio;
 	conn_param *  cparam;
 	uint32_t      len_of_varint = 0;
 
@@ -559,12 +565,12 @@ tcptran_pipe_recv_cb(void *arg)
 		return;
 	} else if (len == 0 && n == 2) {
 		if ((p->rxlen[0]&0XFF) == CMD_PINGREQ) {
+			nng_aio_wait(qsaio);
 			p->txlen[0] = CMD_PINGRESP;
 			p->txlen[1] = 0x00;
 			iov.iov_len = 2;
 			iov.iov_buf = &p->txlen;
 			// send it down...
-			nng_aio_wait(qsaio);
 			nni_aio_set_iov(qsaio, 1, &iov);
 			p->cmd = CMD_PINGRESP;
 			nng_stream_send(p->conn, qsaio);
@@ -618,7 +624,7 @@ tcptran_pipe_recv_cb(void *arg)
 	nni_msg_set_conn_param(msg, cparam);
 	nni_msg_set_remaining_len(msg, len);
 	nni_msg_set_cmd_type(msg, type);
-	p->ka_refresh = true;
+	p->ka_refresh = 0;
 	debug_msg("remain_len %d cparam %p clientid %s username %s proto %d\n", len, cparam, &cparam->clientid.body, &cparam->username.body, cparam->pro_ver);
 	variable_ptr = nni_msg_variable_ptr(msg);
 
@@ -653,6 +659,7 @@ tcptran_pipe_recv_cb(void *arg)
 			payload_ptr = variable_ptr + tlen + 2 + (qos_pac>0?2:0);
 		}
 		if (qos_pac > 0) {
+			nng_aio_wait(qsaio);
 			if (qos_pac == 1) {
 				p->txlen[0] = CMD_PUBACK;
 			} else if (qos_pac == 2) {
@@ -664,7 +671,6 @@ tcptran_pipe_recv_cb(void *arg)
 			iov.iov_len = 4;
 			iov.iov_buf = &p->txlen;
 			// send it down...
-			nng_aio_wait(qsaio);
 			nni_aio_set_iov(qsaio, 1, &iov);
 
 			p->cmd = CMD_PUBREC;
@@ -672,8 +678,21 @@ tcptran_pipe_recv_cb(void *arg)
 		}
 	} else if (type == CMD_PUBREC) {
 		//TODO
+		// uint8_t *tmp;
+		// nng_aio_wait(p->rpaio);
+		// p->txlen[0] = 0X62;
+		// p->txlen[1] = 0x02;
+		// tmp = nni_msg_body(msg);
+		// memcpy(p->txlen + 2, tmp, 2);
+		// iov.iov_len = 4;
+		// iov.iov_buf = &p->txlen;
+		// // send it down...
+		// nni_aio_set_iov(p->rpaio, 1, &iov);
+		// p->cmd = CMD_PUBREL;
+		// nng_stream_send(p->conn, p->rpaio);
 	} else if (type == CMD_PUBREL) {
 		uint8_t *tmp;
+		nng_aio_wait(qsaio);
 		p->txlen[0] = CMD_PUBCOMP;
 		p->txlen[1] = 0x02;
 		tmp = nni_msg_body(msg);
@@ -681,7 +700,6 @@ tcptran_pipe_recv_cb(void *arg)
 		iov.iov_len = 4;
 		iov.iov_buf = &p->txlen;
 		// send it down...
-		nng_aio_wait(qsaio);
 		nni_aio_set_iov(qsaio, 1, &iov);
 		p->cmd = CMD_PUBCOMP;
 		nng_stream_send(p->conn, qsaio);
@@ -1078,7 +1096,7 @@ tcptran_pipe_start(tcptran_pipe *p, nng_stream *conn, tcptran_ep *ep)
 	//reply to client immediately if needed otherwise just trigger next IO
 	//nng_stream_send(p->conn, p->negoaio);
 
-	nni_aio_set_timeout(p->negoaio, 20000); // 15 sec timeout to negotiate abide with emqx
+	nni_aio_set_timeout(p->negoaio, NNI_NANO_QOS_TIMER * 1000); // 15 sec timeout to negotiate abide with emqx
 	nni_aio_finish(p->negoaio, 0, 0);
 }
 
