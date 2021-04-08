@@ -336,7 +336,6 @@ tcptran_pipe_nego_cb(void *arg)
 		}
 		if (conn_handler(p->conn_buf, p->tcp_cparam) > 0) {
 			nng_free(p->conn_buf, p->wantrxhead);
-			p->tcp_cparam->nano_qos_db = &p->npipe->nano_qos_db;
 			p->conn_buf = NULL;
 			if (p->tcp_cparam->pro_ver == PROTOCOL_VERSION_v5) {
 				p->wanttxhead += 1;
@@ -409,7 +408,7 @@ tcptran_pipe_timer_cb(void *arg)
     }
 	p->ka_refresh = false;
 	nni_mtx_lock(&p->mtx);
-	msg = nni_id_get_any(&npipe->nano_qos_db, &pid);
+	msg = nni_id_get_any(npipe->nano_qos_db, &pid);
 	if (msg == NULL) {
 		nni_mtx_unlock(&p->mtx);
 		nni_sleep_aio(360000, p->tmaio);
@@ -695,9 +694,9 @@ tcptran_pipe_recv_cb(void *arg)
 		npipe = p->npipe;
 		ptr = nni_msg_body(msg);
     	NNI_GET16(ptr, ackid);
-		if ((qos_msg = nni_id_get(&npipe->nano_qos_db, ackid)) != NULL) {
+		if ((qos_msg = nni_id_get(npipe->nano_qos_db, ackid)) != NULL) {
 			nni_msg_free(qos_msg);
-			nni_id_remove(&npipe->nano_qos_db, ackid);
+			nni_id_remove(npipe->nano_qos_db, ackid);
 		} else {
 			//shouldn't get here BUG TODO
 			debug_syslog("qos msg not found!");
@@ -868,13 +867,13 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 			// store msg for qos retrying
         	debug_msg("******** processing QoS pubmsg with pipe: %p ********", p);
         	nni_msg_clone(msg);
-			if ((old = nni_id_get(&pipe->nano_qos_db, pid)) != NULL) {
+			if ((old = nni_id_get(pipe->nano_qos_db, pid)) != NULL) {
 				//TODO  shouldn't get here BUG 
 				nni_println("ERROR: packet id duplicates in nano_qos_db");
 				nni_msg_free(old);
 				//nni_id_remove(&pipe->nano_qos_db, pid);
 			}
-			rv = nni_id_set(&pipe->nano_qos_db, pid, msg);
+			rv = nni_id_set(pipe->nano_qos_db, pid, msg);
 		}
 		//TODO optimize the performance of QoS 1to1 2to2 by reduce the length of qlength
 		if (p->qlength > 16+NNI_NANO_MAX_PACKET_SIZE) {

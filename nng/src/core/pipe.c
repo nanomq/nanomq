@@ -70,7 +70,7 @@ pipe_destroy(void *arg)
 		nni_cv_wait(&p->p_cv);
 	}
 	nni_id_map_fini(&p->nano_db);
-	// nni_id_map_fini(&p->nano_qos_db);
+	//nni_id_map_fini(&p->nano_qos_db);
 	nni_mtx_unlock(&pipes_lk);
 
 	if (p->p_proto_data != NULL) {
@@ -282,7 +282,8 @@ pipe_create(nni_pipe **pp, nni_sock *sock, nni_tran *tran, void *tdata)
 	nni_mtx_init(&p->p_mtx);
 	nni_cv_init(&p->p_cv, &pipes_lk);
 	nni_id_map_init(&p->nano_db, 0, 0, false);
-	nni_id_map_init(&p->nano_qos_db, 0, 0, false);
+	p->nano_qos_db = nng_alloc(sizeof(struct nni_id_map));
+	nni_id_map_init(p->nano_qos_db, 0, 0, false);
 
 	nni_mtx_lock(&pipes_lk);
 	if ((rv = nni_id_alloc(&pipes, &p->p_id, p)) == 0) {

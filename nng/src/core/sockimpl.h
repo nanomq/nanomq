@@ -129,7 +129,7 @@ struct nni_pipe {
 	conn_param *		conn_param;
 	uint16_t    		packet_id;
 	nni_id_map		    nano_db;			//storing subscription topics
-	nni_id_map		    nano_qos_db;		//storing qos backup msgs
+	nni_id_map		  * nano_qos_db;		//storing qos backup msgs
 };
 
 extern int nni_sock_add_dialer(nni_sock *, nni_dialer *);

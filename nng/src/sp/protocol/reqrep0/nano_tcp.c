@@ -405,6 +405,7 @@ nano_pipe_init(void *arg, nni_pipe *pipe, void *s)
 	p->rep        = s;
     p->conn_param = nni_pipe_get_conn_param(pipe);
     p->ka_refresh = true;
+	p->conn_param->nano_qos_db = p->pipe->nano_qos_db;
 
 	return (0);
 }
