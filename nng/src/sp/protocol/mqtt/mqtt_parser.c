@@ -532,6 +532,7 @@ void destroy_conn_param(conn_param * cparam)
 	nng_free(cparam->payload_user_property.key, cparam->payload_user_property.len_key);
 	nng_free(cparam->payload_user_property.val, cparam->payload_user_property.len_val);
 	nng_free(cparam, sizeof(struct conn_param));
+	nni_id_map_fini(cparam->nano_qos_db);
 	cparam = NULL;
 }
 

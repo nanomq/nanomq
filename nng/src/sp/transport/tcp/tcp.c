@@ -336,6 +336,7 @@ tcptran_pipe_nego_cb(void *arg)
 		}
 		if (conn_handler(p->conn_buf, p->tcp_cparam) > 0) {
 			nng_free(p->conn_buf, p->wantrxhead);
+			p->tcp_cparam->nano_qos_db = &p->npipe->nano_qos_db;
 			p->conn_buf = NULL;
 			if (p->tcp_cparam->pro_ver == PROTOCOL_VERSION_v5) {
 				p->wanttxhead += 1;
@@ -354,8 +355,8 @@ tcptran_pipe_nego_cb(void *arg)
 			nni_mtx_unlock(&ep->mtx);
 			return;
 		} else {
-			debug_msg("%d", rv);
 			rv = NNG_EPROTO;
+			nng_free(p->conn_buf, p->wantrxhead);
 			goto error;
 		}
 	}
