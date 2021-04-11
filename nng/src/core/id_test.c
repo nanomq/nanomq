@@ -141,7 +141,7 @@ test_dynamic(void)
 
 	nni_id_map_init(&m, 10, 13, false);
 
-        // We can fill the table.
+	// We can fill the table.
 	NUTS_PASS(nni_id_alloc(&m, &id, &expect[0]));
 	NUTS_TRUE(id == 10);
 	NUTS_PASS(nni_id_alloc(&m, &id, &expect[1]));

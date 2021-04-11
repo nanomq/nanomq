@@ -286,7 +286,8 @@ nng_ctx_recv(nng_ctx cid, nng_aio *aio)
 	int      rv;
 	nni_ctx *ctx;
 
-	debug_msg(" ######## nng_ctx_recv context id %d rv: %d ######## ", cid.id, rv);
+	debug_msg(" ######## nng_ctx_recv context id %d rv: %d ######## ",
+	    cid.id, rv);
 	if ((rv = nni_ctx_find(&ctx, cid.id, false)) != 0) {
 		if (nni_aio_begin(aio) == 0) {
 			nni_aio_finish_error(aio, rv);
@@ -1890,72 +1891,72 @@ nng_version(void)
 	    NNG_PATCH_VERSION) NNG_RELEASE_SUFFIX);
 }
 
-//NANOMQ MQTT APIs
+// NANOMQ MQTT APIs
 int
 nng_msg_cmd_type(nng_msg *msg)
 {
-        return (nni_msg_cmd_type(msg));
+	return (nni_msg_cmd_type(msg));
 }
 
 size_t
 nng_msg_remaining_len(nng_msg *msg)
 {
-        return (nni_msg_remaining_len(msg));
+	return (nni_msg_remaining_len(msg));
 }
 
 uint8_t *
 nng_msg_header_ptr(nng_msg *msg)
 {
-        return (nni_msg_header_ptr(msg));
+	return (nni_msg_header_ptr(msg));
 }
 
 uint8_t *
 nng_msg_variable_ptr(nng_msg *msg)
 {
-        return (nni_msg_variable_ptr(msg));
+	return (nni_msg_variable_ptr(msg));
 }
 
 uint8_t *
 nng_msg_payload_ptr(nng_msg *msg)
 {
-        return (nni_msg_payload_ptr(msg));
+	return (nni_msg_payload_ptr(msg));
 }
 
 void
 nng_msg_set_payload_ptr(nng_msg *msg, uint8_t *ptr)
 {
-        nni_msg_set_payload_ptr(msg, ptr);
+	nni_msg_set_payload_ptr(msg, ptr);
 }
 
 void
 nng_msg_set_remaining_len(nng_msg *msg, size_t len)
 {
-        nni_msg_set_remaining_len(msg, len);
+	nni_msg_set_remaining_len(msg, len);
 }
 
 void
 nng_msg_clone(nng_msg *msg)
 {
-        nni_msg_clone(msg);
+	nni_msg_clone(msg);
 }
 
-nng_msg*
+nng_msg *
 nng_msg_unique(nng_msg *m)
 {
-		nng_msg *m2;
-		m2= nni_msg_unique(m);
-		return m2;
+	nng_msg *m2;
+	m2 = nni_msg_unique(m);
+	return m2;
 }
 
 void
 nng_aio_set_pipeline(nng_aio *aio, uint32_t id)
 {
-        nni_aio_set_pipeline(aio, id);
+	nni_aio_set_pipeline(aio, id);
 }
 void
 nng_aio_set_dbtree(nng_aio *aio, void *db)
 {
-        nni_aio_set_dbtree(aio, db);
+	nni_aio_set_dbtree(aio, db);
 }
 
 void *
@@ -1970,7 +1971,7 @@ void
 nng_msg_set_cmd_type(nng_msg *m, uint8_t cmd)
 {
 	if (nni_msg_cmd_type(m) == 0x00 || cmd == 0x00) {
-    	nni_msg_set_cmd_type(m, cmd);
+		nni_msg_set_cmd_type(m, cmd);
 	}
 }
 
@@ -1983,98 +1984,98 @@ nng_msg_preset_qos(nng_msg *m, uint8_t qos)
 const uint8_t *
 conn_param_get_clentid(conn_param *cparam)
 {
-        return (const uint8_t *)cparam->clientid.body;
+	return (const uint8_t *) cparam->clientid.body;
 }
 
-const uint8_t * 
+const uint8_t *
 conn_param_get_pro_name(conn_param *cparam)
 {
-        return (const uint8_t *)cparam->pro_name.body;
+	return (const uint8_t *) cparam->pro_name.body;
 }
 
-const void * 
+const void *
 conn_param_get_will_topic(conn_param *cparam)
 {
-        if (cparam->will_flag) {
-                return (void *)&(cparam->will_topic);
-        } else {
-                return NULL;
-        }
+	if (cparam->will_flag) {
+		return (void *) &(cparam->will_topic);
+	} else {
+		return NULL;
+	}
 }
 
-const void * 
+const void *
 conn_param_get_will_msg(conn_param *cparam)
 {
-        if (cparam->will_flag) {
-                return (void *)&(cparam->will_msg);
-        } else {
-                return NULL;
-        }
+	if (cparam->will_flag) {
+		return (void *) &(cparam->will_msg);
+	} else {
+		return NULL;
+	}
 }
 
-const uint8_t * 
+const uint8_t *
 conn_param_get_username(conn_param *cparam)
 {
-        if (cparam->con_flag & 0x80) {
-                return cparam->username.body;
-        } else {
-                return NULL;
-        }
+	if (cparam->con_flag & 0x80) {
+		return cparam->username.body;
+	} else {
+		return NULL;
+	}
 }
 
-const uint8_t * 
+const uint8_t *
 conn_param_get_password(conn_param *cparam)
 {
-        if (cparam->con_flag & 0x40) {
-                return cparam->password.body;
-        } else {
-                return NULL;
-        }
+	if (cparam->con_flag & 0x40) {
+		return cparam->password.body;
+	} else {
+		return NULL;
+	}
 }
 
 uint8_t
 conn_param_get_con_flag(conn_param *cparam)
 {
-        return cparam->con_flag;
+	return cparam->con_flag;
 }
 
 uint8_t
 conn_param_get_clean_start(conn_param *cparam)
 {
-        return cparam->clean_start;
+	return cparam->clean_start;
 }
 
 uint8_t
 conn_param_get_will_flag(conn_param *cparam)
 {
-        return cparam->will_flag;
+	return cparam->will_flag;
 }
 
 uint8_t
 conn_param_get_will_qos(conn_param *cparam)
 {
-        return cparam->will_qos;
+	return cparam->will_qos;
 }
 
 uint8_t
 conn_param_get_will_retain(conn_param *cparam)
 {
-        return cparam->will_retain;
+	return cparam->will_retain;
 }
 
 uint16_t
 conn_param_get_keepalive(conn_param *cparam)
 {
-        return cparam->keepalive_mqtt;
+	return cparam->keepalive_mqtt;
 }
 
 uint8_t
 conn_param_get_protover(conn_param *cparam)
 {
-	if (NULL == cparam )
+	if (NULL == cparam)
 		return 0;
 	else
-        return cparam->pro_ver;
+		return cparam->pro_ver;
 }
 
 /*
@@ -2094,7 +2095,7 @@ nng_aio_set_pipes(nng_aio *aio, uint32_t *pipes)
 void
 nng_aio_finish_error(nng_aio *aio, int rv)
 {
-    nni_aio_finish_error(aio, rv);
+	nni_aio_finish_error(aio, rv);
 }
 
 void

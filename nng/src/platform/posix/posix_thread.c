@@ -260,7 +260,7 @@ nni_plat_thr_set_name(nni_plat_thr *thr, const char *name)
 #if defined(__APPLE__)
 	// Darwin is weird, it can only set the name of pthread_self.
 	if ((thr == NULL) || (pthread_self() == thr->tid)) {
-        	pthread_setname_np(name);
+		pthread_setname_np(name);
 	}
 #else
 	if (thr == NULL) {
@@ -273,7 +273,7 @@ nni_plat_thr_set_name(nni_plat_thr *thr, const char *name)
 	if (thr == NULL) {
 		pthread_set_name_np(pthread_self(), name);
 	} else {
-        	pthread_set_name_np(thr->tid, name);
+		pthread_set_name_np(thr->tid, name);
 	}
 #endif
 }

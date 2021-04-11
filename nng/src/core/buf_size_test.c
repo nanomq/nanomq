@@ -12,7 +12,7 @@
 
 #include <nng/compat/nanomsg/nn.h>
 
-	void
+void
 test_buffer_options(void)
 {
 	nng_socket s1;

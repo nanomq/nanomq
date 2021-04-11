@@ -10,7 +10,6 @@
 // found online at https://opensource.org/licenses/MIT.
 //
 
-
 #include <nuts.h>
 
 // TCP tests.
@@ -120,12 +119,9 @@ test_tcp_malformed_address(void)
 	nng_socket s1;
 
 	NUTS_OPEN(s1);
-	NUTS_FAIL(
-	    nng_dial(s1, "tcp://127.0.0.1", NULL, 0), NNG_EADDRINVAL);
-	NUTS_FAIL(
-	    nng_dial(s1, "tcp://127.0.0.1.32", NULL, 0), NNG_EADDRINVAL);
-	NUTS_FAIL(
-	    nng_dial(s1, "tcp://127.0.x.1.32", NULL, 0), NNG_EADDRINVAL);
+	NUTS_FAIL(nng_dial(s1, "tcp://127.0.0.1", NULL, 0), NNG_EADDRINVAL);
+	NUTS_FAIL(nng_dial(s1, "tcp://127.0.0.1.32", NULL, 0), NNG_EADDRINVAL);
+	NUTS_FAIL(nng_dial(s1, "tcp://127.0.x.1.32", NULL, 0), NNG_EADDRINVAL);
 	NUTS_FAIL(
 	    nng_listen(s1, "tcp://127.0.0.1.32", NULL, 0), NNG_EADDRINVAL);
 	NUTS_FAIL(
@@ -141,7 +137,7 @@ test_tcp_no_delay_option(void)
 	nng_listener l;
 	bool         v;
 	int          x;
-	char         *addr;
+	char *       addr;
 
 	NUTS_ADDR(addr, "tcp");
 
@@ -159,8 +155,7 @@ test_tcp_no_delay_option(void)
 	NUTS_FAIL(
 	    nng_dialer_get_int(d, NNG_OPT_TCP_NODELAY, &x), NNG_EBADTYPE);
 	x = 0;
-	NUTS_FAIL(
-	    nng_dialer_set_int(d, NNG_OPT_TCP_NODELAY, x), NNG_EBADTYPE);
+	NUTS_FAIL(nng_dialer_set_int(d, NNG_OPT_TCP_NODELAY, x), NNG_EBADTYPE);
 	// This assumes sizeof (bool) != sizeof (int)
 	if (sizeof(bool) != sizeof(int)) {
 		NUTS_FAIL(
@@ -203,7 +198,7 @@ test_tcp_keep_alive_option(void)
 	nng_listener l;
 	bool         v;
 	int          x;
-	char         *addr;
+	char *       addr;
 
 	NUTS_ADDR(addr, "tcp");
 	NUTS_OPEN(s);
@@ -256,7 +251,7 @@ test_tcp_recv_max(void)
 	nng_socket   s1;
 	nng_listener l;
 	size_t       sz;
-	char         *addr;
+	char *       addr;
 
 	NUTS_ADDR(addr, "tcp");
 

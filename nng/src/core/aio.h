@@ -166,19 +166,18 @@ extern int  nni_aio_sys_init(void);
 extern void nni_aio_sys_fini(void);
 
 // NANOMQ APIs
-extern void      nni_aio_set_sockaddr(nni_aio *aio, const nng_sockaddr *);
-extern void      nni_aio_get_sockaddr(nni_aio *aio, nng_sockaddr *);
-extern void      nni_aio_set_pipeline(nni_aio *aio, uint32_t id);
-extern void      nni_aio_set_dbtree(nni_aio *aio, void *db);
-extern void *    nni_aio_get_dbtree(nni_aio *aio);
-extern uint32_t  nni_aio_get_pipeline(nni_aio *aio);
-extern uint16_t  nni_aio_get_packetid(nni_aio *aio);
-extern void      nni_aio_set_packetid(nni_aio *aio, uint16_t id);
+extern void     nni_aio_set_sockaddr(nni_aio *aio, const nng_sockaddr *);
+extern void     nni_aio_get_sockaddr(nni_aio *aio, nng_sockaddr *);
+extern void     nni_aio_set_pipeline(nni_aio *aio, uint32_t id);
+extern void     nni_aio_set_dbtree(nni_aio *aio, void *db);
+extern void *   nni_aio_get_dbtree(nni_aio *aio);
+extern uint32_t nni_aio_get_pipeline(nni_aio *aio);
+extern uint16_t nni_aio_get_packetid(nni_aio *aio);
+extern void     nni_aio_set_packetid(nni_aio *aio, uint16_t id);
 
 // extern void      nni_aio_set_pipelength(nni_aio *aio, uint32_t len);
 // extern void      nni_aio_set_pipes(nni_aio *aio, uint32_t *pipes);
 // extern uint32_t *nni_aio_get_pipes(nni_aio *aio);
-
 
 typedef struct nni_aio_expire_q nni_aio_expire_q;
 
@@ -223,9 +222,9 @@ struct nng_aio {
 	// NanoMQ var
 	// uint32_t *      pipes;
 	// uint32_t        pipe_len;
-	void *   		   db;
-	uint32_t 		   pipe;
-	uint16_t 		   packet_id;
+	void *   db;
+	uint32_t pipe;
+	uint16_t packet_id;
 };
 
 #endif // CORE_AIO_H

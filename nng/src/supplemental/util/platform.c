@@ -55,7 +55,7 @@ nng_thread_create(nng_thread **thrp, void (*func)(void *), void *arg)
 void
 nng_thread_set_name(nng_thread *thr, const char *name)
 {
-	nni_thr_set_name((void *)thr, name);
+	nni_thr_set_name((void *) thr, name);
 }
 
 // Destroy a thread (waiting for it to complete.)  When this function

@@ -375,7 +375,6 @@ test_push_send_late_unbuffered(void)
 	nng_aio_free(aio);
 }
 
-
 static void
 test_push_send_late_buffered(void)
 {

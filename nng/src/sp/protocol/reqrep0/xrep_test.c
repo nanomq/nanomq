@@ -123,7 +123,7 @@ test_xrep_validate_peer(void)
 	nng_socket s1, s2;
 	nng_stat * stats;
 	nng_stat * reject;
-	char       *addr;
+	char *     addr;
 
 	NUTS_ADDR(addr, "inproc");
 

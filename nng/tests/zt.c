@@ -13,8 +13,8 @@
 #include <nng/transport/zerotier/zerotier.h>
 
 #include "convey.h"
-#include "trantest.h"
 #include "stubs.h"
+#include "trantest.h"
 
 // zerotier tests.
 

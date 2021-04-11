@@ -28,7 +28,7 @@ typedef int (*nni_ws_listen_hook)(void *, nng_http_req *, nng_http_res *);
 // We have chosen to be a bit more stringent in the size of the frames that
 // we send, while we more generously allow larger incoming frames.  These
 // may be tuned by options.
-#define WS_DEF_RECVMAX (1U << 20) // 1MB Message limit (message mode only)
+#define WS_DEF_RECVMAX (1U << 20)    // 1MB Message limit (message mode only)
 #define WS_DEF_MAXRXFRAME (1U << 20) // 1MB Frame size (recv)
 #define WS_DEF_MAXTXFRAME (1U << 16) // 64KB Frame size (send)
 

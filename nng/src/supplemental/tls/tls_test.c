@@ -104,7 +104,7 @@ test_tls_large_message(void)
 	NUTS_TRUE(port > 0);
 	NUTS_TRUE(port < 65536);
 
-	snprintf(addr, sizeof (addr), "tls+tcp://127.0.0.1:%d", port);
+	snprintf(addr, sizeof(addr), "tls+tcp://127.0.0.1:%d", port);
 	NUTS_PASS(nng_stream_dialer_alloc(&d, addr));
 	NUTS_PASS(nng_tls_config_alloc(&c2, NNG_TLS_MODE_CLIENT));
 	NUTS_PASS(nng_tls_config_ca_chain(c2, nuts_server_crt, NULL));

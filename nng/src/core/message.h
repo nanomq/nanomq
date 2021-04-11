@@ -77,7 +77,7 @@ extern void          nni_msg_set_qos(nni_msg *m, uint8_t qos);
 
 extern conn_param *nni_msg_get_conn_param(nni_msg *m);
 
-typedef struct conn_propt    conn_propt;
+typedef struct conn_propt conn_propt;
 
 struct conn_propt {
 	uint8_t session_exp_int[5];
@@ -112,23 +112,23 @@ struct conn_param {
 	// conn_propt    ppt;
 	// mqtt_v5
 	// variable header
-	uint32_t                session_expiry_interval;
-	uint16_t                rx_max;
-	uint32_t                max_packet_size;
-	uint16_t                topic_alias_max;
-	uint8_t                 req_resp_info;
-	uint8_t                 req_problem_info;
-	struct mqtt_string      auth_method;
-	struct mqtt_binary      auth_data;
-	struct mqtt_str_pair    user_property;
+	uint32_t             session_expiry_interval;
+	uint16_t             rx_max;
+	uint32_t             max_packet_size;
+	uint16_t             topic_alias_max;
+	uint8_t              req_resp_info;
+	uint8_t              req_problem_info;
+	struct mqtt_string   auth_method;
+	struct mqtt_binary   auth_data;
+	struct mqtt_str_pair user_property;
 	// payload
-	uint32_t                will_delay_interval;
-	uint8_t                 payload_format_indicator;
-	uint32_t                msg_expiry_interval;
-	struct mqtt_string      content_type;
-	struct mqtt_string      resp_topic;
-	struct mqtt_binary      corr_data;
-	struct mqtt_str_pair    payload_user_property;
+	uint32_t             will_delay_interval;
+	uint8_t              payload_format_indicator;
+	uint32_t             msg_expiry_interval;
+	struct mqtt_string   content_type;
+	struct mqtt_string   resp_topic;
+	struct mqtt_binary   corr_data;
+	struct mqtt_str_pair payload_user_property;
 };
 
 #endif // CORE_SOCKET_H

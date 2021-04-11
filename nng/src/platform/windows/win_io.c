@@ -140,7 +140,7 @@ nni_win_io_sysfini(void)
 		nni_thr_fini(&win_io_thrs[i]);
 	}
 
-        NNI_FREE_STRUCTS(win_io_thrs, win_io_nthr);
+	NNI_FREE_STRUCTS(win_io_thrs, win_io_nthr);
 }
 
 #endif // NNG_PLATFORM_WINDOWS

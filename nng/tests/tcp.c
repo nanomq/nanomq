@@ -60,6 +60,5 @@ check_props_v4(nng_msg *msg)
 	return (0);
 }
 
-TestMain("TCP Transport", {
-	trantest_test_extended("tcp://127.0.0.1:%u", check_props_v4);
-})
+TestMain("TCP Transport",
+    { trantest_test_extended("tcp://127.0.0.1:%u", check_props_v4); })

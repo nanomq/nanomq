@@ -331,9 +331,9 @@ void
 nni_plat_thr_set_name(nni_plat_thr *thr, const char *name)
 {
 	if (set_thread_desc != NULL) {
-                wchar_t *wcs;
-                size_t len;
-		HANDLE h;
+		wchar_t *wcs;
+		size_t   len;
+		HANDLE   h;
 
 		if (thr == NULL) {
 			h = GetCurrentThread();
@@ -341,7 +341,7 @@ nni_plat_thr_set_name(nni_plat_thr *thr, const char *name)
 			h = thr->handle;
 		}
 
-                len = strlen(name) + 1;
+		len = strlen(name) + 1;
 		if ((wcs = nni_alloc(len * 2)) == NULL) {
 			return;
 		}
@@ -372,18 +372,18 @@ nni_plat_init(int (*helper)(void))
 		return (0); // fast path
 	}
 
-
-        AcquireSRWLockExclusive(&lock);
+	AcquireSRWLockExclusive(&lock);
 
 	if (!plat_inited) {
-                // Let's look up the function to set thread descriptions.
-                hKernel32 = LoadLibrary(TEXT("kernel32.dll"));
-                if (hKernel32 != NULL) {
-                        set_thread_desc = (pfnSetThreadDescription)
-                            GetProcAddress(hKernel32, "SetThreadDescription");
-                }
+		// Let's look up the function to set thread descriptions.
+		hKernel32 = LoadLibrary(TEXT("kernel32.dll"));
+		if (hKernel32 != NULL) {
+			set_thread_desc =
+			    (pfnSetThreadDescription) GetProcAddress(
+			        hKernel32, "SetThreadDescription");
+		}
 
-                if (((rv = nni_win_io_sysinit()) != 0) ||
+		if (((rv = nni_win_io_sysinit()) != 0) ||
 		    ((rv = nni_win_ipc_sysinit()) != 0) ||
 		    ((rv = nni_win_tcp_sysinit()) != 0) ||
 		    ((rv = nni_win_udp_sysinit()) != 0) ||

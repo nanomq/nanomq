@@ -59,7 +59,7 @@ test_ipc_dialer_properties(void)
 	nng_dialer   d;
 	nng_sockaddr sa;
 	size_t       z;
-	char         *addr;
+	char *       addr;
 
 	NUTS_ADDR(addr, "ipc");
 	NUTS_OPEN(s);
@@ -84,7 +84,7 @@ test_ipc_listener_perms(void)
 {
 	nng_socket   s;
 	nng_listener l;
-	char         *addr;
+	char *       addr;
 
 #ifndef _WIN32
 	char *      path;
@@ -125,7 +125,7 @@ test_ipc_listener_properties(void)
 	nng_listener l;
 	nng_sockaddr sa;
 	size_t       z;
-	char         *addr;
+	char *       addr;
 
 	NUTS_ADDR(addr, "ipc");
 	NUTS_OPEN(s);
@@ -154,7 +154,7 @@ test_ipc_recv_max(void)
 	nng_socket   s1;
 	nng_listener l;
 	size_t       sz;
-	char         *addr;
+	char *       addr;
 
 	NUTS_ADDR(addr, "ipc");
 	NUTS_OPEN(s0);
@@ -184,7 +184,7 @@ test_abstract_sockets(void)
 #ifdef NNG_HAVE_ABSTRACT_SOCKETS
 	nng_socket   s1;
 	nng_socket   s2;
-	char         *addr;
+	char *       addr;
 	nng_pipe     p1;
 	nng_pipe     p2;
 	nng_sockaddr sa1;

@@ -41,7 +41,7 @@ struct xsub0_sock {
 struct xsub0_pipe {
 	nni_pipe *  pipe;
 	xsub0_sock *sub;
-	nni_aio    aio_recv;
+	nni_aio     aio_recv;
 };
 
 static int

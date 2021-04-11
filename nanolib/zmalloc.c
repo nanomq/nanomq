@@ -17,101 +17,121 @@
 #define PREFIX_SIZE sizeof(size_t)
 #endif
 
-#define increment_used_memory(__n) do { \
-	size_t _n = (__n); \
-	if (_n&(sizeof(long)-1)) _n += sizeof(long)-(_n&(sizeof(long)-1)); \
-	used_memory += _n; \
-} while(0)
+#define increment_used_memory(__n)                                      \
+	do {                                                            \
+		size_t _n = (__n);                                      \
+		if (_n & (sizeof(long) - 1))                            \
+			_n += sizeof(long) - (_n & (sizeof(long) - 1)); \
+		used_memory += _n;                                      \
+	} while (0)
 
-#define decrement_used_memory(__n) do { \
-	size_t _n = (__n); \
-	if (_n&(sizeof(long)-1)) _n += sizeof(long)-(_n&(sizeof(long)-1)); \
-	used_memory -= _n; \
-} while(0)
+#define decrement_used_memory(__n)                                      \
+	do {                                                            \
+		size_t _n = (__n);                                      \
+		if (_n & (sizeof(long) - 1))                            \
+			_n += sizeof(long) - (_n & (sizeof(long) - 1)); \
+		used_memory -= _n;                                      \
+	} while (0)
 
 static size_t used_memory = 0;
 
-static void zmalloc_oom(size_t size) {
-	fprintf(stderr, "zmalloc: Out of memory trying to allocate %zu bytes\n",
-			size);
+static void
+zmalloc_oom(size_t size)
+{
+	fprintf(stderr,
+	    "zmalloc: Out of memory trying to allocate %zu bytes\n", size);
 	fflush(stderr);
 	abort();
 }
 
-void *zmalloc(size_t size) {
-	void *ptr = malloc(size+PREFIX_SIZE);
+void *
+zmalloc(size_t size)
+{
+	void *ptr = malloc(size + PREFIX_SIZE);
 
-	if (!ptr) zmalloc_oom(size);
+	if (!ptr)
+		zmalloc_oom(size);
 #ifdef HAVE_MALLOC_SIZE
 	increment_used_memory(redis_malloc_size(ptr));
 	return ptr;
 #else
-	*((size_t*)ptr) = size;
-	increment_used_memory(size+PREFIX_SIZE);
-	return (char*)ptr+PREFIX_SIZE;
+	*((size_t *) ptr) = size;
+	increment_used_memory(size + PREFIX_SIZE);
+	return (char *) ptr + PREFIX_SIZE;
 #endif
 }
 
-void *zrealloc(void *ptr, size_t size) {
+void *
+zrealloc(void *ptr, size_t size)
+{
 #ifndef HAVE_MALLOC_SIZE
 	void *realptr;
 #endif
 	size_t oldsize;
-	void *newptr;
+	void * newptr;
 
-	if (ptr == NULL) return zmalloc(size);
+	if (ptr == NULL)
+		return zmalloc(size);
 #ifdef HAVE_MALLOC_SIZE
 	oldsize = redis_malloc_size(ptr);
-	newptr = realloc(ptr,size);
-	if (!newptr) zmalloc_oom(size);
+	newptr  = realloc(ptr, size);
+	if (!newptr)
+		zmalloc_oom(size);
 
 	decrement_used_memory(oldsize);
 	increment_used_memory(redis_malloc_size(newptr));
 	return newptr;
 #else
-	realptr = (char*)ptr-PREFIX_SIZE;
-	oldsize = *((size_t*)realptr);
-	newptr = realloc(realptr,size+PREFIX_SIZE);
-	if (!newptr) zmalloc_oom(size);
+	realptr = (char *) ptr - PREFIX_SIZE;
+	oldsize = *((size_t *) realptr);
+	newptr  = realloc(realptr, size + PREFIX_SIZE);
+	if (!newptr)
+		zmalloc_oom(size);
 
-	*((size_t*)newptr) = size;
+	*((size_t *) newptr) = size;
 	decrement_used_memory(oldsize);
 	increment_used_memory(size);
-	return (char*)newptr+PREFIX_SIZE;
+	return (char *) newptr + PREFIX_SIZE;
 #endif
 }
 
-void zfree(void *ptr) {
+void
+zfree(void *ptr)
+{
 #ifndef HAVE_MALLOC_SIZE
-	void *realptr;
+	void * realptr;
 	size_t oldsize;
 #endif
 
-	if (ptr == NULL) return;
+	if (ptr == NULL)
+		return;
 #ifdef HAVE_MALLOC_SIZE
 	decrement_used_memory(redis_malloc_size(ptr));
 	free(ptr);
 #else
-	realptr = (char*)ptr-PREFIX_SIZE;
-	oldsize = *((size_t*)realptr);
-	decrement_used_memory(oldsize+PREFIX_SIZE);
+	realptr = (char *) ptr - PREFIX_SIZE;
+	oldsize = *((size_t *) realptr);
+	decrement_used_memory(oldsize + PREFIX_SIZE);
 	free(realptr);
 #endif
 }
 
-char *zstrdup(const char *s) {
-	size_t l = strlen(s)+1;
-	char *p = zmalloc(l);
+char *
+zstrdup(const char *s)
+{
+	size_t l = strlen(s) + 1;
+	char * p = zmalloc(l);
 
-	memcpy(p,s,l);
+	memcpy(p, s, l);
 	return p;
 }
 
-size_t zmalloc_used_memory(void) {
+size_t
+zmalloc_used_memory(void)
+{
 	size_t um;
 
 	um = used_memory;
 
 	return um;
 }
-

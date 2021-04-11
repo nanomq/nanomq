@@ -81,6 +81,5 @@ check_props_v4(nng_msg *msg)
 	return (0);
 }
 
-TestMain("WebSocket Transport", {
-	trantest_test_extended("ws://127.0.0.1:%u/test", check_props_v4);
-})
+TestMain("WebSocket Transport",
+    { trantest_test_extended("ws://127.0.0.1:%u/test", check_props_v4); })

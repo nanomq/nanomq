@@ -11,15 +11,14 @@
 #include <nng/compat/nanomsg/nn.h>
 #include <nng/compat/nanomsg/reqrep.h>
 
-#include "convey.h"
 #include "compat_testutil.h"
+#include "convey.h"
 
 #include <string.h>
 
 #define SECONDS(x) ((x) *1000)
 
 TestMain("Compatible Options", {
-
 	atexit(nn_term);
 
 	Convey("Given a compat NN_REP socket", {

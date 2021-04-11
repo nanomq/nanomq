@@ -11,17 +11,18 @@
 
 #include "include/process.h"
 
-#include <stdlib.h>
-#include <stdio.h>
 #include <errno.h>
-#include <unistd.h>
-#include <string.h>
-#include <sys/types.h>
-#include <signal.h>
 #include <fcntl.h>
 #include <paths.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <unistd.h>
 
-int process_is_alive(int pid)
+int
+process_is_alive(int pid)
 {
 	if (pid < 1)
 		return 0;
@@ -29,7 +30,8 @@ int process_is_alive(int pid)
 	return kill(pid, 0) == 0 ? 1 : 0;
 }
 
-int process_send_signal(int pid, int signal)
+int
+process_send_signal(int pid, int signal)
 {
 	if (pid < 1)
 		return 0;
@@ -38,7 +40,8 @@ int process_send_signal(int pid, int signal)
 	return kill(pid, signal);
 }
 
-int pidgrp_send_signal(int pid, int signal)
+int
+pidgrp_send_signal(int pid, int signal)
 {
 	pid_t gpid;
 
@@ -48,7 +51,7 @@ int pidgrp_send_signal(int pid, int signal)
 	gpid = getpgid(pid);
 	if (gpid < 0) {
 		debug_msg("pid = %i: unable to retrieve gpid: %s", pid,
-			  strerror(errno));
+		    strerror(errno));
 		return 0;
 	}
 
@@ -56,7 +59,8 @@ int pidgrp_send_signal(int pid, int signal)
 	return kill(-gpid, signal);
 }
 
-int process_daemonize(void)
+int
+process_daemonize(void)
 {
 	int fd;
 
@@ -94,7 +98,8 @@ int process_daemonize(void)
 	return 0;
 }
 
-int process_create_child(int(*child_run)(void *), void *data)
+int
+process_create_child(int (*child_run)(void *), void *data)
 {
 	pid_t pid;
 

@@ -22,7 +22,6 @@
 #define SECONDS(x) ((x) *1000)
 
 TestMain("Stats Test", {
-
 	Convey("We are able to open a PAIR socket", {
 		nng_socket s1;
 

@@ -20,22 +20,21 @@
    DEALINGS IN THE SOFTWARE.
 */
 
-
 #if defined _WIN32
 #define poll WSAPoll
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
+#include <mswsock.h>
 #include <windows.h>
 #include <winsock2.h>
-#include <mswsock.h>
 #else
 #include <sys/select.h>
 #endif
 #include "compat_testutil.h"
+#include <nng/compat/nanomsg/inproc.h>
 #include <nng/compat/nanomsg/nn.h>
 #include <nng/compat/nanomsg/pair.h>
-#include <nng/compat/nanomsg/inproc.h>
 
 /*  Test of polling via NN_SNDFD/NN_RCVFD mechanism. */
 

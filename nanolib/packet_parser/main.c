@@ -1,7 +1,8 @@
 #include "test.c"
 
-int main(int argc, char *argv[]) 
+int
+main(int argc, char *argv[])
 {
-    test();
-    return 0;
+	test();
+	return 0;
 }

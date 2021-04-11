@@ -272,8 +272,8 @@ pipe_create(nni_pipe **pp, nni_sock *sock, nni_tran *tran, void *tdata)
 	p->p_closed     = false;
 	p->p_cbs        = false;
 	p->p_ref        = 0;
-	//NanoMQ
-	p->packet_id    = 0;
+	// NanoMQ
+	p->packet_id = 0;
 
 	nni_atomic_flag_reset(&p->p_stop);
 	NNI_LIST_NODE_INIT(&p->p_sock_node);
@@ -438,17 +438,17 @@ nni_pipe_bump_error(nni_pipe *p, int err)
 	}
 }
 
-//NanoMQ APIs
+// NanoMQ APIs
 void
 nni_pipe_set_conn_param(nni_pipe *p, conn_param *c)
 {
-    p->conn_param = c;
+	p->conn_param = c;
 }
 
 conn_param *
 nni_pipe_get_conn_param(nni_pipe *p)
 {
-    return p->conn_param;
+	return p->conn_param;
 }
 
 uint16_t
@@ -458,11 +458,10 @@ nni_pipe_inc_packetid(nni_pipe *p)
 	return p->packet_id;
 }
 
-
 /*
 nni_id_map *
 nni_pipe_get_idhash(nni_pipe *p)
 {
-	return &p->pipedb;
+        return &p->pipedb;
 }
 */

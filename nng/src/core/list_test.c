@@ -116,8 +116,8 @@ test_list_two_items(void)
 }
 
 NUTS_TESTS = {
-    { "list empty", test_list_init_empty },
-    { "list add one", test_list_add_item },
-    { "list add two", test_list_two_items },
-    { NULL, NULL },
+	{ "list empty", test_list_init_empty },
+	{ "list add one", test_list_add_item },
+	{ "list add two", test_list_two_items },
+	{ NULL, NULL },
 };

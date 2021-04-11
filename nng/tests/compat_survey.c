@@ -43,7 +43,7 @@ main()
 	surveyor = test_socket(AF_SP, NN_SURVEYOR);
 	deadline = 500;
 	rc       = nn_setsockopt(surveyor, NN_SURVEYOR, NN_SURVEYOR_DEADLINE,
-	    &deadline, sizeof(deadline));
+            &deadline, sizeof(deadline));
 	errno_assert(rc == 0);
 	test_bind(surveyor, SOCKET_ADDRESS);
 	respondent1 = test_socket(AF_SP, NN_RESPONDENT);

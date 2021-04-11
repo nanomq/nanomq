@@ -315,8 +315,8 @@ nni_http_chunks_parse(nni_http_chunks *cl, void *buf, size_t n, size_t *lenp)
 			break;
 
 		case CS_DATA:
-			if ((rv = chunk_ingest_data(cl, src + i, n - i, &cnt)) !=
-			    0) {
+			if ((rv = chunk_ingest_data(
+			         cl, src + i, n - i, &cnt)) != 0) {
 				return (rv);
 			}
 			i += cnt;

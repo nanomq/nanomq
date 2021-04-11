@@ -54,8 +54,7 @@ test_url_host_port_path(void)
 {
 	nng_url *url;
 
-	NUTS_PASS(
-	    nng_url_parse(&url, "http://www.google.com:1234/somewhere"));
+	NUTS_PASS(nng_url_parse(&url, "http://www.google.com:1234/somewhere"));
 	NUTS_ASSERT(url != NULL);
 	NUTS_TRUE(strcmp(url->u_scheme, "http") == 0);
 	NUTS_TRUE(strcmp(url->u_host, "www.google.com:1234") == 0);

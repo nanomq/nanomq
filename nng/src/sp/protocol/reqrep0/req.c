@@ -231,7 +231,7 @@ req0_pipe_close(void *arg)
 			if ((aio = ctx->recv_aio) != NULL) {
 				ctx->recv_aio = NULL;
 				nni_aio_finish_error(aio, NNG_ECONNRESET);
-                                req0_ctx_reset(ctx);
+				req0_ctx_reset(ctx);
 			} else {
 				req0_ctx_reset(ctx);
 				ctx->conn_reset = true;
