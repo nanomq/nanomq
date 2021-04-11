@@ -33,7 +33,6 @@ extern int nni_msgq_init(nni_msgq **, unsigned);
 // messages that may be in the queue.
 extern void nni_msgq_fini(nni_msgq *);
 
-
 extern void nni_msgq_aio_put(nni_msgq *, nni_aio *);
 extern void nni_msgq_aio_get(nni_msgq *, nni_aio *);
 

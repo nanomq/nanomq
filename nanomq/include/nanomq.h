@@ -9,7 +9,7 @@
 #undef DEBUG_FILE
 #undef DEBUG_SYSLOG
 #undef DEBUG_TRACE
-#else 
+#else
 #define DEBUG_CONSOLE
 #define DEBUG_FILE
 #define DEBUG_SYSLOG
@@ -20,20 +20,20 @@
 #if defined(DEBUG_CONSOLE) || defined(DEBUG_FILE) || defined(DEBUG_SYSLOG)
 #define LIBNANO_DEBUG
 
-#include <time.h>
+#include <stdio.h>
 #include <string.h>
-#include <stdio.h>
-#include <unistd.h>
 #include <sys/types.h>
-#include <stdio.h>
 #include <syslog.h>
+#include <time.h>
+#include <unistd.h>
 
-static inline char *nanomq_time_str()
+static inline char *
+nanomq_time_str()
 {
-	char *buff;
+	char * buff;
 	time_t now;
 
-	now = time(NULL);
+	now  = time(NULL);
 	buff = ctime(&now);
 	if (!buff)
 		return NULL;
@@ -47,44 +47,56 @@ static inline char *nanomq_time_str()
 #endif
 
 #if defined(DEBUG_CONSOLE)
-#define debug_console(fmt, arg...) do {\
-	char *_t = nanomq_time_str();\
-	fprintf(stderr, "%s %s: " fmt "\n", _t, __FUNCTION__, ## arg);\
-} while (0)
+#define debug_console(fmt, arg...)                                            \
+	do {                                                                  \
+		char *_t = nanomq_time_str();                                 \
+		fprintf(stderr, "%s %s: " fmt "\n", _t, __FUNCTION__, ##arg); \
+	} while (0)
 #else
-#define debug_console(fmt, arg...) do { } while (0)
+#define debug_console(fmt, arg...) \
+	do {                       \
+	} while (0)
 #endif
 
 #if defined(DEBUG_FILE)
-#define debug_file(fmt, arg...) do {\
-	char *_t = nanomq_time_str();\
-	FILE *file = fopen(DEBUG_FILE_PATH, "a");\
-	fprintf(file, "%s [%i] %s: " fmt "\n", _t, getpid(), __FUNCTION__, ## arg);\
-	fclose(file);\
-} while(0)
+#define debug_file(fmt, arg...)                                      \
+	do {                                                         \
+		char *_t   = nanomq_time_str();                      \
+		FILE *file = fopen(DEBUG_FILE_PATH, "a");            \
+		fprintf(file, "%s [%i] %s: " fmt "\n", _t, getpid(), \
+		    __FUNCTION__, ##arg);                            \
+		fclose(file);                                        \
+	} while (0)
 #else
-#define debug_file(fmt, arg...) do { } while (0)
+#define debug_file(fmt, arg...) \
+	do {                    \
+	} while (0)
 #endif
 
 #if defined(DEBUG_SYSLOG)
-#define debug_syslog(fmt, arg...) do {\
-	openlog("nanomq", LOG_PID, LOG_DAEMON | LOG_EMERG);\
-	syslog(0, "%s: " fmt, __FUNCTION__, ## arg);\
-	closelog();\
-} while (0)
+#define debug_syslog(fmt, arg...)                                   \
+	do {                                                        \
+		openlog("nanomq", LOG_PID, LOG_DAEMON | LOG_EMERG); \
+		syslog(0, "%s: " fmt, __FUNCTION__, ##arg);         \
+		closelog();                                         \
+	} while (0)
 #else
-#define debug_syslog(fmt, arg...) do { } while (0)
+#define debug_syslog(fmt, arg...) \
+	do {                      \
+	} while (0)
 #endif
 
-
 #if defined(LIBNANO_DEBUG)
-#define debug_msg(fmt, arg...) do {			\
-	debug_console(fmt, ## arg);			\
-	debug_file(fmt, ## arg);			\
-	debug_syslog(fmt, ## arg);			\
-} while (0)
+#define debug_msg(fmt, arg...)             \
+	do {                               \
+		debug_console(fmt, ##arg); \
+		debug_file(fmt, ##arg);    \
+		debug_syslog(fmt, ##arg);  \
+	} while (0)
 #else
-#define debug_msg(fmt, arg...) do { } while (0)
+#define debug_msg(fmt, arg...) \
+	do {                   \
+	} while (0)
 #endif
 
 #define NNI_PUT16(ptr, u)                                    \
@@ -133,6 +145,4 @@ static inline char *nanomq_time_str()
 	    (((uint64_t)((uint8_t)(ptr)[6])) << 8u) +  \
 	    (((uint64_t)(uint8_t)(ptr)[7]))
 
-
-
-#define NANO_UNUSED(x) (x)__attribute__((unused))
+#define NANO_UNUSED(x) (x) __attribute__((unused))

@@ -28,7 +28,7 @@ const struct nanomq_app *edge_apps[] = {
 #endif
 	&nanomq_app_broker,
 #if defined(NANO_DEBUG)
-	//&
+//&
 #endif
 	NULL,
 };

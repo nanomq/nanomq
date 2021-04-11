@@ -114,7 +114,7 @@ test_xsurvey_poll_readable(void)
 
 	NUTS_SLEEP(100);
 
-	NUTS_TRUE(nuts_poll_fd(fd) );
+	NUTS_TRUE(nuts_poll_fd(fd));
 
 	// and receiving makes it no longer ready
 	NUTS_PASS(nng_recvmsg(surv, &msg, 0));
@@ -131,7 +131,7 @@ test_xsurvey_validate_peer(void)
 	nng_socket s1, s2;
 	nng_stat * stats;
 	nng_stat * reject;
-	char       *addr;
+	char *     addr;
 
 	NUTS_ADDR(addr, "inproc");
 
@@ -340,11 +340,11 @@ test_xsurvey_ttl_option(void)
 	NUTS_TRUE(v == 3);
 	NUTS_TRUE(sz == sizeof(v));
 
-	NUTS_FAIL(nng_socket_set(s, opt, "", 1) , NNG_EINVAL);
+	NUTS_FAIL(nng_socket_set(s, opt, "", 1), NNG_EINVAL);
 	sz = 1;
-	NUTS_FAIL(nng_socket_get(s, opt, &v, &sz) , NNG_EINVAL);
-	NUTS_FAIL(nng_socket_set_bool(s, opt, true) , NNG_EBADTYPE);
-	NUTS_FAIL(nng_socket_get_bool(s, opt, &b) , NNG_EBADTYPE);
+	NUTS_FAIL(nng_socket_get(s, opt, &v, &sz), NNG_EINVAL);
+	NUTS_FAIL(nng_socket_set_bool(s, opt, true), NNG_EBADTYPE);
+	NUTS_FAIL(nng_socket_get_bool(s, opt, &b), NNG_EBADTYPE);
 
 	NUTS_CLOSE(s);
 }

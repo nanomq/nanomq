@@ -657,7 +657,7 @@ NNG_DECL nng_dialer   nng_pipe_dialer(nng_pipe);
 NNG_DECL nng_listener nng_pipe_listener(nng_pipe);
 
 // Flags.
-#define NNG_FLAG_ALLOC 1u // Recv to allocate receive buffer
+#define NNG_FLAG_ALLOC 1u    // Recv to allocate receive buffer
 #define NNG_FLAG_NONBLOCK 2u // Non-blocking operations
 
 // Options.
@@ -1176,7 +1176,6 @@ NNG_DECL int nng_stream_listener_set_ptr(
     nng_stream_listener *, const char *, void *);
 NNG_DECL int nng_stream_listener_set_addr(
     nng_stream_listener *, const char *, const nng_sockaddr *);
-
 
 #ifndef NNG_ELIDE_DEPRECATED
 // These are legacy APIs that have been deprecated.

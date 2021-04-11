@@ -12,7 +12,7 @@
 #include "stubs.h"
 
 typedef struct {
-	int pad[2];
+	int           pad[2];
 	nni_list_node nodea;
 	nni_list_node nodeb;
 } mystruct;
@@ -26,7 +26,7 @@ TestMain("Linked Lists", {
 		NNI_LIST_INIT(&blist, mystruct, nodeb);
 
 		So(alist.ll_offset == 8);
-		So(blist.ll_offset == (8 + sizeof (nni_list_node)));
+		So(blist.ll_offset == (8 + sizeof(nni_list_node)));
 
 		Convey("The list starts empty", {
 			So(nni_list_first(&alist) == NULL);
@@ -41,12 +41,10 @@ TestMain("Linked Lists", {
 
 			nni_list_append(&alist, &item);
 
-			Convey("It is the first item", {
-				So(nni_list_first(&alist) == &item);
-			});
-			Convey("It is the last item", {
-				So(nni_list_last(&alist) == &item);
-			});
+			Convey("It is the first item",
+			    { So(nni_list_first(&alist) == &item); });
+			Convey("It is the last item",
+			    { So(nni_list_last(&alist) == &item); });
 			Convey("It is the only item", {
 				So(nni_list_next(&alist, &item) == NULL);
 				So(nni_list_prev(&alist, &item) == NULL);

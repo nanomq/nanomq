@@ -7,24 +7,25 @@
 // found online at https://opensource.org/licenses/MIT.
 //
 
-#include "include/nanomq.h"
 #include "include/cmd.h"
+#include "include/nanomq.h"
 
-#include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <string.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/wait.h>
+#include <unistd.h>
 
 char *cmd_output_buff = NULL;
-int cmd_output_len = 0;
+int   cmd_output_len  = 0;
 
-int cmd_run_status(const char *cmd)
+int
+cmd_run_status(const char *cmd)
 {
-	int error, pipes[2], stderr_fd = -1, ret = 0;
+	int          error, pipes[2], stderr_fd = -1, ret = 0;
 	unsigned int sock_opts;
 
 	debug_msg("cmd = %s", cmd);
@@ -39,8 +40,8 @@ int cmd_run_status(const char *cmd)
 
 	error = pipe(pipes);
 	if (error < 0) {
-		debug_msg("Warning - could not create a pipe to '%s': %s",
-			 cmd, strerror(errno));
+		debug_msg("Warning - could not create a pipe to '%s': %s", cmd,
+		    strerror(errno));
 		return -1;
 	}
 
@@ -59,7 +60,7 @@ int cmd_run_status(const char *cmd)
 
 	memset(cmd_output_buff, 0, CMD_BUFF_LEN);
 	sock_opts = fcntl(pipes[0], F_GETFL, 0);
-        fcntl(pipes[0], F_SETFL, sock_opts | O_NONBLOCK);
+	fcntl(pipes[0], F_SETFL, sock_opts | O_NONBLOCK);
 	cmd_output_len = read(pipes[0], cmd_output_buff, CMD_BUFF_LEN);
 
 	if (error < 0)
@@ -71,7 +72,8 @@ int cmd_run_status(const char *cmd)
 	return ret;
 }
 
-int cmd_run(const char *cmd)
+int
+cmd_run(const char *cmd)
 {
 	int error, ret = 0;
 
@@ -81,7 +83,7 @@ int cmd_run(const char *cmd)
 		debug_msg("Warning - command '%s' returned an error", cmd);
 
 		if (cmd_output_len > 0)
-			//debug_msg("          %s", cmd_output_buff);
+			// debug_msg("          %s", cmd_output_buff);
 			debug_msg("warning");
 
 		ret = -1;
@@ -90,7 +92,8 @@ int cmd_run(const char *cmd)
 	return ret;
 }
 
-int cmd_run_fd(int fd, const char *cmd)
+int
+cmd_run_fd(int fd, const char *cmd)
 {
 	int error, stderr_fd = -1, ret = 0;
 
@@ -118,11 +121,12 @@ int cmd_run_fd(int fd, const char *cmd)
 	return ret;
 }
 
-int cmd_frun(const char *format, ...)
+int
+cmd_frun(const char *format, ...)
 {
 	va_list args;
-	char *cmd;
-	int ret;
+	char *  cmd;
+	int     ret;
 
 	cmd = malloc(512);
 	if (!cmd)
@@ -137,11 +141,12 @@ int cmd_frun(const char *format, ...)
 	return ret;
 }
 
-int cmd_frun_fd(int fd, const char *format, ...)
+int
+cmd_frun_fd(int fd, const char *format, ...)
 {
 	va_list args;
-	char *cmd;
-	int ret;
+	char *  cmd;
+	int     ret;
 
 	cmd = malloc(512);
 	if (!cmd)
@@ -156,16 +161,18 @@ int cmd_frun_fd(int fd, const char *format, ...)
 	return ret;
 }
 
-int cmd_pipe(const char *cmd)
+int
+cmd_pipe(const char *cmd)
 {
-	int fd[2], ret;
+	int   fd[2], ret;
 	pid_t pid;
 
 	debug_msg("cmd_pipe: cmd = %s", cmd);
 	ret = pipe(fd);
 
 	if (ret < 0) {
-		debug_msg("cmd_pipe: could not create pipe to '%s': %s", cmd, strerror(errno));
+		debug_msg("cmd_pipe: could not create pipe to '%s': %s", cmd,
+		    strerror(errno));
 		goto err;
 	}
 
@@ -195,11 +202,12 @@ err:
 	return -1;
 }
 
-int cmd_fpipe(const char *format, ...)
+int
+cmd_fpipe(const char *format, ...)
 {
 	va_list args;
-	char *cmd;
-	int ret;
+	char *  cmd;
+	int     ret;
 
 	cmd = malloc(512);
 	if (!cmd)
@@ -214,48 +222,49 @@ int cmd_fpipe(const char *format, ...)
 	return ret;
 }
 
-pid_t cmd_create_read_pipe(int *fd, const char *cmd, ...)
+pid_t
+cmd_create_read_pipe(int *fd, const char *cmd, ...)
 {
 	const char *cmd_run;
-	char **args = NULL;
-	int pipes[2];
-	va_list ap;
-	pid_t pid;
-	char *str;
-	int n;
+	char **     args = NULL;
+	int         pipes[2];
+	va_list     ap;
+	pid_t       pid;
+	char *      str;
+	int         n;
 
 	va_start(ap, cmd);
 
 	if ((str = va_arg(ap, char *)) == NULL) {
 		cmd_run = "/bin/sh";
-		args = malloc(sizeof(char *) * 4);
+		args    = malloc(sizeof(char *) * 4);
 		args[0] = "/bin/sh";
 		args[1] = "-c";
-		args[2] = (char *)cmd;
+		args[2] = (char *) cmd;
 		args[3] = NULL;
 	} else {
 		cmd_run = cmd;
-		args = malloc(sizeof(char *));
+		args    = malloc(sizeof(char *));
 		args[0] = malloc(strlen(cmd) + 1);
 		strcpy(args[0], cmd);
 		n = 1;
 
 		do {
-			args = realloc(args, sizeof(char *) * (n + 1));
+			args    = realloc(args, sizeof(char *) * (n + 1));
 			args[n] = malloc(strlen(str) + 1);
 			strcpy(args[n], str);
 			n++;
 		} while ((str = va_arg(ap, char *)) != NULL);
 
-		args = realloc(args, sizeof(char *) * (n + 1));
+		args    = realloc(args, sizeof(char *) * (n + 1));
 		args[n] = NULL;
 	}
 
 	va_end(ap);
 
 	if (pipe(pipes) < 0) {
-		debug_msg("%s: count not create pipe to '%s' : %s",
-			cmd, strerror(errno));
+		debug_msg("%s: count not create pipe to '%s' : %s", cmd,
+		    strerror(errno));
 		goto err;
 	}
 
@@ -285,10 +294,10 @@ pid_t cmd_create_read_pipe(int *fd, const char *cmd, ...)
 		close(pipes[1]);
 		*fd = dup(pipes[0]);
 
-		if(args)
+		if (args)
 			free(args);
 
-		if(str)
+		if (str)
 			free(str);
 
 		return pid;
@@ -298,7 +307,8 @@ err:
 	return -1;
 }
 
-void cmd_cleanup(void)
+void
+cmd_cleanup(void)
 {
 	if (!cmd_output_buff)
 		return;

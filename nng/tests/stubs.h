@@ -85,7 +85,7 @@ uint16_t
 test_htons(uint16_t in)
 {
 	short one = 1;
-	if (*((char *)(void *)&one) == 1) {
+	if (*((char *) (void *) &one) == 1) {
 		in = ((in / 256) + ((in % 256) * 256));
 	}
 	return (in);

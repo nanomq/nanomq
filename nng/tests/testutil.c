@@ -476,10 +476,10 @@ stream_xfr_alloc(nng_stream *s, void (*submit)(nng_stream *, nng_aio *),
 
 	nng_aio_begin(x->upper_aio);
 
-	x->s           = s;
-	x->rem         = size;
-	x->base        = buf;
-	x->submit      = submit;
+	x->s      = s;
+	x->rem    = size;
+	x->base   = buf;
+	x->submit = submit;
 
 	return (x);
 }

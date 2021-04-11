@@ -7,39 +7,40 @@
 // found online at https://opensource.org/licenses/MIT.
 //
 
+#include "include/nanomq.h"
 #include "include/apps.h"
-#include "include/version.h"
-#include "include/process.h"
 #include "include/cmd.h"
 #include "include/const_strings.h"
-#include "include/nanomq.h"
+#include "include/process.h"
+#include "include/version.h"
 
+#include <errno.h>
+#include <netinet/in.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
 #include <sys/ptrace.h>
+#include <sys/socket.h>
+#include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <signal.h>
-#include <sys/socket.h>
-#include <errno.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
 
 #define NANO_APP_NAME "nanomq"
 #define NANO_BRAND "EMQ X Edge Computing Kit"
 
 #define NANO_DEBUG
 
-static void print_version(void)
+static void
+print_version(void)
 {
 	printf("%s v.01-%s\n", NANO_BRAND, FW_EV_VER_ID_SHORT);
 	printf("Copyright 2020 EMQ X Edge Team\n");
 	printf("\n");
 }
 
-static int print_avail_apps(void)
+static int
+print_avail_apps(void)
 {
 #if defined(NANO_DEBUG)
 	const struct nanomq_app **nano_app;
@@ -56,78 +57,81 @@ static int print_avail_apps(void)
 /* #if defined(DEBUG_TRACE)
 static int check_trace(char *name)
 {
-	int pid, traced;
+        int pid, traced;
 
-	switch(pid = fork()) {
-		case  0:
-			pid = getppid();
+        switch(pid = fork()) {
+                case  0:
+                        pid = getppid();
 
 
 #ifdef __APPLE__
-			traced = ptrace(PT_ATTACHEXC, pid, 0, 0);
+                        traced = ptrace(PT_ATTACHEXC, pid, 0, 0);
 #elif __linux__
-			traced = ptrace(PTRACE_ATTACH, pid, 0, 0);
+                        traced = ptrace(PTRACE_ATTACH, pid, 0, 0);
 #else
 #   error "Unknown compiler"
 #endif
 
-			if (!traced) {
-				process_send_signal(pid, SIGCONT);
-				_exit(EXIT_SUCCESS);
-			}
+                        if (!traced) {
+                                process_send_signal(pid, SIGCONT);
+                                _exit(EXIT_SUCCESS);
+                        }
 
-			perror(name);
-			process_send_signal(pid, SIGKILL);
-			goto err;
-		case -1:
-			break;
-		default:
-			if (pid == waitpid(pid, 0, 0))
-				return EXIT_SUCCESS;
+                        perror(name);
+                        process_send_signal(pid, SIGKILL);
+                        goto err;
+                case -1:
+                        break;
+                default:
+                        if (pid == waitpid(pid, 0, 0))
+                                return EXIT_SUCCESS;
 
-			break;
-	}
+                        break;
+        }
 
-	perror(name);
+        perror(name);
 err:
-	return -1;
+        return -1;
 }
 #else */
-static int check_trace(char NANO_UNUSED(*name))
+static int
+check_trace(char NANO_UNUSED(*name))
 {
 	return 0;
 }
 // #endif
 
-static int handle_app(int res)
+static int
+handle_app(int res)
 {
 	cmd_cleanup();
 	return res;
 }
 
-int main(int argc, char **argv)
+int
+main(int argc, char **argv)
 {
 	const struct nanomq_app **nano_app;
-	char *app_name;
-	int ret;
+	char *                    app_name;
+	int                       ret;
 
 	ret = check_trace(argv[0]);
 	if (ret < 0)
 		return EXIT_FAILURE;
 
-	if ((argc > 1) && (strlen(argv[1]) > 1) &&
-	    (argv[1][0] == '-') && (argv[1][1] == 'v')) {
+	if ((argc > 1) && (strlen(argv[1]) > 1) && (argv[1][0] == '-') &&
+	    (argv[1][1] == 'v')) {
 		print_version();
 		return EXIT_SUCCESS;
 	}
 
 	app_name = strrchr(argv[0], '/');
-	debug_msg("argv %s %s app_name %s", argv[0],argv[1], app_name);
+	debug_msg("argv %s %s app_name %s", argv[0], argv[1], app_name);
 	app_name = (app_name ? app_name + 1 : argv[0]);
 
-	debug_msg("argv %s %s app_name %s", argv[0],argv[1], app_name);
+	debug_msg("argv %s %s app_name %s", argv[0], argv[1], app_name);
 	if (strncmp(app_name, NANO_APP_NAME, APP_NAME_MAX) == 0) {
-	  debug_msg("argc : %d", argc);
+		debug_msg("argc : %d", argc);
 		if (argc == 1)
 			return print_avail_apps();
 
@@ -141,16 +145,17 @@ int main(int argc, char **argv)
 			break;
 
 	if (!(*nano_app)) {
-		printf("Error - the application '%s' was not found\n", app_name);
+		printf(
+		    "Error - the application '%s' was not found\n", app_name);
 		return EXIT_FAILURE;
 	}
 
 	if (argc < 2) {
 		if ((*nano_app)->dflt)
-			return handle_app((*nano_app)->dflt(argc - 1, argv + 1));
+			return handle_app(
+			    (*nano_app)->dflt(argc - 1, argv + 1));
 
-		printf("Error - not enough arguments to run %s\n",
-		       app_name);
+		printf("Error - not enough arguments to run %s\n", app_name);
 		goto err_param;
 	}
 

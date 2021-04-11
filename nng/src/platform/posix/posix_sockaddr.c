@@ -75,18 +75,18 @@ nni_posix_nn2sockaddr(void *sa, const nni_sockaddr *na)
 	case NNG_AF_ABSTRACT:
 		spath = (void *) sa;
 		nsabs = &na->s_abstract;
-		if (nsabs->sa_len >= sizeof (spath->sun_path)) {
+		if (nsabs->sa_len >= sizeof(spath->sun_path)) {
 			return (0);
 		}
 		memset(spath, 0, sizeof(*spath));
-		spath->sun_family = PF_UNIX;
+		spath->sun_family  = PF_UNIX;
 		spath->sun_path[0] = '\0'; // abstract starts with nul
 
 		// We support auto-bind with an empty string.  There is
 		// a subtle caveat here, which is that we cannot bind to
 		// the *empty* name.
 		if (nsabs->sa_len == 0) {
-			return (sizeof (sa_family_t)); // auto bind
+			return (sizeof(sa_family_t)); // auto bind
 		} else {
 			memcpy(&spath->sun_path[1], nsabs->sa_name,
 			    nsabs->sa_len);
@@ -153,7 +153,7 @@ nni_posix_sockaddr2nn(nni_sockaddr *na, const void *sa, size_t sz)
 			nsabs->sa_len    = sz - 1;
 			memcpy(nsabs->sa_name, &spath->sun_path[1], sz - 1);
 		} else {
-                        nspath            = &na->s_ipc;
+			nspath            = &na->s_ipc;
 			nspath->sa_family = NNG_AF_IPC;
 			nni_strlcpy(nspath->sa_path, spath->sun_path,
 			    sizeof(nspath->sa_path));

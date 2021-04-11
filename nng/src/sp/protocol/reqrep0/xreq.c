@@ -220,7 +220,7 @@ xreq0_recv_cb(void *arg)
 		body = nni_msg_body(msg);
 		end  = ((body[0] & 0x80u) != 0);
 
-		if (nng_msg_header_append(msg, body, sizeof (uint32_t)) != 0) {
+		if (nng_msg_header_append(msg, body, sizeof(uint32_t)) != 0) {
 			// TODO: bump a no-memory stat
 			nni_msg_free(msg);
 			// Closing the pipe may release some memory.
@@ -229,7 +229,7 @@ xreq0_recv_cb(void *arg)
 			nni_pipe_close(p->pipe);
 			return;
 		}
-		nni_msg_trim(msg, sizeof (uint32_t));
+		nni_msg_trim(msg, sizeof(uint32_t));
 	}
 	nni_aio_set_msg(&p->aio_putq, msg);
 	nni_msgq_aio_put(sock->urq, &p->aio_putq);

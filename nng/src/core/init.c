@@ -18,7 +18,7 @@ static nni_mtx  nni_init_mtx;
 static nni_list nni_init_list;
 static bool     nni_inited = false;
 
-extern int nni_tls_sys_init(void);
+extern int  nni_tls_sys_init(void);
 extern void nni_tls_sys_fini(void);
 
 static int

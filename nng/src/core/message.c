@@ -11,8 +11,8 @@
 #include <string.h>
 
 #include "core/nng_impl.h"
-#include "nng/protocol/mqtt/mqtt_parser.h"
 #include "include/nng_debug.h"
+#include "nng/protocol/mqtt/mqtt_parser.h"
 
 // Message API.
 
@@ -26,7 +26,8 @@ typedef struct {
 
 // Underlying message structure.
 struct nng_msg {
-	uint8_t m_header_buf[NNI_NANO_MAX_HEADER_SIZE + 1]; // only fixed header
+	uint8_t
+	    m_header_buf[NNI_NANO_MAX_HEADER_SIZE + 1]; // only fixed header
 	// uint8_t       m_variable_header_buf[];                //TODO
 	// independent variable header?
 	size_t         m_header_len;
@@ -611,59 +612,59 @@ nni_msg_get_pipe(const nni_msg *m)
 	return (m->m_pipe);
 }
 
-//NAOMQ APIs
+// NAOMQ APIs
 int
 nni_msg_cmd_type(nni_msg *m)
 {
-       return(m->CMD_TYPE);
+	return (m->CMD_TYPE);
 }
 
 uint8_t *
 nni_msg_header_ptr(const nni_msg *m)
 {
-       return ((uint8_t *)m->m_header_buf);
+	return ((uint8_t *) m->m_header_buf);
 }
 
 uint8_t *
 nni_msg_variable_ptr(const nni_msg *m)
 {
-       return (m->m_body.ch_ptr);
+	return (m->m_body.ch_ptr);
 }
 
 uint8_t *
 nni_msg_payload_ptr(const nni_msg *m)
 {
-       return (m->payload_ptr);
+	return (m->payload_ptr);
 }
 
 size_t
 nni_msg_remaining_len(const nni_msg *m)
 {
-       return (m->remaining_len);
+	return (m->remaining_len);
 }
 
 void
 nni_msg_set_payload_ptr(nni_msg *m, uint8_t *ptr)
 {
-       m->payload_ptr = ptr;
+	m->payload_ptr = ptr;
 }
 
 void
 nni_msg_set_conn_param(nni_msg *m, void *ptr)
 {
-       m->cparam = ptr;
+	m->cparam = ptr;
 }
 
 conn_param *
 nni_msg_get_conn_param(nni_msg *m)
 {
-       return m->cparam;
+	return m->cparam;
 }
 
 void
 nni_msg_set_remaining_len(nni_msg *m, size_t len)
 {
-       m->remaining_len = len;
+	m->remaining_len = len;
 }
 
 void
@@ -675,23 +676,22 @@ nni_msg_set_cmd_type(nni_msg *m, uint8_t cmd)
 uint8_t
 nni_msg_get_pub_qos(nni_msg *m)
 {
-    uint8_t qos;
+	uint8_t qos;
 
-    if (nni_msg_cmd_type(m) != 0x30)
-    {
-        return -1;
-    }
-    qos = (m->m_header_buf[0] & 0x06) >> 1;
-    return qos;
+	if (nni_msg_cmd_type(m) != 0x30) {
+		return -1;
+	}
+	qos = (m->m_header_buf[0] & 0x06) >> 1;
+	return qos;
 }
 
 uint16_t
 nni_msg_get_pub_pid(nni_msg *m)
 {
-    uint16_t pid;
+	uint16_t pid;
 	uint8_t *pos, len;
-	size_t		remain = 0;
-	remain 		= nni_msg_remaining_len(m) - 2;
+	size_t   remain = 0;
+	remain          = nni_msg_remaining_len(m) - 2;
 
 	pos = nni_msg_body(m);
 	NNI_GET16(pos, len);
@@ -702,16 +702,16 @@ nni_msg_get_pub_pid(nni_msg *m)
 void
 nni_msg_set_timestamp(nni_msg *m, nni_time time)
 {
-    m->times = time;
+	m->times = time;
 }
 
 nni_time
 nni_msg_get_timestamp(nni_msg *m)
 {
-    return m->times;
+	return m->times;
 }
 
-//TODO qos validation
+// TODO qos validation
 uint8_t
 nni_msg_get_preset_qos(nni_msg *m)
 {
@@ -727,26 +727,27 @@ nni_msg_set_qos(nni_msg *m, uint8_t qos)
 nano_pipe_db *
 nano_msg_get_subtopic(nni_msg *msg)
 {
-	char *topic;
+	char *        topic;
 	nano_pipe_db *root = NULL, *db = NULL, *tmp = NULL;
-	uint8_t		bpos = 0, len_of_topic = 0, *payload_ptr;;
-	size_t		remain = 0;
+	uint8_t       bpos = 0, len_of_topic = 0, *payload_ptr;
+	;
+	size_t remain = 0;
 
 	payload_ptr = nni_msg_payload_ptr(msg);
-	remain 		= nni_msg_remaining_len(msg) - 2;
+	remain      = nni_msg_remaining_len(msg) - 2;
 
 	if (nni_msg_cmd_type(msg) != 0x80)
 		return NULL;
 
-	while (bpos < remain){
+	while (bpos < remain) {
 		NNI_GET16(payload_ptr + bpos, len_of_topic);
 		if (len_of_topic != 0) {
 			if (NULL != db) {
 				tmp = db;
-				db = db->next;
+				db  = db->next;
 			}
-			db = nng_alloc(sizeof(nano_pipe_db));
-			topic = nng_alloc(len_of_topic + 1);
+			db       = nng_alloc(sizeof(nano_pipe_db));
+			topic    = nng_alloc(len_of_topic + 1);
 			db->prev = tmp;
 			if (bpos == 0) {
 				root = db;
@@ -762,14 +763,14 @@ nano_msg_get_subtopic(nni_msg *msg)
 			}
 			strncpy(topic, payload_ptr + bpos, len_of_topic);
 			topic[len_of_topic] = 0x00;
-			db->topic = topic;
+			db->topic           = topic;
 			bpos += len_of_topic;
 		} else {
 			NNI_ASSERT("ERROR : topic length error.");
 			return NULL;
 		}
-		db->qos = *(payload_ptr + bpos);
-		db->next= NULL;
+		db->qos  = *(payload_ptr + bpos);
+		db->next = NULL;
 		debug_msg("sub topic: %s qos : %x\n", db->topic, db->qos);
 		bpos += 1;
 	}
@@ -780,8 +781,8 @@ nano_msg_get_subtopic(nni_msg *msg)
 void
 nano_msg_free_pipedb(nano_pipe_db *db)
 {
-	uint8_t	 	   len;
-	nano_pipe_db * db_next;
+	uint8_t       len;
+	nano_pipe_db *db_next;
 
 	if (NULL == db) {
 		return;
@@ -801,8 +802,8 @@ nano_msg_free_pipedb(nano_pipe_db *db)
 void
 nano_msg_ubsub_free(nano_pipe_db *db)
 {
-	nano_pipe_db *ptr,*tmp;
-	uint8_t	 	  len;
+	nano_pipe_db *ptr, *tmp;
+	uint8_t       len;
 
 	if (NULL == db) {
 		return;
@@ -810,13 +811,13 @@ nano_msg_ubsub_free(nano_pipe_db *db)
 	if (db == db->root) {
 		ptr = db;
 		tmp = db->next;
-		while(ptr) {
+		while (ptr) {
 			ptr->root = tmp;
-			ptr = ptr->next;
+			ptr       = ptr->next;
 		}
 	} else {
-		tmp = db->prev;
-		tmp->next = db->next;
+		tmp            = db->prev;
+		tmp->next      = db->next;
 		db->next->prev = tmp;
 	}
 

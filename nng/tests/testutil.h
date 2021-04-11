@@ -63,8 +63,8 @@ extern int testutil_marry_ex(
 // success, an NNG error number otherwise.)
 extern void *testutil_stream_send_start(nng_stream *, void *, size_t);
 extern void *testutil_stream_recv_start(nng_stream *, void *, size_t);
-extern int testutil_stream_send_wait(void *);
-extern int testutil_stream_recv_wait(void *);
+extern int   testutil_stream_send_wait(void *);
+extern int   testutil_stream_recv_wait(void *);
 
 // These are TLS certificates.  The client and server are signed with the
 // root.  The server uses CN 127.0.0.1.  Other details are bogus, but

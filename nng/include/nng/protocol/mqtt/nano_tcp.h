@@ -20,7 +20,6 @@ NNG_DECL int nng_nano_tcp0_open(nng_socket *);
 #define nng_nano_tcp_open nng_nano_tcp0_open
 #endif
 
-
 #define NNG_NANO_TCP_SELF 0x31
 #define NNG_NANO_TCP_PEER 0x30
 #define NNG_NANO_TCP_SELF_NAME "nano_rep"

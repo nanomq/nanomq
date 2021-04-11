@@ -7,18 +7,19 @@
 // found online at https://opensource.org/licenses/MIT.
 //
 
+#include "nng/protocol/mqtt/mqtt_parser.h"
+#include "core/nng_impl.h"
+#include "include/nng_debug.h"
+#include "nng/protocol/mqtt/mqtt.h"
 #include <stdio.h>
 #include <string.h>
-#include "core/nng_impl.h"
-#include "nng/protocol/mqtt/mqtt_parser.h"
-#include "nng/protocol/mqtt/mqtt.h"
-#include "include/nng_debug.h"
 
 static uint8_t  get_value_size(uint64_t value);
 static uint64_t power(uint64_t x, uint32_t n);
 static void     init_conn_param(conn_param *);
 
-static uint64_t power(uint64_t x, uint32_t n)
+static uint64_t
+power(uint64_t x, uint32_t n)
 {
 	uint64_t val = 1;
 
@@ -35,11 +36,12 @@ static uint64_t power(uint64_t x, uint32_t n)
  * @param value
  * @return
  */
-static uint8_t get_value_size(uint64_t value)
+static uint8_t
+get_value_size(uint64_t value)
 {
 	uint8_t  len = 1;
 	uint64_t pow;
-	for (int i   = 1; i <= 4; ++i) {
+	for (int i = 1; i <= 4; ++i) {
 		pow = power(0x100, i);
 		if (value >= pow) {
 			++len;
@@ -56,7 +58,8 @@ static uint8_t get_value_size(uint64_t value)
  * @param value
  * @return data length
  */
-uint8_t put_var_integer(uint8_t *dest, uint32_t value)
+uint8_t
+put_var_integer(uint8_t *dest, uint32_t value)
 {
 	uint8_t  len        = 0;
 	uint32_t init_val   = 0x7F;
@@ -83,20 +86,20 @@ uint8_t put_var_integer(uint8_t *dest, uint32_t value)
  * @param pos
  * @return Integer value
  */
-uint32_t get_var_integer(const uint8_t *buf, uint32_t *pos)
+uint32_t
+get_var_integer(const uint8_t *buf, uint32_t *pos)
 {
 	uint8_t  temp;
 	uint32_t result = 0;
 
 	uint32_t p = *pos;
-	int i = 0;
+	int      i = 0;
 
 	do {
 		temp   = *(buf + p);
-		result = result + (uint32_t) (temp & 0x7f) * (power(0x80, i));
+		result = result + (uint32_t)(temp & 0x7f) * (power(0x80, i));
 		p++;
-	}
-	while ((temp & 0x80) > 0 && i++ < 4);
+	} while ((temp & 0x80) > 0 && i++ < 4);
 	*pos = p;
 	return result;
 }
@@ -107,18 +110,21 @@ uint32_t get_var_integer(const uint8_t *buf, uint32_t *pos)
  * @param dest output string
  * @param src input bytes
  * @param pos
- * @return string length -1: not utf-8, 0: empty string, >0 : normal utf-8 string
+ * @return string length -1: not utf-8, 0: empty string, >0 : normal utf-8
+ * string
  */
-int32_t get_utf8_str(char **dest, const uint8_t *src, uint32_t *pos)
+int32_t
+get_utf8_str(char **dest, const uint8_t *src, uint32_t *pos)
 {
 	int32_t str_len = 0;
 	NNI_GET16(src + (*pos), str_len);
 
 	*pos = (*pos) + 2;
 	if (str_len > 0) {
-		if (utf8_check((const char *) (src + *pos), str_len) == ERR_SUCCESS) {
+		if (utf8_check((const char *) (src + *pos), str_len) ==
+		    ERR_SUCCESS) {
 			*dest = (char *) (src + (*pos));
-			*pos = (*pos) + str_len;
+			*pos  = (*pos) + str_len;
 		} else {
 			str_len = -1;
 		}
@@ -132,32 +138,36 @@ int32_t get_utf8_str(char **dest, const uint8_t *src, uint32_t *pos)
  * @param dest output string
  * @param src input bytes
  * @param pos
- * @return string length -1: not utf-8, 0: empty string, >0 : normal utf-8 string
+ * @return string length -1: not utf-8, 0: empty string, >0 : normal utf-8
+ * string
  */
-uint8_t * copy_utf8_str(const uint8_t *src, uint32_t *pos, int *str_len)
+uint8_t *
+copy_utf8_str(const uint8_t *src, uint32_t *pos, int *str_len)
 {
-	*str_len = 0;
-	uint8_t * dest = NULL;
+	*str_len      = 0;
+	uint8_t *dest = NULL;
 
 	NNI_GET16(src + (*pos), *str_len);
 
 	*pos = (*pos) + 2;
 	if (*str_len > 0) {
 		dest = nng_alloc(*str_len + 1);
-		if (utf8_check((const char *) (src + *pos), *str_len) == ERR_SUCCESS) {
+		if (utf8_check((const char *) (src + *pos), *str_len) ==
+		    ERR_SUCCESS) {
 			memcpy(dest, src + (*pos), *str_len);
 			dest[*str_len] = '\0';
-			*pos = (*pos) + (*str_len);
+			*pos           = (*pos) + (*str_len);
 		} else {
-			nng_free(dest, *str_len+1);
-			dest = NULL;
+			nng_free(dest, *str_len + 1);
+			dest     = NULL;
 			*str_len = -1;
 		}
 	}
 	return dest;
 }
 
-int utf8_check(const char *str, size_t len)
+int
+utf8_check(const char *str, size_t len)
 {
 	int i;
 	int j;
@@ -166,10 +176,12 @@ int utf8_check(const char *str, size_t len)
 
 	const unsigned char *ustr = (const unsigned char *) str;
 
-	if (!str) return ERR_INVAL;
-	if (len > 65536) return ERR_INVAL;
+	if (!str)
+		return ERR_INVAL;
+	if (len > 65536)
+		return ERR_INVAL;
 
-	for (i = 0; i < (int)len; i++) {
+	for (i = 0; i < (int) len; i++) {
 		if (ustr[i] == 0) {
 			return ERR_MALFORMED_UTF8;
 		} else if (ustr[i] <= 0x7f) {
@@ -190,7 +202,8 @@ int utf8_check(const char *str, size_t len)
 		} else if ((ustr[i] & 0xF8) == 0xF0) {
 			/* 11110xxx - 4 byte sequence */
 			if (ustr[i] > 0xF4) {
-				/* Invalid, this would produce values > 0x10FFFF. */
+				/* Invalid, this would produce values >
+				 * 0x10FFFF. */
 				return ERR_MALFORMED_UTF8;
 			}
 			codelen   = 4;
@@ -219,15 +232,14 @@ int utf8_check(const char *str, size_t len)
 		}
 
 		/* Check for overlong or out of range encodings */
-		/* Checking codelen == 2 isn't necessary here, because it is already
-		 * covered above in the C0 and C1 checks.
-		 * if(codelen == 2 && codepoint < 0x0080){
-		 *	 return ERR_MALFORMED_UTF8;
-		 * }else
-		*/
+		/* Checking codelen == 2 isn't necessary here, because it is
+		 *already covered above in the C0 and C1 checks. if(codelen ==
+		 *2 && codepoint < 0x0080){ return ERR_MALFORMED_UTF8; }else
+		 */
 		if (codelen == 3 && codepoint < 0x0800) {
 			return ERR_MALFORMED_UTF8;
-		} else if (codelen == 4 && (codepoint < 0x10000 || codepoint > 0x10FFFF)) {
+		} else if (codelen == 4 &&
+		    (codepoint < 0x10000 || codepoint > 0x10FFFF)) {
 			return ERR_MALFORMED_UTF8;
 		}
 
@@ -235,18 +247,21 @@ int utf8_check(const char *str, size_t len)
 		if (codepoint >= 0xFDD0 && codepoint <= 0xFDEF) {
 			return ERR_MALFORMED_UTF8;
 		}
-		if ((codepoint & 0xFFFF) == 0xFFFE || (codepoint & 0xFFFF) == 0xFFFF) {
+		if ((codepoint & 0xFFFF) == 0xFFFE ||
+		    (codepoint & 0xFFFF) == 0xFFFF) {
 			return ERR_MALFORMED_UTF8;
 		}
 		/* Check for control characters */
-		if (codepoint <= 0x001F || (codepoint >= 0x007F && codepoint <= 0x009F)) {
+		if (codepoint <= 0x001F ||
+		    (codepoint >= 0x007F && codepoint <= 0x009F)) {
 			return ERR_MALFORMED_UTF8;
 		}
 	}
 	return ERR_SUCCESS;
 }
 
-uint16_t get_variable_binary(uint8_t **dest, const uint8_t *src)
+uint16_t
+get_variable_binary(uint8_t **dest, const uint8_t *src)
 {
 	uint16_t len = 0;
 	NNI_GET16(src, len);
@@ -254,12 +269,13 @@ uint16_t get_variable_binary(uint8_t **dest, const uint8_t *src)
 	return len;
 }
 
-int fixed_header_adaptor(uint8_t *packet, nng_msg *dst)
+int
+fixed_header_adaptor(uint8_t *packet, nng_msg *dst)
 {
-	nni_msg  *m;
+	nni_msg *m;
 	int      rv, pos = 1;
 
-	m   = (nni_msg *)dst;
+	m = (nni_msg *) dst;
 	get_var_integer(packet, &pos);
 
 	rv = nni_msg_header_append(m, packet, pos);
@@ -269,36 +285,38 @@ int fixed_header_adaptor(uint8_t *packet, nng_msg *dst)
 /*
 int variable_header_adaptor(uint8_t *packet, nni_msg *dst)
 {
-	nni_msg  *m;
-	int      pos = 0;
-	uint32_t len;
-	return 0;
+        nni_msg  *m;
+        int      pos = 0;
+        uint32_t len;
+        return 0;
 }
 */
 /*
-static char *client_id_gen(int *idlen, const char *auto_id_prefix, int auto_id_prefix_len)
+static char *client_id_gen(int *idlen, const char *auto_id_prefix, int
+auto_id_prefix_len)
 {
-	char *client_id;
-	return client_id;
+        char *client_id;
+        return client_id;
 }
 
 conn_param * copy_conn_param(conn_param * des, conn_param * src){
-	return (conn_param *)memcpy((void *)des, (const void *)src, sizeof(struct conn_param));
+        return (conn_param *)memcpy((void *)des, (const void *)src,
+sizeof(struct conn_param));
 }
 */
 
-
 /**
  * only use in nego_cb !!!
- * 
+ *
  */
-int32_t conn_handler(uint8_t *packet, conn_param *cparam)
+int32_t
+conn_handler(uint8_t *packet, conn_param *cparam)
 {
 
-	uint32_t	len, tmp, pos = 0, len_of_properties = 0;
-	int         len_of_str = 0;
-	int32_t		rv = 0;
-	uint8_t     property_id;
+	uint32_t len, tmp, pos = 0, len_of_properties = 0;
+	int      len_of_str = 0;
+	int32_t  rv         = 0;
+	uint8_t  property_id;
 
 	if (packet[pos] != CMD_CONNECT) {
 		rv = -1;
@@ -308,32 +326,32 @@ int32_t conn_handler(uint8_t *packet, conn_param *cparam)
 	}
 
 	init_conn_param(cparam);
-	//remaining length
-	len = (uint32_t)get_var_integer(packet, &pos);
-	//protocol name
+	// remaining length
+	len = (uint32_t) get_var_integer(packet, &pos);
+	// protocol name
 	cparam->pro_name.body = copy_utf8_str(packet, &pos, &len_of_str);
-	cparam->pro_name.len = len_of_str;
-	rv = rv | len_of_str;
+	cparam->pro_name.len  = len_of_str;
+	rv                    = rv | len_of_str;
 	debug_msg("pro_name: %s", cparam->pro_name.body);
-	//protocol ver
+	// protocol ver
 	cparam->pro_ver = packet[pos];
-	pos ++;
-	//connect flag
-	cparam->con_flag = packet[pos];
+	pos++;
+	// connect flag
+	cparam->con_flag    = packet[pos];
 	cparam->clean_start = (cparam->con_flag & 0x02) >> 1;
 	cparam->will_flag   = (cparam->con_flag & 0x04) >> 2;
 	cparam->will_qos    = (cparam->con_flag & 0x18) >> 3;
 	cparam->will_retain = (cparam->con_flag & 0x20) >> 5;
 	debug_msg("conn flag:%x", cparam->con_flag);
-	pos ++;
-	//keepalive
+	pos++;
+	// keepalive
 	NNI_GET16(packet + pos, tmp);
 	cparam->keepalive_mqtt = tmp;
-	pos+=2;
-	//properties
+	pos += 2;
+	// properties
 	if (cparam->pro_ver == PROTOCOL_VERSION_v5) {
 		debug_msg("MQTT 5 Properties");
-		len_of_properties = (uint32_t)get_var_integer(packet, &pos);
+		len_of_properties   = (uint32_t) get_var_integer(packet, &pos);
 		uint32_t target_pos = pos + len_of_properties;
 		debug_msg("propertyLen in variable [%d]", len_of_properties);
 
@@ -342,60 +360,77 @@ int32_t conn_handler(uint8_t *packet, conn_param *cparam)
 			while (1) {
 				property_id = packet[pos++];
 				switch (property_id) {
-					case SESSION_EXPIRY_INTERVAL:
-						debug_msg("SESSION_EXPIRY_INTERVAL");
-						NNI_GET32(packet+pos, cparam->session_expiry_interval);
-						pos += 4;
-						break;
-					case RECEIVE_MAXIMUM:
-						debug_msg("RECEIVE_MAXIMUM");
-						NNI_GET16(packet+pos, cparam->rx_max);
-						pos += 2;
-						break;
-					case MAXIMUM_PACKET_SIZE:
-						debug_msg("MAXIMUM_PACKET_SIZE");
-						NNI_GET32(packet+pos, cparam->max_packet_size);
-						pos += 4;
-						break;
-					case TOPIC_ALIAS_MAXIMUM:
-						debug_msg("TOPIC_ALIAS_MAXIMUM");
-						NNI_GET16(packet+pos, cparam->topic_alias_max);
-						pos += 2;
-						break;
-					case REQUEST_RESPONSE_INFORMATION:
-						debug_msg("REQUEST_RESPONSE_INFORMATION");
-						cparam->req_resp_info = packet[pos++];
-						break;
-					case REQUEST_PROBLEM_INFORMATION:
-						debug_msg("REQUEST_PROBLEM_INFORMATION");
-						cparam->req_problem_info = packet[pos++];
-						break;
-					case USER_PROPERTY:
-						debug_msg("USER_PROPERTY");
-						// key
-						cparam->user_property.key = (char *)copy_utf8_str(packet, &pos, &len_of_str);
-						cparam->user_property.len_key = len_of_str;
-						rv = rv | len_of_str;
-						// value
-						cparam->user_property.val = (char *)copy_utf8_str(packet, &pos, &len_of_str);
-						cparam->user_property.len_val = len_of_str;
-						rv = rv | len_of_str;
-						break;
-					case AUTHENTICATION_METHOD:
-						debug_msg("AUTHENTICATION_METHOD");
-						cparam->auth_method.body = (char *)copy_utf8_str(packet, &pos, &len_of_str);
-						rv = rv | len_of_str;
-						cparam->auth_method.len = len_of_str;
-						len_of_str = 0;
-						break;
-					case AUTHENTICATION_DATA:
-						debug_msg("AUTHENTICATION_DATA");
-						cparam->auth_data.body = (char *)copy_utf8_str(packet, &pos, &len_of_str);
-						rv = rv | len_of_str;
-						cparam->auth_data.len = len_of_str;
-						break;
-					default:
-						break;
+				case SESSION_EXPIRY_INTERVAL:
+					debug_msg("SESSION_EXPIRY_INTERVAL");
+					NNI_GET32(packet + pos,
+					    cparam->session_expiry_interval);
+					pos += 4;
+					break;
+				case RECEIVE_MAXIMUM:
+					debug_msg("RECEIVE_MAXIMUM");
+					NNI_GET16(
+					    packet + pos, cparam->rx_max);
+					pos += 2;
+					break;
+				case MAXIMUM_PACKET_SIZE:
+					debug_msg("MAXIMUM_PACKET_SIZE");
+					NNI_GET32(packet + pos,
+					    cparam->max_packet_size);
+					pos += 4;
+					break;
+				case TOPIC_ALIAS_MAXIMUM:
+					debug_msg("TOPIC_ALIAS_MAXIMUM");
+					NNI_GET16(packet + pos,
+					    cparam->topic_alias_max);
+					pos += 2;
+					break;
+				case REQUEST_RESPONSE_INFORMATION:
+					debug_msg(
+					    "REQUEST_RESPONSE_INFORMATION");
+					cparam->req_resp_info = packet[pos++];
+					break;
+				case REQUEST_PROBLEM_INFORMATION:
+					debug_msg(
+					    "REQUEST_PROBLEM_INFORMATION");
+					cparam->req_problem_info =
+					    packet[pos++];
+					break;
+				case USER_PROPERTY:
+					debug_msg("USER_PROPERTY");
+					// key
+					cparam->user_property.key =
+					    (char *) copy_utf8_str(
+					        packet, &pos, &len_of_str);
+					cparam->user_property.len_key =
+					    len_of_str;
+					rv = rv | len_of_str;
+					// value
+					cparam->user_property.val =
+					    (char *) copy_utf8_str(
+					        packet, &pos, &len_of_str);
+					cparam->user_property.len_val =
+					    len_of_str;
+					rv = rv | len_of_str;
+					break;
+				case AUTHENTICATION_METHOD:
+					debug_msg("AUTHENTICATION_METHOD");
+					cparam->auth_method.body =
+					    (char *) copy_utf8_str(
+					        packet, &pos, &len_of_str);
+					rv = rv | len_of_str;
+					cparam->auth_method.len = len_of_str;
+					len_of_str              = 0;
+					break;
+				case AUTHENTICATION_DATA:
+					debug_msg("AUTHENTICATION_DATA");
+					cparam->auth_data.body =
+					    (char *) copy_utf8_str(
+					        packet, &pos, &len_of_str);
+					rv = rv | len_of_str;
+					cparam->auth_data.len = len_of_str;
+					break;
+				default:
+					break;
 				}
 				if (pos == target_pos) {
 					break;
@@ -407,110 +442,157 @@ int32_t conn_handler(uint8_t *packet, conn_param *cparam)
 		}
 	}
 	debug_msg("pos after property: [%d]", pos);
-	//payload client_id
-	cparam->clientid.body = (char *)copy_utf8_str(packet, &pos, &len_of_str);
-	rv = rv | len_of_str;
+	// payload client_id
+	cparam->clientid.body =
+	    (char *) copy_utf8_str(packet, &pos, &len_of_str);
+	rv                   = rv | len_of_str;
 	cparam->clientid.len = len_of_str;
 	debug_msg("clientid: [%s] [%d]", cparam->clientid.body, len_of_str);
-	//will topic
+	// will topic
 	if (cparam->will_flag != 0) {
 		if (cparam->pro_ver == PROTOCOL_VERSION_v5) {
-			len_of_properties = get_var_integer(packet, &pos);
+			len_of_properties   = get_var_integer(packet, &pos);
 			uint32_t target_pos = pos + len_of_properties;
-			debug_msg("propertyLen in payload [%d]", len_of_properties);
+			debug_msg(
+			    "propertyLen in payload [%d]", len_of_properties);
 
 			// parse property in variable header
 			if (len_of_properties > 0) {
 				while (1) {
 					property_id = packet[pos++];
 					switch (property_id) {
-						case WILL_DELAY_INTERVAL:
-							debug_msg("WILL_DELAY_INTERVAL");
-							NNI_GET32(packet+pos, cparam->will_delay_interval);
-							pos += 4;
-							break;
-						case PAYLOAD_FORMAT_INDICATOR:
-							debug_msg("PAYLOAD_FORMAT_INDICATOR");
-							cparam->payload_format_indicator = packet[pos++];
-							break;
-						case MESSAGE_EXPIRY_INTERVAL:
-							debug_msg("MESSAGE_EXPIRY_INTERVAL");
-							NNI_GET32(packet+pos, cparam->msg_expiry_interval);
-							pos += 4;
-							break;
-						case CONTENT_TYPE:
-							debug_msg("CONTENT_TYPE");
-							cparam->content_type.body = (char *)copy_utf8_str(packet, &pos, &len_of_str);
-							cparam->content_type.len = len_of_str;
-							rv = rv | len_of_str;
-							debug_msg("content type: %s %d", cparam->content_type.body, rv);
-							break;
-						case RESPONSE_TOPIC:
-							debug_msg("RESPONSE_TOPIC");
-							cparam->resp_topic.body = (char *)copy_utf8_str(packet, &pos, &len_of_str);
-							cparam->resp_topic.len = len_of_str;
-							rv = rv | len_of_str;
-							debug_msg("resp topic: %s %d", cparam->resp_topic.body, rv);
-							break;
-						case CORRELATION_DATA:
-							debug_msg("CORRELATION_DATA");
-							cparam->corr_data.body = (char *)copy_utf8_str(packet, &pos, &len_of_str);
-							cparam->corr_data.len = len_of_str;
-							rv = rv | len_of_str;
-							debug_msg("corr_data: %s %d", cparam->corr_data.body, rv);
-							break;
-						case USER_PROPERTY:
-							debug_msg("USER_PROPERTY");
-							// key
-							cparam->payload_user_property.key = (char *)copy_utf8_str(packet, &pos, &len_of_str);
-							cparam->payload_user_property.len_key = len_of_str;
-							rv = rv | len_of_str;
-							// value
-							cparam->payload_user_property.val = (char *)copy_utf8_str(packet, &pos, &len_of_str);
-							cparam->payload_user_property.len_val = len_of_str;
-							rv = rv | len_of_str;
-							break;
-						default:
-							break;
+					case WILL_DELAY_INTERVAL:
+						debug_msg(
+						    "WILL_DELAY_INTERVAL");
+						NNI_GET32(packet + pos,
+						    cparam
+						        ->will_delay_interval);
+						pos += 4;
+						break;
+					case PAYLOAD_FORMAT_INDICATOR:
+						debug_msg("PAYLOAD_FORMAT_"
+						          "INDICATOR");
+						cparam
+						    ->payload_format_indicator =
+						    packet[pos++];
+						break;
+					case MESSAGE_EXPIRY_INTERVAL:
+						debug_msg(
+						    "MESSAGE_EXPIRY_INTERVAL");
+						NNI_GET32(packet + pos,
+						    cparam
+						        ->msg_expiry_interval);
+						pos += 4;
+						break;
+					case CONTENT_TYPE:
+						debug_msg("CONTENT_TYPE");
+						cparam->content_type.body =
+						    (char *) copy_utf8_str(
+						        packet, &pos,
+						        &len_of_str);
+						cparam->content_type.len =
+						    len_of_str;
+						rv = rv | len_of_str;
+						debug_msg(
+						    "content type: %s %d",
+						    cparam->content_type.body,
+						    rv);
+						break;
+					case RESPONSE_TOPIC:
+						debug_msg("RESPONSE_TOPIC");
+						cparam->resp_topic.body =
+						    (char *) copy_utf8_str(
+						        packet, &pos,
+						        &len_of_str);
+						cparam->resp_topic.len =
+						    len_of_str;
+						rv = rv | len_of_str;
+						debug_msg("resp topic: %s %d",
+						    cparam->resp_topic.body,
+						    rv);
+						break;
+					case CORRELATION_DATA:
+						debug_msg("CORRELATION_DATA");
+						cparam->corr_data.body =
+						    (char *) copy_utf8_str(
+						        packet, &pos,
+						        &len_of_str);
+						cparam->corr_data.len =
+						    len_of_str;
+						rv = rv | len_of_str;
+						debug_msg("corr_data: %s %d",
+						    cparam->corr_data.body,
+						    rv);
+						break;
+					case USER_PROPERTY:
+						debug_msg("USER_PROPERTY");
+						// key
+						cparam->payload_user_property
+						    .key =
+						    (char *) copy_utf8_str(
+						        packet, &pos,
+						        &len_of_str);
+						cparam->payload_user_property
+						    .len_key = len_of_str;
+						rv           = rv | len_of_str;
+						// value
+						cparam->payload_user_property
+						    .val =
+						    (char *) copy_utf8_str(
+						        packet, &pos,
+						        &len_of_str);
+						cparam->payload_user_property
+						    .len_val = len_of_str;
+						rv           = rv | len_of_str;
+						break;
+					default:
+						break;
 					}
 					if (pos == target_pos) {
 						break;
-					}else if (pos > target_pos) {
-						debug_msg("ERROR: protocol error");
+					} else if (pos > target_pos) {
+						debug_msg(
+						    "ERROR: protocol error");
 						return PROTOCOL_ERROR;
 					}
 				}
 			}
 		}
-		cparam->will_topic.body = (char *)copy_utf8_str(packet, &pos, &len_of_str);
+		cparam->will_topic.body =
+		    (char *) copy_utf8_str(packet, &pos, &len_of_str);
 		cparam->will_topic.len = len_of_str;
-		rv = rv | len_of_str;
+		rv                     = rv | len_of_str;
 		debug_msg("will_topic: %s %d", cparam->will_topic.body, rv);
-		//will msg
-		cparam->will_msg.body = copy_utf8_str(packet, &pos, &len_of_str);
+		// will msg
+		cparam->will_msg.body =
+		    copy_utf8_str(packet, &pos, &len_of_str);
 		cparam->will_msg.len = len_of_str;
-		rv = rv | len_of_str;
+		rv                   = rv | len_of_str;
 		debug_msg("will_msg: %s %d", cparam->will_msg.body, rv);
 	}
-	//username
+	// username
 	if ((cparam->con_flag & 0x80) > 0) {
-		cparam->username.body = (char *)copy_utf8_str(packet, &pos, &len_of_str);
+		cparam->username.body =
+		    (char *) copy_utf8_str(packet, &pos, &len_of_str);
 		cparam->username.len = len_of_str;
-		rv = rv | len_of_str;
-		debug_msg("username: %s %d %d", cparam->username.body, rv, 3 & 4);
+		rv                   = rv | len_of_str;
+		debug_msg(
+		    "username: %s %d %d", cparam->username.body, rv, 3 & 4);
 	}
-	//password
+	// password
 	if ((cparam->con_flag & 0x40) > 0) {
-		cparam->password.body = (char *)copy_utf8_str(packet, &pos, &len_of_str);
+		cparam->password.body =
+		    (char *) copy_utf8_str(packet, &pos, &len_of_str);
 		cparam->password.len = len_of_str;
-		rv = rv | len_of_str;
+		rv                   = rv | len_of_str;
 		debug_msg("password: %s %d", cparam->password.body, rv);
 	}
-	//what if rv = 0?
+	// what if rv = 0?
 	return rv;
 }
 
-void destroy_conn_param(conn_param * cparam)
+void
+destroy_conn_param(conn_param *cparam)
 {
 	if (cparam == NULL) {
 		return;
@@ -529,156 +611,169 @@ void destroy_conn_param(conn_param * cparam)
 	nng_free(cparam->content_type.body, cparam->content_type.len);
 	nng_free(cparam->resp_topic.body, cparam->resp_topic.len);
 	nng_free(cparam->corr_data.body, cparam->corr_data.len);
-	nng_free(cparam->payload_user_property.key, cparam->payload_user_property.len_key);
-	nng_free(cparam->payload_user_property.val, cparam->payload_user_property.len_val);
+	nng_free(cparam->payload_user_property.key,
+	    cparam->payload_user_property.len_key);
+	nng_free(cparam->payload_user_property.val,
+	    cparam->payload_user_property.len_val);
 	nng_free(cparam, sizeof(struct conn_param));
 	cparam = NULL;
 }
 
-static void init_conn_param(conn_param *cparam)
+static void
+init_conn_param(conn_param *cparam)
 {
-	cparam->pro_name.len = 0;
-	cparam->pro_name.body = NULL;
-	cparam->clientid.len = 0;
-	cparam->clientid.body = NULL;
-	cparam->will_topic.body = NULL;
-	cparam->will_topic.len = 0;
-	cparam->will_msg.body = NULL;
-	cparam->will_msg.len = 0;
-	cparam->username.body = NULL;
-	cparam->username.len = 0;
-	cparam->password.body = NULL;
-	cparam->password.len = 0;
-	cparam->auth_method.body = NULL;
-	cparam->auth_method.len = 0;
-	cparam->auth_data.body = NULL;
-	cparam->auth_data.len = 0;
-	cparam->user_property.key = NULL;
-	cparam->user_property.len_key = 0;
-	cparam->user_property.val = NULL;
-	cparam->user_property.len_val = 0;
-	cparam->content_type.body = NULL;
-	cparam->content_type.len = 0;
-	cparam->resp_topic.body = NULL;
-	cparam->resp_topic.len = 0;
-	cparam->corr_data.body = NULL;
-	cparam->corr_data.len = 0;
-	cparam->payload_user_property.key = NULL;
+	cparam->pro_name.len                  = 0;
+	cparam->pro_name.body                 = NULL;
+	cparam->clientid.len                  = 0;
+	cparam->clientid.body                 = NULL;
+	cparam->will_topic.body               = NULL;
+	cparam->will_topic.len                = 0;
+	cparam->will_msg.body                 = NULL;
+	cparam->will_msg.len                  = 0;
+	cparam->username.body                 = NULL;
+	cparam->username.len                  = 0;
+	cparam->password.body                 = NULL;
+	cparam->password.len                  = 0;
+	cparam->auth_method.body              = NULL;
+	cparam->auth_method.len               = 0;
+	cparam->auth_data.body                = NULL;
+	cparam->auth_data.len                 = 0;
+	cparam->user_property.key             = NULL;
+	cparam->user_property.len_key         = 0;
+	cparam->user_property.val             = NULL;
+	cparam->user_property.len_val         = 0;
+	cparam->content_type.body             = NULL;
+	cparam->content_type.len              = 0;
+	cparam->resp_topic.body               = NULL;
+	cparam->resp_topic.len                = 0;
+	cparam->corr_data.body                = NULL;
+	cparam->corr_data.len                 = 0;
+	cparam->payload_user_property.key     = NULL;
 	cparam->payload_user_property.len_key = 0;
-	cparam->payload_user_property.val = NULL;
+	cparam->payload_user_property.val     = NULL;
 	cparam->payload_user_property.len_val = 0;
 }
 
-uint32_t DJBHash(char *str)
+uint32_t
+DJBHash(char *str)
 {
-    unsigned int hash = 5381;
-    while (*str){
-        hash = ((hash << 5) + hash) + (*str++); /* times 33 */
-    }
-    hash &= ~(1 << 31); /* strip the highest bit */
-    return hash;
+	unsigned int hash = 5381;
+	while (*str) {
+		hash = ((hash << 5) + hash) + (*str++); /* times 33 */
+	}
+	hash &= ~(1 << 31); /* strip the highest bit */
+	return hash;
 }
 
-uint32_t DJBHashn(char *str, uint16_t len)
+uint32_t
+DJBHashn(char *str, uint16_t len)
 {
-    unsigned int hash = 5381;
-	uint16_t i = 0;
-    while (i<len){
-        hash = ((hash << 5) + hash) + (*str++); /* times 33 */
+	unsigned int hash = 5381;
+	uint16_t     i    = 0;
+	while (i < len) {
+		hash = ((hash << 5) + hash) + (*str++); /* times 33 */
 		i++;
-    }
-    hash &= ~(1 << 31); /* strip the highest bit */
-    return hash;
+	}
+	hash &= ~(1 << 31); /* strip the highest bit */
+	return hash;
 }
 
 uint64_t
 nano_hash(char *str)
 {
-    uint64_t hash = 5381;
-    int c;
+	uint64_t hash = 5381;
+	int      c;
 
-    while (c = *str++)
-        hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
-		//hash = hash * 33 + c;
-    return hash;
+	while (c = *str++)
+		hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+	                                         // hash = hash * 33 + c;
+	return hash;
 }
 
 /**/
 
-//TODO
+// TODO
 void
 nano_qos_msg_repack(nni_msg *msg, nano_pipe_db *db)
 {
-	uint8_t *body, *header, qos_pub, qos_pac, tmp[4] = {0};
-	uint16_t	topic_len, pid;
-	size_t	 len, tlen;
-	nni_pipe * pipe;
-	//QoS TODO optimize log2(n)
+	uint8_t * body, *header, qos_pub, qos_pac, tmp[4] = { 0 };
+	uint16_t  topic_len, pid;
+	size_t    len, tlen;
+	nni_pipe *pipe;
+	// QoS TODO optimize log2(n)
 	if (nni_msg_cmd_type(msg) == CMD_PUBLISH) {
 		qos_pub = nni_msg_get_preset_qos(msg);
 		qos_pac = nni_msg_get_pub_qos(msg);
 		body    = nni_msg_body(msg);
 		header  = nni_msg_header(msg);
 		NNI_GET16(body, tlen);
-		debug_msg("qos_pac %d pub %d sub %d\n", qos_pac, qos_pub, db->qos);
+		debug_msg(
+		    "qos_pac %d pub %d sub %d\n", qos_pac, qos_pub, db->qos);
 		switch (qos_pub & db->qos) {
-			case 0x00:
-				if ((db->qos | qos_pub) == 0x03)
-					goto qos1;
-				if (qos_pub > 0) {
-					//set QoS
-					*header = *header & 0xF9;
-					if (qos_pac > 0) {
-						//modify remaining length
-						nni_msg_header_chop(msg, nni_msg_header_len(msg) - 1);
-						len = put_var_integer(tmp, nni_msg_remaining_len(msg) - 2);
-						nni_msg_header_append(msg, tmp, len);
-						memcpy(&topic_len, body, 2);
-						len = tlen + 4;
-						nni_msg_trim(msg, len);
-						len = NNI_GET16(body, len);
-						nni_msg_insert(msg, db->topic, len);
-						nni_msg_insert(msg, &topic_len, 2);
-						body = nni_msg_body(msg);
-						debug_msg("%x %x %x %x\n", *body, *(body+1), *(body+2), *(body +3));
-					}
-				}
-				break;
-			case 0x01:
-			case 0x02:
-qos1:			if (qos_pub == 1 || db->qos == 1) {
-					*header = *header | 0x02;
-					*header = *header & 0xFB;
-				}
-				else
-					*header = *header | 0x04;
-				if (qos_pac == 0) {
-					//modify remaining length 
-					nni_msg_header_chop(msg, nni_msg_header_len(msg) - 1);
-					len = put_var_integer(tmp, nni_msg_remaining_len(msg));
+		case 0x00:
+			if ((db->qos | qos_pub) == 0x03)
+				goto qos1;
+			if (qos_pub > 0) {
+				// set QoS
+				*header = *header & 0xF9;
+				if (qos_pac > 0) {
+					// modify remaining length
+					nni_msg_header_chop(
+					    msg, nni_msg_header_len(msg) - 1);
+					len = put_var_integer(tmp,
+					    nni_msg_remaining_len(msg) - 2);
 					nni_msg_header_append(msg, tmp, len);
-					//modify variable header
-					pid = nni_pipe_inc_packetid(pipe);
-					NNI_PUT16(&topic_len, pid);
-					len = tlen + 2;
+					memcpy(&topic_len, body, 2);
+					len = tlen + 4;
 					nni_msg_trim(msg, len);
 					len = NNI_GET16(body, len);
-
-					nni_msg_insert(msg, &pid, 2);
 					nni_msg_insert(msg, db->topic, len);
 					nni_msg_insert(msg, &topic_len, 2);
 					body = nni_msg_body(msg);
-					debug_msg("%x %x %x %x\n", *body, *(body+1), *(body+2), *(body +3));
-				} else {
-					pid = nni_pipe_inc_packetid(pipe);
-					body = nni_msg_body(msg);
-					len = tlen + 2;
-					NNI_PUT16(body+len, pid);
+					debug_msg("%x %x %x %x\n", *body,
+					    *(body + 1), *(body + 2),
+					    *(body + 3));
 				}
-				break;
-			default:
-				//TODO close pipe
-				break;
+			}
+			break;
+		case 0x01:
+		case 0x02:
+		qos1:
+			if (qos_pub == 1 || db->qos == 1) {
+				*header = *header | 0x02;
+				*header = *header & 0xFB;
+			} else
+				*header = *header | 0x04;
+			if (qos_pac == 0) {
+				// modify remaining length
+				nni_msg_header_chop(
+				    msg, nni_msg_header_len(msg) - 1);
+				len = put_var_integer(
+				    tmp, nni_msg_remaining_len(msg));
+				nni_msg_header_append(msg, tmp, len);
+				// modify variable header
+				pid = nni_pipe_inc_packetid(pipe);
+				NNI_PUT16(&topic_len, pid);
+				len = tlen + 2;
+				nni_msg_trim(msg, len);
+				len = NNI_GET16(body, len);
+
+				nni_msg_insert(msg, &pid, 2);
+				nni_msg_insert(msg, db->topic, len);
+				nni_msg_insert(msg, &topic_len, 2);
+				body = nni_msg_body(msg);
+				debug_msg("%x %x %x %x\n", *body, *(body + 1),
+				    *(body + 2), *(body + 3));
+			} else {
+				pid  = nni_pipe_inc_packetid(pipe);
+				body = nni_msg_body(msg);
+				len  = tlen + 2;
+				NNI_PUT16(body + len, pid);
+			}
+			break;
+		default:
+			// TODO close pipe
+			break;
 		}
 	}
 }

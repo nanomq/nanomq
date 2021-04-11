@@ -114,7 +114,6 @@ char       addr[64];
 static int cnt;
 
 TestMain("Pipe notify works", {
-
 	Convey("We can create a pipeline", {
 		struct testcase push;
 		struct testcase pull;

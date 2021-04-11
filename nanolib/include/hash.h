@@ -2,21 +2,21 @@
 #define HASH_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-
 struct topic_queue {
-	char               *topic;
+	char *              topic;
 	struct topic_queue *next;
 };
 
 typedef struct topic_queue topic_queue;
 
 struct msg_queue {
-	char             *msg;
+	char *            msg;
 	struct msg_queue *next;
 };
 
@@ -26,13 +26,13 @@ void push_val(int key, char *val);
 
 char *get_val(int key);
 
-void del_val(int key); 
+void del_val(int key);
 
 // @obj. _topic_hash
 
 void add_topic(uint32_t id, char *val);
 
-struct topic_queue *get_topic(uint32_t id); 
+struct topic_queue *get_topic(uint32_t id);
 
 void del_topic_one(uint32_t id, char *topic);
 
@@ -46,7 +46,7 @@ void add_pipe_id(uint32_t pipe_id, char *client_id);
 
 void del_pipe_id(uint32_t pipe_id);
 
-char *get_client_id(uint32_t pipe_id); 
+char *get_client_id(uint32_t pipe_id);
 
 bool check_pipe_id(uint32_t pipe_id);
 
@@ -58,7 +58,7 @@ void del_msg_queue_all(char *id);
 
 bool check_msg_queue_clientid(char *id);
 
-struct msg_queue * get_msg_queue(char *id);
+struct msg_queue *get_msg_queue(char *id);
 
 #ifdef __cplusplus
 }

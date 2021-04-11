@@ -57,10 +57,10 @@ extern void test_send_impl(char *file, int line, int sock, char *data);
 extern void test_recv_impl(char *file, int line, int sock, char *data);
 extern void test_drop_impl(char *file, int line, int sock, int err);
 extern int  test_setsockopt_impl(char *file, int line, int sock, int level,
-	int option, const void *optval, size_t optlen);
-extern int get_test_port(int argc, const char *argv[]);
-extern void test_addr_from(char *out, const char *proto, const char *ip,
-	int port);
+     int option, const void *optval, size_t optlen);
+extern int  get_test_port(int argc, const char *argv[]);
+extern void test_addr_from(
+    char *out, const char *proto, const char *ip, int port);
 extern void nn_sleep(int);
 
 #define test_socket(f, p) test_socket_impl(__FILE__, __LINE__, (f), (p))
@@ -77,7 +77,7 @@ struct nn_thread {
 	void *thr;
 };
 
-extern int nn_thread_init(struct nn_thread *, void (*)(void *), void *);
+extern int  nn_thread_init(struct nn_thread *, void (*)(void *), void *);
 extern void nn_thread_term(struct nn_thread *);
 
 #endif // COMPAT_TESTUTIL_H_INCLUDED

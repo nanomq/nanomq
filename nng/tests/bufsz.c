@@ -8,7 +8,6 @@
 // found online at https://opensource.org/licenses/MIT.
 //
 
-
 #include <nng/nng.h>
 #include <nng/protocol/pair1/pair.h>
 #include <nng/supplemental/util/platform.h>
@@ -98,19 +97,21 @@ test_buffer_legacy(void)
 		cnt = 1;
 		TEST_CHECK(
 		    nn_setsockopt(os, NN_SOL_SOCKET, nnopt, &cnt, sz) == 0);
-		TEST_CHECK(nn_getsockopt(os, NN_SOL_SOCKET, nnopt, &cnt, &sz) == 0);
+		TEST_CHECK(
+		    nn_getsockopt(os, NN_SOL_SOCKET, nnopt, &cnt, &sz) == 0);
 		TEST_CHECK(cnt == 1024); // round up!
 		TEST_CHECK(nng_getopt_int(s1, opt, &cnt) == 0);
 		TEST_CHECK(cnt == 1);
 
-		TEST_CHECK(nn_setsockopt(os, NN_SOL_SOCKET, nnopt, &cnt, 100) == -1);
+		TEST_CHECK(
+		    nn_setsockopt(os, NN_SOL_SOCKET, nnopt, &cnt, 100) == -1);
 		TEST_CHECK(nn_errno() == EINVAL);
 	}
 	TEST_CHECK(nng_close(s1) == 0);
 }
 
 TEST_LIST = {
-    { "buffer options", test_buffer_options },
-    { "buffer legacy", test_buffer_legacy },
-    { NULL, NULL },
+	{ "buffer options", test_buffer_options },
+	{ "buffer legacy", test_buffer_legacy },
+	{ NULL, NULL },
 };

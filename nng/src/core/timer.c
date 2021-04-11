@@ -136,7 +136,7 @@ nni_timer_loop(void *arg)
 	nni_time        now;
 	nni_timer_node *node;
 
-        nni_thr_set_name(NULL, "nng:timer");
+	nni_thr_set_name(NULL, "nng:timer");
 
 	for (;;) {
 		nni_mtx_lock(&timer->t_mx);

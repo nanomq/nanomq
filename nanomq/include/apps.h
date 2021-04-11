@@ -8,12 +8,12 @@ struct nanomq_app {
 	int (*stop)(int argc, char **argv);
 };
 
-#define NANOMQ_APP(_name, _dflt, _start, _stop) 		\
-const struct nanomq_app nanomq_app_##_name = {		\
-	.name = #_name,					\
-	.dflt = _dflt,					\
-	.start = _start,				\
-	.stop = _stop,					\
-}
+#define NANOMQ_APP(_name, _dflt, _start, _stop)        \
+	const struct nanomq_app nanomq_app_##_name = { \
+		.name  = #_name,                       \
+		.dflt  = _dflt,                        \
+		.start = _start,                       \
+		.stop  = _stop,                        \
+	}
 
 extern const struct nanomq_app *edge_apps[];

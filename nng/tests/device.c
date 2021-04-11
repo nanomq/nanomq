@@ -38,7 +38,6 @@ dodev(void *arg)
 #define SECOND(x) ((x) *1000)
 
 Main({
-
 	Test("PAIRv1 device", {
 		const char *addr1 = "inproc://dev1";
 		const char *addr2 = "inproc://dev2";
@@ -87,7 +86,6 @@ Main({
 
 			nng_msleep(100);
 			Convey("Device can send and receive", {
-
 				So(nng_msg_alloc(&msg, 0) == 0);
 				APPENDSTR(msg, "ALPHA");
 				So(nng_sendmsg(end1, msg, 0) == 0);

@@ -17,7 +17,7 @@ test_dial_before_listen(void)
 {
 	nng_socket s1;
 	nng_socket s2;
-	char       *addr;
+	char *     addr;
 
 	NUTS_OPEN(s1);
 	NUTS_OPEN(s2);
@@ -44,7 +44,7 @@ test_reconnect(void)
 	nng_socket   s1;
 	nng_socket   s2;
 	nng_listener l;
-	char         *addr;
+	char *       addr;
 
 	NUTS_OPEN(s1);
 	NUTS_OPEN(s2);

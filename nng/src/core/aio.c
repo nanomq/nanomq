@@ -107,11 +107,11 @@ nni_aio_init(nni_aio *aio, nni_cb cb, void *arg)
 	nni_task_init(&aio->a_task, NULL, cb, arg);
 	aio->a_expire  = NNI_TIME_NEVER;
 	aio->a_timeout = NNG_DURATION_INFINITE;
-    aio->pipe      = 0;
+	aio->pipe      = 0;
 	aio->packet_id = 0;
-    aio->db        = NULL;
-    // aio->pipes       = NULL;
-    // aio->pipe_len  = 0;
+	aio->db        = NULL;
+	// aio->pipes       = NULL;
+	// aio->pipe_len  = 0;
 	aio->a_expire_q =
 	    nni_aio_expire_q_list[nni_random() % nni_aio_expire_q_cnt];
 }
@@ -333,9 +333,9 @@ nni_aio_begin(nni_aio *aio)
 
 	NNI_ASSERT(!nni_aio_list_active(aio));
 #if defined(DEBUG)
-    debug_msg("aio->a_cancel_fn NULL %d?", (aio->a_cancel_fn == NULL));
+	debug_msg("aio->a_cancel_fn NULL %d?", (aio->a_cancel_fn == NULL));
 #else
-    //NNI_ASSERT(aio->a_cancel_fn == NULL);
+	// NNI_ASSERT(aio->a_cancel_fn == NULL);
 #endif
 	NNI_ASSERT(!nni_list_node_active(&aio->a_expire_node));
 
@@ -396,10 +396,10 @@ nni_aio_schedule(nni_aio *aio, nni_aio_cancel_fn cancel, void *data)
 	}
 
 #if defined(DEBUG)
-    debug_msg("aio->a_cancel_fn NULL %d?", (aio->a_cancel_fn == NULL));
+	debug_msg("aio->a_cancel_fn NULL %d?", (aio->a_cancel_fn == NULL));
 #else
 
-    NNI_ASSERT(aio->a_cancel_fn == NULL);
+	NNI_ASSERT(aio->a_cancel_fn == NULL);
 #endif
 	aio->a_cancel_fn  = cancel;
 	aio->a_cancel_arg = data;
@@ -792,7 +792,6 @@ nni_aio_sys_init(void)
 		num_thr = 256;
 	}
 
-
 	nni_aio_expire_q_list =
 	    nni_zalloc(sizeof(nni_aio_expire_q *) * num_thr);
 	nni_aio_expire_q_cnt = num_thr;
@@ -808,42 +807,42 @@ nni_aio_sys_init(void)
 	return (0);
 }
 
-
-//NANOMQ APIs
+// NANOMQ APIs
 void
 nni_aio_set_packetid(nni_aio *aio, uint16_t id)
 {
-    aio->packet_id = id;
+	aio->packet_id = id;
 }
 
 uint16_t
 nni_aio_get_packetid(nni_aio *aio)
 {
-    return aio->packet_id;
+	return aio->packet_id;
 }
 
 void
 nni_aio_set_pipeline(nni_aio *aio, uint32_t id)
 {
-    aio->pipe = id;
+	aio->pipe = id;
 }
 
 uint32_t
 nni_aio_get_pipeline(nni_aio *aio)
 {
-    return aio->pipe;
+	return aio->pipe;
 }
 
-void nni_aio_set_dbtree(nni_aio *aio, void *db)
+void
+nni_aio_set_dbtree(nni_aio *aio, void *db)
 {
-    debug_msg("set dbtree address: %p", db);
-    aio->db = db;
+	debug_msg("set dbtree address: %p", db);
+	aio->db = db;
 }
 
-void*
+void *
 nni_aio_get_dbtree(nni_aio *aio)
 {
-    return(aio->db);
+	return (aio->db);
 }
 /*
 void

@@ -397,7 +397,6 @@ nng_stat_bool(nni_stat *stat)
 	return (stat->s_val.sv_bool);
 }
 
-
 const char *
 nng_stat_string(nng_stat *stat)
 {

@@ -256,19 +256,19 @@ struct nn_cmsghdr {
 
 NN_DECL struct nn_cmsghdr *nn_cmsg_next(
     struct nn_msghdr *, struct nn_cmsghdr *);
-NN_DECL int nn_socket(int, int);
-NN_DECL int nn_setsockopt(int, int, int, const void *, size_t);
-NN_DECL int nn_getsockopt(int, int, int, void *, size_t *);
-NN_DECL int nn_bind(int, const char *);
-NN_DECL int nn_connect(int, const char *);
-NN_DECL int nn_shutdown(int, int);
-NN_DECL int nn_send(int, const void *, size_t, int);
-NN_DECL int nn_recv(int, void *, size_t, int);
-NN_DECL int nn_sendmsg(int, const struct nn_msghdr *, int);
-NN_DECL int nn_recvmsg(int, struct nn_msghdr *, int);
-NN_DECL int nn_close(int);
-NN_DECL int nn_poll(struct nn_pollfd *, int, int);
-NN_DECL int nn_device(int, int);
+NN_DECL int         nn_socket(int, int);
+NN_DECL int         nn_setsockopt(int, int, int, const void *, size_t);
+NN_DECL int         nn_getsockopt(int, int, int, void *, size_t *);
+NN_DECL int         nn_bind(int, const char *);
+NN_DECL int         nn_connect(int, const char *);
+NN_DECL int         nn_shutdown(int, int);
+NN_DECL int         nn_send(int, const void *, size_t, int);
+NN_DECL int         nn_recv(int, void *, size_t, int);
+NN_DECL int         nn_sendmsg(int, const struct nn_msghdr *, int);
+NN_DECL int         nn_recvmsg(int, struct nn_msghdr *, int);
+NN_DECL int         nn_close(int);
+NN_DECL int         nn_poll(struct nn_pollfd *, int, int);
+NN_DECL int         nn_device(int, int);
 NN_DECL uint64_t    nn_get_statistic(int, int);
 NN_DECL void *      nn_allocmsg(size_t, int);
 NN_DECL void *      nn_reallocmsg(void *, size_t);
