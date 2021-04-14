@@ -1,0 +1,38 @@
+{
+  "cn": [
+    {
+      "title": "NanoMQ 介绍",
+      "path": "./"
+    },
+    {
+      "title": "开始使用",
+      "path": "./quick-start"
+    },
+    {
+      "title": "功能特性",
+      "path": "./features"
+    },
+    {
+      "title": "测试报告",
+      "path": "./test-report"
+    }
+  ],
+  "en": [
+    {
+      "title": "Introduction",
+      "path": "./"
+    },
+    {
+      "title": "Getting Started",
+      "path": "./quick-start"
+    },
+    {
+      "title": "Features",
+      "path": "./features"
+    },
+    {
+      "title": "Test Report",
+      "path": "./test-report"
+    }
+  ]
+}
