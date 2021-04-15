@@ -457,7 +457,7 @@ tcptran_pipe_send_cb(void *arg)
 
 	msg = nni_aio_get_msg(aio);
 	n   = nni_msg_len(msg);
-	nni_pipe_bump_tx(p->npipe, n);
+	//nni_pipe_bump_tx(p->npipe, n);
 	// free qos buffer
 	if (p->qlength > 16 + NNI_NANO_MAX_PACKET_SIZE) {
 		nng_free(p->qos_buf, p->qlength);
@@ -545,7 +545,7 @@ tcptran_pipe_recv_cb(void *arg)
 			nni_aio_set_iov(qsaio, 1, &iov);
 			p->cmd = CMD_PINGRESP;
 			nng_stream_send(p->conn, qsaio);
-			goto quit;
+			goto notify;
 		} else if ((p->rxlen[0] & 0XFF) == CMD_DISCONNECT) {
 		}
 	}
@@ -706,7 +706,7 @@ tcptran_pipe_recv_cb(void *arg)
 	nni_msg_set_payload_ptr(msg, payload_ptr);
 
 	// keep connection & Schedule next receive
-	nni_pipe_bump_rx(p->npipe, n);
+	//nni_pipe_bump_rx(p->npipe, n);
 	tcptran_pipe_recv_start(p);
 	nni_mtx_unlock(&p->mtx);
 
@@ -728,9 +728,15 @@ recv_error:
 	return;
 quit:
 	// nni_aio_list_remove(aio);
-	nni_pipe_bump_rx(p->npipe, n);
+	//nni_pipe_bump_rx(p->npipe, n);
 	tcptran_pipe_recv_start(p);
 	nni_mtx_unlock(&p->mtx);
+	return;
+notify:
+	//nni_pipe_bump_rx(p->npipe, n);
+	tcptran_pipe_recv_start(p);
+	nni_mtx_unlock(&p->mtx);
+	nni_aio_finish_error(aio, rv);
 	return;
 }
 

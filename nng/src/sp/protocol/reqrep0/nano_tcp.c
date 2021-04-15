@@ -690,10 +690,10 @@ nano_pipe_recv_cb(void *arg)
 		return;
 	}
 	debug_msg("#########nano_pipe_recv_cb !############");
-
+	p->ka_refresh = 0;
 	msg = nni_aio_get_msg(&p->aio_recv);
 	if (msg == NULL) {
-		goto drop;
+		goto end;
 	}
 
 	header = nng_msg_header(msg);
@@ -703,7 +703,6 @@ nano_pipe_recv_cb(void *arg)
 	    nng_msg_header_len(msg));
 	// ttl = nni_atomic_get(&s->ttl);
 	nni_msg_set_pipe(msg, p->id);
-	p->ka_refresh = 0;
 	// TODO HOOK
 	switch (nng_msg_cmd_type(msg)) {
 	case CMD_SUBSCRIBE:
@@ -721,15 +720,13 @@ nano_pipe_recv_cb(void *arg)
 		break;
 	case CMD_PUBLISH:
 		// TODO QoS 1/2 sender side cache
-		break;
 	case CMD_DISCONNECT:
 	case CMD_UNSUBSCRIBE:
 		break;
 	case CMD_PUBREC:
 		// break;
-	case CMD_PINGREQ:
+	//case CMD_PINGREQ:
 	case CMD_PUBREL:
-		goto drop;
 	case CMD_PUBACK:
 	case CMD_PUBCOMP:
 		goto drop;
@@ -783,6 +780,7 @@ drop:
 	nni_pipe_recv(p->pipe, &p->aio_recv);
 	nni_msg_free(msg);
 	debug_msg("Warning:dropping msg");
+end:
 	return;
 }
 
