@@ -49,7 +49,7 @@ struct nano_ctx {
 	nni_list_node  rqnode;
 	nni_msg *      rmsg;
 	nni_msg *      smsg;
-	nni_timer_node qos_timer;
+	// nni_timer_node qos_timer;
 };
 
 // nano_sock is our per-socket protocol private structure.
@@ -180,8 +180,8 @@ nano_ctx_fini(void *arg)
 
 	// timer
 	debug_msg("========= nano_ctx_fini =========");
-	nni_timer_cancel(&ctx->qos_timer);
-	nni_timer_fini(&ctx->qos_timer);
+	// nni_timer_cancel(&ctx->qos_timer);
+	// nni_timer_fini(&ctx->qos_timer);
 }
 
 static int
@@ -271,11 +271,11 @@ nano_ctx_send(void *arg, nni_aio *aio)
 		nni_msg_free(msg);
 		return;
 	}
-	nni_mtx_lock(&p->lk);
 	nni_mtx_unlock(&s->lk);
 
 	p->tree = nni_aio_get_dbtree(aio);
 	nni_msg_set_timestamp(msg, nni_clock());
+	nni_mtx_lock(&p->lk);
 	if (!p->busy) {
 		p->busy = true;
 		nni_aio_set_msg(&p->aio_send, msg);
@@ -537,6 +537,7 @@ nano_pipe_close(void *arg)
 
 	nni_lmq_flush(&p->rlmq);
 	nano_msg_free_pipedb(p->pipedb_root);
+	p->pipedb_root = NULL;
 
 	while ((ctx = nni_list_first(&p->sendq)) != NULL) {
 		nni_aio *aio;
