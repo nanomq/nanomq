@@ -2,7 +2,7 @@
 
 ## Compile & Install
 
-To build NanoMQ, you will need a C99 & C++11 compatible compiler and [CMake](http://www.cmake.org/) version 3.13 or newer.
+To build NanoMQ, you will need a C99 & C++11 compatible compiler and [CMake](https://www.cmake.org/) version 3.13 or newer.
 
 Basically, you need to compile and install NanoMQ by following steps :
 

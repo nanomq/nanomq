@@ -13,6 +13,10 @@
       "path": "./features"
     },
     {
+      "title": "配置说明",
+      "path": "./configuration"
+    },
+    {
       "title": "测试报告",
       "path": "./test-report"
     }
@@ -29,6 +33,10 @@
     {
       "title": "Features",
       "path": "./features"
+    },
+    {
+      "title": "Configuration",
+      "path": "./configuration"
     },
     {
       "title": "Test Report",
