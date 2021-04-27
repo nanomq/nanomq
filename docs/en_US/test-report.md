@@ -2,7 +2,7 @@
 
 ## About NanoMQ
 
-[NanoMQ](http://nanomq.io/) is an open source project for edge computing that started in July 2020 and is the next generation of lightweight, high-performance MQTT messaging broker for the IoT edge computing scenario.
+[NanoMQ](https://nanomq.io/) is an open source project for edge computing that started in July 2020 and is the next generation of lightweight, high-performance MQTT messaging broker for the IoT edge computing scenario.
 
 Github repository address: <https://github.com/nanomq/nanomq>
 
