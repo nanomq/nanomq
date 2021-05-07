@@ -83,8 +83,8 @@ struct nano_pipe {
 	conn_param *   conn_param;
 	nano_pipe_db * pipedb_root;
 	nni_lmq        rlmq;
-	nni_timer_node ka_timer;
-	nni_timer_node pipe_qos_timer;
+	//nni_timer_node ka_timer;
+	//nni_timer_node pipe_qos_timer;
 };
 
 static void
@@ -141,8 +141,7 @@ nano_keepalive(nano_pipe *p, void *arg)
     interval = conn_param_get_keepalive(p->conn_param);
     debug_msg("KeepAlive: %d", interval);
     //20% KeepAlive as buffer time for multi-threading
-    nni_timer_schedule(&p->ka_timer, nni_clock() + NNI_SECOND * interval *
-0.8);
+    nni_timer_schedule(&p->ka_timer, nni_clock() + NNI_SECOND * interval * 0.8);
 }
 */
 
@@ -426,10 +425,10 @@ nano_pipe_fini(void *arg)
 	nni_aio_fini(&p->aio_timer);
 	nni_lmq_fini(&p->rlmq);
 
-	nni_timer_cancel(&p->ka_timer);
-	nni_timer_cancel(&p->pipe_qos_timer);
-	nni_timer_fini(&p->ka_timer);
-	nni_timer_fini(&p->pipe_qos_timer);
+	//nni_timer_cancel(&p->ka_timer);
+	//nni_timer_cancel(&p->pipe_qos_timer);
+	//nni_timer_fini(&p->ka_timer);
+	//nni_timer_fini(&p->pipe_qos_timer);
 }
 
 static int
@@ -511,6 +510,7 @@ nano_pipe_start(void *arg)
 	// nni_timer_schedule(&p->pipe_qos_timer, nni_clock() + NNI_SECOND *
 	// NNI_NANO_QOS_TIMER);
 	nni_pipe_recv(p->pipe, &p->aio_recv);
+	//Clean session
 	return (0);
 }
 
