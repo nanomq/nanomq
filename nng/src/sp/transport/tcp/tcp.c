@@ -42,7 +42,6 @@ struct tcptran_pipe {
 	nni_aio *       rxaio;
 	nni_aio *       qsaio;
 	nni_aio *       rsaio;
-	nni_aio *       tmaio;
 	nni_aio *       rpaio;
 	nni_aio *       negoaio;
 	nni_msg *       rxmsg;
@@ -127,7 +126,6 @@ tcptran_pipe_close(void *arg)
 	nni_aio_close(p->txaio);
 	nni_aio_close(p->rsaio);
 	nni_aio_close(p->qsaio);
-	nni_aio_close(p->tmaio);
 	nni_aio_close(p->negoaio);
 
 	nng_stream_close(p->conn);
@@ -144,7 +142,6 @@ tcptran_pipe_stop(void *arg)
 	nni_aio_stop(p->rpaio);
 	nni_aio_stop(p->rxaio);
 	nni_aio_stop(p->txaio);
-	nni_aio_stop(p->tmaio);
 	nni_aio_stop(p->negoaio);
 }
 
@@ -186,7 +183,6 @@ tcptran_pipe_fini(void *arg)
 	nni_aio_free(p->rsaio);
 	nni_aio_free(p->rxaio);
 	nni_aio_free(p->txaio);
-	nni_aio_free(p->tmaio);
 	nni_aio_free(p->negoaio);
 	nng_stream_free(p->conn);
 	nni_msg_free(p->rxmsg);
@@ -219,7 +215,6 @@ tcptran_pipe_alloc(tcptran_pipe **pipep)
 	    ((rv = nni_aio_alloc(&p->qsaio, NULL, p)) != 0) ||
 	    ((rv = nni_aio_alloc(&p->rpaio, NULL, p)) != 0) ||
 	    ((rv = nni_aio_alloc(&p->rsaio, NULL, p)) != 0) ||
-	    ((rv = nni_aio_alloc(&p->tmaio, tcptran_pipe_timer_cb, p)) != 0) ||
 	    ((rv = nni_aio_alloc(&p->rxaio, tcptran_pipe_recv_cb, p)) != 0) ||
 	    ((rv = nni_aio_alloc(&p->negoaio, tcptran_pipe_nego_cb, p)) !=
 	        0)) {
@@ -367,7 +362,7 @@ tcptran_pipe_nego_cb(void *arg)
 			// send it down...
 			nni_aio_set_iov(aio, 1, &iov);
 			nng_stream_send(p->conn, aio);
-			debug_msg("tcptran_pipe_nego_cb: reply ACK\n");
+			debug_msg("tcptran_pipe_nego_cb: reply ACK");
 			p->gottxhead = p->wanttxhead;
 			nni_mtx_unlock(&ep->mtx);
 			return;
@@ -388,7 +383,6 @@ tcptran_pipe_nego_cb(void *arg)
 
 	tcptran_ep_match(ep);
 	nni_mtx_unlock(&ep->mtx);
-	// nni_sleep_aio(NNI_NANO_QOS_TIMER * 1000, p->tmaio);
 	debug_msg(
 	    "^^^^^^^^^^^^^^end of tcptran_pipe_nego_cb^^^^^^^^^^^^^^^^^^^^\n");
 	return;
@@ -403,19 +397,6 @@ error:
 	nni_mtx_unlock(&ep->mtx);
 	tcptran_pipe_reap(p);
 	debug_msg("connect nego error rv: %d!", rv);
-	return;
-}
-
-static void
-tcptran_pipe_timer_cb(void *arg)
-{
-	tcptran_pipe *p = arg;
-	nni_msg *     msg;
-	nni_iov       iov[4];
-	uint16_t      pid;
-	nni_aio *     rsaio = p->rsaio;
-	nni_pipe *    npipe = p->npipe;
-
 	return;
 }
 
@@ -581,7 +562,7 @@ tcptran_pipe_recv_cb(void *arg)
 			iov.iov_len = len;
 
 			nni_aio_set_iov(rxaio, 1, &iov);
-			debug_msg("second recv action+++++++++++");
+			//second recv action
 			nng_stream_recv(p->conn, rxaio);
 			nni_mtx_unlock(&p->mtx);
 			return;
@@ -629,9 +610,7 @@ tcptran_pipe_recv_cb(void *arg)
 		uint8_t   qos_pac;
 		uint16_t  pid;
 		size_t    tlen;
-		nni_pipe *npipe;
 
-		npipe = &p->npipe;
 		NNI_GET16(variable_ptr, tlen);
 		qos_pac = nni_msg_get_pub_qos(msg);
 		if (cparam->pro_ver != PROTOCOL_VERSION_v5) {
@@ -873,7 +852,7 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 			int      rv;
 			nni_msg *old;
 			pid = nni_aio_get_packetid(aio);
-			if (pid == 0) {
+			if (pid == 0) {		//first time deal with "pid", it's not resending
 				pid = nni_pipe_inc_packetid(pipe);
 				// store msg for qos retrying
 				debug_msg("******** processing QoS pubmsg "
