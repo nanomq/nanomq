@@ -62,6 +62,7 @@ struct nano_sock {
 	nano_ctx       ctx; // base socket
 	nni_pollable   readable;
 	nni_pollable   writable;
+	void          *db;
 };
 
 // nano_pipe is our per-pipe protocol private structure.
@@ -380,8 +381,6 @@ nano_pipe_fini(void *arg)
 {
 	nano_pipe *         p = arg;
 	nng_msg *           msg;
-	void *              tree;
-	char *              client_id = NULL;
 	void *              cli_ctx   = NULL;
 	struct topic_queue *tq        = NULL;
 
@@ -849,6 +848,13 @@ nano_sock_recv(void *arg, nni_aio *aio)
 	nano_ctx_recv(&s->ctx, aio);
 }
 
+static void
+nano_sock_setdb(void *arg, void *db)
+{
+	nano_sock *s = arg;
+	s->db        = db;
+}
+
 // This is the global protocol structure -- our linkage to the core.
 // This should be the only global non-static symbol in this file.
 static nni_proto_pipe_ops nano_pipe_ops = {
@@ -912,5 +918,5 @@ int
 nng_nano_tcp0_open(nng_socket *sidp)
 {
 	// TODO Global binary tree init here
-	return (nni_proto_open(sidp, &nano_tcp_proto));
+	return (nni_proto_mqtt_open(sidp, &nano_tcp_proto, nano_sock_setdb));
 }
