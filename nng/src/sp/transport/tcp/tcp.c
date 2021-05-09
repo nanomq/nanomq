@@ -115,7 +115,7 @@ static void
 tcptran_pipe_close(void *arg)
 {
 	tcptran_pipe *p     = arg;
-	nni_pipe *    npipe = p->npipe;
+	// nni_pipe *    npipe = p->npipe;
 
 	nni_mtx_lock(&p->mtx);
 	p->closed = true;
@@ -163,7 +163,7 @@ tcptran_pipe_fini(void *arg)
 {
 	tcptran_pipe *p = arg;
 	tcptran_ep *  ep;
-	nni_pipe *    npipe = p->npipe;
+	// nni_pipe *    npipe = p->npipe;
 
 	tcptran_pipe_stop(p);
 	if ((ep = p->ep) != NULL) {
@@ -295,7 +295,7 @@ tcptran_pipe_nego_cb(void *arg)
 			                 // into NNG?
 			goto error;
 		}
-		len = get_var_integer(p->rxlen + 1, &len_of_varint);
+		len = get_var_integer(p->rxlen + 1, (uint32_t *)&len_of_varint);
 		debug_msg("CMD TYPE %x REMAINING LENGTH %d", p->rxlen[0], len);
 		p->wantrxhead = len + 1 + len_of_varint;
 	}
@@ -469,9 +469,9 @@ tcptran_pipe_recv_cb(void *arg)
 	nni_msg *     msg;
 	tcptran_pipe *p     = arg;
 	nni_aio *     rxaio = p->rxaio;
-	nni_aio *     txaio = p->txaio;
+	// nni_aio *     txaio = p->txaio;
 	nni_aio *     qsaio = p->qsaio;
-	nni_aio *     rpaio = p->rpaio;
+	// nni_aio *     rpaio = p->rpaio;
 	conn_param *  cparam;
 	uint32_t      len_of_varint = 0;
 
@@ -751,7 +751,7 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 	nni_msg *     msg;
 	int           niov;
 	nni_iov       iov[4];
-	nano_pipe_db *db;
+	// nano_pipe_db *db;
 
 	debug_msg("########### tcptran_pipe_send_start ###########");
 	if (p->closed) {
@@ -784,7 +784,7 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 		    tmp[4]                              = { 0 };
 		nni_pipe *    pipe;
 		uint16_t      pid;
-		size_t        len, tlen, rlen;
+		size_t        tlen, rlen;
 		nano_pipe_db *db;
 
 		pipe       = p->npipe;
@@ -794,13 +794,14 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 		NNI_GET16(body, tlen);
 
 		if ((db = nni_id_get(
-		         &pipe->nano_db, DJBHashn(body + 2, tlen))) == NULL) {
+		         &pipe->nano_db, DJBHashn((char *)body + 2, tlen))) == NULL) {
 			// shouldn't get here BUG TODO
 			nni_println(
 			    "ERROR: nano_db subscription topic missing!");
 			goto send;
 		}
 		qos_pub = nni_msg_get_preset_qos(msg);
+		NNI_ARG_UNUSED(qos_pub);
 		qos_pac = nni_msg_get_pub_qos(msg);
 		if (qos_pac == 0 /*&& db->qos == 0*/) {
 			// save time & space for QoS 0 publish
@@ -870,6 +871,9 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 					// pid);
 				}
 				rv = nni_id_set(&pipe->nano_qos_db, pid, msg);
+				if (rv != 0) {
+					nni_println("ERROR in nni id set.");
+				}
 			}
 			NNI_PUT16(varheader, pid);
 			p->qlength += 2;
@@ -1145,7 +1149,7 @@ tcptran_ep_close(void *arg)
 // This parses off the optional source address that this transport uses.
 // The special handling of this URL format is quite honestly an historical
 // mistake, which we would remove if we could.static int
-tcptran_url_parse_source(nng_url *url, nng_sockaddr *sa, const nng_url *surl)
+int tcptran_url_parse_source(nng_url *url, nng_sockaddr *sa, const nng_url *surl)
 {
 	int      af;
 	char *   semi;
@@ -1265,6 +1269,7 @@ error:
 static void
 tcptran_dial_cb(void *arg)
 {
+	NNI_ARG_UNUSED(arg);
 	return;
 }
 
@@ -1272,6 +1277,7 @@ static int
 tcptran_ep_init(tcptran_ep **epp, nng_url *url, nni_sock *sock)
 {
 	tcptran_ep *ep;
+	NNI_ARG_UNUSED(sock);
 
 	if ((ep = NNI_ALLOC_STRUCT(ep)) == NULL) {
 		return (NNG_ENOMEM);
@@ -1302,6 +1308,9 @@ static int
 tcptran_dialer_init(void **dp, nng_url *url, nni_dialer *ndialer)
 {
 	debug_msg("tcptran_dialer_init");
+	NNI_ARG_UNUSED(dp);
+	NNI_ARG_UNUSED(url);
+	NNI_ARG_UNUSED(ndialer);
 	return (0);
 }
 
@@ -1354,6 +1363,8 @@ tcptran_ep_cancel(nni_aio *aio, void *arg, int rv)
 static void
 tcptran_ep_connect(void *arg, nni_aio *aio)
 {
+	NNI_ARG_UNUSED(arg);
+	NNI_ARG_UNUSED(aio);
 	debug_msg("tcptran_ep_connect ");
 }
 
@@ -1496,6 +1507,11 @@ static int
 tcptran_dialer_getopt(
     void *arg, const char *name, void *buf, size_t *szp, nni_type t)
 {
+	NNI_ARG_UNUSED(arg);
+	NNI_ARG_UNUSED(name);
+	NNI_ARG_UNUSED(buf);
+	NNI_ARG_UNUSED(szp);
+	NNI_ARG_UNUSED(t);
 	return 0;
 }
 
@@ -1503,6 +1519,11 @@ static int
 tcptran_dialer_setopt(
     void *arg, const char *name, const void *buf, size_t sz, nni_type t)
 {
+	NNI_ARG_UNUSED(arg);
+	NNI_ARG_UNUSED(name);
+	NNI_ARG_UNUSED(buf);
+	NNI_ARG_UNUSED(sz);
+	NNI_ARG_UNUSED(t);
 	return 0;
 }
 
