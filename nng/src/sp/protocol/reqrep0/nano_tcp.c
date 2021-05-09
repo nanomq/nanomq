@@ -114,7 +114,6 @@ nano_pipe_timer_cb(void *arg)
 		msg = nni_id_get_any(&npipe->nano_qos_db, &pid);
 		if (msg != NULL) {
 			time         = nni_msg_get_timestamp(msg);
-			uint64_t div = nni_clock() - time;
 			if ((nni_clock() - time) >=
 			    NNI_NANO_QOS_TIMER * 1250) {
 				p->busy = true;
@@ -230,7 +229,6 @@ nano_ctx_send(void *arg, nni_aio *aio)
 	nano_pipe *p;
 	nni_msg *  msg;
 	int        rv;
-	size_t     len;
 	uint32_t   pipe;
 	// uint32_t   p_id[2],i = 0,fail_count = 0, need_resend = 0;
 
@@ -255,7 +253,6 @@ nano_ctx_send(void *arg, nni_aio *aio)
 		nni_pollable_clear(&s->writable);
 	}
 
-	len = nni_msg_len(msg);
 	nni_mtx_lock(&s->lk);
 	debug_msg("*************************** working with pipe id : %d "
 	          "ctx***************************",
@@ -457,6 +454,7 @@ nano_pipe_init(void *arg, nni_pipe *pipe, void *s)
 	return (0);
 }
 
+/*
 static int
 nano_ctx_set_qsize(
     void *arg, void *arg2, const void *buf, size_t sz, nni_type t)
@@ -480,6 +478,7 @@ nano_ctx_set_qsize(
 	nni_mtx_unlock(&sock->lk);
 	return (0);
 }
+*/
 
 static int
 nano_pipe_start(void *arg)
@@ -557,12 +556,7 @@ static void
 nano_pipe_send_cb(void *arg)
 {
 	nano_pipe *p = arg;
-	nano_sock *s = p->rep;
-	nni_pipe * npipe;
-	nano_ctx * ctx;
-	nni_aio *  aio;
 	nni_msg *  msg;
-	size_t     len;
 	// uint32_t   index = 0;
 	// uint32_t * pipes;
 
@@ -593,7 +587,7 @@ nano_pipe_send_cb(void *arg)
 
 	p->busy = false;
 	nni_mtx_unlock(&p->lk);
-	debug_msg("nano_pipe_send_cb: end of qos logic ctx : %p", ctx);
+	// debug_msg("nano_pipe_send_cb: end of qos logic ctx : %p", ctx);
 	return;
 }
 
@@ -677,8 +671,7 @@ nano_pipe_recv_cb(void *arg)
 	nano_pipe *   p = arg;
 	nano_sock *   s = p->rep;
 	nano_ctx *    ctx;
-	nni_msg *     msg, *qos_msg;
-	uint8_t *     header;
+	nni_msg *     msg;
 	nni_aio *     aio;
 	nano_pipe_db *pipe_db;
 	nni_pipe *    npipe = p->pipe;
@@ -696,11 +689,10 @@ nano_pipe_recv_cb(void *arg)
 		goto end;
 	}
 
-	header = nng_msg_header(msg);
-	debug_msg("start nano_pipe_recv_cb pipe: %p p_id %d TYPE: %x ===== "
-	          "header: %x %x header len: %zu\n",
-	    p, p->id, nng_msg_cmd_type(msg), *header, *(header + 1),
-	    nng_msg_header_len(msg));
+	// debug_msg("start nano_pipe_recv_cb pipe: %p p_id %d TYPE: %x ===== "
+	//          "header: %x %x header len: %zu\n",
+	//     p, p->id, nng_msg_cmd_type(msg), *nng_msg_header(msg),
+	//     *(nng_msg_header(msg) + 1), nng_msg_header_len(msg));
 	// ttl = nni_atomic_get(&s->ttl);
 	nni_msg_set_pipe(msg, p->id);
 	// TODO HOOK
@@ -714,6 +706,9 @@ nano_pipe_recv_cb(void *arg)
 		while (pipe_db) {
 			rv = nni_id_set(
 			    &npipe->nano_db, DJBHash(pipe_db->topic), pipe_db);
+			if (rv != 0) {
+				nni_println("ERROR in nni id set.");
+			}
 			pipe_db = pipe_db->next;
 		}
 		nni_mtx_unlock(&p->lk);

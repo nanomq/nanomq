@@ -690,8 +690,6 @@ nni_msg_get_pub_pid(nni_msg *m)
 {
 	uint16_t pid;
 	uint8_t *pos, len;
-	size_t   remain = 0;
-	remain          = nni_msg_remaining_len(m) - 2;
 
 	pos = nni_msg_body(m);
 	NNI_GET16(pos, len);
@@ -727,13 +725,12 @@ nni_msg_set_qos(nni_msg *m, uint8_t qos)
 nano_pipe_db *
 nano_msg_get_subtopic(nni_msg *msg)
 {
-	char *        topic;
+	char         *topic, *payload_ptr;
 	nano_pipe_db *root = NULL, *db = NULL, *tmp = NULL;
-	uint8_t       bpos = 0, len_of_topic = 0, *payload_ptr;
-	;
+	uint8_t       bpos = 0, len_of_topic = 0;
 	size_t remain = 0;
 
-	payload_ptr = nni_msg_payload_ptr(msg);
+	payload_ptr = (char*)nni_msg_payload_ptr(msg);
 	remain      = nni_msg_remaining_len(msg) - 2;
 
 	if (nni_msg_cmd_type(msg) != 0x80)
@@ -761,7 +758,7 @@ nano_msg_get_subtopic(nni_msg *msg)
 			} else {
 				bpos += 2;
 			}
-			strncpy(topic, payload_ptr + bpos, len_of_topic);
+			strncpy(topic, (char *)payload_ptr + bpos, len_of_topic);
 			topic[len_of_topic] = 0x00;
 			db->topic           = topic;
 			bpos += len_of_topic;

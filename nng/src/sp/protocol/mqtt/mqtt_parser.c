@@ -214,7 +214,7 @@ utf8_check(const char *str, size_t len)
 		}
 
 		/* Reconstruct full code point */
-		if (i == len - codelen + 1) {
+		if (i == (int)len - codelen + 1) {
 			/* Not enough data */
 			return ERR_MALFORMED_UTF8;
 		}
@@ -273,10 +273,11 @@ int
 fixed_header_adaptor(uint8_t *packet, nng_msg *dst)
 {
 	nni_msg *m;
-	int      rv, pos = 1;
+	int      rv;
+	size_t   pos = 1;
 
 	m = (nni_msg *) dst;
-	get_var_integer(packet, &pos);
+	get_var_integer(packet, (uint32_t *)&pos);
 
 	rv = nni_msg_header_append(m, packet, pos);
 	return rv;
@@ -329,7 +330,7 @@ conn_handler(uint8_t *packet, conn_param *cparam)
 	// remaining length
 	len = (uint32_t) get_var_integer(packet, &pos);
 	// protocol name
-	cparam->pro_name.body = copy_utf8_str(packet, &pos, &len_of_str);
+	cparam->pro_name.body = (char *)copy_utf8_str(packet, &pos, &len_of_str);
 	cparam->pro_name.len  = len_of_str;
 	rv                    = rv | len_of_str;
 	debug_msg("pro_name: %s", cparam->pro_name.body);
@@ -423,8 +424,7 @@ conn_handler(uint8_t *packet, conn_param *cparam)
 					break;
 				case AUTHENTICATION_DATA:
 					debug_msg("AUTHENTICATION_DATA");
-					cparam->auth_data.body =
-					    (char *) copy_utf8_str(
+					cparam->auth_data.body = copy_utf8_str(
 					        packet, &pos, &len_of_str);
 					rv = rv | len_of_str;
 					cparam->auth_data.len = len_of_str;
@@ -502,27 +502,22 @@ conn_handler(uint8_t *packet, conn_param *cparam)
 						debug_msg("RESPONSE_TOPIC");
 						cparam->resp_topic.body =
 						    (char *) copy_utf8_str(
-						        packet, &pos,
-						        &len_of_str);
+						        packet, &pos, &len_of_str);
 						cparam->resp_topic.len =
 						    len_of_str;
 						rv = rv | len_of_str;
 						debug_msg("resp topic: %s %d",
-						    cparam->resp_topic.body,
-						    rv);
+						    cparam->resp_topic.body, rv);
 						break;
 					case CORRELATION_DATA:
 						debug_msg("CORRELATION_DATA");
-						cparam->corr_data.body =
-						    (char *) copy_utf8_str(
-						        packet, &pos,
-						        &len_of_str);
+						cparam->corr_data.body = copy_utf8_str(
+						        packet, &pos, &len_of_str);
 						cparam->corr_data.len =
 						    len_of_str;
 						rv = rv | len_of_str;
 						debug_msg("corr_data: %s %d",
-						    cparam->corr_data.body,
-						    rv);
+						    cparam->corr_data.body, rv);
 						break;
 					case USER_PROPERTY:
 						debug_msg("USER_PROPERTY");
@@ -565,7 +560,7 @@ conn_handler(uint8_t *packet, conn_param *cparam)
 		debug_msg("will_topic: %s %d", cparam->will_topic.body, rv);
 		// will msg
 		cparam->will_msg.body =
-		    copy_utf8_str(packet, &pos, &len_of_str);
+		    (char *)copy_utf8_str(packet, &pos, &len_of_str);
 		cparam->will_msg.len = len_of_str;
 		rv                   = rv | len_of_str;
 		debug_msg("will_msg: %s %d", cparam->will_msg.body, rv);
@@ -582,12 +577,15 @@ conn_handler(uint8_t *packet, conn_param *cparam)
 	// password
 	if ((cparam->con_flag & 0x40) > 0) {
 		cparam->password.body =
-		    (char *) copy_utf8_str(packet, &pos, &len_of_str);
+		    copy_utf8_str(packet, &pos, &len_of_str);
 		cparam->password.len = len_of_str;
 		rv                   = rv | len_of_str;
 		debug_msg("password: %s %d", cparam->password.body, rv);
 	}
 	// what if rv = 0?
+	if (len + 1 < pos) {
+		debug_msg("ERROR in connect handler");
+	}
 	return rv;
 }
 
@@ -684,7 +682,7 @@ nano_hash(char *str)
 	uint64_t hash = 5381;
 	int      c;
 
-	while (c = *str++)
+	while ((c = *str++))
 		hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
 	                                         // hash = hash * 33 + c;
 	return hash;
@@ -726,7 +724,7 @@ nano_qos_msg_repack(nni_msg *msg, nano_pipe_db *db)
 					memcpy(&topic_len, body, 2);
 					len = tlen + 4;
 					nni_msg_trim(msg, len);
-					len = NNI_GET16(body, len);
+					NNI_GET16(body, len);
 					nni_msg_insert(msg, db->topic, len);
 					nni_msg_insert(msg, &topic_len, 2);
 					body = nni_msg_body(msg);
@@ -756,7 +754,7 @@ nano_qos_msg_repack(nni_msg *msg, nano_pipe_db *db)
 				NNI_PUT16(&topic_len, pid);
 				len = tlen + 2;
 				nni_msg_trim(msg, len);
-				len = NNI_GET16(body, len);
+				NNI_GET16(body, len);
 
 				nni_msg_insert(msg, &pid, 2);
 				nni_msg_insert(msg, db->topic, len);
