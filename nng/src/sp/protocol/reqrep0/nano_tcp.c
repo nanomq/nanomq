@@ -274,7 +274,6 @@ nano_ctx_send(void *arg, nni_aio *aio)
 	}
 	nni_mtx_unlock(&s->lk);
 
-	p->tree = nni_aio_get_dbtree(aio);
 	nni_msg_set_timestamp(msg, nni_clock());
 	nni_mtx_lock(&p->lk);
 	if (!p->busy) {
@@ -438,6 +437,7 @@ static int
 nano_pipe_init(void *arg, nni_pipe *pipe, void *s)
 {
 	nano_pipe *p = arg;
+	nano_sock *sock = s;
 
 	debug_msg("##########nano_pipe_init###############");
 
@@ -454,6 +454,7 @@ nano_pipe_init(void *arg, nni_pipe *pipe, void *s)
 	p->rep        = s;
 	p->ka_refresh = 0;
 	p->conn_param = nni_pipe_get_conn_param(pipe);
+	p->tree       = sock->db;
 
 	return (0);
 }

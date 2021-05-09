@@ -449,7 +449,6 @@ broker(const char *url)
 		works[i]         = alloc_work(sock);
 		works[i]->db     = db;
 		works[i]->db_ret = db_ret;
-		nng_aio_set_dbtree(works[i]->aio, db);
 	}
 
 	if ((rv = nng_listen(sock, url, NULL, 0)) != 0) {
