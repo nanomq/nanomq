@@ -109,7 +109,6 @@ nni_aio_init(nni_aio *aio, nni_cb cb, void *arg)
 	aio->a_timeout = NNG_DURATION_INFINITE;
 	aio->pipe      = 0;
 	aio->packet_id = 0;
-	aio->db        = NULL;
 	// aio->pipes       = NULL;
 	// aio->pipe_len  = 0;
 	aio->a_expire_q =
@@ -832,18 +831,6 @@ nni_aio_get_pipeline(nni_aio *aio)
 	return aio->pipe;
 }
 
-void
-nni_aio_set_dbtree(nni_aio *aio, void *db)
-{
-	debug_msg("set dbtree address: %p", db);
-	aio->db = db;
-}
-
-void *
-nni_aio_get_dbtree(nni_aio *aio)
-{
-	return (aio->db);
-}
 /*
 void
 nni_aio_set_pipes(nni_aio *aio, uint32_t *pipes)

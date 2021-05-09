@@ -169,8 +169,6 @@ extern void nni_aio_sys_fini(void);
 extern void     nni_aio_set_sockaddr(nni_aio *aio, const nng_sockaddr *);
 extern void     nni_aio_get_sockaddr(nni_aio *aio, nng_sockaddr *);
 extern void     nni_aio_set_pipeline(nni_aio *aio, uint32_t id);
-extern void     nni_aio_set_dbtree(nni_aio *aio, void *db);
-extern void *   nni_aio_get_dbtree(nni_aio *aio);
 extern uint32_t nni_aio_get_pipeline(nni_aio *aio);
 extern uint16_t nni_aio_get_packetid(nni_aio *aio);
 extern void     nni_aio_set_packetid(nni_aio *aio, uint16_t id);
@@ -222,7 +220,6 @@ struct nng_aio {
 	// NanoMQ var
 	// uint32_t *      pipes;
 	// uint32_t        pipe_len;
-	void *   db;
 	uint32_t pipe;
 	uint16_t packet_id;
 };
