@@ -206,7 +206,7 @@ server_cb(void *arg)
 			nng_msg_free(work->msg);
 			// handle retain
 			if (work->msg_ret) {
-				debug_msg("retain msg [%p] size [%d] \n",
+				debug_msg("retain msg [%p] size [%ld] \n",
 				    work->msg_ret,
 				    cvector_size(work->msg_ret));
 				for (int i = 0;

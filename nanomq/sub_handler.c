@@ -319,7 +319,7 @@ sub_ctx_handle(emq_work *work)
 				if (r[i]) {
 					debug_msg(
 					    "found retain [%p], message: "
-					    "[%p][%p] sz [%d]\n",
+					    "[%p][%p] sz [%ld]\n",
 					    r[i], r[i]->message,
 					    nng_msg_payload_ptr(r[i]->message),
 					    cvector_size(r));
