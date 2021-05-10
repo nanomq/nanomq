@@ -91,7 +91,7 @@ typedef struct nng_pipe_s {
 
 typedef struct nng_socket_s {
 	uint32_t id;
-	void    *db;
+	void    *data;
 } nng_socket;
 
 typedef int32_t         nng_duration; // in milliseconds
