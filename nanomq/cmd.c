@@ -263,8 +263,8 @@ cmd_create_read_pipe(int *fd, const char *cmd, ...)
 	va_end(ap);
 
 	if (pipe(pipes) < 0) {
-		debug_msg("%s: count not create pipe to '%s' : %s", cmd,
-		    strerror(errno));
+		debug_msg("%s: count not create pipe '%d' to '%d' : %s",
+		    cmd, pipes[0], pipes[1], strerror(errno));
 		goto err;
 	}
 

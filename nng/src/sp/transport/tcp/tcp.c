@@ -85,7 +85,6 @@ static void tcptran_pipe_send_start(tcptran_pipe *);
 static void tcptran_pipe_recv_start(tcptran_pipe *);
 static void tcptran_pipe_send_cb(void *);
 static void tcptran_pipe_recv_cb(void *);
-static void tcptran_pipe_timer_cb(void *);
 static void tcptran_pipe_nego_cb(void *);
 static void tcptran_ep_fini(void *);
 static void tcptran_pipe_fini(void *);
@@ -266,7 +265,7 @@ tcptran_pipe_nego_cb(void *arg)
 	uint32_t      len;
 	int           rv, len_of_varint = 0;
 
-	debug_msg("start tcptran_pipe_nego_cb max len %d pipe_addr %p\n",
+	debug_msg("start tcptran_pipe_nego_cb max len %ld pipe_addr %p\n",
 	    NANO_CONNECT_PACKET_LEN, p);
 	nni_mtx_lock(&ep->mtx);
 
@@ -285,7 +284,7 @@ tcptran_pipe_nego_cb(void *arg)
 	ACK/error nni_mtx_unlock(&ep->mtx); return;
 	}*/
 
-	debug_msg("current header : gottx %d gotrx %d needrx %d needtx %d\n",
+	debug_msg("current header : gottx %ld gotrx %ld needrx %ld needtx %ld\n",
 	    p->gottxhead, p->gotrxhead, p->wantrxhead, p->wanttxhead);
 	if (p->gotrxhead >= p->wantrxhead && p->gottxhead < p->wanttxhead) {
 		if (p->rxlen[0] != CMD_CONNECT) {
@@ -309,7 +308,7 @@ tcptran_pipe_nego_cb(void *arg)
 		nni_mtx_unlock(&ep->mtx);
 		return;
 	}
-	debug_msg("fixed header : gottx %d gotrx %d needrx %d needtx %d "
+	debug_msg("fixed header : gottx %ld gotrx %ld needrx %ld needtx %ld "
 	          "CONNECT Need more bytes hex: %x %x\n",
 	    p->gottxhead, p->gotrxhead, p->wantrxhead, p->wanttxhead,
 	    p->rxlen[0], p->rxlen[1]);
@@ -328,8 +327,8 @@ tcptran_pipe_nego_cb(void *arg)
 		nni_aio_set_iov(aio, 1, &iov);
 		nng_stream_recv(p->conn, aio);
 		nni_mtx_unlock(&ep->mtx);
-		debug_msg("variable and payload : gottx %d gotrx %d needrx %d "
-		          "needtx %d hex: %x %x\n",
+		debug_msg("variable and payload : gottx %ld gotrx %ld needrx %ld "
+		          "needtx %ld hex: %x %x\n",
 		    p->gottxhead, p->gotrxhead, p->wantrxhead, p->wanttxhead,
 		    p->rxlen[0], p->rxlen[1]);
 		return;
@@ -337,7 +336,7 @@ tcptran_pipe_nego_cb(void *arg)
 
 	// We have both sent and received the CONNECT headers.  Lets check TODO
 	// CONNECT packet serialization
-	debug_msg("******** %d %d %d %d nego msg: %s ----- %x\n", p->gottxhead,
+	debug_msg("******** %ld %ld %ld %ld nego msg: %s ----- %x\n", p->gottxhead,
 	    p->gotrxhead, p->wantrxhead, p->wanttxhead, p->rxlen, p->rxlen[0]);
 
 	// reply error/CONNECT ACK
@@ -426,7 +425,7 @@ tcptran_pipe_send_cb(void *arg)
 	n = nni_aio_count(txaio);
 	nni_aio_iov_advance(txaio, n);
 	debug_msg(
-	    "tcp socket sent %d bytes iov %d", n, nni_aio_iov_count(txaio));
+	    "tcp socket sent %ld bytes iov %ld", n, nni_aio_iov_count(txaio));
 
 	if (nni_aio_iov_count(txaio) > 0) {
 		nng_stream_send(p->conn, txaio);
@@ -491,13 +490,13 @@ tcptran_pipe_recv_cb(void *arg)
 	nni_aio_iov_advance(rxaio, n);
 	// not receive enough bytes, deal with remaining length
 	len = get_var_integer(p->rxlen, &pos);
-	debug_msg("new %d recevied %d header %x %d pos: %d len : %d", n,
+	debug_msg("new %ld recevied %ld header %x %d pos: %d len : %d", n,
 	    p->gotrxhead, p->rxlen[0], p->rxlen[1], pos, len);
-	debug_msg("still need byte count:%d > 0\n", nni_aio_iov_count(rxaio));
+	debug_msg("still need byte count:%ld > 0\n", nni_aio_iov_count(rxaio));
 
 	if (nni_aio_iov_count(rxaio) > 0) {
-		debug_msg("got: %x %x, %d!!\n", p->rxlen[0], p->rxlen[1],
-		    strlen(p->rxlen));
+		debug_msg("got: %x %x, %ld!!\n", p->rxlen[0], p->rxlen[1],
+		    strlen((char *)p->rxlen));
 		nng_stream_recv(p->conn, rxaio);
 		nni_mtx_unlock(&p->mtx);
 		return;
@@ -582,7 +581,7 @@ tcptran_pipe_recv_cb(void *arg)
 	nni_msg_set_remaining_len(msg, len);
 	nni_msg_set_cmd_type(msg, type);
 	debug_msg("remain_len %d cparam %p clientid %s username %s proto %d\n",
-	    len, cparam, &cparam->clientid.body, &cparam->username.body,
+	    len, cparam, cparam->clientid.body, cparam->username.body,
 	    cparam->pro_ver);
 	variable_ptr = nni_msg_variable_ptr(msg);
 
@@ -1265,13 +1264,15 @@ error:
 	}
 	nni_mtx_unlock(&ep->mtx);
 }
-// abandoned
+
+/* abandoned
 static void
 tcptran_dial_cb(void *arg)
 {
 	NNI_ARG_UNUSED(arg);
 	return;
 }
+*/
 
 static int
 tcptran_ep_init(tcptran_ep **epp, nng_url *url, nni_sock *sock)
@@ -1304,6 +1305,7 @@ tcptran_ep_init(tcptran_ep **epp, nng_url *url, nni_sock *sock)
 	return (0);
 }
 
+/*
 static int
 tcptran_dialer_init(void **dp, nng_url *url, nni_dialer *ndialer)
 {
@@ -1313,6 +1315,7 @@ tcptran_dialer_init(void **dp, nng_url *url, nni_dialer *ndialer)
 	NNI_ARG_UNUSED(ndialer);
 	return (0);
 }
+*/
 
 static int
 tcptran_listener_init(void **lp, nng_url *url, nni_listener *nlistener)
@@ -1360,6 +1363,7 @@ tcptran_ep_cancel(nni_aio *aio, void *arg, int rv)
 	nni_mtx_unlock(&ep->mtx);
 }
 
+/*
 static void
 tcptran_ep_connect(void *arg, nni_aio *aio)
 {
@@ -1367,6 +1371,7 @@ tcptran_ep_connect(void *arg, nni_aio *aio)
 	NNI_ARG_UNUSED(aio);
 	debug_msg("tcptran_ep_connect ");
 }
+*/
 
 // TODO network interface bind
 static int
@@ -1503,6 +1508,7 @@ static const nni_option tcptran_ep_opts[] = {
 	},
 };
 
+/*
 static int
 tcptran_dialer_getopt(
     void *arg, const char *name, void *buf, size_t *szp, nni_type t)
@@ -1526,6 +1532,7 @@ tcptran_dialer_setopt(
 	NNI_ARG_UNUSED(t);
 	return 0;
 }
+*/
 
 static int
 tcptran_listener_getopt(
