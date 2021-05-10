@@ -80,7 +80,7 @@ nni_proto_mqtt_open(nng_socket *sockidp, const nni_proto *proto, void (*sock_set
 	}
 	if ((rv = nni_sock_open(&sock, proto)) == 0) {
 		sockidp->id = nni_sock_id(sock); // Keep socket held open.
-		sock_setdb(nni_sock_proto_data(sock), sockidp->db);
+		sock_setdb(nni_sock_proto_data(sock), sockidp->data);
 	}
 	return (rv);
 }

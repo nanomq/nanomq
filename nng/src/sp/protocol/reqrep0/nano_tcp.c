@@ -396,7 +396,6 @@ nano_pipe_fini(void *arg)
 
 	// MQTT_DB
 	debug_msg("deleting %d", p->id);
-	debug_msg("tree : %p", p->tree);
 
 	if (p->tree != NULL) {
 		if (check_id(p->id)) {

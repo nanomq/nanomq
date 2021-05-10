@@ -436,8 +436,8 @@ broker(const char *url)
 	}
 
 	/*  Create the socket. */
-	sock.id = 0;
-	sock.db = db;
+	sock.id   = 0;
+	sock.data = db;
 	rv = nng_nano_tcp0_open(&sock);
 	if (rv != 0) {
 		fatal("nng_nano_tcp0_open", rv);
