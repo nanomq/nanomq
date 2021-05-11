@@ -295,12 +295,10 @@ sub_ctx_handle(emq_work *work)
 		topic_str[topic_len] = '\0';
 		debug_msg("topicLen: [%d] body: [%s]", topic_len, topic_str);
 
-		client_id = (char *) conn_param_get_clentid(
-		    (conn_param *) nng_msg_get_conn_param(work->msg));
-		search_and_insert(
-		    work->db, topic_str, client_id, cli_ctx, work->pid.id);
-
-		add_topic(work->pid.id, topic_str);
+		client_id = (char *)conn_param_get_clientid((conn_param *)nng_msg_get_conn_param(work->msg));
+		search_and_insert(work->db, topic_str, client_id, cli_ctx, work->pid.id);
+		if (!search_topic(work->pid.id, topic_str))
+			add_topic(work->pid.id, topic_str);
 		// check
 		tq = get_topic(work->pid.id);
 		debug_msg("-----CHECKHASHTABLE----clientid: [%s]---topic: "

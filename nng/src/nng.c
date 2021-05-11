@@ -1982,7 +1982,7 @@ nng_msg_preset_qos(nng_msg *m, uint8_t qos)
 }
 
 const uint8_t *
-conn_param_get_clentid(conn_param *cparam)
+conn_param_get_clientid(conn_param *cparam)
 {
 	return (const uint8_t *) cparam->clientid.body;
 }

@@ -16,7 +16,6 @@
 
 static uint8_t  get_value_size(uint64_t value);
 static uint64_t power(uint64_t x, uint32_t n);
-static void     init_conn_param(conn_param *);
 
 static uint64_t
 power(uint64_t x, uint32_t n)
@@ -617,8 +616,7 @@ destroy_conn_param(conn_param *cparam)
 	cparam = NULL;
 }
 
-static void
-init_conn_param(conn_param *cparam)
+void init_conn_param(conn_param *cparam)
 {
 	cparam->pro_name.len                  = 0;
 	cparam->pro_name.body                 = NULL;

@@ -367,8 +367,8 @@ tcptran_pipe_nego_cb(void *arg)
 			nni_mtx_unlock(&ep->mtx);
 			return;
 		} else {
-			debug_msg("%d", rv);
 			rv = NNG_EPROTO;
+			nng_free(p->conn_buf, p->wantrxhead);
 			goto error;
 		}
 	}
@@ -668,10 +668,10 @@ tcptran_pipe_recv_cb(void *arg)
 		npipe = p->npipe;
 		ptr   = nni_msg_body(msg);
 		NNI_GET16(ptr, ackid);
-		if ((qos_msg = nni_id_get(&npipe->nano_qos_db, ackid)) !=
+		if ((qos_msg = nni_id_get(npipe->nano_qos_db, ackid)) !=
 		    NULL) {
 			nni_msg_free(qos_msg);
-			nni_id_remove(&npipe->nano_qos_db, ackid);
+			nni_id_remove(npipe->nano_qos_db, ackid);
 		} else {
 			// shouldn't get here BUG TODO
 			debug_syslog("qos msg not found!");
@@ -858,7 +858,7 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 				    p);
 				nni_msg_clone(msg);
 				if ((old = nni_id_get(
-				         &pipe->nano_qos_db, pid)) != NULL) {
+				        pipe->nano_qos_db, pid)) != NULL) {
 					// TODO  shouldn't get here BUG
 					nni_println(
 					    "ERROR: packet id duplicates in "
@@ -867,10 +867,7 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 					// nni_id_remove(&pipe->nano_qos_db,
 					// pid);
 				}
-				rv = nni_id_set(&pipe->nano_qos_db, pid, msg);
-				if (rv != 0) {
-					nni_println("ERROR in nni id set.");
-				}
+				rv = nni_id_set(pipe->nano_qos_db, pid, msg);
 			}
 			NNI_PUT16(varheader, pid);
 			p->qlength += 2;
