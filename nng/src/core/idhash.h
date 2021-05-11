@@ -43,11 +43,14 @@ struct nni_id_map {
 extern void  nni_id_map_init(nni_id_map *, uint32_t, uint32_t, bool);
 extern void  nni_id_map_fini(nni_id_map *);
 extern void *nni_id_get(nni_id_map *, uint32_t);
-extern int   nni_id_set(nni_id_map *, uint32_t, void *);
-extern int   nni_id_alloc(nni_id_map *, uint32_t *, void *);
-extern int   nni_id_remove(nni_id_map *, uint32_t);
-
-// NanoMQ
+extern int nni_id_set(nni_id_map *, uint32_t, void *);
+extern int nni_id_alloc(nni_id_map *, uint32_t *, void *);
+extern int nni_id_remove(nni_id_map *, uint32_t);
+extern void nni_id_msgfree_cb(nni_msg* msg);
+extern void nni_id_show_cb(nni_msg* msg);
+extern void nni_id_iterate(nni_id_map *m, void (func_cb)(nni_msg*));
+extern void* nni_id_get_one(nni_id_map *m, uint32_t *key);
+//NanoMQ
 void *nni_id_get_any(nni_id_map *m, uint16_t *pid);
 
 #endif // CORE_IDHASH_H

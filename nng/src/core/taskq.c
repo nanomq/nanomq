@@ -256,8 +256,8 @@ nni_taskq_getter(void) {
 
 int
 nni_taskq_sys_init(void)
-{
-	int nthrs;
+{	
+	int nthrs;	
 #ifndef NNG_NUM_TASKQ_THREADS
 	nthrs = nni_plat_ncpu() * 2;
 #else

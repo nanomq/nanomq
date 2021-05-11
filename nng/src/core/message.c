@@ -723,12 +723,14 @@ nni_msg_set_qos(nni_msg *m, uint8_t qos)
 }
 
 nano_pipe_db *
-nano_msg_get_subtopic(nni_msg *msg)
+nano_msg_get_subtopic(nni_msg *msg, nano_pipe_db *root)
 {
-	char         *topic, *payload_ptr;
-	nano_pipe_db *root = NULL, *db = NULL, *tmp = NULL;
-	uint8_t       bpos = 0, len_of_topic = 0;
-	size_t remain = 0;
+	char *topic;
+	//nano_pipe_db *root = NULL, *db = NULL, *tmp = NULL;
+	nano_pipe_db *db = NULL, *tmp = NULL, *iter = NULL;
+	uint8_t		bpos = 0, len_of_topic = 0, *payload_ptr;;
+	size_t		remain = 0;
+	bool		repeat = false;
 
 	payload_ptr = (char*)nni_msg_payload_ptr(msg);
 	remain      = nni_msg_remaining_len(msg) - 2;
@@ -736,9 +738,37 @@ nano_msg_get_subtopic(nni_msg *msg)
 	if (nni_msg_cmd_type(msg) != 0x80)
 		return NULL;
 
-	while (bpos < remain) {
+	if (root != NULL) {
+		db = root;
+		while (db->next != NULL) {
+			db = db->next;
+		}
+	}
+
+	while (bpos < remain){
 		NNI_GET16(payload_ptr + bpos, len_of_topic);
+
 		if (len_of_topic != 0) {
+
+			debug_msg("The current process topic is %s",  payload_ptr+bpos+2);
+			iter = root;
+			while(iter) {
+				if (strlen(iter->topic) == len_of_topic && !strncmp(payload_ptr+bpos+2, iter->topic, len_of_topic)) {
+					repeat = true;
+					bpos += (2 + len_of_topic);
+					if (iter->qos != *(payload_ptr +bpos)) {
+						iter->qos = *(payload_ptr +bpos);
+					}
+					bpos += 1;
+				}
+				iter = iter->next;
+			}
+
+			if (repeat) {
+				repeat = false;
+				continue;
+			}
+
 			if (NULL != db) {
 				tmp = db;
 				db  = db->next;
@@ -746,7 +776,7 @@ nano_msg_get_subtopic(nni_msg *msg)
 			db       = nng_alloc(sizeof(nano_pipe_db));
 			topic    = nng_alloc(len_of_topic + 1);
 			db->prev = tmp;
-			if (bpos == 0) {
+			if (bpos == 0 && root == NULL) {
 				root = db;
 			} else {
 				tmp->next = db;

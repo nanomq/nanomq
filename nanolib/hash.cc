@@ -156,7 +156,7 @@ void del_val(int key)
 // 
 // /*
 //  * @obj. _topic_hash.
-//  * @id. clientid.
+//  * @key.clientid.
 //  * @val. topic_queue.
 //  */
 // 
@@ -178,7 +178,7 @@ void del_val(int key)
 // 
 // /*
 //  * @obj. _topic_hash.
-//  * @id. clientid.
+//  * @key.clientid.
 //  */
 // 
 // struct topic_queue *get_topic(char *id) 
@@ -192,7 +192,7 @@ void del_val(int key)
 // 
 // /*
 //  * @obj. _topic_hash.
-//  * @id. clientid.
+//  * @key.clientid.
 //  */
 // 
 // void del_topic_one(char *id, char *topic)
@@ -232,7 +232,7 @@ void del_val(int key)
 // 
 // /*
 //  * @obj. _topic_hash.
-//  * @id. clientid.
+//  * @key.clientid.
 //  */
 // 
 // void del_topic_all(char *id)
@@ -259,7 +259,7 @@ void del_val(int key)
 
 /*
  * @obj. _topic_hash.
- * @key. clientid.
+ * @key. pipe_id.
  * @val. topic_queue.
  */
 
@@ -307,7 +307,7 @@ static void delete_topic_queue(struct topic_queue *tq)
 
 /*
  * @obj. _topic_hash.
- * @id. clientid.
+ * @key. pipe_id.
  * @val. topic_queue.
  */
 
@@ -319,7 +319,7 @@ void add_topic(uint32_t id, char *val)
 		_topic_hash[id] = ntq;
 		log("add_topic:%s",_topic_hash[id]->topic);
 	} else {
-                struct topic_queue *tmp = tq->next;
+		struct topic_queue *tmp = tq->next;
 		tq->next = ntq;
 		ntq->next = tmp;
 		log("add_topic:%s", tq->next->topic);
@@ -329,7 +329,31 @@ void add_topic(uint32_t id, char *val)
 
 /*
  * @obj. _topic_hash.
- * @id. clientid.
+ * @key. pipe_id.
+ * @val. topic.
+ */
+
+bool search_topic(uint32_t id, char *val) 
+{
+	if (!check_id(id)) {
+		return false;
+	}
+
+	struct topic_queue *tq = _topic_hash[id];
+
+	while (tq != NULL) {
+		if (!strcmp(tq->topic, val)) {
+			return true;
+		}
+		tq = tq->next;
+	}
+
+	return false;
+}
+
+/*
+ * @obj. _topic_hash.
+ * @key. pipe_id.
  */
 
 struct topic_queue *get_topic(uint32_t id) 
@@ -343,7 +367,7 @@ struct topic_queue *get_topic(uint32_t id)
 
 /*
  * @obj. _topic_hash.
- * @id. clientid.
+ * @key. pipe_id.
  */
 
 void del_topic_one(uint32_t id, char *topic)
@@ -351,7 +375,7 @@ void del_topic_one(uint32_t id, char *topic)
 	struct topic_queue *tt = _topic_hash[id];
 	struct topic_queue *tb = NULL;
 
-	if (!strcmp(tt->topic, topic) && tt->next == NULL) {
+ 	if (!strcmp(tt->topic, topic) && tt->next == NULL) {
 		_topic_hash.del(id);
 		delete_topic_queue(tt);
 		return;
@@ -383,7 +407,7 @@ void del_topic_one(uint32_t id, char *topic)
 
 /*
  * @obj. _topic_hash.
- * @id. clientid.
+ * @key.pipe_id.
  */
 
 void del_topic_all(uint32_t id)
@@ -407,7 +431,131 @@ bool check_id(uint32_t id)
 	return _topic_hash.find(id);
 }
 
+/* 
+ * @obj. _topic_hash. 
+ * @key. pipe_id.
+ */
 
+void print_topic_all(uint32_t id)
+{
+	struct topic_queue *tq = _topic_hash[id];
+	int t_num = 0;
+	while(tq) {
+		log("Topic number %d, topic subscribed: %s.", ++t_num, tq->topic);
+		tq = tq->next;
+	}
+}
+
+/*
+ * @obj. _cached_topic_hash.
+ * @key. (DJBhashed) client_id.
+ * @val. cached_topic_queue.
+ */
+
+mqtt_hash<uint32_t, topic_queue *> _cached_topic_hash;
+
+/*
+ * @obj. _topic_hash.
+ * @key. pipe_id.
+ * @obj. _cached_topic_hash.
+ * @key. (DJBhashed) client_id.
+ */
+
+void cache_topic_all(uint32_t pid, uint32_t cid)
+{
+	struct topic_queue *tq_in_topic_hash = _topic_hash[pid];
+	log("the topic queue in hash map has an address; [%p]", tq_in_topic_hash);
+	if (cached_check_id(cid)) {
+		log("unexpected: cached hash instance is not vacant");
+		del_cached_topic_all(cid);
+	}
+	_cached_topic_hash[cid] = tq_in_topic_hash;
+	_topic_hash.del(pid);
+	log("the cached topic queue has an address; [%p]", _cached_topic_hash[cid]);
+	log("topic queue is cahced from topic hash to cached topic hash");
+}
+
+/*
+ * @obj. _cached_topic_hash.
+ * @key. (DJBhashed) client_id.
+ * @obj. _topic_hash.
+ * @key. pipe_id.
+ */
+
+void restore_topic_all(uint32_t cid, uint32_t pid) 
+{
+	struct topic_queue *tq_in_cached = _cached_topic_hash[cid];
+	if (check_id(pid)) {
+		log("unexpected: hash instance is not vacant");
+		del_topic_all(pid);
+	}
+	_topic_hash[pid] = tq_in_cached;
+	_cached_topic_hash.del(cid);
+	log("the topic queue in hash map has an address; [%p]", _topic_hash[pid]);
+	log("topic queue is restored from cached topic hash to topic hash");
+}
+
+/*
+ * @obj. _cached_topic_hash.
+ * @key. (DJBhashed) client_id.
+ * @val. topic_queue
+ */
+
+static void delete_cached_topic_one(struct topic_queue *ctq)
+{
+	if (ctq) {
+		if (ctq->topic) {
+			log("delete topic:%s", ctq->topic);
+			free(ctq->topic);
+			ctq->topic = NULL;
+		}
+		free(ctq);
+		ctq = NULL;
+	}
+	return;
+}
+
+/*
+ * @obj. _cached_topic_hash.
+ * @key. (DJBhashed) client_id.
+ * @val. topic_queue
+ */
+
+struct topic_queue *get_cached_topic(uint32_t cid) 
+{
+	if (_cached_topic_hash[cid]) {
+		return _cached_topic_hash[cid];
+	}
+
+	return NULL;
+}
+
+/*
+ * @obj. _cached_topic_hash.
+ * @key. (DJBhashed) client_id.
+ */
+
+void del_cached_topic_all(uint32_t cid)
+{
+	struct topic_queue *ctq = _cached_topic_hash[cid];
+	_cached_topic_hash.del(cid);
+	while (ctq) {
+		struct topic_queue *tt = ctq;
+		ctq = ctq->next;
+		delete_cached_topic_one(tt);
+	}
+	return;
+}
+
+/*
+ * @obj. _cached_topic_hash.
+ * @key. (DJBhashed) client_id.
+ */
+
+bool cached_check_id(uint32_t key)
+{
+	return _cached_topic_hash.find(key);
+}
 
 
 /*

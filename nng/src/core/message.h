@@ -68,7 +68,7 @@ extern void          nni_msg_set_payload_ptr(nni_msg *m, uint8_t *ptr);
 extern void          nni_msg_set_remaining_len(nni_msg *m, size_t len);
 extern void          nni_msg_set_cmd_type(nni_msg *m, uint8_t cmd);
 extern void          nni_msg_set_conn_param(nni_msg *m, void *ptr);
-extern nano_pipe_db *nano_msg_get_subtopic(nni_msg *msg);
+extern nano_pipe_db *nano_msg_get_subtopic(nni_msg *msg, nano_pipe_db *root);
 extern void          nano_msg_free_pipedb(nano_pipe_db *db);
 extern void          nano_msg_ubsub_free(nano_pipe_db *db);
 extern uint8_t       nni_msg_get_preset_qos(nni_msg *m);
@@ -103,6 +103,7 @@ struct conn_param {
 	uint8_t            will_flag;
 	uint8_t            will_retain;
 	uint8_t            will_qos;
+	nni_id_map	     * nano_qos_db;
 	struct mqtt_string pro_name;
 	struct mqtt_string clientid;
 	struct mqtt_string will_topic;

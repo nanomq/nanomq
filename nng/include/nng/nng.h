@@ -1308,7 +1308,7 @@ NNG_DECL void      nng_aio_set_pipeline(nng_aio *aio, uint32_t id);
 NNG_DECL void  nng_aio_set_dbtree(nng_aio *aio, void *db);
 NNG_DECL void *nng_msg_get_conn_param(nng_msg *msg);
 
-NNG_DECL const uint8_t *conn_param_get_clentid(conn_param *cparam);
+NNG_DECL const uint8_t *conn_param_get_clientid(conn_param *cparam);
 NNG_DECL const uint8_t *conn_param_get_pro_name(conn_param *cparam);
 NNG_DECL const void *   conn_param_get_will_topic(conn_param *cparam);
 NNG_DECL const void *   conn_param_get_will_msg(conn_param *cparam);

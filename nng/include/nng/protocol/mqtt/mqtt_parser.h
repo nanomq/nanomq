@@ -11,6 +11,7 @@
 
 // MQTT CONNECT
 int32_t conn_handler(uint8_t *packet, conn_param *conn_param);
+void    init_conn_param(conn_param * cparam);
 void    destroy_conn_param(conn_param *cparam);
 int     fixed_header_adaptor(uint8_t *packet, nng_msg *dst);
 

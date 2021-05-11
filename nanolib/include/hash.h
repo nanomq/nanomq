@@ -32,13 +32,29 @@ void del_val(int key);
 
 void add_topic(uint32_t id, char *val);
 
-struct topic_queue *get_topic(uint32_t id);
+bool search_topic(uint32_t id, char *val);
+
+struct topic_queue *get_topic(uint32_t id); 
 
 void del_topic_one(uint32_t id, char *topic);
 
 void del_topic_all(uint32_t id);
 
 bool check_id(uint32_t id);
+
+void print_topic_all(uint32_t id);
+
+// @obj. _cached_topic_hash
+
+void cache_topic_all(uint32_t pid, uint32_t cid);
+
+void restore_topic_all(uint32_t cid, uint32_t pid);
+
+struct topic_queue *get_cached_topic(uint32_t cid);
+
+void del_cached_topic_all(uint32_t key);
+
+bool cached_check_id(uint32_t key);
 
 // @obj. _pipe_hash
 
