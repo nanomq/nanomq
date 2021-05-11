@@ -333,7 +333,7 @@ void add_topic(uint32_t id, char *val)
  * @val. topic.
  */
 
-bool search_topic(uint32_t id, char *val) 
+bool check_topic(uint32_t id, char *val) 
 {
 	if (!check_id(id)) {
 		return false;
@@ -375,7 +375,7 @@ void del_topic_one(uint32_t id, char *topic)
 	struct topic_queue *tt = _topic_hash[id];
 	struct topic_queue *tb = NULL;
 
- 	if (!strcmp(tt->topic, topic) && tt->next == NULL) {
+	if (!strcmp(tt->topic, topic) && tt->next == NULL) {
 		_topic_hash.del(id);
 		delete_topic_queue(tt);
 		return;

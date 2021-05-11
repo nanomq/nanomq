@@ -32,7 +32,7 @@ void del_val(int key);
 
 void add_topic(uint32_t id, char *val);
 
-bool search_topic(uint32_t id, char *val);
+bool check_topic(uint32_t id, char *val);
 
 struct topic_queue *get_topic(uint32_t id); 
 
