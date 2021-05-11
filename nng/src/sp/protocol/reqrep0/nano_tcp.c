@@ -1050,45 +1050,45 @@ nano_pipe_recv_cb(void *arg)
 	nni_msg_set_pipe(msg, p->id);
 	// TODO HOOK
 	switch (nng_msg_cmd_type(msg)) {
-		case CMD_SUBSCRIBE:
-			// TODO put hash table to tcp layer
-			nni_mtx_lock(&p->lk);
-			pipe_db = nano_msg_get_subtopic(
-				msg, p->pipedb_root); // TODO potential memleak when sub failed
-			p->pipedb_root = pipe_db;
+	case CMD_SUBSCRIBE:
+		// TODO put hash table to tcp layer
+		nni_mtx_lock(&p->lk);
+		pipe_db = nano_msg_get_subtopic(
+			msg, p->pipedb_root); // TODO potential memleak when sub failed
+		p->pipedb_root = pipe_db;
 
-			// debug start
-			nano_pipe_db* temp = pipe_db;
-			int count = 1;
+		// debug start
+		nano_pipe_db* temp = pipe_db;
+		int count = 1;
 
-			while (temp) {
-				debug_msg("This is the %d topic, and the topic is %s", count, temp->topic);
-				count++;
-				temp = temp->next;
-			}
-			// debug end
+		while (temp) {
+			debug_msg("This is the %d topic, and the topic is %s", count, temp->topic);
+			count++;
+			temp = temp->next;
+		}
+		// debug end
 
-			while (pipe_db) {
-				rv = nni_id_set(
-					&npipe->nano_db, DJBHash(pipe_db->topic), pipe_db);
-				pipe_db = pipe_db->next;
-			}
-			nni_mtx_unlock(&p->lk);
-			break;
-		case CMD_PUBLISH:
-			// TODO QoS 1/2 sender side cache
-		case CMD_DISCONNECT:
-		case CMD_UNSUBSCRIBE:
-			break;
-		case CMD_PUBREC:
-			// break;
-		//case CMD_PINGREQ:
-		case CMD_PUBREL:
-		case CMD_PUBACK:
-		case CMD_PUBCOMP:
-			goto drop;
-		default:
-			goto drop;
+		while (pipe_db) {
+			rv = nni_id_set(
+				&npipe->nano_db, DJBHash(pipe_db->topic), pipe_db);
+			pipe_db = pipe_db->next;
+		}
+		nni_mtx_unlock(&p->lk);
+		break;
+	case CMD_PUBLISH:
+		// TODO QoS 1/2 sender side cache
+	case CMD_DISCONNECT:
+	case CMD_UNSUBSCRIBE:
+		break;
+	case CMD_PUBREC:
+		// break;
+	//case CMD_PINGREQ:
+	case CMD_PUBREL:
+	case CMD_PUBACK:
+	case CMD_PUBCOMP:
+		goto drop;
+	default:
+		goto drop;
 	}
 
 	if (p->closed) {

@@ -297,7 +297,7 @@ sub_ctx_handle(emq_work *work)
 
 		client_id = (char *)conn_param_get_clientid((conn_param *)nng_msg_get_conn_param(work->msg));
 		search_and_insert(work->db, topic_str, client_id, cli_ctx, work->pid.id);
-		if (!search_topic(work->pid.id, topic_str))
+		if (!check_topic(work->pid.id, topic_str))
 			add_topic(work->pid.id, topic_str);
 		// check
 		tq = get_topic(work->pid.id);
