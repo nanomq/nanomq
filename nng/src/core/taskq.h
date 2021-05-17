@@ -69,4 +69,7 @@ struct nni_task {
 	nni_cv        task_cv;
 };
 
+// NanoMQ
+extern void nni_taskq_setter(int num_taskq_threads, int max_taskq_threads);
+
 #endif // CORE_TASKQ_H

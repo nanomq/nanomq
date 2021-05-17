@@ -14,9 +14,9 @@
 #include <stdlib.h>
 
 #if defined(MQ)
-NANOMQ_APP(mq, mqcreate_debug, mqsend_debug, mqreceive_debug);
+NANOMQ_APP(mq, mqcreate_debug, mqsend_debug, mqreceive_debug, NULL);
 #endif
-NANOMQ_APP(broker, broker_dflt, broker_start, NULL);
+NANOMQ_APP(broker, broker_dflt, broker_start, broker_stop, broker_restart);
 
 #if defined(NANO_DEBUG)
 
