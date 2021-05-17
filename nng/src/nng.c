@@ -58,6 +58,12 @@ nng_alloc(size_t sz)
 	return (nni_alloc(sz));
 }
 
+void *
+nng_zalloc(size_t sz)
+{
+	return (nni_zalloc(sz));
+}
+
 void
 nng_free(void *buf, size_t sz)
 {
@@ -2096,4 +2102,28 @@ void
 nng_aio_finish_sync(nng_aio *aio, int rv)
 {
 	nni_aio_finish_sync(aio, rv, 0);
+}
+
+int 
+nng_file_put(const char *name, const void *data, size_t sz)
+{
+	return nni_file_put(name, data, sz);
+}
+
+int
+nng_file_get(const char *name, void **datap, size_t *szp)
+{
+	return nni_file_get(name, datap, szp);
+}
+
+int
+nng_file_delete(const char *name)
+{
+	return nni_file_delete(name);
+}
+
+void 
+nng_taskq_setter (int num_taskq_threads, int max_taskq_threads)
+{
+	nni_taskq_setter(num_taskq_threads, max_taskq_threads);
 }

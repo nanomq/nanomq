@@ -457,6 +457,7 @@ NNG_DECL void *nng_alloc(size_t);
 // As the application is required to keep track of the size of memory, this
 // is probably less convenient for general uses than the C library malloc and
 // calloc.
+NNG_DECL void *nng_zalloc(size_t sz);
 NNG_DECL void nng_free(void *, size_t);
 
 // nng_strdup duplicates the source string, using nng_alloc. The result
@@ -1296,6 +1297,9 @@ NNG_DECL void     nng_msg_clone(nng_msg *msg);
 NNG_DECL void     nng_msg_set_cmd_type(nng_msg *m, uint8_t cmd);
 NNG_DECL void     nng_msg_preset_qos(nng_msg *m, uint8_t qos);
 NNG_DECL nng_msg *nng_msg_unique(nng_msg *m);
+NNG_DECL int      nng_file_put(const char *name, const void *data, size_t sz);
+NNG_DECL int      nng_file_get(const char *name, void **datap, size_t *szp);
+NNG_DECL int      nng_file_delete(const char *name);
 
 // NNG_DECL void nng_aio_set_pipes(nng_aio *aio, uint32_t *pipes);
 NNG_DECL uint32_t *nng_aio_get_pipes(nng_aio *aio);
@@ -1318,6 +1322,7 @@ NNG_DECL uint8_t        conn_param_get_will_retain(conn_param *cparam);
 NNG_DECL uint16_t       conn_param_get_keepalive(conn_param *cparam);
 NNG_DECL uint8_t        conn_param_get_protover(conn_param *cparam);
 
+NNG_DECL void     nng_taskq_setter (int num_taskq_threads, int max_taskq_threads);
 #ifdef __cplusplus
 }
 #endif

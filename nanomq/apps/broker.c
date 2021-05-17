@@ -8,6 +8,11 @@
 //
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
+#include <syslog.h>
+#include <signal.h>
+#include <ctype.h>
+#include <unistd.h>
 
 #include <hash.h>
 #include <mqtt_db.h>
@@ -15,15 +20,13 @@
 #include <protocol/mqtt/mqtt_parser.h>
 #include <protocol/mqtt/nano_tcp.h>
 #include <zmalloc.h>
-
-#if (defined DEBUG) && (defined ASAN)
 #include <signal.h>
-#endif
 
 #include "include/nanomq.h"
 #include "include/pub_handler.h"
 #include "include/sub_handler.h"
 #include "include/unsub_handler.h"
+#include "include/process.h"
 
 // Parallel is the maximum number of outstanding requests we can handle.
 // This is *NOT* the number of threads in use, but instead represents
@@ -221,7 +224,6 @@ server_cb(void *arg)
 				}
 				cvector_free(work->msg_ret);
 			}
-
 			nng_msg_set_cmd_type(smsg, CMD_SUBACK);
 			work->msg = smsg;
 			nng_aio_set_pipeline(work->aio, work->pid.id);
@@ -416,13 +418,13 @@ alloc_work(nng_socket sock)
 	return (w);
 }
 int
-broker(const char *url)
+broker(const char *url, uint8_t num_ctx)
 {
-	nng_socket   sock;
-	nng_pipe     pipe_id;
-	struct work *works[PARALLEL];
-	int          rv;
-	int          i;
+	nng_socket     sock;
+	nng_pipe       pipe_id;
+	struct work    *works[num_ctx];
+	int            rv;
+	int            i;
 	// init tree
 	db_tree *db     = NULL;
 	db_tree *db_ret = NULL;
@@ -443,11 +445,11 @@ broker(const char *url)
 		fatal("nng_nano_tcp0_open", rv);
 	}
 
-	// TODO will be dynamic in the future
-	debug_msg("PARALLEL logic threads: %d\n", PARALLEL);
-	for (i = 0; i < PARALLEL; i++) {
-		works[i]         = alloc_work(sock);
-		works[i]->db     = db;
+	//TODO will be dynamic in the future
+	debug_msg("PARALLEL logic threads: %d\n", num_ctx);
+	for (i = 0; i < num_ctx; i++) {
+		works[i] = alloc_work(sock);
+		works[i]->db = db;
 		works[i]->db_ret = db_ret;
 	}
 
@@ -455,7 +457,7 @@ broker(const char *url)
 		fatal("nng_listen", rv);
 	}
 
-	for (i = 0; i < PARALLEL; i++) {
+	for (i = 0; i < num_ctx; i++) {
 		server_cb(works[i]); // this starts them going (INIT state)
 	}
 
@@ -474,16 +476,146 @@ broker(const char *url)
 #endif
 }
 
-int
-broker_start(int argc, char **argv)
+void *
+print_usage(void)
 {
+	fprintf(stderr, USAGE);
+}
+
+int status_check(pid_t *pid)
+{
+	char* data = NULL;
+	size_t size = 0;
+
 	int rc;
-	if (argc != 1) {
-		fprintf(stderr, "Usage: broker start <url>\n");
+	if ((rc = nng_file_get(PID_PATH_NAME, (void*)&data, &size)) != 0) {
+		debug_msg(".pid file does not existed or cannot be read");
+		return 1;
+
+	} else {
+		if ((data) != NULL ) {
+			sscanf(data, "%lu", pid);
+			debug_msg("pid read, [%lu]", *pid);
+
+			if ((kill(*pid, 0)) == 0) {
+				debug_msg("there is a running NanoMQ instance has pid [%lu]", *pid);
+				return 0;
+			}
+		}
+		if (!nng_file_delete(PID_PATH_NAME)) {
+			debug_msg(".pid file successfully deleted");
+			return 1;
+		}
+		debug_msg("unexpected error");
+		return -1;
+	}
+}
+
+int store_pid()
+{
+	int status;
+	char pid_c[10] = "";
+
+	sprintf(pid_c, "%ld", getpid());
+	debug_msg("%s", pid_c);
+
+	status = nng_file_put(PID_PATH_NAME, pid_c, sizeof(pid_c));
+	return status;
+	
+}
+
+int broker_start(int argc, char **argv)
+{
+	int   i, url, temp, rc, num_ctx = 0;
+	pid_t pid = 0;
+
+	if (argc < 1) {
+		print_usage();
 		exit(EXIT_FAILURE);
 	}
-	rc = broker(argv[0]);
+
+	if (!status_check(&pid)) {
+		fprintf(stderr, "One NanoMQ instance is running, a new instance won't be started until the other one is stopped.\n");
+		exit(EXIT_FAILURE);
+	}
+
+	for (i = 0; i < argc; i++, temp = 0) {
+		if (argv[i][0] == '-') {
+			if (!strcmp("-daemon", argv[i]) && process_daemonize()) {
+				fprintf(stderr, "Cannot daemonize\n");
+				print_usage();
+				exit(EXIT_FAILURE);
+			}
+			else if (!strcmp("-tq_thread", argv[i]) && isdigit(argv[++i][0]) && ((temp = atoi(argv[i])) > 0)){
+				nng_taskq_setter(temp, 0);
+			}
+			else if (!strcmp("-max_tq_thread", argv[i]) && isdigit(argv[++i][0]) && ((temp = atoi(argv[i])) > 0)){
+				nng_taskq_setter(0, temp);
+			}
+			else if (!strcmp("-parallel", argv[i]) && isdigit(argv[++i][0]) && ((temp = atoi(argv[i])) > 0))
+				num_ctx = temp;
+			else {
+				print_usage();
+				exit(EXIT_FAILURE);
+			}
+		}
+		else {
+			url= i;
+		}
+	}
+
+	if (store_pid()) {
+		debug_msg("create \"nanomq.pid\" file failed");
+	}
+    if (num_ctx > 0) {
+		rc = broker(argv[url], num_ctx);
+	} else {
+		rc = broker(argv[url], PARALLEL);
+	}
+
 	exit(rc == 0 ? EXIT_SUCCESS : EXIT_FAILURE);
+	daemonize();
+}
+
+int broker_stop(int argc, char **argv)
+{
+	pid_t pid = 0;
+	
+	if (argc != 0) {
+		print_usage();
+		exit(EXIT_FAILURE);
+	}
+
+	if (!(status_check(&pid))) {
+		kill(pid, SIGTERM);
+	} else {
+		fprintf(stderr, "There is no running NanoMQ instance.\n");
+		exit(EXIT_FAILURE);
+	}
+	fprintf(stderr, "NanoMQ stopped.\n");
+	exit(EXIT_SUCCESS);
+}
+
+int broker_restart(int argc, char **argv)
+{
+	pid_t pid = 0;
+
+	if (argc < 1) {
+		print_usage();
+		exit(EXIT_FAILURE);
+	}
+
+	if (!(status_check(&pid))) {
+		kill(pid, SIGTERM);
+		while (!status_check(&pid)) {
+			kill(pid, SIGKILL);
+		}
+		fprintf(stderr, "Previous NanoMQ instance stopped.\n");
+	} else {
+		fprintf(stderr, "There is no running NanoMQ instance.\n");
+	}
+
+	broker_start(argc, argv);
 }
 
 int

@@ -165,6 +165,9 @@ main(int argc, char **argv)
 	if ((strcmp(argv[1], "stop") == 0) && (*nano_app)->stop)
 		return handle_app((*nano_app)->stop(argc - 2, argv + 2));
 
+	if ((strcmp(argv[1], "restart") == 0) && (*nano_app)->restart)
+		return handle_app((*nano_app)->restart(argc - 2, argv + 2));
+
 	if ((*nano_app)->dflt)
 		return handle_app((*nano_app)->dflt(argc - 1, argv + 1));
 
