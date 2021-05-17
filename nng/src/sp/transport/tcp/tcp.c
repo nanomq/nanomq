@@ -468,9 +468,6 @@ tcptran_pipe_recv_cb(void *arg)
 	nni_msg *     msg;
 	tcptran_pipe *p     = arg;
 	nni_aio *     rxaio = p->rxaio;
-	// nni_aio *     txaio = p->txaio;
-	nni_aio *     qsaio = p->qsaio;
-	// nni_aio *     rpaio = p->rpaio;
 	conn_param *  cparam;
 	uint32_t      len_of_varint = 0;
 
@@ -516,15 +513,15 @@ tcptran_pipe_recv_cb(void *arg)
 		return;
 	} else if (len == 0 && n == 2) {
 		if ((p->rxlen[0] & 0XFF) == CMD_PINGREQ) {
-			nng_aio_wait(qsaio);
+			nng_aio_wait(p->qsaio);
 			p->txlen[0] = CMD_PINGRESP;
 			p->txlen[1] = 0x00;
 			iov.iov_len = 2;
 			iov.iov_buf = &p->txlen;
 			// send it down...
-			nni_aio_set_iov(qsaio, 1, &iov);
+			nni_aio_set_iov(p->qsaio, 1, &iov);
 			p->cmd = CMD_PINGRESP;
-			nng_stream_send(p->conn, qsaio);
+			nng_stream_send(p->conn, p->qsaio);
 			goto notify;
 		} else if ((p->rxlen[0] & 0XFF) == CMD_DISCONNECT) {
 		}
