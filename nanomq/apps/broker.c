@@ -546,15 +546,16 @@ int broker_start(int argc, char **argv)
 				print_usage();
 				exit(EXIT_FAILURE);
 			}
-			else if (!strcmp("-tq_thread", argv[i]) && isdigit(argv[++i][0]) && ((temp = atoi(argv[i])) > 0)){
+			else if (!strcmp("-tq_thread", argv[i]) && isdigit(argv[++i][0]) && ((temp = atoi(argv[i])) > 0) && (temp < 256)){
 				nng_taskq_setter(temp, 0);
 			}
-			else if (!strcmp("-max_tq_thread", argv[i]) && isdigit(argv[++i][0]) && ((temp = atoi(argv[i])) > 0)){
+			else if (!strcmp("-max_tq_thread", argv[i]) && isdigit(argv[++i][0]) && ((temp = atoi(argv[i])) > 0) && (temp < 256)){
 				nng_taskq_setter(0, temp);
 			}
 			else if (!strcmp("-parallel", argv[i]) && isdigit(argv[++i][0]) && ((temp = atoi(argv[i])) > 0))
 				num_ctx = temp;
 			else {
+				fprintf(stderr, "Invalid command line arugment input, nanomq broker terminates\n");
 				print_usage();
 				exit(EXIT_FAILURE);
 			}
