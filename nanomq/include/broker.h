@@ -16,6 +16,7 @@
 		"  -parallel <num>:      the maximum number of outstanding requests we can handle\n"
 
 #define PID_PATH_NAME "/tmp/nanomq/nanomq.pid"
+
 struct work {
 	enum { INIT, RECV, WAIT, SEND, RESEND, FREE } state;
 
