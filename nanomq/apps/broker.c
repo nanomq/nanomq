@@ -489,13 +489,14 @@ int status_check(pid_t *pid)
 
 	int rc;
 	if ((rc = nng_file_get(PID_PATH_NAME, (void*)&data, &size)) != 0) {
+		nng_free(data, size);
 		debug_msg(".pid file does not existed or cannot be read");
 		return 1;
-
 	} else {
 		if ((data) != NULL ) {
-			sscanf(data, "%lu", pid);
+			sscanf(data, "%u", pid);
 			debug_msg("pid read, [%lu]", *pid);
+			nng_free(data, size);
 
 			if ((kill(*pid, 0)) == 0) {
 				debug_msg("there is a running NanoMQ instance has pid [%lu]", *pid);
@@ -516,7 +517,7 @@ int store_pid()
 	int status;
 	char pid_c[10] = "";
 
-	sprintf(pid_c, "%ld", getpid());
+	sprintf(pid_c, "%d", getpid());
 	debug_msg("%s", pid_c);
 
 	status = nng_file_put(PID_PATH_NAME, pid_c, sizeof(pid_c));

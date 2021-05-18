@@ -29,7 +29,7 @@
 struct mq_attr attr;
 
 int
-mqcreate_debug(int argc, char **argv, char NANO_UNUSED(*extra_arg))
+mqcreate_debug(int argc, char **argv)
 {
 	int   c, flags;
 	mqd_t mqd;
@@ -72,7 +72,7 @@ mqcreate_debug(int argc, char **argv, char NANO_UNUSED(*extra_arg))
 }
 
 int
-mqreceive_debug(int argc, char **argv, char NANO_UNUSED(*extra_arg))
+mqreceive_debug(int argc, char **argv)
 {
 	int             flags;
 	mqd_t           mqd;
@@ -106,7 +106,7 @@ mqreceive_debug(int argc, char **argv, char NANO_UNUSED(*extra_arg))
 }
 
 int
-mqsend_debug(int argc, char **argv, char NANO_UNUSED(*extra_arg))
+mqsend_debug(int argc, char **argv)
 {
 	mqd_t        mqd;
 	char *       ptr;
@@ -130,7 +130,7 @@ mqsend_debug(int argc, char **argv, char NANO_UNUSED(*extra_arg))
 }
 
 int
-dashboard_data_sync(int argc, char **argv, char NANO_UNUSED(*extra_arg))
+dashboard_data_sync(int argc, char **argv)
 {
 	mqd_t mqd;
 	char  buff[64];
