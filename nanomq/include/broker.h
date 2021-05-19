@@ -9,13 +9,22 @@
 
 #define USAGE \
 		"Usage: nanomq broker {"\
-		"{start|restart <url> [-daemon] [-tq_thread <num>] [-max_tq_thread <num>] [-parallel <num>]}|stop}\n"\
-		"  -url:                 the form of 'tcp://ip_addr:host'\n"\
+		"{start|restart <url> [-daemon] [-tq_thread <num>] [-max_tq_thread <num>] [-parallel <num>] [--conf]}|stop}\n"\
+		"  -url                  the form of 'tcp://ip_addr:host'\n"\
 		"  -tq_thread <num>:     the number of taskq threads used, `num` greater than 0 and less than 256\n"\
 		"  -max_tq_thread <num>: the maximum number of taskq threads used, `num` greater than 0 and less than 256\n"\
-		"  -parallel <num>:      the maximum number of outstanding requests we can handle\n"
+		"  -parallel <num>       the maximum number of outstanding requests we can handle\n"\
+		"  --conf                the 'nanomq.conf' will be read, configurations will be modified accordingly\n"
+
+#define CONF_READ_RECORD \
+		"Conf_file: %s read as %s\n"
+
+#define CONF_READ_NOT_RECORD \
+		"Conf_file: %s read as %s, but value has set by command_line (which has a higher priority)\n"
 
 #define PID_PATH_NAME "/tmp/nanomq/nanomq.pid"
+#define CONF_PATH_NAME "./etc/nanomq.conf"
+
 struct work {
 	enum { INIT, RECV, WAIT, SEND, RESEND, FREE } state;
 
@@ -43,7 +52,8 @@ struct client_ctx {
 };
 
 struct conf {
-	bool   daemon;
+	char*  url;
+	int    daemon;
 	int    num_taskq_thread;
 	int    max_taskq_thread;
 	int    parallel;

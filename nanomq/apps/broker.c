@@ -418,13 +418,22 @@ alloc_work(nng_socket sock)
 	return (w);
 }
 int
-broker(const char *url, uint8_t num_ctx)
+broker(conf *nanomq_conf)
 {
 	nng_socket     sock;
 	nng_pipe       pipe_id;
-	struct work    *works[num_ctx];
 	int            rv;
 	int            i;
+	uint8_t        num_ctx = nanomq_conf->parallel; 
+	struct work    *works[num_ctx];
+
+	/* move out what in nano_conf struct, and destory the strcut */
+	int            url_len = strlen(nanomq_conf->url);
+	const char     url[url_len+1];
+	strcpy(url, nanomq_conf->url);
+	nng_free(nanomq_conf->url, sizeof(char) * url_len+1);
+	nng_free(nanomq_conf, sizeof(conf));
+
 	// init tree
 	db_tree *db     = NULL;
 	db_tree *db_ret = NULL;
@@ -525,6 +534,133 @@ int store_pid()
 	
 }
 
+bool conf_parser(conf** nanomq_conf) {
+	char *data = NULL;
+
+	size_t size = 0;
+	int rc; 
+	if ((rc = nng_file_get(CONF_PATH_NAME, (void*)&data, &size)) != 0) {
+		debug_msg(".conf file does not existed or cannot be read");
+		return false;
+	}
+
+	char *head = data;
+	int length = 0;
+	int temp = 0;
+	char *buffer = nng_zalloc(sizeof(char) * 200);
+	bool read_success = false;
+
+	while ((head[0] != '\0') && ((sscanf(head, "%[^\n]%*c%n", buffer, &length)) != 0)) {
+		debug_msg("%s", buffer);
+		if (buffer[0] == '#') {
+			head += length;
+			memset(buffer, 0, sizeof(buffer));
+			while (head[0] == ' ' || head[0] == '\n') {head++;} // skip spaces and newline chars
+			continue;
+		}
+		buffer[length] = '\0';
+		char *value = strchr(buffer, '=') + 1;
+		char *key = strtok(buffer, "=");
+
+		if (value[0] == '\0' || value[0] == '\n') {
+			fprintf(stderr, "No value is specified, conf file parsing aborts\n");
+			return false;
+		}
+
+		if (!strcmp(key, "daemon")) {
+			if (!(*nanomq_conf)->daemon && !strcmp(value, "yes")) {
+				(*nanomq_conf)->daemon == 1;
+				read_success = true;
+				fprintf(stderr, CONF_READ_RECORD, key, value);
+			} else if (!(*nanomq_conf)->daemon && !strcmp(value, "no")) {
+				(*nanomq_conf)->daemon == -1;
+				read_success = true;
+				fprintf(stderr, CONF_READ_RECORD, key, value);
+			} else if ((*nanomq_conf)->daemon &&
+			    !strcmp(++value, "yes") && !strcmp(value, "no")) {
+				read_success = true;
+				fprintf(stderr, CONF_READ_NOT_RECORD, key, value);
+			}
+		}
+		else if (!strcmp(key, "url")) {
+			if (!(*nanomq_conf)->url) {
+				char* url = nng_zalloc(sizeof(char) * (strlen(value)+1));
+				if (url == NULL) {
+					fprintf(stderr, "Error: Cannot allocate storge for url, parsing aborts\n");
+					return false;
+				}
+				strcpy(url, value);
+				(*nanomq_conf)->url = url;
+				read_success = true;
+				fprintf(stderr, CONF_READ_RECORD, key, value);
+			} else if ((*nanomq_conf)->daemon){
+				read_success = true;
+				fprintf(stderr, CONF_READ_NOT_RECORD, key, value);
+			}
+		} else if (!strcmp(key, "num_taskq_thread") &&
+		    isdigit(value[0]) && ((temp = atoi(value)) > 0) &&(temp < 256)) {
+			if (!(*nanomq_conf)->num_taskq_thread) {
+				(*nanomq_conf)->num_taskq_thread = temp;
+				fprintf(stderr, CONF_READ_RECORD, key, value);
+			} else {
+				fprintf(stderr, CONF_READ_NOT_RECORD, key, value);
+			}
+			read_success = true;
+		} else if (!strcmp(key, "max_taskq_thread") &&
+		    isdigit(value[0]) && ((temp = atoi(value)) > 0) && (temp < 256)) {
+			if (!(*nanomq_conf)->max_taskq_thread) {
+				(*nanomq_conf)->max_taskq_thread = temp;
+				fprintf(stderr, CONF_READ_RECORD, key, value);
+			} else {
+				fprintf(stderr, CONF_READ_NOT_RECORD, key, value);
+			}
+			read_success = true;
+		} else if (!strcmp(key, "parallel") && 
+		    isdigit(value[0]) && ((temp = atoi(value)) > 0)) {
+			if (!(*nanomq_conf)->parallel) {
+				(*nanomq_conf)->parallel = temp;
+				fprintf(stderr, CONF_READ_RECORD, key, value);
+			} else {
+				fprintf(stderr, CONF_READ_NOT_RECORD, key, value);
+			}
+			read_success = true;
+		}
+		if (!read_success) {
+			fprintf(stderr,
+			    "Cannot find the configuration you attemp to set, "
+			    "conf file reading halted, stopped at %s",key);
+			nng_free(buffer, sizeof(char) * 200);
+			nng_free(data, sizeof(size));
+			return false;
+		}
+		head += length;
+		read_success = false;
+		key = NULL;
+		value = NULL;
+		memset(buffer, 0, sizeof(buffer));
+		while (head[0] == ' ' || head[0] == '\n') {head++;}
+	}
+	nng_free(buffer, sizeof(char) * 200);
+	nng_free(data, sizeof(size));
+	return true;
+}
+
+bool active_conf(conf* nanomq_conf) {
+	debug_msg("url: %s", nanomq_conf->url);
+	debug_msg("daemonlize: %d", nanomq_conf->daemon);
+	debug_msg("num_taskq_thread: %d", nanomq_conf->num_taskq_thread);
+	debug_msg("max_taskq_thread: %d", nanomq_conf->max_taskq_thread);
+	debug_msg("parallel: %d", nanomq_conf->parallel);
+	// check if daemonlize 
+	if (nanomq_conf->daemon == 1 && process_daemonize()) {
+		fprintf(stderr, "Error occurs, cannot daemonize\n");
+		exit(EXIT_FAILURE);
+	}
+	// taskq and max_taskq
+	if (nanomq_conf->num_taskq_thread || nanomq_conf->max_taskq_thread)
+		nng_taskq_setter(nanomq_conf->num_taskq_thread, nanomq_conf->max_taskq_thread);
+}
+
 int broker_start(int argc, char **argv)
 {
 	int   i, url, temp, rc, num_ctx = 0;
@@ -536,47 +672,84 @@ int broker_start(int argc, char **argv)
 	}
 
 	if (!status_check(&pid)) {
-		fprintf(stderr, "One NanoMQ instance is running, a new instance won't be started until the other one is stopped.\n");
+		fprintf(stderr,
+		    "One NanoMQ instance is running, a new instance won't be "
+		    "started until the other one is stopped.\n");
+		exit(EXIT_FAILURE);
+	}
+
+	conf *nanomq_conf;
+
+	if ((nanomq_conf = nng_zalloc(sizeof(conf))) == NULL) {
+		fprintf(stderr, "Cannot allocate storge for configuration, quit\n");
 		exit(EXIT_FAILURE);
 	}
 
 	for (i = 0; i < argc; i++, temp = 0) {
 		if (argv[i][0] == '-') {
-			if (!strcmp("-daemon", argv[i]) && process_daemonize()) {
-				fprintf(stderr, "Cannot daemonize\n");
-				print_usage();
-				exit(EXIT_FAILURE);
+			if (argv[i][1] == '-') {
+				if (!strcmp("--conf", argv[i])) {
+					conf_parser(&nanomq_conf);
+				} 
+				else if (!strcmp("--help", argv[i])) {
+					debug_msg("intend to have help here");
+				}
 			}
-			else if (!strcmp("-tq_thread", argv[i]) && isdigit(argv[++i][0]) && ((temp = atoi(argv[i])) > 0) && (temp < 256)){
-				nng_taskq_setter(temp, 0);
+			else if (!strcmp("-daemon", argv[i])) {
+				nanomq_conf->daemon = 1;
 			}
-			else if (!strcmp("-max_tq_thread", argv[i]) && isdigit(argv[++i][0]) && ((temp = atoi(argv[i])) > 0) && (temp < 256)){
-				nng_taskq_setter(0, temp);
+			else if (!strcmp("-tq_thread", argv[i]) && ((i+1) < argc) && 
+			    isdigit(argv[++i][0]) && ((temp = atoi(argv[i])) > 0) && (temp < 256)) {
+				nanomq_conf->num_taskq_thread = temp;
 			}
-			else if (!strcmp("-parallel", argv[i]) && isdigit(argv[++i][0]) && ((temp = atoi(argv[i])) > 0))
-				num_ctx = temp;
+			else if (!strcmp("-max_tq_thread", argv[i]) && ((i+1) < argc) && 
+			    isdigit(argv[++i][0]) && ((temp = atoi(argv[i])) > 0) && (temp < 256)) {
+				nanomq_conf->max_taskq_thread = temp;
+			}
+			else if (!strcmp("-parallel", argv[i]) && ((i+1) < argc) && 
+			    isdigit(argv[++i][0]) && ((temp = atoi(argv[i])) > 0)) {
+				nanomq_conf->parallel = temp;
+			} 
+			else if (!strcmp("-url", argv[i])) {
+				char* url = nng_zalloc(sizeof(char) * (strlen(argv[++i])+1));
+				if (url == NULL) {
+					fprintf(stderr,
+					    "Error: Cannot allocate storge "
+					    "for url, conf file parsing abort\n");
+					return false;
+				}
+				strcpy(url, argv[i]);
+				nanomq_conf->url = url;
+			}
 			else {
-				fprintf(stderr, "Invalid command line arugment input, nanomq broker terminates\n");
+				fprintf(stderr,
+				    "Invalid command line arugment input, "
+				    "nanomq broker terminates\n");
 				print_usage();
 				exit(EXIT_FAILURE);
 			}
 		}
 		else {
-			url= i;
+			fprintf(stderr,
+			    "Invalid command line arugment input, nanomq "
+			    "broker terminates\n");
+			print_usage();
+			exit(EXIT_FAILURE);
 		}
 	}
+
+	active_conf(nanomq_conf);
 
 	if (store_pid()) {
 		debug_msg("create \"nanomq.pid\" file failed");
 	}
     if (num_ctx > 0) {
-		rc = broker(argv[url], num_ctx);
+		rc = broker(nanomq_conf);
 	} else {
-		rc = broker(argv[url], PARALLEL);
+		rc = broker(nanomq_conf);
 	}
 
 	exit(rc == 0 ? EXIT_SUCCESS : EXIT_FAILURE);
-	daemonize();
 }
 
 int broker_stop(int argc, char **argv)
