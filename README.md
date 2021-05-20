@@ -57,9 +57,9 @@ To build NanoMQ, your machine should equip with a C99 & C++11 compatible compile
   make
   ```
 
-**Note for Mac users: mqueue (one of the functions) is not supported** due to the operating system limitation, use [mqueue argument](###Modifying-Compilation-()-Arguments) to disable it during compilation.
+**Note for Mac users: mqueue (one of the functions) is not supported** due to the operating system limitation, use [mqueue argument](#Modifying-Compilation-(cmake)-Arguments) to disable it during compilation.
 
-**Note (optional): configurations other than mqueue are modifiable**, see [here](###Modifying-Compilation-()-Arguments) for how to modify them.
+**Note (optional): configurations other than mqueue are modifiable**, see [here](#Modifying-Compilation-(cmake)-Arguments) for how to modify them.
 
 **Note (optional): nanolib & nng are dependencies of NanoMQ that can be compiled independently**.
 
@@ -96,7 +96,7 @@ nanomq broker stop
 nanomq broker restart -url <url>
 ```
 
-**Note: some of the configurations could be modified via adding command-line arguments**, see [here](###Modifying-Command-Line-Arguments ) for details.
+**Note: some of the configurations could be modified via adding command-line arguments**, see [here](#Modifying-Command-Line-Arguments ) for details.
 
 **Note: POSIX message queue could be tested using:**
 
@@ -111,10 +111,21 @@ nanomq broker mq stop
 
 The configurations of NanoMQ could be modified, which provides the power for optimizing performance according to a specific system. There are four ways to achieve this:
 
-- Modifying 'config.cmake.in' before executing `cmake` ············· (before compilation/all modifiable/low-level priority)
-- Modifying compilation arguments when executing `cmake` ··· (during compilation/all modifiable/low-level priority)
-- Modifying 'nanomq.conf' configuration file ····························· (after compilation/some modifiable/mid-level priority)
-- Modifying command-line arguments ········································ (after compilation/some modifiable/high-level priority)
+- Modifying 'config.cmake.in' before executing `cmake` 
+
+  <div style="text-align: right">before compilation/all modifiable/low-level priority</div>
+
+- Modifying compilation arguments when executing `cmake` 
+
+  <div style="text-align: right">during compilation/all modifiable/low-level priority</div>
+
+- Modifying 'nanomq.conf' configuration file 
+
+<div style="text-align: right">after compilation/some modifiable/mid-level priority</div>
+
+- Modifying command-line arguments 
+
+  <div style="text-align: right">after compilation/some modifiable/high-level priority</div>
 
 ### Modifying 'config.cmake.in' file
 
