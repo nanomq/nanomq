@@ -1,5 +1,7 @@
 # NanoMQ
 
+[![The best IoT MQTT open source team looks forward to your joining](https://www.emqx.io/static/img/github_readme_en_bg.png)](https://www.emqx.io/careers)
+
 NanoMQ MQTT Broker (NanoMQ) is a light-weight and blazing-fast MQTT Broker for IoT Edge platform. 
 
 NanoMQ bases on NNG's asynchronous I/O threading model, with an extension of MQTT support in the protocol layer and reworked transport layer. Plus an enhanced asynchronous IO mechanism to maximize the overall capacity.
