@@ -12,12 +12,12 @@ For more information, please visit [NanoMQ homepage](https://nanomq.io/).
 
 ## Features
 
-1. Cost-effective on an embedded platform;
-2. Fully base on native POSIX. High Compatibility;
-3. Pure C/C++ implementation. High portability;
-4. Fully asynchronous I/O and multi-threading;
-5. Good support for SMP;
-6. Low latency & High handling capacity.
+- Cost-effective on an embedded platform;
+- Fully base on native POSIX. High Compatibility;
+- Pure C/C++ implementation. High portability;
+- Fully asynchronous I/O and multi-threading;
+- Good support for SMP;
+- Low latency & High handling capacity.
 
 
 
@@ -111,21 +111,21 @@ nanomq broker mq stop
 
 The configurations of NanoMQ could be modified, which provides the power for optimizing performance according to a specific system. There are four ways to achieve this:
 
-- Modifying 'config.cmake.in' before executing `cmake` 
+- [Modifying 'config.cmake.in' before executing `cmake`](#Modifying-'config.cmake.in'-file)
 
-  <div style="text-align: right">before compilation/all modifiable/low-level priority</div>
+  ​												[before compilation/all modifiable/low-level priority]
 
-- Modifying compilation arguments when executing `cmake` 
+- [Modifying compilation arguments when executing `cmake`](#Modifying-Compilation-(`cmake`)-Arguments) 
 
-  <div style="text-align: right">during compilation/all modifiable/low-level priority</div>
+  ​												[during compilation/all modifiable/low-level priority]
 
-- Modifying 'nanomq.conf' configuration file 
+- [Modifying 'nanomq.conf' configuration file](#Modifying 'nanomq.conf' configuration file)
 
-<div style="text-align: right">after compilation/some modifiable/mid-level priority</div>
+  ​												[after compilation/some modifiable/mid-level priority]
 
-- Modifying command-line arguments 
+- [Modifying command-line arguments](#Modifying Command-Line Arguments )
 
-  <div style="text-align: right">after compilation/some modifiable/high-level priority</div>
+  ​												[after compilation/some modifiable/high-level priority]
 
 ### Modifying 'config.cmake.in' file
 
