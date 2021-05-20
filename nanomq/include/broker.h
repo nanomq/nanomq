@@ -31,6 +31,7 @@ struct client_ctx {
 	nng_pipe                 pid;
 	conn_param *             cparam;
 	struct packet_subscribe *sub_pkt;
+	uint8_t                  proto_ver;
 };
 
 typedef struct client_ctx client_ctx;

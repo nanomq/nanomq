@@ -502,15 +502,10 @@ restore_topic_to_tree(void *tree, client_ctx *cli_ctx, char* client_id) {
 	char  *topic_str = NULL;
 
 	while(tn_t) {
-		topic_len = tn_t->it->topic_filter.len;
-		if ((topic_str = nng_alloc(topic_len + 1)) == NULL) {
-			debug_msg("ERROR: nng_alloc");
-			return NNG_ENOMEM;
-		}
-		strncpy(topic_str, tn_t->it->topic_filter.body, topic_len);
-		topic_str[topic_len] = '\0';
-		debug_msg("Now adding topic (from last session), body: [%s]", topic_str);
-		search_and_insert(tree, topic_str, client_id, cli_ctx, cli_ctx->pid.id);
+		debug_msg("Now adding topic (from last session), body: [%s]",
+		         tn_t->it->topic_filter.body);
+		search_and_insert(tree, tn_t->it->topic_filter.body, client_id,
+		         cli_ctx, cli_ctx->pid.id);
 		tn_t = tn_t->next;
 	}
 }
@@ -520,11 +515,11 @@ nano_session_restore(nano_pipe *p, nano_sock *s)
 {
 	conn_param *new_cparam   = p->conn_param;
 	uint32_t    key          = DJBHashn(new_cparam->clientid.body, new_cparam->clientid.len);
-	uint8_t clean_session_id = new_cparam->clean_start;
+	uint8_t clean_session_flag = new_cparam->clean_start;
 
 	nano_clean_session *cs = nni_id_get(&s->clean_session_db, key);
 	if (cs == NULL) {
-		if (clean_session_id == 0) {
+		if (clean_session_flag == 0) {
 			debug_msg("(CS=0) Session cannot restore, cannot find "
 			          "such a lmq in clsession(hashtable) based "
 			          "on the clientID given");
@@ -537,12 +532,13 @@ nano_session_restore(nano_pipe *p, nano_sock *s)
 		}
 	}
 
-	client_ctx *cltx     = cs->cltx;
-	conn_param *cparam   = cs->cparam;
-	nni_id_map *msgs     = cs->msg_map;
-	nano_pipe_db *topics = cs->pipe_db;
+	client_ctx *cltx         = cs->cltx;
+	conn_param *cparam       = cs->cparam;
+	nni_id_map *msgs         = cs->msg_map;
+	nano_pipe_db *topics     = cs->pipe_db;
+	nano_pipe_db *topic_node = topics;
 
-	if (clean_session_id == 0) {
+	if (clean_session_flag == 0) {
 		// step 0 restore conn param
 		nano_deep_copy_connparam(new_cparam, cparam);
 		destroy_conn_param(cparam);
@@ -569,6 +565,13 @@ nano_session_restore(nano_pipe *p, nano_sock *s)
 		p->pipedb_root   = topics;
 		cs->pipe_db      = NULL;
 		debug_msg("(CS=0) Topic successfully restored, innano_pipe_db");
+		// step 4 restore nano_pipe_db<topic, pipe_db>
+		while (topic_node->next) {
+			nni_id_set(&p->pipe->nano_db,
+			        DJBHashn(topic_node->topic, strlen(topic_node->topic)),
+			        topic_node);
+			topic_node = topic_node->next;
+		}
 	} 
 	else {
 		// step 0 remove conn param
@@ -587,7 +590,7 @@ nano_session_restore(nano_pipe *p, nano_sock *s)
 			while (tq) {
 				del_sub_ctx(cltx, tq->topic);
 				tq = tq->next;
-			}	
+			}
 			del_cached_topic_all(key);
 			debug_msg("(CS=1) cli_ctx, cached topic queue removed (hash.cc)");				
 		} else {
@@ -689,9 +692,6 @@ nano_pipe_fini(void *arg)
 	nano_sock *s = p->rep;
 	nng_msg *  msg;
 	void *     tree;
-	char *     client_id        = NULL;
-	client_ctx *cli_ctx         = NULL;
-	struct topic_queue * tq     = NULL;
 
 	debug_msg("########## nano_pipe_fini ###############");
 	if ((msg = nni_aio_get_msg(&p->aio_recv)) != NULL) {
@@ -722,7 +722,7 @@ nano_pipe_fini(void *arg)
 }
 
 static int
-nano_pipe_init(void *arg, nni_pipe *pipe, nano_sock *s)
+nano_pipe_init(void *arg, nni_pipe *pipe, void *s)
 {
 	nano_pipe *p         = arg;
 	nano_sock *sock      = s;
@@ -841,6 +841,7 @@ nano_pipe_close(void *arg)
 	nni_id_iterate(p->conn_param->nano_qos_db, nni_id_show_cb);
 	nni_lmq_flush(&p->rlmq);
 	//nano_msg_free_pipedb(p->pipedb_root);
+	//p->pipedb_root = NULL;
 
 	while ((ctx = nni_list_first(&p->sendq)) != NULL) {
 		nni_aio *aio;
@@ -979,43 +980,6 @@ nano_ctx_recv(void *arg, nni_aio *aio)
 	nni_aio_set_msg(aio, msg);
 	nni_aio_finish(aio, 0, nni_msg_len(msg));
 }
-/*
-static void
-active_cli_ctx(nano_pipe *p) {
-	uint32_t pid     = p->id;
-	if (check_id(pid)) {
-		debug_msg("no topic in topic queue, possible situation: "
-                  "if CS=1: expected result; "
-				  "if CS=0: first time connect/didn't subscribe topics last time.");
-		return;
-	}
-
-	topic_queue *tq  = get_topic(pid);
-	conn_param *cparam = p->conn_param;
-	uint8_t    clean_session_id = cparam->clean_start;
-	if (clean_session_id == 1) {
-		debug_msg("(CS=1) delete topics in topic queue, remove cli_ctx");
-		del_topic_clictx_from_tree(p, tq);
-		del_topic_all(pid);
-		return;
-	}
-
-	mqtt_string client_id = cparam->clientid;
-	mqtt_string client_id_temp;
-	client_ctx *cli_ctx = NULL;
-
-	
-	void ** cli_ctx_list = search_client(p->tree, tq->topic);
-	
-	for (int i = 0; i < cvector_size(cli_ctx_list); i++) {
-		cli_ctx = (struct client_ctx*)cli_ctx_list[i];
-		client_id_temp = cli_ctx->cparam->clientid;
-		if (client_id_temp.len = client_id.len && (!(strncmp(client_id_temp.body, client_id.body, client_id.len)))) {
-			cli_ctx->pid.id = pid;
-		} 
-	}
-}
-*/
 
 static void
 nano_pipe_recv_cb(void *arg)
@@ -1056,18 +1020,6 @@ nano_pipe_recv_cb(void *arg)
 		pipe_db = nano_msg_get_subtopic(
 			msg, p->pipedb_root); // TODO potential memleak when sub failed
 		p->pipedb_root = pipe_db;
-
-		// debug start
-		nano_pipe_db* temp = pipe_db;
-		int count = 1;
-
-		while (temp) {
-			debug_msg("This is the %d topic, and the topic is %s", count, temp->topic);
-			count++;
-			temp = temp->next;
-		}
-		// debug end
-
 		while (pipe_db) {
 			rv = nni_id_set(
 				&npipe->nano_db, DJBHash(pipe_db->topic), pipe_db);
@@ -1113,39 +1065,6 @@ nano_pipe_recv_cb(void *arg)
 	nni_list_remove(&s->recvq, ctx);
 	aio       = ctx->raio;
 	ctx->raio = NULL;
-	
-	/*
-	if (nng_msg_cmd_type(msg) == CMD_CONNECT) {
-
-		p->tree = nni_aio_get_dbtree(aio);
-		fprintf(stderr, "nano aio [%p] tree [%p]\n", aio, p->tree);
-
-		if (p->conn_param->clean_start == 0) {
-
-			client_ctx *cli_ctx = find_clictx_from_tree(p->tree, p->id);
-			if (cli_ctx != NULL) {
-				debug_msg("failed");
-			}
-
-			topic_node *tn_t = cli_ctx->sub_pkt->node;
-			int    topic_len = 0;
-			char  *topic_str = NULL;
-
-			while(tn_t) {
-				topic_len = tn_t->it->topic_filter.len;
-				if ((topic_str = nng_alloc(topic_len + 1)) == NULL) {
-					debug_msg("ERROR: nng_alloc");
-					return NNG_ENOMEM;
-				}
-				strncpy(topic_str, tn_t->it->topic_filter.body, topic_len);
-				topic_str[topic_len] = '\0';
-				debug_msg("Now adding topic (from last session), body: [%s]", topic_str);
-				search_and_insert(p->tree, topic_str, p->conn_param->clientid.body, cli_ctx, p->id);
-			}
-		}
-	}
-	*/
-
 	nni_aio_set_msg(&p->aio_recv, NULL);
 	if ((ctx == &s->ctx) && !p->busy) {
 		nni_pollable_raise(&s->writable);
