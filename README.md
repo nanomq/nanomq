@@ -119,11 +119,11 @@ The configurations of NanoMQ could be modified, which provides the power for opt
 
   ​												[during compilation/all modifiable/low-level priority]
 
-- [Modifying 'nanomq.conf' configuration file](#Modifying 'nanomq.conf' configuration file)
+- [Modifying 'nanomq.conf' configuration file](#Modifying-'nanomq.conf'-configuration-file)
 
   ​												[after compilation/some modifiable/mid-level priority]
 
-- [Modifying command-line arguments](#Modifying Command-Line Arguments )
+- [Modifying command-line arguments](#Modifying-Command-Line-Arguments )
 
   ​												[after compilation/some modifiable/high-level priority]
 
