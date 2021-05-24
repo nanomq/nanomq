@@ -21,11 +21,9 @@ conf_parser(conf **nanomq_conf)
 		while (head[0] == ' ') {head++;}
 
 		if (head[0] == '#' || head[0] == '\n' || head[0] == '\0') {
-			memset(buffer, 0, sizeof(buffer));
-			length = 0;
 			continue;
 		}
-		// buffer[strlen(buffer) - 1] = '\0';
+
 		char *value                = strchr(head, '=') + 1;
 		char *key                  = strtok(head, "=");
 
@@ -58,6 +56,8 @@ conf_parser(conf **nanomq_conf)
 				fprintf(stderr,
 				    "Error: Cannot allocate storge for url, "
 				    "parsing aborts\n");
+				free(buffer);
+				fclose(fp);
 				return false;
 			}
 			strcpy(url, value);
@@ -103,15 +103,16 @@ conf_parser(conf **nanomq_conf)
 			    "conf file reading halted, stopped at %s",
 			    key);
 			free(buffer);
+			fclose(fp);
 			return false;
 		}
 		read_success = false;
 		key          = NULL;
 		value        = NULL;
-		length       = 0;
-		memset(buffer, 0, sizeof(buffer));
 	}
-	free(buffer);
+		
+	//free(buffer);
+	fclose(fp);
 	return true;
 }
 
