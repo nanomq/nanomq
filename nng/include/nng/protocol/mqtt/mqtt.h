@@ -26,6 +26,12 @@
 #define EMQ_MIN_HEADER_LEN sizeof(uint8_t) * 8
 #define NANO_CONNECT_PACKET_LEN sizeof(uint8_t) * 12
 
+#ifdef NANO_PACKET_SIZE
+#define NNI_NANO_MAX_PACKET_SIZE sizeof(uint8_t) * NANO_PACKET_SIZE
+#else
+#define NNI_NANO_MAX_PACKET_SIZE sizeof(uint8_t) * 12
+#endif
+
 /* Message types */
 #define CMD_UNKNOWN 0x00
 #define CMD_CONNECT 0x10

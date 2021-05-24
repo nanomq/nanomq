@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <conf.h>
 
 #include "core/nng_impl.h"
 #include "core/sockimpl.h"
@@ -334,7 +335,7 @@ tcptran_pipe_nego_cb(void *arg)
 		return;
 	}
 
-	// We have both sent and received the CONNECT headers.  Lets check TODO
+	// We have both sent and received the CONNECT headers.
 	// CONNECT packet serialization
 	debug_msg("******** %ld %ld %ld %ld nego msg: %s ----- %x\n", p->gottxhead,
 	    p->gotrxhead, p->wantrxhead, p->wanttxhead, p->rxlen, p->rxlen[0]);
@@ -1083,8 +1084,7 @@ tcptran_pipe_start(tcptran_pipe *p, nng_stream *conn, tcptran_ep *ep)
 	// nng_stream_send(p->conn, p->negoaio);
 
 	nni_aio_set_timeout(p->negoaio,
-	    NNI_NANO_QOS_TIMER *
-	        1000); // 15 sec timeout to negotiate abide with emqx
+	    15 * 1000); // 15 sec timeout to negotiate abide with emqx
 	nni_aio_finish(p->negoaio, 0, 0);
 }
 
