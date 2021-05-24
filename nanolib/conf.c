@@ -111,7 +111,7 @@ conf_parser(conf **nanomq_conf)
 		value        = NULL;
 	}
 		
-	//free(buffer);
+	free(buffer);
 	fclose(fp);
 	return true;
 }
