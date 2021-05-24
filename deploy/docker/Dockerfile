@@ -1,6 +1,7 @@
 FROM gcc:10 as builder
 
 COPY . /nanomq
+COPY deploy/docker/docker-entrypoint.sh /usr/bin/docker-entrypoint.sh
 
 RUN apt update && apt install -y cmake ninja-build
 
@@ -12,4 +13,6 @@ RUN ln -s /nanomq/build/nanomq/nanomq /usr/bin/nanomq
 
 EXPOSE 1883
 
-CMD ["/usr/bin/nanomq", "broker", "start", "tcp://0.0.0.0:1883"]
+ENTRYPOINT ["/usr/bin/docker-entrypoint.sh"]
+
+CMD ["-url", "tcp://0.0.0.0:1883"]
