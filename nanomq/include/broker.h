@@ -7,15 +7,6 @@
 #include <nng/protocol/mqtt/mqtt.h>
 #include <nng/supplemental/util/platform.h>
 
-#define USAGE \
-		"Usage: nanomq broker {"\
-		"{start|restart <url> [-daemon] [-tq_thread <num>] [-max_tq_thread <num>] [-parallel <num>]}|stop}\n"\
-		"  -url:                 the form of 'tcp://ip_addr:host'\n"\
-		"  -tq_thread <num>:     the number of taskq threads used, `num` greater than 0 and less than 256\n"\
-		"  -max_tq_thread <num>: the maximum number of taskq threads used, `num` greater than 0 and less than 256\n"\
-		"  -parallel <num>:      the maximum number of outstanding requests we can handle\n"
-
-#define PID_PATH_NAME "/tmp/nanomq/nanomq.pid"
 struct work {
 	enum { INIT, RECV, WAIT, SEND, RESEND, FREE } state;
 
@@ -42,18 +33,9 @@ struct client_ctx {
 	struct packet_subscribe *sub_pkt;
 };
 
-struct conf {
-	bool   daemon;
-	int    num_taskq_thread;
-	int    max_taskq_thread;
-	int    parallel;
-};
-
 typedef struct client_ctx client_ctx;
 
 typedef struct work emq_work;
-
-typedef struct conf conf;
 
 int broker_start(int argc, char **argv);
 int broker_stop(int argc, char **argv);

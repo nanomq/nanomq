@@ -9,6 +9,7 @@
 
 #include <hash.h>
 #include <mqtt_db.h>
+#include <conf.h>
 #include <string.h>
 
 #include "core/nng_impl.h"
@@ -62,7 +63,8 @@ struct nano_sock {
 	nano_ctx       ctx; // base socket
 	nni_pollable   readable;
 	nni_pollable   writable;
-	void          *db;
+	conf         * conf;
+	void         * db;
 };
 
 // nano_pipe is our per-pipe protocol private structure.
@@ -95,12 +97,13 @@ nano_pipe_timer_cb(void *arg)
 	nni_time   time;
 	nni_pipe * npipe = p->pipe;
 	uint16_t   pid;
+	int        qos_timer = p->rep->conf->qos_timer;
 
 	if (nng_aio_result(&p->aio_timer) != 0) {
 		return;
 	}
 	nni_mtx_lock(&p->lk);
-	if (p->ka_refresh * NNI_NANO_QOS_TIMER >
+	if (p->ka_refresh * (qos_timer) >
 	    p->conn_param->keepalive_mqtt) {
 		printf("Warning: close pipe & kick client due to KeepAlive "
 		       "timeout!");
@@ -115,7 +118,7 @@ nano_pipe_timer_cb(void *arg)
 		if (msg != NULL) {
 			time         = nni_msg_get_timestamp(msg);
 			if ((nni_clock() - time) >=
-			    NNI_NANO_QOS_TIMER * 1250) {
+			    qos_timer * 1250) {
 				p->busy = true;
 				nni_msg_clone(msg);
 				nni_aio_set_packetid(&p->aio_send, pid);
@@ -127,7 +130,7 @@ nano_pipe_timer_cb(void *arg)
 	}
 
 	nni_mtx_unlock(&p->lk);
-	nni_sleep_aio(NNI_NANO_QOS_TIMER * 1000, &p->aio_timer);
+	nni_sleep_aio(qos_timer * 1000, &p->aio_timer);
 	return;
 }
 
@@ -431,13 +434,13 @@ nano_pipe_fini(void *arg)
 static int
 nano_pipe_init(void *arg, nni_pipe *pipe, void *s)
 {
-	nano_pipe *p = arg;
-	nano_sock *sock = s;
+	nano_pipe *p         = arg;
+	nano_sock *sock      = s;
 
 	debug_msg("##########nano_pipe_init###############");
 
 	nni_mtx_init(&p->lk);
-	nni_lmq_init(&p->rlmq, NNI_NANO_MAX_MSQ_LEN);
+	nni_lmq_init(&p->rlmq, sock->conf->msq_len);
 	nni_aio_init(&p->aio_send, nano_pipe_send_cb, p);
 	nni_aio_init(&p->aio_timer, nano_pipe_timer_cb, p);
 	nni_aio_init(&p->aio_recv, nano_pipe_recv_cb, p);
@@ -498,7 +501,7 @@ nano_pipe_start(void *arg)
 	nni_mtx_lock(&s->lk);
 	rv = nni_id_set(&s->pipes, nni_pipe_id(p->pipe), p);
 	nni_aio_get_output(&p->aio_recv, 1);
-	nni_sleep_aio(NNI_NANO_QOS_TIMER * 1200, &p->aio_timer);
+	nni_sleep_aio(s->conf->qos_timer * 1200, &p->aio_timer);
 	// nano_keepalive(p, NULL);
 	nni_mtx_unlock(&s->lk);
 	if (rv != 0) {
@@ -507,7 +510,7 @@ nano_pipe_start(void *arg)
 	// By definition, we have not received a request yet on this pipe,
 	// so it cannot cause us to become writable.
 	// nni_timer_schedule(&p->pipe_qos_timer, nni_clock() + NNI_SECOND *
-	// NNI_NANO_QOS_TIMER);
+	// s->conf->qos_timer);
 	nni_pipe_recv(p->pipe, &p->aio_recv);
 	//Clean session
 	return (0);
@@ -844,10 +847,13 @@ nano_sock_recv(void *arg, nni_aio *aio)
 }
 
 static void
-nano_sock_setdb(void *arg, void *db)
+nano_sock_setdb(void *arg, void *data)
 {
-	nano_sock *s = arg;
-	s->db        = db;
+	nano_sock *s         = arg;
+	conf      *nano_conf = data;
+
+	s->conf      = nano_conf;
+	s->db        = nano_conf->db_root;
 }
 
 // This is the global protocol structure -- our linkage to the core.

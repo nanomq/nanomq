@@ -27,7 +27,7 @@ typedef struct {
 // Underlying message structure.
 struct nng_msg {
 	uint8_t
-	    m_header_buf[NNI_NANO_MAX_HEADER_SIZE + 1]; // only fixed header
+	    m_header_buf[NNI_NANO_MAX_HEADER_SIZE + 1]; // TODO independent nano_msg
 	// uint8_t       m_variable_header_buf[];                //TODO
 	// independent variable header?
 	size_t         m_header_len;
