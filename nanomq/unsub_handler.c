@@ -209,7 +209,8 @@ unsub_ctx_handle(emq_work *work)
 
 	// delete ctx_unsub in treeDB
 	while (topic_node_t) {
-		client_id = (char *)conn_param_get_clientid((conn_param *)nng_msg_get_conn_param(work->msg));
+		client_id = (char *)conn_param_get_clientid(
+			(conn_param *)nng_msg_get_conn_param(work->msg));
 
 		// parse topic string
 		topic_str =
