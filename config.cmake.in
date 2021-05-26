@@ -29,14 +29,10 @@ NANO_SET(NANO_PACKET_SIZE 64)
 NANO_SET(NANO_HEADER_SIZE 5)
 # set property size
 NANO_SET(NANO_PROPERTY_SIZE 32)
-# set qos length
-NANO_SET(NANO_QOS_LEN 64)
 # set msq length
 NANO_SET(NANO_MSQ_LEN 64)
 # set qos timer
 NANO_SET(NANO_QOS_TIMER 10)
-# set nano pub client
-NANO_SET(NANO_PUB_CLIENT 1024)
 # Parallelism (min 4, max 1000)
 NANO_SET(PARALLEL 32)
 
