@@ -381,8 +381,7 @@ cli_ctx_merge(client_ctx * ctx, client_ctx * ctx_new) {
 		node_new = ctx_new->sub_pkt->node;
 		is_find = 1;
 		while (node_new) {
-			if (strncmp(node->it->topic_filter.body, node_new->it->topic_filter.body,
-			        node->it->topic_filter.len) == 0) {
+			if (strcmp(node->it->topic_filter.body, node_new->it->topic_filter.body) == 0) {
 				is_find = 0;
 				break;
 			}
