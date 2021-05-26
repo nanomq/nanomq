@@ -464,15 +464,12 @@ mqtt_hash<uint32_t, topic_queue *> _cached_topic_hash;
 void cache_topic_all(uint32_t pid, uint32_t cid)
 {
 	struct topic_queue *tq_in_topic_hash = _topic_hash[pid];
-	log("the topic queue in hash map has an address; [%p]", tq_in_topic_hash);
 	if (cached_check_id(cid)) {
 		log("unexpected: cached hash instance is not vacant");
 		del_cached_topic_all(cid);
 	}
 	_cached_topic_hash[cid] = tq_in_topic_hash;
 	_topic_hash.del(pid);
-	log("the cached topic queue has an address; [%p]", _cached_topic_hash[cid]);
-	log("topic queue is cahced from topic hash to cached topic hash");
 }
 
 /*
@@ -491,8 +488,6 @@ void restore_topic_all(uint32_t cid, uint32_t pid)
 	}
 	_topic_hash[pid] = tq_in_cached;
 	_cached_topic_hash.del(cid);
-	log("the topic queue in hash map has an address; [%p]", _topic_hash[pid]);
-	log("topic queue is restored from cached topic hash to topic hash");
 }
 
 /*
@@ -711,4 +706,3 @@ struct msg_queue * get_msg_queue(char *id)
 	}
 	return NULL;
 }
-

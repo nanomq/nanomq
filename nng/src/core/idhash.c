@@ -11,6 +11,7 @@
 #include "core/nng_impl.h"
 
 #include <string.h>
+
 struct nni_id_entry {
 	uint32_t key;
 	uint32_t skips;
@@ -322,7 +323,7 @@ nni_id_msgfree_cb(nni_msg* msg)
 	msg = NULL;
 }
 
-void 
+void
 nni_id_show_cb(nni_msg* msg)
 {
 	debug_msg("message has an address: %p", msg);
@@ -330,9 +331,9 @@ nni_id_show_cb(nni_msg* msg)
 
 // this function iterates through the the idhash table, and store the entries in a linked list
 // the implementation of the linked list used the structure of the idhash entry 
-void 
+void
 nni_id_iterate(nni_id_map *m, void (func_cb)(nni_msg*))
-{	
+{
 	//int count = 0;
 	for (int i = 0; i < m->id_cap; i++) {
 		if ((m->id_entries[i].val) != NULL) {

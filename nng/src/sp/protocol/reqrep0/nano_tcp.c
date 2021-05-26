@@ -60,7 +60,7 @@ struct nano_sock {
 	nni_mtx        lk;
 	nni_atomic_int ttl;
 	nni_id_map     pipes;
-	nni_id_map	   clean_session_db;
+	nni_id_map     clean_session_db;
 	nni_list       recvpipes; // list of pipes with data to receive
 	nni_list       recvq;
 	nano_ctx       ctx; // base socket
@@ -521,13 +521,11 @@ nano_session_restore(nano_pipe *p, nano_sock *s)
 	if (cs == NULL) {
 		if (clean_session_flag == 0) {
 			debug_msg("(CS=0) Session cannot restore, cannot find "
-			          "such a lmq in clsession(hashtable) based "
-			          "on the clientID given");
-			debug_msg("eithe first connect or lose the backup");
+			          "cached information based "
+			          "on the clientID given (eithe first connect or lose the backup)");
 			return -1;
 		} else {
-			debug_msg("(CS=1) No need for restoring a session, no "
-			          "lmq stored in the hashtalbe");
+			debug_msg("(CS=1) No need for restoring a session");
 			return 0;
 		}
 	}
@@ -543,20 +541,17 @@ nano_session_restore(nano_pipe *p, nano_sock *s)
 		nano_deep_copy_connparam(new_cparam, cparam);
 		destroy_conn_param(cparam);
 		cparam = NULL;
-		debug_msg("(CS=0) Backed up cparam successfully restored");
 		// step 1 restore nano_qos_db
 		// TODO new coming message may use the existing packet id in one client nano_qos_db
 		nni_id_map_fini(p->pipe->nano_qos_db);
 		nng_free(p->pipe->nano_qos_db, sizeof(struct nni_id_map));
 		p->pipe->nano_qos_db       = msgs;
 		p->conn_param->nano_qos_db = msgs;
-		debug_msg("(CS=0) nano_qos_db successfully restored");
 		// step 2 restore cli_ctx and cached_topic_queue
 		if (cltx != NULL)
 			cltx->pid.id = p->id;
 		if (cached_check_id(key)) {
 			restore_topic_all(key, p->id);
-			debug_msg("(CS=0) cli_ctx, cached topic queue restored (hash.cc)");
 			restore_topic_to_tree(p->tree, cltx, new_cparam->clientid.body);			
 		} else {
 			debug_msg("(CS=0) UNEXPECTED: no stored cached topic queue");
@@ -564,7 +559,6 @@ nano_session_restore(nano_pipe *p, nano_sock *s)
 		// step 3 restore topic in pipe_db
 		p->pipedb_root   = topics;
 		cs->pipe_db      = NULL;
-		debug_msg("(CS=0) Topic successfully restored, innano_pipe_db");
 		// step 4 restore nano_pipe_db<topic, pipe_db>
 		while (topic_node->next) {
 			nni_id_set(&p->pipe->nano_db,
@@ -572,18 +566,16 @@ nano_session_restore(nano_pipe *p, nano_sock *s)
 			        topic_node);
 			topic_node = topic_node->next;
 		}
-	} 
-	else {
+		debug_msg("(CS=0) All last session related information restored");
+	} else {
 		// step 0 remove conn param
 		destroy_conn_param(cparam);
 		cparam = NULL;
-		debug_msg("(CS=1) cparam freed successfully freed");
 		// step 1 remove nano_qos_db
 		nni_id_iterate(msgs, nni_id_msgfree_cb);
 		nni_id_map_fini(msgs);
 		nng_free(msgs, sizeof(struct nni_id_map));
 		msgs = NULL;
-		debug_msg("(CS=1) msgs successfully freed");
 		// step 2 delete 2-1 cli_ctx and cached topic queue 
 		if (cached_check_id(key)) {
 			topic_queue* tq = get_cached_topic(key);
@@ -591,13 +583,13 @@ nano_session_restore(nano_pipe *p, nano_sock *s)
 				del_sub_ctx(cltx, tq->topic);
 				tq = tq->next;
 			}
-			del_cached_topic_all(key);
-			debug_msg("(CS=1) cli_ctx, cached topic queue removed (hash.cc)");				
+			del_cached_topic_all(key);			
 		} else {
 			debug_msg("(CS=1) UNEXPECTED: no stored cached topic queue");
 		}
 		// step 3 delete topics in pipe_db
 		nano_msg_free_pipedb(topics);
+		debug_msg("(CS=1) All last session related information disgarded");
 	}
 
 	nni_id_remove(&s->clean_session_db, key);
@@ -624,16 +616,16 @@ nano_session_cache(nano_pipe *p)
 		if (check_id(p->id) && p->tree != NULL) {
 			tq = get_topic(p->id);
 			if ((cli_ctx = del_topic_clictx_from_tree(p->tree, tq, p->id)) != NULL) {
-				debug_msg("Unexpected, not all topic has been delete from sub_pkt");
+				debug_msg("(CS=1) Unexpected, not all topic has been delete from sub_pkt");
 			}
 			del_topic_all(p->id);
-			debug_msg("(CS=1) topic in tree and cli_ctx deleted, topic queue removed (hash.cc)");
 		} else {
 			debug_msg("(CS=1) UNEXPECTED: no stored topic queue, tq lost or maybe not subed any topic");
 		}
 		// step 3 delete topics from nano_pipe_db
 		nano_msg_free_pipedb(p->pipedb_root);
 
+		debug_msg("(CS=1) Session not cached, all this session related information disgarded");
 		return 0;
 	}
 
@@ -667,7 +659,6 @@ nano_session_cache(nano_pipe *p)
 			temp_cs->cltx = cli_ctx;
 		}
 		cache_topic_all(p->id, key);
-		debug_msg("(CS=0) topic in tree deleted and cli_ctx pointer kept, topic queue removed and cached topic queue added (hash.cc)");
 	} else {
 		debug_msg("(CS=0) UNEXPECTED: no stored topic queue, tq lost or client may not subed topic");
 	}
@@ -677,11 +668,12 @@ nano_session_cache(nano_pipe *p)
 
 	// finally, struct in hashtable
 	if (nni_id_set(cs_db, key, temp_cs) != 0) {
-		debug_msg("Error: The nano_clean_session structure is not set "
+		debug_msg("(CS=0) UNEXPECTED: The nano_clean_session structure is not set "
 		          "as a new instance of hashtable");
 		return -1;
 	}
 
+	debug_msg("(CS=0) Session cached, all this session related information kept");
 	return 0;
 }
 
@@ -806,14 +798,6 @@ nano_pipe_start(void *arg)
 
 	nni_mtx_lock(&s->lk);
 	nano_session_restore(p, s);
-	
-	// for debug use
-	debug_msg("post-restoring: msgs in nano_qos_db (access from cparam): %p", p->conn_param->nano_qos_db);
-	debug_msg("post-restoring: msgs in nano_qos_db (access from pipe): %p", p->pipe->nano_qos_db);
-	debug_msg("post-restoring: address for single msgs:");
-	nni_id_iterate(p->pipe->nano_qos_db, nni_id_show_cb);
-	debug_msg("post-restoring: topics in topic map (hash.cc)");
-	print_topic_all(p->id);
 
 	nni_mtx_unlock(&s->lk);
 	return (0);
@@ -855,12 +839,6 @@ nano_pipe_close(void *arg)
 		nni_msg_free(msg);
 	}
 	nni_id_remove(&s->pipes, nni_pipe_id(p->pipe));
-
-	debug_msg("pre-caching: msgs in nano_qos_db: %p", p->conn_param->nano_qos_db);
-	debug_msg("pre-caching: address for single msgs:");
-	nni_id_iterate(p->conn_param->nano_qos_db, nni_id_show_cb);
-	debug_msg("pre-caching: topics in topic map (hash.cc)");
-	print_topic_all(p->id);
 
 	nano_session_cache(p);
 	
