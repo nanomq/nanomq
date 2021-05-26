@@ -23,16 +23,6 @@ NANO_SET(NOWARNING 0)
 NANO_SET(DEBUG 0)
 # asan support
 NANO_SET(ASAN 0)
-# set max packet size
-NANO_SET(NANO_PACKET_SIZE 64)
-# set max header size
-NANO_SET(NANO_HEADER_SIZE 5)
-# set property size
-NANO_SET(NANO_PROPERTY_SIZE 32)
-# set msq length
-NANO_SET(NANO_MSQ_LEN 64)
-# set qos timer
-NANO_SET(NANO_QOS_TIMER 10)
 # Parallelism (min 4, max 1000)
 NANO_SET(PARALLEL 32)
 
