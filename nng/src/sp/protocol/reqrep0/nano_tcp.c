@@ -698,19 +698,14 @@ nano_pipe_fini(void *arg)
 
 	// MQTT_DB
 	debug_msg("deleting %d", p->id);
-
-	// TODO free conn_param after one to many pub completed
+	nano_session_cache(p);
+	destroy_conn_param(p->conn_param);
 
 	nni_mtx_fini(&p->lk);
 	nni_aio_fini(&p->aio_send);
 	nni_aio_fini(&p->aio_recv);
 	nni_aio_fini(&p->aio_timer);
 	nni_lmq_fini(&p->rlmq);
-
-	//nni_timer_cancel(&p->ka_timer);
-	//nni_timer_cancel(&p->pipe_qos_timer);
-	//nni_timer_fini(&p->ka_timer);
-	//nni_timer_fini(&p->pipe_qos_timer);
 }
 
 static int
@@ -839,10 +834,6 @@ nano_pipe_close(void *arg)
 		nni_msg_free(msg);
 	}
 	nni_id_remove(&s->pipes, nni_pipe_id(p->pipe));
-
-	nano_session_cache(p);
-	
-	destroy_conn_param(p->conn_param);
 
 	nni_mtx_unlock(&s->lk);
 }

@@ -496,7 +496,7 @@ int status_check(pid_t *pid)
 	int rc;
 	if ((rc = nng_file_get(PID_PATH_NAME, (void*)&data, &size)) != 0) {
 		nng_free(data, size);
-		debug_msg(".pid file does not existed or cannot be read");
+		debug_msg(".pid file not found or unreadable\n");
 		return 1;
 	} else {
 		if ((data) != NULL ) {
@@ -505,12 +505,12 @@ int status_check(pid_t *pid)
 			nng_free(data, size);
 
 			if ((kill(*pid, 0)) == 0) {
-				debug_msg("there is a running NanoMQ instance has pid [%lu]", *pid);
+				debug_msg("there is a running NanoMQ instance : pid [%lu]", *pid);
 				return 0;
 			}
 		}
 		if (!nng_file_delete(PID_PATH_NAME)) {
-			debug_msg(".pid file successfully deleted");
+			debug_msg(".pid file is removed");
 			return 1;
 		}
 		debug_msg("unexpected error");
