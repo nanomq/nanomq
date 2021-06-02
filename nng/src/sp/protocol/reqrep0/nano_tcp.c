@@ -665,9 +665,6 @@ nano_pipe_fini(void *arg)
 		nni_msg_free(msg);
 	}
 
-	// MQTT_DB
-	debug_msg("deleting %d", p->id);
-	
 	if (p->conn_param->clean_start == 1) {
 		// When clean_session is set to 1
 		nni_id_map *        nano_qos_db = p->conn_param->nano_qos_db;
@@ -691,9 +688,9 @@ nano_pipe_fini(void *arg)
 			          "tq lost or maybe not subed any topic");
 		}
 		nano_msg_free_pipedb(p->pipedb_root);
-	} else 
+	} else {
 		nano_session_cache(p);
-	
+  }
 	destroy_conn_param(p->conn_param);
 
 	nni_mtx_fini(&p->lk);
