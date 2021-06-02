@@ -23,7 +23,7 @@
 #define UPDATE_FIELD_MQTT_STRING(field, sub_field, new_obj, old_obj) \
 	do { if (new_obj->field.sub_field == NULL && old_obj->field.sub_field != NULL) {\
 			new_obj->field = old_obj->field; \
-			new_obj->field.sub_field = strdup(old_obj->field.sub_field); \
+			new_obj->field.sub_field = strdup((char *)old_obj->field.sub_field); \
 			}\
 	} while(0)
 
@@ -31,8 +31,8 @@
 	do { if ((new_obj->field.sub_field1 == NULL && old_obj->field.sub_field1 != NULL)|| \
 			(new_obj->field.sub_field2 == NULL && old_obj->field.sub_field2 != NULL)){ \
 			new_obj->field = old_obj->field; \
-			new_obj->field.sub_field1 = strdup(old_obj->field.sub_field1); \
-			new_obj->field.sub_field2 = strdup(old_obj->field.sub_field2); \
+			new_obj->field.sub_field1 = strdup((char *)old_obj->field.sub_field1); \
+			new_obj->field.sub_field2 = strdup((char *)old_obj->field.sub_field2); \
 			}\
 	} while(0)
 

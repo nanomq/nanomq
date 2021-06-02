@@ -127,7 +127,7 @@ nano_pipe_timer_cb(void *arg)
 		msg = nni_id_get_any(npipe->nano_qos_db, &pid);
 		if (msg != NULL) {
 			time         = nni_msg_get_timestamp(msg);
-			if ((nni_clock() - time) >=
+			if ((nni_clock() - time) >= (long unsigned)
 			    qos_timer * 1250) {
 				p->busy = true;
 				nni_msg_clone(msg);
@@ -324,10 +324,8 @@ void nano_clean_session_db_fini (nni_id_map *m) {
 	uint32_t            key   = 0;
 	nano_clean_session *cs    = NULL;
 	while ((cs = nni_id_get_one(m, &key)) != NULL) {
-		client_ctx   *cli_ctx  = cs->cltx;
 		conn_param   *cparam   = cs->cparam;
 		nni_id_map   *msg_map  = cs->msg_map;
-		nano_pipe_db *pipedb   = cs->pipe_db;
 		
 		destroy_conn_param(cparam);
 		nni_id_iterate(msg_map, nni_id_msgfree_cb);
@@ -455,7 +453,7 @@ find_clictx_from_tree(void *tree, uint32_t pid) {
 	}
 
 	client_ctx *cli_ctx = NULL;
-	for (int i = 0; i < cvector_size(cli_ctx_list); i++) {
+	for (long unsigned i = 0; i < cvector_size(cli_ctx_list); i++) {
 		cli_ctx = (struct client_ctx*)cli_ctx_list[i];
 		if (pid == cli_ctx->pid.id) {
 			return cli_ctx;
@@ -498,8 +496,6 @@ del_topic_from_tree(void *tree, topic_queue *tq, uint32_t pid) {
 static void
 restore_topic_to_tree(void *tree, client_ctx *cli_ctx, char* client_id) {
 	topic_node *tn_t = cli_ctx->sub_pkt->node;
-	int    topic_len = 0;
-	char  *topic_str = NULL;
 
 	while(tn_t) {
 		debug_msg("Now adding topic (from last session), body: [%s]",
@@ -608,9 +604,9 @@ nano_session_cache(nano_pipe *p)
 	if (cp->clean_start == 1) {
 		// step 0 conn_param will be deleted anyway, so won't bother to
 		// do anything step 1 delete nano_qos_db
-		nni_id_iterate(cp->nano_qos_db, nni_id_msgfree_cb);
-		nni_id_map_fini(cp->nano_qos_db);
-		nng_free(cp->nano_qos_db, sizeof(struct nni_id_map));
+		nni_id_iterate(nano_qos_db, nni_id_msgfree_cb);
+		nni_id_map_fini(nano_qos_db);
+		nng_free(nano_qos_db, sizeof(struct nni_id_map));
 		// step 2-1 delete topics from tree, delete cli_ctx
 		// step 2-2 delete topics from hash.cc
 		if (check_id(p->id) && p->tree != NULL) {
@@ -647,9 +643,9 @@ nano_session_cache(nano_pipe *p)
 	nano_deep_copy_connparam(new_cp, cp);
 	temp_cs->cparam   = new_cp;
 	// step 1 move nano_qos_db to temp_cs struct (move pointer)
-	temp_cs->msg_map  = cp->nano_qos_db;
-	debug_msg("the nano_qos_db has an address: %p", cp->nano_qos_db);
-	cp->nano_qos_db   = NULL;
+	temp_cs->msg_map  = nano_qos_db;
+	debug_msg("the nano_qos_db has an address: %p", nano_qos_db);
+	nano_qos_db   = NULL;
 	// step 2-1 find cli_ctx and kept its pointer, but delete topic from tree
 	// step 2-2 move topic from topic map to cached topic map (hash.cc)
 	if (check_id(p->id)) {
@@ -681,9 +677,7 @@ static void
 nano_pipe_fini(void *arg)
 {
 	nano_pipe *p = arg;
-	nano_sock *s = p->rep;
 	nng_msg *  msg;
-	void *     tree;
 
 	debug_msg("########## nano_pipe_fini ###############");
 	if ((msg = nni_aio_get_msg(&p->aio_recv)) != NULL) {
@@ -817,7 +811,6 @@ nano_pipe_close(void *arg)
 	if (nni_list_active(&s->recvpipes, p)) {
 		nni_list_remove(&s->recvpipes, p);
 	}
-	nni_id_iterate(p->conn_param->nano_qos_db, nni_id_show_cb);
 	nni_lmq_flush(&p->rlmq);
 	//nano_msg_free_pipedb(p->pipedb_root);
 	//p->pipedb_root = NULL;
