@@ -4,12 +4,12 @@
 bool
 conf_parser(conf **nanomq_conf)
 {
-	int   length       = 0;
-	int   temp         = 0;
-	char *buffer;
-	char *head;
-	bool  read_success = false;
-	FILE *fp;
+	size_t length = 0;
+	int    temp   = 0;
+	char * buffer;
+	char * head;
+	bool   read_success = false;
+	FILE * fp;
 
 	if (!(fp = fopen(CONF_PATH_NAME, "r"))) {
 		fprintf(stderr, "\"nano.conf\" file does not existed or cannot be read");

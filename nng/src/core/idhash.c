@@ -335,7 +335,7 @@ void
 nni_id_iterate(nni_id_map *m, void (func_cb)(nni_msg*))
 {
 	//int count = 0;
-	for (int i = 0; i < m->id_cap; i++) {
+	for (int i = 0; i < (int) m->id_cap; i++) {
 		if ((m->id_entries[i].val) != NULL) {
 			//count++;
 			func_cb(m->id_entries[i].val);
@@ -347,7 +347,7 @@ nni_id_iterate(nni_id_map *m, void (func_cb)(nni_msg*))
 void*
 nni_id_get_one(nni_id_map *m, uint32_t *key)
 {
-	for (int i = 0; i < m->id_cap; i++) {
+	for (int i = 0; i < (int) m->id_cap; i++) {
 		if ((m->id_entries[i].val) != NULL) {
 			*key = m->id_entries[i].key;
 			return &m->id_entries[i];

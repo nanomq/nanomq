@@ -7,6 +7,7 @@
 #include <string.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <ctype.h>
 
 #include "zmalloc.h"
 
