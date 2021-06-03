@@ -1962,9 +1962,7 @@ nng_aio_set_pipeline(nng_aio *aio, uint32_t id)
 void *
 nng_msg_get_conn_param(nng_msg *msg)
 {
-	conn_param *p;
-	p = nni_msg_get_conn_param(msg);
-	return p;
+	return nni_msg_get_conn_param(msg);
 }
 
 void

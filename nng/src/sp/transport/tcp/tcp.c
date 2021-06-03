@@ -1,12 +1,12 @@
 // rewrite by Jaylin EMQ X for MQTT usage
 // TODO Independent tcptran protocol
 
+#include <conf.h>
 #include <mqtt_db.h>
 #include <poll.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <conf.h>
 
 #include "core/nng_impl.h"
 #include "core/sockimpl.h"
@@ -114,7 +114,7 @@ tcptran_fini(void)
 static void
 tcptran_pipe_close(void *arg)
 {
-	tcptran_pipe *p     = arg;
+	tcptran_pipe *p = arg;
 	// nni_pipe *    npipe = p->npipe;
 
 	nni_mtx_lock(&p->mtx);
@@ -285,7 +285,8 @@ tcptran_pipe_nego_cb(void *arg)
 	ACK/error nni_mtx_unlock(&ep->mtx); return;
 	}*/
 
-	debug_msg("current header : gottx %ld gotrx %ld needrx %ld needtx %ld\n",
+	debug_msg(
+	    "current header : gottx %ld gotrx %ld needrx %ld needtx %ld\n",
 	    p->gottxhead, p->gotrxhead, p->wantrxhead, p->wanttxhead);
 	if (p->gotrxhead >= p->wantrxhead && p->gottxhead < p->wanttxhead) {
 		if (p->rxlen[0] != CMD_CONNECT) {
@@ -295,7 +296,8 @@ tcptran_pipe_nego_cb(void *arg)
 			                 // into NNG?
 			goto error;
 		}
-		len = get_var_integer(p->rxlen + 1, (uint32_t *)&len_of_varint);
+		len =
+		    get_var_integer(p->rxlen + 1, (uint32_t *) &len_of_varint);
 		debug_msg("CMD TYPE %x REMAINING LENGTH %d", p->rxlen[0], len);
 		p->wantrxhead = len + 1 + len_of_varint;
 	}
@@ -328,8 +330,9 @@ tcptran_pipe_nego_cb(void *arg)
 		nni_aio_set_iov(aio, 1, &iov);
 		nng_stream_recv(p->conn, aio);
 		nni_mtx_unlock(&ep->mtx);
-		debug_msg("variable and payload : gottx %ld gotrx %ld needrx %ld "
-		          "needtx %ld hex: %x %x\n",
+		debug_msg(
+		    "variable and payload : gottx %ld gotrx %ld needrx %ld "
+		    "needtx %ld hex: %x %x\n",
 		    p->gottxhead, p->gotrxhead, p->wantrxhead, p->wanttxhead,
 		    p->rxlen[0], p->rxlen[1]);
 		return;
@@ -337,8 +340,9 @@ tcptran_pipe_nego_cb(void *arg)
 
 	// We have both sent and received the CONNECT headers.
 	// CONNECT packet serialization
-	debug_msg("******** %ld %ld %ld %ld nego msg: %s ----- %x\n", p->gottxhead,
-	    p->gotrxhead, p->wantrxhead, p->wanttxhead, p->rxlen, p->rxlen[0]);
+	debug_msg("******** %ld %ld %ld %ld nego msg: %s ----- %x\n",
+	    p->gottxhead, p->gotrxhead, p->wantrxhead, p->wanttxhead, p->rxlen,
+	    p->rxlen[0]);
 
 	// reply error/CONNECT ACK
 	if (p->gottxhead < p->wanttxhead && p->gotrxhead >= p->wantrxhead) {
@@ -438,7 +442,7 @@ tcptran_pipe_send_cb(void *arg)
 
 	msg = nni_aio_get_msg(aio);
 	n   = nni_msg_len(msg);
-	//nni_pipe_bump_tx(p->npipe, n);
+	// nni_pipe_bump_tx(p->npipe, n);
 	// free qos buffer
 	if (p->qlength > 16 + NNI_NANO_MAX_PACKET_SIZE) {
 		nng_free(p->qos_buf, p->qlength);
@@ -494,7 +498,7 @@ tcptran_pipe_recv_cb(void *arg)
 
 	if (nni_aio_iov_count(rxaio) > 0) {
 		debug_msg("got: %x %x, %ld!!\n", p->rxlen[0], p->rxlen[1],
-		    strlen((char *)p->rxlen));
+		    strlen((char *) p->rxlen));
 		nng_stream_recv(p->conn, rxaio);
 		nni_mtx_unlock(&p->mtx);
 		return;
@@ -559,7 +563,7 @@ tcptran_pipe_recv_cb(void *arg)
 			iov.iov_len = len;
 
 			nni_aio_set_iov(rxaio, 1, &iov);
-			//second recv action
+			// second recv action
 			nng_stream_recv(p->conn, rxaio);
 			nni_mtx_unlock(&p->mtx);
 			return;
@@ -604,9 +608,9 @@ tcptran_pipe_recv_cb(void *arg)
 			payload_ptr = variable_ptr + 2;
 		}
 	} else if (type == CMD_PUBLISH) {
-		uint8_t   qos_pac;
-		uint16_t  pid;
-		size_t    tlen;
+		uint8_t  qos_pac;
+		uint16_t pid;
+		size_t   tlen;
 
 		NNI_GET16(variable_ptr, tlen);
 		qos_pac = nni_msg_get_pub_qos(msg);
@@ -682,7 +686,7 @@ tcptran_pipe_recv_cb(void *arg)
 	nni_msg_set_payload_ptr(msg, payload_ptr);
 
 	// keep connection & Schedule next receive
-	//nni_pipe_bump_rx(p->npipe, n);
+	// nni_pipe_bump_rx(p->npipe, n);
 	tcptran_pipe_recv_start(p);
 	nni_mtx_unlock(&p->mtx);
 
@@ -704,12 +708,12 @@ recv_error:
 	return;
 quit:
 	// nni_aio_list_remove(aio);
-	//nni_pipe_bump_rx(p->npipe, n);
+	// nni_pipe_bump_rx(p->npipe, n);
 	tcptran_pipe_recv_start(p);
 	nni_mtx_unlock(&p->mtx);
 	return;
 notify:
-	//nni_pipe_bump_rx(p->npipe, n);
+	// nni_pipe_bump_rx(p->npipe, n);
 	tcptran_pipe_recv_start(p);
 	nni_mtx_unlock(&p->mtx);
 	nni_aio_finish_error(aio, rv);
@@ -743,11 +747,11 @@ tcptran_pipe_send_cancel(nni_aio *aio, void *arg, int rv)
 static void
 tcptran_pipe_send_start(tcptran_pipe *p)
 {
-	nni_aio *     aio;
-	nni_aio *     txaio;
-	nni_msg *     msg;
-	int           niov;
-	nni_iov       iov[4];
+	nni_aio *aio;
+	nni_aio *txaio;
+	nni_msg *msg;
+	int      niov;
+	nni_iov  iov[4];
 	// nano_pipe_db *db;
 
 	debug_msg("########### tcptran_pipe_send_start ###########");
@@ -790,8 +794,8 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 		p->qlength = 0;
 		NNI_GET16(body, tlen);
 
-		if ((db = nni_id_get(
-		         &pipe->nano_db, DJBHashn((char *)body + 2, tlen))) == NULL) {
+		if ((db = nni_id_get(&pipe->nano_db,
+		         DJBHashn((char *) body + 2, tlen))) == NULL) {
 			// shouldn't get here BUG TODO
 			nni_println(
 			    "ERROR: nano_db subscription topic missing!");
@@ -850,7 +854,8 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 			int      rv;
 			nni_msg *old;
 			pid = nni_aio_get_packetid(aio);
-			if (pid == 0) {		//first time deal with "pid", it's not resending
+			if (pid == 0) { // first time deal with "pid", it's not
+				        // resending
 				pid = nni_pipe_inc_packetid(pipe);
 				// store msg for qos retrying
 				debug_msg("******** processing QoS pubmsg "
@@ -858,7 +863,7 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 				    p);
 				nni_msg_clone(msg);
 				if ((old = nni_id_get(
-				        pipe->nano_qos_db, pid)) != NULL) {
+				         pipe->nano_qos_db, pid)) != NULL) {
 					// TODO  shouldn't get here BUG
 					nni_println(
 					    "ERROR: packet id duplicates in "
@@ -1142,7 +1147,8 @@ tcptran_ep_close(void *arg)
 // This parses off the optional source address that this transport uses.
 // The special handling of this URL format is quite honestly an historical
 // mistake, which we would remove if we could.static int
-int tcptran_url_parse_source(nng_url *url, nng_sockaddr *sa, const nng_url *surl)
+int
+tcptran_url_parse_source(nng_url *url, nng_sockaddr *sa, const nng_url *surl)
 {
 	int      af;
 	char *   semi;
@@ -1263,8 +1269,8 @@ error:
 static void
 tcptran_dial_cb(void *arg)
 {
-	NNI_ARG_UNUSED(arg);
-	return;
+        NNI_ARG_UNUSED(arg);
+        return;
 }
 */
 
@@ -1303,11 +1309,11 @@ tcptran_ep_init(tcptran_ep **epp, nng_url *url, nni_sock *sock)
 static int
 tcptran_dialer_init(void **dp, nng_url *url, nni_dialer *ndialer)
 {
-	debug_msg("tcptran_dialer_init");
-	NNI_ARG_UNUSED(dp);
-	NNI_ARG_UNUSED(url);
-	NNI_ARG_UNUSED(ndialer);
-	return (0);
+        debug_msg("tcptran_dialer_init");
+        NNI_ARG_UNUSED(dp);
+        NNI_ARG_UNUSED(url);
+        NNI_ARG_UNUSED(ndialer);
+        return (0);
 }
 */
 
@@ -1361,9 +1367,9 @@ tcptran_ep_cancel(nni_aio *aio, void *arg, int rv)
 static void
 tcptran_ep_connect(void *arg, nni_aio *aio)
 {
-	NNI_ARG_UNUSED(arg);
-	NNI_ARG_UNUSED(aio);
-	debug_msg("tcptran_ep_connect ");
+        NNI_ARG_UNUSED(arg);
+        NNI_ARG_UNUSED(aio);
+        debug_msg("tcptran_ep_connect ");
 }
 */
 
@@ -1507,24 +1513,24 @@ static int
 tcptran_dialer_getopt(
     void *arg, const char *name, void *buf, size_t *szp, nni_type t)
 {
-	NNI_ARG_UNUSED(arg);
-	NNI_ARG_UNUSED(name);
-	NNI_ARG_UNUSED(buf);
-	NNI_ARG_UNUSED(szp);
-	NNI_ARG_UNUSED(t);
-	return 0;
+        NNI_ARG_UNUSED(arg);
+        NNI_ARG_UNUSED(name);
+        NNI_ARG_UNUSED(buf);
+        NNI_ARG_UNUSED(szp);
+        NNI_ARG_UNUSED(t);
+        return 0;
 }
 
 static int
 tcptran_dialer_setopt(
     void *arg, const char *name, const void *buf, size_t sz, nni_type t)
 {
-	NNI_ARG_UNUSED(arg);
-	NNI_ARG_UNUSED(name);
-	NNI_ARG_UNUSED(buf);
-	NNI_ARG_UNUSED(sz);
-	NNI_ARG_UNUSED(t);
-	return 0;
+        NNI_ARG_UNUSED(arg);
+        NNI_ARG_UNUSED(name);
+        NNI_ARG_UNUSED(buf);
+        NNI_ARG_UNUSED(sz);
+        NNI_ARG_UNUSED(t);
+        return 0;
 }
 */
 
@@ -1557,12 +1563,6 @@ tcptran_listener_setopt(
 }
 
 static nni_tran_dialer_ops tcptran_dialer_ops = {
-	/*	.d_init    = tcptran_dialer_init,
-	        .d_fini    = tcptran_ep_fini,
-	        .d_connect = tcptran_ep_connect,
-	        .d_close   = tcptran_ep_close,
-	        .d_getopt  = tcptran_dialer_getopt,
-	        .d_setopt  = tcptran_dialer_setopt,*/
 };
 
 static nni_tran_listener_ops tcptran_listener_ops = {
