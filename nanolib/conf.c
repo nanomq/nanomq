@@ -1,4 +1,4 @@
-
+#include "nanomq.h"
 #include "include/conf.h"
 
 bool
@@ -12,7 +12,7 @@ conf_parser(conf **nanomq_conf)
 	FILE * fp;
 
 	if (!(fp = fopen(CONF_PATH_NAME, "r"))) {
-		fprintf(stderr, "\"nano.conf\" file does not existed or cannot be read");
+		fprintf(stderr, "\"nano.conf\" file not found or unreadable\n");
 		return false;
 	}
 
@@ -141,14 +141,13 @@ macro_def_parser(conf **nanomq_conf)
 
 void 
 print_conf(conf *nanomq_conf) {
-	fprintf(stderr, "This NanoMQ instance has configurations:\n");
-	fprintf(stderr, "url is %s\n", nanomq_conf->url);
-	fprintf(stderr, "daemon is %d\n", nanomq_conf->daemon);
-	fprintf(stderr, "num_taskq_thread is %d\n", nanomq_conf->num_taskq_thread);
-	fprintf(stderr, "max_taskq_thread is %d\n", nanomq_conf->max_taskq_thread);
-	fprintf(stderr, "parallel is %d\n", nanomq_conf->parallel);
-	fprintf(stderr, "property_size is %d\n", nanomq_conf->property_size);
-	fprintf(stderr, "msq_len is %d\n", nanomq_conf->msq_len);
-	fprintf(stderr, "qos_timer is %d\n", nanomq_conf->qos_timer);
-	
+	debug_syslog("This NanoMQ instance configured as:\n");
+	debug_syslog("url is %s\n", nanomq_conf->url);
+	debug_syslog("daemon is %d\n", nanomq_conf->daemon);
+	debug_syslog("num_taskq_thread is %d\n", nanomq_conf->num_taskq_thread);
+	debug_syslog("max_taskq_thread is %d\n", nanomq_conf->max_taskq_thread);
+	debug_syslog("parallel is %d\n", nanomq_conf->parallel);
+	debug_syslog("property_size is %d\n", nanomq_conf->property_size);
+	debug_syslog("msq_len is %d\n", nanomq_conf->msq_len);
+	debug_syslog("qos_timer is %d\n", nanomq_conf->qos_timer);
 }
