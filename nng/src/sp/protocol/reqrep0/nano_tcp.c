@@ -88,8 +88,6 @@ struct nano_pipe {
 	conn_param *   conn_param;
 	nano_pipe_db * pipedb_root;
 	nni_lmq        rlmq;
-	//nni_timer_node ka_timer;
-	//nni_timer_node pipe_qos_timer;
 };
 
 struct nano_clean_session {
@@ -975,7 +973,7 @@ nano_pipe_recv_cb(void *arg)
 	// TODO HOOK
 	switch (nng_msg_cmd_type(msg)) {
 	case CMD_SUBSCRIBE:
-		// TODO put hash table to tcp layer
+		// TODO only cache topic hash when it is above qos 1/2
 		nni_mtx_lock(&p->lk);
 		pipe_db = nano_msg_get_subtopic(
 			msg, p->pipedb_root); // TODO potential memleak when sub failed
