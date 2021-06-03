@@ -1,5 +1,12 @@
 # NanoMQ
 
+[![GitHub Release](https://img.shields.io/github/release/nanomq/nanomq?color=brightgreen)](https://github.com/nanomq/nanomq/releases)
+[![Docker Pulls](https://img.shields.io/docker/pulls/nanomq/nanomq)](https://hub.docker.com/r/nanomq/nanomq)
+[![Twitter](https://img.shields.io/badge/Follow-EMQ-1DA1F2?logo=twitter)](https://twitter.com/EMQTech)
+[![YouTube](https://img.shields.io/badge/Subscribe-EMQ-FF0000?logo=youtube)](https://www.youtube.com/channel/UC5FjR77ErAxvZENEWzQaO5Q)
+[![Community](https://img.shields.io/badge/Community-NanoMQ-yellow?logo=github)](https://github.com/nanomq/nanomq/discussions)
+
+
 [![The best IoT MQTT open source team looks forward to your joining](https://www.emqx.io/static/img/github_readme_en_bg.png)](https://www.emqx.io/careers)NanoMQ MQTT Broker (NanoMQ) is a lightweight and blazing-fast MQTT Broker for the IoT Edge platform. 
 
 NanoMQ bases on NNG's asynchronous I/O threading model, with an extension of MQTT support in the protocol layer and reworked transport layer. Plus, an enhanced asynchronous IO mechanism to maximize the overall capacity.
