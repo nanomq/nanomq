@@ -24,11 +24,11 @@ endif()
 #aux_source_directory(. DIRSRCS)
 
 include_directories(./include)
+include_directories(${CMAKE_SOURCE_DIR}/nanomq/include)
 find_package(Threads)
 
 #add_subdirectory(./packet_parser)
 
-# Call this from your own project's makefile.
 # find_package(nng CONFIG REQUIRED)
 
 # list of source files
