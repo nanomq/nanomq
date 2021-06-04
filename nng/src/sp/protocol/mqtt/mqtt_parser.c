@@ -213,7 +213,7 @@ utf8_check(const char *str, size_t len)
 		}
 
 		/* Reconstruct full code point */
-		if (i == (int)len - codelen + 1) {
+		if (i == (int) len - codelen + 1) {
 			/* Not enough data */
 			return ERR_MALFORMED_UTF8;
 		}
@@ -276,7 +276,7 @@ fixed_header_adaptor(uint8_t *packet, nng_msg *dst)
 	size_t   pos = 1;
 
 	m = (nni_msg *) dst;
-	get_var_integer(packet, (uint32_t *)&pos);
+	get_var_integer(packet, (uint32_t *) &pos);
 
 	rv = nni_msg_header_append(m, packet, pos);
 	return rv;
@@ -329,9 +329,10 @@ conn_handler(uint8_t *packet, conn_param *cparam)
 	// remaining length
 	len = (uint32_t) get_var_integer(packet, &pos);
 	// protocol name
-	cparam->pro_name.body = (char *)copy_utf8_str(packet, &pos, &len_of_str);
-	cparam->pro_name.len  = len_of_str;
-	rv                    = rv | len_of_str;
+	cparam->pro_name.body =
+	    (char *) copy_utf8_str(packet, &pos, &len_of_str);
+	cparam->pro_name.len = len_of_str;
+	rv                   = rv | len_of_str;
 	debug_msg("pro_name: %s", cparam->pro_name.body);
 	// protocol ver
 	cparam->pro_ver = packet[pos];
@@ -424,7 +425,7 @@ conn_handler(uint8_t *packet, conn_param *cparam)
 				case AUTHENTICATION_DATA:
 					debug_msg("AUTHENTICATION_DATA");
 					cparam->auth_data.body = copy_utf8_str(
-					        packet, &pos, &len_of_str);
+					    packet, &pos, &len_of_str);
 					rv = rv | len_of_str;
 					cparam->auth_data.len = len_of_str;
 					break;
@@ -501,22 +502,26 @@ conn_handler(uint8_t *packet, conn_param *cparam)
 						debug_msg("RESPONSE_TOPIC");
 						cparam->resp_topic.body =
 						    (char *) copy_utf8_str(
-						        packet, &pos, &len_of_str);
+						        packet, &pos,
+						        &len_of_str);
 						cparam->resp_topic.len =
 						    len_of_str;
 						rv = rv | len_of_str;
 						debug_msg("resp topic: %s %d",
-						    cparam->resp_topic.body, rv);
+						    cparam->resp_topic.body,
+						    rv);
 						break;
 					case CORRELATION_DATA:
 						debug_msg("CORRELATION_DATA");
-						cparam->corr_data.body = copy_utf8_str(
-						        packet, &pos, &len_of_str);
+						cparam->corr_data.body =
+						    copy_utf8_str(packet, &pos,
+						        &len_of_str);
 						cparam->corr_data.len =
 						    len_of_str;
 						rv = rv | len_of_str;
 						debug_msg("corr_data: %s %d",
-						    cparam->corr_data.body, rv);
+						    cparam->corr_data.body,
+						    rv);
 						break;
 					case USER_PROPERTY:
 						debug_msg("USER_PROPERTY");
@@ -559,7 +564,7 @@ conn_handler(uint8_t *packet, conn_param *cparam)
 		debug_msg("will_topic: %s %d", cparam->will_topic.body, rv);
 		// will msg
 		cparam->will_msg.body =
-		    (char *)copy_utf8_str(packet, &pos, &len_of_str);
+		    (char *) copy_utf8_str(packet, &pos, &len_of_str);
 		cparam->will_msg.len = len_of_str;
 		rv                   = rv | len_of_str;
 		debug_msg("will_msg: %s %d", cparam->will_msg.body, rv);
@@ -616,7 +621,8 @@ destroy_conn_param(conn_param *cparam)
 	cparam = NULL;
 }
 
-void init_conn_param(conn_param *cparam)
+void
+init_conn_param(conn_param *cparam)
 {
 	cparam->pro_name.len                  = 0;
 	cparam->pro_name.body                 = NULL;
