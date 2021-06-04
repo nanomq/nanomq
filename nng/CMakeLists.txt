@@ -34,14 +34,6 @@ include(GNUInstallDirs)
 
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
-# set(NANO_PACKET_SIZE 64 CACHE STRING "set max packet size")
-# set(NANO_HEADER_SIZE 5 CACHE STRING "set max header size")
-# set(NANO_PROPERTY_SIZE 32 CACHE STRING "set property size")
-# set(NANO_QOS_LEN 64 CACHE STRING "set qos length")
-# set(NANO_MSQ_LEN 64 CACHE STRING "set msq length")
-# set(NANO_QOS_TIMER 30 CACHE STRING "set qos timer")
-# set(NANO_PUB_CLIENT 256 CACHE STRING "set nano pub client")
-
 include(NNGHelpers)
 include(NNGOptions)
 
@@ -283,14 +275,6 @@ set(CPACK_SOURCE_PACKAGE_FILE_NAME
 set(CPACK_RESOURCE_FILE_LICENSE ${CMAKE_CURRENT_SOURCE_DIR}/LICENSE.txt)
 set(CPACK_PACKAGE_INSTALL_DIRECTORY "nng")
 set(CPACK_PACKAGE_FILE_NAME "${PROJECT_NAME}-v${NNG_PACKAGE_VERSION}")
-
-# target_compile_definitions(nng PRIVATE -DNANO_PACKET_SIZE=${NANO_PACKET_SIZE})
-# target_compile_definitions(nng PRIVATE -DNANO_HEADER_SIZE=${NANO_HEADER_SIZE})
-# target_compile_definitions(nng PRIVATE -DNANO_PROPERTY_SIZE=${NANO_PROPERTY_SIZE})
-# target_compile_definitions(nng PRIVATE -DNANO_QOS_LEN=${NANO_QOS_LEN})
-# target_compile_definitions(nng PRIVATE -DNANO_MSQ_LEN=${NANO_MSQ_LEN})
-# target_compile_definitions(nng PRIVATE -DNANO_QOS_TIMER=${NANO_QOS_TIMER})
-# target_compile_definitions(nng PRIVATE -DNANO_PUB_CLIENT=${NANO_PUB_CLIENT})
 
 add_custom_target(dist COMMAND ${CMAKE_MAKE_PROGRAM} package_source)
 include(CPack)

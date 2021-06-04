@@ -43,7 +43,7 @@ struct conf {
 typedef struct conf conf;
 
 extern bool conf_parser(conf **nanomq_conf);
-extern void macro_def_parser(conf **nanomq_conf);
+extern void conf_init(conf **nanomq_conf);
 extern void print_conf(conf *nanomq_conf);
 
-#endif 
+#endif

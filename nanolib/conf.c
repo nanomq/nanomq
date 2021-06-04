@@ -1,18 +1,28 @@
+//
+// Copyright 2020 NanoMQ Team, Inc. <jaylin@emqx.io> //
+// This software is supplied under the terms of the MIT License, a
+// copy of which should be located in the distribution where this
+// file was obtained (LICENSE.txt).  A copy of the license may also be
+// found online at https://opensource.org/licenses/MIT.
+//
+
+#include <ctype.h>
+
 #include "nanomq.h"
 #include "include/conf.h"
 
 bool
 conf_parser(conf **nanomq_conf)
 {
-	size_t length = 0;
-	int    temp   = 0;
-	char * buffer;
-	char * head;
+	char  *buffer;
+	char  *head;
+	size_t length       = 0;
+	int    temp         = 0;
 	bool   read_success = false;
-	FILE * fp;
+	FILE  *fp;
 
 	if (!(fp = fopen(CONF_PATH_NAME, "r"))) {
-		fprintf(stderr, "\"nano.conf\" file not found or unreadable\n");
+		fprintf(stderr, "\"nanomq.conf\" file not found or unreadable\n");
 		return false;
 	}
 
@@ -117,26 +127,14 @@ conf_parser(conf **nanomq_conf)
 }
 
 void
-macro_def_parser(conf **nanomq_conf)
+conf_init(conf **nanomq_conf)
 {
-#ifdef NANO_PROPERTY_SIZE
-	(*nanomq_conf)->property_size = sizeof(uint8_t) * NANO_PROPERTY_SIZE;
-#else
-	(*nanomq_conf)->property_size = sizeof(uint8_t) * 32;
-#endif
-
-
-#ifdef NANO_MSQ_LEN
-	(*nanomq_conf)->msq_len = NANO_PACKET_SIZE;
-#else
-	(*nanomq_conf)->msq_len       = 64;
-#endif
-
-#ifdef NANO_QOS_TIMER
-	(*nanomq_conf)->qos_timer = NANO_QOS_TIMER;
-#else
-	(*nanomq_conf)->qos_timer     = 30;
-#endif
+	(*nanomq_conf)->num_taskq_thread = 10;
+	(*nanomq_conf)->max_taskq_thread = 10;
+	(*nanomq_conf)->parallel         = 30; // not work
+	(*nanomq_conf)->property_size    = sizeof(uint8_t) * 32;
+	(*nanomq_conf)->msq_len          = 64;
+	(*nanomq_conf)->qos_timer        = 30;
 }
 
 void 
@@ -151,3 +149,4 @@ print_conf(conf *nanomq_conf) {
 	debug_syslog("msq_len is %d\n", nanomq_conf->msq_len);
 	debug_syslog("qos_timer is %d\n", nanomq_conf->qos_timer);
 }
+

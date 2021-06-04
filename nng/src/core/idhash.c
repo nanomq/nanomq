@@ -326,6 +326,7 @@ nni_id_msgfree_cb(nni_msg* msg)
 void
 nni_id_show_cb(nni_msg* msg)
 {
+	NNI_ARG_UNUSED(msg);
 	debug_msg("message has an address: %p", msg);
 }
 
