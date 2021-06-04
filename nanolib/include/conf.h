@@ -38,6 +38,7 @@ struct conf {
     int    msq_len;
     int    qos_timer;
 	void*  db_root;
+	bool   allow_anoy;
 };
 
 typedef struct conf conf;
