@@ -24,24 +24,27 @@ typedef struct {
 	uint8_t *ch_ptr; // pointer to actual data
 } nni_chunk;
 
+// PROTOCOL EXPANSION FOR NANOMQ
+typedef struct {
+	size_t           remaining_len;
+	uint8_t          CMD_TYPE;
+	uint8_t         *payload_ptr;
+	nni_time         times;
+	nano_conn_param *cparam;
+	uint8_t          qos;
+	// uint8_t       m_variable_header_buf[];                //TODO
+} proto_ex;
+
 // Underlying message structure.
 struct nng_msg {
 	uint8_t
 	    m_header_buf[NNI_NANO_MAX_HEADER_SIZE + 1]; // TODO independent nano_msg
-	// uint8_t       m_variable_header_buf[];                //TODO
-	// independent variable header?
 	size_t         m_header_len;
 	nni_chunk      m_body;
 	uint32_t       m_pipe; // set on receive
 	nni_atomic_int m_refcnt;
-	// FOR NANOMQ
-	size_t  remaining_len;
-	uint8_t CMD_TYPE;
-	// uint8_t          *variable_ptr;         //equal to m_body
-	uint8_t *        payload_ptr; // payload
-	nni_time         times;
-	nano_conn_param *cparam;
-	uint8_t          qos;
+
+	proto_ex      *m_proto_ex;
 };
 
 #if 0
@@ -408,6 +411,14 @@ nni_msg_alloc(nni_msg **mp, size_t sz)
 	// We always start with a single valid reference count.
 	nni_atomic_init(&m->m_refcnt);
 	nni_atomic_set(&m->m_refcnt, 1);
+
+	// Protocol expansion
+	proto_ex *ex;
+	if ((ex = NNI_ALLOC_STRUCT(ex)) == NULL) {
+		return (NNG_ENOMEM);
+	}
+	m->m_proto_ex = ex;
+
 	*mp = m;
 	return (0);
 }
@@ -443,6 +454,7 @@ nni_msg_free(nni_msg *m)
 {
 	if ((m != NULL) && (nni_atomic_dec_nv(&m->m_refcnt) == 0)) {
 		nni_chunk_free(&m->m_body);
+		NNI_FREE_STRUCT(m->m_proto_ex);
 		NNI_FREE_STRUCT(m);
 	}
 }
@@ -616,7 +628,7 @@ nni_msg_get_pipe(const nni_msg *m)
 int
 nni_msg_cmd_type(nni_msg *m)
 {
-	return (m->CMD_TYPE);
+	return (m->m_proto_ex->CMD_TYPE);
 }
 
 uint8_t *
@@ -634,43 +646,43 @@ nni_msg_variable_ptr(const nni_msg *m)
 uint8_t *
 nni_msg_payload_ptr(const nni_msg *m)
 {
-	return (m->payload_ptr);
+	return (m->m_proto_ex->payload_ptr);
 }
 
 size_t
 nni_msg_remaining_len(const nni_msg *m)
 {
-	return (m->remaining_len);
+	return (m->m_proto_ex->remaining_len);
 }
 
 void
 nni_msg_set_payload_ptr(nni_msg *m, uint8_t *ptr)
 {
-	m->payload_ptr = ptr;
+	m->m_proto_ex->payload_ptr = ptr;
 }
 
 void
 nni_msg_set_conn_param(nni_msg *m, void *ptr)
 {
-	m->cparam = ptr;
+	m->m_proto_ex->cparam = ptr;
 }
 
 conn_param *
 nni_msg_get_conn_param(nni_msg *m)
 {
-	return m->cparam;
+	return m->m_proto_ex->cparam;
 }
 
 void
 nni_msg_set_remaining_len(nni_msg *m, size_t len)
 {
-	m->remaining_len = len;
+	m->m_proto_ex->remaining_len = len;
 }
 
 void
 nni_msg_set_cmd_type(nni_msg *m, uint8_t cmd)
 {
-	m->CMD_TYPE = cmd;
+	m->m_proto_ex->CMD_TYPE = cmd;
 }
 
 uint8_t
@@ -700,26 +712,26 @@ nni_msg_get_pub_pid(nni_msg *m)
 void
 nni_msg_set_timestamp(nni_msg *m, nni_time time)
 {
-	m->times = time;
+	m->m_proto_ex->times = time;
 }
 
 nni_time
 nni_msg_get_timestamp(nni_msg *m)
 {
-	return m->times;
+	return m->m_proto_ex->times;
 }
 
 // TODO qos validation
 uint8_t
 nni_msg_get_preset_qos(nni_msg *m)
 {
-	return m->qos;
+	return m->m_proto_ex->qos;
 }
 
 void
 nni_msg_set_qos(nni_msg *m, uint8_t qos)
 {
-	m->qos = qos;
+	m->m_proto_ex->qos = qos;
 }
 
 nano_pipe_db *
@@ -732,7 +744,7 @@ nano_msg_get_subtopic(nni_msg *msg, nano_pipe_db *root)
 	size_t		remain = 0;
 	bool		repeat = false;
 
-	payload_ptr = (char*)nni_msg_payload_ptr(msg);
+	payload_ptr = nni_msg_payload_ptr(msg);
 	remain      = nni_msg_remaining_len(msg) - 2;
 
 	if (nni_msg_cmd_type(msg) != 0x80)
@@ -753,7 +765,7 @@ nano_msg_get_subtopic(nni_msg *msg, nano_pipe_db *root)
 			debug_msg("The current process topic is %s",  payload_ptr+bpos+2);
 			iter = root;
 			while(iter) {
-				if (strlen(iter->topic) == len_of_topic && !strncmp(payload_ptr+bpos+2, iter->topic, len_of_topic)) {
+				if (strlen(iter->topic) == len_of_topic && !strncmp((char *)payload_ptr+bpos+2, iter->topic, len_of_topic)) {
 					repeat = true;
 					bpos += (2 + len_of_topic);
 					if (iter->qos != *(payload_ptr +bpos)) {
