@@ -29,10 +29,11 @@ typedef struct nano_ctx           nano_ctx;
 typedef struct nano_clean_session nano_clean_session;
 typedef struct cs_msg_list        cs_msg_list;
 
-static void nano_pipe_send_cb(void *);
-static void nano_pipe_recv_cb(void *);
-static void nano_pipe_fini(void *);
-static void nano_pipe_close(void *);
+static void        nano_pipe_send_cb(void *);
+static void        nano_pipe_recv_cb(void *);
+static void        nano_pipe_fini(void *);
+static void        nano_pipe_close(void *);
+static inline void close_pipe(nano_pipe *p);
 // static void nano_period_check(nano_sock *s, nni_list *sent_list, void *arg);
 // static void nano_keepalive(nano_pipe *p, void *arg);
 
@@ -523,12 +524,14 @@ nano_session_restore(nano_pipe *p, nano_sock *s)
 	// TODO hash collision?
 	cs = nni_id_get(&s->clean_session_db, key);
 
-	// no matter if client enabled cleansession. use clean-session-db for duplicate clientid verifying.
+	// no matter if client enabled cleansession. use clean-session-db for
+	// duplicate clientid verifying.
 	if (cs == NULL) {
-		if ((cs = nni_zalloc(sizeof(nano_clean_session) * 1)) == NULL) {
+		if ((cs = nni_zalloc(sizeof(nano_clean_session) * 1)) ==
+		    NULL) {
 			return (NNG_ENOMEM);
 		}
-		//firts connection, store pipeid and hashed clientid
+		// firts connection, store pipeid and hashed clientid
 		cs->pipeid = p->id;
 		if (clean_session_flag == 0) {
 			debug_msg("(CS=0) Session cannot restore, cannot find "
@@ -536,22 +539,26 @@ nano_session_restore(nano_pipe *p, nano_sock *s)
 			          "on the clientID given (eithe first connect "
 			          "or lose the backup)");
 			cs->clean = false;
-			ret = 0;
+			ret       = 0;
 		} else {
 			debug_msg("(CS=1) No need for restoring a session");
 			cs->clean = true;
-			ret = 0;
+			ret       = 0;
 		}
 		if (nni_id_set(&s->clean_session_db, key, cs) != 0) {
 			debug_msg("(CS=0) UNEXPECTED: The nano_clean_session "
-		          "structure is not set "
-		          "as a new instance of hashtable");
+			          "structure is not set "
+			          "as a new instance of hashtable");
 			ret = NNG_ECONNABORTED;
 		}
 		return ret;
-	} else if(cs->pipeid != 0){
-		//TODO kick prev connection or current one?(p or cs->pipeid)
-		nano_pipe_close(p);
+	} else if (cs->pipeid != 0) {
+
+			// TODO kick prev connection or current one?(p or
+			// cs->pipeid)
+			// TODO compete for lock! CPU consuming!!!
+			close_pipe(p);
+		
 		return (NNG_ECONNABORTED);
 	}
 
@@ -640,8 +647,8 @@ nano_session_cache(nano_pipe *p)
 	uint32_t            key;
 	nano_clean_session *temp_cs;
 
-	key     = DJBHashn(cp->clientid.body, cp->clientid.len);
-	//get temp_cs from clean_session_db
+	key = DJBHashn(cp->clientid.body, cp->clientid.len);
+	// get temp_cs from clean_session_db
 	temp_cs = nni_id_get(&s->clean_session_db, key);
 	if (temp_cs == NULL) {
 		nni_println("clientid missing!");
@@ -686,13 +693,13 @@ nano_session_cache(nano_pipe *p)
 static void
 nano_session_close(nano_pipe *p)
 {
-	conn_param *        cp          = p->conn_param;
-	nano_sock *         s           = p->rep;
+	conn_param *        cp = p->conn_param;
+	nano_sock *         s  = p->rep;
 	uint32_t            key;
 	nano_clean_session *temp_cs;
 
-	key     = DJBHashn(cp->clientid.body, cp->clientid.len);
-	//get temp_cs from clean_session_db
+	key = DJBHashn(cp->clientid.body, cp->clientid.len);
+	// get temp_cs from clean_session_db
 	temp_cs = nni_id_get(&s->clean_session_db, key);
 	if (temp_cs != NULL) {
 		if (temp_cs->clean == true) {
@@ -841,16 +848,11 @@ nano_pipe_start(void *arg)
 	nni_pipe_recv(p->pipe, &p->aio_recv);
 	return (0);
 }
-
-static void
-nano_pipe_close(void *arg)
+static inline void
+close_pipe(nano_pipe *p)
 {
-	nano_pipe *p = arg;
 	nano_sock *s = p->rep;
 	nano_ctx * ctx;
-
-	debug_msg("################# nano_pipe_close ##############");
-	nni_mtx_lock(&s->lk);
 
 	nni_aio_close(&p->aio_send);
 	nni_aio_close(&p->aio_recv);
@@ -878,7 +880,16 @@ nano_pipe_close(void *arg)
 	}
 	nni_id_remove(&s->pipes, nni_pipe_id(p->pipe));
 	nano_session_close(p);
+}
+static void
+nano_pipe_close(void *arg)
+{
+	nano_pipe *p = arg;
+	nano_sock *s = p->rep;
 
+	debug_msg("################# nano_pipe_close ##############");
+	nni_mtx_lock(&s->lk);
+	close_pipe(p);
 	nni_mtx_unlock(&s->lk);
 }
 
