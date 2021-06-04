@@ -301,11 +301,9 @@ nano_ctx_send(void *arg, nni_aio *aio)
 		return;
 	}
 	debug_msg("WARNING: pipe %d occupied! resending in cb!", pipe);
-	// printf("WARNING: pipe %d occupied! resending in cb!\n", pipe);
 	if (nni_lmq_full(&p->rlmq)) {
 		// Make space for the new message.
 		debug_msg("warning msg dropped!");
-		printf("warning msg dropped!\n");
 		nni_msg *old;
 		(void) nni_lmq_getq(&p->rlmq, &old);
 		nni_msg_free(old);

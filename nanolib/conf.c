@@ -2,7 +2,7 @@
 #include "include/conf.h"
 
 bool
-conf_parser(conf **nanomq_conf)
+conf_parser(conf **nanomq_conf, const char* path)
 {
 	size_t length = 0;
 	int    temp   = 0;
@@ -11,8 +11,8 @@ conf_parser(conf **nanomq_conf)
 	bool   read_success = false;
 	FILE * fp;
 
-	if (!(fp = fopen(CONF_PATH_NAME, "r"))) {
-		fprintf(stderr, "\"nano.conf\" file not found or unreadable\n");
+	if (!(fp = fopen(path, "r"))) {
+		fprintf(stderr, "\"nanomq.conf %s\" file not found or unreadable\n", path);
 		return false;
 	}
 
@@ -43,11 +43,11 @@ conf_parser(conf **nanomq_conf)
 			if (!strncmp(value, "yes", 3)) {
 				(*nanomq_conf)->daemon == 1;
 				read_success = true;
-				fprintf(stderr, CONF_READ_RECORD, key, value);
+				debug_msg(CONF_READ_RECORD, key, value);
 			} else if (!strncmp(value, "no", 2)) {
 				(*nanomq_conf)->daemon == -1;
 				read_success = true;
-				fprintf(stderr, CONF_READ_RECORD, key, value);
+				debug_msg(CONF_READ_RECORD, key, value);
 			}
 		} else if (!strcmp(key, "url")) {
 			char *url =
@@ -63,38 +63,38 @@ conf_parser(conf **nanomq_conf)
 			strcpy(url, value);
 			(*nanomq_conf)->url = url;
 			read_success        = true;
-			fprintf(stderr, CONF_READ_RECORD, key, value);
+			debug_msg(CONF_READ_RECORD, key, value);
 		} else if (!strcmp(key, "num_taskq_thread") &&
 		    isdigit(value[0]) && ((temp = atoi(value)) > 0) &&
 		    (temp < 256)) {
 			(*nanomq_conf)->num_taskq_thread = temp;
-			fprintf(stderr, CONF_READ_RECORD, key, value);
+			debug_msg(CONF_READ_RECORD, key, value);
 			read_success = true;
 		} else if (!strcmp(key, "max_taskq_thread") &&
 		    isdigit(value[0]) && ((temp = atoi(value)) > 0) &&
 		    (temp < 256)) {
 			(*nanomq_conf)->max_taskq_thread = temp;
-			fprintf(stderr, CONF_READ_RECORD, key, value);
+			debug_msg(CONF_READ_RECORD, key, value);
 			read_success = true;
 		} else if (!strcmp(key, "parallel") && isdigit(value[0]) &&
 		    ((temp = atoi(value)) > 0)) {
 			(*nanomq_conf)->parallel = temp;
-			fprintf(stderr, CONF_READ_RECORD, key, value);
+			debug_msg(CONF_READ_RECORD, key, value);
 			read_success = true;
 		} else if (!strcmp(key, "property_size") &&
 		    isdigit(value[0]) && ((temp = atoi(value)) > 0)) {
 			(*nanomq_conf)->property_size = temp;
-			fprintf(stderr, CONF_READ_RECORD, key, value);
+			debug_msg(CONF_READ_RECORD, key, value);
 			read_success = true;
 		} else if (!strcmp(key, "msq_len") && isdigit(value[0]) &&
 		    ((temp = atoi(value)) > 0)) {
 			(*nanomq_conf)->msq_len = temp;
-			fprintf(stderr, CONF_READ_RECORD, key, value);
+			debug_msg(CONF_READ_RECORD, key, value);
 			read_success = true;
 		} else if (!strcmp(key, "qos_timer") && isdigit(value[0]) &&
 		    ((temp = atoi(value)) > 0)) {
 			(*nanomq_conf)->qos_timer = temp;
-			fprintf(stderr, CONF_READ_RECORD, key, value);
+			debug_msg(CONF_READ_RECORD, key, value);
 			read_success = true;
 		}
 		if (!read_success) {
