@@ -519,6 +519,7 @@ nano_session_restore(nano_pipe *p, nano_sock *s)
 	uint32_t            key;
 	uint8_t             clean_session_flag = new_cparam->clean_start;
 	nano_clean_session *cs;
+	nano_pipe		   *kick;
 
 	key = DJBHashn(new_cparam->clientid.body, new_cparam->clientid.len);
 	// TODO hash collision?
@@ -553,12 +554,8 @@ nano_session_restore(nano_pipe *p, nano_sock *s)
 		}
 		return ret;
 	} else if (cs->pipeid != 0) {
-
-			// TODO kick prev connection or current one?(p or
-			// cs->pipeid)
-			// TODO compete for lock! CPU consuming!!!
+			// TODO kick prev connection or current one?(p or cs->pipeid)
 			close_pipe(p);
-		
 		return (NNG_ECONNABORTED);
 	}
 
@@ -691,20 +688,24 @@ nano_session_cache(nano_pipe *p)
 }
 
 static void
-nano_session_close(nano_pipe *p)
+nano_sessiondb_clean(nano_pipe *p)
 {
 	conn_param *        cp = p->conn_param;
 	nano_sock *         s  = p->rep;
 	uint32_t            key;
 	nano_clean_session *temp_cs;
+	nano_pipe *pipe;
 
 	key = DJBHashn(cp->clientid.body, cp->clientid.len);
 	// get temp_cs from clean_session_db
 	temp_cs = nni_id_get(&s->clean_session_db, key);
 	if (temp_cs != NULL) {
 		if (temp_cs->clean == true) {
-			nni_id_remove(&s->clean_session_db, key);
-			nng_free(temp_cs, sizeof(nano_clean_session));
+			//Do not kick the old one.
+			if ((pipe = nni_id_get(&s->pipes, p->id)) != NULL) {
+				nni_id_remove(&s->clean_session_db, key);
+				nng_free(temp_cs, sizeof(nano_clean_session));
+			}
 		} else {
 			temp_cs->pipeid = 0;
 		}
@@ -879,7 +880,7 @@ close_pipe(nano_pipe *p)
 		nni_msg_free(msg);
 	}
 	nni_id_remove(&s->pipes, nni_pipe_id(p->pipe));
-	nano_session_close(p);
+	nano_sessiondb_clean(p);
 }
 static void
 nano_pipe_close(void *arg)
