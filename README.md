@@ -57,7 +57,7 @@ nanomq sp rep -port 5555
 
 ## Compile & Install
 
-NanoMQ dedicates to deliver a simple but powerful Messaging Hub on various edge platforms.
+NanoMQ dedicates to delivering a simple but powerful Messaging Hub on various edge platforms.
 
 With this being said, NanoMQ can run on different architectures such like x86_64 and ARM with minor migration efforts.
 
