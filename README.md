@@ -252,10 +252,10 @@ Users can also change the configuration parameters of NanoMQ while booting. Howe
 
 In the `etc` directory of NanoMQ (`./nanomq/etc/nanomq.conf`), there is a 'nanomq.conf' configuration file. This file is different from 'config.cmake.in'. This 'nanomq.conf' allows you to configure broker when booting.
 
-Open and edit 'nanomq.conf' in your editor before start NanoMQ. Be sure to start NanoMQ in this fashion to read the file:
+Open and edit 'nanomq.conf' in your editor before start NanoMQ. Be sure to start NanoMQ in this fashion to specify effective configuration file:
 
 ```bash
-nanomq broker start --conf
+nanomq broker start --conf {$FILE_PATH}
 ```
 
 #### NanoMQ Command-Line Arguments 
@@ -263,7 +263,7 @@ nanomq broker start --conf
 The same configuration can be achieved by adding some command-line arguments when user starts NanoMQ broker. There are a few arguments for you to play with. And the general usage is:
 
 ```bash
-nanomq broker {{start|restart -url <url> [--conf] [-daemon] [-tq_thread <num>] [-max_tq_thread <num>] [-parallel <num>] }|stop}
+nanomq broker {{start|restart -url <url> [--conf <path>] [-daemon] [-tq_thread <num>] [-max_tq_thread <num>] [-parallel <num>] }|stop}
 ```
 
 - `start`, `restart`, and `stop` command is mandatory as it indicates whether you want to start a new broker, or replace an existing broker with a new one, or stop a running broker;
@@ -278,7 +278,7 @@ nanomq broker {{start|restart -url <url> [--conf] [-daemon] [-tq_thread <num>] [
 
   ```bash
   nanomq broker start|restart -url <url>
-  nanomq broker start|restart --conf ## only if an url is specified in 'nano.conf'
+  nanomq broker start|restart --conf {$FILE_PATH} ## only if an url is specified in 'nano.conf'
   ```
 
 - Telling broker that it should read 'nanomq.conf' file. NanoMQ supports parsing command line argument while reading the configuration file. 
@@ -286,7 +286,7 @@ nanomq broker {{start|restart -url <url> [--conf] [-daemon] [-tq_thread <num>] [
   Be aware that command line arguments always has higher priority than configuration file 'nanomq.conf':. 
 
   ```bash
-  nanomq broker start|restart --conf
+  nanomq broker start|restart --conf {$FILE_PATH}
   ```
 
 - Running broker in daemon mode:

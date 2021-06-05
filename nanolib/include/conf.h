@@ -13,8 +13,9 @@
 
 #define USAGE \
 		"Usage: nanomq broker {"\
-		"{start|restart -url <url> [-daemon] [-tq_thread <num>] [-max_tq_thread <num>] [-parallel <num>] [--conf]}|stop}\n"\
-		"  -url <url>            the form of 'tcp://ip_addr:host'\n"\
+		"{start|restart [-conf <path>] [-url <url>] [-daemon] [-tq_thread <num>] [-max_tq_thread <num>] [-parallel <num>]}|stop}\n"\
+		"  -conf <path>          the path of specified configuration file \n"\
+		"  -url <url>            the format of 'tcp://ip_addr:host'\n"\
 		"  -tq_thread <num>      the number of taskq threads used, `num` greater than 0 and less than 256\n"\
 		"  -max_tq_thread <num>  the maximum number of taskq threads used, `num` greater than 0 and less than 256\n"\
 		"  -parallel <num>       the maximum number of outstanding requests we can handle\n"\
