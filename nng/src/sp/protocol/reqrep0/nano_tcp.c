@@ -96,7 +96,7 @@ struct nano_clean_session {
 	conn_param *  cparam;
 	nni_id_map *  msg_map;
 	nano_pipe_db *pipe_db;
-	uint32_t      pipeid;
+	uint32_t      pipeid;		//corresponding pipe id of nng
 	bool          clean;
 };
 
@@ -555,6 +555,7 @@ nano_session_restore(nano_pipe *p, nano_sock *s)
 		return ret;
 	} else if (cs->pipeid != 0) {
 			// TODO kick prev connection or current one?(p or cs->pipeid)
+			p->closed = true;
 			close_pipe(p);
 		return (NNG_ECONNABORTED);
 	}
@@ -700,9 +701,13 @@ nano_sessiondb_clean(nano_pipe *p)
 	// get temp_cs from clean_session_db
 	temp_cs = nni_id_get(&s->clean_session_db, key);
 	if (temp_cs != NULL) {
+		//temp_cs->pipeid indicates if current session existed.
+		if (p->closed == true && temp_cs->pipeid == p->id) {
+			temp_cs->pipeid = 0;
+		}
 		if (temp_cs->clean == true) {
 			//Do not kick the old one.
-			if ((pipe = nni_id_get(&s->pipes, p->id)) != NULL) {
+			if (temp_cs->pipeid == 0) {
 				nni_id_remove(&s->clean_session_db, key);
 				nng_free(temp_cs, sizeof(nano_clean_session));
 			}
@@ -842,10 +847,7 @@ nano_pipe_start(void *arg)
 	if (rv != 0) {
 		return (rv);
 	}
-	// By definition, we have not received a request yet on this pipe,
-	// so it cannot cause us to become writable.
-	// nni_timer_schedule(&p->pipe_qos_timer, nni_clock() + NNI_SECOND *
-	// s->conf->qos_timer);
+
 	nni_pipe_recv(p->pipe, &p->aio_recv);
 	return (0);
 }
