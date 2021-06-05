@@ -858,9 +858,7 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 				        // resending
 				pid = nni_pipe_inc_packetid(pipe);
 				// store msg for qos retrying
-				debug_msg("******** processing QoS pubmsg "
-				          "with pipe: %p ********",
-				    p);
+				debug_msg("* processing QoS pubmsg with pipe: %p *", p);
 				nni_msg_clone(msg);
 				if ((old = nni_id_get(
 				         pipe->nano_qos_db, pid)) != NULL) {
@@ -1265,15 +1263,6 @@ error:
 	nni_mtx_unlock(&ep->mtx);
 }
 
-/* abandoned
-static void
-tcptran_dial_cb(void *arg)
-{
-        NNI_ARG_UNUSED(arg);
-        return;
-}
-*/
-
 static int
 tcptran_ep_init(tcptran_ep **epp, nng_url *url, nni_sock *sock)
 {
@@ -1362,16 +1351,6 @@ tcptran_ep_cancel(nni_aio *aio, void *arg, int rv)
 	}
 	nni_mtx_unlock(&ep->mtx);
 }
-
-/*
-static void
-tcptran_ep_connect(void *arg, nni_aio *aio)
-{
-        NNI_ARG_UNUSED(arg);
-        NNI_ARG_UNUSED(aio);
-        debug_msg("tcptran_ep_connect ");
-}
-*/
 
 // TODO network interface bind
 static int

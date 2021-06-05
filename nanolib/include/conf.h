@@ -38,11 +38,12 @@ struct conf {
     int    msq_len;
     int    qos_timer;
 	void*  db_root;
+	bool   allow_anoy;
 };
 
 typedef struct conf conf;
 
-extern bool conf_parser(conf **nanomq_conf);
+extern bool conf_parser(conf **nanomq_conf, const char* path);
 extern void conf_init(conf **nanomq_conf);
 extern void print_conf(conf *nanomq_conf);
 

@@ -7,9 +7,9 @@
 // found online at https://opensource.org/licenses/MIT.
 //
 
+#include <conf.h>
 #include <hash.h>
 #include <mqtt_db.h>
-#include <conf.h>
 #include <string.h>
 
 #include "core/nng_impl.h"
@@ -23,16 +23,17 @@
 
 // TODO rewrite as nano_mq protocol with RPC support
 
-typedef struct nano_pipe nano_pipe;
-typedef struct nano_sock nano_sock;
-typedef struct nano_ctx  nano_ctx;
+typedef struct nano_pipe          nano_pipe;
+typedef struct nano_sock          nano_sock;
+typedef struct nano_ctx           nano_ctx;
 typedef struct nano_clean_session nano_clean_session;
-typedef struct cs_msg_list cs_msg_list;
+typedef struct cs_msg_list        cs_msg_list;
 
-static void nano_pipe_send_cb(void *);
-static void nano_pipe_recv_cb(void *);
-static void nano_pipe_fini(void *);
-static void nano_pipe_close(void *);
+static void        nano_pipe_send_cb(void *);
+static void        nano_pipe_recv_cb(void *);
+static void        nano_pipe_fini(void *);
+static void        nano_pipe_close(void *);
+static inline void close_pipe(nano_pipe *p);
 // static void nano_period_check(nano_sock *s, nni_list *sent_list, void *arg);
 // static void nano_keepalive(nano_pipe *p, void *arg);
 
@@ -48,10 +49,10 @@ struct nano_ctx {
 	nni_aio *  raio;             // recv aio
 	// uint32_t*     rspipes;// pub resend pipe queue Qos 1/2
 	// nni_list      send_queue; // contexts waiting to send.
-	nni_list_node  sqnode;
-	nni_list_node  rqnode;
-	nni_msg *      rmsg;
-	nni_msg *      smsg;
+	nni_list_node sqnode;
+	nni_list_node rqnode;
+	nni_msg *     rmsg;
+	nni_msg *     smsg;
 	// nni_timer_node qos_timer;
 };
 
@@ -66,35 +67,37 @@ struct nano_sock {
 	nano_ctx       ctx; // base socket
 	nni_pollable   readable;
 	nni_pollable   writable;
-	conf         * conf;
-	void         * db;
+	conf *         conf;
+	void *         db;
 };
 
 // nano_pipe is our per-pipe protocol private structure.
 struct nano_pipe {
-	nni_mtx        lk;
-	nni_pipe *     pipe;
-	nano_sock *    rep;
-	uint32_t       id;
-	void *         tree; // root node of db tree
-	nni_aio        aio_send;
-	nni_aio        aio_recv;
-	nni_aio        aio_timer;
-	nni_list_node  rnode; // receivable list linkage
-	nni_list       sendq; // contexts waiting to send
-	bool           busy;
-	bool           closed;
-	uint8_t        ka_refresh;
-	conn_param *   conn_param;
-	nano_pipe_db * pipedb_root;
-	nni_lmq        rlmq;
+	nni_mtx       lk;
+	nni_pipe *    pipe;
+	nano_sock *   rep;
+	uint32_t      id;
+	void *        tree; // root node of db tree
+	nni_aio       aio_send;
+	nni_aio       aio_recv;
+	nni_aio       aio_timer;
+	nni_list_node rnode; // receivable list linkage
+	nni_list      sendq; // contexts waiting to send
+	bool          busy;
+	bool          closed;
+	uint8_t       ka_refresh;
+	conn_param *  conn_param;
+	nano_pipe_db *pipedb_root;
+	nni_lmq       rlmq;
 };
 
 struct nano_clean_session {
-	client_ctx *	cltx;
-	conn_param *    cparam;
-	nni_id_map *    msg_map;
-	nano_pipe_db *  pipe_db;
+	client_ctx *  cltx;
+	conn_param *  cparam;
+	nni_id_map *  msg_map;
+	nano_pipe_db *pipe_db;
+	uint32_t      pipeid;
+	bool          clean;
 };
 
 static void
@@ -111,8 +114,7 @@ nano_pipe_timer_cb(void *arg)
 		return;
 	}
 	nni_mtx_lock(&p->lk);
-	if (p->ka_refresh * (qos_timer) >
-	    p->conn_param->keepalive_mqtt) {
+	if (p->ka_refresh * (qos_timer) > p->conn_param->keepalive_mqtt) {
 		printf("Warning: close pipe & kick client due to KeepAlive "
 		       "timeout!");
 		// TODO check keepalived timer interval
@@ -124,9 +126,9 @@ nano_pipe_timer_cb(void *arg)
 	if (!p->busy) {
 		msg = nni_id_get_any(npipe->nano_qos_db, &pid);
 		if (msg != NULL) {
-			time         = nni_msg_get_timestamp(msg);
-			if ((nni_clock() - time) >= (long unsigned)
-			    qos_timer * 1250) {
+			time = nni_msg_get_timestamp(msg);
+			if ((nni_clock() - time) >=
+			    (long unsigned) qos_timer * 1250) {
 				p->busy = true;
 				nni_msg_clone(msg);
 				nni_aio_set_packetid(&p->aio_send, pid);
@@ -151,7 +153,8 @@ nano_keepalive(nano_pipe *p, void *arg)
     interval = conn_param_get_keepalive(p->conn_param);
     debug_msg("KeepAlive: %d", interval);
     //20% KeepAlive as buffer time for multi-threading
-    nni_timer_schedule(&p->ka_timer, nni_clock() + NNI_SECOND * interval * 0.8);
+    nni_timer_schedule(&p->ka_timer, nni_clock() + NNI_SECOND * interval *
+0.8);
 }
 */
 
@@ -301,11 +304,9 @@ nano_ctx_send(void *arg, nni_aio *aio)
 		return;
 	}
 	debug_msg("WARNING: pipe %d occupied! resending in cb!", pipe);
-	// printf("WARNING: pipe %d occupied! resending in cb!\n", pipe);
 	if (nni_lmq_full(&p->rlmq)) {
 		// Make space for the new message.
 		debug_msg("warning msg dropped!");
-		printf("warning msg dropped!\n");
 		nni_msg *old;
 		(void) nni_lmq_getq(&p->rlmq, &old);
 		nni_msg_free(old);
@@ -315,21 +316,22 @@ nano_ctx_send(void *arg, nni_aio *aio)
 	nni_mtx_unlock(&p->lk);
 	nni_aio_set_msg(aio, NULL);
 	return;
-	// nni_aio_finish(aio, 0, len);        //AIO Finish here?
 }
 
-void nano_clean_session_db_fini (nni_id_map *m) {
-	uint32_t            key   = 0;
-	nano_clean_session *cs    = NULL;
+void
+nano_clean_session_db_fini(nni_id_map *m)
+{
+	uint32_t            key = 0;
+	nano_clean_session *cs  = NULL;
 	while ((cs = nni_id_get_one(m, &key)) != NULL) {
-		conn_param   *cparam   = cs->cparam;
-		nni_id_map   *msg_map  = cs->msg_map;
-		
+		conn_param *cparam  = cs->cparam;
+		nni_id_map *msg_map = cs->msg_map;
+
 		destroy_conn_param(cparam);
 		nni_id_iterate(msg_map, nni_id_msgfree_cb);
 		nni_id_map_fini(msg_map);
 		nng_free(msg_map, sizeof(struct nni_id_map));
-		
+
 		nni_id_remove(m, key);
 		cs = NULL;
 	}
@@ -433,11 +435,13 @@ nano_deep_copy_connparam(conn_param *new_cp, conn_param *cp)
 	UPDATE_FIELD_MQTT_STRING(content_type, body, new_cp, cp);
 	UPDATE_FIELD_MQTT_STRING(resp_topic, body, new_cp, cp);
 	UPDATE_FIELD_MQTT_STRING(corr_data, body, new_cp, cp);
-	UPDATE_FIELD_MQTT_STRING_PAIR(payload_user_property, key, val, new_cp, cp);
+	UPDATE_FIELD_MQTT_STRING_PAIR(
+	    payload_user_property, key, val, new_cp, cp);
 }
 
-static void*
-find_clictx_from_tree(void *tree, uint32_t pid) {
+static void *
+find_clictx_from_tree(void *tree, uint32_t pid)
+{
 	struct topic_queue *tq = get_topic(pid);
 	if (tq == NULL) {
 		debug_msg("There is no topic queue in the hash map");
@@ -452,23 +456,24 @@ find_clictx_from_tree(void *tree, uint32_t pid) {
 
 	client_ctx *cli_ctx = NULL;
 	for (long unsigned i = 0; i < cvector_size(cli_ctx_list); i++) {
-		cli_ctx = (struct client_ctx*)cli_ctx_list[i];
+		cli_ctx = (struct client_ctx *) cli_ctx_list[i];
 		if (pid == cli_ctx->pid.id) {
 			return cli_ctx;
-		} 
+		}
 	}
 	return NULL;
 }
 
-static void* 
-del_topic_clictx_from_tree(void *tree, topic_queue *tq, uint32_t pid) {
+static void *
+del_topic_clictx_from_tree(void *tree, topic_queue *tq, uint32_t pid)
+{
 	client_ctx *cli_ctx = NULL;
-	
+
 	while (tq) {
 		if (tq->topic) {
 			cli_ctx = search_and_delete(tree, tq->topic, pid);
 		}
-		debug_msg("delete pipe id [%d] topic: [%s]",pid, tq->topic);
+		debug_msg("delete pipe id [%d] topic: [%s]", pid, tq->topic);
 		del_sub_ctx(cli_ctx, tq->topic);
 		tq = tq->next;
 	}
@@ -476,15 +481,16 @@ del_topic_clictx_from_tree(void *tree, topic_queue *tq, uint32_t pid) {
 	return cli_ctx;
 }
 
-static void* 
-del_topic_from_tree(void *tree, topic_queue *tq, uint32_t pid) {
+static void *
+del_topic_from_tree(void *tree, topic_queue *tq, uint32_t pid)
+{
 	client_ctx *cli_ctx = NULL;
-	
+
 	while (tq) {
 		if (tq->topic) {
 			cli_ctx = search_and_delete(tree, tq->topic, pid);
 		}
-		debug_msg("delete pipe id [%d] topic: [%s]",pid, tq->topic);
+		debug_msg("delete pipe id [%d] topic: [%s]", pid, tq->topic);
 		tq = tq->next;
 	}
 
@@ -492,14 +498,15 @@ del_topic_from_tree(void *tree, topic_queue *tq, uint32_t pid) {
 }
 
 static void
-restore_topic_to_tree(void *tree, client_ctx *cli_ctx, char* client_id) {
+restore_topic_to_tree(void *tree, client_ctx *cli_ctx, char *client_id)
+{
 	topic_node *tn_t = cli_ctx->sub_pkt->node;
 
-	while(tn_t) {
+	while (tn_t) {
 		debug_msg("Now adding topic (from last session), body: [%s]",
-		         tn_t->it->topic_filter.body);
+		    tn_t->it->topic_filter.body);
 		search_and_insert(tree, tn_t->it->topic_filter.body, client_id,
-		         cli_ctx, cli_ctx->pid.id);
+		    cli_ctx, cli_ctx->pid.id);
 		tn_t = tn_t->next;
 	}
 }
@@ -507,36 +514,67 @@ restore_topic_to_tree(void *tree, client_ctx *cli_ctx, char* client_id) {
 static int
 nano_session_restore(nano_pipe *p, nano_sock *s)
 {
-	conn_param *new_cparam   = p->conn_param;
-	uint32_t    key          = DJBHashn(new_cparam->clientid.body, new_cparam->clientid.len);
-	uint8_t clean_session_flag = new_cparam->clean_start;
+	int                 ret;
+	conn_param *        new_cparam = p->conn_param;
+	uint32_t            key;
+	uint8_t             clean_session_flag = new_cparam->clean_start;
+	nano_clean_session *cs;
+	nano_pipe		   *kick;
 
-	nano_clean_session *cs = nni_id_get(&s->clean_session_db, key);
+	key = DJBHashn(new_cparam->clientid.body, new_cparam->clientid.len);
+	// TODO hash collision?
+	cs = nni_id_get(&s->clean_session_db, key);
+
+	// no matter if client enabled cleansession. use clean-session-db for
+	// duplicate clientid verifying.
 	if (cs == NULL) {
+		if ((cs = nni_zalloc(sizeof(nano_clean_session) * 1)) ==
+		    NULL) {
+			return (NNG_ENOMEM);
+		}
+		// firts connection, store pipeid and hashed clientid
+		cs->pipeid = p->id;
 		if (clean_session_flag == 0) {
 			debug_msg("(CS=0) Session cannot restore, cannot find "
 			          "cached information based "
-			          "on the clientID given (eithe first connect or lose the backup)");
-			return -1;
+			          "on the clientID given (eithe first connect "
+			          "or lose the backup)");
+			cs->clean = false;
+			ret       = 0;
 		} else {
 			debug_msg("(CS=1) No need for restoring a session");
-			return 0;
+			cs->clean = true;
+			ret       = 0;
 		}
+		if (nni_id_set(&s->clean_session_db, key, cs) != 0) {
+			debug_msg("(CS=0) UNEXPECTED: The nano_clean_session "
+			          "structure is not set "
+			          "as a new instance of hashtable");
+			ret = NNG_ECONNABORTED;
+		}
+		return ret;
+	} else if (cs->pipeid != 0) {
+			// TODO kick prev connection or current one?(p or cs->pipeid)
+			close_pipe(p);
+		return (NNG_ECONNABORTED);
 	}
 
-	client_ctx *cltx         = cs->cltx;
-	conn_param *cparam       = cs->cparam;
-	nni_id_map *msgs         = cs->msg_map;
+	client_ctx *  cltx       = cs->cltx;
+	conn_param *  cparam     = cs->cparam;
+	nni_id_map *  msgs       = cs->msg_map;
 	nano_pipe_db *topics     = cs->pipe_db;
 	nano_pipe_db *topic_node = topics;
 
+	cs->pipeid = p->id;
 	if (clean_session_flag == 0) {
+		cs->clean = false;
 		// step 0 restore conn param
 		nano_deep_copy_connparam(new_cparam, cparam);
 		destroy_conn_param(cparam);
 		cparam = NULL;
 		// step 1 restore nano_qos_db
-		// TODO new coming message may use the existing packet id in one client nano_qos_db
+		// TODO new coming message may use the existing packet id in
+		// one client nano_qos_db
 		nni_id_map_fini(p->pipe->nano_qos_db);
 		nng_free(p->pipe->nano_qos_db, sizeof(struct nni_id_map));
 		p->pipe->nano_qos_db       = msgs;
@@ -546,22 +584,27 @@ nano_session_restore(nano_pipe *p, nano_sock *s)
 			cltx->pid.id = p->id;
 		if (cached_check_id(key)) {
 			restore_topic_all(key, p->id);
-			restore_topic_to_tree(p->tree, cltx, new_cparam->clientid.body);			
+			restore_topic_to_tree(
+			    p->tree, cltx, new_cparam->clientid.body);
 		} else {
-			debug_msg("(CS=0) UNEXPECTED: no stored cached topic queue");
+			debug_msg(
+			    "(CS=0) UNEXPECTED: no stored cached topic queue");
 		}
 		// step 3 restore topic in pipe_db
-		p->pipedb_root   = topics;
-		cs->pipe_db      = NULL;
+		p->pipedb_root = topics;
+		cs->pipe_db    = NULL;
 		// step 4 restore nano_pipe_db<topic, pipe_db>
 		while (topic_node->next) {
 			nni_id_set(&p->pipe->nano_db,
-			        DJBHashn(topic_node->topic, strlen(topic_node->topic)),
-			        topic_node);
+			    DJBHashn(
+			        topic_node->topic, strlen(topic_node->topic)),
+			    topic_node);
 			topic_node = topic_node->next;
 		}
-		debug_msg("(CS=0) All last session related information restored");
+		debug_msg(
+		    "(CS=0) All last session related information restored");
 	} else {
+		cs->clean = true;
 		// step 0 remove conn param
 		destroy_conn_param(cparam);
 		cparam = NULL;
@@ -570,43 +613,44 @@ nano_session_restore(nano_pipe *p, nano_sock *s)
 		nni_id_map_fini(msgs);
 		nng_free(msgs, sizeof(struct nni_id_map));
 		msgs = NULL;
-		// step 2 delete 2-1 cli_ctx and cached topic queue 
+		// step 2 delete 2-1 cli_ctx and cached topic queue
 		if (cached_check_id(key)) {
-			topic_queue* tq = get_cached_topic(key);
+			topic_queue *tq = get_cached_topic(key);
 			while (tq) {
 				del_sub_ctx(cltx, tq->topic);
 				tq = tq->next;
 			}
-			del_cached_topic_all(key);			
+			del_cached_topic_all(key);
 		} else {
-			debug_msg("(CS=1) UNEXPECTED: no stored cached topic queue");
+			debug_msg(
+			    "(CS=1) UNEXPECTED: no stored cached topic queue");
 		}
 		// step 3 delete topics in pipe_db
 		nano_msg_free_pipedb(topics);
-		debug_msg("(CS=1) All last session related information disgarded");
+		debug_msg(
+		    "(CS=1) All last session related information disgarded");
 	}
-
-	nni_id_remove(&s->clean_session_db, key);
-	nng_free(cs, sizeof(nano_clean_session));
 	return 0;
 }
 
 static int
 nano_session_cache(nano_pipe *p)
 {
-	conn_param *cp = p->conn_param;
-	nni_id_map *nano_qos_db = cp->nano_qos_db;
-	client_ctx *cli_ctx = NULL;
-	struct topic_queue * tq     = NULL;
-	nano_sock * s     = p->rep;
-	uint32_t    key   = DJBHashn(cp->clientid.body, cp->clientid.len);
-	nni_id_map *cs_db = &s->clean_session_db;
-	nano_clean_session *temp_cs; 
-	
-	if ((temp_cs = nni_zalloc(sizeof(nano_clean_session) * 1)) == NULL) {
-		return (NNG_ENOMEM);
-	}
+	conn_param *        cp          = p->conn_param;
+	nni_id_map *        nano_qos_db = cp->nano_qos_db;
+	client_ctx *        cli_ctx     = NULL;
+	struct topic_queue *tq          = NULL;
+	nano_sock *         s           = p->rep;
+	uint32_t            key;
+	nano_clean_session *temp_cs;
 
+	key = DJBHashn(cp->clientid.body, cp->clientid.len);
+	// get temp_cs from clean_session_db
+	temp_cs = nni_id_get(&s->clean_session_db, key);
+	if (temp_cs == NULL) {
+		nni_println("clientid missing!");
+		return (NNG_EINTERNAL);
+	}
 	// step 0 copy connection parameter
 	conn_param *new_cp;
 	if ((new_cp = nni_zalloc(sizeof(conn_param) * 1)) == NULL) {
@@ -614,36 +658,58 @@ nano_session_cache(nano_pipe *p)
 	}
 	init_conn_param(new_cp);
 	nano_deep_copy_connparam(new_cp, cp);
-	temp_cs->cparam   = new_cp;
+	temp_cs->cparam = new_cp;
 	// step 1 move nano_qos_db to temp_cs struct (move pointer)
-	temp_cs->msg_map  = nano_qos_db;
+	temp_cs->msg_map = nano_qos_db;
 	debug_msg("the nano_qos_db has an address: %p", nano_qos_db);
-	nano_qos_db   = NULL;
-	// step 2-1 find cli_ctx and kept its pointer, but delete topic from tree
-	// step 2-2 move topic from topic map to cached topic map (hash.cc)
+	nano_qos_db = NULL;
+	// step 2-1 find cli_ctx and kept its pointer, but delete topic from
+	// tree step 2-2 move topic from topic map to cached topic map
+	// (hash.cc)
 	if (check_id(p->id)) {
 		tq = get_topic(p->id);
-		if ((cli_ctx = del_topic_from_tree(p->tree, tq, p->id)) != NULL) {
+		if ((cli_ctx = del_topic_from_tree(p->tree, tq, p->id)) !=
+		    NULL) {
 			cli_ctx->pid.id = 0;
-			temp_cs->cltx = cli_ctx;
+			temp_cs->cltx   = cli_ctx;
 		}
 		cache_topic_all(p->id, key);
 	} else {
-		debug_msg("(CS=0) UNEXPECTED: no stored topic queue, tq lost or client may not subed topic");
+		debug_msg("(CS=0) UNEXPECTED: no stored topic queue, tq lost "
+		          "or client may not subed topic");
 	}
 	// step 3 move nano_pipe_db to temp_cs struct (move pointer)
-	temp_cs->pipe_db   = p->pipedb_root;
-	p->pipedb_root    = NULL;
+	temp_cs->pipe_db = p->pipedb_root;
+	p->pipedb_root   = NULL;
 
-	// finally, struct in hashtable
-	if (nni_id_set(cs_db, key, temp_cs) != 0) {
-		debug_msg("(CS=0) UNEXPECTED: The nano_clean_session structure is not set "
-		          "as a new instance of hashtable");
-		return -1;
-	}
-
-	debug_msg("(CS=0) Session cached, all this session related information kept");
+	debug_msg("(CS=0) Session cached, all this session related "
+	          "information kept");
 	return 0;
+}
+
+static void
+nano_sessiondb_clean(nano_pipe *p)
+{
+	conn_param *        cp = p->conn_param;
+	nano_sock *         s  = p->rep;
+	uint32_t            key;
+	nano_clean_session *temp_cs;
+	nano_pipe *pipe;
+
+	key = DJBHashn(cp->clientid.body, cp->clientid.len);
+	// get temp_cs from clean_session_db
+	temp_cs = nni_id_get(&s->clean_session_db, key);
+	if (temp_cs != NULL) {
+		if (temp_cs->clean == true) {
+			//Do not kick the old one.
+			if ((pipe = nni_id_get(&s->pipes, p->id)) != NULL) {
+				nni_id_remove(&s->clean_session_db, key);
+				nng_free(temp_cs, sizeof(nano_clean_session));
+			}
+		} else {
+			temp_cs->pipeid = 0;
+		}
+	}
 }
 
 static void
@@ -688,7 +754,7 @@ nano_pipe_fini(void *arg)
 		nano_msg_free_pipedb(p->pipedb_root);
 	} else {
 		nano_session_cache(p);
-  }
+	}
 	destroy_conn_param(p->conn_param);
 
 	nni_mtx_fini(&p->lk);
@@ -701,8 +767,8 @@ nano_pipe_fini(void *arg)
 static int
 nano_pipe_init(void *arg, nni_pipe *pipe, void *s)
 {
-	nano_pipe *p         = arg;
-	nano_sock *sock      = s;
+	nano_pipe *p    = arg;
+	nano_sock *sock = s;
 
 	debug_msg("##########nano_pipe_init###############");
 
@@ -714,12 +780,12 @@ nano_pipe_init(void *arg, nni_pipe *pipe, void *s)
 
 	// NNI_LIST_INIT(&p->sendq, nano_ctx, sqnode);
 
-	p->id         = nni_pipe_id(pipe);
-	p->pipe       = pipe;
-	p->rep        = s;
-	p->ka_refresh = 0;
-	p->conn_param = nni_pipe_get_conn_param(pipe);
-	p->tree       = sock->db;
+	p->id                      = nni_pipe_id(pipe);
+	p->pipe                    = pipe;
+	p->rep                     = s;
+	p->ka_refresh              = 0;
+	p->conn_param              = nni_pipe_get_conn_param(pipe);
+	p->tree                    = sock->db;
 	p->conn_param->nano_qos_db = p->pipe->nano_qos_db;
 
 	return (0);
@@ -730,24 +796,24 @@ static int
 nano_ctx_set_qsize(
     void *arg, void *arg2, const void *buf, size_t sz, nni_type t)
 {
-	nano_ctx * ctx  = arg;
-	nano_sock *sock = ctx->sock;
-	nano_pipe *p    = arg2;
-	int        val;
-	int        rv;
+        nano_ctx * ctx  = arg;
+        nano_sock *sock = ctx->sock;
+        nano_pipe *p    = arg2;
+        int        val;
+        int        rv;
 
-	if ((rv = nni_copyin_int(&val, buf, sz, 1, 8192, t)) != 0) {
-		return (rv);
-	}
+        if ((rv = nni_copyin_int(&val, buf, sz, 1, 8192, t)) != 0) {
+                return (rv);
+        }
 
-	nni_mtx_lock(&sock->lk);
-	if ((rv = nni_lmq_resize(&p->rlmq, (size_t) val)) != 0) {
-		nni_mtx_unlock(&sock->lk);
-		return (rv);
-	}
+        nni_mtx_lock(&sock->lk);
+        if ((rv = nni_lmq_resize(&p->rlmq, (size_t) val)) != 0) {
+                nni_mtx_unlock(&sock->lk);
+                return (rv);
+        }
 
-	nni_mtx_unlock(&sock->lk);
-	return (0);
+        nni_mtx_unlock(&sock->lk);
+        return (0);
 }
 */
 
@@ -771,6 +837,7 @@ nano_pipe_start(void *arg)
 	nni_aio_get_output(&p->aio_recv, 1);
 	nni_sleep_aio(s->conf->qos_timer * 1200, &p->aio_timer);
 	// nano_keepalive(p, NULL);
+	rv = rv | nano_session_restore(p, s);
 	nni_mtx_unlock(&s->lk);
 	if (rv != 0) {
 		return (rv);
@@ -780,23 +847,13 @@ nano_pipe_start(void *arg)
 	// nni_timer_schedule(&p->pipe_qos_timer, nni_clock() + NNI_SECOND *
 	// s->conf->qos_timer);
 	nni_pipe_recv(p->pipe, &p->aio_recv);
-
-	nni_mtx_lock(&s->lk);
-	nano_session_restore(p, s);
-
-	nni_mtx_unlock(&s->lk);
 	return (0);
 }
-
-static void
-nano_pipe_close(void *arg)
+static inline void
+close_pipe(nano_pipe *p)
 {
-	nano_pipe *p = arg;
 	nano_sock *s = p->rep;
 	nano_ctx * ctx;
-
-	debug_msg("################# nano_pipe_close ##############");
-	nni_mtx_lock(&s->lk);
 
 	nni_aio_close(&p->aio_send);
 	nni_aio_close(&p->aio_recv);
@@ -808,8 +865,8 @@ nano_pipe_close(void *arg)
 		nni_list_remove(&s->recvpipes, p);
 	}
 	nni_lmq_flush(&p->rlmq);
-	//nano_msg_free_pipedb(p->pipedb_root);
-	//p->pipedb_root = NULL;
+	// nano_msg_free_pipedb(p->pipedb_root);
+	// p->pipedb_root = NULL;
 
 	while ((ctx = nni_list_first(&p->sendq)) != NULL) {
 		nni_aio *aio;
@@ -823,7 +880,17 @@ nano_pipe_close(void *arg)
 		nni_msg_free(msg);
 	}
 	nni_id_remove(&s->pipes, nni_pipe_id(p->pipe));
+	nano_sessiondb_clean(p);
+}
+static void
+nano_pipe_close(void *arg)
+{
+	nano_pipe *p = arg;
+	nano_sock *s = p->rep;
 
+	debug_msg("################# nano_pipe_close ##############");
+	nni_mtx_lock(&s->lk);
+	close_pipe(p);
 	nni_mtx_unlock(&s->lk);
 }
 
@@ -959,7 +1026,7 @@ nano_pipe_recv_cb(void *arg)
 	}
 	debug_msg("#########nano_pipe_recv_cb !############");
 	p->ka_refresh = 0;
-	msg = nni_aio_get_msg(&p->aio_recv);
+	msg           = nni_aio_get_msg(&p->aio_recv);
 	if (msg == NULL) {
 		goto end;
 	}
@@ -975,12 +1042,12 @@ nano_pipe_recv_cb(void *arg)
 	case CMD_SUBSCRIBE:
 		// TODO only cache topic hash when it is above qos 1/2
 		nni_mtx_lock(&p->lk);
-		pipe_db = nano_msg_get_subtopic(
-			msg, p->pipedb_root); // TODO potential memleak when sub failed
+		pipe_db        = nano_msg_get_subtopic(msg,
+                    p->pipedb_root); // TODO potential memleak when sub failed
 		p->pipedb_root = pipe_db;
 		while (pipe_db) {
 			rv = nni_id_set(
-				&npipe->nano_db, DJBHash(pipe_db->topic), pipe_db);
+			    &npipe->nano_db, DJBHash(pipe_db->topic), pipe_db);
 			pipe_db = pipe_db->next;
 		}
 		nni_mtx_unlock(&p->lk);
@@ -992,7 +1059,7 @@ nano_pipe_recv_cb(void *arg)
 		break;
 	case CMD_PUBREC:
 		// break;
-	//case CMD_PINGREQ:
+	// case CMD_PINGREQ:
 	case CMD_PUBREL:
 	case CMD_PUBACK:
 	case CMD_PUBCOMP:
@@ -1119,10 +1186,10 @@ static void
 nano_sock_setdb(void *arg, void *data)
 {
 	nano_sock *s         = arg;
-	conf      *nano_conf = data;
+	conf *     nano_conf = data;
 
-	s->conf      = nano_conf;
-	s->db        = nano_conf->db_root;
+	s->conf = nano_conf;
+	s->db   = nano_conf->db_root;
 }
 
 // This is the global protocol structure -- our linkage to the core.
