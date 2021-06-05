@@ -14,14 +14,14 @@
 #define USAGE \
 		"Usage: nanomq broker {"\
 		"{start|restart [-conf <path>] [-url <url>] [-daemon] [-tq_thread <num>] [-max_tq_thread <num>] [-parallel <num>]}|stop}\n"\
-		"  -conf <path>          the path of specified configuration file \n"\
+		"  -conf <path>          the path of a specified configuration file \n"\
 		"  -url <url>            the format of 'tcp://ip_addr:host'\n"\
 		"  -tq_thread <num>      the number of taskq threads used, `num` greater than 0 and less than 256\n"\
 		"  -max_tq_thread <num>  the maximum number of taskq threads used, `num` greater than 0 and less than 256\n"\
 		"  -parallel <num>       the maximum number of outstanding requests we can handle\n"\
 		"  -property_size <num>  the max size for a MQTT user property\n"\
 		"  -msq_len <num>        the queue length for resending messages\n"\
-		"  -qos_timer <num>      the nano qos time\n"
+		"  -qos_timer <num>      the interval of the qos timer\n"
 
 #define CONF_READ_RECORD \
 		"Conf_file: %s read as %s\n"

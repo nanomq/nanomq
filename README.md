@@ -9,7 +9,7 @@
 
 [![The best IoT MQTT open source team looks forward to your joining](https://www.emqx.io/static/img/github_readme_en_bg.png)](https://www.emqx.io/careers)NanoMQ MQTT Broker (NanoMQ) is a lightweight and blazing-fast MQTT Broker for the IoT Edge platform. 
 
-NanoMQ bases on NNG's asynchronous I/O threading model, with an extension of MQTT support in the protocol layer and reworked transport layer. Plus, an enhanced asynchronous IO mechanism to maximize the overall capacity.
+NanoMQ bases on NNG's asynchronous I/O threading model, with an extension of MQTT support in the protocol layer and reworked transport layer, plus an enhanced asynchronous IO mechanism maximizing the overall capacity.
 
 NanoMQ currently supports MQTT V3.1.1 and partially supports MQTT V5.0.
 
@@ -51,19 +51,25 @@ nanomq sp req -port 5555
 nanomq sp rep -port 5555
 ```
 
-**Note: NanoMQ provides several ways of configurations so that user can achieve better performance on different platforms.**, check [here](#Configuration ) for details.
+**Note: NanoMQ provides several ways of configurations so that user can achieve better performance on different platforms**, check [here](#Configuration ) for details.
+
+
 
 ## Compile & Install
 
-NanoMQ dedicates to delivering a simple but powerful Messaging Hub on various edge platforms.
+NanoMQ dedicates to deliver a simple but powerful Messaging Hub on various edge platforms.
 
 With this being said, NanoMQ can run on different architectures such like x86_64 and ARM with minor migration efforts.
+
+
 
 #### Docker
 
 ```bash
 docker run -d --name nanomq nanomq/nanomq:0.3.5
 ```
+
+
 
 #### Building From Source
 
@@ -98,15 +104,13 @@ To build NanoMQ, requires a C99 & C++11 compatible compiler and [CMake](http://w
 
 **Note (optional): nanolib & nanonng are dependencies of NanoMQ that can be compiled independently**.
 
-To compile nanonng:
+To compile nanonng (*nanonng is the fork of nng repository with MQTT support*):
 
 ```bash
 cd nng/build
 cmake -G Ninja ..
-ninja install
+ninja
 ```
-
-*nanonng is the fork of nng repository with MQTT support*
 
 To compile nanolib:
 
@@ -126,7 +130,9 @@ NanoMQ as an MQTT broker with good compatibility and portability, it provides se
 
 ### Compiling parameters
 
-With CMake, NanoMQ allows user to have broker  natively tuned/configured when building from source. Please kindly find the parameters as follows:
+With CMake, NanoMQ allows user to have broker natively tuned/configured when building from source. Please kindly find the parameters as follows:
+
+
 
 #### CMake Configuration
 
@@ -146,8 +152,6 @@ Be aware that, CMake configuration is enabled by default, If you leave all param
   cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DNNG_NUM_TASKQ_THREADS=<num> ..
   cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DNNG_MAX_TASKQ_THREADS=<num> ..
   ```
-
-  
 
 - Setting the number of concurrent resolver threads:
 
@@ -177,48 +181,6 @@ Be aware that, CMake configuration is enabled by default, If you leave all param
   cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DMQ=0  ..
   ```
 
-- Setting the max size of a fixed header and variable header for MQTT packet:
-
-  Default: 64 bytes
-
-  ```bash
-  cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DNANO_PACKET_SIZE=<size> ..
-  ```
-
-- Setting the max fixed header size for MQTT packet:
-
-  Default: 5 bytes
-
-  ```bash
-  cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DNANO_HEADER_SIZE=<size> ..
-  ```
-
-- Setting the max property size for MQTT packet:
-
-  Default: 32 bytes
-
-  ```bash
-  cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DNANO_PROPERTY_SIZE=<size> ..
-  ```
-
-- Setting the queue length for a resending message:
-
-  Default: 64
-
-  ```bash
-  cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DNANO_MSQ_LEN=<size> ..
-  ```
-
-- Setting the interval of qos timer:
-
-  Default: 30 seconds
-
-  ```bash
-  cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DNANO_QOS_TIMER=<interval> ..
-  ```
-
-  *Also a global timer interval for session keeping*
-
 - Setting the logical concurrency limitation:
 
   Default: 32
@@ -231,8 +193,6 @@ Be aware that, CMake configuration is enabled by default, If you leave all param
 
 #### config.cmake.in
 
-
-
 In the root directory of NanoMQ(`./nanomq`), there is a file named 'config.cmake.in'. It provides bunch of modifiable configurations (same as the parameters above).
 
 navigating to `./nanomq/build` , then:
@@ -244,26 +204,34 @@ ninja
 
 to make your modification effective. 
 
+
+
 ### Booting Parameters
 
 Users can also change the configuration parameters of NanoMQ while booting. However, part of the parameters is excluded in this method.
 
+
+
 #### NanoMQ configuration file
 
-In the `etc` directory of NanoMQ (`./nanomq/etc/nanomq.conf`), there is a 'nanomq.conf' configuration file. This file is different from 'config.cmake.in'. This 'nanomq.conf' allows you to configure broker when booting.
+In the `etc` directory of NanoMQ (`./nanomq/etc/nanomq.conf`), there is a 'nanomq.conf' configuration file. This file is different from 'config.cmake.in'. This 'nanomq.conf' allows you to configure broker when booting. Please be noted that if you start NanoMQ in the project's root directory, this file will be read automatically.
 
-Open and edit 'nanomq.conf' in your editor before start NanoMQ. Be sure to start NanoMQ in this fashion to specify effective configuration file:
+
+
+You can also write your own configuration file. Be sure to start NanoMQ in this fashion to specify an effective configuration file:
 
 ```bash
-nanomq broker start --conf {$FILE_PATH}
+nanomq broker start -conf <$FILE_PATH>
 ```
+
+
 
 #### NanoMQ Command-Line Arguments 
 
-The same configuration can be achieved by adding some command-line arguments when user starts NanoMQ broker. There are a few arguments for you to play with. And the general usage is:
+The same configuration can be achieved by adding some command-line arguments when you start NanoMQ broker. There are a few arguments for you to play with. And the general usage is:
 
 ```bash
-nanomq broker {{start|restart -url <url> [--conf <path>] [-daemon] [-tq_thread <num>] [-max_tq_thread <num>] [-parallel <num>] }|stop}
+nanomq broker {{start|restart -url <url> [-conf <$FILE_PATH>] [-daemon] [-tq_thread <num>] [-max_tq_thread <num>] [-parallel <num>] [-qos_timer <num>] }|stop}
 ```
 
 - `start`, `restart`, and `stop` command is mandatory as it indicates whether you want to start a new broker, or replace an existing broker with a new one, or stop a running broker;
@@ -274,19 +242,20 @@ nanomq broker {{start|restart -url <url> [--conf <path>] [-daemon] [-tq_thread <
   nanomq broker stop
   ```
 
-  All arguments are useful when `start` and `restart` are chosen. An URL is mandatory (unless an URL is specified in the 'nano.conf'), as it indicates on which the host and port a broker is listening:
+  All arguments are useful when `start` and `restart` are chosen. An URL is mandatory (unless an URL is specified in the 'nanomq.conf', or in your configuration file), as it indicates on which the host and port a broker is listening:
 
   ```bash
   nanomq broker start|restart -url <url>
-  nanomq broker start|restart --conf {$FILE_PATH} ## only if an url is specified in 'nano.conf'
+  nanomq broker start|restart 					## only if an url is specified in 'nanomq.conf'
+  nanomq broker start|restart -conf <$FILE_PATH>  ## only if an url is specified in your conf file
   ```
 
-- Telling broker that it should read 'nanomq.conf' file. NanoMQ supports parsing command line argument while reading the configuration file. 
+- Telling broker that it should read your configuration file. 
 
-  Be aware that command line arguments always has higher priority than configuration file 'nanomq.conf':. 
+  Be aware that command line arguments always has a higher priority than both 'nanomq.conf' and your configuration file: 
 
   ```bash
-  nanomq broker start|restart --conf {$FILE_PATH}
+  nanomq broker start|restart -conf <$FILE_PATH>
   ```
 
 - Running broker in daemon mode:
@@ -307,8 +276,34 @@ nanomq broker {{start|restart -url <url> [--conf <path>] [-daemon] [-tq_thread <
   ```bash
   nanomq broker start|restart -url <url> -parallel <num>
   ```
+  
+- Setting the max property size for MQTT packet:
 
-*For tuning NanoMQ according to different hardware, please check the Doc*
+  Default: 32 bytes
+
+  ```bash
+  nanomq broker start|restart -url <url> -property_size <num>
+  ```
+
+- Setting the queue length for a resending message:
+
+  Default: 64 bytes
+
+  ```bash
+  nanomq broker start|restart -url <url> -msq_len <num>
+  ```
+
+- Setting the interval of the qos timer (*Also a global timer interval for session keeping*):
+
+  Default: 30 seconds
+
+  ```bash
+  nanomq broker start|restart -url <url> -qos_timer <num>
+  ```
+
+*For tuning NanoMQ according to different hardware, please check the Doc.*
+
+
 
 ## Community
 
@@ -316,19 +311,27 @@ nanomq broker {{start|restart -url <url> [--conf <path>] [-daemon] [-tq_thread <
 
 Visit our [official website](https://nanomq.io/) to have a good grasp on NanoMQ MQTT broker and see how it can be applied in current industries.
 
+
+
 ### Test Report
 
 This [test report](https://nanomq.io/docs/latest/test-report.html#about-nanomq) shows how extraordinary and competitive the NanoMQ is in Edge Computing.
 
 *Currently the benchmark is for 0.2.5, the updated one with ver 0.3.5 is coming soon*
 
+
+
 ### Open Source 
 
 NanoMQ is fully open-sourced!
 
+
+
 ### Questions
 
 The [Github Discussions](https://github.com/nanomq/nanomq/discussions) provides a place for you to ask questions and share your ideas with users around the world.
+
+
 
 ### Slack
 
@@ -350,9 +353,13 @@ You could join us on [Slack](https://slack-invite.emqx.io/). We now share a work
 
 [MQTT SN](http://mqtt.org/new/wp-content/uploads/2009/06/MQTT-SN_spec_v1.2.pdf)
 
+
+
 ### EMQ X Broker
 
 [EMQ X Broker](https://www.emqx.io/)
+
+
 
 ### HStreamDB
 
