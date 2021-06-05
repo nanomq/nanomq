@@ -13,7 +13,7 @@
 
 #define USAGE \
 		"Usage: nanomq broker {"\
-		"{start|restart [-conf <path>] [-url <url>] [-daemon] [-tq_thread <num>] [-max_tq_thread <num>] [-parallel <num>]}|stop}\n"\
+		"{start|restart [-conf <path>] [-url <url>] [-daemon] [-tq_thread <num>] [-max_tq_thread <num>] [-parallel <num>] [-qos_timer <num>]}|stop}\n"\
 		"  -conf <path>          the path of a specified configuration file \n"\
 		"  -url <url>            the format of 'tcp://ip_addr:host'\n"\
 		"  -tq_thread <num>      the number of taskq threads used, `num` greater than 0 and less than 256\n"\
