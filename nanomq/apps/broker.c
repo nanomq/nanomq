@@ -573,7 +573,7 @@ broker_start(int argc, char **argv)
 
 	if (argc < 1 && nanomq_conf->url == NULL) {
 		fprintf(stderr,
-		    "-url <url> should be provided through either nano.conf "
+		    "-url <url> should be provided through either nanomq.conf (or your conf-file) "
 		    "or command-line");
 		print_usage();
 		exit(EXIT_FAILURE);
