@@ -85,6 +85,7 @@ struct nano_pipe {
 	nni_list      sendq; // contexts waiting to send
 	bool          busy;
 	bool          closed;
+	bool          kicked;
 	uint8_t       ka_refresh;
 	conn_param *  conn_param;
 	nano_pipe_db *pipedb_root;
@@ -96,8 +97,8 @@ struct nano_clean_session {
 	conn_param *  cparam;
 	nni_id_map *  msg_map;
 	nano_pipe_db *pipe_db;
-	uint32_t pipeid; // corresponding pipe id of nng
-	bool clean;
+	uint32_t      pipeid; // corresponding pipe id of nng
+	bool          clean;
 };
 
 static void
@@ -554,7 +555,7 @@ nano_session_restore(nano_pipe *p, nano_sock *s)
 		return ret;
 	} else if (cs->pipeid != 0) {
 		// TODO kick prev connection or current one?(p or cs->pipeid)
-		p->closed = true;
+		p->kicked = true;
 		close_pipe(p);
 		return (NNG_ECONNABORTED);
 	}
@@ -634,13 +635,12 @@ nano_session_restore(nano_pipe *p, nano_sock *s)
 }
 
 static int
-nano_session_cache(nano_pipe *p, nano_clean_session *temp_cs)
+nano_session_cache(nano_pipe *p, nano_clean_session *temp_cs, uint32_t key)
 {
 	conn_param *        cp          = p->conn_param;
 	nni_id_map *        nano_qos_db = cp->nano_qos_db;
 	client_ctx *        cli_ctx     = NULL;
 	struct topic_queue *tq          = NULL;
-	uint32_t            key;
 
 	// step 0 copy connection parameter
 	conn_param *new_cp;
@@ -713,7 +713,7 @@ nano_pipe_fini(void *arg)
 	uint32_t            key;
 	nano_clean_session *temp_cs;
 	conn_param *        cp = p->conn_param;
-	nano_sock *         s           = p->rep;
+	nano_sock *         s  = p->rep;
 
 	debug_msg("########## nano_pipe_fini ###############");
 	if ((msg = nni_aio_get_msg(&p->aio_recv)) != NULL) {
@@ -729,10 +729,9 @@ nano_pipe_fini(void *arg)
 	key = DJBHashn(cp->clientid.body, cp->clientid.len);
 	// get temp_cs from clean_session_db
 	temp_cs = nni_id_get(&s->clean_session_db, key);
-	if (p->conn_param->clean_start == 0 && 
-	    temp_cs != NULL &&
-		temp_cs->pipeid == p->id) {
-			nano_session_cache(p, temp_cs);
+	if (p->conn_param->clean_start == 0 && temp_cs != NULL &&
+	    p->kicked != true) {
+		nano_session_cache(p, temp_cs, key);
 	} else {
 		// When clean_session is set to 1
 		nni_id_map *        nano_qos_db = p->conn_param->nano_qos_db;
@@ -786,6 +785,7 @@ nano_pipe_init(void *arg, nni_pipe *pipe, void *s)
 	p->pipe                    = pipe;
 	p->rep                     = s;
 	p->ka_refresh              = 0;
+	p->kicked                  = false;
 	p->conn_param              = nni_pipe_get_conn_param(pipe);
 	p->tree                    = sock->db;
 	p->conn_param->nano_qos_db = p->pipe->nano_qos_db;
@@ -1016,8 +1016,6 @@ nano_pipe_recv_cb(void *arg)
 	nni_aio *     aio;
 	nano_pipe_db *pipe_db;
 	nni_pipe *    npipe = p->pipe;
-	// int        hops;
-	// int        ttl;
 
 	if (nni_aio_result(&p->aio_recv) != 0) {
 		nni_pipe_close(p->pipe);
@@ -1030,10 +1028,6 @@ nano_pipe_recv_cb(void *arg)
 		goto end;
 	}
 
-	// debug_msg("start nano_pipe_recv_cb pipe: %p p_id %d TYPE: %x ===== "
-	//          "header: %x %x header len: %zu\n",
-	//     p, p->id, nng_msg_cmd_type(msg), *nng_msg_header(msg),
-	//     *(nng_msg_header(msg) + 1), nng_msg_header_len(msg));
 	// ttl = nni_atomic_get(&s->ttl);
 	nni_msg_set_pipe(msg, p->id);
 	// TODO HOOK
