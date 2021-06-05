@@ -18,5 +18,4 @@ const struct nanomq_app nanomq_app_##_name = {            \
 	.restart = _restart,                                  \
 }
 
-
 extern const struct nanomq_app *edge_apps[];

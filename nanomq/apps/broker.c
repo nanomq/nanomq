@@ -421,13 +421,13 @@ alloc_work(nng_socket sock)
 int
 broker(conf *nanomq_conf)
 {
-	nng_socket   sock;
-	nng_pipe     pipe_id;
-	int          rv;
-	int          i;
-	uint8_t      num_ctx = nanomq_conf->parallel;
-	struct work *works[num_ctx];
-	const char * url = nanomq_conf->url;
+	nng_socket     sock;
+	nng_pipe       pipe_id;
+	int            rv;
+	int            i;
+	uint8_t        num_ctx = nanomq_conf->parallel;
+	struct work   *works[num_ctx];
+	const char    *url = nanomq_conf->url;
 
 	// init tree
 	db_tree *db     = NULL;
@@ -501,13 +501,12 @@ status_check(pid_t *pid)
 	} else {
 		if ((data) != NULL) {
 			sscanf(data, "%u", pid);
-			debug_msg("pid read, [%lu]", *pid);
+			debug_msg("pid read, [%u]", *pid);
 			nng_free(data, size);
 
 			if ((kill(*pid, 0)) == 0) {
 				debug_msg("there is a running NanoMQ instance "
-				          ": pid [%lu]",
-				    *pid);
+				          ": pid [%u]", *pid);
 				return 0;
 			}
 		}
@@ -556,8 +555,7 @@ broker_start(int argc, char **argv)
 	if (!status_check(&pid)) {
 		fprintf(stderr,
 		    "One NanoMQ instance is still running, a new instance "
-		    "won't be "
-		    "started until the other one is stopped.\n");
+		    "won't be started until the other one is stopped.\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -570,7 +568,7 @@ broker_start(int argc, char **argv)
 	}
 
 	nanomq_conf->parallel = PARALLEL;
-	macro_def_parser(&nanomq_conf);
+	conf_init(&nanomq_conf);
 	conf_parser(&nanomq_conf, CONF_PATH_NAME);
 
 	if (argc < 1 && nanomq_conf->url == NULL) {
