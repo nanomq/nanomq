@@ -701,8 +701,6 @@ nano_sessiondb_clean(nano_pipe *p)
 				nni_id_remove(&s->clean_session_db, key);
 				nng_free(temp_cs, sizeof(nano_clean_session));
 			}
-		} else {
-			temp_cs->pipeid = 0;
 		}
 	}
 }
