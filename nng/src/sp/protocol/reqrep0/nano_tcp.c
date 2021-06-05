@@ -96,8 +96,8 @@ struct nano_clean_session {
 	conn_param *  cparam;
 	nni_id_map *  msg_map;
 	nano_pipe_db *pipe_db;
-	uint32_t      pipeid;		//corresponding pipe id of nng
-	bool          clean;
+	uint32_t pipeid; // corresponding pipe id of nng
+	bool clean;
 };
 
 static void
@@ -519,7 +519,6 @@ nano_session_restore(nano_pipe *p, nano_sock *s)
 	uint32_t            key;
 	uint8_t             clean_session_flag = new_cparam->clean_start;
 	nano_clean_session *cs;
-	nano_pipe		   *kick;
 
 	key = DJBHashn(new_cparam->clientid.body, new_cparam->clientid.len);
 	// TODO hash collision?
@@ -554,9 +553,9 @@ nano_session_restore(nano_pipe *p, nano_sock *s)
 		}
 		return ret;
 	} else if (cs->pipeid != 0) {
-			// TODO kick prev connection or current one?(p or cs->pipeid)
-			p->closed = true;
-			close_pipe(p);
+		// TODO kick prev connection or current one?(p or cs->pipeid)
+		p->closed = true;
+		close_pipe(p);
 		return (NNG_ECONNABORTED);
 	}
 
@@ -635,23 +634,14 @@ nano_session_restore(nano_pipe *p, nano_sock *s)
 }
 
 static int
-nano_session_cache(nano_pipe *p)
+nano_session_cache(nano_pipe *p, nano_clean_session *temp_cs)
 {
 	conn_param *        cp          = p->conn_param;
 	nni_id_map *        nano_qos_db = cp->nano_qos_db;
 	client_ctx *        cli_ctx     = NULL;
 	struct topic_queue *tq          = NULL;
-	nano_sock *         s           = p->rep;
 	uint32_t            key;
-	nano_clean_session *temp_cs;
 
-	key = DJBHashn(cp->clientid.body, cp->clientid.len);
-	// get temp_cs from clean_session_db
-	temp_cs = nni_id_get(&s->clean_session_db, key);
-	if (temp_cs == NULL) {
-		nni_println("clientid missing!");
-		return (NNG_EINTERNAL);
-	}
 	// step 0 copy connection parameter
 	conn_param *new_cp;
 	if ((new_cp = nni_zalloc(sizeof(conn_param) * 1)) == NULL) {
@@ -695,18 +685,18 @@ nano_sessiondb_clean(nano_pipe *p)
 	nano_sock *         s  = p->rep;
 	uint32_t            key;
 	nano_clean_session *temp_cs;
-	nano_pipe *pipe;
+	nano_pipe *         pipe;
 
 	key = DJBHashn(cp->clientid.body, cp->clientid.len);
 	// get temp_cs from clean_session_db
 	temp_cs = nni_id_get(&s->clean_session_db, key);
 	if (temp_cs != NULL) {
-		//temp_cs->pipeid indicates if current session existed.
+		// temp_cs->pipeid indicates if current session existed.
 		if (p->closed == true && temp_cs->pipeid == p->id) {
 			temp_cs->pipeid = 0;
 		}
 		if (temp_cs->clean == true) {
-			//Do not kick the old one.
+			// Do not kick the old one.
 			if (temp_cs->pipeid == 0) {
 				nni_id_remove(&s->clean_session_db, key);
 				nng_free(temp_cs, sizeof(nano_clean_session));
@@ -720,8 +710,12 @@ nano_sessiondb_clean(nano_pipe *p)
 static void
 nano_pipe_fini(void *arg)
 {
-	nano_pipe *p = arg;
-	nng_msg *  msg;
+	nano_pipe *         p = arg;
+	nng_msg *           msg;
+	uint32_t            key;
+	nano_clean_session *temp_cs;
+	conn_param *        cp = p->conn_param;
+	nano_sock *         s           = p->rep;
 
 	debug_msg("########## nano_pipe_fini ###############");
 	if ((msg = nni_aio_get_msg(&p->aio_recv)) != NULL) {
@@ -734,7 +728,14 @@ nano_pipe_fini(void *arg)
 		nni_msg_free(msg);
 	}
 
-	if (p->conn_param->clean_start == 1) {
+	key = DJBHashn(cp->clientid.body, cp->clientid.len);
+	// get temp_cs from clean_session_db
+	temp_cs = nni_id_get(&s->clean_session_db, key);
+	if (p->conn_param->clean_start == 0 && 
+	    temp_cs != NULL &&
+		temp_cs->pipeid == p->id) {
+			nano_session_cache(p, temp_cs);
+	} else {
 		// When clean_session is set to 1
 		nni_id_map *        nano_qos_db = p->conn_param->nano_qos_db;
 		client_ctx *        cli_ctx     = NULL;
@@ -757,8 +758,6 @@ nano_pipe_fini(void *arg)
 			          "tq lost or maybe not subed any topic");
 		}
 		nano_msg_free_pipedb(p->pipedb_root);
-	} else {
-		nano_session_cache(p);
 	}
 	destroy_conn_param(p->conn_param);
 
