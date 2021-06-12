@@ -372,8 +372,6 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work,
 			    work->pub_packet->variable_header.publish
 			        .packet_identifier);
 		}
-		nng_msg_preset_qos(
-		    dest_msg, work->pub_packet->fixed_header.qos);
 		debug_msg("after topic and id len in msg already [%ld]",
 		    nng_msg_len(dest_msg));
 

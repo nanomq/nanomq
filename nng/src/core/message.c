@@ -41,7 +41,6 @@ struct nng_msg {
 	uint8_t *        payload_ptr; // payload
 	nni_time         times;
 	nano_conn_param *cparam;
-	uint8_t          qos;
 };
 
 #if 0
@@ -707,19 +706,6 @@ nni_time
 nni_msg_get_timestamp(nni_msg *m)
 {
 	return m->times;
-}
-
-// TODO qos validation
-uint8_t
-nni_msg_get_preset_qos(nni_msg *m)
-{
-	return m->qos;
-}
-
-void
-nni_msg_set_qos(nni_msg *m, uint8_t qos)
-{
-	m->qos = qos;
 }
 
 nano_pipe_db *

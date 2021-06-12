@@ -1973,12 +1973,6 @@ nng_msg_set_cmd_type(nng_msg *m, uint8_t cmd)
 	}
 }
 
-void
-nng_msg_preset_qos(nng_msg *m, uint8_t qos)
-{
-	nni_msg_set_qos(m, qos);
-}
-
 const uint8_t *
 conn_param_get_clientid(conn_param *cparam)
 {
