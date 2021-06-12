@@ -73,7 +73,6 @@ extern void          nano_msg_free_pipedb(nano_pipe_db *db);
 extern void          nano_msg_ubsub_free(nano_pipe_db *db);
 extern uint8_t       nni_msg_get_preset_qos(nni_msg *m);
 extern uint16_t      nni_msg_get_pub_pid(nni_msg *m);
-extern void          nni_msg_set_qos(nni_msg *m, uint8_t qos);
 
 extern conn_param *nni_msg_get_conn_param(nni_msg *m);
 

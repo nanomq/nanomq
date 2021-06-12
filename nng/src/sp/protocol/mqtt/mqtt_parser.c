@@ -691,3 +691,12 @@ nano_hash(char *str)
 	                                         // hash = hash * 33 + c;
 	return hash;
 }
+
+void
+nano_msg_set_dup(nng_msg *msg)
+{
+	uint8_t *header;
+
+	header = nni_msg_header(msg);
+	*header = *header | 0x08;
+}

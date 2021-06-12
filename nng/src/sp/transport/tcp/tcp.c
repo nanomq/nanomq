@@ -859,7 +859,8 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 				nni_msg_clone(msg);
 				if ((old = nni_id_get(
 				         pipe->nano_qos_db, pid)) != NULL) {
-					// TODO  shouldn't get here BUG
+					// TODO packetid already exists. replace old with new one
+					// shouldn't get here BUG
 					nni_println(
 					    "ERROR: packet id duplicates in "
 					    "nano_qos_db");
