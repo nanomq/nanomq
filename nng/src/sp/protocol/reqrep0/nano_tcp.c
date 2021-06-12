@@ -126,16 +126,19 @@ nano_pipe_timer_cb(void *arg)
 	p->ka_refresh++;
 	if (!p->busy) {
 		msg = nni_id_get_any(npipe->nano_qos_db, &pid);
+
 		if (msg != NULL) {
 			time = nni_msg_get_timestamp(msg);
 			if ((nni_clock() - time) >=
 			    (long unsigned) qos_timer * 1250) {
 				p->busy = true;
 				nni_msg_clone(msg);
+				nano_msg_set_dup(msg);
 				nni_aio_set_packetid(&p->aio_send, pid);
 				nni_aio_set_msg(&p->aio_send, msg);
 				debug_msg("resending qos msg!\n");
 				nni_pipe_send(p->pipe, &p->aio_send);
+				nni_id_remove(npipe->nano_qos_db, pid);
 			}
 		}
 	}
@@ -289,7 +292,6 @@ nano_ctx_send(void *arg, nni_aio *aio)
 		nni_aio_set_msg(&p->aio_send, msg);
 		nni_pipe_send(p->pipe, &p->aio_send);
 		nni_mtx_unlock(&p->lk);
-
 		nni_aio_set_msg(aio, NULL);
 		// nni_aio_finish(aio, 0, len);
 		return;
