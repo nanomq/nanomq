@@ -97,6 +97,8 @@ server_cb(void *arg)
 			fatal("RECV NULL MSG", rv);
 		}
 		pipe = nng_msg_get_pipe(msg);
+		work->msg   = msg;
+		work->cparam = nng_msg_get_conn_param(work->msg);
 
 		if (nng_msg_cmd_type(msg) == CMD_DISCONNECT) {
 			/*
@@ -131,22 +133,19 @@ server_cb(void *arg)
 			work->msg = NULL;
 			nng_ctx_recv(work->ctx, work->aio);
 			break;
+		} else if (nng_msg_cmd_type(msg) == CMD_PUBLISH) {
+			nng_msg_set_timestamp(msg, nng_clock());
+			handle_pub(work, work->pipe_ct);
 		}
-
-		work->msg   = msg;
 		work->state = WAIT;
 		debug_msg(
 		    "RECV ********************* msg: %x*****************\n",
 		    nng_msg_cmd_type(work->msg));
-		// nng_aio_finish(work->aio, 0);
-		nng_aio_finish_sync(work->aio, 0);
+		nng_aio_finish(work->aio, 0);
+		//nng_aio_finish_sync(work->aio, 0);
 		break;
 	case WAIT:
-		debug_msg(
-		    "WAIT ^^^^^^^^^^^^^^^^^^^^^ ctx%d ^^^^", work->ctx.id);
-		// We could add more data to the message here.
-		work->msg    = nng_aio_get_msg(work->aio);
-		work->cparam = nng_msg_get_conn_param(work->msg);
+		debug_msg("WAIT ^^^^^^^^^^^^^^^^^^^^^ ctx%d ^^^^", work->ctx.id);
 		if (nng_msg_cmd_type(work->msg) == CMD_PINGREQ) {
 			if (work->msg != NULL)
 				nng_msg_free(work->msg);
@@ -286,10 +285,9 @@ server_cb(void *arg)
 				debug_msg("WAIT nng aio result error: %d", rv);
 				fatal("WAIT nng_ctx_recv/send", rv);
 			}
-			nng_msg_alloc(&smsg, 0);
-
-			handle_pub(work, work->pipe_ct);
-			nng_msg_free(work->msg);
+			//nng_msg_alloc(&smsg, 0);
+			//nng_msg_free(work->msg);
+			smsg = work->msg;	//reuse the same msg memory
 			work->msg = NULL;
 
 			debug_msg("total pipes: %d", work->pipe_ct->total);
@@ -310,11 +308,10 @@ server_cb(void *arg)
 					nng_aio_set_msg(work->aio, work->msg);
 					work->msg = NULL;
 
-					if (p_info.pipe != 0 /*&& p_info.pipe != work->pid.id*/) {
+					if (p_info.pipe != 0) {
 						nng_aio_set_pipeline(
 						    work->aio, p_info.pipe);
 					}
-
 					work->state = SEND;
 					work->pipe_ct->current_index++;
 					nng_ctx_send(work->ctx, work->aio);
@@ -371,7 +368,6 @@ server_cb(void *arg)
 		debug_msg(
 		    "SEND  ^^^^^^^^^^^^^^^^^^^^^ ctx%d ^^^^\n", work->ctx.id);
 		if (NULL != smsg) {
-			// nng_msg_free(smsg);
 			smsg = NULL;
 		}
 		if ((rv = nng_aio_result(work->aio)) != 0) {

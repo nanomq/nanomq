@@ -2076,6 +2076,12 @@ conn_param_get_protover(conn_param *cparam)
 		return cparam->pro_ver;
 }
 
+void
+nng_msg_set_timestamp(nni_msg *m, uint64_t time)
+{
+	nni_msg_set_timestamp(m, (nni_time)time);
+}
+
 /*
 void
 nng_aio_set_pipelength(nng_aio *aio, uint32_t len)

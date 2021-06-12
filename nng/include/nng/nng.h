@@ -1300,6 +1300,7 @@ NNG_DECL nng_msg *nng_msg_unique(nng_msg *m);
 NNG_DECL int      nng_file_put(const char *name, const void *data, size_t sz);
 NNG_DECL int      nng_file_get(const char *name, void **datap, size_t *szp);
 NNG_DECL int      nng_file_delete(const char *name);
+NNG_DECL void     nng_msg_set_timestamp(nng_msg *m, uint64_t time);
 
 // NNG_DECL void nng_aio_set_pipes(nng_aio *aio, uint32_t *pipes);
 NNG_DECL uint32_t *nng_aio_get_pipes(nng_aio *aio);

@@ -270,8 +270,7 @@ nano_ctx_send(void *arg, nni_aio *aio)
 
 	nni_mtx_lock(&s->lk);
 	debug_msg("*************************** working with pipe id : %d "
-	          "ctx***************************",
-	    pipe);
+	          "ctx***************************", pipe);
 	if ((p = nni_id_get(&s->pipes, pipe)) == NULL) {
 		// Pipe is gone.  Make this look like a good send to avoid
 		// disrupting the state machine.  We don't care if the peer
@@ -284,8 +283,6 @@ nano_ctx_send(void *arg, nni_aio *aio)
 		return;
 	}
 	nni_mtx_unlock(&s->lk);
-
-	nni_msg_set_timestamp(msg, nni_clock());
 	nni_mtx_lock(&p->lk);
 	if (!p->busy) {
 		p->busy = true;
