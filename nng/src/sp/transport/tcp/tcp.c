@@ -851,7 +851,6 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 		// packet id
 		if (db->qos > 0 && qos_pac > 0) {
 			// set pid
-			int      rv;
 			nni_msg *old;
 			pid = nni_aio_get_packetid(aio);
 			if (pid == 0) { // first time deal with "pid", it's not
@@ -870,7 +869,7 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 					// nni_id_remove(&pipe->nano_qos_db,
 					// pid);
 				}
-				rv = nni_id_set(pipe->nano_qos_db, pid, msg);
+				nni_id_set(pipe->nano_qos_db, pid, msg);
 			}
 			NNI_PUT16(varheader, pid);
 			p->qlength += 2;
