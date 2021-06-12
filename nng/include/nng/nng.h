@@ -1295,7 +1295,6 @@ NNG_DECL void     nng_msg_set_payload_ptr(nng_msg *msg, uint8_t *ptr);
 NNG_DECL void     nng_msg_set_remaining_len(nng_msg *msg, size_t len);
 NNG_DECL void     nng_msg_clone(nng_msg *msg);
 NNG_DECL void     nng_msg_set_cmd_type(nng_msg *m, uint8_t cmd);
-NNG_DECL void     nng_msg_preset_qos(nng_msg *m, uint8_t qos);
 NNG_DECL nng_msg *nng_msg_unique(nng_msg *m);
 NNG_DECL int      nng_file_put(const char *name, const void *data, size_t sz);
 NNG_DECL int      nng_file_get(const char *name, void **datap, size_t *szp);

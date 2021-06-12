@@ -779,7 +779,7 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 	// never modify msg
 	if (nni_msg_header_len(msg) > 0 &&
 	    nni_msg_cmd_type(msg) == CMD_PUBLISH) {
-		uint8_t *body, *header, qos_pub, qos_pac;
+		uint8_t *body, *header, qos_pac;
 		uint8_t  varheader[2],
 		    fixheader[NNI_NANO_MAX_HEADER_SIZE] = { 0 },
 		    tmp[4]                              = { 0 };
@@ -801,8 +801,6 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 			    "ERROR: nano_db subscription topic missing!");
 			goto send;
 		}
-		qos_pub = nni_msg_get_preset_qos(msg);
-		NNI_ARG_UNUSED(qos_pub);
 		qos_pac = nni_msg_get_pub_qos(msg);
 		if (qos_pac == 0 /*&& db->qos == 0*/) {
 			// save time & space for QoS 0 publish
@@ -810,7 +808,7 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 		}
 
 		debug_msg(
-		    "qos_pac %d pub %d sub %d\n", qos_pac, qos_pub, db->qos);
+		    "qos_pac %d sub %d\n", qos_pac, db->qos);
 		memcpy(fixheader, header, nni_msg_header_len(msg));
 
 		if (qos_pac > db->qos) {
