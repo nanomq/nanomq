@@ -251,7 +251,7 @@ tcptran_ep_match(tcptran_ep *ep)
  * MQTT protocal negotiate
  * deal with CONNECT packet
  * Fixed header to variable header
- * receive multiple times for complete data packet then reply ACK only once
+ * receive multiple times for complete data packet then reply ACK in protocol layer
  * iov_len limits the length readv reads
  * TODO independent with nng SP
  */
@@ -969,39 +969,6 @@ tcptran_pipe_recv_cancel(nni_aio *aio, void *arg, int rv)
 }
 
 static void
-tcptran_pipe_recv_start(tcptran_pipe *p)
-{
-	nni_aio *rxaio;
-	nni_iov  iov;
-	debug_msg("second oder! tcptran_pipe_recv_start\n");
-	NNI_ASSERT(p->rxmsg == NULL);
-
-	if (p->closed) {
-		nni_aio *aio;
-		while ((aio = nni_list_first(&p->recvq)) != NULL) {
-			nni_list_remove(&p->recvq, aio);
-			nni_aio_finish_error(aio, NNG_ECLOSED);
-		}
-		return;
-	}
-	if (nni_list_empty(&p->recvq)) {
-		return;
-	}
-
-	// Schedule a read of the fixed header.
-	rxaio         = p->rxaio;
-	p->gotrxhead  = 0;
-	p->gottxhead  = 0;
-	p->wantrxhead = EMQ_MIN_FIXED_HEADER_LEN;
-	p->wanttxhead = 0;
-	// p->remain_len = 0;
-	iov.iov_buf = p->rxlen;
-	iov.iov_len = EMQ_MIN_FIXED_HEADER_LEN;
-	nni_aio_set_iov(rxaio, 1, &iov);
-	nng_stream_recv(p->conn, rxaio);
-}
-
-static void
 tcptran_pipe_recv(void *arg, nni_aio *aio)
 {
 	tcptran_pipe *p = arg;
@@ -1045,6 +1012,39 @@ tcptran_pipe_getopt(
 	return (nni_stream_get(p->conn, name, buf, szp, t));
 }
 
+static void
+tcptran_pipe_recv_start(tcptran_pipe *p)
+{
+	nni_aio *rxaio;
+	nni_iov  iov;
+	debug_msg("second oder! tcptran_pipe_recv_start\n");
+	NNI_ASSERT(p->rxmsg == NULL);
+
+	if (p->closed) {
+		nni_aio *aio;
+		while ((aio = nni_list_first(&p->recvq)) != NULL) {
+			nni_list_remove(&p->recvq, aio);
+			nni_aio_finish_error(aio, NNG_ECLOSED);
+		}
+		return;
+	}
+	if (nni_list_empty(&p->recvq)) {
+		return;
+	}
+
+	// Schedule a read of the fixed header.
+	rxaio         = p->rxaio;
+	p->gotrxhead  = 0;
+	p->gottxhead  = 0;
+	p->wantrxhead = EMQ_MIN_FIXED_HEADER_LEN;
+	p->wanttxhead = 0;
+	// p->remain_len = 0;
+	iov.iov_buf = p->rxlen;
+	iov.iov_len = EMQ_MIN_FIXED_HEADER_LEN;
+	nni_aio_set_iov(rxaio, 1, &iov);
+	nng_stream_recv(p->conn, rxaio);
+}
+
 // DEAL WITH CONNECT when PIPE INIT
 static void
 tcptran_pipe_start(tcptran_pipe *p, nng_stream *conn, tcptran_ep *ep)
@@ -1074,11 +1074,8 @@ tcptran_pipe_start(tcptran_pipe *p, nng_stream *conn, tcptran_ep *ep)
 	iov.iov_len   = EMQ_MIN_HEADER_LEN; // dynamic
 	iov.iov_buf   = &p->txlen[0];
 
-	nni_aio_set_iov(p->negoaio, 1, &iov); // maybe not necessary? delete?
+	nni_aio_set_iov(p->negoaio, 1, &iov);
 	nni_list_append(&ep->negopipes, p);
-
-	// reply to client immediately if needed otherwise just trigger next IO
-	// nng_stream_send(p->conn, p->negoaio);
 
 	nni_aio_set_timeout(p->negoaio,
 	    15 * 1000); // 15 sec timeout to negotiate abide with emqx
