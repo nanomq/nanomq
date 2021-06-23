@@ -628,6 +628,9 @@ decode_pub_message(emq_work *work)
 	int     used_pos = 0;
 	int     len, len_of_varint;
 	uint8_t proto_ver = conn_param_get_protover(work->cparam);
+	if (nng_msg_cmd_type(work->msg) == CMD_PUBLISH) {
+		proto_ver = 4;
+	}
 	work->proto       = proto_ver;
 
 	nng_msg *                 msg        = work->msg;
