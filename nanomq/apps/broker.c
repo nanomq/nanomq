@@ -67,7 +67,6 @@ server_cb(void *arg)
 	emq_work *work = arg;
 	nng_msg * msg;
 	nng_msg * smsg = NULL, *tmsg = NULL;
-	nng_pipe  pipe;
 	int       rv, i;
 
 	reason_code reason;
@@ -86,9 +85,8 @@ server_cb(void *arg)
 		debug_msg(
 		    "RECV  ^^^^^^^^^^^^^^^^^^^^^ ctx%d ^^^^\n", work->ctx.id);
 		if ((rv = nng_aio_result(work->aio)) != 0) {
-			debug_msg("ERROR: RECV nng aio result error: %d", rv);
+			debug_syslog("ERROR: RECV nng aio result error: %d", rv);
 			nng_aio_wait(work->aio);
-			// break;
 			fatal("RECV nng_ctx_recv", rv);
 		}
 		msg = nng_aio_get_msg(work->aio);
@@ -96,7 +94,6 @@ server_cb(void *arg)
 			debug_msg("ERROR: RECV NULL msg");
 			fatal("RECV NULL MSG", rv);
 		}
-		pipe = nng_msg_get_pipe(msg);
 		work->msg   = msg;
 		work->cparam = nng_msg_get_conn_param(work->msg);
 
