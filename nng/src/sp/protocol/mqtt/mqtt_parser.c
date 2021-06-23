@@ -700,3 +700,54 @@ nano_msg_set_dup(nng_msg *msg)
 	header = nni_msg_header(msg);
 	*header = *header | 0x08;
 }
+
+// compose a publish msg according to your need
+nng_msg *
+nano_msg_composer(uint8_t retain, uint8_t qos, mqtt_string payload, mqtt_string topic)
+{
+	size_t   rlen;
+	uint8_t *ptr, buf[5] = {'\0'};
+	uint32_t len;
+	nni_msg *msg;
+
+	len = payload.len + topic.len + 2;
+	if (qos > 0){
+		nni_msg_alloc(&msg, len + 2);
+		rlen = put_var_integer(buf + 1, len + 2);
+		nni_msg_set_remaining_len(msg, len + 2);
+		if (qos == 1) {
+			buf[0] = CMD_PUBLISH | 0x02;
+		} else if (qos == 2) {
+			buf[0] = CMD_PUBLISH | 0x04;
+		} else {
+			nni_println("ERROR: will msg qos invalid");
+			return NULL;
+		}
+	} else {
+		nni_msg_alloc(&msg, len);
+		rlen = put_var_integer(buf + 1, len);
+		nni_msg_set_remaining_len(msg, len);
+		buf[0] = CMD_PUBLISH;
+	}
+	ptr = nni_msg_header(msg);
+	if (retain > 0) {
+		buf[0] = buf[0] | 0x01;
+	}
+	memcpy(ptr, buf, rlen + 1);
+
+	ptr = nni_msg_body(msg);
+	NNI_PUT16(ptr, topic.len);
+	ptr = ptr+2;
+	memcpy(ptr, topic.body, topic.len);
+	ptr += topic.len;
+	if (qos > 0) {
+		//Set pid?
+		NNI_PUT16(ptr, 0x10);
+		ptr = ptr+2;
+	}
+	memcpy(ptr, payload.body, payload.len);
+	nni_msg_set_payload_ptr(msg, ptr);
+	nni_msg_set_cmd_type(msg, CMD_PUBLISH);
+
+	return msg;
+}
