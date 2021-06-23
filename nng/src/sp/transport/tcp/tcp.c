@@ -550,7 +550,7 @@ tcptran_pipe_recv_cb(void *arg)
 		}
 
 		if ((rv = nni_msg_alloc(&p->rxmsg, (size_t) len)) != 0) {
-			debug_msg("mem error %ld\n", (size_t) len);
+			debug_syslog("mem error %ld\n", (size_t) len);
 			goto recv_error;
 		}
 
