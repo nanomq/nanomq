@@ -48,7 +48,8 @@
 #define CMD_PINGREQ 0xC0
 #define CMD_PINGRESP 0xD0
 #define CMD_DISCONNECT 0xE0
-#define CMD_AUTH 0xF0
+#define CMD_AUTH_V5 0xF0
+#define CMD_PUBLISH_V5 0x31
 
 /* Error values */
 enum err_t {

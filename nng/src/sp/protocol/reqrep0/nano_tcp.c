@@ -32,8 +32,8 @@ typedef struct cs_msg_list        cs_msg_list;
 static void        nano_pipe_send_cb(void *);
 static void        nano_pipe_recv_cb(void *);
 static void        nano_pipe_fini(void *);
-static void        nano_pipe_close(void *);
-static inline void close_pipe(nano_pipe *p);
+static void        nano_pipe_close(void *, uint8_t reason_code);
+static inline void close_pipe(nano_pipe *p, uint8_t reason_code);
 // static void nano_period_check(nano_sock *s, nni_list *sent_list, void *arg);
 // static void nano_keepalive(nano_pipe *p, void *arg);
 
@@ -86,6 +86,7 @@ struct nano_pipe {
 	bool          busy;
 	bool          closed;
 	bool          kicked;
+	uint8_t       reason_code;
 	uint8_t       ka_refresh;
 	conn_param *  conn_param;
 	nano_pipe_db *pipedb_root;
@@ -120,7 +121,7 @@ nano_pipe_timer_cb(void *arg)
 		       "timeout!");
 		// TODO check keepalived timer interval
 		nni_mtx_unlock(&p->lk);
-		nano_pipe_close(p);
+		nano_pipe_close(p,0x8D);
 		return;
 	}
 	p->ka_refresh++;
@@ -555,7 +556,7 @@ nano_session_restore(nano_pipe *p, nano_sock *s)
 	} else if (cs->pipeid != 0) {
 		// TODO kick prev connection or current one?(p or cs->pipeid)
 		p->kicked = true;
-		close_pipe(p);
+		close_pipe(p, 0x8E);
 		return (NNG_ECONNABORTED);
 	}
 
@@ -684,7 +685,6 @@ nano_sessiondb_clean(nano_pipe *p)
 	nano_sock *         s  = p->rep;
 	uint32_t            key;
 	nano_clean_session *temp_cs;
-	nano_pipe *         pipe;
 
 	key = DJBHashn(cp->clientid.body, cp->clientid.len);
 	// get temp_cs from clean_session_db
@@ -728,7 +728,8 @@ nano_pipe_fini(void *arg)
 	key = DJBHashn(cp->clientid.body, cp->clientid.len);
 	// get temp_cs from clean_session_db
 	temp_cs = nni_id_get(&s->clean_session_db, key);
-	if (p->conn_param->clean_start == 0 && temp_cs != NULL &&
+	if (p->conn_param->clean_start == 0 &&
+	    temp_cs   != NULL &&
 	    p->kicked != true) {
 		nano_session_cache(p, temp_cs, key);
 	} else {
@@ -754,6 +755,7 @@ nano_pipe_fini(void *arg)
 			          "tq lost or maybe not subed any topic");
 		}
 		nano_msg_free_pipedb(p->pipedb_root);
+		p->pipedb_root = NULL;
 	}
 	destroy_conn_param(p->conn_param);
 
@@ -780,6 +782,7 @@ nano_pipe_init(void *arg, nni_pipe *pipe, void *s)
 
 	// NNI_LIST_INIT(&p->sendq, nano_ctx, sqnode);
 
+	p->reason_code			   = 0x00;
 	p->id                      = nni_pipe_id(pipe);
 	p->pipe                    = pipe;
 	p->rep                     = s;
@@ -848,7 +851,7 @@ nano_pipe_start(void *arg)
 	return (0);
 }
 static inline void
-close_pipe(nano_pipe *p)
+close_pipe(nano_pipe *p, uint8_t reason_code)
 {
 	nano_sock *s = p->rep;
 	nano_ctx * ctx;
@@ -863,8 +866,6 @@ close_pipe(nano_pipe *p)
 		nni_list_remove(&s->recvpipes, p);
 	}
 	nni_lmq_flush(&p->rlmq);
-	// nano_msg_free_pipedb(p->pipedb_root);
-	// p->pipedb_root = NULL;
 
 	while ((ctx = nni_list_first(&p->sendq)) != NULL) {
 		nni_aio *aio;
@@ -880,15 +881,39 @@ close_pipe(nano_pipe *p)
 	nni_id_remove(&s->pipes, nni_pipe_id(p->pipe));
 	nano_sessiondb_clean(p);
 }
+
 static void
-nano_pipe_close(void *arg)
+nano_pipe_close(void *arg, uint8_t reason_code)
 {
 	nano_pipe *p = arg;
 	nano_sock *s = p->rep;
 
 	debug_msg("################# nano_pipe_close ##############");
 	nni_mtx_lock(&s->lk);
-	close_pipe(p);
+	close_pipe(p, reason_code);
+	// pub last will msg
+	if (p->conn_param->will_flag) {
+		nano_ctx *ctx;
+		nni_aio * aio = NULL;
+		nni_msg * msg;
+		if ((ctx = nni_list_first(&s->recvq)) != NULL) {
+		    msg = nano_msg_composer(p->conn_param->will_retain,
+		                            p->conn_param->will_qos,
+		                            p->conn_param->will_msg,
+		                            p->conn_param->will_topic);
+			if (msg == NULL) {
+				nni_mtx_unlock(&s->lk);
+				return;
+			}
+			aio = ctx->raio;
+			ctx->raio = NULL;
+			nni_list_remove(&s->recvq, ctx);
+			nni_mtx_unlock(&s->lk);
+			nni_aio_set_msg(aio, msg);
+			nni_aio_finish(aio, 0, nni_msg_len(msg));
+			return;
+		}
+	}
 	nni_mtx_unlock(&s->lk);
 }
 
@@ -1017,6 +1042,7 @@ nano_pipe_recv_cb(void *arg)
 	nni_pipe *    npipe = p->pipe;
 
 	if (nni_aio_result(&p->aio_recv) != 0) {
+		//unexpected disconnect
 		nni_pipe_close(p->pipe);
 		return;
 	}

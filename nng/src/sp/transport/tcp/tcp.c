@@ -66,7 +66,6 @@ struct tcptran_ep {
 	bool     started;
 	bool     closed;
 	nng_url *url;
-	// const char *         host; // for dialers
 	nng_sockaddr         src;
 	int                  refcnt; // active pipes
 	nni_aio *            useraio;
@@ -551,7 +550,7 @@ tcptran_pipe_recv_cb(void *arg)
 		}
 
 		if ((rv = nni_msg_alloc(&p->rxmsg, (size_t) len)) != 0) {
-			debug_msg("mem error %ld\n", (size_t) len);
+			debug_syslog("mem error %ld\n", (size_t) len);
 			goto recv_error;
 		}
 
@@ -1100,7 +1099,6 @@ tcptran_ep_fini(void *arg)
 	nni_mtx_unlock(&ep->mtx);
 	nni_aio_stop(ep->timeaio);
 	nni_aio_stop(ep->connaio);
-	// nng_stream_dialer_free(ep->dialer);
 	nng_stream_listener_free(ep->listener);
 	nni_aio_free(ep->timeaio);
 	nni_aio_free(ep->connaio);
@@ -1292,18 +1290,6 @@ tcptran_ep_init(tcptran_ep **epp, nng_url *url, nni_sock *sock)
 	return (0);
 }
 
-/*
-static int
-tcptran_dialer_init(void **dp, nng_url *url, nni_dialer *ndialer)
-{
-        debug_msg("tcptran_dialer_init");
-        NNI_ARG_UNUSED(dp);
-        NNI_ARG_UNUSED(url);
-        NNI_ARG_UNUSED(ndialer);
-        return (0);
-}
-*/
-
 static int
 tcptran_listener_init(void **lp, nng_url *url, nni_listener *nlistener)
 {
@@ -1485,32 +1471,6 @@ static const nni_option tcptran_ep_opts[] = {
 	},
 };
 
-/*
-static int
-tcptran_dialer_getopt(
-    void *arg, const char *name, void *buf, size_t *szp, nni_type t)
-{
-        NNI_ARG_UNUSED(arg);
-        NNI_ARG_UNUSED(name);
-        NNI_ARG_UNUSED(buf);
-        NNI_ARG_UNUSED(szp);
-        NNI_ARG_UNUSED(t);
-        return 0;
-}
-
-static int
-tcptran_dialer_setopt(
-    void *arg, const char *name, const void *buf, size_t sz, nni_type t)
-{
-        NNI_ARG_UNUSED(arg);
-        NNI_ARG_UNUSED(name);
-        NNI_ARG_UNUSED(buf);
-        NNI_ARG_UNUSED(sz);
-        NNI_ARG_UNUSED(t);
-        return 0;
-}
-*/
-
 static int
 tcptran_listener_getopt(
     void *arg, const char *name, void *buf, size_t *szp, nni_type t)
@@ -1539,9 +1499,6 @@ tcptran_listener_setopt(
 	return (rv);
 }
 
-static nni_tran_dialer_ops tcptran_dialer_ops = {
-};
-
 static nni_tran_listener_ops tcptran_listener_ops = {
 	.l_init   = tcptran_listener_init,
 	.l_fini   = tcptran_ep_fini,
@@ -1552,45 +1509,27 @@ static nni_tran_listener_ops tcptran_listener_ops = {
 	.l_setopt = tcptran_listener_setopt,
 };
 
-static nni_tran tcp_tran = {
+static nni_tran tcp_tran_mqtt = {
 	.tran_version  = NNI_TRANSPORT_VERSION,
 	.tran_scheme   = "tcp",
-	.tran_dialer   = &tcptran_dialer_ops,
 	.tran_listener = &tcptran_listener_ops,
 	.tran_pipe     = &tcptran_pipe_ops,
 	.tran_init     = tcptran_init,
 	.tran_fini     = tcptran_fini,
 };
 
-static nni_tran tcp4_tran = {
+static nni_tran tcp4_tran_mqtt = {
 	.tran_version  = NNI_TRANSPORT_VERSION,
 	.tran_scheme   = "tcp4",
-	.tran_dialer   = &tcptran_dialer_ops,
 	.tran_listener = &tcptran_listener_ops,
 	.tran_pipe     = &tcptran_pipe_ops,
 	.tran_init     = tcptran_init,
 	.tran_fini     = tcptran_fini,
 };
 
-/**
- * TODO compatible with nng and mqtt
- *
-static nni_tran tcp4_tran_nanomq = {
-        .tran_version  = NNI_TRANSPORT_VERSION,
-        .tran_scheme   = "tcp4",
-        .tran_dialer   = &tcptran_dialer_ops,
-        .tran_listener = &tcptran_listener_ops,
-        .tran_pipe     = &tcptran_pipe_ops,
-        .tran_init     = tcptran_init,
-        .tran_fini     = tcptran_fini,
-};
- *
- */
-
-static nni_tran tcp6_tran = {
+static nni_tran tcp6_tran_mqtt = {
 	.tran_version  = NNI_TRANSPORT_VERSION,
 	.tran_scheme   = "tcp6",
-	.tran_dialer   = &tcptran_dialer_ops,
 	.tran_listener = &tcptran_listener_ops,
 	.tran_pipe     = &tcptran_pipe_ops,
 	.tran_init     = tcptran_init,
@@ -1601,9 +1540,9 @@ int
 nng_tcp_register(void)
 {
 	int rv;
-	if (((rv = nni_tran_register(&tcp_tran)) != 0) ||
-	    ((rv = nni_tran_register(&tcp4_tran)) != 0) ||
-	    ((rv = nni_tran_register(&tcp6_tran)) != 0)) {
+	if (((rv = nni_tran_register(&tcp_tran_mqtt)) != 0) ||
+	    ((rv = nni_tran_register(&tcp4_tran_mqtt)) != 0) ||
+	    ((rv = nni_tran_register(&tcp6_tran_mqtt)) != 0)) {
 		return (rv);
 	}
 	return (0);

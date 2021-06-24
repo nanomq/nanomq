@@ -25,19 +25,16 @@ typedef struct {
 } nni_chunk;
 
 // Underlying message structure.
+// TODO independent nano_msg
 struct nng_msg {
-	uint8_t
-	    m_header_buf[NNI_NANO_MAX_HEADER_SIZE + 1]; // TODO independent nano_msg
-	// uint8_t       m_variable_header_buf[];                //TODO
-	// independent variable header?
+	uint8_t m_header_buf[NNI_NANO_MAX_HEADER_SIZE + 1]; // only Fixed header
 	size_t         m_header_len;
-	nni_chunk      m_body;
+	nni_chunk      m_body;  //equal to variable header + payload
 	uint32_t       m_pipe; // set on receive
 	nni_atomic_int m_refcnt;
 	// FOR NANOMQ
-	size_t  remaining_len;
-	uint8_t CMD_TYPE;
-	// uint8_t          *variable_ptr;         //equal to m_body
+	size_t  	     remaining_len;
+	uint8_t 	     CMD_TYPE;
 	uint8_t *        payload_ptr; // payload
 	nni_time         times;
 	nano_conn_param *cparam;

@@ -3,6 +3,7 @@
 #define NNG_MQTT_H
 
 #include <nng/nng.h>
+#include <packet.h>
 #include <stdlib.h>
 
 // int hex_to_oct(char *str);
@@ -11,7 +12,7 @@
 
 // MQTT CONNECT
 int32_t conn_handler(uint8_t *packet, conn_param *conn_param);
-void    init_conn_param(conn_param * cparam);
+void    init_conn_param(conn_param *cparam);
 void    destroy_conn_param(conn_param *cparam);
 int     fixed_header_adaptor(uint8_t *packet, nng_msg *dst);
 
@@ -34,5 +35,6 @@ NNG_DECL uint64_t nano_hash(char *str);
 
 // repack
 NNG_DECL void nano_msg_set_dup(nng_msg *msg);
+NNG_DECL nng_msg *nano_msg_composer(uint8_t retain, uint8_t qos, mqtt_string payload, mqtt_string topic);
 
 #endif // NNG_MQTT_H
