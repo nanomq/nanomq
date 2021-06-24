@@ -36,7 +36,7 @@ struct tcptran_pipe {
 	bool            closed;
 	uint8_t         cmd;
 	uint8_t         txlen[NANO_MIN_PACKET_LEN];
-	uint8_t         rxlen[NNI_NANO_MAX_PACKET_SIZE];
+	uint8_t         rxlen[NNI_NANO_MAX_HEADER_SIZE];
 	uint8_t *       conn_buf;
 	uint8_t *       qos_buf;
 	nni_aio *       txaio;
@@ -45,7 +45,7 @@ struct tcptran_pipe {
 	nni_aio *       rsaio;
 	nni_aio *       rpaio;
 	nni_aio *       negoaio;
-	nni_msg *       rxmsg;
+	nni_msg *       rxmsg, *cnmsg;
 	nni_mtx         mtx;
 	conn_param *    tcp_cparam;
 	nni_list        recvq;
@@ -278,47 +278,36 @@ tcptran_pipe_nego_cb(void *arg)
 	// TODO NNG_EMSGSIZE what if received too much garbage ?
 	if (p->gotrxhead < p->wantrxhead) {
 		p->gotrxhead += nni_aio_count(aio);
-	} /*else if (p->gotrxhead >= p->wantrxhead && p->gottxhead >=
-	p->wanttxhead) {
-	        //Free negopipes again? Dont if cb didnt return when reply
-	ACK/error nni_mtx_unlock(&ep->mtx); return;
-	}*/
+	}
 
 	debug_msg(
 	    "current header : gottx %ld gotrx %ld needrx %ld needtx %ld\n",
 	    p->gottxhead, p->gotrxhead, p->wantrxhead, p->wanttxhead);
-	if (p->gotrxhead >= p->wantrxhead && p->gottxhead < p->wanttxhead) {
-		if (p->rxlen[0] != CMD_CONNECT) {
-			debug_msg("CMD TYPE %x", p->rxlen[0]);
-			rv = NNG_EPROTO; // in nng error return value must be
-			                 // defined. TODO inject EMQ error enum
-			                 // into NNG?
-			goto error;
-		}
-		len =
-		    get_var_integer(p->rxlen + 1, (uint32_t *) &len_of_varint);
-		debug_msg("CMD TYPE %x REMAINING LENGTH %d", p->rxlen[0], len);
-		p->wantrxhead = len + 1 + len_of_varint;
-	}
 	// recv fixed header
-	if (p->gotrxhead < EMQ_MAX_FIXED_HEADER_LEN) {
+	if (p->gotrxhead < NNI_NANO_MAX_HEADER_SIZE) {
 		nni_iov iov;
-		iov.iov_len = p->wantrxhead - p->gotrxhead;
+		iov.iov_len = NNI_NANO_MAX_HEADER_SIZE - p->gotrxhead;
 		iov.iov_buf = &p->rxlen[p->gotrxhead];
 		nni_aio_set_iov(aio, 1, &iov);
 		nng_stream_recv(p->conn, aio);
 		nni_mtx_unlock(&ep->mtx);
 		return;
 	}
+	if (p->gotrxhead == NNI_NANO_MAX_HEADER_SIZE && p->wantrxhead == NANO_CONNECT_PACKET_LEN) {
+		if (p->rxlen[0] != CMD_CONNECT) {
+			debug_msg("CMD TYPE %x", p->rxlen[0]);
+			rv = NNG_EPROTO;
+			goto error;
+		}
+		len = get_var_integer(p->rxlen + 1, (uint32_t *) &len_of_varint);
+		p->wantrxhead = len + 1 + len_of_varint;
+	}
 	debug_msg("fixed header : gottx %ld gotrx %ld needrx %ld needtx %ld "
 	          "CONNECT Need more bytes hex: %x %x\n",
 	    p->gottxhead, p->gotrxhead, p->wantrxhead, p->wanttxhead,
 	    p->rxlen[0], p->rxlen[1]);
 
-	// after fixed header but not receive complete Header. continue
-	// receving rest header (7 bytes);
-	if (p->gotrxhead < p->wantrxhead &&
-	    p->gotrxhead >= EMQ_MAX_FIXED_HEADER_LEN) {
+	if (p->gotrxhead == NNI_NANO_MAX_HEADER_SIZE) {
 		nni_iov iov;
 		iov.iov_len = p->wantrxhead - p->gotrxhead;
 		if (p->conn_buf == NULL) {
@@ -329,11 +318,6 @@ tcptran_pipe_nego_cb(void *arg)
 		nni_aio_set_iov(aio, 1, &iov);
 		nng_stream_recv(p->conn, aio);
 		nni_mtx_unlock(&ep->mtx);
-		debug_msg(
-		    "variable and payload : gottx %ld gotrx %ld needrx %ld "
-		    "needtx %ld hex: %x %x\n",
-		    p->gottxhead, p->gotrxhead, p->wantrxhead, p->wanttxhead,
-		    p->rxlen[0], p->rxlen[1]);
 		return;
 	}
 
@@ -386,8 +370,7 @@ tcptran_pipe_nego_cb(void *arg)
 
 	tcptran_ep_match(ep);
 	nni_mtx_unlock(&ep->mtx);
-	debug_msg(
-	    "^^^^^^^^^^^^^^end of tcptran_pipe_nego_cb^^^^^^^^^^^^^^^^^^^^\n");
+	debug_msg("^^^^^^^^^^end of tcptran_pipe_nego_cb^^^^^^^^^^\n");
 	return;
 
 error:
@@ -501,10 +484,10 @@ tcptran_pipe_recv_cb(void *arg)
 		nng_stream_recv(p->conn, rxaio);
 		nni_mtx_unlock(&p->mtx);
 		return;
-	} else if (p->gotrxhead <= EMQ_MAX_FIXED_HEADER_LEN &&
+	} else if (p->gotrxhead <= NNI_NANO_MAX_HEADER_SIZE &&
 	    p->rxlen[p->gotrxhead - 1] > 0x7f) {
 		// length error
-		if (p->gotrxhead == EMQ_MAX_FIXED_HEADER_LEN) {
+		if (p->gotrxhead == NNI_NANO_MAX_HEADER_SIZE) {
 			rv = NNG_EMSGSIZE;
 			goto recv_error;
 		}
@@ -1036,11 +1019,11 @@ tcptran_pipe_recv_start(tcptran_pipe *p)
 	rxaio         = p->rxaio;
 	p->gotrxhead  = 0;
 	p->gottxhead  = 0;
-	p->wantrxhead = EMQ_MIN_FIXED_HEADER_LEN;
+	p->wantrxhead = NANO_MIN_FIXED_HEADER_LEN;
 	p->wanttxhead = 0;
 	// p->remain_len = 0;
 	iov.iov_buf = p->rxlen;
-	iov.iov_len = EMQ_MIN_FIXED_HEADER_LEN;
+	iov.iov_len = NANO_MIN_FIXED_HEADER_LEN;
 	nni_aio_set_iov(rxaio, 1, &iov);
 	nng_stream_recv(p->conn, rxaio);
 }
@@ -1071,15 +1054,16 @@ tcptran_pipe_start(tcptran_pipe *p, nng_stream *conn, tcptran_ep *ep)
 	                                         // length 1 + protocal name 7
 	                                         // + flag 1 + keepalive 2 = 12
 	p->wanttxhead = 4;
-	iov.iov_len   = EMQ_MIN_HEADER_LEN; // dynamic
-	iov.iov_buf   = &p->txlen[0];
+	iov.iov_len   = NNI_NANO_MAX_HEADER_SIZE; // dynamic
+	iov.iov_buf   = p->rxlen;
 
 	nni_aio_set_iov(p->negoaio, 1, &iov);
 	nni_list_append(&ep->negopipes, p);
 
 	nni_aio_set_timeout(p->negoaio,
 	    15 * 1000); // 15 sec timeout to negotiate abide with emqx
-	nni_aio_finish(p->negoaio, 0, 0);
+	nng_stream_recv(p->conn, p->negoaio);
+	//nni_aio_finish(p->negoaio, 0, 0);
 }
 
 static void
