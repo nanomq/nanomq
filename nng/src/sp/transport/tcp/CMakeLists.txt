@@ -11,6 +11,9 @@
 # TCP protocol
 nng_directory(tcp)
 
+
+include_directories(${CMAKE_SOURCE_DIR}/nng/include/protocol/mqtt)
+
 nng_sources_if(NNG_TRANSPORT_TCP tcp.c)
 nng_headers_if(NNG_TRANSPORT_TCP nng/transport/tcp/tcp.h)
 nng_defines_if(NNG_TRANSPORT_TCP NNG_TRANSPORT_TCP)
