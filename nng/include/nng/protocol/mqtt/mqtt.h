@@ -21,10 +21,9 @@
 /* Length defination */
 #define NANO_MAX_PACKET_LEN NNI_NANO_MAX_PACKET_SIZE
 #define NANO_MIN_PACKET_LEN sizeof(uint8_t) * 8
-#define EMQ_MAX_FIXED_HEADER_LEN NNI_NANO_MAX_HEADER_SIZE
-#define EMQ_MIN_FIXED_HEADER_LEN sizeof(uint8_t) * 2
-#define EMQ_MIN_HEADER_LEN sizeof(uint8_t) * 8
 #define NANO_CONNECT_PACKET_LEN sizeof(uint8_t) * 12
+#define NANO_MIN_FIXED_HEADER_LEN sizeof(uint8_t) * 2
+
 
 #ifdef NANO_PACKET_SIZE
 #define NNI_NANO_MAX_PACKET_SIZE sizeof(uint8_t) * NANO_PACKET_SIZE
