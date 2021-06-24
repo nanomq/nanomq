@@ -826,6 +826,7 @@ nano_pipe_start(void *arg)
 {
 	nano_pipe *p = arg;
 	nano_sock *s = p->rep;
+	nano_ctx  *ctx;
 	int        rv;
 	// TODO check MQTT protocol version here
 	debug_msg("##########nano_pipe_start################");
@@ -839,9 +840,23 @@ nano_pipe_start(void *arg)
 	nni_mtx_lock(&s->lk);
 	rv = nni_id_set(&s->pipes, nni_pipe_id(p->pipe), p);
 	nni_aio_get_output(&p->aio_recv, 1);
+	nni_msg *msg;
+	// nni_msg_alloc(&msg, 10);
+	// nni_aio_set_msg(&p->aio_send, msg);
+	// nni_pipe_send(p->pipe, &p->aio_send);
 	nni_sleep_aio(s->conf->qos_timer * 1200, &p->aio_timer);
 	// nano_keepalive(p, NULL);
 	rv = rv | nano_session_restore(p, s);
+	// if ((ctx = nni_list_first(&s->recvq)) != NULL) {
+	// 	nni_aio * aio = NULL;
+	// 	aio = ctx->raio;
+	// 		ctx->raio = NULL;
+	// 		nni_list_remove(&s->recvq, ctx);
+	// 		nni_mtx_unlock(&s->lk);
+	// 		nni_aio_finish(aio, 0, 0);
+	// 		nni_pipe_recv(p->pipe, &p->aio_recv);
+	// 		return (0);
+	// }
 	nni_mtx_unlock(&s->lk);
 	if (rv != 0) {
 		return (rv);
