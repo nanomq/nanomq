@@ -32,7 +32,7 @@ find_package(Threads)
 # find_package(nng CONFIG REQUIRED)
 
 # list of source files
-set(libsrc hash.cc mqtt_db.c zmalloc.c conf.c)
+set(libsrc hash.cc mqtt_db.c zmalloc.c conf.c file.c)
 
 # this is the "object library" target: compiles the sources only once
 add_library(nanolib OBJECT ${libsrc})
