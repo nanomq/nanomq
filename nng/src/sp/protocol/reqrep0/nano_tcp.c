@@ -8,6 +8,7 @@
 //
 
 #include <conf.h>
+#include <file.h>
 #include <hash.h>
 #include <mqtt_db.h>
 #include <string.h>

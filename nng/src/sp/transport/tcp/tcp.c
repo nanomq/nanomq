@@ -334,6 +334,8 @@ tcptran_pipe_nego_cb(void *arg)
 			nng_free(p->conn_buf, p->wantrxhead);
 			p->conn_buf = NULL;
 			//we don't need to alloc a new msg, just use pipe.
+			// We are all ready now.  We put this in the wait list, and
+			// then try to run the matcher.
 			nni_list_remove(&ep->negopipes, p);
 			nni_list_append(&ep->waitpipes, p);
 			tcptran_ep_match(ep);
@@ -346,15 +348,6 @@ tcptran_pipe_nego_cb(void *arg)
 		}
 	}
 
-	// TODO:  define what version of MQTT
-	// NNI_GET16(&p->rxlen[4], p->peer);
-
-	// We are all ready now.  We put this in the wait list, and
-	// then try to run the matcher.
-	nni_list_remove(&ep->negopipes, p);
-	nni_list_append(&ep->waitpipes, p);
-
-	tcptran_ep_match(ep);
 	nni_mtx_unlock(&ep->mtx);
 	debug_msg("^^^^^^^^^^end of tcptran_pipe_nego_cb^^^^^^^^^^\n");
 	return;
@@ -1026,11 +1019,6 @@ tcptran_pipe_start(tcptran_pipe *p, nng_stream *conn, tcptran_ep *ep)
 	p->conn = conn;
 	p->ep   = ep;
 	// p->proto = ep->proto;
-
-	p->txlen[0] = CMD_CONNACK;
-	p->txlen[1] = 0x02;
-	p->txlen[2] = 0;
-	p->txlen[3] = 0;
 
 	debug_msg("tcptran_pipe_start!");
 	// TODO abide with CONNECT header
