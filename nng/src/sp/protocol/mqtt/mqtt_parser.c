@@ -751,3 +751,9 @@ nano_msg_composer(uint8_t retain, uint8_t qos, mqtt_string payload, mqtt_string 
 
 	return msg;
 }
+
+uint8_t
+verify_connect(conn_param *cparam, uint8_t *reason_code, conf *conf)
+{
+	return 0;
+}

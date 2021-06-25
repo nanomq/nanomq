@@ -4,6 +4,7 @@
 
 #include <nng/nng.h>
 #include <packet.h>
+#include <conf.h>
 #include <stdlib.h>
 
 // int hex_to_oct(char *str);
@@ -32,6 +33,7 @@ NNG_DECL uint16_t get_variable_binary(uint8_t **dest, const uint8_t *src);
 NNG_DECL uint32_t DJBHash(char *str);
 NNG_DECL uint32_t DJBHashn(char *str, uint16_t len);
 NNG_DECL uint64_t nano_hash(char *str);
+NNG_DECL uint8_t  verify_connect(conn_param *cparam, uint8_t *reason_code, conf *conf);
 
 // repack
 NNG_DECL void nano_msg_set_dup(nng_msg *msg);

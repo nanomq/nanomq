@@ -133,6 +133,12 @@ server_cb(void *arg)
 		} else if (nng_msg_cmd_type(msg) == CMD_PUBLISH) {
 			nng_msg_set_timestamp(msg, nng_clock());
 			handle_pub(work, work->pipe_ct);
+		} else if (nng_msg_cmd_type(msg) == CMD_CONNACK) {
+			work->state = RECV;
+			nng_msg_free(msg);
+			work->msg = NULL;
+			nng_ctx_recv(work->ctx, work->aio);
+			break;
 		}
 		work->state = WAIT;
 		debug_msg(
