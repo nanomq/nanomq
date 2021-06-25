@@ -842,6 +842,8 @@ nano_pipe_start(void *arg)
 	}
 	*/
 	nni_mtx_lock(&s->lk);
+	// TODO replace pipe_id with hash key of client_id
+	// pipe_id is just random value of id_dyn_val with self-increment.
 	rv = nni_id_set(&s->pipes, nni_pipe_id(p->pipe), p);
 	nni_aio_get_output(&p->aio_recv, 1);
 	rv = rv | verify_connect(p->conn_param, &rv, s->conf);
@@ -859,12 +861,17 @@ nano_pipe_start(void *arg)
 		ctx->raio = NULL;
 		nni_list_remove(&s->recvq, ctx);
 	} else {
+		// No one waiting to receive yet, holding pattern.
+		nni_list_append(&s->recvpipes, p);
+		nni_pollable_raise(&s->readable);
+		nni_mtx_unlock(&s->lk);
 		debug_syslog("Warning: insufficient ctx, fail to send connect event!");
+		// nni_println("ERROR: no ctx found!! create more ctxs!");
+		return;
 	}
 	nni_mtx_unlock(&s->lk);
+	//maybe heavy lock is not necessary here since client should not send anything before we reply.
 	nni_sleep_aio(s->conf->qos_timer * 1200, &p->aio_timer);
-
-	nni_mtx_lock(&p->lk);
 	nni_msg_alloc(&msg, 0);
 	//TODO MQTT V5
 	nni_msg_header_append(msg, buf, 4);
@@ -878,7 +885,6 @@ nano_pipe_start(void *arg)
 		nni_aio_set_msg(aio, msg);
 	}
 	nni_pipe_send(p->pipe, &p->aio_send);
-	nni_mtx_unlock(&p->lk);
 	nni_pipe_recv(p->pipe, &p->aio_recv);
 	if (aio != NULL) {
 		nni_aio_finish(aio, 0, 0);
