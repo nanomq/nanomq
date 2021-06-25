@@ -274,8 +274,6 @@ tcptran_pipe_nego_cb(void *arg)
 	}
 
 	// calculate number of bytes received
-	// TODO cannot differ send/receive IO, so skip tx calculation
-	// TODO NNG_EMSGSIZE what if received too much garbage ?
 	if (p->gotrxhead < p->wantrxhead) {
 		p->gotrxhead += nni_aio_count(aio);
 	}
@@ -327,7 +325,6 @@ tcptran_pipe_nego_cb(void *arg)
 	    p->gottxhead, p->gotrxhead, p->wantrxhead, p->wanttxhead, p->rxlen,
 	    p->rxlen[0]);
 
-	// reply error/CONNECT ACK
 	if (p->gottxhead < p->wanttxhead && p->gotrxhead >= p->wantrxhead) {
 		nni_iov iov;
 		if (p->tcp_cparam == NULL) {
@@ -336,21 +333,10 @@ tcptran_pipe_nego_cb(void *arg)
 		if (conn_handler(p->conn_buf, p->tcp_cparam) > 0) {
 			nng_free(p->conn_buf, p->wantrxhead);
 			p->conn_buf = NULL;
-			if (p->tcp_cparam->pro_ver == PROTOCOL_VERSION_v5) {
-				p->wanttxhead += 1;
-				p->txlen[1] = 3;    // setting remainlen
-				p->txlen[4] = 0x00; // property len
-			}
-			iov.iov_len = p->wanttxhead - p->gottxhead;
-			iov.iov_buf = &p->txlen[p->gottxhead];
-			debug_msg("[%ld] body [%x %x %x %x %x]", iov.iov_len,
-			    p->txlen[0], p->txlen[1], p->txlen[2], p->txlen[3],
-			    p->txlen[4]);
-			// send it down...
-			nni_aio_set_iov(aio, 1, &iov);
-			nng_stream_send(p->conn, aio);
-			debug_msg("tcptran_pipe_nego_cb: reply ACK");
-			p->gottxhead = p->wanttxhead;
+			//we don't need to alloc a new msg, just use pipe.
+			nni_list_remove(&ep->negopipes, p);
+			nni_list_append(&ep->waitpipes, p);
+			tcptran_ep_match(ep);
 			nni_mtx_unlock(&ep->mtx);
 			return;
 		} else {
@@ -753,7 +739,7 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 	// This runs to send the message.
 	msg = nni_aio_get_msg(aio);
 	if (msg == NULL) {
-		// TODO potential risk bug
+		// TODO error handle
 		nni_println("ERROR: sending NULL msg!");
 		return;
 	}
@@ -784,7 +770,7 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 			goto send;
 		}
 		qos_pac = nni_msg_get_pub_qos(msg);
-		if (qos_pac == 0 /*&& db->qos == 0*/) {
+		if (qos_pac == 0) {
 			// save time & space for QoS 0 publish
 			goto send;
 		}
