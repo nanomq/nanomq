@@ -873,11 +873,11 @@ nano_pipe_start(void *arg)
 	nni_aio_set_msg(&p->aio_send, msg);
 	// There is no need to check the busy state of pipe
 	// Since pipe_start is definetly the first cb to be excuted of pipe.
-	nni_pipe_send(p->pipe, &p->aio_send);
 	if (aio != NULL) {
 		nni_msg_clone(msg);
 		nni_aio_set_msg(aio, msg);
 	}
+	nni_pipe_send(p->pipe, &p->aio_send);
 	nni_mtx_unlock(&p->lk);
 	nni_pipe_recv(p->pipe, &p->aio_recv);
 	if (aio != NULL) {
