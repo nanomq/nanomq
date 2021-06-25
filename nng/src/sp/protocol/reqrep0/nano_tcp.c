@@ -513,7 +513,7 @@ restore_topic_to_tree(void *tree, client_ctx *cli_ctx, char *client_id)
 }
 
 static int
-nano_session_restore(nano_pipe *p, nano_sock *s)
+nano_session_restore(nano_pipe *p, nano_sock *s, uint8_t *flag)
 {
 	int                 ret;
 	conn_param *        new_cparam = p->conn_param;
@@ -568,6 +568,7 @@ nano_session_restore(nano_pipe *p, nano_sock *s)
 
 	cs->pipeid = p->id;
 	if (clean_session_flag == 0) {
+		*flag = 0x01;		//set session present flag
 		cs->clean = false;
 		// step 0 restore conn param
 		nano_deep_copy_connparam(new_cparam, cparam);
@@ -826,12 +827,15 @@ nano_pipe_start(void *arg)
 {
 	nano_pipe *p = arg;
 	nano_sock *s = p->rep;
+	nni_aio  * aio = NULL;
 	nano_ctx  *ctx;
-	int        rv;
-	// TODO check MQTT protocol version here
+	nni_msg   *msg;
+	uint8_t    rv;		//reason code of CONNACK
+	uint8_t    buf[4] = {0x20,0x02,0x00,0x00};
+
 	debug_msg("##########nano_pipe_start################");
 	/*
-	// TODO check peer protocol
+	// TODO check peer protocol ver
 	if (nni_pipe_peer(p->pipe) != NNG_NANO_TCP_PEER) {
 	        // Peer protocol mismatch.
 	        return (NNG_EPROTO);
@@ -840,31 +844,48 @@ nano_pipe_start(void *arg)
 	nni_mtx_lock(&s->lk);
 	rv = nni_id_set(&s->pipes, nni_pipe_id(p->pipe), p);
 	nni_aio_get_output(&p->aio_recv, 1);
-	nni_msg *msg;
-	// nni_msg_alloc(&msg, 10);
-	// nni_aio_set_msg(&p->aio_send, msg);
-	// nni_pipe_send(p->pipe, &p->aio_send);
-	nni_sleep_aio(s->conf->qos_timer * 1200, &p->aio_timer);
+	rv = rv | verify_connect(p->conn_param, &rv, s->conf);
 	// nano_keepalive(p, NULL);
-	rv = rv | nano_session_restore(p, s);
-	// if ((ctx = nni_list_first(&s->recvq)) != NULL) {
-	// 	nni_aio * aio = NULL;
-	// 	aio = ctx->raio;
-	// 		ctx->raio = NULL;
-	// 		nni_list_remove(&s->recvq, ctx);
-	// 		nni_mtx_unlock(&s->lk);
-	// 		nni_aio_finish(aio, 0, 0);
-	// 		nni_pipe_recv(p->pipe, &p->aio_recv);
-	// 		return (0);
-	// }
-	nni_mtx_unlock(&s->lk);
 	if (rv != 0) {
-		return (rv);
+		//TODO disconnect client
+		close_pipe(p, rv);
+		nni_mtx_unlock(&s->lk);
+		return (rv);	//TODO might be conflict with nng's errcode
 	}
+	rv = rv | nano_session_restore(p, s, buf+2);
 
+	if ((ctx = nni_list_first(&s->recvq)) != NULL) {
+		aio = ctx->raio;
+		ctx->raio = NULL;
+		nni_list_remove(&s->recvq, ctx);
+	} else {
+		debug_syslog("Warning: insufficient ctx, fail to send connect event!");
+	}
+	nni_mtx_unlock(&s->lk);
+	nni_sleep_aio(s->conf->qos_timer * 1200, &p->aio_timer);
+
+	nni_mtx_lock(&p->lk);
+	nni_msg_alloc(&msg, 0);
+	//TODO MQTT V5
+	nni_msg_header_append(msg, buf, 4);
+	nni_msg_set_cmd_type(msg, CMD_CONNACK);
+	nni_msg_set_conn_param(msg, p->conn_param);
+	nni_aio_set_msg(&p->aio_send, msg);
+	// There is no need to check the busy state of pipe
+	// Since pipe_start is definetly the first cb to be excuted of pipe.
+	nni_pipe_send(p->pipe, &p->aio_send);
+	if (aio != NULL) {
+		nni_msg_clone(msg);
+		nni_aio_set_msg(aio, msg);
+	}
+	nni_mtx_unlock(&p->lk);
 	nni_pipe_recv(p->pipe, &p->aio_recv);
+	if (aio != NULL) {
+		nni_aio_finish(aio, 0, 0);
+	}
 	return (0);
 }
+
 static inline void
 close_pipe(nano_pipe *p, uint8_t reason_code)
 {
@@ -1047,7 +1068,6 @@ nano_ctx_recv(void *arg, nni_aio *aio)
 static void
 nano_pipe_recv_cb(void *arg)
 {
-	int           rv;
 	nano_pipe *   p = arg;
 	nano_sock *   s = p->rep;
 	nano_ctx *    ctx;
@@ -1079,8 +1099,7 @@ nano_pipe_recv_cb(void *arg)
                     p->pipedb_root); // TODO potential memleak when sub failed
 		p->pipedb_root = pipe_db;
 		while (pipe_db) {
-			rv = nni_id_set(
-			    &npipe->nano_db, DJBHash(pipe_db->topic), pipe_db);
+			nni_id_set(&npipe->nano_db, DJBHash(pipe_db->topic), pipe_db);
 			pipe_db = pipe_db->next;
 		}
 		nni_mtx_unlock(&p->lk);
