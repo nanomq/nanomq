@@ -62,6 +62,7 @@ typedef struct conf conf;
 extern bool conf_parser(conf **nanomq_conf, const char *path);
 extern void conf_init(conf **nanomq_conf);
 extern void print_conf(conf *nanomq_conf);
+extern void conf_fini(conf *nanomq_conf);
 
 extern void conf_auth_parser(conf *);
 extern int  string_trim(char ** dst, char * str);

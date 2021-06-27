@@ -351,6 +351,8 @@ nano_sock_fini(void *arg)
 	nni_pollable_fini(&s->writable);
 	nni_pollable_fini(&s->readable);
 	nni_mtx_fini(&s->lk);
+
+	conf_fini(s->conf);
 }
 
 static int
