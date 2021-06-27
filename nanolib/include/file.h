@@ -1,3 +1,8 @@
+#ifndef NANO_FILE_H
+#define NANO_FILE_H
+
+#include <stdio.h>
+
 int file_trunc_to_zero(const char *fpath);
 int file_exists(const char *fpath);
 int file_is_symlink(const char *fpath);
@@ -22,3 +27,5 @@ int file_mtd_write(const char *fpath, unsigned char *buff,
 int file_truncr_to_sep(const char *fpath, char *separator);
 int file_append_int(const char *fpath, int value);
 int file_extract_int(const char *fpath);
+
+#endif
