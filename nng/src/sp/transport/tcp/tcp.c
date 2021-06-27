@@ -330,7 +330,7 @@ tcptran_pipe_nego_cb(void *arg)
 		if (p->tcp_cparam == NULL) {
 			p->tcp_cparam = nng_alloc(sizeof(struct conn_param));
 		}
-		if (conn_handler(p->conn_buf, p->tcp_cparam) > 0) {
+		if (conn_handler(p->conn_buf, p->tcp_cparam) == 0) {
 			nng_free(p->conn_buf, p->wantrxhead);
 			p->conn_buf = NULL;
 			//we don't need to alloc a new msg, just use pipe.
@@ -344,6 +344,7 @@ tcptran_pipe_nego_cb(void *arg)
 		} else {
 			rv = NNG_EPROTO;
 			nng_free(p->conn_buf, p->wantrxhead);
+			nng_free(p->tcp_cparam, sizeof(struct conn_param));
 			goto error;
 		}
 	}

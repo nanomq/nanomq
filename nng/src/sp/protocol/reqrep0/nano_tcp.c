@@ -850,7 +850,8 @@ nano_pipe_start(void *arg)
 	rv = rv | verify_connect(p->conn_param, &rv, s->conf);
 	// nano_keepalive(p, NULL);
 	if (rv != 0) {
-		//TODO disconnect client
+		//TODO disconnect client && send connack with reason code 0x05
+		debug_msg("Invalid auth info.");
 		close_pipe(p, rv);
 		nni_mtx_unlock(&s->lk);
 		return (rv);	//TODO might be conflict with nng's errcode

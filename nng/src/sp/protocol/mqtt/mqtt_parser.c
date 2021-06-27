@@ -314,7 +314,7 @@ conn_handler(uint8_t *packet, conn_param *cparam)
 {
 
 	uint32_t len, tmp, pos = 0, len_of_properties = 0;
-	int      len_of_str = 0;
+	int      len_of_str = 0, len_of_var = 0;
 	int32_t  rv         = 0;
 	uint8_t  property_id;
 
@@ -327,12 +327,13 @@ conn_handler(uint8_t *packet, conn_param *cparam)
 
 	init_conn_param(cparam);
 	// remaining length
-	len = (uint32_t) get_var_integer(packet, &pos);
+	len = (uint32_t) get_var_integer(packet+pos, &len_of_var);
+	pos += len_of_var;
 	// protocol name
 	cparam->pro_name.body =
 	    (char *) copy_utf8_str(packet, &pos, &len_of_str);
 	cparam->pro_name.len = len_of_str;
-	rv                   = rv | len_of_str;
+	rv = len_of_str < 0 ? 1 : 0;
 	debug_msg("pro_name: %s", cparam->pro_name.body);
 	// protocol ver
 	cparam->pro_ver = packet[pos];
@@ -404,21 +405,21 @@ conn_handler(uint8_t *packet, conn_param *cparam)
 					        packet, &pos, &len_of_str);
 					cparam->user_property.len_key =
 					    len_of_str;
-					rv = rv | len_of_str;
+					rv = len_of_str < 0 ? 1 : 0;
 					// value
 					cparam->user_property.val =
 					    (char *) copy_utf8_str(
 					        packet, &pos, &len_of_str);
 					cparam->user_property.len_val =
 					    len_of_str;
-					rv = rv | len_of_str;
+					rv = len_of_str < 0 ? 1 : 0;
 					break;
 				case AUTHENTICATION_METHOD:
 					debug_msg("AUTHENTICATION_METHOD");
 					cparam->auth_method.body =
 					    (char *) copy_utf8_str(
 					        packet, &pos, &len_of_str);
-					rv = rv | len_of_str;
+					rv = len_of_str < 0 ? 1 : 0;
 					cparam->auth_method.len = len_of_str;
 					len_of_str              = 0;
 					break;
@@ -426,7 +427,7 @@ conn_handler(uint8_t *packet, conn_param *cparam)
 					debug_msg("AUTHENTICATION_DATA");
 					cparam->auth_data.body = copy_utf8_str(
 					    packet, &pos, &len_of_str);
-					rv = rv | len_of_str;
+					rv = len_of_str < 0 ? 1 : 0;
 					cparam->auth_data.len = len_of_str;
 					break;
 				default:
@@ -445,7 +446,7 @@ conn_handler(uint8_t *packet, conn_param *cparam)
 	// payload client_id
 	cparam->clientid.body =
 	    (char *) copy_utf8_str(packet, &pos, &len_of_str);
-	rv                   = rv | len_of_str;
+	rv = len_of_str < 0 ? 1 : 0;
 	cparam->clientid.len = len_of_str;
 	debug_msg("clientid: [%s] [%d]", cparam->clientid.body, len_of_str);
 	// will topic
@@ -492,7 +493,7 @@ conn_handler(uint8_t *packet, conn_param *cparam)
 						        &len_of_str);
 						cparam->content_type.len =
 						    len_of_str;
-						rv = rv | len_of_str;
+						rv = len_of_str < 0 ? 1 : 0;
 						debug_msg(
 						    "content type: %s %d",
 						    cparam->content_type.body,
@@ -506,7 +507,7 @@ conn_handler(uint8_t *packet, conn_param *cparam)
 						        &len_of_str);
 						cparam->resp_topic.len =
 						    len_of_str;
-						rv = rv | len_of_str;
+						rv = len_of_str < 0 ? 1 : 0;
 						debug_msg("resp topic: %s %d",
 						    cparam->resp_topic.body,
 						    rv);
@@ -518,7 +519,7 @@ conn_handler(uint8_t *packet, conn_param *cparam)
 						        &len_of_str);
 						cparam->corr_data.len =
 						    len_of_str;
-						rv = rv | len_of_str;
+						rv = len_of_str < 0 ? 1 : 0;
 						debug_msg("corr_data: %s %d",
 						    cparam->corr_data.body,
 						    rv);
@@ -542,7 +543,7 @@ conn_handler(uint8_t *packet, conn_param *cparam)
 						        &len_of_str);
 						cparam->payload_user_property
 						    .len_val = len_of_str;
-						rv           = rv | len_of_str;
+						rv = len_of_str < 0 ? 1 : 0;
 						break;
 					default:
 						break;
@@ -560,13 +561,13 @@ conn_handler(uint8_t *packet, conn_param *cparam)
 		cparam->will_topic.body =
 		    (char *) copy_utf8_str(packet, &pos, &len_of_str);
 		cparam->will_topic.len = len_of_str;
-		rv                     = rv | len_of_str;
+		rv = len_of_str < 0 ? 1 : 0;
 		debug_msg("will_topic: %s %d", cparam->will_topic.body, rv);
 		// will msg
 		cparam->will_msg.body =
 		    (char *) copy_utf8_str(packet, &pos, &len_of_str);
 		cparam->will_msg.len = len_of_str;
-		rv                   = rv | len_of_str;
+		rv = len_of_str < 0 ? 1 : 0;
 		debug_msg("will_msg: %s %d", cparam->will_msg.body, rv);
 	}
 	// username
@@ -574,20 +575,19 @@ conn_handler(uint8_t *packet, conn_param *cparam)
 		cparam->username.body =
 		    (char *) copy_utf8_str(packet, &pos, &len_of_str);
 		cparam->username.len = len_of_str;
-		rv                   = rv | len_of_str;
-		debug_msg(
-		    "username: %s %d %d", cparam->username.body, rv, 3 & 4);
+		rv = len_of_str < 0 ? 1 : 0;
+		debug_msg("username: %s %d", cparam->username.body, len_of_str);
 	}
 	// password
 	if ((cparam->con_flag & 0x40) > 0) {
 		cparam->password.body =
 		    copy_utf8_str(packet, &pos, &len_of_str);
 		cparam->password.len = len_of_str;
-		rv                   = rv | len_of_str;
-		debug_msg("password: %s %d", cparam->password.body, rv);
+		rv = len_of_str < 0 ? 1 : 0;
+		debug_msg("password: %s %d", cparam->password.body, len_of_str);
 	}
 	// what if rv = 0?
-	if (len + 1 < pos) {
+	if (len + len_of_var + 1 != pos) {
 		debug_msg("ERROR in connect handler");
 	}
 	return rv;
@@ -755,5 +755,27 @@ nano_msg_composer(uint8_t retain, uint8_t qos, mqtt_string payload, mqtt_string 
 uint8_t
 verify_connect(conn_param *cparam, uint8_t *reason_code, conf *conf)
 {
-	return 0;
+	int i, n = conf->auths.count;
+	char * username = cparam->username.body;
+	char * password = cparam->password.body;
+
+	if (conf->auths.count == 0) {
+		debug_msg("WARNING: no valid entry in etc/nanomq_auth_username.conf.");
+		return 0;
+	}
+
+	if (cparam->username.len == 0 ||
+	    cparam->password.len == 0) {
+		return ERR_AUTH;
+	}
+
+	for (i = 0; i < n; i++) {
+		if (strcmp(username, conf->auths.usernames[i]) == 0 &&
+		    strcmp(password, conf->auths.passwords[i]) == 0) {
+			return 0;
+		}
+	}
+
+	return ERR_AUTH;
 }
+
