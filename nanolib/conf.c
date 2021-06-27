@@ -10,6 +10,7 @@
 
 #include "nanomq.h"
 #include "include/conf.h"
+#include "include/file.h"
 
 bool
 conf_parser(conf **nanomq_conf, const char* path)
@@ -149,3 +150,102 @@ print_conf(conf *nanomq_conf) {
 	debug_syslog("msq_len is %d\n", nanomq_conf->msq_len);
 	debug_syslog("qos_timer is %d\n", nanomq_conf->qos_timer);
 }
+
+void
+conf_auth_parser(conf * nanomq_conf)
+{
+	char * line, buf[64], *username, *password, *tmp;
+	int    n = 0, x = 0, nu = 0, lenu = 0, lenp = 0;
+	if (!file_exists(CONF_AUTH_PATH_NAME)) {
+		debug_syslog("file not exists");
+		return;
+	}
+
+	while (1) {
+		n++;
+		sprintf(buf, "auth.%d.login", n);
+		if ((line = file_find_line(CONF_AUTH_PATH_NAME, (const char *) buf)) == NULL) {
+			break;
+		}
+		if (line[0] == '#' || line[1] == '#') {
+			continue;
+		}
+		nu++;
+	}
+	debug_msg("find %d users", nu);
+	nanomq_conf->auths.count = nu;
+	nanomq_conf->auths.usernames = zmalloc(sizeof(char *) * nu);
+	nanomq_conf->auths.passwords = zmalloc(sizeof(char *) * nu);
+
+	n = 0;
+	do {
+		n ++;
+		/* username */
+		sprintf(buf, "auth.%d.login", n);
+		if ((line = file_find_line(CONF_AUTH_PATH_NAME, (const char *) buf)) == NULL) {
+			debug_syslog("line not found");
+			break;
+		}
+		if (line[0] == '#' || line[1] == '#') {
+			continue;
+		}
+
+		x = 0;
+		while (line[x] != '=')
+			x++;
+
+		lenu = string_trim(&tmp,line+x+1);
+
+		username = zmalloc((lenu + 1) * sizeof(uint8_t));
+		strncpy(username, tmp, lenu);
+		username[lenu] = '\0';
+
+		/* password */
+		sprintf(buf, "auth.%d.password", n);
+		if ((line = file_find_line(CONF_AUTH_PATH_NAME, (const char *) buf)) == NULL) {
+			debug_syslog("line not found");
+			break;
+		}
+		if (line[0] == '#' || line[1] == '#') {
+			continue;
+		}
+
+		x = 0;
+		while (line[x] != '=')
+			x++;
+
+		lenp = string_trim(&tmp,line+x+1);
+
+		password = zmalloc((lenp + 1) * sizeof(uint8_t));
+		strncpy(password, tmp, lenp);
+		password[lenp] = '\0';
+
+		debug_msg("username: %s, len: %d", username, lenu);
+		debug_msg("password: %s, len: %d", password, lenp);
+
+		if (nanomq_conf != NULL) {
+			nanomq_conf->auths.usernames[n-1] = username;
+			nanomq_conf->auths.passwords[n-1] = password;
+		}
+	} while(1);
+}
+
+int
+string_trim(char ** dst, char * str)
+{
+	int ns = 0, nd = 0;
+	while (str[ns] == ' ') {
+		ns ++;
+	}
+	nd = ns;
+	while (str[nd] != ' ' || str[nd] != '\n' || str[nd] != '\0') {
+		nd ++;
+		if (nd == strlen(str)) {
+			break;
+		}
+	}
+
+	*dst = str+ns;
+	return (nd-ns-1);
+}
+

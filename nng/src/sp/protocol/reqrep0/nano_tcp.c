@@ -1249,6 +1249,8 @@ nano_sock_setdb(void *arg, void *data)
 
 	s->conf = nano_conf;
 	s->db   = nano_conf->db_root;
+
+	conf_auth_parser(s->conf);
 }
 
 // This is the global protocol structure -- our linkage to the core.

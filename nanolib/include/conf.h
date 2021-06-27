@@ -35,6 +35,13 @@
 #define CONF_PATH_NAME      "./etc/nanomq.conf"
 #define CONF_AUTH_PATH_NAME "./etc/nanomq_auth_username.conf"
 
+struct conf_auth {
+	int     count;
+	char ** usernames;
+	char ** passwords;
+};
+typedef struct conf_auth conf_auth;
+
 struct conf {
 	char *url;
 	int   daemon;
@@ -46,6 +53,8 @@ struct conf {
 	int   qos_timer;
 	void *db_root;
 	bool  allow_anoy;
+
+	conf_auth auths;
 };
 
 typedef struct conf conf;
@@ -53,5 +62,8 @@ typedef struct conf conf;
 extern bool conf_parser(conf **nanomq_conf, const char *path);
 extern void conf_init(conf **nanomq_conf);
 extern void print_conf(conf *nanomq_conf);
+
+extern void conf_auth_parser(conf *);
+extern int  string_trim(char ** dst, char * str);
 
 #endif
