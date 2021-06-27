@@ -15,7 +15,7 @@
 bool
 conf_parser(conf **nanomq_conf, const char* path)
 {
-	char  *buffer;
+	char  *buffer = NULL;
 	char  *head;
 	size_t length       = 0;
 	int    temp         = 0;
@@ -154,7 +154,7 @@ print_conf(conf *nanomq_conf) {
 void
 conf_auth_parser(conf * nanomq_conf)
 {
-	char * line, buf[64], *username, *password, *tmp;
+	char * line = NULL, buf[64], *username, *password, *tmp;
 	int    n = 0, x = 0, nu = 0, lenu = 0, lenp = 0;
 	if (!file_exists(CONF_AUTH_PATH_NAME)) {
 		debug_syslog("file not exists");
@@ -168,11 +168,14 @@ conf_auth_parser(conf * nanomq_conf)
 			break;
 		}
 		if (line[0] == '#' || line[1] == '#') {
+			free(line);
+			line = NULL;
 			continue;
 		}
 		nu++;
+		free(line);
+		line = NULL;
 	}
-	debug_msg("find %d users", nu);
 	nanomq_conf->auths.count = nu;
 	nanomq_conf->auths.usernames = zmalloc(sizeof(char *) * nu);
 	nanomq_conf->auths.passwords = zmalloc(sizeof(char *) * nu);
@@ -187,6 +190,8 @@ conf_auth_parser(conf * nanomq_conf)
 			break;
 		}
 		if (line[0] == '#' || line[1] == '#') {
+			free(line);
+			line = NULL;
 			continue;
 		}
 
@@ -199,6 +204,8 @@ conf_auth_parser(conf * nanomq_conf)
 		username = zmalloc((lenu + 1) * sizeof(uint8_t));
 		strncpy(username, tmp, lenu);
 		username[lenu] = '\0';
+		free(line);
+		line = NULL;
 
 		/* password */
 		sprintf(buf, "auth.%d.password", n);
@@ -219,6 +226,8 @@ conf_auth_parser(conf * nanomq_conf)
 		password = zmalloc((lenp + 1) * sizeof(uint8_t));
 		strncpy(password, tmp, lenp);
 		password[lenp] = '\0';
+		free(line);
+		line = NULL;
 
 		debug_msg("username: %s, len: %d", username, lenu);
 		debug_msg("password: %s, len: %d", password, lenp);
@@ -228,6 +237,25 @@ conf_auth_parser(conf * nanomq_conf)
 			nanomq_conf->auths.passwords[n-1] = password;
 		}
 	} while(1);
+}
+
+void
+conf_fini(conf * nanomq_conf)
+{
+	int i, n = nanomq_conf->auths.count;
+	char ** usernames = nanomq_conf->auths.usernames;
+	char ** passwords = nanomq_conf->auths.passwords;
+
+	for (i = 0; i < n; i++) {
+		zfree(usernames[i]);
+		zfree(passwords[i]);
+	}
+
+	zfree(usernames);
+	zfree(passwords);
+	zfree(nanomq_conf->url);
+
+	zfree(nanomq_conf);
 }
 
 int

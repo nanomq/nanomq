@@ -13,6 +13,10 @@ project(nanolib)
 
 SET(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 
+if (DEBUG AND ASAN)
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -fsanitize=address")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -fsanitize=address")
+endif (DEBUG AND ASAN)
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   message(STATUS "Setting build type to '${DEFAULT_BUILD_TYPE}' as none was specified.")
