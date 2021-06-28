@@ -31,20 +31,19 @@
 
 #define CONF_READ_RECORD "Conf_file: %s read as %s\n"
 
-#define PID_PATH_NAME       "/tmp/nanomq/nanomq.pid"
-#define CONF_PATH_NAME      "./etc/nanomq.conf"
+#define PID_PATH_NAME "/tmp/nanomq/nanomq.pid"
+#define CONF_PATH_NAME "./etc/nanomq.conf"
 #define CONF_AUTH_PATH_NAME "./etc/nanomq_auth_username.conf"
 
 struct conf_auth {
-	int     count;
-	char ** usernames;
-	char ** passwords;
+	int    count;
+	char **usernames;
+	char **passwords;
 };
 typedef struct conf_auth conf_auth;
 
 struct conf {
 	char *url;
-	int   daemon;
 	int   num_taskq_thread;
 	int   max_taskq_thread;
 	int   parallel;
@@ -53,6 +52,7 @@ struct conf {
 	int   qos_timer;
 	void *db_root;
 	bool  allow_anoy;
+	bool  daemon;
 
 	conf_auth auths;
 };
@@ -65,6 +65,6 @@ extern void print_conf(conf *nanomq_conf);
 extern void conf_fini(conf *nanomq_conf);
 
 extern void conf_auth_parser(conf *);
-extern int  string_trim(char ** dst, char * str);
+extern int  string_trim(char **dst, char *str);
 
 #endif

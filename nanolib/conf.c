@@ -52,15 +52,18 @@ conf_parser(conf **nanomq_conf, const char* path)
 
 		if (!strcmp(key, "daemon")) {
 			if (!strncmp(value, "yes", 3)) {
-				(*nanomq_conf)->daemon == 1;
+				(*nanomq_conf)->daemon = true;
 				read_success = true;
 				debug_msg(CONF_READ_RECORD, key, value);
 			} else if (!strncmp(value, "no", 2)) {
-				(*nanomq_conf)->daemon == -1;
+				(*nanomq_conf)->daemon = false;
 				read_success = true;
 				debug_msg(CONF_READ_RECORD, key, value);
 			}
 		} else if (!strcmp(key, "url")) {
+			if ((*nanomq_conf)->url != NULL) {
+				zfree((*nanomq_conf)->url);
+			}
 			char *url =
 			    zmalloc(sizeof(char) * (strlen(value) + 1));
 			if (url == NULL) {

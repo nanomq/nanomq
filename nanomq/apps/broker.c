@@ -535,7 +535,7 @@ bool
 active_conf(conf *nanomq_conf)
 {
 	// check if daemonlize
-	if (nanomq_conf->daemon == 1 && process_daemonize()) {
+	if (nanomq_conf->daemon == true && process_daemonize()) {
 		fprintf(stderr, "Error occurs, cannot daemonize\n");
 		exit(EXIT_FAILURE);
 	}
@@ -583,7 +583,7 @@ broker_start(int argc, char **argv)
 			debug_msg("reading user specified conf file:%s", argv[i+1]);
 			conf_parser(&nanomq_conf, argv[++i]);
 		} else if (!strcmp("-daemon", argv[i])) {
-			nanomq_conf->daemon = 1;
+			nanomq_conf->daemon = true;
 		} else if (!strcmp("-tq_thread", argv[i]) &&
 		    ((i + 1) < argc) && isdigit(argv[++i][0]) &&
 		    ((temp = atoi(argv[i])) > 0) && (temp < 256)) {
