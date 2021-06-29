@@ -267,7 +267,7 @@ nano_ctx_send(void *arg, nni_aio *aio)
 	} else {
 		pipe = ctx->pipe_id; // reply to self
 	}
-	ctx->pipe_id = 0; // ensure PING/DISCONNECT/PUBACK only sends once
+	ctx->pipe_id = 0; // ensure connack/PING/DISCONNECT/PUBACK only sends once
 
 	if (ctx == &s->ctx) {
 		nni_pollable_clear(&s->writable);
@@ -559,7 +559,11 @@ nano_session_restore(nano_pipe *p, nano_sock *s, uint8_t *flag)
 	} else if (cs->pipeid != 0) {
 		// TODO kick prev connection or current one?(p or cs->pipeid)
 		p->kicked = true;
-		close_pipe(p, 0x8E);
+		if (p->conn_param->pro_ver == 5) {
+			*flag = 0x8E;
+		} else {
+			*flag = 0x02;
+		}
 		return (NNG_ECONNABORTED);
 	}
 
@@ -828,13 +832,13 @@ nano_ctx_set_qsize(
 static int
 nano_pipe_start(void *arg)
 {
-	nano_pipe *p = arg;
-	nano_sock *s = p->rep;
-	nni_aio  * aio = NULL;
-	nano_ctx  *ctx;
-	nni_msg   *msg;
-	uint8_t    rv;		//reason code of CONNACK
-	uint8_t    buf[4] = {0x20,0x02,0x00,0x00};
+	nano_pipe *p   = arg;
+	nano_sock *s   = p->rep;
+	nni_aio *  aio = NULL;
+	nano_ctx * ctx;
+	nni_msg *  msg;
+	uint8_t    rv; // reason code of CONNACK
+	uint8_t    buf[4] = { 0x20, 0x02, 0x00, 0x00 };
 
 	debug_msg("##########nano_pipe_start################");
 	/*
@@ -848,52 +852,26 @@ nano_pipe_start(void *arg)
 	// TODO replace pipe_id with hash key of client_id
 	// pipe_id is just random value of id_dyn_val with self-increment.
 	rv = nni_id_set(&s->pipes, nni_pipe_id(p->pipe), p);
-	nni_aio_get_output(&p->aio_recv, 1);
-	rv = rv | verify_connect(p->conn_param, &rv, s->conf);
-	// nano_keepalive(p, NULL);
-	if (rv != 0) {
-		//TODO disconnect client && send connack with reason code 0x05
-		debug_msg("Invalid auth info.");
-		close_pipe(p, rv);
-		nni_mtx_unlock(&s->lk);
-		return (rv);	//TODO might be conflict with nng's errcode
-	}
-	rv = rv | nano_session_restore(p, s, buf+2);
-
-	if ((ctx = nni_list_first(&s->recvq)) != NULL) {
-		aio = ctx->raio;
-		ctx->raio = NULL;
-		nni_list_remove(&s->recvq, ctx);
-	} else {
-		// No one waiting to receive yet, holding pattern.
-		nni_list_append(&s->recvpipes, p);
-		nni_pollable_raise(&s->readable);
-		nni_mtx_unlock(&s->lk);
-		debug_syslog("Warning: insufficient ctx, fail to send connect event!");
-		// nni_println("ERROR: no ctx found!! create more ctxs!");
-		return;
-	}
 	nni_mtx_unlock(&s->lk);
-	//maybe heavy lock is not necessary here since client should not send anything before we reply.
-	nni_sleep_aio(s->conf->qos_timer * 1200, &p->aio_timer);
+	nni_aio_get_output(&p->aio_recv, 1);
+	rv = verify_connect(p->conn_param, &rv, s->conf);
+	if (rv != 0) {
+		// TODO disconnect client && send connack with reason code 0x05
+		debug_syslog("Invalid auth info.");
+		buf[3] = rv;
+	}
+	rv = nano_session_restore(p, s, buf + 2);
 	nni_msg_alloc(&msg, 0);
-	//TODO MQTT V5
+	// TODO MQTT V5
 	nni_msg_header_append(msg, buf, 4);
 	nni_msg_set_cmd_type(msg, CMD_CONNACK);
 	nni_msg_set_conn_param(msg, p->conn_param);
-	nni_aio_set_msg(&p->aio_send, msg);
-	// There is no need to check the busy state of pipe
+	// There is no need to check the  state of aio_recv
 	// Since pipe_start is definetly the first cb to be excuted of pipe.
-	if (aio != NULL) {
-		nni_msg_clone(msg);
-		nni_aio_set_msg(aio, msg);
-	}
-	nni_pipe_send(p->pipe, &p->aio_send);
-	nni_pipe_recv(p->pipe, &p->aio_recv);
-	if (aio != NULL) {
-		nni_aio_finish(aio, 0, 0);
-	}
-	return (0);
+	nni_aio_set_msg(&p->aio_recv, msg);
+	nni_aio_finish(&p->aio_recv, 0, nni_msg_len(msg));
+	nni_sleep_aio(s->conf->qos_timer * 1200, &p->aio_timer);
+	return (rv);
 }
 
 static inline void
@@ -1115,9 +1093,10 @@ nano_pipe_recv_cb(void *arg)
 		nni_mtx_unlock(&p->lk);
 		break;
 	case CMD_PUBLISH:
-		// TODO QoS 1/2 sender side cache
 	case CMD_DISCONNECT:
 	case CMD_UNSUBSCRIBE:
+	case CMD_CONNACK:
+	case CMD_CONNECT:
 		break;
 	case CMD_PUBREC:
 		// break;
@@ -1161,7 +1140,7 @@ nano_pipe_recv_cb(void *arg)
 	nni_pipe_recv(p->pipe, &p->aio_recv);
 
 	// ctx->pp_len = len;		//TODO Rewrite mqtt header length
-	ctx->pipe_id = p->id; // use pipe id to identify which client
+	ctx->pipe_id = p->id; // use pipe id to identify which client is receving
 	debug_msg("currently processing pipe_id: %d", p->id);
 
 	nni_mtx_unlock(&s->lk);
