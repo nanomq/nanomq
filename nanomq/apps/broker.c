@@ -98,33 +98,6 @@ server_cb(void *arg)
 		work->cparam = nng_msg_get_conn_param(work->msg);
 
 		if (nng_msg_cmd_type(msg) == CMD_DISCONNECT) {
-			/*
-			                                work->cparam =
-			   (conn_param *) nng_msg_get_conn_param(msg);
-			                                //TODO replace it with
-			   buffer id void * cli_ctx  = NULL; struct topic_queue
-			   *tq = NULL;
-
-			                                debug_msg("##########DISCONNECT
-			   (pipe_id:[%d])##########", pipe.id); if
-			   (check_id(pipe.id)) { tq = get_topic(pipe.id); while
-			   (tq) { if (tq->topic) { cli_ctx =
-			   search_and_delete(work->db, tq->topic, pipe.id);
-			                                                }
-			                                                del_sub_ctx(cli_ctx,
-			   tq->topic); // only free work->sub_pkt tq =
-			   tq->next;
-			                                        }
-			                                }
-
-			                                //
-			   del_sub_topic_all(pipe.id); // has deleted in
-			   pipe_fini
-			                                //
-			   destroy_conn_param(work->cparam); // has deleted in
-			   pipe_fini
-			*/
-
 			work->state = RECV;
 			nng_msg_free(msg);
 			work->msg = NULL;
@@ -134,10 +107,13 @@ server_cb(void *arg)
 			nng_msg_set_timestamp(msg, nng_clock());
 			handle_pub(work, work->pipe_ct);
 		} else if (nng_msg_cmd_type(msg) == CMD_CONNACK) {
-			work->state = RECV;
-			nng_msg_free(msg);
-			work->msg = NULL;
-			nng_ctx_recv(work->ctx, work->aio);
+			work->pid = nng_msg_get_pipe(work->msg);
+			nng_aio_set_pipeline(work->aio, work->pid.id);
+			nng_aio_set_msg(work->aio, work->msg);
+			work->msg   = NULL;
+			work->state = SEND;
+			nng_ctx_send(work->ctx, work->aio);
+			nng_aio_finish(work->aio, 0);
 			break;
 		}
 		work->state = WAIT;
