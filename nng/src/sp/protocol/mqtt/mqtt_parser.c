@@ -11,6 +11,8 @@
 #include "core/nng_impl.h"
 #include "include/nng_debug.h"
 #include "nng/protocol/mqtt/mqtt.h"
+
+#include <conf.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -315,7 +317,7 @@ conn_handler(uint8_t *packet, conn_param *cparam)
 
 	uint32_t len, tmp, pos = 0, len_of_properties = 0;
 	int      len_of_str = 0, len_of_var = 0;
-	int32_t  rv         = 0;
+	int32_t  rv = 0;
 	uint8_t  property_id;
 
 	if (packet[pos] != CMD_CONNECT) {
@@ -327,13 +329,13 @@ conn_handler(uint8_t *packet, conn_param *cparam)
 
 	init_conn_param(cparam);
 	// remaining length
-	len = (uint32_t) get_var_integer(packet+pos, &len_of_var);
+	len = (uint32_t) get_var_integer(packet + pos, &len_of_var);
 	pos += len_of_var;
 	// protocol name
 	cparam->pro_name.body =
 	    (char *) copy_utf8_str(packet, &pos, &len_of_str);
 	cparam->pro_name.len = len_of_str;
-	rv = len_of_str < 0 ? 1 : 0;
+	rv                   = len_of_str < 0 ? 1 : 0;
 	debug_msg("pro_name: %s", cparam->pro_name.body);
 	// protocol ver
 	cparam->pro_ver = packet[pos];
@@ -446,7 +448,7 @@ conn_handler(uint8_t *packet, conn_param *cparam)
 	// payload client_id
 	cparam->clientid.body =
 	    (char *) copy_utf8_str(packet, &pos, &len_of_str);
-	rv = len_of_str < 0 ? 1 : 0;
+	rv                   = len_of_str < 0 ? 1 : 0;
 	cparam->clientid.len = len_of_str;
 	debug_msg("clientid: [%s] [%d]", cparam->clientid.body, len_of_str);
 	// will topic
@@ -561,13 +563,13 @@ conn_handler(uint8_t *packet, conn_param *cparam)
 		cparam->will_topic.body =
 		    (char *) copy_utf8_str(packet, &pos, &len_of_str);
 		cparam->will_topic.len = len_of_str;
-		rv = len_of_str < 0 ? 1 : 0;
+		rv                     = len_of_str < 0 ? 1 : 0;
 		debug_msg("will_topic: %s %d", cparam->will_topic.body, rv);
 		// will msg
 		cparam->will_msg.body =
 		    (char *) copy_utf8_str(packet, &pos, &len_of_str);
 		cparam->will_msg.len = len_of_str;
-		rv = len_of_str < 0 ? 1 : 0;
+		rv                   = len_of_str < 0 ? 1 : 0;
 		debug_msg("will_msg: %s %d", cparam->will_msg.body, rv);
 	}
 	// username
@@ -575,16 +577,18 @@ conn_handler(uint8_t *packet, conn_param *cparam)
 		cparam->username.body =
 		    (char *) copy_utf8_str(packet, &pos, &len_of_str);
 		cparam->username.len = len_of_str;
-		rv = len_of_str < 0 ? 1 : 0;
-		debug_msg("username: %s %d", cparam->username.body, len_of_str);
+		rv                   = len_of_str < 0 ? 1 : 0;
+		debug_msg(
+		    "username: %s %d", cparam->username.body, len_of_str);
 	}
 	// password
 	if ((cparam->con_flag & 0x40) > 0) {
 		cparam->password.body =
 		    copy_utf8_str(packet, &pos, &len_of_str);
 		cparam->password.len = len_of_str;
-		rv = len_of_str < 0 ? 1 : 0;
-		debug_msg("password: %s %d", cparam->password.body, len_of_str);
+		rv                   = len_of_str < 0 ? 1 : 0;
+		debug_msg(
+		    "password: %s %d", cparam->password.body, len_of_str);
 	}
 	// what if rv = 0?
 	if (len + len_of_var + 1 != pos) {
@@ -697,21 +701,22 @@ nano_msg_set_dup(nng_msg *msg)
 {
 	uint8_t *header;
 
-	header = nni_msg_header(msg);
+	header  = nni_msg_header(msg);
 	*header = *header | 0x08;
 }
 
 // compose a publish msg according to your need
 nng_msg *
-nano_msg_composer(uint8_t retain, uint8_t qos, mqtt_string payload, mqtt_string topic)
+nano_msg_composer(
+    uint8_t retain, uint8_t qos, mqtt_string payload, mqtt_string topic)
 {
 	size_t   rlen;
-	uint8_t *ptr, buf[5] = {'\0'};
+	uint8_t *ptr, buf[5] = { '\0' };
 	uint32_t len;
 	nni_msg *msg;
 
 	len = payload.len + topic.len + 2;
-	if (qos > 0){
+	if (qos > 0) {
 		nni_msg_alloc(&msg, len + 2);
 		rlen = put_var_integer(buf + 1, len + 2);
 		nni_msg_set_remaining_len(msg, len + 2);
@@ -737,13 +742,13 @@ nano_msg_composer(uint8_t retain, uint8_t qos, mqtt_string payload, mqtt_string 
 
 	ptr = nni_msg_body(msg);
 	NNI_PUT16(ptr, topic.len);
-	ptr = ptr+2;
+	ptr = ptr + 2;
 	memcpy(ptr, topic.body, topic.len);
 	ptr += topic.len;
 	if (qos > 0) {
-		//Set pid?
+		// Set pid?
 		NNI_PUT16(ptr, 0x10);
-		ptr = ptr+2;
+		ptr = ptr + 2;
 	}
 	memcpy(ptr, payload.body, payload.len);
 	nni_msg_set_payload_ptr(msg, ptr);
@@ -755,18 +760,22 @@ nano_msg_composer(uint8_t retain, uint8_t qos, mqtt_string payload, mqtt_string 
 uint8_t
 verify_connect(conn_param *cparam, uint8_t *reason_code, conf *conf)
 {
-	int i, n = conf->auths.count;
-	char * username = cparam->username.body;
-	char * password = cparam->password.body;
+	int   i, n = conf->auths.count;
+	char *username = cparam->username.body;
+	char *password = cparam->password.body;
 
-	if (conf->auths.count == 0) {
-		debug_msg("WARNING: no valid entry in etc/nanomq_auth_username.conf.");
+	if (conf->auths.count == 0 || conf->allow_anonymous == true) {
+		debug_msg("WARNING: no valid entry in "
+		          "etc/nanomq_auth_username.conf.");
 		return 0;
 	}
 
-	if (cparam->username.len == 0 ||
-	    cparam->password.len == 0) {
-		return ERR_AUTH;
+	if (cparam->username.len == 0 || cparam->password.len == 0) {
+		if (cparam->pro_ver == 5) {
+			return BAD_USER_NAME_OR_PASSWORD;
+		} else {
+			return 0x04;
+		}
 	}
 
 	for (i = 0; i < n; i++) {
@@ -775,7 +784,9 @@ verify_connect(conn_param *cparam, uint8_t *reason_code, conf *conf)
 			return 0;
 		}
 	}
-
-	return ERR_AUTH;
+	if (cparam->pro_ver == 5) {
+		return BAD_USER_NAME_OR_PASSWORD;
+	} else {
+		return 0x05;
+	}
 }
-
