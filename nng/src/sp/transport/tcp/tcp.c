@@ -61,11 +61,11 @@ struct tcptran_pipe {
 struct tcptran_ep {
 	nni_mtx mtx;
 	// uint16_t             proto;
-	size_t   rcvmax;
-	bool     fini;
-	bool     started;
-	bool     closed;
-	nng_url *url;
+	size_t               rcvmax;
+	bool                 fini;
+	bool                 started;
+	bool                 closed;
+	nng_url *            url;
 	nng_sockaddr         src;
 	int                  refcnt; // active pipes
 	nni_aio *            useraio;
@@ -251,8 +251,8 @@ tcptran_ep_match(tcptran_ep *ep)
  * MQTT protocal negotiate
  * deal with CONNECT packet
  * Fixed header to variable header
- * receive multiple times for complete data packet then reply ACK in protocol layer
- * iov_len limits the length readv reads
+ * receive multiple times for complete data packet then reply ACK in protocol
+ * layer iov_len limits the length readv reads
  * TODO independent with nng SP
  */
 static void
@@ -291,13 +291,15 @@ tcptran_pipe_nego_cb(void *arg)
 		nni_mtx_unlock(&ep->mtx);
 		return;
 	}
-	if (p->gotrxhead == NNI_NANO_MAX_HEADER_SIZE && p->wantrxhead == NANO_CONNECT_PACKET_LEN) {
+	if (p->gotrxhead == NNI_NANO_MAX_HEADER_SIZE &&
+	    p->wantrxhead == NANO_CONNECT_PACKET_LEN) {
 		if (p->rxlen[0] != CMD_CONNECT) {
 			debug_msg("CMD TYPE %x", p->rxlen[0]);
 			rv = NNG_EPROTO;
 			goto error;
 		}
-		len = get_var_integer(p->rxlen + 1, (uint32_t *) &len_of_varint);
+		len =
+		    get_var_integer(p->rxlen + 1, (uint32_t *) &len_of_varint);
 		p->wantrxhead = len + 1 + len_of_varint;
 	}
 	debug_msg("fixed header : gottx %ld gotrx %ld needrx %ld needtx %ld "
@@ -333,9 +335,9 @@ tcptran_pipe_nego_cb(void *arg)
 		if (conn_handler(p->conn_buf, p->tcp_cparam) == 0) {
 			nng_free(p->conn_buf, p->wantrxhead);
 			p->conn_buf = NULL;
-			//we don't need to alloc a new msg, just use pipe.
-			// We are all ready now.  We put this in the wait list, and
-			// then try to run the matcher.
+			// we don't need to alloc a new msg, just use pipe.
+			// We are all ready now.  We put this in the wait list,
+			// and then try to run the matcher.
 			nni_list_remove(&ep->negopipes, p);
 			nni_list_append(&ep->waitpipes, p);
 			tcptran_ep_match(ep);
@@ -372,6 +374,8 @@ tcptran_pipe_send_cb(void *arg)
 	tcptran_pipe *p = arg;
 	int           rv;
 	nni_aio *     aio;
+	uint8_t *     header;
+	uint8_t       flag, cmd;
 	size_t        n;
 	nni_msg *     msg;
 	nni_aio *     txaio = p->txaio;
@@ -404,6 +408,11 @@ tcptran_pipe_send_cb(void *arg)
 
 	msg = nni_aio_get_msg(aio);
 	n   = nni_msg_len(msg);
+	cmd = nni_msg_cmd_type(msg);
+	if (cmd == CMD_CONNACK) {
+		header = nni_msg_header(msg);
+		flag   = header[3];
+	}
 	// nni_pipe_bump_tx(p->npipe, n);
 	// free qos buffer
 	if (p->qlength > 16 + NNI_NANO_MAX_PACKET_SIZE) {
@@ -414,7 +423,11 @@ tcptran_pipe_send_cb(void *arg)
 
 	nni_aio_set_msg(aio, NULL);
 	nni_msg_free(msg);
-	nni_aio_finish_sync(aio, 0, n);
+	if (cmd == CMD_CONNACK && flag != 0x00) {
+		nni_aio_finish_sync(aio, -1, n);
+	} else {
+		nni_aio_finish_sync(aio, 0, n);
+	}
 }
 
 /*
@@ -769,8 +782,7 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 			goto send;
 		}
 
-		debug_msg(
-		    "qos_pac %d sub %d\n", qos_pac, db->qos);
+		debug_msg("qos_pac %d sub %d\n", qos_pac, db->qos);
 		memcpy(fixheader, header, nni_msg_header_len(msg));
 
 		if (qos_pac > db->qos) {
@@ -817,12 +829,15 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 				        // resending
 				pid = nni_pipe_inc_packetid(pipe);
 				// store msg for qos retrying
-				debug_msg("* processing QoS pubmsg with pipe: %p *", p);
+				debug_msg(
+				    "* processing QoS pubmsg with pipe: %p *",
+				    p);
 				nni_msg_clone(msg);
 				if ((old = nni_id_get(
 				         pipe->nano_qos_db, pid)) != NULL) {
-					// TODO packetid already exists. replace old with new one
-					// shouldn't get here BUG
+					// TODO packetid already exists.
+					// replace old with new one shouldn't
+					// get here BUG
 					nni_println(
 					    "ERROR: packet id duplicates in "
 					    "nano_qos_db");
@@ -1038,7 +1053,6 @@ tcptran_pipe_start(tcptran_pipe *p, nng_stream *conn, tcptran_ep *ep)
 	nni_aio_set_timeout(p->negoaio,
 	    15 * 1000); // 15 sec timeout to negotiate abide with emqx
 	nng_stream_recv(p->conn, p->negoaio);
-	//nni_aio_finish(p->negoaio, 0, 0);
 }
 
 static void

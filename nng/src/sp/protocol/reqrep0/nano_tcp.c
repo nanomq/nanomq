@@ -860,17 +860,19 @@ nano_pipe_start(void *arg)
 		debug_syslog("Invalid auth info.");
 		buf[3] = rv;
 	}
-	rv = nano_session_restore(p, s, buf + 2);
+	rv = nano_session_restore(p, s, buf[3]);
 	nni_msg_alloc(&msg, 0);
 	// TODO MQTT V5
 	nni_msg_header_append(msg, buf, 4);
+	if (buf[3] == 0) {
+		nni_sleep_aio(s->conf->qos_timer * 1500, &p->aio_timer);
+	}
 	nni_msg_set_cmd_type(msg, CMD_CONNACK);
 	nni_msg_set_conn_param(msg, p->conn_param);
 	// There is no need to check the  state of aio_recv
 	// Since pipe_start is definetly the first cb to be excuted of pipe.
 	nni_aio_set_msg(&p->aio_recv, msg);
 	nni_aio_finish(&p->aio_recv, 0, nni_msg_len(msg));
-	nni_sleep_aio(s->conf->qos_timer * 1200, &p->aio_timer);
 	return (rv);
 }
 
