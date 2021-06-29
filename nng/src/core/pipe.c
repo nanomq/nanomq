@@ -441,12 +441,12 @@ nni_pipe_bump_error(nni_pipe *p, int err)
 
 // NanoMQ APIs
 void
-nni_pipe_set_conn_param(nni_pipe *p, conn_param *c)
+nni_pipe_set_conn_param(nni_pipe *p, void *c)
 {
 	p->conn_param = c;
 }
 
-conn_param *
+void *
 nni_pipe_get_conn_param(nni_pipe *p)
 {
 	return p->conn_param;
