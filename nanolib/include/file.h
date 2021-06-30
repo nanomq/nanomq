@@ -21,9 +21,6 @@ char *file_find_line(const char *fpath, const char *string);
 int file_is_directory(const char *fpath);
 int file_read_bin(const char *fpath, unsigned char **buff,
 		  unsigned int offset, unsigned int length);
-unsigned int file_mtd_size_get(const char *fpath);
-int file_mtd_write(const char *fpath, unsigned char *buff,
-		   unsigned int buff_len);
 int file_truncr_to_sep(const char *fpath, char *separator);
 int file_append_int(const char *fpath, int value);
 int file_extract_int(const char *fpath);
