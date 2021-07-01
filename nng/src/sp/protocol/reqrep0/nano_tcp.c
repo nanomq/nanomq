@@ -560,9 +560,9 @@ nano_session_restore(nano_pipe *p, nano_sock *s, uint8_t *flag)
 		// TODO kick prev connection or current one?(p or cs->pipeid)
 		p->kicked = true;
 		if (p->conn_param->pro_ver == 5) {
-			*flag = 0x8E;
+			*(flag +1 ) = 0x8E;
 		} else {
-			*flag = 0x02;
+			*(flag +1 ) = 0x02;
 		}
 		return (NNG_ECONNABORTED);
 	}
@@ -837,7 +837,7 @@ nano_pipe_start(void *arg)
 	nni_aio *  aio = NULL;
 	nano_ctx * ctx;
 	nni_msg *  msg;
-	uint8_t    rv; // reason code of CONNACK
+	uint8_t    rv, *reason; // reason code of CONNACK
 	uint8_t    buf[4] = { 0x20, 0x02, 0x00, 0x00 };
 
 	debug_msg("##########nano_pipe_start################");
@@ -853,18 +853,22 @@ nano_pipe_start(void *arg)
 	// pipe_id is just random value of id_dyn_val with self-increment.
 	rv = nni_id_set(&s->pipes, nni_pipe_id(p->pipe), p);
 	nni_mtx_unlock(&s->lk);
+	//futex here might not be necessary
+	nni_mtx_lock(&p->lk);
 	nni_aio_get_output(&p->aio_recv, 1);
+	nni_msg_alloc(&msg, 0);
+	nni_msg_header_append(msg, buf, 4);
+	reason = nni_msg_header(msg) + 2;
 	rv = verify_connect(p->conn_param, &rv, s->conf);
 	if (rv != 0) {
 		// TODO disconnect client && send connack with reason code 0x05
 		debug_syslog("Invalid auth info.");
-		buf[3] = rv;
+		*(reason + 3) = rv;
 	}
-	rv = nano_session_restore(p, s, buf[3]);
-	nni_msg_alloc(&msg, 0);
+	rv = nano_session_restore(p, s, reason);
+
 	// TODO MQTT V5
-	nni_msg_header_append(msg, buf, 4);
-	if (buf[3] == 0) {
+	if (*(reason + 3) == 0) {
 		nni_sleep_aio(s->conf->qos_timer * 1500, &p->aio_timer);
 	}
 	nni_msg_set_cmd_type(msg, CMD_CONNACK);
@@ -872,6 +876,7 @@ nano_pipe_start(void *arg)
 	// There is no need to check the  state of aio_recv
 	// Since pipe_start is definetly the first cb to be excuted of pipe.
 	nni_aio_set_msg(&p->aio_recv, msg);
+	nni_mtx_unlock(&p->lk);
 	nni_aio_finish(&p->aio_recv, 0, nni_msg_len(msg));
 	return (rv);
 }
