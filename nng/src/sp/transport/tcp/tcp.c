@@ -424,7 +424,7 @@ tcptran_pipe_send_cb(void *arg)
 	nni_aio_set_msg(aio, NULL);
 	nni_msg_free(msg);
 	if (cmd == CMD_CONNACK && flag != 0x00) {
-		nni_aio_finish_sync(aio, -1, n);
+		nni_aio_finish_error(aio, NNG_ECLOSED);
 	} else {
 		nni_aio_finish_sync(aio, 0, n);
 	}
@@ -681,17 +681,12 @@ recv_error:
 	nni_aio_finish_error(aio, rv);
 	debug_msg("tcptran_pipe_recv_cb: recv error rv: %d\n", rv);
 	return;
-quit:
-	// nni_aio_list_remove(aio);
-	// nni_pipe_bump_rx(p->npipe, n);
-	tcptran_pipe_recv_start(p);
-	nni_mtx_unlock(&p->mtx);
-	return;
 notify:
 	// nni_pipe_bump_rx(p->npipe, n);
+	//nni_aio_list_remove(aio);
 	tcptran_pipe_recv_start(p);
 	nni_mtx_unlock(&p->mtx);
-	nni_aio_finish_error(aio, rv);
+	//nni_aio_finish_error(aio, rv);		//only finishes when we need PINGREQ event
 	return;
 }
 
