@@ -53,8 +53,9 @@ jobs:
       with:
         owner: ${{ github.repository_owner }} 
         repo: nanomq
-        token: ${{ secrets.GITHUB_TOKEN }}
+        token: ${{ github.token }}
         path: "build/_packages/nanomq*"
+        ref: ${{ github.ref }}
     - name: upload to aws s3
       if: github.event_name == 'release'
       run: |
