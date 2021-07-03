@@ -3,8 +3,8 @@
 
 #include <stdio.h>
 
-int file_trunc_to_zero(const char *fpath);
-int file_exists(const char *fpath);
+int nano_file_trunc_to_zero(const char *fpath);
+int nano_file_exists(const char *fpath);
 int file_is_symlink(const char *fpath);
 int file_size(const char *fpath);
 int file_create_symlink(const char *file_path, const char *link_path);
