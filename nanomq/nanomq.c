@@ -7,9 +7,9 @@
 // found online at https://opensource.org/licenses/MIT.
 //
 
+#include "cmd.h"
 #include "include/nanomq.h"
 #include "include/apps.h"
-#include "include/cmd.h"
 #include "include/const_strings.h"
 #include "include/process.h"
 #include "include/version.h"
@@ -104,7 +104,7 @@ check_trace(char NANO_UNUSED(*name))
 static int
 handle_app(int res)
 {
-	cmd_cleanup();
+	nano_cmd_cleanup();
 	return res;
 }
 

@@ -328,7 +328,6 @@ tcptran_pipe_nego_cb(void *arg)
 	    p->rxlen[0]);
 
 	if (p->gottxhead < p->wanttxhead && p->gotrxhead >= p->wantrxhead) {
-		nni_iov iov;
 		if (p->tcp_cparam == NULL) {
 			p->tcp_cparam = nng_alloc(sizeof(struct conn_param));
 		}

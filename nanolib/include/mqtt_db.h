@@ -8,6 +8,7 @@
 #include <string.h>
 
 typedef enum { Hash, Vec } type;
+typedef struct db_node db_node;
 
 typedef struct s_client {
 	// char			*id;
@@ -21,8 +22,6 @@ typedef struct retain_msg {
 	char *  m;
 	void *  message;
 } retain_msg;
-
-typedef struct db_node db_node;
 
 typedef struct db_node {
 	char *      topic;
