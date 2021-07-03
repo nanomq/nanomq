@@ -85,7 +85,8 @@ server_cb(void *arg)
 		debug_msg(
 		    "RECV  ^^^^^^^^^^^^^^^^^^^^^ ctx%d ^^^^\n", work->ctx.id);
 		if ((rv = nng_aio_result(work->aio)) != 0) {
-			debug_syslog("ERROR: RECV nng aio result error: %d", rv);
+			debug_syslog(
+			    "ERROR: RECV nng aio result error: %d", rv);
 			nng_aio_wait(work->aio);
 			fatal("RECV nng_ctx_recv", rv);
 		}
@@ -94,7 +95,7 @@ server_cb(void *arg)
 			debug_msg("ERROR: RECV NULL msg");
 			fatal("RECV NULL MSG", rv);
 		}
-		work->msg   = msg;
+		work->msg    = msg;
 		work->cparam = nng_msg_get_conn_param(work->msg);
 
 		if (nng_msg_cmd_type(msg) == CMD_DISCONNECT) {
@@ -121,10 +122,11 @@ server_cb(void *arg)
 		    "RECV ********************* msg: %x*****************\n",
 		    nng_msg_cmd_type(work->msg));
 		nng_aio_finish(work->aio, 0);
-		//nng_aio_finish_sync(work->aio, 0);
+		// nng_aio_finish_sync(work->aio, 0);
 		break;
 	case WAIT:
-		debug_msg("WAIT ^^^^^^^^^^^^^^^^^^^^^ ctx%d ^^^^", work->ctx.id);
+		debug_msg(
+		    "WAIT ^^^^^^^^^^^^^^^^^^^^^ ctx%d ^^^^", work->ctx.id);
 		if (nng_msg_cmd_type(work->msg) == CMD_PINGREQ) {
 			if (work->msg != NULL)
 				nng_msg_free(work->msg);
@@ -264,9 +266,9 @@ server_cb(void *arg)
 				debug_msg("WAIT nng aio result error: %d", rv);
 				fatal("WAIT nng_ctx_recv/send", rv);
 			}
-			//nng_msg_alloc(&smsg, 0);
-			//nng_msg_free(work->msg);
-			smsg = work->msg;	//reuse the same msg memory
+			// nng_msg_alloc(&smsg, 0);
+			// nng_msg_free(work->msg);
+			smsg = work->msg; // reuse the same msg memory
 			work->msg = NULL;
 
 			debug_msg("total pipes: %d", work->pipe_ct->total);
@@ -396,13 +398,13 @@ alloc_work(nng_socket sock)
 int
 broker(conf *nanomq_conf)
 {
-	nng_socket     sock;
-	nng_pipe       pipe_id;
-	int            rv;
-	int            i;
-	uint8_t        num_ctx = nanomq_conf->parallel;
-	struct work   *works[num_ctx];
-	const char    *url = nanomq_conf->url;
+	nng_socket   sock;
+	nng_pipe     pipe_id;
+	int          rv;
+	int          i;
+	uint8_t      num_ctx = nanomq_conf->parallel;
+	struct work *works[num_ctx];
+	const char * url = nanomq_conf->url;
 
 	// init tree
 	db_tree *db     = NULL;
@@ -481,7 +483,8 @@ status_check(pid_t *pid)
 
 			if ((kill(*pid, 0)) == 0) {
 				debug_msg("there is a running NanoMQ instance "
-				          ": pid [%u]", *pid);
+				          ": pid [%u]",
+				    *pid);
 				return 0;
 			}
 		}
@@ -548,7 +551,8 @@ broker_start(int argc, char **argv)
 
 	if (argc < 1 && nanomq_conf->url == NULL) {
 		fprintf(stderr,
-		    "-url <url> should be provided through either nanomq.conf (or your conf-file) "
+		    "-url <url> should be provided through either nanomq.conf "
+		    "(or your conf-file) "
 		    "or command-line");
 		print_usage();
 		exit(EXIT_FAILURE);
@@ -556,7 +560,8 @@ broker_start(int argc, char **argv)
 
 	for (i = 0; i < argc; i++, temp = 0) {
 		if (!strcmp("-conf", argv[i])) {
-			debug_msg("reading user specified conf file:%s", argv[i+1]);
+			debug_msg("reading user specified conf file:%s",
+			    argv[i + 1]);
 			conf_parser(&nanomq_conf, argv[++i]);
 		} else if (!strcmp("-daemon", argv[i])) {
 			nanomq_conf->daemon = true;

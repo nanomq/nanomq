@@ -176,7 +176,7 @@ conf_auth_parser(conf *nanomq_conf)
 {
 	char *line = NULL, buf[64], *username, *password, *tmp;
 	int   n = 0, x = 0, nu = 0, lenu = 0, lenp = 0;
-	if (!file_exists(CONF_AUTH_PATH_NAME)) {
+	if (!nano_file_exists(CONF_AUTH_PATH_NAME)) {
 		debug_syslog("file not exists");
 		return;
 	}

@@ -444,31 +444,6 @@ nano_deep_copy_connparam(conn_param *new_cp, conn_param *cp)
 }
 
 static void *
-find_clictx_from_tree(void *tree, uint32_t pid)
-{
-	struct topic_queue *tq = get_topic(pid);
-	if (tq == NULL) {
-		debug_msg("There is no topic queue in the hash map");
-		return NULL;
-	}
-
-	void **cli_ctx_list = search_client(tree, tq->topic);
-	if (cli_ctx_list == NULL) {
-		debug_msg("There is no such a client_ctx");
-		return NULL;
-	}
-
-	client_ctx *cli_ctx = NULL;
-	for (long unsigned i = 0; i < cvector_size(cli_ctx_list); i++) {
-		cli_ctx = (struct client_ctx *) cli_ctx_list[i];
-		if (pid == cli_ctx->pid.id) {
-			return cli_ctx;
-		}
-	}
-	return NULL;
-}
-
-static void *
 del_topic_clictx_from_tree(void *tree, topic_queue *tq, uint32_t pid)
 {
 	client_ctx *cli_ctx = NULL;
@@ -834,8 +809,6 @@ nano_pipe_start(void *arg)
 {
 	nano_pipe *p   = arg;
 	nano_sock *s   = p->rep;
-	nni_aio *  aio = NULL;
-	nano_ctx * ctx;
 	nni_msg *  msg;
 	uint8_t    rv, *reason; // reason code of CONNACK
 	uint8_t    buf[4] = { 0x20, 0x02, 0x00, 0x00 };
