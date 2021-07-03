@@ -17,7 +17,7 @@
 static char fpath_tmp[100];
 
 int
-file_trunc_to_zero(const char *fpath)
+nano_file_trunc_to_zero(const char *fpath)
 {
 	int fd;
 
@@ -32,7 +32,7 @@ file_trunc_to_zero(const char *fpath)
 
 /*return 1 if exists*/
 int
-file_exists(const char *fpath)
+nano_file_exists(const char *fpath)
 {
 	struct stat st;
 	int         ret;
@@ -62,7 +62,7 @@ file_size(const char *fpath)
 	int         ret;
 	struct stat st;
 
-	if (!file_exists(fpath))
+	if (!nano_file_exists(fpath))
 		return 0;
 
 	ret = stat(fpath, &st);
@@ -90,7 +90,7 @@ file_read_int(const char *fpath_fmt, ...)
 	vsnprintf(fpath_tmp, sizeof(fpath_tmp), fpath_fmt, args);
 	va_end(args);
 
-	if (!file_exists(fpath_tmp))
+	if (!nano_file_exists(fpath_tmp))
 		goto out;
 
 	fd = open(fpath_tmp, O_RDONLY);
@@ -115,7 +115,7 @@ file_read_string(const char *fpath, char *buff, int buff_len)
 {
 	int fd, ret = 0;
 
-	if (!file_exists(fpath))
+	if (!nano_file_exists(fpath))
 		goto out;
 
 	fd = open(fpath, O_RDONLY);
@@ -368,7 +368,7 @@ file_read_bin(const char *fpath, unsigned char **buff, unsigned int offset,
 {
 	int fd, ret = 0;
 
-	if (!file_exists(fpath))
+	if (!nano_file_exists(fpath))
 		goto out;
 
 	fd = open(fpath, O_RDONLY);
@@ -441,7 +441,7 @@ file_extract_int(const char *fpath)
 	char buff[16], *ptr;
 	int  ret = 0;
 
-	if (!file_exists(fpath))
+	if (!nano_file_exists(fpath))
 		goto out;
 
 	file_read_string(fpath, buff, sizeof(buff));
