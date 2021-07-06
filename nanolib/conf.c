@@ -75,7 +75,7 @@ conf_parser(conf **nanomq_conf, const char *path)
 			}
 		} else if (!strcmp(key, "url")) {
 			if ((*nanomq_conf)->url != NULL) {
-				zfree((*nanomq_conf)->url);
+				break;
 			}
 			char *url =
 			    zmalloc(sizeof(char) * (strlen(value) + 1));
