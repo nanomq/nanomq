@@ -549,15 +549,6 @@ broker_start(int argc, char **argv)
 	conf_init(&nanomq_conf);
 	conf_parser(&nanomq_conf, CONF_PATH_NAME);
 
-	if (argc < 1 && nanomq_conf->url == NULL) {
-		fprintf(stderr,
-		    "-url <url> should be provided through either nanomq.conf "
-		    "(or your conf-file) "
-		    "or command-line");
-		print_usage();
-		exit(EXIT_FAILURE);
-	}
-
 	for (i = 0; i < argc; i++, temp = 0) {
 		if (!strcmp("-conf", argv[i])) {
 			debug_msg("reading user specified conf file:%s",
@@ -599,6 +590,15 @@ broker_start(int argc, char **argv)
 			print_usage();
 			exit(EXIT_FAILURE);
 		}
+	}
+
+	if (nanomq_conf->url == NULL) {
+		fprintf(stderr,
+		    "ERROR: invalid input url, using default conf "
+		    "-url <url> should be provided through either nanomq.conf "
+		    "(or your conf-file) "
+		    "or command-line");
+		nanomq_conf->url = CONF_URL_DEFAULT;
 	}
 
 	print_conf(nanomq_conf);

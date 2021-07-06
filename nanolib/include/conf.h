@@ -34,6 +34,7 @@
 #define PID_PATH_NAME "/tmp/nanomq/nanomq.pid"
 #define CONF_PATH_NAME "./etc/nanomq.conf"
 #define CONF_AUTH_PATH_NAME "./etc/nanomq_auth_username.conf"
+#define CONF_URL_DEFAULT "tcp://0.0.0.0:1883"
 
 struct conf_auth {
 	int    count;
