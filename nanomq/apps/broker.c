@@ -594,10 +594,10 @@ broker_start(int argc, char **argv)
 
 	if (nanomq_conf->url == NULL) {
 		fprintf(stderr,
-		    "ERROR: invalid input url, using default conf "
+		    "ERROR: invalid input url, using default url: %s\n"
 		    "-url <url> should be provided through either nanomq.conf "
 		    "(or your conf-file) "
-		    "or command-line");
+		    "or command-line", CONF_URL_DEFAULT);
 		nanomq_conf->url = CONF_URL_DEFAULT;
 	}
 
