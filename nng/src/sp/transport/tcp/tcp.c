@@ -28,11 +28,9 @@ struct tcptran_pipe {
 	// uint16_t        peer;		//reserved for MQTT sdk version
 	// uint16_t        proto;
 	size_t          rcvmax;
-	size_t          gottxhead;
 	size_t          gotrxhead;
-	size_t          wanttxhead;
 	size_t          wantrxhead;
-	size_t          qlength;
+	size_t          qlength; // length of qos_buf
 	bool            closed;
 	uint8_t         cmd;
 	uint8_t         txlen[NANO_MIN_PACKET_LEN];
@@ -278,9 +276,6 @@ tcptran_pipe_nego_cb(void *arg)
 		p->gotrxhead += nni_aio_count(aio);
 	}
 
-	debug_msg(
-	    "current header : gottx %ld gotrx %ld needrx %ld needtx %ld\n",
-	    p->gottxhead, p->gotrxhead, p->wantrxhead, p->wanttxhead);
 	// recv fixed header
 	if (p->gotrxhead < NNI_NANO_MAX_HEADER_SIZE) {
 		nni_iov iov;
@@ -302,12 +297,9 @@ tcptran_pipe_nego_cb(void *arg)
 		    get_var_integer(p->rxlen + 1, (uint32_t *) &len_of_varint);
 		p->wantrxhead = len + 1 + len_of_varint;
 	}
-	debug_msg("fixed header : gottx %ld gotrx %ld needrx %ld needtx %ld "
-	          "CONNECT Need more bytes hex: %x %x\n",
-	    p->gottxhead, p->gotrxhead, p->wantrxhead, p->wanttxhead,
-	    p->rxlen[0], p->rxlen[1]);
 
-	if (p->gotrxhead == NNI_NANO_MAX_HEADER_SIZE) {
+	if (p->gotrxhead == NNI_NANO_MAX_HEADER_SIZE ||
+	    p->gotrxhead < p->wantrxhead) {
 		nni_iov iov;
 		iov.iov_len = p->wantrxhead - p->gotrxhead;
 		if (p->conn_buf == NULL) {
@@ -323,11 +315,8 @@ tcptran_pipe_nego_cb(void *arg)
 
 	// We have both sent and received the CONNECT headers.
 	// CONNECT packet serialization
-	debug_msg("******** %ld %ld %ld %ld nego msg: %s ----- %x\n",
-	    p->gottxhead, p->gotrxhead, p->wantrxhead, p->wanttxhead, p->rxlen,
-	    p->rxlen[0]);
 
-	if (p->gottxhead < p->wanttxhead && p->gotrxhead >= p->wantrxhead) {
+	if (p->gotrxhead >= p->wantrxhead) {
 		if (p->tcp_cparam == NULL) {
 			p->tcp_cparam = nng_alloc(sizeof(struct conn_param));
 		}
@@ -682,10 +671,11 @@ recv_error:
 	return;
 notify:
 	// nni_pipe_bump_rx(p->npipe, n);
-	//nni_aio_list_remove(aio);
+	// nni_aio_list_remove(aio);
 	tcptran_pipe_recv_start(p);
 	nni_mtx_unlock(&p->mtx);
-	//nni_aio_finish_error(aio, rv);		//only finishes when we need PINGREQ event
+	// nni_aio_finish_error(aio, rv);		//only finishes when we need
+	// PINGREQ event
 	return;
 }
 
@@ -1007,12 +997,9 @@ tcptran_pipe_recv_start(tcptran_pipe *p)
 	// Schedule a read of the fixed header.
 	rxaio         = p->rxaio;
 	p->gotrxhead  = 0;
-	p->gottxhead  = 0;
 	p->wantrxhead = NANO_MIN_FIXED_HEADER_LEN;
-	p->wanttxhead = 0;
-	// p->remain_len = 0;
-	iov.iov_buf = p->rxlen;
-	iov.iov_len = NANO_MIN_FIXED_HEADER_LEN;
+	iov.iov_buf   = p->rxlen;
+	iov.iov_len   = NANO_MIN_FIXED_HEADER_LEN;
 	nni_aio_set_iov(rxaio, 1, &iov);
 	nng_stream_recv(p->conn, rxaio);
 }
@@ -1033,13 +1020,11 @@ tcptran_pipe_start(tcptran_pipe *p, nng_stream *conn, tcptran_ep *ep)
 	debug_msg("tcptran_pipe_start!");
 	// TODO abide with CONNECT header
 	p->gotrxhead  = 0;
-	p->gottxhead  = 0;
 	p->wantrxhead = NANO_CONNECT_PACKET_LEN; // packet type 1 + remaining
 	                                         // length 1 + protocal name 7
 	                                         // + flag 1 + keepalive 2 = 12
-	p->wanttxhead = 4;
-	iov.iov_len   = NNI_NANO_MAX_HEADER_SIZE; // dynamic
-	iov.iov_buf   = p->rxlen;
+	iov.iov_len = NNI_NANO_MAX_HEADER_SIZE;  // dynamic
+	iov.iov_buf = p->rxlen;
 
 	nni_aio_set_iov(p->negoaio, 1, &iov);
 	nni_list_append(&ep->negopipes, p);
