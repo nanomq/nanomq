@@ -485,7 +485,7 @@ test_sub_filter(void)
 	NUTS_PASS(nng_send(pub, "def", 3, 0));
 	NUTS_PASS(nng_send(pub, "de", 2, 0)); // will not go through
 	NUTS_PASS(nng_send(pub, "abc123", 6, 0));
-	NUTS_PASS(nng_send(pub, "xzy", 3, 0));      // does not match
+	NUTS_PASS(nng_send(pub, "xzy", 3, 0));     // does not match
 	NUTS_PASS(nng_send(pub, "ghi-drop", 7, 0)); // dropped by unsub
 	NUTS_PASS(nng_send(pub, "jkl-mno", 6, 0));
 
