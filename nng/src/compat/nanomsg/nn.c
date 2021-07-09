@@ -1234,8 +1234,8 @@ nn_poll(struct nn_pollfd *fds, int nfds, int timeout)
 		if (fds[i].events & NN_POLLIN) {
 			nng_socket s;
 			s.id = fds[i].fd;
-			if ((rv = nng_socket_get_int(
-			         s, NNG_OPT_RECVFD, &fd)) != 0) {
+			if ((rv = nng_socket_get_int(s, NNG_OPT_RECVFD, &fd)) !=
+			    0) {
 				nn_seterror(rv);
 				NNI_FREE_STRUCTS(pfd, nfds * 2);
 				return (-1);
@@ -1251,8 +1251,8 @@ nn_poll(struct nn_pollfd *fds, int nfds, int timeout)
 		if (fds[i].events & NN_POLLOUT) {
 			nng_socket s;
 			s.id = fds[i].fd;
-			if ((rv = nng_socket_get_int(
-			         s, NNG_OPT_SENDFD, &fd)) != 0) {
+			if ((rv = nng_socket_get_int(s, NNG_OPT_SENDFD, &fd)) !=
+			    0) {
 				nn_seterror(rv);
 				NNI_FREE_STRUCTS(pfd, nfds * 2);
 				return (-1);
