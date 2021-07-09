@@ -262,8 +262,8 @@ nano_ctx_send(void *arg, nni_aio *aio)
 	          "###############",
 	    ctx, nni_msg_cmd_type(msg));
 
-	if ((pipe = nni_aio_get_pipeline(aio)) != 0) {
-		nni_aio_set_pipeline(aio, 0);
+	if ((pipe = nni_msg_get_pipe(msg)) != 0) {
+		nni_msg_set_pipe(msg, 0);
 	} else {
 		pipe = ctx->pipe_id; // reply to self
 	}
@@ -282,7 +282,6 @@ nano_ctx_send(void *arg, nni_aio *aio)
 		// lost interest in our reply.
 		nni_mtx_unlock(&s->lk);
 		nni_aio_set_msg(aio, NULL);
-		// nni_aio_finish(aio, 0, nni_msg_len(msg));
 		nni_println("ERROR: pipe is gone, pub failed");
 		nni_msg_free(msg);
 		return;
@@ -295,14 +294,12 @@ nano_ctx_send(void *arg, nni_aio *aio)
 		nni_pipe_send(p->pipe, &p->aio_send);
 		nni_mtx_unlock(&p->lk);
 		nni_aio_set_msg(aio, NULL);
-		// nni_aio_finish(aio, 0, len);
 		return;
 	}
 
 	if ((rv = nni_aio_schedule(aio, nano_ctx_cancel_send, ctx)) != 0) {
 		nni_msg_free(msg);
 		nni_mtx_unlock(&p->lk);
-		// nni_aio_finish_error(aio, rv);
 		return;
 	}
 	debug_msg("WARNING: pipe %d occupied! resending in cb!", pipe);
@@ -710,6 +707,7 @@ nano_pipe_fini(void *arg)
 
 	key = DJBHashn(cp->clientid.body, cp->clientid.len);
 	// get temp_cs from clean_session_db
+	// TODO potential risk without lock
 	temp_cs = nni_id_get(&s->clean_session_db, key);
 	if (p->conn_param->clean_start == 0 &&
 	    temp_cs   != NULL &&

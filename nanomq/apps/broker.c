@@ -109,7 +109,8 @@ server_cb(void *arg)
 			handle_pub(work, work->pipe_ct);
 		} else if (nng_msg_cmd_type(msg) == CMD_CONNACK) {
 			work->pid = nng_msg_get_pipe(work->msg);
-			nng_aio_set_pipeline(work->aio, work->pid.id);
+			nng_msg_set_pipe(work->msg, work->pid);
+			// nng_aio_set_pipeline(work->aio, work->pid.id);
 			nng_aio_set_msg(work->aio, work->msg);
 			work->msg   = NULL;
 			work->state = SEND;
@@ -142,7 +143,8 @@ server_cb(void *arg)
 			nng_msg_set_cmd_type(smsg, CMD_PUBREL);
 			work->msg = smsg;
 			work->pid = nng_msg_get_pipe(work->msg);
-			nng_aio_set_pipeline(work->aio, work->pid.id);
+			nng_msg_set_pipe(work->msg, work->pid);
+			// nng_aio_set_pipeline(work->aio, work->pid.id);
 			nng_aio_set_msg(work->aio, work->msg);
 			work->msg   = NULL;
 			work->state = SEND;
@@ -199,15 +201,16 @@ server_cb(void *arg)
 					nng_msg_clone(m);
 					work->msg = m;
 					nng_aio_set_msg(work->aio, work->msg);
-					nng_aio_set_pipeline(
-					    work->aio, work->pid.id);
+					nng_msg_set_pipe(work->msg, work->pid);
+					// nng_aio_set_pipeline(work->aio, work->pid.id);
 					nng_ctx_send(work->ctx, work->aio);
 				}
 				cvector_free(work->msg_ret);
 			}
 			nng_msg_set_cmd_type(smsg, CMD_SUBACK);
 			work->msg = smsg;
-			nng_aio_set_pipeline(work->aio, work->pid.id);
+			nng_msg_set_pipe(work->msg, work->pid);
+			// nng_aio_set_pipeline(work->aio, work->pid.id);
 			nng_aio_set_msg(work->aio, work->msg);
 			work->msg   = NULL;
 			work->state = SEND;
@@ -290,8 +293,9 @@ server_cb(void *arg)
 					work->msg = NULL;
 
 					if (p_info.pipe != 0) {
-						nng_aio_set_pipeline(
-						    work->aio, p_info.pipe);
+						work->pid.id = p_info.pipe;
+						nng_msg_set_pipe(work->msg, work->pid);
+						// nng_aio_set_pipeline(work->aio, p_info.pipe);
 					}
 					work->state = SEND;
 					work->pipe_ct->current_index++;
