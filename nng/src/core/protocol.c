@@ -70,7 +70,8 @@ nni_proto_open(nng_socket *sockidp, const nni_proto *proto)
 }
 
 int
-nni_proto_mqtt_open(nng_socket *sockidp, const nni_proto *proto, void (*sock_setdb)(void *, void *))
+nni_proto_mqtt_open(nng_socket *sockidp, const nni_proto *proto,
+    void (*sock_setdb)(void *, void *))
 {
 	int       rv;
 	nni_sock *sock;
