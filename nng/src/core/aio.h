@@ -168,8 +168,6 @@ extern void nni_aio_sys_fini(void);
 // NANOMQ APIs
 extern void     nni_aio_set_sockaddr(nni_aio *aio, const nng_sockaddr *);
 extern void     nni_aio_get_sockaddr(nni_aio *aio, nng_sockaddr *);
-extern void     nni_aio_set_pipeline(nni_aio *aio, uint32_t id);
-extern uint32_t nni_aio_get_pipeline(nni_aio *aio);
 extern uint16_t nni_aio_get_packetid(nni_aio *aio);
 extern void     nni_aio_set_packetid(nni_aio *aio, uint16_t id);
 
@@ -218,9 +216,6 @@ struct nng_aio {
 	nni_list_node     a_expire_node; // Expiration node
 	nni_reap_node     a_reap_node;
 	// NanoMQ var
-	// uint32_t *      pipes;
-	// uint32_t        pipe_len;
-	uint32_t pipe;
 	uint16_t packet_id;
 };
 

@@ -250,7 +250,6 @@ nano_ctx_send(void *arg, nni_aio *aio)
 	nni_msg *  msg;
 	int        rv;
 	uint32_t   pipe;
-	// uint32_t   p_id[2],i = 0,fail_count = 0, need_resend = 0;
 
 	msg = nni_aio_get_msg(aio);
 
