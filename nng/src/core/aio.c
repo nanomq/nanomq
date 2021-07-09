@@ -331,11 +331,7 @@ nni_aio_begin(nni_aio *aio)
 	aio_safe_lock(&eq->eq_mtx);
 
 	NNI_ASSERT(!nni_aio_list_active(aio));
-#if defined(DEBUG)
-	debug_msg("aio->a_cancel_fn NULL %d?", (aio->a_cancel_fn == NULL));
-#else
-	// NNI_ASSERT(aio->a_cancel_fn == NULL);
-#endif
+	NNI_ASSERT(aio->a_cancel_fn == NULL);
 	NNI_ASSERT(!nni_list_node_active(&aio->a_expire_node));
 
 	// Some initialization can be done outside of the lock, because
