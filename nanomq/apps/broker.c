@@ -64,7 +64,7 @@ fatal(const char *func, int rv)
 void
 server_cb(void *arg)
 {
-	emq_work *work = arg;
+	nano_work *work = arg;
 	nng_msg * msg;
 	nng_msg * smsg = NULL, *tmsg = NULL;
 	int       rv, i;

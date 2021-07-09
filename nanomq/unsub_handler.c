@@ -15,7 +15,7 @@
 #include <protocol/mqtt/mqtt_parser.h>
 
 uint8_t
-decode_unsub_message(emq_work *work)
+decode_unsub_message(nano_work *work)
 {
 	uint8_t *variable_ptr;
 	uint8_t *payload_ptr;
@@ -130,7 +130,7 @@ decode_unsub_message(emq_work *work)
 }
 
 uint8_t
-encode_unsuback_message(nng_msg *msg, emq_work *work)
+encode_unsuback_message(nng_msg *msg, nano_work *work)
 {
 	nng_msg_clear(msg);
 
@@ -199,7 +199,7 @@ encode_unsuback_message(nng_msg *msg, emq_work *work)
 }
 
 uint8_t
-unsub_ctx_handle(emq_work *work)
+unsub_ctx_handle(nano_work *work)
 {
 	topic_node *   topic_node_t = work->unsub_pkt->node;
 	char *         topic_str;

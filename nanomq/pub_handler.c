@@ -27,7 +27,7 @@ static void  print_hex(
      const char *prefix, const unsigned char *src, int src_len);
 static uint32_t append_bytes_with_type(
     nng_msg *msg, uint8_t type, uint8_t *content, uint32_t len);
-static void handle_pub_retain(const emq_work *work, char *topic);
+static void handle_pub_retain(const nano_work *work, char *topic);
 
 void
 init_pipe_content(struct pipe_content *pipe_ct)
@@ -40,7 +40,7 @@ init_pipe_content(struct pipe_content *pipe_ct)
 }
 
 void
-put_pipe_msgs(client_ctx *sub_ctx, emq_work *self_work,
+put_pipe_msgs(client_ctx *sub_ctx, nano_work *self_work,
     struct pipe_content *pipe_ct, mqtt_control_packet_types cmd)
 {
 	pipe_ct->pipe_info = (struct pipe_info *) zrealloc(pipe_ct->pipe_info,
@@ -78,7 +78,7 @@ put_pipe_msgs(client_ctx *sub_ctx, emq_work *self_work,
 
 void
 foreach_client(
-    void **cli_ctx_list, emq_work *pub_work, struct pipe_content *pipe_ct)
+    void **cli_ctx_list, nano_work *pub_work, struct pipe_content *pipe_ct)
 {
 	bool               equal = false;
 	packet_subscribe * sub_pkt;
@@ -107,7 +107,7 @@ foreach_client(
 }
 
 void
-handle_pub(emq_work *work, struct pipe_content *pipe_ct)
+handle_pub(nano_work *work, struct pipe_content *pipe_ct)
 {
 	char **topic_queue = NULL;
 
@@ -189,7 +189,7 @@ handle_pub(emq_work *work, struct pipe_content *pipe_ct)
 
 #if ENABLE_RETAIN
 static void
-handle_pub_retain(const emq_work *work, char *topic)
+handle_pub_retain(const nano_work *work, char *topic)
 {
 	struct retain_msg *retain = NULL;
 
@@ -315,7 +315,7 @@ append_bytes_with_type(
 }
 
 bool
-encode_pub_message(nng_msg *dest_msg, const emq_work *work,
+encode_pub_message(nng_msg *dest_msg, const nano_work *work,
     mqtt_control_packet_types cmd, uint8_t sub_qos, bool dup)
 {
 	uint8_t  tmp[4]     = { 0 };
@@ -622,7 +622,7 @@ encode_pub_message(nng_msg *dest_msg, const emq_work *work,
 }
 
 reason_code
-decode_pub_message(emq_work *work)
+decode_pub_message(nano_work *work)
 {
 	int     pos      = 0;
 	int     used_pos = 0;

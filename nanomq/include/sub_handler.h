@@ -6,9 +6,9 @@
 
 #include "broker.h"
 
-uint8_t decode_sub_message(emq_work *);
-uint8_t encode_suback_message(nng_msg *, emq_work *);
-uint8_t sub_ctx_handle(emq_work *);
+uint8_t decode_sub_message(nano_work *);
+uint8_t encode_suback_message(nng_msg *, nano_work *);
+uint8_t sub_ctx_handle(nano_work *);
 // free mem about one topic in sub_ctx
 void del_sub_ctx(void *, char *);
 // free all mem about sub_ctx

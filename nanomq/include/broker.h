@@ -36,7 +36,7 @@ struct client_ctx {
 
 typedef struct client_ctx client_ctx;
 
-typedef struct work emq_work;
+typedef struct work nano_work;
 
 int broker_start(int argc, char **argv);
 int broker_stop(int argc, char **argv);

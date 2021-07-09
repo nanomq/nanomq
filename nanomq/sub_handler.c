@@ -28,7 +28,7 @@ init_sub_property(packet_subscribe *sub_pkt)
 }
 
 uint8_t
-decode_sub_message(emq_work *work)
+decode_sub_message(nano_work *work)
 {
 	uint8_t *variable_ptr;
 	uint8_t *payload_ptr;
@@ -190,7 +190,7 @@ decode_sub_message(emq_work *work)
 }
 
 uint8_t
-encode_suback_message(nng_msg *msg, emq_work *work)
+encode_suback_message(nng_msg *msg, nano_work *work)
 {
 	nng_msg_clear(msg);
 
@@ -272,7 +272,7 @@ encode_suback_message(nng_msg *msg, emq_work *work)
 
 // generate ctx for each topic
 uint8_t
-sub_ctx_handle(emq_work *work)
+sub_ctx_handle(nano_work *work)
 {
 	topic_node *        topic_node_t = work->sub_pkt->node;
 	char *              topic_str    = NULL;
