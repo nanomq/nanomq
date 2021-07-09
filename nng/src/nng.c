@@ -1953,12 +1953,6 @@ nng_msg_unique(nng_msg *m)
 	return m2;
 }
 
-void
-nng_aio_set_pipeline(nng_aio *aio, uint32_t id)
-{
-	nni_aio_set_pipeline(aio, id);
-}
-
 void *
 nng_msg_get_conn_param(nng_msg *msg)
 {

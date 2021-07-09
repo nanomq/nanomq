@@ -107,10 +107,7 @@ nni_aio_init(nni_aio *aio, nni_cb cb, void *arg)
 	nni_task_init(&aio->a_task, NULL, cb, arg);
 	aio->a_expire  = NNI_TIME_NEVER;
 	aio->a_timeout = NNG_DURATION_INFINITE;
-	aio->pipe      = 0;
 	aio->packet_id = 0;
-	// aio->pipes       = NULL;
-	// aio->pipe_len  = 0;
 	aio->a_expire_q =
 	    nni_aio_expire_q_list[nni_random() % nni_aio_expire_q_cnt];
 }
@@ -331,7 +328,7 @@ nni_aio_begin(nni_aio *aio)
 	aio_safe_lock(&eq->eq_mtx);
 
 	NNI_ASSERT(!nni_aio_list_active(aio));
-	NNI_ASSERT(aio->a_cancel_fn == NULL);
+	//NNI_ASSERT(aio->a_cancel_fn == NULL);
 	NNI_ASSERT(!nni_list_node_active(&aio->a_expire_node));
 
 	// Some initialization can be done outside of the lock, because
@@ -814,18 +811,6 @@ uint16_t
 nni_aio_get_packetid(nni_aio *aio)
 {
 	return aio->packet_id;
-}
-
-void
-nni_aio_set_pipeline(nni_aio *aio, uint32_t id)
-{
-	aio->pipe = id;
-}
-
-uint32_t
-nni_aio_get_pipeline(nni_aio *aio)
-{
-	return aio->pipe;
 }
 
 /*
