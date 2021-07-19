@@ -9,7 +9,7 @@
 
 #include "nng/protocol/mqtt/mqtt_parser.h"
 #include "core/nng_impl.h"
-#include "include/nng_debug.h"
+#include "nng/nng_debug.h"
 #include "nng/protocol/mqtt/mqtt.h"
 
 #include <conf.h>
@@ -705,17 +705,17 @@ nano_msg_set_dup(nng_msg *msg)
 	*header = *header | 0x08;
 }
 
-// compose a publish msg according to your need
+// alloc a publish msg according to the need
 nng_msg *
 nano_msg_composer(
-    uint8_t retain, uint8_t qos, mqtt_string payload, mqtt_string topic)
+    uint8_t retain, uint8_t qos, mqtt_string *payload, mqtt_string *topic)
 {
 	size_t   rlen;
 	uint8_t *ptr, buf[5] = { '\0' };
 	uint32_t len;
 	nni_msg *msg;
 
-	len = payload.len + topic.len + 2;
+	len = payload->len + topic->len + 2;
 	if (qos > 0) {
 		nni_msg_alloc(&msg, len + 2);
 		rlen = put_var_integer(buf + 1, len + 2);
@@ -741,24 +741,23 @@ nano_msg_composer(
 	memcpy(ptr, buf, rlen + 1);
 
 	ptr = nni_msg_body(msg);
-	NNI_PUT16(ptr, topic.len);
+	NNI_PUT16(ptr, topic->len);
 	ptr = ptr + 2;
-	memcpy(ptr, topic.body, topic.len);
-	ptr += topic.len;
+	memcpy(ptr, topic->body, topic->len);
+	ptr += topic->len;
 	if (qos > 0) {
 		// Set pid?
 		NNI_PUT16(ptr, 0x10);
 		ptr = ptr + 2;
 	}
-	memcpy(ptr, payload.body, payload.len);
+	memcpy(ptr, payload->body, payload->len);
 	nni_msg_set_payload_ptr(msg, ptr);
-	nni_msg_set_cmd_type(msg, CMD_PUBLISH);
 
 	return msg;
 }
 
 uint8_t
-verify_connect(conn_param *cparam, uint8_t *reason_code, conf *conf)
+verify_connect(conn_param *cparam, conf *conf)
 {
 	int   i, n = conf->auths.count;
 	char *username = cparam->username.body;
@@ -789,4 +788,36 @@ verify_connect(conn_param *cparam, uint8_t *reason_code, conf *conf)
 	} else {
 		return 0x05;
 	}
+}
+
+nng_msg *
+nano_msg_notify_disconnect(conn_param *cparam, uint8_t code)
+{
+	nni_msg *   msg;
+	mqtt_string string, topic;
+	uint8_t     buff[256];
+	snprintf(buff, 256, DISCONNECT_MSG, cparam->username.body,
+	    (uint64_t) nni_clock(), code, cparam->clientid.body);
+	string.body = buff;
+	string.len  = strlen(string.body);
+	topic.body = DISCONNECT_TOPIC;
+	topic.len  = strlen(DISCONNECT_TOPIC);
+	msg        = nano_msg_composer(0, 0, &string, &topic);
+	return msg;
+}
+
+nng_msg *
+nano_msg_notify_connect(conn_param *cparam, uint8_t code)
+{
+	nni_msg *   msg;
+	mqtt_string string, topic;
+	uint8_t     buff[256];
+	snprintf(buff, 256, CONNECT_MSG, cparam->username.body,
+	    (uint64_t) nni_clock(), cparam->pro_name.body, cparam->keepalive_mqtt, code, cparam->pro_ver, cparam->clientid.body, cparam->clean_start);
+	string.body = buff;
+	string.len  = strlen(string.body);
+	topic.body = CONNECT_TOPIC;
+	topic.len  = strlen(CONNECT_TOPIC);
+	msg        = nano_msg_composer(0, 0, &string, &topic);
+	return msg;
 }
