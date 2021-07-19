@@ -12,8 +12,7 @@
 
 #include "nng/nng.h"
 // NanoMQ
-#include "include/nng_debug.h"
-
+#include "nng/nng_debug.h"
 // Internal implementation things for NNG, common definitions, etc.
 // All internal modules wind up including this file to avoid having
 // to figure out which header(s) to include.
