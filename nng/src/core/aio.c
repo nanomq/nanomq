@@ -563,7 +563,7 @@ nni_aio_expire_rm(nni_aio *aio)
 		}
 		nni_free(eq->eq_list, eq->eq_cap * sizeof(nni_aio *));
 		eq->eq_list = new_list;
-		eq->eq_cap /= 4;
+		eq->eq_cap /= 2;
 	}
 }
 
