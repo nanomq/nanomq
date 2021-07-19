@@ -905,7 +905,7 @@ nano_pipe_close(void *arg, uint8_t reason_code)
 		nni_list_remove(&s->recvq, ctx);
 		nni_mtx_unlock(&s->lk);
 		nni_aio_set_msg(aio, msg);
-		nni_aio_finish(aio, 0, nni_msg_len(msg));
+		nni_aio_finish_sync(aio, 0, nni_msg_len(msg));
 		return;
 	} else {
 		debug_msg("Warning: no ctx left!! faied to send disconnect notification");
