@@ -52,8 +52,6 @@ struct nano_ctx {
 	// nni_list      send_queue; // contexts waiting to send.
 	nni_list_node sqnode;
 	nni_list_node rqnode;
-	nni_msg *     rmsg;
-	nni_msg *     smsg;
 	// nni_timer_node qos_timer;
 };
 
@@ -178,8 +176,6 @@ nano_ctx_close(void *arg)
 		ctx->saio     = NULL;
 		ctx->spipe    = NULL;
 		ctx->qos_pipe = NULL;
-		ctx->rmsg     = NULL;
-		// nni_list_remove(&pipe->sendq, ctx);
 		nni_aio_finish_error(aio, NNG_ECLOSED);
 	}
 	if ((aio = ctx->raio) != NULL) {
@@ -281,7 +277,8 @@ nano_ctx_send(void *arg, nni_aio *aio)
 		// lost interest in our reply.
 		nni_mtx_unlock(&s->lk);
 		nni_aio_set_msg(aio, NULL);
-		nni_println("ERROR: pipe is gone, pub failed");
+		//TODO lastwill/SYS topic will trigger this (sub to the topic that publish to by itself)
+		debug_syslog("ERROR: pipe is gone, pub failed");
 		nni_msg_free(msg);
 		return;
 	}
@@ -757,6 +754,7 @@ nano_pipe_init(void *arg, nni_pipe *pipe, void *s)
 	nni_mtx_init(&p->lk);
 	nni_lmq_init(&p->rlmq, sock->conf->msq_len);
 	nni_aio_init(&p->aio_send, nano_pipe_send_cb, p);
+	//TODO move keepalive monitor to transport layer?
 	nni_aio_init(&p->aio_timer, nano_pipe_timer_cb, p);
 	nni_aio_init(&p->aio_recv, nano_pipe_recv_cb, p);
 
@@ -818,27 +816,24 @@ nano_pipe_start(void *arg)
 	        return (NNG_EPROTO);
 	}
 	*/
-	nni_mtx_lock(&s->lk);
-	// TODO replace pipe_id with hash key of client_id
-	// pipe_id is just random value of id_dyn_val with self-increment.
-	rv = nni_id_set(&s->pipes, nni_pipe_id(p->pipe), p);
-	nni_mtx_unlock(&s->lk);
-	//futex here might not be necessary
-	nni_mtx_lock(&p->lk);
-	nni_aio_get_output(&p->aio_recv, 1);
 	nni_msg_alloc(&msg, 0);
 	nni_msg_header_append(msg, buf, 4);
 	reason = nni_msg_header(msg) + 2;
-	rv = verify_connect(p->conn_param, &rv, s->conf);
+	nni_mtx_lock(&s->lk);
+	// TODO replace pipe_id with hash key of client_id
+	// pipe_id is just random value of id_dyn_val with self-increment.
+	nni_id_set(&s->pipes, nni_pipe_id(p->pipe), p);
+	rv = verify_connect(p->conn_param, s->conf);
 	if (rv != 0) {
 		// TODO disconnect client && send connack with reason code 0x05
 		debug_syslog("Invalid auth info.");
-		*(reason + 3) = rv;
+		*(reason + 1) = rv;		//set return code
 	}
 	rv = nano_session_restore(p, s, reason);
+	nni_mtx_unlock(&s->lk);
 
-	// TODO MQTT V5
-	if (*(reason + 3) == 0) {
+	// TODO MQTT V5 check return code
+	if (*(reason + 1) == 0) {
 		nni_sleep_aio(s->conf->qos_timer * 1500, &p->aio_timer);
 	}
 	nni_msg_set_cmd_type(msg, CMD_CONNACK);
@@ -846,7 +841,6 @@ nano_pipe_start(void *arg)
 	// There is no need to check the  state of aio_recv
 	// Since pipe_start is definetly the first cb to be excuted of pipe.
 	nni_aio_set_msg(&p->aio_recv, msg);
-	nni_mtx_unlock(&p->lk);
 	nni_aio_finish(&p->aio_recv, 0, nni_msg_len(msg));
 	return (rv);
 }
@@ -868,6 +862,7 @@ close_pipe(nano_pipe *p, uint8_t reason_code)
 	}
 	nni_lmq_flush(&p->rlmq);
 
+	//TODO delete
 	while ((ctx = nni_list_first(&p->sendq)) != NULL) {
 		nni_aio *aio;
 		nni_msg *msg;
@@ -886,34 +881,34 @@ close_pipe(nano_pipe *p, uint8_t reason_code)
 static void
 nano_pipe_close(void *arg, uint8_t reason_code)
 {
-	nano_pipe *p = arg;
-	nano_sock *s = p->rep;
+	nano_pipe * p = arg;
+	nano_sock * s = p->rep;
+	nano_ctx *  ctx;
+	conn_param *cparam;
+	nni_aio *   aio = NULL;
+	nni_msg *   msg;
 
 	debug_msg("################# nano_pipe_close ##############");
 	nni_mtx_lock(&s->lk);
 	close_pipe(p, reason_code);
-	// pub last will msg
-	if (p->conn_param->will_flag) {
-		nano_ctx *ctx;
-		nni_aio * aio = NULL;
-		nni_msg * msg;
-		if ((ctx = nni_list_first(&s->recvq)) != NULL) {
-		    msg = nano_msg_composer(p->conn_param->will_retain,
-		                            p->conn_param->will_qos,
-		                            p->conn_param->will_msg,
-		                            p->conn_param->will_topic);
-			if (msg == NULL) {
-				nni_mtx_unlock(&s->lk);
-				return;
-			}
-			aio = ctx->raio;
-			ctx->raio = NULL;
-			nni_list_remove(&s->recvq, ctx);
+	// pub disconnect event
+	if ((ctx = nni_list_first(&s->recvq)) != NULL) {
+		msg = nano_msg_notify_disconnect(p->conn_param, reason_code);
+		if (msg == NULL) {
 			nni_mtx_unlock(&s->lk);
-			nni_aio_set_msg(aio, msg);
-			nni_aio_finish(aio, 0, nni_msg_len(msg));
 			return;
 		}
+		nni_msg_set_conn_param(msg, p->conn_param);
+		nni_msg_set_cmd_type(msg, CMD_DISCONNECT_EV);
+		aio       = ctx->raio;
+		ctx->raio = NULL;
+		nni_list_remove(&s->recvq, ctx);
+		nni_mtx_unlock(&s->lk);
+		nni_aio_set_msg(aio, msg);
+		nni_aio_finish(aio, 0, nni_msg_len(msg));
+		return;
+	} else {
+		debug_msg("Warning: no ctx left!! faied to send disconnect notification");
 	}
 	nni_mtx_unlock(&s->lk);
 }
@@ -937,15 +932,11 @@ nano_pipe_send_cb(void *arg)
 	}
 	nni_mtx_lock(&p->lk);
 
-	// printf("before : rlmq msg resending! %ld %p \n",
-	// nni_lmq_len(&p->rlmq), &p->rlmq);
 	nni_aio_set_packetid(&p->aio_send, 0);
 	if (nni_lmq_getq(&p->rlmq, &msg) == 0) {
 		nni_aio_set_msg(&p->aio_send, msg);
 		debug_msg("rlmq msg resending! %ld msgs left\n",
 		    nni_lmq_len(&p->rlmq));
-		// printf("rlmq of %ld msg resending! %ld msgs left\n",p->id,
-		// nni_lmq_len(&p->rlmq));
 		nni_pipe_send(p->pipe, &p->aio_send);
 		nni_mtx_unlock(&p->lk);
 		return;
@@ -953,7 +944,6 @@ nano_pipe_send_cb(void *arg)
 
 	p->busy = false;
 	nni_mtx_unlock(&p->lk);
-	// debug_msg("nano_pipe_send_cb: end of qos logic ctx : %p", ctx);
 	return;
 }
 
@@ -1040,6 +1030,9 @@ nano_pipe_recv_cb(void *arg)
 	nni_aio *     aio;
 	nano_pipe_db *pipe_db;
 	nni_pipe *    npipe = p->pipe;
+			uint8_t * ptr;
+		uint16_t  ackid;
+		nni_msg * qos_msg;
 
 	if (nni_aio_result(&p->aio_recv) != 0) {
 		//unexpected disconnect
@@ -1075,12 +1068,23 @@ nano_pipe_recv_cb(void *arg)
 	case CMD_CONNACK:
 	case CMD_CONNECT:
 		break;
-	case CMD_PUBREC:
-		// break;
-	// case CMD_PINGREQ:
-	case CMD_PUBREL:
 	case CMD_PUBACK:
 	case CMD_PUBCOMP:
+	nni_mtx_lock(&p->lk);
+		ptr   = nni_msg_body(msg);
+		NNI_GET16(ptr, ackid);
+		if ((qos_msg = nni_id_get(npipe->nano_qos_db, ackid)) !=
+		    NULL) {
+			nni_msg_free(qos_msg);
+			nni_id_remove(npipe->nano_qos_db, ackid);
+		} else {
+			// shouldn't get here BUG TODO
+			debug_syslog("qos msg not found!");
+		}
+		nni_mtx_unlock(&p->lk);
+		goto drop;
+	case CMD_PUBREC:
+	case CMD_PUBREL:
 		goto drop;
 	default:
 		goto drop;
@@ -1129,10 +1133,10 @@ nano_pipe_recv_cb(void *arg)
 
 drop:
 	nni_aio_set_msg(&p->aio_recv, NULL);
-	nni_pipe_recv(p->pipe, &p->aio_recv);
 	nni_msg_free(msg);
-	debug_msg("Warning:dropping msg");
 end:
+	nni_pipe_recv(p->pipe, &p->aio_recv);
+	debug_msg("Warning:dropping msg");
 	return;
 }
 

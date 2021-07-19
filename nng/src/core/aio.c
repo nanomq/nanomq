@@ -9,7 +9,7 @@
 //
 
 #include "core/nng_impl.h"
-#include "include/nng_debug.h"
+#include "nng/nng_debug.h"
 #include <string.h>
 
 struct nni_aio_expire_q {
