@@ -8,7 +8,7 @@
 #include <nng/supplemental/util/platform.h>
 
 struct work {
-	enum { INIT, RECV, WAIT, SEND, RESEND, FREE } state;
+	enum { INIT, RECV, WAIT, SEND, RESEND, FREE, NOTIFY } state;
 
 	uint8_t   proto;
 	nng_aio * aio;

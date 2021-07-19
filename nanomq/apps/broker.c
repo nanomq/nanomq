@@ -65,9 +65,10 @@ void
 server_cb(void *arg)
 {
 	nano_work *work = arg;
-	nng_msg * msg;
-	nng_msg * smsg = NULL, *tmsg = NULL;
-	int       rv, i;
+	nng_msg *  msg;
+	nng_msg *  smsg = NULL;
+	uint8_t    flag;
+	int        rv;
 
 	reason_code reason;
 	uint8_t *   ptr;
@@ -77,13 +78,12 @@ server_cb(void *arg)
 	switch (work->state) {
 	case INIT:
 		debug_msg(
-		    "INIT ^^^^^^^^^^^^^^^^^^^^^ ctx%d ^^^^\n", work->ctx.id);
+		    "INIT ^^^^ ctx%d ^^^^\n", work->ctx.id);
 		work->state = RECV;
 		nng_ctx_recv(work->ctx, work->aio);
 		break;
 	case RECV:
-		debug_msg(
-		    "RECV  ^^^^^^^^^^^^^^^^^^^^^ ctx%d ^^^^\n", work->ctx.id);
+		debug_msg("RECV  ^^^^ ctx%d ^^^^\n", work->ctx.id);
 		if ((rv = nng_aio_result(work->aio)) != 0) {
 			debug_syslog(
 			    "ERROR: RECV nng aio result error: %d", rv);
@@ -97,36 +97,52 @@ server_cb(void *arg)
 		}
 		work->msg    = msg;
 		work->cparam = nng_msg_get_conn_param(work->msg);
+		work->proto  = conn_param_get_protover(work->cparam);
 
 		if (nng_msg_cmd_type(msg) == CMD_DISCONNECT) {
-			work->state = RECV;
+			// TODO reuse DISCONNECT msg
 			nng_msg_free(msg);
-			work->msg = NULL;
-			nng_ctx_recv(work->ctx, work->aio);
-			break;
+			if (conn_param_get_will_flag(work->cparam)) {
+				// pub last will msg TODO reuse same msg.
+				msg = nano_msg_composer(
+				    conn_param_get_will_retain(work->cparam),
+				    conn_param_get_will_qos(work->cparam),
+				    conn_param_get_will_msg(work->cparam),
+				    conn_param_get_will_topic(work->cparam));
+				nng_msg_set_cmd_type(msg, CMD_PUBLISH);
+				work->msg = msg;
+				handle_pub(work, work->pipe_ct);
+			} else {
+				work->msg   = NULL;
+				work->state = RECV;
+				nng_ctx_recv(work->ctx, work->aio);
+				break;
+			}
 		} else if (nng_msg_cmd_type(msg) == CMD_PUBLISH) {
 			nng_msg_set_timestamp(msg, nng_clock());
+			nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 			handle_pub(work, work->pipe_ct);
 		} else if (nng_msg_cmd_type(msg) == CMD_CONNACK) {
 			work->pid = nng_msg_get_pipe(work->msg);
 			nng_msg_set_pipe(work->msg, work->pid);
+			// clone for sending connect event notification
+			nng_msg_clone(work->msg);
 			nng_aio_set_msg(work->aio, work->msg);
-			work->msg   = NULL;
-			work->state = SEND;
+			work->state = NOTIFY;
 			nng_ctx_send(work->ctx, work->aio);
-			nng_aio_finish(work->aio, 0);
+			nng_aio_finish_sync(work->aio, 0);
 			break;
+		} else if (nng_msg_cmd_type(msg) == CMD_DISCONNECT_EV) {
+			nng_msg_set_cmd_type(work->msg, CMD_PUBLISH);
+			handle_pub(work, work->pipe_ct);
 		}
 		work->state = WAIT;
-		debug_msg(
-		    "RECV ********************* msg: %x*****************\n",
-		    nng_msg_cmd_type(work->msg));
 		nng_aio_finish(work->aio, 0);
 		// nng_aio_finish_sync(work->aio, 0);
 		break;
 	case WAIT:
 		debug_msg(
-		    "WAIT ^^^^^^^^^^^^^^^^^^^^^ ctx%d ^^^^", work->ctx.id);
+		    "WAIT ^^^^ ctx%d ^^^^", work->ctx.id);
 		if (nng_msg_cmd_type(work->msg) == CMD_PINGREQ) {
 			if (work->msg != NULL)
 				nng_msg_free(work->msg);
@@ -251,7 +267,7 @@ server_cb(void *arg)
 			destroy_unsub_ctx(work->unsub_pkt);
 			nng_msg_free(work->msg);
 
-			work->msg = smsg;
+			work->msg    = smsg;
 			work->pid.id = 0;
 			nng_msg_set_pipe(work->msg, work->pid);
 			nng_aio_set_msg(work->aio, work->msg);
@@ -266,9 +282,7 @@ server_cb(void *arg)
 				debug_msg("WAIT nng aio result error: %d", rv);
 				fatal("WAIT nng_ctx_recv/send", rv);
 			}
-			// nng_msg_alloc(&smsg, 0);
-			// nng_msg_free(work->msg);
-			smsg = work->msg; // reuse the same msg memory
+			smsg      = work->msg; // reuse the same msg memory
 			work->msg = NULL;
 
 			debug_msg("total pipes: %d", work->pipe_ct->total);
@@ -287,10 +301,10 @@ server_cb(void *arg)
 					nng_msg_clone(smsg);
 					work->msg = smsg;
 					nng_aio_set_msg(work->aio, work->msg);
-					//TODO pipe = 0?
+					// TODO pipe = 0?
 					work->pid.id = p_info.pipe;
 					nng_msg_set_pipe(work->msg, work->pid);
-					work->msg = NULL;
+					work->msg   = NULL;
 					work->state = SEND;
 					work->pipe_ct->current_index++;
 					nng_ctx_send(work->ctx, work->aio);
@@ -344,8 +358,6 @@ server_cb(void *arg)
 		break;
 
 	case SEND:
-		debug_msg(
-		    "SEND  ^^^^^^^^^^^^^^^^^^^^^ ctx%d ^^^^\n", work->ctx.id);
 		if (NULL != smsg) {
 			smsg = NULL;
 		}
@@ -362,6 +374,21 @@ server_cb(void *arg)
 		work->msg   = NULL;
 		work->state = RECV;
 		nng_ctx_recv(work->ctx, work->aio);
+		break;
+	case NOTIFY:
+		if ((rv = nng_aio_result(work->aio)) != 0) {
+			debug_msg("SEND nng aio result error: %d", rv);
+			fatal("SEND nng_ctx_send", rv);
+		}
+		uint8_t *header = nng_msg_header(work->msg) + 3;
+		flag            = *header;
+		nng_msg_free(work->msg);
+		smsg = nano_msg_notify_connect(work->cparam, flag);
+		nng_msg_set_cmd_type(smsg, CMD_PUBLISH);
+		work->msg   = smsg;
+		work->state = WAIT;
+		handle_pub(work, work->pipe_ct);
+		nng_aio_finish(work->aio, 0);
 		break;
 	default:
 		fatal("bad state!", NNG_ESTATE);
@@ -400,7 +427,7 @@ broker(conf *nanomq_conf)
 	nng_pipe     pipe_id;
 	int          rv;
 	int          i;
-	uint8_t      num_ctx = nanomq_conf->parallel;
+	uint64_t     num_ctx = nanomq_conf->parallel;
 	struct work *works[num_ctx];
 	const char * url = nanomq_conf->url;
 
@@ -431,6 +458,7 @@ broker(conf *nanomq_conf)
 		works[i]         = alloc_work(sock);
 		works[i]->db     = db;
 		works[i]->db_ret = db_ret;
+		works[i]->proto  = 0;
 	}
 
 	if ((rv = nng_listen(sock, url, NULL, 0)) != 0) {
@@ -594,7 +622,8 @@ broker_start(int argc, char **argv)
 		fprintf(stderr,
 		    "INFO: invalid input url, using default url: %s\n"
 		    "Set the url by editing nanomq.conf "
-		    "or command-line (-url <url>).\n", CONF_URL_DEFAULT);
+		    "or command-line (-url <url>).\n",
+		    CONF_URL_DEFAULT);
 		nanomq_conf->url = CONF_URL_DEFAULT;
 	}
 
