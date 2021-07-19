@@ -1,5 +1,5 @@
 //
-// Copyright 2021 Staysail Systems, Inc. <info@staysail.tech>
+// Copyright 2020 Staysail Systems, Inc. <info@staysail.tech>
 // Copyright 2017 Capitar IT Group BV <info@capitar.com>
 //
 // This software is supplied under the terms of the MIT License, a
@@ -38,11 +38,6 @@ extern void     nni_msg_dump(const char *, const nni_msg *);
 extern void     nni_msg_header_append_u32(nni_msg *, uint32_t);
 extern uint32_t nni_msg_header_trim_u32(nni_msg *);
 extern uint32_t nni_msg_trim_u32(nni_msg *);
-// Peek and poke variants just access the first uint32 in the
-// header.  This is useful when incrementing reference counts, etc.
-// It's faster than trim and append, but logically equivalent.
-extern uint32_t nni_msg_header_peek_u32(nni_msg *);
-extern void     nni_msg_header_poke_u32(nni_msg *, uint32_t);
 extern void     nni_msg_set_pipe(nni_msg *, uint32_t);
 extern uint32_t nni_msg_get_pipe(const nni_msg *);
 
@@ -53,8 +48,6 @@ extern uint32_t nni_msg_get_pipe(const nni_msg *);
 // Failure to do so will likely result in corruption.
 extern void     nni_msg_clone(nni_msg *);
 extern nni_msg *nni_msg_unique(nni_msg *);
-extern bool     nni_msg_shared(nni_msg *);
-
 // nni_msg_pull_up ensures that the message is unique, and that any
 // header present is "pulled up" into the message body.  If the function
 // cannot do this for any reason (out of space in the body), then NULL
@@ -109,7 +102,7 @@ struct conn_param {
 	uint8_t            will_flag;
 	uint8_t            will_retain;
 	uint8_t            will_qos;
-	nni_id_map *       nano_qos_db;
+	nni_id_map       * nano_qos_db;
 	struct mqtt_string pro_name;
 	struct mqtt_string clientid;
 	struct mqtt_string will_topic;

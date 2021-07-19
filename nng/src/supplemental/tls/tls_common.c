@@ -1473,7 +1473,7 @@ nng_tls_engine_register(const nng_tls_engine *engine)
 extern int NNG_TLS_ENGINE_INIT(void);
 #else
 static int
-NNG_TLS_ENGINE_INIT(void)
+NNI_TLS_ENGINE_INIT(void)
 {
 	return (0);
 }

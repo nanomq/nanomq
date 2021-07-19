@@ -70,7 +70,7 @@ pipe_destroy(void *arg)
 		nni_cv_wait(&p->p_cv);
 	}
 	nni_id_map_fini(&p->nano_db);
-	// nni_id_map_fini(&p->nano_qos_db);
+	//nni_id_map_fini(&p->nano_qos_db);
 	nni_mtx_unlock(&pipes_lk);
 
 	if (p->p_proto_data != NULL) {

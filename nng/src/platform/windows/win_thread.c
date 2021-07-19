@@ -333,7 +333,7 @@ nni_plat_thr_set_name(nni_plat_thr *thr, const char *name)
 	if (set_thread_desc != NULL) {
 		wchar_t *wcs;
 		size_t   len;
-		HANDLE h;
+		HANDLE   h;
 
 		if (thr == NULL) {
 			h = GetCurrentThread();

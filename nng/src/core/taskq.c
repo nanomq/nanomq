@@ -236,34 +236,28 @@ nni_task_fini(nni_task *task)
 }
 
 void
-nni_taskq_setter(int num_taskq_threads, int max_taskq_threads)
-{
+nni_taskq_setter(int num_taskq_threads, int max_taskq_threads) {
 	if (num_taskq_threads)
 		var_num_taskq_threads = num_taskq_threads;
 	if (max_taskq_threads)
 		var_max_taskq_threads = max_taskq_threads;
-	debug_msg("command line given: tq [%d], max_tq [%d]",
-	    var_num_taskq_threads, var_max_taskq_threads);
+	debug_msg("command line given: tq [%d], max_tq [%d]", var_num_taskq_threads, var_max_taskq_threads);
 }
 
 static int
-nni_taskq_getter(void)
-{
+nni_taskq_getter(void) {
 	if (var_num_taskq_threads && var_max_taskq_threads) {
 		if (var_num_taskq_threads >= var_max_taskq_threads)
 			return var_max_taskq_threads;
 	}
-	debug_msg("command line given: tq [%d], max_tq [%d]",
-	    var_num_taskq_threads, var_max_taskq_threads);
-	return var_num_taskq_threads ? var_num_taskq_threads
-	                             : var_max_taskq_threads;
+	debug_msg("command line given: tq [%d], max_tq [%d]", var_num_taskq_threads, var_max_taskq_threads);
+	return var_num_taskq_threads?var_num_taskq_threads:var_max_taskq_threads;
 }
 
 int
 nni_taskq_sys_init(void)
 {
 	int nthrs;
-
 #ifndef NNG_NUM_TASKQ_THREADS
 	nthrs = nni_plat_ncpu() * 2;
 #else
