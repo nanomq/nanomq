@@ -44,16 +44,16 @@ struct conf_auth {
 typedef struct conf_auth conf_auth;
 
 struct conf {
-	char *url;
-	int   num_taskq_thread;
-	int   max_taskq_thread;
-	int   parallel;
-	int   property_size;
-	int   msq_len;
-	int   qos_timer;
-	void *db_root;
-	bool  allow_anonymous;
-	bool  daemon;
+	char *   url;
+	int      num_taskq_thread;
+	int      max_taskq_thread;
+	uint64_t parallel;
+	int      property_size;
+	int      msq_len;
+	int      qos_timer;
+	void *   db_root;
+	bool     allow_anonymous;
+	bool     daemon;
 
 	conf_auth auths;
 };
