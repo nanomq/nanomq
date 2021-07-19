@@ -106,8 +106,8 @@ test_wild_card_host(void)
 	snprintf(addr, sizeof(addr), "ws://127.0.0.1:%u/test", port);
 	NUTS_PASS(nng_dial(s2, addr, NULL, 0));
 
-	NUTS_CLOSE(s2);
 	NUTS_CLOSE(s1);
+	NUTS_CLOSE(s2);
 }
 
 static void
@@ -131,8 +131,8 @@ test_empty_host(void)
 	snprintf(addr, sizeof(addr), "ws://127.0.0.1:%u/test", port);
 	NUTS_PASS(nng_dial(s2, addr, NULL, 0));
 
-	NUTS_CLOSE(s2);
 	NUTS_CLOSE(s1);
+	NUTS_CLOSE(s2);
 }
 
 void
@@ -145,8 +145,6 @@ test_ws_recv_max(void)
 	nng_listener l;
 	size_t       sz;
 	char *       addr;
-
-	memset(msg, 0, sizeof(msg)); // required to silence valgrind
 
 	NUTS_ADDR(addr, "ws");
 	NUTS_OPEN(s0);

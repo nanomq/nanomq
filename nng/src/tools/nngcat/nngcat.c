@@ -1114,8 +1114,8 @@ main(int ac, char **av)
 				    nng_strerror(rv));
 			}
 			if (zthome != NULL) {
-				rv = nng_dialer_set(d, NNG_OPT_ZT_HOME,
-				    zthome, strlen(zthome) + 1);
+				rv = nng_dialer_set(d, NNG_OPT_ZT_HOME, zthome,
+				    strlen(zthome) + 1);
 				if ((rv != 0) && (rv != NNG_ENOTSUP)) {
 					fatal("Unable to set ZT home: %s",
 					    nng_strerror(rv));

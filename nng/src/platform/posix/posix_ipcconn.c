@@ -385,7 +385,7 @@ ipc_peerid(ipc_conn *c, uint64_t *euid, uint64_t *egid, uint64_t *prid,
 			*prid = (uint64_t) pid;
 		}
 	}
-#endif // NNG_HAVE_LOCALPEERPID
+#endif                             // NNG_HAVE_LOCALPEERPID
 	return (0);
 #else
 	if (fd < 0) {

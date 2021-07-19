@@ -236,8 +236,7 @@ nng_dialer_getopt_sockaddr(nng_dialer id, const char *n, nng_sockaddr *v)
 }
 
 int
-nng_dialer_setopt(
-    nng_dialer id, const char *name, const void *v, size_t sz)
+nng_dialer_setopt(nng_dialer id, const char *name, const void *v, size_t sz)
 {
 	return (nng_dialer_set(id, name, v, sz));
 }

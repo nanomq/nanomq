@@ -1,5 +1,5 @@
 //
-// Copyright 2021 Staysail Systems, Inc. <info@staysail.tech>
+// Copyright 2020 Staysail Systems, Inc. <info@staysail.tech>
 // Copyright 2018 Capitar IT Group BV <info@capitar.com>
 //
 // This software is supplied under the terms of the MIT License, a
@@ -209,7 +209,6 @@ extern void nni_proto_sys_fini(void);
 
 // For Nanomq
 
-extern int nni_proto_mqtt_open(
-    nng_socket *, const nni_proto *, void (*sock_setdb)(void *, void *));
+extern int nni_proto_mqtt_open(nng_socket *, const nni_proto *, void (*sock_setdb)(void *, void *));
 
 #endif // CORE_PROTOCOL_H

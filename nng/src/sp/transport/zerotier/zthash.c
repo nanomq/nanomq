@@ -8,8 +8,8 @@
 // found online at https://opensource.org/licenses/MIT.
 //
 
-#include "core/nng_impl.h"
 #include "zthash.h"
+#include "core/nng_impl.h"
 
 struct zt_hash_entry {
 	uint64_t key;
@@ -192,8 +192,8 @@ zt_hash_resize(zt_hash *h)
 int
 zt_hash_remove(zt_hash *h, uint64_t id)
 {
-	size_t         index;
-	size_t         probe;
+	size_t index;
+	size_t probe;
 
 	if ((index = zt_hash_find_index(h, id)) == (size_t) -1) {
 		return (NNG_ENOENT);
