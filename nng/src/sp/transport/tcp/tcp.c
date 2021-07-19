@@ -10,7 +10,7 @@
 
 #include "core/nng_impl.h"
 #include "core/sockimpl.h"
-#include "include/nng_debug.h"
+#include "nng/nng_debug.h"
 
 #include "nng/protocol/mqtt/mqtt.h"
 #include "nng/protocol/mqtt/mqtt_parser.h"
@@ -627,22 +627,7 @@ tcptran_pipe_recv_cb(void *arg)
 		p->cmd = CMD_PUBCOMP;
 		nng_stream_send(p->conn, p->qsaio);
 	} else if (type == CMD_PUBACK || type == CMD_PUBCOMP) {
-		uint8_t * ptr;
-		uint16_t  ackid;
-		nni_msg * qos_msg;
-		nni_pipe *npipe;
-
-		npipe = p->npipe;
-		ptr   = nni_msg_body(msg);
-		NNI_GET16(ptr, ackid);
-		if ((qos_msg = nni_id_get(npipe->nano_qos_db, ackid)) !=
-		    NULL) {
-			nni_msg_free(qos_msg);
-			nni_id_remove(npipe->nano_qos_db, ackid);
-		} else {
-			// shouldn't get here BUG TODO
-			debug_syslog("qos msg not found!");
-		}
+        //TODO move keepalive timer & ACK checker to transport layer
 	} else {
 		payload_ptr = NULL;
 	}
@@ -671,10 +656,11 @@ recv_error:
 	return;
 notify:
 	// nni_pipe_bump_rx(p->npipe, n);
-	// nni_aio_list_remove(aio);
+	nni_aio_list_remove(aio);
 	tcptran_pipe_recv_start(p);
 	nni_mtx_unlock(&p->mtx);
-	// nni_aio_finish_error(aio, rv);		//only finishes when we need
+	nni_aio_set_msg(aio, NULL);
+	nni_aio_finish(aio, 0, 0);		//only finishes when we need
 	// PINGREQ event
 	return;
 }
@@ -711,7 +697,6 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 	nni_msg *msg;
 	int      niov;
 	nni_iov  iov[4];
-	// nano_pipe_db *db;
 
 	debug_msg("########### tcptran_pipe_send_start ###########");
 	if (p->closed) {
