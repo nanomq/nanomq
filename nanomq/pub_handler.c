@@ -627,11 +627,12 @@ decode_pub_message(nano_work *work)
 	int     pos      = 0;
 	int     used_pos = 0;
 	int     len, len_of_varint;
-	uint8_t proto_ver = conn_param_get_protover(work->cparam);
-	if (nng_msg_cmd_type(work->msg) == CMD_PUBLISH) {
-		proto_ver = 4;
+	if (work->proto == 0) {
+		work->proto = conn_param_get_protover(work->cparam);
 	}
-	work->proto       = proto_ver;
+	if (nng_msg_cmd_type(work->msg) == CMD_PUBLISH) {
+		work->proto = 4;
+	}
 
 	nng_msg *                 msg        = work->msg;
 	struct pub_packet_struct *pub_packet = work->pub_packet;
@@ -704,7 +705,7 @@ decode_pub_message(nano_work *work)
 		pub_packet->variable_header.publish.properties.len = 0;
 
 #if SUPPORT_MQTT5_0
-		if (PROTOCOL_VERSION_v5 == proto_ver) {
+		if (PROTOCOL_VERSION_v5 == work->proto) {
 			len_of_varint = 0;
 			pub_packet->variable_header.publish.properties.len =
 			    get_var_integer(msg_body, &len_of_varint);
@@ -1025,7 +1026,7 @@ decode_pub_message(nano_work *work)
 		}
 		/* check */
 		else {
-			debug_msg("NOMQTT5ERR [%d] [%d]", proto_ver,
+			debug_msg("NOMQTT5ERR [%d] [%d]", work->proto,
 			    PROTOCOL_VERSION_v5);
 		}
 #endif

@@ -31,7 +31,7 @@
 #define NNI_NANO_MAX_PACKET_SIZE sizeof(uint8_t) * 12
 #endif
 
-/* Message types */
+/* Message types & flags */
 #define CMD_UNKNOWN 0x00
 #define CMD_CONNECT 0x10
 #define CMD_CONNACK 0x20
@@ -49,6 +49,8 @@
 #define CMD_DISCONNECT 0xE0
 #define CMD_AUTH_V5 0xF0
 #define CMD_PUBLISH_V5 0x31
+#define CMD_DISCONNECT_EV 0xE2
+#define CMD_LASTWILL 0XE3
 
 /* Error values */
 enum err_t {
