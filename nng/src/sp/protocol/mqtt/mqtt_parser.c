@@ -43,7 +43,7 @@ get_value_size(uint64_t value)
 	uint8_t  len = 1;
 	uint64_t pow;
 	for (int i = 1; i <= 4; ++i) {
-		pow = power(0x100, i);
+		pow = power(0x080, i);
 		if (value >= pow) {
 			++len;
 		} else {
