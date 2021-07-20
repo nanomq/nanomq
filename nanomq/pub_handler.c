@@ -40,43 +40,6 @@ init_pipe_content(struct pipe_content *pipe_ct)
 }
 
 void
-put_pipe_msgs(client_ctx *sub_ctx, nano_work *self_work,
-    struct pipe_content *pipe_ct, mqtt_control_packet_types cmd)
-{
-	pipe_ct->pipe_info = (struct pipe_info *) zrealloc(pipe_ct->pipe_info,
-	    sizeof(struct pipe_info) * (pipe_ct->total + 1));
-
-	pipe_ct->pipe_info[pipe_ct->total].index = pipe_ct->total;
-	if (PUBLISH == cmd && sub_ctx != NULL) {
-		pipe_ct->pipe_info[pipe_ct->total].pipe = sub_ctx->pid.id;
-		pipe_ct->pipe_info[pipe_ct->total].qos =
-		    sub_ctx->sub_pkt->node->it->qos;
-	} else {
-		pipe_ct->pipe_info[pipe_ct->total].pipe = self_work->pid.id;
-		pipe_ct->pipe_info[pipe_ct->total].qos =
-		    self_work->pub_packet->fixed_header.qos;
-	}
-	pipe_ct->pipe_info[pipe_ct->total].cmd  = cmd;
-	pipe_ct->pipe_info[pipe_ct->total].work = self_work;
-
-	/*	debug_msg("put sub pipe_info: index: [%d], "
-	                  "pipe: [%d], "
-	                  "qos: [%d], "
-	                  "cmd: [%d], "
-	                  "self_work: [%p], "
-	                  "self pipe: [%d]",
-	                  pipe_ct->pipe_info[pipe_ct->total].index,
-	                  pipe_ct->pipe_info[pipe_ct->total].pipe,
-	                  pipe_ct->pipe_info[pipe_ct->total].qos,
-	                  pipe_ct->pipe_info[pipe_ct->total].cmd,
-	                  pipe_ct->pipe_info[pipe_ct->total].work,
-	                  pipe_ct->pipe_info[pipe_ct->total].work->pid.id
-	        );*/
-
-	pipe_ct->total += 1;
-}
-
-void
 foreach_client(
     void **cli_ctx_list, nano_work *pub_work, struct pipe_content *pipe_ct)
 {
@@ -84,25 +47,28 @@ foreach_client(
 	packet_subscribe * sub_pkt;
 	struct client_ctx *ctx;
 
-	for (int i = 0; i < cvector_size(cli_ctx_list); i++) {
-		equal   = false;
+	int      ctx_list_len = cvector_size(cli_ctx_list);
+	uint32_t pids[ctx_list_len];
+
+	for (int i = 0; i < ctx_list_len; i++) {
 		ctx     = (struct client_ctx *) cli_ctx_list[i];
+		pids[i] = ctx->pid.id;
 		sub_pkt = ctx->sub_pkt;
-		// NO LOCAL
+	}
 
-		debug_msg("sub pkt %p", sub_pkt);
-		debug_msg("pid1 %d", ctx->pid.id);
-		debug_msg("pid2 %d", pub_work->pid.id);
-		if (sub_pkt->node->it->no_local &&
-		    ctx->pid.id == pub_work->pid.id) {
-			equal = true;
+	for (int i = 0; i < ctx_list_len; i++) {
+		if (pids[i] == 0) {
+			continue;
 		}
+		pipe_ct->pipe_info = zrealloc(pipe_ct->pipe_info,
+		    sizeof(struct pipe_info) * (pipe_ct->total + 1));
 
-		if (equal == false) {
-			// debug_msg("sub_client: [%p], id: [%s], pipe: [%d]",
-			// sub_client, sub_client->id, ctx->pid.id);
-			put_pipe_msgs(ctx, pub_work, pipe_ct, PUBLISH);
-		}
+		pipe_ct->pipe_info[pipe_ct->total].index = pipe_ct->total;
+		pipe_ct->pipe_info[pipe_ct->total].pipe  = pids[i];
+		pipe_ct->pipe_info[pipe_ct->total].cmd   = PUBLISH;
+		pipe_ct->pipe_info[pipe_ct->total].work  = pub_work;
+
+		pipe_ct->total += 1;
 	}
 }
 
@@ -115,76 +81,30 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct)
 	    sizeof(struct pub_packet_struct));
 
 	reason_code result = decode_pub_message(work);
-	if (SUCCESS == result) {
-		debug_msg("decode message success");
+	if (SUCCESS != result) {
+		debug_msg("decode message failed.");
+		return;
+	}
 
-		switch (work->pub_packet->fixed_header.packet_type) {
-		case PUBLISH:
-			debug_msg("handling PUBLISH (qos %d)",
-			    work->pub_packet->fixed_header.qos);
+	// TODO no local
+	if (PUBLISH == work->pub_packet->fixed_header.packet_type) {
+		void **cli_ctx_list = search_client(work->db,
+		    work->pub_packet->variable_header.publish.topic_name.body);
 
-			switch (work->pub_packet->fixed_header.qos) {
-			case 0:
-				break;
-			case 1:
-				// put_pipe_msgs(NULL, work, pipe_ct, PUBACK);
-				break;
-			case 2:
-				// put_pipe_msgs(NULL, work, pipe_ct, PUBREC);
-				break;
-			default:
-				debug_msg("invalid qos: %d",
-				    work->pub_packet->fixed_header.qos);
-				break;
-			}
+		if (cli_ctx_list != NULL) {
+			foreach_client(cli_ctx_list, work, pipe_ct);
+		}
 
-			void **cli_ctx_list = search_client(work->db,
-			    work->pub_packet->variable_header.publish
-			        .topic_name.body);
+		cvector_free(cli_ctx_list);
 
-			if (cli_ctx_list != NULL) {
-				foreach_client(cli_ctx_list, work, pipe_ct);
-			}
-
-			cvector_free(cli_ctx_list);
-
-			debug_msg("pipe_info size: [%d]", pipe_ct->total);
+		debug_msg("pipe_info size: [%d]", pipe_ct->total);
 
 #if ENABLE_RETAIN
-			handle_pub_retain(work,
-			    work->pub_packet->variable_header.publish
-			        .topic_name.body);
+		handle_pub_retain(work,
+		    work->pub_packet->variable_header.publish.topic_name.body);
 #endif
-
-			break;
-
-		case PUBACK:
-			debug_msg("handling PUBACK");
-			// TODO
-			break;
-
-		case PUBREC:
-			debug_msg("handling PUBREC");
-			// put_pipe_msgs(NULL, work, pipe_ct, PUBREL);
-			break;
-
-		case PUBREL:
-			debug_msg("handling PUBREL");
-			// put_pipe_msgs(NULL, work, pipe_ct, PUBCOMP);
-			break;
-
-		case PUBCOMP:
-			debug_msg("handling PUBCOMP");
-			// TODO
-			break;
-
-		default:
-			break;
-		}
-	} else {
-		debug_msg("decode message failed: %d", result);
-		// TODO send DISCONNECT with reason_code if MQTT Version=5.0
 	}
+	// TODO send DISCONNECT with reason_code if MQTT Version=5.0
 }
 
 #if ENABLE_RETAIN
@@ -516,7 +436,7 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 			    work->pub_packet->payload_body.payload,
 			    work->pub_packet->payload_body.payload_len);
 			//				debug_msg("payload [%s]
-			//len
+			// len
 			//[%d]", (char
 			//*)work->pub_packet->payload_body.payload,
 			// work->pub_packet->payload_body.payload_len);
@@ -624,9 +544,9 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 reason_code
 decode_pub_message(nano_work *work)
 {
-	int     pos      = 0;
-	int     used_pos = 0;
-	int     len, len_of_varint;
+	int pos      = 0;
+	int used_pos = 0;
+	int len, len_of_varint;
 	if (work->proto == 0) {
 		work->proto = conn_param_get_protover(work->cparam);
 	}
