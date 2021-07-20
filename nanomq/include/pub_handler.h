@@ -112,8 +112,6 @@ bool        encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 reason_code decode_pub_message(nano_work *work);
 void        foreach_client(
            void **cli_ctx_list, nano_work *pub_work, struct pipe_content *pipe_ct);
-void put_pipe_msgs(client_ctx *sub_ctx, nano_work *self_work,
-    struct pipe_content *pipe_ct, mqtt_control_packet_types cmd);
 void free_pub_packet(struct pub_packet_struct *pub_packet);
 void free_pipes_info(struct pipe_info *p_info);
 void init_pipe_content(struct pipe_content *pipe_ct);
