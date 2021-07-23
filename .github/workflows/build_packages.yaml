@@ -11,25 +11,38 @@ jobs:
   build_packages:
     runs-on: ubuntu-20.04
 
+    strategy:
+      matrix:
+        arch:
+        - [amd64, gcc, g++]
+        - [arm64, aarch64-linux-gnu-gcc, aarch64-linux-gnu-g++]
+        - [armhf, arm-linux-gnueabihf-gcc, arm-linux-gnueabihf-g++]
+        - [armel, arm-linux-gnueabi-gcc, arm-linux-gnueabi-g++]
+
     steps:
     - name: install lib
-      run: sudo apt update && sudo apt install -y cmake ninja-build rpm checkinstall
+      run: |
+        sudo apt update
+        sudo apt install -y cmake ninja-build rpm checkinstall
+        sudo apt install -y g++-aarch64-linux-gnu gcc-aarch64-linux-gnu
+        sudo apt install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
+        sudo apt install -y gcc-arm-linux-gnueabi g++-arm-linux-gnueabi
     - uses: actions/checkout@v1
     - name: build nanomq
       run: |
         set -eu
         mkdir -p build
         cd build
-        cmake ..
+        cmake -DCMAKE_C_COMPILER=${{ matrix.arch[1] }} -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }} ..
         make
     - name: build deb
       run: |
         set -eu
         cd build
         mkdir -p _packages
-        sudo checkinstall --backup=no --install=no --type=debian --arch=amd64  --pkgname=nanomq --pkgversion=$(git describe --abbrev=0 --tags) --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
-        pkg_name="nanomq-$(git describe --abbrev=0 --tags)-linux-amd64.deb"
-        sudo mv _packages/nanomq_$(git describe --abbrev=0 --tags)-1_amd64.deb _packages/$pkg_name
+        sudo checkinstall --backup=no --install=no --type=debian --arch=${{ matrix.arch[0] }}  --pkgname=nanomq --pkgversion=$(git describe --abbrev=0 --tags) --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
+        pkg_name="nanomq-$(git describe --abbrev=0 --tags)-linux-${{ matrix.arch[0] }}.deb"
+        sudo mv _packages/nanomq_$(git describe --abbrev=0 --tags)-1_${{ matrix.arch[0] }}.deb _packages/$pkg_name
         cd _packages; echo $(sha256sum $pkg_name | awk '{print $1}') > $pkg_name.sha256
     - name: build rpm
       shell: bash
@@ -40,9 +53,9 @@ jobs:
         sudo mkdir -p /root/rpmbuild/SOURCES
         sudo mkdir -p /root/rpmbuild/BUILD
         sudo mkdir -p /root/rpmbuild/BUILDROOT
-        sudo checkinstall --backup=no --install=no --type=rpm --arch=amd64  --pkgname=nanomq --pkgversion=$(git describe --abbrev=0 --tags) --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
-        pkg_name="nanomq-$(git describe --abbrev=0 --tags)-linux-amd64.rpm"
-        sudo mv _packages/nanomq-$(git describe --abbrev=0 --tags)-1.amd64.rpm _packages/$pkg_name
+        sudo checkinstall --backup=no --install=no --type=rpm --arch=${{ matrix.arch[0] }} --pkgname=nanomq --pkgversion=$(git describe --abbrev=0 --tags) --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
+        pkg_name="nanomq-$(git describe --abbrev=0 --tags)-linux-${{ matrix.arch[0] }}.rpm"
+        sudo mv _packages/nanomq-$(git describe --abbrev=0 --tags)-1.${{ matrix.arch[0] }}.rpm _packages/$pkg_name
         cd _packages; echo $(sha256sum $pkg_name | awk '{print $1}') > $pkg_name.sha256
     - uses: actions/upload-artifact@v2
       with:
@@ -51,7 +64,7 @@ jobs:
     - uses: Rory-Z/upload-release-asset@v1
       if: github.event_name == 'release'
       with:
-        owner: ${{ github.repository_owner }} 
+        owner: ${{ github.repository_owner }}
         repo: nanomq
         token: ${{ github.token }}
         path: "build/_packages/nanomq*"
