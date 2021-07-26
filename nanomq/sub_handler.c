@@ -308,9 +308,7 @@ sub_ctx_handle(nano_work *work)
 		debug_msg("topicLen: [%d] body: [%s]", topic_len, topic_str);
 
 		search_and_insert(work->db, topic_str, client_id, cli_ctx, work->pid.id);
-		if (!check_topic(work->pid.id, topic_str)) {
-			add_topic(work->pid.id, topic_str);
-		}
+		add_topic(work->pid.id, topic_str);
 #ifdef DEBUG
 		// check
 		tq = get_topic(work->pid.id);
