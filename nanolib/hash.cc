@@ -443,7 +443,7 @@ void print_topic_all(uint32_t id)
 {
 	struct topic_queue *tq = _topic_hash[id];
 	while(tq) {
-		log("Topic number %d, topic subscribed: %s.", ++t_num, tq->topic);
+		log("Topic number topic subscribed: %s.", tq->topic);
 		tq = tq->next;
 	}
 }

@@ -281,7 +281,6 @@ sub_ctx_handle(nano_work *work)
 	struct topic_queue *tq           = NULL;
 	work->msg_ret                    = NULL;
 
-	client_ctx *old_ctx = NULL;
 	// insert ctx_sub into treeDB
 	client_ctx *cli_ctx = nng_alloc(sizeof(client_ctx));
 	cli_ctx->sub_pkt    = work->sub_pkt;
@@ -295,10 +294,6 @@ sub_ctx_handle(nano_work *work)
 	// update the all ctx pointer in tree
 	tq = get_topic(cli_ctx->pid.id);
 	while (tq) {
-		old_ctx = search_and_delete(work->db, tq->topic, cli_ctx->pid.id);
-		if (old_ctx) {
-			search_and_insert(work->db, tq->topic, client_id, cli_ctx, cli_ctx->pid.id);
-		}
 		tq = tq->next;
 	}
 
@@ -339,10 +334,6 @@ sub_ctx_handle(nano_work *work)
 	// clean session handle.
 	// if cli ctx exists in tree, get it and merge(old clictx, new clictx)
 	debug_msg("clean session handle");
-	if (old_ctx) {
-		cli_ctx_merge(old_ctx, cli_ctx);
-		destroy_sub_ctx(old_ctx);
-	}
 
 	// check treeDB
 	print_db_tree(work->db);
