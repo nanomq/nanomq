@@ -442,6 +442,7 @@ bool check_id(uint32_t id)
 void print_topic_all(uint32_t id)
 {
 	struct topic_queue *tq = _topic_hash[id];
+	int t_num = 0;
 	while(tq) {
 		log("Topic number %d, topic subscribed: %s.", ++t_num, tq->topic);
 		tq = tq->next;
