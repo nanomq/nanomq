@@ -219,8 +219,7 @@ unsub_ctx_handle(nano_work *work)
 		    topic_node_t->it->topic_filter.len);
 		topic_str[topic_node_t->it->topic_filter.len] = '\0';
 
-		debug_msg("finding client [%s] in topic [%s].", client_id,
-		    topic_str);
+		debug_msg("find client [%s] in topic [%s].", client_id, topic_str);
 
 		cli_ctx = search_and_delete(work->db, topic_str, work->pid.id);
 		del_topic_one(work->pid.id, topic_str);

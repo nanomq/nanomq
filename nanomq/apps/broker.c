@@ -234,6 +234,7 @@ server_cb(void *arg)
 			nng_msg_alloc(&smsg, 0);
 			work->unsub_pkt =
 			    nng_alloc(sizeof(packet_unsubscribe));
+			work->pid = nng_msg_get_pipe(work->msg);
 			if (work->unsub_pkt == NULL) {
 				debug_msg("ERROR: nng_alloc");
 			}
