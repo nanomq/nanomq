@@ -282,7 +282,6 @@ sub_ctx_handle(nano_work *work)
 	work->msg_ret                    = NULL;
 
 	client_ctx *old_ctx = NULL;
-	// insert ctx_sub into treeDB
 	client_ctx *cli_ctx = nng_alloc(sizeof(client_ctx));
 	cli_ctx->sub_pkt    = work->sub_pkt;
 	cli_ctx->cparam     = work->cparam;
@@ -292,28 +291,38 @@ sub_ctx_handle(nano_work *work)
 	client_id = (char *)conn_param_get_clientid(
 	                 (conn_param *)nng_msg_get_conn_param(work->msg));
 
-	// update the all ctx pointer in tree
+	// get ctx in tree TODO optimization here
 	tq = get_topic(cli_ctx->pid.id);
-	while (tq) {
+	if (tq) {
 		old_ctx = search_and_delete(work->db, tq->topic, cli_ctx->pid.id);
-		if (old_ctx) {
-			search_and_insert(work->db, tq->topic, client_id, cli_ctx, cli_ctx->pid.id);
-		}
-		tq = tq->next;
 	}
+	if (old_ctx) {
+		search_and_insert(work->db, tq->topic, client_id, old_ctx, cli_ctx->pid.id);
+	}
+	if (!tq || !old_ctx) { /* the real ctx stored in tree */
+		old_ctx = nng_alloc(sizeof(client_ctx));
+		old_ctx->sub_pkt = nng_alloc(sizeof(packet_subscribe));
+		old_ctx->sub_pkt->node = NULL;
+		old_ctx->cparam = NULL;
+	}
+	/* Swap pid, capram, proto_ver in ctxs */
+	old_ctx->pid.id = cli_ctx->pid.id;
+	old_ctx->proto_ver = cli_ctx->proto_ver;
+	conn_param * cp = old_ctx->cparam;
+	old_ctx->cparam = cli_ctx->cparam;
+	cli_ctx->cparam = cp;
 
 	while (topic_node_t) {
 		topic_len = topic_node_t->it->topic_filter.len;
 		topic_str = topic_node_t->it->topic_filter.body;
 		debug_msg("topicLen: [%d] body: [%s]", topic_len, topic_str);
 
-		search_and_insert(work->db, topic_str, client_id, cli_ctx, work->pid.id);
+		search_and_insert(work->db, topic_str, client_id, old_ctx, work->pid.id);
 		add_topic(work->pid.id, topic_str);
 #ifdef DEBUG
 		// check
 		tq = get_topic(work->pid.id);
-		debug_msg("-----CHECKHASHTABLE----clientid: [%s]---topic: "
-		          "[%s]---pipeid: [%d]",
+		debug_msg("--CHECK--cliid: [%s] topic: [%s] pipeid: [%d]",
 		    client_id, tq->topic, work->pid.id);
 #endif
 
@@ -337,12 +346,10 @@ sub_ctx_handle(nano_work *work)
 	}
 
 	// clean session handle.
-	// if cli ctx exists in tree, get it and merge(old clictx, new clictx)
+	// if cli ctx exists in tree, get it and merge(new ctx, stored ctx)
 	debug_msg("clean session handle");
-	if (old_ctx) {
-		cli_ctx_merge(old_ctx, cli_ctx);
-		destroy_sub_ctx(old_ctx);
-	}
+	cli_ctx_merge(cli_ctx, old_ctx);
+	destroy_sub_ctx(cli_ctx);
 
 	// check treeDB
 	print_db_tree(work->db);
@@ -351,16 +358,16 @@ sub_ctx_handle(nano_work *work)
 }
 
 static void
-cli_ctx_merge(client_ctx * ctx, client_ctx * ctx_new) {
+cli_ctx_merge(client_ctx * ctx_new, client_ctx * ctx) {
 	int is_find = 0;
 	struct topic_node *node, *node_new, *node_prev = NULL;
-	struct topic_node *node_extra = NULL, *node_ex_root = NULL;
+	struct topic_node *node_a = NULL;
 	if (ctx->pid.id != ctx_new->pid.id) {
 		return;
 	}
 
 #ifdef DEBUG /* Remove after testing */
-	debug_msg("old ctx:");
+	debug_msg("stored ctx:");
 	node = ctx->sub_pkt->node;
 	while (node) {
 		debug_msg("%s", node->it->topic_filter.body);
@@ -374,55 +381,42 @@ cli_ctx_merge(client_ctx * ctx, client_ctx * ctx_new) {
 	}
 #endif
 
-	node = ctx->sub_pkt->node;
-	while (node) {
-		node_new = ctx_new->sub_pkt->node;
-		is_find = 1;
-		while (node_new) {
+	node_new = ctx_new->sub_pkt->node;
+	while (node_new) {
+		node = ctx->sub_pkt->node;
+		node_prev = NULL;
+		is_find = 0;
+		while (node) {
 			if (strcmp(node->it->topic_filter.body, node_new->it->topic_filter.body) == 0) {
-				is_find = 0;
+				is_find = 1;
 				break;
 			}
-			node_new = node_new->next;
+			node_prev = node;
+			node = node->next;
 		}
 		if (is_find) {
-			// remove from origin list
-			if (node_prev == NULL) {
-				ctx->sub_pkt->node = ctx->sub_pkt->node->next;
+			// update option
+			node->it->no_local          = node_new->it->no_local;
+			node->it->qos               = node_new->it->qos;
+			node->it->retain_as_publish = node_new->it->retain_as_publish;
+			node->it->retain_handling   = node_new->it->retain_handling;
+		} else { /* not find */
+			// copy and append
+			node_a = nng_alloc(sizeof(topic_node));
+			node_a->it = node_new->it;
+			node_a->next = NULL;
+			if (!node_prev) {
+				ctx->sub_pkt->node = node_a;
 			} else {
-				node_prev->next = node->next;
+				node_prev->next = node_a;
 			}
-			// append to extra list
-			if (node_extra == NULL) {
-				node_ex_root = node;
-			} else {
-				node_extra->next = node;
-			}
-			node_extra = node;
-		} else {
-			node_prev = node;
 		}
-		node = node->next;
-	}
-	if (node_extra) {
-		node_extra->next = NULL;
-	}
-
-	if (ctx_new) {
-		node_new = ctx_new->sub_pkt->node;
-	}
-	while (node_new && node_new->next) {
 		node_new = node_new->next;
-	}
-	if (node_new){
-		node_new->next = node_ex_root;
-	} else {
-		ctx_new->sub_pkt->node = node_ex_root;
 	}
 
 #ifdef DEBUG /* Remove after testing */
 	debug_msg("after change.");
-	debug_msg("old ctx:");
+	debug_msg("stored ctx:");
 	node = ctx->sub_pkt->node;
 	while (node) {
 		debug_msg("%s", node->it->topic_filter.body);
@@ -496,24 +490,14 @@ del_sub_ctx(void *ctxt, char *target_topic)
 }
 
 void
-destroy_sub_ctx(void *ctxt)
+destroy_sub_pkt(packet_subscribe * sub_pkt, uint8_t proto_ver)
 {
-	uint8_t           proto_ver       = 0;
-	client_ctx *      cli_ctx         = ctxt;
-	topic_node *      topic_node_t    = NULL;
-	topic_node *      next_topic_node = NULL;
-	packet_subscribe *sub_pkt         = NULL;
-
-	if (!cli_ctx || !cli_ctx->sub_pkt) {
-		debug_msg("ERROR : ctx or sub_pkt is null!");
+	topic_node * topic_node_t, *next_topic_node;
+	if (!sub_pkt) {
 		return;
 	}
-
-	sub_pkt         = cli_ctx->sub_pkt;
-	proto_ver       = cli_ctx->proto_ver;
 	topic_node_t    = sub_pkt->node;
 	next_topic_node = NULL;
-
 	while (topic_node_t) {
 		next_topic_node = topic_node_t->next;
 		nng_free(topic_node_t->it->topic_filter.body,
@@ -533,10 +517,51 @@ destroy_sub_ctx(void *ctxt)
 		}
 #endif
 	}
-
 	if (sub_pkt) {
 		nng_free(sub_pkt, sizeof(packet_subscribe));
-		cli_ctx->sub_pkt = NULL;
+		sub_pkt = NULL;
+	}
+}
+
+void
+destroy_sub_pkt_without_ct(packet_subscribe * sub_pkt, uint8_t proto_ver)
+{
+	topic_node * topic_node_t, *next_topic_node;
+	if (!sub_pkt) {
+		return;
+	}
+	topic_node_t    = sub_pkt->node;
+	next_topic_node = NULL;
+	while (topic_node_t) {
+		next_topic_node = topic_node_t->next;
+		nng_free(topic_node_t, sizeof(topic_node));
+		topic_node_t = next_topic_node;
+	}
+
+	if (sub_pkt) {
+#if SUPPORT_MQTT5_0
+		if (PROTOCOL_VERSION_v5 == proto_ver) {
+			nng_free(sub_pkt->user_property.strpair.key,
+			    sub_pkt->user_property.strpair.len_key);
+			nng_free(sub_pkt->user_property.strpair.val,
+			    sub_pkt->user_property.strpair.len_val);
+		}
+#endif
+	}
+	if (sub_pkt) {
+		nng_free(sub_pkt, sizeof(packet_subscribe));
+		sub_pkt = NULL;
+	}
+}
+
+void
+destroy_sub_ctx(void *ctxt)
+{
+	client_ctx *      cli_ctx         = ctxt;
+
+	if (!cli_ctx) {
+		debug_msg("ERROR : ctx or sub_pkt is null!");
+		return;
 	}
 	nng_free(cli_ctx, sizeof(client_ctx));
 	cli_ctx = NULL;
