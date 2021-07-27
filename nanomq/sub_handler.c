@@ -280,6 +280,7 @@ sub_ctx_handle(nano_work *work)
 	int                 topic_len    = 0;
 	struct topic_queue *tq           = NULL;
 	work->msg_ret                    = NULL;
+	int                 topic_exist  = 0;
 
 	client_ctx *old_ctx = NULL;
 	client_ctx *cli_ctx = nng_alloc(sizeof(client_ctx));
@@ -291,7 +292,7 @@ sub_ctx_handle(nano_work *work)
 	client_id = (char *)conn_param_get_clientid(
 	                 (conn_param *)nng_msg_get_conn_param(work->msg));
 
-	// get ctx in tree TODO optimization here
+	// get ctx from tree TODO optimization here
 	tq = get_topic(cli_ctx->pid.id);
 	if (tq) {
 		old_ctx = search_and_delete(work->db, tq->topic, cli_ctx->pid.id);
@@ -317,11 +318,22 @@ sub_ctx_handle(nano_work *work)
 		topic_str = topic_node_t->it->topic_filter.body;
 		debug_msg("topicLen: [%d] body: [%s]", topic_len, topic_str);
 
-		search_and_insert(work->db, topic_str, client_id, old_ctx, work->pid.id);
-		add_topic(work->pid.id, topic_str);
+		/* remove duplicate items */
+		topic_exist = 0;
+		tq          = get_topic(work->pid.id);
+		while (tq) {
+			if (!strcmp(topic_str, tq->topic)) {
+				topic_exist = 1;
+				break;
+			}
+			tq = tq->next;
+		}
+		if (!topic_exist) {
+			search_and_insert(work->db, topic_str, client_id, old_ctx, work->pid.id);
+			add_topic(work->pid.id, topic_str);
+		}
 #ifdef DEBUG
 		// check
-		tq = get_topic(work->pid.id);
 		debug_msg("--CHECK--cliid: [%s] topic: [%s] pipeid: [%d]",
 		    client_id, tq->topic, work->pid.id);
 #endif
@@ -362,6 +374,8 @@ cli_ctx_merge(client_ctx * ctx_new, client_ctx * ctx) {
 	int is_find = 0;
 	struct topic_node *node, *node_new, *node_prev = NULL;
 	struct topic_node *node_a = NULL;
+	topic_with_option *two = NULL;
+	char              *str = NULL;
 	if (ctx->pid.id != ctx_new->pid.id) {
 		return;
 	}
@@ -401,9 +415,15 @@ cli_ctx_merge(client_ctx * ctx_new, client_ctx * ctx) {
 			node->it->retain_as_publish = node_new->it->retain_as_publish;
 			node->it->retain_handling   = node_new->it->retain_handling;
 		} else { /* not find */
-			// copy and append
+			// copy and append TODO optimize topic_node structure
 			node_a = nng_alloc(sizeof(topic_node));
-			node_a->it = node_new->it;
+			two    = nng_alloc(sizeof(topic_with_option));
+			str    = nng_alloc(node_new->it->topic_filter.len+1);
+			memcpy(two, node_new->it, sizeof(topic_with_option));
+			strcpy(str, node_new->it->topic_filter.body);
+			str[node_new->it->topic_filter.len] = '\0';
+			node_a->it = two;
+			two->topic_filter.body = str;
 			node_a->next = NULL;
 			if (!node_prev) {
 				ctx->sub_pkt->node = node_a;
@@ -451,8 +471,7 @@ del_sub_ctx(void *ctxt, char *target_topic)
 	before_topic_node = NULL;
 
 	while (topic_node_t) {
-		if (!strncmp(topic_node_t->it->topic_filter.body, target_topic,
-		        topic_node_t->it->topic_filter.len)) {
+		if (!strcmp(topic_node_t->it->topic_filter.body, target_topic)) {
 			debug_msg("FREE in topic_node [%s] in tree",
 			    topic_node_t->it->topic_filter.body);
 			if (before_topic_node) {
