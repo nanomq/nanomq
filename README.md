@@ -357,7 +357,7 @@ You could join us on [Slack](https://slack-invite.emqx.io/). We now share a work
 
 ### EMQ X Broker
 
-[EMQ X Broker](https://www.emqx.com/en)
+[EMQ X Broker](https://www.emqx.io)
 
 
 
