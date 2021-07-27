@@ -204,7 +204,7 @@ server_cb(void *arg)
 				    *((uint8_t *) nng_msg_body(smsg) + 1));
 			}
 			nng_msg_free(work->msg);
-			destroy_sub_pkt_without_ct(work->sub_pkt, work->proto);
+			destroy_sub_pkt(work->sub_pkt, work->proto);
 			// handle retain
 			if (work->msg_ret) {
 				debug_msg("retain msg [%p] size [%ld] \n",
