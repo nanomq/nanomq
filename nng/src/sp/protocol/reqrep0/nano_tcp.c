@@ -300,11 +300,13 @@ nano_ctx_send(void *arg, nni_aio *aio)
 	}
 	debug_msg("WARNING: pipe %d occupied! resending in cb!", pipe);
 	if (nni_lmq_full(&p->rlmq)) {
-		// Make space for the new message.
-		debug_msg("warning msg dropped!");
-		nni_msg *old;
-		(void) nni_lmq_getq(&p->rlmq, &old);
-		nni_msg_free(old);
+		// Make space for the new message. TODO add max limit of msgq len in conf
+		if (rv = nni_lmq_resize(&p->rlmq, nni_lmq_cap(&p->rlmq) * 2) != 0) {
+			debug_syslog("warning msg dropped!");
+			nni_msg *old;
+			(void) nni_lmq_getq(&p->rlmq, &old);
+			nni_msg_free(old);
+		}
 	}
 	nni_lmq_putq(&p->rlmq, msg);
 
