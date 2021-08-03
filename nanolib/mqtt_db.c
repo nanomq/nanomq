@@ -109,7 +109,6 @@ topic_count(char *topic)
 		t = strchr(t, '/');
 		cnt++;
 		if (t == NULL) {
-			// log("Count is : %d", cnt);
 			break;
 		}
 		t++;
@@ -594,13 +593,6 @@ insert_db_node(db_node *node, char **topic_queue)
 		node = new_node;
 	}
 
-	// insert_db_client(node, client);
-	// if (!cvector_empty(node->clients)) {
-	//         log("topic: %s", node->topic);
-	//         log("client pipe id: %d", node->clients[0]->pipe_id);
-
-	// }
-
 	return node;
 }
 
@@ -725,7 +717,6 @@ collect_clients(
 		    (*(node_t->child)) == NULL) {
 			continue;
 		}
-		log("fffffff: %s", node_t->topic);
 
 		db_node * t     = *node_t->child;
 		db_node **child = node_t->child;
@@ -987,8 +978,6 @@ delete_db_node(db_node *node, int index)
 				node->well = -1;
 			}
 		}
-
-		log("FICK");
 	}
 
 	if (cvector_empty(node->child)) {
@@ -1196,7 +1185,6 @@ collect_retains(
 		    (*(node_t->child)) == NULL) {
 			continue;
 		}
-		log("fffffff: %s", node_t->topic);
 
 		db_node * t     = *node_t->child;
 		db_node **child = node_t->child;

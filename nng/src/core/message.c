@@ -27,7 +27,8 @@ typedef struct {
 // Underlying message structure.
 // TODO independent nano_msg
 struct nng_msg {
-	uint8_t m_header_buf[NNI_NANO_MAX_HEADER_SIZE + 1]; // only Fixed header
+	uint8_t
+	               m_header_buf[NNI_NANO_MAX_HEADER_SIZE + 1]; // only Fixed header
 	size_t         m_header_len;
 	nni_chunk      m_body; // equal to variable header + payload
 	uint32_t       m_pipe; // set on receive
@@ -733,13 +734,12 @@ nano_pipe_db *
 nano_msg_get_subtopic(nni_msg *msg, nano_pipe_db *root)
 {
 	char *topic;
-	//nano_pipe_db *root = NULL, *db = NULL, *tmp = NULL;
 	nano_pipe_db *db = NULL, *tmp = NULL, *iter = NULL;
-	uint8_t		bpos = 0, len_of_topic = 0, *payload_ptr;;
-	size_t		remain = 0;
-	bool		repeat = false;
+	uint8_t       len_of_topic = 0, *payload_ptr;
+	size_t        bpos = 0, remain = 0;
+	bool          repeat = false;
 
-	payload_ptr = (char*)nni_msg_payload_ptr(msg);
+	payload_ptr = (char *) nni_msg_payload_ptr(msg);
 	remain      = nni_msg_remaining_len(msg) - 2;
 
 	if (nni_msg_cmd_type(msg) != 0x80)
@@ -752,19 +752,24 @@ nano_msg_get_subtopic(nni_msg *msg, nano_pipe_db *root)
 		}
 	}
 
-	while (bpos < remain){
+	while (bpos < remain) {
 		NNI_GET16(payload_ptr + bpos, len_of_topic);
 
 		if (len_of_topic != 0) {
 
-			debug_msg("The current process topic is %s",  payload_ptr+bpos+2);
+			debug_msg("The current process topic is %s",
+			    payload_ptr + bpos + 2);
 			iter = root;
-			while(iter) {
-				if (strlen(iter->topic) == len_of_topic && !strncmp(payload_ptr+bpos+2, iter->topic, len_of_topic)) {
+			while (iter) {
+				if (strlen(iter->topic) == len_of_topic &&
+				    !strncmp(payload_ptr + bpos + 2,
+				        iter->topic, len_of_topic)) {
 					repeat = true;
 					bpos += (2 + len_of_topic);
-					if (iter->qos != *(payload_ptr +bpos)) {
-						iter->qos = *(payload_ptr +bpos);
+					if (iter->qos !=
+					    *(payload_ptr + bpos)) {
+						iter->qos =
+						    *(payload_ptr + bpos);
 					}
 					bpos += 1;
 				}
@@ -795,7 +800,8 @@ nano_msg_get_subtopic(nni_msg *msg, nano_pipe_db *root)
 			} else {
 				bpos += 2;
 			}
-			strncpy(topic, (char *)payload_ptr + bpos, len_of_topic);
+			strncpy(
+			    topic, (char *) payload_ptr + bpos, len_of_topic);
 			topic[len_of_topic] = 0x00;
 			db->topic           = topic;
 			bpos += len_of_topic;
