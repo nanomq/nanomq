@@ -334,8 +334,8 @@ sub_ctx_handle(nano_work *work)
 		}
 #ifdef DEBUG
 		// check
-		debug_msg("--CHECK--cliid: [%s] topic: [%s] pipeid: [%d]",
-		    client_id, tq->topic, work->pid.id);
+		debug_msg("--CHECK--cliid: [%s] pipeid: [%d]",
+		    client_id, work->pid.id);
 #endif
 
 		retain_msg **r = search_retain(work->db_ret, topic_str);
