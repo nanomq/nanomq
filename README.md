@@ -78,8 +78,8 @@ To build NanoMQ, requires a C99 & C++11 compatible compiler and [CMake](http://w
 - It is recommended to compile with Ninja:
 
   ```bash
-  git clone https://github.com/nanomq/nanomq.git
-  cd nanomq
+  git clone https://github.com/nanomq/nanomq.git ; cd nanomq
+  git submodule update --init --recursive
   mkdir build & cd build
   cmake -G Ninja ..
   ninja
@@ -88,8 +88,8 @@ To build NanoMQ, requires a C99 & C++11 compatible compiler and [CMake](http://w
 - Or to compile without Ninja:
 
   ``` bash
-  git clone https://github.com/nanomq/nanomq.git
-  cd nanomq
+  git clone https://github.com/nanomq/nanomq.git ; cd nanomq
+  git submodule update --init --recursive
   mkdir build & cd build
   cmake .. 
   make
