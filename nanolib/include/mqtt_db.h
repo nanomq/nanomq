@@ -7,11 +7,11 @@
 #include <stdint.h>
 #include <string.h>
 
-typedef enum { Hash, Vec } type;
-typedef struct db_node db_node;
+typedef enum {PERSISTENCE, CLEAN} session_flag;
+typedef enum {AT_MOST_ONCE, AT_LEAST_ONCE, EXACTLY_ONCE} qos;
 
 typedef struct s_client {
-	// char			*id;
+	char	 *id;
 	uint32_t pipe_id;
 	void *   ctxt;
 } s_client;
@@ -23,6 +23,13 @@ typedef struct retain_msg {
 	void *  message;
 } retain_msg;
 
+typedef struct session {
+	char	*client_id;
+	void	*ctxt;
+} session;
+
+typedef struct db_node db_node;
+
 struct db_node {
 	char *      topic;
 	int         plus;
@@ -30,12 +37,25 @@ struct db_node {
 	retain_msg *retain;
 	cvector(s_client *) clients;
 	cvector(db_node *) child;
+	cvector(session *) session_vector;
 	pthread_rwlock_t rwlock;
 };
 
 typedef struct {
+	char			*msg;
+	qos 			qos_level;
+} msg_info;
+
+typedef struct {
+	char			*client_id;
+	cvector(msg_info*)	msg_list;
+} session_msg;
+
+typedef struct {
 	db_node *        root;
+	cvector(session_msg*) session_msg_list;
 	pthread_rwlock_t rwlock;
+	pthread_rwlock_t rwlock_session;
 } db_tree;
 
 /**
@@ -67,6 +87,27 @@ client_cmp(void *x_, /*char *y,*/ void *y_)
 	return *pipe_id - ele_x->pipe_id;
 }
 
+
+// TODO
+static inline int
+session_msg_cmp(void *x_, /*char *y,*/ void *y_)
+{
+	char *   y     = (char *) y_;
+	session_msg *ele_x = (session_msg *) x_;
+
+	// printf("\ncompare: %s, %s\n", ele_x->client_id, y);
+	return strcmp(ele_x->client_id, y);
+}
+
+static inline int
+session_cmp(void *x_, /*char *y,*/ void *y_)
+{
+	char *   y     = (char *) y_;
+	session *ele_x = (session *) x_;
+	// printf("\ncompare: %s, %s\n", ele_x->client_id, y);
+	return strcmp(ele_x->client_id, y);
+}
+
 /* Create a db_tree */
 void create_db_tree(db_tree **db);
 
@@ -75,12 +116,15 @@ void destory_db_tree(db_tree *db);
 
 void print_db_tree(db_tree *db);
 
-void *search_and_insert(
-    db_tree *db, char *topic, char *id, void *ctxt, uint32_t pipe_id);
+void *search_and_insert(db_tree *db, char *topic, char *cid, void *ctxt, uint32_t pipe_id);
 
-void *search_and_delete(db_tree *db, char *topic, uint32_t pipe_id);
+void *search_insert_session(db_tree *db, char *topic, char *cid, void *ctxt, uint32_t pipe_id);
 
-void **search_client(db_tree *db, char *topic);
+void *search_and_delete(db_tree *db, char *topic, char *id, uint32_t pipe_id, session_flag flag);
+
+void **search_client(db_tree *db, char *topic, char *message, qos qos_level);
+
+msg_info **search_session(db_tree *db, char *id);
 
 void *search_insert_retain(db_tree *db, char *topic, retain_msg *ret_msg);
 
@@ -88,15 +132,6 @@ void *search_delete_retain(db_tree *db, char *topic);
 
 retain_msg **search_retain(db_tree *db, char *topic);
 
-//
-// void del_all(uint32_t pipe_id, void *db);
-//
-// /* Free node memory */
-// void free_node(struct db_node *node);
-//
-// /* Parsing topic from char* with '/' to char** */
-// char **topic_parse(char *topic);
-//
 
 /* A hash table, clientId or alias as key, topic as value */
 char *hash_check_alias(int alias);
