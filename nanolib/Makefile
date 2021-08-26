@@ -35,3 +35,6 @@ check-s:nano
 .PHONY:clean
 clean:
 	rm -f $(OBJ) libnano.so nano
+# DO NOT DELETE
+
+zmalloc.o: /usr/include/stdio.h /usr/include/stdlib.h /usr/include/string.h
