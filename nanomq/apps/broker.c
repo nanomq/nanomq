@@ -144,12 +144,21 @@ server_cb(void *arg)
 		debug_msg(
 		    "WAIT ^^^^ ctx%d ^^^^", work->ctx.id);
 		if (nng_msg_cmd_type(work->msg) == CMD_PINGREQ) {
-			if (work->msg != NULL)
-				nng_msg_free(work->msg);
+			smsg   = work->msg;
+			nng_msg_clear(smsg);
+			ptr    = nng_msg_header(smsg);
+			ptr[0] = CMD_PINGRESP;
+			ptr[1] = 0x00;
+			nng_msg_set_cmd_type(smsg, CMD_PINGRESP);
+            work->msg = smsg;
+			work->pid = nng_msg_get_pipe(work->msg);
+			nng_msg_set_pipe(work->msg, work->pid);
+			nng_aio_set_msg(work->aio, work->msg);
 			work->msg   = NULL;
-			work->state = RECV;
-			nng_ctx_recv(work->ctx, work->aio);
-			break;
+			work->state = SEND;
+			nng_ctx_send(work->ctx, work->aio);
+			smsg = NULL;
+			nng_aio_finish(work->aio, 0);
 		} else if (nng_msg_cmd_type(work->msg) == CMD_PUBREC) {
 			smsg   = work->msg;
 			ptr    = nng_msg_header(smsg);
