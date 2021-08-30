@@ -35,7 +35,7 @@ decode_unsub_message(nano_work *work)
 	const uint8_t proto_ver = conn_param_get_protover(work->cparam);
 
 	// handle varibale header
-	variable_ptr = nng_msg_variable_ptr(msg);
+	variable_ptr = nng_msg_body(msg);
 	NNI_GET16(variable_ptr, unsub_pkt->packet_id);
 	vpos += 2;
 
