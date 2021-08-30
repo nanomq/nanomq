@@ -47,7 +47,7 @@ decode_sub_message(nano_work *work)
 	topic_with_option *topic_option;
 
 	// handle variable header
-	variable_ptr = nng_msg_variable_ptr(msg);
+	variable_ptr = nng_msg_body(msg);
 
 	packet_subscribe *sub_pkt = work->sub_pkt;
 	NNI_GET16(variable_ptr + vpos, sub_pkt->packet_id);
