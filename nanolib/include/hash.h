@@ -76,6 +76,15 @@ bool check_msg_queue_clientid(char *id);
 
 struct msg_queue *get_msg_queue(char *id);
 
+// @obj. _session_hash
+
+bool check_session(uint32_t);
+
+void * get_session(uint32_t);
+
+void add_session(uint32_t, void *);
+
+void * del_session(uint32_t);
 #ifdef __cplusplus
 }
 #endif

@@ -709,3 +709,58 @@ struct msg_queue * get_msg_queue(char *id)
 	}
 	return NULL;
 }
+
+/*
+ * @obj. _session_hash.
+ * @key. Hash(clientid).
+ * @val. struct clean session(void *).
+ */
+
+mqtt_hash<uint32_t, void *> _session_hash;
+
+/*
+ * @obj. _session_hash.
+ * @key. Hash(clienid).
+ */
+bool check_session(uint32_t id) 
+{
+	return _session_hash.find(id);
+}
+
+/*
+ * @obj. _session_hash.
+ * @key. Hash(clienid).
+ */
+
+void *get_session(uint32_t id) 
+{
+	if (_session_hash[id]) {
+		return _session_hash[id];
+	}
+
+	return NULL;
+}
+
+/*
+ * @obj. _session_hash.
+ * @key. Hash(clienid).
+ * @val. void *
+ */
+
+void add_session(uint32_t id, void *session)
+{
+	_session_hash[id] = session;
+}
+
+/*
+ * @obj. _session_hash.
+ * @key. Hash(clienid).
+ */
+
+void * del_session(uint32_t id)
+{
+	void * rv = _session_hash[id];
+	_session_hash.del(id);
+	return rv;
+}
+
