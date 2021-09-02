@@ -19,6 +19,10 @@
 
 static void cli_ctx_merge(client_ctx * ctx, client_ctx * ctx_new);
 
+// clean session
+static void restore_topic_to_tree(void *tree, client_ctx *cli_ctx, char *client_id);
+static void *del_topic_from_tree(void *tree, topic_queue *tq, uint32_t pid);
+
 void
 init_sub_property(packet_subscribe *sub_pkt)
 {
@@ -585,3 +589,209 @@ destroy_sub_ctx(void *ctxt)
 	nng_free(cli_ctx, sizeof(client_ctx));
 	cli_ctx = NULL;
 }
+
+int
+cache_session(char * clientid, conn_param * cparam, uint32_t pid, void *db)
+{
+	debug_msg("cache session");
+	client_ctx *        cli_ctx = NULL;
+	struct topic_queue *tq      = NULL;
+	nano_clean_session *cs      = NULL;
+
+	void * nano_qos_db = conn_param_get_qos_db(cparam);
+	uint32_t key_clientid = DJBHashn(clientid, strlen(clientid));
+
+	// create cs if not exist
+	if ((cs = get_session(key_clientid)) == NULL) {
+		if ((cs = nng_alloc(sizeof(nano_clean_session))) == NULL) {
+			return (ENOMEM);
+		}
+		debug_msg("create nano clean session");
+	}
+	add_session(key_clientid, cs);
+
+	// deep copy connection parameter
+	conn_param *new_cp = NULL;
+	new_conn_param(&new_cp);
+	init_conn_param(new_cp);
+	deep_copy_conn_param(new_cp, cparam);
+
+	cs->cparam = new_cp;
+
+	// step 1 move nano_qos_db to cs struct
+	cs->msg_map = nano_qos_db;
+	debug_msg("the nano_qos_db has an address: %p", nano_qos_db);
+
+	// step 2-1 find clictx and kept it, but delete it from tree.
+	// step 2-2 move topic from topic map to cached topic map
+	// (hash.cc)
+	if (check_id(pid)) {
+		tq = get_topic(pid);
+		if ((cli_ctx = del_topic_from_tree(db, tq, pid)) != NULL) {
+			cli_ctx->pid.id = 0;
+			cs->cltx   = cli_ctx;
+		}
+		cache_topic_all(pid, key_clientid);
+		debug_msg("move");
+	} else {
+		debug_msg("(CS=0) UNEXPECTED: no stored topic queue, tq lost "
+		          "or client may not subed topic");
+	}
+	// step 3 move nano_pipe_db to temp_cs struct (move pointer)
+//	temp_cs->pipe_db = p->pipedb_root;
+//	p->pipedb_root   = NULL;
+
+	debug_msg("Session cached.");
+	return 0;
+}
+
+int
+restore_session(char * clientid, conn_param * cparam, uint32_t pid, void * db)
+{
+	debug_msg("restore session");
+	conn_param * old_cparam;
+	client_ctx * ctx;
+	uint8_t      cs_flag = conn_param_get_clean_start(cparam);
+	nano_clean_session *cs;
+
+	uint32_t key_clientid = DJBHashn(clientid, strlen(clientid));
+	// TODO hash collision?
+	cs = (nano_clean_session *)get_session(key_clientid);
+
+/*
+	if (cs && cs->pipeid != 0) {
+		// TODO kick prev connection(p or cs->pipeid)
+		p->kicked = true;
+		if (cparam->pro_ver == 5) {
+			*(flag +1 ) = 0x8E;
+		} else {
+			*(flag +1 ) = 0x02;
+		}
+		return (NNG_ECONNABORTED);
+	}
+*/
+
+	// no matter if client enabled cleansession. use clean-session-db for
+	// duplicate clientid verifying.
+	if (cs == NULL) {
+		debug_msg("no cached ingo");
+		// no cached info
+		return 0;
+	}
+
+	void *        msgs       = cs->msg_map;
+	nano_pipe_db *topics     = cs->pipe_db;
+	nano_pipe_db *topic_node = topics;
+	cs->pipeid               = pid;
+
+	old_cparam     = cs->cparam;
+	ctx            = cs->cltx;
+
+	// step 0 restore conn param
+	deep_copy_conn_param(cparam, old_cparam);
+	destroy_conn_param(old_cparam);
+
+	// step 1 restore cli_ctx and cached_topic_queue
+	if (ctx != NULL) {
+		ctx->pid.id = pid;
+	}
+	if (cached_check_id(key_clientid)) {
+		restore_topic_all(key_clientid, pid);
+		restore_topic_to_tree(db, ctx, clientid);
+	} else {
+		debug_msg("(CS=0) UNEXPECTED: no stored cached topic queue");
+	}
+
+	// step 2 restore topic in pipe_db
+//	p->pipedb_root = topics;
+//	cs->pipe_db    = NULL;
+	// step 3 restore nano_pipe_db<topic, pipe_db>
+/*
+	while (topic_node->next) {
+		nni_id_set(&p->pipe->nano_db,DJBHashn(
+		        topic_node->topic, strlen(topic_node->topic)), topic_node);
+		topic_node = topic_node->next;
+	}
+*/
+	// step 4 restore nano_qos_db
+	// TODO new coming message may use the existing packet id in
+	// one client nano_qos_db
+	// TODO merge the msgs. Then publish them.
+/*
+	nni_id_map_fini(p->pipe->nano_qos_db);
+	nng_free(p->pipe->nano_qos_db, sizeof(struct nni_id_map));
+	p->pipe->nano_qos_db       = msgs;
+*/
+	conn_param_set_qos_db(cparam, msgs);
+
+	debug_msg("Session restored finish");
+
+
+	if (cs_flag == 0) { // not clean session
+		cs->clean = false;
+	} else {
+		cs->clean = true;
+		nng_free(cs, sizeof(nano_clean_session));
+		del_session(key_clientid);
+	}
+	return 0;
+}
+/* duplicate with the codes in pipe_fini()
+	} else { // clean session
+		cs->clean = true;
+		// step 0 remove conn param
+		destroy_conn_param(cparam);
+		cparam = NULL;
+		// step 1 remove nano_qos_db
+		nni_id_iterate(msgs, nni_id_msgfree_cb);
+		nni_id_map_fini(msgs);
+		nng_free(msgs, sizeof(struct nni_id_map));
+		msgs = NULL;
+		// step 2 delete 2-1 cli_ctx and cached topic queue
+		if (cached_check_id(key)) {
+			topic_queue *tq = get_cached_topic(key);
+			while (tq) {
+				del_sub_ctx(cltx, tq->topic);
+				tq = tq->next;
+			}
+			del_cached_topic_all(key);
+		} else {
+			debug_msg(
+			    "(CS=1) UNEXPECTED: no stored cached topic queue");
+		}
+		// step 3 delete topics in pipe_db
+		nano_msg_free_pipedb(topics);
+		debug_msg(
+		    "(CS=1) All last session related information disgarded");
+*/
+
+static void
+restore_topic_to_tree(void *tree, client_ctx *cli_ctx, char *client_id)
+{
+	topic_node *tn_t = cli_ctx->sub_pkt->node;
+
+	while (tn_t) {
+		debug_msg("Now adding topic (from last session), body: [%s]",
+		    tn_t->it->topic_filter.body);
+		search_and_insert(tree, tn_t->it->topic_filter.body, client_id,
+		    cli_ctx, cli_ctx->pid.id);
+		tn_t = tn_t->next;
+	}
+}
+
+static void *
+del_topic_from_tree(void *tree, topic_queue *tq, uint32_t pid)
+{
+	client_ctx *cli_ctx = NULL;
+
+	while (tq) {
+		if (tq->topic) {
+			cli_ctx = search_and_delete(tree, tq->topic, pid);
+		}
+		debug_msg("delete pipe id [%d] topic: [%s]", pid, tq->topic);
+		tq = tq->next;
+	}
+
+	return cli_ctx;
+}
+
