@@ -107,8 +107,10 @@ server_cb(void *arg)
 				msg = nano_msg_composer(
 				    conn_param_get_will_retain(work->cparam),
 				    conn_param_get_will_qos(work->cparam),
-				    conn_param_get_will_msg(work->cparam),
-				    conn_param_get_will_topic(work->cparam));
+				    (mqtt_string *) conn_param_get_will_msg(
+				        work->cparam),
+				    (mqtt_string *) conn_param_get_will_topic(
+				        work->cparam));
 				nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 				work->msg = msg;
 				handle_pub(work, work->pipe_ct);
