@@ -72,6 +72,7 @@ server_cb(void *arg)
 
 	reason_code reason;
 	uint8_t *   ptr;
+	conn_param *cparam = NULL;
 
 	struct pipe_info p_info;
 
@@ -101,29 +102,7 @@ server_cb(void *arg)
 		work->pid    = nng_msg_get_pipe(work->msg);
 
 		if (nng_msg_cmd_type(msg) == CMD_DISCONNECT) {
-			// cache session
-			char * clientid = conn_param_get_clientid(work->cparam);
-			// cache_session(work->cparam, cs, work->pid.id, work->db);
-			if (clientid != NULL && conn_param_get_clean_start(
-			        work->cparam) == 0) {
-				cache_session(clientid, work->cparam, work->pid.id, work->db);
-			}
-			debug_msg("disconnect..................");
-			// free client ctx
-			if (check_id(work->pid.id)) {
-				topic_queue * tq = get_topic(work->pid.id);
-				client_ctx * cli_ctx = NULL;
-				while (tq) {
-					if (tq->topic) {
-						cli_ctx = search_and_delete(work->db, tq->topic, work->pid.id);
-					}
-					debug_msg("delete pipe id [%d] topic: [%s]", work->pid.id, tq->topic);
-					del_sub_ctx(cli_ctx, tq->topic);
-					tq = tq->next;
-				}
-				del_topic_all(work->pid.id);
-			}
-
+			// Disconnect reserved for will msg.
 			// TODO reuse DISCONNECT msg
 			nng_msg_free(msg);
 			debug_msg("will flag: [%d]", conn_param_get_will_flag(work->cparam));
@@ -139,9 +118,7 @@ server_cb(void *arg)
 				nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 				work->msg = msg;
 				handle_pub(work, work->pipe_ct);
-				destroy_conn_param(work->cparam);
 			} else {
-				destroy_conn_param(work->cparam);
 				work->msg   = NULL;
 				work->state = RECV;
 				nng_ctx_recv(work->ctx, work->aio);
@@ -164,40 +141,36 @@ server_cb(void *arg)
 			nng_msg_clone(work->msg);
 			nng_aio_set_msg(work->aio, work->msg);
 			work->state = NOTIFY;
-			nng_ctx_send(work->ctx, work->aio);
+			nng_ctx_send(work->ctx, work->aio); // send connack
 			nng_aio_finish_sync(work->aio, 0);
 			break;
 		} else if (nng_msg_cmd_type(msg) == CMD_DISCONNECT_EV) {
 			nng_msg_set_cmd_type(work->msg, CMD_PUBLISH);
 			handle_pub(work, work->pipe_ct);
-			// TODO disconnect and disconnect_ev should be merged
 			// cache session
-			char * clientid = conn_param_get_clientid(work->cparam);
-			// cache_session(work->cparam, cs, work->pid.id, work->db);
+			client_ctx *cli_ctx  = NULL;
+			char *      clientid = conn_param_get_clientid(work->cparam);
 			if (clientid != NULL && conn_param_get_clean_start(
 			        work->cparam) == 0) {
 				cache_session(clientid, work->cparam, work->pid.id, work->db);
 			}
-			debug_msg("disconnect ev..................");
 			// free client ctx
 			if (check_id(work->pid.id)) {
 				topic_queue * tq = get_topic(work->pid.id);
-				client_ctx * cli_ctx = NULL;
 				while (tq) {
 					if (tq->topic) {
 						cli_ctx = search_and_delete(work->db, tq->topic, work->pid.id);
 					}
-					debug_msg("delete pipe id [%d] topic: [%s]", work->pid.id, tq->topic);
 					del_sub_ctx(cli_ctx, tq->topic);
 					tq = tq->next;
 				}
-				debug_msg("mark it..................");
 				del_topic_all(work->pid.id);
 			} else {
-				debug_msg("ERROR it should not happened..................");
+				debug_msg("ERROR it should not happen");
 			}
-			destroy_conn_param(work->cparam);
-
+			cparam = work->cparam;
+			work->cparam = NULL;
+			destroy_conn_param(cparam);
 		}
 		work->state = WAIT;
 		nng_aio_finish(work->aio, 0);
@@ -456,12 +429,17 @@ server_cb(void *arg)
 		}
 		uint8_t *header = nng_msg_header(work->msg) + 3;
 		flag            = *header;
-		nng_msg_free(work->msg);
-		smsg = nano_msg_notify_connect(work->cparam, flag);
-		nng_msg_set_cmd_type(smsg, CMD_PUBLISH);
-		work->msg   = smsg;
+		/*
+		// TODO cparam conflict (heap use after free)
+		if (work->cparam) {
+			smsg = nano_msg_notify_connect(work->cparam, flag);
+			nng_msg_set_cmd_type(smsg, CMD_PUBLISH);
+			nng_msg_free(work->msg);
+			work->msg = smsg;
+			handle_pub(work, work->pipe_ct);
+		}
+		*/
 		work->state = WAIT;
-		handle_pub(work, work->pipe_ct);
 		nng_aio_finish(work->aio, 0);
 		break;
 	default:
