@@ -23,7 +23,7 @@ typedef struct retain_msg {
 	void *  message;
 } retain_msg;
 
-typedef struct db_node {
+struct db_node {
 	char *      topic;
 	int         plus;
 	int         well;
@@ -31,7 +31,7 @@ typedef struct db_node {
 	cvector(s_client *) clients;
 	cvector(db_node *) child;
 	pthread_rwlock_t rwlock;
-} db_node;
+};
 
 typedef struct {
 	db_node *        root;
