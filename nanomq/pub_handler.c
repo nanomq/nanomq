@@ -48,28 +48,32 @@ foreach_client(
 	struct client_ctx *ctx;
 
 	int      ctx_list_len = cvector_size(cli_ctx_list);
-	uint32_t pids[ctx_list_len];
+	uint32_t pids;
+	uint8_t  sub_qos;
 
 	for (int i = 0; i < ctx_list_len; i++) {
-		ctx     = (struct client_ctx *) cli_ctx_list[i];
-		pids[i] = ctx->pid.id;
-		sub_pkt = ctx->sub_pkt;
-	}
+		ctx  = (struct client_ctx *) cli_ctx_list[i];
+		pids = ctx->pid.id;
+		sub_qos  = ctx->sub_pkt->node->it->qos;
 
-	for (int i = 0; i < ctx_list_len; i++) {
-		if (pids[i] == 0) {
+		if (pids == 0) {
 			continue;
 		}
 		pipe_ct->pipe_info = zrealloc(pipe_ct->pipe_info,
 		    sizeof(struct pipe_info) * (pipe_ct->total + 1));
 
 		pipe_ct->pipe_info[pipe_ct->total].index = pipe_ct->total;
-		pipe_ct->pipe_info[pipe_ct->total].pipe  = pids[i];
+		pipe_ct->pipe_info[pipe_ct->total].pipe  = pids;
 		pipe_ct->pipe_info[pipe_ct->total].cmd   = PUBLISH;
 		pipe_ct->pipe_info[pipe_ct->total].work  = pub_work;
+		pipe_ct->pipe_info[pipe_ct->total].qos =
+		    pub_work->pub_packet->fixed_header.qos <= sub_qos
+		    ? pub_work->pub_packet->fixed_header.qos
+		    : sub_qos;
 
 		pipe_ct->total += 1;
 	}
+
 }
 
 void
@@ -544,9 +548,9 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 reason_code
 decode_pub_message(nano_work *work)
 {
-	int pos      = 0;
-	int used_pos = 0;
-	int len, len_of_varint;
+	uint32_t pos      = 0;
+	uint32_t used_pos = 0;
+	uint32_t len, len_of_varint;
 	if (work->proto == 0) {
 		work->proto = conn_param_get_protover(work->cparam);
 	}
@@ -582,7 +586,7 @@ decode_pub_message(nano_work *work)
 		NNI_GET16(msg_body + pos,
 		    pub_packet->variable_header.publish.topic_name.len);
 		pub_packet->variable_header.publish.topic_name.body =
-		    copy_utf8_str(msg_body, &pos, &len);
+		    (char *) copy_utf8_str(msg_body, &pos, &len);
 
 		if (pub_packet->variable_header.publish.topic_name.len > 0) {
 			if (strchr(pub_packet->variable_header.publish
@@ -607,8 +611,9 @@ decode_pub_message(nano_work *work)
 			}
 		}
 
-		debug_msg("topic: [%s]",
-		    pub_packet->variable_header.publish.topic_name.body);
+		debug_msg("topic: [%s], qos: %d",
+		    pub_packet->variable_header.publish.topic_name.body,
+		    pub_packet->fixed_header.qos);
 
 		if (pub_packet->fixed_header.qos >
 		    0) { // extract packet_identifier while qos > 0
@@ -954,7 +959,7 @@ decode_pub_message(nano_work *work)
 		debug_msg("used pos: [%d]", used_pos);
 		// payload
 		pub_packet->payload_body.payload_len =
-		    (uint32_t)(msg_len - (size_t) used_pos);
+		    (uint32_t) (msg_len - (size_t) used_pos);
 
 		if (pub_packet->payload_body.payload_len > 0) {
 			pub_packet->payload_body.payload = nng_alloc(

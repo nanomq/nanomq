@@ -165,7 +165,7 @@ print_conf(conf *nanomq_conf)
 	    "num_taskq_thread is %d\n", nanomq_conf->num_taskq_thread);
 	debug_syslog(
 	    "max_taskq_thread is %d\n", nanomq_conf->max_taskq_thread);
-	debug_syslog("parallel is %d\n", nanomq_conf->parallel);
+	debug_syslog("parallel is %ul\n", nanomq_conf->parallel);
 	debug_syslog("property_size is %d\n", nanomq_conf->property_size);
 	debug_syslog("msq_len is %d\n", nanomq_conf->msq_len);
 	debug_syslog("qos_timer is %d\n", nanomq_conf->qos_timer);
