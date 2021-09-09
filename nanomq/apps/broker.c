@@ -78,8 +78,7 @@ server_cb(void *arg)
 
 	switch (work->state) {
 	case INIT:
-		debug_msg(
-		    "INIT ^^^^ ctx%d ^^^^\n", work->ctx.id);
+		debug_msg("INIT ^^^^ ctx%d ^^^^\n", work->ctx.id);
 		work->state = RECV;
 		nng_ctx_recv(work->ctx, work->aio);
 		break;
@@ -177,16 +176,15 @@ server_cb(void *arg)
 		// nng_aio_finish_sync(work->aio, 0);
 		break;
 	case WAIT:
-		debug_msg(
-		    "WAIT ^^^^ ctx%d ^^^^", work->ctx.id);
+		debug_msg("WAIT ^^^^ ctx%d ^^^^", work->ctx.id);
 		if (nng_msg_cmd_type(work->msg) == CMD_PINGREQ) {
-			smsg   = work->msg;
+			smsg = work->msg;
 			nng_msg_clear(smsg);
 			ptr    = nng_msg_header(smsg);
 			ptr[0] = CMD_PINGRESP;
 			ptr[1] = 0x00;
 			nng_msg_set_cmd_type(smsg, CMD_PINGRESP);
-            work->msg = smsg;
+			work->msg = smsg;
 			work->pid = nng_msg_get_pipe(work->msg);
 			nng_msg_set_pipe(work->msg, work->pid);
 			nng_aio_set_msg(work->aio, work->msg);
@@ -347,6 +345,15 @@ server_cb(void *arg)
 					        [work->pipe_ct->current_index];
 					nng_msg_clone(smsg);
 					work->msg = smsg;
+
+					pub_extra *pub_extra_info;
+					pub_extra_info =
+					    pub_extra_alloc(pub_extra_info);
+					pub_extra_set_qos(
+					    pub_extra_info, p_info.qos);
+					debug_msg("Set qos: %d", p_info.qos);
+					nng_aio_set_prov_extra(
+					    work->aio, 0, pub_extra_info);
 					nng_aio_set_msg(work->aio, work->msg);
 					// TODO pipe = 0?
 					work->pid.id = p_info.pipe;
@@ -505,7 +512,7 @@ broker(conf *nanomq_conf)
 	}
 
 	// TODO will be dynamic in the future
-	debug_msg("PARALLEL logic threads: %d\n", num_ctx);
+	debug_msg("PARALLEL logic threads: %ul\n", num_ctx);
 	for (i = 0; i < num_ctx; i++) {
 		works[i]         = alloc_work(sock);
 		works[i]->db     = db;
@@ -536,7 +543,7 @@ broker(conf *nanomq_conf)
 #endif
 }
 
-void *
+void
 print_usage(void)
 {
 	fprintf(stderr, USAGE);
@@ -588,7 +595,7 @@ store_pid()
 	return status;
 }
 
-bool
+void
 active_conf(conf *nanomq_conf)
 {
 	// check if daemonlize
