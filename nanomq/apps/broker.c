@@ -92,7 +92,6 @@ server_cb(void *arg)
 		}
 		msg = nng_aio_get_msg(work->aio);
 		if (msg == NULL) {
-			debug_msg("ERROR: RECV NULL msg");
 			fatal("RECV NULL MSG", rv);
 		}
 		work->msg    = msg;
@@ -102,12 +101,9 @@ server_cb(void *arg)
 
 		if (nng_msg_cmd_type(msg) == CMD_DISCONNECT) {
 			// Disconnect reserved for will msg.
-			// TODO reuse DISCONNECT msg
-			nng_msg_free(msg);
-			debug_msg("will flag: [%d]", conn_param_get_will_flag(work->cparam));
 			if (conn_param_get_will_flag(work->cparam)) {
 				// pub last will msg TODO reuse same msg.
-				msg = nano_msg_composer(
+				msg = nano_msg_composer(&msg,
 				    conn_param_get_will_retain(work->cparam),
 				    conn_param_get_will_qos(work->cparam),
 				    (mqtt_string *) conn_param_get_will_msg(
@@ -131,7 +127,7 @@ server_cb(void *arg)
 			nng_msg_set_pipe(work->msg, work->pid);
 
 			// restore clean session
-			char * clientid = conn_param_get_clientid(work->cparam);
+			char * clientid = (char *)conn_param_get_clientid(work->cparam);
 			if (clientid != NULL) {
 				restore_session(clientid, work->cparam, work->pid.id, work->db);
 			}
@@ -148,7 +144,7 @@ server_cb(void *arg)
 			handle_pub(work, work->pipe_ct);
 			// cache session
 			client_ctx *cli_ctx  = NULL;
-			char *      clientid = conn_param_get_clientid(work->cparam);
+			char *      clientid = (char *)conn_param_get_clientid(work->cparam);
 			if (clientid != NULL && conn_param_get_clean_start(
 			        work->cparam) == 0) {
 				cache_session(clientid, work->cparam, work->pid.id, work->db);
