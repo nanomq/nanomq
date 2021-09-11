@@ -125,6 +125,9 @@ server_cb(void *arg)
 		} else if (nng_msg_cmd_type(msg) == CMD_CONNACK) {
 			nng_msg_set_pipe(work->msg, work->pid);
 
+			if (work->cparam != NULL) {
+				conn_param_clone(work->cparam); // avoid being free
+			}
 			// restore clean session
 			char * clientid = (char *)conn_param_get_clientid(work->cparam);
 			if (clientid != NULL) {
@@ -430,16 +433,16 @@ server_cb(void *arg)
 		}
 		uint8_t *header = nng_msg_header(work->msg) + 3;
 		flag            = *header;
-		/*
-		// TODO cparam conflict (heap use after free)
-		if (work->cparam) {
-			smsg = nano_msg_notify_connect(work->cparam, flag);
-			nng_msg_set_cmd_type(smsg, CMD_PUBLISH);
-			nng_msg_free(work->msg);
-			work->msg = smsg;
-			handle_pub(work, work->pipe_ct);
-		}
-		*/
+
+		smsg = nano_msg_notify_connect(work->cparam, flag);
+		nng_msg_set_cmd_type(smsg, CMD_PUBLISH);
+		nng_msg_free(work->msg);
+		work->msg = smsg;
+		handle_pub(work, work->pipe_ct);
+
+		// Free here due to the clone before
+		conn_param_free(work->cparam);
+
 		work->state = WAIT;
 		nng_aio_finish(work->aio, 0);
 		break;
