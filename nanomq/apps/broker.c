@@ -102,7 +102,6 @@ server_cb(void *arg)
 		if (nng_msg_cmd_type(msg) == CMD_DISCONNECT) {
 			// Disconnect reserved for will msg.
 			if (conn_param_get_will_flag(work->cparam)) {
-				// pub last will msg TODO reuse same msg.
 				msg = nano_msg_composer(&msg,
 				    conn_param_get_will_retain(work->cparam),
 				    conn_param_get_will_qos(work->cparam),
@@ -165,7 +164,7 @@ server_cb(void *arg)
 			}
 			cparam = work->cparam;
 			work->cparam = NULL;
-			destroy_conn_param(cparam);
+			conn_param_free(cparam);
 		}
 		work->state = WAIT;
 		nng_aio_finish(work->aio, 0);
@@ -355,7 +354,6 @@ server_cb(void *arg)
 					work->pid.id = p_info.pipe;
 					nng_msg_set_pipe(work->msg, work->pid);
 					work->msg   = NULL;
-					work->state = SEND;
 					work->pipe_ct->current_index++;
 					nng_ctx_send(work->ctx, work->aio);
 				}
