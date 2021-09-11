@@ -620,12 +620,10 @@ cache_session(char * clientid, conn_param * cparam, uint32_t pid, void *db)
 	add_session(key_clientid, cs);
 
 	// deep copy connection parameter
-	conn_param *new_cp = NULL;
-	new_conn_param(&new_cp);
-	init_conn_param(new_cp);
-	deep_copy_conn_param(new_cp, cparam);
+	// TODO Do we needs using cparam? in clean session on MQTTV5
+	conn_param_clone(cparam); // Make it not be freed when recv Disconnect EV
 
-	cs->cparam = new_cp;
+	cs->cparam = cparam;
 
 	// step 1 move nano_qos_db to cs struct
 	cs->msg_map = nano_qos_db;
@@ -697,8 +695,8 @@ restore_session(char * clientid, conn_param * cparam, uint32_t pid, void * db)
 	ctx            = cs->cltx;
 
 	// step 0 restore conn param
-	deep_copy_conn_param(cparam, old_cparam);
-	destroy_conn_param(old_cparam);
+//	deep_copy_conn_param(cparam, old_cparam);
+	conn_param_free(old_cparam);
 
 	// step 1 restore cli_ctx and cached_topic_queue
 	if (ctx != NULL) {
