@@ -67,7 +67,6 @@ server_cb(void *arg)
 	nano_work *work = arg;
 	nng_msg *  msg;
 	nng_msg *  smsg = NULL;
-	uint8_t    flag;
 	int        rv;
 
 	reason_code reason;
@@ -137,9 +136,22 @@ server_cb(void *arg)
 			// clone for sending connect event notification
 			nng_msg_clone(work->msg);
 			nng_aio_set_msg(work->aio, work->msg);
-			work->state = NOTIFY;
 			nng_ctx_send(work->ctx, work->aio); // send connack
-			nng_aio_finish_sync(work->aio, 0);
+
+			uint8_t *header = nng_msg_header(work->msg);
+			uint8_t flag    = *(header + 3);
+			smsg = nano_msg_notify_connect(work->cparam, flag);
+
+			nng_msg_set_cmd_type(smsg, CMD_PUBLISH);
+			nng_msg_free(work->msg);
+			work->msg = smsg;
+			handle_pub(work, work->pipe_ct);
+
+			// Free here due to the clone before
+			conn_param_free(work->cparam);
+
+			work->state = WAIT;
+			nng_aio_finish(work->aio, 0);
 			break;
 		} else if (nng_msg_cmd_type(msg) == CMD_DISCONNECT_EV) {
 			nng_msg_set_cmd_type(work->msg, CMD_PUBLISH);
@@ -425,26 +437,6 @@ server_cb(void *arg)
 		work->msg   = NULL;
 		work->state = RECV;
 		nng_ctx_recv(work->ctx, work->aio);
-		break;
-	case NOTIFY:
-		if ((rv = nng_aio_result(work->aio)) != 0) {
-			debug_msg("SEND nng aio result error: %d", rv);
-			fatal("SEND nng_ctx_send", rv);
-		}
-		uint8_t *header = nng_msg_header(work->msg) + 3;
-		flag            = *header;
-
-		smsg = nano_msg_notify_connect(work->cparam, flag);
-		nng_msg_set_cmd_type(smsg, CMD_PUBLISH);
-		nng_msg_free(work->msg);
-		work->msg = smsg;
-		handle_pub(work, work->pipe_ct);
-
-		// Free here due to the clone before
-		conn_param_free(work->cparam);
-
-		work->state = WAIT;
-		nng_aio_finish(work->aio, 0);
 		break;
 	default:
 		fatal("bad state!", NNG_ESTATE);
