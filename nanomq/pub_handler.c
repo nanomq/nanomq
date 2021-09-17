@@ -54,7 +54,12 @@ foreach_client(
 	for (int i = 0; i < ctx_list_len; i++) {
 		ctx  = (struct client_ctx *) cli_ctx_list[i];
 		pids = ctx->pid.id;
-		sub_qos  = ctx->sub_pkt->node->it->qos;
+		// TODO topic node lost ?!
+		if (ctx->sub_pkt->node == NULL) {
+			sub_qos = 0;
+		} else {
+			sub_qos = ctx->sub_pkt->node->it->qos;
+		}
 
 		if (pids == 0) {
 			continue;
