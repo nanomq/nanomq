@@ -319,6 +319,11 @@ sub_ctx_handle(nano_work *work)
 	old_ctx->cparam    = cli_ctx->cparam;
 	cli_ctx->cparam    = cp;
 
+	// clean session handle.
+	debug_msg("clean session handle");
+	cli_ctx_merge(cli_ctx, old_ctx);
+	destroy_sub_ctx(cli_ctx);
+
 	while (topic_node_t) {
 		topic_len = topic_node_t->it->topic_filter.len;
 		topic_str = topic_node_t->it->topic_filter.body;
@@ -364,12 +369,6 @@ sub_ctx_handle(nano_work *work)
 
 		topic_node_t = topic_node_t->next;
 	}
-
-	// clean session handle.
-	// if cli ctx exists in tree, get it and merge(new ctx, stored ctx)
-	debug_msg("clean session handle");
-	cli_ctx_merge(cli_ctx, old_ctx);
-	destroy_sub_ctx(cli_ctx);
 
 	// check treeDB
 	print_db_tree(work->db);
