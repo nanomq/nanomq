@@ -556,37 +556,6 @@ destroy_sub_pkt(packet_subscribe *sub_pkt, uint8_t proto_ver)
 }
 
 void
-destroy_sub_pkt_without_ct(packet_subscribe *sub_pkt, uint8_t proto_ver)
-{
-	topic_node *topic_node_t, *next_topic_node;
-	if (!sub_pkt) {
-		return;
-	}
-	topic_node_t    = sub_pkt->node;
-	next_topic_node = NULL;
-	while (topic_node_t) {
-		next_topic_node = topic_node_t->next;
-		nng_free(topic_node_t, sizeof(topic_node));
-		topic_node_t = next_topic_node;
-	}
-
-	if (sub_pkt) {
-#if SUPPORT_MQTT5_0
-		if (PROTOCOL_VERSION_v5 == proto_ver) {
-			nng_free(sub_pkt->user_property.strpair.key,
-			    sub_pkt->user_property.strpair.len_key);
-			nng_free(sub_pkt->user_property.strpair.val,
-			    sub_pkt->user_property.strpair.len_val);
-		}
-#endif
-	}
-	if (sub_pkt) {
-		nng_free(sub_pkt, sizeof(packet_subscribe));
-		sub_pkt = NULL;
-	}
-}
-
-void
 destroy_sub_ctx(void *ctxt)
 {
 	client_ctx *cli_ctx = ctxt;
