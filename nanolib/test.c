@@ -1,10 +1,14 @@
 #include "include/nanolib.h"
 #include <string.h>
 
-#define NUM_THREADS 8
+#define TEST_NUM_THREADS 8
+#define TEST_QUE_SIZE 10
+#define TEST_MSG_SIZE 16
+#define TEST_ARRAY_SIZE 10
+#define TEST_LOOP 10000
 
-db_tree *db     = NULL;
-db_tree *db_ret = NULL;
+dbtree *db     = NULL;
+dbtree *db_ret = NULL;
 
 ///////////for wildcard////////////
 char topic0[] = "zhang/bei/hai";
@@ -31,180 +35,340 @@ char topic08[] = "cc/dd/aa";
 char topic09[] = "www/xxx/zz";
 
 ////////////////////////////////////
-s_client client0 = {"test_150429", .pipe_id = 150429, NULL };
-s_client client1 = {"test_150420", .pipe_id = 150420, NULL };
-s_client client2 = {"test_150427", .pipe_id = 150427, NULL };
-s_client client3 = {"test_150426", .pipe_id = 150426, NULL };
-s_client client4 = {"test_150425", .pipe_id = 150425, NULL };
-s_client client5 = {"test_150424", .pipe_id = 150424, NULL };
-s_client client6 = {"test_150423", .pipe_id = 150423, NULL };
-s_client client7 = {"test_150422", .pipe_id = 150422, NULL };
-s_client client8 = {"test_150421", .pipe_id = 150421, NULL };
-s_client client9 = {"test_150420", .pipe_id = 150420, NULL };
-
-retain_msg retain0 = { 1, true, "150429", NULL };
-retain_msg retain1 = { 1, true, "150428", NULL };
-retain_msg retain2 = { 1, true, "150427", NULL };
-retain_msg retain3 = { 1, true, "150426", NULL };
-retain_msg retain4 = { 1, true, "150425", NULL };
-retain_msg retain5 = { 1, true, "150424", NULL };
-retain_msg retain6 = { 1, true, "150423", NULL };
-retain_msg retain7 = { 1, true, "150422", NULL };
-retain_msg retain8 = { 1, true, "150421", NULL };
-retain_msg retain9 = { 1, true, "150420", NULL };
-
-s_client client[] = {
-	{"test_130429", 130429, NULL },
-	{"test_130428", 130428, NULL },
-	{"test_130427", 130427, NULL },
-	{"test_130426", 130426, NULL },
-	{"test_130425", 130425, NULL },
-	{"test_130424", 130424, NULL },
-	{"test_130423", 130423, NULL },
-	{"test_130422", 130422, NULL },
-	{"test_130421", 130421, NULL },
-	{"test_130420", 130420, NULL },
+dbtree_client client0 = {
+	.session_id = 250429, .pipe_id = 150429, (void *) &"350429"
+};
+dbtree_client client1 = {
+	.session_id = 250420, .pipe_id = 150420, (void *) &"350420"
+};
+dbtree_client client2 = {
+	.session_id = 250427, .pipe_id = 150427, (void *) &"350427"
+};
+dbtree_client client3 = {
+	.session_id = 250426, .pipe_id = 150426, (void *) &"350426"
+};
+dbtree_client client4 = {
+	.session_id = 250425, .pipe_id = 150425, (void *) &"350425"
+};
+dbtree_client client5 = {
+	.session_id = 250424, .pipe_id = 150424, (void *) &"350424"
+};
+dbtree_client client6 = {
+	.session_id = 250423, .pipe_id = 150423, (void *) &"350423"
+};
+dbtree_client client7 = {
+	.session_id = 250422, .pipe_id = 150422, (void *) &"350422"
+};
+dbtree_client client8 = {
+	.session_id = 250421, .pipe_id = 150421, (void *) &"350421"
+};
+dbtree_client client9 = {
+	.session_id = 250420, .pipe_id = 150420, (void *) &"350420"
 };
 
-// char id[] = "hahahha";
+dbtree_retain_msg retain0 = { 1, true, "150429", NULL };
+dbtree_retain_msg retain1 = { 1, true, "150428", NULL };
+dbtree_retain_msg retain2 = { 1, true, "150427", NULL };
+dbtree_retain_msg retain3 = { 1, true, "150426", NULL };
+dbtree_retain_msg retain4 = { 1, true, "150425", NULL };
+dbtree_retain_msg retain5 = { 1, true, "150424", NULL };
+dbtree_retain_msg retain6 = { 1, true, "150423", NULL };
+dbtree_retain_msg retain7 = { 1, true, "150422", NULL };
+dbtree_retain_msg retain8 = { 1, true, "150421", NULL };
+dbtree_retain_msg retain9 = { 1, true, "150420", NULL };
+
+dbtree_client client[] = {
+	{ 230429, 130429, NULL },
+	{ 230428, 130428, NULL },
+	{ 230427, 130427, NULL },
+	{ 230426, 130426, NULL },
+	{ 230425, 130425, NULL },
+	{ 230424, 130424, NULL },
+	{ 230423, 130423, NULL },
+	{ 230422, 130422, NULL },
+	{ 230421, 130421, NULL },
+	{ 230420, 130420, NULL },
+};
 
 static void
-test_insert()
+test_insert_client()
 {
-	search_and_insert(db, topic0, client0.id, NULL, client0.pipe_id);
-	print_db_tree(db);            
- 	search_and_insert(db, topic1, client1.id, NULL, client1.pipe_id);
- 	print_db_tree(db);            
- 	search_and_insert(db, topic2, client2.id, NULL, client2.pipe_id);
- 	print_db_tree(db);            
- 	search_and_insert(db, topic3, client3.id, NULL, client3.pipe_id);
- 	print_db_tree(db);            
- 	search_and_insert(db, topic4, client4.id, NULL, client4.pipe_id);
- 	print_db_tree(db);            
- 	search_and_insert(db, topic5, client5.id, NULL, client5.pipe_id);
- 	print_db_tree(db);            
- 	search_and_insert(db, topic6, client6.id, NULL, client6.pipe_id);
- 	print_db_tree(db);            
- 	search_and_insert(db, topic7, client7.id, NULL, client7.pipe_id);
- 	print_db_tree(db);            
- 	search_and_insert(db, topic8, client8.id, NULL, client8.pipe_id);
- 	print_db_tree(db);            
- 	search_and_insert(db, topic9, client9.id, NULL, client9.pipe_id);
- 	print_db_tree(db);
-
-	// client0.id = "150428";
-	// client1.id = "150427";
-	// client2.id = "150426";
-	// client3.id = "150425";
-	// client4.id = "150424";
-	// client5.id = "150425";
-	// client6.id = "150426";
-	// client7.id = "150427";
-	// client8.id = "150428";
-	// client9.id = "150429";
-
-	// ///////////////////////////////////////
-	// search_and_insert(db, topic0, &client0);
-	// print_db_tree(db);
-	// search_and_insert(db, topic1, &client1);
-	// print_db_tree(db);
-	// search_and_insert(db, topic2, &client2);
-	// print_db_tree(db);
-	// search_and_insert(db, topic3, &client3);
-	// print_db_tree(db);
-	// search_and_insert(db, topic4, &client4);
-	// print_db_tree(db);
-	// search_and_insert(db, topic5, &client5);
-	// print_db_tree(db);
-	// search_and_insert(db, topic6, &client6);
-	// print_db_tree(db);
-	// search_and_insert(db, topic7, &client7);
-	// print_db_tree(db);
-	// search_and_insert(db, topic8, &client8);
-	// print_db_tree(db);
-	// search_and_insert(db, topic9, &client9);
-	// //////////////////////////////////////
+	dbtree_insert_client(db, topic0, client0.ctxt, client0.pipe_id);
+	dbtree_print(db);
+	dbtree_insert_client(db, topic1, client1.ctxt, client1.pipe_id);
+	dbtree_print(db);
+	dbtree_insert_client(db, topic2, client2.ctxt, client2.pipe_id);
+	dbtree_print(db);
+	dbtree_insert_client(db, topic3, client3.ctxt, client3.pipe_id);
+	dbtree_print(db);
+	dbtree_insert_client(db, topic4, client4.ctxt, client4.pipe_id);
+	dbtree_print(db);
+	dbtree_insert_client(db, topic5, client5.ctxt, client5.pipe_id);
+	dbtree_print(db);
+	dbtree_insert_client(db, topic6, client6.ctxt, client6.pipe_id);
+	dbtree_print(db);
+	dbtree_insert_client(db, topic7, client7.ctxt, client7.pipe_id);
+	dbtree_print(db);
+	dbtree_insert_client(db, topic8, client8.ctxt, client8.pipe_id);
+	dbtree_print(db);
+	dbtree_insert_client(db, topic9, client9.ctxt, client9.pipe_id);
+	dbtree_print(db);
 }
 
 static void
-test_delete()
+test_delete_client()
 {
-	puts("================begin delete===============");
-	search_and_delete(db, topic0, client0.id, client0.pipe_id, PERSISTENCE);
- 	print_db_tree(db);            
- 	search_and_delete(db, topic1, client1.id, client1.pipe_id, PERSISTENCE);
- 	print_db_tree(db);            
- 	search_and_delete(db, topic2, client2.id, client2.pipe_id, PERSISTENCE);
- 	print_db_tree(db);            
- 	search_and_delete(db, topic3, client3.id, client3.pipe_id, PERSISTENCE);
- 	print_db_tree(db);            
- 	search_and_delete(db, topic4, client4.id, client4.pipe_id, PERSISTENCE);
- 	print_db_tree(db);            
- 	search_and_delete(db, topic5, client5.id, client5.pipe_id, PERSISTENCE);
- 	print_db_tree(db);            
- 	search_and_delete(db, topic6, client6.id, client6.pipe_id, PERSISTENCE);
- 	print_db_tree(db);            
- 	search_and_delete(db, topic7, client7.id, client7.pipe_id, PERSISTENCE);
- 	print_db_tree(db);            
- 	search_and_delete(db, topic8, client8.id, client8.pipe_id, PERSISTENCE);
- 	print_db_tree(db);            
- 	search_and_delete(db, topic9, client9.id, client9.pipe_id, PERSISTENCE);
- 	print_db_tree(db);
+	puts("================begin delete client===============");
+	dbtree_delete_client(db, topic0, client0.session_id, client0.pipe_id);
+	dbtree_print(db);
+	dbtree_delete_client(db, topic1, client1.session_id, client1.pipe_id);
+	dbtree_print(db);
+	dbtree_delete_client(db, topic2, client2.session_id, client2.pipe_id);
+	dbtree_print(db);
+	dbtree_delete_client(db, topic3, client3.session_id, client3.pipe_id);
+	dbtree_print(db);
+	dbtree_delete_client(db, topic4, client4.session_id, client4.pipe_id);
+	dbtree_print(db);
+	dbtree_delete_client(db, topic5, client5.session_id, client5.pipe_id);
+	dbtree_print(db);
+	dbtree_delete_client(db, topic6, client6.session_id, client6.pipe_id);
+	dbtree_print(db);
+	dbtree_delete_client(db, topic7, client7.session_id, client7.pipe_id);
+	dbtree_print(db);
+	dbtree_delete_client(db, topic8, client8.session_id, client8.pipe_id);
+	dbtree_print(db);
+	dbtree_delete_client(db, topic9, client9.session_id, client9.pipe_id);
+	dbtree_print(db);
 }
 
-// static void test_search_client()
-// {
-//         cvector(s_client*) v =  NULL;
-//         v = search_client(db, topic0);
-//
-//         puts("================Return client==============");
-//         if (v) {
-//                 for (int i = 0; i < cvector_size(v); ++i) {
-//                         log("client id: %s", v[i]->id);
-//                 }
-//         }
-//
-//         // if (v) {
-//         // 	for (int i = 0; i < cvector_size(v); ++i) {
-//         //                 for (int j = 0; j < cvector_size(v[i]); j++) {
-//         //                         log("client id: %s", v[i][j]->id);
-//         //                 }
-//         //         }
-//
-//         // }
-//
-//
-//
-// }
+static void
+test_cache_session()
+{
+	puts("================begin cache session===============");
+	dbtree_cache_session(db, topic0, client0.session_id, client0.pipe_id);
+	dbtree_print(db);
+	dbtree_cache_session(db, topic1, client1.session_id, client1.pipe_id);
+	dbtree_print(db);
+	dbtree_cache_session(db, topic2, client2.session_id, client2.pipe_id);
+	dbtree_print(db);
+	dbtree_cache_session(db, topic3, client3.session_id, client3.pipe_id);
+	dbtree_print(db);
+	dbtree_cache_session(db, topic4, client4.session_id, client4.pipe_id);
+	dbtree_print(db);
+	dbtree_cache_session(db, topic5, client5.session_id, client5.pipe_id);
+	dbtree_print(db);
+	dbtree_cache_session(db, topic6, client6.session_id, client6.pipe_id);
+	dbtree_print(db);
+	dbtree_cache_session(db, topic7, client7.session_id, client7.pipe_id);
+	dbtree_print(db);
+	dbtree_cache_session(db, topic8, client8.session_id, client8.pipe_id);
+	dbtree_print(db);
+	dbtree_cache_session(db, topic9, client9.session_id, client9.pipe_id);
+	dbtree_print(db);
+}
+
+static void
+test_delete_session()
+{
+	puts("================begin delete session===============");
+	dbtree_delete_session(db, topic0, client0.session_id, client0.pipe_id);
+	dbtree_print(db);
+	dbtree_delete_session(db, topic1, client1.session_id, client1.pipe_id);
+	dbtree_print(db);
+	dbtree_delete_session(db, topic2, client2.session_id, client2.pipe_id);
+	dbtree_print(db);
+	dbtree_delete_session(db, topic3, client3.session_id, client3.pipe_id);
+	dbtree_print(db);
+	dbtree_delete_session(db, topic4, client4.session_id, client4.pipe_id);
+	dbtree_print(db);
+	dbtree_delete_session(db, topic5, client5.session_id, client5.pipe_id);
+	dbtree_print(db);
+	dbtree_delete_session(db, topic6, client6.session_id, client6.pipe_id);
+	dbtree_print(db);
+	dbtree_delete_session(db, topic7, client7.session_id, client7.pipe_id);
+	dbtree_print(db);
+	dbtree_delete_session(db, topic8, client8.session_id, client8.pipe_id);
+	dbtree_print(db);
+	dbtree_delete_session(db, topic9, client9.session_id, client9.pipe_id);
+	dbtree_print(db);
+}
+
+static void
+test_restore_client()
+{
+	puts("================begin delete session===============");
+	dbtree_restore_session(
+	    db, topic0, client0.session_id, client0.pipe_id);
+	dbtree_print(db);
+	dbtree_restore_session(
+	    db, topic1, client1.session_id, client1.pipe_id);
+	dbtree_print(db);
+	dbtree_restore_session(
+	    db, topic2, client2.session_id, client2.pipe_id);
+	dbtree_print(db);
+	dbtree_restore_session(
+	    db, topic3, client3.session_id, client3.pipe_id);
+	dbtree_print(db);
+	dbtree_restore_session(
+	    db, topic4, client4.session_id, client4.pipe_id);
+	dbtree_print(db);
+	dbtree_restore_session(
+	    db, topic5, client5.session_id, client5.pipe_id);
+	dbtree_print(db);
+	dbtree_restore_session(
+	    db, topic6, client6.session_id, client6.pipe_id);
+	dbtree_print(db);
+	dbtree_restore_session(
+	    db, topic7, client7.session_id, client7.pipe_id);
+	dbtree_print(db);
+	dbtree_restore_session(
+	    db, topic8, client8.session_id, client8.pipe_id);
+	dbtree_print(db);
+	dbtree_restore_session(
+	    db, topic9, client9.session_id, client9.pipe_id);
+	dbtree_print(db);
+}
+
+static void
+test_search_client()
+{
+	puts("================test search client==============");
+	char **v =
+	    (char **) dbtree_find_clients_and_cache_msg(db, topic0, NULL);
+
+	if (v) {
+		for (int i = 0; i < cvector_size(v); ++i) {
+			log_info("ctxt: %s", v[i]);
+		}
+	}
+
+	cvector_free(v);
+}
+
+static void
+test_search_session()
+{
+	puts("================test search session==============");
+	char msg_que[TEST_QUE_SIZE][TEST_MSG_SIZE];
+	for (int i = 0; i < TEST_QUE_SIZE; i++) {
+		memset(msg_que[i], 0, TEST_MSG_SIZE);
+		sprintf(msg_que[i], "message+%d", i);
+		void **v = dbtree_find_clients_and_cache_msg(
+		    db, topic0, (void *) msg_que[i]);
+		cvector_free(v);
+	}
+
+	char **ret =
+	    (char **) dbtree_restore_session_msg(db, client4.session_id);
+	for (int i = 0; i < cvector_size(ret); i++) {
+		printf("message: %s\n", ret[i]);
+	}
+	cvector_free(ret);
+}
+
+static void
+test_cache_session_msg()
+{
+	puts("================test search session msg==============");
+	char msg_que[TEST_ARRAY_SIZE][TEST_MSG_SIZE];
+	for (int i = 0; i < TEST_ARRAY_SIZE; i++) {
+		memset(msg_que[i], 0, TEST_MSG_SIZE);
+		sprintf(msg_que[i], "message+%d", i);
+		dbtree_cache_session_msg(
+		    db, (void *) msg_que[i], client[i].session_id);
+
+		char **ret = (char **) dbtree_restore_session_msg(
+		    db, client[i].session_id);
+		for (int i = 0; i < cvector_size(ret); i++) {
+			printf("message: %s\n", ret[i]);
+		}
+		cvector_free(ret);
+	}
+}
+
+static void
+test_insert_retain()
+{
+	dbtree_insert_retain(db_ret, topic00, &retain0);
+	dbtree_print(db_ret);
+	dbtree_insert_retain(db_ret, topic01, &retain1);
+	dbtree_print(db_ret);
+	dbtree_insert_retain(db_ret, topic02, &retain2);
+	dbtree_print(db_ret);
+	dbtree_insert_retain(db_ret, topic03, &retain3);
+	dbtree_print(db_ret);
+	dbtree_insert_retain(db_ret, topic04, &retain4);
+	dbtree_print(db_ret);
+	dbtree_insert_retain(db_ret, topic05, &retain5);
+	dbtree_print(db_ret);
+	dbtree_insert_retain(db_ret, topic06, &retain6);
+	dbtree_print(db_ret);
+	dbtree_insert_retain(db_ret, topic07, &retain7);
+	dbtree_print(db_ret);
+	dbtree_insert_retain(db_ret, topic08, &retain8);
+	dbtree_print(db_ret);
+	dbtree_insert_retain(db_ret, topic09, &retain9);
+	dbtree_print(db_ret);
+}
+
+static void
+test_delete_retain()
+{
+	dbtree_delete_retain(db_ret, topic00);
+	dbtree_print(db_ret);
+	dbtree_delete_retain(db_ret, topic01);
+	dbtree_print(db_ret);
+	dbtree_delete_retain(db_ret, topic02);
+	dbtree_print(db_ret);
+	dbtree_delete_retain(db_ret, topic03);
+	dbtree_print(db_ret);
+	dbtree_delete_retain(db_ret, topic04);
+	dbtree_print(db_ret);
+	dbtree_delete_retain(db_ret, topic05);
+	dbtree_print(db_ret);
+	dbtree_delete_retain(db_ret, topic06);
+	dbtree_print(db_ret);
+	dbtree_delete_retain(db_ret, topic07);
+	dbtree_print(db_ret);
+	dbtree_delete_retain(db_ret, topic08);
+	dbtree_print(db_ret);
+	dbtree_delete_retain(db_ret, topic09);
+	dbtree_print(db_ret);
+}
 
 static void *
-test_unique(void *t)
+test_single_thread(void *args)
 {
-	s_client *c = (s_client *) t;
+	for (int i = 0; i < TEST_LOOP; i++) {
+		log_info("TEST LOOP [%d]", i);
 
-	for (int i = 0; i < 100; i++) {
-		search_and_insert(db, topic0, c->id, NULL, c->pipe_id);
-		cvector(void *) v = NULL;
-		v                 = search_client(db, topic0, "message", AT_MOST_ONCE);
-		cvector_free(v);
-		print_db_tree(db);
-		search_and_delete(db, topic0, c->id, c->pipe_id, PERSISTENCE);
-		search_and_delete(db, topic0, c->id, 0, CLEAN);
+		test_insert_client();
+		test_search_client();
+		test_cache_session();
+		test_restore_client();
+		test_delete_client();
+
+		test_insert_client();
+		test_cache_session_msg();
+		test_search_session();
+		test_cache_session();
+		test_search_session();
+		test_delete_session();
 	}
-	pthread_exit(NULL);
+	return NULL;
 }
 
 static void
 test_concurrent()
 {
-	pthread_t threads[NUM_THREADS];
+	pthread_t threads[TEST_NUM_THREADS];
 	int       rc;
 	long      t;
 	void *    status;
-	for (t = 0; t < NUM_THREADS; t++) {
+	for (t = 0; t < TEST_NUM_THREADS; t++) {
 		printf("In main: creating thread %ld\n", t);
 		rc = pthread_create(
-		    &threads[t], NULL, test_unique, (void *) &client[t % 10]);
+		    &threads[t], NULL, test_single_thread, NULL);
 		if (rc) {
 			printf(
 			    "ERROR; return code from pthread_create() is %d\n",
@@ -213,7 +377,7 @@ test_concurrent()
 		}
 	}
 
-	for (t = 0; t < NUM_THREADS; t++) {
+	for (t = 0; t < TEST_NUM_THREADS; t++) {
 		rc = pthread_join(threads[t], &status);
 		if (rc) {
 			printf(
@@ -232,176 +396,22 @@ test_concurrent()
 	// pthread_exit(NULL);
 }
 
-static void
-test_insert_retain()
-{
-	search_insert_retain(db_ret, topic00, &retain0);
-	print_db_tree(db_ret);
-	search_insert_retain(db_ret, topic01, &retain1);
-	print_db_tree(db_ret);
-	search_insert_retain(db_ret, topic02, &retain2);
-	print_db_tree(db_ret);
-	search_insert_retain(db_ret, topic03, &retain3);
-	print_db_tree(db_ret);
-	search_insert_retain(db_ret, topic04, &retain4);
-	print_db_tree(db_ret);
-	search_insert_retain(db_ret, topic05, &retain5);
-	print_db_tree(db_ret);
-	search_insert_retain(db_ret, topic06, &retain6);
-	print_db_tree(db_ret);
-	search_insert_retain(db_ret, topic07, &retain7);
-	print_db_tree(db_ret);
-	search_insert_retain(db_ret, topic08, &retain8);
-	print_db_tree(db_ret);
-	search_insert_retain(db_ret, topic09, &retain9);
-	print_db_tree(db_ret);
-}
-
-static void
-test_delete_retain()
-{
-	search_delete_retain(db_ret, topic00);
-	print_db_tree(db_ret);
-	search_delete_retain(db_ret, topic01);
-	print_db_tree(db_ret);
-	search_delete_retain(db_ret, topic02);
-	print_db_tree(db_ret);
-	search_delete_retain(db_ret, topic03);
-	print_db_tree(db_ret);
-	search_delete_retain(db_ret, topic04);
-	print_db_tree(db_ret);
-	search_delete_retain(db_ret, topic05);
-	print_db_tree(db_ret);
-	search_delete_retain(db_ret, topic06);
-	print_db_tree(db_ret);
-	search_delete_retain(db_ret, topic07);
-	print_db_tree(db_ret);
-	search_delete_retain(db_ret, topic08);
-	print_db_tree(db_ret);
-	search_delete_retain(db_ret, topic09);
-	print_db_tree(db_ret);
-}
-
 int
 main(int argc, char *argv[])
 {
 	puts("\n----------------TEST START------------------");
 
-	create_db_tree(&db);
-
-	test_insert();
-	test_delete();
+	dbtree_create(&db);
+	test_single_thread(NULL);
 	test_concurrent();
+	dbtree_print(db);
 
-	cvector(void*) v =  NULL;
-	for (int i = 0; i < 10; i++) {
-		char message[16];
-		memset(message, 0, sizeof(message));
-		sprintf(message,"message+%d", i);
-	        v = search_client(db, topic0, message, AT_LEAST_ONCE);
-                cvector_free(v);
-	}
+	dbtree_destory(db);
 
-	// test_search_client();
-	
-	// print_db_tree(db);
-
-	msg_info **ret = NULL;
-	ret = search_session(db, client4.id);
-	for (int i = 0; i < cvector_size(ret); i++) {
-		printf("QOS: %d, message: %s\n", ret[i]->qos_level, ret[i]->msg);
-                zfree(ret[i]->msg);
-                zfree(ret[i]);
-	}
-        cvector_free(ret);
-
-
-	ret = search_session(db, client4.id);
-	for (int i = 0; i < cvector_size(ret); i++) {
-		printf("QOS: %d, message: %s\n", ret[i]->qos_level, ret[i]->msg);
-             zfree(ret[i]->msg);
-             zfree(ret[i]);
-	}
-        cvector_free(ret);
-
-	void *ctxt = NULL;
-	ctxt = search_insert_session(db, topic0, client0.id, NULL, 140420);
-	ctxt = search_insert_session(db, topic1, client1.id, NULL, 140421);
-	ctxt = search_insert_session(db, topic2, client2.id, NULL, 140422);
-	ctxt = search_insert_session(db, topic3, client3.id, NULL, 140423);
-	ctxt = search_insert_session(db, topic4, client4.id, NULL, 140424);
-	ctxt = search_insert_session(db, topic5, client5.id, NULL, 140425);
-	ctxt = search_insert_session(db, topic6, client6.id, NULL, 140426);
-	ctxt = search_insert_session(db, topic7, client7.id, NULL, 140427);
-	ctxt = search_insert_session(db, topic8, client8.id, NULL, 140428);
-	ctxt = search_insert_session(db, topic9, client9.id, NULL, 140429);
-	// for (int i = 0; i < 10; i++) {
-	// 		 char message[16];
-	// 		 memset(message, 0, sizeof(message));
-	// 		 sprintf(message,"message+%d", i);
-	//          v = search_client(db, topic0, message, AT_LEAST_ONCE);
-	//          cvector_free(v);
-	// }
-	// ret = search_session(db, client4.id);
-	// for (int i = 0; i < cvector_size(ret); i++) {
-	// 	printf("QOS: %d, message: %s\n", ret[i]->qos, ret[i]->msg);
-	// }
-	
-	ctxt = search_and_delete(db, topic0, client0.id, 140420, PERSISTENCE);
-	ctxt = search_and_delete(db, topic1, client1.id, 140421, PERSISTENCE);
-	ctxt = search_and_delete(db, topic2, client2.id, 140422, PERSISTENCE);
-	ctxt = search_and_delete(db, topic3, client3.id, 140423, PERSISTENCE);
-	ctxt = search_and_delete(db, topic4, client4.id, 140424, PERSISTENCE);
-	ctxt = search_and_delete(db, topic5, client5.id, 140425, PERSISTENCE);
-	ctxt = search_and_delete(db, topic6, client6.id, 140426, PERSISTENCE);
-	ctxt = search_and_delete(db, topic7, client7.id, 140427, PERSISTENCE);
-	ctxt = search_and_delete(db, topic8, client8.id, 140428, PERSISTENCE);
-	ctxt = search_and_delete(db, topic9, client9.id, 140429, PERSISTENCE);
-
-	// for (int i = 0; i < 10; i++) {
-	// 		 char message[16];
-	// 		 memset(message, 0, sizeof(message));
-	// 		 sprintf(message,"message+%d", i);
-	//          v = search_client(db, topic0, message, AT_LEAST_ONCE);
-	//          cvector_free(v);
-	// }
-	// ret = search_session(db, client4.id);
-	// for (int i = 0; i < cvector_size(ret); i++) {
-	// 	printf("QOS: %d, message: %s\n", ret[i]->qos, ret[i]->msg);
-	// }
-
-
-	ctxt = search_and_delete(db, topic0, client0.id, 140420, CLEAN);
-	ctxt = search_and_delete(db, topic1, client1.id, 140421, CLEAN);
-	ctxt = search_and_delete(db, topic2, client2.id, 140422, CLEAN);
-	ctxt = search_and_delete(db, topic3, client3.id, 140423, CLEAN);
-	ctxt = search_and_delete(db, topic4, client4.id, 140424, CLEAN);
-	ctxt = search_and_delete(db, topic5, client5.id, 140425, CLEAN);
-	ctxt = search_and_delete(db, topic6, client6.id, 140426, CLEAN);
-	ctxt = search_and_delete(db, topic7, client7.id, 140427, CLEAN);
-	ctxt = search_and_delete(db, topic8, client8.id, 140428, CLEAN);
-	ctxt = search_and_delete(db, topic9, client9.id, 140429, CLEAN);
-
-
-
-
-	print_db_tree(db);
-
-
-	// for (int i = 0; i < 10; i++) {
-	// 		 char message[16];
-	// 		 memset(message, 0, sizeof(message));
-	// 		 sprintf(message,"message+%d", i);
-	//          v = search_client(db, topic0, message, AT_LEAST_ONCE);
-	//          cvector_free(v);
-	// }
-
-	destory_db_tree(db);
-
-	create_db_tree(&db_ret);
+	dbtree_create(&db_ret);
 	test_insert_retain();
 	puts("=======================================");
-	retain_msg **r = search_retain(db_ret, topic6);
+	dbtree_retain_msg **r = dbtree_find_retain(db_ret, topic6);
 	for (int i = 0; i < cvector_size(r); i++) {
 		if (r[i]) {
 			printf("%s\t", r[i]->m);
@@ -411,7 +421,7 @@ main(int argc, char *argv[])
 	puts("=======================================");
 	test_delete_retain();
 
-	destory_db_tree(db_ret);
+	dbtree_destory(db_ret);
 	puts("---------------TEST FINISHED----------------\n");
 
 	return 0;
