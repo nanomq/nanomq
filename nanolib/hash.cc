@@ -155,7 +155,7 @@ del_val(int key)
 // {
 // 	if (tq) {
 // 		if (tq->topic) {
-// 			log("delete topic:%s", tq->topic);
+// 			log_info("delete topic:%s", tq->topic);
 // 			free(tq->topic);
 // 			tq->topic = NULL;
 // 		}
@@ -177,12 +177,12 @@ del_val(int key)
 // 	struct topic_queue *tq = _topic_hash[id];
 // 	if (tq == NULL) {
 // 		_topic_hash[id] = ntq;
-// 		log("add_topic:%s",_topic_hash[id]->topic);
+// 		log_info("add_topic:%s",_topic_hash[id]->topic);
 // 	} else {
 //                 struct topic_queue *tmp = tq->next;
 // 		tq->next = ntq;
 // 		ntq->next = tmp;
-// 		log("add_topic:%s", tq->next->topic);
+// 		log_info("add_topic:%s", tq->next->topic);
 // 	}
 //
 // }
@@ -320,7 +320,7 @@ delete_topic_queue(struct topic_queue *tq)
 {
 	if (tq) {
 		if (tq->topic) {
-			log("delete topic:%s", tq->topic);
+			log_info("delete topic:%s", tq->topic);
 			free(tq->topic);
 			tq->topic = NULL;
 		}
@@ -501,7 +501,7 @@ cache_topic_all(uint32_t pid, uint32_t cid)
 {
 	struct topic_queue *tq_in_topic_hash = _topic_hash[pid];
 	if (cached_check_id(cid)) {
-		log("unexpected: cached hash instance is not vacant");
+		log_info("unexpected: cached hash instance is not vacant");
 		del_cached_topic_all(cid);
 	}
 	_cached_topic_hash[cid] = tq_in_topic_hash;
@@ -520,7 +520,7 @@ restore_topic_all(uint32_t cid, uint32_t pid)
 {
 	struct topic_queue *tq_in_cached = _cached_topic_hash[cid];
 	if (check_id(pid)) {
-		log("unexpected: hash instance is not vacant");
+		log_info("unexpected: hash instance is not vacant");
 		del_topic_all(pid);
 	}
 	_topic_hash[pid] = tq_in_cached;
@@ -538,7 +538,7 @@ delete_cached_topic_one(struct topic_queue *ctq)
 {
 	if (ctq) {
 		if (ctq->topic) {
-			log("delete topic:%s", ctq->topic);
+			log_info("delete topic:%s", ctq->topic);
 			free(ctq->topic);
 			ctq->topic = NULL;
 		}
@@ -609,7 +609,7 @@ void
 add_pipe_id(uint32_t pipe_id, char *client_id)
 {
 	_pipe_hash[pipe_id] = client_id;
-	log("add_pipe_id %d, client_id %s", pipe_id, _pipe_hash[pipe_id]);
+	log_info("add_pipe_id %d, client_id %s", pipe_id, _pipe_hash[pipe_id]);
 	return;
 }
 
@@ -620,7 +620,7 @@ del_pipe_id(uint32_t pipe_id)
 #else
 	char *res = _pipe_hash[pipe_id];
 #endif
-	log("del_pipe_id %d, client_id %s", pipe_id, res);
+	log_info("del_pipe_id %d, client_id %s", pipe_id, res);
 	_pipe_hash.del(pipe_id);
 	return;
 }
@@ -686,7 +686,7 @@ delete_msg_queue(struct msg_queue *mq)
 {
 	if (mq) {
 		if (mq->msg) {
-			log("delete topic:%s", mq->msg);
+			log_info("delete topic:%s", mq->msg);
 			free(mq->msg);
 			mq->msg = NULL;
 		}
@@ -707,7 +707,7 @@ add_msg_queue(char *id, char *msg)
 	struct msg_queue *mq  = _msg_queue_hash[id];
 	if (mq == NULL) {
 		_msg_queue_hash[id] = nmq;
-		log("add_topic:%s", _msg_queue_hash[id]->msg);
+		log_info("add_topic:%s",_msg_queue_hash[id]->msg);
 	} else {
 		struct msg_queue *tmp = mq->next;
 		mq->next              = nmq;
