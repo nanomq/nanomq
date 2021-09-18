@@ -357,7 +357,8 @@ server_cb(void *arg)
 					work->msg = smsg;
 
 					debug_msg("Set qos: %d", );
-					// nng_aio_set_prov_extra(work->aio, 0, p_info.qos);
+					nng_aio_set_prov_extra(work->aio, 0,
+					    (void *) (intptr_t) p_info.qos);
 					nng_aio_set_msg(work->aio, work->msg);
 					// TODO pipe = 0?
 					work->pid.id = p_info.pipe;
