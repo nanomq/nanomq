@@ -356,14 +356,8 @@ server_cb(void *arg)
 					nng_msg_clone(smsg);
 					work->msg = smsg;
 
-					pub_extra *pub_extra_info;
-					pub_extra_info =
-					    pub_extra_alloc(pub_extra_info);
-					pub_extra_set_qos(
-					    pub_extra_info, p_info.qos);
-					debug_msg("Set qos: %d", p_info.qos);
-					nng_aio_set_prov_extra(
-					    work->aio, 0, pub_extra_info);
+					debug_msg("Set qos: %d", );
+					// nng_aio_set_prov_extra(work->aio, 0, p_info.qos);
 					nng_aio_set_msg(work->aio, work->msg);
 					// TODO pipe = 0?
 					work->pid.id = p_info.pipe;
@@ -386,8 +380,9 @@ server_cb(void *arg)
 				nng_aio_finish(work->aio, 0);
 				break;
 			} else {
-				if (smsg)
+				if (smsg) {
 					nng_msg_free(smsg);
+				}
 				free_pub_packet(work->pub_packet);
 				free_pipes_info(work->pipe_ct->pipe_info);
 				init_pipe_content(work->pipe_ct);
