@@ -686,16 +686,14 @@ restore_session(char * clientid, conn_param * cparam, uint32_t pid, void * db)
 		return 0;
 	}
 
-	void *        msgs       = cs->msg_map;
-	nano_pipe_db *topics     = cs->pipe_db;
-	nano_pipe_db *topic_node = topics;
-	cs->pipeid               = pid;
+	void *msgs = cs->msg_map;
+	cs->pipeid = pid;
 
-	old_cparam     = cs->cparam;
-	ctx            = cs->cltx;
+	old_cparam = cs->cparam;
+	ctx        = cs->cltx;
 
 	// step 0 restore conn param
-//	deep_copy_conn_param(cparam, old_cparam);
+	//	deep_copy_conn_param(cparam, old_cparam);
 	conn_param_free(old_cparam);
 
 	// step 1 restore cli_ctx and cached_topic_queue
@@ -709,26 +707,6 @@ restore_session(char * clientid, conn_param * cparam, uint32_t pid, void * db)
 		debug_msg("(CS=0) UNEXPECTED: no stored cached topic queue");
 	}
 
-	// step 2 restore topic in pipe_db
-//	p->pipedb_root = topics;
-//	cs->pipe_db    = NULL;
-	// step 3 restore nano_pipe_db<topic, pipe_db>
-/*
-	while (topic_node->next) {
-		nni_id_set(&p->pipe->nano_db,DJBHashn(
-		        topic_node->topic, strlen(topic_node->topic)), topic_node);
-		topic_node = topic_node->next;
-	}
-*/
-	// step 4 restore nano_qos_db
-	// TODO new coming message may use the existing packet id in
-	// one client nano_qos_db
-	// TODO merge the msgs. Then publish them.
-/*
-	nni_id_map_fini(p->pipe->nano_qos_db);
-	nng_free(p->pipe->nano_qos_db, sizeof(struct nni_id_map));
-	p->pipe->nano_qos_db       = msgs;
-*/
 	conn_param_set_qos_db(cparam, msgs);
 
 	debug_msg("Session restored finish");

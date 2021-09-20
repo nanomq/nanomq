@@ -337,7 +337,7 @@ server_cb(void *arg)
 				debug_msg("WAIT nng aio result error: %d", rv);
 				fatal("WAIT nng_ctx_recv/send", rv);
 			}
-			smsg      = work->msg; // reuse the same msg memory
+			smsg      = work->msg; // reuse the same msg
 			work->msg = NULL;
 
 			debug_msg("total pipes: %d", work->pipe_ct->total);
@@ -347,7 +347,6 @@ server_cb(void *arg)
 				             [work->pipe_ct->current_index];
 				work->pipe_ct->encode_msg(smsg, p_info.work,
 				    p_info.cmd, p_info.qos, 0);
-
 				while (work->pipe_ct->total >
 				    work->pipe_ct->current_index) {
 					p_info =
@@ -356,7 +355,6 @@ server_cb(void *arg)
 					nng_msg_clone(smsg);
 					work->msg = smsg;
 
-					debug_msg("Set qos: %d", );
 					nng_aio_set_prov_extra(work->aio, 0,
 					    (void *) (intptr_t) p_info.qos);
 					nng_aio_set_msg(work->aio, work->msg);
