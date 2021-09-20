@@ -54,7 +54,7 @@ foreach_client(
 	for (int i = 0; i < ctx_list_len; i++) {
 		ctx  = (struct client_ctx *) cli_ctx_list[i];
 		pids = ctx->pid.id;
-		sub_qos  = ctx->sub_pkt->node->it->qos;
+		sub_qos = ctx->sub_pkt->node->it->qos;
 
 		if (pids == 0) {
 			continue;
