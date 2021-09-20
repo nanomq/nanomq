@@ -644,9 +644,6 @@ cache_session(char * clientid, conn_param * cparam, uint32_t pid, void *db)
 		debug_msg("(CS=0) UNEXPECTED: no stored topic queue, tq lost "
 		          "or client may not subed topic");
 	}
-	// step 3 move nano_pipe_db to temp_cs struct (move pointer)
-//	temp_cs->pipe_db = p->pipedb_root;
-//	p->pipedb_root   = NULL;
 
 	debug_msg("Session cached.");
 	return 0;
@@ -744,10 +741,6 @@ restore_session(char * clientid, conn_param * cparam, uint32_t pid, void * db)
 			debug_msg(
 			    "(CS=1) UNEXPECTED: no stored cached topic queue");
 		}
-		// step 3 delete topics in pipe_db
-		nano_msg_free_pipedb(topics);
-		debug_msg(
-		    "(CS=1) All last session related information disgarded");
 */
 
 static void
