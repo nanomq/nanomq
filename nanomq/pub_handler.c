@@ -271,10 +271,9 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 		append_res = nng_msg_header_append(dest_msg, tmp, arr_len);
 		nng_msg_set_remaining_len(
 		    dest_msg, work->pub_packet->fixed_header.remain_len);
-		debug_msg("header len [%ld] remain len [%d]",
+		debug_msg("header len [%ld] remain len [%d]\n",
 		    nng_msg_header_len(dest_msg),
 		    work->pub_packet->fixed_header.remain_len);
-
 		/*variable header*/
 		// topic name
 		if (work->pub_packet->variable_header.publish.topic_name.len >

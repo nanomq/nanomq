@@ -20,7 +20,6 @@ struct nano_clean_session {
 	client_ctx *  cltx;
 	conn_param *  cparam;
 	void *        msg_map;
-	nano_pipe_db *pipe_db;
 	uint32_t      pipeid; // corresponding pipe id of nng
 	bool          clean;
 };
