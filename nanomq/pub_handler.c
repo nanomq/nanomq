@@ -92,8 +92,8 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct)
 
 	// TODO no local
 	if (PUBLISH == work->pub_packet->fixed_header.packet_type) {
-		void **cli_ctx_list = search_client(work->db,
-		    work->pub_packet->variable_header.publish.topic_name.body);
+		void **cli_ctx_list = dbtree_find_clients_and_cache_msg(
+		    work->db, work->pub_packet->variable_header.publish.topic_name.body, NULL);
 
 		if (cli_ctx_list != NULL) {
 			foreach_client(cli_ctx_list, work, pipe_ct);
@@ -115,13 +115,13 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct)
 static void
 handle_pub_retain(const nano_work *work, char *topic)
 {
-	struct retain_msg *retain = NULL;
+	dbtree_retain_msg *retain = NULL;
 
 	if (work->pub_packet->fixed_header.retain) {
-		retain_msg *r = NULL;
+		dbtree_retain_msg *r = NULL;
 
 		if (work->pub_packet->payload_body.payload_len > 0) {
-			retain      = nng_alloc(sizeof(struct retain_msg));
+			retain      = nng_alloc(sizeof(dbtree_retain_msg));
 			retain->qos = work->pub_packet->fixed_header.qos;
 			nng_msg_clone(work->msg);
 
@@ -132,18 +132,18 @@ handle_pub_retain(const nano_work *work, char *topic)
 			debug("found retain [%p], message: [%p][%p]\n", retain,
 			    retain->message,
 			    nng_msg_payload_ptr(retain->message));
-			r = search_insert_retain(work->db_ret, topic, retain);
+			r = dbtree_insert_retain(work->db_ret, topic, retain);
 		} else {
 			debug_msg("delete retain message");
-			r = search_delete_retain(work->db_ret, topic);
+			r = dbtree_delete_retain(work->db_ret, topic);
 		}
-		retain_msg *ret = (retain_msg *) r;
+		dbtree_retain_msg *ret = (dbtree_retain_msg *) r;
 
 		if (ret != NULL) {
 			if (ret->message) {
 				nng_msg_free(ret->message);
 			}
-			nng_free(ret, sizeof(struct retain_msg));
+			nng_free(ret, sizeof(dbtree_retain_msg));
 			ret = NULL;
 		}
 	}

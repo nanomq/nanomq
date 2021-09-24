@@ -161,7 +161,7 @@ server_cb(void *arg)
 			nng_msg_set_cmd_type(work->msg, CMD_PUBLISH);
 			handle_pub(work, work->pipe_ct);
 			// cache session
-			client_ctx *cli_ctx = NULL;
+			client_ctx *cli_ctx  = NULL;
 			char *      clientid =
 			    (char *) conn_param_get_clientid(work->cparam);
 			if (clientid != NULL &&
@@ -175,8 +175,7 @@ server_cb(void *arg)
 				while (tq) {
 					if (tq->topic) {
 						cli_ctx = search_and_delete(
-						    work->db, tq->topic,
-						    work->pid.id);
+						    work->db, tq->topic, work->pid.id);
 					}
 					del_sub_ctx(cli_ctx, tq->topic);
 					tq = tq->next;
@@ -491,12 +490,11 @@ broker(conf *nanomq_conf)
 	const char * url = nanomq_conf->url;
 
 	// init tree
-
 	create_db_tree(&db);
 	if (db == NULL) {
 		debug_msg("NNL_ERROR error in db create");
 	}
-	create_db_tree(&db_ret);
+	dbtree_create(&db_ret);
 	if (db_ret == NULL) {
 		debug_msg("NNL_ERROR error in db create");
 	}

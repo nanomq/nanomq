@@ -19,8 +19,8 @@ struct work {
 	nng_ctx   ctx;
 	nng_pipe  pid;
 	nng_mtx * mutex;
-	db_tree * db;
-	db_tree * db_ret;
+	dbtree  * db;
+	dbtree  * db_ret;
 
 	struct pipe_content *      pipe_ct;
 	conn_param *               cparam;
