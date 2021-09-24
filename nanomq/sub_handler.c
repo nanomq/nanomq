@@ -296,16 +296,17 @@ sub_ctx_handle(nano_work *work)
 
 	client_id = (char *) conn_param_get_clientid(
 	    (conn_param *) nng_msg_get_conn_param(work->msg));
+	uint32_t clientid_key = DJBHashn(client_id, strlen(client_id));
 
 	// get ctx from tree TODO optimization here
 	tq = get_topic(cli_ctx->pid.id);
 	if (tq) {
 		old_ctx =
-		    search_and_delete(work->db, tq->topic, cli_ctx->pid.id);
+		    dbtree_delete_client(work->db, tq->topic, clientid_key, cli_ctx->pid.id);
 	}
 	if (old_ctx) {
-		search_and_insert(
-		    work->db, tq->topic, client_id, old_ctx, cli_ctx->pid.id);
+		dbtree_insert_client(
+		    work->db, tq->topic, old_ctx, cli_ctx->pid.id);
 	}
 	if (!tq || !old_ctx) { /* the real ctx stored in tree */
 		old_ctx                = nng_alloc(sizeof(client_ctx));
@@ -341,8 +342,7 @@ sub_ctx_handle(nano_work *work)
 			tq = tq->next;
 		}
 		if (!topic_exist) {
-			search_and_insert(work->db, topic_str, client_id,
-			    old_ctx, work->pid.id);
+			dbtree_insert_client(work->db, topic_str, old_ctx, work->pid.id);
 			add_topic(work->pid.id, topic_str);
 		}
 #ifdef DEBUG
@@ -351,7 +351,7 @@ sub_ctx_handle(nano_work *work)
 		    work->pid.id);
 #endif
 
-		retain_msg **r = search_retain(work->db_ret, topic_str);
+		dbtree_retain_msg **r = dbtree_find_retain(work->db_ret, topic_str);
 		if (r) {
 			for (int i = 0; i < cvector_size(r); i++) {
 				if (!r[i]) {
@@ -373,7 +373,7 @@ sub_ctx_handle(nano_work *work)
 	}
 
 	// check treeDB
-	print_db_tree(work->db);
+	dbtree_print(work->db);
 	debug_msg("end of sub ctx handle. \n");
 	return SUCCESS;
 }
@@ -721,7 +721,7 @@ restore_topic_to_tree(void *tree, client_ctx *cli_ctx, char *client_id)
 	while (tn_t) {
 		debug_msg("Now adding topic (from last session), body: [%s]",
 		    tn_t->it->topic_filter.body);
-		search_and_insert(tree, tn_t->it->topic_filter.body, client_id,
+		dbtree_insert_client(tree, tn_t->it->topic_filter.body,
 		    cli_ctx, cli_ctx->pid.id);
 		tn_t = tn_t->next;
 	}
@@ -734,7 +734,7 @@ del_topic_from_tree(void *tree, topic_queue *tq, uint32_t pid)
 
 	while (tq) {
 		if (tq->topic) {
-			cli_ctx = search_and_delete(tree, tq->topic, pid);
+			cli_ctx = dbtree_delete_client(tree, tq->topic, 0, pid);
 		}
 		debug_msg("delete pipe id [%d] topic: [%s]", pid, tq->topic);
 		tq = tq->next;
