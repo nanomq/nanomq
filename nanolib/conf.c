@@ -123,6 +123,21 @@ conf_parser(conf **nanomq_conf, const char *path)
 			(*nanomq_conf)->qos_timer = temp;
 			debug_msg(CONF_READ_RECORD, key, value);
 			read_success = true;
+		} else if (!strcmp(key, "enable_web")) {
+			if (!strncmp(value, "yes", 3)) {
+				(*nanomq_conf)->enable_web = true;
+				read_success               = true;
+				debug_msg(CONF_READ_RECORD, key, value);
+			} else if (!strncmp(value, "no", 2)) {
+				(*nanomq_conf)->enable_web = false;
+				read_success               = true;
+				debug_msg(CONF_READ_RECORD, key, value);
+			}
+		} else if (!strcmp(key, "web_port") && isdigit(value[0]) &&
+		    ((temp = atoi(value)) > 0)) {
+			(*nanomq_conf)->web_port = temp;
+			debug_msg(CONF_READ_RECORD, key, value);
+			read_success = true;
 		}
 		if (!read_success) {
 			fprintf(stderr,
@@ -153,6 +168,8 @@ conf_init(conf **nanomq_conf)
 	(*nanomq_conf)->msq_len          = 64;
 	(*nanomq_conf)->qos_timer        = 30;
 	(*nanomq_conf)->allow_anonymous  = true;
+	(*nanomq_conf)->enable_web       = false;
+	(*nanomq_conf)->web_port         = 8081;
 }
 
 void
@@ -169,6 +186,9 @@ print_conf(conf *nanomq_conf)
 	debug_syslog("property_size is %d\n", nanomq_conf->property_size);
 	debug_syslog("msq_len is %d\n", nanomq_conf->msq_len);
 	debug_syslog("qos_timer is %d\n", nanomq_conf->qos_timer);
+	debug_syslog(
+	    "enable web is %s\n", nanomq_conf->enable_web ? "true" : "false");
+	debug_syslog("web port is %d\n", nanomq_conf->web_port);
 }
 
 void

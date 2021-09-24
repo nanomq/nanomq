@@ -7,8 +7,8 @@
 // found online at https://opensource.org/licenses/MIT.
 //
 
-#include "cmd.h"
 #include "include/nanomq.h"
+#include "cmd.h"
 #include "include/apps.h"
 #include "include/const_strings.h"
 #include "include/process.h"

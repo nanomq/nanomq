@@ -28,6 +28,7 @@
 #include "include/pub_handler.h"
 #include "include/sub_handler.h"
 #include "include/unsub_handler.h"
+#include "include/web_server.h"
 
 // Parallel is the maximum number of outstanding requests we can handle.
 // This is *NOT* the number of threads in use, but instead represents
@@ -125,12 +126,15 @@ server_cb(void *arg)
 			nng_msg_set_pipe(work->msg, work->pid);
 
 			if (work->cparam != NULL) {
-				conn_param_clone(work->cparam); // avoid being free
+				conn_param_clone(
+				    work->cparam); // avoid being free
 			}
 			// restore clean session
-			char * clientid = (char *)conn_param_get_clientid(work->cparam);
+			char *clientid =
+			    (char *) conn_param_get_clientid(work->cparam);
 			if (clientid != NULL) {
-				restore_session(clientid, work->cparam, work->pid.id, work->db);
+				restore_session(clientid, work->cparam,
+				    work->pid.id, work->db);
 			}
 
 			// clone for sending connect event notification
@@ -139,7 +143,7 @@ server_cb(void *arg)
 			nng_ctx_send(work->ctx, work->aio); // send connack
 
 			uint8_t *header = nng_msg_header(work->msg);
-			uint8_t flag    = *(header + 3);
+			uint8_t  flag   = *(header + 3);
 			smsg = nano_msg_notify_connect(work->cparam, flag);
 
 			nng_msg_set_cmd_type(smsg, CMD_PUBLISH);
@@ -157,18 +161,22 @@ server_cb(void *arg)
 			nng_msg_set_cmd_type(work->msg, CMD_PUBLISH);
 			handle_pub(work, work->pipe_ct);
 			// cache session
-			client_ctx *cli_ctx  = NULL;
-			char *      clientid = (char *)conn_param_get_clientid(work->cparam);
-			if (clientid != NULL && conn_param_get_clean_start(
-			        work->cparam) == 0) {
-				cache_session(clientid, work->cparam, work->pid.id, work->db);
+			client_ctx *cli_ctx = NULL;
+			char *      clientid =
+			    (char *) conn_param_get_clientid(work->cparam);
+			if (clientid != NULL &&
+			    conn_param_get_clean_start(work->cparam) == 0) {
+				cache_session(clientid, work->cparam,
+				    work->pid.id, work->db);
 			}
 			// free client ctx
 			if (check_id(work->pid.id)) {
-				topic_queue * tq = get_topic(work->pid.id);
+				topic_queue *tq = get_topic(work->pid.id);
 				while (tq) {
 					if (tq->topic) {
-						cli_ctx = search_and_delete(work->db, tq->topic, work->pid.id);
+						cli_ctx = search_and_delete(
+						    work->db, tq->topic,
+						    work->pid.id);
 					}
 					del_sub_ctx(cli_ctx, tq->topic);
 					tq = tq->next;
@@ -177,7 +185,7 @@ server_cb(void *arg)
 			} else {
 				debug_msg("ERROR it should not happen");
 			}
-			cparam = work->cparam;
+			cparam       = work->cparam;
 			work->cparam = NULL;
 			conn_param_free(cparam);
 		}
@@ -361,7 +369,7 @@ server_cb(void *arg)
 					// TODO pipe = 0?
 					work->pid.id = p_info.pipe;
 					nng_msg_set_pipe(work->msg, work->pid);
-					work->msg   = NULL;
+					work->msg = NULL;
 					work->pipe_ct->current_index++;
 					nng_ctx_send(work->ctx, work->aio);
 				}
@@ -462,6 +470,16 @@ alloc_work(nng_socket sock)
 	w->state = INIT;
 	return (w);
 }
+
+static db_tree *db     = NULL;
+static db_tree *db_ret = NULL;
+
+db_tree *
+get_broker_db(void)
+{
+	return db;
+}
+
 int
 broker(conf *nanomq_conf)
 {
@@ -474,8 +492,7 @@ broker(conf *nanomq_conf)
 	const char * url = nanomq_conf->url;
 
 	// init tree
-	db_tree *db     = NULL;
-	db_tree *db_ret = NULL;
+
 	create_db_tree(&db);
 	if (db == NULL) {
 		debug_msg("NNL_ERROR error in db create");
@@ -587,9 +604,10 @@ active_conf(conf *nanomq_conf)
 		exit(EXIT_FAILURE);
 	}
 	// taskq and max_taskq
-	if (nanomq_conf->num_taskq_thread || nanomq_conf->max_taskq_thread)
+	if (nanomq_conf->num_taskq_thread || nanomq_conf->max_taskq_thread) {
 		nng_taskq_setter(nanomq_conf->num_taskq_thread,
 		    nanomq_conf->max_taskq_thread);
+	}
 }
 
 int
@@ -651,6 +669,12 @@ broker_start(int argc, char **argv)
 				zfree(nanomq_conf->url);
 			}
 			nanomq_conf->url = argv[++i];
+		} else if (!strcmp("-web", argv[i])) {
+			nanomq_conf->enable_web = true;
+		} else if (!strcmp("-port", argv[i]) && ((i + 1) < argc) &&
+		    isdigit(argv[++i][0]) && ((temp = atoi(argv[i])) > 0) &&
+		    (temp < 65536)) {
+			nanomq_conf->web_port = temp;
 		} else {
 			fprintf(stderr,
 			    "Invalid command line arugment input, "
@@ -672,12 +696,22 @@ broker_start(int argc, char **argv)
 	print_conf(nanomq_conf);
 	active_conf(nanomq_conf);
 
+	if (nanomq_conf->enable_web) {
+		if (nanomq_conf->web_port == 0) {
+			nanomq_conf->web_port = 8081;
+		}
+		start_rest_server(nanomq_conf->web_port);
+	}
+
 	if (store_pid()) {
 		debug_msg("create \"nanomq.pid\" file failed");
 	}
 
 	rc = broker(nanomq_conf);
 
+	if (nanomq_conf->enable_web) {
+		stop_rest_server();
+	}
 	exit(rc == 0 ? EXIT_SUCCESS : EXIT_FAILURE);
 }
 

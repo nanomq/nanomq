@@ -54,6 +54,8 @@ struct conf {
 	void *   db_root;
 	bool     allow_anonymous;
 	bool     daemon;
+	bool     enable_web;
+	uint16_t web_port;
 
 	conf_auth auths;
 };
