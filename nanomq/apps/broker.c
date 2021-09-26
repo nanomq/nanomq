@@ -126,8 +126,7 @@ server_cb(void *arg)
 			nng_msg_set_pipe(work->msg, work->pid);
 
 			if (work->cparam != NULL) {
-				conn_param_clone(
-				    work->cparam); // avoid being free
+				conn_param_clone(work->cparam); // avoid being free
 			}
 			// restore clean session
 			char *clientid =
@@ -522,6 +521,11 @@ broker(conf *nanomq_conf)
 
 	if ((rv = nng_listen(sock, url, NULL, 0)) != 0) {
 		fatal("nng_listen", rv);
+	}
+
+	// read from command line & config file
+    if ((rv = nng_listen(sock, WEBSOCKET_URL, NULL, 0)) != 0) {
+		fatal("nng_listen websocket", rv);
 	}
 
 	for (i = 0; i < num_ctx; i++) {

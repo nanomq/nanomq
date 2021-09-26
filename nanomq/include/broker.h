@@ -7,6 +7,8 @@
 #include <nng/protocol/mqtt/mqtt.h>
 #include <nng/supplemental/util/platform.h>
 
+#define WEBSOCKET_URL "ws://0.0.0.0:8083/mqtt"
+
 struct work {
 	enum { INIT, RECV, WAIT, SEND, RESEND, FREE, NOTIFY } state;
 
