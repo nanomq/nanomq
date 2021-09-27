@@ -123,21 +123,59 @@ conf_parser(conf **nanomq_conf, const char *path)
 			(*nanomq_conf)->qos_timer = temp;
 			debug_msg(CONF_READ_RECORD, key, value);
 			read_success = true;
-		} else if (!strcmp(key, "enable_web")) {
+		} else if (!strcmp(key, "http_server.enable")) {
 			if (!strncmp(value, "yes", 3)) {
-				(*nanomq_conf)->enable_web = true;
-				read_success               = true;
+				(*nanomq_conf)->http_server.enable = true;
+				read_success                       = true;
 				debug_msg(CONF_READ_RECORD, key, value);
 			} else if (!strncmp(value, "no", 2)) {
-				(*nanomq_conf)->enable_web = false;
-				read_success               = true;
+				(*nanomq_conf)->http_server.enable = false;
+				read_success                       = true;
 				debug_msg(CONF_READ_RECORD, key, value);
 			}
-		} else if (!strcmp(key, "web_port") && isdigit(value[0]) &&
-		    ((temp = atoi(value)) > 0)) {
-			(*nanomq_conf)->web_port = temp;
+		} else if (!strcmp(key, "http_server.port") &&
+		    isdigit(value[0]) && ((temp = atoi(value)) > 0)) {
+			(*nanomq_conf)->http_server.port = temp;
 			debug_msg(CONF_READ_RECORD, key, value);
 			read_success = true;
+		} else if (!strcmp(key, "http_server.username")) {
+			if ((*nanomq_conf)->http_server.username != NULL) {
+				break;
+			}
+			char *username =
+			    zmalloc(sizeof(char) * (strlen(value) + 1));
+			if (username == NULL) {
+				fprintf(stderr,
+				    "Error: Cannot allocate storge for "
+				    "username, "
+				    "parsing aborts\n");
+				free(buffer);
+				fclose(fp);
+				return false;
+			}
+			strcpy(username, value);
+			(*nanomq_conf)->http_server.username = username;
+			read_success                         = true;
+			debug_msg(CONF_READ_RECORD, key, value);
+		} else if (!strcmp(key, "http_server.password")) {
+			if ((*nanomq_conf)->http_server.password != NULL) {
+				break;
+			}
+			char *password =
+			    zmalloc(sizeof(char) * (strlen(value) + 1));
+			if (password == NULL) {
+				fprintf(stderr,
+				    "Error: Cannot allocate storge for "
+				    "username, "
+				    "parsing aborts\n");
+				free(buffer);
+				fclose(fp);
+				return false;
+			}
+			strcpy(password, value);
+			(*nanomq_conf)->http_server.password = password;
+			read_success                         = true;
+			debug_msg(CONF_READ_RECORD, key, value);
 		}
 		if (!read_success) {
 			fprintf(stderr,
@@ -161,15 +199,19 @@ conf_parser(conf **nanomq_conf, const char *path)
 void
 conf_init(conf **nanomq_conf)
 {
-	(*nanomq_conf)->num_taskq_thread = 10;
-	(*nanomq_conf)->max_taskq_thread = 10;
-	(*nanomq_conf)->parallel         = 30; // not work
-	(*nanomq_conf)->property_size    = sizeof(uint8_t) * 32;
-	(*nanomq_conf)->msq_len          = 64;
-	(*nanomq_conf)->qos_timer        = 30;
-	(*nanomq_conf)->allow_anonymous  = true;
-	(*nanomq_conf)->enable_web       = false;
-	(*nanomq_conf)->web_port         = 8081;
+	(*nanomq_conf)->num_taskq_thread     = 10;
+	(*nanomq_conf)->max_taskq_thread     = 10;
+	(*nanomq_conf)->parallel             = 30; // not work
+	(*nanomq_conf)->property_size        = sizeof(uint8_t) * 32;
+	(*nanomq_conf)->msq_len              = 64;
+	(*nanomq_conf)->qos_timer            = 30;
+	(*nanomq_conf)->allow_anonymous      = true;
+	(*nanomq_conf)->http_server.enable   = false;
+	(*nanomq_conf)->http_server.port     = 8081;
+	(*nanomq_conf)->http_server.username = NULL;
+	(*nanomq_conf)->http_server.password = NULL;
+	(*nanomq_conf)->websocket.enable     = true;
+	(*nanomq_conf)->websocket.url        = NULL;
 }
 
 void
@@ -186,9 +228,14 @@ print_conf(conf *nanomq_conf)
 	debug_syslog("property_size is %d\n", nanomq_conf->property_size);
 	debug_syslog("msq_len is %d\n", nanomq_conf->msq_len);
 	debug_syslog("qos_timer is %d\n", nanomq_conf->qos_timer);
+	debug_syslog("enable http server is %s\n",
+	    nanomq_conf->http_server.enable ? "true" : "false");
 	debug_syslog(
-	    "enable web is %s\n", nanomq_conf->enable_web ? "true" : "false");
-	debug_syslog("web port is %d\n", nanomq_conf->web_port);
+	    "http server port is %d\n", nanomq_conf->http_server.port);
+
+	debug_syslog("enable websocket is %s\n",
+	    nanomq_conf->websocket.enable ? "true" : "false");
+	debug_syslog("websocket url is %d\n", nanomq_conf->websocket.url);
 }
 
 void
@@ -297,6 +344,11 @@ conf_fini(conf *nanomq_conf)
 	zfree(usernames);
 	zfree(passwords);
 	zfree(nanomq_conf->url);
+
+	zfree(nanomq_conf->http_server.username);
+	zfree(nanomq_conf->http_server.password);
+
+	zfree(nanomq_conf->websocket.url);
 
 	zfree(nanomq_conf);
 }

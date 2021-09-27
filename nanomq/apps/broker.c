@@ -511,7 +511,7 @@ broker(conf *nanomq_conf)
 	}
 
 	// TODO will be dynamic in the future
-	debug_msg("PARALLEL logic threads: %ul\n", num_ctx);
+	debug_msg("PARALLEL logic threads: %lu\n", num_ctx);
 	for (i = 0; i < num_ctx; i++) {
 		works[i]         = alloc_work(sock);
 		works[i]->db     = db;
@@ -673,12 +673,12 @@ broker_start(int argc, char **argv)
 				zfree(nanomq_conf->url);
 			}
 			nanomq_conf->url = argv[++i];
-		} else if (!strcmp("-web", argv[i])) {
-			nanomq_conf->enable_web = true;
+		} else if (!strcmp("-http", argv[i])) {
+			nanomq_conf->http_server.enable = true;
 		} else if (!strcmp("-port", argv[i]) && ((i + 1) < argc) &&
 		    isdigit(argv[++i][0]) && ((temp = atoi(argv[i])) > 0) &&
 		    (temp < 65536)) {
-			nanomq_conf->web_port = temp;
+			nanomq_conf->http_server.port = temp;
 		} else {
 			fprintf(stderr,
 			    "Invalid command line arugment input, "
@@ -700,11 +700,8 @@ broker_start(int argc, char **argv)
 	print_conf(nanomq_conf);
 	active_conf(nanomq_conf);
 
-	if (nanomq_conf->enable_web) {
-		if (nanomq_conf->web_port == 0) {
-			nanomq_conf->web_port = 8081;
-		}
-		start_rest_server(nanomq_conf->web_port);
+	if (nanomq_conf->http_server.enable) {
+		start_rest_server(nanomq_conf);
 	}
 
 	if (store_pid()) {
@@ -713,7 +710,7 @@ broker_start(int argc, char **argv)
 
 	rc = broker(nanomq_conf);
 
-	if (nanomq_conf->enable_web) {
+	if (nanomq_conf->http_server.enable) {
 		stop_rest_server();
 	}
 	exit(rc == 0 ? EXIT_SUCCESS : EXIT_FAILURE);

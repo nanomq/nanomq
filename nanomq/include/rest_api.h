@@ -10,6 +10,7 @@
 #ifndef REST_API_H
 #define REST_API_H
 
+#include "web_server.h"
 #include <ctype.h>
 #include <nng/nng.h>
 #include <stdio.h>
@@ -37,6 +38,9 @@ enum result_code {
 
 typedef struct http_msg {
 	uint16_t status;
+	int      request;
+	size_t   content_type_len;
+	char *   content_type;
 	size_t   method_len;
 	char *   method;
 	size_t   uri_len;
@@ -47,9 +51,10 @@ typedef struct http_msg {
 	char *   data;
 } http_msg;
 
-extern void put_http_msg(http_msg *msg, const char *method, const char *uri,
-    const char *token, const char *data, size_t data_sz);
-extern void destory_http_msg(http_msg *msg);
+extern void     put_http_msg(http_msg *msg, const char *content_type,
+        const char *method, const char *uri, const char *token, const char *data,
+        size_t data_sz);
+extern void     destory_http_msg(http_msg *msg);
 extern http_msg process_request(http_msg *msg);
 
 #define GET_METHOD "GET"
@@ -57,10 +62,12 @@ extern http_msg process_request(http_msg *msg);
 #define PUT_METHOD "PUT"
 #define DELETE_METHOD "DELETE"
 
-#define REQ_BROKERS "broker"
-#define REQ_NODES "nodes"
-#define REQ_SUBSCRIPTIONS "subscriptions"
-#define REQ_CLIENTS "clients"
-#define REQ_CTRL "ctrl"
+#define REQ_ENDPOINTS 1
+#define REQ_BROKERS 2
+#define REQ_NODES 3
+#define REQ_SUBSCRIPTIONS 4
+#define REQ_CLIENTS 5
+
+#define REQ_CTRL 10
 
 #endif

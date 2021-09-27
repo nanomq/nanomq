@@ -27,7 +27,9 @@
 	"we can handle\n"                                                     \
 	"  -property_size <num>  the max size for a MQTT user property\n"     \
 	"  -msq_len <num>        the queue length for resending messages\n"   \
-	"  -qos_timer <num>      the interval of the qos timer\n"
+	"  -qos_timer <num>      the interval of the qos timer\n"             \
+	"  -http                 enable http server (default: disable)\n"     \
+	"  -port <num>           the port of http server (default: 8081)\n"
 
 #define CONF_READ_RECORD "Conf_file: %s read as %s\n"
 
@@ -43,6 +45,22 @@ struct conf_auth {
 };
 typedef struct conf_auth conf_auth;
 
+struct conf_http_server {
+	bool     enable;
+	uint16_t port;
+	char *   username;
+	char *   password;
+};
+
+typedef struct conf_http_server conf_http_server;
+
+struct conf_websocket {
+	bool  enable;
+	char *url;
+};
+
+typedef struct conf_websocket conf_websocket;
+
 struct conf {
 	char *   url;
 	int      num_taskq_thread;
@@ -54,8 +72,9 @@ struct conf {
 	void *   db_root;
 	bool     allow_anonymous;
 	bool     daemon;
-	bool     enable_web;
-	uint16_t web_port;
+
+	conf_http_server http_server;
+	conf_websocket   websocket;
 
 	conf_auth auths;
 };
