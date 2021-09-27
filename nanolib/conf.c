@@ -166,7 +166,7 @@ conf_parser(conf **nanomq_conf, const char *path)
 			if (password == NULL) {
 				fprintf(stderr,
 				    "Error: Cannot allocate storge for "
-				    "username, "
+				    "password, "
 				    "parsing aborts\n");
 				free(buffer);
 				fclose(fp);
@@ -175,6 +175,35 @@ conf_parser(conf **nanomq_conf, const char *path)
 			strcpy(password, value);
 			(*nanomq_conf)->http_server.password = password;
 			read_success                         = true;
+			debug_msg(CONF_READ_RECORD, key, value);
+		} else if (!strcmp(key, "websocket.enable")) {
+			if (!strncmp(value, "yes", 3)) {
+				(*nanomq_conf)->websocket.enable = true;
+				read_success                     = true;
+				debug_msg(CONF_READ_RECORD, key, value);
+			} else if (!strncmp(value, "no", 2)) {
+				(*nanomq_conf)->websocket.enable = false;
+				read_success                     = true;
+				debug_msg(CONF_READ_RECORD, key, value);
+			}
+		} else if (!strcmp(key, "websocket.url")) {
+			if ((*nanomq_conf)->websocket.url != NULL) {
+				break;
+			}
+			char *url =
+			    zmalloc(sizeof(char) * (strlen(value) + 1));
+			if (url == NULL) {
+				fprintf(stderr,
+				    "Error: Cannot allocate storge for "
+				    "url, "
+				    "parsing aborts\n");
+				free(buffer);
+				fclose(fp);
+				return false;
+			}
+			strcpy(url, value);
+			(*nanomq_conf)->websocket.url = url;
+			read_success                  = true;
 			debug_msg(CONF_READ_RECORD, key, value);
 		}
 		if (!read_success) {
