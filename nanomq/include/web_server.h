@@ -10,13 +10,20 @@
 #ifndef WEB_SERVER_H
 #define WEB_SERVER_H
 
+#include <conf.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-extern int start_rest_server(uint16_t port);
+#define HTTP_DEFAULT_USER "admin"
+#define HTTP_DEFAULT_PASSWORD "public"
+#define HTTP_DEFAULT_PORT 8081
 
+extern int  start_rest_server(conf *conf);
 extern void stop_rest_server(void);
+
+extern void              set_http_server_conf(conf_http_server *conf);
+extern conf_http_server *get_http_server_conf(void);
 
 #endif

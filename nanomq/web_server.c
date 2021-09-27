@@ -43,12 +43,13 @@ typedef struct rest_job {
 	struct rest_job *next;     // next on the freelist
 } rest_job;
 
-static nng_socket  req_sock;
-static nng_mtx *   job_lock;
-static rest_job *  job_freelist;
-static nng_mtx *   mtx_log;
-static nng_thread *inproc_thr;
-static FILE *      logfile;
+static nng_socket        req_sock;
+static nng_mtx *         job_lock;
+static rest_job *        job_freelist;
+static nng_mtx *         mtx_log;
+static nng_thread *      inproc_thr;
+static FILE *            logfile;
+static conf_http_server *http_server_conf;
 
 static void rest_job_cb(void *arg);
 
@@ -153,6 +154,10 @@ rest_job_cb(void *arg)
 		}
 
 		nng_http_res_set_status(job->http_res, res_msg->status);
+		if (res_msg->content_type_len > 0) {
+			nng_http_res_set_header(job->http_res, "Content-Type",
+			    res_msg->content_type);
+		}
 
 		destory_http_msg(res_msg);
 		nng_msg_clear(job->msg);
@@ -202,8 +207,9 @@ rest_handle(nng_aio *aio)
 	const char *method = nng_http_req_get_method(req);
 	debug_msg("get http method: %s", method);
 
-	const char *header = nng_http_req_get_header(req, "Content-Type");
-	debug_msg("get http header: Content-Type: %s", header);
+	const char *content_type =
+	    nng_http_req_get_header(req, "Content-Type");
+	debug_msg("get http header: Content-Type: %s", content_type);
 
 	const char *token = nng_http_req_get_header(req, "Authorization");
 	debug_msg("get http header: Authorization: %s", token);
@@ -220,7 +226,7 @@ rest_handle(nng_aio *aio)
 
 	http_msg recv_msg = { 0 };
 
-	put_http_msg(&recv_msg, method, uri, token, data, sz);
+	put_http_msg(&recv_msg, content_type, method, uri, token, data, sz);
 
 	if ((rv = nng_msg_alloc(&job->msg, sizeof(http_msg))) != 0) {
 		rest_http_fatal(job, "nng_msg_alloc: %s", rv);
@@ -348,10 +354,14 @@ inproc_server(void *arg)
 		}
 
 		http_msg *recv_msg = (http_msg *) nng_msg_body(msg);
+		debug_msg("content-type: %.*s",
+		    (int) recv_msg->content_type_len, recv_msg->content_type);
+		debug_msg("method: %.*s", (int) recv_msg->method_len,
+		    recv_msg->method);
 		debug_msg(
-		    "method: %.*s", recv_msg->method_len, recv_msg->method);
-		debug_msg("token: %.*s", recv_msg->token_len, recv_msg->token);
-		debug_msg("data: %.*s", recv_msg->data_len, recv_msg->data);
+		    "token: %.*s", (int) recv_msg->token_len, recv_msg->token);
+		debug_msg(
+		    "data: %.*s", (int) recv_msg->data_len, recv_msg->data);
 		// TODO API logic
 
 		http_msg res = process_request(recv_msg);
@@ -361,6 +371,7 @@ inproc_server(void *arg)
 		nng_msg_alloc(&send_msg, sizeof(http_msg));
 
 		memcpy(nng_msg_body(send_msg), &res, sizeof(http_msg));
+		destory_http_msg(recv_msg);
 		nng_msg_free(msg);
 
 		if ((rv = nng_sendmsg(s, send_msg, 0)) != 0) {
@@ -379,8 +390,28 @@ inproc_server(void *arg)
 // 		nng_mtx_unlock(LOCK);
 // }
 
+void
+set_http_server_conf(conf_http_server *conf)
+{
+
+	if (conf->username == NULL) {
+		conf->username = HTTP_DEFAULT_USER;
+	}
+	if (conf->password == NULL) {
+		conf->password = HTTP_DEFAULT_PASSWORD;
+	}
+
+	http_server_conf = conf;
+}
+
+conf_http_server *
+get_http_server_conf(void)
+{
+	return http_server_conf;
+}
+
 int
-start_rest_server(uint16_t port)
+start_rest_server(conf *conf)
 {
 	int rv;
 
@@ -397,8 +428,11 @@ start_rest_server(uint16_t port)
 		fatal("cannot start inproc server", rv);
 	}
 
-	port = port ? port : 8081;
+	uint16_t port = conf->http_server.port ? conf->http_server.port
+	                                       : HTTP_DEFAULT_PORT;
 	debug_msg(REST_URL, port);
+
+	set_http_server_conf(&conf->http_server);
 	rest_start(port);
 
 	return rv;

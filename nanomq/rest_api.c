@@ -16,31 +16,39 @@
 
 #include <nng/supplemental/http/http.h>
 
-static http_msg get_endpoints(http_msg *msg);
-static http_msg get_broker(http_msg *msg);
-static http_msg get_subscriptions(http_msg *msg);
-static http_msg get_clients(http_msg *msg);
-static http_msg post_ctrl(http_msg *msg);
+static http_msg error_response(
+    http_msg *msg, uint16_t status, uint64_t sequence);
+
+static http_msg get_endpoints(cJSON *data, http_msg *msg, uint64_t sequence);
+static http_msg get_broker(cJSON *data, http_msg *msg, uint64_t sequence);
+static http_msg get_subscriptions(
+    cJSON *data, http_msg *msg, uint64_t sequence);
+static http_msg get_clients(cJSON *data, http_msg *msg, uint64_t sequence);
+static http_msg post_ctrl(cJSON *data, http_msg *msg, uint64_t sequence);
 
 typedef struct {
-	const char *method;
-	const char *request;
-	http_msg (*handler)(http_msg *);
+	int request;
+	http_msg (*handler)(cJSON *, http_msg *, uint64_t);
 } request_handler;
 
 request_handler request_handlers[] = {
 
-	{ GET_METHOD, REQ_BROKERS, get_broker },
-	{ GET_METHOD, REQ_SUBSCRIPTIONS, get_subscriptions },
-	{ GET_METHOD, REQ_CLIENTS, get_clients },
-	{ POST_METHOD, REQ_CTRL, post_ctrl },
+	{ REQ_BROKERS, get_broker },
+	{ REQ_SUBSCRIPTIONS, get_subscriptions },
+	{ REQ_CLIENTS, get_clients },
+	{ REQ_CTRL, post_ctrl },
 
 };
 
 void
-put_http_msg(http_msg *msg, const char *method, const char *uri,
-    const char *token, const char *data, size_t data_sz)
+put_http_msg(http_msg *msg, const char *content_type, const char *method,
+    const char *uri, const char *token, const char *data, size_t data_sz)
 {
+	if (content_type != NULL) {
+		msg->content_type_len = strlen(content_type);
+		msg->content_type     = nng_strdup(content_type);
+	}
+
 	if (method != NULL) {
 		msg->method_len = strlen(method);
 		msg->method     = nng_strdup(method);
@@ -66,6 +74,11 @@ put_http_msg(http_msg *msg, const char *method, const char *uri,
 void
 destory_http_msg(http_msg *msg)
 {
+	if (msg->content_type_len > 0) {
+		nng_strfree(msg->content_type);
+		msg->content_type_len = 0;
+	}
+
 	if (msg->method_len > 0) {
 		nng_strfree(msg->method);
 		msg->method_len = 0;
@@ -97,70 +110,110 @@ authorize(http_msg *msg)
 	}
 
 	size_t token_len = strlen(msg->token);
-	debug_msg("token: %.*s", token_len, msg->token);
 
 	uint8_t *decode = nng_alloc(token_len);
 
 	base64_decode(msg->token, token_len, decode);
 
-	debug_msg("decode token: %s", decode);
 
-	// TODO Authorize username:password
+	// Authorize username:password
+	conf_http_server *server = get_http_server_conf();
 
+	size_t auth_len =
+	    strlen(server->username) + strlen(server->password) + 2;
+	char *auth = nng_alloc(auth_len);
+	snprintf(auth, auth_len, "%s:%s", server->username, server->password);
+
+	result = strncmp(auth, decode, auth_len) == 0;
+
+	nng_free(auth, auth_len);
 	nng_free(decode, msg->token_len);
 
-	// return result;
-	return true;
+	return result;
 }
 
 http_msg
 process_request(http_msg *msg)
 {
+	http_msg ret           = { 0 };
+	uint16_t status        = NNG_HTTP_STATUS_OK;
+	char     response[255] = "";
+	uint64_t sequence      = 0xffffffffffffffffU;
 
-	http_msg res = { 0 };
-
+	cJSON *req;
 	if (!authorize(msg)) {
-		res.status = NNG_HTTP_STATUS_UNAUTHORIZED;
+		status = NNG_HTTP_STATUS_UNAUTHORIZED;
 		goto exit;
 	}
 
-	char  request[255]  = "";
-	char  response[255] = "";
-	char *param         = strrchr(msg->uri, '?');
-	debug_msg("param: %s", param);
-	if (param == NULL) {
-		return get_endpoints(msg);
-	}
-	int rv = sscanf(param + 1, "req=%s", request);
-	debug_msg("%d, request: %s", rv, request);
+	cJSON *object = cJSON_Parse(msg->data);
 
-	if (rv < 1) {
-		res.status = NNG_HTTP_STATUS_BAD_REQUEST;
+	if (!cJSON_IsObject(object)) {
+		status = NNG_HTTP_STATUS_BAD_REQUEST;
 		goto exit;
 	}
+
+	req          = cJSON_GetObjectItem(object, "req");
+	msg->request = (int) cJSON_GetNumberValue(req);
+
+	cJSON *seq = cJSON_GetObjectItem(object, "seq");
+	sequence   = (uint64_t) cJSON_GetNumberValue(seq);
+
+	bool found = false;
 
 	for (size_t i = 0;
 	     i < sizeof(request_handlers) / sizeof(request_handlers[0]); i++) {
-		if (strcmp(msg->method, request_handlers[i].method) == 0 &&
-		    strcmp(request_handlers[i].request, request) == 0) {
+		if (request_handlers[i].request == msg->request) {
 			debug_msg(
-			    "found handler: %s", request_handlers[i].request);
-			return request_handlers[i].handler(msg);
+			    "found handler: %d", request_handlers[i].request);
+			ret =
+			    request_handlers[i].handler(object, msg, sequence);
+			found = true;
+			break;
 		}
 	}
+	cJSON_Delete(object);
 
-	res.status = NNG_HTTP_STATUS_METHOD_NOT_ALLOWED;
+	if (found) {
+		return ret;
+	} else {
+		status = NNG_HTTP_STATUS_BAD_REQUEST;
+	}
 
 exit:
-	memset(response, 0, 255);
-	sprintf(response, "ERROR: %d", res.status);
-	put_http_msg(&res, NULL, NULL, NULL, response, strlen(response));
-
-	return res;
+	ret = error_response(msg, status, sequence);
+	return ret;
 }
 
 static http_msg
-get_endpoints(http_msg *msg)
+error_response(http_msg *msg, uint16_t status, uint64_t sequence)
+{
+	http_msg ret = { 0 };
+
+	ret.status = status;
+
+	cJSON *res_obj;
+	res_obj = cJSON_CreateObject();
+	cJSON_AddNumberToObject(res_obj, "error", ret.status);
+	if (sequence != 0xffffffffffffffffU) {
+		cJSON_AddNumberToObject(res_obj, "seq", (uint64_t) sequence);
+	}
+	if (msg->request > 0) {
+		cJSON_AddNumberToObject(res_obj, "rep", msg->request);
+	}
+	char *dest = cJSON_PrintUnformatted(res_obj);
+	cJSON_Delete(res_obj);
+
+	put_http_msg(
+	    &ret, msg->content_type, NULL, NULL, NULL, dest, strlen(dest));
+
+	cJSON_free(dest);
+
+	return ret;
+}
+
+static http_msg
+get_endpoints(cJSON *data, http_msg *msg, uint64_t sequence)
 {
 	http_msg res = { 0 };
 	res.status   = NNG_HTTP_STATUS_OK;
@@ -172,7 +225,7 @@ get_endpoints(http_msg *msg)
 }
 
 static http_msg
-get_broker(http_msg *msg)
+get_broker(cJSON *data, http_msg *msg, uint64_t sequence)
 {
 	http_msg res = { 0 };
 	res.status   = NNG_HTTP_STATUS_OK;
@@ -183,7 +236,7 @@ get_broker(http_msg *msg)
 }
 
 static http_msg
-get_subscriptions(http_msg *msg)
+get_subscriptions(cJSON *data, http_msg *msg, uint64_t sequence)
 {
 	http_msg res = { 0 };
 	res.status   = NNG_HTTP_STATUS_OK;
@@ -194,12 +247,24 @@ get_subscriptions(http_msg *msg)
 }
 
 static http_msg
-get_clients(http_msg *msg)
+get_clients(cJSON *data, http_msg *msg, uint64_t sequence)
 {
 	http_msg res = { 0 };
 	res.status   = NNG_HTTP_STATUS_OK;
-	res.data     = strdup(__FUNCTION__);
-	res.data_len = strlen(__FUNCTION__);
+
+	cJSON *res_obj;
+
+	res_obj = cJSON_CreateObject();
+	cJSON_AddNumberToObject(res_obj, "status", res.status);
+	cJSON_AddNumberToObject(res_obj, "seq", (uint64_t) sequence);
+	cJSON_AddNumberToObject(res_obj, "rep", msg->request);
+	char *dest = cJSON_PrintUnformatted(res_obj);
+	cJSON_Delete(res_obj);
+
+	put_http_msg(
+	    &res, msg->content_type, NULL, NULL, NULL, dest, strlen(dest));
+
+	cJSON_free(dest);
 
 	db_tree *db = get_broker_db();
 
@@ -209,16 +274,14 @@ get_clients(http_msg *msg)
 }
 
 static http_msg
-post_ctrl(http_msg *msg)
+post_ctrl(cJSON *data, http_msg *msg, uint64_t sequence)
 {
 	http_msg res = { 0 };
 	res.status   = NNG_HTTP_STATUS_OK;
 	res.data     = strdup(__FUNCTION__);
 	res.data_len = strlen(__FUNCTION__);
 
-	cJSON *object = cJSON_Parse(msg->data);
-
-	cJSON *action = cJSON_GetObjectItem(object, "action");
+	cJSON *action = cJSON_GetObjectItem(data, "action");
 
 	char *value = cJSON_GetStringValue(action);
 
@@ -229,8 +292,6 @@ post_ctrl(http_msg *msg)
 	} else if (strcasecmp(value, "restart") == 0) {
 		// TODO not support yet
 	}
-
-	cJSON_Delete(object);
 
 	return res;
 }
