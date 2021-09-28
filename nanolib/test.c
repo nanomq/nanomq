@@ -5,7 +5,7 @@
 #define TEST_QUE_SIZE 10
 #define TEST_MSG_SIZE 16
 #define TEST_ARRAY_SIZE 10
-#define TEST_LOOP 10000
+#define TEST_LOOP 10
 
 dbtree *db     = NULL;
 dbtree *db_ret = NULL;
@@ -197,36 +197,41 @@ static void
 test_restore_client()
 {
 	puts("================begin delete session===============");
-	dbtree_restore_session(
+        void *ctxt_array[10];
+        ctxt_array[0] = dbtree_restore_session(
 	    db, topic0, client0.session_id, client0.pipe_id);
 	dbtree_print(db);
-	dbtree_restore_session(
+        ctxt_array[1] = dbtree_restore_session(
 	    db, topic1, client1.session_id, client1.pipe_id);
 	dbtree_print(db);
-	dbtree_restore_session(
+	ctxt_array[2] = dbtree_restore_session(
 	    db, topic2, client2.session_id, client2.pipe_id);
 	dbtree_print(db);
-	dbtree_restore_session(
+	ctxt_array[3] = dbtree_restore_session(
 	    db, topic3, client3.session_id, client3.pipe_id);
 	dbtree_print(db);
-	dbtree_restore_session(
+	ctxt_array[4] = dbtree_restore_session(
 	    db, topic4, client4.session_id, client4.pipe_id);
 	dbtree_print(db);
-	dbtree_restore_session(
+	ctxt_array[5] = dbtree_restore_session(
 	    db, topic5, client5.session_id, client5.pipe_id);
 	dbtree_print(db);
-	dbtree_restore_session(
+	ctxt_array[6] = dbtree_restore_session(
 	    db, topic6, client6.session_id, client6.pipe_id);
 	dbtree_print(db);
-	dbtree_restore_session(
+	ctxt_array[7] = dbtree_restore_session(
 	    db, topic7, client7.session_id, client7.pipe_id);
 	dbtree_print(db);
-	dbtree_restore_session(
+	ctxt_array[8] = dbtree_restore_session(
 	    db, topic8, client8.session_id, client8.pipe_id);
 	dbtree_print(db);
-	dbtree_restore_session(
+	ctxt_array[9] = dbtree_restore_session(
 	    db, topic9, client9.session_id, client9.pipe_id);
 	dbtree_print(db);
+        log_info("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+        for (int i = 0; i < 10; i++) {
+            log_info("%d", *(int*)ctxt_array[i]);
+        }
 }
 
 static void
@@ -348,12 +353,12 @@ test_single_thread(void *args)
 		test_restore_client();
 		test_delete_client();
 
-		test_insert_client();
-		test_cache_session_msg();
-		test_search_session();
-		test_cache_session();
-		test_search_session();
-		test_delete_session();
+		// test_insert_client();
+		// test_cache_session_msg();
+		// test_search_session();
+		// test_cache_session();
+		// test_search_session();
+		// test_delete_session();
 	}
 	return NULL;
 }
@@ -403,25 +408,25 @@ main(int argc, char *argv[])
 
 	dbtree_create(&db);
 	test_single_thread(NULL);
-	test_concurrent();
-	dbtree_print(db);
+	// test_concurrent();
+	// dbtree_print(db);
 
 	dbtree_destory(db);
 
-	dbtree_create(&db_ret);
-	test_insert_retain();
-	puts("=======================================");
-	dbtree_retain_msg **r = dbtree_find_retain(db_ret, topic6);
-	for (int i = 0; i < cvector_size(r); i++) {
-		if (r[i]) {
-			printf("%s\t", r[i]->m);
-		}
-	}
-	puts("");
-	puts("=======================================");
-	test_delete_retain();
+	// dbtree_create(&db_ret);
+	// test_insert_retain();
+	// puts("=======================================");
+	// dbtree_retain_msg **r = dbtree_find_retain(db_ret, topic6);
+	// for (int i = 0; i < cvector_size(r); i++) {
+	// 	if (r[i]) {
+	// 		printf("%s\t", r[i]->m);
+	// 	}
+	// }
+	// puts("");
+	// puts("=======================================");
+	// test_delete_retain();
 
-	dbtree_destory(db_ret);
+	// dbtree_destory(db_ret);
 	puts("---------------TEST FINISHED----------------\n");
 
 	return 0;
