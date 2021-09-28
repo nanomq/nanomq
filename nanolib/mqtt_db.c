@@ -676,7 +676,6 @@ search_insert_node(dbtree *db, char *topic, void *args,
 void *
 dbtree_insert_client(dbtree *db, char *topic, void *ctxt, uint32_t pipe_id)
 {
-
 	dbtree_client *client = dbtree_client_new(0, ctxt, pipe_id);
 	return search_insert_node(db, topic, client, insert_dbtree_client);
 }
@@ -689,6 +688,7 @@ delete_and_insert(dbtree_node *node, void *args)
 	pthread_rwlock_wrlock(&(node->rwlock));
 
 	int            index  = 0;
+        void           *ret = NULL;
 	dbtree_client *client = (dbtree_client *) args;
 
 	if (true ==
@@ -703,6 +703,9 @@ delete_and_insert(dbtree_node *node, void *args)
 
 		if (s) {
 			client->ctxt       = s->ctxt;
+                        ret = client->ctxt;
+                        log_info("@@@@@@@@@@@: %d", *(int*) ret);
+
 			client->session_id = 0;
 			zfree(s);
 			s = NULL;
@@ -729,7 +732,7 @@ delete_and_insert(dbtree_node *node, void *args)
 
 	pthread_rwlock_unlock(&(node->rwlock));
 
-	return NULL;
+	return ret;
 }
 
 // session vector delete
@@ -764,20 +767,20 @@ delete_session_client(dbtree_node *node, void *args)
 	return NULL;
 }
 
-int
+void*
 dbtree_restore_session(
     dbtree *db, char *topic, uint32_t session_id, uint32_t pipe_id)
 {
 	if (db == NULL) {
 		log_err("dbtree is NULL");
-		return -1;
+		return NULL;
 	}
 
 	dbtree_client *client = dbtree_client_new(session_id, NULL, pipe_id);
 	void *         ret    = NULL;
 	ret = search_insert_node(db, topic, client, delete_and_insert);
 
-	return 0;
+	return ret;
 }
 
 static cvector(dbtree_session_msg *)

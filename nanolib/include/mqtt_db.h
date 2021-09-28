@@ -144,7 +144,7 @@ void *dbtree_insert_client(
  * @param pipe_id - pipe id
  * @return
  */
-int dbtree_restore_session(
+void *dbtree_restore_session(
     dbtree *db, char *topic, uint32_t session_id, uint32_t pipe_id);
 
 /**
