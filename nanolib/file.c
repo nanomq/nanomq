@@ -1,3 +1,4 @@
+#include "nanomq.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <stdarg.h>
@@ -10,7 +11,6 @@
 #include <unistd.h>
 
 #include "file.h"
-#include "nanomq.h"
 
 #define NG_MODE (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
 
