@@ -20,7 +20,8 @@
 static void cli_ctx_merge(client_ctx *ctx, client_ctx *ctx_new);
 
 // clean session
-static void restore_topic_to_tree(void *tree, client_ctx *cli_ctx, char *client_id);
+static void restore_topic_to_tree(
+    void *tree, client_ctx *cli_ctx, char *client_id);
 static void *del_topic_from_tree(void *tree, topic_queue *tq, uint32_t pid);
 
 void
@@ -357,10 +358,11 @@ sub_ctx_handle(nano_work *work)
 					continue;
 				}
 				debug_msg("found retain [%p], "
-				          "message: [%p][%p] sz [%d]\n",
+				          "message: [%p][%p] sz [%ld]\n",
 				    r[i], r[i]->message,
 				    nng_msg_payload_ptr(r[i]->message),
 				    cvector_size(r));
+
 				cvector_push_back(
 				    work->msg_ret, (nng_msg *) r[i]->message);
 			}
@@ -568,14 +570,14 @@ destroy_sub_ctx(void *ctxt)
 }
 
 int
-cache_session(char * clientid, conn_param * cparam, uint32_t pid, void *db)
+cache_session(char *clientid, conn_param *cparam, uint32_t pid, void *db)
 {
 	debug_msg("cache session");
 	client_ctx *        cli_ctx = NULL;
 	struct topic_queue *tq      = NULL;
 	nano_clean_session *cs      = NULL;
 
-	void * nano_qos_db = conn_param_get_qos_db(cparam);
+	void *   nano_qos_db  = conn_param_get_qos_db(cparam);
 	uint32_t key_clientid = DJBHashn(clientid, strlen(clientid));
 
 	// create cs if not exist
@@ -589,7 +591,8 @@ cache_session(char * clientid, conn_param * cparam, uint32_t pid, void *db)
 
 	// deep copy connection parameter
 	// TODO Do we needs using cparam? in clean session on MQTTV5
-	conn_param_clone(cparam); // Make it not be freed when recv Disconnect EV
+	conn_param_clone(
+	    cparam); // Make it not be freed when recv Disconnect EV
 
 	cs->cparam = cparam;
 
@@ -604,7 +607,7 @@ cache_session(char * clientid, conn_param * cparam, uint32_t pid, void *db)
 		tq = get_topic(pid);
 		if ((cli_ctx = del_topic_from_tree(db, tq, pid)) != NULL) {
 			cli_ctx->pid.id = 0;
-			cs->cltx   = cli_ctx;
+			cs->cltx        = cli_ctx;
 		}
 		cache_topic_all(pid, key_clientid);
 		debug_msg("move");
@@ -618,30 +621,30 @@ cache_session(char * clientid, conn_param * cparam, uint32_t pid, void *db)
 }
 
 int
-restore_session(char * clientid, conn_param * cparam, uint32_t pid, void * db)
+restore_session(char *clientid, conn_param *cparam, uint32_t pid, void *db)
 {
 	debug_msg("restore session");
-	conn_param * old_cparam;
-	client_ctx * ctx;
-	uint8_t      cs_flag = conn_param_get_clean_start(cparam);
+	conn_param *        old_cparam;
+	client_ctx *        ctx;
+	uint8_t             cs_flag = conn_param_get_clean_start(cparam);
 	nano_clean_session *cs;
 
 	uint32_t key_clientid = DJBHashn(clientid, strlen(clientid));
 	// TODO hash collision?
-	cs = (nano_clean_session *)get_session(key_clientid);
+	cs = (nano_clean_session *) get_session(key_clientid);
 
-/*
-	if (cs && cs->pipeid != 0) {
-		// TODO kick prev connection(p or cs->pipeid)
-		p->kicked = true;
-		if (cparam->pro_ver == 5) {
-			*(flag +1 ) = 0x8E;
-		} else {
-			*(flag +1 ) = 0x02;
-		}
-		return (NNG_ECONNABORTED);
-	}
-*/
+	/*
+	        if (cs && cs->pipeid != 0) {
+	                // TODO kick prev connection(p or cs->pipeid)
+	                p->kicked = true;
+	                if (cparam->pro_ver == 5) {
+	                        *(flag +1 ) = 0x8E;
+	                } else {
+	                        *(flag +1 ) = 0x02;
+	                }
+	                return (NNG_ECONNABORTED);
+	        }
+	*/
 
 	// no matter if client enabled cleansession. use clean-session-db for
 	// duplicate clientid verifying.
@@ -676,7 +679,6 @@ restore_session(char * clientid, conn_param * cparam, uint32_t pid, void * db)
 
 	debug_msg("Session restored finish");
 
-
 	if (cs_flag == 0) { // not clean session
 		cs->clean = false;
 	} else {
@@ -687,28 +689,28 @@ restore_session(char * clientid, conn_param * cparam, uint32_t pid, void * db)
 	return 0;
 }
 /* duplicate with the codes in pipe_fini()
-	} else { // clean session
-		cs->clean = true;
-		// step 0 remove conn param
-		destroy_conn_param(cparam);
-		cparam = NULL;
-		// step 1 remove nano_qos_db
-		nni_id_iterate(msgs, nni_id_msgfree_cb);
-		nni_id_map_fini(msgs);
-		nng_free(msgs, sizeof(struct nni_id_map));
-		msgs = NULL;
-		// step 2 delete 2-1 cli_ctx and cached topic queue
-		if (cached_check_id(key)) {
-			topic_queue *tq = get_cached_topic(key);
-			while (tq) {
-				del_sub_ctx(cltx, tq->topic);
-				tq = tq->next;
-			}
-			del_cached_topic_all(key);
-		} else {
-			debug_msg(
-			    "(CS=1) UNEXPECTED: no stored cached topic queue");
-		}
+        } else { // clean session
+                cs->clean = true;
+                // step 0 remove conn param
+                destroy_conn_param(cparam);
+                cparam = NULL;
+                // step 1 remove nano_qos_db
+                nni_id_iterate(msgs, nni_id_msgfree_cb);
+                nni_id_map_fini(msgs);
+                nng_free(msgs, sizeof(struct nni_id_map));
+                msgs = NULL;
+                // step 2 delete 2-1 cli_ctx and cached topic queue
+                if (cached_check_id(key)) {
+                        topic_queue *tq = get_cached_topic(key);
+                        while (tq) {
+                                del_sub_ctx(cltx, tq->topic);
+                                tq = tq->next;
+                        }
+                        del_cached_topic_all(key);
+                } else {
+                        debug_msg(
+                            "(CS=1) UNEXPECTED: no stored cached topic queue");
+                }
 */
 
 static void
@@ -740,4 +742,3 @@ del_topic_from_tree(void *tree, topic_queue *tq, uint32_t pid)
 
 	return cli_ctx;
 }
-
