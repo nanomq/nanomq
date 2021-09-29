@@ -1,8 +1,9 @@
 #ifndef HASH_H
 #define HASH_H
 
-#include <stdint.h>
+#include "cvector.h"
 #include <stdbool.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -34,7 +35,7 @@ void add_topic(uint32_t id, char *val);
 
 bool check_topic(uint32_t id, char *val);
 
-struct topic_queue *get_topic(uint32_t id); 
+struct topic_queue *get_topic(uint32_t id);
 
 void del_topic_one(uint32_t id, char *topic);
 
@@ -43,6 +44,8 @@ void del_topic_all(uint32_t id);
 bool check_id(uint32_t id);
 
 void print_topic_all(uint32_t id);
+
+topic_queue **get_all_topic_queue(size_t *sz);
 
 // @obj. _cached_topic_hash
 
@@ -80,11 +83,11 @@ struct msg_queue *get_msg_queue(char *id);
 
 bool check_session(uint32_t);
 
-void * get_session(uint32_t);
+void *get_session(uint32_t);
 
 void add_session(uint32_t, void *);
 
-void * del_session(uint32_t);
+void *del_session(uint32_t);
 #ifdef __cplusplus
 }
 #endif
