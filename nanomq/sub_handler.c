@@ -372,8 +372,10 @@ sub_ctx_handle(nano_work *work)
 		topic_node_t = topic_node_t->next;
 	}
 
+#ifdef DEBUG
 	// check treeDB
 	dbtree_print(work->db);
+#endif
 	debug_msg("end of sub ctx handle. \n");
 	return SUCCESS;
 }
@@ -575,10 +577,11 @@ cache_session(char *clientid, conn_param *cparam, uint32_t pid, void *db)
 	debug_msg("cache session");
 	client_ctx *        cli_ctx = NULL;
 	struct topic_queue *tq      = NULL;
-	nano_clean_session *cs      = NULL;
+//	nano_clean_session *cs      = NULL;
 
-	void *   nano_qos_db  = conn_param_get_qos_db(cparam);
 	uint32_t key_clientid = DJBHashn(clientid, strlen(clientid));
+/*
+	void * nano_qos_db = conn_param_get_qos_db(cparam);
 
 	// create cs if not exist
 	if ((cs = get_session(key_clientid)) == NULL) {
@@ -610,10 +613,19 @@ cache_session(char *clientid, conn_param *cparam, uint32_t pid, void *db)
 			cs->cltx        = cli_ctx;
 		}
 		cache_topic_all(pid, key_clientid);
-		debug_msg("move");
 	} else {
 		debug_msg("(CS=0) UNEXPECTED: no stored topic queue, tq lost "
 		          "or client may not subed topic");
+	}
+*/
+
+	if (check_id(pid)) {
+		tq = get_topic(pid);
+		while (tq) {
+			dbtree_cache_session(db, tq->topic, key_clientid, pid);
+			tq = tq->next;
+		}
+		cache_topic_all(pid, key_clientid);
 	}
 
 	debug_msg("Session cached.");
@@ -624,27 +636,28 @@ int
 restore_session(char *clientid, conn_param *cparam, uint32_t pid, void *db)
 {
 	debug_msg("restore session");
-	conn_param *        old_cparam;
-	client_ctx *        ctx;
-	uint8_t             cs_flag = conn_param_get_clean_start(cparam);
-	nano_clean_session *cs;
+	conn_param * old_cparam;
+	client_ctx * ctx;
+	uint8_t      cs_flag = conn_param_get_clean_start(cparam);
+//	nano_clean_session *cs;
+	topic_queue *tq = NULL;
 
 	uint32_t key_clientid = DJBHashn(clientid, strlen(clientid));
 	// TODO hash collision?
-	cs = (nano_clean_session *) get_session(key_clientid);
 
-	/*
-	        if (cs && cs->pipeid != 0) {
-	                // TODO kick prev connection(p or cs->pipeid)
-	                p->kicked = true;
-	                if (cparam->pro_ver == 5) {
-	                        *(flag +1 ) = 0x8E;
-	                } else {
-	                        *(flag +1 ) = 0x02;
-	                }
-	                return (NNG_ECONNABORTED);
-	        }
-	*/
+/*
+	cs = (nano_clean_session *)get_session(key_clientid);
+
+	if (cs && cs->pipeid != 0) {
+		// TODO kick prev connection(p or cs->pipeid)
+		p->kicked = true;
+		if (cparam->pro_ver == 5) {
+			*(flag +1 ) = 0x8E;
+		} else {
+			*(flag +1 ) = 0x02;
+		}
+		return (NNG_ECONNABORTED);
+	}
 
 	// no matter if client enabled cleansession. use clean-session-db for
 	// duplicate clientid verifying.
@@ -653,7 +666,6 @@ restore_session(char *clientid, conn_param *cparam, uint32_t pid, void *db)
 		// no cached info
 		return 0;
 	}
-
 	void *msgs = cs->msg_map;
 	cs->pipeid = pid;
 
@@ -687,6 +699,16 @@ restore_session(char *clientid, conn_param *cparam, uint32_t pid, void *db)
 		del_session(key_clientid);
 	}
 	return 0;
+*/
+	if (!cached_check_id(key_clientid)) {
+		return 0;
+	}
+	tq = get_cached_topic(key_clientid);
+	while (tq) {
+		dbtree_restore_session(db, tq->topic, key_clientid, pid);
+		tq = tq->next;
+	}
+	restore_topic_all(key_clientid, pid);
 }
 /* duplicate with the codes in pipe_fini()
         } else { // clean session
