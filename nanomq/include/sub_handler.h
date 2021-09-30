@@ -16,15 +16,6 @@ void destroy_sub_ctx(void *);
 void destroy_sub_pkt(packet_subscribe *, uint8_t);
 void init_sub_property(packet_subscribe *);
 
-struct nano_clean_session {
-	client_ctx *  cltx;
-	conn_param *  cparam;
-	void *        msg_map;
-	uint32_t      pipeid; // corresponding pipe id of nng
-	bool          clean;
-};
-typedef struct nano_clean_session nano_clean_session;
-
 // functions about clean session
 int  cache_session(char *, conn_param *, uint32_t, void *);
 int  restore_session(char *, conn_param *, uint32_t, void *);

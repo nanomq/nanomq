@@ -1009,9 +1009,7 @@ iterate_client(dbtree_client ***v)
 
 void **
 search_client(dbtree *db, char *topic, void *message)
-
 {
-
 	assert(db && topic);
 	char **topic_queue = topic_parse(topic);
 	char **for_free    = topic_queue;

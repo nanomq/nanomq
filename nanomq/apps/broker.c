@@ -20,7 +20,6 @@
 #include <nng.h>
 #include <protocol/mqtt/mqtt_parser.h>
 #include <protocol/mqtt/nano_tcp.h>
-#include <signal.h>
 #include <zmalloc.h>
 
 #include "include/nanomq.h"
