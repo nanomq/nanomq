@@ -366,7 +366,6 @@ server_cb(void *arg)
 					nng_aio_set_prov_extra(work->aio, 0,
 					    (void *) (intptr_t) p_info.qos);
 					nng_aio_set_msg(work->aio, work->msg);
-					// TODO pipe = 0?
 					work->pid.id = p_info.pipe;
 					nng_msg_set_pipe(work->msg, work->pid);
 					work->msg = NULL;
@@ -511,7 +510,6 @@ broker(conf *nanomq_conf)
 		fatal("nng_nano_tcp0_open", rv);
 	}
 
-	// TODO will be dynamic in the future
 	debug_msg("PARALLEL logic threads: %lu\n", num_ctx);
 	for (i = 0; i < num_ctx; i++) {
 		works[i]         = alloc_work(sock);
