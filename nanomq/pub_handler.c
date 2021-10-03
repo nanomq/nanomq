@@ -73,7 +73,6 @@ foreach_client(
 
 		pipe_ct->total += 1;
 	}
-
 }
 
 void
@@ -93,7 +92,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct)
 	// TODO no local
 	if (PUBLISH == work->pub_packet->fixed_header.packet_type) {
 		void **cli_ctx_list = dbtree_find_clients_and_cache_msg(
-		    work->db, work->pub_packet->variable_header.publish.topic_name.body, NULL);
+		    work->db, work->pub_packet->variable_header.publish.topic_name.body, work->msg);
 
 		if (cli_ctx_list != NULL) {
 			foreach_client(cli_ctx_list, work, pipe_ct);
