@@ -45,6 +45,6 @@ int broker_stop(int argc, char **argv);
 int broker_restart(int argc, char **argv);
 int broker_dflt(int argc, char **argv);
 
-db_tree *get_broker_db(void);
+dbtree *get_broker_db(void);
 
 #endif

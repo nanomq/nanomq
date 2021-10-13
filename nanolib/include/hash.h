@@ -1,6 +1,7 @@
 #ifndef HASH_H
 #define HASH_H
 
+#include "cvector.h"
 #include <stdbool.h>
 #include <stdint.h>
 

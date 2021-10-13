@@ -91,8 +91,15 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct)
 
 	// TODO no local
 	if (PUBLISH == work->pub_packet->fixed_header.packet_type) {
-		void **cli_ctx_list = dbtree_find_clients_and_cache_msg(
-		    work->db, work->pub_packet->variable_header.publish.topic_name.body, work->msg);
+		void **cli_ctx_list = NULL;
+		if (work->pub_packet->fixed_header.qos > 0) {
+			// nng_msg_clone(work->msg); // we need to know the number of clone
+			cli_ctx_list = dbtree_find_clients_and_cache_msg(work->db,
+				work->pub_packet->variable_header.publish.topic_name.body, work->msg);
+		} else {
+			cli_ctx_list = dbtree_find_clients_and_cache_msg(work->db,
+				work->pub_packet->variable_header.publish.topic_name.body, NULL);
+		}
 
 		if (cli_ctx_list != NULL) {
 			foreach_client(cli_ctx_list, work, pipe_ct);
