@@ -1071,7 +1071,7 @@ dbtree_find_clients_and_cache_msg(dbtree *db, char *topic, void *msg)
 int
 dbtree_cache_session_msg(dbtree *db, void *msg, uint32_t session_id)
 {
-	cvector(dbtree_session_msg *) session_msg_list;
+	cvector(dbtree_session_msg *) session_msg_list = NULL;
 	dbtree_session_msg *smsg =
 	    (dbtree_session_msg *) zmalloc(sizeof(dbtree_session_msg));
 	if (smsg == NULL) {

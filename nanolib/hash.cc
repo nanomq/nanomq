@@ -343,12 +343,12 @@ add_topic(uint32_t id, char *val)
 	struct topic_queue *tq  = _topic_hash[id];
 	if (tq == NULL) {
 		_topic_hash[id] = ntq;
-		log("add_topic:%s", _topic_hash[id]->topic);
+		log_info("add_topic:%s", _topic_hash[id]->topic);
 	} else {
 		struct topic_queue *tmp = tq->next;
 		tq->next                = ntq;
 		ntq->next               = tmp;
-		log("add_topic:%s", tq->next->topic);
+		log_info("add_topic:%s", tq->next->topic);
 	}
 }
 
@@ -475,7 +475,7 @@ print_topic_all(uint32_t id)
 	struct topic_queue *tq    = _topic_hash[id];
 	int                 t_num = 0;
 	while (tq) {
-		log("Topic number %d, topic subscribed: %s.", ++t_num,
+		log_info("Topic number %d, topic subscribed: %s.", ++t_num,
 		    tq->topic);
 		tq = tq->next;
 	}
@@ -712,7 +712,7 @@ add_msg_queue(char *id, char *msg)
 		struct msg_queue *tmp = mq->next;
 		mq->next              = nmq;
 		nmq->next             = tmp;
-		log("add_topic:%s", mq->next->msg);
+		log_info("add_topic:%s", mq->next->msg);
 	}
 }
 

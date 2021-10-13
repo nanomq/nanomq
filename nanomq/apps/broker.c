@@ -173,8 +173,8 @@ server_cb(void *arg)
 				topic_queue *tq = get_topic(work->pid.id);
 				while (tq) {
 					if (tq->topic) {
-						cli_ctx = search_and_delete(
-						    work->db, tq->topic, work->pid.id);
+						cli_ctx = dbtree_delete_client(
+						    work->db, tq->topic, 0, work->pid.id);
 					}
 					del_sub_ctx(cli_ctx, tq->topic);
 					tq = tq->next;
@@ -468,10 +468,10 @@ alloc_work(nng_socket sock)
 	return (w);
 }
 
-static db_tree *db     = NULL;
-static db_tree *db_ret = NULL;
+static dbtree *db     = NULL;
+static dbtree *db_ret = NULL;
 
-db_tree *
+dbtree *
 get_broker_db(void)
 {
 	return db;
@@ -489,7 +489,7 @@ broker(conf *nanomq_conf)
 	const char * url = nanomq_conf->url;
 
 	// init tree
-	create_db_tree(&db);
+	dbtree_create(&db);
 	if (db == NULL) {
 		debug_msg("NNL_ERROR error in db create");
 	}
