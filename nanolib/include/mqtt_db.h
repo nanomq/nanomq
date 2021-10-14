@@ -207,9 +207,10 @@ int dbtree_cache_session_msg(dbtree *db, void *msg, uint32_t session_id);
  * message for offline.
  * @param dbtree - dbtree
  * @param topic - topic
+ * @param msg_cnt - message used count
  * @return dbtree_client
  */
-void **dbtree_find_clients_and_cache_msg(dbtree *db, char *topic, void *msg);
+void **dbtree_find_clients_and_cache_msg(dbtree *db, char *topic, void *msg, size_t *msg_cnt);
 
 /**
  * @brief dbtree_restore_session_msg - Get all be 
