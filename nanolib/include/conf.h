@@ -14,7 +14,7 @@
 #define USAGE                                                                 \
 	"Usage: nanomq broker {"                                              \
 	"{start|restart [-conf <path>] [-url <url>] [-daemon] [-tq_thread "   \
-	"<num>] [-max_tq_thread <num>] [-parallel <num>] [-qos_timer "        \
+	"<num>] [-max_tq_thread <num>] [-parallel <num>] [-qos_duration "     \
 	"<num>]}|stop}\n"                                                     \
 	"  -conf <path>          the path of a specified configuration file " \
 	"\n"                                                                  \
@@ -27,7 +27,7 @@
 	"we can handle\n"                                                     \
 	"  -property_size <num>  the max size for a MQTT user property\n"     \
 	"  -msq_len <num>        the queue length for resending messages\n"   \
-	"  -qos_timer <num>      the interval of the qos timer\n"             \
+	"  -qos_duration <num>   the interval of the qos timer\n"             \
 	"  -http                 enable http server (default: disable)\n"     \
 	"  -port <num>           the port of http server (default: 8081)\n"
 
@@ -68,7 +68,7 @@ struct conf {
 	uint64_t parallel;
 	int      property_size;
 	int      msq_len;
-	int      qos_timer;
+	int      qos_duration;
 	void *   db_root;
 	bool     allow_anonymous;
 	bool     daemon;

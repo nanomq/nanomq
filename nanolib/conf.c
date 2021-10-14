@@ -117,9 +117,9 @@ conf_parser(conf **nanomq_conf, const char *path)
 			(*nanomq_conf)->msq_len = temp;
 			debug_msg(CONF_READ_RECORD, key, value);
 			read_success = true;
-		} else if (!strcmp(key, "qos_timer") && isdigit(value[0]) &&
+		} else if (!strcmp(key, "qos_duration") && isdigit(value[0]) &&
 		    ((temp = atoi(value)) > 0)) {
-			(*nanomq_conf)->qos_timer = temp;
+			(*nanomq_conf)->qos_duration = temp;
 			debug_msg(CONF_READ_RECORD, key, value);
 			read_success = true;
 		} else if (!strcmp(key, "http_server.enable")) {
@@ -225,7 +225,7 @@ conf_init(conf **nanomq_conf)
 	(*nanomq_conf)->parallel             = 30; // not work
 	(*nanomq_conf)->property_size        = sizeof(uint8_t) * 32;
 	(*nanomq_conf)->msq_len              = 64;
-	(*nanomq_conf)->qos_timer            = 30;
+	(*nanomq_conf)->qos_duration         = 30;
 	(*nanomq_conf)->allow_anonymous      = true;
 	(*nanomq_conf)->http_server.enable   = false;
 	(*nanomq_conf)->http_server.port     = 8081;
@@ -248,7 +248,7 @@ print_conf(conf *nanomq_conf)
 	debug_syslog("parallel is %ul\n", nanomq_conf->parallel);
 	debug_syslog("property_size is %d\n", nanomq_conf->property_size);
 	debug_syslog("msq_len is %d\n", nanomq_conf->msq_len);
-	debug_syslog("qos_timer is %d\n", nanomq_conf->qos_timer);
+	debug_syslog("qos_duration is %d\n", nanomq_conf->qos_duration);
 	debug_syslog("enable http server is %s\n",
 	    nanomq_conf->http_server.enable ? "true" : "false");
 	debug_syslog(
