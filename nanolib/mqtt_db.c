@@ -624,6 +624,7 @@ search_insert_node(dbtree *db, char *topic, void *args,
 	pthread_rwlock_wrlock(&(db->rwlock));
 	dbtree_node *node = db->root;
 	// while dbtree is NULL, we will insert directly.
+
 	if (!(node->child && *node->child)) {
 		node = dbtree_node_insert(node, topic_queue);
 	} else {
@@ -704,7 +705,6 @@ delete_and_insert(dbtree_node *node, void *args)
 		if (s) {
 			client->ctxt       = s->ctxt;
                         ret = client->ctxt;
-                        log_info("@@@@@@@@@@@: %d", *(int*) ret);
 
 			client->session_id = 0;
 			zfree(s);
@@ -777,10 +777,7 @@ dbtree_restore_session(
 	}
 
 	dbtree_client *client = dbtree_client_new(session_id, NULL, pipe_id);
-	void *         ret    = NULL;
-	ret = search_insert_node(db, topic, client, delete_and_insert);
-
-	return ret;
+	return search_insert_node(db, topic, client, delete_and_insert);
 }
 
 static cvector(dbtree_session_msg *)
@@ -1011,7 +1008,7 @@ iterate_client(dbtree_client ***v)
 }
 
 void **
-search_client(dbtree *db, char *topic, void *message)
+search_client(dbtree *db, char *topic, void *message, size_t *msg_cnt)
 {
 	assert(db && topic);
 	char **topic_queue = topic_parse(topic);
@@ -1048,6 +1045,9 @@ search_client(dbtree *db, char *topic, void *message)
 
 	void **ret = iterate_client(ctxts);
 	pthread_rwlock_unlock(&(db->rwlock));
+        // size_t size = cvector_size(session_msg_list);
+        // log_info("########: %lu", size);
+        // *msg_cnt = size;
 
 	pthread_rwlock_wrlock(&(db->rwlock_session));
 	db->session_msg_list =
@@ -1063,9 +1063,9 @@ search_client(dbtree *db, char *topic, void *message)
 }
 
 void **
-dbtree_find_clients_and_cache_msg(dbtree *db, char *topic, void *msg)
+dbtree_find_clients_and_cache_msg(dbtree *db, char *topic, void *msg, size_t *msg_cnt)
 {
-	return search_client(db, topic, msg);
+	return search_client(db, topic, msg, msg_cnt);
 }
 
 int
