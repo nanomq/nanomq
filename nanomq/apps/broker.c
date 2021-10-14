@@ -667,10 +667,10 @@ broker_start(int argc, char **argv)
 		} else if (!strcmp("-msq_len", argv[i]) && ((i + 1) < argc) &&
 		    isdigit(argv[++i][0]) && ((temp = atoi(argv[i])) > 0)) {
 			nanomq_conf->msq_len = temp;
-		} else if (!strcmp("-qos_timer", argv[i]) &&
+		} else if (!strcmp("-qos_duration", argv[i]) &&
 		    ((i + 1) < argc) && isdigit(argv[++i][0]) &&
 		    ((temp = atoi(argv[i])) > 0)) {
-			nanomq_conf->qos_timer = temp;
+			nanomq_conf->qos_duration = temp;
 		} else if (!strcmp("-url", argv[i])) {
 			if (nanomq_conf->url != NULL) {
 				zfree(nanomq_conf->url);
