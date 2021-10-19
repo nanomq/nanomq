@@ -643,7 +643,6 @@ broker_start(int argc, char **argv)
 
 	nanomq_conf->parallel = PARALLEL;
 	conf_init(&nanomq_conf);
-	conf_parser(&nanomq_conf, CONF_PATH_NAME);
 
 	for (i = 0; i < argc; i++, temp = 0) {
 		if (!strcmp("-conf", argv[i])) {
