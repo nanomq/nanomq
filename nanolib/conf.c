@@ -8,6 +8,7 @@
 
 #include <ctype.h>
 
+#include "include/dbg.h"
 #include "include/conf.h"
 #include "include/file.h"
 #include "nanomq.h"
@@ -23,8 +24,8 @@ conf_parser(conf **nanomq_conf, const char *path)
 	FILE * fp;
 
 	if (!(fp = fopen(path, "r"))) {
-		fprintf(stderr,
-		    "\"nanomq.conf %s\" file not found or unreadable\n", path);
+		log_warn("Configure file [%s] not found or unreadable", path);
+		log_warn("Using default configuration instead.\n");
 		return false;
 	}
 
@@ -42,8 +43,7 @@ conf_parser(conf **nanomq_conf, const char *path)
 		char *key   = strtok(head, "=");
 
 		if (value[0] == '\0' || value[0] == '\n') {
-			fprintf(stderr,
-			    "No value is specified, conf file parsing "
+			log_err("No value is specified, conf file parsing "
 			    "aborts\n");
 			return false;
 		}
@@ -80,8 +80,7 @@ conf_parser(conf **nanomq_conf, const char *path)
 			char *url =
 			    zmalloc(sizeof(char) * (strlen(value) + 1));
 			if (url == NULL) {
-				fprintf(stderr,
-				    "Error: Cannot allocate storge for url, "
+				log_err("Error: Cannot allocate storge for url, "
 				    "parsing aborts\n");
 				free(buffer);
 				fclose(fp);
@@ -145,10 +144,8 @@ conf_parser(conf **nanomq_conf, const char *path)
 			char *username =
 			    zmalloc(sizeof(char) * (strlen(value) + 1));
 			if (username == NULL) {
-				fprintf(stderr,
-				    "Error: Cannot allocate storge for "
-				    "username, "
-				    "parsing aborts\n");
+				log_err("Cannot allocate storge for "
+				    "username, parsing aborts\n");
 				free(buffer);
 				fclose(fp);
 				return false;
@@ -164,10 +161,8 @@ conf_parser(conf **nanomq_conf, const char *path)
 			char *password =
 			    zmalloc(sizeof(char) * (strlen(value) + 1));
 			if (password == NULL) {
-				fprintf(stderr,
-				    "Error: Cannot allocate storge for "
-				    "password, "
-				    "parsing aborts\n");
+				log_err("Cannot allocate storge for "
+				    "password, parsing aborts\n");
 				free(buffer);
 				fclose(fp);
 				return false;
@@ -193,10 +188,8 @@ conf_parser(conf **nanomq_conf, const char *path)
 			char *url =
 			    zmalloc(sizeof(char) * (strlen(value) + 1));
 			if (url == NULL) {
-				fprintf(stderr,
-				    "Error: Cannot allocate storge for "
-				    "url, "
-				    "parsing aborts\n");
+				log_err("Cannot allocate storge for "
+				    "url, parsing aborts\n");
 				free(buffer);
 				fclose(fp);
 				return false;
@@ -207,8 +200,7 @@ conf_parser(conf **nanomq_conf, const char *path)
 			debug_msg(CONF_READ_RECORD, key, value);
 		}
 		if (!read_success) {
-			fprintf(stderr,
-			    "Cannot find the configuration you attemp to set, "
+			log_err("Cannot find the configuration you attemp to set, "
 			    "conf file reading halted, stopped at %s",
 			    key);
 			free(buffer);
