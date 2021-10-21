@@ -1045,9 +1045,11 @@ search_client(dbtree *db, char *topic, void *message, size_t *msg_cnt)
 
 	void **ret = iterate_client(ctxts);
 	pthread_rwlock_unlock(&(db->rwlock));
-        // size_t size = cvector_size(session_msg_list);
-        // log_info("########: %lu", size);
-        // *msg_cnt = size;
+	if (message) {
+		size_t size = cvector_size(session_msg_list);
+		log_info("########: %lu", size);
+		*msg_cnt = size;
+	}
 
 	pthread_rwlock_wrlock(&(db->rwlock_session));
 	db->session_msg_list =

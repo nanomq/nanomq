@@ -92,13 +92,17 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct)
 	// TODO no local
 	if (PUBLISH == work->pub_packet->fixed_header.packet_type) {
 		void **cli_ctx_list = NULL;
+		size_t msg_cnt = 0;
 		if (work->pub_packet->fixed_header.qos > 0) {
-			// nng_msg_clone(work->msg); // we need to know the number of clone
 			cli_ctx_list = dbtree_find_clients_and_cache_msg(work->db,
-				work->pub_packet->variable_header.publish.topic_name.body, work->msg);
+				work->pub_packet->variable_header.publish.topic_name.body, work->msg, &msg_cnt);
+			// TODO we need to know the number of clone
+			for (int i = 0; i < (int)msg_cnt; i++) {
+				nng_msg_clone(work->msg);
+			}
 		} else {
 			cli_ctx_list = dbtree_find_clients_and_cache_msg(work->db,
-				work->pub_packet->variable_header.publish.topic_name.body, NULL);
+				work->pub_packet->variable_header.publish.topic_name.body, NULL, &msg_cnt);
 		}
 
 		if (cli_ctx_list != NULL) {
