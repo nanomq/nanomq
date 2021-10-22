@@ -96,8 +96,11 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct)
 		if (work->pub_packet->fixed_header.qos > 0) {
 			cli_ctx_list = dbtree_find_clients_and_cache_msg(work->db,
 				work->pub_packet->variable_header.publish.topic_name.body, work->msg, &msg_cnt);
-			// TODO we need to know the number of clone
-			for (int i = 0; i < (int)msg_cnt; i++) {
+			// Note. Why do we clone msg (msg_cnt-1) times?
+			// It's because that the refcnt of msg is 1, when
+			// plus (msg_cnt-1), equals (msg_cnt), and it means
+			// the count of session which the msg would be sent to.
+			for (int i = 0; i < (int)(msg_cnt - 1); i++) {
 				nng_msg_clone(work->msg);
 			}
 		} else {
