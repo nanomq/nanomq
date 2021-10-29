@@ -1255,7 +1255,7 @@ search_session(dbtree *db, uint32_t id)
 		}
 
 	} else {
-		log_warn("Session_msg_list is NULL!\n");
+		log_info("Session_msg_list is NULL!\n");
 	}
 
 	pthread_rwlock_unlock(&(db->rwlock_session));
