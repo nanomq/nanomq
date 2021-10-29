@@ -622,6 +622,8 @@ broker_start(int argc, char **argv)
 {
 	int   i, url, temp, rc, num_ctx = 0;
 	pid_t pid = 0;
+	char *conf_path = NULL;
+	conf *nanomq_conf;
 
 	if (!status_check(&pid)) {
 		fprintf(stderr,
@@ -629,8 +631,6 @@ broker_start(int argc, char **argv)
 		    "won't be started until the other one is stopped.\n");
 		exit(EXIT_FAILURE);
 	}
-
-	conf *nanomq_conf;
 
 	if ((nanomq_conf = nng_zalloc(sizeof(conf))) == NULL) {
 		fprintf(stderr,
@@ -640,13 +640,12 @@ broker_start(int argc, char **argv)
 
 	nanomq_conf->parallel = PARALLEL;
 	conf_init(&nanomq_conf);
-	conf_parser(&nanomq_conf, CONF_PATH_NAME);
 
 	for (i = 0; i < argc; i++, temp = 0) {
 		if (!strcmp("-conf", argv[i])) {
 			debug_msg("reading user specified conf file:%s",
 			    argv[i + 1]);
-			conf_parser(&nanomq_conf, argv[++i]);
+			conf_path = argv[++i];
 		} else if (!strcmp("-daemon", argv[i])) {
 			nanomq_conf->daemon = true;
 		} else if (!strcmp("-tq_thread", argv[i]) &&
@@ -700,6 +699,7 @@ broker_start(int argc, char **argv)
 		nanomq_conf->url = CONF_URL_DEFAULT;
 	}
 
+	conf_parser(&nanomq_conf, conf_path);
 	print_conf(nanomq_conf);
 	active_conf(nanomq_conf);
 

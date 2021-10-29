@@ -23,10 +23,17 @@ conf_parser(conf **nanomq_conf, const char *path)
 	bool   read_success = false;
 	FILE * fp;
 
-	if (!(fp = fopen(path, "r"))) {
-		log_warn("Configure file [%s] not found or unreadable", path);
-		log_warn("Using default configuration instead.\n");
-		return false;
+	if (path != NULL) {
+		if (!(fp = fopen(path, "r"))) {
+			log_warn("Configure file [%s] not found or unreadable", path);
+			log_warn("Using default configuration instead.\n");
+			return false;
+		}
+	} else {
+		if (!(fp = fopen(CONF_PATH_NAME, "r"))) {
+			log_info("Using default configuration.\n");
+			return false;
+		}
 	}
 
 	while (getline(&buffer, &length, fp) != -1) {
