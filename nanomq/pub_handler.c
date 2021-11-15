@@ -46,15 +46,30 @@ foreach_client(
 	bool               equal = false;
 	packet_subscribe * sub_pkt;
 	struct client_ctx *ctx;
+	topic_node *       tn;
 
 	int      ctx_list_len = cvector_size(cli_ctx_list);
 	uint32_t pids;
 	uint8_t  sub_qos;
 
 	for (int i = 0; i < ctx_list_len; i++) {
-		ctx  = (struct client_ctx *) cli_ctx_list[i];
-		pids = ctx->pid.id;
-		sub_qos = ctx->sub_pkt->node->it->qos;
+		ctx     = (struct client_ctx *) cli_ctx_list[i];
+		pids    = ctx->pid.id;
+		tn      = ctx->sub_pkt->node;
+		sub_qos = 0; // default
+
+		if (tn != NULL) {
+			sub_qos = tn->it->qos;
+		}
+
+		while (tn != NULL) {
+			if (0 == strcmp(tn->it->topic_filter.body,
+			    pub_work->pub_packet->variable_header.publish.topic_name.body)) {
+				sub_qos = tn->it->qos;
+				break;
+			}
+			tn = tn->next;
+		}
 
 		if (pids == 0) {
 			continue;
