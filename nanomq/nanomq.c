@@ -1,5 +1,5 @@
 //
-// Copyright 2020 NanoMQ Team, Inc. <jaylin@emqx.io>
+// Copyright 2021 NanoMQ Team, Inc. <jaylin@emqx.io>
 //
 // This software is supplied under the terms of the MIT License, a
 // copy of which should be located in the distribution where this
@@ -34,24 +34,41 @@
 static void
 print_version(void)
 {
-	printf("%s v.01-%s\n", NANO_BRAND, FW_EV_VER_ID_SHORT);
-	printf("Copyright 2020 EMQ X Edge Team\n");
+	printf("\n%s v.01-%s\n", NANO_BRAND, FW_EV_VER_ID_SHORT);
+	printf("Copyright 2021 EMQ X Edge Team\n");
 	printf("\n");
 }
 
 static int
 print_avail_apps(void)
 {
-#if defined(NANO_DEBUG)
 	const struct nanomq_app **nano_app;
 
-	printf("available applications:\n");
+	printf("\navailable applications:\n");
 
 	for (nano_app = edge_apps; *nano_app; ++nano_app)
 		printf("   * %s\n", (*nano_app)->name);
-#endif
-	print_version();
+
 	return 1;
+}
+
+static void
+print_help(void)
+{
+	const struct nanomq_app **nano_app = edge_apps;
+
+	printf("\nUsage: nanomq");
+	while (1) {
+		printf(" %s ", (*nano_app)->name);
+		++nano_app;
+		if (*nano_app) {
+			printf("|");
+		} else {
+			printf("[--help]");
+			break;
+		}
+	}
+	printf("\n");
 }
 
 /* #if defined(DEBUG_TRACE)
@@ -132,8 +149,11 @@ main(int argc, char **argv)
 	debug_msg("argv %s %s app_name %s", argv[0], argv[1], app_name);
 	if (strncmp(app_name, NANO_APP_NAME, APP_NAME_MAX) == 0) {
 		debug_msg("argc : %d", argc);
-		if (argc == 1)
-			return print_avail_apps();
+		if (argc == 1) {
+			print_avail_apps();
+			print_version();
+			return (1);
+		}
 
 		app_name = argv[1];
 		argv++;
@@ -145,8 +165,9 @@ main(int argc, char **argv)
 			break;
 
 	if (!(*nano_app)) {
-		printf(
-		    "Error - the application '%s' was not found\n", app_name);
+		printf("Error - the app '%s' was not found\n", app_name);
+		print_help();
+		print_version();
 		return EXIT_FAILURE;
 	}
 
