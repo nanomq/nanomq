@@ -3,7 +3,10 @@
 [![GitHub Release](https://img.shields.io/github/release/nanomq/nanomq?color=brightgreen)](https://github.com/nanomq/nanomq/releases)
 [![Docker Pulls](https://img.shields.io/docker/pulls/nanomq/nanomq)](https://hub.docker.com/r/nanomq/nanomq)
 [![Twitter](https://img.shields.io/badge/Follow-EMQ-1DA1F2?logo=twitter)](https://twitter.com/EMQTech)
-[![YouTube](https://img.shields.io/badge/Subscribe-EMQ-FF0000?logo=youtube)](https://www.youtube.com/channel/UC5FjR77ErAxvZENEWzQaO5Q)[![Community](https://img.shields.io/badge/Community-NanoMQ-yellow?logo=github)](https://github.com/nanomq/nanomq/discussions)[![License](https://img.shields.io/github/license/nanomq/nanomq.svg?logoColor=silver&logo=open-source-initiative&label=&color=blue)](https://github.com/nanomq/nanomq/blob/master/LICENSE.txt)[![Workflows](https://github.com/nanomq/nanomq/actions/workflows/build_packages.yaml/badge.svg)](https://github.com/nanomq/nanomq/actions)
+[![YouTube](https://img.shields.io/badge/Subscribe-EMQ-FF0000?logo=youtube)](https://www.youtube.com/channel/UC5FjR77ErAxvZENEWzQaO5Q)
+[![Community](https://img.shields.io/badge/Community-NanoMQ-yellow?logo=github)](https://github.com/nanomq/nanomq/discussions)
+[![License](https://img.shields.io/github/license/nanomq/nanomq.svg?logoColor=silver&logo=open-source-initiative&label=&color=blue)](https://github.com/nanomq/nanomq/blob/master/LICENSE.txt)
+[![Workflows](https://github.com/nanomq/nanomq/actions/workflows/build_packages.yaml/badge.svg)](https://github.com/nanomq/nanomq/actions)
 
 [![The best IoT MQTT open source team looks forward to your joining](https://static.emqx.net/images/github_readme_en_bg.png)](https://www.emqx.com/en/careers)NanoMQ MQTT Broker (NanoMQ) is a lightweight and blazing-fast MQTT Broker for the IoT Edge platform. 
 
@@ -88,7 +91,7 @@ To build NanoMQ, requires a C99 & C++11 compatible compiler and [CMake](http://w
   ```bash
   git clone https://github.com/nanomq/nanomq.git ; cd nanomq
   git submodule update --init --recursive
-  mkdir build & cd build
+  mkdir build && cd build
   cmake -G Ninja ..
   ninja
   ```
@@ -98,7 +101,7 @@ To build NanoMQ, requires a C99 & C++11 compatible compiler and [CMake](http://w
   ``` bash
   git clone https://github.com/nanomq/nanomq.git ; cd nanomq
   git submodule update --init --recursive
-  mkdir build & cd build
+  mkdir build && cd build
   cmake .. 
   make
   ```
