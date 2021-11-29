@@ -6,6 +6,9 @@
 [![YouTube](https://img.shields.io/badge/Subscribe-EMQ-FF0000?logo=youtube)](https://www.youtube.com/channel/UC5FjR77ErAxvZENEWzQaO5Q)
 [![Community](https://img.shields.io/badge/Community-NanoMQ-yellow?logo=github)](https://github.com/nanomq/nanomq/discussions)
 
+[![License](https://img.shields.io/github/license/nanomq/nanomq.svg?logoColor=silver&logo=open-source-initiative&label=&color=blue)](https://github.com/nanomq/nanomq/blob/master/LICENSE.txt)
+
+[![Workflows](https://github.com/nanomq/nanomq/actions/workflows/build_packages.yaml/badge.svg)](https://github.com/nanomq/nanomq/actions)
 
 [![The best IoT MQTT open source team looks forward to your joining](https://static.emqx.net/images/github_readme_en_bg.png)](https://www.emqx.com/en/careers)NanoMQ MQTT Broker (NanoMQ) is a lightweight and blazing-fast MQTT Broker for the IoT Edge platform. 
 
@@ -37,6 +40,14 @@ nanomq broker start -url <url>
 nanomq broker stop
 nanomq broker restart -url <url>
 ```
+MQTT Example:
+```bash
+nanomq broker start -url "broker+tcp://0.0.0.0:1883"
+```
+MQTT Over WebSocket Example:
+```bash
+nanomq broker start -url "nmq+ws://0.0.0.0/8083/mqtt
+```
 
 **POSIX message queue usage**
 
@@ -66,7 +77,7 @@ With this being said, NanoMQ can run on different architectures such like x86_64
 #### Docker
 
 ```bash
-docker run -d --name nanomq nanomq/nanomq:0.3.5
+docker run -d --name nanomq nanomq/nanomq:0.5.1
 ```
 
 
