@@ -19,7 +19,7 @@
 #include <mqtt_db.h>
 #include <nng.h>
 #include <protocol/mqtt/mqtt_parser.h>
-#include <protocol/mqtt/nano_tcp.h>
+#include <protocol/mqtt/nmq_mqtt.h>
 #include <zmalloc.h>
 
 #include "include/nanomq.h"
@@ -502,9 +502,9 @@ broker(conf *nanomq_conf)
 	nanomq_conf->db_root = db;
 	sock.id              = 0;
 	sock.data            = nanomq_conf;
-	rv                   = nng_nano_tcp0_open(&sock);
+	rv                   = nng_nmq_tcp0_open(&sock);
 	if (rv != 0) {
-		fatal("nng_nano_tcp0_open", rv);
+		fatal("nng_nmq_tcp0_open", rv);
 	}
 
 	debug_msg("PARALLEL logic threads: %lu\n", num_ctx);
@@ -690,6 +690,8 @@ broker_start(int argc, char **argv)
 		}
 	}
 
+	conf_parser(&nanomq_conf, conf_path);
+
 	if (nanomq_conf->url == NULL) {
 		fprintf(stderr,
 		    "INFO: invalid input url, using default url: %s\n"
@@ -699,7 +701,6 @@ broker_start(int argc, char **argv)
 		nanomq_conf->url = CONF_URL_DEFAULT;
 	}
 
-	conf_parser(&nanomq_conf, conf_path);
 	print_conf(nanomq_conf);
 	active_conf(nanomq_conf);
 
