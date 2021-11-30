@@ -25,11 +25,7 @@ For more information, please visit [NanoMQ homepage](https://nanomq.io/).
 - Pure C/C++ implementation. High portability;
 - Fully asynchronous I/O and multi-threading;
 - Good support for SMP;
-- Low latency & High handling capacity.
-
-https://static.emqx.com/_nuxt/img/banner-en-bg.4968787.png
-
-[![nanomq-blueprint](https://static.emqx.com/_nuxt/img/banner-en-bg.4968787.png)
+- Low latency & High handling capacity.![nanomq-blueprint](https://static.emqx.com/_nuxt/img/banner-en-bg.4968787.png)
 
 ## Quick Start
 
@@ -387,4 +383,4 @@ You could join us on [Slack](https://slack-invite.emqx.io/). We now share a work
 ## Authors
 
 
-The EMQ X team.
+The EMQ X Edge Computing team.
