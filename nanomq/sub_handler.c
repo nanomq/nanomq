@@ -276,11 +276,12 @@ sub_ctx_handle(nano_work *work)
 {
 	topic_node *        topic_node_t = work->sub_pkt->node;
 	char *              topic_str    = NULL;
-	char *              client_id    = NULL;
+	char *              clientid     = NULL;
 	int                 topic_len    = 0;
 	struct topic_queue *tq           = NULL;
 	work->msg_ret                    = NULL;
 	int topic_exist                  = 0;
+	uint32_t clientid_key            = 0;
 
 	client_ctx *old_ctx = NULL;
 	client_ctx *cli_ctx = nng_alloc(sizeof(client_ctx));
@@ -289,9 +290,11 @@ sub_ctx_handle(nano_work *work)
 	cli_ctx->pid        = work->pid;
 	cli_ctx->proto_ver  = conn_param_get_protover(work->cparam);
 
-	client_id = (char *) conn_param_get_clientid(
+	clientid = (char *) conn_param_get_clientid(
 	    (conn_param *) nng_msg_get_conn_param(work->msg));
-	uint32_t clientid_key = DJBHashn(client_id, strlen(client_id));
+	if (clientid) {
+		clientid_key = DJBHashn(clientid, strlen(clientid));
+	}
 
 	// get ctx from tree TODO optimization here
 	tq = get_topic(cli_ctx->pid.id);
@@ -342,7 +345,7 @@ sub_ctx_handle(nano_work *work)
 		}
 #ifdef DEBUG
 		// check
-		debug_msg("--CHECK--cliid: [%s] pipeid: [%d]", client_id,
+		debug_msg("--CHECK--cliid: [%s] pipeid: [%d]", clientid,
 		    work->pid.id);
 #endif
 
