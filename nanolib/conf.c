@@ -11,7 +11,7 @@
 #include "include/dbg.h"
 #include "include/conf.h"
 #include "include/file.h"
-#include "nanomq.h"
+// #include "nanomq.h"
 
 bool
 conf_parser(conf **nanomq_conf, const char *path)
@@ -64,21 +64,21 @@ conf_parser(conf **nanomq_conf, const char *path)
 			if (!strncmp(value, "yes", 3)) {
 				(*nanomq_conf)->daemon = true;
 				read_success           = true;
-				debug_msg(CONF_READ_RECORD, key, value);
+				log_info(CONF_READ_RECORD, key, value);
 			} else if (!strncmp(value, "no", 2)) {
 				(*nanomq_conf)->daemon = false;
 				read_success           = true;
-				debug_msg(CONF_READ_RECORD, key, value);
+				log_info(CONF_READ_RECORD, key, value);
 			}
 		} else if (!strcmp(key, "allow_anonymous")) {
 			if (!strncmp(value, "yes", 3)) {
 				(*nanomq_conf)->allow_anonymous = true;
 				read_success                    = true;
-				debug_msg(CONF_READ_RECORD, key, value);
+				log_info(CONF_READ_RECORD, key, value);
 			} else if (!strncmp(value, "no", 2)) {
 				(*nanomq_conf)->allow_anonymous = false;
 				read_success                    = true;
-				debug_msg(CONF_READ_RECORD, key, value);
+				log_info(CONF_READ_RECORD, key, value);
 			}
 		} else if (!strcmp(key, "url")) {
 			if ((*nanomq_conf)->url != NULL) {
@@ -96,53 +96,53 @@ conf_parser(conf **nanomq_conf, const char *path)
 			strcpy(url, value);
 			(*nanomq_conf)->url = url;
 			read_success        = true;
-			debug_msg(CONF_READ_RECORD, key, value);
+			log_info(CONF_READ_RECORD, key, value);
 		} else if (!strcmp(key, "num_taskq_thread") &&
 		    isdigit(value[0]) && ((temp = atoi(value)) > 0) &&
 		    (temp < 256)) {
 			(*nanomq_conf)->num_taskq_thread = temp;
-			debug_msg(CONF_READ_RECORD, key, value);
+			log_info(CONF_READ_RECORD, key, value);
 			read_success = true;
 		} else if (!strcmp(key, "max_taskq_thread") &&
 		    isdigit(value[0]) && ((temp = atoi(value)) > 0) &&
 		    (temp < 256)) {
 			(*nanomq_conf)->max_taskq_thread = temp;
-			debug_msg(CONF_READ_RECORD, key, value);
+			log_info(CONF_READ_RECORD, key, value);
 			read_success = true;
 		} else if (!strcmp(key, "parallel") && isdigit(value[0]) &&
 		    ((temp = atoi(value)) > 0)) {
 			(*nanomq_conf)->parallel = temp;
-			debug_msg(CONF_READ_RECORD, key, value);
+			log_info(CONF_READ_RECORD, key, value);
 			read_success = true;
 		} else if (!strcmp(key, "property_size") &&
 		    isdigit(value[0]) && ((temp = atoi(value)) > 0)) {
 			(*nanomq_conf)->property_size = temp;
-			debug_msg(CONF_READ_RECORD, key, value);
+			log_info(CONF_READ_RECORD, key, value);
 			read_success = true;
 		} else if (!strcmp(key, "msq_len") && isdigit(value[0]) &&
 		    ((temp = atoi(value)) > 0)) {
 			(*nanomq_conf)->msq_len = temp;
-			debug_msg(CONF_READ_RECORD, key, value);
+			log_info(CONF_READ_RECORD, key, value);
 			read_success = true;
 		} else if (!strcmp(key, "qos_duration") && isdigit(value[0]) &&
 		    ((temp = atoi(value)) > 0)) {
 			(*nanomq_conf)->qos_duration = temp;
-			debug_msg(CONF_READ_RECORD, key, value);
+			log_info(CONF_READ_RECORD, key, value);
 			read_success = true;
 		} else if (!strcmp(key, "http_server.enable")) {
 			if (!strncmp(value, "yes", 3)) {
 				(*nanomq_conf)->http_server.enable = true;
 				read_success                       = true;
-				debug_msg(CONF_READ_RECORD, key, value);
+				log_info(CONF_READ_RECORD, key, value);
 			} else if (!strncmp(value, "no", 2)) {
 				(*nanomq_conf)->http_server.enable = false;
 				read_success                       = true;
-				debug_msg(CONF_READ_RECORD, key, value);
+				log_info(CONF_READ_RECORD, key, value);
 			}
 		} else if (!strcmp(key, "http_server.port") &&
 		    isdigit(value[0]) && ((temp = atoi(value)) > 0)) {
 			(*nanomq_conf)->http_server.port = temp;
-			debug_msg(CONF_READ_RECORD, key, value);
+			log_info(CONF_READ_RECORD, key, value);
 			read_success = true;
 		} else if (!strcmp(key, "http_server.username")) {
 			if ((*nanomq_conf)->http_server.username != NULL) {
@@ -160,7 +160,7 @@ conf_parser(conf **nanomq_conf, const char *path)
 			strcpy(username, value);
 			(*nanomq_conf)->http_server.username = username;
 			read_success                         = true;
-			debug_msg(CONF_READ_RECORD, key, value);
+			log_info(CONF_READ_RECORD, key, value);
 		} else if (!strcmp(key, "http_server.password")) {
 			if ((*nanomq_conf)->http_server.password != NULL) {
 				break;
@@ -177,16 +177,16 @@ conf_parser(conf **nanomq_conf, const char *path)
 			strcpy(password, value);
 			(*nanomq_conf)->http_server.password = password;
 			read_success                         = true;
-			debug_msg(CONF_READ_RECORD, key, value);
+			log_info(CONF_READ_RECORD, key, value);
 		} else if (!strcmp(key, "websocket.enable")) {
 			if (!strncmp(value, "yes", 3)) {
 				(*nanomq_conf)->websocket.enable = true;
 				read_success                     = true;
-				debug_msg(CONF_READ_RECORD, key, value);
+				log_info(CONF_READ_RECORD, key, value);
 			} else if (!strncmp(value, "no", 2)) {
 				(*nanomq_conf)->websocket.enable = false;
 				read_success                     = true;
-				debug_msg(CONF_READ_RECORD, key, value);
+				log_info(CONF_READ_RECORD, key, value);
 			}
 		} else if (!strcmp(key, "websocket.url")) {
 			if ((*nanomq_conf)->websocket.url != NULL) {
@@ -204,7 +204,7 @@ conf_parser(conf **nanomq_conf, const char *path)
 			strcpy(url, value);
 			(*nanomq_conf)->websocket.url = url;
 			read_success                  = true;
-			debug_msg(CONF_READ_RECORD, key, value);
+			log_info(CONF_READ_RECORD, key, value);
 		}
 		if (!read_success) {
 			log_err("Cannot find the configuration you attemp to set, "
@@ -245,25 +245,25 @@ conf_init(conf **nanomq_conf)
 void
 print_conf(conf *nanomq_conf)
 {
-	debug_syslog("This NanoMQ instance configured as:\n");
-	debug_syslog("url is %s\n", nanomq_conf->url);
-	debug_syslog("daemon is %d\n", nanomq_conf->daemon);
-	debug_syslog(
+	log_info("This NanoMQ instance configured as:\n");
+	log_info("url is %s\n", nanomq_conf->url);
+	log_info("daemon is %d\n", nanomq_conf->daemon);
+	log_info(
 	    "num_taskq_thread is %d\n", nanomq_conf->num_taskq_thread);
-	debug_syslog(
+	log_info(
 	    "max_taskq_thread is %d\n", nanomq_conf->max_taskq_thread);
-	debug_syslog("parallel is %ul\n", nanomq_conf->parallel);
-	debug_syslog("property_size is %d\n", nanomq_conf->property_size);
-	debug_syslog("msq_len is %d\n", nanomq_conf->msq_len);
-	debug_syslog("qos_duration is %d\n", nanomq_conf->qos_duration);
-	debug_syslog("enable http server is %s\n",
+	log_info("parallel is %ul\n", nanomq_conf->parallel);
+	log_info("property_size is %d\n", nanomq_conf->property_size);
+	log_info("msq_len is %d\n", nanomq_conf->msq_len);
+	log_info("qos_duration is %d\n", nanomq_conf->qos_duration);
+	log_info("enable http server is %s\n",
 	    nanomq_conf->http_server.enable ? "true" : "false");
-	debug_syslog(
+	log_info(
 	    "http server port is %d\n", nanomq_conf->http_server.port);
 
-	debug_syslog("enable websocket is %s\n",
+	log_info("enable websocket is %s\n",
 	    nanomq_conf->websocket.enable ? "true" : "false");
-	debug_syslog("websocket url is %d\n", nanomq_conf->websocket.url);
+	log_info("websocket url is %d\n", nanomq_conf->websocket.url);
 }
 
 void
@@ -272,7 +272,7 @@ conf_auth_parser(conf *nanomq_conf)
 	char *line = NULL, buf[64], *username, *password, *tmp;
 	int   n = 0, x = 0, nu = 0, lenu = 0, lenp = 0;
 	if (!nano_file_exists(CONF_AUTH_PATH_NAME)) {
-		debug_syslog("file not exists");
+		log_info("file not exists");
 		return;
 	}
 
@@ -303,7 +303,7 @@ conf_auth_parser(conf *nanomq_conf)
 		sprintf(buf, "auth.%d.login", n);
 		if ((line = file_find_line(
 		         CONF_AUTH_PATH_NAME, (const char *) buf)) == NULL) {
-			debug_syslog("line not found");
+			log_info("line not found");
 			break;
 		}
 		if (line[0] == '#' || line[1] == '#') {
@@ -328,7 +328,7 @@ conf_auth_parser(conf *nanomq_conf)
 		sprintf(buf, "auth.%d.password", n);
 		if ((line = file_find_line(
 		         CONF_AUTH_PATH_NAME, (const char *) buf)) == NULL) {
-			debug_syslog("line not found");
+			log_info("line not found");
 			break;
 		}
 		if (line[0] == '#' || line[1] == '#') {
@@ -347,8 +347,8 @@ conf_auth_parser(conf *nanomq_conf)
 		free(line);
 		line = NULL;
 
-		debug_msg("username: %s, len: %d", username, lenu);
-		debug_msg("password: %s, len: %d", password, lenp);
+		log_info("username: %s, len: %d", username, lenu);
+		log_info("password: %s, len: %d", password, lenp);
 
 		if (nanomq_conf != NULL) {
 			nanomq_conf->auths.usernames[n - 1] = username;

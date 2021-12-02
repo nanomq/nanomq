@@ -168,7 +168,7 @@ process_request(http_msg *msg)
 	for (size_t i = 0;
 	     i < sizeof(request_handlers) / sizeof(request_handlers[0]); i++) {
 		if (request_handlers[i].request == msg->request) {
-			debug_msg(
+			log_trace(
 			    "found handler: %d", request_handlers[i].request);
 			ret =
 			    request_handlers[i].handler(object, msg, sequence);
@@ -262,7 +262,7 @@ get_subscriptions(cJSON *data, http_msg *msg, uint64_t sequence)
 
 	for (size_t i = 0; i < sz; i++) {
 		topic_queue *queue = tq[i];
-		debug_msg("topic %s", queue->topic);
+		log_trace("topic %s", queue->topic);
 		cJSON *topic = cJSON_CreateObject();
 		cJSON_AddStringToObject(topic, "topic", queue->topic);
 		cJSON_AddItemToArray(topics, topic);
@@ -318,7 +318,7 @@ post_ctrl(cJSON *data, http_msg *msg, uint64_t sequence)
 
 	char *value = cJSON_GetStringValue(action);
 
-	debug_msg("get action: %s", value);
+	log_trace("get action: %s", value);
 
 	// TODO not impelement yet
 	if (strcasecmp(value, "stop") == 0) {

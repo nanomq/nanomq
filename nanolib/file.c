@@ -1,4 +1,5 @@
 #include "nanomq.h"
+#include "dbg.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <stdarg.h>
@@ -21,7 +22,7 @@ nano_file_trunc_to_zero(const char *fpath)
 {
 	int fd;
 
-	debug_msg("fpath = %s\n", fpath);
+	log_info("fpath = %s\n", fpath);
 
 	fd = open(fpath, O_WRONLY | O_CREAT | O_TRUNC, NG_MODE);
 	if (fd >= 0)
@@ -38,7 +39,7 @@ nano_file_exists(const char *fpath)
 	int         ret;
 
 	ret = stat(fpath, &st) == 0 ? 1 : 0;
-	debug_msg("%s: %i", fpath, ret);
+	log_info("%s: %i", fpath, ret);
 
 	return ret;
 }
@@ -75,7 +76,7 @@ file_size(const char *fpath)
 int
 file_create_symlink(const char *file_path, const char *link_path)
 {
-	debug_msg("%s => %s", file_path, link_path);
+	log_info("%s => %s", file_path, link_path);
 	return symlink(file_path, link_path);
 }
 
@@ -102,7 +103,7 @@ file_read_int(const char *fpath_fmt, ...)
 		goto close;
 
 	ret = strtol(buff, (char **) NULL, 10);
-	debug_msg("fpath = %s, pid = %d", fpath_tmp, ret);
+	log_info("fpath = %s, pid = %d", fpath_tmp, ret);
 
 close:
 	close(fd);
@@ -129,7 +130,7 @@ file_read_string(const char *fpath, char *buff, int buff_len)
 	if (ret > 0)
 		buff[ret - 1] = '\0';
 
-	debug_msg("fpath = %s, string = %s", fpath, buff);
+	log_info("fpath = %s, string = %s", fpath, buff);
 
 close:
 	close(fd);
@@ -143,7 +144,7 @@ file_delete(const char *fpath)
 	if (!fpath)
 		return 0;
 
-	debug_msg("%s", fpath);
+	log_info("%s", fpath);
 	return unlink(fpath);
 }
 
@@ -153,7 +154,7 @@ file_create_dir(const char *fpath)
 	char *last_slash = NULL, *fpath_edit = NULL;
 	int   ret = -1;
 
-	debug_msg("dir = %s", fpath);
+	log_info("dir = %s", fpath);
 
 	if (fpath[strlen(fpath) - 1] != '/') {
 		fpath_edit = malloc(strlen(fpath) + 1);
@@ -173,7 +174,7 @@ file_create_dir(const char *fpath)
 		fpath       = fpath_edit;
 	}
 
-	debug_msg("mkdir = %s", fpath);
+	log_info("mkdir = %s", fpath);
 	ret = mkdir(fpath, 0777);
 out:
 	free(fpath_edit);
@@ -195,13 +196,13 @@ file_write_int(int val, const char *fpath_fmt, ...)
 	vsnprintf(fpath_tmp, sizeof(fpath_tmp), fpath_fmt, args);
 	va_end(args);
 
-	debug_msg("fpath = %s, int = %i", fpath_tmp, val);
+	log_info("fpath = %s, int = %i", fpath_tmp, val);
 
 	buff_len = sprintf(buff, "%i\n", val);
 
 	fd = open(fpath_tmp, O_CREAT | O_WRONLY | O_TRUNC, NG_MODE);
 	if (fd < 0) {
-		debug_msg("Error - can't open file '%s' to write pid: %s",
+		log_info("Error - can't open file '%s' to write pid: %s",
 		    fpath_tmp, strerror(errno));
 		goto error;
 	}
@@ -224,11 +225,11 @@ file_write_string(const char *fpath, const char *string)
 	if (!fpath)
 		goto out;
 
-	debug_msg("fpath = %s, string = '%s'", fpath, string);
+	log_info("fpath = %s, string = '%s'", fpath, string);
 
 	fd = open(fpath, O_CREAT | O_WRONLY | O_TRUNC, NG_MODE);
 	if (fd < 0) {
-		debug_msg("Error - can't open file '%s' to write string: %s",
+		log_info("Error - can't open file '%s' to write string: %s",
 		    fpath, strerror(errno));
 		goto error;
 	}
@@ -253,17 +254,17 @@ file_append_string(const char *fpath, const char *string_fmt, ...)
 	if (!fpath)
 		goto out;
 
-	debug_msg("string_fmt = %s", string_fmt);
+	log_info("string_fmt = %s", string_fmt);
 
 	va_start(args, string_fmt);
 	vsnprintf(string, sizeof(string), string_fmt, args);
 	string[sizeof(string) - 1] = '\0';
 	va_end(args);
-	debug_msg("fpath = %s, string = %s", fpath, string);
+	log_info("fpath = %s, string = %s", fpath, string);
 
 	fd = open(fpath, O_CREAT | O_WRONLY | O_APPEND, NG_MODE);
 	if (fd < 0) {
-		debug_msg(
+		log_info(
 		    "Error - can't open file '%s' to append string: '%s'",
 		    fpath, strerror(errno));
 		goto error;
@@ -286,7 +287,7 @@ file_find_line(const char *fpath, const char *string)
 	FILE * fd;
 	size_t len = 0;
 
-	debug_msg("fpath = %s, string = %s", fpath, string);
+	log_info("fpath = %s, string = %s", fpath, string);
 
 	if (!fpath)
 		goto out;
@@ -330,7 +331,7 @@ file_read_symlink_target(const char *fpath, char *buff, int buff_len)
 	if (ret < 0)
 		return ret;
 
-	debug_msg("file %s links to %s", fpath, buff);
+	log_info("file %s links to %s", fpath, buff);
 	return 0;
 }
 
@@ -344,7 +345,7 @@ file_delete_symlink_target(const char *fpath)
 	if (ret < 0)
 		return ret;
 
-	debug_msg("file %s", path_buff);
+	log_info("file %s", path_buff);
 	return file_delete(path_buff);
 }
 
@@ -358,7 +359,7 @@ file_is_directory(const char *fpath)
 	if (ret != 0)
 		return 0;
 
-	debug_msg("fpath = %s, is_directory = %d", fpath, S_ISDIR(st.st_mode));
+	log_info("fpath = %s, is_directory = %d", fpath, S_ISDIR(st.st_mode));
 	return S_ISDIR(st.st_mode);
 }
 
@@ -387,7 +388,7 @@ file_read_bin(const char *fpath, unsigned char **buff, unsigned int offset,
 
 	/*if (ret > 1)
 	 *buff[ret - 1] = '\0';*/
-	debug_msg(
+	log_info(
 	    "fpath = %s, offset = %u, length = %u", fpath, offset, length);
 
 close:
@@ -404,7 +405,7 @@ file_truncr_to_sep(const char *fpath, char *separator)
 	char * line_ptr = NULL;
 	size_t line_len = 0, trunc_len = 0, trunc_len_tmp = 0;
 
-	debug_msg("fpath = %s, separator = %s", fpath, separator);
+	log_info("fpath = %s, separator = %s", fpath, separator);
 
 	fd_tmp = fopen(fpath, "r");
 	if (!fd_tmp)
@@ -451,7 +452,7 @@ file_extract_int(const char *fpath)
 		ptr = buff;
 
 	ret = strtol(ptr, (char **) NULL, 10);
-	debug_msg("fpath = %s, int = %d", fpath, ret);
+	log_info("fpath = %s, int = %d", fpath, ret);
 
 out:
 	return ret;
@@ -470,7 +471,7 @@ file_append_int(const char *fpath, int value)
 
 	fd = open(fpath, O_CREAT | O_WRONLY | O_APPEND, NG_MODE);
 	if (fd < 0) {
-		debug_msg("Error - can't open file '%s' to append string: %s",
+		log_info("Error - can't open file '%s' to append string: %s",
 		    fpath, strerror(errno));
 		goto error;
 	}

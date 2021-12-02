@@ -53,20 +53,20 @@ mqcreate_debug(int argc, char **argv)
 		}
 	}
 	if (optind != argc - 1) {
-		debug_msg(
+		log_trace(
 		    "usage: mqcreate [-e] [-m maxmsg -z msgsize] <name>");
 		exit(0);
 	}
 
 	if ((attr.mq_maxmsg != 0 && attr.mq_msgsize == 0) ||
 	    (attr.mq_maxmsg == 0 && attr.mq_msgsize != 0)) {
-		debug_msg("must specify both -m maxmsg and -z msgsize");
+		log_trace("must specify both -m maxmsg and -z msgsize");
 		exit(0);
 	}
 
 	mqd = mq_open(argv[optind], flags, FILEMODE,
 	    (attr.mq_maxmsg != 0) ? &attr : NULL);
-	debug_msg("%d  %d", mqd, errno);
+	log_trace("%d  %d", mqd, errno);
 	mq_close(mqd);
 	return 0;
 }
@@ -86,7 +86,7 @@ mqreceive_debug(int argc, char **argv)
 	abs_timeout.tv_sec += 4;
 
 	if (optind != argc - 1) {
-		debug_msg("usage: mqreceive <name>");
+		log_trace("usage: mqreceive <name>");
 		exit(0);
 	}
 
@@ -96,10 +96,10 @@ mqreceive_debug(int argc, char **argv)
 	buff = malloc(attr.mq_msgsize);
 
 	// n = mq_receive(mqd, buff, attr.mq_msgsize, &prio);
-	debug_msg("%ld", abs_timeout.tv_sec);
+	log_trace("%ld", abs_timeout.tv_sec);
 	n = (mq_timedreceive(mqd, buff, attr.mq_msgsize, &prio, &abs_timeout));
 	mq_close(mqd);
-	debug_msg("read %ld bytes, priority = %u buffer = %s\n", (long) n,
+	log_trace("read %ld bytes, priority = %u buffer = %s\n", (long) n,
 	    prio, buff);
 	free(buff);
 	return 0;

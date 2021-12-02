@@ -11,6 +11,7 @@
 #define INPROC_URL "inproc://rest"
 #define REST_URL "http://localhost:%u/api/v1"
 
+#include "nng_log.h"
 #include <nng/nng.h>
 #include <nng/protocol/reqrep0/rep.h>
 #include <nng/protocol/reqrep0/req.h>
@@ -24,7 +25,7 @@
 
 #define fatal(msg, rv)                                     \
 	{                                                  \
-		debug_msg("%s:%s", msg, nng_strerror(rv)); \
+		log_trace("%s:%s", msg, nng_strerror(rv)); \
 		exit(1);                                   \
 	}
 
@@ -143,7 +144,7 @@ rest_job_cb(void *arg)
 		// We got a reply, so give it back to the server.
 
 		http_msg *res_msg = (http_msg *) nng_msg_body(job->msg);
-		debug_msg("msg %p data: %s", res_msg, res_msg->data);
+		log_trace("msg %p data: %s", res_msg, res_msg->data);
 
 		rv = nng_http_res_copy_data(
 		    job->http_res, res_msg->data, res_msg->data_len);
@@ -202,17 +203,17 @@ rest_handle(nng_aio *aio)
 	}
 
 	const char *uri = nng_http_req_get_uri(req);
-	debug_msg("get http uri: %s", uri);
+	log_trace("get http uri: %s", uri);
 
 	const char *method = nng_http_req_get_method(req);
-	debug_msg("get http method: %s", method);
+	log_trace("get http method: %s", method);
 
 	const char *content_type =
 	    nng_http_req_get_header(req, "Content-Type");
-	debug_msg("get http header: Content-Type: %s", content_type);
+	log_trace("get http header: Content-Type: %s", content_type);
 
 	const char *token = nng_http_req_get_header(req, "Authorization");
-	debug_msg("get http header: Authorization: %s", token);
+	log_trace("get http header: Authorization: %s", token);
 
 	nng_http_req_get_data(req, &data, &sz);
 	job->http_aio = aio;
@@ -354,13 +355,13 @@ inproc_server(void *arg)
 		}
 
 		http_msg *recv_msg = (http_msg *) nng_msg_body(msg);
-		debug_msg("content-type: %.*s",
+		log_trace("content-type: %.*s",
 		    (int) recv_msg->content_type_len, recv_msg->content_type);
-		debug_msg("method: %.*s", (int) recv_msg->method_len,
+		log_trace("method: %.*s", (int) recv_msg->method_len,
 		    recv_msg->method);
-		debug_msg(
+		log_trace(
 		    "token: %.*s", (int) recv_msg->token_len, recv_msg->token);
-		debug_msg(
+		log_trace(
 		    "data: %.*s", (int) recv_msg->data_len, recv_msg->data);
 		// TODO API logic
 
@@ -430,7 +431,7 @@ start_rest_server(conf *conf)
 
 	uint16_t port = conf->http_server.port ? conf->http_server.port
 	                                       : HTTP_DEFAULT_PORT;
-	debug_msg(REST_URL, port);
+	log_trace(REST_URL, port);
 
 	set_http_server_conf(&conf->http_server);
 	rest_start(port);

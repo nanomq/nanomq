@@ -4,6 +4,7 @@
 
 #include <nanolib.h>
 #include <nng/nng.h>
+#include <nng/nng_log.h>
 #include <nng/protocol/mqtt/mqtt.h>
 #include <nng/supplemental/util/platform.h>
 

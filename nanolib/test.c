@@ -1,4 +1,5 @@
 #include "include/nanolib.h"
+#include "include/dbg.h"
 #include <string.h>
 
 #define TEST_NUM_THREADS 8

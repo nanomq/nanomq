@@ -32,7 +32,7 @@ static void handle_pub_retain(const nano_work *work, char *topic);
 void
 init_pipe_content(struct pipe_content *pipe_ct)
 {
-	debug_msg("pub_handler: init pipe_info");
+	log_trace("pub_handler: init pipe_info");
 	pipe_ct->pipe_info     = NULL;
 	pipe_ct->total         = 0;
 	pipe_ct->current_index = 0;
@@ -100,7 +100,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct)
 
 	reason_code result = decode_pub_message(work);
 	if (SUCCESS != result) {
-		debug_msg("decode message failed.");
+		log_trace("decode message failed.");
 		return;
 	}
 
@@ -129,7 +129,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct)
 
 		cvector_free(cli_ctx_list);
 
-		debug_msg("pipe_info size: [%d]", pipe_ct->total);
+		log_trace("pipe_info size: [%d]", pipe_ct->total);
 
 #if ENABLE_RETAIN
 		handle_pub_retain(work,
@@ -156,13 +156,13 @@ handle_pub_retain(const nano_work *work, char *topic)
 			retain->message = work->msg;
 			retain->exist   = true;
 			retain->m       = NULL;
-			debug_msg("update/add retain message");
-			debug("found retain [%p], message: [%p][%p]\n", retain,
+			log_trace("update/add retain message");
+			log_trace("found retain [%p], message: [%p][%p]\n", retain,
 			    retain->message,
 			    nng_msg_payload_ptr(retain->message));
 			r = dbtree_insert_retain(work->db_ret, topic, retain);
 		} else {
-			debug_msg("delete retain message");
+			log_trace("delete retain message");
 			r = dbtree_delete_retain(work->db_ret, topic);
 		}
 		dbtree_retain_msg *ret = (dbtree_retain_msg *) r;
@@ -223,7 +223,7 @@ free_pub_packet(struct pub_packet_struct *pub_packet)
 				    .body = NULL;
 				pub_packet->variable_header.publish.topic_name
 				    .len = 0;
-				debug_msg("free memory topic");
+				log_trace("free memory topic");
 			}
 
 			if (pub_packet->payload_body.payload != NULL &&
@@ -232,13 +232,13 @@ free_pub_packet(struct pub_packet_struct *pub_packet)
 				    pub_packet->payload_body.payload_len + 1);
 				pub_packet->payload_body.payload     = NULL;
 				pub_packet->payload_body.payload_len = 0;
-				debug_msg("free memory payload");
+				log_trace("free memory payload");
 			}
 		}
 
 		nng_free(pub_packet, sizeof(struct pub_packet_struct));
 		pub_packet = NULL;
-		debug_msg("free pub_packet");
+		log_trace("free pub_packet");
 	}
 }
 
@@ -248,7 +248,7 @@ free_pipes_info(struct pipe_info *p_info)
 	if (p_info != NULL) {
 		zfree(p_info);
 		p_info = NULL;
-		debug_msg("free pipes_info");
+		log_trace("free pipes_info");
 	}
 }
 
@@ -276,7 +276,7 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 
 	properties_type prop_type;
 
-	debug_msg("start encode message");
+	log_trace("start encode message");
 
 	nng_msg_clear(dest_msg);
 	nng_msg_header_clear(dest_msg);
@@ -299,7 +299,7 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 		append_res = nng_msg_header_append(dest_msg, tmp, arr_len);
 		nng_msg_set_remaining_len(
 		    dest_msg, work->pub_packet->fixed_header.remain_len);
-		debug_msg("header len [%ld] remain len [%d]\n",
+		log_trace("header len [%ld] remain len [%d]\n",
 		    nng_msg_header_len(dest_msg),
 		    work->pub_packet->fixed_header.remain_len);
 		/*variable header*/
@@ -323,7 +323,7 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 			    work->pub_packet->variable_header.publish
 			        .packet_identifier);
 		}
-		debug_msg("after topic and id len in msg already [%ld]",
+		log_trace("after topic and id len in msg already [%ld]",
 		    nng_msg_len(dest_msg));
 
 #if SUPPORT_MQTT5_0
@@ -335,7 +335,7 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 			    work->pub_packet->variable_header.publish
 			        .properties.len);
 			nng_msg_append(dest_msg, tmp, arr_len);
-			debug_msg("arr_len [%d]", arr_len);
+			log_trace("arr_len [%d]", arr_len);
 
 			// Payload Format Indicator
 			if (work->pub_packet->variable_header.publish
@@ -454,10 +454,10 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 		}
 		/* check */
 		else {
-			debug_msg("pro_ver [%d]", work->proto);
+			log_trace("pro_ver [%d]", work->proto);
 		}
 #endif
-		debug_msg("property len in msg already [%ld]",
+		log_trace("property len in msg already [%ld]",
 		    nng_msg_len(dest_msg));
 
 		// payload
@@ -466,14 +466,14 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 			append_res = nng_msg_append(dest_msg,
 			    work->pub_packet->payload_body.payload,
 			    work->pub_packet->payload_body.payload_len);
-			//				debug_msg("payload [%s]
+			//				log_trace("payload [%s]
 			// len
 			//[%d]", (char
 			//*)work->pub_packet->payload_body.payload,
 			// work->pub_packet->payload_body.payload_len);
 		}
 
-		debug_msg("after payload len in msg already [%ld]",
+		log_trace("after payload len in msg already [%ld]",
 		    nng_msg_len(dest_msg));
 		break;
 
@@ -484,7 +484,7 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 	case PUBREC:
 		nng_msg_set_cmd_type(dest_msg, CMD_PUBREC);
 	case PUBCOMP:
-		debug_msg("encode %d message", cmd);
+		log_trace("encode %d message", cmd);
 		nng_msg_set_cmd_type(dest_msg, CMD_PUBCOMP);
 		struct pub_packet_struct pub_response = {
 			.fixed_header.packet_type = cmd,
@@ -568,7 +568,7 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 		break;
 	}
 
-	debug_msg("end encode message");
+	log_trace("end encode message");
 	return true;
 }
 
@@ -595,14 +595,14 @@ decode_pub_message(nano_work *work)
 	    *(struct fixed_header *) nng_msg_header(msg);
 	pub_packet->fixed_header.remain_len = nng_msg_remaining_len(msg);
 
-	debug_msg(
+	log_trace(
 	    "cmd: %d, retain: %d, qos: %d, dup: %d, remaining length: %d",
 	    pub_packet->fixed_header.packet_type,
 	    pub_packet->fixed_header.retain, pub_packet->fixed_header.qos,
 	    pub_packet->fixed_header.dup, pub_packet->fixed_header.remain_len);
 
 	if (pub_packet->fixed_header.remain_len > msg_len) {
-		debug_msg("ERROR: remainlen > msg_len");
+		log_trace("ERROR: remainlen > msg_len");
 		return PROTOCOL_ERROR;
 	}
 
@@ -627,7 +627,7 @@ decode_pub_message(nano_work *work)
 				// = 5.0
 
 				// protocol error
-				debug_msg(
+				log_trace(
 				    "protocol error in topic:[%s], len: [%d]",
 				    pub_packet->variable_header.publish
 				        .topic_name.body,
@@ -638,7 +638,7 @@ decode_pub_message(nano_work *work)
 			}
 		}
 
-		debug_msg("topic: [%s], qos: %d",
+		log_trace("topic: [%s], qos: %d",
 		    pub_packet->variable_header.publish.topic_name.body,
 		    pub_packet->fixed_header.qos);
 
@@ -647,7 +647,7 @@ decode_pub_message(nano_work *work)
 			NNI_GET16(msg_body + pos,
 			    pub_packet->variable_header.publish
 			        .packet_identifier);
-			debug_msg("identifier: [%d]",
+			log_trace("identifier: [%d]",
 			    pub_packet->variable_header.publish
 			        .packet_identifier);
 			pos += 2;
@@ -662,7 +662,7 @@ decode_pub_message(nano_work *work)
 			pub_packet->variable_header.publish.properties.len =
 			    get_var_integer(msg_body, &len_of_varint);
 			pos += len_of_varint;
-			debug_msg("property len [%d]",
+			log_trace("property len [%d]",
 			    pub_packet->variable_header.publish.properties
 			        .len);
 			init_pub_packet_property(pub_packet);
@@ -978,12 +978,12 @@ decode_pub_message(nano_work *work)
 		}
 		/* check */
 		else {
-			debug_msg("NOMQTT5ERR [%d] [%d]", work->proto,
+			log_trace("NOMQTT5ERR [%d] [%d]", work->proto,
 			    PROTOCOL_VERSION_v5);
 		}
 #endif
 
-		debug_msg("used pos: [%d]", used_pos);
+		log_trace("used pos: [%d]", used_pos);
 		// payload
 		pub_packet->payload_body.payload_len =
 		    (uint32_t) (msg_len - (size_t) used_pos);
@@ -996,7 +996,7 @@ decode_pub_message(nano_work *work)
 			memcpy(pub_packet->payload_body.payload,
 			    (uint8_t *) (msg_body + pos),
 			    pub_packet->payload_body.payload_len);
-			debug_msg("payload: [%s], len = %u",
+			log_trace("payload: [%s], len = %u",
 			    pub_packet->payload_body.payload,
 			    pub_packet->payload_body.payload_len);
 		}
@@ -1130,12 +1130,12 @@ print_hex(const char *prefix, const unsigned char *src, int src_len)
 		char *dest = (char *) nng_alloc(src_len * 2);
 
 		if (dest == NULL) {
-			debug_msg("alloc fail!");
+			log_trace("alloc fail!");
 			return;
 		}
 		dest = bytes_to_str(src, dest, src_len);
 
-		debug_msg("%s%s", prefix, dest);
+		log_trace("%s%s", prefix, dest);
 
 		nng_free(dest, src_len * 2);
 	}

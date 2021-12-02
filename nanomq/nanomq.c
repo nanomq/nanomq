@@ -14,6 +14,8 @@
 #include "include/process.h"
 #include "include/version.h"
 
+#include "nng_log.h"
+#include <nng.h>
 #include <errno.h>
 #include <netinet/in.h>
 #include <signal.h>
@@ -25,11 +27,48 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <nng/supplemental/util/platform.h>
 
 #define NANO_APP_NAME "nanomq"
 #define NANO_BRAND "EMQ X Edge Computing Kit"
 
 #define NANO_DEBUG
+
+static nng_mtx *log_mtx;
+FILE *          g_logfile;
+
+static void log_lock(bool lock, void *udata)
+{
+	nng_mtx *mutex = (nng_mtx *) (udata);
+	if (lock) {
+		nng_mtx_lock(mutex);
+	} else {
+		nng_mtx_unlock(mutex);
+	}
+}
+
+static void nng_log_init()
+{
+	nng_mtx_alloc(&log_mtx);
+	log_set_lock(log_lock, log_mtx);
+	log_set_level(NNG_LOG_TRACE);
+	g_logfile = fopen("nanomq.log", "a");
+	if (g_logfile == NULL) {
+		fprintf(stderr,
+				"Failed to open logfile when"
+				"initialize neuron main process");
+		abort();
+	}
+	// log_set_quiet(true);
+	log_add_fp(g_logfile, NNG_LOG_DEBUG);
+}
+
+static void nng_log_destroy()
+{
+	fclose(g_logfile);
+	nng_mtx_free(log_mtx);
+}
+
 
 static void
 print_version(void)
@@ -132,6 +171,8 @@ main(int argc, char **argv)
 	char *                    app_name;
 	int                       ret;
 
+	nng_log_init();
+
 	ret = check_trace(argv[0]);
 	if (ret < 0)
 		return EXIT_FAILURE;
@@ -143,12 +184,12 @@ main(int argc, char **argv)
 	}
 
 	app_name = strrchr(argv[0], '/');
-	debug_msg("argv %s %s app_name %s", argv[0], argv[1], app_name);
+	log_trace("argv %s %s app_name %s", argv[0], argv[1], app_name);
 	app_name = (app_name ? app_name + 1 : argv[0]);
 
-	debug_msg("argv %s %s app_name %s", argv[0], argv[1], app_name);
+	log_trace("argv %s %s app_name %s", argv[0], argv[1], app_name);
 	if (strncmp(app_name, NANO_APP_NAME, APP_NAME_MAX) == 0) {
-		debug_msg("argc : %d", argc);
+		log_trace("argc : %d", argc);
 		if (argc == 1) {
 			print_avail_apps();
 			print_version();
@@ -193,6 +234,8 @@ main(int argc, char **argv)
 		return handle_app((*nano_app)->dflt(argc - 1, argv + 1));
 
 	printf("Error - unknown parameter: %s\n", argv[1]);
+
+	nng_log_destroy();
 
 err_param:
 	printf("Use one of the following parameters:\n");

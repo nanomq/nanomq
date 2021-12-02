@@ -18,6 +18,7 @@
 #include <hash.h>
 #include <mqtt_db.h>
 #include <nng.h>
+#include <nng_log.h>
 #include <protocol/mqtt/mqtt_parser.h>
 #include <protocol/mqtt/nmq_mqtt.h>
 #include <zmalloc.h>
@@ -61,6 +62,7 @@ fatal(const char *func, int rv)
 	exit(1);
 }
 
+
 void
 server_cb(void *arg)
 {
@@ -77,14 +79,14 @@ server_cb(void *arg)
 
 	switch (work->state) {
 	case INIT:
-		debug_msg("INIT ^^^^ ctx%d ^^^^\n", work->ctx.id);
+		log_trace("INIT ^^^^ ctx%d ^^^^\n", work->ctx.id);
 		work->state = RECV;
 		nng_ctx_recv(work->ctx, work->aio);
 		break;
 	case RECV:
-		debug_msg("RECV  ^^^^ ctx%d ^^^^\n", work->ctx.id);
+		log_trace("RECV  ^^^^ ctx%d ^^^^\n", work->ctx.id);
 		if ((rv = nng_aio_result(work->aio)) != 0) {
-			debug_syslog(
+			log_trace(
 			    "ERROR: RECV nng aio result error: %d", rv);
 			nng_aio_wait(work->aio);
 			fatal("RECV nng_ctx_recv", rv);
@@ -181,7 +183,7 @@ server_cb(void *arg)
 				}
 				del_topic_all(work->pid.id);
 			} else {
-				debug_msg("ERROR it should not happen");
+				log_trace("ERROR it should not happen");
 			}
 			cparam       = work->cparam;
 			work->cparam = NULL;
@@ -192,7 +194,7 @@ server_cb(void *arg)
 		// nng_aio_finish_sync(work->aio, 0);
 		break;
 	case WAIT:
-		debug_msg("WAIT ^^^^ ctx%d ^^^^", work->ctx.id);
+		log_trace("WAIT ^^^^ ctx%d ^^^^", work->ctx.id);
 		if (nng_msg_cmd_type(work->msg) == CMD_PINGREQ) {
 			smsg = work->msg;
 			nng_msg_clear(smsg);
@@ -229,19 +231,19 @@ server_cb(void *arg)
 			work->pid     = nng_msg_get_pipe(work->msg);
 			work->sub_pkt = nng_alloc(sizeof(packet_subscribe));
 			if (work->sub_pkt == NULL) {
-				debug_msg("ERROR: nng_alloc");
+				log_trace("ERROR: nng_alloc");
 			}
 			if ((reason = decode_sub_message(work)) != SUCCESS ||
 			    (reason = sub_ctx_handle(work)) != SUCCESS ||
 			    (reason = encode_suback_message(smsg, work)) !=
 			        SUCCESS) {
-				debug_msg("ERROR: sub_handler: [%d]", reason);
+				log_trace("ERROR: sub_handler: [%d]", reason);
 				if (check_id(work->pid.id)) {
 					del_topic_all(work->pid.id);
 				}
 			} else {
 				// success but check info
-				debug_msg("sub_pkt:"
+				log_trace("sub_pkt:"
 				          " pktid: [%d]"
 				          " topicLen: [%d]"
 				          " topic: [%s]",
@@ -249,7 +251,7 @@ server_cb(void *arg)
 				    work->sub_pkt->node->it->topic_filter.len,
 				    work->sub_pkt->node->it->topic_filter
 				        .body);
-				debug_msg("suback:"
+				log_trace("suback:"
 				          " headerLen: [%ld]"
 				          " bodyLen: [%ld]"
 				          " type: [%x]"
@@ -266,7 +268,7 @@ server_cb(void *arg)
 			destroy_sub_pkt(work->sub_pkt, work->proto);
 			// handle retain
 			if (work->msg_ret) {
-				debug_msg("retain msg [%p] size [%ld] \n",
+				log_trace("retain msg [%p] size [%ld] \n",
 				    work->msg_ret,
 				    cvector_size(work->msg_ret));
 				for (int i = 0;
@@ -296,22 +298,22 @@ server_cb(void *arg)
 			    nng_alloc(sizeof(packet_unsubscribe));
 			work->pid = nng_msg_get_pipe(work->msg);
 			if (work->unsub_pkt == NULL) {
-				debug_msg("ERROR: nng_alloc");
+				log_trace("ERROR: nng_alloc");
 			}
 			if ((reason = decode_unsub_message(work)) != SUCCESS ||
 			    (reason = unsub_ctx_handle(work)) != SUCCESS ||
 			    (reason = encode_unsuback_message(smsg, work)) !=
 			        SUCCESS) {
-				debug_msg("ERROR: unsub_handler [%d]", reason);
+				log_trace("ERROR: unsub_handler [%d]", reason);
 			} else {
 				// success but check info
-				debug_msg("unsub_pkt:"
+				log_trace("unsub_pkt:"
 				          " pktid: [%d]"
 				          " topicLen: [%d]",
 				    work->unsub_pkt->packet_id,
 				    work->unsub_pkt->node->it->topic_filter
 				        .len);
-				debug_msg("unsuback:"
+				log_trace("unsuback:"
 				          " headerLen: [%ld]"
 				          " bodyLen: [%ld]."
 				          " bodyType: [%x]"
@@ -340,13 +342,13 @@ server_cb(void *arg)
 			break;
 		} else if (nng_msg_cmd_type(work->msg) == CMD_PUBLISH) {
 			if ((rv = nng_aio_result(work->aio)) != 0) {
-				debug_msg("WAIT nng aio result error: %d", rv);
+				log_trace("WAIT nng aio result error: %d", rv);
 				fatal("WAIT nng_ctx_recv/send", rv);
 			}
 			smsg      = work->msg; // reuse the same msg
 			work->msg = NULL;
 
-			debug_msg("total pipes: %d", work->pipe_ct->total);
+			log_trace("total pipes: %d", work->pipe_ct->total);
 			// TODO rewrite this part.
 			if (work->pipe_ct->total > 0) {
 				p_info = work->pipe_ct->pipe_info
@@ -409,7 +411,7 @@ server_cb(void *arg)
 			nng_ctx_recv(work->ctx, work->aio);
 			break;
 		} else {
-			debug_msg("broker has nothing to do");
+			log_trace("broker has nothing to do");
 			if (work->msg != NULL)
 				nng_msg_free(work->msg);
 			work->msg   = NULL;
@@ -424,7 +426,7 @@ server_cb(void *arg)
 			smsg = NULL;
 		}
 		if ((rv = nng_aio_result(work->aio)) != 0) {
-			debug_msg("SEND nng aio result error: %d", rv);
+			log_trace("SEND nng aio result error: %d", rv);
 			fatal("SEND nng_ctx_send", rv);
 		}
 		if (work->pipe_ct->total > 0) {
@@ -491,11 +493,11 @@ broker(conf *nanomq_conf)
 	// init tree
 	dbtree_create(&db);
 	if (db == NULL) {
-		debug_msg("NNL_ERROR error in db create");
+		log_trace("NNL_ERROR error in db create");
 	}
 	dbtree_create(&db_ret);
 	if (db_ret == NULL) {
-		debug_msg("NNL_ERROR error in db create");
+		log_trace("NNL_ERROR error in db create");
 	}
 
 	/*  Create the socket. */
@@ -507,7 +509,7 @@ broker(conf *nanomq_conf)
 		fatal("nng_nmq_tcp0_open", rv);
 	}
 
-	debug_msg("PARALLEL logic threads: %lu\n", num_ctx);
+	log_trace("PARALLEL logic threads: %lu\n", num_ctx);
 	for (i = 0; i < num_ctx; i++) {
 		works[i]         = alloc_work(sock);
 		works[i]->db     = db;
@@ -548,6 +550,7 @@ broker(conf *nanomq_conf)
 		nng_msleep(3600000); // neither pause() nor sleep() portable
 	}
 #endif
+
 }
 
 void
@@ -565,26 +568,26 @@ status_check(pid_t *pid)
 	int rc;
 	if ((rc = nng_file_get(PID_PATH_NAME, (void *) &data, &size)) != 0) {
 		nng_free(data, size);
-		debug_msg(".pid file not found or unreadable\n");
+		log_trace(".pid file not found or unreadable\n");
 		return 1;
 	} else {
 		if ((data) != NULL) {
 			sscanf(data, "%u", pid);
-			debug_msg("pid read, [%u]", *pid);
+			log_trace("pid read, [%u]", *pid);
 			nng_free(data, size);
 
 			if ((kill(*pid, 0)) == 0) {
-				debug_msg("there is a running NanoMQ instance "
+				log_trace("there is a running NanoMQ instance "
 				          ": pid [%u]",
 				    *pid);
 				return 0;
 			}
 		}
 		if (!nng_file_delete(PID_PATH_NAME)) {
-			debug_msg(".pid file is removed");
+			log_trace(".pid file is removed");
 			return 1;
 		}
-		debug_msg("unexpected error");
+		log_trace("unexpected error");
 		return -1;
 	}
 }
@@ -596,7 +599,7 @@ store_pid()
 	char pid_c[10] = "";
 
 	sprintf(pid_c, "%d", getpid());
-	debug_msg("%s", pid_c);
+	log_trace("%s", pid_c);
 
 	status = nng_file_put(PID_PATH_NAME, pid_c, sizeof(pid_c));
 	return status;
@@ -643,7 +646,7 @@ broker_start(int argc, char **argv)
 
 	for (i = 0; i < argc; i++, temp = 0) {
 		if (!strcmp("-conf", argv[i])) {
-			debug_msg("reading user specified conf file:%s",
+			log_trace("reading user specified conf file:%s",
 			    argv[i + 1]);
 			conf_path = argv[++i];
 		} else if (!strcmp("-daemon", argv[i])) {
@@ -709,7 +712,7 @@ broker_start(int argc, char **argv)
 	}
 
 	if (store_pid()) {
-		debug_msg("create \"nanomq.pid\" file failed");
+		log_trace("create \"nanomq.pid\" file failed");
 	}
 
 	rc = broker(nanomq_conf);

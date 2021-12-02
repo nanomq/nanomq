@@ -68,7 +68,7 @@ decode_unsub_message(nano_work *work)
 					    .len_val = len_of_str;
 				default:
 					if (vpos > remaining_len) {
-						debug_msg("ERROR_IN_LEN_VPOS");
+						log_trace("ERROR_IN_LEN_VPOS");
 					}
 				}
 			}
@@ -76,18 +76,18 @@ decode_unsub_message(nano_work *work)
 	}
 #endif
 
-	debug_msg("remain_len: [%ld] packet_id : [%d]", remaining_len,
+	log_trace("remain_len: [%ld] packet_id : [%d]", remaining_len,
 	    unsub_pkt->packet_id);
 
 	// handle payload
 	payload_ptr = nng_msg_payload_ptr(msg);
 
-	debug_msg("V:[%x %x %x %x] P:[%x %x %x %x].", variable_ptr[0],
+	log_trace("V:[%x %x %x %x] P:[%x %x %x %x].", variable_ptr[0],
 	    variable_ptr[1], variable_ptr[2], variable_ptr[3], payload_ptr[0],
 	    payload_ptr[1], payload_ptr[2], payload_ptr[3]);
 
 	if ((topic_node_t = nng_alloc(sizeof(topic_node))) == NULL) {
-		debug_msg("ERROR: nng_alloc");
+		log_trace("ERROR: nng_alloc");
 		return NNG_ENOMEM;
 	}
 	unsub_pkt->node    = topic_node_t;
@@ -97,7 +97,7 @@ decode_unsub_message(nano_work *work)
 		topic_with_option *topic_option;
 		if ((topic_option = nng_alloc(sizeof(topic_with_option))) ==
 		    NULL) {
-			debug_msg("ERROR: nng_alloc");
+			log_trace("ERROR: nng_alloc");
 			return NNG_ENOMEM;
 		}
 		topic_node_t->it = topic_option;
@@ -108,16 +108,16 @@ decode_unsub_message(nano_work *work)
 		if (len_of_topic != -1) {
 			topic_option->topic_filter.len = len_of_topic;
 		} else {
-			debug_msg("ERROR: not utf-8 format string.");
+			log_trace("ERROR: not utf-8 format string.");
 			return PROTOCOL_ERROR;
 		}
 
-		debug_msg("bpos+vpos: [%d] remain_len: [%ld]", bpos + vpos,
+		log_trace("bpos+vpos: [%d] remain_len: [%ld]", bpos + vpos,
 		    remaining_len);
 		if (bpos < remaining_len - vpos) {
 			if ((topic_node_t = nng_alloc(sizeof(topic_node))) ==
 			    NULL) {
-				debug_msg("ERROR: nng_alloc");
+				log_trace("ERROR: nng_alloc");
 				return NNG_ENOMEM;
 			}
 			topic_node_t->next = NULL;
@@ -147,7 +147,7 @@ encode_unsuback_message(nng_msg *msg, nano_work *work)
 	// handle variable header first
 	NNI_PUT16(packet_id, unsub_pkt->packet_id);
 	if ((rv = nng_msg_append(msg, packet_id, 2)) != 0) {
-		debug_msg("ERROR: nng_msg_append");
+		log_trace("ERROR: nng_msg_append");
 		return PROTOCOL_ERROR;
 	}
 
@@ -164,11 +164,11 @@ encode_unsuback_message(nng_msg *msg, nano_work *work)
 			reason_code = node->it->reason_code;
 			if ((rv = nng_msg_append(
 			         msg, (uint8_t *) &reason_code, 1)) != 0) {
-				debug_msg("ERROR: nng_msg_append [%d]", rv);
+				log_trace("ERROR: nng_msg_append [%d]", rv);
 				return PROTOCOL_ERROR;
 			}
 			node = node->next;
-			debug_msg("reason_code: [%x]", reason_code);
+			log_trace("reason_code: [%x]", reason_code);
 		}
 	}
 #endif
@@ -176,18 +176,18 @@ encode_unsuback_message(nng_msg *msg, nano_work *work)
 	// handle fixed header
 	cmd = CMD_UNSUBACK;
 	if ((rv = nng_msg_header_append(msg, (uint8_t *) &cmd, 1)) != 0) {
-		debug_msg("ERROR: nng_msg_header_append [%d]", rv);
+		log_trace("ERROR: nng_msg_header_append [%d]", rv);
 		return PROTOCOL_ERROR;
 	}
 
 	remaining_len = (uint32_t) nng_msg_len(msg);
 	len_of_varint = put_var_integer(varint, remaining_len);
 	if ((rv = nng_msg_header_append(msg, varint, len_of_varint)) != 0) {
-		debug_msg("ERROR: nng_msg_header_append [%d]", rv);
+		log_trace("ERROR: nng_msg_header_append [%d]", rv);
 		return PROTOCOL_ERROR;
 	}
 
-	debug_msg("unsuback:"
+	log_trace("unsuback:"
 	          " remain: [%d]"
 	          " varint: [%d %d %d %d]"
 	          " len: [%d]"
@@ -220,7 +220,7 @@ unsub_ctx_handle(nano_work *work)
 		    topic_node_t->it->topic_filter.len);
 		topic_str[topic_node_t->it->topic_filter.len] = '\0';
 
-		debug_msg(
+		log_trace(
 		    "find client [%s] in topic [%s].", client_id, topic_str);
 
 		cli_ctx = dbtree_delete_client(work->db, topic_str, clientid_key, work->pid.id);
@@ -228,10 +228,10 @@ unsub_ctx_handle(nano_work *work)
 
 		if (cli_ctx != NULL) { // find the topic
 			topic_node_t->it->reason_code = 0x00;
-			debug_msg("find and delete this client.");
+			log_trace("find and delete this client.");
 		} else { // not find the topic
 			topic_node_t->it->reason_code = 0x11;
-			debug_msg("not find and response ack.");
+			log_trace("not find and response ack.");
 		}
 		del_sub_ctx(cli_ctx, topic_str);
 
@@ -244,7 +244,7 @@ unsub_ctx_handle(nano_work *work)
 	// check treeDB
 	//	print_db_tree(work->db);
 
-	debug_msg("end of unsub ctx handle.\n");
+	log_trace("end of unsub ctx handle.\n");
 	return SUCCESS;
 }
 
@@ -252,11 +252,11 @@ void
 destroy_unsub_ctx(packet_unsubscribe *unsub_pkt)
 {
 	if (!unsub_pkt) {
-		debug_msg("ERROR : ctx->sub is nil");
+		log_trace("ERROR : ctx->sub is nil");
 		return;
 	}
 	if (!(unsub_pkt->node->it)) {
-		debug_msg("ERROR : not find topic");
+		log_trace("ERROR : not find topic");
 		return;
 	}
 

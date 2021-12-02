@@ -82,7 +82,7 @@ decode_sub_message(nano_work *work)
 					if ((sub_pkt->user_property.strpair
 					            .key = nng_alloc(
 					         len_of_str)) == 0) {
-						debug_msg("ERROR: nng_alloc");
+						log_trace("ERROR: nng_alloc");
 						return NNG_ENOMEM;
 					}
 					sub_pkt->user_property.strpair
@@ -96,7 +96,7 @@ decode_sub_message(nano_work *work)
 					if ((sub_pkt->user_property.strpair
 					            .val = nng_alloc(
 					         len_of_str)) == 0) {
-						debug_msg("ERROR: nng_alloc");
+						log_trace("ERROR: nng_alloc");
 						return NNG_ENOMEM;
 					}
 					sub_pkt->user_property.strpair
@@ -111,7 +111,7 @@ decode_sub_message(nano_work *work)
 				if (vpos >= target_pos) {
 					break;
 				} else if (vpos > target_pos) {
-					debug_msg("ERROR: protocol error");
+					log_trace("ERROR: protocol error");
 					return PROTOCOL_ERROR;
 				}
 			}
@@ -119,17 +119,17 @@ decode_sub_message(nano_work *work)
 	}
 #endif
 
-	debug_msg("remainLen: [%ld] packetid : [%d]", remaining_len,
+	log_trace("remainLen: [%ld] packetid : [%d]", remaining_len,
 	    sub_pkt->packet_id);
 	// handle payload
 	payload_ptr = nng_msg_payload_ptr(msg);
 
-	debug_msg("V:[%x %x %x %x] P:[%x %x %x %x].", variable_ptr[0],
+	log_trace("V:[%x %x %x %x] P:[%x %x %x %x].", variable_ptr[0],
 	    variable_ptr[1], variable_ptr[2], variable_ptr[3], payload_ptr[0],
 	    payload_ptr[1], payload_ptr[2], payload_ptr[3]);
 
 	if ((topic_node_t = nng_alloc(sizeof(topic_node))) == NULL) {
-		debug_msg("ERROR: nng_alloc");
+		log_trace("ERROR: nng_alloc");
 		return NNG_ENOMEM;
 	}
 	topic_node_t->next = NULL;
@@ -138,7 +138,7 @@ decode_sub_message(nano_work *work)
 	while (1) {
 		if ((topic_option = nng_alloc(sizeof(topic_with_option))) ==
 		    NULL) {
-			debug_msg("ERROR: nng_alloc");
+			log_trace("ERROR: nng_alloc");
 			return NNG_ENOMEM;
 		}
 		topic_node_t->it = topic_option;
@@ -152,7 +152,7 @@ decode_sub_message(nano_work *work)
 			topic_option->topic_filter.body =
 			    nng_alloc(len_of_topic + 1);
 			if (topic_option->topic_filter.body == NULL) {
-				debug_msg("ERROR: nng_alloc");
+				log_trace("ERROR: nng_alloc");
 				return NNG_ENOMEM;
 			}
 			strncpy(topic_option->topic_filter.body,
@@ -160,24 +160,24 @@ decode_sub_message(nano_work *work)
 			topic_option->topic_filter.body[len_of_topic] = '\0';
 			bpos += len_of_topic;
 		} else {
-			debug_msg("ERROR : topic length error.");
+			log_trace("ERROR : topic length error.");
 			return PROTOCOL_ERROR;
 		}
 
 		memcpy(topic_option, payload_ptr + bpos, 1);
 		if (topic_option->retain_handling > 2) {
-			debug_msg(
+			log_trace(
 			    "ERROR: error inretain_handling flag setting");
 			return PROTOCOL_ERROR;
 		}
 		// TODO sub action when retain_handling equal 0 or 1 or 2
 
-		debug_msg("bpos+vpos: [%d] remainLen: [%ld].", bpos + vpos,
+		log_trace("bpos+vpos: [%d] remainLen: [%ld].", bpos + vpos,
 		    remaining_len);
 		if (++bpos < remaining_len - vpos) {
 			if ((topic_node_t = nng_alloc(sizeof(topic_node))) ==
 			    NULL) {
-				debug_msg("ERROR: nng_alloc");
+				log_trace("ERROR: nng_alloc");
 				return NNG_ENOMEM;
 			}
 			topic_node_t->next = NULL;
@@ -207,7 +207,7 @@ encode_suback_message(nng_msg *msg, nano_work *work)
 	// handle variable header first
 	NNI_PUT16(packet_id, sub_pkt->packet_id);
 	if ((rv = nng_msg_append(msg, packet_id, 2)) != 0) {
-		debug_msg("ERROR: nng_msg_append [%d]", rv);
+		log_trace("ERROR: nng_msg_append [%d]", rv);
 		return PROTOCOL_ERROR;
 	}
 
@@ -217,10 +217,10 @@ encode_suback_message(nng_msg *msg, nano_work *work)
 		// 38(0x26)UserProperty - string pair
 		len_of_varint =
 		    put_var_integer(varint, 0); // len_of_properties = 0
-		debug_msg("length of property [%d] [%x %x]", len_of_varint,
+		log_trace("length of property [%d] [%x %x]", len_of_varint,
 		    varint[0], varint[1]);
 		if ((rv = nng_msg_append(msg, varint, len_of_varint)) != 0) {
-			debug_msg("ERROR: nng_msg_append [%d]", rv);
+			log_trace("ERROR: nng_msg_append [%d]", rv);
 			return PROTOCOL_ERROR;
 		}
 	}
@@ -239,28 +239,28 @@ encode_suback_message(nng_msg *msg, nano_work *work)
 			// MQTT_v3: 0x00-qos0  0x01-qos1  0x02-qos2  0x80-fail
 			if ((rv = nng_msg_append(
 			         msg, (uint8_t *) &reason_code, 1)) != 0) {
-				debug_msg("ERROR: nng_msg_append [%d]", rv);
+				log_trace("ERROR: nng_msg_append [%d]", rv);
 				return PROTOCOL_ERROR;
 			}
 		}
 		node = node->next;
-		debug_msg("reason_code: [%x]", reason_code);
+		log_trace("reason_code: [%x]", reason_code);
 	}
 	// handle fixed header
 	cmd = CMD_SUBACK;
 	if ((rv = nng_msg_header_append(msg, (uint8_t *) &cmd, 1)) != 0) {
-		debug_msg("ERROR: nng_msg_header_append [%d]", rv);
+		log_trace("ERROR: nng_msg_header_append [%d]", rv);
 		return PROTOCOL_ERROR;
 	}
 
 	remaining_len = (uint32_t) nng_msg_len(msg);
 	len_of_varint = put_var_integer(varint, remaining_len);
 	if ((rv = nng_msg_header_append(msg, varint, len_of_varint)) != 0) {
-		debug_msg("ERROR: nng_msg_header_append [%d]", rv);
+		log_trace("ERROR: nng_msg_header_append [%d]", rv);
 		return PROTOCOL_ERROR;
 	}
 
-	debug_msg("remain: [%d]"
+	log_trace("remain: [%d]"
 	          " varint: [%d %d %d %d]"
 	          " len: [%d]"
 	          " packetid: [%x %x]",
@@ -320,14 +320,14 @@ sub_ctx_handle(nano_work *work)
 	cli_ctx->cparam    = cp;
 
 	// clean session handle.
-	debug_msg("clean session handle");
+	log_trace("clean session handle");
 	cli_ctx_merge(cli_ctx, old_ctx);
 	destroy_sub_ctx(cli_ctx);
 
 	while (topic_node_t) {
 		topic_len = topic_node_t->it->topic_filter.len;
 		topic_str = topic_node_t->it->topic_filter.body;
-		debug_msg("topicLen: [%d] body: [%s]", topic_len, topic_str);
+		log_trace("topicLen: [%d] body: [%s]", topic_len, topic_str);
 
 		/* remove duplicate items */
 		topic_exist = 0;
@@ -345,7 +345,7 @@ sub_ctx_handle(nano_work *work)
 		}
 #ifdef DEBUG
 		// check
-		debug_msg("--CHECK--cliid: [%s] pipeid: [%d]", clientid,
+		log_trace("--CHECK--cliid: [%s] pipeid: [%d]", client_id,
 		    work->pid.id);
 #endif
 
@@ -355,7 +355,7 @@ sub_ctx_handle(nano_work *work)
 				if (!r[i]) {
 					continue;
 				}
-				debug_msg("found retain [%p], "
+				log_trace("found retain [%p], "
 				          "message: [%p][%p] sz [%ld]\n",
 				    r[i], r[i]->message,
 				    nng_msg_payload_ptr(r[i]->message),
@@ -374,7 +374,7 @@ sub_ctx_handle(nano_work *work)
 	// check treeDB
 	dbtree_print(work->db);
 #endif
-	debug_msg("end of sub ctx handle. \n");
+	log_trace("end of sub ctx handle. \n");
 	return SUCCESS;
 }
 
@@ -391,16 +391,16 @@ cli_ctx_merge(client_ctx *ctx_new, client_ctx *ctx)
 	}
 
 #ifdef DEBUG /* Remove after testing */
-	debug_msg("stored ctx:");
+	log_trace("stored ctx:");
 	node = ctx->sub_pkt->node;
 	while (node) {
-		debug_msg("%s", node->it->topic_filter.body);
+		log_trace("%s", node->it->topic_filter.body);
 		node = node->next;
 	}
-	debug_msg("new ctx");
+	log_trace("new ctx");
 	node_new = ctx_new->sub_pkt->node;
 	while (node_new) {
-		debug_msg("%s", node_new->it->topic_filter.body);
+		log_trace("%s", node_new->it->topic_filter.body);
 		node_new = node_new->next;
 	}
 #endif
@@ -448,17 +448,17 @@ cli_ctx_merge(client_ctx *ctx_new, client_ctx *ctx)
 	}
 
 #ifdef DEBUG /* Remove after testing */
-	debug_msg("after change.");
-	debug_msg("stored ctx:");
+	log_trace("after change.");
+	log_trace("stored ctx:");
 	node = ctx->sub_pkt->node;
 	while (node) {
-		debug_msg("%s", node->it->topic_filter.body);
+		log_trace("%s", node->it->topic_filter.body);
 		node = node->next;
 	}
-	debug_msg("new ctx");
+	log_trace("new ctx");
 	node_new = ctx_new->sub_pkt->node;
 	while (node_new) {
-		debug_msg("%s", node_new->it->topic_filter.body);
+		log_trace("%s", node_new->it->topic_filter.body);
 		node_new = node_new->next;
 	}
 #endif
@@ -474,7 +474,7 @@ del_sub_ctx(void *ctxt, char *target_topic)
 	packet_subscribe *sub_pkt           = NULL;
 
 	if (!cli_ctx || !cli_ctx->sub_pkt) {
-		debug_msg("ERROR : ctx or sub_pkt is null!");
+		log_trace("ERROR : ctx or sub_pkt is null!");
 		return;
 	}
 
@@ -486,7 +486,7 @@ del_sub_ctx(void *ctxt, char *target_topic)
 	while (topic_node_t) {
 		if (!strcmp(
 		        topic_node_t->it->topic_filter.body, target_topic)) {
-			debug_msg("FREE in topic_node [%s] in tree",
+			log_trace("FREE in topic_node [%s] in tree",
 			    topic_node_t->it->topic_filter.body);
 			if (before_topic_node) {
 				before_topic_node->next = topic_node_t->next;
@@ -504,7 +504,7 @@ del_sub_ctx(void *ctxt, char *target_topic)
 		topic_node_t      = topic_node_t->next;
 	}
 
-	debug_msg("info: sub pkt node handling [%p]\n", sub_pkt->node);
+	log_trace("info: sub pkt node handling [%p]\n", sub_pkt->node);
 	if (sub_pkt->node == NULL) {
 #if SUPPORT_MQTT5_0
 		if (PROTOCOL_VERSION_v5 == proto_ver) {
@@ -562,7 +562,7 @@ destroy_sub_ctx(void *ctxt)
 	client_ctx *cli_ctx = ctxt;
 
 	if (!cli_ctx) {
-		debug_msg("ERROR : ctx or sub_pkt is null!");
+		log_trace("ERROR : ctx or sub_pkt is null!");
 		return;
 	}
 	nng_free(cli_ctx, sizeof(client_ctx));
@@ -572,7 +572,7 @@ destroy_sub_ctx(void *ctxt)
 int
 cache_session(char *clientid, conn_param *cparam, uint32_t pid, void *db)
 {
-	debug_msg("cache session");
+	log_trace("cache session");
 	struct topic_queue *tq      = NULL;
 
 	uint32_t key_clientid = DJBHashn(clientid, strlen(clientid));
@@ -587,14 +587,14 @@ cache_session(char *clientid, conn_param *cparam, uint32_t pid, void *db)
 		cache_topic_all(pid, key_clientid);
 	}
 
-	debug_msg("Session cached.");
+	log_trace("Session cached.");
 	return 0;
 }
 
 int
 restore_session(char *clientid, conn_param *cparam, uint32_t pid, void *db)
 {
-	debug_msg("restore session");
+	log_trace("restore session");
 	client_ctx * ctx;
 	topic_queue *tq = NULL;
 

@@ -8,6 +8,7 @@
 //
 
 #include "include/nanomq.h"
+#include "nng_log.h"
 
 #include "include/process.h"
 
@@ -36,7 +37,7 @@ process_send_signal(int pid, int signal)
 	if (pid < 1)
 		return 0;
 
-	debug_msg("pid = %i, signal = %i", pid, signal);
+	log_trace("pid = %i, signal = %i", pid, signal);
 	return kill(pid, signal);
 }
 
@@ -50,12 +51,12 @@ pidgrp_send_signal(int pid, int signal)
 
 	gpid = getpgid(pid);
 	if (gpid < 0) {
-		debug_msg("pid = %i: unable to retrieve gpid: %s", pid,
+		log_trace("pid = %i: unable to retrieve gpid: %s", pid,
 		    strerror(errno));
 		return 0;
 	}
 
-	debug_msg("pid = %i: gpid = %i, signal = %i", pid, gpid, signal);
+	log_trace("pid = %i: gpid = %i, signal = %i", pid, gpid, signal);
 	return kill(-gpid, signal);
 }
 
