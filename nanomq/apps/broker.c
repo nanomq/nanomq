@@ -18,6 +18,7 @@
 #include <hash.h>
 #include <mqtt_db.h>
 #include <nng.h>
+#include <nng/mqtt/mqtt_client.h>
 #include <protocol/mqtt/mqtt_parser.h>
 #include <protocol/mqtt/nmq_mqtt.h>
 #include <zmalloc.h>
@@ -53,6 +54,9 @@ intHandler(int dummy)
 	fprintf(stderr, "\nBroker exit(0).\n");
 }
 #endif
+
+static int client_publish(
+    nng_socket sock, const char *topic, const char *payload, uint8_t qos);
 
 void
 fatal(const char *func, int rv)
@@ -121,6 +125,12 @@ server_cb(void *arg)
 			nng_msg_set_timestamp(msg, nng_clock());
 			nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 			handle_pub(work, work->pipe_ct);
+
+			client_publish(work->client_sock,
+			    work->pub_packet->variable_header.publish
+			        .topic_name.body,
+			    work->pub_packet->payload_body.payload,
+			    work->pub_packet->fixed_header.qos);
 		} else if (nng_msg_cmd_type(msg) == CMD_CONNACK) {
 			nng_msg_set_pipe(work->msg, work->pid);
 
@@ -160,7 +170,7 @@ server_cb(void *arg)
 			nng_msg_set_cmd_type(work->msg, CMD_PUBLISH);
 			handle_pub(work, work->pipe_ct);
 			// cache session
-			client_ctx *cli_ctx  = NULL;
+			client_ctx *cli_ctx = NULL;
 			char *      clientid =
 			    (char *) conn_param_get_clientid(work->cparam);
 			if (clientid != NULL &&
@@ -174,7 +184,8 @@ server_cb(void *arg)
 				while (tq) {
 					if (tq->topic) {
 						cli_ctx = dbtree_delete_client(
-						    work->db, tq->topic, 0, work->pid.id);
+						    work->db, tq->topic, 0,
+						    work->pid.id);
 					}
 					del_sub_ctx(cli_ctx, tq->topic);
 					tq = tq->next;
@@ -478,6 +489,80 @@ get_broker_db(void)
 }
 
 int
+client_publish(
+    nng_socket sock, const char *topic, const char *payload, uint8_t qos)
+{
+	int rv;
+
+	// create a PUBLISH message
+	nng_msg *pubmsg;
+	nng_mqtt_msg_alloc(&pubmsg, 0);
+	nng_mqtt_msg_set_packet_type(pubmsg, NNG_MQTT_PUBLISH);
+	nng_mqtt_msg_set_publish_dup(pubmsg, 0);
+	nng_mqtt_msg_set_publish_qos(pubmsg, qos);
+	nng_mqtt_msg_set_publish_retain(pubmsg, 0);
+	nng_mqtt_msg_set_publish_payload(
+	    pubmsg, (uint8_t *) payload, strlen(payload));
+	nng_mqtt_msg_set_publish_topic(pubmsg, topic);
+
+	debug_msg("Publishing to '%s' ...", topic);
+	if ((rv = nng_sendmsg(sock, pubmsg, NNG_FLAG_NONBLOCK)) != 0) {
+		fatal("nng_sendmsg", rv);
+	}
+	debug_msg(" done\n");
+
+	nng_msg_free(pubmsg);
+	return rv;
+}
+
+// Connack message callback function
+static void
+connect_cb(void *connect_arg, nng_msg *msg)
+{
+	uint8_t ret_code = nng_mqtt_msg_get_connack_return_code(msg);
+	debug_msg("%s(%d)\n",
+	    ret_code == 0 ? "connection established" : "connect failed",
+	    ret_code);
+
+	nng_msg_free(msg);
+}
+
+nng_mqtt_cb user_cb = {
+	.name         = "user_cb",
+	.on_connected = connect_cb,
+};
+
+int
+client(nng_socket *sock, const char *url)
+{
+	int        rv;
+	nng_dialer dialer;
+
+	if ((rv = nng_mqtt_client_open(sock)) != 0) {
+		fatal("nng_mqtt_client_open", rv);
+	}
+
+	user_cb.connect_arg = sock;
+
+	if ((rv = nng_dialer_create(&dialer, *sock, url))) {
+		fatal("nng_dialer_create", rv);
+	}
+
+	// create a CONNECT message
+	/* CONNECT */
+	nng_msg *connmsg;
+	nng_mqtt_msg_alloc(&connmsg, 0);
+	nng_mqtt_msg_set_packet_type(connmsg, NNG_MQTT_CONNECT);
+	nng_mqtt_msg_set_connect_keep_alive(connmsg, 60);
+	nng_mqtt_msg_set_connect_proto_version(connmsg, PROTOCOL_VERSION_v311);
+	nng_mqtt_msg_set_connect_clean_session(connmsg, true);
+
+	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
+	nng_dialer_set_cb(dialer, &user_cb);
+	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
+}
+
+int
 broker(conf *nanomq_conf)
 {
 	nng_socket   sock;
@@ -507,12 +592,17 @@ broker(conf *nanomq_conf)
 		fatal("nng_nmq_tcp0_open", rv);
 	}
 
-	debug_msg("PARALLEL logic threads: %lu\n", num_ctx);
+	nng_socket client_sock;
+
+	client(&client_sock, "mqtt-tcp://192.168.23.105:1885");
+
+	// debug_msg("PARALLEL logic threads: %lu\n", num_ctx);
 	for (i = 0; i < num_ctx; i++) {
-		works[i]         = alloc_work(sock);
-		works[i]->db     = db;
-		works[i]->db_ret = db_ret;
-		works[i]->proto  = 0;
+		works[i]              = alloc_work(sock);
+		works[i]->db          = db;
+		works[i]->db_ret      = db_ret;
+		works[i]->proto       = 0;
+		works[i]->client_sock = client_sock;
 	}
 
 	if ((rv = nng_listen(sock, url, NULL, 0)) != 0) {
@@ -621,7 +711,7 @@ int
 broker_start(int argc, char **argv)
 {
 	int   i, url, temp, rc, num_ctx = 0;
-	pid_t pid = 0;
+	pid_t pid       = 0;
 	char *conf_path = NULL;
 	conf *nanomq_conf;
 

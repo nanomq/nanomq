@@ -12,15 +12,16 @@
 struct work {
 	enum { INIT, RECV, WAIT, SEND, RESEND, FREE, NOTIFY } state;
 
-	uint8_t   proto;
-	nng_aio * aio;
-	nng_msg * msg;
-	nng_msg **msg_ret;
-	nng_ctx   ctx;
-	nng_pipe  pid;
-	nng_mtx * mutex;
-	dbtree  * db;
-	dbtree  * db_ret;
+	nng_socket client_sock;
+	uint8_t    proto;
+	nng_aio *  aio;
+	nng_msg *  msg;
+	nng_msg ** msg_ret;
+	nng_ctx    ctx;
+	nng_pipe   pid;
+	nng_mtx *  mutex;
+	dbtree *   db;
+	dbtree *   db_ret;
 
 	struct pipe_content *      pipe_ct;
 	conn_param *               cparam;
