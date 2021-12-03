@@ -18,10 +18,12 @@
 #include <hash.h>
 #include <mqtt_db.h>
 #include <nng.h>
+#include <nng/mqtt/mqtt_client.h>
 #include <protocol/mqtt/mqtt_parser.h>
 #include <protocol/mqtt/nmq_mqtt.h>
 #include <zmalloc.h>
 
+#include "include/bridge.h"
 #include "include/nanomq.h"
 #include "include/process.h"
 #include "include/pub_handler.h"
@@ -121,6 +123,15 @@ server_cb(void *arg)
 			nng_msg_set_timestamp(msg, nng_clock());
 			nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 			handle_pub(work, work->pipe_ct);
+
+			client_publish(work->bridge_sock,
+			    work->pub_packet->variable_header.publish
+			        .topic_name.body,
+			    work->pub_packet->payload_body.payload,
+			    work->pub_packet->payload_body.payload_len,
+			    work->pub_packet->fixed_header.dup,
+			    work->pub_packet->fixed_header.qos,
+			    work->pub_packet->fixed_header.retain);
 		} else if (nng_msg_cmd_type(msg) == CMD_CONNACK) {
 			nng_msg_set_pipe(work->msg, work->pid);
 
@@ -160,7 +171,7 @@ server_cb(void *arg)
 			nng_msg_set_cmd_type(work->msg, CMD_PUBLISH);
 			handle_pub(work, work->pipe_ct);
 			// cache session
-			client_ctx *cli_ctx  = NULL;
+			client_ctx *cli_ctx = NULL;
 			char *      clientid =
 			    (char *) conn_param_get_clientid(work->cparam);
 			if (clientid != NULL &&
@@ -174,7 +185,8 @@ server_cb(void *arg)
 				while (tq) {
 					if (tq->topic) {
 						cli_ctx = dbtree_delete_client(
-						    work->db, tq->topic, 0, work->pid.id);
+						    work->db, tq->topic, 0,
+						    work->pid.id);
 					}
 					del_sub_ctx(cli_ctx, tq->topic);
 					tq = tq->next;
@@ -507,12 +519,19 @@ broker(conf *nanomq_conf)
 		fatal("nng_nmq_tcp0_open", rv);
 	}
 
-	debug_msg("PARALLEL logic threads: %lu\n", num_ctx);
+	nng_socket inner_sock;
+	nng_socket bridge_sock;
+
+	inner_client(&inner_sock, "mqtt-tcp://127.0.0.1:1883");
+	bridge_client(&bridge_sock,  "mqtt-tcp://192.168.23.105:1885", 8, inner_sock);
+
+	// debug_msg("PARALLEL logic threads: %lu\n", num_ctx);
 	for (i = 0; i < num_ctx; i++) {
-		works[i]         = alloc_work(sock);
-		works[i]->db     = db;
-		works[i]->db_ret = db_ret;
-		works[i]->proto  = 0;
+		works[i]              = alloc_work(sock);
+		works[i]->db          = db;
+		works[i]->db_ret      = db_ret;
+		works[i]->proto       = 0;
+		works[i]->bridge_sock = bridge_sock;
 	}
 
 	if ((rv = nng_listen(sock, url, NULL, 0)) != 0) {
@@ -621,7 +640,7 @@ int
 broker_start(int argc, char **argv)
 {
 	int   i, url, temp, rc, num_ctx = 0;
-	pid_t pid = 0;
+	pid_t pid       = 0;
 	char *conf_path = NULL;
 	conf *nanomq_conf;
 
