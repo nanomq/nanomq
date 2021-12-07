@@ -139,24 +139,31 @@ bridge_cb(void *arg)
 
 	switch (work->state) {
 	case INIT:
-		work->state = RECV;
+		work->state = WAIT;
 		nng_ctx_recv(work->ctx, work->aio);
 		break;
 
 	case RECV:
 		if ((rv = nng_aio_result(work->aio)) != 0) {
-			fatal("nng_recv_aio", rv);
+			fatal("nng_recv_aio2", rv);
 			work->state = RECV;
 			nng_ctx_recv(work->ctx, work->aio);
 			break;
 		}
 
-		work->msg   = nng_aio_get_msg(work->aio);
+		
 		work->state = WAIT;
-		nng_sleep_aio(0, work->aio);
+		nng_ctx_recv(work->ctx, work->aio);
 		break;
 
 	case WAIT:
+		if ((rv = nng_aio_result(work->aio)) != 0) {
+			fatal("nng_recv_aio2", rv);
+			work->state = RECV;
+			nng_ctx_recv(work->ctx, work->aio);
+			break;
+		}
+	    work->msg   = nng_aio_get_msg(work->aio);
 		msg = work->msg;
 		uint32_t payload_len;
 		uint8_t *payload =
@@ -184,7 +191,7 @@ bridge_cb(void *arg)
 		nng_msg_free(msg);
 		work->msg   = NULL;
 		work->state = RECV;
-		nng_ctx_recv(work->ctx, work->aio);
+		nng_aio_finish(work->aio, 0);
 		break;
 
 	case SEND:
@@ -250,7 +257,7 @@ bridge_client(
 	nng_msg *connmsg;
 	nng_mqtt_msg_alloc(&connmsg, 0);
 	nng_mqtt_msg_set_packet_type(connmsg, NNG_MQTT_CONNECT);
-	nng_mqtt_msg_set_connect_keep_alive(connmsg, 60);
+	nng_mqtt_msg_set_connect_keep_alive(connmsg, 360);
 	nng_mqtt_msg_set_connect_proto_version(connmsg, 4);
 	nng_mqtt_msg_set_connect_clean_session(connmsg, true);
 

@@ -124,14 +124,14 @@ server_cb(void *arg)
 			nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 			handle_pub(work, work->pipe_ct);
 
-			client_publish(work->bridge_sock,
-			    work->pub_packet->variable_header.publish
-			        .topic_name.body,
-			    work->pub_packet->payload_body.payload,
-			    work->pub_packet->payload_body.payload_len,
-			    work->pub_packet->fixed_header.dup,
-			    work->pub_packet->fixed_header.qos,
-			    work->pub_packet->fixed_header.retain);
+			// client_publish(work->bridge_sock,
+			//     work->pub_packet->variable_header.publish
+			//         .topic_name.body,
+			//     work->pub_packet->payload_body.payload,
+			//     work->pub_packet->payload_body.payload_len,
+			//     work->pub_packet->fixed_header.dup,
+			//     work->pub_packet->fixed_header.qos,
+			//     work->pub_packet->fixed_header.retain);
 		} else if (nng_msg_cmd_type(msg) == CMD_CONNACK) {
 			nng_msg_set_pipe(work->msg, work->pid);
 
@@ -523,7 +523,7 @@ broker(conf *nanomq_conf)
 	nng_socket bridge_sock;
 
 	inner_client(&inner_sock, "mqtt-tcp://127.0.0.1:1883");
-	bridge_client(&bridge_sock,  "mqtt-tcp://192.168.23.105:1885", 8, inner_sock);
+	bridge_client(&bridge_sock,  "mqtt-tcp://0.0.0.0:1885", 1, inner_sock);
 
 	// debug_msg("PARALLEL logic threads: %lu\n", num_ctx);
 	for (i = 0; i < num_ctx; i++) {
