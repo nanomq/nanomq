@@ -12,7 +12,6 @@
 struct work {
 	enum { INIT, RECV, WAIT, SEND, RESEND, FREE, NOTIFY } state;
 
-	nng_socket client_sock;
 	uint8_t    proto;
 	nng_aio *  aio;
 	nng_msg *  msg;
@@ -22,6 +21,8 @@ struct work {
 	nng_mtx *  mutex;
 	dbtree *   db;
 	dbtree *   db_ret;
+
+	nng_socket bridge_sock;
 
 	struct pipe_content *      pipe_ct;
 	conn_param *               cparam;

@@ -23,6 +23,7 @@
 #include <protocol/mqtt/nmq_mqtt.h>
 #include <zmalloc.h>
 
+#include "include/bridge.h"
 #include "include/nanomq.h"
 #include "include/process.h"
 #include "include/pub_handler.h"
@@ -54,9 +55,6 @@ intHandler(int dummy)
 	fprintf(stderr, "\nBroker exit(0).\n");
 }
 #endif
-
-static int client_publish(
-    nng_socket sock, const char *topic, const char *payload, uint8_t qos);
 
 void
 fatal(const char *func, int rv)
@@ -126,11 +124,14 @@ server_cb(void *arg)
 			nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 			handle_pub(work, work->pipe_ct);
 
-			client_publish(work->client_sock,
+			client_publish(work->bridge_sock,
 			    work->pub_packet->variable_header.publish
 			        .topic_name.body,
 			    work->pub_packet->payload_body.payload,
-			    work->pub_packet->fixed_header.qos);
+			    work->pub_packet->payload_body.payload_len,
+			    work->pub_packet->fixed_header.dup,
+			    work->pub_packet->fixed_header.qos,
+			    work->pub_packet->fixed_header.retain);
 		} else if (nng_msg_cmd_type(msg) == CMD_CONNACK) {
 			nng_msg_set_pipe(work->msg, work->pid);
 
@@ -489,80 +490,6 @@ get_broker_db(void)
 }
 
 int
-client_publish(
-    nng_socket sock, const char *topic, const char *payload, uint8_t qos)
-{
-	int rv;
-
-	// create a PUBLISH message
-	nng_msg *pubmsg;
-	nng_mqtt_msg_alloc(&pubmsg, 0);
-	nng_mqtt_msg_set_packet_type(pubmsg, NNG_MQTT_PUBLISH);
-	nng_mqtt_msg_set_publish_dup(pubmsg, 0);
-	nng_mqtt_msg_set_publish_qos(pubmsg, qos);
-	nng_mqtt_msg_set_publish_retain(pubmsg, 0);
-	nng_mqtt_msg_set_publish_payload(
-	    pubmsg, (uint8_t *) payload, strlen(payload));
-	nng_mqtt_msg_set_publish_topic(pubmsg, topic);
-
-	debug_msg("Publishing to '%s' ...", topic);
-	if ((rv = nng_sendmsg(sock, pubmsg, NNG_FLAG_NONBLOCK)) != 0) {
-		fatal("nng_sendmsg", rv);
-	}
-	debug_msg(" done\n");
-
-	nng_msg_free(pubmsg);
-	return rv;
-}
-
-// Connack message callback function
-static void
-connect_cb(void *connect_arg, nng_msg *msg)
-{
-	uint8_t ret_code = nng_mqtt_msg_get_connack_return_code(msg);
-	debug_msg("%s(%d)\n",
-	    ret_code == 0 ? "connection established" : "connect failed",
-	    ret_code);
-
-	nng_msg_free(msg);
-}
-
-nng_mqtt_cb user_cb = {
-	.name         = "user_cb",
-	.on_connected = connect_cb,
-};
-
-int
-client(nng_socket *sock, const char *url)
-{
-	int        rv;
-	nng_dialer dialer;
-
-	if ((rv = nng_mqtt_client_open(sock)) != 0) {
-		fatal("nng_mqtt_client_open", rv);
-	}
-
-	user_cb.connect_arg = sock;
-
-	if ((rv = nng_dialer_create(&dialer, *sock, url))) {
-		fatal("nng_dialer_create", rv);
-	}
-
-	// create a CONNECT message
-	/* CONNECT */
-	nng_msg *connmsg;
-	nng_mqtt_msg_alloc(&connmsg, 0);
-	nng_mqtt_msg_set_packet_type(connmsg, NNG_MQTT_CONNECT);
-	nng_mqtt_msg_set_connect_keep_alive(connmsg, 60);
-	nng_mqtt_msg_set_connect_proto_version(connmsg, PROTOCOL_VERSION_v311);
-	nng_mqtt_msg_set_connect_clean_session(connmsg, true);
-
-	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
-	nng_dialer_set_cb(dialer, &user_cb);
-	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
-}
-
-int
 broker(conf *nanomq_conf)
 {
 	nng_socket   sock;
@@ -592,9 +519,11 @@ broker(conf *nanomq_conf)
 		fatal("nng_nmq_tcp0_open", rv);
 	}
 
-	nng_socket client_sock;
+	nng_socket inner_sock;
+	nng_socket bridge_sock;
 
-	client(&client_sock, "mqtt-tcp://192.168.23.105:1885");
+	inner_client(&inner_sock, "mqtt-tcp://127.0.0.1:1883");
+	bridge_client(&bridge_sock,  "mqtt-tcp://192.168.23.105:1885", 8, inner_sock);
 
 	// debug_msg("PARALLEL logic threads: %lu\n", num_ctx);
 	for (i = 0; i < num_ctx; i++) {
@@ -602,7 +531,7 @@ broker(conf *nanomq_conf)
 		works[i]->db          = db;
 		works[i]->db_ret      = db_ret;
 		works[i]->proto       = 0;
-		works[i]->client_sock = client_sock;
+		works[i]->bridge_sock = bridge_sock;
 	}
 
 	if ((rv = nng_listen(sock, url, NULL, 0)) != 0) {
