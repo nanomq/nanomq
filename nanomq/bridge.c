@@ -1,3 +1,4 @@
+#include "include/bridge.h"
 #include <nng/mqtt/mqtt_client.h>
 #include <nng/nng.h>
 #include <stdio.h>
@@ -5,6 +6,14 @@
 #include <string.h>
 
 #include "include/nanomq.h"
+
+#if defined(NNG_PLATFORM_POSIX)
+#define nano_strtok strtok_r
+#elif defined(NNG_PLATFORM_WINDOWS)
+#define nano_strtok strtok_s
+#else
+#define nano_strtok strtok_r
+#endif
 
 enum work_state { INIT, RECV, WAIT, SEND };
 
@@ -50,7 +59,7 @@ client_publish(nng_socket sock, const char *topic, uint8_t *payload,
 		fatal("nng_sendmsg", rv);
 	}
 
-	nng_msg_free(pubmsg);
+	// nng_msg_free(pubmsg);
 	return rv;
 }
 
@@ -66,28 +75,16 @@ disconnect_cb(void *disconn_arg, nng_msg *msg)
 #define SUB_TOPIC2 "/nanomq/msg/2"
 #define SUB_TOPIC3 "/nanomq/msg/3"
 
+typedef struct {
+	nng_socket * sock;
+	conf_bridge *config;
+} bridge_param;
+
 // Connack message callback function
 static void
 bridge_connect_cb(void *connect_arg, nng_msg *msg)
 {
-	// Mqtt subscribe array of topic with qos
-	nng_mqtt_topic_qos topic_qos[] = {
-		{ .qos     = 0,
-		    .topic = { .buf = (uint8_t *) SUB_TOPIC1,
-		        .length     = strlen(SUB_TOPIC1) } },
-		{ .qos     = 1,
-		    .topic = { .buf = (uint8_t *) SUB_TOPIC2,
-		        .length     = strlen(SUB_TOPIC2) } },
-		{ .qos     = 2,
-		    .topic = { .buf = (uint8_t *) SUB_TOPIC3,
-		        .length     = strlen(SUB_TOPIC3) } }
-	};
-
-	size_t topic_qos_count =
-	    sizeof(topic_qos) / sizeof(nng_mqtt_topic_qos);
-
-	nng_socket sock     = *(nng_socket *) connect_arg;
-	uint8_t    ret_code = nng_mqtt_msg_get_connack_return_code(msg);
+	uint8_t ret_code = nng_mqtt_msg_get_connack_return_code(msg);
 	printf("%s: %s(%d)\n", __FUNCTION__,
 	    ret_code == 0 ? "connection established" : "connect failed",
 	    ret_code);
@@ -97,13 +94,26 @@ bridge_connect_cb(void *connect_arg, nng_msg *msg)
 
 	if (ret_code == 0) {
 		// Connected succeed
+		bridge_param *param = connect_arg;
+
 		nng_mqtt_msg_alloc(&msg, 0);
 		nng_mqtt_msg_set_packet_type(msg, NNG_MQTT_SUBSCRIBE);
+
+		nng_mqtt_topic_qos *topic_qos =
+		    nng_mqtt_topic_qos_array_create(param->config->sub_count);
+		for (size_t i = 0; i < param->config->sub_count; i++) {
+			nng_mqtt_topic_qos_array_set(topic_qos, i,
+			    param->config->sub_list[i].topic,
+			    param->config->sub_list[i].qos);
+		}
 		nng_mqtt_msg_set_subscribe_topics(
-		    msg, topic_qos, topic_qos_count);
+		    msg, topic_qos, param->config->sub_count);
+
+		nng_mqtt_topic_qos_array_free(
+		    topic_qos, param->config->sub_count);
 
 		// Send subscribe message
-		nng_sendmsg(sock, msg, NNG_FLAG_NONBLOCK);
+		nng_sendmsg(*param->sock, msg, NNG_FLAG_NONBLOCK);
 	}
 }
 
@@ -151,7 +161,6 @@ bridge_cb(void *arg)
 			break;
 		}
 
-		
 		work->state = WAIT;
 		nng_ctx_recv(work->ctx, work->aio);
 		break;
@@ -163,8 +172,8 @@ bridge_cb(void *arg)
 			nng_ctx_recv(work->ctx, work->aio);
 			break;
 		}
-	    work->msg   = nng_aio_get_msg(work->aio);
-		msg = work->msg;
+		work->msg = nng_aio_get_msg(work->aio);
+		msg       = work->msg;
 		uint32_t payload_len;
 		uint8_t *payload =
 		    nng_mqtt_msg_get_publish_payload(msg, &payload_len);
@@ -179,14 +188,14 @@ bridge_cb(void *arg)
 		printf("RECV: '%.*s' FROM: '%.*s'\n", payload_len,
 		    (char *) payload, topic_len, recv_topic);
 
-		char *send_topic = nng_alloc(topic_len);
+		char *send_topic = nng_zalloc(topic_len + 1);
 		memcpy(send_topic, recv_topic, topic_len);
 
 		// Send msg to local broker via inner client
 		client_publish(work->inner_sock, send_topic, payload,
 		    payload_len, dup, qos, retain);
 
-		nng_free(send_topic, topic_len);
+		nng_free(send_topic, topic_len + 1);
 
 		nng_msg_free(msg);
 		work->msg   = NULL;
@@ -230,9 +239,11 @@ alloc_bridge_work(nng_socket sock, nng_socket inner_sock)
 	return (w);
 }
 
+static bridge_param bridge_arg;
+
 int
-bridge_client(
-    nng_socket *sock, const char *url, uint16_t nwork, nng_socket inner_sock)
+bridge_client(nng_socket *sock, uint16_t nwork, nng_socket inner_sock,
+    conf_bridge *config)
 {
 	int                 rv;
 	nng_dialer          dialer;
@@ -247,7 +258,7 @@ bridge_client(
 		work[i] = alloc_bridge_work(*sock, inner_sock);
 	}
 
-	if ((rv = nng_dialer_create(&dialer, *sock, url))) {
+	if ((rv = nng_dialer_create(&dialer, *sock, config->address))) {
 		fatal("nng_dialer_create", rv);
 		return rv;
 	}
@@ -257,11 +268,23 @@ bridge_client(
 	nng_msg *connmsg;
 	nng_mqtt_msg_alloc(&connmsg, 0);
 	nng_mqtt_msg_set_packet_type(connmsg, NNG_MQTT_CONNECT);
-	nng_mqtt_msg_set_connect_keep_alive(connmsg, 360);
-	nng_mqtt_msg_set_connect_proto_version(connmsg, 4);
-	nng_mqtt_msg_set_connect_clean_session(connmsg, true);
+	nng_mqtt_msg_set_connect_keep_alive(connmsg, config->keepalive);
+	nng_mqtt_msg_set_connect_proto_version(connmsg, config->proto_ver);
+	nng_mqtt_msg_set_connect_clean_session(connmsg, config->clean_start);
+	if (config->clientid) {
+		nng_mqtt_msg_set_connect_client_id(connmsg, config->clientid);
+	}
+	if (config->username) {
+		nng_mqtt_msg_set_connect_user_name(connmsg, config->username);
+	}
+	if (config->password) {
+		nng_mqtt_msg_set_connect_password(connmsg, config->password);
+	}
 
-	bridge_user_cb.connect_arg = sock;
+	bridge_arg.config = config;
+	bridge_arg.sock   = sock;
+
+	bridge_user_cb.connect_arg = &bridge_arg;
 	bridge_user_cb.disconn_arg = sock;
 
 	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
@@ -275,81 +298,11 @@ bridge_client(
 	return 0;
 }
 
-// struct inner_work *
-// alloc_inner_work(nng_socket sock)
-// {
-// 	struct inner_work *w;
-// 	int                rv;
-
-// 	if ((w = nng_alloc(sizeof(*w))) == NULL) {
-// 		fatal("nng_alloc", NNG_ENOMEM);
-// 	}
-// 	if ((rv = nng_aio_alloc(&w->aio, bridge_cb, w)) != 0) {
-// 		fatal("nng_aio_alloc", rv);
-// 	}
-// 	if ((rv = nng_ctx_open(&w->ctx, sock)) != 0) {
-// 		fatal("nng_ctx_open", rv);
-// 	}
-
-// 	w->state = INIT;
-// 	return (w);
-// }
-
-// void
-// inner_cb(void *arg)
-// {
-// 	struct inner_work *work = arg;
-// 	nng_msg *          msg;
-// 	int                rv;
-
-// 	switch (work->state) {
-
-// 	case INIT:
-// 		work->state = RECV;
-// 		nng_ctx_recv(work->ctx, work->aio);
-// 		break;
-
-// 	case RECV:
-// 		if ((rv = nng_aio_result(work->aio)) != 0) {
-// 			fatal("nng_recv_aio", rv);
-// 			work->state = RECV;
-// 			nng_ctx_recv(work->ctx, work->aio);
-// 			break;
-// 		}
-
-// 		work->msg   = nng_aio_get_msg(work->aio);
-// 		work->state = WAIT;
-// 		nng_sleep_aio(0, work->aio);
-// 		break;
-
-// 	case WAIT:
-// 		work->msg   = NULL;
-// 		work->state = RECV;
-// 		nng_ctx_recv(work->ctx, work->aio);
-// 		break;
-
-// 	case SEND:
-// 		if ((rv = nng_aio_result(work->aio)) != 0) {
-// 			nng_msg_free(work->msg);
-// 			fatal("nng_send_aio", rv);
-// 		}
-// 		work->state = RECV;
-// 		nng_ctx_recv(work->ctx, work->aio);
-// 		break;
-
-// 	default:
-// 		fatal("bad state!", NNG_ESTATE);
-// 		break;
-// 	}
-// }
-
 int
 inner_client(nng_socket *sock, const char *url)
 {
 	int        rv;
 	nng_dialer dialer;
-
-	// struct inner_work *work[8];
 
 	if ((rv = nng_mqtt_client_open(sock)) != 0) {
 		fatal("nng_mqtt_client_open", rv);
@@ -360,10 +313,6 @@ inner_client(nng_socket *sock, const char *url)
 		fatal("nng_dialer_create", rv);
 		return rv;
 	}
-
-	// for (uint16_t i = 0; i < 8; i++) {
-	// 	work[i] = alloc_inner_work(*sock);
-	// }
 
 	// create a CONNECT message
 	/* CONNECT */
@@ -381,9 +330,41 @@ inner_client(nng_socket *sock, const char *url)
 	nng_dialer_set_cb(dialer, &inner_user_cb);
 	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
 
-	// for (uint16_t i = 0; i < 8; i++) {
-	// 	inner_cb(work[i]);
-	// }
-
 	return 0;
+}
+
+bool
+topic_filter(const char *origin, const char *input)
+{
+	bool result = true;
+
+	if (strcmp(origin, input) == 0) {
+		return true;
+	}
+
+	char *p1 = NULL, *p2 = NULL;
+
+	char *origin_str = strdup(origin);
+	char *input_str  = strdup(input);
+
+	char *origin_token = nano_strtok(origin_str, "/", &p1);
+	char *input_token  = nano_strtok(input_str, "/", &p2);
+
+	while (origin_token != NULL && input_token != NULL) {
+		if (strcmp(origin_token, input_token) != 0) {
+			if (strcmp(origin_token, "#") == 0) {
+				result = true;
+				break;
+			} else if (strcmp(origin_token, "+") != 0) {
+				result = false;
+				break;
+			}
+		}
+		origin_token = nano_strtok(NULL, "/", &p1);
+		input_token  = nano_strtok(NULL, "/", &p2);
+	}
+
+	free(input_str);
+	free(origin_str);
+	return result;
 }

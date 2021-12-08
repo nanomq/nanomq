@@ -8,8 +8,8 @@
 
 #include <ctype.h>
 
-#include "include/dbg.h"
 #include "include/conf.h"
+#include "include/dbg.h"
 #include "include/file.h"
 #include "nanomq.h"
 
@@ -25,7 +25,8 @@ conf_parser(conf **nanomq_conf, const char *path)
 
 	if (path != NULL) {
 		if (!(fp = fopen(path, "r"))) {
-			log_warn("Configure file [%s] not found or unreadable", path);
+			log_warn("Configure file [%s] not found or unreadable",
+			    path);
 			log_warn("Using default configuration instead.\n");
 			return false;
 		}
@@ -51,7 +52,7 @@ conf_parser(conf **nanomq_conf, const char *path)
 
 		if (value[0] == '\0' || value[0] == '\n') {
 			log_err("No value is specified, conf file parsing "
-			    "aborts\n");
+			        "aborts\n");
 			return false;
 		}
 
@@ -87,7 +88,8 @@ conf_parser(conf **nanomq_conf, const char *path)
 			char *url =
 			    zmalloc(sizeof(char) * (strlen(value) + 1));
 			if (url == NULL) {
-				log_err("Error: Cannot allocate storge for url, "
+				log_err(
+				    "Error: Cannot allocate storge for url, "
 				    "parsing aborts\n");
 				free(buffer);
 				fclose(fp);
@@ -152,7 +154,7 @@ conf_parser(conf **nanomq_conf, const char *path)
 			    zmalloc(sizeof(char) * (strlen(value) + 1));
 			if (username == NULL) {
 				log_err("Cannot allocate storge for "
-				    "username, parsing aborts\n");
+				        "username, parsing aborts\n");
 				free(buffer);
 				fclose(fp);
 				return false;
@@ -169,7 +171,7 @@ conf_parser(conf **nanomq_conf, const char *path)
 			    zmalloc(sizeof(char) * (strlen(value) + 1));
 			if (password == NULL) {
 				log_err("Cannot allocate storge for "
-				    "password, parsing aborts\n");
+				        "password, parsing aborts\n");
 				free(buffer);
 				fclose(fp);
 				return false;
@@ -196,7 +198,7 @@ conf_parser(conf **nanomq_conf, const char *path)
 			    zmalloc(sizeof(char) * (strlen(value) + 1));
 			if (url == NULL) {
 				log_err("Cannot allocate storge for "
-				    "url, parsing aborts\n");
+				        "url, parsing aborts\n");
 				free(buffer);
 				fclose(fp);
 				return false;
@@ -207,7 +209,8 @@ conf_parser(conf **nanomq_conf, const char *path)
 			debug_msg(CONF_READ_RECORD, key, value);
 		}
 		if (!read_success) {
-			log_err("Cannot find the configuration you attemp to set, "
+			log_err(
+			    "Cannot find the configuration you attemp to set, "
 			    "conf file reading halted, stopped at %s",
 			    key);
 			free(buffer);
@@ -240,30 +243,32 @@ conf_init(conf **nanomq_conf)
 	(*nanomq_conf)->http_server.password = NULL;
 	(*nanomq_conf)->websocket.enable     = true;
 	(*nanomq_conf)->websocket.url        = NULL;
+	(*nanomq_conf)->bridge.bridge_mode   = false;
+	(*nanomq_conf)->bridge.sub_count     = 0;
 }
 
 void
 print_conf(conf *nanomq_conf)
 {
-	debug_syslog("This NanoMQ instance configured as:\n");
-	debug_syslog("url is %s\n", nanomq_conf->url);
-	debug_syslog("daemon is %d\n", nanomq_conf->daemon);
-	debug_syslog(
-	    "num_taskq_thread is %d\n", nanomq_conf->num_taskq_thread);
-	debug_syslog(
-	    "max_taskq_thread is %d\n", nanomq_conf->max_taskq_thread);
-	debug_syslog("parallel is %ul\n", nanomq_conf->parallel);
-	debug_syslog("property_size is %d\n", nanomq_conf->property_size);
-	debug_syslog("msq_len is %d\n", nanomq_conf->msq_len);
-	debug_syslog("qos_duration is %d\n", nanomq_conf->qos_duration);
-	debug_syslog("enable http server is %s\n",
+	fprintf(stdout, "This NanoMQ instance configured as:\n");
+	fprintf(stdout, "url is %s\n", nanomq_conf->url);
+	fprintf(stdout, "daemon is %d\n", nanomq_conf->daemon);
+	fprintf(
+	    stdout, "num_taskq_thread is %d\n", nanomq_conf->num_taskq_thread);
+	fprintf(
+	    stdout, "max_taskq_thread is %d\n", nanomq_conf->max_taskq_thread);
+	fprintf(stdout, "parallel is %lu\n", nanomq_conf->parallel);
+	fprintf(stdout, "property_size is %d\n", nanomq_conf->property_size);
+	fprintf(stdout, "msq_len is %d\n", nanomq_conf->msq_len);
+	fprintf(stdout, "qos_duration is %d\n", nanomq_conf->qos_duration);
+	fprintf(stdout, "enable http server is %s\n",
 	    nanomq_conf->http_server.enable ? "true" : "false");
-	debug_syslog(
-	    "http server port is %d\n", nanomq_conf->http_server.port);
+	fprintf(
+	    stdout, "http server port is %d\n", nanomq_conf->http_server.port);
 
-	debug_syslog("enable websocket is %s\n",
+	fprintf(stdout, "enable websocket is %s\n",
 	    nanomq_conf->websocket.enable ? "true" : "false");
-	debug_syslog("websocket url is %d\n", nanomq_conf->websocket.url);
+	fprintf(stdout, "websocket url is %s\n", nanomq_conf->websocket.url);
 }
 
 void
@@ -357,6 +362,260 @@ conf_auth_parser(conf *nanomq_conf)
 	} while (1);
 }
 
+static char *
+strtrim(char *str)
+{
+	size_t len   = strlen(str);
+	char * dest  = calloc(1, len);
+	size_t index = 0;
+
+	for (size_t i = 0; i < len; i++) {
+		if (str[i] != ' ' && str[i] != '\t' && str[i] != '\n') {
+			dest[index] = str[i];
+			index++;
+		}
+	}
+	return dest;
+}
+
+static char *
+get_conf_value(char *line, size_t len, const char *key)
+{
+	if (strlen(key) > len || len <= 0) {
+		return NULL;
+	}
+	char  prefix[len];
+	char *trim  = strtrim(line);
+	char *value = calloc(1, len);
+	int   match = sscanf(trim, "%[^=]=%s", prefix, value);
+	free(trim);
+
+	if (match == 2 && strcmp(prefix, key) == 0) {
+		return value;
+	} else {
+		free(value);
+		return NULL;
+	}
+}
+
+bool
+conf_bridge_parse_subs(conf_bridge *bridge, const char *path)
+{
+	FILE *fp;
+	if ((fp = fopen(path, "r")) == NULL) {
+		log_warn("File %s open failed", path);
+		return false;
+	}
+
+	char    topic_key[64] = "";
+	char    qos_key[64]   = "";
+	char *  topic;
+	uint8_t qos;
+	size_t  sub_index = 1;
+	bool    get_topic = false;
+	bool    get_qos   = false;
+	char *  line;
+	size_t  sz = 0;
+	char *  value;
+
+	bridge->sub_count = 0;
+	while (getline(&line, &sz, fp) != -1) {
+		sprintf(topic_key, "bridge.mqtt.subscription.%ld.topic",
+		    sub_index);
+		if (!get_topic &&
+		    (value = get_conf_value(line, sz, topic_key)) != NULL) {
+			topic     = value;
+			get_topic = true;
+			goto check;
+		}
+
+		sprintf(
+		    qos_key, "bridge.mqtt.subscription.%ld.qos", sub_index);
+		if (!get_qos &&
+		    (value = get_conf_value(line, sz, qos_key)) != NULL) {
+			qos = (uint8_t) atoi(value);
+			free(value);
+			get_qos = true;
+			goto check;
+		}
+
+		free(line);
+		line = NULL;
+
+	check:
+		if (get_topic && get_qos) {
+			sub_index++;
+			bridge->sub_count++;
+			bridge->sub_list = realloc(bridge->sub_list,
+			    sizeof(subscribe) * bridge->sub_count);
+			bridge->sub_list[bridge->sub_count - 1].topic = topic;
+			bridge->sub_list[bridge->sub_count - 1].topic_len =
+			    strlen(topic);
+			bridge->sub_list[bridge->sub_count - 1].qos = qos;
+
+			get_topic = false;
+			get_qos   = false;
+		}
+	}
+
+	if (line) {
+		free(line);
+	}
+
+	fclose(fp);
+}
+
+bool
+conf_bridge_parse(conf *nanomq_conf, const char *path)
+{
+	const char *dest_path = path;
+
+	if (!nano_file_exists(dest_path)) {
+		if (!nano_file_exists(CONF_BRIDGE_PATH_NAME)) {
+			log_warn("Configure file [%s] or [%s] not found or "
+			         "unreadable",
+			    dest_path, CONF_BRIDGE_PATH_NAME);
+			return false;
+		} else {
+			dest_path = CONF_BRIDGE_PATH_NAME;
+		}
+	}
+
+	char * line = NULL;
+	size_t sz   = 0;
+	FILE * fp;
+
+	conf_bridge *bridge = &nanomq_conf->bridge;
+
+	if ((fp = fopen(dest_path, "r")) == NULL) {
+		log_warn("File %s open failed", dest_path);
+		bridge->bridge_mode = false;
+		return true;
+	}
+
+	char *value;
+	while (getline(&line, &sz, fp) != -1) {
+		if ((value = get_conf_value(
+		         line, sz, "bridge.mqtt.bridge_mode")) != NULL) {
+			bridge->bridge_mode = strcasecmp(value, "true") == 0;
+			free(value);
+		} else if ((value = get_conf_value(
+		                line, sz, "bridge.mqtt.proto_ver")) != NULL) {
+			bridge->proto_ver = atoi(value);
+			free(value);
+		} else if ((value = get_conf_value(
+		                line, sz, "bridge.mqtt.keepalive")) != NULL) {
+			bridge->keepalive = atoi(value);
+			free(value);
+		} else if ((value = get_conf_value(line, sz,
+		                "bridge.mqtt.clean_start")) != NULL) {
+			bridge->clean_start = strcasecmp(value, "true") == 0;
+			free(value);
+		} else if ((value = get_conf_value(
+		                line, sz, "bridge.mqtt.address")) != NULL) {
+			bridge->address = value;
+		} else if ((value = get_conf_value(
+		                line, sz, "bridge.mqtt.clientid")) != NULL) {
+			bridge->clientid = value;
+		} else if ((value = get_conf_value(
+		                line, sz, "bridge.mqtt.username")) != NULL) {
+			bridge->username = value;
+		} else if ((value = get_conf_value(
+		                line, sz, "bridge.mqtt.password")) != NULL) {
+			bridge->password = value;
+		} else if ((value = get_conf_value(
+		                line, sz, "bridge.mqtt.forwards")) != NULL) {
+			char *tk = strtok(value, ",");
+			while (tk != NULL) {
+				bridge->forwards_count++;
+				bridge->forwards = realloc(bridge->forwards,
+				    sizeof(char *) * bridge->forwards_count);
+				bridge->forwards[bridge->forwards_count - 1] =
+				    strdup(tk);
+				tk = strtok(NULL, ",");
+			}
+			free(value);
+		}
+
+		free(line);
+		line = NULL;
+	}
+	if (line) {
+		free(line);
+	}
+
+	fclose(fp);
+	conf_bridge_parse_subs(bridge, dest_path);
+	return true;
+
+out:
+	fclose(fp);
+	return true;
+}
+
+void
+conf_bridge_destroy(conf_bridge *bridge)
+{
+	if (bridge->clientid) {
+		free(bridge->clientid);
+	}
+	if (bridge->address) {
+		free(bridge->address);
+	}
+	if (bridge->username) {
+		free(bridge->username);
+	}
+	if (bridge->password) {
+		free(bridge->password);
+	}
+	if (bridge->forwards) {
+		free(bridge->forwards);
+	}
+	if (bridge->forwards_count > 0 && bridge->forwards) {
+		for (size_t i = 0; i < bridge->forwards_count; i++) {
+			if (bridge->forwards[i]) {
+				free(bridge->forwards[i]);
+			}
+		}
+		free(bridge->forwards);
+	}
+	if (bridge->sub_count > 0 && bridge->sub_list) {
+		for (size_t i = 0; i < bridge->sub_count; i++) {
+			if (bridge->sub_list[i].topic) {
+				free(bridge->sub_list[i].topic);
+			}
+		}
+		free(bridge->sub_list);
+	}
+}
+
+void
+print_bridge_conf(conf_bridge *bridge)
+{
+	fprintf(stdout, "bridge_mode: %d\n", bridge->bridge_mode);
+	fprintf(stdout, "address: %s\n", bridge->address);
+	fprintf(stdout, "proto_ver: %d\n", bridge->proto_ver);
+	fprintf(stdout, "clientid: %s\n", bridge->clientid);
+	fprintf(stdout, "clean_start: %d\n", bridge->clean_start);
+	fprintf(stdout, "username: %s\n", bridge->username);
+	fprintf(stdout, "password: %s\n", bridge->password);
+	fprintf(stdout, "keepalive: %d\n", bridge->keepalive);
+
+	fprintf(stdout, "forwards: \n");
+
+	for (size_t i = 0; i < bridge->forwards_count; i++) {
+		fprintf(stdout, "\t[%ld] topic: %s\n", i, bridge->forwards[i]);
+	}
+
+	fprintf(stdout, "subscription: \n");
+	for (size_t i = 0; i < bridge->sub_count; i++) {
+		fprintf(stdout, "\t[%ld] topic: %.*s\n", i + 1,
+		    bridge->sub_list[i].topic_len, bridge->sub_list[i].topic);
+		fprintf(stdout, "\t[%ld] qos: %d\n", i + 1,
+		    bridge->sub_list[i].qos);
+	}
+}
+
 void
 conf_fini(conf *nanomq_conf)
 {
@@ -377,6 +636,8 @@ conf_fini(conf *nanomq_conf)
 	zfree(nanomq_conf->http_server.password);
 
 	zfree(nanomq_conf->websocket.url);
+
+	conf_bridge_destroy(&nanomq_conf->bridge);
 
 	zfree(nanomq_conf);
 }
