@@ -9,24 +9,30 @@
 
 #define WEBSOCKET_URL "ws://0.0.0.0:8083/mqtt"
 
+typedef struct work nano_work;
 struct work {
-	enum { INIT, RECV, WAIT, SEND, RESEND, FREE, NOTIFY } state;
-
-	uint8_t   proto;
+	enum { INIT, RECV, WAIT, SEND, RESEND, FREE, NOTIFY, BRIDGE } state;
+    // 0x00 mqtt_broker
+    // 0x01 mqtt_bridge
+	uint8_t   proto; 
 	nng_aio * aio;
 	nng_msg * msg;
 	nng_msg **msg_ret;
 	nng_ctx   ctx;
 	nng_pipe  pid;
 	nng_mtx * mutex;
-	dbtree  * db;
-	dbtree  * db_ret;
+	dbtree *  db;
+	dbtree *  db_ret;
+
+	nng_socket bridge_sock;
 
 	struct pipe_content *      pipe_ct;
 	conn_param *               cparam;
 	struct pub_packet_struct * pub_packet;
 	struct packet_subscribe *  sub_pkt;
 	struct packet_unsubscribe *unsub_pkt;
+
+	nano_work *bridge_work;
 };
 
 struct client_ctx {
@@ -37,8 +43,6 @@ struct client_ctx {
 };
 
 typedef struct client_ctx client_ctx;
-
-typedef struct work nano_work;
 
 int broker_start(int argc, char **argv);
 int broker_stop(int argc, char **argv);

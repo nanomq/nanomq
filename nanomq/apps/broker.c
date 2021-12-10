@@ -18,10 +18,12 @@
 #include <hash.h>
 #include <mqtt_db.h>
 #include <nng.h>
+#include <nng/mqtt/mqtt_client.h>
 #include <protocol/mqtt/mqtt_parser.h>
 #include <protocol/mqtt/nmq_mqtt.h>
 #include <zmalloc.h>
 
+#include "include/bridge.h"
 #include "include/nanomq.h"
 #include "include/process.h"
 #include "include/pub_handler.h"
@@ -78,8 +80,12 @@ server_cb(void *arg)
 	switch (work->state) {
 	case INIT:
 		debug_msg("INIT ^^^^ ctx%d ^^^^\n", work->ctx.id);
-		work->state = RECV;
-		nng_ctx_recv(work->ctx, work->aio);
+		if (work->proto == 0x01) {
+			work->state = BRIDGE;
+		} else {
+			work->state = RECV;
+		}
+	    nng_ctx_recv(work->ctx, work->aio);
 		break;
 	case RECV:
 		debug_msg("RECV  ^^^^ ctx%d ^^^^\n", work->ctx.id);
@@ -95,7 +101,6 @@ server_cb(void *arg)
 		}
 		work->msg    = msg;
 		work->cparam = nng_msg_get_conn_param(work->msg);
-		work->proto  = conn_param_get_protover(work->cparam);
 		work->pid    = nng_msg_get_pipe(work->msg);
 
 		if (nng_msg_cmd_type(msg) == CMD_DISCONNECT) {
@@ -117,10 +122,19 @@ server_cb(void *arg)
 				nng_ctx_recv(work->ctx, work->aio);
 				break;
 			}
-		} else if (nng_msg_cmd_type(msg) == CMD_PUBLISH) {
+		} else if (nng_msg_cmd_type(msg) == CMD_PUBLISH || nni_msg_get_type(msg) == CMD_PUBLISH) {
 			nng_msg_set_timestamp(msg, nng_clock());
 			nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 			handle_pub(work, work->pipe_ct);
+
+			client_publish(work->bridge_sock,
+			    work->pub_packet->variable_header.publish
+			        .topic_name.body,
+			    work->pub_packet->payload_body.payload,
+			    work->pub_packet->payload_body.payload_len,
+			    work->pub_packet->fixed_header.dup,
+			    work->pub_packet->fixed_header.qos,
+			    work->pub_packet->fixed_header.retain);
 		} else if (nng_msg_cmd_type(msg) == CMD_CONNACK) {
 			nng_msg_set_pipe(work->msg, work->pid);
 
@@ -160,7 +174,7 @@ server_cb(void *arg)
 			nng_msg_set_cmd_type(work->msg, CMD_PUBLISH);
 			handle_pub(work, work->pipe_ct);
 			// cache session
-			client_ctx *cli_ctx  = NULL;
+			client_ctx *cli_ctx = NULL;
 			char *      clientid =
 			    (char *) conn_param_get_clientid(work->cparam);
 			if (clientid != NULL &&
@@ -174,7 +188,8 @@ server_cb(void *arg)
 				while (tq) {
 					if (tq->topic) {
 						cli_ctx = dbtree_delete_client(
-						    work->db, tq->topic, 0, work->pid.id);
+						    work->db, tq->topic, 0,
+						    work->pid.id);
 					}
 					del_sub_ctx(cli_ctx, tq->topic);
 					tq = tq->next;
@@ -263,7 +278,7 @@ server_cb(void *arg)
 				    *((uint8_t *) nng_msg_body(smsg) + 1));
 			}
 			nng_msg_free(work->msg);
-			destroy_sub_pkt(work->sub_pkt, work->proto);
+			destroy_sub_pkt(work->sub_pkt, conn_param_get_protover(work->cparam));
 			// handle retain
 			if (work->msg_ret) {
 				debug_msg("retain msg [%p] size [%ld] \n",
@@ -380,7 +395,6 @@ server_cb(void *arg)
 				work->state = SEND;
 				nng_msg_free(smsg);
 				smsg        = NULL;
-				work->proto = 0;
 				nng_aio_finish(work->aio, 0);
 				break;
 			} else {
@@ -390,14 +404,18 @@ server_cb(void *arg)
 				free_pub_packet(work->pub_packet);
 				free_pipes_info(work->pipe_ct->pipe_info);
 				init_pipe_content(work->pipe_ct);
-				work->proto = 0;
 			}
 
 			if (work->state != SEND) {
 				if (work->msg != NULL)
 					nng_msg_free(work->msg);
-				work->msg   = NULL;
-				work->state = RECV;
+				work->msg = NULL;
+
+				if (work->proto == 0x01) {
+					work->state = BRIDGE;
+				} else {
+					work->state = RECV;
+				}
 				nng_ctx_recv(work->ctx, work->aio);
 			}
 		} else if (nng_msg_cmd_type(work->msg) == CMD_PUBACK ||
@@ -418,7 +436,37 @@ server_cb(void *arg)
 			break;
 		}
 		break;
+    case BRIDGE:
+        if ((rv = nng_aio_result(work->aio)) != 0) {
+			fatal("nng_recv_aio", rv);
+			work->state = RECV;
+			nng_ctx_recv(work->ctx, work->aio);
+			break;
+		}
+	    work->msg   = nng_aio_get_msg(work->aio);
+		msg = work->msg;
+		uint32_t payload_len;
+		uint8_t *payload =
+		    nng_mqtt_msg_get_publish_payload(msg, &payload_len);
+		uint32_t    topic_len;
+		const char *recv_topic =
+		    nng_mqtt_msg_get_publish_topic(msg, &topic_len);
 
+		bool dup    = nng_mqtt_msg_get_publish_dup(msg);
+		bool qos    = nng_mqtt_msg_get_publish_qos(msg);
+		bool retain = nng_mqtt_msg_get_publish_retain(msg);
+
+		char *send_topic = nng_alloc(topic_len);
+		memcpy(send_topic, recv_topic, topic_len);
+
+		nng_free(send_topic, topic_len);
+
+		// nng_msg_free(msg);
+        nng_msg_set_cmd_type(msg, nni_msg_get_type(msg));
+		work->msg   = msg;
+		work->state = RECV;
+		nng_aio_finish(work->aio, 0);
+        break;
 	case SEND:
 		if (NULL != smsg) {
 			smsg = NULL;
@@ -431,11 +479,14 @@ server_cb(void *arg)
 			free_pub_packet(work->pub_packet);
 			free_pipes_info(work->pipe_ct->pipe_info);
 			init_pipe_content(work->pipe_ct);
-			work->proto = 0;
 		}
 		work->msg   = NULL;
-		work->state = RECV;
-		nng_ctx_recv(work->ctx, work->aio);
+		if (work->proto == 0x01) {
+			work->state = BRIDGE;
+		} else {
+            work->state = RECV;
+		}
+        nng_ctx_recv(work->ctx, work->aio);
 		break;
 	default:
 		fatal("bad state!", NNG_ESTATE);
@@ -477,16 +528,30 @@ get_broker_db(void)
 	return db;
 }
 
+static inline void
+proto_work_init(nano_work *work, uint8_t proto, nng_socket sock)
+{
+    work              = alloc_work(sock);
+	work->db          = db;
+	work->db_ret      = db_ret;
+	work->proto       = proto;
+    work->bridge_sock = sock;
+}
+
 int
 broker(conf *nanomq_conf)
 {
 	nng_socket   sock;
+	nng_socket inner_sock;
+	nng_socket bridge_sock;
 	nng_pipe     pipe_id;
 	int          rv;
 	int          i;
-	uint64_t     num_ctx = nanomq_conf->parallel;
+	// add the num of other proto
+	uint64_t    num_ctx;
+	const char *url = nanomq_conf->url;
+	num_ctx         = nanomq_conf->parallel + 1;
 	struct work *works[num_ctx];
-	const char * url = nanomq_conf->url;
 
 	// init tree
 	dbtree_create(&db);
@@ -507,13 +572,22 @@ broker(conf *nanomq_conf)
 		fatal("nng_nmq_tcp0_open", rv);
 	}
 
-	debug_msg("PARALLEL logic threads: %lu\n", num_ctx);
-	for (i = 0; i < num_ctx; i++) {
-		works[i]         = alloc_work(sock);
-		works[i]->db     = db;
-		works[i]->db_ret = db_ret;
-		works[i]->proto  = 0;
+	bridge_client(&bridge_sock,  "mqtt-tcp://192.168.23.105:1885", 1);
+
+	for (i = 0; i < nanomq_conf->parallel; i++) {
+		works[i]              = alloc_work(sock);
+		works[i]->db          = db;
+		works[i]->db_ret      = db_ret;
+		works[i]->proto       = 0;
+        //check conf
+		works[i]->bridge_sock = bridge_sock;
 	}
+    works[num_ctx-1]              = alloc_work(bridge_sock);
+	works[num_ctx-1]->db          = db;
+	works[num_ctx-1]->db_ret      = db_ret;
+	works[num_ctx-1]->proto       = 0x01;
+	works[num_ctx-1]->bridge_sock = bridge_sock;
+    //TODO replace it with proto_work_init
 
 	if ((rv = nng_listen(sock, url, NULL, 0)) != 0) {
 		fatal("nng_listen", rv);
@@ -621,7 +695,7 @@ int
 broker_start(int argc, char **argv)
 {
 	int   i, url, temp, rc, num_ctx = 0;
-	pid_t pid = 0;
+	pid_t pid       = 0;
 	char *conf_path = NULL;
 	conf *nanomq_conf;
 
