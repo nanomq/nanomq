@@ -273,7 +273,9 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 	uint8_t  tmp[4]     = { 0 };
 	uint32_t arr_len    = 0;
 	int      append_res = 0;
+    uint8_t  proto;
 
+	proto = conn_param_get_protover(work->cparam);
 	properties_type prop_type;
 
 	debug_msg("start encode message");
@@ -327,7 +329,7 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 		    nng_msg_len(dest_msg));
 
 #if SUPPORT_MQTT5_0
-		if (PROTOCOL_VERSION_v5 == work->proto) {
+		if (PROTOCOL_VERSION_v5 == proto) {
 			// properties
 			// properties length
 			memset(tmp, 0, sizeof(tmp));
@@ -454,7 +456,7 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 		}
 		/* check */
 		else {
-			debug_msg("pro_ver [%d]", work->proto);
+			debug_msg("pro_ver [%d]", proto);
 		}
 #endif
 		debug_msg("property len in msg already [%ld]",
@@ -517,7 +519,7 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 			    sizeof(reason_code));
 
 #if SUPPORT_MQTT5_0
-			if (PROTOCOL_VERSION_v5 == work->proto) {
+			if (PROTOCOL_VERSION_v5 == proto) {
 				// properties
 				if (pub_response.fixed_header.remain_len >=
 				    4) {
@@ -578,11 +580,11 @@ decode_pub_message(nano_work *work)
 	uint32_t pos      = 0;
 	uint32_t used_pos = 0;
 	uint32_t len, len_of_varint;
-	if (work->proto == 0) {
-		work->proto = conn_param_get_protover(work->cparam);
-	}
+    uint8_t  proto;
+
+	proto = conn_param_get_protover(work->cparam);
 	if (nng_msg_cmd_type(work->msg) == CMD_PUBLISH) {
-		work->proto = 4;
+		proto = 4;
 	}
 
 	nng_msg *                 msg        = work->msg;
@@ -657,7 +659,7 @@ decode_pub_message(nano_work *work)
 		pub_packet->variable_header.publish.properties.len = 0;
 
 #if SUPPORT_MQTT5_0
-		if (PROTOCOL_VERSION_v5 == work->proto) {
+		if (PROTOCOL_VERSION_v5 == proto) {
 			len_of_varint = 0;
 			pub_packet->variable_header.publish.properties.len =
 			    get_var_integer(msg_body, &len_of_varint);
@@ -978,7 +980,7 @@ decode_pub_message(nano_work *work)
 		}
 		/* check */
 		else {
-			debug_msg("NOMQTT5ERR [%d] [%d]", work->proto,
+			debug_msg("NOMQTT5ERR [%d] [%d]", proto,
 			    PROTOCOL_VERSION_v5);
 		}
 #endif
