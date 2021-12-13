@@ -124,29 +124,33 @@ server_cb(void *arg)
 			nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 			handle_pub(work, work->pipe_ct);
 
-			if (strncmp(work->pub_packet->variable_header.publish
-			                .topic_name.body,
-			        "/topic", 6) == 0) {
-				size_t len = work->pub_packet->variable_header
-				                 .publish.topic_name.len +
-				    8;
-				char *dest_topic = nng_alloc(len);
+			conf_bridge *bridge = work->bridge;
+			if (bridge->bridge_mode) {
+				bool found = false;
+				for (size_t i = 0; i < bridge->forwards_count;
+				     i++) {
+					if (topic_filter(bridge->forwards[i],
+					        work->pub_packet
+					            ->variable_header.publish
+					            .topic_name.body)) {
+						found = true;
+						break;
+					}
+				}
 
-				// bridge +
-				sprintf(dest_topic, "bridge%.*s",
-				    work->pub_packet->variable_header.publish
-				        .topic_name.len,
-				    work->pub_packet->variable_header.publish
-				        .topic_name.body);
-
-				client_publish(work->bridge_sock, dest_topic,
-				    work->pub_packet->payload_body.payload,
-				    work->pub_packet->payload_body.payload_len,
-				    work->pub_packet->fixed_header.dup,
-				    work->pub_packet->fixed_header.qos,
-				    work->pub_packet->fixed_header.retain);
-
-				nng_free(dest_topic, len);
+				if (found) {
+					client_publish(work->bridge_sock,
+					    work->pub_packet->variable_header
+					        .publish.topic_name.body,
+					    work->pub_packet->payload_body
+					        .payload,
+					    work->pub_packet->payload_body
+					        .payload_len,
+					    work->pub_packet->fixed_header.dup,
+					    work->pub_packet->fixed_header.qos,
+					    work->pub_packet->fixed_header
+					        .retain);
+				}
 			}
 		} else if (nng_msg_cmd_type(msg) == CMD_CONNACK) {
 			nng_msg_set_pipe(work->msg, work->pid);
@@ -538,9 +542,11 @@ broker(conf *nanomq_conf)
 	nng_socket inner_sock;
 	nng_socket bridge_sock;
 
-	inner_client(&inner_sock, "mqtt-tcp://127.0.0.1:1883");
-	bridge_client(
-	    &bridge_sock, "mqtt-tcp://192.168.23.105:1885", 1, inner_sock);
+	if (nanomq_conf->bridge.bridge_mode) {
+		inner_client(&inner_sock, "mqtt-tcp://127.0.0.1:1883");
+		bridge_client(
+		    &bridge_sock, num_ctx, inner_sock, &nanomq_conf->bridge);
+	}
 
 	// debug_msg("PARALLEL logic threads: %lu\n", num_ctx);
 	for (i = 0; i < num_ctx; i++) {
@@ -549,6 +555,7 @@ broker(conf *nanomq_conf)
 		works[i]->db_ret      = db_ret;
 		works[i]->proto       = 0;
 		works[i]->bridge_sock = bridge_sock;
+		works[i]->bridge      = &nanomq_conf->bridge;
 	}
 
 	if ((rv = nng_listen(sock, url, NULL, 0)) != 0) {
@@ -657,8 +664,9 @@ int
 broker_start(int argc, char **argv)
 {
 	int   i, url, temp, rc, num_ctx = 0;
-	pid_t pid       = 0;
-	char *conf_path = NULL;
+	pid_t pid              = 0;
+	char *conf_path        = NULL;
+	char *bridge_conf_path = NULL;
 	conf *nanomq_conf;
 
 	if (!status_check(&pid)) {
@@ -679,9 +687,13 @@ broker_start(int argc, char **argv)
 
 	for (i = 0; i < argc; i++, temp = 0) {
 		if (!strcmp("-conf", argv[i])) {
-			debug_msg("reading user specified conf file:%s",
+			debug_msg("reading user specified nanomq conf file:%s",
 			    argv[i + 1]);
 			conf_path = argv[++i];
+		} else if (!strcmp("-bridge", argv[i])) {
+			debug_msg("reading user specified bridge conf file:%s",
+			    argv[i + 1]);
+			bridge_conf_path = argv[++i];
 		} else if (!strcmp("-daemon", argv[i])) {
 			nanomq_conf->daemon = true;
 		} else if (!strcmp("-tq_thread", argv[i]) &&
@@ -727,6 +739,7 @@ broker_start(int argc, char **argv)
 	}
 
 	conf_parser(&nanomq_conf, conf_path);
+	conf_bridge_parse(nanomq_conf, bridge_conf_path);
 
 	if (nanomq_conf->url == NULL) {
 		fprintf(stderr,
@@ -738,6 +751,8 @@ broker_start(int argc, char **argv)
 	}
 
 	print_conf(nanomq_conf);
+	print_bridge_conf(&nanomq_conf->bridge);
+
 	active_conf(nanomq_conf);
 
 	if (nanomq_conf->http_server.enable) {
