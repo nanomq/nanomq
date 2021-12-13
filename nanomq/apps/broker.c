@@ -403,7 +403,11 @@ server_cb(void *arg)
 					nng_msg_set_pipe(work->msg, work->pid);
 					work->msg = NULL;
 					work->pipe_ct->current_index++;
-					nng_ctx_send(work->ctx, work->aio);
+                    if (work->proto == 0x01) {
+                        nng_ctx_send(work->bridge_ctx, work->aio);
+                    } else {
+					    nng_ctx_send(work->ctx, work->aio);
+                    }
 				}
 				if (work->pipe_ct->total <=
 				    work->pipe_ct->current_index) {
@@ -458,7 +462,7 @@ server_cb(void *arg)
 		break;
     case BRIDGE:
         if ((rv = nng_aio_result(work->aio)) != 0) {
-			fatal("nng_recv_aio", rv);
+			// fatal("nng_recv_aio2", rv);
 			work->state = RECV;
 			nng_ctx_recv(work->ctx, work->aio);
 			break;
@@ -615,6 +619,8 @@ broker(conf *nanomq_conf)
 	works[num_ctx-1]->db_ret      = db_ret;
 	works[num_ctx-1]->proto       = 0x01;
 	works[num_ctx-1]->bridge_sock = bridge_sock;
+    works[num_ctx-1]->bridge      = &nanomq_conf->bridge;
+    nng_ctx_open(&works[num_ctx-1]->bridge_ctx, sock);
     //TODO replace it with proto_work_init
 
 	if ((rv = nng_listen(sock, url, NULL, 0)) != 0) {

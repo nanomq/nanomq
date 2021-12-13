@@ -19,7 +19,7 @@ struct work {
 	nng_aio * aio;
 	nng_msg * msg;
 	nng_msg **msg_ret;
-	nng_ctx   ctx;
+	nng_ctx   ctx, bridge_ctx;
 	nng_pipe  pid;
 	nng_mtx * mutex;
 	dbtree *  db;
@@ -33,8 +33,6 @@ struct work {
 	struct pub_packet_struct * pub_packet;
 	struct packet_subscribe *  sub_pkt;
 	struct packet_unsubscribe *unsub_pkt;
-
-	nano_work *bridge_work;
 };
 
 struct client_ctx {

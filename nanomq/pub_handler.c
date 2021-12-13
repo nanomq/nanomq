@@ -274,6 +274,7 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 	uint32_t arr_len    = 0;
 	int      append_res = 0;
     uint8_t  proto;
+    uint32_t buf;
 
 	proto = conn_param_get_protover(work->cparam);
 	properties_type prop_type;
