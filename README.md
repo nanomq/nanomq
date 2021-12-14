@@ -38,12 +38,9 @@ nanomq broker restart -url <url>
 ```
 MQTT Example:
 ```bash
-nanomq broker start -url "broker+tcp://0.0.0.0:1883"
+nanomq broker start 
 ```
-MQTT Over WebSocket Example:
-```bash
-nanomq broker start -url "nmq+ws://0.0.0.0/8083/mqtt
-```
+
 
 **POSIX message queue usage**
 
@@ -252,7 +249,6 @@ nanomq broker {{start|restart -url <url> [-conf <$FILE_PATH>] [-daemon] [-tq_thr
   All arguments are useful when `start` and `restart` are chosen. An URL is mandatory (unless an URL is specified in the 'nanomq.conf', or in your configuration file), as it indicates on which the host and port a broker is listening:
 
   ```bash
-  nanomq broker start|restart -url <url>
   nanomq broker start|restart 					## only if an url is specified in 'nanomq.conf'
   nanomq broker start|restart -conf <$FILE_PATH>  ## only if an url is specified in your conf file
   ```
@@ -268,20 +264,20 @@ nanomq broker {{start|restart -url <url> [-conf <$FILE_PATH>] [-daemon] [-tq_thr
 - Running broker in daemon mode:
 
   ```bash
-  nanomq broker start|restart -url <url> -daemon
+  nanomq broker start|restart -daemon
   ```
 
 - Limiting the number of threads by specifying the number of and the max number of taskq threads:
 
   ```bash
-  nanomq broker start|restart -url <url> -tq_thread <num>
-  nanomq broker start|restart -url <url> -max_tq_thread <num>
+  nanomq broker start|restart  -tq_thread <num>
+  nanomq broker start|restart  -max_tq_thread <num>
   ```
 
 - Limiting the maximum number of logical threads:
 
   ```bash
-  nanomq broker start|restart -url <url> -parallel <num>
+  nanomq broker start|restart -parallel <num>
   ```
   
 - Setting the max property size for MQTT packet:
@@ -289,7 +285,7 @@ nanomq broker {{start|restart -url <url> [-conf <$FILE_PATH>] [-daemon] [-tq_thr
   Default: 32 bytes
 
   ```bash
-  nanomq broker start|restart -url <url> -property_size <num>
+  nanomq broker start|restart -property_size <num>
   ```
 
 - Setting the queue length for a resending message:
@@ -297,7 +293,7 @@ nanomq broker {{start|restart -url <url> [-conf <$FILE_PATH>] [-daemon] [-tq_thr
   Default: 64 bytes
 
   ```bash
-  nanomq broker start|restart -url <url> -msq_len <num>
+  nanomq broker start|restart -msq_len <num>
   ```
 
 - Setting the interval of the qos timer (*Also a global timer interval for session keeping*):
@@ -305,7 +301,7 @@ nanomq broker {{start|restart -url <url> [-conf <$FILE_PATH>] [-daemon] [-tq_thr
   Default: 30 seconds
 
   ```bash
-  nanomq broker start|restart -url <url> -qos_duration <num>
+  nanomq broker start|restart -qos_duration <num>
   ```
 
 *For tuning NanoMQ according to different hardware, please check the Doc.*

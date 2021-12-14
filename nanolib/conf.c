@@ -245,30 +245,37 @@ conf_init(conf **nanomq_conf)
 	(*nanomq_conf)->websocket.url        = NULL;
 	(*nanomq_conf)->bridge.bridge_mode   = false;
 	(*nanomq_conf)->bridge.sub_count     = 0;
+	(*nanomq_conf)->bridge.parallel      = 4;
 }
 
 void
 print_conf(conf *nanomq_conf)
 {
 	fprintf(stdout, "This NanoMQ instance configured as:\n");
-	fprintf(stdout, "url is %s\n", nanomq_conf->url);
-	fprintf(stdout, "daemon is %d\n", nanomq_conf->daemon);
-	fprintf(
-	    stdout, "num_taskq_thread is %d\n", nanomq_conf->num_taskq_thread);
-	fprintf(
-	    stdout, "max_taskq_thread is %d\n", nanomq_conf->max_taskq_thread);
-	fprintf(stdout, "parallel is %lu\n", nanomq_conf->parallel);
-	fprintf(stdout, "property_size is %d\n", nanomq_conf->property_size);
-	fprintf(stdout, "msq_len is %d\n", nanomq_conf->msq_len);
-	fprintf(stdout, "qos_duration is %d\n", nanomq_conf->qos_duration);
-	fprintf(stdout, "enable http server is %s\n",
-	    nanomq_conf->http_server.enable ? "true" : "false");
-	fprintf(
-	    stdout, "http server port is %d\n", nanomq_conf->http_server.port);
 
-	fprintf(stdout, "enable websocket is %s\n",
+	fprintf(stdout, "tcp url:                  %s \n", nanomq_conf->url);
+	fprintf(stdout, "enable websocket:         %s\n",
 	    nanomq_conf->websocket.enable ? "true" : "false");
-	fprintf(stdout, "websocket url is %s\n", nanomq_conf->websocket.url);
+	fprintf(stdout, "websocket url:            %s\n",
+	    nanomq_conf->websocket.url);
+	fprintf(stdout, "daemon:                   %s\n",
+	    nanomq_conf->daemon ? "true" : "false");
+	fprintf(stdout, "num_taskq_thread:         %d\n",
+	    nanomq_conf->num_taskq_thread);
+	fprintf(stdout, "max_taskq_thread:         %d\n",
+	    nanomq_conf->max_taskq_thread);
+	fprintf(
+	    stdout, "parallel:                 %lu\n", nanomq_conf->parallel);
+	fprintf(stdout, "property_size:            %d\n",
+	    nanomq_conf->property_size);
+	fprintf(
+	    stdout, "msq_len:                  %d\n", nanomq_conf->msq_len);
+	fprintf(stdout, "qos_duration:             %d\n",
+	    nanomq_conf->qos_duration);
+	fprintf(stdout, "enable http server:       %s\n",
+	    nanomq_conf->http_server.enable ? "true" : "false");
+	fprintf(stdout, "http server port:         %d\n",
+	    nanomq_conf->http_server.port);
 }
 
 void
@@ -512,6 +519,10 @@ conf_bridge_parse(conf *nanomq_conf, const char *path)
 			bridge->clean_start = strcasecmp(value, "true") == 0;
 			free(value);
 		} else if ((value = get_conf_value(
+		                line, sz, "bridge.mqtt.parallel")) != NULL) {
+			bridge->parallel = atoi(value);
+			free(value);
+		} else if ((value = get_conf_value(
 		                line, sz, "bridge.mqtt.address")) != NULL) {
 			bridge->address = value;
 		} else if ((value = get_conf_value(
@@ -592,28 +603,32 @@ conf_bridge_destroy(conf_bridge *bridge)
 void
 print_bridge_conf(conf_bridge *bridge)
 {
-	fprintf(stdout, "bridge_mode: %d\n", bridge->bridge_mode);
-	fprintf(stdout, "address: %s\n", bridge->address);
-	fprintf(stdout, "proto_ver: %d\n", bridge->proto_ver);
-	fprintf(stdout, "clientid: %s\n", bridge->clientid);
-	fprintf(stdout, "clean_start: %d\n", bridge->clean_start);
-	fprintf(stdout, "username: %s\n", bridge->username);
-	fprintf(stdout, "password: %s\n", bridge->password);
-	fprintf(stdout, "keepalive: %d\n", bridge->keepalive);
-
-	fprintf(stdout, "forwards: \n");
-
-	for (size_t i = 0; i < bridge->forwards_count; i++) {
-		fprintf(stdout, "\t[%ld] topic: %s\n", i, bridge->forwards[i]);
+	fprintf(stdout, "bridge.mqtt.bridge_mode:  %s\n",
+	    bridge->bridge_mode ? "true" : "false");
+	if (!bridge->bridge_mode) {
+		return;
 	}
-
-	fprintf(stdout, "subscription: \n");
+	fprintf(stdout, "bridge.mqtt.address:      %s\n", bridge->address);
+	fprintf(stdout, "bridge.mqtt.proto_ver:    %d\n", bridge->proto_ver);
+	fprintf(stdout, "bridge.mqtt.clientid:     %s\n", bridge->clientid);
+	fprintf(stdout, "bridge.mqtt.clean_start:  %d\n", bridge->clean_start);
+	fprintf(stdout, "bridge.mqtt.username:     %s\n", bridge->username);
+	fprintf(stdout, "bridge.mqtt.password:     %s\n", bridge->password);
+	fprintf(stdout, "bridge.mqtt.keepalive:    %d\n", bridge->keepalive);
+	fprintf(stdout, "bridge.mqtt.parallel:     %ld\n", bridge->parallel);
+	fprintf(stdout, "bridge.mqtt.forwards: \n");
+	for (size_t i = 0; i < bridge->forwards_count; i++) {
+		fprintf(stdout, "\t[%ld] topic:        %s\n", i,
+		    bridge->forwards[i]);
+	}
+	fprintf(stdout, "bridge.mqtt.subscription: \n");
 	for (size_t i = 0; i < bridge->sub_count; i++) {
-		fprintf(stdout, "\t[%ld] topic: %.*s\n", i + 1,
+		fprintf(stdout, "\t[%ld] topic:        %.*s\n", i + 1,
 		    bridge->sub_list[i].topic_len, bridge->sub_list[i].topic);
-		fprintf(stdout, "\t[%ld] qos: %d\n", i + 1,
+		fprintf(stdout, "\t[%ld] qos:          %d\n", i + 1,
 		    bridge->sub_list[i].qos);
 	}
+	fprintf(stdout, "\n");
 }
 
 void

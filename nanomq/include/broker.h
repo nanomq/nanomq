@@ -2,20 +2,21 @@
 #define NANOMQ_BROKER_H
 #define MQTT_VER 5
 
+#include <conf.h>
 #include <nanolib.h>
 #include <nng/nng.h>
 #include <nng/protocol/mqtt/mqtt.h>
 #include <nng/supplemental/util/platform.h>
-#include <conf.h>
 
-#define WEBSOCKET_URL "ws://0.0.0.0:8083/mqtt"
+#define PROTO_MQTT_BROKER 0x00
+#define PROTO_MQTT_BRIDGE 0x01
 
 typedef struct work nano_work;
 struct work {
 	enum { INIT, RECV, WAIT, SEND, RESEND, FREE, NOTIFY, BRIDGE } state;
-    // 0x00 mqtt_broker
-    // 0x01 mqtt_bridge
-	uint8_t   proto; 
+	// 0x00 mqtt_broker
+	// 0x01 mqtt_bridge
+	uint8_t   proto;
 	nng_aio * aio;
 	nng_msg * msg;
 	nng_msg **msg_ret;
@@ -24,15 +25,16 @@ struct work {
 	nng_mtx * mutex;
 	dbtree *  db;
 	dbtree *  db_ret;
-
-	nng_socket   bridge_sock;
-	conf_bridge *bridge;
+	conf *    config;
 
 	struct pipe_content *      pipe_ct;
 	conn_param *               cparam;
 	struct pub_packet_struct * pub_packet;
 	struct packet_subscribe *  sub_pkt;
 	struct packet_unsubscribe *unsub_pkt;
+
+	nng_socket bridge_sock;
+	nano_work *bridge_work;
 };
 
 struct client_ctx {

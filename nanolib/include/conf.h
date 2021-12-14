@@ -21,7 +21,8 @@
 	"\n"                                                                  \
 	"  -bridge <path>        the path of a specified bridge "             \
 	"configuration file \n"                                               \
-	"  -url <url>            the format of 'tcp://ip_addr:host'\n"        \
+	"  -url <url>            the format of 'broker+tcp://ip_addr:host' "  \
+	"for TCP and 'nmq+ws://ip_addr:host' for WebSocket\n"                 \
 	"  -tq_thread <num>      the number of taskq threads used, `num` "    \
 	"greater than 0 and less than 256\n"                                  \
 	"  -max_tq_thread <num>  the maximum number of taskq threads used, "  \
@@ -41,7 +42,11 @@
 #define CONF_AUTH_PATH_NAME "/etc/nanomq_auth_username.conf"
 #define CONF_BRIDGE_PATH_NAME "/etc/nanomq_bridge.conf"
 
-#define CONF_URL_DEFAULT "broker+tcp://0.0.0.0:1883"
+#define CONF_TCP_URL_DEFAULT "broker+tcp://0.0.0.0:1883"
+#define CONF_WS_URL_DEFAULT "nmq+ws://0.0.0.0:8083/mqtt"
+
+#define TCP_URL_PREFIX "broker+tcp"
+#define WS_URL_PREFIX "nmq+ws"
 
 struct conf_auth {
 	int    count;
@@ -85,6 +90,7 @@ struct conf_bridge {
 	char **    forwards;
 	size_t     sub_count;
 	subscribe *sub_list;
+	uint64_t   parallel;
 };
 
 typedef struct conf_bridge conf_bridge;
