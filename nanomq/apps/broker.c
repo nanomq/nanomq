@@ -83,7 +83,13 @@ server_cb(void *arg)
 	case INIT:
 		debug_msg("INIT ^^^^ ctx%d ^^^^\n", work->ctx.id);
 		switch_work_state(work);
-		nng_ctx_recv(work->ctx, work->aio);
+		if (work->proto == PROTO_MQTT_BRIDGE) {
+			work->state = BRIDGE;
+			nng_ctx_recv(work->bridge_ctx, work->aio);
+		} else {
+			work->state = RECV;
+			nng_ctx_recv(work->ctx, work->aio);
+		}
 		break;
 	case RECV:
 		debug_msg("RECV  ^^^^ ctx%d ^^^^\n", work->ctx.id);
@@ -91,7 +97,6 @@ server_cb(void *arg)
 			debug_syslog(
 			    "ERROR: RECV nng aio result error: %d", rv);
 			nng_aio_wait(work->aio);
-			fatal("RECV nng_ctx_recv", rv);
 		}
 		msg = nng_aio_get_msg(work->aio);
 		if (msg == NULL) {
@@ -124,7 +129,39 @@ server_cb(void *arg)
 			nng_msg_set_timestamp(msg, nng_clock());
 			nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 			handle_pub(work, work->pipe_ct);
-			handle_bridge(work);
+			conf_bridge *bridge = &(work->config->bridge);
+			if (bridge->bridge_mode) {
+				bool found = false;
+				for (size_t i = 0; i < bridge->forwards_count;
+				     i++) {
+					if (topic_filter(bridge->forwards[i],
+					        work->pub_packet
+					            ->variable_header.publish
+					            .topic_name.body)) {
+						found = true;
+						break;
+					}
+				}
+
+				if (found) {
+					nng_msg *msg = client_publish_msg(
+					    work->pub_packet->variable_header
+					        .publish.topic_name.body,
+					    work->pub_packet->payload_body
+					        .payload,
+					    work->pub_packet->payload_body
+					        .payload_len,
+					    work->pub_packet->fixed_header.dup,
+					    work->pub_packet->fixed_header.qos,
+					    work->pub_packet->fixed_header
+					        .retain);
+					work->state = WAIT;
+					nng_aio_set_msg(work->aio, msg);
+					nng_ctx_send(
+					    work->bridge_ctx, work->aio);
+					break;
+				}
+			}
 		} else if (nng_msg_cmd_type(msg) == CMD_CONNACK) {
 			nng_msg_set_pipe(work->msg, work->pid);
 
@@ -374,13 +411,7 @@ server_cb(void *arg)
 					nng_msg_set_pipe(work->msg, work->pid);
 					work->msg = NULL;
 					work->pipe_ct->current_index++;
-					if (work->proto == PROTO_MQTT_BRIDGE) {
-						nng_ctx_send(work->bridge_ctx,
-						    work->aio);
-					} else {
-						nng_ctx_send(
-						    work->ctx, work->aio);
-					}
+					nng_ctx_send(work->ctx, work->aio);
 				}
 				if (work->pipe_ct->total <=
 				    work->pipe_ct->current_index) {
@@ -430,9 +461,9 @@ server_cb(void *arg)
 		break;
 	case BRIDGE:
 		if ((rv = nng_aio_result(work->aio)) != 0) {
-			fatal("nng_recv_aio", rv);
+			debug_syslog("nng_recv_aio", rv);
 			work->state = RECV;
-			nng_ctx_recv(work->ctx, work->aio);
+			nng_ctx_recv(work->bridge_ctx, work->aio);
 			break;
 		}
 		work->msg = nng_aio_get_msg(work->aio);
@@ -492,7 +523,7 @@ alloc_work(nng_socket sock)
 }
 
 nano_work *
-proto_work_init(nng_socket sock, nng_socket bridge_sock, uint8_t proto,
+proto_work_init(nng_socket sock, uint8_t proto,
     dbtree *db_tree, dbtree *db_tree_ret, conf *config)
 {
 	nano_work *w;
@@ -501,10 +532,6 @@ proto_work_init(nng_socket sock, nng_socket bridge_sock, uint8_t proto,
 	w->db_ret = db_tree_ret;
 	w->proto  = proto;
 	w->config = config;
-
-	if (config->bridge.bridge_mode) {
-		w->bridge_sock = bridge_sock;
-	}
 	return w;
 }
 
@@ -517,42 +544,14 @@ get_broker_db(void)
 	return db;
 }
 
-static void
+static void inline
 switch_work_state(nano_work *work)
 {
-	if (work->proto == PROTO_MQTT_BRIDGE) {
-		work->state = BRIDGE;
-	} else {
-		work->state = RECV;
-	}
-}
-
-static void
-handle_bridge(nano_work *work)
-{
-	conf_bridge *bridge = &(work->config->bridge);
-	if (bridge->bridge_mode) {
-		bool found = false;
-		for (size_t i = 0; i < bridge->forwards_count; i++) {
-			if (topic_filter(bridge->forwards[i],
-			        work->pub_packet->variable_header.publish
-			            .topic_name.body)) {
-				found = true;
-				break;
-			}
-		}
-
-		if (found) {
-			client_publish(work->bridge_sock,
-			    work->pub_packet->variable_header.publish
-			        .topic_name.body,
-			    work->pub_packet->payload_body.payload,
-			    work->pub_packet->payload_body.payload_len,
-			    work->pub_packet->fixed_header.dup,
-			    work->pub_packet->fixed_header.qos,
-			    work->pub_packet->fixed_header.retain);
-		}
-	}
+       if (work->proto == PROTO_MQTT_BRIDGE) {
+               work->state = BRIDGE;
+       } else {
+               work->state = RECV;
+       }
 }
 
 int
@@ -595,15 +594,16 @@ broker(conf *nanomq_conf)
 	struct work *works[num_ctx];
 
 	for (i = 0; i < nanomq_conf->parallel; i++) {
-		works[i] = proto_work_init(sock, bridge_sock,
-		    PROTO_MQTT_BROKER, db, db_ret, nanomq_conf);
+		works[i] = proto_work_init(
+		    sock, PROTO_MQTT_BROKER, db, db_ret, nanomq_conf);
+		nng_ctx_open(&works[i]->bridge_ctx, bridge_sock);
 	}
 
 	if (nanomq_conf->bridge.bridge_mode) {
 		for (i = nanomq_conf->parallel; i < num_ctx; i++) {
-			works[i] = proto_work_init(bridge_sock, bridge_sock,
-			    PROTO_MQTT_BRIDGE, db, db_ret, nanomq_conf);
-			nng_ctx_open(&works[i]->bridge_ctx, sock);
+			works[i] = proto_work_init(
+			    sock, PROTO_MQTT_BRIDGE, db, db_ret, nanomq_conf);
+			nng_ctx_open(&works[i]->bridge_ctx, bridge_sock);
 		}
 	}
 
