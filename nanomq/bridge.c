@@ -24,7 +24,7 @@ fatal(const char *func, int rv)
 }
 
 nng_msg *
-client_publish_msg(const char *topic, uint8_t *payload,
+bridge_publish_msg(const char *topic, uint8_t *payload,
     uint32_t len, bool dup, uint8_t qos, bool retain)
 {
 	int rv;
@@ -103,7 +103,7 @@ static nng_mqtt_cb bridge_user_cb = {
 static bridge_param bridge_arg;
 
 int
-bridge_client(nng_socket *sock, uint16_t nwork, conf_bridge *config)
+bridge_client(nng_socket *sock, conf_bridge *config)
 {
 	int        rv;
 	nng_dialer dialer;

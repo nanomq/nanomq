@@ -141,7 +141,7 @@ server_cb(void *arg)
 				}
 
 				if (found) {
-					smsg = client_publish_msg(
+					smsg = bridge_publish_msg(
 					    work->pub_packet->variable_header
 					        .publish.topic_name.body,
 					    work->pub_packet->payload_body
@@ -155,7 +155,6 @@ server_cb(void *arg)
 					work->state = WAIT;
 					nng_aio_set_msg(
 					    work->bridge_aio, smsg);
-					// TODO set flag in cb for safe using of bridge_aio
 					nng_ctx_send(work->bridge_ctx,
 					    work->bridge_aio);
 				}
@@ -530,17 +529,26 @@ alloc_work(nng_socket sock)
 }
 
 nano_work *
-proto_work_init(nng_socket sock, uint8_t proto, dbtree *db_tree,
-    dbtree *db_tree_ret, conf *config)
+proto_work_init(nng_socket sock, nng_socket bridge_sock, uint8_t proto,
+    dbtree *db_tree, dbtree *db_tree_ret, conf *config)
 {
+	int        rv;
 	nano_work *w;
 	w         = alloc_work(sock);
 	w->db     = db_tree;
 	w->db_ret = db_tree_ret;
 	w->proto  = proto;
 	w->config = config;
-	// TODO check bridge conf
-	nng_aio_alloc(&w->bridge_aio, NULL, NULL);
+
+	if (config->bridge.bridge_mode) {
+		if ((rv = nng_ctx_open(&w->bridge_ctx, bridge_sock)) != 0) {
+			fatal("nng_ctx_open", rv);
+		}
+		if ((rv = nng_aio_alloc(&w->bridge_aio, NULL, NULL) != 0)) {
+			fatal("nng_aio_alloc", rv);
+		}
+	}
+
 	return w;
 }
 
@@ -587,24 +595,20 @@ broker(conf *nanomq_conf)
 
 	if (nanomq_conf->bridge.bridge_mode) {
 		num_ctx += nanomq_conf->bridge.parallel;
-		bridge_client(&bridge_sock, num_ctx, &nanomq_conf->bridge);
+		bridge_client(&bridge_sock, &nanomq_conf->bridge);
 	}
 
 	struct work *works[num_ctx];
 
 	for (i = 0; i < nanomq_conf->parallel; i++) {
-		works[i] = proto_work_init(
-		    sock, PROTO_MQTT_BROKER, db, db_ret, nanomq_conf);
-		if (nanomq_conf->bridge.bridge_mode) {
-			nng_ctx_open(&works[i]->bridge_ctx, bridge_sock);
-		}
+		works[i] = proto_work_init(sock, bridge_sock,
+		    PROTO_MQTT_BROKER, db, db_ret, nanomq_conf);
 	}
 
 	if (nanomq_conf->bridge.bridge_mode) {
 		for (i = nanomq_conf->parallel; i < num_ctx; i++) {
-			works[i] = proto_work_init(
-			    sock, PROTO_MQTT_BRIDGE, db, db_ret, nanomq_conf);
-			nng_ctx_open(&works[i]->bridge_ctx, bridge_sock);
+			works[i] = proto_work_init(sock, bridge_sock,
+			    PROTO_MQTT_BRIDGE, db, db_ret, nanomq_conf);
 		}
 	}
 

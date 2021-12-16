@@ -70,7 +70,7 @@ With this being said, NanoMQ can run on different architectures such like x86_64
 #### Docker
 
 ```bash
-docker run -d --name nanomq nanomq/nanomq:0.5.0
+docker run -d --name nanomq nanomq/nanomq:0.5.2
 ```
 
 
