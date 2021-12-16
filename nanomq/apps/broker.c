@@ -153,10 +153,11 @@ server_cb(void *arg)
 					    work->pub_packet->fixed_header
 					        .retain);
 					work->state = WAIT;
-					nng_aio_set_msg(work->aio, smsg);
-					nng_ctx_send(
-					    work->bridge_ctx, work->aio);
-					break;
+					nng_aio_set_msg(
+					    work->bridge_aio, smsg);
+					// TODO set flag in cb for safe using of bridge_aio
+					nng_ctx_send(work->bridge_ctx,
+					    work->bridge_aio);
 				}
 			}
 		} else if (nng_msg_cmd_type(msg) == CMD_CONNACK) {
@@ -538,6 +539,8 @@ proto_work_init(nng_socket sock, uint8_t proto, dbtree *db_tree,
 	w->db_ret = db_tree_ret;
 	w->proto  = proto;
 	w->config = config;
+	// TODO check bridge conf
+	nng_aio_alloc(&w->bridge_aio, NULL, NULL);
 	return w;
 }
 

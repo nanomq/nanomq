@@ -18,10 +18,11 @@ struct work {
 	// 0x01 mqtt_bridge
 	uint8_t   proto;
 	nng_aio * aio;
+	nng_aio * bridge_aio;
 	nng_msg * msg;
 	nng_msg **msg_ret;
 	nng_ctx   ctx;        // ctx for mqtt broker
-    nng_ctx   bridge_ctx; // ctx for bridging
+	nng_ctx   bridge_ctx; // ctx for bridging
 	nng_pipe  pid;
 	nng_mtx * mutex;
 	dbtree *  db;
