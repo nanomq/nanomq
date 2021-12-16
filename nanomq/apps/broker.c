@@ -56,9 +56,6 @@ intHandler(int dummy)
 }
 #endif
 
-static void handle_bridge(nano_work *work);
-static void switch_work_state(nano_work *work);
-
 void
 fatal(const char *func, int rv)
 {
@@ -82,7 +79,6 @@ server_cb(void *arg)
 	switch (work->state) {
 	case INIT:
 		debug_msg("INIT ^^^^ ctx%d ^^^^\n", work->ctx.id);
-		switch_work_state(work);
 		if (work->proto == PROTO_MQTT_BRIDGE) {
 			work->state = BRIDGE;
 			nng_ctx_recv(work->bridge_ctx, work->aio);
@@ -129,6 +125,7 @@ server_cb(void *arg)
 			nng_msg_set_timestamp(msg, nng_clock());
 			nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 			handle_pub(work, work->pipe_ct);
+
 			conf_bridge *bridge = &(work->config->bridge);
 			if (bridge->bridge_mode) {
 				bool found = false;
@@ -144,7 +141,7 @@ server_cb(void *arg)
 				}
 
 				if (found) {
-					nng_msg *msg = client_publish_msg(
+					smsg = client_publish_msg(
 					    work->pub_packet->variable_header
 					        .publish.topic_name.body,
 					    work->pub_packet->payload_body
@@ -156,7 +153,7 @@ server_cb(void *arg)
 					    work->pub_packet->fixed_header
 					        .retain);
 					work->state = WAIT;
-					nng_aio_set_msg(work->aio, msg);
+					nng_aio_set_msg(work->aio, smsg);
 					nng_ctx_send(
 					    work->bridge_ctx, work->aio);
 					break;
@@ -438,7 +435,11 @@ server_cb(void *arg)
 				if (work->msg != NULL)
 					nng_msg_free(work->msg);
 				work->msg = NULL;
-				switch_work_state(work);
+				if (work->proto == PROTO_MQTT_BRIDGE) {
+					work->state = BRIDGE;
+				} else {
+					work->state = RECV;
+				}
 				nng_ctx_recv(work->ctx, work->aio);
 			}
 		} else if (nng_msg_cmd_type(work->msg) == CMD_PUBACK ||
@@ -488,7 +489,11 @@ server_cb(void *arg)
 			init_pipe_content(work->pipe_ct);
 		}
 		work->msg = NULL;
-		switch_work_state(work);
+		if (work->proto == PROTO_MQTT_BRIDGE) {
+			work->state = BRIDGE;
+		} else {
+			work->state = RECV;
+		}
 		nng_ctx_recv(work->ctx, work->aio);
 		break;
 	default:
@@ -515,6 +520,7 @@ alloc_work(nng_socket sock)
 	if ((rv = nng_mtx_alloc(&w->mutex)) != 0) {
 		fatal("nng_mtx_alloc", rv);
 	}
+
 	w->pipe_ct = nng_alloc(sizeof(struct pipe_content));
 	init_pipe_content(w->pipe_ct);
 
@@ -523,8 +529,8 @@ alloc_work(nng_socket sock)
 }
 
 nano_work *
-proto_work_init(nng_socket sock, uint8_t proto,
-    dbtree *db_tree, dbtree *db_tree_ret, conf *config)
+proto_work_init(nng_socket sock, uint8_t proto, dbtree *db_tree,
+    dbtree *db_tree_ret, conf *config)
 {
 	nano_work *w;
 	w         = alloc_work(sock);
@@ -542,16 +548,6 @@ dbtree *
 get_broker_db(void)
 {
 	return db;
-}
-
-static void inline
-switch_work_state(nano_work *work)
-{
-       if (work->proto == PROTO_MQTT_BRIDGE) {
-               work->state = BRIDGE;
-       } else {
-               work->state = RECV;
-       }
 }
 
 int
@@ -596,7 +592,9 @@ broker(conf *nanomq_conf)
 	for (i = 0; i < nanomq_conf->parallel; i++) {
 		works[i] = proto_work_init(
 		    sock, PROTO_MQTT_BROKER, db, db_ret, nanomq_conf);
-		nng_ctx_open(&works[i]->bridge_ctx, bridge_sock);
+		if (nanomq_conf->bridge.bridge_mode) {
+			nng_ctx_open(&works[i]->bridge_ctx, bridge_sock);
+		}
 	}
 
 	if (nanomq_conf->bridge.bridge_mode) {

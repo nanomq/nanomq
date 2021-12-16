@@ -25,9 +25,9 @@ conf_parser(conf **nanomq_conf, const char *path)
 
 	if (path != NULL) {
 		if (!(fp = fopen(path, "r"))) {
-			log_warn("Configure file [%s] not found or unreadable",
+			debug_msg("Configure file [%s] not found or unreadable",
 			    path);
-			log_warn("Using default configuration instead.\n");
+			debug_msg("Using default configuration instead.\n");
 			return false;
 		}
 	} else {
@@ -245,37 +245,34 @@ conf_init(conf **nanomq_conf)
 	(*nanomq_conf)->websocket.url        = NULL;
 	(*nanomq_conf)->bridge.bridge_mode   = false;
 	(*nanomq_conf)->bridge.sub_count     = 0;
-	(*nanomq_conf)->bridge.parallel      = 4;
+	(*nanomq_conf)->bridge.parallel      = 1;
 }
 
 void
 print_conf(conf *nanomq_conf)
 {
-	fprintf(stdout, "This NanoMQ instance configured as:\n");
+	debug_msg("This NanoMQ instance configured as:\n");
 
-	fprintf(stdout, "tcp url:                  %s \n", nanomq_conf->url);
-	fprintf(stdout, "enable websocket:         %s\n",
+	debug_msg("tcp url:                  %s \n", nanomq_conf->url);
+	debug_msg("enable websocket:         %s\n",
 	    nanomq_conf->websocket.enable ? "true" : "false");
-	fprintf(stdout, "websocket url:            %s\n",
-	    nanomq_conf->websocket.url);
-	fprintf(stdout, "daemon:                   %s\n",
+	debug_msg(
+	    "websocket url:            %s\n", nanomq_conf->websocket.url);
+	debug_msg("daemon:                   %s\n",
 	    nanomq_conf->daemon ? "true" : "false");
-	fprintf(stdout, "num_taskq_thread:         %d\n",
-	    nanomq_conf->num_taskq_thread);
-	fprintf(stdout, "max_taskq_thread:         %d\n",
-	    nanomq_conf->max_taskq_thread);
-	fprintf(
-	    stdout, "parallel:                 %lu\n", nanomq_conf->parallel);
-	fprintf(stdout, "property_size:            %d\n",
-	    nanomq_conf->property_size);
-	fprintf(
-	    stdout, "msq_len:                  %d\n", nanomq_conf->msq_len);
-	fprintf(stdout, "qos_duration:             %d\n",
-	    nanomq_conf->qos_duration);
-	fprintf(stdout, "enable http server:       %s\n",
+	debug_msg(
+	    "num_taskq_thread:         %d\n", nanomq_conf->num_taskq_thread);
+	debug_msg(
+	    "max_taskq_thread:         %d\n", nanomq_conf->max_taskq_thread);
+	debug_msg("parallel:                 %lu\n", nanomq_conf->parallel);
+	debug_msg(
+	    "property_size:            %d\n", nanomq_conf->property_size);
+	debug_msg("msq_len:                  %d\n", nanomq_conf->msq_len);
+	debug_msg("qos_duration:             %d\n", nanomq_conf->qos_duration);
+	debug_msg("enable http server:       %s\n",
 	    nanomq_conf->http_server.enable ? "true" : "false");
-	fprintf(stdout, "http server port:         %d\n",
-	    nanomq_conf->http_server.port);
+	debug_msg(
+	    "http server port:         %d\n", nanomq_conf->http_server.port);
 }
 
 void
@@ -340,7 +337,7 @@ conf_auth_parser(conf *nanomq_conf)
 		sprintf(buf, "auth.%d.password", n);
 		if ((line = file_find_line(
 		         CONF_AUTH_PATH_NAME, (const char *) buf)) == NULL) {
-			debug_syslog("line not found");
+			debug_msg("line not found");
 			break;
 		}
 		if (line[0] == '#' || line[1] == '#') {
@@ -410,7 +407,7 @@ conf_bridge_parse_subs(conf_bridge *bridge, const char *path)
 {
 	FILE *fp;
 	if ((fp = fopen(path, "r")) == NULL) {
-		log_warn("File %s open failed", path);
+		debug_msg("File %s open failed", path);
 		return false;
 	}
 
@@ -479,7 +476,7 @@ conf_bridge_parse(conf *nanomq_conf, const char *path)
 
 	if (!nano_file_exists(dest_path)) {
 		if (!nano_file_exists(CONF_BRIDGE_PATH_NAME)) {
-			log_warn("Configure file [%s] or [%s] not found or "
+			debug_msg("Configure file [%s] or [%s] not found or "
 			         "unreadable",
 			    dest_path, CONF_BRIDGE_PATH_NAME);
 			return false;
@@ -495,7 +492,7 @@ conf_bridge_parse(conf *nanomq_conf, const char *path)
 	conf_bridge *bridge = &nanomq_conf->bridge;
 
 	if ((fp = fopen(dest_path, "r")) == NULL) {
-		log_warn("File %s open failed", dest_path);
+		debug_msg("File %s open failed", dest_path);
 		bridge->bridge_mode = false;
 		return true;
 	}
@@ -603,32 +600,32 @@ conf_bridge_destroy(conf_bridge *bridge)
 void
 print_bridge_conf(conf_bridge *bridge)
 {
-	fprintf(stdout, "bridge.mqtt.bridge_mode:  %s\n",
+	debug_msg("bridge.mqtt.bridge_mode:  %s\n",
 	    bridge->bridge_mode ? "true" : "false");
 	if (!bridge->bridge_mode) {
 		return;
 	}
-	fprintf(stdout, "bridge.mqtt.address:      %s\n", bridge->address);
-	fprintf(stdout, "bridge.mqtt.proto_ver:    %d\n", bridge->proto_ver);
-	fprintf(stdout, "bridge.mqtt.clientid:     %s\n", bridge->clientid);
-	fprintf(stdout, "bridge.mqtt.clean_start:  %d\n", bridge->clean_start);
-	fprintf(stdout, "bridge.mqtt.username:     %s\n", bridge->username);
-	fprintf(stdout, "bridge.mqtt.password:     %s\n", bridge->password);
-	fprintf(stdout, "bridge.mqtt.keepalive:    %d\n", bridge->keepalive);
-	fprintf(stdout, "bridge.mqtt.parallel:     %ld\n", bridge->parallel);
-	fprintf(stdout, "bridge.mqtt.forwards: \n");
+	debug_msg("bridge.mqtt.address:      %s\n", bridge->address);
+	debug_msg("bridge.mqtt.proto_ver:    %d\n", bridge->proto_ver);
+	debug_msg("bridge.mqtt.clientid:     %s\n", bridge->clientid);
+	debug_msg("bridge.mqtt.clean_start:  %d\n", bridge->clean_start);
+	debug_msg("bridge.mqtt.username:     %s\n", bridge->username);
+	debug_msg("bridge.mqtt.password:     %s\n", bridge->password);
+	debug_msg("bridge.mqtt.keepalive:    %d\n", bridge->keepalive);
+	debug_msg("bridge.mqtt.parallel:     %ld\n", bridge->parallel);
+	debug_msg("bridge.mqtt.forwards: \n");
 	for (size_t i = 0; i < bridge->forwards_count; i++) {
-		fprintf(stdout, "\t[%ld] topic:        %s\n", i,
-		    bridge->forwards[i]);
+		debug_msg(
+		    "\t[%ld] topic:        %s\n", i, bridge->forwards[i]);
 	}
-	fprintf(stdout, "bridge.mqtt.subscription: \n");
+	debug_msg("bridge.mqtt.subscription: \n");
 	for (size_t i = 0; i < bridge->sub_count; i++) {
-		fprintf(stdout, "\t[%ld] topic:        %.*s\n", i + 1,
+		debug_msg("\t[%ld] topic:        %.*s\n", i + 1,
 		    bridge->sub_list[i].topic_len, bridge->sub_list[i].topic);
-		fprintf(stdout, "\t[%ld] qos:          %d\n", i + 1,
+		debug_msg("\t[%ld] qos:          %d\n", i + 1,
 		    bridge->sub_list[i].qos);
 	}
-	fprintf(stdout, "\n");
+	debug_msg("\n");
 }
 
 void
