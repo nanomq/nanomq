@@ -23,8 +23,8 @@ fatal(const char *func, int rv)
 	fprintf(stderr, "%s: %s\n", func, nng_strerror(rv));
 }
 
-int
-client_publish(nng_socket sock, const char *topic, uint8_t *payload,
+nng_msg *
+client_publish_msg(const char *topic, uint8_t *payload,
     uint32_t len, bool dup, uint8_t qos, bool retain)
 {
 	int rv;
@@ -40,11 +40,8 @@ client_publish(nng_socket sock, const char *topic, uint8_t *payload,
 	nng_mqtt_msg_set_publish_topic(pubmsg, topic);
 
 	debug_msg("publish to '%s'", topic);
-	if ((rv = nng_sendmsg(sock, pubmsg, NNG_FLAG_NONBLOCK)) != 0) {
-		debug_msg("nng_sendmsg", rv);
-	}
 
-	return rv;
+	return pubmsg;
 }
 
 // Disconnect message callback function
