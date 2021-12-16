@@ -18,10 +18,12 @@
 #include <hash.h>
 #include <mqtt_db.h>
 #include <nng.h>
+#include <nng/mqtt/mqtt_client.h>
 #include <protocol/mqtt/mqtt_parser.h>
 #include <protocol/mqtt/nmq_mqtt.h>
 #include <zmalloc.h>
 
+#include "include/bridge.h"
 #include "include/nanomq.h"
 #include "include/process.h"
 #include "include/pub_handler.h"
@@ -58,7 +60,6 @@ void
 fatal(const char *func, int rv)
 {
 	fprintf(stderr, "%s: %s\n", func, nng_strerror(rv));
-	exit(1);
 }
 
 void
@@ -78,8 +79,13 @@ server_cb(void *arg)
 	switch (work->state) {
 	case INIT:
 		debug_msg("INIT ^^^^ ctx%d ^^^^\n", work->ctx.id);
-		work->state = RECV;
-		nng_ctx_recv(work->ctx, work->aio);
+		if (work->proto == PROTO_MQTT_BRIDGE) {
+			work->state = BRIDGE;
+			nng_ctx_recv(work->bridge_ctx, work->aio);
+		} else {
+			work->state = RECV;
+			nng_ctx_recv(work->ctx, work->aio);
+		}
 		break;
 	case RECV:
 		debug_msg("RECV  ^^^^ ctx%d ^^^^\n", work->ctx.id);
@@ -87,7 +93,6 @@ server_cb(void *arg)
 			debug_syslog(
 			    "ERROR: RECV nng aio result error: %d", rv);
 			nng_aio_wait(work->aio);
-			fatal("RECV nng_ctx_recv", rv);
 		}
 		msg = nng_aio_get_msg(work->aio);
 		if (msg == NULL) {
@@ -95,7 +100,6 @@ server_cb(void *arg)
 		}
 		work->msg    = msg;
 		work->cparam = nng_msg_get_conn_param(work->msg);
-		work->proto  = conn_param_get_protover(work->cparam);
 		work->pid    = nng_msg_get_pipe(work->msg);
 
 		if (nng_msg_cmd_type(msg) == CMD_DISCONNECT) {
@@ -121,6 +125,40 @@ server_cb(void *arg)
 			nng_msg_set_timestamp(msg, nng_clock());
 			nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 			handle_pub(work, work->pipe_ct);
+
+			conf_bridge *bridge = &(work->config->bridge);
+			if (bridge->bridge_mode) {
+				bool found = false;
+				for (size_t i = 0; i < bridge->forwards_count;
+				     i++) {
+					if (topic_filter(bridge->forwards[i],
+					        work->pub_packet
+					            ->variable_header.publish
+					            .topic_name.body)) {
+						found = true;
+						break;
+					}
+				}
+
+				if (found) {
+					smsg = bridge_publish_msg(
+					    work->pub_packet->variable_header
+					        .publish.topic_name.body,
+					    work->pub_packet->payload_body
+					        .payload,
+					    work->pub_packet->payload_body
+					        .payload_len,
+					    work->pub_packet->fixed_header.dup,
+					    work->pub_packet->fixed_header.qos,
+					    work->pub_packet->fixed_header
+					        .retain);
+					work->state = WAIT;
+					nng_aio_set_msg(
+					    work->bridge_aio, smsg);
+					nng_ctx_send(work->bridge_ctx,
+					    work->bridge_aio);
+				}
+			}
 		} else if (nng_msg_cmd_type(msg) == CMD_CONNACK) {
 			nng_msg_set_pipe(work->msg, work->pid);
 
@@ -160,7 +198,7 @@ server_cb(void *arg)
 			nng_msg_set_cmd_type(work->msg, CMD_PUBLISH);
 			handle_pub(work, work->pipe_ct);
 			// cache session
-			client_ctx *cli_ctx  = NULL;
+			client_ctx *cli_ctx = NULL;
 			char *      clientid =
 			    (char *) conn_param_get_clientid(work->cparam);
 			if (clientid != NULL &&
@@ -174,7 +212,8 @@ server_cb(void *arg)
 				while (tq) {
 					if (tq->topic) {
 						cli_ctx = dbtree_delete_client(
-						    work->db, tq->topic, 0, work->pid.id);
+						    work->db, tq->topic, 0,
+						    work->pid.id);
 					}
 					del_sub_ctx(cli_ctx, tq->topic);
 					tq = tq->next;
@@ -263,7 +302,8 @@ server_cb(void *arg)
 				    *((uint8_t *) nng_msg_body(smsg) + 1));
 			}
 			nng_msg_free(work->msg);
-			destroy_sub_pkt(work->sub_pkt, work->proto);
+			destroy_sub_pkt(work->sub_pkt,
+			    conn_param_get_protover(work->cparam));
 			// handle retain
 			if (work->msg_ret) {
 				debug_msg("retain msg [%p] size [%ld] \n",
@@ -379,8 +419,7 @@ server_cb(void *arg)
 				}
 				work->state = SEND;
 				nng_msg_free(smsg);
-				smsg        = NULL;
-				work->proto = 0;
+				smsg = NULL;
 				nng_aio_finish(work->aio, 0);
 				break;
 			} else {
@@ -390,14 +429,17 @@ server_cb(void *arg)
 				free_pub_packet(work->pub_packet);
 				free_pipes_info(work->pipe_ct->pipe_info);
 				init_pipe_content(work->pipe_ct);
-				work->proto = 0;
 			}
 
 			if (work->state != SEND) {
 				if (work->msg != NULL)
 					nng_msg_free(work->msg);
-				work->msg   = NULL;
-				work->state = RECV;
+				work->msg = NULL;
+				if (work->proto == PROTO_MQTT_BRIDGE) {
+					work->state = BRIDGE;
+				} else {
+					work->state = RECV;
+				}
 				nng_ctx_recv(work->ctx, work->aio);
 			}
 		} else if (nng_msg_cmd_type(work->msg) == CMD_PUBACK ||
@@ -418,7 +460,21 @@ server_cb(void *arg)
 			break;
 		}
 		break;
+	case BRIDGE:
+		if ((rv = nng_aio_result(work->aio)) != 0) {
+			debug_syslog("nng_recv_aio", rv);
+			work->state = RECV;
+			nng_ctx_recv(work->bridge_ctx, work->aio);
+			break;
+		}
+		work->msg = nng_aio_get_msg(work->aio);
+		msg       = work->msg;
 
+		nng_msg_set_cmd_type(msg, nng_msg_get_type(msg));
+		work->msg   = msg;
+		work->state = RECV;
+		nng_aio_finish(work->aio, 0);
+		break;
 	case SEND:
 		if (NULL != smsg) {
 			smsg = NULL;
@@ -431,10 +487,13 @@ server_cb(void *arg)
 			free_pub_packet(work->pub_packet);
 			free_pipes_info(work->pipe_ct->pipe_info);
 			init_pipe_content(work->pipe_ct);
-			work->proto = 0;
 		}
-		work->msg   = NULL;
-		work->state = RECV;
+		work->msg = NULL;
+		if (work->proto == PROTO_MQTT_BRIDGE) {
+			work->state = BRIDGE;
+		} else {
+			work->state = RECV;
+		}
 		nng_ctx_recv(work->ctx, work->aio);
 		break;
 	default:
@@ -461,11 +520,36 @@ alloc_work(nng_socket sock)
 	if ((rv = nng_mtx_alloc(&w->mutex)) != 0) {
 		fatal("nng_mtx_alloc", rv);
 	}
+
 	w->pipe_ct = nng_alloc(sizeof(struct pipe_content));
 	init_pipe_content(w->pipe_ct);
 
 	w->state = INIT;
 	return (w);
+}
+
+nano_work *
+proto_work_init(nng_socket sock, nng_socket bridge_sock, uint8_t proto,
+    dbtree *db_tree, dbtree *db_tree_ret, conf *config)
+{
+	int        rv;
+	nano_work *w;
+	w         = alloc_work(sock);
+	w->db     = db_tree;
+	w->db_ret = db_tree_ret;
+	w->proto  = proto;
+	w->config = config;
+
+	if (config->bridge.bridge_mode) {
+		if ((rv = nng_ctx_open(&w->bridge_ctx, bridge_sock)) != 0) {
+			fatal("nng_ctx_open", rv);
+		}
+		if ((rv = nng_aio_alloc(&w->bridge_aio, NULL, NULL) != 0)) {
+			fatal("nng_aio_alloc", rv);
+		}
+	}
+
+	return w;
 }
 
 static dbtree *db     = NULL;
@@ -480,13 +564,15 @@ get_broker_db(void)
 int
 broker(conf *nanomq_conf)
 {
-	nng_socket   sock;
-	nng_pipe     pipe_id;
-	int          rv;
-	int          i;
-	uint64_t     num_ctx = nanomq_conf->parallel;
-	struct work *works[num_ctx];
-	const char * url = nanomq_conf->url;
+	nng_socket sock;
+
+	nng_socket bridge_sock;
+	nng_pipe   pipe_id;
+	int        rv;
+	int        i;
+	// add the num of other proto
+	uint64_t    num_ctx = nanomq_conf->parallel;
+	const char *url     = nanomq_conf->url;
 
 	// init tree
 	dbtree_create(&db);
@@ -507,12 +593,23 @@ broker(conf *nanomq_conf)
 		fatal("nng_nmq_tcp0_open", rv);
 	}
 
-	debug_msg("PARALLEL logic threads: %lu\n", num_ctx);
-	for (i = 0; i < num_ctx; i++) {
-		works[i]         = alloc_work(sock);
-		works[i]->db     = db;
-		works[i]->db_ret = db_ret;
-		works[i]->proto  = 0;
+	if (nanomq_conf->bridge.bridge_mode) {
+		num_ctx += nanomq_conf->bridge.parallel;
+		bridge_client(&bridge_sock, &nanomq_conf->bridge);
+	}
+
+	struct work *works[num_ctx];
+
+	for (i = 0; i < nanomq_conf->parallel; i++) {
+		works[i] = proto_work_init(sock, bridge_sock,
+		    PROTO_MQTT_BROKER, db, db_ret, nanomq_conf);
+	}
+
+	if (nanomq_conf->bridge.bridge_mode) {
+		for (i = nanomq_conf->parallel; i < num_ctx; i++) {
+			works[i] = proto_work_init(sock, bridge_sock,
+			    PROTO_MQTT_BRIDGE, db, db_ret, nanomq_conf);
+		}
 	}
 
 	if ((rv = nng_listen(sock, url, NULL, 0)) != 0) {
@@ -521,10 +618,6 @@ broker(conf *nanomq_conf)
 
 	// read from command line & config file
 	if (nanomq_conf->websocket.enable) {
-
-		if (nanomq_conf->websocket.url == NULL) {
-			nanomq_conf->websocket.url = WEBSOCKET_URL;
-		}
 		if ((rv = nng_listen(
 		         sock, nanomq_conf->websocket.url, NULL, 0)) != 0) {
 			fatal("nng_listen websocket", rv);
@@ -621,8 +714,9 @@ int
 broker_start(int argc, char **argv)
 {
 	int   i, url, temp, rc, num_ctx = 0;
-	pid_t pid = 0;
-	char *conf_path = NULL;
+	pid_t pid              = 0;
+	char *conf_path        = NULL;
+	char *bridge_conf_path = NULL;
 	conf *nanomq_conf;
 
 	if (!status_check(&pid)) {
@@ -643,9 +737,13 @@ broker_start(int argc, char **argv)
 
 	for (i = 0; i < argc; i++, temp = 0) {
 		if (!strcmp("-conf", argv[i])) {
-			debug_msg("reading user specified conf file:%s",
+			debug_msg("reading user specified nanomq conf file:%s",
 			    argv[i + 1]);
 			conf_path = argv[++i];
+		} else if (!strcmp("-bridge", argv[i])) {
+			debug_msg("reading user specified bridge conf file:%s",
+			    argv[i + 1]);
+			bridge_conf_path = argv[++i];
 		} else if (!strcmp("-daemon", argv[i])) {
 			nanomq_conf->daemon = true;
 		} else if (!strcmp("-tq_thread", argv[i]) &&
@@ -671,10 +769,21 @@ broker_start(int argc, char **argv)
 		    ((temp = atoi(argv[i])) > 0)) {
 			nanomq_conf->qos_duration = temp;
 		} else if (!strcmp("-url", argv[i])) {
-			if (nanomq_conf->url != NULL) {
-				zfree(nanomq_conf->url);
+			char *url = argv[++i];
+			if (strncmp(TCP_URL_PREFIX, url,
+			        strlen(TCP_URL_PREFIX)) == 0) {
+				if (nanomq_conf->url != NULL) {
+					zfree(nanomq_conf->url);
+				}
+				nanomq_conf->url = url;
+			} else if (strncmp(WS_URL_PREFIX, url,
+			               strlen(WS_URL_PREFIX)) == 0) {
+				if (nanomq_conf->websocket.url != NULL) {
+					zfree(nanomq_conf->url);
+				}
+				nanomq_conf->websocket.url    = url;
+				nanomq_conf->websocket.enable = true;
 			}
-			nanomq_conf->url = argv[++i];
 		} else if (!strcmp("-http", argv[i])) {
 			nanomq_conf->http_server.enable = true;
 		} else if (!strcmp("-port", argv[i]) && ((i + 1) < argc) &&
@@ -691,17 +800,20 @@ broker_start(int argc, char **argv)
 	}
 
 	conf_parser(&nanomq_conf, conf_path);
+	conf_bridge_parse(nanomq_conf, bridge_conf_path);
 
-	if (nanomq_conf->url == NULL) {
-		fprintf(stderr,
-		    "INFO: invalid input url, using default url: %s\n"
-		    "Set the url by editing nanomq.conf "
-		    "or command-line (-url <url>).\n",
-		    CONF_URL_DEFAULT);
-		nanomq_conf->url = CONF_URL_DEFAULT;
+	nanomq_conf->url =
+	    nanomq_conf->url != NULL ? nanomq_conf->url : CONF_TCP_URL_DEFAULT;
+
+	if (nanomq_conf->websocket.enable) {
+		nanomq_conf->websocket.url = nanomq_conf->websocket.url != NULL
+		    ? nanomq_conf->websocket.url
+		    : CONF_WS_URL_DEFAULT;
 	}
 
 	print_conf(nanomq_conf);
+	print_bridge_conf(&nanomq_conf->bridge);
+
 	active_conf(nanomq_conf);
 
 	if (nanomq_conf->http_server.enable) {

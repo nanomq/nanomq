@@ -63,8 +63,10 @@ foreach_client(
 		}
 
 		while (tn != NULL) {
-			if (0 == strcmp(tn->it->topic_filter.body,
-			    pub_work->pub_packet->variable_header.publish.topic_name.body)) {
+			if (0 ==
+			    strcmp(tn->it->topic_filter.body,
+			        pub_work->pub_packet->variable_header.publish
+			            .topic_name.body)) {
 				sub_qos = tn->it->qos;
 				break;
 			}
@@ -107,20 +109,26 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct)
 	// TODO no local
 	if (PUBLISH == work->pub_packet->fixed_header.packet_type) {
 		void **cli_ctx_list = NULL;
-		size_t msg_cnt = 0;
+		size_t msg_cnt      = 0;
 		if (work->pub_packet->fixed_header.qos > 0) {
-			cli_ctx_list = dbtree_find_clients_and_cache_msg(work->db,
-				work->pub_packet->variable_header.publish.topic_name.body, work->msg, &msg_cnt);
+			cli_ctx_list =
+			    dbtree_find_clients_and_cache_msg(work->db,
+			        work->pub_packet->variable_header.publish
+			            .topic_name.body,
+			        work->msg, &msg_cnt);
 			// Note. Why do we clone msg (msg_cnt-1) times?
 			// It's because that the refcnt of msg is 1, when
 			// plus (msg_cnt-1), equals (msg_cnt), and it means
 			// the count of session which the msg would be sent to.
-			for (int i = 0; i < (int)(msg_cnt - 1); i++) {
+			for (int i = 0; i < (int) (msg_cnt - 1); i++) {
 				nng_msg_clone(work->msg);
 			}
 		} else {
-			cli_ctx_list = dbtree_find_clients_and_cache_msg(work->db,
-				work->pub_packet->variable_header.publish.topic_name.body, NULL, &msg_cnt);
+			cli_ctx_list =
+			    dbtree_find_clients_and_cache_msg(work->db,
+			        work->pub_packet->variable_header.publish
+			            .topic_name.body,
+			        NULL, &msg_cnt);
 		}
 
 		if (cli_ctx_list != NULL) {
@@ -273,7 +281,10 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 	uint8_t  tmp[4]     = { 0 };
 	uint32_t arr_len    = 0;
 	int      append_res = 0;
+	uint8_t  proto;
+	uint32_t buf;
 
+	proto = conn_param_get_protover(work->cparam);
 	properties_type prop_type;
 
 	debug_msg("start encode message");
@@ -327,7 +338,7 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 		    nng_msg_len(dest_msg));
 
 #if SUPPORT_MQTT5_0
-		if (PROTOCOL_VERSION_v5 == work->proto) {
+		if (PROTOCOL_VERSION_v5 == proto) {
 			// properties
 			// properties length
 			memset(tmp, 0, sizeof(tmp));
@@ -454,7 +465,7 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 		}
 		/* check */
 		else {
-			debug_msg("pro_ver [%d]", work->proto);
+			debug_msg("pro_ver [%d]", proto);
 		}
 #endif
 		debug_msg("property len in msg already [%ld]",
@@ -517,7 +528,7 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 			    sizeof(reason_code));
 
 #if SUPPORT_MQTT5_0
-			if (PROTOCOL_VERSION_v5 == work->proto) {
+			if (PROTOCOL_VERSION_v5 == proto) {
 				// properties
 				if (pub_response.fixed_header.remain_len >=
 				    4) {
@@ -578,11 +589,11 @@ decode_pub_message(nano_work *work)
 	uint32_t pos      = 0;
 	uint32_t used_pos = 0;
 	uint32_t len, len_of_varint;
-	if (work->proto == 0) {
-		work->proto = conn_param_get_protover(work->cparam);
-	}
+	uint8_t  proto;
+
+	proto = conn_param_get_protover(work->cparam);
 	if (nng_msg_cmd_type(work->msg) == CMD_PUBLISH) {
-		work->proto = 4;
+		proto = 4;
 	}
 
 	nng_msg *                 msg        = work->msg;
@@ -657,7 +668,7 @@ decode_pub_message(nano_work *work)
 		pub_packet->variable_header.publish.properties.len = 0;
 
 #if SUPPORT_MQTT5_0
-		if (PROTOCOL_VERSION_v5 == work->proto) {
+		if (PROTOCOL_VERSION_v5 == proto) {
 			len_of_varint = 0;
 			pub_packet->variable_header.publish.properties.len =
 			    get_var_integer(msg_body, &len_of_varint);
@@ -978,7 +989,7 @@ decode_pub_message(nano_work *work)
 		}
 		/* check */
 		else {
-			debug_msg("NOMQTT5ERR [%d] [%d]", work->proto,
+			debug_msg("NOMQTT5ERR [%d] [%d]", proto,
 			    PROTOCOL_VERSION_v5);
 		}
 #endif
@@ -986,7 +997,7 @@ decode_pub_message(nano_work *work)
 		debug_msg("used pos: [%d]", used_pos);
 		// payload
 		pub_packet->payload_body.payload_len =
-		    (uint32_t) (msg_len - (size_t) used_pos);
+		    (uint32_t)(msg_len - (size_t) used_pos);
 
 		if (pub_packet->payload_body.payload_len > 0) {
 			pub_packet->payload_body.payload = nng_alloc(
