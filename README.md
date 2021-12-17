@@ -218,14 +218,14 @@ Users can also change the configuration parameters of NanoMQ while booting. Howe
 
 #### NanoMQ configuration file
 
-In the `etc` directory of NanoMQ (`./nanomq/etc/nanomq.conf`), there is a 'nanomq.conf' configuration file. This file is different from 'config.cmake.in'. This 'nanomq.conf' allows you to configure broker when booting. Please be noted that if you start NanoMQ in the project's root directory, this file will be read automatically.
+NanoMQ will look up to it's configuration file in `/etc/` by default. Please remember to copy conf file to `/etc/` in your system if you wanna start NanoMQ without setting conf path manually. This file is different from 'config.cmake.in'. This 'nanomq.conf' allows you to configure broker when booting. Please be noted that if you start NanoMQ in the project's root directory, this file will be read automatically.
 
-
+Configure **MQTT bridging** in NanoMQ: by modifying `nanomq_bridge.conf`, which is in the same directory with `nanomq.conf`.
 
 You can also write your own configuration file. Be sure to start NanoMQ in this fashion to specify an effective configuration file:
 
 ```bash
-nanomq broker start -conf <$FILE_PATH>
+nanomq broker start -conf <$FILE_PATH> [-bridge <$FILE_PATH>]
 ```
 
 
@@ -235,7 +235,7 @@ nanomq broker start -conf <$FILE_PATH>
 The same configuration can be achieved by adding some command-line arguments when you start NanoMQ broker. There are a few arguments for you to play with. And the general usage is:
 
 ```bash
-nanomq broker {{start|restart -url <url> [-conf <$FILE_PATH>] [-daemon] [-tq_thread <num>] [-max_tq_thread <num>] [-parallel <num>] [-qos_duration <num>] }|stop}
+nanomq broker {{start|restart -url <url> [-conf <$FILE_PATH>] [-bridge <$FILE_PATH>] [-daemon] [-tq_thread <num>] [-max_tq_thread <num>] [-parallel <num>] [-qos_duration <num>] }|stop}
 ```
 
 - `start`, `restart`, and `stop` command is mandatory as it indicates whether you want to start a new broker, or replace an existing broker with a new one, or stop a running broker;
@@ -250,7 +250,7 @@ nanomq broker {{start|restart -url <url> [-conf <$FILE_PATH>] [-daemon] [-tq_thr
 
   ```bash
   nanomq broker start|restart 					## only if an url is specified in 'nanomq.conf'
-  nanomq broker start|restart -conf <$FILE_PATH>  ## only if an url is specified in your conf file
+  nanomq broker start|restart -conf <$FILE_PATH> [-bridge <$FILE_PATH>] ## only if an url is specified in your conf file
   ```
 
 - Telling broker that it should read your configuration file. 
@@ -258,7 +258,7 @@ nanomq broker {{start|restart -url <url> [-conf <$FILE_PATH>] [-daemon] [-tq_thr
   Be aware that command line arguments always has a higher priority than both 'nanomq.conf' and your configuration file: 
 
   ```bash
-  nanomq broker start|restart -conf <$FILE_PATH>
+  nanomq broker start|restart -conf <$FILE_PATH> [-bridge <$FILE_PATH>]
   ```
 
 - Running broker in daemon mode:
@@ -356,7 +356,9 @@ You could join us on [Slack](https://slack-invite.emqx.io/). We now share a work
 
 [MQTT SN](http://mqtt.org/new/wp-content/uploads/2009/06/MQTT-SN_spec_v1.2.pdf)
 
+### MQTT Client Examples
 
+[MQTT-Client-Examples](https://github.com/emqx/MQTT-Client-Examples)
 
 ### EMQ X Broker
 
