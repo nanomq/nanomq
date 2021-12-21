@@ -32,9 +32,9 @@ For more information, please visit [NanoMQ homepage](https://nanomq.io/).
 **NanoMQ broker usage**
 
 ```bash
-nanomq broker start -url <url>
+nanomq broker start 
 nanomq broker stop
-nanomq broker restart -url <url>
+nanomq broker restart 
 ```
 MQTT Example:
 ```bash
