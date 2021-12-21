@@ -251,28 +251,28 @@ conf_init(conf **nanomq_conf)
 void
 print_conf(conf *nanomq_conf)
 {
-	debug_msg("This NanoMQ instance configured as:\n");
+	debug_msg("This NanoMQ instance configured as:");
 
-	debug_msg("tcp url:                  %s \n", nanomq_conf->url);
-	debug_msg("enable websocket:         %s\n",
+	debug_msg("tcp url:                  %s ", nanomq_conf->url);
+	debug_msg("enable websocket:         %s",
 	    nanomq_conf->websocket.enable ? "true" : "false");
 	debug_msg(
-	    "websocket url:            %s\n", nanomq_conf->websocket.url);
-	debug_msg("daemon:                   %s\n",
+	    "websocket url:            %s", nanomq_conf->websocket.url);
+	debug_msg("daemon:                   %s",
 	    nanomq_conf->daemon ? "true" : "false");
 	debug_msg(
-	    "num_taskq_thread:         %d\n", nanomq_conf->num_taskq_thread);
+	    "num_taskq_thread:         %d", nanomq_conf->num_taskq_thread);
 	debug_msg(
-	    "max_taskq_thread:         %d\n", nanomq_conf->max_taskq_thread);
-	debug_msg("parallel:                 %lu\n", nanomq_conf->parallel);
+	    "max_taskq_thread:         %d", nanomq_conf->max_taskq_thread);
+	debug_msg("parallel:                 %lu", nanomq_conf->parallel);
 	debug_msg(
-	    "property_size:            %d\n", nanomq_conf->property_size);
-	debug_msg("msq_len:                  %d\n", nanomq_conf->msq_len);
-	debug_msg("qos_duration:             %d\n", nanomq_conf->qos_duration);
-	debug_msg("enable http server:       %s\n",
+	    "property_size:            %d", nanomq_conf->property_size);
+	debug_msg("msq_len:                  %d", nanomq_conf->msq_len);
+	debug_msg("qos_duration:             %d", nanomq_conf->qos_duration);
+	debug_msg("enable http server:       %s",
 	    nanomq_conf->http_server.enable ? "true" : "false");
 	debug_msg(
-	    "http server port:         %d\n", nanomq_conf->http_server.port);
+	    "http server port:         %d", nanomq_conf->http_server.port);
 }
 
 void
@@ -281,7 +281,7 @@ conf_auth_parser(conf *nanomq_conf)
 	char *line = NULL, buf[64], *username, *password, *tmp;
 	int   n = 0, x = 0, nu = 0, lenu = 0, lenp = 0;
 	if (!nano_file_exists(CONF_AUTH_PATH_NAME)) {
-		debug_syslog("file not exists");
+		debug_msg("file not exists");
 		return;
 	}
 
@@ -312,7 +312,7 @@ conf_auth_parser(conf *nanomq_conf)
 		sprintf(buf, "auth.%d.login", n);
 		if ((line = file_find_line(
 		         CONF_AUTH_PATH_NAME, (const char *) buf)) == NULL) {
-			debug_syslog("line not found");
+			debug_msg("line not found");
 			break;
 		}
 		if (line[0] == '#' || line[1] == '#') {
@@ -600,32 +600,32 @@ conf_bridge_destroy(conf_bridge *bridge)
 void
 print_bridge_conf(conf_bridge *bridge)
 {
-	debug_msg("bridge.mqtt.bridge_mode:  %s\n",
+	debug_msg("bridge.mqtt.bridge_mode:  %s",
 	    bridge->bridge_mode ? "true" : "false");
 	if (!bridge->bridge_mode) {
 		return;
 	}
-	debug_msg("bridge.mqtt.address:      %s\n", bridge->address);
-	debug_msg("bridge.mqtt.proto_ver:    %d\n", bridge->proto_ver);
-	debug_msg("bridge.mqtt.clientid:     %s\n", bridge->clientid);
-	debug_msg("bridge.mqtt.clean_start:  %d\n", bridge->clean_start);
-	debug_msg("bridge.mqtt.username:     %s\n", bridge->username);
-	debug_msg("bridge.mqtt.password:     %s\n", bridge->password);
-	debug_msg("bridge.mqtt.keepalive:    %d\n", bridge->keepalive);
-	debug_msg("bridge.mqtt.parallel:     %ld\n", bridge->parallel);
-	debug_msg("bridge.mqtt.forwards: \n");
+	debug_msg("bridge.mqtt.address:      %s", bridge->address);
+	debug_msg("bridge.mqtt.proto_ver:    %d", bridge->proto_ver);
+	debug_msg("bridge.mqtt.clientid:     %s", bridge->clientid);
+	debug_msg("bridge.mqtt.clean_start:  %d", bridge->clean_start);
+	debug_msg("bridge.mqtt.username:     %s", bridge->username);
+	debug_msg("bridge.mqtt.password:     %s", bridge->password);
+	debug_msg("bridge.mqtt.keepalive:    %d", bridge->keepalive);
+	debug_msg("bridge.mqtt.parallel:     %ld", bridge->parallel);
+	debug_msg("bridge.mqtt.forwards: ");
 	for (size_t i = 0; i < bridge->forwards_count; i++) {
 		debug_msg(
-		    "\t[%ld] topic:        %s\n", i, bridge->forwards[i]);
+		    "\t[%ld] topic:        %s", i, bridge->forwards[i]);
 	}
-	debug_msg("bridge.mqtt.subscription: \n");
+	debug_msg("bridge.mqtt.subscription: ");
 	for (size_t i = 0; i < bridge->sub_count; i++) {
-		debug_msg("\t[%ld] topic:        %.*s\n", i + 1,
+		debug_msg("\t[%ld] topic:        %.*s", i + 1,
 		    bridge->sub_list[i].topic_len, bridge->sub_list[i].topic);
-		debug_msg("\t[%ld] qos:          %d\n", i + 1,
+		debug_msg("\t[%ld] qos:          %d", i + 1,
 		    bridge->sub_list[i].qos);
 	}
-	debug_msg("\n");
+	debug_msg("");
 }
 
 void

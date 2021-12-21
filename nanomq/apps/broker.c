@@ -90,8 +90,7 @@ server_cb(void *arg)
 	case RECV:
 		debug_msg("RECV  ^^^^ ctx%d ^^^^\n", work->ctx.id);
 		if ((rv = nng_aio_result(work->aio)) != 0) {
-			debug_syslog(
-			    "ERROR: RECV nng aio result error: %d", rv);
+			debug_msg("ERROR: RECV nng aio result error: %d", rv);
 			nng_aio_wait(work->aio);
 		}
 		msg = nng_aio_get_msg(work->aio);
@@ -462,7 +461,7 @@ server_cb(void *arg)
 		break;
 	case BRIDGE:
 		if ((rv = nng_aio_result(work->aio)) != 0) {
-			debug_syslog("nng_recv_aio", rv);
+			debug_msg("nng_recv_aio: %s", nng_strerror(rv));
 			work->state = RECV;
 			nng_ctx_recv(work->bridge_ctx, work->aio);
 			break;
@@ -491,10 +490,11 @@ server_cb(void *arg)
 		work->msg = NULL;
 		if (work->proto == PROTO_MQTT_BRIDGE) {
 			work->state = BRIDGE;
+			nng_ctx_recv(work->bridge_ctx, work->aio);
 		} else {
 			work->state = RECV;
+			nng_ctx_recv(work->ctx, work->aio);
 		}
-		nng_ctx_recv(work->ctx, work->aio);
 		break;
 	default:
 		fatal("bad state!", NNG_ESTATE);
