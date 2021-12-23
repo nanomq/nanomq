@@ -11,6 +11,8 @@ SET(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 
 project(nanomq-nng)
 
+option(BUILD_CLIENT "Build nanomq client" ON)
+
 set(CMAKE_MODULE_PATH
   ${CMAKE_MODULE_PATH}
   "${CMAKE_CURRENT_LIST_DIR}/cmake"
@@ -50,6 +52,10 @@ endif (NOWARNING)
 if (MQ)
   add_definitions(-DMQ)
 endif (MQ)
+
+if (BUILD_CLIENT)
+  add_definitions(-DSUPP_CLIENT)
+endif(BUILD_CLIENT)
 
 if (DEBUG)
   message("DEBUG ")
