@@ -201,18 +201,38 @@ nng_fatal(const char *msg, int rv)
 }
 
 static void
-help(void)
+help(enum client_type type)
 {
-	printf("Usage: nanomq { pub | sub | conn } { start | stop } <addr> "
-	       "[<topic>...] [<opts>...] [<src>]\n\n");
+	switch (type) {
+	case PUB:
+		printf("Usage: nanomq pub { start | stop } <addr> "
+		       "[<topic>...] [<opts>...] [<src>]\n\n");
+		break;
+	case SUB:
+		printf("Usage: nanomq sub { start | stop } <addr> "
+		       "[<topic>...] [<opts>...]\n\n");
+		break;
+	case CONN:
+		printf("Usage: nanomq conn { start | stop } <addr> "
+		       "[<opts>...]\n\n");
+		break;
+
+	default:
+		break;
+	}
 
 	printf("<addr> must be one or more of:\n");
-	printf("  --dial, --url <url>              The url for mqtt broker "
-	       "('mqtt-tcp://host:port' or 'tls+mqtt-tcp://host:port')\n");
+	printf("  --url <url>                      The url for mqtt broker "
+	       "('mqtt-tcp://host:port' or 'tls+mqtt-tcp://host:port') \n");
+	printf("                                   [default: "
+	       "mqtt-tcp://127.0.0.1:1883]\n");
 
-	printf("\n<topic> must be set:\n");
-	printf("  -t, --topic <topic>              Topic for publish or "
-	       "subscribe\n");
+	if (type == PUB || type == SUB) {
+		printf("\n<topic> must be set:\n");
+		printf(
+		    "  -t, --topic <topic>              Topic for publish or "
+		    "subscribe\n");
+	}
 
 	printf("\n<opts> may be any of:\n");
 	printf("  -V, --version <version: 3|4|5>   The MQTT version used by "
@@ -220,21 +240,27 @@ help(void)
 	printf("  -n, --parallel             	   The number of parallel for "
 	       "client [default: 1]\n");
 	printf("  -v, --verbose              	   Enable verbose mode\n");
-	printf("  -C, --count <num>                Max count of publishing "
-	       "message [default: 1]\n");
-	printf("  -i, --interval <ms>              Interval of publishing "
-	       "message (ms) [default: 0]\n");
-	printf("  -I, --identifier <identifier>    The client identifier "
-	       "UTF-8 String (default randomly generated string)\n");
 	printf("  -u, --user <user>                The username for "
 	       "authentication\n");
 	printf("  -p, --password <password>        The password for "
 	       "authentication\n");
 	printf("  -k, --keepalive <keepalive>      A keep alive of the client "
 	       "(in seconds) [default: 60]\n");
+	if (type == PUB) {
+		printf("  -m, --msg <message>              The message to "
+		       "publish\n");
+		printf("  -C, --count <num>                Max count of "
+		       "publishing "
+		       "message [default: 1]\n");
+		printf("  -i, --interval <ms>              Interval of "
+		       "publishing "
+		       "message (ms) [default: 0]\n");
+		printf(
+		    "  -I, --identifier <identifier>    The client identifier "
+		    "UTF-8 String (default randomly generated string)\n");
+	}
 	printf("  -q, --qos <qos>                  Quality of service for the "
 	       "corresponding topic [default: 0]\n");
-	printf("  -m, --msg <message>              The message to publish\n");
 	printf("  -r, --retain                     The message will be "
 	       "retained [default: false]\n");
 	printf("  -c, --clean_session <true|false> Define a clean start for "
@@ -255,9 +281,11 @@ help(void)
 	printf("      --key <file>                 Private key file path\n");
 	printf("      --keypass <key password>     Private key password\n");
 
-	printf("\n<src> may be one of:\n");
-	printf("  -m, --msg  <data>                \n");
-	printf("  -f, --file <file>                \n");
+	if (type == PUB) {
+		printf("\n<src> may be one of:\n");
+		printf("  -m, --msg  <data>                \n");
+		printf("  -f, --file <file>                \n");
+	}
 }
 
 static int
@@ -330,7 +358,7 @@ client_parse_opts(int argc, char **argv, client_opts *opts)
 	    0) {
 		switch (val) {
 		case OPT_HELP:
-			help();
+			help(opts->type);
 			exit(0);
 			break;
 		case OPT_VERBOSE:
@@ -475,7 +503,37 @@ client_parse_opts(int argc, char **argv, client_opts *opts)
 	}
 
 	if (!opts->url) {
-		fatal("Require argument: --url <url>.");
+		opts->url = nng_strdup("mqtt-tcp://127.0.0.1:1883");
+	}
+
+	switch (opts->type) {
+	case PUB:
+		if (opts->topic_count == 0) {
+			fatal("Missing required option: '(-t, --topic) "
+			      "<topic>'\nTry 'nanomq pub --help' for more "
+			      "information. ");
+		}
+
+		if (opts->msg == NULL) {
+			fatal("Missing required option: '(-m, --msg) "
+			      "<message>' or '(-f, --file) <file>'\nTry "
+			      "'nanomq pub --help' for more information. ");
+		}
+		break;
+	case SUB:
+		if (opts->topic_count == 0) {
+			fatal("Missing required option: '(-t, --topic) "
+			      "<topic>'\nTry 'nanomq sub --help' for more "
+			      "information. ");
+		}
+		/* code */
+		break;
+	case CONN:
+		/* code */
+		break;
+
+	default:
+		break;
 	}
 
 	return rv;
@@ -900,9 +958,23 @@ conn_start(int argc, char **argv)
 }
 
 int
-client_dflt(int argc, char **argv)
+pub_dflt(int argc, char **argv)
 {
-	help();
+	help(PUB);
+	return 0;
+}
+
+int
+sub_dflt(int argc, char **argv)
+{
+	help(SUB);
+	return 0;
+}
+
+int
+conn_dflt(int argc, char **argv)
+{
+	help(CONN);
 	return 0;
 }
 
