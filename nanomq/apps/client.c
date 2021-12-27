@@ -49,7 +49,7 @@ struct client_opts {
 	enum client_type type;
 	bool             verbose;
 	size_t           parallel;
-	size_t           msg_count;
+	atomic_ulong     msg_count;
 	size_t           interval;
 	uint8_t          version;
 	char *           url;
@@ -117,7 +117,10 @@ enum options {
 static nng_optspec cmd_opts[] = {
 	{ .o_name = "help", .o_short = 'h', .o_val = OPT_HELP },
 	{ .o_name = "verbose", .o_short = 'v', .o_val = OPT_VERBOSE },
-	{ .o_name = "parallel", .o_short = 'n', .o_val = OPT_PARALLEL },
+	{ .o_name    = "parallel",
+	    .o_short = 'n',
+	    .o_val   = OPT_PARALLEL,
+	    .o_arg   = true },
 	{ .o_name    = "interval",
 	    .o_short = 'i',
 	    .o_val   = OPT_INTERVAL,
@@ -677,6 +680,11 @@ client_cb(void *arg)
 	case INIT:
 		switch (work->opts->type) {
 		case PUB:
+			if (work->opts->msg_count > 0) {
+				if (--send_count < 0) {
+					break;
+				}
+			}
 			work->msg = publish_msg(work->opts);
 			nng_msg_dup(&msg, work->msg);
 			nng_aio_set_msg(work->aio, msg);
@@ -728,23 +736,23 @@ client_cb(void *arg)
 			nng_msg_free(work->msg);
 			nng_fatal("nng_send_aio", rv);
 		}
+		nng_msg_dup(&msg, work->msg);
+		nng_aio_set_msg(work->aio, msg);
+		work->state = SEND_WAIT;
+		nng_sleep_aio(work->opts->interval, work->aio);
+		break;
+
+	case SEND_WAIT:
 		if (work->opts->msg_count > 0) {
-			if (--send_count <= 0) {
+			if (--send_count < 0) {
 				goto out;
 			}
 		}
 		if (work->opts->interval == 0) {
 			goto out;
 		}
-		nng_msg_dup(&msg, work->msg);
-		nng_aio_set_msg(work->aio, msg);
-		work->state = SEND_WAIT;
-		nng_ctx_send(work->ctx, work->aio);
-		break;
-
-	case SEND_WAIT:
 		work->state = SEND;
-		nng_sleep_aio(work->opts->interval, work->aio);
+		nng_ctx_send(work->ctx, work->aio);
 		break;
 
 	default:
