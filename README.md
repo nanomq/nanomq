@@ -41,6 +41,17 @@ MQTT Example:
 nanomq broker start 
 ```
 
+**NanoMQ MQTT client usage**
+```bash
+# Publish
+nanomq pub  start --url <url> -t <topic> -m <message> 
+
+# Subscribe 
+nanomq sub  start --url <url> -t <topic> 
+
+# Connect
+nanomq conn start --url <url>
+```
 
 **POSIX message queue usage**
 
@@ -48,6 +59,7 @@ nanomq broker start
 nanomq broker mq start
 nanomq broker mq stop
 ```
+
 *Incoming feature: NanoMQ Zmq usage*
 
 ```bash
@@ -103,6 +115,12 @@ To build NanoMQ, requires a C99 & C++11 compatible compiler and [CMake](http://w
 
   ``` bash
   cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DMQ=0  ..
+  ninja
+  ```
+  
+**Note (optaional): client(pub/sub/conn) is built by default**, you can disable it via `-DBUILD_CLIENT=OFF`.
+  ``` bash
+  cmake -G Ninja -DBUILD_CLIENT=OFF ..
   ninja
   ```
 
@@ -235,7 +253,7 @@ nanomq broker start -conf <$FILE_PATH> [-bridge <$FILE_PATH>]
 The same configuration can be achieved by adding some command-line arguments when you start NanoMQ broker. There are a few arguments for you to play with. And the general usage is:
 
 ```bash
-nanomq broker {{start|restart -url <url> [-conf <$FILE_PATH>] [-bridge <$FILE_PATH>] [-daemon] [-tq_thread <num>] [-max_tq_thread <num>] [-parallel <num>] [-qos_duration <num>] }|stop}
+nanomq broker {start|restart -url <url> [-conf <$FILE_PATH>] [-bridge <$FILE_PATH>] [-daemon] [-tq_thread <num>] [-max_tq_thread <num>] [-parallel <num>] [-qos_duration <num>] }|stop}
 ```
 
 - `start`, `restart`, and `stop` command is mandatory as it indicates whether you want to start a new broker, or replace an existing broker with a new one, or stop a running broker;
