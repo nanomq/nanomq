@@ -1,84 +1,100 @@
-# Configuration
+# 配置
 
-NanoMQ provides several options for optimizing performance according to your system.
+NanoMQ 提供了一些选项可以让你根据系统性能进行调优。
 
-## Configure method
 
-NanoMQ can start with contents of configure file named `config.cmake.in`.
 
-`$PROJECT_PATH/nanomq/build$ cmake -DCFG_METHOD=FILE_CONFIG ..`
+## 配置方式
 
-Of course, NanoMQ can start with cmake-gui or cmake with arguments.
+使用以下命令，NanoMQ 可以根据`config.cmake.in`内容设置编译参数:
 
-`$PROJECT_PATH/nanomq/build$ cmake -DCFG_METHOD=CMAKE_CONFIG ..`
-
-## Arguments
-
-limiting the number of threads:
-
-```sh
-$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DNNG_RESOLV_CONCURRENCY=1 -DNNG_NUM_TASKQ_THREADS=5 -DNNG_MAX_TASKQ_THREADS=5 ..
+```bash
+$PROJECT_PATH/nanomq/build$ cmake -DCFG_METHOD=FILE_CONFIG  ..
 ```
 
-For debugging, NanoMQ has a debugging system that logs all information from all threads. Which is aligned with Syslog standard.
-And you can disable/enable it by:
+也可以使用CMake默认参数进行编译:
 
-```sh
+```bash
+$PROJECT_PATH/nanomq/build$ cmake -DCFG_METHOD=CMAKE_CONFIG ..
+```
+
+
+
+## 参数设置
+
+限制线程数量:
+
+```bash
+$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DNNG_RESOLV_CONCURRENCY=1                           														-DNNG_NUM_TASKQ_THREADS=5 -DNNG_MAX_TASKQ_THREADS=5 ..
+```
+
+NanoMQ支持日志输出，并符合Syslog标准，可以通过以下设置NOLOG变量来选择启用或禁用日志:
+
+```bash
+# 禁用日志
 $PROJECT_PATH/nanomq/build$ cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DNOLOG=1  ..
+# 启用日志
 $PROJECT_PATH/nanomq/build$ cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DNOLOG=0  ..
 ```
 
-Message queue support:
+MQTT 客户端
 
-For macos, mqueue is not support, you can set -DMQ=0 to disable it. It is enabled by default.
+NanoMQ默认支持客户端使用，也可以通过 -DBUILD_CLIENT=OFF来禁用客户端的编译:
 
-```sh
+```bash
+# 禁用客户端
+$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DBUILD_CLIENT=OFF ..
+# 启用客户端
+$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DBUILD_CLIENT=ON ..
+```
+
+消息队列: 
+
+MQ消息队列默认启用，但目前尚未支持macOS，可以通过 -DMQ=0 禁用:
+
+```bash
+# 禁用MQ
 $PROJECT_PATH/nanomq/build$ cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DMQ=1  ..
+# 启用MQ
 $PROJECT_PATH/nanomq/build$ cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DMQ=0  ..
 ```
 
-System tunning parameters:
+系统调优参数:
 
-set max size of fixed header + variable header for MQTT packet , default is 64 bytes
+为MQTT数据包设置**固定头**加**可变头**最大长度，默认为64字节：
 
-```sh
-$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DNANO_PACKET_SIZE=set ..
+```bash
+$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DNANO_PACKET_SIZE={size} ..
 ```
 
-set max fixed header size for MQTT packet, default is 5.
+为MQTT数据包设置**固定头**最大长度，默认为5字节：
 
-```sh
-$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DNANO_HEADER_SIZE=set ..
+```bash
+$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DNANO_HEADER_SIZE={size} ..
 ```
 
-set max property size for MQTT packet, default is 32
+为MQTT数据包设置**属性**最大长度，默认为32字节：
 
-```sh
-$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DNANO_PROPERTY_SIZE=set ..
+```bash
+$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DNANO_PROPERTY_SIZE={size} ..
 ```
 
-set queue length for QoS message, default is 64
+为QOS > 0的消息设置队列长度，默认为64: 
 
-```sh
-$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DNANO_QOS_LEN=set ..
+```bash
+$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DNANO_QOS_LEN={size} ..
 ```
 
-set queue length for resending message, default is 64
+设置重发消息的队列长度，默认为64:
 
-```sh
-$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DNANO_MSQ_LEN=set ..
+```bash
+$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DNANO_MSQ_LEN={size} ..
 ```
 
-set nano qos timer, default is 30 seconds
+设置逻辑并发数限制，默认为32，使用-DPARALLEL指定:
 
-```sh
-$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DNANO_QOS_TIMER=set ..
+```bash
+$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DPARALLEL={parallel} ..
 ```
 
-set logical concurrency limitation by *-DPARALLEL*, default is 32
-
-```sh
-$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DPARALLEL=32 ..
-```
-
-For more information about these parameters, please refer to the project's Wiki
+如果希望获取更多参数相关信息，请访问项目Wiki页面。
