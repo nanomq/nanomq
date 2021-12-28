@@ -14,6 +14,8 @@ NanoMQ currently has the following functions and features:
 
 Full support for the MQTT 3.1.1 protocol. High compatibility and portability as the project relies only on the native POSIX API and is developed purely in C/C++. NanoMQ is internally fully asynchronous IO and multi-threaded parallelism, so there is good support for SMP while achieving low latency and high throughput. It is cost-effective in terms of resource usage and is suitable for all types of edge computing platforms.
 
+
+
 ## Overview of the test results
 
 To ensure consistency and reliability of test results. Not tested for specific hardware devices.
@@ -21,6 +23,8 @@ To ensure consistency and reliability of test results. Not tested for specific h
 The tests were conducted on the Huawei Cloud/Mobile platform and focused on broadcast and one-to-one sending and receiving MQTT message throughput tests. The relevant test results are shown below.
 
 ***Note: If not specified, all connections are set up for 300 seconds of ping message packets by default.***
+
+
 
 ## Testing tools
 
@@ -36,6 +40,8 @@ It is an open source MQTT performance testing plugin implemented by XMeter and i
 - emqtt-benchmark-tools: <https://github.com/emqtt/emqtt_benchmark>
 
 A test tool implemented by EMQ to simulate a mass of MQTT connections.
+
+
 
 ## Test environment
 
