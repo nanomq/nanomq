@@ -15,10 +15,10 @@ Github repository address: <https://github.com/nanomq/nanomq>
 - **NanoMQ** is internally fully asynchronous IO and multi-threaded parallelism, so there is good support for SMP while achieving low latency and high throughput.
 - It is cost-effective in terms of resource usage and is suitable for all types of edge computing platforms.
 
-[Features](./features)
+[Features](./features.md)
 
-[Quick Start](./quick-start)
+[Quick Start](./quick-start.md)
 
-[Configuration](./configuration)
+[Configuration](./configuration.md)
 
-[Test Report](./test-report)
+[Test Report](./test-report.md)
