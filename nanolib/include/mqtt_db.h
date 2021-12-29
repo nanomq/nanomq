@@ -255,6 +255,47 @@ void hash_add_alias(int alias, char *topic_data);
 
 void hash_del_alias(int alias);
 
-// char *search_hash_node(char *topic);
+/**
+ * @brief dbtree_find_shared_sub_clients - This function
+ * will Find shared subscribe client.
+ * @param dbtree - dbtree
+ * @param topic - topic
+ * @param msg_cnt - message used count
+ * @return dbtree_client
+ */
+void **dbtree_find_shared_sub_clients(dbtree *db, char *topic, void *msg, size_t *msg_cnt);
+
+
+/**
+ * @brief dbtree_check_shared_sub - Check if
+ * a topic is a shared topic.
+ * @param topic - topic
+ * @return
+ */
+bool dbtree_check_shared_sub(const char *topic);
+
+/**
+ * @brief dbtree_insert_shared_subscribe_client - Insert
+ * shared subscribe client to dbtree.
+ * @param dbtree - dbtree_node
+ * @param topic - topic
+ * @param ctxt - data related with pipe_id
+ * @param pipe_id - pipe id
+ * @return
+ */
+void *dbtree_insert_shared_sub_client(
+    dbtree *db, char *topic, void *ctxt, uint32_t pipe_id);
+
+/**
+ * @brief dbtree_delete_shared_subscibe_client - This function will
+ * delete a client, when unsubscribe is called.
+ * @param dbtree - dbtree
+ * @param topic - topic
+ * @param client - client
+ * @return ctxt or NULL, if client can be delete or not
+ */
+void *dbtree_delete_shared_sub_client(
+    dbtree *db, char *topic, uint32_t session_id, uint32_t pipe_id);
+
 
 #endif

@@ -109,6 +109,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct)
 	// TODO no local
 	if (PUBLISH == work->pub_packet->fixed_header.packet_type) {
 		void **cli_ctx_list = NULL;
+		void **shared_cli_list = NULL;
 		size_t msg_cnt      = 0;
 		if (work->pub_packet->fixed_header.qos > 0) {
 			cli_ctx_list =
@@ -123,19 +124,42 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct)
 			for (int i = 0; i < (int) (msg_cnt - 1); i++) {
 				nng_msg_clone(work->msg);
 			}
+
+			shared_cli_list = dbtree_find_shared_sub_clients(work->db,
+			        work->pub_packet->variable_header.publish
+			            .topic_name.body,
+			        work->msg, &msg_cnt);
+			// Note. Why do we clone msg (msg_cnt-1) times?
+			// It's because that the refcnt of msg is 1, when
+			// plus (msg_cnt-1), equals (msg_cnt), and it means
+			// the count of session which the msg would be sent to.
+			for (int i = 0; i < (int) (msg_cnt - 1); i++) {
+				nng_msg_clone(work->msg);
+			}
+
 		} else {
 			cli_ctx_list =
 			    dbtree_find_clients_and_cache_msg(work->db,
 			        work->pub_packet->variable_header.publish
 			            .topic_name.body,
 			        NULL, &msg_cnt);
+
+			shared_cli_list = dbtree_find_shared_sub_clients(work->db,
+			        work->pub_packet->variable_header.publish
+			            .topic_name.body,
+			        NULL, &msg_cnt);
 		}
+
 
 		if (cli_ctx_list != NULL) {
 			foreach_client(cli_ctx_list, work, pipe_ct);
 		}
-
 		cvector_free(cli_ctx_list);
+		
+		if (shared_cli_list != NULL) {
+			foreach_client(shared_cli_list, work, pipe_ct);
+		}
+		cvector_free(shared_cli_list);
 
 		debug_msg("pipe_info size: [%d]", pipe_ct->total);
 

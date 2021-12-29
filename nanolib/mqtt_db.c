@@ -8,12 +8,18 @@
 
 #include <assert.h>
 #include <string.h>
+#include <stdatomic.h>
+#include <limits.h>
+
 
 #include "include/cvector.h"
 #include "include/dbg.h"
 #include "include/hash.h"
 #include "include/mqtt_db.h"
 #include "include/zmalloc.h"
+
+
+static atomic_int acnt = 0;
 
 typedef enum {
 	DB_DELETE_SESSION,
@@ -198,8 +204,9 @@ topic_queue_free(char **topic_queue)
 		t = NULL;
 	}
 
-	zfree(tt);
-	topic_queue = NULL;
+	if (tt) {
+		zfree(tt);
+	}
 }
 
 static void
@@ -1755,4 +1762,149 @@ void
 hash_del_alias(int alias)
 {
 	del_val(alias);
+}
+
+
+bool dbtree_check_shared_sub(const char *topic)
+{
+	if (topic == NULL) {
+		return false;
+	}
+
+	char *t = NULL;
+	if (NULL == (t = strchr(topic, '$'))) {
+		return false;
+	}
+
+	if (NULL == strstr(t, "share")) {
+		return false;
+	}
+
+	return true;
+}
+
+
+/**
+ * @brief iterate_client - Deduplication for all clients
+ * @param v - client
+ * @return dbtree_client
+ */
+// TODO polish
+static void **
+dbtree_shared_iterate_client(dbtree_client ***v)
+{
+	cvector(void *) ctxts = NULL;
+	cvector(uint32_t) ids = NULL;
+
+	if (v) {
+		for (int i = 0; i < cvector_size(v); ++i) {
+			int j = acnt % cvector_size(v[i]);
+			// printf("acnt: %d\n", acnt);
+			// printf("j: %d\n", j);
+			// printf("size: %d\n", cvector_size(v[i]));
+			bool equal = false;
+			for (int k = 0; k < cvector_size(ids); k++) {
+				if (ids[k] == v[i][j]->pipe_id) {
+					equal = true;
+					break;
+				}
+			}
+
+			if (equal == false) {
+				cvector_push_back(
+				    ctxts, v[i][j]->ctxt);
+				// TODO  binary sort and
+				// cvector_insert();
+				cvector_push_back(
+				    ids, v[i][j]->pipe_id);
+			}
+
+			log_info("client id: %d", v[i][j]->pipe_id);
+		}
+		cvector_free(ids);
+		acnt++;
+		if (acnt == INT_MAX) {
+			acnt = 0;
+		}
+	}
+
+	return ctxts;
+}
+
+
+void **
+dbtree_find_shared_clients(dbtree *db, char *topic, void *message, size_t *msg_cnt)
+{
+	pthread_rwlock_rdlock(&(db->rwlock));
+	dbtree_node *node                              = db->root;
+	cvector(dbtree_client **) ctxts                = NULL;
+	cvector(dbtree_node *) nodes                   = NULL;
+	cvector(dbtree_node *) nodes_t                 = NULL;
+	cvector(dbtree_session_msg *) session_msg_list = NULL;
+	bool equal = false;
+	char *t = "$share";
+	int index;
+
+	if (node == NULL) {
+		return NULL;
+	}
+
+
+	dbtree_node *shared = find_next(node, &equal, &t, &index);
+
+	if (shared == NULL || shared->child == NULL) {
+		pthread_rwlock_unlock(&(db->rwlock));
+		return NULL;
+	}
+
+	dbtree_node **nlist = shared->child;
+
+	char **topic_queue = topic_parse(topic);
+	char **for_free    = topic_queue;
+
+	for (int i = 0 ; i < cvector_size(nlist); i++) {
+		dbtree_node *node = nlist[i];
+		if (node->child && *node->child) {
+			cvector_push_back(nodes, node);
+		}
+	}
+
+	log_info("nodes size: %lu", cvector_size(nlist));
+	while (*topic_queue && (!cvector_empty(nodes))) {
+
+		ctxts = collect_clients(&session_msg_list, ctxts, nodes,
+		    &nodes_t, topic_queue, message);
+		topic_queue++;
+		if (*topic_queue == NULL) {
+			break;
+		}
+		ctxts = collect_clients(&session_msg_list, ctxts, nodes_t,
+		    &nodes, topic_queue, message);
+		topic_queue++;
+	}
+
+	void **ret = dbtree_shared_iterate_client(ctxts);
+	pthread_rwlock_unlock(&(db->rwlock));
+	if (message) {
+		size_t size = cvector_size(session_msg_list);
+		log_info("########: %lu", size);
+		*msg_cnt = size;
+	}
+
+	pthread_rwlock_wrlock(&(db->rwlock_session));
+	db->session_msg_list =
+	    insert_session_msg_list(db->session_msg_list, session_msg_list);
+	pthread_rwlock_unlock(&(db->rwlock_session));
+
+	topic_queue_free(for_free);
+	cvector_free(nodes);
+	cvector_free(nodes_t);
+	cvector_free(ctxts);
+
+	return ret;
+}
+
+void **dbtree_find_shared_sub_clients(dbtree *db, char *topic, void *msg, size_t *msg_cnt)
+{
+	return dbtree_find_shared_clients(db, topic, msg, msg_cnt);
 }
