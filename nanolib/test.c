@@ -1,11 +1,13 @@
+#include "include/mqtt_db.h"
 #include "include/nanolib.h"
+#include <assert.h>
 #include <string.h>
 
 #define TEST_NUM_THREADS 8
 #define TEST_QUE_SIZE 10
 #define TEST_MSG_SIZE 16
 #define TEST_ARRAY_SIZE 10
-#define TEST_LOOP 1000
+#define TEST_LOOP 10
 
 dbtree *db     = NULL;
 dbtree *db_ret = NULL;
@@ -22,6 +24,28 @@ char topic7[] = "+/+/+";
 char topic8[] = "zhang/+/+";
 char topic9[] = "zhang/bei/hai";
 
+///////////for wildcard////////////
+char share0[] = "$share/a/zhang/bei/hai";
+char share1[] = "$share/a/zhang/bei/hai";
+char share2[] = "$share/a/zhang/bei/hai";
+char share3[] = "$share/a/zhang/bei/hai";
+char share4[] = "$share/a/zhang/bei/hai";
+char share5[] = "$share/a/zhang/bei/hai";
+char share6[] = "$share/a/zhang/bei/hai";
+char share7[] = "$share/a/+/+/+";
+char share8[] = "$share/a/+/+/+";
+char share9[] = "$share/a/zhang/bei/hai";
+
+// char share0[] = "$share/a/zhang/bei/hai";
+// char share1[] = "$share/a/zhang/#";
+// char share2[] = "$share/a/#";
+// char share3[] = "$share/a/zhang/bei/#";
+// char share4[] = "$share/a/zhang/+/hai";
+// char share5[] = "$share/b/zhang/bei/+";
+// char share6[] = "$share/b/zhang/bei/h/ai";
+// char share7[] = "$share/b/+/+/+";
+// char share8[] = "$share/b/zhang/+/+";
+// char share9[] = "$share/b/zhang/bei/hai";
 //////////for binary_search/////////
 char topic00[] = "zhang/bei/hai";
 char topic01[] = "zhang/bei/aih";
@@ -114,6 +138,59 @@ test_insert_client()
 	dbtree_insert_client(db, topic9, client9.ctxt, client9.pipe_id);
 	dbtree_print(db);
 }
+
+
+static void
+test_insert_shared_client()
+{
+	dbtree_insert_client(db, share0, client0.ctxt, client0.pipe_id);
+	dbtree_print(db);
+	dbtree_insert_client(db, share1, client1.ctxt, client1.pipe_id);
+	dbtree_print(db);
+	dbtree_insert_client(db, share2, client2.ctxt, client2.pipe_id);
+	dbtree_print(db);
+	dbtree_insert_client(db, share3, client3.ctxt, client3.pipe_id);
+	dbtree_print(db);
+	dbtree_insert_client(db, share4, client4.ctxt, client4.pipe_id);
+	dbtree_print(db);
+	dbtree_insert_client(db, share5, client5.ctxt, client5.pipe_id);
+	dbtree_print(db);
+	dbtree_insert_client(db, share6, client6.ctxt, client6.pipe_id);
+	dbtree_print(db);
+	dbtree_insert_client(db, share7, client7.ctxt, client7.pipe_id);
+	dbtree_print(db);
+	dbtree_insert_client(db, share8, client8.ctxt, client8.pipe_id);
+	dbtree_print(db);
+	dbtree_insert_client(db, share9, client9.ctxt, client9.pipe_id);
+	dbtree_print(db);
+}
+
+static void
+test_delete_shared_client()
+{
+	puts("================begin delete client===============");
+	dbtree_delete_client(db, share0, client0.session_id, client0.pipe_id);
+	dbtree_print(db);
+	dbtree_delete_client(db, share1, client1.session_id, client1.pipe_id);
+	dbtree_print(db);
+	dbtree_delete_client(db, share2, client2.session_id, client2.pipe_id);
+	dbtree_print(db);
+	dbtree_delete_client(db, share3, client3.session_id, client3.pipe_id);
+	dbtree_print(db);
+	dbtree_delete_client(db, share4, client4.session_id, client4.pipe_id);
+	dbtree_print(db);
+	dbtree_delete_client(db, share5, client5.session_id, client5.pipe_id);
+	dbtree_print(db);
+	dbtree_delete_client(db, share6, client6.session_id, client6.pipe_id);
+	dbtree_print(db);
+	dbtree_delete_client(db, share7, client7.session_id, client7.pipe_id);
+	dbtree_print(db);
+	dbtree_delete_client(db, share8, client8.session_id, client8.pipe_id);
+	dbtree_print(db);
+	dbtree_delete_client(db, share9, client9.session_id, client9.pipe_id);
+	dbtree_print(db);
+}
+
 
 static void
 test_delete_client()
@@ -249,6 +326,27 @@ test_search_client()
 	}
 
 	cvector_free(v);
+}
+
+static void
+test_search_shared_client()
+{
+	puts("================test search shared client==============");
+	for (int i = 0; i < 20; i++) {
+        	size_t size = 0;
+		// dbtree_print(db);
+		char **v =
+		    (char **) dbtree_find_shared_sub_clients(db, topic0, NULL, &size);
+		// dbtree_print(db);
+
+		if (v) {
+			for (int i = 0; i < cvector_size(v); ++i) {
+				log_info("ctxt: %s", v[i]);
+			}
+		}
+
+		cvector_free(v);
+	}
 }
 
 static void
@@ -403,17 +501,38 @@ test_concurrent()
 	// pthread_exit(NULL);
 }
 
+
+void test_shared_sub()
+{
+	const char *null = NULL;
+	const char *non_shared = "a/b/c";
+	const char *shared = "$shared/a/b/c";
+	assert(dbtree_check_shared_sub(null) == false);
+	assert(dbtree_check_shared_sub(non_shared) == false);
+	assert(dbtree_check_shared_sub(shared) == true);
+
+	return;
+}
+
 int
 main(int argc, char *argv[])
 {
 	puts("\n----------------TEST START------------------");
 
 	dbtree_create(&db);
-	test_single_thread(NULL);
-	test_concurrent();
+	test_insert_shared_client();
 	dbtree_print(db);
+	test_search_shared_client();
 
-	dbtree_destory(db);
+	test_delete_shared_client();
+	
+	// test_single_thread(NULL);
+	// test_concurrent();
+	// dbtree_print(db);
+	// dbtree_destory(db);
+	//
+
+	test_shared_sub();
 
 	// dbtree_create(&db_ret);
 	// test_insert_retain();
