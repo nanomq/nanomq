@@ -16,11 +16,11 @@ Github仓库地址: https://github.com/nanomq/nanomq
 - **NanoMQ**内部为全异步IO和多线程并行，所以对SMP有良好支持，同时做到了低延时和高吞吐。
 - 对于资源利用具有高性价比，适用于各类边缘计算平台。
 
-[功能特性](./features)
+[功能特性](./features.md)
 
-[快速开始](./quick-start)
+[快速开始](./quick-start.md)
 
-[配置](./configuration)
+[配置](./configuration.md)
 
-[测试报告](./test-report)
+[测试报告](./test-report.md)
 

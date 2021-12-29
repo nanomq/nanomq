@@ -6,19 +6,19 @@
     },
     {
       "title": "开始使用",
-      "path": "./quick-start"
+      "path": "./quick-start.md"
     },
     {
       "title": "功能特性",
-      "path": "./features"
+      "path": "./features.md"
     },
     {
       "title": "配置说明",
-      "path": "./configuration"
+      "path": "./configuration.md"
     },
     {
       "title": "测试报告",
-      "path": "./test-report"
+      "path": "./test-report.md"
     }
   ],
   "en": [
@@ -28,19 +28,19 @@
     },
     {
       "title": "Getting Started",
-      "path": "./quick-start"
+      "path": "./quick-start.md"
     },
     {
       "title": "Features",
-      "path": "./features"
+      "path": "./features.md"
     },
     {
       "title": "Configuration",
-      "path": "./configuration"
+      "path": "./configuration.md"
     },
     {
       "title": "Test Report",
-      "path": "./test-report"
+      "path": "./test-report.md"
     }
   ]
 }
