@@ -10,6 +10,8 @@
 #include <string.h>
 #include <stdatomic.h>
 #include <limits.h>
+#include <time.h>
+
 
 
 #include "include/cvector.h"
@@ -18,6 +20,8 @@
 #include "include/mqtt_db.h"
 #include "include/zmalloc.h"
 
+// #define ROUND_ROBIN
+#define RANDOM
 
 static atomic_int acnt = 0;
 
@@ -436,6 +440,9 @@ dbtree_create(dbtree **db)
 	(*db)->session_msg_list = NULL;
 	pthread_rwlock_init(&((*db)->rwlock), NULL);
 	pthread_rwlock_init(&((*db)->rwlock_session), NULL);
+#ifdef RANDOM
+	srand(time(NULL));
+#endif
 	return;
 }
 
@@ -978,10 +985,9 @@ collect_clients(dbtree_session_msg ***session_msg_list, dbtree_client ***vec,
  */
 // TODO polish
 static void **
-iterate_client(dbtree_client ***v)
+iterate_client_old(dbtree_client ***v)
 {
 	cvector(void *) ctxts = NULL;
-	// cvector(char*) ids = NULL;
 	cvector(uint32_t) ids = NULL;
 
 	if (v) {
@@ -989,7 +995,6 @@ iterate_client(dbtree_client ***v)
 			for (int j = 0; j < cvector_size(v[i]); j++) {
 				bool equal = false;
 				for (int k = 0; k < cvector_size(ids); k++) {
-					// if (!strcmp(ids[k], v[i][j]->id)) {
 					if (ids[k] == v[i][j]->pipe_id) {
 						equal = true;
 						break;
@@ -1006,6 +1011,39 @@ iterate_client(dbtree_client ***v)
 				}
 
 				log_info("client id: %d", v[i][j]->pipe_id);
+			}
+		}
+		cvector_free(ids);
+	}
+
+	return ctxts;
+}
+
+static void **
+iterate_client(dbtree_client ***v)
+{
+	cvector(void *) ctxts = NULL;
+	cvector(uint32_t *) ids = NULL;
+
+	if (v) {
+		for (int i = 0; i < cvector_size(v); ++i) {
+
+			for (int j = 0; j < cvector_size(v[i]); j++) {
+				int index = 0;
+
+				if (false == binary_search((void **)ids, 0, &index, &v[i][j]->pipe_id, ids_cmp)) {
+					if (cvector_empty(ids)) {
+					 	cvector_push_back(
+					 	    ids, &v[i][j]->pipe_id);
+					} else {
+						cvector_insert(ids, index, &v[i][j]->pipe_id);
+					}
+
+				 	cvector_push_back(
+				 	    ctxts, v[i][j]->ctxt);
+
+				}
+				
 			}
 		}
 		cvector_free(ids);
@@ -1783,6 +1821,52 @@ bool dbtree_check_shared_sub(const char *topic)
 	return true;
 }
 
+static void **
+dbtree_shared_iterate_client(dbtree_client ***v)
+{
+	cvector(void *) ctxts = NULL;
+	cvector(uint32_t *) ids = NULL;
+
+	if (v) {
+		for (int i = 0; i < cvector_size(v); ++i) {
+			// Dispatch strategy.
+#ifdef RANDOM
+			int t = rand();
+#elif  defined(ROUND_ROBIN)
+			int t = acnt;
+#endif
+			int j = t % cvector_size(v[i]);
+
+			// printf("acnt: %d\n", acnt);
+			// printf("j: %d\n", j);
+			// printf("size: %d\n", cvector_size(v[i]));
+			// bool equal = false;
+
+			int index = 0;
+			if (false == binary_search((void **)ids, 0, &index, &v[i][j]->pipe_id, ids_cmp)) {
+				if (cvector_empty(ids)) {
+				 	cvector_push_back(
+				 	    ids, &v[i][j]->pipe_id);
+				} else {
+					cvector_insert(ids, index, &v[i][j]->pipe_id);
+				}
+
+			 	cvector_push_back(
+			 	    ctxts, v[i][j]->ctxt);
+
+			}
+
+
+		}
+		cvector_free(ids);
+		acnt++;
+		if (acnt == INT_MAX) {
+			acnt = 0;
+		}
+	}
+
+	return ctxts;
+}
 
 /**
  * @brief iterate_client - Deduplication for all clients
@@ -1791,14 +1875,21 @@ bool dbtree_check_shared_sub(const char *topic)
  */
 // TODO polish
 static void **
-dbtree_shared_iterate_client(dbtree_client ***v)
+dbtree_shared_iterate_client_old(dbtree_client ***v)
 {
 	cvector(void *) ctxts = NULL;
 	cvector(uint32_t) ids = NULL;
 
 	if (v) {
 		for (int i = 0; i < cvector_size(v); ++i) {
-			int j = acnt % cvector_size(v[i]);
+			// Dispatch strategy.
+#ifdef RANDOM
+			int t = rand();
+#elif  defined(ROUND_ROBIN)
+			int t = acnt;
+#endif
+			int j = t % cvector_size(v[i]);
+
 			// printf("acnt: %d\n", acnt);
 			// printf("j: %d\n", j);
 			// printf("size: %d\n", cvector_size(v[i]));

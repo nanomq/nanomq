@@ -66,8 +66,8 @@ node_cmp(void *x_, void *y_)
 
 /**
  * @brief client_cmp - A callback to compare different client
- * @param x - normally x is dbtree_client
- * @param y - normally x is dbtree_client
+ * @param x - normally x is pointer of dbtree_client
+ * @param y - normally y is pointer of id
  * @return 0, minus or plus, based on strcmp
  */
 static inline int
@@ -76,6 +76,21 @@ client_cmp(void *x_, void *y_)
 	uint32_t *     pipe_id = (uint32_t *) y_;
 	dbtree_client *ele_x   = (dbtree_client *) x_;
 	return *pipe_id - ele_x->pipe_id;
+}
+
+//TODO 
+/**
+ * @brief ids_cmp - A callback to compare different id
+ * @param x - normally x is pointer of id
+ * @param y - normally y is pointer of id
+ * @return 0, minus or plus, based on strcmp
+ */
+static inline int
+ids_cmp(void *x_, void *y_)
+{
+	uint32_t *     pipe_id = (uint32_t *) y_;
+	uint32_t *id   = (uint32_t *) x_;
+	return *pipe_id - *id;
 }
 
 static inline int
