@@ -732,7 +732,7 @@ print_usage(void)
 	    "  -n, --parallel <num>       the maximum number of outstanding "
 	    "requests we can handle\n");
 	printf("  -s, --property_size <num>  the max size for a MQTT user "
-	       "property");
+	       "property\n");
 	printf("  -S, --msq_len <num>        the queue length for resending "
 	       "messages\n");
 	printf("  -D, --qos_duration <num>   the interval of the qos timer\n");
