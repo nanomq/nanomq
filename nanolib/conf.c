@@ -13,239 +13,169 @@
 #include "include/file.h"
 #include "nanomq.h"
 
-bool
-conf_parser(conf **nanomq_conf, const char *path)
+static char *
+strtrim(char *str)
 {
-	char * buffer = NULL;
-	char * head;
-	size_t length       = 0;
-	int    temp         = 0;
-	bool   read_success = false;
-	FILE * fp;
+	size_t len   = strlen(str);
+	char * dest  = calloc(1, len);
+	size_t index = 0;
 
-	if (path != NULL) {
-		if (!(fp = fopen(path, "r"))) {
-			debug_msg("Configure file [%s] not found or unreadable",
-			    path);
-			debug_msg("Using default configuration instead.\n");
-			return false;
+	for (size_t i = 0; i < len; i++) {
+		if (str[i] != ' ' && str[i] != '\t' && str[i] != '\n') {
+			dest[index] = str[i];
+			index++;
 		}
+	}
+	return dest;
+}
+
+static char *
+get_conf_value(char *line, size_t len, const char *key)
+{
+	if (strlen(key) > len || len <= 0) {
+		return NULL;
+	}
+	char  prefix[len];
+	char *trim  = strtrim(line);
+	char *value = calloc(1, len);
+	int   match = sscanf(trim, "%[^=]=%s", prefix, value);
+	free(trim);
+
+	if (match == 2 && strcmp(prefix, key) == 0) {
+		return value;
 	} else {
-		if (!(fp = fopen(CONF_PATH_NAME, "r"))) {
-			log_info("Using default configuration.\n");
+		free(value);
+		return NULL;
+	}
+}
+
+bool
+conf_parser(conf *nanomq_conf, const char *path)
+{
+	const char *dest_path = path;
+
+	if (!nano_file_exists(dest_path)) {
+		if (!nano_file_exists(CONF_PATH_NAME)) {
+			debug_msg("Configure file [%s] or [%s] not found or "
+			          "unreadable",
+			    dest_path, CONF_PATH_NAME);
 			return false;
+		} else {
+			dest_path = CONF_PATH_NAME;
 		}
 	}
 
-	while (getline(&buffer, &length, fp) != -1) {
-		head = buffer;
-		while (head[0] == ' ') {
-			head++;
-		}
+	char * line = NULL;
+	size_t sz   = 0;
+	FILE * fp;
+	conf * config = nanomq_conf;
 
-		if (head[0] == '#' || head[0] == '\n' || head[0] == '\0') {
-			continue;
-		}
-
-		char *value = strchr(head, '=') + 1;
-		char *key   = strtok(head, "=");
-
-		if (value[0] == '\0' || value[0] == '\n') {
-			log_err("No value is specified, conf file parsing "
-			        "aborts\n");
-			return false;
-		}
-
-		char *val_end = value + strlen(value) - 1;
-		while (isspace((unsigned char) *val_end))
-			val_end--;
-		val_end[1] = '\0';
-
-		if (!strcmp(key, "daemon")) {
-			if (!strncmp(value, "yes", 3)) {
-				(*nanomq_conf)->daemon = true;
-				read_success           = true;
-				debug_msg(CONF_READ_RECORD, key, value);
-			} else if (!strncmp(value, "no", 2)) {
-				(*nanomq_conf)->daemon = false;
-				read_success           = true;
-				debug_msg(CONF_READ_RECORD, key, value);
-			}
-		} else if (!strcmp(key, "allow_anonymous")) {
-			if (!strncmp(value, "yes", 3)) {
-				(*nanomq_conf)->allow_anonymous = true;
-				read_success                    = true;
-				debug_msg(CONF_READ_RECORD, key, value);
-			} else if (!strncmp(value, "no", 2)) {
-				(*nanomq_conf)->allow_anonymous = false;
-				read_success                    = true;
-				debug_msg(CONF_READ_RECORD, key, value);
-			}
-		} else if (!strcmp(key, "url")) {
-			if ((*nanomq_conf)->url != NULL) {
-				break;
-			}
-			char *url =
-			    zmalloc(sizeof(char) * (strlen(value) + 1));
-			if (url == NULL) {
-				log_err(
-				    "Error: Cannot allocate storge for url, "
-				    "parsing aborts\n");
-				free(buffer);
-				fclose(fp);
-				return false;
-			}
-			strcpy(url, value);
-			(*nanomq_conf)->url = url;
-			read_success        = true;
-			debug_msg(CONF_READ_RECORD, key, value);
-		} else if (!strcmp(key, "num_taskq_thread") &&
-		    isdigit(value[0]) && ((temp = atoi(value)) > 0) &&
-		    (temp < 256)) {
-			(*nanomq_conf)->num_taskq_thread = temp;
-			debug_msg(CONF_READ_RECORD, key, value);
-			read_success = true;
-		} else if (!strcmp(key, "max_taskq_thread") &&
-		    isdigit(value[0]) && ((temp = atoi(value)) > 0) &&
-		    (temp < 256)) {
-			(*nanomq_conf)->max_taskq_thread = temp;
-			debug_msg(CONF_READ_RECORD, key, value);
-			read_success = true;
-		} else if (!strcmp(key, "parallel") && isdigit(value[0]) &&
-		    ((temp = atoi(value)) > 0)) {
-			(*nanomq_conf)->parallel = temp;
-			debug_msg(CONF_READ_RECORD, key, value);
-			read_success = true;
-		} else if (!strcmp(key, "property_size") &&
-		    isdigit(value[0]) && ((temp = atoi(value)) > 0)) {
-			(*nanomq_conf)->property_size = temp;
-			debug_msg(CONF_READ_RECORD, key, value);
-			read_success = true;
-		} else if (!strcmp(key, "msq_len") && isdigit(value[0]) &&
-		    ((temp = atoi(value)) > 0)) {
-			(*nanomq_conf)->msq_len = temp;
-			debug_msg(CONF_READ_RECORD, key, value);
-			read_success = true;
-		} else if (!strcmp(key, "qos_duration") && isdigit(value[0]) &&
-		    ((temp = atoi(value)) > 0)) {
-			(*nanomq_conf)->qos_duration = temp;
-			debug_msg(CONF_READ_RECORD, key, value);
-			read_success = true;
-		} else if (!strcmp(key, "http_server.enable")) {
-			if (!strncmp(value, "yes", 3)) {
-				(*nanomq_conf)->http_server.enable = true;
-				read_success                       = true;
-				debug_msg(CONF_READ_RECORD, key, value);
-			} else if (!strncmp(value, "no", 2)) {
-				(*nanomq_conf)->http_server.enable = false;
-				read_success                       = true;
-				debug_msg(CONF_READ_RECORD, key, value);
-			}
-		} else if (!strcmp(key, "http_server.port") &&
-		    isdigit(value[0]) && ((temp = atoi(value)) > 0)) {
-			(*nanomq_conf)->http_server.port = temp;
-			debug_msg(CONF_READ_RECORD, key, value);
-			read_success = true;
-		} else if (!strcmp(key, "http_server.username")) {
-			if ((*nanomq_conf)->http_server.username != NULL) {
-				break;
-			}
-			char *username =
-			    zmalloc(sizeof(char) * (strlen(value) + 1));
-			if (username == NULL) {
-				log_err("Cannot allocate storge for "
-				        "username, parsing aborts\n");
-				free(buffer);
-				fclose(fp);
-				return false;
-			}
-			strcpy(username, value);
-			(*nanomq_conf)->http_server.username = username;
-			read_success                         = true;
-			debug_msg(CONF_READ_RECORD, key, value);
-		} else if (!strcmp(key, "http_server.password")) {
-			if ((*nanomq_conf)->http_server.password != NULL) {
-				break;
-			}
-			char *password =
-			    zmalloc(sizeof(char) * (strlen(value) + 1));
-			if (password == NULL) {
-				log_err("Cannot allocate storge for "
-				        "password, parsing aborts\n");
-				free(buffer);
-				fclose(fp);
-				return false;
-			}
-			strcpy(password, value);
-			(*nanomq_conf)->http_server.password = password;
-			read_success                         = true;
-			debug_msg(CONF_READ_RECORD, key, value);
-		} else if (!strcmp(key, "websocket.enable")) {
-			if (!strncmp(value, "yes", 3)) {
-				(*nanomq_conf)->websocket.enable = true;
-				read_success                     = true;
-				debug_msg(CONF_READ_RECORD, key, value);
-			} else if (!strncmp(value, "no", 2)) {
-				(*nanomq_conf)->websocket.enable = false;
-				read_success                     = true;
-				debug_msg(CONF_READ_RECORD, key, value);
-			}
-		} else if (!strcmp(key, "websocket.url")) {
-			if ((*nanomq_conf)->websocket.url != NULL) {
-				break;
-			}
-			char *url =
-			    zmalloc(sizeof(char) * (strlen(value) + 1));
-			if (url == NULL) {
-				log_err("Cannot allocate storge for "
-				        "url, parsing aborts\n");
-				free(buffer);
-				fclose(fp);
-				return false;
-			}
-			strcpy(url, value);
-			(*nanomq_conf)->websocket.url = url;
-			read_success                  = true;
-			debug_msg(CONF_READ_RECORD, key, value);
-		}
-		if (!read_success) {
-			log_err(
-			    "Cannot find the configuration you attemp to set, "
-			    "conf file reading halted, stopped at %s",
-			    key);
-			free(buffer);
-			fclose(fp);
-			return false;
-		}
-		read_success = false;
-		key          = NULL;
-		value        = NULL;
+	if ((fp = fopen(dest_path, "r")) == NULL) {
+		debug_msg("File %s open failed", dest_path);
+		return true;
 	}
 
-	free(buffer);
+	char *value;
+	while (getline(&line, &sz, fp) != -1) {
+		if ((value = get_conf_value(line, sz, "url")) != NULL) {
+			if (config->url != NULL) {
+				free(value);
+			} else {
+				config->url = value;
+			}
+		} else if ((value = get_conf_value(line, sz, "daemon")) !=
+		    NULL) {
+			config->daemon = strcasecmp(value, "yes") == 0;
+			free(value);
+		} else if ((value = get_conf_value(
+		                line, sz, "num_taskq_thread")) != NULL) {
+			config->num_taskq_thread = atoi(value);
+			free(value);
+		} else if ((value = get_conf_value(
+		                line, sz, "max_taskq_thread")) != NULL) {
+			config->max_taskq_thread = atoi(value);
+			free(value);
+		} else if ((value = get_conf_value(line, sz, "parallel")) !=
+		    NULL) {
+			config->parallel = atoi(value);
+			free(value);
+		} else if ((value = get_conf_value(
+		                line, sz, "property_size")) != NULL) {
+			config->property_size = atoi(value);
+			free(value);
+		} else if ((value = get_conf_value(line, sz, "msq_len")) !=
+		    NULL) {
+			config->msq_len = atoi(value);
+			free(value);
+		} else if ((value = get_conf_value(
+		                line, sz, "qos_duration")) != NULL) {
+			config->qos_duration = atoi(value);
+			free(value);
+		} else if ((value = get_conf_value(
+		                line, sz, "allow_anonymous")) != NULL) {
+			config->allow_anonymous =
+			    strcasecmp(value, "yes") == 0;
+			free(value);
+		} else if ((value = get_conf_value(
+		                line, sz, "websocket.enable")) != NULL) {
+			config->websocket.enable =
+			    strcasecmp(value, "yes") == 0;
+			free(value);
+		} else if ((value = get_conf_value(
+		                line, sz, "websocket.url")) != NULL) {
+			if (config->websocket.url != NULL) {
+				free(value);
+			} else {
+				config->websocket.url = value;
+			}
+		} else if ((value = get_conf_value(
+		                line, sz, "http_server.enable")) != NULL) {
+			config->http_server.enable =
+			    strcasecmp(value, "yes") == 0;
+			free(value);
+		} else if ((value = get_conf_value(
+		                line, sz, "http_server.port")) != NULL) {
+			config->http_server.port = atoi(value);
+			free(value);
+		} else if ((value = get_conf_value(
+		                line, sz, "http_server.username")) != NULL) {
+			config->http_server.username = value;
+		} else if ((value = get_conf_value(
+		                line, sz, "http_server.password")) != NULL) {
+			config->http_server.password = value;
+		}
+
+		free(line);
+		line = NULL;
+	}
+
+	if (line) {
+		free(line);
+	}
+
 	fclose(fp);
 	return true;
 }
 
 void
-conf_init(conf **nanomq_conf)
+conf_init(conf *nanomq_conf)
 {
-	(*nanomq_conf)->num_taskq_thread     = 10;
-	(*nanomq_conf)->max_taskq_thread     = 10;
-	(*nanomq_conf)->parallel             = 30; // not work
-	(*nanomq_conf)->property_size        = sizeof(uint8_t) * 32;
-	(*nanomq_conf)->msq_len              = 64;
-	(*nanomq_conf)->qos_duration         = 30;
-	(*nanomq_conf)->allow_anonymous      = true;
-	(*nanomq_conf)->http_server.enable   = false;
-	(*nanomq_conf)->http_server.port     = 8081;
-	(*nanomq_conf)->http_server.username = NULL;
-	(*nanomq_conf)->http_server.password = NULL;
-	(*nanomq_conf)->websocket.enable     = true;
-	(*nanomq_conf)->websocket.url        = NULL;
-	(*nanomq_conf)->bridge.bridge_mode   = false;
-	(*nanomq_conf)->bridge.sub_count     = 0;
-	(*nanomq_conf)->bridge.parallel      = 1;
+	nanomq_conf->num_taskq_thread     = 10;
+	nanomq_conf->max_taskq_thread     = 10;
+	nanomq_conf->parallel             = 30; // not work
+	nanomq_conf->property_size        = sizeof(uint8_t) * 32;
+	nanomq_conf->msq_len              = 64;
+	nanomq_conf->qos_duration         = 30;
+	nanomq_conf->allow_anonymous      = true;
+	nanomq_conf->http_server.enable   = false;
+	nanomq_conf->http_server.port     = 8081;
+	nanomq_conf->http_server.username = NULL;
+	nanomq_conf->http_server.password = NULL;
+	nanomq_conf->websocket.enable     = true;
+	nanomq_conf->websocket.url        = NULL;
+	nanomq_conf->bridge.bridge_mode   = false;
+	nanomq_conf->bridge.sub_count     = 0;
+	nanomq_conf->bridge.parallel      = 1;
 }
 
 void
@@ -256,8 +186,7 @@ print_conf(conf *nanomq_conf)
 	debug_msg("tcp url:                  %s ", nanomq_conf->url);
 	debug_msg("enable websocket:         %s",
 	    nanomq_conf->websocket.enable ? "true" : "false");
-	debug_msg(
-	    "websocket url:            %s", nanomq_conf->websocket.url);
+	debug_msg("websocket url:            %s", nanomq_conf->websocket.url);
 	debug_msg("daemon:                   %s",
 	    nanomq_conf->daemon ? "true" : "false");
 	debug_msg(
@@ -265,8 +194,7 @@ print_conf(conf *nanomq_conf)
 	debug_msg(
 	    "max_taskq_thread:         %d", nanomq_conf->max_taskq_thread);
 	debug_msg("parallel:                 %lu", nanomq_conf->parallel);
-	debug_msg(
-	    "property_size:            %d", nanomq_conf->property_size);
+	debug_msg("property_size:            %d", nanomq_conf->property_size);
 	debug_msg("msq_len:                  %d", nanomq_conf->msq_len);
 	debug_msg("qos_duration:             %d", nanomq_conf->qos_duration);
 	debug_msg("enable http server:       %s",
@@ -366,42 +294,6 @@ conf_auth_parser(conf *nanomq_conf)
 	} while (1);
 }
 
-static char *
-strtrim(char *str)
-{
-	size_t len   = strlen(str);
-	char * dest  = calloc(1, len);
-	size_t index = 0;
-
-	for (size_t i = 0; i < len; i++) {
-		if (str[i] != ' ' && str[i] != '\t' && str[i] != '\n') {
-			dest[index] = str[i];
-			index++;
-		}
-	}
-	return dest;
-}
-
-static char *
-get_conf_value(char *line, size_t len, const char *key)
-{
-	if (strlen(key) > len || len <= 0) {
-		return NULL;
-	}
-	char  prefix[len];
-	char *trim  = strtrim(line);
-	char *value = calloc(1, len);
-	int   match = sscanf(trim, "%[^=]=%s", prefix, value);
-	free(trim);
-
-	if (match == 2 && strcmp(prefix, key) == 0) {
-		return value;
-	} else {
-		free(value);
-		return NULL;
-	}
-}
-
 bool
 conf_bridge_parse_subs(conf_bridge *bridge, const char *path)
 {
@@ -477,7 +369,7 @@ conf_bridge_parse(conf *nanomq_conf, const char *path)
 	if (!nano_file_exists(dest_path)) {
 		if (!nano_file_exists(CONF_BRIDGE_PATH_NAME)) {
 			debug_msg("Configure file [%s] or [%s] not found or "
-			         "unreadable",
+			          "unreadable",
 			    dest_path, CONF_BRIDGE_PATH_NAME);
 			return false;
 		} else {
@@ -615,8 +507,7 @@ print_bridge_conf(conf_bridge *bridge)
 	debug_msg("bridge.mqtt.parallel:     %ld", bridge->parallel);
 	debug_msg("bridge.mqtt.forwards: ");
 	for (size_t i = 0; i < bridge->forwards_count; i++) {
-		debug_msg(
-		    "\t[%ld] topic:        %s", i, bridge->forwards[i]);
+		debug_msg("\t[%ld] topic:        %s", i, bridge->forwards[i]);
 	}
 	debug_msg("bridge.mqtt.subscription: ");
 	for (size_t i = 0; i < bridge->sub_count; i++) {
