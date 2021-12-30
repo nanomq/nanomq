@@ -733,7 +733,7 @@ broker_start(int argc, char **argv)
 	}
 
 	nanomq_conf->parallel = PARALLEL;
-	conf_init(&nanomq_conf);
+	conf_init(nanomq_conf);
 
 	for (i = 0; i < argc; i++, temp = 0) {
 		if (!strcmp("-conf", argv[i])) {
@@ -799,7 +799,7 @@ broker_start(int argc, char **argv)
 		}
 	}
 
-	conf_parser(&nanomq_conf, conf_path);
+	conf_parser(nanomq_conf, conf_path);
 	conf_bridge_parse(nanomq_conf, bridge_conf_path);
 
 	nanomq_conf->url =
