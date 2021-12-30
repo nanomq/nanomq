@@ -15,4 +15,4 @@ EXPOSE 1883
 
 ENTRYPOINT ["/usr/bin/docker-entrypoint.sh"]
 
-CMD ["-url", "broker+tcp://0.0.0.0:1883"]
+CMD ["--url", "broker+tcp://0.0.0.0:1883"]
