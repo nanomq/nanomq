@@ -243,7 +243,7 @@ Configure **MQTT bridging** in NanoMQ: by modifying `nanomq_bridge.conf`, which 
 You can also write your own configuration file. Be sure to start NanoMQ in this fashion to specify an effective configuration file:
 
 ```bash
-nanomq broker start -conf <$FILE_PATH> [-bridge <$FILE_PATH>]
+nanomq broker start --conf <$FILE_PATH> [--bridge <$FILE_PATH>]
 ```
 
 
@@ -253,7 +253,9 @@ nanomq broker start -conf <$FILE_PATH> [-bridge <$FILE_PATH>]
 The same configuration can be achieved by adding some command-line arguments when you start NanoMQ broker. There are a few arguments for you to play with. And the general usage is:
 
 ```bash
-nanomq broker {start|restart -url <url> [-conf <$FILE_PATH>] [-bridge <$FILE_PATH>] [-daemon] [-tq_thread <num>] [-max_tq_thread <num>] [-parallel <num>] [-qos_duration <num>] }|stop}
+nanomq broker { { start | restart [--conf <path>] [--url <url>] [-d, --daemon]
+              [-t, --tq_thread <num>] [-T, -max_tq_thread <num>] [-n, --parallel <num>]
+              [-D, --qos_duration <num>] [--http] [-p, --port]  } | stop }
 ```
 
 - `start`, `restart`, and `stop` command is mandatory as it indicates whether you want to start a new broker, or replace an existing broker with a new one, or stop a running broker;
@@ -268,7 +270,7 @@ nanomq broker {start|restart -url <url> [-conf <$FILE_PATH>] [-bridge <$FILE_PAT
 
   ```bash
   nanomq broker start|restart 					## only if an url is specified in 'nanomq.conf'
-  nanomq broker start|restart -conf <$FILE_PATH> [-bridge <$FILE_PATH>] ## only if an url is specified in your conf file
+  nanomq broker start|restart --conf <$FILE_PATH> [--bridge <$FILE_PATH>] ## only if an url is specified in your conf file
   ```
 
 - Telling broker that it should read your configuration file. 
@@ -276,26 +278,26 @@ nanomq broker {start|restart -url <url> [-conf <$FILE_PATH>] [-bridge <$FILE_PAT
   Be aware that command line arguments always has a higher priority than both 'nanomq.conf' and your configuration file: 
 
   ```bash
-  nanomq broker start|restart -conf <$FILE_PATH> [-bridge <$FILE_PATH>]
+  nanomq broker start|restart --conf <$FILE_PATH> [--bridge <$FILE_PATH>]
   ```
 
 - Running broker in daemon mode:
 
   ```bash
-  nanomq broker start|restart -daemon
+  nanomq broker start|restart --daemon
   ```
 
 - Limiting the number of threads by specifying the number of and the max number of taskq threads:
 
   ```bash
-  nanomq broker start|restart  -tq_thread <num>
-  nanomq broker start|restart  -max_tq_thread <num>
+  nanomq broker start|restart  --tq_thread <num>
+  nanomq broker start|restart  --max_tq_thread <num>
   ```
 
 - Limiting the maximum number of logical threads:
 
   ```bash
-  nanomq broker start|restart -parallel <num>
+  nanomq broker start|restart --parallel <num>
   ```
   
 - Setting the max property size for MQTT packet:
@@ -303,7 +305,7 @@ nanomq broker {start|restart -url <url> [-conf <$FILE_PATH>] [-bridge <$FILE_PAT
   Default: 32 bytes
 
   ```bash
-  nanomq broker start|restart -property_size <num>
+  nanomq broker start|restart --property_size <num>
   ```
 
 - Setting the queue length for a resending message:
@@ -311,7 +313,7 @@ nanomq broker {start|restart -url <url> [-conf <$FILE_PATH>] [-bridge <$FILE_PAT
   Default: 64 bytes
 
   ```bash
-  nanomq broker start|restart -msq_len <num>
+  nanomq broker start|restart --msq_len <num>
   ```
 
 - Setting the interval of the qos timer (*Also a global timer interval for session keeping*):
@@ -319,7 +321,7 @@ nanomq broker {start|restart -url <url> [-conf <$FILE_PATH>] [-bridge <$FILE_PAT
   Default: 30 seconds
 
   ```bash
-  nanomq broker start|restart -qos_duration <num>
+  nanomq broker start|restart --qos_duration <num>
   ```
 
 *For tuning NanoMQ according to different hardware, please check the Doc.*
