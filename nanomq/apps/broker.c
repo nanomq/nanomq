@@ -19,6 +19,8 @@
 #include <mqtt_db.h>
 #include <nng.h>
 #include <nng/mqtt/mqtt_client.h>
+#include <nng/supplemental/util/options.h>
+#include <nng/supplemental/util/platform.h>
 #include <protocol/mqtt/mqtt_parser.h>
 #include <protocol/mqtt/nmq_mqtt.h>
 #include <zmalloc.h>
@@ -41,6 +43,60 @@
 #ifndef PARALLEL
 #define PARALLEL 32
 #endif
+
+enum options {
+	OPT_HELP = 1,
+	OPT_CONFFILE,
+	OPT_PARALLEL,
+	OPT_BRIDGEFILE,
+	OPT_DAEMON,
+	OPT_THREADS,
+	OPT_MAX_THREADS,
+	OPT_PROPERTY_SIZE,
+	OPT_MSQ_LEN,
+	OPT_QOS_DURATION,
+	OPT_URL,
+	OPT_HTTP_ENABLE,
+	OPT_HTTP_PORT,
+};
+
+static nng_optspec cmd_opts[] = {
+	{ .o_name = "help", .o_short = 'h', .o_val = OPT_HELP },
+	{ .o_name = "conf", .o_val = OPT_CONFFILE, .o_arg = true },
+	{ .o_name = "bridge", .o_val = OPT_BRIDGEFILE, .o_arg = true },
+	{ .o_name = "daemon", .o_short = 'd', .o_val = OPT_DAEMON },
+	{ .o_name    = "tq_thread",
+	    .o_short = 't',
+	    .o_val   = OPT_THREADS,
+	    .o_arg   = true },
+	{ .o_name    = "max_tq_thread",
+	    .o_short = 'T',
+	    .o_val   = OPT_MAX_THREADS,
+	    .o_arg   = true },
+	{ .o_name    = "parallel",
+	    .o_short = 'n',
+	    .o_val   = OPT_PARALLEL,
+	    .o_arg   = true },
+	{ .o_name    = "property_size",
+	    .o_short = 's',
+	    .o_val   = OPT_PROPERTY_SIZE,
+	    .o_arg   = true },
+	{ .o_name    = "msq_len",
+	    .o_short = 'S',
+	    .o_val   = OPT_MSQ_LEN,
+	    .o_arg   = true },
+	{ .o_name    = "qos_duration",
+	    .o_short = 'D',
+	    .o_val   = OPT_QOS_DURATION,
+	    .o_arg   = true },
+	{ .o_name = "url", .o_val = OPT_URL, .o_arg = true },
+	{ .o_name = "http", .o_val = OPT_HTTP_ENABLE, .o_arg = true },
+	{ .o_name    = "port",
+	    .o_short = 'p',
+	    .o_val   = OPT_HTTP_PORT,
+	    .o_arg   = true },
+	{ .o_name = NULL, .o_val = 0 },
+};
 
 // The server keeps a list of work items, sorted by expiration time,
 // so that we can use this to set the timeout to the correct value for
@@ -646,7 +702,40 @@ broker(conf *nanomq_conf)
 void
 print_usage(void)
 {
-	fprintf(stderr, USAGE);
+	printf("Usage: nanomq broker { { start | restart [--conf <path>] "
+	       "[--url <url>] [-d, --daemon]\n                     "
+	       "[-t, --tq_thread <num>] [-T, -max_tq_thread <num>] [-n, "
+	       "--parallel <num>]\n"
+	       "                     [-D, --qos_duration <num>] [--http] "
+	       "[-p, --port] "
+	       " } | stop }\n\n");
+
+	printf("  --conf <path>              the path of a specified nanomq "
+	       "configuration file \n");
+	printf("  --bridge <path>            the path of a specified bridge "
+	       "configuration file \n");
+	printf("  --url <url>                the format of "
+	       "'broker+tcp://ip_addr:host' for TCP and "
+	       "'nmq+ws://ip_addr:host' for WebSocket\n");
+	printf("  --http                     enable http server (default: "
+	       "disable)\n");
+	printf(
+	    "  -p, --port <num>           the port of http server (default: "
+	    "8081)\n");
+	printf(
+	    "  -t, --tq_thread <num>      the number of taskq threads used, "
+	    "`num` greater than 0 and less than 256\n");
+	printf(
+	    "  -T, --max_tq_thread <num>  the maximum number of taskq threads "
+	    "used, `num` greater than 0 and less than 256\n");
+	printf(
+	    "  -n, --parallel <num>       the maximum number of outstanding "
+	    "requests we can handle\n");
+	printf("  -s, --property_size <num>  the max size for a MQTT user "
+	       "property");
+	printf("  -S, --msq_len <num>        the queue length for resending "
+	       "messages\n");
+	printf("  -D, --qos_duration <num>   the interval of the qos timer\n");
 }
 
 int
@@ -711,6 +800,89 @@ active_conf(conf *nanomq_conf)
 }
 
 int
+broker_parse_opts(int argc, char **argv, conf *config)
+{
+	int   idx = 0;
+	char *arg;
+	int   val;
+	int   rv;
+
+	while ((rv = nng_opts_parse(argc, argv, cmd_opts, &val, &arg, &idx)) ==
+	    0) {
+		switch (val) {
+		case OPT_HELP:
+			print_usage();
+			exit(0);
+			break;
+		case OPT_CONFFILE:
+			config->conf_file = nng_strdup(arg);
+			break;
+		case OPT_BRIDGEFILE:
+			config->bridge_file = nng_strdup(arg);
+			break;
+		case OPT_PARALLEL:
+			config->parallel = atoi(arg);
+			break;
+		case OPT_DAEMON:
+			config->daemon = true;
+			break;
+		case OPT_THREADS:
+			config->num_taskq_thread = atoi(arg);
+			break;
+		case OPT_MAX_THREADS:
+			config->max_taskq_thread = atoi(arg);
+			break;
+		case OPT_PROPERTY_SIZE:
+			config->property_size = atoi(arg);
+			break;
+		case OPT_MSQ_LEN:
+			config->msq_len = atoi(arg);
+			break;
+		case OPT_QOS_DURATION:
+			config->qos_duration = atoi(arg);
+			break;
+		case OPT_URL:
+			config->url = nng_strdup(arg);
+			break;
+		case OPT_HTTP_ENABLE:
+			config->http_server.enable = true;
+			break;
+		case OPT_HTTP_PORT:
+			config->http_server.port = atoi(arg);
+			break;
+
+		default:
+			break;
+		}
+	}
+
+	switch (rv) {
+	case NNG_EINVAL:
+		fprintf(stderr,
+		    "Option %s is invalid.\nTry 'nanomq broker --help' for "
+		    "more information.\n",
+		    argv[idx]);
+		break;
+	case NNG_EAMBIGUOUS:
+		fprintf(stderr,
+		    "Option %s is ambiguous (specify in full).\nTry 'nanomq "
+		    "broker --help' for more information.\n",
+		    argv[idx]);
+		break;
+	case NNG_ENOARG:
+		fprintf(stderr,
+		    "Option %s requires argument.\nTry 'nanomq broker --help' "
+		    "for more information.\n",
+		    argv[idx]);
+		break;
+	default:
+		break;
+	}
+
+	return rv == -1;
+}
+
+int
 broker_start(int argc, char **argv)
 {
 	int   i, url, temp, rc, num_ctx = 0;
@@ -735,80 +907,22 @@ broker_start(int argc, char **argv)
 	nanomq_conf->parallel = PARALLEL;
 	conf_init(nanomq_conf);
 
-	for (i = 0; i < argc; i++, temp = 0) {
-		if (!strcmp("-conf", argv[i])) {
-			debug_msg("reading user specified nanomq conf file:%s",
-			    argv[i + 1]);
-			conf_path = argv[++i];
-		} else if (!strcmp("-bridge", argv[i])) {
-			debug_msg("reading user specified bridge conf file:%s",
-			    argv[i + 1]);
-			bridge_conf_path = argv[++i];
-		} else if (!strcmp("-daemon", argv[i])) {
-			nanomq_conf->daemon = true;
-		} else if (!strcmp("-tq_thread", argv[i]) &&
-		    ((i + 1) < argc) && isdigit(argv[++i][0]) &&
-		    ((temp = atoi(argv[i])) > 0) && (temp < 256)) {
-			nanomq_conf->num_taskq_thread = temp;
-		} else if (!strcmp("-max_tq_thread", argv[i]) &&
-		    ((i + 1) < argc) && isdigit(argv[++i][0]) &&
-		    ((temp = atoi(argv[i])) > 0) && (temp < 256)) {
-			nanomq_conf->max_taskq_thread = temp;
-		} else if (!strcmp("-parallel", argv[i]) && ((i + 1) < argc) &&
-		    isdigit(argv[++i][0]) && ((temp = atoi(argv[i])) > 0)) {
-			nanomq_conf->parallel = temp;
-		} else if (!strcmp("-property_size", argv[i]) &&
-		    ((i + 1) < argc) && isdigit(argv[++i][0]) &&
-		    ((temp = atoi(argv[i])) > 0)) {
-			nanomq_conf->property_size = temp;
-		} else if (!strcmp("-msq_len", argv[i]) && ((i + 1) < argc) &&
-		    isdigit(argv[++i][0]) && ((temp = atoi(argv[i])) > 0)) {
-			nanomq_conf->msq_len = temp;
-		} else if (!strcmp("-qos_duration", argv[i]) &&
-		    ((i + 1) < argc) && isdigit(argv[++i][0]) &&
-		    ((temp = atoi(argv[i])) > 0)) {
-			nanomq_conf->qos_duration = temp;
-		} else if (!strcmp("-url", argv[i])) {
-			char *url = argv[++i];
-			if (strncmp(TCP_URL_PREFIX, url,
-			        strlen(TCP_URL_PREFIX)) == 0) {
-				if (nanomq_conf->url != NULL) {
-					zfree(nanomq_conf->url);
-				}
-				nanomq_conf->url = url;
-			} else if (strncmp(WS_URL_PREFIX, url,
-			               strlen(WS_URL_PREFIX)) == 0) {
-				if (nanomq_conf->websocket.url != NULL) {
-					zfree(nanomq_conf->url);
-				}
-				nanomq_conf->websocket.url    = url;
-				nanomq_conf->websocket.enable = true;
-			}
-		} else if (!strcmp("-http", argv[i])) {
-			nanomq_conf->http_server.enable = true;
-		} else if (!strcmp("-port", argv[i]) && ((i + 1) < argc) &&
-		    isdigit(argv[++i][0]) && ((temp = atoi(argv[i])) > 0) &&
-		    (temp < 65536)) {
-			nanomq_conf->http_server.port = temp;
-		} else {
-			fprintf(stderr,
-			    "Invalid command line arugment input, "
-			    "nanomq broker terminates\n");
-			print_usage();
-			exit(EXIT_FAILURE);
-		}
+	if (!broker_parse_opts(argc, argv, nanomq_conf)) {
+		conf_fini(nanomq_conf);
+		return -1;
 	}
 
-	conf_parser(nanomq_conf, conf_path);
-	conf_bridge_parse(nanomq_conf, bridge_conf_path);
+	conf_parser(nanomq_conf, nanomq_conf->conf_file);
+	conf_bridge_parse(nanomq_conf, nanomq_conf->bridge_file);
 
-	nanomq_conf->url =
-	    nanomq_conf->url != NULL ? nanomq_conf->url : CONF_TCP_URL_DEFAULT;
+	nanomq_conf->url = nanomq_conf->url != NULL
+	    ? nanomq_conf->url
+	    : nng_strdup(CONF_TCP_URL_DEFAULT);
 
 	if (nanomq_conf->websocket.enable) {
 		nanomq_conf->websocket.url = nanomq_conf->websocket.url != NULL
 		    ? nanomq_conf->websocket.url
-		    : CONF_WS_URL_DEFAULT;
+		    : nng_strdup(CONF_WS_URL_DEFAULT);
 	}
 
 	print_conf(nanomq_conf);
