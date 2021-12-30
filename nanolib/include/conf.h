@@ -11,32 +11,6 @@
 
 #include "zmalloc.h"
 
-#define USAGE                                                                 \
-	"Usage: nanomq broker {"                                              \
-	"{start|restart [-conf <path>] [-url <url>] [-daemon] [-tq_thread "   \
-	"<num>] [-max_tq_thread <num>] [-parallel <num>] [-qos_duration "     \
-	"<num>]}|stop}\n"                                                     \
-	"  -conf <path>          the path of a specified nanomq "             \
-	"configuration file "                                                 \
-	"\n"                                                                  \
-	"  -bridge <path>        the path of a specified bridge "             \
-	"configuration file \n"                                               \
-	"  -url <url>            the format of 'broker+tcp://ip_addr:host' "  \
-	"for TCP and 'nmq+ws://ip_addr:host' for WebSocket\n"                 \
-	"  -tq_thread <num>      the number of taskq threads used, `num` "    \
-	"greater than 0 and less than 256\n"                                  \
-	"  -max_tq_thread <num>  the maximum number of taskq threads used, "  \
-	"`num` greater than 0 and less than 256\n"                            \
-	"  -parallel <num>       the maximum number of outstanding requests " \
-	"we can handle\n"                                                     \
-	"  -property_size <num>  the max size for a MQTT user property\n"     \
-	"  -msq_len <num>        the queue length for resending messages\n"   \
-	"  -qos_duration <num>   the interval of the qos timer\n"             \
-	"  -http                 enable http server (default: disable)\n"     \
-	"  -port <num>           the port of http server (default: 8081)\n"
-
-#define CONF_READ_RECORD "Conf_file: %s read as %s\n"
-
 #define PID_PATH_NAME "/tmp/nanomq/nanomq.pid"
 #define CONF_PATH_NAME "/etc/nanomq.conf"
 #define CONF_AUTH_PATH_NAME "/etc/nanomq_auth_username.conf"
@@ -96,6 +70,8 @@ struct conf_bridge {
 typedef struct conf_bridge conf_bridge;
 
 struct conf {
+	char *   conf_file;
+	char *   bridge_file;
 	char *   url;
 	int      num_taskq_thread;
 	int      max_taskq_thread;

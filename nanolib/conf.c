@@ -160,6 +160,9 @@ conf_parser(conf *nanomq_conf, const char *path)
 void
 conf_init(conf *nanomq_conf)
 {
+	nanomq_conf->url                  = NULL;
+	nanomq_conf->conf_file            = NULL;
+	nanomq_conf->bridge_file          = NULL;
 	nanomq_conf->num_taskq_thread     = 10;
 	nanomq_conf->max_taskq_thread     = 10;
 	nanomq_conf->parallel             = 30; // not work
@@ -534,6 +537,8 @@ conf_fini(conf *nanomq_conf)
 	zfree(usernames);
 	zfree(passwords);
 	zfree(nanomq_conf->url);
+	zfree(nanomq_conf->conf_file);
+	zfree(nanomq_conf->bridge_file);
 
 	zfree(nanomq_conf->http_server.username);
 	zfree(nanomq_conf->http_server.password);
@@ -542,7 +547,7 @@ conf_fini(conf *nanomq_conf)
 
 	conf_bridge_destroy(&nanomq_conf->bridge);
 
-	zfree(nanomq_conf);
+	free(nanomq_conf);
 }
 
 int
