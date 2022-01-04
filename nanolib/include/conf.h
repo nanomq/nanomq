@@ -72,6 +72,7 @@ typedef struct conf_bridge conf_bridge;
 struct conf {
 	char *   conf_file;
 	char *   bridge_file;
+	char *   auth_file;
 	char *   url;
 	int      num_taskq_thread;
 	int      max_taskq_thread;
@@ -92,8 +93,8 @@ struct conf {
 
 typedef struct conf conf;
 
-extern bool conf_parser(conf *nanomq_conf, const char *path);
-extern bool conf_bridge_parse(conf *nanomq_conf, const char *path);
+extern bool conf_parser(conf *nanomq_conf);
+extern bool conf_bridge_parse(conf *nanomq_conf);
 extern void print_bridge_conf(conf_bridge *bridge);
 extern void conf_init(conf *nanomq_conf);
 extern void print_conf(conf *nanomq_conf);

@@ -50,11 +50,11 @@ get_conf_value(char *line, size_t len, const char *key)
 }
 
 bool
-conf_parser(conf *nanomq_conf, const char *path)
+conf_parser(conf *nanomq_conf)
 {
-	const char *dest_path = path;
+	const char *dest_path = nanomq_conf->conf_file;
 
-	if (!nano_file_exists(dest_path)) {
+	if (dest_path == NULL || !nano_file_exists(dest_path)) {
 		if (!nano_file_exists(CONF_PATH_NAME)) {
 			debug_msg("Configure file [%s] or [%s] not found or "
 			          "unreadable",
@@ -163,6 +163,7 @@ conf_init(conf *nanomq_conf)
 	nanomq_conf->url                  = NULL;
 	nanomq_conf->conf_file            = NULL;
 	nanomq_conf->bridge_file          = NULL;
+	nanomq_conf->auth_file            = NULL;
 	nanomq_conf->num_taskq_thread     = 10;
 	nanomq_conf->max_taskq_thread     = 10;
 	nanomq_conf->parallel             = 30; // not work
@@ -209,92 +210,81 @@ print_conf(conf *nanomq_conf)
 void
 conf_auth_parser(conf *nanomq_conf)
 {
-	char *line = NULL, buf[64], *username, *password, *tmp;
-	int   n = 0, x = 0, nu = 0, lenu = 0, lenp = 0;
-	if (!nano_file_exists(CONF_AUTH_PATH_NAME)) {
-		debug_msg("file not exists");
+	char *dest_path = nanomq_conf->auth_file;
+	if (dest_path == NULL || !nano_file_exists(dest_path)) {
+		if (!nano_file_exists(CONF_AUTH_PATH_NAME)) {
+			debug_msg("Configure file [%s] or [%s] not found or "
+			          "unreadable",
+			    dest_path, CONF_AUTH_PATH_NAME);
+			return;
+		} else {
+			dest_path = CONF_AUTH_PATH_NAME;
+		}
+	}
+
+	char   name_key[64] = "";
+	char   pass_key[64] = "";
+	char * name;
+	char * pass;
+	size_t index    = 1;
+	bool   get_name = false;
+	bool   get_pass = false;
+	char * line;
+	size_t sz = 0;
+	char * value;
+
+	conf_auth *auth = &nanomq_conf->auths;
+
+	auth->count = 0;
+
+	FILE *fp;
+	if ((fp = fopen(dest_path, "r")) == NULL) {
+		debug_msg("File %s open failed", dest_path);
 		return;
 	}
 
-	while (1) {
-		n++;
-		sprintf(buf, "auth.%d.login", n);
-		if ((line = file_find_line(
-		         CONF_AUTH_PATH_NAME, (const char *) buf)) == NULL) {
-			break;
+	while (getline(&line, &sz, fp) != -1) {
+		sprintf(name_key, "auth.%ld.login", index);
+		if (!get_name &&
+		    (value = get_conf_value(line, sz, name_key)) != NULL) {
+			name     = value;
+			get_name = true;
+			goto check;
 		}
-		if (line[0] == '#' || line[1] == '#') {
-			free(line);
-			line = NULL;
-			continue;
+
+		sprintf(pass_key, "auth.%ld.password", index);
+		if (!get_pass &&
+		    (value = get_conf_value(line, sz, pass_key)) != NULL) {
+			pass     = value;
+			get_pass = true;
+			goto check;
 		}
-		nu++;
+
 		free(line);
 		line = NULL;
+
+	check:
+		if (get_name && get_pass) {
+			index++;
+			auth->count++;
+			auth->usernames = realloc(
+			    auth->usernames, sizeof(char *) * auth->count);
+			auth->passwords = realloc(
+			    auth->passwords, sizeof(char *) * auth->count);
+
+			auth->usernames[auth->count - 1] = name;
+			auth->passwords[auth->count - 1] = pass;
+
+			get_name = false;
+			get_pass = false;
+		}
 	}
-	nanomq_conf->auths.count     = nu;
-	nanomq_conf->auths.usernames = zmalloc(sizeof(char *) * nu);
-	nanomq_conf->auths.passwords = zmalloc(sizeof(char *) * nu);
 
-	n = 0;
-	do {
-		n++;
-		/* username */
-		sprintf(buf, "auth.%d.login", n);
-		if ((line = file_find_line(
-		         CONF_AUTH_PATH_NAME, (const char *) buf)) == NULL) {
-			debug_msg("line not found");
-			break;
-		}
-		if (line[0] == '#' || line[1] == '#') {
-			free(line);
-			line = NULL;
-			continue;
-		}
-
-		x = 0;
-		while (line[x] != '=')
-			x++;
-
-		lenu = string_trim(&tmp, line + x + 1);
-
-		username = zmalloc((lenu + 1) * sizeof(uint8_t));
-		strncpy(username, tmp, lenu);
-		username[lenu] = '\0';
+	if (line) {
 		free(line);
-		line = NULL;
+	}
 
-		/* password */
-		sprintf(buf, "auth.%d.password", n);
-		if ((line = file_find_line(
-		         CONF_AUTH_PATH_NAME, (const char *) buf)) == NULL) {
-			debug_msg("line not found");
-			break;
-		}
-		if (line[0] == '#' || line[1] == '#') {
-			continue;
-		}
-
-		x = 0;
-		while (line[x] != '=')
-			x++;
-
-		lenp = string_trim(&tmp, line + x + 1);
-
-		password = zmalloc((lenp + 1) * sizeof(uint8_t));
-		strncpy(password, tmp, lenp);
-		password[lenp] = '\0';
-		free(line);
-		line = NULL;
-
-		debug_msg("username: %s, len: %d", username, lenu);
-		debug_msg("password: %s, len: %d", password, lenp);
-
-		if (nanomq_conf != NULL) {
-			nanomq_conf->auths.usernames[n - 1] = username;
-			nanomq_conf->auths.passwords[n - 1] = password;
-		}
-	} while (1);
+	fclose(fp);
 }
 
 bool
@@ -365,11 +355,11 @@ conf_bridge_parse_subs(conf_bridge *bridge, const char *path)
 }
 
 bool
-conf_bridge_parse(conf *nanomq_conf, const char *path)
+conf_bridge_parse(conf *nanomq_conf)
 {
-	const char *dest_path = path;
+	const char *dest_path = nanomq_conf->bridge_file;
 
-	if (!nano_file_exists(dest_path)) {
+	if (dest_path == NULL || !nano_file_exists(dest_path)) {
 		if (!nano_file_exists(CONF_BRIDGE_PATH_NAME)) {
 			debug_msg("Configure file [%s] or [%s] not found or "
 			          "unreadable",
@@ -539,6 +529,7 @@ conf_fini(conf *nanomq_conf)
 	zfree(nanomq_conf->url);
 	zfree(nanomq_conf->conf_file);
 	zfree(nanomq_conf->bridge_file);
+	zfree(nanomq_conf->auth_file);
 
 	zfree(nanomq_conf->http_server.username);
 	zfree(nanomq_conf->http_server.password);

@@ -47,8 +47,9 @@
 enum options {
 	OPT_HELP = 1,
 	OPT_CONFFILE,
-	OPT_PARALLEL,
 	OPT_BRIDGEFILE,
+	OPT_AUTHFILE,
+	OPT_PARALLEL,
 	OPT_DAEMON,
 	OPT_THREADS,
 	OPT_MAX_THREADS,
@@ -64,6 +65,7 @@ static nng_optspec cmd_opts[] = {
 	{ .o_name = "help", .o_short = 'h', .o_val = OPT_HELP },
 	{ .o_name = "conf", .o_val = OPT_CONFFILE, .o_arg = true },
 	{ .o_name = "bridge", .o_val = OPT_BRIDGEFILE, .o_arg = true },
+	{ .o_name = "auth", .o_val = OPT_AUTHFILE, .o_arg = true },
 	{ .o_name = "daemon", .o_short = 'd', .o_val = OPT_DAEMON },
 	{ .o_name    = "tq_thread",
 	    .o_short = 't',
@@ -97,6 +99,12 @@ static nng_optspec cmd_opts[] = {
 	    .o_arg   = true },
 	{ .o_name = NULL, .o_val = 0 },
 };
+
+#define ASSERT_NULL(p, fmt, ...)                          \
+	if ((p) != NULL) {                                \
+		fprintf(stderr, fmt "\n", ##__VA_ARGS__); \
+		exit(1);                                  \
+	}
 
 // The server keeps a list of work items, sorted by expiration time,
 // so that we can use this to set the timeout to the correct value for
@@ -702,40 +710,50 @@ broker(conf *nanomq_conf)
 void
 print_usage(void)
 {
-	printf("Usage: nanomq broker { { start | restart [--conf <path>] "
-	       "[--url <url>] [-d, --daemon]\n                     "
-	       "[-t, --tq_thread <num>] [-T, -max_tq_thread <num>] [-n, "
-	       "--parallel <num>]\n"
-	       "                     [-D, --qos_duration <num>] [--http] "
-	       "[-p, --port] "
-	       " } | stop }\n\n");
+	printf("Usage: nanomq broker { { start | restart [--url <url>] "
+	       "[--conf <path>] "
+	       "[--bridge <path>] \n                     "
+	       "[--auth <path>] "
+	       "[-d, --daemon] "
+	       "[-t, --tq_thread <num>] \n                     "
+	       "[-T, -max_tq_thread <num>] [-n, "
+	       "--parallel <num>]\n                     "
+	       "[-D, --qos_duration <num>] [--http] "
+	       "[-p, --port] } \n                     "
+	       "| stop }\n\n");
 
-	printf("  --conf <path>              the path of a specified nanomq "
-	       "configuration file \n");
-	printf("  --bridge <path>            the path of a specified bridge "
-	       "configuration file \n");
-	printf("  --url <url>                the format of "
+	printf("Options: \n");
+	printf("  --url <url>                The format of "
 	       "'broker+tcp://ip_addr:host' for TCP and "
 	       "'nmq+ws://ip_addr:host' for WebSocket\n");
-	printf("  --http                     enable http server (default: "
+	printf("  --conf <path>              The path of a specified nanomq "
+	       "configuration file \n");
+	printf("  --bridge <path>            The path of a specified bridge "
+	       "configuration file \n");
+	printf(
+	    "  --auth <path>              The path of a specified authorize "
+	    "configuration file \n");
+	printf("  --http                     Enable http server (default: "
 	       "disable)\n");
 	printf(
-	    "  -p, --port <num>           the port of http server (default: "
+	    "  -p, --port <num>           The port of http server (default: "
 	    "8081)\n");
 	printf(
-	    "  -t, --tq_thread <num>      the number of taskq threads used, "
+	    "  -t, --tq_thread <num>      The number of taskq threads used, "
 	    "`num` greater than 0 and less than 256\n");
 	printf(
-	    "  -T, --max_tq_thread <num>  the maximum number of taskq threads "
+	    "  -T, --max_tq_thread <num>  The maximum number of taskq threads "
 	    "used, `num` greater than 0 and less than 256\n");
 	printf(
-	    "  -n, --parallel <num>       the maximum number of outstanding "
+	    "  -n, --parallel <num>       The maximum number of outstanding "
 	    "requests we can handle\n");
-	printf("  -s, --property_size <num>  the max size for a MQTT user "
+	printf("  -s, --property_size <num>  The max size for a MQTT user "
 	       "property\n");
-	printf("  -S, --msq_len <num>        the queue length for resending "
+	printf("  -S, --msq_len <num>        The queue length for resending "
 	       "messages\n");
-	printf("  -D, --qos_duration <num>   the interval of the qos timer\n");
+	printf("  -D, --qos_duration <num>   The interval of the qos timer\n");
+	printf("  -d, --daemon               Set nanomq as daemon (default: "
+	       "false)\n");
 }
 
 int
@@ -815,10 +833,21 @@ broker_parse_opts(int argc, char **argv, conf *config)
 			exit(0);
 			break;
 		case OPT_CONFFILE:
+			ASSERT_NULL(config->conf_file,
+			    "CONFIG (--conf) may be specified only once.");
 			config->conf_file = nng_strdup(arg);
 			break;
 		case OPT_BRIDGEFILE:
+			ASSERT_NULL(config->bridge_file,
+			    "BRIDGE (--bridge) may be specified "
+			    "only once.");
 			config->bridge_file = nng_strdup(arg);
+			break;
+		case OPT_AUTHFILE:
+			ASSERT_NULL(config->auth_file,
+			    "AUTH (--auth) may be specified "
+			    "only once.");
+			config->auth_file = nng_strdup(arg);
 			break;
 		case OPT_PARALLEL:
 			config->parallel = atoi(arg);
@@ -842,6 +871,9 @@ broker_parse_opts(int argc, char **argv, conf *config)
 			config->qos_duration = atoi(arg);
 			break;
 		case OPT_URL:
+			ASSERT_NULL(config->url,
+			    "URL (--url) may be specified "
+			    "only once.");
 			config->url = nng_strdup(arg);
 			break;
 		case OPT_HTTP_ENABLE:
@@ -912,8 +944,8 @@ broker_start(int argc, char **argv)
 		return -1;
 	}
 
-	conf_parser(nanomq_conf, nanomq_conf->conf_file);
-	conf_bridge_parse(nanomq_conf, nanomq_conf->bridge_file);
+	conf_parser(nanomq_conf);
+	conf_bridge_parse(nanomq_conf);
 
 	nanomq_conf->url = nanomq_conf->url != NULL
 	    ? nanomq_conf->url
