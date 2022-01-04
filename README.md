@@ -56,8 +56,8 @@ nanomq conn start --url <url> [--help]
 **POSIX message queue usage**
 
 ```bash
-nanomq broker mq start
-nanomq broker mq stop
+nanomq mq start
+nanomq mq stop
 ```
 
 *Incoming feature: NanoMQ Zmq usage*
@@ -82,7 +82,7 @@ With this being said, NanoMQ can run on different architectures such like x86_64
 #### Docker
 
 ```bash
-docker run -d --name nanomq nanomq/nanomq:0.5.2
+docker run -d -p 1883:1883 --name nanomq nanomq/nanomq:0.5.6
 ```
 
 
@@ -118,7 +118,8 @@ To build NanoMQ, requires a C99 & C++11 compatible compiler and [CMake](http://w
   ninja
   ```
   
-**Note (optaional): client(pub/sub/conn) is built by default**, you can disable it via `-DBUILD_CLIENT=OFF`.
+**Note (optaional): client(pub / sub / conn) is built by default**, you can disable it via `-DBUILD_CLIENT=OFF`.
+
   ``` bash
   cmake -G Ninja -DBUILD_CLIENT=OFF ..
   ninja
@@ -243,7 +244,7 @@ Configure **MQTT bridging** in NanoMQ: by modifying `nanomq_bridge.conf`, which 
 You can also write your own configuration file. Be sure to start NanoMQ in this fashion to specify an effective configuration file:
 
 ```bash
-nanomq broker start --conf <$FILE_PATH> [--bridge <$FILE_PATH>]
+nanomq broker start --conf <$FILE_PATH> [--bridge <$FILE_PATH>] [--auth <$FILE_PATH>]
 ```
 
 
@@ -253,9 +254,11 @@ nanomq broker start --conf <$FILE_PATH> [--bridge <$FILE_PATH>]
 The same configuration can be achieved by adding some command-line arguments when you start NanoMQ broker. There are a few arguments for you to play with. And the general usage is:
 
 ```bash
-nanomq broker { { start | restart [--conf <path>] [--url <url>] [-d, --daemon]
-              [-t, --tq_thread <num>] [-T, -max_tq_thread <num>] [-n, --parallel <num>]
-              [-D, --qos_duration <num>] [--http] [-p, --port]  } | stop }
+nanomq broker { { start | restart [--url <url>] [--conf <path>] [--bridge <path>] 
+                [--auth <path>] [-d, --daemon] [-t, --tq_thread <num>] 
+                [-T, -max_tq_thread <num>] [-n, --parallel <num>]
+                [-D, --qos_duration <num>] [--http] [-p, --port] } 
+                | stop }
 ```
 
 - `start`, `restart`, and `stop` command is mandatory as it indicates whether you want to start a new broker, or replace an existing broker with a new one, or stop a running broker;
@@ -269,8 +272,8 @@ nanomq broker { { start | restart [--conf <path>] [--url <url>] [-d, --daemon]
   All arguments are useful when `start` and `restart` are chosen. An URL is mandatory (unless an URL is specified in the 'nanomq.conf', or in your configuration file), as it indicates on which the host and port a broker is listening:
 
   ```bash
-  nanomq broker start|restart 					## only if an url is specified in 'nanomq.conf'
-  nanomq broker start|restart --conf <$FILE_PATH> [--bridge <$FILE_PATH>] ## only if an url is specified in your conf file
+  nanomq broker start|restart 					
+  nanomq broker start|restart --conf <$FILE_PATH> [--bridge <$FILE_PATH>] [--auth <$FILE_PATH>] 
   ```
 
 - Telling broker that it should read your configuration file. 
@@ -278,7 +281,7 @@ nanomq broker { { start | restart [--conf <path>] [--url <url>] [-d, --daemon]
   Be aware that command line arguments always has a higher priority than both 'nanomq.conf' and your configuration file: 
 
   ```bash
-  nanomq broker start|restart --conf <$FILE_PATH> [--bridge <$FILE_PATH>]
+  nanomq broker start|restart --conf <$FILE_PATH> [--bridge <$FILE_PATH>] [--auth <$FILE_PATH>]
   ```
 
 - Running broker in daemon mode:
