@@ -5,10 +5,10 @@
 #ifndef NANOMQ_PUB_HANDLER_H
 #define NANOMQ_PUB_HANDLER_H
 
-#include "include/packet.h"
-#include "nng/protocol/mqtt/mqtt.h"
-#include <broker.h>
+#include "broker.h"
 #include <nng/nng.h>
+#include <nng/mqtt/packet.h>
+#include <nng/protocol/mqtt/mqtt.h>
 
 typedef uint32_t variable_integer;
 

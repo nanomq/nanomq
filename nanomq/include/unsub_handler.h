@@ -4,7 +4,7 @@
 #include <nng/nng.h>
 
 #include "broker.h"
-#include "packet.h"
+#include <nng/mqtt/packet.h>
 
 uint8_t decode_unsub_message(nano_work *);
 uint8_t encode_unsuback_message(nng_msg *, nano_work *);
