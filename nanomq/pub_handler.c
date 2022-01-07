@@ -13,7 +13,7 @@
 #include <include/nanomq.h>
 #include <mqtt_db.h>
 #include <nng.h>
-#include <protocol/mqtt/mqtt_parser.h>
+#include <nng/protocol/mqtt/mqtt_parser.h>
 #include <zmalloc.h>
 
 #include "include/pub_handler.h"

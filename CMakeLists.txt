@@ -11,7 +11,12 @@ SET(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 
 project(nanomq-nng)
 
-option(BUILD_CLIENT "Build nanomq client" ON)
+option (BUILD_CLIENT "Build nanomq client" ON)
+
+set (NNG_PROTO_MQTT_BROKER  ON)
+set (NNG_TRANSPORT_MQTT_BROKER_TCP ON)
+set (NNG_TRANSPORT_MQTT_BROKER_WS  ON)
+set (NNG_TRANSPORT_MQTT_BROKER_WSS ON)
 
 set(CMAKE_MODULE_PATH
   ${CMAKE_MODULE_PATH}
