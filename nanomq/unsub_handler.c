@@ -224,7 +224,7 @@ unsub_ctx_handle(nano_work *work)
 		    "find client [%s] in topic [%s].", client_id, topic_str);
 
 		cli_ctx = dbtree_delete_client(work->db, topic_str, clientid_key, work->pid.id);
-		del_topic_one(work->pid.id, topic_str);
+		dbhash_del_topic(work->pid.id, topic_str);
 
 		if (cli_ctx != NULL) { // find the topic
 			topic_node_t->it->reason_code = 0x00;

@@ -258,7 +258,7 @@ get_subscriptions(cJSON *data, http_msg *msg, uint64_t sequence)
 	cJSON_AddItemToObject(res_obj, "subscriptions", topics);
 
 	size_t        sz = 0;
-	topic_queue **tq = get_all_topic_queue(&sz);
+	topic_queue **tq = dbhash_get_topic_queue_all(&sz);
 
 	for (size_t i = 0; i < sz; i++) {
 		topic_queue *queue = tq[i];

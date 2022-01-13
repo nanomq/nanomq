@@ -263,13 +263,6 @@ void *dbtree_delete_retain(dbtree *db, char *topic);
  */
 dbtree_retain_msg **dbtree_find_retain(dbtree *db, char *topic);
 
-/* A hash table, clientId or alias as key, topic as value */
-char *hash_check_alias(int alias);
-
-void hash_add_alias(int alias, char *topic_data);
-
-void hash_del_alias(int alias);
-
 /**
  * @brief dbtree_find_shared_sub_clients - This function
  * will Find shared subscribe client.

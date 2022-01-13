@@ -1,4 +1,3 @@
-//
 // Copyright 2020 NanoMQ Team, Inc. <jaylin@emqx.io>
 //
 // This software is supplied under the terms of the MIT License, a
@@ -297,7 +296,7 @@ sub_ctx_handle(nano_work *work)
 	}
 
 	// get ctx from tree TODO optimization here
-	tq = get_topic(cli_ctx->pid.id);
+	tq = dbhash_get_topic_queue(cli_ctx->pid.id);
 	if (tq) {
 		old_ctx =
 		    dbtree_delete_client(work->db, tq->topic, clientid_key, cli_ctx->pid.id);
@@ -331,7 +330,7 @@ sub_ctx_handle(nano_work *work)
 
 		/* remove duplicate items */
 		topic_exist = 0;
-		tq          = get_topic(work->pid.id);
+		tq          = dbhash_get_topic_queue(work->pid.id);
 		while (tq) {
 			if (!strcmp(topic_str, tq->topic)) {
 				topic_exist = 1;
@@ -341,7 +340,7 @@ sub_ctx_handle(nano_work *work)
 		}
 		if (!topic_exist) {
 			dbtree_insert_client(work->db, topic_str, old_ctx, work->pid.id);
-			add_topic(work->pid.id, topic_str);
+			dbhash_insert_topic(work->pid.id, topic_str);
 		}
 #ifdef DEBUG
 		// check
@@ -577,14 +576,14 @@ cache_session(char *clientid, conn_param *cparam, uint32_t pid, void *db)
 
 	uint32_t key_clientid = DJBHashn(clientid, strlen(clientid));
 
-	if (check_id(pid)) {
-		tq = get_topic(pid);
+	if (dbhash_check_id(pid)) {
+		tq = dbhash_get_topic_queue(pid);
 		while (tq) {
 			// TODO Is it necessary to get ctx and set pipeid to 0 in ctx ??
 			dbtree_cache_session(db, tq->topic, key_clientid, pid);
 			tq = tq->next;
 		}
-		cache_topic_all(pid, key_clientid);
+		dbhash_cache_topic_all(pid, key_clientid);
 	}
 
 	debug_msg("Session cached.");
@@ -602,10 +601,10 @@ restore_session(char *clientid, conn_param *cparam, uint32_t pid, void *db)
 	// TODO hash collision?
 	// TODO kick prev connection(p or cs->pipeid)
 
-	if (!cached_check_id(key_clientid)) {
+	if (!dbhash_cached_check_id(key_clientid)) {
 		return 0;
 	}
-	tq = get_cached_topic(key_clientid);
+	tq = dbhash_get_cached_topic(key_clientid);
 	while (tq) {
 		ctx = dbtree_restore_session(db, tq->topic, key_clientid, pid);
 		tq = tq->next;
@@ -614,5 +613,5 @@ restore_session(char *clientid, conn_param *cparam, uint32_t pid, void *db)
 		ctx->pid.id = pid;
 	}
 
-	restore_topic_all(key_clientid, pid);
+	dbhash_restore_topic_all(key_clientid, pid);
 }
