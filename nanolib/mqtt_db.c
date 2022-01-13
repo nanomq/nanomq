@@ -16,7 +16,7 @@
 
 #include "include/cvector.h"
 #include "include/dbg.h"
-#include "include/hash.h"
+#include "include/hash_table.h"
 #include "include/mqtt_db.h"
 #include "include/zmalloc.h"
 
@@ -1782,26 +1782,6 @@ mem_free:
 
 	return ret;
 }
-
-void
-hash_add_alias(int alias, char *topic)
-{
-	assert(topic);
-	push_val(alias, topic);
-}
-
-char *
-hash_check_alias(int alias)
-{
-	return get_val(alias);
-}
-
-void
-hash_del_alias(int alias)
-{
-	del_val(alias);
-}
-
 
 bool dbtree_check_shared_sub(const char *topic)
 {
