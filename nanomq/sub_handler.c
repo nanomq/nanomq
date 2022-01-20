@@ -343,11 +343,9 @@ sub_ctx_handle(nano_work *work)
 			dbtree_insert_client(work->db, topic_str, old_ctx, work->pid.id);
 			add_topic(work->pid.id, topic_str);
 		}
-#ifdef DEBUG
 		// check
 		debug_msg("--CHECK--cliid: [%s] pipeid: [%d]", clientid,
 		    work->pid.id);
-#endif
 
 		dbtree_retain_msg **r = dbtree_find_retain(work->db_ret, topic_str);
 		if (r) {

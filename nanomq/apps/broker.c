@@ -226,8 +226,8 @@ server_cb(void *arg)
 			nng_msg_set_pipe(work->msg, work->pid);
 
 			if (work->cparam != NULL) {
-				conn_param_clone(
-				    work->cparam); // avoid being free
+				// avoid being free
+				conn_param_clone(work->cparam);
 			}
 			// restore clean session
 			char *clientid =
@@ -254,9 +254,6 @@ server_cb(void *arg)
 			// Free here due to the clone before
 			conn_param_free(work->cparam);
 
-			work->state = WAIT;
-			nng_aio_finish(work->aio, 0);
-			break;
 		} else if (nng_msg_cmd_type(msg) == CMD_DISCONNECT_EV) {
 			nng_msg_set_cmd_type(work->msg, CMD_PUBLISH);
 			handle_pub(work, work->pipe_ct);
@@ -341,28 +338,6 @@ server_cb(void *arg)
 				if (check_id(work->pid.id)) {
 					del_topic_all(work->pid.id);
 				}
-			} else {
-				// success but check info
-				debug_msg("sub_pkt:"
-				          " pktid: [%d]"
-				          " topicLen: [%d]"
-				          " topic: [%s]",
-				    work->sub_pkt->packet_id,
-				    work->sub_pkt->node->it->topic_filter.len,
-				    work->sub_pkt->node->it->topic_filter
-				        .body);
-				debug_msg("suback:"
-				          " headerLen: [%ld]"
-				          " bodyLen: [%ld]"
-				          " type: [%x]"
-				          " len:[%x]"
-				          " pakcetid: [%x %x].",
-				    nng_msg_header_len(smsg),
-				    nng_msg_len(smsg),
-				    *((uint8_t *) nng_msg_header(smsg)),
-				    *((uint8_t *) nng_msg_header(smsg) + 1),
-				    *((uint8_t *) nng_msg_body(smsg)),
-				    *((uint8_t *) nng_msg_body(smsg) + 1));
 			}
 			nng_msg_free(work->msg);
 			destroy_sub_pkt(work->sub_pkt,
@@ -406,26 +381,6 @@ server_cb(void *arg)
 			    (reason = encode_unsuback_message(smsg, work)) !=
 			        SUCCESS) {
 				debug_msg("ERROR: unsub_handler [%d]", reason);
-			} else {
-				// success but check info
-				debug_msg("unsub_pkt:"
-				          " pktid: [%d]"
-				          " topicLen: [%d]",
-				    work->unsub_pkt->packet_id,
-				    work->unsub_pkt->node->it->topic_filter
-				        .len);
-				debug_msg("unsuback:"
-				          " headerLen: [%ld]"
-				          " bodyLen: [%ld]."
-				          " bodyType: [%x]"
-				          " len: [%x]"
-				          " packetid: [%x %x].",
-				    nng_msg_header_len(smsg),
-				    nng_msg_len(smsg),
-				    *((uint8_t *) nng_msg_header(smsg)),
-				    *((uint8_t *) nng_msg_header(smsg) + 1),
-				    *((uint8_t *) nng_msg_body(smsg)),
-				    *((uint8_t *) nng_msg_body(smsg) + 1));
 			}
 			// free unsub_pkt
 			destroy_unsub_ctx(work->unsub_pkt);
@@ -486,7 +441,10 @@ server_cb(void *arg)
 				nng_aio_finish(work->aio, 0);
 				break;
 			} else {
-				if (smsg) {
+				// TODO Do some optimization
+				// Free the msg with qos 0 (connackNotify actually)
+				// But not free the msg from nano_qos_db
+				if (smsg && 0 == work->pub_packet->fixed_header.qos) {
 					nng_msg_free(smsg);
 				}
 				free_pub_packet(work->pub_packet);
@@ -495,7 +453,7 @@ server_cb(void *arg)
 			}
 
 			if (work->state != SEND) {
-				if (work->msg != NULL)
+				if (work->msg)
 					nng_msg_free(work->msg);
 				work->msg = NULL;
 				if (work->proto == PROTO_MQTT_BRIDGE) {
