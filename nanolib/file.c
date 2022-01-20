@@ -190,7 +190,7 @@ int file_create_dir (const char *pName) {
       }
     } else if (!S_ISDIR(sb.st_mode)) {
         debug_msg("ERR: %s(%s) : %s",__func__,path,strerror(ENOTDIR));
-	free(path):
+	free(path);
         return (-1);
       }
 
