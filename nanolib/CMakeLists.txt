@@ -94,6 +94,7 @@ find_package(Threads)
 # find_package(nng CONFIG REQUIRED)
 
 # list of source files
+# set(libsrc hash_table.c mqtt_db.c zmalloc.c ) #conf.c file.c cmd.c nano_alloc.c nano_lmq.c)
 set(libsrc hash_table.c mqtt_db.c zmalloc.c conf.c file.c cmd.c nano_alloc.c nano_lmq.c)
 
 # this is the "object library" target: compiles the sources only once
@@ -115,7 +116,7 @@ target_link_libraries(nano_shared ${CMAKE_THREAD_LIBS_INIT})
 
 target_link_libraries(nano_shared ${CMAKE_THREAD_LIBS_INIT})
 
-add_executable(test test.c)
+add_executable(test test.c test_hash.c test_dbtree.c)
 target_link_libraries(test nano_shared)
 
 

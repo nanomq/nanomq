@@ -1,7 +1,8 @@
 CC = gcc
 CFLAGS = -Wall -g -fPIC
 INC = -I./include
-OBJ = mqtt_db.o zmalloc.o hash.o 
+OBJ = mqtt_db.o zmalloc.o hash_table.o 
+TEST = test.c test_hash.c test_dbtree.c
 DLIBS = -lnano
 LDFLAGS = -L.
 RPATH = -Wl,-rpath=.
@@ -10,7 +11,7 @@ DESTDIR = /usr/local/include/
 
 
 all:nanolib test.c
-	$(CC) -o nano test.c $(CFLAGS) $(LDFLAGS) $(DLIBS) $(RPATH) -lpthread # -fsanitize=thread -g -O1
+	$(CC) -o nano $(TEST) $(CFLAGS) $(LDFLAGS) $(DLIBS) $(RPATH) -lpthread # -fsanitize=thread -g -O1
 	./nano
 
 %.o:%.c $(INC) 
@@ -20,7 +21,7 @@ hash.o:hash.cc
 	g++ -c -o hash.o hash.cc -Wall -g -fPIC
 
 nanolib:$(OBJ) 
-	$(CC) -shared -fPIC -o libnano.so $(OBJ) -lstdc++ -lpthread
+	$(CC) -shared -fPIC -o libnano.so $(OBJ) -lpthread
 	rm -f $(OBJ) 
 
 dbkiller:nanolib dbkiller.c
