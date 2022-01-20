@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -30,6 +31,12 @@ nano_cmd_run_status(const char *cmd)
 
 	debug_msg("cmd = %s", cmd);
 
+	/* -------------------
+	 * validate given args
+	 * ---------------- */
+	if (cmd == NULL)
+	  return (-1);
+	
 	if (!cmd_output_buff)
 		cmd_output_buff = malloc(CMD_BUFF_LEN);
 
@@ -97,12 +104,15 @@ nano_cmd_frun(const char *format, ...)
 	char *  cmd;
 	int     ret;
 
-	cmd = malloc(512);
+	cmd = malloc(PATH_MAX);
 	if (!cmd)
 		return -1;
 
 	va_start(args, format);
-	vsprintf(cmd, format, args);
+	/* --------------------------------------
+	 * vsnprintf() to prevent buffer overflow
+	 * ----------------------------------- */
+	vsnprintf(cmd, PATH_MAX-1, format, args);
 	va_end(args);
 
 	ret = nano_cmd_run(cmd);
