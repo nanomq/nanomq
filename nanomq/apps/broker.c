@@ -226,8 +226,8 @@ server_cb(void *arg)
 			nng_msg_set_pipe(work->msg, work->pid);
 
 			if (work->cparam != NULL) {
-				conn_param_clone(
-				    work->cparam); // avoid being free
+				// avoid being free
+				conn_param_clone(work->cparam);
 			}
 			// restore clean session
 			char *clientid =
@@ -254,9 +254,6 @@ server_cb(void *arg)
 			// Free here due to the clone before
 			conn_param_free(work->cparam);
 
-			work->state = WAIT;
-			nng_aio_finish(work->aio, 0);
-			break;
 		} else if (nng_msg_cmd_type(msg) == CMD_DISCONNECT_EV) {
 			nng_msg_set_cmd_type(work->msg, CMD_PUBLISH);
 			handle_pub(work, work->pipe_ct);
@@ -341,28 +338,6 @@ server_cb(void *arg)
 				if (check_id(work->pid.id)) {
 					del_topic_all(work->pid.id);
 				}
-			} else {
-				// success but check info
-				debug_msg("sub_pkt:"
-				          " pktid: [%d]"
-				          " topicLen: [%d]"
-				          " topic: [%s]",
-				    work->sub_pkt->packet_id,
-				    work->sub_pkt->node->it->topic_filter.len,
-				    work->sub_pkt->node->it->topic_filter
-				        .body);
-				debug_msg("suback:"
-				          " headerLen: [%ld]"
-				          " bodyLen: [%ld]"
-				          " type: [%x]"
-				          " len:[%x]"
-				          " pakcetid: [%x %x].",
-				    nng_msg_header_len(smsg),
-				    nng_msg_len(smsg),
-				    *((uint8_t *) nng_msg_header(smsg)),
-				    *((uint8_t *) nng_msg_header(smsg) + 1),
-				    *((uint8_t *) nng_msg_body(smsg)),
-				    *((uint8_t *) nng_msg_body(smsg) + 1));
 			}
 			nng_msg_free(work->msg);
 			destroy_sub_pkt(work->sub_pkt,
@@ -370,8 +345,7 @@ server_cb(void *arg)
 			// handle retain
 			if (work->msg_ret) {
 				debug_msg("retain msg [%p] size [%ld] \n",
-				    work->msg_ret,
-				    cvector_size(work->msg_ret));
+				    work->msg_ret, cvector_size(work->msg_ret));
 				for (int i = 0;
 				     i < cvector_size(work->msg_ret); i++) {
 					nng_msg *m = work->msg_ret[i];
@@ -406,26 +380,6 @@ server_cb(void *arg)
 			    (reason = encode_unsuback_message(smsg, work)) !=
 			        SUCCESS) {
 				debug_msg("ERROR: unsub_handler [%d]", reason);
-			} else {
-				// success but check info
-				debug_msg("unsub_pkt:"
-				          " pktid: [%d]"
-				          " topicLen: [%d]",
-				    work->unsub_pkt->packet_id,
-				    work->unsub_pkt->node->it->topic_filter
-				        .len);
-				debug_msg("unsuback:"
-				          " headerLen: [%ld]"
-				          " bodyLen: [%ld]."
-				          " bodyType: [%x]"
-				          " len: [%x]"
-				          " packetid: [%x %x].",
-				    nng_msg_header_len(smsg),
-				    nng_msg_len(smsg),
-				    *((uint8_t *) nng_msg_header(smsg)),
-				    *((uint8_t *) nng_msg_header(smsg) + 1),
-				    *((uint8_t *) nng_msg_body(smsg)),
-				    *((uint8_t *) nng_msg_body(smsg) + 1));
 			}
 			// free unsub_pkt
 			destroy_unsub_ctx(work->unsub_pkt);
