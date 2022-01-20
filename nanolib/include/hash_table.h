@@ -20,6 +20,9 @@ struct msg_queue {
 typedef struct msg_queue msg_queue;
 
 
+// This function do not verify value of alias and topic,
+// therefore you should make sure alias and topic is
+// not illegal. 
 void dbhash_add_alias(int alias, const char *topic);
 
 const char *dbhash_find_alias(int alias);

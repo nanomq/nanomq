@@ -40,10 +40,14 @@ dbhash_add_alias(int a, const char *t)
 const char *
 dbhash_find_alias(int a)
 {
-
 	dbhash_check_init(alias_table, ah, alias_lock);
 	pthread_rwlock_wrlock(&alias_lock);
 	khint_t k = kh_get(alias_table, ah, a);
+	if (k == kh_end(ah)) {
+		pthread_rwlock_unlock(&alias_lock);
+		return NULL;
+	}
+
 	const char *t = kh_val(ah, k);
 	pthread_rwlock_unlock(&alias_lock);
 	return t;
@@ -54,8 +58,15 @@ dbhash_del_alias(int a)
 {
 	dbhash_check_init(alias_table, ah, alias_lock);
 	pthread_rwlock_wrlock(&alias_lock);
-	kh_del(alias_table, ah, a);
+	khint32_t k = kh_get(alias_table, ah, a);
+	if (k == kh_end(ah)) {
+		pthread_rwlock_unlock(&alias_lock);
+		return;
+	}
+
+	kh_del(alias_table, ah, k);
 	pthread_rwlock_unlock(&alias_lock);
+
 	// if (kh_size(ah) == 0) {
 	// 	kh_destroy(alias_table, ah);
 	// 	ah = NULL;
@@ -118,7 +129,6 @@ delete_topic_queue(struct topic_queue *tq)
 {
 	if (tq) {
 		if (tq->topic) {
-			log_info("delete topic:%s", tq->topic);
 			free(tq->topic);
 			tq->topic = NULL;
 		}
@@ -134,6 +144,8 @@ delete_topic_queue(struct topic_queue *tq)
  * @val. topic_queue.
  */
 
+// TODO If we have same topic to same id,
+// how to deal with ?
 void
 dbhash_insert_topic(uint32_t id, char *val)
 {
@@ -255,6 +267,7 @@ dbhash_del_topic(uint32_t id, char *topic)
 	if (!strcmp(tt->topic, topic)) {
 		kh_val(ph, k) = tt->next;
 		delete_topic_queue(tt);
+
 		pthread_rwlock_unlock(&pipe_lock);
 		return;
 	}
@@ -372,7 +385,6 @@ dbhash_cache_topic_all(uint32_t pid, uint32_t cid)
 	dbhash_check_init(pipe_table, ph, pipe_lock);
 	dbhash_check_init(_cached_topic_hash, ch, cached_lock);
 
-	// struct topic_queue *tq_in_topic_hash = _topic_hash[pid];
 	struct topic_queue *tq_in_topic_hash    = NULL;
 	pthread_rwlock_wrlock(&pipe_lock);
 	khint_t k = kh_get(pipe_table, ph, pid);
@@ -380,14 +392,13 @@ dbhash_cache_topic_all(uint32_t pid, uint32_t cid)
 		tq_in_topic_hash = kh_val(ph, k);
 	}
 	pthread_rwlock_unlock(&pipe_lock);
-
 	
-	pthread_rwlock_wrlock(&cached_lock);
 	if (dbhash_cached_check_id(cid)) {
 		log_info("unexpected: cached hash instance is not vacant");
 		dbhash_del_cached_topic_all(cid);
 	}
 	int absent;
+	pthread_rwlock_wrlock(&cached_lock);
 	khint_t l = kh_put(_cached_topic_hash, ch, cid, &absent);
 	kh_val(ch, l) = tq_in_topic_hash;
 	pthread_rwlock_unlock(&cached_lock);
@@ -415,7 +426,8 @@ dbhash_restore_topic_all(uint32_t cid, uint32_t pid)
 	khint_t k = kh_get(_cached_topic_hash, ch, cid);
 	if (k != kh_end(ch)) {
 		tq_in_cached = kh_val(ch, k);
-
+		kh_val(ch, k) = NULL;
+		kh_del(_cached_topic_hash, ch, k);
 	}
 	pthread_rwlock_unlock(&cached_lock);
 
@@ -427,7 +439,6 @@ dbhash_restore_topic_all(uint32_t cid, uint32_t pid)
 	pthread_rwlock_wrlock(&pipe_lock);
 	khint_t l = kh_put(pipe_table, ph, pid, &absent);
 	kh_val(ph, l) = tq_in_cached;
-	kh_del(_cached_topic_hash, ch, l);
 	pthread_rwlock_unlock(&pipe_lock);
 }
 
@@ -442,7 +453,7 @@ delete_cached_topic_one(struct topic_queue *ctq)
 {
 	if (ctq) {
 		if (ctq->topic) {
-			log_info("delete topic:%s", ctq->topic);
+			// log_info("delete topic:%s", ctq->topic);
 			free(ctq->topic);
 			ctq->topic = NULL;
 		}
