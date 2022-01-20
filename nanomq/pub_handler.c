@@ -121,7 +121,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct)
 			// It's because that the refcnt of msg is 1, when
 			// plus (msg_cnt-1), equals (msg_cnt), and it means
 			// the count of session which the msg would be sent to.
-			for (int i = 0; i < (int) (msg_cnt - 1); i++) {
+			for (int i = 0; i < (int) (msg_cnt); i++) {
 				nng_msg_clone(work->msg);
 			}
 
