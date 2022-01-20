@@ -147,8 +147,64 @@ file_delete(const char *fpath)
 	return unlink(fpath);
 }
 
+/* ---------------------------------------------------------------------- */
+/* function: file_create_dir()                                            */
+/* entries : const string to path                                         */
+/* return  : 0 on success otherwise -1 on error                           */
+/* ---------------------------------------------------------------------- */
+int file_create_dir (const char *pName) {
+	
+  struct stat sb;
+  char       *slash;
+  char       *path;
+  int         done  =    0;
+	
+  /* -------------------
+   * validate given args
+   * ---------------- */
+  if ((pName == NULL) || (*pName == 0)) {
+    debug_msg("ERR: %s(%s) : bad/illegal pName",__func__,pName);
+    return (-1);	  
+  }
+  /* -------------------------------------------------------
+   * dup pName for processing and set slash to start of path
+   * ---------------------------------------------------- */
+  path  = strdup(pName);
+  slash = path;
+  /* ------------------------
+   * create dir after dir ...
+   * --------------------- */
+  while (!done) {
+    slash += strspn (slash, "/");
+    slash += strcspn(slash, "/");
+    if (*slash == '\0') {
+      done = 1;	    
+    }
+    *slash = '\0';
+
+    if (stat(path, &sb)) {
+      if (errno != ENOENT || (mkdir(path, 0777) && errno != EEXIST)) {
+	 debug_msg("ERR: %s(%s) : %s",__func__,path,strerror(errno));
+	 free(path);
+         return (-1);
+      }
+    } else if (!S_ISDIR(sb.st_mode)) {
+        debug_msg("ERR: %s(%s) : %s",__func__,path,strerror(ENOTDIR));
+	free(path):
+        return (-1);
+      }
+
+    if (done == 0)
+      *slash = '/'; 
+  }
+	
+  debug_msg("DBG: %s(%s) : OK",__func__,pName);
+  free(path);
+  return (0);
+}	
+
 int
-file_create_dir(const char *fpath)
+file_create_dir_DEP(const char *fpath)
 {
 	char *last_slash = NULL, *fpath_edit = NULL;
 	int   ret = -1;
