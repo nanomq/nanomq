@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -g -fPIC
-INC = -I./inlcude
+INC = -I./include
 OBJ = mqtt_db.o zmalloc.o hash.o 
 DLIBS = -lnano
 LDFLAGS = -L.
