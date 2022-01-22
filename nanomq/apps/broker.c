@@ -101,12 +101,6 @@ static nng_optspec cmd_opts[] = {
 	{ .o_name = NULL, .o_val = 0 },
 };
 
-#define ASSERT_NULL(p, fmt, ...)                          \
-	if ((p) != NULL) {                                \
-		fprintf(stderr, fmt "\n", ##__VA_ARGS__); \
-		exit(1);                                  \
-	}
-
 #define FREE_NONULL(p)    \
 	if (p) {          \
 		free(p);  \
