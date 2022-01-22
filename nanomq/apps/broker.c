@@ -690,7 +690,7 @@ print_usage(void)
 	    "  --auth <path>              The path of a specified authorize "
 	    "configuration file \n");
 	printf("  --http                     Enable http server (default: "
-	       "disable)\n");
+	       "false)\n");
 	printf(
 	    "  -p, --port <num>           The port of http server (default: "
 	    "8081)\n");
