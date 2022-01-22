@@ -101,12 +101,6 @@ static nng_optspec cmd_opts[] = {
 	{ .o_name = NULL, .o_val = 0 },
 };
 
-#define FREE_NONULL(p)    \
-	if (p) {          \
-		free(p);  \
-		p = NULL; \
-	}
-
 // The server keeps a list of work items, sorted by expiration time,
 // so that we can use this to set the timeout to the correct value for
 // use in poll.
@@ -891,7 +885,7 @@ broker_start(int argc, char **argv)
 
 	conf_init(nanomq_conf);
 	conf_parser(nanomq_conf);
-
+	conf_bridge_parse(nanomq_conf);
 	read_env_conf(nanomq_conf);
 
 	if (!broker_parse_opts(argc, argv, nanomq_conf)) {
@@ -899,7 +893,12 @@ broker_start(int argc, char **argv)
 		return -1;
 	}
 
-	conf_bridge_parse(nanomq_conf);
+	if (nanomq_conf->conf_file) {
+		conf_parser(nanomq_conf);
+	}
+	if (nanomq_conf->bridge_file) {
+		conf_bridge_parse(nanomq_conf);
+	}
 
 	nanomq_conf->url = nanomq_conf->url != NULL
 	    ? nanomq_conf->url

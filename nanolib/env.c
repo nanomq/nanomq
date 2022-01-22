@@ -37,14 +37,12 @@ set_long_var(long *var, const char *env_str)
 static void
 set_bool_var(bool *var, const char *env_str)
 {
-	char *str = NULL;
+	char *env = NULL;
 
-	set_string_var(&str, env_str);
-
-	if (str != NULL) {
-		*var = strcasecmp(str, "true") == 0
+	if ((env = getenv(env_str)) != NULL) {
+		*var = strcasecmp(env, "true") == 0
 		    ? true
-		    : strcasecmp(str, "yes") == 0;
+		    : strcasecmp(env, "yes") == 0;
 	}
 }
 
@@ -69,6 +67,7 @@ read_env_conf(conf *config)
 	    &config->http_server.username, NANOMQ_HTTP_SERVER_USERNAME);
 	set_string_var(
 	    &config->http_server.password, NANOMQ_HTTP_SERVER_PASSWORD);
+	set_string_var(&config->conf_file, NANOMQ_CONF_PATH);
 	set_string_var(&config->bridge_file, NANOMQ_BRIDGE_CONF_PATH);
 	set_string_var(&config->auth_file, NANOMQ_AUTH_CONF_PATH);
 }
