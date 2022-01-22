@@ -78,11 +78,8 @@ conf_parser(conf *nanomq_conf)
 	char *value;
 	while (getline(&line, &sz, fp) != -1) {
 		if ((value = get_conf_value(line, sz, "url")) != NULL) {
-			if (config->url != NULL) {
-				free(value);
-			} else {
-				config->url = value;
-			}
+			FREE_NONULL(config->url);
+			config->url = value;
 		} else if ((value = get_conf_value(line, sz, "daemon")) !=
 		    NULL) {
 			config->daemon = strcasecmp(value, "yes") == 0 ||
@@ -126,11 +123,9 @@ conf_parser(conf *nanomq_conf)
 			free(value);
 		} else if ((value = get_conf_value(
 		                line, sz, "websocket.url")) != NULL) {
-			if (config->websocket.url != NULL) {
-				free(value);
-			} else {
-				config->websocket.url = value;
-			}
+			FREE_NONULL(config->websocket.url);
+			config->websocket.url = value;
+
 		} else if ((value = get_conf_value(
 		                line, sz, "http_server.enable")) != NULL) {
 			config->http_server.enable =
@@ -143,9 +138,11 @@ conf_parser(conf *nanomq_conf)
 			free(value);
 		} else if ((value = get_conf_value(
 		                line, sz, "http_server.username")) != NULL) {
+			FREE_NONULL(config->http_server.username);
 			config->http_server.username = value;
 		} else if ((value = get_conf_value(
 		                line, sz, "http_server.password")) != NULL) {
+			FREE_NONULL(config->http_server.password);
 			config->http_server.password = value;
 		}
 
@@ -175,6 +172,7 @@ conf_init(conf *nanomq_conf)
 	nanomq_conf->msq_len              = 64;
 	nanomq_conf->qos_duration         = 30;
 	nanomq_conf->allow_anonymous      = true;
+	nanomq_conf->daemon               = false;
 	nanomq_conf->http_server.enable   = false;
 	nanomq_conf->http_server.port     = 8081;
 	nanomq_conf->http_server.username = NULL;

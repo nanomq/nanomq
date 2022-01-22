@@ -22,6 +22,12 @@
 #define TCP_URL_PREFIX "broker+tcp"
 #define WS_URL_PREFIX "nmq+ws"
 
+#define FREE_NONULL(p)    \
+	if (p) {          \
+		free(p);  \
+		p = NULL; \
+	}
+
 struct conf_auth {
 	int    count;
 	char **usernames;
