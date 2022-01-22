@@ -15,6 +15,7 @@
 #include <unistd.h>
 
 #include <conf.h>
+#include <env.h>
 #include <hash.h>
 #include <mqtt_db.h>
 #include <nng.h>
@@ -104,6 +105,12 @@ static nng_optspec cmd_opts[] = {
 	if ((p) != NULL) {                                \
 		fprintf(stderr, fmt "\n", ##__VA_ARGS__); \
 		exit(1);                                  \
+	}
+
+#define FREE_NONULL(p)    \
+	if (p) {          \
+		free(p);  \
+		p = NULL; \
 	}
 
 // The server keeps a list of work items, sorted by expiration time,
@@ -345,7 +352,8 @@ server_cb(void *arg)
 			// handle retain
 			if (work->msg_ret) {
 				debug_msg("retain msg [%p] size [%ld] \n",
-				    work->msg_ret, cvector_size(work->msg_ret));
+				    work->msg_ret,
+				    cvector_size(work->msg_ret));
 				for (int i = 0;
 				     i < cvector_size(work->msg_ret); i++) {
 					nng_msg *m = work->msg_ret[i];
@@ -787,20 +795,15 @@ broker_parse_opts(int argc, char **argv, conf *config)
 			exit(0);
 			break;
 		case OPT_CONFFILE:
-			ASSERT_NULL(config->conf_file,
-			    "CONFIG (--conf) may be specified only once.");
+			FREE_NONULL(config->conf_file);
 			config->conf_file = nng_strdup(arg);
 			break;
 		case OPT_BRIDGEFILE:
-			ASSERT_NULL(config->bridge_file,
-			    "BRIDGE (--bridge) may be specified "
-			    "only once.");
+			FREE_NONULL(config->bridge_file);
 			config->bridge_file = nng_strdup(arg);
 			break;
 		case OPT_AUTHFILE:
-			ASSERT_NULL(config->auth_file,
-			    "AUTH (--auth) may be specified "
-			    "only once.");
+			FREE_NONULL(config->auth_file);
 			config->auth_file = nng_strdup(arg);
 			break;
 		case OPT_PARALLEL:
@@ -825,9 +828,7 @@ broker_parse_opts(int argc, char **argv, conf *config)
 			config->qos_duration = atoi(arg);
 			break;
 		case OPT_URL:
-			ASSERT_NULL(config->url,
-			    "URL (--url) may be specified "
-			    "only once.");
+			FREE_NONULL(config->url);
 			config->url = nng_strdup(arg);
 			break;
 		case OPT_HTTP_ENABLE:
@@ -891,14 +892,19 @@ broker_start(int argc, char **argv)
 	}
 
 	nanomq_conf->parallel = PARALLEL;
+
+	// Priority: config < environment variables < command opts
+
 	conf_init(nanomq_conf);
+	conf_parser(nanomq_conf);
+
+	read_env_conf(nanomq_conf);
 
 	if (!broker_parse_opts(argc, argv, nanomq_conf)) {
 		conf_fini(nanomq_conf);
 		return -1;
 	}
 
-	conf_parser(nanomq_conf);
 	conf_bridge_parse(nanomq_conf);
 
 	nanomq_conf->url = nanomq_conf->url != NULL
