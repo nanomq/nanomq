@@ -85,7 +85,8 @@ conf_parser(conf *nanomq_conf)
 			}
 		} else if ((value = get_conf_value(line, sz, "daemon")) !=
 		    NULL) {
-			config->daemon = strcasecmp(value, "yes") == 0;
+			config->daemon = strcasecmp(value, "yes") == 0 ||
+			    strcasecmp(value, "true") == 0;
 			free(value);
 		} else if ((value = get_conf_value(
 		                line, sz, "num_taskq_thread")) != NULL) {
@@ -114,12 +115,14 @@ conf_parser(conf *nanomq_conf)
 		} else if ((value = get_conf_value(
 		                line, sz, "allow_anonymous")) != NULL) {
 			config->allow_anonymous =
-			    strcasecmp(value, "yes") == 0;
+			    strcasecmp(value, "yes") == 0 ||
+			    strcasecmp(value, "true") == 0;
 			free(value);
 		} else if ((value = get_conf_value(
 		                line, sz, "websocket.enable")) != NULL) {
 			config->websocket.enable =
-			    strcasecmp(value, "yes") == 0;
+			    strcasecmp(value, "yes") == 0 ||
+			    strcasecmp(value, "true") == 0;
 			free(value);
 		} else if ((value = get_conf_value(
 		                line, sz, "websocket.url")) != NULL) {
@@ -131,7 +134,8 @@ conf_parser(conf *nanomq_conf)
 		} else if ((value = get_conf_value(
 		                line, sz, "http_server.enable")) != NULL) {
 			config->http_server.enable =
-			    strcasecmp(value, "yes") == 0;
+			    strcasecmp(value, "yes") == 0 ||
+			    strcasecmp(value, "true") == 0;
 			free(value);
 		} else if ((value = get_conf_value(
 		                line, sz, "http_server.port")) != NULL) {
