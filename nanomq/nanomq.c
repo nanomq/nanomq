@@ -43,13 +43,16 @@ static int
 print_avail_apps(void)
 {
 	const struct nanomq_app **nano_app;
+	int app_count = 0;
 
 	printf("\navailable applications:\n");
 
-	for (nano_app = edge_apps; *nano_app; ++nano_app)
+	for (nano_app = edge_apps; *nano_app; ++nano_app) {
 		printf("   * %s\n", (*nano_app)->name);
+		app_count++;
+	}
 
-	return 1;
+	return (app_count);
 }
 
 static void
