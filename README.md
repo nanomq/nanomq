@@ -83,9 +83,8 @@ With this being said, NanoMQ can run on different architectures such like x86_64
 #### Docker
 
 ```bash
-docker run -d -p 1883:1883 --name nanomq nanomq/nanomq:0.5.6
+docker run -d -p 1883:1883 --name nanomq nanomq/nanomq:0.5.9
 ```
-
 
 
 #### Building From Source
@@ -234,8 +233,6 @@ to make your modification effective.
 
 Users can also change the configuration parameters of NanoMQ while booting. However, part of the parameters is excluded in this method.
 
-
-
 #### NanoMQ configuration file
 
 NanoMQ will look up to it's configuration file in `/etc/` by default. Please remember to copy conf file to `/etc/` in your system if you wanna start NanoMQ without setting conf path manually. This file is different from 'config.cmake.in'. This 'nanomq.conf' allows you to configure broker when booting. Please be noted that if you start NanoMQ in the project's root directory, this file will be read automatically.
@@ -248,7 +245,47 @@ You can also write your own configuration file. Be sure to start NanoMQ in this 
 nanomq broker start --conf <$FILE_PATH> [--bridge <$FILE_PATH>] [--auth <$FILE_PATH>]
 ```
 
+#### NanoMQ Environment Variables 
+| Variable | Type  | Value |
+| ------------------------------------------------------------ |     ------------------------------------------------------------ | ------------------------------------------------------------ |
+|NANOMQ_BROKER_URL |String | "broker+tcp://ip_addr:host" for TCP, "broker+tls+tcp://ip_addr:host" for TLS over TCP (default: "broker+tcp://0.0.0.0:1883").|
+|NANOMQ_DAEMON |Boolean | Set nanomq as daemon (default: false).|
+|NANOMQ_NUM_TASKQ_THREAD | Integer | Number of taskq threads used, `num` greater than 0 and less than 256.|
+|NANOMQ_MAX_TASKQ_THREAD | Integer | Maximum number of taskq threads used, `num` greater than 0 and less than 256.|
+|NANOMQ_PARALLEL | Long | Number of parallel.|
+|NANOMQ_PROPERTY_SIZE | Integer | Max size for a MQTT user property.|
+|NANOMQ_MSQ_LEN | Integer | Queue length for resending messages.|
+|NANOMQ_QOS_DURATION | Integer |  The interval of the qos timer.|
+|NANOMQ_ALLOW_ANONYMOUS | Boolean | Allow anonymous login (default: true).|
+|NANOMQ_WEBSOCKET_ENABLE | Boolean | Enable websocket listener (default: true).|
+|NANOMQ_WEBSOCKET_URL | String | Websocket url, "nmq+ws://ip_addr:host" for WebSocket, "nmq+wss://ip_addr:host" for TLS over WebSocket. (default: "nmq+ws://0.0.0.0:8083/mqtt") .|
+|NANOMQ_HTTP_SERVER_ENABLE | Boolean | Enable http server (default: false).|
+|NANOMQ_HTTP_SERVER_PORT | Integer | Port for http server (default: 8081).|
+|NANOMQ_HTTP_SERVER_USERNAME | String | Http server user name for auth.|
+|NANOMQ_HTTP_SERVER_PASSWORD | String | Http server password for auth.|
+|NANOMQ_CONF_PATH | String | NanoMQ main config file path (defalt: /etc/nanomq.conf).|
+|NANOMQ_BRIDGE_CONF_PATH | String | Bridge config file path (defalt: /etc/nanomq_bridge.conf).|
+|NANOMQ_AUTH_CONF_PATH | String | Auth config file path (defalt: /etc/nanomq_auth_username.conf).|
 
+- Specify a broker url.
+  On host system: 
+  ```bash
+  export NANOMQ_BROKER_URL="broker+tcp://0.0.0.0:1883"
+  ```
+  Creating docker container:
+  ```bash
+  docker run -d -p 1883:1883 --name nanomq nanomq/nanomq:0.5.9 -e NANOMQ_BROKER_URL="broker+tcp://0.0.0.0:1883"
+  ```
+
+- Specify a nanomq config file path.
+  On host system: 
+  ```bash
+  export NANOMQ_CONF_PATH="/usr/local/etc/nanomq.conf"
+  ```
+  Creating docker container:
+  ```bash
+  docker run -d -p 1883:1883 --name nanomq nanomq/nanomq:0.5.9 -e NANOMQ_CONF_PATH="/usr/local/etc/nanomq.conf"
+  ```
 
 #### NanoMQ Command-Line Arguments 
 
@@ -260,6 +297,21 @@ nanomq broker { { start | restart [--url <url>] [--conf <path>] [--bridge <path>
                 [-T, -max_tq_thread <num>] [-n, --parallel <num>]
                 [-D, --qos_duration <num>] [--http] [-p, --port] } 
                 | stop }
+
+Options: 
+  --url <url>                The format of 'broker+tcp://ip_addr:host' for TCP and 'nmq+ws://ip_addr:host' for WebSocket
+  --conf <path>              The path of a specified nanomq configuration file 
+  --bridge <path>            The path of a specified bridge configuration file 
+  --auth <path>              The path of a specified authorize configuration file 
+  --http                     Enable http server (default: disable)
+  -p, --port <num>           The port of http server (default: 8081)
+  -t, --tq_thread <num>      The number of taskq threads used, `num` greater than 0 and less than 256
+  -T, --max_tq_thread <num>  The maximum number of taskq threads used, `num` greater than 0 and less than 256
+  -n, --parallel <num>       The maximum number of outstanding requests we can handle
+  -s, --property_size <num>  The max size for a MQTT user property
+  -S, --msq_len <num>        The queue length for resending messages
+  -D, --qos_duration <num>   The interval of the qos timer
+  -d, --daemon               Set nanomq as daemon (default: false)
 ```
 
 - `start`, `restart`, and `stop` command is mandatory as it indicates whether you want to start a new broker, or replace an existing broker with a new one, or stop a running broker;
@@ -327,6 +379,8 @@ nanomq broker { { start | restart [--url <url>] [--conf <path>] [--bridge <path>
   ```bash
   nanomq broker start|restart --qos_duration <num>
   ```
+
+**Priority: Command-Line Arguments > Environment Variables > Config files**
 
 *For tuning NanoMQ according to different hardware, please check the Doc.*
 
