@@ -1,0 +1,118 @@
+name: Deploy Docs
+
+concurrency: 
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-20.04
+    if: github.repository_owner == 'nanomq'
+    steps:
+    - name: clone docs
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+        path: docs-files
+
+    - name: clone frontend
+      uses: actions/checkout@v2
+      with:
+        repository: 'emqx/emqx-io-docs-frontend'
+        token: ${{ secrets.CI_GIT_TOKEN }}
+        path: frontend
+
+    - name: use node.js
+      uses: actions/setup-node@v1
+      with:
+        node-version: 14.15
+
+    - name: use python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8'
+        architecture: 'x64'
+
+    - name: set env
+      run: |
+         BRANCH=$(echo ${{ github.ref }} | sed -r  "s ^refs/heads/|^refs/tags/(.*) \1 g")
+         if [ "$BRANCH" = "master" ];then
+         VERSION="latest"
+         else
+         VERSION=v$BRANCH
+         fi
+         echo "DOCS_BRANCH=$BRANCH" >> $GITHUB_ENV
+         echo "VERSION=$VERSION" >> $GITHUB_ENV
+         echo "DOCS_TYPE=nanomq" >> $GITHUB_ENV
+
+    - name: remove unused files
+      run: |
+        cd docs-files
+        python3 .ci/remove_unused.py $(pwd)/docs
+
+    - name: move files
+      run: |
+        rm frontend/docs/en/README.md || true
+        rm frontend/docs/zh/README.md || true
+        rm frontend/docs/*.md || true
+        rm frontend/README.md
+        mkdir -p frontend/docs/en/${DOCS_TYPE}/${VERSION}/
+        mkdir -p frontend/docs/zh/${DOCS_TYPE}/${VERSION}/
+        mkdir -p frontend/docs/.vuepress/public/api/
+        cp -r docs-files/docs/en_US/* frontend/docs/en/${DOCS_TYPE}/${VERSION}/
+        cp -r docs-files/docs/zh_CN/* frontend/docs/zh/${DOCS_TYPE}/${VERSION}/
+        cp docs-files/docs/directory.json frontend/docs/.vuepress/config/directory.json
+        echo "[\"latest\"]" > frontend/docs/.vuepress/public/api/${DOCS_TYPE}_versions.json
+
+    - name: build docs
+      run: |
+        cd frontend
+        yarn && yarn build
+
+    - name: use ossutil
+      run: |
+        cd frontend/docs/.vuepress/
+        wget http://gosspublic.alicdn.com/ossutil/1.7.8/ossutil64
+        chmod 755 ./ossutil64
+        ./ossutil64 config -e https://oss-accelerate.aliyuncs.com -i ${{ secrets.OSS_ACCESSKEY_ID }} -k ${{ secrets.OSS_ACCESSKEY_SECRET }} -L CH
+
+    - name: upload dist
+      run: |
+        cd frontend/docs/.vuepress/
+        ./ossutil64 cp -r dist/ oss://${{ secrets.OSS_BUCKET }}/docs/ -u
+
+    - name: clone docsearch
+      uses: actions/checkout@v2
+      with:
+        repository: 'Swilder-M/docsearch-scraper-simple'
+        path: docsearch
+
+    - name: Install pipenv
+      run: |
+          python -m pip install --upgrade pipenv wheel
+
+    - id: cache-pipenv
+      uses: actions/cache@v1
+      with:
+        path: ~/.local/share/virtualenvs
+        key: ${{ runner.os }}-pipenv-${{ hashFiles('**/Pipfile.lock') }}
+
+    - name: install dependencies
+      if: steps.cache-pipenv.outputs.cache-hit != 'true'
+      run: |
+        cd docsearch
+        pipenv install --keep-outdated
+
+    - name: update current version
+      if: ${{ env.VERSION == 'latest'}}
+      env:
+        APPLICATION_ID: ${{ secrets.DOCS_APPLICATION_ID }}
+        API_KEY: ${{ secrets.DOCS_API_KEY }}
+      run: |
+        cd docsearch
+        pipenv run python -m src.index config ${DOCS_TYPE} ${VERSION}
