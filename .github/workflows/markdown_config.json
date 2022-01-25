@@ -1,0 +1,13 @@
+{
+    "default": false,
+    "MD001": true,
+    "MD003": {"style": "atx"},
+    "MD011": true,
+    "MD018": true,
+    "MD019": true,
+    "MD023": true,
+    "MD025": {"level": 1, "front_matter_title": ""},
+    "MD042": true,
+    "MD046": {"style": "fenced"},
+    "MD048": {"style": "backtick"}
+}
