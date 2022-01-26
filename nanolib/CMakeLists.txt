@@ -95,7 +95,7 @@ find_package(Threads)
 
 # list of source files
 # set(libsrc hash_table.c mqtt_db.c zmalloc.c ) #conf.c file.c cmd.c nano_alloc.c nano_lmq.c)
-set(libsrc hash_table.c mqtt_db.c zmalloc.c conf.c file.c cmd.c nano_alloc.c nano_lmq.c)
+set(libsrc hash_table.c mqtt_db.c zmalloc.c conf.c file.c cmd.c nano_alloc.c nano_lmq.c env.c)
 
 # this is the "object library" target: compiles the sources only once
 add_library(nanolib OBJECT ${libsrc})
@@ -116,8 +116,8 @@ target_link_libraries(nano_shared ${CMAKE_THREAD_LIBS_INIT})
 
 target_link_libraries(nano_shared ${CMAKE_THREAD_LIBS_INIT})
 
-add_executable(test test.c test_hash.c test_dbtree.c)
-target_link_libraries(test nano_shared)
+add_executable(nano_test test.c test_hash.c test_dbtree.c)
+target_link_libraries(nano_test nano_shared)
 
 
 install(TARGETS nano_shared EXPORT nanolibConfig
