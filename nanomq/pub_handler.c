@@ -20,7 +20,7 @@
 #include "include/sub_handler.h"
 
 #define ENABLE_RETAIN 1
-#define SUPPORT_MQTT5_0 1
+#define SUPPORT_MQTT5_0 0
 
 static char *bytes_to_str(const unsigned char *src, char *dest, int src_len);
 static void  print_hex(
@@ -309,10 +309,6 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 	uint32_t buf;
 	properties_type prop_type;
 
-	if (work->cparam) {
-		proto = conn_param_get_protover(work->cparam);
-	}
-
 	debug_msg("start encode message");
 
 	nng_msg_clear(dest_msg);
@@ -364,6 +360,10 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 		    nng_msg_len(dest_msg));
 
 #if SUPPORT_MQTT5_0
+		if (work->cparam) {
+			proto = conn_param_get_protover(work->cparam);
+		}
+
 		if (PROTOCOL_VERSION_v5 == proto) {
 			// properties
 			// properties length
