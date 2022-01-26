@@ -61,11 +61,11 @@ jobs:
         rm frontend/docs/zh/README.md || true
         rm frontend/docs/*.md || true
         rm frontend/README.md
-        mkdir -p frontend/docs/en/${DOCS_TYPE}/${VERSION}/
-        mkdir -p frontend/docs/zh/${DOCS_TYPE}/${VERSION}/
+        mkdir -p frontend/docs/en/${VERSION}/
+        mkdir -p frontend/docs/zh/${VERSION}/
         mkdir -p frontend/docs/.vuepress/public/api/
-        cp -r docs-files/docs/en_US/* frontend/docs/en/${DOCS_TYPE}/${VERSION}/
-        cp -r docs-files/docs/zh_CN/* frontend/docs/zh/${DOCS_TYPE}/${VERSION}/
+        cp -r docs-files/docs/en_US/* frontend/docs/en/${VERSION}/
+        cp -r docs-files/docs/zh_CN/* frontend/docs/zh/${VERSION}/
         cp docs-files/docs/directory.json frontend/docs/.vuepress/config/directory.json
         echo "[\"latest\"]" > frontend/docs/.vuepress/public/api/${DOCS_TYPE}_versions.json
 
