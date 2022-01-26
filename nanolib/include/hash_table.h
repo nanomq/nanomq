@@ -20,6 +20,9 @@ struct msg_queue {
 typedef struct msg_queue msg_queue;
 
 
+void dbhash_init_alias_table(void);
+
+void dbhash_destroy_alias_table(void);
 // This function do not verify value of alias and topic,
 // therefore you should make sure alias and topic is
 // not illegal. 
@@ -29,6 +32,9 @@ const char *dbhash_find_alias(int alias);
 
 void dbhash_del_alias(int alias);
 
+
+void dbhash_init_pipe_table(void);
+void dbhash_destroy_pipe_table(void);
 
 void dbhash_insert_topic(uint32_t id, char *val);
 
@@ -45,6 +51,9 @@ bool dbhash_check_id(uint32_t id);
 void dbhash_print_topic_queue(uint32_t id);
 
 topic_queue **dbhash_get_topic_queue_all(size_t *sz);
+
+void dbhash_init_cached_table(void);
+void dbhash_destroy_cached_table(void);
 
 void dbhash_cache_topic_all(uint32_t pid, uint32_t cid);
 

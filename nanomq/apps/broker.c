@@ -598,6 +598,9 @@ broker(conf *nanomq_conf)
 		debug_msg("NNL_ERROR error in db create");
 	}
 
+	dbhash_init_cached_table();
+	dbhash_init_pipe_table();
+
 	/*  Create the socket. */
 	nanomq_conf->db_root = db;
 	sock.id              = 0;

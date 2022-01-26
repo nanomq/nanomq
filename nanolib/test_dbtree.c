@@ -1,13 +1,9 @@
 #include "include/mqtt_db.h"
 #include "include/nanolib.h"
+#include "include/test.h"
 #include <assert.h>
 #include <string.h>
 
-#define TEST_NUM_THREADS 8
-#define TEST_QUE_SIZE 10
-#define TEST_MSG_SIZE 16
-#define TEST_ARRAY_SIZE 10
-#define TEST_LOOP 10
 
 dbtree *db     = NULL;
 dbtree *db_ret = NULL;
@@ -463,45 +459,6 @@ test_single_thread(void *args)
 	return NULL;
 }
 
-static void
-test_concurrent()
-{
-	pthread_t threads[TEST_NUM_THREADS];
-	int       rc;
-	long      t;
-	void *    status;
-	for (t = 0; t < TEST_NUM_THREADS; t++) {
-		printf("In main: creating thread %ld\n", t);
-		rc = pthread_create(
-		    &threads[t], NULL, test_single_thread, NULL);
-		if (rc) {
-			printf(
-			    "ERROR; return code from pthread_create() is %d\n",
-			    rc);
-			exit(-1);
-		}
-	}
-
-	for (t = 0; t < TEST_NUM_THREADS; t++) {
-		rc = pthread_join(threads[t], &status);
-		if (rc) {
-			printf(
-			    "ERROR; return code from pthread_join() is %d\n",
-			    rc);
-			exit(-1);
-		}
-		printf("Main: completed join with thread %ld having a status "
-		       "of %ld\n",
-		    t, (long) status);
-	}
-
-	printf("Main: program completed. Exiting.\n");
-
-	/* Last thing that main() should do */
-	// pthread_exit(NULL);
-}
-
-
 void test_shared_sub()
 {
 	const char *null = NULL;
@@ -527,7 +484,7 @@ dbtree_test()
 	test_delete_shared_client();
 	
 	// test_single_thread(NULL);
-	// test_concurrent();
+	test_concurrent(test_single_thread);
 	// dbtree_print(db);
 	// dbtree_destory(db);
 	//
