@@ -158,7 +158,7 @@ static nng_optspec cmd_opts[] = {
 	{ .o_name = "will-qos", .o_val = OPT_WILL_QOS, .o_arg = true },
 	{ .o_name = "will-retain", .o_val = OPT_WILL_RETAIN },
 	{ .o_name = "will-topic", .o_val = OPT_WILL_TOPIC, .o_arg = true },
-	{ .o_name = "secure", .o_short = 's', .o_val = OPT_RETAIN },
+	{ .o_name = "secure", .o_short = 's', .o_val = OPT_SECURE },
 	{ .o_name = "cacert", .o_val = OPT_CACERT, .o_arg = true },
 	{ .o_name = "key", .o_val = OPT_KEYFILE, .o_arg = true },
 	{ .o_name = "keypass", .o_val = OPT_KEYPASS, .o_arg = true },
