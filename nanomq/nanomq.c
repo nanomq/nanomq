@@ -34,8 +34,8 @@
 static void
 print_version(void)
 {
-	printf("\n%s v.01-%s\n", NANO_BRAND, FW_EV_VER_ID_SHORT);
-	printf("Copyright 2021 EMQ X Edge Team\n");
+	printf("\n%s v0.6.0-%s\n", NANO_BRAND, FW_EV_VER_ID_SHORT);
+	printf("Copyright 2022 EMQ X Edge Team\n");
 	printf("\n");
 }
 
