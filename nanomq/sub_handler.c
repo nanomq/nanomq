@@ -228,8 +228,6 @@ encode_suback_message(nng_msg *msg, nano_work *work)
 	// handle payload
 	node = sub_pkt->node;
 	while (node) {
-		if (PROTOCOL_VERSION_v5 == proto_ver) {
-		} else {
 			if (node->it->reason_code == 0x80) {
 				reason_code = 0x80;
 			} else {
@@ -241,7 +239,6 @@ encode_suback_message(nng_msg *msg, nano_work *work)
 				debug_msg("ERROR: nng_msg_append [%d]", rv);
 				return PROTOCOL_ERROR;
 			}
-		}
 		node = node->next;
 		debug_msg("reason_code: [%x]", reason_code);
 	}
@@ -507,7 +504,7 @@ del_sub_ctx(void *ctxt, char *target_topic)
 	if (sub_pkt->node == NULL) {
 #if SUPPORT_MQTT5_0
 		if (PROTOCOL_VERSION_v5 == proto_ver) {
-			if (sub_pkt->user_property.strpair.len_key) {
+			if (sub_pkt->user_property.strpair.len_key > 0) {
 				nng_free(sub_pkt->user_property.strpair.key,
 				    sub_pkt->user_property.strpair.len_key);
 				nng_free(sub_pkt->user_property.strpair.val,
@@ -541,11 +538,14 @@ destroy_sub_pkt(packet_subscribe *sub_pkt, uint8_t proto_ver)
 
 	if (sub_pkt) {
 #if SUPPORT_MQTT5_0
+		// what if there are multiple UPs?
 		if (PROTOCOL_VERSION_v5 == proto_ver) {
+			if (sub_pkt->user_property.strpair.len_key > 0){
 			nng_free(sub_pkt->user_property.strpair.key,
 			    sub_pkt->user_property.strpair.len_key);
 			nng_free(sub_pkt->user_property.strpair.val,
 			    sub_pkt->user_property.strpair.len_val);
+			}
 		}
 #endif
 	}
