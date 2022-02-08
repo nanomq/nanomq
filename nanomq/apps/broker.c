@@ -230,6 +230,8 @@ server_cb(void *arg)
 			if (clientid != NULL) {
 				restore_session(clientid, work->cparam,
 				    work->pid.id, work->db);
+				// set session present in connack
+				nmq_connack_session(work->msg, true);
 			}
 
 			// clone for sending connect event notification
