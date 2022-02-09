@@ -307,6 +307,7 @@ sub_ctx_handle(nano_work *work)
 		old_ctx->sub_pkt       = nng_alloc(sizeof(packet_subscribe));
 		old_ctx->sub_pkt->node = NULL;
 		old_ctx->cparam        = NULL;
+		init_sub_property(old_ctx->sub_pkt);
 	}
 	/* Swap pid, capram, proto_ver in ctxs */
 	old_ctx->pid.id    = cli_ctx->pid.id;
@@ -385,6 +386,21 @@ cli_ctx_merge(client_ctx *ctx_new, client_ctx *ctx)
 	if (ctx->pid.id != ctx_new->pid.id) {
 		return;
 	}
+
+#if SUPPORT_MQTT5_0
+	if (ctx_new->sub_pkt->user_property.strpair.len_key) {
+		ctx->sub_pkt->user_property.strpair.len_key =
+			ctx_new->sub_pkt->user_property.strpair.len_key;
+		ctx->sub_pkt->user_property.strpair.key =
+			ctx_new->sub_pkt->user_property.strpair.key;
+		ctx->sub_pkt->user_property.strpair.len_val =
+			ctx_new->sub_pkt->user_property.strpair.len_val;
+		ctx->sub_pkt->user_property.strpair.val =
+			ctx_new->sub_pkt->user_property.strpair.val;
+	}
+	if (ctx_new->sub_pkt->sub_id.varint)
+		ctx->sub_pkt->sub_id.varint = ctx_new->sub_pkt->sub_id.varint;
+#endif
 
 #ifdef DEBUG /* Remove after testing */
 	debug_msg("stored ctx:");
@@ -505,10 +521,8 @@ del_sub_ctx(void *ctxt, char *target_topic)
 #if SUPPORT_MQTT5_0
 		if (PROTOCOL_VERSION_v5 == proto_ver) {
 			if (sub_pkt->user_property.strpair.len_key > 0) {
-				nng_free(sub_pkt->user_property.strpair.key,
-				    sub_pkt->user_property.strpair.len_key);
-				nng_free(sub_pkt->user_property.strpair.val,
-				    sub_pkt->user_property.strpair.len_val);
+				nng_free(sub_pkt->user_property.strpair.key, 0);
+				nng_free(sub_pkt->user_property.strpair.val, 0);
 			}
 		}
 #endif
