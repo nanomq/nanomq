@@ -106,8 +106,8 @@ static nng_optspec cmd_opts[] = {
 	    .o_short = 'p',
 	    .o_val   = OPT_HTTP_PORT,
 	    .o_arg   = true },
-	{ .o_name = "ca", .o_val = OPT_TLS_CA, .o_arg = true },
-	{ .o_name = "cert", .o_val = OPT_TLS_CERT, .o_arg = true },
+	{ .o_name = "cacert", .o_val = OPT_TLS_CA, .o_arg = true },
+	{ .o_name = "cert", .o_short='E',.o_val = OPT_TLS_CERT, .o_arg = true },
 	{ .o_name = "key", .o_val = OPT_TLS_KEY, .o_arg = true },
 	{ .o_name = "keypass", .o_val = OPT_TLS_KEYPASS, .o_arg = true },
 	{ .o_name = "verify", .o_val = OPT_TLS_VERIFY_PEER },
@@ -714,18 +714,18 @@ broker(conf *nanomq_conf)
 		if ((rv = nng_listener_start(tls_listener, 0)) != 0) {
 			fatal("nng_listener_start tls", rv);
 		}
-
-		if (nanomq_conf->websocket.enable) {
-			nng_listener wss_listener;
-			if ((rv = nng_listener_create(&wss_listener, sock,
-			         nanomq_conf->tls.url)) != 0) {
-				fatal("nng_listener_create wss", rv);
-			}
-			init_listener_tls(wss_listener, &nanomq_conf->tls);
-			if ((rv = nng_listener_start(wss_listener, 0)) != 0) {
-				fatal("nng_listener_start wss", rv);
-			}
-		}
+		//FIXME not finish yet
+		// if (nanomq_conf->websocket.enable) {
+		// 	nng_listener wss_listener;
+		// 	if ((rv = nng_listener_create(&wss_listener, sock,
+		// 	         nanomq_conf->tls.url)) != 0) {
+		// 		fatal("nng_listener_create wss", rv);
+		// 	}
+		// 	init_listener_tls(wss_listener, &nanomq_conf->tls);
+		// 	if ((rv = nng_listener_start(wss_listener, 0)) != 0) {
+		// 		fatal("nng_listener_start wss", rv);
+		// 	}
+		// }
 	}
 
 	for (i = 0; i < num_ctx; i++) {
@@ -760,7 +760,7 @@ print_usage(void)
 	       "--parallel <num>]\n                     "
 	       "[-D, --qos_duration <num>] [--http] "
 	       "[-p, --port] } \n                     "
-	       "[--ca <path>] [--cert <path>] [--key <path>] \n               "
+	       "[--cacert <path>] [-E, --cert <path>] [--key <path>] \n               "
 	       "      [--keypass <password>] [--verify] [--fail]\n            "
 	       "         "
 	       "| stop }\n\n");
@@ -797,13 +797,13 @@ print_usage(void)
 	       "messages\n");
 	printf("  -D, --qos_duration <num>   The interval of the qos timer\n");
 	printf("  -d, --daemon               Run nanomq as daemon (default: false)\n");
-	printf("  --ca,                      Path to the file containing "
+	printf("  --cacert                   Path to the file containing "
 	       "PEM-encoded CA certificates\n");
-	printf("  --cert,                    Path to a file containing the "
+	printf("  -E, --cert                 Path to a file containing the "
 	       "user certificate\n");
-	printf("  --key,                     Path to the file containing the "
+	printf("  --key                      Path to the file containing the "
 	       "user's private PEM-encoded key\n");
-	printf("  --keypass,                 String containing the user's "
+	printf("  --keypass                  String containing the user's "
 	       "password. Only used if the private keyfile is "
 	       "password-protected\n");
 	printf("  --verify                   Set disable verify peer "

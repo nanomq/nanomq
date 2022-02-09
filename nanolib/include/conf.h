@@ -22,7 +22,7 @@
 #define CONF_WSS_URL_DEFAULT "nmq-wss://0.0.0.0:8084/mqtt"
 
 #define BROKER_NMQ_TCP_URL_PREFIX "nmq-tcp"
-#define BROKER_NMQ_TCP_TLS_URL_PREFIX "nmq-tls"
+#define BROKER_NMQ_TCP_TLS_URL_PREFIX "tls+nmq-tcp"
 #define BROKER_NMQ_WS_URL_PREFIX "nmq-ws"
 #define BROKER_NMQ_WSS_URL_PREFIX "nmq-wss"
 
