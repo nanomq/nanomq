@@ -2,9 +2,9 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
@@ -392,7 +392,7 @@ file_read_bin(const char *fpath, unsigned char **buff, unsigned int offset,
 	if (fd < 0)
 		goto out;
 
-	*buff = malloc(length + 1);
+	*buff = calloc(1, length + 1);
 	if (!*buff)
 		goto close;
 
@@ -510,5 +510,5 @@ file_load_data(const char *filepath, void **data)
 		return -1;
 	}
 
-	return file_read_bin(filepath, (uint8_t **)data, 0, size);
+	return file_read_bin(filepath, (uint8_t **) data, 0, size);
 }
