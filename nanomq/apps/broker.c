@@ -17,9 +17,11 @@
 #include <conf.h>
 #include <env.h>
 #include <hash_table.h>
+#include <file.h>
 #include <mqtt_db.h>
 #include <nng.h>
 #include <nng/mqtt/mqtt_client.h>
+#include <nng/supplemental/tls/tls.h>
 #include <nng/supplemental/util/options.h>
 #include <nng/supplemental/util/platform.h>
 #include <protocol/mqtt/mqtt_parser.h>
@@ -60,6 +62,12 @@ enum options {
 	OPT_URL,
 	OPT_HTTP_ENABLE,
 	OPT_HTTP_PORT,
+	OPT_TLS_CA,
+	OPT_TLS_CERT,
+	OPT_TLS_KEY,
+	OPT_TLS_KEYPASS,
+	OPT_TLS_VERIFY_PEER,
+	OPT_TLS_FAIL_IF_NO_PEER_CERT
 };
 
 static nng_optspec cmd_opts[] = {
@@ -98,6 +106,12 @@ static nng_optspec cmd_opts[] = {
 	    .o_short = 'p',
 	    .o_val   = OPT_HTTP_PORT,
 	    .o_arg   = true },
+	{ .o_name = "ca", .o_val = OPT_TLS_CA, .o_arg = true },
+	{ .o_name = "cert", .o_val = OPT_TLS_CERT, .o_arg = true },
+	{ .o_name = "key", .o_val = OPT_TLS_KEY, .o_arg = true },
+	{ .o_name = "keypass", .o_val = OPT_TLS_KEYPASS, .o_arg = true },
+	{ .o_name = "verify", .o_val = OPT_TLS_VERIFY_PEER },
+	{ .o_name = "fail", .o_val = OPT_TLS_FAIL_IF_NO_PEER_CERT },
 	{ .o_name = NULL, .o_val = 0 },
 };
 
@@ -119,6 +133,7 @@ void
 fatal(const char *func, int rv)
 {
 	fprintf(stderr, "%s: %s\n", func, nng_strerror(rv));
+	exit(1);
 }
 
 void
@@ -577,18 +592,62 @@ get_broker_db(void)
 	return db;
 }
 
+static int
+init_listener_tls(nng_listener l, conf_tls *tls)
+{
+	nng_tls_config *cfg;
+	int             rv;
+
+	enum nng_tls_auth_mode mode = NNG_TLS_AUTH_MODE_NONE;
+
+	if ((rv = nng_tls_config_alloc(&cfg, NNG_TLS_MODE_SERVER)) != 0) {
+		return (rv);
+	}
+
+	if (tls->verify_peer) {
+		if (tls->set_fail) {
+			mode = NNG_TLS_AUTH_MODE_OPTIONAL;
+		} else {
+			mode = NNG_TLS_AUTH_MODE_REQUIRED;
+		}
+	}
+
+	rv = nng_tls_config_auth_mode(cfg, mode);
+
+	if ((rv == 0) && tls->cert != NULL) {
+		char *cert;
+		char *key;
+
+		if ((rv = nng_tls_config_own_cert(cfg, tls->cert,
+		         tls->key ? tls->key : tls->cert,
+		         tls->key_password)) != 0) {
+			goto out;
+		}
+	}
+
+	if ((rv == 0) && (tls->ca != NULL)) {
+		if ((rv = nng_tls_config_ca_chain(cfg, tls->ca, NULL)) != 0) {
+			goto out;
+		}
+	}
+
+	rv = nng_listener_setopt_ptr(l, NNG_OPT_TLS_CONFIG, cfg);
+
+out:
+	nng_tls_config_free(cfg);
+	return (rv);
+}
+
 int
 broker(conf *nanomq_conf)
 {
 	nng_socket sock;
-
 	nng_socket bridge_sock;
 	nng_pipe   pipe_id;
 	int        rv;
 	int        i;
 	// add the num of other proto
-	uint64_t    num_ctx = nanomq_conf->parallel;
-	const char *url     = nanomq_conf->url;
+	uint64_t num_ctx = nanomq_conf->parallel;
 
 	// init tree
 	dbtree_create(&db);
@@ -631,7 +690,7 @@ broker(conf *nanomq_conf)
 		}
 	}
 
-	if ((rv = nng_listen(sock, url, NULL, 0)) != 0) {
+	if ((rv = nng_listen(sock, nanomq_conf->url, NULL, 0)) != 0) {
 		fatal("nng_listen", rv);
 	}
 
@@ -639,7 +698,33 @@ broker(conf *nanomq_conf)
 	if (nanomq_conf->websocket.enable) {
 		if ((rv = nng_listen(
 		         sock, nanomq_conf->websocket.url, NULL, 0)) != 0) {
-			fatal("nng_listen websocket", rv);
+			fatal("nng_listen ws", rv);
+		}
+	}
+
+	if (nanomq_conf->tls.enable) {
+		nng_listener tls_listener;
+
+		if ((rv = nng_listener_create(
+		         &tls_listener, sock, nanomq_conf->tls.url)) != 0) {
+			fatal("nng_listener_create tls", rv);
+		}
+
+		init_listener_tls(tls_listener, &nanomq_conf->tls);
+		if ((rv = nng_listener_start(tls_listener, 0)) != 0) {
+			fatal("nng_listener_start tls", rv);
+		}
+
+		if (nanomq_conf->websocket.enable) {
+			nng_listener wss_listener;
+			if ((rv = nng_listener_create(&wss_listener, sock,
+			         nanomq_conf->tls.url)) != 0) {
+				fatal("nng_listener_create wss", rv);
+			}
+			init_listener_tls(wss_listener, &nanomq_conf->tls);
+			if ((rv = nng_listener_start(wss_listener, 0)) != 0) {
+				fatal("nng_listener_start wss", rv);
+			}
 		}
 	}
 
@@ -675,12 +760,16 @@ print_usage(void)
 	       "--parallel <num>]\n                     "
 	       "[-D, --qos_duration <num>] [--http] "
 	       "[-p, --port] } \n                     "
+	       "[--ca <path>] [--cert <path>] [--key <path>] \n               "
+	       "      [--keypass <password>] [--verify] [--fail]\n            "
+	       "         "
 	       "| stop }\n\n");
 
 	printf("Options: \n");
-	printf("  --url <url>                The format of "
-	       "'broker+tcp://ip_addr:host' for TCP and "
-	       "'nmq+ws://ip_addr:host' for WebSocket\n");
+	printf("  --url <url>                Specify listener's url: "
+	       "'nmq-tcp://host:port', 'nmq-tls://host:port' \n"
+	       "                             or 'nmq-ws://host:port/path' or "
+	       "'nmq-wss://host:port/path'\n");
 	printf("  --conf <path>              The path of a specified nanomq "
 	       "configuration file \n");
 	printf("  --bridge <path>            The path of a specified bridge "
@@ -707,8 +796,20 @@ print_usage(void)
 	printf("  -S, --msq_len <num>        The queue length for resending "
 	       "messages\n");
 	printf("  -D, --qos_duration <num>   The interval of the qos timer\n");
-	printf("  -d, --daemon               Set nanomq as daemon (default: "
-	       "false)\n");
+	printf("  -d, --daemon               Run nanomq as daemon (default: false)\n");
+	printf("  --ca,                      Path to the file containing "
+	       "PEM-encoded CA certificates\n");
+	printf("  --cert,                    Path to a file containing the "
+	       "user certificate\n");
+	printf("  --key,                     Path to the file containing the "
+	       "user's private PEM-encoded key\n");
+	printf("  --keypass,                 String containing the user's "
+	       "password. Only used if the private keyfile is "
+	       "password-protected\n");
+	printf("  --verify                   Set disable verify peer "
+	       "certificate (default: true)\n");
+	printf("  --fail                     Server won't fail if the client "
+	       "does not have a certificate to send (default: true)\n");
 }
 
 int
@@ -772,6 +873,40 @@ active_conf(conf *nanomq_conf)
 	}
 }
 
+static void
+predicate_url(conf *config, char *url)
+{
+	if (strncmp(BROKER_NMQ_TCP_URL_PREFIX, url,
+	        strlen(BROKER_NMQ_TCP_URL_PREFIX)) == 0 ||
+	    strncmp(BROKER_TCP_URL_PREFIX, url,
+	        strlen(BROKER_TCP_URL_PREFIX)) == 0) {
+		FREE_NONULL(config->url);
+		config->url = nng_strdup(url);
+	}
+	if (strncmp(BROKER_NMQ_TCP_TLS_URL_PREFIX, url,
+	        strlen(BROKER_NMQ_TCP_TLS_URL_PREFIX)) == 0) {
+		FREE_NONULL(config->tls.url);
+		config->tls.enable = true;
+		config->tls.url    = nng_strdup(url);
+	} else if (strncmp(BROKER_NMQ_WS_URL_PREFIX, url,
+	               strlen(BROKER_NMQ_WS_URL_PREFIX)) == 0 ||
+	    strncmp(BROKER_WS_URL_PREFIX, url, strlen(BROKER_WS_URL_PREFIX)) ==
+	        0) {
+		if (strncmp(BROKER_NMQ_WSS_URL_PREFIX, url,
+		        strlen(BROKER_NMQ_WSS_URL_PREFIX)) == 0 ||
+		    strncmp(BROKER_WSS_URL_PREFIX, url,
+		        strlen(BROKER_WSS_URL_PREFIX)) == 0) {
+			FREE_NONULL(config->websocket.tls_url);
+			config->tls.enable        = true;
+			config->websocket.tls_url = nng_strdup(url);
+		} else {
+			FREE_NONULL(config->websocket.url);
+			config->websocket.url = nng_strdup(url);
+		}
+		config->websocket.enable = true;
+	}
+}
+
 int
 broker_parse_opts(int argc, char **argv, conf *config)
 {
@@ -821,8 +956,29 @@ broker_parse_opts(int argc, char **argv, conf *config)
 			config->qos_duration = atoi(arg);
 			break;
 		case OPT_URL:
-			FREE_NONULL(config->url);
-			config->url = nng_strdup(arg);
+			predicate_url(config, arg);
+			break;
+		case OPT_TLS_CA:
+			FREE_NONULL(config->tls.ca);
+			file_load_data(arg, (void **) &config->tls.ca);
+			break;
+		case OPT_TLS_CERT:
+			FREE_NONULL(config->tls.cert);
+			file_load_data(arg, (void **) &config->tls.cert);
+			break;
+		case OPT_TLS_KEY:
+			FREE_NONULL(config->tls.key);
+			file_load_data(arg, (void **) &config->tls.key);
+			break;
+		case OPT_TLS_KEYPASS:
+			FREE_NONULL(config->tls.key_password);
+			config->tls.key_password = nng_strdup(arg);
+			break;
+		case OPT_TLS_VERIFY_PEER:
+			config->tls.verify_peer = false;
+			break;
+		case OPT_TLS_FAIL_IF_NO_PEER_CERT:
+			config->tls.set_fail = false;
 			break;
 		case OPT_HTTP_ENABLE:
 			config->http_server.enable = true;
@@ -909,10 +1065,23 @@ broker_start(int argc, char **argv)
 	    ? nanomq_conf->url
 	    : nng_strdup(CONF_TCP_URL_DEFAULT);
 
+	if (nanomq_conf->tls.enable) {
+		nanomq_conf->tls.url = nanomq_conf->tls.url != NULL
+		    ? nanomq_conf->tls.url
+		    : nng_strdup(CONF_TLS_URL_DEFAULT);
+	}
+
 	if (nanomq_conf->websocket.enable) {
 		nanomq_conf->websocket.url = nanomq_conf->websocket.url != NULL
 		    ? nanomq_conf->websocket.url
 		    : nng_strdup(CONF_WS_URL_DEFAULT);
+
+		if (nanomq_conf->tls.enable) {
+			nanomq_conf->websocket.tls_url =
+			    nanomq_conf->websocket.tls_url != NULL
+			    ? nanomq_conf->websocket.tls_url
+			    : nng_strdup(CONF_WSS_URL_DEFAULT);
+		}
 	}
 
 	print_conf(nanomq_conf);
