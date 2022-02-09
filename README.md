@@ -117,8 +117,14 @@ To build NanoMQ, requires a C99 & C++11 compatible compiler and [CMake](http://w
   cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DMQ=0  ..
   ninja
   ```
-  
-**Note (optaional): client(pub / sub / conn) is built by default**, you can disable it via `-DBUILD_CLIENT=OFF`.
+**Note (optional): TLS is disabled by default**. If you want to build with TLS support you will also need [mbedTLS](https://tls.mbed.org). After installing [mbedTLS](https://tls.mbed.org), you can enable it by `-DNNG_ENABLE_TLS=ON`.
+
+```bash
+cmake -G Ninja -DNNG_ENABLE_TLS=ON ..
+ninja
+```
+
+**Note (optional): client(pub / sub / conn) is built by default**, you can disable it via `-DBUILD_CLIENT=OFF`.
 
   ``` bash
   cmake -G Ninja -DBUILD_CLIENT=OFF ..
@@ -248,7 +254,7 @@ nanomq broker start --conf <$FILE_PATH> [--bridge <$FILE_PATH>] [--auth <$FILE_P
 #### NanoMQ Environment Variables 
 | Variable | Type  | Value |
 | ------------------------------------------------------------ |     ------------------------------------------------------------ | ------------------------------------------------------------ |
-|NANOMQ_BROKER_URL |String | "broker+tcp://ip_addr:host" for TCP, "broker+tls+tcp://ip_addr:host" for TLS over TCP (default: "broker+tcp://0.0.0.0:1883").|
+|NANOMQ_BROKER_URL |String | 'nmq-tcp://host:port', 'nmq-tls://host:port'|
 |NANOMQ_DAEMON |Boolean | Set nanomq as daemon (default: false).|
 |NANOMQ_NUM_TASKQ_THREAD | Integer | Number of taskq threads used, `num` greater than 0 and less than 256.|
 |NANOMQ_MAX_TASKQ_THREAD | Integer | Maximum number of taskq threads used, `num` greater than 0 and less than 256.|
@@ -258,11 +264,19 @@ nanomq broker start --conf <$FILE_PATH> [--bridge <$FILE_PATH>] [--auth <$FILE_P
 |NANOMQ_QOS_DURATION | Integer |  The interval of the qos timer.|
 |NANOMQ_ALLOW_ANONYMOUS | Boolean | Allow anonymous login (default: true).|
 |NANOMQ_WEBSOCKET_ENABLE | Boolean | Enable websocket listener (default: true).|
-|NANOMQ_WEBSOCKET_URL | String | Websocket url, "nmq+ws://ip_addr:host" for WebSocket, "nmq+wss://ip_addr:host" for TLS over WebSocket. (default: "nmq+ws://0.0.0.0:8083/mqtt") .|
+|NANOMQ_WEBSOCKET_URL | String | 'nmq-ws://host:port/path', 'nmq-wss://host:port/path' |
 |NANOMQ_HTTP_SERVER_ENABLE | Boolean | Enable http server (default: false).|
 |NANOMQ_HTTP_SERVER_PORT | Integer | Port for http server (default: 8081).|
 |NANOMQ_HTTP_SERVER_USERNAME | String | Http server user name for auth.|
 |NANOMQ_HTTP_SERVER_PASSWORD | String | Http server password for auth.|
+|NANOMQ_TLS_ENABLE|Boolean|Enable TLS connection.|
+|NANOMQ_TLS_URL| String | 'nmq-tls://host:port'.|
+|NANOMQ_TLS_CA_CERT_PATH| String | Path to the file containing PEM-encoded CA certificates.|
+|NANOMQ_TLS_CERT_PATH| String |  Path to a file containing the user certificate.|
+|NANOMQ_TLS_KEY_PATH| String | Path to the file containing the user's private PEM-encoded key.|
+|NANOMQ_TLS_KEY_PASSWORD| String |  String containing the user's password. Only used if the private keyfile is password-protected.|
+|NANOMQ_TLS_VERIFY_PEER| Boolean | Verify peer certificate (default: true).|
+|NANOMQ_TLS_FAIL_IF_NO_PEER_CERT| Boolean | Server will fail if the client does not have a certificate to send (default: true).|
 |NANOMQ_CONF_PATH | String | NanoMQ main config file path (defalt: /etc/nanomq.conf).|
 |NANOMQ_BRIDGE_CONF_PATH | String | Bridge config file path (defalt: /etc/nanomq_bridge.conf).|
 |NANOMQ_AUTH_CONF_PATH | String | Auth config file path (defalt: /etc/nanomq_auth_username.conf).|
@@ -270,11 +284,11 @@ nanomq broker start --conf <$FILE_PATH> [--bridge <$FILE_PATH>] [--auth <$FILE_P
 - Specify a broker url.
   On host system: 
   ```bash
-  export NANOMQ_BROKER_URL="broker+tcp://0.0.0.0:1883"
+  export NANOMQ_BROKER_URL="nmq-tcp://0.0.0.0:1883"
   ```
   Creating docker container:
   ```bash
-  docker run -d -p 1883:1883 --name nanomq nanomq/nanomq:0.5.9 -e NANOMQ_BROKER_URL="broker+tcp://0.0.0.0:1883"
+  docker run -d -p 1883:1883 --name nanomq nanomq/nanomq:0.5.9 -e NANOMQ_BROKER_URL="nmq-tcp://0.0.0.0:1883"
   ```
 
 - Specify a nanomq config file path.
@@ -296,14 +310,17 @@ nanomq broker { { start | restart [--url <url>] [--conf <path>] [--bridge <path>
                 [--auth <path>] [-d, --daemon] [-t, --tq_thread <num>] 
                 [-T, -max_tq_thread <num>] [-n, --parallel <num>]
                 [-D, --qos_duration <num>] [--http] [-p, --port] } 
+                [--ca <path>] [--cert <path>] [--key <path>] 
+                [--keypass <password>] [--verify] [--fail]
                 | stop }
 
 Options: 
-  --url <url>                The format of 'broker+tcp://ip_addr:host' for TCP and 'nmq+ws://ip_addr:host' for WebSocket
+  --url <url>                Specify listener's url: 'nmq-tcp://host:port', 'nmq-tls://host:port' 
+                             or 'nmq-ws://host:port/path' or 'nmq-wss://host:port/path'
   --conf <path>              The path of a specified nanomq configuration file 
   --bridge <path>            The path of a specified bridge configuration file 
   --auth <path>              The path of a specified authorize configuration file 
-  --http                     Enable http server (default: disable)
+  --http                     Enable http server (default: false)
   -p, --port <num>           The port of http server (default: 8081)
   -t, --tq_thread <num>      The number of taskq threads used, `num` greater than 0 and less than 256
   -T, --max_tq_thread <num>  The maximum number of taskq threads used, `num` greater than 0 and less than 256
@@ -311,7 +328,14 @@ Options:
   -s, --property_size <num>  The max size for a MQTT user property
   -S, --msq_len <num>        The queue length for resending messages
   -D, --qos_duration <num>   The interval of the qos timer
-  -d, --daemon               Set nanomq as daemon (default: false)
+  -d, --daemon               Run nanomq as daemon (default: false)
+  --ca,                      Path to the file containing PEM-encoded CA certificates
+  --cert,                    Path to a file containing the user certificate
+  --key,                     Path to the file containing the user's private PEM-encoded key
+  --keypass,                 String containing the user's password. Only used if the private keyfile is password-protected
+  --verify                   Set disable verify peer certificate (default: true)
+  --fail                     Server won't fail if the client does not have a certificate to send (default: true)
+
 ```
 
 - `start`, `restart`, and `stop` command is mandatory as it indicates whether you want to start a new broker, or replace an existing broker with a new one, or stop a running broker;
