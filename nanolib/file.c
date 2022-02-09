@@ -4,6 +4,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
@@ -147,53 +148,55 @@ file_delete(const char *fpath)
 	return unlink(fpath);
 }
 
-int 
-file_create_dir (const char *pName)
+int
+file_create_dir(const char *pName)
 {
-	
+
 	struct stat sb;
-	char       *slash;
-	char       *path;
-	int         done  =    0;
-	
+	char *      slash;
+	char *      path;
+	int         done = 0;
+
 	/* validate given args */
 	if ((pName == NULL) || (*pName == 0)) {
-  		debug_msg("ERR: bad/illegal pName");
-  		return (-1);	  
+		debug_msg("ERR: bad/illegal pName");
+		return (-1);
 	}
-	
+
 	/* dup pName for processing and set slash to start of path */
 	path  = strdup(pName);
 	slash = path;
-	
+
 	/* create dir after dir ... */
 	while (!done) {
-  		slash += strspn (slash, "/");
-  		slash += strcspn(slash, "/");
-  		if (*slash == '\0') {
+		slash += strspn(slash, "/");
+		slash += strcspn(slash, "/");
+		if (*slash == '\0') {
 			done = 1;
 		}
 		*slash = '\0';
 
 		if (stat(path, &sb)) {
-  			if (errno != ENOENT || (mkdir(path, 0777) && errno != EEXIST)) {
-				debug_msg("ERR: %s (%s)",strerror(errno), path);
+			if (errno != ENOENT ||
+			    (mkdir(path, 0777) && errno != EEXIST)) {
+				debug_msg(
+				    "ERR: %s (%s)", strerror(errno), path);
 				free(path);
 				return (-1);
 			}
 		} else if (!S_ISDIR(sb.st_mode)) {
-			debug_msg("ERR: %s (%s)",strerror(ENOTDIR), path);
+			debug_msg("ERR: %s (%s)", strerror(ENOTDIR), path);
 			free(path);
 			return (-1);
 		}
-	if (done == 0)
-		*slash = '/'; 
+		if (done == 0)
+			*slash = '/';
 	}
-	
-	debug_msg("DBG: %s successfully created",pName);
+
+	debug_msg("DBG: %s successfully created", pName);
 	free(path);
 	return (0);
-}	
+}
 
 int
 file_write_int(int val, const char *fpath_fmt, ...)
@@ -497,4 +500,15 @@ out:
 	return 0;
 error:
 	return -1;
+}
+
+int
+file_load_data(const char *filepath, void **data)
+{
+	int64_t size;
+	if ((size = file_size(filepath)) <= 0) {
+		return -1;
+	}
+
+	return file_read_bin(filepath, (uint8_t **)data, 0, size);
 }

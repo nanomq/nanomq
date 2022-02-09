@@ -24,5 +24,5 @@ int file_read_bin(const char *fpath, unsigned char **buff, unsigned int offset,
 int file_truncr_to_sep(const char *fpath, char *separator);
 int file_append_int(const char *fpath, int value);
 int file_extract_int(const char *fpath);
-
+int file_load_data(const char *filepath, void **data);
 #endif
