@@ -1,4 +1,5 @@
 #include "include/env.h"
+#include "include/file.h"
 
 static void
 set_string_var(char **var, const char *env_str)
@@ -46,6 +47,16 @@ set_bool_var(bool *var, const char *env_str)
 	}
 }
 
+static void
+set_data_from_path_var(void **var, const char *env_str)
+{
+	char *env = NULL;
+
+	if ((env = getenv(env_str)) != NULL) {
+		file_load_data(env, var);
+	}
+}
+
 void
 read_env_conf(conf *config)
 {
@@ -67,6 +78,22 @@ read_env_conf(conf *config)
 	    &config->http_server.username, NANOMQ_HTTP_SERVER_USERNAME);
 	set_string_var(
 	    &config->http_server.password, NANOMQ_HTTP_SERVER_PASSWORD);
+
+	set_bool_var(&config->tls.enable, NANOMQ_TLS_ENABLE);
+	set_string_var(&config->tls.url, NANOMQ_TLS_URL);
+
+	set_data_from_path_var(
+	    (void **) &config->tls.ca, NANOMQ_TLS_CA_CERT_PATH);
+	set_data_from_path_var(
+	    (void **) &config->tls.cert, NANOMQ_TLS_CERT_PATH);
+	set_data_from_path_var(
+	    (void **) &config->tls.key, NANOMQ_TLS_KEY_PATH);
+
+	set_string_var(&config->tls.key_password, NANOMQ_TLS_KEY_PASSWORD);
+
+	set_bool_var(&config->tls.verify_peer, NANOMQ_TLS_VERIFY_PEER);
+	set_bool_var(&config->tls.set_fail, NANOMQ_TLS_FAIL_IF_NO_PEER_CERT);
+
 	set_string_var(&config->conf_file, NANOMQ_CONF_PATH);
 	set_string_var(&config->bridge_file, NANOMQ_BRIDGE_CONF_PATH);
 	set_string_var(&config->auth_file, NANOMQ_AUTH_CONF_PATH);

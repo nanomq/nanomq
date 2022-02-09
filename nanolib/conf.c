@@ -125,7 +125,10 @@ conf_parser(conf *nanomq_conf)
 		                line, sz, "websocket.url")) != NULL) {
 			FREE_NONULL(config->websocket.url);
 			config->websocket.url = value;
-
+		} else if ((value = get_conf_value(
+		                line, sz, "websocket.tls_url")) != NULL) {
+			FREE_NONULL(config->websocket.tls_url);
+			config->websocket.tls_url = value;
 		} else if ((value = get_conf_value(
 		                line, sz, "http_server.enable")) != NULL) {
 			config->http_server.enable =
@@ -144,6 +147,42 @@ conf_parser(conf *nanomq_conf)
 		                line, sz, "http_server.password")) != NULL) {
 			FREE_NONULL(config->http_server.password);
 			config->http_server.password = value;
+		} else if ((value = get_conf_value(line, sz, "tls.enable")) !=
+		    NULL) {
+			config->tls.enable = strcasecmp(value, "true") == 0;
+			free(value);
+		} else if ((value = get_conf_value(line, sz, "tls.url")) !=
+		    NULL) {
+			FREE_NONULL(config->tls.url);
+			config->tls.url = value;
+		} else if ((value = get_conf_value(
+		                line, sz, "tls.key_password")) != NULL) {
+			FREE_NONULL(config->tls.key_password);
+			config->tls.key_password = value;
+		} else if ((value = get_conf_value(line, sz, "tls.keyfile")) !=
+		    NULL) {
+			FREE_NONULL(config->tls.key);
+			file_load_data(value, (void **)&config->tls.key);
+			free(value);
+		} else if ((value = get_conf_value(
+		                line, sz, "tls.certfile")) != NULL) {
+			FREE_NONULL(config->tls.cert);
+			file_load_data(value, (void **)&config->tls.cert);
+			free(value);
+		} else if ((value = get_conf_value(
+		                line, sz, "tls.cacertfile")) != NULL) {
+			FREE_NONULL(config->tls.ca);
+			file_load_data(value, (void **)&config->tls.ca);
+			free(value);
+		} else if ((value = get_conf_value(
+		                line, sz, "tls.verify_peer")) != NULL) {
+			config->tls.verify_peer =
+			    strcasecmp(value, "true") == 0;
+			free(value);
+		} else if ((value = get_conf_value(line, sz,
+		                "tls.fail_if_no_peer_cert")) != NULL) {
+			config->tls.set_fail = strcasecmp(value, "true") == 0;
+			free(value);
 		}
 
 		free(line);
@@ -161,24 +200,34 @@ conf_parser(conf *nanomq_conf)
 void
 conf_init(conf *nanomq_conf)
 {
-	nanomq_conf->url                  = NULL;
-	nanomq_conf->conf_file            = NULL;
-	nanomq_conf->bridge_file          = NULL;
-	nanomq_conf->auth_file            = NULL;
-	nanomq_conf->num_taskq_thread     = 10;
-	nanomq_conf->max_taskq_thread     = 10;
-	nanomq_conf->parallel             = 30; // not work
-	nanomq_conf->property_size        = sizeof(uint8_t) * 32;
-	nanomq_conf->msq_len              = 64;
-	nanomq_conf->qos_duration         = 30;
-	nanomq_conf->allow_anonymous      = true;
-	nanomq_conf->daemon               = false;
+	nanomq_conf->url              = NULL;
+	nanomq_conf->conf_file        = NULL;
+	nanomq_conf->bridge_file      = NULL;
+	nanomq_conf->auth_file        = NULL;
+	nanomq_conf->num_taskq_thread = 10;
+	nanomq_conf->max_taskq_thread = 10;
+	nanomq_conf->parallel         = 30; // not work
+	nanomq_conf->property_size    = sizeof(uint8_t) * 32;
+	nanomq_conf->msq_len          = 64;
+	nanomq_conf->qos_duration     = 30;
+	nanomq_conf->allow_anonymous  = true;
+	nanomq_conf->daemon           = false;
+
+	nanomq_conf->tls.enable       = false;
+	nanomq_conf->tls.ca           = NULL;
+	nanomq_conf->tls.cert         = NULL;
+	nanomq_conf->tls.key          = NULL;
+	nanomq_conf->tls.key_password = NULL;
+	nanomq_conf->tls.set_fail     = true;
+	nanomq_conf->tls.verify_peer  = true;
+
 	nanomq_conf->http_server.enable   = false;
 	nanomq_conf->http_server.port     = 8081;
 	nanomq_conf->http_server.username = NULL;
 	nanomq_conf->http_server.password = NULL;
 	nanomq_conf->websocket.enable     = true;
 	nanomq_conf->websocket.url        = NULL;
+	nanomq_conf->websocket.tls_url    = NULL;
 	nanomq_conf->bridge.bridge_mode   = false;
 	nanomq_conf->bridge.sub_count     = 0;
 	nanomq_conf->bridge.parallel      = 1;
@@ -193,6 +242,8 @@ print_conf(conf *nanomq_conf)
 	debug_msg("enable websocket:         %s",
 	    nanomq_conf->websocket.enable ? "true" : "false");
 	debug_msg("websocket url:            %s", nanomq_conf->websocket.url);
+	debug_msg(
+	    "websocket tls url:        %s", nanomq_conf->websocket.tls_url);
 	debug_msg("daemon:                   %s",
 	    nanomq_conf->daemon ? "true" : "false");
 	debug_msg(
@@ -207,6 +258,16 @@ print_conf(conf *nanomq_conf)
 	    nanomq_conf->http_server.enable ? "true" : "false");
 	debug_msg(
 	    "http server port:         %d", nanomq_conf->http_server.port);
+	debug_msg("enable tls:               %s",
+	    nanomq_conf->tls.enable ? "true" : "false");
+	if (nanomq_conf->tls.enable) {
+		debug_msg("tls url:                  %s",
+		    nanomq_conf->tls.url);
+		debug_msg("tls verify peer:          %s",
+		    nanomq_conf->tls.verify_peer ? "true" : "false");
+		debug_msg("tls fail_if_no_peer_cert: %s",
+		    nanomq_conf->tls.set_fail ? "true" : "false");
+	}
 }
 
 void
@@ -532,6 +593,11 @@ conf_fini(conf *nanomq_conf)
 	zfree(nanomq_conf->conf_file);
 	zfree(nanomq_conf->bridge_file);
 	zfree(nanomq_conf->auth_file);
+
+	zfree(nanomq_conf->tls.key);
+	zfree(nanomq_conf->tls.key_password);
+	zfree(nanomq_conf->tls.cert);
+	zfree(nanomq_conf->tls.ca);
 
 	zfree(nanomq_conf->http_server.username);
 	zfree(nanomq_conf->http_server.password);

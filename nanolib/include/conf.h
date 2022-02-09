@@ -16,11 +16,19 @@
 #define CONF_AUTH_PATH_NAME "/etc/nanomq_auth_username.conf"
 #define CONF_BRIDGE_PATH_NAME "/etc/nanomq_bridge.conf"
 
-#define CONF_TCP_URL_DEFAULT "broker+tcp://0.0.0.0:1883"
-#define CONF_WS_URL_DEFAULT "nmq+ws://0.0.0.0:8083/mqtt"
+#define CONF_TCP_URL_DEFAULT "nmq-tcp://0.0.0.0:1883"
+#define CONF_TLS_URL_DEFAULT "nmq-tls://0.0.0.0:8883"
+#define CONF_WS_URL_DEFAULT "nmq-ws://0.0.0.0:8083/mqtt"
+#define CONF_WSS_URL_DEFAULT "nmq-wss://0.0.0.0:8084/mqtt"
 
-#define TCP_URL_PREFIX "broker+tcp"
-#define WS_URL_PREFIX "nmq+ws"
+#define BROKER_NMQ_TCP_URL_PREFIX "nmq-tcp"
+#define BROKER_NMQ_TCP_TLS_URL_PREFIX "nmq-tls"
+#define BROKER_NMQ_WS_URL_PREFIX "nmq-ws"
+#define BROKER_NMQ_WSS_URL_PREFIX "nmq-wss"
+
+#define BROKER_TCP_URL_PREFIX "broker+tcp"
+#define BROKER_WS_URL_PREFIX "nmq+ws"
+#define BROKER_WSS_URL_PREFIX "nmq+wss"
 
 #define FREE_NONULL(p)    \
 	if (p) {          \
@@ -35,6 +43,19 @@ struct conf_auth {
 };
 typedef struct conf_auth conf_auth;
 
+struct conf_tls {
+	bool  enable;
+	char *url; // "nmq-tls://addr:port"
+	char *ca;
+	char *cert;
+	char *key;
+	char *key_password;
+	bool  verify_peer;
+	bool  set_fail; // fail_if_no_peer_cert
+};
+
+typedef struct conf_tls conf_tls;
+
 struct conf_http_server {
 	bool     enable;
 	uint16_t port;
@@ -46,7 +67,8 @@ typedef struct conf_http_server conf_http_server;
 
 struct conf_websocket {
 	bool  enable;
-	char *url;
+	char *url;     // "nmq-ws://addr:port/path"
+	char *tls_url; // "nmq-wss://addr:port/path"
 };
 
 typedef struct conf_websocket conf_websocket;
@@ -79,7 +101,7 @@ struct conf {
 	char *   conf_file;
 	char *   bridge_file;
 	char *   auth_file;
-	char *   url;
+	char *   url; // "nmq-tcp://addr:port"
 	int      num_taskq_thread;
 	int      max_taskq_thread;
 	uint64_t parallel;
@@ -90,6 +112,7 @@ struct conf {
 	bool     allow_anonymous;
 	bool     daemon;
 
+	conf_tls         tls;
 	conf_http_server http_server;
 	conf_websocket   websocket;
 	conf_bridge      bridge;
