@@ -306,13 +306,13 @@ nanomq broker start --conf <$FILE_PATH> [--bridge <$FILE_PATH>] [--auth <$FILE_P
 The same configuration can be achieved by adding some command-line arguments when you start NanoMQ broker. There are a few arguments for you to play with. And the general usage is:
 
 ```bash
-nanomq broker { { start | restart [--url <url>] [--conf <path>] [--bridge <path>] 
-                [--auth <path>] [-d, --daemon] [-t, --tq_thread <num>] 
-                [-T, -max_tq_thread <num>] [-n, --parallel <num>]
-                [-D, --qos_duration <num>] [--http] [-p, --port] } 
-                [--ca <path>] [--cert <path>] [--key <path>] 
-                [--keypass <password>] [--verify] [--fail]
-                | stop }
+Usage: nanomq broker { { start | restart [--url <url>] [--conf <path>] [--bridge <path>] 
+                     [--auth <path>] [-d, --daemon] [-t, --tq_thread <num>] 
+                     [-T, -max_tq_thread <num>] [-n, --parallel <num>]
+                     [-D, --qos_duration <num>] [--http] [-p, --port] } 
+                     [--cacert <path>] [-E, --cert <path>] [--key <path>] 
+                     [--keypass <password>] [--verify] [--fail]
+                     | stop }
 
 Options: 
   --url <url>                Specify listener's url: 'nmq-tcp://host:port', 'nmq-tls://host:port' 
@@ -329,10 +329,10 @@ Options:
   -S, --msq_len <num>        The queue length for resending messages
   -D, --qos_duration <num>   The interval of the qos timer
   -d, --daemon               Run nanomq as daemon (default: false)
-  --ca,                      Path to the file containing PEM-encoded CA certificates
-  --cert,                    Path to a file containing the user certificate
-  --key,                     Path to the file containing the user's private PEM-encoded key
-  --keypass,                 String containing the user's password. Only used if the private keyfile is password-protected
+  --cacert                   Path to the file containing PEM-encoded CA certificates
+  -E, --cert                 Path to a file containing the user certificate
+  --key                      Path to the file containing the user's private PEM-encoded key
+  --keypass                  String containing the user's password. Only used if the private keyfile is password-protected
   --verify                   Set disable verify peer certificate (default: true)
   --fail                     Server won't fail if the client does not have a certificate to send (default: true)
 
@@ -365,6 +365,12 @@ Options:
 
   ```bash
   nanomq broker start|restart --daemon
+  ```
+
+- Running broker with *tls*:
+
+  ```bash
+  nanomq broker start --url "tls+nmq-tcp://0.0.0.0:8883" --cacert <cacert file> --cert <cert file> --key <key file> 
   ```
 
 - Limiting the number of threads by specifying the number of and the max number of taskq threads:
