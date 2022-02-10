@@ -194,7 +194,6 @@ fatal(const char *msg, ...)
 	vfprintf(stderr, msg, ap);
 	va_end(ap);
 	fprintf(stderr, "\n");
-	exit(1);
 }
 
 static void
@@ -928,7 +927,7 @@ client(int argc, char **argv, enum client_type type)
 		.on_connected    = connect_cb,
 		.on_disconnected = disconnect_cb,
 		.connect_arg     = &connect_arg,
-		.disconn_arg     = "Args",
+		.disconn_arg     = msg,
 	};
 
 	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, msg);

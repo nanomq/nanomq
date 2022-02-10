@@ -305,7 +305,7 @@ nanomq broker start --conf <$FILE_PATH> [--bridge <$FILE_PATH>] [--auth <$FILE_P
 
 The same configuration can be achieved by adding some command-line arguments when you start NanoMQ broker. There are a few arguments for you to play with. And the general usage is:
 
-```bash
+```c
 Usage: nanomq broker { { start | restart [--url <url>] [--conf <path>] [--bridge <path>] 
                      [--auth <path>] [-d, --daemon] [-t, --tq_thread <num>] 
                      [-T, -max_tq_thread <num>] [-n, --parallel <num>]
@@ -333,8 +333,8 @@ Options:
   -E, --cert                 Path to a file containing the user certificate
   --key                      Path to the file containing the user's private PEM-encoded key
   --keypass                  String containing the user's password. Only used if the private keyfile is password-protected
-  --verify                   Set disable verify peer certificate (default: true)
-  --fail                     Server won't fail if the client does not have a certificate to send (default: true)
+  --verify                   Set verify peer certificate (default: false)
+  --fail                     Server will fail if the client does not have a certificate to send (default: false)
 
 ```
 
@@ -370,7 +370,7 @@ Options:
 - Running broker with *tls*:
 
   ```bash
-  nanomq broker start --url "tls+nmq-tcp://0.0.0.0:8883" --cacert <cacert file> --cert <cert file> --key <key file> 
+  nanomq broker start --url "tls+nmq-tcp://0.0.0.0:8883" [--cacert <path>] [-E, --cert <path>] [--key <path>] [--keypass <password>] [--verify] [--fail]
   ```
 
 - Limiting the number of threads by specifying the number of and the max number of taskq threads:
