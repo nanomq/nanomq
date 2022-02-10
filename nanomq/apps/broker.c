@@ -606,9 +606,9 @@ init_listener_tls(nng_listener l, conf_tls *tls)
 
 	if (tls->verify_peer) {
 		if (tls->set_fail) {
-			mode = NNG_TLS_AUTH_MODE_OPTIONAL;
-		} else {
 			mode = NNG_TLS_AUTH_MODE_REQUIRED;
+		} else {
+			mode = NNG_TLS_AUTH_MODE_OPTIONAL;
 		}
 	}
 
@@ -806,10 +806,10 @@ print_usage(void)
 	printf("  --keypass                  String containing the user's "
 	       "password. Only used if the private keyfile is "
 	       "password-protected\n");
-	printf("  --verify                   Set disable verify peer "
-	       "certificate (default: true)\n");
-	printf("  --fail                     Server won't fail if the client "
-	       "does not have a certificate to send (default: true)\n");
+	printf("  --verify                   Set verify peer "
+	       "certificate (default: false)\n");
+	printf("  --fail                     Server will fail if the client "
+	       "does not have a certificate to send (default: false)\n");
 }
 
 int
@@ -975,10 +975,10 @@ broker_parse_opts(int argc, char **argv, conf *config)
 			config->tls.key_password = nng_strdup(arg);
 			break;
 		case OPT_TLS_VERIFY_PEER:
-			config->tls.verify_peer = false;
+			config->tls.verify_peer = true;
 			break;
 		case OPT_TLS_FAIL_IF_NO_PEER_CERT:
-			config->tls.set_fail = false;
+			config->tls.set_fail = true;
 			break;
 		case OPT_HTTP_ENABLE:
 			config->http_server.enable = true;

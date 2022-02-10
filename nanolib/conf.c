@@ -218,8 +218,8 @@ conf_init(conf *nanomq_conf)
 	nanomq_conf->tls.cert         = NULL;
 	nanomq_conf->tls.key          = NULL;
 	nanomq_conf->tls.key_password = NULL;
-	nanomq_conf->tls.set_fail     = true;
-	nanomq_conf->tls.verify_peer  = true;
+	nanomq_conf->tls.set_fail     = false;
+	nanomq_conf->tls.verify_peer  = false;
 
 	nanomq_conf->http_server.enable   = false;
 	nanomq_conf->http_server.port     = 8081;
