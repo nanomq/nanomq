@@ -83,7 +83,7 @@ With this being said, NanoMQ can run on different architectures such like x86_64
 #### Docker
 
 ```bash
-docker run -d -p 1883:1883 --name nanomq nanomq/nanomq:0.5.9
+docker run -d -p 1883:1883 -p 8883:8883 --name nanomq nanomq/nanomq:0.6.0
 ```
 
 
@@ -124,7 +124,7 @@ cmake -G Ninja -DNNG_ENABLE_TLS=ON ..
 ninja
 ```
 
-**Note (optional): client(pub / sub / conn) is built by default**, you can disable it via `-DBUILD_CLIENT=OFF`.
+**Note (optional): client ( pub / sub / conn ) is built by default**, you can disable it via `-DBUILD_CLIENT=OFF`.
 
   ``` bash
   cmake -G Ninja -DBUILD_CLIENT=OFF ..
@@ -275,8 +275,8 @@ nanomq broker start --conf <$FILE_PATH> [--bridge <$FILE_PATH>] [--auth <$FILE_P
 |NANOMQ_TLS_CERT_PATH| String |  Path to a file containing the user certificate.|
 |NANOMQ_TLS_KEY_PATH| String | Path to the file containing the user's private PEM-encoded key.|
 |NANOMQ_TLS_KEY_PASSWORD| String |  String containing the user's password. Only used if the private keyfile is password-protected.|
-|NANOMQ_TLS_VERIFY_PEER| Boolean | Verify peer certificate (default: true).|
-|NANOMQ_TLS_FAIL_IF_NO_PEER_CERT| Boolean | Server will fail if the client does not have a certificate to send (default: true).|
+|NANOMQ_TLS_VERIFY_PEER| Boolean | Verify peer certificate (default: false).|
+|NANOMQ_TLS_FAIL_IF_NO_PEER_CERT| Boolean | Server will fail if the client does not have a certificate to send (default: false).|
 |NANOMQ_CONF_PATH | String | NanoMQ main config file path (defalt: /etc/nanomq.conf).|
 |NANOMQ_BRIDGE_CONF_PATH | String | Bridge config file path (defalt: /etc/nanomq_bridge.conf).|
 |NANOMQ_AUTH_CONF_PATH | String | Auth config file path (defalt: /etc/nanomq_auth_username.conf).|
@@ -285,10 +285,15 @@ nanomq broker start --conf <$FILE_PATH> [--bridge <$FILE_PATH>] [--auth <$FILE_P
   On host system: 
   ```bash
   export NANOMQ_BROKER_URL="nmq-tcp://0.0.0.0:1883"
+  export NANOMQ_TLS_ENABLE=true
+  export NANOMQ_TLS_URL="tls+nmq-tcp://0.0.0.0:8883"
   ```
   Creating docker container:
   ```bash
-  docker run -d -p 1883:1883 --name nanomq nanomq/nanomq:0.5.9 -e NANOMQ_BROKER_URL="nmq-tcp://0.0.0.0:1883"
+  docker run -d -p 1883:1883 -p 8883:8883 --name nanomq nanomq/nanomq:0.6.0  \
+             -e NANOMQ_BROKER_URL="nmq-tcp://0.0.0.0:1883" \
+             -e NANOMQ_TLS_ENABLE=true \
+             -e NANOMQ_TLS_URL="tls+nmq-tcp://0.0.0.0:8883"
   ```
 
 - Specify a nanomq config file path.
@@ -298,7 +303,7 @@ nanomq broker start --conf <$FILE_PATH> [--bridge <$FILE_PATH>] [--auth <$FILE_P
   ```
   Creating docker container:
   ```bash
-  docker run -d -p 1883:1883 --name nanomq nanomq/nanomq:0.5.9 -e NANOMQ_CONF_PATH="/usr/local/etc/nanomq.conf"
+  docker run -d -p 1883:1883 --name nanomq nanomq/nanomq:0.6.0 -e NANOMQ_CONF_PATH="/usr/local/etc/nanomq.conf"
   ```
 
 #### NanoMQ Command-Line Arguments 

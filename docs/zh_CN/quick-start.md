@@ -22,7 +22,16 @@ $ cmake ..
 $ make
 ```
 
-
+可增加cmake编译参数`NNG_ENABLE_TLS`来支持**TLS**连接:
+>需提前安装 [mbedTLS](https://tls.mbed.org).
+```bash
+cmake -G Ninja -DNNG_ENABLE_TLS=ON ..
+```
+或者
+```bash
+cmake -DNNG_ENABLE_TLS=ON ..
+```
+> 查看配置文件 `nanomq.conf` 了解更多TLS相关配置参数.
 
 ## 编译依赖
 
