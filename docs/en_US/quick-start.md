@@ -24,6 +24,16 @@ $ cmake ..
 $ make
 ```
 
+Add `NNG_ENABLE_TLS` to enable **TLS**:
+>[mbedTLS](https://tls.mbed.org) needs to be installed first.
+```bash
+cmake -G Ninja -DNNG_ENABLE_TLS=ON ..
+```
+or
+```bash
+cmake -DNNG_ENABLE_TLS=ON ..
+```
+> View config file `nanomq.conf` for more parameters about TLS.
 
 
 ## Compile dependency
