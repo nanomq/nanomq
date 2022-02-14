@@ -54,13 +54,14 @@ decode_sub_message(nano_work *work)
 
 #if SUPPORT_MQTT5_0
 	// Only Mqtt_v5 include property.
+	int target_pos;
 	if (PROTOCOL_VERSION_v5 == proto_ver) {
 		init_sub_property(sub_pkt);
 		// length of property in varibale
 		len_of_properties = get_var_integer(
 		    variable_ptr + vpos, (uint32_t *) &len_of_varint);
 		vpos += len_of_varint;
-		int target_pos = vpos + len_of_properties;
+		target_pos = vpos + len_of_properties;
 
 		// parse property in variable
 		if (len_of_properties > 0) {
@@ -69,47 +70,30 @@ decode_sub_message(nano_work *work)
 				switch (property_id) {
 				case SUBSCRIPTION_IDENTIFIER:
 					sub_pkt->sub_id.varint =
-					    get_var_integer(
-					        variable_ptr + vpos,
+					    get_var_integer(variable_ptr+vpos,
 					        (uint32_t *) &len_of_varint);
 					vpos += len_of_varint;
 					break;
 				case USER_PROPERTY:
 					// key
-					NNI_GET16(
-					    variable_ptr + vpos, len_of_str);
-					if ((sub_pkt->user_property.strpair
-					            .key = nng_alloc(
-					         len_of_str)) == 0) {
-						debug_msg("ERROR: nng_alloc");
-						return NNG_ENOMEM;
-					}
-					sub_pkt->user_property.strpair
-					    .len_key = len_of_str;
-					vpos += (len_of_str + 2);
+					sub_pkt->user_property.strpair.key =
+					    copy_utf8_str(variable_ptr, &vpos, &len_of_str);
+					sub_pkt->user_property.strpair.len_key = len_of_str;
 					len_of_str = 0;
 
 					// value
-					NNI_GET16(
-					    variable_ptr + vpos, len_of_str);
-					if ((sub_pkt->user_property.strpair
-					            .val = nng_alloc(
-					         len_of_str)) == 0) {
-						debug_msg("ERROR: nng_alloc");
-						return NNG_ENOMEM;
-					}
-					sub_pkt->user_property.strpair
-					    .len_val = len_of_str;
-					vpos += (len_of_str + 2);
+					sub_pkt->user_property.strpair.val =
+					    copy_utf8_str(variable_ptr, &vpos, &len_of_str);
+					sub_pkt->user_property.strpair.len_val = len_of_str;
 					len_of_str = 0;
 
 					break;
 				default:
 					break;
 				}
-				if (vpos >= target_pos) {
+				if (vpos == target_pos)
 					break;
-				} else if (vpos > target_pos) {
+				if (vpos > target_pos) {
 					debug_msg("ERROR: protocol error");
 					return PROTOCOL_ERROR;
 				}
@@ -122,10 +106,6 @@ decode_sub_message(nano_work *work)
 	    sub_pkt->packet_id);
 	// handle payload
 	payload_ptr = nng_msg_payload_ptr(msg);
-
-	debug_msg("V:[%x %x %x %x] P:[%x %x %x %x].", variable_ptr[0],
-	    variable_ptr[1], variable_ptr[2], variable_ptr[3], payload_ptr[0],
-	    payload_ptr[1], payload_ptr[2], payload_ptr[3]);
 
 	if ((topic_node_t = nng_alloc(sizeof(topic_node))) == NULL) {
 		debug_msg("ERROR: nng_alloc");
@@ -143,36 +123,23 @@ decode_sub_message(nano_work *work)
 		topic_node_t->it = topic_option;
 		_topic_node      = topic_node_t;
 
-		NNI_GET16(payload_ptr + bpos, len_of_topic);
-		bpos += 2;
-
-		if (len_of_topic != 0) {
-			topic_option->topic_filter.len = len_of_topic;
-			topic_option->topic_filter.body =
-			    nng_alloc(len_of_topic + 1);
-			if (topic_option->topic_filter.body == NULL) {
-				debug_msg("ERROR: nng_alloc");
-				return NNG_ENOMEM;
-			}
-			strncpy(topic_option->topic_filter.body,
-			    (char *) (payload_ptr + bpos), len_of_topic);
-			topic_option->topic_filter.body[len_of_topic] = '\0';
-			bpos += len_of_topic;
-		} else {
+		topic_option->topic_filter.body =
+		    copy_utf8_str(payload_ptr, &bpos, &len_of_topic);
+		topic_option->topic_filter.len = len_of_topic;
+		if (len_of_topic == 0) {
 			debug_msg("ERROR : topic length error.");
 			return PROTOCOL_ERROR;
 		}
+		len_of_topic = 0;
 
 		memcpy(topic_option, payload_ptr + bpos, 1);
 		if (topic_option->retain_handling > 2) {
-			debug_msg(
-			    "ERROR: error inretain_handling flag setting");
+			debug_msg("ERROR: error in retain_handling");
 			return PROTOCOL_ERROR;
 		}
 		// TODO sub action when retain_handling equal 0 or 1 or 2
 
-		debug_msg("bpos+vpos: [%d] remainLen: [%ld].", bpos + vpos,
-		    remaining_len);
+		debug_msg("bpos+vpos: [%d]", bpos + vpos);
 		if (++bpos < remaining_len - vpos) {
 			if ((topic_node_t = nng_alloc(sizeof(topic_node))) ==
 			    NULL) {
@@ -295,8 +262,8 @@ sub_ctx_handle(nano_work *work)
 	// get ctx from tree TODO optimization here
 	tq = dbhash_get_topic_queue(cli_ctx->pid.id);
 	if (tq) {
-		old_ctx =
-		    dbtree_delete_client(work->db, tq->topic, clientid_key, cli_ctx->pid.id);
+		old_ctx = dbtree_delete_client(
+		    work->db, tq->topic, clientid_key, cli_ctx->pid.id);
 	}
 	if (old_ctx) {
 		dbtree_insert_client(
@@ -340,11 +307,6 @@ sub_ctx_handle(nano_work *work)
 			dbtree_insert_client(work->db, topic_str, old_ctx, work->pid.id);
 			dbhash_insert_topic(work->pid.id, topic_str);
 		}
-#ifdef DEBUG
-		// check
-		debug_msg("--CHECK--cliid: [%s] pipeid: [%d]", clientid,
-		    work->pid.id);
-#endif
 
 		dbtree_retain_msg **r = dbtree_find_retain(work->db_ret, topic_str);
 		if (r) {
@@ -352,12 +314,6 @@ sub_ctx_handle(nano_work *work)
 				if (!r[i]) {
 					continue;
 				}
-				debug_msg("found retain [%p], "
-				          "message: [%p][%p] sz [%ld]\n",
-				    r[i], r[i]->message,
-				    nng_msg_payload_ptr(r[i]->message),
-				    cvector_size(r));
-
 				cvector_push_back(
 				    work->msg_ret, (nng_msg *) r[i]->message);
 			}

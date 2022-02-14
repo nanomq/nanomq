@@ -337,15 +337,15 @@ server_cb(void *arg)
 			nng_aio_finish(work->aio, 0);
 		} else if (nng_msg_cmd_type(work->msg) == CMD_SUBSCRIBE) {
 			nng_msg_alloc(&smsg, 0);
-			work->pid     = nng_msg_get_pipe(work->msg);
-			work->sub_pkt = nng_alloc(sizeof(packet_subscribe));
-			if (work->sub_pkt == NULL) {
+			work->pid = nng_msg_get_pipe(work->msg);
+
+			if ((work->sub_pkt = nng_alloc(
+			         sizeof(packet_subscribe))) == NULL)
 				debug_msg("ERROR: nng_alloc");
-			}
+
 			if ((reason = decode_sub_message(work)) != SUCCESS ||
 			    (reason = sub_ctx_handle(work)) != SUCCESS ||
-			    (reason = encode_suback_message(smsg, work)) !=
-			        SUCCESS) {
+			    (reason = encode_suback_message(smsg, work)) != SUCCESS) {
 				debug_msg("ERROR: sub_handler: [%d]", reason);
 				if (dbhash_check_id(work->pid.id)) {
 					dbhash_del_topic_queue(work->pid.id);
@@ -357,10 +357,8 @@ server_cb(void *arg)
 			// handle retain
 			if (work->msg_ret) {
 				debug_msg("retain msg [%p] size [%ld] \n",
-				    work->msg_ret,
-				    cvector_size(work->msg_ret));
-				for (int i = 0;
-				     i < cvector_size(work->msg_ret); i++) {
+				    work->msg_ret, cvector_size(work->msg_ret));
+				for (int i = 0; i < cvector_size(work->msg_ret); i++) {
 					nng_msg *m = work->msg_ret[i];
 					nng_msg_clone(m);
 					work->msg = m;
@@ -381,17 +379,15 @@ server_cb(void *arg)
 			nng_aio_finish(work->aio, 0);
 			break;
 		} else if (nng_msg_cmd_type(work->msg) == CMD_UNSUBSCRIBE) {
-			nng_msg_alloc(&smsg, 0);
-			work->unsub_pkt =
-			    nng_alloc(sizeof(packet_unsubscribe));
 			work->pid = nng_msg_get_pipe(work->msg);
-			if (work->unsub_pkt == NULL) {
+			nng_msg_alloc(&smsg, 0);
+			if ((work->unsub_pkt = nng_alloc(
+			         sizeof(packet_unsubscribe))) == NULL)
 				debug_msg("ERROR: nng_alloc");
-			}
+
 			if ((reason = decode_unsub_message(work)) != SUCCESS ||
 			    (reason = unsub_ctx_handle(work)) != SUCCESS ||
-			    (reason = encode_unsuback_message(smsg, work)) !=
-			        SUCCESS) {
+			    (reason = encode_unsuback_message(smsg, work)) != SUCCESS) {
 				debug_msg("ERROR: unsub_handler [%d]", reason);
 			}
 			// free unsub_pkt
@@ -510,7 +506,6 @@ server_cb(void *arg)
 			smsg = NULL;
 		}
 		if ((rv = nng_aio_result(work->aio)) != 0) {
-			debug_msg("SEND nng aio result error: %d", rv);
 			fatal("SEND nng_ctx_send", rv);
 		}
 		if (work->pipe_ct->total > 0) {
