@@ -8,6 +8,8 @@ on:
   push:
     branches:
       - master
+    paths:
+      - 'docs/**'
 
 jobs:
   deploy:
@@ -92,7 +94,7 @@ jobs:
         repository: 'Swilder-M/docsearch-scraper-simple'
         path: docsearch
 
-    - name: Install pipenv
+    - name: install pipenv
       run: |
           python -m pip install --upgrade pipenv wheel
 
@@ -109,7 +111,7 @@ jobs:
         pipenv install --keep-outdated
 
     - name: update current version
-      if: ${{ env.VERSION == 'latest'}}
+      if: env.VERSION == 'latest'
       env:
         APPLICATION_ID: ${{ secrets.DOCS_APPLICATION_ID }}
         API_KEY: ${{ secrets.DOCS_API_KEY }}

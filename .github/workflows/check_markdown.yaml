@@ -1,25 +1,28 @@
 name: Check markdown
 
-on: [pull_request]
+on:
+  pull_request:
+    paths:
+      - 'docs/**'
 
 jobs:
-  Markdown_Checker:
+  markdown_check:
     runs-on: ubuntu-latest
     steps:
-    - name: Check out code
+    - name: check out code
       uses: actions/checkout@main
 
-    - name: Install markdownlint
+    - name: install markdownlint
       run: sudo npm install -g markdownlint-cli
 
-    - name: Check markdown
+    - name: check markdown
       run: markdownlint -c .github/workflows/markdown_config.json ./docs/
 
-  Directory_Checker:
+  directory_check:
     runs-on: ubuntu-latest
     steps:
-    - name: Check out code
+    - name: check out code
       uses: actions/checkout@main
 
-    - name: Check directory config
+    - name: check directory config
       run: python3 .github/workflows/directory_check.py directory.json $(pwd)/docs
