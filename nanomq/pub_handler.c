@@ -18,6 +18,7 @@
 
 #include "include/pub_handler.h"
 #include "include/sub_handler.h"
+#include "include/bridge.h"
 
 #define ENABLE_RETAIN 1
 #define SUPPORT_MQTT5_0 0
@@ -56,26 +57,31 @@ foreach_client(
 		ctx     = (struct client_ctx *) cli_ctx_list[i];
 		pids    = ctx->pid.id;
 		tn      = ctx->sub_pkt->node;
-		sub_qos = 0; // default
 
-		if (tn != NULL) {
-			sub_qos = tn->it->qos;
-		}
+		if (pids == 0)
+			continue;
 
-		while (tn != NULL) {
-			if (0 ==
-			    strcmp(tn->it->topic_filter.body,
+		while (tn) {
+			if (true == topic_filter(tn->it->topic_filter.body,
 			        pub_work->pub_packet->variable_header.publish
 			            .topic_name.body)) {
-				sub_qos = tn->it->qos;
-				break;
+				break; // find the topic
 			}
 			tn = tn->next;
 		}
-
-		if (pids == 0) {
+		if (!tn) {
+			debug_msg("Not find the topic node");
 			continue;
 		}
+		sub_qos = tn->it->qos;
+		// no local
+		if (1 == tn->it->no_local) {
+			if (pids == pub_work->pid.id) {
+				continue;
+			}
+		}
+
+		// TODO change to cvector for performance
 		pipe_ct->pipe_info = zrealloc(pipe_ct->pipe_info,
 		    sizeof(struct pipe_info) * (pipe_ct->total + 1));
 
@@ -96,6 +102,9 @@ void
 handle_pub(nano_work *work, struct pipe_content *pipe_ct)
 {
 	char **topic_queue = NULL;
+	void **cli_ctx_list    = NULL;
+	void **shared_cli_list = NULL;
+	size_t msg_cnt         = 0;
 
 	work->pub_packet = (struct pub_packet_struct *) nng_alloc(
 	    sizeof(struct pub_packet_struct));
@@ -106,68 +115,55 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct)
 		return;
 	}
 
-	// TODO no local
-	if (PUBLISH == work->pub_packet->fixed_header.packet_type) {
-		void **cli_ctx_list = NULL;
-		void **shared_cli_list = NULL;
-		size_t msg_cnt      = 0;
-		if (work->pub_packet->fixed_header.qos > 0) {
-			cli_ctx_list =
-			    dbtree_find_clients_and_cache_msg(work->db,
-			        work->pub_packet->variable_header.publish
-			            .topic_name.body,
-			        work->msg, &msg_cnt);
-			// Note. Why do we clone msg (msg_cnt-1) times?
-			// It's because that the refcnt of msg is 1, when
-			// plus (msg_cnt-1), equals (msg_cnt), and it means
-			// the count of session which the msg would be sent to.
-			for (int i = 0; i < (int) (msg_cnt); i++) {
-				nng_msg_clone(work->msg);
-			}
+	if (PUBLISH != work->pub_packet->fixed_header.packet_type) {
+		return;
+	}
 
-			shared_cli_list = dbtree_find_shared_sub_clients(work->db,
-			        work->pub_packet->variable_header.publish
-			            .topic_name.body,
-			        work->msg, &msg_cnt);
-			// Note. Why do we clone msg (msg_cnt-1) times?
-			// It's because that the refcnt of msg is 1, when
-			// plus (msg_cnt-1), equals (msg_cnt), and it means
-			// the count of session which the msg would be sent to.
-			for (int i = 0; i < (int) (msg_cnt - 1); i++) {
-				nng_msg_clone(work->msg);
-			}
-
-		} else {
-			cli_ctx_list =
-			    dbtree_find_clients_and_cache_msg(work->db,
-			        work->pub_packet->variable_header.publish
-			            .topic_name.body,
-			        NULL, &msg_cnt);
-
-			shared_cli_list = dbtree_find_shared_sub_clients(work->db,
-			        work->pub_packet->variable_header.publish
-			            .topic_name.body,
-			        NULL, &msg_cnt);
+	if (work->pub_packet->fixed_header.qos > 0) {
+		cli_ctx_list = dbtree_find_clients_and_cache_msg(work->db,
+		    work->pub_packet->variable_header.publish.topic_name.body,
+		    work->msg, &msg_cnt);
+		// Note. We clone msg_cnt times for the session stored.
+		// There are msg_cnt sessions need to be sent.
+		for (int i = 0; i < (int) (msg_cnt); i++) {
+			nng_msg_clone(work->msg);
 		}
 
-
-		if (cli_ctx_list != NULL) {
-			foreach_client(cli_ctx_list, work, pipe_ct);
+		shared_cli_list = dbtree_find_shared_sub_clients(work->db,
+		    work->pub_packet->variable_header.publish.topic_name.body,
+		    work->msg, &msg_cnt);
+		// Note. We clone msg_cnt times for the session stored.
+		// There are msg_cnt sessions need to be sent.
+		for (int i = 0; i < (int) (msg_cnt); i++) {
+			nng_msg_clone(work->msg);
 		}
-		cvector_free(cli_ctx_list);
-		
-		if (shared_cli_list != NULL) {
-			foreach_client(shared_cli_list, work, pipe_ct);
-		}
-		cvector_free(shared_cli_list);
 
-		debug_msg("pipe_info size: [%d]", pipe_ct->total);
+	} else {
+		cli_ctx_list = dbtree_find_clients_and_cache_msg(work->db,
+		    work->pub_packet->variable_header.publish.topic_name.body,
+		    NULL, &msg_cnt);
+
+		shared_cli_list = dbtree_find_shared_sub_clients(work->db,
+		    work->pub_packet->variable_header.publish.topic_name.body,
+		    NULL, &msg_cnt);
+	}
+
+	if (cli_ctx_list != NULL) {
+		foreach_client(cli_ctx_list, work, pipe_ct);
+	}
+	cvector_free(cli_ctx_list);
+
+	if (shared_cli_list != NULL) {
+		foreach_client(shared_cli_list, work, pipe_ct);
+	}
+	cvector_free(shared_cli_list);
+
+	debug_msg("pipe_info size: [%d]", pipe_ct->total);
 
 #if ENABLE_RETAIN
-		handle_pub_retain(work,
-		    work->pub_packet->variable_header.publish.topic_name.body);
+	handle_pub_retain(
+	    work, work->pub_packet->variable_header.publish.topic_name.body);
 #endif
-	}
 	// TODO send DISCONNECT with reason_code if MQTT Version=5.0
 }
 
@@ -503,11 +499,6 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 			append_res = nng_msg_append(dest_msg,
 			    work->pub_packet->payload_body.payload,
 			    work->pub_packet->payload_body.payload_len);
-			//				debug_msg("payload [%s]
-			// len
-			//[%d]", (char
-			//*)work->pub_packet->payload_body.payload,
-			// work->pub_packet->payload_body.payload_len);
 		}
 
 		debug_msg("after payload len in msg already [%ld]",
