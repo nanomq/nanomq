@@ -7,6 +7,7 @@
 //
 
 #include <assert.h>
+#include <stdbool.h>
 #include <string.h>
 #include <stdatomic.h>
 #include <limits.h>
@@ -20,8 +21,8 @@
 #include "include/mqtt_db.h"
 #include "include/zmalloc.h"
 
-// #define ROUND_ROBIN
-#define RANDOM
+#define ROUND_ROBIN
+// #define RANDOM
 
 static atomic_int acnt = 0;
 
@@ -1923,7 +1924,7 @@ dbtree_find_shared_clients(dbtree *db, char *topic, void *message, size_t *msg_c
 
 	dbtree_node *shared = find_next(node, &equal, &t, &index);
 
-	if (shared == NULL || shared->child == NULL) {
+	if (equal == false || shared == NULL || shared->child == NULL) {
 		pthread_rwlock_unlock(&(db->rwlock));
 		return NULL;
 	}
