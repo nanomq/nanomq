@@ -61,6 +61,7 @@ decode_sub_message(nano_work *work)
 		len_of_properties = get_var_integer(
 		    variable_ptr + vpos, (uint32_t *) &len_of_varint);
 		vpos += len_of_varint;
+		len_of_varint = 0;
 		target_pos = vpos + len_of_properties;
 
 		// parse property in variable
