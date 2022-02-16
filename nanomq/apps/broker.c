@@ -271,6 +271,7 @@ server_cb(void *arg)
 			handle_pub(work, work->pipe_ct);
 			// cache session
 			client_ctx *cli_ctx = NULL;
+			dbtree_ctxt *db_ctx = NULL;
 			char *      clientid =
 			    (char *) conn_param_get_clientid(work->cparam);
 			if (clientid != NULL &&
@@ -283,10 +284,15 @@ server_cb(void *arg)
 				topic_queue *tq = dbhash_get_topic_queue(work->pid.id);
 				while (tq) {
 					if (tq->topic) {
-						cli_ctx = dbtree_delete_client(
+						db_ctx = dbtree_delete_client(
 						    work->db, tq->topic, 0,
 						    work->pid.id);
 					}
+
+					cli_ctx = db_ctx->ctxt;
+					dbtree_delete_ctxt(db_ctx);
+
+
 					del_sub_ctx(cli_ctx, tq->topic);
 					tq = tq->next;
 				}
@@ -417,8 +423,9 @@ server_cb(void *arg)
 			if (work->pipe_ct->total > 0) {
 				p_info = work->pipe_ct->pipe_info
 				             [work->pipe_ct->current_index];
+
 				work->pipe_ct->encode_msg(smsg, p_info.work,
-				    p_info.cmd, p_info.qos, 0);
+				    p_info.cmd, p_info.qos, 0, p_info.sub_id_p);
 				while (work->pipe_ct->total >
 				    work->pipe_ct->current_index) {
 					p_info =

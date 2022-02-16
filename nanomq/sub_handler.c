@@ -9,7 +9,9 @@
 #include <nng.h>
 #include <protocol/mqtt/mqtt.h>
 #include <protocol/mqtt/mqtt_parser.h>
+#include <stdio.h>
 
+#include "include/broker.h"
 #include "include/nanomq.h"
 #include "include/pub_handler.h"
 #include "include/sub_handler.h"
@@ -74,6 +76,7 @@ decode_sub_message(nano_work *work)
 					    get_var_integer(variable_ptr+vpos,
 					        (uint32_t *) &len_of_varint);
 					vpos += len_of_varint;
+					printf("sub_id: %d\n", sub_pkt->sub_id.varint);
 					break;
 				case USER_PROPERTY:
 					// key
@@ -247,6 +250,7 @@ sub_ctx_handle(nano_work *work)
 	int topic_exist                  = 0;
 	uint32_t clientid_key            = 0;
 
+	dbtree_ctxt *db_old_ctx = NULL;
 	client_ctx *old_ctx = NULL;
 	client_ctx *cli_ctx = nng_alloc(sizeof(client_ctx));
 	cli_ctx->sub_pkt    = work->sub_pkt;
@@ -262,14 +266,19 @@ sub_ctx_handle(nano_work *work)
 
 	// get ctx from tree TODO optimization here
 	tq = dbhash_get_topic_queue(cli_ctx->pid.id);
+
 	if (tq) {
-		old_ctx = dbtree_delete_client(
-		    work->db, tq->topic, clientid_key, cli_ctx->pid.id);
+		db_old_ctx =
+		    dbtree_delete_client(work->db, tq->topic, clientid_key, cli_ctx->pid.id);
 	}
-	if (old_ctx) {
+
+	if (db_old_ctx) {
+		old_ctx = db_old_ctx->ctxt;
+		db_old_ctx->sub_id_i = work->sub_pkt->sub_id.varint;
 		dbtree_insert_client(
-		    work->db, tq->topic, old_ctx, cli_ctx->pid.id);
+		    work->db, tq->topic, db_old_ctx, cli_ctx->pid.id);
 	}
+
 	if (!tq || !old_ctx) { /* the real ctx stored in tree */
 		old_ctx                = nng_alloc(sizeof(client_ctx));
 		old_ctx->sub_pkt       = nng_alloc(sizeof(packet_subscribe));
@@ -305,7 +314,12 @@ sub_ctx_handle(nano_work *work)
 			tq = tq->next;
 		}
 		if (!topic_exist) {
-			dbtree_insert_client(work->db, topic_str, old_ctx, work->pid.id);
+			printf("Protocol Version: %d\n", old_ctx->proto_ver);
+			printf("sub ID: %d\n", work->sub_pkt->sub_id.varint);
+			int t = work->sub_pkt->sub_id.varint;
+			dbtree_ctxt *db_old_ctxt = dbtree_new_ctxt(old_ctx, t);
+			dbtree_insert_client(work->db, topic_str, db_old_ctxt, work->pid.id);
+
 			dbhash_insert_topic(work->pid.id, topic_str);
 		}
 
@@ -437,6 +451,7 @@ void
 del_sub_ctx(void *ctxt, char *target_topic)
 {
 	uint8_t           proto_ver         = 0;
+
 	client_ctx *      cli_ctx           = ctxt;
 	topic_node *      topic_node_t      = NULL;
 	topic_node *      before_topic_node = NULL;
