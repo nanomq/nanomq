@@ -6,6 +6,7 @@
 #define NANOMQ_PUB_HANDLER_H
 
 #include "broker.h"
+#include <bits/stdint-uintn.h>
 #include <nng/nng.h>
 #include <nng/mqtt/packet.h>
 #include <nng/protocol/mqtt/mqtt.h>
@@ -95,6 +96,7 @@ struct pipe_info {
 
 	uint32_t  pipe;
 	uint32_t  index;
+	uint32_t  *sub_id_p;
 	nano_work *work;
 };
 
@@ -103,12 +105,12 @@ struct pipe_content {
 	uint32_t  current_index;
 	uint32_t *pipes; // queue of nng_pipes
 	bool (*encode_msg)(nng_msg *, const nano_work *,
-	    mqtt_control_packet_types, uint8_t, bool);
+	    mqtt_control_packet_types, uint8_t, bool, uint32_t *sub_id_p);
 	struct pipe_info *pipe_info;
 };
 
 bool        encode_pub_message(nng_msg *dest_msg, const nano_work *work,
-           mqtt_control_packet_types cmd, uint8_t sub_qos, bool dup);
+           mqtt_control_packet_types cmd, uint8_t sub_qos, bool dup, uint32_t *sub_id_p);
 reason_code decode_pub_message(nano_work *work);
 void        foreach_client(
            void **cli_ctx_list, nano_work *pub_work, struct pipe_content *pipe_ct);

@@ -7,6 +7,7 @@
 // found online at https://opensource.org/licenses/MIT.
 //
 
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -21,7 +22,7 @@
 #include "include/bridge.h"
 
 #define ENABLE_RETAIN 1
-#define SUPPORT_MQTT5_0 0
+#define SUPPORT_MQTT5_0 1
 
 static char *bytes_to_str(const unsigned char *src, char *dest, int src_len);
 static void  print_hex(
@@ -46,15 +47,23 @@ foreach_client(
 {
 	bool               equal = false;
 	packet_subscribe * sub_pkt;
+	dbtree_ctxt *db_ctxt = NULL;
 	struct client_ctx *ctx;
 	topic_node *       tn;
 
 	int      ctx_list_len = cvector_size(cli_ctx_list);
 	uint32_t pids;
+	uint32_t *sub_id_p = NULL;
 	uint8_t  sub_qos;
 
 	for (int i = 0; i < ctx_list_len; i++) {
-		ctx     = (struct client_ctx *) cli_ctx_list[i];
+		
+		db_ctxt     = (dbtree_ctxt  *) cli_ctx_list[i];
+		ctx = db_ctxt->ctxt;
+		sub_id_p = db_ctxt->sub_id_p ? db_ctxt->sub_id_p : NULL;
+
+
+		
 		pids    = ctx->pid.id;
 		tn      = ctx->sub_pkt->node;
 
@@ -85,6 +94,17 @@ foreach_client(
 		pipe_ct->pipe_info = zrealloc(pipe_ct->pipe_info,
 		    sizeof(struct pipe_info) * (pipe_ct->total + 1));
 
+
+		if (sub_id_p) {
+			printf("SUB ID: ");
+			for (size_t j = 0; j < cvector_size(db_ctxt->sub_id_p); j++) {
+
+				printf("[%d] ", db_ctxt->sub_id_p[j]);
+			}
+			printf("\n");
+		}
+
+		pipe_ct->pipe_info[pipe_ct->total].sub_id_p = sub_id_p;
 		pipe_ct->pipe_info[pipe_ct->total].index = pipe_ct->total;
 		pipe_ct->pipe_info[pipe_ct->total].pipe  = pids;
 		pipe_ct->pipe_info[pipe_ct->total].cmd   = PUBLISH;
@@ -119,7 +139,12 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct)
 		return;
 	}
 
+
+		
+
 	if (work->pub_packet->fixed_header.qos > 0) {
+		char *topic = work->pub_packet->variable_header.publish.topic_name.body;
+		const uint8_t proto_ver = conn_param_get_protover(work->cparam);
 		cli_ctx_list = dbtree_find_clients_and_cache_msg(work->db,
 		    work->pub_packet->variable_header.publish.topic_name.body,
 		    work->msg, &msg_cnt);
@@ -296,7 +321,7 @@ append_bytes_with_type(
 
 bool
 encode_pub_message(nng_msg *dest_msg, const nano_work *work,
-    mqtt_control_packet_types cmd, uint8_t sub_qos, bool dup)
+    mqtt_control_packet_types cmd, uint8_t sub_qos, bool dup, uint32_t *sub_id_p)
 {
 	uint8_t  tmp[4]     = { 0 };
 	uint32_t arr_len    = 0;
@@ -354,6 +379,7 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 		}
 		debug_msg("after topic and id len in msg already [%ld]",
 		    nng_msg_len(dest_msg));
+
 
 #if SUPPORT_MQTT5_0
 		if (work->cparam) {
@@ -458,19 +484,31 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 				        .user_property.len_val);
 			}
 
+
+
 			// Subscription Identifier
-			if (work->pub_packet->variable_header.publish
-			        .properties.content.publish
-			        .subscription_identifier.has_value) {
+			if (sub_id_p) {
 				prop_type = SUBSCRIPTION_IDENTIFIER;
 				nng_msg_append(dest_msg, &prop_type, 1);
 				memset(tmp, 0, sizeof(tmp));
 				arr_len = put_var_integer(tmp,
-				    work->pub_packet->variable_header.publish
-				        .properties.content.publish
-				        .subscription_identifier.value);
+				    sub_id_p[0]);
 				nng_msg_append(dest_msg, tmp, arr_len);
 			}
+
+
+			// if (work->pub_packet->variable_header.publish
+			//         .properties.content.publish
+			//         .subscription_identifier.has_value) {
+			// 	prop_type = SUBSCRIPTION_IDENTIFIER;
+			// 	nng_msg_append(dest_msg, &prop_type, 1);
+			// 	memset(tmp, 0, sizeof(tmp));
+			// 	arr_len = put_var_integer(tmp,
+			// 	    work->pub_packet->variable_header.publish
+			// 	        .properties.content.publish
+			// 	        .subscription_identifier.value);
+			// 	nng_msg_append(dest_msg, tmp, arr_len);
+			// }
 
 			// CONTENT TYPE
 			if (work->pub_packet->variable_header.publish
