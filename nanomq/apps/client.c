@@ -53,6 +53,7 @@ struct client_opts {
 	size_t           interval;
 	uint8_t          version;
 	char *           url;
+	size_t           clients;
 	struct topic *   topic;
 	size_t           topic_count;
 	uint8_t          qos;
@@ -88,6 +89,7 @@ enum options {
 	OPT_VERBOSE,
 	OPT_PARALLEL,
 	OPT_MSGCOUNT,
+	OPT_CLIENTS,
 	OPT_INTERVAL,
 	OPT_VERSION,
 	OPT_URL,
@@ -125,9 +127,13 @@ static nng_optspec cmd_opts[] = {
 	    .o_short = 'i',
 	    .o_val   = OPT_INTERVAL,
 	    .o_arg   = true },
+	{ .o_name    = "limit",
+	    .o_short = 'L',
+	    .o_val   = OPT_MSGCOUNT,
+	    .o_arg   = true },
 	{ .o_name    = "count",
 	    .o_short = 'C',
-	    .o_val   = OPT_MSGCOUNT,
+	    .o_val   = OPT_CLIENTS,
 	    .o_arg   = true },
 	{ .o_name = "version", .o_short = 'V', .o_val = OPT_VERSION },
 	{ .o_name = "url", .o_val = OPT_URL, .o_arg = true },
@@ -251,16 +257,21 @@ help(enum client_type type)
 	if (type == PUB) {
 		printf("  -m, --msg <message>              The message to "
 		       "publish\n");
-		printf("  -C, --count <num>                Max count of "
+		printf("  -L, --limit <num>                Max count of "
 		       "publishing "
 		       "message [default: 1]\n");
 		printf("  -i, --interval <ms>              Interval of "
 		       "publishing "
-		       "message (ms) [default: 0]\n");
+		       "message (ms) [default: 10]\n");
 		printf(
 		    "  -I, --identifier <identifier>    The client identifier "
 		    "UTF-8 String (default randomly generated string)\n");
+	} else {
+		printf("  -i, --interval <ms>              Interval of "
+		       "establishing connection "
+		       "(ms) [default: 10]\n");
 	}
+	printf("  -C, --count <num>                Num of client \n");
 	printf("  -q, --qos <qos>                  Quality of service for the "
 	       "corresponding topic [default: 0]\n");
 	printf("  -r, --retain                     The message will be "
@@ -374,6 +385,9 @@ client_parse_opts(int argc, char **argv, client_opts *opts)
 			break;
 		case OPT_MSGCOUNT:
 			opts->msg_count = intarg(arg, 10240000);
+			break;
+		case OPT_CLIENTS:
+			opts->clients = intarg(arg, 10240000);
 			break;
 		case OPT_VERSION:
 			opts->version = intarg(arg, 4);
@@ -545,7 +559,7 @@ static void
 set_default_conf(client_opts *opts)
 {
 	opts->msg_count     = 0;
-	opts->interval      = 0;
+	opts->interval      = 10;
 	opts->qos           = 0;
 	opts->retain        = false;
 	opts->parallel      = 1;
@@ -555,6 +569,7 @@ set_default_conf(client_opts *opts)
 	opts->enable_ssl    = false;
 	opts->verbose       = false;
 	opts->topic_count   = 0;
+	opts->clients       = 1;
 }
 
 // This reads a file into memory.  Care is taken to ensure that
@@ -672,7 +687,7 @@ void
 client_cb(void *arg)
 {
 	struct work *work = arg;
-	nng_msg *    msg;
+	nng_msg *    msg  = NULL;
 	int          rv;
 
 	switch (work->state) {
@@ -735,8 +750,10 @@ client_cb(void *arg)
 			nng_msg_free(work->msg);
 			nng_fatal("nng_send_aio", rv);
 		}
+
 		nng_msg_dup(&msg, work->msg);
 		nng_aio_set_msg(work->aio, msg);
+		msg         = NULL;
 		work->state = SEND_WAIT;
 		nng_sleep_aio(work->opts->interval, work->aio);
 		break;
@@ -757,11 +774,11 @@ client_cb(void *arg)
 	default:
 		nng_fatal("bad state!", NNG_ESTATE);
 		break;
-
-	out:
-		exit_signal = true;
-		break;
 	}
+	return;
+
+out:
+	exit_signal = true;
 }
 
 static struct work *
@@ -823,6 +840,7 @@ connect_msg(client_opts *opts)
 struct connect_param {
 	nng_socket * sock;
 	client_opts *opts;
+	size_t       id;
 };
 
 static void
@@ -830,9 +848,10 @@ connect_cb(void *connect_arg, nng_msg *msg)
 {
 	struct connect_param *param = connect_arg;
 	uint8_t ret_code = nng_mqtt_msg_get_connack_return_code(msg);
-	printf("%s(%d)\n",
+
+	printf("%s(%d): [%ld]\n",
 	    ret_code == 0 ? "connection established" : "connect failed",
-	    ret_code);
+	    ret_code, param->id);
 
 	nng_msg_free(msg);
 	msg = NULL;
@@ -878,6 +897,56 @@ disconnect_cb(void *disconn_arg, nng_msg *msg)
 }
 
 static void
+create_client(nng_socket *sock, struct work **works, size_t id, size_t nwork,
+    nng_mqtt_cb *user_cb)
+{
+	int        rv;
+	nng_dialer dialer;
+
+	if ((rv = nng_mqtt_client_open(sock)) != 0) {
+		nng_fatal("nng_socket", rv);
+	}
+
+	for (size_t i = 0; i < opts->parallel; i++) {
+		works[i] = alloc_work(*sock, opts);
+	}
+
+	nng_msg *msg = connect_msg(opts);
+
+	if ((rv = nng_dialer_create(&dialer, *sock, opts->url)) != 0) {
+		nng_fatal("nng_dialer_create", rv);
+	}
+
+#ifdef NNG_SUPP_TLS
+	if (opts->enable_ssl) {
+		if ((rv = init_dialer_tls(dialer, opts->cacert, opts->cert,
+		         opts->key, opts->keypass)) != 0) {
+			fatal("init_dialer_tls", rv);
+		}
+	}
+#endif
+
+	struct connect_param *connect_arg = user_cb->connect_arg;
+	connect_arg->sock                 = sock;
+	connect_arg->opts                 = opts;
+	connect_arg->id                   = id;
+
+	user_cb->name            = "user_cb";
+	user_cb->on_connected    = connect_cb;
+	user_cb->on_disconnected = disconnect_cb;
+	user_cb->connect_arg     = connect_arg;
+	user_cb->disconn_arg     = msg;
+
+	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, msg);
+	nng_dialer_set_cb(dialer, user_cb);
+	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
+
+	for (size_t i = 0; i < opts->parallel; i++) {
+		client_cb(works[i]);
+	}
+}
+
+static void
 client(int argc, char **argv, enum client_type type)
 {
 	int rv;
@@ -892,57 +961,54 @@ client(int argc, char **argv, enum client_type type)
 		opts->interval = 1;
 	}
 
-	nng_socket    sock;
-	nng_dialer    dialer;
-	struct work **works =
-	    nng_zalloc(sizeof(struct work *) * opts->parallel);
+	nng_mqtt_cb **user_cb =
+	    nng_zalloc(sizeof(nng_mqtt_cb *) * opts->clients);
+	struct connect_param **param =
+	    nng_zalloc(sizeof(struct connect_param *) * opts->clients);
+	nng_socket **socket = nng_zalloc(sizeof(nng_socket *) * opts->clients);
 
-	if ((rv = nng_mqtt_client_open(&sock)) != 0) {
-		nng_fatal("nng_socket", rv);
-	}
+	struct work ***works =
+	    nng_zalloc(sizeof(struct work **) * opts->clients);
 
-	for (size_t i = 0; i < opts->parallel; i++) {
-		works[i] = alloc_work(sock, opts);
-	}
-
-	nng_msg *msg = connect_msg(opts);
-
-	if ((rv = nng_dialer_create(&dialer, sock, opts->url)) != 0) {
-		nng_fatal("nng_dialer_create", rv);
-	}
-
-#ifdef NNG_SUPP_TLS
-	if (opts->enable_ssl) {
-		if ((rv = init_dialer_tls(dialer, opts->cacert, opts->cert,
-		         opts->key, opts->keypass)) != 0) {
-			fatal("init_dialer_tls", rv);
-		}
-	}
-#endif
-
-	struct connect_param connect_arg = { .sock = &sock, .opts = opts };
-
-	nng_mqtt_cb user_cb = {
-		.name            = "user_cb",
-		.on_connected    = connect_cb,
-		.on_disconnected = disconnect_cb,
-		.connect_arg     = &connect_arg,
-		.disconn_arg     = msg,
-	};
-
-	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, msg);
-	nng_dialer_set_cb(dialer, &user_cb);
-	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
-
-	for (size_t i = 0; i < opts->parallel; i++) {
-		client_cb(works[i]);
+	for (size_t i = 0; i < opts->clients; i++) {
+		param[i]   = nng_zalloc(sizeof(struct connect_param));
+		user_cb[i] = nng_zalloc(sizeof(nng_mqtt_cb));
+		socket[i]  = nng_zalloc(sizeof(nng_socket));
+		user_cb[i]->connect_arg = param[i];
+		works[i] = nng_zalloc(sizeof(struct work **) * opts->parallel);
+		create_client(
+		    socket[i], works[i], i, opts->parallel, user_cb[i]);
+		nng_msleep(opts->interval);
 	}
 
 	while (!exit_signal) {
 		nng_msleep(1000);
 	}
 
-	nng_free(works, sizeof(struct work *) * opts->parallel);
+	for (size_t j = 0; j < opts->clients; j++) {
+		nng_free(user_cb[j], sizeof(nng_mqtt_cb));
+		nng_free(param[j], sizeof(struct connect_param));
+		nng_free(socket[j], sizeof(nng_socket));
+
+		for (size_t k = 0; k < opts->parallel; k++) {
+			nng_aio_free(works[j][k]->aio);
+			printf("works[%ld][%ld]->msg: [%p]\n", j, k,
+			    works[j][k]->msg);
+			if (works[j][k]->msg) {
+				nng_msg_free(works[j][k]->msg);
+				works[j][k]->msg = NULL;
+			}
+
+			nng_free(works[j][k], sizeof(struct work));
+		}
+		nng_free(works[j], sizeof(struct work *));
+	}
+
+	nng_free(user_cb, sizeof(nng_mqtt_cb **));
+	nng_free(param, sizeof(struct connect_param **));
+	nng_free(socket, sizeof(nng_socket **));
+	nng_free(works, sizeof(struct work ***));
+
 	client_stop(argc, argv);
 }
 
