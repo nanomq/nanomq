@@ -6,7 +6,6 @@
 #define NANOMQ_PUB_HANDLER_H
 
 #include "broker.h"
-#include <bits/stdint-uintn.h>
 #include <nng/nng.h>
 #include <nng/mqtt/packet.h>
 #include <nng/protocol/mqtt/mqtt.h>
