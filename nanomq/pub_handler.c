@@ -63,6 +63,7 @@ foreach_client(
 		sub_id_p = db_ctxt->sub_id_p ? db_ctxt->sub_id_p : NULL;
 
 
+		dbtree_delete_ctxt(db_ctxt);
 		
 		pids    = ctx->pid.id;
 		tn      = ctx->sub_pkt->node;
