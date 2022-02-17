@@ -7,7 +7,6 @@
 // found online at https://opensource.org/licenses/MIT.
 //
 
-#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -17,9 +16,9 @@
 #include <nng/protocol/mqtt/mqtt_parser.h>
 #include <zmalloc.h>
 
+#include "include/bridge.h"
 #include "include/pub_handler.h"
 #include "include/sub_handler.h"
-#include "include/bridge.h"
 
 #define ENABLE_RETAIN 1
 #define SUPPORT_MQTT5_0 0
@@ -47,32 +46,32 @@ foreach_client(
 {
 	bool               equal = false;
 	packet_subscribe * sub_pkt;
-	dbtree_ctxt *db_ctxt = NULL;
+	dbtree_ctxt *      db_ctxt = NULL;
 	struct client_ctx *ctx;
 	topic_node *       tn;
 
-	int      ctx_list_len = cvector_size(cli_ctx_list);
-	uint32_t pids;
+	int       ctx_list_len = cvector_size(cli_ctx_list);
+	uint32_t  pids;
 	uint32_t *sub_id_p = NULL;
-	uint8_t  sub_qos;
+	uint8_t   sub_qos;
 
 	for (int i = 0; i < ctx_list_len; i++) {
-		
-		db_ctxt     = (dbtree_ctxt  *) cli_ctx_list[i];
-		ctx = db_ctxt->ctxt;
+
+		db_ctxt  = (dbtree_ctxt *) cli_ctx_list[i];
+		ctx      = db_ctxt->ctxt;
 		sub_id_p = db_ctxt->sub_id_p ? db_ctxt->sub_id_p : NULL;
 
-
 		dbtree_delete_ctxt(db_ctxt);
-		
-		pids    = ctx->pid.id;
-		tn      = ctx->sub_pkt->node;
+
+		pids = ctx->pid.id;
+		tn   = ctx->sub_pkt->node;
 
 		if (pids == 0)
 			continue;
 
 		while (tn) {
-			if (true == topic_filter(tn->it->topic_filter.body,
+			if (true ==
+			    topic_filter(tn->it->topic_filter.body,
 			        pub_work->pub_packet->variable_header.publish
 			            .topic_name.body)) {
 				break; // find the topic
@@ -95,10 +94,10 @@ foreach_client(
 		pipe_ct->pipe_info = zrealloc(pipe_ct->pipe_info,
 		    sizeof(struct pipe_info) * (pipe_ct->total + 1));
 
-
 		// if (sub_id_p) {
 		// 	printf("SUB ID: ");
-		// 	for (size_t j = 0; j < cvector_size(db_ctxt->sub_id_p); j++) {
+		// 	for (size_t j = 0; j < cvector_size(db_ctxt->sub_id_p);
+		// j++) {
 
 		// 		printf("[%d] ", db_ctxt->sub_id_p[j]);
 		// 	}
@@ -106,10 +105,10 @@ foreach_client(
 		// }
 
 		pipe_ct->pipe_info[pipe_ct->total].sub_id_p = sub_id_p;
-		pipe_ct->pipe_info[pipe_ct->total].index = pipe_ct->total;
-		pipe_ct->pipe_info[pipe_ct->total].pipe  = pids;
-		pipe_ct->pipe_info[pipe_ct->total].cmd   = PUBLISH;
-		pipe_ct->pipe_info[pipe_ct->total].work  = pub_work;
+		pipe_ct->pipe_info[pipe_ct->total].index    = pipe_ct->total;
+		pipe_ct->pipe_info[pipe_ct->total].pipe     = pids;
+		pipe_ct->pipe_info[pipe_ct->total].cmd      = PUBLISH;
+		pipe_ct->pipe_info[pipe_ct->total].work     = pub_work;
 		pipe_ct->pipe_info[pipe_ct->total].qos =
 		    pub_work->pub_packet->fixed_header.qos <= sub_qos
 		    ? pub_work->pub_packet->fixed_header.qos
@@ -122,7 +121,7 @@ foreach_client(
 void
 handle_pub(nano_work *work, struct pipe_content *pipe_ct)
 {
-	char **topic_queue = NULL;
+	char **topic_queue     = NULL;
 	void **cli_ctx_list    = NULL;
 	void **shared_cli_list = NULL;
 	size_t msg_cnt         = 0;
@@ -140,24 +139,20 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct)
 		return;
 	}
 
-
-		
+	char *topic =
+	    work->pub_packet->variable_header.publish.topic_name.body;
 
 	if (work->pub_packet->fixed_header.qos > 0) {
-		char *topic = work->pub_packet->variable_header.publish.topic_name.body;
-		const uint8_t proto_ver = conn_param_get_protover(work->cparam);
-		cli_ctx_list = dbtree_find_clients_and_cache_msg(work->db,
-		    work->pub_packet->variable_header.publish.topic_name.body,
-		    work->msg, &msg_cnt);
+		cli_ctx_list = dbtree_find_clients_and_cache_msg(
+		    work->db, topic, work->msg, &msg_cnt);
 		// Note. We clone msg_cnt times for the session stored.
 		// There are msg_cnt sessions need to be sent.
 		for (int i = 0; i < (int) (msg_cnt); i++) {
 			nng_msg_clone(work->msg);
 		}
 
-		shared_cli_list = dbtree_find_shared_sub_clients(work->db,
-		    work->pub_packet->variable_header.publish.topic_name.body,
-		    work->msg, &msg_cnt);
+		shared_cli_list = dbtree_find_shared_sub_clients(
+		    work->db, topic, work->msg, &msg_cnt);
 		// Note. We clone msg_cnt times for the session stored.
 		// There are msg_cnt sessions need to be sent.
 		for (int i = 0; i < (int) (msg_cnt); i++) {
@@ -165,13 +160,11 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct)
 		}
 
 	} else {
-		cli_ctx_list = dbtree_find_clients_and_cache_msg(work->db,
-		    work->pub_packet->variable_header.publish.topic_name.body,
-		    NULL, &msg_cnt);
+		cli_ctx_list = dbtree_find_clients_and_cache_msg(
+		    work->db, topic, NULL, &msg_cnt);
 
-		shared_cli_list = dbtree_find_shared_sub_clients(work->db,
-		    work->pub_packet->variable_header.publish.topic_name.body,
-		    NULL, &msg_cnt);
+		shared_cli_list = dbtree_find_shared_sub_clients(
+		    work->db, topic, NULL, &msg_cnt);
 	}
 
 	if (cli_ctx_list != NULL) {
@@ -187,8 +180,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct)
 	debug_msg("pipe_info size: [%d]", pipe_ct->total);
 
 #if ENABLE_RETAIN
-	handle_pub_retain(
-	    work, work->pub_packet->variable_header.publish.topic_name.body);
+	handle_pub_retain(work, topic);
 #endif
 	// TODO send DISCONNECT with reason_code if MQTT Version=5.0
 }
@@ -322,13 +314,14 @@ append_bytes_with_type(
 
 bool
 encode_pub_message(nng_msg *dest_msg, const nano_work *work,
-    mqtt_control_packet_types cmd, uint8_t sub_qos, bool dup, uint32_t *sub_id_p)
+    mqtt_control_packet_types cmd, uint8_t sub_qos, bool dup,
+    uint32_t *sub_id_p)
 {
-	uint8_t  tmp[4]     = { 0 };
-	uint32_t arr_len    = 0;
-	int      append_res = 0;
-	uint8_t  proto = 0;
-	uint32_t buf;
+	uint8_t         tmp[4]     = { 0 };
+	uint32_t        arr_len    = 0;
+	int             append_res = 0;
+	uint8_t         proto      = 0;
+	uint32_t        buf;
 	properties_type prop_type;
 
 	debug_msg("start encode message");
@@ -380,7 +373,6 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 		}
 		debug_msg("after topic and id len in msg already [%ld]",
 		    nng_msg_len(dest_msg));
-
 
 #if SUPPORT_MQTT5_0
 		if (work->cparam) {
@@ -485,18 +477,14 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 				        .user_property.len_val);
 			}
 
-
-
 			// Subscription Identifier
 			if (sub_id_p) {
 				prop_type = SUBSCRIPTION_IDENTIFIER;
 				nng_msg_append(dest_msg, &prop_type, 1);
 				memset(tmp, 0, sizeof(tmp));
-				arr_len = put_var_integer(tmp,
-				    sub_id_p[0]);
+				arr_len = put_var_integer(tmp, sub_id_p[0]);
 				nng_msg_append(dest_msg, tmp, arr_len);
 			}
-
 
 			if (work->pub_packet->variable_header.publish
 			        .properties.content.publish
