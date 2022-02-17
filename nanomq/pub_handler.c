@@ -15,6 +15,7 @@
 #include <nng.h>
 #include <nng/protocol/mqtt/mqtt_parser.h>
 #include <zmalloc.h>
+#include <nng/mqtt/packet.h>
 
 #include "include/bridge.h"
 #include "include/pub_handler.h"
@@ -34,10 +35,9 @@ void
 init_pipe_content(struct pipe_content *pipe_ct)
 {
 	debug_msg("pub_handler: init pipe_info");
-	pipe_ct->pipe_info     = NULL;
 	pipe_ct->total         = 0;
 	pipe_ct->current_index = 0;
-	pipe_ct->encode_msg    = encode_pub_message;
+	pipe_ct->msg_infos     = NULL;
 }
 
 void
@@ -95,6 +95,18 @@ foreach_client(
 		}
 
 		// TODO change to cvector for performance
+		pipe_ct->msg_infos = zrealloc(pipe_ct->msg_infos,
+		    sizeof(mqtt_msg_info) * (pipe_ct->total + 1));
+		pipe_ct->msg_infos[pipe_ct->total].pipe = pids;
+		pipe_ct->msg_infos[pipe_ct->total].qos  =
+		    pub_work->pub_packet->fixed_header.qos;
+		if (0 == tn->it->rap)
+			pipe_ct->msg_infos[pipe_ct->total].retain = 0;
+		// pipe_ct->msg_infos[pipe_ct->total].sub_id = xxx;
+
+		pipe_ct->total += 1;
+/*
+		// TODO change to cvector for performance
 		pipe_ct->pipe_info = zrealloc(pipe_ct->pipe_info,
 		    sizeof(struct pipe_info) * (pipe_ct->total + 1));
 
@@ -112,6 +124,7 @@ foreach_client(
 		}
 
 		pipe_ct->total += 1;
+*/
 	}
 }
 
@@ -286,12 +299,10 @@ free_pub_packet(struct pub_packet_struct *pub_packet)
 }
 
 void
-free_pipes_info(struct pipe_info *p_info)
+free_msg_infos(mqtt_msg_info * msg_infos)
 {
-	if (p_info != NULL) {
-		zfree(p_info);
-		p_info = NULL;
-		debug_msg("free pipes_info");
+	if (msg_infos != NULL) {
+		zfree(msg_infos);
 	}
 }
 
@@ -311,8 +322,7 @@ append_bytes_with_type(
 
 bool
 encode_pub_message(nng_msg *dest_msg, const nano_work *work,
-    mqtt_control_packet_types cmd, uint8_t sub_qos, bool dup,
-    uint32_t *sub_id_p)
+    mqtt_control_packet_types cmd, mqtt_msg_info *msg_info)
 {
 	uint8_t         tmp[4]     = { 0 };
 	uint32_t        arr_len    = 0;
@@ -329,10 +339,7 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 	case PUBLISH:
 		/*fixed header*/
 		work->pub_packet->fixed_header.packet_type = cmd;
-		// work->pub_packet->fixed_header.qos =
-		// work->pub_packet->fixed_header.qos < sub_qos ?
-		// work->pub_packet->fixed_header.qos : sub_qos;
-		work->pub_packet->fixed_header.dup = dup;
+		// work->pub_packet->fixed_header.dup = dup;
 		append_res                         = nng_msg_header_append(
                     dest_msg, (uint8_t *) &work->pub_packet->fixed_header, 1);
 
@@ -538,7 +545,7 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 		nng_msg_set_cmd_type(dest_msg, CMD_PUBCOMP);
 		struct pub_packet_struct pub_response = {
 			.fixed_header.packet_type = cmd,
-			.fixed_header.dup         = dup,
+			// .fixed_header.dup         = dup,
 			.fixed_header.qos         = 0,
 			.fixed_header.retain      = 0,
 			.fixed_header.remain_len  = 2, // TODO
