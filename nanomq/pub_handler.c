@@ -22,7 +22,7 @@
 #include "include/bridge.h"
 
 #define ENABLE_RETAIN 1
-#define SUPPORT_MQTT5_0 1
+#define SUPPORT_MQTT5_0 0
 
 static char *bytes_to_str(const unsigned char *src, char *dest, int src_len);
 static void  print_hex(
@@ -95,14 +95,14 @@ foreach_client(
 		    sizeof(struct pipe_info) * (pipe_ct->total + 1));
 
 
-		if (sub_id_p) {
-			printf("SUB ID: ");
-			for (size_t j = 0; j < cvector_size(db_ctxt->sub_id_p); j++) {
+		// if (sub_id_p) {
+		// 	printf("SUB ID: ");
+		// 	for (size_t j = 0; j < cvector_size(db_ctxt->sub_id_p); j++) {
 
-				printf("[%d] ", db_ctxt->sub_id_p[j]);
-			}
-			printf("\n");
-		}
+		// 		printf("[%d] ", db_ctxt->sub_id_p[j]);
+		// 	}
+		// 	printf("\n");
+		// }
 
 		pipe_ct->pipe_info[pipe_ct->total].sub_id_p = sub_id_p;
 		pipe_ct->pipe_info[pipe_ct->total].index = pipe_ct->total;
@@ -497,18 +497,18 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 			}
 
 
-			// if (work->pub_packet->variable_header.publish
-			//         .properties.content.publish
-			//         .subscription_identifier.has_value) {
-			// 	prop_type = SUBSCRIPTION_IDENTIFIER;
-			// 	nng_msg_append(dest_msg, &prop_type, 1);
-			// 	memset(tmp, 0, sizeof(tmp));
-			// 	arr_len = put_var_integer(tmp,
-			// 	    work->pub_packet->variable_header.publish
-			// 	        .properties.content.publish
-			// 	        .subscription_identifier.value);
-			// 	nng_msg_append(dest_msg, tmp, arr_len);
-			// }
+			if (work->pub_packet->variable_header.publish
+			        .properties.content.publish
+			        .subscription_identifier.has_value) {
+				prop_type = SUBSCRIPTION_IDENTIFIER;
+				nng_msg_append(dest_msg, &prop_type, 1);
+				memset(tmp, 0, sizeof(tmp));
+				arr_len = put_var_integer(tmp,
+				    work->pub_packet->variable_header.publish
+				        .properties.content.publish
+				        .subscription_identifier.value);
+				nng_msg_append(dest_msg, tmp, arr_len);
+			}
 
 			// CONTENT TYPE
 			if (work->pub_packet->variable_header.publish

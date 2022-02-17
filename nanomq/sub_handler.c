@@ -76,7 +76,6 @@ decode_sub_message(nano_work *work)
 					    get_var_integer(variable_ptr+vpos,
 					        (uint32_t *) &len_of_varint);
 					vpos += len_of_varint;
-					printf("sub_id: %d\n", sub_pkt->sub_id.varint);
 					break;
 				case USER_PROPERTY:
 					// key
@@ -314,8 +313,8 @@ sub_ctx_handle(nano_work *work)
 			tq = tq->next;
 		}
 		if (!topic_exist) {
-			printf("Protocol Version: %d\n", old_ctx->proto_ver);
-			printf("sub ID: %d\n", work->sub_pkt->sub_id.varint);
+			// printf("Protocol Version: %d\n", old_ctx->proto_ver);
+			// printf("sub ID: %d\n", work->sub_pkt->sub_id.varint);
 			int t = work->sub_pkt->sub_id.varint;
 			dbtree_ctxt *db_old_ctxt = dbtree_new_ctxt(old_ctx, t);
 			dbtree_insert_client(work->db, topic_str, db_old_ctxt, work->pid.id);
