@@ -90,13 +90,14 @@ struct pub_packet_struct {
 };
 
 struct pipe_info {
-	uint8_t                   qos;
 	mqtt_control_packet_types cmd;
 
-	uint32_t   pipe;
+	uint8_t    qos;
 	uint32_t   index;
-	uint32_t * sub_id_p;
+	uint32_t   pipe;
 	nano_work *work;
+	uint8_t    retain;
+	uint32_t * sub_id_p;
 };
 
 struct pipe_content {
