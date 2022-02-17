@@ -148,7 +148,7 @@ server_cb(void *arg)
 	uint8_t *   ptr;
 	conn_param *cparam = NULL;
 
-	struct pipe_info p_info;
+	mqtt_msg_info * msg_info;
 
 	switch (work->state) {
 	case INIT:
@@ -425,23 +425,23 @@ server_cb(void *arg)
 			debug_msg("total pipes: %d", work->pipe_ct->total);
 			// TODO rewrite this part.
 			if (work->pipe_ct->total > 0) {
-				p_info = work->pipe_ct->pipe_info
+				msg_info = &work->pipe_ct->msg_infos
 				             [work->pipe_ct->current_index];
 				//TODO encode abstract msg only
-				work->pipe_ct->encode_msg(smsg, p_info.work,
-				    p_info.cmd, p_info.qos, 0, p_info.sub_id_p);
+				encode_pub_message(smsg, work, CMD_PUBLISH, msg_info);
+
 				while (work->pipe_ct->total >
 				    work->pipe_ct->current_index) {
-					p_info =
-					    work->pipe_ct->pipe_info
+					msg_info =
+					    &work->pipe_ct->msg_infos
 					        [work->pipe_ct->current_index];
 					nng_msg_clone(smsg);
 					work->msg = smsg;
 
 					nng_aio_set_prov_extra(work->aio, 0,
-					    (void *) (intptr_t) p_info.qos);
+					    (void *) msg_info);
 					nng_aio_set_msg(work->aio, work->msg);
-					work->pid.id = p_info.pipe;
+					work->pid.id = msg_info->pipe;
 					nng_msg_set_pipe(work->msg, work->pid);
 					work->msg = NULL;
 					work->pipe_ct->current_index++;
@@ -450,8 +450,7 @@ server_cb(void *arg)
 				if (work->pipe_ct->total <=
 				    work->pipe_ct->current_index) {
 					free_pub_packet(work->pub_packet);
-					free_pipes_info(
-					    work->pipe_ct->pipe_info);
+					free_msg_infos(work->pipe_ct->msg_infos);
 					init_pipe_content(work->pipe_ct);
 				}
 				work->state = SEND;
@@ -464,7 +463,7 @@ server_cb(void *arg)
 					nng_msg_free(smsg);
 				}
 				free_pub_packet(work->pub_packet);
-				free_pipes_info(work->pipe_ct->pipe_info);
+				free_msg_infos(work->pipe_ct->msg_infos);
 				init_pipe_content(work->pipe_ct);
 			}
 
@@ -521,7 +520,7 @@ server_cb(void *arg)
 		}
 		if (work->pipe_ct->total > 0) {
 			free_pub_packet(work->pub_packet);
-			free_pipes_info(work->pipe_ct->pipe_info);
+			free_msg_infos(work->pipe_ct->msg_infos);
 			init_pipe_content(work->pipe_ct);
 		}
 		work->msg = NULL;
@@ -546,23 +545,21 @@ server_cb(void *arg)
 			debug_msg("total pipes: %d", work->pipe_ct->total);
 			// TODO rewrite this part.
 			if (work->pipe_ct->total > 0) {
-				p_info = work->pipe_ct->pipe_info
-				             [work->pipe_ct->current_index];
+				msg_info = &work->pipe_ct->msg_infos
+				        [work->pipe_ct->current_index];
 				//TODO encode abstract msg only
-				work->pipe_ct->encode_msg(smsg, p_info.work,
-				    p_info.cmd, p_info.qos, 0,p_info.sub_id_p);
+				encode_pub_message(smsg, work, CMD_PUBLISH, msg_info);
 				while (work->pipe_ct->total >
 				    work->pipe_ct->current_index) {
-					p_info =
-					    work->pipe_ct->pipe_info
-					        [work->pipe_ct->current_index];
+					msg_info = &work->pipe_ct->msg_infos
+				             [work->pipe_ct->current_index];
 					nng_msg_clone(smsg);
 					work->msg = smsg;
 
 					nng_aio_set_prov_extra(work->aio, 0,
-					    (void *) (intptr_t) p_info.qos);
+					    (void *) msg_info);
 					nng_aio_set_msg(work->aio, work->msg);
-					work->pid.id = p_info.pipe;
+					work->pid.id = msg_info->pipe;
 					nng_msg_set_pipe(work->msg, work->pid);
 					work->msg = NULL;
 					work->pipe_ct->current_index++;
@@ -571,8 +568,7 @@ server_cb(void *arg)
 				if (work->pipe_ct->total <=
 				    work->pipe_ct->current_index) {
 					free_pub_packet(work->pub_packet);
-					free_pipes_info(
-					    work->pipe_ct->pipe_info);
+					free_msg_infos(work->pipe_ct->msg_infos);
 					init_pipe_content(work->pipe_ct);
 				}
 				nng_msg_free(smsg);
@@ -582,7 +578,7 @@ server_cb(void *arg)
 					nng_msg_free(smsg);
 				}
 				free_pub_packet(work->pub_packet);
-				free_pipes_info(work->pipe_ct->pipe_info);
+				free_msg_infos(work->pipe_ct->msg_infos);
 				init_pipe_content(work->pipe_ct);
 			}
 			// processing will msg
