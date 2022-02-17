@@ -44,16 +44,21 @@ void
 foreach_client(
     void **cli_ctx_list, nano_work *pub_work, struct pipe_content *pipe_ct)
 {
-	bool               equal = false;
+	bool     equal = false;
+	uint32_t pids;
+	uint8_t  sub_qos;
+	int      ctx_list_len;
+
 	packet_subscribe * sub_pkt;
 	dbtree_ctxt *      db_ctxt = NULL;
 	struct client_ctx *ctx;
 	topic_node *       tn;
 
-	int       ctx_list_len = cvector_size(cli_ctx_list);
 	uint32_t  pids;
 	uint32_t *sub_id_p = NULL;
 	uint8_t   sub_qos;
+
+	ctx_list_len = cvector_size(cli_ctx_list);
 
 	for (int i = 0; i < ctx_list_len; i++) {
 
@@ -70,8 +75,7 @@ foreach_client(
 			continue;
 
 		while (tn) {
-			if (true ==
-			    topic_filter(tn->it->topic_filter.body,
+			if (true == topic_filter(tn->it->topic_filter.body,
 			        pub_work->pub_packet->variable_header.publish
 			            .topic_name.body)) {
 				break; // find the topic
@@ -94,16 +98,6 @@ foreach_client(
 		pipe_ct->pipe_info = zrealloc(pipe_ct->pipe_info,
 		    sizeof(struct pipe_info) * (pipe_ct->total + 1));
 
-		// if (sub_id_p) {
-		// 	printf("SUB ID: ");
-		// 	for (size_t j = 0; j < cvector_size(db_ctxt->sub_id_p);
-		// j++) {
-
-		// 		printf("[%d] ", db_ctxt->sub_id_p[j]);
-		// 	}
-		// 	printf("\n");
-		// }
-
 		pipe_ct->pipe_info[pipe_ct->total].sub_id_p = sub_id_p;
 		pipe_ct->pipe_info[pipe_ct->total].index    = pipe_ct->total;
 		pipe_ct->pipe_info[pipe_ct->total].pipe     = pids;
@@ -113,6 +107,9 @@ foreach_client(
 		    pub_work->pub_packet->fixed_header.qos <= sub_qos
 		    ? pub_work->pub_packet->fixed_header.qos
 		    : sub_qos;
+		if (0 == tn->it->rap) {
+			pipe_ct->pipe_info[pipe_ct->total].retain = 0;
+		}
 
 		pipe_ct->total += 1;
 	}
