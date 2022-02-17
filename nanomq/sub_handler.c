@@ -9,9 +9,7 @@
 #include <nng.h>
 #include <protocol/mqtt/mqtt.h>
 #include <protocol/mqtt/mqtt_parser.h>
-#include <stdio.h>
 
-#include "include/broker.h"
 #include "include/nanomq.h"
 #include "include/pub_handler.h"
 #include "include/sub_handler.h"
@@ -64,7 +62,7 @@ decode_sub_message(nano_work *work)
 		    variable_ptr + vpos, (uint32_t *) &len_of_varint);
 		vpos += len_of_varint;
 		len_of_varint = 0;
-		target_pos = vpos + len_of_properties;
+		target_pos    = vpos + len_of_properties;
 
 		// parse property in variable
 		if (len_of_properties > 0) {
@@ -73,22 +71,27 @@ decode_sub_message(nano_work *work)
 				switch (property_id) {
 				case SUBSCRIPTION_IDENTIFIER:
 					sub_pkt->sub_id.varint =
-					    get_var_integer(variable_ptr+vpos,
+					    get_var_integer(
+					        variable_ptr + vpos,
 					        (uint32_t *) &len_of_varint);
 					vpos += len_of_varint;
 					break;
 				case USER_PROPERTY:
 					// key
 					sub_pkt->user_property.strpair.key =
-					    copy_utf8_str(variable_ptr, &vpos, &len_of_str);
-					sub_pkt->user_property.strpair.len_key = len_of_str;
-					len_of_str = 0;
+					    copy_utf8_str(variable_ptr, &vpos,
+					        &len_of_str);
+					sub_pkt->user_property.strpair
+					    .len_key = len_of_str;
+					len_of_str   = 0;
 
 					// value
 					sub_pkt->user_property.strpair.val =
-					    copy_utf8_str(variable_ptr, &vpos, &len_of_str);
-					sub_pkt->user_property.strpair.len_val = len_of_str;
-					len_of_str = 0;
+					    copy_utf8_str(variable_ptr, &vpos,
+					        &len_of_str);
+					sub_pkt->user_property.strpair
+					    .len_val = len_of_str;
+					len_of_str   = 0;
 
 					break;
 				default:
@@ -198,17 +201,17 @@ encode_suback_message(nng_msg *msg, nano_work *work)
 	// handle payload
 	node = sub_pkt->node;
 	while (node) {
-			if (node->it->reason_code == 0x80) {
-				reason_code = 0x80;
-			} else {
-				reason_code = node->it->qos;
-			}
-			// MQTT_v3: 0x00-qos0  0x01-qos1  0x02-qos2  0x80-fail
-			if ((rv = nng_msg_append(
-			         msg, (uint8_t *) &reason_code, 1)) != 0) {
-				debug_msg("ERROR: nng_msg_append [%d]", rv);
-				return PROTOCOL_ERROR;
-			}
+		if (node->it->reason_code == 0x80) {
+			reason_code = 0x80;
+		} else {
+			reason_code = node->it->qos;
+		}
+		// MQTT_v3: 0x00-qos0  0x01-qos1  0x02-qos2  0x80-fail
+		if ((rv = nng_msg_append(msg, (uint8_t *) &reason_code, 1)) !=
+		    0) {
+			debug_msg("ERROR: nng_msg_append [%d]", rv);
+			return PROTOCOL_ERROR;
+		}
 		node = node->next;
 		debug_msg("reason_code: [%x]", reason_code);
 	}
@@ -246,16 +249,16 @@ sub_ctx_handle(nano_work *work)
 	int                 topic_len    = 0;
 	struct topic_queue *tq           = NULL;
 	work->msg_ret                    = NULL;
-	int topic_exist                  = 0;
+	int      topic_exist             = 0;
 	uint32_t clientid_key            = 0;
 
 	dbtree_ctxt *db_old_ctx = NULL;
-	client_ctx *old_ctx = NULL;
-	client_ctx *cli_ctx = nng_alloc(sizeof(client_ctx));
-	cli_ctx->sub_pkt    = work->sub_pkt;
-	cli_ctx->cparam     = work->cparam;
-	cli_ctx->pid        = work->pid;
-	cli_ctx->proto_ver  = conn_param_get_protover(work->cparam);
+	client_ctx * old_ctx    = NULL;
+	client_ctx * cli_ctx    = nng_alloc(sizeof(client_ctx));
+	cli_ctx->sub_pkt        = work->sub_pkt;
+	cli_ctx->cparam         = work->cparam;
+	cli_ctx->pid            = work->pid;
+	cli_ctx->proto_ver      = conn_param_get_protover(work->cparam);
 
 	clientid = (char *) conn_param_get_clientid(
 	    (conn_param *) nng_msg_get_conn_param(work->msg));
@@ -267,12 +270,12 @@ sub_ctx_handle(nano_work *work)
 	tq = dbhash_get_topic_queue(cli_ctx->pid.id);
 
 	if (tq) {
-		db_old_ctx =
-		    dbtree_delete_client(work->db, tq->topic, clientid_key, cli_ctx->pid.id);
+		db_old_ctx = dbtree_delete_client(
+		    work->db, tq->topic, clientid_key, cli_ctx->pid.id);
 	}
 
 	if (db_old_ctx) {
-		old_ctx = db_old_ctx->ctxt;
+		old_ctx              = db_old_ctx->ctxt;
 		db_old_ctx->sub_id_i = work->sub_pkt->sub_id.varint;
 		dbtree_insert_client(
 		    work->db, tq->topic, db_old_ctx, cli_ctx->pid.id);
@@ -313,16 +316,19 @@ sub_ctx_handle(nano_work *work)
 			tq = tq->next;
 		}
 		if (!topic_exist) {
-			// printf("Protocol Version: %d\n", old_ctx->proto_ver);
-			// printf("sub ID: %d\n", work->sub_pkt->sub_id.varint);
-			int t = work->sub_pkt->sub_id.varint;
+			// printf("Protocol Version: %d\n",
+			// old_ctx->proto_ver); printf("sub ID: %d\n",
+			// work->sub_pkt->sub_id.varint);
+			int          t = work->sub_pkt->sub_id.varint;
 			dbtree_ctxt *db_old_ctxt = dbtree_new_ctxt(old_ctx, t);
-			dbtree_insert_client(work->db, topic_str, db_old_ctxt, work->pid.id);
+			dbtree_insert_client(
+			    work->db, topic_str, db_old_ctxt, work->pid.id);
 
 			dbhash_insert_topic(work->pid.id, topic_str);
 		}
 
-		dbtree_retain_msg **r = dbtree_find_retain(work->db_ret, topic_str);
+		dbtree_retain_msg **r =
+		    dbtree_find_retain(work->db_ret, topic_str);
 		if (r) {
 			for (int i = 0; i < cvector_size(r); i++) {
 				if (!r[i]) {
@@ -360,13 +366,13 @@ cli_ctx_merge(client_ctx *ctx_new, client_ctx *ctx)
 #if SUPPORT_MQTT5_0
 	if (ctx_new->sub_pkt->user_property.strpair.len_key) {
 		ctx->sub_pkt->user_property.strpair.len_key =
-			ctx_new->sub_pkt->user_property.strpair.len_key;
+		    ctx_new->sub_pkt->user_property.strpair.len_key;
 		ctx->sub_pkt->user_property.strpair.key =
-			ctx_new->sub_pkt->user_property.strpair.key;
+		    ctx_new->sub_pkt->user_property.strpair.key;
 		ctx->sub_pkt->user_property.strpair.len_val =
-			ctx_new->sub_pkt->user_property.strpair.len_val;
+		    ctx_new->sub_pkt->user_property.strpair.len_val;
 		ctx->sub_pkt->user_property.strpair.val =
-			ctx_new->sub_pkt->user_property.strpair.val;
+		    ctx_new->sub_pkt->user_property.strpair.val;
 	}
 	if (ctx_new->sub_pkt->sub_id.varint)
 		ctx->sub_pkt->sub_id.varint = ctx_new->sub_pkt->sub_id.varint;
@@ -449,7 +455,7 @@ cli_ctx_merge(client_ctx *ctx_new, client_ctx *ctx)
 void
 del_sub_ctx(void *ctxt, char *target_topic)
 {
-	uint8_t           proto_ver         = 0;
+	uint8_t proto_ver = 0;
 
 	client_ctx *      cli_ctx           = ctxt;
 	topic_node *      topic_node_t      = NULL;
@@ -492,8 +498,10 @@ del_sub_ctx(void *ctxt, char *target_topic)
 #if SUPPORT_MQTT5_0
 		if (PROTOCOL_VERSION_v5 == proto_ver) {
 			if (sub_pkt->user_property.strpair.len_key > 0) {
-				nng_free(sub_pkt->user_property.strpair.key, 0);
-				nng_free(sub_pkt->user_property.strpair.val, 0);
+				nng_free(
+				    sub_pkt->user_property.strpair.key, 0);
+				nng_free(
+				    sub_pkt->user_property.strpair.val, 0);
 			}
 		}
 #endif
@@ -525,11 +533,11 @@ destroy_sub_pkt(packet_subscribe *sub_pkt, uint8_t proto_ver)
 #if SUPPORT_MQTT5_0
 		// what if there are multiple UPs?
 		if (PROTOCOL_VERSION_v5 == proto_ver) {
-			if (sub_pkt->user_property.strpair.len_key > 0){
-			nng_free(sub_pkt->user_property.strpair.key,
-			    sub_pkt->user_property.strpair.len_key);
-			nng_free(sub_pkt->user_property.strpair.val,
-			    sub_pkt->user_property.strpair.len_val);
+			if (sub_pkt->user_property.strpair.len_key > 0) {
+				nng_free(sub_pkt->user_property.strpair.key,
+				    sub_pkt->user_property.strpair.len_key);
+				nng_free(sub_pkt->user_property.strpair.val,
+				    sub_pkt->user_property.strpair.len_val);
 			}
 		}
 #endif
@@ -557,14 +565,15 @@ int
 cache_session(char *clientid, conn_param *cparam, uint32_t pid, void *db)
 {
 	debug_msg("cache session");
-	struct topic_queue *tq      = NULL;
+	struct topic_queue *tq = NULL;
 
 	uint32_t key_clientid = DJBHashn(clientid, strlen(clientid));
 
 	if (dbhash_check_id(pid)) {
 		tq = dbhash_get_topic_queue(pid);
 		while (tq) {
-			// TODO Is it necessary to get ctx and set pipeid to 0 in ctx ??
+			// TODO Is it necessary to get ctx and set pipeid to 0
+			// in ctx ??
 			dbtree_cache_session(db, tq->topic, key_clientid, pid);
 			tq = tq->next;
 		}
@@ -592,7 +601,7 @@ restore_session(char *clientid, conn_param *cparam, uint32_t pid, void *db)
 	tq = dbhash_get_cached_topic(key_clientid);
 	while (tq) {
 		ctx = dbtree_restore_session(db, tq->topic, key_clientid, pid);
-		tq = tq->next;
+		tq  = tq->next;
 	}
 	if (ctx) {
 		ctx->pid.id = pid;

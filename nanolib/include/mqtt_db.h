@@ -8,21 +8,21 @@
 #include <string.h>
 
 typedef struct {
-	void 	*ctxt;
+	void *ctxt;
 	union {
 		uint32_t *sub_id_p;
-		uint32_t sub_id_i;
+		uint32_t  sub_id_i;
 	};
 } dbtree_ctxt;
 
 typedef enum {
 	MQTT_VERSION_V311 = 4,
-	MQTT_VERSION_V5 = 5,
+	MQTT_VERSION_V5   = 5,
 } mqtt_version_t;
 
 typedef struct {
-	uint32_t session_id;
-	uint32_t pipe_id;
+	uint32_t     session_id;
+	uint32_t     pipe_id;
 	dbtree_ctxt *ctxt;
 } dbtree_client;
 
@@ -91,7 +91,7 @@ client_cmp(void *x_, void *y_)
 	return *pipe_id - ele_x->pipe_id;
 }
 
-//TODO 
+// TODO
 /**
  * @brief ids_cmp - A callback to compare different id
  * @param x - normally x is pointer of id
@@ -101,8 +101,8 @@ client_cmp(void *x_, void *y_)
 static inline int
 ids_cmp(void *x_, void *y_)
 {
-	uint32_t *     pipe_id = (uint32_t *) y_;
-	uint32_t *id   = (uint32_t *) x_;
+	uint32_t *pipe_id = (uint32_t *) y_;
+	uint32_t *id      = (uint32_t *) x_;
 	return *pipe_id - *id;
 }
 
@@ -146,10 +146,10 @@ void dbtree_print(dbtree *db);
 /**
  * @brief dbtree_new_ctxt - Create a dbtree_ctxt.
  * @param ctxt - client ctxt
- * @param sub_id - subscription identifier 
+ * @param sub_id - subscription identifier
  * @return pointer of dbtree_ctxt
  */
-dbtree_ctxt *dbtree_new_ctxt(void* ctxt, uint32_t sub_id);
+dbtree_ctxt *dbtree_new_ctxt(void *ctxt, uint32_t sub_id);
 
 /**
  * @brief dbtree_delete_ctxt - delete dbtree_ctxt
@@ -235,7 +235,7 @@ void *dbtree_delete_client(
 
 /**
  * @brief dbtree_cache_session_msg - This function will
- * be called when cleansession = 0 and qos 1,2 message 
+ * be called when cleansession = 0 and qos 1,2 message
  * is sent but not receive ack. cache message to dbtree.
  * @param dbtree - dbtree
  * @param topic - topic
@@ -245,18 +245,19 @@ void *dbtree_delete_client(
 int dbtree_cache_session_msg(dbtree *db, void *msg, uint32_t session_id);
 
 /**
- * @brief dbtree_find_clients_and_cache_msg - Get all 
- * subscribers online to this topic and cache session 
+ * @brief dbtree_find_clients_and_cache_msg - Get all
+ * subscribers online to this topic and cache session
  * message for offline.
  * @param dbtree - dbtree
  * @param topic - topic
  * @param msg_cnt - message used count
  * @return dbtree_client
  */
-void **dbtree_find_clients_and_cache_msg(dbtree *db, char *topic, void *msg, size_t *msg_cnt);
+void **dbtree_find_clients_and_cache_msg(
+    dbtree *db, char *topic, void *msg, size_t *msg_cnt);
 
 /**
- * @brief dbtree_restore_session_msg - Get all be 
+ * @brief dbtree_restore_session_msg - Get all be
  * cached session message.
  * message for offline.
  * @param dbtree - dbtree
@@ -299,7 +300,8 @@ dbtree_retain_msg **dbtree_find_retain(dbtree *db, char *topic);
  * @param msg_cnt - message used count
  * @return dbtree_client
  */
-void **dbtree_find_shared_sub_clients(dbtree *db, char *topic, void *msg, size_t *msg_cnt);
+void **dbtree_find_shared_sub_clients(
+    dbtree *db, char *topic, void *msg, size_t *msg_cnt);
 
 /**
  * @brief dbtree_check_shared_sub - Check if
@@ -331,6 +333,5 @@ void *dbtree_insert_shared_sub_client(
  */
 void *dbtree_delete_shared_sub_client(
     dbtree *db, char *topic, uint32_t session_id, uint32_t pipe_id);
-
 
 #endif

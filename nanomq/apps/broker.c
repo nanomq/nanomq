@@ -291,8 +291,6 @@ server_cb(void *arg)
 
 					cli_ctx = db_ctx->ctxt;
 					dbtree_delete_ctxt(db_ctx);
-
-
 					del_sub_ctx(cli_ctx, tq->topic);
 					tq = tq->next;
 				}
