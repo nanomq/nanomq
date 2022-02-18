@@ -446,6 +446,7 @@ server_cb(void *arg)
 					work->msg = NULL;
 					work->pipe_ct->current_index++;
 					nng_ctx_send(work->ctx, work->aio);
+					nng_aio_set_prov_extra(work->aio, 0, NULL);
 				}
 				if (work->pipe_ct->total <=
 				    work->pipe_ct->current_index) {

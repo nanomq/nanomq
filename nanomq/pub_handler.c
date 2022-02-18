@@ -340,8 +340,8 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 		/*fixed header*/
 		work->pub_packet->fixed_header.packet_type = cmd;
 		// work->pub_packet->fixed_header.dup = dup;
-		append_res                         = nng_msg_header_append(
-                    dest_msg, (uint8_t *) &work->pub_packet->fixed_header, 1);
+		append_res = nng_msg_header_append(dest_msg,
+			(uint8_t *) &work->pub_packet->fixed_header, 1);
 
 		arr_len = put_var_integer(
 		    tmp, work->pub_packet->fixed_header.remain_len);
