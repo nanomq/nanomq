@@ -140,7 +140,7 @@ void
 server_cb(void *arg)
 {
 	nano_work *work = arg;
-	nng_msg *  msg;
+	nng_msg *  msg = NULL;
 	nng_msg *  smsg = NULL;
 	int        rv;
 
@@ -176,31 +176,7 @@ server_cb(void *arg)
 		work->pid    = nng_msg_get_pipe(work->msg);
 
 		if (nng_msg_cmd_type(msg) == CMD_DISCONNECT) {
-			// Disconnect reserved for will msg.
-			if (conn_param_get_will_flag(work->cparam)) {
-				msg = nano_msg_composer(&msg,
-				    conn_param_get_will_retain(work->cparam),
-				    conn_param_get_will_qos(work->cparam),
-				    (mqtt_string *) conn_param_get_will_msg(
-				        work->cparam),
-				    (mqtt_string *) conn_param_get_will_topic(
-				        work->cparam));
-				// Set V4/V5 flag for publish msg
-				if (conn_param_get_protover(work->cparam) ==
-				    5) {
-					nng_msg_set_cmd_type(
-					    msg, CMD_PUBLISH_V5);
-				} else {
-					nng_msg_set_cmd_type(msg, CMD_PUBLISH);
-				}
-				work->msg = msg;
-				handle_pub(work, work->pipe_ct);
-			} else {
-				work->msg   = NULL;
-				work->state = RECV;
-				nng_ctx_recv(work->ctx, work->aio);
-				break;
-			}
+			//delete will msg
 		} else if (nng_msg_cmd_type(msg) == CMD_PUBLISH) {
 			// Set V4/V5 flag for publish msg
 			if (conn_param_get_protover(work->cparam) == 5) {
@@ -284,7 +260,7 @@ server_cb(void *arg)
 			conn_param_free(work->cparam);
 
 		} else if (nng_msg_cmd_type(msg) == CMD_DISCONNECT_EV) {
-			// Set V4/V5 flag for publish msg
+			// Set V4/V5 flag for publishing offline event msg
 			if (conn_param_get_protover(work->cparam) == 5) {
 				nng_msg_set_cmd_type(msg, CMD_PUBLISH_V5);
 			} else {
@@ -320,11 +296,18 @@ server_cb(void *arg)
 			} else {
 				debug_msg("ERROR it should not happen");
 			}
-			cparam       = work->cparam;
-			work->cparam = NULL;
-			conn_param_free(cparam);
+			cparam = work->cparam;
+			// work->cparam = NULL;
+			if (conn_param_get_will_flag(work->cparam) == 0) {
+				// no will msg
+				conn_param_free(cparam);
+			} else {
+				// set to END tosend will msg
+				work->state = END;
+				nng_aio_finish(work->aio, 0);
+				break;
+			}
 		}
-
 		work->state = WAIT;
 		nng_aio_finish(work->aio, 0);
 		// nng_aio_finish_sync(work->aio, 0);
@@ -549,6 +532,92 @@ server_cb(void *arg)
 			work->state = RECV;
 			nng_ctx_recv(work->ctx, work->aio);
 		}
+		break;
+	case END:
+		debug_msg("END ^^^^ ctx%d ^^^^", work->ctx.id);
+		if (nng_msg_get_type(work->msg) == CMD_PUBLISH) {
+			if ((rv = nng_aio_result(work->aio)) != 0) {
+				debug_msg("WAIT nng aio result error: %d", rv);
+				fatal("WAIT nng_ctx_recv/send", rv);
+			}
+			smsg      = work->msg; // reuse the same msg
+			work->msg = NULL;
+
+			debug_msg("total pipes: %d", work->pipe_ct->total);
+			// TODO rewrite this part.
+			if (work->pipe_ct->total > 0) {
+				p_info = work->pipe_ct->pipe_info
+				             [work->pipe_ct->current_index];
+				work->pipe_ct->encode_msg(smsg, p_info.work,
+				    p_info.cmd, p_info.qos, 0);
+				while (work->pipe_ct->total >
+				    work->pipe_ct->current_index) {
+					p_info =
+					    work->pipe_ct->pipe_info
+					        [work->pipe_ct->current_index];
+					nng_msg_clone(smsg);
+					work->msg = smsg;
+
+					nng_aio_set_prov_extra(work->aio, 0,
+					    (void *) (intptr_t) p_info.qos);
+					nng_aio_set_msg(work->aio, work->msg);
+					work->pid.id = p_info.pipe;
+					nng_msg_set_pipe(work->msg, work->pid);
+					work->msg = NULL;
+					work->pipe_ct->current_index++;
+					nng_ctx_send(work->ctx, work->aio);
+				}
+				if (work->pipe_ct->total <=
+				    work->pipe_ct->current_index) {
+					free_pub_packet(work->pub_packet);
+					free_pipes_info(
+					    work->pipe_ct->pipe_info);
+					init_pipe_content(work->pipe_ct);
+				}
+				nng_msg_free(smsg);
+				smsg = NULL;
+			} else {
+				if (smsg) {
+					nng_msg_free(smsg);
+				}
+				free_pub_packet(work->pub_packet);
+				free_pipes_info(work->pipe_ct->pipe_info);
+				init_pipe_content(work->pipe_ct);
+			}
+			// processing will msg
+			if (conn_param_get_will_flag(work->cparam)) {
+				msg = nano_msg_composer(&msg,
+				    conn_param_get_will_retain(work->cparam),
+				    conn_param_get_will_qos(work->cparam),
+				    (mqtt_string *) conn_param_get_will_msg(
+				        work->cparam),
+				    (mqtt_string *) conn_param_get_will_topic(
+				        work->cparam));
+				// Set V4/V5 flag for publish msg
+				if (conn_param_get_protover(work->cparam) ==
+				    5) {
+					nng_msg_set_cmd_type(
+					    msg, CMD_PUBLISH_V5);
+				} else {
+					nng_msg_set_cmd_type(msg, CMD_PUBLISH);
+				}
+				work->msg = msg;
+				handle_pub(work, work->pipe_ct);
+				work->state = WAIT;
+				nng_aio_finish(work->aio, 0);
+			} else {
+				if (work->msg != NULL)
+					nng_msg_free(work->msg);
+				work->msg = NULL;
+				if (work->proto == PROTO_MQTT_BRIDGE) {
+					work->state = BRIDGE;
+				} else {
+					work->state = RECV;
+				}
+				nng_ctx_recv(work->ctx, work->aio);
+			}
+		}
+		conn_param_free(work->cparam);
 		break;
 	default:
 		fatal("bad state!", NNG_ESTATE);

@@ -13,7 +13,7 @@
 
 typedef struct work nano_work;
 struct work {
-	enum { INIT, RECV, WAIT, SEND, RESEND, FREE, NOTIFY, BRIDGE } state;
+	enum { INIT, RECV, WAIT, SEND, RESEND, FREE, NOTIFY, BRIDGE, END } state;
 	// 0x00 mqtt_broker
 	// 0x01 mqtt_bridge
 	uint8_t   proto;
