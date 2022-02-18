@@ -185,7 +185,14 @@ server_cb(void *arg)
 				        work->cparam),
 				    (mqtt_string *) conn_param_get_will_topic(
 				        work->cparam));
-				nng_msg_set_cmd_type(msg, CMD_PUBLISH);
+				// Set V4/V5 flag for publish msg
+				if (conn_param_get_protover(work->cparam) ==
+				    5) {
+					nng_msg_set_cmd_type(
+					    msg, CMD_PUBLISH_V5);
+				} else {
+					nng_msg_set_cmd_type(msg, CMD_PUBLISH);
+				}
 				work->msg = msg;
 				handle_pub(work, work->pipe_ct);
 			} else {
@@ -195,8 +202,13 @@ server_cb(void *arg)
 				break;
 			}
 		} else if (nng_msg_cmd_type(msg) == CMD_PUBLISH) {
+			// Set V4/V5 flag for publish msg
+			if (conn_param_get_protover(work->cparam) == 5) {
+				nng_msg_set_cmd_type(msg, CMD_PUBLISH_V5);
+			} else {
+				nng_msg_set_cmd_type(msg, CMD_PUBLISH);
+			}
 			nng_msg_set_timestamp(msg, nng_clock());
-			nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 			handle_pub(work, work->pipe_ct);
 
 			conf_bridge *bridge = &(work->config->bridge);
@@ -258,7 +270,12 @@ server_cb(void *arg)
 			uint8_t  flag   = *(header + 3);
 			smsg = nano_msg_notify_connect(work->cparam, flag);
 
-			nng_msg_set_cmd_type(smsg, CMD_PUBLISH);
+			// Set V4/V5 flag for publish msg
+			if (conn_param_get_protover(work->cparam) == 5) {
+				nng_msg_set_cmd_type(msg, CMD_PUBLISH_V5);
+			} else {
+				nng_msg_set_cmd_type(msg, CMD_PUBLISH);
+			}
 			nng_msg_free(work->msg);
 			work->msg = smsg;
 			handle_pub(work, work->pipe_ct);
@@ -267,7 +284,12 @@ server_cb(void *arg)
 			conn_param_free(work->cparam);
 
 		} else if (nng_msg_cmd_type(msg) == CMD_DISCONNECT_EV) {
-			nng_msg_set_cmd_type(work->msg, CMD_PUBLISH);
+			// Set V4/V5 flag for publish msg
+			if (conn_param_get_protover(work->cparam) == 5) {
+				nng_msg_set_cmd_type(msg, CMD_PUBLISH_V5);
+			} else {
+				nng_msg_set_cmd_type(msg, CMD_PUBLISH);
+			}
 			handle_pub(work, work->pipe_ct);
 			// cache session
 			client_ctx *cli_ctx = NULL;
@@ -302,6 +324,7 @@ server_cb(void *arg)
 			work->cparam = NULL;
 			conn_param_free(cparam);
 		}
+
 		work->state = WAIT;
 		nng_aio_finish(work->aio, 0);
 		// nng_aio_finish_sync(work->aio, 0);
@@ -408,7 +431,7 @@ server_cb(void *arg)
 			smsg = NULL;
 			nng_aio_finish(work->aio, 0);
 			break;
-		} else if (nng_msg_cmd_type(work->msg) == CMD_PUBLISH) {
+		} else if (nng_msg_get_type(work->msg) == CMD_PUBLISH) {
 			if ((rv = nng_aio_result(work->aio)) != 0) {
 				debug_msg("WAIT nng aio result error: %d", rv);
 				fatal("WAIT nng_ctx_recv/send", rv);
