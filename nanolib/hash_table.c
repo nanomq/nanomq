@@ -18,6 +18,16 @@
 		pthread_rwlock_init(&lock, NULL); 	\
 	}                              
 
+// atpair is alias topic pair
+typedef struct dbhash_atpair_s dbhash_atpair_t;
+struct dbhash_atpair_s {
+	uint32_t 	alias;
+	char 		*topic;
+};
+
+static dbhash_atpair_t *dbhash_atpair_alloc(uint32_t alias, char *topic);
+static void dbhash_atpair_free(dbhash_atpair_t *atpair);
+
 
 KHASH_MAP_INIT_INT(alias_table, char*)
 static pthread_rwlock_t alias_lock;
@@ -618,4 +628,32 @@ dbhash_cached_check_id(uint32_t key)
 	return ret;
 }
 
+dbhash_atpair_t *dbhash_atpair_alloc(uint32_t alias, char *topic)
+{
+	if (topic == NULL) {
+		log_err("Topic should not be NULL");
+	}
+	dbhash_atpair_t *atpair = (dbhash_atpair_t*) zmalloc(sizeof(dbhash_atpair_t));
+	if (atpair == NULL) {
+		log_err("Memory alloc error.");
+		return NULL;
+	}
+	atpair->alias = alias;
+	atpair->topic = zstrdup(topic);
+
+	return atpair;
+
+}
+
+static void dbhash_atpair_free(dbhash_atpair_t *atpair)
+{
+	if (atpair) {
+		if (atpair->topic) {
+			zfree(atpair);
+			atpair = NULL;
+		}
+		zfree(atpair);
+		atpair = NULL;
+	}
+}
 
