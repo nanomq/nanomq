@@ -44,19 +44,16 @@ void
 foreach_client(
     void **cli_ctx_list, nano_work *pub_work, struct pipe_content *pipe_ct)
 {
-	bool     equal = false;
-	uint32_t pids;
-	uint8_t  sub_qos;
-	int      ctx_list_len;
+	bool      equal = false;
+	uint32_t  pids;
+	uint8_t   sub_qos;
+	int       ctx_list_len;
+	uint32_t *sub_id_p = NULL;
 
 	packet_subscribe * sub_pkt;
 	dbtree_ctxt *      db_ctxt = NULL;
 	struct client_ctx *ctx;
 	topic_node *       tn;
-
-	uint32_t  pids;
-	uint32_t *sub_id_p = NULL;
-	uint8_t   sub_qos;
 
 	ctx_list_len = cvector_size(cli_ctx_list);
 
@@ -64,7 +61,7 @@ foreach_client(
 
 		db_ctxt  = (dbtree_ctxt *) cli_ctx_list[i];
 		ctx      = db_ctxt->ctxt;
-		sub_id_p = db_ctxt->sub_id_p ? db_ctxt->sub_id_p : NULL;
+		sub_id_p = db_ctxt->sub_id_p;
 
 		dbtree_delete_ctxt(db_ctxt);
 
@@ -102,7 +99,9 @@ foreach_client(
 		    pub_work->pub_packet->fixed_header.qos;
 		if (0 == tn->it->rap)
 			pipe_ct->msg_infos[pipe_ct->total].retain = 0;
-		// pipe_ct->msg_infos[pipe_ct->total].sub_id = xxx;
+		// TODO
+		if (sub_id_p)
+			pipe_ct->msg_infos[pipe_ct->total].sub_id = sub_id_p[0];
 
 		pipe_ct->total += 1;
 /*
