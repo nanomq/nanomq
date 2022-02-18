@@ -54,11 +54,14 @@ foreach_client(
 	dbtree_ctxt *      db_ctxt = NULL;
 	struct client_ctx *ctx;
 	topic_node *       tn;
+	// Dont using msg info buf, Just for Cheat Compiler
+	mqtt_msg_info     *msg_info, msg_info_buf;
+
+	cvector(mqtt_msg_info) msg_infos = NULL;
 
 	ctx_list_len = cvector_size(cli_ctx_list);
 
 	for (int i = 0; i < ctx_list_len; i++) {
-
 		db_ctxt  = (dbtree_ctxt *) cli_ctx_list[i];
 		ctx      = db_ctxt->ctxt;
 		sub_id_p = db_ctxt->sub_id_p;
@@ -91,6 +94,20 @@ foreach_client(
 			}
 		}
 
+		cvector_push_back(msg_infos, msg_info_buf);
+		msg_info = (mqtt_msg_info *)&msg_infos[i];
+
+		msg_info->pipe = pids;
+		msg_info->qos  = sub_qos;
+		if (0 == tn->it->rap)
+			msg_info->retain = 0;
+		else
+			msg_info->retain =
+				pub_work->pub_packet->fixed_header.retain;
+		if (sub_id_p)
+			msg_info->sub_id = sub_id_p[0];
+
+/*
 		// TODO change to cvector for performance
 		pipe_ct->msg_infos = zrealloc(pipe_ct->msg_infos,
 		    sizeof(mqtt_msg_info) * (pipe_ct->total + 1));
@@ -99,12 +116,11 @@ foreach_client(
 		    pub_work->pub_packet->fixed_header.qos;
 		if (0 == tn->it->rap)
 			pipe_ct->msg_infos[pipe_ct->total].retain = 0;
-		// TODO
 		if (sub_id_p)
 			pipe_ct->msg_infos[pipe_ct->total].sub_id = sub_id_p[0];
 
 		pipe_ct->total += 1;
-/*
+
 		// TODO change to cvector for performance
 		pipe_ct->pipe_info = zrealloc(pipe_ct->pipe_info,
 		    sizeof(struct pipe_info) * (pipe_ct->total + 1));
@@ -125,6 +141,7 @@ foreach_client(
 		pipe_ct->total += 1;
 */
 	}
+	pipe_ct->msg_infos = msg_infos;
 }
 
 void

@@ -422,51 +422,45 @@ server_cb(void *arg)
 			smsg      = work->msg; // reuse the same msg
 			work->msg = NULL;
 
+			cvector(mqtt_msg_info) msg_infos;
+			msg_infos = work->pipe_ct->msg_infos;
+
 			debug_msg("total pipes: %d", work->pipe_ct->total);
-			// TODO rewrite this part.
-			if (work->pipe_ct->total > 0) {
-				msg_info = &work->pipe_ct->msg_infos
-				             [work->pipe_ct->current_index];
-				//TODO encode abstract msg only
-				encode_pub_message(smsg, work, CMD_PUBLISH, msg_info);
+			//TODO encode abstract msg only
+			if (cvector_size(msg_infos))
+				encode_pub_message(smsg, work, PUBLISH, msg_info);
+			for (int i=0; i<cvector_size(msg_infos); ++i) {
+				msg_info = &msg_infos[i];
+				nng_msg_clone(smsg);
+				work->msg = smsg;
 
-				while (work->pipe_ct->total >
-				    work->pipe_ct->current_index) {
-					msg_info =
-					    &work->pipe_ct->msg_infos
-					        [work->pipe_ct->current_index];
-					nng_msg_clone(smsg);
-					work->msg = smsg;
+				nng_aio_set_prov_extra(work->aio, 0, (void *) msg_info);
+				nng_aio_set_msg(work->aio, work->msg);
+				work->pid.id = msg_info->pipe;
+				nng_msg_set_pipe(work->msg, work->pid);
 
-					nng_aio_set_prov_extra(work->aio, 0,
-					    (void *) msg_info);
-					nng_aio_set_msg(work->aio, work->msg);
-					work->pid.id = msg_info->pipe;
-					nng_msg_set_pipe(work->msg, work->pid);
-					work->msg = NULL;
-					work->pipe_ct->current_index++;
-					nng_ctx_send(work->ctx, work->aio);
-					nng_aio_set_prov_extra(work->aio, 0, NULL);
-				}
-				if (work->pipe_ct->total <=
-				    work->pipe_ct->current_index) {
-					free_pub_packet(work->pub_packet);
-					free_msg_infos(work->pipe_ct->msg_infos);
-					init_pipe_content(work->pipe_ct);
-				}
+				nng_ctx_send(work->ctx, work->aio);
+				nng_aio_set_prov_extra(work->aio, 0, NULL);
+			}
+			if (cvector_size(msg_infos) > 0) {
 				work->state = SEND;
+				work->msg = NULL;
 				nng_msg_free(smsg);
-				smsg = NULL;
+				free_pub_packet(work->pub_packet);
+				cvector_free(msg_infos);
+				work->pipe_ct->msg_infos = NULL;
 				nng_aio_finish(work->aio, 0);
 				break;
-			} else {
-				if (smsg) {
-					nng_msg_free(smsg);
-				}
-				free_pub_packet(work->pub_packet);
-				free_msg_infos(work->pipe_ct->msg_infos);
-				init_pipe_content(work->pipe_ct);
 			}
+			if (smsg) {
+				nng_msg_free(smsg);
+				smsg = NULL;
+			}
+			work->msg = NULL;
+			free_pub_packet(work->pub_packet);
+			cvector_free(work->pipe_ct->msg_infos);
+			work->pipe_ct->msg_infos = NULL;
+			init_pipe_content(work->pipe_ct);
 
 			if (work->state != SEND) {
 				if (work->msg != NULL)
@@ -519,9 +513,10 @@ server_cb(void *arg)
 		if ((rv = nng_aio_result(work->aio)) != 0) {
 			fatal("SEND nng_ctx_send", rv);
 		}
-		if (work->pipe_ct->total > 0) {
+		if (work->pipe_ct->msg_infos) {
 			free_pub_packet(work->pub_packet);
-			free_msg_infos(work->pipe_ct->msg_infos);
+			cvector_free(work->pipe_ct->msg_infos);
+			work->pipe_ct->msg_infos = NULL;
 			init_pipe_content(work->pipe_ct);
 		}
 		work->msg = NULL;
@@ -543,44 +538,33 @@ server_cb(void *arg)
 			smsg      = work->msg; // reuse the same msg
 			work->msg = NULL;
 
-			debug_msg("total pipes: %d", work->pipe_ct->total);
-			// TODO rewrite this part.
-			if (work->pipe_ct->total > 0) {
-				msg_info = &work->pipe_ct->msg_infos
-				        [work->pipe_ct->current_index];
+			cvector(mqtt_msg_info) msg_infos;
+			msg_infos = work->pipe_ct->msg_infos;
+
+			debug_msg("total pipes: %d", cvector_size(msg_infos));
+			if (cvector_size(msg_infos) > 0)
+				encode_pub_message(smsg, work, PUBLISH, msg_info);
+			for (int i=0; i<cvector_size(msg_infos); ++i) {
 				//TODO encode abstract msg only
 				encode_pub_message(smsg, work, CMD_PUBLISH, msg_info);
-				while (work->pipe_ct->total >
-				    work->pipe_ct->current_index) {
-					msg_info = &work->pipe_ct->msg_infos
-				             [work->pipe_ct->current_index];
-					nng_msg_clone(smsg);
-					work->msg = smsg;
+				msg_info = &work->pipe_ct->msg_infos
+				         [work->pipe_ct->current_index];
+				nng_msg_clone(smsg);
+				work->msg = smsg;
 
-					nng_aio_set_prov_extra(work->aio, 0,
-					    (void *) msg_info);
-					nng_aio_set_msg(work->aio, work->msg);
-					work->pid.id = msg_info->pipe;
-					nng_msg_set_pipe(work->msg, work->pid);
-					work->msg = NULL;
-					work->pipe_ct->current_index++;
-					nng_ctx_send(work->ctx, work->aio);
-				}
-				if (work->pipe_ct->total <=
-				    work->pipe_ct->current_index) {
-					free_pub_packet(work->pub_packet);
-					free_msg_infos(work->pipe_ct->msg_infos);
-					init_pipe_content(work->pipe_ct);
-				}
+				nng_aio_set_prov_extra(work->aio, 0, msg_info);
+				nng_aio_set_msg(work->aio, work->msg);
+				work->pid.id = msg_info->pipe;
+				nng_msg_set_pipe(work->msg, work->pid);
+				work->msg = NULL;
+				nng_ctx_send(work->ctx, work->aio);
+			}
+			free_pub_packet(work->pub_packet);
+			free_msg_infos(work->pipe_ct->msg_infos);
+			init_pipe_content(work->pipe_ct);
+			if (smsg) {
 				nng_msg_free(smsg);
 				smsg = NULL;
-			} else {
-				if (smsg) {
-					nng_msg_free(smsg);
-				}
-				free_pub_packet(work->pub_packet);
-				free_msg_infos(work->pipe_ct->msg_infos);
-				init_pipe_content(work->pipe_ct);
 			}
 			// processing will msg
 			if (conn_param_get_will_flag(work->cparam)) {
@@ -592,10 +576,8 @@ server_cb(void *arg)
 				    (mqtt_string *) conn_param_get_will_topic(
 				        work->cparam));
 				// Set V4/V5 flag for publish msg
-				if (conn_param_get_protover(work->cparam) ==
-				    5) {
-					nng_msg_set_cmd_type(
-					    msg, CMD_PUBLISH_V5);
+				if (conn_param_get_protover(work->cparam) == 5) {
+					nng_msg_set_cmd_type(msg, CMD_PUBLISH_V5);
 				} else {
 					nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 				}
