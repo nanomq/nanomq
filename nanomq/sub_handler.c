@@ -139,10 +139,10 @@ decode_sub_message(nano_work *work)
 		len_of_topic = 0;
 
 		memcpy(topic_option, payload_ptr + bpos, 1);
-		if (topic_option->retain_handling > 2) {
-			debug_msg("ERROR: error in retain_handling");
-			return PROTOCOL_ERROR;
-		}
+		// if (topic_option->retain_handling > 2) {
+		// 	debug_msg("ERROR: error in retain_handling");
+		// 	return PROTOCOL_ERROR;
+		// }
 		// TODO sub action when retain_handling equal 0 or 1 or 2
 
 		debug_msg("bpos+vpos: [%d]", bpos + vpos);
@@ -411,10 +411,10 @@ cli_ctx_merge(client_ctx *ctx_new, client_ctx *ctx)
 			// update option
 			node->it->no_local = node_new->it->no_local;
 			node->it->qos      = node_new->it->qos;
-			node->it->retain_as_publish =
-			    node_new->it->retain_as_publish;
-			node->it->retain_handling =
-			    node_new->it->retain_handling;
+			// node->it->retain_as_publish =
+			//     node_new->it->retain_as_publish;
+			// node->it->retain_handling =
+			//     node_new->it->retain_handling;
 		} else { /* not find */
 			// copy and append TODO optimize topic_node structure
 			node_a = nng_alloc(sizeof(topic_node));
