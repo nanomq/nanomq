@@ -427,7 +427,7 @@ server_cb(void *arg)
 			if (work->pipe_ct->total > 0) {
 				p_info = work->pipe_ct->pipe_info
 				             [work->pipe_ct->current_index];
-
+				//TODO encode abstract msg only
 				work->pipe_ct->encode_msg(smsg, p_info.work,
 				    p_info.cmd, p_info.qos, 0, p_info.sub_id_p);
 				while (work->pipe_ct->total >
@@ -548,8 +548,9 @@ server_cb(void *arg)
 			if (work->pipe_ct->total > 0) {
 				p_info = work->pipe_ct->pipe_info
 				             [work->pipe_ct->current_index];
+				//TODO encode abstract msg only
 				work->pipe_ct->encode_msg(smsg, p_info.work,
-				    p_info.cmd, p_info.qos, 0);
+				    p_info.cmd, p_info.qos, 0,p_info.sub_id_p);
 				while (work->pipe_ct->total >
 				    work->pipe_ct->current_index) {
 					p_info =

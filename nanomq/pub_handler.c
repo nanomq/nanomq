@@ -328,11 +328,9 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 
 	nng_msg_clear(dest_msg);
 	nng_msg_header_clear(dest_msg);
-	nng_msg_set_cmd_type(dest_msg, CMD_UNKNOWN);
 	switch (cmd) {
 	case PUBLISH:
 		/*fixed header*/
-		nng_msg_set_cmd_type(dest_msg, CMD_PUBLISH);
 		work->pub_packet->fixed_header.packet_type = cmd;
 		// work->pub_packet->fixed_header.qos =
 		// work->pub_packet->fixed_header.qos < sub_qos ?
