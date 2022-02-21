@@ -62,6 +62,8 @@ foreach_client(
 		sub_id_p = db_ctxt->sub_id_p ? db_ctxt->sub_id_p : NULL;
 
 		dbtree_delete_ctxt(db_ctxt);
+		if (!ctx)
+			continue;
 
 		pids = ctx->pid.id;
 		tn   = ctx->sub_pkt->node;
@@ -113,6 +115,9 @@ foreach_client(
 		    pub_work->pub_packet->fixed_header.qos <= sub_qos
 		    ? pub_work->pub_packet->fixed_header.qos
 		    : sub_qos;
+
+		if (sub_id_p)
+			cvector_free(sub_id_p);
 
 		pipe_ct->total += 1;
 	}
