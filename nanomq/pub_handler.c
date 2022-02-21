@@ -106,40 +106,6 @@ foreach_client(
 				pub_work->pub_packet->fixed_header.retain;
 		if (sub_id_p)
 			msg_info->sub_id = sub_id_p[0];
-
-/*
-		// TODO change to cvector for performance
-		pipe_ct->msg_infos = zrealloc(pipe_ct->msg_infos,
-		    sizeof(mqtt_msg_info) * (pipe_ct->total + 1));
-		pipe_ct->msg_infos[pipe_ct->total].pipe = pids;
-		pipe_ct->msg_infos[pipe_ct->total].qos  =
-		    pub_work->pub_packet->fixed_header.qos;
-		if (0 == tn->it->rap)
-			pipe_ct->msg_infos[pipe_ct->total].retain = 0;
-		if (sub_id_p)
-			pipe_ct->msg_infos[pipe_ct->total].sub_id = sub_id_p[0];
-
-		pipe_ct->total += 1;
-
-		// TODO change to cvector for performance
-		pipe_ct->pipe_info = zrealloc(pipe_ct->pipe_info,
-		    sizeof(struct pipe_info) * (pipe_ct->total + 1));
-
-		pipe_ct->pipe_info[pipe_ct->total].sub_id_p = sub_id_p;
-		pipe_ct->pipe_info[pipe_ct->total].index    = pipe_ct->total;
-		pipe_ct->pipe_info[pipe_ct->total].pipe     = pids;
-		pipe_ct->pipe_info[pipe_ct->total].cmd      = PUBLISH;
-		pipe_ct->pipe_info[pipe_ct->total].work     = pub_work;
-		pipe_ct->pipe_info[pipe_ct->total].qos =
-		    pub_work->pub_packet->fixed_header.qos <= sub_qos
-		    ? pub_work->pub_packet->fixed_header.qos
-		    : sub_qos;
-		if (0 == tn->it->rap) {
-			pipe_ct->pipe_info[pipe_ct->total].retain = 0;
-		}
-
-		pipe_ct->total += 1;
-*/
 	}
 	pipe_ct->msg_infos = msg_infos;
 }
