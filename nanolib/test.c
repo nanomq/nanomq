@@ -57,12 +57,12 @@ test_opt(int argc, char **argv)
 	}
 
 	int c;
-	int digit_optind = 0;
+	// int digit_optind = 0;
 	int option_index = 0;
 
 	while ((c = getopt_long(argc, argv, "aht0",
 	            long_options, &option_index)) != -1) {
-		int this_option_optind = optind ? optind : 1;
+		// int this_option_optind = optind ? optind : 1;
 		switch (c) {
 		case 0:
 			if (!strcmp(long_options[option_index].name, "help")) {
