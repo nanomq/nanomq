@@ -558,6 +558,7 @@ server_cb(void *arg)
 				nng_msg_set_pipe(work->msg, work->pid);
 				work->msg = NULL;
 				nng_ctx_send(work->ctx, work->aio);
+				nng_aio_set_prov_extra(work->aio, 0, NULL);
 			}
 			free_pub_packet(work->pub_packet);
 			free_msg_infos(work->pipe_ct->msg_infos);

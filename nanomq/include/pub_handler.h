@@ -101,9 +101,9 @@ struct pipe_info {
 };
 
 struct pipe_content {
-	uint32_t  total;
-	uint32_t  current_index;
-	uint32_t *pipes; // queue of nng_pipes
+	uint32_t       total;
+	uint32_t       current_index;
+	uint32_t *     pipes; // queue of nng_pipes
 	mqtt_msg_info *msg_infos;
 };
 
