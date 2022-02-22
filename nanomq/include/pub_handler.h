@@ -90,31 +90,30 @@ struct pub_packet_struct {
 };
 
 struct pipe_info {
-	uint8_t                   qos;
 	mqtt_control_packet_types cmd;
 
-	uint32_t   pipe;
+	uint8_t    qos;
 	uint32_t   index;
-	uint32_t * sub_id_p;
+	uint32_t   pipe;
 	nano_work *work;
+	uint8_t    retain;
+	uint32_t * sub_id_p;
 };
 
 struct pipe_content {
-	uint32_t  total;
-	uint32_t  current_index;
-	uint32_t *pipes; // queue of nng_pipes
-	bool (*encode_msg)(nng_msg *, const nano_work *,
-	    mqtt_control_packet_types, uint8_t, bool, uint32_t *);
-	struct pipe_info *pipe_info;
+	uint32_t       total;
+	uint32_t       current_index;
+	uint32_t *     pipes; // queue of nng_pipes
+	mqtt_msg_info *msg_infos;
 };
 
 bool        encode_pub_message(nng_msg *dest_msg, const nano_work *work,
-           mqtt_control_packet_types cmd, uint8_t sub_qos, bool dup, uint32_t *);
+           mqtt_control_packet_types cmd, mqtt_msg_info *);
 reason_code decode_pub_message(nano_work *work);
 void        foreach_client(
            void **cli_ctx_list, nano_work *pub_work, struct pipe_content *pipe_ct);
 void free_pub_packet(struct pub_packet_struct *pub_packet);
-void free_pipes_info(struct pipe_info *p_info);
+void free_msg_infos(mqtt_msg_info *msg_infos);
 void init_pipe_content(struct pipe_content *pipe_ct);
 void handle_pub(nano_work *work, struct pipe_content *pipe_ct);
 struct pub_packet_struct *copy_pub_packet(

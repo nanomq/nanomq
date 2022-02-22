@@ -18,6 +18,7 @@
 #include "include/hash_table.h"
 #include "include/mqtt_db.h"
 #include "include/zmalloc.h"
+#include "include/binary_search.h"
 
 #define ROUND_ROBIN
 // #define RANDOM
@@ -65,63 +66,6 @@ print_dbtree_session(dbtree_session **v)
 	}
 	puts("____________PRINT_DB_SESSION___________");
 #endif
-}
-
-/**
- * @brief binary_search - A iterative binary search function.
- * @param vec - normally vec is an dynamic array
- * @param l - it is the left boundry of the vec
- * @param index - index is the result we search
- * @param e - e contain message we want to search
- * @param cmp - cmp is a compare method
- * @return true or false, if we find or not
- */
-static bool
-binary_search(
-    void **vec, int l, int *index, void *e, int (*cmp)(void *x, void *y))
-{
-
-	int r = cvector_size(vec) - 1;
-	int m = 0;
-
-	// if we do not find the element
-	// vec = [0, 1, 3, 4], e = 2 ,
-	// m will be 2, index = 2 ok
-	// vec = [0, 1, 2, 4], e = 3 ,
-	// m will be 2, index = 2 error,
-	// index = 2 + add(1) ok
-	int add = 0;
-
-	// log_info("l: %d", l);
-	// log_info("r: %d", r);
-
-	while (l <= r) {
-		m = l + (r - l) / 2;
-
-		// Check if x is present at mid
-		if (cmp(vec[m], e) == 0) {
-			*index = m;
-			return true;
-		}
-		// log_info("m: %d", m);
-
-		// If x greater, ignore left half
-		if (cmp(vec[m], e) < 0) {
-			l   = m + 1;
-			add = 1;
-
-			// If x is smaller, ignore right half
-		} else {
-			r   = m - 1;
-			add = 0;
-		}
-	}
-	// log_info("m: %d", m);
-
-	// if we reach here, then element was
-	// not present
-	*index = m + add;
-	return false;
 }
 
 /**
@@ -209,21 +153,6 @@ topic_queue_free(char **topic_queue)
 
 	if (tt) {
 		zfree(tt);
-	}
-}
-
-static void
-print_dbtree_node(dbtree_node *node)
-{
-	printf("topic:    %s\n", node->topic);
-
-	if (node->clients) {
-		cvector(dbtree_client *) clients = node->clients;
-		for (int i = 0; i < cvector_size(clients); i++) {
-			printf("pipe_id:       %d\n", clients[i]->pipe_id);
-			printf(
-			    "session_id:       %d\n", clients[i]->session_id);
-		}
 	}
 }
 
@@ -748,38 +677,6 @@ delete_and_insert(dbtree_node *node, void *args)
 	return ret;
 }
 
-// session vector delete
-static void *
-delete_session_client(dbtree_node *node, void *args)
-{
-	pthread_rwlock_wrlock(&(node->rwlock));
-
-	int            index  = 0;
-	dbtree_client *client = (dbtree_client *) args;
-
-	if (true ==
-	    binary_search((void **) node->session_vector, 0, &index,
-	        &client->session_id, session_cmp)) {
-
-		dbtree_session *s = node->session_vector[index];
-		cvector_erase(node->session_vector, index);
-
-		if (s) {
-			if (s->ctxt) {
-				return s->ctxt;
-			}
-		}
-
-	} else {
-		log_err("Client identify is not find in session vector!");
-		dbtree_client_free(client);
-	}
-
-	pthread_rwlock_unlock(&(node->rwlock));
-
-	return NULL;
-}
-
 void *
 dbtree_restore_session(
     dbtree *db, char *topic, uint32_t session_id, uint32_t pipe_id)
@@ -1044,40 +941,6 @@ iterate_client_v5(dbtree_client ***v)
 	return (void **) ctxts;
 }
 
-static void **
-iterate_client_v311(dbtree_client ***v)
-{
-	cvector(void *) ctxts   = NULL;
-	cvector(uint32_t *) ids = NULL;
-
-	if (v) {
-		for (int i = 0; i < cvector_size(v); ++i) {
-
-			for (int j = 0; j < cvector_size(v[i]); j++) {
-				int index = 0;
-
-				if (false ==
-				    binary_search((void **) ids, 0, &index,
-				        &v[i][j]->pipe_id, ids_cmp)) {
-					if (cvector_empty(ids)) {
-						cvector_push_back(
-						    ids, &v[i][j]->pipe_id);
-					} else {
-						cvector_insert(ids, index,
-						    &v[i][j]->pipe_id);
-					}
-
-					cvector_push_back(
-					    ctxts, v[i][j]->ctxt);
-				}
-			}
-		}
-		cvector_free(ids);
-	}
-
-	return ctxts;
-}
-
 void **
 search_client(dbtree *db, char *topic, void *message, size_t *msg_cnt)
 {
@@ -1115,11 +978,7 @@ search_client(dbtree *db, char *topic, void *message, size_t *msg_cnt)
 		topic_queue++;
 	}
 
-	// if (version == MQTT_VERSION_V311) {
-	// 	ret = iterate_client_v311(ctxts);
-	// } else if (version == MQTT_VERSION_V5) {
 	ret = iterate_client_v5(ctxts);
-	// }
 
 	pthread_rwlock_unlock(&(db->rwlock));
 	if (message) {
@@ -1169,6 +1028,8 @@ dbtree_cache_session_msg(dbtree *db, void *msg, uint32_t session_id)
 	db->session_msg_list =
 	    insert_session_msg_list(db->session_msg_list, session_msg_list);
 	pthread_rwlock_unlock(&(db->rwlock_session));
+
+	return 0;
 }
 
 /**
@@ -1881,57 +1742,6 @@ dbtree_shared_iterate_client(dbtree_client ***v)
 	return ctxts;
 }
 
-/**
- * @brief iterate_client - Deduplication for all clients
- * @param v - client
- * @return dbtree_client
- */
-// TODO polish
-static void **
-dbtree_shared_iterate_client_old(dbtree_client ***v)
-{
-	cvector(void *) ctxts = NULL;
-	cvector(uint32_t) ids = NULL;
-
-	if (v) {
-		for (int i = 0; i < cvector_size(v); ++i) {
-			// Dispatch strategy.
-#ifdef RANDOM
-			int t = rand();
-#elif defined(ROUND_ROBIN)
-			int t = acnt;
-#endif
-			int j = t % cvector_size(v[i]);
-
-			// printf("acnt: %d\n", acnt);
-			// printf("j: %d\n", j);
-			// printf("size: %d\n", cvector_size(v[i]));
-			bool equal = false;
-			for (int k = 0; k < cvector_size(ids); k++) {
-				if (ids[k] == v[i][j]->pipe_id) {
-					equal = true;
-					break;
-				}
-			}
-
-			if (equal == false) {
-				cvector_push_back(ctxts, v[i][j]->ctxt);
-				// TODO  binary sort and
-				// cvector_insert();
-				cvector_push_back(ids, v[i][j]->pipe_id);
-			}
-
-			log_info("client id: %d", v[i][j]->pipe_id);
-		}
-		cvector_free(ids);
-		acnt++;
-		if (acnt == INT_MAX) {
-			acnt = 0;
-		}
-	}
-
-	return ctxts;
-}
 
 dbtree_ctxt *
 dbtree_new_ctxt(void *ctxt, uint32_t sub_id)

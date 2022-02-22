@@ -15,6 +15,7 @@
 #include <nng.h>
 #include <nng/protocol/mqtt/mqtt_parser.h>
 #include <zmalloc.h>
+#include <nng/mqtt/packet.h>
 
 #include "include/bridge.h"
 #include "include/pub_handler.h"
@@ -34,32 +35,36 @@ void
 init_pipe_content(struct pipe_content *pipe_ct)
 {
 	debug_msg("pub_handler: init pipe_info");
-	pipe_ct->pipe_info     = NULL;
 	pipe_ct->total         = 0;
 	pipe_ct->current_index = 0;
-	pipe_ct->encode_msg    = encode_pub_message;
+	pipe_ct->msg_infos     = NULL;
 }
 
 void
 foreach_client(
     void **cli_ctx_list, nano_work *pub_work, struct pipe_content *pipe_ct)
 {
-	bool               equal = false;
+	bool      equal = false;
+	uint32_t  pids;
+	uint8_t   sub_qos;
+	int       ctx_list_len;
+	uint32_t *sub_id_p = NULL;
+
 	packet_subscribe * sub_pkt;
 	dbtree_ctxt *      db_ctxt = NULL;
 	struct client_ctx *ctx;
 	topic_node *       tn;
+	// Dont using msg info buf, Just for Cheat Compiler
+	mqtt_msg_info     *msg_info, msg_info_buf;
 
-	int       ctx_list_len = cvector_size(cli_ctx_list);
-	uint32_t  pids;
-	uint32_t *sub_id_p = NULL;
-	uint8_t   sub_qos;
+	cvector(mqtt_msg_info) msg_infos = NULL;
+
+	ctx_list_len = cvector_size(cli_ctx_list);
 
 	for (int i = 0; i < ctx_list_len; i++) {
-
 		db_ctxt  = (dbtree_ctxt *) cli_ctx_list[i];
 		ctx      = db_ctxt->ctxt;
-		sub_id_p = db_ctxt->sub_id_p ? db_ctxt->sub_id_p : NULL;
+		sub_id_p = db_ctxt->sub_id_p;
 
 		dbtree_delete_ctxt(db_ctxt);
 		if (!ctx)
@@ -72,8 +77,7 @@ foreach_client(
 			continue;
 
 		while (tn) {
-			if (true ==
-			    topic_filter(tn->it->topic_filter.body,
+			if (true == topic_filter(tn->it->topic_filter.body,
 			        pub_work->pub_packet->variable_header.publish
 			            .topic_name.body)) {
 				break; // find the topic
@@ -92,35 +96,22 @@ foreach_client(
 			}
 		}
 
-		// TODO change to cvector for performance
-		pipe_ct->pipe_info = zrealloc(pipe_ct->pipe_info,
-		    sizeof(struct pipe_info) * (pipe_ct->total + 1));
+		cvector_push_back(msg_infos, msg_info_buf);
+		msg_info = (mqtt_msg_info *)&msg_infos[i];
 
-		// if (sub_id_p) {
-		// 	printf("SUB ID: ");
-		// 	for (size_t j = 0; j < cvector_size(db_ctxt->sub_id_p);
-		// j++) {
-
-		// 		printf("[%d] ", db_ctxt->sub_id_p[j]);
-		// 	}
-		// 	printf("\n");
-		// }
-
-		pipe_ct->pipe_info[pipe_ct->total].sub_id_p = sub_id_p;
-		pipe_ct->pipe_info[pipe_ct->total].index    = pipe_ct->total;
-		pipe_ct->pipe_info[pipe_ct->total].pipe     = pids;
-		pipe_ct->pipe_info[pipe_ct->total].cmd      = PUBLISH;
-		pipe_ct->pipe_info[pipe_ct->total].work     = pub_work;
-		pipe_ct->pipe_info[pipe_ct->total].qos =
-		    pub_work->pub_packet->fixed_header.qos <= sub_qos
-		    ? pub_work->pub_packet->fixed_header.qos
-		    : sub_qos;
-
-		if (sub_id_p)
+		msg_info->pipe = pids;
+		msg_info->qos  = sub_qos;
+		if (0 == tn->it->rap)
+			msg_info->retain = 0;
+		else
+			msg_info->retain =
+				pub_work->pub_packet->fixed_header.retain;
+		if (sub_id_p) {
+			msg_info->sub_id = sub_id_p[0];
 			cvector_free(sub_id_p);
-
-		pipe_ct->total += 1;
+		}
 	}
+	pipe_ct->msg_infos = msg_infos;
 }
 
 void
@@ -294,12 +285,10 @@ free_pub_packet(struct pub_packet_struct *pub_packet)
 }
 
 void
-free_pipes_info(struct pipe_info *p_info)
+free_msg_infos(mqtt_msg_info * msg_infos)
 {
-	if (p_info != NULL) {
-		zfree(p_info);
-		p_info = NULL;
-		debug_msg("free pipes_info");
+	if (msg_infos != NULL) {
+		zfree(msg_infos);
 	}
 }
 
@@ -319,8 +308,7 @@ append_bytes_with_type(
 
 bool
 encode_pub_message(nng_msg *dest_msg, const nano_work *work,
-    mqtt_control_packet_types cmd, uint8_t sub_qos, bool dup,
-    uint32_t *sub_id_p)
+    mqtt_control_packet_types cmd, mqtt_msg_info *msg_info)
 {
 	uint8_t         tmp[4]     = { 0 };
 	uint32_t        arr_len    = 0;
@@ -337,12 +325,9 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 	case PUBLISH:
 		/*fixed header*/
 		work->pub_packet->fixed_header.packet_type = cmd;
-		// work->pub_packet->fixed_header.qos =
-		// work->pub_packet->fixed_header.qos < sub_qos ?
-		// work->pub_packet->fixed_header.qos : sub_qos;
-		work->pub_packet->fixed_header.dup = dup;
-		append_res                         = nng_msg_header_append(
-                    dest_msg, (uint8_t *) &work->pub_packet->fixed_header, 1);
+		// work->pub_packet->fixed_header.dup = dup;
+		append_res = nng_msg_header_append(dest_msg,
+			(uint8_t *) &work->pub_packet->fixed_header, 1);
 
 		arr_len = put_var_integer(
 		    tmp, work->pub_packet->fixed_header.remain_len);
@@ -546,7 +531,7 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 		nng_msg_set_cmd_type(dest_msg, CMD_PUBCOMP);
 		struct pub_packet_struct pub_response = {
 			.fixed_header.packet_type = cmd,
-			.fixed_header.dup         = dup,
+			// .fixed_header.dup         = dup,
 			.fixed_header.qos         = 0,
 			.fixed_header.retain      = 0,
 			.fixed_header.remain_len  = 2, // TODO

@@ -2,6 +2,7 @@
 #define HASH_TABLE_H
 
 #include "cvector.h"
+#include "dbg.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -19,21 +20,42 @@ struct msg_queue {
 
 typedef struct msg_queue msg_queue;
 
+// atpair is alias topic pair
+typedef struct dbhash_atpair_s dbhash_atpair_t;
+
+struct dbhash_atpair_s {
+	uint32_t alias;
+	char *   topic;
+};
+
+/**
+ * @brief alias_cmp - A callback to compare different alias
+ * @param x - normally x is pointer of dbhash_atpair_t
+ * @param y - normally y is pointer of alias
+ * @return 0, minus or plus
+ */
+static inline int
+alias_cmp(void *x_, void *y_)
+{
+	uint32_t *       alias = (uint32_t *) y_;
+	dbhash_atpair_t *ele_x = (dbhash_atpair_t *) x_;
+	return *alias - ele_x->alias;
+}
 
 void dbhash_init_alias_table(void);
 
 void dbhash_destroy_alias_table(void);
 // This function do not verify value of alias and topic,
 // therefore you should make sure alias and topic is
-// not illegal. 
-void dbhash_add_alias(int alias, const char *topic);
+// not illegal.
+void dbhash_insert_atpair(uint32_t pipe_id, uint32_t alias, const char *topic);
 
-const char *dbhash_find_alias(int alias);
+const char *dbhash_find_atpair(uint32_t pipe_id, uint32_t alias);
 
-void dbhash_del_alias(int alias);
-
+void dbhash_del_atpair_queue(uint32_t pipe_id);
 
 void dbhash_init_pipe_table(void);
+
 void dbhash_destroy_pipe_table(void);
 
 void dbhash_insert_topic(uint32_t id, char *val);
@@ -64,6 +86,5 @@ struct topic_queue *dbhash_get_cached_topic(uint32_t cid);
 void dbhash_del_cached_topic_all(uint32_t key);
 
 bool dbhash_cached_check_id(uint32_t key);
-
 
 #endif
