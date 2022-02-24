@@ -160,7 +160,7 @@ void dbtree_delete_ctxt(dbtree_ctxt *ctxt);
 
 /**
  * @brief dbtree_insert_client - check if this
- * topic and client id is exist on the tree, if
+ * topic and pipe id is exist on the tree, if
  * there is not exist, this func will insert node
  * recursively until find all topic then insert
  * client on the node.
@@ -172,6 +172,18 @@ void dbtree_delete_ctxt(dbtree_ctxt *ctxt);
  */
 void *dbtree_insert_client(
     dbtree *db, char *topic, void *ctxt, uint32_t pipe_id);
+
+/**
+ * @brief dbtree_find_client - check if this
+ * topic and pipe id is exist on the tree, if
+ * there is not exist, return it.
+ * @param dbtree - dbtree_node
+ * @param topic - topic
+ * @param ctxt - data related with pipe_id
+ * @param pipe_id - pipe id
+ * @return
+ */
+void *dbtree_find_client(dbtree *db, char *topic, uint32_t pipe_id);
 
 /**
  * @brief dbtree_restore_session - This function

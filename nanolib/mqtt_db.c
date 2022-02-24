@@ -413,13 +413,38 @@ dbtree_destory(dbtree *db)
 }
 
 /**
- * @brief insert_dbtree_client - insert a client on the right position
+ * @brief find_client_cb - find client
  * @param node - dbtree_node
  * @param args - client
  * @return
  */
 static void *
-insert_dbtree_client(dbtree_node *node, void *args)
+find_client_cb(dbtree_node *node, void *args)
+{
+	pthread_rwlock_rdlock(&(node->rwlock));
+
+	int       index   = 0;
+	uint32_t *pipe_id = (uint32_t *) args;
+	void *    ctxt    = NULL;
+
+	if (true ==
+	    binary_search(
+	        (void **) node->clients, 0, &index, &pipe_id, client_cmp)) {
+		ctxt = node->clients[index];
+	}
+
+	pthread_rwlock_unlock(&(node->rwlock));
+	return ctxt;
+}
+
+/**
+ * @brief insert_client_cb - insert a client on the right position
+ * @param node - dbtree_node
+ * @param args - client
+ * @return
+ */
+static void *
+insert_client_cb(dbtree_node *node, void *args)
 {
 	pthread_rwlock_wrlock(&(node->rwlock));
 
@@ -631,13 +656,19 @@ void *
 dbtree_insert_client(dbtree *db, char *topic, void *ctxt, uint32_t pipe_id)
 {
 	dbtree_client *client = dbtree_client_new(0, ctxt, pipe_id);
-	return search_insert_node(db, topic, client, insert_dbtree_client);
+	return search_insert_node(db, topic, client, insert_client_cb);
+}
+
+void *
+dbtree_find_client(dbtree *db, char *topic, uint32_t pipe_id)
+{
+	return search_insert_node(db, topic, &pipe_id, find_client_cb);
 }
 
 // search session vector and delete
 // insert client vector
 static void *
-delete_and_insert(dbtree_node *node, void *args)
+restore_session_cb(dbtree_node *node, void *args)
 {
 	pthread_rwlock_wrlock(&(node->rwlock));
 
@@ -698,7 +729,7 @@ dbtree_restore_session(
 	}
 
 	dbtree_client *client = dbtree_client_new(session_id, NULL, pipe_id);
-	return search_insert_node(db, topic, client, delete_and_insert);
+	return search_insert_node(db, topic, client, restore_session_cb);
 }
 
 static cvector(dbtree_session_msg *)
