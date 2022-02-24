@@ -1,5 +1,7 @@
 # ifndef BINARY_SEARCH_H
 # define BINARY_SEARCH_H
+
+#include "cvector.h"
 /**
  * @brief binary_search - A iterative binary search function.
  * @param vec - normally vec is an dynamic array
