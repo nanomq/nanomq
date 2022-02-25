@@ -6,7 +6,6 @@
 // found online at https://opensource.org/licenses/MIT.
 //
 
-#include <assert.h>
 #include <limits.h>
 #include <stdatomic.h>
 #include <stdbool.h>
@@ -100,7 +99,10 @@ topic_count(char *topic)
 static char **
 topic_parse(char *topic)
 {
-	assert(topic != NULL);
+	if (topic == NULL) {
+		log_err("topic is NULL");
+		return NULL;
+	}
 
 	int   row   = 0;
 	int   len   = 2;
@@ -171,7 +173,10 @@ dbtree_print(dbtree *db)
 void
 dbtree_print(dbtree *db)
 {
-	assert(db);
+	if (db == NULL) {
+		return;
+	}
+
 	pthread_rwlock_wrlock(&(db->rwlock));
 
 	dbtree_node *node = db->root;
@@ -477,7 +482,10 @@ is_plus(char *topic_data)
 static dbtree_node *
 dbtree_node_insert(dbtree_node *node, char **topic_queue)
 {
-	assert(node && topic_queue);
+	if (node == NULL || topic_queue == NULL) {
+		log_err("node or topic_queue is NULL");
+		return NULL;
+	}
 
 	while (*topic_queue) {
 		dbtree_node *new_node = NULL;
@@ -558,7 +566,10 @@ static void *
 search_insert_node(dbtree *db, char *topic, void *args,
     void *(*inserter)(dbtree_node *node, void *args))
 {
-	assert(db->root && topic);
+	if (db == NULL || topic == NULL) {
+		log_err("db or topic is NULL");
+		return NULL;
+	}
 
 	char **topic_queue = topic_parse(topic);
 	char **for_free    = topic_queue;
@@ -947,7 +958,10 @@ iterate_client_v5(dbtree_client ***v)
 void **
 search_client(dbtree *db, char *topic, void *message, size_t *msg_cnt)
 {
-	assert(db && topic);
+	if (db == NULL || topic == NULL) {
+		log_err("db or topic is NULL");
+	}
+
 	char **topic_queue = topic_parse(topic);
 	char **for_free    = topic_queue;
 	void **ret         = NULL;
@@ -1274,7 +1288,10 @@ void *
 search_and_delete(dbtree *db, char *topic, uint32_t session_id,
     uint32_t pipe_id, dbtree_delete_flag flag)
 {
-	assert(db->root && topic);
+	if (db == NULL || topic == NULL) {
+		log_err("db or topic is NULL");
+		return NULL;
+	}
 	pthread_rwlock_wrlock(&(db->rwlock));
 
 	char **       topic_queue = topic_parse(topic);
@@ -1557,7 +1574,10 @@ dbtree_retain_msg **
 dbtree_find_retain(dbtree *db, char *topic)
 {
 
-	assert(db && topic);
+	if (db == NULL || topic == NULL) {
+		log_err("db or topic is NULL");
+		return NULL;
+	}
 	char **topic_queue = topic_parse(topic);
 	char **for_free    = topic_queue;
 	pthread_rwlock_rdlock(&(db->rwlock));
@@ -1594,7 +1614,10 @@ dbtree_find_retain(dbtree *db, char *topic)
 static void *
 delete_dbtree_retain(dbtree_node *node)
 {
-	assert(node);
+	if (node == NULL) {
+		log_err("node is NULL");
+		return;
+	}
 	void *retain = NULL;
 	if (node) {
 		retain       = node->retain;
@@ -1607,7 +1630,10 @@ delete_dbtree_retain(dbtree_node *node)
 void *
 dbtree_delete_retain(dbtree *db, char *topic)
 {
-	assert(db->root && topic);
+	if (db == NULL || topic == NULL) {
+		log_err("db or topic is NULL");
+		return NULL;
+	}
 	pthread_rwlock_wrlock(&(db->rwlock));
 
 	char **       topic_queue = topic_parse(topic);
