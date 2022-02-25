@@ -298,7 +298,9 @@ server_cb(void *arg)
 			}
 			cparam = work->cparam;
 			// work->cparam = NULL;
-			if (conn_param_get_will_flag(work->cparam) == 0) {
+			if (conn_param_get_will_flag(work->cparam) == 0 ||
+			    !conn_param_get_will_topic(work->cparam) ||
+			    !conn_param_get_will_msg(work->cparam)) {
 				// no will msg
 				conn_param_free(cparam);
 			} else {
