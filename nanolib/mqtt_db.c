@@ -13,12 +13,12 @@
 #include <string.h>
 #include <time.h>
 
+#include "include/binary_search.h"
 #include "include/cvector.h"
 #include "include/dbg.h"
 #include "include/hash_table.h"
 #include "include/mqtt_db.h"
 #include "include/zmalloc.h"
-#include "include/binary_search.h"
 
 #define ROUND_ROBIN
 // #define RANDOM
@@ -926,12 +926,15 @@ iterate_client_v5(dbtree_client ***v)
 					cvector_push_back(ctxts, dctxt);
 
 				} else {
-					uint32_t *sub_id_p =
-					    ctxts[index]->sub_id_p;
-
 					dbtree_ctxt *c = v[i][j]->ctxt;
-					cvector_push_back(
-					    sub_id_p, c->sub_id_i);
+					if (c->sub_id_i) {
+						uint32_t *sub_id_p =
+						    ctxts[index]->sub_id_p;
+						cvector_push_back(
+						    sub_id_p, c->sub_id_i);
+						ctxts[index]->sub_id_p =
+						    sub_id_p;
+					}
 				}
 			}
 		}
@@ -1741,7 +1744,6 @@ dbtree_shared_iterate_client(dbtree_client ***v)
 
 	return ctxts;
 }
-
 
 dbtree_ctxt *
 dbtree_new_ctxt(void *ctxt, uint32_t sub_id)
