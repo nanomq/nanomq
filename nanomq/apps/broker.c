@@ -577,11 +577,12 @@ server_cb(void *arg)
 				    (mqtt_string *) conn_param_get_will_topic(
 				        work->cparam));
 				// Set V4/V5 flag for publish msg
-				if (conn_param_get_protover(work->cparam) == 5) {
-					nng_msg_set_cmd_type(msg, CMD_PUBLISH_V5);
-				} else {
-					nng_msg_set_cmd_type(msg, CMD_PUBLISH);
-				}
+				// if (conn_param_get_protover(work->cparam) == 5) {
+				// 	nng_msg_set_cmd_type(msg, CMD_PUBLISH_V5);
+				// } else {
+				// 	nng_msg_set_cmd_type(msg, CMD_PUBLISH);
+				// }
+				nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 				work->msg = msg;
 				handle_pub(work, work->pipe_ct);
 				work->state = WAIT;
