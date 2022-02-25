@@ -434,15 +434,14 @@ server_cb(void *arg)
 			for (int i=0; i<cvector_size(msg_infos); ++i) {
 				msg_info = &msg_infos[i];
 				nng_msg_clone(smsg);
+				smsg = NANO_NNI_LMQ_PACKED_MSG_QOS(smsg, msg_info->qos);
 				work->msg = smsg;
 
-				nng_aio_set_prov_extra(work->aio, 0, (void *) msg_info);
 				nng_aio_set_msg(work->aio, work->msg);
 				work->pid.id = msg_info->pipe;
 				nng_msg_set_pipe(work->msg, work->pid);
 
 				nng_ctx_send(work->ctx, work->aio);
-				nng_aio_set_prov_extra(work->aio, 0, NULL);
 			}
 			if (cvector_size(msg_infos) > 0) {
 				work->state = SEND;
@@ -552,15 +551,14 @@ server_cb(void *arg)
 				msg_info = &work->pipe_ct->msg_infos
 				         [work->pipe_ct->current_index];
 				nng_msg_clone(smsg);
+				smsg = NANO_NNI_LMQ_PACKED_MSG_QOS(smsg, msg_info->qos);
 				work->msg = smsg;
 
-				nng_aio_set_prov_extra(work->aio, 0, msg_info);
 				nng_aio_set_msg(work->aio, work->msg);
 				work->pid.id = msg_info->pipe;
 				nng_msg_set_pipe(work->msg, work->pid);
 				work->msg = NULL;
 				nng_ctx_send(work->ctx, work->aio);
-				nng_aio_set_prov_extra(work->aio, 0, NULL);
 			}
 			free_pub_packet(work->pub_packet);
 			free_msg_infos(work->pipe_ct->msg_infos);
