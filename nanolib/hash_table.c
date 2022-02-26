@@ -8,6 +8,7 @@
 //
 #include "include/hash_table.h"
 #include "include/binary_search.h"
+#include "include/mqtt_db.h"
 #include "include/dbg.h"
 #include "include/khash.h"
 #include "include/zmalloc.h"
@@ -154,6 +155,49 @@ dbhash_destroy_pipe_table(void)
 {
 	kh_destroy(pipe_table, ph);
 	ph = NULL;
+	return;
+}
+
+dbhash_ptpair_t *dbhash_ptpair_alloc(uint32_t p, char *t)
+{
+	dbhash_ptpair_t *pt = (dbhash_ptpair_t*) zmalloc(sizeof(dbhash_ptpair_t));
+	pt->pipe = p;
+	pt->topic = zstrdup(t);
+	return pt;
+}
+
+void dbhash_ptpair_free(dbhash_ptpair_t *pt)
+{
+	if (pt) {
+		if (pt->topic) {
+			zfree(pt->topic);
+			pt->topic = NULL;
+		}
+		zfree(pt);
+		pt = NULL;
+	}
+	return;
+}
+
+
+dbhash_ptpair_t **
+dbhash_get_ptpair_all(void)
+{
+	pthread_rwlock_wrlock(&pipe_lock);
+	size_t size = kh_size(ph);
+
+	dbhash_ptpair_t **res = NULL;
+	cvector_set_size(res, size);
+
+	for (khint_t k = kh_begin(ph); k != kh_end(ph); ++k) {
+		if (!kh_exist(ph, k)) continue;
+		topic_queue *tq = kh_val(ph, k);
+		dbhash_ptpair_t *pt = dbhash_ptpair_alloc(kh_key(ph, k), tq->topic);
+		cvector_push_back(res, pt); 
+	}
+
+	pthread_rwlock_unlock(&pipe_lock);
+	return res;
 }
 
 topic_queue **
