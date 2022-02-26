@@ -110,64 +110,66 @@ test_alias_table(void)
 static void
 test_check_pipe_table()
 {
-	dbhash_insert_topic(table1[0].key, table1[0].topic);
-	dbhash_insert_topic(table1[1].key, table1[1].topic);
-	dbhash_insert_topic(table1[2].key, table1[2].topic);
 
-	dbhash_insert_topic(table2[0].key, table2[0].topic);
-	dbhash_insert_topic(table2[1].key, table2[1].topic);
-	dbhash_insert_topic(table2[2].key, table2[2].topic);
+	for (int i = 0; i < TABLE_SZ; i++) {
+		dbhash_insert_topic(table1[i].key, table1[i].topic);
+		dbhash_insert_topic(table2[i].key, table2[i].topic);
+	}
 
-	check(dbhash_check_topic(table1[0].key, table1[0].topic),
-	    "table1[0] was not find.");
-	check(dbhash_check_topic(table1[1].key, table1[1].topic),
-	    "table1[1] was not find.");
-	check(dbhash_check_topic(table1[2].key, table1[2].topic),
-	    "table1[2] was not find.");
+	dbhash_ptpair_t **pt = dbhash_get_ptpair_all();
 
-	check(dbhash_check_topic(table2[0].key, table2[0].topic),
-	    "table2[0] was not find.");
-	check(dbhash_check_topic(table2[1].key, table2[1].topic),
-	    "table2[1] was not find.");
-	check(dbhash_check_topic(table2[2].key, table2[2].topic),
-	    "table2[2] was not find.");
+	size_t s = cvector_size(pt);
+	for (size_t i = 0; i < s; i++) {
+		for (size_t j = 0; j < TABLE_SZ; j++) {
+			if (pt[i]->pipe == table1[j].key) {
+				check(!strcmp(pt[i]->topic, table1[j].topic),
+				    "search topic %s failed!", pt[i]->topic);
+			}
+		}
 
-	topic_queue *tq1 = dbhash_get_topic_queue(table1[0].key);
-	topic_queue *tq2 = dbhash_get_topic_queue(table1[1].key);
-	topic_queue *tq3 = dbhash_get_topic_queue(table1[2].key);
-	check(tq1, "Topic queue should not be null");
-	check(tq2, "Topic queue should not be null");
-	check(tq3, "Topic queue should not be null");
-	assert_str(tq1->topic, table1[0].topic);
-	assert_str(tq1->next->topic, table2[0].topic);
-	assert_str(tq2->topic, table1[1].topic);
-	assert_str(tq2->next->topic, table2[1].topic);
-	assert_str(tq3->topic, table1[2].topic);
-	assert_str(tq3->next->topic, table2[2].topic);
+		dbhash_ptpair_free(pt[i]);
+	}
+	cvector_free(pt);
 
-	dbhash_del_topic(table1[0].key, table1[0].topic);
-	dbhash_del_topic(table1[0].key, table2[0].topic);
-	check(false == dbhash_check_topic(table1[0].key, table1[0].topic),
-	    "Topic: table1[0] delete failed!");
+	for (size_t i = 0; i < TABLE_SZ; i++) {
+		check(dbhash_check_topic(table1[i].key, table1[i].topic),
+		    "table1[%zu] was not find.", i);
+		check(dbhash_check_topic(table2[i].key, table2[i].topic),
+		    "table2[%zu] was not find.", i);
+		check(dbhash_check_id(table1[i].key),
+		    "Id [%zu] should be found!", i);
+	}
 
-	check(false == dbhash_check_topic(table1[0].key, table1[2].topic),
-	    "Topic: table2[0] delete failed!");
+	topic_queue *tq = NULL;
+	for (size_t i = 0; i < TABLE_SZ; i++) {
+		tq = dbhash_get_topic_queue(table1[i].key);
+		check(tq, "Topic queue [%zu] should not be null", i);
+		assert_str(tq->topic, table1[i].topic);
+		assert_str(tq->next->topic, table2[i].topic);
+	}
 
-	check(dbhash_check_id(table1[1].key), "Id should be found!");
-	dbhash_del_topic_queue(table1[1].key);
-	check(false == dbhash_check_id(table1[1].key),
-	    "Id should not be found!");
+	for (size_t i = 0; i < TABLE_SZ / 2; i++) {
+		dbhash_del_topic(table1[i].key, table1[i].topic);
+		dbhash_del_topic(table1[i].key, table2[i].topic);
+		check(false ==
+		        dbhash_check_topic(table1[i].key, table1[i].topic),
+		    "Topic: table1[%zu] delete failed!", i);
+		check(false ==
+		        dbhash_check_topic(table1[i].key, table2[i].topic),
+		    "Topic: table2[%zu] delete failed!", i);
+	}
 
-	check(dbhash_check_topic(table1[2].key, table1[2].topic),
-	    "Topic: table1[2] should not be destoried!");
-	check(dbhash_check_topic(table2[2].key, table2[2].topic),
-	    "Topic: table2[2] should not be destoried!");
-	dbhash_del_topic(table1[2].key, table1[2].topic);
-	dbhash_del_topic(table2[2].key, table2[2].topic);
-	check(false == dbhash_check_topic(table1[2].key, table1[2].topic),
-	    "Topic: table1[2] delete failed!");
-	check(false == dbhash_check_topic(table2[2].key, table2[2].topic),
-	    "Topic: table2[2] delete failed!");
+	for (size_t i = TABLE_SZ / 2; i < TABLE_SZ; i++) {
+		dbhash_del_topic_queue(table1[i].key);
+		check(false == dbhash_check_id(table1[i].key),
+		    "Id [%zu] should not be found!", i);
+		check(false ==
+		        dbhash_check_topic(table1[i].key, table1[i].topic),
+		    "Topic: table1[%zu] delete failed!", i);
+		check(false ==
+		        dbhash_check_topic(table2[i].key, table2[i].topic),
+		    "Topic: table2[%zu] delete failed!", i);
+	}
 
 error:
 	return;
