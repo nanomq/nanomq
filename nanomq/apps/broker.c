@@ -434,35 +434,28 @@ server_cb(void *arg)
 			for (int i=0; i<cvector_size(msg_infos); ++i) {
 				msg_info = &msg_infos[i];
 				nng_msg_clone(smsg);
-				smsg = NANO_NNI_LMQ_PACKED_MSG_QOS(smsg, msg_info->qos);
-				work->msg = smsg;
-
-				nng_aio_set_msg(work->aio, work->msg);
 				work->pid.id = msg_info->pipe;
-				nng_msg_set_pipe(work->msg, work->pid);
-
+				nng_msg_set_pipe(smsg, work->pid);
+				work->msg = NANO_NNI_LMQ_PACKED_MSG_QOS(smsg, msg_info->qos);
+				nng_aio_set_msg(work->aio, work->msg);
 				nng_ctx_send(work->ctx, work->aio);
 			}
+			nng_msg_free(smsg);
+			smsg = NULL;
 			if (cvector_size(msg_infos) > 0) {
 				work->state = SEND;
-				work->msg = NULL;
-				nng_msg_free(smsg);
+				work->msg   = NULL;
 				free_pub_packet(work->pub_packet);
 				cvector_free(msg_infos);
 				work->pipe_ct->msg_infos = NULL;
 				nng_aio_finish(work->aio, 0);
 				break;
 			}
-			if (smsg) {
-				nng_msg_free(smsg);
-				smsg = NULL;
-			}
 			work->msg = NULL;
 			free_pub_packet(work->pub_packet);
 			cvector_free(work->pipe_ct->msg_infos);
 			work->pipe_ct->msg_infos = NULL;
 			init_pipe_content(work->pipe_ct);
-
 			if (work->state != SEND) {
 				if (work->msg != NULL)
 					nng_msg_free(work->msg);
@@ -543,30 +536,26 @@ server_cb(void *arg)
 			msg_infos = work->pipe_ct->msg_infos;
 
 			debug_msg("total pipes: %d", cvector_size(msg_infos));
-			if (cvector_size(msg_infos) > 0)
+			//TODO encode abstract msg only
+			if (cvector_size(msg_infos))
 				encode_pub_message(smsg, work, PUBLISH, msg_info);
 			for (int i=0; i<cvector_size(msg_infos); ++i) {
-				//TODO encode abstract msg only
-				encode_pub_message(smsg, work, CMD_PUBLISH, msg_info);
-				msg_info = &work->pipe_ct->msg_infos
-				         [work->pipe_ct->current_index];
+				msg_info = &msg_infos[i];
 				nng_msg_clone(smsg);
-				smsg = NANO_NNI_LMQ_PACKED_MSG_QOS(smsg, msg_info->qos);
-				work->msg = smsg;
-
-				nng_aio_set_msg(work->aio, work->msg);
 				work->pid.id = msg_info->pipe;
-				nng_msg_set_pipe(work->msg, work->pid);
-				work->msg = NULL;
+				nng_msg_set_pipe(smsg, work->pid);
+				work->msg = NANO_NNI_LMQ_PACKED_MSG_QOS(smsg, msg_info->qos);
+				nng_aio_set_msg(work->aio, work->msg);
 				nng_ctx_send(work->ctx, work->aio);
 			}
+			nng_msg_free(smsg);
+			smsg = NULL;
 			free_pub_packet(work->pub_packet);
+			cvector_free(work->pipe_ct->msg_infos);
 			free_msg_infos(work->pipe_ct->msg_infos);
+			work->pipe_ct->msg_infos = NULL;
+			work->msg = NULL;
 			init_pipe_content(work->pipe_ct);
-			if (smsg) {
-				nng_msg_free(smsg);
-				smsg = NULL;
-			}
 			// processing will msg
 			if (conn_param_get_will_flag(work->cparam)) {
 				msg = nano_msg_composer(&msg,
