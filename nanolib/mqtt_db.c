@@ -429,8 +429,8 @@ find_client_cb(dbtree_node *node, void *args)
 
 	if (true ==
 	    binary_search(
-	        (void **) node->clients, 0, &index, &pipe_id, client_cmp)) {
-		ctxt = node->clients[index];
+	        (void **) node->clients, 0, &index, pipe_id, client_cmp)) {
+		ctxt = node->clients[index]->ctxt;
 	}
 
 	pthread_rwlock_unlock(&(node->rwlock));
@@ -1647,7 +1647,7 @@ delete_dbtree_retain(dbtree_node *node)
 {
 	if (node == NULL) {
 		log_err("node is NULL");
-		return;
+		return NULL;
 	}
 	void *retain = NULL;
 	if (node) {
