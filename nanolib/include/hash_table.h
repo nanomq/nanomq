@@ -28,6 +28,14 @@ struct dbhash_atpair_s {
 	char *   topic;
 };
 
+typedef struct dbhash_ptpair_s dbhash_ptpair_t;
+
+// ptpair is pipe topic pair
+struct dbhash_ptpair_s {
+	uint32_t pipe;
+	char * 	 topic;
+};
+
 /**
  * @brief alias_cmp - A callback to compare different alias
  * @param x - normally x is pointer of dbhash_atpair_t
@@ -73,6 +81,12 @@ bool dbhash_check_id(uint32_t id);
 void dbhash_print_topic_queue(uint32_t id);
 
 topic_queue **dbhash_get_topic_queue_all(size_t *sz);
+
+dbhash_ptpair_t *dbhash_ptpair_alloc(uint32_t p, char *t);
+
+void dbhash_ptpair_free(dbhash_ptpair_t *pt);
+
+dbhash_ptpair_t **dbhash_get_ptpair_all(void);
 
 void dbhash_init_cached_table(void);
 void dbhash_destroy_cached_table(void);
