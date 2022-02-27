@@ -94,12 +94,6 @@ bridge_connect_cb(void *connect_arg, nng_msg *msg)
 	}
 }
 
-static nng_mqtt_cb bridge_user_cb = {
-	.name            = "bridge_user_cb",
-	.on_connected    = bridge_connect_cb,
-	.on_disconnected = disconnect_cb,
-};
-
 static bridge_param bridge_arg;
 
 int
@@ -139,11 +133,10 @@ bridge_client(nng_socket *sock, conf_bridge *config)
 	bridge_arg.config = config;
 	bridge_arg.sock   = sock;
 
-	bridge_user_cb.connect_arg = &bridge_arg;
-	bridge_user_cb.disconn_arg = sock;
-
 	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
-	nng_dialer_set_cb(dialer, &bridge_user_cb);
+	nng_mqtt_set_connect_cb(*sock, bridge_connect_cb, &sock);
+	nng_mqtt_set_disconnect_cb(*sock, disconnect_cb, connmsg);
+
 	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
 	return 0;
 }
