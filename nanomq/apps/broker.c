@@ -247,11 +247,12 @@ server_cb(void *arg)
 			smsg = nano_msg_notify_connect(work->cparam, flag);
 
 			// Set V4/V5 flag for publish msg
-			if (conn_param_get_protover(work->cparam) == 5) {
-				nng_msg_set_cmd_type(msg, CMD_PUBLISH_V5);
-			} else {
-				nng_msg_set_cmd_type(msg, CMD_PUBLISH);
-			}
+			// if (conn_param_get_protover(work->cparam) == 5) {
+			// 	nng_msg_set_cmd_type(msg, CMD_PUBLISH_V5);
+			// } else {
+			// 	nng_msg_set_cmd_type(msg, CMD_PUBLISH);
+			// }
+			nng_msg_set_cmd_type(smsg, CMD_PUBLISH);
 			nng_msg_free(work->msg);
 			work->msg = smsg;
 			handle_pub(work, work->pipe_ct);
@@ -261,11 +262,12 @@ server_cb(void *arg)
 
 		} else if (nng_msg_cmd_type(msg) == CMD_DISCONNECT_EV) {
 			// Set V4/V5 flag for publishing offline event msg
-			if (conn_param_get_protover(work->cparam) == 5) {
-				nng_msg_set_cmd_type(msg, CMD_PUBLISH_V5);
-			} else {
-				nng_msg_set_cmd_type(msg, CMD_PUBLISH);
-			}
+			// if (conn_param_get_protover(work->cparam) == 5) {
+			// 	nng_msg_set_cmd_type(msg, CMD_PUBLISH_V5);
+			// } else {
+			// 	nng_msg_set_cmd_type(msg, CMD_PUBLISH);
+			// }
+			nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 			handle_pub(work, work->pipe_ct);
 			// cache session
 			client_ctx *cli_ctx = NULL;
@@ -550,12 +552,15 @@ server_cb(void *arg)
 			}
 			nng_msg_free(smsg);
 			smsg = NULL;
-			free_pub_packet(work->pub_packet);
-			cvector_free(work->pipe_ct->msg_infos);
-			free_msg_infos(work->pipe_ct->msg_infos);
-			work->pipe_ct->msg_infos = NULL;
+
+			if (cvector_size(msg_infos) > 0) {
+				free_pub_packet(work->pub_packet);
+				cvector_free(msg_infos);
+				work->pipe_ct->msg_infos = NULL;
+			}
 			work->msg = NULL;
 			init_pipe_content(work->pipe_ct);
+
 			// processing will msg
 			if (conn_param_get_will_flag(work->cparam)) {
 				msg = nano_msg_composer(&msg,
