@@ -1,15 +1,18 @@
 #ifndef NANOMQ_BROKER_H
 #define NANOMQ_BROKER_H
+#include <bits/stdint-uintn.h>
 #define MQTT_VER 5
 
 #include <conf.h>
 #include <nanolib.h>
 #include <nng/nng.h>
+#include <stdatomic.h> 
 #include <nng/protocol/mqtt/mqtt.h>
 #include <nng/supplemental/util/platform.h>
 
 #define PROTO_MQTT_BROKER 0x00
 #define PROTO_MQTT_BRIDGE 0x01
+#define STATISTICS
 
 typedef struct work nano_work;
 struct work {
@@ -38,6 +41,9 @@ struct work {
 
 struct client_ctx {
 	nng_pipe                 pid;
+#ifdef STATISTICS
+	atomic_uint 		 recv_cnt; 		
+#endif
 	conn_param *             cparam;
 	struct packet_subscribe *sub_pkt;
 	uint8_t                  proto_ver;
@@ -50,6 +56,10 @@ int broker_stop(int argc, char **argv);
 int broker_restart(int argc, char **argv);
 int broker_dflt(int argc, char **argv);
 
+#ifdef STATISTICS
+uint64_t nanomq_get_message_in(void);
+uint64_t nanomq_get_message_out(void);
+#endif
 dbtree *get_broker_db(void);
 
 #endif
