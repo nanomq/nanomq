@@ -227,15 +227,8 @@ server_cb(void *arg)
 				// avoid being free
 				conn_param_clone(work->cparam);
 			}
-			// restore clean session
-			char *clientid =
-			    (char *) conn_param_get_clientid(work->cparam);
-			if (clientid != NULL) {
-				restore_session(clientid, work->cparam,
-				    work->pid.id, work->db);
-				// set session present in connack
-				nmq_connack_session(work->msg, true);
-			}
+			// set session present in connack
+			nmq_connack_session(work->msg, true);
 
 			// clone for sending connect event notification
 			nng_msg_clone(work->msg);
@@ -269,16 +262,10 @@ server_cb(void *arg)
 			// }
 			nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 			handle_pub(work, work->pipe_ct);
-			// cache session
+
 			client_ctx *cli_ctx = NULL;
 			dbtree_ctxt *db_ctx = NULL;
-			char *      clientid =
-			    (char *) conn_param_get_clientid(work->cparam);
-			if (clientid != NULL &&
-			    conn_param_get_clean_start(work->cparam) == 0) {
-				cache_session(clientid, work->cparam,
-				    work->pid.id, work->db);
-			}
+
 			// free client ctx
 			if (dbhash_check_id(work->pid.id)) {
 				topic_queue *tq = dbhash_get_topic_queue(work->pid.id);

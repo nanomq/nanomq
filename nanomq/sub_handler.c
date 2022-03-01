@@ -567,12 +567,10 @@ destroy_sub_ctx(void *ctxt)
 }
 
 int
-cache_session(char *clientid, conn_param *cparam, uint32_t pid, void *db)
+cache_session(uint32_t key_clientid, conn_param *cparam, uint32_t pid, void *db)
 {
 	debug_msg("cache session");
 	struct topic_queue *tq = NULL;
-
-	uint32_t key_clientid = DJBHashn(clientid, strlen(clientid));
 
 	if (dbhash_check_id(pid)) {
 		tq = dbhash_get_topic_queue(pid);
@@ -590,13 +588,12 @@ cache_session(char *clientid, conn_param *cparam, uint32_t pid, void *db)
 }
 
 int
-restore_session(char *clientid, conn_param *cparam, uint32_t pid, void *db)
+restore_session(uint32_t key_clientid, conn_param *cparam, uint32_t pid, void *db)
 {
 	debug_msg("restore session");
 	dbtree_ctxt * db_ctx;
 	topic_queue *tq = NULL;
 
-	uint32_t key_clientid = DJBHashn(clientid, strlen(clientid));
 	// TODO hash collision?
 	// TODO kick prev connection(p or cs->pipeid)
 
