@@ -24,6 +24,9 @@
 #define ENABLE_RETAIN 1
 #define SUPPORT_MQTT5_0 0
 
+static atomic_ullong g_message_in = 0;
+static atomic_ullong g_message_out = 0;
+
 static char *bytes_to_str(const unsigned char *src, char *dest, int src_len);
 static void  print_hex(
      const char *prefix, const unsigned char *src, int src_len);
@@ -70,6 +73,10 @@ foreach_client(
 		if (!ctx)
 			continue;
 
+#ifdef STATISTICS
+		ctx->recv_cnt++;
+		g_message_out++;
+#endif
 		pids = ctx->pid.id;
 		tn   = ctx->sub_pkt->node;
 
@@ -121,6 +128,10 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct)
 	void **cli_ctx_list    = NULL;
 	void **shared_cli_list = NULL;
 	size_t msg_cnt         = 0;
+
+#ifdef STATISTICS
+	g_message_in++;
+#endif
 
 	work->pub_packet = (struct pub_packet_struct *) nng_alloc(
 	    sizeof(struct pub_packet_struct));
@@ -1205,4 +1216,15 @@ init_pub_packet_property(struct pub_packet_struct *pub_packet)
 	    .user_property.len_val = 0;
 	pub_packet->variable_header.publish.properties.content.publish
 	    .subscription_identifier.has_value = false;
+}
+
+
+uint64_t nanomq_get_message_in()
+{
+	return g_message_in;
+}
+
+uint64_t nanomq_get_message_out()
+{
+	return g_message_out;
 }
