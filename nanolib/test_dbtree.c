@@ -174,37 +174,37 @@ static void
 test_find_client()
 {
 	puts("================begin find client===============");
-	dbtree_ctxt *ret_ctxt0 =
-	    (dbtree_ctxt *) dbtree_find_client(db, topic0, client0.pipe_id);
-	dbtree_ctxt *ret_ctxt1 =
-	    (dbtree_ctxt *) dbtree_find_client(db, topic1, client1.pipe_id);
-	dbtree_ctxt *ret_ctxt2 =
-	    (dbtree_ctxt *) dbtree_find_client(db, topic2, client2.pipe_id);
-	dbtree_ctxt *ret_ctxt3 =
-	    (dbtree_ctxt *) dbtree_find_client(db, topic3, client3.pipe_id);
-	dbtree_ctxt *ret_ctxt4 =
-	    (dbtree_ctxt *) dbtree_find_client(db, topic4, client4.pipe_id);
-	dbtree_ctxt *ret_ctxt5 =
-	    (dbtree_ctxt *) dbtree_find_client(db, topic5, client5.pipe_id);
-	dbtree_ctxt *ret_ctxt6 =
-	    (dbtree_ctxt *) dbtree_find_client(db, topic6, client6.pipe_id);
-	dbtree_ctxt *ret_ctxt7 =
-	    (dbtree_ctxt *) dbtree_find_client(db, topic7, client7.pipe_id);
-	dbtree_ctxt *ret_ctxt8 =
-	    (dbtree_ctxt *) dbtree_find_client(db, topic8, client8.pipe_id);
-	dbtree_ctxt *ret_ctxt9 =
-	    (dbtree_ctxt *) dbtree_find_client(db, topic9, client9.pipe_id);
+	char *ret_ctxt0 =
+	    (char *) dbtree_find_client(db, topic0, client0.pipe_id);
+	char *ret_ctxt1 =
+	    (char *) dbtree_find_client(db, topic1, client1.pipe_id);
+	char *ret_ctxt2 =
+	    (char *) dbtree_find_client(db, topic2, client2.pipe_id);
+	char *ret_ctxt3 =
+	    (char *) dbtree_find_client(db, topic3, client3.pipe_id);
+	char *ret_ctxt4 =
+	    (char *) dbtree_find_client(db, topic4, client4.pipe_id);
+	char *ret_ctxt5 =
+	    (char *) dbtree_find_client(db, topic5, client5.pipe_id);
+	char *ret_ctxt6 =
+	    (char *) dbtree_find_client(db, topic6, client6.pipe_id);
+	char *ret_ctxt7 =
+	    (char *) dbtree_find_client(db, topic7, client7.pipe_id);
+	char *ret_ctxt8 =
+	    (char *) dbtree_find_client(db, topic8, client8.pipe_id);
+	char *ret_ctxt9 =
+	    (char *) dbtree_find_client(db, topic9, client9.pipe_id);
 
-	check(db_ctxt0.ctxt == ret_ctxt0->ctxt, "Error ctxt message0");
-	check(db_ctxt1.ctxt == ret_ctxt1->ctxt, "Error ctxt message1");
-	check(db_ctxt2.ctxt == ret_ctxt2->ctxt, "Error ctxt message2");
-	check(db_ctxt3.ctxt == ret_ctxt3->ctxt, "Error ctxt message3");
-	check(db_ctxt4.ctxt == ret_ctxt4->ctxt, "Error ctxt message4");
-	check(db_ctxt5.ctxt == ret_ctxt5->ctxt, "Error ctxt message5");
-	check(db_ctxt6.ctxt == ret_ctxt6->ctxt, "Error ctxt message6");
-	check(db_ctxt7.ctxt == ret_ctxt7->ctxt, "Error ctxt message7");
-	check(db_ctxt8.ctxt == ret_ctxt8->ctxt, "Error ctxt message8");
-	check(db_ctxt9.ctxt == ret_ctxt9->ctxt, "Error ctxt message9");
+	check(db_ctxt0.ctxt == ret_ctxt0, "Error ctxt message0");
+	check(db_ctxt1.ctxt == ret_ctxt1, "Error ctxt message1");
+	check(db_ctxt2.ctxt == ret_ctxt2, "Error ctxt message2");
+	check(db_ctxt3.ctxt == ret_ctxt3, "Error ctxt message3");
+	check(db_ctxt4.ctxt == ret_ctxt4, "Error ctxt message4");
+	check(db_ctxt5.ctxt == ret_ctxt5, "Error ctxt message5");
+	check(db_ctxt6.ctxt == ret_ctxt6, "Error ctxt message6");
+	check(db_ctxt7.ctxt == ret_ctxt7, "Error ctxt message7");
+	check(db_ctxt8.ctxt == ret_ctxt8, "Error ctxt message8");
+	check(db_ctxt9.ctxt == ret_ctxt9, "Error ctxt message9");
 	puts("================finish find client===============");
 
 	return;
