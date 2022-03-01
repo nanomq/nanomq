@@ -415,7 +415,7 @@ dbtree_destory(dbtree *db)
 /**
  * @brief find_client_cb - find client
  * @param node - dbtree_node
- * @param args - client
+ * @param args - user ctxt
  * @return
  */
 static void *
@@ -430,7 +430,7 @@ find_client_cb(dbtree_node *node, void *args)
 	if (true ==
 	    binary_search(
 	        (void **) node->clients, 0, &index, pipe_id, client_cmp)) {
-		ctxt = node->clients[index]->ctxt;
+		ctxt = node->clients[index]->ctxt->ctxt;
 	}
 
 	pthread_rwlock_unlock(&(node->rwlock));
