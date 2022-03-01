@@ -279,6 +279,7 @@ sub_ctx_handle(nano_work *work)
 	if (db_old_ctx) {
 		old_ctx              = db_old_ctx->ctxt;
 		db_old_ctx->sub_id_i = work->sub_pkt->sub_id.varint;
+
 		dbtree_insert_client(
 		    work->db, tq->topic, db_old_ctx, cli_ctx->pid.id);
 	}
@@ -288,6 +289,9 @@ sub_ctx_handle(nano_work *work)
 		old_ctx->sub_pkt       = nng_alloc(sizeof(packet_subscribe));
 		old_ctx->sub_pkt->node = NULL;
 		old_ctx->cparam        = NULL;
+#ifdef STATISTICS
+		old_ctx->recv_cnt      = 0;
+#endif
 		init_sub_property(old_ctx->sub_pkt);
 	}
 	/* Swap pid, capram, proto_ver in ctxs */
