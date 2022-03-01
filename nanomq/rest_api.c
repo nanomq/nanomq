@@ -249,31 +249,49 @@ get_subscriptions(cJSON *data, http_msg *msg, uint64_t sequence)
 	http_msg res = { 0 };
 	res.status   = NNG_HTTP_STATUS_OK;
 
-	cJSON *res_obj;
-	cJSON *topics = cJSON_CreateArray();
+	cJSON *res_obj = NULL;
+	cJSON *data_info = NULL;
+	data_info       = cJSON_CreateArray();
 	res_obj       = cJSON_CreateObject();
 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
 	cJSON_AddNumberToObject(res_obj, "seq", (uint64_t) sequence);
 	cJSON_AddNumberToObject(res_obj, "rep", msg->request);
-	cJSON_AddItemToObject(res_obj, "subscriptions", topics);
+	cJSON_AddItemToObject(res_obj, "data", data_info);
 
-	size_t        sz = 0;
-	topic_queue **tq = dbhash_get_topic_queue_all(&sz);
+	dbtree *db = get_broker_db();
+	dbhash_ptpair_t **pt = dbhash_get_ptpair_all();
+	size_t size = cvector_size(pt);
+	for (size_t i = 0; i < size; i++) {
+		client_ctx *ctxt = (client_ctx*) dbtree_find_client(db, pt[i]->topic, pt[i]->pipe);
 
-	for (size_t i = 0; i < sz; i++) {
-		topic_queue *queue = tq[i];
-		debug_msg("topic %s", queue->topic);
-		cJSON *topic = cJSON_CreateObject();
-		cJSON_AddStringToObject(topic, "topic", queue->topic);
-		cJSON_AddItemToArray(topics, topic);
+		cJSON *data_info_elem;
+		data_info_elem = cJSON_CreateObject();
+		cJSON_AddItemToArray(data_info, data_info_elem);
+		const uint8_t *cid = conn_param_get_clientid(ctxt->cparam);
+		cJSON_AddStringToObject(data_info_elem, "Client ID", cid);
+		cJSON *topics = cJSON_CreateArray();
+		cJSON_AddItemToObject(data_info_elem, "Subscriptions", topics);
+
+		topic_node *tn = ctxt->sub_pkt->node; 
+		while (tn) {
+			printf("sub topic: %s\n", tn->it->topic_filter.body);
+			cJSON *topic_with_opt = cJSON_CreateObject();
+			cJSON_AddStringToObject(topic_with_opt, "Topic", tn->it->topic_filter.body);
+			cJSON_AddNumberToObject(topic_with_opt, "Qos", tn->it->qos);
+			cJSON_AddItemToArray(topics, topic_with_opt);
+			tn = tn->next;
+		}
+
+
+		dbhash_ptpair_free(pt[i]);
 	}
+	cvector_free(pt);
 
 	char *dest = cJSON_PrintUnformatted(res_obj);
 
 	put_http_msg(
 	    &res, msg->content_type, NULL, NULL, NULL, dest, strlen(dest));
 
-	free(tq);
 	cJSON_free(dest);
 	cJSON_Delete(res_obj);
 	return res;
