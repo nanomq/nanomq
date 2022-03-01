@@ -537,7 +537,7 @@ server_cb(void *arg)
 			cvector(mqtt_msg_info) msg_infos;
 			msg_infos = work->pipe_ct->msg_infos;
 
-			debug_msg("total pipes: %d", cvector_size(msg_infos));
+			debug_msg("total pipes: %ld", cvector_size(msg_infos));
 			//TODO encode abstract msg only
 			if (cvector_size(msg_infos))
 				encode_pub_message(smsg, work, PUBLISH, msg_info);
@@ -699,7 +699,7 @@ init_listener_tls(nng_listener l, conf_tls *tls)
 		}
 	}
 
-	rv = nng_listener_setopt_ptr(l, NNG_OPT_TLS_CONFIG, cfg);
+	rv = nng_listener_set_ptr(l, NNG_OPT_TLS_CONFIG, cfg);
 
 out:
 	nng_tls_config_free(cfg);

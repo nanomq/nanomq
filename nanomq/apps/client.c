@@ -41,7 +41,7 @@ static void fatal(const char *msg, ...);
 
 struct topic {
 	struct topic *next;
-	char         *val;
+	char *        val;
 };
 enum client_type { PUB, SUB, CONN };
 
@@ -52,32 +52,32 @@ struct client_opts {
 	atomic_ulong     msg_count;
 	size_t           interval;
 	uint8_t          version;
-	char            *url;
+	char *           url;
 	size_t           clients;
-	struct topic    *topic;
+	struct topic *   topic;
 	size_t           topic_count;
 	uint8_t          qos;
 	bool             retain;
-	char            *user;
-	char            *passwd;
-	char            *client_id;
+	char *           user;
+	char *           passwd;
+	char *           client_id;
 	uint16_t         keepalive;
 	bool             clean_session;
-	uint8_t         *msg;
+	uint8_t *        msg;
 	size_t           msg_len;
-	uint8_t         *will_msg;
+	uint8_t *        will_msg;
 	size_t           will_msg_len;
 	uint8_t          will_qos;
 	bool             will_retain;
-	char            *will_topic;
+	char *           will_topic;
 	bool             enable_ssl;
-	char            *cacert;
+	char *           cacert;
 	size_t           cacert_len;
-	char            *cert;
+	char *           cert;
 	size_t           cert_len;
-	char            *key;
+	char *           key;
 	size_t           key_len;
-	char            *keypass;
+	char *           keypass;
 };
 
 typedef struct client_opts client_opts;
@@ -183,8 +183,8 @@ static nng_optspec cmd_opts[] = {
 
 struct work {
 	enum { INIT, RECV, RECV_WAIT, SEND_WAIT, SEND } state;
-	nng_aio     *aio;
-	nng_msg     *msg;
+	nng_aio *    aio;
+	nng_msg *    msg;
 	nng_ctx      ctx;
 	client_opts *opts;
 };
@@ -359,7 +359,7 @@ int
 client_parse_opts(int argc, char **argv, client_opts *opts)
 {
 	int    idx = 0;
-	char  *arg;
+	char * arg;
 	int    val;
 	int    rv;
 	size_t filelen = 0;
@@ -578,11 +578,11 @@ set_default_conf(client_opts *opts)
 static void
 loadfile(const char *path, void **datap, size_t *lenp)
 {
-	FILE  *f;
+	FILE * f;
 	size_t total_read      = 0;
 	size_t allocation_size = BUFSIZ;
-	char  *fdata;
-	char  *realloc_result;
+	char * fdata;
+	char * realloc_result;
 
 	if (strcmp(path, "-") == 0) {
 		f = stdin;
@@ -659,7 +659,7 @@ init_dialer_tls(nng_dialer d, const char *cacert, const char *cert,
 		}
 	}
 
-	rv = nng_dialer_setopt_ptr(d, NNG_OPT_TLS_CONFIG, cfg);
+	rv = nng_dialer_set_ptr(d, NNG_OPT_TLS_CONFIG, cfg);
 
 out:
 	nng_tls_config_free(cfg);
@@ -679,7 +679,6 @@ publish_msg(client_opts *opts)
 	nng_mqtt_msg_set_publish_retain(pubmsg, opts->retain);
 	nng_mqtt_msg_set_publish_payload(pubmsg, opts->msg, opts->msg_len);
 	nng_mqtt_msg_set_publish_topic(pubmsg, opts->topic->val);
-
 	return pubmsg;
 }
 
@@ -687,7 +686,7 @@ void
 client_cb(void *arg)
 {
 	struct work *work = arg;
-	nng_msg     *msg  = NULL;
+	nng_msg *    msg  = NULL;
 	int          rv;
 
 	switch (work->state) {
@@ -838,66 +837,53 @@ connect_msg(client_opts *opts)
 }
 
 struct connect_param {
-	nng_socket  *sock;
+	nng_socket * sock;
 	client_opts *opts;
 	size_t       id;
 };
 
 static void
-connect_cb(void *connect_arg, nng_msg *msg)
+connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {
-	struct connect_param *param = connect_arg;
-	uint8_t ret_code = nng_mqtt_msg_get_connack_return_code(msg);
+	printf("%s: connected!\n", __FUNCTION__);
+	struct connect_param *param = arg;
 
-	printf("%s(%d): [%ld]\n",
-	    ret_code == 0 ? "connection established" : "connect failed",
-	    ret_code, param->id);
+	if (param->opts->type == SUB && param->opts->topic_count > 0) {
+		nng_msg *msg;
+		nng_mqtt_msg_alloc(&msg, 0);
+		nng_mqtt_msg_set_packet_type(msg, NNG_MQTT_SUBSCRIBE);
 
-	nng_msg_free(msg);
-	msg = NULL;
+		nng_mqtt_topic_qos *topics_qos =
+		    nng_mqtt_topic_qos_array_create(param->opts->topic_count);
 
-	if (ret_code == 0) {
-		if (param->opts->type == SUB && param->opts->topic_count > 0) {
-			// Connected succeed
-			nng_mqtt_msg_alloc(&msg, 0);
-			nng_mqtt_msg_set_packet_type(msg, NNG_MQTT_SUBSCRIBE);
-
-			nng_mqtt_topic_qos *topics_qos =
-			    nng_mqtt_topic_qos_array_create(
-			        param->opts->topic_count);
-
-			size_t i = 0;
-			for (struct topic *tp = param->opts->topic;
-			     tp != NULL && i < param->opts->topic_count;
-			     tp = tp->next, i++) {
-				nng_mqtt_topic_qos_array_set(
-				    topics_qos, i, tp->val, param->opts->qos);
-			}
-
-			nng_mqtt_msg_set_subscribe_topics(
-			    msg, topics_qos, param->opts->topic_count);
-
-			nng_mqtt_topic_qos_array_free(
-			    topics_qos, param->opts->topic_count);
-
-			// Send subscribe message
-			nng_sendmsg(*param->sock, msg, NNG_FLAG_NONBLOCK);
+		size_t i = 0;
+		for (struct topic *tp = param->opts->topic;
+		     tp != NULL && i < param->opts->topic_count;
+		     tp = tp->next, i++) {
+			nng_mqtt_topic_qos_array_set(
+			    topics_qos, i, tp->val, param->opts->qos);
 		}
-	} else {
-		fatal("connect failed: %d", ret_code);
+
+		nng_mqtt_msg_set_subscribe_topics(
+		    msg, topics_qos, param->opts->topic_count);
+
+		nng_mqtt_topic_qos_array_free(
+		    topics_qos, param->opts->topic_count);
+
+		// Send subscribe message
+		nng_sendmsg(*param->sock, msg, NNG_FLAG_NONBLOCK);
 	}
 }
 
 // Disconnect message callback function
 static void
-disconnect_cb(void *disconn_arg, nng_msg *msg)
+disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {
-	(void) disconn_arg;
 	printf("disconnected\n");
 }
 
 static void
-create_client(nng_socket *sock, struct work **works, size_t id, size_t nwork)
+create_client(nng_socket *sock, struct work **works, size_t id, size_t nwork, struct connect_param *param )
 {
 	int        rv;
 	nng_dialer dialer;
@@ -926,7 +912,12 @@ create_client(nng_socket *sock, struct work **works, size_t id, size_t nwork)
 #endif
 
 	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, msg);
-	nng_mqtt_set_connect_cb(*sock, connect_cb, &sock);
+
+	param->sock = sock;
+	param->opts = opts;
+	param->id = id;
+
+	nng_mqtt_set_connect_cb(*sock, connect_cb, param);
 	nng_mqtt_set_disconnect_cb(*sock, disconnect_cb, msg);
 
 	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
@@ -962,7 +953,7 @@ client(int argc, char **argv, enum client_type type)
 		param[i]  = nng_zalloc(sizeof(struct connect_param));
 		socket[i] = nng_zalloc(sizeof(nng_socket));
 		works[i] = nng_zalloc(sizeof(struct work **) * opts->parallel);
-		create_client(socket[i], works[i], i, opts->parallel);
+		create_client(socket[i], works[i], i, opts->parallel, param[i]);
 		nng_msleep(opts->interval);
 	}
 
@@ -999,18 +990,21 @@ int
 pub_start(int argc, char **argv)
 {
 	client(argc, argv, PUB);
+	return 0;
 }
 
 int
 sub_start(int argc, char **argv)
 {
 	client(argc, argv, SUB);
+	return 0;
 }
 
 int
 conn_start(int argc, char **argv)
 {
 	client(argc, argv, CONN);
+	return 0;
 }
 
 int
