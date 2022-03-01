@@ -59,39 +59,29 @@ typedef struct {
 
 // Connack message callback function
 static void
-bridge_connect_cb(void *connect_arg, nng_msg *msg)
+bridge_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {
-	uint8_t ret_code = nng_mqtt_msg_get_connack_return_code(msg);
-	debug_msg("%s(%d)\n",
-	    ret_code == 0 ? "connection established" : "connect failed",
-	    ret_code);
+	// Connected succeed
+	bridge_param *param = arg;
+	nng_msg *msg;
 
-	nng_msg_free(msg);
-	msg = NULL;
+	nng_mqtt_msg_alloc(&msg, 0);
+	nng_mqtt_msg_set_packet_type(msg, NNG_MQTT_SUBSCRIBE);
 
-	if (ret_code == 0) {
-		// Connected succeed
-		bridge_param *param = connect_arg;
-
-		nng_mqtt_msg_alloc(&msg, 0);
-		nng_mqtt_msg_set_packet_type(msg, NNG_MQTT_SUBSCRIBE);
-
-		nng_mqtt_topic_qos *topic_qos =
-		    nng_mqtt_topic_qos_array_create(param->config->sub_count);
-		for (size_t i = 0; i < param->config->sub_count; i++) {
-			nng_mqtt_topic_qos_array_set(topic_qos, i,
-			    param->config->sub_list[i].topic,
-			    param->config->sub_list[i].qos);
-		}
-		nng_mqtt_msg_set_subscribe_topics(
-		    msg, topic_qos, param->config->sub_count);
-
-		nng_mqtt_topic_qos_array_free(
-		    topic_qos, param->config->sub_count);
-
-		// Send subscribe message
-		nng_sendmsg(*param->sock, msg, NNG_FLAG_NONBLOCK);
+	nng_mqtt_topic_qos *topic_qos =
+	    nng_mqtt_topic_qos_array_create(param->config->sub_count);
+	for (size_t i = 0; i < param->config->sub_count; i++) {
+		nng_mqtt_topic_qos_array_set(topic_qos, i,
+		    param->config->sub_list[i].topic,
+		    param->config->sub_list[i].qos);
 	}
+	nng_mqtt_msg_set_subscribe_topics(
+	    msg, topic_qos, param->config->sub_count);
+
+	nng_mqtt_topic_qos_array_free(topic_qos, param->config->sub_count);
+
+	// Send subscribe message
+	nng_sendmsg(*param->sock, msg, NNG_FLAG_NONBLOCK);
 }
 
 static bridge_param bridge_arg;
@@ -134,7 +124,7 @@ bridge_client(nng_socket *sock, conf_bridge *config)
 	bridge_arg.sock   = sock;
 
 	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
-	nng_mqtt_set_connect_cb(*sock, bridge_connect_cb, &sock);
+	nng_mqtt_set_connect_cb(*sock, bridge_connect_cb, &bridge_arg);
 	nng_mqtt_set_disconnect_cb(*sock, disconnect_cb, connmsg);
 
 	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
