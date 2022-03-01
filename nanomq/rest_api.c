@@ -12,9 +12,13 @@
 // #include "utils/log.h"
 #include "include/broker.h"
 #include "include/nanomq.h"
+#include "include/sub_handler.h"
 #include "libs/cJSON.h"
 
+#include <nng/nng.h>
 #include <nng/supplemental/http/http.h>
+#include <stdint.h>
+#include <string.h>
 
 static http_msg error_response(
     http_msg *msg, uint16_t status, enum result_code code, uint64_t sequence);
@@ -249,20 +253,21 @@ get_subscriptions(cJSON *data, http_msg *msg, uint64_t sequence)
 	http_msg res = { 0 };
 	res.status   = NNG_HTTP_STATUS_OK;
 
-	cJSON *res_obj = NULL;
+	cJSON *res_obj   = NULL;
 	cJSON *data_info = NULL;
-	data_info       = cJSON_CreateArray();
-	res_obj       = cJSON_CreateObject();
+	data_info        = cJSON_CreateArray();
+	res_obj          = cJSON_CreateObject();
 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
 	cJSON_AddNumberToObject(res_obj, "seq", (uint64_t) sequence);
 	cJSON_AddNumberToObject(res_obj, "rep", msg->request);
 	cJSON_AddItemToObject(res_obj, "data", data_info);
 
-	dbtree *db = get_broker_db();
-	dbhash_ptpair_t **pt = dbhash_get_ptpair_all();
-	size_t size = cvector_size(pt);
+	dbtree *          db   = get_broker_db();
+	dbhash_ptpair_t **pt   = dbhash_get_ptpair_all();
+	size_t            size = cvector_size(pt);
 	for (size_t i = 0; i < size; i++) {
-		client_ctx *ctxt = (client_ctx*) dbtree_find_client(db, pt[i]->topic, pt[i]->pipe);
+		client_ctx *ctxt = (client_ctx *) dbtree_find_client(
+		    db, pt[i]->topic, pt[i]->pipe);
 
 		cJSON *data_info_elem;
 		data_info_elem = cJSON_CreateObject();
@@ -272,16 +277,17 @@ get_subscriptions(cJSON *data, http_msg *msg, uint64_t sequence)
 		cJSON *topics = cJSON_CreateArray();
 		cJSON_AddItemToObject(data_info_elem, "Subscriptions", topics);
 
-		topic_node *tn = ctxt->sub_pkt->node; 
+		topic_node *tn = ctxt->sub_pkt->node;
 		while (tn) {
 			printf("sub topic: %s\n", tn->it->topic_filter.body);
 			cJSON *topic_with_opt = cJSON_CreateObject();
-			cJSON_AddStringToObject(topic_with_opt, "Topic", tn->it->topic_filter.body);
-			cJSON_AddNumberToObject(topic_with_opt, "Qos", tn->it->qos);
+			cJSON_AddStringToObject(topic_with_opt, "Topic",
+			    tn->it->topic_filter.body);
+			cJSON_AddNumberToObject(
+			    topic_with_opt, "Qos", tn->it->qos);
 			cJSON_AddItemToArray(topics, topic_with_opt);
 			tn = tn->next;
 		}
-
 
 		dbhash_ptpair_free(pt[i]);
 	}
@@ -303,23 +309,63 @@ get_clients(cJSON *data, http_msg *msg, uint64_t sequence)
 	http_msg res = { 0 };
 	res.status   = NNG_HTTP_STATUS_OK;
 
+	cJSON *data_info;
+	data_info = cJSON_CreateArray();
+
+	dbtree *          db   = get_broker_db();
+	dbhash_ptpair_t **pt   = dbhash_get_ptpair_all();
+	size_t            size = cvector_size(pt);
+	for (size_t i = 0; i < size; i++) {
+		client_ctx *ctxt = (client_ctx *) dbtree_find_client(
+		    db, pt[i]->topic, pt[i]->pipe);
+		const uint8_t *cid = conn_param_get_clientid(ctxt->cparam);
+		const uint8_t *user_name =
+		    conn_param_get_username(ctxt->cparam);
+		uint16_t keep_alive = conn_param_get_keepalive(ctxt->cparam);
+		const uint8_t proto_ver =
+		    conn_param_get_protover(ctxt->cparam);
+
+#ifdef STATISTICS
+		uint32_t recv_cnt = ctxt->recv_cnt;
+#endif
+
+		cJSON *data_info_elem;
+		data_info_elem = cJSON_CreateObject();
+		cJSON_AddStringToObject(data_info_elem, "Client ID", cid);
+		cJSON_AddStringToObject(data_info_elem, "Username",
+		    user_name == NULL ? "" : (char *) user_name);
+		cJSON_AddNumberToObject(
+		    data_info_elem, "KeepAlive", keep_alive);
+		cJSON_AddNumberToObject(data_info_elem, "Protocol", proto_ver);
+		cJSON_AddNumberToObject(data_info_elem, "Connect Status", 1);
+#ifdef STATISTICS
+		cJSON_AddNumberToObject(
+		    data_info_elem, "Message Receive", recv_cnt);
+#endif
+		cJSON_AddItemToArray(data_info, data_info_elem);
+
+		topic_node *tn = ctxt->sub_pkt->node;
+
+		dbhash_ptpair_free(pt[i]);
+	}
+	cvector_free(pt);
+
 	cJSON *res_obj;
 
 	res_obj = cJSON_CreateObject();
 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
 	cJSON_AddNumberToObject(res_obj, "seq", (uint64_t) sequence);
 	cJSON_AddNumberToObject(res_obj, "rep", msg->request);
+	cJSON_AddItemToObject(res_obj, "data", data_info);
 	char *dest = cJSON_PrintUnformatted(res_obj);
 	cJSON_Delete(res_obj);
 
 	put_http_msg(
 	    &res, msg->content_type, NULL, NULL, NULL, dest, strlen(dest));
 
+	puts(msg->content_type);
+
 	cJSON_free(dest);
-
-	// db_tree *db = get_broker_db();
-
-	// print_db_tree(db);
 
 	return res;
 }
