@@ -46,10 +46,9 @@ bridge_publish_msg(const char *topic, uint8_t *payload,
 
 // Disconnect message callback function
 static void
-disconnect_cb(void *disconn_arg, nng_msg *msg)
+disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {
-	nng_socket sock = *(nng_socket *) disconn_arg;
-	debug_msg("%d\n", sock.id);
+	debug_msg("disconnected");
 }
 
 typedef struct {
