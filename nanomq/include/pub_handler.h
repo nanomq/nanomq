@@ -29,14 +29,14 @@ union variable_header {
 	struct {
 		uint16_t           packet_id;
 		struct mqtt_string topic_name;
-		property           properties;
+		property           *properties;
 		uint32_t           prop_len;
 	} publish;
 
 	struct {
 		uint16_t    packet_id;
 		reason_code reason_code;
-		property    properties;
+		property    *properties;
 		uint32_t    prop_len;
 	} pub_arrc, puback, pubrec, pubrel, pubcomp;
 };

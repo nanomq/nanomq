@@ -22,7 +22,7 @@
 #include "include/sub_handler.h"
 
 #define ENABLE_RETAIN 1
-#define SUPPORT_MQTT5_0 0
+#define SUPPORT_MQTT5_0 1
 
 #ifdef STATISTICS
 static atomic_ullong g_message_in   = 0;
@@ -273,7 +273,14 @@ free_pub_packet(struct pub_packet_struct *pub_packet)
 				    .body = NULL;
 				pub_packet->var_header.publish.topic_name.len =
 				    0;
-				debug_msg("free memory topic");
+				debug_msg("free topic");
+			}
+
+			if (pub_packet->var_header.publish.prop_len > 0) {
+				property_free(
+				    pub_packet->var_header.publish.properties);
+				pub_packet->var_header.publish.prop_len = 0;
+				debug_msg("free properties");
 			}
 
 			if (pub_packet->payload.len > 0 &&
@@ -282,7 +289,7 @@ free_pub_packet(struct pub_packet_struct *pub_packet)
 				    pub_packet->payload.len + 1);
 				pub_packet->payload.data = NULL;
 				pub_packet->payload.len  = 0;
-				debug_msg("free memory payload");
+				debug_msg("free payload");
 			}
 		}
 
@@ -318,12 +325,11 @@ bool
 encode_pub_message(nng_msg *dest_msg, const nano_work *work,
     mqtt_control_packet_types cmd, mqtt_msg_info *msg_info)
 {
-	uint8_t         tmp[4]     = { 0 };
-	uint32_t        arr_len    = 0;
-	int             append_res = 0;
-	uint8_t         proto      = 0;
-	uint32_t        buf;
-	properties_type prop_type;
+	uint8_t  tmp[4]     = { 0 };
+	uint32_t arr_len    = 0;
+	int      append_res = 0;
+	uint8_t  proto      = 0;
+	uint32_t buf;
 
 	debug_msg("start encode message");
 
@@ -370,151 +376,11 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 		debug_msg("after topic and id len in msg already [%ld]",
 		    nng_msg_len(dest_msg));
 
-		if (PROTOCOL_VERSION_v5 == proto) {
-			uint8_t len = 0;
-			// FIXME put len 0 for properties temporary
-			nng_msg_append(dest_msg, &len, 1);
-		}
-
 #if SUPPORT_MQTT5_0
-		if (work->cparam) {
-			proto = conn_param_get_protover(work->cparam);
-		}
-
 		if (PROTOCOL_VERSION_v5 == proto) {
-			// properties
-			// properties length
-			memset(tmp, 0, sizeof(tmp));
-			arr_len = put_var_integer(tmp,
-			    work->pub_packet->var_header.publish.properties
-			        .len);
-			nng_msg_append(dest_msg, tmp, arr_len);
-			debug_msg("arr_len [%d]", arr_len);
-
-			// Payload Format Indicator
-			if (work->pub_packet->var_header.publish.properties
-			        .content.publish.payload_fmt_indicator
-			        .has_value) {
-				prop_type = PAYLOAD_FORMAT_INDICATOR;
-				nng_msg_append(dest_msg, &prop_type, 1);
-				nng_msg_append(dest_msg,
-				    &work->pub_packet->var_header.publish
-				         .properties.content.publish
-				         .payload_fmt_indicator.value,
-				    sizeof(work->pub_packet->var_header.publish
-				               .properties.content.publish
-				               .payload_fmt_indicator));
-			}
-
-			// Message Expiry Interval
-			if (work->pub_packet->var_header.publish.properties
-			        .content.publish.msg_expiry_interval
-			        .has_value) {
-				prop_type = MESSAGE_EXPIRY_INTERVAL;
-				nng_msg_append(dest_msg, &prop_type, 1);
-				nng_msg_append_u32(dest_msg,
-				    work->pub_packet->var_header.publish
-				        .properties.content.publish
-				        .msg_expiry_interval.value);
-			}
-
-			// Topic Alias
-			if (work->pub_packet->var_header.publish.properties
-			        .content.publish.topic_alias.has_value) {
-				prop_type = TOPIC_ALIAS;
-				nng_msg_append(dest_msg, &prop_type, 1);
-				nng_msg_append_u16(dest_msg,
-				    work->pub_packet->var_header.publish
-				        .properties.content.publish.topic_alias
-				        .value);
-			}
-
-			// Response Topic
-			if (work->pub_packet->var_header.publish.properties
-			        .content.publish.response_topic.len > 0) {
-				append_bytes_with_type(dest_msg,
-				    RESPONSE_TOPIC,
-				    (uint8_t *) work->pub_packet->var_header
-				        .publish.properties.content.publish
-				        .response_topic.body,
-				    work->pub_packet->var_header.publish
-				        .properties.content.publish
-				        .response_topic.len);
-			}
-
-			// Correlation Data
-			if (work->pub_packet->var_header.publish.properties
-			        .content.publish.correlation_data.len > 0) {
-				append_bytes_with_type(dest_msg,
-				    CORRELATION_DATA,
-				    work->pub_packet->var_header.publish
-				        .properties.content.publish
-				        .correlation_data.body,
-				    work->pub_packet->var_header.publish
-				        .properties.content.publish
-				        .correlation_data.len);
-			}
-
-			// User Property
-			if (work->pub_packet->var_header.publish.properties
-			        .content.publish.user_property.len_key > 0) {
-				append_bytes_with_type(dest_msg, USER_PROPERTY,
-				    (uint8_t *) work->pub_packet->var_header
-				        .publish.properties.content.publish
-				        .user_property.key,
-				    work->pub_packet->var_header.publish
-				        .properties.content.publish
-				        .user_property.len_key);
-				nng_msg_append(dest_msg,
-				    (uint8_t *) work->pub_packet->var_header
-				        .publish.properties.content.publish
-				        .user_property.val,
-				    work->pub_packet->var_header.publish
-				        .properties.content.publish
-				        .user_property.len_val);
-			}
-
-			// Subscription Identifier
-			if (sub_id_p) {
-				prop_type = SUBSCRIPTION_IDENTIFIER;
-				nng_msg_append(dest_msg, &prop_type, 1);
-				memset(tmp, 0, sizeof(tmp));
-				arr_len = put_var_integer(tmp, sub_id_p[0]);
-				nng_msg_append(dest_msg, tmp, arr_len);
-			}
-
-			if (work->pub_packet->variable_header.publish
-			        .properties.content.publish
-			        .subscription_identifier.has_value) {
-				prop_type = SUBSCRIPTION_IDENTIFIER;
-				nng_msg_append(dest_msg, &prop_type, 1);
-				memset(tmp, 0, sizeof(tmp));
-				arr_len = put_var_integer(tmp,
-				    work->pub_packet->var_header.publish
-				        .properties.content.publish
-				        .subscription_identifier.value);
-				nng_msg_append(dest_msg, tmp, arr_len);
-			}
-
-			// CONTENT TYPE
-			if (work->pub_packet->var_header.publish.properties
-			        .content.publish.content_type.len > 0) {
-				append_bytes_with_type(dest_msg, CONTENT_TYPE,
-				    (uint8_t *) work->pub_packet->var_header
-				        .publish.properties.content.publish
-				        .content_type.body,
-				    work->pub_packet->var_header.publish
-				        .properties.content.publish
-				        .content_type.len);
-			}
-		}
-		/* check */
-		else {
-			debug_msg("pro_ver [%d]", proto);
+			encode_properties(dest_msg, work->pub_packet->var_header.publish.properties);
 		}
 #endif
-		debug_msg("property len in msg already [%ld]",
-		    nng_msg_len(dest_msg));
 
 		// payload
 		if (work->pub_packet->payload.len > 0) {
@@ -540,9 +406,9 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 		struct pub_packet_struct pub_response = {
 			.fixed_header.packet_type = cmd,
 			// .fixed_header.dup         = dup,
-			.fixed_header.qos         = 0,
-			.fixed_header.retain      = 0,
-			.fixed_header.remain_len  = 2, // TODO
+			.fixed_header.qos        = 0,
+			.fixed_header.retain     = 0,
+			.fixed_header.remain_len = 2, // TODO
 			.var_header.pub_arrc.packet_id =
 			    work->pub_packet->var_header.publish.packet_id
 		};
@@ -567,45 +433,7 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 			    sizeof(reason_code));
 
 #if SUPPORT_MQTT5_0
-			if (PROTOCOL_VERSION_v5 == proto) {
-				// properties
-				if (pub_response.fixed_header.remain_len >=
-				    4) {
-
-					memset(tmp, 0, sizeof(tmp));
-					arr_len = put_var_integer(tmp,
-					    pub_response.var_header.pub_arrc
-					        .properties.len);
-					nng_msg_append(dest_msg, tmp, arr_len);
-
-					// reason string
-					append_bytes_with_type(dest_msg,
-					    REASON_STRING,
-					    (uint8_t *) pub_response.var_header
-					        .pub_arrc.properties.content
-					        .pub_arrc.reason_string.body,
-					    pub_response.var_header.pub_arrc
-					        .properties.content.pub_arrc
-					        .reason_string.len);
-
-					// user properties
-					append_bytes_with_type(dest_msg,
-					    USER_PROPERTY,
-					    (uint8_t *) pub_response.var_header
-					        .pub_arrc.properties.content
-					        .pub_arrc.user_property.key,
-					    pub_response.var_header.pub_arrc
-					        .properties.content.pub_arrc
-					        .user_property.len_key);
-					nng_msg_append(dest_msg,
-					    (uint8_t *) pub_response.var_header
-					        .pub_arrc.properties.content
-					        .pub_arrc.user_property.val,
-					    pub_response.var_header.pub_arrc
-					        .properties.content.pub_arrc
-					        .user_property.len_val);
-				}
-			}
+			if (PROTOCOL_VERSION_v5 == proto) { }
 #endif
 		}
 		break;
@@ -670,9 +498,6 @@ decode_pub_message(nano_work *work)
 			        pub_packet->var_header.publish.topic_name.body,
 			        '#') != NULL) {
 
-				// TODO search topic alias if mqtt version
-				// = 5.0
-
 				// protocol error
 				debug_msg(
 				    "protocol error in topic:[%s], len: [%d]",
@@ -684,6 +509,9 @@ decode_pub_message(nano_work *work)
 				return PROTOCOL_ERROR;
 			}
 		}
+
+		// TODO if topic_len = 0 && mqtt_version = 5.0, search topic
+		// alias from nano_db
 
 		debug_msg("topic: [%s], qos: %d",
 		    pub_packet->var_header.publish.topic_name.body,
@@ -702,9 +530,12 @@ decode_pub_message(nano_work *work)
 		// FIXME pub_packet->var_header.publish.properties.len = 0;
 
 		if (PROTOCOL_VERSION_v5 == proto) {
-			pub_packet->var_header.publish.prop_len =
+			pub_packet->var_header.publish.properties =
 			    decode_properties(msg, &pos,
-			        &pub_packet->var_header.publish.properties);
+			        &pub_packet->var_header.publish.prop_len,
+			        false);
+			// nng_msg_proto_set_property(
+			//     msg, pub_packet->var_header.publish.properties);
 			debug_msg("property len: %d",
 			    pub_packet->var_header.publish.prop_len);
 		}
@@ -736,85 +567,19 @@ decode_pub_message(nano_work *work)
 	case PUBREC:
 	case PUBREL:
 	case PUBCOMP:
-		NNI_GET16(
-		    msg_body + pos, pub_packet->var_header.pub_arrc.packet_id);
-		pos += 2;
-		if (pub_packet->fixed_header.remain_len == 2) {
-			// Reason code can be ignored when remaining length = 2
-			// and reason code = 0x00(Success)
-			pub_packet->var_header.pub_arrc.reason_code = SUCCESS;
-			break;
+		//here could not be reached 
+		NNI_GET16(msg_body, pub_packet->var_header.pub_arrc.packet_id);
+		if (PROTOCOL_VERSION_v5 == proto) {
+			pos += 2;
+			pub_packet->var_header.pub_arrc.reason_code =
+			    *(msg_body + pos);
+			pos++;
+			pub_packet->var_header.pub_arrc.properties =
+			    decode_properties(msg, &pos,
+			        &pub_packet->var_header.pub_arrc.prop_len, false);
+			nng_msg_proto_set_property(
+			    msg, pub_packet->var_header.pub_arrc.properties);
 		}
-		pub_packet->var_header.pub_arrc.reason_code =
-		    *(msg_body + pos);
-		++pos;
-#if SUPPORT_MQTT5_0
-		if (pub_packet->fixed_header.remain_len > 4) {
-			pub_packet->var_header.pub_arrc.properties.len =
-			    get_var_integer(msg_body, &pos);
-			for (uint32_t i = 0; i <
-			     pub_packet->var_header.pub_arrc.properties.len;) {
-				properties_type prop_type =
-				    get_var_integer(msg_body, &pos);
-				switch (prop_type) {
-				case REASON_STRING:
-					pub_packet->var_header.pub_arrc
-					    .properties.content.pub_arrc
-					    .reason_string.len = get_utf8_str(
-					    &pub_packet->var_header.pub_arrc
-					         .properties.content.pub_arrc
-					         .reason_string.body,
-					    msg_body, &pos);
-					i += pub_packet->var_header.pub_arrc
-					         .properties.content.pub_arrc
-					         .reason_string.len +
-					    2;
-					break;
-
-				case USER_PROPERTY:
-					if (pub_packet->var_header.pub_arrc
-					        .properties.content.pub_arrc
-					        .user_property.len_key != 0) {
-						pub_packet->var_header.pub_arrc
-						    .properties.content
-						    .pub_arrc.user_property
-						    .len_key = get_utf8_str(
-						    &pub_packet->var_header
-						         .pub_arrc.properties
-						         .content.pub_arrc
-						         .user_property.key,
-						    msg_body, &pos);
-						i += pub_packet->var_header
-						         .pub_arrc.properties
-						         .content.pub_arrc
-						         .user_property
-						         .len_key +
-						    2;
-						pub_packet->var_header.pub_arrc
-						    .properties.content
-						    .pub_arrc.user_property
-						    .len_val = get_utf8_str(
-						    &pub_packet->var_header
-						         .pub_arrc.properties
-						         .content.pub_arrc
-						         .user_property.val,
-						    msg_body, &pos);
-						i += pub_packet->var_header
-						         .pub_arrc.properties
-						         .content.pub_arrc
-						         .user_property
-						         .len_val +
-						    2;
-					}
-					break;
-
-				default:
-					i++;
-					break;
-				}
-			}
-		}
-#endif
 		break;
 
 	default:

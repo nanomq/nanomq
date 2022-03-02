@@ -16,8 +16,8 @@
 
 #include <conf.h>
 #include <env.h>
-#include <hash_table.h>
 #include <file.h>
+#include <hash_table.h>
 #include <mqtt_db.h>
 #include <nng.h>
 #include <nng/mqtt/mqtt_client.h>
@@ -107,7 +107,10 @@ static nng_optspec cmd_opts[] = {
 	    .o_val   = OPT_HTTP_PORT,
 	    .o_arg   = true },
 	{ .o_name = "cacert", .o_val = OPT_TLS_CA, .o_arg = true },
-	{ .o_name = "cert", .o_short='E',.o_val = OPT_TLS_CERT, .o_arg = true },
+	{ .o_name    = "cert",
+	    .o_short = 'E',
+	    .o_val   = OPT_TLS_CERT,
+	    .o_arg   = true },
 	{ .o_name = "key", .o_val = OPT_TLS_KEY, .o_arg = true },
 	{ .o_name = "keypass", .o_val = OPT_TLS_KEYPASS, .o_arg = true },
 	{ .o_name = "verify", .o_val = OPT_TLS_VERIFY_PEER },
@@ -140,7 +143,7 @@ void
 server_cb(void *arg)
 {
 	nano_work *work = arg;
-	nng_msg *  msg = NULL;
+	nng_msg *  msg  = NULL;
 	nng_msg *  smsg = NULL;
 	int        rv;
 
@@ -148,7 +151,7 @@ server_cb(void *arg)
 	uint8_t *   ptr;
 	conn_param *cparam = NULL;
 
-	mqtt_msg_info * msg_info;
+	mqtt_msg_info *msg_info;
 
 	switch (work->state) {
 	case INIT:
@@ -176,7 +179,7 @@ server_cb(void *arg)
 		work->pid    = nng_msg_get_pipe(work->msg);
 
 		if (nng_msg_cmd_type(msg) == CMD_DISCONNECT) {
-			//delete will msg
+			// delete will msg
 		} else if (nng_msg_cmd_type(msg) == CMD_PUBLISH) {
 			// Set V4/V5 flag for publish msg
 			if (conn_param_get_protover(work->cparam) == 5) {
@@ -193,9 +196,9 @@ server_cb(void *arg)
 				for (size_t i = 0; i < bridge->forwards_count;
 				     i++) {
 					if (topic_filter(bridge->forwards[i],
-					        work->pub_packet
-					            ->var_header.publish
-					            .topic_name.body)) {
+					        work->pub_packet->var_header
+					            .publish.topic_name
+					            .body)) {
 						found = true;
 						break;
 					}
@@ -205,10 +208,8 @@ server_cb(void *arg)
 					smsg = bridge_publish_msg(
 					    work->pub_packet->var_header
 					        .publish.topic_name.body,
-					    work->pub_packet->payload
-					        .data,
-					    work->pub_packet->payload
-					        .len,
+					    work->pub_packet->payload.data,
+					    work->pub_packet->payload.len,
 					    work->pub_packet->fixed_header.dup,
 					    work->pub_packet->fixed_header.qos,
 					    work->pub_packet->fixed_header
@@ -235,8 +236,8 @@ server_cb(void *arg)
 			nng_aio_set_msg(work->aio, work->msg);
 			nng_ctx_send(work->ctx, work->aio); // send connack
 
-			uint8_t *header = nng_msg_header(work->msg);
-			uint8_t  flag   = *(header + 3);
+			uint8_t *body = nng_msg_body(work->msg);
+			uint8_t  flag = *(body);
 			smsg = nano_msg_notify_connect(work->cparam, flag);
 
 			// Set V4/V5 flag for publish msg
@@ -262,13 +263,20 @@ server_cb(void *arg)
 			// }
 			nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 			handle_pub(work, work->pipe_ct);
-
-			client_ctx *cli_ctx = NULL;
-			dbtree_ctxt *db_ctx = NULL;
-
+			// cache session
+			client_ctx * cli_ctx = NULL;
+			dbtree_ctxt *db_ctx  = NULL;
+			char *       clientid =
+			    (char *) conn_param_get_clientid(work->cparam);
+			if (clientid != NULL &&
+			    conn_param_get_clean_start(work->cparam) == 0) {
+				cache_session(clientid, work->cparam,
+				    work->pid.id, work->db);
+			}
 			// free client ctx
 			if (dbhash_check_id(work->pid.id)) {
-				topic_queue *tq = dbhash_get_topic_queue(work->pid.id);
+				topic_queue *tq =
+				    dbhash_get_topic_queue(work->pid.id);
 				while (tq) {
 					if (tq->topic) {
 						db_ctx = dbtree_delete_client(
@@ -346,7 +354,8 @@ server_cb(void *arg)
 
 			if ((reason = decode_sub_message(work)) != SUCCESS ||
 			    (reason = sub_ctx_handle(work)) != SUCCESS ||
-			    (reason = encode_suback_message(smsg, work)) != SUCCESS) {
+			    (reason = encode_suback_message(smsg, work)) !=
+			        SUCCESS) {
 				debug_msg("ERROR: sub_handler: [%d]", reason);
 				if (dbhash_check_id(work->pid.id)) {
 					dbhash_del_topic_queue(work->pid.id);
@@ -358,8 +367,10 @@ server_cb(void *arg)
 			// handle retain
 			if (work->msg_ret) {
 				debug_msg("retain msg [%p] size [%ld] \n",
-				    work->msg_ret, cvector_size(work->msg_ret));
-				for (int i = 0; i < cvector_size(work->msg_ret); i++) {
+				    work->msg_ret,
+				    cvector_size(work->msg_ret));
+				for (int i = 0;
+				     i < cvector_size(work->msg_ret); i++) {
 					nng_msg *m = work->msg_ret[i];
 					nng_msg_clone(m);
 					work->msg = m;
@@ -388,7 +399,8 @@ server_cb(void *arg)
 
 			if ((reason = decode_unsub_message(work)) != SUCCESS ||
 			    (reason = unsub_ctx_handle(work)) != SUCCESS ||
-			    (reason = encode_unsuback_message(smsg, work)) != SUCCESS) {
+			    (reason = encode_unsuback_message(smsg, work)) !=
+			        SUCCESS) {
 				debug_msg("ERROR: unsub_handler [%d]", reason);
 			}
 			// free unsub_pkt
@@ -417,10 +429,11 @@ server_cb(void *arg)
 			msg_infos = work->pipe_ct->msg_infos;
 
 			debug_msg("total pipes: %d", work->pipe_ct->total);
-			//TODO encode abstract msg only
+			// TODO encode abstract msg only
 			if (cvector_size(msg_infos))
-				encode_pub_message(smsg, work, PUBLISH, msg_info);
-			for (int i=0; i<cvector_size(msg_infos); ++i) {
+				encode_pub_message(
+				    smsg, work, PUBLISH, msg_info);
+			for (int i = 0; i < cvector_size(msg_infos); ++i) {
 				msg_info = &msg_infos[i];
 				nng_msg_clone(smsg);
 				work->pid.id = msg_info->pipe;
@@ -556,7 +569,8 @@ server_cb(void *arg)
 				    (mqtt_string *) conn_param_get_will_msg(
 				        work->cparam),
 				    (mqtt_string *) conn_param_get_will_topic(
-				        work->cparam));
+				        work->cparam),
+				    conn_param_get_protover(work->cparam));
 				// Set V4/V5 flag for publish msg
 				// if (conn_param_get_protover(work->cparam) == 5) {
 				// 	nng_msg_set_cmd_type(msg, CMD_PUBLISH_V5);
@@ -769,7 +783,7 @@ broker(conf *nanomq_conf)
 		if ((rv = nng_listener_start(tls_listener, 0)) != 0) {
 			fatal("nng_listener_start tls", rv);
 		}
-		//FIXME not finish yet
+		// FIXME not finish yet
 		// if (nanomq_conf->websocket.enable) {
 		// 	nng_listener wss_listener;
 		// 	if ((rv = nng_listener_create(&wss_listener, sock,
@@ -815,7 +829,8 @@ print_usage(void)
 	       "--parallel <num>]\n                     "
 	       "[-D, --qos_duration <num>] [--http] "
 	       "[-p, --port] } \n                     "
-	       "[--cacert <path>] [-E, --cert <path>] [--key <path>] \n               "
+	       "[--cacert <path>] [-E, --cert <path>] [--key <path>] \n       "
+	       "        "
 	       "      [--keypass <password>] [--verify] [--fail]\n            "
 	       "         "
 	       "| stop }\n\n");
@@ -851,7 +866,8 @@ print_usage(void)
 	printf("  -S, --msq_len <num>        The queue length for resending "
 	       "messages\n");
 	printf("  -D, --qos_duration <num>   The interval of the qos timer\n");
-	printf("  -d, --daemon               Run nanomq as daemon (default: false)\n");
+	printf("  -d, --daemon               Run nanomq as daemon (default: "
+	       "false)\n");
 	printf("  --cacert                   Path to the file containing "
 	       "PEM-encoded CA certificates\n");
 	printf("  -E, --cert                 Path to a file containing the "
@@ -1201,6 +1217,7 @@ broker_restart(int argc, char **argv)
 	}
 
 	broker_start(argc, argv);
+	return 0;
 }
 
 int

@@ -7,8 +7,8 @@
 //
 #include <nanolib.h>
 #include <nng.h>
-#include <protocol/mqtt/mqtt.h>
-#include <protocol/mqtt/mqtt_parser.h>
+#include <nng/mqtt/packet.h>
+#include <nng/protocol/mqtt/mqtt_parser.h>
 
 #include "include/broker.h"
 #include "include/nanomq.h"
@@ -19,21 +19,14 @@
 
 static void cli_ctx_merge(client_ctx *ctx, client_ctx *ctx_new);
 
-void
-init_sub_property(packet_subscribe *sub_pkt)
-{
-	sub_pkt->sub_id.varint                 = 0;
-	sub_pkt->user_property.strpair.len_key = 0;
-	sub_pkt->user_property.strpair.len_val = 0;
-}
 
 uint8_t
 decode_sub_message(nano_work *work)
 {
 	uint8_t *variable_ptr;
 	uint8_t *payload_ptr;
-	int      vpos = 0; // pos in variable
-	int      bpos = 0; // pos in payload
+	uint32_t vpos = 0; // pos in variable
+	uint32_t bpos = 0; // pos in payload
 
 	size_t   len_of_varint = 0, len_of_property = 0, len_of_properties = 0;
 	uint32_t len_of_str, len_of_topic;
@@ -55,57 +48,10 @@ decode_sub_message(nano_work *work)
 
 #if SUPPORT_MQTT5_0
 	// Only Mqtt_v5 include property.
-	int target_pos;
 	if (PROTOCOL_VERSION_v5 == proto_ver) {
-		init_sub_property(sub_pkt);
-		// length of property in varibale
-		len_of_properties = get_var_integer(
-		    variable_ptr + vpos, (uint32_t *) &len_of_varint);
-		vpos += len_of_varint;
-		len_of_varint = 0;
-		target_pos    = vpos + len_of_properties;
-
-		// parse property in variable
-		if (len_of_properties > 0) {
-			while (1) {
-				property_id = variable_ptr[vpos++];
-				switch (property_id) {
-				case SUBSCRIPTION_IDENTIFIER:
-					sub_pkt->sub_id.varint =
-					    get_var_integer(
-					        variable_ptr + vpos,
-					        (uint32_t *) &len_of_varint);
-					vpos += len_of_varint;
-					break;
-				case USER_PROPERTY:
-					// key
-					sub_pkt->user_property.strpair.key =
-					    copy_utf8_str(variable_ptr, &vpos,
-					        &len_of_str);
-					sub_pkt->user_property.strpair
-					    .len_key = len_of_str;
-					len_of_str   = 0;
-
-					// value
-					sub_pkt->user_property.strpair.val =
-					    copy_utf8_str(variable_ptr, &vpos,
-					        &len_of_str);
-					sub_pkt->user_property.strpair
-					    .len_val = len_of_str;
-					len_of_str   = 0;
-
-					break;
-				default:
-					break;
-				}
-				if (vpos == target_pos)
-					break;
-				if (vpos > target_pos) {
-					debug_msg("ERROR: protocol error");
-					return PROTOCOL_ERROR;
-				}
-			}
-		}
+		// init_sub_property(sub_pkt);
+		sub_pkt->properties =
+		    decode_properties(msg, &vpos, &sub_pkt->prop_len, true);
 	}
 #endif
 
@@ -114,17 +60,17 @@ decode_sub_message(nano_work *work)
 	// handle payload
 	payload_ptr = nng_msg_payload_ptr(msg);
 
-	if ((topic_node_t = nng_alloc(sizeof(topic_node))) == NULL) {
-		debug_msg("ERROR: nng_alloc");
+	if ((topic_node_t = nng_zalloc(sizeof(topic_node))) == NULL) {
+		debug_msg("ERROR: nng_zalloc");
 		return NNG_ENOMEM;
 	}
 	topic_node_t->next = NULL;
 	sub_pkt->node      = topic_node_t;
 
 	while (1) {
-		if ((topic_option = nng_alloc(sizeof(topic_with_option))) ==
+		if ((topic_option = nng_zalloc(sizeof(topic_with_option))) ==
 		    NULL) {
-			debug_msg("ERROR: nng_alloc");
+			debug_msg("ERROR: nng_zalloc");
 			return NNG_ENOMEM;
 		}
 		topic_node_t->it = topic_option;
@@ -149,9 +95,9 @@ decode_sub_message(nano_work *work)
 
 		debug_msg("bpos+vpos: [%d]", bpos + vpos);
 		if (++bpos < remaining_len - vpos) {
-			if ((topic_node_t = nng_alloc(sizeof(topic_node))) ==
+			if ((topic_node_t = nng_zalloc(sizeof(topic_node))) ==
 			    NULL) {
-				debug_msg("ERROR: nng_alloc");
+				debug_msg("ERROR: nng_zalloc");
 				return NNG_ENOMEM;
 			}
 			topic_node_t->next = NULL;
@@ -187,16 +133,9 @@ encode_suback_message(nng_msg *msg, nano_work *work)
 
 #if SUPPORT_MQTT5_0
 	if (PROTOCOL_VERSION_v5 == proto_ver) { // add property in variable
-		// 31(0x1f)ReasonCode - utf-8 string
-		// 38(0x26)UserProperty - string pair
-		len_of_varint =
-		    put_var_integer(varint, 0); // len_of_properties = 0
-		debug_msg("length of property [%d] [%x %x]", len_of_varint,
-		    varint[0], varint[1]);
-		if ((rv = nng_msg_append(msg, varint, len_of_varint)) != 0) {
-			debug_msg("ERROR: nng_msg_append [%d]", rv);
-			return PROTOCOL_ERROR;
-		}
+		//TODO set property if necessary 
+		// encode_properties(msg, sub_pkt->properties);
+		encode_properties(msg, NULL);
 	}
 #endif
 
@@ -256,7 +195,7 @@ sub_ctx_handle(nano_work *work)
 
 	dbtree_ctxt *db_old_ctx = NULL;
 	client_ctx * old_ctx    = NULL;
-	client_ctx * cli_ctx    = nng_alloc(sizeof(client_ctx));
+	client_ctx * cli_ctx    = nng_zalloc(sizeof(client_ctx));
 	cli_ctx->sub_pkt        = work->sub_pkt;
 	cli_ctx->cparam         = work->cparam;
 	cli_ctx->pid            = work->pid;
@@ -278,21 +217,29 @@ sub_ctx_handle(nano_work *work)
 
 	if (db_old_ctx) {
 		old_ctx              = db_old_ctx->ctxt;
-		db_old_ctx->sub_id_i = work->sub_pkt->sub_id.varint;
-
+		int            t     = 0;
+		if (old_ctx->proto_ver == PROTOCOL_VERSION_v5) {
+			property_data *pdata =
+			    property_get_value(work->sub_pkt->properties,
+			        SUBSCRIPTION_IDENTIFIER);
+			if (pdata) {
+				t = pdata->p_value.varint;
+			}
+		}
+		db_old_ctx->sub_id_i = t;
 		dbtree_insert_client(
 		    work->db, tq->topic, db_old_ctx, cli_ctx->pid.id);
 	}
 
 	if (!tq || !old_ctx) { /* the real ctx stored in tree */
-		old_ctx                = nng_alloc(sizeof(client_ctx));
-		old_ctx->sub_pkt       = nng_alloc(sizeof(packet_subscribe));
+		old_ctx                = nng_zalloc(sizeof(client_ctx));
+		old_ctx->sub_pkt       = nng_zalloc(sizeof(packet_subscribe));
 		old_ctx->sub_pkt->node = NULL;
 		old_ctx->cparam        = NULL;
 #ifdef STATISTICS
 		old_ctx->recv_cnt      = 0;
 #endif
-		init_sub_property(old_ctx->sub_pkt);
+		//init_sub_property(old_ctx->sub_pkt);
 	}
 	/* Swap pid, capram, proto_ver in ctxs */
 	old_ctx->pid.id    = cli_ctx->pid.id;
@@ -322,14 +269,19 @@ sub_ctx_handle(nano_work *work)
 			tq = tq->next;
 		}
 		if (!topic_exist) {
-			// printf("Protocol Version: %d\n",
-			// old_ctx->proto_ver); printf("sub ID: %d\n",
-			// work->sub_pkt->sub_id.varint);
-			int          t = work->sub_pkt->sub_id.varint;
+			int            t = 0;
+			if (conn_param_get_protover(work->cparam) ==
+			    PROTOCOL_VERSION_v5) {
+				property_data *pdata = property_get_value(
+				    work->sub_pkt->properties,
+				    SUBSCRIPTION_IDENTIFIER);
+				if (pdata) {
+					t = pdata->p_value.varint;
+				}
+			}
 			dbtree_ctxt *db_old_ctxt = dbtree_new_ctxt(old_ctx, t);
 			dbtree_insert_client(
 			    work->db, topic_str, db_old_ctxt, work->pid.id);
-
 			dbhash_insert_topic(work->pid.id, topic_str);
 		}
 
@@ -370,18 +322,9 @@ cli_ctx_merge(client_ctx *ctx_new, client_ctx *ctx)
 	}
 
 #if SUPPORT_MQTT5_0
-	if (ctx_new->sub_pkt->user_property.strpair.len_key) {
-		ctx->sub_pkt->user_property.strpair.len_key =
-		    ctx_new->sub_pkt->user_property.strpair.len_key;
-		ctx->sub_pkt->user_property.strpair.key =
-		    ctx_new->sub_pkt->user_property.strpair.key;
-		ctx->sub_pkt->user_property.strpair.len_val =
-		    ctx_new->sub_pkt->user_property.strpair.len_val;
-		ctx->sub_pkt->user_property.strpair.val =
-		    ctx_new->sub_pkt->user_property.strpair.val;
+	if (ctx_new->sub_pkt->prop_len > 0) {
+		ctx->sub_pkt->properties = ctx_new->sub_pkt->properties;
 	}
-	if (ctx_new->sub_pkt->sub_id.varint)
-		ctx->sub_pkt->sub_id.varint = ctx_new->sub_pkt->sub_id.varint;
 #endif
 
 #ifdef DEBUG /* Remove after testing */
@@ -422,9 +365,9 @@ cli_ctx_merge(client_ctx *ctx_new, client_ctx *ctx)
 			    node_new->it->retain_handling;
 		} else { /* not find */
 			// copy and append TODO optimize topic_node structure
-			node_a = nng_alloc(sizeof(topic_node));
-			two    = nng_alloc(sizeof(topic_with_option));
-			str    = nng_alloc(node_new->it->topic_filter.len + 1);
+			node_a = nng_zalloc(sizeof(topic_node));
+			two    = nng_zalloc(sizeof(topic_with_option));
+			str    = nng_zalloc(node_new->it->topic_filter.len + 1);
 			memcpy(two, node_new->it, sizeof(topic_with_option));
 			strcpy(str, node_new->it->topic_filter.body);
 			str[node_new->it->topic_filter.len] = '\0';
@@ -502,11 +445,9 @@ del_sub_ctx(void *ctxt, char *target_topic)
 	if (sub_pkt->node == NULL) {
 #if SUPPORT_MQTT5_0
 		if (PROTOCOL_VERSION_v5 == proto_ver) {
-			if (sub_pkt->user_property.strpair.len_key > 0) {
-				nng_free(
-				    sub_pkt->user_property.strpair.key, 0);
-				nng_free(
-				    sub_pkt->user_property.strpair.val, 0);
+			if (sub_pkt->prop_len > 0) {
+				property_free(sub_pkt->properties);
+				sub_pkt->prop_len = 0;
 			}
 		}
 #endif
@@ -538,11 +479,9 @@ destroy_sub_pkt(packet_subscribe *sub_pkt, uint8_t proto_ver)
 #if SUPPORT_MQTT5_0
 		// what if there are multiple UPs?
 		if (PROTOCOL_VERSION_v5 == proto_ver) {
-			if (sub_pkt->user_property.strpair.len_key > 0) {
-				nng_free(sub_pkt->user_property.strpair.key,
-				    sub_pkt->user_property.strpair.len_key);
-				nng_free(sub_pkt->user_property.strpair.val,
-				    sub_pkt->user_property.strpair.len_val);
+			if (sub_pkt->prop_len > 0) {
+				property_free(sub_pkt->properties);
+				sub_pkt->prop_len = 0;
 			}
 		}
 #endif
