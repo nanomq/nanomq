@@ -577,8 +577,6 @@ decode_pub_message(nano_work *work)
 			pub_packet->var_header.pub_arrc.properties =
 			    decode_properties(msg, &pos,
 			        &pub_packet->var_header.pub_arrc.prop_len, false);
-			nng_msg_proto_set_property(
-			    msg, pub_packet->var_header.pub_arrc.properties);
 		}
 		break;
 
