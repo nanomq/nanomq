@@ -10,6 +10,7 @@
 #include <protocol/mqtt/mqtt.h>
 #include <protocol/mqtt/mqtt_parser.h>
 
+#include "include/broker.h"
 #include "include/nanomq.h"
 #include "include/pub_handler.h"
 #include "include/sub_handler.h"
@@ -588,7 +589,7 @@ int
 restore_session(char *clientid, conn_param *cparam, uint32_t pid, void *db)
 {
 	debug_msg("restore session");
-	client_ctx * ctx;
+	dbtree_ctxt * db_ctx;
 	topic_queue *tq = NULL;
 
 	uint32_t key_clientid = DJBHashn(clientid, strlen(clientid));
@@ -600,10 +601,11 @@ restore_session(char *clientid, conn_param *cparam, uint32_t pid, void *db)
 	}
 	tq = dbhash_get_cached_topic(key_clientid);
 	while (tq) {
-		ctx = dbtree_restore_session(db, tq->topic, key_clientid, pid);
+		db_ctx = dbtree_restore_session(db, tq->topic, key_clientid, pid);
 		tq  = tq->next;
 	}
-	if (ctx) {
+	if (db_ctx) {
+		client_ctx *ctx = db_ctx->ctxt;
 		ctx->pid.id = pid;
 	}
 
