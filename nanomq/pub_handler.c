@@ -151,6 +151,31 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct)
 		return;
 	}
 
+	if (work->proto == PROTOCOL_VERSION_v5) {
+		property_data *pdata = property_get_value(
+		    work->pub_packet->var_header.publish.properties,
+		    TOPIC_ALIAS);
+		if (work->pub_packet->var_header.publish.topic_name.len > 0) {
+			if (pdata) {
+				dbhash_insert_atpair(work->pid.id,
+				    pdata->p_value.u16,
+				    work->pub_packet->var_header.publish
+				        .topic_name.body);
+			}
+		} else {
+			if (pdata) {
+				const char *tp = dbhash_find_atpair(
+				    work->pid.id, pdata->p_value.u16);
+				if (tp) {
+					work->pub_packet->var_header.publish
+					    .topic_name.body = strdup(tp);
+					work->pub_packet->var_header.publish
+					    .topic_name.len = strlen(tp);
+				}
+			}
+		}
+	}
+
 	char *topic = work->pub_packet->var_header.publish.topic_name.body;
 
 	cli_ctx_list =
@@ -513,21 +538,20 @@ decode_pub_message(nano_work *work)
 		// TODO if topic_len = 0 && mqtt_version = 5.0, search topic
 		// alias from nano_db
 
-		debug_msg("topic: [%s], qos: %d",
+		debug_msg("topic: [%.*s], qos: %d",
+		    pub_packet->var_header.publish.topic_name.len,
 		    pub_packet->var_header.publish.topic_name.body,
 		    pub_packet->fixed_header.qos);
 
 		if (pub_packet->fixed_header.qos >
-		    0) { // extract packet_identifier while qos > 0
+		    0) {
 			NNI_GET16(msg_body + pos,
 			    pub_packet->var_header.publish.packet_id);
 			debug_msg("identifier: [%d]",
 			    pub_packet->var_header.publish.packet_id);
 			pos += 2;
 		}
-
 		used_pos = pos;
-		// FIXME pub_packet->var_header.publish.properties.len = 0;
 
 		if (PROTOCOL_VERSION_v5 == proto) {
 			pub_packet->var_header.publish.properties =
@@ -623,30 +647,6 @@ print_hex(const char *prefix, const unsigned char *src, int src_len)
 
 		nng_free(dest, src_len * 3 + 1);
 	}
-}
-
-void
-init_pub_packet_property(struct pub_packet_struct *pub_packet)
-{
-	// TODO
-	// pub_packet->var_header.publish.properties.content.publish
-	//     .payload_fmt_indicator.has_value = false;
-	// pub_packet->var_header.publish.properties.content.publish
-	//     .msg_expiry_interval.has_value = false;
-	// pub_packet->var_header.publish.properties.content.publish
-	//     .response_topic.len = 0;
-	// pub_packet->var_header.publish.properties.content.publish
-	//     .topic_alias.has_value = 0;
-	// pub_packet->var_header.publish.properties.content.publish
-	//     .content_type.len = 0;
-	// pub_packet->var_header.publish.properties.content.publish
-	//     .correlation_data.len = 0;
-	// pub_packet->var_header.publish.properties.content.publish
-	//     .user_property.len_key = 0;
-	// pub_packet->var_header.publish.properties.content.publish
-	//     .user_property.len_val = 0;
-	// pub_packet->var_header.publish.properties.content.publish
-	//     .subscription_identifier.has_value = false;
 }
 
 #ifdef STATISTICS

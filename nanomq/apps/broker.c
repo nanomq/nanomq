@@ -730,6 +730,7 @@ broker(conf *nanomq_conf)
 
 	dbhash_init_cached_table();
 	dbhash_init_pipe_table();
+	dbhash_init_alias_table();
 
 	/*  Create the socket. */
 	nanomq_conf->db_root = db;
