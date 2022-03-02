@@ -241,9 +241,26 @@ get_broker(cJSON *data, http_msg *msg, uint64_t sequence)
 {
 	http_msg res = { 0 };
 	res.status   = NNG_HTTP_STATUS_OK;
-	res.data     = strdup(__FUNCTION__);
-	res.data_len = strlen(__FUNCTION__);
-	// TODO not impelement yet
+	cJSON *res_obj   = NULL;
+	cJSON *data_info = NULL;
+	res_obj          = cJSON_CreateObject();
+	data_info        = cJSON_CreateObject();
+	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+	cJSON_AddNumberToObject(res_obj, "seq", (uint64_t) sequence);
+	cJSON_AddNumberToObject(res_obj, "rep", msg->request);
+	cJSON_AddItemToObject(res_obj, "data", data_info);
+
+	uint64_t msg_in = nanomq_get_message_in();
+	uint64_t msg_out = nanomq_get_message_out();
+	cJSON_AddNumberToObject(data_info, "message_in", msg_in);
+	cJSON_AddNumberToObject(data_info, "message_out", msg_out);
+	char *dest = cJSON_PrintUnformatted(res_obj);
+
+	put_http_msg(
+	    &res, msg->content_type, NULL, NULL, NULL, dest, strlen(dest));
+
+	cJSON_free(dest);
+	cJSON_Delete(res_obj);
 	return res;
 }
 
@@ -273,18 +290,17 @@ get_subscriptions(cJSON *data, http_msg *msg, uint64_t sequence)
 		data_info_elem = cJSON_CreateObject();
 		cJSON_AddItemToArray(data_info, data_info_elem);
 		const uint8_t *cid = conn_param_get_clientid(ctxt->cparam);
-		cJSON_AddStringToObject(data_info_elem, "Client ID", cid);
+		cJSON_AddStringToObject(data_info_elem, "client_id", cid);
 		cJSON *topics = cJSON_CreateArray();
-		cJSON_AddItemToObject(data_info_elem, "Subscriptions", topics);
+		cJSON_AddItemToObject(data_info_elem, "subscriptions", topics);
 
 		topic_node *tn = ctxt->sub_pkt->node;
 		while (tn) {
-			printf("sub topic: %s\n", tn->it->topic_filter.body);
 			cJSON *topic_with_opt = cJSON_CreateObject();
-			cJSON_AddStringToObject(topic_with_opt, "Topic",
+			cJSON_AddStringToObject(topic_with_opt, "topic",
 			    tn->it->topic_filter.body);
 			cJSON_AddNumberToObject(
-			    topic_with_opt, "Qos", tn->it->qos);
+			    topic_with_opt, "qos", tn->it->qos);
 			cJSON_AddItemToArray(topics, topic_with_opt);
 			tn = tn->next;
 		}
@@ -331,16 +347,16 @@ get_clients(cJSON *data, http_msg *msg, uint64_t sequence)
 
 		cJSON *data_info_elem;
 		data_info_elem = cJSON_CreateObject();
-		cJSON_AddStringToObject(data_info_elem, "Client ID", cid);
-		cJSON_AddStringToObject(data_info_elem, "Username",
+		cJSON_AddStringToObject(data_info_elem, "client_id", cid);
+		cJSON_AddStringToObject(data_info_elem, "username",
 		    user_name == NULL ? "" : (char *) user_name);
 		cJSON_AddNumberToObject(
-		    data_info_elem, "KeepAlive", keep_alive);
-		cJSON_AddNumberToObject(data_info_elem, "Protocol", proto_ver);
-		cJSON_AddNumberToObject(data_info_elem, "Connect Status", 1);
+		    data_info_elem, "keepalive", keep_alive);
+		cJSON_AddNumberToObject(data_info_elem, "protocol", proto_ver);
+		cJSON_AddNumberToObject(data_info_elem, "connect_status", 1);
 #ifdef STATISTICS
 		cJSON_AddNumberToObject(
-		    data_info_elem, "Message Receive", recv_cnt);
+		    data_info_elem, "message_receive", recv_cnt);
 #endif
 		cJSON_AddItemToArray(data_info, data_info_elem);
 
@@ -362,8 +378,6 @@ get_clients(cJSON *data, http_msg *msg, uint64_t sequence)
 
 	put_http_msg(
 	    &res, msg->content_type, NULL, NULL, NULL, dest, strlen(dest));
-
-	puts(msg->content_type);
 
 	cJSON_free(dest);
 
