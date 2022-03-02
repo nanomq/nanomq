@@ -128,11 +128,11 @@ foreach_client(
 void
 handle_pub(nano_work *work, struct pipe_content *pipe_ct)
 {
-	char **topic_queue     = NULL;
-	void **cli_ctx_list    = NULL;
-	void **shared_cli_list = NULL;
-	size_t msg_cnt         = 0;
-	char * topic           = NULL;
+	char ** topic_queue     = NULL;
+	void ** cli_ctx_list    = NULL;
+	void ** shared_cli_list = NULL;
+	size_t  msg_cnt         = 0;
+	uint8_t proto           = conn_param_get_protover(work->cparam);
 
 #ifdef STATISTICS
 	g_message_in++;
@@ -151,7 +151,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct)
 		return;
 	}
 
-	if (work->proto == PROTOCOL_VERSION_v5) {
+	if (proto == PROTOCOL_VERSION_v5) {
 		property_data *pdata = property_get_value(
 		    work->pub_packet->var_header.publish.properties,
 		    TOPIC_ALIAS);
@@ -403,7 +403,9 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 
 #if SUPPORT_MQTT5_0
 		if (PROTOCOL_VERSION_v5 == proto) {
-			encode_properties(dest_msg, work->pub_packet->var_header.publish.properties);
+			// encode_properties(dest_msg, work->pub_packet->var_header.publish.properties);
+			// TODO Set properties if necessary.
+			encode_properties(dest_msg, NULL);
 		}
 #endif
 
