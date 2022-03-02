@@ -1,6 +1,5 @@
 #ifndef NANOMQ_BROKER_H
 #define NANOMQ_BROKER_H
-#include <bits/stdint-uintn.h>
 #define MQTT_VER 5
 
 #include <conf.h>
