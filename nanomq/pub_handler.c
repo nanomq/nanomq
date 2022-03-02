@@ -138,7 +138,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct)
 	g_message_in++;
 #endif
 
-	work->pub_packet = (struct pub_packet_struct *) nng_alloc(
+	work->pub_packet = (struct pub_packet_struct *) nng_zalloc(
 	    sizeof(struct pub_packet_struct));
 
 	reason_code result = decode_pub_message(work);
@@ -276,8 +276,8 @@ free_pub_packet(struct pub_packet_struct *pub_packet)
 				debug_msg("free memory topic");
 			}
 
-			if (pub_packet->payload.data != NULL &&
-			    pub_packet->payload.len > 0) {
+			if (pub_packet->payload.len > 0 &&
+			    pub_packet->payload.data != NULL) {
 				nng_free(pub_packet->payload.data,
 				    pub_packet->payload.len + 1);
 				pub_packet->payload.data = NULL;
@@ -329,6 +329,8 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 
 	nng_msg_clear(dest_msg);
 	nng_msg_header_clear(dest_msg);
+	proto = conn_param_get_protover(work->cparam);
+
 	switch (cmd) {
 	case PUBLISH:
 		/*fixed header*/
@@ -367,6 +369,12 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 		}
 		debug_msg("after topic and id len in msg already [%ld]",
 		    nng_msg_len(dest_msg));
+
+		if (PROTOCOL_VERSION_v5 == proto) {
+			uint8_t len = 0;
+			// FIXME put len 0 for properties temporary
+			nng_msg_append(dest_msg, &len, 1);
+		}
 
 #if SUPPORT_MQTT5_0
 		if (work->cparam) {
@@ -700,9 +708,13 @@ decode_pub_message(nano_work *work)
 			debug_msg("property len: %d",
 			    pub_packet->var_header.publish.prop_len);
 		}
-#if SUPPORT_MQTT5_0
 
-#endif
+		if (pos > msg_len) {
+			debug_msg("buffer-overflow: pos = %u, msg_len = %lu",
+			    pos, msg_len);
+			return PROTOCOL_ERROR;
+		}
+
 		used_pos = pos;
 		debug_msg("used pos: [%d]", used_pos);
 		// payload
