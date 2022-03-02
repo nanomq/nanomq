@@ -370,15 +370,6 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 		append_res = nng_msg_header_append(
 		    dest_msg, (uint8_t *) &work->pub_packet->fixed_header, 1);
 
-		arr_len = put_var_integer(
-		    tmp, work->pub_packet->fixed_header.remain_len);
-
-		append_res = nng_msg_header_append(dest_msg, tmp, arr_len);
-		nng_msg_set_remaining_len(
-		    dest_msg, work->pub_packet->fixed_header.remain_len);
-		debug_msg("header len [%ld] remain len [%d]\n",
-		    nng_msg_header_len(dest_msg),
-		    work->pub_packet->fixed_header.remain_len);
 		/*variable header*/
 		// topic name
 		if (work->pub_packet->var_header.publish.topic_name.len > 0) {
@@ -403,7 +394,8 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 
 #if SUPPORT_MQTT5_0
 		if (PROTOCOL_VERSION_v5 == proto) {
-			// encode_properties(dest_msg, work->pub_packet->var_header.publish.properties);
+			// encode_properties(dest_msg,
+			// work->pub_packet->var_header.publish.properties);
 			// TODO Set properties if necessary.
 			encode_properties(dest_msg, NULL);
 		}
@@ -419,6 +411,17 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 
 		debug_msg("after payload len in msg already [%ld]",
 		    nng_msg_len(dest_msg));
+
+		work->pub_packet->fixed_header.remain_len =
+		    nng_msg_len(dest_msg);
+		arr_len = put_var_integer(
+		    tmp, work->pub_packet->fixed_header.remain_len);
+		append_res = nng_msg_header_append(dest_msg, tmp, arr_len);
+		nng_msg_set_remaining_len(
+		    dest_msg, work->pub_packet->fixed_header.remain_len);
+		debug_msg("header len [%ld] remain len [%d]\n",
+		    nng_msg_header_len(dest_msg),
+		    work->pub_packet->fixed_header.remain_len);
 		break;
 
 	case PUBREL:
@@ -545,8 +548,7 @@ decode_pub_message(nano_work *work)
 		    pub_packet->var_header.publish.topic_name.body,
 		    pub_packet->fixed_header.qos);
 
-		if (pub_packet->fixed_header.qos >
-		    0) {
+		if (pub_packet->fixed_header.qos > 0) {
 			NNI_GET16(msg_body + pos,
 			    pub_packet->var_header.publish.packet_id);
 			debug_msg("identifier: [%d]",
@@ -593,7 +595,7 @@ decode_pub_message(nano_work *work)
 	case PUBREC:
 	case PUBREL:
 	case PUBCOMP:
-		//here could not be reached 
+		// here could not be reached
 		NNI_GET16(msg_body, pub_packet->var_header.pub_arrc.packet_id);
 		if (PROTOCOL_VERSION_v5 == proto) {
 			pos += 2;
@@ -602,7 +604,8 @@ decode_pub_message(nano_work *work)
 			pos++;
 			pub_packet->var_header.pub_arrc.properties =
 			    decode_properties(msg, &pos,
-			        &pub_packet->var_header.pub_arrc.prop_len, false);
+			        &pub_packet->var_header.pub_arrc.prop_len,
+			        false);
 		}
 		break;
 
