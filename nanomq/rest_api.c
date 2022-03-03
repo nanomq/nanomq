@@ -18,6 +18,7 @@
 #include <nng/nng.h>
 #include <nng/supplemental/http/http.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 static http_msg error_response(
@@ -114,10 +115,9 @@ authorize(http_msg *msg)
 	}
 
 	size_t token_len = strlen(msg->token);
-
-	uint8_t *decode = nng_alloc(token_len);
-
-	base64_decode(msg->token, token_len, decode);
+	uint8_t *token = nng_alloc(token_len + 1);
+	memcpy(token, msg->token, token_len);
+	token[token_len] = '\0';
 
 	// Authorize username:password
 	conf_http_server *server = get_http_server_conf();
@@ -127,12 +127,18 @@ authorize(http_msg *msg)
 	char *auth = nng_alloc(auth_len);
 	snprintf(auth, auth_len, "%s:%s", server->username, server->password);
 
+	uint8_t *decode = nng_alloc(auth_len);
+	decode[auth_len-1] = '\0';
+
+	base64_decode(token, token_len, decode);
+
 	if (strncmp(auth, decode, auth_len) != 0) {
 		result = WRONG_USERNAME_OR_PASSWORD;
 	}
 
 	nng_free(auth, auth_len);
 	nng_free(decode, msg->token_len);
+	nng_free(token, token_len);
 
 	return result;
 }
@@ -153,7 +159,12 @@ process_request(http_msg *msg)
 		goto exit;
 	}
 
-	cJSON *object = cJSON_Parse(msg->data);
+	char *data = nng_alloc(sizeof(char) * (msg->data_len + 1));
+	memcpy(data, msg->data, msg->data_len);
+	data[msg->data_len] = '\0';
+
+	cJSON *object = cJSON_Parse(data);
+	nng_free(data, msg->data_len + 1);
 
 	if (!cJSON_IsObject(object)) {
 		status = NNG_HTTP_STATUS_BAD_REQUEST;
