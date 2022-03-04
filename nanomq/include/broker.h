@@ -5,9 +5,9 @@
 #include <conf.h>
 #include <nanolib.h>
 #include <nng/nng.h>
-#include <stdatomic.h> 
 #include <nng/protocol/mqtt/mqtt.h>
 #include <nng/supplemental/util/platform.h>
+#include <stdatomic.h>
 
 #define PROTO_MQTT_BROKER 0x00
 #define PROTO_MQTT_BRIDGE 0x01
@@ -15,7 +15,17 @@
 
 typedef struct work nano_work;
 struct work {
-	enum { INIT, RECV, WAIT, SEND, RESEND, FREE, NOTIFY, BRIDGE, END } state;
+	enum {
+		INIT,
+		RECV,
+		WAIT,
+		SEND,
+		RESEND,
+		FREE,
+		NOTIFY,
+		BRIDGE,
+		END
+	} state;
 	// 0x00 mqtt_broker
 	// 0x01 mqtt_bridge
 	uint8_t   proto;
@@ -39,9 +49,9 @@ struct work {
 };
 
 struct client_ctx {
-	nng_pipe                 pid;
+	nng_pipe pid;
 #ifdef STATISTICS
-	atomic_uint 		 recv_cnt; 		
+	atomic_uint recv_cnt;
 #endif
 	conn_param *             cparam;
 	struct packet_subscribe *sub_pkt;
@@ -58,6 +68,7 @@ int broker_dflt(int argc, char **argv);
 #ifdef STATISTICS
 uint64_t nanomq_get_message_in(void);
 uint64_t nanomq_get_message_out(void);
+uint64_t nanomq_get_message_drop(void);
 #endif
 dbtree *get_broker_db(void);
 

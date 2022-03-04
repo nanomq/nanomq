@@ -13,9 +13,9 @@
 #include <include/nanomq.h>
 #include <mqtt_db.h>
 #include <nng.h>
+#include <nng/mqtt/packet.h>
 #include <nng/protocol/mqtt/mqtt_parser.h>
 #include <zmalloc.h>
-#include <nng/mqtt/packet.h>
 
 #include "include/bridge.h"
 #include "include/pub_handler.h"
@@ -24,8 +24,11 @@
 #define ENABLE_RETAIN 1
 #define SUPPORT_MQTT5_0 0
 
-static atomic_ullong g_message_in = 0;
-static atomic_ullong g_message_out = 0;
+#ifdef STATISTICS
+static atomic_ullong g_message_in   = 0;
+static atomic_ullong g_message_out  = 0;
+static atomic_ullong g_message_drop = 0;
+#endif
 
 static char *bytes_to_str(const unsigned char *src, char *dest, int src_len);
 static void  print_hex(
@@ -58,7 +61,7 @@ foreach_client(
 	struct client_ctx *ctx;
 	topic_node *       tn;
 	// Dont using msg info buf, Just for Cheat Compiler
-	mqtt_msg_info     *msg_info, msg_info_buf;
+	mqtt_msg_info *msg_info, msg_info_buf;
 
 	cvector(mqtt_msg_info) msg_infos = NULL;
 
@@ -84,7 +87,8 @@ foreach_client(
 			continue;
 
 		while (tn) {
-			if (true == topic_filter(tn->it->topic_filter.body,
+			if (true ==
+			    topic_filter(tn->it->topic_filter.body,
 			        pub_work->pub_packet->variable_header.publish
 			            .topic_name.body)) {
 				break; // find the topic
@@ -104,7 +108,7 @@ foreach_client(
 		}
 
 		cvector_push_back(msg_infos, msg_info_buf);
-		msg_info = (mqtt_msg_info *)&msg_infos[i];
+		msg_info = (mqtt_msg_info *) &msg_infos[i];
 
 		msg_info->pipe = pids;
 		msg_info->qos  = sub_qos;
@@ -112,7 +116,7 @@ foreach_client(
 			msg_info->retain = 0;
 		else
 			msg_info->retain =
-				pub_work->pub_packet->fixed_header.retain;
+			    pub_work->pub_packet->fixed_header.retain;
 		if (sub_id_p) {
 			msg_info->sub_id = sub_id_p[0];
 			cvector_free(sub_id_p);
@@ -173,6 +177,12 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct)
 		shared_cli_list = dbtree_find_shared_sub_clients(
 		    work->db, topic, NULL, &msg_cnt);
 	}
+
+#ifdef STATISTICS
+	if (cli_ctx_list == NULL && shared_cli_list == NULL) {
+		g_message_drop++;
+	}
+#endif
 
 	if (cli_ctx_list != NULL) {
 		foreach_client(cli_ctx_list, work, pipe_ct);
@@ -296,7 +306,7 @@ free_pub_packet(struct pub_packet_struct *pub_packet)
 }
 
 void
-free_msg_infos(mqtt_msg_info * msg_infos)
+free_msg_infos(mqtt_msg_info *msg_infos)
 {
 	if (msg_infos != NULL) {
 		zfree(msg_infos);
@@ -337,8 +347,8 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 		/*fixed header*/
 		work->pub_packet->fixed_header.packet_type = cmd;
 		// work->pub_packet->fixed_header.dup = dup;
-		append_res = nng_msg_header_append(dest_msg,
-			(uint8_t *) &work->pub_packet->fixed_header, 1);
+		append_res = nng_msg_header_append(
+		    dest_msg, (uint8_t *) &work->pub_packet->fixed_header, 1);
 
 		arr_len = put_var_integer(
 		    tmp, work->pub_packet->fixed_header.remain_len);
@@ -543,9 +553,9 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 		struct pub_packet_struct pub_response = {
 			.fixed_header.packet_type = cmd,
 			// .fixed_header.dup         = dup,
-			.fixed_header.qos         = 0,
-			.fixed_header.retain      = 0,
-			.fixed_header.remain_len  = 2, // TODO
+			.fixed_header.qos        = 0,
+			.fixed_header.retain     = 0,
+			.fixed_header.remain_len = 2, // TODO
 			.variable_header.pub_arrc.packet_identifier =
 			    work->pub_packet->variable_header.publish
 			        .packet_identifier
@@ -1218,13 +1228,22 @@ init_pub_packet_property(struct pub_packet_struct *pub_packet)
 	    .subscription_identifier.has_value = false;
 }
 
-
-uint64_t nanomq_get_message_in()
+#ifdef STATISTICS
+uint64_t
+nanomq_get_message_in()
 {
 	return g_message_in;
 }
 
-uint64_t nanomq_get_message_out()
+uint64_t
+nanomq_get_message_out()
 {
 	return g_message_out;
 }
+
+uint64_t
+nanomq_get_message_drop()
+{
+	return g_message_drop;
+}
+#endif
