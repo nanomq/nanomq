@@ -217,12 +217,12 @@ rest_handle(nng_aio *aio)
 	nng_http_req_get_data(req, &data, &sz);
 	job->http_aio = aio;
 
-	if ((rv = nng_msg_alloc(&job->msg, sz)) != 0) {
-		rest_http_fatal(job, "nng_msg_alloc: %s", rv);
-		return;
-	}
+	// if ((rv = nng_msg_alloc(&job->msg, sz)) != 0) {
+	// 	rest_http_fatal(job, "nng_msg_alloc: %s", rv);
+	// 	return;
+	// }
 
-	memcpy(nng_msg_body(job->msg), data, sz);
+	// memcpy(nng_msg_body(job->msg), data, sz);
 
 	http_msg recv_msg = { 0 };
 
