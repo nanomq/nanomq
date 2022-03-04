@@ -194,7 +194,7 @@ server_cb(void *arg)
 				     i++) {
 					if (topic_filter(bridge->forwards[i],
 					        work->pub_packet
-					            ->variable_header.publish
+					            ->var_header.publish
 					            .topic_name.body)) {
 						found = true;
 						break;
@@ -203,12 +203,12 @@ server_cb(void *arg)
 
 				if (found) {
 					smsg = bridge_publish_msg(
-					    work->pub_packet->variable_header
+					    work->pub_packet->var_header
 					        .publish.topic_name.body,
-					    work->pub_packet->payload_body
-					        .payload,
-					    work->pub_packet->payload_body
-					        .payload_len,
+					    work->pub_packet->payload
+					        .data,
+					    work->pub_packet->payload
+					        .len,
 					    work->pub_packet->fixed_header.dup,
 					    work->pub_packet->fixed_header.qos,
 					    work->pub_packet->fixed_header
