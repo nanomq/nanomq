@@ -12,6 +12,7 @@
 #include "include/client.h"
 #include "include/mq.h"
 #include "include/nngcat.h"
+#include "include/bench.h"
 
 #include <stdlib.h>
 
@@ -23,8 +24,11 @@ NANOMQ_APP(broker, broker_dflt, broker_start, broker_stop, broker_restart);
 NANOMQ_APP(pub, pub_dflt, pub_start, NULL, client_stop);
 NANOMQ_APP(sub, sub_dflt, sub_start, NULL, client_stop);
 NANOMQ_APP(conn, conn_dflt, conn_start, NULL, client_stop);
-NANOMQ_APP(nngcat, nng_cat_dflt, NULL, NULL, NULL);
 #endif
+#if defined(SUPP_BENCH)
+NANOMQ_APP(bench, bench_dflt, bench_start, NULL, NULL);
+#endif
+NANOMQ_APP(nngcat, nng_cat_dflt, NULL, NULL, NULL);
 #if defined(NANO_DEBUG)
 
 #endif
@@ -38,6 +42,9 @@ const struct nanomq_app *edge_apps[] = {
 	&nanomq_app_pub,
 	&nanomq_app_sub,
 	&nanomq_app_conn,
+#endif
+#if defined(SUPP_BENCH)
+	&nanomq_app_bench,
 #endif
 	&nanomq_app_nngcat,
 #if defined(NANO_DEBUG)
