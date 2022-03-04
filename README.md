@@ -54,6 +54,11 @@ nanomq sub  start --url <url> -t <topic> [--help]
 nanomq conn start --url <url> [--help]
 ```
 
+**NanoMQ MQTT bench usage**
+```bash
+nanomq bench start { pub | sub | conn } [--help]
+```
+
 **POSIX message queue usage**
 
 ```bash
@@ -128,6 +133,13 @@ ninja
 
   ``` bash
   cmake -G Ninja -DBUILD_CLIENT=OFF ..
+  ninja
+  ```
+
+**Note (optional): bench tool isn't built by default**, you can enable it via `-DBUILD_BENCH=ON`.
+
+  ``` bash
+  cmake -G Ninja -DBUILD_BENCH=ON ..
   ninja
   ```
 
