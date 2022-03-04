@@ -12,6 +12,7 @@ SET(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 project(nanomq-nng)
 
 option (BUILD_CLIENT "Build nanomq client" ON)
+option (BUILD_BENCH "Build nano-bench" OFF)
 
 set (NNG_PROTO_MQTT_BROKER  ON)
 set (NNG_TRANSPORT_MQTT_BROKER_TCP ON)
@@ -24,6 +25,10 @@ endif()
 
 if (NNG_ENABLE_TLS) 
   add_definitions(-DNNG_SUPP_TLS)
+endif()
+
+if (BUILD_BENCH) 
+  add_definitions(-DSUPP_BENCH)
 endif()
 
 set(CMAKE_MODULE_PATH
