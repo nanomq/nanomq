@@ -114,8 +114,8 @@ authorize(http_msg *msg)
 		return EMPTY_USERNAME_OR_PASSWORD;
 	}
 
-	size_t token_len = strlen(msg->token);
-	uint8_t *token = nng_alloc(token_len + 1);
+	size_t   token_len = strlen(msg->token);
+	uint8_t *token     = nng_alloc(token_len + 1);
 	memcpy(token, msg->token, token_len);
 	token[token_len] = '\0';
 
@@ -127,8 +127,8 @@ authorize(http_msg *msg)
 	char *auth = nng_alloc(auth_len);
 	snprintf(auth, auth_len, "%s:%s", server->username, server->password);
 
-	uint8_t *decode = nng_alloc(auth_len);
-	decode[auth_len-1] = '\0';
+	uint8_t *decode      = nng_alloc(auth_len);
+	decode[auth_len - 1] = '\0';
 
 	base64_decode(token, token_len, decode);
 
@@ -250,8 +250,8 @@ get_endpoints(cJSON *data, http_msg *msg, uint64_t sequence)
 static http_msg
 get_broker(cJSON *data, http_msg *msg, uint64_t sequence)
 {
-	http_msg res = { 0 };
-	res.status   = NNG_HTTP_STATUS_OK;
+	http_msg res     = { 0 };
+	res.status       = NNG_HTTP_STATUS_OK;
 	cJSON *res_obj   = NULL;
 	cJSON *data_info = NULL;
 	res_obj          = cJSON_CreateObject();
@@ -261,10 +261,14 @@ get_broker(cJSON *data, http_msg *msg, uint64_t sequence)
 	cJSON_AddNumberToObject(res_obj, "rep", msg->request);
 	cJSON_AddItemToObject(res_obj, "data", data_info);
 
-	uint64_t msg_in = nanomq_get_message_in();
-	uint64_t msg_out = nanomq_get_message_out();
+	size_t   client_size = dbhash_get_pipe_cnt();
+	uint64_t msg_in      = nanomq_get_message_in();
+	uint64_t msg_out     = nanomq_get_message_out();
+	uint64_t msg_drop    = nanomq_get_message_drop();
+	cJSON_AddNumberToObject(data_info, "client_size", client_size);
 	cJSON_AddNumberToObject(data_info, "message_in", msg_in);
 	cJSON_AddNumberToObject(data_info, "message_out", msg_out);
+	cJSON_AddNumberToObject(data_info, "message_drop", msg_drop);
 	char *dest = cJSON_PrintUnformatted(res_obj);
 
 	put_http_msg(
