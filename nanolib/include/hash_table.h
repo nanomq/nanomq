@@ -33,7 +33,7 @@ typedef struct dbhash_ptpair_s dbhash_ptpair_t;
 // ptpair is pipe topic pair
 struct dbhash_ptpair_s {
 	uint32_t pipe;
-	char * 	 topic;
+	char *   topic;
 };
 
 /**
@@ -87,6 +87,8 @@ dbhash_ptpair_t *dbhash_ptpair_alloc(uint32_t p, char *t);
 void dbhash_ptpair_free(dbhash_ptpair_t *pt);
 
 dbhash_ptpair_t **dbhash_get_ptpair_all(void);
+
+size_t dbhash_get_pipe_cnt(void);
 
 void dbhash_init_cached_table(void);
 void dbhash_destroy_cached_table(void);
