@@ -24,7 +24,7 @@
 
 #define fatal(msg, rv)                                     \
 	{                                                  \
-		debug_msg("%s:%s", msg, nng_strerror(rv)); \
+		printf("%s:%s\n", msg, nng_strerror(rv)); \
 		exit(1);                                   \
 	}
 
