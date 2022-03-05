@@ -132,6 +132,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct)
 	void **cli_ctx_list    = NULL;
 	void **shared_cli_list = NULL;
 	size_t msg_cnt         = 0;
+	char * topic           = NULL;
 
 #ifdef STATISTICS
 	g_message_in++;
@@ -150,18 +151,17 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct)
 		return;
 	}
 
-	char *topic =
-	    work->pub_packet->variable_header.publish.topic_name.body;
+	topic = work->pub_packet->variable_header.publish.topic_name.body;
+
+	cli_ctx_list =
+	    dbtree_find_clients_and_cache_msg(work->db, topic, NULL, &msg_cnt);
+
+	if (cli_ctx_list != NULL) {
+		foreach_client(cli_ctx_list, work, pipe_ct);
+	}
+	cvector_free(cli_ctx_list);
 
 	if (work->pub_packet->fixed_header.qos > 0) {
-		cli_ctx_list = dbtree_find_clients_and_cache_msg(
-		    work->db, topic, work->msg, &msg_cnt);
-		// Note. We clone msg_cnt times for the session stored.
-		// There are msg_cnt sessions need to be sent.
-		for (int i = 0; i < (int) (msg_cnt); i++) {
-			nng_msg_clone(work->msg);
-		}
-
 		shared_cli_list = dbtree_find_shared_sub_clients(
 		    work->db, topic, work->msg, &msg_cnt);
 		// Note. We clone msg_cnt times for the session stored.
@@ -169,11 +169,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct)
 		for (int i = 0; i < (int) (msg_cnt); i++) {
 			nng_msg_clone(work->msg);
 		}
-
 	} else {
-		cli_ctx_list = dbtree_find_clients_and_cache_msg(
-		    work->db, topic, NULL, &msg_cnt);
-
 		shared_cli_list = dbtree_find_shared_sub_clients(
 		    work->db, topic, NULL, &msg_cnt);
 	}
