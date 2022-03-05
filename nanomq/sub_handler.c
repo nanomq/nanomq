@@ -566,49 +566,49 @@ destroy_sub_ctx(void *ctxt)
 	cli_ctx = NULL;
 }
 
-int
-cache_session(uint32_t key_clientid, conn_param *cparam, uint32_t pid, void *db)
-{
-	debug_msg("cache session");
-	struct topic_queue *tq = NULL;
+// int
+// cache_session(uint32_t key_clientid, conn_param *cparam, uint32_t pid, void *db)
+// {
+// 	debug_msg("cache session");
+// 	struct topic_queue *tq = NULL;
 
-	if (dbhash_check_id(pid)) {
-		tq = dbhash_get_topic_queue(pid);
-		while (tq) {
-			// TODO Is it necessary to get ctx and set pipeid to 0
-			// in ctx ??
-			dbtree_cache_session(db, tq->topic, key_clientid, pid);
-			tq = tq->next;
-		}
-		dbhash_cache_topic_all(pid, key_clientid);
-	}
+// 	if (dbhash_check_id(pid)) {
+// 		tq = dbhash_get_topic_queue(pid);
+// 		while (tq) {
+// 			// TODO Is it necessary to get ctx and set pipeid to 0
+// 			// in ctx ??
+// 			dbtree_cache_session(db, tq->topic, key_clientid, pid);
+// 			tq = tq->next;
+// 		}
+// 		dbhash_cache_topic_all(pid, key_clientid);
+// 	}
 
-	debug_msg("Session cached.");
-	return 0;
-}
+// 	debug_msg("Session cached.");
+// 	return 0;
+// }
 
-int
-restore_session(uint32_t key_clientid, conn_param *cparam, uint32_t pid, void *db)
-{
-	debug_msg("restore session");
-	dbtree_ctxt * db_ctx;
-	topic_queue *tq = NULL;
+// int
+// restore_session(uint32_t key_clientid, conn_param *cparam, uint32_t pid, void *db)
+// {
+// 	debug_msg("restore session");
+// 	dbtree_ctxt * db_ctx;
+// 	topic_queue *tq = NULL;
 
-	// TODO hash collision?
-	// TODO kick prev connection(p or cs->pipeid)
+// 	// TODO hash collision?
+// 	// TODO kick prev connection(p or cs->pipeid)
 
-	if (!dbhash_cached_check_id(key_clientid)) {
-		return 0;
-	}
-	tq = dbhash_get_cached_topic(key_clientid);
-	while (tq) {
-		db_ctx = dbtree_restore_session(db, tq->topic, key_clientid, pid);
-		tq  = tq->next;
-	}
-	if (db_ctx) {
-		client_ctx *ctx = db_ctx->ctxt;
-		ctx->pid.id = pid;
-	}
+// 	if (!dbhash_cached_check_id(key_clientid)) {
+// 		return 0;
+// 	}
+// 	tq = dbhash_get_cached_topic(key_clientid);
+// 	while (tq) {
+// 		db_ctx = dbtree_restore_session(db, tq->topic, key_clientid, pid);
+// 		tq  = tq->next;
+// 	}
+// 	if (db_ctx) {
+// 		client_ctx *ctx = db_ctx->ctxt;
+// 		ctx->pid.id = pid;
+// 	}
 
-	dbhash_restore_topic_all(key_clientid, pid);
-}
+// 	dbhash_restore_topic_all(key_clientid, pid);
+// }
