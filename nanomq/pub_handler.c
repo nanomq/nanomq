@@ -156,11 +156,6 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct)
 	cli_ctx_list =
 	    dbtree_find_clients_and_cache_msg(work->db, topic, NULL, &msg_cnt);
 
-	if (cli_ctx_list != NULL) {
-		foreach_client(cli_ctx_list, work, pipe_ct);
-	}
-	cvector_free(cli_ctx_list);
-
 	if (work->pub_packet->fixed_header.qos > 0) {
 		shared_cli_list = dbtree_find_shared_sub_clients(
 		    work->db, topic, work->msg, &msg_cnt);
