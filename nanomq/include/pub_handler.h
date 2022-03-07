@@ -89,17 +89,6 @@ struct pub_packet_struct {
 	struct mqtt_payload   payload_body;
 };
 
-struct pipe_info {
-	mqtt_control_packet_types cmd;
-
-	uint8_t    qos;
-	uint32_t   index;
-	uint32_t   pipe;
-	nano_work *work;
-	uint8_t    retain;
-	uint32_t * sub_id_p;
-};
-
 struct pipe_content {
 	uint32_t       total;
 	uint32_t       current_index;

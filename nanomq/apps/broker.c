@@ -167,10 +167,9 @@ server_cb(void *arg)
 			debug_msg("ERROR: RECV nng aio result error: %d", rv);
 			nng_aio_wait(work->aio);
 		}
-		msg = nng_aio_get_msg(work->aio);
-		if (msg == NULL) {
+		if ((msg = nng_aio_get_msg(work->aio)) == NULL)
 			fatal("RECV NULL MSG", rv);
-		}
+
 		work->msg    = msg;
 		work->cparam = nng_msg_get_conn_param(work->msg);
 		work->pid    = nng_msg_get_pipe(work->msg);
@@ -416,7 +415,7 @@ server_cb(void *arg)
 			cvector(mqtt_msg_info) msg_infos;
 			msg_infos = work->pipe_ct->msg_infos;
 
-			debug_msg("total pipes: %d", work->pipe_ct->total);
+			debug_msg("total pipes: %ld", cvector_size(msg_infos));
 			//TODO encode abstract msg only
 			if (cvector_size(msg_infos))
 				encode_pub_message(smsg, work, PUBLISH, msg_info);

@@ -7,6 +7,7 @@
 #include <nng/nng.h>
 #include <nng/protocol/mqtt/mqtt.h>
 #include <nng/supplemental/util/platform.h>
+#include <nng/mqtt/packet.h>
 #include <stdatomic.h>
 
 #define PROTO_MQTT_BROKER 0x00
@@ -41,11 +42,11 @@ struct work {
 	dbtree *  db_ret;
 	conf *    config;
 
-	struct pipe_content *      pipe_ct;
-	conn_param *               cparam;
-	struct pub_packet_struct * pub_packet;
-	struct packet_subscribe *  sub_pkt;
-	struct packet_unsubscribe *unsub_pkt;
+	struct pipe_content *     pipe_ct;
+	conn_param *              cparam;
+	struct pub_packet_struct *pub_packet;
+	packet_subscribe *        sub_pkt;
+	packet_unsubscribe *      unsub_pkt;
 };
 
 struct client_ctx {

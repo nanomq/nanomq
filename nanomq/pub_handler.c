@@ -185,7 +185,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct)
 	}
 	cvector_free(shared_cli_list);
 
-	debug_msg("pipe_info size: [%d]", pipe_ct->total);
+	debug_msg("pipe_info size: [%d]", cvector_size(cli_ctx_list));
 
 #if ENABLE_RETAIN
 	handle_pub_retain(work, topic);
