@@ -8,7 +8,7 @@ Nanomq 的 HTTP API 服务默认监听 8081 端口。可通过 `etc/nanomq.conf`
 
 Nanomq 的 HTTP API 使用 [Basic 认证 ](https://en.wikipedia.org/wiki/Basic_access_authentication)方式。`username` 和 `password` 须分别填写。 默认的`username` 和 `password` 是：`admin/public`。 可通过 `etc/nanomq.conf` 配置文件修改 `username` 和 `password` 。
 
-##  响应码
+## 响应码
 
 ### HTTP 状态码 (status codes)
 
