@@ -16,8 +16,4 @@ void destroy_sub_ctx(void *);
 void destroy_sub_pkt(packet_subscribe *, uint8_t);
 void init_sub_property(packet_subscribe *);
 
-// functions about clean session
-int  cache_session(uint32_t, conn_param *, uint32_t, void *);
-int  restore_session(uint32_t, conn_param *, uint32_t, void *);
-
 #endif

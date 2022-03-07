@@ -178,14 +178,13 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct)
 	if (cli_ctx_list != NULL) {
 		foreach_client(cli_ctx_list, work, pipe_ct);
 	}
+	debug_msg("pipe_info size: [%d]", cvector_size(cli_ctx_list));
 	cvector_free(cli_ctx_list);
 
 	if (shared_cli_list != NULL) {
 		foreach_client(shared_cli_list, work, pipe_ct);
 	}
 	cvector_free(shared_cli_list);
-
-	debug_msg("pipe_info size: [%d]", cvector_size(cli_ctx_list));
 
 #if ENABLE_RETAIN
 	handle_pub_retain(work, topic);
