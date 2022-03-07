@@ -143,7 +143,7 @@ rest_job_cb(void *arg)
 		// We got a reply, so give it back to the server.
 
 		http_msg *res_msg = (http_msg *) nng_msg_body(job->msg);
-		debug_msg("msg %p data: %s", res_msg, res_msg->data);
+		debug_msg("msg %p data: %.*s", res_msg, (int) res_msg->data_len, res_msg->data);
 
 		rv = nng_http_res_copy_data(
 		    job->http_res, res_msg->data, res_msg->data_len);
