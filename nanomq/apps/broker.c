@@ -268,11 +268,11 @@ server_cb(void *arg)
 			dbtree_ctxt *db_ctx  = NULL;
 			char *       clientid =
 			    (char *) conn_param_get_clientid(work->cparam);
-			if (clientid != NULL &&
-			    conn_param_get_clean_start(work->cparam) == 0) {
-				cache_session(clientid, work->cparam,
-				    work->pid.id, work->db);
-			}
+			// if (clientid != NULL &&
+			//     conn_param_get_clean_start(work->cparam) == 0) {
+			// 	cache_session(clientid, work->cparam,
+			// 	    work->pid.id, work->db);
+			// }
 			// free client ctx
 			if (dbhash_check_id(work->pid.id)) {
 				topic_queue *tq =
