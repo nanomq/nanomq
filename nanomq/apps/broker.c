@@ -236,9 +236,10 @@ server_cb(void *arg)
 			nng_aio_set_msg(work->aio, work->msg);
 			nng_ctx_send(work->ctx, work->aio); // send connack
 
-			uint8_t *body = nng_msg_body(work->msg);
-			uint8_t  flag = *(body);
-			smsg = nano_msg_notify_connect(work->cparam, flag);
+			uint8_t *body        = nng_msg_body(work->msg);
+			uint8_t  reason_code = *(body + 1);
+			smsg =
+			    nano_msg_notify_connect(work->cparam, reason_code);
 
 			// Set V4/V5 flag for publish msg
 			// if (conn_param_get_protover(work->cparam) == 5) {
@@ -266,8 +267,8 @@ server_cb(void *arg)
 			// cache session
 			client_ctx * cli_ctx = NULL;
 			dbtree_ctxt *db_ctx  = NULL;
-			char *       clientid =
-			    (char *) conn_param_get_clientid(work->cparam);
+			// char *       clientid =
+			//     (char *) conn_param_get_clientid(work->cparam);
 			// if (clientid != NULL &&
 			//     conn_param_get_clean_start(work->cparam) == 0) {
 			// 	cache_session(clientid, work->cparam,
