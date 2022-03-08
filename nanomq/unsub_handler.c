@@ -206,6 +206,7 @@ unsub_ctx_handle(nano_work *work)
 	char *         client_id;
 	struct client *cli     = NULL;
 	void *         cli_ctx = NULL;
+	dbtree_ctxt *  db_ctx  = NULL;
 
 	// delete ctx_unsub in treeDB
 	while (topic_node_t) {
@@ -223,8 +224,10 @@ unsub_ctx_handle(nano_work *work)
 		debug_msg(
 		    "find client [%s] in topic [%s].", client_id, topic_str);
 
-		cli_ctx = dbtree_delete_client(
+		db_ctx = dbtree_delete_client(
 		    work->db, topic_str, clientid_key, work->pid.id);
+		cli_ctx = db_ctx->ctxt;
+		dbtree_delete_ctxt(db_ctx);
 		dbhash_del_topic(work->pid.id, topic_str);
 
 		if (cli_ctx != NULL) { // find the topic
