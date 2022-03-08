@@ -1,18 +1,18 @@
 # HTTP API
 
-Nanomq Broker provides HTTP APIs for integration with external systems, such as querying broker statistics information, clients information, subscribe topics information, and restart with new config file .
+NanoMQ Broker provides HTTP APIs for integration with external systems, such as querying broker statistics information, clients information, subscribe topics information, and restart with new config file.
 
-Nanomq Broker's HTTP API service listens on port 8081 by default. You can modify the listening port through the configuration file of `etc/nanomq.conf`. All API calls with `api/v1`.
+NanoMQ Broker's HTTP API service listens on port 8081 by default. You can modify the listening port through the configuration file of `etc/nanomq.conf`. All API calls with `api/v1`.
 
 ## Interface security
 
-Nanomq Broker's HTTP API uses the method of [Basic Authentication (opens new window)](https://en.wikipedia.org/wiki/Basic_access_authentication). The `id` and `password` must be filled with AppID and AppSecret respectively. The default AppID and AppSecret are: `admin/public`. You can modify username and password through the configuration file of `etc/nanomq.conf`.
+NanoMQ Broker's HTTP API uses the method of [Basic Authentication](https://en.wikipedia.org/wiki/Basic_access_authentication). The `username` and `password` must be filled. The default `username` and `password` are: `admin/public`. You can modify username and password through the configuration file of `etc/nanomq.conf`.
 
 ## Response code
 
 ### HTTP status codes
 
-The Nanomq Broker interface always returns 200 OK when the call is successful, and the response content is returned in JSON format.
+The NanoMQ Broker interface always returns 200 OK when the call is successful, and the response content is returned in JSON format.
 
 The possible status codes are as follows:
 
@@ -26,7 +26,7 @@ The possible status codes are as follows:
 
 ### result codes
 
-The response message body of the Nanomq Broker interface is in JSON format, which always contains the returned `code`.
+The response message body of the NanoMQ Broker interface is in JSON format, which always contains the returned `code`.
 
 The possible returned codes are as follows:
 
@@ -72,7 +72,7 @@ Returns the information of broker.
 | data.client_size  | Integer | Subscribe client size.                                       |
 | data.message_in   | Integer | Statistic broker  message in.                                |
 | data.message_out  | Integer | Statistic broker message out.                                |
-| data.message_drop | Integer | Statistic broker message drop.                               |
+| data.message_drop | Integer | Statistic broker message dropped.                            |
 
 #### **Examples:**
 

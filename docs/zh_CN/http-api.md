@@ -1,18 +1,18 @@
 # HTTP API
 
-Nanomq 提供了 HTTP API 以实现与外部系统的集成，例如查询 broker 统计信息、客户端信息、发布消息，订阅主题信息和远程修改配置/重启等。
+NanoMQ 提供了 HTTP API 以实现与外部系统的集成，例如查询 broker 统计信息、客户端信息、发布消息，订阅主题信息和远程修改配置/重启等。
 
-Nanomq 的 HTTP API 服务默认监听 8081 端口。可通过 `etc/nanomq.conf` 配置文件修改监听端口，所有 API 调用均以 `api/v1` 开头。
+NanoMQ 的 HTTP API 服务默认监听 8081 端口。可通过 `etc/nanomq.conf` 配置文件修改监听端口，所有 API 调用均以 `api/v1` 开头。
 
 ## 接口安全
 
-Nanomq 的 HTTP API 使用 [Basic 认证 ](https://en.wikipedia.org/wiki/Basic_access_authentication)方式。`username` 和 `password` 须分别填写。 默认的`username` 和 `password` 是：`admin/public`。 可通过 `etc/nanomq.conf` 配置文件修改 `username` 和 `password` 。
+NanoMQ 的 HTTP API 使用 [Basic 认证](https://en.wikipedia.org/wiki/Basic_access_authentication)方式。`username` 和 `password` 须分别填写。 默认的`username` 和 `password` 是：`admin/public`。 可通过 `etc/nanomq.conf` 配置文件修改 `username` 和 `password` 。
 
 ## 响应码
 
 ### HTTP 状态码 (status codes)
 
-Nanomq 接口在调用成功时总是返回 200 OK，响应内容则以 JSON 格式返回。
+NanoMQ 接口在调用成功时总是返回 200 OK，响应内容则以 JSON 格式返回。
 
 可能的状态码如下：
 
@@ -26,7 +26,7 @@ Nanomq 接口在调用成功时总是返回 200 OK，响应内容则以 JSON 格
 
 ### 返回码 (result codes)
 
-Nanomq 接口的响应消息体为 JSON 格式，其中总是包含返回码 `code`。
+NanoMQ 接口的响应消息体为 JSON 格式，其中总是包含返回码 `code`。
 
 可能的返回码如下：
 
@@ -51,15 +51,15 @@ Nanomq 接口的响应消息体为 JSON 格式，其中总是包含返回码 `co
 
 ## API Endpoints | POST /api/v1
 
-### Nanomq 统计信息
+### NanoMQ 统计信息
 
-返回 Nanomq 的统计信息.
+返回 NanoMQ 的统计信息.
 
 **Parameters (json):**
 
 | Name | Type    | Required | Value  | Description                                                  |
 | ---- | ------- | -------- | ------ | ------------------------------------------------------------ |
-| req  | Integer | Required | 2      | req 是 2 调用 Nanomq 获取统计信息的接口。                    |
+| req  | Integer | Required | 2      | req 是 2 调用 NanoMQ 获取统计信息的接口。                    |
 | seq  | Integer | Required | unique | seq 是全局唯一的，请求/响应信息都会携带该信息，可以通过该值确定对应的请求响应。 |
 
 **Success Response Body (JSON):**
@@ -70,9 +70,9 @@ Nanomq 接口的响应消息体为 JSON 格式，其中总是包含返回码 `co
 | seq               | Integer | seq 是全局唯一的，请求/响应信息都会携带该信息，可以通过该值确定对应的请求响应。 |
 | rep               | Integer | rep 是 2 作为 req 2 的响应。                                 |
 | data.client_size  | Integer | 订阅客户端的数量。                                           |
-| data.message_in   | Integer | Nanomq 流入的消息数量。                                      |
-| data.message_out  | Integer | Nanomq 流出的消息数量。                                      |
-| data.message_drop | Integer | Nanomq 丢弃的消息数量。                                      |
+| data.message_in   | Integer | NanoMQ 流入的消息数量。                                      |
+| data.message_out  | Integer | NanoMQ 流出的消息数量。                                      |
+| data.message_drop | Integer | NanoMQ 丢弃的消息数量。                                      |
 
 #### **Examples:**
 
@@ -89,7 +89,7 @@ $ curl -i --basic -u admin:public -X POST "http://localhost:8081/api/v1" -d '{"r
 
 | Name | Type    | Required | Value  | Description                                                  |
 | ---- | ------- | -------- | ------ | ------------------------------------------------------------ |
-| req  | Integer | Required | 4      | req 是 4 调用 Nanomq 获取主题信息的接口。                    |
+| req  | Integer | Required | 4      | req 是 4 调用 NanoMQ 获取主题信息的接口。                    |
 | seq  | Integer | Required | unique | seq 是全局唯一的，请求/响应信息都会携带该信息，可以通过该值确定对应的请求响应。 |
 
 **Success Response Body (JSON):**
@@ -118,7 +118,7 @@ $ curl -i --basic -u admin:public -X POST "http://localhost:8081/api/v1" -d '{"r
 
 | Name | Type    | Required | Value  | Description                                                  |
 | ---- | ------- | -------- | ------ | ------------------------------------------------------------ |
-| req  | Integer | Required | 5      | req 是 5 调用 Nanomq 获取客户端信息的接口。                  |
+| req  | Integer | Required | 5      | req 是 5 调用 NanoMQ 获取客户端信息的接口。                  |
 | seq  | Integer | Required | unique | seq 是全局唯一的，请求/响应信息都会携带该信息，可以通过该值确定对应的请求响应。 |
 
 **Success Response Body (JSON):**
