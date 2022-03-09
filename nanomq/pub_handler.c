@@ -126,22 +126,25 @@ foreach_client(
 }
 
 void
-handle_pub(nano_work *work, struct pipe_content *pipe_ct)
+handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto)
 {
 	char ** topic_queue     = NULL;
 	void ** cli_ctx_list    = NULL;
 	void ** shared_cli_list = NULL;
 	size_t  msg_cnt         = 0;
-	uint8_t proto           = conn_param_get_protover(work->cparam);
+
 
 #ifdef STATISTICS
 	g_message_in++;
 #endif
+	if (proto == 0) {
+		proto = conn_param_get_protover(work->cparam);
+	}
 
 	work->pub_packet = (struct pub_packet_struct *) nng_zalloc(
 	    sizeof(struct pub_packet_struct));
 
-	reason_code result = decode_pub_message(work);
+	reason_code result = decode_pub_message(work, proto);
 	if (SUCCESS != result) {
 		debug_msg("decode message failed.");
 		return;
@@ -336,7 +339,11 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 
 	nng_msg_clear(dest_msg);
 	nng_msg_header_clear(dest_msg);
-	proto = conn_param_get_protover(work->cparam);
+	if (nng_msg_cmd_type(dest_msg) == CMD_PUBLISH_V5) {
+		proto = PROTOCOL_VERSION_v5;
+	} else if (nng_msg_cmd_type(dest_msg) == CMD_PUBLISH) {
+		proto = PROTOCOL_VERSION_v5;
+	}
 
 	switch (cmd) {
 	case PUBLISH:
@@ -452,17 +459,11 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 }
 
 reason_code
-decode_pub_message(nano_work *work)
+decode_pub_message(nano_work *work, uint8_t proto)
 {
 	uint32_t pos      = 0;
 	uint32_t used_pos = 0;
 	uint32_t len, len_of_varint;
-	uint8_t  proto;
-
-	proto = conn_param_get_protover(work->cparam);
-	if (nng_msg_cmd_type(work->msg) == CMD_PUBLISH) {
-		// proto = 4;
-	}
 
 	nng_msg *                 msg        = work->msg;
 	struct pub_packet_struct *pub_packet = work->pub_packet;

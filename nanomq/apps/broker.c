@@ -181,13 +181,14 @@ server_cb(void *arg)
 			// delete will msg
 		} else if (nng_msg_cmd_type(msg) == CMD_PUBLISH) {
 			// Set V4/V5 flag for publish msg
+			nng_msg_set_timestamp(msg, nng_clock());
 			if (conn_param_get_protover(work->cparam) == 5) {
 				nng_msg_set_cmd_type(msg, CMD_PUBLISH_V5);
+				handle_pub(work, work->pipe_ct, PROTOCOL_VERSION_v5);
 			} else {
 				nng_msg_set_cmd_type(msg, CMD_PUBLISH);
+				handle_pub(work, work->pipe_ct, PROTOCOL_VERSION_v311);
 			}
-			nng_msg_set_timestamp(msg, nng_clock());
-			handle_pub(work, work->pipe_ct);
 
 			conf_bridge *bridge = &(work->config->bridge);
 			if (bridge->bridge_mode) {
@@ -227,8 +228,6 @@ server_cb(void *arg)
 				// avoid being free
 				conn_param_clone(work->cparam);
 			}
-			// set session present in connack
-			nmq_connack_session(work->msg, true);
 
 			// clone for sending connect event notification
 			nng_msg_clone(work->msg);
@@ -249,7 +248,7 @@ server_cb(void *arg)
 			nng_msg_set_cmd_type(smsg, CMD_PUBLISH);
 			nng_msg_free(work->msg);
 			work->msg = smsg;
-			handle_pub(work, work->pipe_ct);
+			handle_pub(work, work->pipe_ct, PROTOCOL_VERSION_v311);
 
 			// Free here due to the clone before
 			conn_param_free(work->cparam);
@@ -261,8 +260,9 @@ server_cb(void *arg)
 			// } else {
 			// 	nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 			// }
+			// v4 as default
 			nng_msg_set_cmd_type(msg, CMD_PUBLISH);
-			handle_pub(work, work->pipe_ct);
+			handle_pub(work, work->pipe_ct, PROTOCOL_VERSION_v311);
 
 			client_ctx * cli_ctx = NULL;
 			dbtree_ctxt *db_ctx  = NULL;
@@ -572,7 +572,7 @@ server_cb(void *arg)
 				// }
 				nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 				work->msg = msg;
-				handle_pub(work, work->pipe_ct);
+				handle_pub(work, work->pipe_ct, PROTOCOL_VERSION_v311);
 				work->state = WAIT;
 				nng_aio_finish(work->aio, 0);
 			} else {
