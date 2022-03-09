@@ -33,9 +33,9 @@ static http_msg post_ctrl(cJSON *data, http_msg *msg, uint64_t sequence);
 static http_msg post_config(cJSON *data, http_msg *msg, uint64_t sequence);
 static http_msg get_config(cJSON *data, http_msg *msg, uint64_t sequence);
 
-static int getStringValue(cJSON *obj, const char *key, char **value);
-static int getLongValue(cJSON *obj, const char *key, long *value);
-static int getBoolValue(cJSON *obj, const char *key, bool *value);
+static int  getStringValue(cJSON *obj, const char *key, char **value);
+static int  getLongValue(cJSON *obj, const char *key, long *value);
+static int  getBoolValue(cJSON *obj, const char *key, bool *value);
 static void update_main_conf(cJSON *json, conf *config);
 static void update_bridge_conf(cJSON *json, conf *config);
 
@@ -650,6 +650,9 @@ update_main_conf(cJSON *json, conf *config)
 		bool  tls_verify_peer;
 		bool  tls_fail_if_no_peer_cert;
 
+		char   dir[1024] = { 0 };
+		size_t path_len  = 0;
+
 		if (getBoolValue(tls, "enable", &tls_enable) == 0) {
 			conf_update_bool(
 			    config->conf_file, "tls.enable", tls_enable);
@@ -662,12 +665,57 @@ update_main_conf(cJSON *json, conf *config)
 			    config->conf_file, "tls.keypass", tls_keypass);
 		}
 		if (getStringValue(tls, "key", &tls_key) == 0) {
+			if (config->tls.keyfile == NULL) {
+				memset(dir, 0, 1024);
+				if (getcwd(dir, sizeof(dir)) != NULL) {
+					path_len = strlen(dir) +
+					    strlen("/key.pem") + 1;
+					config->tls.keyfile =
+					    nng_zalloc(path_len);
+					strcat(config->tls.keyfile, dir);
+					strcat(
+					    config->tls.keyfile, "/key.pem");
+					conf_update(config->conf_file,
+					    "tls.keyfile",
+					    config->tls.keyfile);
+				}
+			}
 			file_write_string(config->tls.keyfile, tls_key);
 		}
 		if (getStringValue(tls, "cert", &tls_cert) == 0) {
+			if (config->tls.certfile == NULL) {
+				memset(dir, 0, 1024);
+				if (getcwd(dir, sizeof(dir)) != NULL) {
+					path_len = strlen(dir) +
+					    strlen("/cert.pem") + 1;
+					config->tls.certfile =
+					    nng_zalloc(path_len);
+					strcat(config->tls.certfile, dir);
+					strcat(
+					    config->tls.certfile, "/cert.pem");
+					conf_update(config->conf_file,
+					    "tls.certfile",
+					    config->tls.certfile);
+				}
+			}
 			file_write_string(config->tls.certfile, tls_cert);
 		}
 		if (getStringValue(tls, "cacert", &tls_cacert) == 0) {
+			if (config->tls.cafile == NULL) {
+				memset(dir, 0, 1024);
+				if (getcwd(dir, sizeof(dir)) != NULL) {
+					path_len = strlen(dir) +
+					    strlen("/cacert.pem") + 1;
+					config->tls.cafile =
+					    nng_zalloc(path_len);
+					strcat(config->tls.cafile, dir);
+					strcat(
+					    config->tls.cafile, "/cacert.pem");
+					conf_update(config->conf_file,
+					    "tls.cacertfile",
+					    config->tls.cafile);
+				}
+			}
 			file_write_string(config->tls.cafile, tls_cacert);
 		}
 		if (getBoolValue(tls, "verify_peer", &tls_verify_peer) == 0) {
