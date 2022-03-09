@@ -131,6 +131,10 @@ extern void conf_fini(conf *nanomq_conf);
 
 extern void conf_auth_parser(conf *);
 
+extern void conf_update_long(const char *fpath, const char *key, long value);
+extern void conf_update_bool(const char *fpath, const char *key, bool value);
+extern void conf_update(const char *fpath, const char *key, char *value);
+
 extern int string_trim(char **dst, char *str);
 
 #endif
