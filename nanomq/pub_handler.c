@@ -63,7 +63,7 @@ foreach_client(
 	// Dont using msg info buf, Just for Cheat Compiler
 	mqtt_msg_info *msg_info, msg_info_buf;
 
-	cvector(mqtt_msg_info) msg_infos = NULL;
+	cvector(mqtt_msg_info) msg_infos = pipe_ct->msg_infos;
 
 	ctx_list_len = cvector_size(cli_ctx_list);
 
@@ -120,7 +120,8 @@ foreach_client(
 		}
 
 		cvector_push_back(msg_infos, msg_info_buf);
-		msg_info = (mqtt_msg_info *) &msg_infos[i];
+		size_t csize = cvector_size(msg_infos);
+		msg_info = (mqtt_msg_info *) &msg_infos[csize-1];
 
 		msg_info->pipe = pids;
 		msg_info->qos  = sub_qos;
@@ -145,6 +146,8 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct)
 	void **shared_cli_list = NULL;
 	size_t msg_cnt         = 0;
 	char * topic           = NULL;
+	pipe_ct->msg_infos = NULL;
+
 
 #ifdef STATISTICS
 	g_message_in++;
