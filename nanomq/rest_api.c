@@ -36,6 +36,8 @@ static http_msg get_config(cJSON *data, http_msg *msg, uint64_t sequence);
 static int getStringValue(cJSON *obj, const char *key, char **value);
 static int getLongValue(cJSON *obj, const char *key, long *value);
 static int getBoolValue(cJSON *obj, const char *key, bool *value);
+static void update_main_conf(cJSON *json, conf *config);
+static void update_bridge_conf(cJSON *json, conf *config);
 
 typedef struct {
 	int request;
@@ -498,21 +500,20 @@ get_config(cJSON *data, http_msg *msg, uint64_t sequence)
 	} else {
 		cJSON_AddNullToObject(tls_obj, "key_password");
 	}
-	// NOTE key, cert, ca only save file raw data, not file path
 	if (config->tls.key) {
-		cJSON_AddStringToObject(tls_obj, "keyfile", config->tls.key);
+		cJSON_AddStringToObject(tls_obj, "key", config->tls.key);
 	} else {
-		cJSON_AddNullToObject(tls_obj, "keyfile");
+		cJSON_AddNullToObject(tls_obj, "key");
 	}
 	if (config->tls.cert) {
-		cJSON_AddStringToObject(tls_obj, "certfile", config->tls.cert);
+		cJSON_AddStringToObject(tls_obj, "cert", config->tls.cert);
 	} else {
-		cJSON_AddNullToObject(tls_obj, "certfile");
+		cJSON_AddNullToObject(tls_obj, "cert");
 	}
 	if (config->tls.ca) {
-		cJSON_AddStringToObject(tls_obj, "cacertfile", config->tls.ca);
+		cJSON_AddStringToObject(tls_obj, "cacert", config->tls.ca);
 	} else {
-		cJSON_AddNullToObject(tls_obj, "cacertfile");
+		cJSON_AddNullToObject(tls_obj, "cacert");
 	}
 	cJSON_AddBoolToObject(tls_obj, "verify_peer", config->tls.verify_peer);
 	cJSON_AddBoolToObject(
@@ -592,6 +593,240 @@ get_config(cJSON *data, http_msg *msg, uint64_t sequence)
 	return res;
 }
 
+static void
+update_main_conf(cJSON *json, conf *config)
+{
+	char *   url = NULL;
+	bool     daemon;
+	int      num_taskq_thread;
+	int      max_taskq_thread;
+	uint64_t parallel;
+	int      property_size;
+	int      msq_len;
+	int      qos_duration;
+	bool     allow_anonymous;
+
+	if (getStringValue(json, "url", &url) == 0) {
+		conf_update(config->conf_file, "url", url);
+	}
+	if (getBoolValue(json, "daemon", &daemon) == 0) {
+		conf_update_bool(config->conf_file, "daemon", daemon);
+	}
+	if (getLongValue(json, "num_taskq_thread", &num_taskq_thread) == 0) {
+		conf_update_long(
+		    config->conf_file, "num_taskq_thread", num_taskq_thread);
+	}
+	if (getLongValue(json, "max_taskq_thread", &max_taskq_thread) == 0) {
+		conf_update_long(
+		    config->conf_file, "max_taskq_thread", max_taskq_thread);
+	}
+	if (getLongValue(json, "parallel", &parallel) == 0) {
+		conf_update_long(config->conf_file, "parallel", parallel);
+	}
+	if (getLongValue(json, "property_size", &property_size) == 0) {
+		conf_update_long(
+		    config->conf_file, "property_size", property_size);
+	}
+	if (getLongValue(json, "msq_len", &msq_len) == 0) {
+		conf_update_long(config->conf_file, "msq_len", msq_len);
+	}
+	if (getLongValue(json, "qos_duration", &qos_duration) == 0) {
+		conf_update_long(
+		    config->conf_file, "qos_duration", qos_duration);
+	}
+	if (getBoolValue(json, "allow_anonymous", &allow_anonymous) == 0) {
+		conf_update_bool(
+		    config->conf_file, "allow_anonymous", allow_anonymous);
+	}
+
+	cJSON *tls = cJSON_GetObjectItem(json, "tls");
+	if (cJSON_IsObject(tls)) {
+		bool  tls_enable;
+		char *tls_url;
+		char *tls_keypass;
+		char *tls_key;
+		char *tls_cert;
+		char *tls_cacert;
+		bool  tls_verify_peer;
+		bool  tls_fail_if_no_peer_cert;
+
+		if (getBoolValue(tls, "enable", &tls_enable) == 0) {
+			conf_update_bool(
+			    config->conf_file, "tls.enable", tls_enable);
+		}
+		if (getStringValue(tls, "url", &tls_url) == 0) {
+			conf_update(config->conf_file, "tls.url", tls_url);
+		}
+		if (getStringValue(tls, "keypass", &tls_keypass) == 0) {
+			conf_update(
+			    config->conf_file, "tls.keypass", tls_keypass);
+		}
+		if (getStringValue(tls, "key", &tls_key) == 0) {
+			file_write_string(config->tls.keyfile, tls_key);
+		}
+		if (getStringValue(tls, "cert", &tls_cert) == 0) {
+			file_write_string(config->tls.certfile, tls_cert);
+		}
+		if (getStringValue(tls, "cacert", &tls_cacert) == 0) {
+			file_write_string(config->tls.cafile, tls_cacert);
+		}
+		if (getBoolValue(tls, "verify_peer", &tls_verify_peer) == 0) {
+			conf_update_bool(config->conf_file, "tls.verify_peer",
+			    tls_verify_peer);
+		}
+		if (getBoolValue(tls, "fail_if_no_peer_cert",
+		        &tls_fail_if_no_peer_cert) == 0) {
+			conf_update_bool(config->conf_file,
+			    "tls.fail_if_no_peer_cert",
+			    tls_fail_if_no_peer_cert);
+		}
+	}
+
+	cJSON *websocket = cJSON_GetObjectItem(json, "websocket");
+	if (cJSON_IsObject(websocket)) {
+		bool  ws_enable;
+		char *ws_url;
+		char *ws_tls_url;
+
+		if (getBoolValue(websocket, "enable", &ws_enable) == 0) {
+			conf_update_bool(
+			    config->conf_file, "websocket.enable", ws_enable);
+		}
+		if (getStringValue(websocket, "url", &ws_url) == 0) {
+			conf_update(
+			    config->conf_file, "websocket.url", ws_url);
+		}
+		if (getStringValue(websocket, "tls_url", &ws_tls_url) == 0) {
+			conf_update(config->conf_file, "websocket.tls_url",
+			    ws_tls_url);
+		}
+	}
+
+	cJSON *http_server = cJSON_GetObjectItem(json, "http_server");
+	if (cJSON_IsObject(http_server)) {
+		bool     http_enable;
+		uint16_t http_port;
+		char *   http_username;
+		char *   http_password;
+		if (getBoolValue(http_server, "enable", &http_enable) == 0) {
+			conf_update_bool(config->conf_file,
+			    "http_server.enable", http_enable);
+		}
+		if (getLongValue(http_server, "port", &http_port) == 0) {
+			conf_update_long(
+			    config->conf_file, "http_server.port", http_port);
+		}
+		if (getStringValue(http_server, "username", &http_username) ==
+		    0) {
+			conf_update(config->conf_file, "http_server.username",
+			    http_username);
+		}
+		if (getStringValue(http_server, "password", &http_password) ==
+		    0) {
+			conf_update(config->conf_file, "http_server.password",
+			    http_password);
+		}
+	}
+}
+
+static void
+update_bridge_conf(cJSON *json, conf *config)
+{
+	conf_bridge bridge_ct = { 0 };
+	if (getBoolValue(json, "bridge_mode", &bridge_ct.bridge_mode) == 0) {
+		conf_update_bool(config->bridge_file,
+		    "bridge.mqtt.bridge_mode", bridge_ct.bridge_mode);
+	}
+	if (getStringValue(json, "address", &bridge_ct.address) == 0) {
+		conf_update(config->bridge_file, "bridge.mqtt.address",
+		    bridge_ct.address);
+	}
+	if (getLongValue(json, "proto_ver", &bridge_ct.proto_ver) == 0) {
+		conf_update_bool(config->bridge_file, "bridge.mqtt.proto_ver",
+		    bridge_ct.proto_ver);
+	}
+	if (getStringValue(json, "clientid", &bridge_ct.clientid) == 0) {
+		conf_update(config->bridge_file, "bridge.mqtt.clientid",
+		    bridge_ct.clientid);
+	}
+	if (getLongValue(json, "keepalive", &bridge_ct.keepalive) == 0) {
+		conf_update_bool(config->bridge_file, "bridge.mqtt.keepalive",
+		    bridge_ct.keepalive);
+	}
+	if (getBoolValue(json, "clean_start", &bridge_ct.clean_start) == 0) {
+		conf_update_bool(config->bridge_file,
+		    "bridge.mqtt.clean_start", bridge_ct.clean_start);
+	}
+	if (getStringValue(json, "username", &bridge_ct.username) == 0) {
+		conf_update(config->bridge_file, "bridge.mqtt.username",
+		    bridge_ct.username);
+	}
+	if (getStringValue(json, "password", &bridge_ct.password) == 0) {
+		conf_update(config->bridge_file, "bridge.mqtt.password",
+		    bridge_ct.password);
+	}
+	if (getLongValue(json, "parallel", &bridge_ct.parallel) == 0) {
+		conf_update_bool(config->bridge_file, "bridge.mqtt.parallel",
+		    bridge_ct.parallel);
+	}
+	cJSON *pub_topics = cJSON_GetObjectItem(json, "forwards");
+
+	if (cJSON_IsArray(pub_topics)) {
+		int    topic_count = cJSON_GetArraySize(pub_topics);
+		size_t length      = 0;
+		for (size_t i = 0; i < topic_count; i++) {
+			cJSON *item = cJSON_GetArrayItem(pub_topics, i);
+			char * str  = cJSON_GetStringValue(item);
+			length += strlen(str) + 1;
+		}
+		char *topic_str = nng_zalloc(length);
+		for (size_t j = 0; j < topic_count; j++) {
+			cJSON *item = cJSON_GetArrayItem(pub_topics, j);
+			char * str  = cJSON_GetStringValue(item);
+			strcat(topic_str, str);
+			if (j < topic_count - 1) {
+				strcat(topic_str, ",");
+			}
+		}
+		conf_update(
+		    config->bridge_file, "bridge.mqtt.forwards", topic_str);
+		nng_free(topic_str, length);
+	}
+
+	cJSON *sub_infos = cJSON_GetObjectItem(json, "subscription");
+	if (cJSON_IsArray(sub_infos)) {
+		int  sub_count        = cJSON_GetArraySize(sub_infos);
+		char sub_keyname[100] = { 0 };
+
+		for (int i = 0; i < sub_count; i++) {
+			cJSON *item = cJSON_GetArrayItem(sub_infos, i);
+
+			char *sub_topic;
+			int   sub_qos;
+			if (getStringValue(item, "topic", &sub_topic) == 0) {
+				memset(sub_keyname, 0, 100);
+				sprintf(sub_keyname,
+				    "bridge.mqtt.subscription."
+				    "%d."
+				    "topic",
+				    i + 1);
+				conf_update(config->bridge_file, sub_keyname,
+				    sub_topic);
+			}
+			if (getLongValue(item, "qos", &sub_qos) == 0) {
+				memset(sub_keyname, 0, 100);
+				sprintf(sub_keyname,
+				    "bridge.mqtt.subscription."
+				    "%d."
+				    "qos",
+				    i + 1);
+				conf_update_long(
+				    config->bridge_file, sub_keyname, sub_qos);
+			}
+		}
+	}
+}
+
 static http_msg
 post_config(cJSON *data, http_msg *msg, uint64_t sequence)
 {
@@ -601,290 +836,25 @@ post_config(cJSON *data, http_msg *msg, uint64_t sequence)
 	conf * config    = get_global_conf();
 
 	if (cJSON_IsObject(conf_data)) {
-		char *value = cJSON_GetStringValue(conf_data);
-		debug_msg("conf_data: %s", value);
-
-		char *   url = NULL;
-		bool     daemon;
-		int      num_taskq_thread;
-		int      max_taskq_thread;
-		uint64_t parallel;
-		int      property_size;
-		int      msq_len;
-		int      qos_duration;
-		bool     allow_anonymous;
-
-		if (getStringValue(conf_data, "url", &url) == 0) {
-			conf_update(config->conf_file, "url", url);
-		}
-		if (getBoolValue(conf_data, "daemon", &daemon) == 0) {
-			conf_update_bool(config->conf_file, "daemon", daemon);
-		}
-		if (getLongValue(conf_data, "num_taskq_thread",
-		        &num_taskq_thread) == 0) {
-			conf_update_long(config->conf_file, "num_taskq_thread",
-			    num_taskq_thread);
-		}
-		if (getLongValue(conf_data, "max_taskq_thread",
-		        &max_taskq_thread) == 0) {
-			conf_update_long(config->conf_file, "max_taskq_thread",
-			    max_taskq_thread);
-		}
-		if (getLongValue(conf_data, "parallel", &parallel) == 0) {
-			conf_update_long(
-			    config->conf_file, "parallel", parallel);
-		}
-		if (getLongValue(conf_data, "property_size", &property_size) ==
-		    0) {
-			conf_update_long(
-			    config->conf_file, "property_size", property_size);
-		}
-		if (getLongValue(conf_data, "msq_len", &msq_len) == 0) {
-			conf_update_long(
-			    config->conf_file, "msq_len", msq_len);
-		}
-		if (getLongValue(conf_data, "qos_duration", &qos_duration) ==
-		    0) {
-			conf_update_long(
-			    config->conf_file, "qos_duration", qos_duration);
-		}
-		if (getBoolValue(
-		        conf_data, "allow_anonymous", &allow_anonymous) == 0) {
-			conf_update_bool(config->conf_file, "allow_anonymous",
-			    allow_anonymous);
-		}
-
-		cJSON *tls = cJSON_GetObjectItem(conf_data, "tls");
-		if (cJSON_IsObject(tls)) {
-			bool  tls_enable;
-			char *tls_url;
-			char *tls_keypass;
-			char *tls_keyfile;
-			char *tls_certfile;
-			char *tls_cacertfile;
-			bool  tls_verify_peer;
-			bool  tls_fail_if_no_peer_cert;
-
-			if (getBoolValue(tls, "enable", &tls_enable) == 0) {
-				conf_update_bool(config->conf_file,
-				    "tls.enable", tls_enable);
-			}
-			if (getStringValue(tls, "url", &tls_url) == 0) {
-				conf_update(
-				    config->conf_file, "tls.url", tls_url);
-			}
-			if (getStringValue(tls, "keypass", &tls_keypass) ==
-			    0) {
-				conf_update(config->conf_file, "tls.keypass",
-				    tls_keypass);
-			}
-			// TODO save key/cert/cacert data to their own's file
-			if (getStringValue(tls, "keyfile", &tls_keyfile) ==
-			    0) { }
-			if (getStringValue(tls, "certfile", &tls_certfile) ==
-			    0) { }
-			if (getStringValue(
-			        tls, "cacertfile", &tls_cacertfile) == 0) { }
-			if (getBoolValue(
-			        tls, "verify_peer", &tls_verify_peer) == 0) {
-				conf_update_bool(config->conf_file,
-				    "tls.verify_peer", tls_verify_peer);
-			}
-			if (getBoolValue(tls, "fail_if_no_peer_cert",
-			        &tls_fail_if_no_peer_cert) == 0) {
-				conf_update_bool(config->conf_file,
-				    "tls.fail_if_no_peer_cert",
-				    tls_fail_if_no_peer_cert);
-			}
-		}
-
-		cJSON *websocket = cJSON_GetObjectItem(conf_data, "websocket");
-		if (cJSON_IsObject(websocket)) {
-			bool  ws_enable;
-			char *ws_url;
-			char *ws_tls_url;
-
-			if (getBoolValue(websocket, "enable", &ws_enable) ==
-			    0) {
-				conf_update_bool(config->conf_file,
-				    "websocket.enable", ws_enable);
-			}
-			if (getStringValue(websocket, "url", &ws_url) == 0) {
-				conf_update(config->conf_file, "websocket.url",
-				    ws_url);
-			}
-			if (getStringValue(
-			        websocket, "tls_url", &ws_tls_url) == 0) {
-				conf_update(config->conf_file,
-				    "websocket.tls_url", ws_tls_url);
-			}
-		}
-
-		cJSON *http_server =
-		    cJSON_GetObjectItem(conf_data, "http_server");
-		if (cJSON_IsObject(http_server)) {
-			bool     http_enable;
-			uint16_t http_port;
-			char *   http_username;
-			char *   http_password;
-			if (getBoolValue(
-			        http_server, "enable", &http_enable) == 0) {
-				conf_update_bool(config->conf_file,
-				    "http_server.enable", http_enable);
-			}
-			if (getLongValue(http_server, "port", &http_port) ==
-			    0) {
-				conf_update_long(config->conf_file,
-				    "http_server.port", http_port);
-			}
-			if (getStringValue(http_server, "username",
-			        &http_username) == 0) {
-				conf_update(config->conf_file,
-				    "http_server.username", http_username);
-			}
-			if (getStringValue(http_server, "password",
-			        &http_password) == 0) {
-				conf_update(config->conf_file,
-				    "http_server.password", http_password);
-			}
-		}
+		update_main_conf(conf_data, config);
 
 		cJSON *bridge = cJSON_GetObjectItem(conf_data, "bridge");
 		if (cJSON_IsObject(bridge)) {
-			conf_bridge bridge_ct = { 0 };
-			if (getBoolValue(bridge, "bridge_mode",
-			        &bridge_ct.bridge_mode) == 0) {
-				conf_update_bool(config->bridge_file,
-				    "bridge.mqtt.bridge_mode",
-				    bridge_ct.bridge_mode);
-			}
-			if (getStringValue(
-			        bridge, "address", &bridge_ct.address) == 0) {
-				conf_update(config->bridge_file,
-				    "bridge.mqtt.address", bridge_ct.address);
-			}
-			if (getLongValue(bridge, "proto_ver",
-			        &bridge_ct.proto_ver) == 0) {
-				conf_update_bool(config->bridge_file,
-				    "bridge.mqtt.proto_ver",
-				    bridge_ct.proto_ver);
-			}
-			if (getStringValue(bridge, "clientid",
-			        &bridge_ct.clientid) == 0) {
-				conf_update(config->bridge_file,
-				    "bridge.mqtt.clientid",
-				    bridge_ct.clientid);
-			}
-			if (getLongValue(bridge, "keepalive",
-			        &bridge_ct.keepalive) == 0) {
-				conf_update_bool(config->bridge_file,
-				    "bridge.mqtt.keepalive",
-				    bridge_ct.keepalive);
-			}
-			if (getBoolValue(bridge, "clean_start",
-			        &bridge_ct.clean_start) == 0) {
-				conf_update_bool(config->bridge_file,
-				    "bridge.mqtt.clean_start",
-				    bridge_ct.clean_start);
-			}
-			if (getStringValue(bridge, "username",
-			        &bridge_ct.username) == 0) {
-				conf_update(config->bridge_file,
-				    "bridge.mqtt.username",
-				    bridge_ct.username);
-			}
-			if (getStringValue(bridge, "password",
-			        &bridge_ct.password) == 0) {
-				conf_update(config->bridge_file,
-				    "bridge.mqtt.password",
-				    bridge_ct.password);
-			}
-			if (getLongValue(bridge, "parallel",
-			        &bridge_ct.parallel) == 0) {
-				conf_update_bool(config->bridge_file,
-				    "bridge.mqtt.parallel",
-				    bridge_ct.parallel);
-			}
-			cJSON *pub_topics =
-			    cJSON_GetObjectItem(bridge, "forwards");
-
-			if (cJSON_IsArray(pub_topics)) {
-				int topic_count =
-				    cJSON_GetArraySize(pub_topics);
-				size_t length = 0;
-				for (size_t i = 0; i < topic_count; i++) {
-					cJSON *item =
-					    cJSON_GetArrayItem(pub_topics, i);
-					char *str = cJSON_GetStringValue(item);
-					length += strlen(str) + 1;
-				}
-				char *topic_str = nng_zalloc(length);
-				for (size_t j = 0; j < topic_count; j++) {
-					cJSON *item =
-					    cJSON_GetArrayItem(pub_topics, j);
-					char *str = cJSON_GetStringValue(item);
-					strcat(topic_str, str);
-					if (j < topic_count - 1) {
-						strcat(topic_str, ",");
-					}
-				}
-				conf_update(config->bridge_file,
-				    "bridge.mqtt.forwards", topic_str);
-				nng_free(topic_str, length);
-			}
-
-			cJSON *sub_infos =
-			    cJSON_GetObjectItem(bridge, "subscription");
-			if (cJSON_IsArray(sub_infos)) {
-				int  sub_count = cJSON_GetArraySize(sub_infos);
-				char sub_keyname[100] = { 0 };
-
-				for (int i = 0; i < sub_count; i++) {
-					cJSON *item =
-					    cJSON_GetArrayItem(sub_infos, i);
-
-					char *sub_topic;
-					int   sub_qos;
-					if (getStringValue(item, "topic",
-					        &sub_topic) == 0) {
-						memset(sub_keyname, 0, 100);
-						sprintf(sub_keyname,
-						    "bridge.mqtt.subscription."
-						    "%d."
-						    "topic",
-						    i + 1);
-						conf_update(
-						    config->bridge_file,
-						    sub_keyname, sub_topic);
-					}
-					if (getLongValue(
-					        item, "qos", &sub_qos) == 0) {
-						memset(sub_keyname, 0, 100);
-						sprintf(sub_keyname,
-						    "bridge.mqtt.subscription."
-						    "%d."
-						    "qos",
-						    i + 1);
-						conf_update_long(
-						    config->bridge_file,
-						    sub_keyname, sub_qos);
-					}
-				}
-			}
+			update_bridge_conf(bridge, config);
 		}
+
+		cJSON *res_obj = cJSON_CreateObject();
+		cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+		cJSON_AddNumberToObject(res_obj, "seq", (uint64_t) sequence);
+		cJSON_AddNumberToObject(res_obj, "rep", msg->request);
+		char *dest = cJSON_PrintUnformatted(res_obj);
+
+		put_http_msg(&res, msg->content_type, NULL, NULL, NULL, dest,
+		    strlen(dest));
+
+		cJSON_free(dest);
+		cJSON_Delete(res_obj);
+
+		return res;
 	}
-
-	cJSON *res_obj = cJSON_CreateObject();
-	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
-	cJSON_AddNumberToObject(res_obj, "seq", (uint64_t) sequence);
-	cJSON_AddNumberToObject(res_obj, "rep", msg->request);
-	char *dest = cJSON_PrintUnformatted(res_obj);
-
-	put_http_msg(
-	    &res, msg->content_type, NULL, NULL, NULL, dest, strlen(dest));
-
-	cJSON_free(dest);
-	cJSON_Delete(res_obj);
-
-	return res;
 }
