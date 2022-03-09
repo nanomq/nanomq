@@ -86,9 +86,21 @@ foreach_client(
 		if (pids == 0)
 			continue;
 
+		char *sub_topic;
 		while (tn) {
+			sub_topic = tn->it->topic_filter.body;
+			if (sub_topic[0] == '$') {
+			       	if (!strncmp(sub_topic, "$share/", strlen("$share/"))) {
+					sub_topic = strchr(sub_topic, '/');
+					sub_topic++;
+					sub_topic = strchr(sub_topic, '/');
+					sub_topic++;
+				}
+
+			}
+
 			if (true ==
-			    topic_filter(tn->it->topic_filter.body,
+			    topic_filter(sub_topic,
 			        pub_work->pub_packet->variable_header.publish
 			            .topic_name.body)) {
 				break; // find the topic
@@ -168,6 +180,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct)
 		shared_cli_list = dbtree_find_shared_sub_clients(
 		    work->db, topic, NULL, &msg_cnt);
 	}
+
 
 #ifdef STATISTICS
 	if (cli_ctx_list == NULL && shared_cli_list == NULL) {
