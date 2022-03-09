@@ -69,5 +69,7 @@ extern http_msg process_request(http_msg *msg);
 #define REQ_CLIENTS 5
 
 #define REQ_CTRL 10
+#define REQ_GET_CONFIG 11
+#define REQ_SET_CONFIG 12
 
 #endif
