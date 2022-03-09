@@ -686,6 +686,9 @@ conf_fini(conf *nanomq_conf)
 	zfree(nanomq_conf->bridge_file);
 	zfree(nanomq_conf->auth_file);
 
+	zfree(nanomq_conf->tls.cafile);
+	zfree(nanomq_conf->tls.certfile);
+	zfree(nanomq_conf->tls.keyfile);
 	zfree(nanomq_conf->tls.key);
 	zfree(nanomq_conf->tls.key_password);
 	zfree(nanomq_conf->tls.cert);
