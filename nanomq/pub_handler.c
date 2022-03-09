@@ -342,7 +342,7 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 	if (nng_msg_cmd_type(dest_msg) == CMD_PUBLISH_V5) {
 		proto = PROTOCOL_VERSION_v5;
 	} else if (nng_msg_cmd_type(dest_msg) == CMD_PUBLISH) {
-		proto = PROTOCOL_VERSION_v5;
+		proto = PROTOCOL_VERSION_v311;
 	}
 
 	switch (cmd) {
