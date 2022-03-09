@@ -53,7 +53,7 @@ conf_update(const char *fpath, const char *key, char *value)
 	if (value == NULL) {
 		return;
 	}
-	char   descstrlen = strlen(key) + strlen(value) + 2;
+	size_t descstrlen = strlen(key) + strlen(value) + 2;
 	char * deststr    = calloc(1, descstrlen);
 	char * ptr        = NULL;
 	FILE * fp         = fopen(fpath, "r+");
