@@ -46,6 +46,9 @@ typedef struct conf_auth conf_auth;
 struct conf_tls {
 	bool  enable;
 	char *url; // "nmq-tls://addr:port"
+	char *cafile;
+	char *certfile;
+	char *keyfile;
 	char *ca;
 	char *cert;
 	char *key;

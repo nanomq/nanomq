@@ -246,18 +246,23 @@ conf_parser(conf *nanomq_conf)
 		} else if ((value = get_conf_value(line, sz, "tls.keyfile")) !=
 		    NULL) {
 			FREE_NONULL(config->tls.key);
-			file_load_data(value, (void **) &config->tls.key);
-			free(value);
+			FREE_NONULL(config->tls.keyfile);
+			config->tls.keyfile = value;
+			file_load_data(
+			    config->tls.keyfile, (void **) &config->tls.key);
 		} else if ((value = get_conf_value(
 		                line, sz, "tls.certfile")) != NULL) {
 			FREE_NONULL(config->tls.cert);
-			file_load_data(value, (void **) &config->tls.cert);
-			free(value);
+			FREE_NONULL(config->tls.certfile);
+			config->tls.certfile = value;
+			file_load_data(
+			    config->tls.certfile, (void **) &config->tls.cert);
 		} else if ((value = get_conf_value(
 		                line, sz, "tls.cacertfile")) != NULL) {
 			FREE_NONULL(config->tls.ca);
-			file_load_data(value, (void **) &config->tls.ca);
-			free(value);
+			FREE_NONULL(config->tls.cafile);
+			config->tls.cafile = value;
+			file_load_data(config->tls.cafile, (void **) &config->tls.ca);
 		} else if ((value = get_conf_value(
 		                line, sz, "tls.verify_peer")) != NULL) {
 			config->tls.verify_peer =
@@ -298,6 +303,9 @@ conf_init(conf *nanomq_conf)
 	nanomq_conf->daemon           = false;
 
 	nanomq_conf->tls.enable       = false;
+	nanomq_conf->tls.cafile       = NULL;
+	nanomq_conf->tls.certfile     = NULL;
+	nanomq_conf->tls.keyfile      = NULL;
 	nanomq_conf->tls.ca           = NULL;
 	nanomq_conf->tls.cert         = NULL;
 	nanomq_conf->tls.key          = NULL;
