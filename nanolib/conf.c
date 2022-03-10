@@ -30,19 +30,45 @@ strtrim(char *str)
 }
 
 void
-conf_update_long(const char *fpath, const char *key, long value)
+conf_update_var(const char *fpath, const char *key, uint8_t type, void *var)
 {
-	char var[20] = { 0 };
-	sprintf(var, "%ld", value);
-	conf_update(fpath, key, var);
-}
-
-void
-conf_update_bool(const char *fpath, const char *key, bool value)
-{
-	char var[20] = { 0 };
-	sprintf(var, "%s", value ? "true" : "false");
-	conf_update(fpath, key, var);
+	char varstr[20] = { 0 };
+	switch (type) {
+	case 0:
+		// int
+		sprintf(varstr, "%d", *(int *) var);
+		break;
+	case 1:
+		// uint8
+		sprintf(varstr, "%d", *(uint8_t *) var);
+		break;
+	case 2:
+		// uint16
+		sprintf(varstr, "%d", *(uint16_t *) var);
+		break;
+	case 3:
+		// uint32
+		sprintf(varstr, "%u", *(uint32_t *) var);
+		break;
+	case 4:
+		// uint64
+		sprintf(varstr, "%lu", *(uint64_t *) var);
+		break;
+	case 5:
+		// long
+		sprintf(varstr, "%ld", *(long *) var);
+		break;
+	case 6:
+		// double
+		sprintf(varstr, "%lf", *(double *) var);
+		break;
+	case 7:
+		// bool
+		sprintf(varstr, "%s", (*(bool *) var) ? "true" : "false");
+	default:
+		return;
+	}
+	conf_update(fpath, key, varstr);
 }
 
 void
@@ -53,7 +79,7 @@ conf_update(const char *fpath, const char *key, char *value)
 	if (value == NULL) {
 		return;
 	}
-	size_t descstrlen = strlen(key) + strlen(value) + 2;
+	size_t descstrlen = strlen(key) + strlen(value) + 3;
 	char * deststr    = calloc(1, descstrlen);
 	char * ptr        = NULL;
 	FILE * fp         = fopen(fpath, "r+");
@@ -262,7 +288,8 @@ conf_parser(conf *nanomq_conf)
 			FREE_NONULL(config->tls.ca);
 			FREE_NONULL(config->tls.cafile);
 			config->tls.cafile = value;
-			file_load_data(config->tls.cafile, (void **) &config->tls.ca);
+			file_load_data(
+			    config->tls.cafile, (void **) &config->tls.ca);
 		} else if ((value = get_conf_value(
 		                line, sz, "tls.verify_peer")) != NULL) {
 			config->tls.verify_peer =
@@ -507,6 +534,7 @@ conf_bridge_parse_subs(conf_bridge *bridge, const char *path)
 	}
 
 	fclose(fp);
+	return true;
 }
 
 bool
