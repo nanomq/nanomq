@@ -1756,10 +1756,10 @@ dbtree_check_shared_sub(const char *topic)
 	return true;
 }
 
-static void **
+static dbtree_ctxt **
 dbtree_shared_iterate_client(dbtree_client ***v)
 {
-	cvector(void *) ctxts   = NULL;
+	cvector(dbtree_ctxt *) ctxts   = NULL;
 	cvector(uint32_t *) ids = NULL;
 
 	if (v) {
@@ -1778,19 +1778,68 @@ dbtree_shared_iterate_client(dbtree_client ***v)
 			// bool equal = false;
 
 			int index = 0;
+
 			if (false ==
 			    binary_search((void **) ids, 0, &index,
 			        &v[i][j]->pipe_id, ids_cmp)) {
-				if (cvector_empty(ids)) {
+				if (cvector_empty(ids) ||
+				    index == cvector_size(ids)) {
 					cvector_push_back(
 					    ids, &v[i][j]->pipe_id);
 				} else {
-					cvector_insert(
-					    ids, index, &v[i][j]->pipe_id);
+					cvector_insert(ids, index,
+					    &v[i][j]->pipe_id);
 				}
 
-				cvector_push_back(ctxts, v[i][j]->ctxt);
+				// If donot find id in ids, we
+				// initialize a sub_id_p array;
+				dbtree_ctxt *dctxt =
+				    (dbtree_ctxt *) zmalloc(
+				        sizeof(dbtree_ctxt));
+				if (dctxt == NULL) {
+					log_err("Memory error!");
+					return NULL;
+				}
+
+				dbtree_ctxt *c  = v[i][j]->ctxt;
+				dctxt->sub_id_p = NULL;
+				if (c->sub_id_i) {
+					cvector_push_back(
+					    dctxt->sub_id_p,
+					    c->sub_id_i);
+				}
+
+				dctxt->ctxt = c->ctxt;
+
+				cvector_push_back(ctxts, dctxt);
+
+			} else {
+				dbtree_ctxt *c = v[i][j]->ctxt;
+				if (c->sub_id_i) {
+					uint32_t *sub_id_p =
+					    ctxts[index]->sub_id_p;
+					cvector_push_back(
+					    sub_id_p, c->sub_id_i);
+					ctxts[index]->sub_id_p =
+					    sub_id_p;
+				}
 			}
+
+
+
+			// if (false ==
+			//     binary_search((void **) ids, 0, &index,
+			//         &v[i][j]->pipe_id, ids_cmp)) {
+			// 	if (cvector_empty(ids)) {
+			// 		cvector_push_back(
+			// 		    ids, &v[i][j]->pipe_id);
+			// 	} else {
+			// 		cvector_insert(
+			// 		    ids, index, &v[i][j]->pipe_id);
+			// 	}
+
+			// 	cvector_push_back(ctxts, v[i][j]->ctxt);
+			// }
 		}
 		cvector_free(ids);
 		acnt++;
@@ -1874,7 +1923,7 @@ dbtree_find_shared_clients(
 		topic_queue++;
 	}
 
-	void **ret = dbtree_shared_iterate_client(ctxts);
+	void **ret = (void **) dbtree_shared_iterate_client(ctxts);
 	pthread_rwlock_unlock(&(db->rwlock));
 	if (message) {
 		size_t size = cvector_size(session_msg_list);
