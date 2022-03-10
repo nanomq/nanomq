@@ -40,11 +40,11 @@ conf_update_var(const char *fpath, const char *key, uint8_t type, void *var)
 		break;
 	case 1:
 		// uint8
-		sprintf(varstr, "%d", *(uint8_t *) var);
+		sprintf(varstr, "%hhu", *(uint8_t *) var);
 		break;
 	case 2:
 		// uint16
-		sprintf(varstr, "%d", *(uint16_t *) var);
+		sprintf(varstr, "%hu", *(uint16_t *) var);
 		break;
 	case 3:
 		// uint32
