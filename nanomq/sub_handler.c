@@ -29,7 +29,7 @@ decode_sub_message(nano_work *work)
 	uint32_t bpos = 0; // pos in payload
 
 	size_t   len_of_varint = 0, len_of_property = 0, len_of_properties = 0;
-	uint32_t len_of_str, len_of_topic;
+	int      len_of_str = 0, len_of_topic = 0;
 	nng_msg *msg           = work->msg;
 	size_t   remaining_len = nng_msg_remaining_len(msg);
 
@@ -79,23 +79,29 @@ decode_sub_message(nano_work *work)
 		topic_option->topic_filter.body =
 		    copy_utf8_str(payload_ptr, &bpos, &len_of_topic);
 		topic_option->topic_filter.len = len_of_topic;
-		if (len_of_topic == 0) {
-			debug_msg("ERROR : topic length error.");
-			return PROTOCOL_ERROR;
+		if (len_of_topic < 1) {
+			debug_msg("NOT utf8-encoded string OR null string.");
+			topic_node_t->it->reason_code = 0x80;
+			bpos += 3; // ignore option + LSB + MSB
+			goto next;
 		}
+		debug_msg("topic: [%s] len: [%d]", topic_option->topic_filter.body, len_of_topic);
 		len_of_topic = 0;
 
 		topic_option->rap = 1; // Default Setting
 		memcpy(topic_option, payload_ptr + bpos, 1);
 		if (topic_option->retain_handling > 2) {
 			debug_msg("ERROR: error in retain_handling");
+			topic_node_t->it->reason_code = 0x80;
 			return PROTOCOL_ERROR;
 		}
+		bpos ++;
 		// TODO sub action when retain_handling equal 0 or 1 or 2
 
+next:
 		debug_msg("bpos+vpos: [%d]", bpos + vpos);
-		if (++bpos < remaining_len - vpos) {
-			if ((topic_node_t = nng_zalloc(sizeof(topic_node))) ==
+		if (bpos < remaining_len - vpos) {
+			if ((topic_node_t = nng_alloc(sizeof(topic_node))) ==
 			    NULL) {
 				debug_msg("ERROR: nng_zalloc");
 				return NNG_ENOMEM;
@@ -192,6 +198,7 @@ sub_ctx_handle(nano_work *work)
 	work->msg_ret                    = NULL;
 	int      topic_exist             = 0;
 	uint32_t clientid_key            = 0;
+	dbtree_retain_msg **r            = NULL;
 
 	dbtree_ctxt *db_old_ctx = NULL;
 	client_ctx * old_ctx    = NULL;
@@ -285,8 +292,8 @@ sub_ctx_handle(nano_work *work)
 			dbhash_insert_topic(work->pid.id, topic_str);
 		}
 
-		dbtree_retain_msg **r =
-		    dbtree_find_retain(work->db_ret, topic_str);
+		if (topic_str)
+			r = dbtree_find_retain(work->db_ret, topic_str);
 		if (r) {
 			for (int i = 0; i < cvector_size(r); i++) {
 				if (!r[i]) {
@@ -365,9 +372,15 @@ cli_ctx_merge(client_ctx *ctx_new, client_ctx *ctx)
 			    node_new->it->retain_handling;
 		} else { /* not find */
 			// copy and append TODO optimize topic_node structure
-			node_a = nng_zalloc(sizeof(topic_node));
-			two    = nng_zalloc(sizeof(topic_with_option));
-			str    = nng_zalloc(node_new->it->topic_filter.len + 1);
+			if (node_new->it->topic_filter.len < 1 ||
+				node_new->it->topic_filter.body == NULL) {
+				debug_msg("next topic ");
+				node_new = node_new->next;
+				continue;
+			}
+			node_a = nng_alloc(sizeof(topic_node));
+			two    = nng_alloc(sizeof(topic_with_option));
+			str    = nng_alloc(node_new->it->topic_filter.len + 1);
 			memcpy(two, node_new->it, sizeof(topic_with_option));
 			strcpy(str, node_new->it->topic_filter.body);
 			str[node_new->it->topic_filter.len] = '\0';

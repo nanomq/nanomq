@@ -26,4 +26,7 @@ extern void stop_rest_server(void);
 extern void              set_http_server_conf(conf_http_server *conf);
 extern conf_http_server *get_http_server_conf(void);
 
+extern void set_global_conf(conf *config);
+extern conf *get_global_conf(void);
+
 #endif

@@ -46,6 +46,9 @@ typedef struct conf_auth conf_auth;
 struct conf_tls {
 	bool  enable;
 	char *url; // "nmq-tls://addr:port"
+	char *cafile;
+	char *certfile;
+	char *keyfile;
 	char *ca;
 	char *cert;
 	char *key;
@@ -130,6 +133,27 @@ extern void print_conf(conf *nanomq_conf);
 extern void conf_fini(conf *nanomq_conf);
 
 extern void conf_auth_parser(conf *);
+
+extern void conf_update(const char *fpath, const char *key, char *value);
+extern void conf_update_var(
+    const char *fpath, const char *key, uint8_t type, void *var);
+
+#define conf_update_int(path, key, var) \
+	conf_update_var(path, key, 0, (void *) &(var))
+#define conf_update_u8(path, key, var) \
+	conf_update_var(path, key, 1, (void *) &(var))
+#define conf_update_u16(path, key, var) \
+	conf_update_var(path, key, 2, (void *) &(var))
+#define conf_update_u32(path, key, var) \
+	conf_update_var(path, key, 3, (void *) &(var))
+#define conf_update_u64(path, key, var) \
+	conf_update_var(path, key, 4, (void *) &(var))
+#define conf_update_long(path, key, var) \
+	conf_update_var(path, key, 5, (void *) &(var))
+#define conf_update_double(path, key, var) \
+	conf_update_var(path, key, 6, (void *) &(var))
+#define conf_update_bool(path, key, var) \
+	conf_update_var(path, key, 7, (void *) &(var))
 
 extern int string_trim(char **dst, char *str);
 

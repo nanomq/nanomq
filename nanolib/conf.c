@@ -29,6 +29,116 @@ strtrim(char *str)
 	return dest;
 }
 
+void
+conf_update_var(const char *fpath, const char *key, uint8_t type, void *var)
+{
+	char varstr[20] = { 0 };
+	switch (type) {
+	case 0:
+		// int
+		sprintf(varstr, "%d", *(int *) var);
+		break;
+	case 1:
+		// uint8
+		sprintf(varstr, "%hhu", *(uint8_t *) var);
+		break;
+	case 2:
+		// uint16
+		sprintf(varstr, "%hu", *(uint16_t *) var);
+		break;
+	case 3:
+		// uint32
+		sprintf(varstr, "%u", *(uint32_t *) var);
+		break;
+	case 4:
+		// uint64
+		sprintf(varstr, "%lu", *(uint64_t *) var);
+		break;
+	case 5:
+		// long
+		sprintf(varstr, "%ld", *(long *) var);
+		break;
+	case 6:
+		// double
+		sprintf(varstr, "%lf", *(double *) var);
+		break;
+	case 7:
+		// bool
+		sprintf(varstr, "%s", (*(bool *) var) ? "true" : "false");
+	default:
+		return;
+	}
+	conf_update(fpath, key, varstr);
+}
+
+void
+conf_update(const char *fpath, const char *key, char *value)
+{
+	char **linearray = NULL;
+	int    count     = 0;
+	if (value == NULL) {
+		return;
+	}
+	size_t descstrlen = strlen(key) + strlen(value) + 3;
+	char * deststr    = calloc(1, descstrlen);
+	char * ptr        = NULL;
+	FILE * fp         = fopen(fpath, "r+");
+	char * line       = NULL;
+	size_t len        = 0;
+	bool   is_found   = false;
+	if (fp) {
+		sprintf(deststr, "%s=", key);
+		while (getline(&line, &len, fp) != -1) {
+			linearray =
+			    realloc(linearray, (count + 1) * (sizeof(char *)));
+			if (linearray == NULL) {
+				debug_msg("realloc fail");
+			}
+			ptr = strstr(line, deststr);
+			if (ptr == line) {
+				is_found = true;
+				strcat(deststr, value);
+				strcat(deststr, "\n");
+				linearray[count] = strdup(deststr);
+			} else {
+				linearray[count] = strdup(line);
+			}
+			count++;
+		}
+		if (!is_found) {
+			linearray =
+			    realloc(linearray, (count + 1) * (sizeof(char *)));
+			strcat(deststr, value);
+			strcat(deststr, "\n");
+			linearray[count] = strdup(deststr);
+			count++;
+		}
+		if (line) {
+			free(line);
+		}
+	} else {
+		debug_msg("Open file %s error", fpath);
+	}
+
+	if (deststr) {
+		free(deststr);
+	}
+
+	rewind(fp);
+	feof(fp);
+	fflush(fp);
+	fclose(fp);
+
+	fp = fopen(fpath, "w");
+
+	for (int i = 0; i < count; i++) {
+		fwrite(linearray[i], 1, strlen(linearray[i]), fp);
+		free((linearray[i]));
+	}
+	free(linearray);
+	fclose(fp);
+}
+
 static char *
 get_conf_value(char *line, size_t len, const char *key)
 {
@@ -162,18 +272,24 @@ conf_parser(conf *nanomq_conf)
 		} else if ((value = get_conf_value(line, sz, "tls.keyfile")) !=
 		    NULL) {
 			FREE_NONULL(config->tls.key);
-			file_load_data(value, (void **)&config->tls.key);
-			free(value);
+			FREE_NONULL(config->tls.keyfile);
+			config->tls.keyfile = value;
+			file_load_data(
+			    config->tls.keyfile, (void **) &config->tls.key);
 		} else if ((value = get_conf_value(
 		                line, sz, "tls.certfile")) != NULL) {
 			FREE_NONULL(config->tls.cert);
-			file_load_data(value, (void **)&config->tls.cert);
-			free(value);
+			FREE_NONULL(config->tls.certfile);
+			config->tls.certfile = value;
+			file_load_data(
+			    config->tls.certfile, (void **) &config->tls.cert);
 		} else if ((value = get_conf_value(
 		                line, sz, "tls.cacertfile")) != NULL) {
 			FREE_NONULL(config->tls.ca);
-			file_load_data(value, (void **)&config->tls.ca);
-			free(value);
+			FREE_NONULL(config->tls.cafile);
+			config->tls.cafile = value;
+			file_load_data(
+			    config->tls.cafile, (void **) &config->tls.ca);
 		} else if ((value = get_conf_value(
 		                line, sz, "tls.verify_peer")) != NULL) {
 			config->tls.verify_peer =
@@ -214,6 +330,9 @@ conf_init(conf *nanomq_conf)
 	nanomq_conf->daemon           = false;
 
 	nanomq_conf->tls.enable       = false;
+	nanomq_conf->tls.cafile       = NULL;
+	nanomq_conf->tls.certfile     = NULL;
+	nanomq_conf->tls.keyfile      = NULL;
 	nanomq_conf->tls.ca           = NULL;
 	nanomq_conf->tls.cert         = NULL;
 	nanomq_conf->tls.key          = NULL;
@@ -261,8 +380,8 @@ print_conf(conf *nanomq_conf)
 	debug_msg("enable tls:               %s",
 	    nanomq_conf->tls.enable ? "true" : "false");
 	if (nanomq_conf->tls.enable) {
-		debug_msg("tls url:                  %s",
-		    nanomq_conf->tls.url);
+		debug_msg(
+		    "tls url:                  %s", nanomq_conf->tls.url);
 		debug_msg("tls verify peer:          %s",
 		    nanomq_conf->tls.verify_peer ? "true" : "false");
 		debug_msg("tls fail_if_no_peer_cert: %s",
@@ -366,9 +485,9 @@ conf_bridge_parse_subs(conf_bridge *bridge, const char *path)
 	size_t  sub_index = 1;
 	bool    get_topic = false;
 	bool    get_qos   = false;
-	char *  line;
-	size_t  sz = 0;
-	char *  value;
+	char *  line      = NULL;
+	size_t  sz        = 0;
+	char *  value     = NULL;
 
 	bridge->sub_count = 0;
 	while (getline(&line, &sz, fp) != -1) {
@@ -415,6 +534,7 @@ conf_bridge_parse_subs(conf_bridge *bridge, const char *path)
 	}
 
 	fclose(fp);
+	return true;
 }
 
 bool
@@ -594,6 +714,9 @@ conf_fini(conf *nanomq_conf)
 	zfree(nanomq_conf->bridge_file);
 	zfree(nanomq_conf->auth_file);
 
+	zfree(nanomq_conf->tls.cafile);
+	zfree(nanomq_conf->tls.certfile);
+	zfree(nanomq_conf->tls.keyfile);
 	zfree(nanomq_conf->tls.key);
 	zfree(nanomq_conf->tls.key_password);
 	zfree(nanomq_conf->tls.cert);

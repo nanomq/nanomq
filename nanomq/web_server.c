@@ -50,6 +50,7 @@ static nng_mtx *         mtx_log;
 static nng_thread *      inproc_thr;
 static FILE *            logfile;
 static conf_http_server *http_server_conf;
+static conf *            global_config;
 
 static void rest_job_cb(void *arg);
 
@@ -141,9 +142,7 @@ rest_job_cb(void *arg)
 		job->msg = nng_aio_get_msg(aio);
 
 		// We got a reply, so give it back to the server.
-
 		http_msg *res_msg = (http_msg *) nng_msg_body(job->msg);
-		debug_msg("msg %p data: %.*s", res_msg, (int) res_msg->data_len, res_msg->data);
 
 		rv = nng_http_res_copy_data(
 		    job->http_res, res_msg->data, res_msg->data_len);
@@ -391,6 +390,18 @@ inproc_server(void *arg)
 // }
 
 void
+set_global_conf(conf *config)
+{
+	global_config = config;
+}
+
+conf *
+get_global_conf(void)
+{
+	return global_config;
+}
+
+void
 set_http_server_conf(conf_http_server *conf)
 {
 
@@ -431,7 +442,8 @@ start_rest_server(conf *conf)
 	uint16_t port = conf->http_server.port ? conf->http_server.port
 	                                       : HTTP_DEFAULT_PORT;
 	debug_msg(REST_URL, port);
-
+	
+	set_global_conf(conf);
 	set_http_server_conf(&conf->http_server);
 	rest_start(port);
 
