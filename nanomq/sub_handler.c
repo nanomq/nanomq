@@ -36,7 +36,7 @@ decode_sub_message(nano_work *work)
 	int      bpos = 0; // pos in payload
 
 	size_t   len_of_varint = 0, len_of_property = 0, len_of_properties = 0;
-	int      len_of_str, len_of_topic;
+	int      len_of_str = 0, len_of_topic = 0;
 	nng_msg *msg           = work->msg;
 	size_t   remaining_len = nng_msg_remaining_len(msg);
 
@@ -84,7 +84,7 @@ decode_sub_message(nano_work *work)
 					        &len_of_str);
 					sub_pkt->user_property.strpair
 					    .len_key = len_of_str;
-					if (len_of_topic < 0) {
+					if (len_of_str < 0) {
 						debug_msg("NOT utf8-encoded string.");
 						return PROTOCOL_ERROR;
 					}
@@ -96,7 +96,7 @@ decode_sub_message(nano_work *work)
 					        &len_of_str);
 					sub_pkt->user_property.strpair
 					    .len_val = len_of_str;
-					if (len_of_topic < 0) {
+					if (len_of_str < 0) {
 						debug_msg("NOT utf8-encoded string.");
 						return PROTOCOL_ERROR;
 					}
