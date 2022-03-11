@@ -63,7 +63,7 @@ NanoMQ 接口的响应消息体为 JSON 格式，其中总是包含返回码 `co
 
 | Name | Type    | Required | Value  | Description                                                  |
 | ---- | ------- | -------- | ------ | ------------------------------------------------------------ |
-| req  | Integer | Required | 2      | 命令请求码 _2_。                                             |
+| req  | Integer | Required | 2      | 请求码 _2_。                                             |
 | seq  | Integer | Required | unique | seq 是全局唯一的，请求/响应信息都会携带该信息，可以通过该值确定对应的请求响应。 |
 
 **Success Response Body (JSON):**
@@ -95,7 +95,7 @@ $ curl -i --basic -u admin:public -X POST "http://localhost:8081/api/v1" -d '{"r
 
 | Name | Type    | Required | Value  | Description                                                  |
 | ---- | ------- | -------- | ------ | ------------------------------------------------------------ |
-| req  | Integer | Required | 4      | 命令请求码 _4_。                                             |
+| req  | Integer | Required | 4      | 请求码 _4_。                                             |
 | seq  | Integer | Required | unique | seq 是全局唯一的，请求/响应信息都会携带该信息，可以通过该值确定对应的请求响应。 |
 
 **Success Response Body (JSON):**
@@ -124,7 +124,7 @@ $ curl -i --basic -u admin:public -X POST "http://localhost:8081/api/v1" -d '{"r
 
 | Name | Type    | Required | Value  | Description                                                  |
 | ---- | ------- | -------- | ------ | ------------------------------------------------------------ |
-| req  | Integer | Required | 5      | 命令请求码 _5_。                                             |
+| req  | Integer | Required | 5      | 请求码 _5_。                                             |
 | seq  | Integer | Required | unique | seq 是全局唯一的，请求/响应信息都会携带该信息，可以通过该值确定对应的请求响应。 |
 
 **Success Response Body (JSON):**
@@ -158,7 +158,7 @@ $ curl -i --basic -u admin:public -X POST "http://localhost:8081/api/v1" -d '{"r
 
 | Name | Type    | Required | Value  | Description                                                  |
 | ---- | ------- | -------- | ------ | ------------------------------------------------------------ |
-| req  | Integer | Required | 11     | 命令请求码 _11_。                                            |
+| req  | Integer | Required | 11     | 请求码 _11_。                                            |
 | seq  | Integer | Required | unique | seq 是全局唯一的，请求/响应信息都会携带该信息，可以通过该值确定对应的请求响应。 |
 
 **Success Response Body (JSON):**
@@ -289,7 +289,7 @@ $ curl --location --request GET 'http://localhost:8081/api/v1' \
 
 | Name | Type    | Required | Value  | Description                                                  |
 | ---- | ------- | -------- | ------ | ------------------------------------------------------------ |
-| req  | Integer | Required | 12     | 命令请求码 _12_。                                            |
+| req  | Integer | Required | 12     | 请求码 _12_。                                            |
 | seq  | Integer | Required | unique | seq 是全局唯一的，请求/响应信息都会携带该信息，可以通过该值确定对应的请求响应。 |
 | data | Object  | Required |        | 同获取配置一致[data](#获取当前配置)。                        |
 

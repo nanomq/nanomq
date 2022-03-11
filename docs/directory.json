@@ -17,6 +17,10 @@
       "path": "configuration"
     },
     {
+      "title": "HTTP APIs",
+      "path": "http-api"
+    },
+    {
       "title": "测试报告",
       "path": "test-report"
     }
@@ -37,6 +41,10 @@
     {
       "title": "Configuration",
       "path": "configuration"
+    },
+    {
+      "title": "HTTP APIs",
+      "path": "http-api"
     },
     {
       "title": "Test Report",

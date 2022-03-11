@@ -22,5 +22,7 @@ Github仓库地址: https://github.com/nanomq/nanomq
 
 [配置](./configuration.md)
 
+[HTTP APIs](./http-api.md)
+
 [测试报告](./test-report.md)
 
