@@ -538,13 +538,10 @@ server_cb(void *arg)
 			}
 			nng_msg_free(smsg);
 			smsg = NULL;
-
-			if (cvector_size(msg_infos) > 0) {
-				free_pub_packet(work->pub_packet);
-				cvector_free(msg_infos);
-				work->pipe_ct->msg_infos = NULL;
-			}
 			work->msg = NULL;
+			free_pub_packet(work->pub_packet);
+			cvector_free(work->pipe_ct->msg_infos);
+			work->pipe_ct->msg_infos = NULL;
 			init_pipe_content(work->pipe_ct);
 
 			// processing will msg
