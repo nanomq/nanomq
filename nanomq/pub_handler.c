@@ -222,7 +222,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto)
 	if (cli_ctx_list != NULL) {
 		foreach_client(cli_ctx_list, work, pipe_ct);
 	}
-	debug_msg("pipe_info size: [%d]", cvector_size(cli_ctx_list));
+	debug_msg("pipe_info size: [%ld]", cvector_size(cli_ctx_list));
 	cvector_free(cli_ctx_list);
 
 	if (shared_cli_list != NULL) {
