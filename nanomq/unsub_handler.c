@@ -182,11 +182,16 @@ unsub_ctx_handle(nano_work *work)
 	void *         cli_ctx = NULL;
 	dbtree_ctxt *  db_ctx  = NULL;
 
+	client_id = (char *) conn_param_get_clientid(
+	    (conn_param *) nng_msg_get_conn_param(work->msg));
+	uint32_t clientid_key = DJBHashn(client_id, strlen(client_id));
+
 	// delete ctx_unsub in treeDB
 	while (topic_node_t) {
-		client_id = (char *) conn_param_get_clientid(
-		    (conn_param *) nng_msg_get_conn_param(work->msg));
-		uint32_t clientid_key = DJBHashn(client_id, strlen(client_id));
+		if (topic_node_t->it->topic_filter.len == 0) {
+			topic_node_t = topic_node_t->next;
+			continue;
+		}
 
 		// parse topic string
 		topic_str =
@@ -200,8 +205,10 @@ unsub_ctx_handle(nano_work *work)
 
 		db_ctx = dbtree_delete_client(
 		    work->db, topic_str, clientid_key, work->pid.id);
-		cli_ctx = db_ctx->ctxt;
-		dbtree_delete_ctxt(db_ctx);
+		if (db_ctx) {
+			cli_ctx = db_ctx->ctxt;
+			dbtree_delete_ctxt(db_ctx);
+		}
 		dbhash_del_topic(work->pid.id, topic_str);
 
 		if (cli_ctx != NULL) { // find the topic
