@@ -360,19 +360,25 @@ server_cb(void *arg)
 			    conn_param_get_protover(work->cparam));
 			// handle retain
 			if (work->msg_ret) {
+				mqtt_msg_info *msg_info = NULL;
 				debug_msg("retain msg [%p] size [%ld] \n",
 				    work->msg_ret,
 				    cvector_size(work->msg_ret));
 				for (int i = 0;
 				     i < cvector_size(work->msg_ret); i++) {
 					nng_msg *m = work->msg_ret[i];
+					msg_info = &(work->pipe_ct->msg_infos[i]);
 					nng_msg_clone(m);
 					work->msg = m;
 					nng_aio_set_msg(work->aio, work->msg);
 					nng_msg_set_pipe(work->msg, work->pid);
+					nng_aio_set_prov_data(work->aio, (void *)msg_info->retain);
 					nng_ctx_send(work->ctx, work->aio);
+					nng_aio_set_prov_data(work->aio, NULL);
 				}
 				cvector_free(work->msg_ret);
+				cvector_free(work->pipe_ct->msg_infos);
+				work->pipe_ct->msg_infos = NULL;
 			}
 			nng_msg_set_cmd_type(smsg, CMD_SUBACK);
 			work->msg = smsg;
@@ -435,8 +441,10 @@ server_cb(void *arg)
 				work->pid.id = msg_info->pipe;
 				nng_msg_set_pipe(smsg, work->pid);
 				work->msg = NANO_NNI_LMQ_PACKED_MSG_QOS(smsg, msg_info->qos);
+				nng_aio_set_prov_data(work->aio, (void *)msg_info->retain);
 				nng_aio_set_msg(work->aio, work->msg);
 				nng_ctx_send(work->ctx, work->aio);
+				nng_aio_set_prov_data(work->aio, NULL);
 			}
 			nng_msg_free(smsg);
 			smsg = NULL;
@@ -544,7 +552,9 @@ server_cb(void *arg)
 				nng_msg_set_pipe(smsg, work->pid);
 				work->msg = NANO_NNI_LMQ_PACKED_MSG_QOS(smsg, msg_info->qos);
 				nng_aio_set_msg(work->aio, work->msg);
+				nng_aio_set_prov_data(work->aio, (void *)msg_info->retain);
 				nng_ctx_send(work->ctx, work->aio);
+				nng_aio_set_prov_data(work->aio, NULL);
 			}
 			nng_msg_free(smsg);
 			smsg = NULL;
