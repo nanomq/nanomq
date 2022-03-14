@@ -6,9 +6,9 @@
 #include "broker.h"
 #include <nng/mqtt/packet.h>
 
-uint8_t decode_unsub_message(nano_work *);
-uint8_t encode_unsuback_message(nng_msg *, nano_work *);
-uint8_t unsub_ctx_handle(nano_work *);
-void    destroy_unsub_ctx(packet_unsubscribe *);
+int  decode_unsub_msg(nano_work *);
+int  encode_unsuback_msg(nng_msg *, nano_work *);
+int  unsub_ctx_handle(nano_work *);
+void destroy_unsub_ctx(packet_unsubscribe *);
 
 #endif // MQTT_UNSUBSCRIBE_HANDLE_H

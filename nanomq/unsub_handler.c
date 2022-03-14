@@ -16,8 +16,8 @@
 
 #define SUPPORT_MQTT5_0 1
 
-uint8_t
-decode_unsub_message(nano_work *work)
+int
+decode_unsub_msg(nano_work *work)
 {
 	uint8_t *variable_ptr;
 	uint8_t *payload_ptr;
@@ -25,7 +25,7 @@ decode_unsub_message(nano_work *work)
 	uint32_t bpos = 0; // pos in payload
 
 	uint32_t len_of_varint = 0, len_of_property = 0, len_of_properties = 0;
-	uint32_t len_of_str, len_of_topic;
+	uint32_t len_of_str = 0, len_of_topic;
 
 	packet_unsubscribe *unsub_pkt     = work->unsub_pkt;
 	nng_msg *           msg           = work->msg;
@@ -98,11 +98,11 @@ decode_unsub_message(nano_work *work)
 			break;
 		}
 	}
-	return SUCCESS;
+	return 0;
 }
 
-uint8_t
-encode_unsuback_message(nng_msg *msg, nano_work *work)
+int
+encode_unsuback_msg(nng_msg *msg, nano_work *work)
 {
 	nng_msg_clear(msg);
 
@@ -169,10 +169,10 @@ encode_unsuback_message(nng_msg *msg, nano_work *work)
 	    remaining_len, varint[0], varint[1], varint[2], varint[3],
 	    len_of_varint, packet_id[0], packet_id[1]);
 
-	return SUCCESS;
+	return 0;
 }
 
-uint8_t
+int
 unsub_ctx_handle(nano_work *work)
 {
 	topic_node *   topic_node_t = work->unsub_pkt->node;
@@ -223,7 +223,7 @@ unsub_ctx_handle(nano_work *work)
 	//	print_db_tree(work->db);
 
 	debug_msg("end of unsub ctx handle.\n");
-	return SUCCESS;
+	return 0;
 }
 
 void

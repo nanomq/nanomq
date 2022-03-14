@@ -147,7 +147,6 @@ server_cb(void *arg)
 	nng_msg *  smsg = NULL;
 	int        rv;
 
-	reason_code reason;
 	uint8_t *   ptr;
 	conn_param *cparam = NULL;
 
@@ -345,15 +344,17 @@ server_cb(void *arg)
 			         sizeof(packet_subscribe))) == NULL)
 				debug_msg("ERROR: nng_alloc");
 
-			if ((reason = decode_sub_message(work)) != SUCCESS ||
-			    (reason = sub_ctx_handle(work)) != SUCCESS ||
-			    (reason = encode_suback_message(smsg, work)) !=
-			        SUCCESS) {
-				debug_msg("ERROR: sub_handler: [%d]", reason);
+			if ((rv = decode_sub_msg(work)) != 0 ||
+			    (rv = sub_ctx_handle(work)) != 0) {
+				debug_msg("ERROR: sub_handler: [%d]", rv);
 				if (dbhash_check_id(work->pid.id)) {
 					dbhash_del_topic_queue(work->pid.id);
 				}
 			}
+
+			if (0 != (rv = encode_suback_msg(smsg, work)))
+				debug_msg("error in encode suback: [%d]", rv);
+
 			nng_msg_free(work->msg);
 			destroy_sub_pkt(work->sub_pkt,
 			    conn_param_get_protover(work->cparam));
@@ -390,12 +391,14 @@ server_cb(void *arg)
 			         sizeof(packet_unsubscribe))) == NULL)
 				debug_msg("ERROR: nng_alloc");
 
-			if ((reason = decode_unsub_message(work)) != SUCCESS ||
-			    (reason = unsub_ctx_handle(work)) != SUCCESS ||
-			    (reason = encode_unsuback_message(smsg, work)) !=
-			        SUCCESS) {
-				debug_msg("ERROR: unsub_handler [%d]", reason);
+			if ((rv = decode_unsub_msg(work)) != 0 ||
+			    (rv = unsub_ctx_handle(work)) != 0) {
+				debug_msg("ERROR: unsub_handler [%d]", rv);
 			}
+
+			if (0 != (rv = encode_unsuback_msg(smsg, work)))
+				debug_msg("error in unsuback [%d]", rv);
+
 			// free unsub_pkt
 			destroy_unsub_ctx(work->unsub_pkt);
 			nng_msg_free(work->msg);
