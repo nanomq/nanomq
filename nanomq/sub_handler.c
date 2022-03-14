@@ -20,24 +20,22 @@
 static void cli_ctx_merge(client_ctx *ctx, client_ctx *ctx_new);
 
 
-uint8_t
-decode_sub_message(nano_work *work)
+int
+decode_sub_msg(nano_work *work)
 {
-	uint8_t *variable_ptr;
-	uint8_t *payload_ptr;
-	uint32_t vpos = 0; // pos in variable
-	uint32_t bpos = 0; // pos in payload
-
+	uint8_t *variable_ptr, *payload_ptr;
+	int      vpos          = 0; // pos in variable
+	int      bpos          = 0; // pos in payload
 	size_t   len_of_varint = 0, len_of_property = 0, len_of_properties = 0;
 	int      len_of_str = 0, len_of_topic = 0;
-	nng_msg *msg           = work->msg;
-	size_t   remaining_len = nng_msg_remaining_len(msg);
-
-	const uint8_t proto_ver = conn_param_get_protover(work->cparam);
-	uint8_t       property_id;
+	uint8_t  property_id;
 
 	topic_node *       topic_node_t, *_topic_node;
 	topic_with_option *topic_option;
+
+	nng_msg *     msg           = work->msg;
+	size_t        remaining_len = nng_msg_remaining_len(msg);
+	const uint8_t proto_ver     = conn_param_get_protover(work->cparam);
 
 	// handle variable header
 	variable_ptr = nng_msg_body(msg);
@@ -49,7 +47,6 @@ decode_sub_message(nano_work *work)
 #if SUPPORT_MQTT5_0
 	// Only Mqtt_v5 include property.
 	if (PROTOCOL_VERSION_v5 == proto_ver) {
-		// init_sub_property(sub_pkt);
 		sub_pkt->properties =
 		    decode_properties(msg, &vpos, &sub_pkt->prop_len, true);
 	}
@@ -79,20 +76,26 @@ decode_sub_message(nano_work *work)
 		topic_option->topic_filter.body =
 		    copy_utf8_str(payload_ptr, &bpos, &len_of_topic);
 		topic_option->topic_filter.len = len_of_topic;
+		topic_node_t->it->reason_code  = GRANTED_QOS_2; // default
+
 		if (len_of_topic < 1) {
 			debug_msg("NOT utf8-encoded string OR null string.");
-			topic_node_t->it->reason_code = 0x80;
+			topic_node_t->it->reason_code = UNSPECIFIED_ERROR;
+			if (PROTOCOL_VERSION_v5 == proto_ver)
+				topic_node_t->it->reason_code =
+				    TOPIC_FILTER_INVALID;
 			bpos += 3; // ignore option + LSB + MSB
 			goto next;
 		}
-		debug_msg("topic: [%s] len: [%d]", topic_option->topic_filter.body, len_of_topic);
+		debug_msg("topic: [%s] len: [%d]",
+		    topic_option->topic_filter.body, len_of_topic);
 		len_of_topic = 0;
 
 		topic_option->rap = 1; // Default Setting
 		memcpy(topic_option, payload_ptr + bpos, 1);
 		if (topic_option->retain_handling > 2) {
 			debug_msg("ERROR: error in retain_handling");
-			topic_node_t->it->reason_code = 0x80;
+			topic_node_t->it->reason_code = UNSPECIFIED_ERROR;
 			return PROTOCOL_ERROR;
 		}
 		bpos ++;
@@ -112,11 +115,11 @@ next:
 			break;
 		}
 	}
-	return SUCCESS;
+	return 0;
 }
 
-uint8_t
-encode_suback_message(nng_msg *msg, nano_work *work)
+int
+encode_suback_msg(nng_msg *msg, nano_work *work)
 {
 	nng_msg_clear(msg);
 
@@ -127,8 +130,11 @@ encode_suback_message(nng_msg *msg, nano_work *work)
 	int         len_of_varint, rv;
 	topic_node *node;
 
-	packet_subscribe *sub_pkt   = work->sub_pkt;
-	const uint8_t     proto_ver = conn_param_get_protover(work->cparam);
+	packet_subscribe *sub_pkt;
+	if ((sub_pkt = work->sub_pkt) == NULL || sub_pkt->node == NULL)
+		return (-1);
+
+	const uint8_t proto_ver = conn_param_get_protover(work->cparam);
 
 	// handle variable header first
 	NNI_PUT16(packet_id, sub_pkt->packet_id);
@@ -148,14 +154,9 @@ encode_suback_message(nng_msg *msg, nano_work *work)
 	// handle payload
 	node = sub_pkt->node;
 	while (node) {
-		if (node->it->reason_code == 0x80) {
-			reason_code = 0x80;
-		} else {
-			reason_code = node->it->qos;
-		}
+		reason_code = node->it->reason_code;
 		// MQTT_v3: 0x00-qos0  0x01-qos1  0x02-qos2  0x80-fail
-		if ((rv = nng_msg_append(msg, (uint8_t *) &reason_code, 1)) !=
-		    0) {
+		if ((rv = nng_msg_append(msg, &reason_code, 1)) != 0) {
 			debug_msg("ERROR: nng_msg_append [%d]", rv);
 			return PROTOCOL_ERROR;
 		}
@@ -183,11 +184,11 @@ encode_suback_message(nng_msg *msg, nano_work *work)
 	    remaining_len, varint[0], varint[1], varint[2], varint[3],
 	    len_of_varint, packet_id[0], packet_id[1]);
 
-	return SUCCESS;
+	return 0;
 }
 
 // generate ctx for each topic
-uint8_t
+int
 sub_ctx_handle(nano_work *work)
 {
 	topic_node *        topic_node_t = work->sub_pkt->node;
@@ -289,6 +290,7 @@ sub_ctx_handle(nano_work *work)
 			dbtree_ctxt *db_old_ctxt = dbtree_new_ctxt(old_ctx, t);
 			dbtree_insert_client(
 			    work->db, topic_str, db_old_ctxt, work->pid.id);
+
 			dbhash_insert_topic(work->pid.id, topic_str);
 		}
 
@@ -313,7 +315,7 @@ sub_ctx_handle(nano_work *work)
 	dbtree_print(work->db);
 #endif
 	debug_msg("end of sub ctx handle. \n");
-	return SUCCESS;
+	return 0;
 }
 
 static void
