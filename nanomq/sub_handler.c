@@ -275,7 +275,7 @@ sub_ctx_handle(nano_work *work)
 			}
 			tq = tq->next;
 		}
-		if (!topic_exist) {
+		if (!topic_exist && topic_str) {
 			int            t = 0;
 			if (conn_param_get_protover(work->cparam) ==
 			    PROTOCOL_VERSION_v5) {
