@@ -20,6 +20,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 static http_msg error_response(
     http_msg *msg, uint16_t status, enum result_code code, uint64_t sequence);
