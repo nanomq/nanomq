@@ -14,6 +14,8 @@
 #include <protocol/mqtt/mqtt.h>
 #include <protocol/mqtt/mqtt_parser.h>
 
+#define SUPPORT_MQTT5_0 1
+
 uint8_t
 decode_unsub_message(nano_work *work)
 {
@@ -42,37 +44,7 @@ decode_unsub_message(nano_work *work)
 	// Mqtt_v5 include property
 #if SUPPORT_MQTT5_0
 	if (PROTOCOL_VERSION_v5 == proto_ver) {
-		// length of property in variable
-		len_of_properties =
-		    get_var_integer(variable_ptr, &len_of_varint);
-		vpos += len_of_varint;
-
-		if (len_of_properties > 0) {
-			while (1) {
-				property_id = variable_ptr[vpos];
-				switch (property_id) {
-				case USER_PROPERTY:
-					// key
-					len_of_str = get_utf8_str(
-					    &(unsub_pkt->user_property.strpair
-					            .key),
-					    variable_ptr, &vpos);
-					unsub_pkt->user_property.strpair
-					    .len_key = len_of_str;
-					// value
-					len_of_str = get_utf8_str(
-					    &(unsub_pkt->user_property.strpair
-					            .val),
-					    variable_ptr, &vpos);
-					unsub_pkt->user_property.strpair
-					    .len_val = len_of_str;
-				default:
-					if (vpos > remaining_len) {
-						debug_msg("ERROR_IN_LEN_VPOS");
-					}
-				}
-			}
-		}
+		unsub_pkt->properties = decode_properties(msg, &vpos, &unsub_pkt->prop_len, false);
 	}
 #endif
 
@@ -153,7 +125,9 @@ encode_unsuback_message(nng_msg *msg, nano_work *work)
 
 #if SUPPORT_MQTT5_0
 	if (PROTOCOL_VERSION_v5 == proto_ver) {
-		nng_msg_append(msg, property_len, 1);
+		// nng_msg_append(msg, property_len, 1);
+		//TODO set property if necessary 
+		encode_properties(msg, NULL);
 	}
 
 	// handle payload
