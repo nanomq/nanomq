@@ -1,6 +1,6 @@
 # NanoMQ Toolkit
 
-NanoMQ contains abundant toolkit include broker, bench, conn, pub, sub client and nngcat. Here we will show you one by one.
+NanoMQ contains abundant toolkit include broker, bench, conn, pub, sub client. Here we will show you one by one.
 
 ## broker
 
@@ -14,8 +14,8 @@ NanoMQ MQTT Broker (NanoMQ) is a lightweight and blazing-fast MQTT Broker for th
 | --auth          | -            | -              | -                        | The path of a specified authorize configuration file         |
 | --http          | -            | true false     | false                    | Enable http server                                           |
 | --port          | -p           | -              | 8081                     | The port of http server                                      |
-| --tq_thread     | -t           | -              | -                        | The number of taskq threads used, `num` greater than 0 and less than 256 |
-| --max_tq_thread | -T           | -              | -                        | The maximum number of taskq threads used, `num` greater than 0 and less than 256 |
+| --tq_thread     | -t           | -              | -                        | The number of taskq threads used, `num` greater than 1 and less than 256 |
+| --max_tq_thread | -T           | -              | -                        | The maximum number of taskq threads used, `num` greater than 1 and less than 256 |
 | --parallel      | -n           | -              | -                        | The maximum number of outstanding requests we can handle     |
 | --property_size | -s           | -              | -                        | The max size for a MQTT user property                        |
 | --msq_len       | -S           | -              | -                        | The queue length for resending messages                      |
@@ -82,28 +82,26 @@ There are three subcommands of `bench`:
 
 When executing `nanomq bench start pub --help`, you will get the available parameter output.
 
-| Parameter         | abbreviation | Optional value | Default value  | Description                                                  |
-| ----------------- | ------------ | -------------- | -------------- | ------------------------------------------------------------ |
-| --host            | -h           | -              | localhost      | Address of the MQTT server to connect                        |
-| --port            | -p           | -              | 1883           | MQTT service port                                            |
-| --version         | -V           | 3 4 5          | 5              | MQTT protocol version used                                   |
-| --count           | -c           | -              | 200            | Total number of clients                                      |
-| --startnumber     | -n           | -              | 0              | Start number of clients                                      |
-| --interval        | -i           | -              | 10             | Interval to create a client; unit: ms                        |
-| --interval_of_msg | -I           | -              | 1000           | Interval to publish a message                                |
-| --username        | -u           | -              | None; optional | Client username                                              |
-| --password        | -P           | -              | None; optional | Client password                                              |
-| --topic           | -t           | -              | None; required | Published topics; support placeholders: `%c`： ClientId `%u`： Username `%i`：Client's sequence number |
-| --size            | -s           | -              | 256            | Message Payload size; unit: bytes                            |
-| --qos             | -q           | -              | 0              | Qos level                                                    |
-| --retain          | -r           | true false     | false          | Whether the message sets the Retain flag                     |
-| --keepalive       | -k           | -              | 300            | Client keepalive time                                        |
-| --clean           | -C           | true false     | true           | Whether to establish a connection by cleaning the session    |
-| --ssl             | -S           | true false     | false          | Whether to enable SSL                                        |
-| --certfile        | -            | -              | None           | Client SSL certificate                                       |
-| --keyfile         | -            | -              | None           | Client SSL key file                                          |
-| --ws              | -            | true false     | false          | Whether to establish a connection via Websocket              |
-| --ifaddr          | -            | -              | None           | Specifies the local network card used by the client connection |
+| Parameter         | abbreviation | Optional value | Default value  | Description                                               |
+| ----------------- | ------------ | -------------- | -------------- | --------------------------------------------------------- |
+| --host            | -h           | -              | localhost      | Address of the MQTT server to connect                     |
+| --port            | -p           | -              | 1883           | MQTT service port                                         |
+| --version         | -V           | 3 4 5          | 5              | MQTT protocol version used                                |
+| --count           | -c           | -              | 200            | Total number of clients                                   |
+| --interval        | -i           | -              | 10             | Interval to create a client; unit: ms                     |
+| --interval_of_msg | -I           | -              | 1000           | Interval to publish a message                             |
+| --username        | -u           | -              | None; optional | Client username                                           |
+| --password        | -P           | -              | None; optional | Client password                                           |
+| --topic           | -t           | -              | None; required | Published topics                                          |
+| --size            | -s           | -              | 256            | Message Payload size; unit: bytes                         |
+| --qos             | -q           | -              | 0              | Qos level                                                 |
+| --retain          | -r           | true false     | false          | Whether the message sets the Retain flag                  |
+| --keepalive       | -k           | -              | 300            | Client keepalive time                                     |
+| --clean           | -C           | true false     | true           | Whether to establish a connection by cleaning the session |
+| --ssl             | -S           | true false     | false          | Whether to enable SSL                                     |
+| --certfile        | -            | -              | None           | Client SSL certificate                                    |
+| --keyfile         | -            | -              | None           | Client SSL key file                                       |
+| --ws              | -            | true false     | false          | Whether to establish a connection via Websocket           |
 
 For example, we start 10 connections and send 100 Qos0 messages to the topic `t` every second, where the size of each message payload is`16` bytes:
 ```bash
