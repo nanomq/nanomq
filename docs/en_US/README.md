@@ -23,4 +23,6 @@ Github repository address: <https://github.com/nanomq/nanomq>
 
 [HTTP APIs](./http-api.md)
 
+[toolkit](./toolkit.md)
+
 [Test Report](./test-report.md)
