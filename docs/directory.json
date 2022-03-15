@@ -21,6 +21,10 @@
       "path": "http-api"
     },
     {
+      "title": "工具集",
+      "path": "toolkit"
+    },
+    {
       "title": "测试报告",
       "path": "test-report"
     }
@@ -45,6 +49,10 @@
     {
       "title": "HTTP APIs",
       "path": "http-api"
+    },
+    {
+      "title": "toolkit",
+      "path": "toolkit"
     },
     {
       "title": "Test Report",
