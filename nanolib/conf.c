@@ -14,9 +14,9 @@
 #include "nanomq.h"
 
 static char *
-strtrim(char *str)
+strtrim(char *str, size_t len)
 {
-	size_t len   = strlen(str);
+	// size_t len   = strlen(str);
 	char * dest  = calloc(1, len);
 	size_t index = 0;
 
@@ -146,7 +146,7 @@ get_conf_value(char *line, size_t len, const char *key)
 		return NULL;
 	}
 	char  prefix[len];
-	char *trim  = strtrim(line);
+	char *trim  = strtrim(line, len);
 	char *value = calloc(1, len);
 	int   match = sscanf(trim, "%[^=]=%s", prefix, value);
 	free(trim);
