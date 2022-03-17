@@ -130,38 +130,131 @@ bridge_client(nng_socket *sock, conf_bridge *config)
 	return 0;
 }
 
+static int
+topic_count(const char *topic)
+{
+	int   cnt = 0;
+	const char *t   = topic;
+
+	while (t) {
+		// log_info("%s", t);
+		t = strchr(t, '/');
+		cnt++;
+		if (t == NULL) {
+			break;
+		}
+		t++;
+	}
+
+	return cnt;
+}
+
+static char **
+topic_parse(const char *topic)
+{
+	if (topic == NULL) {
+		// log_err("topic is NULL");
+		return NULL;
+	}
+
+	int   row   = 0;
+	int   len   = 2;
+	const char *b_pos = topic;
+	char *pos   = NULL;
+
+	int cnt = topic_count(topic);
+
+	// Here we will get (cnt + 1) memory, one for NULL end
+	char **topic_queue = (char **) zmalloc(sizeof(char *) * (cnt + 1));
+
+	while ((pos = strchr(b_pos, '/')) != NULL) {
+
+		len              = pos - b_pos + 1;
+		topic_queue[row] = (char *) zmalloc(sizeof(char) * len);
+		memcpy(topic_queue[row], b_pos, (len - 1));
+		topic_queue[row][len - 1] = '\0';
+		b_pos                     = pos + 1;
+		row++;
+	}
+
+	len = strlen(b_pos);
+
+	topic_queue[row] = (char *) zmalloc(sizeof(char) * (len + 1));
+	memcpy(topic_queue[row], b_pos, (len));
+	topic_queue[row][len] = '\0';
+	topic_queue[++row]    = NULL;
+
+	return topic_queue;
+}
+
+static void
+topic_queue_free(char **topic_queue)
+{
+	char * t  = NULL;
+	char **tq = topic_queue;
+
+	while (*topic_queue) {
+		t = *topic_queue;
+		topic_queue++;
+		zfree(t);
+		t = NULL;
+	}
+
+	if (tq) {
+		// zfree(tq);
+	}
+}
+
+bool
+check_wildcard(const char *w, const char *n)
+{
+	char **w_q = topic_parse(w);
+	char **n_q = topic_parse(n);
+ 	bool result = true;
+    bool flag = false;
+
+	while (*w_q != NULL && *n_q != NULL) {
+		// printf("w: %s, n: %s\n", *w_q, *n_q);
+ 		if (strcmp(*w_q, *n_q) != 0) {
+ 			if (strcmp(*w_q, "#") == 0) {
+ 		 		flag = true;
+ 		 		break;
+ 			} else if (strcmp(*w_q, "+") != 0) {
+ 				result = false;
+ 				break;
+ 			}
+ 		}
+		w_q++;
+		n_q++;
+ 	}
+
+ 	if (*w_q && strcmp(*w_q, "#") == 0) {
+ 		flag = true;
+    }
+ 	if (*w_q && strcmp(*w_q, "+") == 0) {
+ 		flag = true;
+    }
+
+    if (!flag) {
+        if (*w_q || *n_q) {
+            result = false;
+        }
+    }
+
+	topic_queue_free(w_q);
+	topic_queue_free(n_q);
+
+	// printf("value: %d\n", result);
+	return result;
+}
+
 bool
 topic_filter(const char *origin, const char *input)
 {
-	bool result = true;
-
 	if (strcmp(origin, input) == 0) {
 		return true;
 	}
+	return check_wildcard(origin, input);
 
-	char *p1 = NULL, *p2 = NULL;
-
-	char *origin_str = strdup(origin);
-	char *input_str  = strdup(input);
-
-	char *origin_token = nano_strtok(origin_str, "/", &p1);
-	char *input_token  = nano_strtok(input_str, "/", &p2);
-
-	while (origin_token != NULL && input_token != NULL) {
-		if (strcmp(origin_token, input_token) != 0) {
-			if (strcmp(origin_token, "#") == 0) {
-				result = true;
-				break;
-			} else if (strcmp(origin_token, "+") != 0) {
-				result = false;
-				break;
-			}
-		}
-		origin_token = nano_strtok(NULL, "/", &p1);
-		input_token  = nano_strtok(NULL, "/", &p2);
-	}
-
-	free(input_str);
-	free(origin_str);
-	return result;
 }
+
