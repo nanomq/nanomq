@@ -899,6 +899,15 @@ collect_clients(dbtree_session_msg ***session_msg_list, dbtree_client ***vec,
 					cvector_push_back(vec, t->clients);
 				}
 
+				if (t->well != -1) {
+					t = t->child[t->well];
+					if (!cvector_empty(t->clients)) {
+						log_info(
+						    "Searching client: %s", t->topic);
+						cvector_push_back(vec, t->clients);
+					}
+				}
+
 				if (!cvector_empty(t->session_vector)) {
 					*session_msg_list = insert_session_msg(
 					    *session_msg_list, msg,
