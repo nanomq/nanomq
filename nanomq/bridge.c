@@ -24,8 +24,8 @@ fatal(const char *func, int rv)
 }
 
 nng_msg *
-bridge_publish_msg(const char *topic, uint8_t *payload,
-    uint32_t len, bool dup, uint8_t qos, bool retain)
+bridge_publish_msg(const char *topic, uint8_t *payload, uint32_t len, bool dup,
+    uint8_t qos, bool retain)
 {
 	int rv;
 
@@ -62,7 +62,7 @@ bridge_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {
 	// Connected succeed
 	bridge_param *param = arg;
-	nng_msg *msg;
+	nng_msg *     msg;
 
 	nng_mqtt_msg_alloc(&msg, 0);
 	nng_mqtt_msg_set_packet_type(msg, NNG_MQTT_SUBSCRIBE);
@@ -133,7 +133,7 @@ bridge_client(nng_socket *sock, conf_bridge *config)
 static int
 topic_count(const char *topic)
 {
-	int   cnt = 0;
+	int         cnt = 0;
 	const char *t   = topic;
 
 	while (t) {
@@ -157,10 +157,10 @@ topic_parse(const char *topic)
 		return NULL;
 	}
 
-	int   row   = 0;
-	int   len   = 2;
+	int         row   = 0;
+	int         len   = 2;
 	const char *b_pos = topic;
-	char *pos   = NULL;
+	char *      pos   = NULL;
 
 	int cnt = topic_count(topic);
 
@@ -208,38 +208,38 @@ topic_queue_free(char **topic_queue)
 bool
 check_wildcard(const char *w, const char *n)
 {
-	char **w_q = topic_parse(w);
-	char **n_q = topic_parse(n);
- 	bool result = true;
-    bool flag = false;
+	char **w_q    = topic_parse(w);
+	char **n_q    = topic_parse(n);
+	bool   result = true;
+	bool   flag   = false;
 
 	while (*w_q != NULL && *n_q != NULL) {
 		// printf("w: %s, n: %s\n", *w_q, *n_q);
- 		if (strcmp(*w_q, *n_q) != 0) {
- 			if (strcmp(*w_q, "#") == 0) {
- 		 		flag = true;
- 		 		break;
- 			} else if (strcmp(*w_q, "+") != 0) {
- 				result = false;
- 				break;
- 			}
- 		}
+		if (strcmp(*w_q, *n_q) != 0) {
+			if (strcmp(*w_q, "#") == 0) {
+				flag = true;
+				break;
+			} else if (strcmp(*w_q, "+") != 0) {
+				result = false;
+				break;
+			}
+		}
 		w_q++;
 		n_q++;
- 	}
+	}
 
- 	if (*w_q && strcmp(*w_q, "#") == 0) {
- 		flag = true;
-    }
- 	if (*w_q && strcmp(*w_q, "+") == 0) {
- 		flag = true;
-    }
+	if (*w_q && strcmp(*w_q, "#") == 0) {
+		flag = true;
+	}
+	if (*w_q && strcmp(*w_q, "+") == 0) {
+		flag = true;
+	}
 
-    if (!flag) {
-        if (*w_q || *n_q) {
-            result = false;
-        }
-    }
+	if (!flag) {
+		if (*w_q || *n_q) {
+			result = false;
+		}
+	}
 
 	topic_queue_free(w_q);
 	topic_queue_free(n_q);
@@ -255,6 +255,4 @@ topic_filter(const char *origin, const char *input)
 		return true;
 	}
 	return check_wildcard(origin, input);
-
 }
-
