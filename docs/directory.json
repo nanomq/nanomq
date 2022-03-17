@@ -13,6 +13,10 @@
       "path": "features"
     },
     {
+      "title": "配置说明",
+      "path": "config-description"
+    },
+    {
       "title": "编译选项",
       "path": "build-options"
     },
