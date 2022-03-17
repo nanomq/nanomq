@@ -43,6 +43,10 @@
       "path": "quick-start"
     },
     {
+      "title": "Configuration",
+      "path": "config-description"
+    },
+    {
       "title": "Features",
       "path": "features"
     },
