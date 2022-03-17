@@ -1,4 +1,4 @@
-# Configuration
+# Build Options
 
 NanoMQ provides several options for optimizing performance according to your system.
 

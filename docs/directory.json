@@ -13,8 +13,8 @@
       "path": "features"
     },
     {
-      "title": "配置说明",
-      "path": "configuration"
+      "title": "编译选项",
+      "path": "build-options"
     },
     {
       "title": "HTTP APIs",
@@ -43,8 +43,8 @@
       "path": "features"
     },
     {
-      "title": "Configuration",
-      "path": "configuration"
+      "title": "Build Options",
+      "path": "build-options"
     },
     {
       "title": "HTTP APIs",
