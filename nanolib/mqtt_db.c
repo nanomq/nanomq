@@ -640,7 +640,7 @@ search_insert_node(dbtree *db, char *topic, void *args,
 				break;
 			} else {
 				log_info("Insert node and client");
-				node = dbtree_node_insert(node_t, topic_queue);
+				node = dbtree_node_insert(node_t, topic_queue + 1);
 				break;
 			}
 		}
