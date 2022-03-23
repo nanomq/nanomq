@@ -201,7 +201,7 @@ topic_queue_free(char **topic_queue)
 	}
 
 	if (tq) {
-		// zfree(tq);
+		zfree(tq);
 	}
 }
 
@@ -210,6 +210,8 @@ check_wildcard(const char *w, const char *n)
 {
 	char **w_q    = topic_parse(w);
 	char **n_q    = topic_parse(n);
+	char **wq_free = w_q;
+	char **nq_free = n_q;
 	bool   result = true;
 	bool   flag   = false;
 
@@ -241,8 +243,8 @@ check_wildcard(const char *w, const char *n)
 		}
 	}
 
-	topic_queue_free(w_q);
-	topic_queue_free(n_q);
+	topic_queue_free(wq_free);
+	topic_queue_free(nq_free);
 
 	// printf("value: %d\n", result);
 	return result;
