@@ -8,7 +8,7 @@
 #include <nanolib.h>
 #include <nng.h>
 #include <nng/mqtt/packet.h>
-#include <nng/protocol/mqtt/mqtt_parser.h>
+#include "nng/protocol/mqtt/mqtt_parser.h"
 
 #include "include/broker.h"
 #include "include/nanomq.h"
@@ -148,7 +148,7 @@ encode_suback_msg(nng_msg *msg, nano_work *work)
 	if (PROTOCOL_VERSION_v5 == proto_ver) { // add property in variable
 		//TODO set property if necessary 
 		// encode_properties(msg, sub_pkt->properties);
-		encode_properties(msg, NULL);
+		encode_properties(msg, NULL, CMD_SUBACK);
 	}
 #endif
 
