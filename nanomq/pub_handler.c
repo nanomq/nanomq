@@ -14,12 +14,12 @@
 #include <mqtt_db.h>
 #include <nng.h>
 #include <nng/mqtt/packet.h>
-#include <nng/protocol/mqtt/mqtt_parser.h>
 #include <zmalloc.h>
 
 #include "include/bridge.h"
 #include "include/pub_handler.h"
 #include "include/sub_handler.h"
+#include "nng/protocol/mqtt/mqtt_parser.h"
 
 #define ENABLE_RETAIN 1
 #define SUPPORT_MQTT5_0 1
@@ -393,10 +393,12 @@ encode_pub_message(nng_msg *dest_msg, const nano_work *work,
 
 #if SUPPORT_MQTT5_0
 		if (PROTOCOL_VERSION_v5 == proto) {
-			// encode_properties(dest_msg,
-			// work->pub_packet->var_header.publish.properties);
-			// TODO Set properties if necessary.
-			encode_properties(dest_msg, NULL);
+			if (encode_properties(dest_msg,
+			        work->pub_packet->var_header.publish
+			            .properties, CMD_PUBLISH) != 0) {
+				return false;
+			}
+			// rv = encode_properties(dest_msg, NULL);
 		}
 #endif
 

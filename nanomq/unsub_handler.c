@@ -9,11 +9,10 @@
 #include "include/unsub_handler.h"
 #include "include/nanomq.h"
 #include "include/sub_handler.h"
+#include "nng/protocol/mqtt/mqtt_parser.h"
 #include <nanolib.h>
 #include <nng.h>
 #include <protocol/mqtt/mqtt.h>
-#include <protocol/mqtt/mqtt_parser.h>
-
 #define SUPPORT_MQTT5_0 1
 
 int
@@ -127,7 +126,7 @@ encode_unsuback_msg(nng_msg *msg, nano_work *work)
 	if (PROTOCOL_VERSION_v5 == proto_ver) {
 		// nng_msg_append(msg, property_len, 1);
 		//TODO set property if necessary 
-		encode_properties(msg, NULL);
+		encode_properties(msg, NULL, CMD_UNSUBACK);
 	}
 
 	// handle payload
