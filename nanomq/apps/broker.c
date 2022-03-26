@@ -180,7 +180,6 @@ server_cb(void *arg)
 			// delete will msg
 		} else if (nng_msg_cmd_type(msg) == CMD_PUBLISH) {
 			// Set V4/V5 flag for publish msg
-			nng_msg_set_timestamp(msg, nng_clock());
 			if (conn_param_get_protover(work->cparam) == 5) {
 				nng_msg_set_cmd_type(msg, CMD_PUBLISH_V5);
 				handle_pub(work, work->pipe_ct, PROTOCOL_VERSION_v5);
@@ -431,41 +430,34 @@ server_cb(void *arg)
 			msg_infos = work->pipe_ct->msg_infos;
 
 			debug_msg("total pipes: %ld", cvector_size(msg_infos));
-			//TODO encode abstract msg only
 			if (cvector_size(msg_infos))
-				encode_pub_message(
-				    smsg, work, PUBLISH, msg_info);
-			for (int i = 0; i < cvector_size(msg_infos); ++i) {
-				msg_info = &msg_infos[i];
-				nng_msg_clone(smsg);
-				work->pid.id = msg_info->pipe;
-				nng_msg_set_pipe(smsg, work->pid);
-				work->msg = NANO_NNI_LMQ_PACKED_MSG_QOS(smsg, msg_info->qos);
-				nng_aio_set_prov_data(work->aio, (void *)msg_info->retain);
-				nng_aio_set_msg(work->aio, work->msg);
-				nng_ctx_send(work->ctx, work->aio);
-				nng_aio_set_prov_data(work->aio, NULL);
-			}
+				if (encode_pub_message(smsg, work, PUBLISH, msg_info))
+					for (int i = 0; i < cvector_size(msg_infos) && rv== 0; ++i) {
+						msg_info = &msg_infos[i];
+						nng_msg_clone(smsg);
+						work->pid.id = msg_info->pipe;
+						nng_msg_set_pipe(smsg, work->pid);
+						work->msg = NANO_NNI_LMQ_PACKED_MSG_QOS(smsg, msg_info->qos);
+						nng_aio_set_prov_data(work->aio, (void *)msg_info->retain);
+						nng_aio_set_msg(work->aio, work->msg);
+						nng_ctx_send(work->ctx, work->aio);
+						nng_aio_set_prov_data(work->aio, NULL);
+					}
 			nng_msg_free(smsg);
 			smsg = NULL;
+			work->msg = NULL;
+			free_pub_packet(work->pub_packet);
 			if (cvector_size(msg_infos) > 0) {
 				work->state = SEND;
-				work->msg   = NULL;
-				free_pub_packet(work->pub_packet);
 				cvector_free(msg_infos);
 				work->pipe_ct->msg_infos = NULL;
 				nng_aio_finish(work->aio, 0);
 				break;
 			}
-			work->msg = NULL;
-			free_pub_packet(work->pub_packet);
 			cvector_free(work->pipe_ct->msg_infos);
 			work->pipe_ct->msg_infos = NULL;
 			init_pipe_content(work->pipe_ct);
 			if (work->state != SEND) {
-				if (work->msg != NULL)
-					nng_msg_free(work->msg);
-				work->msg = NULL;
 				if (work->proto == PROTO_MQTT_BRIDGE) {
 					work->state = BRIDGE;
 				} else {
@@ -544,18 +536,18 @@ server_cb(void *arg)
 			debug_msg("total pipes: %ld", cvector_size(msg_infos));
 			//TODO encode abstract msg only
 			if (cvector_size(msg_infos))
-				encode_pub_message(smsg, work, PUBLISH, msg_info);
-			for (int i=0; i<cvector_size(msg_infos); ++i) {
-				msg_info = &msg_infos[i];
-				nng_msg_clone(smsg);
-				work->pid.id = msg_info->pipe;
-				nng_msg_set_pipe(smsg, work->pid);
-				work->msg = NANO_NNI_LMQ_PACKED_MSG_QOS(smsg, msg_info->qos);
-				nng_aio_set_msg(work->aio, work->msg);
-				nng_aio_set_prov_data(work->aio, (void *)msg_info->retain);
-				nng_ctx_send(work->ctx, work->aio);
-				nng_aio_set_prov_data(work->aio, NULL);
-			}
+				if (encode_pub_message(smsg, work, PUBLISH, msg_info))
+					for (int i=0; i<cvector_size(msg_infos); ++i) {
+						msg_info = &msg_infos[i];
+						nng_msg_clone(smsg);
+						work->pid.id = msg_info->pipe;
+						nng_msg_set_pipe(smsg, work->pid);
+						work->msg = NANO_NNI_LMQ_PACKED_MSG_QOS(smsg, msg_info->qos);
+						nng_aio_set_msg(work->aio, work->msg);
+						nng_aio_set_prov_data(work->aio, (void *)msg_info->retain);
+						nng_ctx_send(work->ctx, work->aio);
+						nng_aio_set_prov_data(work->aio, NULL);
+					}
 			nng_msg_free(smsg);
 			smsg = NULL;
 			work->msg = NULL;
@@ -573,16 +565,25 @@ server_cb(void *arg)
 				        work->cparam),
 				    (mqtt_string *) conn_param_get_will_topic(
 				        work->cparam),
-				    conn_param_get_protover(work->cparam));
-				// Set V4/V5 flag for publish msg
-				// if (conn_param_get_protover(work->cparam) == 5) {
-				// 	nng_msg_set_cmd_type(msg, CMD_PUBLISH_V5);
-				// } else {
-				// 	nng_msg_set_cmd_type(msg, CMD_PUBLISH);
-				// }
-				nng_msg_set_cmd_type(msg, CMD_PUBLISH);
+				    conn_param_get_protover(work->cparam),
+					nng_clock());
 				work->msg = msg;
-				handle_pub(work, work->pipe_ct, PROTOCOL_VERSION_v311);
+				// Set V4/V5 flag for publish msg
+				if (conn_param_get_protover(work->cparam) == 5) {
+					property *will_property =
+					    conn_param_get_will_property(
+					        work->cparam);
+					nng_msg_set_cmd_type(
+					    msg, CMD_PUBLISH_V5);
+					handle_pub(work, work->pipe_ct,
+					    PROTOCOL_VERSION_v5);
+					work->pub_packet->var_header.publish
+					    .properties = property_copy(will_property);
+					work->pub_packet->var_header.publish.prop_len =	get_properties_len(will_property);
+				} else {
+					nng_msg_set_cmd_type(msg, CMD_PUBLISH);
+					handle_pub(work, work->pipe_ct, PROTOCOL_VERSION_v311);
+				}
 				work->state = WAIT;
 				nng_aio_finish(work->aio, 0);
 			} else {
