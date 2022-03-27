@@ -577,8 +577,10 @@ server_cb(void *arg)
 					    msg, CMD_PUBLISH_V5);
 					handle_pub(work, work->pipe_ct,
 					    PROTOCOL_VERSION_v5);
-					work->pub_packet->var_header.publish
-					    .properties = will_property_copy(will_property);
+					property_dup(
+					    &work->pub_packet->var_header
+					         .publish.properties,
+					    will_property);
 					work->pub_packet->var_header.publish.prop_len =	get_properties_len(will_property);
 				} else {
 					nng_msg_set_cmd_type(msg, CMD_PUBLISH);
