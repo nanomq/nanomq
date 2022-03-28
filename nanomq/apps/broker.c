@@ -443,14 +443,17 @@ server_cb(void *arg)
 						nng_ctx_send(work->ctx, work->aio);
 						nng_aio_set_prov_data(work->aio, NULL);
 					}
-			nng_msg_free(smsg);
-			smsg = NULL;
+			if (smsg != NULL) {
+				nng_msg_free(smsg);
+				smsg = NULL;
+			}
 			work->msg = NULL;
 			free_pub_packet(work->pub_packet);
 			if (cvector_size(msg_infos) > 0) {
 				work->state = SEND;
 				cvector_free(msg_infos);
 				work->pipe_ct->msg_infos = NULL;
+				init_pipe_content(work->pipe_ct);
 				nng_aio_finish(work->aio, 0);
 				break;
 			}
@@ -509,7 +512,6 @@ server_cb(void *arg)
 			free_pub_packet(work->pub_packet);
 			cvector_free(work->pipe_ct->msg_infos);
 			work->pipe_ct->msg_infos = NULL;
-			init_pipe_content(work->pipe_ct);
 		}
 		work->msg = NULL;
 		if (work->proto == PROTO_MQTT_BRIDGE) {
