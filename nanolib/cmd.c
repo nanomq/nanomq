@@ -17,11 +17,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
-#include <sys/wait.h>
 #include <unistd.h>
 
 char *cmd_output_buff = NULL;
 int   cmd_output_len  = 0;
+
+#ifndef NANO_PLATFORM_WINDOWS
+#include <sys/wait.h>
 
 int
 nano_cmd_run_status(const char *cmd)
@@ -119,6 +121,7 @@ nano_cmd_frun(const char *format, ...)
 	free(cmd);
 	return ret;
 }
+#endif
 
 void
 nano_cmd_cleanup(void)

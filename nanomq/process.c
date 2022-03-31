@@ -13,13 +13,15 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <paths.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#ifndef NANO_PLATFORM_WINDOWS
+#include <paths.h>
 
 int
 process_is_alive(int pid)
@@ -114,3 +116,33 @@ process_create_child(int (*child_run)(void *), void *data)
 		return pid;
 	}
 }
+
+#else
+
+int
+process_is_alive(int pid)
+{
+	return 0;
+}
+
+int
+process_send_signal(int pid, int signal)
+{
+	return 0;
+}
+
+int
+process_daemonize(void)
+{
+	fprintf(stderr, "Not support on Windows\n");
+	return -1;
+}
+
+int
+process_create_child(int (*child_run)(void *), void *data)
+{
+	fprintf(stderr, "Not support on Windows\n");
+	return -1;
+}
+
+#endif

@@ -6,7 +6,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef NANO_PLATFORM_WINDOWS
+#include <mswsock.h>
+#include <winsock2.h>
+#include <ws2def.h>
+#else
 #include <sys/ioctl.h>
+#endif
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -15,7 +21,117 @@
 
 #define NG_MODE (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
 
+#ifdef NANO_PLATFORM_WINDOWS
+#define nano_mkdir(path, mode) mkdir(path)
+#else
+#define nano_mkdir(path, mode) mkdir(path, mode)
+#endif
+
 static char fpath_tmp[100];
+
+static char *
+nano_strcasestr(const char *s1, const char *s2)
+{
+#ifndef NANO_PLATFORM_WINDOWS
+	return (strcasestr(s1, s2));
+#else
+	const char *t1, *t2;
+	while (*s1) {
+		for (t1 = s1, t2 = s2; *t1 && *t2; t2++, t1++) {
+			if (tolower(*t1) != tolower(*t2)) {
+				break;
+			}
+		}
+		if (*t2 == 0) {
+			return ((char *) s1);
+		}
+		s1++;
+	}
+	return (NULL);
+#endif
+}
+
+int
+nano_fdprintf(int fd, char *fmt, ...)
+{
+	va_list ap;
+	int     rc;
+	va_start(ap, fmt);
+#ifndef NANO_PLATFORM_WINDOWS
+	rc = dprintf(fd, fmt, ap);
+#else
+	FILE *f = _fdopen(fd, "w");
+	rc      = vfprintf(f, fmt, ap);
+	fclose(f);
+#endif
+	va_end(ap);
+	return rc;
+}
+
+int64_t
+nano_getline(char **restrict line, size_t *restrict len, FILE *restrict fp)
+{
+
+#ifndef NANO_PLATFORM_WINDOWS
+	return getline(line, len, fp);
+#else
+	// Check if either line, len or fp are NULL pointers
+	if (line == NULL || len == NULL || fp == NULL) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	// Use a chunk array of 128 bytes as parameter for fgets
+	char chunk[128];
+
+	// Allocate a block of memory for *line if it is NULL or smaller than
+	// the chunk array
+	if (*line == NULL || *len < sizeof(chunk)) {
+		*len = sizeof(chunk);
+		if ((*line = malloc(*len)) == NULL) {
+			errno = ENOMEM;
+			return -1;
+		}
+	}
+
+	// "Empty" the string
+	(*line)[0] = '\0';
+
+	while (fgets(chunk, sizeof(chunk), fp) != NULL) {
+		// Resize the line buffer if necessary
+		size_t len_used   = strlen(*line);
+		size_t chunk_used = strlen(chunk);
+
+		if (*len - len_used < chunk_used) {
+			// Check for overflow
+			if (*len > SIZE_MAX / 2) {
+				errno = EOVERFLOW;
+				return -1;
+			} else {
+				*len *= 2;
+			}
+
+			if ((*line = realloc(*line, *len)) == NULL) {
+				errno = ENOMEM;
+				return -1;
+			}
+		}
+
+		// Copy the chunk to the end of the line buffer
+		memcpy(*line + len_used, chunk, chunk_used);
+		len_used += chunk_used;
+		(*line)[len_used] = '\0';
+
+		// Check if *line contains '\n', if yes, return the *line
+		// length
+		if ((*line)[len_used - 1] == '\n') {
+			return len_used;
+		}
+	}
+
+	return -1;
+#endif
+}
 
 int
 nano_file_trunc_to_zero(const char *fpath)
@@ -45,19 +161,6 @@ nano_file_exists(const char *fpath)
 }
 
 int
-file_is_symlink(const char *fpath)
-{
-	int         ret;
-	struct stat st;
-
-	ret = lstat(fpath, &st);
-	if (ret != 0)
-		return 0;
-
-	return S_ISLNK(st.st_mode);
-}
-
-int
 file_size(const char *fpath)
 {
 	int         ret;
@@ -71,13 +174,6 @@ file_size(const char *fpath)
 		return -1;
 
 	return st.st_size;
-}
-
-int
-file_create_symlink(const char *file_path, const char *link_path)
-{
-	debug_msg("%s => %s", file_path, link_path);
-	return symlink(file_path, link_path);
 }
 
 int
@@ -153,8 +249,8 @@ file_create_dir(const char *pName)
 {
 
 	struct stat sb;
-	char *      slash;
-	char *      path;
+	char       *slash;
+	char       *path;
 	int         done = 0;
 
 	/* validate given args */
@@ -178,7 +274,7 @@ file_create_dir(const char *pName)
 
 		if (stat(path, &sb)) {
 			if (errno != ENOENT ||
-			    (mkdir(path, 0777) && errno != EEXIST)) {
+			    (nano_mkdir(path, 0777) && errno != EEXIST)) {
 				debug_msg(
 				    "ERR: %s (%s)", strerror(errno), path);
 				free(path);
@@ -299,8 +395,8 @@ error:
 char *
 file_find_line(const char *fpath, const char *string)
 {
-	char * line_ptr = NULL, *ptr;
-	FILE * fd;
+	char  *line_ptr = NULL, *ptr;
+	FILE  *fd;
 	size_t len = 0;
 
 	debug_msg("fpath = %s, string = %s", fpath, string);
@@ -315,8 +411,8 @@ file_find_line(const char *fpath, const char *string)
 	if (!fd)
 		goto out;
 
-	while (getline(&line_ptr, &len, fd) != -1) {
-		ptr = strcasestr(line_ptr, string);
+	while (nano_getline(&line_ptr, &len, fd) != -1) {
+		ptr = nano_strcasestr(line_ptr, string);
 
 		if (!ptr)
 			continue;
@@ -332,6 +428,50 @@ out:
 found:
 	fclose(fd);
 	return line_ptr;
+}
+
+#ifdef NANO_PLATFORM_WINDOWS
+
+int
+file_is_symlink(const char *fpath)
+{
+	return -1;
+}
+int
+file_create_symlink(const char *file_path, const char *link_path)
+{
+	return -1;
+}
+int
+file_read_symlink_target(const char *fpath, char *buff, int buff_len)
+{
+	return -1;
+}
+int
+file_delete_symlink_target(const char *fpath)
+{
+	return -1;
+}
+
+#else
+
+int
+file_is_symlink(const char *fpath)
+{
+	int ret;
+	struct stat st;
+	ret = lstat(fpath, &st);
+	if (ret != 0)
+		return 0;
+
+	return S_ISLNK(st.st_mode);
+}
+
+int
+file_create_symlink(const char *file_path, const char *link_path)
+{
+	debug_msg("%s => %s", file_path, link_path);
+	return symlink(file_path, link_path);
 }
 
 int
@@ -354,7 +494,7 @@ file_read_symlink_target(const char *fpath, char *buff, int buff_len)
 int
 file_delete_symlink_target(const char *fpath)
 {
-	int  ret;
+	int ret;
 	char path_buff[100];
 
 	ret = file_read_symlink_target(fpath, path_buff, sizeof(path_buff));
@@ -364,14 +504,19 @@ file_delete_symlink_target(const char *fpath)
 	debug_msg("file %s", path_buff);
 	return file_delete(path_buff);
 }
+#endif
 
 int
 file_is_directory(const char *fpath)
 {
-	int         ret;
+	int ret;
 	struct stat st;
 
+#if NANO_PLATFORM_WINDOWS
+	ret = stat(fpath, &st);
+#else
 	ret = lstat(fpath, &st);
+#endif
 	if (ret != 0)
 		return 0;
 
@@ -416,9 +561,9 @@ out:
 int
 file_truncr_to_sep(const char *fpath, char *separator)
 {
-	int    fd, read_len;
-	FILE * fd_tmp;
-	char * line_ptr = NULL;
+	int fd, read_len;
+	FILE *fd_tmp;
+	char *line_ptr = NULL;
 	size_t line_len = 0, trunc_len = 0, trunc_len_tmp = 0;
 
 	debug_msg("fpath = %s, separator = %s", fpath, separator);
@@ -427,7 +572,7 @@ file_truncr_to_sep(const char *fpath, char *separator)
 	if (!fd_tmp)
 		goto write_sep;
 
-	while ((read_len = getline(&line_ptr, &line_len, fd_tmp)) != -1) {
+	while ((read_len = nano_getline(&line_ptr, &line_len, fd_tmp)) != -1) {
 
 		if (strncmp(line_ptr, separator, strlen(separator)) == 0) {
 			trunc_len += trunc_len_tmp;
@@ -447,7 +592,7 @@ write_sep:
 
 	ftruncate(fd, trunc_len);
 	lseek(fd, trunc_len, SEEK_SET);
-	dprintf(fd, "%s\n", separator);
+	nano_fdprintf(fd, "%s\n", separator);
 
 	return fd;
 }
@@ -456,7 +601,7 @@ int
 file_extract_int(const char *fpath)
 {
 	char buff[16], *ptr;
-	int  ret = 0;
+	int ret = 0;
 
 	if (!nano_file_exists(fpath))
 		goto out;
@@ -477,7 +622,7 @@ out:
 int
 file_append_int(const char *fpath, int value)
 {
-	int  fd, ret;
+	int fd, ret;
 	char buff[10], buff_len;
 
 	if (!fpath)

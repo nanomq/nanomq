@@ -88,7 +88,7 @@ conf_update(const char *fpath, const char *key, char *value)
 	bool   is_found   = false;
 	if (fp) {
 		sprintf(deststr, "%s=", key);
-		while (getline(&line, &len, fp) != -1) {
+		while (nano_getline(&line, &len, fp) != -1) {
 			linearray =
 			    realloc(linearray, (count + 1) * (sizeof(char *)));
 			if (linearray == NULL) {
@@ -186,7 +186,7 @@ conf_parser(conf *nanomq_conf)
 	}
 
 	char *value;
-	while (getline(&line, &sz, fp) != -1) {
+	while (nano_getline(&line, &sz, fp) != -1) {
 		if ((value = get_conf_value(line, sz, "url")) != NULL) {
 			FREE_NONULL(config->url);
 			config->url = value;
@@ -425,7 +425,7 @@ conf_auth_parser(conf *nanomq_conf)
 		return;
 	}
 
-	while (getline(&line, &sz, fp) != -1) {
+	while (nano_getline(&line, &sz, fp) != -1) {
 		sprintf(name_key, "auth.%ld.login", index);
 		if (!get_name &&
 		    (value = get_conf_value(line, sz, name_key)) != NULL) {
@@ -490,7 +490,7 @@ conf_bridge_parse_subs(conf_bridge *bridge, const char *path)
 	char *  value     = NULL;
 
 	bridge->sub_count = 0;
-	while (getline(&line, &sz, fp) != -1) {
+	while (nano_getline(&line, &sz, fp) != -1) {
 		sprintf(topic_key, "bridge.mqtt.subscription.%ld.topic",
 		    sub_index);
 		if (!get_topic &&
@@ -566,7 +566,7 @@ conf_bridge_parse(conf *nanomq_conf)
 	}
 
 	char *value;
-	while (getline(&line, &sz, fp) != -1) {
+	while (nano_getline(&line, &sz, fp) != -1) {
 		if ((value = get_conf_value(
 		         line, sz, "bridge.mqtt.bridge_mode")) != NULL) {
 			bridge->bridge_mode = strcasecmp(value, "true") == 0;
