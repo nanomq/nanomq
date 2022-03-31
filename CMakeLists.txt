@@ -5,7 +5,7 @@
 # found online at https://opensource.org/licenses/MIT.
 # not finished yet #
 
-cmake_minimum_required (VERSION 2.8.8)
+cmake_minimum_required (VERSION 2.8.12)
 SET(CMAKE_C_FLAGS "-std=c99")
 SET(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 
@@ -30,6 +30,85 @@ endif()
 if (BUILD_BENCH) 
   add_definitions(-DSUPP_BENCH)
 endif()
+
+# If the compiler is not on Windows, does it support hiding the
+# symbols by default?  For shared libraries we would like to do this.
+if (NOT WIN32 AND NOT CYGWIN)
+    check_c_compiler_flag(-fvisibility=hidden NANO_HIDDEN_VISIBILITY)
+    if (NANO_HIDDEN_VISIBILITY)
+        add_definitions(-DNANO_HIDDEN_VISIBILITY)
+    endif ()
+endif ()
+
+if (CMAKE_SYSTEM_NAME MATCHES "Linux")
+    add_definitions(-DNANO_PLATFORM_POSIX)
+    add_definitions(-DNANO_PLATFORM_LINUX)
+    add_definitions(-DNANO_USE_EVENTFD)
+    add_definitions(-DNANO_HAVE_ABSTRACT_SOCKETS)
+    # Windows subsystem for Linux -- smells like Linux, but it has
+    # some differences (SO_REUSEADDR for one).
+    if (CMAKE_SYSTEM_VERSION MATCHES "Microsoft")
+        add_definitions(-DNANO_PLATFORM_WSL)
+    endif ()
+    set(NANO_PLATFORM_POSIX ON)
+
+elseif (CMAKE_SYSTEM_NAME MATCHES "Android")
+    add_definitions(-DNANO_PLATFORM_POSIX)
+    add_definitions(-DNANO_PLATFORM_LINUX)
+    add_definitions(-DNANO_PLATFORM_ANDROID)
+    add_definitions(-DNANO_USE_EVENTFD)
+    set(NANO_PLATFORM_POSIX ON)
+
+elseif (APPLE)
+    add_definitions(-DNANO_PLATFORM_POSIX)
+    add_definitions(-DNANO_PLATFORM_DARWIN)
+    set(NANO_PLATFORM_POSIX ON)
+
+elseif (CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
+    add_definitions(-DNANO_PLATFORM_POSIX)
+    add_definitions(-DNANO_PLATFORM_FREEBSD)
+    set(NANO_PLATFORM_POSIX ON)
+
+elseif (CMAKE_SYSTEM_NAME MATCHES "NetBSD")
+    add_definitions(-DNANO_PLATFORM_POSIX)
+    add_definitions(-DNANO_PLATFORM_NETBSD)
+    set(NANO_PLATFORM_POSIX ON)
+
+elseif (CMAKE_SYSTEM_NAME MATCHES "OpenBSD")
+    add_definitions(-DNANO_PLATFORM_POSIX)
+    add_definitions(-DNANO_PLATFORM_OPENBSD)
+    set(NANO_PLATFORM_POSIX ON)
+
+elseif (CMAKE_SYSTEM_NAME MATCHES "SunOS")
+    add_definitions(-DNANO_PLATFORM_POSIX)
+    add_definitions(-DNANO_PLATFORM_SUNOS)
+    set(NANO_PLATFORM_POSIX ON)
+
+elseif (CMAKE_SYSTEM_NAME MATCHES "Windows")
+    add_definitions(-DNANO_PLATFORM_WINDOWS)
+    add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+    add_definitions(-D_CRT_RAND_S)
+    set(NANO_PLATFORM_WINDOWS ON)
+
+    # Target Windows Vista and later
+    add_definitions(-D_WIN32_WINNT=0x0600)
+    list(APPEND CMAKE_REQUIRED_DEFINITIONS -D_WIN32_WINNT=0x0600)
+
+elseif (CMAKE_SYSTEM_NAME MATCHES "QNX")
+    add_definitions(-DNANO_PLATFORM_POSIX)
+    add_definitions(-D__EXT_BSD)
+    add_definitions(-D_QNX_SOURCE)
+    add_definitions(-DNANO_PLATFORM_QNX)
+    set(NANO_PLATFORM_POSIX ON)
+
+else ()
+    message(AUTHOR_WARNING "WARNING: This platform may not be supported: ${CMAKE_SYSTEM_NAME}")
+    message(AUTHOR_WARNING "${ISSUE_REPORT_MSG}")
+    # blithely hope for POSIX to work
+    add_definitions(-DNANO_PLATFORM_POSIX)
+    set(NANO_PLATFORM_POSIX ON)
+endif ()
+
 
 set(CMAKE_MODULE_PATH
   ${CMAKE_MODULE_PATH}
@@ -68,7 +147,9 @@ if (NOWARNING)
 endif (NOWARNING)
 
 if (MQ)
-  add_definitions(-DMQ)
+  if (NOT (APPLE OR NANO_PLATFORM_WINDOWS))
+    add_definitions(-DMQ)
+  endif()
 endif (MQ)
 
 if (BUILD_CLIENT)

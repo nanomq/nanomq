@@ -11,7 +11,6 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <syslog.h>
 #include <unistd.h>
 
 #include <conf.h>
@@ -896,7 +895,11 @@ print_usage(void)
 int
 status_check(pid_t *pid)
 {
-	char * data = NULL;
+#ifdef NANO_PLATFORM_WINDOWS
+	debug_msg("Not support on Windows\n");
+	return -1;
+#else
+	char  *data = NULL;
 	size_t size = 0;
 
 	int rc;
@@ -924,6 +927,7 @@ status_check(pid_t *pid)
 		debug_msg("unexpected error");
 		return -1;
 	}
+#endif
 }
 
 int
@@ -1189,6 +1193,9 @@ broker_start(int argc, char **argv)
 int
 broker_stop(int argc, char **argv)
 {
+#ifdef NANO_PLATFORM_WINDOWS
+	exit(EXIT_SUCCESS);
+#else
 	pid_t pid = 0;
 
 	if (argc != 0) {
@@ -1204,11 +1211,15 @@ broker_stop(int argc, char **argv)
 	}
 	fprintf(stderr, "NanoMQ stopped.\n");
 	exit(EXIT_SUCCESS);
+#endif
 }
 
 int
 broker_restart(int argc, char **argv)
 {
+#ifdef NANO_PLATFORM_WINDOWS
+	fprintf(stderr, "Not support on Windows\n");
+#else
 	pid_t pid = 0;
 
 	if (argc < 1) {
@@ -1227,6 +1238,7 @@ broker_restart(int argc, char **argv)
 	}
 
 	broker_start(argc, argv);
+#endif
 	return 0;
 }
 

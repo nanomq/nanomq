@@ -19,7 +19,7 @@ struct fixed_header {
 	uint8_t qos : 2;
 	uint8_t dup : 1;
 	// packet_types
-	mqtt_control_packet_types packet_type : 4;
+	uint8_t packet_type : 4;
 	// remaining length
 	uint32_t remain_len;
 };

@@ -15,15 +15,19 @@
 #include "include/version.h"
 
 #include <errno.h>
-#include <netinet/in.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef NANO_PLATFORM_WINDOWS
+#include <winsock2.h>
+#else 
+#include <netinet/in.h>
 #include <sys/ptrace.h>
 #include <sys/socket.h>
-#include <sys/types.h>
 #include <sys/wait.h>
+#endif
+#include <sys/types.h>
 #include <unistd.h>
 
 #define NANO_APP_NAME "nanomq"
@@ -145,12 +149,15 @@ main(int argc, char **argv)
 		return EXIT_SUCCESS;
 	}
 
+#ifdef NANO_PLATFORM_WINDOWS
+	app_name = strrchr(argv[0], '\\');
+#else
 	app_name = strrchr(argv[0], '/');
+#endif
 	debug_msg("argv %s %s app_name %s", argv[0], argv[1], app_name);
 	app_name = (app_name ? app_name + 1 : argv[0]);
 
-	debug_msg("argv %s %s app_name %s", argv[0], argv[1], app_name);
-	if (strncmp(app_name, NANO_APP_NAME, APP_NAME_MAX) == 0) {
+	if (strncmp(app_name, NANO_APP_NAME, strlen(NANO_APP_NAME)) == 0) {
 		debug_msg("argc : %d", argc);
 		if (argc == 1) {
 			print_avail_apps();
@@ -163,9 +170,11 @@ main(int argc, char **argv)
 		argc--;
 	}
 
-	for (nano_app = edge_apps; *nano_app; ++nano_app)
-		if (strncmp(app_name, (*nano_app)->name, APP_NAME_MAX) == 0)
+	for (nano_app = edge_apps; *nano_app; ++nano_app) {
+		if (strncmp(app_name, (*nano_app)->name,
+		        strlen((*nano_app)->name)) == 0)
 			break;
+	}
 
 	if (!(*nano_app)) {
 		printf("Error - the app '%s' was not found\n", app_name);

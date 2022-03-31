@@ -2,9 +2,12 @@
 #define NANO_FILE_H
 
 #include <stdio.h>
+#include <stdint.h>
 
 int   nano_file_trunc_to_zero(const char *fpath);
 int   nano_file_exists(const char *fpath);
+int64_t nano_getline(
+    char **restrict line, size_t *restrict len, FILE *restrict fp);
 int   file_is_symlink(const char *fpath);
 int   file_size(const char *fpath);
 int   file_create_symlink(const char *file_path, const char *link_path);
