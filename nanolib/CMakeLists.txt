@@ -5,7 +5,7 @@
 # found online at https://opensource.org/licenses/MIT.
 
 
-cmake_minimum_required (VERSION 2.8.12)
+cmake_minimum_required (VERSION 2.8.8)
 
 # SET(CMAKE_C_FLAGS "-std=c99")
 SET(CMAKE_C_FLAGS "-std=gnu99")
