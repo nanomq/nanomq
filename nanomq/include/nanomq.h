@@ -28,12 +28,10 @@
 #if defined(NANO_PLATFORM_WINDOWS)
 #ifdef DEBUG_SYSLOG
 #undef DEBUG_SYSLOG
-#define nano_getpid() _getpid()
 #endif
 #else
 #include <syslog.h>
 #include <unistd.h>
-#define nano_getpid() getpid()
 
 #endif
 
@@ -69,13 +67,13 @@ nanomq_time_str()
 #endif
 
 #if defined(DEBUG_FILE)
-#define debug_file(fmt, ...)                                              \
-	do {                                                              \
-		char *_t  = nanomq_time_str();                           \
-		FILE *file = fopen(DEBUG_FILE_PATH, "a");                 \
-		fprintf(file, "%s [%i] %s: " fmt "\n", _t, nano_getpid(), \
-		    __FUNCTION__, ##__VA_ARGS__);                         \
-		fclose(file);                                             \
+#define debug_file(fmt, ...)                                         \
+	do {                                                         \
+		char *_t   = nanomq_time_str();                      \
+		FILE *file = fopen(DEBUG_FILE_PATH, "a");            \
+		fprintf(file, "%s [%i] %s: " fmt "\n", _t, getpid(), \
+		    __FUNCTION__, ##__VA_ARGS__);                    \
+		fclose(file);                                        \
 	} while (0)
 #else
 #define debug_file(fmt, ...) \

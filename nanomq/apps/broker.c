@@ -1190,12 +1190,11 @@ broker_start(int argc, char **argv)
 	exit(rc == 0 ? EXIT_SUCCESS : EXIT_FAILURE);
 }
 
+#ifndef NANO_PLATFORM_WINDOWS
+
 int
 broker_stop(int argc, char **argv)
 {
-#ifdef NANO_PLATFORM_WINDOWS
-	exit(EXIT_SUCCESS);
-#else
 	pid_t pid = 0;
 
 	if (argc != 0) {
@@ -1211,15 +1210,11 @@ broker_stop(int argc, char **argv)
 	}
 	fprintf(stderr, "NanoMQ stopped.\n");
 	exit(EXIT_SUCCESS);
-#endif
 }
 
 int
 broker_restart(int argc, char **argv)
 {
-#ifdef NANO_PLATFORM_WINDOWS
-	fprintf(stderr, "Not support on Windows\n");
-#else
 	pid_t pid = 0;
 
 	if (argc < 1) {
@@ -1237,10 +1232,27 @@ broker_restart(int argc, char **argv)
 		fprintf(stderr, "There is no running NanoMQ instance.\n");
 	}
 
-	broker_start(argc, argv);
-#endif
-	return 0;
+	return broker_start(argc, argv);
 }
+
+#else
+
+int
+broker_restart(int argc, char **argv)
+{
+	fprintf(stderr, "Not support on Windows\n");
+	exit(EXIT_SUCCESS);
+}
+
+
+int
+broker_stop(int argc, char **argv)
+{
+	fprintf(stderr, "Not support on Windows\n");
+	exit(EXIT_SUCCESS);
+}
+
+#endif
 
 int
 broker_dflt(int argc, char **argv)

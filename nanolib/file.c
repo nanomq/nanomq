@@ -29,12 +29,36 @@
 
 static char fpath_tmp[100];
 
+#ifndef NANO_PLATFORM_WINDOWS
+
 static char *
 nano_strcasestr(const char *s1, const char *s2)
 {
-#ifndef NANO_PLATFORM_WINDOWS
 	return (strcasestr(s1, s2));
+}
+
+int
+nano_fdprintf(int fd, char *fmt, ...)
+{
+	va_list ap;
+	int     rc;
+	va_start(ap, fmt);
+	rc = dprintf(fd, fmt, ap);
+	va_end(ap);
+	return rc;
+}
+
+int64_t
+nano_getline(char **restrict line, size_t *restrict len, FILE *restrict fp)
+{
+	return getline(line, len, fp);
+}
+
 #else
+
+static char *
+nano_strcasestr(const char *s1, const char *s2)
+{
 	const char *t1, *t2;
 	while (*s1) {
 		for (t1 = s1, t2 = s2; *t1 && *t2; t2++, t1++) {
@@ -48,7 +72,6 @@ nano_strcasestr(const char *s1, const char *s2)
 		s1++;
 	}
 	return (NULL);
-#endif
 }
 
 int
@@ -57,13 +80,9 @@ nano_fdprintf(int fd, char *fmt, ...)
 	va_list ap;
 	int     rc;
 	va_start(ap, fmt);
-#ifndef NANO_PLATFORM_WINDOWS
-	rc = dprintf(fd, fmt, ap);
-#else
 	FILE *f = _fdopen(fd, "w");
 	rc      = vfprintf(f, fmt, ap);
 	fclose(f);
-#endif
 	va_end(ap);
 	return rc;
 }
@@ -71,10 +90,6 @@ nano_fdprintf(int fd, char *fmt, ...)
 int64_t
 nano_getline(char **restrict line, size_t *restrict len, FILE *restrict fp)
 {
-
-#ifndef NANO_PLATFORM_WINDOWS
-	return getline(line, len, fp);
-#else
 	// Check if either line, len or fp are NULL pointers
 	if (line == NULL || len == NULL || fp == NULL) {
 		errno = EINVAL;
@@ -130,8 +145,9 @@ nano_getline(char **restrict line, size_t *restrict len, FILE *restrict fp)
 	}
 
 	return -1;
-#endif
 }
+
+#endif
 
 int
 nano_file_trunc_to_zero(const char *fpath)
