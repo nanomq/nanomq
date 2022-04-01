@@ -11,6 +11,8 @@ SET(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 
 project(nanomq-nng)
 
+include(CheckCCompilerFlag)
+
 option (BUILD_CLIENT "Build nanomq client" ON)
 option (BUILD_BENCH "Build nano-bench" OFF)
 
