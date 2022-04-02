@@ -54,7 +54,6 @@ foreach_client(
 	uint32_t  pids;
 	uint8_t   sub_qos;
 	int       ctx_list_len;
-	uint32_t *sub_id_p = NULL;
 
 	packet_subscribe * sub_pkt;
 	dbtree_ctxt *      db_ctxt = NULL;
@@ -70,7 +69,6 @@ foreach_client(
 	for (int i = 0; i < ctx_list_len; i++) {
 		db_ctxt  = (dbtree_ctxt *) cli_ctx_list[i];
 		ctx      = db_ctxt->ctxt;
-		sub_id_p = db_ctxt->sub_id_p;
 
 		dbtree_delete_ctxt(db_ctxt);
 		if (!ctx)
@@ -99,6 +97,8 @@ foreach_client(
 
 			}
 
+			// Note.
+			// We filter all the topics for the options carried by the topic
 			if (true ==
 			    topic_filter(sub_topic,
 			        pub_work->pub_packet->var_header.publish
@@ -125,15 +125,6 @@ foreach_client(
 
 		msg_info->pipe = pids;
 		msg_info->qos  = sub_qos;
-		if (0 == tn->it->rap)
-			msg_info->retain = 0;
-		else
-			msg_info->retain =
-			    pub_work->pub_packet->fixed_header.retain;
-		if (sub_id_p) {
-			msg_info->sub_id = sub_id_p[0];
-			cvector_free(sub_id_p);
-		}
 	}
 	pipe_ct->msg_infos = msg_infos;
 }
