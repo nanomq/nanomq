@@ -59,8 +59,8 @@ available applications:
    * bench
    * nngcat
 
-EMQ X Edge Computing Kit v0.6.0-3
-Copyright 2022 EMQ X Edge Team
+EMQX Edge Computing Kit v0.6.0-3
+Copyright 2022 EMQX Edge Team
 ```
 
 ```bash
