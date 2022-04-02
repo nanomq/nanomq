@@ -14,7 +14,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-20.04
-    if: github.repository_owner == 'nanomq'
+    if: github.repository_owner == 'emqx'
     steps:
     - name: clone docs
       uses: actions/checkout@v2
@@ -33,12 +33,6 @@ jobs:
       uses: actions/setup-node@v1
       with:
         node-version: 14.15
-
-    - name: use python
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.8'
-        architecture: 'x64'
 
     - name: set env
       run: |
@@ -76,45 +70,29 @@ jobs:
         cd frontend
         yarn && yarn build
 
-    - name: use ossutil
+    - name: upload dist
       run: |
         cd frontend/docs/.vuepress/
         wget http://gosspublic.alicdn.com/ossutil/1.7.8/ossutil64
         chmod 755 ./ossutil64
-        ./ossutil64 config -e https://oss-accelerate.aliyuncs.com -i ${{ secrets.OSS_ACCESSKEY_ID }} -k ${{ secrets.OSS_ACCESSKEY_SECRET }} -L CH
+        ./ossutil64 config -e https://oss-accelerate.aliyuncs.com -i ${{ secrets.ALI_OSS_ACCESSKEY_ID }} -k ${{ secrets.ALI_OSS_ACCESSKEY_SECRET }} -L CH
+        ./ossutil64 rm -r -f oss://nanomq-io/docs/zh/${VERSION}/
+        ./ossutil64 rm -r -f oss://nanomq-io/docs/en/${VERSION}/
+        ./ossutil64 cp -r dist/ oss://nanomq-io/docs/ -u
 
-    - name: upload dist
-      run: |
-        cd frontend/docs/.vuepress/
-        ./ossutil64 cp -r dist/ oss://${{ secrets.OSS_BUCKET }}/docs/ -u
-
-    - name: clone docsearch
-      uses: actions/checkout@v2
+    - name: refresh cdn cache
+      uses: Swilder-M/refresh-ali-cdn@v1
       with:
-        repository: 'Swilder-M/docsearch-scraper-simple'
-        path: docsearch
+        access_key_id: ${{ secrets.ALI_OSS_ACCESSKEY_ID }}
+        access_key_secret: ${{ secrets.ALI_OSS_ACCESSKEY_SECRET }}
+        file_paths: https://nanomq.io/
 
-    - name: install pipenv
-      run: |
-          python -m pip install --upgrade pipenv wheel
-
-    - id: cache-pipenv
-      uses: actions/cache@v1
-      with:
-        path: ~/.local/share/virtualenvs
-        key: ${{ runner.os }}-pipenv-${{ hashFiles('**/Pipfile.lock') }}
-
-    - name: install dependencies
-      if: steps.cache-pipenv.outputs.cache-hit != 'true'
-      run: |
-        cd docsearch
-        pipenv install --keep-outdated
-
-    - name: update current version
+    - name: update search index
+      uses: Swilder-M/docsearch-scraper-simple@v2
       if: env.VERSION == 'latest'
       env:
-        APPLICATION_ID: ${{ secrets.DOCS_APPLICATION_ID }}
-        API_KEY: ${{ secrets.DOCS_API_KEY }}
-      run: |
-        cd docsearch
-        pipenv run python -m src.index config ${DOCS_TYPE} ${VERSION}
+        APPLICATION_ID: ${{ secrets.ALGOLIA_APPLICATION_ID }}
+        API_KEY: ${{ secrets.ALGOLIA_API_KEY }}
+      with:
+        docs_type: ${{ env.DOCS_TYPE }}
+        docs_version: ${{ env.VERSION }}
