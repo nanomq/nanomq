@@ -76,7 +76,7 @@ conf_update(const char *fpath, const char *key, char *value)
 {
 	char **linearray = NULL;
 	int    count     = 0;
-	if (value == NULL) {
+	if (fpath == NULL || value == NULL) {
 		return;
 	}
 	size_t descstrlen = strlen(key) + strlen(value) + 3;
