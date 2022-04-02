@@ -2,7 +2,7 @@
 
 [NanoMQ](https://nanomq.io/)是于2020年7月开始开发的边缘计算开源项目，是面向物联网边缘计算场景的下一代轻量级高性能**MQTT**消息服务器。
 
-Github仓库地址: https://github.com/nanomq/nanomq
+Github仓库地址: https://github.com/emqx/nanomq
 
 [NanoMQ](https://nanomq.io/)目标致力于为不同的边缘计算平台交付简单且强大的消息中心服务；站在物联网的十字路口，努力弥和硬件开发与云计算的隔阂；从开源社区出发，连接物理世界和数字智能；从而普及边缘计算应用，助力万物互联愿景。
 

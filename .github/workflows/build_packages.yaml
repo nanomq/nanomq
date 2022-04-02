@@ -103,15 +103,15 @@ jobs:
     - run: git submodule update --init --recursive
     - name: build docker
       if: matrix.suffix == 'fat'
-      run: docker build -t nanomq/nanomq:$(git describe --tags --always) -f deploy/docker/Dockerfile .
+      run: docker build -t emqx/nanomq:$(git describe --tags --always) -f deploy/docker/Dockerfile .
     - name: build docker
       if: matrix.suffix != 'fat'
-      run: docker build -t nanomq/nanomq:$(git describe --tags --always)-${{ matrix.suffix }} -f deploy/docker/Dockerfile-${{ matrix.suffix }} .
+      run: docker build -t emqx/nanomq:$(git describe --tags --always)-${{ matrix.suffix }} -f deploy/docker/Dockerfile-${{ matrix.suffix }} .
     - name: test docker
       run: |
         set -e -x -u
         sudo apt update && sudo apt install -y mosquitto-clients
-        ip_address=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $(docker run -d $(docker images nanomq/nanomq -q | head -1)))
+        ip_address=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $(docker run -d $(docker images emqx/nanomq -q | head -1)))
         sleep 5
         mosquitto_pub -h $ip_address -t 'topic/A' -m 'test'
         docker rm -f $(docker ps -a -q)
@@ -142,7 +142,7 @@ jobs:
         echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u ${{ secrets.DOCKERHUB_USER }} --password-stdin
         docker buildx build --no-cache \
         --platform=linux/amd64,linux/arm64,linux/arm/v7 \
-        -t nanomq/nanomq:$(git describe --tags --always) \
+        -t emqx/nanomq:$(git describe --tags --always) \
         -f deploy/docker/Dockerfile . \
         --push
     - name: cross build docker images
@@ -152,6 +152,6 @@ jobs:
         echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u ${{ secrets.DOCKERHUB_USER }} --password-stdin
         docker buildx build --no-cache \
         --platform=linux/amd64,linux/arm64,linux/arm/v7 \
-        -t nanomq/nanomq:$(git describe --tags --always)-${{ matrix.suffix }} \
+        -t emqx/nanomq:$(git describe --tags --always)-${{ matrix.suffix }} \
         -f deploy/docker/Dockerfile-${{ matrix.suffix }} . \
         --push

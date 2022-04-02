@@ -1,13 +1,13 @@
 # NanoMQ
 
-[![GitHub Release](https://img.shields.io/github/release/nanomq/nanomq?color=brightgreen&label=Release)](https://github.com/nanomq/nanomq/releases)
-[![Build Status](https://img.shields.io/github/workflow/status/nanomq/nanomq/Build%20packages?label=Build)](https://github.com/nanomq/nanomq/actions)
-[![Docker Pulls](https://img.shields.io/docker/pulls/nanomq/nanomq?label=Docker%20Pulls)](https://hub.docker.com/r/nanomq/nanomq)
+[![GitHub Release](https://img.shields.io/github/release/emqx/nanomq?color=brightgreen&label=Release)](https://github.com/emqx/nanomq/releases)
+[![Build Status](https://img.shields.io/github/workflow/status/emqx/nanomq/Build%20packages?label=Build)](https://github.com/emqx/nanomq/actions)
+[![Docker Pulls](https://img.shields.io/docker/pulls/emqx/nanomq?label=Docker%20Pulls)](https://hub.docker.com/r/emqx/nanomq)
 [![Discord](https://img.shields.io/discord/931086341838622751?label=Discord&logo=discord)](https://discord.gg/xYGf3fQnES)
 [![Twitter](https://img.shields.io/badge/Follow-EMQ-1DA1F2?logo=twitter)](https://twitter.com/EMQTech)
 [![YouTube](https://img.shields.io/badge/Subscribe-EMQ-FF0000?logo=youtube)](https://www.youtube.com/channel/UC5FjR77ErAxvZENEWzQaO5Q)
-[![Community](https://img.shields.io/badge/Community-NanoMQ-yellow?logo=github)](https://github.com/nanomq/nanomq/discussions)
-[![License](https://img.shields.io/github/license/nanomq/nanomq.svg?logoColor=silver&logo=open-source-initiative&label=&color=blue)](https://github.com/nanomq/nanomq/blob/master/LICENSE.txt)
+[![Community](https://img.shields.io/badge/Community-NanoMQ-yellow?logo=github)](https://github.com/emqx/nanomq/discussions)
+[![License](https://img.shields.io/github/license/emqx/nanomq.svg?logoColor=silver&logo=open-source-initiative&label=&color=blue)](https://github.com/emqx/nanomq/blob/master/LICENSE.txt)
 
 [![The best IoT MQTT open source team looks forward to your joining](https://static.emqx.net/images/github_readme_en_bg.png)](https://www.emqx.com/en/careers)NanoMQ MQTT Broker (NanoMQ) is a lightweight and blazing-fast MQTT Broker for the IoT Edge platform. 
 
@@ -88,7 +88,7 @@ With this being said, NanoMQ can run on different architectures such like x86_64
 #### Docker
 
 ```bash
-docker run -d -p 1883:1883 -p 8883:8883 --name nanomq nanomq/nanomq:0.6.0
+docker run -d -p 1883:1883 -p 8883:8883 --name nanomq emqx/nanomq:0.6.0
 ```
 
 
@@ -99,7 +99,7 @@ To build NanoMQ, requires a C99 & C++11 compatible compiler and [CMake](http://w
 - It is recommended to compile with Ninja:
 
   ```bash
-  git clone https://github.com/nanomq/nanomq.git ; cd nanomq
+  git clone https://github.com/emqx/nanomq.git ; cd nanomq
   git submodule update --init --recursive
   mkdir build && cd build
   cmake -G Ninja ..
@@ -109,7 +109,7 @@ To build NanoMQ, requires a C99 & C++11 compatible compiler and [CMake](http://w
 - Or to compile without Ninja:
 
   ``` bash
-  git clone https://github.com/nanomq/nanomq.git ; cd nanomq
+  git clone https://github.com/emqx/nanomq.git ; cd nanomq
   git submodule update --init --recursive
   mkdir build && cd build
   cmake .. 
@@ -302,7 +302,7 @@ nanomq broker start --conf <$FILE_PATH> [--bridge <$FILE_PATH>] [--auth <$FILE_P
   ```
   Creating docker container:
   ```bash
-  docker run -d -p 1883:1883 -p 8883:8883 --name nanomq nanomq/nanomq:0.6.0  \
+  docker run -d -p 1883:1883 -p 8883:8883 --name nanomq emqx/nanomq:0.6.0  \
              -e NANOMQ_BROKER_URL="nmq-tcp://0.0.0.0:1883" \
              -e NANOMQ_TLS_ENABLE=true \
              -e NANOMQ_TLS_URL="tls+nmq-tcp://0.0.0.0:8883"
@@ -315,7 +315,7 @@ nanomq broker start --conf <$FILE_PATH> [--bridge <$FILE_PATH>] [--auth <$FILE_P
   ```
   Creating docker container:
   ```bash
-  docker run -d -p 1883:1883 --name nanomq nanomq/nanomq:0.6.0 -e NANOMQ_CONF_PATH="/usr/local/etc/nanomq.conf"
+  docker run -d -p 1883:1883 --name nanomq emqx/nanomq:0.6.0 -e NANOMQ_CONF_PATH="/usr/local/etc/nanomq.conf"
   ```
 
 #### NanoMQ Command-Line Arguments 
@@ -457,7 +457,7 @@ NanoMQ is fully open-sourced!
 
 ### Questions
 
-The [Github Discussions](https://github.com/nanomq/nanomq/discussions) provides a place for you to ask questions and share your ideas with users around the world.
+The [Github Discussions](https://github.com/emqx/nanomq/discussions) provides a place for you to ask questions and share your ideas with users around the world.
 
 
 
