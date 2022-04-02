@@ -201,9 +201,6 @@ sub_ctx_handle(nano_work *work)
 	int      topic_exist             = 0;
 	uint32_t clientid_key            = 0;
 	dbtree_retain_msg **r            = NULL;
-	cvector(mqtt_msg_info) msg_infos = NULL;
-
-	mqtt_msg_info *msg_info, msg_info_buf;
 
 	dbtree_ctxt *db_old_ctx = NULL;
 	client_ctx * old_ctx    = NULL;
@@ -307,22 +304,12 @@ sub_ctx_handle(nano_work *work)
 				}
 				cvector_push_back(
 				    work->msg_ret, (nng_msg *) r[i]->message);
-
-				cvector_push_back(msg_infos, msg_info_buf);
-				size_t csize = cvector_size(msg_infos);
-				msg_info = (mqtt_msg_info *) &msg_infos[csize-1];
-
-				if (topic_node_t->it->rap == 0)
-					msg_info->retain = 0;
-				else
-					msg_info->retain = 1;
 			}
 		}
 		cvector_free(r);
 
 		topic_node_t = topic_node_t->next;
 	}
-	work->pipe_ct->msg_infos = msg_infos;
 
 #ifdef DEBUG
 	// check treeDB
