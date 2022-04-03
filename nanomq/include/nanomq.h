@@ -154,3 +154,6 @@ nanomq_time_str()
 	    (((uint64_t)(uint8_t)(ptr)[7]))
 
 #define NANO_UNUSED(x) (x) __attribute__((unused))
+
+extern int    get_cache_argc();
+extern char **get_cache_argv();
