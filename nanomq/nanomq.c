@@ -35,6 +35,27 @@
 
 #define NANO_DEBUG
 
+struct cache_arg{
+	int argc;
+	char **argv;
+};
+
+typedef struct cache_arg cache_arg;
+
+static cache_arg args = {0};
+
+int
+get_cache_argc()
+{
+	return args.argc;
+}
+
+char **
+get_cache_argv()
+{
+	return args.argv;
+}
+
 static void
 print_version(void)
 {
@@ -148,6 +169,9 @@ main(int argc, char **argv)
 		print_version();
 		return EXIT_SUCCESS;
 	}
+
+	args.argc = argc;
+	args.argv = argv;
 
 #ifdef NANO_PLATFORM_WINDOWS
 	app_name = strrchr(argv[0], '\\');

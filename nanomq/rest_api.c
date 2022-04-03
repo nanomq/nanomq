@@ -51,7 +51,7 @@ static void update_bridge_conf(cJSON *json, conf *config);
 #define getBoolValue(obj, item, key, value, rv)       \
 	{                                             \
 		item = cJSON_GetObjectItem(obj, key); \
-		if (cJSON_IsBool(item)) {           \
+		if (cJSON_IsBool(item)) {             \
 			value = cJSON_IsTrue(item);   \
 			rv    = (0);                  \
 		} else {                              \
@@ -441,30 +441,78 @@ get_clients(cJSON *data, http_msg *msg, uint64_t sequence)
 	return res;
 }
 
+static char *
+mk_str(int n, char **str_arr, char *seperator)
+{
+	size_t len = 0;
+	char * str = NULL;
+	for (size_t i = 0; i < n; i++) {
+		len += strlen(str_arr[i]) + strlen(seperator) + 1;
+		str = realloc(str, len);
+		strcat(str, str_arr[i]);
+		strcat(str, seperator);
+	}
+	return str;
+}
+
+#ifndef NANO_PLATFORM_WINDOWS
+static void
+ctrl_cb(void *arg)
+{
+	char * action = arg;
+	int    argc   = get_cache_argc();
+	char **argv   = get_cache_argv();
+	char * cmd    = NULL;
+
+	nng_msleep(2000);
+
+	if (strcasecmp(action, "stop") == 0) {
+		argv[2] = "stop";
+		cmd     = mk_str(3, argv, " ");
+	} else if (strcasecmp(action, "restart") == 0) {
+		argv[2] = "restart";
+		cmd     = mk_str(argc, argv, " ");
+	}
+	nng_strfree(action);
+	if (cmd) {
+		system(cmd);
+		free(cmd);
+	}
+}
+#endif
+
 static http_msg
 post_ctrl(cJSON *data, http_msg *msg, uint64_t sequence)
 {
-	http_msg res = { 0 };
-	res.status   = NNG_HTTP_STATUS_OK;
-	res.data     = strdup(__FUNCTION__);
-	res.data_len = strlen(__FUNCTION__);
+	http_msg    res = { 0 };
+	nng_thread *thread;
 
 	cJSON *action = cJSON_GetObjectItem(data, "action");
+	char * value  = cJSON_GetStringValue(action);
 
-	char *value = cJSON_GetStringValue(action);
+#ifndef NANO_PLATFORM_WINDOWS
+	char *arg = nng_strdup(value);
+	nng_thread_create(&thread, ctrl_cb, arg);
+	res.status = NNG_HTTP_STATUS_OK;
+#else
+	res.status = NNG_HTTP_STATUS_NOT_ACCEPTABLE;
+#endif
+	cJSON *res_obj;
 
-	debug_msg("get action: %s", value);
+	res_obj = cJSON_CreateObject();
+	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+	cJSON_AddNumberToObject(res_obj, "seq", (uint64_t) sequence);
+	cJSON_AddNumberToObject(res_obj, "rep", msg->request);
+	char *dest = cJSON_PrintUnformatted(res_obj);
+	cJSON_Delete(res_obj);
 
-	// TODO not impelement yet
-	if (strcasecmp(value, "stop") == 0) {
-		broker_stop(0, NULL);
-	} else if (strcasecmp(value, "restart") == 0) {
-		// TODO not support yet
-	}
+	put_http_msg(
+	    &res, msg->content_type, NULL, NULL, NULL, dest, strlen(dest));
+
+	cJSON_free(dest);
 
 	return res;
 }
-
 
 static http_msg
 get_config(cJSON *data, http_msg *msg, uint64_t sequence)
