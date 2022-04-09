@@ -11,8 +11,8 @@
 #include "include/broker.h"
 #include "include/nanomq.h"
 #include "include/sub_handler.h"
-#include "libs/base64.h"
-#include "libs/cJSON.h"
+#include <base64.h>
+#include <cJSON.h>
 
 #include <file.h>
 #include <nng/nng.h>
