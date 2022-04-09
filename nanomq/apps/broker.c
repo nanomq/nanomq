@@ -50,6 +50,7 @@ enum options {
 	OPT_HELP = 1,
 	OPT_CONFFILE,
 	OPT_BRIDGEFILE,
+	OPT_WEBHOOKFILE,
 	OPT_AUTHFILE,
 	OPT_PARALLEL,
 	OPT_DAEMON,
@@ -73,6 +74,7 @@ static nng_optspec cmd_opts[] = {
 	{ .o_name = "help", .o_short = 'h', .o_val = OPT_HELP },
 	{ .o_name = "conf", .o_val = OPT_CONFFILE, .o_arg = true },
 	{ .o_name = "bridge", .o_val = OPT_BRIDGEFILE, .o_arg = true },
+	{ .o_name = "webhook", .o_val = OPT_WEBHOOKFILE, .o_arg = true },
 	{ .o_name = "auth", .o_val = OPT_AUTHFILE, .o_arg = true },
 	{ .o_name = "daemon", .o_short = 'd', .o_val = OPT_DAEMON },
 	{ .o_name    = "tq_thread",
@@ -803,7 +805,8 @@ print_usage(void)
 	printf("Usage: nanomq broker { { start | restart [--url <url>] "
 	       "[--conf <path>] "
 	       "[--bridge <path>] \n                     "
-	       "[--auth <path>] "
+	       "[--webhook <path>] "
+		   "[--auth <path>] "
 	       "[-d, --daemon] "
 	       "[-t, --tq_thread <num>] \n                     "
 	       "[-T, -max_tq_thread <num>] [-n, "
@@ -824,6 +827,8 @@ print_usage(void)
 	printf("  --conf <path>              The path of a specified nanomq "
 	       "configuration file \n");
 	printf("  --bridge <path>            The path of a specified bridge "
+	       "configuration file \n");
+	printf("  --webhook <path>           The path of a specified webhook "
 	       "configuration file \n");
 	printf(
 	    "  --auth <path>              The path of a specified authorize "
@@ -987,6 +992,10 @@ broker_parse_opts(int argc, char **argv, conf *config)
 			FREE_NONULL(config->bridge_file);
 			config->bridge_file = nng_strdup(arg);
 			break;
+		case OPT_WEBHOOKFILE:
+			FREE_NONULL(config->web_hook_file);
+			config->web_hook_file = nng_strdup(arg);
+			break;
 		case OPT_AUTHFILE:
 			FREE_NONULL(config->auth_file);
 			config->auth_file = nng_strdup(arg);
@@ -1116,6 +1125,9 @@ broker_start(int argc, char **argv)
 	}
 	if (nanomq_conf->bridge_file) {
 		conf_bridge_parse(nanomq_conf);
+	}
+	if (nanomq_conf->web_hook_file) {
+		conf_web_hook_parse(nanomq_conf);
 	}
 
 	nanomq_conf->url = nanomq_conf->url != NULL

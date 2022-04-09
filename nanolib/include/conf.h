@@ -15,6 +15,7 @@
 #define CONF_PATH_NAME "/etc/nanomq.conf"
 #define CONF_AUTH_PATH_NAME "/etc/nanomq_auth_username.conf"
 #define CONF_BRIDGE_PATH_NAME "/etc/nanomq_bridge.conf"
+#define CONF_WEB_HOOK_PATH_NAME "/etc/nanomq_web_hook.conf"
 
 #define CONF_TCP_URL_DEFAULT "nmq-tcp://0.0.0.0:1883"
 #define CONF_TLS_URL_DEFAULT "nmq-tls://0.0.0.0:8883"
@@ -100,9 +101,64 @@ struct conf_bridge {
 
 typedef struct conf_bridge conf_bridge;
 
+typedef enum {
+	CLIENT_CONNECT,
+	CLIENT_CONNACK,
+	CLIENT_CONNECTED,
+	CLIENT_DISCONNECTED,
+	CLIENT_SUBSCRIBE,
+	CLIENT_UNSUBSCRIBE,
+	SESSION_SUBSCRIBED,
+	SESSION_UNSUBSCRIBED,
+	SESSION_TERMINATED,
+	MESSAGE_PUBLISH,
+	MESSAGE_DELIVERED,
+	MESSAGE_ACKED,
+	UNKNOWN_EVENT,
+} webhook_event;
+
+typedef enum {
+	none,
+	base64,
+	base62
+} hook_payload_type;
+
+struct conf_web_hook_rule {
+	uint16_t      rule_num;
+	webhook_event event;
+	char *        action;
+	char *        topic;
+};
+
+typedef struct conf_web_hook_rule conf_web_hook_rule;
+
+struct conf_web_hook_header {
+	char *key;
+	char *value;
+};
+
+typedef struct conf_web_hook_header conf_web_hook_header;
+
+struct conf_web_hook {
+	bool   enable;
+	char * api_url;
+	hook_payload_type encode_payload;
+	size_t header_count;
+	conf_web_hook_header **headers;
+
+	uint16_t            rule_count;
+	conf_web_hook_rule **rules;
+
+	// TODO not support yet
+	conf_tls tls;
+};
+
+typedef struct conf_web_hook  conf_web_hook;
+
 struct conf {
 	char *   conf_file;
 	char *   bridge_file;
+	char * 	 web_hook_file;
 	char *   auth_file;
 	char *   url; // "nmq-tcp://addr:port"
 	int      num_taskq_thread;
@@ -119,6 +175,7 @@ struct conf {
 	conf_http_server http_server;
 	conf_websocket   websocket;
 	conf_bridge      bridge;
+	conf_web_hook    web_hook;
 
 	conf_auth auths;
 };
@@ -127,6 +184,7 @@ typedef struct conf conf;
 
 extern bool conf_parser(conf *nanomq_conf);
 extern bool conf_bridge_parse(conf *nanomq_conf);
+extern bool conf_web_hook_parse(conf *nanomq_conf);
 extern void print_bridge_conf(conf_bridge *bridge);
 extern void conf_init(conf *nanomq_conf);
 extern void print_conf(conf *nanomq_conf);
