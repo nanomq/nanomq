@@ -118,7 +118,7 @@ typedef enum {
 } webhook_event;
 
 typedef enum {
-	none,
+	plain,
 	base64,
 	base62
 } hook_payload_type;
@@ -141,7 +141,8 @@ typedef struct conf_web_hook_header conf_web_hook_header;
 
 struct conf_web_hook {
 	bool   enable;
-	char * api_url;
+	char * url;
+	size_t pool_size;
 	hook_payload_type encode_payload;
 	size_t header_count;
 	conf_web_hook_header **headers;

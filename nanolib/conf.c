@@ -8,10 +8,10 @@
 
 #include <ctype.h>
 
+#include "include/cJSON.h"
 #include "include/conf.h"
 #include "include/dbg.h"
 #include "include/file.h"
-#include "include/cJSON.h"
 #include "nanomq.h"
 
 static char *
@@ -347,20 +347,21 @@ conf_init(conf *nanomq_conf)
 	nanomq_conf->http_server.username = NULL;
 	nanomq_conf->http_server.password = NULL;
 
-	nanomq_conf->websocket.enable     = true;
-	nanomq_conf->websocket.url        = NULL;
-	nanomq_conf->websocket.tls_url    = NULL;
+	nanomq_conf->websocket.enable  = true;
+	nanomq_conf->websocket.url     = NULL;
+	nanomq_conf->websocket.tls_url = NULL;
 
-	nanomq_conf->bridge.bridge_mode   = false;
-	nanomq_conf->bridge.sub_count     = 0;
-	nanomq_conf->bridge.parallel      = 1;
+	nanomq_conf->bridge.bridge_mode = false;
+	nanomq_conf->bridge.sub_count   = 0;
+	nanomq_conf->bridge.parallel    = 1;
 
 	nanomq_conf->web_hook.enable           = false;
-	nanomq_conf->web_hook.api_url           = NULL;
-	nanomq_conf->web_hook.encode_payload    = none;
-	nanomq_conf->web_hook.headers           = NULL;
+	nanomq_conf->web_hook.url              = NULL;
+	nanomq_conf->web_hook.encode_payload   = plain;
+	nanomq_conf->web_hook.pool_size        = 8;
+	nanomq_conf->web_hook.headers          = NULL;
 	nanomq_conf->web_hook.header_count     = 0;
-	nanomq_conf->web_hook.rules             = NULL;
+	nanomq_conf->web_hook.rules            = NULL;
 	nanomq_conf->web_hook.rule_count       = 0;
 	nanomq_conf->web_hook.tls.enable       = false;
 	nanomq_conf->web_hook.tls.enable       = false;
@@ -727,8 +728,8 @@ conf_web_hook_parse_headers(conf_web_hook *webhook, const char *path)
 		return false;
 	}
 
-	char * line  = NULL;
-	size_t sz    = 0;
+	char * line = NULL;
+	size_t sz   = 0;
 
 	webhook->header_count = 0;
 	while (nano_getline(&line, &sz, fp) != -1) {
@@ -769,7 +770,8 @@ conf_web_hook_parse_headers(conf_web_hook *webhook, const char *path)
 	return true;
 }
 
-static webhook_event get_webhook_event(const char *hook_type, const char *hook_name)
+static webhook_event
+get_webhook_event(const char *hook_type, const char *hook_name)
 {
 	if (strcasecmp("client", hook_type) == 0) {
 		if (strcasecmp("connect", hook_name) == 0) {
@@ -878,7 +880,7 @@ conf_web_hook_parse_rules(conf_web_hook *webhook, const char *path)
 		free(line);
 		line = NULL;
 	}
-	if(line) {
+	if (line) {
 		free(line);
 	}
 
@@ -921,17 +923,23 @@ conf_web_hook_parse(conf *nanomq_conf)
 			webhook->enable = strcasecmp(value, "true") == 0;
 			free(value);
 		} else if ((value = get_conf_value(
-		                line, sz, "web.hook.api.url")) != NULL) {
-			webhook->api_url = value;
+		                line, sz, "web.hook.url")) != NULL) {
+			webhook->url = value;
+		} else if ((value = get_conf_value(
+		                line, sz, "web.hook.pool_size")) != NULL) {
+			webhook->pool_size = (size_t) atol(value);
+			free(value);
 		} else if ((value = get_conf_value(line, sz,
-		                "web.hook.encode_payload")) != NULL) {
+		                "web.hook.body.encoding_of_payload_field")) !=
+		    NULL) {
 			if (strcasecmp(value, "base64") == 0) {
 				webhook->encode_payload = base64;
 			} else if (strcasecmp(value, "base62") == 0) {
 				webhook->encode_payload = base62;
-			} else {
-				webhook->encode_payload = none;
+			} else if (strcasecmp(value, "plain") == 0) {
+				webhook->encode_payload = plain;
 			}
+			free(value);
 		}
 		free(line);
 		line = NULL;
@@ -949,7 +957,7 @@ conf_web_hook_parse(conf *nanomq_conf)
 void
 conf_web_hook_destroy(conf_web_hook *web_hook)
 {
-	zfree(web_hook->api_url);
+	zfree(web_hook->url);
 
 	if (web_hook->header_count > 0 && web_hook->headers != NULL) {
 		for (size_t i = 0; i < web_hook->header_count; i++) {
