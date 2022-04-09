@@ -732,7 +732,6 @@ conf_web_hook_parse_headers(conf_web_hook *webhook, const char *path)
 
 	webhook->header_count = 0;
 	while (nano_getline(&line, &sz, fp) != -1) {
-		printf("line size: %lu\n", sz);
 		if (sz <= 16) {
 			goto next;
 		}
@@ -825,6 +824,8 @@ webhook_action_parse(const char *json, conf_web_hook_rule *hook_rule)
 	} else {
 		hook_rule->topic = NULL;
 	}
+
+	cJSON_Delete(object);
 }
 
 bool
@@ -915,17 +916,15 @@ conf_web_hook_parse(conf *nanomq_conf)
 
 	char *value;
 	while (nano_getline(&line, &sz, fp) != -1) {
-		if ((value = get_conf_value(
-		         line, sz, "web.hook.enable")) != NULL) {
+		if ((value = get_conf_value(line, sz, "web.hook.enable")) !=
+		    NULL) {
 			webhook->enable = strcasecmp(value, "true") == 0;
 			free(value);
-		}
-		else if ((value = get_conf_value(
-		         line, sz, "web.hook.api.url")) != NULL) {
+		} else if ((value = get_conf_value(
+		                line, sz, "web.hook.api.url")) != NULL) {
 			webhook->api_url = value;
-		}
-		else if ((value = get_conf_value(
-		         line, sz, "web.hook.encode_payload")) != NULL) {
+		} else if ((value = get_conf_value(line, sz,
+		                "web.hook.encode_payload")) != NULL) {
 			if (strcasecmp(value, "base64") == 0) {
 				webhook->encode_payload = base64;
 			} else if (strcasecmp(value, "base62") == 0) {
@@ -934,8 +933,12 @@ conf_web_hook_parse(conf *nanomq_conf)
 				webhook->encode_payload = none;
 			}
 		}
+		free(line);
+		line = NULL;
 	}
-
+	if (line) {
+		free(line);
+	}
 	fclose(fp);
 
 	conf_web_hook_parse_headers(webhook, dest_path);
