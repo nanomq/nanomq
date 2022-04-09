@@ -42,10 +42,7 @@ set(SOURCES
     unsub_handler.c
     rest_api.c
     web_server.c
-    libs/base64.c
-    libs/base64.h
-    libs/cJSON.c
-    libs/cJSON.h)
+    )
 
 add_executable(nanomq ${SOURCES})
 
