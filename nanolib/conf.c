@@ -11,6 +11,7 @@
 #include "include/conf.h"
 #include "include/dbg.h"
 #include "include/file.h"
+#include "include/cJSON.h"
 #include "nanomq.h"
 
 static char *
@@ -319,6 +320,7 @@ conf_init(conf *nanomq_conf)
 	nanomq_conf->url              = NULL;
 	nanomq_conf->conf_file        = NULL;
 	nanomq_conf->bridge_file      = NULL;
+	nanomq_conf->web_hook_file    = NULL;
 	nanomq_conf->auth_file        = NULL;
 	nanomq_conf->num_taskq_thread = 10;
 	nanomq_conf->max_taskq_thread = 10;
@@ -344,12 +346,33 @@ conf_init(conf *nanomq_conf)
 	nanomq_conf->http_server.port     = 8081;
 	nanomq_conf->http_server.username = NULL;
 	nanomq_conf->http_server.password = NULL;
+
 	nanomq_conf->websocket.enable     = true;
 	nanomq_conf->websocket.url        = NULL;
 	nanomq_conf->websocket.tls_url    = NULL;
+
 	nanomq_conf->bridge.bridge_mode   = false;
 	nanomq_conf->bridge.sub_count     = 0;
 	nanomq_conf->bridge.parallel      = 1;
+
+	nanomq_conf->web_hook.enable           = false;
+	nanomq_conf->web_hook.api_url           = NULL;
+	nanomq_conf->web_hook.encode_payload    = none;
+	nanomq_conf->web_hook.headers           = NULL;
+	nanomq_conf->web_hook.header_count     = 0;
+	nanomq_conf->web_hook.rules             = NULL;
+	nanomq_conf->web_hook.rule_count       = 0;
+	nanomq_conf->web_hook.tls.enable       = false;
+	nanomq_conf->web_hook.tls.enable       = false;
+	nanomq_conf->web_hook.tls.cafile       = NULL;
+	nanomq_conf->web_hook.tls.certfile     = NULL;
+	nanomq_conf->web_hook.tls.keyfile      = NULL;
+	nanomq_conf->web_hook.tls.ca           = NULL;
+	nanomq_conf->web_hook.tls.cert         = NULL;
+	nanomq_conf->web_hook.tls.key          = NULL;
+	nanomq_conf->web_hook.tls.key_password = NULL;
+	nanomq_conf->web_hook.tls.set_fail     = false;
+	nanomq_conf->web_hook.tls.verify_peer  = false;
 }
 
 void
@@ -695,6 +718,261 @@ print_bridge_conf(conf_bridge *bridge)
 	debug_msg("");
 }
 
+bool
+conf_web_hook_parse_headers(conf_web_hook *webhook, const char *path)
+{
+	FILE *fp;
+	if ((fp = fopen(path, "r")) == NULL) {
+		debug_msg("File %s open failed", path);
+		return false;
+	}
+
+	char * line  = NULL;
+	size_t sz    = 0;
+
+	webhook->header_count = 0;
+	while (nano_getline(&line, &sz, fp) != -1) {
+		printf("line size: %lu\n", sz);
+		if (sz <= 16) {
+			goto next;
+		}
+		char *key   = calloc(1, sz - 16);
+		char *value = calloc(1, sz - 16);
+		int   res =
+		    sscanf(line, "web.hook.headers.%[^=]=%[^\n]", key, value);
+		if (res == 2) {
+			webhook->header_count++;
+			webhook->headers = realloc(webhook->headers,
+			    webhook->header_count *
+			        sizeof(conf_web_hook_header *));
+			webhook->headers[webhook->header_count - 1] =
+			    calloc(1, sizeof(conf_web_hook_header));
+			webhook->headers[webhook->header_count - 1]->key = key;
+			webhook->headers[webhook->header_count - 1]->value =
+			    value;
+		} else {
+			if (key) {
+				free(key);
+			}
+			if (value) {
+				free(value);
+			}
+		}
+	next:
+		free(line);
+		line = NULL;
+	}
+
+	if (line) {
+		free(line);
+	}
+	fclose(fp);
+	return true;
+}
+
+static webhook_event get_webhook_event(const char *hook_type, const char *hook_name)
+{
+	if (strcasecmp("client", hook_type) == 0) {
+		if (strcasecmp("connect", hook_name) == 0) {
+			return CLIENT_CONNECT;
+		} else if (strcasecmp("connack", hook_name) == 0) {
+			return CLIENT_CONNACK;
+		} else if (strcasecmp("connected", hook_name) == 0) {
+			return CLIENT_CONNECTED;
+		} else if (strcasecmp("disconnected", hook_name) == 0) {
+			return CLIENT_DISCONNECTED;
+		} else if (strcasecmp("subscribe", hook_name) == 0) {
+			return CLIENT_SUBSCRIBE;
+		} else if (strcasecmp("unsubscribe", hook_name) == 0) {
+			return CLIENT_UNSUBSCRIBE;
+		}
+	} else if (strcasecmp("session", hook_type) == 0) {
+		if (strcasecmp("subscribe", hook_name) == 0) {
+			return SESSION_SUBSCRIBED;
+		} else if (strcasecmp("unsubscribe", hook_name) == 0) {
+			return SESSION_UNSUBSCRIBED;
+		} else if (strcasecmp("terminated", hook_name) == 0) {
+			return SESSION_TERMINATED;
+		}
+	} else if (strcasecmp("message", hook_type) == 0) {
+		if (strcasecmp("publish", hook_name) == 0) {
+			return MESSAGE_PUBLISH;
+		} else if (strcasecmp("delivered", hook_name) == 0) {
+			return MESSAGE_DELIVERED;
+		} else if (strcasecmp("acked", hook_name) == 0) {
+			return MESSAGE_ACKED;
+		}
+	}
+	return UNKNOWN_EVENT;
+}
+
+static void
+webhook_action_parse(const char *json, conf_web_hook_rule *hook_rule)
+{
+	cJSON *object = cJSON_Parse(json);
+
+	cJSON *action = cJSON_GetObjectItem(object, "action");
+	if (cJSON_IsString(action)) {
+		const char *act_val = cJSON_GetStringValue(action);
+		hook_rule->action   = strdup(act_val);
+	} else {
+		hook_rule->action = NULL;
+	}
+	cJSON *topic = cJSON_GetObjectItem(object, "topic");
+	if (cJSON_IsString(topic)) {
+		const char *topic_str = cJSON_GetStringValue(topic);
+		hook_rule->topic      = strdup(topic_str);
+	} else {
+		hook_rule->topic = NULL;
+	}
+}
+
+bool
+conf_web_hook_parse_rules(conf_web_hook *webhook, const char *path)
+{
+	FILE *fp;
+	if ((fp = fopen(path, "r")) == NULL) {
+		debug_msg("File %s open failed", path);
+		return false;
+	}
+
+	char * line = NULL;
+	size_t sz   = 0;
+
+	webhook->rule_count = 0;
+	while (nano_getline(&line, &sz, fp) != -1) {
+		if (sz <= 20) {
+			goto next;
+		}
+		char *   spec     = calloc(1, sz - 20);
+		char *   hooktype = calloc(1, sz - 20);
+		char *   hookname = calloc(1, sz - 20);
+		uint16_t num      = 0;
+		int res = sscanf(line, "web.hook.rule.%[^.].%[^.].%hu=%[^\n]",
+		    hooktype, hookname, &num, spec);
+		if (res == 4) {
+			webhook->rule_count++;
+			webhook->rules = realloc(webhook->rules,
+			    webhook->rule_count *
+			        (sizeof(conf_web_hook_rule *)));
+			webhook->rules[webhook->rule_count - 1] =
+			    calloc(1, sizeof(conf_web_hook_rule));
+			webhook->rules[webhook->rule_count - 1]->event =
+			    get_webhook_event(hooktype, hookname);
+			webhook->rules[webhook->rule_count - 1]->rule_num =
+			    num;
+			webhook_action_parse(
+			    spec, webhook->rules[webhook->rule_count - 1]);
+		}
+		if (spec) {
+			free(spec);
+		}
+		if (hooktype) {
+			free(hooktype);
+		}
+		if (hookname) {
+			free(hookname);
+		}
+	next:
+		free(line);
+		line = NULL;
+	}
+	if(line) {
+		free(line);
+	}
+
+	fclose(fp);
+	return true;
+}
+
+bool
+conf_web_hook_parse(conf *nanomq_conf)
+{
+	const char *dest_path = nanomq_conf->web_hook_file;
+
+	if (dest_path == NULL || !nano_file_exists(dest_path)) {
+		if (!nano_file_exists(CONF_WEB_HOOK_PATH_NAME)) {
+			debug_msg("Configure file [%s] or [%s] not found or "
+			          "unreadable",
+			    dest_path, CONF_WEB_HOOK_PATH_NAME);
+			return false;
+		} else {
+			dest_path = CONF_WEB_HOOK_PATH_NAME;
+		}
+	}
+
+	char * line = NULL;
+	size_t sz   = 0;
+	FILE * fp;
+
+	conf_web_hook *webhook = &nanomq_conf->web_hook;
+
+	if ((fp = fopen(dest_path, "r")) == NULL) {
+		debug_msg("File %s open failed", dest_path);
+		webhook->enable = false;
+		return true;
+	}
+
+	char *value;
+	while (nano_getline(&line, &sz, fp) != -1) {
+		if ((value = get_conf_value(
+		         line, sz, "web.hook.enable")) != NULL) {
+			webhook->enable = strcasecmp(value, "true") == 0;
+			free(value);
+		}
+		else if ((value = get_conf_value(
+		         line, sz, "web.hook.api.url")) != NULL) {
+			webhook->api_url = value;
+		}
+		else if ((value = get_conf_value(
+		         line, sz, "web.hook.encode_payload")) != NULL) {
+			if (strcasecmp(value, "base64") == 0) {
+				webhook->encode_payload = base64;
+			} else if (strcasecmp(value, "base62") == 0) {
+				webhook->encode_payload = base62;
+			} else {
+				webhook->encode_payload = none;
+			}
+		}
+	}
+
+	fclose(fp);
+
+	conf_web_hook_parse_headers(webhook, dest_path);
+	conf_web_hook_parse_rules(webhook, dest_path);
+	return true;
+}
+
+void
+conf_web_hook_destroy(conf_web_hook *web_hook)
+{
+	zfree(web_hook->api_url);
+
+	if (web_hook->header_count > 0 && web_hook->headers != NULL) {
+		for (size_t i = 0; i < web_hook->header_count; i++) {
+			zfree(web_hook->headers[i]);
+		}
+		zfree(web_hook->headers);
+	}
+
+	if (web_hook->rule_count > 0 && web_hook->rules != NULL) {
+		for (size_t i = 0; i < web_hook->rule_count; i++) {
+			zfree(web_hook->rules[i]->action);
+			zfree(web_hook->rules[i]->topic);
+			zfree(web_hook->rules[i]);
+		}
+		zfree(web_hook->rules);
+	}
+
+	zfree(web_hook->tls.cafile);
+	zfree(web_hook->tls.certfile);
+	zfree(web_hook->tls.keyfile);
+	zfree(web_hook->tls.key);
+	zfree(web_hook->tls.key_password);
+	zfree(web_hook->tls.cert);
+	zfree(web_hook->tls.ca);
+}
+
 void
 conf_fini(conf *nanomq_conf)
 {
@@ -712,6 +990,7 @@ conf_fini(conf *nanomq_conf)
 	zfree(nanomq_conf->url);
 	zfree(nanomq_conf->conf_file);
 	zfree(nanomq_conf->bridge_file);
+	zfree(nanomq_conf->web_hook_file);
 	zfree(nanomq_conf->auth_file);
 
 	zfree(nanomq_conf->tls.cafile);
@@ -728,6 +1007,7 @@ conf_fini(conf *nanomq_conf)
 	zfree(nanomq_conf->websocket.url);
 
 	conf_bridge_destroy(&nanomq_conf->bridge);
+	conf_web_hook_destroy(&nanomq_conf->web_hook);
 
 	free(nanomq_conf);
 }
