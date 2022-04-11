@@ -49,7 +49,7 @@ jobs:
     - name: remove unused files
       run: |
         cd docs-files
-        python3 .ci/remove_unused.py $(pwd)/docs
+        python3 .github/scripts/remove_unused.py $(pwd)/docs
 
     - name: move files
       run: |
@@ -88,7 +88,7 @@ jobs:
         file_paths: https://nanomq.io/
 
     - name: update search index
-      uses: Swilder-M/docsearch-scraper-simple@v2
+      uses: Swilder-M/docsearch-scraper-simple@v3
       if: env.VERSION == 'latest'
       env:
         APPLICATION_ID: ${{ secrets.ALGOLIA_APPLICATION_ID }}
