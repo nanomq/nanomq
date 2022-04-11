@@ -278,6 +278,9 @@ dbtree_client_new(uint32_t id, void *ctxt, uint32_t pipe_id)
 {
 	dbtree_client *client = NULL;
 	client = (dbtree_client *) zmalloc(sizeof(dbtree_client));
+	if (client == NULL) {
+		return NULL;
+	}
 
 	log_info("New client pipe_id: [%d], session id: [%d]", pipe_id, id);
 	client->session_id = id;
@@ -319,6 +322,9 @@ dbtree_node_new(char *topic)
 {
 	dbtree_node *node = NULL;
 	node              = (dbtree_node *) zmalloc(sizeof(dbtree_node));
+	if (node == NULL) {
+		return NULL;
+	}
 	node->topic       = zstrdup(topic);
 	log_info("New node: [%s]", node->topic);
 

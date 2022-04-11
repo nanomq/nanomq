@@ -163,6 +163,10 @@ dbhash_ptpair_alloc(uint32_t p, char *t)
 {
 	dbhash_ptpair_t *pt =
 	    (dbhash_ptpair_t *) zmalloc(sizeof(dbhash_ptpair_t));
+	
+	if (pt == NULL) {
+		return NULL;
+	}
 	pt->pipe  = p;
 	pt->topic = zstrdup(t);
 	return pt;
