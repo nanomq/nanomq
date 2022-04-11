@@ -323,17 +323,16 @@ server_cb(void *arg)
 		} else if (nng_msg_cmd_type(work->msg) == CMD_SUBSCRIBE) {
 			nng_msg_alloc(&smsg, 0);
 			work->pid = nng_msg_get_pipe(work->msg);
+			work->msg_ret = NULL;
 
 			if ((work->sub_pkt = nng_alloc(
 			         sizeof(packet_subscribe))) == NULL)
 				debug_msg("ERROR: nng_alloc");
+			memset(work->sub_pkt, '\0', sizeof(packet_subscribe));
 
 			if ((rv = decode_sub_msg(work)) != 0 ||
 			    (rv = sub_ctx_handle(work)) != 0) {
 				debug_msg("ERROR: sub_handler: [%d]", rv);
-				if (dbhash_check_id(work->pid.id)) {
-					dbhash_del_topic_queue(work->pid.id);
-				}
 			}
 
 			if (0 != (rv = encode_suback_msg(smsg, work)))
