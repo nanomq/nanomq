@@ -14,6 +14,6 @@ void del_sub_ctx(void *, char *);
 // free all mem about sub_ctx
 void destroy_sub_ctx(void *);
 void destroy_sub_pkt(packet_subscribe *, uint8_t);
-void init_sub_property(packet_subscribe *);
+void destroy_sub_client(uint32_t, dbtree *);
 
 #endif

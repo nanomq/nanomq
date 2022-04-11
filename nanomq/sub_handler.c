@@ -19,7 +19,6 @@
 
 static void cli_ctx_merge(client_ctx *ctx, client_ctx *ctx_new);
 
-
 int
 decode_sub_msg(nano_work *work)
 {
@@ -42,6 +41,8 @@ decode_sub_msg(nano_work *work)
 
 	packet_subscribe *sub_pkt = work->sub_pkt;
 	NNI_GET16(variable_ptr + vpos, sub_pkt->packet_id);
+	if (sub_pkt->packet_id == 0)
+		return PROTOCOL_ERROR; // packetid should be non-zero
 	// TODO packetid should be checked if it's unused
 	vpos += 2;
 
@@ -248,7 +249,6 @@ sub_ctx_handle(nano_work *work)
 #ifdef STATISTICS
 		old_ctx->recv_cnt      = 0;
 #endif
-		//init_sub_property(old_ctx->sub_pkt);
 	}
 	/* Swap pid, capram, proto_ver in ctxs */
 	old_ctx->pid.id    = cli_ctx->pid.id;
@@ -527,6 +527,28 @@ destroy_sub_ctx(void *ctxt)
 		return;
 	}
 	nng_free(cli_ctx, sizeof(client_ctx));
-	cli_ctx = NULL;
+}
+
+void
+destroy_sub_client(uint32_t pid, dbtree * db)
+{
+	dbtree_ctxt *db_ctx = NULL;
+	client_ctx * cli_ctx = NULL;
+	topic_queue *tq = dbhash_get_topic_queue(pid);
+	// Free from dbtree
+	while (tq) {
+		if (tq->topic)
+			db_ctx = dbtree_delete_client(db, tq->topic, 0, pid);
+		if (db_ctx) {
+			cli_ctx = db_ctx->ctxt;
+			dbtree_delete_ctxt(db_ctx);
+		}
+		if (cli_ctx)
+			del_sub_ctx(cli_ctx, tq->topic);
+		tq = tq->next;
+	}
+
+	// Free from dbhash
+	dbhash_del_topic_queue(pid);
 }
 
