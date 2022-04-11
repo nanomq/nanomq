@@ -32,7 +32,7 @@ strtrim(char *str, size_t len)
 void
 conf_update_var(const char *fpath, const char *key, uint8_t type, void *var)
 {
-	char varstr[20] = { 0 };
+	char varstr[24] = { 0 };
 	switch (type) {
 	case 0:
 		// int
@@ -60,7 +60,7 @@ conf_update_var(const char *fpath, const char *key, uint8_t type, void *var)
 		break;
 	case 6:
 		// double
-		snprintf(varstr, 19, "%lf", *(double *) var);
+		snprintf(varstr, 20, "%lf", *(double *) var);
 		break;
 	case 7:
 		// bool
