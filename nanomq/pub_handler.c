@@ -238,6 +238,9 @@ handle_pub_retain(const nano_work *work, char *topic)
 
 		if (work->pub_packet->payload.len > 0) {
 			retain      = nng_alloc(sizeof(dbtree_retain_msg));
+			if (retain == NULL) {
+				return;
+			}
 			retain->qos = work->pub_packet->fixed_header.qos;
 			nng_msg_clone(work->msg);
 
