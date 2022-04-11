@@ -903,21 +903,16 @@ update_bridge_conf(cJSON *json, conf *config)
 		for (size_t i = 0; i < topic_count; i++) {
 			cJSON *item = cJSON_GetArrayItem(pub_topics, i);
 			char * str  = cJSON_GetStringValue(item);
-			length += strlen(str) + 3;
+			length += strlen(str) + 1;
 		}
 		char *topic_str = nng_zalloc(length);
 		for (size_t j = 0; j < topic_count; j++) {
 			cJSON *item = cJSON_GetArrayItem(pub_topics, j);
 			char * str  = cJSON_GetStringValue(item);
-
-			if (strlen(str) < (length - strlen(topic_str))) {
-				strcat(topic_str, str);
-				if (j < topic_count - 1) {
-					strcat(topic_str, ",");
-				}
-
+			strcat(topic_str, str);
+			if (j < topic_count - 1) {
+				strcat(topic_str, ",");
 			}
-
 		}
 		conf_update(
 		    config->bridge_file, "bridge.mqtt.forwards", topic_str);

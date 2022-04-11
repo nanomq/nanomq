@@ -315,7 +315,7 @@ file_write_int(int val, const char *fpath_fmt, ...)
 {
 	int     fd;
 	va_list args;
-	char    buff[10], buff_len;
+	char    buff[13], buff_len;
 
 	if (!fpath_fmt)
 		goto out;
@@ -639,7 +639,7 @@ int
 file_append_int(const char *fpath, int value)
 {
 	int fd, ret;
-	char buff[13], buff_len;
+	char buff[10], buff_len;
 
 	if (!fpath)
 		goto out;

@@ -924,7 +924,7 @@ int
 store_pid()
 {
 	int  status;
-	char pid_c[12] = "";
+	char pid_c[10] = "";
 
 	sprintf(pid_c, "%d", getpid());
 	debug_msg("%s", pid_c);
