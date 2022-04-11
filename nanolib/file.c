@@ -639,7 +639,7 @@ int
 file_append_int(const char *fpath, int value)
 {
 	int fd, ret;
-	char buff[10], buff_len;
+	char buff[13], buff_len;
 
 	if (!fpath)
 		goto out;
