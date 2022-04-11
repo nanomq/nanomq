@@ -140,6 +140,7 @@ dashboard_data_sync(int argc, char **argv)
 		printf("usage:sync <type:post/cache> ");
 		exit(0);
 	}
+	return 0;
 }
 
 #endif

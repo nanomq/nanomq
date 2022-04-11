@@ -695,6 +695,8 @@ pub_opt_set(int argc, char **argv, nnb_pub_opt *opt)
 		fprintf(stderr, "Usage: %s\n", pub_info);
 		exit(EXIT_FAILURE);
 	}
+
+	return 0;
 }
 
 int
@@ -880,4 +882,6 @@ sub_opt_set(int argc, char **argv, nnb_sub_opt *opt)
 			printf("%s ", argv[optind++]);
 		printf("\n");
 	}
+
+	return 0;
 }
