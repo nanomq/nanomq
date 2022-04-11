@@ -265,21 +265,7 @@ server_cb(void *arg)
 			dbtree_ctxt *db_ctx  = NULL;
 			// free client ctx
 			if (dbhash_check_id(work->pid.id)) {
-				topic_queue *tq =
-				    dbhash_get_topic_queue(work->pid.id);
-				while (tq) {
-					if (tq->topic) {
-						db_ctx = dbtree_delete_client(
-						    work->db, tq->topic, 0,
-						    work->pid.id);
-					}
-
-					cli_ctx = db_ctx->ctxt;
-					dbtree_delete_ctxt(db_ctx);
-					del_sub_ctx(cli_ctx, tq->topic);
-					tq = tq->next;
-				}
-				dbhash_del_topic_queue(work->pid.id);
+				destroy_sub_client(work->pid.id, work->db);
 			} else {
 				debug_msg("ERROR it should not happen");
 			}
