@@ -382,8 +382,17 @@ cli_ctx_merge(client_ctx *ctx_new, client_ctx *ctx)
 				continue;
 			}
 			node_a = nng_alloc(sizeof(topic_node));
+			if (node_a == NULL) {
+				return;
+			}
 			two    = nng_alloc(sizeof(topic_with_option));
+			if (two == NULL) {
+				return;
+			}
 			str    = nng_alloc(node_new->it->topic_filter.len + 1);
+			if (str == NULL) {
+				return;
+			}
 			memcpy(two, node_new->it, sizeof(topic_with_option));
 			strcpy(str, node_new->it->topic_filter.body);
 			str[node_new->it->topic_filter.len] = '\0';
