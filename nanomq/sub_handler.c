@@ -40,6 +40,7 @@ decode_sub_msg(nano_work *work)
 	variable_ptr = nng_msg_body(msg);
 
 	packet_subscribe *sub_pkt = work->sub_pkt;
+	sub_pkt->node = NULL;
 	NNI_GET16(variable_ptr + vpos, sub_pkt->packet_id);
 	if (sub_pkt->packet_id == 0)
 		return PROTOCOL_ERROR; // packetid should be non-zero
@@ -133,7 +134,7 @@ encode_suback_msg(nng_msg *msg, nano_work *work)
 	topic_node *node;
 
 	packet_subscribe *sub_pkt;
-	if ((sub_pkt = work->sub_pkt) == NULL || sub_pkt->node == NULL)
+	if ((sub_pkt = work->sub_pkt) == NULL)
 		return (-1);
 
 	const uint8_t proto_ver = conn_param_get_protover(work->cparam);
@@ -147,12 +148,22 @@ encode_suback_msg(nng_msg *msg, nano_work *work)
 
 #if SUPPORT_MQTT5_0
 	if (PROTOCOL_VERSION_v5 == proto_ver) { // add property in variable
-		//TODO set property if necessary 
-		// encode_properties(msg, sub_pkt->properties);
 		encode_properties(msg, NULL, CMD_SUBACK);
 	}
 #endif
 
+	// Note. packetid should be non-zero, BUT in order to make subclients
+	// known that, we return an error(ALREADY IN USE)
+	reason_code = PACKET_IDENTIFIER_IN_USE;
+	if (sub_pkt->packet_id == 0) {
+		if ((rv = nng_msg_append(msg, &reason_code, 1)) != 0) {
+			debug_msg("ERROR: nng_msg_append [%d]", rv);
+			return PROTOCOL_ERROR;
+		}
+	}
+
+	// Note. When packet_id is zero, node must be empty. So, Dont worry
+	// the order of reasone codes would be changed.
 	// handle payload
 	node = sub_pkt->node;
 	while (node) {
@@ -165,6 +176,16 @@ encode_suback_msg(nng_msg *msg, nano_work *work)
 		node = node->next;
 		debug_msg("reason_code: [%x]", reason_code);
 	}
+
+	// If NOT find any reason codes
+	if (!node && sub_pkt->packet_id != 0) {
+		reason_code = UNSPECIFIED_ERROR;
+		if ((rv = nng_msg_append(msg, &reason_code, 1)) != 0) {
+			debug_msg("ERROR: nng_msg_append [%d]", rv);
+			return PROTOCOL_ERROR;
+		}
+	}
+
 	// handle fixed header
 	cmd = CMD_SUBACK;
 	if ((rv = nng_msg_header_append(msg, (uint8_t *) &cmd, 1)) != 0) {
@@ -198,13 +219,17 @@ sub_ctx_handle(nano_work *work)
 	char *              clientid     = NULL;
 	int                 topic_len    = 0;
 	struct topic_queue *tq           = NULL;
-	work->msg_ret                    = NULL;
 	int      topic_exist             = 0;
 	uint32_t clientid_key            = 0;
 	dbtree_retain_msg **r            = NULL;
 
 	dbtree_ctxt *db_old_ctx = NULL;
 	client_ctx * old_ctx    = NULL;
+
+	if (work->sub_pkt->packet_id == 0) {
+		return PROTOCOL_ERROR;
+	}
+
 	client_ctx * cli_ctx    = nng_zalloc(sizeof(client_ctx));
 	cli_ctx->sub_pkt        = work->sub_pkt;
 	cli_ctx->cparam         = work->cparam;
