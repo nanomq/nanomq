@@ -1071,6 +1071,8 @@ client_stop(int argc, char **argv)
 
 		free(opts);
 	}
+
+	return 0;
 }
 
 #endif

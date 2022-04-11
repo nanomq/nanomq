@@ -355,6 +355,7 @@ nnb_connect(nnb_conn_opt *opt)
 
 	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, msg);
 	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
+	return 0;
 }
 
 int
