@@ -139,7 +139,7 @@ jobs:
       if: (matrix.suffix == 'fat') && (github.event_name == 'release')
       run: |
         set -e -u -x
-        echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u ${{ secrets.DOCKERHUB_USER }} --password-stdin
+        echo ${{ secrets.DOCKER_HUB_TOKEN }} | docker login -u ${{ secrets.DOCKER_HUB_USER }} --password-stdin
         docker buildx build --no-cache \
         --platform=linux/amd64,linux/arm64,linux/arm/v7 \
         -t emqx/nanomq:$(git describe --tags --always) \
@@ -149,7 +149,7 @@ jobs:
       if: (matrix.suffix != 'fat') && (github.event_name == 'release')
       run: |
         set -e -u -x
-        echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u ${{ secrets.DOCKERHUB_USER }} --password-stdin
+        echo ${{ secrets.DOCKER_HUB_TOKEN }} | docker login -u ${{ secrets.DOCKER_HUB_USER }} --password-stdin
         docker buildx build --no-cache \
         --platform=linux/amd64,linux/arm64,linux/arm/v7 \
         -t emqx/nanomq:$(git describe --tags --always)-${{ matrix.suffix }} \
