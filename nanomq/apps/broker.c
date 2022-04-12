@@ -552,7 +552,7 @@ server_cb(void *arg)
 				    (mqtt_string *) conn_param_get_will_msg(
 				        work->cparam),
 				    (mqtt_string *) conn_param_get_will_topic(
-				        work->cparam));
+				        work->cparam), nng_clock());
 				// Set V4/V5 flag for publish msg
 				// if (conn_param_get_protover(work->cparam) == 5) {
 				// 	nng_msg_set_cmd_type(msg, CMD_PUBLISH_V5);
