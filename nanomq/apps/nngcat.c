@@ -33,6 +33,7 @@
 #include <nng/supplemental/util/options.h>
 #include <nng/supplemental/util/platform.h>
 #include <nng/transport/zerotier/zerotier.h>
+#include <nng/mqtt/mqtt_client.h>
 
 // Globals.  We need this to avoid passing around everything.
 int          format    = 0;
@@ -584,7 +585,7 @@ sendloop(nng_socket sock)
 		nng_duration delta;
 
 		start = nng_clock();
-		if (((rv = nng_msg_alloc(&msg, 0)) != 0) ||
+		if (((rv = nng_mqtt_msg_alloc(&msg, 0)) != 0) ||
 		    ((rv = nng_msg_append(msg, data, datalen)) != 0)) {
 			fatal(nng_strerror(rv));
 		}
@@ -636,7 +637,7 @@ sendrecv(nng_socket sock)
 		nng_duration delta;
 
 		start = nng_clock();
-		if (((rv = nng_msg_alloc(&msg, 0)) != 0) ||
+		if (((rv = nng_mqtt_msg_alloc(&msg, 0)) != 0) ||
 		    ((rv = nng_msg_append(msg, data, datalen)) != 0)) {
 			fatal(nng_strerror(rv));
 		}
