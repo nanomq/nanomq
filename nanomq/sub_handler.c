@@ -192,7 +192,7 @@ encode_suback_msg(nng_msg *msg, nano_work *work)
 int
 sub_ctx_handle(nano_work *work)
 {
-	topic_node *        topic_node_t = work->sub_pkt->node;
+	topic_node *        tn = work->sub_pkt->node;
 	char *              topic_str    = NULL;
 	char *              clientid     = NULL;
 	int                 topic_len    = 0;
@@ -262,9 +262,9 @@ sub_ctx_handle(nano_work *work)
 	cli_ctx_merge(cli_ctx, old_ctx);
 	destroy_sub_ctx(cli_ctx);
 
-	while (topic_node_t) {
-		topic_len = topic_node_t->it->topic_filter.len;
-		topic_str = topic_node_t->it->topic_filter.body;
+	while (tn) {
+		topic_len = tn->it->topic_filter.len;
+		topic_str = tn->it->topic_filter.body;
 		debug_msg("topicLen: [%d] body: [%s]", topic_len, topic_str);
 
 		/* remove duplicate items */
@@ -295,20 +295,20 @@ sub_ctx_handle(nano_work *work)
 			dbhash_insert_topic(work->pid.id, topic_str);
 		}
 
-		if (topic_str)
+		uint8_t rh = tn->it->retain_handling;
+		if (topic_str && (rh == 0 || rh == 1))
 			r = dbtree_find_retain(work->db_ret, topic_str);
 		if (r) {
 			for (int i = 0; i < cvector_size(r); i++) {
-				if (!r[i]) {
+				if (!r[i])
 					continue;
-				}
 				cvector_push_back(
 				    work->msg_ret, (nng_msg *) r[i]->message);
 			}
 		}
 		cvector_free(r);
 
-		topic_node_t = topic_node_t->next;
+		tn = tn->next;
 	}
 
 #ifdef DEBUG
