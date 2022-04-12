@@ -23,8 +23,10 @@
 #include <nng/supplemental/tls/tls.h>
 #include <nng/supplemental/util/options.h>
 #include <nng/supplemental/util/platform.h>
-#include <protocol/mqtt/mqtt_parser.h>
-#include <protocol/mqtt/nmq_mqtt.h>
+#include <nng/protocol/pipeline0/pull.h>
+#include <nng/protocol/pipeline0/push.h>
+#include <nng/protocol/mqtt/mqtt_parser.h>
+#include <nng/protocol/mqtt/nmq_mqtt.h>
 #include <zmalloc.h>
 
 #include "include/bridge.h"
@@ -34,6 +36,8 @@
 #include "include/sub_handler.h"
 #include "include/unsub_handler.h"
 #include "include/web_server.h"
+#include "include/webhook_post.h"
+#include "include/webhook_inproc.h"
 
 // Parallel is the maximum number of outstanding requests we can handle.
 // This is *NOT* the number of threads in use, but instead represents
@@ -188,6 +192,10 @@ server_cb(void *arg)
 				nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 				handle_pub(work, work->pipe_ct, PROTOCOL_VERSION_v311);
 			}
+			webhook_msg_publish(&work->webhook_sock,
+			    &work->config->web_hook, work->pub_packet,
+			    (const char *)conn_param_get_username(work->cparam),
+			    (const char *)conn_param_get_clientid(work->cparam));
 
 			conf_bridge *bridge = &(work->config->bridge);
 			if (bridge->bridge_mode) {
@@ -628,6 +636,16 @@ proto_work_init(nng_socket sock, nng_socket bridge_sock, uint8_t proto,
 		}
 		if ((rv = nng_aio_alloc(&w->bridge_aio, NULL, NULL) != 0)) {
 			fatal("nng_aio_alloc", rv);
+		}
+	}
+
+	if(config->web_hook.enable) {
+		if ((rv = nng_push0_open(&w->webhook_sock)) != 0) {
+			fatal("nng_socket", rv);
+		}
+		if ((rv = nng_dial(w->webhook_sock, WEB_HOOK_INPROC_URL, NULL,
+		         0)) != 0) {
+			fatal("nng_dial", rv);
 		}
 	}
 
@@ -1158,6 +1176,10 @@ broker_start(int argc, char **argv)
 
 	active_conf(nanomq_conf);
 
+	if (nanomq_conf->web_hook.enable) {
+		start_webhook_service(nanomq_conf);
+	}
+
 	if (nanomq_conf->http_server.enable) {
 		start_rest_server(nanomq_conf);
 	}
@@ -1167,6 +1189,10 @@ broker_start(int argc, char **argv)
 	}
 
 	rc = broker(nanomq_conf);
+
+	if(nanomq_conf->web_hook.enable) {
+		stop_webhook_service();
+	}
 
 	if (nanomq_conf->http_server.enable) {
 		stop_rest_server();

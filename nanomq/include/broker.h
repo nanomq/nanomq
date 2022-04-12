@@ -42,6 +42,8 @@ struct work {
 	dbtree *  db_ret;
 	conf *    config;
 
+	nng_socket webhook_sock;
+
 	struct pipe_content *     pipe_ct;
 	conn_param *              cparam;
 	struct pub_packet_struct *pub_packet;
