@@ -107,7 +107,7 @@ decode_sub_msg(nano_work *work)
 next:
 		debug_msg("bpos+vpos: [%d]", bpos + vpos);
 		if (bpos < remaining_len - vpos) {
-			if ((topic_node_t = nng_alloc(sizeof(topic_node))) ==
+			if ((topic_node_t = nng_zalloc(sizeof(topic_node))) ==
 			    NULL) {
 				debug_msg("ERROR: nng_zalloc");
 				return NNG_ENOMEM;
@@ -230,7 +230,11 @@ sub_ctx_handle(nano_work *work)
 		return PROTOCOL_ERROR;
 	}
 
-	client_ctx * cli_ctx    = nng_zalloc(sizeof(client_ctx));
+	client_ctx * cli_ctx = NULL;
+	if ((cli_ctx = nng_zalloc(sizeof(client_ctx))) == NULL) {
+		debug_msg("ERROR: nng_zalloc");
+		return NNG_ENOMEM;
+	}
 	cli_ctx->sub_pkt        = work->sub_pkt;
 	cli_ctx->cparam         = work->cparam;
 	cli_ctx->pid            = work->pid;
@@ -267,8 +271,14 @@ sub_ctx_handle(nano_work *work)
 	}
 
 	if (!tq || !old_ctx) { /* the real ctx stored in tree */
-		old_ctx                = nng_zalloc(sizeof(client_ctx));
-		old_ctx->sub_pkt       = nng_zalloc(sizeof(packet_subscribe));
+		if ((old_ctx = nng_zalloc(sizeof(client_ctx))) == NULL){
+			debug_msg("ERROR: nng_zalloc");
+			return NNG_ENOMEM;
+		}
+		if ((old_ctx->sub_pkt = nng_zalloc(sizeof(packet_subscribe))) == NULL) {
+			debug_msg("ERROR: nng_zalloc");
+			return NNG_ENOMEM;
+		}
 		old_ctx->sub_pkt->node = NULL;
 		old_ctx->cparam        = NULL;
 #ifdef STATISTICS
@@ -406,18 +416,17 @@ cli_ctx_merge(client_ctx *ctx_new, client_ctx *ctx)
 				node_new = node_new->next;
 				continue;
 			}
-			node_a = nng_alloc(sizeof(topic_node));
-			if (node_a == NULL) {
+
+			if (((node_a = nng_zalloc(sizeof(topic_node))) ==
+			        NULL) ||
+			    ((two = nng_zalloc(sizeof(topic_with_option))) ==
+			        NULL) ||
+			    ((str = nng_zalloc(node_new->it->topic_filter.len +
+			          1)) == NULL)) {
+				debug_msg("ERROR: nng_zalloc");
 				return;
 			}
-			two    = nng_alloc(sizeof(topic_with_option));
-			if (two == NULL) {
-				return;
-			}
-			str    = nng_alloc(node_new->it->topic_filter.len + 1);
-			if (str == NULL) {
-				return;
-			}
+
 			memcpy(two, node_new->it, sizeof(topic_with_option));
 			strcpy(str, node_new->it->topic_filter.body);
 			str[node_new->it->topic_filter.len] = '\0';
