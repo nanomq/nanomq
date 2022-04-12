@@ -42,6 +42,8 @@ set(SOURCES
     unsub_handler.c
     rest_api.c
     web_server.c
+    webhook_inproc.c
+    webhook_post.c
     )
 
 add_executable(nanomq ${SOURCES})
