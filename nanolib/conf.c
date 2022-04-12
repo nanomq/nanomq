@@ -33,7 +33,7 @@ strtrim(char *str, size_t len)
 void
 conf_update_var(const char *fpath, const char *key, uint8_t type, void *var)
 {
-	char varstr[24] = { 0 };
+	char varstr[50] = { 0 };
 	switch (type) {
 	case 0:
 		// int
@@ -53,7 +53,7 @@ conf_update_var(const char *fpath, const char *key, uint8_t type, void *var)
 		break;
 	case 4:
 		// uint64
-		sprintf(varstr, "%lu", *(uint64_t *) var);
+		sprintf(varstr, "%llu", *(uint64_t *) var);
 		break;
 	case 5:
 		// long
