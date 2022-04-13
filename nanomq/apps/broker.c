@@ -321,7 +321,7 @@ server_cb(void *arg)
 			smsg = NULL;
 			nng_aio_finish(work->aio, 0);
 		} else if (nng_msg_cmd_type(work->msg) == CMD_SUBSCRIBE) {
-			nng_msg_alloc(&smsg, 0);
+			nng_mqtt_msg_alloc(&smsg, 0);
 			work->pid = nng_msg_get_pipe(work->msg);
 			work->msg_ret = NULL;
 
@@ -369,7 +369,7 @@ server_cb(void *arg)
 			break;
 		} else if (nng_msg_cmd_type(work->msg) == CMD_UNSUBSCRIBE) {
 			work->pid = nng_msg_get_pipe(work->msg);
-			nng_msg_alloc(&smsg, 0);
+			nng_mqtt_msg_alloc(&smsg, 0);
 			if ((work->unsub_pkt = nng_alloc(
 			         sizeof(packet_unsubscribe))) == NULL)
 				debug_msg("ERROR: nng_alloc");
