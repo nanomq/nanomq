@@ -2,7 +2,7 @@
 
 [![GitHub Release](https://img.shields.io/github/release/emqx/nanomq?color=brightgreen&label=Release)](https://github.com/emqx/nanomq/releases)
 [![Build Status](https://img.shields.io/github/workflow/status/emqx/nanomq/Build%20packages?label=Build)](https://github.com/emqx/nanomq/actions)
-[![Docker Pulls](https://img.shields.io/docker/pulls/emqx/nanomq?label=Docker%20Pulls)](https://hub.docker.com/r/emqx/nanomq)
+[![Docker Pulls](https://img.shields.io/docker/pulls/nanomq/nanomq?label=Docker%20Pulls)](https://hub.docker.com/r/nanomq/nanomq)
 [![Discord](https://img.shields.io/discord/931086341838622751?label=Discord&logo=discord)](https://discord.gg/xYGf3fQnES)
 [![Twitter](https://img.shields.io/badge/Follow-EMQ-1DA1F2?logo=twitter)](https://twitter.com/EMQTech)
 [![YouTube](https://img.shields.io/badge/Subscribe-EMQ-FF0000?logo=youtube)](https://www.youtube.com/channel/UC5FjR77ErAxvZENEWzQaO5Q)
@@ -13,7 +13,7 @@
 
 NanoMQ bases on NNG's asynchronous I/O threading model, with an extension of MQTT support in the protocol layer and reworked transport layer, plus an enhanced asynchronous IO mechanism maximizing the overall capacity.
 
-NanoMQ currently supports MQTT V3.1.1 and partially supports MQTT V5.0.
+NanoMQ currently supports MQTT V3.1.1 and MQTT V5.0.
 
 For more information, please visit [NanoMQ homepage](https://nanomq.io/).
 
@@ -66,11 +66,11 @@ nanomq mq start
 nanomq mq stop
 ```
 
-*Incoming feature: NanoMQ Zmq usage*
+*Incoming feature: NanoMQ nanomsg/nng proxy*
 
 ```bash
-nanomq sp req -port 5555
-nanomq sp rep -port 5555
+nanomq nng-proxy start req -port 5555
+nanomq nng-proxy start rep -port 5555
 ```
 
 **Note: NanoMQ provides several ways of configurations so that user can achieve better performance on different platforms**, check [here](#Configuration ) for details.
@@ -88,7 +88,7 @@ With this being said, NanoMQ can run on different architectures such like x86_64
 #### Docker
 
 ```bash
-docker run -d -p 1883:1883 -p 8883:8883 --name nanomq emqx/nanomq:0.6.0
+docker run -d -p 1883:1883 -p 8883:8883 --name nanomq emqx/nanomq:0.6.6
 ```
 
 
