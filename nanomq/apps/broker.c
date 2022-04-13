@@ -182,6 +182,13 @@ server_cb(void *arg)
 		work->pid    = nng_msg_get_pipe(work->msg);
 
 		if (nng_msg_cmd_type(msg) == CMD_DISCONNECT) {
+			webhook_client_disconnect(&work->webhook_sock,
+			    &work->config->web_hook, 
+				conn_param_get_protover(work->cparam),
+			    conn_param_get_keepalive(work->cparam),
+				0, //TODO set reason code if proto_version = MQTT_V5
+			    conn_param_get_username(work->cparam),
+			    conn_param_get_clientid(work->cparam));
 			// delete will msg
 		} else if (nng_msg_cmd_type(msg) == CMD_PUBLISH) {
 			// Set V4/V5 flag for publish msg
@@ -245,7 +252,12 @@ server_cb(void *arg)
 			uint8_t  reason_code = *(body + 1);
 			smsg =
 			    nano_msg_notify_connect(work->cparam, reason_code);
-
+			webhook_client_connack(&work->webhook_sock,
+			    &work->config->web_hook,
+			    conn_param_get_protover(work->cparam),
+			    conn_param_get_keepalive(work->cparam),
+			    reason_code, conn_param_get_username(work->cparam),
+			    conn_param_get_clientid(work->cparam));
 			// Set V4/V5 flag for publish msg
 			// if (conn_param_get_protover(work->cparam) == 5) {
 			// 	nng_msg_set_cmd_type(msg, CMD_PUBLISH_V5);
@@ -270,7 +282,15 @@ server_cb(void *arg)
 			// v4 as default
 			nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 			handle_pub(work, work->pipe_ct, PROTOCOL_VERSION_v311);
-
+			conn_param *cparam = nng_msg_get_conn_param(msg);
+			webhook_client_disconnect(&work->webhook_sock,
+			    &work->config->web_hook,
+			    conn_param_get_protover(cparam),
+			    conn_param_get_keepalive(cparam),
+			    0, // TODO set reason code if proto_version =
+			       // MQTT_V5
+			    conn_param_get_username(cparam),
+			    conn_param_get_clientid(cparam));
 			client_ctx * cli_ctx = NULL;
 			dbtree_ctxt *db_ctx  = NULL;
 			// free client ctx
