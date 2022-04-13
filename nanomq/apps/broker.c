@@ -342,6 +342,7 @@ server_cb(void *arg)
 			destroy_sub_pkt(work->sub_pkt,
 			    conn_param_get_protover(work->cparam));
 			// handle retain (Retain flag handled in npipe)
+			work->msg = NULL;
 			if (work->msg_ret) {
 				debug_msg("retain msg [%p] size [%ld] \n",
 				    work->msg_ret,
@@ -358,12 +359,11 @@ server_cb(void *arg)
 				cvector_free(work->msg_ret);
 			}
 			nng_msg_set_cmd_type(smsg, CMD_SUBACK);
-			nng_msg_set_pipe(work->msg, work->pid);
-			nng_aio_set_msg(work->aio, work->msg);
-			work->msg   = NULL;
+			nng_msg_set_pipe(smsg, work->pid);
+			nng_aio_set_msg(work->aio, smsg);
+			smsg = NULL;
 			work->state = SEND;
 			nng_ctx_send(work->ctx, work->aio);
-			smsg = NULL;
 			nng_aio_finish(work->aio, 0);
 			break;
 		} else if (nng_msg_cmd_type(work->msg) == CMD_UNSUBSCRIBE) {
