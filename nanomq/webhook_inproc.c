@@ -48,6 +48,7 @@ struct hook_work {
 
 static void webhook_aio_cb(void *arg);
 static void handle_msg(void *arg);
+static void tx_msg(void *arg);
 static void webhook_cb(void *arg);
 
 static nng_thread *inproc_thr;
@@ -69,37 +70,23 @@ webhook_aio_cb(void *arg)
 	nng_mtx_unlock(hook_client->mtx);
 
 	if (!nano_lmq_empty(&hook_client->lmq)) {
-		handle_msg(arg);
+		tx_msg(arg);
 	}
 }
 
 static void
-handle_msg(void *arg)
+tx_msg(void *arg)
 {
-	int               rv;
 	struct hook_work *work        = arg;
 	webhook_client *  hook_client = &work->webhook;
-	nng_msg *         msg         = NULL;
-
+	nng_msg *         msg;
 	nng_mtx_lock(hook_client->mtx);
-
 	if (!hook_client->flag) {
-		if (nano_lmq_full(&hook_client->lmq)) {
-			size_t lmq_cap = nano_lmq_cap(&hook_client->lmq);
-			if ((rv = nano_lmq_resize(&hook_client->lmq,
-			         lmq_cap + (lmq_cap / 2))) != 0) {
-				fatal("nano_lmq_resize", rv);
-			}
-		}
-		nano_lmq_putq(&hook_client->lmq, work->msg);
 		nng_mtx_unlock(hook_client->mtx);
 		return;
 	}
 
-	if (nano_lmq_getq(&hook_client->lmq, (void **) &msg) != 0) {
-		msg = work->msg;
-	}
-
+	// try to reduce lmq cap
 	size_t lmq_len = nano_lmq_len(&hook_client->lmq);
 	if (lmq_len > (NANO_LMQ_INIT_CAP * 2)) {
 		size_t lmq_cap = nano_lmq_cap(&hook_client->lmq);
@@ -108,14 +95,36 @@ handle_msg(void *arg)
 		}
 	}
 
-	nng_http_req_copy_data(
-	    hook_client->req, nng_msg_body(msg), nng_msg_len(msg));
-	nng_msg_free(msg);
-	hook_client->flag = false;
-	nng_mtx_unlock(hook_client->mtx);
+	// get msg from lmq and transmit 
+	if (nano_lmq_getq(&hook_client->lmq, (void **) &msg) == 0) {
+		nng_http_req_copy_data(
+		    hook_client->req, nng_msg_body(msg), nng_msg_len(msg));
+		nng_msg_free(msg);
+		hook_client->flag = false;
+		nng_http_client_transact(hook_client->client, hook_client->req,
+		    hook_client->res, hook_client->aio);
+	}
 
-	nng_http_client_transact(hook_client->client, hook_client->req,
-	    hook_client->res, hook_client->aio);
+	nng_mtx_unlock(hook_client->mtx);
+}
+
+static void
+handle_msg(void *arg)
+{
+	int               rv;
+	struct hook_work *work        = arg;
+	webhook_client *  hook_client = &work->webhook;
+
+	if (nano_lmq_full(&hook_client->lmq)) {
+		size_t lmq_cap = nano_lmq_cap(&hook_client->lmq);
+		if ((rv = nano_lmq_resize(
+		         &hook_client->lmq, lmq_cap + (lmq_cap / 2))) != 0) {
+			fatal("nano_lmq_resize", rv);
+		}
+	}
+	nano_lmq_putq(&hook_client->lmq, work->msg);
+
+	tx_msg(arg);
 }
 
 static void
@@ -123,7 +132,6 @@ webhook_cb(void *arg)
 {
 	struct hook_work *work = arg;
 	int               rv;
-	uint32_t          when;
 
 	switch (work->state) {
 	case HOOK_INIT:
@@ -135,7 +143,7 @@ webhook_cb(void *arg)
 		if ((rv = nng_aio_result(work->aio)) != 0) {
 			fatal("nng_recv_aio", rv);
 		}
-		work->msg   =  nng_aio_get_msg(work->aio);
+		work->msg = nng_aio_get_msg(work->aio);
 		handle_msg(work);
 		work->msg   = NULL;
 		work->state = HOOK_RECV;
@@ -166,8 +174,8 @@ webhook_init(struct hook_work *w, conf_web_hook *conf)
 	}
 
 	for (size_t i = 0; i < conf->header_count; i++) {
-		nng_http_req_add_header(
-		    webhook->req, conf->headers[i]->key, conf->headers[i]->value);
+		nng_http_req_add_header(webhook->req, conf->headers[i]->key,
+		    conf->headers[i]->value);
 	}
 	nng_http_req_set_method(webhook->req, "POST");
 	webhook->flag = true;
@@ -220,8 +228,7 @@ webhook_thr(void *arg)
 	}
 
 	for (i = 0; i < conf->web_hook.pool_size; i++) {
-		webhook_cb(
-		    works[i]);
+		webhook_cb(works[i]);
 	}
 
 	for (;;) {
