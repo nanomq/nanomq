@@ -12,12 +12,50 @@
 
 #include <base64.h>
 #include <cJSON.h>
+#include <nng/protocol/mqtt/mqtt_parser.h>
+
+static bool event_filter(conf_web_hook *hook_conf, webhook_event event);
+static bool event_filter_with_topic(
+    conf_web_hook *hook_conf, webhook_event event, const char *topic);
+
+static bool
+event_filter(conf_web_hook *hook_conf, webhook_event event)
+{
+	for (uint16_t i = 0; i < hook_conf->rule_count; i++) {
+		if (hook_conf->rules[i]->event == event) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+static bool
+event_filter_with_topic(
+    conf_web_hook *hook_conf, webhook_event event, const char *topic)
+{
+	for (uint16_t i = 0; i < hook_conf->rule_count; i++) {
+		if (hook_conf->rules[i]->event == event) {
+			if (hook_conf->rules[i]->topic != NULL) {
+				if (!topic_filter(
+				        hook_conf->rules[i]->topic, topic)) {
+					continue;
+				}
+			}
+			return true;
+		}
+	}
+
+	return false;
+}
 
 int
 webhook_msg_publish(nng_socket *sock, conf_web_hook *hook_conf,
     pub_packet_struct *pub_packet, const char *username, const char *client_id)
 {
-	if (!hook_conf->enable) {
+	if (!hook_conf->enable ||
+	    !event_filter_with_topic(hook_conf, MESSAGE_PUBLISH,
+	        pub_packet->var_header.publish.topic_name.body)) {
 		return -1;
 	}
 
@@ -44,16 +82,18 @@ webhook_msg_publish(nng_socket *sock, conf_web_hook *hook_conf,
 	case plain:
 		cJSON_AddStringToObject(
 		    obj, "payload", (const char *) pub_packet->payload.data);
-		/* code */
 		break;
 	case base64:
-		BASE64_ENCODE_OUT_SIZE(pub_packet->payload.len);
-		encode = nng_zalloc(out_size);
-		base64_encode(
+		out_size   = BASE64_ENCODE_OUT_SIZE(pub_packet->payload.len);
+		encode     = nng_zalloc(out_size);
+		size_t len = base64_encode(
 		    pub_packet->payload.data, pub_packet->payload.len, encode);
-		cJSON_AddStringToObject(obj, "payload", encode);
+		if (len > 0) {
+			cJSON_AddStringToObject(obj, "payload", encode);
+		} else {
+			cJSON_AddNullToObject(obj, "payload");
+		}
 		nng_strfree(encode);
-		/* code */
 		break;
 	case base62:
 		/* code */
@@ -66,7 +106,70 @@ webhook_msg_publish(nng_socket *sock, conf_web_hook *hook_conf,
 
 	char *json = cJSON_PrintUnformatted(obj);
 
-	int rv = nng_send(*sock, json, strlen(json), 0);
+	int rv = nng_send(*sock, json, strlen(json), NNG_FLAG_NONBLOCK);
+
+	nng_strfree(json);
+	cJSON_Delete(obj);
+
+	return rv;
+}
+
+int
+webhook_client_connack(nng_socket *sock, conf_web_hook *hook_conf,
+    uint8_t proto_ver, uint16_t keepalive, uint8_t reason,
+    const char *username, const char *client_id)
+{
+	if (!hook_conf->enable || !event_filter(hook_conf, CLIENT_CONNACK)) {
+		return -1;
+	}
+
+	cJSON *obj = cJSON_CreateObject();
+
+	cJSON_AddNumberToObject(obj, "connected_at", nng_clock());
+	cJSON_AddNumberToObject(obj, "proto_ver", proto_ver);
+	cJSON_AddNumberToObject(obj, "keepalive", keepalive);
+	// TODO get reason string
+	cJSON_AddStringToObject(
+	    obj, "conn_ack", reason == SUCCESS ? "success" : "fail");
+	cJSON_AddStringToObject(obj, "username", username);
+	cJSON_AddStringToObject(obj, "clientid", client_id);
+	cJSON_AddStringToObject(obj, "action", "client_connack");
+
+	char *json = cJSON_PrintUnformatted(obj);
+
+	int rv = nng_send(*sock, json, strlen(json), NNG_FLAG_NONBLOCK);
+
+	nng_strfree(json);
+	cJSON_Delete(obj);
+
+	return rv;
+}
+
+int
+webhook_client_disconnect(nng_socket *sock, conf_web_hook *hook_conf,
+    uint8_t proto_ver, uint16_t keepalive, uint8_t reason,
+    const char *username, const char *client_id)
+{
+	if (!hook_conf->enable ||
+	    !event_filter(hook_conf, CLIENT_DISCONNECTED)) {
+		return -1;
+	}
+
+	cJSON *obj = cJSON_CreateObject();
+
+	cJSON_AddNumberToObject(obj, "disconnected_at", nng_clock());
+	// TODO get connected timestamp
+	// cJSON_AddNumberToObject(obj, "connected_at", 0);
+	// TODO get reason string
+	cJSON_AddStringToObject(
+	    obj, "reason", reason == SUCCESS ? "normal" : "abnormal");
+	cJSON_AddStringToObject(obj, "username", username);
+	cJSON_AddStringToObject(obj, "clientid", client_id);
+	cJSON_AddStringToObject(obj, "action", "client_disconnected");
+
+	char *json = cJSON_PrintUnformatted(obj);
+
+	int rv = nng_send(*sock, json, strlen(json), NNG_FLAG_NONBLOCK);
 
 	nng_strfree(json);
 	cJSON_Delete(obj);
