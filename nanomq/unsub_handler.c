@@ -103,6 +103,7 @@ decode_unsub_msg(nano_work *work)
 int
 encode_unsuback_msg(nng_msg *msg, nano_work *work)
 {
+	nng_msg_header_clear(msg);
 	nng_msg_clear(msg);
 
 	uint8_t     packet_id[2];

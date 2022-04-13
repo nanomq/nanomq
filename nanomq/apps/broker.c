@@ -321,7 +321,8 @@ server_cb(void *arg)
 			smsg = NULL;
 			nng_aio_finish(work->aio, 0);
 		} else if (nng_msg_cmd_type(work->msg) == CMD_SUBSCRIBE) {
-			nng_msg_alloc(&smsg, 0);
+			smsg = work->msg;
+
 			work->pid = nng_msg_get_pipe(work->msg);
 			work->msg_ret = NULL;
 
@@ -338,7 +339,6 @@ server_cb(void *arg)
 			if (0 != (rv = encode_suback_msg(smsg, work)))
 				debug_msg("error in encode suback: [%d]", rv);
 
-			nng_msg_free(work->msg);
 			destroy_sub_pkt(work->sub_pkt,
 			    conn_param_get_protover(work->cparam));
 			// handle retain (Retain flag handled in npipe)
@@ -358,7 +358,6 @@ server_cb(void *arg)
 				cvector_free(work->msg_ret);
 			}
 			nng_msg_set_cmd_type(smsg, CMD_SUBACK);
-			work->msg = smsg;
 			nng_msg_set_pipe(work->msg, work->pid);
 			nng_aio_set_msg(work->aio, work->msg);
 			work->msg   = NULL;
@@ -369,7 +368,7 @@ server_cb(void *arg)
 			break;
 		} else if (nng_msg_cmd_type(work->msg) == CMD_UNSUBSCRIBE) {
 			work->pid = nng_msg_get_pipe(work->msg);
-			nng_msg_alloc(&smsg, 0);
+			smsg = work->msg;
 			if ((work->unsub_pkt = nng_alloc(
 			         sizeof(packet_unsubscribe))) == NULL)
 				debug_msg("ERROR: nng_alloc");
@@ -384,9 +383,7 @@ server_cb(void *arg)
 
 			// free unsub_pkt
 			destroy_unsub_ctx(work->unsub_pkt);
-			nng_msg_free(work->msg);
 
-			work->msg    = smsg;
 			work->pid.id = 0;
 			nng_msg_set_pipe(work->msg, work->pid);
 			nng_aio_set_msg(work->aio, work->msg);
