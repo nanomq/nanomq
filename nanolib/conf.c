@@ -788,9 +788,9 @@ get_webhook_event(const char *hook_type, const char *hook_name)
 			return CLIENT_UNSUBSCRIBE;
 		}
 	} else if (strcasecmp("session", hook_type) == 0) {
-		if (strcasecmp("subscribe", hook_name) == 0) {
+		if (strcasecmp("subscribed", hook_name) == 0) {
 			return SESSION_SUBSCRIBED;
-		} else if (strcasecmp("unsubscribe", hook_name) == 0) {
+		} else if (strcasecmp("unsubscribed", hook_name) == 0) {
 			return SESSION_UNSUBSCRIBED;
 		} else if (strcasecmp("terminated", hook_name) == 0) {
 			return SESSION_TERMINATED;
