@@ -124,6 +124,7 @@ next:
 int
 encode_suback_msg(nng_msg *msg, nano_work *work)
 {
+	nng_msg_header_clear(msg);
 	nng_msg_clear(msg);
 
 	uint8_t     packet_id[2];
