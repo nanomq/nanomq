@@ -49,7 +49,7 @@ struct client_opts {
 	enum client_type type;
 	bool             verbose;
 	size_t           parallel;
-	atomic_ulong     msg_count;
+	size_t           total_msg_count;
 	size_t           interval;
 	uint8_t          version;
 	char *           url;
@@ -187,10 +187,10 @@ struct work {
 	nng_msg *    msg;
 	nng_ctx      ctx;
 	client_opts *opts;
+	size_t       msg_count;
 };
 
-static atomic_bool exit_signal = false;
-static atomic_long send_count  = 0;
+static void average_msgs(client_opts *opts, struct work **works);
 
 static void
 fatal(const char *msg, ...)
@@ -200,6 +200,7 @@ fatal(const char *msg, ...)
 	vfprintf(stderr, msg, ap);
 	va_end(ap);
 	fprintf(stderr, "\n");
+	exit(1);
 }
 
 static void
@@ -384,7 +385,7 @@ client_parse_opts(int argc, char **argv, client_opts *opts)
 			opts->interval = intarg(arg, 10240000);
 			break;
 		case OPT_MSGCOUNT:
-			opts->msg_count = intarg(arg, 10240000);
+			opts->total_msg_count = intarg(arg, 10240000);
 			break;
 		case OPT_CLIENTS:
 			opts->clients = intarg(arg, 10240000);
@@ -558,18 +559,18 @@ client_parse_opts(int argc, char **argv, client_opts *opts)
 static void
 set_default_conf(client_opts *opts)
 {
-	opts->msg_count     = 0;
-	opts->interval      = 10;
-	opts->qos           = 0;
-	opts->retain        = false;
-	opts->parallel      = 1;
-	opts->version       = 4;
-	opts->keepalive     = 60;
-	opts->clean_session = true;
-	opts->enable_ssl    = false;
-	opts->verbose       = false;
-	opts->topic_count   = 0;
-	opts->clients       = 1;
+	opts->total_msg_count = 1;
+	opts->interval        = 10;
+	opts->qos             = 0;
+	opts->retain          = false;
+	opts->parallel        = 1;
+	opts->version         = 4;
+	opts->keepalive       = 60;
+	opts->clean_session   = true;
+	opts->enable_ssl      = false;
+	opts->verbose         = false;
+	opts->topic_count     = 0;
+	opts->clients         = 1;
 }
 
 // This reads a file into memory.  Care is taken to ensure that
@@ -693,11 +694,6 @@ client_cb(void *arg)
 	case INIT:
 		switch (work->opts->type) {
 		case PUB:
-			if (work->opts->msg_count > 0) {
-				if (--send_count < 0) {
-					break;
-				}
-			}
 			work->msg = publish_msg(work->opts);
 			nng_msg_dup(&msg, work->msg);
 			nng_aio_set_msg(work->aio, msg);
@@ -749,23 +745,17 @@ client_cb(void *arg)
 			nng_msg_free(work->msg);
 			nng_fatal("nng_send_aio", rv);
 		}
-
-		nng_msg_dup(&msg, work->msg);
-		nng_aio_set_msg(work->aio, msg);
-		msg         = NULL;
-		work->state = SEND_WAIT;
-		nng_sleep_aio(work->opts->interval, work->aio);
+		work->msg_count--;
+		if (work->msg_count > 0) {
+			nng_msg_dup(&msg, work->msg);
+			nng_aio_set_msg(work->aio, msg);
+			msg         = NULL;
+			work->state = SEND_WAIT;
+			nng_sleep_aio(work->opts->interval, work->aio);
+		}
 		break;
 
 	case SEND_WAIT:
-		if (work->opts->msg_count > 0) {
-			if (--send_count < 0) {
-				goto out;
-			}
-		}
-		if (work->opts->interval == 0) {
-			goto out;
-		}
 		work->state = SEND;
 		nng_ctx_send(work->ctx, work->aio);
 		break;
@@ -775,9 +765,6 @@ client_cb(void *arg)
 		break;
 	}
 	return;
-
-out:
-	exit_signal = true;
 }
 
 static struct work *
@@ -883,7 +870,8 @@ disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 }
 
 static void
-create_client(nng_socket *sock, struct work **works, size_t id, size_t nwork, struct connect_param *param )
+create_client(nng_socket *sock, struct work **works, size_t id, size_t nwork,
+    struct connect_param *param)
 {
 	int        rv;
 	nng_dialer dialer;
@@ -915,15 +903,32 @@ create_client(nng_socket *sock, struct work **works, size_t id, size_t nwork, st
 
 	param->sock = sock;
 	param->opts = opts;
-	param->id = id;
+	param->id   = id;
 
 	nng_mqtt_set_connect_cb(*sock, connect_cb, param);
 	nng_mqtt_set_disconnect_cb(*sock, disconnect_cb, msg);
 
 	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
 
+	average_msgs(opts, works);
 	for (size_t i = 0; i < opts->parallel; i++) {
 		client_cb(works[i]);
+	}
+}
+
+static void
+average_msgs(client_opts *opts, struct work **works)
+{
+	size_t total_msgs   = opts->total_msg_count;
+	size_t remainder    = total_msgs % opts->parallel;
+	size_t average_msgs = total_msgs / opts->parallel;
+	for (size_t i = 0; i < opts->parallel; i++) {
+		works[i]->msg_count = average_msgs;
+	}
+	if (remainder > 0) {
+		for (size_t i = 0; i < remainder; i++) {
+			works[i]->msg_count += 1;
+		}
 	}
 }
 
@@ -937,9 +942,11 @@ client(int argc, char **argv, enum client_type type)
 
 	client_parse_opts(argc, argv, opts);
 
-	send_count = opts->msg_count;
-	if (opts->interval == 0 && opts->msg_count > 0) {
+	if (opts->interval == 0 && opts->total_msg_count > 0) {
 		opts->interval = 1;
+	}
+	if (opts->total_msg_count < opts->parallel) {
+		opts->parallel = opts->total_msg_count;
 	}
 
 	struct connect_param **param =
@@ -953,11 +960,12 @@ client(int argc, char **argv, enum client_type type)
 		param[i]  = nng_zalloc(sizeof(struct connect_param));
 		socket[i] = nng_zalloc(sizeof(nng_socket));
 		works[i] = nng_zalloc(sizeof(struct work **) * opts->parallel);
-		create_client(socket[i], works[i], i, opts->parallel, param[i]);
+		create_client(
+		    socket[i], works[i], i, opts->parallel, param[i]);
 		nng_msleep(opts->interval);
 	}
 
-	while (!exit_signal) {
+	for (;;) {
 		nng_msleep(1000);
 	}
 
@@ -967,8 +975,6 @@ client(int argc, char **argv, enum client_type type)
 
 		for (size_t k = 0; k < opts->parallel; k++) {
 			nng_aio_free(works[j][k]->aio);
-			printf("works[%ld][%ld]->msg: [%p]\n", j, k,
-			    works[j][k]->msg);
 			if (works[j][k]->msg) {
 				nng_msg_free(works[j][k]->msg);
 				works[j][k]->msg = NULL;
