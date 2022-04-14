@@ -179,7 +179,7 @@ encode_suback_msg(nng_msg *msg, nano_work *work)
 	}
 
 	// If NOT find any reason codes
-	if (!node && sub_pkt->packet_id != 0) {
+	if (!sub_pkt->node && sub_pkt->packet_id != 0) {
 		reason_code = UNSPECIFIED_ERROR;
 		if ((rv = nng_msg_append(msg, &reason_code, 1)) != 0) {
 			debug_msg("ERROR: nng_msg_append [%d]", rv);
