@@ -223,7 +223,7 @@ $ curl --location --request GET 'http://localhost:8081/api/v1' \
         "daemon": false,
         "tls": {
             "enable": false,
-            "url": "nmq-tls://0.0.0.0:8883",
+            "url": "tls+nmq-tcp://0.0.0.0:8883",
             "key_password": null,
             "key": null,
             "cert": null,
@@ -311,7 +311,7 @@ $ curl --location --request POST 'http://localhost:8081/api/v1' \
         "daemon": false,
         "tls": {
             "enable": false,
-            "url": "nmq-tls://0.0.0.0:8883",
+            "url": "tls+nmq-tcp://0.0.0.0:8883",
             "key_password": null,
             "key": null,
             "cert": null,

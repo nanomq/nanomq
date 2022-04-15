@@ -18,7 +18,7 @@
 #define CONF_WEB_HOOK_PATH_NAME "/etc/nanomq_web_hook.conf"
 
 #define CONF_TCP_URL_DEFAULT "nmq-tcp://0.0.0.0:1883"
-#define CONF_TLS_URL_DEFAULT "nmq-tls://0.0.0.0:8883"
+#define CONF_TLS_URL_DEFAULT "tls+nmq-tcp://0.0.0.0:8883"
 #define CONF_WS_URL_DEFAULT "nmq-ws://0.0.0.0:8083/mqtt"
 #define CONF_WSS_URL_DEFAULT "nmq-wss://0.0.0.0:8084/mqtt"
 
@@ -46,7 +46,7 @@ typedef struct conf_auth conf_auth;
 
 struct conf_tls {
 	bool  enable;
-	char *url; // "nmq-tls://addr:port"
+	char *url; // "tls+nmq-tcp://addr:port"
 	char *cafile;
 	char *certfile;
 	char *keyfile;

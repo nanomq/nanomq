@@ -859,7 +859,7 @@ print_usage(void)
 
 	printf("Options: \n");
 	printf("  --url <url>                Specify listener's url: "
-	       "'nmq-tcp://host:port', 'nmq-tls://host:port' \n"
+	       "'nmq-tcp://host:port', 'tls+nmq-tcp://host:port' \n"
 	       "                             or 'nmq-ws://host:port/path' or "
 	       "'nmq-wss://host:port/path'\n");
 	printf("  --conf <path>              The path of a specified nanomq "

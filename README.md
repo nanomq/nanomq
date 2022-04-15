@@ -266,7 +266,7 @@ nanomq broker start --conf <$FILE_PATH> [--bridge <$FILE_PATH>] [--auth <$FILE_P
 #### NanoMQ Environment Variables 
 | Variable | Type  | Value |
 | ------------------------------------------------------------ |     ------------------------------------------------------------ | ------------------------------------------------------------ |
-|NANOMQ_BROKER_URL |String | 'nmq-tcp://host:port', 'nmq-tls://host:port'|
+|NANOMQ_BROKER_URL |String | 'nmq-tcp://host:port', 'tls+nmq-tcp://host:port'|
 |NANOMQ_DAEMON |Boolean | Set nanomq as daemon (default: false).|
 |NANOMQ_NUM_TASKQ_THREAD | Integer | Number of taskq threads used, `num` greater than 0 and less than 256.|
 |NANOMQ_MAX_TASKQ_THREAD | Integer | Maximum number of taskq threads used, `num` greater than 0 and less than 256.|
@@ -282,7 +282,7 @@ nanomq broker start --conf <$FILE_PATH> [--bridge <$FILE_PATH>] [--auth <$FILE_P
 |NANOMQ_HTTP_SERVER_USERNAME | String | Http server user name for auth.|
 |NANOMQ_HTTP_SERVER_PASSWORD | String | Http server password for auth.|
 |NANOMQ_TLS_ENABLE|Boolean|Enable TLS connection.|
-|NANOMQ_TLS_URL| String | 'nmq-tls://host:port'.|
+|NANOMQ_TLS_URL| String | 'tls+nmq-tcp://host:port'.|
 |NANOMQ_TLS_CA_CERT_PATH| String | Path to the file containing PEM-encoded CA certificates.|
 |NANOMQ_TLS_CERT_PATH| String |  Path to a file containing the user certificate.|
 |NANOMQ_TLS_KEY_PATH| String | Path to the file containing the user's private PEM-encoded key.|
@@ -332,7 +332,7 @@ Usage: nanomq broker { { start | restart [--url <url>] [--conf <path>] [--bridge
                      | stop }
 
 Options: 
-  --url <url>                Specify listener's url: 'nmq-tcp://host:port', 'nmq-tls://host:port' 
+  --url <url>                Specify listener's url: 'nmq-tcp://host:port', 'tls+nmq-tcp://host:port' 
                              or 'nmq-ws://host:port/path' or 'nmq-wss://host:port/path'
   --conf <path>              The path of a specified nanomq configuration file 
   --bridge <path>            The path of a specified bridge configuration file 
