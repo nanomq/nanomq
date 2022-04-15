@@ -720,7 +720,7 @@ nng_cat_dflt(int ac, char **av)
 	nng_socket     sock;
 	int            port;
 
-	idx      = 1;
+	idx      = 0;
 	addrend  = &addrs;
 	topicend = &topics;
 
@@ -980,32 +980,16 @@ nng_cat_dflt(int ac, char **av)
 
 	switch (proto) {
 	case OPT_REQ0:
-#ifdef NNG_HAVE_REQ0
 		rv = nng_req0_open(&sock);
-#else
-		fatal("Protocol not supported.");
-#endif
 		break;
 	case OPT_REP0:
-#ifdef NNG_HAVE_REP0
 		rv = nng_rep0_open(&sock);
-#else
-		fatal("Protocol not supported.");
-#endif
 		break;
 	case OPT_SUB0:
-#ifdef NNG_HAVE_SUB0
 		rv = nng_sub0_open(&sock);
-#else
-		fatal("Protocol not supported.");
-#endif
 		break;
 	case OPT_PUB0:
-#ifdef NNG_HAVE_PUB0
 		rv = nng_pub0_open(&sock);
-#else
-		fatal("Protocol not supported.");
-#endif
 		break;
 	case OPT_PAIR0:
 #ifdef NNG_HAVE_PAIR0
