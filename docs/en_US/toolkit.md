@@ -8,7 +8,7 @@ NanoMQ MQTT Broker (NanoMQ) is a lightweight and blazing-fast MQTT Broker for th
 
 | Parameter       | abbreviation | Optional value | Default value            | Description                                                  |
 | --------------- | ------------ | -------------- | ------------------------ | ------------------------------------------------------------ |
-| --url           | -            | -              | nmq-tcp://127.0.0.1:1883 | Specify listener's url: 'nmq-tcp://host:port', 'nmq-tls://host:port' or 'nmq-ws://host:port/path' or 'nmq-wss://host:port/path' |
+| --url           | -            | -              | nmq-tcp://127.0.0.1:1883 | Specify listener's url: 'nmq-tcp://host:port', 'tls+nmq-tcp://host:port' or 'nmq-ws://host:port/path' or 'nmq-wss://host:port/path' |
 | --conf          | -            | -              | -                        | The path of a specified nanomq configuration file            |
 | --bridge        | -            | -              | -                        | The path of a specified bridge configuration file            |
 | --auth          | -            | -              | -                        | The path of a specified authorize configuration file         |
