@@ -384,9 +384,6 @@ nng_client_parse_opts(int argc, char **argv, nng_proxy_opts *nng_opts)
 			nng_opts->parallel = intarg(arg, 1024000);
 			break;
                 //TODO tasq number
-		case OPT_CLIENTS:
-			nng_opts->clients = intarg(arg, 10240000);
-			break;
 		case OPT_VERSION:
 			nng_opts->version = intarg(arg, 4);
 			break;
@@ -902,7 +899,7 @@ sub0_alloc_work(nng_socket sock, nng_socket psock, nng_proxy_opts *nng_opts)
 
 static void
 create_client(nng_socket *sock, nng_socket psock, struct work **works,
-    size_t id, size_t nwork, struct connect_param *param)
+    size_t nwork, struct connect_param *param)
 {
 	int        rv;
 	nng_dialer dialer;
@@ -938,7 +935,6 @@ create_client(nng_socket *sock, nng_socket psock, struct work **works,
 
 	param->sock = sock;
 	param->nng_opts = nng_opts;
-	param->id = id;
 
 	nng_mqtt_set_connect_cb(*sock, connect_cb, param);
 	nng_mqtt_set_disconnect_cb(*sock, disconnect_cb, msg);
@@ -954,15 +950,16 @@ static void
 nng_proxy_client(int argc, char **argv, enum nng_proto type)
 {
 	int rv;
-	nng_socket   s;
+	nng_socket   s;		//nng socket
 	nng_listener l;
 	nng_opts = nng_zalloc(sizeof(nng_proxy_opts));
 	set_default_conf(nng_opts);
 	nng_opts->type = type;
 
 	nng_client_parse_opts(argc, argv, nng_opts);
-	struct connect_param **param = nng_zalloc(sizeof(struct connect_param *) * nng_opts->clients);
-	nng_socket **socket = nng_zalloc(sizeof(nng_socket *) * nng_opts->clients);
+	struct connect_param *param = nng_zalloc(sizeof(struct connect_param *));
+	//mqtt socket
+	nng_socket *socket = nng_zalloc(sizeof(nng_socket *));
 	switch (nng_opts->type) {
 	case SUB0:
 		if (nng_opts->type == SUB0) {
@@ -990,44 +987,32 @@ nng_proxy_client(int argc, char **argv, enum nng_proto type)
 	default:
 		break;
 	}
-	struct work ***works =
-	    nng_zalloc(sizeof(struct work **) * nng_opts->clients);
+	struct work *works[nng_opts->parallel];
 
-	for (size_t i = 0; i < nng_opts->clients; i++) {
-		param[i]  = nng_zalloc(sizeof(struct connect_param));
-		socket[i] = nng_zalloc(sizeof(nng_socket));
-		works[i] = nng_zalloc(sizeof(struct work **) * nng_opts->parallel);
-		create_client(socket[i], s, works[i], i, nng_opts->parallel, param[i]);
-		nng_msleep(nng_opts->interval);
-	}
+	param  = nng_zalloc(sizeof(struct connect_param));
+	socket = nng_zalloc(sizeof(nng_socket));
+	create_client(socket, s, works, nng_opts->parallel, param);
 
 	while (!exit_signal) {
 		nng_msleep(1000);
 	}
 
-	for (size_t j = 0; j < nng_opts->clients; j++) {
-		nng_free(param[j], sizeof(struct connect_param));
-		nng_free(socket[j], sizeof(nng_socket));
+		nng_free(param, sizeof(struct connect_param));
+		nng_free(socket, sizeof(nng_socket));
 		// nng_free(psocket[j], sizeof(nng_socket));
 
 		for (size_t k = 0; k < nng_opts->parallel; k++) {
-			nng_aio_free(works[j][k]->aio);
-			printf("works[%ld][%ld]->msg: [%p]\n", j, k,
-			    works[j][k]->msg);
-			if (works[j][k]->msg) {
-				nng_msg_free(works[j][k]->msg);
-				works[j][k]->msg = NULL;
+			nng_aio_free(works[k]->aio);
+			if (works[k]->msg) {
+				nng_msg_free(works[k]->msg);
+				works[k]->msg = NULL;
 			}
 
-			nng_free(works[j][k], sizeof(struct work));
+			nng_free(works[k], sizeof(struct work));
 		}
-		nng_free(works[j], sizeof(struct work *));
-	}
 
-	nng_free(param, sizeof(struct connect_param **));
-	nng_free(socket, sizeof(nng_socket **));
-	// nng_free(psocket, sizeof(nng_socket **));
-	nng_free(works, sizeof(struct work ***));
+	nng_free(param, sizeof(struct connect_param *));
+	nng_free(socket, sizeof(nng_socket *));
 
 	nng_client0_stop(argc, argv);
 }
