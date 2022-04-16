@@ -677,6 +677,7 @@ nng_client_cb(void *arg)
 	case INIT:
 		switch (work->nng_opts->type) {
 		case PUB0:
+		case PAIR1:
 			work->state = RECV_MQTT;
 			nng_ctx_recv(work->ctx, work->aio);
 			break;
@@ -829,7 +830,7 @@ connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	printf("%s: connected!\n", __FUNCTION__);
 	struct connect_param *param = arg;
 
-	if (param->nng_opts->type == PUB0 && param->nng_opts->topic_count > 0) {
+	if (param->nng_opts->topic_count > 0) {
 		nng_msg *msg;
 		nng_mqtt_msg_alloc(&msg, 0);
 		nng_mqtt_msg_set_packet_type(msg, NNG_MQTT_SUBSCRIBE);
@@ -888,7 +889,8 @@ nng_alloc_work(nng_socket sock, nng_socket psock, nng_proxy_opts *nng_opts)
 	case PUB0:
 		w->nsocket = psock;
 		break;
-	case PAIR0:
+	case PAIR1:
+		// two way pair1 channel
 		w->nsocket = psock;
 		break;
 	default:
@@ -961,6 +963,10 @@ nng_proxy_client(int argc, char **argv, enum nng_proto type)
 	struct connect_param *param = nng_zalloc(sizeof(struct connect_param *));
 	//mqtt socket
 	nng_socket *socket = nng_zalloc(sizeof(nng_socket *));
+	struct work *works[nng_opts->parallel];
+
+	param  = nng_zalloc(sizeof(struct connect_param));
+	socket = nng_zalloc(sizeof(nng_socket));
 	switch (nng_opts->type) {
 	case SUB0:
 		if ((rv = nng_sub0_open(&s)) != 0) {
@@ -973,14 +979,17 @@ nng_proxy_client(int argc, char **argv, enum nng_proto type)
 		}
 		break;
 	case PAIR1:
+	case PAIR0:
 		if ((rv = nng_pair1_open(&s)) != 0) {
 			nng_fatal("nng_socket", rv);
 		}
-		//set upload & download two way channel
+		//TODO upload & download two way channel
+		// works2 for recv pair1 msg convert to mqtt msg
 		break;
 	default:
 		break;
 	}
+
 	switch (nng_opts->nng_mode) {
 	case OPT_DIAL:
 		rv = nng_dialer_create(&d, s, nng_opts->nng_url);
@@ -997,11 +1006,11 @@ nng_proxy_client(int argc, char **argv, enum nng_proto type)
 	default:
 		break;
 	}
-	struct work *works[nng_opts->parallel];
-
-	param  = nng_zalloc(sizeof(struct connect_param));
-	socket = nng_zalloc(sizeof(nng_socket));
 	create_client(socket, s, works, nng_opts->parallel, param);
+	if(nng_opts->type == PAIR1) {
+		struct work *works2[nng_opts->parallel];
+		create_client(socket, s, works2, nng_opts->parallel, param);
+	}
 
 	while (!exit_signal) {
 		nng_msleep(1000);
@@ -1043,6 +1052,7 @@ nng_sub0_start(int argc, char **argv)
 int
 nng_proxy_start(int argc, char **argv)
 {
+	//FIX ME
 	if (strncmp(argv[0], "sub0", 3) == 0)
 		nng_proxy_client(argc-1, argv+1, SUB0);
 	else if (strncmp(argv[0], "pub0", 3) == 0)
