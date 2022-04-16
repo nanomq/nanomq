@@ -81,6 +81,7 @@ struct nng_proxy_opts {
 	char *           key;
 	size_t           key_len;
 	char *           keypass;
+	uint8_t		 nng_mode;
 };
 
 nng_proxy_opts *nng_opts = NULL;
@@ -94,7 +95,8 @@ enum options {
 	OPT_INTERVAL,
 	OPT_VERSION,
 	OPT_MQTT_URL,
-        OPT_NNG_URL,
+	OPT_DIAL,
+	OPT_LISTEN,
 	OPT_PUB,
 	OPT_SUB,
 	OPT_TOPIC,
@@ -139,7 +141,8 @@ static nng_optspec cmd_opts[] = {
 	    .o_arg   = true },
 	{ .o_name = "version", .o_short = 'V', .o_val = OPT_VERSION },
 	{ .o_name = "mqtt_url", .o_val = OPT_MQTT_URL, .o_arg = true },
-        { .o_name = "nng_url", .o_val = OPT_NNG_URL, .o_arg = true },
+	{ .o_name = "dial", .o_short = 'd', .o_val = OPT_DIAL, .o_arg = true },
+	{ .o_name = "listen", .o_short = 'l', .o_val = OPT_LISTEN, .o_arg = true },
 	{ .o_name    = "topic",
 	    .o_short = 't',
 	    .o_val   = OPT_TOPIC,
@@ -330,35 +333,6 @@ intarg(const char *val, int maxv)
 	return (v);
 }
 
-// struct topic **
-// addtopic(struct topic **endp, const char *s)
-// {
-// 	struct topic *t;
-
-// 	if (((t = malloc(sizeof(*t))) == NULL) ||
-// 	    ((t->val = malloc(strlen(s) + 1)) == NULL)) {
-// 		fatal("Out of memory.");
-// 	}
-// 	memcpy(t->val, s, strlen(s) + 1);
-// 	t->next = NULL;
-// 	*endp   = t;
-// 	return (&t->next);
-// }
-
-// void
-// freetopic(struct topic *endp)
-// {
-// 	struct topic *t = endp;
-
-// 	for (struct topic *t = endp; t != NULL; t = t->next) {
-// 		if (t->val) {
-// 			free(t->val);
-// 			t->val = NULL;
-// 		}
-// 	}
-// 	free(t);
-// }
-
 int
 nng_client_parse_opts(int argc, char **argv, nng_proxy_opts *nng_opts)
 {
@@ -394,7 +368,15 @@ nng_client_parse_opts(int argc, char **argv, nng_proxy_opts *nng_opts)
 			    "only once.");
 			nng_opts->mqtt_url = nng_strdup(arg);
 			break;
-		case OPT_NNG_URL:
+		case OPT_DIAL:
+			nng_opts->nng_mode = OPT_DIAL;
+			ASSERT_NULL(nng_opts->nng_url,
+			    "URL (--url) may be specified "
+			    "only once.");
+			nng_opts->nng_url = nng_strdup(arg);
+			break;
+		case OPT_LISTEN:
+			nng_opts->nng_mode = OPT_LISTEN;
 			ASSERT_NULL(nng_opts->nng_url,
 			    "URL (--url) may be specified "
 			    "only once.");
@@ -523,6 +505,7 @@ nng_client_parse_opts(int argc, char **argv, nng_proxy_opts *nng_opts)
 	if (!nng_opts->mqtt_url) {
 		nng_opts->mqtt_url = nng_strdup("mqtt-tcp://127.0.0.1:1883");
 	}
+	// if (nng_opts->nng_mode = 0)
         if (!nng_opts->nng_url) {
                 //FIXME error url
 		return;
@@ -571,6 +554,7 @@ set_default_conf(nng_proxy_opts *nng_opts)
 	nng_opts->verbose       = false;
 	nng_opts->topic_count   = 0;
 	nng_opts->clients       = 1;
+	nng_opts->nng_mode      = OPT_LISTEN;
 }
 
 // This reads a file into memory.  Care is taken to ensure that
@@ -908,7 +892,6 @@ nng_alloc_work(nng_socket sock, nng_socket psock, nng_proxy_opts *nng_opts)
 		break;
 	case PUB0:
 		w->nsocket = psock;
-		// nng_ctx_setopt(w->proxy_ctx, NNG_OPT_SUB_SUBSCRIBE, "", 0);
 		break;
 	case PAIR0:
 		nng_ctx_setopt(w->proxy_ctx, NNG_OPT_SUB_SUBSCRIBE, "", 0);
@@ -988,19 +971,32 @@ nng_proxy_client(int argc, char **argv, enum nng_proto type)
 		if ((rv = nng_sub0_open(&s)) != 0) {
 			nng_fatal("nng_socket", rv);
 		}
-
-		rv = nng_listener_create(&l, s, nng_opts->nng_url);
-		nng_listener_start(l, 0);
-		// nng_listener_get(l, nng_opts->nng_url, NULL, 0);
 		break;
 	case PUB0:
 		if ((rv = nng_pub0_open(&s)) != 0) {
 			nng_fatal("nng_socket", rv);
 		}
-
+		break;
+	case PAIR1:
+		if ((rv = nng_pair1_open(&s)) != 0) {
+			nng_fatal("nng_socket", rv);
+		}
+		break;
+	default:
+		break;
+	}
+	switch (nng_opts->nng_mode)
+	{
+	case OPT_DIAL:
 		rv = nng_dialer_create(&d, s, nng_opts->nng_url);
 		rv  = nng_dialer_start(d, 0);
-		printf("Connected to: %d\n", rv);
+		if (rv != 0)
+			printf("unable to connect!\n");
+		break;
+	case OPT_LISTEN:
+		rv = nng_listener_create(&l, s, nng_opts->nng_url);
+		nng_listener_start(l, 0);
+		// nng_listener_get(l, nng_opts->nng_url, NULL, 0);
 		break;
 	default:
 		break;
@@ -1055,6 +1051,8 @@ nng_proxy_start(int argc, char **argv)
 		nng_proxy_client(argc-1, argv+1, SUB0);
 	else if (strncmp(argv[0], "pub0", 3) == 0)
 		nng_proxy_client(argc-1, argv+1, PUB0);
+	else if (strncmp(argv[0], "pair1", 5) == 0)
+		nng_proxy_client(argc-1, argv+1, PAIR1);
 	// else if (strncmp(argv[0], "req0", 3) == 0)
 	// 	nng_proxy_client(argc-1, argv+1, SUB0);
 	else
