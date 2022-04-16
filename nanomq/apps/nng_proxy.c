@@ -8,6 +8,7 @@
 //
 
 #include "include/nng_proxy.h"
+#include "include/client.h"
 
 #include <nng/mqtt/mqtt_client.h>
 #include <nng/nng.h>
@@ -190,6 +191,7 @@ static nng_optspec cmd_opts[] = {
 
 struct work {
 	enum { INIT, RECV, RECV_MQTT, RECV_NNG, SEND_MQTT, SEND_NNG } state;
+	uint8_t      mode;
 	nng_aio *    aio;
 	nng_msg *    msg;
 	nng_ctx      ctx;
@@ -510,7 +512,7 @@ nng_client_parse_opts(int argc, char **argv, nng_proxy_opts *nng_opts)
 	}
         if (!nng_opts->nng_url) {
                 fatal("NNG url is invalid.");
-		return;
+		return -1;
 	}
 
 	switch (nng_opts->type) {
@@ -670,7 +672,7 @@ nng_publish_msg(nng_proxy_opts *nng_opts, nng_msg *msg)
 }
 
 void
-nng_client_cb(void *arg, uint8_t mode)
+nng_client_cb(void *arg)
 {
 	struct work *work = arg;
 	nng_msg *    msg  = NULL;
@@ -690,10 +692,10 @@ nng_client_cb(void *arg, uint8_t mode)
 			break;
 		case PAIR1:
 		case PAIR0:
-			if (mode == 1) {
+			if (work->mode == 1) {
 				work->state = RECV_NNG;
 				nng_recv_aio(work->nsocket, work->aio);
-			} else if (mode == 0) {
+			} else if (work->mode == 0) {
 				work->state = RECV_MQTT;
 				nng_ctx_recv(work->ctx, work->aio);
 			}
@@ -883,7 +885,7 @@ disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 }
 
 static struct work *
-nng_alloc_work(nng_socket sock, nng_socket psock, nng_proxy_opts *nng_opts)
+nng_alloc_work(nng_socket sock, nng_socket psock, nng_proxy_opts *nng_opts, uint8_t mode)
 {
 	struct work *w;
 	int          rv;
@@ -917,12 +919,13 @@ nng_alloc_work(nng_socket sock, nng_socket psock, nng_proxy_opts *nng_opts)
 
 	w->nng_opts  = nng_opts;
 	w->state = INIT;
+	w->mode  = mode;
 	return (w);
 }
 
 static void
 create_client(nng_socket *sock, nng_socket psock, struct work **works,
-    size_t nwork, struct connect_param *param)
+    size_t nwork, struct connect_param *param, uint8_t mode)
 {
 	int        rv;
 	nng_dialer dialer;
@@ -933,7 +936,7 @@ create_client(nng_socket *sock, nng_socket psock, struct work **works,
 	}
 
 	for (size_t i = 0; i < nng_opts->parallel; i++) {
-		works[i] = nng_alloc_work(*sock, psock, nng_opts);
+		works[i] = nng_alloc_work(*sock, psock, nng_opts, mode);
 	}
 
 	nng_msg *msg = connect_msg(nng_opts);
@@ -1018,16 +1021,16 @@ nng_proxy_client(int argc, char **argv, enum nng_proto type)
 	default:
 		break;
 	}
-	create_client(socket, s, works, nng_opts->parallel, param);
+	create_client(socket, s, works, nng_opts->parallel, param, 0);
 	for (size_t i = 0; i < nng_opts->parallel; i++) {
-		nng_client_cb(works[i], 0);
+		nng_client_cb(works[i]);
 	}
-	if(nng_opts->type == PAIR1) {
+	if(nng_opts->type == PAIR1 || nng_opts->type == PAIR0) {
 		struct work *works2[nng_opts->parallel];
-		create_client(socket, s, works2, nng_opts->parallel, param);
+		create_client(socket, s, works2, nng_opts->parallel, param, 1);
 		for (size_t i = 0; i < nng_opts->parallel; i++) {
 			// Recv from nng pair1 - send to MQTT 
-			nng_client_cb(works[i], 1);
+			nng_client_cb(works[i]);
 		}
 	}
 
