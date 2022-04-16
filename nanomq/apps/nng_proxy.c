@@ -185,11 +185,12 @@ static nng_optspec cmd_opts[] = {
 };
 
 struct work {
-	enum { INIT, RECV, RECV_WAIT, SEND_MQTT, SEND_NNG } state;
+	enum { INIT, RECV, RECV_MQTT, RECV_NNG, SEND_MQTT, SEND_NNG } state;
 	nng_aio *    aio;
 	nng_msg *    msg;
 	nng_ctx      ctx;
 	nng_ctx	     proxy_ctx;
+	nng_socket   nsocket;
 	nng_proxy_opts *nng_opts;
 };
 
@@ -693,19 +694,19 @@ nng_client_cb(void *arg)
 	case INIT:
 		switch (work->nng_opts->type) {
 		case PUB0:
-			work->state = RECV;
+			work->state = RECV_MQTT;
 			nng_ctx_recv(work->ctx, work->aio);
 			break;
 		case SUB0:
 		case CONN:
 			printf("init\n");
-			work->state = RECV;
+			work->state = RECV_NNG;
 			nng_ctx_recv(work->proxy_ctx, work->aio);
 			break;
 		}
 		break;
 
-	case RECV:
+	case RECV_NNG:
 		if ((rv = nng_aio_result(work->aio)) != 0) {
 			nng_fatal("nng_recv_aio", rv);
 			work->state = RECV;
@@ -723,8 +724,16 @@ nng_client_cb(void *arg)
 		work->state = SEND_MQTT;
 		break;
 
-	case RECV_WAIT:
+	case RECV_MQTT:
+		if ((rv = nng_aio_result(work->aio)) != 0) {
+			nng_fatal("nng_recv_aio", rv);
+			work->state = RECV;
+			nng_ctx_recv(work->ctx, work->aio);
+			break;
+		}
+		work->msg   = nng_aio_get_msg(work->aio);
 		msg = work->msg;
+		work->msg = NULL;
 		uint32_t payload_len;
 		uint8_t *payload =
 		    nng_mqtt_msg_get_publish_payload(msg, &payload_len);
@@ -735,11 +744,16 @@ nng_client_cb(void *arg)
 		printf("%.*s: %.*s\n", topic_len, recv_topic, payload_len,
 		    (char *) payload);
 
-		nng_msg_header_clear(work->msg);
-		nng_msg_clear(work->msg);
+		if (((rv = nng_msg_alloc(&work->msg, 0)) != 0) ||
+		    ((rv = nng_msg_append(work->msg, payload, payload_len)) != 0)) {
+			fatal(nng_strerror(rv));
+		}
+		nng_msg_free(msg);
 
-		work->state = RECV;
-		nng_ctx_recv(work->ctx, work->aio);
+		work->state = SEND_NNG;
+		nng_aio_set_msg(work->aio, work->msg);
+		nng_send_aio(work->nsocket, work->aio);
+		// nng_ctx_send(work->proxy_ctx, work->aio);
 		break;
 
 	case SEND_MQTT:
@@ -748,13 +762,14 @@ nng_client_cb(void *arg)
 			nng_fatal("nng_send_aio", rv);
 		}
 		printf("send %d\n", work->ctx.id);
-		work->state = RECV;
+		work->state = RECV_NNG;
 		nng_ctx_recv(work->proxy_ctx, work->aio);
 		break;
 
 	case SEND_NNG:
-		work->state = RECV;
-		nng_ctx_send(work->ctx, work->aio);
+		//recv next mqtt msg
+		work->state = RECV_MQTT;
+		nng_ctx_recv(work->ctx, work->aio);
 		break;
 
 	default:
@@ -835,7 +850,7 @@ connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	printf("%s: connected!\n", __FUNCTION__);
 	struct connect_param *param = arg;
 
-	if (param->nng_opts->type == SUB0 && param->nng_opts->topic_count > 0) {
+	if (param->nng_opts->type == PUB0 && param->nng_opts->topic_count > 0) {
 		nng_msg *msg;
 		nng_mqtt_msg_alloc(&msg, 0);
 		nng_mqtt_msg_set_packet_type(msg, NNG_MQTT_SUBSCRIBE);
@@ -884,14 +899,15 @@ nng_alloc_work(nng_socket sock, nng_socket psock, nng_proxy_opts *nng_opts)
 	if ((rv = nng_ctx_open(&w->ctx, sock)) != 0) {
 		nng_fatal("nng_ctx_open", rv);
 	}
-	if ((rv = nng_ctx_open(&w->proxy_ctx, psock)) != 0) {
-		nng_fatal("nng_ctx_open", rv);
-	}
 	switch (nng_opts->type) {
 	case SUB0:
+		if ((rv = nng_ctx_open(&w->proxy_ctx, psock)) != 0) {
+			nng_fatal("nng_ctx_open", rv);
+		}
 		nng_ctx_setopt(w->proxy_ctx, NNG_OPT_SUB_SUBSCRIBE, "", 0);
 		break;
 	case PUB0:
+		w->nsocket = psock;
 		// nng_ctx_setopt(w->proxy_ctx, NNG_OPT_SUB_SUBSCRIBE, "", 0);
 		break;
 	case PAIR0:
@@ -984,9 +1000,8 @@ nng_proxy_client(int argc, char **argv, enum nng_proto type)
 
 		rv = nng_dialer_create(&d, s, nng_opts->nng_url);
 		rv  = nng_dialer_start(d, 0);
-		// nng_listener_get(l, nng_opts->nng_url, NULL, 0);
+		printf("Connected to: %d\n", rv);
 		break;
-
 	default:
 		break;
 	}
