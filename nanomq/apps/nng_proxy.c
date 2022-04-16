@@ -223,29 +223,30 @@ help(enum nng_proto type)
 {
 	switch (type) {
 	case PUB0:
-		printf("Usage: nanomq pub0 { start | stop } <addr> "
+		printf("Usage: nanomq nngproxy pub0 <addr> "
 		       "[<topic>...] [<nng_opts>...] [<src>]\n\n");
 		break;
 	case SUB0:
-		printf("Usage: nanomq sub0 { start | stop } <addr> "
+		printf("Usage: nanomq nngproxy sub0 <addr> "
 		       "[<topic>...] [<nng_opts>...]\n\n");
 		break;
 	case PAIR1:
-		printf("Usage: nanomq pair1 { start | stop } <addr> "
+		printf("Usage: nanomq nngproxy pair1 <addr> "
 		       "[<nng_opts>...]\n\n");
 		break;
 
 	default:
-		printf("Usage: nanomq nngproxy { start | stop } <addr> "
+		printf("Usage: nanomq nngproxy { sub0 | pub0 } <addr> "
 		       "[<nng_opts>...]\n\n");
 		break;
 	}
 
 	printf("<addr> must be one or more of:\n");
-	printf("  --url <url>                      The url for mqtt broker "
+	printf("  --mqtt_url <url>                      The url for mqtt broker "
 	       "('mqtt-tcp://host:port' or 'tls+mqtt-tcp://host:port') \n");
 	printf("                                   [default: "
 	       "mqtt-tcp://127.0.0.1:1883]\n");
+	printf("  --dial/--listen <url>           The url for nng sp ");
 
 	if (type == PUB0 || type == SUB0) {
 		printf("\n<topic> must be set:\n");
