@@ -992,18 +992,10 @@ nng_cat_dflt(int ac, char **av)
 		rv = nng_pub0_open(&sock);
 		break;
 	case OPT_PAIR0:
-#ifdef NNG_HAVE_PAIR0
 		rv = nng_pair0_open(&sock);
-#else
-		fatal("Protocol not supported.");
-#endif
 		break;
 	case OPT_PAIR1:
-#ifdef NNG_HAVE_PAIR1
 		rv = nng_pair1_open(&sock);
-#else
-		fatal("Protocol not supported");
-#endif
 		break;
 	case OPT_BUS0:
 #ifdef NNG_HAVE_BUS0
