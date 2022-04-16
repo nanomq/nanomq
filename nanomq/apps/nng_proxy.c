@@ -95,7 +95,6 @@ enum options {
 	OPT_INTERVAL,
 	OPT_VERSION,
 	OPT_MQTT_URL,
-        OPT_NNG_URL,
 	OPT_DIAL,
 	OPT_LISTEN,
 	OPT_PUB,
@@ -142,7 +141,6 @@ static nng_optspec cmd_opts[] = {
 	    .o_arg   = true },
 	{ .o_name = "version", .o_short = 'V', .o_val = OPT_VERSION },
 	{ .o_name = "mqtt_url", .o_val = OPT_MQTT_URL, .o_arg = true },
-        { .o_name = "nng_url", .o_val = OPT_NNG_URL, .o_arg = true },
 	{ .o_name = "dial", .o_short = 'd', .o_val = OPT_DIAL, .o_arg = true },
 	{ .o_name = "listen", .o_short = 'l', .o_val = OPT_LISTEN, .o_arg = true },
 	{ .o_name    = "topic",
@@ -370,17 +368,19 @@ nng_client_parse_opts(int argc, char **argv, nng_proxy_opts *nng_opts)
 			    "only once.");
 			nng_opts->mqtt_url = nng_strdup(arg);
 			break;
-		case OPT_NNG_URL:
+		case OPT_DIAL:
+			nng_opts->nng_mode = OPT_DIAL;
 			ASSERT_NULL(nng_opts->nng_url,
 			    "URL (--url) may be specified "
 			    "only once.");
 			nng_opts->nng_url = nng_strdup(arg);
 			break;
-		case OPT_DIAL:
-			nng_opts->nng_mode = OPT_DIAL;
-			break;
 		case OPT_LISTEN:
 			nng_opts->nng_mode = OPT_LISTEN;
+			ASSERT_NULL(nng_opts->nng_url,
+			    "URL (--url) may be specified "
+			    "only once.");
+			nng_opts->nng_url = nng_strdup(arg);
 			break;
 		case OPT_TOPIC:
 			topicend = addtopic(topicend, arg);
