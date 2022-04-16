@@ -26,6 +26,7 @@
 #include <nng/supplemental/util/options.h>
 #include <nng/supplemental/util/platform.h>
 
+
 #if defined(SUPP_CLIENT)
 
 #ifdef NNG_SUPP_TLS
@@ -667,7 +668,7 @@ nng_publish_msg(nng_proxy_opts *nng_opts, nng_msg *msg)
 }
 
 void
-nng_client_cb(void *arg)
+nng_client_cb(void *arg, uint8_t mode)
 {
 	struct work *work = arg;
 	nng_msg *    msg  = NULL;
@@ -677,7 +678,6 @@ nng_client_cb(void *arg)
 	case INIT:
 		switch (work->nng_opts->type) {
 		case PUB0:
-		case PAIR1:
 			work->state = RECV_MQTT;
 			nng_ctx_recv(work->ctx, work->aio);
 			break;
@@ -685,6 +685,17 @@ nng_client_cb(void *arg)
 		case CONN:
 			work->state = RECV_NNG;
 			nng_ctx_recv(work->proxy_ctx, work->aio);
+			break;
+		case PAIR1:
+		case PAIR0:
+			if (mode == 1) {
+				work->state = RECV_NNG;
+				nng_recv_aio(work->nsocket, work->aio);
+			} else if (mode == 0) {
+				work->state = RECV_MQTT;
+				nng_ctx_recv(work->ctx, work->aio);
+			}
+
 			break;
 		}
 		break;
@@ -743,6 +754,11 @@ nng_client_cb(void *arg)
 			nng_fatal("nng_send_aio", rv);
 		}
 		work->state = RECV_NNG;
+		if (nng_opts->type == PAIR1 || nng_opts->type == PAIR0) {
+			nng_recv_aio(work->nsocket, work->aio);
+			break;
+		}
+
 		nng_ctx_recv(work->proxy_ctx, work->aio);
 		break;
 
@@ -942,10 +958,6 @@ create_client(nng_socket *sock, nng_socket psock, struct work **works,
 	nng_mqtt_set_disconnect_cb(*sock, disconnect_cb, msg);
 
 	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
-
-	for (size_t i = 0; i < nng_opts->parallel; i++) {
-		nng_client_cb(works[i]);
-	}
 }
 
 static void
@@ -1007,9 +1019,16 @@ nng_proxy_client(int argc, char **argv, enum nng_proto type)
 		break;
 	}
 	create_client(socket, s, works, nng_opts->parallel, param);
+	for (size_t i = 0; i < nng_opts->parallel; i++) {
+		nng_client_cb(works[i], 0);
+	}
 	if(nng_opts->type == PAIR1) {
 		struct work *works2[nng_opts->parallel];
 		create_client(socket, s, works2, nng_opts->parallel, param);
+		for (size_t i = 0; i < nng_opts->parallel; i++) {
+			// Recv from nng pair1 - send to MQTT 
+			nng_client_cb(works[i], 1);
+		}
 	}
 
 	while (!exit_signal) {
