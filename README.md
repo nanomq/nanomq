@@ -66,7 +66,7 @@ start a proxy to sub NNG url and convey nng msg to qos 2 MQTT msg and send to a 
 nanomq nngproxy sub0 --mqtt_url "mqtt-tcp://localhost:1883" --listen "ipc:///mqtt/nng" -t nng-mqtt --qos 1
 ```
 
-start a proxy to MQTT broker, sub to MQTT topic "nng-mqtt", and convert MQTT msg to NNG msg, then pub to NNG url:
+start a proxy sub to topic "nng-mqtt" of MQTT broker, and convert MQTT msg to NNG msg, then pub to NNG url:
 ```bash
 nanomq nngproxy pub0 --mqtt_url "mqtt-tcp://localhost:1883" --dial "ipc:///mqtt/nng" -t msg --qos 0
 ```
