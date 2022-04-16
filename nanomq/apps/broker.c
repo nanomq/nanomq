@@ -182,14 +182,7 @@ server_cb(void *arg)
 		work->pid    = nng_msg_get_pipe(work->msg);
 
 		if (nng_msg_cmd_type(msg) == CMD_DISCONNECT) {
-			webhook_client_disconnect(&work->webhook_sock,
-			    &work->config->web_hook, 
-				conn_param_get_protover(work->cparam),
-			    conn_param_get_keepalive(work->cparam),
-				0, //TODO set reason code if proto_version = MQTT_V5
-			    conn_param_get_username(work->cparam),
-			    conn_param_get_clientid(work->cparam));
-			// delete will msg
+			// TODO delete will msg
 		} else if (nng_msg_cmd_type(msg) == CMD_PUBLISH) {
 			// Set V4/V5 flag for publish msg
 			if (conn_param_get_protover(work->cparam) == 5) {
@@ -804,7 +797,7 @@ broker(conf *nanomq_conf)
 		if ((rv = nng_listener_start(tls_listener, 0)) != 0) {
 			fatal("nng_listener_start tls", rv);
 		}
-		// FIXME not finish yet
+		// TODO websocket ssl 
 		// if (nanomq_conf->websocket.enable) {
 		// 	nng_listener wss_listener;
 		// 	if ((rv = nng_listener_create(&wss_listener, sock,
