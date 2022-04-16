@@ -185,7 +185,7 @@ static nng_optspec cmd_opts[] = {
 };
 
 struct work {
-	enum { INIT, RECV, RECV_WAIT, SEND_WAIT, SEND } state;
+	enum { INIT, RECV, RECV_WAIT, SEND_MQTT, SEND_NNG } state;
 	nng_aio *    aio;
 	nng_msg *    msg;
 	nng_ctx      ctx;
@@ -686,12 +686,8 @@ nng_client_cb(void *arg)
 	case INIT:
 		switch (work->nng_opts->type) {
 		case PUB0:
-			work->msg = nng_publish_msg(work->nng_opts, NULL);
-			nng_msg_dup(&msg, work->msg);
-			nng_aio_set_msg(work->aio, msg);
-			msg         = NULL;
-			work->state = SEND;
-			nng_ctx_send(work->ctx, work->aio);
+			work->state = RECV;
+			nng_ctx_recv(work->ctx, work->aio);
 			break;
 		case SUB0:
 		case CONN:
@@ -704,8 +700,7 @@ nng_client_cb(void *arg)
 
 	case RECV:
 		if ((rv = nng_aio_result(work->aio)) != 0) {
-			// nng_fatal("nng_recv_aio", rv);
-			printf("error!?@@\n");
+			nng_fatal("nng_recv_aio", rv);
 			work->state = RECV;
 			nng_ctx_recv(work->proxy_ctx, work->aio);
 			break;
@@ -718,7 +713,7 @@ nng_client_cb(void *arg)
 		work->msg = msg;
 		nng_aio_set_msg(work->aio, work->msg);
 		nng_ctx_send(work->ctx, work->aio);
-		work->state = SEND;
+		work->state = SEND_MQTT;
 		break;
 
 	case RECV_WAIT:
@@ -740,7 +735,7 @@ nng_client_cb(void *arg)
 		nng_ctx_recv(work->ctx, work->aio);
 		break;
 
-	case SEND:
+	case SEND_MQTT:
 		if ((rv = nng_aio_result(work->aio)) != 0) {
 			nng_msg_free(work->msg);
 			nng_fatal("nng_send_aio", rv);
@@ -749,15 +744,9 @@ nng_client_cb(void *arg)
 		work->state = RECV;
 		nng_ctx_recv(work->proxy_ctx, work->aio);
 		break;
-		// nng_msg_dup(&msg, work->msg);
-		// nng_aio_set_msg(work->aio, msg);
-		// msg         = NULL;
-		// work->state = SEND_WAIT;
-		// nng_sleep_aio(work->nng_opts->interval, work->aio);
-		// break;
 
-	case SEND_WAIT:
-		work->state = SEND;
+	case SEND_NNG:
+		work->state = RECV;
 		nng_ctx_send(work->ctx, work->aio);
 		break;
 
@@ -962,26 +951,13 @@ nng_proxy_client(int argc, char **argv, enum nng_proto type)
 	nng_socket *socket = nng_zalloc(sizeof(nng_socket *));
 	switch (nng_opts->type) {
 	case SUB0:
-		if (nng_opts->type == SUB0) {
-			if ((rv = nng_sub0_open(&s)) != 0) {
-				nng_fatal("nng_socket", rv);
-			}
-			
-			// if ((rv = nng_setopt(
-			//          s, NNG_OPT_SUB_SUBSCRIBE, "", 0)) != 0) {
-			// 	fatal("nng_setopt", rv);
-			// }
-			// nng_socket_set(s, NNG_OPT_SUB_SUBSCRIBE, "", 0);
-			rv = nng_listener_create(&l, s, nng_opts->nng_url);
-			nng_listener_start(l, 0);
-			nng_listener_get(
-				        l, nng_opts->nng_url, NULL, 0);
-			// if ((rv = nng_listen(s, nng_opts->nng_url, NULL, 0)) <
-			//     0) {
-			// 	fatal("nng_listen", rv);
-			// }
-			// rv = nng_listener_create(&l, sock, a->val);
+		if ((rv = nng_sub0_open(&s)) != 0) {
+			nng_fatal("nng_socket", rv);
 		}
+
+		rv = nng_listener_create(&l, s, nng_opts->nng_url);
+		nng_listener_start(l, 0);
+		nng_listener_get(l, nng_opts->nng_url, NULL, 0);
 		break;
 
 	default:
@@ -999,7 +975,6 @@ nng_proxy_client(int argc, char **argv, enum nng_proto type)
 
 		nng_free(param, sizeof(struct connect_param));
 		nng_free(socket, sizeof(nng_socket));
-		// nng_free(psocket[j], sizeof(nng_socket));
 
 		for (size_t k = 0; k < nng_opts->parallel; k++) {
 			nng_aio_free(works[k]->aio);
