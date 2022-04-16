@@ -234,6 +234,8 @@ help(enum nng_proto type)
 		break;
 
 	default:
+		printf("Usage: nanomq nngproxy { start | stop } <addr> "
+		       "[<nng_opts>...]\n\n");
 		break;
 	}
 
@@ -995,8 +997,6 @@ nng_proxy_client(int argc, char **argv, enum nng_proto type)
 		if ((rv = nng_pair1_open(&s)) != 0) {
 			nng_fatal("nng_socket", rv);
 		}
-		//TODO upload & download two way channel
-		// works2 for recv pair1 msg convert to mqtt msg
 		break;
 	default:
 		break;
@@ -1071,7 +1071,10 @@ nng_sub0_start(int argc, char **argv)
 int
 nng_proxy_start(int argc, char **argv)
 {
-	//FIX ME
+	if (argc < 3) {
+		help(0);
+		return 0;
+	}
 	if (strncmp(argv[0], "sub0", 3) == 0)
 		nng_proxy_client(argc-1, argv+1, SUB0);
 	else if (strncmp(argv[0], "pub0", 3) == 0)
