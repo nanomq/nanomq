@@ -59,18 +59,23 @@ nanomq conn start --url <url> [--help]
 nanomq bench start { pub | sub | conn } [--help]
 ```
 
+**NanoMQ nng message proxy**
+
+start a proxy to sub NNG url and convey nng msg to qos 2 MQTT msg and send to a specific topic "nng-mqtt" of MQTT broker:
+```bash
+nanomq nngproxy sub0 --mqtt_url "mqtt-tcp://localhost:1883" --listen "ipc:///mqtt/nng" -t nng-mqtt --qos 1
+```
+
+start a proxy to MQTT broker, sub to MQTT topic "nng-mqtt", and convert MQTT msg to NNG msg, then pub to NNG url:
+```bash
+nanomq nngproxy pub0 --mqtt_url "mqtt-tcp://localhost:1883" --dial "ipc:///mqtt/nng" -t msg --qos 0
+```
+
 **POSIX message queue usage**
 
 ```bash
 nanomq mq start
 nanomq mq stop
-```
-
-*Incoming feature: NanoMQ nanomsg/nng proxy*
-
-```bash
-nanomq nng-proxy start req -port 5555
-nanomq nng-proxy start rep -port 5555
 ```
 
 **Note: NanoMQ provides several ways of configurations so that user can achieve better performance on different platforms**, check [here](#Configuration ) for details.
