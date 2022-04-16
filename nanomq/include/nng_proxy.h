@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-enum nng_proto { PUB0, SUB0, CONN, REQ, REP };
+enum nng_proto { PUB0, SUB0, CONN, REQ, REP, PAIR0 };
 
 typedef struct nng_proxy_opts nng_proxy_opts;
 

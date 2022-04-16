@@ -529,10 +529,17 @@ nng_client_parse_opts(int argc, char **argv, nng_proxy_opts *nng_opts)
 
 	switch (nng_opts->type) {
 	case PUB0:
+		if (nng_opts->topic_count == 0) {
+			fatal("Missing required option: '(-t, --topic) "
+			      "PUB0 convey mqtt msg from -t to --nng_url"
+			      "<topic>'\n Need an MQTT topic for subscribing msg");
+		}
 		break;
 	case SUB0:
 		if (nng_opts->topic_count == 0) {
 			fatal("Missing required option: '(-t, --topic) "
+			      "SUB0 convey nng msg from --nng_url( all topics ) "
+			      "to --mqtt_url and topic -t"
 			      "<topic>'\n Need an MQTT topic for publishing msg");
 		}
 		/* code */
@@ -863,7 +870,7 @@ disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 }
 
 static struct work *
-sub0_alloc_work(nng_socket sock, nng_socket psock, nng_proxy_opts *nng_opts)
+nng_alloc_work(nng_socket sock, nng_socket psock, nng_proxy_opts *nng_opts)
 {
 	struct work *w;
 	int          rv;
@@ -880,7 +887,20 @@ sub0_alloc_work(nng_socket sock, nng_socket psock, nng_proxy_opts *nng_opts)
 	if ((rv = nng_ctx_open(&w->proxy_ctx, psock)) != 0) {
 		nng_fatal("nng_ctx_open", rv);
 	}
-	nng_ctx_setopt(w->proxy_ctx, NNG_OPT_SUB_SUBSCRIBE, "", 0);
+	switch (nng_opts->type) {
+	case SUB0:
+		nng_ctx_setopt(w->proxy_ctx, NNG_OPT_SUB_SUBSCRIBE, "", 0);
+		break;
+	case PUB0:
+		// nng_ctx_setopt(w->proxy_ctx, NNG_OPT_SUB_SUBSCRIBE, "", 0);
+		break;
+	case PAIR0:
+		nng_ctx_setopt(w->proxy_ctx, NNG_OPT_SUB_SUBSCRIBE, "", 0);
+		break;
+	default:
+		break;
+	}
+
 	w->nng_opts  = nng_opts;
 	w->state = INIT;
 	return (w);
@@ -899,10 +919,7 @@ create_client(nng_socket *sock, nng_socket psock, struct work **works,
 	}
 
 	for (size_t i = 0; i < nng_opts->parallel; i++) {
-		if (nng_opts->type == SUB0)
-			works[i] = sub0_alloc_work(*sock, psock, nng_opts);
-		else
-			works[i] = alloc_work(*sock, nng_opts);
+		works[i] = nng_alloc_work(*sock, psock, nng_opts);
 	}
 
 	nng_msg *msg = connect_msg(nng_opts);
@@ -941,6 +958,7 @@ nng_proxy_client(int argc, char **argv, enum nng_proto type)
 	int rv;
 	nng_socket   s;		//nng socket
 	nng_listener l;
+	nng_dialer   d;
 	nng_opts = nng_zalloc(sizeof(nng_proxy_opts));
 	set_default_conf(nng_opts);
 	nng_opts->type = type;
@@ -957,7 +975,16 @@ nng_proxy_client(int argc, char **argv, enum nng_proto type)
 
 		rv = nng_listener_create(&l, s, nng_opts->nng_url);
 		nng_listener_start(l, 0);
-		nng_listener_get(l, nng_opts->nng_url, NULL, 0);
+		// nng_listener_get(l, nng_opts->nng_url, NULL, 0);
+		break;
+	case PUB0:
+		if ((rv = nng_pub0_open(&s)) != 0) {
+			nng_fatal("nng_socket", rv);
+		}
+
+		rv = nng_dialer_create(&d, s, nng_opts->nng_url);
+		rv  = nng_dialer_start(d, 0);
+		// nng_listener_get(l, nng_opts->nng_url, NULL, 0);
 		break;
 
 	default:
