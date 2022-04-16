@@ -220,15 +220,15 @@ help(enum nng_proto type)
 {
 	switch (type) {
 	case PUB0:
-		printf("Usage: nanomq pub { start | stop } <addr> "
+		printf("Usage: nanomq pub0 { start | stop } <addr> "
 		       "[<topic>...] [<nng_opts>...] [<src>]\n\n");
 		break;
 	case SUB0:
-		printf("Usage: nanomq sub { start | stop } <addr> "
+		printf("Usage: nanomq sub0 { start | stop } <addr> "
 		       "[<topic>...] [<nng_opts>...]\n\n");
 		break;
-	case CONN:
-		printf("Usage: nanomq conn { start | stop } <addr> "
+	case PAIR1:
+		printf("Usage: nanomq pair1 { start | stop } <addr> "
 		       "[<nng_opts>...]\n\n");
 		break;
 
@@ -505,9 +505,8 @@ nng_client_parse_opts(int argc, char **argv, nng_proxy_opts *nng_opts)
 	if (!nng_opts->mqtt_url) {
 		nng_opts->mqtt_url = nng_strdup("mqtt-tcp://127.0.0.1:1883");
 	}
-	// if (nng_opts->nng_mode = 0)
         if (!nng_opts->nng_url) {
-                //FIXME error url
+                fatal("NNG url is invalid.");
 		return;
 	}
 
@@ -683,7 +682,6 @@ nng_client_cb(void *arg)
 			break;
 		case SUB0:
 		case CONN:
-			printf("init\n");
 			work->state = RECV_NNG;
 			nng_ctx_recv(work->proxy_ctx, work->aio);
 			break;
@@ -697,15 +695,14 @@ nng_client_cb(void *arg)
 			nng_ctx_recv(work->proxy_ctx, work->aio);
 			break;
 		}
-		printf("recv %d\n", work->ctx.id);
 		work->msg   = nng_aio_get_msg(work->aio);
-		printf("!here msg : %s %d\n", nng_msg_body(work->msg), nng_msg_len(work->msg));
+		printf("NNG msg : %s\n", nng_msg_body(work->msg));
 		msg = nng_publish_msg(work->nng_opts, work->msg);
 		nng_msg_free(work->msg);
 		work->msg = msg;
 		nng_aio_set_msg(work->aio, work->msg);
-		nng_ctx_send(work->ctx, work->aio);
 		work->state = SEND_MQTT;
+		nng_ctx_send(work->ctx, work->aio);
 		break;
 
 	case RECV_MQTT:
@@ -725,7 +722,7 @@ nng_client_cb(void *arg)
 		const char *recv_topic =
 		    nng_mqtt_msg_get_publish_topic(msg, &topic_len);
 
-		printf("%.*s: %.*s\n", topic_len, recv_topic, payload_len,
+		printf("MQTT msg: %.*s: %.*s\n", topic_len, recv_topic, payload_len,
 		    (char *) payload);
 
 		if (((rv = nng_msg_alloc(&work->msg, 0)) != 0) ||
@@ -737,7 +734,6 @@ nng_client_cb(void *arg)
 		work->state = SEND_NNG;
 		nng_aio_set_msg(work->aio, work->msg);
 		nng_send_aio(work->nsocket, work->aio);
-		// nng_ctx_send(work->proxy_ctx, work->aio);
 		break;
 
 	case SEND_MQTT:
@@ -745,7 +741,6 @@ nng_client_cb(void *arg)
 			nng_msg_free(work->msg);
 			nng_fatal("nng_send_aio", rv);
 		}
-		printf("send %d\n", work->ctx.id);
 		work->state = RECV_NNG;
 		nng_ctx_recv(work->proxy_ctx, work->aio);
 		break;
@@ -894,7 +889,7 @@ nng_alloc_work(nng_socket sock, nng_socket psock, nng_proxy_opts *nng_opts)
 		w->nsocket = psock;
 		break;
 	case PAIR0:
-		nng_ctx_setopt(w->proxy_ctx, NNG_OPT_SUB_SUBSCRIBE, "", 0);
+		w->nsocket = psock;
 		break;
 	default:
 		break;
@@ -981,22 +976,23 @@ nng_proxy_client(int argc, char **argv, enum nng_proto type)
 		if ((rv = nng_pair1_open(&s)) != 0) {
 			nng_fatal("nng_socket", rv);
 		}
+		//set upload & download two way channel
 		break;
 	default:
 		break;
 	}
-	switch (nng_opts->nng_mode)
-	{
+	switch (nng_opts->nng_mode) {
 	case OPT_DIAL:
 		rv = nng_dialer_create(&d, s, nng_opts->nng_url);
-		rv  = nng_dialer_start(d, 0);
+		rv = nng_dialer_start(d, 0);
 		if (rv != 0)
-			printf("unable to connect!\n");
+			fatal("unable to connect %s!\n", nng_opts->nng_url);
 		break;
 	case OPT_LISTEN:
 		rv = nng_listener_create(&l, s, nng_opts->nng_url);
-		nng_listener_start(l, 0);
-		// nng_listener_get(l, nng_opts->nng_url, NULL, 0);
+		rv = nng_listener_start(l, 0);
+		if (rv != 0)
+			fatal("unable to listen to %s!\n", nng_opts->nng_url);
 		break;
 	default:
 		break;
