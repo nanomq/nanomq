@@ -17,6 +17,11 @@
 static bool event_filter(conf_web_hook *hook_conf, webhook_event event);
 static bool event_filter_with_topic(
     conf_web_hook *hook_conf, webhook_event event, const char *topic);
+static void         set_char(char *out, unsigned int *index, char c);
+static unsigned int base62_encode(
+    const unsigned char *in, unsigned int inlen, char *out);
+
+#define BASE62_ENCODE_OUT_SIZE(s) ((unsigned int) ((((s) *8) / 6) + 2))
 
 static bool
 event_filter(conf_web_hook *hook_conf, webhook_event event)
@@ -49,6 +54,56 @@ event_filter_with_topic(
 	return false;
 }
 
+static void
+set_char(char *out, unsigned int *index, char c)
+{
+	unsigned int idx = *index;
+	switch (c) {
+	case 'i':
+		out[idx++] = 'i';
+		out[idx++] = 'a';
+		break;
+	case '+':
+		out[idx++] = 'i';
+		out[idx++] = 'b';
+		break;
+	case '/':
+		out[idx++] = 'i';
+		out[idx++] = 'c';
+		break;
+	default:
+		out[idx++] = c;
+		break;
+	}
+
+	*index = idx;
+}
+
+static unsigned int
+base62_encode(const unsigned char *in, unsigned int inlen, char *out)
+{
+	unsigned int i;
+	unsigned int j;
+	unsigned int pos = 0, val = 0;
+	const char   base62en[] =
+	    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+	for (i = j = 0; i < inlen; i++) {
+		val = (val << 8) | (in[i] & 0xFF);
+		pos += 8;
+		while (pos > 5) {
+			char c = base62en[val >> (pos -= 6)];
+			set_char(out, &j, c);
+			val &= ((1 << pos) - 1);
+		}
+	}
+	if (pos > 0) {
+		char c = base62en[val << (6 - pos)];
+		set_char(out, &j, c);
+	}
+	return j;
+}
+
 int
 webhook_msg_publish(nng_socket *sock, conf_web_hook *hook_conf,
     pub_packet_struct *pub_packet, const char *username, const char *client_id)
@@ -78,16 +133,17 @@ webhook_msg_publish(nng_socket *sock, conf_web_hook *hook_conf,
 	}
 	size_t out_size = 0;
 	char * encode   = NULL;
+	size_t len      = 0;
 	switch (hook_conf->encode_payload) {
 	case plain:
 		cJSON_AddStringToObject(
 		    obj, "payload", (const char *) pub_packet->payload.data);
 		break;
 	case base64:
-		out_size   = BASE64_ENCODE_OUT_SIZE(pub_packet->payload.len);
-		encode     = nng_zalloc(out_size);
-		size_t len = base64_encode(
-		    pub_packet->payload.data, pub_packet->payload.len, encode);
+		out_size = BASE64_ENCODE_OUT_SIZE(pub_packet->payload.len);
+		encode   = nng_zalloc(out_size);
+		len      = base64_encode(
+                    pub_packet->payload.data, pub_packet->payload.len, encode);
 		if (len > 0) {
 			cJSON_AddStringToObject(obj, "payload", encode);
 		} else {
@@ -96,8 +152,16 @@ webhook_msg_publish(nng_socket *sock, conf_web_hook *hook_conf,
 		nng_strfree(encode);
 		break;
 	case base62:
-		/* code */
-		// TODO add base62 support
+		out_size = BASE62_ENCODE_OUT_SIZE(pub_packet->payload.len);
+		encode   = nng_zalloc(out_size);
+		len      = base62_encode(
+                    pub_packet->payload.data, pub_packet->payload.len, encode);
+		if (len > 0) {
+			cJSON_AddStringToObject(obj, "payload", encode);
+		} else {
+			cJSON_AddNullToObject(obj, "payload");
+		}
+		nng_strfree(encode);
 		break;
 
 	default:
