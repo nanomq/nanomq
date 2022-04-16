@@ -14,6 +14,7 @@ project(nanomq-nng)
 include(CheckCCompilerFlag)
 
 option (BUILD_CLIENT "Build nanomq client" ON)
+option (BUILD_NNG_PROXY "Build nng proxy" ON)
 option (BUILD_BENCH "Build nano-bench" OFF)
 
 set (NNG_PROTO_MQTT_BROKER  ON)
@@ -157,6 +158,10 @@ endif (MQ)
 if (BUILD_CLIENT)
   add_definitions(-DSUPP_CLIENT)
 endif(BUILD_CLIENT)
+
+if (BUILD_NNG_PROXY)
+  add_definitions(-DSUPP_NNG_PROXY)
+endif(BUILD_NNG_PROXY)
 
 if (DEBUG)
   message("DEBUG ")
