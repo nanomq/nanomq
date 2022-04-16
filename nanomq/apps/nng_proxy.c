@@ -51,7 +51,7 @@ struct nng_proxy_opts {
 	enum nng_proto   type;
 	bool             verbose;
 	size_t           parallel;
-	atomic_ulong     msg_count;
+	atomic_ulong     msg_count;	// caculate how many msg has been conveyed
 	size_t           interval;
 	uint8_t          version;
 	char            *nng_url;
@@ -194,7 +194,6 @@ struct work {
 };
 
 static atomic_bool exit_signal = false;
-static atomic_long send_count  = 0;
 
 static void
 fatal(const char *msg, ...)
@@ -383,12 +382,6 @@ nng_client_parse_opts(int argc, char **argv, nng_proxy_opts *nng_opts)
 			break;
 		case OPT_PARALLEL:
 			nng_opts->parallel = intarg(arg, 1024000);
-			break;
-		case OPT_INTERVAL:
-			nng_opts->interval = intarg(arg, 10240000);
-			break;
-		case OPT_MSGCOUNT:
-			nng_opts->msg_count = intarg(arg, 10240000);
 			break;
                 //TODO tasq number
 		case OPT_CLIENTS:
@@ -696,11 +689,6 @@ nng_client_cb(void *arg)
 	case INIT:
 		switch (work->nng_opts->type) {
 		case PUB0:
-			if (work->nng_opts->msg_count > 0) {
-				if (--send_count < 0) {
-					break;
-				}
-			}
 			work->msg = nng_publish_msg(work->nng_opts, NULL);
 			nng_msg_dup(&msg, work->msg);
 			nng_aio_set_msg(work->aio, msg);
@@ -772,14 +760,6 @@ nng_client_cb(void *arg)
 		// break;
 
 	case SEND_WAIT:
-		if (work->nng_opts->msg_count > 0) {
-			if (--send_count < 0) {
-				goto out;
-			}
-		}
-		if (work->nng_opts->interval == 0) {
-			goto out;
-		}
 		work->state = SEND;
 		nng_ctx_send(work->ctx, work->aio);
 		break;
@@ -974,23 +954,15 @@ static void
 nng_proxy_client(int argc, char **argv, enum nng_proto type)
 {
 	int rv;
-	nng_socket s;
-	nng_listener    l;
+	nng_socket   s;
+	nng_listener l;
 	nng_opts = nng_zalloc(sizeof(nng_proxy_opts));
 	set_default_conf(nng_opts);
 	nng_opts->type = type;
 
 	nng_client_parse_opts(argc, argv, nng_opts);
-
-	// send_count = nng_opts->msg_count;
-	// if (nng_opts->interval == 0 && nng_opts->msg_count > 0) {
-	// 	nng_opts->interval = 1;
-	// }
-
-	struct connect_param **param =
-	    nng_zalloc(sizeof(struct connect_param *) * nng_opts->clients);
+	struct connect_param **param = nng_zalloc(sizeof(struct connect_param *) * nng_opts->clients);
 	nng_socket **socket = nng_zalloc(sizeof(nng_socket *) * nng_opts->clients);
-	// nng_socket **psocket = nng_zalloc(sizeof(nng_socket *) * nng_opts->clients);
 	switch (nng_opts->type) {
 	case SUB0:
 		if (nng_opts->type == SUB0) {
