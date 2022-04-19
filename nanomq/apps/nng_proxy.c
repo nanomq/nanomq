@@ -223,71 +223,56 @@ help(enum nng_proto type)
 {
 	switch (type) {
 	case PUB0:
-		printf("Usage: nanomq nngproxy pub0 <addr> "
+		printf("Usage: nanomq nngproxy pub0 --mqtt_url <url> --dial/--listen <url> "
 		       "[<topic>...] [<nng_opts>...] [<src>]\n\n");
 		break;
 	case SUB0:
-		printf("Usage: nanomq nngproxy sub0 <addr> "
+		printf("Usage: nanomq nngproxy sub0 --mqtt_url <url> --dial/--listen <url> "
 		       "[<topic>...] [<nng_opts>...]\n\n");
 		break;
 	case PAIR1:
-		printf("Usage: nanomq nngproxy pair1 <addr> "
+		printf("Usage: nanomq nngproxy pair1 --mqtt_url <url> --dial/--listen <url> "
 		       "[<nng_opts>...]\n\n");
 		break;
 
 	default:
-		printf("Usage: nanomq nngproxy { sub0 | pub0 } <addr> "
+		printf("Usage: nanomq nngproxy { sub0 | pub0 | pair1 | pair0 } <url> "
 		       "[<nng_opts>...]\n\n");
 		break;
 	}
 
-	printf("<addr> must be one or more of:\n");
+	printf("<url> must be one or more of:\n");
 	printf("  --mqtt_url <url>                      The url for mqtt broker "
 	       "('mqtt-tcp://host:port' or 'tls+mqtt-tcp://host:port') \n");
 	printf("                                   [default: "
 	       "mqtt-tcp://127.0.0.1:1883]\n");
-	printf("  --dial/--listen <url>           The url for nng sp ");
-
-	if (type == PUB0 || type == SUB0) {
-		printf("\n<topic> must be set:\n");
-		printf(
-		    "  -t, --topic <topic>              Topic for publish or "
-		    "subscribe\n");
-	}
+	printf(" nng proxy url:  --dial/--listen <url> The url for dialing or listening nng msg "
+	       " must specify one\n");
+	printf("\n<topic> must be set:\n");
+	printf("  -t, --topic <topic>  MQTT Topic for publish or subscribe\n");
 
 	printf("\n<nng_opts> may be any of:\n");
 	printf("  -V, --version <version: 3|4|5>   The MQTT version used by "
 	       "the client [default: 4]\n");
 	printf("  -n, --parallel             	   The number of parallel for "
-	       "client [default: 1]\n");
+	       "proxy client [default: 1]\n");
 	printf("  -v, --verbose              	   Enable verbose mode\n");
-	printf("  -u, --user <user>                The username for "
+	printf("  -u, --user <user>                The username for MQTT "
 	       "authentication\n");
-	printf("  -p, --password <password>        The password for "
+	printf("  -p, --password <password>        The password for MQTT "
 	       "authentication\n");
 	printf("  -k, --keepalive <keepalive>      A keep alive of the client "
 	       "(in seconds) [default: 60]\n");
-	if (type == PUB0) {
-		printf("  -m, --msg <message>              The message to "
-		       "publish\n");
-		printf("  -L, --limit <num>                Max count of "
-		       "publishing "
-		       "message [default: 1]\n");
-		printf("  -i, --interval <ms>              Interval of "
-		       "publishing "
-		       "message (ms) [default: 10]\n");
-		printf(
+	printf(
 		    "  -I, --identifier <identifier>    The client identifier "
 		    "UTF-8 String (default randomly generated string)\n");
-	} else {
-		printf("  -i, --interval <ms>              Interval of "
-		       "establishing connection "
-		       "(ms) [default: 10]\n");
-	}
-	printf("  -C, --count <num>                Num of client \n");
+	// printf("  -i, --interval <ms>              Interval of "
+	// 	       "establishing connection "
+	// 	       "(ms) [default: 10]\n");
+	printf("  -C, --count <num>                Num of MQTT client \n");
 	printf("  -q, --qos <qos>                  Quality of service for the "
 	       "corresponding topic [default: 0]\n");
-	printf("  -r, --retain                     The message will be "
+	printf("  -r, --retain                     The proxy message will be "
 	       "retained [default: false]\n");
 	printf("  -c, --clean_session <true|false> Define a clean start for "
 	       "the connection [default: true]\n");
@@ -306,12 +291,6 @@ help(enum nng_proto type)
 	printf("      -E, --cert <file>            Certificate file path\n");
 	printf("      --key <file>                 Private key file path\n");
 	printf("      --keypass <key password>     Private key password\n");
-
-	if (type == PUB0) {
-		printf("\n<src> may be one of:\n");
-		printf("  -m, --msg  <data>                \n");
-		printf("  -f, --file <file>                \n");
-	}
 }
 
 static int
