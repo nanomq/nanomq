@@ -16,7 +16,8 @@
 #include <stdatomic.h>
 
 typedef struct {
-    const char *zmq_url;
+    const char *zmq_conn_url;
+    const char *zmq_listen_url;
     const char *mqtt_url;
     const char *sub_topic;
     const char *pub_topic;

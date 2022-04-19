@@ -10,7 +10,7 @@ struct work {
 	nng_ctx  ctx;
 };
 
-static zmq_proxy_conf *conf = NULL;
+static zmq_proxy_conf *conf_g = NULL;
 static int nwork = 32;
 
 void
@@ -42,13 +42,13 @@ connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	printf("%s: connected!\n", __FUNCTION__);
 	nng_socket sock = *(nng_socket *) arg;
 
-	nng_mqtt_topic_qos topic_qos[0];
+	nng_mqtt_topic_qos topic_qos[1];
 
     // set_sub_topic(topic_qos, 0, &conf->sub_topic);
-    printf("topic: %s\n", conf->sub_topic);
+    printf("topic: %s\n", conf_g->sub_topic);
   	topic_qos[0].qos = 0;
-  	topic_qos[0].topic.buf = (uint8_t*) conf->sub_topic;
-  	topic_qos[0].topic.length = strlen(conf->sub_topic);
+  	topic_qos[0].topic.buf = (uint8_t*) conf_g->sub_topic;
+  	topic_qos[0].topic.length = strlen(conf_g->sub_topic);
 
 	size_t topic_qos_count =
 	    sizeof(topic_qos) / sizeof(nng_mqtt_topic_qos);
@@ -75,10 +75,10 @@ int check_recv(nng_msg *msg)
 
 	uint8_t *payload = nng_mqtt_msg_get_publish_payload(msg, &payload_len);
 	const char *topic = nng_mqtt_msg_get_publish_topic(msg, &topic_len);
-	printf("RECV: '%.*s' FROM: '%.*s'\n", payload_len,
-	    (char *) payload, topic_len, topic);
+	// printf("RECV: '%.*s' FROM: '%.*s'\n", payload_len,
+	//     (char *) payload, topic_len, topic);
 
-    zmq_send(conf->zmq_sender, (void*) payload, payload_len, 0);
+    zmq_send(conf_g->zmq_sender, (void*) payload, payload_len, 0);
 
 	// char topic_buf[TOPIC_LEN];
 	// char payload_buf[TOPIC_LEN];
@@ -93,7 +93,7 @@ int check_recv(nng_msg *msg)
 }
 
 void
-sub_cb(void *arg)
+gateway_sub_cb(void *arg)
 {
 	struct work *work = arg;
 	nng_msg *    msg;
@@ -133,7 +133,7 @@ proxy_alloc_work(nng_socket sock)
 	if ((w = nng_alloc(sizeof(*w))) == NULL) {
 		proxy_fatal("nng_alloc", NNG_ENOMEM);
 	}
-	if ((rv = nng_aio_alloc(&w->aio, sub_cb, w)) != 0) {
+	if ((rv = nng_aio_alloc(&w->aio, gateway_sub_cb, w)) != 0) {
 		proxy_fatal("nng_aio_alloc", rv);
 	}
 	if ((rv = nng_ctx_open(&w->ctx, sock)) != 0) {
@@ -207,7 +207,7 @@ client(const char *url, nng_socket *sock_ret)
 	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
 
 	for (int i = 0; i < nwork; i++) {
-		sub_cb(works[i]);
+		gateway_sub_cb(works[i]);
 	}
 
     *sock_ret = sock;
@@ -228,14 +228,18 @@ int zmq_gateway(zmq_proxy_conf *conf)
         sender = zmq_socket(context, ZMQ_REQ);
     }
 
-    zmq_connect(receiver, conf->zmq_url);
-    zmq_connect(sender, conf->zmq_url);
+    // zmq_connect(receiver, conf->zmq_url);
+    zmq_connect(receiver, conf->zmq_conn_url);
+	zmq_setsockopt(receiver, ZMQ_SUBSCRIBE, "", 0);
+
+    zmq_bind(sender, conf->zmq_listen_url);
     conf->zmq_sender = sender;
     client(conf->mqtt_url, &sock);
 
     while (1) {
         char msg [256];
         int size = zmq_recv(receiver, msg, 255, 0);
+		printf("recv: %.*s\n", size, msg);
         if (size != -1) {
 	        client_publish(sock, conf->pub_topic, (uint8_t*) msg, size, 0, false);
         }
@@ -253,12 +257,13 @@ static zmq_proxy_conf *read_conf(const char *pwd)
         exit(EXIT_FAILURE);
     }
     conf->mqtt_url = zstrdup("mqtt-tcp://localhost:1883");
-    conf->zmq_url = zstrdup("tcp://tcp://localhost:5559");
+    conf->zmq_listen_url = zstrdup("tcp://*:5559");
+    conf->zmq_conn_url = zstrdup("tcp://localhost:5560");
     conf->pub_topic = zstrdup("topic/pub");
-    conf->sub_topic = zstrdup("tcp://localhost:5559");
+    conf->sub_topic = zstrdup("topic/sub");
+
     conf->type = PUB_SUB;
     conf->zmq_sender = NULL;
-
     return conf;
 
 }
@@ -268,6 +273,7 @@ int gateway_start(int argc, char **argv)
     const char *pwd = "";
     // TODO read config
     zmq_proxy_conf *conf = read_conf(pwd);
+	conf_g = conf;
     zmq_gateway(conf);
     return 0;
 }
