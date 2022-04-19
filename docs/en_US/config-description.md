@@ -8,6 +8,7 @@ The configuration files of NanoMQ Broker usually have the suffix .conf. You can 
 | etc/nanomq.conf               | NanoMQ Configuration File        |
 | etc/nanomq_bridge.conf        | NanoMQ Bridge File     |
 | etc/nanomq_auth_username.conf | NanoMQ Authorization File  |
+| etc/nanomq_web_hook.conf | NanoMQ Web Hook File  |
 
 ## Parameter Description
 
@@ -66,3 +67,22 @@ The configuration files of NanoMQ Broker usually have the suffix .conf. You can 
 | auth.1.password | String   | First Password.                 |
 | auth.2.login    | String   | Second Username ( *And so on* ). |
 | auth.2.password | String   | Second Password ( *And so on* ). |
+
+### nanomq_web_hook.conf
+
+| Name | Type | Description |
+| ------ | -------- | -------- |
+| web.hook.enable       | Boolean | Enable WebHook (default: `false`) |
+| web.hook.url       | String | *Webhook URL* |
+| web.hook.headers.\<Any\> | String | *HTTP Headers*<br>*Example:*<br>*1. web.hook.headers.content-type=application/json*<br> *2. web.hook.headers.accept=\** |
+| web.hook.body.encoding_of_payload_field | Enum | *The encoding format of the payload field in the HTTP body*<br>Options: <br>plain \| base64 \| base62 |
+| web.hook.ssl.cacertfile       | String | *PEM format file of CA's*. |
+| web.hook.ssl.certfile       | String | *Certificate file to use, PEM format assumed.* |
+| web.hook.ssl.keyfile       | String | *Private key file to use, PEM format assumed.* |
+| web.hook.ssl.verify       | Boolean | *Turn on peer certificate verification*  (default: `false`). |
+| web.hook.ssl.server_name_indication       | Boolean | *Verify server_name*  (default: `false`). |
+| web.hook.pool_size | Integer | *Connection process pool size* (default: 32). |
+| web.hook.rule.client.connack.\<No\>      | String  | Example: <br>*web.hook.rule.client.connack.1={"action": "on_client_connack"}* |
+| web.hook.rule.client.disconnected.\<No\> | String  | *Example: <br/>web.hook.rule.client.disconnected.1={"action": "on_client_disconnected"}* |
+| web.hook.rule.message.publish.\<No\>     | String  | Example: <br/>*web.hook.rule.message.publish.1={"action": "on_message_publish"}* <br>*web.hook.rule.message.publish.1={"action": "on_message_publish", "topic": "topic/1/2"}* <br>*web.hook.rule.message.publish.2 = {"action": "on_message_publish", "topic": "foo/#"}* |
+
