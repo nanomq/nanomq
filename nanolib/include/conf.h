@@ -65,6 +65,7 @@ struct conf_http_server {
 	uint16_t port;
 	char *   username;
 	char *   password;
+	enum { BASIC, JWT, NONE_AUTH } auth_type;
 };
 
 typedef struct conf_http_server conf_http_server;
