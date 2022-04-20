@@ -104,7 +104,6 @@ gateway_sub_cb(void *arg)
 
 	switch (work->state) {
 	case INIT:
-		nng_msleep(100);
 		work->state = RECV;
 		nng_ctx_recv(work->ctx, work->aio);
 		break;
@@ -187,6 +186,8 @@ client(const char *url, nng_socket *sock_ret)
 		return rv;
 	}
 
+    *sock_ret = sock;
+
 	for (int i = 0; i < nwork; i++) {
 		works[i] = proxy_alloc_work(sock);
 	}
@@ -200,7 +201,7 @@ client(const char *url, nng_socket *sock_ret)
 	nng_mqtt_msg_set_connect_user_name(msg, "nng_mqtt_client");
 	nng_mqtt_msg_set_connect_password(msg, "secrets");
 
-	nng_mqtt_set_connect_cb(sock, connect_cb, &sock);
+	nng_mqtt_set_connect_cb(sock, connect_cb, sock_ret);
 	nng_mqtt_set_disconnect_cb(sock, disconnect_cb, NULL);
 
 	if ((rv = nng_dialer_create(&dialer, sock, url)) != 0) {
@@ -214,7 +215,6 @@ client(const char *url, nng_socket *sock_ret)
 		gateway_sub_cb(works[i]);
 	}
 
-    *sock_ret = sock;
 	return 0;
 }
 
@@ -288,6 +288,7 @@ int gateway_start(int argc, char **argv)
 int gateway_dflt(int argc, char **argv)
 {
     printf("gateway help info!");
+	// printf("");
     // TODO
 
     return 0;
