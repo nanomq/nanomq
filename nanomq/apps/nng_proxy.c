@@ -867,6 +867,7 @@ nng_alloc_work(nng_socket sock, nng_socket psock, nng_proxy_opts *nng_opts, uint
 		w->nsocket = psock;
 		break;
 	case PAIR1:
+	case PAIR0:
 		// two way pair1 channel
 		w->nsocket = psock;
 		break;
@@ -978,11 +979,14 @@ nng_proxy_client(int argc, char **argv, enum nng_proto type)
 		}
 		break;
 	case PAIR1:
-	case PAIR0:
 		if ((rv = nng_pair1_open(&s)) != 0) {
 			nng_fatal("nng_socket", rv);
 		}
-
+		break;
+	case PAIR0:
+		if ((rv = nng_pair0_open(&s)) != 0) {
+			nng_fatal("nng_socket", rv);
+		}
 		break;
 	default:
 		break;
@@ -1022,8 +1026,6 @@ nng_proxy_client(int argc, char **argv, enum nng_proto type)
 			works2[i] =
 			    nng_alloc_work(*socket, s, nng_opts, 1);
 		}
-		// create_client(socket, s, works2, nng_opts->parallel, param,
-		// 1);
 		for (size_t i = 0; i < nng_opts->parallel; i++) {
 			// Recv from nng pair1 - send to MQTT 
 			nng_client_cb(works2[i]);
