@@ -692,7 +692,10 @@ nng_client_cb(void *arg)
 			break;
 		}
 		work->msg   = nng_aio_get_msg(work->aio);
-		printf("NNG msg : %s\n", nng_msg_body(work->msg));
+		if (nng_opts->verbose) {
+			printf("NNG msg : %s\n", nng_msg_body(work->msg));
+		}
+
 		msg = nng_publish_msg(work->nng_opts, work->msg);
 		nng_msg_free(work->msg);
 		work->msg = msg;
@@ -717,9 +720,10 @@ nng_client_cb(void *arg)
 		uint32_t    topic_len;
 		const char *recv_topic =
 		    nng_mqtt_msg_get_publish_topic(msg, &topic_len);
-
-		printf("MQTT msg: %.*s: %.*s\n", topic_len, recv_topic, payload_len,
-		    (char *) payload);
+		if (nng_opts->verbose) {
+			printf("MQTT msg: %.*s: %.*s\n", topic_len, recv_topic,
+			    payload_len, (char *) payload);
+		}
 
 		if (((rv = nng_msg_alloc(&work->msg, 0)) != 0) ||
 		    ((rv = nng_msg_append(work->msg, payload, payload_len)) != 0)) {
@@ -940,7 +944,6 @@ create_client(nng_socket *sock, nng_socket psock, struct work **works,
 
 		// Send subscribe message
 		nng_sendmsg(*param->sock, msg, 0);
-		printf("send finished\n");
 	}
 }
 
@@ -1013,9 +1016,14 @@ nng_proxy_client(int argc, char **argv, enum nng_proto type)
 	for (size_t i = 0; i < nng_opts->parallel; i++) {
 		nng_client_cb(works[i]);
 	}
-	if(nng_opts->type == PAIR1 || nng_opts->type == PAIR0) {
+	if (nng_opts->type == PAIR1 || nng_opts->type == PAIR0) {
 		struct work *works2[nng_opts->parallel];
-		create_client(socket, s, works2, nng_opts->parallel, param, 1);
+		for (size_t i = 0; i < nng_opts->parallel; i++) {
+			works2[i] =
+			    nng_alloc_work(*socket, s, nng_opts, 1);
+		}
+		// create_client(socket, s, works2, nng_opts->parallel, param,
+		// 1);
 		for (size_t i = 0; i < nng_opts->parallel; i++) {
 			// Recv from nng pair1 - send to MQTT 
 			nng_client_cb(works2[i]);
@@ -1072,8 +1080,8 @@ nng_proxy_start(int argc, char **argv)
 		nng_proxy_client(argc-1, argv+1, PUB0);
 	else if (strncmp(argv[0], "pair1", 5) == 0)
 		nng_proxy_client(argc-1, argv+1, PAIR1);
-	// else if (strncmp(argv[0], "req0", 3) == 0)
-	// 	nng_proxy_client(argc-1, argv+1, SUB0);
+	else if (strncmp(argv[0], "pair0", 3) == 0)
+		nng_proxy_client(argc-1, argv+1, PAIR0);
 	else
 		help(SUB0);
 	return 0;
