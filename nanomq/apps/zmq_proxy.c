@@ -60,9 +60,9 @@ connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 
 	// Send subscribe message
 	int rv  = 0;
-	while ((rv = nng_sendmsg(sock, msg, NNG_FLAG_NONBLOCK)) != 0) {
-		proxy_fatal("nng_sendmsg", rv);
-		sleep(1);
+	rv = nng_sendmsg(sock, msg, NNG_FLAG_NONBLOCK);
+	if (rv != 0) {
+			proxy_fatal("nng_sendmsg", rv);
 	}
 }
 
@@ -104,6 +104,7 @@ gateway_sub_cb(void *arg)
 
 	switch (work->state) {
 	case INIT:
+		nng_msleep(100);
 		work->state = RECV;
 		nng_ctx_recv(work->ctx, work->aio);
 		break;
@@ -240,18 +241,20 @@ int zmq_gateway(zmq_proxy_conf *conf)
     client(conf->mqtt_url, &sock);
 
     while (1) {
-        char msg [256];
-        int size = zmq_recv(receiver, msg, 255, 0);
-		printf("recv: %.*s\n", size, msg);
-        if (size != -1) {
-	        client_publish(sock, conf->pub_topic, (uint8_t*) msg, size, 0, false);
-        }
+		zmq_msg_t message;
+        zmq_msg_init(&message);
+        zmq_msg_recv(&message, receiver, 0);
+        int more = zmq_msg_more (&message);
+	 	printf("recv: %.*s\n", (int) zmq_msg_size(&message), (char*) zmq_msg_data(&message));
+	    client_publish(sock, conf->pub_topic, (uint8_t*) zmq_msg_data(&message), zmq_msg_size(&message), 0, false);
+        zmq_msg_close (&message);
     }
 
     zmq_close (receiver);
     zmq_ctx_destroy (context);
 }
 
+// TODO read config
 static zmq_proxy_conf *read_conf(const char *pwd)
 {
     zmq_proxy_conf *conf = (zmq_proxy_conf *) zmalloc(sizeof(zmq_proxy_conf));
@@ -277,7 +280,6 @@ static zmq_proxy_conf *read_conf(const char *pwd)
 int gateway_start(int argc, char **argv)
 {
     const char *pwd = "";
-    // TODO read config
     zmq_proxy_conf *conf = read_conf(pwd);
 	conf_g = conf;
     zmq_gateway(conf);
