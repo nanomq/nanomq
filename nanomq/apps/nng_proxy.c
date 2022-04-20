@@ -223,71 +223,56 @@ help(enum nng_proto type)
 {
 	switch (type) {
 	case PUB0:
-		printf("Usage: nanomq nngproxy pub0 <addr> "
+		printf("Usage: nanomq nngproxy pub0 --mqtt_url <url> --dial/--listen <url> "
 		       "[<topic>...] [<nng_opts>...] [<src>]\n\n");
 		break;
 	case SUB0:
-		printf("Usage: nanomq nngproxy sub0 <addr> "
+		printf("Usage: nanomq nngproxy sub0 --mqtt_url <url> --dial/--listen <url> "
 		       "[<topic>...] [<nng_opts>...]\n\n");
 		break;
 	case PAIR1:
-		printf("Usage: nanomq nngproxy pair1 <addr> "
+		printf("Usage: nanomq nngproxy pair1 --mqtt_url <url> --dial/--listen <url> "
 		       "[<nng_opts>...]\n\n");
 		break;
 
 	default:
-		printf("Usage: nanomq nngproxy { sub0 | pub0 } <addr> "
+		printf("Usage: nanomq nngproxy { sub0 | pub0 | pair1 | pair0 } <url> "
 		       "[<nng_opts>...]\n\n");
 		break;
 	}
 
-	printf("<addr> must be one or more of:\n");
+	printf("<url> must be one or more of:\n");
 	printf("  --mqtt_url <url>                      The url for mqtt broker "
 	       "('mqtt-tcp://host:port' or 'tls+mqtt-tcp://host:port') \n");
 	printf("                                   [default: "
 	       "mqtt-tcp://127.0.0.1:1883]\n");
-	printf("  --dial/--listen <url>           The url for nng sp ");
-
-	if (type == PUB0 || type == SUB0) {
-		printf("\n<topic> must be set:\n");
-		printf(
-		    "  -t, --topic <topic>              Topic for publish or "
-		    "subscribe\n");
-	}
+	printf(" nng proxy url:  --dial/--listen <url> The url for dialing or listening nng msg "
+	       " must specify one\n");
+	printf("\n<topic> must be set:\n");
+	printf("  -t, --topic <topic>  MQTT Topic for publish or subscribe\n");
 
 	printf("\n<nng_opts> may be any of:\n");
 	printf("  -V, --version <version: 3|4|5>   The MQTT version used by "
 	       "the client [default: 4]\n");
 	printf("  -n, --parallel             	   The number of parallel for "
-	       "client [default: 1]\n");
+	       "proxy client [default: 1]\n");
 	printf("  -v, --verbose              	   Enable verbose mode\n");
-	printf("  -u, --user <user>                The username for "
+	printf("  -u, --user <user>                The username for MQTT "
 	       "authentication\n");
-	printf("  -p, --password <password>        The password for "
+	printf("  -p, --password <password>        The password for MQTT "
 	       "authentication\n");
 	printf("  -k, --keepalive <keepalive>      A keep alive of the client "
 	       "(in seconds) [default: 60]\n");
-	if (type == PUB0) {
-		printf("  -m, --msg <message>              The message to "
-		       "publish\n");
-		printf("  -L, --limit <num>                Max count of "
-		       "publishing "
-		       "message [default: 1]\n");
-		printf("  -i, --interval <ms>              Interval of "
-		       "publishing "
-		       "message (ms) [default: 10]\n");
-		printf(
+	printf(
 		    "  -I, --identifier <identifier>    The client identifier "
 		    "UTF-8 String (default randomly generated string)\n");
-	} else {
-		printf("  -i, --interval <ms>              Interval of "
-		       "establishing connection "
-		       "(ms) [default: 10]\n");
-	}
-	printf("  -C, --count <num>                Num of client \n");
+	// printf("  -i, --interval <ms>              Interval of "
+	// 	       "establishing connection "
+	// 	       "(ms) [default: 10]\n");
+	printf("  -C, --count <num>                Num of MQTT client \n");
 	printf("  -q, --qos <qos>                  Quality of service for the "
 	       "corresponding topic [default: 0]\n");
-	printf("  -r, --retain                     The message will be "
+	printf("  -r, --retain                     The proxy message will be "
 	       "retained [default: false]\n");
 	printf("  -c, --clean_session <true|false> Define a clean start for "
 	       "the connection [default: true]\n");
@@ -306,12 +291,6 @@ help(enum nng_proto type)
 	printf("      -E, --cert <file>            Certificate file path\n");
 	printf("      --key <file>                 Private key file path\n");
 	printf("      --keypass <key password>     Private key password\n");
-
-	if (type == PUB0) {
-		printf("\n<src> may be one of:\n");
-		printf("  -m, --msg  <data>                \n");
-		printf("  -f, --file <file>                \n");
-	}
 }
 
 static int
@@ -848,41 +827,14 @@ struct connect_param {
 static void
 connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {
-	printf("%s: connected!\n", __FUNCTION__);
-	struct connect_param *param = arg;
-
-	if (param->nng_opts->topic_count > 0) {
-		nng_msg *msg;
-		nng_mqtt_msg_alloc(&msg, 0);
-		nng_mqtt_msg_set_packet_type(msg, NNG_MQTT_SUBSCRIBE);
-
-		nng_mqtt_topic_qos *topics_qos =
-		    nng_mqtt_topic_qos_array_create(param->nng_opts->topic_count);
-
-		size_t i = 0;
-		for (struct topic *tp = param->nng_opts->topic;
-		     tp != NULL && i < param->nng_opts->topic_count;
-		     tp = tp->next, i++) {
-			nng_mqtt_topic_qos_array_set(
-			    topics_qos, i, tp->val, param->nng_opts->qos);
-		}
-
-		nng_mqtt_msg_set_subscribe_topics(
-		    msg, topics_qos, param->nng_opts->topic_count);
-
-		nng_mqtt_topic_qos_array_free(
-		    topics_qos, param->nng_opts->topic_count);
-
-		// Send subscribe message
-		nng_sendmsg(*param->sock, msg, NNG_FLAG_NONBLOCK);
-	}
+	printf("%s: MQTT connected!\n", __FUNCTION__);
 }
 
 // Disconnect message callback function
 static void
 disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {
-	printf("disconnected\n");
+	printf("MQTT disconnected\n");
 }
 
 static struct work *
@@ -964,6 +916,32 @@ create_client(nng_socket *sock, nng_socket psock, struct work **works,
 	nng_mqtt_set_disconnect_cb(*sock, disconnect_cb, msg);
 
 	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
+	if (param->nng_opts->topic_count > 0) {
+		nng_msg *msg;
+		nng_mqtt_msg_alloc(&msg, 0);
+		nng_mqtt_msg_set_packet_type(msg, NNG_MQTT_SUBSCRIBE);
+
+		nng_mqtt_topic_qos *topics_qos =
+		    nng_mqtt_topic_qos_array_create(param->nng_opts->topic_count);
+
+		size_t i = 0;
+		for (struct topic *tp = param->nng_opts->topic;
+		     tp != NULL && i < param->nng_opts->topic_count;
+		     tp = tp->next, i++) {
+			nng_mqtt_topic_qos_array_set(
+			    topics_qos, i, tp->val, param->nng_opts->qos);
+		}
+
+		nng_mqtt_msg_set_subscribe_topics(
+		    msg, topics_qos, param->nng_opts->topic_count);
+
+		nng_mqtt_topic_qos_array_free(
+		    topics_qos, param->nng_opts->topic_count);
+
+		// Send subscribe message
+		nng_sendmsg(*param->sock, msg, 0);
+		printf("send finished\n");
+	}
 }
 
 static void
@@ -1001,6 +979,7 @@ nng_proxy_client(int argc, char **argv, enum nng_proto type)
 		if ((rv = nng_pair1_open(&s)) != 0) {
 			nng_fatal("nng_socket", rv);
 		}
+
 		break;
 	default:
 		break;
@@ -1011,13 +990,21 @@ nng_proxy_client(int argc, char **argv, enum nng_proto type)
 		rv = nng_dialer_create(&d, s, nng_opts->nng_url);
 		rv = nng_dialer_start(d, 0);
 		if (rv != 0)
-			fatal("unable to connect %s!\n", nng_opts->nng_url);
+			fatal("unable to connect %s %s!\n", nng_opts->nng_url, nng_strerror(rv));
 		break;
 	case OPT_LISTEN:
 		rv = nng_listener_create(&l, s, nng_opts->nng_url);
 		rv = nng_listener_start(l, 0);
 		if (rv != 0)
-			fatal("unable to listen to %s!\n", nng_opts->nng_url);
+			fatal("unable to listen to %s %s!\n", nng_opts->nng_url, nng_strerror(rv));
+		if ((rv == 0) && (nng_opts->verbose)) {
+			char   ustr[256];
+			size_t sz;
+			sz = sizeof(ustr);
+			if (nng_listener_get(l, NNG_OPT_URL, ustr, &sz) == 0) {
+				printf("Listening at: %s\n", ustr);
+			}
+		}
 		break;
 	default:
 		break;
@@ -1031,7 +1018,7 @@ nng_proxy_client(int argc, char **argv, enum nng_proto type)
 		create_client(socket, s, works2, nng_opts->parallel, param, 1);
 		for (size_t i = 0; i < nng_opts->parallel; i++) {
 			// Recv from nng pair1 - send to MQTT 
-			nng_client_cb(works[i]);
+			nng_client_cb(works2[i]);
 		}
 	}
 
