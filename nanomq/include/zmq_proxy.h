@@ -16,11 +16,13 @@
 #include <stdatomic.h>
 
 typedef struct {
-    const char *zmq_conn_url;
-    const char *zmq_listen_url;
+    const char *zmq_sub_url;
+    const char *zmq_pub_url;
     const char *mqtt_url;
     const char *sub_topic;
     const char *pub_topic;
+    const char *zmq_sub_pre;
+    const char *zmq_pub_pre;
     void       *zmq_sender; 
     enum {PUB_SUB, REQ_REP} type;
 } zmq_proxy_conf;
