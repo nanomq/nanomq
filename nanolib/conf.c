@@ -258,6 +258,16 @@ conf_parser(conf *nanomq_conf)
 		                line, sz, "http_server.password")) != NULL) {
 			FREE_NONULL(config->http_server.password);
 			config->http_server.password = value;
+		} else if ((value = get_conf_value(
+		                line, sz, "http_server.auth_type")) != NULL) {
+			if (strcasecmp("basic", value) == 0) {
+				config->http_server.auth_type = BASIC;
+			} else if ((strcasecmp("jwt", value) == 0)) {
+				config->http_server.auth_type = JWT;
+			} else {
+				config->http_server.auth_type = NONE_AUTH;
+			}
+			free(value);
 		} else if ((value = get_conf_value(line, sz, "tls.enable")) !=
 		    NULL) {
 			config->tls.enable = strcasecmp(value, "true") == 0;
@@ -342,10 +352,11 @@ conf_init(conf *nanomq_conf)
 	nanomq_conf->tls.set_fail     = false;
 	nanomq_conf->tls.verify_peer  = false;
 
-	nanomq_conf->http_server.enable   = false;
-	nanomq_conf->http_server.port     = 8081;
-	nanomq_conf->http_server.username = NULL;
-	nanomq_conf->http_server.password = NULL;
+	nanomq_conf->http_server.enable    = false;
+	nanomq_conf->http_server.port      = 8081;
+	nanomq_conf->http_server.username  = NULL;
+	nanomq_conf->http_server.password  = NULL;
+	nanomq_conf->http_server.auth_type = BASIC;
 
 	nanomq_conf->websocket.enable  = true;
 	nanomq_conf->websocket.url     = NULL;

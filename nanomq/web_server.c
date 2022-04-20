@@ -361,7 +361,6 @@ inproc_server(void *arg)
 		    "token: %.*s", (int) recv_msg->token_len, recv_msg->token);
 		debug_msg(
 		    "data: %.*s", (int) recv_msg->data_len, recv_msg->data);
-		// TODO API logic
 
 		http_msg res = process_request(recv_msg);
 

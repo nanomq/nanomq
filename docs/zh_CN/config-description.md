@@ -9,6 +9,7 @@ NanoMQ 的配置文件通常以 .conf 作为后缀名，你可以在 etc 目录�
 | etc/nanomq.conf               | NanoMQ 配置文件        |
 | etc/nanomq_bridge.conf        | NanoMQ桥接配置文件     |
 | etc/nanomq_auth_username.conf | NanoMQ用户密码配置文件 |
+| etc/nanomq_web_hook.conf      | NanoMQ WebHook配置文件 |
 
 ## 参数说明
 
@@ -67,3 +68,22 @@ NanoMQ 的配置文件通常以 .conf 作为后缀名，你可以在 etc 目录�
 | auth.1.password | String   | 第1个登录密码。                 |
 | auth.2.login    | String   | 第2个（*以此类推*）登录用户名。 |
 | auth.2.password | String   | 第2个（*以此类推*）登录密码。   |
+
+### nanomq_web_hook.conf
+
+| Name                                     | Type    | Description                                                  |
+| ---------------------------------------- | ------- | ------------------------------------------------------------ |
+| web.hook.enable                          | Boolean | 启动WebHook (默认: `false`)                                  |
+| web.hook.url                             | String  | *Webhook URL*                                                |
+| web.hook.headers.\<Any\>                 | String  | *HTTP Headers*<br>*Example:*<br>*1. web.hook.headers.content-type=application/json*<br> *2. web.hook.headers.accept=\** |
+| web.hook.body.encoding_of_payload_field  | Enum    | *Payload编码方式*<br>Options: <br>plain \| base64 \| base62  |
+| web.hook.ssl.cacertfile                  | String  | *TLS CA证书文件*.                                            |
+| web.hook.ssl.certfile                    | String  | *TLS Cert证书文件*                                           |
+| web.hook.ssl.keyfile                     | String  | *TLS 私钥文件.*                                              |
+| web.hook.ssl.verify                      | Boolean | *验证客户端证书。*  (默认: `false`).                         |
+| web.hook.ssl.server_name_indication      | Boolean | *验证服务端名*  (默认: `false`).                             |
+| web.hook.pool_size                       | Integer | *连接池大小 （默认: 32）*.                                   |
+| web.hook.rule.client.connack.\<No\>      | String  | 示例: <br>*web.hook.rule.client.connack.1={"action": "on_client_connack"}* |
+| web.hook.rule.client.disconnected.\<No\> | String  | *示例: <br/>web.hook.rule.client.disconnected.1={"action": "on_client_disconnected"}* |
+| web.hook.rule.message.publish.\<No\>     | String  | 示例: <br/>*web.hook.rule.message.publish.1={"action": "on_message_publish"}* <br>*web.hook.rule.message.publish.1={"action": "on_message_publish", "topic": "topic/1/2"}* <br>*web.hook.rule.message.publish.2 = {"action": "on_message_publish", "topic": "foo/#"}* |
+

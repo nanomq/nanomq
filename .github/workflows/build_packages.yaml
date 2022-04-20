@@ -77,16 +77,17 @@ jobs:
         aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws configure set default.region us-west-2
         aws s3 cp --recursive build/_packages s3://packages.emqx/nanomq/$(git describe --abbrev=0 --tags)
-    - name: update emqx.io
+    - name: update nanomq.io
       if: github.event_name == 'release'
       run: |
-        curl --location --request POST "${{ secrets.EMQX_IO_RELEASE_API }}"\
-          --header "token: ${{ secrets.EMQX_IO_TOKEN }}" \
-          --header 'Content-Type: application/json' \
-          --data-raw '{
-              "repo": "${GITHUB_REPOSITORY}",
-              "tag": "${GITHUB_REF_NAME}"
-          }'
+        set -e -x -u
+        curl -w %{http_code} \
+             --insecure \
+             -H "Content-Type: application/json" \
+             -H "token: ${{ secrets.EMQX_IO_TOKEN }}" \
+             -X POST \
+             -d "{\"repo\":\"emqx/nanomq\", \"tag\": \"${{ github.ref_name }}\" }" \
+             ${{ secrets.EMQX_IO_RELEASE_API }}
 
   build_docker:
     runs-on: ubuntu-20.04

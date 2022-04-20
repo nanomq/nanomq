@@ -16,6 +16,7 @@ include(CheckCCompilerFlag)
 option (BUILD_CLIENT "Build nanomq client" ON)
 option (BUILD_NNG_PROXY "Build nng proxy" ON)
 option (BUILD_BENCH "Build nano-bench" OFF)
+option (ENABLE_JWT "Enable jwt library" OFF)
 
 set (NNG_PROTO_MQTT_BROKER  ON)
 set (NNG_TRANSPORT_MQTT_BROKER_TCP ON)
@@ -181,12 +182,18 @@ message("-------------")
 #add_executable(nanomq-nng nanomq/nanomq.c)
 
 #add_dependencies(nanomq-nng nng_h)
-
+if (ENABLE_JWT) 
+  add_subdirectory(extern/l8w8jwt)
+  add_definitions(-DSUPP_JWT)
+endif (ENABLE_JWT)
 
 add_subdirectory(nng)
 add_subdirectory(nanolib)
 add_subdirectory(nanomq)
 
-
 add_dependencies(nanomq nng)
 add_dependencies(nanomq nanolib)
+
+if (ENABLE_JWT) 
+  add_dependencies(nanomq extern/l8w8jwt)
+endif (ENABLE_JWT)
