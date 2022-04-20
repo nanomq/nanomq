@@ -78,6 +78,9 @@ int check_recv(nng_msg *msg)
 	// printf("RECV: '%.*s' FROM: '%.*s'\n", payload_len,
 	//     (char *) payload, topic_len, topic);
 
+	if (conf_g->zmq_pub_pre) {
+    	zmq_send(conf_g->zmq_sender, (void*) conf_g->zmq_pub_pre, strlen(conf_g->zmq_pub_pre), ZMQ_SNDMORE);
+	}
     zmq_send(conf_g->zmq_sender, (void*) payload, payload_len, 0);
 
 	// char topic_buf[TOPIC_LEN];
@@ -228,11 +231,11 @@ int zmq_gateway(zmq_proxy_conf *conf)
         sender = zmq_socket(context, ZMQ_REQ);
     }
 
-    // zmq_connect(receiver, conf->zmq_url);
-    zmq_connect(receiver, conf->zmq_conn_url);
-	zmq_setsockopt(receiver, ZMQ_SUBSCRIBE, "", 0);
+    zmq_connect(receiver, conf->zmq_sub_url);
+	zmq_setsockopt(receiver, ZMQ_SUBSCRIBE, conf->zmq_sub_pre, strlen(conf->zmq_sub_pre));
 
-    zmq_bind(sender, conf->zmq_listen_url);
+    // zmq_bind(sender, conf->zmq_listen_url);
+    zmq_connect(sender, conf->zmq_pub_url);
     conf->zmq_sender = sender;
     client(conf->mqtt_url, &sock);
 
@@ -257,10 +260,13 @@ static zmq_proxy_conf *read_conf(const char *pwd)
         exit(EXIT_FAILURE);
     }
     conf->mqtt_url = zstrdup("mqtt-tcp://localhost:1883");
-    conf->zmq_listen_url = zstrdup("tcp://*:5559");
-    conf->zmq_conn_url = zstrdup("tcp://localhost:5560");
+    conf->zmq_pub_url = zstrdup("tcp://localhost:5559");
+    // conf->zmq_listen_url = zstrdup("tcp://*:5559");
+    conf->zmq_sub_url = zstrdup("tcp://localhost:5560");
     conf->pub_topic = zstrdup("topic/pub");
     conf->sub_topic = zstrdup("topic/sub");
+	conf->zmq_sub_pre = zstrdup("");
+	conf->zmq_pub_pre = NULL;
 
     conf->type = PUB_SUB;
     conf->zmq_sender = NULL;
