@@ -980,6 +980,13 @@ nng_proxy_client(int argc, char **argv, enum nng_proto type)
 		if ((rv = nng_pair1_open(&s)) != 0) {
 			nng_fatal("nng_socket", rv);
 		}
+		rv = nng_listener_create(&l, s, nng_opts->nng_url);
+		if (rv != 0) {
+			fatal("Unable to create listener for %s: %s",
+				nng_opts->nng_url, nng_strerror(rv));
+		}
+		rv = nng_listener_start(l, 0);
+
 		break;
 	default:
 		break;
@@ -997,6 +1004,14 @@ nng_proxy_client(int argc, char **argv, enum nng_proto type)
 		rv = nng_listener_start(l, 0);
 		if (rv != 0)
 			fatal("unable to listen to %s!\n", nng_opts->nng_url);
+		if ((rv == 0) && (nng_opts->verbose)) {
+			char   ustr[256];
+			size_t sz;
+			sz = sizeof(ustr);
+			if (nng_listener_get(l, NNG_OPT_URL, ustr, &sz) == 0) {
+				printf("Listening at: %s\n", ustr);
+			}
+		}
 		break;
 	default:
 		break;
@@ -1010,7 +1025,7 @@ nng_proxy_client(int argc, char **argv, enum nng_proto type)
 		create_client(socket, s, works2, nng_opts->parallel, param, 1);
 		for (size_t i = 0; i < nng_opts->parallel; i++) {
 			// Recv from nng pair1 - send to MQTT 
-			nng_client_cb(works[i]);
+			nng_client_cb(works2[i]);
 		}
 	}
 
