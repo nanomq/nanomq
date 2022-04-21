@@ -1,4 +1,4 @@
-#if defined(SUPP_NNG_GATEWAY)
+#if defined(SUPP_ZMQ_GATEWAY)
 #include "zmq_gateway.h"
 #include "include/nanomq.h"
 #include <nng/supplemental/util/options.h>

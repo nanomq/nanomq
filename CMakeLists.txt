@@ -15,7 +15,7 @@ include(CheckCCompilerFlag)
 
 option (BUILD_CLIENT "Build nanomq client" ON)
 option (BUILD_NNG_PROXY "Build nng proxy" ON)
-option (BUILD_NNG_GATEWAY "Build nng gateway" OFF)
+option (BUILD_ZMQ_GATEWAY "Build zmq gateway" OFF)
 option (BUILD_BENCH "Build nano-bench" OFF)
 option (ENABLE_JWT "Enable jwt library" OFF)
 
@@ -165,9 +165,9 @@ if (BUILD_NNG_PROXY)
   add_definitions(-DSUPP_NNG_PROXY)
 endif(BUILD_NNG_PROXY)
 
-if (BUILD_NNG_GATEWAY)
-  add_definitions(-DSUPP_NNG_GATEWAY)
-endif(BUILD_NNG_GATEWAY)
+if (BUILD_ZMQ_GATEWAY)
+  add_definitions(-DSUPP_ZMQ_GATEWAY)
+endif(BUILD_ZMQ_GATEWAY)
 
 if (DEBUG)
   message("DEBUG ")
