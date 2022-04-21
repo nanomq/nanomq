@@ -22,10 +22,10 @@
 #include "include/web_server.h"
 // #include "utils/log.h"
 
-#define fatal(msg, rv)                                     \
-	{                                                  \
+#define fatal(msg, rv)                                    \
+	{                                                 \
 		printf("%s:%s\n", msg, nng_strerror(rv)); \
-		exit(1);                                   \
+		exit(1);                                  \
 	}
 
 typedef enum {
@@ -51,6 +51,7 @@ static nng_thread *      inproc_thr;
 static FILE *            logfile;
 static conf_http_server *http_server_conf;
 static conf *            global_config;
+static char              jwt_key[1024] = {0};
 
 static void rest_job_cb(void *arg);
 
@@ -157,6 +158,10 @@ rest_job_cb(void *arg)
 			nng_http_res_set_header(job->http_res, "Content-Type",
 			    res_msg->content_type);
 		}
+		if (res_msg->token_len > 0) {
+			nng_http_res_set_header(
+			    job->http_res, "Cookies", res_msg->token);
+		}
 
 		destory_http_msg(res_msg);
 		nng_msg_clear(job->msg);
@@ -215,13 +220,6 @@ rest_handle(nng_aio *aio)
 
 	nng_http_req_get_data(req, &data, &sz);
 	job->http_aio = aio;
-
-	// if ((rv = nng_msg_alloc(&job->msg, sz)) != 0) {
-	// 	rest_http_fatal(job, "nng_msg_alloc: %s", rv);
-	// 	return;
-	// }
-
-	// memcpy(nng_msg_body(job->msg), data, sz);
 
 	http_msg recv_msg = { 0 };
 
@@ -358,8 +356,6 @@ inproc_server(void *arg)
 		debug_msg("method: %.*s", (int) recv_msg->method_len,
 		    recv_msg->method);
 		debug_msg(
-		    "token: %.*s", (int) recv_msg->token_len, recv_msg->token);
-		debug_msg(
 		    "data: %.*s", (int) recv_msg->data_len, recv_msg->data);
 
 		http_msg res = process_request(recv_msg);
@@ -420,6 +416,25 @@ get_http_server_conf(void)
 	return http_server_conf;
 }
 
+void
+generate_key(char *key, size_t len)
+{
+	const char charset[] =
+	    "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ+/";
+	uint8_t sz = sizeof(charset);
+	uint8_t no;
+	for (size_t i = 0; i < len; i++) {
+		no     = nng_random() % (sz - 1);
+		key[i] = charset[no];
+	}
+}
+
+char *
+get_jwt_key(void)
+{
+	return jwt_key;
+}
+
 int
 start_rest_server(conf *conf)
 {
@@ -441,7 +456,7 @@ start_rest_server(conf *conf)
 	uint16_t port = conf->http_server.port ? conf->http_server.port
 	                                       : HTTP_DEFAULT_PORT;
 	debug_msg(REST_URL, port);
-	
+	generate_key(jwt_key, sizeof(jwt_key) - 1);
 	set_global_conf(conf);
 	set_http_server_conf(&conf->http_server);
 	rest_start(port);
