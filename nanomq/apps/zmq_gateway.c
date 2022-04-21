@@ -1,7 +1,7 @@
-#include "zmq_proxy.h"
+#include "zmq_gateway.h"
 #include <zmq.h>
+#include <nng/supplemental/util/options.h>
 #include "include/nanomq.h"
-#include "zmalloc.h"
 
 struct work {
 	enum { INIT, RECV, WAIT, SEND } state;
@@ -10,7 +10,23 @@ struct work {
 	nng_ctx  ctx;
 };
 
-static zmq_proxy_conf *conf_g = NULL;
+enum options {
+	OPT_HELP = 1,
+	OPT_CONFFILE,
+};
+
+static nng_optspec cmd_opts[] = {
+	{ .o_name = "help", .o_short = 'h', .o_val = OPT_HELP },
+	{ .o_name = "conf", .o_val = OPT_CONFFILE, .o_arg = true },
+	{ .o_name = NULL, .o_val = 0 },
+};
+
+static char help_info[] = 
+	"Usage: nanomq gateway start [--conf <path>]\n\n"
+	"  --conf <path>  The path of a specified nanomq configuration file \n";
+
+
+static zmq_gateway_conf *conf_g = NULL;
 static int nwork = 32;
 
 void
@@ -82,15 +98,6 @@ int check_recv(nng_msg *msg)
     	zmq_send(conf_g->zmq_sender, (void*) conf_g->zmq_pub_pre, strlen(conf_g->zmq_pub_pre), ZMQ_SNDMORE);
 	}
     zmq_send(conf_g->zmq_sender, (void*) payload, payload_len, 0);
-
-	// char topic_buf[TOPIC_LEN];
-	// char payload_buf[TOPIC_LEN];
-	
-	// memcpy(topic_buf, topic, topic_len);
-	// memcpy(payload_buf, payload, payload_len);
-	// payload_buf[TOPIC_LEN-1] = '\0';
-	// topic_buf[TOPIC_LEN-1] = '\0';
-	
 
 	return 0;
 }
@@ -196,10 +203,15 @@ client(const char *url, nng_socket *sock_ret)
 	nng_msg *msg;
 	nng_mqtt_msg_alloc(&msg, 0);
 	nng_mqtt_msg_set_packet_type(msg, NNG_MQTT_CONNECT);
-	nng_mqtt_msg_set_connect_keep_alive(msg, 60);
-	nng_mqtt_msg_set_connect_clean_session(msg, false);
-	nng_mqtt_msg_set_connect_user_name(msg, "nng_mqtt_client");
-	nng_mqtt_msg_set_connect_password(msg, "secrets");
+	nng_mqtt_msg_set_connect_keep_alive(msg, conf_g->keepalive);
+	nng_mqtt_msg_set_connect_clean_session(msg, conf_g->clean_start);
+	if (conf_g->username) {
+		nng_mqtt_msg_set_connect_user_name(msg, conf_g->username);
+	}
+
+	if (conf_g->password) {
+		nng_mqtt_msg_set_connect_password(msg, conf_g->password);
+	}
 
 	nng_mqtt_set_connect_cb(sock, connect_cb, sock_ret);
 	nng_mqtt_set_disconnect_cb(sock, disconnect_cb, NULL);
@@ -218,7 +230,7 @@ client(const char *url, nng_socket *sock_ret)
 	return 0;
 }
 
-int zmq_gateway(zmq_proxy_conf *conf)
+int zmq_gateway(zmq_gateway_conf *conf)
 {
     nng_socket sock;
     void *receiver = NULL;
@@ -233,6 +245,9 @@ int zmq_gateway(zmq_proxy_conf *conf)
     }
 
     zmq_connect(receiver, conf->zmq_sub_url);
+	if (conf->zmq_sub_pre == NULL) {
+		conf->zmq_sub_pre = "";
+	}
 	zmq_setsockopt(receiver, ZMQ_SUBSCRIBE, conf->zmq_sub_pre, strlen(conf->zmq_sub_pre));
 
     // zmq_bind(sender, conf->zmq_listen_url);
@@ -245,7 +260,7 @@ int zmq_gateway(zmq_proxy_conf *conf)
         zmq_msg_init(&message);
         zmq_msg_recv(&message, receiver, 0);
         int more = zmq_msg_more (&message);
-	 	printf("recv: %.*s\n", (int) zmq_msg_size(&message), (char*) zmq_msg_data(&message));
+	 	// printf("recv: %.*s\n", (int) zmq_msg_size(&message), (char*) zmq_msg_data(&message));
 	    client_publish(sock, conf->pub_topic, (uint8_t*) zmq_msg_data(&message), zmq_msg_size(&message), 0, false);
         zmq_msg_close (&message);
     }
@@ -254,42 +269,115 @@ int zmq_gateway(zmq_proxy_conf *conf)
     zmq_ctx_destroy (context);
 }
 
-// TODO read config
-static zmq_proxy_conf *read_conf(const char *pwd)
+static void gateway_conf_init(zmq_gateway_conf *conf)
 {
-    zmq_proxy_conf *conf = (zmq_proxy_conf *) zmalloc(sizeof(zmq_proxy_conf));
-    if (conf == NULL) {
-        fprintf(stderr, "Memory alloc error.\n");
-        exit(EXIT_FAILURE);
-    }
-    conf->mqtt_url = zstrdup("mqtt-tcp://localhost:1883");
-    conf->zmq_pub_url = zstrdup("tcp://localhost:5559");
-    // conf->zmq_listen_url = zstrdup("tcp://*:5559");
-    conf->zmq_sub_url = zstrdup("tcp://localhost:5560");
-    conf->pub_topic = zstrdup("topic/pub");
-    conf->sub_topic = zstrdup("topic/sub");
-	conf->zmq_sub_pre = zstrdup("");
+    conf->mqtt_url = NULL;
+    conf->zmq_pub_url = NULL;
+    conf->zmq_sub_url = NULL;
+    conf->pub_topic = NULL;
+    conf->sub_topic = NULL;
+	conf->zmq_sub_pre = NULL;
 	conf->zmq_pub_pre = NULL;
-
     conf->type = PUB_SUB;
     conf->zmq_sender = NULL;
-    return conf;
+	conf->username = NULL;
+	conf->password = NULL;
+	conf->proto_ver = 4;
+	conf->keepalive = 60;
+    return;
+}
 
+static int gateway_conf_check_and_set(zmq_gateway_conf *conf)
+{
+	if (!conf->sub_topic || !conf->pub_topic) {
+		fprintf(stderr, "Pls set sub/pub topic before.");
+		return -1;
+	}
+    if (conf->mqtt_url == NULL) {
+		conf->mqtt_url ? conf->mqtt_url : zstrdup("mqtt-tcp://broker.emqx.io:1883");
+		printf("Set default mqtt-url: %s\n", conf->mqtt_url);
+	}
+    if (conf->zmq_pub_url == NULL) {
+		conf->zmq_pub_url ? conf->zmq_pub_url : zstrdup("tcp://localhost:5559");
+		printf("Set default zmq-pub-url: %s\n", conf->zmq_pub_url);
+	} 
+    if (conf->zmq_sub_url == NULL) {
+		conf->zmq_sub_url ? conf->zmq_sub_url : zstrdup("tcp://localhost:5560");
+		printf("Set default zmq-sub-url: %s\n", conf->zmq_sub_url);
+	} 
+
+	nwork = conf->parallel;
+	conf_g = conf;
+    return 0;
+}
+
+int
+gateway_parse_opts(int argc, char **argv, zmq_gateway_conf *config)
+{
+	int   idx = 0;
+	char *arg;
+	int   val;
+	int   rv;
+
+	while ((rv = nng_opts_parse(argc, argv, cmd_opts, &val, &arg, &idx)) ==
+	    0) {
+		switch (val) {
+		case OPT_HELP:
+			printf("%s", help_info);
+			exit(0);
+			break;
+		case OPT_CONFFILE:
+			config->path = nng_strdup(arg);
+			break;
+		default:
+			break;
+		}
+	}
+
+	switch (rv) {
+	case NNG_EINVAL:
+		fprintf(stderr,
+		    "Option %s is invalid.\nTry 'nanomq gateway --help' for "
+		    "more information.\n",
+		    argv[idx]);
+		break;
+	case NNG_EAMBIGUOUS:
+		fprintf(stderr,
+		    "Option %s is ambiguous (specify in full).\nTry 'nanomq "
+		    "gateway --help' for more information.\n",
+		    argv[idx]);
+		break;
+	case NNG_ENOARG:
+		fprintf(stderr,
+		    "Option %s requires argument.\nTry 'nanomq gateway --help' "
+		    "for more information.\n",
+		    argv[idx]);
+		break;
+	default:
+		break;
+	}
+
+	return rv == -1;
 }
 
 int gateway_start(int argc, char **argv)
 {
-    const char *pwd = "";
-    zmq_proxy_conf *conf = read_conf(pwd);
-	conf_g = conf;
-    zmq_gateway(conf);
+    zmq_gateway_conf *conf = (zmq_gateway_conf *) zmalloc(sizeof(zmq_gateway_conf));
+    if (conf == NULL) {
+        fprintf(stderr, "Memory alloc error.\n");
+        exit(EXIT_FAILURE);
+    }
+
+	gateway_conf_init(conf);
+	gateway_parse_opts(argc, argv, conf);
+	conf_gateway_parse(conf);
+	if (-1 != gateway_conf_check_and_set(conf)) {
+    	zmq_gateway(conf);
+	}
     return 0;
 }
 int gateway_dflt(int argc, char **argv)
 {
-    printf("gateway help info!");
-	// printf("");
-    // TODO
-
+	printf("%s", help_info);
     return 0;
 }
