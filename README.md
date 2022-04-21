@@ -63,12 +63,12 @@ nanomq bench start { pub | sub | conn } [--help]
 
 start a proxy to sub NNG url and convey nng msg to qos 2 MQTT msg and send to a specific topic "nng-mqtt" of MQTT broker:
 ```bash
-nanomq nngproxy sub0 --mqtt_url "mqtt-tcp://localhost:1883" --listen "ipc:///mqtt/nng" -t nng-mqtt --qos 1
+nanomq nngproxy sub0 --mqtt_url "mqtt-tcp://localhost:1883" --listen "tcp://127.0.0.1:10000" -t nng-mqtt --qos 1
 ```
 
 start a proxy sub to topic "nng-mqtt" of MQTT broker, and convert MQTT msg to NNG msg, then pub to NNG url:
 ```bash
-nanomq nngproxy pub0 --mqtt_url "mqtt-tcp://localhost:1883" --dial "ipc:///mqtt/nng" -t msg --qos 0
+nanomq nngproxy pub0 --mqtt_url "mqtt-tcp://localhost:1883" --dial "tcp://127.0.0.1:10000" -t msg --qos 0
 ```
 
 **POSIX message queue usage**
@@ -157,8 +157,15 @@ ninja
 **Note (optional): JWT dependency (for http server) isn't built by default**, you can enable it via `-DENABLE_JWT=ON`.
 
   ``` bash
-cmake -G Ninja -DENABLE_JWT=ON ..
-ninja
+  cmake -G Ninja -DENABLE_JWT=ON ..
+  ninja
+  ```
+
+**Note (optional): SQLite3 (for message persistence) isn't built by default**, you can enable it via `-DNNG_ENABLE_SQLITE=ON`.
+
+  ``` bash
+  cmake -G Ninja -DNNG_ENABLE_SQLITE=ON ..
+  ninja
   ```
 
 **Note (optional): nanolib & nanonng are dependencies of NanoMQ that can be compiled independently**.
