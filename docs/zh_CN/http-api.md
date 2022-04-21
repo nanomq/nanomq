@@ -6,7 +6,7 @@ NanoMQ 的 HTTP API 服务默认监听 8081 端口。可通过 `etc/nanomq.conf`
 
 ## 接口安全
 
-NanoMQ 的 HTTP API 使用 [Basic 认证](https://en.wikipedia.org/wiki/Basic_access_authentication)方式。`username` 和 `password` 须分别填写。 默认的`username` 和 `password` 是：`admin/public`。 可通过 `etc/nanomq.conf` 配置文件修改 `username` 和 `password` 。
+NanoMQ 的 HTTP API 使用 [Basic 认证](https://en.wikipedia.org/wiki/Basic_access_authentication)或[JWT 认证](https://jwt.io/introduction)方式。`username` 和 `password` 须分别填写。 默认的`username` 和 `password` 是：`admin/public`。 可通过 `etc/nanomq.conf` 配置文件修改 `username` 和 `password` 。
 
 
 
@@ -248,7 +248,8 @@ $ curl --location --request GET 'http://localhost:8081/api/v1' \
             "enable": true,
             "port": 8081,
             "username": "admin",
-            "password": "public"
+            "password": "public",
+            "auth_type": "basic"
         },
         "bridge": {
             "bridge_mode": false,
@@ -371,3 +372,57 @@ $ curl --location --request POST 'http://localhost:8081/api/v1' \
 {"code":0,"seq":111,"rep":12}
 ```
 
+### Login (work for get token)
+登录请求仅在**JWT**认证方式下使用，在返回的***Cookie***中获取token，该token用于其他请求的***Authorization*** Header参数。
+
+**Parameters (json):**
+
+| Name     | Type    | Required | Value  | Description                                                  |
+| -------- | ------- | -------- | ------ | ------------------------------------------------------------ |
+| req      | Integer | Required | 6      | 请求码 _6_。                                           |
+| seq      | Integer | Required | unique | seq 是全局唯一的，请求/响应信息都会携带该信息，可以通过该值确定对应的请求响应。 |
+| username | String  | Required |        | 登录用户名。                                     |
+| password | String  | Required |        | 登录密码。                                          |
+
+**Success Response Body (JSON):**
+
+| Name | Type    | Description                                                  |
+| ---- | ------- | ------------------------------------------------------------ |
+| code | Integer | 0                                                            |
+| seq  | Integer | seq 是全局唯一的，请求/响应信息都会携带该信息，可以通过该值确定对应的请求响应。 |
+| rep  | Integer | rep 是 6 作为 req 6 的响应。                   |
+
+**Examples**:
+
+```shell
+$ curl -v  --location --request POST 'http://localhost:8081/api/v1' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "req": 6,
+    "username": "admin",
+    "password": "public",
+    "seq": 6721
+}'
+Note: Unnecessary use of -X or --request, POST is already inferred.
+*   Trying 127.0.0.1:8081...
+* connect to 127.0.0.1 port 8081 failed: Connection refused
+*   Trying ::1:8081...
+* Connected to localhost (::1) port 8081 (#0)
+> POST /api/v1 HTTP/1.1
+> Host: localhost:8081
+> User-Agent: curl/7.79.1
+> Accept: */*
+> Content-Type: application/json
+> Content-Length: 84
+> 
+* Mark bundle as not supporting multiuse
+< HTTP/1.1 200 OK
+< Content-Length: 29
+< Content-Type: application/json
+< Cookies: eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE2NTA1MTM2NjgsImV4cCI6MTY1MDYwMDA2OCwic3ViIjoiTkFOT01RIiwiaXNzIjoiRU1RIiwidXNlciI6ImFkbWluIiwicGFzcyI6InB1YmxpYyJ9.ZAehV8Ewkd1DYyZ_E2ndaH4GNfToeESkj9XMvq3diV7DZ7ehmOHz-j3_91ggFlvB0mzYGfJ9pt0nvpb2_ScQwQ
+< 
+* Connection #0 to host localhost left intact
+{"code":0,"seq":6721,"rep":6}%   
+```
+
+### 

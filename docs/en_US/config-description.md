@@ -39,6 +39,7 @@ The configuration files of NanoMQ Broker usually have the suffix .conf. You can 
 | http_server.port | Integer | Port of http server. |
 | http_server.username | String | User name of http server. |
 | http_server.password | String | Password of http server. |
+| http_server.auth_type | Enum | Http server authentication type (*default: basic*). |
 
 ### nanomq_bridge.conf
 
