@@ -11,10 +11,12 @@
 
 #include "zmalloc.h"
 
+
 #define PID_PATH_NAME "/tmp/nanomq/nanomq.pid"
 #define CONF_PATH_NAME "/etc/nanomq.conf"
 #define CONF_AUTH_PATH_NAME "/etc/nanomq_auth_username.conf"
 #define CONF_BRIDGE_PATH_NAME "/etc/nanomq_bridge.conf"
+#define CONF_GATEWAY_PATH_NAME "/etc/nanomq_gateway.conf"
 #define CONF_WEB_HOOK_PATH_NAME "/etc/nanomq_web_hook.conf"
 
 #define CONF_TCP_URL_DEFAULT "nmq-tcp://0.0.0.0:1883"
@@ -99,6 +101,25 @@ struct conf_bridge {
 	subscribe *sub_list;
 	uint64_t   parallel;
 };
+
+typedef struct {
+    const char *zmq_sub_url;
+    const char *zmq_pub_url;
+    const char *mqtt_url;
+    const char *sub_topic;
+    const char *pub_topic;
+    const char *zmq_sub_pre;
+    const char *zmq_pub_pre;
+	const char *path;
+	const char *username;
+	const char *password;
+    void       *zmq_sender; 
+	int 		proto_ver;
+	int			keepalive;
+	bool		clean_start;
+	int			parallel;
+    enum {PUB_SUB, REQ_REP} type;
+} zmq_gateway_conf;
 
 typedef struct conf_bridge conf_bridge;
 
@@ -186,6 +207,7 @@ typedef struct conf conf;
 
 extern bool conf_parser(conf *nanomq_conf);
 extern bool conf_bridge_parse(conf *nanomq_conf);
+extern bool conf_gateway_parse(zmq_gateway_conf *g_conf);
 extern bool conf_web_hook_parse(conf *nanomq_conf);
 extern void print_bridge_conf(conf_bridge *bridge);
 extern void conf_init(conf *nanomq_conf);
