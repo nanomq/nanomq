@@ -140,6 +140,12 @@ ninja
   cmake -G Ninja -DBUILD_CLIENT=OFF ..
   ninja
   ```
+**Note (optional): gateway tool isn't built by default**, you can enable it via `-DBUILD_NNG_GATEWAY=ON`.
+
+  ``` bash
+  cmake -G Ninja -DBUILD_NNG_GATEWAY=ON ..
+  ninja
+  ```
 
 **Note (optional): bench tool isn't built by default**, you can enable it via `-DBUILD_BENCH=ON`.
 
