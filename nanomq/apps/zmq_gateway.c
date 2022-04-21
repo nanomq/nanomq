@@ -1,3 +1,4 @@
+#if defined(SUPP_NNG_GATEWAY)
 #include "zmq_gateway.h"
 #include <zmq.h>
 #include <nng/supplemental/util/options.h>
@@ -55,13 +56,13 @@ void set_sub_topic(nng_mqtt_topic_qos topic_qos[], int qos, char **topic_que)
 void
 connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {
-	printf("%s: connected!\n", __FUNCTION__);
+	debug_msg("%s: connected!", __FUNCTION__);
 	nng_socket sock = *(nng_socket *) arg;
 
 	nng_mqtt_topic_qos topic_qos[1];
 
     // set_sub_topic(topic_qos, 0, &conf->sub_topic);
-    printf("topic: %s\n", conf_g->sub_topic);
+    debug_msg("topic: %s", conf_g->sub_topic);
   	topic_qos[0].qos = 0;
   	topic_qos[0].topic.buf = (uint8_t*) conf_g->sub_topic;
   	topic_qos[0].topic.length = strlen(conf_g->sub_topic);
@@ -381,3 +382,4 @@ int gateway_dflt(int argc, char **argv)
 	printf("%s", help_info);
     return 0;
 }
+#endif

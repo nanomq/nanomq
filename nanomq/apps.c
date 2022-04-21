@@ -14,7 +14,7 @@
 #include "include/nngcat.h"
 #include "include/bench.h"
 #include "include/nng_proxy.h"
-#include "include/zmq_proxy.h"
+#include "include/zmq_gateway.h"
 
 #include <stdlib.h>
 
@@ -30,6 +30,11 @@ NANOMQ_APP(conn, conn_dflt, conn_start, NULL, client_stop);
 
 #if defined(SUPP_NNG_PROXY)
 NANOMQ_APP(nngproxy, nng_proxy_start, NULL, NULL, NULL);
+NANOMQ_APP(nngpub0, nng_pub0_dflt, nng_pub0_start, NULL, nng_client0_stop);
+NANOMQ_APP(nngsub0, nng_sub0_dflt, nng_sub0_start, NULL, nng_client0_stop);
+#endif
+
+#if defined(SUPP_NNG_GATEWAY)
 NANOMQ_APP(gateway, gateway_dflt, gateway_start, NULL, NULL);
 #endif
 #if defined(SUPP_BENCH)
@@ -53,6 +58,8 @@ const struct nanomq_app *edge_apps[] = {
 #if defined(SUPP_NNG_PROXY)
 	&nanomq_app_nngproxy,
 	&nanomq_app_nngcat,
+#endif
+#if defined(SUPP_NNG_GATEWAY)
 	&nanomq_app_gateway,
 #endif
 #if defined(SUPP_BENCH)
