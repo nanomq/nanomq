@@ -1,8 +1,8 @@
 #if defined(SUPP_NNG_GATEWAY)
 #include "zmq_gateway.h"
-#include <zmq.h>
-#include <nng/supplemental/util/options.h>
 #include "include/nanomq.h"
+#include <nng/supplemental/util/options.h>
+#include <zmq.h>
 
 struct work {
 	enum { INIT, RECV, WAIT, SEND } state;
@@ -22,13 +22,12 @@ static nng_optspec cmd_opts[] = {
 	{ .o_name = NULL, .o_val = 0 },
 };
 
-static char help_info[] = 
-	"Usage: nanomq gateway start [--conf <path>]\n\n"
-	"  --conf <path>  The path of a specified nanomq configuration file \n";
-
+static char help_info[] =
+    "Usage: nanomq gateway start [--conf <path>]\n\n"
+    "  --conf <path>  The path of a specified nanomq configuration file \n";
 
 static zmq_gateway_conf *conf_g = NULL;
-static int nwork = 32;
+static int               nwork  = 32;
 
 void
 proxy_fatal(const char *msg, int rv)
@@ -42,17 +41,18 @@ disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	printf("%s: disconnected!\n", __FUNCTION__);
 }
 
-void set_sub_topic(nng_mqtt_topic_qos topic_qos[], int qos, char **topic_que)
+void
+set_sub_topic(nng_mqtt_topic_qos topic_qos[], int qos, char **topic_que)
 {
-  	// for (int i = 0; i < TOPIC_CNT; i++) {
-  		topic_qos[0].qos = qos;
-        printf("topic: %s\n", topic_que[0]);
-  		topic_qos[0].topic.buf = (uint8_t*) topic_que[0];
-  		topic_qos[0].topic.length = strlen(topic_que[0]);
-  	// }
-    return;
+	// for (int i = 0; i < TOPIC_CNT; i++) {
+	topic_qos[0].qos = qos;
+	printf("topic: %s\n", topic_que[0]);
+	topic_qos[0].topic.buf    = (uint8_t *) topic_que[0];
+	topic_qos[0].topic.length = strlen(topic_que[0]);
+	// }
+	return;
 }
-        
+
 void
 connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {
@@ -61,11 +61,11 @@ connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 
 	nng_mqtt_topic_qos topic_qos[1];
 
-    // set_sub_topic(topic_qos, 0, &conf->sub_topic);
-    debug_msg("topic: %s", conf_g->sub_topic);
-  	topic_qos[0].qos = 0;
-  	topic_qos[0].topic.buf = (uint8_t*) conf_g->sub_topic;
-  	topic_qos[0].topic.length = strlen(conf_g->sub_topic);
+	// set_sub_topic(topic_qos, 0, &conf->sub_topic);
+	debug_msg("topic: %s", conf_g->sub_topic);
+	topic_qos[0].qos          = 0;
+	topic_qos[0].topic.buf    = (uint8_t *) conf_g->sub_topic;
+	topic_qos[0].topic.length = strlen(conf_g->sub_topic);
 
 	size_t topic_qos_count =
 	    sizeof(topic_qos) / sizeof(nng_mqtt_topic_qos);
@@ -76,14 +76,15 @@ connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	nng_mqtt_msg_set_subscribe_topics(msg, topic_qos, topic_qos_count);
 
 	// Send subscribe message
-	int rv  = 0;
-	rv = nng_sendmsg(sock, msg, NNG_FLAG_NONBLOCK);
+	int rv = 0;
+	rv     = nng_sendmsg(sock, msg, NNG_FLAG_NONBLOCK);
 	if (rv != 0) {
-			proxy_fatal("nng_sendmsg", rv);
+		proxy_fatal("nng_sendmsg", rv);
 	}
 }
 
-int check_recv(nng_msg *msg)
+int
+check_recv(nng_msg *msg)
 {
 
 	// Get PUBLISH payload and topic from msg;
@@ -96,9 +97,10 @@ int check_recv(nng_msg *msg)
 	//     (char *) payload, topic_len, topic);
 
 	if (conf_g->zmq_pub_pre) {
-    	zmq_send(conf_g->zmq_sender, (void*) conf_g->zmq_pub_pre, strlen(conf_g->zmq_pub_pre), ZMQ_SNDMORE);
+		zmq_send(conf_g->zmq_sender, (void *) conf_g->zmq_pub_pre,
+		    strlen(conf_g->zmq_pub_pre), ZMQ_SNDMORE);
 	}
-    zmq_send(conf_g->zmq_sender, (void*) payload, payload_len, 0);
+	zmq_send(conf_g->zmq_sender, (void *) payload, payload_len, 0);
 
 	return 0;
 }
@@ -115,12 +117,12 @@ gateway_sub_cb(void *arg)
 		work->state = RECV;
 		nng_ctx_recv(work->ctx, work->aio);
 		break;
-	case RECV: 
+	case RECV:
 		if ((rv = nng_aio_result(work->aio)) != 0) {
 			nng_msg_free(work->msg);
 			proxy_fatal("nng_send_aio", rv);
 		}
-		msg   = nng_aio_get_msg(work->aio);
+		msg = nng_aio_get_msg(work->aio);
 
 		if (-1 == check_recv(msg)) {
 			abort();
@@ -171,7 +173,6 @@ client_publish(nng_socket sock, const char *topic, uint8_t *payload,
 	    pubmsg, (uint8_t *) payload, payload_len);
 	nng_mqtt_msg_set_publish_topic(pubmsg, topic);
 
-
 	// printf("Publishing '%s' to '%s' ...\n", payload, topic);
 	if ((rv = nng_sendmsg(sock, pubmsg, NNG_FLAG_NONBLOCK)) != 0) {
 		proxy_fatal("nng_sendmsg", rv);
@@ -179,7 +180,6 @@ client_publish(nng_socket sock, const char *topic, uint8_t *payload,
 
 	return rv;
 }
-
 
 int
 client(const char *url, nng_socket *sock_ret)
@@ -194,7 +194,7 @@ client(const char *url, nng_socket *sock_ret)
 		return rv;
 	}
 
-    *sock_ret = sock;
+	*sock_ret = sock;
 
 	for (int i = 0; i < nwork; i++) {
 		works[i] = proxy_alloc_work(sock);
@@ -231,85 +231,95 @@ client(const char *url, nng_socket *sock_ret)
 	return 0;
 }
 
-int zmq_gateway(zmq_gateway_conf *conf)
+int
+zmq_gateway(zmq_gateway_conf *conf)
 {
-    nng_socket sock;
-    void *receiver = NULL;
-    void *sender = NULL;
-    void *context = zmq_ctx_new();
-    if (conf->type == PUB_SUB) {
-        receiver = zmq_socket(context, ZMQ_SUB);
-        sender = zmq_socket(context, ZMQ_PUB);
-    } else if (conf->type == REQ_REP) {
-        receiver = zmq_socket(context, ZMQ_REP);
-        sender = zmq_socket(context, ZMQ_REQ);
-    }
+	nng_socket sock;
+	void *     receiver = NULL;
+	void *     sender   = NULL;
+	void *     context  = zmq_ctx_new();
+	if (conf->type == PUB_SUB) {
+		receiver = zmq_socket(context, ZMQ_SUB);
+		sender   = zmq_socket(context, ZMQ_PUB);
+	} else if (conf->type == REQ_REP) {
+		receiver = zmq_socket(context, ZMQ_REP);
+		sender   = zmq_socket(context, ZMQ_REQ);
+	}
 
-    zmq_connect(receiver, conf->zmq_sub_url);
+	zmq_connect(receiver, conf->zmq_sub_url);
 	if (conf->zmq_sub_pre == NULL) {
 		conf->zmq_sub_pre = "";
 	}
-	zmq_setsockopt(receiver, ZMQ_SUBSCRIBE, conf->zmq_sub_pre, strlen(conf->zmq_sub_pre));
+	zmq_setsockopt(receiver, ZMQ_SUBSCRIBE, conf->zmq_sub_pre,
+	    strlen(conf->zmq_sub_pre));
 
-    // zmq_bind(sender, conf->zmq_listen_url);
-    zmq_connect(sender, conf->zmq_pub_url);
-    conf->zmq_sender = sender;
-    client(conf->mqtt_url, &sock);
+	// zmq_bind(sender, conf->zmq_listen_url);
+	zmq_connect(sender, conf->zmq_pub_url);
+	conf->zmq_sender = sender;
+	client(conf->mqtt_url, &sock);
 
-    while (1) {
+	while (1) {
 		zmq_msg_t message;
-        zmq_msg_init(&message);
-        zmq_msg_recv(&message, receiver, 0);
-        int more = zmq_msg_more (&message);
-	 	// printf("recv: %.*s\n", (int) zmq_msg_size(&message), (char*) zmq_msg_data(&message));
-	    client_publish(sock, conf->pub_topic, (uint8_t*) zmq_msg_data(&message), zmq_msg_size(&message), 0, false);
-        zmq_msg_close (&message);
-    }
+		zmq_msg_init(&message);
+		zmq_msg_recv(&message, receiver, 0);
+		int more = zmq_msg_more(&message);
+		// printf("recv: %.*s\n", (int) zmq_msg_size(&message), (char*)
+		// zmq_msg_data(&message));
+		client_publish(sock, conf->pub_topic,
+		    (uint8_t *) zmq_msg_data(&message), zmq_msg_size(&message),
+		    0, false);
+		zmq_msg_close(&message);
+	}
 
-    zmq_close (receiver);
-    zmq_ctx_destroy (context);
+	zmq_close(receiver);
+	zmq_ctx_destroy(context);
 }
 
-static void gateway_conf_init(zmq_gateway_conf *conf)
+static void
+gateway_conf_init(zmq_gateway_conf *conf)
 {
-    conf->mqtt_url = NULL;
-    conf->zmq_pub_url = NULL;
-    conf->zmq_sub_url = NULL;
-    conf->pub_topic = NULL;
-    conf->sub_topic = NULL;
+	conf->mqtt_url    = NULL;
+	conf->zmq_pub_url = NULL;
+	conf->zmq_sub_url = NULL;
+	conf->pub_topic   = NULL;
+	conf->sub_topic   = NULL;
 	conf->zmq_sub_pre = NULL;
 	conf->zmq_pub_pre = NULL;
-    conf->type = PUB_SUB;
-    conf->zmq_sender = NULL;
-	conf->username = NULL;
-	conf->password = NULL;
-	conf->proto_ver = 4;
-	conf->keepalive = 60;
-    return;
+	conf->type        = PUB_SUB;
+	conf->zmq_sender  = NULL;
+	conf->username    = NULL;
+	conf->password    = NULL;
+	conf->proto_ver   = 4;
+	conf->keepalive   = 60;
+	return;
 }
 
-static int gateway_conf_check_and_set(zmq_gateway_conf *conf)
+static int
+gateway_conf_check_and_set(zmq_gateway_conf *conf)
 {
 	if (!conf->sub_topic || !conf->pub_topic) {
 		fprintf(stderr, "Pls set sub/pub topic before.");
 		return -1;
 	}
-    if (conf->mqtt_url == NULL) {
-		conf->mqtt_url ? conf->mqtt_url : zstrdup("mqtt-tcp://broker.emqx.io:1883");
+	if (conf->mqtt_url == NULL) {
+		conf->mqtt_url ? conf->mqtt_url
+		               : zstrdup("mqtt-tcp://broker.emqx.io:1883");
 		printf("Set default mqtt-url: %s\n", conf->mqtt_url);
 	}
-    if (conf->zmq_pub_url == NULL) {
-		conf->zmq_pub_url ? conf->zmq_pub_url : zstrdup("tcp://localhost:5559");
+	if (conf->zmq_pub_url == NULL) {
+		conf->zmq_pub_url ? conf->zmq_pub_url
+		                  : zstrdup("tcp://localhost:5559");
 		printf("Set default zmq-pub-url: %s\n", conf->zmq_pub_url);
-	} 
-    if (conf->zmq_sub_url == NULL) {
-		conf->zmq_sub_url ? conf->zmq_sub_url : zstrdup("tcp://localhost:5560");
+	}
+	if (conf->zmq_sub_url == NULL) {
+		conf->zmq_sub_url ? conf->zmq_sub_url
+		                  : zstrdup("tcp://localhost:5560");
 		printf("Set default zmq-sub-url: %s\n", conf->zmq_sub_url);
-	} 
+	}
 
-	nwork = conf->parallel;
+	nwork  = conf->parallel;
 	conf_g = conf;
-    return 0;
+	return 0;
 }
 
 int
@@ -350,7 +360,8 @@ gateway_parse_opts(int argc, char **argv, zmq_gateway_conf *config)
 		break;
 	case NNG_ENOARG:
 		fprintf(stderr,
-		    "Option %s requires argument.\nTry 'nanomq gateway --help' "
+		    "Option %s requires argument.\nTry 'nanomq gateway "
+		    "--help' "
 		    "for more information.\n",
 		    argv[idx]);
 		break;
@@ -361,25 +372,28 @@ gateway_parse_opts(int argc, char **argv, zmq_gateway_conf *config)
 	return rv == -1;
 }
 
-int gateway_start(int argc, char **argv)
+int
+gateway_start(int argc, char **argv)
 {
-    zmq_gateway_conf *conf = (zmq_gateway_conf *) zmalloc(sizeof(zmq_gateway_conf));
-    if (conf == NULL) {
-        fprintf(stderr, "Memory alloc error.\n");
-        exit(EXIT_FAILURE);
-    }
+	zmq_gateway_conf *conf =
+	    (zmq_gateway_conf *) zmalloc(sizeof(zmq_gateway_conf));
+	if (conf == NULL) {
+		fprintf(stderr, "Memory alloc error.\n");
+		exit(EXIT_FAILURE);
+	}
 
 	gateway_conf_init(conf);
 	gateway_parse_opts(argc, argv, conf);
 	conf_gateway_parse(conf);
 	if (-1 != gateway_conf_check_and_set(conf)) {
-    	zmq_gateway(conf);
+		zmq_gateway(conf);
 	}
-    return 0;
+	return 0;
 }
-int gateway_dflt(int argc, char **argv)
+int
+gateway_dflt(int argc, char **argv)
 {
 	printf("%s", help_info);
-    return 0;
+	return 0;
 }
 #endif
