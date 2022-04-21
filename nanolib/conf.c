@@ -504,6 +504,118 @@ conf_auth_parser(conf *nanomq_conf)
 	fclose(fp);
 }
 
+static void prinf_gateway_conf(zmq_gateway_conf *gateway)
+{
+	debug_msg("zmq sub url: %s", gateway->zmq_sub_url);
+	debug_msg("zmq pub url: %s", gateway->zmq_pub_url);
+	debug_msg("zmq sub pre: %s", gateway->zmq_sub_pre);
+	debug_msg("zmq pub pre: %s", gateway->zmq_pub_pre);
+	debug_msg("mqtt url: %s", gateway->mqtt_url);
+	debug_msg("mqtt sub url: %s", gateway->sub_topic);
+	debug_msg("mqtt pub url: %s", gateway->pub_topic);
+	debug_msg("mqtt username: %s", gateway->username);
+	debug_msg("mqtt password: %s", gateway->password);
+	debug_msg("mqtt proto version: %d", gateway->proto_ver);
+	debug_msg("mqtt keepalive: %d", gateway->keepalive);
+	debug_msg("mqtt clean start: %d", gateway->clean_start);
+	debug_msg("mqtt parallel: %d", gateway->parallel);
+}
+
+bool
+conf_gateway_parse(zmq_gateway_conf *gateway)
+{
+	const char *dest_path = gateway->path;
+
+	if (dest_path == NULL || !nano_file_exists(dest_path)) {
+		if (!nano_file_exists(CONF_GATEWAY_PATH_NAME)) {
+			printf("Configure file [%s] or [%s] not found or "
+			          "unreadable\n",
+			    dest_path, CONF_GATEWAY_PATH_NAME);
+			return false;
+		} else {
+			dest_path = CONF_GATEWAY_PATH_NAME;
+		}
+	}
+
+	char * line = NULL;
+	size_t sz   = 0;
+	FILE * fp;
+
+	if ((fp = fopen(dest_path, "r")) == NULL) {
+		printf("File %s open failed\n", dest_path);
+		return true;
+	}
+
+	char *value;
+	while (nano_getline(&line, &sz, fp) != -1) {
+		if ((value = get_conf_value(
+		                line, sz, "gateway.mqtt.proto_ver")) != NULL) {
+			gateway->proto_ver = atoi(value);
+			free(value);
+		} else if ((value = get_conf_value(
+		                line, sz, "gateway.mqtt.keepalive")) != NULL) {
+			gateway->keepalive = atoi(value);
+			free(value);
+		} else if ((value = get_conf_value(line, sz,
+		                "gateway.mqtt.clean_start")) != NULL) {
+			gateway->clean_start = strcasecmp(value, "true") == 0;
+			free(value);
+		} else if ((value = get_conf_value(
+		                line, sz, "gateway.mqtt.parallel")) != NULL) {
+			gateway->parallel = atoi(value);
+			free(value);
+		} else if ((value = get_conf_value(
+		                line, sz, "gateway.mqtt.address")) != NULL) {
+			gateway->mqtt_url = value;
+		} else if ((value = get_conf_value(
+		                line, sz, "gateway.zmq.sub.address")) != NULL) {
+			gateway->zmq_sub_url = value;
+		} else if ((value = get_conf_value(
+		                line, sz, "gateway.zmq.pub.address")) != NULL) {
+			gateway->zmq_pub_url = value;
+		} else if ((value = get_conf_value(
+		                line, sz, "gateway.mqtt.username")) != NULL) {
+			gateway->username = value;
+		} else if ((value = get_conf_value(
+		                line, sz, "gateway.mqtt.password")) != NULL) {
+			gateway->password = value;
+		} else if ((value = get_conf_value(
+	                line, sz, "gateway.mqtt.forward")) != NULL) {
+			gateway->pub_topic = value;
+		} else if ((value = get_conf_value(
+	                line, sz, "gateway.mqtt.forward")) != NULL) {
+			gateway->pub_topic = value;
+		} else if ((value = get_conf_value(
+	                line, sz, "gateway.mqtt.subscription")) != NULL) {
+			gateway->sub_topic = value;
+		} else if ((value = get_conf_value(
+	                line, sz, "gateway.mqtt.subscription")) != NULL) {
+			gateway->sub_topic = value;
+		} else if ((value = get_conf_value(
+	                line, sz, "gateway.zmq.sub_pre")) != NULL) {
+			gateway->zmq_sub_pre = value;
+		} else if ((value = get_conf_value(
+	                line, sz, "gateway.zmq.pub_pre")) != NULL) {
+			gateway->zmq_pub_pre = value;
+		}
+		free(line);
+		line = NULL;
+	}
+
+	if (line) {
+		free(line);
+	}
+
+	prinf_gateway_conf(gateway);
+
+	fclose(fp);
+	return true;
+
+out:
+	fclose(fp);
+	return true;
+}
+
 bool
 conf_bridge_parse_subs(conf_bridge *bridge, const char *path)
 {
