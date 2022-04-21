@@ -200,5 +200,5 @@ add_dependencies(nanomq nng)
 add_dependencies(nanomq nanolib)
 
 if (ENABLE_JWT) 
-  add_dependencies(nanomq extern/l8w8jwt)
+  add_dependencies(nanomq l8w8jwt)
 endif (ENABLE_JWT)
