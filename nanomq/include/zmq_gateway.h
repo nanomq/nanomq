@@ -4,6 +4,7 @@
 #include <nng/mqtt/mqtt_client.h>
 #include <nng/supplemental/util/platform.h>
 #include <nng/nng.h>
+#include "conf.h"
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
@@ -15,19 +16,7 @@
 #include <unistd.h>
 #include <stdatomic.h>
 
-typedef struct {
-    const char *zmq_sub_url;
-    const char *zmq_pub_url;
-    const char *mqtt_url;
-    const char *sub_topic;
-    const char *pub_topic;
-    const char *zmq_sub_pre;
-    const char *zmq_pub_pre;
-    void       *zmq_sender; 
-    enum {PUB_SUB, REQ_REP} type;
-} zmq_proxy_conf;
-
-int  zmq_gateway(zmq_proxy_conf *conf);
+int  zmq_gateway(zmq_gateway_conf *conf);
 
 extern int gateway_start(int argc, char **argv);
 extern int gateway_dflt(int argc, char **argv);
