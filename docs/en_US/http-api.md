@@ -48,6 +48,7 @@ The possible returned codes are as follows:
 | 113         | User already exists                             |
 | 114         | Old password is wrong                           |
 | 115         | Illegal subject                                 |
+| 116         | Token expired                                   |
 
 ## API Endpoints | POST /api/v1
 
@@ -415,5 +416,3 @@ Note: Unnecessary use of -X or --request, POST is already inferred.
 * Connection #0 to host localhost left intact
 {"code":0,"seq":6721,"rep":6}%   
 ```
-
-### 

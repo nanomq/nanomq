@@ -50,6 +50,7 @@ NanoMQ 接口的响应消息体为 JSON 格式，其中总是包含返回码 `co
 | 113         | 用户已存在                 |
 | 114         | 旧密码错误                 |
 | 115         | 不合法的主题               |
+| 116         | Token已过期               |
 
 
 
@@ -424,5 +425,3 @@ Note: Unnecessary use of -X or --request, POST is already inferred.
 * Connection #0 to host localhost left intact
 {"code":0,"seq":6721,"rep":6}%   
 ```
-
-### 
