@@ -34,7 +34,7 @@ NANOMQ_APP(nngpub0, nng_pub0_dflt, nng_pub0_start, NULL, nng_client0_stop);
 NANOMQ_APP(nngsub0, nng_sub0_dflt, nng_sub0_start, NULL, nng_client0_stop);
 #endif
 
-#if defined(SUPP_NNG_GATEWAY)
+#if defined(SUPP_ZMQ_GATEWAY)
 NANOMQ_APP(gateway, gateway_dflt, gateway_start, NULL, NULL);
 #endif
 #if defined(SUPP_BENCH)
@@ -59,7 +59,7 @@ const struct nanomq_app *edge_apps[] = {
 	&nanomq_app_nngproxy,
 	&nanomq_app_nngcat,
 #endif
-#if defined(SUPP_NNG_GATEWAY)
+#if defined(SUPP_ZMQ_GATEWAY)
 	&nanomq_app_gateway,
 #endif
 #if defined(SUPP_BENCH)
