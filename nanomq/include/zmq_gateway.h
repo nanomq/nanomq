@@ -14,7 +14,6 @@
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
-#include <stdatomic.h>
 
 int  zmq_gateway(zmq_gateway_conf *conf);
 
