@@ -154,6 +154,13 @@ ninja
   ninja
   ```
 
+**Note (optional): JWT dependency (for http server) isn't built by default**, you can enable it via `-DENABLE_JWT=ON`.
+
+  ``` bash
+cmake -G Ninja -DENABLE_JWT=ON ..
+ninja
+  ```
+
 **Note (optional): nanolib & nanonng are dependencies of NanoMQ that can be compiled independently**.
 
 To compile nanonng (*nanonng is the fork of nng repository with MQTT support*):
