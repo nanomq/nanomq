@@ -6,7 +6,7 @@ NanoMQ Broker's HTTP API service listens on port 8081 by default. You can modify
 
 ## Interface security
 
-NanoMQ Broker's HTTP API uses the method of [Basic Authentication](https://en.wikipedia.org/wiki/Basic_access_authentication). The `username` and `password` must be filled. The default `username` and `password` are: `admin/public`. You can modify username and password through the configuration file of `etc/nanomq.conf`.
+NanoMQ Broker's HTTP API uses the method of [Basic Authentication](https://en.wikipedia.org/wiki/Basic_access_authentication) or [JWT Authentication](https://jwt.io/introduction). The `username` and `password` must be filled. The default `username` and `password` are: `admin/public`. You can modify username and password through the configuration file of `etc/nanomq.conf`.
 
 ## Response code
 
@@ -74,7 +74,7 @@ Returns the information of broker.
 | data.message_out  | Integer | Statistic broker message out.                                |
 | data.message_drop | Integer | Statistic broker message dropped.                            |
 
-#### **Examples:**
+**Examples**:
 
 ```shell
 $ curl -i --basic -u admin:public -X POST "http://localhost:8081/api/v1" -d '{"req": 2,"seq": 1111111}'
@@ -103,14 +103,14 @@ Returns the information of all subscribe topics with client identifier and qos.
 | data[0].subscriptions[0].topic | String  | Subscribe topic.                                             |
 | data[0].subscriptions[0].qos   | Integer | Subscribe qos.                                               |
 
-#### **Examples:**
+**Examples**:
 
 ```shell
 $ curl -i --basic -u admin:public -X POST "http://localhost:8081/api/v1" -d '{"req": 4,"seq": 1111111}'
 {"code":0,"seq":1111111,"rep":4,"data":[{"client_id":"nanomq-ebd54382","subscriptions":[{"topic":"a/b/c","qos":0}]}]}
 ```
 
-#### Client info
+### Client info
 
 Returns the information of all clients.
 
@@ -135,7 +135,7 @@ Returns the information of all clients.
 | data[0].connect_status  | Integer | Connected status.                                            |
 | data[0].message_receive | Integer | Received message of this client.                             |
 
-#### **Examples:**
+**Examples:**
 
 ```shell
 $ curl -i --basic -u admin:public -X POST "http://localhost:8081/api/v1" -d '{"req": 5,"seq": 1111111}'
@@ -328,7 +328,8 @@ $ curl --location --request POST 'http://localhost:8081/api/v1' \
             "enable": true,
             "port": 8081,
             "username": "admin",
-            "password": "public"
+            "password": "public",
+            "auth_type": "basic"
         },
         "bridge": {
             "bridge_mode": true,
@@ -360,3 +361,59 @@ $ curl --location --request POST 'http://localhost:8081/api/v1' \
 
 {"code":0,"seq":111,"rep":12}
 ```
+
+### Login (work for get token)
+
+It works for JWT Authentication mode, get the jwt *token* in ***Cookie*** from response Header, and set this *token* to next request in ***Authorization*** of Header
+
+**Parameters (json):**
+
+| Name     | Type    | Required | Value  | Description                                                  |
+| -------- | ------- | -------- | ------ | ------------------------------------------------------------ |
+| req      | Integer | Required | 6      | Request Code _6_.                                            |
+| seq      | Integer | Required | unique | The seq is a unique number, response will carry this field. So you can know correspondence between request and response. |
+| username | String  | Required |        | Username for login.                                          |
+| password | String  | Required |        | Password for login.                                          |
+
+**Success Response Body (JSON):**
+
+| Name | Type    | Description                                                  |
+| ---- | ------- | ------------------------------------------------------------ |
+| code | Integer | 0                                                            |
+| seq  | Integer | The seq is a unique number, response get this value from request. So you can know correspondence between request and response. |
+| rep  | Integer | The rep equal 6 as response to req equal 6.                  |
+
+**Examples**:
+
+```shell
+$ curl -v  --location --request POST 'http://localhost:8081/api/v1' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "req": 6,
+    "username": "admin",
+    "password": "public",
+    "seq": 6721
+}'
+Note: Unnecessary use of -X or --request, POST is already inferred.
+*   Trying 127.0.0.1:8081...
+* connect to 127.0.0.1 port 8081 failed: Connection refused
+*   Trying ::1:8081...
+* Connected to localhost (::1) port 8081 (#0)
+> POST /api/v1 HTTP/1.1
+> Host: localhost:8081
+> User-Agent: curl/7.79.1
+> Accept: */*
+> Content-Type: application/json
+> Content-Length: 84
+> 
+* Mark bundle as not supporting multiuse
+< HTTP/1.1 200 OK
+< Content-Length: 29
+< Content-Type: application/json
+< Cookies: eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE2NTA1MTM2NjgsImV4cCI6MTY1MDYwMDA2OCwic3ViIjoiTkFOT01RIiwiaXNzIjoiRU1RIiwidXNlciI6ImFkbWluIiwicGFzcyI6InB1YmxpYyJ9.ZAehV8Ewkd1DYyZ_E2ndaH4GNfToeESkj9XMvq3diV7DZ7ehmOHz-j3_91ggFlvB0mzYGfJ9pt0nvpb2_ScQwQ
+< 
+* Connection #0 to host localhost left intact
+{"code":0,"seq":6721,"rep":6}%   
+```
+
+### 

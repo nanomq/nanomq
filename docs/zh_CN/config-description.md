@@ -40,6 +40,7 @@ NanoMQ 的配置文件通常以 .conf 作为后缀名，你可以在 etc 目录�
 | http_server.port | Integer | Http服务端监听端口。 |
 | http_server.username | String | 访问Http服务用户名。 |
 | http_server.password | String | 访问Http服务密码。 |
+| http_server.auth_type | Enum | Http鉴权方式。（*默认 basic*） |
 
 ### nanomq_bridge.conf
 
