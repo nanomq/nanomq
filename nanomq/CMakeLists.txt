@@ -22,6 +22,9 @@ include_directories(./)
 include_directories(${CMAKE_SOURCE_DIR}/nanomq/include)
 include_directories(${CMAKE_SOURCE_DIR}/nng/include/nng)
 include_directories(${CMAKE_SOURCE_DIR}/nanolib/include)
+if (ENABLE_JWT)
+  include_directories(${CMAKE_SOURCE_DIR}/extern/l8w8jwt/include)
+endif (ENABLE_JWT)
 
 add_subdirectory(apps)
 
@@ -49,6 +52,9 @@ set(SOURCES
 add_executable(nanomq ${SOURCES})
 
 # target_link_libraries(nanomq apps nano_shared)
+if (ENABLE_JWT)
+  target_link_libraries(nanomq PRIVATE l8w8jwt)
+endif (ENABLE_JWT)
 target_link_libraries(nanomq apps nanolib)
 target_link_libraries(nanomq nng)
 target_compile_definitions(nanomq PRIVATE -DPARALLEL=${PARALLEL})
