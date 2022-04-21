@@ -28,5 +28,6 @@ extern conf_http_server *get_http_server_conf(void);
 
 extern void set_global_conf(conf *config);
 extern conf *get_global_conf(void);
+extern char *get_jwt_key(void);
 
 #endif
