@@ -194,7 +194,6 @@ jwt_gen_token(const char *username, const char *password)
 	if (rv != L8W8JWT_SUCCESS) {
 		return NULL;
 	}
-	debug_msg("set token: %s", jwt_token);
 	return jwt_token;
 }
 
@@ -230,9 +229,6 @@ jwt_authorize(http_msg *msg)
 	params.validate_exp          = 1;
 	params.exp_tolerance_seconds = 200;
 
-	params.validate_iat = 1;
-    params.iat_tolerance_seconds = 200;
-
 	enum l8w8jwt_validation_result validation_result = 0;
 
 	struct l8w8jwt_claim *claim;
@@ -256,6 +252,9 @@ jwt_authorize(http_msg *msg)
 	} else {
 		debug_msg("decode jwt token failed: return %d, result: %d", rv,
 		    validation_result);
+		if (validation_result == L8W8JWT_EXP_FAILURE) {
+			return TOKEN_EXPIRED;
+		}
 		return WRONG_USERNAME_OR_PASSWORD;
 	}
 	return result;
