@@ -33,7 +33,8 @@ enum result_code {
 	CLIENT_IS_OFFLINE              = 112,
 	USER_ALREADY_EXISTS            = 113,
 	OLD_PASSWORD_IS_WRONG          = 114,
-	ILLEGAL_SUBJECT                = 115
+	ILLEGAL_SUBJECT                = 115,
+	TOKEN_EXPIRED                  = 116,
 };
 
 typedef struct http_msg {
