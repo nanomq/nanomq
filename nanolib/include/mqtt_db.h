@@ -7,23 +7,15 @@
 #include <stdint.h>
 #include <string.h>
 
-typedef struct {
-	void *ctxt;
-	union {
-		uint32_t *sub_id_p;
-		uint32_t  sub_id_i;
-	};
-} dbtree_ctxt;
-
 typedef enum {
 	MQTT_VERSION_V311 = 4,
 	MQTT_VERSION_V5   = 5,
 } mqtt_version_t;
 
 typedef struct {
-	uint32_t     session_id;
-	uint32_t     pipe_id;
-	dbtree_ctxt *ctxt;
+	uint32_t session_id;
+	uint32_t pipe_id;
+	void *   ctxt;
 } dbtree_client;
 
 typedef struct {
@@ -142,21 +134,6 @@ void dbtree_destory(dbtree *db);
  * @return void
  */
 void dbtree_print(dbtree *db);
-
-/**
- * @brief dbtree_new_ctxt - Create a dbtree_ctxt.
- * @param ctxt - client ctxt
- * @param sub_id - subscription identifier
- * @return pointer of dbtree_ctxt
- */
-dbtree_ctxt *dbtree_new_ctxt(void *ctxt, uint32_t sub_id);
-
-/**
- * @brief dbtree_delete_ctxt - delete dbtree_ctxt
- * @param dbtree_ctxt - dbtree_ctxt
- * @return void
- */
-void dbtree_delete_ctxt(dbtree_ctxt *ctxt);
 
 /**
  * @brief dbtree_insert_client - check if this
