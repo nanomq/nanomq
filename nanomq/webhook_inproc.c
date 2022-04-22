@@ -20,9 +20,13 @@
 #include <nng/protocol/pipeline0/push.h>
 #include <nng/supplemental/http/http.h>
 #include <nng/supplemental/util/platform.h>
+#include <stdatomic.h>
 
 #define NANO_LMQ_INIT_CAP 16
-
+static atomic_ulong inproc_recv_count = 0;
+static atomic_ulong inproc_send_count = 0;
+static atomic_ulong inproc_save_count = 0;
+static atomic_ulong inproc_aio_count = 0;
 typedef struct {
 	nng_http_client *client;
 	nng_url *        url;
@@ -44,6 +48,8 @@ struct hook_work {
 	webhook_client webhook;
 	nng_socket     sock;
 	conf_web_hook *conf;
+	uint8_t        id;
+	bool	       busy;
 };
 
 static void webhook_aio_cb(void *arg);
@@ -64,14 +70,30 @@ webhook_aio_cb(void *arg)
 {
 	struct hook_work *work        = arg;
 	webhook_client *  hook_client = &work->webhook;
+	nng_msg  *msg;
 
 	nng_mtx_lock(hook_client->mtx);
-	hook_client->flag = true;
-	nng_mtx_unlock(hook_client->mtx);
+	// hook_client->flag = true;
+	work->busy = false;
+	inproc_aio_count++;
 
-	if (!nano_lmq_empty(&hook_client->lmq)) {
-		tx_msg(arg);
+	// printf("nanomq lmq size %d \n",nano_lmq_len(&hook_client->lmq));
+	// get msg from lmq and transmit 
+	if (nano_lmq_getq(&hook_client->lmq, (void **) &msg) == 0) {
+		work->busy = true;
+		inproc_save_count--;
+		// printf("resending!!");
+		nng_http_req_copy_data(
+		    hook_client->req, nng_msg_body(msg), nng_msg_len(msg));
+		nng_msg_free(msg);
+		inproc_send_count++;
+		nng_http_client_transact(hook_client->client, hook_client->req,
+		    hook_client->res, hook_client->aio);
 	}
+	// if (!nano_lmq_empty(&hook_client->lmq)) {
+	// 	tx_msg(arg);
+	// }
+	nng_mtx_unlock(hook_client->mtx);
 }
 
 static void
@@ -95,15 +117,7 @@ tx_msg(void *arg)
 		}
 	}
 
-	// get msg from lmq and transmit 
-	if (nano_lmq_getq(&hook_client->lmq, (void **) &msg) == 0) {
-		nng_http_req_copy_data(
-		    hook_client->req, nng_msg_body(msg), nng_msg_len(msg));
-		nng_msg_free(msg);
-		hook_client->flag = false;
-		nng_http_client_transact(hook_client->client, hook_client->req,
-		    hook_client->res, hook_client->aio);
-	}
+
 
 	nng_mtx_unlock(hook_client->mtx);
 }
@@ -115,6 +129,20 @@ handle_msg(void *arg)
 	struct hook_work *work        = arg;
 	webhook_client *  hook_client = &work->webhook;
 
+	nng_mtx_lock(hook_client->mtx);
+	if (work->busy == false) {
+		work->busy = true;
+		// get msg and transmit
+		nng_http_req_copy_data(hook_client->req,
+		    nng_msg_body(work->msg), nng_msg_len(work->msg));
+		nng_msg_free(work->msg);
+		inproc_send_count++;
+		nng_http_client_transact(hook_client->client, hook_client->req,
+		    hook_client->res, hook_client->aio);
+		nng_mtx_unlock(hook_client->mtx);
+		return;
+	}
+	// printf("check!!!!!!!!!!!!\n");
 	if (nano_lmq_full(&hook_client->lmq)) {
 		size_t lmq_cap = nano_lmq_cap(&hook_client->lmq);
 		if ((rv = nano_lmq_resize(
@@ -122,9 +150,9 @@ handle_msg(void *arg)
 			fatal("nano_lmq_resize", rv);
 		}
 	}
+	inproc_save_count++;
 	nano_lmq_putq(&hook_client->lmq, work->msg);
-
-	tx_msg(arg);
+	nng_mtx_unlock(hook_client->mtx);
 }
 
 static void
@@ -136,6 +164,7 @@ webhook_cb(void *arg)
 	switch (work->state) {
 	case HOOK_INIT:
 		work->state = HOOK_RECV;
+		printf("work id %d\n", work->id);
 		nng_recv_aio(work->sock, work->aio);
 		break;
 
@@ -143,6 +172,8 @@ webhook_cb(void *arg)
 		if ((rv = nng_aio_result(work->aio)) != 0) {
 			fatal("nng_recv_aio", rv);
 		}
+		printf("work id %d\n", work->id);
+		inproc_recv_count++;
 		work->msg = nng_aio_get_msg(work->aio);
 		handle_msg(work);
 		work->msg   = NULL;
@@ -162,6 +193,7 @@ webhook_init(struct hook_work *w, conf_web_hook *conf)
 	int             rv;
 	webhook_client *webhook = &w->webhook;
 
+	nng_mtx_alloc(&webhook->mtx);
 	if (((rv = nng_url_parse(&webhook->url, conf->url)) != 0) ||
 	    ((rv = nng_http_client_alloc(&webhook->client, webhook->url)) !=
 	        0) ||
@@ -200,6 +232,7 @@ alloc_work(nng_socket sock, conf_web_hook *conf)
 	w->conf  = conf;
 	w->sock  = sock;
 	w->state = HOOK_INIT;
+	w->busy  = false;
 	return (w);
 }
 
@@ -221,6 +254,7 @@ webhook_thr(void *arg)
 
 	for (i = 0; i < conf->web_hook.pool_size; i++) {
 		works[i] = alloc_work(sock, &conf->web_hook);
+		works[i]->id = i;
 	}
 
 	if ((rv = nng_listen(sock, WEB_HOOK_INPROC_URL, NULL, 0)) != 0) {
@@ -232,7 +266,12 @@ webhook_thr(void *arg)
 	}
 
 	for (;;) {
-		nng_msleep(3600000); // neither pause() nor sleep() portable
+		// inproc_recv_count;
+		printf("??????????recv count: %lu send count %lu save %lu aio %lu\n", 
+		inproc_recv_count, inproc_send_count, inproc_save_count
+		,inproc_aio_count);
+		nng_msleep(1000);
+		// nng_msleep(3600000); // neither pause() nor sleep() portable
 	}
 }
 
