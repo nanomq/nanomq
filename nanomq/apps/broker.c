@@ -285,7 +285,6 @@ server_cb(void *arg)
 			    conn_param_get_username(cparam),
 			    conn_param_get_clientid(cparam));
 			client_ctx * cli_ctx = NULL;
-			dbtree_ctxt *db_ctx  = NULL;
 			// free client ctx
 			if (dbhash_check_id(work->pid.id)) {
 				destroy_sub_client(work->pid.id, work->db);

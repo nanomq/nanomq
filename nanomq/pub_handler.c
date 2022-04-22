@@ -56,7 +56,6 @@ foreach_client(
 	int       ctx_list_len;
 
 	packet_subscribe * sub_pkt;
-	dbtree_ctxt *      db_ctxt = NULL;
 	struct client_ctx *ctx;
 	topic_node *       tn;
 	// Dont using msg info buf, Just for Cheat Compiler
@@ -67,10 +66,7 @@ foreach_client(
 	ctx_list_len = cvector_size(cli_ctx_list);
 
 	for (int i = 0; i < ctx_list_len; i++) {
-		db_ctxt  = (dbtree_ctxt *) cli_ctx_list[i];
-		ctx      = db_ctxt->ctxt;
-
-		dbtree_delete_ctxt(db_ctxt);
+		ctx  = (struct client_ctx *) cli_ctx_list[i];
 		if (!ctx)
 			continue;
 
