@@ -115,17 +115,14 @@ webhook_msg_publish(nng_socket *sock, conf_web_hook *hook_conf,
 	}
 
 	cJSON *obj = cJSON_CreateObject();
-	cJSON_AddNumberToObject(obj, "ts", nng_clock());
+	cJSON_AddNumberToObject(obj, "ts", time(NULL) * 1000);
 	cJSON_AddStringToObject(
 	    obj, "topic", pub_packet->var_header.publish.topic_name.body);
 	cJSON_AddBoolToObject(obj, "retain", pub_packet->fixed_header.retain);
 	cJSON_AddNumberToObject(obj, "qos", pub_packet->fixed_header.qos);
 	cJSON_AddStringToObject(obj, "action", "message_publish");
-	if (username) {
-		cJSON_AddStringToObject(obj, "from_username", username);
-	} else {
-		cJSON_AddNullToObject(obj, "from_username");
-	}
+	cJSON_AddStringToObject(
+	    obj, "from_username", username == NULL ? "undefined" : username);
 	if (client_id) {
 		cJSON_AddStringToObject(obj, "from_client_id", client_id);
 	} else {
@@ -189,13 +186,13 @@ webhook_client_connack(nng_socket *sock, conf_web_hook *hook_conf,
 
 	cJSON *obj = cJSON_CreateObject();
 
-	cJSON_AddNumberToObject(obj, "connected_at", nng_clock());
 	cJSON_AddNumberToObject(obj, "proto_ver", proto_ver);
 	cJSON_AddNumberToObject(obj, "keepalive", keepalive);
 	// TODO get reason string
 	cJSON_AddStringToObject(
 	    obj, "conn_ack", reason == SUCCESS ? "success" : "fail");
-	cJSON_AddStringToObject(obj, "username", username);
+	cJSON_AddStringToObject(
+	    obj, "username", username == NULL ? "undefined" : username);
 	cJSON_AddStringToObject(obj, "clientid", client_id);
 	cJSON_AddStringToObject(obj, "action", "client_connack");
 
@@ -220,14 +217,11 @@ webhook_client_disconnect(nng_socket *sock, conf_web_hook *hook_conf,
 	}
 
 	cJSON *obj = cJSON_CreateObject();
-
-	cJSON_AddNumberToObject(obj, "disconnected_at", nng_clock());
-	// TODO get connected timestamp
-	// cJSON_AddNumberToObject(obj, "connected_at", 0);
 	// TODO get reason string
 	cJSON_AddStringToObject(
 	    obj, "reason", reason == SUCCESS ? "normal" : "abnormal");
-	cJSON_AddStringToObject(obj, "username", username);
+	cJSON_AddStringToObject(
+	    obj, "username", username == NULL ? "undefined" : username);
 	cJSON_AddStringToObject(obj, "clientid", client_id);
 	cJSON_AddStringToObject(obj, "action", "client_disconnected");
 
