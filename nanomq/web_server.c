@@ -9,7 +9,7 @@
 //
 
 #define INPROC_URL "inproc://rest"
-#define REST_URL "http://localhost:%u/api/v1"
+#define REST_URL "http://0.0.0.0:%u/api/v1"
 
 #include <nng/nng.h>
 #include <nng/protocol/reqrep0/rep.h>
