@@ -53,7 +53,7 @@ add_executable(nanomq ${SOURCES})
 
 # target_link_libraries(nanomq apps nano_shared)
 if (ENABLE_JWT)
-  target_link_libraries(nanomq PRIVATE l8w8jwt)
+  target_link_libraries(nanomq l8w8jwt)
 endif (ENABLE_JWT)
 target_link_libraries(nanomq apps nanolib)
 target_link_libraries(nanomq nng)
