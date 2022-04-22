@@ -54,46 +54,46 @@ char topic08[] = "cc/dd/aa";
 char topic09[] = "www/xxx/zz";
 
 ////////////////////////////////////
-dbtree_ctxt db_ctxt0 = { .ctxt = "350429", .sub_id_i = 0 };
-dbtree_ctxt db_ctxt1 = { .ctxt = "350420", .sub_id_i = 1 };
-dbtree_ctxt db_ctxt2 = { .ctxt = "350427", .sub_id_i = 2 };
-dbtree_ctxt db_ctxt3 = { .ctxt = "350426", .sub_id_i = 3 };
-dbtree_ctxt db_ctxt4 = { .ctxt = "350425", .sub_id_i = 4 };
-dbtree_ctxt db_ctxt5 = { .ctxt = "350424", .sub_id_i = 5 };
-dbtree_ctxt db_ctxt6 = { .ctxt = "350423", .sub_id_i = 6 };
-dbtree_ctxt db_ctxt7 = { .ctxt = "350422", .sub_id_i = 7 };
-dbtree_ctxt db_ctxt8 = { .ctxt = "350421", .sub_id_i = 8 };
-dbtree_ctxt db_ctxt9 = { .ctxt = "350420", .sub_id_i = 9 };
+char ctxt0[] = "350429";
+char ctxt1[] = "350420";
+char ctxt2[] = "350427";
+char ctxt3[] = "350426";
+char ctxt4[] = "350425";
+char ctxt5[] = "350424";
+char ctxt6[] = "350423";
+char ctxt7[] = "350422";
+char ctxt8[] = "350421";
+char ctxt9[] = "350420";
 
 dbtree_client client0 = {
-	.session_id = 250429, .pipe_id = 150429, .ctxt = (void *) &db_ctxt0
+	.session_id = 250429, .pipe_id = 150429, .ctxt = (void *) ctxt0
 };
 dbtree_client client1 = {
-	.session_id = 250420, .pipe_id = 150420, .ctxt = (void *) &db_ctxt1
+	.session_id = 250420, .pipe_id = 150420, .ctxt = (void *) &ctxt1
 };
 dbtree_client client2 = {
-	.session_id = 250427, .pipe_id = 150427, .ctxt = (void *) &db_ctxt2
+	.session_id = 250427, .pipe_id = 150427, .ctxt = (void *) &ctxt2
 };
 dbtree_client client3 = {
-	.session_id = 250426, .pipe_id = 150426, .ctxt = (void *) &db_ctxt3
+	.session_id = 250426, .pipe_id = 150426, .ctxt = (void *) &ctxt3
 };
 dbtree_client client4 = {
-	.session_id = 250425, .pipe_id = 150425, .ctxt = (void *) &db_ctxt4
+	.session_id = 250425, .pipe_id = 150425, .ctxt = (void *) &ctxt4
 };
 dbtree_client client5 = {
-	.session_id = 250424, .pipe_id = 150424, .ctxt = (void *) &db_ctxt5
+	.session_id = 250424, .pipe_id = 150424, .ctxt = (void *) &ctxt5
 };
 dbtree_client client6 = {
-	.session_id = 250423, .pipe_id = 150423, .ctxt = (void *) &db_ctxt6
+	.session_id = 250423, .pipe_id = 150423, .ctxt = (void *) &ctxt6
 };
 dbtree_client client7 = {
-	.session_id = 250422, .pipe_id = 150422, .ctxt = (void *) &db_ctxt7
+	.session_id = 250422, .pipe_id = 150422, .ctxt = (void *) &ctxt7
 };
 dbtree_client client8 = {
-	.session_id = 250421, .pipe_id = 150421, .ctxt = (void *) &db_ctxt8
+	.session_id = 250421, .pipe_id = 150421, .ctxt = (void *) &ctxt8
 };
 dbtree_client client9 = {
-	.session_id = 250420, .pipe_id = 150420, .ctxt = (void *) &db_ctxt9
+	.session_id = 250420, .pipe_id = 150420, .ctxt = (void *) &ctxt9
 };
 
 dbtree_retain_msg retain0 = { 1, true, "150429", NULL };
@@ -195,16 +195,21 @@ test_find_client()
 	char *ret_ctxt9 =
 	    (char *) dbtree_find_client(db, topic9, client9.pipe_id);
 
-	check(db_ctxt0.ctxt == ret_ctxt0, "Error ctxt message0");
-	check(db_ctxt1.ctxt == ret_ctxt1, "Error ctxt message1");
-	check(db_ctxt2.ctxt == ret_ctxt2, "Error ctxt message2");
-	check(db_ctxt3.ctxt == ret_ctxt3, "Error ctxt message3");
-	check(db_ctxt4.ctxt == ret_ctxt4, "Error ctxt message4");
-	check(db_ctxt5.ctxt == ret_ctxt5, "Error ctxt message5");
-	check(db_ctxt6.ctxt == ret_ctxt6, "Error ctxt message6");
-	check(db_ctxt7.ctxt == ret_ctxt7, "Error ctxt message7");
-	check(db_ctxt8.ctxt == ret_ctxt8, "Error ctxt message8");
-	check(db_ctxt9.ctxt == ret_ctxt9, "Error ctxt message9");
+	puts(ctxt0);
+	puts(ret_ctxt0);
+
+	
+
+	check(ctxt0 == ret_ctxt0, "Error ctxt message0");
+	check(ctxt1 == ret_ctxt1, "Error ctxt message1");
+	check(ctxt2 == ret_ctxt2, "Error ctxt message2");
+	check(ctxt3 == ret_ctxt3, "Error ctxt message3");
+	check(ctxt4 == ret_ctxt4, "Error ctxt message4");
+	check(ctxt5 == ret_ctxt5, "Error ctxt message5");
+	check(ctxt6 == ret_ctxt6, "Error ctxt message6");
+	check(ctxt7 == ret_ctxt7, "Error ctxt message7");
+	check(ctxt8 == ret_ctxt8, "Error ctxt message8");
+	check(ctxt9 == ret_ctxt9, "Error ctxt message9");
 	puts("================finish find client===============");
 
 	return;
@@ -369,18 +374,10 @@ test_search_client()
 {
 	puts("================test search client==============");
 	size_t        size = 0;
-	dbtree_ctxt **dc = (dbtree_ctxt **) dbtree_find_clients_and_cache_msg(
+	char **dc = (char **) dbtree_find_clients_and_cache_msg(
 	    db, topic0, NULL, &size);
 
 	if (dc) {
-		for (int i = 0; i < cvector_size(dc); ++i) {
-			dbtree_ctxt *c = dc[i];
-			// log_info("ctxt: %s", (char*) c->ctxt);
-			if (!cvector_empty(c->sub_id_p)) {
-				cvector_free(c->sub_id_p);
-			}
-			dbtree_delete_ctxt(c);
-		}
 		cvector_free(dc);
 	}
 	puts("================finish search session===============");
@@ -419,13 +416,6 @@ test_search_session()
 		sprintf(msg_que[i], "message+%d", i);
 		void **v = dbtree_find_clients_and_cache_msg(
 		    db, topic0, (void *) msg_que[i], &size);
-		for (int j = 0; j < cvector_size(v); j++) {
-			dbtree_ctxt *ct = (dbtree_ctxt *) v[j];
-			if (!cvector_empty(ct->sub_id_p)) {
-				cvector_free(ct->sub_id_p);
-			}
-			dbtree_delete_ctxt(ct);
-		}
 		cvector_free(v);
 	}
 
