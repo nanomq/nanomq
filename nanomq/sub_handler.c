@@ -224,7 +224,6 @@ sub_ctx_handle(nano_work *work)
 	uint32_t clientid_key            = 0;
 	dbtree_retain_msg **r            = NULL;
 
-	dbtree_ctxt *db_old_ctx = NULL;
 	client_ctx * old_ctx    = NULL;
 
 	if (work->sub_pkt->packet_id == 0) {
@@ -251,12 +250,11 @@ sub_ctx_handle(nano_work *work)
 	tq = dbhash_get_topic_queue(cli_ctx->pid.id);
 
 	if (tq) {
-		db_old_ctx = dbtree_delete_client(
+		old_ctx = dbtree_delete_client(
 		    work->db, tq->topic, clientid_key, cli_ctx->pid.id);
 	}
 
-	if (db_old_ctx) {
-		old_ctx              = db_old_ctx->ctxt;
+	if (old_ctx) {
 		int            t     = 0;
 		if (old_ctx->proto_ver == PROTOCOL_VERSION_v5) {
 			property_data *pdata =
@@ -266,9 +264,8 @@ sub_ctx_handle(nano_work *work)
 				t = pdata->p_value.varint;
 			}
 		}
-		db_old_ctx->sub_id_i = t;
 		dbtree_insert_client(
-		    work->db, tq->topic, db_old_ctx, cli_ctx->pid.id);
+		    work->db, tq->topic, old_ctx, cli_ctx->pid.id);
 	}
 
 	if (!tq || !old_ctx) { /* the real ctx stored in tree */
@@ -324,9 +321,8 @@ sub_ctx_handle(nano_work *work)
 					t = pdata->p_value.varint;
 				}
 			}
-			dbtree_ctxt *db_old_ctxt = dbtree_new_ctxt(old_ctx, t);
 			dbtree_insert_client(
-			    work->db, topic_str, db_old_ctxt, work->pid.id);
+			    work->db, topic_str, old_ctx, work->pid.id);
 
 			dbhash_insert_topic(work->pid.id, topic_str);
 		}
@@ -567,17 +563,12 @@ destroy_sub_ctx(void *ctxt)
 void
 destroy_sub_client(uint32_t pid, dbtree * db)
 {
-	dbtree_ctxt *db_ctx = NULL;
 	client_ctx * cli_ctx = NULL;
 	topic_queue *tq = dbhash_get_topic_queue(pid);
 	// Free from dbtree
 	while (tq) {
 		if (tq->topic)
-			db_ctx = dbtree_delete_client(db, tq->topic, 0, pid);
-		if (db_ctx) {
-			cli_ctx = db_ctx->ctxt;
-			dbtree_delete_ctxt(db_ctx);
-		}
+			cli_ctx = dbtree_delete_client(db, tq->topic, 0, pid);
 		if (cli_ctx)
 			del_sub_ctx(cli_ctx, tq->topic);
 		tq = tq->next;
