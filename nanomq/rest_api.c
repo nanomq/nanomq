@@ -314,7 +314,6 @@ process_request(http_msg *msg)
 	http_msg         ret           = { 0 };
 	uint16_t         status        = NNG_HTTP_STATUS_OK;
 	enum result_code code          = SUCCEED;
-	char             response[255] = "";
 	uint64_t         sequence      = 0UL;
 
 	cJSON *req;
