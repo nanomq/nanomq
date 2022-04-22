@@ -777,6 +777,8 @@ get_config(cJSON *data, http_msg *msg, uint64_t sequence)
 	    http_obj, "username", config->http_server.username);
 	cJSON_AddStringToObject(
 	    http_obj, "password", config->http_server.password);
+	cJSON_AddStringToObject(http_obj, "auth_type",
+	    config->http_server.auth_type == JWT ? "jwt" : "basic");
 
 	cJSON *bridge_obj = cJSON_CreateObject();
 	cJSON_AddBoolToObject(
@@ -1021,6 +1023,7 @@ update_main_conf(cJSON *json, conf *config)
 		uint16_t http_port;
 		char *   http_username = NULL;
 		char *   http_password = NULL;
+		char *   auth_type     = NULL;
 		getBoolValue(http_server, item, "enable", http_enable, rv);
 		if (rv == 0) {
 			conf_update_bool(config->conf_file,
@@ -1042,6 +1045,14 @@ update_main_conf(cJSON *json, conf *config)
 		if (rv == 0) {
 			conf_update(config->conf_file, "http_server.password",
 			    http_password);
+		}
+		getStringValue(http_server, item, "auth_type", auth_type, rv);
+		if (rv == 0) {
+			if (strcmp("basic", auth_type) == 0 ||
+			    strcmp("jwt", auth_type) == 0) {
+				conf_update(config->conf_file,
+				    "http_server.auth_type", auth_type);
+			}
 		}
 	}
 }
