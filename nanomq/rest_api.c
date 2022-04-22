@@ -165,9 +165,9 @@ jwt_gen_token(const char *username, const char *password)
 	params.alg = L8W8JWT_ALG_HS512;
 	params.sub = "NANOMQ";
 	params.iss = "EMQ";
-	params.iat = nng_clock() / 1000;
-	params.exp = nng_clock() / 1000 +
-	    (24 * 60 * 60); /* Set to expire after 24 Hours */
+	params.iat = time(NULL);
+	params.exp =
+	    params.iat + (24 * 60 * 60); /* Set to expire after 24 Hours */
 	params.secret_key        = (uint8_t *) get_jwt_key();
 	params.secret_key_length = strlen((char *) params.secret_key);
 
@@ -213,7 +213,6 @@ jwt_authorize(http_msg *msg)
 	l8w8jwt_decoding_params_init(&params);
 
 	params.alg        = L8W8JWT_ALG_HS512;
-	debug_msg("get token: %s", msg->token);
 	params.jwt        = msg->token;
 	params.jwt_length = msg->token_len;
 
@@ -231,10 +230,11 @@ jwt_authorize(http_msg *msg)
 
 	enum l8w8jwt_validation_result validation_result = 0;
 
-	struct l8w8jwt_claim *claim;
-	size_t claim_count;
+	struct l8w8jwt_claim *claim       = NULL;
+	size_t                claim_count = 0;
 
-	int rv = l8w8jwt_decode(&params, &validation_result, &claim, &claim_count);
+	int rv =
+	    l8w8jwt_decode(&params, &validation_result, &claim, &claim_count);
 
 	if (rv == L8W8JWT_SUCCESS && validation_result == L8W8JWT_VALID) {
 		struct l8w8jwt_claim *user_claim = l8w8jwt_get_claim(
@@ -247,16 +247,22 @@ jwt_authorize(http_msg *msg)
 		    (pass_claim == NULL ||
 		        strncmp(server->password, pass_claim->value,
 		            pass_claim->value_length) != 0)) {
-			return WRONG_USERNAME_OR_PASSWORD;
+			result = WRONG_USERNAME_OR_PASSWORD;
 		}
 	} else {
 		debug_msg("decode jwt token failed: return %d, result: %d", rv,
 		    validation_result);
 		if (validation_result == L8W8JWT_EXP_FAILURE) {
-			return TOKEN_EXPIRED;
+			result = TOKEN_EXPIRED;
+		} else {
+			result = WRONG_USERNAME_OR_PASSWORD;
 		}
-		return WRONG_USERNAME_OR_PASSWORD;
 	}
+
+	if (claim_count > 0) {
+		l8w8jwt_free_claims(claim, claim_count);
+	}
+
 	return result;
 }
 #else
@@ -307,14 +313,13 @@ basic_authorize(http_msg *msg)
 	return result;
 }
 
-
 http_msg
 process_request(http_msg *msg)
 {
-	http_msg         ret           = { 0 };
-	uint16_t         status        = NNG_HTTP_STATUS_OK;
-	enum result_code code          = SUCCEED;
-	uint64_t         sequence      = 0UL;
+	http_msg         ret      = { 0 };
+	uint16_t         status   = NNG_HTTP_STATUS_OK;
+	enum result_code code     = SUCCEED;
+	uint64_t         sequence = 0UL;
 
 	cJSON *req;
 
@@ -372,9 +377,9 @@ process_request(http_msg *msg)
 			break;
 		}
 	}
-	cJSON_Delete(object);
 
 	if (found) {
+		cJSON_Delete(object);
 		return ret;
 	} else {
 		status = NNG_HTTP_STATUS_NOT_FOUND;
@@ -382,6 +387,7 @@ process_request(http_msg *msg)
 	}
 
 exit:
+	cJSON_Delete(object);
 	ret = error_response(msg, status, code, sequence);
 	return ret;
 }
@@ -661,11 +667,11 @@ post_login(cJSON *data, http_msg *msg, uint64_t sequence)
 	http_msg res      = { .status = NNG_HTTP_STATUS_OK };
 	int      ret_code = SUCCEED;
 	cJSON *  res_obj;
-	cJSON *           item;
-	char *            username;
-	char *            password;
-	char *            token = NULL;
-	int               rv;
+	cJSON *  item;
+	char *   username;
+	char *   password;
+	char *   token = NULL;
+	int      rv;
 
 #ifdef SUPP_JWT
 	conf_http_server *server = get_http_server_conf();
