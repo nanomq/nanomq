@@ -25,11 +25,6 @@ typedef struct {
 	void *  message;
 } dbtree_retain_msg;
 
-typedef struct {
-	uint32_t session_id;
-	void *   ctxt;
-} dbtree_session;
-
 typedef struct dbtree_node dbtree_node;
 
 struct dbtree_node {
@@ -39,20 +34,12 @@ struct dbtree_node {
 	dbtree_retain_msg *retain;
 	cvector(dbtree_client *) clients;
 	cvector(dbtree_node *) child;
-	cvector(dbtree_session *) session_vector;
 	pthread_rwlock_t rwlock;
 };
 
 typedef struct {
-	uint32_t session_id;
-	cvector(void *) msg_list;
-} dbtree_session_msg;
-
-typedef struct {
 	dbtree_node *root;
-	cvector(dbtree_session_msg *) session_msg_list;
 	pthread_rwlock_t rwlock;
-	pthread_rwlock_t rwlock_session;
 } dbtree;
 
 /**
@@ -96,22 +83,6 @@ ids_cmp(void *x_, void *y_)
 	uint32_t *pipe_id = (uint32_t *) y_;
 	uint32_t *id      = (uint32_t *) x_;
 	return *pipe_id - *id;
-}
-
-static inline int
-session_msg_cmp(void *x_, void *y_)
-{
-	uint32_t *          y     = (uint32_t *) y_;
-	dbtree_session_msg *ele_x = (dbtree_session_msg *) x_;
-	return *y - ele_x->session_id;
-}
-
-static inline int
-session_cmp(void *x_, void *y_)
-{
-	uint32_t *      y     = (uint32_t *) y_;
-	dbtree_session *ele_x = (dbtree_session *) x_;
-	return *y - ele_x->session_id;
 }
 
 /**
@@ -163,52 +134,6 @@ void *dbtree_insert_client(
 void *dbtree_find_client(dbtree *db, char *topic, uint32_t pipe_id);
 
 /**
- * @brief dbtree_restore_session - This function
- * will be called when connection is established
- * and cleansession = 0. Before call this function,
- * should check table that have relationship client
- * identify and topic queue. Then use topic and pipe
- * identify to get the session, delete it from session
- * list and add to client vector.
- * @param dbtree - dbtree
- * @param topic - topic
- * @param session_id - client id hash value
- * @param pipe_id - pipe id
- * @return
- */
-void *dbtree_restore_session(
-    dbtree *db, char *topic, uint32_t session_id, uint32_t pipe_id);
-
-/**
- * @brief dbtree_cache_session - This function will
- * be called when disconnection and cleansession = 0.
- * Then use topic and pipe identify to get the client,
- * delete it from client vector and add to session list.
- * @param dbtree - dbtree
- * @param topic - topic
- * @param session_id - client id hash value
- * @param pipe_id - pipe id
- * @return
- */
-void *dbtree_cache_session(
-    dbtree *db, char *topic, uint32_t session_id, uint32_t pipe_id);
-
-/**
- * @brief dbtree_delete_session - This function will
- * be called when connection is established and
- * cleansession change from 0 to 1. Then use topic
- * and pipe identify to get the client, delete it
- * from session list.
- * @param dbtree - dbtree
- * @param topic - topic
- * @param session_id - client id hash value
- * @param pipe_id - pipe id
- * @return
- */
-void *dbtree_delete_session(
-    dbtree *db, char *topic, uint32_t session_id, uint32_t pipe_id);
-
-/**
  * @brief dbtree_delete_client - This function will
  * be called when disconnection and cleansession = 1.
  * check if this topic and client id is exist on the
@@ -223,37 +148,13 @@ void *dbtree_delete_client(
     dbtree *db, char *topic, uint32_t session_id, uint32_t pipe_id);
 
 /**
- * @brief dbtree_cache_session_msg - This function will
- * be called when cleansession = 0 and qos 1,2 message
- * is sent but not receive ack. cache message to dbtree.
- * @param dbtree - dbtree
- * @param topic - topic
- * @param client - client
- * @return ctxt or NULL, if client can be delete or not
- */
-int dbtree_cache_session_msg(dbtree *db, void *msg, uint32_t session_id);
-
-/**
  * @brief dbtree_find_clients_and_cache_msg - Get all
- * subscribers online to this topic and cache session
- * message for offline.
- * @param dbtree - dbtree
- * @param topic - topic
- * @param msg_cnt - message used count
- * @return dbtree_client
- */
-void **dbtree_find_clients_and_cache_msg(
-    dbtree *db, char *topic, void *msg, size_t *msg_cnt);
-
-/**
- * @brief dbtree_restore_session_msg - Get all be
- * cached session message.
- * message for offline.
+ * subscribers online to this topic 
  * @param dbtree - dbtree
  * @param topic - topic
  * @return dbtree_client
  */
-void **dbtree_restore_session_msg(dbtree *db, uint32_t session_id);
+void **dbtree_find_clients(dbtree *db, char *topic);
 
 /**
  * @brief dbtree_insert_retain - Insert retain message to this topic.
@@ -286,11 +187,10 @@ dbtree_retain_msg **dbtree_find_retain(dbtree *db, char *topic);
  * will Find shared subscribe client.
  * @param dbtree - dbtree
  * @param topic - topic
- * @param msg_cnt - message used count
  * @return dbtree_client
  */
 void **dbtree_find_shared_sub_clients(
-    dbtree *db, char *topic, void *msg, size_t *msg_cnt);
+    dbtree *db, char *topic);
 
 /**
  * @brief dbtree_check_shared_sub - Check if
