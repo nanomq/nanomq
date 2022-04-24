@@ -50,6 +50,7 @@ typedef struct http_msg {
 	char *   token;
 	size_t   data_len;
 	char *   data;
+	bool     encrypt_data;
 } http_msg;
 
 extern void     put_http_msg(http_msg *msg, const char *content_type,
