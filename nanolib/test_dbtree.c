@@ -274,108 +274,10 @@ test_delete_client()
 }
 
 static void
-test_cache_session()
-{
-	puts("================begin cache session===============");
-	dbtree_cache_session(db, topic0, client0.session_id, client0.pipe_id);
-	dbtree_print(db);
-	dbtree_cache_session(db, topic1, client1.session_id, client1.pipe_id);
-	dbtree_print(db);
-	dbtree_cache_session(db, topic2, client2.session_id, client2.pipe_id);
-	dbtree_print(db);
-	dbtree_cache_session(db, topic3, client3.session_id, client3.pipe_id);
-	dbtree_print(db);
-	dbtree_cache_session(db, topic4, client4.session_id, client4.pipe_id);
-	dbtree_print(db);
-	dbtree_cache_session(db, topic5, client5.session_id, client5.pipe_id);
-	dbtree_print(db);
-	dbtree_cache_session(db, topic6, client6.session_id, client6.pipe_id);
-	dbtree_print(db);
-	dbtree_cache_session(db, topic7, client7.session_id, client7.pipe_id);
-	dbtree_print(db);
-	dbtree_cache_session(db, topic8, client8.session_id, client8.pipe_id);
-	dbtree_print(db);
-	dbtree_cache_session(db, topic9, client9.session_id, client9.pipe_id);
-	dbtree_print(db);
-	puts("================finish cache session===============");
-}
-
-static void
-test_delete_session()
-{
-	puts("================begin delete session===============");
-	dbtree_delete_session(db, topic0, client0.session_id, client0.pipe_id);
-	dbtree_print(db);
-	dbtree_delete_session(db, topic1, client1.session_id, client1.pipe_id);
-	dbtree_print(db);
-	dbtree_delete_session(db, topic2, client2.session_id, client2.pipe_id);
-	dbtree_print(db);
-	dbtree_delete_session(db, topic3, client3.session_id, client3.pipe_id);
-	dbtree_print(db);
-	dbtree_delete_session(db, topic4, client4.session_id, client4.pipe_id);
-	dbtree_print(db);
-	dbtree_delete_session(db, topic5, client5.session_id, client5.pipe_id);
-	dbtree_print(db);
-	dbtree_delete_session(db, topic6, client6.session_id, client6.pipe_id);
-	dbtree_print(db);
-	dbtree_delete_session(db, topic7, client7.session_id, client7.pipe_id);
-	dbtree_print(db);
-	dbtree_delete_session(db, topic8, client8.session_id, client8.pipe_id);
-	dbtree_print(db);
-	dbtree_delete_session(db, topic9, client9.session_id, client9.pipe_id);
-	dbtree_print(db);
-	puts("================finish delete session===============");
-}
-
-static void
-test_restore_client()
-{
-	puts("================begin delete session===============");
-	void *ctxt_array[10];
-
-	ctxt_array[0] = dbtree_restore_session(
-	    db, topic0, client0.session_id, client0.pipe_id);
-	dbtree_print(db);
-	ctxt_array[1] = dbtree_restore_session(
-	    db, topic1, client1.session_id, client1.pipe_id);
-	dbtree_print(db);
-	ctxt_array[2] = dbtree_restore_session(
-	    db, topic2, client2.session_id, client2.pipe_id);
-	dbtree_print(db);
-	ctxt_array[3] = dbtree_restore_session(
-	    db, topic3, client3.session_id, client3.pipe_id);
-	dbtree_print(db);
-	ctxt_array[4] = dbtree_restore_session(
-	    db, topic4, client4.session_id, client4.pipe_id);
-	dbtree_print(db);
-	ctxt_array[5] = dbtree_restore_session(
-	    db, topic5, client5.session_id, client5.pipe_id);
-	dbtree_print(db);
-	ctxt_array[6] = dbtree_restore_session(
-	    db, topic6, client6.session_id, client6.pipe_id);
-	dbtree_print(db);
-	ctxt_array[7] = dbtree_restore_session(
-	    db, topic7, client7.session_id, client7.pipe_id);
-	dbtree_print(db);
-	ctxt_array[8] = dbtree_restore_session(
-	    db, topic8, client8.session_id, client8.pipe_id);
-	dbtree_print(db);
-	ctxt_array[9] = dbtree_restore_session(
-	    db, topic9, client9.session_id, client9.pipe_id);
-	dbtree_print(db);
-	for (int i = 0; i < 10; i++) {
-		log_info("%s", (char *) ctxt_array[i]);
-	}
-	puts("================finish delete session===============");
-}
-
-static void
 test_search_client()
 {
 	puts("================test search client==============");
-	size_t        size = 0;
-	char **dc = (char **) dbtree_find_clients_and_cache_msg(
-	    db, topic0, NULL, &size);
+	char **dc = (char **) dbtree_find_clients(db, topic0);
 
 	if (dc) {
 		cvector_free(dc);
@@ -388,10 +290,8 @@ test_search_shared_client()
 {
 	puts("================test search shared client==============");
 	for (int i = 0; i < 20; i++) {
-		size_t size = 0;
 		// dbtree_print(db);
-		char **v = (char **) dbtree_find_shared_sub_clients(
-		    db, topic0, NULL, &size);
+		char **v = (char **) dbtree_find_shared_sub_clients(db, topic0);
 		// dbtree_print(db);
 
 		if (v) {
@@ -403,48 +303,6 @@ test_search_shared_client()
 		cvector_free(v);
 	}
 	puts("================test search shared client==============");
-}
-
-static void
-test_search_session()
-{
-	puts("================test search session==============");
-	char   msg_que[TEST_QUE_SIZE][TEST_MSG_SIZE];
-	size_t size = 0;
-	for (int i = 0; i < TEST_QUE_SIZE; i++) {
-		memset(msg_que[i], 0, TEST_MSG_SIZE);
-		sprintf(msg_que[i], "message+%d", i);
-		void **v = dbtree_find_clients_and_cache_msg(
-		    db, topic0, (void *) msg_que[i], &size);
-		cvector_free(v);
-	}
-
-	char **ret =
-	    (char **) dbtree_restore_session_msg(db, client4.session_id);
-	for (int i = 0; i < cvector_size(ret); i++) {
-		printf("message: %s\n", ret[i]);
-	}
-	cvector_free(ret);
-}
-
-static void
-test_cache_session_msg()
-{
-	puts("================test search session msg==============");
-	char msg_que[TEST_ARRAY_SIZE][TEST_MSG_SIZE];
-	for (int i = 0; i < TEST_ARRAY_SIZE; i++) {
-		memset(msg_que[i], 0, TEST_MSG_SIZE);
-		sprintf(msg_que[i], "message+%d", i);
-		dbtree_cache_session_msg(
-		    db, (void *) msg_que[i], client[i].session_id);
-
-		char **ret = (char **) dbtree_restore_session_msg(
-		    db, client[i].session_id);
-		for (int i = 0; i < cvector_size(ret); i++) {
-			printf("message: %s\n", ret[i]);
-		}
-		cvector_free(ret);
-	}
 }
 
 static void
@@ -506,16 +364,7 @@ test_single_thread(void *args)
 		test_insert_client();
 		test_find_client();
 		test_search_client();
-		test_cache_session();
-		test_restore_client();
 		test_delete_client();
-
-		test_insert_client();
-		test_cache_session_msg();
-		test_search_session();
-		test_cache_session();
-		test_search_session();
-		test_delete_session();
 	}
 	return NULL;
 }
@@ -539,17 +388,15 @@ dbtree_test()
 	puts("\n----------------TEST START------------------");
 
 	dbtree_create(&db);
-	// test_insert_shared_client();
-	// dbtree_print(db);
-	// test_search_shared_client();
+	test_insert_shared_client();
+	dbtree_print(db);
+	test_search_shared_client();
 
-	// test_delete_shared_client();
+	test_delete_shared_client();
 
 	test_single_thread(NULL);
 	// test_concurrent(test_single_thread);
-	// dbtree_print(db);
 	dbtree_destory(db);
-	//
 
 	// test_shared_sub();
 
