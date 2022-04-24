@@ -131,7 +131,6 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto)
 	char **topic_queue     = NULL;
 	void **cli_ctx_list    = NULL;
 	void **shared_cli_list = NULL;
-	size_t msg_cnt         = 0;
 	char * topic           = NULL;
 	pipe_ct->msg_infos = NULL;
 
@@ -184,20 +183,10 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto)
 	topic = work->pub_packet->var_header.publish.topic_name.body;
 
 	cli_ctx_list =
-	    dbtree_find_clients_and_cache_msg(work->db, topic, NULL, &msg_cnt);
+	    dbtree_find_clients(work->db, topic);
 
-	if (work->pub_packet->fixed_header.qos > 0) {
-		shared_cli_list = dbtree_find_shared_sub_clients(
-		    work->db, topic, work->msg, &msg_cnt);
-		// Note. We clone msg_cnt times for the session stored.
-		// There are msg_cnt sessions need to be sent.
-		for (int i = 0; i < (int) (msg_cnt); i++) {
-			nng_msg_clone(work->msg);
-		}
-	} else {
-		shared_cli_list = dbtree_find_shared_sub_clients(
-		    work->db, topic, NULL, &msg_cnt);
-	}
+	shared_cli_list = dbtree_find_shared_sub_clients(
+	    work->db, topic);
 
 
 #ifdef STATISTICS
