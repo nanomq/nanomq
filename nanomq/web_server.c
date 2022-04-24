@@ -11,11 +11,11 @@
 #define INPROC_URL "inproc://rest"
 #define REST_URL "http://0.0.0.0:%u/api/v1"
 
-#include <nng/nng.h>
-#include <nng/protocol/reqrep0/rep.h>
-#include <nng/protocol/reqrep0/req.h>
-#include <nng/supplemental/http/http.h>
-#include <nng/supplemental/util/platform.h>
+#include "nng/nng.h"
+#include "nng/protocol/reqrep0/rep.h"
+#include "nng/protocol/reqrep0/req.h"
+#include "nng/supplemental/http/http.h"
+#include "nng/supplemental/util/platform.h"
 
 #include "include/nanomq.h"
 #include "include/rest_api.h"
@@ -51,7 +51,6 @@ static nng_thread *      inproc_thr;
 static FILE *            logfile;
 static conf_http_server *http_server_conf;
 static conf *            global_config;
-static char              jwt_key[1024] = {0};
 
 static void rest_job_cb(void *arg);
 
@@ -416,25 +415,6 @@ get_http_server_conf(void)
 	return http_server_conf;
 }
 
-void
-generate_key(char *key, size_t len)
-{
-	const char charset[] =
-	    "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ+/";
-	uint8_t sz = sizeof(charset);
-	uint8_t no;
-	for (size_t i = 0; i < len; i++) {
-		no     = nng_random() % (sz - 1);
-		key[i] = charset[no];
-	}
-}
-
-char *
-get_jwt_key(void)
-{
-	return jwt_key;
-}
-
 int
 start_rest_server(conf *conf)
 {
@@ -456,7 +436,6 @@ start_rest_server(conf *conf)
 	uint16_t port = conf->http_server.port ? conf->http_server.port
 	                                       : HTTP_DEFAULT_PORT;
 	debug_msg(REST_URL, port);
-	generate_key(jwt_key, sizeof(jwt_key) - 1);
 	set_global_conf(conf);
 	set_http_server_conf(&conf->http_server);
 	rest_start(port);
