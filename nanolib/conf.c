@@ -268,6 +268,31 @@ conf_parser(conf *nanomq_conf)
 				config->http_server.auth_type = NONE_AUTH;
 			}
 			free(value);
+		} else if ((value = get_conf_value(line, sz,
+		                "http_server.jwt.public.keyfile")) != NULL) {
+			FREE_NONULL(config->http_server.jwt.public_keyfile);
+			FREE_NONULL(config->http_server.jwt.public_key);
+			config->http_server.jwt.public_keyfile = value;
+			if (file_load_data(
+			        config->http_server.jwt.public_keyfile,
+			        (void **) &config->http_server.jwt
+			            .public_key) > 0) {
+				config->http_server.jwt.public_key_len =
+				    strlen(config->http_server.jwt.public_key);
+			}
+		} else if ((value = get_conf_value(line, sz,
+		                "http_server.jwt.private.keyfile")) != NULL) {
+			FREE_NONULL(config->http_server.jwt.private_keyfile);
+			FREE_NONULL(config->http_server.jwt.private_key);
+			config->http_server.jwt.private_keyfile = value;
+			if (file_load_data(
+			        config->http_server.jwt.private_keyfile,
+			        (void **) &config->http_server.jwt
+			            .private_key) > 0) {
+				config->http_server.jwt.private_key_len =
+				    strlen(
+				        config->http_server.jwt.private_key);
+			}
 		} else if ((value = get_conf_value(line, sz, "tls.enable")) !=
 		    NULL) {
 			config->tls.enable = strcasecmp(value, "true") == 0;
