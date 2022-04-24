@@ -250,13 +250,13 @@ sub_ctx_handle(nano_work *work)
 	tq = dbhash_get_topic_queue(cli_ctx->pid.id);
 
 	if (tq) {
-		old_ctx = dbtree_delete_client(
-		    work->db, tq->topic, clientid_key, cli_ctx->pid.id);
+		old_ctx = dbtree_find_client(
+		    work->db, tq->topic, cli_ctx->pid.id);
 	}
 
 	if (old_ctx) {
 		dbtree_insert_client(
-		    work->db, tq->topic, old_ctx, cli_ctx->pid.id);
+		    work->db, tq->topic, old_ctx, cli_ctx->pid.id, old_ctx->proto_ver);
 	}
 
 	if (!tq || !old_ctx) { /* the real ctx stored in tree */
@@ -302,8 +302,9 @@ sub_ctx_handle(nano_work *work)
 			tq = tq->next;
 		}
 		if (!topic_exist && topic_str) {
+			uint8_t ver = conn_param_get_protover(work->cparam);
 			dbtree_insert_client(
-			    work->db, topic_str, old_ctx, work->pid.id);
+			    work->db, topic_str, old_ctx, work->pid.id, ver);
 
 			dbhash_insert_topic(work->pid.id, topic_str);
 		}
