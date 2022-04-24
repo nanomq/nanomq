@@ -40,6 +40,8 @@ The configuration files of NanoMQ Broker usually have the suffix .conf. You can 
 | http_server.username | String | User name of http server. |
 | http_server.password | String | Password of http server. |
 | http_server.auth_type | Enum | Http server authentication type (*default: basic*). |
+| http_server.jwt.public.keyfile | String |public key file for *JWT*. |
+| http_server.jwt.private.keyfile | String |private key file for *JWT*. |
 
 ### nanomq_bridge.conf
 

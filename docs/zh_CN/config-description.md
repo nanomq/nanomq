@@ -41,6 +41,8 @@ NanoMQ 的配置文件通常以 .conf 作为后缀名，你可以在 etc 目录�
 | http_server.username | String | 访问Http服务用户名。 |
 | http_server.password | String | 访问Http服务密码。 |
 | http_server.auth_type | Enum | Http鉴权方式。（*默认 basic*） |
+| http_server.jwt.public.keyfile | String |*JWT* 公钥文件. |
+| http_server.jwt.private.keyfile | String |*JWT* 私钥文件. |
 
 ### nanomq_bridge.conf
 
