@@ -277,6 +277,32 @@ conf_parser(conf *nanomq_conf)
 			        config->http_server.jwt.public_keyfile,
 			        (void **) &config->http_server.jwt
 			            .public_key) > 0) {
+#ifdef NANO_PLATFORM_WINDOWS
+				if (strstr(
+				        config->http_server.jwt.public_keyfile,
+				        "\\")) {
+					config->http_server.jwt.iss =
+					    strrchr(config->http_server.jwt
+					                .public_keyfile,
+					        '\\');
+					config->http_server.jwt.iss += 1;
+				}
+#else
+				if (strstr(
+				        config->http_server.jwt.public_keyfile,
+				        "/")) {
+					config->http_server.jwt.iss =
+					    strrchr(config->http_server.jwt
+					                .public_keyfile,
+					        '/');
+					config->http_server.jwt.iss += 1;
+				}
+#endif
+				else {
+					config->http_server.jwt.iss =
+					    config->http_server.jwt
+					        .public_keyfile;
+				}
 				config->http_server.jwt.public_key_len =
 				    strlen(config->http_server.jwt.public_key);
 			}
@@ -377,11 +403,16 @@ conf_init(conf *nanomq_conf)
 	nanomq_conf->tls.set_fail     = false;
 	nanomq_conf->tls.verify_peer  = false;
 
-	nanomq_conf->http_server.enable    = false;
-	nanomq_conf->http_server.port      = 8081;
-	nanomq_conf->http_server.username  = NULL;
-	nanomq_conf->http_server.password  = NULL;
-	nanomq_conf->http_server.auth_type = BASIC;
+	nanomq_conf->http_server.enable              = false;
+	nanomq_conf->http_server.port                = 8081;
+	nanomq_conf->http_server.username            = NULL;
+	nanomq_conf->http_server.password            = NULL;
+	nanomq_conf->http_server.auth_type           = BASIC;
+	nanomq_conf->http_server.jwt.iss             = NULL;
+	nanomq_conf->http_server.jwt.private_key     = NULL;
+	nanomq_conf->http_server.jwt.public_key      = NULL;
+	nanomq_conf->http_server.jwt.private_keyfile = NULL;
+	nanomq_conf->http_server.jwt.public_keyfile  = NULL;
 
 	nanomq_conf->websocket.enable  = true;
 	nanomq_conf->websocket.url     = NULL;
