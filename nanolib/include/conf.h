@@ -62,12 +62,24 @@ struct conf_tls {
 
 typedef struct conf_tls conf_tls;
 
+struct conf_jwt {
+	char *public_keyfile;
+	char *private_keyfile;
+	char *public_key;
+	char *private_key;
+	size_t public_key_len;
+	size_t private_key_len;
+};
+
+typedef struct conf_jwt conf_jwt;
+
 struct conf_http_server {
 	bool     enable;
 	uint16_t port;
 	char *   username;
 	char *   password;
 	enum { BASIC, JWT, NONE_AUTH } auth_type;
+	conf_jwt jwt;
 };
 
 typedef struct conf_http_server conf_http_server;
