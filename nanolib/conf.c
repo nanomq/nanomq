@@ -1162,6 +1162,10 @@ conf_fini(conf *nanomq_conf)
 
 	zfree(nanomq_conf->http_server.username);
 	zfree(nanomq_conf->http_server.password);
+	zfree(nanomq_conf->http_server.jwt.private_key);
+	zfree(nanomq_conf->http_server.jwt.public_key);
+	zfree(nanomq_conf->http_server.jwt.private_keyfile);
+	zfree(nanomq_conf->http_server.jwt.public_keyfile);
 
 	zfree(nanomq_conf->websocket.url);
 

@@ -212,18 +212,12 @@ jwt_authorize(http_msg *msg)
 	struct l8w8jwt_decoding_params params;
 	l8w8jwt_decoding_params_init(&params);
 
-	params.alg        = L8W8JWT_ALG_HS512;
+	params.alg        = L8W8JWT_ALG_RS256;
 	params.jwt        = msg->token;
 	params.jwt_length = msg->token_len;
 
-	params.verification_key = (uint8_t *) get_jwt_key();
-	params.verification_key_length =
-	    strlen((char *) params.verification_key);
-
-	params.validate_sub        = "NANOMQ";
-	params.validate_sub_length = strlen(params.validate_sub);
-	params.validate_iss        = "EMQ";
-	params.validate_iss_length = strlen(params.validate_iss);
+	params.verification_key        = server->jwt.private_key;
+	params.verification_key_length = server->jwt.private_key_len;
 
 	params.validate_exp          = 1;
 	params.exp_tolerance_seconds = 200;
@@ -237,17 +231,10 @@ jwt_authorize(http_msg *msg)
 	    l8w8jwt_decode(&params, &validation_result, &claim, &claim_count);
 
 	if (rv == L8W8JWT_SUCCESS && validation_result == L8W8JWT_VALID) {
-		struct l8w8jwt_claim *user_claim = l8w8jwt_get_claim(
-		    claim, claim_count, "user", strlen("user"));
-		struct l8w8jwt_claim *pass_claim = l8w8jwt_get_claim(
-		    claim, claim_count, "pass", strlen("pass"));
-		if ((user_claim == NULL ||
-		        strncmp(server->username, user_claim->value,
-		            user_claim->value_length) != 0) ||
-		    (pass_claim == NULL ||
-		        strncmp(server->password, pass_claim->value,
-		            pass_claim->value_length) != 0)) {
-			result = WRONG_USERNAME_OR_PASSWORD;
+		struct l8w8jwt_claim *body_claim = l8w8jwt_get_claim(
+		    claim, claim_count, "bodyEncode", strlen("bodyEncode"));
+		if(body_claim) {
+			
 		}
 	} else {
 		debug_msg("decode jwt token failed: return %d, result: %d", rv,
@@ -355,9 +342,9 @@ process_request(http_msg *msg)
 	case JWT:
 		if ((code = jwt_authorize(msg)) != SUCCEED) {
 			status = NNG_HTTP_STATUS_UNAUTHORIZED;
-			if (msg->request != REQ_LOGIN) {
+			// if (msg->request != REQ_LOGIN) {
 				goto exit;
-			}
+			// }
 		}
 
 	default:
