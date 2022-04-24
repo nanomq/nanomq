@@ -63,6 +63,7 @@ struct conf_tls {
 typedef struct conf_tls conf_tls;
 
 struct conf_jwt {
+	char *iss;
 	char *public_keyfile;
 	char *private_keyfile;
 	char *public_key;
