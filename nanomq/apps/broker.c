@@ -229,9 +229,10 @@ server_cb(void *arg)
 					    work->bridge_aio);
 				}
 			}
+			// free conn_param due to clone in protocol layer
+			conn_param_free(work->cparam);
 		} else if (nng_msg_cmd_type(msg) == CMD_CONNACK) {
 			nng_msg_set_pipe(work->msg, work->pid);
-
 			// clone for sending connect event notification
 			nng_msg_clone(work->msg);
 			nng_aio_set_msg(work->aio, work->msg);
@@ -242,32 +243,19 @@ server_cb(void *arg)
 			smsg =
 			    nano_msg_notify_connect(work->cparam, reason_code);
 			webhook_client_connack(&work->webhook_sock,
-			    &work->config->web_hook,
-			    work->proto_ver,
+			    &work->config->web_hook, work->proto_ver,
 			    conn_param_get_keepalive(work->cparam),
 			    reason_code, conn_param_get_username(work->cparam),
 			    conn_param_get_clientid(work->cparam));
-			// Set V4/V5 flag for publish msg
-			// if (conn_param_get_protover(work->cparam) == 5) {
-			// 	nng_msg_set_cmd_type(msg, CMD_PUBLISH_V5);
-			// } else {
-			// 	nng_msg_set_cmd_type(msg, CMD_PUBLISH);
-			// }
+			// Set V4/V5 flag for publish notify msg
 			nng_msg_set_cmd_type(smsg, CMD_PUBLISH);
 			nng_msg_free(work->msg);
 			work->msg = smsg;
 			handle_pub(work, work->pipe_ct, PROTOCOL_VERSION_v311);
-
-			// Free here due to the clone before
-
+			// free conn_param due to clone in protocol layer
+			conn_param_free(work->cparam);
 		} else if (nng_msg_cmd_type(msg) == CMD_DISCONNECT_EV) {
-			// Set V4/V5 flag for publishing offline event msg
-			// if (conn_param_get_protover(work->cparam) == 5) {
-			// 	nng_msg_set_cmd_type(msg, CMD_PUBLISH_V5);
-			// } else {
-			// 	nng_msg_set_cmd_type(msg, CMD_PUBLISH);
-			// }
-			// v4 as default
+			// v4 as default, or send V5 notify msg?
 			nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 			handle_pub(work, work->pipe_ct, PROTOCOL_VERSION_v311);
 			// TODO set reason code if proto_version = MQTT_V5
@@ -287,18 +275,17 @@ server_cb(void *arg)
 			if (conn_param_get_will_flag(work->cparam) == 0 ||
 			    !conn_param_get_will_topic(work->cparam) ||
 			    !conn_param_get_will_msg(work->cparam)) {
-				// no will msg
+				// no will msg - free the cp
 				conn_param_free(work->cparam);
 			} else {
 				// set to END tosend will msg
 				work->state = END;
-				conn_param_free(work->cparam);
+				// leave cp for will msg
 				nng_aio_finish(work->aio, 0);
 				break;
 			}
 		}
 		work->state = WAIT;
-		conn_param_free(work->cparam);
 		nng_aio_finish(work->aio, 0);
 		// nng_aio_finish_sync(work->aio, 0);
 		break;
