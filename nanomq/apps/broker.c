@@ -153,7 +153,6 @@ server_cb(void *arg)
 	int        rv;
 
 	uint8_t *   ptr;
-	conn_param *cparam = NULL;
 
 	mqtt_msg_info *msg_info;
 
@@ -176,15 +175,17 @@ server_cb(void *arg)
 		if ((msg = nng_aio_get_msg(work->aio)) == NULL)
 			fatal("RECV NULL MSG", rv);
 
-		work->msg    = msg;
-		work->cparam = nng_msg_get_conn_param(work->msg);
-		work->pid    = nng_msg_get_pipe(work->msg);
+		work->msg       = msg;
+		work->cparam    = nng_msg_get_conn_param(work->msg);
+		work->pid       = nng_msg_get_pipe(work->msg);
+		work->proto_ver = conn_param_get_protover(work->cparam);
 
 		if (nng_msg_cmd_type(msg) == CMD_DISCONNECT) {
 			// TODO delete will msg
+			// nng_pipe_close();
 		} else if (nng_msg_cmd_type(msg) == CMD_PUBLISH) {
 			// Set V4/V5 flag for publish msg
-			if (conn_param_get_protover(work->cparam) == 5) {
+			if (work->proto_ver == 5) {
 				nng_msg_set_cmd_type(msg, CMD_PUBLISH_V5);
 				handle_pub(work, work->pipe_ct, PROTOCOL_VERSION_v5);
 			} else {
@@ -223,17 +224,13 @@ server_cb(void *arg)
 					work->state = WAIT;
 					nng_aio_set_msg(
 					    work->bridge_aio, smsg);
+					//TODO check aio's cb
 					nng_ctx_send(work->bridge_ctx,
 					    work->bridge_aio);
 				}
 			}
 		} else if (nng_msg_cmd_type(msg) == CMD_CONNACK) {
 			nng_msg_set_pipe(work->msg, work->pid);
-
-			if (work->cparam != NULL) {
-				// avoid being free
-				conn_param_clone(work->cparam);
-			}
 
 			// clone for sending connect event notification
 			nng_msg_clone(work->msg);
@@ -246,7 +243,7 @@ server_cb(void *arg)
 			    nano_msg_notify_connect(work->cparam, reason_code);
 			webhook_client_connack(&work->webhook_sock,
 			    &work->config->web_hook,
-			    conn_param_get_protover(work->cparam),
+			    work->proto_ver,
 			    conn_param_get_keepalive(work->cparam),
 			    reason_code, conn_param_get_username(work->cparam),
 			    conn_param_get_clientid(work->cparam));
@@ -262,7 +259,6 @@ server_cb(void *arg)
 			handle_pub(work, work->pipe_ct, PROTOCOL_VERSION_v311);
 
 			// Free here due to the clone before
-			conn_param_free(work->cparam);
 
 		} else if (nng_msg_cmd_type(msg) == CMD_DISCONNECT_EV) {
 			// Set V4/V5 flag for publishing offline event msg
@@ -274,15 +270,13 @@ server_cb(void *arg)
 			// v4 as default
 			nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 			handle_pub(work, work->pipe_ct, PROTOCOL_VERSION_v311);
-			conn_param *cparam = nng_msg_get_conn_param(msg);
+			// TODO set reason code if proto_version = MQTT_V5
 			webhook_client_disconnect(&work->webhook_sock,
 			    &work->config->web_hook,
-			    conn_param_get_protover(cparam),
-			    conn_param_get_keepalive(cparam),
-			    0, // TODO set reason code if proto_version =
-			       // MQTT_V5
-			    conn_param_get_username(cparam),
-			    conn_param_get_clientid(cparam));
+			    conn_param_get_protover(work->cparam),
+			    conn_param_get_keepalive(work->cparam), 0,
+			    conn_param_get_username(work->cparam),
+			    conn_param_get_clientid(work->cparam));
 			client_ctx * cli_ctx = NULL;
 			// free client ctx
 			if (dbhash_check_id(work->pid.id)) {
@@ -290,25 +284,26 @@ server_cb(void *arg)
 			} else {
 				debug_msg("ERROR it should not happen");
 			}
-			cparam = work->cparam;
-			// work->cparam = NULL;
 			if (conn_param_get_will_flag(work->cparam) == 0 ||
 			    !conn_param_get_will_topic(work->cparam) ||
 			    !conn_param_get_will_msg(work->cparam)) {
 				// no will msg
-				conn_param_free(cparam);
+				conn_param_free(work->cparam);
 			} else {
 				// set to END tosend will msg
 				work->state = END;
+				conn_param_free(work->cparam);
 				nng_aio_finish(work->aio, 0);
 				break;
 			}
 		}
 		work->state = WAIT;
+		conn_param_free(work->cparam);
 		nng_aio_finish(work->aio, 0);
 		// nng_aio_finish_sync(work->aio, 0);
 		break;
 	case WAIT:
+		// do not access to cparam
 		debug_msg("WAIT ^^^^ ctx%d ^^^^", work->ctx.id);
 		if (nng_msg_cmd_type(work->msg) == CMD_PINGREQ) {
 			smsg = work->msg;
@@ -360,8 +355,7 @@ server_cb(void *arg)
 			if (0 != (rv = encode_suback_msg(smsg, work)))
 				debug_msg("error in encode suback: [%d]", rv);
 
-			destroy_sub_pkt(work->sub_pkt,
-			    conn_param_get_protover(work->cparam));
+			destroy_sub_pkt(work->sub_pkt, work->proto_ver);
 			// handle retain (Retain flag handled in npipe)
 			work->msg = NULL;
 			if (work->msg_ret) {

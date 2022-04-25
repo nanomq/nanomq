@@ -30,6 +30,8 @@ struct work {
 	// 0x00 mqtt_broker
 	// 0x01 mqtt_bridge
 	uint8_t   proto;
+	// MQTT version cache
+	uint8_t   proto_ver;
 	nng_aio * aio;
 	nng_aio * bridge_aio;
 	nng_msg * msg;
@@ -37,7 +39,6 @@ struct work {
 	nng_ctx   ctx;        // ctx for mqtt broker
 	nng_ctx   bridge_ctx; // ctx for bridging
 	nng_pipe  pid;
-	nng_mtx * mutex;
 	dbtree *  db;
 	dbtree *  db_ret;
 	conf *    config;
