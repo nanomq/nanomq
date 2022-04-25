@@ -252,7 +252,7 @@ find_next(dbtree_node *node, bool *equal, char **topic_queue, int *index)
  * @return dbtree_client*
  */
 static dbtree_client *
-dbtree_client_new(uint32_t id, void *ctxt, uint32_t pipe_id)
+dbtree_client_new(uint32_t id, void *ctxt, uint32_t pipe_id, mqtt_version_t ver)
 {
 	dbtree_client *client = NULL;
 	client = (dbtree_client *) zmalloc(sizeof(dbtree_client));
@@ -264,6 +264,7 @@ dbtree_client_new(uint32_t id, void *ctxt, uint32_t pipe_id)
 	client->session_id = id;
 	client->pipe_id    = pipe_id;
 	client->ctxt       = ctxt;
+	client->ver        = ver;
 	return client;
 }
 
@@ -617,9 +618,9 @@ search_insert_node(dbtree *db, char *topic, void *args,
 }
 
 void *
-dbtree_insert_client(dbtree *db, char *topic, void *ctxt, uint32_t pipe_id)
+dbtree_insert_client(dbtree *db, char *topic, void *ctxt, uint32_t pipe_id, mqtt_version_t ver)
 {
-	dbtree_client *client = dbtree_client_new(0, ctxt, pipe_id);
+	dbtree_client *client = dbtree_client_new(0, ctxt, pipe_id, ver);
 	return search_insert_node(db, topic, client, insert_client_cb);
 }
 
@@ -730,7 +731,7 @@ collect_clients(dbtree_client ***vec,
  * @return dbtree_client
  */
 static void **
-iterate_client_v5(dbtree_client ***v)
+iterate_client(dbtree_client ***v)
 {
 	cvector(void *) ctxts   = NULL;
 	cvector(uint32_t *) ids = NULL;
@@ -740,6 +741,11 @@ iterate_client_v5(dbtree_client ***v)
 
 			for (int j = 0; j < cvector_size(v[i]); j++) {
 				int index = 0;
+				void *ctxt = v[i][j]->ctxt;
+				if (v[i][j]->ver == MQTT_VERSION_V311) {
+					cvector_push_back(ctxts, ctxt);
+					continue;
+				}
 
 				if (false ==
 				    binary_search((void **) ids, 0, &index,
@@ -753,7 +759,6 @@ iterate_client_v5(dbtree_client ***v)
 						    &v[i][j]->pipe_id);
 					}
 
-					void *ctxt = v[i][j]->ctxt;
 					cvector_push_back(ctxts, ctxt);
 				}
 			}
@@ -803,7 +808,7 @@ search_client(dbtree *db, char *topic)
 		topic_queue++;
 	}
 
-	ret = iterate_client_v5(ctxts);
+	ret = iterate_client(ctxts);
 
 	pthread_rwlock_unlock(&(db->rwlock));
 	topic_queue_free(for_free);
