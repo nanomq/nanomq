@@ -172,7 +172,6 @@ server_cb(void *arg)
 		debug_msg("RECV  ^^^^ ctx%d ^^^^\n", work->ctx.id);
 		if ((rv = nng_aio_result(work->aio)) != 0) {
 			debug_msg("ERROR: RECV nng aio result error: %d", rv);
-			nng_aio_wait(work->aio);
 		}
 		if ((msg = nng_aio_get_msg(work->aio)) == NULL)
 			fatal("RECV NULL MSG", rv);
@@ -618,9 +617,6 @@ alloc_work(nng_socket sock)
 	}
 	if ((rv = nng_ctx_open(&w->ctx, sock)) != 0) {
 		fatal("nng_ctx_open", rv);
-	}
-	if ((rv = nng_mtx_alloc(&w->mutex)) != 0) {
-		fatal("nng_mtx_alloc", rv);
 	}
 
 	w->pipe_ct = nng_alloc(sizeof(struct pipe_content));
