@@ -255,15 +255,6 @@ sub_ctx_handle(nano_work *work)
 	}
 
 	if (old_ctx) {
-		int            t     = 0;
-		if (old_ctx->proto_ver == PROTOCOL_VERSION_v5) {
-			property_data *pdata =
-			    property_get_value(work->sub_pkt->properties,
-			        SUBSCRIPTION_IDENTIFIER);
-			if (pdata) {
-				t = pdata->p_value.varint;
-			}
-		}
 		dbtree_insert_client(
 		    work->db, tq->topic, old_ctx, cli_ctx->pid.id);
 	}
@@ -311,25 +302,19 @@ sub_ctx_handle(nano_work *work)
 			tq = tq->next;
 		}
 		if (!topic_exist && topic_str) {
-			int            t = 0;
-			if (conn_param_get_protover(work->cparam) ==
-			    PROTOCOL_VERSION_v5) {
-				property_data *pdata = property_get_value(
-				    work->sub_pkt->properties,
-				    SUBSCRIPTION_IDENTIFIER);
-				if (pdata) {
-					t = pdata->p_value.varint;
-				}
-			}
 			dbtree_insert_client(
 			    work->db, topic_str, old_ctx, work->pid.id);
 
 			dbhash_insert_topic(work->pid.id, topic_str);
 		}
+		// Note.
+		// if topic already exists then update sub options.
+		// qos, retain handling, no local (did in cli_ctx_merge)
 
 		uint8_t rh = tn->it->retain_handling;
-		if (topic_str && (rh == 0 || rh == 1))
-			r = dbtree_find_retain(work->db_ret, topic_str);
+		if (topic_str)
+			if (rh == 0 || (rh == 1 && !topic_exist))
+				r = dbtree_find_retain(work->db_ret, topic_str);
 		if (r) {
 			for (int i = 0; i < cvector_size(r); i++) {
 				if (!r[i])
