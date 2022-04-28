@@ -175,6 +175,11 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto)
 					    .topic_name.body = strdup(tp);
 					work->pub_packet->var_header.publish
 					    .topic_name.len = strlen(tp);
+				} else {
+					debug_msg("ERROR: could not find "
+					          "topic by alias: %d",
+					    pdata->p_value.u16);
+					return;
 				}
 			}
 		}
