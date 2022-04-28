@@ -542,8 +542,10 @@ mk_str(int n, char **str_arr, char *seperator)
 	size_t len = 0;
 	char * str = NULL;
 	for (size_t i = 0; i < n; i++) {
-		len += strlen(str_arr[i]) + strlen(seperator) + 1;
-		str = realloc(str, len);
+		len += strlen(str_arr[i]) + strlen(seperator) + 2;
+	}
+	str = calloc(1, len);
+	for (size_t i = 0; i < n; i++) {
 		strcat(str, str_arr[i]);
 		strcat(str, seperator);
 	}
