@@ -140,6 +140,7 @@ decode_sub_message(nano_work *work)
 
 		topic_option->topic_filter.body =
 		    copy_utf8_str(payload_ptr, &bpos, &len_of_topic);
+
 		topic_option->topic_filter.len = len_of_topic;
 		if (len_of_topic < 1) {
 			debug_msg("NOT utf8-encoded string OR null string.");
@@ -152,7 +153,7 @@ decode_sub_message(nano_work *work)
 
 		topic_option->rap = 1; // Default Setting
 		memcpy(topic_option, payload_ptr + bpos, 1);
-		if (topic_option->retain_handling > 2) {
+		if (topic_option->retain_handling > 2 || topic_option->topic_filter.body == NULL) {
 			debug_msg("ERROR: error in retain_handling");
 			topic_node_t->it->reason_code = 0x80;
 			return PROTOCOL_ERROR;
