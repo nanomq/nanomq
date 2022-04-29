@@ -237,8 +237,7 @@ handle_pub_retain(const nano_work *work, char *topic)
 			retain->message = work->msg;
 			retain->exist   = true;
 			retain->m       = NULL;
-			debug_msg("update/add retain message");
-			debug("found retain [%p], message: [%p][%p]\n", retain,
+			debug_msg("found retain [%p], message: [%p][%p]\n", retain,
 			    retain->message,
 			    nng_msg_payload_ptr(retain->message));
 			r = dbtree_insert_retain(work->db_ret, topic, retain);
@@ -499,7 +498,8 @@ decode_pub_message(nano_work *work, uint8_t proto)
 		pub_packet->var_header.publish.topic_name.body =
 		    (char *) copy_utf8_str(msg_body, &pos, &len);
 
-		if (pub_packet->var_header.publish.topic_name.len > 0) {
+		if (pub_packet->var_header.publish.topic_name.len > 0 &&
+		    pub_packet->var_header.publish.topic_name.body != NULL) {
 			if (strchr(
 			        pub_packet->var_header.publish.topic_name.body,
 			        '+') != NULL ||
@@ -517,6 +517,8 @@ decode_pub_message(nano_work *work, uint8_t proto)
 
 				return PROTOCOL_ERROR;
 			}
+		} else {
+			return PROTOCOL_ERROR;
 		}
 
 		// TODO if topic_len = 0 && mqtt_version = 5.0, search topic
