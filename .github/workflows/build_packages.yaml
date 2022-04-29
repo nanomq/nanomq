@@ -16,6 +16,7 @@ jobs:
         arch:
         - [amd64, gcc, g++]
         - [arm64, aarch64-linux-gnu-gcc, aarch64-linux-gnu-g++]
+        - [mips, mips-linux-gnu-gcc, mips-linux-gnu-g++]
         - [armhf, arm-linux-gnueabihf-gcc, arm-linux-gnueabihf-g++]
         - [armel, arm-linux-gnueabi-gcc, arm-linux-gnueabi-g++]
 
@@ -25,6 +26,7 @@ jobs:
         sudo apt update
         sudo apt install -y cmake ninja-build rpm checkinstall
         sudo apt install -y g++-aarch64-linux-gnu gcc-aarch64-linux-gnu
+        sudo apt install -y g++-mips-linux-gnu gcc-mips-linux-gnu
         sudo apt install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
         sudo apt install -y gcc-arm-linux-gnueabi g++-arm-linux-gnueabi
     - uses: actions/checkout@v1
