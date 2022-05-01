@@ -76,13 +76,14 @@ decode_sub_msg(nano_work *work)
 		topic_node_t->it = topic_option;
 		_topic_node      = topic_node_t;
 
+		// potential buffer overflow
 		topic_option->topic_filter.body =
 		    copy_utf8_str(payload_ptr, &bpos, &len_of_topic);
 
 		topic_option->topic_filter.len = len_of_topic;
 		topic_node_t->it->reason_code  = GRANTED_QOS_2; // default
 
-		if (len_of_topic < 1) {
+		if (len_of_topic < 1 || topic_option->topic_filter.body == NULL) {
 			debug_msg("NOT utf8-encoded string OR null string.");
 			topic_node_t->it->reason_code = UNSPECIFIED_ERROR;
 			if (PROTOCOL_VERSION_v5 == proto_ver)
@@ -376,7 +377,9 @@ cli_ctx_merge(client_ctx *ctx_new, client_ctx *ctx)
 		node      = ctx->sub_pkt->node;
 		node_prev = NULL;
 		is_find   = 0;
+		//TODO optimize logic here with (FOREACH)
 		while (node) {
+			if (node_new->it->topic_filter.body != NULL)
 			if (strcmp(node->it->topic_filter.body,
 			        node_new->it->topic_filter.body) == 0) {
 				is_find = 1;
@@ -395,7 +398,7 @@ cli_ctx_merge(client_ctx *ctx_new, client_ctx *ctx)
 		} else { /* not find */
 			// copy and append TODO optimize topic_node structure
 			if (node_new->it->topic_filter.len < 1 ||
-				node_new->it->topic_filter.body == NULL) {
+			    node_new->it->topic_filter.body == NULL) {
 				debug_msg("next topic ");
 				node_new = node_new->next;
 				continue;
