@@ -296,7 +296,7 @@ sub_ctx_handle(nano_work *work)
 		/* remove duplicate items */
 		topic_exist = 0;
 		tq          = dbhash_get_topic_queue(work->pid.id);
-		while (tq) {
+		while (topic_str && tq) {
 			if (!strcmp(topic_str, tq->topic)) {
 				topic_exist = 1;
 				break;
