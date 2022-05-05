@@ -226,9 +226,6 @@ handle_pub_retain(const nano_work *work, char *topic)
 			retain->exist   = true;
 			retain->m       = NULL;
 			debug_msg("update/add retain message");
-			debug("found retain [%p], message: [%p][%p]\n", retain,
-			    retain->message,
-			    nng_msg_payload_ptr(retain->message));
 			r = dbtree_insert_retain(work->db_ret, topic, retain);
 		} else {
 			debug_msg("delete retain message");
@@ -685,7 +682,8 @@ decode_pub_message(nano_work *work)
 		pub_packet->variable_header.publish.topic_name.body =
 		    (char *) copy_utf8_str(msg_body, &pos, &len);
 
-		if (pub_packet->variable_header.publish.topic_name.len > 0) {
+		if (pub_packet->variable_header.publish.topic_name.len > 0 &&
+		    pub_packet->variable_header.publish.topic_name.body != NULL) {
 			if (strchr(pub_packet->variable_header.publish
 			               .topic_name.body,
 			        '+') != NULL ||
@@ -706,6 +704,8 @@ decode_pub_message(nano_work *work)
 
 				return PROTOCOL_ERROR;
 			}
+		} else {
+			return PROTOCOL_ERROR;
 		}
 
 		debug_msg("topic: [%s], qos: %d",
