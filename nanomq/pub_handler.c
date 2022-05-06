@@ -186,6 +186,10 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto)
 	}
 
 	topic = work->pub_packet->var_header.publish.topic_name.body;
+	if (topic == NULL) {
+		debug_msg("ERROR: Topic is NULL");
+		return;
+	}
 
 	cli_ctx_list =
 	    dbtree_find_clients(work->db, topic);
