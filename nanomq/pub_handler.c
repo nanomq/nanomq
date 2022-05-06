@@ -517,8 +517,6 @@ decode_pub_message(nano_work *work, uint8_t proto)
 
 				return PROTOCOL_ERROR;
 			}
-		} else {
-			return PROTOCOL_ERROR;
 		}
 
 		// TODO if topic_len = 0 && mqtt_version = 5.0, search topic
