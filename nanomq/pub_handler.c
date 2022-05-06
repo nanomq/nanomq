@@ -704,8 +704,6 @@ decode_pub_message(nano_work *work)
 
 				return PROTOCOL_ERROR;
 			}
-		} else {
-			return PROTOCOL_ERROR;
 		}
 
 		debug_msg("topic: [%s], qos: %d",
