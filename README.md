@@ -437,8 +437,10 @@ Options:
   ```
 
 - Setting the queue length for a resending message:
+ 'please be aware that this parameter also defines the upper limit of memory used by NanoMQ'
+ 'And affect the flying window of message, please set to > 1024 if you do not want to lose message'
 
-  Default: 64 bytes
+  Default: 256
 
   ```bash
   nanomq broker start|restart --msq_len <num>
