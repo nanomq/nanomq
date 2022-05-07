@@ -17,7 +17,6 @@
 static char *
 strtrim(char *str, size_t len)
 {
-	// size_t len   = strlen(str);
 	char * dest  = calloc(1, len);
 	size_t index = 0;
 
@@ -27,6 +26,34 @@ strtrim(char *str, size_t len)
 			index++;
 		}
 	}
+	return dest;
+}
+
+static char *
+strtrim_head_tail(char *str, size_t len)
+{
+	size_t head = 0, tail = 0;
+
+	for (size_t i = 0; i < len; i++) {
+		if (str[i] == ' ' || str[i] == '\t' || str[i] == '\n') {
+			head++;
+		} else {
+			break;
+		}
+	}
+
+	for (size_t i = len - 1; i >= 0; i--) {
+		if (str[i] == ' ' || str[i] == '\t' || str[i] == '\n') {
+			tail++;
+		} else {
+			break;
+		}
+	}
+
+	size_t dest_len = len - head - tail + 1;
+	char * dest     = calloc(1, dest_len);
+	strncpy(dest, str + head, dest_len - 1);
+
 	return dest;
 }
 
@@ -560,7 +587,8 @@ conf_auth_parser(conf *nanomq_conf)
 	fclose(fp);
 }
 
-static void prinf_gateway_conf(zmq_gateway_conf *gateway)
+static void
+printf_gateway_conf(zmq_gateway_conf *gateway)
 {
 	debug_msg("zmq sub url: %s", gateway->zmq_sub_url);
 	debug_msg("zmq pub url: %s", gateway->zmq_pub_url);
@@ -585,7 +613,7 @@ conf_gateway_parse(zmq_gateway_conf *gateway)
 	if (dest_path == NULL || !nano_file_exists(dest_path)) {
 		if (!nano_file_exists(CONF_GATEWAY_PATH_NAME)) {
 			printf("Configure file [%s] or [%s] not found or "
-			          "unreadable\n",
+			       "unreadable\n",
 			    dest_path, CONF_GATEWAY_PATH_NAME);
 			return false;
 		} else {
@@ -605,7 +633,7 @@ conf_gateway_parse(zmq_gateway_conf *gateway)
 	char *value;
 	while (nano_getline(&line, &sz, fp) != -1) {
 		if ((value = get_conf_value(
-		                line, sz, "gateway.mqtt.proto_ver")) != NULL) {
+		         line, sz, "gateway.mqtt.proto_ver")) != NULL) {
 			gateway->proto_ver = atoi(value);
 			free(value);
 		} else if ((value = get_conf_value(
@@ -623,11 +651,11 @@ conf_gateway_parse(zmq_gateway_conf *gateway)
 		} else if ((value = get_conf_value(
 		                line, sz, "gateway.mqtt.address")) != NULL) {
 			gateway->mqtt_url = value;
-		} else if ((value = get_conf_value(
-		                line, sz, "gateway.zmq.sub.address")) != NULL) {
+		} else if ((value = get_conf_value(line, sz,
+		                "gateway.zmq.sub.address")) != NULL) {
 			gateway->zmq_sub_url = value;
-		} else if ((value = get_conf_value(
-		                line, sz, "gateway.zmq.pub.address")) != NULL) {
+		} else if ((value = get_conf_value(line, sz,
+		                "gateway.zmq.pub.address")) != NULL) {
 			gateway->zmq_pub_url = value;
 		} else if ((value = get_conf_value(
 		                line, sz, "gateway.mqtt.username")) != NULL) {
@@ -636,22 +664,22 @@ conf_gateway_parse(zmq_gateway_conf *gateway)
 		                line, sz, "gateway.mqtt.password")) != NULL) {
 			gateway->password = value;
 		} else if ((value = get_conf_value(
-	                line, sz, "gateway.mqtt.forward")) != NULL) {
+		                line, sz, "gateway.mqtt.forward")) != NULL) {
 			gateway->pub_topic = value;
 		} else if ((value = get_conf_value(
-	                line, sz, "gateway.mqtt.forward")) != NULL) {
+		                line, sz, "gateway.mqtt.forward")) != NULL) {
 			gateway->pub_topic = value;
-		} else if ((value = get_conf_value(
-	                line, sz, "gateway.mqtt.subscription")) != NULL) {
+		} else if ((value = get_conf_value(line, sz,
+		                "gateway.mqtt.subscription")) != NULL) {
+			gateway->sub_topic = value;
+		} else if ((value = get_conf_value(line, sz,
+		                "gateway.mqtt.subscription")) != NULL) {
 			gateway->sub_topic = value;
 		} else if ((value = get_conf_value(
-	                line, sz, "gateway.mqtt.subscription")) != NULL) {
-			gateway->sub_topic = value;
-		} else if ((value = get_conf_value(
-	                line, sz, "gateway.zmq.sub_pre")) != NULL) {
+		                line, sz, "gateway.zmq.sub_pre")) != NULL) {
 			gateway->zmq_sub_pre = value;
 		} else if ((value = get_conf_value(
-	                line, sz, "gateway.zmq.pub_pre")) != NULL) {
+		                line, sz, "gateway.zmq.pub_pre")) != NULL) {
 			gateway->zmq_pub_pre = value;
 		}
 		free(line);
@@ -662,7 +690,7 @@ conf_gateway_parse(zmq_gateway_conf *gateway)
 		free(line);
 	}
 
-	prinf_gateway_conf(gateway);
+	printf_gateway_conf(gateway);
 
 	fclose(fp);
 	return true;
@@ -926,17 +954,18 @@ conf_web_hook_parse_headers(conf_web_hook *webhook, const char *path)
 			        sizeof(conf_web_hook_header *));
 			webhook->headers[webhook->header_count - 1] =
 			    calloc(1, sizeof(conf_web_hook_header));
-			webhook->headers[webhook->header_count - 1]->key = key;
+			webhook->headers[webhook->header_count - 1]->key =
+			    strtrim_head_tail(key, strlen(key));
 			webhook->headers[webhook->header_count - 1]->value =
-			    value;
-		} else {
-			if (key) {
-				free(key);
-			}
-			if (value) {
-				free(value);
-			}
+			    strtrim_head_tail(value, strlen(value));
 		}
+		if (key) {
+			free(key);
+		}
+		if (value) {
+			free(value);
+		}
+
 	next:
 		free(line);
 		line = NULL;
@@ -1026,13 +1055,29 @@ conf_web_hook_parse_rules(conf_web_hook *webhook, const char *path)
 		if (sz <= 20) {
 			goto next;
 		}
-		char *   spec     = calloc(1, sz - 20);
-		char *   hooktype = calloc(1, sz - 20);
-		char *   hookname = calloc(1, sz - 20);
+		char *   key      = calloc(1, sz - 20);
+		char *   value    = calloc(1, sz - 20);
+		char *   hooktype = NULL;
+		char *   hookname = NULL;
 		uint16_t num      = 0;
-		int res = sscanf(line, "web.hook.rule.%[^.].%[^.].%hu=%[^\n]",
-		    hooktype, hookname, &num, spec);
-		if (res == 4) {
+		int      res =
+		    sscanf(line, "web.hook.rule.%[^=]=%[^\n]", key, value);
+		bool  match         = false;
+		char *key_trimmed   = NULL;
+		char *value_trimmed = NULL;
+		if (res == 2) {
+			key_trimmed = strtrim_head_tail(key, strlen(key));
+			value_trimmed =
+			    strtrim_head_tail(value, strlen(value));
+			hooktype = calloc(1, strlen(key_trimmed));
+			hookname = calloc(1, strlen(key_trimmed));
+			res = sscanf(key_trimmed, "%[^.].%[^.].%hu", hooktype,
+			    hookname, &num);
+			if (res == 3) {
+				match = true;
+			}
+		}
+		if (match) {
 			webhook->rule_count++;
 			webhook->rules = realloc(webhook->rules,
 			    webhook->rule_count *
@@ -1043,11 +1088,20 @@ conf_web_hook_parse_rules(conf_web_hook *webhook, const char *path)
 			    get_webhook_event(hooktype, hookname);
 			webhook->rules[webhook->rule_count - 1]->rule_num =
 			    num;
-			webhook_action_parse(
-			    spec, webhook->rules[webhook->rule_count - 1]);
+			webhook_action_parse(value_trimmed,
+			    webhook->rules[webhook->rule_count - 1]);
 		}
-		if (spec) {
-			free(spec);
+		if (key) {
+			free(key);
+		}
+		if (value) {
+			free(value);
+		}
+		if (key_trimmed) {
+			free(key_trimmed);
+		}
+		if (value_trimmed) {
+			free(value_trimmed);
 		}
 		if (hooktype) {
 			free(hooktype);
