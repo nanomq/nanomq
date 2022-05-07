@@ -125,8 +125,11 @@ foreach_client(
 		msg_info->pipe = pids;
 		msg_info->qos  = sub_qos;
 
+		struct client_ctx * ctxd;
 next:
-		dbtree_delete_ctxt(db_ctxt);
+		ctxd = dbtree_delete_ctxt(db_ctxt);
+		if (ctxd)
+			destroy_sub_ctx(ctxd);
 	}
 	pipe_ct->msg_infos = msg_infos;
 }

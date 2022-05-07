@@ -449,8 +449,6 @@ cli_ctx_merge(client_ctx *ctx_new, client_ctx *ctx)
 void
 del_sub_ctx(void *ctxt, char *target_topic)
 {
-	uint8_t proto_ver = 0;
-
 	client_ctx *      cli_ctx           = ctxt;
 	topic_node *      topic_node_t      = NULL;
 	topic_node *      before_topic_node = NULL;
@@ -462,7 +460,6 @@ del_sub_ctx(void *ctxt, char *target_topic)
 	}
 
 	sub_pkt           = cli_ctx->sub_pkt;
-	proto_ver         = cli_ctx->proto_ver;
 	topic_node_t      = sub_pkt->node;
 	before_topic_node = NULL;
 
@@ -485,21 +482,6 @@ del_sub_ctx(void *ctxt, char *target_topic)
 		}
 		before_topic_node = topic_node_t;
 		topic_node_t      = topic_node_t->next;
-	}
-
-	debug_msg("info: sub pkt node handling [%p]\n", sub_pkt->node);
-	if (sub_pkt->node == NULL) {
-#if SUPPORT_MQTT5_0
-		if (PROTOCOL_VERSION_v5 == proto_ver) {
-			if (sub_pkt->prop_len > 0) {
-				property_free(sub_pkt->properties);
-				sub_pkt->prop_len = 0;
-			}
-		}
-#endif
-		nng_free(sub_pkt, sizeof(packet_subscribe));
-		nng_free(cli_ctx, sizeof(client_ctx));
-		cli_ctx = NULL;
 	}
 }
 
@@ -571,6 +553,27 @@ destroy_sub_client(uint32_t pid, dbtree * db)
 			dbtree_delete_ctxt(db_ctxt);
 		}
 		tq = tq->next;
+	}
+
+	if (!cli_ctx)
+		return;
+	packet_subscribe *sub_pkt = cli_ctx->sub_pkt;
+	uint8_t proto_ver = cli_ctx->proto_ver;
+
+	if (sub_pkt->node == NULL) {
+#if SUPPORT_MQTT5_0
+		if (PROTOCOL_VERSION_v5 == proto_ver) {
+			if (sub_pkt->prop_len > 0) {
+				property_free(sub_pkt->properties);
+				sub_pkt->prop_len = 0;
+			}
+		}
+#endif
+		nng_free(sub_pkt, sizeof(packet_subscribe));
+		nng_free(cli_ctx, sizeof(client_ctx));
+		cli_ctx = NULL;
+	} else {
+		debug_msg("It should not happened.");
 	}
 
 	// Free from dbhash
