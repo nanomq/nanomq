@@ -432,7 +432,7 @@ find_client_cb(dbtree_node *node, void *args)
 	    binary_search(
 	        (void **) node->clients, 0, &index, pipe_id, client_cmp)) {
 		ctxt = (dbtree_ctxt*) node->clients[index]->ctxt;
-		ctxt->ref++;
+		dbtree_clone_ctxt(ctxt);
 	}
 
 	pthread_rwlock_unlock(&(node->rwlock));
@@ -782,7 +782,7 @@ iterate_client(dbtree_client ***v)
 				dbtree_ctxt *ctxt = (dbtree_ctxt *) v[i][j]->ctxt;
 				// void *ctxt = v[i][j]->ctxt;
 				if (v[i][j]->ver == MQTT_VERSION_V311) {
-					ctxt->ref++;
+					dbtree_clone_ctxt(ctxt);
 					cvector_push_back(ctxts, (void*) ctxt);
 					continue;
 				}
@@ -799,7 +799,7 @@ iterate_client(dbtree_client ***v)
 						    &v[i][j]->pipe_id);
 					}
 
-					ctxt->ref++;
+					dbtree_clone_ctxt(ctxt);
 					cvector_push_back(ctxts, (void*) ctxt);
 				}
 			}

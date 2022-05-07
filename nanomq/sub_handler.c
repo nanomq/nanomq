@@ -554,13 +554,22 @@ void
 destroy_sub_client(uint32_t pid, dbtree * db)
 {
 	client_ctx * cli_ctx = NULL;
+	dbtree_ctxt * db_ctxt = NULL;
 	topic_queue *tq = dbhash_get_topic_queue(pid);
 	// Free from dbtree
+	int x = 0;
 	while (tq) {
-		if (tq->topic)
-			cli_ctx = dbtree_delete_client(db, tq->topic, 0, pid);
-		if (cli_ctx)
-			del_sub_ctx(cli_ctx, tq->topic);
+		if (tq->topic) {
+			db_ctxt = dbtree_delete_client(db, tq->topic, 0, pid);
+			cli_ctx = db_ctxt->ctx;
+			if (cli_ctx) {
+				del_sub_ctx(cli_ctx, tq->topic);
+				x++;
+				if (x > 1)
+					fprintf(stderr, "IT SHOULD NOT HAPPENED\n");
+			}
+			dbtree_delete_ctxt(db_ctxt);
+		}
 		tq = tq->next;
 	}
 
