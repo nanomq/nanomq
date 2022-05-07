@@ -3,6 +3,7 @@
 
 #include "cvector.h"
 #include <pthread.h>
+#include <stdatomic.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
@@ -13,23 +14,29 @@ typedef enum {
 } mqtt_version_t;
 
 typedef struct {
-	uint32_t session_id;
-	uint32_t pipe_id;
-	void *   ctxt;
+	atomic_int ref;
+	void      *ctx;
+} dbtree_ctxt;
+
+
+typedef struct {
+	uint32_t       session_id;
+	uint32_t       pipe_id;
+	void          *ctxt;
 	mqtt_version_t ver;
 } dbtree_client;
 
 typedef struct {
 	uint8_t qos;
 	bool    exist;
-	char *  m;
-	void *  message;
+	char   *m;
+	void   *message;
 } dbtree_retain_msg;
 
 typedef struct dbtree_node dbtree_node;
 
 struct dbtree_node {
-	char *             topic;
+	char	      *topic;
 	int                plus;
 	int                well;
 	dbtree_retain_msg *retain;
@@ -39,7 +46,7 @@ struct dbtree_node {
 };
 
 typedef struct {
-	dbtree_node *root;
+	dbtree_node     *root;
 	pthread_rwlock_t rwlock;
 } dbtree;
 
@@ -52,7 +59,7 @@ typedef struct {
 static inline int
 node_cmp(void *x_, void *y_)
 {
-	char *       y     = (char *) y_;
+	char        *y     = (char *) y_;
 	dbtree_node *ele_x = (dbtree_node *) x_;
 	return strcmp(ele_x->topic, y);
 }
@@ -66,7 +73,7 @@ node_cmp(void *x_, void *y_)
 static inline int
 client_cmp(void *x_, void *y_)
 {
-	uint32_t *     pipe_id = (uint32_t *) y_;
+	uint32_t      *pipe_id = (uint32_t *) y_;
 	dbtree_client *ele_x   = (dbtree_client *) x_;
 	return *pipe_id - ele_x->pipe_id;
 }
@@ -151,7 +158,7 @@ void *dbtree_delete_client(
 
 /**
  * @brief dbtree_find_clients_and_cache_msg - Get all
- * subscribers online to this topic 
+ * subscribers online to this topic
  * @param dbtree - dbtree
  * @param topic - topic
  * @return dbtree_client
@@ -191,8 +198,7 @@ dbtree_retain_msg **dbtree_find_retain(dbtree *db, char *topic);
  * @param topic - topic
  * @return dbtree_client
  */
-void **dbtree_find_shared_sub_clients(
-    dbtree *db, char *topic);
+void **dbtree_find_shared_sub_clients(dbtree *db, char *topic);
 
 /**
  * @brief dbtree_check_shared_sub - Check if
@@ -225,5 +231,12 @@ void *dbtree_insert_shared_sub_client(
  */
 void *dbtree_delete_shared_sub_client(
     dbtree *db, char *topic, uint32_t session_id, uint32_t pipe_id);
+
+void *dbtree_delete_ctxt(dbtree_ctxt *ctxt);
+
+dbtree_ctxt *dbtree_new_ctxt(void *ctx);
+
+void dbtree_clone_ctxt(dbtree_ctxt *ctxt)
+
 
 #endif
