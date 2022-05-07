@@ -196,10 +196,10 @@ server_cb(void *arg)
 				nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 				handle_pub(work, work->pipe_ct, PROTOCOL_VERSION_v311);
 			}
-			// webhook_msg_publish(&work->webhook_sock,
-			//     &work->config->web_hook, work->pub_packet,
-			//     (const char *)conn_param_get_username(work->cparam),
-			//     (const char *)conn_param_get_clientid(work->cparam));
+			webhook_msg_publish(&work->webhook_sock,
+			    &work->config->web_hook, work->pub_packet,
+			    (const char *)conn_param_get_username(work->cparam),
+			    (const char *)conn_param_get_clientid(work->cparam));
 
 			conf_bridge *bridge = &(work->config->bridge);
 			if (bridge->bridge_mode) {
