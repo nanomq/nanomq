@@ -176,14 +176,18 @@ server_cb(void *arg)
 			fatal("RECV NULL MSG", rv);
 
 		work->msg       = msg;
-		work->cparam    = nng_msg_get_conn_param(work->msg);
 		work->pid       = nng_msg_get_pipe(work->msg);
+		if (nng_msg_cmd_type(msg) == CMD_DISCONNECT) {
+			// TODO delete will msg if any
+			// nng_pipe_close();
+			work->state = RECV;
+			nng_ctx_recv(work->ctx, work->aio);
+			break;
+		}
+		work->cparam    = nng_msg_get_conn_param(work->msg);
 		work->proto_ver = conn_param_get_protover(work->cparam);
 
-		if (nng_msg_cmd_type(msg) == CMD_DISCONNECT) {
-			// TODO delete will msg
-			// nng_pipe_close();
-		} else if (nng_msg_cmd_type(msg) == CMD_PUBLISH) {
+		if (nng_msg_cmd_type(msg) == CMD_PUBLISH) {
 			// Set V4/V5 flag for publish msg
 			if (work->proto_ver == 5) {
 				nng_msg_set_cmd_type(msg, CMD_PUBLISH_V5);
@@ -192,10 +196,10 @@ server_cb(void *arg)
 				nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 				handle_pub(work, work->pipe_ct, PROTOCOL_VERSION_v311);
 			}
-			webhook_msg_publish(&work->webhook_sock,
-			    &work->config->web_hook, work->pub_packet,
-			    (const char *)conn_param_get_username(work->cparam),
-			    (const char *)conn_param_get_clientid(work->cparam));
+			// webhook_msg_publish(&work->webhook_sock,
+			//     &work->config->web_hook, work->pub_packet,
+			//     (const char *)conn_param_get_username(work->cparam),
+			//     (const char *)conn_param_get_clientid(work->cparam));
 
 			conf_bridge *bridge = &(work->config->bridge);
 			if (bridge->bridge_mode) {
@@ -265,7 +269,6 @@ server_cb(void *arg)
 			    conn_param_get_keepalive(work->cparam), 0,
 			    conn_param_get_username(work->cparam),
 			    conn_param_get_clientid(work->cparam));
-			client_ctx * cli_ctx = NULL;
 			// free client ctx
 			if (dbhash_check_id(work->pid.id)) {
 				destroy_sub_client(work->pid.id, work->db);
