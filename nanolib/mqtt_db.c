@@ -7,7 +7,6 @@
 //
 
 #include <limits.h>
-#include <stdatomic.h>
 #include <stdbool.h>
 #include <string.h>
 #include <time.h>
@@ -23,6 +22,44 @@
 // #define RANDOM
 
 static atomic_int acnt = 0;
+
+
+dbtree_ctxt *
+dbtree_new_ctxt(void *ctx)
+{
+	dbtree_ctxt *ctxt = (dbtree_ctxt *) zmalloc(sizeof(dbtree_ctxt));
+	ctxt->ref         = 1;
+	ctxt->ctx         = ctx;
+	return ctxt;
+}
+
+void *
+dbtree_delete_ctxt(dbtree_ctxt *ctxt)
+{
+	if (ctxt->ref > 0) {
+		ctxt->ref--;
+	}
+
+	if (ctxt->ref > 0) {
+		return NULL;
+	}
+
+	void *ctx = NULL;
+	if (ctxt) {
+		if (ctxt->ctx) {
+			ctx = ctxt->ctx;
+		}
+		zfree(ctxt);
+	}
+	
+	return ctx;
+}
+
+void 
+dbtree_clone_ctxt(dbtree_ctxt *ctxt)
+{
+	ctxt->ref++;
+}
 
 /**
  * @brief print_client - A way to print client in vec.
@@ -263,7 +300,7 @@ dbtree_client_new(uint32_t id, void *ctxt, uint32_t pipe_id, mqtt_version_t ver)
 	log_info("New client pipe_id: [%d], session id: [%d]", pipe_id, id);
 	client->session_id = id;
 	client->pipe_id    = pipe_id;
-	client->ctxt       = ctxt;
+	client->ctxt       = (void *) dbtree_new_ctxt(ctxt);
 	client->ver        = ver;
 	return client;
 }
@@ -389,12 +426,13 @@ find_client_cb(dbtree_node *node, void *args)
 
 	int       index   = 0;
 	uint32_t *pipe_id = (uint32_t *) args;
-	void *    ctxt    = NULL;
+	dbtree_ctxt *    ctxt    = NULL;
 
 	if (true ==
 	    binary_search(
 	        (void **) node->clients, 0, &index, pipe_id, client_cmp)) {
-		ctxt = node->clients[index]->ctxt;
+		ctxt = (dbtree_ctxt*) node->clients[index]->ctxt;
+		ctxt->ref++;
 	}
 
 	pthread_rwlock_unlock(&(node->rwlock));
@@ -741,9 +779,11 @@ iterate_client(dbtree_client ***v)
 
 			for (int j = 0; j < cvector_size(v[i]); j++) {
 				int index = 0;
-				void *ctxt = v[i][j]->ctxt;
+				dbtree_ctxt *ctxt = (dbtree_ctxt *) v[i][j]->ctxt;
+				// void *ctxt = v[i][j]->ctxt;
 				if (v[i][j]->ver == MQTT_VERSION_V311) {
-					cvector_push_back(ctxts, ctxt);
+					ctxt->ref++;
+					cvector_push_back(ctxts, (void*) ctxt);
 					continue;
 				}
 
@@ -759,7 +799,8 @@ iterate_client(dbtree_client ***v)
 						    &v[i][j]->pipe_id);
 					}
 
-					cvector_push_back(ctxts, ctxt);
+					ctxt->ref++;
+					cvector_push_back(ctxts, (void*) ctxt);
 				}
 			}
 		}
