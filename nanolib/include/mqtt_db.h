@@ -236,7 +236,7 @@ void *dbtree_delete_ctxt(dbtree_ctxt *ctxt);
 
 dbtree_ctxt *dbtree_new_ctxt(void *ctx);
 
-void dbtree_clone_ctxt(dbtree_ctxt *ctxt)
+void dbtree_clone_ctxt(dbtree_ctxt *ctxt);
 
 
 #endif

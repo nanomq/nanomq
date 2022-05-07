@@ -57,7 +57,9 @@ foreach_client(
 
 	packet_subscribe * sub_pkt;
 	struct client_ctx *ctx;
+	dbtree_ctxt *      db_ctxt;
 	topic_node *       tn;
+
 	// Dont using msg info buf, Just for Cheat Compiler
 	mqtt_msg_info *msg_info, msg_info_buf;
 
@@ -66,9 +68,10 @@ foreach_client(
 	ctx_list_len = cvector_size(cli_ctx_list);
 
 	for (int i = 0; i < ctx_list_len; i++) {
-		ctx  = (struct client_ctx *) cli_ctx_list[i];
+		db_ctxt = (dbtree_ctxt *) cli_ctx_list[i];
+		ctx = (struct client_ctx *) db_ctxt->ctx;
 		if (!ctx)
-			continue;
+			goto next;
 
 #ifdef STATISTICS
 		ctx->recv_cnt++;
@@ -77,8 +80,9 @@ foreach_client(
 		pids = ctx->pid.id;
 		tn   = ctx->sub_pkt->node;
 
-		if (pids == 0)
-			continue;
+		if (pids == 0) {
+			goto next;
+		}
 
 		char *sub_topic;
 		while (tn) {
@@ -90,7 +94,6 @@ foreach_client(
 					sub_topic = strchr(sub_topic, '/');
 					sub_topic++;
 				}
-
 			}
 
 			// Note.
@@ -105,13 +108,13 @@ foreach_client(
 		}
 		if (!tn) {
 			debug_msg("Not find the topic node");
-			continue;
+			goto next;
 		}
 		sub_qos = tn->it->qos;
 		// no local
 		if (1 == tn->it->no_local) {
 			if (pids == pub_work->pid.id) {
-				continue;
+				goto next;
 			}
 		}
 
@@ -121,6 +124,9 @@ foreach_client(
 
 		msg_info->pipe = pids;
 		msg_info->qos  = sub_qos;
+
+next:
+		dbtree_delete_ctxt(db_ctxt);
 	}
 	pipe_ct->msg_infos = msg_infos;
 }
