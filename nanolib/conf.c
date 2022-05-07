@@ -945,8 +945,10 @@ conf_web_hook_parse_headers(conf_web_hook *webhook, const char *path)
 		}
 		char *key   = calloc(1, sz - 16);
 		char *value = calloc(1, sz - 16);
+		char *str = strtrim_head_tail(line, sz);
 		int   res =
-		    sscanf(line, "web.hook.headers.%[^=]=%[^\n]", key, value);
+		    sscanf(str, "web.hook.headers.%[^=]=%[^\n]", key, value);
+		free(str);
 		if (res == 2) {
 			webhook->header_count++;
 			webhook->headers = realloc(webhook->headers,
@@ -1060,8 +1062,10 @@ conf_web_hook_parse_rules(conf_web_hook *webhook, const char *path)
 		char *   hooktype = NULL;
 		char *   hookname = NULL;
 		uint16_t num      = 0;
-		int      res =
-		    sscanf(line, "web.hook.rule.%[^=]=%[^\n]", key, value);
+		char *   str      = strtrim_head_tail(line, sz);
+		int res =
+		    sscanf(str, "web.hook.rule.%[^=]=%[^\n]", key, value);
+		free(str);
 		bool  match         = false;
 		char *key_trimmed   = NULL;
 		char *value_trimmed = NULL;
