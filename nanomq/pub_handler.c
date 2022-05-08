@@ -167,7 +167,9 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct)
 	}
 
 	topic = work->pub_packet->variable_header.publish.topic_name.body;
-
+	if (topic == NULL) {
+		return;
+	}
 	cli_ctx_list =
 	    dbtree_find_clients_and_cache_msg(work->db, topic, NULL, &msg_cnt);
 

@@ -991,6 +991,7 @@ search_client(dbtree *db, char *topic, void *message, size_t *msg_cnt)
 {
 	if (db == NULL || topic == NULL) {
 		log_err("db or topic is NULL");
+		return NULL;
 	}
 
 	char **topic_queue = topic_parse(topic);
