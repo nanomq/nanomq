@@ -170,13 +170,16 @@ server_cb(void *arg)
 		if ((msg = nng_aio_get_msg(work->aio)) == NULL)
 			fatal("RECV NULL MSG", rv);
 
-		work->msg    = msg;
-		work->cparam = nng_msg_get_conn_param(work->msg);
-		work->pid    = nng_msg_get_pipe(work->msg);
-
+		work->msg = msg;
+		work->pid = nng_msg_get_pipe(work->msg);
 		if (nng_msg_cmd_type(msg) == CMD_DISCONNECT) {
-			//delete will msg
-		} else if (nng_msg_cmd_type(msg) == CMD_PUBLISH) {
+			// delete will msg
+			work->state = RECV;
+			nng_ctx_recv(work->ctx, work->aio);
+			break;
+		}
+		work->cparam = nng_msg_get_conn_param(work->msg);
+		if (nng_msg_cmd_type(msg) == CMD_PUBLISH) {
 			// Set V4/V5 flag for publish msg
 			if (conn_param_get_protover(work->cparam) == 5) {
 				nng_msg_set_cmd_type(msg, CMD_PUBLISH_V5);
