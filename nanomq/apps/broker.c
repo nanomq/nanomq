@@ -191,11 +191,10 @@ server_cb(void *arg)
 			// Set V4/V5 flag for publish msg
 			if (work->proto_ver == 5) {
 				nng_msg_set_cmd_type(msg, CMD_PUBLISH_V5);
-				handle_pub(work, work->pipe_ct, PROTOCOL_VERSION_v5);
 			} else {
 				nng_msg_set_cmd_type(msg, CMD_PUBLISH);
-				handle_pub(work, work->pipe_ct, PROTOCOL_VERSION_v311);
 			}
+			handle_pub(work, work->pipe_ct, work->proto_ver);
 			webhook_msg_publish(&work->webhook_sock,
 			    &work->config->web_hook, work->pub_packet,
 			    (const char *)conn_param_get_username(work->cparam),
@@ -354,6 +353,7 @@ server_cb(void *arg)
 				    cvector_size(work->msg_ret));
 				for (int i = 0;
 				     i < cvector_size(work->msg_ret); i++) {
+					// encode pub msg??
 					nng_msg *m = work->msg_ret[i];
 					nng_msg_clone(m);
 					work->msg = m;
@@ -413,7 +413,7 @@ server_cb(void *arg)
 
 			debug_msg("total pipes: %ld", cvector_size(msg_infos));
 			if (cvector_size(msg_infos))
-				if (encode_pub_message(smsg, work, PUBLISH, msg_info))
+				if (encode_pub_message(smsg, work, PUBLISH))
 					for (int i = 0; i < cvector_size(msg_infos) && rv== 0; ++i) {
 						msg_info = &msg_infos[i];
 						nng_msg_clone(smsg);
@@ -518,7 +518,7 @@ server_cb(void *arg)
 			debug_msg("total pipes: %ld", cvector_size(msg_infos));
 			//TODO encode abstract msg only
 			if (cvector_size(msg_infos))
-				if (encode_pub_message(smsg, work, PUBLISH, msg_info))
+				if (encode_pub_message(smsg, work, PUBLISH))
 					for (int i=0; i<cvector_size(msg_infos); ++i) {
 						msg_info = &msg_infos[i];
 						nng_msg_clone(smsg);

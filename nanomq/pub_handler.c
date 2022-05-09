@@ -142,9 +142,6 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto)
 #ifdef STATISTICS
 	g_message_in++;
 #endif
-	if (proto == 0) {
-		proto = conn_param_get_protover(work->cparam);
-	}
 
 	work->pub_packet = (struct pub_packet_struct *) nng_zalloc(
 	    sizeof(struct pub_packet_struct));
@@ -246,9 +243,16 @@ handle_pub_retain(const nano_work *work, char *topic)
 			retain->message = work->msg;
 			retain->exist   = true;
 			retain->m       = NULL;
-
-			debug_msg("found retain [%p], message: [%p][%p]\n", retain,
-			    retain->message,
+			// reserve property info
+			if (work->proto == PROTOCOL_VERSION_v5) {
+				property_dup(&prop,
+				    work->pub_packet->var_header.publish
+				        .properties);
+				nng_msg_proto_set_property(
+				    retain->message, (void *) prop);
+			}
+			debug_msg("found retain [%p], message: [%p][%p]\n",
+			    retain, retain->message,
 			    nng_msg_payload_ptr(retain->message));
 			r = dbtree_insert_retain(work->db_ret, topic, retain);
 		} else {
@@ -335,8 +339,8 @@ append_bytes_with_type(
 }
 
 bool
-encode_pub_message(nng_msg *dest_msg, const nano_work *work,
-    mqtt_control_packet_types cmd, mqtt_msg_info *msg_info)
+encode_pub_message(
+    nng_msg *dest_msg, const nano_work *work, mqtt_control_packet_types cmd)
 {
 	uint8_t  tmp[4]     = { 0 };
 	uint32_t arr_len    = 0;
@@ -551,8 +555,6 @@ decode_pub_message(nano_work *work, uint8_t proto)
 			    decode_properties(msg, &pos,
 			        &pub_packet->var_header.publish.prop_len,
 			        false);
-			// nng_msg_proto_set_property(
-			//     msg, pub_packet->var_header.publish.properties);
 			debug_msg("property len: %d",
 			    pub_packet->var_header.publish.prop_len);
 		}
