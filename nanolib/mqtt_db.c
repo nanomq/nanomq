@@ -780,7 +780,6 @@ iterate_client(dbtree_client ***v)
 			for (int j = 0; j < cvector_size(v[i]); j++) {
 				int index = 0;
 				dbtree_ctxt *ctxt = (dbtree_ctxt *) v[i][j]->ctxt;
-				// void *ctxt = v[i][j]->ctxt;
 				if (v[i][j]->ver == MQTT_VERSION_V311) {
 					dbtree_clone_ctxt(ctxt);
 					cvector_push_back(ctxts, (void*) ctxt);
