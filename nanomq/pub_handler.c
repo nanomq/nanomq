@@ -55,7 +55,6 @@ foreach_client(
 	uint8_t   sub_qos;
 	int       ctx_list_len;
 
-	packet_subscribe * sub_pkt;
 	struct client_ctx *ctx;
 	dbtree_ctxt *      db_ctxt, *ctxt;
 	topic_node *       tn;
