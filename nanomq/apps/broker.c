@@ -370,6 +370,8 @@ server_cb(void *arg)
 			work->state = SEND;
 			nng_ctx_send(work->ctx, work->aio);
 			nng_aio_finish(work->aio, 0);
+			// free conn_param due to clone in protocol layer
+			conn_param_free(work->cparam);
 			break;
 		} else if (nng_msg_cmd_type(work->msg) == CMD_UNSUBSCRIBE) {
 			work->pid = nng_msg_get_pipe(work->msg);
