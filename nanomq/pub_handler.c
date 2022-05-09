@@ -124,12 +124,8 @@ foreach_client(
 		msg_info->qos  = sub_qos;
 
 next:
-		if (ctx && db_ctxt->ref == 1) {
-			fprintf(stderr, "----> Free after find.\n");
-			destroy_sub_client(ctx->pid.id, pub_work->db);
-		} else {
-			dbtree_delete_ctxt(db_ctxt);
-		}
+		if ((ctx = dbtree_delete_ctxt(db_ctxt)) != NULL)
+			destroy_sub_client(ctx->pid.id, pub_work->db, ctx);
 	}
 	pipe_ct->msg_infos = msg_infos;
 }

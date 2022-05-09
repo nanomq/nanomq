@@ -533,29 +533,40 @@ destroy_sub_ctx(void *ctxt)
 }
 
 void
-destroy_sub_client(uint32_t pid, dbtree * db)
+destroy_sub_client(uint32_t pid, dbtree * db, void *ctx)
 {
 	client_ctx * cli_ctx = NULL, *ctx2 = NULL;
 	dbtree_ctxt * db_ctxt = NULL;
 	topic_queue *tq = dbhash_get_topic_queue(pid);
 	// Free from dbtree
-	int x = 0;
+	if (!ctx) {
+		// Call by Disconnect event
+		db_ctxt = dbtree_find_client(db, tq->topic, pid);
+		// Ref > 1, So let puber to delete
+		if ((ctx2 = dbtree_delete_ctxt(db_ctxt)) == NULL)
+			return;
+	}
 	while (tq) {
-		cli_ctx = ctx2 = NULL;
+		cli_ctx = NULL;
 		if (tq->topic) {
-			db_ctxt = dbtree_find_client(db, tq->topic, pid);
-			cli_ctx = db_ctxt->ctx;
-			if (cli_ctx) {
-				del_sub_ctx(cli_ctx, tq->topic);
+			if (!ctx) {
+				// Call by Disconnect event
+				cli_ctx = ctx2;
+				// Ref == 1, so delete
+			} else {
+				// Call by Publish
+				cli_ctx = ctx;
 			}
-			if ((ctx2 = dbtree_delete_ctxt(db_ctxt)) != NULL)
-				dbtree_delete_client(db, tq->topic, 0, pid);
+			if (cli_ctx)
+				del_sub_ctx(cli_ctx, tq->topic);
+			dbtree_delete_client(db, tq->topic, 0, pid);
 		}
 		tq = tq->next;
 	}
 
-	if (!cli_ctx || !ctx2)
+	if (!cli_ctx)
 		return;
+
 	packet_subscribe *sub_pkt = cli_ctx->sub_pkt;
 	uint8_t proto_ver = cli_ctx->proto_ver;
 
