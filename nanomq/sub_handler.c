@@ -34,7 +34,7 @@ decode_sub_msg(nano_work *work)
 
 	nng_msg *     msg           = work->msg;
 	size_t        remaining_len = nng_msg_remaining_len(msg);
-	const uint8_t proto_ver     = conn_param_get_protover(work->cparam);
+	const uint8_t proto_ver     = work->proto_ver;
 
 	// handle variable header
 	variable_ptr = nng_msg_body(msg);
@@ -214,6 +214,7 @@ encode_suback_msg(nng_msg *msg, nano_work *work)
 }
 
 // generate ctx for each topic
+// this should be moved to RECV
 int
 sub_ctx_handle(nano_work *work)
 {
@@ -240,7 +241,7 @@ sub_ctx_handle(nano_work *work)
 	cli_ctx->sub_pkt        = work->sub_pkt;
 	cli_ctx->cparam         = work->cparam;
 	cli_ctx->pid            = work->pid;
-	cli_ctx->proto_ver      = conn_param_get_protover(work->cparam);
+	cli_ctx->proto_ver      = work->proto_ver;
 
 	clientid = (char *) conn_param_get_clientid(
 	    (conn_param *) nng_msg_get_conn_param(work->msg));
@@ -304,7 +305,7 @@ sub_ctx_handle(nano_work *work)
 			tq = tq->next;
 		}
 		if (!topic_exist && topic_str) {
-			uint8_t ver = conn_param_get_protover(work->cparam);
+			uint8_t ver = work->proto_ver;
 			dbtree_insert_client(
 			    work->db, topic_str, old_ctx, work->pid.id, ver);
 
