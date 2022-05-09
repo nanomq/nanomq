@@ -543,7 +543,7 @@ destroy_sub_client(uint32_t pid, dbtree * db, void *ctx)
 		// Call by Disconnect event
 		db_ctxt = dbtree_find_client(db, tq->topic, pid);
 		// Ref > 1, So let puber to delete
-		if ((ctx2 = dbtree_delete_ctxt(db_ctxt)) == NULL)
+		if ((ctx2 = dbtree_delete_ctxt(db, db_ctxt)) == NULL)
 			return;
 	}
 	while (tq) {
