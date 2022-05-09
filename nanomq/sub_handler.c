@@ -140,7 +140,7 @@ encode_suback_msg(nng_msg *msg, nano_work *work)
 	if ((sub_pkt = work->sub_pkt) == NULL)
 		return (-1);
 
-	const uint8_t proto_ver = conn_param_get_protover(work->cparam);
+	const uint8_t proto_ver = work->proto_ver;
 
 	// handle variable header first
 	NNI_PUT16(packet_id, sub_pkt->packet_id);
