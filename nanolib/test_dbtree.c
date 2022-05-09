@@ -174,43 +174,43 @@ static void
 test_find_client()
 {
 	puts("================begin find client===============");
-	char *ret_ctxt0 =
-	    (char *) dbtree_find_client(db, topic0, client0.pipe_id);
-	char *ret_ctxt1 =
-	    (char *) dbtree_find_client(db, topic1, client1.pipe_id);
-	char *ret_ctxt2 =
-	    (char *) dbtree_find_client(db, topic2, client2.pipe_id);
-	char *ret_ctxt3 =
-	    (char *) dbtree_find_client(db, topic3, client3.pipe_id);
-	char *ret_ctxt4 =
-	    (char *) dbtree_find_client(db, topic4, client4.pipe_id);
-	char *ret_ctxt5 =
-	    (char *) dbtree_find_client(db, topic5, client5.pipe_id);
-	char *ret_ctxt6 =
-	    (char *) dbtree_find_client(db, topic6, client6.pipe_id);
-	char *ret_ctxt7 =
-	    (char *) dbtree_find_client(db, topic7, client7.pipe_id);
-	char *ret_ctxt8 =
-	    (char *) dbtree_find_client(db, topic8, client8.pipe_id);
-	char *ret_ctxt9 =
-	    (char *) dbtree_find_client(db, topic9, client9.pipe_id);
+	dbtree_ctxt *ret_ctxt0 =
+	    (dbtree_ctxt *) dbtree_find_client(db, topic0, client0.pipe_id);
+	dbtree_ctxt *ret_ctxt1 =
+	    (dbtree_ctxt *) dbtree_find_client(db, topic1, client1.pipe_id);
+	dbtree_ctxt *ret_ctxt2 =
+	    (dbtree_ctxt *) dbtree_find_client(db, topic2, client2.pipe_id);
+	dbtree_ctxt *ret_ctxt3 =
+	    (dbtree_ctxt *) dbtree_find_client(db, topic3, client3.pipe_id);
+	dbtree_ctxt *ret_ctxt4 =
+	    (dbtree_ctxt *) dbtree_find_client(db, topic4, client4.pipe_id);
+	dbtree_ctxt *ret_ctxt5 =
+	    (dbtree_ctxt *) dbtree_find_client(db, topic5, client5.pipe_id);
+	dbtree_ctxt *ret_ctxt6 =
+	    (dbtree_ctxt *) dbtree_find_client(db, topic6, client6.pipe_id);
+	dbtree_ctxt *ret_ctxt7 =
+	    (dbtree_ctxt *) dbtree_find_client(db, topic7, client7.pipe_id);
+	dbtree_ctxt *ret_ctxt8 =
+	    (dbtree_ctxt *) dbtree_find_client(db, topic8, client8.pipe_id);
+	dbtree_ctxt *ret_ctxt9 =
+	    (dbtree_ctxt *) dbtree_find_client(db, topic9, client9.pipe_id);
 
-	puts(ctxt0);
-	puts(ret_ctxt0);
+
+	check(ctxt0 == ret_ctxt0->ctx, "Error ctxt message0");
+	check(ctxt1 == ret_ctxt1->ctx, "Error ctxt message1");
+	check(ctxt2 == ret_ctxt2->ctx, "Error ctxt message2");
+	check(ctxt3 == ret_ctxt3->ctx, "Error ctxt message3");
+	check(ctxt4 == ret_ctxt4->ctx, "Error ctxt message4");
+	check(ctxt5 == ret_ctxt5->ctx, "Error ctxt message5");
+	check(ctxt6 == ret_ctxt6->ctx, "Error ctxt message6");
+	check(ctxt7 == ret_ctxt7->ctx, "Error ctxt message7");
+	check(ctxt8 == ret_ctxt8->ctx, "Error ctxt message8");
+	check(ctxt9 == ret_ctxt9->ctx, "Error ctxt message9");
 
 	
-
-	check(ctxt0 == ret_ctxt0, "Error ctxt message0");
-	check(ctxt1 == ret_ctxt1, "Error ctxt message1");
-	check(ctxt2 == ret_ctxt2, "Error ctxt message2");
-	check(ctxt3 == ret_ctxt3, "Error ctxt message3");
-	check(ctxt4 == ret_ctxt4, "Error ctxt message4");
-	check(ctxt5 == ret_ctxt5, "Error ctxt message5");
-	check(ctxt6 == ret_ctxt6, "Error ctxt message6");
-	check(ctxt7 == ret_ctxt7, "Error ctxt message7");
-	check(ctxt8 == ret_ctxt8, "Error ctxt message8");
-	check(ctxt9 == ret_ctxt9, "Error ctxt message9");
+	
 	puts("================finish find client===============");
+
 
 	return;
 
@@ -250,26 +250,38 @@ static void
 test_delete_client()
 {
 	puts("================begin delete client===============");
-	dbtree_delete_client(db, topic0, client0.session_id, client0.pipe_id);
+	dbtree_ctxt *ret_ctx0 = (dbtree_ctxt*) dbtree_delete_client(db, topic0, client0.session_id, client0.pipe_id);
 	dbtree_print(db);
-	dbtree_delete_client(db, topic1, client1.session_id, client1.pipe_id);
+	dbtree_ctxt *ret_ctx1 = (dbtree_ctxt*) dbtree_delete_client(db, topic1, client1.session_id, client1.pipe_id);
 	dbtree_print(db);
-	dbtree_delete_client(db, topic2, client2.session_id, client2.pipe_id);
+	dbtree_ctxt *ret_ctx2 = (dbtree_ctxt*) dbtree_delete_client(db, topic2, client2.session_id, client2.pipe_id);
 	dbtree_print(db);
-	dbtree_delete_client(db, topic3, client3.session_id, client3.pipe_id);
+	dbtree_ctxt *ret_ctx3 = (dbtree_ctxt*) dbtree_delete_client(db, topic3, client3.session_id, client3.pipe_id);
 	dbtree_print(db);
-	dbtree_delete_client(db, topic4, client4.session_id, client4.pipe_id);
+	dbtree_ctxt *ret_ctx4 = (dbtree_ctxt*) dbtree_delete_client(db, topic4, client4.session_id, client4.pipe_id);
 	dbtree_print(db);
-	dbtree_delete_client(db, topic5, client5.session_id, client5.pipe_id);
+	dbtree_ctxt *ret_ctx5 = (dbtree_ctxt*) dbtree_delete_client(db, topic5, client5.session_id, client5.pipe_id);
 	dbtree_print(db);
-	dbtree_delete_client(db, topic6, client6.session_id, client6.pipe_id);
+	dbtree_ctxt *ret_ctx6 = (dbtree_ctxt*) dbtree_delete_client(db, topic6, client6.session_id, client6.pipe_id);
 	dbtree_print(db);
-	dbtree_delete_client(db, topic7, client7.session_id, client7.pipe_id);
+	dbtree_ctxt *ret_ctx7 = (dbtree_ctxt*) dbtree_delete_client(db, topic7, client7.session_id, client7.pipe_id);
 	dbtree_print(db);
-	dbtree_delete_client(db, topic8, client8.session_id, client8.pipe_id);
+	dbtree_ctxt *ret_ctx8 = (dbtree_ctxt*) dbtree_delete_client(db, topic8, client8.session_id, client8.pipe_id);
 	dbtree_print(db);
-	dbtree_delete_client(db, topic9, client9.session_id, client9.pipe_id);
+	dbtree_ctxt *ret_ctx9 = (dbtree_ctxt*) dbtree_delete_client(db, topic9, client9.session_id, client9.pipe_id);
 	dbtree_print(db);
+
+	dbtree_delete_ctxt(db, ret_ctx0);
+	dbtree_delete_ctxt(db, ret_ctx1);
+	dbtree_delete_ctxt(db, ret_ctx2);
+	dbtree_delete_ctxt(db, ret_ctx3);
+	dbtree_delete_ctxt(db, ret_ctx4);
+	dbtree_delete_ctxt(db, ret_ctx5);
+	dbtree_delete_ctxt(db, ret_ctx6);
+	dbtree_delete_ctxt(db, ret_ctx7);
+	dbtree_delete_ctxt(db, ret_ctx8);
+	dbtree_delete_ctxt(db, ret_ctx9);
+
 	puts("================finish delete client===============");
 }
 
@@ -277,12 +289,12 @@ static void
 test_search_client()
 {
 	puts("================test search client==============");
-	char **dc = (char **) dbtree_find_clients(db, topic0);
+	dbtree_ctxt **dc = (dbtree_ctxt **) dbtree_find_clients(db, topic0);
 
 	if (dc) {
 		cvector_free(dc);
 	}
-	puts("================finish search session===============");
+	puts("================finish search client===============");
 }
 
 static void
