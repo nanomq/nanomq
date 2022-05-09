@@ -232,7 +232,7 @@ void *dbtree_insert_shared_sub_client(
 void *dbtree_delete_shared_sub_client(
     dbtree *db, char *topic, uint32_t session_id, uint32_t pipe_id);
 
-void *dbtree_delete_ctxt(dbtree_ctxt *ctxt);
+void *dbtree_delete_ctxt(dbtree *db, dbtree_ctxt *ctxt);
 
 dbtree_ctxt *dbtree_new_ctxt(void *ctx);
 

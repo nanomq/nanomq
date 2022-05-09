@@ -28,29 +28,29 @@ dbtree_ctxt *
 dbtree_new_ctxt(void *ctx)
 {
 	dbtree_ctxt *ctxt = (dbtree_ctxt *) zmalloc(sizeof(dbtree_ctxt));
+	if (ctxt == NULL) {
+		log_err("Memory alloc error!");
+		return NULL;
+	}
 	ctxt->ref         = 1;
 	ctxt->ctx         = ctx;
 	return ctxt;
 }
 
 void *
-dbtree_delete_ctxt(dbtree_ctxt *ctxt)
+dbtree_delete_ctxt(dbtree *db, dbtree_ctxt *ctxt)
 {
+	void *ctx = NULL;
+	pthread_rwlock_wrlock(&(db->rwlock));
 	if (ctxt->ref > 0) {
 		ctxt->ref--;
 	}
 
-	if (ctxt->ref > 0) {
-		return NULL;
-	}
-
-	void *ctx = NULL;
-	if (ctxt) {
-		if (ctxt->ctx) {
-			ctx = ctxt->ctx;
-		}
+	if (ctxt->ref == 0) {
+		ctx = ctxt->ctx;
 		zfree(ctxt);
 	}
+	pthread_rwlock_unlock(&(db->rwlock));
 	
 	return ctx;
 }
