@@ -832,34 +832,8 @@ struct connect_param {
 static void
 connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {
-	printf("%s: connected!\n", __FUNCTION__);
 	struct connect_param *param = arg;
-
-	if (param->opts->type == SUB && param->opts->topic_count > 0) {
-		nng_msg *msg;
-		nng_mqtt_msg_alloc(&msg, 0);
-		nng_mqtt_msg_set_packet_type(msg, NNG_MQTT_SUBSCRIBE);
-
-		nng_mqtt_topic_qos *topics_qos =
-		    nng_mqtt_topic_qos_array_create(param->opts->topic_count);
-
-		size_t i = 0;
-		for (struct topic *tp = param->opts->topic;
-		     tp != NULL && i < param->opts->topic_count;
-		     tp = tp->next, i++) {
-			nng_mqtt_topic_qos_array_set(
-			    topics_qos, i, tp->val, param->opts->qos);
-		}
-
-		nng_mqtt_msg_set_subscribe_topics(
-		    msg, topics_qos, param->opts->topic_count);
-
-		nng_mqtt_topic_qos_array_free(
-		    topics_qos, param->opts->topic_count);
-
-		// Send subscribe message
-		nng_sendmsg(*param->sock, msg, NNG_FLAG_NONBLOCK);
-	}
+	printf("%s: %s connected!\n", __FUNCTION__, param->opts->url);
 }
 
 // Disconnect message callback function
@@ -909,6 +883,32 @@ create_client(nng_socket *sock, struct work **works, size_t id, size_t nwork,
 	nng_mqtt_set_disconnect_cb(*sock, disconnect_cb, msg);
 
 	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
+
+	if (param->opts->type == SUB && param->opts->topic_count > 0) {
+		nng_msg *msg;
+		nng_mqtt_msg_alloc(&msg, 0);
+		nng_mqtt_msg_set_packet_type(msg, NNG_MQTT_SUBSCRIBE);
+
+		nng_mqtt_topic_qos *topics_qos =
+		    nng_mqtt_topic_qos_array_create(param->opts->topic_count);
+
+		size_t i = 0;
+		for (struct topic *tp = param->opts->topic;
+		     tp != NULL && i < param->opts->topic_count;
+		     tp = tp->next, i++) {
+			nng_mqtt_topic_qos_array_set(
+			    topics_qos, i, tp->val, param->opts->qos);
+		}
+
+		nng_mqtt_msg_set_subscribe_topics(
+		    msg, topics_qos, param->opts->topic_count);
+
+		nng_mqtt_topic_qos_array_free(
+		    topics_qos, param->opts->topic_count);
+
+		// Send subscribe message
+		nng_sendmsg(*param->sock, msg, NNG_FLAG_NONBLOCK);
+	}
 
 	average_msgs(opts, works);
 	for (size_t i = 0; i < opts->parallel; i++) {
