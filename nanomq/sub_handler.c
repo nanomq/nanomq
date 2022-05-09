@@ -535,27 +535,26 @@ destroy_sub_ctx(void *ctxt)
 void
 destroy_sub_client(uint32_t pid, dbtree * db)
 {
-	client_ctx * cli_ctx = NULL;
+	client_ctx * cli_ctx = NULL, *ctx2 = NULL;
 	dbtree_ctxt * db_ctxt = NULL;
 	topic_queue *tq = dbhash_get_topic_queue(pid);
 	// Free from dbtree
 	int x = 0;
 	while (tq) {
+		cli_ctx = ctx2 = NULL;
 		if (tq->topic) {
-			db_ctxt = dbtree_delete_client(db, tq->topic, 0, pid);
+			db_ctxt = dbtree_find_client(db, tq->topic, pid);
 			cli_ctx = db_ctxt->ctx;
 			if (cli_ctx) {
 				del_sub_ctx(cli_ctx, tq->topic);
-				x++;
-				if (x > 1)
-					fprintf(stderr, "IT SHOULD NOT HAPPENED\n");
 			}
-			dbtree_delete_ctxt(db_ctxt);
+			if ((ctx2 = dbtree_delete_ctxt(db_ctxt)) != NULL)
+				dbtree_delete_client(db, tq->topic, 0, pid);
 		}
 		tq = tq->next;
 	}
 
-	if (!cli_ctx)
+	if (!cli_ctx || !ctx2)
 		return;
 	packet_subscribe *sub_pkt = cli_ctx->sub_pkt;
 	uint8_t proto_ver = cli_ctx->proto_ver;

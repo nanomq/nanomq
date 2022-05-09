@@ -57,7 +57,7 @@ foreach_client(
 
 	packet_subscribe * sub_pkt;
 	struct client_ctx *ctx;
-	dbtree_ctxt *      db_ctxt;
+	dbtree_ctxt *      db_ctxt, *ctxt;
 	topic_node *       tn;
 
 	// Dont using msg info buf, Just for Cheat Compiler
@@ -70,8 +70,6 @@ foreach_client(
 	for (int i = 0; i < ctx_list_len; i++) {
 		db_ctxt = (dbtree_ctxt *) cli_ctx_list[i];
 		ctx = (struct client_ctx *) db_ctxt->ctx;
-		if (!ctx)
-			goto next;
 
 #ifdef STATISTICS
 		ctx->recv_cnt++;
@@ -125,11 +123,13 @@ foreach_client(
 		msg_info->pipe = pids;
 		msg_info->qos  = sub_qos;
 
-		struct client_ctx * ctxd;
 next:
-		ctxd = dbtree_delete_ctxt(db_ctxt);
-		if (ctxd)
-			destroy_sub_ctx(ctxd);
+		if (ctx && db_ctxt->ref == 1) {
+			fprintf(stderr, "----> Free after find.\n");
+			destroy_sub_client(ctx->pid.id, pub_work->db);
+		} else {
+			dbtree_delete_ctxt(db_ctxt);
+		}
 	}
 	pipe_ct->msg_infos = msg_infos;
 }
