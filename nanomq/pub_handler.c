@@ -35,7 +35,7 @@ static void  print_hex(
      const char *prefix, const unsigned char *src, int src_len);
 static uint32_t append_bytes_with_type(
     nng_msg *msg, uint8_t type, uint8_t *content, uint32_t len);
-static void handle_pub_retain(const nano_work *work, char *topic);
+static void inline handle_pub_retain(const nano_work *work, char *topic);
 
 void
 init_pipe_content(struct pipe_content *pipe_ct)
@@ -226,7 +226,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto)
 }
 
 #if ENABLE_RETAIN
-static void
+static void inline
 handle_pub_retain(const nano_work *work, char *topic)
 {
 	dbtree_retain_msg *retain = NULL;
@@ -242,9 +242,11 @@ handle_pub_retain(const nano_work *work, char *topic)
 			retain->qos = work->pub_packet->fixed_header.qos;
 			nng_msg_clone(work->msg);
 
+			property *prop;
 			retain->message = work->msg;
 			retain->exist   = true;
 			retain->m       = NULL;
+
 			debug_msg("found retain [%p], message: [%p][%p]\n", retain,
 			    retain->message,
 			    nng_msg_payload_ptr(retain->message));
