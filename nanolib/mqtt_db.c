@@ -1396,6 +1396,7 @@ dbtree_shared_iterate_client(dbtree_client ***v)
 				}
 
 				void *ctxt = v[i][j]->ctxt;
+				dbtree_clone_ctxt((dbtree_ctxt*) ctxt);
 				cvector_push_back(ctxts, ctxt);
 			}
 		}
