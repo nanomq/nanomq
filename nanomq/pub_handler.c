@@ -244,7 +244,7 @@ handle_pub_retain(const nano_work *work, char *topic)
 			retain->exist   = true;
 			retain->m       = NULL;
 			// reserve property info
-			if (work->proto == PROTOCOL_VERSION_v5) {
+			if (work->proto_ver == PROTOCOL_VERSION_v5) {
 				property_dup(&prop,
 				    work->pub_packet->var_header.publish
 				        .properties);
@@ -643,6 +643,27 @@ print_hex(const char *prefix, const unsigned char *src, int src_len)
 
 		nng_free(dest, src_len * 3 + 1);
 	}
+}
+
+bool
+check_msg_exp(nng_msg *msg, property *prop)
+{
+	if (nng_msg_cmd_type(msg) == CMD_PUBLISH_V5) {
+		//change to nng msg get
+		nng_time       rtime = nni_msg_get_timestamp(msg);
+		nng_time       ntime = nng_clock();
+		property_data *data =
+		    property_get_value(prop, MESSAGE_EXPIRY_INTERVAL);
+		if (data && ntime > rtime + data->p_value.u32 * 1000) {
+			return false;
+		} else if (data) {
+			// TODO replace exp interval with new value without
+			// touching prop?
+			//  data->p_value.u32 =
+			//      data->p_value.u32 - (ntime - rtime) / 1000;
+		}
+	}
+	return true;
 }
 
 #ifdef STATISTICS
