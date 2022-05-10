@@ -352,16 +352,17 @@ server_cb(void *arg)
 				    work->msg_ret,
 				    cvector_size(work->msg_ret));
 				for (int i = 0;
-				     i < cvector_size(work->msg_ret) && check_msg_exp(work->msg_ret[i], nng_msg_get_proto_data(work->msg_ret[i])); i++) {
-					nng_msg  *m = work->msg_ret[i];
-						nng_msg_clone(m);
-						work->msg = m;
-						nng_aio_set_msg(
-						    work->aio, work->msg);
-						nng_msg_set_pipe(
-						    work->msg, work->pid);
-						nng_ctx_send(
-						    work->ctx, work->aio);
+				     i < cvector_size(work->msg_ret) &&
+				     check_msg_exp(work->msg_ret[i],
+				         nng_msg_get_proto_data(
+				             work->msg_ret[i]));
+				     i++) {
+					nng_msg *m = work->msg_ret[i];
+					nng_msg_clone(m);
+					work->msg = m;
+					nng_aio_set_msg(work->aio, work->msg);
+					nng_msg_set_pipe(work->msg, work->pid);
+					nng_ctx_send(work->ctx, work->aio);
 				}
 				cvector_free(work->msg_ret);
 			}

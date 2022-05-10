@@ -650,7 +650,7 @@ check_msg_exp(nng_msg *msg, property *prop)
 {
 	if (nng_msg_cmd_type(msg) == CMD_PUBLISH_V5) {
 		//change to nng msg get
-		nng_time       rtime = nni_msg_get_timestamp(msg);
+		nng_time       rtime = nng_msg_get_timestamp(msg);
 		nng_time       ntime = nng_clock();
 		property_data *data =
 		    property_get_value(prop, MESSAGE_EXPIRY_INTERVAL);
