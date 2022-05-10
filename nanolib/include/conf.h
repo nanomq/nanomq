@@ -17,6 +17,7 @@
 #define CONF_AUTH_PATH_NAME "/etc/nanomq_auth_username.conf"
 #define CONF_BRIDGE_PATH_NAME "/etc/nanomq_bridge.conf"
 #define CONF_GATEWAY_PATH_NAME "/etc/nanomq_gateway.conf"
+#define CONF_RULE_ENGINE_PATH_NAME "/etc/nanomq_rule_engine.conf"
 #define CONF_WEB_HOOK_PATH_NAME "/etc/nanomq_web_hook.conf"
 
 #define CONF_TCP_URL_DEFAULT "nmq-tcp://0.0.0.0:1883"
@@ -134,6 +135,12 @@ typedef struct {
     enum {PUB_SUB, REQ_REP} type;
 } zmq_gateway_conf;
 
+typedef struct {
+	const char *topic;
+	const char *cid;
+	const char *path;
+} rule_engine_conf;
+
 typedef struct conf_bridge conf_bridge;
 
 typedef enum {
@@ -194,6 +201,7 @@ typedef struct conf_web_hook  conf_web_hook;
 struct conf {
 	char *   conf_file;
 	char *   bridge_file;
+	char *   rule_engine_file;
 	char * 	 web_hook_file;
 	char *   auth_file;
 	char *   url; // "nmq-tcp://addr:port"
@@ -212,6 +220,7 @@ struct conf {
 	conf_websocket   websocket;
 	conf_bridge      bridge;
 	conf_web_hook    web_hook;
+	rule_engine_conf rule_engine;
 
 	conf_auth auths;
 };
@@ -222,6 +231,7 @@ extern bool conf_parser(conf *nanomq_conf);
 extern bool conf_bridge_parse(conf *nanomq_conf);
 extern bool conf_gateway_parse(zmq_gateway_conf *g_conf);
 extern bool conf_web_hook_parse(conf *nanomq_conf);
+extern bool conf_rule_engine_parse(conf *nanomq_conf);
 extern void print_bridge_conf(conf_bridge *bridge);
 extern void conf_init(conf *nanomq_conf);
 extern void print_conf(conf *nanomq_conf);
