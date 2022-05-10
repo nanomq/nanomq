@@ -327,10 +327,11 @@ nanomq broker start --conf <$FILE_PATH> [--bridge <$FILE_PATH>] [--auth <$FILE_P
   ```
   Creating docker container:
   ```bash
-  docker run -d -p 1883:1883 -p 8883:8883 --name nanomq emqx/nanomq:0.6.0  \
+  docker run -d -p 1883:1883 -p 8883:8883 \
              -e NANOMQ_BROKER_URL="nmq-tcp://0.0.0.0:1883" \
              -e NANOMQ_TLS_ENABLE=true \
-             -e NANOMQ_TLS_URL="tls+nmq-tcp://0.0.0.0:8883"
+             -e NANOMQ_TLS_URL="tls+nmq-tcp://0.0.0.0:8883" \
+             --name nanomq emqx/nanomq:0.7.4
   ```
 
 - Specify a nanomq config file path.
@@ -340,7 +341,8 @@ nanomq broker start --conf <$FILE_PATH> [--bridge <$FILE_PATH>] [--auth <$FILE_P
   ```
   Creating docker container:
   ```bash
-  docker run -d -p 1883:1883 --name nanomq emqx/nanomq:0.6.0 -e NANOMQ_CONF_PATH="/usr/local/etc/nanomq.conf"
+  docker run -d -p 1883:1883 -e NANOMQ_CONF_PATH="/usr/local/etc/nanomq.conf" \
+              --name nanomq emqx/nanomq:0.7.4
   ```
 
 #### NanoMQ Command-Line Arguments 
