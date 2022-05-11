@@ -135,11 +135,23 @@ typedef struct {
     enum {PUB_SUB, REQ_REP} type;
 } zmq_gateway_conf;
 
+static char *rule_engine_key_arr[] = {
+		"qos",
+		"id",
+		"topic",
+		"clientid",
+		"username",
+		"password",
+		"timestamp",
+		"payload",
+		"*",
+		NULL
+};
+
 typedef struct {
-	const char *topic;
-	const char *cid;
-	const char *path;
-} rule_engine_conf;
+	bool		flag[8];
+	const char 	*topic; 	
+} rule_engine_info;
 
 typedef struct conf_bridge conf_bridge;
 
@@ -220,7 +232,7 @@ struct conf {
 	conf_websocket   websocket;
 	conf_bridge      bridge;
 	conf_web_hook    web_hook;
-	rule_engine_conf rule_engine;
+	rule_engine_info *rule_engine;
 
 	conf_auth auths;
 };

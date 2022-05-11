@@ -606,6 +606,62 @@ printf_gateway_conf(zmq_gateway_conf *gateway)
 	debug_msg("mqtt parallel: %d", gateway->parallel);
 }
 
+static int find_key(const char *str, size_t len)
+{
+	int i = 0;
+	while (rule_engine_key_arr[i]) {
+		// TODO if it is not roubust, use strstr
+		if (!strncmp(str, rule_engine_key_arr[i], len)) {
+			printf("FIND: %s\n", rule_engine_key_arr[i]);
+			return i;
+		}
+		i++;
+
+	}
+
+	return -1;
+}
+
+static int parse_select(const char *select, rule_engine_info *info)
+{
+	const char * p = select;
+	const char * p_b = select;
+	int rc = 0;
+	while ((p = strchr(p, ','))) {
+
+		if (-1 != (rc = find_key(p_b, p - p_b))) {
+			info->flag[rc] = 1;
+		}
+		p++;
+
+		while (*p == ' ') p++;
+		p_b = p;
+	}
+	if (-1 != (rc = find_key(p_b, strlen(p_b)))) {
+		if (rc == 8) {
+			memset(info->flag, 1, rc);
+		} else {
+			info->flag[rc] = 1;
+		}
+	}
+
+	// for (int i = 0; i < 8; i++) {
+	// 	if (info->flag[i]) {
+	// 		printf("%s\t", rule_engine_key_arr[i]);
+	// 	}
+	// }
+	// printf("\n");
+
+	return 0;
+}
+
+static int parse_from(const char *from)
+{
+	puts(from);
+
+	return -1;
+}
+
 bool
 conf_rule_engine_parse(conf *nanomq_conf)
 {
@@ -623,6 +679,7 @@ conf_rule_engine_parse(conf *nanomq_conf)
 	}
 
 	char * line = NULL;
+	rule_engine_info *rule_infos;
 	size_t sz   = 0;
 	FILE * fp;
 
@@ -640,42 +697,43 @@ conf_rule_engine_parse(conf *nanomq_conf)
 				int len_srt, len_mid, len_end;
 				char *mid = strstr(srt, "FROM");
 				char *end = strstr(mid, "WHERE");
-				len_srt = mid - srt;
-				len_mid = end - mid;
-				len_end = sz - len_srt - len_mid;
 				puts("\n###########################");
+
 				// function select parser.
 				// get all requied info.
+				len_srt = mid - srt;
 				printf("%.*s\n", len_srt, srt);
 				srt += strlen("SELECT ");
 				len_srt -= strlen("SELECT ");
 				char select[len_srt];
 				memcpy(select, srt, len_srt);
 				select[len_srt - 1] = '\0';
-				puts(select);
-
-				printf("%.*s\n", len_srt, srt);
-				char * p = select;
-				char * p_b = select;
-				while ((p = strchr(p, ','))) {
-
-					if (p - select >= len_srt) {
-						break;
-					}
-
-					printf("%.*s\n", (int)(p - p_b), p_b);
-					p++;
-
-					while (*p == ' ') p++;
-					p_b = p;
-				}
-				puts(p_b);
-				
+				rule_engine_info rule_info;
+				memset(&rule_info, 0, sizeof(rule_info));
+				parse_select(select, &rule_info);
 
 				// function from
+				if (mid != NULL && end != NULL) {
+					len_mid = end - mid;
+				} else {
+					char *p = mid;
+					while (*p != '\n') p++;
+					len_mid = p - mid;
+				}
 				printf("%.*s\n", len_mid, mid);
+
+				mid += strlen("FROM ");
+				len_mid -= strlen("FROM ");
+
+				char from[len_mid];
+				memcpy(from, mid, len_mid);
+				from[len_mid - 1] = '\0';
+				parse_from(from);
+
 				// function where
+				len_end = sz - len_srt - len_mid;
 				printf("%.*s\n", len_end, end);
+
 				puts("###########################\n");
 
 
