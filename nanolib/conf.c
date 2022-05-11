@@ -612,7 +612,7 @@ static int find_key(const char *str, size_t len)
 	while (rule_engine_key_arr[i]) {
 		// TODO if it is not roubust, use strstr
 		if (!strncmp(str, rule_engine_key_arr[i], len)) {
-			printf("FIND: %s\n", rule_engine_key_arr[i]);
+			// printf("FIND: %s\n", rule_engine_key_arr[i]);
 			return i;
 		}
 		i++;
@@ -655,9 +655,10 @@ static int parse_select(const char *select, rule_engine_info *info)
 	return 0;
 }
 
-static int parse_from(const char *from)
+static int parse_from(const char *from, rule_engine_info *info)
 {
-	puts(from);
+	info->topic = zstrdup(from);
+	puts(info->topic);
 
 	return -1;
 }
@@ -728,7 +729,7 @@ conf_rule_engine_parse(conf *nanomq_conf)
 				char from[len_mid];
 				memcpy(from, mid, len_mid);
 				from[len_mid - 1] = '\0';
-				parse_from(from);
+				parse_from(from, &rule_info);
 
 				// function where
 				len_end = sz - len_srt - len_mid;
