@@ -1241,9 +1241,9 @@ conf_parse_http_headers(
 		return NULL;
 	}
 
-	char *             line = NULL;
-	size_t             sz   = 0;
-	conf_http_header **headers;
+	char *             line    = NULL;
+	size_t             sz      = 0;
+	conf_http_header **headers = NULL;
 
 	char pattern[strlen(key_prefix) + 23];
 	sprintf(pattern, "%s.headers.%%[^=]=%%[^\n]", key_prefix);
