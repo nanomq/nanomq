@@ -148,9 +148,16 @@ static char *rule_engine_key_arr[] = {
 		NULL
 };
 
+
+// typedef struct {
+// 	const char *key;
+// 	const char *value;
+// } rule_engine_filter;
+
 typedef struct {
 	bool		flag[8];
 	const char 	*topic; 	
+	char 		**filter;
 } rule_engine_info;
 
 typedef struct conf_bridge conf_bridge;

@@ -659,8 +659,80 @@ static int parse_from(const char *from, rule_engine_info *info)
 {
 	info->topic = zstrdup(from);
 	puts(info->topic);
+	// TODO get topic from "topic"
+	// TODO mulit topic
 
-	return -1;
+	return 0;
+}
+
+int insert_filter(const char *str, size_t len, char **filter) 
+{
+	const char *p = str;
+	int rc = 0;
+	while(*p != ' ' && *p != '=') {
+		p++;
+	}
+
+	int key_end = p - str;
+	// printf("key: %.*s\n", key_end, str);
+	if (-1 == (rc = find_key(str, key_end))) {
+		log_err("KEY NOT FIND");
+		return 1;
+	}
+
+
+	while(*p == ' ' || *p == '=') {
+		p++;
+	}
+
+	int val_st = p - str;
+
+	if (p[0] == '\'') {
+		p++;
+		val_st += 2;
+	} else {
+		// TODO 
+	}
+
+	filter[rc] = zmalloc((len - val_st + 1) * sizeof(char));
+	strncpy(filter[rc], p, len - val_st + 1);
+	filter[rc][len - val_st] = '\0';
+	printf("value: %s\n", filter[rc]);
+	return 0;
+
+}
+
+static int parse_where(const char *where, rule_engine_info *info)
+{
+	const char * p = where;
+	const char * p_b = where;
+	int rc = 0;
+
+	if (info->filter == NULL) {
+		info->filter = (char **) zmalloc(sizeof(char*) * 8);
+		memset(info->filter, 0, 8);
+	}
+
+	while ((p = strstr(p, "and"))) {
+
+		// printf("fileter: %.*s\n", p - p_b, p_b);
+		
+		int key_end, value_st;
+		insert_filter(p_b, p - p_b, info->filter);
+
+
+		p += 3;
+
+		while (*p == ' ') p++;
+		p_b = p;
+	}
+	insert_filter(p_b, strlen(p_b), info->filter);
+	// printf("fileter: %.*s\n", strlen(p_b), p_b);
+
+
+	
+
+	return 0;
 }
 
 bool
@@ -693,35 +765,33 @@ conf_rule_engine_parse(conf *nanomq_conf)
 
 		// function 
 		if (line[0] != '#' || line[1] !='#') {
+			puts(line);
 			char *srt = strstr(line, "SELECT");
 			if (srt != NULL) {
 				int len_srt, len_mid, len_end;
 				char *mid = strstr(srt, "FROM");
 				char *end = strstr(mid, "WHERE");
-				puts("\n###########################");
+
+				rule_engine_info rule_info;
+				memset(&rule_info, 0, sizeof(rule_info));
 
 				// function select parser.
-				// get all requied info.
 				len_srt = mid - srt;
-				printf("%.*s\n", len_srt, srt);
 				srt += strlen("SELECT ");
 				len_srt -= strlen("SELECT ");
 				char select[len_srt];
 				memcpy(select, srt, len_srt);
 				select[len_srt - 1] = '\0';
-				rule_engine_info rule_info;
-				memset(&rule_info, 0, sizeof(rule_info));
 				parse_select(select, &rule_info);
 
-				// function from
+				// function from parser
 				if (mid != NULL && end != NULL) {
 					len_mid = end - mid;
 				} else {
 					char *p = mid;
 					while (*p != '\n') p++;
-					len_mid = p - mid;
+					len_mid = p - mid + 1;
 				}
-				printf("%.*s\n", len_mid, mid);
 
 				mid += strlen("FROM ");
 				len_mid -= strlen("FROM ");
@@ -731,17 +801,21 @@ conf_rule_engine_parse(conf *nanomq_conf)
 				from[len_mid - 1] = '\0';
 				parse_from(from, &rule_info);
 
-				// function where
-				len_end = sz - len_srt - len_mid;
-				printf("%.*s\n", len_end, end);
+				// function where parser
+				if (end != NULL) {
+					char *p = end;
+					while (*p != '\n') p++;
+					len_end = p - end + 1;
+					end += strlen("WHERE ");
+					len_end -= strlen("WHERE ");
 
-				puts("###########################\n");
-
-
-
+					char where[len_end];
+					memcpy(where, end, len_end);
+					where[len_end - 1] = '\0';
+					parse_where(where, &rule_info);
+				}
 
 			}
-
 
 		}
 
