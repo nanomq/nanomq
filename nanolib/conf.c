@@ -11,6 +11,7 @@
 #include "include/cJSON.h"
 #include "include/conf.h"
 #include "include/dbg.h"
+#include "cvector.h"
 #include "include/file.h"
 #include "nanomq.h"
 
@@ -458,6 +459,7 @@ conf_init(conf *nanomq_conf)
 	nanomq_conf->url              = NULL;
 	nanomq_conf->conf_file        = NULL;
 	nanomq_conf->bridge_file      = NULL;
+	nanomq_conf->rule_engine_file = NULL;
 	nanomq_conf->web_hook_file    = NULL;
 	nanomq_conf->auth_file        = NULL;
 	nanomq_conf->auth_http_file   = NULL;
@@ -645,6 +647,241 @@ printf_gateway_conf(zmq_gateway_conf *gateway)
 	debug_msg("mqtt keepalive: %d", gateway->keepalive);
 	debug_msg("mqtt clean start: %d", gateway->clean_start);
 	debug_msg("mqtt parallel: %d", gateway->parallel);
+}
+
+static int find_key(const char *str, size_t len)
+{
+	int i = 0;
+	while (rule_engine_key_arr[i]) {
+		if (!strncmp(str, rule_engine_key_arr[i], len)) {
+			// printf("FIND: %s\n", rule_engine_key_arr[i]);
+			return i;
+		}
+		i++;
+
+	}
+
+	return -1;
+}
+
+static int parse_select(const char *select, rule_engine_info *info)
+{
+	const char * p = select;
+	const char * p_b = select;
+	int rc = 0;
+	while ((p = strchr(p, ','))) {
+
+		if (-1 != (rc = find_key(p_b, p - p_b))) {
+			info->flag[rc] = 1;
+		}
+		p++;
+
+		while (*p == ' ') p++;
+		p_b = p;
+	}
+	if (-1 != (rc = find_key(p_b, strlen(p_b)))) {
+		if (rc == 8) {
+			memset(info->flag, 1, rc);
+		} else {
+			info->flag[rc] = 1;
+		}
+	}
+
+	// for (int i = 0; i < 8; i++) {
+	// 	if (info->flag[i]) {
+	// 		printf("%s\t", rule_engine_key_arr[i]);
+	// 	}
+	// }
+	// printf("\n");
+
+	return 0;
+}
+
+static int parse_from(char *from, rule_engine_info *info)
+{
+	if (from[0] == '\"') {
+		from++;
+		char *p = from;
+		// TODO check len
+		while (*p != '\"') p++;
+		*p = '\0';
+	}
+	info->topic = zstrdup(from);
+	// puts(info->topic);
+	// TODO mulit topic
+
+	return 0;
+}
+
+int insert_filter(const char *str, size_t len, char **filter) 
+{
+	char *p = str;
+	int rc = 0;
+	while(*p != ' ' && *p != '=') {
+		p++;
+	}
+
+	int key_len = p - str;
+	// printf("key: %.*s\n", key_len, str);
+	if (-1 == (rc = find_key(str, key_len))) {
+		log_err("KEY NOT FIND");
+		return 1;
+	}
+
+
+	while(*p == ' ' || *p == '=') {
+		p++;
+	}
+
+	int val_len;
+
+	if (*p == '\'') {
+		p++;
+		str = p;
+		// TODO check len
+		while (*p != '\'') p++;
+		*p = '\0';
+	} else {
+		// TODO 
+	}
+
+	filter[rc] = zstrdup(str);
+	// printf("value: %s\n", filter[rc]);
+	return 0;
+
+}
+
+static int parse_where(const char *where, rule_engine_info *info)
+{
+	const char * p = where;
+	const char * p_b = where;
+	int rc = 0;
+
+	info->filter = (char **) zmalloc(sizeof(char*) * 8);
+	memset(info->filter, 0, 8 * sizeof(char*));
+
+	while ((p = strstr(p, "and"))) {
+
+		// printf("fileter: %.*s\n", p - p_b, p_b);
+		
+		int key_end, value_st;
+		insert_filter(p_b, p - p_b, info->filter);
+
+
+		p += 3;
+
+		while (*p == ' ') p++;
+		p_b = p;
+	}
+	insert_filter(p_b, strlen(p_b), info->filter);
+	// printf("fileter: %.*s\n", strlen(p_b), p_b);
+	return 0;
+}
+
+bool
+conf_rule_engine_parse(conf *nanomq_conf)
+{
+	const char *dest_path = nanomq_conf->rule_engine_file;
+
+	if (dest_path == NULL || !nano_file_exists(dest_path)) {
+		if (!nano_file_exists(CONF_RULE_ENGINE_PATH_NAME)) {
+			printf("Configure file [%s] or [%s] not found or "
+			       "unreadable\n",
+			    dest_path, CONF_RULE_ENGINE_PATH_NAME);
+			return false;
+		} else {
+			dest_path = CONF_RULE_ENGINE_PATH_NAME;
+		}
+	}
+
+	char * line = NULL;
+	rule_engine_info *rule_infos = NULL;
+	size_t sz   = 0;
+	FILE * fp;
+
+	if ((fp = fopen(dest_path, "r")) == NULL) {
+		printf("File %s open failed\n", dest_path);
+		return true;
+	}
+
+	while (nano_getline(&line, &sz, fp) != -1) {
+
+		// function 
+		if (line[0] != '#' || line[1] !='#') {
+			char *srt = strstr(line, "SELECT");
+			if (srt != NULL) {
+				int len_srt, len_mid, len_end;
+				char *mid = strstr(srt, "FROM");
+				char *end = strstr(mid, "WHERE");
+
+				rule_engine_info rule_info;
+				memset(&rule_info, 0, sizeof(rule_info));
+
+				// function select parser.
+				len_srt = mid - srt;
+				srt += strlen("SELECT ");
+				len_srt -= strlen("SELECT ");
+				char select[len_srt];
+				memcpy(select, srt, len_srt);
+				select[len_srt - 1] = '\0';
+				parse_select(select, &rule_info);
+
+				// function from parser
+				if (mid != NULL && end != NULL) {
+					len_mid = end - mid;
+				} else {
+					char *p = mid;
+					while (*p != '\n') p++;
+					len_mid = p - mid + 1;
+				}
+
+				mid += strlen("FROM ");
+				len_mid -= strlen("FROM ");
+
+				char from[len_mid];
+				memcpy(from, mid, len_mid);
+				from[len_mid - 1] = '\0';
+				parse_from(from, &rule_info);
+
+				// function where parser
+				if (end != NULL) {
+					char *p = end;
+					while (*p != '\n') p++;
+					len_end = p - end + 1;
+					end += strlen("WHERE ");
+					len_end -= strlen("WHERE ");
+
+					char where[len_end];
+					memcpy(where, end, len_end);
+					where[len_end - 1] = '\0';
+					parse_where(where, &rule_info);
+				}
+
+				cvector_push_back(rule_infos, rule_info);
+
+			}
+
+		}
+
+		free(line);
+		line = NULL;
+	}
+
+	nanomq_conf->rule_engine = rule_infos;
+
+	if (line) {
+		free(line);
+	}
+
+
+	// printf_rule_engine_conf(rule_engine);
+
+	fclose(fp);
+	return true;
+
+out:
+	fclose(fp);
+	return true;
 }
 
 bool
@@ -1521,6 +1758,7 @@ conf_fini(conf *nanomq_conf)
 	zfree(nanomq_conf->url);
 	zfree(nanomq_conf->conf_file);
 	zfree(nanomq_conf->bridge_file);
+	zfree(nanomq_conf->rule_engine_file);
 	zfree(nanomq_conf->web_hook_file);
 	zfree(nanomq_conf->auth_file);
 	conf_tls_destroy(&nanomq_conf->tls);

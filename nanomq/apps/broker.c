@@ -55,6 +55,7 @@ enum options {
 	OPT_CONFFILE,
 	OPT_BRIDGEFILE,
 	OPT_WEBHOOKFILE,
+	OPT_RULE_CONF,
 	OPT_AUTHFILE,
 	OPT_AUTH_HTTP_FILE,
 	OPT_PARALLEL,
@@ -79,6 +80,7 @@ static nng_optspec cmd_opts[] = {
 	{ .o_name = "help", .o_short = 'h', .o_val = OPT_HELP },
 	{ .o_name = "conf", .o_val = OPT_CONFFILE, .o_arg = true },
 	{ .o_name = "bridge", .o_val = OPT_BRIDGEFILE, .o_arg = true },
+	{ .o_name = "rule", .o_val = OPT_RULE_CONF, .o_arg = true },
 	{ .o_name = "webhook", .o_val = OPT_WEBHOOKFILE, .o_arg = true },
 	{ .o_name = "auth", .o_val = OPT_AUTHFILE, .o_arg = true },
 	{ .o_name = "auth_http", .o_val = OPT_AUTH_HTTP_FILE, .o_arg = true },
@@ -1017,6 +1019,10 @@ broker_parse_opts(int argc, char **argv, conf *config)
 			FREE_NONULL(config->web_hook_file);
 			config->web_hook_file = nng_strdup(arg);
 			break;
+		case OPT_RULE_CONF:
+			FREE_NONULL(config->rule_engine_file);
+			config->rule_engine_file = nng_strdup(arg);
+			break;
 		case OPT_AUTHFILE:
 			FREE_NONULL(config->auth_file);
 			config->auth_file = nng_strdup(arg);
@@ -1152,6 +1158,11 @@ broker_start(int argc, char **argv)
 	if (nanomq_conf->bridge_file) {
 		conf_bridge_parse(nanomq_conf);
 	}
+
+	if (nanomq_conf->rule_engine_file) {
+		conf_rule_engine_parse(nanomq_conf);
+	}
+
 	if (nanomq_conf->web_hook_file) {
 		conf_web_hook_parse(nanomq_conf);
 	}
