@@ -57,6 +57,7 @@ enum options {
 	OPT_WEBHOOKFILE,
 	OPT_RULE_CONF,
 	OPT_AUTHFILE,
+	OPT_AUTH_HTTP_FILE,
 	OPT_PARALLEL,
 	OPT_DAEMON,
 	OPT_THREADS,
@@ -82,6 +83,7 @@ static nng_optspec cmd_opts[] = {
 	{ .o_name = "rule", .o_val = OPT_RULE_CONF, .o_arg = true },
 	{ .o_name = "webhook", .o_val = OPT_WEBHOOKFILE, .o_arg = true },
 	{ .o_name = "auth", .o_val = OPT_AUTHFILE, .o_arg = true },
+	{ .o_name = "auth_http", .o_val = OPT_AUTH_HTTP_FILE, .o_arg = true },
 	{ .o_name = "daemon", .o_short = 'd', .o_val = OPT_DAEMON },
 	{ .o_name    = "tq_thread",
 	    .o_short = 't',
@@ -824,8 +826,9 @@ print_usage(void)
 	       "[--bridge <path>] \n                     "
 	       "[--webhook <path>] "
 		   "[--auth <path>] "
-	       "[-d, --daemon] "
-	       "[-t, --tq_thread <num>] \n                     "
+		   "[--auth_http <path>] "
+	       "[-d, --daemon] \n                     "
+	       "[-t, --tq_thread <num>] "
 	       "[-T, -max_tq_thread <num>] [-n, "
 	       "--parallel <num>]\n                     "
 	       "[-D, --qos_duration <num>] [--http] "
@@ -850,6 +853,9 @@ print_usage(void)
 	printf(
 	    "  --auth <path>              The path of a specified authorize "
 	    "configuration file \n");
+	printf("  --auth_http <path>         The path of a specified http "
+	       "authorize "
+	       "configuration file \n");
 	printf("  --http                     Enable http server (default: "
 	       "false)\n");
 	printf(
@@ -1021,6 +1027,10 @@ broker_parse_opts(int argc, char **argv, conf *config)
 			FREE_NONULL(config->auth_file);
 			config->auth_file = nng_strdup(arg);
 			break;
+		case OPT_AUTH_HTTP_FILE:
+			FREE_NONULL(config->auth_http_file);
+			config->auth_http_file = nng_strdup(arg);
+			break;
 		case OPT_PARALLEL:
 			config->parallel = atoi(arg);
 			break;
@@ -1134,6 +1144,7 @@ broker_start(int argc, char **argv)
 	conf_init(nanomq_conf);
 	conf_parser(nanomq_conf);
 	conf_bridge_parse(nanomq_conf);
+	conf_auth_http_parse(nanomq_conf);
 	read_env_conf(nanomq_conf);
 
 	if (!broker_parse_opts(argc, argv, nanomq_conf)) {
@@ -1154,6 +1165,9 @@ broker_start(int argc, char **argv)
 
 	if (nanomq_conf->web_hook_file) {
 		conf_web_hook_parse(nanomq_conf);
+	}
+	if (nanomq_conf->auth_http_file) {
+		conf_auth_http_parse(nanomq_conf);
 	}
 
 	nanomq_conf->url = nanomq_conf->url != NULL

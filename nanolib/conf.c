@@ -15,6 +15,9 @@
 #include "include/file.h"
 #include "nanomq.h"
 
+static conf_http_header **conf_parse_http_headers(
+    const char *path, const char *key_prefix, size_t *count);
+
 static char *
 strtrim(char *str, size_t len)
 {
@@ -186,6 +189,15 @@ get_conf_value(char *line, size_t len, const char *key)
 		free(value);
 		return NULL;
 	}
+}
+
+static char *
+get_conf_value_with_prefix(
+    char *line, size_t len, const char *prefix, const char *key)
+{
+	char str[strlen(prefix) + strlen(key) + 2];
+	sprintf(str, "%s%s", prefix, key);
+	return get_conf_value(line, len, str);
 }
 
 bool
@@ -403,6 +415,44 @@ conf_parser(conf *nanomq_conf)
 	return true;
 }
 
+static void
+conf_tls_init(conf_tls *tls)
+{
+	tls->enable       = false;
+	tls->cafile       = NULL;
+	tls->certfile     = NULL;
+	tls->keyfile      = NULL;
+	tls->ca           = NULL;
+	tls->cert         = NULL;
+	tls->key          = NULL;
+	tls->key_password = NULL;
+	tls->set_fail     = false;
+	tls->verify_peer  = false;
+}
+
+static void
+conf_tls_destroy(conf_tls *tls)
+{
+	zfree(tls->cafile);
+	zfree(tls->certfile);
+	zfree(tls->keyfile);
+	zfree(tls->key);
+	zfree(tls->key_password);
+	zfree(tls->cert);
+	zfree(tls->ca);
+}
+
+static void
+conf_auth_http_req_init(conf_auth_http_req *req)
+{
+	req->url          = NULL;
+	req->method       = NULL;
+	req->header_count = 0;
+	req->headers      = NULL;
+	req->param_count  = 0;
+	req->params       = NULL;
+}
+
 void
 conf_init(conf *nanomq_conf)
 {
@@ -412,6 +462,7 @@ conf_init(conf *nanomq_conf)
 	nanomq_conf->rule_engine_file = NULL;
 	nanomq_conf->web_hook_file    = NULL;
 	nanomq_conf->auth_file        = NULL;
+	nanomq_conf->auth_http_file   = NULL;
 	nanomq_conf->num_taskq_thread = 10;
 	nanomq_conf->max_taskq_thread = 10;
 	nanomq_conf->parallel         = 30; // not work
@@ -421,16 +472,7 @@ conf_init(conf *nanomq_conf)
 	nanomq_conf->allow_anonymous  = true;
 	nanomq_conf->daemon           = false;
 
-	nanomq_conf->tls.enable       = false;
-	nanomq_conf->tls.cafile       = NULL;
-	nanomq_conf->tls.certfile     = NULL;
-	nanomq_conf->tls.keyfile      = NULL;
-	nanomq_conf->tls.ca           = NULL;
-	nanomq_conf->tls.cert         = NULL;
-	nanomq_conf->tls.key          = NULL;
-	nanomq_conf->tls.key_password = NULL;
-	nanomq_conf->tls.set_fail     = false;
-	nanomq_conf->tls.verify_peer  = false;
+	conf_tls_init(&nanomq_conf->tls);
 
 	nanomq_conf->http_server.enable              = false;
 	nanomq_conf->http_server.port                = 8081;
@@ -450,26 +492,26 @@ conf_init(conf *nanomq_conf)
 	nanomq_conf->bridge.bridge_mode = false;
 	nanomq_conf->bridge.sub_count   = 0;
 	nanomq_conf->bridge.parallel    = 1;
+	conf_tls_init(&nanomq_conf->bridge.tls);
 
-	nanomq_conf->web_hook.enable           = false;
-	nanomq_conf->web_hook.url              = NULL;
-	nanomq_conf->web_hook.encode_payload   = plain;
-	nanomq_conf->web_hook.pool_size        = 8;
-	nanomq_conf->web_hook.headers          = NULL;
-	nanomq_conf->web_hook.header_count     = 0;
-	nanomq_conf->web_hook.rules            = NULL;
-	nanomq_conf->web_hook.rule_count       = 0;
-	nanomq_conf->web_hook.tls.enable       = false;
-	nanomq_conf->web_hook.tls.enable       = false;
-	nanomq_conf->web_hook.tls.cafile       = NULL;
-	nanomq_conf->web_hook.tls.certfile     = NULL;
-	nanomq_conf->web_hook.tls.keyfile      = NULL;
-	nanomq_conf->web_hook.tls.ca           = NULL;
-	nanomq_conf->web_hook.tls.cert         = NULL;
-	nanomq_conf->web_hook.tls.key          = NULL;
-	nanomq_conf->web_hook.tls.key_password = NULL;
-	nanomq_conf->web_hook.tls.set_fail     = false;
-	nanomq_conf->web_hook.tls.verify_peer  = false;
+	nanomq_conf->web_hook.enable         = false;
+	nanomq_conf->web_hook.url            = NULL;
+	nanomq_conf->web_hook.encode_payload = plain;
+	nanomq_conf->web_hook.pool_size      = 32;
+	nanomq_conf->web_hook.headers        = NULL;
+	nanomq_conf->web_hook.header_count   = 0;
+	nanomq_conf->web_hook.rules          = NULL;
+	nanomq_conf->web_hook.rule_count     = 0;
+	conf_tls_init(&nanomq_conf->web_hook.tls);
+
+	nanomq_conf->auth_http.enable = false;
+	conf_auth_http_req_init(&nanomq_conf->auth_http.auth_req);
+	conf_auth_http_req_init(&nanomq_conf->auth_http.super_req);
+	conf_auth_http_req_init(&nanomq_conf->auth_http.acl_req);
+	nanomq_conf->auth_http.timeout   = 5;
+	nanomq_conf->auth_http.timeout   = 5;
+	nanomq_conf->auth_http.pool_size = 32;
+	conf_tls_init(&nanomq_conf->auth_http.tls);
 }
 
 void
@@ -1131,6 +1173,7 @@ conf_bridge_destroy(conf_bridge *bridge)
 		}
 		free(bridge->sub_list);
 	}
+	conf_tls_destroy(&bridge->tls);
 }
 
 void
@@ -1161,60 +1204,6 @@ print_bridge_conf(conf_bridge *bridge)
 		    bridge->sub_list[i].qos);
 	}
 	debug_msg("");
-}
-
-bool
-conf_web_hook_parse_headers(conf_web_hook *webhook, const char *path)
-{
-	FILE *fp;
-	if ((fp = fopen(path, "r")) == NULL) {
-		debug_msg("File %s open failed", path);
-		return false;
-	}
-
-	char * line = NULL;
-	size_t sz   = 0;
-
-	webhook->header_count = 0;
-	while (nano_getline(&line, &sz, fp) != -1) {
-		if (sz <= 16) {
-			goto next;
-		}
-		char *key   = calloc(1, sz - 16);
-		char *value = calloc(1, sz - 16);
-		char *str = strtrim_head_tail(line, sz);
-		int   res =
-		    sscanf(str, "web.hook.headers.%[^=]=%[^\n]", key, value);
-		free(str);
-		if (res == 2) {
-			webhook->header_count++;
-			webhook->headers = realloc(webhook->headers,
-			    webhook->header_count *
-			        sizeof(conf_web_hook_header *));
-			webhook->headers[webhook->header_count - 1] =
-			    calloc(1, sizeof(conf_web_hook_header));
-			webhook->headers[webhook->header_count - 1]->key =
-			    strtrim_head_tail(key, strlen(key));
-			webhook->headers[webhook->header_count - 1]->value =
-			    strtrim_head_tail(value, strlen(value));
-		}
-		if (key) {
-			free(key);
-		}
-		if (value) {
-			free(value);
-		}
-
-	next:
-		free(line);
-		line = NULL;
-	}
-
-	if (line) {
-		free(line);
-	}
-	fclose(fp);
-	return true;
 }
 
 static webhook_event
@@ -1300,7 +1289,7 @@ conf_web_hook_parse_rules(conf_web_hook *webhook, const char *path)
 		char *   hookname = NULL;
 		uint16_t num      = 0;
 		char *   str      = strtrim_head_tail(line, sz);
-		int res =
+		int      res =
 		    sscanf(str, "web.hook.rule.%[^=]=%[^\n]", key, value);
 		free(str);
 		bool  match         = false;
@@ -1423,7 +1412,8 @@ conf_web_hook_parse(conf *nanomq_conf)
 	}
 	fclose(fp);
 
-	conf_web_hook_parse_headers(webhook, dest_path);
+	webhook->headers = conf_parse_http_headers(
+	    dest_path, "web.hook", &webhook->header_count);
 	conf_web_hook_parse_rules(webhook, dest_path);
 	return true;
 }
@@ -1435,6 +1425,8 @@ conf_web_hook_destroy(conf_web_hook *web_hook)
 
 	if (web_hook->header_count > 0 && web_hook->headers != NULL) {
 		for (size_t i = 0; i < web_hook->header_count; i++) {
+			zfree(web_hook->headers[i]->key);
+			zfree(web_hook->headers[i]->value);
 			zfree(web_hook->headers[i]);
 		}
 		zfree(web_hook->headers);
@@ -1449,13 +1441,304 @@ conf_web_hook_destroy(conf_web_hook *web_hook)
 		zfree(web_hook->rules);
 	}
 
-	zfree(web_hook->tls.cafile);
-	zfree(web_hook->tls.certfile);
-	zfree(web_hook->tls.keyfile);
-	zfree(web_hook->tls.key);
-	zfree(web_hook->tls.key_password);
-	zfree(web_hook->tls.cert);
-	zfree(web_hook->tls.ca);
+	conf_tls_destroy(&web_hook->tls);
+}
+
+static int
+get_time(const char *str, uint64_t *second)
+{
+	char     unit = 0;
+	uint64_t s    = 0;
+	if (2 == sscanf(str, "%llu%c", &s, &unit)) {
+		switch (unit) {
+		case 's':
+			*second = s;
+			break;
+		case 'm':
+			*second = s * 60;
+			break;
+		case 'h':
+			*second = s * 3600;
+			break;
+		default:
+			break;
+		}
+		return 0;
+	}
+	return -1;
+}
+
+static conf_http_header **
+conf_parse_http_headers(
+    const char *path, const char *key_prefix, size_t *count)
+{
+	FILE *fp;
+	if ((fp = fopen(path, "r")) == NULL) {
+		debug_msg("File %s open failed", path);
+		return NULL;
+	}
+
+	char *             line    = NULL;
+	size_t             sz      = 0;
+	conf_http_header **headers = NULL;
+
+	char pattern[strlen(key_prefix) + 23];
+	sprintf(pattern, "%s.headers.%%[^=]=%%[^\n]", key_prefix);
+
+	size_t header_count = 0;
+	while (nano_getline(&line, &sz, fp) != -1) {
+		if (sz <= 16) {
+			goto next;
+		}
+		char *key   = calloc(1, sz - 16);
+		char *value = calloc(1, sz - 16);
+		char *str   = strtrim_head_tail(line, sz);
+		int   res   = sscanf(str, pattern, key, value);
+		free(str);
+		if (res == 2) {
+			header_count++;
+			headers = realloc(headers,
+			    header_count * sizeof(conf_http_header *));
+			headers[header_count - 1] =
+			    calloc(1, sizeof(conf_http_header));
+			headers[header_count - 1]->key =
+			    strtrim_head_tail(key, strlen(key));
+			headers[header_count - 1]->value =
+			    strtrim_head_tail(value, strlen(value));
+		}
+		if (key) {
+			free(key);
+		}
+		if (value) {
+			free(value);
+		}
+
+	next:
+		free(line);
+		line = NULL;
+	}
+
+	if (line) {
+		free(line);
+	}
+	fclose(fp);
+	*count = header_count;
+	return headers;
+}
+
+static conf_http_param **
+get_params(const char *value, size_t *count)
+{
+	conf_http_param **params      = NULL;
+	size_t            param_count = 0;
+
+	char *line = strdup(value);
+	char *tk   = strtok(line, ",");
+	while (tk != NULL) {
+		param_count++;
+		params =
+		    realloc(params, sizeof(conf_http_param *) * param_count);
+		char *str = strdup(tk);
+		char *key = calloc(1, strlen(str));
+		char  c   = 0;
+		int   res = sscanf(str, "%[^=]=%%%c", key, &c);
+		if (res == 2) {
+			params[param_count - 1] =
+			    calloc(1, sizeof(conf_http_param));
+			params[param_count - 1]->name = key;
+			switch (c) {
+			case 'A':
+				params[param_count - 1]->type = ACCESS;
+				break;
+			case 'u':
+				params[param_count - 1]->type = USERNAME;
+				break;
+			case 'c':
+				params[param_count - 1]->type = CLIENTID;
+				break;
+			case 'a':
+				params[param_count - 1]->type = IPADDRESS;
+				break;
+			case 'P':
+				params[param_count - 1]->type = PASSWORD;
+				break;
+			case 'p':
+				params[param_count - 1]->type = SOCKPORT;
+				break;
+			case 'C':
+				params[param_count - 1]->type = COMMON_NAME;
+				break;
+			case 'd':
+				params[param_count - 1]->type = SUBJECT;
+				break;
+			case 't':
+				params[param_count - 1]->type = TOPIC;
+				break;
+			default:
+				break;
+			}
+		} else {
+			param_count--;
+			if (key) {
+				free(key);
+			}
+		}
+		free(str);
+		tk = strtok(NULL, ",");
+	}
+	if (line) {
+		free(line);
+	}
+	*count = param_count;
+	
+	return params;
+}
+
+static bool
+conf_auth_http_req_parse(
+    conf_auth_http_req *req, const char *path, const char *key_prefix)
+{
+	FILE *fp;
+	if ((fp = fopen(path, "r")) == NULL) {
+		debug_msg("File %s open failed", path);
+		return false;
+	}
+	char * line = NULL;
+	size_t sz   = 0;
+
+	char *value;
+	while (nano_getline(&line, &sz, fp) != -1) {
+		if ((value = get_conf_value_with_prefix(
+		         line, sz, key_prefix, ".url")) != NULL) {
+			req->url = value;
+		} else if ((value = get_conf_value_with_prefix(
+		                line, sz, key_prefix, ".method")) != NULL) {
+			if (strcasecmp(value, "post") == 0 ||
+			    strcasecmp(value, "get") == 0) {
+				req->method = value;
+			} else {
+				free(value);
+				req->method = strdup("post");
+			}
+		} else if ((value = get_conf_value_with_prefix(
+		                line, sz, key_prefix, ".params")) != NULL) {
+			req->params = get_params(value, &req->param_count);
+			free(value);
+		}
+
+		free(line);
+		line = NULL;
+	}
+
+	if (line) {
+		free(line);
+	}
+	fclose(fp);
+
+	req->headers =
+	    conf_parse_http_headers(path, key_prefix, &req->header_count);
+
+	return true;
+}
+
+bool
+conf_auth_http_parse(conf *nanomq_conf)
+{
+	const char *dest_path = nanomq_conf->auth_http_file;
+
+	if (dest_path == NULL || !nano_file_exists(dest_path)) {
+		if (!nano_file_exists(CONF_AUTH_HTTP_PATH_NAME)) {
+			debug_msg("Configure file [%s] or [%s] not found or "
+			          "unreadable",
+			    dest_path, CONF_AUTH_HTTP_PATH_NAME);
+			return false;
+		} else {
+			dest_path = CONF_AUTH_HTTP_PATH_NAME;
+		}
+	}
+
+	char * line = NULL;
+	size_t sz   = 0;
+	FILE * fp;
+
+	conf_auth_http *auth_http = &nanomq_conf->auth_http;
+
+	if ((fp = fopen(dest_path, "r")) == NULL) {
+		debug_msg("File %s open failed", dest_path);
+		auth_http->enable = false;
+		return true;
+	}
+	char *value;
+	while (nano_getline(&line, &sz, fp) != -1) {
+		if ((value = get_conf_value(line, sz, "auth.http.enable")) !=
+		    NULL) {
+			auth_http->enable = strcasecmp(value, "true") == 0;
+			free(value);
+		} else if ((value = get_conf_value(
+		                line, sz, "auth.http.timeout")) != NULL) {
+			get_time(value, &auth_http->timeout);
+			free(value);
+		} else if ((value = get_conf_value(line, sz,
+		                "auth.http.connect_timeout")) != NULL) {
+			get_time(value, &auth_http->connect_timeout);
+			free(value);
+		} else if ((value = get_conf_value(line, sz,
+		                "auth.http.connect_timeout")) != NULL) {
+			get_time(value, &auth_http->connect_timeout);
+			free(value);
+		} else if ((value = get_conf_value(
+		                line, sz, "auth.http.pool_size")) != NULL) {
+			auth_http->pool_size = (size_t) atol(value);
+			free(value);
+		}
+
+		free(line);
+		line = NULL;
+	}
+	if (line) {
+		free(line);
+	}
+	fclose(fp);
+
+	conf_auth_http_req_parse(
+	    &auth_http->auth_req, dest_path, "auth.http.auth_req");
+	conf_auth_http_req_parse(
+	    &auth_http->super_req, dest_path, "auth.http.super_req");
+	conf_auth_http_req_parse(
+	    &auth_http->acl_req, dest_path, "auth.http.acl_req");
+
+	return true;
+}
+
+static void
+conf_auth_http_req_destroy(conf_auth_http_req *req)
+{
+	zfree(req->url);
+	if (req->header_count > 0 && req->headers != NULL) {
+		for (size_t i = 0; i < req->header_count; i++) {
+			zfree(req->headers[i]->key);
+			zfree(req->headers[i]->value);
+			zfree(req->headers[i]);
+		}
+		zfree(req->headers);
+	}
+
+	if (req->param_count > 0 && req->params != NULL) {
+		for (size_t i = 0; i < req->param_count; i++) {
+			zfree(req->params[i]->name);
+			zfree(req->params[i]);
+		}
+		zfree(req->params);
+	}
+}
+
+void
+conf_auth_http_destroy(conf_auth_http *auth_http)
+{
+	conf_auth_http_req_destroy(&auth_http->auth_req);
+	conf_auth_http_req_destroy(&auth_http->super_req);
+	conf_auth_http_req_destroy(&auth_http->acl_req);
+	conf_tls_destroy(&auth_http->tls);
 }
 
 void
@@ -1478,14 +1761,7 @@ conf_fini(conf *nanomq_conf)
 	zfree(nanomq_conf->rule_engine_file);
 	zfree(nanomq_conf->web_hook_file);
 	zfree(nanomq_conf->auth_file);
-
-	zfree(nanomq_conf->tls.cafile);
-	zfree(nanomq_conf->tls.certfile);
-	zfree(nanomq_conf->tls.keyfile);
-	zfree(nanomq_conf->tls.key);
-	zfree(nanomq_conf->tls.key_password);
-	zfree(nanomq_conf->tls.cert);
-	zfree(nanomq_conf->tls.ca);
+	conf_tls_destroy(&nanomq_conf->tls);
 
 	zfree(nanomq_conf->http_server.username);
 	zfree(nanomq_conf->http_server.password);
@@ -1498,6 +1774,7 @@ conf_fini(conf *nanomq_conf)
 
 	conf_bridge_destroy(&nanomq_conf->bridge);
 	conf_web_hook_destroy(&nanomq_conf->web_hook);
+	conf_auth_http_destroy(&nanomq_conf->auth_http);
 
 	free(nanomq_conf);
 }
