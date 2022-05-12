@@ -11,6 +11,7 @@
 #include "include/cJSON.h"
 #include "include/conf.h"
 #include "include/dbg.h"
+#include "cvector.h"
 #include "include/file.h"
 #include "nanomq.h"
 
@@ -610,7 +611,6 @@ static int find_key(const char *str, size_t len)
 {
 	int i = 0;
 	while (rule_engine_key_arr[i]) {
-		// TODO if it is not roubust, use strstr
 		if (!strncmp(str, rule_engine_key_arr[i], len)) {
 			// printf("FIND: %s\n", rule_engine_key_arr[i]);
 			return i;
@@ -680,7 +680,7 @@ int insert_filter(const char *str, size_t len, char **filter)
 	}
 
 	int key_len = p - str;
-	// printf("key: %.*s\n", key_end, str);
+	// printf("key: %.*s\n", key_len, str);
 	if (-1 == (rc = find_key(str, key_len))) {
 		log_err("KEY NOT FIND");
 		return 1;
@@ -715,10 +715,8 @@ static int parse_where(const char *where, rule_engine_info *info)
 	const char * p_b = where;
 	int rc = 0;
 
-	if (info->filter == NULL) {
-		info->filter = (char **) zmalloc(sizeof(char*) * 8);
-		memset(info->filter, 0, 8);
-	}
+	info->filter = (char **) zmalloc(sizeof(char*) * 8);
+	memset(info->filter, 0, 8 * sizeof(char*));
 
 	while ((p = strstr(p, "and"))) {
 
@@ -755,7 +753,7 @@ conf_rule_engine_parse(conf *nanomq_conf)
 	}
 
 	char * line = NULL;
-	rule_engine_info *rule_infos;
+	rule_engine_info *rule_infos = NULL;
 	size_t sz   = 0;
 	FILE * fp;
 
@@ -817,19 +815,22 @@ conf_rule_engine_parse(conf *nanomq_conf)
 					parse_where(where, &rule_info);
 				}
 
+				cvector_push_back(rule_infos, rule_info);
+
 			}
 
 		}
-
-
 
 		free(line);
 		line = NULL;
 	}
 
+	nanomq_conf->rule_engine = rule_infos;
+
 	if (line) {
 		free(line);
 	}
+
 
 	// printf_rule_engine_conf(rule_engine);
 
