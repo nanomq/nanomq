@@ -655,11 +655,17 @@ static int parse_select(const char *select, rule_engine_info *info)
 	return 0;
 }
 
-static int parse_from(const char *from, rule_engine_info *info)
+static int parse_from(char *from, rule_engine_info *info)
 {
+	if (from[0] == '\"') {
+		from++;
+		char *p = from;
+		// TODO check len
+		while (*p != '\"') p++;
+		*p = '\0';
+	}
 	info->topic = zstrdup(from);
-	puts(info->topic);
-	// TODO get topic from "topic"
+	// puts(info->topic);
 	// TODO mulit topic
 
 	return 0;
@@ -667,15 +673,15 @@ static int parse_from(const char *from, rule_engine_info *info)
 
 int insert_filter(const char *str, size_t len, char **filter) 
 {
-	const char *p = str;
+	char *p = str;
 	int rc = 0;
 	while(*p != ' ' && *p != '=') {
 		p++;
 	}
 
-	int key_end = p - str;
+	int key_len = p - str;
 	// printf("key: %.*s\n", key_end, str);
-	if (-1 == (rc = find_key(str, key_end))) {
+	if (-1 == (rc = find_key(str, key_len))) {
 		log_err("KEY NOT FIND");
 		return 1;
 	}
@@ -685,19 +691,20 @@ int insert_filter(const char *str, size_t len, char **filter)
 		p++;
 	}
 
-	int val_st = p - str;
+	int val_len;
 
-	if (p[0] == '\'') {
+	if (*p == '\'') {
 		p++;
-		val_st += 2;
+		str = p;
+		// TODO check len
+		while (*p != '\'') p++;
+		*p = '\0';
 	} else {
 		// TODO 
 	}
 
-	filter[rc] = zmalloc((len - val_st + 1) * sizeof(char));
-	strncpy(filter[rc], p, len - val_st + 1);
-	filter[rc][len - val_st] = '\0';
-	printf("value: %s\n", filter[rc]);
+	filter[rc] = zstrdup(str);
+	// printf("value: %s\n", filter[rc]);
 	return 0;
 
 }
@@ -728,10 +735,6 @@ static int parse_where(const char *where, rule_engine_info *info)
 	}
 	insert_filter(p_b, strlen(p_b), info->filter);
 	// printf("fileter: %.*s\n", strlen(p_b), p_b);
-
-
-	
-
 	return 0;
 }
 
@@ -765,7 +768,6 @@ conf_rule_engine_parse(conf *nanomq_conf)
 
 		// function 
 		if (line[0] != '#' || line[1] !='#') {
-			puts(line);
 			char *srt = strstr(line, "SELECT");
 			if (srt != NULL) {
 				int len_srt, len_mid, len_end;
