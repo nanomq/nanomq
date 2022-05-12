@@ -166,6 +166,7 @@ struct conf_bridge {
 	size_t     sub_count;
 	subscribe *sub_list;
 	uint64_t   parallel;
+	conf_tls   tls;
 };
 
 typedef struct {
@@ -270,6 +271,7 @@ extern bool conf_parser(conf *nanomq_conf);
 extern bool conf_bridge_parse(conf *nanomq_conf);
 extern bool conf_gateway_parse(zmq_gateway_conf *g_conf);
 extern bool conf_web_hook_parse(conf *nanomq_conf);
+extern bool conf_auth_http_parse(conf *nanomq_conf);
 extern void print_bridge_conf(conf_bridge *bridge);
 extern void conf_init(conf *nanomq_conf);
 extern void print_conf(conf *nanomq_conf);
