@@ -953,9 +953,9 @@ conf_web_hook_parse_headers(conf_web_hook *webhook, const char *path)
 			webhook->header_count++;
 			webhook->headers = realloc(webhook->headers,
 			    webhook->header_count *
-			        sizeof(conf_web_hook_header *));
+			        sizeof(conf_http_header *));
 			webhook->headers[webhook->header_count - 1] =
-			    calloc(1, sizeof(conf_web_hook_header));
+			    calloc(1, sizeof(conf_http_header));
 			webhook->headers[webhook->header_count - 1]->key =
 			    strtrim_head_tail(key, strlen(key));
 			webhook->headers[webhook->header_count - 1]->value =
