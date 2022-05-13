@@ -20,6 +20,7 @@
 #include "include/pub_handler.h"
 #include "include/sub_handler.h"
 #include "nng/protocol/mqtt/mqtt_parser.h"
+#include "cJSON.h"
 
 #define ENABLE_RETAIN 1
 #define SUPPORT_MQTT5_0 1
@@ -136,7 +137,7 @@ static bool rule_engine_filter(nano_work *work, rule_engine_info *info)
 	char *topic = pp->var_header.publish.topic_name.body;
 	bool filter = true;
 	if (topic_filter(info->topic, topic)) {
-		// printf("MATCH filter: %s, topic: %s\n", rule_infos[i].topic, topic);
+		// printf("MATCH filter: %s, topic: %s\n", info->topic, topic);
 		if (info->filter) {
 			conn_param *cp = work->cparam;
 			for (size_t j = 0; j < 8; j++) {
@@ -185,7 +186,7 @@ static bool rule_engine_filter(nano_work *work, rule_engine_info *info)
 						// }
 						break;
 					case RULE_PAYLOAD:;
-						if (pp->payload.data || pp->payload.len <= 0) {
+						if (!pp->payload.data || pp->payload.len <= 0) {
 							filter = false;
 							break;
 						}
@@ -199,11 +200,13 @@ static bool rule_engine_filter(nano_work *work, rule_engine_info *info)
 					if (filter == false) {
 						break;
 					}
-					// puts(rule_infos[i].filter[j]);
 				}
-
 			}
+
 		}
+	} else {
+		// printf("MISMATCH filter: %s, topic: %s\n", info->topic, topic);
+		filter = false;
 	}
 	
 	return filter;
@@ -213,10 +216,58 @@ static int rule_engine_insert_sql(nano_work *work)
 {
 	rule_engine_info *rule_infos = work->config->rule_engine;
 	size_t rule_size = cvector_size(rule_infos);
+	pub_packet_struct *pp = work->pub_packet;
+	conn_param *cp = work->cparam;
 
 	for (size_t i = 0; i < rule_size; i++) {
 			if (rule_engine_filter(work, &rule_infos[i])) {
-				// TODO 
+				cJSON *jso   = NULL;
+				jso          = cJSON_CreateObject();
+				for (size_t j = 0; j < 8; j++) {
+					if (rule_infos[i].flag[j]) {
+						switch (j)
+						{
+						case RULE_QOS:
+							cJSON_AddNumberToObject(jso, rule_engine_key_arr[j], pp->fixed_header.qos);
+							break;
+						case RULE_ID:
+							cJSON_AddNumberToObject(jso, rule_engine_key_arr[j], pp->var_header.publish.packet_id);
+							break;
+						case RULE_TOPIC:;
+							char *topic = pp->var_header.publish.topic_name.body;
+							cJSON_AddStringToObject(jso, rule_engine_key_arr[j], topic);
+							break;
+						case RULE_CLIENTID:;
+							char *cid = conn_param_get_clientid(cp);
+							cJSON_AddStringToObject(jso, rule_engine_key_arr[j], cid);
+							break;
+						case RULE_USERNAME:;
+							char *username = conn_param_get_username(cp);
+							cJSON_AddStringToObject(jso, rule_engine_key_arr[j], username);
+							break;
+						case RULE_PASSWORD:;
+							char *password = conn_param_get_password(cp);
+							cJSON_AddStringToObject(jso, rule_engine_key_arr[j], password);
+							break;
+						case RULE_TIMESTAMP:
+							// TODO
+							break;
+						case RULE_PAYLOAD:;
+							char *payload = pp->payload.data;
+							cJSON_AddStringToObject(jso, rule_engine_key_arr[j], payload);
+							break;
+						default:
+							break;
+						}
+					}
+
+				}
+
+				char *dest = cJSON_PrintUnformatted(jso);
+				// puts(dest);
+				// TODO insert to database;
+				cJSON_free(dest);
+				cJSON_Delete(jso);
 			}
 	}
 
@@ -286,6 +337,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto)
 		return;
 	}
 
+	// TODO here
 	rule_engine_insert_sql(work);
 
 	cli_ctx_list =
