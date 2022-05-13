@@ -129,6 +129,100 @@ next:
 	pipe_ct->msg_infos = msg_infos;
 }
 
+
+static bool rule_engine_filter(nano_work *work, rule_engine_info *info)
+{
+	pub_packet_struct *pp = work->pub_packet;
+	char *topic = pp->var_header.publish.topic_name.body;
+	bool filter = true;
+	if (topic_filter(info->topic, topic)) {
+		// printf("MATCH filter: %s, topic: %s\n", rule_infos[i].topic, topic);
+		if (info->filter) {
+			conn_param *cp = work->cparam;
+			for (size_t j = 0; j < 8; j++) {
+				char *val = info->filter[j];
+				if (val) {
+					switch (j)
+					{
+					case RULE_QOS:
+						if (pp->fixed_header.qos != atoi(val)) {
+							filter = false;
+						}
+						break;
+					case RULE_ID:
+						if (pp->var_header.publish.packet_id != atoi(val)) {
+							filter = false;
+						}
+						break;
+					case RULE_TOPIC:
+						if (strcmp(topic, val)) {
+							filter = false;
+						}
+						break;
+					case RULE_CLIENTID:;
+						const char *cid = (const char*) conn_param_get_clientid(cp);
+						if (cid == NULL || strcmp(cid, val)) {
+							filter = false;
+						}
+						break;
+					case RULE_USERNAME:;
+						const char *username = (const char*) conn_param_get_username(cp);
+						if (username == NULL || strcmp(username, val)) {
+							filter = false;
+						}
+						break;
+					case RULE_PASSWORD:;
+						const char *password = (const char*) conn_param_get_password(cp);
+						if (password == NULL || strcmp(password, val)) {
+							filter = false;
+						}
+						break;
+					case RULE_TIMESTAMP:
+						// TODO
+						// get_timestamp
+						// if ( != atoi(val)) {
+						// 	filter = false;
+						// }
+						break;
+					case RULE_PAYLOAD:;
+						if (pp->payload.data || pp->payload.len <= 0) {
+							filter = false;
+							break;
+						}
+						if (strncmp((const char*) pp->payload.data, val, pp->payload.len)) {
+							filter = false;
+						}
+						break;
+					default:
+						break;
+					}
+					if (filter == false) {
+						break;
+					}
+					// puts(rule_infos[i].filter[j]);
+				}
+
+			}
+		}
+	}
+	
+	return filter;
+}
+
+static int rule_engine_insert_sql(nano_work *work)
+{
+	rule_engine_info *rule_infos = work->config->rule_engine;
+	size_t rule_size = cvector_size(rule_infos);
+
+	for (size_t i = 0; i < rule_size; i++) {
+			if (rule_engine_filter(work, &rule_infos[i])) {
+				// TODO 
+			}
+	}
+
+}
+
+
 void
 handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto)
 {
@@ -191,6 +285,8 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto)
 		debug_msg("ERROR: Topic is NULL");
 		return;
 	}
+
+	rule_engine_insert_sql(work);
 
 	cli_ctx_list =
 	    dbtree_find_clients(work->db, topic);

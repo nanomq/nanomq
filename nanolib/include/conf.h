@@ -202,6 +202,17 @@ static char *rule_engine_key_arr[] = {
 		NULL
 };
 
+typedef enum {
+		RULE_QOS,
+		RULE_ID,
+		RULE_TOPIC,
+		RULE_CLIENTID,
+		RULE_USERNAME,
+		RULE_PASSWORD,
+		RULE_TIMESTAMP,
+		RULE_PAYLOAD,
+		RULE_ALL,
+} rule_type;
 
 // typedef struct {
 // 	const char *key;
