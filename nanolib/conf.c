@@ -742,7 +742,10 @@ int insert_filter(const char *str, size_t len, char **filter)
 		while (*p != '\'') p++;
 		*p = '\0';
 	} else {
-		// TODO 
+		str = p;
+		while (*p != ' ') p++;
+		*p = '\0';
+
 	}
 
 	filter[rc] = zstrdup(str);
