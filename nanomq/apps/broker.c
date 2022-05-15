@@ -1144,7 +1144,6 @@ broker_start(int argc, char **argv)
 	conf_init(nanomq_conf);
 	conf_parser(nanomq_conf);
 	conf_bridge_parse(nanomq_conf);
-	conf_auth_http_parse(nanomq_conf);
 	read_env_conf(nanomq_conf);
 
 	if (!broker_parse_opts(argc, argv, nanomq_conf)) {
@@ -1165,9 +1164,6 @@ broker_start(int argc, char **argv)
 
 	if (nanomq_conf->web_hook_file) {
 		conf_web_hook_parse(nanomq_conf);
-	}
-	if (nanomq_conf->auth_http_file) {
-		conf_auth_http_parse(nanomq_conf);
 	}
 
 	nanomq_conf->url = nanomq_conf->url != NULL

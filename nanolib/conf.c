@@ -508,9 +508,9 @@ conf_init(conf *nanomq_conf)
 	conf_auth_http_req_init(&nanomq_conf->auth_http.auth_req);
 	conf_auth_http_req_init(&nanomq_conf->auth_http.super_req);
 	conf_auth_http_req_init(&nanomq_conf->auth_http.acl_req);
-	nanomq_conf->auth_http.timeout   = 5;
-	nanomq_conf->auth_http.timeout   = 5;
-	nanomq_conf->auth_http.pool_size = 32;
+	nanomq_conf->auth_http.timeout         = 5;
+	nanomq_conf->auth_http.connect_timeout = 5;
+	nanomq_conf->auth_http.pool_size       = 32;
 	conf_tls_init(&nanomq_conf->auth_http.tls);
 }
 
@@ -1590,7 +1590,7 @@ get_params(const char *value, size_t *count)
 		free(line);
 	}
 	*count = param_count;
-	
+
 	return params;
 }
 
