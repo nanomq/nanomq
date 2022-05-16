@@ -271,6 +271,7 @@ static int rule_engine_insert_sql(nano_work *work)
 			}
 	}
 
+	return 0;
 }
 
 
