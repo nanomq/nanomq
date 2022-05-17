@@ -18,10 +18,13 @@ option (BUILD_NNG_PROXY "Build nng proxy" ON)
 option (BUILD_ZMQ_GATEWAY "Build zmq gateway" OFF)
 option (BUILD_BENCH "Build nano-bench" OFF)
 option (ENABLE_JWT "Enable jwt library" OFF)
+option (ENABLE_RULE_ENGINE "Enable rule engine" OFF)
 
 set (NNG_PROTO_MQTT_BROKER  ON)
 set (NNG_TRANSPORT_MQTT_BROKER_TCP ON)
 set (NNG_TRANSPORT_MQTT_BROKER_WS  ON)
+set (FDB_DFT_API_VERSION 630)
+set (FDB_DFT_DATABASE NULL)
 
 if (NNG_ENABLE_TLS) 
   set (NNG_TRANSPORT_MQTT_BROKER_TLS ON)
@@ -146,6 +149,7 @@ else ()
   message("LOG=ON")
 endif (NOLOG)
 
+
 if (NOWARNING)
   message("NOWARNING")
   add_definitions(-DNOWARNING)
@@ -191,6 +195,33 @@ if (ENABLE_JWT)
   add_subdirectory(extern/l8w8jwt)
   add_definitions(-DSUPP_JWT)
 endif (ENABLE_JWT)
+
+if (ENABLE_RULE_ENGINE)
+  add_definitions(-DSUPP_RULE_ENGINE)
+  find_path(FOUNDATION_INCLUDE_DIR fdb_c.h /usr/include/foundationdb/ /usr/local/include/foundationdb/)
+  find_library(FOUNDATION_LIBRARY NAMES fdb_c PATHS /usr/lib/ /usr/local/lib/)
+  if (NOT FOUNDATION_INCLUDE_DIR OR NOT FOUNDATION_LIBRARY)
+      message(FATAL_ERROR "Not found foundationdb")
+  else ()
+      message(STATUS "Found foundationdb: ${FOUNDATION_LIBRARY}")
+  endif()
+
+  if (NOT FDB_API_VERSION)
+      set(FDB_API_VERSION 630)
+  endif()
+
+  if (FDB_DATABASE)
+      set(FDB_DATABASE "\"${FDB_DATABASE}\"")
+  else()
+      set(FDB_DATABASE NULL)
+  endif()
+
+      configure_file(
+            "${PROJECT_SOURCE_DIR}/fdbversionConfig.h.in"
+            "${PROJECT_SOURCE_DIR}/nanolib/include/fdb_version.h"
+      )
+
+endif (ENABLE_RULE_ENGINE)
 
 add_subdirectory(nng)
 add_subdirectory(nanolib)

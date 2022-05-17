@@ -83,6 +83,7 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
+
 #aux_source_directory(. DIRSRCS)
 
 include_directories(./include)
@@ -97,10 +98,11 @@ find_package(Threads)
 # set(libsrc hash_table.c mqtt_db.c zmalloc.c ) #conf.c file.c cmd.c nano_alloc.c nano_lmq.c)
 set(libsrc hash_table.c mqtt_db.c zmalloc.c conf.c file.c 
     cmd.c nano_alloc.c nano_lmq.c env.c 
-    libs/base64.c libs/cJSON.c libs/mongoose.c)
+    libs/base64.c libs/cJSON.c libs/mongoose.c db_cli.c)
 
 # this is the "object library" target: compiles the sources only once
 add_library(nanolib OBJECT ${libsrc})
+
 
 target_include_directories(${PROJECT_NAME} PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -116,8 +118,15 @@ add_library(nano_shared SHARED $<TARGET_OBJECTS:nanolib>)
 #add_library(nanolib_static STATIC $<TARGET_OBJECTS:nanolib>)
 target_link_libraries(nano_shared ${CMAKE_THREAD_LIBS_INIT})
 
+if (ENABLE_RULE_ENGINE) 
+    target_link_libraries(nano_shared ${FOUNDATION_LIBRARY})
+endif (ENABLE_RULE_ENGINE)
+
+
 add_executable(nano_test test.c test_hash.c test_dbtree.c)
 target_link_libraries(nano_test nano_shared)
+target_link_libraries(nano_test ${FOUNDATION_LIBRARY})
+
 
 
 install(TARGETS nano_shared EXPORT nanolibConfig
