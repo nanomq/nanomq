@@ -49,7 +49,13 @@ set(SOURCES
     webhook_post.c
     )
 
+include_directories(${FOUNDATION_INCLUDE_DIR})
+
 add_executable(nanomq ${SOURCES})
+
+if (ENABLE_RULE_ENGINE) 
+  target_link_libraries(nanomq ${FOUNDATION_LIBRARY})
+endif (ENABLE_RULE_ENGINE)
 
 # target_link_libraries(nanomq apps nano_shared)
 if (ENABLE_JWT)
