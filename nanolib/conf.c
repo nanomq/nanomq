@@ -459,7 +459,13 @@ conf_init(conf *nanomq_conf)
 	nanomq_conf->url              = NULL;
 	nanomq_conf->conf_file        = NULL;
 	nanomq_conf->bridge_file      = NULL;
+
+#if defined(SUPP_RULE_ENGINE)
 	nanomq_conf->rule_engine_file = NULL;
+	nanomq_conf->rule_engine = NULL;
+	nanomq_conf->rdb = NULL;
+	nanomq_conf->tran =NULL;
+#endif
 	nanomq_conf->web_hook_file    = NULL;
 	nanomq_conf->auth_file        = NULL;
 	nanomq_conf->auth_http_file   = NULL;
@@ -739,11 +745,11 @@ int insert_filter(const char *str, size_t len, char **filter)
 		p++;
 		str = p;
 		// TODO check len
-		while (*p != '\'') p++;
+		while (*p != '\'' && *p != '\0') p++;
 		*p = '\0';
 	} else {
 		str = p;
-		while (*p != ' ') p++;
+		while (*p != ' ' && *p != '\0') p++;
 		*p = '\0';
 
 	}
@@ -784,6 +790,8 @@ static int parse_where(const char *where, rule_engine_info *info)
 bool
 conf_rule_engine_parse(conf *nanomq_conf)
 {
+
+#if defined(SUPP_RULE_ENGINE)
 	const char *dest_path = nanomq_conf->rule_engine_file;
 
 	if (dest_path == NULL || !nano_file_exists(dest_path)) {
@@ -884,6 +892,7 @@ conf_rule_engine_parse(conf *nanomq_conf)
 
 out:
 	fclose(fp);
+#endif
 	return true;
 }
 
@@ -1761,7 +1770,10 @@ conf_fini(conf *nanomq_conf)
 	zfree(nanomq_conf->url);
 	zfree(nanomq_conf->conf_file);
 	zfree(nanomq_conf->bridge_file);
+
+#if defined(SUPP_RULE_ENGINE)
 	zfree(nanomq_conf->rule_engine_file);
+#endif
 	zfree(nanomq_conf->web_hook_file);
 	zfree(nanomq_conf->auth_file);
 	conf_tls_destroy(&nanomq_conf->tls);

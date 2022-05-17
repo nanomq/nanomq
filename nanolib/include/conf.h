@@ -278,7 +278,9 @@ typedef struct conf_web_hook  conf_web_hook;
 struct conf {
 	char *   conf_file;
 	char *   bridge_file;
+#if defined(SUPP_RULE_ENGINE)
 	char *   rule_engine_file;
+#endif
 	char * 	 web_hook_file;
 	char *   auth_file;
 	char *   auth_http_file;
@@ -298,7 +300,12 @@ struct conf {
 	conf_websocket   websocket;
 	conf_bridge      bridge;
 	conf_web_hook    web_hook;
+
+#if defined(SUPP_RULE_ENGINE)
 	rule_engine_info *rule_engine;
+	void 			 *rdb;
+	void 			 *tran;
+#endif
 
 	conf_auth      auths;
 	conf_auth_http auth_http;
