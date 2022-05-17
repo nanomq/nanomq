@@ -131,6 +131,8 @@ next:
 }
 
 
+
+#if defined(SUPP_RULE_ENGINE)
 static bool rule_engine_filter(nano_work *work, rule_engine_info *info)
 {
 	pub_packet_struct *pp = work->pub_packet;
@@ -264,8 +266,13 @@ static int rule_engine_insert_sql(nano_work *work)
 				}
 
 				char *dest = cJSON_PrintUnformatted(jso);
-				// puts(dest);
-				// TODO insert to database;
+
+				fdb_transaction_set(work->config->tran, pp->var_header.publish.topic_name.body, pp->var_header.publish.topic_name.len, dest, strlen(dest));
+				FDBFuture *f = fdb_transaction_commit(work->config->tran);
+
+				// struct ResultSet* rs = newResultSet();
+				// if(getError(fdb_future_block_until_ready(f), "GetManySequential (block for get)", rs)) return;
+				fdb_future_destroy(f);
 				cJSON_free(dest);
 				cJSON_Delete(jso);
 			}
@@ -273,6 +280,7 @@ static int rule_engine_insert_sql(nano_work *work)
 
 	return 0;
 }
+#endif
 
 
 void
@@ -339,7 +347,10 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto)
 	}
 
 	// TODO here
+
+#if defined(SUPP_RULE_ENGINE)
 	rule_engine_insert_sql(work);
+#endif
 
 	cli_ctx_list =
 	    dbtree_find_clients(work->db, topic);

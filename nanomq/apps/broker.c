@@ -38,6 +38,8 @@
 #include "include/web_server.h"
 #include "include/webhook_post.h"
 #include "include/webhook_inproc.h"
+#include <foundationdb/fdb_c.h>
+#include <foundationdb/fdb_c_options.g.h>
 
 // Parallel is the maximum number of outstanding requests we can handle.
 // This is *NOT* the number of threads in use, but instead represents
@@ -55,7 +57,9 @@ enum options {
 	OPT_CONFFILE,
 	OPT_BRIDGEFILE,
 	OPT_WEBHOOKFILE,
+#if defined(SUPP_RULE_ENGINE)
 	OPT_RULE_CONF,
+#endif
 	OPT_AUTHFILE,
 	OPT_AUTH_HTTP_FILE,
 	OPT_PARALLEL,
@@ -80,7 +84,10 @@ static nng_optspec cmd_opts[] = {
 	{ .o_name = "help", .o_short = 'h', .o_val = OPT_HELP },
 	{ .o_name = "conf", .o_val = OPT_CONFFILE, .o_arg = true },
 	{ .o_name = "bridge", .o_val = OPT_BRIDGEFILE, .o_arg = true },
+
+#if defined(SUPP_RULE_ENGINE)
 	{ .o_name = "rule", .o_val = OPT_RULE_CONF, .o_arg = true },
+#endif
 	{ .o_name = "webhook", .o_val = OPT_WEBHOOKFILE, .o_arg = true },
 	{ .o_name = "auth", .o_val = OPT_AUTHFILE, .o_arg = true },
 	{ .o_name = "auth_http", .o_val = OPT_AUTH_HTTP_FILE, .o_arg = true },
@@ -136,6 +143,7 @@ int keepRunning = 1;
 void
 intHandler(int dummy)
 {
+	
 	keepRunning = 0;
 	fprintf(stderr, "\nBroker exit(0).\n");
 }
@@ -719,6 +727,20 @@ broker(conf *nanomq_conf)
 	// add the num of other proto
 	uint64_t num_ctx = nanomq_conf->parallel;
 
+#if defined(SUPP_RULE_ENGINE)
+	pthread_t netThread;
+	fdb_error_t err = fdb_select_api_version(FDB_API_VERSION);
+	if (err) {
+		debug_msg("select API version error: %s", fdb_get_error(err));
+		exit(1);
+	}
+	FDBDatabase* fdb = openDatabase(&netThread);
+	nanomq_conf->rdb = fdb;
+	FDBTransaction* tr = NULL;
+	fdb_error_t e = fdb_database_create_transaction(fdb, &tr);
+	nanomq_conf->tran = tr;
+#endif
+
 	// init tree
 	dbtree_create(&db);
 	if (db == NULL) {
@@ -807,6 +829,11 @@ broker(conf *nanomq_conf)
 	signal(SIGINT, intHandler);
 	for (;;) {
 		if (keepRunning == 0) {
+#if defined(SUPP_RULE_ENGINE)
+			fdb_transaction_destroy(nanomq_conf->tran);
+			fdb_database_destroy(nanomq_conf->rdb);
+			fdb_stop_network();
+#endif
 			exit(0);
 		}
 		nng_msleep(6000);
@@ -846,6 +873,11 @@ print_usage(void)
 	       "'nmq-wss://host:port/path'\n");
 	printf("  --conf <path>              The path of a specified nanomq "
 	       "configuration file \n");
+
+#if defined(SUPP_RULE_ENGINE)
+	printf("  --rule <path>              The path of a specified rule "
+	       "configuration file \n");
+#endif
 	printf("  --bridge <path>            The path of a specified bridge "
 	       "configuration file \n");
 	printf("  --webhook <path>           The path of a specified webhook "
@@ -1019,10 +1051,13 @@ broker_parse_opts(int argc, char **argv, conf *config)
 			FREE_NONULL(config->web_hook_file);
 			config->web_hook_file = nng_strdup(arg);
 			break;
+
+#if defined(SUPP_RULE_ENGINE)
 		case OPT_RULE_CONF:
 			FREE_NONULL(config->rule_engine_file);
 			config->rule_engine_file = nng_strdup(arg);
 			break;
+#endif
 		case OPT_AUTHFILE:
 			FREE_NONULL(config->auth_file);
 			config->auth_file = nng_strdup(arg);
@@ -1141,6 +1176,7 @@ broker_start(int argc, char **argv)
 
 	// Priority: config < environment variables < command opts
 
+
 	conf_init(nanomq_conf);
 	conf_parser(nanomq_conf);
 	conf_bridge_parse(nanomq_conf);
@@ -1158,9 +1194,12 @@ broker_start(int argc, char **argv)
 		conf_bridge_parse(nanomq_conf);
 	}
 
+#if defined(SUPP_RULE_ENGINE)
 	if (nanomq_conf->rule_engine_file) {
 		conf_rule_engine_parse(nanomq_conf);
 	}
+#endif
+
 
 	if (nanomq_conf->web_hook_file) {
 		conf_web_hook_parse(nanomq_conf);
