@@ -83,6 +83,7 @@ typedef enum {
 	COMMON_NAME, // common name of client TLS cert
 	SUBJECT,     // subject of client TLS cert
 	TOPIC,
+	MOUNTPOINT,
 } http_param_type;
 
 struct conf_http_param {

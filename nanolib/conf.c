@@ -1603,6 +1603,12 @@ get_params(const char *value, size_t *count)
 			case 't':
 				params[param_count - 1]->type = TOPIC;
 				break;
+			case 'm':
+				params[param_count - 1]->type = MOUNTPOINT;
+				break;
+			case 'r':
+				params[param_count - 1]->type = PROTOCOL;
+				break;
 			default:
 				break;
 			}
