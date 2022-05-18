@@ -16,6 +16,11 @@ if(DEBUG AND ASAN)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -fsanitize=address")
 endif(DEBUG AND ASAN)
 
+if (DEBUG AND TSAN)
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -fsanitize=thread")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -fsanitize=thread")
+endif (DEBUG AND TSAN)
+
 aux_source_directory(. DIRSRCS)
 
 include_directories(./)
