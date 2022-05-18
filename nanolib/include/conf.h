@@ -41,6 +41,7 @@
 		p = NULL; \
 	}
 
+
 struct conf_auth {
 	int    count;
 	char **usernames;
@@ -189,18 +190,6 @@ typedef struct {
     enum {PUB_SUB, REQ_REP} type;
 } zmq_gateway_conf;
 
-static char *rule_engine_key_arr[] = {
-		"qos",
-		"id",
-		"topic",
-		"clientid",
-		"username",
-		"password",
-		"timestamp",
-		"payload",
-		"*",
-		NULL
-};
 
 typedef enum {
 		RULE_QOS,

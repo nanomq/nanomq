@@ -15,6 +15,22 @@
 #include "include/file.h"
 #include "nanomq.h"
 
+#if defined(SUPP_RULE_ENGINE)
+static char *rule_engine_key_arr[] = {
+		"qos",
+		"id",
+		"topic",
+		"clientid",
+		"username",
+		"password",
+		"timestamp",
+		"payload",
+		"*",
+		NULL
+};
+#endif
+
+
 static conf_http_header **conf_parse_http_headers(
     const char *path, const char *key_prefix, size_t *count);
 
@@ -655,6 +671,8 @@ printf_gateway_conf(zmq_gateway_conf *gateway)
 	debug_msg("mqtt parallel: %d", gateway->parallel);
 }
 
+
+#if defined(SUPP_RULE_ENGINE)
 static int find_key(const char *str, size_t len)
 {
 	int i = 0;
@@ -791,7 +809,6 @@ bool
 conf_rule_engine_parse(conf *nanomq_conf)
 {
 
-#if defined(SUPP_RULE_ENGINE)
 	const char *dest_path = nanomq_conf->rule_engine_file;
 
 	if (dest_path == NULL || !nano_file_exists(dest_path)) {
@@ -892,9 +909,9 @@ conf_rule_engine_parse(conf *nanomq_conf)
 
 out:
 	fclose(fp);
-#endif
 	return true;
 }
+#endif
 
 bool
 conf_gateway_parse(zmq_gateway_conf *gateway)
