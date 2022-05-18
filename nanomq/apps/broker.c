@@ -38,8 +38,10 @@
 #include "include/web_server.h"
 #include "include/webhook_post.h"
 #include "include/webhook_inproc.h"
-#include <foundationdb/fdb_c.h>
-#include <foundationdb/fdb_c_options.g.h>
+#if defined(SUPP_RULE_ENGINE)
+	#include <foundationdb/fdb_c.h>
+	#include <foundationdb/fdb_c_options.g.h>
+#endif
 
 // Parallel is the maximum number of outstanding requests we can handle.
 // This is *NOT* the number of threads in use, but instead represents

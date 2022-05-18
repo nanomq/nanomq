@@ -226,37 +226,38 @@ static int rule_engine_insert_sql(nano_work *work)
 				cJSON *jso   = NULL;
 				jso          = cJSON_CreateObject();
 				for (size_t j = 0; j < 8; j++) {
+					puts("fuck");
 					if (rule_infos[i].flag[j]) {
 						switch (j)
 						{
 						case RULE_QOS:
-							cJSON_AddNumberToObject(jso, rule_engine_key_arr[j], pp->fixed_header.qos);
+							cJSON_AddNumberToObject(jso, "qos", pp->fixed_header.qos);
 							break;
 						case RULE_ID:
-							cJSON_AddNumberToObject(jso, rule_engine_key_arr[j], pp->var_header.publish.packet_id);
+							cJSON_AddNumberToObject(jso, "id", pp->var_header.publish.packet_id);
 							break;
 						case RULE_TOPIC:;
 							char *topic = pp->var_header.publish.topic_name.body;
-							cJSON_AddStringToObject(jso, rule_engine_key_arr[j], topic);
+							cJSON_AddStringToObject(jso, "topic", topic);
 							break;
 						case RULE_CLIENTID:;
-							char *cid = conn_param_get_clientid(cp);
-							cJSON_AddStringToObject(jso, rule_engine_key_arr[j], cid);
+							char *cid = (char*) conn_param_get_clientid(cp);
+							cJSON_AddStringToObject(jso, "clientid", cid);
 							break;
 						case RULE_USERNAME:;
-							char *username = conn_param_get_username(cp);
-							cJSON_AddStringToObject(jso, rule_engine_key_arr[j], username);
+							char *username = (char*) conn_param_get_username(cp);
+							cJSON_AddStringToObject(jso, "username", username);
 							break;
 						case RULE_PASSWORD:;
-							char *password = conn_param_get_password(cp);
-							cJSON_AddStringToObject(jso, rule_engine_key_arr[j], password);
+							char *password = (char*) conn_param_get_password(cp);
+							cJSON_AddStringToObject(jso, "password", password);
 							break;
 						case RULE_TIMESTAMP:
 							// TODO
 							break;
 						case RULE_PAYLOAD:;
 							char *payload = pp->payload.data;
-							cJSON_AddStringToObject(jso, rule_engine_key_arr[j], payload);
+							cJSON_AddStringToObject(jso, "payload", payload);
 							break;
 						default:
 							break;
@@ -266,6 +267,7 @@ static int rule_engine_insert_sql(nano_work *work)
 				}
 
 				char *dest = cJSON_PrintUnformatted(jso);
+				// puts(dest);
 
 				fdb_transaction_set(work->config->tran, pp->var_header.publish.topic_name.body, pp->var_header.publish.topic_name.len, dest, strlen(dest));
 				FDBFuture *f = fdb_transaction_commit(work->config->tran);
@@ -346,7 +348,6 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto)
 		return;
 	}
 
-	// TODO here
 
 #if defined(SUPP_RULE_ENGINE)
 	rule_engine_insert_sql(work);
