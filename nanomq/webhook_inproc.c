@@ -26,9 +26,11 @@
 static atomic_ulong inproc_recv_count = 0;
 static atomic_ulong inproc_send_count = 0;
 static atomic_ulong inproc_save_count = 0;
-static atomic_ulong inproc_aio_count = 0;
+static atomic_ulong inproc_aio_count  = 0;
 typedef struct {
+	enum { CONNECTING, SENDING, SENT } state;
 	nng_http_client *client;
+	nng_http_conn *  conn;
 	nng_url *        url;
 	nng_aio *        aio;
 	nng_http_req *   req;
@@ -47,51 +49,104 @@ struct hook_work {
 	webhook_client webhook;
 	nng_socket     sock;
 	conf_web_hook *conf;
-	uint8_t        id;
-	bool	       busy;
+	uint32_t       id;
+	bool           busy;
 };
 
-static void webhook_aio_cb(void *arg);
 static void handle_msg(void *arg);
 static void webhook_cb(void *arg);
 
 static nng_thread *inproc_thr;
 static void
-fatal(const char *func, int rv)
+fatal(uint32_t id, const char *func, int rv)
 {
-	fprintf(stderr, "%s: %s\n", func, nng_strerror(rv));
-	exit(1);
+	fprintf(stderr, "[%d] %s: %s\n", id, func, nng_strerror(rv));
+	// exit(1);
 }
 
 static void
-webhook_aio_cb(void *arg)
+http_client_cb(void *arg)
 {
 	struct hook_work *work        = arg;
 	webhook_client *  hook_client = &work->webhook;
-	nng_msg  *msg;
+	int               rv;
+	nng_msg *         msg = NULL;
 
 	nng_mtx_lock(hook_client->mtx);
-	work->busy = false;
-	inproc_aio_count++;
+	switch (hook_client->state) {
+	case CONNECTING:
+		hook_client->state = SENDING;
+		nng_mtx_unlock(hook_client->mtx);
+		nng_http_client_connect(hook_client->client, hook_client->aio);
+		return;
+		break;
 
-	// get msg from lmq and transmit 
-	if (nano_lmq_getq(&hook_client->lmq, (void **) &msg) == 0) {
-		work->busy = true;
-		inproc_save_count--;
-		nng_http_req_copy_data(
-		    hook_client->req, nng_msg_body(msg), nng_msg_len(msg));
-		nng_msg_free(msg);
-		inproc_send_count++;
-		nng_http_client_transact(hook_client->client, hook_client->req,
-		    hook_client->res, hook_client->aio);
-	}
-	// try to reduce lmq cap
-	size_t lmq_len = nano_lmq_len(&hook_client->lmq);
-	if (lmq_len > (NANO_LMQ_INIT_CAP * 2)) {
-		size_t lmq_cap = nano_lmq_cap(&hook_client->lmq);
-		if (lmq_cap > (lmq_len * 2)) {
-			nano_lmq_resize(&hook_client->lmq, lmq_cap / 2);
+	case SENDING:
+		if ((rv = nng_aio_result(hook_client->aio)) != 0) {
+			fatal(work->id, "nng_aio_result connect failed", rv);
+			nng_mtx_unlock(hook_client->mtx);
+			nng_http_client_connect(
+			    hook_client->client, hook_client->aio);
+			return;
 		}
+		hook_client->conn = nng_aio_get_output(hook_client->aio, 0);
+
+		if (hook_client->conn) {
+			if (nano_lmq_getq(&hook_client->lmq, (void **) &msg) ==
+			    0) {
+				inproc_save_count--;
+
+				nng_http_req_copy_data(hook_client->req,
+				    nng_msg_body(msg), nng_msg_len(msg));
+				nng_msg_free(msg);
+				hook_client->state = SENT;
+				nng_mtx_unlock(hook_client->mtx);
+				nng_http_conn_write_req(hook_client->conn,
+				    hook_client->req, hook_client->aio);
+				return;
+			} else {
+				nng_http_conn_close(hook_client->conn);
+			}
+		}
+		hook_client->state = CONNECTING;
+		work->busy         = false;
+		break;
+
+	case SENT:
+		if ((rv = nng_aio_result(hook_client->aio)) != 0) {
+
+			fatal(work->id, "nng_aio_result send failed", rv);
+			goto out;
+		}
+		inproc_send_count++;
+		// try to reduce lmq cap
+		size_t lmq_len = nano_lmq_len(&hook_client->lmq);
+		if (lmq_len > (NANO_LMQ_INIT_CAP * 2)) {
+			size_t lmq_cap = nano_lmq_cap(&hook_client->lmq);
+			if (lmq_cap > (lmq_len * 2)) {
+				nano_lmq_resize(
+				    &hook_client->lmq, lmq_cap / 2);
+			}
+		}
+
+		if (lmq_len > 0) {
+			hook_client->state = SENDING;
+			nng_mtx_unlock(hook_client->mtx);
+			http_client_cb(arg);
+			return;
+		}
+	out:
+		if (hook_client->conn) {
+			nng_http_conn_close(hook_client->conn);
+			hook_client->conn = NULL;
+		}
+		work->busy         = false;
+		hook_client->state = CONNECTING;
+
+		break;
+
+	default:
+		break;
 	}
 	nng_mtx_unlock(hook_client->mtx);
 }
@@ -104,28 +159,27 @@ handle_msg(void *arg)
 	webhook_client *  hook_client = &work->webhook;
 
 	nng_mtx_lock(hook_client->mtx);
-	if (work->busy == false) {
-		work->busy = true;
-		// get msg and transmit
-		nng_http_req_copy_data(hook_client->req,
-		    nng_msg_body(work->msg), nng_msg_len(work->msg));
-		nng_msg_free(work->msg);
-		inproc_send_count++;
-		nng_aio_set_timeout(hook_client->aio, 1000);
-		nng_http_client_transact(hook_client->client, hook_client->req,
-		    hook_client->res, hook_client->aio);
-		nng_mtx_unlock(hook_client->mtx);
-		return;
-	}
 	if (nano_lmq_full(&hook_client->lmq)) {
 		size_t lmq_cap = nano_lmq_cap(&hook_client->lmq);
 		if ((rv = nano_lmq_resize(
 		         &hook_client->lmq, lmq_cap + (lmq_cap / 2))) != 0) {
-			fatal("nano_lmq_resize", rv);
+			fatal(work->id, "nano_lmq_resize", rv);
 		}
 	}
-	inproc_save_count++;
 	nano_lmq_putq(&hook_client->lmq, work->msg);
+	inproc_save_count++;
+
+	if (work->busy == false) {
+		work->busy = true;
+		// get msg and transmit
+
+		nng_aio_set_timeout(hook_client->aio, 1000);
+		nng_mtx_unlock(hook_client->mtx);
+		http_client_cb(work);
+
+		return;
+	}
+
 	nng_mtx_unlock(hook_client->mtx);
 }
 
@@ -143,7 +197,7 @@ webhook_cb(void *arg)
 
 	case HOOK_RECV:
 		if ((rv = nng_aio_result(work->aio)) != 0) {
-			fatal("nng_recv_aio", rv);
+			fatal(work->id, "nng_recv_aio", rv);
 		}
 		inproc_recv_count++;
 		work->msg = nng_aio_get_msg(work->aio);
@@ -154,7 +208,7 @@ webhook_cb(void *arg)
 		break;
 
 	default:
-		fatal("bad state!", NNG_ESTATE);
+		fatal(work->id, "bad state!", NNG_ESTATE);
 		break;
 	}
 }
@@ -173,7 +227,7 @@ webhook_init(struct hook_work *w, conf_web_hook *conf)
 	    ((rv = nng_http_res_alloc(&webhook->res)) != 0) ||
 	    ((rv = nng_mtx_alloc(&webhook->mtx)) != 0) ||
 	    ((rv = nano_lmq_init(&webhook->lmq, NANO_LMQ_INIT_CAP) != 0)) ||
-	    ((rv = nng_aio_alloc(&webhook->aio, webhook_aio_cb, w)) != 0)) {
+	    ((rv = nng_aio_alloc(&webhook->aio, http_client_cb, w)) != 0)) {
 		return rv;
 	}
 
@@ -182,6 +236,7 @@ webhook_init(struct hook_work *w, conf_web_hook *conf)
 		    conf->headers[i]->value);
 	}
 	nng_http_req_set_method(webhook->req, "POST");
+	webhook->state = CONNECTING;
 	return 0;
 }
 
@@ -192,13 +247,13 @@ alloc_work(nng_socket sock, conf_web_hook *conf)
 	int               rv;
 
 	if ((w = nng_alloc(sizeof(*w))) == NULL) {
-		fatal("nng_alloc", NNG_ENOMEM);
+		fatal(w->id, "nng_alloc", NNG_ENOMEM);
 	}
 	if ((rv = nng_aio_alloc(&w->aio, webhook_cb, w)) != 0) {
-		fatal("nng_aio_alloc", rv);
+		fatal(w->id, "nng_aio_alloc", rv);
 	}
 	if ((rv = webhook_init(w, conf)) != 0) {
-		fatal("webhook_init", rv);
+		fatal(w->id, "webhook_init", rv);
 	}
 	w->conf  = conf;
 	w->sock  = sock;
@@ -220,16 +275,16 @@ webhook_thr(void *arg)
 	/*  Create the socket. */
 	rv = nng_pull0_open(&sock);
 	if (rv != 0) {
-		fatal("nng_rep0_open", rv);
+		fatal(0, "nng_rep0_open", rv);
 	}
 
 	for (i = 0; i < conf->web_hook.pool_size; i++) {
-		works[i] = alloc_work(sock, &conf->web_hook);
+		works[i]     = alloc_work(sock, &conf->web_hook);
 		works[i]->id = i;
 	}
 
 	if ((rv = nng_listen(sock, WEB_HOOK_INPROC_URL, NULL, 0)) != 0) {
-		fatal("nng_listen", rv);
+		fatal(0, "nng_listen", rv);
 	}
 
 	for (i = 0; i < conf->web_hook.pool_size; i++) {
@@ -238,11 +293,11 @@ webhook_thr(void *arg)
 
 	for (;;) {
 		// inproc_recv_count;
-		// printf("recv count: %lu send count %lu save %lu aio %lu\n", 
-		// inproc_recv_count, inproc_send_count, inproc_save_count
-		// ,inproc_aio_count);
-		// nng_msleep(1000);
-		nng_msleep(3600000); // neither pause() nor sleep() portable
+		printf("recv count: %lu send count %lu save %lu aio %lu\n",
+		    inproc_recv_count, inproc_send_count, inproc_save_count,
+		    inproc_aio_count);
+		nng_msleep(1000);
+		// nng_msleep(3600000); // neither pause() nor sleep() portable
 	}
 }
 
@@ -251,7 +306,7 @@ start_webhook_service(conf *conf)
 {
 	int rv = nng_thread_create(&inproc_thr, webhook_thr, conf);
 	if (rv != 0) {
-		fatal("nng_thread_create", rv);
+		fatal(0, "nng_thread_create", rv);
 	}
 	nng_msleep(500);
 	return rv;
