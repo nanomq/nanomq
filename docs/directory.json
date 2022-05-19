@@ -35,7 +35,12 @@
     {
       "title": "测试报告",
       "path": "test-report"
+    },
+    {
+      "title": "ZMQ 网关",
+      "path": "zmq-gateway"
     }
+    
   ],
   "en": [
     {
@@ -73,6 +78,10 @@
     {
       "title": "Test Report",
       "path": "test-report"
+    },
+    {
+      "title": "ZMQ Gateway",
+      "path": "zmq-gateway"
     }
   ]
 }
