@@ -74,7 +74,7 @@ NanoMQ 的配置文件通常以 .conf 作为后缀名，你可以在 etc 目录�
 
 ### nanomq_web_hook.conf
 
-| Name                                     | Type    | Description                                                  |
+| 参数名                                    | 数据类型 | 参数说明                                                    |
 | ---------------------------------------- | ------- | ------------------------------------------------------------ |
 | web.hook.enable                          | Boolean | 启动WebHook (默认: `false`)                                  |
 | web.hook.url                             | String  | *Webhook URL*                                                |
@@ -90,3 +90,21 @@ NanoMQ 的配置文件通常以 .conf 作为后缀名，你可以在 etc 目录�
 | web.hook.rule.client.disconnected.\<No\> | String  | *示例: <br/>web.hook.rule.client.disconnected.1={"action": "on_client_disconnected"}* |
 | web.hook.rule.message.publish.\<No\>     | String  | 示例: <br/>*web.hook.rule.message.publish.1={"action": "on_message_publish"}* <br>*web.hook.rule.message.publish.1={"action": "on_message_publish", "topic": "topic/1/2"}* <br>*web.hook.rule.message.publish.2 = {"action": "on_message_publish", "topic": "foo/#"}* |
 
+### nanomq_gateway.conf
+| 参数名                             | 数据类型  | 参数说明                                                      |
+| --------------------------------- | ------- | ------------------------------------------------------------ |
+| gateway.address                   | String  | 远端 Broker 地址。                                             |
+| gateway.proto_ver                 | String  | MQTT 客户端版本（3｜4｜5)。                                     |
+| gateway.clientid                  | String  | MQTT 客户端标识符。                                             |
+| gateway.keepalive                 | Integer | 保活间隔时间。                                                  |
+| gateway.clean_start               | Boolean | 清除会话标志。                                                  |
+| gateway.parallel                  | Long    | 并行的 mqtt 客户端数量。                                         |
+| gateway.username                  | String  | 登陆的用户名。                                                  |
+| gateway.password                  | String  | 登陆的密码。                                                    |
+| gateway.forward                   | String  | 转发的主题。                                                    |
+| gateway.mqtt.subscription.topic   | String  | 订阅的 Mqtt 主题。                                              |
+| gateway.mqtt.subscription.qos     | Integer | 订阅的 Mqtt 服务级别。                                           |
+| gateway.zmq.sub.address           | String  | 远端的 ZMQ 服务订阅地址。                                         |
+| gateway.zmq.pub.address           | String  | 远端的 ZMQ 服务发布地址。                                         |
+| gateway.zmq.sub_prefix            | String  | 远端的 ZMQ 服务订阅前缀。                                         |
+| gateway.zmq.pub_prefix            | String  | 远端的 ZMQ 服务发布前缀。                                         |
