@@ -30,3 +30,5 @@ Github repository address: <https://github.com/emqx/nanomq>
 [Toolkit](./toolkit.md)
 
 [Test Report](./test-report.md)
+
+[ZMQ Gateway](./zmq-gateway.md)
