@@ -18,7 +18,7 @@ The configuration files of NanoMQ Broker usually have the suffix .conf. You can 
 | --------------------- | ------- | ------------------------------------------------------------ |
 | url              | String  | Url of listener.                        |
 | num_taskq_thread | Integer | Number of taskq threads used. |
-| max_taskq_thread | Integer | Maximum number of taskq threads used。 |
+| max_taskq_thread | Integer | Maximum number of taskq threads used. |
 | parallel |Long  | Number of parallel.                                          |
 | property_size |Integer  | Max size for a MQTT property. |
 | msq_len | Integer | Queue length for resending messages. |
@@ -49,11 +49,11 @@ The configuration files of NanoMQ Broker usually have the suffix .conf. You can 
 | --------------------- | ------- | ------------------------------------------------------------ |
 | bridge.bridge_mode | Boolean | Enter MQTT bridge mode (default `false` ).                                  |
 | bridge.address | String | Remote Broker address. |
-| bridge.proto_ver | String | MQTT client version（3｜4｜5）。 |
+| bridge.proto_ver | String | MQTT client version（3｜4｜5）. |
 | bridge.clientid | String | MQTT client identifier. |
 | bridge.keepalive | Integer | Interval of keepalive.                                       |
 | bridge.clean_start | Boolean | Clean seeson.                                                |
-| bridge.parallel | Long | Parallel of mqtt client。 |
+| bridge.parallel | Long | Parallel of mqtt client. |
 | bridge.username | String | Login user name. |
 | bridge.password | String | Login password. |
 | bridge.forwards | Array[String] | Array of forward topics.( *Use commas `,` to separate multiple topics* ) |
@@ -89,3 +89,22 @@ The configuration files of NanoMQ Broker usually have the suffix .conf. You can 
 | web.hook.rule.client.disconnected.\<No\> | String  | *Example: <br/>web.hook.rule.client.disconnected.1={"action": "on_client_disconnected"}* |
 | web.hook.rule.message.publish.\<No\>     | String  | Example: <br/>*web.hook.rule.message.publish.1={"action": "on_message_publish"}* <br>*web.hook.rule.message.publish.1={"action": "on_message_publish", "topic": "topic/1/2"}* <br>*web.hook.rule.message.publish.2 = {"action": "on_message_publish", "topic": "foo/#"}* |
 
+
+### nanomq_gateway.conf
+| Name                              | Type    | Description                                                  |
+| --------------------------------- | ------- | ------------------------------------------------------------ |
+| gateway.address                   | String  | Remote Broker address.                                       |
+| gateway.proto_ver                 | String  | MQTT client version（3｜4｜5).                                |
+| gateway.clientid                  | String  | MQTT client identifier.                                      |
+| gateway.keepalive                 | Integer | Interval of keepalive.                                       |
+| gateway.clean_start               | Boolean | Clean seeson.                                                |
+| gateway.parallel                  | Long    | Parallel of mqtt client.                                     |
+| gateway.username                  | String  | Login user name.                                             |
+| gateway.password                  | String  | Login password.                                              |
+| gateway.forward                   | String  | Forward topic.                                               |
+| gateway.mqtt.subscription.topic   | String  | Mqtt subscribe topic.                                        |
+| gateway.mqtt.subscription.qos     | Integer | Mqtt subscribe qos.                                          |
+| gateway.zmq.sub.address           | String  | Remote ZMQ server subscribe address.                         |
+| gateway.zmq.pub.address           | String  | Remote ZMQ server publish address.                           |
+| gateway.zmq.sub_prefix            | String  | Remote ZMQ server subscribe prefix.                          |
+| gateway.zmq.pub_prefix            | String  | Remote ZMQ server publish prefix.                            |
