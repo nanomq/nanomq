@@ -38,6 +38,7 @@ static http_msg get_clients(cJSON *data, http_msg *msg, uint64_t sequence);
 static http_msg post_ctrl(cJSON *data, http_msg *msg, uint64_t sequence);
 static http_msg post_config(cJSON *data, http_msg *msg, uint64_t sequence);
 static http_msg get_config(cJSON *data, http_msg *msg, uint64_t sequence);
+static http_msg get_tree(cJSON *data, http_msg *msg, uint64_t sequence);
 
 static void update_main_conf(cJSON *json, conf *config);
 static void update_bridge_conf(cJSON *json, conf *config);
@@ -88,6 +89,7 @@ request_handler request_handlers[] = {
 	{ REQ_CTRL, post_ctrl },
 	{ REQ_GET_CONFIG, get_config },
 	{ REQ_SET_CONFIG, post_config },
+	{ REQ_TREE, get_tree }
 	// clang-format on
 };
 
@@ -404,6 +406,65 @@ get_broker(cJSON *data, http_msg *msg, uint64_t sequence)
 	cJSON_AddNumberToObject(data_info, "message_in", msg_in);
 	cJSON_AddNumberToObject(data_info, "message_out", msg_out);
 	cJSON_AddNumberToObject(data_info, "message_drop", msg_drop);
+	char *dest = cJSON_PrintUnformatted(res_obj);
+
+	put_http_msg(
+	    &res, msg->content_type, NULL, NULL, NULL, dest, strlen(dest));
+
+	cJSON_free(dest);
+	cJSON_Delete(res_obj);
+	return res;
+}
+static void *get_client_info_cb(void *ctxt)
+{
+	if (NULL == ctxt) {
+		return NULL;
+	}
+
+	dbtree_ctxt *dctxt =  (dbtree_ctxt *) ctxt;
+	client_ctx *cctxt = dctxt->ctx;
+	if (NULL == cctxt) {
+		return NULL;
+	}
+
+	conn_param *cp = cctxt->cparam;
+	return (void* )conn_param_get_clientid(cp);
+}
+
+static http_msg
+get_tree(cJSON *data, http_msg *msg, uint64_t sequence)
+{
+	http_msg res     = { 0 };
+	res.status       = NNG_HTTP_STATUS_OK;
+	cJSON *res_obj   = NULL;
+	cJSON *data_info = NULL;
+	res_obj          = cJSON_CreateObject();
+	data_info        = cJSON_CreateArray();
+	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+	cJSON_AddNumberToObject(res_obj, "seq", (uint64_t) sequence);
+	cJSON_AddNumberToObject(res_obj, "rep", msg->request);
+	cJSON_AddItemToObject(res_obj, "data", data_info);
+
+	dbtree *          db   = get_broker_db();
+	dbtree_info ***vn = (dbtree_info ***) dbtree_get_tree(db, get_client_info_cb);
+
+
+	for (int i = 0; i < cvector_size(vn); i++) {
+		cJSON *data_info_elem = cJSON_CreateArray();
+		cJSON_AddItemToArray(data_info, data_info_elem);
+		for (int j = 0; j < cvector_size(vn[i]); j++)  {
+			cJSON *elem = cJSON_CreateObject();
+			cJSON_AddItemToArray(data_info_elem, elem);
+			cJSON_AddStringToObject(elem, "topic", vn[i][j]->topic);
+			zfree(vn[i][j]->topic);
+			cJSON_AddNumberToObject(elem, "cld_cnt", vn[i][j]->cld_cnt);
+			cJSON *clients = cJSON_CreateStringArray((const char *const *) vn[i][j]->clients, cvector_size(vn[i][j]->clients));
+			cvector_free(vn[i][j]->clients);
+			cJSON_AddItemToObject(elem, "client_id", clients);
+		}
+		cvector_free(vn[i]);
+	}
+	cvector_free(vn);
 	char *dest = cJSON_PrintUnformatted(res_obj);
 
 	put_http_msg(
