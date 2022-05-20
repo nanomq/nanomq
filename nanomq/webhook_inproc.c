@@ -21,13 +21,8 @@
 #include "nng/protocol/pipeline0/push.h"
 #include "nng/supplemental/http/http.h"
 #include "nng/supplemental/util/platform.h"
-#include <stdatomic.h>
 
 #define NANO_LMQ_INIT_CAP 16
-static atomic_ulong inproc_recv_count = 0;
-static atomic_ulong inproc_send_count = 0;
-static atomic_ulong inproc_save_count = 0;
-static atomic_ulong inproc_aio_count  = 0;
 
 // The server keeps a list of work items, sorted by expiration time,
 // so that we can use this to set the timeout to the correct value for
@@ -104,7 +99,6 @@ send_msg(conf_web_hook *conf, nng_msg *msg)
 	nng_http_req_set_method(req, "POST");
 	nng_http_req_set_data(req, nng_msg_body(msg), nng_msg_len(msg));
 	nng_http_conn_write_req(conn, req, aio);
-	inproc_send_count++;
 	nng_aio_set_timeout(aio, 1000);
 	// TODO It could cause some problems.
 	nng_aio_wait(aio);
@@ -183,7 +177,6 @@ webhook_cb(void *arg)
 		if ((rv = nng_aio_result(work->aio)) != 0) {
 			fatal(work->id, "nng_recv_aio", rv);
 		}
-		inproc_recv_count++;
 		work->msg = nng_aio_get_msg(work->aio);
 		nng_mtx_lock(work->mtx);
 		if (nano_lmq_full(&work->lmq)) {
@@ -265,12 +258,7 @@ webhook_thr(void *arg)
 	}
 
 	for (;;) {
-		// inproc_recv_count;
-		debug_msg("recv count: %lu send count %lu save %lu aio %lu\n",
-		    inproc_recv_count, inproc_send_count, inproc_save_count,
-		    inproc_aio_count);
-		nng_msleep(1000);
-		// nng_msleep(3600000); // neither pause() nor sleep() portable
+		nng_msleep(3600000); // neither pause() nor sleep() portable
 	}
 }
 

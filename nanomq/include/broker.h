@@ -8,7 +8,6 @@
 #include <nng/protocol/mqtt/mqtt.h>
 #include <nng/supplemental/util/platform.h>
 #include <nng/mqtt/packet.h>
-#include <stdatomic.h>
 
 #define PROTO_MQTT_BROKER 0x00
 #define PROTO_MQTT_BRIDGE 0x01
@@ -55,7 +54,7 @@ struct work {
 struct client_ctx {
 	nng_pipe pid;
 #ifdef STATISTICS
-	atomic_uint recv_cnt;
+	nng_atomic_u64 *recv_cnt;
 #endif
 	conn_param *             cparam;
 	struct packet_subscribe *sub_pkt;
