@@ -173,6 +173,81 @@ topic_queue_free(char **topic_queue)
 	}
 }
 
+void ***
+dbtree_get_tree(dbtree *db, void *(*cb)(void *ctxt))
+{
+	if (db == NULL) {
+		return NULL;
+	}
+
+	pthread_rwlock_wrlock(&(db->rwlock));
+
+	dbtree_node *node = db->root;
+	dbtree_node **nodes = NULL;
+	dbtree_node **nodes_t = NULL;
+	dbtree_info ***ret = NULL;
+
+	cvector_push_back(nodes, node);
+	while (!cvector_empty(nodes)) {
+		dbtree_info **ret_line_ping = NULL;
+		for (int i = 0; i < cvector_size(nodes); i++) {
+		dbtree_info *vn = zmalloc(sizeof(dbtree_info));
+			vn->clients = NULL;
+			if (cb) {
+				for (int j = 0; j < cvector_size(nodes[i]->clients); j++) {
+					void *val = cb(nodes[i]->clients[j]->ctxt);
+					if (val) {
+						cvector_push_back(vn->clients, val);
+					}
+				}
+
+			}
+	
+			cvector_push_back(ret_line_ping, vn);
+
+			vn->topic = zstrdup(nodes[i]->topic);
+			vn->cld_cnt = cvector_size(nodes[i]->child);
+			for (int j = 0; j < vn->cld_cnt; j++) {
+				cvector_push_back(
+				    nodes_t, (nodes[i]->child)[j]);
+			}
+		}
+		cvector_push_back(ret, ret_line_ping);
+		cvector_free(nodes);
+		nodes = NULL;
+
+		dbtree_info **ret_line_pang = NULL;
+		for (int i = 0; i < cvector_size(nodes_t); i++) {
+			dbtree_info *vn = zmalloc(sizeof(dbtree_info));
+			vn->clients = NULL;
+			if (cb) {
+				for (int j = 0; j < cvector_size(nodes_t[i]->clients); j++) {
+					void *val = cb(nodes_t[i]->clients[j]->ctxt);
+					if (val) {
+						cvector_push_back(vn->clients, val);
+					}
+				}
+
+			}
+
+			cvector_push_back(ret_line_pang, vn);
+
+			vn->topic = zstrdup(nodes_t[i]->topic);
+			vn->cld_cnt = cvector_size(nodes_t[i]->child);
+			for (int j = 0; j < vn->cld_cnt; j++) {
+				cvector_push_back(
+				    nodes, (nodes_t[i]->child)[j]);
+			}
+		}
+		cvector_push_back(ret, ret_line_pang);
+		cvector_free(nodes_t);
+		nodes_t = NULL;
+	}
+	pthread_rwlock_unlock(&(db->rwlock));
+	return (void***) ret;
+}
+
+
 /**
  * @brief dbtree_print - Print dbtree for debug.
  * @param dbtree - dbtree

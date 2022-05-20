@@ -18,7 +18,6 @@ typedef struct {
 	void      *ctx;
 } dbtree_ctxt;
 
-
 typedef struct {
 	uint32_t       session_id;
 	uint32_t       pipe_id;
@@ -44,6 +43,12 @@ struct dbtree_node {
 	cvector(dbtree_node *) child;
 	pthread_rwlock_t rwlock;
 };
+
+typedef struct {
+	char  *topic;
+	char **clients;
+	int    cld_cnt;
+} dbtree_info;
 
 typedef struct {
 	dbtree_node     *root;
@@ -238,5 +243,6 @@ dbtree_ctxt *dbtree_new_ctxt(void *ctx);
 
 void dbtree_clone_ctxt(dbtree_ctxt *ctxt);
 
+void ***dbtree_get_tree(dbtree *db, void *(*cb)(void *ctxt));
 
 #endif
