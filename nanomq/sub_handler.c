@@ -228,6 +228,7 @@ sub_ctx_handle(nano_work *work)
 	dbtree_retain_msg **r            = NULL;
 
 	client_ctx * old_ctx    = NULL;
+	dbtree_ctxt * db_ctxt 	= NULL;
 
 	if (work->sub_pkt->packet_id == 0) {
 		return PROTOCOL_ERROR;
@@ -253,13 +254,12 @@ sub_ctx_handle(nano_work *work)
 	tq = dbhash_get_topic_queue(cli_ctx->pid.id);
 
 	if (tq) {
-		old_ctx = dbtree_find_client(
+		db_ctxt = dbtree_find_client(
 		    work->db, tq->topic, cli_ctx->pid.id);
 	}
 
-	if (old_ctx) {
-		dbtree_insert_client(
-		    work->db, tq->topic, old_ctx, cli_ctx->pid.id, old_ctx->proto_ver);
+	if (db_ctxt) {
+		old_ctx = db_ctxt->ctx;
 	}
 
 	if (!tq || !old_ctx) { /* the real ctx stored in tree */
@@ -330,6 +330,13 @@ sub_ctx_handle(nano_work *work)
 		cvector_free(r);
 
 		tn = tn->next;
+	}
+
+	if (db_ctxt) {
+		client_ctx *ctx = dbtree_delete_ctxt(work->db, db_ctxt);
+		if (ctx) {
+			destroy_sub_client(ctx->pid.id, work->db, ctx);
+		}
 	}
 
 #ifdef DEBUG
@@ -544,6 +551,7 @@ destroy_sub_client(uint32_t pid, dbtree * db, void *ctx)
 		// Call by Disconnect event
 		db_ctxt = dbtree_find_client(db, tq->topic, pid);
 		// Ref > 1, So let puber to delete
+		dbtree_delete_ctxt(db, db_ctxt);
 		if ((ctx2 = dbtree_delete_ctxt(db, db_ctxt)) == NULL)
 			return;
 	}
