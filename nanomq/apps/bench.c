@@ -5,20 +5,21 @@
 #include <nng/supplemental/util/options.h>
 #include <nng/supplemental/util/platform.h>
 #include <stdarg.h>
-#include <stdatomic.h>
 
 #ifndef PARALLEL
 #define PARALLEL 8
 #endif
 
-static atomic_int acnt          = 0;
-static atomic_int topic_cnt     = 0;
-static atomic_int recv_cnt      = 0;
-static atomic_int last_recv_cnt = 0;
-static atomic_int send_cnt      = 0;
-static atomic_int send_limit    = 0;
-static atomic_int last_send_cnt = 0;
-static atomic_int index_cnt     = 0;
+typedef struct {
+	nng_atomic_int *acnt;
+	nng_atomic_int *topic_cnt;
+	nng_atomic_int *recv_cnt;
+	nng_atomic_int *last_recv_cnt;
+	nng_atomic_int *send_cnt;
+	nng_atomic_int *send_limit;
+	nng_atomic_int *last_send_cnt;
+	nng_atomic_int *index_cnt;
+} bench_statistics;
 
 typedef enum { INIT, RECV, WAIT, SEND } nnb_state_flag_t;
 
@@ -39,6 +40,21 @@ struct work {
 static nnb_opt_flag_t opt_flag = CONN;
 static nnb_sub_opt *  sub_opt  = NULL;
 static nnb_pub_opt *  pub_opt  = NULL;
+
+static bench_statistics statistics;
+
+static void
+bench_count_init(bench_statistics *bs)
+{
+	nng_atomic_alloc(&bs->acnt);
+	nng_atomic_alloc(&bs->topic_cnt);
+	nng_atomic_alloc(&bs->recv_cnt);
+	nng_atomic_alloc(&bs->last_recv_cnt);
+	nng_atomic_alloc(&bs->send_cnt);
+	nng_atomic_alloc(&bs->send_limit);
+	nng_atomic_alloc(&bs->last_send_cnt);
+	nng_atomic_alloc(&bs->index_cnt);
+}
 
 static void
 fatal(const char *msg, ...)
@@ -119,7 +135,9 @@ nnb_opt_get_topic(char *opt_topic, char *opt_username, nng_msg *msg)
 		topic       = (char *) nng_alloc(sizeof(char) * size);
 		char *t     = (char *) nng_alloc(sizeof(char) * len);
 		snprintf(t, len, "%s", opt_topic);
-		snprintf(topic, size, "%s%d", t, topic_cnt++);
+		snprintf(topic, size, "%s%d", t,
+		    nng_atomic_get(statistics.topic_cnt));
+		nng_atomic_inc(statistics.topic_cnt);
 		nng_free(t, len);
 	} else {
 		return opt_topic;
@@ -137,7 +155,7 @@ sub_cb(void *arg)
 	switch (work->state) {
 	case INIT:
 		// subscribe to topics
-		if (index_cnt == 0) {
+		if (nng_atomic_get(statistics.index_cnt) == 0) {
 			nng_mqtt_msg_alloc(&msg, 0);
 			nng_mqtt_msg_set_packet_type(msg, NNG_MQTT_SUBSCRIBE);
 			char *topic = nnb_opt_get_topic(
@@ -174,7 +192,7 @@ sub_cb(void *arg)
 		if ((rv = nng_aio_result(work->aio)) != 0) {
 			nng_fatal("nng_recv_aio", rv);
 		}
-		++recv_cnt;
+		nng_atomic_inc(statistics.recv_cnt);
 		msg         = nng_aio_get_msg(work->aio);
 		work->state = RECV;
 		nng_ctx_recv(work->ctx, work->aio);
@@ -191,8 +209,9 @@ pub_cb(void *arg)
 
 	switch (work->state) {
 	case INIT:
-
-		if (++send_cnt > send_limit) {
+		nng_atomic_inc(statistics.send_cnt);
+		if (nng_atomic_get(statistics.send_cnt) >
+		    nng_atomic_get(statistics.send_limit)) {
 			break;
 		}
 		// nng_mqtt_msg_alloc(&work->msg, 0);
@@ -246,8 +265,9 @@ pub_cb(void *arg)
 			nng_msg_free(work->msg);
 			nng_fatal("nng_send_aio", rv);
 		}
-
-		if (++send_cnt > send_limit) {
+		nng_atomic_inc(statistics.send_cnt);
+		if (nng_atomic_get(statistics.send_cnt) >
+		    nng_atomic_get(statistics.send_limit)) {
 			break;
 		}
 		nng_msg_dup(&msg, work->msg);
@@ -284,14 +304,17 @@ connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {
 	switch (opt_flag) {
 	case SUB:;
-		printf("connected: %d. Topics: [\"%s\"]\n", ++acnt,
-		    sub_opt->topic);
+		nng_atomic_inc(statistics.acnt);
+		printf("connected: %d. Topics: [\"%s\"]\n",
+		    nng_atomic_get(statistics.acnt), sub_opt->topic);
 		break;
 	case PUB:
-		printf("connected: %d.\n", ++acnt);
+		nng_atomic_inc(statistics.acnt);
+		printf("connected: %d.\n", nng_atomic_get(statistics.acnt));
 		break;
 	case CONN:
-		printf("connected: %d.\n", ++acnt);
+		nng_atomic_inc(statistics.acnt);
+		printf("connected: %d.\n", nng_atomic_get(statistics.acnt));
 		break;
 	}
 }
@@ -424,7 +447,7 @@ nnb_subscribe(nnb_sub_opt *opt)
 
 	// printf("dialer start after\n");
 	for (i = 0; i < PARALLEL; i++) {
-		index_cnt = i;
+		nng_atomic_set(statistics.index_cnt, i);
 		sub_cb(works[i]);
 	}
 
@@ -512,13 +535,13 @@ bench_start(int argc, char **argv)
 		bench_dflt(argc, argv);
 		exit(EXIT_FAILURE);
 	}
-
+	bench_count_init(&statistics);
 	if (!strcmp(argv[0], "pub")) {
 		nnb_pub_opt *opt = nnb_pub_opt_init(argc, argv);
 		if (0 == opt->limit) {
-			send_limit = INT_MAX;
+			nng_atomic_set(statistics.send_limit, INT_MAX);
 		} else {
-			send_limit = opt->limit;
+			nng_atomic_set(statistics.send_limit, opt->limit);
 		}
 		for (int i = 0; i < opt->count; i++) {
 			nnb_publish(opt);
@@ -547,9 +570,10 @@ bench_start(int argc, char **argv)
 		nng_msleep(1000); // neither pause() nor sleep() portable
 		switch (opt_flag) {
 		case SUB:;
-			int c         = recv_cnt;
-			int l         = last_recv_cnt;
-			last_recv_cnt = c;
+			int c = nng_atomic_get(statistics.recv_cnt);
+			int l =
+			    nng_atomic_get(statistics.last_recv_cnt);
+			nng_atomic_set(statistics.last_recv_cnt, c);
 			if (c != l) {
 				printf("recv: total=%d, "
 				       "rate=%d(msg/sec)\n",
@@ -557,9 +581,9 @@ bench_start(int argc, char **argv)
 			}
 			break;
 		case PUB:;
-			c             = send_cnt;
-			l             = last_send_cnt;
-			last_send_cnt = c;
+			c = nng_atomic_get(statistics.send_cnt);
+			l = nng_atomic_get(statistics.last_send_cnt);
+			nng_atomic_set(statistics.last_send_cnt, c);
 			if (c != l) {
 				printf("sent: total=%d, "
 				       "rate=%d(msg/sec)\n",

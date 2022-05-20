@@ -20,15 +20,49 @@
 #include "include/pub_handler.h"
 #include "include/sub_handler.h"
 #include "nng/protocol/mqtt/mqtt_parser.h"
+#include "nng/supplemental/util/platform.h"
 #include "cJSON.h"
 
 #define ENABLE_RETAIN 1
 #define SUPPORT_MQTT5_0 1
 
 #ifdef STATISTICS
-static atomic_ullong g_message_in   = 0;
-static atomic_ullong g_message_out  = 0;
-static atomic_ullong g_message_drop = 0;
+typedef struct {
+	bool initialed;
+	nng_atomic_u64 *msg_in;
+	nng_atomic_u64 *msg_out;
+	nng_atomic_u64 *msg_drop;
+} msg_statistics;
+
+static msg_statistics g_msg = { .initialed = false };
+
+static void
+msg_statistics_init(msg_statistics *m)
+{
+	nng_atomic_alloc64(&m->msg_in);
+	nng_atomic_alloc64(&m->msg_out);
+	nng_atomic_alloc64(&m->msg_drop);
+	m->initialed = true;
+}
+
+uint64_t
+nanomq_get_message_in()
+{
+	return g_msg.initialed ? nng_atomic_get64(g_msg.msg_in) : 0;
+}
+
+uint64_t
+nanomq_get_message_out()
+{
+	return g_msg.initialed ? nng_atomic_get64(g_msg.msg_out) : 0;
+}
+
+uint64_t
+nanomq_get_message_drop()
+{
+	return g_msg.initialed ? nng_atomic_get64(g_msg.msg_drop) : 0;
+}
+
 #endif
 
 static char *bytes_to_str(const unsigned char *src, char *dest, int src_len);
@@ -72,8 +106,8 @@ foreach_client(
 		ctx = (struct client_ctx *) db_ctxt->ctx;
 
 #ifdef STATISTICS
-		ctx->recv_cnt++;
-		g_message_out++;
+		nng_atomic_inc64(ctx->recv_cnt);
+		nng_atomic_inc64(g_msg.msg_out);
 #endif
 		pids = ctx->pid.id;
 		tn   = ctx->sub_pkt->node;
@@ -296,7 +330,10 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto)
 
 
 #ifdef STATISTICS
-	g_message_in++;
+	if (!g_msg.initialed) {
+		msg_statistics_init(&g_msg);
+	}
+	nng_atomic_inc64(g_msg.msg_in);
 #endif
 
 	work->pub_packet = (struct pub_packet_struct *) nng_zalloc(
@@ -359,10 +396,9 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto)
 	shared_cli_list = dbtree_find_shared_sub_clients(
 	    work->db, topic);
 
-
 #ifdef STATISTICS
 	if (cli_ctx_list == NULL && shared_cli_list == NULL) {
-		g_message_drop++;
+		nng_atomic_inc64(g_msg.msg_drop);
 	}
 #endif
 
@@ -829,22 +865,3 @@ check_msg_exp(nng_msg *msg, property *prop)
 	return true;
 }
 
-#ifdef STATISTICS
-uint64_t
-nanomq_get_message_in()
-{
-	return g_message_in;
-}
-
-uint64_t
-nanomq_get_message_out()
-{
-	return g_message_out;
-}
-
-uint64_t
-nanomq_get_message_drop()
-{
-	return g_message_drop;
-}
-#endif
