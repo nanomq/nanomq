@@ -28,17 +28,6 @@ static atomic_ulong inproc_recv_count = 0;
 static atomic_ulong inproc_send_count = 0;
 static atomic_ulong inproc_save_count = 0;
 static atomic_ulong inproc_aio_count  = 0;
-typedef struct {
-	enum { CONNECTING, SENDING, SENT } state;
-	nng_http_client *client;
-	nng_http_conn *  conn;
-	nng_url *        url;
-	nng_aio *        aio;
-	nng_http_req *   req;
-	nng_http_res *   res;
-	nng_mtx *        mtx;
-	nano_lmq         lmq;
-} webhook_client;
 
 // The server keeps a list of work items, sorted by expiration time,
 // so that we can use this to set the timeout to the correct value for
@@ -59,6 +48,7 @@ struct hook_work {
 static void webhook_cb(void *arg);
 
 static nng_thread *inproc_thr;
+
 static void
 fatal(uint32_t id, const char *func, int rv)
 {
@@ -94,7 +84,7 @@ send_msg(conf_web_hook *conf, nng_msg *msg)
 	// TODO It could cause some problems.
 	nng_aio_wait(aio);
 	if ((rv = nng_aio_result(aio)) != 0) {
-		debug_msg("Connect failed: %s\n", nng_strerror(rv));
+		debug_msg("Connect failed: %s", nng_strerror(rv));
 		nng_aio_finish_sync(aio, rv);
 		goto out;
 	}
@@ -120,7 +110,7 @@ send_msg(conf_web_hook *conf, nng_msg *msg)
 	nng_aio_wait(aio);
 
 	if ((rv = nng_aio_result(aio)) != 0) {
-		debug_msg("Write req failed: %s\n", nng_strerror(rv));
+		debug_msg("Write req failed: %s", nng_strerror(rv));
 		nng_aio_finish_sync(aio, rv);
 		goto out;
 	}
@@ -173,7 +163,7 @@ thread_cb(void *arg)
 					nng_mtx_unlock(w->mtx);
 				}
 			}
-			nng_msleep(100);
+			nng_msleep(10);
 		}
 	}
 }
