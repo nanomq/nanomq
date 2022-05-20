@@ -9,6 +9,7 @@
 #include <nng.h>
 #include <nng/mqtt/packet.h>
 #include "nng/protocol/mqtt/mqtt_parser.h"
+#include "nng/supplemental/util/platform.h"
 
 #include "include/broker.h"
 #include "include/nanomq.h"
@@ -274,7 +275,7 @@ sub_ctx_handle(nano_work *work)
 		old_ctx->sub_pkt->node = NULL;
 		old_ctx->cparam        = NULL;
 #ifdef STATISTICS
-		old_ctx->recv_cnt      = 0;
+		nng_atomic_alloc64(&old_ctx->recv_cnt);
 #endif
 	}
 	/* Swap pid, capram, proto_ver in ctxs */

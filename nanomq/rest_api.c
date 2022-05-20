@@ -576,7 +576,9 @@ get_clients(cJSON *data, http_msg *msg, uint64_t sequence)
 		    conn_param_get_protover(ctxt->cparam);
 
 #ifdef STATISTICS
-		uint32_t recv_cnt = ctxt->recv_cnt;
+		uint64_t recv_cnt = ctxt->recv_cnt != NULL
+		    ? nng_atomic_get64(ctxt->recv_cnt)
+		    : 0;
 #endif
 
 		cJSON *data_info_elem;
