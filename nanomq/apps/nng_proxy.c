@@ -53,11 +53,11 @@ struct nng_proxy_opts {
 	enum nng_proto   type;
 	bool             verbose;
 	size_t           parallel;
-	atomic_ulong     msg_count;	// caculate how many msg has been conveyed
+	nng_atomic_u64 * msg_count; // caculate how many msg has been conveyed
 	size_t           interval;
 	uint8_t          version;
-	char            *nng_url;
-        char            *mqtt_url;
+	char *           nng_url;
+	char *           mqtt_url;
 	size_t           clients;
 	struct topic *   topic;
 	size_t           topic_count;
@@ -200,7 +200,7 @@ struct work {
 	nng_proxy_opts *nng_opts;
 };
 
-static atomic_bool exit_signal = false;
+static nng_atomic_bool *exit_signal;
 
 static void
 fatal(const char *msg, ...)
@@ -526,7 +526,7 @@ nng_client_parse_opts(int argc, char **argv, nng_proxy_opts *nng_opts)
 static void
 set_default_conf(nng_proxy_opts *nng_opts)
 {
-	nng_opts->msg_count     = 0;
+	nng_atomic_alloc64(&nng_opts->msg_count);
 	nng_opts->interval      = 10;
 	nng_opts->qos           = 0;
 	nng_opts->retain        = false;
@@ -1076,6 +1076,7 @@ nng_proxy_start(int argc, char **argv)
 		help(0);
 		return 0;
 	}
+	nng_atomic_alloc_bool(&exit_signal);
 	if (strncmp(argv[0], "sub0", 3) == 0)
 		nng_proxy_client(argc-1, argv+1, SUB0);
 	else if (strncmp(argv[0], "pub0", 3) == 0)
