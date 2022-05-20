@@ -433,15 +433,30 @@ get_subscriptions(cJSON *data, http_msg *msg, uint64_t sequence)
 	dbhash_ptpair_t **pt   = dbhash_get_ptpair_all();
 	size_t            size = cvector_size(pt);
 	for (size_t i = 0; i < size; i++) {
-		client_ctx *ctxt = (client_ctx *) dbtree_find_client(
+
+		dbtree_ctxt *db_ctxt = (dbtree_ctxt *) dbtree_find_client(
 		    db, pt[i]->topic, pt[i]->pipe);
+		
+		if (db_ctxt == NULL) {
+			continue;
+		}
+		client_ctx *ctxt =  db_ctxt->ctx;
 
 		cJSON *data_info_elem;
 		data_info_elem = cJSON_CreateObject();
 		cJSON_AddItemToArray(data_info, data_info_elem);
-		const uint8_t *cid = conn_param_get_clientid(ctxt->cparam);
-		cJSON_AddStringToObject(
-		    data_info_elem, "client_id", (char *) cid);
+		if (ctxt->cparam) {
+			const uint8_t *cid = conn_param_get_clientid(ctxt->cparam);
+			if (cid) {
+				cJSON_AddStringToObject(
+				    data_info_elem, "client_id", (char *) cid);
+			} else {
+				cJSON_AddStringToObject(
+				    data_info_elem, "client_id", "");
+			}
+
+		}
+
 		cJSON *topics = cJSON_CreateArray();
 		cJSON_AddItemToObject(data_info_elem, "subscriptions", topics);
 
@@ -456,6 +471,9 @@ get_subscriptions(cJSON *data, http_msg *msg, uint64_t sequence)
 			tn = tn->next;
 		}
 
+		if ((ctxt = dbtree_delete_ctxt(db, db_ctxt))) {
+			destroy_sub_client(ctxt->pid.id, db, ctxt);
+		}
 		dbhash_ptpair_free(pt[i]);
 	}
 	cvector_free(pt);
@@ -483,8 +501,12 @@ get_clients(cJSON *data, http_msg *msg, uint64_t sequence)
 	dbhash_ptpair_t **pt   = dbhash_get_ptpair_all();
 	size_t            size = cvector_size(pt);
 	for (size_t i = 0; i < size; i++) {
-		client_ctx *ctxt = (client_ctx *) dbtree_find_client(
+		dbtree_ctxt *db_ctxt = (dbtree_ctxt *) dbtree_find_client(
 		    db, pt[i]->topic, pt[i]->pipe);
+		if (db_ctxt == NULL) {
+			continue;
+		}
+		client_ctx *ctxt =  db_ctxt->ctx;
 		const uint8_t *cid = conn_param_get_clientid(ctxt->cparam);
 		const uint8_t *user_name =
 		    conn_param_get_username(ctxt->cparam);
@@ -515,6 +537,9 @@ get_clients(cJSON *data, http_msg *msg, uint64_t sequence)
 		topic_node *tn = ctxt->sub_pkt->node;
 
 		dbhash_ptpair_free(pt[i]);
+		if ((ctxt = dbtree_delete_ctxt(db, db_ctxt))) {
+			destroy_sub_client(ctxt->pid.id, db, ctxt);
+		}
 	}
 	cvector_free(pt);
 
