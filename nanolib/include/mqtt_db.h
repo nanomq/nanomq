@@ -3,7 +3,6 @@
 
 #include "cvector.h"
 #include <pthread.h>
-#include <stdatomic.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
@@ -14,8 +13,8 @@ typedef enum {
 } mqtt_version_t;
 
 typedef struct {
-	atomic_int ref;
-	void      *ctx;
+	int   ref;
+	void *ctx;
 } dbtree_ctxt;
 
 typedef struct {

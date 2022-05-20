@@ -21,8 +21,7 @@
 #define ROUND_ROBIN
 // #define RANDOM
 
-static atomic_int acnt = 0;
-
+static int acnt = 0;
 
 dbtree_ctxt *
 dbtree_new_ctxt(void *ctx)
