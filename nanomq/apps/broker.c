@@ -119,7 +119,7 @@ static nng_optspec cmd_opts[] = {
 	    .o_val   = OPT_QOS_DURATION,
 	    .o_arg   = true },
 	{ .o_name = "url", .o_val = OPT_URL, .o_arg = true },
-	{ .o_name = "http", .o_val = OPT_HTTP_ENABLE, .o_arg = true },
+	{ .o_name = "http", .o_val = OPT_HTTP_ENABLE },
 	{ .o_name    = "port",
 	    .o_short = 'p',
 	    .o_val   = OPT_HTTP_PORT,
