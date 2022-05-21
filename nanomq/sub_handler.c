@@ -359,12 +359,6 @@ cli_ctx_merge(client_ctx *ctx_new, client_ctx *ctx)
 		return;
 	}
 
-#if SUPPORT_MQTT5_0
-	if (ctx_new->sub_pkt->prop_len > 0) {
-		ctx->sub_pkt->properties = ctx_new->sub_pkt->properties;
-	}
-#endif
-
 #ifdef DEBUG /* Remove after testing */
 	debug_msg("stored ctx:");
 	node = ctx->sub_pkt->node;
