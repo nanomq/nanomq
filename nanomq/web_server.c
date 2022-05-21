@@ -9,7 +9,7 @@
 //
 
 #define INPROC_URL "inproc://rest"
-#define REST_URL "http://0.0.0.0:%u/api/v1"
+#define REST_URL "http://0.0.0.0:%u/api/v4"
 
 #include "nng/nng.h"
 #include "nng/protocol/reqrep0/rep.h"
@@ -281,6 +281,10 @@ rest_start(uint16_t port)
 		fatal("nng_http_handler_alloc", rv);
 	}
 
+	if ((rv = nng_http_handler_set_tree(handler)) != 0) {
+		fatal("nng_http_handler_set_tree", rv);
+	}
+
 	if ((rv = nng_http_handler_set_method(handler, NULL)) != 0) {
 		fatal("nng_http_handler_set_method", rv);
 	}
@@ -323,14 +327,6 @@ rest_start(uint16_t port)
 	nng_url_free(url);
 }
 
-//
-// inproc_server - this just is a simple REP server that listens for
-// messages, and performs ROT13 on them before sending them.  This
-// doesn't have to be in the same process -- it is hear for demonstration
-// simplicity only.  (Most likely this would be somewhere else.)  Note
-// especially that this uses inproc, so nothing can get to it directly
-// from outside the process.
-//
 void
 inproc_server(void *arg)
 {
