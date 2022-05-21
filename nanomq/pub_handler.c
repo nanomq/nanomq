@@ -400,12 +400,14 @@ handle_pub_retain(const nano_work *work, char *topic)
 			retain->qos = work->pub_packet->fixed_header.qos;
 			nng_msg_clone(work->msg);
 
-			property *prop;
+			property *prop = NULL;
 			retain->message = work->msg;
 			retain->exist   = true;
 			retain->m       = NULL;
 			// reserve property info
-			if (work->proto_ver == PROTOCOL_VERSION_v5) {
+			if (work->proto_ver == PROTOCOL_VERSION_v5 &&
+			    work->pub_packet->var_header.publish.properties !=
+			        NULL) {
 				property_dup(&prop,
 				    work->pub_packet->var_header.publish
 				        .properties);
