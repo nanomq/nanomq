@@ -135,6 +135,7 @@ struct conf_http_server {
 	uint16_t port;
 	char *   username;
 	char *   password;
+	size_t   parallel;
 	enum { BASIC, JWT, NONE_AUTH } auth_type;
 	conf_jwt jwt;
 };
