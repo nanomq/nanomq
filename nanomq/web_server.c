@@ -9,7 +9,7 @@
 //
 
 #define INPROC_URL "inproc://rest"
-#define REST_URL "http://0.0.0.0:%u/api/v4"
+#define REST_URL "http://0.0.0.0:%u/api/v1"
 
 #include "nng/nng.h"
 #include "nng/protocol/reqrep0/rep.h"
@@ -43,6 +43,14 @@ typedef struct rest_job {
 	struct rest_job *next;     // next on the freelist
 } rest_job;
 
+struct rest_work {
+	enum { SRV_INIT, SRV_RECV, SRV_WAIT, SRV_SEND } state;
+	nng_aio *         aio;
+	nng_msg *         msg;
+	nng_ctx           ctx;
+	conf_http_server *conf;
+};
+
 static nng_socket        req_sock;
 static nng_mtx *         job_lock;
 static rest_job *        job_freelist;
@@ -52,7 +60,9 @@ static FILE *            logfile;
 static conf_http_server *http_server_conf;
 static conf *            global_config;
 
-static void rest_job_cb(void *arg);
+static struct rest_work *alloc_work(nng_socket sock, conf_http_server *conf);
+static void              inproc_cb(void *arg);
+static void              rest_job_cb(void *arg);
 
 static void
 rest_recycle_job(rest_job *job)
@@ -330,43 +340,99 @@ rest_start(uint16_t port)
 void
 inproc_server(void *arg)
 {
-	nng_socket s;
-	int        rv;
-	nng_msg *  msg;
+	conf_http_server *rest_conf = arg;
+	nng_socket        sock;
+	struct rest_work *works[rest_conf->parallel];
 
-	if (((rv = nng_rep0_open(&s)) != 0) ||
-	    ((rv = nng_listen(s, INPROC_URL, NULL, 0)) != 0)) {
-		fatal("unable to set up inproc", rv);
+	int rv;
+	if (rv = nng_rep0_open(&sock)) {
+		fatal("nng_rep0_open", rv);
 	}
-	// This is simple enough that we don't need concurrency.  Plus it
-	// makes for an easier demo.
+
+	for (size_t i = 0; i < rest_conf->parallel; i++) {
+		works[i] = alloc_work(sock, rest_conf);
+	}
+
+	if ((rv = nng_listen(sock, INPROC_URL, NULL, 0)) != 0) {
+		fatal("nng_listen", rv);
+	}
+
+	for (size_t i = 0; i < rest_conf->parallel; i++) {
+		inproc_cb(works[i]);
+	}
+
 	for (;;) {
-		if ((rv = nng_recvmsg(s, &msg, 0)) != 0) {
-			fatal("inproc recvmsg", rv);
+		nng_msleep(3600000); // neither pause() nor sleep() portable
+	}
+}
+
+static void
+inproc_cb(void *arg)
+{
+	struct rest_work *work = arg;
+	nng_msg *         msg;
+	int               rv;
+
+	switch (work->state) {
+	case SRV_INIT:
+		work->state = SRV_RECV;
+		nng_ctx_recv(work->ctx, work->aio);
+		break;
+
+	case SRV_RECV:
+		if ((rv = nng_aio_result(work->aio)) != 0) {
+			fatal("nng_ctx_recv", rv);
 		}
 
-		http_msg *recv_msg = (http_msg *) nng_msg_body(msg);
-		debug_msg("content-type: %.*s",
-		    (int) recv_msg->content_type_len, recv_msg->content_type);
-		debug_msg("method: %.*s", (int) recv_msg->method_len,
-		    recv_msg->method);
-		debug_msg(
-		    "data: %.*s", (int) recv_msg->data_len, recv_msg->data);
-
-		http_msg res = process_request(recv_msg);
+		msg               = nng_aio_get_msg(work->aio);
+		http_msg *http_ct = (http_msg *) nng_msg_body(msg);
+		http_msg  res     = process_request(http_ct, work->conf);
 
 		// response to client
-		nng_msg *send_msg;
-		nng_msg_alloc(&send_msg, sizeof(http_msg));
-
-		memcpy(nng_msg_body(send_msg), &res, sizeof(http_msg));
-		destory_http_msg(recv_msg);
+		nng_msg_alloc(&work->msg, sizeof(http_msg));
+		memcpy(nng_msg_body(work->msg), &res, sizeof(http_msg));
+		destory_http_msg(http_ct);
 		nng_msg_free(msg);
 
-		if ((rv = nng_sendmsg(s, send_msg, 0)) != 0) {
-			fatal("inproc sendmsg", rv);
+		nng_aio_set_msg(work->aio, work->msg);
+		work->msg   = NULL;
+		work->state = SRV_SEND;
+		nng_ctx_send(work->ctx, work->aio);
+		break;
+
+	case SRV_SEND:
+		if ((rv = nng_aio_result(work->aio)) != 0) {
+			nng_msg_free(work->msg);
+			fatal("nng_ctx_send", rv);
 		}
+		work->state = SRV_RECV;
+		nng_ctx_recv(work->ctx, work->aio);
+		break;
+
+	default:
+		fatal("bad state!", NNG_ESTATE);
+		break;
 	}
+}
+
+static struct rest_work *
+alloc_work(nng_socket sock, conf_http_server *conf)
+{
+	struct rest_work *w;
+	int               rv;
+
+	if ((w = nng_alloc(sizeof(*w))) == NULL) {
+		fatal("nng_alloc", NNG_ENOMEM);
+	}
+	if ((rv = nng_aio_alloc(&w->aio, inproc_cb, w)) != 0) {
+		fatal("nng_aio_alloc", rv);
+	}
+	if ((rv = nng_ctx_open(&w->ctx, sock)) != 0) {
+		fatal("nng_ctx_open", rv);
+	}
+	w->conf  = conf;
+	w->state = SRV_INIT;
+	return (w);
 }
 
 // static void
@@ -424,7 +490,7 @@ start_rest_server(conf *conf)
 	// 	log_set_quiet(true);
 	// 	log_add_fp(logfile, LOG_DEBUG);
 	// #endif
-	rv = nng_thread_create(&inproc_thr, inproc_server, NULL);
+	rv = nng_thread_create(&inproc_thr, inproc_server, &conf->http_server);
 	if (rv != 0) {
 		fatal("cannot start inproc server", rv);
 	}

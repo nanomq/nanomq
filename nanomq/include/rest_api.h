@@ -57,7 +57,7 @@ extern void     put_http_msg(http_msg *msg, const char *content_type,
         const char *method, const char *uri, const char *token, const char *data,
         size_t data_sz);
 extern void     destory_http_msg(http_msg *msg);
-extern http_msg process_request(http_msg *msg);
+extern http_msg process_request(http_msg *msg, conf_http_server *config);
 
 #define GET_METHOD "GET"
 #define POST_METHOD "POST"

@@ -266,7 +266,7 @@ basic_authorize(http_msg *msg)
 }
 
 http_msg
-process_request(http_msg *msg)
+process_request(http_msg *msg, conf_http_server *config)
 {
 	http_msg         ret      = { 0 };
 	uint16_t         status   = NNG_HTTP_STATUS_OK;
@@ -274,8 +274,6 @@ process_request(http_msg *msg)
 	uint64_t         sequence = 0UL;
 
 	cJSON *req;
-
-	conf_http_server *config = get_http_server_conf();
 
 	char *data = nng_alloc(sizeof(char) * (msg->data_len + 1));
 	memcpy(data, msg->data, msg->data_len);
