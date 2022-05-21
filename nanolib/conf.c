@@ -307,6 +307,10 @@ conf_parser(conf *nanomq_conf)
 			config->http_server.port = atoi(value);
 			free(value);
 		} else if ((value = get_conf_value(
+		                line, sz, "http_server.parallel")) != NULL) {
+			config->http_server.parallel = atol(value);
+			free(value);
+		} else if ((value = get_conf_value(
 		                line, sz, "http_server.username")) != NULL) {
 			FREE_NONULL(config->http_server.username);
 			config->http_server.username = value;
@@ -498,6 +502,7 @@ conf_init(conf *nanomq_conf)
 
 	nanomq_conf->http_server.enable              = false;
 	nanomq_conf->http_server.port                = 8081;
+	nanomq_conf->http_server.parallel            = 32;
 	nanomq_conf->http_server.username            = NULL;
 	nanomq_conf->http_server.password            = NULL;
 	nanomq_conf->http_server.auth_type           = BASIC;
@@ -561,6 +566,8 @@ print_conf(conf *nanomq_conf)
 	    nanomq_conf->http_server.enable ? "true" : "false");
 	debug_msg(
 	    "http server port:         %d", nanomq_conf->http_server.port);
+	debug_msg(
+	    "http server parallel:     %d", nanomq_conf->http_server.parallel);
 	debug_msg("enable tls:               %s",
 	    nanomq_conf->tls.enable ? "true" : "false");
 	if (nanomq_conf->tls.enable) {
