@@ -31,6 +31,8 @@ jobs:
         sudo apt install -y g++-riscv64-linux-gnu gcc-riscv64-linux-gnu
         sudo apt install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
         sudo apt install -y gcc-arm-linux-gnueabi g++-arm-linux-gnueabi
+        sudo sed -i 's/Version: ${VERSION}-${RELEASE}/Version: ${VERSION}/g' $(which checkinstall)
+        sudo sed -i 's/-${RELEASE}_${ARCHITECTURE}/_${ARCHITECTURE}/g' $(which checkinstall)
     - uses: actions/checkout@v1
     - run: git submodule update --init --recursive
     - name: build nanomq
@@ -47,7 +49,7 @@ jobs:
         mkdir -p _packages
         sudo checkinstall --backup=no --install=no --type=debian --arch=${{ matrix.arch[0] }}  --pkgname=nanomq --pkgversion=$(git describe --abbrev=0 --tags) --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
         pkg_name="nanomq-$(git describe --abbrev=0 --tags)-linux-${{ matrix.arch[0] }}.deb"
-        sudo mv _packages/nanomq_$(git describe --abbrev=0 --tags)-1_${{ matrix.arch[0] }}.deb _packages/$pkg_name
+        sudo mv _packages/nanomq_$(git describe --abbrev=0 --tags)_${{ matrix.arch[0] }}.deb _packages/$pkg_name
         cd _packages; echo $(sha256sum $pkg_name | awk '{print $1}') > $pkg_name.sha256
     - name: build rpm
       shell: bash
