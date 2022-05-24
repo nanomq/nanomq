@@ -25,22 +25,32 @@ jobs:
     - name: install lib
       run: |
         sudo apt update
-        sudo apt install -y cmake ninja-build rpm checkinstall
         sudo apt install -y g++-aarch64-linux-gnu gcc-aarch64-linux-gnu
         sudo apt install -y g++-mips-linux-gnu gcc-mips-linux-gnu
         sudo apt install -y g++-riscv64-linux-gnu gcc-riscv64-linux-gnu
         sudo apt install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
         sudo apt install -y gcc-arm-linux-gnueabi g++-arm-linux-gnueabi
+        sudo apt install -y cmake ninja-build rpm checkinstall
         sudo sed -i 's/Version: ${VERSION}-${RELEASE}/Version: ${VERSION}/g' $(which checkinstall)
         sudo sed -i 's/-${RELEASE}_${ARCHITECTURE}/_${ARCHITECTURE}/g' $(which checkinstall)
+        sudo apt install -y pip
+        pip install Jinja2
+
     - uses: actions/checkout@v1
     - run: git submodule update --init --recursive
-    - name: build nanomq
+    - name: build
       run: |
         set -eu
+        git clone https://github.com/Mbed-TLS/mbedtls.git && cd mbedtls
+        mkdir build && cd build
+        cmake -DCMAKE_C_COMPILER=${{ matrix.arch[1] }} -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }} .. 
+        cmake --build .
+        sudo make install
+        cd ../..
+
         mkdir -p build
         cd build
-        cmake -DCMAKE_C_COMPILER=${{ matrix.arch[1] }} -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }} ..
+        cmake -DCMAKE_C_COMPILER=${{ matrix.arch[1] }} -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }} -DNNG_ENABLE_TLS=ON ..
         make
     - name: build deb
       run: |
