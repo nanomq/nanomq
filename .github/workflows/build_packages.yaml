@@ -20,6 +20,7 @@ jobs:
         - [riscv64, riscv64-linux-gnu-gcc, riscv64-linux-gnu-g++]
         - [armhf, arm-linux-gnueabihf-gcc, arm-linux-gnueabihf-g++]
         - [armel, arm-linux-gnueabi-gcc, arm-linux-gnueabi-g++]
+      fail-fast: false
 
     steps:
     - name: install lib
