@@ -388,7 +388,7 @@ conn_opt_set(int argc, char **argv, nnb_conn_opt *opt)
 			               "clean")) {
 				if (!strcmp(optarg, "true")) {
 					opt->clean = true;
-				} else if (!strcmp(optarg, "true")) {
+				} else if (!strcmp(optarg, "false")) {
 					opt->clean = false;
 				} else {
 					fprintf(
@@ -428,7 +428,7 @@ conn_opt_set(int argc, char **argv, nnb_conn_opt *opt)
 		case 'C':
 			if (!strcmp(optarg, "true")) {
 				opt->clean = true;
-			} else if (!strcmp(optarg, "true")) {
+			} else if (!strcmp(optarg, "false")) {
 				opt->clean = false;
 			} else {
 				fprintf(stderr, "Usage: %s\n", conn_info);
@@ -521,7 +521,7 @@ pub_opt_set(int argc, char **argv, nnb_pub_opt *opt)
 			               "clean")) {
 				if (!strcmp(optarg, "true")) {
 					opt->clean = true;
-				} else if (!strcmp(optarg, "true")) {
+				} else if (!strcmp(optarg, "false")) {
 					opt->clean = false;
 				} else {
 					fprintf(
@@ -654,7 +654,7 @@ pub_opt_set(int argc, char **argv, nnb_pub_opt *opt)
 		case 'C':
 			if (!strcmp(optarg, "true")) {
 				opt->clean = true;
-			} else if (!strcmp(optarg, "true")) {
+			} else if (!strcmp(optarg, "false")) {
 				opt->clean = false;
 			} else {
 				fprintf(stderr, "Usage: %s\n", pub_info);
@@ -759,7 +759,7 @@ sub_opt_set(int argc, char **argv, nnb_sub_opt *opt)
 			               "clean")) {
 				if (!strcmp(optarg, "true")) {
 					opt->clean = true;
-				} else if (!strcmp(optarg, "true")) {
+				} else if (!strcmp(optarg, "false")) {
 					opt->clean = false;
 				} else {
 					fprintf(
@@ -854,7 +854,7 @@ sub_opt_set(int argc, char **argv, nnb_sub_opt *opt)
 		case 'C':
 			if (!strcmp(optarg, "true")) {
 				opt->clean = true;
-			} else if (!strcmp(optarg, "true")) {
+			} else if (!strcmp(optarg, "false")) {
 				opt->clean = false;
 			} else {
 				fprintf(stderr, "Usage: %s\n", sub_info);
