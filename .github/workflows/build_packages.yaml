@@ -80,14 +80,13 @@ jobs:
       run: |
         set -eu
         cd build
-        rm -rf ../build/*
+        rm -rf `ls | grep -v _packages`
         cmake -DCMAKE_C_COMPILER=${{ matrix.arch[1] }} -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }} -DNNG_ENABLE_TLS=ON -DNNG_ENABLE_SQLITE=ON ..
         make
     - name: build deb with sqlite
       run: |
         set -eu
         cd build
-        mkdir -p _packages
         sudo checkinstall --backup=no --install=no --type=debian --arch=${{ matrix.arch[0] }}  --pkgname=nanomq --pkgversion=$(git describe --abbrev=0 --tags) --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
         pkg_name="nanomq-$(git describe --abbrev=0 --tags)-linux-${{ matrix.arch[0] }}-sqlite.deb"
         sudo mv _packages/nanomq_$(git describe --abbrev=0 --tags)_${{ matrix.arch[0] }}.deb _packages/$pkg_name
@@ -97,7 +96,6 @@ jobs:
       run: |
         set -eu
         cd build
-        mkdir -p _packages
         sudo checkinstall --backup=no --install=no --type=rpm --arch=${{ matrix.arch[0] }} --pkgname=nanomq --pkgversion=$(git describe --abbrev=0 --tags) --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
         pkg_name="nanomq-$(git describe --abbrev=0 --tags)-linux-${{ matrix.arch[0] }}-sqlite.rpm"
         sudo mv _packages/nanomq-$(git describe --abbrev=0 --tags)-1.${{ matrix.arch[0] }}.rpm _packages/$pkg_name
