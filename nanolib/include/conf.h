@@ -213,6 +213,7 @@ typedef enum {
 typedef struct {
 	bool		flag[8];
 	const char 	*topic; 	
+	char 		*as[8];
 	char 		**filter;
 } rule_engine_info;
 
