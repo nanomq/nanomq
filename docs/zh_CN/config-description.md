@@ -4,12 +4,14 @@
 
 NanoMQ 的配置文件通常以 .conf 作为后缀名，你可以在 etc 目录找到这些配置文件，主要配置文件包括：
 
-| 配置文件                      | 说明                   |
-| ----------------------------- | ---------------------- |
-| etc/nanomq.conf               | NanoMQ 配置文件        |
-| etc/nanomq_bridge.conf        | NanoMQ桥接配置文件     |
-| etc/nanomq_auth_username.conf | NanoMQ用户密码配置文件 |
-| etc/nanomq_web_hook.conf      | NanoMQ WebHook配置文件 |
+| 配置文件                      | 说明                    |
+| ----------------------------- | ----------------------- |
+| etc/nanomq.conf               | NanoMQ 配置文件         |
+| etc/nanomq_bridge.conf        | NanoMQ MQTT桥接配置文件 |
+| etc/nanomq_auth_username.conf | NanoMQ用户密码配置文件  |
+| etc/nanomq_web_hook.conf      | NanoMQ WebHook配置文件  |
+| etc/nanomq_gateway.conf       | NanoMQ 网关配置文件     |
+| etc/nanomq_auth_http.conf     | NanoMQ HTTP认证配置文件 |
 
 ## 参数说明
 
@@ -108,3 +110,26 @@ NanoMQ 的配置文件通常以 .conf 作为后缀名，你可以在 etc 目录�
 | gateway.zmq.pub.address           | String  | 远端的 ZMQ 服务发布地址。                                         |
 | gateway.zmq.sub_prefix            | String  | 远端的 ZMQ 服务订阅前缀。                                         |
 | gateway.zmq.pub_prefix            | String  | 远端的 ZMQ 服务发布前缀。                                         |
+
+### nanomq_auth_http.conf
+
+| 参数名                              | 数据类型 | 参数说明                                                     | 默认                                                         |
+| ----------------------------------- | -------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| auth.http.enable                    | Boolean  | 启动HTTP认证                                                 | `false`                                                      |
+| auth.http.auth_req.url              | String   | 认证请求的目标 URL。                                         | `http://127.0.0.1:80/mqtt/auth`                              |
+| auth.http.auth_req.method           | Enum     | 认证请求的请求方法。<br>(`POST`  , `GET`)                    | `POST`                                                       |
+| auth.http.auth_req.headers.\<Any\>  | String   | 指定 HTTP 请求头部中的数据。`<Key>` 指定 HTTP 请求头部中的字段名，此配置项的值为相应的字段值。`<Key>` 可以是标准的 HTTP 请求头部字段，也可以自定义的字段，可以配置多个不同的请求头部字段。<br> | `auth.http.auth_req.headers.content-type = application/x-www-form-urlencoded` <br/>`auth.http.auth_req.headers.accept = */*` |
+| auth.http.auth_req.params           | String   | 指定认证请求中携带的数据。<br>以 `,` 分隔的 `k=v` 键值对，`v` 可以是固定内容，也可以是占位符。<br> 使用 **GET** 方法时 `auth.http.auth_req.params` 的值将被转换为以 `&` 分隔的 `k=v` 键值对以查询字符串参数的形式发送。<br>使用 **POST** 方法时 `auth.http.auth_req.params` 的值将被转换为以 `&` 分隔的 `k=v` 键值对以 Request Body 的形式发送。所有的占位符都会被运行时数据所替换，可用的占位符如下：<br>`%u: 用户名`<br>`%c: MQTT Client ID`<br>`%a: 客户端的网络 IP 地址`<br>`%r: 客户端使用的协议，可以是：mqtt, mqtt-sn, coap, lwm2m 以及 stomp`<br>`%P: 密码`<br>`%p: 客户端连接的服务端端口`<br>`%C: 客户端证书中的 Common Name`<br>`%d: 客户端证书中的 Subject` | `clientid=%c,username=%u,password=%P`                        |
+| auth.http.super_req.url             | String   | 指定超级用户认证请求的目标 URL。                             | `http://127.0.0.1:80/mqtt/superuser`                         |
+| auth.http.super_req.method          | String   | 指定超级用户认证请求的请求方法。<br>(`POST`  , `GET`)        | `POST`                                                       |
+| auth.http.super_req.headers.\<Any\> | String   | 指定 HTTP 请求头部中的数据。`<Key>` 指定 HTTP 请求头部中的字段名，此配置项的值为相应的字段值。`<Key>` 可以是标准的 HTTP 请求头部字段，也可以自定义的字段，可以配置多个不同的请求头部字段。 | `auth.http.super_req.headers.content-type = application/x-www-form-urlencoded`<br/>`auth.http.super_req.headers.accept = */*` |
+| auth.http.super_req.params          | String   | 指定超级用户认证请求中携带的数据。<br>使用 **GET** 方法时 `auth.http.super_req.params` 的值将被转换为以 `&` 分隔的 `k=v` 键值对以查询字符串参数的形式发送。<br>使用 **POST** 方法时 `auth.http.super_req.params` 的值将被转换为以 `&` 分隔的 `k=v` 键值对以 Request Body 的形式发送。所有的占位符都会被运行时数据所替换，可用的占位符同 `auth.http.auth_req.params`。 | `clientid=%c,username=%u`                                    |
+| auth.http.acl_req.url               | String   | 指定 ACL 验证请求的目标 URL。                                | `http://127.0.0.1:8991/mqtt/acl`                             |
+| auth.http.acl_req.method            | String   | 指定 ACL 验证请求的请求方法。(`POST`  , `GET`)               | `POST`                                                       |
+| auth.http.acl_req.headers.\<Any\>   | String   | 指定 HTTP 请求头部中的数据。`<Key>` 指定 HTTP 请求头部中的字段名，此配置项的值为相应的字段值。`<Key>` 可以是标准的 HTTP 请求头部字段，也可以自定义的字段，可以配置多个不同的请求头部字段。 | `auth.http.super_req.headers.content-type = application/x-www-form-urlencoded`<br/>`auth.http.super_req.headers.accept = */*` |
+| auth.http.acl_req.params            | String   | 指定 ACL 验证请求中携带的数据。以 `,` 分隔的 `k=v` 键值对，`v` 可以是固定内容，也可以是占位符。<br/> 使用 **GET** 方法时 `auth.http.acl_req.params` 的值将被转换为以 `&` 分隔的 `k=v` 键值对以查询字符串参数的形式发送。<br/>使用 **POST** 方法时 `auth.http.acl_req.params` 的值将被转换为以 `&` 分隔的 `k=v` 键值对以 Request Body 的形式发送。所有的占位符都会被运行时数据所替换，可用的占位符如下：<br/>`%A: 需要验证的权限，1 表示订阅，2 表示发布`<br>`%u: 用户名`<br/>`%c: MQTT Client ID`<br/>`%a: 客户端的网络 IP 地址`<br/>`%r: 客户端使用的协议，可以是：mqtt, mqtt-sn, coap, lwm2m 以及 stomp`<br/>`%m: 挂载点`<br>`%t: 主题` | `access=%A,username=%u,clientid=%c,ipaddr=%a,topic=%t,mountpoint=%m` |
+| auth.http.timeout                   | Integer  | HTTP 请求超时时间。任何等价于 `0s` 的设定值都表示永不超时。  | `5s`                                                         |
+| auth.http.connect_timeout           | Integer  | HTTP 请求的连接超时时间。任何等价于 `0s` 的设定值都表示永不超时。 | `5s`                                                         |
+| auth.http.ssl.cacertfile            | String   | CA 证书文件路径。                                            | `etc/certs/ca.pem`                                           |
+| auth.http.ssl.certfile              | String   | 客户端证书文件路径。                                         | `etc/certs/client-cert.pem`                                  |
+| auth.http.ssl.keyfile               | String   | 客户端私钥文件路径。                                         | `etc/certs/client.key.pem`                                   |
