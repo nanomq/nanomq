@@ -17,6 +17,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define REST_URI_ROOT "/api/v4"
+#define REST_HOST "http://0.0.0.0:%u"
+#define REST_URL REST_HOST REST_URI_ROOT
+
 enum result_code {
 	SUCCEED                        = 0,
 	RPC_ERROR                      = 101,

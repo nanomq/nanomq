@@ -13,10 +13,12 @@
 #include "include/broker.h"
 #include "include/nanomq.h"
 #include "include/sub_handler.h"
+#include "include/version.h"
 
 #include "file.h"
 #include "nng/nng.h"
 #include "nng/supplemental/http/http.h"
+#include "nng/supplemental/util/platform.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -27,18 +29,61 @@
 #include "l8w8jwt/encode.h"
 #endif
 
-static http_msg error_response(
-    http_msg *msg, uint16_t status, enum result_code code, uint64_t sequence);
+typedef struct {
+	char *key;
+	char *value;
+} kv;
 
-static http_msg get_endpoints(cJSON *data, http_msg *msg, uint64_t sequence);
-static http_msg get_broker(cJSON *data, http_msg *msg, uint64_t sequence);
-static http_msg get_subscriptions(
-    cJSON *data, http_msg *msg, uint64_t sequence);
-static http_msg get_clients(cJSON *data, http_msg *msg, uint64_t sequence);
-static http_msg post_ctrl(cJSON *data, http_msg *msg, uint64_t sequence);
-static http_msg post_config(cJSON *data, http_msg *msg, uint64_t sequence);
-static http_msg get_config(cJSON *data, http_msg *msg, uint64_t sequence);
-static http_msg get_tree(cJSON *data, http_msg *msg, uint64_t sequence);
+typedef struct {
+	char *node;
+	bool  end;
+} tree;
+
+struct uri_content {
+	size_t sub_count;
+	tree **sub_tree;
+	size_t params_count;
+	kv **  params;
+};
+
+typedef struct uri_content uri_content;
+
+typedef struct {
+	const char *path;
+	const char *name;
+	const char *method;
+	const char *descr;
+} endpoints;
+
+static endpoints api_ep[] = {
+
+	{
+	    .path   = "/brokers/",
+	    .name   = "list_brokers",
+	    .method = "GET",
+	    .descr  = "A list of brokers in the cluster",
+	},
+	{
+	    .path   = "/nodes/",
+	    .name   = "list_nodes",
+	    .method = "GET",
+	    .descr  = "A list of nodes in the cluster",
+	}
+};
+
+static tree **      uri_parse_tree(const char *path, size_t *count);
+static void         uri_tree_free(uri_content *ct);
+static kv **        uri_param_parse(const char *path, size_t *count);
+static void         uri_param_free(uri_content *ct);
+static uri_content *uri_parse(const char *uri);
+static void         uri_free(uri_content *ct);
+
+static http_msg error_response(
+    http_msg *msg, uint16_t status, enum result_code code);
+
+static http_msg get_endpoints(http_msg *msg);
+static http_msg get_brokers(http_msg *msg);
+static http_msg get_nodes(http_msg *msg);
 
 static void update_main_conf(cJSON *json, conf *config);
 static void update_bridge_conf(cJSON *json, conf *config);
@@ -76,22 +121,188 @@ static void update_bridge_conf(cJSON *json, conf *config);
 		}                                           \
 	}
 
-typedef struct {
-	int request;
-	http_msg (*handler)(cJSON *, http_msg *, uint64_t);
-} request_handler;
+static void
+get_time_str(char *str, size_t str_len)
+{
+	if (str == NULL) {
+		return;
+	}
+	time_t t;
+	time(&t);
+	struct tm *tmp_time = localtime(&t);
+	strftime(str, str_len, "%04Y-%02m-%02d %H:%M:%S", tmp_time);
+}
 
-request_handler request_handlers[] = {
-	// clang-format off
-	{ REQ_BROKERS, get_broker },
-	{ REQ_SUBSCRIPTIONS, get_subscriptions }, 
-	{ REQ_CLIENTS, get_clients },
-	{ REQ_CTRL, post_ctrl },
-	{ REQ_GET_CONFIG, get_config },
-	{ REQ_SET_CONFIG, post_config },
-	{ REQ_TREE, get_tree }
-	// clang-format on
-};
+static tree **
+uri_parse_tree(const char *path, size_t *count)
+{
+	char *ret = NULL;
+	char *str = strstr(path, REST_URI_ROOT);
+
+	size_t num  = 0;
+	tree **root = NULL;
+	int    len  = 0;
+
+	if (str) {
+		str += strlen(REST_URI_ROOT);
+		while (NULL != (ret = strchr(str, '/'))) {
+			num++;
+			root      = realloc(root, sizeof(tree *) * num);
+			len       = ret - str + 1;
+			tree *sub = nng_zalloc(sizeof(tree));
+			sub->node = nng_zalloc(len);
+			strncpy(sub->node, str, len - 1);
+			sub->end      = false;
+			root[num - 1] = sub;
+			str           = ret + 1;
+		}
+		if (num > 0) {
+			if (strlen(str) > 0) {
+				num++;
+				root = realloc(root, sizeof(char *) * num);
+				tree *sub     = nng_zalloc(sizeof(tree));
+				sub->node     = nng_strdup(str);
+				sub->end      = true;
+				root[num - 1] = sub;
+			} else {
+				tree *sub = root[num - 1];
+				sub->end  = true;
+			}
+		}
+	}
+
+	*count = num;
+	return root;
+}
+
+static void
+uri_tree_free(uri_content *ct)
+{
+	if (ct->sub_count > 0) {
+		tree **node = ct->sub_tree;
+		for (size_t i = 0; i < ct->sub_count; i++) {
+			tree *sub = node[i];
+			nng_strfree(sub->node);
+			nng_free(sub, sizeof(tree));
+		}
+		nng_free(node, ct->sub_count * sizeof(tree *));
+		ct->sub_count = 0;
+	}
+}
+
+static kv **
+uri_param_parse(const char *path, size_t *count)
+{
+	char *ret = NULL;
+	char *str = (char *) path;
+
+	size_t num    = 0;
+	char **kv_str = NULL;
+	int    len    = 0;
+
+	while (NULL != (ret = strchr(str, '&'))) {
+		num++;
+		kv_str          = realloc(kv_str, sizeof(char *) * num);
+		len             = ret - str + 1;
+		kv_str[num - 1] = nng_zalloc(len);
+		memcpy(kv_str[num - 1], str, len - 1);
+		str = ret + 1;
+	}
+	if (num > 0) {
+		num++;
+		kv_str          = realloc(kv_str, sizeof(char *) * num);
+		kv_str[num - 1] = nng_strdup(str);
+	} else {
+		return NULL;
+	}
+
+	kv **  params      = calloc(num, sizeof(kv *));
+	size_t param_count = 0;
+
+	for (size_t i = 0; i < num; i++) {
+		char *key   = nng_zalloc(strlen(kv_str[i]));
+		char *value = nng_zalloc(strlen(kv_str[i]));
+		if (2 == sscanf(kv_str[i], "%[^=]=%s", key, value)) {
+			params[i]        = nng_zalloc(sizeof(kv));
+			params[i]->key   = key;
+			params[i]->value = value;
+			param_count++;
+		} else {
+			if (key) {
+				free(key);
+			}
+			if (value) {
+				free(value);
+			}
+		}
+		free(kv_str[i]);
+		kv_str[i] = NULL;
+	}
+
+	*count = param_count;
+	return params;
+}
+
+static void
+uri_param_free(uri_content *ct)
+{
+	if (ct->params_count > 0) {
+		kv **params = ct->params;
+		for (size_t i = 0; i < ct->params_count; i++) {
+			nng_strfree(params[i]->key);
+			nng_strfree(params[i]->value);
+			nng_free(params[i], sizeof(kv));
+		}
+		nng_free(params, ct->params_count * sizeof(kv *));
+		ct->params_count = 0;
+	}
+}
+
+static uri_content *
+uri_parse(const char *uri)
+{
+	uri_content *uri_ct  = nng_zalloc(sizeof(uri_content));
+	uri_ct->params_count = 0;
+	uri_ct->params       = NULL;
+	char *path           = NULL;
+	char *param          = NULL;
+	int   len            = 0;
+
+	if (strcmp(uri, REST_URI_ROOT) == 0 ||
+	    strcmp(uri, REST_URI_ROOT "/") == 0) {
+		return uri_ct;
+	}
+
+	char *p = strchr(uri, '?');
+	if (p) {
+		// Have parameters
+		param = p + 1;
+		if (strlen(param) >= 3) {
+			uri_ct->params =
+			    uri_param_parse(param, &uri_ct->params_count);
+		}
+		len  = p - uri + 1;
+		path = nng_zalloc(len);
+		memcpy(path, uri, len - 1);
+	} else {
+		path = nng_strdup(uri);
+	}
+
+	uri_ct->sub_tree = uri_parse_tree(path, &uri_ct->sub_count);
+	nng_strfree(path);
+	return uri_ct;
+}
+
+static void
+uri_free(uri_content *ct)
+{
+	if (ct) {
+		uri_tree_free(ct);
+		uri_param_free(ct);
+		nng_free(ct, sizeof(uri_content));
+		ct = NULL;
+	}
+}
 
 void
 put_http_msg(http_msg *msg, const char *content_type, const char *method,
@@ -268,32 +479,10 @@ basic_authorize(http_msg *msg)
 http_msg
 process_request(http_msg *msg, conf_http_server *config)
 {
-	http_msg         ret      = { 0 };
-	uint16_t         status   = NNG_HTTP_STATUS_OK;
-	enum result_code code     = SUCCEED;
-	uint64_t         sequence = 0UL;
-
-	cJSON *req;
-
-	char *data = nng_alloc(sizeof(char) * (msg->data_len + 1));
-	memcpy(data, msg->data, msg->data_len);
-	data[msg->data_len] = '\0';
-
-	cJSON *object = cJSON_Parse(data);
-	nng_free(data, msg->data_len + 1);
-
-	if (!cJSON_IsObject(object)) {
-		status = NNG_HTTP_STATUS_BAD_REQUEST;
-		code   = REQ_PARAMS_JSON_FORMAT_ILLEGAL;
-		goto exit;
-	}
-
-	req          = cJSON_GetObjectItem(object, "req");
-	msg->request = (int) cJSON_GetNumberValue(req);
-
-	cJSON *seq = cJSON_GetObjectItem(object, "seq");
-	sequence   = (uint64_t) cJSON_GetNumberValue(seq);
-
+	http_msg         ret    = { 0 };
+	uint16_t         status = NNG_HTTP_STATUS_OK;
+	enum result_code code   = SUCCEED;
+	uri_content *    uri_ct = NULL;
 	switch (config->auth_type) {
 	case BASIC:
 		if ((code = basic_authorize(msg)) != SUCCEED) {
@@ -312,37 +501,56 @@ process_request(http_msg *msg, conf_http_server *config)
 		break;
 	}
 
-	bool found = false;
+	uri_ct = uri_parse(msg->uri);
+	if (strcasecmp(msg->method, "GET") == 0) {
+		if (uri_ct->sub_count == 0) {
 
-	for (size_t i = 0;
-	     i < sizeof(request_handlers) / sizeof(request_handlers[0]); i++) {
-		if (request_handlers[i].request == msg->request) {
-			debug_msg(
-			    "found handler: %d", request_handlers[i].request);
-			ret =
-			    request_handlers[i].handler(object, msg, sequence);
-			found = true;
-			break;
+			ret = get_endpoints(msg);
+
+		} else if (uri_ct->sub_count == 2 &&
+		    uri_ct->sub_tree[1]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "brokers") == 0) {
+
+			ret = get_brokers(msg);
+
+		} else if (uri_ct->sub_count == 2 &&
+		    uri_ct->sub_tree[1]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "nodes") == 0) {
+
+			ret = get_nodes(msg);
+
+		} else if (uri_ct->sub_count == 2 &&
+		    uri_ct->sub_tree[1]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "clients") == 0) {
+
+		} else if (uri_ct->sub_count == 3 &&
+		    uri_ct->sub_tree[2]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "clients") == 0) {
+
 		}
+
+		else {
+			status = NNG_HTTP_STATUS_NOT_FOUND;
+			code   = UNKNOWN_MISTAKE;
+			goto exit;
+		}
+	} else if (strcasecmp(msg->method, "POST") == 0) {
+
+	} else {
+
 	}
 
-	if (found) {
-		cJSON_Delete(object);
-		return ret;
-	} else {
-		status = NNG_HTTP_STATUS_NOT_FOUND;
-		code   = REQ_PARAM_ERROR;
-	}
+	uri_free(uri_ct);
+	return ret;
 
 exit:
-	cJSON_Delete(object);
-	ret = error_response(msg, status, code, sequence);
+	uri_free(uri_ct);
+	ret = error_response(msg, status, code);
 	return ret;
 }
 
 static http_msg
-error_response(
-    http_msg *msg, uint16_t status, enum result_code code, uint64_t sequence)
+error_response(http_msg *msg, uint16_t status, enum result_code code)
 {
 	http_msg ret = { 0 };
 
@@ -352,13 +560,6 @@ error_response(
 	res_obj = cJSON_CreateObject();
 	cJSON_AddNumberToObject(res_obj, "code", code);
 
-	uint64_t seq = sequence ? sequence : 0UL;
-
-	cJSON_AddNumberToObject(res_obj, "seq", (uint64_t) sequence);
-
-	if (msg->request > 0) {
-		cJSON_AddNumberToObject(res_obj, "rep", msg->request);
-	}
 	char *dest = cJSON_PrintUnformatted(res_obj);
 
 	put_http_msg(
@@ -371,256 +572,365 @@ error_response(
 }
 
 static http_msg
-get_endpoints(cJSON *data, http_msg *msg, uint64_t sequence)
+get_endpoints(http_msg *msg)
 {
 	http_msg res = { 0 };
 	res.status   = NNG_HTTP_STATUS_OK;
 
-	res.data     = strdup(__FUNCTION__);
-	res.data_len = strlen(__FUNCTION__);
-	// TODO not impelement yet
+	cJSON *res_obj = cJSON_CreateObject();
+	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+
+	cJSON *array = cJSON_CreateArray();
+
+	size_t ep_count = sizeof(api_ep) / sizeof(api_ep[0]);
+
+	for (size_t i = 0; i < ep_count; i++) {
+		cJSON *item = cJSON_CreateObject();
+		cJSON_AddStringToObject(item, "path", api_ep[i].path);
+		cJSON_AddStringToObject(item, "name", api_ep[i].name);
+		cJSON_AddStringToObject(item, "method", api_ep[i].method);
+		cJSON_AddStringToObject(item, "descr", api_ep[i].descr);
+		cJSON_AddItemToArray(array, item);
+	}
+	cJSON_AddItemToObject(res_obj, "data", array);
+
+	char *json = cJSON_PrintUnformatted(res_obj);
+	put_http_msg(
+	    &res, "application/json", NULL, NULL, NULL, json, strlen(json));
+	cJSON_free(json);
+	cJSON_Delete(res_obj);
+
+	return res;
+}
+
+static void
+get_uptime(char *str, size_t str_len)
+{
+	nng_time uptime = nng_clock() - get_boot_time();
+	nng_time hours  = uptime / 1000 / 3600;
+	nng_time mins   = uptime / 1000 / 60 % 60;
+	nng_time secs   = uptime / 1000 % 60;
+
+	snprintf(str, str_len, "%ld Hours, %ld minutes, %ld seconds", hours,
+	    mins, secs);
+}
+
+static void
+get_version(char *str, size_t str_len)
+{
+	snprintf(str, str_len, "%d.%d.%d-%s", FW_EV_VER_MAJOR, FW_EV_VER_MINOR,
+	    FW_EV_VER_PATCH, FW_EV_VER_ID_SHORT);
+}
+
+static http_msg
+get_brokers(http_msg *msg)
+{
+	http_msg res     = { .status = NNG_HTTP_STATUS_OK };
+	cJSON *  res_obj = cJSON_CreateObject();
+
+	char time_str[100] = { 0 };
+	get_time_str(time_str, 100);
+
+	char runtime[100] = { 0 };
+	get_uptime(runtime, 100);
+
+	char version[100] = { 0 };
+	get_version(version, 100);
+
+	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+
+	cJSON *array = cJSON_CreateArray();
+	cJSON *item  = cJSON_CreateObject();
+	cJSON_AddStringToObject(item, "datetime", time_str);
+	cJSON_AddStringToObject(item, "node_status", "Running");
+	cJSON_AddStringToObject(item, "sysdescr", "NanoMQ Broker");
+	cJSON_AddStringToObject(item, "uptime", runtime);
+	cJSON_AddStringToObject(item, "version", version);
+	cJSON_AddItemToArray(array, item);
+	cJSON_AddItemToObject(res_obj, "data", array);
+
+	char *json = cJSON_PrintUnformatted(res_obj);
+	put_http_msg(
+	    &res, "application/json", NULL, NULL, NULL, json, strlen(json));
+	cJSON_free(json);
+	cJSON_Delete(res_obj);
+
 	return res;
 }
 
 static http_msg
-get_broker(cJSON *data, http_msg *msg, uint64_t sequence)
+get_nodes(http_msg *msg)
 {
-	http_msg res     = { 0 };
-	res.status       = NNG_HTTP_STATUS_OK;
-	cJSON *res_obj   = NULL;
-	cJSON *data_info = NULL;
-	res_obj          = cJSON_CreateObject();
-	data_info        = cJSON_CreateObject();
+	http_msg res     = { .status = NNG_HTTP_STATUS_OK };
+
+	char runtime[100] = { 0 };
+	get_uptime(runtime, 100);
+
+	char version[100] = { 0 };
+	get_version(version, 100);
+
+	cJSON *  res_obj = cJSON_CreateObject();
 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
-	cJSON_AddNumberToObject(res_obj, "seq", (uint64_t) sequence);
-	cJSON_AddNumberToObject(res_obj, "rep", msg->request);
-	cJSON_AddItemToObject(res_obj, "data", data_info);
+	cJSON *array = cJSON_CreateArray();
+	cJSON *item  = cJSON_CreateObject();
 
-	size_t   client_size = dbhash_get_pipe_cnt();
-	uint64_t msg_in      = nanomq_get_message_in();
-	uint64_t msg_out     = nanomq_get_message_out();
-	uint64_t msg_drop    = nanomq_get_message_drop();
-	cJSON_AddNumberToObject(data_info, "client_size", client_size);
-	cJSON_AddNumberToObject(data_info, "message_in", msg_in);
-	cJSON_AddNumberToObject(data_info, "message_out", msg_out);
-	cJSON_AddNumberToObject(data_info, "message_drop", msg_drop);
-	char *dest = cJSON_PrintUnformatted(res_obj);
+	cJSON_AddNumberToObject(item, "connections", dbhash_get_pipe_cnt());
+	cJSON_AddStringToObject(item, "node_status", "Running");
+	cJSON_AddStringToObject(item, "uptime", runtime);
+	cJSON_AddStringToObject(item, "version", version);
 
+	cJSON_AddItemToArray(array, item);
+	cJSON_AddItemToObject(res_obj, "data", array);
+
+	char *json = cJSON_PrintUnformatted(res_obj);
 	put_http_msg(
-	    &res, msg->content_type, NULL, NULL, NULL, dest, strlen(dest));
-
-	cJSON_free(dest);
+	    &res, "application/json", NULL, NULL, NULL, json, strlen(json));
+	cJSON_free(json);
 	cJSON_Delete(res_obj);
 	return res;
-}
-static void *get_client_info_cb(void *ctxt)
-{
-	if (NULL == ctxt) {
-		return NULL;
-	}
 
-	dbtree_ctxt *dctxt =  (dbtree_ctxt *) ctxt;
-	client_ctx *cctxt = dctxt->ctx;
-	if (NULL == cctxt) {
-		return NULL;
-	}
-
-	conn_param *cp = cctxt->cparam;
-	return (void* )conn_param_get_clientid(cp);
 }
 
-static http_msg
-get_tree(cJSON *data, http_msg *msg, uint64_t sequence)
-{
-	http_msg res     = { 0 };
-	res.status       = NNG_HTTP_STATUS_OK;
-	cJSON *res_obj   = NULL;
-	cJSON *data_info = NULL;
-	res_obj          = cJSON_CreateObject();
-	data_info        = cJSON_CreateArray();
-	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
-	cJSON_AddNumberToObject(res_obj, "seq", (uint64_t) sequence);
-	cJSON_AddNumberToObject(res_obj, "rep", msg->request);
-	cJSON_AddItemToObject(res_obj, "data", data_info);
+// static http_msg
+// get_broker(http_msg *msg)
+// {
+// 	http_msg res     = { 0 };
+// 	res.status       = NNG_HTTP_STATUS_OK;
+// 	cJSON *res_obj   = NULL;
+// 	cJSON *data_info = NULL;
+// 	res_obj          = cJSON_CreateObject();
+// 	data_info        = cJSON_CreateObject();
+// 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+// 	cJSON_AddNumberToObject(res_obj, "rep", msg->request);
+// 	cJSON_AddItemToObject(res_obj, "data", data_info);
 
-	dbtree *          db   = get_broker_db();
-	dbtree_info ***vn = (dbtree_info ***) dbtree_get_tree(db, get_client_info_cb);
+// 	size_t   client_size = dbhash_get_pipe_cnt();
+// 	uint64_t msg_in      = nanomq_get_message_in();
+// 	uint64_t msg_out     = nanomq_get_message_out();
+// 	uint64_t msg_drop    = nanomq_get_message_drop();
+// 	cJSON_AddNumberToObject(data_info, "client_size", client_size);
+// 	cJSON_AddNumberToObject(data_info, "message_in", msg_in);
+// 	cJSON_AddNumberToObject(data_info, "message_out", msg_out);
+// 	cJSON_AddNumberToObject(data_info, "message_drop", msg_drop);
+// 	char *dest = cJSON_PrintUnformatted(res_obj);
 
+// 	put_http_msg(
+// 	    &res, msg->content_type, NULL, NULL, NULL, dest, strlen(dest));
 
-	for (int i = 0; i < cvector_size(vn); i++) {
-		cJSON *data_info_elem = cJSON_CreateArray();
-		cJSON_AddItemToArray(data_info, data_info_elem);
-		for (int j = 0; j < cvector_size(vn[i]); j++)  {
-			cJSON *elem = cJSON_CreateObject();
-			cJSON_AddItemToArray(data_info_elem, elem);
-			cJSON_AddStringToObject(elem, "topic", vn[i][j]->topic);
-			zfree(vn[i][j]->topic);
-			cJSON_AddNumberToObject(elem, "cld_cnt", vn[i][j]->cld_cnt);
-			cJSON *clients = cJSON_CreateStringArray((const char *const *) vn[i][j]->clients, cvector_size(vn[i][j]->clients));
-			cvector_free(vn[i][j]->clients);
-			cJSON_AddItemToObject(elem, "client_id", clients);
-		}
-		cvector_free(vn[i]);
-	}
-	cvector_free(vn);
-	char *dest = cJSON_PrintUnformatted(res_obj);
+// 	cJSON_free(dest);
+// 	cJSON_Delete(res_obj);
+// 	return res;
+// }
+// static void *
+// get_client_info_cb(void *ctxt)
+// {
+// 	if (NULL == ctxt) {
+// 		return NULL;
+// 	}
 
-	put_http_msg(
-	    &res, msg->content_type, NULL, NULL, NULL, dest, strlen(dest));
+// 	dbtree_ctxt *dctxt = (dbtree_ctxt *) ctxt;
+// 	client_ctx * cctxt = dctxt->ctx;
+// 	if (NULL == cctxt) {
+// 		return NULL;
+// 	}
 
-	cJSON_free(dest);
-	cJSON_Delete(res_obj);
-	return res;
-}
+// 	conn_param *cp = cctxt->cparam;
+// 	return (void *) conn_param_get_clientid(cp);
+// }
 
-static http_msg
-get_subscriptions(cJSON *data, http_msg *msg, uint64_t sequence)
-{
-	http_msg res = { 0 };
-	res.status   = NNG_HTTP_STATUS_OK;
+// static http_msg
+// get_tree(http_msg *msg)
+// {
+// 	http_msg res     = { 0 };
+// 	res.status       = NNG_HTTP_STATUS_OK;
+// 	cJSON *res_obj   = NULL;
+// 	cJSON *data_info = NULL;
+// 	res_obj          = cJSON_CreateObject();
+// 	data_info        = cJSON_CreateArray();
+// 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+// 	cJSON_AddNumberToObject(res_obj, "rep", msg->request);
+// 	cJSON_AddItemToObject(res_obj, "data", data_info);
 
-	cJSON *res_obj   = NULL;
-	cJSON *data_info = NULL;
-	data_info        = cJSON_CreateArray();
-	res_obj          = cJSON_CreateObject();
-	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
-	cJSON_AddNumberToObject(res_obj, "seq", (uint64_t) sequence);
-	cJSON_AddNumberToObject(res_obj, "rep", msg->request);
-	cJSON_AddItemToObject(res_obj, "data", data_info);
+// 	dbtree *       db = get_broker_db();
+// 	dbtree_info ***vn =
+// 	    (dbtree_info ***) dbtree_get_tree(db, get_client_info_cb);
 
-	dbtree *          db   = get_broker_db();
-	dbhash_ptpair_t **pt   = dbhash_get_ptpair_all();
-	size_t            size = cvector_size(pt);
-	for (size_t i = 0; i < size; i++) {
+// 	for (int i = 0; i < cvector_size(vn); i++) {
+// 		cJSON *data_info_elem = cJSON_CreateArray();
+// 		cJSON_AddItemToArray(data_info, data_info_elem);
+// 		for (int j = 0; j < cvector_size(vn[i]); j++) {
+// 			cJSON *elem = cJSON_CreateObject();
+// 			cJSON_AddItemToArray(data_info_elem, elem);
+// 			cJSON_AddStringToObject(
+// 			    elem, "topic", vn[i][j]->topic);
+// 			zfree(vn[i][j]->topic);
+// 			cJSON_AddNumberToObject(
+// 			    elem, "cld_cnt", vn[i][j]->cld_cnt);
+// 			cJSON *clients = cJSON_CreateStringArray(
+// 			    (const char *const *) vn[i][j]->clients,
+// 			    cvector_size(vn[i][j]->clients));
+// 			cvector_free(vn[i][j]->clients);
+// 			cJSON_AddItemToObject(elem, "client_id", clients);
+// 		}
+// 		cvector_free(vn[i]);
+// 	}
+// 	cvector_free(vn);
+// 	char *dest = cJSON_PrintUnformatted(res_obj);
 
-		dbtree_ctxt *db_ctxt = (dbtree_ctxt *) dbtree_find_client(
-		    db, pt[i]->topic, pt[i]->pipe);
-		
-		if (db_ctxt == NULL) {
-			continue;
-		}
-		client_ctx *ctxt =  db_ctxt->ctx;
+// 	put_http_msg(
+// 	    &res, msg->content_type, NULL, NULL, NULL, dest, strlen(dest));
 
-		cJSON *data_info_elem;
-		data_info_elem = cJSON_CreateObject();
-		cJSON_AddItemToArray(data_info, data_info_elem);
-		if (ctxt->cparam) {
-			const uint8_t *cid = conn_param_get_clientid(ctxt->cparam);
-			if (cid) {
-				cJSON_AddStringToObject(
-				    data_info_elem, "client_id", (char *) cid);
-			} else {
-				cJSON_AddStringToObject(
-				    data_info_elem, "client_id", "");
-			}
+// 	cJSON_free(dest);
+// 	cJSON_Delete(res_obj);
+// 	return res;
+// }
 
-		}
+// static http_msg
+// get_subscriptions(http_msg *msg)
+// {
+// 	http_msg res = { 0 };
+// 	res.status   = NNG_HTTP_STATUS_OK;
 
-		cJSON *topics = cJSON_CreateArray();
-		cJSON_AddItemToObject(data_info_elem, "subscriptions", topics);
+// 	cJSON *res_obj   = NULL;
+// 	cJSON *data_info = NULL;
+// 	data_info        = cJSON_CreateArray();
+// 	res_obj          = cJSON_CreateObject();
+// 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+// 	cJSON_AddNumberToObject(res_obj, "rep", msg->request);
+// 	cJSON_AddItemToObject(res_obj, "data", data_info);
 
-		topic_node *tn = ctxt->sub_pkt->node;
-		while (tn) {
-			cJSON *topic_with_opt = cJSON_CreateObject();
-			cJSON_AddStringToObject(topic_with_opt, "topic",
-			    tn->it->topic_filter.body);
-			cJSON_AddNumberToObject(
-			    topic_with_opt, "qos", tn->it->qos);
-			cJSON_AddItemToArray(topics, topic_with_opt);
-			tn = tn->next;
-		}
+// 	dbtree *          db   = get_broker_db();
+// 	dbhash_ptpair_t **pt   = dbhash_get_ptpair_all();
+// 	size_t            size = cvector_size(pt);
+// 	for (size_t i = 0; i < size; i++) {
 
-		if ((ctxt = dbtree_delete_ctxt(db, db_ctxt))) {
-			destroy_sub_client(ctxt->pid.id, db, ctxt, tn->it->topic_filter.body);
-		}
-		dbhash_ptpair_free(pt[i]);
-	}
-	cvector_free(pt);
+// 		dbtree_ctxt *db_ctxt = (dbtree_ctxt *) dbtree_find_client(
+// 		    db, pt[i]->topic, pt[i]->pipe);
 
-	char *dest = cJSON_PrintUnformatted(res_obj);
+// 		if (db_ctxt == NULL) {
+// 			continue;
+// 		}
+// 		client_ctx *ctxt = db_ctxt->ctx;
 
-	put_http_msg(
-	    &res, msg->content_type, NULL, NULL, NULL, dest, strlen(dest));
+// 		cJSON *data_info_elem;
+// 		data_info_elem = cJSON_CreateObject();
+// 		cJSON_AddItemToArray(data_info, data_info_elem);
+// 		if (ctxt->cparam) {
+// 			const uint8_t *cid =
+// 			    conn_param_get_clientid(ctxt->cparam);
+// 			if (cid) {
+// 				cJSON_AddStringToObject(
+// 				    data_info_elem, "client_id", (char *) cid);
+// 			} else {
+// 				cJSON_AddStringToObject(
+// 				    data_info_elem, "client_id", "");
+// 			}
+// 		}
 
-	cJSON_free(dest);
-	cJSON_Delete(res_obj);
-	return res;
-}
+// 		cJSON *topics = cJSON_CreateArray();
+// 		cJSON_AddItemToObject(data_info_elem, "subscriptions", topics);
 
-static http_msg
-get_clients(cJSON *data, http_msg *msg, uint64_t sequence)
-{
-	http_msg res = { 0 };
-	res.status   = NNG_HTTP_STATUS_OK;
+// 		topic_node *tn = ctxt->sub_pkt->node;
+// 		while (tn) {
+// 			cJSON *topic_with_opt = cJSON_CreateObject();
+// 			cJSON_AddStringToObject(topic_with_opt, "topic",
+// 			    tn->it->topic_filter.body);
+// 			cJSON_AddNumberToObject(
+// 			    topic_with_opt, "qos", tn->it->qos);
+// 			cJSON_AddItemToArray(topics, topic_with_opt);
+// 			tn = tn->next;
+// 		}
 
-	cJSON *data_info;
-	data_info = cJSON_CreateArray();
+// 		if ((ctxt = dbtree_delete_ctxt(db, db_ctxt))) {
+// 			destroy_sub_client(ctxt->pid.id, db, ctxt);
+// 		}
+// 		dbhash_ptpair_free(pt[i]);
+// 	}
+// 	cvector_free(pt);
 
-	dbtree *          db   = get_broker_db();
-	dbhash_ptpair_t **pt   = dbhash_get_ptpair_all();
-	size_t            size = cvector_size(pt);
-	for (size_t i = 0; i < size; i++) {
-		dbtree_ctxt *db_ctxt = (dbtree_ctxt *) dbtree_find_client(
-		    db, pt[i]->topic, pt[i]->pipe);
-		if (db_ctxt == NULL) {
-			continue;
-		}
-		client_ctx *ctxt =  db_ctxt->ctx;
-		const uint8_t *cid = conn_param_get_clientid(ctxt->cparam);
-		const uint8_t *user_name =
-		    conn_param_get_username(ctxt->cparam);
-		uint16_t keep_alive = conn_param_get_keepalive(ctxt->cparam);
-		const uint8_t proto_ver =
-		    conn_param_get_protover(ctxt->cparam);
+// 	char *dest = cJSON_PrintUnformatted(res_obj);
 
-#ifdef STATISTICS
-		uint64_t recv_cnt = ctxt->recv_cnt != NULL
-		    ? nng_atomic_get64(ctxt->recv_cnt)
-		    : 0;
-#endif
+// 	put_http_msg(
+// 	    &res, msg->content_type, NULL, NULL, NULL, dest, strlen(dest));
 
-		cJSON *data_info_elem;
-		data_info_elem = cJSON_CreateObject();
-		cJSON_AddStringToObject(
-		    data_info_elem, "client_id", (char *) cid);
-		cJSON_AddStringToObject(data_info_elem, "username",
-		    user_name == NULL ? "" : (char *) user_name);
-		cJSON_AddNumberToObject(
-		    data_info_elem, "keepalive", keep_alive);
-		cJSON_AddNumberToObject(data_info_elem, "protocol", proto_ver);
-		cJSON_AddNumberToObject(data_info_elem, "connect_status", 1);
-#ifdef STATISTICS
-		cJSON_AddNumberToObject(
-		    data_info_elem, "message_receive", recv_cnt);
-#endif
-		cJSON_AddItemToArray(data_info, data_info_elem);
+// 	cJSON_free(dest);
+// 	cJSON_Delete(res_obj);
+// 	return res;
+// }
 
-		topic_node *tn = ctxt->sub_pkt->node;
+// static http_msg
+// get_clients(http_msg *msg)
+// {
+// 	http_msg res = { 0 };
+// 	res.status   = NNG_HTTP_STATUS_OK;
 
-		dbhash_ptpair_free(pt[i]);
-		if ((ctxt = dbtree_delete_ctxt(db, db_ctxt))) {
-			destroy_sub_client(ctxt->pid.id, db, ctxt, tn->it->topic_filter.body);
-		}
-	}
-	cvector_free(pt);
+// 	cJSON *data_info;
+// 	data_info = cJSON_CreateArray();
 
-	cJSON *res_obj;
+// 	dbtree *          db   = get_broker_db();
+// 	dbhash_ptpair_t **pt   = dbhash_get_ptpair_all();
+// 	size_t            size = cvector_size(pt);
+// 	for (size_t i = 0; i < size; i++) {
+// 		dbtree_ctxt *db_ctxt = (dbtree_ctxt *) dbtree_find_client(
+// 		    db, pt[i]->topic, pt[i]->pipe);
+// 		if (db_ctxt == NULL) {
+// 			continue;
+// 		}
+// 		client_ctx *   ctxt = db_ctxt->ctx;
+// 		const uint8_t *cid  = conn_param_get_clientid(ctxt->cparam);
+// 		const uint8_t *user_name =
+// 		    conn_param_get_username(ctxt->cparam);
+// 		uint16_t keep_alive = conn_param_get_keepalive(ctxt->cparam);
+// 		const uint8_t proto_ver =
+// 		    conn_param_get_protover(ctxt->cparam);
 
-	res_obj = cJSON_CreateObject();
-	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
-	cJSON_AddNumberToObject(res_obj, "seq", (uint64_t) sequence);
-	cJSON_AddNumberToObject(res_obj, "rep", msg->request);
-	cJSON_AddItemToObject(res_obj, "data", data_info);
-	char *dest = cJSON_PrintUnformatted(res_obj);
-	cJSON_Delete(res_obj);
+// #ifdef STATISTICS
+// 		uint64_t recv_cnt = ctxt->recv_cnt != NULL
+// 		    ? nng_atomic_get64(ctxt->recv_cnt)
+// 		    : 0;
+// #endif
 
-	put_http_msg(
-	    &res, msg->content_type, NULL, NULL, NULL, dest, strlen(dest));
+// 		cJSON *data_info_elem;
+// 		data_info_elem = cJSON_CreateObject();
+// 		cJSON_AddStringToObject(
+// 		    data_info_elem, "client_id", (char *) cid);
+// 		cJSON_AddStringToObject(data_info_elem, "username",
+// 		    user_name == NULL ? "" : (char *) user_name);
+// 		cJSON_AddNumberToObject(
+// 		    data_info_elem, "keepalive", keep_alive);
+// 		cJSON_AddNumberToObject(data_info_elem, "protocol", proto_ver);
+// 		cJSON_AddNumberToObject(data_info_elem, "connect_status", 1);
+// #ifdef STATISTICS
+// 		cJSON_AddNumberToObject(
+// 		    data_info_elem, "message_receive", recv_cnt);
+// #endif
+// 		cJSON_AddItemToArray(data_info, data_info_elem);
 
-	cJSON_free(dest);
+// 		topic_node *tn = ctxt->sub_pkt->node;
 
-	return res;
-}
+// 		dbhash_ptpair_free(pt[i]);
+// 		if ((ctxt = dbtree_delete_ctxt(db, db_ctxt))) {
+// 			destroy_sub_client(ctxt->pid.id, db, ctxt);
+// 		}
+// 	}
+// 	cvector_free(pt);
+
+// 	cJSON *res_obj;
+
+// 	res_obj = cJSON_CreateObject();
+// 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+// 	cJSON_AddNumberToObject(res_obj, "rep", msg->request);
+// 	cJSON_AddItemToObject(res_obj, "data", data_info);
+// 	char *dest = cJSON_PrintUnformatted(res_obj);
+// 	cJSON_Delete(res_obj);
+
+// 	put_http_msg(
+// 	    &res, msg->content_type, NULL, NULL, NULL, dest, strlen(dest));
+
+// 	cJSON_free(dest);
+
+// 	return res;
+// }
 
 static char *
 mk_str(int n, char **str_arr, char *seperator)
@@ -664,160 +974,158 @@ ctrl_cb(void *arg)
 }
 #endif
 
-static http_msg
-post_ctrl(cJSON *data, http_msg *msg, uint64_t sequence)
-{
-	http_msg    res = { 0 };
-	nng_thread *thread;
+// static http_msg
+// post_ctrl(http_msg *msg)
+// {
+// 	http_msg    res = { 0 };
+// 	nng_thread *thread;
 
-	cJSON *action = cJSON_GetObjectItem(data, "action");
-	char * value  = cJSON_GetStringValue(action);
+// 	cJSON *action = cJSON_GetObjectItem(data, "action");
+// 	char * value  = cJSON_GetStringValue(action);
 
-#ifndef NANO_PLATFORM_WINDOWS
-	char *arg = nng_strdup(value);
-	nng_thread_create(&thread, ctrl_cb, arg);
-	res.status = NNG_HTTP_STATUS_OK;
-#else
-	res.status = NNG_HTTP_STATUS_NOT_ACCEPTABLE;
-#endif
-	cJSON *res_obj;
+// #ifndef NANO_PLATFORM_WINDOWS
+// 	char *arg = nng_strdup(value);
+// 	nng_thread_create(&thread, ctrl_cb, arg);
+// 	res.status = NNG_HTTP_STATUS_OK;
+// #else
+// 	res.status = NNG_HTTP_STATUS_NOT_ACCEPTABLE;
+// #endif
+// 	cJSON *res_obj;
 
-	res_obj = cJSON_CreateObject();
-	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
-	cJSON_AddNumberToObject(res_obj, "seq", (uint64_t) sequence);
-	cJSON_AddNumberToObject(res_obj, "rep", msg->request);
-	char *dest = cJSON_PrintUnformatted(res_obj);
-	cJSON_Delete(res_obj);
+// 	res_obj = cJSON_CreateObject();
+// 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+// 	cJSON_AddNumberToObject(res_obj, "rep", msg->request);
+// 	char *dest = cJSON_PrintUnformatted(res_obj);
+// 	cJSON_Delete(res_obj);
 
-	put_http_msg(
-	    &res, msg->content_type, NULL, NULL, NULL, dest, strlen(dest));
+// 	put_http_msg(
+// 	    &res, msg->content_type, NULL, NULL, NULL, dest, strlen(dest));
 
-	cJSON_free(dest);
+// 	cJSON_free(dest);
 
-	return res;
-}
+// 	return res;
+// }
 
-static http_msg
-get_config(cJSON *data, http_msg *msg, uint64_t sequence)
-{
-	http_msg res = { .status = NNG_HTTP_STATUS_OK };
+// static http_msg
+// get_config(http_msg *msg)
+// {
+// 	http_msg res = { .status = NNG_HTTP_STATUS_OK };
 
-	conf * config   = get_global_conf();
-	cJSON *conf_obj = cJSON_CreateObject();
+// 	conf * config   = get_global_conf();
+// 	cJSON *conf_obj = cJSON_CreateObject();
 
-	cJSON_AddStringToObject(conf_obj, "url", config->url);
-	cJSON_AddNumberToObject(
-	    conf_obj, "num_taskq_thread", config->num_taskq_thread);
-	cJSON_AddNumberToObject(
-	    conf_obj, "max_taskq_thread", config->max_taskq_thread);
-	cJSON_AddNumberToObject(conf_obj, "parallel", config->parallel);
-	cJSON_AddNumberToObject(
-	    conf_obj, "property_size", config->property_size);
-	cJSON_AddNumberToObject(conf_obj, "msq_len", config->msq_len);
-	cJSON_AddBoolToObject(
-	    conf_obj, "allow_anonymous", config->allow_anonymous);
-	cJSON_AddBoolToObject(conf_obj, "daemon", config->daemon);
+// 	cJSON_AddStringToObject(conf_obj, "url", config->url);
+// 	cJSON_AddNumberToObject(
+// 	    conf_obj, "num_taskq_thread", config->num_taskq_thread);
+// 	cJSON_AddNumberToObject(
+// 	    conf_obj, "max_taskq_thread", config->max_taskq_thread);
+// 	cJSON_AddNumberToObject(conf_obj, "parallel", config->parallel);
+// 	cJSON_AddNumberToObject(
+// 	    conf_obj, "property_size", config->property_size);
+// 	cJSON_AddNumberToObject(conf_obj, "msq_len", config->msq_len);
+// 	cJSON_AddBoolToObject(
+// 	    conf_obj, "allow_anonymous", config->allow_anonymous);
+// 	cJSON_AddBoolToObject(conf_obj, "daemon", config->daemon);
 
-	cJSON *tls_obj = cJSON_CreateObject();
-	cJSON_AddBoolToObject(tls_obj, "enable", config->tls.enable);
-	cJSON_AddStringToObject(tls_obj, "url", config->tls.url);
-	if (config->tls.key_password) {
-		cJSON_AddStringToObject(
-		    tls_obj, "key_password", config->tls.key_password);
-	} else {
-		cJSON_AddNullToObject(tls_obj, "key_password");
-	}
-	if (config->tls.key) {
-		cJSON_AddStringToObject(tls_obj, "key", config->tls.key);
-	} else {
-		cJSON_AddNullToObject(tls_obj, "key");
-	}
-	if (config->tls.cert) {
-		cJSON_AddStringToObject(tls_obj, "cert", config->tls.cert);
-	} else {
-		cJSON_AddNullToObject(tls_obj, "cert");
-	}
-	if (config->tls.ca) {
-		cJSON_AddStringToObject(tls_obj, "cacert", config->tls.ca);
-	} else {
-		cJSON_AddNullToObject(tls_obj, "cacert");
-	}
-	cJSON_AddBoolToObject(tls_obj, "verify_peer", config->tls.verify_peer);
-	cJSON_AddBoolToObject(
-	    tls_obj, "fail_if_no_peer_cert", config->tls.set_fail);
+// 	cJSON *tls_obj = cJSON_CreateObject();
+// 	cJSON_AddBoolToObject(tls_obj, "enable", config->tls.enable);
+// 	cJSON_AddStringToObject(tls_obj, "url", config->tls.url);
+// 	if (config->tls.key_password) {
+// 		cJSON_AddStringToObject(
+// 		    tls_obj, "key_password", config->tls.key_password);
+// 	} else {
+// 		cJSON_AddNullToObject(tls_obj, "key_password");
+// 	}
+// 	if (config->tls.key) {
+// 		cJSON_AddStringToObject(tls_obj, "key", config->tls.key);
+// 	} else {
+// 		cJSON_AddNullToObject(tls_obj, "key");
+// 	}
+// 	if (config->tls.cert) {
+// 		cJSON_AddStringToObject(tls_obj, "cert", config->tls.cert);
+// 	} else {
+// 		cJSON_AddNullToObject(tls_obj, "cert");
+// 	}
+// 	if (config->tls.ca) {
+// 		cJSON_AddStringToObject(tls_obj, "cacert", config->tls.ca);
+// 	} else {
+// 		cJSON_AddNullToObject(tls_obj, "cacert");
+// 	}
+// 	cJSON_AddBoolToObject(tls_obj, "verify_peer", config->tls.verify_peer);
+// 	cJSON_AddBoolToObject(
+// 	    tls_obj, "fail_if_no_peer_cert", config->tls.set_fail);
 
-	cJSON *ws_obj = cJSON_CreateObject();
-	cJSON_AddBoolToObject(ws_obj, "enable", config->websocket.enable);
-	cJSON_AddStringToObject(ws_obj, "url", config->websocket.url);
-	cJSON_AddStringToObject(ws_obj, "tls_url", config->websocket.tls_url);
+// 	cJSON *ws_obj = cJSON_CreateObject();
+// 	cJSON_AddBoolToObject(ws_obj, "enable", config->websocket.enable);
+// 	cJSON_AddStringToObject(ws_obj, "url", config->websocket.url);
+// 	cJSON_AddStringToObject(ws_obj, "tls_url", config->websocket.tls_url);
 
-	cJSON *http_obj = cJSON_CreateObject();
-	cJSON_AddBoolToObject(http_obj, "enable", config->http_server.enable);
-	cJSON_AddNumberToObject(http_obj, "port", config->http_server.port);
-	cJSON_AddStringToObject(
-	    http_obj, "username", config->http_server.username);
-	cJSON_AddStringToObject(
-	    http_obj, "password", config->http_server.password);
-	cJSON_AddStringToObject(http_obj, "auth_type",
-	    config->http_server.auth_type == JWT ? "jwt" : "basic");
+// 	cJSON *http_obj = cJSON_CreateObject();
+// 	cJSON_AddBoolToObject(http_obj, "enable", config->http_server.enable);
+// 	cJSON_AddNumberToObject(http_obj, "port", config->http_server.port);
+// 	cJSON_AddStringToObject(
+// 	    http_obj, "username", config->http_server.username);
+// 	cJSON_AddStringToObject(
+// 	    http_obj, "password", config->http_server.password);
+// 	cJSON_AddStringToObject(http_obj, "auth_type",
+// 	    config->http_server.auth_type == JWT ? "jwt" : "basic");
 
-	cJSON *bridge_obj = cJSON_CreateObject();
-	cJSON_AddBoolToObject(
-	    bridge_obj, "bridge_mode", config->bridge.bridge_mode);
+// 	cJSON *bridge_obj = cJSON_CreateObject();
+// 	cJSON_AddBoolToObject(
+// 	    bridge_obj, "bridge_mode", config->bridge.bridge_mode);
 
-	cJSON_AddStringToObject(bridge_obj, "address", config->bridge.address);
-	cJSON_AddNumberToObject(
-	    bridge_obj, "proto_ver", config->bridge.proto_ver);
-	cJSON_AddStringToObject(
-	    bridge_obj, "clientid", config->bridge.clientid);
-	cJSON_AddBoolToObject(
-	    bridge_obj, "clean_start", config->bridge.clean_start);
-	cJSON_AddStringToObject(
-	    bridge_obj, "username", config->bridge.username);
-	cJSON_AddStringToObject(
-	    bridge_obj, "password", config->bridge.password);
-	cJSON_AddNumberToObject(
-	    bridge_obj, "keepalive", config->bridge.keepalive);
-	cJSON_AddNumberToObject(
-	    bridge_obj, "parallel", config->bridge.parallel);
+// 	cJSON_AddStringToObject(bridge_obj, "address", config->bridge.address);
+// 	cJSON_AddNumberToObject(
+// 	    bridge_obj, "proto_ver", config->bridge.proto_ver);
+// 	cJSON_AddStringToObject(
+// 	    bridge_obj, "clientid", config->bridge.clientid);
+// 	cJSON_AddBoolToObject(
+// 	    bridge_obj, "clean_start", config->bridge.clean_start);
+// 	cJSON_AddStringToObject(
+// 	    bridge_obj, "username", config->bridge.username);
+// 	cJSON_AddStringToObject(
+// 	    bridge_obj, "password", config->bridge.password);
+// 	cJSON_AddNumberToObject(
+// 	    bridge_obj, "keepalive", config->bridge.keepalive);
+// 	cJSON_AddNumberToObject(
+// 	    bridge_obj, "parallel", config->bridge.parallel);
 
-	cJSON *pub_topics = cJSON_CreateArray();
-	for (size_t i = 0; i < config->bridge.forwards_count; i++) {
-		cJSON *topic = cJSON_CreateString(config->bridge.forwards[i]);
-		cJSON_AddItemToArray(pub_topics, topic);
-	}
-	cJSON_AddItemToObject(bridge_obj, "forwards", pub_topics);
+// 	cJSON *pub_topics = cJSON_CreateArray();
+// 	for (size_t i = 0; i < config->bridge.forwards_count; i++) {
+// 		cJSON *topic = cJSON_CreateString(config->bridge.forwards[i]);
+// 		cJSON_AddItemToArray(pub_topics, topic);
+// 	}
+// 	cJSON_AddItemToObject(bridge_obj, "forwards", pub_topics);
 
-	cJSON *sub_infos = cJSON_CreateArray();
-	for (size_t j = 0; j < config->bridge.sub_count; j++) {
-		cJSON *   sub_obj = cJSON_CreateObject();
-		subscribe sub     = config->bridge.sub_list[j];
-		cJSON_AddStringToObject(sub_obj, "topic", sub.topic);
-		cJSON_AddNumberToObject(sub_obj, "qos", sub.qos);
-		cJSON_AddItemToArray(sub_infos, sub_obj);
-	}
+// 	cJSON *sub_infos = cJSON_CreateArray();
+// 	for (size_t j = 0; j < config->bridge.sub_count; j++) {
+// 		cJSON *   sub_obj = cJSON_CreateObject();
+// 		subscribe sub     = config->bridge.sub_list[j];
+// 		cJSON_AddStringToObject(sub_obj, "topic", sub.topic);
+// 		cJSON_AddNumberToObject(sub_obj, "qos", sub.qos);
+// 		cJSON_AddItemToArray(sub_infos, sub_obj);
+// 	}
 
-	cJSON_AddItemToObject(bridge_obj, "subscription", sub_infos);
+// 	cJSON_AddItemToObject(bridge_obj, "subscription", sub_infos);
 
-	cJSON_AddItemToObject(conf_obj, "tls", tls_obj);
-	cJSON_AddItemToObject(conf_obj, "websocket", ws_obj);
-	cJSON_AddItemToObject(conf_obj, "http_server", http_obj);
-	cJSON_AddItemToObject(conf_obj, "bridge", bridge_obj);
+// 	cJSON_AddItemToObject(conf_obj, "tls", tls_obj);
+// 	cJSON_AddItemToObject(conf_obj, "websocket", ws_obj);
+// 	cJSON_AddItemToObject(conf_obj, "http_server", http_obj);
+// 	cJSON_AddItemToObject(conf_obj, "bridge", bridge_obj);
 
-	cJSON *res_obj = cJSON_CreateObject();
-	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
-	cJSON_AddNumberToObject(res_obj, "seq", (uint64_t) sequence);
-	cJSON_AddNumberToObject(res_obj, "rep", msg->request);
-	cJSON_AddItemToObject(res_obj, "data", conf_obj);
+// 	cJSON *res_obj = cJSON_CreateObject();
+// 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+// 	cJSON_AddNumberToObject(res_obj, "rep", msg->request);
+// 	cJSON_AddItemToObject(res_obj, "data", conf_obj);
 
-	char *dest = cJSON_PrintUnformatted(res_obj);
+// 	char *dest = cJSON_PrintUnformatted(res_obj);
 
-	put_http_msg(
-	    &res, msg->content_type, NULL, NULL, NULL, dest, strlen(dest));
-	cJSON_free(dest);
-	cJSON_Delete(res_obj);
-	return res;
-}
+// 	put_http_msg(
+// 	    &res, msg->content_type, NULL, NULL, NULL, dest, strlen(dest));
+// 	cJSON_free(dest);
+// 	cJSON_Delete(res_obj);
+// 	return res;
+// }
 
 static void
 update_main_conf(cJSON *json, conf *config)
@@ -1148,32 +1456,31 @@ update_bridge_conf(cJSON *json, conf *config)
 	}
 }
 
-static http_msg
-post_config(cJSON *data, http_msg *msg, uint64_t sequence)
-{
-	http_msg res = { .status = NNG_HTTP_STATUS_OK };
+// static http_msg
+// post_config(http_msg *msg)
+// {
+// 	http_msg res = { .status = NNG_HTTP_STATUS_OK };
 
-	cJSON *conf_data = cJSON_GetObjectItem(data, "data");
-	conf * config    = get_global_conf();
+// 	cJSON *conf_data = cJSON_GetObjectItem(data, "data");
+// 	conf * config    = get_global_conf();
 
-	if (cJSON_IsObject(conf_data)) {
-		update_main_conf(conf_data, config);
+// 	if (cJSON_IsObject(conf_data)) {
+// 		update_main_conf(conf_data, config);
 
-		cJSON *bridge = cJSON_GetObjectItem(conf_data, "bridge");
-		if (cJSON_IsObject(bridge)) {
-			update_bridge_conf(bridge, config);
-		}
-	}
-	cJSON *res_obj = cJSON_CreateObject();
-	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
-	cJSON_AddNumberToObject(res_obj, "seq", (uint64_t) sequence);
-	cJSON_AddNumberToObject(res_obj, "rep", msg->request);
-	char *dest = cJSON_PrintUnformatted(res_obj);
+// 		cJSON *bridge = cJSON_GetObjectItem(conf_data, "bridge");
+// 		if (cJSON_IsObject(bridge)) {
+// 			update_bridge_conf(bridge, config);
+// 		}
+// 	}
+// 	cJSON *res_obj = cJSON_CreateObject();
+// 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+// 	cJSON_AddNumberToObject(res_obj, "rep", msg->request);
+// 	char *dest = cJSON_PrintUnformatted(res_obj);
 
-	put_http_msg(
-	    &res, msg->content_type, NULL, NULL, NULL, dest, strlen(dest));
+// 	put_http_msg(
+// 	    &res, msg->content_type, NULL, NULL, NULL, dest, strlen(dest));
 
-	cJSON_free(dest);
-	cJSON_Delete(res_obj);
-	return res;
-}
+// 	cJSON_free(dest);
+// 	cJSON_Delete(res_obj);
+// 	return res;
+// }
