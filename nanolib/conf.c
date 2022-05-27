@@ -684,7 +684,7 @@ static int find_key(const char *str, size_t len)
 {
 	int i = 0;
 	while (rule_engine_key_arr[i]) {
-		if (!strncmp(str, rule_engine_key_arr[i], len)) {
+		if (!strncmp(rule_engine_key_arr[i], str, len)) {
 			// printf("FIND: %s\n", rule_engine_key_arr[i]);
 			return i;
 		}
@@ -695,29 +695,49 @@ static int find_key(const char *str, size_t len)
 	return -1;
 }
 
-static int parse_select(const char *select, rule_engine_info *info)
+static int set_select_info(char *p_b, rule_engine_info *info)
 {
-	const char * p = select;
-	const char * p_b = select;
-	int rc = 0;
-	while ((p = strchr(p, ','))) {
-
-		if (-1 != (rc = find_key(p_b, p - p_b))) {
-			info->flag[rc] = 1;
-		}
-		p++;
-
-		while (*p == ' ') p++;
-		p_b = p;
-	}
-	if (-1 != (rc = find_key(p_b, strlen(p_b)))) {
+	int key_len = 0;
+	int rc		= 0;
+	while (p_b[key_len] != ' ' && p_b[key_len] != '\0') key_len++;
+	if (-1 != (rc = find_key(p_b, key_len))) {
 		if (rc == 8) {
 			memset(info->flag, 1, rc);
 		} else {
 			info->flag[rc] = 1;
 		}
+
+		while (p_b[key_len] == ' ' && p_b[key_len] != '\0') key_len++;
+		if (p_b[key_len] != '\0') {
+			p_b += key_len;
+			if (!strncmp("as", p_b, strlen("as"))) {
+				p_b += strlen("as");
+				while (*p_b == ' ' && *p_b != '\0') p_b++;
+				if (*p_b != '\0') {
+					info->as[rc] = zstrdup(p_b);
+				}
+			}
+		}
 	}
 
+	return 0;
+}
+
+static int parse_select(const char *select, rule_engine_info *info)
+{
+	char * p = (char *) select;
+	char * p_b = (char *) select;
+	int rc = 0;
+	while ((p = strchr(p, ','))) {
+		*p = '\0';
+		set_select_info(p_b, info);
+		p++;
+
+		while (*p == ' ') p++;
+		p_b = p;
+	}
+
+	set_select_info(p_b, info);
 	// for (int i = 0; i < 8; i++) {
 	// 	if (info->flag[i]) {
 	// 		printf("%s\t", rule_engine_key_arr[i]);
