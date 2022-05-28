@@ -278,7 +278,9 @@ struct conf {
 	char *   url; // "nmq-tcp://addr:port"
 	int      num_taskq_thread;
 	int      max_taskq_thread;
-	uint64_t parallel;
+	uint32_t parallel;
+	uint32_t max_packet_size;
+	uint32_t client_max_packet_size;
 	int      property_size;
 	int      msq_len;
 	int      qos_duration;
