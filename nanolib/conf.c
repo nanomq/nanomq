@@ -268,6 +268,14 @@ conf_parser(conf *nanomq_conf)
 		                line, sz, "property_size")) != NULL) {
 			config->property_size = atoi(value);
 			free(value);
+		} else if ((value = get_conf_value(
+		                line, sz, "max_packet_size")) != NULL) {
+			config->max_packet_size = atoi(value) * 1024;
+			free(value);
+		} else if ((value = get_conf_value(
+		                line, sz, "client_max_packet_size")) != NULL) {
+			config->client_max_packet_size = atoi(value) * 1024;
+			free(value);
 		} else if ((value = get_conf_value(line, sz, "msq_len")) !=
 		    NULL) {
 			config->msq_len = atoi(value);
@@ -486,6 +494,10 @@ conf_init(conf *nanomq_conf)
 	nanomq_conf->rdb = NULL;
 	nanomq_conf->tran =NULL;
 #endif
+
+	nanomq_conf->max_packet_size = (1024*1024);
+	nanomq_conf->client_max_packet_size = 65535;
+
 	nanomq_conf->web_hook_file    = NULL;
 	nanomq_conf->auth_file        = NULL;
 	nanomq_conf->auth_http_file   = NULL;
