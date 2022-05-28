@@ -41,6 +41,7 @@ add_subdirectory(apps)
 # TARGET_LINK_LIBRARIES(nanomq ${NANOLIB_LIBRARY}) else (NANOLIB_FOUND)
 # MESSAGE(FATAL_ERROR "nanolib library not found")
 set(SOURCES
+    mqtt_api.c
     nanomq.c
     process.c
     apps.c
