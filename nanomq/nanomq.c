@@ -98,7 +98,7 @@ print_help(void)
 		}
 	}
 	printf("nanomq also provide MQTT bench tool and proxy module as protocol gateway"
-		"to bridging nanomsg/nng msg to MQTT broker\n");
+		"to bridging ZeroMQ/nanomsg/nng msg to MQTT broker\n");
 }
 
 /* #if defined(DEBUG_TRACE)
