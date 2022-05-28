@@ -23,8 +23,8 @@ NANOMQ_APP(mq, mqcreate_debug, mqsend_debug, mqreceive_debug, NULL);
 #endif
 NANOMQ_APP(broker, broker_dflt, broker_start, broker_stop, broker_restart);
 #if defined(SUPP_CLIENT)
-NANOMQ_APP(pub, pub_dflt, pub_start, NULL, client_stop);
-NANOMQ_APP(sub, sub_dflt, sub_start, NULL, client_stop);
+NANOMQ_APP(pub, pub_start, pub_start, NULL, client_stop);
+NANOMQ_APP(sub, sub_start, sub_start, NULL, client_stop);
 NANOMQ_APP(conn, conn_dflt, conn_start, NULL, client_stop);
 #endif
 

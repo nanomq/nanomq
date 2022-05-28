@@ -502,11 +502,14 @@ client_parse_opts(int argc, char **argv, client_opts *opts)
 			    "only once.");
 			loadfile(arg, (void **) &opts->msg, &opts->msg_len);
 			break;
+		default:
+			break;
 		}
 	}
 	switch (rv) {
 	case NNG_EINVAL:
 		fatal("Option %s is invalid.", argv[idx]);
+		help(opts->type);
 		break;
 	case NNG_EAMBIGUOUS:
 		fatal("Option %s is ambiguous (specify in full).", argv[idx]);
@@ -515,6 +518,7 @@ client_parse_opts(int argc, char **argv, client_opts *opts)
 		fatal("Option %s requires argument.", argv[idx]);
 		break;
 	default:
+		help(opts->type);
 		break;
 	}
 
