@@ -746,8 +746,8 @@ broker(conf *nanomq_conf)
 
 	// read from command line & config file
 	if (nanomq_conf->websocket.enable) {
-		if ((rv = nng_listen(
-		         sock, nanomq_conf->websocket.url, NULL, 0)) != 0) {
+		if ((rv = nano_listen(
+		         sock, nanomq_conf->websocket.url, NULL, 0, nanomq_conf)) != 0) {
 			fatal("nng_listen ws", rv);
 		}
 	}
@@ -759,6 +759,8 @@ broker(conf *nanomq_conf)
 		         &tls_listener, sock, nanomq_conf->tls.url)) != 0) {
 			fatal("nng_listener_create tls", rv);
 		}
+		nng_listener_setopt(
+		    tls_listener, NANO_CONF, nanomq_conf, sizeof(nanomq_conf));
 
 		init_listener_tls(tls_listener, &nanomq_conf->tls);
 		if ((rv = nng_listener_start(tls_listener, 0)) != 0) {
