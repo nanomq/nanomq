@@ -45,13 +45,13 @@ nanomq broker start
 **NanoMQ MQTT client usage**
 ```bash
 # Publish
-nanomq pub  start --url <url> -t <topic> -m <message> [--help]
+nanomq pub --url <url> -t <topic> -m <message> [--help]
 
 # Subscribe 
-nanomq sub  start --url <url> -t <topic> [--help]
+nanomq sub --url <url> -t <topic> [--help]
 
 # Connect
-nanomq conn start --url <url> [--help]
+nanomq conn --url <url> [--help]
 ```
 
 **NanoMQ MQTT bench usage**
