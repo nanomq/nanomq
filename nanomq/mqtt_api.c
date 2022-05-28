@@ -19,12 +19,14 @@
  * @return int 
  */
 int
-nano_listen(nng_socket sid, const char *addr, nng_listener *lp, int flags)
+nano_listen(
+    nng_socket sid, const char *addr, nng_listener *lp, int flags, conf *conf)
 {
 	int           rv;
 	nng_listener  l;
 
         nng_listener_create(&l, sid, addr);
+        nng_listener_setopt(l, NANO_CONF, conf, sizeof(conf));
 	if ((rv = nng_listener_start(l, 0)) != 0) {
 		nng_listener_close(l);
 		return (rv);
@@ -37,7 +39,6 @@ nano_listen(nng_socket sid, const char *addr, nng_listener *lp, int flags)
 	}
 	return (rv);
 }
-
 
 int
 init_listener_tls(nng_listener l, conf_tls *tls)

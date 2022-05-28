@@ -30,6 +30,7 @@
 #include <zmalloc.h>
 
 #include "include/bridge.h"
+#include "include/mqtt_api.h"
 #include "include/nanomq.h"
 #include "include/process.h"
 #include "include/pub_handler.h"
@@ -672,52 +673,6 @@ get_broker_db(void)
 	return db;
 }
 
-static int
-init_listener_tls(nng_listener l, conf_tls *tls)
-{
-	nng_tls_config *cfg;
-	int             rv;
-
-	enum nng_tls_auth_mode mode = NNG_TLS_AUTH_MODE_NONE;
-
-	if ((rv = nng_tls_config_alloc(&cfg, NNG_TLS_MODE_SERVER)) != 0) {
-		return (rv);
-	}
-
-	if (tls->verify_peer) {
-		if (tls->set_fail) {
-			mode = NNG_TLS_AUTH_MODE_REQUIRED;
-		} else {
-			mode = NNG_TLS_AUTH_MODE_OPTIONAL;
-		}
-	}
-
-	rv = nng_tls_config_auth_mode(cfg, mode);
-
-	if ((rv == 0) && tls->cert != NULL) {
-		char *cert;
-		char *key;
-
-		if ((rv = nng_tls_config_own_cert(cfg, tls->cert,
-		         tls->key ? tls->key : tls->cert,
-		         tls->key_password)) != 0) {
-			goto out;
-		}
-	}
-
-	if ((rv == 0) && (tls->ca != NULL)) {
-		if ((rv = nng_tls_config_ca_chain(cfg, tls->ca, NULL)) != 0) {
-			goto out;
-		}
-	}
-
-	rv = nng_listener_set_ptr(l, NNG_OPT_TLS_CONFIG, cfg);
-
-out:
-	nng_tls_config_free(cfg);
-	return (rv);
-}
-
 int
 broker(conf *nanomq_conf)
 {
@@ -785,7 +740,7 @@ broker(conf *nanomq_conf)
 		}
 	}
 
-	if ((rv = nng_listen(sock, nanomq_conf->url, NULL, 0)) != 0) {
+	if ((rv = nano_listen(sock, nanomq_conf->url, NULL, 0, nanomq_conf)) != 0) {
 		fatal("nng_listen", rv);
 	}
 
