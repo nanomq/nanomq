@@ -496,7 +496,7 @@ conf_init(conf *nanomq_conf)
 #endif
 
 	nanomq_conf->max_packet_size = (1024*1024);
-	nanomq_conf->client_max_packet_size = 65535;
+	nanomq_conf->client_max_packet_size = (1024*1024);
 
 	nanomq_conf->web_hook_file    = NULL;
 	nanomq_conf->auth_file        = NULL;
