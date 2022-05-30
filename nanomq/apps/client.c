@@ -213,15 +213,15 @@ help(enum client_type type)
 {
 	switch (type) {
 	case PUB:
-		printf("Usage: nanomq pub { start | stop } <addr> "
+		printf("Usage: nanomq pub <addr> "
 		       "[<topic>...] [<opts>...] [<src>]\n\n");
 		break;
 	case SUB:
-		printf("Usage: nanomq sub { start | stop } <addr> "
+		printf("Usage: nanomq sub <addr> "
 		       "[<topic>...] [<opts>...]\n\n");
 		break;
 	case CONN:
-		printf("Usage: nanomq conn { start | stop } <addr> "
+		printf("Usage: nanomq conn <addr> "
 		       "[<opts>...]\n\n");
 		break;
 
@@ -1012,27 +1012,6 @@ int
 conn_start(int argc, char **argv)
 {
 	client(argc, argv, CONN);
-	return 0;
-}
-
-int
-pub_dflt(int argc, char **argv)
-{
-	help(PUB);
-	return 0;
-}
-
-int
-sub_dflt(int argc, char **argv)
-{
-	help(SUB);
-	return 0;
-}
-
-int
-conn_dflt(int argc, char **argv)
-{
-	help(CONN);
 	return 0;
 }
 
