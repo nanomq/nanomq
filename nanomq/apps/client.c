@@ -518,7 +518,6 @@ client_parse_opts(int argc, char **argv, client_opts *opts)
 		fatal("Option %s requires argument.", argv[idx]);
 		break;
 	default:
-		help(opts->type);
 		break;
 	}
 
