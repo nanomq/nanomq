@@ -725,12 +725,54 @@ static int find_as(char *str, int len, rule_engine_info *info)
 
 }
 
+static int get_payload_key_arr(char *p, rule_engine_info *info)
+{
+	bool is_recur = false;
+	p++;
+	char *p_b = p;
+	while (*p != '\0' && *p != ' ' && *p != '.') p++;
+
+	if (*p == '.') {
+		is_recur = true;
+	}
+
+	*p = '\0';
+	cvector_push_back(info->payload->psa, p_b);
+	if (is_recur) {
+		get_payload_key_arr(p, info);
+	}
+		
+	return 0;
+}
+static int get_payload_as(char *p_b, int key_len, rule_engine_info *info)
+{
+
+	return 0;
+}
 
 static int set_select_info(char *p_b, rule_engine_info *info)
 {
 	int key_len = 0;
-	int rc		= 0;
-	while (p_b[key_len] != ' ' && p_b[key_len] != '\0') key_len++;
+	int rc	    = 0;
+
+	while (p_b[key_len] != ' ' && p_b[key_len] != '\0') {
+		if (p_b[key_len] == '.') {
+			if (strlen("payload") == key_len) {
+				if (!strncmp("payload", p_b, key_len)) {
+					p_b += key_len;
+					info->payload = (rule_payload*) zmalloc(sizeof(rule_payload));
+					info->payload->psa = NULL;
+					info->payload->pas = NULL;
+					get_payload_key_arr(p_b, info);
+					// get_payload_as(p_b, key_len, info);
+					info->flag[RULE_PAYLOAD] = true;
+				}
+			}
+
+			goto finish;
+		}
+		key_len++;
+	}
 	if (-1 != (rc = find_key(p_b, key_len))) {
 		if (rc == 8) {
 			memset(info->flag, 1, rc);
@@ -750,6 +792,8 @@ static int set_select_info(char *p_b, rule_engine_info *info)
 			}
 		}
 	}
+
+finish:
 
 	return 0;
 }
