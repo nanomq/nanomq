@@ -211,16 +211,17 @@ typedef enum {
 		RULE_ALL,
 } rule_type;
 
-// typedef struct {
-// 	const char *key;
-// 	const char *value;
-// } rule_engine_filter;
+typedef struct {
+	char 	**psa; // Payload string array, end with NULL
+	char 	*pas; // payload as string
+} rule_payload;
 
 typedef struct {
-	bool		flag[8];
-	const char 	*topic; 	
-	char 		*as[8];
-	char 		**filter;
+	bool			flag[8];
+	const char 		*topic; 	
+	char 			*as[8];
+	rule_payload		*payload;
+	char 			**filter;
 } rule_engine_info;
 
 typedef struct conf_bridge conf_bridge;
