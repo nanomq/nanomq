@@ -78,7 +78,6 @@ jobs:
         coscmd delete -r -f docs/en/${VERSION} || true
         coscmd delete -r -f docs/zh/${VERSION} || true
         coscmd config -a ${{ secrets.TENCENT_COS_ID }} -s ${{ secrets.TENCENT_COS_KEY }} -b nanomq-io-1302406139 -e cos.accelerate.myqcloud.com
-        cd frontend/docs/.vuepress/
         coscmd upload -r dist/ /docs/
 
     - name: refresh cdn cache
@@ -87,7 +86,7 @@ jobs:
         tccli configure set secretId ${{ secrets.TENCENT_COS_ID }}
         tccli configure set secretKey ${{ secrets.TENCENT_COS_KEY }}
         tccli configure set region ap-hongkong
-        tccli cdn PurgePathCache --Paths '["https://neugates.io/docs/"]' --FlushType delete
+        tccli cdn PurgePathCache --Paths '["https://nanomq.io/docs/"]' --FlushType delete
 
     - name: update search index
       uses: Swilder-M/docsearch-scraper-simple@v3
