@@ -260,38 +260,70 @@ static int rule_engine_insert_sql(nano_work *work)
 				cJSON *jso   = NULL;
 				jso          = cJSON_CreateObject();
 				for (size_t j = 0; j < 8; j++) {
-					puts("fuck");
 					if (rule_infos[i].flag[j]) {
 						switch (j)
 						{
 						case RULE_QOS:
-							cJSON_AddNumberToObject(jso, "qos", pp->fixed_header.qos);
+							if (rule_infos[i].as[j]) {
+								cJSON_AddNumberToObject(jso, rule_infos[i].as[j], pp->fixed_header.qos);
+							} else {
+								cJSON_AddNumberToObject(jso, "qos", pp->fixed_header.qos);
+							}
 							break;
 						case RULE_ID:
-							cJSON_AddNumberToObject(jso, "id", pp->var_header.publish.packet_id);
+							if (rule_infos[i].as[j]) {
+								cJSON_AddNumberToObject(jso, rule_infos[i].as[j], pp->var_header.publish.packet_id);
+							} else {
+								cJSON_AddNumberToObject(jso, "id", pp->var_header.publish.packet_id);
+							}
 							break;
 						case RULE_TOPIC:;
 							char *topic = pp->var_header.publish.topic_name.body;
-							cJSON_AddStringToObject(jso, "topic", topic);
+							if (rule_infos[i].as[j]) {
+								cJSON_AddStringToObject(jso, rule_infos[i].as[j], topic);
+							} else {
+								cJSON_AddStringToObject(jso, "topic", topic);
+							}
 							break;
 						case RULE_CLIENTID:;
 							char *cid = (char*) conn_param_get_clientid(cp);
-							cJSON_AddStringToObject(jso, "clientid", cid);
+							if (rule_infos[i].as[j]) {
+								cJSON_AddStringToObject(jso, rule_infos[i].as[j], cid);
+							} else {
+								cJSON_AddStringToObject(jso, "clientid", cid);
+							}
 							break;
 						case RULE_USERNAME:;
 							char *username = (char*) conn_param_get_username(cp);
-							cJSON_AddStringToObject(jso, "username", username);
+							if (rule_infos[i].as[j]) {
+								cJSON_AddStringToObject(jso, rule_infos[i].as[j], username);
+							} else {
+								cJSON_AddStringToObject(jso, "username", username);
+							}
 							break;
 						case RULE_PASSWORD:;
 							char *password = (char*) conn_param_get_password(cp);
-							cJSON_AddStringToObject(jso, "password", password);
+							if (rule_infos[i].as[j]) {
+								cJSON_AddStringToObject(jso, rule_infos[i].as[j], password);
+							} else {
+								cJSON_AddStringToObject(jso, "password", password);
+							}
 							break;
 						case RULE_TIMESTAMP:
 							// TODO
+							if (rule_infos[i].as[j]) {
+
+							} else {
+
+							}
 							break;
 						case RULE_PAYLOAD:;
 							char *payload = pp->payload.data;
-							cJSON_AddStringToObject(jso, "payload", payload);
+							if (rule_infos[i].as[j]) {
+								cJSON_AddStringToObject(jso, rule_infos[i].as[j], payload);
+							} else {
+								cJSON_AddStringToObject(jso, "payload", payload);
+							}
 							break;
 						default:
 							break;
