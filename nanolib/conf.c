@@ -684,9 +684,11 @@ static int find_key(const char *str, size_t len)
 {
 	int i = 0;
 	while (rule_engine_key_arr[i]) {
-		if (!strncmp(rule_engine_key_arr[i], str, len)) {
-			// printf("FIND: %s\n", rule_engine_key_arr[i]);
-			return i;
+		if (strlen(rule_engine_key_arr[i]) == len) {
+			if (!strncmp(rule_engine_key_arr[i], str, len)) {
+				// printf("FIND: %s\n", rule_engine_key_arr[i]);
+				return i;
+			}
 		}
 		i++;
 
@@ -694,6 +696,23 @@ static int find_key(const char *str, size_t len)
 
 	return -1;
 }
+
+static int find_as(char *str, int len, rule_engine_info *info)
+{
+	int i = 0;
+
+	char **as = info->as;
+	for (; i < 8; i++) {
+		if (as[i] == NULL) continue;
+		if (strlen(as[i]) != len) continue;
+		if (!strncmp(as[i], str, len)) {
+			return i;
+		}
+	}
+	return -1;
+
+}
+
 
 static int set_select_info(char *p_b, rule_engine_info *info)
 {
@@ -764,7 +783,7 @@ static int parse_from(char *from, rule_engine_info *info)
 	return 0;
 }
 
-int insert_filter(const char *str, size_t len, char **filter) 
+int insert_filter(const char *str, size_t len, rule_engine_info *info) 
 {
 	char *p = str;
 	int rc = 0;
@@ -775,10 +794,12 @@ int insert_filter(const char *str, size_t len, char **filter)
 	int key_len = p - str;
 	// printf("key: %.*s\n", key_len, str);
 	if (-1 == (rc = find_key(str, key_len))) {
-		log_err("KEY NOT FIND");
-		return 1;
+		// TODO
+		if (-1 == (rc =find_as(str, key_len, info))) {
+			log_err("KEY NOT FIND");
+			return 1;
+		}
 	}
-
 
 	while(*p == ' ' || *p == '=') {
 		p++;
@@ -799,7 +820,7 @@ int insert_filter(const char *str, size_t len, char **filter)
 
 	}
 
-	filter[rc] = zstrdup(str);
+	info->filter[rc] = zstrdup(str);
 	// printf("value: %s\n", filter[rc]);
 	return 0;
 
@@ -819,7 +840,7 @@ static int parse_where(const char *where, rule_engine_info *info)
 		// printf("fileter: %.*s\n", p - p_b, p_b);
 		
 		int key_end, value_st;
-		insert_filter(p_b, p - p_b, info->filter);
+		insert_filter(p_b, p - p_b, info);
 
 
 		p += 3;
@@ -827,7 +848,7 @@ static int parse_where(const char *where, rule_engine_info *info)
 		while (*p == ' ') p++;
 		p_b = p;
 	}
-	insert_filter(p_b, strlen(p_b), info->filter);
+	insert_filter(p_b, strlen(p_b), info);
 	// printf("fileter: %.*s\n", strlen(p_b), p_b);
 	return 0;
 }
