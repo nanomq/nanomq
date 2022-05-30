@@ -84,6 +84,8 @@ static http_msg error_response(
 static http_msg get_endpoints(http_msg *msg);
 static http_msg get_brokers(http_msg *msg);
 static http_msg get_nodes(http_msg *msg);
+static http_msg get_clients(http_msg *msg, kv **params, size_t param_num,
+    const char *client_id, const char *username);
 
 static void update_main_conf(cJSON *json, conf *config);
 static void update_bridge_conf(cJSON *json, conf *config);
@@ -523,9 +525,24 @@ process_request(http_msg *msg, conf_http_server *config)
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "clients") == 0) {
 
+			ret = get_clients(msg, uri_ct->params, uri_ct->params_count, NULL, NULL);
+
 		} else if (uri_ct->sub_count == 3 &&
 		    uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "clients") == 0) {
+
+			ret = get_clients(msg, uri_ct->params,
+			    uri_ct->params_count, uri_ct->sub_tree[2]->node,
+			    NULL);
+
+		} else if (uri_ct->sub_count == 4 &&
+		    uri_ct->sub_tree[3]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "clients") == 0 &&
+		    strcmp(uri_ct->sub_tree[2]->node, "username") == 0) {
+
+			ret = get_clients(msg, uri_ct->params,
+			    uri_ct->params_count, NULL,
+			    uri_ct->sub_tree[3]->node);
 
 		}
 
@@ -688,7 +705,104 @@ get_nodes(http_msg *msg)
 	cJSON_free(json);
 	cJSON_Delete(res_obj);
 	return res;
+}
 
+static http_msg
+get_clients(http_msg *msg, kv **params, size_t param_num,
+    const char *client_id, const char *username)
+{
+	http_msg res = { .status = NNG_HTTP_STATUS_OK };
+
+	cJSON *data_info;
+	data_info = cJSON_CreateArray();
+
+	dbtree *          db   = get_broker_db();
+	dbhash_ptpair_t **pt   = dbhash_get_ptpair_all();
+	size_t            size = cvector_size(pt);
+	for (size_t i = 0; i < size; i++) {
+		dbtree_ctxt *db_ctxt = (dbtree_ctxt *) dbtree_find_client(
+		    db, pt[i]->topic, pt[i]->pipe);
+		if (db_ctxt == NULL) {
+			continue;
+		}
+		client_ctx *   ctxt = db_ctxt->ctx;
+		const uint8_t *cid  = conn_param_get_clientid(ctxt->cparam);
+		if (client_id != NULL) {
+			if (strcmp(client_id, cid) != 0) {
+				goto skip;
+			}
+		}
+		const uint8_t *user_name =
+		    conn_param_get_username(ctxt->cparam);
+		if (username != NULL) {
+			if (strcmp(username, user_name) != 0) {
+				goto skip;
+			}
+		}
+		uint16_t keep_alive = conn_param_get_keepalive(ctxt->cparam);
+		const uint8_t proto_ver =
+		    conn_param_get_protover(ctxt->cparam);
+		const char *proto_name = conn_param_get_pro_name(ctxt->cparam);
+		const bool  clean_start =
+		    conn_param_get_clean_start(ctxt->cparam);
+#ifdef STATISTICS
+		// uint64_t recv_cnt = ctxt->recv_cnt != NULL
+		//     ? nng_atomic_get64(ctxt->recv_cnt)
+		//     : 0;
+#endif
+
+		cJSON *data_info_elem;
+		data_info_elem = cJSON_CreateObject();
+		cJSON_AddStringToObject(
+		    data_info_elem, "client_id", (char *) cid);
+		cJSON_AddStringToObject(data_info_elem, "username",
+		    user_name == NULL ? "" : (char *) user_name);
+		cJSON_AddNumberToObject(
+		    data_info_elem, "keepalive", keep_alive);
+		cJSON_AddStringToObject(
+		    data_info_elem, "conn_state", "connected");
+		cJSON_AddBoolToObject(
+		    data_info_elem, "clean_start", clean_start);
+		cJSON_AddStringToObject(
+		    data_info_elem, "proto_name", proto_name);
+		cJSON_AddNumberToObject(
+		    data_info_elem, "proto_ver", proto_ver);
+
+#ifdef STATISTICS
+		// cJSON_AddNumberToObject(
+		//     data_info_elem, "message_receive", recv_cnt);
+#endif
+		cJSON_AddItemToArray(data_info, data_info_elem);
+
+		topic_node *tn = ctxt->sub_pkt->node;
+
+skip:
+		dbhash_ptpair_free(pt[i]);
+		if ((ctxt = dbtree_delete_ctxt(db, db_ctxt))) {
+			destroy_sub_client(ctxt->pid.id, db, ctxt);
+		}
+	}
+	cvector_free(pt);
+
+	cJSON *res_obj;
+
+	res_obj = cJSON_CreateObject();
+	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+
+	cJSON *meta = cJSON_CreateObject();
+
+	cJSON_AddItemToObject(res_obj, "meta", meta);
+	//TODO add meta content: page, limit, count
+	cJSON_AddItemToObject(res_obj, "data", data_info);
+	char *dest = cJSON_PrintUnformatted(res_obj);
+	cJSON_Delete(res_obj);
+
+	put_http_msg(
+	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
+
+	cJSON_free(dest);
+
+	return res;
 }
 
 // static http_msg
