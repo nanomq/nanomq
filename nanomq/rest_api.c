@@ -56,7 +56,6 @@ typedef struct {
 } endpoints;
 
 static endpoints api_ep[] = {
-
 	{
 	    .path   = "/brokers/",
 	    .name   = "list_brokers",
@@ -68,7 +67,25 @@ static endpoints api_ep[] = {
 	    .name   = "list_nodes",
 	    .method = "GET",
 	    .descr  = "A list of nodes in the cluster",
-	}
+	},
+	{
+	    .path   = "/clients/",
+	    .name   = "list_clients",
+	    .method = "GET",
+	    .descr  = "A list of clients on current node",
+	},
+	{
+	    .path   = "/clients/:clientid",
+	    .name   = "lookup_client",
+	    .method = "GET",
+	    .descr  = "Lookup a client in the cluster",
+	},
+	{
+	    .path   = "/clients/username/:username",
+	    .name   = "lookup_client_via_username",
+	    .method = "GET",
+	    .descr  = "Lookup a client via username in the cluster",
+	},
 };
 
 static tree **      uri_parse_tree(const char *path, size_t *count);
