@@ -86,6 +86,18 @@ static endpoints api_ep[] = {
 	    .method = "GET",
 	    .descr  = "Lookup a client via username in the cluster",
 	},
+	{
+	    .path   = "/subscriptions/",
+	    .name   = "list_subscriptions",
+	    .method = "GET",
+	    .descr  = "A list of subscriptions in the cluster",
+	},
+	{
+	    .path   = "/subscriptions/:clientid",
+	    .name   = "lookup_client_subscriptions",
+	    .method = "GET",
+	    .descr  = "A list of subscriptions of a client",
+	},
 };
 
 static tree **      uri_parse_tree(const char *path, size_t *count);
@@ -103,6 +115,8 @@ static http_msg get_brokers(http_msg *msg);
 static http_msg get_nodes(http_msg *msg);
 static http_msg get_clients(http_msg *msg, kv **params, size_t param_num,
     const char *client_id, const char *username);
+static http_msg get_subscriptions(
+    http_msg *msg, kv **params, size_t param_num, const char *client_id);
 
 static void update_main_conf(cJSON *json, conf *config);
 static void update_bridge_conf(cJSON *json, conf *config);
@@ -523,55 +537,51 @@ process_request(http_msg *msg, conf_http_server *config)
 	uri_ct = uri_parse(msg->uri);
 	if (strcasecmp(msg->method, "GET") == 0) {
 		if (uri_ct->sub_count == 0) {
-
 			ret = get_endpoints(msg);
-
 		} else if (uri_ct->sub_count == 2 &&
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "brokers") == 0) {
-
 			ret = get_brokers(msg);
-
 		} else if (uri_ct->sub_count == 2 &&
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "nodes") == 0) {
-
 			ret = get_nodes(msg);
-
 		} else if (uri_ct->sub_count == 2 &&
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "clients") == 0) {
-
-			ret = get_clients(msg, uri_ct->params, uri_ct->params_count, NULL, NULL);
-
+			ret = get_clients(msg, uri_ct->params,
+			    uri_ct->params_count, NULL, NULL);
 		} else if (uri_ct->sub_count == 3 &&
 		    uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "clients") == 0) {
-
 			ret = get_clients(msg, uri_ct->params,
 			    uri_ct->params_count, uri_ct->sub_tree[2]->node,
 			    NULL);
-
 		} else if (uri_ct->sub_count == 4 &&
 		    uri_ct->sub_tree[3]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "clients") == 0 &&
 		    strcmp(uri_ct->sub_tree[2]->node, "username") == 0) {
-
 			ret = get_clients(msg, uri_ct->params,
 			    uri_ct->params_count, NULL,
 			    uri_ct->sub_tree[3]->node);
-
-		}
-
-		else {
+		} else if (uri_ct->sub_count == 2 &&
+		    uri_ct->sub_tree[1]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "subscriptions") == 0) {
+			ret = get_subscriptions(
+			    msg, uri_ct->params, uri_ct->params_count, NULL);
+		} else if (uri_ct->sub_count == 3 &&
+		    uri_ct->sub_tree[2]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "subscriptions") == 0) {
+			ret = get_subscriptions(msg, uri_ct->params,
+			    uri_ct->params_count, uri_ct->sub_tree[2]->node);
+		} else {
 			status = NNG_HTTP_STATUS_NOT_FOUND;
 			code   = UNKNOWN_MISTAKE;
 			goto exit;
 		}
 	} else if (strcasecmp(msg->method, "POST") == 0) {
-
+		
 	} else {
-
 	}
 
 	uri_free(uri_ct);
@@ -695,7 +705,7 @@ get_brokers(http_msg *msg)
 static http_msg
 get_nodes(http_msg *msg)
 {
-	http_msg res     = { .status = NNG_HTTP_STATUS_OK };
+	http_msg res = { .status = NNG_HTTP_STATUS_OK };
 
 	char runtime[100] = { 0 };
 	get_uptime(runtime, 100);
@@ -703,7 +713,7 @@ get_nodes(http_msg *msg)
 	char version[100] = { 0 };
 	get_version(version, 100);
 
-	cJSON *  res_obj = cJSON_CreateObject();
+	cJSON *res_obj = cJSON_CreateObject();
 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
 	cJSON *array = cJSON_CreateArray();
 	cJSON *item  = cJSON_CreateObject();
@@ -793,7 +803,7 @@ get_clients(http_msg *msg, kv **params, size_t param_num,
 
 		topic_node *tn = ctxt->sub_pkt->node;
 
-skip:
+	skip:
 		dbhash_ptpair_free(pt[i]);
 		if ((ctxt = dbtree_delete_ctxt(db, db_ctxt))) {
 			destroy_sub_client(ctxt->pid.id, db, ctxt);
@@ -809,7 +819,7 @@ skip:
 	cJSON *meta = cJSON_CreateObject();
 
 	cJSON_AddItemToObject(res_obj, "meta", meta);
-	//TODO add meta content: page, limit, count
+	// TODO add meta content: page, limit, count
 	cJSON_AddItemToObject(res_obj, "data", data_info);
 	char *dest = cJSON_PrintUnformatted(res_obj);
 	cJSON_Delete(res_obj);
@@ -822,36 +832,79 @@ skip:
 	return res;
 }
 
-// static http_msg
-// get_broker(http_msg *msg)
-// {
-// 	http_msg res     = { 0 };
-// 	res.status       = NNG_HTTP_STATUS_OK;
-// 	cJSON *res_obj   = NULL;
-// 	cJSON *data_info = NULL;
-// 	res_obj          = cJSON_CreateObject();
-// 	data_info        = cJSON_CreateObject();
-// 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
-// 	cJSON_AddNumberToObject(res_obj, "rep", msg->request);
-// 	cJSON_AddItemToObject(res_obj, "data", data_info);
+static http_msg
+get_subscriptions(
+    http_msg *msg, kv **params, size_t param_num, const char *client_id)
+{
+	http_msg res = { 0 };
+	res.status   = NNG_HTTP_STATUS_OK;
 
-// 	size_t   client_size = dbhash_get_pipe_cnt();
-// 	uint64_t msg_in      = nanomq_get_message_in();
-// 	uint64_t msg_out     = nanomq_get_message_out();
-// 	uint64_t msg_drop    = nanomq_get_message_drop();
-// 	cJSON_AddNumberToObject(data_info, "client_size", client_size);
-// 	cJSON_AddNumberToObject(data_info, "message_in", msg_in);
-// 	cJSON_AddNumberToObject(data_info, "message_out", msg_out);
-// 	cJSON_AddNumberToObject(data_info, "message_drop", msg_drop);
-// 	char *dest = cJSON_PrintUnformatted(res_obj);
+	cJSON *res_obj   = NULL;
+	cJSON *data_info = NULL;
+	data_info        = cJSON_CreateArray();
+	res_obj          = cJSON_CreateObject();
 
-// 	put_http_msg(
-// 	    &res, msg->content_type, NULL, NULL, NULL, dest, strlen(dest));
+	dbtree *          db   = get_broker_db();
+	dbhash_ptpair_t **pt   = dbhash_get_ptpair_all();
+	size_t            size = cvector_size(pt);
+	for (size_t i = 0; i < size; i++) {
+		const char * cid     = NULL;
+		dbtree_ctxt *db_ctxt = (dbtree_ctxt *) dbtree_find_client(
+		    db, pt[i]->topic, pt[i]->pipe);
+		if (db_ctxt == NULL) {
+			continue;
+		}
+		client_ctx *ctxt = db_ctxt->ctx;
+		if (ctxt->cparam) {
+			cid = (const char *) conn_param_get_clientid(
+			    ctxt->cparam);
+			if (client_id) {
+				if (strcmp(client_id, cid) != 0) {
+					goto skip;
+				}
+			}
+		}
 
-// 	cJSON_free(dest);
-// 	cJSON_Delete(res_obj);
-// 	return res;
-// }
+		topic_node *tn = ctxt->sub_pkt->node;
+		while (tn) {
+			cJSON *subscribe = cJSON_CreateObject();
+			if (cid) {
+				cJSON_AddStringToObject(
+				    subscribe, "clientid", cid);
+			} else {
+				cJSON_AddStringToObject(
+				    subscribe, "clientid", "");
+			}
+			cJSON_AddStringToObject(
+			    subscribe, "topic", tn->it->topic_filter.body);
+			cJSON_AddNumberToObject(subscribe, "qos", tn->it->qos);
+			cJSON_AddItemToArray(data_info, subscribe);
+			tn = tn->next;
+		}
+	skip:
+		if ((ctxt = dbtree_delete_ctxt(db, db_ctxt))) {
+			destroy_sub_client(ctxt->pid.id, db, ctxt);
+		}
+		dbhash_ptpair_free(pt[i]);
+	}
+	cvector_free(pt);
+
+	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+	cJSON *meta = cJSON_CreateObject();
+	cJSON_AddItemToObject(res_obj, "meta", meta);
+	// TODO add meta content: page, limit, count
+	cJSON_AddItemToObject(res_obj, "data", data_info);
+
+	char *dest = cJSON_PrintUnformatted(res_obj);
+
+	put_http_msg(
+	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
+
+	cJSON_free(dest);
+	cJSON_Delete(res_obj);
+	return res;
+}
+
 // static void *
 // get_client_info_cb(void *ctxt)
 // {
@@ -879,7 +932,6 @@ skip:
 // 	res_obj          = cJSON_CreateObject();
 // 	data_info        = cJSON_CreateArray();
 // 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
-// 	cJSON_AddNumberToObject(res_obj, "rep", msg->request);
 // 	cJSON_AddItemToObject(res_obj, "data", data_info);
 
 // 	dbtree *       db = get_broker_db();
