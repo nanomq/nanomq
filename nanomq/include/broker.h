@@ -24,7 +24,8 @@ struct work {
 		FREE,
 		NOTIFY,
 		BRIDGE,
-		END
+		END,		//Clear state and cache before disconnect
+		CLOSE	//sending disconnect packet
 	} state;
 	// 0x00 mqtt_broker
 	// 0x01 mqtt_bridge
@@ -41,6 +42,7 @@ struct work {
 	dbtree *  db;
 	dbtree *  db_ret;
 	conf *    config;
+	reason_code code;     // MQTT reason code
 
 	nng_socket webhook_sock;
 
