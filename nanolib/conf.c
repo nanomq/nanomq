@@ -734,7 +734,7 @@ static int find_as(char *str, int len, rule_engine_info *info)
 
 }
 
-static int get_payload_key_arr(char *p, rule_engine_info *info)
+static char *get_payload_key_arr(char *p, rule_engine_info *info)
 {
 	bool is_recur = false;
 	p++;
@@ -746,15 +746,30 @@ static int get_payload_key_arr(char *p, rule_engine_info *info)
 	}
 
 	*p = '\0';
-	cvector_push_back(info->payload->psa, p_b);
+	char *key = zstrdup(p_b);
+	cvector_push_back(info->payload->psa, key);
 	if (is_recur) {
-		get_payload_key_arr(p, info);
+		p = get_payload_key_arr(p, info);
 	}
 		
-	return 0;
+	return p;
 }
-static int get_payload_as(char *p_b, int key_len, rule_engine_info *info)
+
+static int get_payload_as(char *p, rule_engine_info *info)
 {
+	if (*p == '\0') {
+		return 0;
+	}
+
+	if (!strncmp("as", p, strlen("as"))) {
+		p += strlen("as");
+		while (*p == ' ' && *p != '\0') p++;
+		char *p_b = p;
+		if (*p_b != '\0') {
+			info->payload->pas = zstrdup(p_b);
+		}
+	}
+
 
 	return 0;
 }
@@ -772,8 +787,10 @@ static int set_select_info(char *p_b, rule_engine_info *info)
 					info->payload = (rule_payload*) zmalloc(sizeof(rule_payload));
 					info->payload->psa = NULL;
 					info->payload->pas = NULL;
-					get_payload_key_arr(p_b, info);
-					// get_payload_as(p_b, key_len, info);
+					p_b = get_payload_key_arr(p_b, info);
+					p_b++;
+					while (*p_b == ' ' && *p_b != '\0') p_b++;
+					get_payload_as(p_b, info);
 					info->flag[RULE_PAYLOAD] = true;
 				}
 			}
