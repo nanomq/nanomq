@@ -285,7 +285,7 @@ server_cb(void *arg)
 			    conn_param_get_clientid(work->cparam));
 			// free client ctx
 			if (dbhash_check_id(work->pid.id)) {
-				destroy_sub_client(work->pid.id, work->db, NULL);
+				destroy_sub_client(work->pid.id, work->db, NULL, NULL);
 			} else {
 				debug_msg("ERROR it should not happen");
 			}

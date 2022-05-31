@@ -120,7 +120,7 @@ foreach_client(
 		while (tn) {
 			sub_topic = tn->it->topic_filter.body;
 			if (sub_topic[0] == '$') {
-			       	if (!strncmp(sub_topic, "$share/", strlen("$share/"))) {
+				if (!strncmp(sub_topic, "$share/", strlen("$share/"))) {
 					sub_topic = strchr(sub_topic, '/');
 					sub_topic++;
 					sub_topic = strchr(sub_topic, '/');
@@ -159,7 +159,7 @@ foreach_client(
 
 next:
 		if ((ctx = dbtree_delete_ctxt(pub_work->db, db_ctxt)) != NULL)
-			destroy_sub_client(ctx->pid.id, pub_work->db, ctx);
+			destroy_sub_client(ctx->pid.id, pub_work->db, ctx, tn->it->topic_filter.body);
 	}
 	pipe_ct->msg_infos = msg_infos;
 }
