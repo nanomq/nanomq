@@ -208,6 +208,7 @@ typedef enum {
 typedef struct {
 	char 	**psa; // Payload string array, end with NULL
 	char 	*pas; // payload as string
+	char	*filter;
 } rule_payload;
 
 typedef struct {
