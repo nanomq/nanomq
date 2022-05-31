@@ -104,6 +104,12 @@ static endpoints api_ep[] = {
 	    .method = "GET",
 	    .descr  = "A list of topic-tree in the cluster",
 	},
+	{
+	    .path   = "/ctrl/:action",
+	    .name   = "ctrl_broker",
+	    .method = "POST",
+	    .descr  = "Control broker stop or restart",
+	},
 };
 
 static tree **      uri_parse_tree(const char *path, size_t *count);
@@ -124,6 +130,7 @@ static http_msg get_clients(http_msg *msg, kv **params, size_t param_num,
 static http_msg get_subscriptions(
     http_msg *msg, kv **params, size_t param_num, const char *client_id);
 static http_msg get_tree(http_msg *msg);
+static http_msg post_ctrl(http_msg *msg, const char *type);
 
 static void update_main_conf(cJSON *json, conf *config);
 static void update_bridge_conf(cJSON *json, conf *config);
@@ -591,8 +598,18 @@ process_request(http_msg *msg, conf_http_server *config)
 			goto exit;
 		}
 	} else if (strcasecmp(msg->method, "POST") == 0) {
-
+		if (uri_ct->sub_count == 3 && uri_ct->sub_tree[2]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "ctrl") == 0) {
+			ret = post_ctrl(msg, uri_ct->sub_tree[2]->node);
+		} else {
+			status = NNG_HTTP_STATUS_NOT_FOUND;
+			code   = UNKNOWN_MISTAKE;
+			goto exit;
+		}
 	} else {
+		status = NNG_HTTP_STATUS_METHOD_NOT_ALLOWED;
+		code   = UNKNOWN_MISTAKE;
+		goto exit;
 	}
 
 	uri_free(uri_ct);
@@ -1021,37 +1038,41 @@ ctrl_cb(void *arg)
 }
 #endif
 
-// static http_msg
-// post_ctrl(http_msg *msg)
-// {
-// 	http_msg    res = { 0 };
-// 	nng_thread *thread;
+static http_msg
+post_ctrl(http_msg *msg, const char *type)
+{
+	http_msg    res = { 0 };
+	nng_thread *thread;
+	int         code = SUCCEED;
 
-// 	cJSON *action = cJSON_GetObjectItem(data, "action");
-// 	char * value  = cJSON_GetStringValue(action);
+	if (strcasecmp(type, "stop") == 0 ||
+	    strcasecmp(type, "restart") == 0) {
+#ifndef NANO_PLATFORM_WINDOWS
+		char *arg = nng_strdup(type);
+		nng_thread_create(&thread, ctrl_cb, arg);
+		res.status = NNG_HTTP_STATUS_OK;
+#else
+		res.status = NNG_HTTP_STATUS_NOT_ACCEPTABLE;
+		code       = RPC_ERROR;
+#endif
+	} else {
+		res.status = NNG_HTTP_STATUS_NOT_FOUND;
+		code       = RPC_ERROR;
+	}
+	cJSON *res_obj;
 
-// #ifndef NANO_PLATFORM_WINDOWS
-// 	char *arg = nng_strdup(value);
-// 	nng_thread_create(&thread, ctrl_cb, arg);
-// 	res.status = NNG_HTTP_STATUS_OK;
-// #else
-// 	res.status = NNG_HTTP_STATUS_NOT_ACCEPTABLE;
-// #endif
-// 	cJSON *res_obj;
+	res_obj = cJSON_CreateObject();
+	cJSON_AddNumberToObject(res_obj, "code", code);
+	char *dest = cJSON_PrintUnformatted(res_obj);
+	cJSON_Delete(res_obj);
 
-// 	res_obj = cJSON_CreateObject();
-// 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
-// 	cJSON_AddNumberToObject(res_obj, "rep", msg->request);
-// 	char *dest = cJSON_PrintUnformatted(res_obj);
-// 	cJSON_Delete(res_obj);
+	put_http_msg(
+	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
 
-// 	put_http_msg(
-// 	    &res, msg->content_type, NULL, NULL, NULL, dest, strlen(dest));
+	cJSON_free(dest);
 
-// 	cJSON_free(dest);
-
-// 	return res;
-// }
+	return res;
+}
 
 // static http_msg
 // get_config(http_msg *msg)
