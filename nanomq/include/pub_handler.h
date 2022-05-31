@@ -66,9 +66,10 @@ void        foreach_client(
            void **cli_ctx_list, nano_work *pub_work, struct pipe_content *pipe_ct);
 void free_pub_packet(struct pub_packet_struct *pub_packet);
 void free_msg_infos(mqtt_msg_info *msg_infos);
-void init_pipe_content(struct pipe_content *pipe_ct);
-void handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto);
-void init_pub_packet_property(struct pub_packet_struct *pub_packet);
-bool check_msg_exp(nng_msg *msg, property *prop);
+void        init_pipe_content(struct pipe_content *pipe_ct);
+void        init_pub_packet_property(struct pub_packet_struct *pub_packet);
+bool        check_msg_exp(nng_msg *msg, property *prop);
+reason_code handle_pub(
+    nano_work *work, struct pipe_content *pipe_ct, uint8_t proto);
 
 #endif // NNG_PUB_HANDLER_H
