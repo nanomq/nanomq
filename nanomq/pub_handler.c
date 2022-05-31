@@ -375,7 +375,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto)
 					debug_msg("ERROR: could not find "
 					          "topic by alias: %d",
 					    pdata->p_value.u16);
-					return;
+					return result;
 				}
 			}
 		}
@@ -384,7 +384,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto)
 	topic = work->pub_packet->var_header.publish.topic_name.body;
 	if (topic == NULL) {
 		debug_msg("ERROR: Topic is NULL");
-		return;
+		return result;
 	}
 
 
@@ -418,7 +418,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto)
 #if ENABLE_RETAIN
 	handle_pub_retain(work, topic);
 #endif
-	// TODO send DISCONNECT with reason_code if MQTT Version=5.0
+	return result;
 }
 
 #if ENABLE_RETAIN
