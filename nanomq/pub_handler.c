@@ -178,7 +178,7 @@ static bool rule_engine_filter(nano_work *work, rule_engine_info *info)
 			conn_param *cp = work->cparam;
 			for (size_t j = 0; j < 8; j++) {
 				char *val = info->filter[j];
-				if (val) {
+				if (val != NULL || j == RULE_PAYLOAD) {
 					switch (j)
 					{
 					case RULE_QOS:
@@ -226,8 +226,43 @@ static bool rule_engine_filter(nano_work *work, rule_engine_info *info)
 							filter = false;
 							break;
 						}
-						if (strncmp((const char*) pp->payload.data, val, pp->payload.len)) {
-							filter = false;
+						if (val == NULL) {
+							if (info->payload->psa) {
+								cJSON *jp = cJSON_ParseWithLength(pp->payload.data, pp->payload.len);
+								for (int k = 0; k < cvector_size(info->payload->psa); k++) {
+									if (jp == NULL) {
+										filter = false;
+										break;
+									}
+									jp = cJSON_GetObjectItem(jp, info->payload->psa[k]); 
+								}
+								
+								if (filter == true && jp != NULL) {
+									switch (jp->type)
+									{
+									case cJSON_Number:;
+										int num = cJSON_GetNumberValue(jp);
+										if (num != atoi(info->payload->filter)) {
+											filter = false;
+										}
+										break;
+									case cJSON_String:;
+										char *str = cJSON_GetStringValue(jp);
+										if (!strcmp(str, info->payload->pas)) {
+											filter = false;
+										}
+										break;
+								
+									default:
+										break;
+									}
+								}
+							}
+
+						} else {
+							if (strncmp((const char*) pp->payload.data, val, pp->payload.len)) {
+								filter = false;
+							}
 						}
 						break;
 					default:
