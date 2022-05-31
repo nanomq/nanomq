@@ -388,11 +388,13 @@ server_cb(void *arg)
 			         sizeof(packet_unsubscribe))) == NULL)
 				debug_msg("ERROR: nng_alloc");
 
-			if ((reason = decode_unsub_message(work)) != SUCCESS ||
-			    (reason = unsub_ctx_handle(work)) != SUCCESS ||
-			    (reason = encode_unsuback_message(smsg, work)) != SUCCESS) {
-				debug_msg("ERROR: unsub_handler [%d]", reason);
+			if ((rv = decode_unsub_message(work)) != 0 ||
+			    (rv = unsub_ctx_handle(work)) != 0) {
+				debug_msg("ERROR: unsub_handler [%d]", rv);
 			}
+
+			if (0 != (rv = encode_unsuback_message(smsg, work)))
+				debug_msg("error in unsuback [%d]", rv);
 			// free unsub_pkt
 			destroy_unsub_ctx(work->unsub_pkt);
 			nng_msg_free(work->msg);
