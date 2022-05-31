@@ -351,9 +351,10 @@ static int rule_engine_insert_sql(nano_work *work)
 #endif
 
 
-void
+reason_code
 handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto)
 {
+	reason_code result = SUCCESS;
 	char **topic_queue     = NULL;
 	void **cli_ctx_list    = NULL;
 	void **shared_cli_list = NULL;
@@ -371,16 +372,17 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto)
 	work->pub_packet = (struct pub_packet_struct *) nng_zalloc(
 	    sizeof(struct pub_packet_struct));
 
-	reason_code result = decode_pub_message(work, proto);
+	result = decode_pub_message(work, proto);
 	if (SUCCESS != result) {
 		debug_msg("decode message failed.");
-		return;
+		return result;
 	}
 
 	if (PUBLISH != work->pub_packet->fixed_header.packet_type) {
-		return;
+		return result;
 	}
 
+	// deal with topic alias
 	if (proto == PROTOCOL_VERSION_v5) {
 		property_data *pdata = property_get_value(
 		    work->pub_packet->var_header.publish.properties,
@@ -788,6 +790,11 @@ decode_pub_message(nano_work *work, uint8_t proto)
 			        false);
 			debug_msg("property len: %d",
 			    pub_packet->var_header.publish.prop_len);
+			if (property_get_value(
+			        pub_packet->var_header.publish.properties,
+			        SUBSCRIPTION_IDENTIFIER) != NULL) { 
+				return PROTOCOL_ERROR;
+			}
 		}
 
 		if (pos > msg_len) {
