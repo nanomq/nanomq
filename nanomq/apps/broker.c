@@ -211,6 +211,8 @@ server_cb(void *arg)
 			work->code = handle_pub(work, work->pipe_ct, work->proto_ver);
 			if (work->code != SUCCESS) {
 				work->state = CLOSE;
+				free_pub_packet(work->pub_packet);
+				cvector_free(work->pipe_ct->msg_infos);
 				nng_aio_finish(work->aio, 0);
 				return;
 			}
@@ -606,8 +608,17 @@ server_cb(void *arg)
 		conn_param_free(work->cparam);
 		break;
 	case CLOSE:
-		debug_msg("END ^^^^ ctx%d ^^^^", work->ctx.id);	
-
+		debug_msg("END ^^^^ ctx%d ^^^^", work->ctx.id);
+		smsg = nano_dismsg_composer(work->code, NULL, NULL, NULL);
+		nng_msg_free(work->msg);
+		work->msg = smsg;
+		// compose a disconnect msg
+		nng_msg_set_pipe(work->msg, work->pid);
+		// clone for sending connect event notification
+		nng_aio_set_msg(work->aio, work->msg);
+		nng_ctx_send(work->ctx, work->aio); // send connack
+		work->state = RECV;
+		nng_ctx_recv(work->ctx, work->aio);
 		break;
 	default:
 		fatal("bad state!", NNG_ESTATE);
