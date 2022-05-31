@@ -336,7 +336,7 @@ sub_ctx_handle(nano_work *work)
 	if (db_ctxt) {
 		client_ctx *ctx = dbtree_delete_ctxt(work->db, db_ctxt);
 		if (ctx) {
-			destroy_sub_client(ctx->pid.id, work->db, ctx);
+			destroy_sub_client(ctx->pid.id, work->db, NULL, NULL);
 		}
 	}
 
@@ -552,7 +552,7 @@ destroy_sub_ctx(void *ctxt)
 }
 
 void
-destroy_sub_client(uint32_t pid, dbtree * db, void *ctx)
+destroy_sub_client(uint32_t pid, dbtree * db, void *ctx, void *topic)
 {
 	client_ctx * cli_ctx = NULL, *ctx2 = NULL;
 	dbtree_ctxt * db_ctxt = NULL;
@@ -561,6 +561,7 @@ destroy_sub_client(uint32_t pid, dbtree * db, void *ctx)
 	if (!ctx) {
 		// Call by Disconnect event
 		db_ctxt = dbtree_find_client(db, tq->topic, pid);
+		topic = tq->topic;
 		dbtree_delete_ctxt(db, db_ctxt);
 		// Ref > 1, So let puber to delete
 		if ((ctx2 = dbtree_delete_ctxt(db, db_ctxt)) == NULL)
@@ -579,7 +580,9 @@ destroy_sub_client(uint32_t pid, dbtree * db, void *ctx)
 			}
 			if (cli_ctx)
 				del_sub_ctx(cli_ctx, tq->topic);
-			dbtree_delete_client(db, tq->topic, 0, pid);
+			db_ctxt = dbtree_delete_client(db, tq->topic, 0, pid);
+			if (0 != strcmp(tq->topic, (char *)topic))
+				dbtree_delete_ctxt(db, db_ctxt);
 		}
 		tq = tq->next;
 	}

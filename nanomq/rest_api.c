@@ -531,7 +531,7 @@ get_subscriptions(cJSON *data, http_msg *msg, uint64_t sequence)
 		}
 
 		if ((ctxt = dbtree_delete_ctxt(db, db_ctxt))) {
-			destroy_sub_client(ctxt->pid.id, db, ctxt);
+			destroy_sub_client(ctxt->pid.id, db, ctxt, tn->it->topic_filter.body);
 		}
 		dbhash_ptpair_free(pt[i]);
 	}
@@ -599,7 +599,7 @@ get_clients(cJSON *data, http_msg *msg, uint64_t sequence)
 
 		dbhash_ptpair_free(pt[i]);
 		if ((ctxt = dbtree_delete_ctxt(db, db_ctxt))) {
-			destroy_sub_client(ctxt->pid.id, db, ctxt);
+			destroy_sub_client(ctxt->pid.id, db, ctxt, tn->it->topic_filter.body);
 		}
 	}
 	cvector_free(pt);
