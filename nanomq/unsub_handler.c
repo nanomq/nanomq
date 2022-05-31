@@ -210,6 +210,10 @@ unsub_ctx_handle(nano_work *work)
 
 	// delete ctx_unsub in treeDB
 	while (topic_node_t) {
+		if (topic_node_t->it->topic_filter.len == 0) {
+			topic_node_t = topic_node_t->next;
+			continue;
+		}
 		client_id = (char *) conn_param_get_clientid(
 		    (conn_param *) nng_msg_get_conn_param(work->msg));
 		uint32_t clientid_key = DJBHashn(client_id, strlen(client_id));
