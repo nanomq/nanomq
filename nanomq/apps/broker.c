@@ -18,7 +18,6 @@
 #include <file.h>
 #include <hash_table.h>
 #include <mqtt_db.h>
-#include <nng.h>
 #include <nng/mqtt/mqtt_client.h>
 #include <nng/supplemental/tls/tls.h>
 #include <nng/supplemental/util/options.h>
@@ -209,7 +208,12 @@ server_cb(void *arg)
 			} else {
 				nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 			}
-			handle_pub(work, work->pipe_ct, work->proto_ver);
+			work->code = handle_pub(work, work->pipe_ct, work->proto_ver);
+			if (work->code != SUCCESS) {
+				work->state = CLOSE;
+				nng_aio_finish(work->aio, 0);
+				return;
+			}
 			webhook_msg_publish(&work->webhook_sock,
 			    &work->config->web_hook, work->pub_packet,
 			    (const char *)conn_param_get_username(work->cparam),
@@ -556,7 +560,7 @@ server_cb(void *arg)
 
 			// processing will msg
 			if (conn_param_get_will_flag(work->cparam)) {
-				msg = nano_msg_composer(&msg,
+				msg = nano_pubmsg_composer(&msg,
 				    conn_param_get_will_retain(work->cparam),
 				    conn_param_get_will_qos(work->cparam),
 				    (mqtt_string *) conn_param_get_will_msg(
@@ -600,6 +604,10 @@ server_cb(void *arg)
 			}
 		}
 		conn_param_free(work->cparam);
+		break;
+	case CLOSE:
+		debug_msg("END ^^^^ ctx%d ^^^^", work->ctx.id);	
+
 		break;
 	default:
 		fatal("bad state!", NNG_ESTATE);
