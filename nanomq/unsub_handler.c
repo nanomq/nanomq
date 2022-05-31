@@ -180,6 +180,7 @@ unsub_ctx_handle(nano_work *work)
 	char *         client_id;
 	struct client *cli     = NULL;
 	void *         cli_ctx = NULL;
+	dbtree_ctxt *  db_ctxt = NULL;
 
 	client_id = (char *) conn_param_get_clientid(
 	    (conn_param *) nng_msg_get_conn_param(work->msg));
@@ -202,8 +203,17 @@ unsub_ctx_handle(nano_work *work)
 		debug_msg(
 		    "find client [%s] in topic [%s].", client_id, topic_str);
 
-		cli_ctx = dbtree_delete_client(
-		    work->db, topic_str, clientid_key, work->pid.id);
+		db_ctxt = dbtree_find_client(
+		    work->db, topic_str, work->pid.id);
+		dbtree_delete_ctxt(work->db, db_ctxt); // Pair to find
+
+		cli_ctx = db_ctxt->ctx;
+
+		dbtree_delete_ctxt(work->db, db_ctxt); // Free
+
+		dbtree_delete_client(
+		    work->db, topic_str, 0, work->pid.id);
+
 		dbhash_del_topic(work->pid.id, topic_str);
 
 		if (cli_ctx != NULL) { // find the topic

@@ -486,6 +486,22 @@ del_sub_ctx(void *ctxt, char *target_topic)
 		before_topic_node = topic_node_t;
 		topic_node_t      = topic_node_t->next;
 	}
+
+	uint8_t proto_ver = cli_ctx->proto_ver;
+
+	if (sub_pkt->node == NULL) {
+#if SUPPORT_MQTT5_0
+		if (PROTOCOL_VERSION_v5 == proto_ver) {
+			if (sub_pkt->prop_len > 0) {
+				property_free(sub_pkt->properties);
+				sub_pkt->prop_len = 0;
+			}
+		}
+#endif
+		nng_free(sub_pkt, sizeof(packet_subscribe));
+		nng_free(cli_ctx, sizeof(client_ctx));
+		cli_ctx = NULL;
+	}
 }
 
 void
@@ -545,8 +561,8 @@ destroy_sub_client(uint32_t pid, dbtree * db, void *ctx)
 	if (!ctx) {
 		// Call by Disconnect event
 		db_ctxt = dbtree_find_client(db, tq->topic, pid);
-		// Ref > 1, So let puber to delete
 		dbtree_delete_ctxt(db, db_ctxt);
+		// Ref > 1, So let puber to delete
 		if ((ctx2 = dbtree_delete_ctxt(db, db_ctxt)) == NULL)
 			return;
 	}
@@ -566,28 +582,6 @@ destroy_sub_client(uint32_t pid, dbtree * db, void *ctx)
 			dbtree_delete_client(db, tq->topic, 0, pid);
 		}
 		tq = tq->next;
-	}
-
-	if (!cli_ctx)
-		return;
-
-	packet_subscribe *sub_pkt = cli_ctx->sub_pkt;
-	uint8_t proto_ver = cli_ctx->proto_ver;
-
-	if (sub_pkt->node == NULL) {
-#if SUPPORT_MQTT5_0
-		if (PROTOCOL_VERSION_v5 == proto_ver) {
-			if (sub_pkt->prop_len > 0) {
-				property_free(sub_pkt->properties);
-				sub_pkt->prop_len = 0;
-			}
-		}
-#endif
-		nng_free(sub_pkt, sizeof(packet_subscribe));
-		nng_free(cli_ctx, sizeof(client_ctx));
-		cli_ctx = NULL;
-	} else {
-		debug_msg("It should not happened.");
 	}
 
 	// Free from dbhash
