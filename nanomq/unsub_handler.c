@@ -43,7 +43,11 @@ decode_unsub_msg(nano_work *work)
 	// Mqtt_v5 include property
 #if SUPPORT_MQTT5_0
 	if (PROTOCOL_VERSION_v5 == proto_ver) {
-		unsub_pkt->properties = decode_properties(msg, &vpos, &unsub_pkt->prop_len, false);
+		unsub_pkt->properties =
+		    decode_properties(msg, &vpos, &unsub_pkt->prop_len, false);
+		if (check_properties(unsub_pkt->properties) != SUCCESS) {
+			return PROTOCOL_ERROR;
+		}
 	}
 #endif
 
