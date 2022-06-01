@@ -790,10 +790,16 @@ decode_pub_message(nano_work *work, uint8_t proto)
 			        false);
 			debug_msg("property len: %d",
 			    pub_packet->var_header.publish.prop_len);
-			if (property_get_value(
-			        pub_packet->var_header.publish.properties,
-			        SUBSCRIPTION_IDENTIFIER) != NULL) { 
-				return PROTOCOL_ERROR;
+
+			if (pub_packet->var_header.publish.properties) {
+				if (check_properties(
+				        pub_packet->var_header.publish
+				            .properties) != 0 ||
+				    property_get_value(pub_packet->var_header
+				                           .publish.properties,
+				        SUBSCRIPTION_IDENTIFIER) != NULL) {
+					return PROTOCOL_ERROR;
+				}
 			}
 		}
 
@@ -835,6 +841,11 @@ decode_pub_message(nano_work *work, uint8_t proto)
 			    decode_properties(msg, &pos,
 			        &pub_packet->var_header.pub_arrc.prop_len,
 			        false);
+			if (check_properties(
+			        pub_packet->var_header.pub_arrc.properties) !=
+			    SUCCESS) {
+				return PROTOCOL_ERROR;
+			}
 		}
 		break;
 

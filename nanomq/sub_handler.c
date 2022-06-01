@@ -53,6 +53,9 @@ decode_sub_msg(nano_work *work)
 	if (PROTOCOL_VERSION_v5 == proto_ver) {
 		sub_pkt->properties =
 		    decode_properties(msg, &vpos, &sub_pkt->prop_len, true);
+		if (check_properties(sub_pkt->properties) != SUCCESS) {
+			return PROTOCOL_ERROR;
+		}
 	}
 #endif
 
