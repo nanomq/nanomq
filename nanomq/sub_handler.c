@@ -502,6 +502,7 @@ del_sub_ctx(void *ctxt, char *target_topic)
 		}
 #endif
 		nng_free(sub_pkt, sizeof(packet_subscribe));
+		nng_atomic_free64(cli_ctx->recv_cnt);
 		nng_free(cli_ctx, sizeof(client_ctx));
 		cli_ctx = NULL;
 	}
