@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+#include <stdatomic.h>
 
 typedef enum {
 	MQTT_VERSION_V311 = 4,
@@ -13,7 +14,7 @@ typedef enum {
 } mqtt_version_t;
 
 typedef struct {
-	int   ref;
+	atomic_int   ref;
 	void *ctx;
 } dbtree_ctxt;
 

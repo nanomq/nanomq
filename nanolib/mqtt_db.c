@@ -11,6 +11,7 @@
 #include <string.h>
 #include <time.h>
 
+
 #include "include/binary_search.h"
 #include "include/cvector.h"
 #include "include/dbg.h"
@@ -21,7 +22,7 @@
 #define ROUND_ROBIN
 // #define RANDOM
 
-static int acnt = 0;
+static atomic_int acnt = 0;
 
 dbtree_ctxt *
 dbtree_new_ctxt(void *ctx)
