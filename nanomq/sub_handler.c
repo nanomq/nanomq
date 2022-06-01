@@ -224,6 +224,7 @@ sub_ctx_handle(nano_work *work)
 	char *              clientid     = NULL;
 	int                 topic_len    = 0;
 	struct topic_queue *tq           = NULL;
+	struct topic_queue *tq1          = NULL;
 	int      topic_exist             = 0;
 	uint32_t clientid_key            = 0;
 	dbtree_retain_msg **r            = NULL;
@@ -258,6 +259,7 @@ sub_ctx_handle(nano_work *work)
 		db_ctxt = dbtree_find_client(
 		    work->db, tq->topic, cli_ctx->pid.id);
 	}
+	tq1 = tq;
 
 	if (db_ctxt) {
 		old_ctx = db_ctxt->ctx;
@@ -336,7 +338,7 @@ sub_ctx_handle(nano_work *work)
 	if (db_ctxt) {
 		client_ctx *ctx = dbtree_delete_ctxt(work->db, db_ctxt);
 		if (ctx) {
-			destroy_sub_client(ctx->pid.id, work->db, NULL, NULL);
+			destroy_sub_client(ctx->pid.id, work->db, ctx, tq1->topic);
 		}
 	}
 
