@@ -374,7 +374,7 @@ dbtree_client_new(uint32_t id, void *ctxt, uint32_t pipe_id, mqtt_version_t ver)
 	log_info("New client pipe_id: [%d], session id: [%d]", pipe_id, id);
 	client->session_id = id;
 	client->pipe_id    = pipe_id;
-	client->ctxt       = (void *) dbtree_new_ctxt(ctxt);
+	client->ctxt       = ctxt;
 	client->ver        = ver;
 	return client;
 }
