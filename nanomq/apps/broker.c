@@ -359,7 +359,22 @@ server_cb(void *arg)
 
 			if ((rv = decode_sub_msg(work)) != 0 ||
 			    (rv = sub_ctx_handle(work)) != 0) {
+				work->code = rv;
 				debug_msg("ERROR: sub_handler: [%d]", rv);
+			}
+
+			// TODO not all codes should close the pipe
+			if (work->code != SUCCESS) {
+				if (work->msg_ret)
+					cvector_free(work->msg_ret);
+				if (work->sub_pkt)
+					destroy_sub_pkt(work->sub_pkt, work->proto_ver);
+				// free conn_param due to clone in protocol layer
+				conn_param_free(work->cparam);
+
+				work->state = CLOSE;
+				nng_aio_finish(work->aio, 0);
+				return;
 			}
 
 			if (0 != (rv = encode_suback_msg(smsg, work)))
@@ -617,6 +632,10 @@ server_cb(void *arg)
 		// clone for sending connect event notification
 		nng_aio_set_msg(work->aio, work->msg);
 		nng_ctx_send(work->ctx, work->aio); // send connack
+
+		// clear reason code
+		work->code = SUCCESS;
+
 		work->state = RECV;
 		nng_ctx_recv(work->ctx, work->aio);
 		break;
@@ -660,6 +679,7 @@ proto_work_init(nng_socket sock, nng_socket bridge_sock, uint8_t proto,
 	w->db_ret = db_tree_ret;
 	w->proto  = proto;
 	w->config = config;
+	w->code   = SUCCESS;
 
 	if (config->bridge.bridge_mode) {
 		if ((rv = nng_ctx_open(&w->bridge_ctx, bridge_sock)) != 0) {

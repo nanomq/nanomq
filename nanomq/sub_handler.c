@@ -110,6 +110,15 @@ decode_sub_msg(nano_work *work)
 		bpos ++;
 		// TODO sub action when retain_handling equal 0 or 1 or 2
 
+#if SUPPORT_MQTT5_0
+		if (MQTT_VERSION_V5 == proto_ver &&
+		    strncmp(topic_option->topic_filter.body, "$share/", strlen("$share/")) == 0 &&
+		    topic_option->no_local == 1) {
+			topic_node_t->it->reason_code = UNSPECIFIED_ERROR;
+			return PROTOCOL_ERROR;
+		}
+#endif
+
 next:
 		debug_msg("bpos+vpos: [%d]", bpos + vpos);
 		if (bpos < remaining_len - vpos) {
