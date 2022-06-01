@@ -242,14 +242,22 @@ static bool rule_engine_filter(nano_work *work, rule_engine_info *info)
 									{
 									case cJSON_Number:;
 										int num = cJSON_GetNumberValue(jp);
-										if (num != atoi(info->payload->filter)) {
+
+										if (info->payload->filter && num != atoi(info->payload->filter)) {
 											filter = false;
+										} else {
+											info->payload->value = (void*) num;
+											info->payload->type = cJSON_Number;
+
 										}
 										break;
 									case cJSON_String:;
 										char *str = cJSON_GetStringValue(jp);
 										if (!strcmp(str, info->payload->pas)) {
 											filter = false;
+										} else {
+											info->payload->value = zstrdup(str);
+											info->payload->type = cJSON_String;
 										}
 										break;
 								
@@ -356,6 +364,16 @@ static int rule_engine_insert_sql(nano_work *work)
 							char *payload = pp->payload.data;
 							if (rule_infos[i].as[j]) {
 								cJSON_AddStringToObject(jso, rule_infos[i].as[j], payload);
+							} else if (rule_infos[i].payload->pas) {
+								switch (rule_infos[i].payload->type) {
+								case cJSON_Number:; 
+									cJSON_AddNumberToObject(jso, rule_infos[i].payload->pas, (int) rule_infos[i].payload->value);
+									break;
+								case cJSON_String:;
+									cJSON_AddStringToObject(jso, rule_infos[i].payload->pas, (char*) rule_infos[i].payload->value);
+									break;
+
+								}
 							} else {
 								cJSON_AddStringToObject(jso, "payload", payload);
 							}

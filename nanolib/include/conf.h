@@ -205,10 +205,13 @@ typedef enum {
 		RULE_ALL,
 } rule_type;
 
+// TODO support multi
 typedef struct {
 	char 	**psa; // Payload string array, end with NULL
 	char 	*pas; // payload as string
 	char	*filter;
+	void 	*value;
+	int 	type;
 } rule_payload;
 
 typedef struct {
