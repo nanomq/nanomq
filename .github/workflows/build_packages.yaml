@@ -14,7 +14,7 @@ jobs:
     strategy:
       matrix:
         arch:
-        - [amd64, gcc, g++]
+        - [x86_64, gcc, g++]
         - [arm64, aarch64-linux-gnu-gcc, aarch64-linux-gnu-g++]
         - [mips, mips-linux-gnu-gcc, mips-linux-gnu-g++]
         - [riscv64, riscv64-linux-gnu-gcc, riscv64-linux-gnu-g++]
