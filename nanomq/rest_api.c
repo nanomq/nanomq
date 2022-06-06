@@ -191,7 +191,7 @@ get_time_str(char *str, size_t str_len)
 	time_t t;
 	time(&t);
 	struct tm *tmp_time = localtime(&t);
-	strftime(str, str_len, "%04Y-%02m-%02d %H:%M:%S", tmp_time);
+	strftime(str, str_len, "%Y-%m-%d %H:%M:%S", tmp_time);
 }
 
 static tree **
