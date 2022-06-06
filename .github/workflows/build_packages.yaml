@@ -26,6 +26,7 @@ jobs:
     - name: install lib
       run: |
         sudo apt update
+        sudo chmod 755 /usr/local/bin
         sudo apt install -y g++-aarch64-linux-gnu gcc-aarch64-linux-gnu
         sudo apt install -y g++-mips-linux-gnu gcc-mips-linux-gnu
         sudo apt install -y g++-riscv64-linux-gnu gcc-riscv64-linux-gnu
