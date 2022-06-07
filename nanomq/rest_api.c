@@ -986,7 +986,7 @@ get_tree(http_msg *msg)
 
 	dbtree *       db = get_broker_db();
 	dbtree_info ***vn = (dbtree_info ***) dbtree_get_tree(
-	    db, get_client_info_cb); // FIXME memory leaks
+	    db, get_client_info_cb);
 
 	for (int i = 0; i < cvector_size(vn); i++) {
 		cJSON *data_info_elem = cJSON_CreateArray();
@@ -1003,6 +1003,7 @@ get_tree(http_msg *msg)
 			    (const char *const *) vn[i][j]->clients,
 			    cvector_size(vn[i][j]->clients));
 			cvector_free(vn[i][j]->clients);
+			zfree(vn[i][j]);
 			cJSON_AddItemToObject(elem, "clientid", clients);
 		}
 		cvector_free(vn[i]);
