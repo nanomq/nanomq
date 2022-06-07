@@ -861,9 +861,9 @@ get_clients(http_msg *msg, kv **params, size_t param_num,
 	res_obj = cJSON_CreateObject();
 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
 
-	cJSON *meta = cJSON_CreateObject();
+	// cJSON *meta = cJSON_CreateObject();
 
-	cJSON_AddItemToObject(res_obj, "meta", meta);
+	// cJSON_AddItemToObject(res_obj, "meta", meta);
 	// TODO add meta content: page, limit, count
 	cJSON_AddItemToObject(res_obj, "data", data_info);
 	char *dest = cJSON_PrintUnformatted(res_obj);
@@ -935,8 +935,8 @@ get_subscriptions(
 	cvector_free(pt);
 
 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
-	cJSON *meta = cJSON_CreateObject();
-	cJSON_AddItemToObject(res_obj, "meta", meta);
+	// cJSON *meta = cJSON_CreateObject();
+	// cJSON_AddItemToObject(res_obj, "meta", meta);
 	// TODO add meta content: page, limit, count
 	cJSON_AddItemToObject(res_obj, "data", data_info);
 
