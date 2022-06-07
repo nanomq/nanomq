@@ -822,11 +822,6 @@ get_clients(http_msg *msg, kv **params, size_t param_num,
 		const char *proto_name = conn_param_get_pro_name(ctxt->cparam);
 		const bool  clean_start =
 		    conn_param_get_clean_start(ctxt->cparam);
-#ifdef STATISTICS
-		// uint64_t recv_cnt = ctxt->recv_cnt != NULL
-		//     ? nng_atomic_get64(ctxt->recv_cnt)
-		//     : 0;
-#endif
 
 		cJSON *data_info_elem;
 		data_info_elem = cJSON_CreateObject();
@@ -844,10 +839,10 @@ get_clients(http_msg *msg, kv **params, size_t param_num,
 		    data_info_elem, "proto_name", proto_name);
 		cJSON_AddNumberToObject(
 		    data_info_elem, "proto_ver", proto_ver);
-
 #ifdef STATISTICS
-		// cJSON_AddNumberToObject(
-		//     data_info_elem, "message_receive", recv_cnt);
+		cJSON_AddNumberToObject(data_info_elem, "recv_msg",
+		    ctxt->recv_cnt != NULL ? nng_atomic_get64(ctxt->recv_cnt)
+		                           : 0);
 #endif
 		cJSON_AddItemToArray(data_info, data_info_elem);
 
