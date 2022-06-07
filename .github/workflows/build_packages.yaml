@@ -15,6 +15,7 @@ jobs:
       matrix:
         arch:
         - [x86_64, gcc, g++]
+        - [amd64, gcc, g++]
         - [arm64, aarch64-linux-gnu-gcc, aarch64-linux-gnu-g++]
         - [mips, mips-linux-gnu-gcc, mips-linux-gnu-g++]
         - [riscv64, riscv64-linux-gnu-gcc, riscv64-linux-gnu-g++]
@@ -56,26 +57,30 @@ jobs:
         make
     - name: build deb
       run: |
-        set -eu
-        cd build
-        mkdir -p _packages
-        sudo checkinstall --backup=no --install=no --type=debian --arch=${{ matrix.arch[0] }}  --pkgname=nanomq --pkgversion=$(git describe --abbrev=0 --tags) --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
-        pkg_name="nanomq-$(git describe --abbrev=0 --tags)-linux-${{ matrix.arch[0] }}.deb"
-        sudo mv _packages/nanomq_$(git describe --abbrev=0 --tags)_${{ matrix.arch[0] }}.deb _packages/$pkg_name
-        cd _packages; echo $(sha256sum $pkg_name | awk '{print $1}') > $pkg_name.sha256
+        if [ "${{ matrix.arch[0] }}" != "x86_64" ]; then  
+          set -eu
+          cd build
+          mkdir -p _packages
+          sudo checkinstall --backup=no --install=no --type=debian --arch=${{ matrix.arch[0] }}  --pkgname=nanomq --pkgversion=$(git describe --abbrev=0 --tags) --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
+          pkg_name="nanomq-$(git describe --abbrev=0 --tags)-linux-${{ matrix.arch[0] }}.deb"
+          sudo mv _packages/nanomq_$(git describe --abbrev=0 --tags)_${{ matrix.arch[0] }}.deb _packages/$pkg_name
+          cd _packages; echo $(sha256sum $pkg_name | awk '{print $1}') > $pkg_name.sha256
+        fi
     - name: build rpm
       shell: bash
       run: |
-        set -eu
-        cd build
-        mkdir -p _packages
-        sudo mkdir -p /root/rpmbuild/SOURCES
-        sudo mkdir -p /root/rpmbuild/BUILD
-        sudo mkdir -p /root/rpmbuild/BUILDROOT
-        sudo checkinstall --backup=no --install=no --type=rpm --arch=${{ matrix.arch[0] }} --pkgname=nanomq --pkgversion=$(git describe --abbrev=0 --tags) --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
-        pkg_name="nanomq-$(git describe --abbrev=0 --tags)-linux-${{ matrix.arch[0] }}.rpm"
-        sudo mv _packages/nanomq-$(git describe --abbrev=0 --tags)-1.${{ matrix.arch[0] }}.rpm _packages/$pkg_name
-        cd _packages; echo $(sha256sum $pkg_name | awk '{print $1}') > $pkg_name.sha256
+        if [ "${{ matrix.arch[0] }}" != "amd64" ]; then  
+          set -eu
+          cd build
+          mkdir -p _packages
+          sudo mkdir -p /root/rpmbuild/SOURCES
+          sudo mkdir -p /root/rpmbuild/BUILD
+          sudo mkdir -p /root/rpmbuild/BUILDROOT
+          sudo checkinstall --backup=no --install=no --type=rpm --arch=${{ matrix.arch[0] }} --pkgname=nanomq --pkgversion=$(git describe --abbrev=0 --tags) --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
+          pkg_name="nanomq-$(git describe --abbrev=0 --tags)-linux-${{ matrix.arch[0] }}.rpm"
+          sudo mv _packages/nanomq-$(git describe --abbrev=0 --tags)-1.${{ matrix.arch[0] }}.rpm _packages/$pkg_name
+          cd _packages; echo $(sha256sum $pkg_name | awk '{print $1}') > $pkg_name.sha256
+        fi
 
     - name: build with sqlite
       run: |
@@ -86,22 +91,25 @@ jobs:
         make
     - name: build deb with sqlite
       run: |
-        set -eu
-        cd build
-        sudo checkinstall --backup=no --install=no --type=debian --arch=${{ matrix.arch[0] }}  --pkgname=nanomq --pkgversion=$(git describe --abbrev=0 --tags) --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
-        pkg_name="nanomq-$(git describe --abbrev=0 --tags)-linux-${{ matrix.arch[0] }}-sqlite.deb"
-        sudo mv _packages/nanomq_$(git describe --abbrev=0 --tags)_${{ matrix.arch[0] }}.deb _packages/$pkg_name
-        cd _packages; echo $(sha256sum $pkg_name | awk '{print $1}') > $pkg_name.sha256
+        if [ "${{ matrix.arch[0] }}" != "x86_64" ]; then  
+          set -eu
+          cd build
+          sudo checkinstall --backup=no --install=no --type=debian --arch=${{ matrix.arch[0] }}  --pkgname=nanomq --pkgversion=$(git describe --abbrev=0 --tags) --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
+          pkg_name="nanomq-$(git describe --abbrev=0 --tags)-linux-${{ matrix.arch[0] }}-sqlite.deb"
+          sudo mv _packages/nanomq_$(git describe --abbrev=0 --tags)_${{ matrix.arch[0] }}.deb _packages/$pkg_name
+          cd _packages; echo $(sha256sum $pkg_name | awk '{print $1}') > $pkg_name.sha256
+        fi
     - name: build rpm with sqlite
       shell: bash
       run: |
-        set -eu
-        cd build
-        sudo checkinstall --backup=no --install=no --type=rpm --arch=${{ matrix.arch[0] }} --pkgname=nanomq --pkgversion=$(git describe --abbrev=0 --tags) --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
-        pkg_name="nanomq-$(git describe --abbrev=0 --tags)-linux-${{ matrix.arch[0] }}-sqlite.rpm"
-        sudo mv _packages/nanomq-$(git describe --abbrev=0 --tags)-1.${{ matrix.arch[0] }}.rpm _packages/$pkg_name
-        cd _packages; echo $(sha256sum $pkg_name | awk '{print $1}') > $pkg_name.sha256
-
+        if [ "${{ matrix.arch[0] }}" != "amd64" ]; then  
+          set -eu
+          cd build
+          sudo checkinstall --backup=no --install=no --type=rpm --arch=${{ matrix.arch[0] }} --pkgname=nanomq --pkgversion=$(git describe --abbrev=0 --tags) --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
+          pkg_name="nanomq-$(git describe --abbrev=0 --tags)-linux-${{ matrix.arch[0] }}-sqlite.rpm"
+          sudo mv _packages/nanomq-$(git describe --abbrev=0 --tags)-1.${{ matrix.arch[0] }}.rpm _packages/$pkg_name
+          cd _packages; echo $(sha256sum $pkg_name | awk '{print $1}') > $pkg_name.sha256
+        fi
     - uses: actions/upload-artifact@v2
       with:
         name: packages
