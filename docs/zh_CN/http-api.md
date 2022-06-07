@@ -58,7 +58,7 @@ NanoMQ 接口的响应消息体为 JSON 格式，其中总是包含返回码 `co
 
 ### GET /api/v4
 
-返回 EMQX 支持的所有 Endpoints。
+返回 NanoMQ 支持的所有 Endpoints。
 
 **Parameters:** 无
 
@@ -117,14 +117,14 @@ $ curl -i --basic -u admin:public -X GET "http://localhost:8081/api/v4/brokers"
 
 **Success Response Body (JSON):**
 
-| Name                       | Type                    | Description                                                  |
-| -------------------------- | ----------------------- | ------------------------------------------------------------ |
-| code                       | Integer                 | 0                                                            |
-| data                       | Object/Array of Objects | node 参数存在时返回指定节点信息， 不存在时以 Array 形式返回所有节点的信息 |
-| data.connections           | Integer                 | 当前接入此节点的客户端数量                                   |
-| data.node_status           | String                  | 节点状态                                                     |
-| data.uptime                | String                  | NanoMQ 运行时间                                              |
-| data.version               | String                  | NanoMQ 版本                                                  |
+| Name             | Type                    | Description                                                  |
+| ---------------- | ----------------------- | ------------------------------------------------------------ |
+| code             | Integer                 | 0                                                            |
+| data             | Object/Array of Objects | 以 Array 形式返回所有节点的信息*(只有一个节点，nanomq暂不支持集群)* |
+| data.connections | Integer                 | 当前接入此节点的客户端数量                                   |
+| data.node_status | String                  | 节点状态                                                     |
+| data.uptime      | String                  | NanoMQ 运行时间                                              |
+| data.version     | String                  | NanoMQ 版本                                                  |
 
 **Examples:**
 
@@ -153,19 +153,18 @@ $ curl -i --basic -u admin:public -X GET "http://localhost:8081/api/v4/nodes"
 
 **Success Response Body (JSON):**
 
-| Name                          | Type             | Description                                                  |
-| ----------------------------- | ---------------- | ------------------------------------------------------------ |
-| code                          | Integer          | 0                                                            |
-| data                          | Array of Objects | 所有客户端的信息                                             |
-| data[0].clientid              | String           | 客户端标识符                                                 |
-| data[0].username              | String           | 客户端连接时使用的用户名                                     |
-| data[0].proto_name            | String           | 客户端协议名称 *(MQTT,CoAP,LwM2M,MQTT-SN)*                   |
-| data[0].proto_ver             | Integer          | 客户端使用的协议版本                                         |
-| data[0].port                  | Integer          | 客户端的端口                                                 |
-| data[0].connected             | Boolean          | 客户端是否处于连接状态                                       |
-| data[0].keepalive             | Integer          | 保持连接时间，单位：秒                                       |
-| data[0].clean_start           | Boolean          | 指示客户端是否使用了全新的会话                               |
-| data[0].send_msg              | Integer          | 发送的 PUBLISH 报文数量                                      |
+| Name                | Type             | Description                                |
+| ------------------- | ---------------- | ------------------------------------------ |
+| code                | Integer          | 0                                          |
+| data                | Array of Objects | 所有客户端的信息                           |
+| data[0].clientid    | String           | 客户端标识符                               |
+| data[0].username    | String           | 客户端连接时使用的用户名                   |
+| data[0].proto_name  | String           | 客户端协议名称 *(MQTT,CoAP,LwM2M,MQTT-SN)* |
+| data[0].proto_ver   | Integer          | 客户端使用的协议版本                       |
+| data[0].connected   | Boolean          | 客户端是否处于连接状态                     |
+| data[0].keepalive   | Integer          | 保持连接时间，单位：秒                     |
+| data[0].clean_start | Boolean          | 指示客户端是否使用了全新的会话             |
+| data[0].recv_msg    | Integer          | 接收的 PUBLISH 报文数量                    |
 
 **Examples:**
 
@@ -190,7 +189,7 @@ $ curl -i --basic -u admin:public -X GET "http://localhost:8081/api/v4/clients"
 | Name | Type             | Description                                                  |
 | ---- | ---------------- | ------------------------------------------------------------ |
 | code | Integer          | 0                                                            |
-| data | Array of Objects | 客户端的信息，详细请参见 *GET /api/v4/clients* |
+| data | Array of Objects | 客户端的信息，详细请参见 [GET /api/v4/clients](#GET /api/v4/clients) |
 
 **Examples:**
 
@@ -216,10 +215,10 @@ $ curl -i --basic -u admin:public -X GET "http://localhost:8081/api/v4/clients/n
 
 **Success Response Body (JSON):**
 
-| Name | Type             | Description                                    |
-| ---- | ---------------- | ---------------------------------------------- |
-| code | Integer          | 0                                              |
-| data | Array of Objects | 客户端的信息，详细请参见 *GET /api/v4/clients* |
+| Name | Type             | Description                                                  |
+| ---- | ---------------- | ------------------------------------------------------------ |
+| code | Integer          | 0                                                            |
+| data | Array of Objects | 客户端的信息，详细请参见 [GET /api/v4/clients](#GET /api/v4/clients) |
 
 **Examples:**
 
@@ -326,48 +325,46 @@ $ curl -i --basic -u admin:public -X GET "http://localhost:8081/api/v4/topic-tre
 
 **Success Response Body (JSON):**
 
-| Name                              | Type          | Description                                                  |
-| ---------------------             | -------       | ------------------------------------------------------------ |
-| code                              | Integer       | 0                                                            |
-| seq                               | Integer       | seq 是全局唯一的，请求/响应信息都会携带该信息，可以通过该值确定对应的请求响应。 |
-| rep                               | Integer       | rep 是 11 作为 req 11 的响应。                               |
-| data.url                          | String        | 监听url。                                                    |
-| data.num_taskq_thread             | Integer       | 任务线程数。 |
-| data.max_taskq_thread             | Integer       | 最大任务线程数。 |
-| data.parallel                     | Long          | 并行数。 |
-| data.property_size                | Integer       | 最大属性长度。 |
-| data.msq_len                      | Integer       | 队列长度。 |
-| data.qos_duration                 | Integer       | QOS消息定时间隔时间。 |
-| data.allow_anonymous              | Boolean       | 允许匿名登录。 |
-| data.tls.enable                   | Boolean       | 启动TLS监听。 |
-| data.tls.url                      | String        | TLS监听URL。 |
-| data.tls.key                      | String        | TLS私钥数据。 |
-| data.tls.keypass                  | String        | TLS私钥密码。 |
-| data.tls.cert                     | String        | TLS Cert证书数据。 |
-| data.tls.cacert                   | String        | TLS CA证书数据。|
-| data.tls.verify_peer              | Boolean       | 验证客户端证书 |
+| Name                              | Type          | Description                                    |
+| --------------------------------- | ------------- | ---------------------------------------------- |
+| code                              | Integer       | 0                                              |
+| data.url                          | String        | 监听url。                                      |
+| data.num_taskq_thread             | Integer       | 任务线程数。                                   |
+| data.max_taskq_thread             | Integer       | 最大任务线程数。                               |
+| data.parallel                     | Long          | 并行数。                                       |
+| data.property_size                | Integer       | 最大属性长度。                                 |
+| data.msq_len                      | Integer       | 队列长度。                                     |
+| data.qos_duration                 | Integer       | QOS消息定时间隔时间。                          |
+| data.allow_anonymous              | Boolean       | 允许匿名登录。                                 |
+| data.tls.enable                   | Boolean       | 启动TLS监听。                                  |
+| data.tls.url                      | String        | TLS监听URL。                                   |
+| data.tls.key                      | String        | TLS私钥数据。                                  |
+| data.tls.keypass                  | String        | TLS私钥密码。                                  |
+| data.tls.cert                     | String        | TLS Cert证书数据。                             |
+| data.tls.cacert                   | String        | TLS CA证书数据。                               |
+| data.tls.verify_peer              | Boolean       | 验证客户端证书                                 |
 | data.tls.fail_if_no_peer_cert     | Boolean       | 拒绝无证书连接，与_.tls.verify_peer_配合使用。 |
-| data.websocket.enable             | Boolean       | 启动websocket监听。 |
-| data.websocket.url                | String        | Websocket监听URL。 |
-| data.websocket.tls_url            | String        | TLS over Websocket监听URL。 |
-| data.http_server.enable           | Boolean       | 启动Http服务监听。 |
-| data.http_server.port             | Integer       | Http服务端监听端口。 |
-| data.http_server.username         | String        | 访问Http服务用户名。 |
-| data.http_server.password         | String        | 访问Http服务密码。 |
-| data.bridge.bridge_mode           | Boolean       | 启动桥接功能。  |
-| data.bridge.address               | String        | 桥接目标broker地址。|
-| data.bridge.proto_ver             | String        | 桥接客户端MQTT版本（3｜4｜5）。 |
-| data.bridge.clientid              | String        | 桥接客户端ID。（NULL为自动生成随机ID） |
-| data.bridge.keepalive             | Integer       | 保活间隔时间。 |
-| data.bridge.clean_start           | Boolean       | 清除会话。 |
-| data.bridge.parallel              | Long          | 桥接客户端并发数。 |
-| data.bridge.username              | String        | 登录用户名。 |
-| data.bridge.password              | String        | 登录密码。 |
-| data.bridge.forwards              | Array[String] | 转发Topic数组。 |
-| data.bridge.forwards[0]           | String        | 转发Topic。 |
-| data.bridge.subscription          | Array[Object] | 订阅信息数组。                                               |
-| data.bridge.subscription[0].topic | String        | 订阅Topic。                                                  |
-| data.bridge.subscription[0].qos   | Integer       | 订阅消息质量Qos。 |
+| data.websocket.enable             | Boolean       | 启动websocket监听。                            |
+| data.websocket.url                | String        | Websocket监听URL。                             |
+| data.websocket.tls_url            | String        | TLS over Websocket监听URL。                    |
+| data.http_server.enable           | Boolean       | 启动Http服务监听。                             |
+| data.http_server.port             | Integer       | Http服务端监听端口。                           |
+| data.http_server.username         | String        | 访问Http服务用户名。                           |
+| data.http_server.password         | String        | 访问Http服务密码。                             |
+| data.bridge.bridge_mode           | Boolean       | 启动桥接功能。                                 |
+| data.bridge.address               | String        | 桥接目标broker地址。                           |
+| data.bridge.proto_ver             | String        | 桥接客户端MQTT版本（3｜4｜5）。                |
+| data.bridge.clientid              | String        | 桥接客户端ID。（NULL为自动生成随机ID）         |
+| data.bridge.keepalive             | Integer       | 保活间隔时间。                                 |
+| data.bridge.clean_start           | Boolean       | 清除会话。                                     |
+| data.bridge.parallel              | Long          | 桥接客户端并发数。                             |
+| data.bridge.username              | String        | 登录用户名。                                   |
+| data.bridge.password              | String        | 登录密码。                                     |
+| data.bridge.forwards              | Array[String] | 转发Topic数组。                                |
+| data.bridge.forwards[0]           | String        | 转发Topic。                                    |
+| data.bridge.subscription          | Array[Object] | 订阅信息数组。                                 |
+| data.bridge.subscription[0].topic | String        | 订阅Topic。                                    |
+| data.bridge.subscription[0].qos   | Integer       | 订阅消息质量Qos。                              |
 
 **Examples:**
 
@@ -445,9 +442,9 @@ $ curl -i --basic -u admin:public -X GET 'http://127.0.0.1:8081/api/v4/configura
 
 **Parameters (json):**
 
-| Name | Type   | Required | Value | Description                           |
-| ---- | ------ | -------- | ----- | ------------------------------------- |
-| data | Object | Required |       | 同获取配置一致[data](#获取当前配置)。 |
+| Name | Type   | Required | Value | Description                                    |
+| ---- | ------ | -------- | ----- | ---------------------------------------------- |
+| data | Object | Required |       | 同获取配置一致 [获取当前配置](#获取当前配置)。 |
 
 **Success Response Body (JSON):**
 
