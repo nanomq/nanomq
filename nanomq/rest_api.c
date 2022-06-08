@@ -188,9 +188,9 @@ get_time_str(char *str, size_t str_len)
 	if (str == NULL) {
 		return;
 	}
-	time_t t;
-	time(&t);
-	struct tm *tmp_time = localtime(&t);
+	const time_t now_seconds = time(NULL);
+	struct tm    now;
+	struct tm *  tmp_time = localtime_r(&now_seconds, &now);
 	strftime(str, str_len, "%Y-%m-%d %H:%M:%S", tmp_time);
 }
 
