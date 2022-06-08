@@ -31,7 +31,7 @@
 #include <unistd.h>
 
 #define NANO_APP_NAME "nanomq"
-#define NANO_BRAND "NanoMQ  Edge Computing Kit & Messaging bus"
+#define NANO_BRAND "NanoMQ Edge Computing Kit & Messaging bus"
 
 #define NANO_DEBUG
 
@@ -59,8 +59,8 @@ get_cache_argv()
 static void
 print_version(void)
 {
-	printf("\n%s v%d.%d.0-%s\n", FW_EV_VER_MAJOR, FW_EV_VER_MINOR,
-	    FW_EV_VER_PATCH, NANO_BRAND, FW_EV_VER_ID_SHORT);
+	printf("\n%s v%d.%d.%d-%s\n", NANO_BRAND, FW_EV_VER_MAJOR,
+	    FW_EV_VER_MINOR, FW_EV_VER_PATCH, FW_EV_VER_ID_SHORT);
 	printf("Copyright 2022 EMQ X Edge Team\n");
 	printf("\n");
 }
