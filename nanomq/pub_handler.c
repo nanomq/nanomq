@@ -16,19 +16,19 @@
 #include <nng/mqtt/packet.h>
 #include <zmalloc.h>
 
+#include "cJSON.h"
 #include "include/bridge.h"
 #include "include/pub_handler.h"
 #include "include/sub_handler.h"
 #include "nng/protocol/mqtt/mqtt_parser.h"
 #include "nng/supplemental/util/platform.h"
-#include "cJSON.h"
 
 #define ENABLE_RETAIN 1
 #define SUPPORT_MQTT5_0 1
 
 #ifdef STATISTICS
 typedef struct {
-	bool initialed;
+	bool            initialed;
 	nng_atomic_u64 *msg_in;
 	nng_atomic_u64 *msg_out;
 	nng_atomic_u64 *msg_drop;
@@ -85,14 +85,14 @@ void
 foreach_client(
     void **cli_ctx_list, nano_work *pub_work, struct pipe_content *pipe_ct)
 {
-	bool      equal = false;
-	uint32_t  pids;
-	uint8_t   sub_qos;
-	int       ctx_list_len;
+	bool     equal = false;
+	uint32_t pids;
+	uint8_t  sub_qos;
+	int      ctx_list_len;
 
 	struct client_ctx *ctx;
-	dbtree_ctxt *      db_ctxt, *ctxt;
-	topic_node *       tn;
+	dbtree_ctxt       *db_ctxt, *ctxt;
+	topic_node        *tn;
 
 	// Dont using msg info buf, Just for Cheat Compiler
 	mqtt_msg_info *msg_info, msg_info_buf;
@@ -103,7 +103,7 @@ foreach_client(
 
 	for (int i = 0; i < ctx_list_len; i++) {
 		db_ctxt = (dbtree_ctxt *) cli_ctx_list[i];
-		ctx = (struct client_ctx *) db_ctxt->ctx;
+		ctx     = (struct client_ctx *) db_ctxt->ctx;
 
 #ifdef STATISTICS
 		nng_atomic_inc64(ctx->recv_cnt);
@@ -120,7 +120,8 @@ foreach_client(
 		while (tn) {
 			sub_topic = tn->it->topic_filter.body;
 			if (sub_topic[0] == '$') {
-				if (!strncmp(sub_topic, "$share/", strlen("$share/"))) {
+				if (!strncmp(sub_topic, "$share/",
+				        strlen("$share/"))) {
 					sub_topic = strchr(sub_topic, '/');
 					sub_topic++;
 					sub_topic = strchr(sub_topic, '/');
@@ -129,7 +130,8 @@ foreach_client(
 			}
 
 			// Note.
-			// We filter all the topics for the options carried by the topic
+			// We filter all the topics for the options carried by
+			// the topic
 			if (true ==
 			    topic_filter(sub_topic,
 			        pub_work->pub_packet->var_header.publish
@@ -152,26 +154,26 @@ foreach_client(
 
 		cvector_push_back(msg_infos, msg_info_buf);
 		size_t csize = cvector_size(msg_infos);
-		msg_info = (mqtt_msg_info *) &msg_infos[csize-1];
+		msg_info     = (mqtt_msg_info *) &msg_infos[csize - 1];
 
 		msg_info->pipe = pids;
 		msg_info->qos  = sub_qos;
 
-next:
+	next:
 		if ((ctx = dbtree_delete_ctxt(pub_work->db, db_ctxt)) != NULL)
-			destroy_sub_client(ctx->pid.id, pub_work->db, ctx, tn->it->topic_filter.body);
+			destroy_sub_client(ctx->pid.id, pub_work->db, ctx,
+			    tn->it->topic_filter.body);
 	}
 	pipe_ct->msg_infos = msg_infos;
 }
 
-
-
 #if defined(SUPP_RULE_ENGINE)
-static bool rule_engine_filter(nano_work *work, rule_engine_info *info)
+static bool
+rule_engine_filter(nano_work *work, rule_engine_info *info)
 {
-	pub_packet_struct *pp = work->pub_packet;
-	char *topic = pp->var_header.publish.topic_name.body;
-	bool filter = true;
+	pub_packet_struct *pp     = work->pub_packet;
+	char              *topic  = pp->var_header.publish.topic_name.body;
+	bool               filter = true;
 	if (topic_filter(info->topic, topic)) {
 		// printf("MATCH filter: %s, topic: %s\n", info->topic, topic);
 		if (info->filter) {
@@ -179,15 +181,17 @@ static bool rule_engine_filter(nano_work *work, rule_engine_info *info)
 			for (size_t j = 0; j < 8; j++) {
 				char *val = info->filter[j];
 				if (val != NULL || j == RULE_PAYLOAD) {
-					switch (j)
-					{
+					switch (j) {
 					case RULE_QOS:
-						if (pp->fixed_header.qos != atoi(val)) {
+						if (pp->fixed_header.qos !=
+						    atoi(val)) {
 							filter = false;
 						}
 						break;
 					case RULE_ID:
-						if (pp->var_header.publish.packet_id != atoi(val)) {
+						if (pp->var_header.publish
+						        .packet_id !=
+						    atoi(val)) {
 							filter = false;
 						}
 						break;
@@ -197,20 +201,32 @@ static bool rule_engine_filter(nano_work *work, rule_engine_info *info)
 						}
 						break;
 					case RULE_CLIENTID:;
-						const char *cid = (const char*) conn_param_get_clientid(cp);
-						if (cid == NULL || strcmp(cid, val)) {
+						const char *cid = (const char
+						        *)
+						    conn_param_get_clientid(
+						        cp);
+						if (cid == NULL ||
+						    strcmp(cid, val)) {
 							filter = false;
 						}
 						break;
 					case RULE_USERNAME:;
-						const char *username = (const char*) conn_param_get_username(cp);
-						if (username == NULL || strcmp(username, val)) {
+						const char *username =
+						    (const char *)
+						        conn_param_get_username(
+						            cp);
+						if (username == NULL ||
+						    strcmp(username, val)) {
 							filter = false;
 						}
 						break;
 					case RULE_PASSWORD:;
-						const char *password = (const char*) conn_param_get_password(cp);
-						if (password == NULL || strcmp(password, val)) {
+						const char *password =
+						    (const char *)
+						        conn_param_get_password(
+						            cp);
+						if (password == NULL ||
+						    strcmp(password, val)) {
 							filter = false;
 						}
 						break;
@@ -222,53 +238,133 @@ static bool rule_engine_filter(nano_work *work, rule_engine_info *info)
 						// }
 						break;
 					case RULE_PAYLOAD:;
-						if (!pp->payload.data || pp->payload.len <= 0) {
+						if (!pp->payload.data ||
+						    pp->payload.len <= 0) {
 							filter = false;
 							break;
 						}
 						if (val == NULL) {
-							if (info->payload->psa) {
-								cJSON *jp = cJSON_ParseWithLength(pp->payload.data, pp->payload.len);
-								for (int k = 0; k < cvector_size(info->payload->psa); k++) {
-									if (jp == NULL) {
-										filter = false;
+							cJSON *jp =
+							    cJSON_ParseWithLength(
+							        pp->payload
+							            .data,
+							        pp->payload
+							            .len);
+							cJSON *jp_reset = jp;
+							// info->payload size
+							// equal 0, implicit
+							// there is no payload
+							// filter need to be
+							// check, so filter is
+							// true.
+							for (
+							    int pi = 0; pi <
+							    cvector_size(
+							        info->payload);
+							    pi++) {
+								jp =
+								    jp_reset; // reset jp;
+								for (
+								    int k = 0;
+								    k <
+								    cvector_size(
+								        info
+								            ->payload
+								                [pi]
+								            ->psa);
+								    k++) {
+									if (jp ==
+									    NULL) {
+										filter =
+										    false;
 										break;
 									}
-									jp = cJSON_GetObjectItem(jp, info->payload->psa[k]); 
+									jp = cJSON_GetObjectItem(
+									    jp,
+									    info
+									        ->payload
+									            [pi]
+									        ->psa
+									            [k]);
 								}
-								
-								if (filter == true && jp != NULL) {
-									switch (jp->type)
-									{
-									case cJSON_Number:;
-										int num = cJSON_GetNumberValue(jp);
 
-										if (info->payload->filter && num != atoi(info->payload->filter)) {
-											filter = false;
-										} else {
-											info->payload->value = (void*) num;
-											info->payload->type = cJSON_Number;
+								if (jp ==
+								        NULL ||
+								    filter ==
+								        false) {
+									filter =
+									    false;
+									break;
+								}
 
-										}
-										break;
-									case cJSON_String:;
-										char *str = cJSON_GetStringValue(jp);
-										if (!strcmp(str, info->payload->pas)) {
-											filter = false;
-										} else {
-											info->payload->value = zstrdup(str);
-											info->payload->type = cJSON_String;
-										}
-										break;
-								
-									default:
-										break;
+								switch (
+								    jp->type) {
+								case cJSON_Number:;
+									int num =
+									    cJSON_GetNumberValue(
+									        jp);
+
+									if (info->payload
+									        [pi]
+									            ->filter &&
+									    num !=
+									        atoi(
+									            info
+									                ->payload
+									                    [pi]
+									                ->filter)) {
+										filter =
+										    false;
+									} else {
+										info->payload
+										    [pi]
+										        ->value =
+										    (void *)
+										        num;
+										info->payload
+										    [pi]
+										        ->type =
+										    cJSON_Number;
 									}
+									break;
+								case cJSON_String:;
+									char *str =
+									    cJSON_GetStringValue(
+									        jp);
+									if (!strcmp(
+									        str,
+									        info
+									            ->payload
+									                [pi]
+									            ->pas)) {
+										filter =
+										    false;
+									} else {
+										info->payload
+										    [pi]
+										        ->value =
+										    zstrdup(
+										        str);
+										info->payload
+										    [pi]
+										        ->type =
+										    cJSON_String;
+									}
+									break;
+
+								default:
+									break;
 								}
 							}
 
 						} else {
-							if (strncmp((const char*) pp->payload.data, val, pp->payload.len)) {
+							if (strncmp(
+							        (const char *)
+							            pp->payload
+							                .data,
+							        val,
+							        pp->payload
+							            .len)) {
 								filter = false;
 							}
 						}
@@ -281,139 +377,227 @@ static bool rule_engine_filter(nano_work *work, rule_engine_info *info)
 					}
 				}
 			}
-
 		}
 	} else {
-		// printf("MISMATCH filter: %s, topic: %s\n", info->topic, topic);
+		// printf("MISMATCH filter: %s, topic: %s\n", info->topic,
+		// topic);
 		filter = false;
 	}
-	
+
 	return filter;
 }
 
-static int rule_engine_insert_sql(nano_work *work)
+static int
+rule_engine_insert_sql(nano_work *work)
 {
-	rule_engine_info *rule_infos = work->config->rule_engine;
-	size_t rule_size = cvector_size(rule_infos);
-	pub_packet_struct *pp = work->pub_packet;
-	conn_param *cp = work->cparam;
+	rule_engine_info  *rule_infos = work->config->rule_engine;
+	size_t             rule_size  = cvector_size(rule_infos);
+	pub_packet_struct *pp         = work->pub_packet;
+	conn_param        *cp         = work->cparam;
 
 	for (size_t i = 0; i < rule_size; i++) {
-			if (rule_engine_filter(work, &rule_infos[i])) {
-				cJSON *jso   = NULL;
-				jso          = cJSON_CreateObject();
-				for (size_t j = 0; j < 8; j++) {
-					if (rule_infos[i].flag[j]) {
-						switch (j)
-						{
-						case RULE_QOS:
-							if (rule_infos[i].as[j]) {
-								cJSON_AddNumberToObject(jso, rule_infos[i].as[j], pp->fixed_header.qos);
-							} else {
-								cJSON_AddNumberToObject(jso, "qos", pp->fixed_header.qos);
-							}
-							break;
-						case RULE_ID:
-							if (rule_infos[i].as[j]) {
-								cJSON_AddNumberToObject(jso, rule_infos[i].as[j], pp->var_header.publish.packet_id);
-							} else {
-								cJSON_AddNumberToObject(jso, "id", pp->var_header.publish.packet_id);
-							}
-							break;
-						case RULE_TOPIC:;
-							char *topic = pp->var_header.publish.topic_name.body;
-							if (rule_infos[i].as[j]) {
-								cJSON_AddStringToObject(jso, rule_infos[i].as[j], topic);
-							} else {
-								cJSON_AddStringToObject(jso, "topic", topic);
-							}
-							break;
-						case RULE_CLIENTID:;
-							char *cid = (char*) conn_param_get_clientid(cp);
-							if (rule_infos[i].as[j]) {
-								cJSON_AddStringToObject(jso, rule_infos[i].as[j], cid);
-							} else {
-								cJSON_AddStringToObject(jso, "clientid", cid);
-							}
-							break;
-						case RULE_USERNAME:;
-							char *username = (char*) conn_param_get_username(cp);
-							if (rule_infos[i].as[j]) {
-								cJSON_AddStringToObject(jso, rule_infos[i].as[j], username);
-							} else {
-								cJSON_AddStringToObject(jso, "username", username);
-							}
-							break;
-						case RULE_PASSWORD:;
-							char *password = (char*) conn_param_get_password(cp);
-							if (rule_infos[i].as[j]) {
-								cJSON_AddStringToObject(jso, rule_infos[i].as[j], password);
-							} else {
-								cJSON_AddStringToObject(jso, "password", password);
-							}
-							break;
-						case RULE_TIMESTAMP:
-							// TODO
-							if (rule_infos[i].as[j]) {
+		if (rule_engine_filter(work, &rule_infos[i])) {
+			cJSON *jso = NULL;
+			jso        = cJSON_CreateObject();
+			for (size_t j = 0; j < 8; j++) {
+				if (rule_infos[i].flag[j]) {
+					switch (j) {
+					case RULE_QOS:
+						if (rule_infos[i].as[j]) {
+							cJSON_AddNumberToObject(
+							    jso,
+							    rule_infos[i]
+							        .as[j],
+							    pp->fixed_header
+							        .qos);
+						} else {
+							cJSON_AddNumberToObject(
+							    jso, "qos",
+							    pp->fixed_header
+							        .qos);
+						}
+						break;
+					case RULE_ID:
+						if (rule_infos[i].as[j]) {
+							cJSON_AddNumberToObject(
+							    jso,
+							    rule_infos[i]
+							        .as[j],
+							    pp->var_header
+							        .publish
+							        .packet_id);
+						} else {
+							cJSON_AddNumberToObject(
+							    jso, "id",
+							    pp->var_header
+							        .publish
+							        .packet_id);
+						}
+						break;
+					case RULE_TOPIC:;
+						char *topic =
+						    pp->var_header.publish
+						        .topic_name.body;
+						if (rule_infos[i].as[j]) {
+							cJSON_AddStringToObject(
+							    jso,
+							    rule_infos[i]
+							        .as[j],
+							    topic);
+						} else {
+							cJSON_AddStringToObject(
+							    jso, "topic",
+							    topic);
+						}
+						break;
+					case RULE_CLIENTID:;
+						char *cid = (char *)
+						    conn_param_get_clientid(
+						        cp);
+						if (rule_infos[i].as[j]) {
+							cJSON_AddStringToObject(
+							    jso,
+							    rule_infos[i]
+							        .as[j],
+							    cid);
+						} else {
+							cJSON_AddStringToObject(
+							    jso, "clientid",
+							    cid);
+						}
+						break;
+					case RULE_USERNAME:;
+						char *username = (char *)
+						    conn_param_get_username(
+						        cp);
+						if (rule_infos[i].as[j]) {
+							cJSON_AddStringToObject(
+							    jso,
+							    rule_infos[i]
+							        .as[j],
+							    username);
+						} else {
+							cJSON_AddStringToObject(
+							    jso, "username",
+							    username);
+						}
+						break;
+					case RULE_PASSWORD:;
+						char *password = (char *)
+						    conn_param_get_password(
+						        cp);
+						if (rule_infos[i].as[j]) {
+							cJSON_AddStringToObject(
+							    jso,
+							    rule_infos[i]
+							        .as[j],
+							    password);
+						} else {
+							cJSON_AddStringToObject(
+							    jso, "password",
+							    password);
+						}
+						break;
+					case RULE_TIMESTAMP:
+						// TODO
+						if (rule_infos[i].as[j]) {
 
-							} else {
-
-							}
-							break;
-						case RULE_PAYLOAD:;
-							char *payload = pp->payload.data;
-							if (rule_infos[i].as[j]) {
-								cJSON_AddStringToObject(jso, rule_infos[i].as[j], payload);
-							} else if (rule_infos[i].payload->pas) {
-								switch (rule_infos[i].payload->type) {
-								case cJSON_Number:; 
-									cJSON_AddNumberToObject(jso, rule_infos[i].payload->pas, (int) rule_infos[i].payload->value);
+						} else {
+						}
+						break;
+					case RULE_PAYLOAD:;
+						char *payload =
+						    pp->payload.data;
+						if (rule_infos[i].as[j]) {
+							cJSON_AddStringToObject(
+							    jso,
+							    rule_infos[i]
+							        .as[j],
+							    payload);
+						} else if (cvector_size(
+						               rule_infos[i]
+						                   .payload)) {
+							for (int pi = 0; pi <
+							     cvector_size(
+							         rule_infos[i]
+							             .payload);
+							     pi++) {
+								switch (
+								    rule_infos[i]
+								        .payload
+								            [pi]
+								        ->type) {
+								case cJSON_Number:;
+									cJSON_AddNumberToObject(
+									    jso,
+									    rule_infos[i]
+									        .payload
+									            [pi]
+									        ->pas,
+									    (int) rule_infos[i]
+									        .payload
+									            [pi]
+									        ->value);
 									break;
 								case cJSON_String:;
-									cJSON_AddStringToObject(jso, rule_infos[i].payload->pas, (char*) rule_infos[i].payload->value);
+									cJSON_AddStringToObject(
+									    jso,
+									    rule_infos[i]
+									        .payload
+									            [pi]
+									        ->pas,
+									    (char *) rule_infos
+									        [i]
+									            .payload
+									                [pi]
+									            ->value);
 									break;
-
 								}
-							} else {
-								cJSON_AddStringToObject(jso, "payload", payload);
 							}
-							break;
-						default:
-							break;
+						} else {
+							cJSON_AddStringToObject(
+							    jso, "payload",
+							    payload);
 						}
+						break;
+					default:
+						break;
 					}
-
 				}
-
-				char *dest = cJSON_PrintUnformatted(jso);
-				// puts(dest);
-
-				fdb_transaction_set(work->config->tran, pp->var_header.publish.topic_name.body, pp->var_header.publish.topic_name.len, dest, strlen(dest));
-				FDBFuture *f = fdb_transaction_commit(work->config->tran);
-
-				// struct ResultSet* rs = newResultSet();
-				// if(getError(fdb_future_block_until_ready(f), "GetManySequential (block for get)", rs)) return;
-				fdb_future_destroy(f);
-				cJSON_free(dest);
-				cJSON_Delete(jso);
 			}
+
+			char *dest = cJSON_PrintUnformatted(jso);
+			// puts(dest);
+
+			fdb_transaction_set(work->config->tran,
+			    pp->var_header.publish.topic_name.body,
+			    pp->var_header.publish.topic_name.len, dest,
+			    strlen(dest));
+			FDBFuture *f =
+			    fdb_transaction_commit(work->config->tran);
+
+			// struct ResultSet* rs = newResultSet();
+			// if(getError(fdb_future_block_until_ready(f),
+			// "GetManySequential (block for get)", rs)) return;
+			fdb_future_destroy(f);
+			cJSON_free(dest);
+			cJSON_Delete(jso);
+		}
 	}
 
 	return 0;
 }
 #endif
 
-
 reason_code
 handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto)
 {
-	reason_code result = SUCCESS;
-	char **topic_queue     = NULL;
-	void **cli_ctx_list    = NULL;
-	void **shared_cli_list = NULL;
-	char * topic           = NULL;
-	pipe_ct->msg_infos = NULL;
-
+	reason_code result          = SUCCESS;
+	char      **topic_queue     = NULL;
+	void      **cli_ctx_list    = NULL;
+	void      **shared_cli_list = NULL;
+	char       *topic           = NULL;
+	pipe_ct->msg_infos          = NULL;
 
 #ifdef STATISTICS
 	if (!g_msg.initialed) {
@@ -472,16 +656,13 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto)
 		return result;
 	}
 
-
 #if defined(SUPP_RULE_ENGINE)
 	rule_engine_insert_sql(work);
 #endif
 
-	cli_ctx_list =
-	    dbtree_find_clients(work->db, topic);
+	cli_ctx_list = dbtree_find_clients(work->db, topic);
 
-	shared_cli_list = dbtree_find_shared_sub_clients(
-	    work->db, topic);
+	shared_cli_list = dbtree_find_shared_sub_clients(work->db, topic);
 
 #ifdef STATISTICS
 	if (cli_ctx_list == NULL && shared_cli_list == NULL) {
@@ -507,8 +688,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto)
 }
 
 #if ENABLE_RETAIN
-static void inline
-handle_pub_retain(const nano_work *work, char *topic)
+static void inline handle_pub_retain(const nano_work *work, char *topic)
 {
 	dbtree_retain_msg *retain = NULL;
 
@@ -516,14 +696,14 @@ handle_pub_retain(const nano_work *work, char *topic)
 		dbtree_retain_msg *r = NULL;
 
 		if (work->pub_packet->payload.len > 0) {
-			retain      = nng_alloc(sizeof(dbtree_retain_msg));
+			retain = nng_alloc(sizeof(dbtree_retain_msg));
 			if (retain == NULL) {
 				return;
 			}
 			retain->qos = work->pub_packet->fixed_header.qos;
 			nng_msg_clone(work->msg);
 
-			property *prop = NULL;
+			property *prop  = NULL;
 			retain->message = work->msg;
 			retain->exist   = true;
 			retain->m       = NULL;
@@ -678,7 +858,8 @@ encode_pub_message(
 		if (PROTOCOL_VERSION_v5 == proto) {
 			if (encode_properties(dest_msg,
 			        work->pub_packet->var_header.publish
-			            .properties, CMD_PUBLISH) != 0) {
+			            .properties,
+			        CMD_PUBLISH) != 0) {
 				return false;
 			}
 			// rv = encode_properties(dest_msg, NULL);
@@ -766,7 +947,7 @@ decode_pub_message(nano_work *work, uint8_t proto)
 	uint32_t used_pos = 0;
 	uint32_t len, len_of_varint;
 
-	nng_msg *                 msg        = work->msg;
+	nng_msg                  *msg        = work->msg;
 	struct pub_packet_struct *pub_packet = work->pub_packet;
 
 	uint8_t *msg_body = nng_msg_body(msg);
@@ -866,7 +1047,7 @@ decode_pub_message(nano_work *work, uint8_t proto)
 		debug_msg("used pos: [%d]", used_pos);
 		// payload
 		pub_packet->payload.len =
-		    (uint32_t)(msg_len - (size_t) used_pos);
+		    (uint32_t) (msg_len - (size_t) used_pos);
 
 		if (pub_packet->payload.len > 0) {
 			pub_packet->payload.data =
@@ -951,7 +1132,7 @@ bool
 check_msg_exp(nng_msg *msg, property *prop)
 {
 	if (nng_msg_cmd_type(msg) == CMD_PUBLISH_V5) {
-		//change to nng msg get
+		// change to nng msg get
 		nng_time       rtime = nng_msg_get_timestamp(msg);
 		nng_time       ntime = nng_clock();
 		property_data *data =
@@ -967,4 +1148,3 @@ check_msg_exp(nng_msg *msg, property *prop)
 	}
 	return true;
 }
-
