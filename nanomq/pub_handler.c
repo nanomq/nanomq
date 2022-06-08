@@ -169,13 +169,78 @@ foreach_client(
 
 #if defined(SUPP_RULE_ENGINE)
 static bool
+payload_filter(pub_packet_struct *pp, char *val, rule_engine_info *info)
+{
+	bool filter = true;
+	if (val == NULL) {
+		cJSON *jp =
+		    cJSON_ParseWithLength(pp->payload.data, pp->payload.len);
+		cJSON *jp_reset = jp;
+		// info->payload size equal 0, implicit there is no 
+		// payload filter need to be check, so filter is true.
+		for (int pi = 0; pi < cvector_size(info->payload); pi++) {
+			jp                     = jp_reset; // reset jp;
+			rule_payload *payload  = info->payload[pi];
+			for (int k = 0; k < cvector_size(payload->psa); k++) {
+				if (jp == NULL) {
+					filter = false;
+					break;
+				}
+				jp = cJSON_GetObjectItem(jp, payload->psa[k]);
+			}
+
+			if (jp == NULL || filter == false) {
+				filter = false;
+				break;
+			}
+
+			switch (jp->type) {
+			case cJSON_Number:;
+				int num = cJSON_GetNumberValue(jp);
+
+				if (payload->filter &&
+				    num != atoi(payload->filter)) {
+					filter = false;
+				} else {
+					payload->value = (void*) num;
+					payload->type  = cJSON_Number;
+				}
+				break;
+			case cJSON_String:;
+				char *str = cJSON_GetStringValue(jp);
+				if (payload->filter && 
+					strcmp(str, payload->filter)) {
+					filter = false;
+				} else {
+					if (payload->value) 
+						zfree(payload->value);
+					payload->value = zstrdup(str);
+					payload->type  = cJSON_String;
+				}
+				break;
+
+			default:
+				break;
+			}
+		}
+
+	} else {
+		if (strncmp((const char *) pp->payload.data, val,
+		        pp->payload.len)) {
+			filter = false;
+		}
+	}
+
+	return filter;
+}
+
+static bool
 rule_engine_filter(nano_work *work, rule_engine_info *info)
 {
 	pub_packet_struct *pp     = work->pub_packet;
 	char              *topic  = pp->var_header.publish.topic_name.body;
 	bool               filter = true;
 	if (topic_filter(info->topic, topic)) {
-		// printf("MATCH filter: %s, topic: %s\n", info->topic, topic);
 		if (info->filter) {
 			conn_param *cp = work->cparam;
 			for (size_t j = 0; j < 8; j++) {
@@ -243,131 +308,8 @@ rule_engine_filter(nano_work *work, rule_engine_info *info)
 							filter = false;
 							break;
 						}
-						if (val == NULL) {
-							cJSON *jp =
-							    cJSON_ParseWithLength(
-							        pp->payload
-							            .data,
-							        pp->payload
-							            .len);
-							cJSON *jp_reset = jp;
-							// info->payload size
-							// equal 0, implicit
-							// there is no payload
-							// filter need to be
-							// check, so filter is
-							// true.
-							for (
-							    int pi = 0; pi <
-							    cvector_size(
-							        info->payload);
-							    pi++) {
-								jp =
-								    jp_reset; // reset jp;
-								for (
-								    int k = 0;
-								    k <
-								    cvector_size(
-								        info
-								            ->payload
-								                [pi]
-								            ->psa);
-								    k++) {
-									if (jp ==
-									    NULL) {
-										filter =
-										    false;
-										break;
-									}
-									jp = cJSON_GetObjectItem(
-									    jp,
-									    info
-									        ->payload
-									            [pi]
-									        ->psa
-									            [k]);
-								}
 
-								if (jp ==
-								        NULL ||
-								    filter ==
-								        false) {
-									filter =
-									    false;
-									break;
-								}
-
-								switch (
-								    jp->type) {
-								case cJSON_Number:;
-									int num =
-									    cJSON_GetNumberValue(
-									        jp);
-
-									if (info->payload
-									        [pi]
-									            ->filter &&
-									    num !=
-									        atoi(
-									            info
-									                ->payload
-									                    [pi]
-									                ->filter)) {
-										filter =
-										    false;
-									} else {
-										info->payload
-										    [pi]
-										        ->value =
-										    (void *)
-										        num;
-										info->payload
-										    [pi]
-										        ->type =
-										    cJSON_Number;
-									}
-									break;
-								case cJSON_String:;
-									char *str =
-									    cJSON_GetStringValue(
-									        jp);
-									if (!strcmp(
-									        str,
-									        info
-									            ->payload
-									                [pi]
-									            ->pas)) {
-										filter =
-										    false;
-									} else {
-										info->payload
-										    [pi]
-										        ->value =
-										    zstrdup(
-										        str);
-										info->payload
-										    [pi]
-										        ->type =
-										    cJSON_String;
-									}
-									break;
-
-								default:
-									break;
-								}
-							}
-
-						} else {
-							if (strncmp(
-							        (const char *)
-							            pp->payload
-							                .data,
-							        val,
-							        pp->payload
-							            .len)) {
-								filter = false;
-							}
-						}
+						filter = payload_filter(pp, val, info);
 						break;
 					default:
 						break;
@@ -388,6 +330,109 @@ rule_engine_filter(nano_work *work, rule_engine_info *info)
 }
 
 static int
+add_info_to_json(rule_engine_info *info, cJSON *jso, int j, nano_work *work)
+{
+	pub_packet_struct *pp = work->pub_packet;
+	conn_param        *cp = work->cparam;
+	if (info->flag[j]) {
+		switch (j) {
+		case RULE_QOS:
+			if (info->as[j]) {
+				cJSON_AddNumberToObject(
+				    jso, info->as[j], pp->fixed_header.qos);
+			} else {
+				cJSON_AddNumberToObject(
+				    jso, "qos", pp->fixed_header.qos);
+			}
+			break;
+		case RULE_ID:
+			if (info->as[j]) {
+				cJSON_AddNumberToObject(jso, info->as[j],
+				    pp->var_header.publish.packet_id);
+			} else {
+				cJSON_AddNumberToObject(jso, "id",
+				    pp->var_header.publish.packet_id);
+			}
+			break;
+		case RULE_TOPIC:;
+			char *topic = pp->var_header.publish.topic_name.body;
+			if (info->as[j]) {
+				cJSON_AddStringToObject(
+				    jso, info->as[j], topic);
+			} else {
+				cJSON_AddStringToObject(jso, "topic", topic);
+			}
+			break;
+		case RULE_CLIENTID:;
+			char *cid = (char *) conn_param_get_clientid(cp);
+			if (info->as[j]) {
+				cJSON_AddStringToObject(jso, info->as[j], cid);
+			} else {
+				cJSON_AddStringToObject(jso, "clientid", cid);
+			}
+			break;
+		case RULE_USERNAME:;
+			char *username = (char *) conn_param_get_username(cp);
+			if (info->as[j]) {
+				cJSON_AddStringToObject(
+				    jso, info->as[j], username);
+			} else {
+				cJSON_AddStringToObject(
+				    jso, "username", username);
+			}
+			break;
+		case RULE_PASSWORD:;
+			char *password = (char *) conn_param_get_password(cp);
+			if (info->as[j]) {
+				cJSON_AddStringToObject(
+				    jso, info->as[j], password);
+			} else {
+				cJSON_AddStringToObject(
+				    jso, "password", password);
+			}
+			break;
+		case RULE_TIMESTAMP:
+			// TODO
+			if (info->as[j]) {
+
+			} else {
+			}
+			break;
+		case RULE_PAYLOAD:;
+			char *payload = pp->payload.data;
+			if (info->as[j]) {
+				cJSON_AddStringToObject(
+				    jso, info->as[j], payload);
+			} else if (cvector_size(info->payload)) {
+				for (int pi = 0;
+				     pi < cvector_size(info->payload); pi++) {
+					switch (info->payload[pi]->type) {
+					case cJSON_Number:;
+						cJSON_AddNumberToObject(jso,
+						    info->payload[pi]->pas,
+						    (int) info->payload[pi]
+						        ->value);
+						break;
+					case cJSON_String:;
+						cJSON_AddStringToObject(jso,
+						    info->payload[pi]->pas,
+						    (char *) info->payload[pi]
+						        ->value);
+						break;
+					}
+				}
+			} else {
+				cJSON_AddStringToObject(
+				    jso, "payload", payload);
+			}
+			break;
+		default:
+			break;
+		}
+	}
+}
+
+static int
 rule_engine_insert_sql(nano_work *work)
 {
 	rule_engine_info  *rule_infos = work->config->rule_engine;
@@ -400,174 +445,11 @@ rule_engine_insert_sql(nano_work *work)
 			cJSON *jso = NULL;
 			jso        = cJSON_CreateObject();
 			for (size_t j = 0; j < 8; j++) {
-				if (rule_infos[i].flag[j]) {
-					switch (j) {
-					case RULE_QOS:
-						if (rule_infos[i].as[j]) {
-							cJSON_AddNumberToObject(
-							    jso,
-							    rule_infos[i]
-							        .as[j],
-							    pp->fixed_header
-							        .qos);
-						} else {
-							cJSON_AddNumberToObject(
-							    jso, "qos",
-							    pp->fixed_header
-							        .qos);
-						}
-						break;
-					case RULE_ID:
-						if (rule_infos[i].as[j]) {
-							cJSON_AddNumberToObject(
-							    jso,
-							    rule_infos[i]
-							        .as[j],
-							    pp->var_header
-							        .publish
-							        .packet_id);
-						} else {
-							cJSON_AddNumberToObject(
-							    jso, "id",
-							    pp->var_header
-							        .publish
-							        .packet_id);
-						}
-						break;
-					case RULE_TOPIC:;
-						char *topic =
-						    pp->var_header.publish
-						        .topic_name.body;
-						if (rule_infos[i].as[j]) {
-							cJSON_AddStringToObject(
-							    jso,
-							    rule_infos[i]
-							        .as[j],
-							    topic);
-						} else {
-							cJSON_AddStringToObject(
-							    jso, "topic",
-							    topic);
-						}
-						break;
-					case RULE_CLIENTID:;
-						char *cid = (char *)
-						    conn_param_get_clientid(
-						        cp);
-						if (rule_infos[i].as[j]) {
-							cJSON_AddStringToObject(
-							    jso,
-							    rule_infos[i]
-							        .as[j],
-							    cid);
-						} else {
-							cJSON_AddStringToObject(
-							    jso, "clientid",
-							    cid);
-						}
-						break;
-					case RULE_USERNAME:;
-						char *username = (char *)
-						    conn_param_get_username(
-						        cp);
-						if (rule_infos[i].as[j]) {
-							cJSON_AddStringToObject(
-							    jso,
-							    rule_infos[i]
-							        .as[j],
-							    username);
-						} else {
-							cJSON_AddStringToObject(
-							    jso, "username",
-							    username);
-						}
-						break;
-					case RULE_PASSWORD:;
-						char *password = (char *)
-						    conn_param_get_password(
-						        cp);
-						if (rule_infos[i].as[j]) {
-							cJSON_AddStringToObject(
-							    jso,
-							    rule_infos[i]
-							        .as[j],
-							    password);
-						} else {
-							cJSON_AddStringToObject(
-							    jso, "password",
-							    password);
-						}
-						break;
-					case RULE_TIMESTAMP:
-						// TODO
-						if (rule_infos[i].as[j]) {
-
-						} else {
-						}
-						break;
-					case RULE_PAYLOAD:;
-						char *payload =
-						    pp->payload.data;
-						if (rule_infos[i].as[j]) {
-							cJSON_AddStringToObject(
-							    jso,
-							    rule_infos[i]
-							        .as[j],
-							    payload);
-						} else if (cvector_size(
-						               rule_infos[i]
-						                   .payload)) {
-							for (int pi = 0; pi <
-							     cvector_size(
-							         rule_infos[i]
-							             .payload);
-							     pi++) {
-								switch (
-								    rule_infos[i]
-								        .payload
-								            [pi]
-								        ->type) {
-								case cJSON_Number:;
-									cJSON_AddNumberToObject(
-									    jso,
-									    rule_infos[i]
-									        .payload
-									            [pi]
-									        ->pas,
-									    (int) rule_infos[i]
-									        .payload
-									            [pi]
-									        ->value);
-									break;
-								case cJSON_String:;
-									cJSON_AddStringToObject(
-									    jso,
-									    rule_infos[i]
-									        .payload
-									            [pi]
-									        ->pas,
-									    (char *) rule_infos
-									        [i]
-									            .payload
-									                [pi]
-									            ->value);
-									break;
-								}
-							}
-						} else {
-							cJSON_AddStringToObject(
-							    jso, "payload",
-							    payload);
-						}
-						break;
-					default:
-						break;
-					}
-				}
+				add_info_to_json(&rule_infos[i], jso, j, work);
 			}
 
 			char *dest = cJSON_PrintUnformatted(jso);
-			// puts(dest);
+			puts(dest);
 
 			fdb_transaction_set(work->config->tran,
 			    pp->var_header.publish.topic_name.body,
@@ -576,9 +458,6 @@ rule_engine_insert_sql(nano_work *work)
 			FDBFuture *f =
 			    fdb_transaction_commit(work->config->tran);
 
-			// struct ResultSet* rs = newResultSet();
-			// if(getError(fdb_future_block_until_ready(f),
-			// "GetManySequential (block for get)", rs)) return;
 			fdb_future_destroy(f);
 			cJSON_free(dest);
 			cJSON_Delete(jso);
