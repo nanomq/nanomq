@@ -9,7 +9,6 @@
 //
 
 #define INPROC_URL "inproc://rest"
-#define REST_URL "http://0.0.0.0:%u/api/v1"
 
 #include "nng/nng.h"
 #include "nng/protocol/reqrep0/rep.h"
@@ -59,6 +58,7 @@ static nng_thread *      inproc_thr;
 static FILE *            logfile;
 static conf_http_server *http_server_conf;
 static conf *            global_config;
+static nng_time          boot_time;
 
 static struct rest_work *alloc_work(nng_socket sock, conf_http_server *conf);
 static void              inproc_cb(void *arg);
@@ -477,6 +477,12 @@ get_http_server_conf(void)
 	return http_server_conf;
 }
 
+nng_time
+get_boot_time(void)
+{
+	return boot_time;
+}
+
 int
 start_rest_server(conf *conf)
 {
@@ -500,6 +506,7 @@ start_rest_server(conf *conf)
 	debug_msg(REST_URL, port);
 	set_global_conf(conf);
 	set_http_server_conf(&conf->http_server);
+	boot_time = nng_clock();
 	rest_start(port);
 
 	return rv;
