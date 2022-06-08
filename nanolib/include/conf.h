@@ -267,27 +267,33 @@ struct conf_web_hook {
 
 typedef struct conf_web_hook  conf_web_hook;
 
+typedef enum {
+	memory,
+	sqlite,
+} persistence_type;
+
 struct conf {
-	char *   conf_file;
-	char *   bridge_file;
+	char *conf_file;
+	char *bridge_file;
 #if defined(SUPP_RULE_ENGINE)
-	char *   rule_engine_file;
+	char *rule_engine_file;
 #endif
-	char * 	 web_hook_file;
-	char *   auth_file;
-	char *   auth_http_file;
-	char *   url; // "nmq-tcp://addr:port"
-	int      num_taskq_thread;
-	int      max_taskq_thread;
-	uint32_t parallel;
-	uint32_t max_packet_size;
-	uint32_t client_max_packet_size;
-	int      property_size;
-	int      msq_len;
-	int      qos_duration;
-	void *   db_root;
-	bool     allow_anonymous;
-	bool     daemon;
+	char *           web_hook_file;
+	char *           auth_file;
+	char *           auth_http_file;
+	char *           url; // "nmq-tcp://addr:port"
+	int              num_taskq_thread;
+	int              max_taskq_thread;
+	uint32_t         parallel;
+	uint32_t         max_packet_size;
+	uint32_t         client_max_packet_size;
+	int              property_size;
+	int              msq_len;
+	int              qos_duration;
+	void *           db_root;
+	bool             allow_anonymous;
+	bool             daemon;
+	persistence_type persist;
 
 	conf_tls         tls;
 	conf_http_server http_server;

@@ -291,6 +291,14 @@ conf_parser(conf *nanomq_conf)
 			    strcasecmp(value, "true") == 0;
 			free(value);
 		} else if ((value = get_conf_value(
+		                line, sz, "msg_persistence")) != NULL) {
+			if (strcasecmp(value, "sqlite") == 0) {
+				config->persist = sqlite;
+			} else if (strcasecmp(value, "memory") == 0) {
+				config->persist = memory;
+			}
+			free(value);
+		} else if ((value = get_conf_value(
 		                line, sz, "websocket.enable")) != NULL) {
 			config->websocket.enable =
 			    strcasecmp(value, "yes") == 0 ||
@@ -509,6 +517,7 @@ conf_init(conf *nanomq_conf)
 	nanomq_conf->qos_duration     = 30;
 	nanomq_conf->allow_anonymous  = true;
 	nanomq_conf->daemon           = false;
+	nanomq_conf->persist          = memory;
 
 	conf_tls_init(&nanomq_conf->tls);
 
