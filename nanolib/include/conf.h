@@ -213,7 +213,7 @@ typedef enum {
 
 // TODO support multi
 typedef struct {
-	char 	**psa; // Payload string array, end with NULL
+	char 	**psa; // Payload string array
 	char 	*pas; // payload as string
 	char	*filter;
 	void 	*value;
@@ -224,7 +224,7 @@ typedef struct {
 	bool			flag[8];
 	const char 		*topic; 	
 	char 			*as[8];
-	rule_payload		*payload;
+	rule_payload		**payload;
 	char 			**filter;
 } rule_engine_info;
 
