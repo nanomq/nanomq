@@ -692,40 +692,41 @@ printf_gateway_conf(zmq_gateway_conf *gateway)
 
 
 #if defined(SUPP_RULE_ENGINE)
-static int find_key(const char *str, size_t len)
+static int
+find_key(const char *str, size_t len)
 {
 	int i = 0;
 	while (rule_engine_key_arr[i]) {
 		if (strlen(rule_engine_key_arr[i]) == len) {
 			if (!strncmp(rule_engine_key_arr[i], str, len)) {
-				// printf("FIND: %s\n", rule_engine_key_arr[i]);
 				return i;
 			}
 		}
 		i++;
-
 	}
-
 	return -1;
 }
 
-static int find_as(char *str, int len, rule_engine_info *info)
+static int
+find_as(char *str, int len, rule_engine_info *info)
 {
 	int i = 0;
-
 	char **as = info->as;
 	for (; i < 8; i++) {
-		if (as[i] == NULL) continue;
-		if (strlen(as[i]) != len) continue;
+		if (as[i] == NULL)
+			continue;
+		if (strlen(as[i]) != len)
+			continue;
 		if (!strncmp(as[i], str, len)) {
 			return i;
 		}
 	}
 	return -1;
-
 }
 
-static char *get_payload_key_arr(char *p, rule_payload *payload)
+// Recursive get json payload key.
+static char *
+get_payload_key_arr(char *p, rule_payload *payload)
 {
 	bool is_recur = false;
 	p++;
@@ -742,11 +743,12 @@ static char *get_payload_key_arr(char *p, rule_payload *payload)
 	if (is_recur) {
 		p = get_payload_key_arr(p, payload);
 	}
-		
 	return p;
 }
 
-static int get_payload_as(char *p, rule_payload *payload)
+// Get payload field as string.
+static int 
+get_payload_as(char *p, rule_payload *payload)
 {
 	if (*p == '\0') {
 		return 0;
@@ -761,49 +763,75 @@ static int get_payload_as(char *p, rule_payload *payload)
 		}
 	}
 
-
 	return 0;
 }
 
-static int set_select_info(char *p_b, rule_engine_info *info)
+static rule_payload *rule_payload_new(void)
+{
+	rule_payload *payload =
+	    (rule_payload *) zmalloc(
+	        sizeof(rule_payload));
+
+	payload->psa = NULL;
+	payload->pas = NULL;
+	payload->filter = NULL;
+	payload->value = NULL;
+	payload->type = 0;
+	return payload;
+}
+
+// Parse payload subfield, mainly for get payload json 
+// subfield key array and as string. Return 0 if p is 
+// payload with subfield, or return -1 so parse it with 
+// other step.
+static int
+parse_payload_subfield(char *p, rule_engine_info *info)
+{
+	int key_len = strlen("payload");
+	if (strlen(p) <= key_len && p[key_len] != '.')
+		return -1;
+	if (strncmp("payload", p, key_len))
+		return -1;
+
+	p += key_len;
+	rule_payload *payload = rule_payload_new();
+	cvector_push_back(info->payload, payload);
+	p = get_payload_key_arr(p, payload);
+	p++;
+	while (*p == ' ' && *p != '\0')
+		p++;
+	get_payload_as(p, payload);
+	info->flag[RULE_PAYLOAD] = true;
+	return 0;
+}
+
+// Set info parse from select.
+static int
+set_select_info(char *p_b, rule_engine_info *info)
 {
 	int key_len = 0;
-	int rc	    = 0;
+	int rc      = 0;
 
-	while (p_b[key_len] != ' ' && p_b[key_len] != '\0') {
-		if (p_b[key_len] == '.') {
-			if (strlen("payload") == key_len) {
-				if (!strncmp("payload", p_b, key_len)) {
-					p_b += key_len;
-					rule_payload *payload = (rule_payload*) zmalloc(sizeof(rule_payload));
-					cvector_push_back(info->payload, payload);
-					payload->psa = NULL;
-					payload->pas = NULL;
-					p_b = get_payload_key_arr(p_b, payload);
-					p_b++;
-					while (*p_b == ' ' && *p_b != '\0') p_b++;
-					get_payload_as(p_b, payload);
-					info->flag[RULE_PAYLOAD] = true;
-				}
-			}
-
-			goto finish;
-		}
-		key_len++;
+	if (0 == parse_payload_subfield(p_b, info)) {
+		goto finish;
 	}
-	if (-1 != (rc = find_key(p_b, key_len))) {
+
+	if (-1 != (rc = find_key(p_b, strlen(p_b)))) {
 		if (rc == 8) {
+			// if find '*', set all field is true
 			memset(info->flag, 1, rc);
 		} else {
 			info->flag[rc] = 1;
 		}
 
-		while (p_b[key_len] == ' ' && p_b[key_len] != '\0') key_len++;
+		while (p_b[key_len] == ' ' && p_b[key_len] != '\0')
+			key_len++;
 		if (p_b[key_len] != '\0') {
 			p_b += key_len;
 			if (!strncmp("as", p_b, strlen("as"))) {
 				p_b += strlen("as");
-				while (*p_b == ' ' && *p_b != '\0') p_b++;
+				while (*p_b == ' ' && *p_b != '\0')
+					p_b++;
 				if (*p_b != '\0') {
 					info->as[rc] = zstrdup(p_b);
 				}
@@ -812,15 +840,15 @@ static int set_select_info(char *p_b, rule_engine_info *info)
 	}
 
 finish:
-
 	return 0;
 }
 
-static int parse_select(const char *select, rule_engine_info *info)
+static int
+parse_select(const char *select, rule_engine_info *info)
 {
-	char * p = (char *) select;
-	char * p_b = (char *) select;
-	int rc = 0;
+	char *p       = (char *) select;
+	char *p_b     = (char *) select;
+	int   rc      = 0;
 	info->payload = NULL;
 
 	while ((p = strchr(p, ','))) {
@@ -828,104 +856,117 @@ static int parse_select(const char *select, rule_engine_info *info)
 		set_select_info(p_b, info);
 		p++;
 
-		while (*p == ' ') p++;
+		while (*p == ' ' && *p != '\0')
+			p++;
 		p_b = p;
 	}
 
 	set_select_info(p_b, info);
-	// for (int i = 0; i < 8; i++) {
-	// 	if (info->flag[i]) {
-	// 		printf("%s\t", rule_engine_key_arr[i]);
-	// 	}
-	// }
-	// printf("\n");
-
 	return 0;
 }
 
-static int parse_from(char *from, rule_engine_info *info)
+static int
+parse_from(char *from, rule_engine_info *info)
 {
 	if (from[0] == '\"') {
 		from++;
 		char *p = from;
-		// TODO check len
-		while (*p != '\"') p++;
+		while (*p != '\"' && *p != '\0')
+			p++;
 		*p = '\0';
 	}
 	info->topic = zstrdup(from);
-	// puts(info->topic);
-	// TODO mulit topic
-
 	return 0;
 }
 
-int insert_filter(const char *str, size_t len, rule_engine_info *info) 
+static int
+find_payload_as(char *str, int len, rule_payload **payloads)
 {
-	char *p = str;
-	int rc = 0;
-	while(*p != ' ' && *p != '=') {
-		p++;
-	}
-
-	int key_len = p - str;
-	// printf("key: %.*s\n", key_len, str);
-	if (-1 == (rc = find_key(str, key_len))) {
-		// TODO
-		if (-1 == (rc =find_as(str, key_len, info))) {
-			log_err("KEY NOT FIND");
-			return 1;
+	for (int i = 0; i < cvector_size(payloads); i++) {
+		if (payloads[i]->pas == NULL)
+			continue;
+		if (strlen(payloads[i]->pas) != len)
+			continue;
+		if (!strncmp(payloads[i]->pas, str, len)) {
+			return i;
 		}
 	}
+	return -1;
+}
 
-	while(*p == ' ' || *p == '=') {
+static int 
+set_payload_filter(char *str, rule_payload *payload)
+{
+	payload->filter = zstrdup(str);
+}
+
+static char *pick_value(char *p)
+{
+	while (*p == ' ' || *p == '=') {
 		p++;
 	}
 
-	int val_len;
+	char *str = NULL;
 
 	if (*p == '\'') {
 		p++;
 		str = p;
-		// TODO check len
-		while (*p != '\'' && *p != '\0') p++;
+		while (*p != '\'' && *p != '\0')
+			p++;
 		*p = '\0';
 	} else {
 		str = p;
-		while (*p != ' ' && *p != '\0') p++;
+		while (*p != ' ' && *p != '\0')
+			p++;
 		*p = '\0';
-
 	}
 
-	info->filter[rc] = zstrdup(str);
-	// printf("value: %s\n", filter[rc]);
-	return 0;
+	return str;
 
 }
 
-static int parse_where(const char *where, rule_engine_info *info)
+static int
+set_where_info(const char *str, size_t len, rule_engine_info *info)
 {
-	const char * p = where;
-	const char * p_b = where;
-	int rc = 0;
+	char *p  = str;
+	int   rc = 0;
+	while (*p != ' ' && *p != '=') {
+		p++;
+	}
 
-	info->filter = (char **) zmalloc(sizeof(char*) * 8);
-	memset(info->filter, 0, 8 * sizeof(char*));
+	int key_len = p - str;
+	if (-1 == (rc = find_key(str, key_len))) {
+		if (-1 == (rc = find_as(str, key_len, info))) {
+			if (-1 != (rc = find_payload_as(str, key_len, info->payload))) {
+				set_payload_filter(pick_value(p), info->payload[rc]);
+			}
+			return 0;
+		}
+	}
+
+	info->filter[rc] = zstrdup(pick_value(p));
+	return 0;
+}
+
+static int
+parse_where(const char *where, rule_engine_info *info)
+{
+	const char *p   = where;
+	const char *p_b = where;
+	int         rc  = 0;
+
+	info->filter = (char **) zmalloc(sizeof(char *) * 8);
+	memset(info->filter, 0, 8 * sizeof(char *));
 
 	while ((p = strstr(p, "and"))) {
-
-		// printf("fileter: %.*s\n", p - p_b, p_b);
-		
 		int key_end, value_st;
-		insert_filter(p_b, p - p_b, info);
-
-
+		set_where_info(p_b, p - p_b, info);
 		p += 3;
-
-		while (*p == ' ') p++;
+		while (*p == ' ')
+			p++;
 		p_b = p;
 	}
-	insert_filter(p_b, strlen(p_b), info);
-	// printf("fileter: %.*s\n", strlen(p_b), p_b);
+	set_where_info(p_b, strlen(p_b), info);
 	return 0;
 }
 

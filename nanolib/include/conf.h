@@ -41,6 +41,7 @@
 		p = NULL; \
 	}
 
+#define SUPP_RULE_ENGINE
 
 struct conf_auth {
 	int    count;
@@ -192,34 +193,32 @@ typedef struct {
     enum {PUB_SUB, REQ_REP} type;
 } zmq_gateway_conf;
 
-
 typedef enum {
-		RULE_QOS,
-		RULE_ID,
-		RULE_TOPIC,
-		RULE_CLIENTID,
-		RULE_USERNAME,
-		RULE_PASSWORD,
-		RULE_TIMESTAMP,
-		RULE_PAYLOAD,
-		RULE_ALL,
+	RULE_QOS,
+	RULE_ID,
+	RULE_TOPIC,
+	RULE_CLIENTID,
+	RULE_USERNAME,
+	RULE_PASSWORD,
+	RULE_TIMESTAMP,
+	RULE_PAYLOAD,
+	RULE_ALL,
 } rule_type;
 
-// TODO support multi
 typedef struct {
-	char 	**psa; // Payload string array
-	char 	*pas; // payload as string
-	char	*filter;
-	void 	*value;
-	int 	type;
+	char **psa; 	// payload string array, for multi level json
+	char  *pas; 	// payload field as new string
+	char  *filter; 	// payload field related filter
+	void  *value;	// payload field value
+	int    type;	// payload field value type 
 } rule_payload;
 
 typedef struct {
-	bool			flag[8];
-	const char 		*topic; 	
-	char 			*as[8];
-	rule_payload		**payload;
-	char 			**filter;
+	bool           flag[8]; // if this field need to store
+	char          *topic;   // topic parse from sql 'from'
+	char          *as[8];   // if field string as a new string
+	char         **filter;  // filter parse from sql 'where'
+	rule_payload **payload; // this is for payload info
 } rule_engine_info;
 
 typedef struct conf_bridge conf_bridge;
