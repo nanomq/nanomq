@@ -762,7 +762,7 @@ broker(conf *nanomq_conf)
 
 	if (nanomq_conf->bridge.bridge_mode) {
 		num_ctx += nanomq_conf->bridge.parallel;
-		bridge_client(&bridge_sock, &nanomq_conf->bridge);
+		bridge_client(&bridge_sock, nanomq_conf);
 	}
 
 	struct work *works[num_ctx];
@@ -798,7 +798,7 @@ broker(conf *nanomq_conf)
 		         &tls_listener, sock, nanomq_conf->tls.url)) != 0) {
 			fatal("nng_listener_create tls", rv);
 		}
-		nng_listener_setopt(
+		nng_listener_set(
 		    tls_listener, NANO_CONF, nanomq_conf, sizeof(nanomq_conf));
 
 		init_listener_tls(tls_listener, &nanomq_conf->tls);
