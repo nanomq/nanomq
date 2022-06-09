@@ -1,21 +1,12 @@
 #include "include/bridge.h"
-#include <nng/mqtt/mqtt_client.h>
-#include <nng/nng.h>
+#include "nng/mqtt/mqtt_client.h"
+#include "nng/nng.h"
+#include "nng/protocol/mqtt/mqtt.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "include/nanomq.h"
-
-#if defined(NNG_PLATFORM_POSIX)
-#define nano_strtok strtok_r
-#elif defined(NNG_PLATFORM_WINDOWS)
-#define nano_strtok strtok_s
-#else
-#define nano_strtok strtok_r
-#endif
-
-enum work_state { INIT, RECV, WAIT, SEND };
 
 static void
 fatal(const char *func, int rv)
@@ -86,17 +77,18 @@ bridge_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 static bridge_param bridge_arg;
 
 int
-bridge_client(nng_socket *sock, conf_bridge *config)
+bridge_client(nng_socket *sock, conf *config)
 {
 	int        rv;
 	nng_dialer dialer;
-
 	if ((rv = nng_mqtt_client_open(sock)) != 0) {
 		fatal("nng_mqtt_client_open", rv);
 		return rv;
 	}
+	nng_socket_set(*sock, NANO_CONF, config, sizeof(conf));
+	conf_bridge  *bridge_conf = &config->bridge;
 
-	if ((rv = nng_dialer_create(&dialer, *sock, config->address))) {
+	if ((rv = nng_dialer_create(&dialer, *sock, bridge_conf->address))) {
 		fatal("nng_dialer_create", rv);
 		return rv;
 	}
@@ -106,20 +98,20 @@ bridge_client(nng_socket *sock, conf_bridge *config)
 	nng_msg *connmsg;
 	nng_mqtt_msg_alloc(&connmsg, 0);
 	nng_mqtt_msg_set_packet_type(connmsg, NNG_MQTT_CONNECT);
-	nng_mqtt_msg_set_connect_keep_alive(connmsg, config->keepalive);
-	nng_mqtt_msg_set_connect_proto_version(connmsg, config->proto_ver);
-	nng_mqtt_msg_set_connect_clean_session(connmsg, config->clean_start);
-	if (config->clientid) {
-		nng_mqtt_msg_set_connect_client_id(connmsg, config->clientid);
+	nng_mqtt_msg_set_connect_keep_alive(connmsg, bridge_conf->keepalive);
+	nng_mqtt_msg_set_connect_proto_version(connmsg, bridge_conf->proto_ver);
+	nng_mqtt_msg_set_connect_clean_session(connmsg, bridge_conf->clean_start);
+	if (bridge_conf->clientid) {
+		nng_mqtt_msg_set_connect_client_id(connmsg, bridge_conf->clientid);
 	}
-	if (config->username) {
-		nng_mqtt_msg_set_connect_user_name(connmsg, config->username);
+	if (bridge_conf->username) {
+		nng_mqtt_msg_set_connect_user_name(connmsg, bridge_conf->username);
 	}
-	if (config->password) {
-		nng_mqtt_msg_set_connect_password(connmsg, config->password);
+	if (bridge_conf->password) {
+		nng_mqtt_msg_set_connect_password(connmsg, bridge_conf->password);
 	}
 
-	bridge_arg.config = config;
+	bridge_arg.config = bridge_conf;
 	bridge_arg.sock   = sock;
 
 	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
