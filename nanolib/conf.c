@@ -797,7 +797,7 @@ static int
 parse_payload_subfield(char *p, rule_engine_info *info)
 {
 	int key_len = strlen("payload");
-	if (strlen(p) <= key_len && p[key_len] != '.')
+	if (strlen(p) <= key_len || p[key_len] != '.')
 		return -1;
 	if (strncmp("payload", p, key_len))
 		return -1;
