@@ -20,13 +20,13 @@
  */
 int
 nano_listen(
-    nng_socket sid, const char *addr, nng_listener *lp, int flags, conf *conf)
+    nng_socket sid, const char *addr, nng_listener *lp, int flags, conf *config)
 {
 	int           rv;
 	nng_listener  l;
 
 	nng_listener_create(&l, sid, addr);
-	nng_listener_set(l, NANO_CONF, conf, sizeof(conf));
+	nng_listener_set(l, NANO_CONF, config, sizeof(conf));
 	if ((rv = nng_listener_start(l, 0)) != 0) {
 		nng_listener_close(l);
 		return (rv);
