@@ -25,8 +25,8 @@ nano_listen(
 	int           rv;
 	nng_listener  l;
 
-        nng_listener_create(&l, sid, addr);
-        nng_listener_setopt(l, NANO_CONF, conf, sizeof(conf));
+	nng_listener_create(&l, sid, addr);
+	nng_listener_set(l, NANO_CONF, conf, sizeof(conf));
 	if ((rv = nng_listener_start(l, 0)) != 0) {
 		nng_listener_close(l);
 		return (rv);
