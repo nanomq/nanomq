@@ -223,6 +223,7 @@ payload_filter(pub_packet_struct *pp, char *val, rule_engine_info *info)
 				break;
 			}
 		}
+		cJSON_Delete(jp);
 
 	} else {
 		if (strncmp((const char *) pp->payload.data, val,

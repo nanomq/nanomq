@@ -41,8 +41,6 @@
 		p = NULL; \
 	}
 
-#define SUPP_RULE_ENGINE
-
 struct conf_auth {
 	int    count;
 	char **usernames;
