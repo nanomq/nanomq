@@ -130,14 +130,20 @@ struct conf_jwt {
 
 typedef struct conf_jwt conf_jwt;
 
+typedef enum {
+	BASIC,
+	JWT,
+	NONE_AUTH,
+} auth_type;
+
 struct conf_http_server {
-	bool     enable;
-	uint16_t port;
-	char *   username;
-	char *   password;
-	size_t   parallel;
-	enum { BASIC, JWT, NONE_AUTH } auth_type;
-	conf_jwt jwt;
+	bool      enable;
+	uint16_t  port;
+	char *    username;
+	char *    password;
+	size_t    parallel;
+	auth_type auth_type;
+	conf_jwt  jwt;
 };
 
 typedef struct conf_http_server conf_http_server;
