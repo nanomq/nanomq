@@ -760,7 +760,7 @@ static int
 get_payload_as(char *p, rule_payload *payload)
 {
 	if (*p == '\0') {
-		return 0;
+		return -1;
 	}
 
 	if (!strncmp("as", p, strlen("as"))) {
@@ -770,22 +770,23 @@ get_payload_as(char *p, rule_payload *payload)
 		if (*p_b != '\0') {
 			payload->pas = zstrdup(p_b);
 		}
+		return 0;
 	}
 
-	return 0;
+	return -1;
 }
 
-static rule_payload *rule_payload_new(void)
+static rule_payload *
+rule_payload_new(void)
 {
-	rule_payload *payload =
-	    (rule_payload *) zmalloc(
-	        sizeof(rule_payload));
+	rule_payload *payload = (rule_payload *) zmalloc(sizeof(rule_payload));
 
-	payload->psa = NULL;
-	payload->pas = NULL;
-	payload->filter = NULL;
-	payload->value = NULL;
-	payload->type = 0;
+	payload->psa      = NULL;
+	payload->pas      = NULL;
+	payload->filter   = NULL;
+	payload->value    = NULL;
+	payload->type     = 0;
+	payload->is_store = false;
 	return payload;
 }
 
@@ -794,23 +795,36 @@ static rule_payload *rule_payload_new(void)
 // payload with subfield, or return -1 so parse it with 
 // other step.
 static int
-parse_payload_subfield(char *p, rule_engine_info *info)
+parse_payload_subfield(char *p, rule_engine_info *info, bool is_store)
 {
+	char *p_b = p;
 	int key_len = strlen("payload");
-	if (strlen(p) <= key_len || p[key_len] != '.')
+	int p_len = strlen(p);
+	if (p_len <= key_len || p[key_len] != '.')
 		return -1;
 	if (strncmp("payload", p, key_len))
 		return -1;
 
 	p += key_len;
 	rule_payload *payload = rule_payload_new();
+	payload->is_store = is_store;
 	cvector_push_back(info->payload, payload);
 	p = get_payload_key_arr(p, payload);
-	p++;
-	while (*p == ' ' && *p != '\0')
-		p++;
-	get_payload_as(p, payload);
-	info->flag[RULE_PAYLOAD] = true;
+	if (p - p_b < p_len) p++;
+	while (*p == ' ' && *p != '\0') p++;
+	if (-1 == get_payload_as(p, payload)) {
+		p = p_b;
+		int size = cvector_size(payload->psa);
+		while (size-1) {
+			if (*p == '\0') {
+				*p = '.';
+				size--;
+			}
+			p++;
+		}
+		payload->pas = zstrdup(p_b);
+	}
+	info->flag[RULE_PAYLOAD_FIELD] = true;
 	return 0;
 }
 
@@ -820,12 +834,16 @@ set_select_info(char *p_b, rule_engine_info *info)
 {
 	int key_len = 0;
 	int rc      = 0;
+	char *p = p_b;
 
-	if (0 == parse_payload_subfield(p_b, info)) {
+	if (0 == parse_payload_subfield(p_b, info, true)) {
+		info->flag[RULE_PAYLOAD_FIELD] = 1;
 		goto finish;
 	}
 
-	if (-1 != (rc = find_key(p_b, strlen(p_b)))) {
+	while (*p != '\0' && *p != ' ') p++;
+
+	if (-1 != (rc = find_key(p_b, p - p_b))) {
 		if (rc == 8) {
 			// if find '*', set all field is true
 			memset(info->flag, 1, rc);
@@ -833,6 +851,7 @@ set_select_info(char *p_b, rule_engine_info *info)
 			info->flag[rc] = 1;
 		}
 
+		p_b = p;
 		while (p_b[key_len] == ' ' && p_b[key_len] != '\0')
 			key_len++;
 		if (p_b[key_len] != '\0') {
@@ -948,6 +967,12 @@ set_where_info(const char *str, size_t len, rule_engine_info *info)
 		if (-1 == (rc = find_as(str, key_len, info))) {
 			if (-1 != (rc = find_payload_as(str, key_len, info->payload))) {
 				set_payload_filter(pick_value(p), info->payload[rc]);
+			} else {
+				*p = '\0';
+				if (-1 != parse_payload_subfield(str, info, false)) {
+					int size = cvector_size(info->payload);
+					set_payload_filter(pick_value(++p), info->payload[size-1]);
+				}
 			}
 			return 0;
 		}

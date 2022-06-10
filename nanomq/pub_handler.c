@@ -169,68 +169,69 @@ foreach_client(
 
 #if defined(SUPP_RULE_ENGINE)
 static bool
-payload_filter(pub_packet_struct *pp, char *val, rule_engine_info *info)
+payload_filter(pub_packet_struct *pp, rule_engine_info *info)
 {
-	bool filter = true;
-	if (val == NULL) {
-		cJSON *jp =
-		    cJSON_ParseWithLength(pp->payload.data, pp->payload.len);
-		cJSON *jp_reset = jp;
-		// info->payload size equal 0, implicit there is no 
-		// payload filter need to be check, so filter is true.
-		for (int pi = 0; pi < cvector_size(info->payload); pi++) {
-			jp                     = jp_reset; // reset jp;
-			rule_payload *payload  = info->payload[pi];
-			for (int k = 0; k < cvector_size(payload->psa); k++) {
-				if (jp == NULL) {
-					filter = false;
-					break;
-				}
-				jp = cJSON_GetObjectItem(jp, payload->psa[k]);
-			}
-
-			if (jp == NULL || filter == false) {
+	bool   filter = true;
+	cJSON *jp = cJSON_ParseWithLength(pp->payload.data, pp->payload.len);
+	cJSON *jp_reset = jp;
+	// info->payload size equal 0, implicit there is no
+	// payload filter need to be check, so filter is true.
+	for (int pi = 0; pi < cvector_size(info->payload); pi++) {
+		jp                    = jp_reset; // reset jp;
+		rule_payload *payload = info->payload[pi];
+		for (int k = 0; k < cvector_size(payload->psa); k++) {
+			if (jp == NULL) {
 				filter = false;
 				break;
 			}
-
-			switch (jp->type) {
-			case cJSON_Number:;
-				int num = cJSON_GetNumberValue(jp);
-
-				if (payload->filter &&
-				    num != atoi(payload->filter)) {
-					filter = false;
-				} else {
-					payload->value = (void*) num;
-					payload->type  = cJSON_Number;
-				}
-				break;
-			case cJSON_String:;
-				char *str = cJSON_GetStringValue(jp);
-				if (payload->filter && 
-					strcmp(str, payload->filter)) {
-					filter = false;
-				} else {
-					if (payload->value) 
-						zfree(payload->value);
-					payload->value = zstrdup(str);
-					payload->type  = cJSON_String;
-				}
-				break;
-
-			default:
-				break;
-			}
+			jp = cJSON_GetObjectItem(jp, payload->psa[k]);
 		}
-		cJSON_Delete(jp);
 
-	} else {
-		if (strncmp((const char *) pp->payload.data, val,
-		        pp->payload.len)) {
+		if (jp == NULL || filter == false) {
 			filter = false;
+			break;
+		}
+
+		switch (jp->type) {
+		case cJSON_Number:;
+			int num = cJSON_GetNumberValue(jp);
+
+			if (payload->filter && num != atoi(payload->filter)) {
+				filter = false;
+			} else {
+				payload->value = (void *) num;
+				payload->type  = cJSON_Number;
+			}
+			break;
+		case cJSON_String:;
+			char *str = cJSON_GetStringValue(jp);
+			if (payload->filter && strcmp(str, payload->filter)) {
+				filter = false;
+			} else {
+				if (payload->value)
+					zfree(payload->value);
+				payload->value = zstrdup(str);
+				payload->type  = cJSON_String;
+			}
+			break;
+		case cJSON_Object:;
+			cJSON *filter = cJSON_Parse(payload->filter);
+			if (!payload->is_store && filter && !cJSON_Compare(jp, filter, true)) {
+				filter = false;
+			} else {
+				// if (payload->value)
+				// 	cJSON_Delete((cJSON*) payload->value);
+				payload->value = cJSON_Duplicate(jp, 1);
+				payload->type  = cJSON_Object;
+			}
+			break;
+
+		default:
+			break;
 		}
 	}
+	cJSON_Delete(jp_reset);
+
 
 	return filter;
 }
@@ -244,9 +245,12 @@ rule_engine_filter(nano_work *work, rule_engine_info *info)
 	if (topic_filter(info->topic, topic)) {
 		if (info->filter) {
 			conn_param *cp = work->cparam;
-			for (size_t j = 0; j < 8; j++) {
-				char *val = info->filter[j];
-				if (val != NULL || j == RULE_PAYLOAD) {
+			for (size_t j = 0; j < 9; j++) {
+				char *val = NULL;
+				if (j < 8) {
+					val = info->filter[j];
+				}
+				if (val != NULL || j == RULE_PAYLOAD_FIELD) {
 					switch (j) {
 					case RULE_QOS:
 						if (pp->fixed_header.qos !=
@@ -303,14 +307,29 @@ rule_engine_filter(nano_work *work, rule_engine_info *info)
 						// 	filter = false;
 						// }
 						break;
-					case RULE_PAYLOAD:;
+					case RULE_PAYLOAD_ALL:
 						if (!pp->payload.data ||
 						    pp->payload.len <= 0) {
 							filter = false;
 							break;
 						}
 
-						filter = payload_filter(pp, val, info);
+						if (val != NULL) {
+							if (strncmp((const char *) pp->payload.data, val,
+							        pp->payload.len)) {
+								filter = false;
+							}
+						}
+
+						break;
+					case RULE_PAYLOAD_FIELD:
+						if (!pp->payload.data ||
+						    pp->payload.len <= 0) {
+							filter = false;
+							break;
+						}
+
+						filter = payload_filter(pp, info);
 						break;
 					default:
 						break;
@@ -399,38 +418,60 @@ add_info_to_json(rule_engine_info *info, cJSON *jso, int j, nano_work *work)
 			} else {
 			}
 			break;
-		case RULE_PAYLOAD:;
+		case RULE_PAYLOAD_ALL:;
 			char *payload = pp->payload.data;
+			cJSON *jp = cJSON_ParseWithLength(payload, pp->payload.len);
+
 			if (info->as[j]) {
-				cJSON_AddStringToObject(
-				    jso, info->as[j], payload);
-			} else if (cvector_size(info->payload)) {
-				for (int pi = 0;
-				     pi < cvector_size(info->payload); pi++) {
+				if (jp) {
+					cJSON_AddItemToObject(jso, info->as[j], jp);
+				} else {
+					cJSON_AddStringToObject(
+					    jso, info->as[j], payload);
+				}
+			} else {
+				if (jp) {
+					cJSON_AddItemToObject(jso, "payload", jp);
+				} else {
+					cJSON_AddStringToObject(
+					    jso, "payload", payload);
+				}
+			}
+			break;
+		case RULE_PAYLOAD_FIELD:
+			for (int pi = 0; pi < cvector_size(info->payload);
+			     pi++) {
+				if (info->payload[pi]->is_store) {
 					switch (info->payload[pi]->type) {
-					case cJSON_Number:;
+					case cJSON_Number:
+						if (info->payload[pi]->pas)
 						cJSON_AddNumberToObject(jso,
 						    info->payload[pi]->pas,
-						    (int) info->payload[pi]
-						        ->value);
+						    (int) info->payload[pi]->value);
 						break;
-					case cJSON_String:;
+					case cJSON_String:
 						cJSON_AddStringToObject(jso,
 						    info->payload[pi]->pas,
-						    (char *) info->payload[pi]
-						        ->value);
+						    (char *) info->payload[pi]->value);
+						break;
+					case cJSON_Object:
+						cJSON_AddItemToObject(jso,
+						    info->payload[pi]->pas,
+						    (cJSON*) info->payload[pi]->value);
+						break;
+					default:
 						break;
 					}
 				}
-			} else {
-				cJSON_AddStringToObject(
-				    jso, "payload", payload);
 			}
 			break;
+
 		default:
 			break;
 		}
 	}
+
+	return 0;
 }
 
 static int
@@ -445,13 +486,12 @@ rule_engine_insert_sql(nano_work *work)
 		if (rule_engine_filter(work, &rule_infos[i])) {
 			cJSON *jso = NULL;
 			jso        = cJSON_CreateObject();
-			for (size_t j = 0; j < 8; j++) {
+			for (size_t j = 0; j < 9; j++) {
 				add_info_to_json(&rule_infos[i], jso, j, work);
 			}
 
 			char *dest = cJSON_PrintUnformatted(jso);
 			puts(dest);
-
 			fdb_transaction_set(work->config->tran,
 			    pp->var_header.publish.topic_name.body,
 			    pp->var_header.publish.topic_name.len, dest,
