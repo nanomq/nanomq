@@ -23,7 +23,7 @@ Github repository address: <https://github.com/emqx/nanomq>
 
 [Build Options](./build-options.md)
 
-[HTTP APIs](./http-api.md)
+[HTTP APIs](./http-api/v4.md)
 
 [Web Hook](./web-hook.md)
 
