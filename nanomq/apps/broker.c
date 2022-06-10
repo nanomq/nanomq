@@ -1282,11 +1282,6 @@ broker_restart(int argc, char **argv)
 {
 	pid_t pid = 0;
 
-	if (argc < 1) {
-		print_usage();
-		exit(EXIT_FAILURE);
-	}
-
 	if (!(status_check(&pid))) {
 		kill(pid, SIGTERM);
 		while (!status_check(&pid)) {
