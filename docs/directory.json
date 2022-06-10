@@ -22,7 +22,7 @@
     },
     {
       "title": "HTTP APIs",
-      "path": "http-api"
+      "path": "http-api/v4"
     },
     {
       "title": "Web Hook",
@@ -65,7 +65,7 @@
     },
     {
       "title": "HTTP APIs",
-      "path": "http-api"
+      "path": "http-api/v4"
     },
     {
       "title": "Web Hook",

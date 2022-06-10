@@ -24,7 +24,7 @@ Github仓库地址: https://github.com/emqx/nanomq
 
 [编译选项](./build-options.md)
 
-[HTTP APIs](./http-api.md)
+[HTTP APIs](./http-api/v4.md)
 
 [Web Hook](./web-hook.md)
 
