@@ -35,6 +35,7 @@
 #define BROKER_WS_URL_PREFIX "nmq+ws"
 #define BROKER_WSS_URL_PREFIX "nmq+wss"
 
+
 #define FREE_NONULL(p)    \
 	if (p) {          \
 		free(p);  \
@@ -199,20 +200,21 @@ typedef enum {
 	RULE_USERNAME,
 	RULE_PASSWORD,
 	RULE_TIMESTAMP,
-	RULE_PAYLOAD,
-	RULE_ALL,
+	RULE_PAYLOAD_ALL,
+	RULE_PAYLOAD_FIELD,
 } rule_type;
 
 typedef struct {
 	char **psa; 	// payload string array, for multi level json
-	char  *pas; 	// payload field as new string
+	char  *pas; 	// payload field string or alias
 	char  *filter; 	// payload field related filter
 	void  *value;	// payload field value
 	int    type;	// payload field value type 
+	bool   is_store;
 } rule_payload;
 
 typedef struct {
-	bool           flag[8]; // if this field need to store
+	bool           flag[9]; // if this field need to store
 	char          *topic;   // topic parse from sql 'from'
 	char          *as[8];   // if field string as a new string
 	char         **filter;  // filter parse from sql 'where'
