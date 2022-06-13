@@ -491,7 +491,7 @@ rule_engine_insert_sql(nano_work *work)
 			}
 
 			char *dest = cJSON_PrintUnformatted(jso);
-			puts(dest);
+			// puts(dest);
 			fdb_transaction_set(work->config->tran,
 			    pp->var_header.publish.topic_name.body,
 			    pp->var_header.publish.topic_name.len, dest,
