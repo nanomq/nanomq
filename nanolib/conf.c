@@ -881,6 +881,7 @@ parse_select(const char *select, rule_engine_info *info)
 
 	while ((p = strchr(p, ','))) {
 		*p = '\0';
+		while (*p_b ==' ' && *p_b != '\0') p_b++;
 		set_select_info(p_b, info);
 		p++;
 
@@ -896,6 +897,7 @@ parse_select(const char *select, rule_engine_info *info)
 static int
 parse_from(char *from, rule_engine_info *info)
 {
+	while (*from != '\0' && *from == ' ') from++;
 	if (from[0] == '\"') {
 		from++;
 		char *p = from;
@@ -1025,17 +1027,70 @@ conf_rule_engine_parse(conf *nanomq_conf)
 	rule_engine_info *rule_infos = NULL;
 	size_t sz   = 0;
 	FILE * fp;
+	char sql[1024];
+	int index = 0;
+	bool is_fin = true;
 
+	memset(sql, 0, 1024);
 	if ((fp = fopen(dest_path, "r")) == NULL) {
 		printf("File %s open failed\n", dest_path);
 		return true;
 	}
 
+
 	while (nano_getline(&line, &sz, fp) != -1) {
 
-		// function 
 		if (line[0] != '#' || line[1] !='#') {
-			char *srt = strstr(line, "SELECT");
+			if (line[0] == '`' && line[1] =='`' && line[2] == '`') {
+				int i = 3;
+				while (i < sz) {
+					if (line[i] == '\0' || line[i] == '\n') {
+						if (index != 0) {
+							sql[index++] = ' ';
+						}
+						break;
+					}
+					sql[index++] = line[i++];
+				}
+				is_fin = !is_fin;
+
+				if (line) {
+					free(line);
+					line = NULL;
+				}
+
+				if (is_fin) goto parse;
+				continue;
+
+			} else if (!is_fin) {
+				int i = 0;
+				while (i < sz) {
+					if (line[i] == '\0' || line[i] == '\n') {
+						sql[index++] = ' ';
+						break;
+					}
+					sql[index++] = line[i++];
+				}
+
+				if (line) {
+					free(line);
+					line = NULL;
+				}
+				continue;
+			}
+
+			if (index != 0) {
+				index = 0;
+			} else {
+				if (sz > 1024) {
+					log_err("SQL size is too long");
+					exit(EXIT_FAILURE);
+				}
+				snprintf(sql, sz, "%s", line);
+			}
+
+parse:
+			char *srt = strstr(sql, "SELECT");
 			if (srt != NULL) {
 				int len_srt, len_mid, len_end;
 				char *mid = strstr(srt, "FROM");
@@ -1058,7 +1113,7 @@ conf_rule_engine_parse(conf *nanomq_conf)
 					len_mid = end - mid;
 				} else {
 					char *p = mid;
-					while (*p != '\n') p++;
+					while (*p != '\n' && *p != '\0') p++;
 					len_mid = p - mid + 1;
 				}
 
@@ -1073,7 +1128,7 @@ conf_rule_engine_parse(conf *nanomq_conf)
 				// function where parser
 				if (end != NULL) {
 					char *p = end;
-					while (*p != '\n') p++;
+					while (*p != '\n' && *p != '\0') p++;
 					len_end = p - end + 1;
 					end += strlen("WHERE ");
 					len_end -= strlen("WHERE ");
