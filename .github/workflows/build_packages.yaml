@@ -150,6 +150,7 @@ jobs:
         - fat
         - slim
         - alpine
+        - full
 
     steps:
     - uses: actions/checkout@v1
