@@ -437,7 +437,39 @@ conf_parser(conf *nanomq_conf)
 		                "tls.fail_if_no_peer_cert")) != NULL) {
 			config->tls.set_fail = strcasecmp(value, "true") == 0;
 			free(value);
+#ifdef SUPP_RULE_ENGINE
+		} else if ((value = get_conf_value(line, sz,
+		                "rule_engine_option")) != NULL) {
+				if (!strcasecmp(value, "ON")) {
+					config->rule_engine_option = RULE_ENGINE_ON;
+				} else if (!strcasecmp(value, "OFF")) {
+					config->rule_engine_option = RULE_ENGINE_OFF;
+				} else {
+					fprintf(stderr, "Read config 'rule_engine_option' failed.\n");
+					exit(EXIT_FAILURE);
+				}
+
+				free(value);
+
+		} else if ((value = get_conf_value(line, sz,
+		                "rule_engine_option.db")) != NULL) {
+			if (!strcasecmp(value, "fdb") || !strcasecmp(value, "foundationdb")) {
+				config->rule_engine_db_option = RULE_ENGINE_FDB;
+			} else if (!strcasecmp(value, "sqlite")) {
+				config->rule_engine_db_option = RULE_ENGINE_SDB;
+			} else {
+				fprintf(stderr, "Unsupport database.\n");
+				exit(EXIT_FAILURE);
+			}
+			free(value);
+		} else if ((value = get_conf_value(line, sz,
+		                "rule_engine_option.db.sqlite_path")) != NULL) {
+			config->rule_engine_sqlite_path = value;
+			
 		}
+#else 
+		}
+#endif
 
 		free(line);
 		line = NULL;
@@ -497,10 +529,13 @@ conf_init(conf *nanomq_conf)
 	nanomq_conf->bridge_file      = NULL;
 
 #if defined(SUPP_RULE_ENGINE)
-	nanomq_conf->rule_engine_file = NULL;
-	nanomq_conf->rule_engine = NULL;
-	nanomq_conf->rdb = NULL;
-	nanomq_conf->tran =NULL;
+	nanomq_conf->rule_engine_file        = NULL;
+	nanomq_conf->rule_engine_option      = RULE_ENGINE_OFF;
+	nanomq_conf->rule_engine_db_option   = RULE_ENGINE_FDB;
+	nanomq_conf->rule_engine_sqlite_path = NULL;
+	nanomq_conf->rule_engine             = NULL;
+	nanomq_conf->rdb                     = NULL;
+	nanomq_conf->tran                    = NULL;
 #endif
 
 	nanomq_conf->max_packet_size = (1024*1024);
