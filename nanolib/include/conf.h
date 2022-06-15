@@ -35,6 +35,11 @@
 #define BROKER_WS_URL_PREFIX "nmq+ws"
 #define BROKER_WSS_URL_PREFIX "nmq+wss"
 
+#define RULE_ENGINE_ON true
+#define RULE_ENGINE_OFF false
+#define RULE_ENGINE_FDB 1
+#define RULE_ENGINE_SDB (1 << 1)
+
 
 #define FREE_NONULL(p)    \
 	if (p) {          \
@@ -286,12 +291,15 @@ struct conf {
 	char *conf_file;
 	char *bridge_file;
 #if defined(SUPP_RULE_ENGINE)
-	char *rule_engine_file;
+	char   *rule_engine_file;
+	bool    rule_engine_option;
+	uint8_t rule_engine_db_option;
+	char 	*rule_engine_sqlite_path;
 #endif
-	char *           web_hook_file;
-	char *           auth_file;
-	char *           auth_http_file;
-	char *           url; // "nmq-tcp://addr:port"
+	char            *web_hook_file;
+	char            *auth_file;
+	char            *auth_http_file;
+	char            *url; // "nmq-tcp://addr:port"
 	int              num_taskq_thread;
 	int              max_taskq_thread;
 	uint32_t         parallel;
@@ -300,7 +308,7 @@ struct conf {
 	int              property_size;
 	int              msq_len;
 	int              qos_duration;
-	void *           db_root;
+	void            *db_root;
 	bool             allow_anonymous;
 	bool             daemon;
 	persistence_type persist;
@@ -313,8 +321,9 @@ struct conf {
 
 #if defined(SUPP_RULE_ENGINE)
 	rule_engine_info *rule_engine;
-	void 			 *rdb;
-	void 			 *tran;
+	void	     *rdb;
+	void	     *tran;
+	void	     *sdb;
 #endif
 
 	conf_auth      auths;
