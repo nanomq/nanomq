@@ -37,3 +37,6 @@ build/
 cmake-build-debug/
 
 .DS_Store
+
+# Generate files
+fdb_version.h
