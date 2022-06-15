@@ -22,6 +22,7 @@
 #include "include/sub_handler.h"
 #include "nng/protocol/mqtt/mqtt_parser.h"
 #include "nng/supplemental/util/platform.h"
+#include <nng/supplemental/sqlite/sqlite3.h>
 
 #define ENABLE_RETAIN 1
 #define SUPPORT_MQTT5_0 1
@@ -475,6 +476,122 @@ add_info_to_json(rule_engine_info *info, cJSON *jso, int j, nano_work *work)
 }
 
 static int
+compose_sql_clause(rule_engine_info *info, char *key, char *value, int j, nano_work *work)
+{
+	pub_packet_struct *pp = work->pub_packet;
+	conn_param        *cp = work->cparam;
+	if (info->flag[j]) {
+		switch (j) {
+		case RULE_QOS:
+			if (info->as[j]) {
+				strcat(key, info->as[j]);
+			} else {
+				strcat(key, "Qos");
+			}
+			sprintf(value, "%s%d", value, pp->fixed_header.qos);
+			break;
+		case RULE_ID:
+			if (info->as[j]) {
+				strcat(key, info->as[j]);
+			} else {
+				strcat(key, "Id");
+			}
+			sprintf(value, "%s\'%s\'", value, pp->var_header.publish.packet_id);
+			break;
+		case RULE_TOPIC:;
+			char *topic = pp->var_header.publish.topic_name.body;
+			if (info->as[j]) {
+				strcat(key, info->as[j]);
+			} else {
+				strcat(key, "Topic");
+			}
+			sprintf(value, "%s\'%s\'", value, topic);
+			break;
+		case RULE_CLIENTID:;
+			char *cid = (char *) conn_param_get_clientid(cp);
+			if (info->as[j]) {
+				strcat(key, info->as[j]);
+			} else {
+				strcat(key, "Clientid");
+			}
+			sprintf(value, "%s\'%s\'", value, cid);
+			break;
+		case RULE_USERNAME:;
+			char *username = (char *) conn_param_get_username(cp);
+			if (info->as[j]) {
+				strcat(key, info->as[j]);
+			} else {
+				strcat(key, "Username");
+			}
+			sprintf(value, "%s\'%s\'", value, username);
+			break;
+		case RULE_PASSWORD:;
+			char *password = (char *) conn_param_get_password(cp);
+			if (info->as[j]) {
+				strcat(key, info->as[j]);
+			} else {
+				strcat(key, "Password");
+			}
+			strcat(value, password);
+			sprintf(value, "%s\'%s\'", value, password);
+			break;
+		case RULE_TIMESTAMP:
+			// TODO
+			if (info->as[j]) {
+
+			} else {
+			}
+			break;
+		case RULE_PAYLOAD_ALL:;
+			char *payload = pp->payload.data;
+
+			if (info->as[j]) {
+				strcat(key, info->as[j]);
+			} else {
+				strcat(key, "Payload");
+			}
+
+			sprintf(value, "%s\'%s\'", value, payload);
+			break;
+		// case RULE_PAYLOAD_FIELD:
+		// 	for (int pi = 0; pi < cvector_size(info->payload);
+		// 	     pi++) {
+		// 		if (info->payload[pi]->is_store) {
+		// 			switch (info->payload[pi]->type) {
+		// 			case cJSON_Number:
+		// 				if (info->payload[pi]->pas)
+		// 				cJSON_AddNumberToObject(jso,
+		// 				    info->payload[pi]->pas,
+		// 				    (int) info->payload[pi]->value);
+		// 				break;
+		// 			case cJSON_String:
+		// 				cJSON_AddStringToObject(jso,
+		// 				    info->payload[pi]->pas,
+		// 				    (char *) info->payload[pi]->value);
+		// 				break;
+		// 			case cJSON_Object:
+		// 				cJSON_AddItemToObject(jso,
+		// 				    info->payload[pi]->pas,
+		// 				    (cJSON*) info->payload[pi]->value);
+		// 				break;
+		// 			default:
+		// 				break;
+		// 			}
+		// 		}
+		// 	}
+		// 	break;
+
+		default:
+			break;
+		}
+		strcat(key, ", ");
+		strcat(value, ", ");
+	}
+
+	return 0;
+}
+
+static int
 rule_engine_insert_sql(nano_work *work)
 {
 	rule_engine_info  *rule_infos = work->config->rule_engine;
@@ -484,24 +601,66 @@ rule_engine_insert_sql(nano_work *work)
 
 	for (size_t i = 0; i < rule_size; i++) {
 		if (rule_engine_filter(work, &rule_infos[i])) {
-			cJSON *jso = NULL;
-			jso        = cJSON_CreateObject();
-			for (size_t j = 0; j < 9; j++) {
-				add_info_to_json(&rule_infos[i], jso, j, work);
+			switch (work->config->rule_engine_db_option)
+			{
+			case RULE_ENGINE_FDB:
+				cJSON *jso = NULL;
+				jso        = cJSON_CreateObject();
+
+				for (size_t j = 0; j < 9; j++) {
+					add_info_to_json(&rule_infos[i], jso, j, work);
+				}
+
+				char *dest = cJSON_PrintUnformatted(jso);
+				puts(dest);
+				fdb_transaction_set(work->config->tran,
+				    pp->var_header.publish.topic_name.body,
+				    pp->var_header.publish.topic_name.len, dest,
+				    strlen(dest));
+				FDBFuture *f =
+				    fdb_transaction_commit(work->config->tran);
+
+				fdb_future_destroy(f);
+				cJSON_free(dest);
+				cJSON_Delete(jso);
+				break;
+			
+			case RULE_ENGINE_SDB:
+				char sql_clause[1024] = "INSERT INTO ";
+				char key[128] = "Broker (";
+				char value[800] = "VALUES (";
+				for (size_t j = 0; j < 8; j++) {
+					compose_sql_clause(&rule_infos[i], key,  value, j, work);
+				}
+				char *p = strrchr(key, ',');
+				*p = ')';
+				p = strrchr(value, ',');
+				*p = ')';
+				strcat(sql_clause, key);
+				strcat(sql_clause, value);
+				strcat(sql_clause, ";");
+
+				puts(sql_clause);
+				sqlite3 *sdb = (sqlite3 *) work->config->sdb;
+				char *err_msg = NULL;
+				int rc = sqlite3_exec(sdb, sql_clause, 0, 0, &err_msg);
+				if (rc != SQLITE_OK ) {
+  					fprintf(stderr, "SQL error: %s\n", err_msg);
+  
+  					sqlite3_free(err_msg);        
+  					sqlite3_close(sdb);
+        
+        			return 1;
+    			} 
+
+				break;
+			
+			default:
+				break;
 			}
 
-			char *dest = cJSON_PrintUnformatted(jso);
-			// puts(dest);
-			fdb_transaction_set(work->config->tran,
-			    pp->var_header.publish.topic_name.body,
-			    pp->var_header.publish.topic_name.len, dest,
-			    strlen(dest));
-			FDBFuture *f =
-			    fdb_transaction_commit(work->config->tran);
 
-			fdb_future_destroy(f);
-			cJSON_free(dest);
-			cJSON_Delete(jso);
+
 		}
 	}
 
@@ -577,7 +736,9 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto)
 	}
 
 #if defined(SUPP_RULE_ENGINE)
-	rule_engine_insert_sql(work);
+	if (work->config->rule_engine_option == RULE_ENGINE_ON) {
+		rule_engine_insert_sql(work);
+	}
 #endif
 
 	cli_ctx_list = dbtree_find_clients(work->db, topic);

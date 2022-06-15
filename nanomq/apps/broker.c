@@ -22,6 +22,7 @@
 #include <nng/supplemental/tls/tls.h>
 #include <nng/supplemental/util/options.h>
 #include <nng/supplemental/util/platform.h>
+#include <nng/supplemental/sqlite/sqlite3.h>
 #include <nng/protocol/pipeline0/pull.h>
 #include <nng/protocol/pipeline0/push.h>
 #include <nng/protocol/mqtt/mqtt_parser.h>
@@ -724,17 +725,105 @@ broker(conf *nanomq_conf)
 	uint64_t num_ctx = nanomq_conf->parallel;
 
 #if defined(SUPP_RULE_ENGINE)
-	pthread_t netThread;
-	fdb_error_t err = fdb_select_api_version(FDB_API_VERSION);
-	if (err) {
-		debug_msg("select API version error: %s", fdb_get_error(err));
-		exit(1);
+	if (nanomq_conf->rule_engine_option) {
+		switch (nanomq_conf->rule_engine_db_option) {
+		case RULE_ENGINE_FDB:
+			pthread_t   netThread;
+			fdb_error_t err =
+			    fdb_select_api_version(FDB_API_VERSION);
+			if (err) {
+				debug_msg("select API version error: %s",
+				    fdb_get_error(err));
+				exit(1);
+			}
+			FDBDatabase *fdb   = openDatabase(&netThread);
+			nanomq_conf->rdb   = fdb;
+			FDBTransaction *tr = NULL;
+			fdb_error_t     e =
+			    fdb_database_create_transaction(fdb, &tr);
+			nanomq_conf->tran = tr;
+			break;
+
+		case RULE_ENGINE_SDB:
+			sqlite3 *sdb;
+			char    *sqlite_path =
+                            nanomq_conf->rule_engine_sqlite_path
+			       ? nanomq_conf->rule_engine_sqlite_path
+			       : "rule_engine.db";
+			int rc = sqlite3_open(
+			    nanomq_conf->rule_engine_sqlite_path, &sdb);
+			// puts(nanomq_conf->rule_engine_sqlite_path);
+			if (rc != SQLITE_OK) {
+				fprintf(stderr, "Cannot open database: %s\n",
+				    sqlite3_errmsg(sdb));
+				sqlite3_close(sdb);
+				exit(1);
+			}
+			nanomq_conf->sdb = (void *) sdb;
+
+			// char *compose_table(nanomq_conf);
+			char         sqlite_table[1024];
+			static char *key_arr[] = {
+				"Qos",
+				"Id",
+				"Topic",
+				"Clientid",
+				"Username",
+				"Password",
+				"Timestamp",
+				"Payload",
+			};
+
+			static char *type_arr[] = {
+				" INT",
+				" INT",
+				" TEXT",
+				" TEXT",
+				" TEXT",
+				" TEXT",
+				" INT",
+				" TEXT",
+			};
+			// "CREATE TABLE Broker(Qos INT, Id INT
+			rule_engine_info info  = nanomq_conf->rule_engine[0];
+			int              index = 0;
+			char table[512] = "CREATE TABLE IF NOT EXISTS Broker(";
+			char *err_msg   = NULL;
+			bool  first     = true;
+
+			for (; index < 8; index++) {
+				if (!info.flag[index])
+					continue;
+
+				if (first) {
+					first = !first;
+				} else {
+					strcat(table, ", ");
+				}
+				strcat(table,
+				    info.as[index] ? info.as[index]
+				                   : key_arr[index]);
+				strcat(table, type_arr[index]);
+			}
+			strcat(table, ");");
+			// puts(table);
+			rc = sqlite3_exec(sdb, table, 0, 0, &err_msg);
+			if (rc != SQLITE_OK) {
+				fprintf(stderr, "SQL error: %s\n", err_msg);
+
+				sqlite3_free(err_msg);
+				sqlite3_close(db);
+
+				return 1;
+			}
+
+			break;
+
+		default:
+			break;
+		}
 	}
-	FDBDatabase* fdb = openDatabase(&netThread);
-	nanomq_conf->rdb = fdb;
-	FDBTransaction* tr = NULL;
-	fdb_error_t e = fdb_database_create_transaction(fdb, &tr);
-	nanomq_conf->tran = tr;
+
 #endif
 
 	// init tree
