@@ -3,11 +3,31 @@ FROM gcc:10 as builder
 COPY . /nanomq
 COPY deploy/docker/docker-entrypoint.sh /usr/bin/docker-entrypoint.sh
 
-RUN apt update && apt install -y cmake ninja-build libmbedtls-dev 
+RUN apt update
+RUN apt install -y cmake ninja-build libmbedtls-dev libtool pkg-config build-essential autoconf automake
+
+WORKDIR /opt/zeromq
+
+RUN wget https://github.com/zeromq/libzmq/releases/download/v4.3.4/zeromq-4.3.4.tar.gz
+RUN tar zxvf zeromq-4.3.4.tar.gz
+RUN cd zeromq-4.3.4
+RUN mkdir build
+RUN cd build
+RUN cmake -G Ninja -DWITH_PERF_TOOL=OFF \
+    -DZMQ_BUILD_TESTS=OFF \
+    -DENABLE_CPACK=OFF \
+    -DCMAKE_BUILD_TYPE=Release ..
+RUN ninja install
+RUN ldconfig
 
 WORKDIR /nanomq/build
 
-RUN cmake -G Ninja -DNOLOG=1 -DENABLE_JWT=ON -DNNG_ENABLE_TLS=ON -DNNG_ENABLE_SQLITE=ON .. 
+RUN cmake -G Ninja -DNOLOG=1 -DENABLE_JWT=ON \
+    -DNNG_ENABLE_TLS=ON \
+    -DNNG_ENABLE_SQLITE=ON \
+    -DBUILD_ZMQ_GATEWAY=ON \
+    -DBUILD_BENCH=ON ..
+
 RUN ninja install
 
 RUN ln -s /nanomq/build/nanomq/nanomq /usr/bin/nanomq
