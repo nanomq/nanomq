@@ -415,10 +415,12 @@ add_info_to_json(rule_engine_info *info, cJSON *jso, int j, nano_work *work)
 			}
 			break;
 		case RULE_TIMESTAMP:
-			// TODO
 			if (info->as[j]) {
-
+				cJSON_AddNumberToObject(jso, info->as[j],
+				    (unsigned long)time(NULL));
 			} else {
+				cJSON_AddNumberToObject(jso, "timestamp",
+				    (unsigned long)time(NULL));
 			}
 			break;
 		case RULE_PAYLOAD_ALL:;
@@ -543,15 +545,16 @@ compose_sql_clause(rule_engine_info *info, char *key, char *value, int j, nano_w
 			} else {
 				strcat(key, "Password");
 			}
-			strcat(value, password);
 			sprintf(value, "%s\'%s\'", value, password);
 			break;
 		case RULE_TIMESTAMP:
-			// TODO
 			if (info->as[j]) {
-
+				strcat(key, info->as[j]);
 			} else {
+				strcat(key, "Timestamp");
 			}
+
+			sprintf(value, "%s%d", value, (unsigned long) time(NULL));
 			break;
 		case RULE_PAYLOAD_ALL:;
 			char *payload = pp->payload.data;
