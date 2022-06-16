@@ -2,8 +2,7 @@ FROM alpine:3.11 as builder
 
 COPY . /nanomq
 
-RUN apk add gcc cmake make
-RUN apk add musl-dev g++
+RUN apk add gcc cmake make musl-dev g++
 
 WORKDIR /nanomq/build
 
