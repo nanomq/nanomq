@@ -27,6 +27,8 @@
 #define ENABLE_RETAIN 1
 #define SUPPORT_MQTT5_0 1
 
+pthread_mutex_t rule_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 #ifdef STATISTICS
 typedef struct {
 	bool            initialed;
@@ -445,20 +447,26 @@ add_info_to_json(rule_engine_info *info, cJSON *jso, int j, nano_work *work)
 				if (info->payload[pi]->is_store) {
 					switch (info->payload[pi]->type) {
 					case cJSON_Number:
-						if (info->payload[pi]->pas)
-						cJSON_AddNumberToObject(jso,
-						    info->payload[pi]->pas,
-						    (int) info->payload[pi]->value);
+						if (info->payload[pi]->pas) {
+							cJSON_AddNumberToObject(jso,
+							    info->payload[pi]->pas,
+							    (int) info->payload[pi]->value);
+
+						}
 						break;
 					case cJSON_String:
-						cJSON_AddStringToObject(jso,
-						    info->payload[pi]->pas,
-						    (char *) info->payload[pi]->value);
+						if (info->payload[pi]->pas) {
+							cJSON_AddStringToObject(jso,
+							    info->payload[pi]->pas,
+							    (char *) info->payload[pi]->value);
+						}
 						break;
 					case cJSON_Object:
-						cJSON_AddItemToObject(jso,
-						    info->payload[pi]->pas,
-						    (cJSON*) info->payload[pi]->value);
+						if (info->payload[pi]->pas) {
+							cJSON_AddItemToObject(jso,
+							    info->payload[pi]->pas,
+							    (cJSON*) info->payload[pi]->value);
+						}
 						break;
 					default:
 						break;
@@ -475,11 +483,14 @@ add_info_to_json(rule_engine_info *info, cJSON *jso, int j, nano_work *work)
 	return 0;
 }
 
-static int
+static char *
 compose_sql_clause(rule_engine_info *info, char *key, char *value, int j, nano_work *work)
 {
 	pub_packet_struct *pp = work->pub_packet;
 	conn_param        *cp = work->cparam;
+	static bool is_first_time = true;
+	char *ret = NULL;
+
 	if (info->flag[j]) {
 		switch (j) {
 		case RULE_QOS:
@@ -553,42 +564,93 @@ compose_sql_clause(rule_engine_info *info, char *key, char *value, int j, nano_w
 
 			sprintf(value, "%s\'%s\'", value, payload);
 			break;
-		// case RULE_PAYLOAD_FIELD:
-		// 	for (int pi = 0; pi < cvector_size(info->payload);
-		// 	     pi++) {
-		// 		if (info->payload[pi]->is_store) {
-		// 			switch (info->payload[pi]->type) {
-		// 			case cJSON_Number:
-		// 				if (info->payload[pi]->pas)
-		// 				cJSON_AddNumberToObject(jso,
-		// 				    info->payload[pi]->pas,
-		// 				    (int) info->payload[pi]->value);
-		// 				break;
-		// 			case cJSON_String:
-		// 				cJSON_AddStringToObject(jso,
-		// 				    info->payload[pi]->pas,
-		// 				    (char *) info->payload[pi]->value);
-		// 				break;
-		// 			case cJSON_Object:
-		// 				cJSON_AddItemToObject(jso,
-		// 				    info->payload[pi]->pas,
-		// 				    (cJSON*) info->payload[pi]->value);
-		// 				break;
-		// 			default:
-		// 				break;
-		// 			}
-		// 		}
-		// 	}
-		// 	break;
+
+		case RULE_PAYLOAD_FIELD:
+
+			bool is_need_set = false;
+			pthread_mutex_lock(&rule_mutex);
+			if (is_first_time) {
+				is_first_time = false;
+				is_need_set = true;
+			}
+			pthread_mutex_unlock(&rule_mutex);
+
+			char ret_key[512] = { 0 };
+
+			for (int pi = 0; pi < cvector_size(info->payload);
+			     pi++) {
+				if (info->payload[pi]->is_store) {
+					if (info->payload[pi]->pas) {
+
+						switch (info->payload[pi]->type) {
+						case cJSON_Number:
+								if (is_need_set) {
+									// ret = zmalloc(128 * sizeof(char));
+									sprintf(ret_key, "%s\nALTER TABLE Broker ADD %s INT;\0", ret_key, info->payload[pi]->pas);
+								}
+								strcat(key, info->payload[pi]->pas);
+								strcat(key, ", ");
+								if (strlen(value) > strlen("VALUES (")) {
+									sprintf(value, "%s, %d", value, (int) info->payload[pi]->value);
+								} else {
+									sprintf(value, "%s %d", value, (int) info->payload[pi]->value);
+								}
+							break;
+						case cJSON_String:
+							if (info->payload[pi]->pas) {
+								if (is_need_set) {
+									// ret = zmalloc(128 * sizeof(char));
+									sprintf(ret_key, "%s\nALTER TABLE Broker ADD %s TEXT;\0", ret_key, info->payload[pi]->pas);
+								}
+								strcat(key, info->payload[pi]->pas);
+								strcat(key, ", ");
+								if (strlen(value) > strlen("VALUES (")) {
+									sprintf(value, "%s, \'%s\'", value, (char*) info->payload[pi]->value);
+								} else {
+									sprintf(value, "%s \'%s\'", value, (char*) info->payload[pi]->value);
+								}
+							}
+							break;
+						case cJSON_Object:
+							if (info->payload[pi]->pas) {
+								if (is_need_set) {
+									// ret = zmalloc(128 * sizeof(char));
+									sprintf(ret_key, "%s\nALTER TABLE Broker ADD %s TEXT;\0", ret_key, info->payload[pi]->pas);
+								}
+								strcat(key, info->payload[pi]->pas);
+								strcat(key, ", ");
+								char *tmp = cJSON_PrintUnformatted((cJSON*) info->payload[pi]->value);
+								if (strlen(value) > strlen("VALUES (")) {
+									sprintf(value, "%s, \'%s\'", value, tmp);
+								} else {
+									sprintf(value, "%s \'%s\'", value, tmp);
+								}
+								cJSON_free(tmp);
+							}
+							break;
+						default:
+							break;
+						}
+					}
+				}
+			}
+
+			if (strlen(ret_key)) {
+				ret = zstrdup(ret_key);
+
+			}
+			break;
 
 		default:
 			break;
 		}
-		strcat(key, ", ");
+		if (j != RULE_PAYLOAD_FIELD) {
+			strcat(key, ", ");
+		}
 		strcat(value, ", ");
 	}
 
-	return 0;
+	return ret;
 }
 
 static int
@@ -612,7 +674,7 @@ rule_engine_insert_sql(nano_work *work)
 				}
 
 				char *dest = cJSON_PrintUnformatted(jso);
-				puts(dest);
+				// puts(dest);
 				fdb_transaction_set(work->config->tran,
 				    pp->var_header.publish.topic_name.body,
 				    pp->var_header.publish.topic_name.len, dest,
@@ -629,8 +691,32 @@ rule_engine_insert_sql(nano_work *work)
 				char sql_clause[1024] = "INSERT INTO ";
 				char key[128] = "Broker (";
 				char value[800] = "VALUES (";
-				for (size_t j = 0; j < 8; j++) {
-					compose_sql_clause(&rule_infos[i], key,  value, j, work);
+				for (size_t j = 0; j < 9; j++) {
+					char *ret =
+					    compose_sql_clause(&rule_infos[i],
+					        key, value, j, work);
+					if (ret) {
+						puts(ret);
+						sqlite3 *sdb =
+						    (sqlite3 *)
+						        work->config->sdb;
+						char *err_msg = NULL;
+						int   rc = sqlite3_exec(sdb,
+						      ret, 0, 0,
+						      &err_msg);
+						// FIXME: solve in a more elegant way
+						// if (rc != SQLITE_OK) {
+						// 	if (strcmp)
+						// 	fprintf(stderr,
+						// 	    "SQL error: %s\n",
+						// 	    err_msg);
+						// 	sqlite3_free(err_msg);
+						// 	sqlite3_close(sdb);
+						// 	return 1;
+						// }
+						zfree(ret);
+						ret = NULL;
+					}
 				}
 				char *p = strrchr(key, ',');
 				*p = ')';
@@ -640,13 +726,12 @@ rule_engine_insert_sql(nano_work *work)
 				strcat(sql_clause, value);
 				strcat(sql_clause, ";");
 
-				puts(sql_clause);
+				// puts(sql_clause);
 				sqlite3 *sdb = (sqlite3 *) work->config->sdb;
 				char *err_msg = NULL;
 				int rc = sqlite3_exec(sdb, sql_clause, 0, 0, &err_msg);
 				if (rc != SQLITE_OK ) {
   					fprintf(stderr, "SQL error: %s\n", err_msg);
-  
   					sqlite3_free(err_msg);        
   					sqlite3_close(sdb);
         
@@ -658,9 +743,6 @@ rule_engine_insert_sql(nano_work *work)
 			default:
 				break;
 			}
-
-
-
 		}
 	}
 

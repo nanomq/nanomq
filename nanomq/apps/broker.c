@@ -798,7 +798,10 @@ broker(conf *nanomq_conf)
 			// "CREATE TABLE Broker(Qos INT, Id INT
 			rule_engine_info info  = nanomq_conf->rule_engine[0];
 			int              index = 0;
-			char table[512] = "CREATE TABLE IF NOT EXISTS Broker(";
+			char             table[512] =
+			    "CREATE TABLE IF NOT EXISTS Broker("
+			    "RowId INTEGER PRIMARY KEY AUTOINCREMENT";
+
 			char *err_msg   = NULL;
 			bool  first     = true;
 
@@ -806,11 +809,7 @@ broker(conf *nanomq_conf)
 				if (!info.flag[index])
 					continue;
 
-				if (first) {
-					first = !first;
-				} else {
-					strcat(table, ", ");
-				}
+				strcat(table, ", ");
 				strcat(table,
 				    info.as[index] ? info.as[index]
 				                   : key_arr[index]);
