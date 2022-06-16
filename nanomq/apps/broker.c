@@ -162,11 +162,12 @@ void
 server_cb(void *arg)
 {
 	nano_work *work = arg;
-	nng_msg *  msg  = NULL;
-	nng_msg *  smsg = NULL;
+	nng_msg   *msg  = NULL;
+	nng_msg   *smsg = NULL;
 	int        rv;
 
-	uint8_t *   ptr;
+	uint8_t *ptr;
+	uint8_t  type;
 
 	mqtt_msg_info *msg_info;
 
@@ -204,153 +205,9 @@ server_cb(void *arg)
 		}
 		work->cparam    = nng_msg_get_conn_param(work->msg);
 		work->proto_ver = conn_param_get_protover(work->cparam);
+		type = nng_msg_cmd_type(msg);
 
-		if (nng_msg_cmd_type(msg) == CMD_PUBLISH) {
-			// Set V4/V5 flag for publish msg
-			if (work->proto_ver == 5) {
-				nng_msg_set_cmd_type(msg, CMD_PUBLISH_V5);
-			} else {
-				nng_msg_set_cmd_type(msg, CMD_PUBLISH);
-			}
-			work->code = handle_pub(work, work->pipe_ct, work->proto_ver);
-			if (work->code != SUCCESS) {
-				work->state = CLOSE;
-				free_pub_packet(work->pub_packet);
-				cvector_free(work->pipe_ct->msg_infos);
-				nng_aio_finish(work->aio, 0);
-				return;
-			}
-			webhook_msg_publish(&work->webhook_sock,
-			    &work->config->web_hook, work->pub_packet,
-			    (const char *)conn_param_get_username(work->cparam),
-			    (const char *)conn_param_get_clientid(work->cparam));
-
-			conf_bridge *bridge = &(work->config->bridge);
-			if (bridge->bridge_mode) {
-				bool found = false;
-				for (size_t i = 0; i < bridge->forwards_count;
-				     i++) {
-					if (topic_filter(bridge->forwards[i],
-					        work->pub_packet->var_header
-					            .publish.topic_name
-					            .body)) {
-						found = true;
-						break;
-					}
-				}
-
-				if (found) {
-					smsg = bridge_publish_msg(
-					    work->pub_packet->var_header
-					        .publish.topic_name.body,
-					    work->pub_packet->payload.data,
-					    work->pub_packet->payload.len,
-					    work->pub_packet->fixed_header.dup,
-					    work->pub_packet->fixed_header.qos,
-					    work->pub_packet->fixed_header
-					        .retain);
-					work->state = WAIT;
-					nng_aio_set_msg(
-					    work->bridge_aio, smsg);
-					//TODO check aio's cb
-					nng_ctx_send(work->bridge_ctx,
-					    work->bridge_aio);
-				}
-			}
-			// free conn_param due to clone in protocol layer
-			conn_param_free(work->cparam);
-		} else if (nng_msg_cmd_type(msg) == CMD_CONNACK) {
-			nng_msg_set_pipe(work->msg, work->pid);
-			// clone for sending connect event notification
-			nng_msg_clone(work->msg);
-			nng_aio_set_msg(work->aio, work->msg);
-			nng_ctx_send(work->ctx, work->aio); // send connack
-
-			uint8_t *body        = nng_msg_body(work->msg);
-			uint8_t  reason_code = *(body + 1);
-			smsg =
-			    nano_msg_notify_connect(work->cparam, reason_code);
-			webhook_client_connack(&work->webhook_sock,
-			    &work->config->web_hook, work->proto_ver,
-			    conn_param_get_keepalive(work->cparam),
-			    reason_code, conn_param_get_username(work->cparam),
-			    conn_param_get_clientid(work->cparam));
-			// Set V4/V5 flag for publish notify msg
-			nng_msg_set_cmd_type(smsg, CMD_PUBLISH);
-			nng_msg_free(work->msg);
-			work->msg = smsg;
-			handle_pub(work, work->pipe_ct, PROTOCOL_VERSION_v311);
-			// free conn_param due to clone in protocol layer
-			conn_param_free(work->cparam);
-		} else if (nng_msg_cmd_type(msg) == CMD_DISCONNECT_EV) {
-			// v4 as default, or send V5 notify msg?
-			nng_msg_set_cmd_type(msg, CMD_PUBLISH);
-			handle_pub(work, work->pipe_ct, PROTOCOL_VERSION_v311);
-			// TODO set reason code if proto_version = MQTT_V5
-			webhook_client_disconnect(&work->webhook_sock,
-			    &work->config->web_hook,
-			    conn_param_get_protover(work->cparam),
-			    conn_param_get_keepalive(work->cparam), 0,
-			    conn_param_get_username(work->cparam),
-			    conn_param_get_clientid(work->cparam));
-			// free client ctx
-			if (dbhash_check_id(work->pid.id)) {
-				destroy_sub_client(work->pid.id, work->db, NULL, NULL);
-			} else {
-				debug_msg("ERROR it should not happen");
-			}
-			if (conn_param_get_will_flag(work->cparam) == 0 ||
-			    !conn_param_get_will_topic(work->cparam) ||
-			    !conn_param_get_will_msg(work->cparam)) {
-				// no will msg - free the cp
-				conn_param_free(work->cparam);
-			} else {
-				// set to END tosend will msg
-				work->state = END;
-				// leave cp for will msg
-				nng_aio_finish(work->aio, 0);
-				break;
-			}
-		}
-		work->state = WAIT;
-		nng_aio_finish(work->aio, 0);
-		// nng_aio_finish_sync(work->aio, 0);
-		break;
-	case WAIT:
-		// do not access to cparam
-		debug_msg("WAIT ^^^^ ctx%d ^^^^", work->ctx.id);
-		if (nng_msg_cmd_type(work->msg) == CMD_PINGREQ) {
-			smsg = work->msg;
-			nng_msg_clear(smsg);
-			ptr    = nng_msg_header(smsg);
-			ptr[0] = CMD_PINGRESP;
-			ptr[1] = 0x00;
-			nng_msg_set_cmd_type(smsg, CMD_PINGRESP);
-			work->msg = smsg;
-			work->pid = nng_msg_get_pipe(work->msg);
-			nng_msg_set_pipe(work->msg, work->pid);
-			nng_aio_set_msg(work->aio, work->msg);
-			work->msg   = NULL;
-			work->state = SEND;
-			nng_ctx_send(work->ctx, work->aio);
-			smsg = NULL;
-			nng_aio_finish(work->aio, 0);
-		} else if (nng_msg_cmd_type(work->msg) == CMD_PUBREC) {
-			smsg   = work->msg;
-			ptr    = nng_msg_header(smsg);
-			ptr[0] = 0x62;
-			ptr[1] = 0x02;
-			nng_msg_set_cmd_type(smsg, CMD_PUBREL);
-			work->msg = smsg;
-			work->pid = nng_msg_get_pipe(work->msg);
-			nng_msg_set_pipe(work->msg, work->pid);
-			nng_aio_set_msg(work->aio, work->msg);
-			work->msg   = NULL;
-			work->state = SEND;
-			nng_ctx_send(work->ctx, work->aio);
-			smsg = NULL;
-			nng_aio_finish(work->aio, 0);
-		} else if (nng_msg_cmd_type(work->msg) == CMD_SUBSCRIBE) {
+		if (type == CMD_SUBSCRIBE) {
 			smsg = work->msg;
 
 			work->pid = nng_msg_get_pipe(work->msg);
@@ -381,6 +238,7 @@ server_cb(void *arg)
 				return;
 			}
 
+			// TODO Error handling
 			if (0 != (rv = encode_suback_msg(smsg, work)))
 				debug_msg("error in encode suback: [%d]", rv);
 
@@ -416,7 +274,7 @@ server_cb(void *arg)
 			// free conn_param due to clone in protocol layer
 			conn_param_free(work->cparam);
 			break;
-		} else if (nng_msg_cmd_type(work->msg) == CMD_UNSUBSCRIBE) {
+		} else if (type == CMD_UNSUBSCRIBE) {
 			work->pid = nng_msg_get_pipe(work->msg);
 			smsg = work->msg;
 			if ((work->unsub_pkt = nng_alloc(
@@ -443,6 +301,150 @@ server_cb(void *arg)
 			smsg = NULL;
 			nng_aio_finish(work->aio, 0);
 			break;
+		} else if (type == CMD_PUBLISH) {
+			// Set V4/V5 flag for publish msg
+			if (work->proto_ver == 5) {
+				nng_msg_set_cmd_type(msg, CMD_PUBLISH_V5);
+			} else {
+				nng_msg_set_cmd_type(msg, CMD_PUBLISH);
+			}
+			work->code = handle_pub(work, work->pipe_ct, work->proto_ver);
+			if (work->code != SUCCESS) {
+				work->state = CLOSE;
+				free_pub_packet(work->pub_packet);
+				cvector_free(work->pipe_ct->msg_infos);
+				nng_aio_finish(work->aio, 0);
+				return;
+			}
+			webhook_msg_publish(&work->webhook_sock,
+			    &work->config->web_hook, work->pub_packet,
+			    (const char *)conn_param_get_username(work->cparam),
+			    (const char *)conn_param_get_clientid(work->cparam));
+			// TODO move bridge after WAIT
+			conf_bridge *bridge = &(work->config->bridge);
+			if (bridge->bridge_mode) {
+				bool found = false;
+				for (size_t i = 0; i < bridge->forwards_count;
+				     i++) {
+					if (topic_filter(bridge->forwards[i],
+					        work->pub_packet->var_header
+					            .publish.topic_name
+					            .body)) {
+						found = true;
+						break;
+					}
+				}
+
+				if (found) {
+					smsg = bridge_publish_msg(
+					    work->pub_packet->var_header
+					        .publish.topic_name.body,
+					    work->pub_packet->payload.data,
+					    work->pub_packet->payload.len,
+					    work->pub_packet->fixed_header.dup,
+					    work->pub_packet->fixed_header.qos,
+					    work->pub_packet->fixed_header
+					        .retain);
+					work->state = WAIT;
+					nng_aio_set_msg(
+					    work->bridge_aio, smsg);
+					//TODO check aio's cb
+					nng_ctx_send(work->bridge_ctx,
+					    work->bridge_aio);
+				}
+			}
+			// free conn_param due to clone in protocol layer
+			conn_param_free(work->cparam);
+		} else if (type == CMD_CONNACK) {
+			nng_msg_set_pipe(work->msg, work->pid);
+			// clone for sending connect event notification
+			nng_msg_clone(work->msg);
+			nng_aio_set_msg(work->aio, work->msg);
+			nng_ctx_send(work->ctx, work->aio); // send connack
+
+			uint8_t *body        = nng_msg_body(work->msg);
+			uint8_t  reason_code = *(body + 1);
+			smsg =
+			    nano_msg_notify_connect(work->cparam, reason_code);
+			webhook_client_connack(&work->webhook_sock,
+			    &work->config->web_hook, work->proto_ver,
+			    conn_param_get_keepalive(work->cparam),
+			    reason_code, conn_param_get_username(work->cparam),
+			    conn_param_get_clientid(work->cparam));
+			// Set V4/V5 flag for publish notify msg
+			nng_msg_set_cmd_type(smsg, CMD_PUBLISH);
+			nng_msg_free(work->msg);
+			work->msg = smsg;
+			handle_pub(work, work->pipe_ct, PROTOCOL_VERSION_v311);
+			// free conn_param due to clone in protocol layer
+			conn_param_free(work->cparam);
+		} else if (type == CMD_DISCONNECT_EV) {
+			// v4 as default, or send V5 notify msg?
+			nng_msg_set_cmd_type(msg, CMD_PUBLISH);
+			handle_pub(work, work->pipe_ct, PROTOCOL_VERSION_v311);
+			// TODO set reason code if proto_version = MQTT_V5
+			webhook_client_disconnect(&work->webhook_sock,
+			    &work->config->web_hook,
+			    conn_param_get_protover(work->cparam),
+			    conn_param_get_keepalive(work->cparam), 0,
+			    conn_param_get_username(work->cparam),
+			    conn_param_get_clientid(work->cparam));
+			// free client ctx
+			if (dbhash_check_id(work->pid.id)) {
+				destroy_sub_client(work->pid.id, work->db, NULL, NULL);
+			} else {
+				debug_msg("ERROR it should not happen");
+			}
+			if (conn_param_get_will_flag(work->cparam) == 0 ||
+			    !conn_param_get_will_topic(work->cparam) ||
+			    !conn_param_get_will_msg(work->cparam)) {
+				// no will msg - free the cp
+				conn_param_free(work->cparam);
+			} else {
+				// set to END tosend will msg
+				work->state = END;
+				// leave cp for will msg
+				nng_aio_finish(work->aio, 0);
+				break;
+			}
+		}
+		work->state = WAIT;
+		nng_aio_finish(work->aio, 0);
+		break;
+	case WAIT:
+		// do not access to cparam
+		debug_msg("WAIT ^^^^ ctx%d ^^^^", work->ctx.id);
+		if (nng_msg_cmd_type(work->msg) == CMD_PINGREQ) {
+			smsg = work->msg;
+			nng_msg_clear(smsg);
+			ptr    = nng_msg_header(smsg);
+			ptr[0] = CMD_PINGRESP;
+			ptr[1] = 0x00;
+			nng_msg_set_cmd_type(smsg, CMD_PINGRESP);
+			work->msg = smsg;
+			work->pid = nng_msg_get_pipe(work->msg);
+			nng_msg_set_pipe(work->msg, work->pid);
+			nng_aio_set_msg(work->aio, work->msg);
+			work->msg   = NULL;
+			work->state = SEND;
+			nng_ctx_send(work->ctx, work->aio);
+			smsg = NULL;
+			nng_aio_finish(work->aio, 0);
+		} else if (nng_msg_cmd_type(work->msg) == CMD_PUBREC) {
+			smsg   = work->msg;
+			ptr    = nng_msg_header(smsg);
+			ptr[0] = 0x62;
+			ptr[1] = 0x02;
+			nng_msg_set_cmd_type(smsg, CMD_PUBREL);
+			work->msg = smsg;
+			work->pid = nng_msg_get_pipe(work->msg);
+			nng_msg_set_pipe(work->msg, work->pid);
+			nng_aio_set_msg(work->aio, work->msg);
+			work->msg   = NULL;
+			work->state = SEND;
+			nng_ctx_send(work->ctx, work->aio);
+			smsg = NULL;
+			nng_aio_finish(work->aio, 0);
 		} else if (nng_msg_get_type(work->msg) == CMD_PUBLISH) {
 			if ((rv = nng_aio_result(work->aio)) != 0) {
 				debug_msg("WAIT nng aio result error: %d", rv);
@@ -627,7 +629,7 @@ server_cb(void *arg)
 		conn_param_free(work->cparam);
 		break;
 	case CLOSE:
-		debug_msg("END ^^^^ ctx%d ^^^^", work->ctx.id);
+		debug_msg(" CLOSE ^^^^ ctx%d ^^^^", work->ctx.id);
 		smsg = nano_dismsg_composer(work->code, NULL, NULL, NULL);
 		nng_msg_free(work->msg);
 		work->msg = smsg;
