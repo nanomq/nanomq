@@ -822,7 +822,7 @@ broker(conf *nanomq_conf)
 				fprintf(stderr, "SQL error: %s\n", err_msg);
 
 				sqlite3_free(err_msg);
-				sqlite3_close(db);
+				sqlite3_close(sdb);
 
 				return 1;
 			}

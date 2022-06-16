@@ -991,7 +991,7 @@ static char *pick_value(char *p)
 }
 
 static int
-set_where_info(const char *str, size_t len, rule_engine_info *info)
+set_where_info(char *str, size_t len, rule_engine_info *info)
 {
 	char *p  = str;
 	int   rc = 0;
@@ -1020,10 +1020,10 @@ set_where_info(const char *str, size_t len, rule_engine_info *info)
 }
 
 static int
-parse_where(const char *where, rule_engine_info *info)
+parse_where(char *where, rule_engine_info *info)
 {
-	const char *p   = where;
-	const char *p_b = where;
+	char *p   = where;
+	char *p_b = where;
 	int         rc  = 0;
 
 	info->filter = (char **) zmalloc(sizeof(char *) * 8);

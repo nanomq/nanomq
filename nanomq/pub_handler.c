@@ -197,7 +197,7 @@ payload_filter(pub_packet_struct *pp, rule_engine_info *info)
 
 		switch (jp->type) {
 		case cJSON_Number:;
-			int num = cJSON_GetNumberValue(jp);
+			long num = cJSON_GetNumberValue(jp);
 
 			if (payload->filter && num != atoi(payload->filter)) {
 				filter = false;
@@ -452,7 +452,7 @@ add_info_to_json(rule_engine_info *info, cJSON *jso, int j, nano_work *work)
 						if (info->payload[pi]->pas) {
 							cJSON_AddNumberToObject(jso,
 							    info->payload[pi]->pas,
-							    (int) info->payload[pi]->value);
+							    (long) info->payload[pi]->value);
 
 						}
 						break;
@@ -509,7 +509,7 @@ compose_sql_clause(rule_engine_info *info, char *key, char *value, int j, nano_w
 			} else {
 				strcat(key, "Id");
 			}
-			sprintf(value, "%s\'%s\'", value, pp->var_header.publish.packet_id);
+			sprintf(value, "%s\'%d\'", value, pp->var_header.publish.packet_id);
 			break;
 		case RULE_TOPIC:;
 			char *topic = pp->var_header.publish.topic_name.body;
@@ -554,7 +554,7 @@ compose_sql_clause(rule_engine_info *info, char *key, char *value, int j, nano_w
 				strcat(key, "Timestamp");
 			}
 
-			sprintf(value, "%s%d", value, (unsigned long) time(NULL));
+			sprintf(value, "%s%lu", value, (unsigned long) time(NULL));
 			break;
 		case RULE_PAYLOAD_ALL:;
 			char *payload = pp->payload.data;
@@ -579,6 +579,7 @@ compose_sql_clause(rule_engine_info *info, char *key, char *value, int j, nano_w
 			pthread_mutex_unlock(&rule_mutex);
 
 			char ret_key[512] = { 0 };
+			char *tmp_key = NULL;
 
 			for (int pi = 0; pi < cvector_size(info->payload);
 			     pi++) {
@@ -588,22 +589,20 @@ compose_sql_clause(rule_engine_info *info, char *key, char *value, int j, nano_w
 						switch (info->payload[pi]->type) {
 						case cJSON_Number:
 								if (is_need_set) {
-									// ret = zmalloc(128 * sizeof(char));
-									sprintf(ret_key, "%s\nALTER TABLE Broker ADD %s INT;\0", ret_key, info->payload[pi]->pas);
+									snprintf(ret_key, 512, "%s\nALTER TABLE Broker ADD %s INT;", tmp_key, info->payload[pi]->pas);
 								}
 								strcat(key, info->payload[pi]->pas);
 								strcat(key, ", ");
 								if (strlen(value) > strlen("VALUES (")) {
-									sprintf(value, "%s, %d", value, (int) info->payload[pi]->value);
+									sprintf(value, "%s, %ld", value, (long) info->payload[pi]->value);
 								} else {
-									sprintf(value, "%s %d", value, (int) info->payload[pi]->value);
+									sprintf(value, "%s %ld", value, (long) info->payload[pi]->value);
 								}
 							break;
 						case cJSON_String:
 							if (info->payload[pi]->pas) {
 								if (is_need_set) {
-									// ret = zmalloc(128 * sizeof(char));
-									sprintf(ret_key, "%s\nALTER TABLE Broker ADD %s TEXT;\0", ret_key, info->payload[pi]->pas);
+									snprintf(ret_key, 512, "%s\nALTER TABLE Broker ADD %s TEXT;", tmp_key, info->payload[pi]->pas);
 								}
 								strcat(key, info->payload[pi]->pas);
 								strcat(key, ", ");
@@ -617,8 +616,7 @@ compose_sql_clause(rule_engine_info *info, char *key, char *value, int j, nano_w
 						case cJSON_Object:
 							if (info->payload[pi]->pas) {
 								if (is_need_set) {
-									// ret = zmalloc(128 * sizeof(char));
-									sprintf(ret_key, "%s\nALTER TABLE Broker ADD %s TEXT;\0", ret_key, info->payload[pi]->pas);
+									snprintf(ret_key, 512, "%s\nALTER TABLE Broker ADD %s TEXT;", tmp_key, info->payload[pi]->pas);
 								}
 								strcat(key, info->payload[pi]->pas);
 								strcat(key, ", ");
@@ -634,6 +632,10 @@ compose_sql_clause(rule_engine_info *info, char *key, char *value, int j, nano_w
 						default:
 							break;
 						}
+
+						tmp_key = ret_key;
+
+
 					}
 				}
 			}
