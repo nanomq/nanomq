@@ -20,12 +20,10 @@ struct work {
 		RECV,
 		WAIT,
 		SEND,
-		RESEND,
-		FREE,
-		NOTIFY,
-		BRIDGE,
+		HOOK,
+		BRIDGE,		//Receive bridging msg from upstream
 		END,		//Clear state and cache before disconnect
-		CLOSE	//sending disconnect packet
+		CLOSE	        //sending disconnect packet and err code
 	} state;
 	// 0x00 mqtt_broker
 	// 0x01 mqtt_bridge
