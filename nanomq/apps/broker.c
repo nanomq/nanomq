@@ -193,7 +193,11 @@ server_cb(void *arg)
 		work->pid       = nng_msg_get_pipe(work->msg);
 		if (nng_msg_cmd_type(msg) == CMD_DISCONNECT) {
 			// TODO delete will msg if any
-			// nng_pipe_close();
+			work->cparam = nng_msg_get_conn_param(work->msg);
+			if (work->cparam) {
+				smsg = conn_param_get_will_msg(work->cparam);
+				nng_msg_free(smsg);
+			}
 			work->state = RECV;
 			nng_ctx_recv(work->ctx, work->aio);
 			break;
