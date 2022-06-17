@@ -14,8 +14,9 @@ typedef enum {
 } mqtt_version_t;
 
 typedef struct {
-	atomic_int   ref;
-	void *ctx;
+	int              ref;
+	void            *ctx;
+	pthread_rwlock_t rwlock;
 } dbtree_ctxt;
 
 typedef struct {
