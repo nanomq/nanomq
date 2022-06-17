@@ -192,7 +192,8 @@ server_cb(void *arg)
 
 		work->msg       = msg;
 		work->pid       = nng_msg_get_pipe(work->msg);
-		if (nng_msg_cmd_type(msg) == CMD_DISCONNECT) {
+		type = nng_msg_cmd_type(msg);
+		if (type == CMD_DISCONNECT) {
 			// TODO delete will msg if any
 			work->cparam = nng_msg_get_conn_param(work->msg);
 			if (work->cparam) {
@@ -205,7 +206,6 @@ server_cb(void *arg)
 		}
 		work->cparam    = nng_msg_get_conn_param(work->msg);
 		work->proto_ver = conn_param_get_protover(work->cparam);
-		type = nng_msg_cmd_type(msg);
 
 		if (type == CMD_SUBSCRIBE) {
 			smsg = work->msg;
@@ -313,13 +313,12 @@ server_cb(void *arg)
 				work->state = CLOSE;
 				free_pub_packet(work->pub_packet);
 				cvector_free(work->pipe_ct->msg_infos);
+				// free conn_param due to clone in protocol layer
+				conn_param_free(work->cparam);
 				nng_aio_finish(work->aio, 0);
 				return;
 			}
-			webhook_msg_publish(&work->webhook_sock,
-			    &work->config->web_hook, work->pub_packet,
-			    (const char *)conn_param_get_username(work->cparam),
-			    (const char *)conn_param_get_clientid(work->cparam));
+
 			// TODO move bridge after WAIT
 			conf_bridge *bridge = &(work->config->bridge);
 			if (bridge->bridge_mode) {
@@ -353,8 +352,6 @@ server_cb(void *arg)
 					    work->bridge_aio);
 				}
 			}
-			// free conn_param due to clone in protocol layer
-			conn_param_free(work->cparam);
 		} else if (type == CMD_CONNACK) {
 			nng_msg_set_pipe(work->msg, work->pid);
 			// clone for sending connect event notification
@@ -376,8 +373,8 @@ server_cb(void *arg)
 			nng_msg_free(work->msg);
 			work->msg = smsg;
 			handle_pub(work, work->pipe_ct, PROTOCOL_VERSION_v311);
-			// free conn_param due to clone in protocol layer
-			conn_param_free(work->cparam);
+			// remember to free conn_param in WAIT 
+			// due to clone in protocol layer
 		} else if (type == CMD_DISCONNECT_EV) {
 			// v4 as default, or send V5 notify msg?
 			nng_msg_set_cmd_type(msg, CMD_PUBLISH);
@@ -414,7 +411,71 @@ server_cb(void *arg)
 	case WAIT:
 		// do not access to cparam
 		debug_msg("WAIT ^^^^ ctx%d ^^^^", work->ctx.id);
-		if (nng_msg_cmd_type(work->msg) == CMD_PINGREQ) {
+		if (nng_msg_get_type(work->msg) == CMD_PUBLISH) {
+			if ((rv = nng_aio_result(work->aio)) != 0) {
+				debug_msg("WAIT nng aio result error: %d", rv);
+				fatal("WAIT nng_ctx_recv/send", rv);
+			}
+			smsg      = work->msg; // reuse the same msg
+			work->msg = NULL;
+
+			cvector(mqtt_msg_info) msg_infos;
+			msg_infos = work->pipe_ct->msg_infos;
+
+			debug_msg("total pipes: %ld", cvector_size(msg_infos));
+			if (cvector_size(msg_infos))
+				if (encode_pub_message(smsg, work, PUBLISH))
+					for (int i = 0; i < cvector_size(msg_infos) && rv== 0; ++i) {
+						msg_info = &msg_infos[i];
+						nng_msg_clone(smsg);
+						work->pid.id = msg_info->pipe;
+						nng_msg_set_pipe(smsg, work->pid);
+						work->msg = NANO_NNI_LMQ_PACKED_MSG_QOS(smsg, msg_info->qos);
+						nng_aio_set_msg(work->aio, work->msg);
+						nng_ctx_send(work->ctx, work->aio);
+					}
+			// webhook here
+			webhook_msg_publish(&work->webhook_sock,
+			    &work->config->web_hook, work->pub_packet,
+			    (const char *) conn_param_get_username(
+			        work->cparam),
+			    (const char *) conn_param_get_clientid(
+			        work->cparam));
+			// no client to send & free msg
+			if (smsg != NULL) {
+				nng_msg_free(smsg);
+				smsg = NULL;
+			}
+			// free conn_param due to clone in protocol layer
+			conn_param_free(work->cparam);
+			work->msg = NULL;
+			free_pub_packet(work->pub_packet);
+			if (cvector_size(msg_infos) > 0) {
+				work->state = SEND;
+				cvector_free(msg_infos);
+				work->pipe_ct->msg_infos = NULL;
+				init_pipe_content(work->pipe_ct);
+				nng_aio_finish(work->aio, 0);
+				break;
+			}
+			cvector_free(work->pipe_ct->msg_infos);
+			work->pipe_ct->msg_infos = NULL;
+			init_pipe_content(work->pipe_ct);
+			if (work->proto == PROTO_MQTT_BRIDGE) {
+				work->state = BRIDGE;
+			} else {
+				work->state = RECV;
+			}
+			nng_ctx_recv(work->ctx, work->aio);
+		} else if (nng_msg_cmd_type(work->msg) == CMD_PUBACK ||
+		    nng_msg_cmd_type(work->msg) == CMD_PUBREL ||
+		    nng_msg_cmd_type(work->msg) == CMD_PUBCOMP) {
+			nng_msg_free(work->msg);
+			work->msg   = NULL;
+			work->state = RECV;
+			nng_ctx_recv(work->ctx, work->aio);
+			break;
+		} else if (nng_msg_cmd_type(work->msg) == CMD_PINGREQ) {
 			smsg = work->msg;
 			nng_msg_clear(smsg);
 			ptr    = nng_msg_header(smsg);
@@ -445,62 +506,6 @@ server_cb(void *arg)
 			nng_ctx_send(work->ctx, work->aio);
 			smsg = NULL;
 			nng_aio_finish(work->aio, 0);
-		} else if (nng_msg_get_type(work->msg) == CMD_PUBLISH) {
-			if ((rv = nng_aio_result(work->aio)) != 0) {
-				debug_msg("WAIT nng aio result error: %d", rv);
-				fatal("WAIT nng_ctx_recv/send", rv);
-			}
-			smsg      = work->msg; // reuse the same msg
-			work->msg = NULL;
-
-			cvector(mqtt_msg_info) msg_infos;
-			msg_infos = work->pipe_ct->msg_infos;
-
-			debug_msg("total pipes: %ld", cvector_size(msg_infos));
-			if (cvector_size(msg_infos))
-				if (encode_pub_message(smsg, work, PUBLISH))
-					for (int i = 0; i < cvector_size(msg_infos) && rv== 0; ++i) {
-						msg_info = &msg_infos[i];
-						nng_msg_clone(smsg);
-						work->pid.id = msg_info->pipe;
-						nng_msg_set_pipe(smsg, work->pid);
-						work->msg = NANO_NNI_LMQ_PACKED_MSG_QOS(smsg, msg_info->qos);
-						nng_aio_set_msg(work->aio, work->msg);
-						nng_ctx_send(work->ctx, work->aio);
-					}
-			if (smsg != NULL) {
-				nng_msg_free(smsg);
-				smsg = NULL;
-			}
-			work->msg = NULL;
-			free_pub_packet(work->pub_packet);
-			if (cvector_size(msg_infos) > 0) {
-				work->state = SEND;
-				cvector_free(msg_infos);
-				work->pipe_ct->msg_infos = NULL;
-				init_pipe_content(work->pipe_ct);
-				nng_aio_finish(work->aio, 0);
-				break;
-			}
-			cvector_free(work->pipe_ct->msg_infos);
-			work->pipe_ct->msg_infos = NULL;
-			init_pipe_content(work->pipe_ct);
-			if (work->state != SEND) {
-				if (work->proto == PROTO_MQTT_BRIDGE) {
-					work->state = BRIDGE;
-				} else {
-					work->state = RECV;
-				}
-				nng_ctx_recv(work->ctx, work->aio);
-			}
-		} else if (nng_msg_cmd_type(work->msg) == CMD_PUBACK ||
-		    nng_msg_cmd_type(work->msg) == CMD_PUBREL ||
-		    nng_msg_cmd_type(work->msg) == CMD_PUBCOMP) {
-			nng_msg_free(work->msg);
-			work->msg   = NULL;
-			work->state = RECV;
-			nng_ctx_recv(work->ctx, work->aio);
-			break;
 		} else {
 			debug_msg("broker has nothing to do");
 			if (work->msg != NULL)
