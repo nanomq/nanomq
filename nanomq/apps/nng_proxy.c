@@ -693,7 +693,8 @@ nng_client_cb(void *arg)
 		}
 		work->msg   = nng_aio_get_msg(work->aio);
 		if (nng_opts->verbose) {
-			printf("NNG msg : %s\n", nng_msg_body(work->msg));
+			printf("NNG msg : %s\n",
+			    (char *) nng_msg_body(work->msg));
 		}
 
 		msg = nng_publish_msg(work->nng_opts, work->msg);
@@ -763,7 +764,7 @@ nng_client_cb(void *arg)
 	return;
 
 out:
-	exit_signal = true;
+	nng_atomic_set_bool(exit_signal, true);
 }
 
 static struct work *
@@ -861,7 +862,7 @@ nng_alloc_work(nng_socket sock, nng_socket psock, nng_proxy_opts *nng_opts, uint
 		if ((rv = nng_ctx_open(&w->proxy_ctx, psock)) != 0) {
 			nng_fatal("nng_ctx_open", rv);
 		}
-		nng_ctx_setopt(w->proxy_ctx, NNG_OPT_SUB_SUBSCRIBE, "", 0);
+		nng_ctx_set(w->proxy_ctx, NNG_OPT_SUB_SUBSCRIBE, "", 0);
 		break;
 	case PUB0:
 		w->nsocket = psock;
@@ -1032,22 +1033,22 @@ nng_proxy_client(int argc, char **argv, enum nng_proto type)
 		}
 	}
 
-	while (!exit_signal) {
+	while (!nng_atomic_get_bool(exit_signal)) {
 		nng_msleep(1000);
 	}
 
-		nng_free(param, sizeof(struct connect_param));
-		nng_free(socket, sizeof(nng_socket));
+	nng_free(param, sizeof(struct connect_param));
+	nng_free(socket, sizeof(nng_socket));
 
-		for (size_t k = 0; k < nng_opts->parallel; k++) {
-			nng_aio_free(works[k]->aio);
-			if (works[k]->msg) {
-				nng_msg_free(works[k]->msg);
-				works[k]->msg = NULL;
-			}
-
-			nng_free(works[k], sizeof(struct work));
+	for (size_t k = 0; k < nng_opts->parallel; k++) {
+		nng_aio_free(works[k]->aio);
+		if (works[k]->msg) {
+			nng_msg_free(works[k]->msg);
+			works[k]->msg = NULL;
 		}
+
+		nng_free(works[k], sizeof(struct work));
+	}
 
 	nng_free(param, sizeof(struct connect_param *));
 	nng_free(socket, sizeof(nng_socket *));

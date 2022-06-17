@@ -22,7 +22,7 @@
 #define ROUND_ROBIN
 // #define RANDOM
 
-static atomic_int acnt = 0;
+static int acnt = 0;
 
 dbtree_ctxt *
 dbtree_new_ctxt(void *ctx)
@@ -34,6 +34,7 @@ dbtree_new_ctxt(void *ctx)
 	}
 	ctxt->ref         = 1;
 	ctxt->ctx         = ctx;
+	pthread_rwlock_init(&(ctxt->rwlock), NULL);
 	return ctxt;
 }
 
@@ -41,16 +42,22 @@ void *
 dbtree_delete_ctxt(dbtree *db, dbtree_ctxt *ctxt)
 {
 	void *ctx = NULL;
-	pthread_rwlock_wrlock(&(db->rwlock));
+	bool free = false;
+	pthread_rwlock_wrlock(&(ctxt->rwlock));
 	if (ctxt->ref > 0) {
 		ctxt->ref--;
 	}
 
 	if (ctxt->ref == 0) {
 		ctx = ctxt->ctx;
+		free = true;
+
+	}
+	if (free) {
 		zfree(ctxt);
 	}
-	pthread_rwlock_unlock(&(db->rwlock));
+	pthread_rwlock_unlock(&(ctxt->rwlock));
+
 	
 	return ctx;
 }
@@ -58,7 +65,11 @@ dbtree_delete_ctxt(dbtree *db, dbtree_ctxt *ctxt)
 void 
 dbtree_clone_ctxt(dbtree_ctxt *ctxt)
 {
-	ctxt->ref++;
+	pthread_rwlock_wrlock(&(ctxt->rwlock));
+	if (ctxt->ref) {
+		ctxt->ref++;
+	}
+	pthread_rwlock_unlock(&(ctxt->rwlock));
 }
 
 /**
@@ -1497,6 +1508,7 @@ dbtree_find_shared_clients(dbtree *db, char *topic)
 	int   index;
 
 	if (node == NULL) {
+		pthread_rwlock_unlock(&(db->rwlock));
 		return NULL;
 	}
 
