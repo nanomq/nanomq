@@ -24,8 +24,10 @@
 
 static int acnt = 0;
 
+pthread_rwlock_t rwlock = PTHREAD_RWLOCK_INITIALIZER;
+
 dbtree_ctxt *
-dbtree_new_ctxt(void *ctx)
+dbtree_ctxt_new(void *ctx)
 {
 	dbtree_ctxt *ctxt = (dbtree_ctxt *) zmalloc(sizeof(dbtree_ctxt));
 	if (ctxt == NULL) {
@@ -34,42 +36,54 @@ dbtree_new_ctxt(void *ctx)
 	}
 	ctxt->ref         = 1;
 	ctxt->ctx         = ctx;
-	pthread_rwlock_init(&(ctxt->rwlock), NULL);
 	return ctxt;
 }
 
 void *
-dbtree_delete_ctxt(dbtree *db, dbtree_ctxt *ctxt)
+dbtree_ctxt_delete(dbtree_ctxt *ctxt)
 {
 	void *ctx = NULL;
-	bool free = false;
-	pthread_rwlock_wrlock(&(ctxt->rwlock));
-	if (ctxt->ref > 0) {
-		ctxt->ref--;
-	}
-
-	if (ctxt->ref == 0) {
-		ctx = ctxt->ctx;
-		free = true;
-
-	}
-	if (free) {
-		zfree(ctxt);
-	}
-	pthread_rwlock_unlock(&(ctxt->rwlock));
-
-	
+	pthread_rwlock_wrlock(&(rwlock));
+	assert(ctxt != NULL && ctxt->ref == 0);
+	ctx = ctxt->ctx;
+	zfree(ctxt);
+	ctxt = NULL;
+	pthread_rwlock_unlock(&(rwlock));
 	return ctx;
 }
 
-void 
-dbtree_clone_ctxt(dbtree_ctxt *ctxt)
+int
+dbtree_ctxt_free(dbtree_ctxt *ctxt)
 {
-	pthread_rwlock_wrlock(&(ctxt->rwlock));
-	if (ctxt->ref) {
-		ctxt->ref++;
+	pthread_rwlock_wrlock(&(rwlock));
+	assert(ctxt != NULL && ctxt->ref > 0);
+	int ref = (--ctxt->ref);
+	pthread_rwlock_unlock(&(rwlock));
+	return ref;
+}
+
+int dbtree_ctxt_get_ref(dbtree_ctxt *ctxt)
+{
+	assert(ctxt != NULL);
+	pthread_rwlock_rdlock(&(rwlock));
+	int ref = ctxt->ref;
+	pthread_rwlock_unlock(&(rwlock));
+	return ref;
+}
+
+void 
+dbtree_ctxt_clone(dbtree_ctxt *ctxt)
+{
+	pthread_rwlock_wrlock(&(rwlock));
+	assert(ctxt != NULL && ctxt->ref > 0);
+	if (ctxt) {
+		if (ctxt->ref > 0) {
+			ctxt->ref++;
+		} else {
+			log_err("Error clone ctxt->ref == %d", ctxt->ref);
+		}
 	}
-	pthread_rwlock_unlock(&(ctxt->rwlock));
+	pthread_rwlock_unlock(&(rwlock));
 }
 
 /**
@@ -386,7 +400,7 @@ dbtree_client_new(uint32_t id, void *ctxt, uint32_t pipe_id, mqtt_version_t ver)
 	log_info("New client pipe_id: [%d], session id: [%d]", pipe_id, id);
 	client->session_id = id;
 	client->pipe_id    = pipe_id;
-	client->ctxt       = (void *) dbtree_new_ctxt(ctxt);
+	client->ctxt       = (void *) dbtree_ctxt_new(ctxt);
 	client->ver        = ver;
 	return client;
 }
@@ -518,7 +532,12 @@ find_client_cb(dbtree_node *node, void *args)
 	    binary_search(
 	        (void **) node->clients, 0, &index, pipe_id, client_cmp)) {
 		ctxt = (dbtree_ctxt*) node->clients[index]->ctxt;
-		dbtree_clone_ctxt(ctxt);
+		// if ref == 0, implict that it will de deleted.
+		if (0 == dbtree_ctxt_get_ref(ctxt)) {
+			ctxt = NULL;
+		} else {
+			dbtree_ctxt_clone(ctxt);
+		}
 	}
 
 	pthread_rwlock_unlock(&(node->rwlock));
@@ -867,8 +886,11 @@ iterate_client(dbtree_client ***v)
 				int index = 0;
 				dbtree_ctxt *ctxt = (dbtree_ctxt *) v[i][j]->ctxt;
 				if (v[i][j]->ver == MQTT_VERSION_V311) {
-					dbtree_clone_ctxt(ctxt);
-					cvector_push_back(ctxts, (void*) ctxt);
+					// if ref == 0, implict that it will de deleted.
+					if (0 != dbtree_ctxt_get_ref(ctxt)) {
+						dbtree_ctxt_clone(ctxt);
+						cvector_push_back(ctxts, (void*) ctxt);
+					}
 					continue;
 				}
 
@@ -884,8 +906,10 @@ iterate_client(dbtree_client ***v)
 						    &v[i][j]->pipe_id);
 					}
 
-					dbtree_clone_ctxt(ctxt);
-					cvector_push_back(ctxts, (void*) ctxt);
+					if (0 != dbtree_ctxt_get_ref(ctxt)) {
+						dbtree_ctxt_clone(ctxt);
+						cvector_push_back(ctxts, (void*) ctxt);
+					}
 				}
 			}
 		}
@@ -1481,8 +1505,10 @@ dbtree_shared_iterate_client(dbtree_client ***v)
 				}
 
 				void *ctxt = v[i][j]->ctxt;
-				dbtree_clone_ctxt((dbtree_ctxt*) ctxt);
-				cvector_push_back(ctxts, ctxt);
+				if (0 != dbtree_ctxt_get_ref(ctxt)) {
+					dbtree_ctxt_clone((dbtree_ctxt*) ctxt);
+					cvector_push_back(ctxts, ctxt);
+				}
 			}
 		}
 		cvector_free(ids);
