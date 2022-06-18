@@ -109,8 +109,8 @@ foreach_client(
 		ctx     = (struct client_ctx *) db_ctxt->ctx;
 
 #ifdef STATISTICS
-		nng_atomic_inc64(ctx->recv_cnt);
-		nng_atomic_inc64(g_msg.msg_out);
+		// nng_atomic_inc64(ctx->recv_cnt);
+		// nng_atomic_inc64(g_msg.msg_out);
 #endif
 		pids = ctx->pid.id;
 		tn   = ctx->sub_pkt->node;
@@ -163,9 +163,13 @@ foreach_client(
 		msg_info->qos  = sub_qos;
 
 	next:
-		if ((ctx = dbtree_delete_ctxt(pub_work->db, db_ctxt)) != NULL)
-			destroy_sub_client(ctx->pid.id, pub_work->db, ctx,
-			    tn->it->topic_filter.body);
+
+		if (0 == dbtree_ctxt_free(db_ctxt)) {
+			client_ctx *ctx = dbtree_ctxt_delete(db_ctxt);
+			if (ctx) {
+				del_sub_ctx(ctx, tn->it->topic_filter.body);
+			}
+		}
 	}
 	pipe_ct->msg_infos = msg_infos;
 }
