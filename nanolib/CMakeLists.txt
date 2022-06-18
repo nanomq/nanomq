@@ -124,9 +124,9 @@ if (ENABLE_RULE_ENGINE)
 endif (ENABLE_RULE_ENGINE)
 
 
-add_executable(nano_test test.c test_hash.c test_dbtree.c)
-target_link_libraries(nano_test nano_shared)
-target_link_libraries(nano_test ${FOUNDATION_LIBRARY})
+## add_executable(nano_test test.c test_hash.c test_dbtree.c)
+## target_link_libraries(nano_test nano_shared)
+## target_link_libraries(nano_test ${FOUNDATION_LIBRARY})
 
 
 

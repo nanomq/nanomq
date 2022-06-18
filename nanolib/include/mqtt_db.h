@@ -238,11 +238,15 @@ void *dbtree_insert_shared_sub_client(
 void *dbtree_delete_shared_sub_client(
     dbtree *db, char *topic, uint32_t session_id, uint32_t pipe_id);
 
-void *dbtree_delete_ctxt(dbtree *db, dbtree_ctxt *ctxt);
+dbtree_ctxt *dbtree_ctxt_new(void *ctx);
 
-dbtree_ctxt *dbtree_new_ctxt(void *ctx);
+void *dbtree_ctxt_delete(dbtree_ctxt *ctxt);
 
-void dbtree_clone_ctxt(dbtree_ctxt *ctxt);
+void dbtree_ctxt_clone(dbtree_ctxt *ctxt);
+
+int dbtree_ctxt_free(dbtree_ctxt *ctxt);
+
+int dbtree_ctxt_get_ref(dbtree_ctxt *ctxt);
 
 void ***dbtree_get_tree(dbtree *db, void *(*cb)(void *ctxt));
 
