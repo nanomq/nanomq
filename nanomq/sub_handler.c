@@ -347,12 +347,13 @@ sub_ctx_handle(nano_work *work)
 		tn = tn->next;
 	}
 
-	if (db_ctxt) {
-		client_ctx *ctx = dbtree_delete_ctxt(work->db, db_ctxt);
+	if (db_ctxt && 0 == dbtree_ctxt_free(db_ctxt)) {
+		client_ctx *ctx = dbtree_ctxt_delete(db_ctxt);
 		if (ctx) {
-			destroy_sub_client(ctx->pid.id, work->db, ctx, tq1->topic);
+			del_sub_ctx(ctx, tq1->topic);
 		}
 	}
+	
 
 #ifdef DEBUG
 	// check treeDB
@@ -567,42 +568,33 @@ destroy_sub_ctx(void *ctxt)
 }
 
 void
-destroy_sub_client(uint32_t pid, dbtree * db, void *ctx, void *topic)
+destroy_sub_client(uint32_t pid, dbtree * db)
 {
-	client_ctx * cli_ctx = NULL, *ctx2 = NULL;
 	dbtree_ctxt * db_ctxt = NULL;
+	client_ctx * cli_ctx = NULL;
 	topic_queue *tq = dbhash_get_topic_queue(pid);
-	// Free from dbtree
-	if (!ctx) {
-		// Call by Disconnect event
-		db_ctxt = dbtree_find_client(db, tq->topic, pid);
-		topic = tq->topic;
-		dbtree_delete_ctxt(db, db_ctxt);
-		// Ref > 1, So let puber to delete
-		if ((ctx2 = dbtree_delete_ctxt(db, db_ctxt)) == NULL)
-			return;
-	}
+	char *topic = tq->topic;
+
 	while (tq) {
-		cli_ctx = NULL;
 		if (tq->topic) {
-			if (!ctx) {
-				// Call by Disconnect event
-				cli_ctx = ctx2;
-				// Ref == 1, so delete
-			} else {
-				// Call by Publish
-				cli_ctx = ctx;
+			// Free from dbtree
+			db_ctxt = dbtree_delete_client(db, topic, 0, pid);
+			if (0 == dbtree_ctxt_free(db_ctxt)) {
+				cli_ctx = dbtree_ctxt_delete(db_ctxt);
+				if (cli_ctx) {
+					del_sub_ctx(cli_ctx, tq->topic);
+				}
+				// dbhash_del_topic(pid, tq->topic);
+
 			}
-			if (cli_ctx)
-				del_sub_ctx(cli_ctx, tq->topic);
-			db_ctxt = dbtree_delete_client(db, tq->topic, 0, pid);
-			if (0 != strcmp(tq->topic, (char *)topic))
-				dbtree_delete_ctxt(db, db_ctxt);
+
 		}
 		tq = tq->next;
 	}
 
 	// Free from dbhash
 	dbhash_del_topic_queue(pid);
+
+	return;
 }
 
