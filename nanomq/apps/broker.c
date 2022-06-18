@@ -271,8 +271,7 @@ server_cb(void *arg)
 			work->state = SEND;
 			nng_ctx_send(work->ctx, work->aio);
 			nng_aio_finish(work->aio, 0);
-			// free conn_param due to clone in protocol layer
-			conn_param_free(work->cparam);
+			// free conn_param in SEND state
 			break;
 		} else if (type == CMD_UNSUBSCRIBE) {
 			work->pid = nng_msg_get_pipe(work->msg);
@@ -300,6 +299,7 @@ server_cb(void *arg)
 			nng_ctx_send(work->ctx, work->aio);
 			smsg = NULL;
 			nng_aio_finish(work->aio, 0);
+			//free conn_param in SEND state
 			break;
 		} else if (type == CMD_PUBLISH) {
 			// Set V4/V5 flag for publish msg
@@ -312,6 +312,7 @@ server_cb(void *arg)
 			if (work->code != SUCCESS) {
 				work->state = CLOSE;
 				free_pub_packet(work->pub_packet);
+				work->pub_packet = NULL;
 				cvector_free(work->pipe_ct->msg_infos);
 				// free conn_param due to clone in protocol layer
 				conn_param_free(work->cparam);
@@ -417,8 +418,6 @@ server_cb(void *arg)
 				fatal("WAIT nng_ctx_recv/send", rv);
 			}
 			smsg      = work->msg; // reuse the same msg
-			work->msg = NULL;
-
 			cvector(mqtt_msg_info) msg_infos;
 			msg_infos = work->pipe_ct->msg_infos;
 
@@ -434,6 +433,9 @@ server_cb(void *arg)
 						nng_aio_set_msg(work->aio, work->msg);
 						nng_ctx_send(work->ctx, work->aio);
 					}
+			//check webhook & rule engine
+			conf_web_hook *hook_conf = &work->config->web_hook;
+			if (hook_conf->enable) {
 			// webhook here
 			webhook_msg_publish(&work->webhook_sock,
 			    &work->config->web_hook, work->pub_packet,
@@ -441,32 +443,30 @@ server_cb(void *arg)
 			        work->cparam),
 			    (const char *) conn_param_get_clientid(
 			        work->cparam));
-			// no client to send & free msg
-			if (smsg != NULL) {
-				nng_msg_free(smsg);
-				smsg = NULL;
-			}
-			// free conn_param due to clone in protocol layer
-			conn_param_free(work->cparam);
-			work->msg = NULL;
-			free_pub_packet(work->pub_packet);
-			if (cvector_size(msg_infos) > 0) {
 				work->state = SEND;
-				cvector_free(msg_infos);
-				work->pipe_ct->msg_infos = NULL;
-				init_pipe_content(work->pipe_ct);
 				nng_aio_finish(work->aio, 0);
 				break;
 			}
-			cvector_free(work->pipe_ct->msg_infos);
+						// no client to send & free msg
+			if (smsg != NULL) {
+				nng_msg_free(smsg);
+				smsg = NULL;
+				work->msg = NULL;
+			}
+			// free conn_param due to clone in protocol layer
+			conn_param_free(work->cparam);
+			free_pub_packet(work->pub_packet);
+			work->pub_packet = NULL;
+			cvector_free(msg_infos);
 			work->pipe_ct->msg_infos = NULL;
 			init_pipe_content(work->pipe_ct);
 			if (work->proto == PROTO_MQTT_BRIDGE) {
 				work->state = BRIDGE;
+				nng_ctx_recv(work->bridge_ctx, work->aio);
 			} else {
 				work->state = RECV;
+				nng_ctx_recv(work->ctx, work->aio);
 			}
-			nng_ctx_recv(work->ctx, work->aio);
 		} else if (nng_msg_cmd_type(work->msg) == CMD_PUBACK ||
 		    nng_msg_cmd_type(work->msg) == CMD_PUBREL ||
 		    nng_msg_cmd_type(work->msg) == CMD_PUBCOMP) {
@@ -532,18 +532,24 @@ server_cb(void *arg)
 		nng_aio_finish(work->aio, 0);
 		break;
 	case SEND:
-		if (NULL != smsg) {
-			smsg = NULL;
+		if (NULL != work->msg) {
+			nng_msg_free(work->msg);
+			work->msg = NULL;
 		}
 		if ((rv = nng_aio_result(work->aio)) != 0) {
 			fatal("SEND nng_ctx_send", rv);
 		}
-		if (work->pipe_ct->msg_infos) {
+		if (work->pub_packet != NULL) {
 			free_pub_packet(work->pub_packet);
+			work->pub_packet = NULL;
+		}
+		if (work->pipe_ct->msg_infos != NULL) {
 			cvector_free(work->pipe_ct->msg_infos);
 			work->pipe_ct->msg_infos = NULL;
+			init_pipe_content(work->pipe_ct);
 		}
-		work->msg = NULL;
+		// free conn_param due to clone in protocol layer
+		conn_param_free(work->cparam);
 		if (work->proto == PROTO_MQTT_BRIDGE) {
 			work->state = BRIDGE;
 			nng_ctx_recv(work->bridge_ctx, work->aio);
@@ -582,6 +588,7 @@ server_cb(void *arg)
 			smsg = NULL;
 			work->msg = NULL;
 			free_pub_packet(work->pub_packet);
+			work->pub_packet = NULL;
 			cvector_free(work->pipe_ct->msg_infos);
 			work->pipe_ct->msg_infos = NULL;
 			init_pipe_content(work->pipe_ct);
@@ -674,6 +681,7 @@ alloc_work(nng_socket sock)
 
 	w->pipe_ct = nng_alloc(sizeof(struct pipe_content));
 	init_pipe_content(w->pipe_ct);
+	w->pub_packet = NULL;
 
 	w->state = INIT;
 	return (w);
