@@ -433,26 +433,17 @@ server_cb(void *arg)
 						nng_aio_set_msg(work->aio, work->msg);
 						nng_ctx_send(work->ctx, work->aio);
 					}
+			work->msg = smsg;
 			//check webhook & rule engine
 			conf_web_hook *hook_conf = &work->config->web_hook;
 			if (hook_conf->enable) {
-			// webhook here
-			webhook_msg_publish(&work->webhook_sock,
-			    &work->config->web_hook, work->pub_packet,
-			    (const char *) conn_param_get_username(
-			        work->cparam),
-			    (const char *) conn_param_get_clientid(
-			        work->cparam));
 				work->state = SEND;
 				nng_aio_finish(work->aio, 0);
 				break;
 			}
-						// no client to send & free msg
-			if (smsg != NULL) {
-				nng_msg_free(smsg);
-				smsg = NULL;
-				work->msg = NULL;
-			}
+			nng_msg_free(work->msg);
+			smsg = NULL;
+			work->msg = NULL;
 			// free conn_param due to clone in protocol layer
 			conn_param_free(work->cparam);
 			free_pub_packet(work->pub_packet);
@@ -491,21 +482,6 @@ server_cb(void *arg)
 			nng_ctx_send(work->ctx, work->aio);
 			smsg = NULL;
 			nng_aio_finish(work->aio, 0);
-		} else if (nng_msg_cmd_type(work->msg) == CMD_PUBREC) {
-			smsg   = work->msg;
-			ptr    = nng_msg_header(smsg);
-			ptr[0] = 0x62;
-			ptr[1] = 0x02;
-			nng_msg_set_cmd_type(smsg, CMD_PUBREL);
-			work->msg = smsg;
-			work->pid = nng_msg_get_pipe(work->msg);
-			nng_msg_set_pipe(work->msg, work->pid);
-			nng_aio_set_msg(work->aio, work->msg);
-			work->msg   = NULL;
-			work->state = SEND;
-			nng_ctx_send(work->ctx, work->aio);
-			smsg = NULL;
-			nng_aio_finish(work->aio, 0);
 		} else {
 			debug_msg("broker has nothing to do");
 			if (work->msg != NULL)
@@ -532,6 +508,11 @@ server_cb(void *arg)
 		nng_aio_finish(work->aio, 0);
 		break;
 	case SEND:
+		// webhook here
+		// webhook_msg_publish(&work->webhook_sock,
+		//     &work->config->web_hook, work->pub_packet,
+		//     (const char *) conn_param_get_username(work->cparam),
+		//     (const char *) conn_param_get_clientid(work->cparam));
 		if (NULL != work->msg) {
 			nng_msg_free(work->msg);
 			work->msg = NULL;
