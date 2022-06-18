@@ -850,10 +850,13 @@ get_clients(http_msg *msg, kv **params, size_t param_num,
 
 	skip:
 		dbhash_ptpair_free(pt[i]);
-		if ((ctxt = dbtree_delete_ctxt(db, db_ctxt))) {
-			destroy_sub_client(
-			    ctxt->pid.id, db, ctxt, pt[i]->topic);
+		if (0 == dbtree_ctxt_free(db_ctxt)) {
+			client_ctx *ctx = dbtree_ctxt_delete(db_ctxt);
+			if (ctx) {
+				del_sub_ctx(ctx, pt[i]->topic);
+			}
 		}
+
 	}
 	cvector_free(pt);
 
@@ -928,9 +931,11 @@ get_subscriptions(
 			tn = tn->next;
 		}
 	skip:
-		if ((ctxt = dbtree_delete_ctxt(db, db_ctxt))) {
-			destroy_sub_client(
-			    ctxt->pid.id, db, ctxt, pt[i]->topic);
+		if (0 == dbtree_ctxt_free(db_ctxt)) {
+			client_ctx *ctx = dbtree_ctxt_delete(db_ctxt);
+			if (ctx) {
+				del_sub_ctx(ctx, pt[i]->topic);
+			}
 		}
 		dbhash_ptpair_free(pt[i]);
 	}

@@ -209,11 +209,13 @@ unsub_ctx_handle(nano_work *work)
 
 		db_ctxt = dbtree_find_client(
 		    work->db, topic_str, work->pid.id);
-		dbtree_delete_ctxt(work->db, db_ctxt); // Pair to find
 
+		dbtree_ctxt_free(db_ctxt); // Pair to find
+
+
+		// log_err("delete: %d", db_ctxt);
+		dbtree_ctxt_delete(db_ctxt); // Free
 		cli_ctx = db_ctxt->ctx;
-
-		dbtree_delete_ctxt(work->db, db_ctxt); // Free
 
 		dbtree_delete_client(
 		    work->db, topic_str, 0, work->pid.id);
