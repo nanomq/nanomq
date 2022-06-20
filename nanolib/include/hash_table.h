@@ -70,6 +70,8 @@ void dbhash_insert_topic(uint32_t id, char *val);
 
 bool dbhash_check_topic(uint32_t id, char *val);
 
+char* dbhash_get_first_topic(uint32_t id);
+
 struct topic_queue *dbhash_get_topic_queue(uint32_t id);
 
 void dbhash_del_topic(uint32_t id, char *topic);

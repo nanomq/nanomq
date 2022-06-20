@@ -344,6 +344,24 @@ dbhash_check_topic(uint32_t id, char *val)
 	return ret;
 }
 
+char* 
+dbhash_get_first_topic(uint32_t id)
+{
+	char *topic = NULL;
+	pthread_rwlock_wrlock(&pipe_lock);
+	khint_t k = kh_get(pipe_table, ph, id);
+	if (k != kh_end(ph)) {
+		struct topic_queue *ret = kh_val(ph, k);
+		if (ret && ret->topic) {
+			topic = zstrdup(ret->topic);
+		}
+	}
+	pthread_rwlock_unlock(&pipe_lock);
+
+	return topic;
+
+}
+
 /*
  * @obj. _topic_hash.
  * @key. pipe_id.
