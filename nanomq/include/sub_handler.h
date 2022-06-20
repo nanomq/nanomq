@@ -6,6 +6,11 @@
 
 #include "broker.h"
 
+typedef struct {
+	uint32_t pid;
+	dbtree *db;
+}  sub_destroy_info;
+
 int decode_sub_msg(nano_work *);
 int encode_suback_msg(nng_msg *, nano_work *);
 int sub_ctx_handle(nano_work *);

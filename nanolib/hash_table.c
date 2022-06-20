@@ -435,7 +435,7 @@ dbhash_del_topic(uint32_t id, char *topic)
  */
 
 void
-del_topic_queue(uint32_t id)
+del_topic_queue(uint32_t id, void *(*cb)(void*, char *), void *args)
 {
 	struct topic_queue *tq = NULL;
 	khint_t             k  = kh_get(pipe_table, ph, id);
@@ -448,6 +448,9 @@ del_topic_queue(uint32_t id)
 	while (tq) {
 		struct topic_queue *tt = tq;
 		tq                     = tq->next;
+		if (cb && args) {
+			cb(args, tt->topic);
+		}
 		delete_topic_queue(tt);
 	}
 
@@ -462,14 +465,15 @@ del_topic_queue(uint32_t id)
  */
 
 void
-dbhash_del_topic_queue(uint32_t id)
+dbhash_del_topic_queue(uint32_t id, void *(*cb)(void *, char *), void *args)
 {
 	pthread_rwlock_wrlock(&pipe_lock);
-	del_topic_queue(id);
+	del_topic_queue(id, cb, args);
 	pthread_rwlock_unlock(&pipe_lock);
 
 	return;
 }
+
 
 /*
  * @obj. _topic_hash.
@@ -658,7 +662,7 @@ dbhash_restore_topic_all(uint32_t cid, uint32_t pid)
 	pthread_rwlock_wrlock(&pipe_lock);
 	if (check_id(pid)) {
 		// log_info("unexpected: hash instance is not vacant");
-		del_topic_queue(pid);
+		del_topic_queue(pid, NULL, NULL);
 	}
 	int     absent;
 	khint_t l     = kh_put(pipe_table, ph, pid, &absent);
