@@ -207,20 +207,14 @@ unsub_ctx_handle(nano_work *work)
 		debug_msg(
 		    "find client [%s] in topic [%s].", client_id, topic_str);
 
-		db_ctxt = dbtree_find_client(
-		    work->db, topic_str, work->pid.id);
-
-		dbtree_ctxt_free(db_ctxt); // Pair to find
-
-
-		// log_err("delete: %d", db_ctxt);
-		dbtree_ctxt_delete(db_ctxt); // Free
-		cli_ctx = db_ctxt->ctx;
-
-		dbtree_delete_client(
-		    work->db, topic_str, 0, work->pid.id);
-
-		dbhash_del_topic(work->pid.id, topic_str);
+		db_ctxt = dbtree_delete_client(work->db, topic_str, 0, work->pid.id);
+		if (0 == dbtree_ctxt_free(db_ctxt)) {
+			cli_ctx = dbtree_ctxt_delete(db_ctxt);
+			if (cli_ctx) {
+				del_sub_ctx(cli_ctx, topic_str);
+			}
+			dbhash_del_topic(work->pid.id, topic_str);
+		}
 
 		if (cli_ctx != NULL) { // find the topic
 			topic_node_t->it->reason_code = 0x00;
@@ -229,7 +223,8 @@ unsub_ctx_handle(nano_work *work)
 			topic_node_t->it->reason_code = 0x11;
 			debug_msg("not find and response ack.");
 		}
-		del_sub_ctx(cli_ctx, topic_str);
+
+		// del_sub_ctx(cli_ctx, topic_str);
 
 		// free local varibale
 		nng_free(topic_str, topic_node_t->it->topic_filter.len + 1);
