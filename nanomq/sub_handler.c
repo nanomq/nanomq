@@ -272,7 +272,7 @@ sub_ctx_handle(nano_work *work)
 		    work->db, tq->topic, cli_ctx->pid.id);
 	}
 	tq1 = tq;
-
+	// TODO add get_ctxt interface
 	if (db_ctxt) {
 		old_ctx = db_ctxt->ctx;
 	}
@@ -567,34 +567,39 @@ destroy_sub_ctx(void *ctxt)
 	nng_free(cli_ctx, sizeof(client_ctx));
 }
 
+static void *
+destroy_sub_client_cb(void *args, char *topic)
+{
+	sub_destroy_info *des     = (sub_destroy_info *) args;
+	dbtree_ctxt *db_ctxt = NULL;
+	client_ctx  *cli_ctx = NULL;
+
+	db_ctxt = dbtree_delete_client(des->db, topic, 0, des->pid);
+	if (0 == dbtree_ctxt_free(db_ctxt)) {
+		cli_ctx = dbtree_ctxt_delete(db_ctxt);
+		if (cli_ctx) {
+			del_sub_ctx(cli_ctx, topic);
+		}
+	}
+
+	return NULL;
+}
+
+// Call by disconnect ev, if disconnect, delete all node which 
+// this pipe subscribed on tree and topic_queue,  free db_ctxt,
+// if it's ref == 0 delete it.
 void
 destroy_sub_client(uint32_t pid, dbtree * db)
 {
 	dbtree_ctxt * db_ctxt = NULL;
 	client_ctx * cli_ctx = NULL;
-	topic_queue *tq = dbhash_get_topic_queue(pid);
-	char *topic = tq->topic;
 
-	while (tq) {
-		if (tq->topic) {
-			// Free from dbtree
-			db_ctxt = dbtree_delete_client(db, topic, 0, pid);
-			if (0 == dbtree_ctxt_free(db_ctxt)) {
-				cli_ctx = dbtree_ctxt_delete(db_ctxt);
-				if (cli_ctx) {
-					del_sub_ctx(cli_ctx, tq->topic);
-				}
-				// dbhash_del_topic(pid, tq->topic);
+	sub_destroy_info sdi = {
+		.pid = pid,
+		.db = db,
+	};
 
-			}
-
-		}
-		tq = tq->next;
-	}
-
-	// Free from dbhash
-	dbhash_del_topic_queue(pid);
-
+	dbhash_del_topic_queue(pid, &destroy_sub_client_cb, (void *) &sdi);
 	return;
 }
 
