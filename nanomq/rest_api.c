@@ -802,7 +802,7 @@ get_clients(http_msg *msg, kv **params, size_t param_num,
 		if (db_ctxt == NULL) {
 			continue;
 		}
-		client_ctx *   ctxt = db_ctxt->ctx;
+		client_ctx *   ctxt = dbtree_ctxt_get_ctxt(db_ctxt);
 		const uint8_t *cid  = conn_param_get_clientid(ctxt->cparam);
 		if (client_id != NULL) {
 			if (strcmp(client_id, cid) != 0) {
@@ -903,7 +903,8 @@ get_subscriptions(
 		if (db_ctxt == NULL) {
 			continue;
 		}
-		client_ctx *ctxt = db_ctxt->ctx;
+
+		client_ctx *   ctxt = dbtree_ctxt_get_ctxt(db_ctxt);
 		if (ctxt->cparam) {
 			cid = (const char *) conn_param_get_clientid(
 			    ctxt->cparam);
@@ -965,7 +966,7 @@ get_client_info_cb(void *ctxt)
 	}
 
 	dbtree_ctxt *dctxt = (dbtree_ctxt *) ctxt;
-	client_ctx * cctxt = dctxt->ctx;
+	client_ctx * cctxt = dbtree_ctxt_get_ctxt(dctxt);
 	if (NULL == cctxt) {
 		return NULL;
 	}

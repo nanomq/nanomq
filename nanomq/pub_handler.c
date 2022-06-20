@@ -106,11 +106,11 @@ foreach_client(
 
 	for (int i = 0; i < ctx_list_len; i++) {
 		db_ctxt = (dbtree_ctxt *) cli_ctx_list[i];
-		ctx     = (struct client_ctx *) db_ctxt->ctx;
+		ctx     = (struct client_ctx *) dbtree_ctxt_get_ctxt(db_ctxt);
 
 #ifdef STATISTICS
-		// nng_atomic_inc64(ctx->recv_cnt);
-		// nng_atomic_inc64(g_msg.msg_out);
+		nng_atomic_inc64(ctx->recv_cnt);
+		nng_atomic_inc64(g_msg.msg_out);
 #endif
 		pids = ctx->pid.id;
 		tn   = ctx->sub_pkt->node;

@@ -13,11 +13,13 @@ typedef enum {
 	MQTT_VERSION_V5   = 5,
 } mqtt_version_t;
 
-typedef struct {
-	int              ref;
-	void            *ctx;
-	pthread_rwlock_t rwlock;
-} dbtree_ctxt;
+// typedef struct {
+// 	int              ref;
+// 	void            *ctx;
+// 	pthread_rwlock_t rwlock;
+// } dbtree_ctxt;
+
+typedef struct dbtree_ctxt dbtree_ctxt;
 
 typedef struct {
 	uint32_t       session_id;
@@ -247,6 +249,8 @@ void dbtree_ctxt_clone(dbtree_ctxt *ctxt);
 int dbtree_ctxt_free(dbtree_ctxt *ctxt);
 
 int dbtree_ctxt_get_ref(dbtree_ctxt *ctxt);
+
+void *dbtree_ctxt_get_ctxt(dbtree_ctxt *ctxt);
 
 void ***dbtree_get_tree(dbtree *db, void *(*cb)(void *ctxt));
 
