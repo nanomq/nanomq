@@ -233,6 +233,7 @@ sub_ctx_handle(nano_work *work)
 {
 	topic_node *        tn = work->sub_pkt->node;
 	char *              topic_str    = NULL;
+	char *              first_topic  = NULL;
 	char *              clientid     = NULL;
 	int                 topic_len    = 0;
 	struct topic_queue *tq           = NULL;
@@ -265,19 +266,20 @@ sub_ctx_handle(nano_work *work)
 	}
 
 	// get ctx from tree TODO optimization here
-	tq = dbhash_get_topic_queue(cli_ctx->pid.id);
+	// tq = dbhash_get_topic_queue(cli_ctx->pid.id);
+	first_topic = dbhash_get_first_topic(cli_ctx->pid.id);
 
-	if (tq) {
+	if (first_topic) {
 		db_ctxt = dbtree_find_client(
 		    work->db, tq->topic, cli_ctx->pid.id);
 	}
-	tq1 = tq;
+	// tq1 = tq;
 	// TODO add get_ctxt interface
 	if (db_ctxt) {
 		old_ctx = db_ctxt->ctx;
 	}
 
-	if (!tq || !old_ctx) { /* the real ctx stored in tree */
+	if (!first_topic || !old_ctx) { /* the real ctx stored in tree */
 		if ((old_ctx = nng_zalloc(sizeof(client_ctx))) == NULL){
 			debug_msg("ERROR: nng_zalloc");
 			return NNG_ENOMEM;
@@ -350,9 +352,10 @@ sub_ctx_handle(nano_work *work)
 	if (db_ctxt && 0 == dbtree_ctxt_free(db_ctxt)) {
 		client_ctx *ctx = dbtree_ctxt_delete(db_ctxt);
 		if (ctx) {
-			del_sub_ctx(ctx, tq1->topic);
+			del_sub_ctx(ctx, first_topic);
 		}
 	}
+	// zfree(first_topic);
 	
 
 #ifdef DEBUG
