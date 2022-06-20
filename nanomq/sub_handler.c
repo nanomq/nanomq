@@ -271,12 +271,11 @@ sub_ctx_handle(nano_work *work)
 
 	if (first_topic) {
 		db_ctxt = dbtree_find_client(
-		    work->db, tq->topic, cli_ctx->pid.id);
+		    work->db, first_topic, cli_ctx->pid.id);
 	}
-	// tq1 = tq;
-	// TODO add get_ctxt interface
+
 	if (db_ctxt) {
-		old_ctx = db_ctxt->ctx;
+		old_ctx = dbtree_ctxt_get_ctxt(db_ctxt);
 	}
 
 	if (!first_topic || !old_ctx) { /* the real ctx stored in tree */
@@ -355,7 +354,7 @@ sub_ctx_handle(nano_work *work)
 			del_sub_ctx(ctx, first_topic);
 		}
 	}
-	// zfree(first_topic);
+	zfree(first_topic);
 	
 
 #ifdef DEBUG

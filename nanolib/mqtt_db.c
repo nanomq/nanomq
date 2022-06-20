@@ -26,6 +26,12 @@ static int acnt = 0;
 
 pthread_rwlock_t rwlock = PTHREAD_RWLOCK_INITIALIZER;
 
+struct dbtree_ctxt{
+	int              ref;
+	void            *ctx;
+};
+
+
 dbtree_ctxt *
 dbtree_ctxt_new(void *ctx)
 {
@@ -48,6 +54,17 @@ dbtree_ctxt_delete(dbtree_ctxt *ctxt)
 	ctx = ctxt->ctx;
 	zfree(ctxt);
 	ctxt = NULL;
+	pthread_rwlock_unlock(&(rwlock));
+	return ctx;
+}
+
+void *
+dbtree_ctxt_get_ctxt(dbtree_ctxt *ctxt)
+{
+	void *ctx = NULL;
+	pthread_rwlock_rdlock(&(rwlock));
+	assert(ctxt != NULL && ctxt->ref > 0);
+	ctx = ctxt->ctx;
 	pthread_rwlock_unlock(&(rwlock));
 	return ctx;
 }
