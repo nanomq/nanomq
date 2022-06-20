@@ -193,20 +193,9 @@ server_cb(void *arg)
 
 		work->msg       = msg;
 		work->pid       = nng_msg_get_pipe(work->msg);
-		type = nng_msg_cmd_type(msg);
-		if (type == CMD_DISCONNECT) {
-			// TODO delete will msg if any
-			work->cparam = nng_msg_get_conn_param(work->msg);
-			if (work->cparam) {
-				smsg = conn_param_get_will_msg(work->cparam);
-				nng_msg_free(smsg);
-			}
-			work->state = RECV;
-			nng_ctx_recv(work->ctx, work->aio);
-			break;
-		}
 		work->cparam    = nng_msg_get_conn_param(work->msg);
 		work->proto_ver = conn_param_get_protover(work->cparam);
+		type            = nng_msg_cmd_type(msg);
 
 		if (type == CMD_SUBSCRIBE) {
 			smsg = work->msg;
