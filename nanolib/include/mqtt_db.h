@@ -13,12 +13,6 @@ typedef enum {
 	MQTT_VERSION_V5   = 5,
 } mqtt_version_t;
 
-// typedef struct {
-// 	int              ref;
-// 	void            *ctx;
-// 	pthread_rwlock_t rwlock;
-// } dbtree_ctxt;
-
 typedef struct dbtree_ctxt dbtree_ctxt;
 
 typedef struct {

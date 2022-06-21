@@ -224,8 +224,6 @@ unsub_ctx_handle(nano_work *work)
 			debug_msg("not find and response ack.");
 		}
 
-		// del_sub_ctx(cli_ctx, topic_str);
-
 		// free local varibale
 		nng_free(topic_str, topic_node_t->it->topic_filter.len + 1);
 
