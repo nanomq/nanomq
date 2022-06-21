@@ -108,7 +108,6 @@ decode_sub_msg(nano_work *work)
 			return PROTOCOL_ERROR;
 		}
 		bpos ++;
-		// TODO sub action when retain_handling equal 0 or 1 or 2
 
 #if SUPPORT_MQTT5_0
 		if (MQTT_VERSION_V5 == proto_ver &&
@@ -345,7 +344,6 @@ sub_ctx_handle(nano_work *work)
 		}
 	}
 	zfree(first_topic);
-	
 
 #ifdef DEBUG
 	// check treeDB

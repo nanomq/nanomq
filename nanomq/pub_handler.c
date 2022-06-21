@@ -148,12 +148,6 @@ foreach_client(
 			goto next;
 		}
 		sub_qos = tn->it->qos;
-		// no local
-		if (1 == tn->it->no_local) {
-			if (pids == pub_work->pid.id) {
-				goto next;
-			}
-		}
 
 		cvector_push_back(msg_infos, msg_info_buf);
 		size_t csize = cvector_size(msg_infos);
