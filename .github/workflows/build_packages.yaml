@@ -196,7 +196,7 @@ jobs:
         echo ${{ secrets.DOCKER_HUB_TOKEN }} | docker login -u ${{ secrets.DOCKER_HUB_USER }} --password-stdin
         docker buildx build --no-cache \
         --platform=linux/amd64,linux/arm64,linux/arm/v7 \
-        -t emqx/nanomq:$(git describe --tags --always) \
+        -t emqx/nanomq:$(git describe --tags --always) emqx/nanomq:latest \
         -f deploy/docker/Dockerfile . \
         --push
     - name: cross build docker images
@@ -206,6 +206,6 @@ jobs:
         echo ${{ secrets.DOCKER_HUB_TOKEN }} | docker login -u ${{ secrets.DOCKER_HUB_USER }} --password-stdin
         docker buildx build --no-cache \
         --platform=linux/amd64,linux/arm64,linux/arm/v7 \
-        -t emqx/nanomq:$(git describe --tags --always)-${{ matrix.suffix }} \
+        -t emqx/nanomq:$(git describe --tags --always)-${{ matrix.suffix }} emqx/nanomq:latest-${{ matrix.suffix }} \
         -f deploy/docker/Dockerfile-${{ matrix.suffix }} . \
         --push
