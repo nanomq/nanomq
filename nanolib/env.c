@@ -58,20 +58,6 @@ set_data_from_path_var(void **var, const char *env_str)
 }
 
 static void
-set_msg_persistence(persistence_type *var, const char *env_str)
-{
-	char *env = NULL;
-
-	if ((env = getenv(env_str)) != NULL) {
-		if (strcasecmp(env, "memory") == 0) {
-			*var = memory;
-		} else if (strcasecmp(env, "sqlite") == 0) {
-			*var = sqlite;
-		}
-	}
-}
-
-static void
 set_auth_type(auth_type *var, const char *env_str)
 {
 	char *env = NULL;
@@ -98,7 +84,6 @@ read_env_conf(conf *config)
 	    (long *) &config->max_packet_size, NANOMQ_MAX_PACKET_SIZE);
 	set_long_var((long *) &config->client_max_packet_size,
 	    NANOMQ_CLIENT_MAX_PACKET_SIZE);
-	set_msg_persistence(&config->persist, NANOMQ_MSG_PERSISTENCE);
 	set_int_var(&config->msq_len, NANOMQ_MSQ_LEN);
 	set_int_var(&config->qos_duration, NANOMQ_QOS_DURATION);
 	set_bool_var(&config->allow_anonymous, NANOMQ_ALLOW_ANONYMOUS);
@@ -146,9 +131,11 @@ read_env_conf(conf *config)
 	set_string_var(&config->web_hook_file, NANOMQ_WEBHOOK_CONF_PATH);
 	set_string_var(&config->auth_http_file, NANOMQ_AUTH_HTTP_CONF_PATH);
 	set_string_var(&config->auth_file, NANOMQ_AUTH_CONF_PATH);
+	set_string_var(&config->sqlite_file, NANOMQ_SQLITE_CONF_PATH);
 #if defined(SUPP_RULE_ENGINE)
 	char *rule_engine_file;
 	set_string_var(
 	    &config->rule_engine_file, NANOMQ_RULE_ENGINE_CONF_PATH);
 #endif
+
 }
