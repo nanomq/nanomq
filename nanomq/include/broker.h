@@ -31,7 +31,6 @@ struct work {
 	// MQTT version cache
 	uint8_t   proto_ver;
 	nng_aio * aio;
-	nng_aio * bridge_aio;
 	nng_msg * msg;
 	nng_msg **msg_ret;
 	nng_ctx   ctx;        // ctx for mqtt broker
