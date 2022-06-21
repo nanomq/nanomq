@@ -339,10 +339,11 @@ server_cb(void *arg)
 					        .retain);
 					work->state = WAIT;
 					nng_aio_set_msg(
-					    work->bridge_aio, smsg);
+					    work->aio, smsg);
 					//TODO check aio's cb
 					nng_ctx_send(work->bridge_ctx,
-					    work->bridge_aio);
+					    work->aio);
+					break;
 				}
 			}
 		} else if (type == CMD_CONNACK) {
@@ -660,9 +661,6 @@ proto_work_init(nng_socket sock, nng_socket bridge_sock, uint8_t proto,
 	if (config->bridge.bridge_mode) {
 		if ((rv = nng_ctx_open(&w->bridge_ctx, bridge_sock)) != 0) {
 			fatal("nng_ctx_open", rv);
-		}
-		if ((rv = nng_aio_alloc(&w->bridge_aio, NULL, NULL) != 0)) {
-			fatal("nng_aio_alloc", rv);
 		}
 	}
 
