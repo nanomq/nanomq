@@ -345,7 +345,7 @@ inproc_server(void *arg)
 	struct rest_work *works[rest_conf->parallel];
 
 	int rv;
-	if (rv = nng_rep0_open(&sock)) {
+	if ((rv = nng_rep0_open(&sock)) != 0) {
 		fatal("nng_rep0_open", rv);
 	}
 

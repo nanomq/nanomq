@@ -197,6 +197,9 @@ sub_cb(void *arg)
 		work->state = RECV;
 		nng_ctx_recv(work->ctx, work->aio);
 		break;
+
+	default:
+		break;
 	}
 }
 
@@ -275,6 +278,9 @@ pub_cb(void *arg)
 		msg         = NULL;
 		work->state = WAIT;
 		nng_ctx_send(work->ctx, work->aio);
+		break;
+
+	default:
 		break;
 	}
 }
@@ -589,6 +595,8 @@ bench_start(int argc, char **argv)
 				       "rate=%d(msg/sec)\n",
 				    c - pub_opt->count, c - l);
 			}
+			break;
+		default:
 			break;
 		}
 	}
