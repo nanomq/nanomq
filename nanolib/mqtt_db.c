@@ -573,6 +573,7 @@ insert_client_cb(dbtree_node *node, void *args)
 	pthread_rwlock_wrlock(&(node->rwlock));
 
 	int            index  = 0;
+	void          *ctxt   = NULL;
 	dbtree_client *client = (dbtree_client *) args;
 
 	if (false ==
@@ -585,11 +586,15 @@ insert_client_cb(dbtree_node *node, void *args)
 		}
 	} else {
 		// TODO lazy binding
-		dbtree_client_free(client);
+		dbtree_ctxt *db_ctxt = dbtree_client_free(client);
+		if (db_ctxt) {
+			dbtree_ctxt_free(db_ctxt);
+			ctxt = dbtree_ctxt_delete(db_ctxt);
+		}
 	}
 
 	pthread_rwlock_unlock(&(node->rwlock));
-	return NULL;
+	return ctxt;
 }
 
 /**
