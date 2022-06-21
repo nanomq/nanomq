@@ -1,6 +1,7 @@
 #include "include/dbg.h"
 #include "include/hash_table.h"
 #include "include/test.h"
+#include "include/zmalloc.h"
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
@@ -160,7 +161,7 @@ test_check_pipe_table()
 	}
 
 	for (size_t i = TABLE_SZ / 2; i < TABLE_SZ; i++) {
-		dbhash_del_topic_queue(table1[i].key);
+		dbhash_del_topic_queue(table1[i].key, NULL, NULL);
 		check(false == dbhash_check_id(table1[i].key),
 		    "Id [%zu] should not be found!", i);
 		check(false ==
@@ -197,7 +198,10 @@ test_pipe_table()
 
 		dbhash_insert_topic(table1[i].key, table1[i].topic);
 		dbhash_insert_topic(table2[i].key, table2[i].topic);
-		dbhash_del_topic_queue(table1[i].key);
+
+		char *first_topic = dbhash_get_first_topic(table1[i].key);
+		zfree(first_topic);
+		dbhash_del_topic_queue(table1[i].key, NULL, NULL);
 	}
 
 	return;
