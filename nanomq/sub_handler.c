@@ -236,8 +236,6 @@ sub_ctx_handle(nano_work *work)
 	char *              first_topic  = NULL;
 	char *              clientid     = NULL;
 	int                 topic_len    = 0;
-	struct topic_queue *tq           = NULL;
-	struct topic_queue *tq1          = NULL;
 	int      topic_exist             = 0;
 	uint32_t clientid_key            = 0;
 	dbtree_retain_msg **r            = NULL;
@@ -311,15 +309,7 @@ sub_ctx_handle(nano_work *work)
 		debug_msg("topicLen: [%d] body: [%s]", topic_len, topic_str);
 
 		/* remove duplicate items */
-		topic_exist = 0;
-		tq          = dbhash_get_topic_queue(work->pid.id);
-		while (topic_str && tq) {
-			if (!strcmp(topic_str, tq->topic)) {
-				topic_exist = 1;
-				break;
-			}
-			tq = tq->next;
-		}
+		topic_exist = dbhash_check_topic(work->pid.id, topic_str);
 		if (!topic_exist && topic_str) {
 			uint8_t ver = work->proto_ver;
 			dbtree_insert_client(
