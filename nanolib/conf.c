@@ -291,14 +291,6 @@ conf_parser(conf *nanomq_conf)
 			    strcasecmp(value, "true") == 0;
 			free(value);
 		} else if ((value = get_conf_value(
-		                line, sz, "msg_persistence")) != NULL) {
-			if (strcasecmp(value, "sqlite") == 0) {
-				config->persist = sqlite;
-			} else if (strcasecmp(value, "memory") == 0) {
-				config->persist = memory;
-			}
-			free(value);
-		} else if ((value = get_conf_value(
 		                line, sz, "websocket.enable")) != NULL) {
 			config->websocket.enable =
 			    strcasecmp(value, "yes") == 0 ||
@@ -524,9 +516,14 @@ conf_auth_http_req_init(conf_auth_http_req *req)
 void
 conf_init(conf *nanomq_conf)
 {
-	nanomq_conf->url              = NULL;
-	nanomq_conf->conf_file        = NULL;
-	nanomq_conf->bridge_file      = NULL;
+	nanomq_conf->url = NULL;
+
+	nanomq_conf->conf_file      = NULL;
+	nanomq_conf->bridge_file    = NULL;
+	nanomq_conf->web_hook_file  = NULL;
+	nanomq_conf->auth_file      = NULL;
+	nanomq_conf->auth_http_file = NULL;
+	nanomq_conf->sqlite_file    = NULL;
 
 #if defined(SUPP_RULE_ENGINE)
 	nanomq_conf->rule_engine_file        = NULL;
@@ -538,12 +535,9 @@ conf_init(conf *nanomq_conf)
 	nanomq_conf->tran                    = NULL;
 #endif
 
-	nanomq_conf->max_packet_size = (1024*1024);
-	nanomq_conf->client_max_packet_size = (1024*1024);
+	nanomq_conf->max_packet_size        = (1024 * 1024);
+	nanomq_conf->client_max_packet_size = (1024 * 1024);
 
-	nanomq_conf->web_hook_file    = NULL;
-	nanomq_conf->auth_file        = NULL;
-	nanomq_conf->auth_http_file   = NULL;
 	nanomq_conf->num_taskq_thread = 10;
 	nanomq_conf->max_taskq_thread = 10;
 	nanomq_conf->parallel         = 30; // not work
@@ -552,7 +546,12 @@ conf_init(conf *nanomq_conf)
 	nanomq_conf->qos_duration     = 30;
 	nanomq_conf->allow_anonymous  = true;
 	nanomq_conf->daemon           = false;
-	nanomq_conf->persist          = memory;
+
+	nanomq_conf->sqlite.enable              = false;
+	nanomq_conf->sqlite.disk_cache_size     = 102400;
+	nanomq_conf->sqlite.mounted_file_path   = NULL;
+	nanomq_conf->sqlite.flush_mem_threshold = 100;
+	nanomq_conf->sqlite.resend_interval     = 5000;
 
 	conf_tls_init(&nanomq_conf->tls);
 
@@ -2065,6 +2064,74 @@ conf_auth_http_destroy(conf_auth_http *auth_http)
 	conf_tls_destroy(&auth_http->tls);
 }
 
+bool
+conf_sqlite_parse(conf *nanomq_conf)
+{
+	const char *dest_path = nanomq_conf->sqlite_file;
+
+	if (dest_path == NULL || !nano_file_exists(dest_path)) {
+		if (!nano_file_exists(CONF_SQLITE_PATH_NAME)) {
+			debug_msg("Configure file [%s] or [%s] not found or "
+			          "unreadable",
+			    dest_path, CONF_SQLITE_PATH_NAME);
+			return false;
+		} else {
+			dest_path = CONF_SQLITE_PATH_NAME;
+		}
+	}
+
+	char * line = NULL;
+	size_t sz   = 0;
+	FILE * fp;
+
+	conf_sqlite *sqlite = &nanomq_conf->sqlite;
+
+	if ((fp = fopen(dest_path, "r")) == NULL) {
+		debug_msg("File %s open failed", dest_path);
+		sqlite->enable = false;
+		return true;
+	}
+	char *value;
+	while (nano_getline(&line, &sz, fp) != -1) {
+		if ((value = get_conf_value(line, sz, "sqlite.enable")) !=
+		    NULL) {
+			sqlite->enable = strcasecmp(value, "true") == 0;
+			free(value);
+		} else if ((value = get_conf_value(
+		                line, sz, "sqlite.disk_cache_size")) != NULL) {
+			sqlite->disk_cache_size = (size_t) atol(value);
+			free(value);
+		} else if ((value = get_conf_value(line, sz,
+		                "sqlite.mounted_file_path")) != NULL) {
+			sqlite->mounted_file_path = value;
+		} else if ((value = get_conf_value(line, sz,
+		                "sqlite.flush_mem_threshold")) != NULL) {
+			sqlite->flush_mem_threshold = (size_t) atol(value);
+			free(value);
+		} else if ((value = get_conf_value(
+		                line, sz, "sqlite.resend_interval")) != NULL) {
+			sqlite->resend_interval = (uint64_t) atoll(value);
+			free(value);
+		}
+		free(line);
+		line = NULL;
+	}
+	if (line) {
+		free(line);
+	}
+	fclose(fp);
+
+	return true;
+}
+
+void
+conf_sqlite_destroy(conf_sqlite *sqlite)
+{
+	if (sqlite->mounted_file_path) {
+		free(sqlite->mounted_file_path);
+	}
+}
+
 void
 conf_fini(conf *nanomq_conf)
 {
@@ -2102,6 +2169,7 @@ conf_fini(conf *nanomq_conf)
 	conf_bridge_destroy(&nanomq_conf->bridge);
 	conf_web_hook_destroy(&nanomq_conf->web_hook);
 	conf_auth_http_destroy(&nanomq_conf->auth_http);
+	conf_sqlite_destroy(&nanomq_conf->sqlite);
 
 	free(nanomq_conf);
 }

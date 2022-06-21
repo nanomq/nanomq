@@ -20,6 +20,7 @@
 #define CONF_RULE_ENGINE_PATH_NAME "/etc/nanomq_rule_engine.conf"
 #define CONF_WEB_HOOK_PATH_NAME "/etc/nanomq_web_hook.conf"
 #define CONF_AUTH_HTTP_PATH_NAME "/etc/nanomq_auth_http.conf"
+#define CONF_SQLITE_PATH_NAME "/etc/nanomq_sqlite.conf"
 
 #define CONF_TCP_URL_DEFAULT "nmq-tcp://0.0.0.0:1883"
 #define CONF_TLS_URL_DEFAULT "tls+nmq-tcp://0.0.0.0:8883"
@@ -287,6 +288,16 @@ typedef enum {
 	sqlite,
 } persistence_type;
 
+struct conf_sqlite {
+	bool     enable;
+	size_t   disk_cache_size;
+	char *   mounted_file_path;
+	size_t   flush_mem_threshold;
+	uint64_t resend_interval;
+};
+
+typedef struct conf_sqlite conf_sqlite;
+
 struct conf {
 	char *conf_file;
 	char *bridge_file;
@@ -297,6 +308,7 @@ struct conf {
 	char 	*rule_engine_sqlite_path;
 #endif
 	char            *web_hook_file;
+	char            *sqlite_file;
 	char            *auth_file;
 	char            *auth_http_file;
 	char            *url; // "nmq-tcp://addr:port"
@@ -311,13 +323,13 @@ struct conf {
 	void            *db_root;
 	bool             allow_anonymous;
 	bool             daemon;
-	persistence_type persist;
 
 	conf_tls         tls;
 	conf_http_server http_server;
 	conf_websocket   websocket;
 	conf_bridge      bridge;
 	conf_web_hook    web_hook;
+	conf_sqlite      sqlite;
 
 #if defined(SUPP_RULE_ENGINE)
 	rule_engine_info *rule_engine;
@@ -338,6 +350,7 @@ extern bool conf_gateway_parse(zmq_gateway_conf *g_conf);
 extern bool conf_web_hook_parse(conf *nanomq_conf);
 extern bool conf_rule_engine_parse(conf *nanomq_conf);
 extern bool conf_auth_http_parse(conf *nanomq_conf);
+extern bool conf_sqlite_parse(conf *nanomq_conf);
 extern void print_bridge_conf(conf_bridge *bridge);
 extern void conf_init(conf *nanomq_conf);
 extern void print_conf(conf *nanomq_conf);
