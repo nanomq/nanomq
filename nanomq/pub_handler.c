@@ -90,16 +90,13 @@ foreach_client(
 {
 	bool     equal = false;
 	uint32_t pids;
-	uint8_t  sub_qos;
 	int      ctx_list_len;
 
 	struct client_ctx *ctx;
 	dbtree_ctxt       *db_ctxt, *ctxt;
-	topic_node        *tn;
 
 	// Dont using msg info buf, Just for Cheat Compiler
 	mqtt_msg_info *msg_info, msg_info_buf;
-
 	cvector(mqtt_msg_info) msg_infos = pipe_ct->msg_infos;
 
 	ctx_list_len = cvector_size(cli_ctx_list);
@@ -113,55 +110,23 @@ foreach_client(
 		nng_atomic_inc64(g_msg.msg_out);
 #endif
 		pids = ctx->pid.id;
-		tn   = ctx->sub_pkt->node;
-
 		if (pids == 0) {
 			goto next;
 		}
 
-		char *sub_topic;
-		while (tn) {
-			sub_topic = tn->it->topic_filter.body;
-			if (sub_topic[0] == '$') {
-				if (!strncmp(sub_topic, "$share/",
-				        strlen("$share/"))) {
-					sub_topic = strchr(sub_topic, '/');
-					sub_topic++;
-					sub_topic = strchr(sub_topic, '/');
-					sub_topic++;
-				}
-			}
-
-			// Note.
-			// We filter all the topics for the options carried by
-			// the topic
-			if (true ==
-			    topic_filter(sub_topic,
-			        pub_work->pub_packet->var_header.publish
-			            .topic_name.body)) {
-				break; // find the topic
-			}
-			tn = tn->next;
-		}
-		if (!tn) {
-			debug_msg("Not find the topic node");
-			goto next;
-		}
-		sub_qos = tn->it->qos;
-
+		// TODO using pid instead of msg_info
 		cvector_push_back(msg_infos, msg_info_buf);
 		size_t csize = cvector_size(msg_infos);
 		msg_info     = (mqtt_msg_info *) &msg_infos[csize - 1];
 
 		msg_info->pipe = pids;
-		msg_info->qos  = sub_qos;
 
 	next:
 
 		if (0 == dbtree_ctxt_free(db_ctxt)) {
 			client_ctx *ctx = dbtree_ctxt_delete(db_ctxt);
 			if (ctx) {
-				del_sub_ctx(ctx, tn->it->topic_filter.body);
+				destroy_sub_client(ctx->pid.id, pub_work->db);
 			}
 		}
 	}
