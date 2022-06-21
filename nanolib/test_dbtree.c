@@ -196,19 +196,28 @@ test_find_client()
 	    (dbtree_ctxt *) dbtree_find_client(db, topic9, client9.pipe_id);
 
 
-	check(ctxt0 == ret_ctxt0->ctx, "Error ctxt message0");
-	check(ctxt1 == ret_ctxt1->ctx, "Error ctxt message1");
-	check(ctxt2 == ret_ctxt2->ctx, "Error ctxt message2");
-	check(ctxt3 == ret_ctxt3->ctx, "Error ctxt message3");
-	check(ctxt4 == ret_ctxt4->ctx, "Error ctxt message4");
-	check(ctxt5 == ret_ctxt5->ctx, "Error ctxt message5");
-	check(ctxt6 == ret_ctxt6->ctx, "Error ctxt message6");
-	check(ctxt7 == ret_ctxt7->ctx, "Error ctxt message7");
-	check(ctxt8 == ret_ctxt8->ctx, "Error ctxt message8");
-	check(ctxt9 == ret_ctxt9->ctx, "Error ctxt message9");
+	check(ctxt0 == dbtree_ctxt_get_ctxt(ret_ctxt0), "Error ctxt message0");
+	check(ctxt1 == dbtree_ctxt_get_ctxt(ret_ctxt1), "Error ctxt message1");
+	check(ctxt2 == dbtree_ctxt_get_ctxt(ret_ctxt2), "Error ctxt message2");
+	check(ctxt3 == dbtree_ctxt_get_ctxt(ret_ctxt3), "Error ctxt message3");
+	check(ctxt4 == dbtree_ctxt_get_ctxt(ret_ctxt4), "Error ctxt message4");
+	check(ctxt5 == dbtree_ctxt_get_ctxt(ret_ctxt5), "Error ctxt message5");
+	check(ctxt6 == dbtree_ctxt_get_ctxt(ret_ctxt6), "Error ctxt message6");
+	check(ctxt7 == dbtree_ctxt_get_ctxt(ret_ctxt7), "Error ctxt message7");
+	check(ctxt8 == dbtree_ctxt_get_ctxt(ret_ctxt8), "Error ctxt message8");
+	check(ctxt9 == dbtree_ctxt_get_ctxt(ret_ctxt9), "Error ctxt message9");
 
-	
-	
+	dbtree_ctxt_free(ret_ctxt0);
+	dbtree_ctxt_free(ret_ctxt1);
+	dbtree_ctxt_free(ret_ctxt2);
+	dbtree_ctxt_free(ret_ctxt3);
+	dbtree_ctxt_free(ret_ctxt4);
+	dbtree_ctxt_free(ret_ctxt5);
+	dbtree_ctxt_free(ret_ctxt6);
+	dbtree_ctxt_free(ret_ctxt7);
+	dbtree_ctxt_free(ret_ctxt8);
+	dbtree_ctxt_free(ret_ctxt9);
+
 	puts("================finish find client===============");
 
 
@@ -223,26 +232,68 @@ static void
 test_delete_shared_client()
 {
 	puts("================begin delete shared client===============");
-	dbtree_delete_client(db, share0, client0.session_id, client0.pipe_id);
+	dbtree_ctxt *db_ctxt0 = dbtree_delete_client(db, share0, client0.session_id, client0.pipe_id);
 	dbtree_print(db);
-	dbtree_delete_client(db, share1, client1.session_id, client1.pipe_id);
+	dbtree_ctxt *db_ctxt1 = dbtree_delete_client(db, share1, client1.session_id, client1.pipe_id);
 	dbtree_print(db);
-	dbtree_delete_client(db, share2, client2.session_id, client2.pipe_id);
+	dbtree_ctxt *db_ctxt2 = dbtree_delete_client(db, share2, client2.session_id, client2.pipe_id);
 	dbtree_print(db);
-	dbtree_delete_client(db, share3, client3.session_id, client3.pipe_id);
+	dbtree_ctxt *db_ctxt3 = dbtree_delete_client(db, share3, client3.session_id, client3.pipe_id);
 	dbtree_print(db);
-	dbtree_delete_client(db, share4, client4.session_id, client4.pipe_id);
+	dbtree_ctxt *db_ctxt4 = dbtree_delete_client(db, share4, client4.session_id, client4.pipe_id);
 	dbtree_print(db);
-	dbtree_delete_client(db, share5, client5.session_id, client5.pipe_id);
+	dbtree_ctxt *db_ctxt5 = dbtree_delete_client(db, share5, client5.session_id, client5.pipe_id);
 	dbtree_print(db);
-	dbtree_delete_client(db, share6, client6.session_id, client6.pipe_id);
+	dbtree_ctxt *db_ctxt6 = dbtree_delete_client(db, share6, client6.session_id, client6.pipe_id);
 	dbtree_print(db);
-	dbtree_delete_client(db, share7, client7.session_id, client7.pipe_id);
+	dbtree_ctxt *db_ctxt7 = dbtree_delete_client(db, share7, client7.session_id, client7.pipe_id);
 	dbtree_print(db);
-	dbtree_delete_client(db, share8, client8.session_id, client8.pipe_id);
+	dbtree_ctxt *db_ctxt8 = dbtree_delete_client(db, share8, client8.session_id, client8.pipe_id);
 	dbtree_print(db);
-	dbtree_delete_client(db, share9, client9.session_id, client9.pipe_id);
+	dbtree_ctxt *db_ctxt9 = dbtree_delete_client(db, share9, client9.session_id, client9.pipe_id);
 	dbtree_print(db);
+
+	if (db_ctxt0) {
+		dbtree_ctxt_free(db_ctxt0);
+		dbtree_ctxt_delete(db_ctxt0);
+	}
+	if (db_ctxt1) {
+		dbtree_ctxt_free(db_ctxt1);
+		dbtree_ctxt_delete(db_ctxt1);
+	}
+	if (db_ctxt2) {
+		dbtree_ctxt_free(db_ctxt2);
+		dbtree_ctxt_delete(db_ctxt2);
+	}
+	if (db_ctxt3) {
+		dbtree_ctxt_free(db_ctxt3);
+		dbtree_ctxt_delete(db_ctxt3);
+	}
+	if (db_ctxt4) {
+		dbtree_ctxt_free(db_ctxt4);
+		dbtree_ctxt_delete(db_ctxt4);
+	}
+	if (db_ctxt5) {
+		dbtree_ctxt_free(db_ctxt5);
+		dbtree_ctxt_delete(db_ctxt5);
+	}
+	if (db_ctxt6) {
+		dbtree_ctxt_free(db_ctxt6);
+		dbtree_ctxt_delete(db_ctxt6);
+	}
+	if (db_ctxt7) {
+		dbtree_ctxt_free(db_ctxt7);
+		dbtree_ctxt_delete(db_ctxt7);
+	}
+	if (db_ctxt8) {
+		dbtree_ctxt_free(db_ctxt8);
+		dbtree_ctxt_delete(db_ctxt8);
+	}
+	if (db_ctxt9) {
+		dbtree_ctxt_free(db_ctxt9);
+		dbtree_ctxt_delete(db_ctxt9);
+	}
+
 	puts("================finish delete shared client===============");
 }
 
@@ -250,37 +301,58 @@ static void
 test_delete_client()
 {
 	puts("================begin delete client===============");
-	dbtree_ctxt *ret_ctx0 = (dbtree_ctxt*) dbtree_delete_client(db, topic0, client0.session_id, client0.pipe_id);
+	dbtree_ctxt *ret_ctx0 = (dbtree_ctxt *) dbtree_delete_client(
+	    db, topic0, client0.session_id, client0.pipe_id);
 	dbtree_print(db);
-	dbtree_ctxt *ret_ctx1 = (dbtree_ctxt*) dbtree_delete_client(db, topic1, client1.session_id, client1.pipe_id);
+	dbtree_ctxt *ret_ctx1 = (dbtree_ctxt *) dbtree_delete_client(
+	    db, topic1, client1.session_id, client1.pipe_id);
 	dbtree_print(db);
-	dbtree_ctxt *ret_ctx2 = (dbtree_ctxt*) dbtree_delete_client(db, topic2, client2.session_id, client2.pipe_id);
+	dbtree_ctxt *ret_ctx2 = (dbtree_ctxt *) dbtree_delete_client(
+	    db, topic2, client2.session_id, client2.pipe_id);
 	dbtree_print(db);
-	dbtree_ctxt *ret_ctx3 = (dbtree_ctxt*) dbtree_delete_client(db, topic3, client3.session_id, client3.pipe_id);
+	dbtree_ctxt *ret_ctx3 = (dbtree_ctxt *) dbtree_delete_client(
+	    db, topic3, client3.session_id, client3.pipe_id);
 	dbtree_print(db);
-	dbtree_ctxt *ret_ctx4 = (dbtree_ctxt*) dbtree_delete_client(db, topic4, client4.session_id, client4.pipe_id);
+	dbtree_ctxt *ret_ctx4 = (dbtree_ctxt *) dbtree_delete_client(
+	    db, topic4, client4.session_id, client4.pipe_id);
 	dbtree_print(db);
-	dbtree_ctxt *ret_ctx5 = (dbtree_ctxt*) dbtree_delete_client(db, topic5, client5.session_id, client5.pipe_id);
+	dbtree_ctxt *ret_ctx5 = (dbtree_ctxt *) dbtree_delete_client(
+	    db, topic5, client5.session_id, client5.pipe_id);
 	dbtree_print(db);
-	dbtree_ctxt *ret_ctx6 = (dbtree_ctxt*) dbtree_delete_client(db, topic6, client6.session_id, client6.pipe_id);
+	dbtree_ctxt *ret_ctx6 = (dbtree_ctxt *) dbtree_delete_client(
+	    db, topic6, client6.session_id, client6.pipe_id);
 	dbtree_print(db);
-	dbtree_ctxt *ret_ctx7 = (dbtree_ctxt*) dbtree_delete_client(db, topic7, client7.session_id, client7.pipe_id);
+	dbtree_ctxt *ret_ctx7 = (dbtree_ctxt *) dbtree_delete_client(
+	    db, topic7, client7.session_id, client7.pipe_id);
 	dbtree_print(db);
-	dbtree_ctxt *ret_ctx8 = (dbtree_ctxt*) dbtree_delete_client(db, topic8, client8.session_id, client8.pipe_id);
+	dbtree_ctxt *ret_ctx8 = (dbtree_ctxt *) dbtree_delete_client(
+	    db, topic8, client8.session_id, client8.pipe_id);
 	dbtree_print(db);
-	dbtree_ctxt *ret_ctx9 = (dbtree_ctxt*) dbtree_delete_client(db, topic9, client9.session_id, client9.pipe_id);
+	dbtree_ctxt *ret_ctx9 = (dbtree_ctxt *) dbtree_delete_client(
+	    db, topic9, client9.session_id, client9.pipe_id);
 	dbtree_print(db);
 
-	dbtree_delete_ctxt(db, ret_ctx0);
-	dbtree_delete_ctxt(db, ret_ctx1);
-	dbtree_delete_ctxt(db, ret_ctx2);
-	dbtree_delete_ctxt(db, ret_ctx3);
-	dbtree_delete_ctxt(db, ret_ctx4);
-	dbtree_delete_ctxt(db, ret_ctx5);
-	dbtree_delete_ctxt(db, ret_ctx6);
-	dbtree_delete_ctxt(db, ret_ctx7);
-	dbtree_delete_ctxt(db, ret_ctx8);
-	dbtree_delete_ctxt(db, ret_ctx9);
+	dbtree_ctxt_free(ret_ctx0);
+	dbtree_ctxt_free(ret_ctx1);
+	dbtree_ctxt_free(ret_ctx2);
+	dbtree_ctxt_free(ret_ctx3);
+	dbtree_ctxt_free(ret_ctx4);
+	dbtree_ctxt_free(ret_ctx5);
+	dbtree_ctxt_free(ret_ctx6);
+	dbtree_ctxt_free(ret_ctx7);
+	dbtree_ctxt_free(ret_ctx8);
+	dbtree_ctxt_free(ret_ctx9);
+
+	dbtree_ctxt_delete(ret_ctx0);
+	dbtree_ctxt_delete(ret_ctx1);
+	dbtree_ctxt_delete(ret_ctx2);
+	dbtree_ctxt_delete(ret_ctx3);
+	dbtree_ctxt_delete(ret_ctx4);
+	dbtree_ctxt_delete(ret_ctx5);
+	dbtree_ctxt_delete(ret_ctx6);
+	dbtree_ctxt_delete(ret_ctx7);
+	dbtree_ctxt_delete(ret_ctx8);
+	dbtree_ctxt_delete(ret_ctx9);
 
 	puts("================finish delete client===============");
 }
@@ -290,6 +362,9 @@ test_search_client()
 {
 	puts("================test search client==============");
 	dbtree_ctxt **dc = (dbtree_ctxt **) dbtree_find_clients(db, topic0);
+	for (int i = 0; i < cvector_size(dc); i++) {
+		dbtree_ctxt_free(dc[i]);
+	}
 
 	if (dc) {
 		cvector_free(dc);
@@ -303,12 +378,17 @@ test_search_shared_client()
 	puts("================test search shared client==============");
 	for (int i = 0; i < 20; i++) {
 		// dbtree_print(db);
-		char **v = (char **) dbtree_find_shared_sub_clients(db, topic0);
+		dbtree_ctxt **v =
+		    (dbtree_ctxt **) dbtree_find_shared_sub_clients(
+		        db, topic0);
 		// dbtree_print(db);
 
 		if (v) {
 			for (int i = 0; i < cvector_size(v); ++i) {
-				log_info("ctxt: %s", v[i]);
+				// printf("ctxt: %s ",
+				// dbtree_ctxt_get_ctxt(v[i])); printf("%d
+				// %d\n", i, dbtree_ctxt_get_ref(v[i]));
+				dbtree_ctxt_free(v[i]);
 			}
 		}
 
@@ -410,22 +490,22 @@ dbtree_test()
 	// test_concurrent(test_single_thread);
 	dbtree_destory(db);
 
-	// test_shared_sub();
+	test_shared_sub();
 
-	// dbtree_create(&db_ret);
-	// test_insert_retain();
-	// puts("=======================================");
-	// dbtree_retain_msg **r = dbtree_find_retain(db_ret, topic6);
-	// for (int i = 0; i < cvector_size(r); i++) {
-	// 	if (r[i]) {
-	// 		printf("%s\t", r[i]->m);
-	// 	}
-	// }
-	// puts("");
-	// puts("=======================================");
-	// test_delete_retain();
+	dbtree_create(&db_ret);
+	test_insert_retain();
+	puts("=======================================");
+	dbtree_retain_msg **r = dbtree_find_retain(db_ret, topic6);
+	for (int i = 0; i < cvector_size(r); i++) {
+		if (r[i]) {
+			printf("%s\t", r[i]->m);
+		}
+	}
+	puts("");
+	puts("=======================================");
+	test_delete_retain();
 
-	// dbtree_destory(db_ret);
+	dbtree_destory(db_ret);
 	puts("---------------TEST FINISHED----------------\n");
 
 	return 0;
