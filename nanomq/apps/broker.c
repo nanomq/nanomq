@@ -402,7 +402,8 @@ server_cb(void *arg)
 						nng_msg_clone(smsg);
 						work->pid.id = msg_info->pipe;
 						nng_msg_set_pipe(smsg, work->pid);
-						work->msg = NANO_NNI_LMQ_PACKED_MSG_QOS(smsg, msg_info->qos);
+						work->msg = smsg;
+						printf("qos is %d\n", msg_info->qos);
 						nng_aio_set_msg(work->aio, work->msg);
 						nng_ctx_send(work->ctx, work->aio);
 					}
@@ -537,7 +538,7 @@ server_cb(void *arg)
 						nng_msg_clone(smsg);
 						work->pid.id = msg_info->pipe;
 						nng_msg_set_pipe(smsg, work->pid);
-						work->msg = NANO_NNI_LMQ_PACKED_MSG_QOS(smsg, msg_info->qos);
+						work->msg = smsg;
 						nng_aio_set_msg(work->aio, work->msg);
 						nng_ctx_send(work->ctx, work->aio);
 					}
