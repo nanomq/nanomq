@@ -26,7 +26,7 @@ struct work {
 	} state;
 	// 0x00 mqtt_broker
 	// 0x01 mqtt_bridge
-	uint8_t   proto;
+	uint8_t proto;
 	// MQTT version cache
 	uint8_t   proto_ver;
 	uint8_t   flag;	      // flag for webhook & rule_engine
@@ -43,11 +43,11 @@ struct work {
 
 	nng_socket webhook_sock;
 
-	struct pipe_content *     pipe_ct;
-	conn_param *              cparam;
+	struct pipe_content      *pipe_ct;
+	conn_param               *cparam;
 	struct pub_packet_struct *pub_packet;
-	packet_subscribe *        sub_pkt;
-	packet_unsubscribe *      unsub_pkt;
+	packet_subscribe         *sub_pkt;
+	packet_unsubscribe       *unsub_pkt;
 };
 
 struct client_ctx {
