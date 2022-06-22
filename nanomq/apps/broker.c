@@ -420,7 +420,6 @@ server_cb(void *arg)
 						work->pid.id = msg_info->pipe;
 						nng_msg_set_pipe(smsg, work->pid);
 						work->msg = smsg;
-						printf("qos is %d\n", msg_info->qos);
 						nng_aio_set_msg(work->aio, work->msg);
 						nng_ctx_send(work->ctx, work->aio);
 					}

@@ -225,6 +225,7 @@ encode_suback_msg(nng_msg *msg, nano_work *work)
 	return 0;
 }
 
+// TODO topic_node is not ever useful remove it
 // generate ctx for each topic
 // this should be moved to RECV
 int
