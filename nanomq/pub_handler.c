@@ -176,6 +176,78 @@ foreach_client(
 
 #if defined(SUPP_RULE_ENGINE)
 static bool
+cmp_int(int value_checked, int value_seted, rule_cmp_type type)
+{
+	bool filter = true;
+	switch (type)
+	{
+	case RULE_CMP_EQUAL:
+		if (value_checked != value_seted) {
+			filter = false;
+		}
+		break;
+	case RULE_CMP_UNEQUAL:
+		if (value_checked == value_seted) {
+			filter = false;
+		}
+		break;
+
+	case RULE_CMP_GREATER:
+		if (value_checked <= value_seted) {
+			filter = false;
+		}
+		break;
+	case RULE_CMP_LESS:
+		if (value_checked >= value_seted) {
+			filter = false;
+		}
+		break;
+	case RULE_CMP_GREATER_AND_EQUAL:
+		if (value_checked < value_seted) {
+			filter = false;
+		}
+		break;
+	case RULE_CMP_LESS_AND_EQUAL:
+		if (value_checked > value_seted) {
+			filter = false;
+		}
+		break;
+	
+	default:
+		break;
+	}
+	return filter;
+}
+
+static bool
+cmp_str(
+    const char *value_checked, int len, char *value_seted, rule_cmp_type type)
+{
+	if (value_checked == NULL) {
+		return false;
+	}
+
+	bool filter = true;
+	switch (type) {
+	case RULE_CMP_EQUAL:
+		if (strncmp(value_checked, value_seted, len)) {
+			filter = false;
+		}
+		break;
+	case RULE_CMP_UNEQUAL:
+		if (!strncmp(value_checked, value_seted, len)) {
+			filter = false;
+		}
+		break;
+	default:
+		log_err("Unsupport compare symbol, string only support equal "
+		        "and unequal!");
+		break;
+	}
+	return filter;
+}
+
+static bool
 payload_filter(pub_packet_struct *pp, rule_engine_info *info)
 {
 	bool   filter = true;
@@ -203,8 +275,8 @@ payload_filter(pub_packet_struct *pp, rule_engine_info *info)
 		case cJSON_Number:;
 			long num = cJSON_GetNumberValue(jp);
 
-			if (payload->filter && num != atoi(payload->filter)) {
-				filter = false;
+			if (payload->filter) {
+				filter = cmp_int(num, atoi(payload->filter), payload->cmp_type);
 			} else {
 				payload->value = (void *) num;
 				payload->type  = cJSON_Number;
@@ -212,8 +284,8 @@ payload_filter(pub_packet_struct *pp, rule_engine_info *info)
 			break;
 		case cJSON_String:;
 			char *str = cJSON_GetStringValue(jp);
-			if (payload->filter && strcmp(str, payload->filter)) {
-				filter = false;
+			if (payload->filter) {
+				filter = cmp_str(str, strlen(str), payload->filter, payload->cmp_type);
 			} else {
 				if (payload->value)
 					zfree(payload->value);
@@ -247,7 +319,7 @@ static bool
 rule_engine_filter(nano_work *work, rule_engine_info *info)
 {
 	pub_packet_struct *pp     = work->pub_packet;
-	char              *topic  = pp->var_header.publish.topic_name.body;
+	char	      *topic  = pp->var_header.publish.topic_name.body;
 	bool               filter = true;
 	if (topic_filter(info->topic, topic)) {
 		if (info->filter) {
@@ -260,59 +332,55 @@ rule_engine_filter(nano_work *work, rule_engine_info *info)
 				if (val != NULL || j == RULE_PAYLOAD_FIELD) {
 					switch (j) {
 					case RULE_QOS:
-						if (pp->fixed_header.qos !=
-						    atoi(val)) {
-							filter = false;
-						}
+						filter = cmp_int(
+						    pp->fixed_header.qos,
+						    atoi(val),
+						    info->cmp_type[j]);
 						break;
 					case RULE_ID:
-						if (pp->var_header.publish
-						        .packet_id !=
-						    atoi(val)) {
-							filter = false;
-						}
+						filter = cmp_int(
+						    pp->var_header.publish
+						        .packet_id,
+						    atoi(val),
+						    info->cmp_type[j]);
 						break;
 					case RULE_TOPIC:
-						if (strcmp(topic, val)) {
-							filter = false;
-						}
+						filter = cmp_str(topic,
+						    strlen(topic), val,
+						    info->cmp_type[j]);
 						break;
 					case RULE_CLIENTID:;
 						const char *cid = (const char
 						        *)
 						    conn_param_get_clientid(
 						        cp);
-						if (cid == NULL ||
-						    strcmp(cid, val)) {
-							filter = false;
-						}
+						filter = cmp_str(cid,
+						    strlen(cid), val,
+						    info->cmp_type[j]);
 						break;
 					case RULE_USERNAME:;
 						const char *username =
 						    (const char *)
 						        conn_param_get_username(
 						            cp);
-						if (username == NULL ||
-						    strcmp(username, val)) {
-							filter = false;
-						}
+						filter = cmp_str(username,
+						    strlen(username), val,
+						    info->cmp_type[j]);
 						break;
 					case RULE_PASSWORD:;
 						const char *password =
 						    (const char *)
 						        conn_param_get_password(
 						            cp);
-						if (password == NULL ||
-						    strcmp(password, val)) {
-							filter = false;
-						}
+						filter = cmp_str(password,
+						    strlen(password), val,
+						    info->cmp_type[j]);
 						break;
 					case RULE_TIMESTAMP:
-						// TODO
-						// get_timestamp
-						// if ( != atoi(val)) {
-						// 	filter = false;
-						// }
+						filter = cmp_int(
+						    (unsigned long) time(NULL),
+						    atoi(val),
+						    info->cmp_type[j]);
 						break;
 					case RULE_PAYLOAD_ALL:
 						if (!pp->payload.data ||
@@ -322,10 +390,11 @@ rule_engine_filter(nano_work *work, rule_engine_info *info)
 						}
 
 						if (val != NULL) {
-							if (strncmp((const char *) pp->payload.data, val,
-							        pp->payload.len)) {
-								filter = false;
-							}
+							filter = cmp_str(
+							    pp->payload.data,
+							    pp->payload.len,
+							    val,
+							    info->cmp_type[j]);
 						}
 
 						break;
@@ -336,7 +405,8 @@ rule_engine_filter(nano_work *work, rule_engine_info *info)
 							break;
 						}
 
-						filter = payload_filter(pp, info);
+						filter =
+						    payload_filter(pp, info);
 						break;
 					default:
 						break;
@@ -683,7 +753,7 @@ rule_engine_insert_sql(nano_work *work)
 				}
 
 				char *dest = cJSON_PrintUnformatted(jso);
-				// puts(dest);
+				puts(dest);
 				fdb_transaction_set(work->config->tran,
 				    pp->var_header.publish.topic_name.body,
 				    pp->var_header.publish.topic_name.len, dest,
