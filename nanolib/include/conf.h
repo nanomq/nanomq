@@ -216,21 +216,33 @@ typedef enum {
 	RULE_PAYLOAD_FIELD,
 } rule_type;
 
+typedef enum {
+	RULE_CMP_NONE,              // compare type init value
+	RULE_CMP_EQUAL,             // compare symbol '='
+	RULE_CMP_UNEQUAL,           // compare symbol '!=' or '<>'
+	RULE_CMP_GREATER,           // compare symbol '>'
+	RULE_CMP_LESS,              // compare symbol '<'
+	RULE_CMP_GREATER_AND_EQUAL, // compare symbol '>='
+	RULE_CMP_LESS_AND_EQUAL,    // compare symbol '<='
+} rule_cmp_type;
+
 typedef struct {
-	char **psa; 	// payload string array, for multi level json
-	char  *pas; 	// payload field string or alias
-	char  *filter; 	// payload field related filter
-	void  *value;	// payload field value
-	int    type;	// payload field value type 
-	bool   is_store;
+	char        **psa;    // payload string array, for multi level json
+	char         *pas;    // payload field string or alias
+	char         *filter; // payload field related filter
+	rule_cmp_type cmp_type; // payload field compare type
+	void         *value;       // payload field value
+	int           type;        // payload field value type
+	bool          is_store;
 } rule_payload;
 
 typedef struct {
-	bool           flag[9]; // if this field need to store
-	char          *topic;   // topic parse from sql 'from'
-	char          *as[8];   // if field string as a new string
-	char         **filter;  // filter parse from sql 'where'
-	rule_payload **payload; // this is for payload info
+	bool           flag[9];        // if this field need to store
+	char          *topic;          // topic parse from sql 'from'
+	char          *as[8];          // if field string as a new string
+	rule_payload **payload;        // this is for payload info
+	char         **filter;         // filter parse from sql 'where'
+	rule_cmp_type  cmp_type[8]; // filter compare type
 } rule_engine_info;
 
 typedef struct conf_bridge conf_bridge;
