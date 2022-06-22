@@ -169,7 +169,7 @@ typedef struct {
 } subscribe;
 
 struct conf_bridge {
-	bool       bridge_mode;
+	bool       enable;
 	char *     address;
 	uint8_t    proto_ver;
 	char *     clientid;
@@ -193,14 +193,14 @@ typedef struct {
     const char *pub_topic;
     const char *zmq_sub_pre;
     const char *zmq_pub_pre;
-	const char *path;
-	const char *username;
-	const char *password;
-    void       *zmq_sender; 
-	int 		proto_ver;
-	int			keepalive;
-	bool		clean_start;
-	int			parallel;
+    const char *path;
+    const char *username;
+    const char *password;
+    void       *zmq_sender;
+    int         proto_ver;
+    int         keepalive;
+    bool        clean_start;
+    int         parallel;
     enum {PUB_SUB, REQ_REP} type;
 } zmq_gateway_conf;
 
@@ -317,17 +317,19 @@ struct conf {
 	uint32_t         parallel;
 	uint32_t         max_packet_size;
 	uint32_t         client_max_packet_size;
+	uint32_t         bridge_num;
 	int              property_size;
 	int              msq_len;
 	int              qos_duration;
 	void            *db_root;
 	bool             allow_anonymous;
 	bool             daemon;
+	bool		 bridge_mode;
 
 	conf_tls         tls;
 	conf_http_server http_server;
 	conf_websocket   websocket;
-	conf_bridge      bridge;
+	conf_bridge    **bridge;
 	conf_web_hook    web_hook;
 	conf_sqlite      sqlite;
 
