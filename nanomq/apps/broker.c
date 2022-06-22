@@ -164,10 +164,10 @@ fatal(const char *func, int rv)
 void
 server_cb(void *arg)
 {
-	nano_work *work = arg;
-	nng_msg   *msg  = NULL;
-	nng_msg   *smsg = NULL;
-	int        rv;
+	nano_work     *work = arg;
+	nng_msg       *msg  = NULL;
+	nng_msg       *smsg = NULL;
+	int            rv;
 
 	uint8_t *ptr;
 	uint8_t  type;
@@ -177,11 +177,10 @@ server_cb(void *arg)
 	switch (work->state) {
 	case INIT:
 		debug_msg("INIT ^^^^ ctx%d ^^^^\n", work->ctx.id);
+		work->state = RECV;
 		if (work->proto == PROTO_MQTT_BRIDGE) {
-			work->state = BRIDGE;
 			nng_ctx_recv(work->bridge_ctx, work->aio);
 		} else {
-			work->state = RECV;
 			nng_ctx_recv(work->ctx, work->aio);
 		}
 		break;
@@ -189,10 +188,25 @@ server_cb(void *arg)
 		debug_msg("RECV  ^^^^ ctx%d ^^^^\n", work->ctx.id);
 		if ((rv = nng_aio_result(work->aio)) != 0) {
 			debug_msg("ERROR: RECV nng aio result error: %d", rv);
+			if (work->proto == PROTO_MQTT_BRIDGE)
+				nng_ctx_recv(work->bridge_ctx, work->aio);
+			else
+				nng_ctx_recv(work->ctx, work->aio);
 		}
-		if ((msg = nng_aio_get_msg(work->aio)) == NULL)
+		if ((msg = nng_aio_get_msg(work->aio)) == NULL) {
 			fatal("RECV NULL MSG", rv);
-
+		}
+		if (work->proto == PROTO_MQTT_BRIDGE) {
+			type = nng_msg_get_type(msg);
+			if (type != CMD_PUBLISH) {
+				// only accept publish msg from upstream
+				work->state = RECV;
+				nng_ctx_recv(work->bridge_ctx, work->aio);
+				break;
+			} else {
+				nng_msg_set_cmd_type(msg, type);
+			}
+		}
 		work->msg       = msg;
 		work->pid       = nng_msg_get_pipe(work->msg);
 		work->cparam    = nng_msg_get_conn_param(work->msg);
@@ -302,6 +316,7 @@ server_cb(void *arg)
 			}
 			work->code = handle_pub(work, work->pipe_ct, work->proto_ver);
 			if (work->code != SUCCESS) {
+				// what if bridge ctx brings a wrong msg?
 				work->state = CLOSE;
 				free_pub_packet(work->pub_packet);
 				work->pub_packet = NULL;
@@ -310,41 +325,6 @@ server_cb(void *arg)
 				conn_param_free(work->cparam);
 				nng_aio_finish(work->aio, 0);
 				return;
-			}
-
-			// TODO move bridge after WAIT
-			conf_bridge *bridge = &(work->config->bridge);
-			if (bridge->bridge_mode) {
-				bool found = false;
-				for (size_t i = 0; i < bridge->forwards_count;
-				     i++) {
-					if (topic_filter(bridge->forwards[i],
-					        work->pub_packet->var_header
-					            .publish.topic_name
-					            .body)) {
-						found = true;
-						break;
-					}
-				}
-
-				if (found) {
-					smsg = bridge_publish_msg(
-					    work->pub_packet->var_header
-					        .publish.topic_name.body,
-					    work->pub_packet->payload.data,
-					    work->pub_packet->payload.len,
-					    work->pub_packet->fixed_header.dup,
-					    work->pub_packet->fixed_header.qos,
-					    work->pub_packet->fixed_header
-					        .retain);
-					work->state = WAIT;
-					nng_aio_set_msg(
-					    work->aio, smsg);
-					//TODO check aio's cb
-					nng_ctx_send(work->bridge_ctx,
-					    work->aio);
-					break;
-				}
 			}
 		} else if (type == CMD_CONNACK) {
 			nng_msg_set_pipe(work->msg, work->pid);
@@ -427,9 +407,40 @@ server_cb(void *arg)
 						nng_ctx_send(work->ctx, work->aio);
 					}
 			work->msg = smsg;
-			//check webhook & rule engine & bridge
-			conf_web_hook *hook_conf = &work->config->web_hook;
-			if (hook_conf->enable) {
+			// bridge logic first
+			conf_bridge *bridge_conf = &(work->config->bridge);
+			if (bridge_conf->bridge_mode) {
+				bool found = false;
+				for (size_t i = 0;
+				     i < bridge_conf->forwards_count; i++) {
+					if (topic_filter(bridge_conf->forwards[i],
+					        work->pub_packet->var_header
+					            .publish.topic_name.body)) {
+						found = true;
+						break;
+					}
+				}
+
+				if (found) {
+					smsg = bridge_publish_msg(
+					    work->pub_packet->var_header
+					        .publish.topic_name.body,
+					    work->pub_packet->payload.data,
+					    work->pub_packet->payload.len,
+					    work->pub_packet->fixed_header.dup,
+					    work->pub_packet->fixed_header.qos,
+					    work->pub_packet->fixed_header
+					        .retain);
+					work->state = SEND;
+					nng_aio_set_msg(work->aio, smsg);
+					nng_ctx_send(
+					    work->bridge_ctx, work->aio);
+					break;
+				}
+			}
+			//check webhook & rule engine
+			conf_web_hook *hook_conf   = &(work->config->web_hook);
+			if (hook_conf->enable || bridge_conf->bridge_mode) {
 				work->state = SEND;
 				nng_aio_finish(work->aio, 0);
 				break;
@@ -485,6 +496,8 @@ server_cb(void *arg)
 		nng_aio_finish(work->aio, 0);
 		break;
 	case SEND:
+		debug_msg("SEND ^^^^ ctx%d ^^^^", work->ctx.id);
+
 		// webhook here
 		// webhook_msg_publish(&work->webhook_sock,
 		//     &work->config->web_hook, work->pub_packet,
@@ -509,7 +522,7 @@ server_cb(void *arg)
 		// free conn_param due to clone in protocol layer
 		conn_param_free(work->cparam);
 		if (work->proto == PROTO_MQTT_BRIDGE) {
-			work->state = BRIDGE;
+			work->state = RECV;
 			nng_ctx_recv(work->bridge_ctx, work->aio);
 		} else {
 			work->state = RECV;
