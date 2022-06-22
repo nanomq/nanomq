@@ -19,9 +19,8 @@ struct work {
 		INIT,
 		RECV,
 		WAIT,
-		SEND,
-		HOOK,
-		BRIDGE,		//Receive bridging msg from upstream
+		SEND,		//Actions after sending msg
+		HOOK,		//Rule Engine
 		END,		//Clear state and cache before disconnect
 		CLOSE	        //sending disconnect packet and err code
 	} state;
