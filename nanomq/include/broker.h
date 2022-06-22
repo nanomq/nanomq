@@ -26,27 +26,27 @@ struct work {
 	} state;
 	// 0x00 mqtt_broker
 	// 0x01 mqtt_bridge
-	uint8_t   proto;
+	uint8_t proto;
 	// MQTT version cache
-	uint8_t   proto_ver;
-	nng_aio * aio;
-	nng_msg * msg;
-	nng_msg **msg_ret;
-	nng_ctx   ctx;        // ctx for mqtt broker
-	nng_ctx   bridge_ctx; // ctx for bridging
-	nng_pipe  pid;
-	dbtree *  db;
-	dbtree *  db_ret;
-	conf *    config;
-	reason_code code;     // MQTT reason code
+	uint8_t     proto_ver;
+	nng_aio    *aio;
+	nng_msg    *msg;
+	nng_msg   **msg_ret;
+	nng_ctx     ctx;        // ctx for mqtt broker
+	nng_ctx     bridge_ctx; // ctx for bridging
+	nng_pipe    pid;
+	dbtree     *db;
+	dbtree     *db_ret;
+	conf       *config;
+	reason_code code; // MQTT reason code
 
 	nng_socket webhook_sock;
 
-	struct pipe_content *     pipe_ct;
-	conn_param *              cparam;
+	struct pipe_content      *pipe_ct;
+	conn_param               *cparam;
 	struct pub_packet_struct *pub_packet;
-	packet_subscribe *        sub_pkt;
-	packet_unsubscribe *      unsub_pkt;
+	packet_subscribe         *sub_pkt;
+	packet_unsubscribe       *unsub_pkt;
 };
 
 struct client_ctx {

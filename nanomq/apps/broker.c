@@ -215,8 +215,6 @@ server_cb(void *arg)
 
 		if (type == CMD_SUBSCRIBE) {
 			smsg = work->msg;
-
-			work->pid = nng_msg_get_pipe(work->msg);
 			work->msg_ret = NULL;
 
 			if ((work->sub_pkt = nng_alloc(
@@ -280,7 +278,6 @@ server_cb(void *arg)
 			// free conn_param in SEND state
 			break;
 		} else if (type == CMD_UNSUBSCRIBE) {
-			work->pid = nng_msg_get_pipe(work->msg);
 			smsg = work->msg;
 			if ((work->unsub_pkt = nng_alloc(
 			         sizeof(packet_unsubscribe))) == NULL)
@@ -408,8 +405,8 @@ server_cb(void *arg)
 					}
 			work->msg = smsg;
 			// bridge logic first
-			conf_bridge *bridge_conf = &(work->config->bridge);
-			if (bridge_conf->bridge_mode) {
+			conf_bridge *bridge_conf = work->config->bridge[0];
+			if (bridge_conf->enable) {
 				bool found = false;
 				for (size_t i = 0;
 				     i < bridge_conf->forwards_count; i++) {
@@ -440,7 +437,7 @@ server_cb(void *arg)
 			}
 			//check webhook & rule engine
 			conf_web_hook *hook_conf   = &(work->config->web_hook);
-			if (hook_conf->enable || bridge_conf->bridge_mode) {
+			if (hook_conf->enable || bridge_conf->enable) {
 				work->state = SEND;
 				nng_aio_finish(work->aio, 0);
 				break;
@@ -483,12 +480,12 @@ server_cb(void *arg)
 		debug_msg("SEND ^^^^ ctx%d ^^^^", work->ctx.id);
 
 		// webhook here
-		if (nng_msg_get_type(work->msg) == CMD_PUBLISH) {
-			webhook_msg_publish(&work->webhook_sock,
-			&work->config->web_hook, work->pub_packet,
-			(const char *) conn_param_get_username(work->cparam),
-			(const char *) conn_param_get_clientid(work->cparam));
-		}
+		// if (nng_msg_get_type(work->msg) == CMD_PUBLISH) {
+		// 	webhook_msg_publish(&work->webhook_sock,
+		// 	&work->config->web_hook, work->pub_packet,
+		// 	(const char *) conn_param_get_username(work->cparam),
+		// 	(const char *) conn_param_get_clientid(work->cparam));
+		// }
 
 		if (NULL != work->msg) {
 			nng_msg_free(work->msg);
@@ -656,7 +653,8 @@ proto_work_init(nng_socket sock, nng_socket bridge_sock, uint8_t proto,
 	w->config = config;
 	w->code   = SUCCESS;
 
-	if (config->bridge.bridge_mode) {
+	// check each bconf->enable bride_conf? 
+	if (config->bridge_mode) {
 		if ((rv = nng_ctx_open(&w->bridge_ctx, bridge_sock)) != 0) {
 			fatal("nng_ctx_open", rv);
 		}
@@ -819,9 +817,32 @@ broker(conf *nanomq_conf)
 		fatal("nng_nmq_tcp0_open", rv);
 	}
 
-	if (nanomq_conf->bridge.bridge_mode) {
-		num_ctx += nanomq_conf->bridge.parallel;
-		bridge_client(&bridge_sock, nanomq_conf);
+	// only for example
+	nng_socket bridge_sock2;
+	conf_bridge *bconf = nanomq_conf->bridge[1];
+	char broker1[2][4] = {"msg1", "msg2"};
+	char address[32] = "mqtt-tcp://localhost:1883";
+	char broker2[3][6] = {"alvin1", "alvin2", "alvin3"};
+	bconf->address = address;
+	bconf->forwards_count = 2;
+	bconf->forwards = (char **)realloc(bconf->forwards, sizeof(char *)*2);
+	bconf->forwards[0] = broker1[0];
+	bconf->forwards[1] = broker1[1];
+	bconf->sub_count = 1;
+	bconf->sub_list->topic = broker2[0];
+	bconf->sub_list->topic_len = 6;
+	bconf->sub_list->qos = 1;
+	if (nanomq_conf->bridge_mode) {
+		// only for example
+		num_ctx += bconf->parallel;
+		bridge_client(&bridge_sock2, nanomq_conf, nanomq_conf->bridge[1]);
+	}
+
+	if (nanomq_conf->bridge_mode) {
+		// for (i = 0;  i < nanomq_conf->bridge_num; i++)
+		//TODO iterates all bridge targets
+		num_ctx += (nanomq_conf->bridge[0])->parallel;
+		bridge_client(&bridge_sock, nanomq_conf, nanomq_conf->bridge[0]);
 	}
 
 	struct work *works[num_ctx];
@@ -830,8 +851,16 @@ broker(conf *nanomq_conf)
 		works[i] = proto_work_init(sock, bridge_sock,
 		    PROTO_MQTT_BROKER, db, db_ret, nanomq_conf);
 	}
+	//only for showcase
+	if (nanomq_conf->bridge_mode) {
+		for (i = nanomq_conf->parallel; i < num_ctx; i++) {
+			works[i] = proto_work_init(sock, bridge_sock2,
+			    PROTO_MQTT_BRIDGE, db, db_ret, nanomq_conf);
+		}
+	}
 
-	if (nanomq_conf->bridge.bridge_mode) {
+	if (nanomq_conf->bridge_mode) {
+		// iterates all bridge targets
 		for (i = nanomq_conf->parallel; i < num_ctx; i++) {
 			works[i] = proto_work_init(sock, bridge_sock,
 			    PROTO_MQTT_BRIDGE, db, db_ret, nanomq_conf);
@@ -1297,7 +1326,7 @@ broker_start(int argc, char **argv)
 	}
 
 	print_conf(nanomq_conf);
-	print_bridge_conf(&nanomq_conf->bridge);
+	print_bridge_conf(nanomq_conf->bridge[0]);
 
 	active_conf(nanomq_conf);
 
