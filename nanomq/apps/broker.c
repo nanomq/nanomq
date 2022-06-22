@@ -479,29 +479,17 @@ server_cb(void *arg)
 			break;
 		}
 		break;
-	case BRIDGE:
-		if ((rv = nng_aio_result(work->aio)) != 0) {
-			debug_msg("nng_recv_aio: %s", nng_strerror(rv));
-			work->state = RECV;
-			nng_ctx_recv(work->bridge_ctx, work->aio);
-			break;
-		}
-		work->msg = nng_aio_get_msg(work->aio);
-		msg       = work->msg;
-
-		nng_msg_set_cmd_type(msg, nng_msg_get_type(msg));
-		work->msg   = msg;
-		work->state = RECV;
-		nng_aio_finish(work->aio, 0);
-		break;
 	case SEND:
 		debug_msg("SEND ^^^^ ctx%d ^^^^", work->ctx.id);
 
 		// webhook here
-		// webhook_msg_publish(&work->webhook_sock,
-		//     &work->config->web_hook, work->pub_packet,
-		//     (const char *) conn_param_get_username(work->cparam),
-		//     (const char *) conn_param_get_clientid(work->cparam));
+		if (nng_msg_get_type(work->msg) == CMD_PUBLISH) {
+			webhook_msg_publish(&work->webhook_sock,
+			&work->config->web_hook, work->pub_packet,
+			(const char *) conn_param_get_username(work->cparam),
+			(const char *) conn_param_get_clientid(work->cparam));
+		}
+
 		if (NULL != work->msg) {
 			nng_msg_free(work->msg);
 			work->msg = NULL;
@@ -622,7 +610,6 @@ server_cb(void *arg)
 
 		// clear reason code
 		work->code = SUCCESS;
-
 		work->state = RECV;
 		nng_ctx_recv(work->ctx, work->aio);
 		break;
