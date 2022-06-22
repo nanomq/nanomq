@@ -316,7 +316,7 @@ server_cb(void *arg)
 			}
 			work->code = handle_pub(work, work->pipe_ct, work->proto_ver);
 			if (work->code != SUCCESS) {
-				// what if bridge ctx brings a wrong msg?
+				// TODO what if bridge ctx brings a wrong msg?
 				work->state = CLOSE;
 				free_pub_packet(work->pub_packet);
 				work->pub_packet = NULL;
@@ -455,11 +455,10 @@ server_cb(void *arg)
 			cvector_free(msg_infos);
 			work->pipe_ct->msg_infos = NULL;
 			init_pipe_content(work->pipe_ct);
+			work->state = RECV;
 			if (work->proto == PROTO_MQTT_BRIDGE) {
-				work->state = BRIDGE;
 				nng_ctx_recv(work->bridge_ctx, work->aio);
 			} else {
-				work->state = RECV;
 				nng_ctx_recv(work->ctx, work->aio);
 			}
 		} else if (nng_msg_cmd_type(work->msg) == CMD_PUBACK ||
@@ -521,11 +520,10 @@ server_cb(void *arg)
 		}
 		// free conn_param due to clone in protocol layer
 		conn_param_free(work->cparam);
+		work->state = RECV;
 		if (work->proto == PROTO_MQTT_BRIDGE) {
-			work->state = RECV;
 			nng_ctx_recv(work->bridge_ctx, work->aio);
 		} else {
-			work->state = RECV;
 			nng_ctx_recv(work->ctx, work->aio);
 		}
 		break;
@@ -601,12 +599,12 @@ server_cb(void *arg)
 				if (work->msg != NULL)
 					nng_msg_free(work->msg);
 				work->msg = NULL;
+				work->state = RECV;
 				if (work->proto == PROTO_MQTT_BRIDGE) {
-					work->state = BRIDGE;
+					nng_ctx_recv(work->bridge_ctx, work->aio);
 				} else {
-					work->state = RECV;
+					nng_ctx_recv(work->ctx, work->aio);
 				}
-				nng_ctx_recv(work->ctx, work->aio);
 			}
 		}
 		conn_param_free(work->cparam);
