@@ -964,9 +964,25 @@ set_payload_filter(char *str, rule_payload *payload)
 	payload->filter = zstrdup(str);
 }
 
-static char *pick_value(char *p)
+static rule_cmp_type
+pick_cmp_symb(char *p)
 {
-	while (*p == ' ' || *p == '=') {
+	if (!strcmp("=", p)) {
+		return RULE_CMP_EQUAL;
+	} else if (!strcmp(">", p)) {
+		return RULE_CMP_GREATER;
+	} else if (!strcmp("<", p)) {
+		return RULE_CMP_LESS;
+	} else if (!strcmp("!=", p) || !strcmp("<>", p)) {
+		return RULE_CMP_UNEQUAL;
+	}
+
+}
+
+static char *
+pick_value(char *p)
+{
+	while (' ' == *p || '=' == *p || '!' == *p || '<' == *p || '>' == *p) {
 		p++;
 	}
 
@@ -986,7 +1002,52 @@ static char *pick_value(char *p)
 	}
 
 	return str;
+}
 
+static rule_cmp_type 
+get_rule_cmp_type(char **str)
+{
+	char *p = *str;
+	rule_cmp_type cmp_type = RULE_CMP_NONE;
+	while (' ' != *p) {
+		switch (*p)
+		{
+		case '=':
+			cmp_type = RULE_CMP_EQUAL;
+			break;
+		case '!':
+			if ('=' == *(p+1)) {
+				cmp_type = RULE_CMP_UNEQUAL;
+			} 
+			break;
+		case '>':
+			if ('=' == *(p+1)) {
+				cmp_type = RULE_CMP_GREATER_AND_EQUAL;
+			} else {
+				cmp_type = RULE_CMP_GREATER;
+			}
+			break;
+		case '<':
+			if ('>' == *(p+1)) {
+				cmp_type = RULE_CMP_UNEQUAL;
+			} else if ('=' == *(p+1)) {
+				cmp_type = RULE_CMP_LESS_AND_EQUAL;
+			} else {
+				cmp_type = RULE_CMP_LESS;
+			}
+			break;
+		default:
+			break;
+		}
+		if (RULE_CMP_NONE != cmp_type) {
+			break;
+		}
+		p++;
+	}
+
+	*str = p;
+
+	return cmp_type;
 }
 
 static int
@@ -994,20 +1055,26 @@ set_where_info(char *str, size_t len, rule_engine_info *info)
 {
 	char *p  = str;
 	int   rc = 0;
-	while (*p != ' ' && *p != '=') {
-		p++;
-	}
+
+	rule_cmp_type cmp_type = get_rule_cmp_type(&p);
 
 	int key_len = p - str;
+	if (RULE_CMP_NONE == cmp_type) {
+		p++;
+		cmp_type = get_rule_cmp_type(&p);
+	}
+
 	if (-1 == (rc = find_key(str, key_len))) {
 		if (-1 == (rc = find_as(str, key_len, info))) {
 			if (-1 != (rc = find_payload_as(str, key_len, info->payload))) {
 				set_payload_filter(pick_value(p), info->payload[rc]);
+				info->payload[rc]->cmp_type = cmp_type;
 			} else {
 				*p = '\0';
 				if (-1 != parse_payload_subfield(str, info, false)) {
 					int size = cvector_size(info->payload);
 					set_payload_filter(pick_value(++p), info->payload[size-1]);
+					info->payload[size-1]->cmp_type = cmp_type;
 				}
 			}
 			return 0;
@@ -1015,6 +1082,8 @@ set_where_info(char *str, size_t len, rule_engine_info *info)
 	}
 
 	info->filter[rc] = zstrdup(pick_value(p));
+	info->cmp_type[rc] = cmp_type;
+
 	return 0;
 }
 
