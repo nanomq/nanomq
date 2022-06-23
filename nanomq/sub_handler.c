@@ -28,7 +28,7 @@ decode_sub_msg(nano_work *work)
 	int      len_of_str = 0, len_of_topic = 0;
 	uint8_t  property_id;
 
-	topic_node *       topic_node_t, *_topic_node;
+	topic_node *       tn, *_tn;
 	topic_with_option *topic_option;
 
 	nng_msg *     msg           = work->msg;
@@ -60,51 +60,44 @@ decode_sub_msg(nano_work *work)
 	// handle payload
 	payload_ptr = nng_msg_payload_ptr(msg);
 
-	if ((topic_node_t = nng_zalloc(sizeof(topic_node))) == NULL) {
+	if ((tn = nng_zalloc(sizeof(topic_node))) == NULL) {
 		debug_msg("ERROR: nng_zalloc");
 		return NNG_ENOMEM;
 	}
-	topic_node_t->next = NULL;
-	sub_pkt->node      = topic_node_t;
+	tn->next = NULL;
+	sub_pkt->node      = tn;
 
 	while (1) {
-		if ((topic_option = nng_zalloc(sizeof(topic_with_option))) ==
-		    NULL) {
-			debug_msg("ERROR: nng_zalloc");
-			return NNG_ENOMEM;
-		}
-		topic_node_t->it = topic_option;
-		_topic_node      = topic_node_t;
+		_tn      = tn;
 
-		// potential buffer overflow
-		topic_option->topic_filter.body =
+		tn->reason_code  = GRANTED_QOS_2; // default
+
+		// TODO Decoding topic has potential buffer overflow
+		tn->topic.body =
 		    copy_utf8_str(payload_ptr, &bpos, &len_of_topic);
-
-		topic_option->topic_filter.len = len_of_topic;
-		topic_node_t->it->reason_code  = GRANTED_QOS_2; // default
-
-		if (len_of_topic < 1 || topic_option->topic_filter.body == NULL) {
-			debug_msg("NOT utf8-encoded string OR null string.");
-			topic_node_t->it->reason_code = UNSPECIFIED_ERROR;
-			if (PROTOCOL_VERSION_v5 == proto_ver)
-				topic_node_t->it->reason_code =
-				    TOPIC_FILTER_INVALID;
-			bpos += 3; // ignore option + LSB + MSB
-			goto next;
-		}
-		debug_msg("topic: [%s] len: [%d]",
-		    topic_option->topic_filter.body, len_of_topic);
+		tn->topic.len = len_of_topic;
+		debug_msg("topic: [%s] len: [%d]", tn->topic.body, len_of_topic);
 		len_of_topic = 0;
 
-		topic_option->rap = 1; // Default Setting
-		memcpy(topic_option, payload_ptr + bpos, 1);
-		if (topic_option->retain_handling > 2 || topic_option->topic_filter.body == NULL) {
+		if (tn->topic.len < 1 || tn->topic.body == NULL) {
+			debug_msg("NOT utf8-encoded string OR null string.");
+			tn->reason_code = UNSPECIFIED_ERROR;
+			if (PROTOCOL_VERSION_v5 == proto_ver)
+				tn->reason_code = TOPIC_FILTER_INVALID;
+			bpos += 1; // ignore option
+			goto next;
+		}
+
+		tn->rap = 1; // Default Setting
+		memcpy(tn, payload_ptr + bpos, 1);
+		if (tn->retain_handling > 2) {
 			debug_msg("ERROR: error in retain_handling");
-			topic_node_t->it->reason_code = UNSPECIFIED_ERROR;
+			tn->reason_code = UNSPECIFIED_ERROR;
 			return PROTOCOL_ERROR;
 		}
 		bpos ++;
 
+		// Setting no_local on shared subscription is invalid
 		if (MQTT_VERSION_V5 == proto_ver &&
 		    strncmp(topic_option->topic_filter.body, "$share/", strlen("$share/")) == 0 &&
 		    topic_option->no_local == 1) {
@@ -113,15 +106,13 @@ decode_sub_msg(nano_work *work)
 		}
 
 next:
-		debug_msg("bpos+vpos: [%d]", bpos + vpos);
 		if (bpos < remaining_len - vpos) {
-			if ((topic_node_t = nng_zalloc(sizeof(topic_node))) ==
-			    NULL) {
+			if (NULL == (tn = nng_zalloc(sizeof(topic_node)))) {
 				debug_msg("ERROR: nng_zalloc");
 				return NNG_ENOMEM;
 			}
-			topic_node_t->next = NULL;
-			_topic_node->next  = topic_node_t;
+			tn->next = NULL;
+			_tn->next  = tn;
 		} else {
 			break;
 		}
