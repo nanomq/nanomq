@@ -16,8 +16,6 @@
 #include "include/pub_handler.h"
 #include "include/sub_handler.h"
 
-#define SUPPORT_MQTT5_0 1
-
 static void cli_ctx_merge(client_ctx *ctx, client_ctx *ctx_new);
 
 int
@@ -48,7 +46,6 @@ decode_sub_msg(nano_work *work)
 	// TODO packetid should be checked if it's unused
 	vpos += 2;
 
-#if SUPPORT_MQTT5_0
 	// Only Mqtt_v5 include property.
 	if (PROTOCOL_VERSION_v5 == proto_ver) {
 		sub_pkt->properties =
@@ -57,7 +54,6 @@ decode_sub_msg(nano_work *work)
 			return PROTOCOL_ERROR;
 		}
 	}
-#endif
 
 	debug_msg("remainLen: [%ld] packetid : [%d]", remaining_len,
 	    sub_pkt->packet_id);
@@ -109,14 +105,12 @@ decode_sub_msg(nano_work *work)
 		}
 		bpos ++;
 
-#if SUPPORT_MQTT5_0
 		if (MQTT_VERSION_V5 == proto_ver &&
 		    strncmp(topic_option->topic_filter.body, "$share/", strlen("$share/")) == 0 &&
 		    topic_option->no_local == 1) {
 			topic_node_t->it->reason_code = UNSPECIFIED_ERROR;
 			return PROTOCOL_ERROR;
 		}
-#endif
 
 next:
 		debug_msg("bpos+vpos: [%d]", bpos + vpos);
@@ -161,11 +155,9 @@ encode_suback_msg(nng_msg *msg, nano_work *work)
 		return PROTOCOL_ERROR;
 	}
 
-#if SUPPORT_MQTT5_0
 	if (PROTOCOL_VERSION_v5 == proto_ver) { // add property in variable
 		encode_properties(msg, NULL, CMD_SUBACK);
 	}
-#endif
 
 	// Note. packetid should be non-zero, BUT in order to make subclients
 	// known that, we return an error(ALREADY IN USE)
@@ -496,14 +488,12 @@ del_sub_ctx(void *ctxt, char *target_topic)
 	uint8_t proto_ver = cli_ctx->proto_ver;
 
 	if (sub_pkt->node == NULL) {
-#if SUPPORT_MQTT5_0
 		if (PROTOCOL_VERSION_v5 == proto_ver) {
 			if (sub_pkt->prop_len > 0) {
 				property_free(sub_pkt->properties);
 				sub_pkt->prop_len = 0;
 			}
 		}
-#endif
 		nng_free(sub_pkt, sizeof(packet_subscribe));
 		nng_atomic_free64(cli_ctx->recv_cnt);
 		nng_free(cli_ctx, sizeof(client_ctx));
@@ -530,7 +520,6 @@ destroy_sub_pkt(packet_subscribe *sub_pkt, uint8_t proto_ver)
 	}
 
 	if (sub_pkt) {
-#if SUPPORT_MQTT5_0
 		// what if there are multiple UPs?
 		if (PROTOCOL_VERSION_v5 == proto_ver) {
 			if (sub_pkt->prop_len > 0) {
@@ -538,7 +527,6 @@ destroy_sub_pkt(packet_subscribe *sub_pkt, uint8_t proto_ver)
 				sub_pkt->prop_len = 0;
 			}
 		}
-#endif
 	}
 	if (sub_pkt) {
 		nng_free(sub_pkt, sizeof(packet_subscribe));
