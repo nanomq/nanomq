@@ -16,8 +16,6 @@
 #include "include/pub_handler.h"
 #include "include/sub_handler.h"
 
-static void cli_ctx_merge(client_ctx *ctx, client_ctx *ctx_new);
-
 int
 decode_sub_msg(nano_work *work)
 {
@@ -131,7 +129,7 @@ encode_suback_msg(nng_msg *msg, nano_work *work)
 	uint8_t     reason_code, cmd;
 	uint32_t    remaining_len, len_of_properties;
 	int         len_of_varint, rv;
-	topic_node *node;
+	topic_node *tn;
 
 	packet_subscribe *sub_pkt;
 	if ((sub_pkt = work->sub_pkt) == NULL)
@@ -160,18 +158,18 @@ encode_suback_msg(nng_msg *msg, nano_work *work)
 		}
 	}
 
-	// Note. When packet_id is zero, node must be empty. So, Dont worry
+	// Note. When packet_id is zero, topic node must be empty. So, Dont worry
 	// the order of reasone codes would be changed.
 	// handle payload
-	node = sub_pkt->node;
-	while (node) {
-		reason_code = node->it->reason_code;
+	tn = sub_pkt->node;
+	while (tn) {
+		reason_code = tn->reason_code;
 		// MQTT_v3: 0x00-qos0  0x01-qos1  0x02-qos2  0x80-fail
 		if ((rv = nng_msg_append(msg, &reason_code, 1)) != 0) {
 			debug_msg("ERROR: nng_msg_append [%d]", rv);
 			return PROTOCOL_ERROR;
 		}
-		node = node->next;
+		tn = tn->next;
 		debug_msg("reason_code: [%x]", reason_code);
 	}
 
@@ -208,90 +206,64 @@ encode_suback_msg(nng_msg *msg, nano_work *work)
 	return 0;
 }
 
-// TODO topic_node is not ever useful remove it
 // generate ctx for each topic
 // this should be moved to RECV
 int
 sub_ctx_handle(nano_work *work)
 {
-	topic_node *        tn = work->sub_pkt->node;
-	char *              topic_str    = NULL;
-	char *              first_topic  = NULL;
-	char *              clientid     = NULL;
-	int                 topic_len    = 0;
-	int      topic_exist             = 0;
-	uint32_t clientid_key            = 0;
-	dbtree_retain_msg **r            = NULL;
+	if (!work->sub_pkt || !work->sub_pkt->node) {
+		return -1;
+	}
+	topic_node *tn = work->sub_pkt->node;
 
-	client_ctx * old_ctx    = NULL;
-	dbtree_ctxt * db_ctxt 	= NULL;
+	char *topic_str = NULL, *first_topic = NULL, *clientid = NULL;
+	int   topic_len = 0, topic_exist = 0;
+
+	client_ctx  *cli_ctx = NULL;
+	dbtree_ctxt *db_ctxt = NULL;
 
 	if (work->sub_pkt->packet_id == 0) {
-		return PROTOCOL_ERROR;
+		return -2;
 	}
 
-	client_ctx * cli_ctx = NULL;
-	if ((cli_ctx = nng_zalloc(sizeof(client_ctx))) == NULL) {
-		debug_msg("ERROR: nng_zalloc");
-		return NNG_ENOMEM;
-	}
-	cli_ctx->sub_pkt        = work->sub_pkt;
-	cli_ctx->cparam         = work->cparam;
-	cli_ctx->pid            = work->pid;
-	cli_ctx->proto_ver      = work->proto_ver;
-
-	clientid = (char *) conn_param_get_clientid(
-	    (conn_param *) nng_msg_get_conn_param(work->msg));
-	if (clientid) {
-		clientid_key = DJBHashn(clientid, strlen(clientid));
-	}
-
-	// get ctx from tree TODO optimization here
-	// tq = dbhash_get_topic_queue(cli_ctx->pid.id);
 	first_topic = dbhash_get_first_topic(cli_ctx->pid.id);
-
-	if (first_topic) {
-		db_ctxt = dbtree_find_client(
-		    work->db, first_topic, cli_ctx->pid.id);
-	}
-
-	if (db_ctxt) {
-		old_ctx = dbtree_ctxt_get_ctxt(db_ctxt);
-	}
-
-	if (!first_topic || !old_ctx) { /* the real ctx stored in tree */
-		if ((old_ctx = nng_zalloc(sizeof(client_ctx))) == NULL){
+	if (!first_topic) {
+		if ((cli_ctx = nng_zalloc(sizeof(client_ctx))) == NULL) {
 			debug_msg("ERROR: nng_zalloc");
 			return NNG_ENOMEM;
 		}
-		if ((old_ctx->sub_pkt = nng_zalloc(sizeof(packet_subscribe))) == NULL) {
-			debug_msg("ERROR: nng_zalloc");
-			return NNG_ENOMEM;
-		}
-		old_ctx->sub_pkt->node = NULL;
-		old_ctx->cparam        = NULL;
+	} else {
+		db_ctxt =
+		    dbtree_find_client(work->db, first_topic, cli_ctx->pid.id);
+		if (db_ctxt)
+			cli_ctx = dbtree_ctxt_get_ctxt(db_ctxt);
+	}
+
+	cli_ctx->pid        = work->pid;
+	cli_ctx->cparam     = work->cparam;
+	cli_ctx->prop_len   = work->sub_pkt->prop_len;
+	cli_ctx->properties = work->sub_pkt->properties;
+	cli_ctx->proto_ver  = work->proto_ver;
+
+	// Or it would be free
+	work->sub_pkt->prop_len   = 0;
+	work->sub_pkt->properties = NULL;
+
 #ifdef STATISTICS
-		nng_atomic_alloc64(&old_ctx->recv_cnt);
+	nng_atomic_alloc64(&old_ctx->recv_cnt);
 #endif
-	}
-	/* Swap pid, capram, proto_ver in ctxs */
-	old_ctx->pid.id    = cli_ctx->pid.id;
-	old_ctx->proto_ver = cli_ctx->proto_ver;
-	conn_param *cp     = old_ctx->cparam;
-	old_ctx->cparam    = cli_ctx->cparam;
-	cli_ctx->cparam    = cp;
 
-	// clean session handle.
-	debug_msg("clean session handle");
-	cli_ctx_merge(cli_ctx, old_ctx);
-	destroy_sub_ctx(cli_ctx);
+	dbtree_retain_msg **r = NULL;
 
 	while (tn) {
-		topic_len = tn->it->topic_filter.len;
-		topic_str = tn->it->topic_filter.body;
+		topic_len = tn->topic.len;
+		topic_str = tn->topic.body;
 		debug_msg("topicLen: [%d] body: [%s]", topic_len, topic_str);
 
-		/* remove duplicate items */
+		if (!topic_str)
+			goto next;
+
+		/* Add items which not included in dbhash */
 		topic_exist = dbhash_check_topic(work->pid.id, topic_str);
 		if (!topic_exist && topic_str) {
 			uint8_t ver = work->proto_ver;
@@ -300,24 +272,28 @@ sub_ctx_handle(nano_work *work)
 
 			dbhash_insert_topic(work->pid.id, topic_str);
 		}
+
 		// Note.
 		// if topic already exists then update sub options.
-		// qos, retain handling, no local (did in cli_ctx_merge)
+		// qos, retain handling, no local (already did in protocol
+		// layer)
 
-		uint8_t rh = tn->it->retain_handling;
-		if (topic_str)
-			if (rh == 0 || (rh == 1 && !topic_exist))
-				r = dbtree_find_retain(work->db_ret, topic_str);
-		if (r) {
-			for (int i = 0; i < cvector_size(r); i++) {
-				if (!r[i])
-					continue;
-				cvector_push_back(
-				    work->msg_ret, (nng_msg *) r[i]->message);
-			}
+		uint8_t rh = tn->retain_handling;
+
+		if (rh == 0 || (rh == 1 && !topic_exist))
+			r = dbtree_find_retain(work->db_ret, topic_str);
+
+		if (!r)
+			goto next;
+
+		for (int i = 0; i < cvector_size(r); i++) {
+			if (!r[i])
+				continue;
+			cvector_push_back(work->msg_ret, r[i]->message);
 		}
 		cvector_free(r);
 
+	next:
 		tn = tn->next;
 	}
 
@@ -330,120 +306,18 @@ sub_ctx_handle(nano_work *work)
 	zfree(first_topic);
 
 #ifdef DEBUG
-	// check treeDB
 	dbtree_print(work->db);
 #endif
-	debug_msg("end of sub ctx handle. \n");
+	debug_msg("end of sub ctx handle.\n");
 	return 0;
-}
-
-static void
-cli_ctx_merge(client_ctx *ctx_new, client_ctx *ctx)
-{
-	int                is_find = 0;
-	struct topic_node *node, *node_new, *node_prev = NULL;
-	struct topic_node *node_a = NULL;
-	topic_with_option *two    = NULL;
-	char *             str    = NULL;
-	if (ctx->pid.id != ctx_new->pid.id) {
-		return;
-	}
-
-#ifdef DEBUG /* Remove after testing */
-	debug_msg("stored ctx:");
-	node = ctx->sub_pkt->node;
-	while (node) {
-		debug_msg("%s", node->it->topic_filter.body);
-		node = node->next;
-	}
-	debug_msg("new ctx");
-	node_new = ctx_new->sub_pkt->node;
-	while (node_new) {
-		debug_msg("%s", node_new->it->topic_filter.body);
-		node_new = node_new->next;
-	}
-#endif
-
-	node_new = ctx_new->sub_pkt->node;
-	while (node_new) {
-		node      = ctx->sub_pkt->node;
-		node_prev = NULL;
-		is_find   = 0;
-		//TODO optimize logic here with (FOREACH)
-		while (node) {
-			if (node_new->it->topic_filter.body != NULL)
-			if (strcmp(node->it->topic_filter.body,
-			        node_new->it->topic_filter.body) == 0) {
-				is_find = 1;
-				break;
-			}
-			node_prev = node;
-			node      = node->next;
-		}
-		if (is_find) {
-			// update option
-			node->it->no_local = node_new->it->no_local;
-			node->it->qos      = node_new->it->qos;
-			node->it->rap      = node_new->it->rap;
-			node->it->retain_handling =
-			    node_new->it->retain_handling;
-		} else { /* not find */
-			// copy and append TODO optimize topic_node structure
-			if (node_new->it->topic_filter.len < 1 ||
-			    node_new->it->topic_filter.body == NULL) {
-				debug_msg("next topic ");
-				node_new = node_new->next;
-				continue;
-			}
-
-			if (((node_a = nng_zalloc(sizeof(topic_node))) ==
-			        NULL) ||
-			    ((two = nng_zalloc(sizeof(topic_with_option))) ==
-			        NULL) ||
-			    ((str = nng_zalloc(node_new->it->topic_filter.len +
-			          1)) == NULL)) {
-				debug_msg("ERROR: nng_zalloc");
-				return;
-			}
-
-			memcpy(two, node_new->it, sizeof(topic_with_option));
-			strcpy(str, node_new->it->topic_filter.body);
-			str[node_new->it->topic_filter.len] = '\0';
-			node_a->it                          = two;
-			two->topic_filter.body              = str;
-			node_a->next                        = NULL;
-			if (!node_prev) {
-				ctx->sub_pkt->node = node_a;
-			} else {
-				node_prev->next = node_a;
-			}
-		}
-		node_new = node_new->next;
-	}
-
-#ifdef DEBUG /* Remove after testing */
-	debug_msg("after change.");
-	debug_msg("stored ctx:");
-	node = ctx->sub_pkt->node;
-	while (node) {
-		debug_msg("%s", node->it->topic_filter.body);
-		node = node->next;
-	}
-	debug_msg("new ctx");
-	node_new = ctx_new->sub_pkt->node;
-	while (node_new) {
-		debug_msg("%s", node_new->it->topic_filter.body);
-		node_new = node_new->next;
-	}
-#endif
 }
 
 void
 del_sub_ctx(void *ctxt, char *target_topic)
 {
 	client_ctx *      cli_ctx           = ctxt;
-	topic_node *      topic_node_t      = NULL;
-	topic_node *      before_topic_node = NULL;
+	topic_node *      tn      = NULL;
+	topic_node *      before_tn = NULL;
 	packet_subscribe *sub_pkt           = NULL;
 
 	if (!cli_ctx || !cli_ctx->sub_pkt) {
@@ -452,28 +326,26 @@ del_sub_ctx(void *ctxt, char *target_topic)
 	}
 
 	sub_pkt           = cli_ctx->sub_pkt;
-	topic_node_t      = sub_pkt->node;
-	before_topic_node = NULL;
+	tn      = sub_pkt->node;
+	before_tn = NULL;
 
-	while (topic_node_t) {
+	while (tn) {
 		if (!strcmp(
-		        topic_node_t->it->topic_filter.body, target_topic)) {
+		        tn->topic.body, target_topic)) {
 			debug_msg("FREE in topic_node [%s] in tree",
-			    topic_node_t->it->topic_filter.body);
-			if (before_topic_node) {
-				before_topic_node->next = topic_node_t->next;
+			    tn->topic.body);
+			if (before_tn) {
+				before_tn->next = tn->next;
 			} else {
-				sub_pkt->node = topic_node_t->next;
+				sub_pkt->node = tn->next;
 			}
 
-			nng_free(topic_node_t->it->topic_filter.body,
-			    topic_node_t->it->topic_filter.len);
-			nng_free(topic_node_t->it, sizeof(topic_with_option));
-			nng_free(topic_node_t, sizeof(topic_node));
+			nng_free(tn->topic.body, tn->topic.len);
+			nng_free(tn, sizeof(topic_node));
 			break;
 		}
-		before_topic_node = topic_node_t;
-		topic_node_t      = topic_node_t->next;
+		before_tn = tn;
+		tn  = tn->next;
 	}
 
 	uint8_t proto_ver = cli_ctx->proto_ver;
@@ -503,9 +375,7 @@ destroy_sub_pkt(packet_subscribe *sub_pkt, uint8_t proto_ver)
 	next_topic_node = NULL;
 	while (topic_node_t) {
 		next_topic_node = topic_node_t->next;
-		nng_free(topic_node_t->it->topic_filter.body,
-		    topic_node_t->it->topic_filter.len);
-		nng_free(topic_node_t->it, sizeof(topic_with_option));
+		nng_free(topic_node_t->topic.body, topic_node_t->topic.len);
 		nng_free(topic_node_t, sizeof(topic_node));
 		topic_node_t = next_topic_node;
 	}
@@ -523,18 +393,6 @@ destroy_sub_pkt(packet_subscribe *sub_pkt, uint8_t proto_ver)
 		nng_free(sub_pkt, sizeof(packet_subscribe));
 		sub_pkt = NULL;
 	}
-}
-
-void
-destroy_sub_ctx(void *ctxt)
-{
-	client_ctx *cli_ctx = ctxt;
-
-	if (!cli_ctx) {
-		debug_msg("ERROR : ctx or sub_pkt is null!");
-		return;
-	}
-	nng_free(cli_ctx, sizeof(client_ctx));
 }
 
 static void *
