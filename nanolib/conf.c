@@ -2086,7 +2086,7 @@ conf_sqlite_parse(
 	FILE * fp;
 
 	if ((fp = fopen(path, "r")) == NULL) {
-		debug_msg("File %s open failed", dest_path);
+		debug_msg("File %s open failed", path);
 		sqlite->enable = false;
 		return false;
 	}
