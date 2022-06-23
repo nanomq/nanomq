@@ -182,20 +182,21 @@ typedef struct {
 
 struct conf_bridge {
 	bool       enable;
-	char *     address;
+	char      *address;
 	uint8_t    proto_ver;
-	char *     clientid;
+	char      *clientid;
 	bool       clean_start;
-	char *     username;
-	char *     password;
+	char      *username;
+	char      *password;
 	uint16_t   keepalive;
 	size_t     forwards_count;
-	char **    forwards;
+	char     **forwards;
 	size_t     sub_count;
 	subscribe *sub_list;
 	uint64_t   parallel;
 	conf_tls   tls;
 	conf_sqlite sqlite;
+	void *      sock;
 };
 
 typedef struct conf_bridge conf_bridge;
