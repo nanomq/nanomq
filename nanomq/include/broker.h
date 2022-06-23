@@ -54,9 +54,10 @@ struct client_ctx {
 #ifdef STATISTICS
 	nng_atomic_u64 *recv_cnt;
 #endif
-	conn_param *             cparam;
-	struct packet_subscribe *sub_pkt;
-	uint8_t                  proto_ver;
+	conn_param *cparam;
+	uint32_t    prop_len;
+	property   *properties;
+	uint8_t     proto_ver;
 };
 
 typedef struct client_ctx client_ctx;
