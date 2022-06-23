@@ -1451,6 +1451,8 @@ bridge_conf_init()
 	if ((bconf = zmalloc(sizeof(conf_bridge))) == NULL) {
 		return NULL;
 	}
+
+	bconf->sock           = NULL;
 	bconf->enable         = false;
 	bconf->sub_count      = 0;
 	bconf->parallel       = 1;
