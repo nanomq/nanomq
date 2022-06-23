@@ -275,8 +275,8 @@ payload_filter(pub_packet_struct *pp, rule_engine_info *info)
 		case cJSON_Number:;
 			long num = cJSON_GetNumberValue(jp);
 
-			if (payload->filter) {
-				filter = cmp_int(num, atoi(payload->filter), payload->cmp_type);
+			if (payload->filter && !cmp_int(num, atoi(payload->filter), payload->cmp_type)) {
+				filter = false;
 			} else {
 				payload->value = (void *) num;
 				payload->type  = cJSON_Number;
@@ -284,8 +284,8 @@ payload_filter(pub_packet_struct *pp, rule_engine_info *info)
 			break;
 		case cJSON_String:;
 			char *str = cJSON_GetStringValue(jp);
-			if (payload->filter) {
-				filter = cmp_str(str, strlen(str), payload->filter, payload->cmp_type);
+			if (payload->filter && !cmp_str(str, strlen(str), payload->filter, payload->cmp_type)) {
+				filter = false;
 			} else {
 				if (payload->value)
 					zfree(payload->value);
@@ -753,7 +753,7 @@ rule_engine_insert_sql(nano_work *work)
 				}
 
 				char *dest = cJSON_PrintUnformatted(jso);
-				puts(dest);
+				// puts(dest);
 				fdb_transaction_set(work->config->tran,
 				    pp->var_header.publish.topic_name.body,
 				    pp->var_header.publish.topic_name.len, dest,
