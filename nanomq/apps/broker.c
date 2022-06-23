@@ -65,7 +65,6 @@ enum options {
 #endif
 	OPT_AUTHFILE,
 	OPT_AUTH_HTTP_FILE,
-	OPT_SQLITE_FILE,
 	OPT_PARALLEL,
 	OPT_DAEMON,
 	OPT_THREADS,
@@ -95,7 +94,6 @@ static nng_optspec cmd_opts[] = {
 	{ .o_name = "webhook", .o_val = OPT_WEBHOOKFILE, .o_arg = true },
 	{ .o_name = "auth", .o_val = OPT_AUTHFILE, .o_arg = true },
 	{ .o_name = "auth_http", .o_val = OPT_AUTH_HTTP_FILE, .o_arg = true },
-	{ .o_name = "sqlite", .o_val = OPT_SQLITE_FILE, .o_arg = true },
 	{ .o_name = "daemon", .o_short = 'd', .o_val = OPT_DAEMON },
 	{ .o_name    = "tq_thread",
 	    .o_short = 't',
@@ -1126,10 +1124,6 @@ broker_parse_opts(int argc, char **argv, conf *config)
 			FREE_NONULL(config->auth_http_file);
 			config->auth_http_file = nng_strdup(arg);
 			break;
-		case OPT_SQLITE_FILE:
-			FREE_NONULL(config->sqlite_file);
-			config->sqlite_file = nng_strdup(arg);
-			break;
 		case OPT_PARALLEL:
 			config->parallel = atoi(arg);
 			break;
@@ -1245,7 +1239,6 @@ broker_start(int argc, char **argv)
 	conf_parser(nanomq_conf);
 	conf_bridge_parse(nanomq_conf);
 	conf_web_hook_parse(nanomq_conf);
-	conf_sqlite_parse(nanomq_conf);
 	read_env_conf(nanomq_conf);
 
 	if (!broker_parse_opts(argc, argv, nanomq_conf)) {
@@ -1268,9 +1261,6 @@ broker_start(int argc, char **argv)
 
 	if (nanomq_conf->web_hook_file) {
 		conf_web_hook_parse(nanomq_conf);
-	}
-	if (nanomq_conf->sqlite_file) {
-		conf_sqlite_parse(nanomq_conf);
 	}
 
 	nanomq_conf->url = nanomq_conf->url != NULL
