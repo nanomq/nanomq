@@ -709,10 +709,6 @@ broker(conf *nanomq_conf)
 			}
 			FDBDatabase *fdb   = openDatabase(&netThread);
 			nanomq_conf->rdb   = fdb;
-			FDBTransaction *tr = NULL;
-			fdb_error_t     e =
-			    fdb_database_create_transaction(fdb, &tr);
-			nanomq_conf->tran = tr;
 			break;
 
 		case RULE_ENGINE_SDB:
@@ -887,7 +883,6 @@ broker(conf *nanomq_conf)
 	for (;;) {
 		if (keepRunning == 0) {
 #if defined(SUPP_RULE_ENGINE)
-			fdb_transaction_destroy(nanomq_conf->tran);
 			fdb_database_destroy(nanomq_conf->rdb);
 			fdb_stop_network();
 #endif

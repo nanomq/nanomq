@@ -739,37 +739,50 @@ rule_engine_insert_sql(nano_work *work)
 	size_t             rule_size  = cvector_size(rule_infos);
 	pub_packet_struct *pp         = work->pub_packet;
 	conn_param        *cp         = work->cparam;
+	static uint32_t    index      = 0;
 
 	for (size_t i = 0; i < rule_size; i++) {
 		if (rule_engine_filter(work, &rule_infos[i])) {
-			switch (work->config->rule_engine_db_option)
-			{
+
+			char fdb_key[pp->var_header.publish.topic_name.len+4];
+			switch (work->config->rule_engine_db_option) {
 			case RULE_ENGINE_FDB:
 				cJSON *jso = NULL;
 				jso        = cJSON_CreateObject();
 
 				for (size_t j = 0; j < 9; j++) {
-					add_info_to_json(&rule_infos[i], jso, j, work);
+					add_info_to_json(
+					    &rule_infos[i], jso, j, work);
 				}
 
 				char *dest = cJSON_PrintUnformatted(jso);
-				// puts(dest);
-				fdb_transaction_set(work->config->tran,
+				sprintf(fdb_key, "%s%u",
 				    pp->var_header.publish.topic_name.body,
-				    pp->var_header.publish.topic_name.len, dest,
-				    strlen(dest));
-				FDBFuture *f =
-				    fdb_transaction_commit(work->config->tran);
+				    index++);
+				// puts(fdb_key);
+				// puts(dest);
+
+				FDBTransaction *tr = NULL;
+				fdb_error_t     e =
+				    fdb_database_create_transaction(
+				        work->config->rdb, &tr);
+
+				fdb_transaction_set(tr, fdb_key,
+				    strlen(fdb_key), dest, strlen(dest));
+				// if (99 == index%100) {
+				FDBFuture *f = fdb_transaction_commit(tr);
+				// }
 
 				fdb_future_destroy(f);
+				fdb_transaction_destroy(tr);
 				cJSON_free(dest);
 				cJSON_Delete(jso);
 				break;
-			
+
 			case RULE_ENGINE_SDB:
 				char sql_clause[1024] = "INSERT INTO ";
-				char key[128] = "Broker (";
-				char value[800] = "VALUES (";
+				char key[128]         = "Broker (";
+				char value[800]       = "VALUES (";
 				for (size_t j = 0; j < 9; j++) {
 					char *ret =
 					    compose_sql_clause(&rule_infos[i],
@@ -780,12 +793,11 @@ rule_engine_insert_sql(nano_work *work)
 						    (sqlite3 *)
 						        work->config->sdb;
 						char *err_msg = NULL;
-						int   rc = sqlite3_exec(sdb,
-						      ret, 0, 0,
-						      &err_msg);
-						// FIXME: solve in a more elegant way
-						// if (rc != SQLITE_OK) {
-						// 	if (strcmp)
+						int   rc      = sqlite3_exec(
+						           sdb, ret, 0, 0, &err_msg);
+						// FIXME: solve in a more
+						// elegant way if (rc !=
+						// SQLITE_OK) { 	if (strcmp)
 						// 	fprintf(stderr,
 						// 	    "SQL error: %s\n",
 						// 	    err_msg);
@@ -798,27 +810,29 @@ rule_engine_insert_sql(nano_work *work)
 					}
 				}
 				char *p = strrchr(key, ',');
-				*p = ')';
-				p = strrchr(value, ',');
-				*p = ')';
+				*p      = ')';
+				p       = strrchr(value, ',');
+				*p      = ')';
 				strcat(sql_clause, key);
 				strcat(sql_clause, value);
 				strcat(sql_clause, ";");
 
 				// puts(sql_clause);
 				sqlite3 *sdb = (sqlite3 *) work->config->sdb;
-				char *err_msg = NULL;
-				int rc = sqlite3_exec(sdb, sql_clause, 0, 0, &err_msg);
-				if (rc != SQLITE_OK ) {
-  					fprintf(stderr, "SQL error: %s\n", err_msg);
-  					sqlite3_free(err_msg);        
-  					sqlite3_close(sdb);
-        
-        			return 1;
-    			} 
+				char    *err_msg = NULL;
+				int      rc      = sqlite3_exec(
+				              sdb, sql_clause, 0, 0, &err_msg);
+				if (rc != SQLITE_OK) {
+					fprintf(stderr, "SQL error: %s\n",
+					    err_msg);
+					sqlite3_free(err_msg);
+					sqlite3_close(sdb);
+
+					return 1;
+				}
 
 				break;
-			
+
 			default:
 				break;
 			}
