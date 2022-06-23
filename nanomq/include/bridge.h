@@ -6,6 +6,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+typedef struct {
+	nng_socket * sock;
+	conf_bridge *config;
+} bridge_param;
+
 extern bool     topic_filter(const char *origin, const char *input);
 extern int      bridge_client(nng_socket *sock, conf *config, conf_bridge *bridge_conf);
 extern nng_msg *bridge_publish_msg(const char *topic, uint8_t *payload,

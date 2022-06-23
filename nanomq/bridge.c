@@ -42,11 +42,6 @@ disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	debug_msg("disconnected");
 }
 
-typedef struct {
-	nng_socket * sock;
-	conf_bridge *config;
-} bridge_param;
-
 // Connack message callback function
 static void
 bridge_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
@@ -74,13 +69,13 @@ bridge_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	nng_sendmsg(*param->sock, msg, NNG_FLAG_NONBLOCK);
 }
 
-static bridge_param bridge_arg;
-
 int
 bridge_client(nng_socket *sock, conf *config, conf_bridge *bridge_conf)
 {
 	int        rv;
 	nng_dialer dialer;
+	bridge_param *bridge_arg;
+
 	if ((rv = nng_mqtt_client_open(sock)) != 0) {
 		fatal("nng_mqtt_client_open", rv);
 		return rv;
@@ -110,11 +105,13 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge *bridge_conf)
 		nng_mqtt_msg_set_connect_password(connmsg, bridge_conf->password);
 	}
 
-	bridge_arg.config = bridge_conf;
-	bridge_arg.sock   = sock;
+	bridge_arg = (bridge_param *)nng_alloc(sizeof(bridge_param));
+	bridge_arg->config = bridge_conf;
+	bridge_arg->sock   = sock;
+	bridge_conf->sock = (void *)sock;
 
 	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
-	nng_mqtt_set_connect_cb(*sock, bridge_connect_cb, &bridge_arg);
+	nng_mqtt_set_connect_cb(*sock, bridge_connect_cb, bridge_arg);
 	nng_mqtt_set_disconnect_cb(*sock, disconnect_cb, connmsg);
 
 	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
