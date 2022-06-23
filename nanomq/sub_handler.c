@@ -27,7 +27,6 @@ decode_sub_msg(nano_work *work)
 	uint8_t  property_id;
 
 	topic_node *       tn, *_tn;
-	topic_with_option *topic_option;
 
 	nng_msg *     msg           = work->msg;
 	size_t        remaining_len = nng_msg_remaining_len(msg);
@@ -47,7 +46,7 @@ decode_sub_msg(nano_work *work)
 	// Only Mqtt_v5 include property.
 	if (PROTOCOL_VERSION_v5 == proto_ver) {
 		sub_pkt->properties =
-		    decode_properties(msg, &vpos, &sub_pkt->prop_len, true);
+		    decode_properties(msg, (uint32_t *)&vpos, &sub_pkt->prop_len, true);
 		if (check_properties(sub_pkt->properties) != SUCCESS) {
 			return PROTOCOL_ERROR;
 		}
@@ -97,9 +96,9 @@ decode_sub_msg(nano_work *work)
 
 		// Setting no_local on shared subscription is invalid
 		if (MQTT_VERSION_V5 == proto_ver &&
-		    strncmp(topic_option->topic_filter.body, "$share/", strlen("$share/")) == 0 &&
-		    topic_option->no_local == 1) {
-			topic_node_t->it->reason_code = UNSPECIFIED_ERROR;
+		    strncmp(tn->topic.body, "$share/", strlen("$share/")) == 0 &&
+		    tn->no_local == 1) {
+			tn->reason_code = UNSPECIFIED_ERROR;
 			return PROTOCOL_ERROR;
 		}
 
@@ -250,7 +249,7 @@ sub_ctx_handle(nano_work *work)
 	work->sub_pkt->properties = NULL;
 
 #ifdef STATISTICS
-	nng_atomic_alloc64(&old_ctx->recv_cnt);
+	nng_atomic_alloc64(&cli_ctx->recv_cnt);
 #endif
 
 	dbtree_retain_msg **r = NULL;
@@ -300,7 +299,7 @@ sub_ctx_handle(nano_work *work)
 	if (db_ctxt && 0 == dbtree_ctxt_free(db_ctxt)) {
 		client_ctx *ctx = dbtree_ctxt_delete(db_ctxt);
 		if (ctx) {
-			del_sub_ctx(ctx, first_topic);
+			sub_ctx_free(ctx);
 		}
 	}
 	zfree(first_topic);
@@ -313,85 +312,17 @@ sub_ctx_handle(nano_work *work)
 }
 
 void
-del_sub_ctx(void *ctxt, char *target_topic)
+sub_ctx_del(void *db, char *topic, uint32_t pid)
 {
-	client_ctx *      cli_ctx           = ctxt;
-	topic_node *      tn      = NULL;
-	topic_node *      before_tn = NULL;
-	packet_subscribe *sub_pkt           = NULL;
+	dbtree_ctxt *db_ctxt = NULL;
+	client_ctx  *cli_ctx = NULL;
 
-	if (!cli_ctx || !cli_ctx->sub_pkt) {
-		debug_msg("ERROR : ctx or sub_pkt is null!");
-		return;
-	}
-
-	sub_pkt           = cli_ctx->sub_pkt;
-	tn      = sub_pkt->node;
-	before_tn = NULL;
-
-	while (tn) {
-		if (!strcmp(
-		        tn->topic.body, target_topic)) {
-			debug_msg("FREE in topic_node [%s] in tree",
-			    tn->topic.body);
-			if (before_tn) {
-				before_tn->next = tn->next;
-			} else {
-				sub_pkt->node = tn->next;
-			}
-
-			nng_free(tn->topic.body, tn->topic.len);
-			nng_free(tn, sizeof(topic_node));
-			break;
+	db_ctxt = dbtree_delete_client((dbtree *)db, topic, 0, pid);
+	if (0 == dbtree_ctxt_free(db_ctxt)) {
+		cli_ctx = dbtree_ctxt_delete(db_ctxt);
+		if (cli_ctx) {
+			sub_ctx_free(cli_ctx);
 		}
-		before_tn = tn;
-		tn  = tn->next;
-	}
-
-	uint8_t proto_ver = cli_ctx->proto_ver;
-
-	if (sub_pkt->node == NULL) {
-		if (PROTOCOL_VERSION_v5 == proto_ver) {
-			if (sub_pkt->prop_len > 0) {
-				property_free(sub_pkt->properties);
-				sub_pkt->prop_len = 0;
-			}
-		}
-		nng_free(sub_pkt, sizeof(packet_subscribe));
-		nng_atomic_free64(cli_ctx->recv_cnt);
-		nng_free(cli_ctx, sizeof(client_ctx));
-		cli_ctx = NULL;
-	}
-}
-
-void
-destroy_sub_pkt(packet_subscribe *sub_pkt, uint8_t proto_ver)
-{
-	topic_node *topic_node_t, *next_topic_node;
-	if (!sub_pkt) {
-		return;
-	}
-	topic_node_t    = sub_pkt->node;
-	next_topic_node = NULL;
-	while (topic_node_t) {
-		next_topic_node = topic_node_t->next;
-		nng_free(topic_node_t->topic.body, topic_node_t->topic.len);
-		nng_free(topic_node_t, sizeof(topic_node));
-		topic_node_t = next_topic_node;
-	}
-
-	if (sub_pkt) {
-		// what if there are multiple UPs?
-		if (PROTOCOL_VERSION_v5 == proto_ver) {
-			if (sub_pkt->prop_len > 0) {
-				property_free(sub_pkt->properties);
-				sub_pkt->prop_len = 0;
-			}
-		}
-	}
-	if (sub_pkt) {
-		nng_free(sub_pkt, sizeof(packet_subscribe));
-		sub_pkt = NULL;
 	}
 }
 
@@ -406,7 +337,7 @@ destroy_sub_client_cb(void *args, char *topic)
 	if (0 == dbtree_ctxt_free(db_ctxt)) {
 		cli_ctx = dbtree_ctxt_delete(db_ctxt);
 		if (cli_ctx) {
-			del_sub_ctx(cli_ctx, topic);
+			sub_ctx_free(cli_ctx);
 		}
 	}
 
@@ -431,3 +362,44 @@ destroy_sub_client(uint32_t pid, dbtree * db)
 	return;
 }
 
+void
+sub_pkt_free(packet_subscribe *sub_pkt)
+{
+	if (!sub_pkt)
+		return;
+
+	topic_node *tn, *next_tn;
+	tn = sub_pkt->node;
+	next_tn = NULL;
+
+	while (tn) {
+		next_tn = tn->next;
+		nng_free(tn->topic.body, tn->topic.len);
+		nng_free(tn, sizeof(topic_node));
+		tn = next_tn;
+	}
+
+	// what if there are multiple UPs?
+	if (sub_pkt->prop_len > 0) {
+		property_free(sub_pkt->properties);
+		sub_pkt->prop_len = 0;
+	}
+	nng_free(sub_pkt, sizeof(packet_subscribe));
+}
+
+void
+sub_ctx_free(client_ctx *ctx)
+{
+	if (!ctx)
+		return;
+
+#ifdef STATISTICS
+	nng_atomic_free64(ctx->recv_cnt);
+#endif
+
+	// what if there are multiple UPs?
+	if (ctx->prop_len > 0) {
+		property_free(ctx->properties);
+		ctx->prop_len = 0;
+	}
+}
