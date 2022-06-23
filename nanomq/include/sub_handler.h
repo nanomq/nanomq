@@ -15,10 +15,10 @@ int decode_sub_msg(nano_work *);
 int encode_suback_msg(nng_msg *, nano_work *);
 int sub_ctx_handle(nano_work *);
 // free mem about one topic in sub_ctx
-void del_sub_ctx(void *, char *);
+void sub_ctx_del(void *, char *, uint32_t);
 // free all mem about sub_ctx
-void destroy_sub_ctx(void *);
-void destroy_sub_pkt(packet_subscribe *, uint8_t);
+void sub_ctx_free(client_ctx *);
+void sub_pkt_free(packet_subscribe *);
 void destroy_sub_client(uint32_t pid, dbtree * db);
 
 #endif
