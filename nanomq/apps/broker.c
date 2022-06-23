@@ -184,6 +184,8 @@ bridge_handler(nano_work *work)
 				work->state = SEND;
 				nng_aio_set_msg(work->aio, smsg);
 				socket = (nng_socket *) bridge_conf->sock;
+				// TODO what if send qos msg failed?mem leak?
+				// nanosdk deal with fail send and close the pipe
 				nng_sendmsg(*socket, smsg, 0);
 				rv = true;
 			}
@@ -690,12 +692,13 @@ int
 broker(conf *nanomq_conf)
 {
 	nng_socket sock;
-	nng_socket bridge_sock;
+	nng_socket *bridge_sock;
 	nng_pipe   pipe_id;
 	int        rv;
-	int        i, j;
+	int        i, j, count;
 	// add the num of other proto
 	uint64_t num_ctx = nanomq_conf->parallel;
+	conf_bridge *bconf;
 
 #if defined(SUPP_RULE_ENGINE)
 	if (nanomq_conf->rule_engine_option) {
@@ -819,7 +822,7 @@ broker(conf *nanomq_conf)
 
 	// only for example
 	nng_socket bridge_sock2;
-	conf_bridge *bconf = nanomq_conf->bridge[1];
+	bconf = nanomq_conf->bridge[1];
 	char broker1[2][13] = {"sblichangcai", "msg2"};
 	char address[32] = "mqtt-tcp://localhost:1883";
 	char broker2[3][7] = {"alvin1", "alvin2", "alvin3"};
@@ -832,44 +835,36 @@ broker(conf *nanomq_conf)
 	bconf->sub_list->topic = broker2[0];
 	bconf->sub_list->topic_len = 6;
 	bconf->sub_list->qos = 1;
-	bridge_param bridge_arg1;
-	bridge_param bridge_arg2;
 	if (nanomq_conf->bridge_mode) {
-		// only for example
-		num_ctx += bconf->parallel;
-		bridge_client(&bridge_sock2, nanomq_conf, nanomq_conf->bridge[1]);
-	}
-
-	if (nanomq_conf->bridge_mode) {
-		// for (i = 0;  i < nanomq_conf->bridge_num; i++)
-		//TODO iterates all bridge targets
-		num_ctx += (nanomq_conf->bridge[0])->parallel;
-		bridge_client(&bridge_sock, nanomq_conf, nanomq_conf->bridge[0]);
+		for (size_t t = 0; t < nanomq_conf->bridge_num; t++) {
+			bconf = nanomq_conf->bridge[t];
+			num_ctx += bconf->parallel;
+			bconf->sock = (nng_socket *) nng_alloc(sizeof(nng_socket));
+			bridge_client(bconf->sock, nanomq_conf, bconf);
+		}
 	}
 
 	struct work *works[num_ctx];
-
+	// create broker ctx
 	for (i = 0; i < nanomq_conf->parallel; i++) {
-		works[i] = proto_work_init(sock, bridge_sock,
+		works[i] = proto_work_init(sock, sock,
 		    PROTO_MQTT_BROKER, db, db_ret, nanomq_conf);
 	}
 
+	// create bridge ctx
 	// TODO only create ctx when there is sub topics
-	int tmp = (nanomq_conf->bridge[0])->parallel + nanomq_conf->parallel;
+	size_t tmp = nanomq_conf->parallel;
 	if (nanomq_conf->bridge_mode) {
 		// iterates all bridge targets
-		for (i = nanomq_conf->parallel; i < tmp; i++) {
-			works[i] = proto_work_init(sock, bridge_sock,
-			    PROTO_MQTT_BRIDGE, db, db_ret, nanomq_conf);
-		}
-	}
-	int tmp2 = tmp;
-	tmp += (nanomq_conf->bridge[1])->parallel;
-	if (nanomq_conf->bridge_mode) {
-		// iterates all bridge targets
-		for (i = tmp2; i < tmp; i++) {
-			works[i] = proto_work_init(sock, bridge_sock2,
-			    PROTO_MQTT_BRIDGE, db, db_ret, nanomq_conf);
+		for (size_t t = 0; t < nanomq_conf->bridge_num; t++) {
+			bconf = nanomq_conf->bridge[t];
+			bridge_sock = bconf->sock;
+			for (i = tmp; i < (tmp + bconf->parallel); i++) {
+				works[i] = proto_work_init(sock, *bridge_sock,
+				    PROTO_MQTT_BRIDGE, db, db_ret,
+				    nanomq_conf);
+			}
+			tmp += bconf->parallel;
 		}
 	}
 
