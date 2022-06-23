@@ -72,11 +72,13 @@ struct conf_tls {
 typedef struct conf_tls conf_tls;
 
 struct conf_sqlite {
-	bool     enable;
-	size_t   disk_cache_size;
-	char *   mounted_file_path;
-	size_t   flush_mem_threshold;
-	uint64_t resend_interval;
+	bool   enable;
+	size_t disk_cache_size;   // specify the max rows of sqlite table
+	char * mounted_file_path; // specify the db file path
+	size_t
+	    flush_mem_threshold; // flush to sqlite table when count of message
+	                         // is equal or greater than this value
+	uint64_t resend_interval; // resend caching message interval (ms)
 };
 
 typedef struct conf_sqlite conf_sqlite;
