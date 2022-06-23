@@ -167,21 +167,20 @@ bridge_handler(nano_work *work)
 	nng_msg     *smsg;
 	bool        rv = false;
 
+	smsg = bridge_publish_msg(
+	    work->pub_packet->var_header.publish.topic_name.body,
+	    work->pub_packet->payload.data, work->pub_packet->payload.len,
+	    work->pub_packet->fixed_header.dup,
+	    work->pub_packet->fixed_header.qos,
+	    work->pub_packet->fixed_header.retain);
 	for (size_t t = 0; t < work->config->bridge_num; t++) {
 		bridge_conf = work->config->bridge[t];
 		for (size_t i = 0; i < bridge_conf->forwards_count; i++) {
 			if (topic_filter(bridge_conf->forwards[i],
 			        work->pub_packet->var_header.publish.topic_name
 			            .body)) {
-				smsg = bridge_publish_msg(
-				    work->pub_packet->var_header.publish
-				        .topic_name.body,
-				    work->pub_packet->payload.data,
-				    work->pub_packet->payload.len,
-				    work->pub_packet->fixed_header.dup,
-				    work->pub_packet->fixed_header.qos,
-				    work->pub_packet->fixed_header.retain);
 				work->state = SEND;
+				nng_msg_clone(smsg);
 				nng_aio_set_msg(work->aio, smsg);
 				socket = (nng_socket *) bridge_conf->sock;
 				// TODO what if send qos msg failed?mem leak?
@@ -191,6 +190,7 @@ bridge_handler(nano_work *work)
 			}
 		}
 	}
+	nng_msg_free(smsg);
 	return rv;
 }
 
