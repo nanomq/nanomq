@@ -11,14 +11,36 @@ typedef struct {
 	dbtree *db;
 }  sub_destroy_info;
 
+/*
+ * Use to decode sub msg.
+ */
 int decode_sub_msg(nano_work *);
+
+/*
+ * Use to encode an ack for sub msg
+ */
 int encode_suback_msg(nng_msg *, nano_work *);
+
 int sub_ctx_handle(nano_work *);
-// free mem about one topic in sub_ctx
-void sub_ctx_del(void *, char *, uint32_t);
-// free all mem about sub_ctx
+
+/*
+ * Delete a client ctx from dbtree in a topic
+ */
+int sub_ctx_del(void *, char *, uint32_t);
+
+/*
+ * Free a client ctx
+ */
 void sub_ctx_free(client_ctx *);
+
+/*
+ * Free a packet_subscribe.
+ */
 void sub_pkt_free(packet_subscribe *);
+
+/*
+ * Delete all refs in dbtree about client ctx
+ */
 void destroy_sub_client(uint32_t pid, dbtree * db);
 
 #endif
