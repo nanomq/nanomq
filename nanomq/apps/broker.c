@@ -228,12 +228,12 @@ server_cb(void *arg)
 				debug_msg("ERROR: sub_handler: [%d]", rv);
 			}
 
-			// TODO not all codes should close the pipe
+			// TODO not all codes needs to close the pipe
 			if (work->code != SUCCESS) {
 				if (work->msg_ret)
 					cvector_free(work->msg_ret);
 				if (work->sub_pkt)
-					destroy_sub_pkt(work->sub_pkt, work->proto_ver);
+					sub_pkt_free(work->sub_pkt);
 				// free conn_param due to clone in protocol layer
 				conn_param_free(work->cparam);
 
@@ -246,7 +246,7 @@ server_cb(void *arg)
 			if (0 != (rv = encode_suback_msg(smsg, work)))
 				debug_msg("error in encode suback: [%d]", rv);
 
-			destroy_sub_pkt(work->sub_pkt, work->proto_ver);
+			sub_pkt_free(work->sub_pkt);
 			// handle retain (Retain flag handled in npipe)
 			work->msg = NULL;
 			if (work->msg_ret) {
@@ -294,7 +294,7 @@ server_cb(void *arg)
 				debug_msg("error in unsuback [%d]", rv);
 
 			// free unsub_pkt
-			destroy_unsub_ctx(work->unsub_pkt);
+			unsub_pkt_free(work->unsub_pkt);
 
 			work->pid.id = 0;
 			nng_msg_set_pipe(work->msg, work->pid);
