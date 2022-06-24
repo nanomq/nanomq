@@ -126,9 +126,10 @@ foreach_client(
 		if (0 == dbtree_ctxt_free(db_ctxt)) {
 			client_ctx *ctx = dbtree_ctxt_delete(db_ctxt);
 			if (ctx) {
-				// Bug here
-				// del_sub_ctx(ctx, topic);
-				destroy_sub_client(ctx->pid.id, pub_work->db);
+				if (!dbhash_check_id(ctx->pid.id))
+					sub_ctx_free(ctx);
+				// sub_ctx_del(db, topic, pid);
+				// destroy_sub_client(ctx->pid.id, pub_work->db);
 			}
 		}
 	}
