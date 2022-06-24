@@ -407,6 +407,14 @@ server_cb(void *arg)
 						nng_ctx_send(work->ctx, work->aio);
 					}
 			work->msg = smsg;
+
+			// webhook here
+			if (nng_msg_get_type(work->msg) == CMD_PUBLISH) {
+				webhook_msg_publish(&work->webhook_sock,
+				&work->config->web_hook, work->pub_packet,
+				(const char *) conn_param_get_username(work->cparam),
+				(const char *) conn_param_get_clientid(work->cparam));
+			}
 			// bridge logic first
 			conf_bridge *bridge_conf = &(work->config->bridge);
 			if (bridge_conf->bridge_mode) {
@@ -481,14 +489,6 @@ server_cb(void *arg)
 		break;
 	case SEND:
 		debug_msg("SEND ^^^^ ctx%d ^^^^", work->ctx.id);
-
-		// webhook here
-		if (nng_msg_get_type(work->msg) == CMD_PUBLISH) {
-			webhook_msg_publish(&work->webhook_sock,
-			&work->config->web_hook, work->pub_packet,
-			(const char *) conn_param_get_username(work->cparam),
-			(const char *) conn_param_get_clientid(work->cparam));
-		}
 
 		if (NULL != work->msg) {
 			nng_msg_free(work->msg);
