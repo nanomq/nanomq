@@ -26,7 +26,7 @@ int sub_ctx_handle(nano_work *);
 /*
  * Delete a client ctx from dbtree in a topic
  */
-int sub_ctx_del(void *, char *, uint32_t);
+int sub_ctx_del(void *db, char *topic, uint32_t pid);
 
 /*
  * Free a client ctx

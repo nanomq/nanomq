@@ -846,14 +846,12 @@ get_clients(http_msg *msg, kv **params, size_t param_num,
 #endif
 		cJSON_AddItemToArray(data_info, data_info_elem);
 
-		topic_node *tn = ctxt->sub_pkt->node;
-
 	skip:
 		dbhash_ptpair_free(pt[i]);
 		if (0 == dbtree_ctxt_free(db_ctxt)) {
 			client_ctx *ctx = dbtree_ctxt_delete(db_ctxt);
 			if (ctx) {
-				del_sub_ctx(ctx, pt[i]->topic);
+				sub_ctx_del(db, pt[i]->topic, ctx->pid.id);
 			}
 		}
 
@@ -915,6 +913,7 @@ get_subscriptions(
 			}
 		}
 
+		/*
 		topic_node *tn = ctxt->sub_pkt->node;
 		while (tn) {
 			cJSON *subscribe = cJSON_CreateObject();
@@ -931,11 +930,12 @@ get_subscriptions(
 			cJSON_AddItemToArray(data_info, subscribe);
 			tn = tn->next;
 		}
+		*/
 	skip:
 		if (0 == dbtree_ctxt_free(db_ctxt)) {
 			client_ctx *ctx = dbtree_ctxt_delete(db_ctxt);
 			if (ctx) {
-				del_sub_ctx(ctx, pt[i]->topic);
+				sub_ctx_del(db, pt[i]->topic, ctx->pid.id);
 			}
 		}
 		dbhash_ptpair_free(pt[i]);
