@@ -76,7 +76,7 @@ struct topic_queue *dbhash_get_topic_queue(uint32_t id);
 
 void dbhash_del_topic(uint32_t id, char *topic);
 
-void dbhash_del_topic_queue(uint32_t id, void* (*cb)(void*, char *), void *args);
+void *dbhash_del_topic_queue(uint32_t id, void* (*cb)(void*, char *), void *args);
 
 bool dbhash_check_id(uint32_t id);
 

@@ -452,13 +452,14 @@ dbhash_del_topic(uint32_t id, char *topic)
  * @key.pipe_id.
  */
 
-void
+void *
 del_topic_queue(uint32_t id, void *(*cb)(void*, char *), void *args)
 {
 	struct topic_queue *tq = NULL;
 	khint_t             k  = kh_get(pipe_table, ph, id);
+	void               *rv = NULL;
 	if (k == kh_end(ph)) {
-		return;
+		return NULL;
 	}
 
 	tq = kh_val(ph, k);
@@ -467,14 +468,14 @@ del_topic_queue(uint32_t id, void *(*cb)(void*, char *), void *args)
 		struct topic_queue *tt = tq;
 		tq                     = tq->next;
 		if (cb && args) {
-			cb(args, tt->topic);
+			rv = cb(args, tt->topic);
 		}
 		delete_topic_queue(tt);
 	}
 
 	kh_del(pipe_table, ph, k);
 
-	return;
+	return rv;
 }
 
 /*
@@ -482,14 +483,15 @@ del_topic_queue(uint32_t id, void *(*cb)(void*, char *), void *args)
  * @key.pipe_id.
  */
 
-void
+void *
 dbhash_del_topic_queue(uint32_t id, void *(*cb)(void *, char *), void *args)
 {
+	void *rv = NULL;
 	pthread_rwlock_wrlock(&pipe_lock);
-	del_topic_queue(id, cb, args);
+	rv = del_topic_queue(id, cb, args);
 	pthread_rwlock_unlock(&pipe_lock);
 
-	return;
+	return rv;
 }
 
 

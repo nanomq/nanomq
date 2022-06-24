@@ -225,7 +225,7 @@ sub_ctx_handle(nano_work *work)
 		return -2;
 	}
 
-	first_topic = dbhash_get_first_topic(cli_ctx->pid.id);
+	first_topic = dbhash_get_first_topic(work->pid.id);
 	if (!first_topic) {
 		if ((cli_ctx = nng_zalloc(sizeof(client_ctx))) == NULL) {
 			debug_msg("ERROR: nng_zalloc");
@@ -233,7 +233,7 @@ sub_ctx_handle(nano_work *work)
 		}
 	} else {
 		db_ctxt =
-		    dbtree_find_client(work->db, first_topic, cli_ctx->pid.id);
+		    dbtree_find_client(work->db, first_topic, work->pid.id);
 		if (db_ctxt)
 			cli_ctx = dbtree_ctxt_get_ctxt(db_ctxt);
 	}
@@ -311,6 +311,13 @@ sub_ctx_handle(nano_work *work)
 	return 0;
 }
 
+static void *
+wrap_sub_ctx_free_cb(void *arg)
+{
+	sub_ctx_free((client_ctx *)arg);
+	return NULL;
+}
+
 int
 sub_ctx_del(void *db, char *topic, uint32_t pid)
 {
@@ -325,9 +332,7 @@ sub_ctx_del(void *db, char *topic, uint32_t pid)
 	}
 
 	dbhash_del_topic(pid, topic);
-	if (!dbhash_check_id(pid))
-		// TODO data race in client ctx
-		sub_ctx_free(cli_ctx);
+	dbhash_check_id_and_do(pid, wrap_sub_ctx_free_cb, cli_ctx);
 
 	return 0;
 }
@@ -342,12 +347,9 @@ destroy_sub_client_cb(void *args, char *topic)
 	db_ctxt = dbtree_delete_client(des->db, topic, 0, des->pid);
 	if (0 == dbtree_ctxt_free(db_ctxt)) {
 		cli_ctx = dbtree_ctxt_delete(db_ctxt);
-		// if (cli_ctx) {
-		// 	sub_ctx_free(cli_ctx);
-		// }
 	}
 
-	return NULL;
+	return cli_ctx;
 }
 
 // Call by disconnect ev, if disconnect, delete all node which 
@@ -364,11 +366,10 @@ destroy_sub_client(uint32_t pid, dbtree * db)
 		.db = db,
 	};
 
-	dbhash_del_topic_queue(pid, &destroy_sub_client_cb, (void *) &sdi);
+	cli_ctx = dbhash_del_topic_queue(pid, &destroy_sub_client_cb, (void *) &sdi);
 
-	if (!dbhash_check_id(pid))
-		// TODO data race in client ctx
-		sub_ctx_free(cli_ctx);
+	dbhash_check_id_and_do(pid, wrap_sub_ctx_free_cb, cli_ctx);
+	// TODO data race in client ctx???
 
 	return;
 }
@@ -413,4 +414,6 @@ sub_ctx_free(client_ctx *ctx)
 		property_free(ctx->properties);
 		ctx->prop_len = 0;
 	}
+
+	nng_free(ctx, sizeof(client_ctx));
 }
