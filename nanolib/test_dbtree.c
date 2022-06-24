@@ -123,50 +123,50 @@ dbtree_client client[] = {
 static void
 test_insert_client()
 {
-	dbtree_insert_client(db, topic0, client0.ctxt, client0.pipe_id, MQTT_VERSION_V5);
+	dbtree_insert_client(db, topic0, client0.ctxt, client0.pipe_id);
 	dbtree_print(db);
-	dbtree_insert_client(db, topic1, client1.ctxt, client1.pipe_id, MQTT_VERSION_V5);
+	dbtree_insert_client(db, topic1, client1.ctxt, client1.pipe_id);
 	dbtree_print(db);
-	dbtree_insert_client(db, topic2, client2.ctxt, client2.pipe_id, MQTT_VERSION_V5);
+	dbtree_insert_client(db, topic2, client2.ctxt, client2.pipe_id);
 	dbtree_print(db);
-	dbtree_insert_client(db, topic3, client3.ctxt, client3.pipe_id, MQTT_VERSION_V5);
+	dbtree_insert_client(db, topic3, client3.ctxt, client3.pipe_id);
 	dbtree_print(db);
-	dbtree_insert_client(db, topic4, client4.ctxt, client4.pipe_id, MQTT_VERSION_V5);
+	dbtree_insert_client(db, topic4, client4.ctxt, client4.pipe_id);
 	dbtree_print(db);
-	dbtree_insert_client(db, topic5, client5.ctxt, client5.pipe_id, MQTT_VERSION_V5);
+	dbtree_insert_client(db, topic5, client5.ctxt, client5.pipe_id);
 	dbtree_print(db);
-	dbtree_insert_client(db, topic6, client6.ctxt, client6.pipe_id, MQTT_VERSION_V5);
+	dbtree_insert_client(db, topic6, client6.ctxt, client6.pipe_id);
 	dbtree_print(db);
-	dbtree_insert_client(db, topic7, client7.ctxt, client7.pipe_id, MQTT_VERSION_V5);
+	dbtree_insert_client(db, topic7, client7.ctxt, client7.pipe_id);
 	dbtree_print(db);
-	dbtree_insert_client(db, topic8, client8.ctxt, client8.pipe_id, MQTT_VERSION_V5);
+	dbtree_insert_client(db, topic8, client8.ctxt, client8.pipe_id);
 	dbtree_print(db);
-	dbtree_insert_client(db, topic9, client9.ctxt, client9.pipe_id, MQTT_VERSION_V5);
+	dbtree_insert_client(db, topic9, client9.ctxt, client9.pipe_id);
 	dbtree_print(db);
 }
 
 static void
 test_insert_shared_client()
 {
-	dbtree_insert_client(db, share0, client0.ctxt, client0.pipe_id, MQTT_VERSION_V5);
+	dbtree_insert_client(db, share0, client0.ctxt, client0.pipe_id);
 	dbtree_print(db);
-	dbtree_insert_client(db, share1, client1.ctxt, client1.pipe_id, MQTT_VERSION_V5);
+	dbtree_insert_client(db, share1, client1.ctxt, client1.pipe_id);
 	dbtree_print(db);
-	dbtree_insert_client(db, share2, client2.ctxt, client2.pipe_id, MQTT_VERSION_V5);
+	dbtree_insert_client(db, share2, client2.ctxt, client2.pipe_id);
 	dbtree_print(db);
-	dbtree_insert_client(db, share3, client3.ctxt, client3.pipe_id, MQTT_VERSION_V5);
+	dbtree_insert_client(db, share3, client3.ctxt, client3.pipe_id);
 	dbtree_print(db);
-	dbtree_insert_client(db, share4, client4.ctxt, client4.pipe_id, MQTT_VERSION_V5);
+	dbtree_insert_client(db, share4, client4.ctxt, client4.pipe_id);
 	dbtree_print(db);
-	dbtree_insert_client(db, share5, client5.ctxt, client5.pipe_id, MQTT_VERSION_V5);
+	dbtree_insert_client(db, share5, client5.ctxt, client5.pipe_id);
 	dbtree_print(db);
-	dbtree_insert_client(db, share6, client6.ctxt, client6.pipe_id, MQTT_VERSION_V5);
+	dbtree_insert_client(db, share6, client6.ctxt, client6.pipe_id);
 	dbtree_print(db);
-	dbtree_insert_client(db, share7, client7.ctxt, client7.pipe_id, MQTT_VERSION_V5);
+	dbtree_insert_client(db, share7, client7.ctxt, client7.pipe_id);
 	dbtree_print(db);
-	dbtree_insert_client(db, share8, client8.ctxt, client8.pipe_id, MQTT_VERSION_V5);
+	dbtree_insert_client(db, share8, client8.ctxt, client8.pipe_id);
 	dbtree_print(db);
-	dbtree_insert_client(db, share9, client9.ctxt, client9.pipe_id, MQTT_VERSION_V5);
+	dbtree_insert_client(db, share9, client9.ctxt, client9.pipe_id);
 	dbtree_print(db);
 }
 

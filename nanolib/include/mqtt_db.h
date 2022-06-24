@@ -19,7 +19,6 @@ typedef struct {
 	uint32_t       session_id;
 	uint32_t       pipe_id;
 	void          *ctxt;
-	mqtt_version_t ver;
 } dbtree_client;
 
 typedef struct {
@@ -126,11 +125,10 @@ void dbtree_print(dbtree *db);
  * @param topic - topic
  * @param ctxt - data related with pipe_id
  * @param pipe_id - pipe id
- * @param mqtt_version_t - mqtt protocol version
  * @return
  */
 void *dbtree_insert_client(
-    dbtree *db, char *topic, void *ctxt, uint32_t pipe_id, mqtt_version_t ver);
+    dbtree *db, char *topic, void *ctxt, uint32_t pipe_id);
 
 /**
  * @brief dbtree_find_client - check if this
@@ -217,11 +215,10 @@ bool dbtree_check_shared_sub(const char *topic);
  * @param topic - topic
  * @param ctxt - data related with pipe_id
  * @param pipe_id - pipe id
- * @param mqtt_version_t - mqtt protocol version
  * @return
  */
 void *dbtree_insert_shared_sub_client(
-    dbtree *db, char *topic, void *ctxt, uint32_t pipe_id, mqtt_version_t ver);
+    dbtree *db, char *topic, void *ctxt, uint32_t pipe_id);
 
 /**
  * @brief dbtree_delete_shared_subscibe_client - This function will
