@@ -24,12 +24,12 @@ int encode_suback_msg(nng_msg *, nano_work *);
 int sub_ctx_handle(nano_work *);
 
 /*
- * Delete a client ctx from dbtree in a topic
+ * Delete a client ctx from topic node in dbtree
  */
 int sub_ctx_del(void *db, char *topic, uint32_t pid);
 
 /*
- * Free a client ctx
+ * Free the client ctx
  */
 void sub_ctx_free(client_ctx *);
 

@@ -935,7 +935,8 @@ get_subscriptions(
 		if (0 == dbtree_ctxt_free(db_ctxt)) {
 			client_ctx *ctx = dbtree_ctxt_delete(db_ctxt);
 			if (ctx) {
-				sub_ctx_del(db, pt[i]->topic, ctx->pid.id);
+				if (!dbhash_check_id(ctx->pid.id))
+					sub_ctx_free(ctx);
 			}
 		}
 		dbhash_ptpair_free(pt[i]);

@@ -322,10 +322,13 @@ sub_ctx_del(void *db, char *topic, uint32_t pid)
 		return -1;
 	if (0 == dbtree_ctxt_free(db_ctxt)) {
 		cli_ctx = dbtree_ctxt_delete(db_ctxt);
-		if (cli_ctx) {
-			sub_ctx_free(cli_ctx);
-		}
 	}
+
+	dbhash_del_topic(pid, topic);
+	if (!dbhash_check_id(pid))
+		// TODO data race in client ctx
+		sub_ctx_free(cli_ctx);
+
 	return 0;
 }
 
@@ -339,9 +342,9 @@ destroy_sub_client_cb(void *args, char *topic)
 	db_ctxt = dbtree_delete_client(des->db, topic, 0, des->pid);
 	if (0 == dbtree_ctxt_free(db_ctxt)) {
 		cli_ctx = dbtree_ctxt_delete(db_ctxt);
-		if (cli_ctx) {
-			sub_ctx_free(cli_ctx);
-		}
+		// if (cli_ctx) {
+		// 	sub_ctx_free(cli_ctx);
+		// }
 	}
 
 	return NULL;
@@ -362,6 +365,11 @@ destroy_sub_client(uint32_t pid, dbtree * db)
 	};
 
 	dbhash_del_topic_queue(pid, &destroy_sub_client_cb, (void *) &sdi);
+
+	if (!dbhash_check_id(pid))
+		// TODO data race in client ctx
+		sub_ctx_free(cli_ctx);
+
 	return;
 }
 
