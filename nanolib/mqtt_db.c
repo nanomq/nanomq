@@ -406,7 +406,7 @@ find_next(dbtree_node *node, bool *equal, char **topic_queue, int *index)
  * @return dbtree_client*
  */
 static dbtree_client *
-dbtree_client_new(uint32_t id, void *ctxt, uint32_t pipe_id, mqtt_version_t ver)
+dbtree_client_new(uint32_t id, void *ctxt, uint32_t pipe_id)
 {
 	dbtree_client *client = NULL;
 	client = (dbtree_client *) zmalloc(sizeof(dbtree_client));
@@ -418,7 +418,6 @@ dbtree_client_new(uint32_t id, void *ctxt, uint32_t pipe_id, mqtt_version_t ver)
 	client->session_id = id;
 	client->pipe_id    = pipe_id;
 	client->ctxt       = (void *) dbtree_ctxt_new(ctxt);
-	client->ver        = ver;
 	return client;
 }
 
@@ -783,9 +782,9 @@ search_insert_node(dbtree *db, char *topic, void *args,
 }
 
 void *
-dbtree_insert_client(dbtree *db, char *topic, void *ctxt, uint32_t pipe_id, mqtt_version_t ver)
+dbtree_insert_client(dbtree *db, char *topic, void *ctxt, uint32_t pipe_id)
 {
-	dbtree_client *client = dbtree_client_new(0, ctxt, pipe_id, ver);
+	dbtree_client *client = dbtree_client_new(0, ctxt, pipe_id);
 	return search_insert_node(db, topic, client, insert_client_cb);
 }
 
