@@ -311,19 +311,22 @@ sub_ctx_handle(nano_work *work)
 	return 0;
 }
 
-void
+int
 sub_ctx_del(void *db, char *topic, uint32_t pid)
 {
 	dbtree_ctxt *db_ctxt = NULL;
 	client_ctx  *cli_ctx = NULL;
 
 	db_ctxt = dbtree_delete_client((dbtree *)db, topic, 0, pid);
+	if (!db_ctxt)
+		return -1;
 	if (0 == dbtree_ctxt_free(db_ctxt)) {
 		cli_ctx = dbtree_ctxt_delete(db_ctxt);
 		if (cli_ctx) {
 			sub_ctx_free(cli_ctx);
 		}
 	}
+	return 0;
 }
 
 static void *
