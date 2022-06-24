@@ -267,7 +267,7 @@ sub_ctx_handle(nano_work *work)
 		if (!topic_exist && topic_str) {
 			uint8_t ver = work->proto_ver;
 			dbtree_insert_client(
-			    work->db, topic_str, old_ctx, work->pid.id);
+			    work->db, topic_str, cli_ctx, work->pid.id);
 
 			dbhash_insert_topic(work->pid.id, topic_str);
 		}
