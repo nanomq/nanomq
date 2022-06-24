@@ -907,14 +907,6 @@ iterate_client(dbtree_client ***v)
 			for (int j = 0; j < cvector_size(v[i]); j++) {
 				int index = 0;
 				dbtree_ctxt *ctxt = (dbtree_ctxt *) v[i][j]->ctxt;
-				if (v[i][j]->ver == MQTT_VERSION_V311) {
-					// if ref == 0, implict that it will de deleted.
-					if (0 != dbtree_ctxt_get_ref(ctxt)) {
-						dbtree_ctxt_clone(ctxt);
-						cvector_push_back(ctxts, (void*) ctxt);
-					}
-					continue;
-				}
 
 				if (false ==
 				    binary_search((void **) ids, 0, &index,
@@ -929,6 +921,7 @@ iterate_client(dbtree_client ***v)
 					}
 
 					if (0 != dbtree_ctxt_get_ref(ctxt)) {
+						// if ref == 0, implict that it will de deleted.
 						dbtree_ctxt_clone(ctxt);
 						cvector_push_back(ctxts, (void*) ctxt);
 					}
