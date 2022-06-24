@@ -80,6 +80,8 @@ void dbhash_del_topic_queue(uint32_t id, void* (*cb)(void*, char *), void *args)
 
 bool dbhash_check_id(uint32_t id);
 
+void *dbhash_check_id_and_do(uint32_t id, void* (*cb)(void*), void *arg);
+
 void dbhash_print_topic_queue(uint32_t id);
 
 topic_queue **dbhash_get_topic_queue_all(size_t *sz);

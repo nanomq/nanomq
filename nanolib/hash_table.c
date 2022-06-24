@@ -522,6 +522,18 @@ dbhash_check_id(uint32_t id)
 	return ret;
 }
 
+void *
+dbhash_check_id_and_do(uint32_t id, void *(*cb)(void*), void *arg)
+{
+	void *ret = NULL;
+	pthread_rwlock_wrlock(&pipe_lock);
+	if (!check_id(id) && cb) {
+		ret = cb(arg);
+	}
+	pthread_rwlock_unlock(&pipe_lock);
+	return ret;
+}
+
 /*
  * @obj. _topic_hash.
  * @key. pipe_id.
