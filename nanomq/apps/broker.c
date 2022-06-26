@@ -271,9 +271,10 @@ server_cb(void *arg)
 			nng_msg_set_cmd_type(smsg, CMD_SUBACK);
 			nng_msg_set_pipe(smsg, work->pid);
 			nng_aio_set_msg(work->aio, smsg);
-			smsg = NULL;
+			work->msg   = NULL;
 			work->state = SEND;
 			nng_ctx_send(work->ctx, work->aio);
+			smsg = NULL;
 			nng_aio_finish(work->aio, 0);
 			// free conn_param in SEND state
 			break;
