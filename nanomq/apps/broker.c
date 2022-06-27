@@ -884,6 +884,8 @@ broker(conf *nanomq_conf)
 #if defined(SUPP_RULE_ENGINE)
 			fdb_database_destroy(nanomq_conf->rdb);
 			fdb_stop_network();
+
+
 #endif
 			exit(0);
 		}

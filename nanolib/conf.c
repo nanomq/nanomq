@@ -869,7 +869,6 @@ parse_payload_subfield(char *p, rule_engine_info *info, bool is_store)
 		}
 		payload->pas = zstrdup(p_b);
 	}
-	info->flag[RULE_PAYLOAD_FIELD] = true;
 	return 0;
 }
 

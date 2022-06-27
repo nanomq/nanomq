@@ -727,15 +727,23 @@ rule_engine_insert_sql(nano_work *work)
 				fdb_error_t     e =
 				    fdb_database_create_transaction(
 				        work->config->rdb, &tr);
+				if (e) {
+					fprintf(stderr, "%s\n", fdb_get_error(e));
+				}
 
 				fdb_transaction_set(tr, fdb_key,
 				    strlen(fdb_key), dest, strlen(dest));
-				// if (99 == index%100) {
 				FDBFuture *f = fdb_transaction_commit(tr);
-				// }
+
+				e = fdb_future_block_until_ready(f);
+				if (e) {
+					fprintf(stderr, "%s\n", fdb_get_error(e));
+				}
 
 				fdb_future_destroy(f);
+				fdb_transaction_clear(tr, fdb_key, strlen(fdb_key));
 				fdb_transaction_destroy(tr);
+
 				cJSON_free(dest);
 				cJSON_Delete(jso);
 				break;
@@ -749,7 +757,7 @@ rule_engine_insert_sql(nano_work *work)
 					    compose_sql_clause(&rule_infos[i],
 					        key, value, j, work);
 					if (ret) {
-						puts(ret);
+						// puts(ret);
 						sqlite3 *sdb =
 						    (sqlite3 *)
 						        work->config->sdb;
@@ -770,6 +778,8 @@ rule_engine_insert_sql(nano_work *work)
 						ret = NULL;
 					}
 				}
+				// puts(key);
+				// puts(value);
 				char *p = strrchr(key, ',');
 				*p      = ')';
 				p       = strrchr(value, ',');
