@@ -702,10 +702,11 @@ rule_engine_insert_sql(nano_work *work)
 	conn_param        *cp         = work->cparam;
 	static uint32_t    index      = 0;
 
+
 	for (size_t i = 0; i < rule_size; i++) {
 		if (rule_engine_filter(work, &rule_infos[i])) {
 
-			char fdb_key[pp->var_header.publish.topic_name.len+4];
+			char fdb_key[pp->var_header.publish.topic_name.len+sizeof(uint64_t)];
 			switch (work->config->rule_engine_db_option) {
 			case RULE_ENGINE_FDB:
 				cJSON *jso = NULL;
@@ -716,6 +717,9 @@ rule_engine_insert_sql(nano_work *work)
 					    &rule_infos[i], jso, j, work);
 				}
 
+				if (UINT32_MAX == index) {
+					index = 0;
+				}
 				char *dest = cJSON_PrintUnformatted(jso);
 				sprintf(fdb_key, "%s%u",
 				    pp->var_header.publish.topic_name.body,
