@@ -199,6 +199,7 @@ server_cb(void *arg)
 			if (work->flag != CMD_PUBLISH) {
 				// only accept publish msg from upstream
 				work->state = RECV;
+				nng_msg_free(msg);
 				nng_ctx_recv(work->bridge_ctx, work->aio);
 				break;
 			} else {

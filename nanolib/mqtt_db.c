@@ -27,7 +27,7 @@ static int acnt = 0;
 pthread_rwlock_t rwlock = PTHREAD_RWLOCK_INITIALIZER;
 
 struct dbtree_ctxt{
-	int              ref;
+	atomic_int       ref;
 	void            *ctx;
 };
 
@@ -49,12 +49,12 @@ void *
 dbtree_ctxt_delete(dbtree_ctxt *ctxt)
 {
 	void *ctx = NULL;
-	pthread_rwlock_wrlock(&(rwlock));
+	// pthread_rwlock_wrlock(&(rwlock));
 	assert(ctxt != NULL && ctxt->ref == 0);
 	ctx = ctxt->ctx;
 	zfree(ctxt);
 	ctxt = NULL;
-	pthread_rwlock_unlock(&(rwlock));
+	// pthread_rwlock_unlock(&(rwlock));
 	return ctx;
 }
 
@@ -62,36 +62,36 @@ void *
 dbtree_ctxt_get_ctxt(dbtree_ctxt *ctxt)
 {
 	void *ctx = NULL;
-	pthread_rwlock_rdlock(&(rwlock));
+	// pthread_rwlock_rdlock(&(rwlock));
 	assert(ctxt != NULL && ctxt->ref > 0);
 	ctx = ctxt->ctx;
-	pthread_rwlock_unlock(&(rwlock));
+	// pthread_rwlock_unlock(&(rwlock));
 	return ctx;
 }
 
 int
 dbtree_ctxt_free(dbtree_ctxt *ctxt)
 {
-	pthread_rwlock_wrlock(&(rwlock));
+	// pthread_rwlock_wrlock(&(rwlock));
 	assert(ctxt != NULL && ctxt->ref > 0);
 	int ref = (--ctxt->ref);
-	pthread_rwlock_unlock(&(rwlock));
+	// pthread_rwlock_unlock(&(rwlock));
 	return ref;
 }
 
 int dbtree_ctxt_get_ref(dbtree_ctxt *ctxt)
 {
 	assert(ctxt != NULL);
-	pthread_rwlock_rdlock(&(rwlock));
+	// pthread_rwlock_rdlock(&(rwlock));
 	int ref = ctxt->ref;
-	pthread_rwlock_unlock(&(rwlock));
+	// pthread_rwlock_unlock(&(rwlock));
 	return ref;
 }
 
 void 
 dbtree_ctxt_clone(dbtree_ctxt *ctxt)
 {
-	pthread_rwlock_wrlock(&(rwlock));
+	// pthread_rwlock_wrlock(&(rwlock));
 	assert(ctxt != NULL && ctxt->ref > 0);
 	if (ctxt) {
 		if (ctxt->ref > 0) {
@@ -100,7 +100,7 @@ dbtree_ctxt_clone(dbtree_ctxt *ctxt)
 			log_err("Error clone ctxt->ref == %d", ctxt->ref);
 		}
 	}
-	pthread_rwlock_unlock(&(rwlock));
+	// pthread_rwlock_unlock(&(rwlock));
 }
 
 /**
