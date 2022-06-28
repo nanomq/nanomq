@@ -29,7 +29,6 @@ bridge_publish_msg(const char *topic, uint8_t *payload, uint32_t len, bool dup,
 	nng_mqtt_msg_set_publish_retain(pubmsg, retain);
 	nng_mqtt_msg_set_publish_payload(pubmsg, payload, len);
 	nng_mqtt_msg_set_publish_topic(pubmsg, topic);
-
 	debug_msg("publish to '%s'", topic);
 
 	return pubmsg;
@@ -70,19 +69,19 @@ bridge_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 }
 
 int
-bridge_client(nng_socket *sock, conf *config, conf_bridge *bridge_conf)
+bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 {
-	int        rv;
-	nng_dialer dialer;
+	int           rv;
+	nng_dialer    dialer;
 	bridge_param *bridge_arg;
 
 	if ((rv = nng_mqtt_client_open(sock)) != 0) {
 		fatal("nng_mqtt_client_open", rv);
 		return rv;
 	}
-	nng_socket_set(*sock, NANO_CONF, config, sizeof(conf));
+	nng_socket_set(*sock, NANO_CONF, node, sizeof(conf_bridge_node));
 
-	if ((rv = nng_dialer_create(&dialer, *sock, bridge_conf->address))) {
+	if ((rv = nng_dialer_create(&dialer, *sock, node->address))) {
 		fatal("nng_dialer_create", rv);
 		return rv;
 	}
@@ -92,23 +91,23 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge *bridge_conf)
 	nng_msg *connmsg;
 	nng_mqtt_msg_alloc(&connmsg, 0);
 	nng_mqtt_msg_set_packet_type(connmsg, NNG_MQTT_CONNECT);
-	nng_mqtt_msg_set_connect_keep_alive(connmsg, bridge_conf->keepalive);
-	nng_mqtt_msg_set_connect_proto_version(connmsg, bridge_conf->proto_ver);
-	nng_mqtt_msg_set_connect_clean_session(connmsg, bridge_conf->clean_start);
-	if (bridge_conf->clientid) {
-		nng_mqtt_msg_set_connect_client_id(connmsg, bridge_conf->clientid);
+	nng_mqtt_msg_set_connect_keep_alive(connmsg, node->keepalive);
+	nng_mqtt_msg_set_connect_proto_version(connmsg, node->proto_ver);
+	nng_mqtt_msg_set_connect_clean_session(connmsg, node->clean_start);
+	if (node->clientid) {
+		nng_mqtt_msg_set_connect_client_id(connmsg, node->clientid);
 	}
-	if (bridge_conf->username) {
-		nng_mqtt_msg_set_connect_user_name(connmsg, bridge_conf->username);
+	if (node->username) {
+		nng_mqtt_msg_set_connect_user_name(connmsg, node->username);
 	}
-	if (bridge_conf->password) {
-		nng_mqtt_msg_set_connect_password(connmsg, bridge_conf->password);
+	if (node->password) {
+		nng_mqtt_msg_set_connect_password(connmsg, node->password);
 	}
 
-	bridge_arg = (bridge_param *)nng_alloc(sizeof(bridge_param));
-	bridge_arg->config = bridge_conf;
+	bridge_arg         = (bridge_param *) nng_alloc(sizeof(bridge_param));
+	bridge_arg->config = node;
 	bridge_arg->sock   = sock;
-	bridge_conf->sock = (void *)sock;
+	node->sock         = (void *) sock;
 
 	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
 	nng_mqtt_set_connect_cb(*sock, bridge_connect_cb, bridge_arg);
