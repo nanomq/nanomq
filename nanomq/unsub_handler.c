@@ -42,6 +42,7 @@ decode_unsub_msg(nano_work *work)
 	unsub_pkt->properties = NULL;
 	unsub_pkt->prop_len = 0;
 	// Mqtt_v5 include property
+	unsub_pkt->properties = NULL;
 	if (PROTOCOL_VERSION_v5 == proto_ver) {
 		unsub_pkt->properties =
 		    decode_properties(msg, &vpos, &unsub_pkt->prop_len, false);
