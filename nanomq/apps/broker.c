@@ -336,7 +336,7 @@ server_cb(void *arg)
 			uint8_t  reason_code = *(body + 1);
 			smsg =
 			    nano_msg_notify_connect(work->cparam, reason_code);
-			webhook_client_connack(&work->webhook_sock,
+			webhook_client_connack((nng_socket*)work->config->web_hook.webhook_sock,
 			    &work->config->web_hook, work->proto_ver,
 			    conn_param_get_keepalive(work->cparam),
 			    reason_code, conn_param_get_username(work->cparam),
@@ -353,7 +353,7 @@ server_cb(void *arg)
 			nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 			handle_pub(work, work->pipe_ct, PROTOCOL_VERSION_v311);
 			// TODO set reason code if proto_version = MQTT_V5
-			webhook_client_disconnect(&work->webhook_sock,
+			webhook_client_disconnect((nng_socket*)work->config->web_hook.webhook_sock,
 			    &work->config->web_hook,
 			    conn_param_get_protover(work->cparam),
 			    conn_param_get_keepalive(work->cparam), 0,
@@ -409,7 +409,7 @@ server_cb(void *arg)
 
 			// webhook here
 			if (nng_msg_get_type(work->msg) == CMD_PUBLISH) {
-				webhook_msg_publish(&work->webhook_sock,
+				webhook_msg_publish((nng_socket*)work->config->web_hook.webhook_sock,
 				&work->config->web_hook, work->pub_packet,
 				(const char *) conn_param_get_username(work->cparam),
 				(const char *) conn_param_get_clientid(work->cparam));
@@ -661,16 +661,6 @@ proto_work_init(nng_socket sock, nng_socket bridge_sock, uint8_t proto,
 		}
 	}
 
-	if(config->web_hook.enable) {
-		if ((rv = nng_push0_open(&w->webhook_sock)) != 0) {
-			fatal("nng_socket", rv);
-		}
-		if ((rv = nng_dial(w->webhook_sock, WEB_HOOK_INPROC_URL, NULL,
-		         0)) != 0) {
-			fatal("nng_dial", rv);
-		}
-	}
-
 	return w;
 }
 
@@ -832,6 +822,20 @@ broker(conf *nanomq_conf)
 			    PROTO_MQTT_BRIDGE, db, db_ret, nanomq_conf);
 		}
 	}
+
+	if(nanomq_conf->web_hook.enable) {
+		nng_socket *webhook_sock;
+		nanomq_conf->web_hook.webhook_sock = nng_alloc(sizeof(nng_socket));
+		webhook_sock = (nng_socket *)nanomq_conf->web_hook.webhook_sock;
+		if ((rv = nng_push0_open(webhook_sock)) != 0) {
+			fatal("nng_socket", rv);
+		}
+		if ((rv = nng_dial(*webhook_sock, WEB_HOOK_INPROC_URL, NULL,
+		         0)) != 0) {
+			fatal("nng_dial", rv);
+		}
+	}
+
 
 	if ((rv = nano_listen(sock, nanomq_conf->url, NULL, 0, nanomq_conf)) != 0) {
 		fatal("nng_listen", rv);
