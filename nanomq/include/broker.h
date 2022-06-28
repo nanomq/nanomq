@@ -29,6 +29,7 @@ struct work {
 	uint8_t   proto;
 	// MQTT version cache
 	uint8_t   proto_ver;
+	uint8_t   flag;	      // flag for webhook & rule_engine
 	nng_aio * aio;
 	nng_msg * msg;
 	nng_msg **msg_ret;

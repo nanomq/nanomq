@@ -334,13 +334,10 @@ server_cb(void *arg)
 
 			uint8_t *body        = nng_msg_body(work->msg);
 			uint8_t  reason_code = *(body + 1);
-			smsg =
-			    nano_msg_notify_connect(work->cparam, reason_code);
-			webhook_client_connack(&work->webhook_sock,
-			    &work->config->web_hook, work->proto_ver,
-			    conn_param_get_keepalive(work->cparam),
-			    reason_code, conn_param_get_username(work->cparam),
-			    conn_param_get_clientid(work->cparam));
+			smsg = nano_msg_notify_connect(work->cparam, reason_code);
+			webhook_entry(&work->webhook_sock,
+			    &work->config->web_hook, work->cparam,
+			    reason_code, type);
 			// Set V4/V5 flag for publish notify msg
 			nng_msg_set_cmd_type(smsg, CMD_PUBLISH);
 			nng_msg_free(work->msg);
@@ -352,13 +349,12 @@ server_cb(void *arg)
 			// v4 as default, or send V5 notify msg?
 			nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 			handle_pub(work, work->pipe_ct, PROTOCOL_VERSION_v311);
-			// TODO set reason code if proto_version = MQTT_V5
-			webhook_client_disconnect(&work->webhook_sock,
-			    &work->config->web_hook,
-			    conn_param_get_protover(work->cparam),
-			    conn_param_get_keepalive(work->cparam), 0,
-			    conn_param_get_username(work->cparam),
-			    conn_param_get_clientid(work->cparam));
+			uint8_t *payload = nng_msg_payload_ptr(work->msg);
+			// uint8_t reason_code = *(payload+16);
+			// TODO set reason code
+			webhook_entry(&work->webhook_sock,
+			    &work->config->web_hook, work->cparam,
+			    0, type);
 			// free client ctx
 			if (dbhash_check_id(work->pid.id)) {
 				destroy_sub_client(work->pid.id, work->db);
