@@ -1163,48 +1163,65 @@ get_config(http_msg *msg)
 	    http_obj, "password", config->http_server.password);
 	cJSON_AddStringToObject(http_obj, "auth_type",
 	    config->http_server.auth_type == JWT ? "jwt" : "basic");
-
-	cJSON *bridge_obj = cJSON_CreateObject();
-	cJSON_AddBoolToObject(
-	    bridge_obj, "bridge_mode", config->bridge.bridge_mode);
-
-	cJSON_AddStringToObject(bridge_obj, "address", config->bridge.address);
-	cJSON_AddNumberToObject(
-	    bridge_obj, "proto_ver", config->bridge.proto_ver);
-	cJSON_AddStringToObject(
-	    bridge_obj, "clientid", config->bridge.clientid);
-	cJSON_AddBoolToObject(
-	    bridge_obj, "clean_start", config->bridge.clean_start);
-	cJSON_AddStringToObject(
-	    bridge_obj, "username", config->bridge.username);
-	cJSON_AddStringToObject(
-	    bridge_obj, "password", config->bridge.password);
-	cJSON_AddNumberToObject(
-	    bridge_obj, "keepalive", config->bridge.keepalive);
-	cJSON_AddNumberToObject(
-	    bridge_obj, "parallel", config->bridge.parallel);
-
-	cJSON *pub_topics = cJSON_CreateArray();
-	for (size_t i = 0; i < config->bridge.forwards_count; i++) {
-		cJSON *topic = cJSON_CreateString(config->bridge.forwards[i]);
-		cJSON_AddItemToArray(pub_topics, topic);
-	}
-	cJSON_AddItemToObject(bridge_obj, "forwards", pub_topics);
-
-	cJSON *sub_infos = cJSON_CreateArray();
-	for (size_t j = 0; j < config->bridge.sub_count; j++) {
-		cJSON *   sub_obj = cJSON_CreateObject();
-		subscribe sub     = config->bridge.sub_list[j];
-		cJSON_AddStringToObject(sub_obj, "topic", sub.topic);
-		cJSON_AddNumberToObject(sub_obj, "qos", sub.qos);
-		cJSON_AddItemToArray(sub_infos, sub_obj);
-	}
-
-	cJSON_AddItemToObject(bridge_obj, "subscription", sub_infos);
-
 	cJSON_AddItemToObject(conf_obj, "tls", tls_obj);
 	cJSON_AddItemToObject(conf_obj, "websocket", ws_obj);
 	cJSON_AddItemToObject(conf_obj, "http_server", http_obj);
+
+	cJSON *bridge_obj = cJSON_CreateObject();
+	cJSON *bridge_sqlite_obj = cJSON_CreateObject();
+	conf_bridge *bridge_conf = &config->bridge;
+
+	cJSON *bridge_node_obj = cJSON_CreateArray();
+	for (size_t i = 0; i < bridge_conf->count; i++) {
+		conf_bridge_node *node     = bridge_conf->nodes[i];
+		cJSON *           node_obj = cJSON_CreateObject();
+		cJSON_AddStringToObject(node_obj, "name", node->name);
+		cJSON_AddBoolToObject(node_obj, "bridge_mode", node->enable);
+		cJSON_AddStringToObject(node_obj, "address", node->address);
+		cJSON_AddNumberToObject(
+		    node_obj, "proto_ver", node->proto_ver);
+		cJSON_AddStringToObject(node_obj, "clientid", node->clientid);
+		cJSON_AddBoolToObject(
+		    node_obj, "clean_start", node->clean_start);
+		cJSON_AddStringToObject(node_obj, "username", node->username);
+		cJSON_AddStringToObject(node_obj, "password", node->password);
+		cJSON_AddNumberToObject(
+		    node_obj, "keepalive", node->keepalive);
+		cJSON_AddNumberToObject(node_obj, "parallel", node->parallel);
+
+		cJSON *pub_topics = cJSON_CreateArray();
+		for (size_t i = 0; i < node->forwards_count; i++) {
+			cJSON *topic = cJSON_CreateString(node->forwards[i]);
+			cJSON_AddItemToArray(pub_topics, topic);
+		}
+		cJSON_AddItemToObject(node_obj, "forwards", pub_topics);
+
+		cJSON *sub_infos = cJSON_CreateArray();
+		for (size_t j = 0; j < node->sub_count; j++) {
+			cJSON *   sub_obj = cJSON_CreateObject();
+			subscribe sub     = node->sub_list[j];
+			cJSON_AddStringToObject(sub_obj, "topic", sub.topic);
+			cJSON_AddNumberToObject(sub_obj, "qos", sub.qos);
+			cJSON_AddItemToArray(sub_infos, sub_obj);
+		}
+
+		cJSON_AddItemToObject(node_obj, "subscription", sub_infos);
+		cJSON_AddItemToArray(bridge_node_obj, node_obj);
+	}
+
+	cJSON_AddBoolToObject(
+	    bridge_sqlite_obj, "enable", bridge_conf->sqlite.enable);
+	cJSON_AddNumberToObject(bridge_sqlite_obj, "disk_cache_size",
+	    bridge_conf->sqlite.disk_cache_size);
+	cJSON_AddNumberToObject(bridge_sqlite_obj, "flush_mem_threshold",
+	    bridge_conf->sqlite.flush_mem_threshold);
+	cJSON_AddNumberToObject(bridge_sqlite_obj, "resend_interval",
+	    bridge_conf->sqlite.resend_interval);
+	cJSON_AddStringToObject(bridge_sqlite_obj, "mounted_file_path",
+	    bridge_conf->sqlite.mounted_file_path);
+
+	cJSON_AddItemToObject(bridge_obj, "nodes", bridge_node_obj);
+	cJSON_AddItemToObject(bridge_obj, "sqlite", bridge_sqlite_obj);
 	cJSON_AddItemToObject(conf_obj, "bridge", bridge_obj);
 
 	cJSON *res_obj = cJSON_CreateObject();
@@ -1444,54 +1461,104 @@ update_bridge_conf(cJSON *json, conf *config)
 {
 	int         rv;
 	cJSON *     item;
-	conf_bridge bridge_ct = { 0 };
-	getBoolValue(json, item, "bridge_mode", bridge_ct.bridge_mode, rv);
+	conf_bridge bridge = {0};
+	
+	cJSON *sqlite = cJSON_GetObjectItem(json, "sqlite");
+
+	getBoolValue(sqlite, item, "enable", bridge.sqlite.enable, rv);
+	printf("getBoolValue: %s\n", bridge.sqlite.enable ? "true" : "false");
 	if (rv == 0) {
-		conf_update_bool(config->bridge_file,
-		    "bridge.mqtt.bridge_mode", bridge_ct.bridge_mode);
+		conf_update_bool(config->bridge_file, "bridge.sqlite.enable",
+		    bridge.sqlite.enable);
 	}
-	getStringValue(json, item, "address", bridge_ct.address, rv);
+	getNumberValue(sqlite, item, "disk_cache_size",
+	    bridge.sqlite.disk_cache_size, rv);
 	if (rv == 0) {
-		conf_update(config->bridge_file, "bridge.mqtt.address",
-		    bridge_ct.address);
+		conf_update_u64(config->bridge_file,
+		    "bridge.sqlite.disk_cache_size",
+		    bridge.sqlite.disk_cache_size);
 	}
-	getNumberValue(json, item, "proto_ver", bridge_ct.proto_ver, rv);
+	getStringValue(sqlite, item, "mounted_file_path",
+	    bridge.sqlite.mounted_file_path, rv);
 	if (rv == 0) {
-		conf_update_u8(config->bridge_file, "bridge.mqtt.proto_ver",
-		    bridge_ct.proto_ver);
+		conf_update(config->bridge_file,
+		    "bridge.sqlite.mounted_file_path",
+		    bridge.sqlite.mounted_file_path);
 	}
-	getStringValue(json, item, "clientid", bridge_ct.clientid, rv);
+	getNumberValue(sqlite, item, "flush_mem_threshold",
+	    bridge.sqlite.flush_mem_threshold, rv);
 	if (rv == 0) {
-		conf_update(config->bridge_file, "bridge.mqtt.clientid",
-		    bridge_ct.clientid);
+		conf_update_u64(config->bridge_file,
+		    "bridge.sqlite.flush_mem_threshold",
+		    bridge.sqlite.flush_mem_threshold);
 	}
-	getNumberValue(json, item, "keepalive", bridge_ct.keepalive, rv);
+	getNumberValue(sqlite, item, "resend_interval",
+	    bridge.sqlite.resend_interval, rv);
 	if (rv == 0) {
-		conf_update_u16(config->bridge_file, "bridge.mqtt.keepalive",
-		    bridge_ct.keepalive);
-	}
-	getBoolValue(json, item, "clean_start", bridge_ct.clean_start, rv);
-	if (rv == 0) {
-		conf_update_bool(config->bridge_file,
-		    "bridge.mqtt.clean_start", bridge_ct.clean_start);
-	}
-	getStringValue(json, item, "username", bridge_ct.username, rv);
-	if (rv == 0) {
-		conf_update(config->bridge_file, "bridge.mqtt.username",
-		    bridge_ct.username);
-	}
-	getStringValue(json, item, "password", bridge_ct.password, rv);
-	if (rv == 0) {
-		conf_update(config->bridge_file, "bridge.mqtt.password",
-		    bridge_ct.password);
-	}
-	getNumberValue(json, item, "parallel", bridge_ct.parallel, rv);
-	if (rv == 0) {
-		conf_update_u64(config->bridge_file, "bridge.mqtt.parallel",
-		    bridge_ct.parallel);
+		conf_update_u64(config->bridge_file,
+		    "bridge.sqlite.resend_interval",
+		    bridge.sqlite.resend_interval);
 	}
 
-	cJSON *pub_topics = cJSON_GetObjectItem(json, "forwards");
+	conf_bridge_node node = { 0 };
+
+	cJSON *node_array = cJSON_GetObjectItem(json, "nodes");
+	size_t count = cJSON_GetArraySize(node_array);
+	for (size_t i = 0; i < count; i++)
+	{
+		cJSON *node_obj = cJSON_GetArrayItem(node_array, i);
+		getStringValue(node_obj, item, "name", node.name, rv);
+		if(rv != 0 ){
+			continue;
+		}
+		char *key1 = "bridge.mqtt.";
+		getBoolValue(node_obj, item, "bridge_mode", node.enable, rv);
+	if (rv == 0) {
+		conf_update2_bool(config->bridge_file, key1, node.name,
+		    ".bridge_mode", node.enable);
+	}
+	getStringValue(node_obj, item, "address", node.address, rv);
+	if (rv == 0) {
+		conf_update2(config->bridge_file, key1, node.name, ".address",
+		    node.address);
+	}
+	getNumberValue(node_obj, item, "proto_ver", node.proto_ver, rv);
+	if (rv == 0) {
+		conf_update2_u8(config->bridge_file, key1, node.name,
+		    ".proto_ver", node.proto_ver);
+	}
+	getStringValue(node_obj, item, "clientid", node.clientid, rv);
+	if (rv == 0) {
+		conf_update2(config->bridge_file, key1, node.name, ".clientid",
+		    node.clientid);
+	}
+	getNumberValue(node_obj, item, "keepalive", node.keepalive, rv);
+	if (rv == 0) {
+		conf_update2_u16(config->bridge_file, key1, node.name,
+		    ".keepalive", node.keepalive);
+	}
+	getBoolValue(node_obj, item, "clean_start", node.clean_start, rv);
+	if (rv == 0) {
+		conf_update2_bool(config->bridge_file, key1, node.name,
+		    ".clean_start", node.clean_start);
+	}
+	getStringValue(node_obj, item, "username", node.username, rv);
+	if (rv == 0) {
+		conf_update2(config->bridge_file, key1, node.name, ".username",
+		    node.username);
+	}
+	getStringValue(node_obj, item, "password", node.password, rv);
+	if (rv == 0) {
+		conf_update2(config->bridge_file, key1, node.name, ".password",
+		    node.password);
+	}
+	getNumberValue(node_obj, item, "parallel", node.parallel, rv);
+	if (rv == 0) {
+		conf_update2_u64(config->bridge_file, key1, node.name,
+		    ".parallel", node.parallel);
+	}
+
+	cJSON *pub_topics = cJSON_GetObjectItem(node_obj, "forwards");
 	if (cJSON_IsArray(pub_topics)) {
 		int    topic_count = cJSON_GetArraySize(pub_topics);
 		size_t length      = 0;
@@ -1509,12 +1576,12 @@ update_bridge_conf(cJSON *json, conf *config)
 				strcat(topic_str, ",");
 			}
 		}
-		conf_update(
-		    config->bridge_file, "bridge.mqtt.forwards", topic_str);
+		conf_update2(
+		    config->bridge_file, key1, node.name, ".forwards", topic_str);
 		nng_free(topic_str, length);
 	}
 
-	cJSON *sub_infos = cJSON_GetObjectItem(json, "subscription");
+	cJSON *sub_infos = cJSON_GetObjectItem(node_obj, "subscription");
 	if (cJSON_IsArray(sub_infos)) {
 		int  sub_count        = cJSON_GetArraySize(sub_infos);
 		char sub_keyname[100] = { 0 };
@@ -1527,10 +1594,10 @@ update_bridge_conf(cJSON *json, conf *config)
 			if (rv == 0) {
 				memset(sub_keyname, 0, 100);
 				sprintf(sub_keyname,
-				    "bridge.mqtt.subscription."
+				    "bridge.mqtt.%s.subscription."
 				    "%d."
 				    "topic",
-				    i + 1);
+				    node.name, i + 1);
 				conf_update(config->bridge_file, sub_keyname,
 				    sub_topic);
 			}
@@ -1538,14 +1605,15 @@ update_bridge_conf(cJSON *json, conf *config)
 			if (rv == 0) {
 				memset(sub_keyname, 0, 100);
 				sprintf(sub_keyname,
-				    "bridge.mqtt.subscription."
+				    "bridge.mqtt.%s.subscription."
 				    "%d."
 				    "qos",
-				    i + 1);
+				    node.name, i + 1);
 				conf_update_u8(
 				    config->bridge_file, sub_keyname, sub_qos);
 			}
 		}
+	}
 	}
 }
 

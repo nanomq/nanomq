@@ -381,8 +381,12 @@ extern void print_conf(conf *nanomq_conf);
 extern void conf_fini(conf *nanomq_conf);
 extern void conf_auth_parser(conf *);
 extern void conf_update(const char *fpath, const char *key, char *value);
+extern void conf_update2(const char *fpath, const char *key1, const char *key2,
+    const char *key3, char *value);
 extern void conf_update_var(
     const char *fpath, const char *key, uint8_t type, void *var);
+extern void conf_update_var2(const char *fpath, const char *key1,
+    const char *key2, const char *key3, uint8_t type, void *var);
 
 #define conf_update_int(path, key, var) \
 	conf_update_var(path, key, 0, (void *) &(var))
@@ -400,6 +404,23 @@ extern void conf_update_var(
 	conf_update_var(path, key, 6, (void *) &(var))
 #define conf_update_bool(path, key, var) \
 	conf_update_var(path, key, 7, (void *) &(var))
+
+#define conf_update2_int(path, key1, key2, key3, var) \
+	conf_update_var2(path, key1, key2, key3, 0, (void *) &(var))
+#define conf_update2_u8(path, key1, key2, key3, var) \
+	conf_update_var2(path, key1, key2, key3, 1, (void *) &(var))
+#define conf_update2_u16(path, key1, key2, key3, var) \
+	conf_update_var2(path, key1, key2, key3, 2, (void *) &(var))
+#define conf_update2_u32(path, key1, key2, key3, var) \
+	conf_update_var2(path, key1, key2, key3, 3, (void *) &(var))
+#define conf_update2_u64(path, key1, key2, key3, var) \
+	conf_update_var2(path, key1, key2, key3, 4, (void *) &(var))
+#define conf_update2_long(path, key1, key2, key3, var) \
+	conf_update_var2(path, key1, key2, key3, 5, (void *) &(var))
+#define conf_update2_double(path, key1, key2, key3, var) \
+	conf_update_var2(path, key1, key2, key3, 6, (void *) &(var))
+#define conf_update2_bool(path, key1, key2, key3, var) \
+	conf_update_var2(path, key1, key2, key3, 7, (void *) &(var))
 
 extern int string_trim(char **dst, char *str);
 

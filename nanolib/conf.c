@@ -129,6 +129,15 @@ conf_update_var(const char *fpath, const char *key, uint8_t type, void *var)
 }
 
 void
+conf_update_var2(const char *fpath, const char *key1, const char *key2,
+    const char *key3, uint8_t type, void *var)
+{
+	char key[strlen(key1) + strlen(key2) + strlen(key3) + 2];
+	sprintf(key, "%s%s%s", key1, key2, key3);
+	conf_update_var(fpath, key, type, var);
+}
+
+void
 conf_update(const char *fpath, const char *key, char *value)
 {
 	char **linearray = NULL;
@@ -194,6 +203,15 @@ conf_update(const char *fpath, const char *key, char *value)
 	}
 	free(linearray);
 	fclose(fp);
+}
+
+void
+conf_update2(const char *fpath, const char *key1, const char *key2,
+    const char *key3, char *value)
+{
+	char key[strlen(key1) + strlen(key2) + strlen(key3) + 2];
+	sprintf(key, "%s%s%s", key1, key2, key3);
+	conf_update(fpath, key, value);
 }
 
 static char *
