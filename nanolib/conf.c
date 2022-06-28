@@ -36,6 +36,12 @@ static conf_http_header **conf_parse_http_headers(
 static bool conf_sqlite_parse(
     conf_sqlite *sqlite, const char *path, const char *key_prefix);
 static void conf_sqlite_destroy(conf_sqlite *sqlite);
+static void conf_bridge_init(conf_bridge *bridge);
+static void conf_bridge_node_init(conf_bridge_node *node);
+static void conf_bridge_destroy(conf_bridge *bridge);
+static void conf_bridge_node_destroy(conf_bridge_node *node);
+static bool conf_bridge_node_parse_subs(
+    conf_bridge_node *node, const char *path, const char *name);
 
 static char *
 strtrim(char *str, size_t len)
@@ -216,6 +222,15 @@ get_conf_value_with_prefix(
 {
 	char str[strlen(prefix) + strlen(key) + 2];
 	sprintf(str, "%s%s", prefix, key);
+	return get_conf_value(line, len, str);
+}
+
+static char *
+get_conf_value_with_prefix2(char *line, size_t len, const char *prefix,
+    const char *name, const char *key)
+{
+	char str[strlen(prefix) + strlen(name) + strlen(key) + 2];
+	sprintf(str, "%s%s%s", prefix, name, key);
 	return get_conf_value(line, len, str);
 }
 
@@ -582,11 +597,7 @@ conf_init(conf *nanomq_conf)
 	nanomq_conf->websocket.url     = NULL;
 	nanomq_conf->websocket.tls_url = NULL;
 
-	nanomq_conf->bridge.bridge_mode = false;
-	nanomq_conf->bridge.sub_count   = 0;
-	nanomq_conf->bridge.parallel    = 1;
-	conf_tls_init(&nanomq_conf->bridge.tls);
-	conf_sqlite_init(&nanomq_conf->bridge.sqlite);
+	conf_bridge_init(&nanomq_conf->bridge);
 
 	nanomq_conf->web_hook.enable         = false;
 	nanomq_conf->web_hook.url            = NULL;
@@ -1376,8 +1387,9 @@ out:
 	return true;
 }
 
-bool
-conf_bridge_parse_subs(conf_bridge *bridge, const char *path)
+static bool
+conf_bridge_node_parse_subs(
+    conf_bridge_node *node, const char *path, const char *name)
 {
 	FILE *fp;
 	if ((fp = fopen(path, "r")) == NULL) {
@@ -1385,8 +1397,8 @@ conf_bridge_parse_subs(conf_bridge *bridge, const char *path)
 		return false;
 	}
 
-	char    topic_key[64] = "";
-	char    qos_key[64]   = "";
+	char    topic_key[128] = "";
+	char    qos_key[128]   = "";
 	char *  topic;
 	uint8_t qos;
 	size_t  sub_index = 1;
@@ -1396,10 +1408,10 @@ conf_bridge_parse_subs(conf_bridge *bridge, const char *path)
 	size_t  sz        = 0;
 	char *  value     = NULL;
 
-	bridge->sub_count = 0;
+	node->sub_count = 0;
 	while (nano_getline(&line, &sz, fp) != -1) {
-		sprintf(topic_key, "bridge.mqtt.subscription.%ld.topic",
-		    sub_index);
+		sprintf(topic_key, "bridge.mqtt.%s.subscription.%ld.topic",
+		    name, sub_index);
 		if (!get_topic &&
 		    (value = get_conf_value(line, sz, topic_key)) != NULL) {
 			topic     = value;
@@ -1407,8 +1419,8 @@ conf_bridge_parse_subs(conf_bridge *bridge, const char *path)
 			goto check;
 		}
 
-		sprintf(
-		    qos_key, "bridge.mqtt.subscription.%ld.qos", sub_index);
+		sprintf(qos_key, "bridge.mqtt.%s.subscription.%ld.qos", name,
+		    sub_index);
 		if (!get_qos &&
 		    (value = get_conf_value(line, sz, qos_key)) != NULL) {
 			qos = (uint8_t) atoi(value);
@@ -1423,13 +1435,13 @@ conf_bridge_parse_subs(conf_bridge *bridge, const char *path)
 	check:
 		if (get_topic && get_qos) {
 			sub_index++;
-			bridge->sub_count++;
-			bridge->sub_list = realloc(bridge->sub_list,
-			    sizeof(subscribe) * bridge->sub_count);
-			bridge->sub_list[bridge->sub_count - 1].topic = topic;
-			bridge->sub_list[bridge->sub_count - 1].topic_len =
+			node->sub_count++;
+			node->sub_list = realloc(node->sub_list,
+			    sizeof(subscribe) * node->sub_count);
+			node->sub_list[node->sub_count - 1].topic = topic;
+			node->sub_list[node->sub_count - 1].topic_len =
 			    strlen(topic);
-			bridge->sub_list[bridge->sub_count - 1].qos = qos;
+			node->sub_list[node->sub_count - 1].qos = qos;
 
 			get_topic = false;
 			get_qos   = false;
@@ -1444,31 +1456,173 @@ conf_bridge_parse_subs(conf_bridge *bridge, const char *path)
 	return true;
 }
 
-conf_bridge *
-bridge_conf_init()
+static void
+conf_bridge_init(conf_bridge *bridge)
 {
-	conf_bridge *bconf;
-	if ((bconf = zmalloc(sizeof(conf_bridge))) == NULL) {
+	bridge->count = 0;
+	bridge->nodes = NULL;
+	conf_sqlite_init(&bridge->sqlite);
+}
+
+static void
+conf_bridge_node_init(conf_bridge_node *node)
+{
+	node->sock           = NULL;
+	node->name           = NULL;
+	node->enable         = false;
+	node->parallel       = 2;
+	node->address        = NULL;
+	node->clean_start    = true;
+	node->clientid       = NULL;
+	node->username       = NULL;
+	node->password       = NULL;
+	node->proto_ver      = 4;
+	node->keepalive      = 60;
+	node->forwards_count = 0;
+	node->forwards       = NULL;
+	node->sub_count      = 0;
+	node->sub_list       = NULL;
+	node->sqlite         = NULL;
+	conf_tls_init(&node->tls);
+}
+
+static void
+free_bridge_group_names(char **group_names, size_t n)
+{
+	if (group_names) {
+		for (size_t i = 0; i < n; i++) {
+			free(group_names[i]);
+		}
+		free(group_names);
+		group_names = NULL;
+	}
+}
+
+static char **
+get_bridge_group_names(const char *path, size_t *count)
+{
+	FILE *fp;
+	if ((fp = fopen(path, "r")) == NULL) {
+		debug_msg("File %s open failed", path);
+		return NULL;
+	}
+	char * line        = NULL;
+	size_t sz          = 0;
+	char **group_names = calloc(1, sizeof(char *));
+	size_t group_count = 0;
+	while (nano_getline(&line, &sz, fp) != -1) {
+		char *value = calloc(1, sz);
+		char *str   = strtrim_head_tail(line, sz);
+		int   res   = sscanf(str, "bridge.mqtt.%[^.].%*[^=]=%*[^\n]", value);
+		// avoid to read old version nanomq_bridge.conf
+		if (res == 1 && strchr(value, '=') == NULL) {
+			bool exists = false;
+			for (size_t i = 0; i < group_count; i++) {
+				if (strcmp(group_names[i], value) == 0) {
+					exists = true;
+					break;
+				}
+			}
+			if (!exists) {
+				group_names = realloc(group_names,
+				    sizeof(char *) * (group_count + 1));
+				group_names[group_count] =
+				    strtrim_head_tail(value, strlen(value));
+				group_count++;
+			}
+		}
+		if (value) {
+			free(value);
+		}
+		free(str);
+		free(line);
+		line = NULL;
+	}
+	if (line) {
+		free(line);
+	}
+	if(group_count == 0) {
+		free(group_names);
+		group_names = NULL;
+	}
+	*count = group_count;
+	return group_names;
+}
+
+static conf_bridge_node *
+conf_bridge_node_parse_with_name(const char *path, const char *name)
+{
+	FILE *fp;
+	if ((fp = fopen(path, "r")) == NULL) {
+		debug_msg("File %s open failed", path);
 		return NULL;
 	}
 
-	bconf->sock           = NULL;
-	bconf->enable         = false;
-	bconf->sub_count      = 0;
-	bconf->parallel       = 1;
-	bconf->address        = NULL;
-	bconf->clean_start    = 1;
-	bconf->clientid       = NULL;
-	bconf->username       = NULL;
-	bconf->password       = NULL;
-	bconf->proto_ver      = 4;
-	bconf->keepalive      = 30;
-	bconf->forwards_count = 0;
-	bconf->forwards       = (char **) malloc(sizeof(char *));
-	bconf->forwards[0]    = NULL;
-	bconf->sub_list       = (subscribe *) malloc(sizeof(subscribe));
-	conf_tls_init(&bconf->tls);
-	return bconf;
+	conf_bridge_node *node = calloc(1, sizeof(conf_bridge_node));
+	conf_bridge_node_init(node);
+	char key_prefix[] = "bridge.mqtt.";
+	char *line = NULL;
+	size_t sz  = 0;
+	char *value = NULL;
+	while (nano_getline(&line, &sz, fp) != -1) {
+		if ((value = get_conf_value_with_prefix2(line, sz, key_prefix,
+		         name, ".bridge_mode")) != NULL) {
+			node->enable = strcasecmp(value, "true") == 0;
+			free(value);
+		} else if ((value = get_conf_value_with_prefix2(line, sz,
+		                key_prefix, name, ".proto_ver")) != NULL) {
+			node->proto_ver = atoi(value);
+			free(value);
+		} else if ((value = get_conf_value_with_prefix2(line, sz,
+		                key_prefix, name, ".keepalive")) != NULL) {
+			node->keepalive = atoi(value);
+			free(value);
+		} else if ((value = get_conf_value_with_prefix2(line, sz,
+		                key_prefix, name, ".clean_start")) != NULL) {
+			node->clean_start = strcasecmp(value, "true") == 0;
+			free(value);
+		} else if ((value = get_conf_value_with_prefix2(line, sz,
+		                key_prefix, name, ".parallel")) != NULL) {
+			node->parallel = atoi(value);
+			free(value);
+		} else if ((value = get_conf_value_with_prefix2(line, sz,
+		                key_prefix, name, ".address")) != NULL) {
+			node->address = value;
+		} else if ((value = get_conf_value_with_prefix2(line, sz,
+		                key_prefix, name, ".clientid")) != NULL) {
+			node->clientid = value;
+		} else if ((value = get_conf_value_with_prefix2(line, sz,
+		                key_prefix, name, ".username")) != NULL) {
+			node->username = value;
+		} else if ((value = get_conf_value_with_prefix2(line, sz,
+		                key_prefix, name, ".password")) != NULL) {
+			node->password = value;
+		} else if ((value = get_conf_value_with_prefix2(line, sz,
+		                key_prefix, name, ".forwards")) != NULL) {
+			char *tk = strtok(value, ",");
+			while (tk != NULL) {
+				node->forwards_count++;
+				node->forwards = realloc(node->forwards,
+				    sizeof(char *) * node->forwards_count);
+				node->forwards[node->forwards_count - 1] =
+				    strdup(tk);
+				tk = strtok(NULL, ",");
+			}
+			free(value);
+		}
+
+		free(line);
+		line = NULL;
+	}
+
+	if (line) {
+		free(line);
+	}
+	fclose(fp);
+
+	conf_bridge_node_parse_subs(node, path, name);
+
+	return node;
 }
 
 bool
@@ -1486,159 +1640,125 @@ conf_bridge_parse(conf *nanomq_conf)
 			dest_path = CONF_BRIDGE_PATH_NAME;
 		}
 	}
+	conf_bridge *bridge = &nanomq_conf->bridge;
 
-	char * line = NULL;
-	size_t sz   = 0;
-	FILE * fp;
+	// 1. parse sqlite config from nanomq_bridge.conf
+	conf_sqlite_parse(&bridge->sqlite, dest_path, "bridge");
 
-	// TODO read from file
-	conf_bridge *bridge = bridge_conf_init();
-	nanomq_conf->bridge = (conf_bridge**)zmalloc( 2*sizeof (conf_bridge*));
-	nanomq_conf->bridge[0] = bridge;
-	conf_bridge *bridge2 = bridge_conf_init();
-	bridge2->parallel = 2;
-	// nanomq_conf->bridge[1] = zmalloc(sizeof (conf_bridge*));
-	nanomq_conf->bridge[1] = bridge2;
-	nanomq_conf->bridge_num = 2;
+	// 2. find all the name from the file
+	size_t group_count;
+	char **group_names = get_bridge_group_names(dest_path, &group_count);
 
-	if ((fp = fopen(dest_path, "r")) == NULL) {
-		debug_msg("File %s open failed", dest_path);
-		bridge->enable = false;
-		return true;
+	if (group_count == 0 || group_names == NULL) {
+		debug_msg("No bridge config group found");
+		return false;
 	}
 
-	char *value;
-	while (nano_getline(&line, &sz, fp) != -1) {
-		if ((value = get_conf_value(
-		         line, sz, "bridge.mqtt.bridge_mode")) != NULL) {
-			bridge->enable = strcasecmp(value, "true") == 0;
-			nanomq_conf->bridge_mode |= bridge->enable;
-			free(value);
-		} else if ((value = get_conf_value(
-		                line, sz, "bridge.mqtt.proto_ver")) != NULL) {
-			bridge->proto_ver = atoi(value);
-			free(value);
-		} else if ((value = get_conf_value(
-		                line, sz, "bridge.mqtt.keepalive")) != NULL) {
-			bridge->keepalive = atoi(value);
-			free(value);
-		} else if ((value = get_conf_value(line, sz,
-		                "bridge.mqtt.clean_start")) != NULL) {
-			bridge->clean_start = strcasecmp(value, "true") == 0;
-			free(value);
-		} else if ((value = get_conf_value(
-		                line, sz, "bridge.mqtt.parallel")) != NULL) {
-			bridge->parallel = atoi(value);
-			free(value);
-		} else if ((value = get_conf_value(
-		                line, sz, "bridge.mqtt.address")) != NULL) {
-			bridge->address = value;
-		} else if ((value = get_conf_value(
-		                line, sz, "bridge.mqtt.clientid")) != NULL) {
-			bridge->clientid = value;
-		} else if ((value = get_conf_value(
-		                line, sz, "bridge.mqtt.username")) != NULL) {
-			bridge->username = value;
-		} else if ((value = get_conf_value(
-		                line, sz, "bridge.mqtt.password")) != NULL) {
-			bridge->password = value;
-		} else if ((value = get_conf_value(
-		                line, sz, "bridge.mqtt.forwards")) != NULL) {
-			char *tk = strtok(value, ",");
-			while (tk != NULL) {
-				bridge->forwards_count++;
-				bridge->forwards = realloc(bridge->forwards,
-				    sizeof(char *) * bridge->forwards_count);
-				bridge->forwards[bridge->forwards_count - 1] =
-				    strdup(tk);
-				tk = strtok(NULL, ",");
+	// 3. foreach the names as the key, get the value from the file and set
+	// sqlite config pointer;
+	conf_bridge_node **node_array =
+	    calloc(group_count, sizeof(conf_bridge_node *));
+
+	bridge->count = group_count;
+	for (size_t i = 0; i < group_count; i++) {
+		conf_bridge_node *node = conf_bridge_node_parse_with_name(
+		    dest_path, group_names[i]);
+		node->name    = strdup(group_names[i]);
+		node->sqlite  = &bridge->sqlite;
+		node_array[i] = node;
+		nanomq_conf->bridge_mode |= node->enable;
+	}
+	bridge->nodes = node_array;
+	free_bridge_group_names(group_names, group_count);
+
+	return true;
+}
+
+void
+conf_bridge_node_destroy(conf_bridge_node *node)
+{
+	node->enable = false;
+	if (node->name) {
+		free(node->name);
+	}
+	if (node->clientid) {
+		free(node->clientid);
+	}
+	if (node->address) {
+		free(node->address);
+	}
+	if (node->username) {
+		free(node->username);
+	}
+	if (node->password) {
+		free(node->password);
+	}
+	if (node->forwards) {
+		free(node->forwards);
+	}
+	if (node->forwards_count > 0 && node->forwards) {
+		for (size_t i = 0; i < node->forwards_count; i++) {
+			if (node->forwards[i]) {
+				free(node->forwards[i]);
 			}
-			free(value);
 		}
-
-		free(line);
-		line = NULL;
+		free(node->forwards);
 	}
-	if (line) {
-		free(line);
+	if (node->sub_count > 0 && node->sub_list) {
+		for (size_t i = 0; i < node->sub_count; i++) {
+			if (node->sub_list[i].topic) {
+				free(node->sub_list[i].topic);
+			}
+		}
+		free(node->sub_list);
 	}
-
-	fclose(fp);
-	conf_bridge_parse_subs(bridge, dest_path);
-	conf_sqlite_parse(&bridge->sqlite, dest_path, "bridge.sqlite");
-	return true;
-
-out:
-	fclose(fp);
-	return true;
+	conf_tls_destroy(&node->tls);
 }
 
 void
 conf_bridge_destroy(conf_bridge *bridge)
 {
-	if (bridge->clientid) {
-		free(bridge->clientid);
-	}
-	if (bridge->address) {
-		free(bridge->address);
-	}
-	if (bridge->username) {
-		free(bridge->username);
-	}
-	if (bridge->password) {
-		free(bridge->password);
-	}
-	if (bridge->forwards) {
-		free(bridge->forwards);
-	}
-	if (bridge->forwards_count > 0 && bridge->forwards) {
-		for (size_t i = 0; i < bridge->forwards_count; i++) {
-			if (bridge->forwards[i]) {
-				free(bridge->forwards[i]);
-			}
+	if (bridge->count > 0) {
+		for (size_t i = 0; i < bridge->count; i++) {
+			conf_bridge_node *node = bridge->nodes[i];
+			conf_bridge_node_destroy(node);
+			free(node);
 		}
-		free(bridge->forwards);
+		bridge->count = 0;
+		free(bridge->nodes);
+		bridge->nodes = NULL;
+		conf_sqlite_destroy(&bridge->sqlite);
 	}
-	if (bridge->sub_count > 0 && bridge->sub_list) {
-		for (size_t i = 0; i < bridge->sub_count; i++) {
-			if (bridge->sub_list[i].topic) {
-				free(bridge->sub_list[i].topic);
-			}
-		}
-		free(bridge->sub_list);
-	}
-	conf_tls_destroy(&bridge->tls);
-	conf_sqlite_destroy(&bridge->sqlite);
 }
 
 void
 print_bridge_conf(conf_bridge *bridge)
 {
-	debug_msg("bridge.mqtt.enable:  %s",
-	    bridge->enable ? "true" : "false");
-	if (!bridge->enable) {
-		return;
-	}
-	debug_msg("bridge.mqtt.address:      %s", bridge->address);
-	debug_msg("bridge.mqtt.proto_ver:    %d", bridge->proto_ver);
-	debug_msg("bridge.mqtt.clientid:     %s", bridge->clientid);
-	debug_msg("bridge.mqtt.clean_start:  %d", bridge->clean_start);
-	debug_msg("bridge.mqtt.username:     %s", bridge->username);
-	debug_msg("bridge.mqtt.password:     %s", bridge->password);
-	debug_msg("bridge.mqtt.keepalive:    %d", bridge->keepalive);
-	debug_msg("bridge.mqtt.parallel:     %ld", bridge->parallel);
-	debug_msg("bridge.mqtt.forwards: ");
-	for (size_t i = 0; i < bridge->forwards_count; i++) {
-		debug_msg("\t[%ld] topic:        %s", i, bridge->forwards[i]);
-	}
-	debug_msg("bridge.mqtt.subscription: ");
-	for (size_t i = 0; i < bridge->sub_count; i++) {
-		debug_msg("\t[%ld] topic:        %.*s", i + 1,
-		    bridge->sub_list[i].topic_len, bridge->sub_list[i].topic);
-		debug_msg("\t[%ld] qos:          %d", i + 1,
-		    bridge->sub_list[i].qos);
-	}
-	debug_msg("");
+	// debug_msg("bridge.mqtt.enable:  %s",
+	//     bridge->enable ? "true" : "false");
+	// if (!bridge->enable) {
+	// 	return;
+	// }
+	// debug_msg("bridge.mqtt.address:      %s", bridge->address);
+	// debug_msg("bridge.mqtt.proto_ver:    %d", bridge->proto_ver);
+	// debug_msg("bridge.mqtt.clientid:     %s", bridge->clientid);
+	// debug_msg("bridge.mqtt.clean_start:  %d", bridge->clean_start);
+	// debug_msg("bridge.mqtt.username:     %s", bridge->username);
+	// debug_msg("bridge.mqtt.password:     %s", bridge->password);
+	// debug_msg("bridge.mqtt.keepalive:    %d", bridge->keepalive);
+	// debug_msg("bridge.mqtt.parallel:     %ld", bridge->parallel);
+	// debug_msg("bridge.mqtt.forwards: ");
+	// for (size_t i = 0; i < bridge->forwards_count; i++) {
+	// 	debug_msg("\t[%ld] topic:        %s", i, bridge->forwards[i]);
+	// }
+	// debug_msg("bridge.mqtt.subscription: ");
+	// for (size_t i = 0; i < bridge->sub_count; i++) {
+	// 	debug_msg("\t[%ld] topic:        %.*s", i + 1,
+	// 	    bridge->sub_list[i].topic_len, bridge->sub_list[i].topic);
+	// 	debug_msg("\t[%ld] qos:          %d", i + 1,
+	// 	    bridge->sub_list[i].qos);
+	// }
+	// debug_msg("");
 }
 
 static webhook_event
@@ -2271,8 +2391,7 @@ conf_fini(conf *nanomq_conf)
 
 	zfree(nanomq_conf->websocket.url);
 
-	//TODO destroy bridge conf by size of nanomq_conf->bridge_num
-	conf_bridge_destroy(nanomq_conf->bridge[0]);
+	conf_bridge_destroy(&nanomq_conf->bridge);
 	conf_web_hook_destroy(&nanomq_conf->web_hook);
 	conf_auth_http_destroy(&nanomq_conf->auth_http);
 

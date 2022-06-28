@@ -180,23 +180,32 @@ typedef struct {
 	uint8_t  qos;
 } subscribe;
 
+struct conf_bridge_node {
+	bool         enable;
+	char *       name;
+	char *       address;
+	uint8_t      proto_ver;
+	char *       clientid;
+	bool         clean_start;
+	char *       username;
+	char *       password;
+	uint16_t     keepalive;
+	size_t       forwards_count;
+	char **      forwards;
+	size_t       sub_count;
+	subscribe *  sub_list;
+	uint64_t     parallel;
+	conf_tls     tls;
+	void *       sock;
+	conf_sqlite *sqlite;
+};
+
+typedef struct conf_bridge_node conf_bridge_node;
+
 struct conf_bridge {
-	bool       enable;
-	char      *address;
-	uint8_t    proto_ver;
-	char      *clientid;
-	bool       clean_start;
-	char      *username;
-	char      *password;
-	uint16_t   keepalive;
-	size_t     forwards_count;
-	char     **forwards;
-	size_t     sub_count;
-	subscribe *sub_list;
-	uint64_t   parallel;
-	conf_tls   tls;
+	size_t count;
+	conf_bridge_node **nodes;
 	conf_sqlite sqlite;
-	void *      sock;
 };
 
 typedef struct conf_bridge conf_bridge;
@@ -332,7 +341,6 @@ struct conf {
 	uint32_t         parallel;
 	uint32_t         max_packet_size;
 	uint32_t         client_max_packet_size;
-	uint32_t         bridge_num;
 	int              property_size;
 	int              msq_len;
 	int              qos_duration;
@@ -345,7 +353,7 @@ struct conf {
 	conf_tls         tls;
 	conf_http_server http_server;
 	conf_websocket   websocket;
-	conf_bridge **   bridge;
+	conf_bridge      bridge;
 	conf_web_hook    web_hook;
 
 #if defined(SUPP_RULE_ENGINE)
