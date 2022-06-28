@@ -237,25 +237,26 @@ webhook_client_disconnect(nng_socket *sock, conf_web_hook *hook_conf,
 
 int webhook_entry(nano_work *work, uint8_t reason)
 {
+	int rv = 0;
 	conf_web_hook *hook_conf = &work->config->web_hook;
     	conn_param *cparam = work->cparam;
 	nng_socket *sock = &work->webhook_sock;
 	switch (work->flag)
 	{
 	case CMD_CONNACK:
-		webhook_client_connack(sock, hook_conf,
+		rv = webhook_client_connack(sock, hook_conf,
 		    conn_param_get_protover(cparam),
 		    conn_param_get_keepalive(cparam), reason,
 		    conn_param_get_username(cparam),
 		    conn_param_get_clientid(cparam));
 		break;
 	case CMD_PUBLISH:
-		webhook_msg_publish(sock, hook_conf, work->pub_packet,
+		rv = webhook_msg_publish(sock, hook_conf, work->pub_packet,
 		    conn_param_get_username(cparam),
 		    conn_param_get_clientid(cparam));
 		break;
 	case CMD_DISCONNECT_EV:
-		webhook_client_disconnect(sock, hook_conf,
+		rv = webhook_client_disconnect(sock, hook_conf,
 		    conn_param_get_protover(cparam),
 		    conn_param_get_keepalive(cparam), reason,
 		    conn_param_get_username(cparam),
@@ -267,4 +268,5 @@ int webhook_entry(nano_work *work, uint8_t reason)
 	default:
 		break;
 	}
+	return rv;
 }
