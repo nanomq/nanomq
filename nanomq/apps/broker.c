@@ -347,9 +347,9 @@ server_cb(void *arg)
 			// v4 as default, or send V5 notify msg?
 			nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 			handle_pub(work, work->pipe_ct, PROTOCOL_VERSION_v311);
-			uint8_t *payload = nng_msg_payload_ptr(work->msg);
-			// uint8_t reason_code = *(payload+16);
 			// TODO set reason code
+			// uint8_t *payload = nng_msg_payload_ptr(work->msg);
+			// uint8_t reason_code = *(payload+16);
 			webhook_entry(work, 0);
 			// free client ctx
 			if (dbhash_check_id(work->pid.id)) {
