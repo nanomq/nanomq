@@ -39,6 +39,8 @@ decode_unsub_msg(nano_work *work)
 	NNI_GET16(variable_ptr, unsub_pkt->packet_id);
 	vpos += 2;
 
+	unsub_pkt->properties = NULL;
+	unsub_pkt->prop_len = 0;
 	// Mqtt_v5 include property
 	if (PROTOCOL_VERSION_v5 == proto_ver) {
 		unsub_pkt->properties =
@@ -219,7 +221,7 @@ unsub_pkt_free(packet_unsubscribe *unsub_pkt)
 		return;
 	}
 
-	if (unsub_pkt->properties) {
+	if (unsub_pkt->prop_len != 0) {
 		property_free(unsub_pkt->properties);
 		unsub_pkt->properties = NULL;
 		unsub_pkt->prop_len = 0;
