@@ -168,7 +168,6 @@ server_cb(void *arg)
 	int            rv;
 
 	uint8_t *ptr;
-	uint8_t  type;
 
 	mqtt_msg_info *msg_info;
 
@@ -195,8 +194,9 @@ server_cb(void *arg)
 			fatal("RECV NULL MSG", rv);
 		}
 		if (work->proto == PROTO_MQTT_BRIDGE) {
+			uint8_t type;
 			type = nng_msg_get_type(msg);
-			if (type != CMD_PUBLISH) {
+			if (work->flag != CMD_PUBLISH) {
 				// only accept publish msg from upstream
 				work->state = RECV;
 				nng_ctx_recv(work->bridge_ctx, work->aio);
@@ -209,9 +209,9 @@ server_cb(void *arg)
 		work->pid       = nng_msg_get_pipe(work->msg);
 		work->cparam    = nng_msg_get_conn_param(work->msg);
 		work->proto_ver = conn_param_get_protover(work->cparam);
-		type            = nng_msg_cmd_type(msg);
+		work->flag      = nng_msg_cmd_type(msg);
 
-		if (type == CMD_SUBSCRIBE) {
+		if (work->flag == CMD_SUBSCRIBE) {
 			smsg = work->msg;
 
 			work->pid = nng_msg_get_pipe(work->msg);
@@ -278,7 +278,7 @@ server_cb(void *arg)
 			nng_aio_finish(work->aio, 0);
 			// free conn_param in SEND state
 			break;
-		} else if (type == CMD_UNSUBSCRIBE) {
+		} else if (work->flag == CMD_UNSUBSCRIBE) {
 			work->pid = nng_msg_get_pipe(work->msg);
 			smsg = work->msg;
 			if ((work->unsub_pkt = nng_alloc(
@@ -306,7 +306,7 @@ server_cb(void *arg)
 			nng_aio_finish(work->aio, 0);
 			//free conn_param in SEND state
 			break;
-		} else if (type == CMD_PUBLISH) {
+		} else if (work->flag == CMD_PUBLISH) {
 			// Set V4/V5 flag for publish msg
 			if (work->proto_ver == 5) {
 				nng_msg_set_cmd_type(msg, CMD_PUBLISH_V5);
@@ -325,7 +325,7 @@ server_cb(void *arg)
 				nng_aio_finish(work->aio, 0);
 				return;
 			}
-		} else if (type == CMD_CONNACK) {
+		} else if (work->flag == CMD_CONNACK) {
 			nng_msg_set_pipe(work->msg, work->pid);
 			// clone for sending connect event notification
 			nng_msg_clone(work->msg);
@@ -335,9 +335,7 @@ server_cb(void *arg)
 			uint8_t *body        = nng_msg_body(work->msg);
 			uint8_t  reason_code = *(body + 1);
 			smsg = nano_msg_notify_connect(work->cparam, reason_code);
-			webhook_entry(&work->webhook_sock,
-			    &work->config->web_hook, work->cparam,
-			    reason_code, type);
+			webhook_entry(work, reason_code);
 			// Set V4/V5 flag for publish notify msg
 			nng_msg_set_cmd_type(smsg, CMD_PUBLISH);
 			nng_msg_free(work->msg);
@@ -345,16 +343,14 @@ server_cb(void *arg)
 			handle_pub(work, work->pipe_ct, PROTOCOL_VERSION_v311);
 			// remember to free conn_param in WAIT 
 			// due to clone in protocol layer
-		} else if (type == CMD_DISCONNECT_EV) {
+		} else if (work->flag == CMD_DISCONNECT_EV) {
 			// v4 as default, or send V5 notify msg?
 			nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 			handle_pub(work, work->pipe_ct, PROTOCOL_VERSION_v311);
 			uint8_t *payload = nng_msg_payload_ptr(work->msg);
 			// uint8_t reason_code = *(payload+16);
 			// TODO set reason code
-			webhook_entry(&work->webhook_sock,
-			    &work->config->web_hook, work->cparam,
-			    0, type);
+			webhook_entry(work, 0);
 			// free client ctx
 			if (dbhash_check_id(work->pid.id)) {
 				destroy_sub_client(work->pid.id, work->db);
@@ -403,13 +399,6 @@ server_cb(void *arg)
 					}
 			work->msg = smsg;
 
-			// webhook here
-			if (nng_msg_get_type(work->msg) == CMD_PUBLISH) {
-				webhook_msg_publish(&work->webhook_sock,
-				&work->config->web_hook, work->pub_packet,
-				(const char *) conn_param_get_username(work->cparam),
-				(const char *) conn_param_get_clientid(work->cparam));
-			}
 			// bridge logic first
 			conf_bridge *bridge_conf = &(work->config->bridge);
 			if (bridge_conf->bridge_mode) {
@@ -443,7 +432,7 @@ server_cb(void *arg)
 			}
 			//check webhook & rule engine
 			conf_web_hook *hook_conf   = &(work->config->web_hook);
-			if (hook_conf->enable || bridge_conf->bridge_mode) {
+			if (hook_conf->enable) {
 				work->state = SEND;
 				nng_aio_finish(work->aio, 0);
 				break;
@@ -485,6 +474,11 @@ server_cb(void *arg)
 	case SEND:
 		debug_msg("SEND ^^^^ ctx%d ^^^^", work->ctx.id);
 
+		// webhook here
+		conf_web_hook *hook_conf   = &(work->config->web_hook);
+		if (hook_conf->enable) {
+			webhook_entry(work, 0);
+		}
 		if (NULL != work->msg) {
 			nng_msg_free(work->msg);
 			work->msg = NULL;
@@ -504,6 +498,7 @@ server_cb(void *arg)
 		// free conn_param due to clone in protocol layer
 		conn_param_free(work->cparam);
 		work->state = RECV;
+		work->flag  = 0;
 		if (work->proto == PROTO_MQTT_BRIDGE) {
 			nng_ctx_recv(work->bridge_ctx, work->aio);
 		} else {
