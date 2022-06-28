@@ -475,10 +475,16 @@ server_cb(void *arg)
 		debug_msg("SEND ^^^^ ctx%d ^^^^", work->ctx.id);
 
 		// webhook here
-		conf_web_hook *hook_conf   = &(work->config->web_hook);
+		conf_web_hook *hook_conf = &(work->config->web_hook);
 		if (hook_conf->enable) {
 			webhook_entry(work, 0);
 		}
+
+#if defined(SUPP_RULE_ENGINE)
+		if (work->flag == CMD_PUBLISH && work->config->rule_engine_option == RULE_ENGINE_ON) {
+			rule_engine_insert_sql(work);
+		}
+#endif
 		if (NULL != work->msg) {
 			nng_msg_free(work->msg);
 			work->msg = NULL;

@@ -883,12 +883,6 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto)
 		return result;
 	}
 
-#if defined(SUPP_RULE_ENGINE)
-	if (work->config->rule_engine_option == RULE_ENGINE_ON) {
-		rule_engine_insert_sql(work);
-	}
-#endif
-
 	cli_ctx_list = dbtree_find_clients(work->db, topic);
 
 	shared_cli_list = dbtree_find_shared_sub_clients(work->db, topic);
