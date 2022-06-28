@@ -265,7 +265,6 @@ sub_ctx_handle(nano_work *work)
 		/* Add items which not included in dbhash */
 		topic_exist = dbhash_check_topic(work->pid.id, topic_str);
 		if (!topic_exist && topic_str) {
-			uint8_t ver = work->proto_ver;
 			dbtree_insert_client(
 			    work->db, topic_str, cli_ctx, work->pid.id);
 
@@ -298,9 +297,7 @@ sub_ctx_handle(nano_work *work)
 
 	if (db_ctxt && 0 == dbtree_ctxt_free(db_ctxt)) {
 		client_ctx *ctx = dbtree_ctxt_delete(db_ctxt);
-		if (ctx) {
-			sub_ctx_free(ctx);
-		}
+		dbhash_check_id_and_do(ctx->pid.id, wrap_sub_ctx_free_cb, ctx);
 	}
 	zfree(first_topic);
 
@@ -311,7 +308,7 @@ sub_ctx_handle(nano_work *work)
 	return 0;
 }
 
-static void *
+void *
 wrap_sub_ctx_free_cb(void *arg)
 {
 	sub_ctx_free((client_ctx *)arg);

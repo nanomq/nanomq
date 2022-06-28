@@ -34,6 +34,11 @@ int sub_ctx_del(void *db, char *topic, uint32_t pid);
 void sub_ctx_free(client_ctx *);
 
 /*
+ * A wrap for sub ctx free
+ */
+void * wrap_sub_ctx_free_cb(void *arg);
+
+/*
  * Free a packet_subscribe.
  */
 void sub_pkt_free(packet_subscribe *);
