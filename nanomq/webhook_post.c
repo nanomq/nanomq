@@ -234,3 +234,29 @@ webhook_client_disconnect(nng_socket *sock, conf_web_hook *hook_conf,
 
 	return rv;
 }
+
+int webhook_entry(nng_socket *sock, conf_web_hook *hook_conf,
+    conn_param *cparam, uint8_t reason, uint8_t type)
+{
+	switch (type)
+	{
+	case CMD_CONNACK:
+		webhook_client_connack(sock, hook_conf,
+		    conn_param_get_protover(cparam),
+		    conn_param_get_keepalive(cparam), reason,
+		    conn_param_get_username(cparam),
+		    conn_param_get_clientid(cparam));
+		break;
+	case CMD_PUBLISH:
+		break;
+	case CMD_DISCONNECT_EV:
+		webhook_client_disconnect(sock, hook_conf,
+		    conn_param_get_protover(cparam),
+		    conn_param_get_keepalive(cparam), reason,
+		    conn_param_get_username(cparam),
+		    conn_param_get_clientid(cparam));
+		break;
+	default:
+		break;
+	}
+}
