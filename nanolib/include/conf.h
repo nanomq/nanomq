@@ -301,6 +301,7 @@ struct conf_web_hook {
 
 	uint16_t            rule_count;
 	conf_web_hook_rule **rules;
+	void               *webhook_sock;
 
 	// TODO not support yet
 	conf_tls tls;
