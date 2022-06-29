@@ -207,7 +207,7 @@ cmp_str(
 }
 
 static bool
-payload_filter(pub_packet_struct *pp, rule_engine_info *info)
+payload_filter(pub_packet_struct *pp, rule *info)
 {
 	bool   filter = true;
 	cJSON *jp = cJSON_ParseWithLength(pp->payload.data, pp->payload.len);
@@ -275,7 +275,7 @@ payload_filter(pub_packet_struct *pp, rule_engine_info *info)
 }
 
 static bool
-rule_engine_filter(nano_work *work, rule_engine_info *info)
+rule_engine_filter(nano_work *work, rule *info)
 {
 	pub_packet_struct *pp     = work->pub_packet;
 	char	      *topic  = pp->var_header.publish.topic_name.body;
@@ -386,7 +386,7 @@ rule_engine_filter(nano_work *work, rule_engine_info *info)
 }
 
 static int
-add_info_to_json(rule_engine_info *info, cJSON *jso, int j, nano_work *work)
+add_info_to_json(rule *info, cJSON *jso, int j, nano_work *work)
 {
 	pub_packet_struct *pp = work->pub_packet;
 	conn_param        *cp = work->cparam;
@@ -519,7 +519,7 @@ add_info_to_json(rule_engine_info *info, cJSON *jso, int j, nano_work *work)
 }
 
 static char *
-compose_sql_clause(rule_engine_info *info, char *key, char *value, int j, nano_work *work)
+compose_sql_clause(rule *info, char *key, char *value, int j, nano_work *work)
 {
 	pub_packet_struct *pp = work->pub_packet;
 	conn_param        *cp = work->cparam;
@@ -612,7 +612,7 @@ compose_sql_clause(rule_engine_info *info, char *key, char *value, int j, nano_w
 			pthread_mutex_unlock(&rule_mutex);
 
 			char ret_key[512] = { 0 };
-			char *tmp_key = NULL;
+			char tmp_key[128] = { 0 };
 
 			for (int pi = 0; pi < cvector_size(info->payload);
 			     pi++) {
@@ -622,7 +622,7 @@ compose_sql_clause(rule_engine_info *info, char *key, char *value, int j, nano_w
 						switch (info->payload[pi]->type) {
 						case cJSON_Number:
 								if (is_need_set) {
-									snprintf(ret_key, 512, "%s\nALTER TABLE Broker ADD %s INT;", tmp_key, info->payload[pi]->pas);
+									snprintf(tmp_key, 128, "ALTER TABLE Broker ADD %s INT;\n", info->payload[pi]->pas);
 								}
 								strcat(key, info->payload[pi]->pas);
 								strcat(key, ", ");
@@ -635,7 +635,7 @@ compose_sql_clause(rule_engine_info *info, char *key, char *value, int j, nano_w
 						case cJSON_String:
 							if (info->payload[pi]->pas) {
 								if (is_need_set) {
-									snprintf(ret_key, 512, "%s\nALTER TABLE Broker ADD %s TEXT;", tmp_key, info->payload[pi]->pas);
+									snprintf(tmp_key, 128, "ALTER TABLE Broker ADD %s TEXT;\n", info->payload[pi]->pas);
 								}
 								strcat(key, info->payload[pi]->pas);
 								strcat(key, ", ");
@@ -649,7 +649,7 @@ compose_sql_clause(rule_engine_info *info, char *key, char *value, int j, nano_w
 						case cJSON_Object:
 							if (info->payload[pi]->pas) {
 								if (is_need_set) {
-									snprintf(ret_key, 512, "%s\nALTER TABLE Broker ADD %s TEXT;", tmp_key, info->payload[pi]->pas);
+									snprintf(tmp_key, 128, "ALTER TABLE Broker ADD %s TEXT;\n", info->payload[pi]->pas);
 								}
 								strcat(key, info->payload[pi]->pas);
 								strcat(key, ", ");
@@ -666,8 +666,8 @@ compose_sql_clause(rule_engine_info *info, char *key, char *value, int j, nano_w
 							break;
 						}
 
-						tmp_key = ret_key;
-
+						strcat(ret_key, tmp_key);
+						memset(tmp_key, 0, 128);
 
 					}
 				}
@@ -694,25 +694,24 @@ compose_sql_clause(rule_engine_info *info, char *key, char *value, int j, nano_w
 static int
 rule_engine_insert_sql(nano_work *work)
 {
-	rule_engine_info  *rule_infos = work->config->rule_engine;
-	size_t             rule_size  = cvector_size(rule_infos);
+	rule  *rules = work->config->rule_eng.rules;
+	size_t             rule_size  = cvector_size(rules);
 	pub_packet_struct *pp         = work->pub_packet;
 	conn_param        *cp         = work->cparam;
 	static uint32_t    index      = 0;
 
 
 	for (size_t i = 0; i < rule_size; i++) {
-		if (rule_engine_filter(work, &rule_infos[i])) {
+		if (rule_engine_filter(work, &rules[i])) {
 
 			char fdb_key[pp->var_header.publish.topic_name.len+sizeof(uint64_t)];
-			switch (work->config->rule_engine_db_option) {
-			case RULE_ENGINE_FDB:
+			if (RULE_ENG_FDB & work->config->rule_eng.option) {
 				cJSON *jso = NULL;
 				jso        = cJSON_CreateObject();
 
 				for (size_t j = 0; j < 9; j++) {
 					add_info_to_json(
-					    &rule_infos[i], jso, j, work);
+					    &rules[i], jso, j, work);
 				}
 
 				if (UINT32_MAX == index) {
@@ -722,13 +721,13 @@ rule_engine_insert_sql(nano_work *work)
 				sprintf(fdb_key, "%s%u",
 				    pp->var_header.publish.topic_name.body,
 				    index++);
-				// puts(fdb_key);
-				// puts(dest);
+				puts(fdb_key);
+				puts(dest);
 
 				FDBTransaction *tr = NULL;
 				fdb_error_t     e =
 				    fdb_database_create_transaction(
-				        work->config->rdb, &tr);
+				        work->config->rule_eng.rdb[1], &tr);
 				if (e) {
 					fprintf(stderr, "%s\n", fdb_get_error(e));
 				}
@@ -748,21 +747,21 @@ rule_engine_insert_sql(nano_work *work)
 
 				cJSON_free(dest);
 				cJSON_Delete(jso);
-				break;
+			}
 
-			case RULE_ENGINE_SDB:
+			if (RULE_ENG_SDB & work->config->rule_eng.option) {
 				char sql_clause[1024] = "INSERT INTO ";
 				char key[128]         = "Broker (";
 				char value[800]       = "VALUES (";
 				for (size_t j = 0; j < 9; j++) {
 					char *ret =
-					    compose_sql_clause(&rule_infos[i],
+					    compose_sql_clause(&rules[i],
 					        key, value, j, work);
 					if (ret) {
 						// puts(ret);
 						sqlite3 *sdb =
 						    (sqlite3 *)
-						        work->config->sdb;
+						        work->config->rule_eng.rdb[0];
 						char *err_msg = NULL;
 						int   rc      = sqlite3_exec(
 						           sdb, ret, 0, 0, &err_msg);
@@ -790,8 +789,8 @@ rule_engine_insert_sql(nano_work *work)
 				strcat(sql_clause, value);
 				strcat(sql_clause, ";");
 
-				// puts(sql_clause);
-				sqlite3 *sdb = (sqlite3 *) work->config->sdb;
+				puts(sql_clause);
+				sqlite3 *sdb = (sqlite3 *) work->config->rule_eng.rdb[0];
 				char    *err_msg = NULL;
 				int      rc      = sqlite3_exec(
 				              sdb, sql_clause, 0, 0, &err_msg);
@@ -804,10 +803,6 @@ rule_engine_insert_sql(nano_work *work)
 					return 1;
 				}
 
-				break;
-
-			default:
-				break;
 			}
 		}
 	}
