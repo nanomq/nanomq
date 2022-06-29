@@ -465,40 +465,7 @@ conf_parser(conf *nanomq_conf)
 		                "tls.fail_if_no_peer_cert")) != NULL) {
 			config->tls.set_fail = strcasecmp(value, "true") == 0;
 			free(value);
-#ifdef SUPP_RULE_ENGINE
-		} else if ((value = get_conf_value(line, sz,
-		                "rule_engine_option")) != NULL) {
-				if (!strcasecmp(value, "ON")) {
-					config->rule_engine_option = RULE_ENGINE_ON;
-				} else if (!strcasecmp(value, "OFF")) {
-					config->rule_engine_option = RULE_ENGINE_OFF;
-				} else {
-					fprintf(stderr, "Read config 'rule_engine_option' failed.\n");
-					exit(EXIT_FAILURE);
-				}
-
-				free(value);
-
-		} else if ((value = get_conf_value(line, sz,
-		                "rule_engine_option.db")) != NULL) {
-			if (!strcasecmp(value, "fdb") || !strcasecmp(value, "foundationdb")) {
-				config->rule_engine_db_option = RULE_ENGINE_FDB;
-			} else if (!strcasecmp(value, "sqlite")) {
-				config->rule_engine_db_option = RULE_ENGINE_SDB;
-			} else {
-				fprintf(stderr, "Unsupport database.\n");
-				exit(EXIT_FAILURE);
-			}
-			free(value);
-		} else if ((value = get_conf_value(line, sz,
-		                "rule_engine_option.db.sqlite_path")) != NULL) {
-			config->rule_engine_sqlite_path = value;
-			
 		}
-#else 
-		}
-#endif
-
 		free(line);
 		line = NULL;
 	}
@@ -561,6 +528,13 @@ conf_sqlite_init(conf_sqlite *sqlite)
 	sqlite->flush_mem_threshold = 100;
 	sqlite->resend_interval     = 5000;
 }
+static void 
+conf_rule_init(conf_rule *rule_en)
+{
+	rule_en->option = 0;
+	rule_en->rules = NULL;
+	memset(rule_en->rdb, 0, sizeof(void*) * 3);
+}
 
 void
 conf_init(conf *nanomq_conf)
@@ -574,13 +548,7 @@ conf_init(conf *nanomq_conf)
 	nanomq_conf->auth_http_file = NULL;
 
 #if defined(SUPP_RULE_ENGINE)
-	nanomq_conf->rule_engine_file        = NULL;
-	nanomq_conf->rule_engine_option      = RULE_ENGINE_OFF;
-	nanomq_conf->rule_engine_db_option   = RULE_ENGINE_FDB;
-	nanomq_conf->rule_engine_sqlite_path = NULL;
-	nanomq_conf->rule_engine             = NULL;
-	nanomq_conf->rdb                     = NULL;
-	nanomq_conf->tran                    = NULL;
+	conf_rule_init(&nanomq_conf->rule_eng);
 #endif
 
 	nanomq_conf->max_packet_size        = (1024 * 1024);
@@ -792,7 +760,7 @@ find_key(const char *str, size_t len)
 }
 
 static int
-find_as(char *str, int len, rule_engine_info *info)
+find_as(char *str, int len, rule *info)
 {
 	int i = 0;
 	char **as = info->as;
@@ -870,7 +838,7 @@ rule_payload_new(void)
 // payload with subfield, or return -1 so parse it with 
 // other step.
 static int
-parse_payload_subfield(char *p, rule_engine_info *info, bool is_store)
+parse_payload_subfield(char *p, rule *info, bool is_store)
 {
 	char *p_b = p;
 	int key_len = strlen("payload");
@@ -904,7 +872,7 @@ parse_payload_subfield(char *p, rule_engine_info *info, bool is_store)
 
 // Set info parse from select.
 static int
-set_select_info(char *p_b, rule_engine_info *info)
+set_select_info(char *p_b, rule *info)
 {
 	int key_len = 0;
 	int rc      = 0;
@@ -946,7 +914,7 @@ finish:
 }
 
 static int
-parse_select(const char *select, rule_engine_info *info)
+parse_select(const char *select, rule *info)
 {
 	char *p       = (char *) select;
 	char *p_b     = (char *) select;
@@ -969,7 +937,7 @@ parse_select(const char *select, rule_engine_info *info)
 }
 
 static int
-parse_from(char *from, rule_engine_info *info)
+parse_from(char *from, rule *info)
 {
 	while (*from != '\0' && *from == ' ') from++;
 	if (from[0] == '\"') {
@@ -1091,7 +1059,7 @@ get_rule_cmp_type(char **str)
 }
 
 static int
-set_where_info(char *str, size_t len, rule_engine_info *info)
+set_where_info(char *str, size_t len, rule *info)
 {
 	char *p  = str;
 	int   rc = 0;
@@ -1128,7 +1096,7 @@ set_where_info(char *str, size_t len, rule_engine_info *info)
 }
 
 static int
-parse_where(char *where, rule_engine_info *info)
+parse_where(char *where, rule *info)
 {
 	char *p   = where;
 	char *p_b = where;
@@ -1149,11 +1117,178 @@ parse_where(char *where, rule_engine_info *info)
 	return 0;
 }
 
+static bool
+sql_parse(conf_rule *cr, char *sql)
+{
+	if (NULL == sql) {
+		log_err("Sql is NULL!");
+		return false;
+	}
+
+	char *srt = strstr(sql, "SELECT");
+	if (NULL != srt) {
+		int len_srt, len_mid, len_end;
+		char *mid = strstr(srt, "FROM");
+		char *end = strstr(mid, "WHERE");
+
+		rule re;
+		memset(&re, 0, sizeof(re));
+
+		// function select parser.
+		len_srt = mid - srt;
+		srt += strlen("SELECT ");
+		len_srt -= strlen("SELECT ");
+		char select[len_srt];
+		memcpy(select, srt, len_srt);
+		select[len_srt - 1] = '\0';
+		parse_select(select, &re);
+
+		// function from parser
+		if (mid != NULL && end != NULL) {
+			len_mid = end - mid;
+		} else {
+			char *p = mid;
+			while (*p != '\n' && *p != '\0') p++;
+			len_mid = p - mid + 1;
+		}
+
+		mid += strlen("FROM ");
+		len_mid -= strlen("FROM ");
+
+		char from[len_mid];
+		memcpy(from, mid, len_mid);
+		from[len_mid - 1] = '\0';
+		parse_from(from, &re);
+
+		// function where parser
+		if (end != NULL) {
+			char *p = end;
+			while (*p != '\n' && *p != '\0') p++;
+			len_end = p - end + 1;
+			end += strlen("WHERE ");
+			len_end -= strlen("WHERE ");
+
+			char where[len_end];
+			memcpy(where, end, len_end);
+			where[len_end - 1] = '\0';
+			parse_where(where, &re);
+		}
+
+		cvector_push_back(cr->rules, re);
+
+	}
+
+	return true;
+}
+
+static bool
+conf_rule_sqlite_parse(conf_rule *cr, char *path)
+{
+	assert(path);
+	if (path == NULL || !nano_file_exists(path)) {
+		printf("Configure file [%s] not found or "
+		       "unreadable\n", path);
+		return false;
+	}
+
+	char * line = NULL;
+	rule *rules = NULL;
+	size_t sz   = 0;
+	FILE * fp;
+	char *table = NULL;
+
+	if (NULL == (fp = fopen(path, "r"))) {
+		log_err("File %s open failed\n", path);
+		return false;
+	}
+
+	char *value;
+	while (nano_getline(&line, &sz, fp) != -1) {
+		if ((value = get_conf_value(
+		         line, sz, "rule.sqlite.path")) != NULL) {
+			cr->sqlite_db_path = value;
+		} else if ((value = get_conf_value(
+		                line, sz, "rule.sqlite.table")) != NULL) {
+			table = value;
+		} else if (NULL != strstr(line, "rule.event.publish.sql")) {
+			if (NULL != (value = strchr(line, '='))) {
+				value++;
+				// puts(value);
+				sql_parse(cr, value);
+				cr->rules[cvector_size(cr->rules) - 1].sqlite_table = table;
+			}
+
+		} 
+
+		free(line);
+		line = NULL;
+	}
+
+	
+
+	if (line) {
+		free(line);
+	}
+
+	fclose(fp);
+	return true;
+}
+
+static bool
+conf_rule_fdb_parse(conf_rule *cr, char *path)
+{
+	if (path == NULL || !nano_file_exists(path)) {
+		printf("Configure file [%s] not found or "
+		       "unreadable\n", path);
+		return false;
+	}
+
+	char * line = NULL;
+	rule *rules = NULL;
+	size_t sz   = 0;
+	FILE * fp;
+
+	if (NULL == (fp = fopen(path, "r"))) {
+		log_err("File %s open failed\n", path);
+		return false;
+	}
+
+	char *value;
+	while (nano_getline(&line, &sz, fp) != -1) {
+		if ((value = get_conf_value(
+		         line, sz, "rule.fdb.path")) != NULL) {
+			cr->sqlite_db_path = value;
+		} else if ((value = get_conf_value(
+		                line, sz, "rule.fdb.key")) != NULL) {
+			// TODO 
+			// cr->rules[0].sqlite_table = value;
+		} else if (NULL != strstr(line, "rule.event.publish.sql")) {
+			if (NULL != (value = strchr(line, '='))) {
+				value++;
+				puts(value);
+				sql_parse(cr, value);
+			}
+
+		} 
+
+		free(line);
+		line = NULL;
+	}
+
+	if (line) {
+		free(line);
+	}
+
+	fclose(fp);
+	return true;
+}
+
 bool
-conf_rule_engine_parse(conf *nanomq_conf)
+conf_rule_parse(conf *nanomq_conf)
 {
 
-	const char *dest_path = nanomq_conf->rule_engine_file;
+	const char *dest_path = nanomq_conf->rule_file;
+	conf_rule cr = nanomq_conf->rule_eng;
 
 	if (dest_path == NULL || !nano_file_exists(dest_path)) {
 		if (!nano_file_exists(CONF_RULE_ENGINE_PATH_NAME)) {
@@ -1167,142 +1302,73 @@ conf_rule_engine_parse(conf *nanomq_conf)
 	}
 
 	char * line = NULL;
-	rule_engine_info *rule_infos = NULL;
+	rule *rules = NULL;
 	size_t sz   = 0;
 	FILE * fp;
-	char sql[1024];
-	int index = 0;
-	bool is_fin = true;
 
-	memset(sql, 0, 1024);
 	if ((fp = fopen(dest_path, "r")) == NULL) {
 		printf("File %s open failed\n", dest_path);
 		return true;
 	}
 
-
+	char *value;
 	while (nano_getline(&line, &sz, fp) != -1) {
-
-		if (line[0] != '#' || line[1] !='#') {
-			if (line[0] == '`' && line[1] =='`' && line[2] == '`') {
-				int i = 3;
-				while (i < sz) {
-					if (line[i] == '\0' || line[i] == '\n') {
-						if (index != 0) {
-							sql[index++] = ' ';
-						}
-						break;
-					}
-					sql[index++] = line[i++];
+		if ((value = get_conf_value(
+		         line, sz, "rule_option")) != NULL) {
+			if (0 != strcasecmp(value, "ON")) {
+				if (0 != strcasecmp(value, "OFF")) {
+					log_err("Unsupport option: %s\nrule option only support ON/OFF", value);
 				}
-				is_fin = !is_fin;
-
-				if (line) {
-					free(line);
-					line = NULL;
-				}
-
-				if (is_fin) goto parse;
-				continue;
-
-			} else if (!is_fin) {
-				int i = 0;
-				while (i < sz) {
-					if (line[i] == '\0' || line[i] == '\n') {
-						sql[index++] = ' ';
-						break;
-					}
-					sql[index++] = line[i++];
-				}
-
-				if (line) {
-					free(line);
-					line = NULL;
-				}
-				continue;
+				free(value);
+				break;
 			}
-
-			if (index != 0) {
-				index = 0;
+			free(value);
+		} else if ((value = get_conf_value(
+		                line, sz, "rule_option.sqlite")) != NULL) {
+			if (0 == strcasecmp(value, "enable")) {
+				cr.option |= RULE_ENG_SDB;
 			} else {
-				if (sz > 1024) {
-					log_err("SQL size is too long");
-					exit(EXIT_FAILURE);
+				if (0 != strcasecmp(value, "disable")){
+					log_err("Unsupport option: %s\nrule option sqlite only support enable/disable", value);
+					break;
 				}
-				snprintf(sql, sz, "%s", line);
 			}
-
-parse:
-			char *srt = strstr(sql, "SELECT");
-			if (srt != NULL) {
-				int len_srt, len_mid, len_end;
-				char *mid = strstr(srt, "FROM");
-				char *end = strstr(mid, "WHERE");
-
-				rule_engine_info rule_info;
-				memset(&rule_info, 0, sizeof(rule_info));
-
-				// function select parser.
-				len_srt = mid - srt;
-				srt += strlen("SELECT ");
-				len_srt -= strlen("SELECT ");
-				char select[len_srt];
-				memcpy(select, srt, len_srt);
-				select[len_srt - 1] = '\0';
-				parse_select(select, &rule_info);
-
-				// function from parser
-				if (mid != NULL && end != NULL) {
-					len_mid = end - mid;
-				} else {
-					char *p = mid;
-					while (*p != '\n' && *p != '\0') p++;
-					len_mid = p - mid + 1;
-				}
-
-				mid += strlen("FROM ");
-				len_mid -= strlen("FROM ");
-
-				char from[len_mid];
-				memcpy(from, mid, len_mid);
-				from[len_mid - 1] = '\0';
-				parse_from(from, &rule_info);
-
-				// function where parser
-				if (end != NULL) {
-					char *p = end;
-					while (*p != '\n' && *p != '\0') p++;
-					len_end = p - end + 1;
-					end += strlen("WHERE ");
-					len_end -= strlen("WHERE ");
-
-					char where[len_end];
-					memcpy(where, end, len_end);
-					where[len_end - 1] = '\0';
-					parse_where(where, &rule_info);
-				}
-
-				cvector_push_back(rule_infos, rule_info);
-
+			free(value);
+		} else if ((value = get_conf_value(line, sz,
+		                "rule_option.sqlite.conf.path")) != NULL) {
+			if (RULE_ENG_SDB & cr.option) {
+				conf_rule_sqlite_parse(&cr, value);
 			}
-
+			free(value);
+		} else if ((value = get_conf_value(
+		                line, sz, "rule_option.fdb")) != NULL) {
+			if (0 == strcasecmp(value, "enable")) {
+				cr.option |= RULE_ENG_FDB;
+			} else {
+				if (0 != strcasecmp(value, "disable")){
+					log_err("Unsupport option: %s\nrule option fdb only support enable/disable", value);
+					break;
+				}
+			}
+			free(value);
+		} else if ((value = get_conf_value(
+		                line, sz, "rule_option.fdb.conf.path")) != NULL) {
+			if (RULE_ENG_FDB & cr.option) {
+				conf_rule_fdb_parse(&cr, value);
+			}
+			free(value);
 		}
 
 		free(line);
 		line = NULL;
 	}
 
-	nanomq_conf->rule_engine = rule_infos;
-
 	if (line) {
 		free(line);
 	}
 
-
+	memcpy(&nanomq_conf->rule_eng, &cr, sizeof(cr));
 	// printf_rule_engine_conf(rule_engine);
-
-	fclose(fp);
-	return true;
 
 out:
 	fclose(fp);
@@ -2374,6 +2440,15 @@ conf_sqlite_destroy(conf_sqlite *sqlite)
 	}
 }
 
+static void
+conf_rule_destroy(conf_rule *re)
+{
+	if (re) {
+		// TODO 
+	}
+	return;
+}
+
 void
 conf_fini(conf *nanomq_conf)
 {
@@ -2393,7 +2468,8 @@ conf_fini(conf *nanomq_conf)
 	zfree(nanomq_conf->bridge_file);
 
 #if defined(SUPP_RULE_ENGINE)
-	zfree(nanomq_conf->rule_engine_file);
+	zfree(nanomq_conf->rule_file);
+	conf_rule_destroy(&nanomq_conf->rule_eng);
 #endif
 	zfree(nanomq_conf->web_hook_file);
 	zfree(nanomq_conf->auth_file);
