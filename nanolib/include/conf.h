@@ -17,7 +17,7 @@
 #define CONF_AUTH_PATH_NAME "/etc/nanomq_auth_username.conf"
 #define CONF_BRIDGE_PATH_NAME "/etc/nanomq_bridge.conf"
 #define CONF_GATEWAY_PATH_NAME "/etc/nanomq_gateway.conf"
-#define CONF_RULE_ENGINE_PATH_NAME "/etc/nanomq_rule_engine.conf"
+#define CONF_RULE_ENGINE_PATH_NAME "/etc/nanomq_rule.conf"
 #define CONF_WEB_HOOK_PATH_NAME "/etc/nanomq_web_hook.conf"
 #define CONF_AUTH_HTTP_PATH_NAME "/etc/nanomq_auth_http.conf"
 #define CONF_SQLITE_PATH_NAME "/etc/nanomq_sqlite.conf"
@@ -36,10 +36,9 @@
 #define BROKER_WS_URL_PREFIX "nmq+ws"
 #define BROKER_WSS_URL_PREFIX "nmq+wss"
 
-#define RULE_ENGINE_ON true
-#define RULE_ENGINE_OFF false
-#define RULE_ENGINE_FDB 1
-#define RULE_ENGINE_SDB (1 << 1)
+#define RULE_ENG_OFF 0
+#define RULE_ENG_SDB 1
+#define RULE_ENG_FDB (1 << 1)
 
 
 #define FREE_NONULL(p)    \
@@ -251,6 +250,13 @@ typedef enum {
 	RULE_CMP_LESS_AND_EQUAL,    // compare symbol '<='
 } rule_cmp_type;
 
+typedef enum {
+	RULE_FORWORD_SQLITE,
+	RULE_FORWORD_FDB,
+	RULE_FORWORD_MYSOL,
+	RULE_FORWORD_REPUB
+} rule_forword_type;
+
 typedef struct {
 	char        **psa;    // payload string array, for multi level json
 	char         *pas;    // payload field string or alias
@@ -262,13 +268,50 @@ typedef struct {
 } rule_payload;
 
 typedef struct {
+	/* 
+	** flag[0] == RULE_QOS,
+	** flag[1] == RULE_ID,
+	** flag[2] == RULE_TOPIC,
+	** flag[3] == RULE_CLIENTID,
+	** flag[4] == RULE_USERNAME,
+	** flag[5] == RULE_PASSWORD,
+	** flag[6] == RULE_TIMESTAMP,
+	** flag[7] == RULE_PAYLOAD_ALL,
+	** flag[8] == RULE_PAYLOAD_FIELD,
+	*/
 	bool           flag[9];        // if this field need to store
 	char          *topic;          // topic parse from sql 'from'
 	char          *as[8];          // if field string as a new string
 	rule_payload **payload;        // this is for payload info
 	char         **filter;         // filter parse from sql 'where'
-	rule_cmp_type  cmp_type[8]; // filter compare type
-} rule_engine_info;
+	rule_cmp_type  cmp_type[8]; 	// filter compare type
+	rule_forword_type forword_type; // forword type
+	char *sqlite_table;
+	// TODO support create multi different table name
+} rule;
+
+typedef struct {
+	/* 
+	** 00000000 == OFF,
+	** 00000001 == Sqlite ON,
+	** 00000010 == Fdb ON,
+	** 00000100 == MySOL ON
+	** 00001000 == Repub ON
+	** 00010000
+	** 00100000
+	** 01000000
+	*/
+	uint8_t option;
+	/* 
+	** rdb[0] == Sqlite
+	** rdb[1] == Fdb
+	** rdb[2] == MySOL
+	** rdb[3] == RePub
+	*/
+	void *rdb[3]; 
+	rule *rules;
+	char *sqlite_db_path;
+} conf_rule;
 
 typedef enum {
 	CLIENT_CONNECT,
@@ -326,12 +369,6 @@ typedef enum {
 struct conf {
 	char *conf_file;
 	char *bridge_file;
-#if defined(SUPP_RULE_ENGINE)
-	char   *rule_engine_file;
-	bool    rule_engine_option;
-	uint8_t rule_engine_db_option;
-	char 	*rule_engine_sqlite_path;
-#endif
 	char            *web_hook_file;
 	char            *auth_file;
 	char            *auth_http_file;
@@ -357,10 +394,8 @@ struct conf {
 	conf_web_hook    web_hook;
 
 #if defined(SUPP_RULE_ENGINE)
-	rule_engine_info *rule_engine;
-	void	     *rdb;
-	void	     *tran;
-	void	     *sdb;
+	char     *rule_file;
+	conf_rule rule_eng;
 #endif
 
 	conf_auth      auths;
@@ -373,7 +408,7 @@ extern bool conf_parser(conf *nanomq_conf);
 extern bool conf_bridge_parse(conf *nanomq_conf);
 extern bool conf_gateway_parse(zmq_gateway_conf *g_conf);
 extern bool conf_web_hook_parse(conf *nanomq_conf);
-extern bool conf_rule_engine_parse(conf *nanomq_conf);
+extern bool conf_rule_parse(conf *nanomq_conf);
 extern bool conf_auth_http_parse(conf *nanomq_conf);
 extern void print_bridge_conf(conf_bridge *bridge);
 extern void conf_init(conf *nanomq_conf);
