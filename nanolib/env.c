@@ -132,9 +132,8 @@ read_env_conf(conf *config)
 	set_string_var(&config->auth_http_file, NANOMQ_AUTH_HTTP_CONF_PATH);
 	set_string_var(&config->auth_file, NANOMQ_AUTH_CONF_PATH);
 #if defined(SUPP_RULE_ENGINE)
-	char *rule_engine_file;
 	set_string_var(
-	    &config->rule_engine_file, NANOMQ_RULE_ENGINE_CONF_PATH);
+	    &config->rule_file, NANOMQ_RULE_ENGINE_CONF_PATH);
 #endif
 
 }

@@ -704,98 +704,93 @@ broker(conf *nanomq_conf)
 	uint64_t num_ctx = nanomq_conf->parallel;
 
 #if defined(SUPP_RULE_ENGINE)
-	if (nanomq_conf->rule_engine_option) {
-		switch (nanomq_conf->rule_engine_db_option) {
-		case RULE_ENGINE_FDB:
-			pthread_t   netThread;
-			fdb_error_t err =
-			    fdb_select_api_version(FDB_API_VERSION);
-			if (err) {
-				debug_msg("select API version error: %s",
-				    fdb_get_error(err));
-				exit(1);
-			}
-			FDBDatabase *fdb   = openDatabase(&netThread);
-			nanomq_conf->rdb   = fdb;
-			break;
-
-		case RULE_ENGINE_SDB:
-			sqlite3 *sdb;
-			char    *sqlite_path =
-                            nanomq_conf->rule_engine_sqlite_path
-			       ? nanomq_conf->rule_engine_sqlite_path
-			       : "rule_engine.db";
-			int rc = sqlite3_open(
-			    nanomq_conf->rule_engine_sqlite_path, &sdb);
-			// puts(nanomq_conf->rule_engine_sqlite_path);
-			if (rc != SQLITE_OK) {
-				fprintf(stderr, "Cannot open database: %s\n",
-				    sqlite3_errmsg(sdb));
-				sqlite3_close(sdb);
-				exit(1);
-			}
-			nanomq_conf->sdb = (void *) sdb;
-
-			// char *compose_table(nanomq_conf);
-			char         sqlite_table[1024];
-			static char *key_arr[] = {
-				"Qos",
-				"Id",
-				"Topic",
-				"Clientid",
-				"Username",
-				"Password",
-				"Timestamp",
-				"Payload",
-			};
-
-			static char *type_arr[] = {
-				" INT",
-				" INT",
-				" TEXT",
-				" TEXT",
-				" TEXT",
-				" TEXT",
-				" INT",
-				" TEXT",
-			};
-			// "CREATE TABLE Broker(Qos INT, Id INT
-			rule_engine_info info  = nanomq_conf->rule_engine[0];
-			int              index = 0;
-			char             table[512] =
-			    "CREATE TABLE IF NOT EXISTS Broker("
-			    "RowId INTEGER PRIMARY KEY AUTOINCREMENT";
-
-			char *err_msg   = NULL;
-			bool  first     = true;
-
-			for (; index < 8; index++) {
-				if (!info.flag[index])
-					continue;
-
-				strcat(table, ", ");
-				strcat(table,
-				    info.as[index] ? info.as[index]
-				                   : key_arr[index]);
-				strcat(table, type_arr[index]);
-			}
-			strcat(table, ");");
-			// puts(table);
-			rc = sqlite3_exec(sdb, table, 0, 0, &err_msg);
-			if (rc != SQLITE_OK) {
-				fprintf(stderr, "SQL error: %s\n", err_msg);
-
-				sqlite3_free(err_msg);
-				sqlite3_close(sdb);
-
-				return 1;
-			}
-
-			break;
-
-		default:
-			break;
+	conf_rule cr = nanomq_conf->rule_eng;
+	uint8_t mask = 1;
+	// TODO do all work in a loop
+	if (cr.option & mask) {
+		printf("%d\n", mask);
+		mask << 1;
+		sqlite3 *sdb;
+		char    *sqlite_path = cr.sqlite_path ? cr.sqlite_path : "/tmp/rule_engine.db";
+		int rc = sqlite3_open(sqlite_path, &sdb);
+		if (rc != SQLITE_OK) {
+			log_err("Cannot open database: %s\n", sqlite3_errmsg(sdb));
+			sqlite3_close(sdb);
+			exit(1);
 		}
+		nanomq_conf->rule_eng.rdb[0] = (void *) sdb;
+		char         sqlite_table[1024];
+		static char *key_arr[] = {
+			"Qos",
+			"Id",
+			"Topic",
+			"Clientid",
+			"Username",
+			"Password",
+			"Timestamp",
+			"Payload",
+		};
+
+		static char *type_arr[] = {
+			" INT",
+			" INT",
+			" TEXT",
+			" TEXT",
+			" TEXT",
+			" TEXT",
+			" INT",
+			" TEXT",
+		};
+
+		for (int i = 0; i < cvector_size(cr.rules); i++) {
+			if (RULE_FORWORD_SQLITE == cr.rules[i].forword_type) {
+				int              index = 0;
+				// TODO support create multi different table name
+				char             table[512] =
+				    "CREATE TABLE IF NOT EXISTS Broker("
+				    "RowId INTEGER PRIMARY KEY AUTOINCREMENT";
+				char *err_msg   = NULL;
+				bool  first     = true;
+
+				for (; index < 8; index++) {
+					if (!cr.rules[i].flag[index])
+						continue;
+
+					strcat(table, ", ");
+					strcat(table,
+					    cr.rules[i].as[index] ? cr.rules[i].as[index]
+					                   : key_arr[index]);
+					strcat(table, type_arr[index]);
+				}
+				strcat(table, ");");
+				rc = sqlite3_exec(sdb, table, 0, 0, &err_msg);
+				if (rc != SQLITE_OK) {
+					log_err("SQL error: %s\n", err_msg);
+					sqlite3_free(err_msg);
+					sqlite3_close(sdb);
+					return 1;
+				}
+
+			}
+
+		}
+	}
+
+	if (cr.option & mask) {
+		printf("%d\n", mask);
+		mask << 1;
+		// RULE_ENGINE_FDB:
+		// RULE_ENGINE_SDB:
+		pthread_t   netThread;
+		fdb_error_t err =
+		    fdb_select_api_version(FDB_API_VERSION);
+		if (err) {
+			log_err("select API version error: %s",
+			    fdb_get_error(err));
+			exit(1);
+		}
+		FDBDatabase *fdb   = openDatabase(&netThread);
+		nanomq_conf->rule_eng.rdb[1] = (void *) fdb;
 	}
 
 #endif
@@ -911,9 +906,11 @@ broker(conf *nanomq_conf)
 	for (;;) {
 		if (keepRunning == 0) {
 #if defined(SUPP_RULE_ENGINE)
-			fdb_database_destroy(nanomq_conf->rdb);
-			fdb_stop_network();
-
+			if (nanomq_conf->rule_eng.option & RULE_ENG_FDB) {
+				fdb_database_destroy(
+				    nanomq_conf->rule_eng.rdb[1]);
+				fdb_stop_network();
+			}
 
 #endif
 			exit(0);
@@ -1139,8 +1136,8 @@ broker_parse_opts(int argc, char **argv, conf *config)
 
 #if defined(SUPP_RULE_ENGINE)
 		case OPT_RULE_CONF:
-			FREE_NONULL(config->rule_engine_file);
-			config->rule_engine_file = nng_strdup(arg);
+			FREE_NONULL(config->rule_file);
+			config->rule_file = nng_strdup(arg);
 			break;
 #endif
 		case OPT_AUTHFILE:
