@@ -1661,7 +1661,7 @@ conf_bridge_parse(conf *nanomq_conf)
 	conf_bridge *bridge = &nanomq_conf->bridge;
 
 	// 1. parse sqlite config from nanomq_bridge.conf
-	conf_sqlite_parse(&bridge->sqlite, dest_path, "bridge");
+	conf_sqlite_parse(&bridge->sqlite, dest_path, "bridge.sqlite");
 
 	// 2. find all the name from the file
 	size_t group_count;
