@@ -183,7 +183,7 @@ unsub_ctx_handle(nano_work *work)
 		}
 
 		// parse topic string
-		topic_str = strndup(tn->topic.body, tn->topic.len);
+		topic_str = nng_strndup(tn->topic.body, tn->topic.len);
 		debug_msg(
 		    "find client [%s] in topic [%s].", client_id, topic_str);
 
