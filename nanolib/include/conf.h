@@ -258,14 +258,22 @@ typedef enum {
 } rule_forword_type;
 
 typedef struct {
-	char        **psa;    // payload string array, for multi level json
-	char         *pas;    // payload field string or alias
-	char         *filter; // payload field related filter
+	char        **psa;      // payload string array, for multi level json
+	char         *pas;      // payload field string or alias
+	char         *filter;   // payload field related filter
 	rule_cmp_type cmp_type; // payload field compare type
-	void         *value;       // payload field value
-	int           type;        // payload field value type
+	uint8_t       type;     // payload field value type
+	void         *value;    // payload field value
 	bool          is_store;
 } rule_payload;
+
+typedef struct {
+	bool               flag[9];
+	bool               auto_inc;
+	uint8_t            type;
+	void *value;
+	 char **key_arr;
+} rule_key;
 
 typedef struct {
 	/* 
@@ -280,13 +288,14 @@ typedef struct {
 	** flag[8] == RULE_PAYLOAD_FIELD,
 	*/
 	bool           flag[9];        // if this field need to store
+	rule_cmp_type  cmp_type[8]; 	// filter compare type
+	rule_forword_type forword_type; // forword type
 	char          *topic;          // topic parse from sql 'from'
 	char          *as[8];          // if field string as a new string
 	rule_payload **payload;        // this is for payload info
 	char         **filter;         // filter parse from sql 'where'
-	rule_cmp_type  cmp_type[8]; 	// filter compare type
-	rule_forword_type forword_type; // forword type
 	char *sqlite_table;
+	rule_key *key;
 	// TODO support create multi different table name
 } rule;
 
