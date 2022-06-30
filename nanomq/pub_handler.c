@@ -79,8 +79,6 @@ void
 init_pipe_content(struct pipe_content *pipe_ct)
 {
 	debug_msg("pub_handler: init pipe_info");
-	pipe_ct->total         = 0;
-	pipe_ct->current_index = 0;
 	pipe_ct->msg_infos     = NULL;
 }
 
@@ -92,9 +90,6 @@ foreach_client(
 	uint32_t pids;
 	int      ctx_list_len;
 
-	struct client_ctx *ctx;
-	dbtree_ctxt       *db_ctxt, *ctxt;
-
 	// Dont using msg info buf, Just for Cheat Compiler
 	mqtt_msg_info *msg_info, msg_info_buf;
 	cvector(mqtt_msg_info) msg_infos = pipe_ct->msg_infos;
@@ -102,14 +97,13 @@ foreach_client(
 	ctx_list_len = cvector_size(cli_ctx_list);
 
 	for (int i = 0; i < ctx_list_len; i++) {
-		db_ctxt = (dbtree_ctxt *) cli_ctx_list[i];
-		ctx     = (struct client_ctx *) dbtree_ctxt_get_ctxt(db_ctxt);
+		pids = (uint32_t) cli_ctx_list[i];
 
 #ifdef STATISTICS
-		nng_atomic_inc64(ctx->recv_cnt);
+		// TODO
+		// nng_atomic_inc64(ctx->recv_cnt);
 		nng_atomic_inc64(g_msg.msg_out);
 #endif
-		pids = ctx->pid.id;
 		if (pids == 0) {
 			goto next;
 		}
@@ -120,17 +114,7 @@ foreach_client(
 		msg_info     = (mqtt_msg_info *) &msg_infos[csize - 1];
 
 		msg_info->pipe = pids;
-
-	next:
-
-		if (0 == dbtree_ctxt_free(db_ctxt)) {
-			client_ctx *ctx = dbtree_ctxt_delete(db_ctxt);
-			if (ctx) {
-				dbhash_check_id_and_do(ctx->pid.id, wrap_sub_ctx_free_cb, ctx);
-			}
-		}
 	}
-	pipe_ct->msg_infos = msg_infos;
 }
 
 #if defined(SUPP_RULE_ENGINE)
