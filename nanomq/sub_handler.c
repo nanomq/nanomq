@@ -43,6 +43,8 @@ decode_sub_msg(nano_work *work)
 	// TODO packetid should be checked if it's unused
 	vpos += 2;
 
+	sub_pkt->properties = NULL;
+	sub_pkt->prop_len   = 0;
 	// Only Mqtt_v5 include property.
 	if (PROTOCOL_VERSION_v5 == proto_ver) {
 		sub_pkt->properties =
@@ -215,41 +217,19 @@ sub_ctx_handle(nano_work *work)
 	}
 	topic_node *tn = work->sub_pkt->node;
 
-	char *topic_str = NULL, *first_topic = NULL, *clientid = NULL;
+	char *topic_str = NULL;
 	int   topic_len = 0, topic_exist = 0;
-
-	client_ctx  *cli_ctx = NULL;
-	dbtree_ctxt *db_ctxt = NULL;
 
 	if (work->sub_pkt->packet_id == 0) {
 		return -2;
 	}
-
-	first_topic = dbhash_get_first_topic(work->pid.id);
-	if (!first_topic) {
-		if ((cli_ctx = nng_zalloc(sizeof(client_ctx))) == NULL) {
-			debug_msg("ERROR: nng_zalloc");
-			return NNG_ENOMEM;
-		}
-	} else {
-		db_ctxt =
-		    dbtree_find_client(work->db, first_topic, work->pid.id);
-		if (db_ctxt)
-			cli_ctx = dbtree_ctxt_get_ctxt(db_ctxt);
-	}
-
-	cli_ctx->pid        = work->pid;
-	cli_ctx->cparam     = work->cparam;
-	cli_ctx->prop_len   = work->sub_pkt->prop_len;
-	cli_ctx->properties = work->sub_pkt->properties;
-	cli_ctx->proto_ver  = work->proto_ver;
 
 	// Or it would be free
 	work->sub_pkt->prop_len   = 0;
 	work->sub_pkt->properties = NULL;
 
 #ifdef STATISTICS
-	nng_atomic_alloc64(&cli_ctx->recv_cnt);
+	// TODO
 #endif
 
 	dbtree_retain_msg **r = NULL;
@@ -264,9 +244,9 @@ sub_ctx_handle(nano_work *work)
 
 		/* Add items which not included in dbhash */
 		topic_exist = dbhash_check_topic(work->pid.id, topic_str);
-		if (!topic_exist && topic_str) {
+		if (!topic_exist) {
 			dbtree_insert_client(
-			    work->db, topic_str, cli_ctx, work->pid.id);
+			    work->db, topic_str, work->pid.id);
 
 			dbhash_insert_topic(work->pid.id, topic_str);
 		}
@@ -276,6 +256,7 @@ sub_ctx_handle(nano_work *work)
 		// qos, retain handling, no local (already did in protocol
 		// layer)
 
+		// Retain msg
 		uint8_t rh = tn->retain_handling;
 
 		if (rh == 0 || (rh == 1 && !topic_exist))
@@ -295,12 +276,6 @@ sub_ctx_handle(nano_work *work)
 		tn = tn->next;
 	}
 
-	if (db_ctxt && 0 == dbtree_ctxt_free(db_ctxt)) {
-		client_ctx *ctx = dbtree_ctxt_delete(db_ctxt);
-		dbhash_check_id_and_do(ctx->pid.id, wrap_sub_ctx_free_cb, ctx);
-	}
-	zfree(first_topic);
-
 #ifdef DEBUG
 	dbtree_print(work->db);
 #endif
@@ -308,28 +283,12 @@ sub_ctx_handle(nano_work *work)
 	return 0;
 }
 
-void *
-wrap_sub_ctx_free_cb(void *arg)
-{
-	sub_ctx_free((client_ctx *)arg);
-	return NULL;
-}
-
 int
 sub_ctx_del(void *db, char *topic, uint32_t pid)
 {
-	dbtree_ctxt *db_ctxt = NULL;
-	client_ctx  *cli_ctx = NULL;
-
-	db_ctxt = dbtree_delete_client((dbtree *)db, topic, 0, pid);
-	if (!db_ctxt)
-		return -1;
-	if (0 == dbtree_ctxt_free(db_ctxt)) {
-		cli_ctx = dbtree_ctxt_delete(db_ctxt);
-	}
+	dbtree_delete_client((dbtree *)db, topic, 0, pid);
 
 	dbhash_del_topic(pid, topic);
-	dbhash_check_id_and_do(pid, wrap_sub_ctx_free_cb, cli_ctx);
 
 	return 0;
 }
@@ -337,14 +296,9 @@ sub_ctx_del(void *db, char *topic, uint32_t pid)
 static void *
 destroy_sub_client_cb(void *args, char *topic)
 {
-	sub_destroy_info *des     = (sub_destroy_info *) args;
-	dbtree_ctxt *db_ctxt = NULL;
-	client_ctx  *cli_ctx = NULL;
+	sub_destroy_info *des = (sub_destroy_info *) args;
 
-	db_ctxt = dbtree_delete_client(des->db, topic, 0, des->pid);
-	if (0 == dbtree_ctxt_free(db_ctxt)) {
-		cli_ctx = dbtree_ctxt_delete(db_ctxt);
-	}
+	dbtree_delete_client(des->db, topic, 0, des->pid);
 
 	return cli_ctx;
 }
@@ -363,10 +317,7 @@ destroy_sub_client(uint32_t pid, dbtree * db)
 		.db = db,
 	};
 
-	cli_ctx = dbhash_del_topic_queue(pid, &destroy_sub_client_cb, (void *) &sdi);
-
-	dbhash_check_id_and_do(pid, wrap_sub_ctx_free_cb, cli_ctx);
-	// TODO data race in client ctx???
+	dbhash_del_topic_queue(pid, &destroy_sub_client_cb, (void *) &sdi);
 
 	return;
 }
@@ -396,21 +347,3 @@ sub_pkt_free(packet_subscribe *sub_pkt)
 	nng_free(sub_pkt, sizeof(packet_subscribe));
 }
 
-void
-sub_ctx_free(client_ctx *ctx)
-{
-	if (!ctx)
-		return;
-
-#ifdef STATISTICS
-	nng_atomic_free64(ctx->recv_cnt);
-#endif
-
-	// what if there are multiple UPs?
-	if (ctx->prop_len > 0) {
-		property_free(ctx->properties);
-		ctx->prop_len = 0;
-	}
-
-	nng_free(ctx, sizeof(client_ctx));
-}
