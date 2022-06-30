@@ -385,6 +385,117 @@ rule_engine_filter(nano_work *work, rule *info)
 	return filter;
 }
 
+
+static char*
+generate_key(rule *info, int j, nano_work *work)
+{
+	pub_packet_struct *pp = work->pub_packet;
+	conn_param        *cp = work->cparam;
+	static uint32_t    index      = 0;
+	char str[64] = { 0 };
+
+	if (info->flag[j]) {
+		switch (j) {
+		case RULE_QOS:
+			if (info->key->auto_inc) {
+				sprintf(str, "%d%d", pp->fixed_header.qos, index++);
+			} else {
+				sprintf(str, "%d", pp->fixed_header.qos);
+			}
+			break;
+		case RULE_ID:
+			if (info->key->auto_inc) {
+				sprintf(str, "%d%d", pp->var_header.publish.packet_id, index++);
+			} else {
+				sprintf(str, "%d", pp->var_header.publish.packet_id);
+			}
+			break;
+		case RULE_TOPIC:;
+			char *topic = pp->var_header.publish.topic_name.body;
+			if (info->key->auto_inc) {
+				sprintf(str, "%s%d", topic, index++);
+			} else {
+				sprintf(str, "%s", topic);
+			}
+			break;
+		case RULE_CLIENTID:;
+			char *cid = (char *) conn_param_get_clientid(cp);
+			if (info->key->auto_inc) {
+				sprintf(str, "%s%d", cid, index++);
+			} else {
+				sprintf(str, "%s", cid);
+			}
+			break;
+		case RULE_USERNAME:;
+			char *username = (char *) conn_param_get_username(cp);
+			if (info->key->auto_inc) {
+				sprintf(str, "%s%d", username, index++);
+			} else {
+				sprintf(str, "%s", username);
+			}
+			break;
+		case RULE_PASSWORD:;
+			char *password = (char *) conn_param_get_password(cp);
+			if (info->key->auto_inc) {
+				sprintf(str, "%s%d", password, index++);
+			} else {
+				sprintf(str, "%s", password);
+			}
+			break;
+		case RULE_TIMESTAMP:
+			if (info->key->auto_inc) {
+				sprintf(str, "%ld%d", (unsigned long)time(NULL), index++);
+			} else {
+				sprintf(str, "%ld", (unsigned long)time(NULL));
+			}
+			break;
+		case RULE_PAYLOAD_ALL:;
+			char *payload = pp->payload.data;
+			if (info->key->auto_inc) {
+				sprintf(str, "%s%d", payload, index++);
+			} else {
+				sprintf(str, "%s", payload);
+			}
+			break;
+		case RULE_PAYLOAD_FIELD:;
+			cJSON *jp = cJSON_ParseWithLength(pp->payload.data, pp->payload.len);
+			for (int k = 0; k < cvector_size(info->key->key_arr); k++) {
+				if (jp == NULL) {
+					break;
+				}
+				jp = cJSON_GetObjectItem(jp, info->key->key_arr[k]);
+			}
+
+			switch (jp->type)
+			{
+			case cJSON_String:
+				if (info->key->auto_inc) {
+					sprintf(str, "%s%d", cJSON_GetStringValue(jp), index++);
+				} else {
+					sprintf(str, "%s", cJSON_GetStringValue(jp));
+				}
+				break;
+			case cJSON_Number:
+				if (info->key->auto_inc) {
+					sprintf(str, "%f%d", cJSON_GetNumberValue(jp), index++);
+				} else {
+					sprintf(str, "%f", cJSON_GetNumberValue(jp));
+				}
+				break;
+			default:
+				break;
+			}
+			break;
+
+		default:
+			break;
+		}
+	}
+
+	return 0;
+}
+
+
 static int
 add_info_to_json(rule *info, cJSON *jso, int j, nano_work *work)
 {
@@ -713,6 +824,12 @@ rule_engine_insert_sql(nano_work *work)
 					add_info_to_json(
 					    &rules[i], jso, j, work);
 				}
+
+				// char *key = NULL;
+				// for (size_t j = 0; j < 9; j++) {
+				// 	key = generate_key(&rules[i])
+				// }
+
 
 				if (UINT32_MAX == index) {
 					index = 0;
