@@ -235,3 +235,27 @@ add_dependencies(nanomq nanolib)
 if (ENABLE_JWT) 
   add_dependencies(nanomq l8w8jwt)
 endif (ENABLE_JWT)
+
+# for packaging in WIN
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+	set(CMAKE_INSTALL_PREFIX "${PROJECT_SOURCE_DIR}/install")
+endif()
+message("Install prefix: " ${CMAKE_INSTALL_PREFIX})
+
+# duplicate with subdir
+# install(TARGETS nanomq nanolib nng
+# 	RUNTIME DESTINATION bin # executable file
+# 	LIBRARY DESTINATION bin # dynamic library
+# 	ARCHIVE DESTINATION lib)# static library
+# install(FILES nng.h DESTINATION include)
+install(FILES ./etc/nanomq.conf DESTINATION config)
+install(FILES libwinpthread-1.dll DESTINATION bin)
+
+# set installer configurations
+set(CPACK_GENERATOR "WIX") # set windows packager
+set(CPACK_RESOURCE_FILE_LICENSE "${PROJECT_SOURCE_DIR}/LICENSE.txt") # set license as MIT
+set(CPACK_WIX_PATCH_FILE "${PROJECT_SOURCE_DIR}/wix-patch.xml") # set environment variables
+set(CPACK_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}") # set package name as nanomq-nng
+
+# skip cpack in nng dir
+include(CPack)
