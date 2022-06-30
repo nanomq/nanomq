@@ -77,7 +77,7 @@ bridge_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 static bridge_param bridge_arg;
 
 int
-bridge_client(nng_socket *sock, conf *config)
+bridge_client(nng_socket *sock, conf *config, conf_bridge *bridge_conf)
 {
 	int        rv;
 	nng_dialer dialer;
@@ -86,7 +86,6 @@ bridge_client(nng_socket *sock, conf *config)
 		return rv;
 	}
 	nng_socket_set(*sock, NANO_CONF, config, sizeof(conf));
-	conf_bridge  *bridge_conf = &config->bridge;
 
 	if ((rv = nng_dialer_create(&dialer, *sock, bridge_conf->address))) {
 		fatal("nng_dialer_create", rv);
