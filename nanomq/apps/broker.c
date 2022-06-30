@@ -713,7 +713,7 @@ broker(conf *nanomq_conf)
 		printf("%d\n", mask);
 		mask << 1;
 		sqlite3 *sdb;
-		char    *sqlite_path = cr.sqlite_path ? cr.sqlite_path : "/tmp/rule_engine.db";
+		char    *sqlite_path = cr.sqlite_db_path ? cr.sqlite_db_path : "/tmp/rule_engine.db";
 		int rc = sqlite3_open(sqlite_path, &sdb);
 		if (rc != SQLITE_OK) {
 			log_err("Cannot open database: %s\n", sqlite3_errmsg(sdb));
