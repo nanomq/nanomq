@@ -3,23 +3,15 @@
 
 #include "cvector.h"
 #include <pthread.h>
+#include <stdatomic.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
-#include <stdatomic.h>
 
 typedef enum {
 	MQTT_VERSION_V311 = 4,
 	MQTT_VERSION_V5   = 5,
 } mqtt_version_t;
-
-typedef struct dbtree_ctxt dbtree_ctxt;
-
-typedef struct {
-	uint32_t       session_id;
-	uint32_t       pipe_id;
-	void          *ctxt;
-} dbtree_client;
 
 typedef struct {
 	uint8_t qos;
@@ -31,11 +23,11 @@ typedef struct {
 typedef struct dbtree_node dbtree_node;
 
 struct dbtree_node {
-	char	      *topic;
+	char              *topic;
 	int                plus;
 	int                well;
 	dbtree_retain_msg *retain;
-	cvector(dbtree_client *) clients;
+	cvector(uint32_t *) clients;
 	cvector(dbtree_node *) child;
 	pthread_rwlock_t rwlock;
 };
@@ -72,11 +64,9 @@ node_cmp(void *x_, void *y_)
  * @return 0, minus or plus, based on strcmp
  */
 static inline int
-client_cmp(void *x_, void *y_)
+client_cmp(void *x, void *y)
 {
-	uint32_t      *pipe_id = (uint32_t *) y_;
-	dbtree_client *ele_x   = (dbtree_client *) x_;
-	return *pipe_id - ele_x->pipe_id;
+	return *(uint32_t *) y - *(uint32_t *) x;
 }
 
 // TODO
@@ -123,12 +113,11 @@ void dbtree_print(dbtree *db);
  * client on the node.
  * @param dbtree - dbtree_node
  * @param topic - topic
- * @param ctxt - data related with pipe_id
  * @param pipe_id - pipe id
  * @return
  */
 void *dbtree_insert_client(
-    dbtree *db, char *topic, void *ctxt, uint32_t pipe_id);
+    dbtree *db, char *topic, uint32_t pipe_id);
 
 /**
  * @brief dbtree_find_client - check if this
@@ -140,7 +129,7 @@ void *dbtree_insert_client(
  * @param pipe_id - pipe id
  * @return
  */
-void *dbtree_find_client(dbtree *db, char *topic, uint32_t pipe_id);
+// void *dbtree_find_client(dbtree *db, char *topic, uint32_t pipe_id);
 
 /**
  * @brief dbtree_delete_client - This function will
@@ -150,20 +139,20 @@ void *dbtree_find_client(dbtree *db, char *topic, uint32_t pipe_id);
  * related node and client on the tree
  * @param dbtree - dbtree
  * @param topic - topic
- * @param client - client
- * @return ctxt or NULL, if client can be delete or not
+ * @param pipe_id - pipe id
+ * @return
  */
-void *dbtree_delete_client(
-    dbtree *db, char *topic, uint32_t session_id, uint32_t pipe_id);
+void dbtree_delete_client(
+    dbtree *db, char *topic, uint32_t pipe_id);
 
 /**
  * @brief dbtree_find_clients_and_cache_msg - Get all
  * subscribers online to this topic
  * @param dbtree - dbtree
  * @param topic - topic
- * @return dbtree_client
+ * @return pipe id array
  */
-void **dbtree_find_clients(dbtree *db, char *topic);
+uint32_t *dbtree_find_clients(dbtree *db, char *topic);
 
 /**
  * @brief dbtree_insert_retain - Insert retain message to this topic.
@@ -196,9 +185,9 @@ dbtree_retain_msg **dbtree_find_retain(dbtree *db, char *topic);
  * will Find shared subscribe client.
  * @param dbtree - dbtree
  * @param topic - topic
- * @return dbtree_client
+ * @return pipe id array
  */
-void **dbtree_find_shared_sub_clients(dbtree *db, char *topic);
+uint32_t *dbtree_find_shared_sub_clients(dbtree *db, char *topic);
 
 /**
  * @brief dbtree_check_shared_sub - Check if
@@ -213,12 +202,11 @@ bool dbtree_check_shared_sub(const char *topic);
  * shared subscribe client to dbtree.
  * @param dbtree - dbtree_node
  * @param topic - topic
- * @param ctxt - data related with pipe_id
  * @param pipe_id - pipe id
  * @return
  */
 void *dbtree_insert_shared_sub_client(
-    dbtree *db, char *topic, void *ctxt, uint32_t pipe_id);
+    dbtree *db, char *topic, uint32_t pipe_id);
 
 /**
  * @brief dbtree_delete_shared_subscibe_client - This function will
@@ -229,20 +217,15 @@ void *dbtree_insert_shared_sub_client(
  * @return ctxt or NULL, if client can be delete or not
  */
 void *dbtree_delete_shared_sub_client(
-    dbtree *db, char *topic, uint32_t session_id, uint32_t pipe_id);
+    dbtree *db, char *topic, uint32_t pipe_id);
 
-dbtree_ctxt *dbtree_ctxt_new(void *ctx);
-
-void *dbtree_ctxt_delete(dbtree_ctxt *ctxt);
-
-void dbtree_ctxt_clone(dbtree_ctxt *ctxt);
-
-int dbtree_ctxt_free(dbtree_ctxt *ctxt);
-
-int dbtree_ctxt_get_ref(dbtree_ctxt *ctxt);
-
-void *dbtree_ctxt_get_ctxt(dbtree_ctxt *ctxt);
-
+/**
+ * @brief dbtree_get_tree - This function will
+ * get all info about this tree.
+ * @param dbtree - dbtree
+ * @param cb - a callback function
+ * @return all info about this tree
+ */
 void ***dbtree_get_tree(dbtree *db, void *(*cb)(void *ctxt));
 
 #endif
