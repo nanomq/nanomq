@@ -7,7 +7,7 @@
 #include <stdlib.h>
 
 extern bool     topic_filter(const char *origin, const char *input);
-extern int      bridge_client(nng_socket *sock, conf *config);
+extern int      bridge_client(nng_socket *sock, conf *config, conf_bridge *bridge_conf);
 extern nng_msg *bridge_publish_msg(const char *topic, uint8_t *payload,
     uint32_t len, bool dup, uint8_t qos, bool retain);
 
