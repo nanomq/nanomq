@@ -561,6 +561,7 @@ conf_init(conf *nanomq_conf)
 	nanomq_conf->qos_duration     = 30;
 	nanomq_conf->allow_anonymous  = true;
 	nanomq_conf->daemon           = false;
+	nanomq_conf->bridge_mode      = false;
 
 	conf_sqlite_init(&nanomq_conf->sqlite);
 	conf_tls_init(&nanomq_conf->tls);
@@ -1443,6 +1444,31 @@ conf_bridge_parse_subs(conf_bridge *bridge, const char *path)
 	return true;
 }
 
+conf_bridge *
+bridge_conf_init()
+{
+	conf_bridge *bconf;
+	if ((bconf = zmalloc(sizeof(conf_bridge))) == NULL) {
+		return NULL;
+	}
+	bconf->enable         = false;
+	bconf->sub_count      = 0;
+	bconf->parallel       = 1;
+	bconf->address        = NULL;
+	bconf->clean_start    = 1;
+	bconf->clientid       = NULL;
+	bconf->username       = NULL;
+	bconf->password       = NULL;
+	bconf->proto_ver      = 4;
+	bconf->keepalive      = 30;
+	bconf->forwards_count = 0;
+	bconf->forwards       = (char **) malloc(sizeof(char *));
+	bconf->forwards[0]    = NULL;
+	bconf->sub_list       = (subscribe *) malloc(sizeof(subscribe));
+	conf_tls_init(&bconf->tls);
+	return bconf;
+}
+
 bool
 conf_bridge_parse(conf *nanomq_conf)
 {
@@ -1463,11 +1489,19 @@ conf_bridge_parse(conf *nanomq_conf)
 	size_t sz   = 0;
 	FILE * fp;
 
-	conf_bridge *bridge = &nanomq_conf->bridge;
+	// TODO read from file
+	conf_bridge *bridge = bridge_conf_init();
+	nanomq_conf->bridge = (conf_bridge**)zmalloc( 2*sizeof (conf_bridge*));
+	nanomq_conf->bridge[0] = bridge;
+	conf_bridge *bridge2 = bridge_conf_init();
+	bridge2->parallel = 2;
+	// nanomq_conf->bridge[1] = zmalloc(sizeof (conf_bridge*));
+	nanomq_conf->bridge[1] = bridge2;
+	nanomq_conf->bridge_num = 2;
 
 	if ((fp = fopen(dest_path, "r")) == NULL) {
 		debug_msg("File %s open failed", dest_path);
-		bridge->bridge_mode = false;
+		bridge->enable = false;
 		return true;
 	}
 
@@ -1475,7 +1509,8 @@ conf_bridge_parse(conf *nanomq_conf)
 	while (nano_getline(&line, &sz, fp) != -1) {
 		if ((value = get_conf_value(
 		         line, sz, "bridge.mqtt.bridge_mode")) != NULL) {
-			bridge->bridge_mode = strcasecmp(value, "true") == 0;
+			bridge->enable = strcasecmp(value, "true") == 0;
+			nanomq_conf->bridge_mode |= bridge->enable;
 			free(value);
 		} else if ((value = get_conf_value(
 		                line, sz, "bridge.mqtt.proto_ver")) != NULL) {
@@ -1577,9 +1612,9 @@ conf_bridge_destroy(conf_bridge *bridge)
 void
 print_bridge_conf(conf_bridge *bridge)
 {
-	debug_msg("bridge.mqtt.bridge_mode:  %s",
-	    bridge->bridge_mode ? "true" : "false");
-	if (!bridge->bridge_mode) {
+	debug_msg("bridge.mqtt.enable:  %s",
+	    bridge->enable ? "true" : "false");
+	if (!bridge->enable) {
 		return;
 	}
 	debug_msg("bridge.mqtt.address:      %s", bridge->address);
@@ -2234,7 +2269,8 @@ conf_fini(conf *nanomq_conf)
 
 	zfree(nanomq_conf->websocket.url);
 
-	conf_bridge_destroy(&nanomq_conf->bridge);
+	//TODO destroy bridge conf by size of nanomq_conf->bridge_num
+	conf_bridge_destroy(nanomq_conf->bridge[0]);
 	conf_web_hook_destroy(&nanomq_conf->web_hook);
 	conf_auth_http_destroy(&nanomq_conf->auth_http);
 
