@@ -73,7 +73,7 @@ decode_sub_msg(nano_work *work)
 
 		// TODO Decoding topic has potential buffer overflow
 		tn->topic.body =
-		    copy_utf8_str(payload_ptr, &bpos, &len_of_topic);
+		    (char *)copy_utf8_str(payload_ptr, (uint32_t *)&bpos, &len_of_topic);
 		tn->topic.len = len_of_topic;
 		debug_msg("topic: [%s] len: [%d]", tn->topic.body, len_of_topic);
 		len_of_topic = 0;
@@ -286,7 +286,7 @@ sub_ctx_handle(nano_work *work)
 int
 sub_ctx_del(void *db, char *topic, uint32_t pid)
 {
-	dbtree_delete_client((dbtree *)db, topic, 0, pid);
+	dbtree_delete_client((dbtree *)db, topic, pid);
 
 	dbhash_del_topic(pid, topic);
 
@@ -298,9 +298,9 @@ destroy_sub_client_cb(void *args, char *topic)
 {
 	sub_destroy_info *des = (sub_destroy_info *) args;
 
-	dbtree_delete_client(des->db, topic, 0, des->pid);
+	dbtree_delete_client(des->db, topic, des->pid);
 
-	return cli_ctx;
+	return NULL;
 }
 
 // Call by disconnect ev, if disconnect, delete all node which 
@@ -309,9 +309,6 @@ destroy_sub_client_cb(void *args, char *topic)
 void
 destroy_sub_client(uint32_t pid, dbtree * db)
 {
-	dbtree_ctxt * db_ctxt = NULL;
-	client_ctx * cli_ctx = NULL;
-
 	sub_destroy_info sdi = {
 		.pid = pid,
 		.db = db,

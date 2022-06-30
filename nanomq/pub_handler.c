@@ -105,7 +105,7 @@ foreach_client(
 		nng_atomic_inc64(g_msg.msg_out);
 #endif
 		if (pids == 0) {
-			goto next;
+			continue;
 		}
 
 		// TODO using pid instead of msg_info
