@@ -776,6 +776,28 @@ find_as(char *str, int len, rule *info)
 	return -1;
 }
 
+static char *
+get_key_arr(char *p, rule_key *key)
+{
+	bool is_recur = false;
+	p++;
+	char *p_b = p;
+	while (*p != '\0' && *p != ' ' && *p != '.') p++;
+
+	if (*p == '.') {
+		is_recur = true;
+	}
+
+	*p = '\0';
+	char *key_str = zstrdup(p_b);
+	cvector_push_back(key->key_arr, key_str);
+	if (is_recur) {
+		p = get_key_arr(p, key);
+	}
+	return p;
+}
+
+
 // Recursive get json payload key.
 static char *
 get_payload_key_arr(char *p, rule_payload *payload)
@@ -1245,8 +1267,10 @@ conf_rule_fdb_parse(conf_rule *cr, char *path)
 
 	char * line = NULL;
 	rule *rules = NULL;
+	int rc = 0;
 	size_t sz   = 0;
 	FILE * fp;
+	rule_key *rk = (rule_key*) zmalloc(sizeof(rule_key));
 
 	if (NULL == (fp = fopen(path, "r"))) {
 		log_err("File %s open failed\n", path);
@@ -1259,14 +1283,34 @@ conf_rule_fdb_parse(conf_rule *cr, char *path)
 		         line, sz, "rule.fdb.path")) != NULL) {
 			cr->sqlite_db_path = value;
 		} else if ((value = get_conf_value(
-		                line, sz, "rule.fdb.key")) != NULL) {
-			// TODO 
-			// cr->rules[0].sqlite_table = value;
+		                line, sz, "rule.event.publish.key")) != NULL) {
+			if (-1 == (rc = find_key(value, strlen(value)))) {
+				if (strstr(value, "payload.")) {
+					char *p = strchr(value, '.');
+					// p++;
+					rk->key_arr = NULL;
+					get_key_arr(p, rk);
+					rk->flag[8] = true;
+				}
+			} else {
+				rk->flag[rc] = true;
+			}
+		} else if ((value = get_conf_value(
+		                line, sz, "rule.event.publish.key.autoincrement")) != NULL) {
+			if (0 == strcasecmp(value, "true")) {
+				 rk->auto_inc = true;
+			} else if (0 == strcasecmp(value, "false")) {
+				rk->auto_inc = false;
+			} else {
+				log_err("Unsupport autoincrement option.");
+			}
+
 		} else if (NULL != strstr(line, "rule.event.publish.sql")) {
 			if (NULL != (value = strchr(line, '='))) {
 				value++;
 				puts(value);
 				sql_parse(cr, value);
+				cr->rules[cvector_size(cr->rules) - 1].key = rk;
 			}
 
 		} 
