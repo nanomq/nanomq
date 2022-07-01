@@ -446,7 +446,11 @@ server_cb(void *arg)
 			}
 			//check webhook & rule engine
 			conf_web_hook *hook_conf   = &(work->config->web_hook);
-			if (hook_conf->enable) {
+			uint8_t rule_opt = RULE_ENG_OFF;
+#if defined(SUPP_RULE_ENGINE)
+			rule_opt = work->config->rule_eng.option;
+#endif
+			if (hook_conf->enable || rule_opt != RULE_ENG_OFF) {
 				work->state = SEND;
 				nng_aio_finish(work->aio, 0);
 				break;
@@ -766,6 +770,7 @@ broker(conf *nanomq_conf)
 					strcat(table, type_arr[index]);
 				}
 				strcat(table, ");");
+				// puts(table);
 				rc = sqlite3_exec(sdb, table, 0, 0, &err_msg);
 				if (rc != SQLITE_OK) {
 					log_err("SQL error: %s\n", err_msg);
