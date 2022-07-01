@@ -244,7 +244,7 @@ webhook_entry(nano_work *work, uint8_t reason)
 	nng_socket    *sock      = &work->webhook_sock;
 
 	if (!hook_conf->enable)
-		return;
+		return 0;
 	switch (work->flag) {
 	case CMD_CONNACK:
 		rv = webhook_client_connack(sock, hook_conf,
