@@ -268,11 +268,11 @@ typedef struct {
 } rule_payload;
 
 typedef struct {
-	bool               flag[9];
-	bool               auto_inc;
-	uint8_t            type;
-	void *value;
-	 char **key_arr;
+	bool    flag[9];
+	bool    auto_inc;
+	uint8_t type;
+	void   *value;
+	char  **key_arr;
 } rule_key;
 
 typedef struct {
