@@ -235,14 +235,16 @@ webhook_client_disconnect(nng_socket *sock, conf_web_hook *hook_conf,
 	return rv;
 }
 
-int webhook_entry(nano_work *work, uint8_t reason)
+inline int webhook_entry(nano_work *work, uint8_t reason)
 {
 	int rv = 0;
 	conf_web_hook *hook_conf = &work->config->web_hook;
-    	conn_param *cparam = work->cparam;
-	nng_socket *sock = &work->webhook_sock;
-	switch (work->flag)
-	{
+	conn_param    *cparam    = work->cparam;
+	nng_socket    *sock      = &work->webhook_sock;
+
+	if (!hook_conf->enable)
+		return;
+	switch (work->flag) {
 	case CMD_CONNACK:
 		rv = webhook_client_connack(sock, hook_conf,
 		    conn_param_get_protover(cparam),
@@ -268,5 +270,7 @@ int webhook_entry(nano_work *work, uint8_t reason)
 	default:
 		break;
 	}
+	// Do not let online event msg trigger webhook
+	work->flag = 0;
 	return rv;
 }
