@@ -65,9 +65,9 @@ node_cmp(void *x_, void *y_)
  * @return 0, minus or plus, based on strcmp
  */
 static inline int
-ids_cmp(void *x, void *y)
+ids_cmp(uint32_t x, uint32_t y)
 {
-	return *(uint32_t *) y - *(uint32_t *) x;
+	return y - x;
 }
 
 /**

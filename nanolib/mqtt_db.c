@@ -417,8 +417,8 @@ insert_client_cb(dbtree_node *node, void *pipe_id)
 	pthread_rwlock_wrlock(&(node->rwlock));
 	int index = 0;
 	if (false ==
-	    binary_search(
-	        (void **) node->clients, 0, &index, (void*) pipe_id, ids_cmp)) {
+	    binary_search_uint32(
+	        node->clients, 0, &index, *(uint32_t*) pipe_id, ids_cmp)) {
 		if (index == cvector_size(node->clients)) {
 			cvector_push_back(node->clients, *(uint32_t*) pipe_id);
 		} else {
@@ -720,8 +720,7 @@ collect_clients(uint32_t **vec,
 static uint32_t *
 iterate_client(uint32_t **v)
 {
-	cvector(uint32_t) ret   = NULL;
-	cvector(uint32_t *) ids = NULL;
+	cvector(uint32_t) ids = NULL;
 
 	if (v) {
 		for (int i = 0; i < cvector_size(v); ++i) {
@@ -730,25 +729,23 @@ iterate_client(uint32_t **v)
 				int index = 0;
 
 				if (false ==
-				    binary_search((void **) ids, 0, &index,
-				        &v[i][j], ids_cmp)) {
+				    binary_search_uint32(ids, 0, &index,
+				        v[i][j], ids_cmp)) {
 					if (cvector_empty(ids) ||
 					    index == cvector_size(ids)) {
 						cvector_push_back(
-						    ids, &v[i][j]);
+						    ids, v[i][j]);
 					} else {
 						cvector_insert(ids, index,
-						    &v[i][j]);
+						    v[i][j]);
 					}
 
-					cvector_push_back(ret, v[i][j]);
 				}
 			}
 		}
-		cvector_free(ids);
 	}
 
-	return ret;
+	return ids;
 }
 
 uint32_t *
@@ -818,8 +815,8 @@ delete_dbtree_client(dbtree_node *node, uint32_t pipe_id)
 
 	pthread_rwlock_wrlock(&(node->rwlock));
 	if (true ==
-	    binary_search(
-	        (void **) node->clients, 0, &index, &pipe_id, ids_cmp)) {
+	    binary_search_uint32(
+	        node->clients, 0, &index, pipe_id, ids_cmp)) {
 		cvector_erase(node->clients, index);
 		print_client(node->clients);
 
@@ -1268,8 +1265,7 @@ mem_free:
 static uint32_t *
 iterate_shared_client(uint32_t **v)
 {
-	cvector(uint32_t) ret   = NULL;
-	cvector(uint32_t *) ids = NULL;
+	cvector(uint32_t) ids = NULL;
 
 	if (v) {
 		for (int i = 0; i < cvector_size(v); ++i) {
@@ -1286,28 +1282,26 @@ iterate_shared_client(uint32_t **v)
 			index = 0;
 			// Deduplicate id.
 			if (false ==
-			    binary_search((void **) ids, 0, &index,
-			        &v[i][j], ids_cmp)) {
+			    binary_search_uint32(ids, 0, &index,
+			        v[i][j], ids_cmp)) {
 				if (cvector_empty(ids) ||
 				    index == cvector_size(ids)) {
 					cvector_push_back(
-					    ids, &v[i][j]);
+					    ids, v[i][j]);
 				} else {
 					cvector_insert(
-					    ids, index, &v[i][j]);
+					    ids, index, v[i][j]);
 				}
 
-				cvector_push_back(ret, v[i][j]);
 			}
 		}
-		cvector_free(ids);
 		acnt++;
 		if (acnt == INT_MAX) {
 			acnt = 0;
 		}
 	}
 
-	return ret;
+	return ids;
 }
 
 uint32_t *
