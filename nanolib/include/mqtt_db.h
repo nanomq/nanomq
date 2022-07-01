@@ -23,11 +23,11 @@ typedef struct {
 typedef struct dbtree_node dbtree_node;
 
 struct dbtree_node {
-	char              *topic;
+	char	      *topic;
 	int                plus;
 	int                well;
 	dbtree_retain_msg *retain;
-	cvector(uint32_t *) clients;
+	cvector(uint32_t) clients;
 	cvector(dbtree_node *) child;
 	pthread_rwlock_t rwlock;
 };
@@ -57,18 +57,6 @@ node_cmp(void *x_, void *y_)
 	return strcmp(ele_x->topic, y);
 }
 
-/**
- * @brief client_cmp - A callback to compare different client
- * @param x - normally x is pointer of dbtree_client
- * @param y - normally y is pointer of id
- * @return 0, minus or plus, based on strcmp
- */
-static inline int
-client_cmp(void *x, void *y)
-{
-	return *(uint32_t *) y - *(uint32_t *) x;
-}
-
 // TODO
 /**
  * @brief ids_cmp - A callback to compare different id
@@ -77,11 +65,9 @@ client_cmp(void *x, void *y)
  * @return 0, minus or plus, based on strcmp
  */
 static inline int
-ids_cmp(void *x_, void *y_)
+ids_cmp(void *x, void *y)
 {
-	uint32_t *pipe_id = (uint32_t *) y_;
-	uint32_t *id      = (uint32_t *) x_;
-	return *pipe_id - *id;
+	return *(uint32_t *) y - *(uint32_t *) x;
 }
 
 /**
@@ -142,7 +128,7 @@ void *dbtree_insert_client(
  * @param pipe_id - pipe id
  * @return
  */
-void dbtree_delete_client(
+void *dbtree_delete_client(
     dbtree *db, char *topic, uint32_t pipe_id);
 
 /**
@@ -181,43 +167,14 @@ void *dbtree_delete_retain(dbtree *db, char *topic);
 dbtree_retain_msg **dbtree_find_retain(dbtree *db, char *topic);
 
 /**
- * @brief dbtree_find_shared_sub_clients - This function
+ * @brief dbtree_find_shared_clients - This function
  * will Find shared subscribe client.
  * @param dbtree - dbtree
  * @param topic - topic
  * @return pipe id array
  */
-uint32_t *dbtree_find_shared_sub_clients(dbtree *db, char *topic);
-
-/**
- * @brief dbtree_check_shared_sub - Check if
- * a topic is a shared topic.
- * @param topic - topic
- * @return
- */
-bool dbtree_check_shared_sub(const char *topic);
-
-/**
- * @brief dbtree_insert_shared_subscribe_client - Insert
- * shared subscribe client to dbtree.
- * @param dbtree - dbtree_node
- * @param topic - topic
- * @param pipe_id - pipe id
- * @return
- */
-void *dbtree_insert_shared_sub_client(
-    dbtree *db, char *topic, uint32_t pipe_id);
-
-/**
- * @brief dbtree_delete_shared_subscibe_client - This function will
- * delete a client, when unsubscribe is called.
- * @param dbtree - dbtree
- * @param topic - topic
- * @param client - client
- * @return ctxt or NULL, if client can be delete or not
- */
-void *dbtree_delete_shared_sub_client(
-    dbtree *db, char *topic, uint32_t pipe_id);
+uint32_t *
+dbtree_find_shared_clients(dbtree *db, char *topic);
 
 /**
  * @brief dbtree_get_tree - This function will
@@ -226,6 +183,6 @@ void *dbtree_delete_shared_sub_client(
  * @param cb - a callback function
  * @return all info about this tree
  */
-void ***dbtree_get_tree(dbtree *db, void *(*cb)(void *ctxt));
+void ***dbtree_get_tree(dbtree *db, void *(*cb)(uint32_t pipe_id));
 
 #endif
