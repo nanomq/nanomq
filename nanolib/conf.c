@@ -1238,6 +1238,7 @@ conf_rule_sqlite_parse(conf_rule *cr, char *path)
 				// puts(value);
 				sql_parse(cr, value);
 				cr->rules[cvector_size(cr->rules) - 1].sqlite_table = table;
+				cr->rules[cvector_size(cr->rules) - 1].forword_type = RULE_FORWORD_SQLITE;
 			}
 
 		} 
@@ -1271,6 +1272,7 @@ conf_rule_fdb_parse(conf_rule *cr, char *path)
 	size_t sz   = 0;
 	FILE * fp;
 	rule_key *rk = (rule_key*) zmalloc(sizeof(rule_key));
+	memset(rk, 0, sizeof(rule_key));
 
 	if (NULL == (fp = fopen(path, "r"))) {
 		log_err("File %s open failed\n", path);
@@ -1308,9 +1310,10 @@ conf_rule_fdb_parse(conf_rule *cr, char *path)
 		} else if (NULL != strstr(line, "rule.event.publish.sql")) {
 			if (NULL != (value = strchr(line, '='))) {
 				value++;
-				puts(value);
+				// puts(value);
 				sql_parse(cr, value);
 				cr->rules[cvector_size(cr->rules) - 1].key = rk;
+				cr->rules[cvector_size(cr->rules) - 1].forword_type = RULE_FORWORD_FDB;
 			}
 
 		} 
