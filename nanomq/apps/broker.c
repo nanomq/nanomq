@@ -39,6 +39,7 @@
 #include "include/web_server.h"
 #include "include/webhook_post.h"
 #include "include/webhook_inproc.h"
+#include <include/nanomq.h>
 #if defined(SUPP_RULE_ENGINE)
 	#include <foundationdb/fdb_c.h>
 	#include <foundationdb/fdb_c_options.g.h>
@@ -492,7 +493,7 @@ server_cb(void *arg)
 		}
 
 #if defined(SUPP_RULE_ENGINE)
-		if (work->flag == CMD_PUBLISH && work->config->rule_engine_option == RULE_ENGINE_ON) {
+		if (work->flag == CMD_PUBLISH && work->config->rule_eng.option != RULE_ENG_OFF) {
 			rule_engine_insert_sql(work);
 		}
 #endif
@@ -1269,7 +1270,7 @@ broker_start(int argc, char **argv)
 	conf_parser(nanomq_conf);
 	conf_bridge_parse(nanomq_conf);
 #if defined(SUPP_RULE_ENGINE)
-	conf_rule_engine_parse(nanomq_conf);
+	conf_rule_parse(nanomq_conf);
 #endif
 	conf_web_hook_parse(nanomq_conf);
 
