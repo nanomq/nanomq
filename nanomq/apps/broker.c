@@ -376,6 +376,7 @@ server_cb(void *arg)
 			webhook_entry(work, reason_code);
 			// Set V4/V5 flag for publish notify msg
 			nng_msg_set_cmd_type(smsg, CMD_PUBLISH);
+			work->flag = CMD_PUBLISH;
 			nng_msg_free(work->msg);
 			work->msg = smsg;
 			handle_pub(work, work->pipe_ct, PROTOCOL_VERSION_v311);
@@ -385,6 +386,7 @@ server_cb(void *arg)
 			// v4 as default, or send V5 notify msg?
 			webhook_entry(work, 0);
 			nng_msg_set_cmd_type(msg, CMD_PUBLISH);
+			work->flag = CMD_PUBLISH;
 			handle_pub(work, work->pipe_ct, PROTOCOL_VERSION_v311);
 			// TODO set reason code
 			// uint8_t *payload = nng_msg_payload_ptr(work->msg);
@@ -545,6 +547,7 @@ server_cb(void *arg)
 						nng_aio_set_msg(work->aio, work->msg);
 						nng_ctx_send(work->ctx, work->aio);
 					}
+			webhook_entry(work, 0);
 			nng_msg_free(smsg);
 			smsg = NULL;
 			work->msg = NULL;
@@ -566,6 +569,7 @@ server_cb(void *arg)
 				    conn_param_get_protover(work->cparam),
 					nng_clock());
 				work->msg = msg;
+				work->flag = CMD_PUBLISH;
 				// Set V4/V5 flag for publish msg
 				if (conn_param_get_protover(work->cparam) == 5) {
 					property *will_property =
