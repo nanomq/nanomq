@@ -813,7 +813,7 @@ compose_sql_clause(rule *info, char *key, char *value, int j, nano_work *work)
 	return ret;
 }
 
-static int
+int
 rule_engine_insert_sql(nano_work *work)
 {
 	rule  *rules = work->config->rule_eng.rules;
