@@ -877,7 +877,8 @@ rule_engine_insert_sql(nano_work *work)
 
 			if (RULE_ENG_SDB & work->config->rule_eng.option && RULE_FORWORD_SQLITE == rules[i].forword_type) {
 				char sql_clause[1024] = "INSERT INTO ";
-				char key[128]         = "Broker (";
+				char key[128]         = { 0 };
+				snprintf(key, 128, "%s (", rules[i].sqlite_table);
 				char value[800]       = "VALUES (";
 				for (size_t j = 0; j < 9; j++) {
 					char *ret =

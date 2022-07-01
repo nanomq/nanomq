@@ -704,13 +704,13 @@ broker(conf *nanomq_conf)
 	uint64_t num_ctx = nanomq_conf->parallel;
 
 #if defined(SUPP_RULE_ENGINE)
-	conf_rule cr = nanomq_conf->rule_eng;
+	conf_rule *cr = &nanomq_conf->rule_eng;
 	uint8_t mask = 1;
 	// TODO do all work in a loop
-	if (cr.option & mask) {
+	if (cr->option & mask) {
 		mask << 1;
 		sqlite3 *sdb;
-		char    *sqlite_path = cr.sqlite_db_path ? cr.sqlite_db_path : "/tmp/rule_engine.db";
+		char    *sqlite_path = cr->sqlite_db_path ? cr->sqlite_db_path : "/tmp/rule_engine.db";
 		int rc = sqlite3_open(sqlite_path, &sdb);
 		if (rc != SQLITE_OK) {
 			log_err("Cannot open database: %s\n", sqlite3_errmsg(sdb));
@@ -741,23 +741,24 @@ broker(conf *nanomq_conf)
 			" TEXT",
 		};
 
-		for (int i = 0; i < cvector_size(cr.rules); i++) {
-			if (RULE_FORWORD_SQLITE == cr.rules[i].forword_type) {
-				int              index = 0;
+		for (int i = 0; i < cvector_size(cr->rules); i++) {
+			if (RULE_FORWORD_SQLITE == cr->rules[i].forword_type) {
 				// TODO support create multi different table name
-				char             table[512] =
-				    "CREATE TABLE IF NOT EXISTS Broker("
-				    "RowId INTEGER PRIMARY KEY AUTOINCREMENT";
+				int              index = 0;
+				char             table[128] = { 0 };
+
+				snprintf(table, 128, "CREATE TABLE IF NOT EXISTS %s("
+				    "RowId INTEGER PRIMARY KEY AUTOINCREMENT", cr->rules[i].sqlite_table);
 				char *err_msg   = NULL;
 				bool  first     = true;
 
 				for (; index < 8; index++) {
-					if (!cr.rules[i].flag[index])
+					if (!cr->rules[i].flag[index])
 						continue;
 
 					strcat(table, ", ");
 					strcat(table,
-					    cr.rules[i].as[index] ? cr.rules[i].as[index]
+					    cr->rules[i].as[index] ? cr->rules[i].as[index]
 					                   : key_arr[index]);
 					strcat(table, type_arr[index]);
 				}
@@ -775,7 +776,7 @@ broker(conf *nanomq_conf)
 		}
 	}
 
-	if (cr.option & mask) {
+	if (cr->option & mask) {
 		mask << 1;
 		// RULE_ENGINE_FDB:
 		// RULE_ENGINE_SDB:
