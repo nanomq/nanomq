@@ -1297,6 +1297,7 @@ conf_rule_fdb_parse(conf_rule *cr, char *path)
 			} else {
 				rk->flag[rc] = true;
 			}
+			free(value);
 		} else if ((value = get_conf_value(
 		                line, sz, "rule.event.publish.key.autoincrement")) != NULL) {
 			if (0 == strcasecmp(value, "true")) {
@@ -1306,6 +1307,7 @@ conf_rule_fdb_parse(conf_rule *cr, char *path)
 			} else {
 				log_err("Unsupport autoincrement option.");
 			}
+			free(value);
 
 		} else if (NULL != strstr(line, "rule.event.publish.sql")) {
 			if (NULL != (value = strchr(line, '='))) {

@@ -744,7 +744,7 @@ compose_sql_clause(rule *info, char *key, char *value, int j, nano_work *work)
 						switch (info->payload[pi]->type) {
 						case cJSON_Number:
 								if (is_need_set) {
-									snprintf(tmp_key, 128, "ALTER TABLE Broker ADD %s INT;\n", info->payload[pi]->pas);
+									snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s INT;\n", info->sqlite_table, info->payload[pi]->pas);
 								}
 								strcat(key, info->payload[pi]->pas);
 								strcat(key, ", ");
@@ -757,7 +757,7 @@ compose_sql_clause(rule *info, char *key, char *value, int j, nano_work *work)
 						case cJSON_String:
 							if (info->payload[pi]->pas) {
 								if (is_need_set) {
-									snprintf(tmp_key, 128, "ALTER TABLE Broker ADD %s TEXT;\n", info->payload[pi]->pas);
+									snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s TEXT;\n", info->sqlite_table, info->payload[pi]->pas);
 								}
 								strcat(key, info->payload[pi]->pas);
 								strcat(key, ", ");
@@ -771,7 +771,7 @@ compose_sql_clause(rule *info, char *key, char *value, int j, nano_work *work)
 						case cJSON_Object:
 							if (info->payload[pi]->pas) {
 								if (is_need_set) {
-									snprintf(tmp_key, 128, "ALTER TABLE Broker ADD %s TEXT;\n", info->payload[pi]->pas);
+									snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s TEXT;\n", info->sqlite_table, info->payload[pi]->pas);
 								}
 								strcat(key, info->payload[pi]->pas);
 								strcat(key, ", ");
@@ -844,7 +844,6 @@ rule_engine_insert_sql(nano_work *work)
 					}
 				}
 
-
 				char *dest = cJSON_PrintUnformatted(jso);
 				// puts(key);
 				// puts(dest);
@@ -893,15 +892,15 @@ rule_engine_insert_sql(nano_work *work)
 						int   rc      = sqlite3_exec(
 						           sdb, ret, 0, 0, &err_msg);
 						// FIXME: solve in a more
-						// elegant way if (rc !=
-						// SQLITE_OK) { 	if (strcmp)
-						// 	fprintf(stderr,
-						// 	    "SQL error: %s\n",
-						// 	    err_msg);
-						// 	sqlite3_free(err_msg);
-						// 	sqlite3_close(sdb);
-						// 	return 1;
-						// }
+						// elegant way 
+						if (rc != SQLITE_OK) {
+							// fprintf(stderr, "SQL error: num %d %s\n",
+							//     rc, err_msg);
+							sqlite3_free(err_msg);
+							// sqlite3_close(sdb);
+							// return 1;
+						}
+
 						zfree(ret);
 						ret = NULL;
 					}
@@ -916,7 +915,7 @@ rule_engine_insert_sql(nano_work *work)
 				strcat(sql_clause, value);
 				strcat(sql_clause, ";");
 
-				puts(sql_clause);
+				// puts(sql_clause);
 				sqlite3 *sdb = (sqlite3 *) work->config->rule_eng.rdb[0];
 				char    *err_msg = NULL;
 				int      rc      = sqlite3_exec(
