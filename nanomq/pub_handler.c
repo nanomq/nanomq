@@ -115,6 +115,7 @@ foreach_client(
 
 		msg_info->pipe = pids;
 	}
+	pipe_ct->msg_infos = msg_infos;
 }
 
 #if defined(SUPP_RULE_ENGINE)
