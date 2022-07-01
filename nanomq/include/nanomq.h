@@ -1,3 +1,5 @@
+#ifndef NANOMQ_NANOMQ_H
+#define NANOMQ_NANOMQ_H
 
 #define _GNU_SOURCE
 #define DEBUG_FILE_PATH "/tmp/debug_nanomq.log"
@@ -157,3 +159,5 @@ nanomq_time_str()
 
 extern int    get_cache_argc();
 extern char **get_cache_argv();
+
+#endif
