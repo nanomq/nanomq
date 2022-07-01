@@ -392,9 +392,14 @@ generate_key(rule *info, int j, nano_work *work)
 	pub_packet_struct *pp = work->pub_packet;
 	conn_param        *cp = work->cparam;
 	static uint32_t    index      = 0;
+
+	if (UINT32_MAX == index) {
+		index = 0;
+	}
+
 	char str[64] = { 0 };
 
-	if (info->flag[j]) {
+	if (info->key->flag[j]) {
 		switch (j) {
 		case RULE_QOS:
 			if (info->key->auto_inc) {
@@ -477,9 +482,9 @@ generate_key(rule *info, int j, nano_work *work)
 				break;
 			case cJSON_Number:
 				if (info->key->auto_inc) {
-					sprintf(str, "%f%d", cJSON_GetNumberValue(jp), index++);
+					sprintf(str, "%ld%d", (long) cJSON_GetNumberValue(jp), index++);
 				} else {
-					sprintf(str, "%f", cJSON_GetNumberValue(jp));
+					sprintf(str, "%ld", (long) cJSON_GetNumberValue(jp));
 				}
 				break;
 			default:
@@ -492,7 +497,13 @@ generate_key(rule *info, int j, nano_work *work)
 		}
 	}
 
-	return 0;
+	if (!strlen(str)) {
+		return NULL;
+	}
+
+	char *ret = zstrdup(str);
+	return ret;
+
 }
 
 
@@ -816,7 +827,7 @@ rule_engine_insert_sql(nano_work *work)
 		if (rule_engine_filter(work, &rules[i])) {
 
 			char fdb_key[pp->var_header.publish.topic_name.len+sizeof(uint64_t)];
-			if (RULE_ENG_FDB & work->config->rule_eng.option) {
+			if (RULE_ENG_FDB & work->config->rule_eng.option && RULE_FORWORD_FDB == rules[i].forword_type) {
 				cJSON *jso = NULL;
 				jso        = cJSON_CreateObject();
 
@@ -825,21 +836,18 @@ rule_engine_insert_sql(nano_work *work)
 					    &rules[i], jso, j, work);
 				}
 
-				// char *key = NULL;
-				// for (size_t j = 0; j < 9; j++) {
-				// 	key = generate_key(&rules[i])
-				// }
-
-
-				if (UINT32_MAX == index) {
-					index = 0;
+				char *key = NULL;
+				for (size_t j = 0; j < 9; j++) {
+					key = generate_key(&rules[i], j, work);
+					if (key != NULL) {
+						break;
+					}
 				}
+
+
 				char *dest = cJSON_PrintUnformatted(jso);
-				sprintf(fdb_key, "%s%u",
-				    pp->var_header.publish.topic_name.body,
-				    index++);
-				puts(fdb_key);
-				puts(dest);
+				// puts(key);
+				// puts(dest);
 
 				FDBTransaction *tr = NULL;
 				fdb_error_t     e =
@@ -849,8 +857,8 @@ rule_engine_insert_sql(nano_work *work)
 					fprintf(stderr, "%s\n", fdb_get_error(e));
 				}
 
-				fdb_transaction_set(tr, fdb_key,
-				    strlen(fdb_key), dest, strlen(dest));
+				fdb_transaction_set(tr, key,
+				    strlen(key), dest, strlen(dest));
 				FDBFuture *f = fdb_transaction_commit(tr);
 
 				e = fdb_future_block_until_ready(f);
@@ -862,11 +870,12 @@ rule_engine_insert_sql(nano_work *work)
 				fdb_transaction_clear(tr, fdb_key, strlen(fdb_key));
 				fdb_transaction_destroy(tr);
 
+				zfree(key);
 				cJSON_free(dest);
 				cJSON_Delete(jso);
 			}
 
-			if (RULE_ENG_SDB & work->config->rule_eng.option) {
+			if (RULE_ENG_SDB & work->config->rule_eng.option && RULE_FORWORD_SQLITE == rules[i].forword_type) {
 				char sql_clause[1024] = "INSERT INTO ";
 				char key[128]         = "Broker (";
 				char value[800]       = "VALUES (";

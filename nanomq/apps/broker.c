@@ -708,7 +708,6 @@ broker(conf *nanomq_conf)
 	uint8_t mask = 1;
 	// TODO do all work in a loop
 	if (cr.option & mask) {
-		printf("%d\n", mask);
 		mask << 1;
 		sqlite3 *sdb;
 		char    *sqlite_path = cr.sqlite_db_path ? cr.sqlite_db_path : "/tmp/rule_engine.db";
@@ -777,7 +776,6 @@ broker(conf *nanomq_conf)
 	}
 
 	if (cr.option & mask) {
-		printf("%d\n", mask);
 		mask << 1;
 		// RULE_ENGINE_FDB:
 		// RULE_ENGINE_SDB:
