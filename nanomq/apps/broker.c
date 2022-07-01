@@ -241,7 +241,7 @@ server_cb(void *arg)
 				nng_msg_free(msg);
 				nng_ctx_recv(work->bridge_ctx, work->aio);
 				break;
-			} else {
+			} else {	// TODO support V5 nanosdk
 				nng_msg_set_cmd_type(msg, type);
 			}
 		}
@@ -383,12 +383,12 @@ server_cb(void *arg)
 			// due to clone in protocol layer
 		} else if (work->flag == CMD_DISCONNECT_EV) {
 			// v4 as default, or send V5 notify msg?
+			webhook_entry(work, 0);
 			nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 			handle_pub(work, work->pipe_ct, PROTOCOL_VERSION_v311);
 			// TODO set reason code
 			// uint8_t *payload = nng_msg_payload_ptr(work->msg);
 			// uint8_t reason_code = *(payload+16);
-			webhook_entry(work, 0);
 			// free client ctx
 			if (dbhash_check_id(work->pid.id)) {
 				destroy_sub_client(work->pid.id, work->db);
@@ -401,7 +401,7 @@ server_cb(void *arg)
 				// no will msg - free the cp
 				conn_param_free(work->cparam);
 			} else {
-				// set to END tosend will msg
+				// set to END to send will msg
 				work->state = END;
 				// leave cp for will msg
 				nng_aio_finish(work->aio, 0);
@@ -486,10 +486,7 @@ server_cb(void *arg)
 		debug_msg("SEND ^^^^ ctx%d ^^^^", work->ctx.id);
 
 		// webhook here
-		conf_web_hook *hook_conf = &(work->config->web_hook);
-		if (hook_conf->enable) {
-			webhook_entry(work, 0);
-		}
+		webhook_entry(work, 0);
 
 #if defined(SUPP_RULE_ENGINE)
 		if (work->flag == CMD_PUBLISH && work->config->rule_engine_option == RULE_ENGINE_ON) {
@@ -523,7 +520,7 @@ server_cb(void *arg)
 		}
 		break;
 	case END:
-		debug_msg("END ^^^^ ctx%d ^^^^", work->ctx.id);
+		debug_msg("END ^^^^ ctx%d ^^^^ ", work->ctx.id);
 		if (nng_msg_get_type(work->msg) == CMD_PUBLISH) {
 			if ((rv = nng_aio_result(work->aio)) != 0) {
 				debug_msg("WAIT nng aio result error: %d", rv);
@@ -587,6 +584,7 @@ server_cb(void *arg)
 				} else {
 					nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 					handle_pub(work, work->pipe_ct, PROTOCOL_VERSION_v311);
+					work->flag = CMD_PUBLISH;
 				}
 				work->state = WAIT;
 				nng_aio_finish(work->aio, 0);
