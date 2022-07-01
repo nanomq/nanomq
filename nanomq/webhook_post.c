@@ -129,7 +129,7 @@ webhook_msg_publish(nng_socket *sock, conf_web_hook *hook_conf,
 		cJSON_AddNullToObject(obj, "from_client_id");
 	}
 	size_t out_size = 0;
-	char * encode   = NULL;
+	char  *encode   = NULL;
 	size_t len      = 0;
 	switch (hook_conf->encode_payload) {
 	case plain:
@@ -140,7 +140,7 @@ webhook_msg_publish(nng_socket *sock, conf_web_hook *hook_conf,
 		out_size = BASE64_ENCODE_OUT_SIZE(pub_packet->payload.len);
 		encode   = nng_zalloc(out_size);
 		len      = base64_encode(
-                    pub_packet->payload.data, pub_packet->payload.len, encode);
+		         pub_packet->payload.data, pub_packet->payload.len, encode);
 		if (len > 0) {
 			cJSON_AddStringToObject(obj, "payload", encode);
 		} else {
@@ -152,7 +152,7 @@ webhook_msg_publish(nng_socket *sock, conf_web_hook *hook_conf,
 		out_size = BASE62_ENCODE_OUT_SIZE(pub_packet->payload.len);
 		encode   = nng_zalloc(out_size);
 		len      = base62_encode(
-                    pub_packet->payload.data, pub_packet->payload.len, encode);
+		         pub_packet->payload.data, pub_packet->payload.len, encode);
 		if (len > 0) {
 			cJSON_AddStringToObject(obj, "payload", encode);
 		} else {
@@ -235,9 +235,10 @@ webhook_client_disconnect(nng_socket *sock, conf_web_hook *hook_conf,
 	return rv;
 }
 
-inline int webhook_entry(nano_work *work, uint8_t reason)
+inline int
+webhook_entry(nano_work *work, uint8_t reason)
 {
-	int rv = 0;
+	int            rv        = 0;
 	conf_web_hook *hook_conf = &work->config->web_hook;
 	conn_param    *cparam    = work->cparam;
 	nng_socket    *sock      = &work->webhook_sock;
