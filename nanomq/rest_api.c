@@ -796,91 +796,91 @@ get_clients(http_msg *msg, kv **params, size_t param_num,
 {
 	http_msg res = { .status = NNG_HTTP_STATUS_OK };
 
-	cJSON *data_info;
-	data_info = cJSON_CreateArray();
-
-	dbtree *          db   = get_broker_db();
-	dbhash_ptpair_t **pt   = dbhash_get_ptpair_all();
-	size_t            size = cvector_size(pt);
-	for (size_t i = 0; i < size; i++) {
-		dbtree_ctxt *db_ctxt = (dbtree_ctxt *) dbtree_find_client(
-		    db, pt[i]->topic, pt[i]->pipe);
-		if (db_ctxt == NULL) {
-			continue;
-		}
-		client_ctx *   ctxt = dbtree_ctxt_get_ctxt(db_ctxt);
-		const uint8_t *cid  = conn_param_get_clientid(ctxt->cparam);
-		if (client_id != NULL) {
-			if (strcmp(client_id, cid) != 0) {
-				goto skip;
-			}
-		}
-		const uint8_t *user_name =
-		    conn_param_get_username(ctxt->cparam);
-		if (username != NULL) {
-			if (strcmp(username, user_name) != 0) {
-				goto skip;
-			}
-		}
-		uint16_t keep_alive = conn_param_get_keepalive(ctxt->cparam);
-		const uint8_t proto_ver =
-		    conn_param_get_protover(ctxt->cparam);
-		const char *proto_name = conn_param_get_pro_name(ctxt->cparam);
-		const bool  clean_start =
-		    conn_param_get_clean_start(ctxt->cparam);
-
-		cJSON *data_info_elem;
-		data_info_elem = cJSON_CreateObject();
-		cJSON_AddStringToObject(
-		    data_info_elem, "client_id", (char *) cid);
-		cJSON_AddStringToObject(data_info_elem, "username",
-		    user_name == NULL ? "" : (char *) user_name);
-		cJSON_AddNumberToObject(
-		    data_info_elem, "keepalive", keep_alive);
-		cJSON_AddStringToObject(
-		    data_info_elem, "conn_state", "connected");
-		cJSON_AddBoolToObject(
-		    data_info_elem, "clean_start", clean_start);
-		cJSON_AddStringToObject(
-		    data_info_elem, "proto_name", proto_name);
-		cJSON_AddNumberToObject(
-		    data_info_elem, "proto_ver", proto_ver);
-#ifdef STATISTICS
-		cJSON_AddNumberToObject(data_info_elem, "recv_msg",
-		    ctxt->recv_cnt != NULL ? nng_atomic_get64(ctxt->recv_cnt)
-		                           : 0);
-#endif
-		cJSON_AddItemToArray(data_info, data_info_elem);
-
-	skip:
-		dbhash_ptpair_free(pt[i]);
-		if (0 == dbtree_ctxt_free(db_ctxt)) {
-			client_ctx *ctx = dbtree_ctxt_delete(db_ctxt);
-			if (ctx) {
-				sub_ctx_del(db, pt[i]->topic, ctx->pid.id);
-			}
-		}
-
-	}
-	cvector_free(pt);
-
-	cJSON *res_obj;
-
-	res_obj = cJSON_CreateObject();
-	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
-
-	// cJSON *meta = cJSON_CreateObject();
-
-	// cJSON_AddItemToObject(res_obj, "meta", meta);
-	// TODO add meta content: page, limit, count
-	cJSON_AddItemToObject(res_obj, "data", data_info);
-	char *dest = cJSON_PrintUnformatted(res_obj);
-	cJSON_Delete(res_obj);
-
-	put_http_msg(
-	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
-
-	cJSON_free(dest);
+// 	cJSON *data_info;
+// 	data_info = cJSON_CreateArray();
+// 
+// 	dbtree *          db   = get_broker_db();
+// 	dbhash_ptpair_t **pt   = dbhash_get_ptpair_all();
+// 	size_t            size = cvector_size(pt);
+// 	for (size_t i = 0; i < size; i++) {
+// 		dbtree_ctxt *db_ctxt = (dbtree_ctxt *) dbtree_find_client(
+// 		    db, pt[i]->topic, pt[i]->pipe);
+// 		if (db_ctxt == NULL) {
+// 			continue;
+// 		}
+// 		client_ctx *   ctxt = dbtree_ctxt_get_ctxt(db_ctxt);
+// 		const uint8_t *cid  = conn_param_get_clientid(ctxt->cparam);
+// 		if (client_id != NULL) {
+// 			if (strcmp(client_id, cid) != 0) {
+// 				goto skip;
+// 			}
+// 		}
+// 		const uint8_t *user_name =
+// 		    conn_param_get_username(ctxt->cparam);
+// 		if (username != NULL) {
+// 			if (strcmp(username, user_name) != 0) {
+// 				goto skip;
+// 			}
+// 		}
+// 		uint16_t keep_alive = conn_param_get_keepalive(ctxt->cparam);
+// 		const uint8_t proto_ver =
+// 		    conn_param_get_protover(ctxt->cparam);
+// 		const char *proto_name = conn_param_get_pro_name(ctxt->cparam);
+// 		const bool  clean_start =
+// 		    conn_param_get_clean_start(ctxt->cparam);
+// 
+// 		cJSON *data_info_elem;
+// 		data_info_elem = cJSON_CreateObject();
+// 		cJSON_AddStringToObject(
+// 		    data_info_elem, "client_id", (char *) cid);
+// 		cJSON_AddStringToObject(data_info_elem, "username",
+// 		    user_name == NULL ? "" : (char *) user_name);
+// 		cJSON_AddNumberToObject(
+// 		    data_info_elem, "keepalive", keep_alive);
+// 		cJSON_AddStringToObject(
+// 		    data_info_elem, "conn_state", "connected");
+// 		cJSON_AddBoolToObject(
+// 		    data_info_elem, "clean_start", clean_start);
+// 		cJSON_AddStringToObject(
+// 		    data_info_elem, "proto_name", proto_name);
+// 		cJSON_AddNumberToObject(
+// 		    data_info_elem, "proto_ver", proto_ver);
+// #ifdef STATISTICS
+// 		cJSON_AddNumberToObject(data_info_elem, "recv_msg",
+// 		    ctxt->recv_cnt != NULL ? nng_atomic_get64(ctxt->recv_cnt)
+// 		                           : 0);
+// #endif
+// 		cJSON_AddItemToArray(data_info, data_info_elem);
+// 
+// 	skip:
+// 		dbhash_ptpair_free(pt[i]);
+// 		if (0 == dbtree_ctxt_free(db_ctxt)) {
+// 			client_ctx *ctx = dbtree_ctxt_delete(db_ctxt);
+// 			if (ctx) {
+// 				sub_ctx_del(db, pt[i]->topic, ctx->pid.id);
+// 			}
+// 		}
+// 
+// 	}
+// 	cvector_free(pt);
+// 
+// 	cJSON *res_obj;
+// 
+// 	res_obj = cJSON_CreateObject();
+// 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+// 
+// 	// cJSON *meta = cJSON_CreateObject();
+// 
+// 	// cJSON_AddItemToObject(res_obj, "meta", meta);
+// 	// TODO add meta content: page, limit, count
+// 	cJSON_AddItemToObject(res_obj, "data", data_info);
+// 	char *dest = cJSON_PrintUnformatted(res_obj);
+// 	cJSON_Delete(res_obj);
+// 
+// 	put_http_msg(
+// 	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
+// 
+// 	cJSON_free(dest);
 
 	return res;
 }
@@ -890,141 +890,142 @@ get_subscriptions(
     http_msg *msg, kv **params, size_t param_num, const char *client_id)
 {
 	http_msg res = { 0 };
-	res.status   = NNG_HTTP_STATUS_OK;
-
-	cJSON *res_obj   = NULL;
-	cJSON *data_info = NULL;
-	data_info        = cJSON_CreateArray();
-	res_obj          = cJSON_CreateObject();
-
-	dbtree *          db   = get_broker_db();
-	dbhash_ptpair_t **pt   = dbhash_get_ptpair_all();
-	size_t            size = cvector_size(pt);
-	for (size_t i = 0; i < size; i++) {
-		const char * cid     = NULL;
-		dbtree_ctxt *db_ctxt = (dbtree_ctxt *) dbtree_find_client(
-		    db, pt[i]->topic, pt[i]->pipe);
-		if (db_ctxt == NULL) {
-			continue;
-		}
-
-		client_ctx *   ctxt = dbtree_ctxt_get_ctxt(db_ctxt);
-		if (ctxt->cparam) {
-			cid = (const char *) conn_param_get_clientid(
-			    ctxt->cparam);
-			if (client_id) {
-				if (strcmp(client_id, cid) != 0) {
-					goto skip;
-				}
-			}
-		}
-
-		/*
-		topic_node *tn = ctxt->sub_pkt->node;
-		while (tn) {
-			cJSON *subscribe = cJSON_CreateObject();
-			if (cid) {
-				cJSON_AddStringToObject(
-				    subscribe, "clientid", cid);
-			} else {
-				cJSON_AddStringToObject(
-				    subscribe, "clientid", "");
-			}
-			cJSON_AddStringToObject(
-			    subscribe, "topic", tn->it->topic_filter.body);
-			cJSON_AddNumberToObject(subscribe, "qos", tn->it->qos);
-			cJSON_AddItemToArray(data_info, subscribe);
-			tn = tn->next;
-		}
-		*/
-	skip:
-		if (0 == dbtree_ctxt_free(db_ctxt)) {
-			client_ctx *ctx = dbtree_ctxt_delete(db_ctxt);
-			if (ctx) {
-				dbhash_check_id_and_do(ctx->pid.id, wrap_sub_ctx_free_cb, ctx);
-			}
-		}
-		dbhash_ptpair_free(pt[i]);
-	}
-	cvector_free(pt);
-
-	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
-	// cJSON *meta = cJSON_CreateObject();
-	// cJSON_AddItemToObject(res_obj, "meta", meta);
-	// TODO add meta content: page, limit, count
-	cJSON_AddItemToObject(res_obj, "data", data_info);
-
-	char *dest = cJSON_PrintUnformatted(res_obj);
-
-	put_http_msg(
-	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
-
-	cJSON_free(dest);
-	cJSON_Delete(res_obj);
+// 	res.status   = NNG_HTTP_STATUS_OK;
+// 
+// 	cJSON *res_obj   = NULL;
+// 	cJSON *data_info = NULL;
+// 	data_info        = cJSON_CreateArray();
+// 	res_obj          = cJSON_CreateObject();
+// 
+// 	dbtree *          db   = get_broker_db();
+// 	dbhash_ptpair_t **pt   = dbhash_get_ptpair_all();
+// 	size_t            size = cvector_size(pt);
+// 	for (size_t i = 0; i < size; i++) {
+// 		const char * cid     = NULL;
+// 		dbtree_ctxt *db_ctxt = (dbtree_ctxt *) dbtree_find_client(
+// 		    db, pt[i]->topic, pt[i]->pipe);
+// 		if (db_ctxt == NULL) {
+// 			continue;
+// 		}
+// 
+// 		client_ctx *   ctxt = dbtree_ctxt_get_ctxt(db_ctxt);
+// 		if (ctxt->cparam) {
+// 			cid = (const char *) conn_param_get_clientid(
+// 			    ctxt->cparam);
+// 			if (client_id) {
+// 				if (strcmp(client_id, cid) != 0) {
+// 					goto skip;
+// 				}
+// 			}
+// 		}
+// 
+// 		/*
+// 		topic_node *tn = ctxt->sub_pkt->node;
+// 		while (tn) {
+// 			cJSON *subscribe = cJSON_CreateObject();
+// 			if (cid) {
+// 				cJSON_AddStringToObject(
+// 				    subscribe, "clientid", cid);
+// 			} else {
+// 				cJSON_AddStringToObject(
+// 				    subscribe, "clientid", "");
+// 			}
+// 			cJSON_AddStringToObject(
+// 			    subscribe, "topic", tn->it->topic_filter.body);
+// 			cJSON_AddNumberToObject(subscribe, "qos", tn->it->qos);
+// 			cJSON_AddItemToArray(data_info, subscribe);
+// 			tn = tn->next;
+// 		}
+// 		*/
+// 	skip:
+// 		if (0 == dbtree_ctxt_free(db_ctxt)) {
+// 			client_ctx *ctx = dbtree_ctxt_delete(db_ctxt);
+// 			if (ctx) {
+// 				dbhash_check_id_and_do(ctx->pid.id, wrap_sub_ctx_free_cb, ctx);
+// 			}
+// 		}
+// 		dbhash_ptpair_free(pt[i]);
+// 	}
+// 	cvector_free(pt);
+// 
+// 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+// 	// cJSON *meta = cJSON_CreateObject();
+// 	// cJSON_AddItemToObject(res_obj, "meta", meta);
+// 	// TODO add meta content: page, limit, count
+// 	cJSON_AddItemToObject(res_obj, "data", data_info);
+// 
+// 	char *dest = cJSON_PrintUnformatted(res_obj);
+// 
+// 	put_http_msg(
+// 	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
+// 
+// 	cJSON_free(dest);
+// 	cJSON_Delete(res_obj);
 	return res;
 }
 
 static void *
 get_client_info_cb(void *ctxt)
 {
-	if (NULL == ctxt) {
-		return NULL;
-	}
+	// if (NULL == ctxt) {
+	// 	return NULL;
+	// }
 
-	dbtree_ctxt *dctxt = (dbtree_ctxt *) ctxt;
-	client_ctx * cctxt = dbtree_ctxt_get_ctxt(dctxt);
-	if (NULL == cctxt) {
-		return NULL;
-	}
+	// dbtree_ctxt *dctxt = (dbtree_ctxt *) ctxt;
+	// client_ctx * cctxt = dbtree_ctxt_get_ctxt(dctxt);
+	// if (NULL == cctxt) {
+	// 	return NULL;
+	// }
 
-	conn_param *cp = cctxt->cparam;
-	return (void *) conn_param_get_clientid(cp);
+	// conn_param *cp = cctxt->cparam;
+	// return (void *) conn_param_get_clientid(cp);
+	return NULL;
 }
 
 static http_msg
 get_tree(http_msg *msg)
 {
 	http_msg res     = { 0 };
-	res.status       = NNG_HTTP_STATUS_OK;
-	cJSON *res_obj   = NULL;
-	cJSON *data_info = NULL;
-	res_obj          = cJSON_CreateObject();
-	data_info        = cJSON_CreateArray();
-	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
-	cJSON_AddItemToObject(res_obj, "data", data_info);
+	// res.status       = NNG_HTTP_STATUS_OK;
+	// cJSON *res_obj   = NULL;
+	// cJSON *data_info = NULL;
+	// res_obj          = cJSON_CreateObject();
+	// data_info        = cJSON_CreateArray();
+	// cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+	// cJSON_AddItemToObject(res_obj, "data", data_info);
 
-	dbtree *       db = get_broker_db();
-	dbtree_info ***vn = (dbtree_info ***) dbtree_get_tree(
-	    db, get_client_info_cb);
+	// dbtree *       db = get_broker_db();
+	// dbtree_info ***vn = (dbtree_info ***) dbtree_get_tree(
+	//     db, get_client_info_cb);
 
-	for (int i = 0; i < cvector_size(vn); i++) {
-		cJSON *data_info_elem = cJSON_CreateArray();
-		cJSON_AddItemToArray(data_info, data_info_elem);
-		for (int j = 0; j < cvector_size(vn[i]); j++) {
-			cJSON *elem = cJSON_CreateObject();
-			cJSON_AddItemToArray(data_info_elem, elem);
-			cJSON_AddStringToObject(
-			    elem, "topic", vn[i][j]->topic);
-			zfree(vn[i][j]->topic);
-			cJSON_AddNumberToObject(
-			    elem, "cld_cnt", vn[i][j]->cld_cnt);
-			cJSON *clients = cJSON_CreateStringArray(
-			    (const char *const *) vn[i][j]->clients,
-			    cvector_size(vn[i][j]->clients));
-			cvector_free(vn[i][j]->clients);
-			zfree(vn[i][j]);
-			cJSON_AddItemToObject(elem, "clientid", clients);
-		}
-		cvector_free(vn[i]);
-	}
-	cvector_free(vn);
-	char *dest = cJSON_PrintUnformatted(res_obj);
+	// for (int i = 0; i < cvector_size(vn); i++) {
+	// 	cJSON *data_info_elem = cJSON_CreateArray();
+	// 	cJSON_AddItemToArray(data_info, data_info_elem);
+	// 	for (int j = 0; j < cvector_size(vn[i]); j++) {
+	// 		cJSON *elem = cJSON_CreateObject();
+	// 		cJSON_AddItemToArray(data_info_elem, elem);
+	// 		cJSON_AddStringToObject(
+	// 		    elem, "topic", vn[i][j]->topic);
+	// 		zfree(vn[i][j]->topic);
+	// 		cJSON_AddNumberToObject(
+	// 		    elem, "cld_cnt", vn[i][j]->cld_cnt);
+	// 		cJSON *clients = cJSON_CreateStringArray(
+	// 		    (const char *const *) vn[i][j]->clients,
+	// 		    cvector_size(vn[i][j]->clients));
+	// 		cvector_free(vn[i][j]->clients);
+	// 		zfree(vn[i][j]);
+	// 		cJSON_AddItemToObject(elem, "clientid", clients);
+	// 	}
+	// 	cvector_free(vn[i]);
+	// }
+	// cvector_free(vn);
+	// char *dest = cJSON_PrintUnformatted(res_obj);
 
-	put_http_msg(
-	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
+	// put_http_msg(
+	//     &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
 
-	cJSON_free(dest);
-	cJSON_Delete(res_obj);
+	// cJSON_free(dest);
+	// cJSON_Delete(res_obj);
 	return res;
 }
 
