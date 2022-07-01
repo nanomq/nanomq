@@ -29,6 +29,12 @@
 #include "l8w8jwt/encode.h"
 #endif
 
+#if NANO_PLATFORM_WINDOWS
+#define nano_localtime(t, pTm) localtime_s(pTm, t)
+#else
+#define nano_localtime(t, pTm) localtime_r(t, pTm)
+#endif
+
 typedef struct {
 	char *key;
 	char *value;
@@ -190,8 +196,8 @@ get_time_str(char *str, size_t str_len)
 	}
 	const time_t now_seconds = time(NULL);
 	struct tm    now;
-	struct tm *  tmp_time = localtime_r(&now_seconds, &now);
-	strftime(str, str_len, "%Y-%m-%d %H:%M:%S", tmp_time);
+	nano_localtime(&now_seconds, &now);
+	strftime(str, str_len, "%Y-%m-%d %H:%M:%S", &now);
 }
 
 static tree **
