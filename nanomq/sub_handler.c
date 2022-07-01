@@ -224,10 +224,6 @@ sub_ctx_handle(nano_work *work)
 		return -2;
 	}
 
-	// Or it would be free
-	work->sub_pkt->prop_len   = 0;
-	work->sub_pkt->properties = NULL;
-
 #ifdef STATISTICS
 	// TODO
 #endif
