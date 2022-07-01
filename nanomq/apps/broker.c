@@ -1114,7 +1114,7 @@ predicate_url(conf *config, char *url)
 }
 
 int
-broker_parse_opts(int argc, char **argv, conf *config)
+file_path_parse(int argc, char **argv, conf *config)
 {
 	int   idx = 0;
 	char *arg;
@@ -1140,7 +1140,6 @@ broker_parse_opts(int argc, char **argv, conf *config)
 			FREE_NONULL(config->web_hook_file);
 			config->web_hook_file = nng_strdup(arg);
 			break;
-
 #if defined(SUPP_RULE_ENGINE)
 		case OPT_RULE_CONF:
 			FREE_NONULL(config->rule_file);
@@ -1155,6 +1154,49 @@ broker_parse_opts(int argc, char **argv, conf *config)
 			FREE_NONULL(config->auth_http_file);
 			config->auth_http_file = nng_strdup(arg);
 			break;
+
+		default:
+			break;
+		}
+	}
+
+	switch (rv) {
+	case NNG_EINVAL:
+		fprintf(stderr,
+		    "Option %s is invalid.\nTry 'nanomq broker --help' for "
+		    "more information.\n",
+		    argv[idx]);
+		break;
+	case NNG_EAMBIGUOUS:
+		fprintf(stderr,
+		    "Option %s is ambiguous (specify in full).\nTry 'nanomq "
+		    "broker --help' for more information.\n",
+		    argv[idx]);
+		break;
+	case NNG_ENOARG:
+		fprintf(stderr,
+		    "Option %s requires argument.\nTry 'nanomq broker --help' "
+		    "for more information.\n",
+		    argv[idx]);
+		break;
+	default:
+		break;
+	}
+
+	return rv == -1;
+}
+
+int
+broker_parse_opts(int argc, char **argv, conf *config)
+{
+	int   idx = 0;
+	char *arg;
+	int   val;
+	int   rv;
+
+	while ((rv = nng_opts_parse(argc, argv, cmd_opts, &val, &arg, &idx)) ==
+	    0) {
+		switch (val) {
 		case OPT_PARALLEL:
 			config->parallel = atoi(arg);
 			break;
@@ -1265,21 +1307,28 @@ broker_start(int argc, char **argv)
 
 	// Priority: config < environment variables < command opts
 
-
 	conf_init(nanomq_conf);
 	read_env_conf(nanomq_conf);
 
-	if (!broker_parse_opts(argc, argv, nanomq_conf)) {
+	if (!file_path_parse(argc, argv, nanomq_conf)) {
 		conf_fini(nanomq_conf);
-		return -1;
+		fprintf(stderr, "Cannot parse command line arguments, quit\n");
+		exit(EXIT_FAILURE);
 	}
 
 	conf_parser(nanomq_conf);
+	conf_auth_parser(nanomq_conf);
 	conf_bridge_parse(nanomq_conf);
 #if defined(SUPP_RULE_ENGINE)
 	conf_rule_parse(nanomq_conf);
 #endif
 	conf_web_hook_parse(nanomq_conf);
+
+	if (!broker_parse_opts(argc, argv, nanomq_conf)) {
+		conf_fini(nanomq_conf);
+		fprintf(stderr, "Cannot parse command line arguments, quit\n");
+		exit(EXIT_FAILURE);
+	}
 
 	nanomq_conf->url = nanomq_conf->url != NULL
 	    ? nanomq_conf->url
