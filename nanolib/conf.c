@@ -31,17 +31,22 @@ static char *rule_engine_key_arr[] = {
 #endif
 
 
-static conf_http_header **conf_parse_http_headers(
-    const char *path, const char *key_prefix, size_t *count);
-static bool conf_sqlite_parse(
-    conf_sqlite *sqlite, const char *path, const char *key_prefix);
-static void conf_sqlite_destroy(conf_sqlite *sqlite);
 static void conf_bridge_init(conf_bridge *bridge);
 static void conf_bridge_node_init(conf_bridge_node *node);
 static void conf_bridge_destroy(conf_bridge *bridge);
 static void conf_bridge_node_destroy(conf_bridge_node *node);
 static bool conf_bridge_node_parse_subs(
     conf_bridge_node *node, const char *path, const char *name);
+static void conf_auth_destroy(conf_auth *auth);
+static void conf_web_hook_destroy(conf_web_hook *web_hook);
+static void conf_tls_init(conf_tls *tls);
+static void conf_tls_destroy(conf_tls *tls);
+static void conf_auth_http_req_init(conf_auth_http_req *req);
+static conf_http_header **conf_parse_http_headers(
+    const char *path, const char *key_prefix, size_t *count);
+static bool conf_sqlite_parse(
+    conf_sqlite *sqlite, const char *path, const char *key_prefix);
+static void conf_sqlite_destroy(conf_sqlite *sqlite);
 
 static char *
 strtrim(char *str, size_t len)
@@ -722,6 +727,18 @@ conf_auth_parser(conf *nanomq_conf)
 	}
 
 	fclose(fp);
+}
+
+static void
+conf_auth_destroy(conf_auth *auth)
+{
+	for (size_t i = 0; i < auth->count; i++) {
+		free(auth->usernames[i]);
+		free(auth->passwords[i]);
+	}
+	free(auth->usernames);
+	free(auth->passwords);
+	auth->count = 0;
 }
 
 static void
@@ -2106,7 +2123,7 @@ conf_web_hook_parse(conf *nanomq_conf)
 	return true;
 }
 
-void
+static void
 conf_web_hook_destroy(conf_web_hook *web_hook)
 {
 	zfree(web_hook->url);
@@ -2501,17 +2518,6 @@ conf_rule_destroy(conf_rule *re)
 void
 conf_fini(conf *nanomq_conf)
 {
-	int    i, n = nanomq_conf->auths.count;
-	char **usernames = nanomq_conf->auths.usernames;
-	char **passwords = nanomq_conf->auths.passwords;
-
-	for (i = 0; i < n; i++) {
-		zfree(usernames[i]);
-		zfree(passwords[i]);
-	}
-
-	zfree(usernames);
-	zfree(passwords);
 	zfree(nanomq_conf->url);
 	zfree(nanomq_conf->conf_file);
 	zfree(nanomq_conf->bridge_file);
@@ -2537,7 +2543,7 @@ conf_fini(conf *nanomq_conf)
 	conf_bridge_destroy(&nanomq_conf->bridge);
 	conf_web_hook_destroy(&nanomq_conf->web_hook);
 	conf_auth_http_destroy(&nanomq_conf->auth_http);
-
+	conf_auth_destroy(&nanomq_conf->auths);
 	free(nanomq_conf);
 }
 
