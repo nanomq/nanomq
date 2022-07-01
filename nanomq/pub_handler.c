@@ -82,9 +82,9 @@ init_pipe_content(struct pipe_content *pipe_ct)
 	pipe_ct->msg_infos     = NULL;
 }
 
-void
+static void
 foreach_client(
-    void **cli_ctx_list, nano_work *pub_work, struct pipe_content *pipe_ct)
+    uint32_t *cli_ctx_list, nano_work *pub_work, struct pipe_content *pipe_ct)
 {
 	bool     equal = false;
 	uint32_t pids;
@@ -97,7 +97,7 @@ foreach_client(
 	ctx_list_len = cvector_size(cli_ctx_list);
 
 	for (int i = 0; i < ctx_list_len; i++) {
-		pids = (uint32_t) cli_ctx_list[i];
+		pids = cli_ctx_list[i];
 
 #ifdef STATISTICS
 		// TODO
@@ -926,8 +926,8 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto)
 {
 	reason_code result          = SUCCESS;
 	char      **topic_queue     = NULL;
-	void      **cli_ctx_list    = NULL;
-	void      **shared_cli_list = NULL;
+	uint32_t   *cli_ctx_list    = NULL;
+	uint32_t   *shared_cli_list = NULL;
 	char       *topic           = NULL;
 	pipe_ct->msg_infos          = NULL;
 
@@ -990,7 +990,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto)
 
 	cli_ctx_list = dbtree_find_clients(work->db, topic);
 
-	shared_cli_list = dbtree_find_shared_sub_clients(work->db, topic);
+	shared_cli_list = dbtree_find_shared_clients(work->db, topic);
 
 #ifdef STATISTICS
 	if (cli_ctx_list == NULL && shared_cli_list == NULL) {
