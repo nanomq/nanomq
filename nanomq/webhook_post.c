@@ -252,20 +252,20 @@ webhook_entry(nano_work *work, uint8_t reason)
 		rv = webhook_client_connack(sock, hook_conf,
 		    conn_param_get_protover(cparam),
 		    conn_param_get_keepalive(cparam), reason,
-		    conn_param_get_username(cparam),
-		    conn_param_get_clientid(cparam));
+		    (const char*)conn_param_get_username(cparam),
+		    (const char*)conn_param_get_clientid(cparam));
 		break;
 	case CMD_PUBLISH:
 		rv = webhook_msg_publish(sock, hook_conf, work->pub_packet,
-		    conn_param_get_username(cparam),
-		    conn_param_get_clientid(cparam));
+		    (const char*)conn_param_get_username(cparam),
+		    (const char*)conn_param_get_clientid(cparam));
 		break;
 	case CMD_DISCONNECT_EV:
 		rv = webhook_client_disconnect(sock, hook_conf,
 		    conn_param_get_protover(cparam),
 		    conn_param_get_keepalive(cparam), reason,
-		    conn_param_get_username(cparam),
-		    conn_param_get_clientid(cparam));
+		    (const char*)conn_param_get_username(cparam),
+		    (const char*)conn_param_get_clientid(cparam));
 	case CMD_SUBSCRIBE:
 		break;
 	case CMD_UNSUBSCRIBE:
