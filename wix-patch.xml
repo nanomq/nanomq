@@ -1,0 +1,13 @@
+<CPackWiXPatch>
+	<CPackWiXFragment Id="CM_CP_services.bin.nanomq.exe">
+		<Environment Id="NANOMQ_DIR" Action="set" 
+			Name="NANOMQ" Value="[INSTALL_ROOT]"/>
+
+		<Environment Id="NANOSDK_LIB_DIR" Action="set" 
+			Name="NANOSDK_LIB_DIR" Value="[INSTALL_ROOT]lib"/>
+
+		<Environment Id="NANOMQ_BIN_DIR" Action="set" Part="first"
+			Name="PATH" Value="[INSTALL_ROOT]bin"
+			System="yes"/>
+	</CPackWiXFragment>
+</CPackWiXPatch>
