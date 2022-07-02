@@ -249,7 +249,8 @@ message("Install prefix: " ${CMAKE_INSTALL_PREFIX})
 # 	LIBRARY DESTINATION bin # dynamic library
 # 	ARCHIVE DESTINATION lib)# static library
 # install(FILES nng.h DESTINATION include)
-install(FILES ./etc/nanomq.conf DESTINATION config)
+install(FILES etc/nanomq.conf etc/nanomq_bridge.conf etc/nanomq_auth_http.conf etc/nanomq_auth_username.conf  DESTINATION config)
+install(FILES etc/nanomq_gateway.conf etc/nanomq_rule.conf etc/nanomq_rule_engine.conf nanomq_rule_sqlite.conf nanomq_web_hook.conf DESTINATION config)
 install(FILES libwinpthread-1.dll DESTINATION bin)
 
 # set CPACK params
