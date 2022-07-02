@@ -59,9 +59,9 @@ get_cache_argv()
 static void
 print_version(void)
 {
-	printf("\n%s v%d.%d.%d-%s\n", NANO_BRAND, FW_EV_VER_MAJOR,
-	    FW_EV_VER_MINOR, FW_EV_VER_PATCH, FW_EV_VER_ID_SHORT);
-	printf("Copyright 2022 EMQ X Edge Team\n");
+	printf("\n%s v%d.%d.%d-%s\n", NANO_BRAND, NANO_VER_MAJOR,
+	    NANO_VER_MINOR, NANO_VER_PATCH, NANO_VER_ID_SHORT);
+	printf("Copyright 2022 EMQ Edge Computing Team\n");
 	printf("\n");
 }
 
