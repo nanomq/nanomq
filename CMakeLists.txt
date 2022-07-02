@@ -253,13 +253,14 @@ if (ENABLE_JWT)
   add_dependencies(nanomq l8w8jwt)
 endif (ENABLE_JWT)
 
-# for packaging in WIN
+
+# Build Windows MSI package with WIX
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
 	set(CMAKE_INSTALL_PREFIX "${PROJECT_SOURCE_DIR}/install")
 endif()
 message("Install prefix: " ${CMAKE_INSTALL_PREFIX})
 
-# duplicate with subdir
+# copy and relocate files
 # install(TARGETS nanomq nanolib nng
 # 	RUNTIME DESTINATION bin # executable file
 # 	LIBRARY DESTINATION bin # dynamic library
@@ -268,11 +269,23 @@ message("Install prefix: " ${CMAKE_INSTALL_PREFIX})
 install(FILES ./etc/nanomq.conf DESTINATION config)
 install(FILES libwinpthread-1.dll DESTINATION bin)
 
-# set installer configurations
-set(CPACK_GENERATOR "WIX") # set windows packager
-set(CPACK_RESOURCE_FILE_LICENSE "${PROJECT_SOURCE_DIR}/LICENSE.txt") # set license as MIT
-set(CPACK_WIX_PATCH_FILE "${PROJECT_SOURCE_DIR}/wix-patch.xml") # set environment variables
-set(CPACK_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}") # set package name as nanomq-nng
+# set CPACK params
 
-# skip cpack in nng dir
+set(CPACK_PACKAGE_NAME "NanoMQ")
+set(CPACK_PACKAGE_VERSION ${NANO_PACKAGE_VERSION})
+set(CPACK_PACKAGE_CONTACT "contact@emqx.io")
+set(CPACK_PACKAGE_VENDOR "nanomq.io")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "NanoMQ Edge Computing Kit")
+set(CPACK_SOURCE_GENERATOR "TBZ2;TGZ;ZIP;WIX")
+set(CPACK_SOURCE_IGNORE_FILES "/build/;/.git/;~$;${CPACK_SOURCE_IGNORE_FILES}")
+set(CPACK_SOURCE_PACKAGE_FILE_NAME
+        "${PROJECT_NAME}-v${NANO_PACKAGE_VERSION}-src")
+set(CPACK_PACKAGE_INSTALL_DIRECTORY "nanomq")
+set(CPACK_PACKAGE_FILE_NAME "${PROJECT_NAME}-v${NANO_PACKAGE_VERSION}")  # set package name
+
+set(CPACK_RESOURCE_FILE_LICENSE "${PROJECT_SOURCE_DIR}/LICENSE.txt") # set license in installer
+set(CPACK_WIX_PATCH_FILE "${PROJECT_SOURCE_DIR}/wix-patch.xml") # set environment variables
+set(CPACK_VER)
+
+# package files into installer
 include(CPack)
