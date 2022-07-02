@@ -718,8 +718,8 @@ get_uptime(char *str, size_t str_len)
 static void
 get_version(char *str, size_t str_len)
 {
-	snprintf(str, str_len, "%d.%d.%d-%s", FW_EV_VER_MAJOR, FW_EV_VER_MINOR,
-	    FW_EV_VER_PATCH, FW_EV_VER_ID_SHORT);
+	snprintf(str, str_len, "%d.%d.%d-%s", NANO_VER_MAJOR, NANO_VER_MINOR,
+	    NANO_VER_PATCH, NANO_VER_ID_SHORT);
 }
 
 static http_msg
