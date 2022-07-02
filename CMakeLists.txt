@@ -122,6 +122,24 @@ set(CMAKE_MODULE_PATH
   "${CMAKE_CURRENT_LIST_DIR}/cmake"
 )
 
+message("-- NanoMQ versions --")
+# Determine NanoMQ versions.
+file(READ "nanomq/include/version.h" nano_ver_h)
+
+string(REGEX MATCH "NANO_VER_MAJOR ([0-9]*)" _ ${nano_ver_h})
+set(NANO_MAJOR_VERSION ${CMAKE_MATCH_1})
+string(REGEX MATCH "NANO_VER_MINOR ([0-9]*)" _ ${nano_ver_h})
+set(NANO_MINOR_VERSION ${CMAKE_MATCH_1})
+string(REGEX MATCH "NANO_VER_PATCH ([0-9]*)" _ ${nano_ver_h})
+set(NANO_PATCH_VERSION ${CMAKE_MATCH_1})
+
+set(NANO_ABI_SOVERSION 1)
+set(NANO_ABI_VERSION "${NANO_MAJOR_VERSION}.${NANO_MINOR_VERSION}.${NANO_PATCH_VERSION}")
+set(NANO_PACKAGE_VERSION "${NANO_ABI_VERSION}")
+message(STATUS "Configuring for NanoMQ version ${NANO_ABI_VERSION}")
+
+message("--configure--")
+
 if (NOT DEFINED CFG_METHOD)
   message(STATUS "Default config method [CMAKE_CONFIG]")
   SET (CFG_METHOD CMAKE_CONFIG)
@@ -141,7 +159,6 @@ else ()
   message(FATAL_ERROR "CFG_METHOD ERROR.")
 endif ()
 
-message("--configure--")
 if (NOLOG)
   message("LOG=OFF")
   add_definitions(-DNOLOG)
