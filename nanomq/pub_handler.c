@@ -953,7 +953,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto)
 	}
 
 	// deal with topic alias
-	if (proto == PROTOCOL_VERSION_v5) {
+	if (proto == MQTT_PROTOCOL_VERSION_v5) {
 		property_data *pdata = property_get_value(
 		    work->pub_packet->var_header.publish.properties,
 		    TOPIC_ALIAS);
@@ -1037,7 +1037,7 @@ static void inline handle_pub_retain(const nano_work *work, char *topic)
 			retain->exist   = true;
 			retain->m       = NULL;
 			// reserve property info
-			if (work->proto_ver == PROTOCOL_VERSION_v5 &&
+			if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5 &&
 			    work->pub_packet->var_header.publish.properties !=
 			        NULL) {
 				property_dup(&prop,
@@ -1148,9 +1148,9 @@ encode_pub_message(
 	nng_msg_clear(dest_msg);
 	nng_msg_header_clear(dest_msg);
 	if (nng_msg_cmd_type(dest_msg) == CMD_PUBLISH_V5) {
-		proto = PROTOCOL_VERSION_v5;
+		proto = MQTT_PROTOCOL_VERSION_v5;
 	} else if (nng_msg_cmd_type(dest_msg) == CMD_PUBLISH) {
-		proto = PROTOCOL_VERSION_v311;
+		proto = MQTT_PROTOCOL_VERSION_v311;
 	}
 
 	switch (cmd) {
@@ -1184,7 +1184,7 @@ encode_pub_message(
 		    nng_msg_len(dest_msg));
 
 #if SUPPORT_MQTT5_0
-		if (PROTOCOL_VERSION_v5 == proto) {
+		if (MQTT_PROTOCOL_VERSION_v5 == proto) {
 			if (encode_properties(dest_msg,
 			        work->pub_packet->var_header.publish
 			            .properties,
@@ -1257,7 +1257,7 @@ encode_pub_message(
 			    sizeof(reason_code));
 
 #if SUPPORT_MQTT5_0
-			if (PROTOCOL_VERSION_v5 == proto) { }
+			if (MQTT_PROTOCOL_VERSION_v5 == proto) { }
 #endif
 		}
 		break;
@@ -1346,7 +1346,7 @@ decode_pub_message(nano_work *work, uint8_t proto)
 		}
 		used_pos = pos;
 
-		if (PROTOCOL_VERSION_v5 == proto) {
+		if (MQTT_PROTOCOL_VERSION_v5 == proto) {
 			pub_packet->var_header.publish.properties =
 			    decode_properties(msg, &pos,
 			        &pub_packet->var_header.publish.prop_len,
@@ -1395,7 +1395,7 @@ decode_pub_message(nano_work *work, uint8_t proto)
 	case PUBCOMP:
 		// here could not be reached
 		NNI_GET16(msg_body, pub_packet->var_header.pub_arrc.packet_id);
-		if (PROTOCOL_VERSION_v5 == proto) {
+		if (MQTT_PROTOCOL_VERSION_v5 == proto) {
 			pos += 2;
 			pub_packet->var_header.pub_arrc.reason_code =
 			    *(msg_body + pos);
