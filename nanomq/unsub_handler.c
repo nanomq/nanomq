@@ -43,7 +43,7 @@ decode_unsub_msg(nano_work *work)
 	unsub_pkt->prop_len = 0;
 	// Mqtt_v5 include property
 	unsub_pkt->properties = NULL;
-	if (PROTOCOL_VERSION_v5 == proto_ver) {
+	if (MQTT_PROTOCOL_VERSION_v5 == proto_ver) {
 		unsub_pkt->properties =
 		    decode_properties(msg, &vpos, &unsub_pkt->prop_len, false);
 		if (check_properties(unsub_pkt->properties) != SUCCESS) {
@@ -115,14 +115,14 @@ encode_unsuback_msg(nng_msg *msg, nano_work *work)
 		return PROTOCOL_ERROR;
 	}
 
-	if (PROTOCOL_VERSION_v5 == proto_ver) {
+	if (MQTT_PROTOCOL_VERSION_v5 == proto_ver) {
 		//TODO set property if necessary 
 		encode_properties(msg, NULL, CMD_UNSUBACK);
 	}
 
 	// handle payload
 	// no payload in mqtt_v3
-	if (PROTOCOL_VERSION_v5 == proto_ver) {
+	if (MQTT_PROTOCOL_VERSION_v5 == proto_ver) {
 		tn = unsub_pkt->node;
 		while (tn) {
 			reason_code = tn->reason_code;

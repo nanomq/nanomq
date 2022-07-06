@@ -46,7 +46,7 @@ decode_sub_msg(nano_work *work)
 	sub_pkt->properties = NULL;
 	sub_pkt->prop_len   = 0;
 	// Only Mqtt_v5 include property.
-	if (PROTOCOL_VERSION_v5 == proto_ver) {
+	if (MQTT_PROTOCOL_VERSION_v5 == proto_ver) {
 		sub_pkt->properties =
 		    decode_properties(msg, (uint32_t *)&vpos, &sub_pkt->prop_len, true);
 		if (check_properties(sub_pkt->properties) != SUCCESS) {
@@ -81,7 +81,7 @@ decode_sub_msg(nano_work *work)
 		if (tn->topic.len < 1 || tn->topic.body == NULL) {
 			debug_msg("NOT utf8-encoded string OR null string.");
 			tn->reason_code = UNSPECIFIED_ERROR;
-			if (PROTOCOL_VERSION_v5 == proto_ver)
+			if (MQTT_PROTOCOL_VERSION_v5 == proto_ver)
 				tn->reason_code = TOPIC_FILTER_INVALID;
 			bpos += 1; // ignore option
 			goto next;
@@ -145,7 +145,7 @@ encode_suback_msg(nng_msg *msg, nano_work *work)
 		return PROTOCOL_ERROR;
 	}
 
-	if (PROTOCOL_VERSION_v5 == proto_ver) { // add property in variable
+	if (MQTT_PROTOCOL_VERSION_v5 == proto_ver) { // add property in variable
 		encode_properties(msg, NULL, CMD_SUBACK);
 	}
 
