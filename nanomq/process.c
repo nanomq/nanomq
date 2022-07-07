@@ -8,20 +8,18 @@
 //
 
 #include "include/nanomq.h"
-
 #include "include/process.h"
-
-#include <errno.h>
-#include <fcntl.h>
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
-#include <unistd.h>
 
 #ifndef NANO_PLATFORM_WINDOWS
 #include <paths.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 int
 process_is_alive(int pid)

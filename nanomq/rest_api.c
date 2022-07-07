@@ -11,6 +11,7 @@
 #include "nng/supplemental/nanolib/base64.h"
 #include "nng/supplemental/nanolib/cJSON.h"
 #include "nng/supplemental/nanolib/file.h"
+#include "nng/supplemental/util/platform.h"
 #include "include/broker.h"
 #include "include/nanomq.h"
 #include "include/sub_handler.h"
@@ -22,7 +23,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #include <time.h>
 
 #ifdef SUPP_JWT
@@ -712,7 +712,7 @@ get_uptime(char *str, size_t str_len)
 	nng_time mins   = uptime / 1000 / 60 % 60;
 	nng_time secs   = uptime / 1000 % 60;
 
-	snprintf(str, str_len, "%ld Hours, %ld minutes, %ld seconds", hours,
+	snprintf(str, str_len, "%llu Hours, %llu minutes, %llu seconds", hours,
 	    mins, secs);
 }
 
@@ -1334,7 +1334,7 @@ update_main_conf(cJSON *json, conf *config)
 		if (rv == 0) {
 			if (config->tls.keyfile == NULL) {
 				memset(dir, 0, 1024);
-				if (getcwd(dir, sizeof(dir)) != NULL) {
+				if (nano_getcwd(dir, sizeof(dir)) != NULL) {
 					path_len = strlen(dir) +
 					    strlen("/key.pem") + 1;
 					config->tls.keyfile =
@@ -1353,7 +1353,7 @@ update_main_conf(cJSON *json, conf *config)
 		if (rv == 0) {
 			if (config->tls.certfile == NULL) {
 				memset(dir, 0, 1024);
-				if (getcwd(dir, sizeof(dir)) != NULL) {
+				if (nano_getcwd(dir, sizeof(dir)) != NULL) {
 					path_len = strlen(dir) +
 					    strlen("/cert.pem") + 1;
 					config->tls.certfile =
@@ -1372,7 +1372,7 @@ update_main_conf(cJSON *json, conf *config)
 		if (rv == 0) {
 			if (config->tls.cafile == NULL) {
 				memset(dir, 0, 1024);
-				if (getcwd(dir, sizeof(dir)) != NULL) {
+				if (nano_getcwd(dir, sizeof(dir)) != NULL) {
 					path_len = strlen(dir) +
 					    strlen("/cacert.pem") + 1;
 					config->tls.cafile =
