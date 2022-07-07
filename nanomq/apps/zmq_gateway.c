@@ -1,7 +1,8 @@
 #if defined(SUPP_ZMQ_GATEWAY)
 #include "zmq_gateway.h"
 #include "include/nanomq.h"
-#include <nng/supplemental/util/options.h>
+#include "nng/nng.h"
+#include "nng/supplemental/util/options.h"
 #include <zmq.h>
 
 struct work {
@@ -303,17 +304,17 @@ gateway_conf_check_and_set(zmq_gateway_conf *conf)
 	}
 	if (conf->mqtt_url == NULL) {
 		conf->mqtt_url ? conf->mqtt_url
-		               : zstrdup("mqtt-tcp://broker.emqx.io:1883");
+		               : nng_strdup("mqtt-tcp://broker.emqx.io:1883");
 		printf("Set default mqtt-url: %s\n", conf->mqtt_url);
 	}
 	if (conf->zmq_pub_url == NULL) {
 		conf->zmq_pub_url ? conf->zmq_pub_url
-		                  : zstrdup("tcp://localhost:5559");
+		                  : nng_strdup("tcp://localhost:5559");
 		printf("Set default zmq-pub-url: %s\n", conf->zmq_pub_url);
 	}
 	if (conf->zmq_sub_url == NULL) {
 		conf->zmq_sub_url ? conf->zmq_sub_url
-		                  : zstrdup("tcp://localhost:5560");
+		                  : nng_strdup("tcp://localhost:5560");
 		printf("Set default zmq-sub-url: %s\n", conf->zmq_sub_url);
 	}
 

@@ -9,11 +9,9 @@
 #include <string.h>
 #include <assert.h>
 #include <errno.h>
-#include <getopt.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <time.h>
-#include <unistd.h>
 
 int  zmq_gateway(zmq_gateway_conf *conf);
 
