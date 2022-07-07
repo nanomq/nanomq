@@ -10,9 +10,9 @@
 #include "include/webhook_post.h"
 #include "include/pub_handler.h"
 
-#include <base64.h>
-#include <cJSON.h>
-#include <nng/protocol/mqtt/mqtt_parser.h>
+#include "nng/supplemental/nanolib/base64.h"
+#include "nng/supplemental/nanolib/cJSON.h"
+#include "nng/protocol/mqtt/mqtt_parser.h"
 
 static bool event_filter(conf_web_hook *hook_conf, webhook_event event);
 static bool event_filter_with_topic(

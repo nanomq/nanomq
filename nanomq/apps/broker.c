@@ -13,21 +13,21 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include <conf.h>
-#include <env.h>
-#include <file.h>
-#include <hash_table.h>
-#include <mqtt_db.h>
-#include <nng/mqtt/mqtt_client.h>
-#include <nng/supplemental/tls/tls.h>
-#include <nng/supplemental/util/options.h>
-#include <nng/supplemental/util/platform.h>
-#include <nng/supplemental/sqlite/sqlite3.h>
-#include <nng/protocol/pipeline0/pull.h>
-#include <nng/protocol/pipeline0/push.h>
-#include <nng/protocol/mqtt/mqtt_parser.h>
-#include <nng/protocol/mqtt/nmq_mqtt.h>
-#include <zmalloc.h>
+#include "nng/mqtt/mqtt_client.h"
+#include "nng/supplemental/tls/tls.h"
+#include "nng/supplemental/util/options.h"
+#include "nng/supplemental/util/platform.h"
+#include "nng/supplemental/sqlite/sqlite3.h"
+#include "nng/protocol/pipeline0/pull.h"
+#include "nng/protocol/pipeline0/push.h"
+#include "nng/protocol/mqtt/mqtt_parser.h"
+#include "nng/protocol/mqtt/nmq_mqtt.h"
+#include "nng/supplemental/nanolib/conf.h"
+#include "nng/supplemental/nanolib/env.h"
+#include "nng/supplemental/nanolib/file.h"
+#include "nng/supplemental/nanolib/hash_table.h"
+#include "nng/supplemental/nanolib/mqtt_db.h"
+#include "nng/supplemental/nanolib/zmalloc.h"
 
 #include "include/bridge.h"
 #include "include/mqtt_api.h"

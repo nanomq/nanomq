@@ -8,7 +8,7 @@
 //
 
 #include "include/nanomq.h"
-#include "cmd.h"
+#include "nng/supplemental/nanolib/cmd.h"
 #include "include/apps.h"
 #include "include/const_strings.h"
 #include "include/process.h"

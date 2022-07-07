@@ -1,8 +1,9 @@
 #include "nnb_opt.h"
-#include "dbg.h"
 #include "nnb_help.h"
+#include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <errno.h>
 
 static int conn_opt_set(int argc, char **argv, nnb_conn_opt *opt);
 static int sub_opt_set(int argc, char **argv, nnb_sub_opt *opt);

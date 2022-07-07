@@ -5,10 +5,10 @@
 // file was obtained (LICENSE.txt).  A copy of the license may also be
 // found online at https://opensource.org/licenses/MIT.
 //
-#include <nanolib.h>
-#include <nng.h>
-#include <nng/mqtt/packet.h>
+#include "nng/nng.h"
+#include "nng/mqtt/packet.h"
 #include "nng/protocol/mqtt/mqtt_parser.h"
+#include "nng/supplemental/nanolib/nanolib.h"
 #include "nng/supplemental/util/platform.h"
 
 #include "include/broker.h"
@@ -261,7 +261,7 @@ sub_ctx_handle(nano_work *work)
 		if (!r)
 			goto next;
 
-		for (int i = 0; i < cvector_size(r); i++) {
+		for (size_t i = 0; i < cvector_size(r); i++) {
 			if (!r[i])
 				continue;
 			cvector_push_back(work->msg_ret, r[i]->message);

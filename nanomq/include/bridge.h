@@ -1,8 +1,8 @@
 #ifndef NANOMQ_BRIDGE_H
 #define NANOMQ_BRIDGE_H
 
-#include <conf.h>
-#include <nng/nng.h>
+#include "nng/supplemental/nanolib/conf.h"
+#include "nng/nng.h"
 #include <stdio.h>
 #include <stdlib.h>
 

@@ -1,10 +1,10 @@
 #ifndef ZMQ_PROXY_H
 #define ZMQ_PROXY_H
 
-#include <nng/mqtt/mqtt_client.h>
-#include <nng/supplemental/util/platform.h>
-#include <nng/nng.h>
-#include "conf.h"
+#include "nng/nng.h"
+#include "nng/mqtt/mqtt_client.h"
+#include "nng/supplemental/util/platform.h"
+#include "nng/supplemental/nanolib/conf.h"
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
