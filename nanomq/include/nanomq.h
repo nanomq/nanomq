@@ -1,7 +1,10 @@
 #ifndef NANOMQ_NANOMQ_H
 #define NANOMQ_NANOMQ_H
 
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
+
 #define DEBUG_FILE_PATH "/tmp/debug_nanomq.log"
 
 // later expose on makefile
