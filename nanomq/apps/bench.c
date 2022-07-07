@@ -1,3 +1,5 @@
+#if defined(NANO_PLATFORM_WINDOWS) && defined(BUILD_BENCH)
+//TODO support windows later
 #include "include/nnb_opt.h"
 #include <limits.h>
 #include <nng/nng.h>
@@ -607,3 +609,5 @@ bench_start(int argc, char **argv)
 
 	return 0;
 }
+
+#endif

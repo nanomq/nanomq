@@ -964,7 +964,8 @@ nng_proxy_client(int argc, char **argv, enum nng_proto type)
 	struct connect_param *param = nng_zalloc(sizeof(struct connect_param *));
 	//mqtt socket
 	nng_socket *socket = nng_zalloc(sizeof(nng_socket *));
-	struct work *works[nng_opts->parallel];
+	struct work **works =
+	    nng_zalloc(nng_opts->parallel * sizeof(struct work *));
 
 	param  = nng_zalloc(sizeof(struct connect_param));
 	socket = nng_zalloc(sizeof(nng_socket));
@@ -1022,7 +1023,8 @@ nng_proxy_client(int argc, char **argv, enum nng_proto type)
 		nng_client_cb(works[i]);
 	}
 	if (nng_opts->type == PAIR1 || nng_opts->type == PAIR0) {
-		struct work *works2[nng_opts->parallel];
+		struct work **works2 =
+		    nng_zalloc(nng_opts->parallel * sizeof(struct work *));
 		for (size_t i = 0; i < nng_opts->parallel; i++) {
 			works2[i] =
 			    nng_alloc_work(*socket, s, nng_opts, 1);
@@ -1049,7 +1051,7 @@ nng_proxy_client(int argc, char **argv, enum nng_proto type)
 
 		nng_free(works[k], sizeof(struct work));
 	}
-
+	nng_free(works, nng_opts->parallel * sizeof(struct work *));
 	nng_free(param, sizeof(struct connect_param *));
 	nng_free(socket, sizeof(nng_socket *));
 
