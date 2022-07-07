@@ -14,7 +14,6 @@
 #include "nng/nng.h"
 #include "nng/mqtt/packet.h"
 #include "nng/supplemental/nanolib/mqtt_db.h"
-#include "nng/supplemental/nanolib/zmalloc.h"
 #include "nng/supplemental/nanolib/cJSON.h"
 #include "include/bridge.h"
 #include "include/pub_handler.h"
@@ -26,7 +25,7 @@
 #define ENABLE_RETAIN 1
 #define SUPPORT_MQTT5_0 1
 
-pthread_mutex_t rule_mutex = PTHREAD_MUTEX_INITIALIZER;
+static nng_mtx *rule_mutex = NULL;
 
 #ifdef STATISTICS
 typedef struct {
@@ -231,7 +230,7 @@ payload_filter(pub_packet_struct *pp, rule *info)
 				filter = false;
 			} else {
 				if (payload->value)
-					zfree(payload->value);
+					free(payload->value);
 				payload->value = zstrdup(str);
 				payload->type  = cJSON_String;
 			}
@@ -632,6 +631,10 @@ compose_sql_clause(rule *info, char *key, char *value, int j, nano_work *work)
 	static bool is_first_time = true;
 	char *ret = NULL;
 
+	if (rule_mutex == NULL) {
+		nng_mtx_alloc(&rule_mutex);
+	}
+
 	if (info->flag[j]) {
 		switch (j) {
 		case RULE_QOS:
@@ -710,12 +713,12 @@ compose_sql_clause(rule *info, char *key, char *value, int j, nano_work *work)
 		case RULE_PAYLOAD_FIELD:
 
 			bool is_need_set = false;
-			pthread_mutex_lock(&rule_mutex);
+			nng_mtx_lock(rule_mutex);
 			if (is_first_time) {
 				is_first_time = false;
-				is_need_set = true;
+				is_need_set   = true;
 			}
-			pthread_mutex_unlock(&rule_mutex);
+			nng_mtx_unlock(rule_mutex);
 
 			char ret_key[512] = { 0 };
 			char tmp_key[128] = { 0 };
@@ -853,7 +856,7 @@ rule_engine_insert_sql(nano_work *work)
 				fdb_transaction_clear(tr, fdb_key, strlen(fdb_key));
 				fdb_transaction_destroy(tr);
 
-				zfree(key);
+				free(key);
 				cJSON_free(dest);
 				cJSON_Delete(jso);
 			}
@@ -885,7 +888,7 @@ rule_engine_insert_sql(nano_work *work)
 							// return 1;
 						}
 
-						zfree(ret);
+						free(ret);
 						ret = NULL;
 					}
 				}
@@ -1114,7 +1117,7 @@ void
 free_msg_infos(mqtt_msg_info *msg_infos)
 {
 	if (msg_infos != NULL) {
-		zfree(msg_infos);
+		free(msg_infos);
 	}
 }
 
