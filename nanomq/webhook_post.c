@@ -10,10 +10,10 @@
 #include "include/webhook_post.h"
 #include "include/pub_handler.h"
 
+#include "nng/supplemental/util/platform.h"
 #include "nng/supplemental/nanolib/base64.h"
 #include "nng/supplemental/nanolib/cJSON.h"
 #include "nng/protocol/mqtt/mqtt_parser.h"
-#include <time.h>
 
 static bool event_filter(conf_web_hook *hook_conf, webhook_event event);
 static bool event_filter_with_topic(
@@ -116,7 +116,8 @@ webhook_msg_publish(nng_socket *sock, conf_web_hook *hook_conf,
 	}
 
 	cJSON *obj = cJSON_CreateObject();
-	cJSON_AddNumberToObject(obj, "ts", time(NULL) * 1000);
+	
+	cJSON_AddNumberToObject(obj, "ts", nng_timestamp());
 	cJSON_AddStringToObject(
 	    obj, "topic", pub_packet->var_header.publish.topic_name.body);
 	cJSON_AddBoolToObject(obj, "retain", pub_packet->fixed_header.retain);
