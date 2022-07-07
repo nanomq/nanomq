@@ -8,14 +8,14 @@
 //
 
 #include "include/rest_api.h"
-#include "base64.h"
-#include "cJSON.h"
+#include "nng/supplemental/nanolib/base64.h"
+#include "nng/supplemental/nanolib/cJSON.h"
+#include "nng/supplemental/nanolib/file.h"
 #include "include/broker.h"
 #include "include/nanomq.h"
 #include "include/sub_handler.h"
 #include "include/version.h"
 
-#include "file.h"
 #include "nng/nng.h"
 #include "nng/supplemental/http/http.h"
 #include "nng/supplemental/util/platform.h"

@@ -2,12 +2,12 @@
 #define NANOMQ_BROKER_H
 #define MQTT_VER 5
 
-#include <conf.h>
-#include <nanolib.h>
-#include <nng/nng.h>
-#include <nng/protocol/mqtt/mqtt.h>
-#include <nng/supplemental/util/platform.h>
-#include <nng/mqtt/packet.h>
+#include "nng/supplemental/nanolib/conf.h"
+#include "nng/supplemental/nanolib/nanolib.h"
+#include "nng/nng.h"
+#include "nng/protocol/mqtt/mqtt.h"
+#include "nng/supplemental/util/platform.h"
+#include "nng/mqtt/packet.h"
 
 #define PROTO_MQTT_BROKER 0x00
 #define PROTO_MQTT_BRIDGE 0x01

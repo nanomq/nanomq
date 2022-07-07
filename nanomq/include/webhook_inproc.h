@@ -1,8 +1,8 @@
 #ifndef WEBHOOK_INPROC_H
 #define WEBHOOK_INPROC_H
 
-#include <conf.h>
-#include <nng/nng.h>
+#include "nng/supplemental/nanolib/conf.h"
+#include "nng/nng.h"
 
 #define WEB_HOOK_INPROC_URL "inproc://webhook"
 

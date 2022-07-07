@@ -12,7 +12,7 @@
 
 #include "nng/nng.h"
 #include "nng/supplemental/util/platform.h"
-#include "conf.h"
+#include "nng/supplemental/nanolib/conf.h"
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>

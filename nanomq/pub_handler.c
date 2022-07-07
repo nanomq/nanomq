@@ -10,13 +10,12 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <include/nanomq.h>
-#include <mqtt_db.h>
-#include <nng.h>
-#include <nng/mqtt/packet.h>
-#include <zmalloc.h>
-
-#include "cJSON.h"
+#include "include/nanomq.h"
+#include "nng/nng.h"
+#include "nng/mqtt/packet.h"
+#include "nng/supplemental/nanolib/mqtt_db.h"
+#include "nng/supplemental/nanolib/zmalloc.h"
+#include "nng/supplemental/nanolib/cJSON.h"
 #include "include/bridge.h"
 #include "include/pub_handler.h"
 #include "include/sub_handler.h"

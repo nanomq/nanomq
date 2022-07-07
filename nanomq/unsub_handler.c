@@ -10,9 +10,9 @@
 #include "include/nanomq.h"
 #include "include/sub_handler.h"
 #include "nng/protocol/mqtt/mqtt_parser.h"
-#include <nanolib.h>
-#include <nng.h>
-#include <protocol/mqtt/mqtt.h>
+#include "nng/supplemental/nanolib/nanolib.h"
+#include "nng/nng.h"
+#include "nng/protocol/mqtt/mqtt.h"
 
 int
 decode_unsub_msg(nano_work *work)
