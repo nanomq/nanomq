@@ -133,8 +133,9 @@ err:
 }
 #else */
 static int
-check_trace(char NANO_UNUSED(*name))
+check_trace(char *name)
 {
+	(void) name;
 	return 0;
 }
 // #endif
