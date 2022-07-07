@@ -182,7 +182,7 @@ cmp_str(
 		}
 		break;
 	default:
-		log_err("Unsupport compare symbol, string only support equal "
+		debug_msg("Unsupport compare symbol, string only support equal "
 		        "and unequal!");
 		break;
 	}

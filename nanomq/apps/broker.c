@@ -718,7 +718,7 @@ broker(conf *nanomq_conf)
 		char    *sqlite_path = cr->sqlite_db_path ? cr->sqlite_db_path : "/tmp/rule_engine.db";
 		int rc = sqlite3_open(sqlite_path, &sdb);
 		if (rc != SQLITE_OK) {
-			log_err("Cannot open database: %s\n", sqlite3_errmsg(sdb));
+			debug_msg("Cannot open database: %s\n", sqlite3_errmsg(sdb));
 			sqlite3_close(sdb);
 			exit(1);
 		}
@@ -771,7 +771,7 @@ broker(conf *nanomq_conf)
 				// puts(table);
 				rc = sqlite3_exec(sdb, table, 0, 0, &err_msg);
 				if (rc != SQLITE_OK) {
-					log_err("SQL error: %s\n", err_msg);
+					debug_msg("SQL error: %s\n", err_msg);
 					sqlite3_free(err_msg);
 					sqlite3_close(sdb);
 					return 1;
@@ -790,7 +790,7 @@ broker(conf *nanomq_conf)
 		fdb_error_t err =
 		    fdb_select_api_version(FDB_API_VERSION);
 		if (err) {
-			log_err("select API version error: %s",
+			debug_msg("select API version error: %s",
 			    fdb_get_error(err));
 			exit(1);
 		}
