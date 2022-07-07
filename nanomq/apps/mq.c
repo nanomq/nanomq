@@ -9,6 +9,8 @@
 #include "mq.h"
 #include "include/nanomq.h"
 
+#if defined(MQ)
+
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -16,12 +18,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <sys/time.h>
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
 
-#if defined(MQ)
 #include <sys/resource.h>
 #include <mqueue.h>
 

@@ -7,11 +7,12 @@
 // found online at https://opensource.org/licenses/MIT.
 //
 #include <ctype.h>
-#include <signal.h>
-#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
+
+#if !defined(NANO_PLATFORM_WINDOWS)
+#include <signal.h>
+#endif
 
 #include "nng/mqtt/mqtt_client.h"
 #include "nng/supplemental/tls/tls.h"
@@ -1056,7 +1057,7 @@ store_pid()
 	int  status;
 	char pid_c[12] = "";
 
-	sprintf(pid_c, "%d", getpid());
+	sprintf(pid_c, "%d", nng_getpid());
 	debug_msg("%s", pid_c);
 
 	status = nng_file_put(PID_PATH_NAME, pid_c, sizeof(pid_c));
