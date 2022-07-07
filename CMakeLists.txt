@@ -243,11 +243,9 @@ if (ENABLE_RULE_ENGINE)
 endif (ENABLE_RULE_ENGINE)
 
 add_subdirectory(nng)
-add_subdirectory(nanolib)
 add_subdirectory(nanomq)
 
 add_dependencies(nanomq nng)
-add_dependencies(nanomq nanolib)
 
 if (ENABLE_JWT) 
   add_dependencies(nanomq l8w8jwt)
