@@ -1,3 +1,5 @@
+#if defined(NANO_PLATFORM_WINDOWS) && defined(BUILD_BENCH)
+//TODO support windows later
 #include "nnb_opt.h"
 #include "nnb_help.h"
 #include <stdio.h>
@@ -886,3 +888,5 @@ sub_opt_set(int argc, char **argv, nnb_sub_opt *opt)
 
 	return 0;
 }
+
+#endif
