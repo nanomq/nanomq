@@ -340,9 +340,10 @@ rest_start(uint16_t port)
 void
 inproc_server(void *arg)
 {
-	conf_http_server *rest_conf = arg;
-	nng_socket        sock;
-	struct rest_work *works[rest_conf->parallel];
+	conf_http_server * rest_conf = arg;
+	nng_socket         sock;
+	struct rest_work **works =
+	    nng_zalloc(rest_conf->parallel * sizeof(struct rest_work *));
 
 	int rv;
 	if ((rv = nng_rep0_open(&sock)) != 0) {
@@ -364,6 +365,11 @@ inproc_server(void *arg)
 	for (;;) {
 		nng_msleep(3600000); // neither pause() nor sleep() portable
 	}
+
+	for (size_t i = 0; i < rest_conf->parallel; i++) {
+		nng_free(works[i], sizeof(struct rest_work));
+	}
+	nng_free(works, rest_conf->parallel * sizeof(struct rest_work *));
 }
 
 static void
