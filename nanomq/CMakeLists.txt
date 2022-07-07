@@ -7,8 +7,7 @@
 cmake_minimum_required(VERSION 2.8.8)
 
 project(nanomq)
-# SET(CMAKE_C_FLAGS "-std=c99")
-set(CMAKE_C_FLAGS "-std=gnu99")
+SET(CMAKE_C_STANDARD 99)
 
 if(DEBUG AND ASAN)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -fsanitize=address")
