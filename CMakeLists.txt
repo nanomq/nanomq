@@ -237,7 +237,7 @@ if (ENABLE_RULE_ENGINE)
 
       configure_file(
             "${PROJECT_SOURCE_DIR}/fdbversionConfig.h.in"
-            "${PROJECT_SOURCE_DIR}/nanolib/include/fdb_version.h"
+            "${PROJECT_SOURCE_DIR}/nanomq/include/fdb_version.h"
       )
 
 endif (ENABLE_RULE_ENGINE)
