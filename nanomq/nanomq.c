@@ -14,21 +14,12 @@
 #include "include/process.h"
 #include "include/version.h"
 
-#include <errno.h>
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #ifdef NANO_PLATFORM_WINDOWS
 #include <winsock2.h>
-#else 
-#include <netinet/in.h>
-#include <sys/ptrace.h>
-#include <sys/socket.h>
-#include <sys/wait.h>
 #endif
-#include <sys/types.h>
-#include <unistd.h>
 
 #define NANO_APP_NAME "nanomq"
 #define NANO_BRAND "NanoMQ Edge Computing Kit & Messaging bus"

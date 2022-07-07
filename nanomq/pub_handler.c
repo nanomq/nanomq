@@ -231,7 +231,7 @@ payload_filter(pub_packet_struct *pp, rule *info)
 			} else {
 				if (payload->value)
 					free(payload->value);
-				payload->value = zstrdup(str);
+				payload->value = nng_strdup(str);
 				payload->type  = cJSON_String;
 			}
 			break;
@@ -484,7 +484,7 @@ generate_key(rule *info, int j, nano_work *work)
 		return NULL;
 	}
 
-	char *ret = zstrdup(str);
+	char *ret = nng_strdup(str);
 	return ret;
 
 }
@@ -783,7 +783,7 @@ compose_sql_clause(rule *info, char *key, char *value, int j, nano_work *work)
 			}
 
 			if (strlen(ret_key)) {
-				ret = zstrdup(ret_key);
+				ret = nng_strdup(ret_key);
 
 			}
 			break;
@@ -972,7 +972,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto)
 				    work->pid.id, pdata->p_value.u16);
 				if (tp) {
 					work->pub_packet->var_header.publish
-					    .topic_name.body = strdup(tp);
+					    .topic_name.body = nng_strdup(tp);
 					work->pub_packet->var_header.publish
 					    .topic_name.len = strlen(tp);
 				} else {
