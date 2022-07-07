@@ -11,7 +11,6 @@ RUN cmake -DNOLOG=1 .. && make install
 FROM alpine:3.11
 
 COPY --from=builder /nanomq/build/nanomq /usr/local/nanomq
-COPY --from=builder /nanomq/build/nanolib/libnano_shared.so /usr/lib/
 COPY --from=builder /usr/lib/libgcc_s.so.1 /usr/lib/
 COPY deploy/docker/docker-entrypoint.sh /usr/bin/docker-entrypoint.sh
 
