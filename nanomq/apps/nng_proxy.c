@@ -404,7 +404,8 @@ nng_client_parse_opts(int argc, char **argv, nng_proxy_opts *nng_opts)
 			nng_opts->keepalive = intarg(arg, 65535);
 			break;
 		case OPT_CLEAN_SESSION:
-			nng_opts->clean_session = strcasecmp(arg, "true") == 0;
+			nng_opts->clean_session =
+			    nng_strcasecmp(arg, "true") == 0;
 			break;
 		case OPT_WILL_MSG:
 			ASSERT_NULL(nng_opts->will_msg,
@@ -680,6 +681,8 @@ nng_client_cb(void *arg)
 				nng_ctx_recv(work->ctx, work->aio);
 			}
 
+			break;
+		default:
 			break;
 		}
 		break;

@@ -570,7 +570,7 @@ process_request(http_msg *msg, conf_http_server *config)
 	}
 
 	uri_ct = uri_parse(msg->uri);
-	if (strcasecmp(msg->method, "GET") == 0) {
+	if (nng_strcasecmp(msg->method, "GET") == 0) {
 		if (uri_ct->sub_count == 0) {
 			ret = get_endpoints(msg);
 		} else if (uri_ct->sub_count == 2 &&
@@ -622,7 +622,7 @@ process_request(http_msg *msg, conf_http_server *config)
 			code   = UNKNOWN_MISTAKE;
 			goto exit;
 		}
-	} else if (strcasecmp(msg->method, "POST") == 0) {
+	} else if (nng_strcasecmp(msg->method, "POST") == 0) {
 		if (uri_ct->sub_count == 3 && uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "ctrl") == 0) {
 			ret = post_ctrl(msg, uri_ct->sub_tree[2]->node);
@@ -1057,10 +1057,10 @@ ctrl_cb(void *arg)
 
 	nng_msleep(2000);
 
-	if (strcasecmp(action, "stop") == 0) {
+	if (nng_strcasecmp(action, "stop") == 0) {
 		argv[2] = "stop";
 		cmd     = mk_str(3, argv, " ");
-	} else if (strcasecmp(action, "restart") == 0) {
+	} else if (nng_strcasecmp(action, "restart") == 0) {
 		argv[2] = "restart";
 		cmd     = mk_str(argc, argv, " ");
 	}
@@ -1079,8 +1079,8 @@ post_ctrl(http_msg *msg, const char *type)
 	nng_thread *thread;
 	int         code = SUCCEED;
 
-	if (strcasecmp(type, "stop") == 0 ||
-	    strcasecmp(type, "restart") == 0) {
+	if (nng_strcasecmp(type, "stop") == 0 ||
+	    nng_strcasecmp(type, "restart") == 0) {
 #ifndef NANO_PLATFORM_WINDOWS
 		char *arg = nng_strdup(type);
 		nng_thread_create(&thread, ctrl_cb, arg);

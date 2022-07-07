@@ -1294,8 +1294,8 @@ broker_parse_opts(int argc, char **argv, conf *config)
 int
 broker_start(int argc, char **argv)
 {
-	int   i, url, temp, rc, num_ctx = 0;
-	pid_t pid              = 0;
+	int i, url, temp, rc, num_ctx = 0;
+	int pid = 0;
 
 	conf *nanomq_conf;
 
@@ -1394,7 +1394,7 @@ broker_start(int argc, char **argv)
 int
 broker_stop(int argc, char **argv)
 {
-	pid_t pid = 0;
+	int pid = 0;
 
 	if (argc != 0) {
 		print_usage();
@@ -1414,7 +1414,7 @@ broker_stop(int argc, char **argv)
 int
 broker_restart(int argc, char **argv)
 {
-	pid_t pid = 0;
+	int pid = 0;
 
 	if (!(status_check(&pid))) {
 		kill(pid, SIGTERM);
