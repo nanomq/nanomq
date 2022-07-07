@@ -1,0 +1,21 @@
+name: Build packages for Windows
+
+on:
+  push:
+  pull_request:
+  release:
+    types:
+      - published
+
+jobs:
+  build_windows_packages:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v1
+      - run: git submodule update --init --recursive
+
+      - name: Configure
+        run: cmake -B build
+
+      - name: Build
+        run: cmake --build build
