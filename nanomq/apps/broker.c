@@ -907,7 +907,9 @@ broker(conf *nanomq_conf)
 	}
 
 #if (defined DEBUG) && (defined ASAN)
+#if !(defined NANO_PLATFORM_WINDOWS)
 	signal(SIGINT, intHandler);
+#endif
 	for (;;) {
 		if (keepRunning == 0) {
 #if defined(SUPP_RULE_ENGINE)
@@ -918,7 +920,7 @@ broker(conf *nanomq_conf)
 			}
 #endif
 			for (size_t i = 0; i < num_ctx; i++) {
-				nng_free(works[i], sizeof(struct work));
+				nng_free(works[i], sizeof(sdtruct work));
 			}
 			nng_free(works, num_ctx * sizeof(struct work *));
 
