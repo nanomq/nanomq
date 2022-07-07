@@ -27,7 +27,6 @@
 #include "nng/supplemental/nanolib/file.h"
 #include "nng/supplemental/nanolib/hash_table.h"
 #include "nng/supplemental/nanolib/mqtt_db.h"
-#include "nng/supplemental/nanolib/zmalloc.h"
 
 #include "include/bridge.h"
 #include "include/mqtt_api.h"
@@ -1068,10 +1067,17 @@ void
 active_conf(conf *nanomq_conf)
 {
 	// check if daemonlize
+#ifdef NANO_PLATFORM_WINDOWS
+	if (nanomq_conf->daemon) {
+		fprintf(stderr, "Daemon mode is not supported on Windows\n");
+		exit(EXIT_FAILURE);
+	}
+#else
 	if (nanomq_conf->daemon == true && process_daemonize()) {
 		fprintf(stderr, "Error occurs, cannot daemonize\n");
 		exit(EXIT_FAILURE);
 	}
+#endif
 	// taskq and max_taskq
 	if (nanomq_conf->num_taskq_thread || nanomq_conf->max_taskq_thread) {
 		nng_taskq_setter(nanomq_conf->num_taskq_thread,
@@ -1286,8 +1292,7 @@ broker_start(int argc, char **argv)
 {
 	int   i, url, temp, rc, num_ctx = 0;
 	pid_t pid              = 0;
-	char *conf_path        = NULL;
-	char *bridge_conf_path = NULL;
+
 	conf *nanomq_conf;
 
 	if (!status_check(&pid)) {
