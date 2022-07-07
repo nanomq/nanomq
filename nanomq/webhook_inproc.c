@@ -233,7 +233,9 @@ webhook_thr(void *arg)
 {
 	conf *            conf = arg;
 	nng_socket        sock;
-	struct hook_work *works[conf->web_hook.pool_size];
+	struct hook_work **works =
+	    nng_zalloc(conf->web_hook.pool_size * sizeof(struct hook_work *));
+
 	int               rv;
 	int               i;
 
@@ -259,6 +261,11 @@ webhook_thr(void *arg)
 	for (;;) {
 		nng_msleep(3600000); // neither pause() nor sleep() portable
 	}
+
+	for (size_t i = 0; i < conf->web_hook.pool_size; i++) {
+		nng_free(works[i], sizeof(struct hook_work));
+	}
+	nng_free(works, conf->web_hook.pool_size * sizeof(struct hook_work *));
 }
 
 int
