@@ -12,14 +12,13 @@
 #include <string.h>
 #include <time.h>
 
-#include "conf.h"
 #include "include/webhook_inproc.h"
-#include "nano_lmq.h"
 #include "nanomq.h"
 #include "nng/nng.h"
 #include "nng/protocol/pipeline0/pull.h"
 #include "nng/protocol/pipeline0/push.h"
 #include "nng/supplemental/http/http.h"
+#include "nng/supplemental/nanolib/conf.h"
 #include "nng/supplemental/util/platform.h"
 
 #define NANO_LMQ_INIT_CAP 16
@@ -33,7 +32,7 @@ struct hook_work {
 	nng_msg *      msg;
 	nng_thread *   thread;
 	nng_mtx *      mtx;
-	nano_lmq       lmq;
+	nng_lmq *      lmq;
 	nng_socket     sock;
 	conf_web_hook *conf;
 	uint32_t       id;
@@ -134,13 +133,13 @@ static void
 thread_cb(void *arg)
 {
 	struct hook_work *w   = arg;
-	nano_lmq *        lmq = &w->lmq;
+	nng_lmq *         lmq = w->lmq;
 	nng_msg *         msg = NULL;
 	int               rv;
 	while (true) {
-		if (!nano_lmq_empty(lmq)) {
+		if (!nng_lmq_empty(lmq)) {
 			nng_mtx_lock(w->mtx);
-			rv = nano_lmq_getq(lmq, (void **) &msg);
+			rv = nng_lmq_get(lmq, &msg);
 			nng_mtx_unlock(w->mtx);
 			if (0 == rv) {
 				send_msg(w->conf, msg);
@@ -148,12 +147,12 @@ thread_cb(void *arg)
 			}
 		} else {
 			// try to reduce lmq cap
-			size_t lmq_len = nano_lmq_len(&w->lmq);
+			size_t lmq_len = nng_lmq_len(w->lmq);
 			if (lmq_len > (NANO_LMQ_INIT_CAP * 2)) {
-				size_t lmq_cap = nano_lmq_cap(&w->lmq);
+				size_t lmq_cap = nng_lmq_cap(w->lmq);
 				if (lmq_cap > (lmq_len * 2)) {
 					nng_mtx_lock(w->mtx);
-					nano_lmq_resize(&w->lmq, lmq_cap / 2);
+					nng_lmq_resize(w->lmq, lmq_cap / 2);
 					nng_mtx_unlock(w->mtx);
 				}
 			}
@@ -179,14 +178,14 @@ webhook_cb(void *arg)
 		}
 		work->msg = nng_aio_get_msg(work->aio);
 		nng_mtx_lock(work->mtx);
-		if (nano_lmq_full(&work->lmq)) {
-			size_t lmq_cap = nano_lmq_cap(&work->lmq);
-			if ((rv = nano_lmq_resize(
-			         &work->lmq, lmq_cap + (lmq_cap / 2))) != 0) {
-				fatal(work->id, "nano_lmq_resize", rv);
+		if (nng_lmq_full(work->lmq)) {
+			size_t lmq_cap = nng_lmq_cap(work->lmq);
+			if ((rv = nng_lmq_resize(
+			         work->lmq, lmq_cap + (lmq_cap / 2))) != 0) {
+				fatal(work->id, "nng_lmq_resize", rv);
 			}
 		}
-		nano_lmq_putq(&work->lmq, work->msg);
+		nng_lmq_put(work->lmq, work->msg);
 		nng_mtx_unlock(work->mtx);
 		work->msg   = NULL;
 		work->state = HOOK_RECV;
@@ -214,8 +213,8 @@ alloc_work(nng_socket sock, conf_web_hook *conf)
 	if ((rv = nng_mtx_alloc(&w->mtx)) != 0) {
 		fatal(w->id, "nng_mtx_alloc", rv);
 	}
-	if ((rv = nano_lmq_init(&w->lmq, NANO_LMQ_INIT_CAP) != 0)) {
-		fatal(w->id, "nano_lmq_init", rv);
+	if ((rv = nng_lmq_alloc(&w->lmq, NANO_LMQ_INIT_CAP) != 0)) {
+		fatal(w->id, "nng_lmq_alloc", rv);
 	}
 	if ((rv = nng_thread_create(&w->thread, thread_cb, w)) != 0) {
 		fatal(w->id, "nng_thread_create", rv);
