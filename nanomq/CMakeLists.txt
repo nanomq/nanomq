@@ -15,30 +15,24 @@ if(DEBUG AND ASAN)
   # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -fsanitize=address")
 endif(DEBUG AND ASAN)
 
-if (DEBUG AND TSAN)
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -fsanitize=thread")
+if(DEBUG AND TSAN)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -fsanitize=thread")
   # SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -fsanitize=thread")
-endif (DEBUG AND TSAN)
+endif(DEBUG AND TSAN)
 
 aux_source_directory(. DIRSRCS)
 
 include_directories(./)
 include_directories(${CMAKE_SOURCE_DIR}/nanomq/include)
 include_directories(${CMAKE_SOURCE_DIR}/nng/include/nng)
-include_directories(${CMAKE_SOURCE_DIR}/nanolib/include)
-if (ENABLE_JWT)
+if(ENABLE_JWT)
   include_directories(${CMAKE_SOURCE_DIR}/extern/l8w8jwt/include)
-endif (ENABLE_JWT)
+endif(ENABLE_JWT)
 
 add_subdirectory(apps)
 
 # set(PARALLEL 128 CACHE STRING "Parallelism (min 4, max 1000)")
 
-# find_package(nng CONFIG REQUIRED) find_package(nanolib CONFIG REQUIRED)
-
-# if (NANOLIB_FOUND) INCLUDE_DIRECTORIES(${NANOLIB_INCLUDE_DIR})
-# TARGET_LINK_LIBRARIES(nanomq ${NANOLIB_LIBRARY}) else (NANOLIB_FOUND)
-# MESSAGE(FATAL_ERROR "nanolib library not found")
 set(SOURCES
     mqtt_api.c
     nanomq.c
@@ -52,21 +46,21 @@ set(SOURCES
     web_server.c
     webhook_inproc.c
     webhook_post.c
-    )
+    db_cli.c)
 
 include_directories(${FOUNDATION_INCLUDE_DIR})
 
 add_executable(nanomq ${SOURCES})
 
-if (ENABLE_RULE_ENGINE) 
+if(ENABLE_RULE_ENGINE)
   target_link_libraries(nanomq ${FOUNDATION_LIBRARY})
-endif (ENABLE_RULE_ENGINE)
+endif(ENABLE_RULE_ENGINE)
 
 # target_link_libraries(nanomq apps nano_shared)
-if (ENABLE_JWT)
+if(ENABLE_JWT)
   target_link_libraries(nanomq l8w8jwt)
-endif (ENABLE_JWT)
-target_link_libraries(nanomq apps nanolib)
+endif(ENABLE_JWT)
+target_link_libraries(nanomq apps nng)
 target_link_libraries(nanomq nng)
 target_compile_definitions(nanomq PRIVATE -DPARALLEL=${PARALLEL})
 
@@ -77,7 +71,12 @@ install(
   # LIBRARY  DESTINATION ${CMAKE_INSTALL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT services)
 
-install(DIRECTORY include/
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME} COMPONENT services)
+install(
+  DIRECTORY include/
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}
+  COMPONENT services)
 
-install(EXPORT nanomqConfig DESTINATION share/nanomq/cmake COMPONENT services)
+install(
+  EXPORT nanomqConfig
+  DESTINATION share/nanomq/cmake
+  COMPONENT services)
