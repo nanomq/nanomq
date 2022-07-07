@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <time.h>
 
 #ifdef SUPP_JWT
 #include "l8w8jwt/decode.h"
