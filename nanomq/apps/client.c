@@ -435,7 +435,7 @@ client_parse_opts(int argc, char **argv, client_opts *opts)
 			opts->keepalive = intarg(arg, 65535);
 			break;
 		case OPT_CLEAN_SESSION:
-			opts->clean_session = strcasecmp(arg, "true") == 0;
+			opts->clean_session = nng_strcasecmp(arg, "true") == 0;
 			break;
 		case OPT_WILL_MSG:
 			ASSERT_NULL(opts->will_msg,
