@@ -835,7 +835,8 @@ broker(conf *nanomq_conf)
 		}
 	}
 
-	struct work **works = nng_zalloc(num_ctx * sizeof(struct work *));
+	// struct work **works = nng_zalloc(num_ctx * sizeof(struct work *));
+	struct work *works[num_ctx];
 	// create broker ctx
 	for (i = 0; i < nanomq_conf->parallel; i++) {
 		works[i] = proto_work_init(sock, sock,
@@ -920,9 +921,10 @@ broker(conf *nanomq_conf)
 			}
 #endif
 			for (size_t i = 0; i < num_ctx; i++) {
+				nng_free(works[i]->pipe_ct, sizeof(struct pipe_content));
 				nng_free(works[i], sizeof(struct work));
 			}
-			nng_free(works, num_ctx * sizeof(struct work *));
+			// nng_free(works, num_ctx * sizeof(struct work *));
 
 			exit(0);
 		}
