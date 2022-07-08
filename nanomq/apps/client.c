@@ -835,14 +835,26 @@ static void
 connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {
 	struct connect_param *param = arg;
-	printf("%s: %s connected!\n", __FUNCTION__, param->opts->url);
+	int reason;
+	// get connect reason
+	nng_pipe_get_int(p, NNG_OPT_MQTT_CONNECT_REASON, &reason);
+	// get property for MQTT V5
+	// property *prop;
+	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_CONNECT_PROPERTY, &prop);
+	printf("%s: %s connect result: %d \n", __FUNCTION__, param->opts->url, reason);
 }
 
 // Disconnect message callback function
 static void
 disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {
-	printf("disconnected\n");
+	int reason;
+	// get connect reason
+	nng_pipe_get_int(p, NNG_OPT_MQTT_DISCONNECT_REASON, &reason);
+	// property *prop;
+	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_DISCONNECT_PROPERTY, &prop);
+	// nng_socket_get?
+	printf("disconnected reason : %d\n", reason);
 }
 
 static void
