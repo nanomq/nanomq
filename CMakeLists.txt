@@ -217,28 +217,28 @@ endif (ENABLE_JWT)
 
 if (ENABLE_RULE_ENGINE)
   add_definitions(-DSUPP_RULE_ENGINE)
-  find_path(FOUNDATION_INCLUDE_DIR fdb_c.h /usr/include/foundationdb/ /usr/local/include/foundationdb/)
-  find_library(FOUNDATION_LIBRARY NAMES fdb_c PATHS /usr/lib/ /usr/local/lib/)
-  if (NOT FOUNDATION_INCLUDE_DIR OR NOT FOUNDATION_LIBRARY)
-      message(FATAL_ERROR "Not found foundationdb")
-  else ()
-      message(STATUS "Found foundationdb: ${FOUNDATION_LIBRARY}")
-  endif()
+  ## find_path(FOUNDATION_INCLUDE_DIR fdb_c.h /usr/include/foundationdb/ /usr/local/include/foundationdb/)
+  ## find_library(FOUNDATION_LIBRARY NAMES fdb_c PATHS /usr/lib/ /usr/local/lib/)
+  ## if (NOT FOUNDATION_INCLUDE_DIR OR NOT FOUNDATION_LIBRARY)
+  ##     message(FATAL_ERROR "Not found foundationdb")
+  ## else ()
+  ##     message(STATUS "Found foundationdb: ${FOUNDATION_LIBRARY}")
+  ## endif()
 
-  if (NOT FDB_API_VERSION)
-      set(FDB_API_VERSION 630)
-  endif()
+  ## if (NOT FDB_API_VERSION)
+  ##     set(FDB_API_VERSION 630)
+  ## endif()
 
-  if (FDB_DATABASE)
-      set(FDB_DATABASE "\"${FDB_DATABASE}\"")
-  else()
-      set(FDB_DATABASE NULL)
-  endif()
+  ## if (FDB_DATABASE)
+  ##     set(FDB_DATABASE "\"${FDB_DATABASE}\"")
+  ## else()
+  ##     set(FDB_DATABASE NULL)
+  ## endif()
 
-      configure_file(
-            "${PROJECT_SOURCE_DIR}/fdbversionConfig.h.in"
-            "${PROJECT_SOURCE_DIR}/nanomq/include/fdb_version.h"
-      )
+  ## configure_file(
+  ##       "${PROJECT_SOURCE_DIR}/fdbversionConfig.h.in"
+  ##       "${PROJECT_SOURCE_DIR}/nanomq/include/fdb_version.h"
+  ## )
 
 endif (ENABLE_RULE_ENGINE)
 

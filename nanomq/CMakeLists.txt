@@ -44,8 +44,8 @@ set(SOURCES
     rest_api.c
     web_server.c
     webhook_inproc.c
-    webhook_post.c
-    db_cli.c)
+    webhook_post.c)
+    # db_cli.c)
 
 include_directories(${FOUNDATION_INCLUDE_DIR})
 
