@@ -624,16 +624,12 @@ add_info_to_json(rule *info, cJSON *jso, int j, nano_work *work)
 }
 
 static char *
-compose_sql_clause(rule *info, char *key, char *value, int j, nano_work *work)
+compose_sql_clause(rule *info, char *key, char *value, bool is_need_set, int j, nano_work *work)
 {
 	pub_packet_struct *pp = work->pub_packet;
 	conn_param        *cp = work->cparam;
-	static bool is_first_time = true;
 	char *ret = NULL;
 
-	if (rule_mutex == NULL) {
-		nng_mtx_alloc(&rule_mutex);
-	}
 
 	if (info->flag[j]) {
 		switch (j) {
@@ -710,15 +706,7 @@ compose_sql_clause(rule *info, char *key, char *value, int j, nano_work *work)
 			sprintf(value, "%s\'%s\'", value, payload);
 			break;
 
-		case RULE_PAYLOAD_FIELD:
-
-			bool is_need_set = false;
-			nng_mtx_lock(rule_mutex);
-			if (is_first_time) {
-				is_first_time = false;
-				is_need_set   = true;
-			}
-			nng_mtx_unlock(rule_mutex);
+		case RULE_PAYLOAD_FIELD:;
 
 			char ret_key[512] = { 0 };
 			char tmp_key[128] = { 0 };
@@ -808,11 +796,15 @@ rule_engine_insert_sql(nano_work *work)
 	pub_packet_struct *pp         = work->pub_packet;
 	conn_param        *cp         = work->cparam;
 	static uint32_t    index      = 0;
+	static bool is_first_time = true;
+	bool is_need_set = false;
 
+	if (rule_mutex == NULL) {
+		nng_mtx_alloc(&rule_mutex);
+	}
 
 	for (size_t i = 0; i < rule_size; i++) {
 		if (rule_engine_filter(work, &rules[i])) {
-
 			char fdb_key[pp->var_header.publish.topic_name.len+sizeof(uint64_t)];
 			if (RULE_ENG_FDB & work->config->rule_eng.option && RULE_FORWORD_FDB == rules[i].forword_type) {
 				cJSON *jso = NULL;
@@ -862,16 +854,22 @@ rule_engine_insert_sql(nano_work *work)
 			}
 
 			if (RULE_ENG_SDB & work->config->rule_eng.option && RULE_FORWORD_SQLITE == rules[i].forword_type) {
+
 				char sql_clause[1024] = "INSERT INTO ";
 				char key[128]         = { 0 };
 				snprintf(key, 128, "%s (", rules[i].sqlite_table);
 				char value[800]       = "VALUES (";
 				for (size_t j = 0; j < 9; j++) {
+					nng_mtx_lock(rule_mutex);
+					if (true == is_first_time) {
+						is_need_set   = true;
+					}
 					char *ret =
 					    compose_sql_clause(&rules[i],
-					        key, value, j, work);
+					        key, value, is_need_set, j, work);
 					if (ret) {
 						// puts(ret);
+						debug_msg("%s", ret);
 						sqlite3 *sdb =
 						    (sqlite3 *)
 						        work->config->rule_eng.rdb[0];
@@ -891,7 +889,16 @@ rule_engine_insert_sql(nano_work *work)
 						free(ret);
 						ret = NULL;
 					}
+
+					if (true == is_first_time) {
+						is_first_time = false;
+					}
+
+					nng_mtx_unlock(rule_mutex);
 				}
+
+				
+
 				// puts(key);
 				// puts(value);
 				char *p = strrchr(key, ',');
@@ -903,6 +910,7 @@ rule_engine_insert_sql(nano_work *work)
 				strcat(sql_clause, ";");
 
 				// puts(sql_clause);
+				debug_msg("%s", sql_clause);
 				sqlite3 *sdb = (sqlite3 *) work->config->rule_eng.rdb[0];
 				char    *err_msg = NULL;
 				int      rc      = sqlite3_exec(
