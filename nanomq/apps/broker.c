@@ -750,7 +750,7 @@ broker(conf *nanomq_conf)
 			if (RULE_FORWORD_SQLITE == cr->rules[i].forword_type) {
 				// TODO support create multi different table name
 				int              index = 0;
-				char             table[128] = { 0 };
+				char             table[256] = { 0 };
 
 				snprintf(table, 128, "CREATE TABLE IF NOT EXISTS %s("
 				    "RowId INTEGER PRIMARY KEY AUTOINCREMENT", cr->rules[i].sqlite_table);
@@ -782,6 +782,7 @@ broker(conf *nanomq_conf)
 		}
 	}
 
+#if defined(FDB_SUPPORT)
 	if (cr->option & mask) {
 		mask << 1;
 		// RULE_ENGINE_FDB:
@@ -797,6 +798,7 @@ broker(conf *nanomq_conf)
 		FDBDatabase *fdb   = openDatabase(&netThread);
 		nanomq_conf->rule_eng.rdb[1] = (void *) fdb;
 	}
+#endif
 
 #endif
 
@@ -913,11 +915,14 @@ broker(conf *nanomq_conf)
 	for (;;) {
 		if (keepRunning == 0) {
 #if defined(SUPP_RULE_ENGINE)
+
+	#if defined(FDB_SUPPORT)
 			if (nanomq_conf->rule_eng.option & RULE_ENG_FDB) {
 				fdb_database_destroy(
 				    nanomq_conf->rule_eng.rdb[1]);
 				fdb_stop_network();
 			}
+	#endif
 #endif
 			for (size_t i = 0; i < num_ctx; i++) {
 				nng_free(works[i], sizeof(struct work));
