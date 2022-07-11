@@ -166,6 +166,13 @@ else ()
   message("LOG=ON")
 endif (NOLOG)
 
+if (NOTRACE)
+  message("TRACE=OFF")
+  add_definitions(-DNOTRACE)
+else ()
+  message("TRACE=ON")
+endif (NOTRACE)
+
 
 if (NOWARNING)
   message("NOWARNING")

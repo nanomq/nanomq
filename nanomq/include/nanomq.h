@@ -9,16 +9,21 @@
 
 // later expose on makefile
 /**/
+
+#if defined(NOTRACE)
+#undef DEBUG_TRACE
+#else
+#define DEBUG_TRACE
+#endif
+
 #if defined(NOLOG)
 #undef DEBUG_CONSOLE
 #undef DEBUG_FILE
 #undef DEBUG_SYSLOG
-#undef DEBUG_TRACE
 #else
 #define DEBUG_CONSOLE
 #define DEBUG_FILE
 #define DEBUG_SYSLOG
-#define DEBUG_TRACE
 #endif
 
 #undef LIBNANO_DEBUG
