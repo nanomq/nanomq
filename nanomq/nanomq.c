@@ -19,10 +19,22 @@
 #include <string.h>
 #ifdef NANO_PLATFORM_WINDOWS
 #include <winsock2.h>
+#else
+#include <errno.h>
+#include <signal.h>
+#include <netinet/in.h>
+#include <sys/ptrace.h>
+#include <sys/socket.h>
+#include <sys/wait.h>
+#include <sys/types.h>
+#include <unistd.h>
 #endif
 
+
+
+
 #define NANO_APP_NAME "nanomq"
-#define NANO_BRAND "NanoMQ Edge Computing Kit & Messaging bus"
+#define NANO_BRAND "NanoMQ Messaging Engine for Edge Computing & Messaging bus"
 
 #define NANO_DEBUG
 
@@ -88,11 +100,12 @@ print_help(void)
 			break;
 		}
 	}
-	printf("nanomq also provide MQTT bench tool and proxy module as protocol gateway"
-		"to bridging ZeroMQ/nanomsg/nng msg to MQTT broker\n");
+	printf("nanomq edge computing kit also provide MQTT bench tool "
+		"and proxy module as protocol gateway"
+		"to bridging ZeroMQ/nanomsg/nng msg to an MQTT broker\n");
 }
 
-/* #if defined(DEBUG_TRACE)
+#if defined(DEBUG_TRACE)
 static int check_trace(char *name)
 {
         int pid, traced;
@@ -102,12 +115,12 @@ static int check_trace(char *name)
                         pid = getppid();
 
 
-#ifdef __APPLE__
+#ifdef NANO_PLATFORM_DARWIN
                         traced = ptrace(PT_ATTACHEXC, pid, 0, 0);
-#elif __linux__
+#elif DNANO_PLATFORM_LINUX
                         traced = ptrace(PTRACE_ATTACH, pid, 0, 0);
 #else
-#   error "Unknown compiler"
+			printf("error: current platform do support\n");
 #endif
 
                         if (!traced) {
@@ -131,14 +144,14 @@ static int check_trace(char *name)
 err:
         return -1;
 }
-#else */
+#else
 static int
 check_trace(char *name)
 {
 	(void) name;
 	return 0;
 }
-// #endif
+#endif
 
 static int
 handle_app(int res)
