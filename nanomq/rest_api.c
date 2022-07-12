@@ -1786,7 +1786,7 @@ decode_http_mqtt_msg(nng_msg **dest, nng_msg *src)
 	uint8_t proto_ver = *(uint8_t *) ptr;
 
 	conn_param *cparam = create_cparam(clientid, proto_ver);
-
+	conn_param_clone(cparam);
 	nng_free(clientid, clientid_sz + 1);
 
 	nng_mqtt_msg_decode(msg);
