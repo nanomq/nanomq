@@ -149,7 +149,6 @@ int keepRunning = 1;
 void
 intHandler(int dummy)
 {
-	
 	keepRunning = 0;
 	fprintf(stderr, "\nBroker exit(0).\n");
 }
@@ -995,15 +994,9 @@ broker(conf *nanomq_conf)
 			}
 	#endif
 #endif
-			if (nanomq_conf->web_hook.enable) {
-				stop_webhook_service();
-			}
-
-			if (nanomq_conf->http_server.enable) {
-				stop_rest_server();
-			}
 			for (size_t i = 0; i < num_ctx; i++) {
-				nng_free(works[i]->pipe_ct, sizeof(struct pipe_content));
+				nng_free(works[i]->pipe_ct,
+				    sizeof(struct pipe_content));
 				nng_free(works[i], sizeof(struct work));
 			}
 			nng_free(works, num_ctx * sizeof(struct work *));
