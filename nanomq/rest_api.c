@@ -18,6 +18,7 @@
 #include "include/version.h"
 
 #include "nng/nng.h"
+#include "nng/mqtt/mqtt_client.h"
 #include "nng/supplemental/http/http.h"
 #include "nng/supplemental/util/platform.h"
 #include <stdint.h>
@@ -155,9 +156,11 @@ static http_msg post_ctrl(http_msg *msg, const char *type);
 static http_msg get_config(http_msg *msg);
 static http_msg post_config(http_msg *msg);
 static http_msg post_mqtt_publish(http_msg *msg, nng_socket *sock);
-
-static void update_main_conf(cJSON *json, conf *config);
-static void update_bridge_conf(cJSON *json, conf *config);
+static http_msg post_mqtt_publish_batch(http_msg *msg, nng_socket *sock);
+static http_msg post_mqtt_subscribe(http_msg *msg, nng_socket *sock);
+static http_msg post_mqtt_subscribe_batch(http_msg *msg, nng_socket *sock);
+static void     update_main_conf(cJSON *json, conf *config);
+static void     update_bridge_conf(cJSON *json, conf *config);
 
 #define getNumberValue(obj, item, key, value, rv)           \
 	{                                                   \
@@ -642,28 +645,29 @@ process_request(http_msg *msg, conf_http_server *config, nng_socket *sock)
 		    uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "mqtt") == 0 &&
 		    strcmp(uri_ct->sub_tree[2]->node, "publish_batch") == 0) {
+			ret = post_mqtt_publish_batch(msg, sock);
 		} else if (uri_ct->sub_count == 3 &&
 		    uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "mqtt") == 0 &&
 		    strcmp(uri_ct->sub_tree[2]->node, "subscribe") == 0) {
-
+			ret = post_mqtt_subscribe(msg, sock);
 		} else if (uri_ct->sub_count == 3 &&
 		    uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "mqtt") == 0 &&
 		    strcmp(uri_ct->sub_tree[2]->node, "subscribe_batch") ==
 		        0) {
-
+			ret = post_mqtt_subscribe_batch(msg, sock);
 		} else if (uri_ct->sub_count == 3 &&
 		    uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "mqtt") == 0 &&
 		    strcmp(uri_ct->sub_tree[2]->node, "unsubscribe") == 0) {
-
+			//TODO
 		} else if (uri_ct->sub_count == 3 &&
 		    uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "mqtt") == 0 &&
 		    strcmp(uri_ct->sub_tree[2]->node, "unsubscribe_batch") ==
 		        0) {
-
+			//TODO
 		} else {
 			status = NNG_HTTP_STATUS_NOT_FOUND;
 
@@ -1695,6 +1699,137 @@ post_config(http_msg *msg)
 	return res;
 }
 
+static int
+publish_mqtt_msg(nng_socket *sock, char *payload, char **topics,
+    size_t topic_count, uint8_t qos, uint8_t retain, bool encode_base64,
+    property *props)
+{
+	int rv = 0;
+	for (size_t i = 0; i < topic_count; i++) {
+		nng_msg *pub_msg;
+		nng_mqtt_msg_alloc(&pub_msg, 0);
+		nng_mqtt_msg_set_packet_type(pub_msg, NNG_MQTT_PUBLISH);
+
+		size_t payload_len = strlen(payload);
+		if (encode_base64) {
+			size_t out_size = BASE64_ENCODE_OUT_SIZE(payload_len);
+			char * encode_data = nng_zalloc(out_size + 1);
+			size_t len         = base64_encode(
+                            (uint8_t *) payload, payload_len, encode_data);
+			if (len > 0) {
+				nng_mqtt_msg_set_publish_payload(
+				    pub_msg, (uint8_t *) encode_data, len);
+			} else {
+				nng_mqtt_msg_set_publish_payload(
+				    pub_msg, NULL, 0);
+			}
+			nng_strfree(encode_data);
+		} else {
+			nng_mqtt_msg_set_publish_payload(
+			    pub_msg, (uint8_t *) payload, payload_len);
+		}
+		nng_mqtt_msg_set_publish_qos(pub_msg, qos);
+		nng_mqtt_msg_set_publish_retain(pub_msg, retain);
+		nng_mqtt_msg_set_publish_topic(pub_msg, topics[i]);
+
+		// conn_param *cparam ;
+		
+		if (props != NULL) {
+
+			// TOOD add property
+		}
+
+		if ((rv = nng_sendmsg(*sock, pub_msg, 0)) != 0) {
+			nng_msg_free(pub_msg);
+			break;
+		}
+	}
+	return rv;
+}
+
+static int
+handle_publish_item(cJSON *pub_obj, nng_socket *sock)
+{
+	cJSON *item;
+	int    rv;
+	char * topic          = NULL;
+	char **topics         = NULL;
+	size_t topic_count    = 0;
+	getStringValue(pub_obj, item, "topic", topic, rv);
+	if (rv != 0) {
+		getStringValue(pub_obj, item, "topics", topic, rv);
+		if (rv != 0) {
+			goto out;
+		}
+		// split topic by ","
+		char *temp = NULL;
+		char *ptr  = nano_strtok(topic, ",", &temp);
+
+		while (ptr != NULL) {
+			topic_count++;
+			topics = realloc(topics, topic_count * sizeof(char *));
+			topics[topic_count - 1] = ptr;
+			ptr = nano_strtok(NULL, ",", &temp);
+		}
+	} else {
+		topics      = nng_zalloc(sizeof(char *));
+		topics[0]   = topic;
+		topic_count = 1;
+	}
+	// clientid
+	char *clientid;
+	getStringValue(pub_obj, item, "clientid", clientid, rv);
+	if (rv != 0) {
+		goto out;
+	}
+	// payload
+	char *payload;
+	getStringValue(pub_obj, item, "payload", payload, rv);
+	if (rv != 0) {
+		goto out;
+	}
+	// encoding
+	char *encoding;
+
+	getStringValue(pub_obj, item, "encoding", encoding, rv);
+	if (rv != 0) {
+		encoding = "plain";
+	}
+
+	// qos
+	uint8_t qos = 0;
+	getNumberValue(pub_obj, item, "qos", qos, rv);
+
+	// retain
+	bool retain = false;
+	getBoolValue(pub_obj, item, "retain", retain, rv);
+
+	// properties
+	cJSON *properties = cJSON_GetObjectItem(pub_obj, "properties");
+	// TODO require MQTT_V5 sdk to support properties
+	property *props = NULL;
+	// payload_format_indicator
+	// message_expiry_interval
+	// response_topic
+	// correlation_data
+	// subscription_identifier
+	// content_type
+	// user_properties
+
+	rv = publish_mqtt_msg(sock, payload, topics, topic_count, qos, retain,
+	    strcmp(encoding, "base64") == 0, props);
+	if (topics) {
+		free(topics);
+	}
+	return rv;
+
+out:
+	if (topics) {
+		free(topics);
+	}
+	return REQ_PARAM_ERROR;
+}
+
 static http_msg
 post_mqtt_publish(http_msg *msg, nng_socket *sock)
 {
@@ -1707,75 +1842,10 @@ post_mqtt_publish(http_msg *msg, nng_socket *sock)
 		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 	}
 
-	cJSON *item;
-	int    rv;
-	char * topic          = NULL;
-	char **topics         = NULL;
-	size_t topic_count    = 0;
-	bool   is_topic_array = false;
-	getStringValue(req, item, "topic", topic, rv);
-	if (rv != 0) {
-		getStringValue(req, item, "topics", topic, rv);
-		if (rv != 0) {
-			goto out;
-		}
-		// split topic by ","
-		char *temp     = NULL;
-		char *ptr      = nano_strtok(topic, ",", &temp);
-		is_topic_array = true;
-		while (ptr != NULL) {
-			topic_count++;
-			topics = realloc(topics, topic_count * sizeof(char *));
-			topics[topic_count - 1] = ptr;
-			ptr = nano_strtok(NULL, ",", &temp);
-		}
-	}
-	// clientid
-	char *clientid;
-	getStringValue(req, item, "clientid", clientid, rv);
-	if (rv != 0) {
-		goto out;
-	}
-	// payload
-	char *payload;
-	getStringValue(req, item, "payload", payload, rv);
-	if (rv != 0) {
-		goto out;
-	}
-	// encoding
-	char *encoding;
-
-	getStringValue(req, item, "encoding", encoding, rv);
-	if (rv != 0) {
-		encoding = "plain";
-	}
-
-	// qos
-	uint8_t qos = 0;
-	getNumberValue(req, item, "qos", qos, rv);
-
-	// retain
-	bool retain = false;
-	getBoolValue(req, item, "retain", retain, rv);
-
-	// properties
-	cJSON *properties = cJSON_GetObjectItem(req, "properties");
-	// TODO require MQTT_V5 sdk to support properties
-	// payload_format_indicator
-	// message_expiry_interval
-	// response_topic
-	// correlation_data
-	// subscription_identifier
-	// content_type
-	// user_properties
-
-	nng_msg *smsg;
-	nng_msg_alloc(&smsg, msg->data_len);
-	memcpy(nng_msg_body(smsg), msg->data, msg->data_len);
-	rv = nng_sendmsg(*sock, smsg, 0);
+	int rv = handle_publish_item(req, sock);
 
 	cJSON *res_obj = cJSON_CreateObject();
-	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+	cJSON_AddNumberToObject(res_obj, "code", rv);
 	char *dest = cJSON_PrintUnformatted(res_obj);
 
 	put_http_msg(
@@ -1784,16 +1854,194 @@ post_mqtt_publish(http_msg *msg, nng_socket *sock)
 	cJSON_free(dest);
 	cJSON_Delete(res_obj);
 	cJSON_Delete(req);
+
+	return res;
+}
+
+static http_msg
+post_mqtt_publish_batch(http_msg *msg, nng_socket *sock)
+{
+	http_msg res = { .status = NNG_HTTP_STATUS_OK };
+
+	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);	
+	if (!cJSON_IsObject(req)) {
+		goto out;
+	}
+	cJSON *data = cJSON_GetObjectItem(req, "data");
+	if(!cJSON_IsArray(data)) {
+		goto out;
+	}
+
+	int rv = 0;
+	int i;
+	for (i = 0; i < cJSON_GetArraySize(req); i++) {
+		cJSON *item = cJSON_GetArrayItem(req, i);
+		rv = handle_publish_item(item, sock);
+		if (rv != 0) {
+			break;
+		}
+	}
+	cJSON *res_obj = cJSON_CreateObject();
+	cJSON_AddNumberToObject(res_obj, "code", rv);
+	char *dest = cJSON_PrintUnformatted(res_obj);
+	put_http_msg(
+	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
+	cJSON_free(dest);
+	cJSON_Delete(res_obj);
+	cJSON_Delete(req);
+	return res;
+
+out:
+	if (!cJSON_IsObject(req)) {
+		cJSON_Delete(req);
+	}
+	return error_response(
+	    msg, NNG_HTTP_STATUS_BAD_REQUEST, REQ_PARAMS_JSON_FORMAT_ILLEGAL);
+}
+
+static int
+subscribe_mqtt_msg(
+    nng_socket *sock, char **topics, size_t topic_count, uint8_t qos)
+{
+	int rv = 0;
+
+	nng_msg *sub_msg;
+	nng_mqtt_msg_alloc(&sub_msg, 0);
+	nng_mqtt_msg_set_packet_type(sub_msg, NNG_MQTT_SUBSCRIBE);
+
+	nng_mqtt_topic_qos *topic_arr =
+	    nng_mqtt_topic_qos_array_create(topic_count);
+	for (size_t i = 0; i < topic_count; i++) {
+		nng_mqtt_topic_qos_array_set(topic_arr, i, topics[i], qos);
+	}
+
+	nng_mqtt_msg_set_subscribe_topics(sub_msg, topic_arr, topic_count);
+
+	// conn_param *cparam ;
+
+	if ((rv = nng_sendmsg(*sock, sub_msg, 0)) != 0) {
+		nng_msg_free(sub_msg);
+	}
+
+	return rv;
+}
+
+static int
+handle_subscribe_item(cJSON *sub_obj, nng_socket *sock)
+{
+	int rv;
+	char * topic          = NULL;
+	char **topics         = NULL;
+	size_t topic_count    = 0;
+	cJSON *item;
+	getStringValue(sub_obj, item, "topic", topic, rv);
+	if (rv != 0) {
+		getStringValue(sub_obj, item, "topics", topic, rv);
+		if (rv != 0) {
+			goto out;
+		}
+		// split topic by ","
+		char *temp = NULL;
+		char *ptr  = nano_strtok(topic, ",", &temp);
+
+		while (ptr != NULL) {
+			topic_count++;
+			topics = realloc(topics, topic_count * sizeof(char *));
+			topics[topic_count - 1] = ptr;
+			ptr = nano_strtok(NULL, ",", &temp);
+		}
+	} else {
+		topics      = nng_zalloc(sizeof(char *));
+		topics[0]   = topic;
+		topic_count = 1;
+	}
+
+	char *clientid;
+	getStringValue(sub_obj, item, "clientid", clientid, rv);
+	if (rv != 0) {
+		goto out;
+	}
+
+	uint8_t qos = 0;
+	getNumberValue(sub_obj, item, "qos", qos, rv);
+
+	rv = subscribe_mqtt_msg(sock, topics, topic_count, qos);
 	if (topics) {
 		free(topics);
 	}
-	return res;
+	return rv;
 
 out:
 	if (topics) {
 		free(topics);
 	}
+	return REQ_PARAM_ERROR;
+}
+
+static http_msg 
+post_mqtt_subscribe(http_msg *msg, nng_socket *sock)
+{
+	http_msg res = { .status = NNG_HTTP_STATUS_OK };
+	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
+
+	if (!cJSON_IsObject(req)) {
+		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
+		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
+	}
+
+	int rv = handle_subscribe_item(req, sock);
+
+	cJSON *res_obj = cJSON_CreateObject();
+	cJSON_AddNumberToObject(res_obj, "code", rv);
+	char *dest = cJSON_PrintUnformatted(res_obj);
+
+	put_http_msg(
+	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
+
+	cJSON_free(dest);
+	cJSON_Delete(res_obj);
 	cJSON_Delete(req);
+
+	return res;
+}
+
+static http_msg
+post_mqtt_subscribe_batch(http_msg *msg, nng_socket *sock)
+{
+	http_msg res = { .status = NNG_HTTP_STATUS_OK };
+
+	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
+	if (!cJSON_IsObject(req)) {
+		goto out;
+	}
+	cJSON *data = cJSON_GetObjectItem(req, "data");
+	if (!cJSON_IsArray(data)) {
+		goto out;
+	}
+
+	int rv = 0;
+	int i;
+	for (i = 0; i < cJSON_GetArraySize(req); i++) {
+		cJSON *item = cJSON_GetArrayItem(req, i);
+		rv          = handle_subscribe_item(item, sock);
+		if (rv != 0) {
+			break;
+		}
+	}
+	cJSON *res_obj = cJSON_CreateObject();
+	cJSON_AddNumberToObject(res_obj, "code", rv);
+	char *dest = cJSON_PrintUnformatted(res_obj);
+	put_http_msg(
+	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
+	cJSON_free(dest);
+	cJSON_Delete(res_obj);
+	cJSON_Delete(req);
+	return res;
+
+out:
+	if (!cJSON_IsObject(req)) {
+		cJSON_Delete(req);
+	}
 	return error_response(
-	    msg, NNG_HTTP_STATUS_BAD_REQUEST, MISSING_KEY_REQUEST_PARAMES);
+	    msg, NNG_HTTP_STATUS_BAD_REQUEST, REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 }
