@@ -1950,7 +1950,7 @@ handle_publish_msg(cJSON *pub_obj, nng_socket *sock)
 	if (topics) {
 		free(topics);
 	}
-	return rv;
+	return rv != SUCCEED ? UNKNOWN_MISTAKE : rv;
 
 out:
 	if (topics) {
@@ -2003,7 +2003,7 @@ handle_subscribe_msg(cJSON *sub_obj, nng_socket *sock)
 	if (topics) {
 		free(topics);
 	}
-	return rv;
+	return rv != SUCCEED ? UNKNOWN_MISTAKE : rv;
 
 out:
 	if (topics) {
@@ -2033,7 +2033,7 @@ handle_unsubscribe_msg(cJSON *sub_obj, nng_socket *sock)
 
 	//TODO remove client with topic and qos to db_tree
 
-	return rv;
+	return rv != SUCCEED ? UNKNOWN_MISTAKE : rv;
 
 out:
 	return REQ_PARAM_ERROR;
@@ -2072,25 +2072,30 @@ post_mqtt_msg_batch(http_msg *msg, nng_socket *sock, handle_mqtt_msg_cb cb)
 	http_msg res = { .status = NNG_HTTP_STATUS_OK };
 
 	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
-	if (!cJSON_IsObject(req)) {
-		goto out;
-	}
-	cJSON *data = cJSON_GetObjectItem(req, "data");
-	if (!cJSON_IsArray(data)) {
+	if (!cJSON_IsArray(req)) {
 		goto out;
 	}
 
+	cJSON *temp;
 	int rv = 0;
 	int i;
-	for (i = 0; i < cJSON_GetArraySize(data); i++) {
-		cJSON *item = cJSON_GetArrayItem(data, i);
-		rv          = cb(item, sock);
+	cJSON *res_arr = cJSON_CreateArray();
+	for (i = 0; i < cJSON_GetArraySize(req); i++) {
+		cJSON *item  = cJSON_GetArrayItem(req, i);
+		char * topic = NULL;
+		getStringValue(item, temp, "topics", topic, rv);
 		if (rv != 0) {
-			break;
+			getStringValue(item, temp, "topic", topic, rv);
 		}
+		cJSON *res_item = cJSON_CreateObject();
+		cJSON_AddStringToObject(res_item, "topic", topic);
+		int code = cb(item, sock);
+		cJSON_AddNumberToObject(res_item, "code", code);
+		cJSON_AddItemToArray(res_arr, res_item);
 	}
 	cJSON *res_obj = cJSON_CreateObject();
-	cJSON_AddNumberToObject(res_obj, "code", rv);
+	cJSON_AddItemToObject(res_obj, "data", res_arr);
+	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
 	char *dest = cJSON_PrintUnformatted(res_obj);
 	put_http_msg(
 	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
