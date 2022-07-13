@@ -19,6 +19,7 @@
 
 #include "nng/nng.h"
 #include "nng/mqtt/mqtt_client.h"
+#include "nng/protocol/mqtt/mqtt_parser.h"
 #include "nng/supplemental/http/http.h"
 #include "nng/supplemental/util/platform.h"
 #include <stdint.h>
@@ -1745,10 +1746,89 @@ post_config(http_msg *msg)
 	return res;
 }
 
+static conn_param *
+create_cparam(const char *clientid, uint8_t proto_ver)
+{
+	conn_param *cparam;
+	conn_param_alloc(&cparam);
+	conn_param_set_clientid(cparam, clientid);
+	conn_param_set_proto_ver(cparam, proto_ver);
+	return cparam;
+}
+
+int
+decode_http_mqtt_msg(nng_msg **dest, nng_msg *src)
+{
+	nng_msg *msg;
+	int      rv = nng_mqtt_msg_alloc(&msg, 0);
+	if (rv != 0) {
+		nng_msg_free(src);
+		return rv;
+	}
+	uint8_t *ptr        = nng_msg_body(src);
+	uint32_t header_len = 0;
+	NNI_GET32(ptr, header_len);
+	ptr += 4;
+	nng_msg_header_append(msg, ptr, header_len);
+	ptr += header_len;
+	uint32_t body_len = 0;
+	NNI_GET32(ptr, body_len);
+	ptr += 4;
+	nng_msg_append(msg, ptr, body_len);
+	ptr += body_len;
+
+	uint32_t clientid_sz = 0;
+	NNI_GET32(ptr, clientid_sz);
+	ptr += 4;
+	char *clientid = nng_zalloc(clientid_sz + 1);
+	memcpy(clientid, ptr, clientid_sz);
+	ptr += clientid_sz;
+	uint8_t proto_ver = *(uint8_t *) ptr;
+
+	conn_param *cparam = create_cparam(clientid, proto_ver);
+
+	nng_free(clientid, clientid_sz + 1);
+
+	nng_mqtt_msg_decode(msg);
+	nng_msg_set_conn_param(msg, cparam);
+
+	nng_msg_free(src);
+	*dest = msg;
+	return 0;
+}
+
+int
+encode_http_mqtt_msg(
+    nng_msg **dest, nng_msg *src, const char *clientid, uint8_t proto_ver)
+{
+	nng_mqtt_msg_encode(src);
+	nng_msg *msg;
+
+	size_t clientid_sz = strlen(clientid);
+
+	int rv;
+	if ((rv = nng_msg_alloc(&msg, 0)) != 0) {
+		nng_msg_free(src);
+		return rv;
+	}
+
+	nng_msg_append_u32(msg, nng_msg_header_len(src));
+	nng_msg_append(msg, nng_msg_header(src), nng_msg_header_len(src));
+	nng_msg_append_u32(msg, nng_msg_len(src));
+	nng_msg_append(msg, nng_msg_body(src), nng_msg_len(src));
+	nng_msg_append_u32(msg, clientid_sz);
+	nng_msg_append(msg, clientid, clientid_sz);
+	nng_msg_append(msg, &proto_ver, 1);
+	*dest = msg;
+
+	nng_msg_free(src);
+	return 0;
+}
+
 static int
-send_publish(nng_socket *sock, char *payload, char **topics,
-    size_t topic_count, uint8_t qos, uint8_t retain, bool encode_base64,
-    property *props)
+send_publish(nng_socket *sock, const char *clientid, char *payload,
+    char **topics, size_t topic_count, uint8_t qos, uint8_t retain,
+    bool encode_base64, property *props)
 {
 	int rv = 0;
 	for (size_t i = 0; i < topic_count; i++) {
@@ -1778,15 +1858,17 @@ send_publish(nng_socket *sock, char *payload, char **topics,
 		nng_mqtt_msg_set_publish_retain(pub_msg, retain);
 		nng_mqtt_msg_set_publish_topic(pub_msg, topics[i]);
 
-		// conn_param *cparam ;
-		
+		uint8_t protover = MQTT_PROTOCOL_VERSION_v311;
 		if (props != NULL) {
-
-			// TOOD add property
+			protover = MQTT_PROTOCOL_VERSION_v5;
+			// TODO add property
 		}
 
-		if ((rv = nng_sendmsg(*sock, pub_msg, 0)) != 0) {
-			nng_msg_free(pub_msg);
+		nng_msg *msg = NULL;
+		if ((rv = encode_http_mqtt_msg(
+		              &msg, pub_msg, clientid, protover) != 0) ||
+		    (rv = nng_sendmsg(*sock, msg, 0)) != 0) {
+     			nng_msg_free(msg);
 			break;
 		}
 	}
@@ -1852,6 +1934,7 @@ handle_publish_msg(cJSON *pub_obj, nng_socket *sock)
 
 	// properties
 	cJSON *properties = cJSON_GetObjectItem(pub_obj, "properties");
+	
 	// TODO require MQTT_V5 sdk to support properties
 	property *props = NULL;
 	// payload_format_indicator
@@ -1862,8 +1945,8 @@ handle_publish_msg(cJSON *pub_obj, nng_socket *sock)
 	// content_type
 	// user_properties
 
-	rv = send_publish(sock, payload, topics, topic_count, qos, retain,
-	    strcmp(encoding, "base64") == 0, props);
+	rv = send_publish(sock, clientid, payload, topics, topic_count, qos,
+	    retain, strcmp(encoding, "base64") == 0, props);
 	if (topics) {
 		free(topics);
 	}
@@ -1874,33 +1957,6 @@ out:
 		free(topics);
 	}
 	return REQ_PARAM_ERROR;
-}
-
-static int
-send_subscribe(
-    nng_socket *sock, char **topics, size_t topic_count, uint8_t qos)
-{
-	int rv = 0;
-
-	nng_msg *sub_msg;
-	nng_mqtt_msg_alloc(&sub_msg, 0);
-	nng_mqtt_msg_set_packet_type(sub_msg, NNG_MQTT_SUBSCRIBE);
-
-	nng_mqtt_topic_qos *topic_arr =
-	    nng_mqtt_topic_qos_array_create(topic_count);
-	for (size_t i = 0; i < topic_count; i++) {
-		nng_mqtt_topic_qos_array_set(topic_arr, i, topics[i], qos);
-	}
-
-	nng_mqtt_msg_set_subscribe_topics(sub_msg, topic_arr, topic_count);
-
-	// conn_param *cparam ;
-
-	if ((rv = nng_sendmsg(*sock, sub_msg, 0)) != 0) {
-		nng_msg_free(sub_msg);
-	}
-
-	return rv;
 }
 
 static int
@@ -1942,7 +1998,8 @@ handle_subscribe_msg(cJSON *sub_obj, nng_socket *sock)
 	uint8_t qos = 0;
 	getNumberValue(sub_obj, item, "qos", qos, rv);
 
-	rv = send_subscribe(sock, topics, topic_count, qos);
+	//TODO insert client with topic and qos to db_tree
+
 	if (topics) {
 		free(topics);
 	}
@@ -1953,33 +2010,6 @@ out:
 		free(topics);
 	}
 	return REQ_PARAM_ERROR;
-}
-
-static int
-send_unsubscribe(
-    nng_socket *sock, char **topics, size_t topic_count)
-{
-	int rv = 0;
-
-	nng_msg *sub_msg;
-	nng_mqtt_msg_alloc(&sub_msg, 0);
-	nng_mqtt_msg_set_packet_type(sub_msg, NNG_MQTT_UNSUBSCRIBE);
-
-	nng_mqtt_topic *topic_arr =
-	    nng_mqtt_topic_array_create(topic_count);
-	for (size_t i = 0; i < topic_count; i++) {
-		nng_mqtt_topic_array_set(topic_arr, i, topics[i]);
-	}
-
-	nng_mqtt_msg_set_unsubscribe_topics(sub_msg, topic_arr, topic_count);
-
-	// conn_param *cparam ;
-
-	if ((rv = nng_sendmsg(*sock, sub_msg, 0)) != 0) {
-		nng_msg_free(sub_msg);
-	}
-
-	return rv;
 }
 
 static int
@@ -2001,7 +2031,8 @@ handle_unsubscribe_msg(cJSON *sub_obj, nng_socket *sock)
 		goto out;
 	}
 
-	rv = send_unsubscribe(sock, topics, topic_count);
+	//TODO remove client with topic and qos to db_tree
+
 	return rv;
 
 out:
@@ -2051,8 +2082,8 @@ post_mqtt_msg_batch(http_msg *msg, nng_socket *sock, handle_mqtt_msg_cb cb)
 
 	int rv = 0;
 	int i;
-	for (i = 0; i < cJSON_GetArraySize(req); i++) {
-		cJSON *item = cJSON_GetArrayItem(req, i);
+	for (i = 0; i < cJSON_GetArraySize(data); i++) {
+		cJSON *item = cJSON_GetArrayItem(data, i);
 		rv          = cb(item, sock);
 		if (rv != 0) {
 			break;

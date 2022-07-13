@@ -38,6 +38,7 @@
 #include "include/sub_handler.h"
 #include "include/unsub_handler.h"
 #include "include/web_server.h"
+#include "include/rest_api.h"
 #include "include/webhook_post.h"
 #include "include/webhook_inproc.h"
 #include <include/nanomq.h>
@@ -230,10 +231,13 @@ server_cb(void *arg)
 		debug_msg("RECV  ^^^^ ctx%d ^^^^\n", work->ctx.id);
 		if ((rv = nng_aio_result(work->aio)) != 0) {
 			debug_msg("ERROR: RECV nng aio result error: %d", rv);
-			if (work->proto == PROTO_MQTT_BRIDGE)
+			if (work->proto == PROTO_MQTT_BRIDGE) {
 				nng_ctx_recv(work->bridge_ctx, work->aio);
-			else
+			} else if (work->proto == PROTO_HTTP_SERVER) {
+				nng_ctx_recv(work->http_ctx, work->aio);
+			} else {
 				nng_ctx_recv(work->ctx, work->aio);
+			}
 		}
 		if ((msg = nng_aio_get_msg(work->aio)) == NULL) {
 			fatal("RECV NULL MSG", rv);
@@ -251,8 +255,15 @@ server_cb(void *arg)
 				nng_msg_set_cmd_type(msg, type);
 			}
 		} else if (work->proto == PROTO_HTTP_SERVER) {
-			nng_mqtt_msg_encode(msg);
+			nng_msg *decode_msg = NULL;
+			if (decode_http_mqtt_msg(&decode_msg, msg) != 0 ||
+			    nng_msg_get_type(decode_msg) != CMD_PUBLISH) {
+				work->state = RECV;
+				nng_ctx_recv(work->http_ctx, work->aio);
+				break;
+			}
 			uint8_t type;
+			msg = decode_msg;
 			type = nng_msg_get_type(msg);
 			nng_msg_set_cmd_type(msg, type);
 		}
@@ -478,6 +489,12 @@ server_cb(void *arg)
 			work->state = RECV;
 			if (work->proto == PROTO_MQTT_BRIDGE) {
 				nng_ctx_recv(work->bridge_ctx, work->aio);
+			} else if (work->proto == PROTO_HTTP_SERVER) {
+				nng_msg *rep_msg;
+				nng_msg_alloc(&rep_msg, 0);
+				nng_aio_set_msg(work->aio, rep_msg);
+				work->state = SEND;
+				nng_ctx_send(work->http_ctx, work->aio);
 			} else {
 				nng_ctx_recv(work->ctx, work->aio);
 			}
@@ -532,6 +549,8 @@ server_cb(void *arg)
 		work->flag  = 0;
 		if (work->proto == PROTO_MQTT_BRIDGE) {
 			nng_ctx_recv(work->bridge_ctx, work->aio);
+		} else if (work->proto == PROTO_HTTP_SERVER) {
+			nng_ctx_recv(work->http_ctx, work->aio);
 		} else {
 			nng_ctx_recv(work->ctx, work->aio);
 		}
@@ -613,7 +632,11 @@ server_cb(void *arg)
 				work->msg = NULL;
 				work->state = RECV;
 				if (work->proto == PROTO_MQTT_BRIDGE) {
-					nng_ctx_recv(work->bridge_ctx, work->aio);
+					nng_ctx_recv(
+					    work->bridge_ctx, work->aio);
+				} else if (work->proto == PROTO_HTTP_SERVER) {
+					nng_ctx_recv(
+					    work->http_ctx, work->aio);
 				} else {
 					nng_ctx_recv(work->ctx, work->aio);
 				}

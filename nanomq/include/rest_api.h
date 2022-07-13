@@ -63,6 +63,7 @@ extern void     put_http_msg(http_msg *msg, const char *content_type,
 extern void     destory_http_msg(http_msg *msg);
 extern http_msg process_request(
     http_msg *msg, conf_http_server *config, nng_socket *sock);
+extern int decode_http_mqtt_msg(nng_msg **dest, nng_msg *src);
 
 #define GET_METHOD "GET"
 #define POST_METHOD "POST"
