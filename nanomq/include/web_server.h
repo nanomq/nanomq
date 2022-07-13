@@ -22,6 +22,8 @@
 #define HTTP_DEFAULT_PASSWORD "public"
 #define HTTP_DEFAULT_PORT 8081
 
+#define WEB_SERVER_INPROC_URL "inproc://webserver"
+
 extern int  start_rest_server(conf *conf);
 extern void stop_rest_server(void);
 
