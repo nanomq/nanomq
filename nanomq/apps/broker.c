@@ -251,7 +251,7 @@ server_cb(void *arg)
 				nng_msg_set_cmd_type(msg, type);
 			}
 		} else if (work->proto == PROTO_HTTP_SERVER) {
-			// TODO decode message from http server
+			nng_mqtt_msg_encode(msg);
 			uint8_t type;
 			type = nng_msg_get_type(msg);
 			nng_msg_set_cmd_type(msg, type);
@@ -942,22 +942,18 @@ broker(conf *nanomq_conf)
 	}
 
 	if (nanomq_conf->http_server.enable) {
-		if ((rv = nano_listen(sock, WEB_SERVER_INPROC_URL, NULL, 0,
+		if ((rv = nano_listen(inproc_sock, WEB_SERVER_INPROC_URL, NULL, 0,
 		         nanomq_conf)) != 0) {
 			fatal("nng_listen " WEB_SERVER_INPROC_URL, rv);
 		}
-
-		if (nanomq_conf->http_server.enable) {
-			start_rest_server(nanomq_conf);
-		}
-	}
-
-	if (nanomq_conf->web_hook.enable) {
-		start_webhook_service(nanomq_conf);
 	}
 
 	for (i = 0; i < num_ctx; i++) {
 		server_cb(works[i]); // this starts them going (INIT state)
+	}
+
+	if (nanomq_conf->http_server.enable) {
+		start_rest_server(nanomq_conf);
 	}
 
 #if (defined DEBUG) && (defined ASAN)

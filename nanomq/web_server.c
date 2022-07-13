@@ -358,7 +358,7 @@ inproc_server(void *arg)
 		fatal("nng_rep0_open", rv);
 	}
 
-	if( (rv = nng_rep0_open(&pair_sock)) != 0) {
+	if ((rv = nng_req0_open(&pair_sock)) != 0) {
 		fatal("nng_rep0_open", rv);
 	}
 
