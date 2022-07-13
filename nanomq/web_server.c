@@ -11,6 +11,7 @@
 #define INPROC_URL "inproc://rest"
 
 #include "nng/nng.h"
+#include "nng/protocol/pair0/pair.h"
 #include "nng/protocol/reqrep0/rep.h"
 #include "nng/protocol/reqrep0/req.h"
 #include "nng/supplemental/http/http.h"
@@ -43,11 +44,17 @@ typedef struct rest_job {
 } rest_job;
 
 struct rest_work {
-	enum { SRV_INIT, SRV_RECV, SRV_WAIT, SRV_SEND } state;
+	enum {
+		SRV_INIT,
+		SRV_RECV,
+		SRV_WAIT,
+		SRV_SEND,
+	} state;
 	nng_aio *         aio;
 	nng_msg *         msg;
 	nng_ctx           ctx;
 	conf_http_server *conf;
+	nng_socket *client_sock; // client socket for post message to broker.
 };
 
 static nng_socket        req_sock;
@@ -342,6 +349,7 @@ inproc_server(void *arg)
 {
 	conf_http_server * rest_conf = arg;
 	nng_socket         sock;
+	nng_socket         pair_sock;
 	struct rest_work **works =
 	    nng_zalloc(rest_conf->parallel * sizeof(struct rest_work *));
 
@@ -350,8 +358,19 @@ inproc_server(void *arg)
 		fatal("nng_rep0_open", rv);
 	}
 
+	if( (rv = nng_rep0_open(&pair_sock)) != 0) {
+		fatal("nng_rep0_open", rv);
+	}
+
+	if ((rv = nng_dial(pair_sock, WEB_SERVER_INPROC_URL, NULL,
+	         NNG_FLAG_NONBLOCK)) != 0) {
+		fatal("nng_dial " WEB_SERVER_INPROC_URL, rv);
+	}
+
 	for (size_t i = 0; i < rest_conf->parallel; i++) {
 		works[i] = alloc_work(sock, rest_conf);
+
+		works[i]->client_sock = &pair_sock;
 	}
 
 	if ((rv = nng_listen(sock, INPROC_URL, NULL, 0)) != 0) {
@@ -392,7 +411,7 @@ inproc_cb(void *arg)
 
 		msg               = nng_aio_get_msg(work->aio);
 		http_msg *http_ct = (http_msg *) nng_msg_body(msg);
-		http_msg  res     = process_request(http_ct, work->conf);
+		http_msg  res     = process_request(http_ct, work->conf, work->client_sock);
 
 		// response to client
 		nng_msg_alloc(&work->msg, sizeof(http_msg));
