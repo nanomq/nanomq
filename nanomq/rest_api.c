@@ -39,6 +39,8 @@
 #define nano_strtok strtok_r
 #endif
 
+typedef int (handle_mqtt_msg_cb) (cJSON *, nng_socket *);
+
 typedef struct {
 	char *key;
 	char *value;
@@ -109,6 +111,42 @@ static endpoints api_ep[] = {
 	    .descr  = "A list of subscriptions of a client",
 	},
 	{
+	    .path   = "/mqtt/subscribe",
+	    .name   = "mqtt_subscribe",
+	    .method = "POST",
+	    .descr  = "Subscribe a topic",
+	},
+	{
+	    .path   = "/mqtt/publish",
+	    .name   = "mqtt_publish",
+	    .method = "POST",
+	    .descr  = "Publish a MQTT message",
+	},
+	{
+	    .path   = "/mqtt/unsubscribe",
+	    .name   = "mqtt_unsubscribe",
+	    .method = "POST",
+	    .descr  = "Unsubscribe a topic",
+	},
+	{
+	    .path   = "/mqtt/subscribe_batch",
+	    .name   = "mqtt_subscribe_batch",
+	    .method = "POST",
+	    .descr  = "Batch subscribes topics",
+	},
+	{
+	    .path   = "/mqtt/publish_batch",
+	    .name   = "mqtt_publish_batch",
+	    .method = "POST",
+	    .descr  = "Batch publish MQTT messages",
+	},
+	{
+	    .path   = "/mqtt/unsubscribe_batch",
+	    .name   = "mqtt_unsubscribe_batch",
+	    .method = "POST",
+	    .descr  = "Batch unsubscribes topics",
+	},
+	{
 	    .path   = "/topic-tree/",
 	    .name   = "list_topic-tree",
 	    .method = "GET",
@@ -155,10 +193,15 @@ static http_msg get_tree(http_msg *msg);
 static http_msg post_ctrl(http_msg *msg, const char *type);
 static http_msg get_config(http_msg *msg);
 static http_msg post_config(http_msg *msg);
-static http_msg post_mqtt_publish(http_msg *msg, nng_socket *sock);
-static http_msg post_mqtt_publish_batch(http_msg *msg, nng_socket *sock);
-static http_msg post_mqtt_subscribe(http_msg *msg, nng_socket *sock);
-static http_msg post_mqtt_subscribe_batch(http_msg *msg, nng_socket *sock);
+static http_msg post_mqtt_msg(
+    http_msg *msg, nng_socket *sock, handle_mqtt_msg_cb cb);
+static http_msg post_mqtt_msg_batch(
+    http_msg *msg, nng_socket *sock, handle_mqtt_msg_cb cb);
+
+static int handle_publish_msg(cJSON *pub_obj, nng_socket *sock);
+static int handle_subscribe_msg(cJSON *sub_obj, nng_socket *sock);
+static int handle_unsubscribe_msg(cJSON *sub_obj, nng_socket *sock);
+
 static void     update_main_conf(cJSON *json, conf *config);
 static void     update_bridge_conf(cJSON *json, conf *config);
 
@@ -640,37 +683,40 @@ process_request(http_msg *msg, conf_http_server *config, nng_socket *sock)
 		    uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "mqtt") == 0 &&
 		    strcmp(uri_ct->sub_tree[2]->node, "publish") == 0) {
-			ret = post_mqtt_publish(msg, sock);
+			ret = post_mqtt_msg(msg, sock, handle_publish_msg);
 		} else if (uri_ct->sub_count == 3 &&
 		    uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "mqtt") == 0 &&
 		    strcmp(uri_ct->sub_tree[2]->node, "publish_batch") == 0) {
-			ret = post_mqtt_publish_batch(msg, sock);
+			ret = post_mqtt_msg_batch(
+			    msg, sock, handle_publish_msg);
 		} else if (uri_ct->sub_count == 3 &&
 		    uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "mqtt") == 0 &&
 		    strcmp(uri_ct->sub_tree[2]->node, "subscribe") == 0) {
-			ret = post_mqtt_subscribe(msg, sock);
+			ret = post_mqtt_msg(msg, sock, handle_subscribe_msg);
 		} else if (uri_ct->sub_count == 3 &&
 		    uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "mqtt") == 0 &&
 		    strcmp(uri_ct->sub_tree[2]->node, "subscribe_batch") ==
 		        0) {
-			ret = post_mqtt_subscribe_batch(msg, sock);
+			ret = post_mqtt_msg_batch(
+			    msg, sock, handle_subscribe_msg);
 		} else if (uri_ct->sub_count == 3 &&
 		    uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "mqtt") == 0 &&
 		    strcmp(uri_ct->sub_tree[2]->node, "unsubscribe") == 0) {
-			//TODO
+			ret =
+			    post_mqtt_msg(msg, sock, handle_unsubscribe_msg);
 		} else if (uri_ct->sub_count == 3 &&
 		    uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "mqtt") == 0 &&
 		    strcmp(uri_ct->sub_tree[2]->node, "unsubscribe_batch") ==
 		        0) {
-			//TODO
+			ret = post_mqtt_msg_batch(
+			    msg, sock, handle_unsubscribe_msg);
 		} else {
 			status = NNG_HTTP_STATUS_NOT_FOUND;
-
 			code   = UNKNOWN_MISTAKE;
 			goto exit;
 		}
@@ -1700,7 +1746,7 @@ post_config(http_msg *msg)
 }
 
 static int
-publish_mqtt_msg(nng_socket *sock, char *payload, char **topics,
+send_publish(nng_socket *sock, char *payload, char **topics,
     size_t topic_count, uint8_t qos, uint8_t retain, bool encode_base64,
     property *props)
 {
@@ -1748,7 +1794,7 @@ publish_mqtt_msg(nng_socket *sock, char *payload, char **topics,
 }
 
 static int
-handle_publish_item(cJSON *pub_obj, nng_socket *sock)
+handle_publish_msg(cJSON *pub_obj, nng_socket *sock)
 {
 	cJSON *item;
 	int    rv;
@@ -1816,7 +1862,7 @@ handle_publish_item(cJSON *pub_obj, nng_socket *sock)
 	// content_type
 	// user_properties
 
-	rv = publish_mqtt_msg(sock, payload, topics, topic_count, qos, retain,
+	rv = send_publish(sock, payload, topics, topic_count, qos, retain,
 	    strcmp(encoding, "base64") == 0, props);
 	if (topics) {
 		free(topics);
@@ -1830,77 +1876,8 @@ out:
 	return REQ_PARAM_ERROR;
 }
 
-static http_msg
-post_mqtt_publish(http_msg *msg, nng_socket *sock)
-{
-	http_msg res = { .status = NNG_HTTP_STATUS_OK };
-
-	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
-
-	if (!cJSON_IsObject(req)) {
-		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
-		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
-	}
-
-	int rv = handle_publish_item(req, sock);
-
-	cJSON *res_obj = cJSON_CreateObject();
-	cJSON_AddNumberToObject(res_obj, "code", rv);
-	char *dest = cJSON_PrintUnformatted(res_obj);
-
-	put_http_msg(
-	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
-
-	cJSON_free(dest);
-	cJSON_Delete(res_obj);
-	cJSON_Delete(req);
-
-	return res;
-}
-
-static http_msg
-post_mqtt_publish_batch(http_msg *msg, nng_socket *sock)
-{
-	http_msg res = { .status = NNG_HTTP_STATUS_OK };
-
-	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);	
-	if (!cJSON_IsObject(req)) {
-		goto out;
-	}
-	cJSON *data = cJSON_GetObjectItem(req, "data");
-	if(!cJSON_IsArray(data)) {
-		goto out;
-	}
-
-	int rv = 0;
-	int i;
-	for (i = 0; i < cJSON_GetArraySize(req); i++) {
-		cJSON *item = cJSON_GetArrayItem(req, i);
-		rv = handle_publish_item(item, sock);
-		if (rv != 0) {
-			break;
-		}
-	}
-	cJSON *res_obj = cJSON_CreateObject();
-	cJSON_AddNumberToObject(res_obj, "code", rv);
-	char *dest = cJSON_PrintUnformatted(res_obj);
-	put_http_msg(
-	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
-	cJSON_free(dest);
-	cJSON_Delete(res_obj);
-	cJSON_Delete(req);
-	return res;
-
-out:
-	if (!cJSON_IsObject(req)) {
-		cJSON_Delete(req);
-	}
-	return error_response(
-	    msg, NNG_HTTP_STATUS_BAD_REQUEST, REQ_PARAMS_JSON_FORMAT_ILLEGAL);
-}
-
 static int
-subscribe_mqtt_msg(
+send_subscribe(
     nng_socket *sock, char **topics, size_t topic_count, uint8_t qos)
 {
 	int rv = 0;
@@ -1927,7 +1904,7 @@ subscribe_mqtt_msg(
 }
 
 static int
-handle_subscribe_item(cJSON *sub_obj, nng_socket *sock)
+handle_subscribe_msg(cJSON *sub_obj, nng_socket *sock)
 {
 	int rv;
 	char * topic          = NULL;
@@ -1965,7 +1942,7 @@ handle_subscribe_item(cJSON *sub_obj, nng_socket *sock)
 	uint8_t qos = 0;
 	getNumberValue(sub_obj, item, "qos", qos, rv);
 
-	rv = subscribe_mqtt_msg(sock, topics, topic_count, qos);
+	rv = send_subscribe(sock, topics, topic_count, qos);
 	if (topics) {
 		free(topics);
 	}
@@ -1978,8 +1955,61 @@ out:
 	return REQ_PARAM_ERROR;
 }
 
+static int
+send_unsubscribe(
+    nng_socket *sock, char **topics, size_t topic_count)
+{
+	int rv = 0;
+
+	nng_msg *sub_msg;
+	nng_mqtt_msg_alloc(&sub_msg, 0);
+	nng_mqtt_msg_set_packet_type(sub_msg, NNG_MQTT_UNSUBSCRIBE);
+
+	nng_mqtt_topic *topic_arr =
+	    nng_mqtt_topic_array_create(topic_count);
+	for (size_t i = 0; i < topic_count; i++) {
+		nng_mqtt_topic_array_set(topic_arr, i, topics[i]);
+	}
+
+	nng_mqtt_msg_set_unsubscribe_topics(sub_msg, topic_arr, topic_count);
+
+	// conn_param *cparam ;
+
+	if ((rv = nng_sendmsg(*sock, sub_msg, 0)) != 0) {
+		nng_msg_free(sub_msg);
+	}
+
+	return rv;
+}
+
+static int
+handle_unsubscribe_msg(cJSON *sub_obj, nng_socket *sock)
+{
+	int rv;
+	char * topic          = NULL;
+	char **topics         = NULL;
+	size_t topic_count    = 0;
+	cJSON *item;
+	getStringValue(sub_obj, item, "topic", topic, rv);
+	if (rv != 0) {
+		goto out;
+	}
+
+	char *clientid;
+	getStringValue(sub_obj, item, "clientid", clientid, rv);
+	if (rv != 0) {
+		goto out;
+	}
+
+	rv = send_unsubscribe(sock, topics, topic_count);
+	return rv;
+
+out:
+	return REQ_PARAM_ERROR;
+}
+
 static http_msg 
-post_mqtt_subscribe(http_msg *msg, nng_socket *sock)
+post_mqtt_msg(http_msg *msg, nng_socket *sock, handle_mqtt_msg_cb cb)
 {
 	http_msg res = { .status = NNG_HTTP_STATUS_OK };
 	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
@@ -1989,7 +2019,7 @@ post_mqtt_subscribe(http_msg *msg, nng_socket *sock)
 		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 	}
 
-	int rv = handle_subscribe_item(req, sock);
+	int rv = cb(req, sock);
 
 	cJSON *res_obj = cJSON_CreateObject();
 	cJSON_AddNumberToObject(res_obj, "code", rv);
@@ -2006,7 +2036,7 @@ post_mqtt_subscribe(http_msg *msg, nng_socket *sock)
 }
 
 static http_msg
-post_mqtt_subscribe_batch(http_msg *msg, nng_socket *sock)
+post_mqtt_msg_batch(http_msg *msg, nng_socket *sock, handle_mqtt_msg_cb cb)
 {
 	http_msg res = { .status = NNG_HTTP_STATUS_OK };
 
@@ -2023,7 +2053,7 @@ post_mqtt_subscribe_batch(http_msg *msg, nng_socket *sock)
 	int i;
 	for (i = 0; i < cJSON_GetArraySize(req); i++) {
 		cJSON *item = cJSON_GetArrayItem(req, i);
-		rv          = handle_subscribe_item(item, sock);
+		rv          = cb(item, sock);
 		if (rv != 0) {
 			break;
 		}
