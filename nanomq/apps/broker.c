@@ -21,6 +21,7 @@
 #include "nng/supplemental/sqlite/sqlite3.h"
 #include "nng/protocol/pipeline0/pull.h"
 #include "nng/protocol/pipeline0/push.h"
+#include "nng/protocol/reqrep0/rep.h"
 #include "nng/protocol/mqtt/mqtt_parser.h"
 #include "nng/protocol/mqtt/nmq_mqtt.h"
 #include "nng/supplemental/nanolib/conf.h"
@@ -213,10 +214,16 @@ server_cb(void *arg)
 	case INIT:
 		debug_msg("INIT ^^^^ ctx%d ^^^^\n", work->ctx.id);
 		work->state = RECV;
-		if (work->proto == PROTO_MQTT_BRIDGE) {
+		switch (work->proto) {
+		case PROTO_MQTT_BRIDGE:
 			nng_ctx_recv(work->bridge_ctx, work->aio);
-		} else {
+			break;
+		case PROTO_HTTP_SERVER:
+			nng_ctx_recv(work->http_ctx, work->aio);
+			break;
+		default:
 			nng_ctx_recv(work->ctx, work->aio);
+			break;
 		}
 		break;
 	case RECV:
@@ -243,6 +250,11 @@ server_cb(void *arg)
 			} else { // TODO support V5 nanosdk
 				nng_msg_set_cmd_type(msg, type);
 			}
+		} else if (work->proto == PROTO_HTTP_SERVER) {
+			// TODO decode message from http server
+			uint8_t type;
+			type = nng_msg_get_type(msg);
+			nng_msg_set_cmd_type(msg, type);
 		}
 		work->msg       = msg;
 		work->pid       = nng_msg_get_pipe(work->msg);
@@ -656,7 +668,7 @@ alloc_work(nng_socket sock)
 }
 
 nano_work *
-proto_work_init(nng_socket sock, nng_socket bridge_sock, uint8_t proto,
+proto_work_init(nng_socket sock,nng_socket inproc_sock, nng_socket bridge_sock, uint8_t proto,
     dbtree *db_tree, dbtree *db_tree_ret, conf *config)
 {
 	int        rv;
@@ -667,6 +679,12 @@ proto_work_init(nng_socket sock, nng_socket bridge_sock, uint8_t proto,
 	w->proto  = proto;
 	w->config = config;
 	w->code   = SUCCESS;
+
+	if (config->http_server.enable && proto == PROTO_HTTP_SERVER) {
+		if ((rv = nng_ctx_open(&w->http_ctx, inproc_sock)) != 0) {
+			fatal("nng_ctx_open", rv);
+		}
+	}
 
 	// only create ctx for bridging ctx, they need it to receive msg
 	if (config->bridge_mode && proto == PROTO_MQTT_BRIDGE) {
@@ -825,6 +843,17 @@ broker(conf *nanomq_conf)
 		fatal("nng_nmq_tcp0_open", rv);
 	}
 
+	nng_socket inproc_sock;
+	nng_listener pair_listener;
+
+	if (nanomq_conf->http_server.enable) {
+		rv = nng_rep0_open(&inproc_sock);
+		if (rv != 0) {
+			fatal("nng_rep0_open", rv);
+		}
+		num_ctx += 4;
+	}
+
 	if (nanomq_conf->bridge_mode) {
 		for (size_t t = 0; t < nanomq_conf->bridge.count; t++) {
 			conf_bridge_node *node = nanomq_conf->bridge.nodes[t];
@@ -841,7 +870,7 @@ broker(conf *nanomq_conf)
 	struct work *works[num_ctx];
 	// create broker ctx
 	for (i = 0; i < nanomq_conf->parallel; i++) {
-		works[i] = proto_work_init(sock, sock,
+		works[i] = proto_work_init(sock, inproc_sock, sock,
 		    PROTO_MQTT_BROKER, db, db_ret, nanomq_conf);
 	}
 
@@ -856,12 +885,20 @@ broker(conf *nanomq_conf)
 				bridge_sock = node->sock;
 				for (i = tmp; i < (tmp + node->parallel);
 				     i++) {
-					works[i] = proto_work_init(sock,
+					works[i] = proto_work_init(sock,inproc_sock,
 					    *bridge_sock, PROTO_MQTT_BRIDGE,
 					    db, db_ret, nanomq_conf);
 				}
 				tmp += node->parallel;
 			}
+		}
+	}
+
+	// create http server ctx
+	if (nanomq_conf->http_server.enable) {
+		for (i = tmp; i < tmp + 4; i++) {
+			works[i] = proto_work_init(sock, inproc_sock, sock,
+			    PROTO_HTTP_SERVER, db, db_ret, nanomq_conf);
 		}
 	}
 
@@ -905,6 +942,21 @@ broker(conf *nanomq_conf)
 		// }
 	}
 
+	if (nanomq_conf->http_server.enable) {
+		if ((rv = nano_listen(sock, WEB_SERVER_INPROC_URL, NULL, 0,
+		         nanomq_conf)) != 0) {
+			fatal("nng_listen " WEB_SERVER_INPROC_URL, rv);
+		}
+
+		if (nanomq_conf->http_server.enable) {
+			start_rest_server(nanomq_conf);
+		}
+	}
+
+	if (nanomq_conf->web_hook.enable) {
+		start_webhook_service(nanomq_conf);
+	}
+
 	for (i = 0; i < num_ctx; i++) {
 		server_cb(works[i]); // this starts them going (INIT state)
 	}
@@ -925,6 +977,13 @@ broker(conf *nanomq_conf)
 			}
 	#endif
 #endif
+			if (nanomq_conf->web_hook.enable) {
+				stop_webhook_service();
+			}
+
+			if (nanomq_conf->http_server.enable) {
+				stop_rest_server();
+			}
 			for (size_t i = 0; i < num_ctx; i++) {
 				nng_free(works[i]->pipe_ct, sizeof(struct pipe_content));
 				nng_free(works[i], sizeof(struct work));
@@ -1374,27 +1433,12 @@ broker_start(int argc, char **argv)
 	print_conf(nanomq_conf);
 	active_conf(nanomq_conf);
 
-	if (nanomq_conf->web_hook.enable) {
-		start_webhook_service(nanomq_conf);
-	}
-
-	if (nanomq_conf->http_server.enable) {
-		start_rest_server(nanomq_conf);
-	}
-
 	if (store_pid()) {
 		debug_msg("create \"nanomq.pid\" file failed");
 	}
 
 	rc = broker(nanomq_conf);
 
-	if(nanomq_conf->web_hook.enable) {
-		stop_webhook_service();
-	}
-
-	if (nanomq_conf->http_server.enable) {
-		stop_rest_server();
-	}
 	exit(rc == 0 ? EXIT_SUCCESS : EXIT_FAILURE);
 }
 
