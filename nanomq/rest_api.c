@@ -32,8 +32,10 @@
 
 #if NANO_PLATFORM_WINDOWS
 #define nano_localtime(t, pTm) localtime_s(pTm, t)
+#define nano_strtok strtok_s
 #else
 #define nano_localtime(t, pTm) localtime_r(t, pTm)
+#define nano_strtok strtok_r
 #endif
 
 typedef struct {
@@ -152,6 +154,7 @@ static http_msg get_tree(http_msg *msg);
 static http_msg post_ctrl(http_msg *msg, const char *type);
 static http_msg get_config(http_msg *msg);
 static http_msg post_config(http_msg *msg);
+static http_msg post_mqtt_publish(http_msg *msg, nng_socket *sock);
 
 static void update_main_conf(cJSON *json, conf *config);
 static void update_bridge_conf(cJSON *json, conf *config);
@@ -545,7 +548,7 @@ basic_authorize(http_msg *msg)
 }
 
 http_msg
-process_request(http_msg *msg, conf_http_server *config)
+process_request(http_msg *msg, conf_http_server *config, nng_socket *sock)
 {
 	http_msg         ret    = { 0 };
 	uint16_t         status = NNG_HTTP_STATUS_OK;
@@ -630,8 +633,40 @@ process_request(http_msg *msg, conf_http_server *config)
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "configuration") == 0) {
 			ret = post_config(msg);
+		} else if (uri_ct->sub_count == 3 &&
+		    uri_ct->sub_tree[2]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "mqtt") == 0 &&
+		    strcmp(uri_ct->sub_tree[2]->node, "publish") == 0) {
+			ret = post_mqtt_publish(msg, sock);
+		} else if (uri_ct->sub_count == 3 &&
+		    uri_ct->sub_tree[2]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "mqtt") == 0 &&
+		    strcmp(uri_ct->sub_tree[2]->node, "publish_batch") == 0) {
+		} else if (uri_ct->sub_count == 3 &&
+		    uri_ct->sub_tree[2]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "mqtt") == 0 &&
+		    strcmp(uri_ct->sub_tree[2]->node, "subscribe") == 0) {
+
+		} else if (uri_ct->sub_count == 3 &&
+		    uri_ct->sub_tree[2]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "mqtt") == 0 &&
+		    strcmp(uri_ct->sub_tree[2]->node, "subscribe_batch") ==
+		        0) {
+
+		} else if (uri_ct->sub_count == 3 &&
+		    uri_ct->sub_tree[2]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "mqtt") == 0 &&
+		    strcmp(uri_ct->sub_tree[2]->node, "unsubscribe") == 0) {
+
+		} else if (uri_ct->sub_count == 3 &&
+		    uri_ct->sub_tree[2]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "mqtt") == 0 &&
+		    strcmp(uri_ct->sub_tree[2]->node, "unsubscribe_batch") ==
+		        0) {
+
 		} else {
 			status = NNG_HTTP_STATUS_NOT_FOUND;
+
 			code   = UNKNOWN_MISTAKE;
 			goto exit;
 		}
@@ -1658,4 +1693,107 @@ post_config(http_msg *msg)
 	cJSON_Delete(res_obj);
 	cJSON_Delete(req);
 	return res;
+}
+
+static http_msg
+post_mqtt_publish(http_msg *msg, nng_socket *sock)
+{
+	http_msg res = { .status = NNG_HTTP_STATUS_OK };
+
+	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
+
+	if (!cJSON_IsObject(req)) {
+		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
+		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
+	}
+
+	cJSON *item;
+	int    rv;
+	char * topic          = NULL;
+	char **topics         = NULL;
+	size_t topic_count    = 0;
+	bool   is_topic_array = false;
+	getStringValue(req, item, "topic", topic, rv);
+	if (rv != 0) {
+		getStringValue(req, item, "topics", topic, rv);
+		if (rv != 0) {
+			goto out;
+		}
+		// split topic by ","
+		char *temp     = NULL;
+		char *ptr      = nano_strtok(topic, ",", &temp);
+		is_topic_array = true;
+		while (ptr != NULL) {
+			topic_count++;
+			topics = realloc(topics, topic_count * sizeof(char *));
+			topics[topic_count - 1] = ptr;
+			ptr = nano_strtok(NULL, ",", &temp);
+		}
+	}
+	// clientid
+	char *clientid;
+	getStringValue(req, item, "clientid", clientid, rv);
+	if (rv != 0) {
+		goto out;
+	}
+	// payload
+	char *payload;
+	getStringValue(req, item, "payload", payload, rv);
+	if (rv != 0) {
+		goto out;
+	}
+	// encoding
+	char *encoding;
+
+	getStringValue(req, item, "encoding", encoding, rv);
+	if (rv != 0) {
+		encoding = "plain";
+	}
+
+	// qos
+	uint8_t qos = 0;
+	getNumberValue(req, item, "qos", qos, rv);
+
+	// retain
+	bool retain = false;
+	getBoolValue(req, item, "retain", retain, rv);
+
+	// properties
+	cJSON *properties = cJSON_GetObjectItem(req, "properties");
+	// TODO require MQTT_V5 sdk to support properties
+	// payload_format_indicator
+	// message_expiry_interval
+	// response_topic
+	// correlation_data
+	// subscription_identifier
+	// content_type
+	// user_properties
+
+	nng_msg *smsg;
+	nng_msg_alloc(&smsg, msg->data_len);
+	memcpy(nng_msg_body(smsg), msg->data, msg->data_len);
+	rv = nng_sendmsg(*sock, smsg, 0);
+
+	cJSON *res_obj = cJSON_CreateObject();
+	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+	char *dest = cJSON_PrintUnformatted(res_obj);
+
+	put_http_msg(
+	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
+
+	cJSON_free(dest);
+	cJSON_Delete(res_obj);
+	cJSON_Delete(req);
+	if (topics) {
+		free(topics);
+	}
+	return res;
+
+out:
+	if (topics) {
+		free(topics);
+	}
+	cJSON_Delete(req);
+	return error_response(
+	    msg, NNG_HTTP_STATUS_BAD_REQUEST, MISSING_KEY_REQUEST_PARAMES);
 }
