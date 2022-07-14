@@ -1,6 +1,7 @@
 #ifndef NANOMQ_BROKER_H
 #define NANOMQ_BROKER_H
-#define MQTT_VER 5
+
+#define HTTP_CTX_NUM 4
 
 #include "nng/supplemental/nanolib/conf.h"
 #include "nng/supplemental/nanolib/nanolib.h"
@@ -36,8 +37,7 @@ struct work {
 	nng_msg *   msg;
 	nng_msg **  msg_ret;
 	nng_ctx     ctx;        // ctx for mqtt broker
-	nng_ctx     bridge_ctx; // ctx for bridging
-	nng_ctx     http_ctx;   // ctx for http post
+	nng_ctx     extra_ctx; //  ctx for bridging/http post
 	nng_pipe    pid;
 	dbtree *    db;
 	dbtree *    db_ret;
