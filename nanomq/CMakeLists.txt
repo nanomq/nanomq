@@ -36,7 +36,6 @@ set(SOURCES
     mqtt_api.c
     nanomq.c
     process.c
-    apps.c
     bridge.c
     pub_handler.c
     sub_handler.c
