@@ -33,53 +33,45 @@ For more information, please visit [NanoMQ homepage](https://nanomq.io/).
 **NanoMQ broker usage**
 
 ```bash
-nanomq broker start 
-nanomq broker stop
-nanomq broker restart 
+nanomq start 
+nanomq stop
+nanomq restart 
 ```
 MQTT Example:
 ```bash
-nanomq broker start 
+nanomq start 
 ```
 
 **NanoMQ MQTT client usage**
 ```bash
 # Publish
-nanomq pub --url <url> -t <topic> -m <message> [--help]
+nanomq_cli pub --url <url> -t <topic> -m <message> [--help]
 
 # Subscribe 
-nanomq sub --url <url> -t <topic> [--help]
+nanomq_cli sub --url <url> -t <topic> [--help]
 
 # Connect
-nanomq conn --url <url> [--help]
+nanomq_cli conn --url <url> [--help]
 ```
 
 **NanoMQ MQTT bench usage**
 ```bash
-nanomq bench start { pub | sub | conn } [--help]
+nanomq_cli bench { pub | sub | conn } [--help]
 ```
 
 **NanoMQ nng message proxy**
 
 start a proxy to sub NNG url and convey nng msg to qos 2 MQTT msg and send to a specific topic "nng-mqtt" of MQTT broker:
 ```bash
-nanomq nngproxy sub0 --mqtt_url "mqtt-tcp://localhost:1883" --listen "tcp://127.0.0.1:10000" -t nng-mqtt --qos 1
+nanomq_cli nngproxy sub0 --mqtt_url "mqtt-tcp://localhost:1883" --listen "tcp://127.0.0.1:10000" -t nng-mqtt --qos 1
 ```
 
 start a proxy sub to topic "nng-mqtt" of MQTT broker, and convert MQTT msg to NNG msg, then pub to NNG url:
 ```bash
-nanomq nngproxy pub0 --mqtt_url "mqtt-tcp://localhost:1883" --dial "tcp://127.0.0.1:10000" -t msg --qos 0
-```
-
-**POSIX message queue usage**
-
-```bash
-nanomq mq start
-nanomq mq stop
+nanomq_cli nngproxy pub0 --mqtt_url "mqtt-tcp://localhost:1883" --dial "tcp://127.0.0.1:10000" -t msg --qos 0
 ```
 
 **Note: NanoMQ provides several ways of configurations so that user can achieve better performance on different platforms**, check [here](#Configuration ) for details.
-
 
 
 ## Compile & Install
@@ -168,7 +160,7 @@ ninja
   ninja
   ```
 
-**Note (optional): nanolib & nanonng are dependencies of NanoMQ that can be compiled independently**.
+**Note (optional): nanonng are dependency of NanoMQ that can be compiled independently**.
 
 To compile nanonng (*nanonng is the fork of nng repository with MQTT support*):
 
@@ -177,16 +169,6 @@ cd nng/build
 cmake -G Ninja ..
 ninja
 ```
-
-To compile nanolib:
-
-```bash
-cd nanolib/build
-cmake -G Ninja ..
-ninja
-```
-
-
 
 ## Configuration 
 
@@ -285,7 +267,7 @@ Configure **MQTT bridging** in NanoMQ: by modifying `nanomq_bridge.conf`, which 
 You can also write your own configuration file. Be sure to start NanoMQ in this fashion to specify an effective configuration file:
 
 ```bash
-nanomq broker start --conf <$FILE_PATH> [--bridge <$FILE_PATH>] \
+nanomq start --conf <$FILE_PATH> [--bridge <$FILE_PATH>] \
 [--auth <$FILE_PATH>]
 ```
 
@@ -293,7 +275,7 @@ Docker version:
   Specify config file path from host:
   ```bash
   docker run -d -p 1883:1883 -v {YOU LOCAL PATH}: /etc \
-              --name nanomq  emqx/nanomq:0.8.0
+              --name nanomq  emqx/nanomq:0.9.0
   ```
 
 #### NanoMQ Environment Variables 
@@ -359,7 +341,7 @@ Docker version:
 The same configuration can be achieved by adding some command-line arguments when you start NanoMQ broker. There are a few arguments for you to play with. And the general usage is:
 
 ```c
-Usage: nanomq broker { { start | restart [--url <url>] [--conf <path>] [--bridge <path>] 
+Usage: nanomq { { start | restart [--url <url>] [--conf <path>] [--bridge <path>] 
                      [--auth <path>] [-d, --daemon] [-t, --tq_thread <num>] 
                      [-T, -max_tq_thread <num>] [-n, --parallel <num>]
                      [-D, --qos_duration <num>] [--http] [-p, --port] } 
@@ -396,14 +378,14 @@ Options:
   If `stop` is chosen, no other arguments are needed, and an existing running broker will be stopped:
 
   ```bash
-  nanomq broker stop
+  nanomq stop
   ```
 
   All arguments are useful when `start` and `restart` are chosen. An URL is mandatory (unless an URL is specified in the 'nanomq.conf', or in your configuration file), as it indicates on which the host and port a broker is listening:
 
   ```bash
-  nanomq broker start|restart 					
-  nanomq broker start|restart --conf <$FILE_PATH> [--bridge <$FILE_PATH>] [--auth <$FILE_PATH>] 
+  nanomq start|restart 					
+  nanomq start|restart --conf <$FILE_PATH> [--bridge <$FILE_PATH>] [--auth <$FILE_PATH>] 
   ```
 
 - Telling broker that it should read your configuration file. 
@@ -411,32 +393,32 @@ Options:
   Be aware that command line arguments always has a higher priority than both 'nanomq.conf' and your configuration file: 
 
   ```bash
-  nanomq broker start|restart --conf <$FILE_PATH> [--bridge <$FILE_PATH>] [--auth <$FILE_PATH>]
+  nanomq start|restart --conf <$FILE_PATH> [--bridge <$FILE_PATH>] [--auth <$FILE_PATH>]
   ```
 
 - Running broker in daemon mode:
 
   ```bash
-  nanomq broker start|restart --daemon
+  nanomq start|restart --daemon
   ```
 
 - Running broker with *tls*:
 
   ```bash
-  nanomq broker start --url "tls+nmq-tcp://0.0.0.0:8883" [--cacert <path>] [-E, --cert <path>] [--key <path>] [--keypass <password>] [--verify] [--fail]
+  nanomq start --url "tls+nmq-tcp://0.0.0.0:8883" [--cacert <path>] [-E, --cert <path>] [--key <path>] [--keypass <password>] [--verify] [--fail]
   ```
 
 - Limiting the number of threads by specifying the number of and the max number of taskq threads:
 
   ```bash
-  nanomq broker start|restart  --tq_thread <num>
-  nanomq broker start|restart  --max_tq_thread <num>
+  nanomq start|restart  --tq_thread <num>
+  nanomq start|restart  --max_tq_thread <num>
   ```
 
 - Limiting the maximum number of logical threads:
 
   ```bash
-  nanomq broker start|restart --parallel <num>
+  nanomq start|restart --parallel <num>
   ```
   
 - Setting the max property size for MQTT packet:
@@ -444,7 +426,7 @@ Options:
   Default: 32 bytes
 
   ```bash
-  nanomq broker start|restart --property_size <num>
+  nanomq start|restart --property_size <num>
   ```
 
 - Setting the queue length for a resending message:
@@ -454,7 +436,7 @@ Options:
   Default: 256
 
   ```bash
-  nanomq broker start|restart --msq_len <num>
+  nanomq start|restart --msq_len <num>
   ```
 
 - Setting the interval of the qos timer (*Also a global timer interval for session keeping*):
@@ -462,7 +444,7 @@ Options:
   Default: 30 seconds
 
   ```bash
-  nanomq broker start|restart --qos_duration <num>
+  nanomq start|restart --qos_duration <num>
   ```
 
 **Priority: Command-Line Arguments > Environment Variables > Config files**

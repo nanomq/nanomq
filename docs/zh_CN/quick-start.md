@@ -35,28 +35,20 @@ cmake -DNNG_ENABLE_TLS=ON ..
 
 ## 编译依赖
 
-请注意，NanoMQ 依赖于 nanolib 和 nng
+请注意，NanoMQ 依赖于nng
 
-两个依赖项都可以独立编译
+依赖项可以独立编译
 
 ```bash
 $PROJECT_PATH/nanomq/nng/build$ cmake -G Ninja ..
 $PROJECT_PATH/nanomq/nng/build$ ninja install
 ```
 
-独立编译 nanolib：
-
-```bash
-$PROJECT_PATH/nanolib/build$ cmake -G Ninja ..
-$PROJECT_PATH/nanolib/build$ ninja install
-```
-
-
 
 ## 启动 MQTT Broker
 
 ```bash
-nanomq broker start &
+nanomq start &
 ```
 
 目前，NanoMQ 只支持 MQTT 3.1.1，部分支持 MQTT 5.0。
@@ -67,19 +59,11 @@ nanomq broker start &
 
 ```bash
 # Publish
-nanomq pub  start --url <url> -t <topic> -m <message> [--help]
+nanomq_cli pub --url <url> -t <topic> -m <message> [--help]
 
 # Subscribe
-nanomq sub  start --url <url> -t <topic> [--help]
+nanomq_cli sub --url <url> -t <topic> [--help]
 
 # Connect*
-nanomq conn start --url <url> [--help]
-```
-
-
-
-## 测试 POSIX 消息队列
-
-```bash
-nanomq mq start/stop
+nanomq_cli conn --url <url> [--help]
 ```

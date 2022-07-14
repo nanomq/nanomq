@@ -31,7 +31,7 @@ NanoMQ MQTT Broker (NanoMQ) is a lightweight and blazing-fast MQTT Broker for th
 For example, we start NanoMQ listen mqtt message on url nmq-tcp://localhost:1884, websocket message on url nmq-ws://localhost:8085, enable http server on port 30000.
 
 ```bash
-$ nanomq broker start --url nmq-tcp://localhost:1884 --url nmq-ws://localhost:8085 --http -p 30000
+$ nanomq start --url nmq-tcp://localhost:1884 --url nmq-ws://localhost:8085 --http -p 30000
 ```
 
 ## bench
@@ -50,22 +50,21 @@ $ Ninja
 After the compilation, an executable file named `nanomq` will be generated. Execute the following command to confirm that it can be used normally:
 
 ```bash
-$ nanomq
-available applications:
-   * broker
+$ nanomq_cli
+available tools:
    * pub
    * sub
    * conn
    * bench
+   * nngproxy
    * nngcat
 
-EMQX Edge Computing Kit v0.6.0-3
-Copyright 2022 EMQX Edge Team
+Copyright 2022 EMQ Edge Computing Team
 ```
 
 ```bash
-$ nanomq bench start
-Usage: nanomq bench start { pub | sub | conn } [--help]
+$ nanomq_cli bench
+Usage: nanomq_cli bench { pub | sub | conn } [--help]
 ```
 
 The output of the above content proves that `bench` has been correctly compiled.
@@ -80,7 +79,7 @@ There are three subcommands of `bench`:
 
 ### Publish
 
-When executing `nanomq bench start pub --help`, you will get the available parameter output.
+When executing `nanomq_cli bench pub --help`, you will get the available parameter output.
 
 | Parameter         | abbreviation | Optional value | Default value  | Description                                               |
 | ----------------- | ------------ | -------------- | -------------- | --------------------------------------------------------- |
@@ -105,27 +104,27 @@ When executing `nanomq bench start pub --help`, you will get the available param
 
 For example, we start 10 connections and send 100 Qos0 messages to the topic `t` every second, where the size of each message payload is`16` bytes:
 ```bash
-$ nanomq bench start pub -t t -h nanomq-server -s 16 -q 0 -c 10 -I 10
+$ nanomq_cli bench pub -t t -h nanomq-server -s 16 -q 0 -c 10 -I 10
 ```
 
 ### Subscribe
 
-Execute `nanomq bench start sub --help` to get all available parameters of this subcommand. Their explanations have been included in the table above and are omitted here.
+Execute `nanomq_cli bench sub --help` to get all available parameters of this subcommand. Their explanations have been included in the table above and are omitted here.
 
 For example, we start 500 connections, and each subscribes to the `t` topic with Qos0:
 
 ```bash
-$ nanomq bench start sub -t t -h nanomq-server -c 500
+$ nanomq_cli bench sub -t t -h nanomq-server -c 500
 ```
 
 ### Connect
 
-Execute `nanomq bench start conn --help` to get all available parameters of this subcommand. Their explanations have been included in the table above and are omitted here.
+Execute `nanomq_cli bench conn --help` to get all available parameters of this subcommand. Their explanations have been included in the table above and are omitted here.
 
 For example, we start 1000 connections:
 
 ```bash
-$ nanomq bench start conn -h nano-server -c 1000
+$ nanomq_cli bench conn -h nano-server -c 1000
 ```
 
 ### SSL connection
@@ -135,15 +134,15 @@ $ nanomq bench start conn -h nano-server -c 1000
 One-way certificate:
 
 ```bash
-$ nanomq bench start sub -c 100 -i 10 -t bench -p 8883 -S
-$ nanomq bench start pub -c 100 -I 10 -t bench -p 8883 -s 256 -S
+$ nanomq_cli bench sub -c 100 -i 10 -t bench -p 8883 -S
+$ nanomq_cli bench pub -c 100 -I 10 -t bench -p 8883 -s 256 -S
 ```
 
 Two-way certificate:
 
 ```bash
-$ nanomq bench start sub -c 100 -i 10 -t bench -p 8883 --certfile path/to/client-cert.pem --keyfile path/to/client-key.pem
-$ nanomq bench start pub -c 100 -i 10 -t bench -s 256 -p 8883 --certfile path/to/client-cert.pem --keyfile path/to/client-key.pem
+$ nanomq_cli bench sub -c 100 -i 10 -t bench -p 8883 --certfile path/to/client-cert.pem --keyfile path/to/client-key.pem
+$ nanomq_cli bench pub -c 100 -i 10 -t bench -s 256 -p 8883 --certfile path/to/client-cert.pem --keyfile path/to/client-key.pem
 ```
 
 ## client
@@ -152,7 +151,7 @@ An MQTT version 3.1/3.1.1 client for now.
 
 ### Pub
 
-When executing `nanomq pub --help`, you will get the available parameter output.
+When executing `nanomq_cli pub --help`, you will get the available parameter output.
 
 | Parameter       | abbreviation | Optional value | Default value             | Description                                               |
 | --------------- | ------------ | -------------- | ------------------------- | --------------------------------------------------------- |
@@ -185,26 +184,26 @@ When executing `nanomq pub --help`, you will get the available parameter output.
 For example, we start 1 client with username nano and send 100 Qos2 messages test to the topic `t` .
 
 ```bash
-$ nanomq pub start -t t -h nanomq-server -q 2 -u nano -L 100 -m test
+$ nanomq_cli pub start -t "topic" -h nanomq-server -q 2 -u nano -L 100 -m test
 ```
 
 ### Sub
 
-Execute `nanomq sub start --help` to get all available parameters of this command. Their explanations have been included in the table above and are omitted here.
+Execute `nanomq_cli sub --help` to get all available parameters of this command. Their explanations have been included in the table above and are omitted here.
 
 For example, we start 1 client with username nano and set Qos1 from topic `t` .
 
 ```bash
-$ nanomq sub start -t t -h nanomq-server -q 1
+$ nanomq_cli sub -t t -h nanomq-server -q 1
 ```
 
 ### Conn
 
-Execute `nanomq conn start --help` to get all available parameters of this command. Their explanations have been included in the table above and are omitted here.
+Execute `nanomq_cli conn start --help` to get all available parameters of this command. Their explanations have been included in the table above and are omitted here.
 
 For example, we start 1 client with username nano and set Qos1 .
 
 ```bash
-$ nanomq conn start -h nanomq-server -q 1
+$ nanomq_cli conn start -h nanomq-server -q 1
 ```
 
