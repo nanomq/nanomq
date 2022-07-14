@@ -12,6 +12,7 @@ project(nanomq-nng)
 
 include(CheckCCompilerFlag)
 
+option (BUILD_NANOMQ_CLI "Build nanomq CLI" OFF)
 option (BUILD_CLIENT "Build nanomq client" ON)
 option (BUILD_NNG_PROXY "Build nng proxy" ON)
 option (BUILD_ZMQ_GATEWAY "Build zmq gateway" OFF)
@@ -32,10 +33,6 @@ endif()
 
 if (NNG_ENABLE_TLS) 
   add_definitions(-DNNG_SUPP_TLS)
-endif()
-
-if (BUILD_BENCH) 
-  add_definitions(-DSUPP_BENCH)
 endif()
 
 # If the compiler is not on Windows, does it support hiding the
@@ -180,21 +177,23 @@ if (NOWARNING)
   add_definitions(-DNOWARNING)
 endif (NOWARNING)
 
-if (MQ)
-  if (NOT (APPLE OR NANO_PLATFORM_WINDOWS))
-    add_definitions(-DMQ)
-  endif()
-endif (MQ)
-
-if (BUILD_CLIENT)
+if(BUILD_CLIENT)
+  set(BUILD_NANOMQ_CLI ON)
   add_definitions(-DSUPP_CLIENT)
 endif(BUILD_CLIENT)
 
-if (BUILD_NNG_PROXY)
+if(BUILD_BENCH)
+  set(BUILD_NANOMQ_CLI ON)
+  add_definitions(-DSUPP_BENCH)
+endif()
+
+if(BUILD_NNG_PROXY)
+  set(BUILD_NANOMQ_CLI ON)
   add_definitions(-DSUPP_NNG_PROXY)
 endif(BUILD_NNG_PROXY)
 
-if (BUILD_ZMQ_GATEWAY)
+if(BUILD_ZMQ_GATEWAY)
+  set(BUILD_NANOMQ_CLI ON)
   add_definitions(-DSUPP_ZMQ_GATEWAY)
 endif(BUILD_ZMQ_GATEWAY)
 
@@ -259,6 +258,9 @@ if (ENABLE_JWT)
   add_dependencies(nanomq l8w8jwt)
 endif (ENABLE_JWT)
 
+if(BUILD_NANOMQ_CLI)
+  add_subdirectory(nanomq_cli)
+endif(BUILD_NANOMQ_CLI)
 
 # Build Windows MSI package with WIX
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
