@@ -255,8 +255,7 @@ server_cb(void *arg)
 			}
 			uint8_t type;
 			msg = decode_msg;
-			type = nng_msg_get_type(msg);
-			nng_msg_set_cmd_type(msg, type);
+			nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 		}
 		work->msg       = msg;
 		work->pid       = nng_msg_get_pipe(work->msg);
@@ -290,7 +289,8 @@ server_cb(void *arg)
 
 				work->state = CLOSE;
 				nng_aio_finish(work->aio, 0);
-				return;
+				// TODO break or return?
+				break;
 			}
 
 			// TODO Error handling
@@ -366,15 +366,33 @@ server_cb(void *arg)
 			}
 			work->code = handle_pub(work, work->pipe_ct, work->proto_ver);
 			if (work->code != SUCCESS) {
-				// TODO what if bridge ctx brings a wrong msg?
+				//what if extra ctx brings a wrong msg?
+				if (work->proto != PROTO_MQTT_BROKER) {
+					// conn_param_free(work->cparam);
+					work->state = SEND;
+					nng_aio_finish(work->aio, 0);
+					// break or return?
+					break;
+				}
 				work->state = CLOSE;
 				free_pub_packet(work->pub_packet);
 				work->pub_packet = NULL;
 				cvector_free(work->pipe_ct->msg_infos);
-				// free conn_param due to clone in protocol layer
+				// free conn_param due to
+				// clone in protocol layer
 				conn_param_free(work->cparam);
 				nng_aio_finish(work->aio, 0);
-				return;
+				// break or return?
+				break;
+			}
+			if (work->proto == PROTO_HTTP_SERVER) {
+				nng_msg *rep_msg;
+				// TODO carry code with msg
+				nng_msg_alloc(&rep_msg, 0);
+				nng_aio_set_msg(work->aio, rep_msg);
+				work->state = WAIT;
+				nng_ctx_send(work->extra_ctx, work->aio);
+				break;
 			}
 		} else if (work->flag == CMD_CONNACK) {
 			nng_msg_set_pipe(work->msg, work->pid);
@@ -480,12 +498,6 @@ server_cb(void *arg)
 			work->state = RECV;
 			if (work->proto == PROTO_MQTT_BRIDGE) {
 				nng_ctx_recv(work->extra_ctx, work->aio);
-			} else if (work->proto == PROTO_HTTP_SERVER) {
-				nng_msg *rep_msg;
-				nng_msg_alloc(&rep_msg, 0);
-				nng_aio_set_msg(work->aio, rep_msg);
-				work->state = SEND;
-				nng_ctx_send(work->extra_ctx, work->aio);
 			} else {
 				nng_ctx_recv(work->ctx, work->aio);
 			}
