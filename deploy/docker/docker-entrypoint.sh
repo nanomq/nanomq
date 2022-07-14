@@ -7,7 +7,7 @@ _main() {
 	fi
 
 	if [ "${1#-}" != "$1" ]; then
-		set -- nanomq broker start "$@"
+		set -- nanomq start "$@"
 	fi
     exec "$@"
 }
