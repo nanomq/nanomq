@@ -254,7 +254,8 @@ server_cb(void *arg)
 				break;
 			}
 			uint8_t type;
-			type = nng_msg_get_type(decode_msg);
+			msg = decode_msg;
+			type = nng_msg_get_type(msg);
 			nng_msg_set_cmd_type(msg, type);
 		}
 		work->msg       = msg;
