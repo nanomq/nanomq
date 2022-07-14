@@ -1015,7 +1015,7 @@ broker(conf *nanomq_conf)
 void
 print_usage(void)
 {
-	printf("Usage: nanomq broker { { start | restart [--url <url>] "
+	printf("Usage: nanomq { { start | restart [--url <url>] "
 	       "[--conf <path>] "
 	       "[--bridge <path>] \n                     "
 	       "[--webhook <path>] "
@@ -1036,8 +1036,9 @@ print_usage(void)
 
 	printf("Options: \n");
 	printf("  --url <url>                Specify listener's url: "
-	       "'nmq-tcp://host:port', 'tls+nmq-tcp://host:port' \n"
-	       "                             or 'nmq-ws://host:port/path' or "
+	       "'nmq-tcp://host:port', \r\n                             "
+		   "'tls+nmq-tcp://host:port', \r\n                             "
+		   "'nmq-ws://host:port/path', \r\n                             "
 	       "'nmq-wss://host:port/path'\n");
 	printf("  --conf <path>              The path of a specified nanomq "
 	       "configuration file \n");
@@ -1065,10 +1066,12 @@ print_usage(void)
 	    "8081)\n");
 	printf(
 	    "  -t, --tq_thread <num>      The number of taskq threads used, "
+	    "\r\n                             "
 	    "`num` greater than 0 and less than 256\n");
 	printf(
 	    "  -T, --max_tq_thread <num>  The maximum number of taskq threads "
-	    "used, `num` greater than 0 and less than 256\n");
+	    "used, \r\n                             "
+	    "`num` greater than 0 and less than 256\n");
 	printf(
 	    "  -n, --parallel <num>       The maximum number of outstanding "
 	    "requests we can handle\n");
@@ -1086,12 +1089,13 @@ print_usage(void)
 	printf("  --key                      Path to the file containing the "
 	       "user's private PEM-encoded key\n");
 	printf("  --keypass                  String containing the user's "
-	       "password. Only used if the private keyfile is "
-	       "password-protected\n");
+	       "password. \r\n                             "
+		   "Only used if the private keyfile is password-protected\n");
 	printf("  --verify                   Set verify peer "
 	       "certificate (default: false)\n");
 	printf("  --fail                     Server will fail if the client "
-	       "does not have a certificate to send (default: false)\n");
+	       "does not have a \r\n                             "
+	       "certificate to send (default: false)\n");
 }
 
 int
@@ -1460,7 +1464,7 @@ broker_stop(int argc, char **argv)
 {
 	int pid = 0;
 
-	if (argc != 0) {
+	if (argc > 2) {
 		print_usage();
 		exit(EXIT_FAILURE);
 	}
