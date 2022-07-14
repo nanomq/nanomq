@@ -26,7 +26,7 @@ Copyright 2022 EMQ X Edge Team
 ## 运行
 运行命令 `nanomq gateway` 或者 `nanomq gateway --help` 可看到一下输出:
 ```
-Usage: nanomq gateway start [--conf <path>]
+Usage: nanomq_cli gateway [--conf <path>]
 
   --conf <path>  The path of a specified nanomq configuration file 
 ```
@@ -128,9 +128,9 @@ gateway.mqtt.parallel=2
 
 启动 broker 和 zmq 的服务器, 启动 gateway: 
 ```
-$ nanomq broker start
+$ nanomq start
 $ your zmq server
-$ nanomq gateway start --conf path/to/nanomq_gateway.conf
+$ nanomq_cli gateway --conf path/to/nanomq_gateway.conf
 ```
 现在 gateway 将会在 zmq 服务器和 mqtt broker 之间做数据交换。
 

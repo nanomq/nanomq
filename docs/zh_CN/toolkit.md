@@ -31,7 +31,7 @@ NanoMQ 是一款用在物联网平台边缘端的超轻量 MQTT Broker。
 例如，我们在 url nmq-tcp://localhost:1884 上启动 NanoMQ 监听 MQTT 消息，在 url nmq-ws://localhost:8085 上启动 websocket 消息，在端口 30000 上启用 http 服务器。
 
 ```bash
-$ nanomq broker start --url nmq-tcp://localhost:1884 --url nmq-ws://localhost:8085 --http -p 30000
+$ nanomq start --url nmq-tcp://localhost:1884 --url nmq-ws://localhost:8085 --http -p 30000
 ```
 
 ## bench
@@ -50,22 +50,21 @@ $ Ninja
 编译完成后，会生成一个名为“nanomq”的可执行文件。执行以下命令确认可以正常使用：
 
 ```bash
-$ nanomq
-available applications:
-   * broker
+$ nanomq_cli 
+available tools:
    * pub
    * sub
    * conn
    * bench
+   * nngproxy
    * nngcat
 
-EMQX Edge Computing Kit v0.6.0-3
-Copyright 2022 EMQX Edge Team
+Copyright 2022 EMQ Edge Computing Team
 ```
 
 ```bash
-$ nanomq bench start
-Usage: nanomq bench start { pub | sub | conn } [--help]
+$ nanomq_cli bench
+Usage: nanomq_cli bench { pub | sub | conn } [--help]
 ```
 
 以上内容的输出证明`bench`已经被正确编译。
@@ -80,7 +79,7 @@ Usage: nanomq bench start { pub | sub | conn } [--help]
 
 ### 发布
 
-执行 `nanomq bench start pub --help` 时，您将获得可用的参数输出。
+执行 `nanomq_cli bench pub --help` 时，您将获得可用的参数输出。
 
 | Parameter         | abbreviation | Optional value | Default value  | Description               |
 | ----------------- | ------------ | -------------- | -------------- | ------------------------- |
@@ -106,27 +105,27 @@ Usage: nanomq bench start { pub | sub | conn } [--help]
 例如，我们启动 10 个连接，每秒向主题 t 发送 100 条 Qos0 消息，其中每个消息负载的大小为 16 字节：
 
 ```bash
-$ nanomq bench start pub -t t -h nanomq-server -s 16 -q 0 -c 10 -I 10
+$ nanomq_cli bench pub -t t -h nanomq-server -s 16 -q 0 -c 10 -I 10
 ```
 
 ### 订阅
 
-执行 `nanomq bench start sub --help` 以获取此子命令的所有可用参数。它们的解释已包含在上表中，此处不再赘述。
+执行 `nanomq_cli bench sub --help` 以获取此子命令的所有可用参数。它们的解释已包含在上表中，此处不再赘述。
 
 例如，我们启动 500 个连接，每个连接使用 Qos0 订阅 `t` 主题：
 
 ```bash
-$ nanomq bench start sub -t t -h nanomq-server -c 500
+$ nanomq_cli bench sub -t t -h nanomq-server -c 500
 ```
 
 ### 连接
 
-执行 `nanomq bench start conn --help` 以获取此子命令的所有可用参数。它们的解释已包含在上表中，此处不再赘述。
+执行 `nanomq_cli bench conn --help` 以获取此子命令的所有可用参数。它们的解释已包含在上表中，此处不再赘述。
 
 例如，我们启动 1000 个连接：
 
 ```bash
-$ nanomq bench start conn -h nano-server -c 1000
+$ nanomq_cli bench conn -h nano-server -c 1000
 ```
 
 ### SSL 连接
@@ -136,15 +135,15 @@ $ nanomq bench start conn -h nano-server -c 1000
 单向认证
 
 ```bash
-$ nanomq bench start sub -c 100 -i 10 -t bench -p 8883 -S
-$ nanomq bench start pub -c 100 -I 10 -t bench -p 8883 -s 256 -S
+$ nanomq_cli bench sub -c 100 -i 10 -t bench -p 8883 -S
+$ nanomq_cli bench pub -c 100 -I 10 -t bench -p 8883 -s 256 -S
 ```
 
 双向认证
 
 ```bash
-$ nanomq bench start sub -c 100 -i 10 -t bench -p 8883 --certfile path/to/client-cert.pem --keyfile path/to/client-key.pem
-$ nanomq bench start pub -c 100 -i 10 -t bench -s 256 -p 8883 --certfile path/to/client-cert.pem --keyfile path/to/client-key.pem
+$ nanomq_cli bench sub -c 100 -i 10 -t bench -p 8883 --certfile path/to/client-cert.pem --keyfile path/to/client-key.pem
+$ nanomq_cli bench pub -c 100 -i 10 -t bench -s 256 -p 8883 --certfile path/to/client-cert.pem --keyfile path/to/client-key.pem
 ```
 
 ## client
@@ -186,26 +185,26 @@ $ nanomq bench start pub -c 100 -i 10 -t bench -s 256 -p 8883 --certfile path/to
 例如，我们使用用户名 nano 启动 1 个客户端，并向主题 `t` 发送 100 条 Qos2 消息测试。
 
 ```bash
-$ nanomq pub start -t t -h nanomq-server -q 2 -u nano -L 100 -m test
+$ nanomq_cli pub -t t -h nanomq-server -q 2 -u nano -L 100 -m test
 ```
 
 ### Sub
 
-执行 `nanomq sub start --help` 以获取该命令的所有可用参数。它们的解释已包含在上表中，此处不再赘述。
+执行 `nanomq_cli sub --help` 以获取该命令的所有可用参数。它们的解释已包含在上表中，此处不再赘述。
 
 例如，我们使用用户名 nano 启动 1 个客户端，并从主题 `t` 设置 Qos1。
 
 ```bash
-$ nanomq sub start -t t -h nanomq-server -q 1
+$ nanomq_cli sub -t t -h nanomq-server -q 1
 ```
 
 ### Conn
 
-执行 `nanomq conn start --help` 以获取该命令的所有可用参数。它们的解释已包含在上表中，此处不再赘述。
+执行 `nanomq_cli conn --help` 以获取该命令的所有可用参数。它们的解释已包含在上表中，此处不再赘述。
 
 例如，我们使用用户名 nano 启动 1 个客户端并设置 Qos1 。
 
 ```bash
-$ nanomq conn start -h nanomq-server -q 1
+$ nanomq_cli conn -h nanomq-server -q 1
 ```
 

@@ -38,28 +38,19 @@ cmake -DNNG_ENABLE_TLS=ON ..
 
 ## Compile dependency
 
-Please be aware that NanoMQ depends on nanolib & nng
+Please be aware that NanoMQ depends on nng
 
-both dependencies can be compiled independently
+dependency can be compiled independently
 
 ```bash
 $PROJECT_PATH/nanomq/nng/build$ cmake -G Ninja ..
 $PROJECT_PATH/nanomq/nng/build$ ninja install
 ```
 
-compile nanolib independently:
-
-```bash
-$PROJECT_PATH/nanolib/build$ cmake -G Ninja ..
-$PROJECT_PATH/nanolib/build$ ninja install
-```
-
-
-
 ## Start MQTT Broker
 
 ```bash
-nanomq broker start &
+nanomq start &
 ```
 
 Currently, NanoMQ only supports MQTT 3.1.1, partially supports MQTT 5.0
@@ -70,19 +61,11 @@ Currently, NanoMQ only supports MQTT 3.1.1, partially supports MQTT 5.0
 
 ```bash
 # Publish
-nanomq pub  start --url <url> -t <topic> -m <message> [--help]
+nanomq_cli pub --url <url> -t <topic> -m <message> [--help]
 
 # Subscribe
-nanomq sub  start --url <url> -t <topic> [--help]
+nanomq_cli sub --url <url> -t <topic> [--help]
 
 # Connect*
-nanomq conn start --url <url> [--help]
-```
-
-
-
-## Test POSIX message Queue
-
-```sh
-nanomq mq start/stop
+nanomq_cli conn --url <url> [--help]
 ```

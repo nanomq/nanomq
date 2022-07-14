@@ -26,7 +26,7 @@ It's show that gateway is ok now.
 ## Run
 Run command `nanomq gateway` or `nanomq gateway --help` will get:
 ```
-Usage: nanomq gateway start [--conf <path>]
+Usage: nanomq_cli gateway [--conf <path>]
 
   --conf <path>  The path of a specified nanomq configuration file 
 ```
@@ -128,9 +128,9 @@ Configure file description can find [here](./config-description.md).
 
 Launch broker and zmq server, then launch nanomq gateway 
 ```
-$ nanomq broker start
+$ nanomq start
 $ your zmq server
-$ nanomq gateway start --conf path/to/nanomq_gateway.conf
+$ nanomq_cli gateway --conf path/to/nanomq_gateway.conf
 ```
 Gateway will transfer data between zmq and mqtt broker.
 
