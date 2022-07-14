@@ -347,7 +347,7 @@ freetopic(struct topic *endp)
 {
 	struct topic *t = endp;
 
-	for (struct topic *t = endp; t != NULL; t = t->next) {
+	for (; t != NULL; t = t->next) {
 		if (t->val) {
 			free(t->val);
 			t->val = NULL;
@@ -357,7 +357,7 @@ freetopic(struct topic *endp)
 }
 
 int
-client_parse_opts(int argc, char **argv, client_opts *opts)
+client_parse_opts(int argc, char **argv, client_opts *opt)
 {
 	int    idx = 1;
 	char * arg;
@@ -366,142 +366,142 @@ client_parse_opts(int argc, char **argv, client_opts *opts)
 	size_t filelen = 0;
 
 	struct topic **topicend;
-	topicend = &opts->topic;
+	topicend = &opt->topic;
 
 	while ((rv = nng_opts_parse(argc, argv, cmd_opts, &val, &arg, &idx)) ==
 	    0) {
 		switch (val) {
 		case OPT_HELP:
-			help(opts->type);
+			help(opt->type);
 			exit(0);
 			break;
 		case OPT_VERBOSE:
-			opts->verbose = true;
+			opt->verbose = true;
 			break;
 		case OPT_PARALLEL:
-			opts->parallel = intarg(arg, 1024000);
+			opt->parallel = intarg(arg, 1024000);
 			break;
 		case OPT_INTERVAL:
-			opts->interval = intarg(arg, 10240000);
+			opt->interval = intarg(arg, 10240000);
 			break;
 		case OPT_MSGCOUNT:
-			opts->total_msg_count = intarg(arg, 10240000);
+			opt->total_msg_count = intarg(arg, 10240000);
 			break;
 		case OPT_CLIENTS:
-			opts->clients = intarg(arg, 10240000);
+			opt->clients = intarg(arg, 10240000);
 			break;
 		case OPT_VERSION:
-			opts->version = intarg(arg, 4);
+			opt->version = intarg(arg, 4);
 			break;
 		case OPT_URL:
-			ASSERT_NULL(opts->url,
+			ASSERT_NULL(opt->url,
 			    "URL (--url) may be specified "
 			    "only once.");
-			opts->url = nng_strdup(arg);
+			opt->url = nng_strdup(arg);
 			break;
 		case OPT_TOPIC:
 			topicend = addtopic(topicend, arg);
-			opts->topic_count++;
+			opt->topic_count++;
 			break;
 		case OPT_QOS:
-			opts->qos = intarg(arg, 2);
+			opt->qos = intarg(arg, 2);
 			break;
 		case OPT_RETAIN:
-			opts->retain = true;
+			opt->retain = true;
 			break;
 		case OPT_USER:
-			ASSERT_NULL(opts->user,
+			ASSERT_NULL(opt->user,
 			    "User (-u, --user) may be specified "
 			    "only "
 			    "once.");
-			opts->user = nng_strdup(arg);
+			opt->user = nng_strdup(arg);
 			break;
 		case OPT_PASSWD:
-			ASSERT_NULL(opts->passwd,
+			ASSERT_NULL(opt->passwd,
 			    "Password (-p, --password) may be "
 			    "specified "
 			    "only "
 			    "once.");
-			opts->passwd = nng_strdup(arg);
+			opt->passwd = nng_strdup(arg);
 			break;
 		case OPT_CLIENTID:
-			ASSERT_NULL(opts->client_id,
+			ASSERT_NULL(opt->client_id,
 			    "Identifier (-I, --identifier) may be "
 			    "specified "
 			    "only "
 			    "once.");
-			opts->client_id = nng_strdup(arg);
+			opt->client_id = nng_strdup(arg);
 			break;
 		case OPT_KEEPALIVE:
-			opts->keepalive = intarg(arg, 65535);
+			opt->keepalive = intarg(arg, 65535);
 			break;
 		case OPT_CLEAN_SESSION:
-			opts->clean_session = nng_strcasecmp(arg, "true") == 0;
+			opt->clean_session = nng_strcasecmp(arg, "true") == 0;
 			break;
 		case OPT_WILL_MSG:
-			ASSERT_NULL(opts->will_msg,
+			ASSERT_NULL(opt->will_msg,
 			    "Will_msg (--will-msg) may be specified "
 			    "only "
 			    "once.");
-			opts->will_msg     = nng_strdup(arg);
-			opts->will_msg_len = strlen(arg);
+			opt->will_msg     = nng_strdup(arg);
+			opt->will_msg_len = strlen(arg);
 			break;
 		case OPT_WILL_QOS:
-			opts->will_qos = intarg(arg, 2);
+			opt->will_qos = intarg(arg, 2);
 			break;
 		case OPT_WILL_RETAIN:
-			opts->retain = true;
+			opt->retain = true;
 			break;
 		case OPT_WILL_TOPIC:
-			ASSERT_NULL(opts->will_topic,
+			ASSERT_NULL(opt->will_topic,
 			    "Will_topic (--will-topic) may be "
 			    "specified "
 			    "only "
 			    "once.");
-			opts->will_topic = nng_strdup(arg);
+			opt->will_topic = nng_strdup(arg);
 			break;
 		case OPT_SECURE:
-			opts->enable_ssl = true;
+			opt->enable_ssl = true;
 			break;
 		case OPT_CACERT:
-			ASSERT_NULL(opts->cacert,
+			ASSERT_NULL(opt->cacert,
 			    "CA Certificate (--cacert) may be "
 			    "specified only once.");
 			loadfile(
-			    arg, (void **) &opts->cacert, &opts->cacert_len);
+			    arg, (void **) &opt->cacert, &opt->cacert_len);
 			break;
 		case OPT_CERTFILE:
-			ASSERT_NULL(opts->cert,
+			ASSERT_NULL(opt->cert,
 			    "Cert (--cert) may be specified "
 			    "only "
 			    "once.");
-			loadfile(arg, (void **) &opts->cert, &opts->cert_len);
+			loadfile(arg, (void **) &opt->cert, &opt->cert_len);
 			break;
 		case OPT_KEYFILE:
-			ASSERT_NULL(opts->key,
+			ASSERT_NULL(opt->key,
 			    "Key (--key) may be specified only once.");
-			loadfile(arg, (void **) &opts->key, &opts->key_len);
+			loadfile(arg, (void **) &opt->key, &opt->key_len);
 			break;
 		case OPT_KEYPASS:
-			ASSERT_NULL(opts->keypass,
+			ASSERT_NULL(opt->keypass,
 			    "Key Password (--keypass) may be specified only "
 			    "once.");
-			opts->keypass = nng_strdup(arg);
+			opt->keypass = nng_strdup(arg);
 			break;
 		case OPT_MSG:
-			ASSERT_NULL(opts->msg,
+			ASSERT_NULL(opt->msg,
 			    "Data (--file, --data) may be "
 			    "specified "
 			    "only once.");
-			opts->msg     = nng_strdup(arg);
-			opts->msg_len = strlen(arg);
+			opt->msg     = nng_strdup(arg);
+			opt->msg_len = strlen(arg);
 			break;
 		case OPT_FILE:
-			ASSERT_NULL(opts->msg,
+			ASSERT_NULL(opt->msg,
 			    "Data (--file, --data) may be "
 			    "specified "
 			    "only once.");
-			loadfile(arg, (void **) &opts->msg, &opts->msg_len);
+			loadfile(arg, (void **) &opt->msg, &opt->msg_len);
 			break;
 		default:
 			break;
@@ -510,7 +510,7 @@ client_parse_opts(int argc, char **argv, client_opts *opts)
 	switch (rv) {
 	case NNG_EINVAL:
 		fatal("Option %s is invalid.", argv[idx]);
-		help(opts->type);
+		help(opt->type);
 		break;
 	case NNG_EAMBIGUOUS:
 		fatal("Option %s is ambiguous (specify in full).", argv[idx]);
@@ -522,19 +522,19 @@ client_parse_opts(int argc, char **argv, client_opts *opts)
 		break;
 	}
 
-	if (!opts->url) {
-		opts->url = nng_strdup("mqtt-tcp://127.0.0.1:1883");
+	if (!opt->url) {
+		opt->url = nng_strdup("mqtt-tcp://127.0.0.1:1883");
 	}
 
-	switch (opts->type) {
+	switch (opt->type) {
 	case PUB:
-		if (opts->topic_count == 0) {
+		if (opt->topic_count == 0) {
 			fatal("Missing required option: '(-t, --topic) "
 			      "<topic>'\nTry 'nanomq_cli pub --help' for more "
 			      "information. ");
 		}
 
-		if (opts->msg == NULL) {
+		if (opt->msg == NULL) {
 			fatal(
 			    "Missing required option: '(-m, --msg) "
 			    "<message>' or '(-f, --file) <file>'\nTry "
@@ -542,7 +542,7 @@ client_parse_opts(int argc, char **argv, client_opts *opts)
 		}
 		break;
 	case SUB:
-		if (opts->topic_count == 0) {
+		if (opt->topic_count == 0) {
 			fatal("Missing required option: '(-t, --topic) "
 			      "<topic>'\nTry 'nanomq_cli sub --help' for more "
 			      "information. ");
@@ -561,20 +561,20 @@ client_parse_opts(int argc, char **argv, client_opts *opts)
 }
 
 static void
-set_default_conf(client_opts *opts)
+set_default_conf(client_opts *opt)
 {
-	opts->total_msg_count = 1;
-	opts->interval        = 10;
-	opts->qos             = 0;
-	opts->retain          = false;
-	opts->parallel        = 1;
-	opts->version         = 4;
-	opts->keepalive       = 60;
-	opts->clean_session   = true;
-	opts->enable_ssl      = false;
-	opts->verbose         = false;
-	opts->topic_count     = 0;
-	opts->clients         = 1;
+	opt->total_msg_count = 1;
+	opt->interval        = 10;
+	opt->qos             = 0;
+	opt->retain          = false;
+	opt->parallel        = 1;
+	opt->version         = 4;
+	opt->keepalive       = 60;
+	opt->clean_session   = true;
+	opt->enable_ssl      = false;
+	opt->verbose         = false;
+	opt->topic_count     = 0;
+	opt->clients         = 1;
 }
 
 // This reads a file into memory.  Care is taken to ensure that
@@ -674,16 +674,16 @@ out:
 #endif
 
 nng_msg *
-publish_msg(client_opts *opts)
+publish_msg(client_opts *opt)
 {
 	// create a PUBLISH message
 	nng_msg *pubmsg;
 	nng_mqtt_msg_alloc(&pubmsg, 0);
 	nng_mqtt_msg_set_packet_type(pubmsg, NNG_MQTT_PUBLISH);
-	nng_mqtt_msg_set_publish_qos(pubmsg, opts->qos);
-	nng_mqtt_msg_set_publish_retain(pubmsg, opts->retain);
-	nng_mqtt_msg_set_publish_payload(pubmsg, opts->msg, opts->msg_len);
-	nng_mqtt_msg_set_publish_topic(pubmsg, opts->topic->val);
+	nng_mqtt_msg_set_publish_qos(pubmsg, opt->qos);
+	nng_mqtt_msg_set_publish_retain(pubmsg, opt->retain);
+	nng_mqtt_msg_set_publish_payload(pubmsg, opt->msg, opt->msg_len);
+	nng_mqtt_msg_set_publish_topic(pubmsg, opt->topic->val);
 	return pubmsg;
 }
 
@@ -772,7 +772,7 @@ client_cb(void *arg)
 }
 
 static struct work *
-alloc_work(nng_socket sock, client_opts *opts)
+alloc_work(nng_socket sock, client_opts *opt)
 {
 	struct work *w;
 	int          rv;
@@ -786,42 +786,42 @@ alloc_work(nng_socket sock, client_opts *opts)
 	if ((rv = nng_ctx_open(&w->ctx, sock)) != 0) {
 		nng_fatal("nng_ctx_open", rv);
 	}
-	w->opts  = opts;
+	w->opts  = opt;
 	w->state = INIT;
 	return (w);
 }
 
 static nng_msg *
-connect_msg(client_opts *opts)
+connect_msg(client_opts *opt)
 {
 	nng_msg *msg;
 	nng_mqtt_msg_alloc(&msg, 0);
 	nng_mqtt_msg_set_packet_type(msg, NNG_MQTT_CONNECT);
-	nng_mqtt_msg_set_connect_proto_version(msg, opts->version);
-	nng_mqtt_msg_set_connect_keep_alive(msg, opts->keepalive);
-	nng_mqtt_msg_set_connect_clean_session(msg, opts->clean_session);
+	nng_mqtt_msg_set_connect_proto_version(msg, opt->version);
+	nng_mqtt_msg_set_connect_keep_alive(msg, opt->keepalive);
+	nng_mqtt_msg_set_connect_clean_session(msg, opt->clean_session);
 
-	if (opts->client_id) {
-		nng_mqtt_msg_set_connect_client_id(msg, opts->client_id);
+	if (opt->client_id) {
+		nng_mqtt_msg_set_connect_client_id(msg, opt->client_id);
 	}
-	if (opts->user) {
-		nng_mqtt_msg_set_connect_user_name(msg, opts->user);
+	if (opt->user) {
+		nng_mqtt_msg_set_connect_user_name(msg, opt->user);
 	}
-	if (opts->passwd) {
-		nng_mqtt_msg_set_connect_password(msg, opts->passwd);
+	if (opt->passwd) {
+		nng_mqtt_msg_set_connect_password(msg, opt->passwd);
 	}
-	if (opts->will_topic) {
-		nng_mqtt_msg_set_connect_will_topic(msg, opts->will_topic);
+	if (opt->will_topic) {
+		nng_mqtt_msg_set_connect_will_topic(msg, opt->will_topic);
 	}
-	if (opts->will_qos) {
-		nng_mqtt_msg_set_connect_will_qos(msg, opts->will_qos);
+	if (opt->will_qos) {
+		nng_mqtt_msg_set_connect_will_qos(msg, opt->will_qos);
 	}
-	if (opts->will_msg) {
+	if (opt->will_msg) {
 		nng_mqtt_msg_set_connect_will_msg(
-		    msg, opts->will_msg, opts->will_msg_len);
+		    msg, opt->will_msg, opt->will_msg_len);
 	}
-	if (opts->will_retain) {
-		nng_mqtt_msg_set_connect_will_retain(msg, opts->will_retain);
+	if (opt->will_retain) {
+		nng_mqtt_msg_set_connect_will_retain(msg, opt->will_retain);
 	}
 
 	return msg;
@@ -875,7 +875,7 @@ create_client(nng_socket *sock, struct work **works, size_t id, size_t nwork,
 		works[i] = alloc_work(*sock, opts);
 	}
 
-	nng_msg *msg = connect_msg(opts);
+	nng_msg *conn_msg = connect_msg(opts);
 
 	if ((rv = nng_dialer_create(&dialer, *sock, opts->url)) != 0) {
 		nng_fatal("nng_dialer_create", rv);
@@ -890,21 +890,21 @@ create_client(nng_socket *sock, struct work **works, size_t id, size_t nwork,
 	}
 #endif
 
-	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, msg);
+	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, conn_msg);
 
 	param->sock = sock;
 	param->opts = opts;
 	param->id   = id;
 
 	nng_mqtt_set_connect_cb(*sock, connect_cb, param);
-	nng_mqtt_set_disconnect_cb(*sock, disconnect_cb, msg);
+	nng_mqtt_set_disconnect_cb(*sock, disconnect_cb, conn_msg);
 
 	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
 
 	if (param->opts->type == SUB && param->opts->topic_count > 0) {
-		nng_msg *msg;
-		nng_mqtt_msg_alloc(&msg, 0);
-		nng_mqtt_msg_set_packet_type(msg, NNG_MQTT_SUBSCRIBE);
+		nng_msg *sub_msg;
+		nng_mqtt_msg_alloc(&sub_msg, 0);
+		nng_mqtt_msg_set_packet_type(sub_msg, NNG_MQTT_SUBSCRIBE);
 
 		nng_mqtt_topic_qos *topics_qos =
 		    nng_mqtt_topic_qos_array_create(param->opts->topic_count);
@@ -918,13 +918,13 @@ create_client(nng_socket *sock, struct work **works, size_t id, size_t nwork,
 		}
 
 		nng_mqtt_msg_set_subscribe_topics(
-		    msg, topics_qos, param->opts->topic_count);
+		    sub_msg, topics_qos, param->opts->topic_count);
 
 		nng_mqtt_topic_qos_array_free(
 		    topics_qos, param->opts->topic_count);
 
 		// Send subscribe message
-		nng_sendmsg(*param->sock, msg, NNG_FLAG_NONBLOCK);
+		nng_sendmsg(*param->sock, sub_msg, NNG_FLAG_NONBLOCK);
 	}
 
 	average_msgs(opts, works);
@@ -934,12 +934,12 @@ create_client(nng_socket *sock, struct work **works, size_t id, size_t nwork,
 }
 
 static void
-average_msgs(client_opts *opts, struct work **works)
+average_msgs(client_opts *opt, struct work **works)
 {
-	size_t total_msgs   = opts->total_msg_count;
-	size_t remainder    = total_msgs % opts->parallel;
-	size_t average_msgs = total_msgs / opts->parallel;
-	for (size_t i = 0; i < opts->parallel; i++) {
+	size_t total_msgs   = opt->total_msg_count;
+	size_t remainder    = total_msgs % opt->parallel;
+	size_t average_msgs = total_msgs / opt->parallel;
+	for (size_t i = 0; i < opt->parallel; i++) {
 		works[i]->msg_count = average_msgs;
 	}
 	if (remainder > 0) {

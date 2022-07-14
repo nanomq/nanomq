@@ -86,7 +86,7 @@ struct nng_proxy_opts {
 	uint8_t		 nng_mode;
 };
 
-nng_proxy_opts *nng_opts = NULL;
+nng_proxy_opts *proxy_opts = NULL;
 
 enum options {
 	OPT_HELP = 1,
@@ -695,7 +695,7 @@ nng_client_cb(void *arg)
 			break;
 		}
 		work->msg   = nng_aio_get_msg(work->aio);
-		if (nng_opts->verbose) {
+		if (proxy_opts->verbose) {
 			printf("NNG msg : %s\n",
 			    (char *) nng_msg_body(work->msg));
 		}
@@ -724,14 +724,15 @@ nng_client_cb(void *arg)
 		uint32_t    topic_len;
 		const char *recv_topic =
 		    nng_mqtt_msg_get_publish_topic(msg, &topic_len);
-		if (nng_opts->verbose) {
+		if (proxy_opts->verbose) {
 			printf("MQTT msg: %.*s: %.*s\n", topic_len, recv_topic,
 			    payload_len, (char *) payload);
 		}
 
 		if (((rv = nng_msg_alloc(&work->msg, 0)) != 0) ||
-		    ((rv = nng_msg_append(work->msg, payload, payload_len)) != 0)) {
-			fatal(nng_strerror(rv));
+		    ((rv = nng_msg_append(work->msg, payload, payload_len)) !=
+		        0)) {
+			fatal("%s", nng_strerror(rv));
 		}
 		nng_msg_free(msg);
 
@@ -746,7 +747,7 @@ nng_client_cb(void *arg)
 			nng_fatal("nng_send_aio", rv);
 		}
 		work->state = RECV_NNG;
-		if (nng_opts->type == PAIR1 || nng_opts->type == PAIR0) {
+		if (proxy_opts->type == PAIR1 || proxy_opts->type == PAIR0) {
 			nng_recv_aio(work->nsocket, work->aio);
 			break;
 		}
@@ -897,38 +898,38 @@ create_client(nng_socket *sock, nng_socket psock, struct work **works,
 		nng_fatal("nng_socket", rv);
 	}
 
-	for (size_t i = 0; i < nng_opts->parallel; i++) {
-		works[i] = nng_alloc_work(*sock, psock, nng_opts, mode);
+	for (size_t i = 0; i < proxy_opts->parallel; i++) {
+		works[i] = nng_alloc_work(*sock, psock, proxy_opts, mode);
 	}
 
-	nng_msg *msg = connect_msg(nng_opts);
+	nng_msg *conn_msg = connect_msg(proxy_opts);
 
-	if ((rv = nng_dialer_create(&dialer, *sock, nng_opts->mqtt_url)) != 0) {
+	if ((rv = nng_dialer_create(&dialer, *sock, proxy_opts->mqtt_url)) != 0) {
 		nng_fatal("nng_dialer_create", rv);
 	}
 
 #ifdef NNG_SUPP_TLS
-	if (nng_opts->enable_ssl) {
-		if ((rv = init_dialer_tls(dialer, nng_opts->cacert, nng_opts->cert,
-		         nng_opts->key, nng_opts->keypass)) != 0) {
+	if (proxy_opts->enable_ssl) {
+		if ((rv = init_dialer_tls(dialer, proxy_opts->cacert, proxy_opts->cert,
+		         proxy_opts->key, proxy_opts->keypass)) != 0) {
 			fatal("init_dialer_tls", rv);
 		}
 	}
 #endif
 
-	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, msg);
+	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, conn_msg);
 
 	param->sock = sock;
-	param->nng_opts = nng_opts;
+	param->nng_opts = proxy_opts;
 
 	nng_mqtt_set_connect_cb(*sock, connect_cb, param);
-	nng_mqtt_set_disconnect_cb(*sock, disconnect_cb, msg);
+	nng_mqtt_set_disconnect_cb(*sock, disconnect_cb, conn_msg);
 
 	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
 	if (param->nng_opts->topic_count > 0) {
-		nng_msg *msg;
-		nng_mqtt_msg_alloc(&msg, 0);
-		nng_mqtt_msg_set_packet_type(msg, NNG_MQTT_SUBSCRIBE);
+		nng_msg *sub_msg;
+		nng_mqtt_msg_alloc(&sub_msg, 0);
+		nng_mqtt_msg_set_packet_type(sub_msg, NNG_MQTT_SUBSCRIBE);
 
 		nng_mqtt_topic_qos *topics_qos =
 		    nng_mqtt_topic_qos_array_create(param->nng_opts->topic_count);
@@ -942,13 +943,13 @@ create_client(nng_socket *sock, nng_socket psock, struct work **works,
 		}
 
 		nng_mqtt_msg_set_subscribe_topics(
-		    msg, topics_qos, param->nng_opts->topic_count);
+		    sub_msg, topics_qos, param->nng_opts->topic_count);
 
 		nng_mqtt_topic_qos_array_free(
 		    topics_qos, param->nng_opts->topic_count);
 
 		// Send subscribe message
-		nng_sendmsg(*param->sock, msg, 0);
+		nng_sendmsg(*param->sock, sub_msg, 0);
 	}
 }
 
@@ -959,20 +960,20 @@ nng_proxy_client(int argc, char **argv, enum nng_proto type)
 	nng_socket   s;		//nng socket
 	nng_listener l;
 	nng_dialer   d;
-	nng_opts = nng_zalloc(sizeof(nng_proxy_opts));
-	set_default_conf(nng_opts);
-	nng_opts->type = type;
+	proxy_opts = nng_zalloc(sizeof(nng_proxy_opts));
+	set_default_conf(proxy_opts);
+	proxy_opts->type = type;
 
-	nng_client_parse_opts(argc, argv, nng_opts);
+	nng_client_parse_opts(argc, argv, proxy_opts);
 	struct connect_param *param = nng_zalloc(sizeof(struct connect_param *));
 	//mqtt socket
 	nng_socket *socket = nng_zalloc(sizeof(nng_socket *));
 	struct work **works =
-	    nng_zalloc(nng_opts->parallel * sizeof(struct work *));
+	    nng_zalloc(proxy_opts->parallel * sizeof(struct work *));
 
 	param  = nng_zalloc(sizeof(struct connect_param));
 	socket = nng_zalloc(sizeof(nng_socket));
-	switch (nng_opts->type) {
+	switch (proxy_opts->type) {
 	case SUB0:
 		if ((rv = nng_sub0_open(&s)) != 0) {
 			nng_fatal("nng_socket", rv);
@@ -997,19 +998,19 @@ nng_proxy_client(int argc, char **argv, enum nng_proto type)
 		break;
 	}
 
-	switch (nng_opts->nng_mode) {
+	switch (proxy_opts->nng_mode) {
 	case OPT_DIAL:
-		rv = nng_dialer_create(&d, s, nng_opts->nng_url);
+		rv = nng_dialer_create(&d, s, proxy_opts->nng_url);
 		rv = nng_dialer_start(d, 0);
 		if (rv != 0)
-			fatal("unable to connect %s %s!\n", nng_opts->nng_url, nng_strerror(rv));
+			fatal("unable to connect %s %s!\n", proxy_opts->nng_url, nng_strerror(rv));
 		break;
 	case OPT_LISTEN:
-		rv = nng_listener_create(&l, s, nng_opts->nng_url);
+		rv = nng_listener_create(&l, s, proxy_opts->nng_url);
 		rv = nng_listener_start(l, 0);
 		if (rv != 0)
-			fatal("unable to listen to %s %s!\n", nng_opts->nng_url, nng_strerror(rv));
-		if ((rv == 0) && (nng_opts->verbose)) {
+			fatal("unable to listen to %s %s!\n", proxy_opts->nng_url, nng_strerror(rv));
+		if ((rv == 0) && (proxy_opts->verbose)) {
 			char   ustr[256];
 			size_t sz;
 			sz = sizeof(ustr);
@@ -1021,18 +1022,18 @@ nng_proxy_client(int argc, char **argv, enum nng_proto type)
 	default:
 		break;
 	}
-	create_client(socket, s, works, nng_opts->parallel, param, 0);
-	for (size_t i = 0; i < nng_opts->parallel; i++) {
+	create_client(socket, s, works, proxy_opts->parallel, param, 0);
+	for (size_t i = 0; i < proxy_opts->parallel; i++) {
 		nng_client_cb(works[i]);
 	}
-	if (nng_opts->type == PAIR1 || nng_opts->type == PAIR0) {
+	if (proxy_opts->type == PAIR1 || proxy_opts->type == PAIR0) {
 		struct work **works2 =
-		    nng_zalloc(nng_opts->parallel * sizeof(struct work *));
-		for (size_t i = 0; i < nng_opts->parallel; i++) {
+		    nng_zalloc(proxy_opts->parallel * sizeof(struct work *));
+		for (size_t i = 0; i < proxy_opts->parallel; i++) {
 			works2[i] =
-			    nng_alloc_work(*socket, s, nng_opts, 1);
+			    nng_alloc_work(*socket, s, proxy_opts, 1);
 		}
-		for (size_t i = 0; i < nng_opts->parallel; i++) {
+		for (size_t i = 0; i < proxy_opts->parallel; i++) {
 			// Recv from nng pair1 - send to MQTT 
 			nng_client_cb(works2[i]);
 		}
@@ -1045,7 +1046,7 @@ nng_proxy_client(int argc, char **argv, enum nng_proto type)
 	nng_free(param, sizeof(struct connect_param));
 	nng_free(socket, sizeof(nng_socket));
 
-	for (size_t k = 0; k < nng_opts->parallel; k++) {
+	for (size_t k = 0; k < proxy_opts->parallel; k++) {
 		nng_aio_free(works[k]->aio);
 		if (works[k]->msg) {
 			nng_msg_free(works[k]->msg);
@@ -1054,7 +1055,7 @@ nng_proxy_client(int argc, char **argv, enum nng_proto type)
 
 		nng_free(works[k], sizeof(struct work));
 	}
-	nng_free(works, nng_opts->parallel * sizeof(struct work *));
+	nng_free(works, proxy_opts->parallel * sizeof(struct work *));
 	nng_free(param, sizeof(struct connect_param *));
 	nng_free(socket, sizeof(nng_socket *));
 
@@ -1113,45 +1114,45 @@ nng_sub0_dflt(int argc, char **argv)
 int
 nng_client0_stop(int argc, char **argv)
 {
-	if (nng_opts) {
-		if (nng_opts->mqtt_url) {
-			nng_strfree(nng_opts->mqtt_url);
+	if (proxy_opts) {
+		if (proxy_opts->mqtt_url) {
+			nng_strfree(proxy_opts->mqtt_url);
 		}
-		if (nng_opts->topic) {
-			freetopic(nng_opts->topic);
+		if (proxy_opts->topic) {
+			freetopic(proxy_opts->topic);
 		}
-		if (nng_opts->user) {
-			nng_strfree(nng_opts->user);
+		if (proxy_opts->user) {
+			nng_strfree(proxy_opts->user);
 		}
-		if (nng_opts->passwd) {
-			nng_strfree(nng_opts->passwd);
+		if (proxy_opts->passwd) {
+			nng_strfree(proxy_opts->passwd);
 		}
-		if (nng_opts->client_id) {
-			nng_strfree(nng_opts->client_id);
+		if (proxy_opts->client_id) {
+			nng_strfree(proxy_opts->client_id);
 		}
-		if (nng_opts->msg) {
-			nng_free(nng_opts->msg, nng_opts->msg_len);
+		if (proxy_opts->msg) {
+			nng_free(proxy_opts->msg, proxy_opts->msg_len);
 		}
-		if (nng_opts->will_msg) {
-			nng_free(nng_opts->will_msg, nng_opts->will_msg_len);
+		if (proxy_opts->will_msg) {
+			nng_free(proxy_opts->will_msg, proxy_opts->will_msg_len);
 		}
-		if (nng_opts->will_topic) {
-			nng_strfree(nng_opts->will_topic);
+		if (proxy_opts->will_topic) {
+			nng_strfree(proxy_opts->will_topic);
 		}
-		if (nng_opts->cacert) {
-			nng_free(nng_opts->cacert, nng_opts->cacert_len);
+		if (proxy_opts->cacert) {
+			nng_free(proxy_opts->cacert, proxy_opts->cacert_len);
 		}
-		if (nng_opts->cert) {
-			nng_free(nng_opts->cert, nng_opts->cert_len);
+		if (proxy_opts->cert) {
+			nng_free(proxy_opts->cert, proxy_opts->cert_len);
 		}
-		if (nng_opts->key) {
-			nng_free(nng_opts->key, nng_opts->key_len);
+		if (proxy_opts->key) {
+			nng_free(proxy_opts->key, proxy_opts->key_len);
 		}
-		if (nng_opts->keypass) {
-			nng_strfree(nng_opts->keypass);
+		if (proxy_opts->keypass) {
+			nng_strfree(proxy_opts->keypass);
 		}
 
-		free(nng_opts);
+		free(proxy_opts);
 	}
 
 	return 0;
