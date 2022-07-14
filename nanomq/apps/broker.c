@@ -1186,7 +1186,7 @@ file_path_parse(int argc, char **argv, conf *config)
 	switch (rv) {
 	case NNG_EINVAL:
 		fprintf(stderr,
-		    "Option %s is invalid.\nTry 'nanomq broker --help' for "
+		    "Option %s is invalid.\nTry 'nanomq --help' for "
 		    "more information.\n",
 		    argv[idx]);
 		break;
@@ -1198,7 +1198,7 @@ file_path_parse(int argc, char **argv, conf *config)
 		break;
 	case NNG_ENOARG:
 		fprintf(stderr,
-		    "Option %s requires argument.\nTry 'nanomq broker --help' "
+		    "Option %s requires argument.\nTry 'nanomq --help' "
 		    "for more information.\n",
 		    argv[idx]);
 		break;
@@ -1281,7 +1281,7 @@ broker_parse_opts(int argc, char **argv, conf *config)
 	switch (rv) {
 	case NNG_EINVAL:
 		fprintf(stderr,
-		    "Option %s is invalid.\nTry 'nanomq broker --help' for "
+		    "Option %s is invalid.\nTry 'nanomq --help' for "
 		    "more information.\n",
 		    argv[idx]);
 		break;
@@ -1293,7 +1293,7 @@ broker_parse_opts(int argc, char **argv, conf *config)
 		break;
 	case NNG_ENOARG:
 		fprintf(stderr,
-		    "Option %s requires argument.\nTry 'nanomq broker --help' "
+		    "Option %s requires argument.\nTry 'nanomq --help' "
 		    "for more information.\n",
 		    argv[idx]);
 		break;
