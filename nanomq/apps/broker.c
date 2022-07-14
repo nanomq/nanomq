@@ -186,8 +186,8 @@ bridge_handler(nano_work *work)
 					nng_aio_set_msg(work->aio, smsg);
 					nng_socket *socket = node->sock;
 
-					// TODO what if send qos msg failed?mem
-					// leak? nanosdk deal with fail send
+					// what if send qos msg failed?
+					// nanosdk deal with fail send
 					// and close the pipe
 					nng_sendmsg(*socket, smsg, 0);
 					rv = true;
@@ -214,16 +214,10 @@ server_cb(void *arg)
 	case INIT:
 		debug_msg("INIT ^^^^ ctx%d ^^^^\n", work->ctx.id);
 		work->state = RECV;
-		switch (work->proto) {
-		case PROTO_MQTT_BRIDGE:
-			nng_ctx_recv(work->bridge_ctx, work->aio);
-			break;
-		case PROTO_HTTP_SERVER:
-			nng_ctx_recv(work->http_ctx, work->aio);
-			break;
-		default:
+		if (work->proto == PROTO_MQTT_BROKER) {
 			nng_ctx_recv(work->ctx, work->aio);
-			break;
+		} else {
+			nng_ctx_recv(work->extra_ctx, work->aio);
 		}
 		break;
 	case RECV:
@@ -231,11 +225,9 @@ server_cb(void *arg)
 		if ((rv = nng_aio_result(work->aio)) != 0) {
 			debug_msg("ERROR: RECV nng aio result error: %d", rv);
 			if (work->proto == PROTO_MQTT_BRIDGE) {
-				nng_ctx_recv(work->bridge_ctx, work->aio);
-			} else if (work->proto == PROTO_HTTP_SERVER) {
-				nng_ctx_recv(work->http_ctx, work->aio);
-			} else {
 				nng_ctx_recv(work->ctx, work->aio);
+			} else {
+				nng_ctx_recv(work->extra_ctx, work->aio);
 			}
 		}
 		if ((msg = nng_aio_get_msg(work->aio)) == NULL) {
@@ -248,7 +240,7 @@ server_cb(void *arg)
 				// only accept publish msg from upstream
 				work->state = RECV;
 				nng_msg_free(msg);
-				nng_ctx_recv(work->bridge_ctx, work->aio);
+				nng_ctx_recv(work->extra_ctx, work->aio);
 				break;
 			} else { // TODO support V5 nanosdk
 				nng_msg_set_cmd_type(msg, type);
@@ -258,12 +250,11 @@ server_cb(void *arg)
 			if (decode_http_mqtt_msg(&decode_msg, msg) != 0 ||
 			    nng_msg_get_type(decode_msg) != CMD_PUBLISH) {
 				work->state = RECV;
-				nng_ctx_recv(work->http_ctx, work->aio);
+				nng_ctx_recv(work->extra_ctx, work->aio);
 				break;
 			}
 			uint8_t type;
-			msg = decode_msg;
-			type = nng_msg_get_type(msg);
+			type = nng_msg_get_type(decode_msg);
 			nng_msg_set_cmd_type(msg, type);
 		}
 		work->msg       = msg;
@@ -487,13 +478,13 @@ server_cb(void *arg)
 			init_pipe_content(work->pipe_ct);
 			work->state = RECV;
 			if (work->proto == PROTO_MQTT_BRIDGE) {
-				nng_ctx_recv(work->bridge_ctx, work->aio);
+				nng_ctx_recv(work->extra_ctx, work->aio);
 			} else if (work->proto == PROTO_HTTP_SERVER) {
 				nng_msg *rep_msg;
 				nng_msg_alloc(&rep_msg, 0);
 				nng_aio_set_msg(work->aio, rep_msg);
 				work->state = SEND;
-				nng_ctx_send(work->http_ctx, work->aio);
+				nng_ctx_send(work->extra_ctx, work->aio);
 			} else {
 				nng_ctx_recv(work->ctx, work->aio);
 			}
@@ -517,15 +508,14 @@ server_cb(void *arg)
 		break;
 	case SEND:
 		debug_msg("SEND ^^^^ ctx%d ^^^^", work->ctx.id);
-
-		// webhook here
-		webhook_entry(work, 0);
-
 #if defined(SUPP_RULE_ENGINE)
 		if (work->flag == CMD_PUBLISH && work->config->rule_eng.option != RULE_ENG_OFF) {
 			rule_engine_insert_sql(work);
 		}
 #endif
+		// webhook here
+		webhook_entry(work, 0);
+
 		if (NULL != work->msg) {
 			nng_msg_free(work->msg);
 			work->msg = NULL;
@@ -546,12 +536,10 @@ server_cb(void *arg)
 		conn_param_free(work->cparam);
 		work->state = RECV;
 		work->flag  = 0;
-		if (work->proto == PROTO_MQTT_BRIDGE) {
-			nng_ctx_recv(work->bridge_ctx, work->aio);
-		} else if (work->proto == PROTO_HTTP_SERVER) {
-			nng_ctx_recv(work->http_ctx, work->aio);
-		} else {
+		if (work->proto == PROTO_MQTT_BROKER) {
 			nng_ctx_recv(work->ctx, work->aio);
+		} else{
+			nng_ctx_recv(work->extra_ctx, work->aio);
 		}
 		break;
 	case END:
@@ -630,14 +618,10 @@ server_cb(void *arg)
 					nng_msg_free(work->msg);
 				work->msg = NULL;
 				work->state = RECV;
-				if (work->proto == PROTO_MQTT_BRIDGE) {
-					nng_ctx_recv(
-					    work->bridge_ctx, work->aio);
-				} else if (work->proto == PROTO_HTTP_SERVER) {
-					nng_ctx_recv(
-					    work->http_ctx, work->aio);
-				} else {
+				if (work->proto == PROTO_MQTT_BROKER) {
 					nng_ctx_recv(work->ctx, work->aio);
+				} else {
+					nng_ctx_recv(work->extra_ctx, work->aio);
 				}
 			}
 		}
@@ -702,15 +686,13 @@ proto_work_init(nng_socket sock,nng_socket inproc_sock, nng_socket bridge_sock, 
 	w->config = config;
 	w->code   = SUCCESS;
 
+	// only create ctx for extra ctx that are required to receive msg
 	if (config->http_server.enable && proto == PROTO_HTTP_SERVER) {
-		if ((rv = nng_ctx_open(&w->http_ctx, inproc_sock)) != 0) {
+		if ((rv = nng_ctx_open(&w->extra_ctx, inproc_sock)) != 0) {
 			fatal("nng_ctx_open", rv);
 		}
-	}
-
-	// only create ctx for bridging ctx, they need it to receive msg
-	if (config->bridge_mode && proto == PROTO_MQTT_BRIDGE) {
-		if ((rv = nng_ctx_open(&w->bridge_ctx, bridge_sock)) != 0) {
+	} else if (config->bridge_mode && proto == PROTO_MQTT_BRIDGE) {
+		if ((rv = nng_ctx_open(&w->extra_ctx, bridge_sock)) != 0) {
 			fatal("nng_ctx_open", rv);
 		}
 	}
@@ -873,7 +855,8 @@ broker(conf *nanomq_conf)
 		if (rv != 0) {
 			fatal("nng_rep0_open", rv);
 		}
-		num_ctx += 4;
+		// set 4 ctx for HTPP as default 
+		num_ctx += HTTP_CTX_NUM;
 	}
 
 	if (nanomq_conf->bridge_mode) {
@@ -917,7 +900,7 @@ broker(conf *nanomq_conf)
 
 	// create http server ctx
 	if (nanomq_conf->http_server.enable) {
-		for (i = tmp; i < tmp + 4; i++) {
+		for (i = tmp; i < tmp + HTTP_CTX_NUM; i++) {
 			works[i] = proto_work_init(sock, inproc_sock, sock,
 			    PROTO_HTTP_SERVER, db, db_ret, nanomq_conf);
 		}
