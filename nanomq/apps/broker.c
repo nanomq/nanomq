@@ -502,7 +502,7 @@ server_cb(void *arg)
 			work->pipe_ct->msg_infos = NULL;
 			init_pipe_content(work->pipe_ct);
 			work->state = RECV;
-			if (work->proto == PROTO_MQTT_BRIDGE) {
+			if (work->proto != PROTO_MQTT_BROKER) {
 				nng_ctx_recv(work->extra_ctx, work->aio);
 			} else {
 				nng_ctx_recv(work->ctx, work->aio);
