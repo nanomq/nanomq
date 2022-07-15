@@ -83,7 +83,7 @@ check_trace(char *name)
 
 #ifdef NANO_PLATFORM_DARWIN
 		traced = ptrace(PT_ATTACHEXC, pid, 0, 0);
-#elif DNANO_PLATFORM_LINUX
+#elif NANO_PLATFORM_LINUX
 		traced = ptrace(PTRACE_ATTACH, pid, 0, 0);
 #else
 		printf("error: current platform do support\n");

@@ -1214,7 +1214,7 @@ predicate_url(conf *config, char *url)
 int
 file_path_parse(int argc, char **argv, conf *config)
 {
-	int   idx = 0;
+	int   idx = 2;
 	char *arg;
 	int   val;
 	int   rv;
@@ -1287,7 +1287,7 @@ file_path_parse(int argc, char **argv, conf *config)
 int
 broker_parse_opts(int argc, char **argv, conf *config)
 {
-	int   idx = 0;
+	int   idx = 2;
 	char *arg;
 	int   val;
 	int   rv;
