@@ -188,8 +188,8 @@ bridge_handler(nano_work *work)
 
 					// what if send qos msg failed?
 					// nanosdk deal with fail send
-					// and close the pipe
-					nng_sendmsg(*socket, smsg, 0);
+					// and cnng_sendmsglose the pipe
+					nng_sendmsg(*socket, smsg, NNG_FLAG_NONBLOCK);
 					rv = true;
 				}
 			}
@@ -244,11 +244,14 @@ server_cb(void *arg)
 				break;
 			} else { // TODO support V5 nanosdk
 				nng_msg_set_cmd_type(msg, type);
+				// clone conn_param every single time
+				conn_param_clone(nng_msg_get_conn_param(msg));
 			}
 		} else if (work->proto == PROTO_HTTP_SERVER) {
 			nng_msg *decode_msg = NULL;
 			if (decode_http_mqtt_msg(&decode_msg, msg) != 0 ||
 			    nng_msg_get_type(decode_msg) != CMD_PUBLISH) {
+				conn_param_free(nng_msg_get_conn_param(decode_msg));
 				work->state = RECV;
 				nng_ctx_recv(work->extra_ctx, work->aio);
 				break;
@@ -256,6 +259,7 @@ server_cb(void *arg)
 			uint8_t type;
 			msg = decode_msg;
 			nng_msg_set_cmd_type(msg, CMD_PUBLISH);
+			// alloc conn_param every single time
 		}
 		work->msg       = msg;
 		work->pid       = nng_msg_get_pipe(work->msg);
@@ -365,10 +369,21 @@ server_cb(void *arg)
 				nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 			}
 			work->code = handle_pub(work, work->pipe_ct, work->proto_ver);
+			if (work->proto == PROTO_HTTP_SERVER) {
+				nng_msg *rep_msg;
+				// TODO carry code with msg
+				nng_msg_alloc(&rep_msg, 0);
+				nng_aio_set_msg(work->aio, rep_msg);
+				if (work->code == SUCCESS)
+					work->state = WAIT;
+				else
+					work->state = SEND;
+				nng_ctx_send(work->extra_ctx, work->aio);
+				break;
+			}
 			if (work->code != SUCCESS) {
 				//what if extra ctx brings a wrong msg?
 				if (work->proto != PROTO_MQTT_BROKER) {
-					// conn_param_free(work->cparam);
 					work->state = SEND;
 					nng_aio_finish(work->aio, 0);
 					// break or return?
@@ -383,15 +398,6 @@ server_cb(void *arg)
 				conn_param_free(work->cparam);
 				nng_aio_finish(work->aio, 0);
 				// break or return?
-				break;
-			}
-			if (work->proto == PROTO_HTTP_SERVER) {
-				nng_msg *rep_msg;
-				// TODO carry code with msg
-				nng_msg_alloc(&rep_msg, 0);
-				nng_aio_set_msg(work->aio, rep_msg);
-				work->state = WAIT;
-				nng_ctx_send(work->extra_ctx, work->aio);
 				break;
 			}
 		} else if (work->flag == CMD_CONNACK) {
