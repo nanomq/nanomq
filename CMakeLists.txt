@@ -262,9 +262,13 @@ if(BUILD_NANOMQ_CLI)
   add_subdirectory(nanomq_cli)
 endif(BUILD_NANOMQ_CLI)
 
+
+
 # Build Windows MSI package with WIX
-if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-	set(CMAKE_INSTALL_PREFIX "${PROJECT_SOURCE_DIR}/install")
+if (NANO_PLATFORM_WINDOWS)
+  if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+         set(CMAKE_INSTALL_PREFIX "${PROJECT_SOURCE_DIR}/install")
+  endif()
 endif()
 message("Install prefix: " ${CMAKE_INSTALL_PREFIX})
 
