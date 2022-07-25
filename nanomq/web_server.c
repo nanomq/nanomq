@@ -19,6 +19,7 @@
 
 #include "include/nanomq.h"
 #include "include/rest_api.h"
+#include "include/mqtt_api.h"
 #include "include/web_server.h"
 // #include "utils/log.h"
 
@@ -349,7 +350,7 @@ inproc_server(void *arg)
 {
 	conf_http_server * rest_conf = arg;
 	nng_socket         sock;
-	nng_socket         pair_sock;
+	nng_socket         req_sock;
 	struct rest_work **works =
 	    nng_zalloc(rest_conf->parallel * sizeof(struct rest_work *));
 
@@ -358,19 +359,19 @@ inproc_server(void *arg)
 		fatal("nng_rep0_open", rv);
 	}
 
-	if ((rv = nng_req0_open(&pair_sock)) != 0) {
+	if ((rv = nng_req0_open(&req_sock)) != 0) {
 		fatal("nng_rep0_open", rv);
 	}
 
-	if ((rv = nng_dial(pair_sock, WEB_SERVER_INPROC_URL, NULL,
+	if ((rv = nng_dial(req_sock, INPROC_SERVER_URL, NULL,
 	         NNG_FLAG_NONBLOCK)) != 0) {
-		fatal("nng_dial " WEB_SERVER_INPROC_URL, rv);
+		fatal("nng_dial " INPROC_SERVER_URL, rv);
 	}
 
 	for (size_t i = 0; i < rest_conf->parallel; i++) {
 		works[i] = alloc_work(sock, rest_conf);
 
-		works[i]->client_sock = &pair_sock;
+		works[i]->client_sock = &req_sock;
 	}
 
 	if ((rv = nng_listen(sock, INPROC_URL, NULL, 0)) != 0) {
