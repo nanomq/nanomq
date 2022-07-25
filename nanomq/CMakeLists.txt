@@ -43,7 +43,9 @@ set(SOURCES
     rest_api.c
     web_server.c
     webhook_inproc.c
-    webhook_post.c)
+    webhook_post.c
+    aws_bridge.c
+    )
     # db_cli.c)
 
 include_directories(${FOUNDATION_INCLUDE_DIR})
@@ -53,6 +55,16 @@ add_executable(nanomq ${SOURCES})
 if(ENABLE_RULE_ENGINE)
   target_link_libraries(nanomq ${FOUNDATION_LIBRARY})
 endif(ENABLE_RULE_ENGINE)
+
+if(ENABLE_AWS_BRIDGE)
+  target_link_libraries(nanomq
+      aws_iot_mqtt
+      aws_iot_backoff_algorithm
+      sockets_posix
+      openssl_posix
+      clock_posix)
+
+endif(ENABLE_AWS_BRIDGE)
 
 # target_link_libraries(nanomq apps nano_shared)
 if(ENABLE_JWT)

@@ -31,6 +31,7 @@
 #include "nng/supplemental/nanolib/mqtt_db.h"
 
 #include "include/bridge.h"
+#include "include/aws_bridge.h"
 #include "include/mqtt_api.h"
 #include "include/nanomq.h"
 #include "include/process.h"
@@ -62,6 +63,7 @@ enum options {
 	OPT_HELP = 1,
 	OPT_CONFFILE,
 	OPT_BRIDGEFILE,
+	OPT_AWS_BRIDGEFILE,
 	OPT_WEBHOOKFILE,
 #if defined(SUPP_RULE_ENGINE)
 	OPT_RULE_CONF,
@@ -90,7 +92,7 @@ static nng_optspec cmd_opts[] = {
 	{ .o_name = "help", .o_short = 'h', .o_val = OPT_HELP },
 	{ .o_name = "conf", .o_val = OPT_CONFFILE, .o_arg = true },
 	{ .o_name = "bridge", .o_val = OPT_BRIDGEFILE, .o_arg = true },
-
+	{ .o_name = "aws_bridge", .o_val = OPT_AWS_BRIDGEFILE, .o_arg = true },
 #if defined(SUPP_RULE_ENGINE)
 	{ .o_name = "rule", .o_val = OPT_RULE_CONF, .o_arg = true },
 #endif
@@ -247,9 +249,10 @@ server_cb(void *arg)
 				// clone conn_param every single time
 				conn_param_clone(nng_msg_get_conn_param(msg));
 			}
-		} else if (work->proto == PROTO_HTTP_SERVER) {
+		} else if (work->proto == PROTO_HTTP_SERVER ||
+		    work->proto == PROTO_AWS_BRIDGE) {
 			nng_msg *decode_msg = NULL;
-			if (decode_http_mqtt_msg(&decode_msg, msg) != 0 ||
+			if (decode_common_mqtt_msg(&decode_msg, msg) != 0 ||
 			    nng_msg_get_type(decode_msg) != CMD_PUBLISH) {
 				conn_param_free(nng_msg_get_conn_param(decode_msg));
 				work->state = RECV;
@@ -369,7 +372,8 @@ server_cb(void *arg)
 				nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 			}
 			work->code = handle_pub(work, work->pipe_ct, work->proto_ver);
-			if (work->proto == PROTO_HTTP_SERVER) {
+			if (work->proto == PROTO_HTTP_SERVER ||
+			    work->proto == PROTO_AWS_BRIDGE) {
 				nng_msg *rep_msg;
 				// TODO carry code with msg
 				nng_msg_alloc(&rep_msg, 0);
@@ -479,6 +483,7 @@ server_cb(void *arg)
 			// bridge logic first
 			if (work->config->bridge_mode) {
 				bridge_handler(work);
+				aws_bridge_forward(work);
 			}
 			//check webhook & rule engine
 			conf_web_hook *hook_conf   = &(work->config->web_hook);
@@ -710,9 +715,17 @@ proto_work_init(nng_socket sock,nng_socket inproc_sock, nng_socket bridge_sock, 
 		if ((rv = nng_ctx_open(&w->extra_ctx, inproc_sock)) != 0) {
 			fatal("nng_ctx_open", rv);
 		}
-	} else if (config->bridge_mode && proto == PROTO_MQTT_BRIDGE) {
-		if ((rv = nng_ctx_open(&w->extra_ctx, bridge_sock)) != 0) {
-			fatal("nng_ctx_open", rv);
+	} else if (config->bridge_mode) {
+		if (proto == PROTO_MQTT_BRIDGE) {
+			if ((rv = nng_ctx_open(&w->extra_ctx, bridge_sock)) !=
+			    0) {
+				fatal("nng_ctx_open", rv);
+			}
+		} else if (proto == PROTO_AWS_BRIDGE) {
+			if ((rv = nng_ctx_open(&w->extra_ctx, inproc_sock)) !=
+			    0) {
+				fatal("nng_ctx_open", rv);
+			}
 		}
 	}
 
@@ -891,7 +904,17 @@ broker(conf *nanomq_conf)
 				bridge_client(node->sock, nanomq_conf, node);
 			}
 		}
+
+#if defined(SUPP_AWS_BRIDGE)
+		for (size_t c = 0; c < nanomq_conf->aws_bridge.count; c++) {
+			conf_bridge_node *node =
+			    nanomq_conf->aws_bridge.nodes[c];
+			if (node->enable) {
+				num_ctx += node->parallel;
+			}
+		}
 	}
+#endif
 
 	struct work **works = nng_zalloc(num_ctx * sizeof(struct work *));
 	// create broker ctx
@@ -911,13 +934,32 @@ broker(conf *nanomq_conf)
 				bridge_sock = node->sock;
 				for (i = tmp; i < (tmp + node->parallel);
 				     i++) {
-					works[i] = proto_work_init(sock,inproc_sock,
-					    *bridge_sock, PROTO_MQTT_BRIDGE,
-					    db, db_ret, nanomq_conf);
+					works[i] = proto_work_init(sock,
+					    inproc_sock, *bridge_sock,
+					    PROTO_MQTT_BRIDGE, db, db_ret,
+					    nanomq_conf);
 				}
 				tmp += node->parallel;
 			}
 		}
+
+#if defined(SUPP_AWS_BRIDGE)
+		for (size_t t = 0; t < nanomq_conf->aws_bridge.count; t++) {
+			conf_bridge_node *node =
+			    nanomq_conf->aws_bridge.nodes[t];
+			if (node->enable) {
+				aws_bridge_client(node);
+				for (i = tmp; i < (tmp + node->parallel);
+				     i++) {
+					works[i] =
+					    proto_work_init(sock, inproc_sock,
+					        sock, PROTO_AWS_BRIDGE, db,
+					        db_ret, nanomq_conf);
+				}
+				tmp += node->parallel;
+			}
+		}
+#endif
 	}
 
 	// create http server ctx
@@ -969,9 +1011,9 @@ broker(conf *nanomq_conf)
 	}
 
 	if (nanomq_conf->http_server.enable) {
-		if ((rv = nano_listen(inproc_sock, WEB_SERVER_INPROC_URL, NULL, 0,
+		if ((rv = nano_listen(inproc_sock, INPROC_SERVER_URL, NULL, 0,
 		         nanomq_conf)) != 0) {
-			fatal("nng_listen " WEB_SERVER_INPROC_URL, rv);
+			fatal("nng_listen " INPROC_SERVER_URL, rv);
 		}
 	}
 
@@ -1023,27 +1065,25 @@ print_usage(void)
 	printf("Usage: nanomq { { start | restart [--url <url>] "
 	       "[--conf <path>] "
 	       "[--bridge <path>] \n                     "
-	       "[--webhook <path>] "
-		   "[--auth <path>] "
-		   "[--auth_http <path>] "
-		   "[--sqlite <path>] \n                     "
-		   "[-d, --daemon] "
+	       "[--aws_bridge <path>] [--webhook <path>] "
+	       "[--auth <path>] "
+	       "[--auth_http <path>] "
+	       "\n                     "
+	       "[--sqlite <path>] "
 	       "[-t, --tq_thread <num>] "
 	       "[-T, -max_tq_thread <num>] \n                     "
-		   "[-n, --parallel <num>] "
+	       "[-n, --parallel <num>] "
 	       "[-D, --qos_duration <num>] [--http] "
-	       "[-p, --port] } \n                     "
-	       "[--cacert <path>] [-E, --cert <path>] [--key <path>] \n       "
-	       "        "
-	       "      [--keypass <password>] [--verify] [--fail]\n            "
-	       "         "
-	       "| stop }\n\n");
-
+	       "[-p, --port]  \n                     "
+	       "[-d, --daemon] [--cacert <path>] [-E, --cert <path>] "
+	       "[--key <path>] \n                     "
+	       "[--keypass <password>] [--verify] [--fail] }\n            "
+	       "         | stop }\n\n");
 	printf("Options: \n");
 	printf("  --url <url>                Specify listener's url: "
 	       "'nmq-tcp://host:port', \r\n                             "
-		   "'tls+nmq-tcp://host:port', \r\n                             "
-		   "'nmq-ws://host:port/path', \r\n                             "
+	       "'tls+nmq-tcp://host:port', \r\n                             "
+	       "'nmq-ws://host:port/path', \r\n                             "
 	       "'nmq-wss://host:port/path'\n");
 	printf("  --conf <path>              The path of a specified nanomq "
 	       "configuration file \n");
@@ -1054,6 +1094,11 @@ print_usage(void)
 #endif
 	printf("  --bridge <path>            The path of a specified bridge "
 	       "configuration file \n");
+#if defined(SUPP_AWS_BRIDGE)
+	printf(
+	    "  --aws_bridge <path>        The path of a specified aws bridge "
+	    "configuration file \n");
+#endif
 	printf("  --webhook <path>           The path of a specified webhook "
 	       "configuration file \n");
 	printf(
@@ -1233,6 +1278,10 @@ file_path_parse(int argc, char **argv, conf *config)
 		case OPT_BRIDGEFILE:
 			FREE_NONULL(config->bridge_file);
 			config->bridge_file = nng_strdup(arg);
+			break;
+		case OPT_AWS_BRIDGEFILE:
+			FREE_NONULL(config->aws_bridge_file);
+			config->aws_bridge_file = nng_strdup(arg);
 			break;
 		case OPT_WEBHOOKFILE:
 			FREE_NONULL(config->web_hook_file);
@@ -1416,6 +1465,11 @@ broker_start(int argc, char **argv)
 	conf_parser(nanomq_conf);
 	conf_auth_parser(nanomq_conf);
 	conf_bridge_parse(nanomq_conf);
+
+#if defined(SUPP_AWS_BRIDGE)
+	conf_aws_bridge_parse(nanomq_conf);
+#endif
+
 #if defined(SUPP_RULE_ENGINE)
 	conf_rule_parse(nanomq_conf);
 #endif
