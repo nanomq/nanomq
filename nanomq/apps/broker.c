@@ -880,15 +880,16 @@ broker(conf *nanomq_conf)
 	}
 
 	nng_socket inproc_sock;
-	nng_listener pair_listener;
 
-	if (nanomq_conf->http_server.enable) {
+	if (nanomq_conf->http_server.enable || nanomq_conf->bridge_mode) {
 		rv = nng_rep0_open(&inproc_sock);
 		if (rv != 0) {
 			fatal("nng_rep0_open", rv);
 		}
-		// set 4 ctx for HTPP as default 
-		num_ctx += HTTP_CTX_NUM;
+		// set 4 ctx for HTPP as default
+		if (nanomq_conf->http_server.enable) {
+			num_ctx += HTTP_CTX_NUM;
+		}
 	}
 
 	if (nanomq_conf->web_hook.enable) {
@@ -948,7 +949,6 @@ broker(conf *nanomq_conf)
 			conf_bridge_node *node =
 			    nanomq_conf->aws_bridge.nodes[t];
 			if (node->enable) {
-				aws_bridge_client(node);
 				for (i = tmp; i < (tmp + node->parallel);
 				     i++) {
 					works[i] =
@@ -957,6 +957,7 @@ broker(conf *nanomq_conf)
 					        db_ret, nanomq_conf);
 				}
 				tmp += node->parallel;
+				aws_bridge_client(node);
 			}
 		}
 #endif
@@ -1010,7 +1011,7 @@ broker(conf *nanomq_conf)
 		// }
 	}
 
-	if (nanomq_conf->http_server.enable) {
+	if (nanomq_conf->http_server.enable || nanomq_conf->bridge_mode) {
 		if ((rv = nano_listen(inproc_sock, INPROC_SERVER_URL, NULL, 0,
 		         nanomq_conf)) != 0) {
 			fatal("nng_listen " INPROC_SERVER_URL, rv);
