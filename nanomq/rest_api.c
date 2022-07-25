@@ -1746,84 +1746,6 @@ post_config(http_msg *msg)
 	return res;
 }
 
-static conn_param *
-create_cparam(const char *clientid, uint8_t proto_ver)
-{
-	conn_param *cparam;
-	conn_param_alloc(&cparam);
-	conn_param_set_clientid(cparam, clientid);
-	conn_param_set_proto_ver(cparam, proto_ver);
-	return cparam;
-}
-
-int
-decode_http_mqtt_msg(nng_msg **dest, nng_msg *src)
-{
-	nng_msg *msg;
-	int      rv = nng_mqtt_msg_alloc(&msg, 0);
-	if (rv != 0) {
-		nng_msg_free(src);
-		return rv;
-	}
-	uint8_t *ptr        = nng_msg_body(src);
-	uint32_t header_len = 0;
-	NNI_GET32(ptr, header_len);
-	ptr += 4;
-	nng_msg_header_append(msg, ptr, header_len);
-	ptr += header_len;
-	uint32_t body_len = 0;
-	NNI_GET32(ptr, body_len);
-	ptr += 4;
-	nng_msg_append(msg, ptr, body_len);
-	ptr += body_len;
-
-	uint32_t clientid_sz = 0;
-	NNI_GET32(ptr, clientid_sz);
-	ptr += 4;
-	char *clientid = nng_zalloc(clientid_sz + 1);
-	memcpy(clientid, ptr, clientid_sz);
-	ptr += clientid_sz;
-	uint8_t proto_ver = *(uint8_t *) ptr;
-
-	conn_param *cparam = create_cparam(clientid, proto_ver);
-	nng_free(clientid, clientid_sz + 1);
-
-	nng_mqtt_msg_decode(msg);
-	nng_msg_set_conn_param(msg, cparam);
-
-	nng_msg_free(src);
-	*dest = msg;
-	return 0;
-}
-
-int
-encode_http_mqtt_msg(
-    nng_msg **dest, nng_msg *src, const char *clientid, uint8_t proto_ver)
-{
-	nng_mqtt_msg_encode(src);
-	nng_msg *msg;
-
-	size_t clientid_sz = strlen(clientid);
-
-	int rv;
-	if ((rv = nng_msg_alloc(&msg, 0)) != 0) {
-		nng_msg_free(src);
-		return rv;
-	}
-
-	nng_msg_append_u32(msg, nng_msg_header_len(src));
-	nng_msg_append(msg, nng_msg_header(src), nng_msg_header_len(src));
-	nng_msg_append_u32(msg, nng_msg_len(src));
-	nng_msg_append(msg, nng_msg_body(src), nng_msg_len(src));
-	nng_msg_append_u32(msg, clientid_sz);
-	nng_msg_append(msg, clientid, clientid_sz);
-	nng_msg_append(msg, &proto_ver, 1);
-	*dest = msg;
-
-	nng_msg_free(src);
-	return 0;
-}
-
 static int
 send_publish(nng_socket *sock, const char *clientid, char *payload,
     char **topics, size_t topic_count, uint8_t qos, uint8_t retain,
@@ -1864,7 +1786,7 @@ send_publish(nng_socket *sock, const char *clientid, char *payload,
 		}
 
 		nng_msg *msg = NULL;
-		if ((rv = encode_http_mqtt_msg(
+		if ((rv = encode_common_mqtt_msg(
 		              &msg, pub_msg, clientid, protover) != 0) ||
 		    (rv = nng_sendmsg(*sock, msg, 0)) != 0) {
      			nng_msg_free(msg);

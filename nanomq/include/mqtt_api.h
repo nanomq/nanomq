@@ -8,7 +8,14 @@
 #include "nng/supplemental/util/options.h"
 #include "nng/supplemental/util/platform.h"
 
+#define INPROC_SERVER_URL "inproc://inproc_server"
+
 int nano_listen(
     nng_socket sid, const char *addr, nng_listener *lp, int flags, conf *conf);
 int init_listener_tls(nng_listener l, conf_tls *tls);
+
+extern int decode_common_mqtt_msg(nng_msg **dest, nng_msg *src);
+extern int encode_common_mqtt_msg(
+    nng_msg **dest, nng_msg *src, const char *clientid, uint8_t proto_ver);
+
 #endif // MQTT_API_H
