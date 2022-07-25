@@ -108,29 +108,29 @@ struct NetworkContext {
 };
 
 static int
-establish_mqtt_session(MQTTContext_t *pMqttContext, bool createCleanSession,
-    bool *pSessionPresent, conf_bridge_node *node)
+establish_mqtt_session(MQTTContext_t *mqtt_ctx, bool clean_session,
+    bool *broker_session, conf_bridge_node *node)
 {
-	int               returnStatus = EXIT_SUCCESS;
-	MQTTStatus_t      mqttStatus;
-	MQTTConnectInfo_t connectInfo = { 0 };
+	int               rv = EXIT_SUCCESS;
+	MQTTStatus_t      mqtt_status;
+	MQTTConnectInfo_t conn_info = { 0 };
 
-	assert(pMqttContext != NULL);
-	assert(pSessionPresent != NULL);
+	assert(mqtt_ctx != NULL);
+	assert(broker_session != NULL);
 
 	/* Establish MQTT session by sending a CONNECT packet. */
 
-	/* If #createCleanSession is true, start with a clean session
+	/* If #clean_session is true, start with a clean session
 	 * i.e. direct the MQTT broker to discard any previous session data.
-	 * If #createCleanSession is false, directs the broker to attempt to
+	 * If #clean_session is false, directs the broker to attempt to
 	 * reestablish a session which was already present. */
-	connectInfo.cleanSession = createCleanSession;
+	conn_info.cleanSession = clean_session;
 
 	/* The client identifier is used to uniquely identify this MQTT client
 	 * to the MQTT broker. In a production device the identifier can be
 	 * something unique, such as a device serial number. */
-	connectInfo.pClientIdentifier = node->clientid;
-	connectInfo.clientIdentifierLength =
+	conn_info.pClientIdentifier = node->clientid;
+	conn_info.clientIdentifierLength =
 	    node->clientid ? strlen(node->clientid) : 0;
 
 	/* The maximum time interval in seconds which is allowed to elapse
@@ -139,61 +139,58 @@ establish_mqtt_session(MQTTContext_t *pMqttContext, bool createCleanSession,
 	 * between Control Packets being sent does not exceed the this Keep
 	 * Alive value. In the absence of sending any other Control Packets,
 	 * the Client MUST send a PINGREQ Packet. */
-	connectInfo.keepAliveSeconds = node->keepalive;
+	conn_info.keepAliveSeconds = node->keepalive;
 
 	// #endif /* ifdef CLIENT_USERNAME */
-	connectInfo.pUserName = node->username;
-	connectInfo.userNameLength =
-	    node->username ? strlen(node->username) : 0;
+	conn_info.pUserName      = node->username;
+	conn_info.userNameLength = node->username ? strlen(node->username) : 0;
 
-	connectInfo.pPassword = node->password;
-	connectInfo.passwordLength =
-	    node->password ? strlen(node->password) : 0;
+	conn_info.pPassword      = node->password;
+	conn_info.passwordLength = node->password ? strlen(node->password) : 0;
 
 	/* Send MQTT CONNECT packet to broker. */
-	mqttStatus = MQTT_Connect(pMqttContext, &connectInfo, NULL,
-	    CONNACK_RECV_TIMEOUT_MS, pSessionPresent);
+	mqtt_status = MQTT_Connect(mqtt_ctx, &conn_info, NULL,
+	    CONNACK_RECV_TIMEOUT_MS, broker_session);
 
-	if (mqttStatus != MQTTSuccess) {
-		returnStatus = EXIT_FAILURE;
+	if (mqtt_status != MQTTSuccess) {
+		rv = EXIT_FAILURE;
 		debug_msg("ERROR: Connection with MQTT broker failed with "
 		          "status %s.",
-		    MQTT_Status_strerror(mqttStatus));
+		    MQTT_Status_strerror(mqtt_status));
 	} else {
 		debug_msg("MQTT connection successfully established with "
 		          "broker.\n");
 	}
 
-	return returnStatus;
+	return rv;
 }
 
 /*-----------------------------------------------------------*/
 static int
-connect_retries(NetworkContext_t *pNetworkContext, MQTTContext_t *pMqttContext,
-    bool *pBrokerSessionPresent, conf_bridge_node *node)
+connect_retries(NetworkContext_t *net_ctx, MQTTContext_t *mqtt_ctx,
+    bool *broker_session, conf_bridge_node *node)
 {
-	int                       returnStatus     = EXIT_FAILURE;
-	BackoffAlgorithmStatus_t  backoffAlgStatus = BackoffAlgorithmSuccess;
-	OpensslStatus_t           opensslStatus    = OPENSSL_SUCCESS;
-	BackoffAlgorithmContext_t reconnectParams;
-	ServerInfo_t              serverInfo;
-	OpensslCredentials_t      opensslCredentials;
-	uint16_t                  nextRetryBackOff;
-	bool                      createCleanSession;
+	int                       rv                 = EXIT_FAILURE;
+	BackoffAlgorithmStatus_t  backoff_alg_status = BackoffAlgorithmSuccess;
+	OpensslStatus_t           ssl_status         = OPENSSL_SUCCESS;
+	BackoffAlgorithmContext_t reconnect_ctx;
+	ServerInfo_t              server_info;
+	OpensslCredentials_t      ssl_credentials;
+	uint16_t                  next_retry_back_off;
 
 	/* Initialize information to connect to the MQTT broker. */
-	serverInfo.pHostName      = node->host;
-	serverInfo.hostNameLength = strlen(node->host);
-	serverInfo.port           = node->port;
+	server_info.pHostName      = node->host;
+	server_info.hostNameLength = strlen(node->host);
+	server_info.port           = node->port;
 
 	/* Initialize credentials for establishing TLS session. */
-	memset(&opensslCredentials, 0, sizeof(OpensslCredentials_t));
-	opensslCredentials.pRootCaPath = node->tls.cafile;
+	memset(&ssl_credentials, 0, sizeof(OpensslCredentials_t));
+	ssl_credentials.pRootCaPath = node->tls.cafile;
 
 	/* If #CLIENT_USERNAME is defined, username/password is used for
 	 * authenticating the client. */
-	opensslCredentials.pClientCertPath = node->tls.certfile;
-	opensslCredentials.pPrivateKeyPath = node->tls.keyfile;
+	ssl_credentials.pClientCertPath = node->tls.certfile;
+	ssl_credentials.pPrivateKeyPath = node->tls.keyfile;
 
 	/* AWS IoT requires devices to send the Server Name Indication (SNI)
 	 * extension to the Transport Layer Security (TLS) protocol and provide
@@ -201,15 +198,15 @@ connect_retries(NetworkContext_t *pNetworkContext, MQTTContext_t *pMqttContext,
 	 * SNI for AWS IoT can be found in the link below.
 	 * https://docs.aws.amazon.com/iot/latest/developerguide/transport-security.html
 	 */
-	opensslCredentials.sniHostName = node->host;
+	ssl_credentials.sniHostName = node->host;
 
 	if (node->port == 443) {
-		opensslCredentials.pAlpnProtos   = AWS_IOT_MQTT_ALPN;
-		opensslCredentials.alpnProtosLen = AWS_IOT_MQTT_ALPN_LENGTH;
+		ssl_credentials.pAlpnProtos   = AWS_IOT_MQTT_ALPN;
+		ssl_credentials.alpnProtosLen = AWS_IOT_MQTT_ALPN_LENGTH;
 	}
 
 	/* Initialize reconnect attempts and interval */
-	BackoffAlgorithm_InitializeParams(&reconnectParams,
+	BackoffAlgorithm_InitializeParams(&reconnect_ctx,
 	    CONNECTION_RETRY_BACKOFF_BASE_MS,
 	    CONNECTION_RETRY_MAX_BACKOFF_DELAY_MS,
 	    CONNECTION_RETRY_MAX_ATTEMPTS);
@@ -224,51 +221,52 @@ connect_retries(NetworkContext_t *pNetworkContext, MQTTContext_t *pMqttContext,
 		 * and AWS_MQTT_PORT at the demo config header. */
 		debug_msg("Establishing a TLS session to %s:%d.", node->host,
 		    node->port);
-		opensslStatus = Openssl_Connect(pNetworkContext, &serverInfo,
-		    &opensslCredentials, TRANSPORT_SEND_RECV_TIMEOUT_MS,
+		ssl_status = Openssl_Connect(net_ctx, &server_info,
+		    &ssl_credentials, TRANSPORT_SEND_RECV_TIMEOUT_MS,
 		    TRANSPORT_SEND_RECV_TIMEOUT_MS);
 
-		if (opensslStatus == OPENSSL_SUCCESS) {
+		if (ssl_status == OPENSSL_SUCCESS) {
 			/* A clean MQTT session needs to be created, if there
 			 * is no session saved in this MQTT client. */
 
 			/* Sends an MQTT Connect packet using the established
 			 * TLS session, then waits for connection
 			 * acknowledgment (CONNACK) packet. */
-			returnStatus = establish_mqtt_session(pMqttContext,
-			    node->clean_start, pBrokerSessionPresent, node);
+			rv = establish_mqtt_session(
+			    mqtt_ctx, node->clean_start, broker_session, node);
 
-			if (returnStatus == EXIT_FAILURE) {
+			if (rv == EXIT_FAILURE) {
 				/* End TLS session, then close TCP connection.
 				 */
-				(void) Openssl_Disconnect(pNetworkContext);
+				(void) Openssl_Disconnect(net_ctx);
 			}
 		}
 
-		if (returnStatus == EXIT_FAILURE) {
+		if (rv == EXIT_FAILURE) {
 			/* Generate a random number and get back-off value (in
 			 * milliseconds) for the next connection retry. */
-			backoffAlgStatus = BackoffAlgorithm_GetNextBackoff(
-			    &reconnectParams, rand(), &nextRetryBackOff);
+			backoff_alg_status = BackoffAlgorithm_GetNextBackoff(
+			    &reconnect_ctx, rand(), &next_retry_back_off);
 
-			if (backoffAlgStatus ==
+			if (backoff_alg_status ==
 			    BackoffAlgorithmRetriesExhausted) {
-				debug_msg("ERROR: Connection to the broker failed, "
-				          "all attempts exhausted.");
-				returnStatus = EXIT_FAILURE;
-			} else if (backoffAlgStatus ==
+				debug_msg(
+				    "ERROR: Connection to the broker failed, "
+				    "all attempts exhausted.");
+				rv = EXIT_FAILURE;
+			} else if (backoff_alg_status ==
 			    BackoffAlgorithmSuccess) {
 				LogWarn(("Connection to the broker failed. "
 				         "Retrying connection "
 				         "after %hu ms backoff.",
-				    (unsigned short) nextRetryBackOff));
-				Clock_SleepMs(nextRetryBackOff);
+				    (unsigned short) next_retry_back_off));
+				Clock_SleepMs(next_retry_back_off);
 			}
 		}
-	} while ((returnStatus == EXIT_FAILURE) &&
-	    (backoffAlgStatus == BackoffAlgorithmSuccess));
+	} while ((rv == EXIT_FAILURE) &&
+	    (backoff_alg_status == BackoffAlgorithmSuccess));
 
-	return returnStatus;
+	return rv;
 }
 
 static void
@@ -294,46 +292,47 @@ handle_recv_publish(MQTTPublishInfo_t *pub_info, uint16_t packet_id,
 	              &msg, pub_msg, node->clientid, node->proto_ver) != 0) ||
 	    (rv = nng_sendmsg(sock, msg, 0)) != 0) {
 		nng_msg_free(msg);
-		debug_msg("ERROR: Failed to send publish message to broker: %d", rv);
+		debug_msg(
+		    "ERROR: Failed to send publish message to broker: %d", rv);
 	}
 }
 
 /*-----------------------------------------------------------*/
 
 static void
-event_cb(MQTTContext_t *pMqttContext, MQTTPacketInfo_t *pPacketInfo,
-    MQTTDeserializedInfo_t *pDeserializedInfo)
+event_cb(MQTTContext_t *mqtt_ctx, MQTTPacketInfo_t *packet_info,
+    MQTTDeserializedInfo_t *de_info)
 {
-	uint16_t packetIdentifier;
+	uint16_t packet_id;
 
-	assert(pMqttContext != NULL);
-	assert(pPacketInfo != NULL);
-	assert(pDeserializedInfo != NULL);
+	assert(mqtt_ctx != NULL);
+	assert(packet_info != NULL);
+	assert(de_info != NULL);
 
-	packetIdentifier = pDeserializedInfo->packetIdentifier;
+	packet_id = de_info->packetIdentifier;
 
 	/* Handle incoming publish. The lower 4 bits of the publish packet
 	 * type is used for the dup, QoS, and retain flags. Hence masking
 	 * out the lower bits to check if the packet is publish. */
-	if ((pPacketInfo->type & 0xF0U) == MQTT_PACKET_TYPE_PUBLISH) {
-		assert(pDeserializedInfo->pPublishInfo != NULL);
+	if ((packet_info->type & 0xF0U) == MQTT_PACKET_TYPE_PUBLISH) {
+		assert(de_info->pPublishInfo != NULL);
 		/* Handle incoming publish. */
 		nng_socket sock =
-		    pMqttContext->transportInterface.pNetworkContext->sock;
+		    mqtt_ctx->transportInterface.pNetworkContext->sock;
 		conf_bridge_node *node =
-		    pMqttContext->transportInterface.pNetworkContext->node;
-		handle_recv_publish(pDeserializedInfo->pPublishInfo,
-		    packetIdentifier, sock, node);
+		    mqtt_ctx->transportInterface.pNetworkContext->node;
+		handle_recv_publish(
+		    de_info->pPublishInfo, packet_id, sock, node);
 	} else {
-		uint8_t *    pPayload = NULL;
-		size_t       pSize    = 0;
-		MQTTStatus_t mqttStatus;
+		uint8_t *    payload = NULL;
+		size_t       size    = 0;
+		MQTTStatus_t mqtt_status;
 		/* Handle other packets. */
-		switch (pPacketInfo->type) {
+		switch (packet_info->type) {
 		case MQTT_PACKET_TYPE_SUBACK:
-			mqttStatus = MQTT_GetSubAckStatusCodes(
-			    pPacketInfo, &pPayload, &pSize);
-			if (mqttStatus != MQTTSubAckFailure) {
+			mqtt_status = MQTT_GetSubAckStatusCodes(
+			    packet_info, &payload, &size);
+			if (mqtt_status != MQTTSubAckFailure) {
 				debug_msg(
 				    "Subscribed to the topic successfully.");
 			}
@@ -354,14 +353,15 @@ event_cb(MQTTContext_t *pMqttContext, MQTTPacketInfo_t *pPacketInfo,
 			break;
 
 		case MQTT_PACKET_TYPE_PUBACK:
-			debug_msg("PUBACK received for packet id %u.\n",
-			    packetIdentifier);
+			debug_msg(
+			    "PUBACK received for packet id %u.\n", packet_id);
 			break;
 
 		/* Any other packet type is invalid. */
 		default:
-			debug_msg("ERROR: Unknown packet type received:(%02x).\n",
-			    pPacketInfo->type);
+			debug_msg(
+			    "ERROR: Unknown packet type received:(%02x).\n",
+			    packet_info->type);
 		}
 	}
 }
@@ -369,40 +369,42 @@ event_cb(MQTTContext_t *pMqttContext, MQTTPacketInfo_t *pPacketInfo,
 /*-----------------------------------------------------------*/
 
 static int
-initialize_mqtt(MQTTContext_t *pMqttContext, NetworkContext_t *pNetworkContext, MQTTFixedBuffer_t *networkBuffer, TransportInterface_t *transport )
+initialize_mqtt(MQTTContext_t *mqtt_ctx, NetworkContext_t *net_ctx,
+    MQTTFixedBuffer_t *net_buf, TransportInterface_t *transport)
 {
-	int                returnStatus = EXIT_SUCCESS;
-	MQTTStatus_t       mqttStatus;
+	int          rv = EXIT_SUCCESS;
+	MQTTStatus_t mqtt_status;
 	// MQTTFixedBuffer_t *networkBuffer =
 	//     nng_zalloc(sizeof(MQTTFixedBuffer_t));
 	// TransportInterface_t *transport =
 	//     nng_zalloc(sizeof(TransportInterface_t));
 
-	assert(pMqttContext != NULL);
-	assert(pNetworkContext != NULL);
+	assert(mqtt_ctx != NULL);
+	assert(net_ctx != NULL);
 
 	/* Fill in TransportInterface send and receive function pointers.
 	 * For this demo, TCP sockets are used to send and receive data
 	 * from network. Network context is SSL context for OpenSSL.*/
-	transport->pNetworkContext = pNetworkContext;
+	transport->pNetworkContext = net_ctx;
 	transport->send            = Openssl_Send;
 	transport->recv            = Openssl_Recv;
 
 	/* Fill the values for network buffer. */
-	networkBuffer->pBuffer = nng_zalloc(NETWORK_BUFFER_SIZE);
-	networkBuffer->size    = NETWORK_BUFFER_SIZE;
+	net_buf->pBuffer = nng_zalloc(NETWORK_BUFFER_SIZE);
+	net_buf->size    = NETWORK_BUFFER_SIZE;
 
 	/* Initialize MQTT library. */
-	mqttStatus = MQTT_Init(
-	    pMqttContext, transport, Clock_GetTimeMs, event_cb, networkBuffer);
+	mqtt_status =
+	    MQTT_Init(mqtt_ctx, transport, Clock_GetTimeMs, event_cb, net_buf);
 
-	if (mqttStatus != MQTTSuccess) {
-		returnStatus = EXIT_FAILURE;
-		debug_msg("ERROR: MQTT init failed: Status = %s.",
-		    MQTT_Status_strerror(mqttStatus));
+	if (mqtt_status != MQTTSuccess) {
+		rv = EXIT_FAILURE;
+		fprintf(stderr, "ERROR: MQTT init failed: Status = %s.",
+		    MQTT_Status_strerror(mqtt_status));
+		exit(EXIT_FAILURE);
 	}
 
-	return returnStatus;
+	return rv;
 }
 
 static int
@@ -430,8 +432,9 @@ subscribe_to_topic(MQTTContext_t *mqtt_ctx, conf_bridge_node *node)
 	    MQTT_Subscribe(mqtt_ctx, sub_list, node->sub_count, sub_packet_id);
 
 	if (mqttStatus != MQTTSuccess) {
-		debug_msg("ERROR: Failed to send SUBSCRIBE packet to broker with "
-		          "error = %s.",
+		debug_msg(
+		    "ERROR: Failed to send SUBSCRIBE packet to broker with "
+		    "error = %s.",
 		    MQTT_Status_strerror(mqttStatus));
 		returnStatus = EXIT_FAILURE;
 	} else {
@@ -442,9 +445,10 @@ subscribe_to_topic(MQTTContext_t *mqtt_ctx, conf_bridge_node *node)
 
 		if (mqttStatus != MQTTSuccess) {
 			returnStatus = EXIT_FAILURE;
-			LogError(
-			    ("MQTT_ProcessLoop returned with status = %s.",
-			        MQTT_Status_strerror(mqttStatus)));
+			debug_msg(
+			    "ERROR: "
+			    "MQTT_ProcessLoop returned with status = %s.",
+			    MQTT_Status_strerror(mqttStatus));
 		}
 	}
 
@@ -468,41 +472,36 @@ mqtt_thread(void *arg)
 		fatal("nng_dial " INPROC_SERVER_URL, rv);
 	}
 
-	conf_bridge_node *node       = (conf_bridge_node *) arg;
-	int               mqttStatus = 0, returnStatus = 0;
-	int               ret_status = EXIT_SUCCESS;
-	MQTTContext_t *   mqtt_ctx   = nng_zalloc(sizeof(MQTTContext_t));
-	NetworkContext_t *net_ctx    = nng_zalloc(sizeof(NetworkContext_t));
-	OpensslParams_t * ssl_params = nng_zalloc(sizeof(OpensslParams_t));
-	MQTTFixedBuffer_t *networkBuffer =
-	    nng_zalloc(sizeof(MQTTFixedBuffer_t));
+	conf_bridge_node *    node        = (conf_bridge_node *) arg;
+	int                   mqtt_status = 0;
+	MQTTContext_t *       mqtt_ctx    = nng_zalloc(sizeof(MQTTContext_t));
+	NetworkContext_t *    net_ctx = nng_zalloc(sizeof(NetworkContext_t));
+	OpensslParams_t *     ssl_params = nng_zalloc(sizeof(OpensslParams_t));
+	MQTTFixedBuffer_t *   net_buf = nng_zalloc(sizeof(MQTTFixedBuffer_t));
 	TransportInterface_t *transport =
 	    nng_zalloc(sizeof(TransportInterface_t));
-	bool clientSessionPresent = false, brokerSessionPresent = false;
-	net_ctx->pParams = ssl_params;
-	net_ctx->sock    = req_sock;
-	net_ctx->node    = node;
+	bool broker_session = false;
+	net_ctx->pParams    = ssl_params;
+	net_ctx->sock       = req_sock;
+	net_ctx->node       = node;
 
 	/* Seed pseudo random number generator with milliseconds. */
 	srand(Clock_GetTimeMs());
 	/* Initialize MQTT library. Initialization of the MQTT library needs to
 	 * be done only once in this demo. */
-	ret_status =
-	    initialize_mqtt(mqtt_ctx, net_ctx, networkBuffer, transport);
+	rv = initialize_mqtt(mqtt_ctx, net_ctx, net_buf, transport);
 
 	node->sock = mqtt_ctx;
 
 	while (true) {
-		if (returnStatus == EXIT_SUCCESS) {
-			returnStatus = connect_retries(
-			    net_ctx, mqtt_ctx, &brokerSessionPresent, node);
-			if (returnStatus == EXIT_SUCCESS) {
-				returnStatus =
-				    subscribe_to_topic(mqtt_ctx, node);
-				while (returnStatus == EXIT_SUCCESS) {
-					returnStatus =
-					    MQTT_ProcessLoop(mqtt_ctx,
-					        MQTT_PROCESS_LOOP_TIMEOUT_MS);
+		if (rv == EXIT_SUCCESS) {
+			rv = connect_retries(
+			    net_ctx, mqtt_ctx, &broker_session, node);
+			if (rv == EXIT_SUCCESS) {
+				rv = subscribe_to_topic(mqtt_ctx, node);
+				while (rv == EXIT_SUCCESS) {
+					rv = MQTT_ProcessLoop(mqtt_ctx,
+					    MQTT_PROCESS_LOOP_TIMEOUT_MS);
 					nng_msleep(
 					    MQTT_PROCESS_LOOP_TIMEOUT_MS);
 				}
@@ -579,9 +578,10 @@ aws_bridge_forward(nano_work *work)
 					 * exit the loop and disconnect from
 					 * the broker. */
 					if (mqttStatus != MQTTSuccess) {
-						debug_msg("ERROR: MQTT_ProcessLoop "
-						          "returned with "
-						          "status = %s.",
+						debug_msg(
+						    "ERROR: MQTT_ProcessLoop "
+						    "returned with "
+						    "status = %s.",
 						    MQTT_Status_strerror(
 						        mqttStatus));
 						rv = EXIT_FAILURE;
