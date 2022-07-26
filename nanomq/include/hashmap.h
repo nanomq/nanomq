@@ -1,34 +1,3 @@
-/*
-   The latest version of this library is available on GitHub;
-   https://github.com/sheredom/hashmap.h
-*/
-
-/*
-   This is free and unencumbered software released into the public domain.
-
-   Anyone is free to copy, modify, publish, use, compile, sell, or
-   distribute this software, either in source code form or as a compiled
-   binary, for any purpose, commercial or non-commercial, and by any
-   means.
-
-   In jurisdictions that recognize copyright laws, the author or authors
-   of this software dedicate any and all copyright interest in the
-   software to the public domain. We make this dedication for the benefit
-   of the public at large and to the detriment of our heirs and
-   successors. We intend this dedication to be an overt act of
-   relinquishment in perpetuity of all present and future rights to this
-   software under copyright law.
-
-   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-   IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
-   OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
-   ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
-   OTHER DEALINGS IN THE SOFTWARE.
-
-   For more information, please refer to <http://unlicense.org/>
-*/
 #ifndef SHEREDOM_HASHMAP_H_INCLUDED
 #define SHEREDOM_HASHMAP_H_INCLUDED
 
@@ -40,6 +9,9 @@
 #endif
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
+#include "nng/supplemental/util/platform.h"
+
 
 #if (defined(_MSC_VER) && defined(__AVX__)) ||                                 \
     (!defined(_MSC_VER) && defined(__SSE4_2__))
@@ -80,7 +52,7 @@ struct hashmap_element_s {
   const char *key;
   unsigned key_len;
   int in_use;
-  void *data;
+  uint32_t data;
 };
 
 /* A hashmap has some maximum size and current size, as well as the data to
@@ -91,11 +63,29 @@ struct hashmap_s {
   struct hashmap_element_s *data;
 };
 
+
+static nng_mtx *mtx = NULL;
+
 #define HASHMAP_MAX_CHAIN_LENGTH (8)
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
+
+static int nano_hashmap_create(const unsigned initial_size,
+                          struct hashmap_s *const out_hashmap) HASHMAP_USED;
+
+static int nano_hashmap_put(struct hashmap_s *const hashmap, const char *const key,
+                       const unsigned len, uint32_t value) HASHMAP_USED;
+
+static uint32_t nano_hashmap_get(const struct hashmap_s *const hashmap,
+                         const char *const key,
+                         const unsigned len) HASHMAP_USED;
+
+static int nano_hashmap_remove(struct hashmap_s *const m, const char *const key,
+                   const unsigned len);
+
+static void nano_hashmap_destroy(struct hashmap_s *const m);
 
 /// @brief Create a hashmap.
 /// @param initial_size The initial size of the hashmap. Must be a power of two.
@@ -118,14 +108,14 @@ static int hashmap_create(const unsigned initial_size,
 /// must remain a valid pointer until the hashmap entry is removed or the
 /// hashmap is destroyed.
 static int hashmap_put(struct hashmap_s *const hashmap, const char *const key,
-                       const unsigned len, void *const value) HASHMAP_USED;
+                       const unsigned len, uint32_t value) HASHMAP_USED;
 
 /// @brief Get an element from the hashmap.
 /// @param hashmap The hashmap to get from.
 /// @param key The string key to use.
 /// @param len The length of the string key.
-/// @return The previously set element, or NULL if none exists.
-static void *hashmap_get(const struct hashmap_s *const hashmap,
+/// @return The previously set element, or 0 if none exists.
+static uint32_t hashmap_get(const struct hashmap_s *const hashmap,
                          const char *const key,
                          const unsigned len) HASHMAP_USED;
 
@@ -137,27 +127,6 @@ static void *hashmap_get(const struct hashmap_s *const hashmap,
 static int hashmap_remove(struct hashmap_s *const hashmap,
                           const char *const key,
                           const unsigned len) HASHMAP_USED;
-
-/// @brief Remove an element from the hashmap.
-/// @param hashmap The hashmap to remove from.
-/// @param key The string key to use.
-/// @param len The length of the string key.
-/// @return On success the original stored key pointer is returned, on failure
-/// NULL is returned.
-static const char *
-hashmap_remove_and_return_key(struct hashmap_s *const hashmap,
-                              const char *const key,
-                              const unsigned len) HASHMAP_USED;
-
-/// @brief Iterate over all the elements in a hashmap.
-/// @param hashmap The hashmap to iterate over.
-/// @param f The function pointer to call on each element.
-/// @param context The context to pass as the first argument to f.
-/// @return If the entire hashmap was iterated then 0 is returned. Otherwise if
-/// the callback function f returned non-zero then non-zero is returned.
-static int hashmap_iterate(const struct hashmap_s *const hashmap,
-                           int (*f)(void *const context, void *const value),
-                           void *const context) HASHMAP_USED;
 
 /// @brief Iterate over all the elements in a hashmap.
 /// @param hashmap The hashmap to iterate over.
@@ -212,27 +181,70 @@ static int hashmap_rehash_helper(struct hashmap_s *const m) HASHMAP_USED;
 #define HASHMAP_NULL 0
 #endif
 
-int hashmap_create(const unsigned initial_size,
-                   struct hashmap_s *const out_hashmap) {
-  out_hashmap->table_size = initial_size;
-  out_hashmap->size = 0;
+int
+nano_hashmap_create(
+    const unsigned initial_size, struct hashmap_s *const out_hashmap)
+{
+	nng_mtx_alloc(&mtx);
+	return hashmap_create(initial_size, out_hashmap);
+}
 
-  if (0 == initial_size || 0 != (initial_size & (initial_size - 1))) {
-    return 1;
-  }
+int
+nano_hashmap_put(struct hashmap_s *const hashmap, const char *const key,
+    const unsigned len, uint32_t value)
+{
+	nng_mtx_lock(mtx);
+	hashmap_put(hashmap, key, len, value);
+	nng_mtx_unlock(mtx);
+}
 
-  out_hashmap->data =
-      HASHMAP_CAST(struct hashmap_element_s *,
-                   calloc(initial_size, sizeof(struct hashmap_element_s)));
-  if (!out_hashmap->data) {
-    return 1;
-  }
+uint32_t
+nano_hashmap_get(const struct hashmap_s *const hashmap, const char *const key,
+    const unsigned len)
+{
+	nng_mtx_lock(mtx);
+  uint32_t ret = hashmap_get(hashmap, key, len);
+	nng_mtx_unlock(mtx);
+  return ret;
+}
 
-  return 0;
+int
+nano_hashmap_remove(
+    struct hashmap_s *const m, const char *const key, const unsigned len)
+{
+	nng_mtx_lock(mtx);
+  hashmap_remove(m, key, len);
+	nng_mtx_unlock(mtx);
+}
+
+void 
+nano_hashmap_destroy(struct hashmap_s *const m)
+{
+  nng_mtx_free(mtx);
+  hashmap_destroy(m);
+}
+
+int
+hashmap_create(
+    const unsigned initial_size, struct hashmap_s *const out_hashmap)
+{
+	out_hashmap->table_size = initial_size;
+	out_hashmap->size       = 0;
+
+	if (0 == initial_size || 0 != (initial_size & (initial_size - 1))) {
+		return 1;
+	}
+
+	out_hashmap->data = HASHMAP_CAST(struct hashmap_element_s *,
+	    calloc(initial_size, sizeof(struct hashmap_element_s)));
+	if (!out_hashmap->data) {
+		return 1;
+	}
+	return 0;
 }
 
 int hashmap_put(struct hashmap_s *const m, const char *const key,
-                const unsigned len, void *const value) {
+                const unsigned len, uint32_t value) {
   unsigned int index;
 
   /* Find a place to put our value. */
@@ -257,7 +269,7 @@ int hashmap_put(struct hashmap_s *const m, const char *const key,
   return 0;
 }
 
-void *hashmap_get(const struct hashmap_s *const m, const char *const key,
+uint32_t hashmap_get(const struct hashmap_s *const m, const char *const key,
                   const unsigned len) {
   unsigned int curr;
   unsigned int i;
@@ -308,53 +320,6 @@ int hashmap_remove(struct hashmap_s *const m, const char *const key,
   return 1;
 }
 
-const char *hashmap_remove_and_return_key(struct hashmap_s *const m,
-                                          const char *const key,
-                                          const unsigned len) {
-  unsigned int i;
-  unsigned int curr;
-
-  /* Find key */
-  curr = hashmap_hash_helper_int_helper(m, key, len);
-
-  /* Linear probing, if necessary */
-  for (i = 0; i < HASHMAP_MAX_CHAIN_LENGTH; i++) {
-    if (m->data[curr].in_use) {
-      if (hashmap_match_helper(&m->data[curr], key, len)) {
-        const char *const stored_key = m->data[curr].key;
-
-        /* Blank out the fields */
-        m->data[curr].in_use = 0;
-        m->data[curr].data = HASHMAP_NULL;
-        m->data[curr].key = HASHMAP_NULL;
-
-        /* Reduce the size */
-        m->size--;
-
-        return stored_key;
-      }
-    }
-    curr = (curr + 1) % m->table_size;
-  }
-
-  return HASHMAP_NULL;
-}
-
-int hashmap_iterate(const struct hashmap_s *const m,
-                    int (*f)(void *const, void *const), void *const context) {
-  unsigned int i;
-
-  /* Linear probing */
-  for (i = 0; i < m->table_size; i++) {
-    if (m->data[i].in_use) {
-      if (!f(context, m->data[i].data)) {
-        return 1;
-      }
-    }
-  }
-  return 0;
-}
-
 int hashmap_iterate_pairs(struct hashmap_s *const hashmap,
                           int (*f)(void *const,
                                    struct hashmap_element_s *const),
@@ -362,6 +327,7 @@ int hashmap_iterate_pairs(struct hashmap_s *const hashmap,
   unsigned int i;
   struct hashmap_element_s *p;
   int r;
+
 
   /* Linear probing */
   for (i = 0; i < hashmap->table_size; i++) {
