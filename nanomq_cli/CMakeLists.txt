@@ -16,3 +16,6 @@ if(BUILD_ZMQ_GATEWAY)
   include_directories("${ZeroMQ_INCLUDE_DIR}")
   target_link_libraries(nanomq_cli libzmq)
 endif(BUILD_ZMQ_GATEWAY)
+
+install(TARGETS nanomq_cli RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+                                   COMPONENT Tools)

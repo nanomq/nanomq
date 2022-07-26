@@ -32,7 +32,7 @@ if (NNG_ENABLE_TLS)
   set (NNG_TRANSPORT_MQTT_BROKER_WSS ON)
 endif()
 
-if (NNG_ENABLE_TLS) 
+if (NNG_ENABLE_TLS)
   add_definitions(-DNNG_SUPP_TLS)
 endif()
 
@@ -286,12 +286,12 @@ message("Install prefix: " ${CMAKE_INSTALL_PREFIX})
 # 	ARCHIVE DESTINATION lib)# static library
 # install(FILES nng.h DESTINATION include)
 
+FILE(GLOB CONFIG_FILES "${PROJECT_SOURCE_DIR}/etc/*.conf")
+
 if (NOT WIN32 AND NOT CYGWIN)
-  install(FILES etc/nanomq.conf etc/nanomq_bridge.conf etc/nanomq_auth_http.conf etc/nanomq_auth_username.conf  DESTINATION /etc)
-  install(FILES etc/nanomq_gateway.conf etc/nanomq_rule.conf etc/nanomq_rule_engine.conf etc/nanomq_rule_sqlite.conf etc/nanomq_web_hook.conf DESTINATION /etc)
+  install(FILES ${CONFIG_FILES}  DESTINATION /etc)
 else ()
-  install(FILES etc/nanomq.conf etc/nanomq_bridge.conf etc/nanomq_auth_http.conf etc/nanomq_auth_username.conf  DESTINATION config)
-  install(FILES etc/nanomq_gateway.conf etc/nanomq_rule.conf etc/nanomq_rule_engine.conf etc/nanomq_rule_sqlite.conf etc/nanomq_web_hook.conf DESTINATION config)
+  install(FILES ${CONFIG_FILES}  DESTINATION config)
   install(FILES libwinpthread-1.dll DESTINATION bin)
 endif ()
 
