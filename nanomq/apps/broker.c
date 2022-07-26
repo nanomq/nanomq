@@ -31,7 +31,6 @@
 #include "nng/supplemental/nanolib/mqtt_db.h"
 
 #include "include/bridge.h"
-#include "include/aws_bridge.h"
 #include "include/mqtt_api.h"
 #include "include/nanomq.h"
 #include "include/process.h"
@@ -47,7 +46,9 @@
 	#include <foundationdb/fdb_c.h>
 	#include <foundationdb/fdb_c_options.g.h>
 #endif
-
+#if defined(SUPP_AWS_BRIDGE)
+	#include "include/aws_bridge.h"
+#endif
 // Parallel is the maximum number of outstanding requests we can handle.
 // This is *NOT* the number of threads in use, but instead represents
 // outstanding work items.  Select a small number to reduce memory size.
@@ -483,7 +484,9 @@ server_cb(void *arg)
 			// bridge logic first
 			if (work->config->bridge_mode) {
 				bridge_handler(work);
+#if defined(SUPP_AWS_BRIDGE)
 				aws_bridge_forward(work);
+#endif
 			}
 			//check webhook & rule engine
 			conf_web_hook *hook_conf   = &(work->config->web_hook);
@@ -914,8 +917,8 @@ broker(conf *nanomq_conf)
 				num_ctx += node->parallel;
 			}
 		}
-	}
 #endif
+	}
 
 	struct work **works = nng_zalloc(num_ctx * sizeof(struct work *));
 	// create broker ctx
