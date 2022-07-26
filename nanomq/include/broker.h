@@ -9,6 +9,7 @@
 #include "nng/protocol/mqtt/mqtt.h"
 #include "nng/supplemental/util/platform.h"
 #include "nng/mqtt/packet.h"
+#include "hashmap.h"
 
 #define PROTO_MQTT_BROKER 0x00
 #define PROTO_MQTT_BRIDGE 0x01
