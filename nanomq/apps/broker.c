@@ -760,6 +760,13 @@ proto_work_init(nng_socket sock,nng_socket inproc_sock, nng_socket bridge_sock, 
 
 static dbtree *db     = NULL;
 static dbtree *db_ret = NULL;
+static struct hashmap_s *cid_table = NULL;
+
+struct hashmap_s *get_hashmap(void)
+{
+	return cid_table;
+}
+
 
 dbtree *
 get_broker_db(void)
@@ -886,7 +893,7 @@ broker(conf *nanomq_conf)
 	dbhash_init_pipe_table();
 	dbhash_init_alias_table();
 
-	struct hashmap_s *cid_table = (struct hashmap_s *) nng_alloc(sizeof(*cid_table));
+	cid_table = (struct hashmap_s *) nng_alloc(sizeof(*cid_table));
 
 	nano_hashmap_create(1024, cid_table);
 	nanomq_conf->cid_table = cid_table;
