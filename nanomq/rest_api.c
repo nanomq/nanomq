@@ -1919,7 +1919,6 @@ handle_subscribe_msg(cJSON *sub_obj, nng_socket *sock)
 	uint8_t qos = 0;
 	getNumberValue(sub_obj, item, "qos", qos, rv);
 
-	//TODO insert client with topic and qos to db_tree
 	uint32_t          pid   = 0;
 	struct hashmap_s *table = get_hashmap();
 	dbtree *db = get_broker_db();
@@ -1984,7 +1983,14 @@ handle_unsubscribe_msg(cJSON *sub_obj, nng_socket *sock)
 		goto out;
 	}
 
-	//TODO remove client with topic and qos to db_tree
+	uint32_t          pid   = 0;
+	struct hashmap_s *table = get_hashmap();
+	dbtree *db = get_broker_db();
+	if (0 != (pid = nano_hashmap_get(table, clientid, strlen(clientid)))) {
+		sub_ctx_del(db, topic, pid);
+	}
+
+	dbtree_print(db);
 
 	return rv != SUCCEED ? UNKNOWN_MISTAKE : rv;
 
