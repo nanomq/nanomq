@@ -75,9 +75,16 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	nng_dialer    dialer;
 	bridge_param *bridge_arg;
 
-	if ((rv = nng_mqtt_client_open(sock)) != 0) {
-		fatal("nng_mqtt_client_open", rv);
-		return rv;
+	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
+		if ((rv = nng_mqttv5_client_open(sock)) != 0) {
+			fatal("nng_mqttv5_client_open", rv);
+			return rv;
+		}
+	} else {
+		if ((rv = nng_mqtt_client_open(sock)) != 0) {
+			fatal("nng_mqtt_client_open", rv);
+			return rv;
+		}
 	}
 	nng_socket_set(*sock, NANO_CONF, node, sizeof(conf_bridge_node));
 
