@@ -351,7 +351,11 @@ nnb_connect(nnb_conn_opt *opt)
 	} else {
 		sprintf(url, "mqtt-tcp://%s:%d", opt->host, opt->port);
 	}
-	if ((rv = nng_mqtt_client_open(&sock)) != 0) {
+
+	rv = opt->version == 5 ? nng_mqttv5_client_open(&sock)
+	                       : nng_mqtt_client_open(&sock);
+
+	if (rv != 0) {
 		nng_fatal("nng_socket", rv);
 	}
 
@@ -371,6 +375,7 @@ nnb_connect(nnb_conn_opt *opt)
 	nng_msg *msg;
 	nng_mqtt_msg_alloc(&msg, 0);
 	nng_mqtt_msg_set_packet_type(msg, NNG_MQTT_CONNECT);
+	nng_mqtt_msg_set_connect_proto_version(msg, opt->version);
 	nng_mqtt_msg_set_connect_keep_alive(msg, opt->keepalive);
 	nng_mqtt_msg_set_connect_clean_session(msg, opt->clean);
 
@@ -408,7 +413,11 @@ nnb_subscribe(nnb_sub_opt *opt)
 	} else {
 		sprintf(url, "mqtt-tcp://%s:%d", opt->host, opt->port);
 	}
-	if ((rv = nng_mqtt_client_open(&sock)) != 0) {
+
+	rv = opt->version == 5 ? nng_mqttv5_client_open(&sock)
+	                       : nng_mqtt_client_open(&sock);
+
+	if (rv != 0) {
 		nng_fatal("nng_socket", rv);
 	}
 
@@ -435,6 +444,7 @@ nnb_subscribe(nnb_sub_opt *opt)
 	nng_msg *msg;
 	nng_mqtt_msg_alloc(&msg, 0);
 	nng_mqtt_msg_set_packet_type(msg, NNG_MQTT_CONNECT);
+	nng_mqtt_msg_set_connect_proto_version(msg, opt->version);
 	nng_mqtt_msg_set_connect_keep_alive(msg, opt->keepalive);
 	nng_mqtt_msg_set_connect_clean_session(msg, opt->clean);
 
@@ -481,7 +491,11 @@ nnb_publish(nnb_pub_opt *opt)
 	} else {
 		sprintf(url, "mqtt-tcp://%s:%d", opt->host, opt->port);
 	}
-	if ((rv = nng_mqtt_client_open(&sock)) != 0) {
+
+	rv = opt->version == 5 ? nng_mqttv5_client_open(&sock)
+	                       : nng_mqtt_client_open(&sock);
+
+	if (rv != 0) {
 		nng_fatal("nng_socket", rv);
 	}
 
@@ -506,6 +520,7 @@ nnb_publish(nnb_pub_opt *opt)
 	nng_msg *msg;
 	nng_mqtt_msg_alloc(&msg, 0);
 	nng_mqtt_msg_set_packet_type(msg, NNG_MQTT_CONNECT);
+	nng_mqtt_msg_set_connect_proto_version(msg, opt->version);
 	nng_mqtt_msg_set_connect_keep_alive(msg, opt->keepalive);
 	nng_mqtt_msg_set_connect_clean_session(msg, opt->clean);
 
@@ -544,31 +559,32 @@ bench_start(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 	bench_count_init(&statistics);
+	nnb_pub_opt * p_opt;
+	nnb_sub_opt * s_opt;
+	nnb_conn_opt *c_opt;
 	if (!strcmp(argv[1], "pub")) {
-		nnb_pub_opt *opt = nnb_pub_opt_init(argc, argv);
-		if (0 == opt->limit) {
+		p_opt = nnb_pub_opt_init(argc, argv);
+		if (0 == p_opt->limit) {
 			nng_atomic_set(statistics.send_limit, INT_MAX);
 		} else {
-			nng_atomic_set(statistics.send_limit, opt->limit);
+			nng_atomic_set(statistics.send_limit, p_opt->limit);
 		}
-		for (int i = 0; i < opt->count; i++) {
-			nnb_publish(opt);
-			nng_msleep(opt->interval);
+		for (int i = 0; i < p_opt->count; i++) {
+			nnb_publish(p_opt);
+			nng_msleep(p_opt->interval);
 		}
 	} else if (!strcmp(argv[1], "sub")) {
-		nnb_sub_opt *opt = nnb_sub_opt_init(argc, argv);
-		for (int i = 0; i < opt->count; i++) {
-			nnb_subscribe(opt);
-			nng_msleep(opt->interval);
+		s_opt= nnb_sub_opt_init(argc, argv);
+		for (int i = 0; i < s_opt->count; i++) {
+			nnb_subscribe(s_opt);
+			nng_msleep(s_opt->interval);
 		}
-		nnb_sub_opt_destory(opt);
 	} else if (!strcmp(argv[1], "conn")) {
-		nnb_conn_opt *opt = nnb_conn_opt_init(argc, argv);
-		for (int i = 0; i < opt->count; i++) {
-			nnb_connect(opt);
-			nng_msleep(opt->interval);
+		c_opt = nnb_conn_opt_init(argc, argv);
+		for (int i = 0; i < c_opt->count; i++) {
+			nnb_connect(c_opt);
+			nng_msleep(c_opt->interval);
 		}
-		nnb_conn_opt_destory(opt);
 	} else {
 		bench_dflt(argc, argv);
 		exit(EXIT_FAILURE);
@@ -603,8 +619,22 @@ bench_start(int argc, char **argv)
 		}
 	}
 
-	if (opt_flag == PUB) {
-		nnb_pub_opt_destory(pub_opt);
+	switch (opt_flag)
+	{
+	case PUB:
+		nnb_pub_opt_destory(p_opt);
+		break;
+
+	case SUB:
+		nnb_sub_opt_destory(s_opt);
+		break;
+
+	case CONN:
+		nnb_conn_opt_destory(c_opt);
+		break;
+	
+	default:
+		break;
 	}
 
 	return 0;
