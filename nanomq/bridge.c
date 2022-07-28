@@ -49,26 +49,21 @@ bridge_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	bridge_param *param = arg;
 	nng_msg *     msg;
 
-	if (param->config->sub_count > 0) {
-		nng_mqtt_msg_alloc(&msg, 0);
-		nng_mqtt_msg_set_packet_type(msg, NNG_MQTT_SUBSCRIBE);
+}
 
-		nng_mqtt_topic_qos *topic_qos =
-		    nng_mqtt_topic_qos_array_create(param->config->sub_count);
-		for (size_t i = 0; i < param->config->sub_count; i++) {
-			nng_mqtt_topic_qos_array_set(topic_qos, i,
-			    param->config->sub_list[i].topic,
-			    param->config->sub_list[i].qos);
-		}
-		nng_mqtt_msg_set_subscribe_topics(
-		    msg, topic_qos, param->config->sub_count);
-
-		nng_mqtt_topic_qos_array_free(
-		    topic_qos, param->config->sub_count);
-
-		// Send subscribe message
-		nng_sendmsg(*param->sock, msg, NNG_FLAG_NONBLOCK);
+static void
+sub_callback(void *arg) {
+	nng_mqtt_client *client = (nng_mqtt_client *) arg;
+	nng_aio *aio = client->sub_aio;
+	nng_msg *msg = nng_aio_get_msg(aio);
+	uint32_t count;
+	uint8_t *code;
+	if (msg) {
+		code = (reason_code *)nng_mqtt_msg_get_suback_return_codes(msg, &count);
+		debug_msg("suback %d \n", *(code));
 	}
+	debug_msg("bridge: Sub result %d \n", nng_aio_result(aio));
+	nng_msg_free(msg);
 }
 
 int
@@ -124,5 +119,24 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	nng_mqtt_set_disconnect_cb(*sock, disconnect_cb, connmsg);
 
 	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
+
+
+	/* MQTT V5 SUBSCRIBE */
+	if (bridge_arg->config->sub_count > 0) {
+		nng_mqtt_topic_qos *topic_qos =
+		    nng_mqtt_topic_qos_array_create(bridge_arg->config->sub_count);
+		for (size_t i = 0; i < bridge_arg->config->sub_count; i++) {
+			nng_mqtt_topic_qos_array_set(topic_qos, i,
+			    bridge_arg->config->sub_list[i].topic,
+			    bridge_arg->config->sub_list[i].qos);
+		}
+
+		nng_mqtt_client *client =
+		    nng_mqtt_client_alloc(*sock, sub_callback, true);
+		rv = nng_mqtt_subscribe_async(
+		    client, topic_qos, bridge_arg->config->sub_count, NULL);
+		nng_mqtt_topic_qos_array_free(
+		    topic_qos, bridge_arg->config->sub_count);
+	}
 	return 0;
 }
