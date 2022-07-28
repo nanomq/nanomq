@@ -198,7 +198,12 @@ bridge_handler(nano_work *work)
 			}
 		}
 	}
-	nng_mqtt_msg_encode(smsg);
+
+	if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
+		nng_mqttv5_msg_encode(smsg);
+	} else {
+		nng_mqtt_msg_encode(smsg);
+	}
 	nng_msg_free(smsg);
 	return rv;
 }
@@ -245,7 +250,8 @@ server_cb(void *arg)
 				nng_msg_free(msg);
 				nng_ctx_recv(work->extra_ctx, work->aio);
 				break;
-			} else { // TODO support V5 nanosdk
+			} else { 
+				// support V5 nanosdk
 				nng_msg_set_cmd_type(msg, type);
 				// clone conn_param every single time
 				conn_param_clone(nng_msg_get_conn_param(msg));
