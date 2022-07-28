@@ -99,8 +99,9 @@ nano_hashmap_put(struct hashmap_s *const hashmap, const char *const key,
     const unsigned len, uint32_t value)
 {
 	nng_mtx_lock(hashmap_mtx);
-	hashmap_put(hashmap, key, len, value);
+	int ret = hashmap_put(hashmap, key, len, value);
 	nng_mtx_unlock(hashmap_mtx);
+	return ret;
 }
 
 uint32_t
@@ -108,9 +109,9 @@ nano_hashmap_get(const struct hashmap_s *const hashmap, const char *const key,
     const unsigned len)
 {
 	nng_mtx_lock(hashmap_mtx);
-  uint32_t ret = hashmap_get(hashmap, key, len);
+	uint32_t ret = hashmap_get(hashmap, key, len);
 	nng_mtx_unlock(hashmap_mtx);
-  return ret;
+	return ret;
 }
 
 int
@@ -118,15 +119,16 @@ nano_hashmap_remove(
     struct hashmap_s *const m, const char *const key, const unsigned len)
 {
 	nng_mtx_lock(hashmap_mtx);
-  hashmap_remove(m, key, len);
+	int ret = hashmap_remove(m, key, len);
 	nng_mtx_unlock(hashmap_mtx);
+	return ret;
 }
 
-void 
+void
 nano_hashmap_destroy(struct hashmap_s *const m)
 {
-  nng_mtx_free(hashmap_mtx);
-  hashmap_destroy(m);
+	nng_mtx_free(hashmap_mtx);
+	hashmap_destroy(m);
 }
 
 int
