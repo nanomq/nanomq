@@ -38,7 +38,14 @@ bridge_publish_msg(const char *topic, uint8_t *payload, uint32_t len, bool dup,
 static void
 disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {
-	debug_msg("disconnected");
+	int reason;
+	nng_msg * msg = arg;
+	nng_msg_free(msg);	// free connmsg
+	// get connect reason
+	nng_pipe_get_int(p, NNG_OPT_MQTT_DISCONNECT_REASON, &reason);
+	// property *prop;
+	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_DISCONNECT_PROPERTY, &prop);
+	debug_msg("bridge client disconnected! RC [%d] \n", reason);
 }
 
 // Connack message callback function
@@ -47,7 +54,13 @@ bridge_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {
 	// Connected succeed
 	bridge_param *param = arg;
-	nng_msg *     msg;
+	int reason;
+	// get connect reason
+	nng_pipe_get_int(p, NNG_OPT_MQTT_CONNECT_REASON, &reason);
+	// get property for MQTT V5
+	// property *prop;
+	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_CONNECT_PROPERTY, &prop);
+	debug_msg("bridge client connected! RC [%d] \n", reason);
 
 }
 
@@ -64,6 +77,7 @@ sub_callback(void *arg) {
 	}
 	debug_msg("bridge: Sub result %d \n", nng_aio_result(aio));
 	nng_msg_free(msg);
+	// nng_free(client, sizeof(*client));
 }
 
 int
@@ -133,6 +147,7 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 
 		nng_mqtt_client *client =
 		    nng_mqtt_client_alloc(*sock, sub_callback, true);
+		//Property?
 		rv = nng_mqtt_subscribe_async(
 		    client, topic_qos, bridge_arg->config->sub_count, NULL);
 		nng_mqtt_topic_qos_array_free(
