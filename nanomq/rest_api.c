@@ -1883,10 +1883,10 @@ out:
 static int
 handle_subscribe_msg(cJSON *sub_obj, nng_socket *sock)
 {
-	int rv;
-	char * topic          = NULL;
-	char **topics         = NULL;
-	size_t topic_count    = 0;
+	int    rv;
+	char  *topic       = NULL;
+	char **topics      = NULL;
+	size_t topic_count = 0;
 	cJSON *item;
 	getStringValue(sub_obj, item, "topic", topic, rv);
 	if (rv != 0) {
@@ -1921,33 +1921,30 @@ handle_subscribe_msg(cJSON *sub_obj, nng_socket *sock)
 
 	uint32_t          pid   = 0;
 	struct hashmap_s *table = get_hashmap();
-	dbtree *db = get_broker_db();
+	dbtree           *db    = get_broker_db();
 	if (0 != (pid = nano_hashmap_get(table, clientid, strlen(clientid)))) {
 #ifdef STATISTICS
 		// TODO
 #endif
 
-		int topic_index = 0;
-		int topic_len = 0;
-		char *topic_str = NULL;
-		bool topic_exist = false;
+		int   topic_index = 0;
+		int   topic_len   = 0;
+		char *topic_str   = NULL;
+		bool  topic_exist = false;
 		while (topic_index < topic_count) {
 			topic_str = topics[topic_index];
 			puts(topic_str);
 			topic_len = strlen(topic_str);
 
 			/* Add items which not included in dbhash */
-			topic_exist =
-			    dbhash_check_topic(pid, topic_str);
+			topic_exist = dbhash_check_topic(pid, topic_str);
 			if (!topic_exist) {
-				dbtree_insert_client(
-				    db, topic_str, pid);
+				dbtree_insert_client(db, topic_str, pid);
 
 				dbhash_insert_topic(pid, topic_str);
 			}
 
 			topic_index++;
-
 		}
 	}
 	dbtree_print(db);
@@ -1967,10 +1964,10 @@ out:
 static int
 handle_unsubscribe_msg(cJSON *sub_obj, nng_socket *sock)
 {
-	int rv;
-	char * topic          = NULL;
-	char **topics         = NULL;
-	size_t topic_count    = 0;
+	int    rv;
+	char  *topic       = NULL;
+	char **topics      = NULL;
+	size_t topic_count = 0;
 	cJSON *item;
 	getStringValue(sub_obj, item, "topic", topic, rv);
 	if (rv != 0) {
@@ -1985,7 +1982,7 @@ handle_unsubscribe_msg(cJSON *sub_obj, nng_socket *sock)
 
 	uint32_t          pid   = 0;
 	struct hashmap_s *table = get_hashmap();
-	dbtree *db = get_broker_db();
+	dbtree           *db    = get_broker_db();
 	if (0 != (pid = nano_hashmap_get(table, clientid, strlen(clientid)))) {
 		sub_ctx_del(db, topic, pid);
 	}
