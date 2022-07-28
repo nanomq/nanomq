@@ -952,7 +952,7 @@ broker(conf *nanomq_conf)
 		// iterates all bridge targets
 		for (size_t t = 0; t < nanomq_conf->bridge.count; t++) {
 			conf_bridge_node *node = nanomq_conf->bridge.nodes[t];
-			if (node->enable && node->sub_count > 0) {
+			if (node->enable) {
 				bridge_sock = node->sock;
 				for (i = tmp; i < (tmp + node->parallel);
 				     i++) {
