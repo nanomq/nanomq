@@ -251,7 +251,6 @@ server_cb(void *arg)
 				nng_ctx_recv(work->extra_ctx, work->aio);
 				break;
 			} else { 
-				// support V5 nanosdk
 				nng_msg_set_cmd_type(msg, type);
 				// clone conn_param every single time
 				conn_param_clone(nng_msg_get_conn_param(msg));
@@ -634,15 +633,16 @@ server_cb(void *arg)
 					handle_pub(work, work->pipe_ct,
 					    MQTT_PROTOCOL_VERSION_v5);
 					work->pub_packet->var_header.publish
-					    .properties = property_pub_by_will(will_property);
+					    .properties = property_pub_by_will(
+					    will_property);
 					work->pub_packet->var_header.publish
 					    .prop_len = get_properties_len(
 					    work->pub_packet->var_header
 					        .publish.properties);
 				} else {
 					nng_msg_set_cmd_type(msg, CMD_PUBLISH);
-					handle_pub(work, work->pipe_ct, MQTT_PROTOCOL_VERSION_v311);
-					work->flag = CMD_PUBLISH;
+					handle_pub(work, work->pipe_ct,
+					    MQTT_PROTOCOL_VERSION_v311);
 				}
 				work->state = WAIT;
 				nng_aio_finish(work->aio, 0);
