@@ -134,7 +134,10 @@ static nng_optspec cmd_opts[] = {
 	    .o_short = 'C',
 	    .o_val   = OPT_CLIENTS,
 	    .o_arg   = true },
-	{ .o_name = "version", .o_short = 'V', .o_val = OPT_VERSION },
+	{ .o_name    = "version",
+	    .o_short = 'V',
+	    .o_val   = OPT_VERSION,
+	    .o_arg   = true },
 	{ .o_name = "url", .o_val = OPT_URL, .o_arg = true },
 	{ .o_name    = "topic",
 	    .o_short = 't',
@@ -303,7 +306,7 @@ help(enum client_type type)
 }
 
 static int
-intarg(const char *val, int maxv)
+intarg(const char *val, int minv, int maxv)
 {
 	int v = 0;
 
@@ -318,7 +321,11 @@ intarg(const char *val, int maxv)
 		v += ((*val) - '0');
 		val++;
 		if (v > maxv) {
-			fatal("Integer argument too large.");
+			fatal(
+			    "Integer argument too large (value < %d).", maxv);
+		} else if (v < minv) {
+			fatal(
+			    "Integer argument too small (value > %d).", minv);
 		}
 	}
 	if (v < 0) {
@@ -379,19 +386,19 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 			opt->verbose = true;
 			break;
 		case OPT_PARALLEL:
-			opt->parallel = intarg(arg, 1024000);
+			opt->parallel = intarg(arg, 1, 1024000);
 			break;
 		case OPT_INTERVAL:
-			opt->interval = intarg(arg, 10240000);
+			opt->interval = intarg(arg, 1, 10240000);
 			break;
 		case OPT_MSGCOUNT:
-			opt->total_msg_count = intarg(arg, 10240000);
+			opt->total_msg_count = intarg(arg, 1, 10240000);
 			break;
 		case OPT_CLIENTS:
-			opt->clients = intarg(arg, 10240000);
+			opt->clients = intarg(arg, 1, 10240000);
 			break;
 		case OPT_VERSION:
-			opt->version = intarg(arg, 4);
+			opt->version = intarg(arg, 3, 5);
 			break;
 		case OPT_URL:
 			ASSERT_NULL(opt->url,
@@ -404,7 +411,7 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 			opt->topic_count++;
 			break;
 		case OPT_QOS:
-			opt->qos = intarg(arg, 2);
+			opt->qos = intarg(arg, 0, 2);
 			break;
 		case OPT_RETAIN:
 			opt->retain = true;
@@ -433,7 +440,7 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 			opt->client_id = nng_strdup(arg);
 			break;
 		case OPT_KEEPALIVE:
-			opt->keepalive = intarg(arg, 65535);
+			opt->keepalive = intarg(arg, 0, 65535);
 			break;
 		case OPT_CLEAN_SESSION:
 			opt->clean_session = nng_strcasecmp(arg, "true") == 0;
@@ -447,7 +454,7 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 			opt->will_msg_len = strlen(arg);
 			break;
 		case OPT_WILL_QOS:
-			opt->will_qos = intarg(arg, 2);
+			opt->will_qos = intarg(arg, 0, 2);
 			break;
 		case OPT_WILL_RETAIN:
 			opt->retain = true;
@@ -867,7 +874,10 @@ create_client(nng_socket *sock, struct work **works, size_t id, size_t nwork,
 	int        rv;
 	nng_dialer dialer;
 
-	if ((rv = nng_mqtt_client_open(sock)) != 0) {
+	rv = param->opts->version == MQTT_PROTOCOL_VERSION_v5
+	    ? nng_mqttv5_client_open(sock)
+	    : nng_mqtt_client_open(sock);
+	if (rv != 0) {
 		nng_fatal("nng_socket", rv);
 	}
 
@@ -965,6 +975,9 @@ client(int argc, char **argv, enum client_type type)
 	if (opts->total_msg_count < opts->parallel) {
 		opts->parallel = opts->total_msg_count;
 	}
+	if (opts->version == 3) {
+		opts->version = 4;
+	}
 
 	struct connect_param **param =
 	    nng_zalloc(sizeof(struct connect_param *) * opts->clients);
@@ -974,8 +987,9 @@ client(int argc, char **argv, enum client_type type)
 	    nng_zalloc(sizeof(struct work **) * opts->clients);
 
 	for (size_t i = 0; i < opts->clients; i++) {
-		param[i]  = nng_zalloc(sizeof(struct connect_param));
-		socket[i] = nng_zalloc(sizeof(nng_socket));
+		param[i]       = nng_zalloc(sizeof(struct connect_param));
+		param[i]->opts = opts;
+		socket[i]      = nng_zalloc(sizeof(nng_socket));
 		works[i] = nng_zalloc(sizeof(struct work **) * opts->parallel);
 		create_client(
 		    socket[i], works[i], i, opts->parallel, param[i]);
