@@ -80,6 +80,9 @@ nnb_conn_opt_init(int argc, char **argv)
 	if (opt->host == NULL) {
 		opt->host = nng_strdup("localhost");
 	}
+	if (opt->version == 3) {
+		opt->version = 4;
+	}
 
 	return opt;
 }
@@ -145,6 +148,9 @@ nnb_pub_opt_init(int argc, char **argv)
 	pub_opt_set(argc - 1, argv + 1, opt);
 	if (opt->host == NULL) {
 		opt->host = nng_strdup("localhost");
+	}
+	if (opt->version == 3) {
+		opt->version = 4;
 	}
 
 	return opt;
@@ -212,6 +218,9 @@ nnb_sub_opt_init(int argc, char **argv)
 	}
 	if (opt->host == NULL) {
 		opt->host = nng_strdup("localhost");
+	}
+	if (opt->version == 3) {
+		opt->version = 4;
 	}
 
 	return opt;
