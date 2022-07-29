@@ -132,7 +132,12 @@ decode_common_mqtt_msg(nng_msg **dest, nng_msg *src)
 	conn_param *cparam = create_cparam(clientid, proto_ver);
 	nng_free(clientid, clientid_sz + 1);
 
-	nng_mqtt_msg_decode(msg);
+	if (proto_ver == MQTT_PROTOCOL_VERSION_v5) {
+		nng_mqttv5_msg_decode(msg);
+	} else {
+		nng_mqtt_msg_decode(msg);
+	}
+
 	nng_msg_set_conn_param(msg, cparam);
 
 	nng_msg_free(src);
@@ -144,7 +149,11 @@ int
 encode_common_mqtt_msg(
     nng_msg **dest, nng_msg *src, const char *clientid, uint8_t proto_ver)
 {
-	nng_mqtt_msg_encode(src);
+	if (proto_ver == MQTT_PROTOCOL_VERSION_v5) {
+		nng_mqttv5_msg_encode(src);
+	} else {
+		nng_mqtt_msg_encode(src);
+	}
 	nng_msg *msg;
 
 	size_t clientid_sz = strlen(clientid);
@@ -167,4 +176,3 @@ encode_common_mqtt_msg(
 	nng_msg_free(src);
 	return 0;
 }
-
