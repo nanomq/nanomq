@@ -1910,7 +1910,7 @@ handle_subscribe_msg(cJSON *sub_obj, nng_socket *sock)
 		topic_count = 1;
 	}
 
-	char *clientid = NULL;
+	char *clientid;
 	getStringValue(sub_obj, item, "clientid", clientid, rv);
 	if (rv != 0) {
 		goto out;
@@ -1977,7 +1977,7 @@ handle_unsubscribe_msg(cJSON *sub_obj, nng_socket *sock)
 		goto out;
 	}
 
-	char *clientid = NULL;
+	char *clientid;
 	getStringValue(sub_obj, item, "clientid", clientid, rv);
 	if (rv != 0) {
 		goto out;
