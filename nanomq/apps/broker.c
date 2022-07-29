@@ -758,15 +758,15 @@ proto_work_init(nng_socket sock,nng_socket inproc_sock, nng_socket bridge_sock, 
 	return w;
 }
 
-static dbtree           *db        = NULL;
-static dbtree           *db_ret    = NULL;
+static dbtree *db     = NULL;
+static dbtree *db_ret = NULL;
 static struct hashmap_s *cid_table = NULL;
 
-struct hashmap_s *
-get_hashmap(void)
+struct hashmap_s *get_hashmap(void)
 {
 	return cid_table;
 }
+
 
 dbtree *
 get_broker_db(void)
