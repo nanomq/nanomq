@@ -39,8 +39,6 @@ static void
 disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {
 	int reason;
-	nng_msg * msg = arg;
-	nng_msg_free(msg);	// free connmsg
 	// get connect reason
 	nng_pipe_get_int(p, NNG_OPT_MQTT_DISCONNECT_REASON, &reason);
 	// property *prop;
