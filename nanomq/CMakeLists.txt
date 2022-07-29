@@ -40,7 +40,6 @@ set(SOURCES
     pub_handler.c
     sub_handler.c
     unsub_handler.c
-    hashmap.c
     rest_api.c
     web_server.c
     webhook_inproc.c
