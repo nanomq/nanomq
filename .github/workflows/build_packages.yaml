@@ -46,7 +46,7 @@ jobs:
         set -eu
         git clone https://github.com/Mbed-TLS/mbedtls.git && cd mbedtls
         mkdir build && cd build
-        cmake -DCMAKE_C_COMPILER=${{ matrix.arch[1] }} -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }} .. 
+        cmake -DCMAKE_C_COMPILER=${{ matrix.arch[1] }} -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }} ..
         cmake --build .
         sudo make install
         cd ../..
@@ -57,7 +57,7 @@ jobs:
         make
     - name: build deb
       run: |
-        if [ "${{ matrix.arch[0] }}" != "x86_64" ]; then  
+        if [ "${{ matrix.arch[0] }}" != "x86_64" ]; then
           set -eu
           cd build
           mkdir -p _packages
@@ -69,7 +69,7 @@ jobs:
     - name: build rpm
       shell: bash
       run: |
-        if [ "${{ matrix.arch[0] }}" != "amd64" ]; then  
+        if [ "${{ matrix.arch[0] }}" != "amd64" ]; then
           set -eu
           cd build
           mkdir -p _packages
@@ -91,7 +91,7 @@ jobs:
         make
     - name: build deb with sqlite
       run: |
-        if [ "${{ matrix.arch[0] }}" != "x86_64" ]; then  
+        if [ "${{ matrix.arch[0] }}" != "x86_64" ]; then
           set -eu
           cd build
           sudo checkinstall --backup=no --install=no --type=debian --arch=${{ matrix.arch[0] }}  --pkgname=nanomq --pkgversion=$(git describe --abbrev=0 --tags) --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
@@ -102,7 +102,7 @@ jobs:
     - name: build rpm with sqlite
       shell: bash
       run: |
-        if [ "${{ matrix.arch[0] }}" != "amd64" ]; then  
+        if [ "${{ matrix.arch[0] }}" != "amd64" ]; then
           set -eu
           cd build
           sudo checkinstall --backup=no --install=no --type=rpm --arch=${{ matrix.arch[0] }} --pkgname=nanomq --pkgversion=$(git describe --abbrev=0 --tags) --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
@@ -147,20 +147,16 @@ jobs:
     strategy:
       matrix:
         suffix:
-        - fat
-        - slim
-        - alpine
-        - full
+        - ""
+        - "-slim"
+        - "-alpine"
+        - "-full"
 
     steps:
     - uses: actions/checkout@v1
     - run: git submodule update --init --recursive
     - name: build docker
-      if: matrix.suffix == 'fat'
-      run: docker build -t emqx/nanomq:$(git describe --tags --always) -f deploy/docker/Dockerfile .
-    - name: build docker
-      if: matrix.suffix != 'fat'
-      run: docker build -t emqx/nanomq:$(git describe --tags --always)-${{ matrix.suffix }} -f deploy/docker/Dockerfile-${{ matrix.suffix }} .
+      run: docker build -t emqx/nanomq:$(git describe --tags --always)${{ matrix.suffix }} -f deploy/docker/Dockerfile${{ matrix.suffix }} .
     - name: test docker
       run: |
         set -e -x -u
@@ -169,43 +165,27 @@ jobs:
         sleep 5
         mosquitto_pub -h $ip_address -t 'topic/A' -m 'test'
         docker rm -f $(docker ps -a -q)
-    - name: update docker
+    - uses: docker/setup-qemu-action@v1
+    - uses: docker/setup-buildx-action@v1
+    - uses: docker/metadata-action@v3
+      id: meta
+      with:
+        images: emqx/nanomq
+        flavor: |
+          latest=auto
+          suffix=${{ matrix.suffix }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=ref,event=tag
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+    - uses: docker/build-push-action@v2
       if: github.event_name == 'release'
-      run: |
-        sudo apt-get remove docker docker-engine docker.io containerd runc
-        sudo apt-get update
-        sudo apt-get install apt-transport-https ca-certificates curl gnupg-agent software-properties-common
-        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-        sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
-        sudo apt-get update
-        sudo apt-get install docker-ce docker-ce-cli containerd.io
-    - name: prepare docker
-      if: github.event_name == 'release'
-      run: |
-        mkdir -p $HOME/.docker
-        echo '{ "experimental": "enabled" }' | tee $HOME/.docker/config.json
-        echo '{ "experimental": true, "storage-driver": "overlay2", "max-concurrent-downloads": 50, "max-concurrent-uploads": 50, "graph": "/mnt/docker" }' | sudo tee /etc/docker/daemon.json
-        sudo systemctl restart docker
-        docker version
-        docker buildx create --use --name mybuild
-        docker run --rm --privileged tonistiigi/binfmt --install all
-    - name: cross build docker images
-      if: (matrix.suffix == 'fat') && (github.event_name == 'release')
-      run: |
-        set -e -u -x
-        echo ${{ secrets.DOCKER_HUB_TOKEN }} | docker login -u ${{ secrets.DOCKER_HUB_USER }} --password-stdin
-        docker buildx build --no-cache \
-        --platform=linux/amd64,linux/arm64,linux/arm/v7 \
-        -t emqx/nanomq:$(git describe --tags --always) emqx/nanomq:latest \
-        -f deploy/docker/Dockerfile . \
-        --push
-    - name: cross build docker images
-      if: (matrix.suffix != 'fat') && (github.event_name == 'release')
-      run: |
-        set -e -u -x
-        echo ${{ secrets.DOCKER_HUB_TOKEN }} | docker login -u ${{ secrets.DOCKER_HUB_USER }} --password-stdin
-        docker buildx build --no-cache \
-        --platform=linux/amd64,linux/arm64,linux/arm/v7 \
-        -t emqx/nanomq:$(git describe --tags --always)-${{ matrix.suffix }} emqx/nanomq:latest-${{ matrix.suffix }} \
-        -f deploy/docker/Dockerfile-${{ matrix.suffix }} . \
-        --push
+      with:
+        platforms: linux/amd64,linux/arm64,linux/arm/v7
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        file: deploy/docker/Dockerfile${{ matrix.suffix }}
+        context: .
