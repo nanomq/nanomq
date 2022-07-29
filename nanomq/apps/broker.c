@@ -265,7 +265,6 @@ server_cb(void *arg)
 				nng_ctx_recv(work->extra_ctx, work->aio);
 				break;
 			}
-			uint8_t type;
 			msg = decode_msg;
 			nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 			// alloc conn_param every single time

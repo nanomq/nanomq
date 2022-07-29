@@ -199,6 +199,7 @@ static http_msg post_mqtt_msg(
 static http_msg post_mqtt_msg_batch(
     http_msg *msg, nng_socket *sock, handle_mqtt_msg_cb cb);
 
+static int properties_parse(property **properties, cJSON *json);
 static int handle_publish_msg(cJSON *pub_obj, nng_socket *sock);
 static int handle_subscribe_msg(cJSON *sub_obj, nng_socket *sock);
 static int handle_unsubscribe_msg(cJSON *sub_obj, nng_socket *sock);
@@ -1782,7 +1783,9 @@ send_publish(nng_socket *sock, const char *clientid, char *payload,
 		uint8_t protover = MQTT_PROTOCOL_VERSION_v311;
 		if (props != NULL) {
 			protover = MQTT_PROTOCOL_VERSION_v5;
-			// TODO add property
+			property *dup_prop;
+			property_dup(&dup_prop, props);
+			nng_mqtt_msg_set_publish_property(pub_msg, dup_prop);
 		}
 
 		nng_msg *msg = NULL;
@@ -1793,7 +1796,105 @@ send_publish(nng_socket *sock, const char *clientid, char *payload,
 			break;
 		}
 	}
+	property_free(props);
 	return rv;
+}
+
+static int
+properties_parse(property **properties, cJSON *json)
+{
+	cJSON *   item;
+	int       rv        = 0;
+	uint8_t   byte      = 0;
+	uint16_t  word      = 0;
+	uint32_t  dword     = 0;
+	char *    str       = NULL;
+	uint8_t * bytes     = NULL;
+	property *prop_list = property_alloc();
+	property *sub_prop;
+
+	getNumberValue(json, item, "payload_format_indicator", byte, rv);
+	if (rv == 0) {
+		sub_prop =
+		    property_set_value_u8(PAYLOAD_FORMAT_INDICATOR, byte);
+		property_append(prop_list, sub_prop);
+	}
+
+	getNumberValue(json, item, "message_expiry_interval", word, rv);
+	if (rv == 0) {
+		sub_prop =
+		    property_set_value_u16(MESSAGE_EXPIRY_INTERVAL, word);
+		property_append(prop_list, sub_prop);
+	}
+
+	getStringValue(json, item, "response_topic", str, rv);
+	if (rv == 0) {
+		sub_prop = property_set_value_str(
+		    RESPONSE_TOPIC, str, strlen(str), true);
+		property_append(prop_list, sub_prop);
+	}
+
+	getStringValue(json, item, "correlation_data", str, rv);
+	if (rv == 0) {
+		sub_prop = property_set_value_binary(
+		    CORRELATION_DATA, (uint8_t *) str, strlen(str), true);
+		property_append(prop_list, sub_prop);
+	}
+
+	getNumberValue(json, item, "subscription_identifier	", dword, rv);
+	if (rv == 0) {
+		sub_prop =
+		    property_set_value_varint(SUBSCRIPTION_IDENTIFIER, dword);
+		property_append(prop_list, sub_prop);
+	}
+
+	getStringValue(json, item, "content_type", str, rv);
+	if (rv == 0) {
+		sub_prop = property_set_value_str(
+		    CORRELATION_DATA, (uint8_t *) str, strlen(str), true);
+		property_append(prop_list, sub_prop);
+	}
+
+	cJSON *prop_obj = cJSON_GetObjectItem(json, "user_properties");
+
+	char number_str[50] = {0};
+
+	cJSON_ArrayForEach(item, prop_obj)
+	{
+		if (cJSON_IsNumber(item)) {
+			if (item->valuedouble - item->valueint == 0) {
+				snprintf(number_str, 50, "%ld",
+				    (long) item->valuedouble);
+			} else {
+				snprintf(
+				    number_str, 50, "%lf", item->valuedouble);
+			}
+			sub_prop = property_set_value_strpair(USER_PROPERTY,
+		    item->string, strlen(item->string), number_str,
+		    strlen(number_str), true);
+		}
+		else if (cJSON_IsBool(item)) {
+			sprintf(number_str, "%s", cJSON_IsTrue(item) ? "true" : "false");
+			sub_prop = property_set_value_strpair(USER_PROPERTY,
+		    item->string, strlen(item->string), number_str,
+		    strlen(number_str), true);
+		} else if (cJSON_IsString(item)) {
+			sub_prop = property_set_value_strpair(USER_PROPERTY,
+		    item->string, strlen(item->string), item->valuestring,
+		    strlen(item->valuestring), true);
+		} else {
+			continue;
+		}
+		
+		property_append(prop_list, sub_prop);
+	}
+
+	*properties = prop_list;
+	return 0;
+
+err:
+	property_free(prop_list);
+	return -1;
 }
 
 static int
@@ -1854,17 +1955,14 @@ handle_publish_msg(cJSON *pub_obj, nng_socket *sock)
 	getBoolValue(pub_obj, item, "retain", retain, rv);
 
 	// properties
-	cJSON *properties = cJSON_GetObjectItem(pub_obj, "properties");
-	
-	// TODO require MQTT_V5 sdk to support properties
+	cJSON *json_prop = cJSON_GetObjectItem(pub_obj, "properties");
 	property *props = NULL;
-	// payload_format_indicator
-	// message_expiry_interval
-	// response_topic
-	// correlation_data
-	// subscription_identifier
-	// content_type
-	// user_properties
+	if (cJSON_IsObject(json_prop)) {
+		rv = properties_parse(&props, json_prop);
+		if (rv != 0) {
+			goto out;
+		}
+	}
 
 	rv = send_publish(sock, clientid, payload, topics, topic_count, qos,
 	    retain, strcmp(encoding, "base64") == 0, props);
