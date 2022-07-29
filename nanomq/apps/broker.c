@@ -418,10 +418,6 @@ server_cb(void *arg)
 			nng_aio_set_msg(work->aio, work->msg);
 			nng_ctx_send(work->ctx, work->aio); // send connack
 
-			const char *cid = conn_param_get_clientid(work->cparam);
-			nano_hashmap_put(work->config->cid_table, cid, strlen(cid), work->pid.id);
-			debug_msg("set client_id %s -> pipe_id %d", cid, work->pid.id);
-
 			uint8_t *body        = nng_msg_body(work->msg);
 			uint8_t  reason_code = *(body + 1);
 			smsg = nano_msg_notify_connect(work->cparam, reason_code);
@@ -461,9 +457,6 @@ server_cb(void *arg)
 				nng_aio_finish(work->aio, 0);
 				break;
 			}
-			const char *cid = conn_param_get_clientid(work->cparam);
-			nano_hashmap_remove(work->config->cid_table, cid, strlen(cid));
-
 		}
 		work->state = WAIT;
 		nng_aio_finish(work->aio, 0);
@@ -760,6 +753,7 @@ proto_work_init(nng_socket sock,nng_socket inproc_sock, nng_socket bridge_sock, 
 
 static dbtree           *db        = NULL;
 static dbtree           *db_ret    = NULL;
+// TODO For HTTP SUB/UNSUB usage
 static struct hashmap_s *cid_table = NULL;
 
 struct hashmap_s *
@@ -892,11 +886,6 @@ broker(conf *nanomq_conf)
 	dbhash_init_cached_table();
 	dbhash_init_pipe_table();
 	dbhash_init_alias_table();
-
-	cid_table = (struct hashmap_s *) nng_alloc(sizeof(*cid_table));
-
-	nano_hashmap_create(1024, cid_table);
-	nanomq_conf->cid_table = cid_table;
 
 	/*  Create the socket. */
 	nanomq_conf->db_root = db;
