@@ -79,7 +79,6 @@ uint64_t nanomq_get_message_out(void);
 uint64_t nanomq_get_message_drop(void);
 #endif
 dbtree *get_broker_db(void);
-struct hashmap_s *get_hashmap(void);
 int rule_engine_insert_sql(nano_work *work);
 
 #endif
