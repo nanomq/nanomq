@@ -70,7 +70,7 @@ sub_callback(void *arg) {
 	uint32_t count;
 	uint8_t *code;
 	if (msg) {
-		code = (reason_code *)nng_mqtt_msg_get_suback_return_codes(msg, &count);
+		code = nng_mqtt_msg_get_suback_return_codes(msg, &count);
 		debug_msg("suback %d \n", *(code));
 	}
 	debug_msg("bridge: Sub result %d \n", nng_aio_result(aio));

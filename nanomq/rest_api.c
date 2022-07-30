@@ -799,7 +799,7 @@ get_uptime(char *str, size_t str_len)
 	nng_time mins   = uptime / 1000 / 60 % 60;
 	nng_time secs   = uptime / 1000 % 60;
 
-	snprintf(str, str_len, "%llu Hours, %llu minutes, %llu seconds", hours,
+	snprintf(str, str_len, "%lu Hours, %lu minutes, %lu seconds", hours,
 	    mins, secs);
 }
 
