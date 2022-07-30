@@ -236,7 +236,7 @@ unsub_pkt_free(packet_unsubscribe *unsub_pkt)
 		tn = next_tn;
 	}
 
-	if (unsub_pkt->node == NULL) {
+	if (tn == NULL) {
 		nng_free(unsub_pkt, sizeof(packet_unsubscribe));
 		unsub_pkt = NULL;
 	}
