@@ -42,10 +42,10 @@
 #include "include/webhook_post.h"
 #include "include/webhook_inproc.h"
 #include <include/nanomq.h>
-#if defined(SUPP_RULE_ENGINE)
-	#include <foundationdb/fdb_c.h>
-	#include <foundationdb/fdb_c_options.g.h>
-#endif
+// #if defined(SUPP_RULE_ENGINE)
+// 	#include <foundationdb/fdb_c.h>
+// 	#include <foundationdb/fdb_c_options.g.h>
+// #endif
 #if defined(SUPP_AWS_BRIDGE)
 	#include "include/aws_bridge.h"
 #endif
