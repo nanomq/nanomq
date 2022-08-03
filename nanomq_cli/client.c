@@ -42,7 +42,8 @@ struct topic {
 	struct topic *next;
 	char *        val;
 };
-enum client_type { PUB, SUB, CONN };
+
+enum client_type { PUB = 1, SUB = 1 << 1, CONN = 1 << 2 };
 
 struct client_opts {
 	enum client_type type;
@@ -77,6 +78,9 @@ struct client_opts {
 	char *           key;
 	size_t           key_len;
 	char *           keypass;
+	property *       conn_properties;
+	property *       sub_properties;
+	property *       pub_properties;
 };
 
 typedef struct client_opts client_opts;
@@ -113,6 +117,35 @@ enum options {
 	OPT_KEYPASS,
 	OPT_MSG,
 	OPT_FILE,
+	// property options >>>>>>>>>>>>>
+	OPT_PAYLOAD_FORMAT_INDICATOR,
+	OPT_MESSAGE_EXPIRY_INTERVAL,
+	OPT_CONTENT_TYPE,
+	OPT_RESPONSE_TOPIC,
+	OPT_CORRELATION_DATA,
+	OPT_SESSION_EXPIRY_INTERVAL,
+	OPT_ASSIGNED_CLIENT_IDENTIFIER,
+	OPT_SERVER_KEEP_ALIVE,
+	OPT_AUTHENTICATION_METHOD,
+	OPT_AUTHENTICATION_DATA,
+	OPT_REQUEST_PROBLEM_INFORMATION,
+	OPT_WILL_DELAY_INTERVAL,
+	OPT_REQUEST_RESPONSE_INFORMATION,
+	OPT_RESPONSE_INFORMATION,
+	OPT_SERVER_REFERENCE,
+	OPT_REASON_STRING,
+	OPT_RECEIVE_MAXIMUM,
+	OPT_TOPIC_ALIAS_MAXIMUM,
+	OPT_TOPIC_ALIAS,
+	OPT_PUBLISH_MAXIMUM_QOS,
+	OPT_RETAIN_AVAILABLE,
+	OPT_USER_PROPERTY,
+	OPT_MAXIMUM_PACKET_SIZE,
+	OPT_WILDCARD_SUBSCRIPTION_AVAILABLE,
+	OPT_SUBSCRIPTION_IDENTIFIER_AVAILABLE,
+	OPT_SHARED_SUBSCRIPTION_AVAILABLE,
+	// property options <<<<<<<<<<<<<<
+	OPT_UNKNOWN,
 };
 
 static nng_optspec cmd_opts[] = {
@@ -176,11 +209,171 @@ static nng_optspec cmd_opts[] = {
 	    .o_val   = OPT_CERTFILE,
 	    .o_arg   = true,
 	},
-
 	{ .o_name = "msg", .o_short = 'm', .o_val = OPT_MSG, .o_arg = true },
 	{ .o_name = "file", .o_short = 'f', .o_val = OPT_FILE, .o_arg = true },
-
+	{ .o_name  = "payload_format_indicator",
+	    .o_val = OPT_PAYLOAD_FORMAT_INDICATOR,
+	    .o_arg = true },
+	{ .o_name  = "message_expiry_interval",
+	    .o_val = OPT_MESSAGE_EXPIRY_INTERVAL,
+	    .o_arg = true },
+	{ .o_name = "content_type", .o_val = OPT_CONTENT_TYPE, .o_arg = true },
+	{ .o_name  = "response_topic",
+	    .o_val = OPT_RESPONSE_TOPIC,
+	    .o_arg = true },
+	{ .o_name  = "correlation_data",
+	    .o_val = OPT_CORRELATION_DATA,
+	    .o_arg = true },
+	{ .o_name  = "session_expiry_interval",
+	    .o_val = OPT_SESSION_EXPIRY_INTERVAL,
+	    .o_arg = true },
+	{ .o_name  = "assigned_client_identifier",
+	    .o_val = OPT_ASSIGNED_CLIENT_IDENTIFIER,
+	    .o_arg = true },
+	{ .o_name  = "server_keep_alive",
+	    .o_val = OPT_SERVER_KEEP_ALIVE,
+	    .o_arg = true },
+	// { .o_name  = "authentication_method",
+	//     .o_val = OPT_AUTHENTICATION_METHOD,
+	//     .o_arg = true },
+	// { .o_name  = "authentication_data",
+	//     .o_val = OPT_AUTHENTICATION_DATA,
+	    // .o_arg = true },
+	{ .o_name  = "request_problem_information",
+	    .o_val = OPT_REQUEST_PROBLEM_INFORMATION,
+	    .o_arg = true },
+	{ .o_name  = "will_delay_interval",
+	    .o_val = OPT_WILL_DELAY_INTERVAL,
+	    .o_arg = true },
+	{ .o_name  = "request_response_information",
+	    .o_val = OPT_REQUEST_RESPONSE_INFORMATION,
+	    .o_arg = true },
+	{ .o_name  = "response_information",
+	    .o_val = OPT_RESPONSE_INFORMATION,
+	    .o_arg = true },
+	{ .o_name  = "server_reference",
+	    .o_val = OPT_SERVER_REFERENCE,
+	    .o_arg = true },
+	{ .o_name  = "reason_string",
+	    .o_val = OPT_REASON_STRING,
+	    .o_arg = true },
+	{ .o_name  = "receive_maximum",
+	    .o_val = OPT_RECEIVE_MAXIMUM,
+	    .o_arg = true },
+	{ .o_name  = "topic_alias_maximum",
+	    .o_val = OPT_TOPIC_ALIAS_MAXIMUM,
+	    .o_arg = true },
+	{ .o_name = "topic_alias", .o_val = OPT_TOPIC_ALIAS, .o_arg = true },
+	{ .o_name  = "publish_maximum_qos",
+	    .o_val = OPT_PUBLISH_MAXIMUM_QOS,
+	    .o_arg = true },
+	{ .o_name  = "retain_available",
+	    .o_val = OPT_RETAIN_AVAILABLE,
+	    .o_arg = true },
+	{ .o_name  = "user_property",
+	    .o_val = OPT_USER_PROPERTY,
+	    .o_arg = true },
+	{ .o_name  = "maximum_packet_size",
+	    .o_val = OPT_MAXIMUM_PACKET_SIZE,
+	    .o_arg = true },
+	{ .o_name  = "wildcard_subscription_available",
+	    .o_val = OPT_WILDCARD_SUBSCRIPTION_AVAILABLE,
+	    .o_arg = true },
+	{ .o_name  = "subscription_identifier_available",
+	    .o_val = OPT_SUBSCRIPTION_IDENTIFIER_AVAILABLE,
+	    .o_arg = true },
+	{ .o_name  = "shared_subscription_available",
+	    .o_val = OPT_SHARED_SUBSCRIPTION_AVAILABLE,
+	    .o_arg = true },
 	{ .o_name = NULL, .o_val = 0 },
+};
+
+typedef struct {
+	uint8_t     type;
+	const char *usage;
+} arg_usage;
+
+static arg_usage properties_usage[] = {
+	{
+	    .type  = (PUB | SUB | CONN),
+	    .usage = "payload_format_indicator       The payload format "
+	             "indicator of the publish message",
+	},
+	{
+	    .type  = (PUB | SUB | CONN),
+	    .usage = "message_expiry_interval        The lifetime of the "
+	             "publish message in seconds (default: no message expiry)",
+	},
+	{
+	    .type  = (PUB | SUB | CONN),
+	    .usage = "content_type                   A description of publish "
+	             "message's content",
+	},
+	{
+	    .type  = (PUB | SUB | CONN),
+	    .usage = "response_topic                 The topic name for the "
+	             "publish message`s response message",
+	},
+	{
+	    .type  = (PUB | SUB | CONN),
+	    .usage = "correlation_data               The correlation data of "
+	             "the publish message",
+	},
+	{
+	    .type  = (PUB | SUB | CONN),
+	    .usage = "session_expiry_interval        The lifetime of the "
+	             "session of the connected client",
+	},
+	// {
+	//     .type  = (CONN),
+	//     .usage = "authentication_method",
+	// },
+	// {
+	//     .type  = (CONN),
+	//     .usage = "authentication_data",
+	// },
+	{
+	    .type  = (PUB | SUB | CONN),
+	    .usage = "request_problem_information    The client requests "
+	             "problem information from the server. (default: true)",
+	},
+	{
+	    .type  = (PUB | SUB | CONN),
+	    .usage = "will_delay_interval            The Server delays "
+	             "publishing the client's will message until the will "
+	             "delay has passed (default: 0)",
+	},
+	{
+	    .type  = (PUB | SUB | CONN),
+	    .usage = "request_response_information   The client requests "
+	             "response information from the server. (default: false)",
+	},
+	{
+	    .type  = (PUB | SUB | CONN),
+	    .usage = "receive_maximum                The maximum amount of "
+	             "not acknowledged publishes with QoS 1 or 2 the client "
+	             "accepts from the server concurrently. (default: 65535)",
+	},
+	{
+	    .type = (PUB | SUB | CONN),
+	    .usage =
+	        "topic_alias_maximum            The maximum amount of topic "
+	        "aliases the client accepts from the server. (default: 0)",
+	},
+	{
+	    .type  = (PUB),
+	    .usage = "topic_alias                    The "
+	             "topic alias of the publish message",
+	},
+	{
+	    .type  = (PUB | SUB | CONN),
+	    .usage = "user_property                  User property ",
+	},
+	{
+	    .type  = (PUB | SUB | CONN),
+	    .usage = "maximum_packet_size            The maximum packet size "
+	             "the client accepts from the server.",
+	},
 };
 
 struct work {
@@ -210,6 +403,17 @@ static void
 nng_fatal(const char *msg, int rv)
 {
 	fatal("%s:%s", msg, nng_strerror(rv));
+}
+
+static void
+properties_help(enum client_type type)
+{
+	for (size_t i = 0;
+	     i < sizeof(properties_usage) / sizeof(properties_usage[0]); i++) {
+		if (0 != (type & properties_usage[i].type)) {
+			printf("  --%s\n", properties_usage[i].usage);
+		}
+	}
 }
 
 static void
@@ -291,12 +495,16 @@ help(enum client_type type)
 	printf("  --will-retain                    Will message as retained "
 	       "message [default: false]\n");
 
+	properties_help(type);
+
+#if defined(NNG_SUPP_TLS)
 	printf("  -s, --secure                     Enable TLS/SSL mode\n");
 	printf(
 	    "      --cacert <file>              CA certificates file path\n");
 	printf("      -E, --cert <file>            Certificate file path\n");
 	printf("      --key <file>                 Private key file path\n");
 	printf("      --keypass <key password>     Private key password\n");
+#endif
 
 	if (type == PUB) {
 		printf("\n<src> may be one of:\n");
@@ -305,10 +513,10 @@ help(enum client_type type)
 	}
 }
 
-static int
-intarg(const char *val, int minv, int maxv)
+static long
+long_arg(const char *val, long minv, long maxv)
 {
-	int v = 0;
+	long v = 0;
 
 	if (val[0] == '\0') {
 		fatal("Empty integer argument.");
@@ -386,19 +594,19 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 			opt->verbose = true;
 			break;
 		case OPT_PARALLEL:
-			opt->parallel = intarg(arg, 1, 1024000);
+			opt->parallel = long_arg(arg, 1, 1024000);
 			break;
 		case OPT_INTERVAL:
-			opt->interval = intarg(arg, 1, 10240000);
+			opt->interval = long_arg(arg, 1, 10240000);
 			break;
 		case OPT_MSGCOUNT:
-			opt->total_msg_count = intarg(arg, 1, 10240000);
+			opt->total_msg_count = long_arg(arg, 1, 10240000);
 			break;
 		case OPT_CLIENTS:
-			opt->clients = intarg(arg, 1, 10240000);
+			opt->clients = long_arg(arg, 1, 10240000);
 			break;
 		case OPT_VERSION:
-			opt->version = intarg(arg, 3, 5);
+			opt->version = long_arg(arg, 3, 5);
 			break;
 		case OPT_URL:
 			ASSERT_NULL(opt->url,
@@ -411,7 +619,7 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 			opt->topic_count++;
 			break;
 		case OPT_QOS:
-			opt->qos = intarg(arg, 0, 2);
+			opt->qos = long_arg(arg, 0, 2);
 			break;
 		case OPT_RETAIN:
 			opt->retain = true;
@@ -440,7 +648,7 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 			opt->client_id = nng_strdup(arg);
 			break;
 		case OPT_KEEPALIVE:
-			opt->keepalive = intarg(arg, 0, 65535);
+			opt->keepalive = long_arg(arg, 0, 65535);
 			break;
 		case OPT_CLEAN_SESSION:
 			opt->clean_session = nng_strcasecmp(arg, "true") == 0;
@@ -454,7 +662,7 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 			opt->will_msg_len = strlen(arg);
 			break;
 		case OPT_WILL_QOS:
-			opt->will_qos = intarg(arg, 0, 2);
+			opt->will_qos = long_arg(arg, 0, 2);
 			break;
 		case OPT_WILL_RETAIN:
 			opt->retain = true;
@@ -567,6 +775,280 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 	return rv;
 }
 
+static uint8_t
+property_id_type(properties_type id)
+{
+	uint8_t type = 0;
+	switch (id) {
+	case PAYLOAD_FORMAT_INDICATOR:
+	case MESSAGE_EXPIRY_INTERVAL:
+	case CONTENT_TYPE:
+	case RESPONSE_TOPIC:
+	case CORRELATION_DATA:
+		type = (PUB | CONN);
+		break;
+	case SUBSCRIPTION_IDENTIFIER:
+		type = (PUB | SUB);
+		break;
+	case SESSION_EXPIRY_INTERVAL:
+	case AUTHENTICATION_METHOD:
+	case AUTHENTICATION_DATA:
+	case REQUEST_PROBLEM_INFORMATION:
+	case WILL_DELAY_INTERVAL:
+	case REQUEST_RESPONSE_INFORMATION:
+	case RECEIVE_MAXIMUM:
+	case TOPIC_ALIAS_MAXIMUM:
+		type = CONN;
+		break;
+	case TOPIC_ALIAS:
+		type = PUB;
+		break;
+	case USER_PROPERTY:
+		type = PUB | SUB | CONN;
+		break;
+	case MAXIMUM_PACKET_SIZE:
+		type = CONN;
+		break;
+	default:
+		break;
+	}
+
+	return type;
+}
+
+static int
+properties_classify(property *properties, client_opts *opts)
+{
+	switch (opts->type) {
+	case CONN:
+		opts->conn_properties = mqtt_property_alloc();
+		break;
+	case PUB:
+		opts->conn_properties = mqtt_property_alloc();
+		opts->pub_properties  = mqtt_property_alloc();
+		break;
+	case SUB:
+		opts->conn_properties = mqtt_property_alloc();
+		opts->sub_properties  = mqtt_property_alloc();
+		break;
+	default:
+		break;
+	}
+
+	property *item;
+
+	for (property *p = properties->next; p != NULL; p = p->next) {
+		uint8_t type = property_id_type(p->id);
+		if (type == 0) {
+			fatal("Unknown property id: %d", p->id);
+		}
+		if (CONN == (type & CONN)) {
+			item     = mqtt_property_alloc();
+			item->id = p->id;
+			mqtt_property_value_copy(item, p);
+			mqtt_property_append(opts->conn_properties, item);
+		}
+		if (PUB == (type & PUB)) {
+			item     = mqtt_property_alloc();
+			item->id = p->id;
+			mqtt_property_value_copy(item, p);
+			mqtt_property_append(opts->pub_properties, item);
+		}
+		if (SUB == (type & SUB)) {
+			item     = mqtt_property_alloc();
+			item->id = p->id;
+			mqtt_property_value_copy(item, p);
+			mqtt_property_append(opts->sub_properties, item);
+		}
+	}
+}
+
+static properties_type
+properties_type_parse(int val)
+{
+	properties_type prop_id = 0;
+	switch (val) {
+	case OPT_PAYLOAD_FORMAT_INDICATOR:
+		prop_id = PAYLOAD_FORMAT_INDICATOR;
+		break;
+	case OPT_MESSAGE_EXPIRY_INTERVAL:
+		prop_id = MESSAGE_EXPIRY_INTERVAL;
+		break;
+	case OPT_CONTENT_TYPE:
+		prop_id = CONTENT_TYPE;
+		break;
+	case OPT_RESPONSE_TOPIC:
+		prop_id = RESPONSE_TOPIC;
+		break;
+	case OPT_CORRELATION_DATA:
+		prop_id = CORRELATION_DATA;
+		break;
+	case OPT_SESSION_EXPIRY_INTERVAL:
+		prop_id = SESSION_EXPIRY_INTERVAL;
+		break;
+	case OPT_ASSIGNED_CLIENT_IDENTIFIER:
+		prop_id = ASSIGNED_CLIENT_IDENTIFIER;
+		break;
+	case OPT_SERVER_KEEP_ALIVE:
+		prop_id = SERVER_KEEP_ALIVE;
+		break;
+	case OPT_AUTHENTICATION_METHOD:
+		prop_id = AUTHENTICATION_METHOD;
+		break;
+	case OPT_AUTHENTICATION_DATA:
+		prop_id = AUTHENTICATION_DATA;
+		break;
+	case OPT_REQUEST_PROBLEM_INFORMATION:
+		prop_id = REQUEST_PROBLEM_INFORMATION;
+		break;
+	case OPT_WILL_DELAY_INTERVAL:
+		prop_id = WILL_DELAY_INTERVAL;
+		break;
+	case OPT_REQUEST_RESPONSE_INFORMATION:
+		prop_id = REQUEST_RESPONSE_INFORMATION;
+		break;
+	case OPT_RESPONSE_INFORMATION:
+		prop_id = RESPONSE_INFORMATION;
+		break;
+	case OPT_SERVER_REFERENCE:
+		prop_id = SERVER_REFERENCE;
+		break;
+	case OPT_REASON_STRING:
+		prop_id = REASON_STRING;
+		break;
+	case OPT_RECEIVE_MAXIMUM:
+		prop_id = RECEIVE_MAXIMUM;
+		break;
+	case OPT_TOPIC_ALIAS_MAXIMUM:
+		prop_id = TOPIC_ALIAS_MAXIMUM;
+		break;
+	case OPT_TOPIC_ALIAS:
+		prop_id = TOPIC_ALIAS;
+		break;
+	case OPT_PUBLISH_MAXIMUM_QOS:
+		prop_id = PUBLISH_MAXIMUM_QOS;
+		break;
+	case OPT_RETAIN_AVAILABLE:
+		prop_id = RETAIN_AVAILABLE;
+		break;
+	case OPT_USER_PROPERTY:
+		prop_id = USER_PROPERTY;
+		break;
+	case OPT_MAXIMUM_PACKET_SIZE:
+		prop_id = MAXIMUM_PACKET_SIZE;
+		break;
+	case OPT_WILDCARD_SUBSCRIPTION_AVAILABLE:
+		prop_id = WILDCARD_SUBSCRIPTION_AVAILABLE;
+		break;
+	case OPT_SUBSCRIPTION_IDENTIFIER_AVAILABLE:
+		prop_id = SUBSCRIPTION_IDENTIFIER_AVAILABLE;
+		break;
+	case OPT_SHARED_SUBSCRIPTION_AVAILABLE:
+		prop_id = SHARED_SUBSCRIPTION_AVAILABLE;
+		break;
+	default:
+		break;
+	}
+
+	return prop_id;
+}
+
+static int
+properties_parse(int argc, char **argv, property *properties)
+{
+	int   idx = 1;
+	char *arg;
+	int   val;
+	int   rv;
+
+	uint8_t  u8;
+	uint16_t u16;
+	uint32_t u32;
+	char *   str;
+	char *   value;
+	uint8_t *bin;
+
+	property *prop_list = properties;
+	property *prop_item;
+
+	while ((rv = nng_opts_parse(argc, argv, cmd_opts, &val, &arg, &idx)) ==
+	    0) {
+		properties_type prop_id = properties_type_parse(val);
+		if (prop_id == 0)
+			continue;
+
+		property_type_enum type =
+		    mqtt_property_get_value_type(prop_id);
+		switch (type) {
+		case U8:
+			u8        = (uint8_t) long_arg(arg, 0, UINT8_MAX);
+			prop_item = mqtt_property_set_value_u8(prop_id, u8);
+			break;
+		case U16:
+			u16       = (uint16_t) long_arg(arg, 0, UINT16_MAX);
+			prop_item = mqtt_property_set_value_u16(prop_id, u16);
+			break;
+		case U32:
+			u32       = (uint32_t) long_arg(arg, 0, UINT32_MAX);
+			prop_item = mqtt_property_set_value_u32(prop_id, u32);
+			break;
+		case VARINT:
+			u32 = (uint32_t) long_arg(arg, 0, UINT32_MAX);
+			prop_item =
+			    mqtt_property_set_value_varint(prop_id, u32);
+			break;
+		case BINARY:
+			bin       = (uint8_t *) arg;
+			prop_item = mqtt_property_set_value_binary(
+			    prop_id, bin, strlen(arg), true);
+			break;
+		case STR:
+			str       = arg;
+			prop_item = mqtt_property_set_value_str(
+			    prop_id, str, strlen(str), true);
+			break;
+		case STR_PAIR:
+			str     = nng_zalloc(strlen(arg) + 1);
+			value   = nng_zalloc(strlen(arg) + 1);
+			int ret = sscanf(arg, "%[^=]=%s", str, value);
+			if (ret != 2) {
+				nng_free(str, strlen(str) + 1);
+				nng_free(value, strlen(value) + 1);
+				fatal("Invalid string pair: '%s', "
+				      "Require "
+				      "format: 'key=value'",
+				    arg);
+			}
+			prop_item = mqtt_property_set_value_strpair(prop_id,
+			    str, strlen(str), value, strlen(value), true);
+			nng_free(str, strlen(str) + 1);
+			nng_free(value, strlen(value) + 1);
+			break;
+
+		default:
+			fatal("Unknown property: %s", argv[idx]);
+			break;
+		}
+		mqtt_property_append(prop_list, prop_item);
+	}
+
+	switch (rv) {
+	case NNG_EINVAL:
+		fatal("Option %s is invalid.", argv[idx]);
+		break;
+	case NNG_EAMBIGUOUS:
+		fatal("Option %s is ambiguous (specify in full).", argv[idx]);
+		break;
+	case NNG_ENOARG:
+		fatal("Option %s requires argument.", argv[idx]);
+		break;
+	default:
+		break;
+	}
+
+	return rv;
+}
+
 static void
 set_default_conf(client_opts *opt)
 {
@@ -582,6 +1064,9 @@ set_default_conf(client_opts *opt)
 	opt->verbose         = false;
 	opt->topic_count     = 0;
 	opt->clients         = 1;
+	opt->conn_properties = NULL;
+	opt->sub_properties  = NULL;
+	opt->pub_properties  = NULL;
 }
 
 // This reads a file into memory.  Care is taken to ensure that
@@ -691,6 +1176,7 @@ publish_msg(client_opts *opt)
 	nng_mqtt_msg_set_publish_retain(pubmsg, opt->retain);
 	nng_mqtt_msg_set_publish_payload(pubmsg, opt->msg, opt->msg_len);
 	nng_mqtt_msg_set_publish_topic(pubmsg, opt->topic->val);
+	nng_mqtt_msg_set_publish_property(pubmsg, opt->pub_properties);
 	return pubmsg;
 }
 
@@ -807,6 +1293,7 @@ connect_msg(client_opts *opt)
 	nng_mqtt_msg_set_connect_proto_version(msg, opt->version);
 	nng_mqtt_msg_set_connect_keep_alive(msg, opt->keepalive);
 	nng_mqtt_msg_set_connect_clean_session(msg, opt->clean_session);
+	nng_mqtt_msg_set_connect_property(msg, opt->conn_properties);
 
 	if (opt->client_id) {
 		nng_mqtt_msg_set_connect_client_id(msg, opt->client_id);
@@ -843,22 +1330,45 @@ struct connect_param {
 static void
 connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {
-	struct connect_param *param = arg;
-	int                   reason;
+	struct connect_param *param  = arg;
+	int                   reason = 0;
 	// get connect reason
 	nng_pipe_get_int(p, NNG_OPT_MQTT_CONNECT_REASON, &reason);
-	// get property for MQTT V5
-	// property *prop;
-	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_CONNECT_PROPERTY, &prop);
 	printf("%s: %s connect result: %d \n", __FUNCTION__, param->opts->url,
 	    reason);
+
+	property *prop = NULL;
+	if (param->opts->version == MQTT_PROTOCOL_VERSION_v5) {
+		nng_pipe_get_ptr(
+		    p, NNG_OPT_MQTT_CONNECT_PROPERTY, (void **) &prop);
+	}
+
+	if (reason == 0) {
+		if (param->opts->type == SUB && param->opts->topic_count > 0) {
+			nng_mqtt_topic_qos *topics_qos =
+			    nng_mqtt_topic_qos_array_create(
+			        param->opts->topic_count);
+			size_t i = 0;
+			for (struct topic *tp = param->opts->topic;
+			     tp != NULL && i < param->opts->topic_count;
+			     tp = tp->next, i++) {
+				nng_mqtt_topic_qos_array_set(
+				    topics_qos, i, tp->val, param->opts->qos);
+			}
+			nng_mqtt_subscribe(*param->sock, topics_qos,
+			    param->opts->topic_count,
+			    param->opts->sub_properties);
+			nng_mqtt_topic_qos_array_free(
+			    topics_qos, param->opts->topic_count);
+		}
+	}
 }
 
 // Disconnect message callback function
 static void
 disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {
-	int reason;
+	int reason = 0;
 	// get connect reason
 	nng_pipe_get_int(p, NNG_OPT_MQTT_DISCONNECT_REASON, &reason);
 	// property *prop;
@@ -911,32 +1421,6 @@ create_client(nng_socket *sock, struct work **works, size_t id, size_t nwork,
 
 	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
 
-	if (param->opts->type == SUB && param->opts->topic_count > 0) {
-		nng_msg *sub_msg;
-		nng_mqtt_msg_alloc(&sub_msg, 0);
-		nng_mqtt_msg_set_packet_type(sub_msg, NNG_MQTT_SUBSCRIBE);
-
-		nng_mqtt_topic_qos *topics_qos =
-		    nng_mqtt_topic_qos_array_create(param->opts->topic_count);
-
-		size_t i = 0;
-		for (struct topic *tp = param->opts->topic;
-		     tp != NULL && i < param->opts->topic_count;
-		     tp = tp->next, i++) {
-			nng_mqtt_topic_qos_array_set(
-			    topics_qos, i, tp->val, param->opts->qos);
-		}
-
-		nng_mqtt_msg_set_subscribe_topics(
-		    sub_msg, topics_qos, param->opts->topic_count);
-
-		nng_mqtt_topic_qos_array_free(
-		    topics_qos, param->opts->topic_count);
-
-		// Send subscribe message
-		nng_sendmsg(*param->sock, sub_msg, NNG_FLAG_NONBLOCK);
-	}
-
 	average_msgs(opts, works);
 	for (size_t i = 0; i < opts->parallel; i++) {
 		client_cb(works[i]);
@@ -968,6 +1452,13 @@ client(int argc, char **argv, enum client_type type)
 	opts->type = type;
 
 	client_parse_opts(argc, argv, opts);
+
+	if (opts->version == MQTT_PROTOCOL_VERSION_v5) {
+		property *properties = mqtt_property_alloc();
+		properties_parse(argc, argv, properties);
+		properties_classify(properties, opts);
+		mqtt_property_free(properties);
+	}
 
 	if (opts->interval == 0 && opts->total_msg_count > 0) {
 		opts->interval = 1;
@@ -1085,6 +1576,15 @@ free_opts(void)
 		}
 		if (opts->keypass) {
 			nng_strfree(opts->keypass);
+		}
+		if (opts->conn_properties) {
+			mqtt_property_free(opts->conn_properties);
+		}
+		if (opts->sub_properties) {
+			mqtt_property_free(opts->sub_properties);
+		}
+		if (opts->pub_properties) {
+			mqtt_property_free(opts->pub_properties);
 		}
 
 		free(opts);
