@@ -1,6 +1,14 @@
 cmake_minimum_required(VERSION 3.3)
 project(nanomq_cli)
 
+if(DEBUG AND ASAN)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -fsanitize=address")
+endif(DEBUG AND ASAN)
+
+if(DEBUG AND TSAN)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -fsanitize=thread")
+endif(DEBUG AND TSAN)
+
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 include_directories(${CMAKE_SOURCE_DIR}/nng/include/nng)
 
