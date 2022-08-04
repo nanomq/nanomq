@@ -16,7 +16,7 @@ fatal(const char *func, int rv)
 
 nng_msg *
 bridge_publish_msg(const char *topic, uint8_t *payload, uint32_t len, bool dup,
-    uint8_t qos, bool retain)
+    uint8_t qos, bool retain, property *props)
 {
 	int rv;
 
@@ -29,9 +29,29 @@ bridge_publish_msg(const char *topic, uint8_t *payload, uint32_t len, bool dup,
 	nng_mqtt_msg_set_publish_retain(pubmsg, retain);
 	nng_mqtt_msg_set_publish_payload(pubmsg, payload, len);
 	nng_mqtt_msg_set_publish_topic(pubmsg, topic);
+	if (props) {
+		nng_mqtt_msg_set_publish_property(pubmsg, props);
+	}
 	debug_msg("publish to '%s'", topic);
 
 	return pubmsg;
+}
+
+static void
+sub_callback(void *arg)
+{
+	nng_mqtt_client *client = (nng_mqtt_client *) arg;
+	nng_aio *        aio    = client->sub_aio;
+	nng_msg *        msg    = nng_aio_get_msg(aio);
+	uint32_t         count;
+	uint8_t *        code;
+	if (msg) {
+		code = nng_mqtt_msg_get_suback_return_codes(msg, &count);
+		debug_msg("suback %d \n", *(code));
+	}
+	debug_msg("bridge: subscribe result %d \n", nng_aio_result(aio));
+	nng_msg_free(msg);
+	nng_mqtt_client_free(client, true);
 }
 
 // Disconnect message callback function
@@ -60,22 +80,24 @@ bridge_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_CONNECT_PROPERTY, &prop);
 	debug_msg("bridge client connected! RC [%d] \n", reason);
 
-}
+	/* MQTT V5 SUBSCRIBE */
+	if (reason == 0 && param->config->sub_count > 0) {
+		nng_mqtt_topic_qos *topic_qos =
+		    nng_mqtt_topic_qos_array_create(param->config->sub_count);
+		for (size_t i = 0; i < param->config->sub_count; i++) {
+			nng_mqtt_topic_qos_array_set(topic_qos, i,
+			    param->config->sub_list[i].topic,
+			    param->config->sub_list[i].qos);
+		}
 
-static void
-sub_callback(void *arg) {
-	nng_mqtt_client *client = (nng_mqtt_client *) arg;
-	nng_aio *aio = client->sub_aio;
-	nng_msg *msg = nng_aio_get_msg(aio);
-	uint32_t count;
-	uint8_t *code;
-	if (msg) {
-		code = nng_mqtt_msg_get_suback_return_codes(msg, &count);
-		debug_msg("suback %d \n", *(code));
+		nng_mqtt_client *client =
+		    nng_mqtt_client_alloc(*param->sock, sub_callback, true);
+		// Property?
+		nng_mqtt_subscribe_async(
+		    client, topic_qos, param->config->sub_count, NULL);
+		nng_mqtt_topic_qos_array_free(
+		    topic_qos, param->config->sub_count);
 	}
-	debug_msg("bridge: Sub result %d \n", nng_aio_result(aio));
-	nng_msg_free(msg);
-	// nng_free(client, sizeof(*client));
 }
 
 int
@@ -132,24 +154,5 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 
 	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
 
-
-	/* MQTT V5 SUBSCRIBE */
-	if (bridge_arg->config->sub_count > 0) {
-		nng_mqtt_topic_qos *topic_qos =
-		    nng_mqtt_topic_qos_array_create(bridge_arg->config->sub_count);
-		for (size_t i = 0; i < bridge_arg->config->sub_count; i++) {
-			nng_mqtt_topic_qos_array_set(topic_qos, i,
-			    bridge_arg->config->sub_list[i].topic,
-			    bridge_arg->config->sub_list[i].qos);
-		}
-
-		nng_mqtt_client *client =
-		    nng_mqtt_client_alloc(*sock, sub_callback, true);
-		//Property?
-		rv = nng_mqtt_subscribe_async(
-		    client, topic_qos, bridge_arg->config->sub_count, NULL);
-		nng_mqtt_topic_qos_array_free(
-		    topic_qos, bridge_arg->config->sub_count);
-	}
 	return 0;
 }
