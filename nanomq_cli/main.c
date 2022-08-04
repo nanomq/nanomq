@@ -53,8 +53,17 @@ static client_app apps[] = {
 static void
 print_avail_apps(void)
 {
+	printf("nanomq_cli {");
+	size_t count = sizeof(apps) / sizeof(apps[0]);
+	for (size_t i = 0; i < count; i++) {
+		printf(" %s", apps[i].name);
+		if (count > (i + 1)) {
+			printf(" |");
+		}
+	}
+	printf(" } [--help]\n");
 	printf("\navailable tools:\n");
-	for (size_t i = 0; i < sizeof(apps) / sizeof(apps[0]); i++) {
+	for (size_t i = 0; i < count; i++) {
 		printf("   * %s\n", apps[i].name);
 	}
 	printf("\n");
@@ -66,8 +75,7 @@ int
 main(int argc, char **argv)
 {
 	if (argc <= 1) {
-		print_avail_apps();
-		return 0;
+		goto usage;
 	}
 
 	char *app_name = argv[1];
@@ -77,6 +85,9 @@ main(int argc, char **argv)
 			return apps[i].func(argc - 1, argv + 1);
 		}
 	}
+
+usage:
+	print_avail_apps();
 
 	return 0;
 }
