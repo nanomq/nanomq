@@ -169,13 +169,19 @@ bridge_handler(nano_work *work)
 {
 	nng_msg     *smsg;
 	bool        rv = false;
+	property *props = NULL;
+
+	if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
+		mqtt_property_dup(
+		    &props, work->pub_packet->var_header.publish.properties);
+	}
 
 	smsg = bridge_publish_msg(
 	    work->pub_packet->var_header.publish.topic_name.body,
 	    work->pub_packet->payload.data, work->pub_packet->payload.len,
 	    work->pub_packet->fixed_header.dup,
 	    work->pub_packet->fixed_header.qos,
-	    work->pub_packet->fixed_header.retain);
+	    work->pub_packet->fixed_header.retain, props);
 
 	for (size_t t = 0; t < work->config->bridge.count; t++) {
 		conf_bridge_node *node = work->config->bridge.nodes[t];
