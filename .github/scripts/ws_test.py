@@ -67,27 +67,27 @@ class Test(object):
             qos -= 1
         assert 0 == g_recv_times
 
-
-t1 = Test()
-t1.init(prot=MQTTv311)
-t1.assert_test(3, 2, "test/a/b", "test/a/b")
-t1.assert_test(3, 2, "test/+/+", "test/a/b")
-t1.assert_test(3, 2, "test/a/+", "test/a/b")
-t1.assert_test(3, 2, "test/+/b", "test/a/b")
-t1.assert_test(3, 2, "+/+/b", "test/a/b")
-t1.assert_test(3, 2, "+/a/+", "test/a/b")
-t1.assert_test(3, 2, "+/a/b", "test/a/b")
-t1.assert_test(3, 2, "test/#", "test/a/b")
-
-
-t1 = Test()
-t1.init(prot=MQTTv5)
-t1.assert_test(3, 1, "test/a/b", "test/a/b")
-t1.assert_test(3, 1, "test/+/+", "test/a/b")
-t1.assert_test(3, 1, "test/a/+", "test/a/b")
-t1.assert_test(3, 1, "test/+/b", "test/a/b")
-t1.assert_test(3, 1, "+/+/b", "test/a/b")
-t1.assert_test(3, 1, "+/a/+", "test/a/b")
-t1.assert_test(3, 1, "+/a/b", "test/a/b")
-t1.assert_test(3, 1, "test/#", "test/a/b")
+def ws_test():
+    t1 = Test()
+    t1.init(prot=MQTTv311)
+    t1.assert_test(3, 2, "test/a/b", "test/a/b")
+    t1.assert_test(3, 2, "test/+/+", "test/a/b")
+    t1.assert_test(3, 2, "test/a/+", "test/a/b")
+    t1.assert_test(3, 2, "test/+/b", "test/a/b")
+    t1.assert_test(3, 2, "+/+/b", "test/a/b")
+    t1.assert_test(3, 2, "+/a/+", "test/a/b")
+    t1.assert_test(3, 2, "+/a/b", "test/a/b")
+    t1.assert_test(3, 2, "test/#", "test/a/b")
+    
+    
+    t1 = Test()
+    t1.init(prot=MQTTv5)
+    t1.assert_test(3, 1, "test/a/b", "test/a/b")
+    t1.assert_test(3, 1, "test/+/+", "test/a/b")
+    t1.assert_test(3, 1, "test/a/+", "test/a/b")
+    t1.assert_test(3, 1, "test/+/b", "test/a/b")
+    t1.assert_test(3, 1, "+/+/b", "test/a/b")
+    t1.assert_test(3, 1, "+/a/+", "test/a/b")
+    t1.assert_test(3, 1, "+/a/b", "test/a/b")
+    t1.assert_test(3, 1, "test/#", "test/a/b")
 
