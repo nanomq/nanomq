@@ -4,6 +4,7 @@ import time
 import os
 
 from mqtt_test import mqtt_test
+from mqtt_test_v5 import mqtt_v5_test
 from tls_test import tls_test
 
 
@@ -21,6 +22,13 @@ if __name__=='__main__':
         print("mqtt v311 test failed")
         raise AssertionError
     print("mqtt v311 test end")
+
+    print("mqtt v5 test start")
+    if False == mqtt_v5_test():
+        nanomq.terminate()
+        print("mqtt v5 test failed")
+        raise AssertionError
+    print("mqtt v5 test end")
 
     print("tls v311 test start")
     if False == tls_test():
