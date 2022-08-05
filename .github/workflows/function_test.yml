@@ -17,6 +17,7 @@ jobs:
         sudo apt update
         sudo apt install -y cmake ninja-build rpm
         sudo apt install -y pip
+        sudo apt install -y mosquitto-clients
         pip install Jinja2
 
     - uses: actions/checkout@v1
@@ -35,7 +36,7 @@ jobs:
         cd build
         cmake -DDEBUG=ON -DASAN=ON -DNNG_ENABLE_TLS=ON ..
         make
-        ./nanomq/nanomq start --url tls+nmq-tcp://0.0.0.0:8883 --cacert ../etc/certs/cacert.pem --cert ../etc/certs/cert.pem --key ../etc/certs/key.pem --qos_duration 1
+        sudo make install
     - name: test
       run: |
-        python3 .github/scripts/remove_unused.py 
+        python3 .github/scripts/test.py 
