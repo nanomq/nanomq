@@ -13,7 +13,7 @@
 
 NanoMQ bases on NNG's asynchronous I/O threading model, with an extension of MQTT support in the protocol layer and reworked transport layer, plus an enhanced asynchronous IO mechanism maximizing the overall capacity.
 
-NanoMQ currently supports MQTT V3.1.1 and MQTT V5.0.
+NanoMQ fully supports MQTT V3.1.1 and MQTT V5.0.
 
 For more information, please visit [NanoMQ homepage](https://nanomq.io/).
 
@@ -26,7 +26,9 @@ For more information, please visit [NanoMQ homepage](https://nanomq.io/).
 - Pure C/C++ implementation. High portability;
 - Fully asynchronous I/O and multi-threading;
 - Good support for SMP;
-- Low latency & High handling capacity.![nanomq-blueprint](https://static.emqx.com/_nuxt/img/banner-en-bg.4968787.png)
+- Low latency & High handling capacity;
+
+![image](https://user-images.githubusercontent.com/64823539/182988350-f6e2520f-6e6f-46db-b469-685bec977270.png)
 
 ## Quick Start
 
@@ -505,16 +507,6 @@ You could join us on [Slack](https://slack-invite.emqx.io/). We now share a work
 
 [MQTT-Client-Examples](https://github.com/emqx/MQTT-Client-Examples)
 
-### EMQ X Broker
-
-[EMQ X Broker](https://www.emqx.io)
-
-
-
-### HStreamDB
-
-[HStreamDB](https://hstream.io/)
-
 
 
 ## License
@@ -526,4 +518,4 @@ You could join us on [Slack](https://slack-invite.emqx.io/). We now share a work
 ## Authors
 
 
-The EMQ X Edge Computing team.
+The EMQ Edge Computing team.
