@@ -1,12 +1,7 @@
 #!/usr/bin/python3
-from cgi import test
-from curses import termattrs
-from operator import is_
-from re import S, T
 import subprocess
 import shlex
 import os
-import paho.mqtt.client as mqtt
 from multiprocessing import Process, Value
 import time
 import threading
@@ -64,7 +59,6 @@ def cnt_message(cmd, n, pid, message):
     while True:
         output = process.stdout.readline()
         if output.strip() == message:
-            print(output)
             n.value += 1
 
 def test_shared_subscription():
@@ -124,7 +118,7 @@ def test_shared_subscription():
         time.sleep(1)
         if times == 5:
             print("Shared subscription test failed!")
-            return
+            return False
     
     times = 0
     while True:
@@ -138,7 +132,7 @@ def test_shared_subscription():
         time.sleep(1)
         if times == 5:
             print("Shared subscription test failed!")
-            return
+            return False
     
     times = 0
     while True:
@@ -152,9 +146,10 @@ def test_shared_subscription():
         time.sleep(1)
         if times == 5:
             print("Shared subscription test failed!")
-            return
+            return False
 
     print("Shared subscription test passed!")
+    return True
 
 def test_topic_alias():
     pub_cmd = shlex.split("mosquitto_pub -t topic -V 5 -m message -D Publish topic-alias 10 {} -d --repeat 10".format(g_url))
@@ -180,8 +175,11 @@ def test_topic_alias():
     os.kill(pid.value, signal.SIGKILL)
     if cnt.value == 10:
         print("Topic alias test passed!")
+        return True
     else:
         print("Topic alias test failed!")
+        return False
+
 
 
 def test_user_property():
@@ -212,8 +210,10 @@ def test_user_property():
     os.kill(pid.value, signal.SIGKILL)
     if times == 5:
         print("User property test failed!")
+        return False
     else:
         print("User property test passed!")
+        return True
 
 def test_session_expiry():
     print("mosquitto_pub -t topic_test {} -m message -V 5 -q 1".format(g_url))
@@ -240,14 +240,14 @@ def test_session_expiry():
     os.kill(pid.value, signal.SIGKILL)
     if cnt.value != 1:
         print("Session expiry interval test failed")
-        return
+        return False
 
+    # TODO use another connection, test if we can not get message
     # process2 = subprocess.Popen(pub_cmd,
     #                            stdout=subprocess.PIPE,
     #                            universal_newlines=True)
     # cnt = Value('i', 0)
     # pid = Value('i', 0)
-    # print("fuck")
     # process3 = Process(target=cnt_message, args=(sub_cmd, cnt, pid, "message"))
     # process3.start()
     # time.sleep(2)
@@ -258,6 +258,7 @@ def test_session_expiry():
     #     print("Session expiry interval test passed!")
     # else:
     #     print("Session expiry interval test failed")
+    return True
 
 def test_message_expiry():
     pub_cmd = shlex.split("mosquitto_pub -t topic_test {} -m message -V 5 -q 1 -D publish message-expiry-interval 3 -r".format(g_url))
@@ -277,7 +278,7 @@ def test_message_expiry():
     os.kill(pid.value, signal.SIGKILL)
     if cnt.value != 1:
         print("Message expiry interval test failed!")
-        return
+        return False
 
     time.sleep(3)
 
@@ -289,11 +290,13 @@ def test_message_expiry():
     os.kill(pid.value, signal.SIGKILL)
     if cnt.value == 1:
         print("Message expiry interval test passed!")
+        return True
     else:
         print("Message expiry interval test failed!")
+        return False
 
 def test_retain_as_publish():
-    pub_retain_cmd = shlex.split("mosquitto_pub -t topic {} -V 5 -m message -d --retain".format(g_url))
+    pub_retain_cmd = shlex.split("mosquitto_pub -t topic {} -V 5 -m retain/as/published -d --retain".format(g_url))
     sub_retain_cmd = shlex.split("mosquitto_sub -t topic {} -V 5 --retain-as-published -d".format(g_url))
     sub_common_cmd = shlex.split("mosquitto_sub -t topic {} -V 5 -d".format(g_url))
     pub_clean_retain_cmd = shlex.split("mosquitto_pub -t topic {} -V 5 -m \"\" -d".format(g_url))
@@ -313,8 +316,10 @@ def test_retain_as_publish():
 
     time.sleep(1)
 
+    ret = True
     if cnt.value != 1 or cnt1.value != 1:
         print("Retain As Published test failed!")
+        ret = False
     else:
         print("Retain As Published test passed!")
 
@@ -331,13 +336,15 @@ def test_retain_as_publish():
     os.kill(pid2.value, signal.SIGKILL)
 
     time.sleep(2)
+    return ret
     # clear_subclients()
 
-if __name__ == '__main__':
+def mqtt_v5_test():
     # test_message_expiry()
-    test_session_expiry()
-    # test_user_property()
-    # test_shared_subscription()
-    # test_topic_alias()
-    # test_retain_as_publish()
+    ret1 = test_session_expiry()
+    ret2 = test_user_property()
+    ret3 = test_shared_subscription()
+    ret4 = test_topic_alias()
+    ret5 = test_retain_as_publish()
+    return ret1 and ret2 and ret3 and ret4 and ret5
 
