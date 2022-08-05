@@ -1,10 +1,7 @@
 #!/usr/bin/python3
-from cgi import test
-from re import T
 import subprocess
 import shlex
 import os
-import paho.mqtt.client as mqtt
 from multiprocessing import Process, Value
 import time
 import signal
@@ -55,6 +52,7 @@ def test_clean_session():
 
     time.sleep(5)
     process.terminate()
+    assert cnt.value == 1, "clean session test failed!"
     if cnt.value == 1:
         print("clean session test passed!")
     else:

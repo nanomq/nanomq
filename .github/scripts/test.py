@@ -1,6 +1,9 @@
+from cgi import print_arguments
 import subprocess
 import shlex
 import time
+
+from mqtt_test import mqtt_test
 
 
 if __name__=='__main__':
@@ -12,22 +15,11 @@ if __name__=='__main__':
                            universal_newlines=True)
 
     time.sleep(1)
-    sub = subprocess.Popen(sub, 
-                           stdout=subprocess.PIPE,
-                           universal_newlines=True)
-    time.sleep(1)
-    pub = subprocess.Popen(pub, 
-                           stdout=subprocess.PIPE,
-                           universal_newlines=True)
 
-    while True:
-        output = sub.stdout.readline()
-        print(output)
-        break
-        if output.strip() == "msg":
-            break
+    print("mqtt test start")
+    mqtt_test()
+    print("mqtt test end")
 
 
-    time.sleep(10)
     nanomq.terminate()
 
