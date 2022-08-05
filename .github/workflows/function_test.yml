@@ -9,7 +9,7 @@ on:
 
 jobs:
   build_packages:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     steps:
     - name: install lib
@@ -22,7 +22,7 @@ jobs:
 
     - uses: actions/checkout@v1
     - run: git submodule update --init --recursive
-    - name: build && test
+    - name: build
       run: |
         set -eu
         git clone https://github.com/Mbed-TLS/mbedtls.git && cd mbedtls

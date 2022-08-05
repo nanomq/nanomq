@@ -8,6 +8,7 @@ from mqtt_test_v5 import mqtt_v5_test
 from tls_test import tls_test
 from tls_v5_test import tls_v5_test
 from ws_test import ws_test
+from ws_v5_test import ws_v5_test
 
 
 if __name__=='__main__':
@@ -53,6 +54,11 @@ if __name__=='__main__':
         raise AssertionError
     print("ws v311 test end")
 
-
+    print("ws v5 test start")
+    if False == ws_v5_test():
+        nanomq.terminate()
+        print("ws v5 test failed")
+        raise AssertionError
+    print("ws v5 test end")
 
     nanomq.terminate()
