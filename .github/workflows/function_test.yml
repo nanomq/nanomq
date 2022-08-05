@@ -1,0 +1,41 @@
+name: Function test
+
+on:
+  push:
+  pull_request:
+  release:
+    types:
+    - published
+
+jobs:
+  build_packages:
+    runs-on: ubuntu-20.04
+
+    steps:
+    - name: install lib
+      run: |
+        sudo apt update
+        sudo apt install -y cmake ninja-build rpm
+        sudo apt install -y pip
+        pip install Jinja2
+
+    - uses: actions/checkout@v1
+    - run: git submodule update --init --recursive
+    - name: build && test
+      run: |
+        set -eu
+        git clone https://github.com/Mbed-TLS/mbedtls.git && cd mbedtls
+        mkdir build && cd build
+        cmake ..
+        cmake --build .
+        sudo make install
+        cd ../..
+
+        mkdir -p build
+        cd build
+        cmake -DDEBUG=ON -DASAN=ON -DNNG_ENABLE_TLS=ON ..
+        make
+        ./nanomq/nanomq start --url tls+nmq-tcp://0.0.0.0:8883 --cacert ../etc/certs/cacert.pem --cert ../etc/certs/cert.pem --key ../etc/certs/key.pem --qos_duration 1
+    - name: test
+      run: |
+        python3 .github/scripts/remove_unused.py 
