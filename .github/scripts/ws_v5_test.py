@@ -208,7 +208,8 @@ def ws_session_expiry_interval():
     # t4 = Thread(target=func, args=(MQTTv5, "sub", "session/expiry/interval", properties))
     # t4.start()
 
-ws_v4_v5_test()
-ws_user_properties()
-ws_topic_alias()
-ws_session_expiry_interval()
+def ws_v5_test():
+    ws_v4_v5_test()
+    ws_user_properties()
+    ws_topic_alias()
+    ws_session_expiry_interval()
