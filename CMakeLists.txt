@@ -289,10 +289,10 @@ message("Install prefix: " ${CMAKE_INSTALL_PREFIX})
 FILE(GLOB CONFIG_FILES "${PROJECT_SOURCE_DIR}/etc/*.conf")
 
 if (NOT WIN32 AND NOT CYGWIN)
-  install(FILES ${CONFIG_FILES}  DESTINATION /etc)
+  install(FILES ${CONFIG_FILES}  DESTINATION ${CMAKE_INSTALL_PREFIX}/etc)
 else ()
-  install(FILES ${CONFIG_FILES}  DESTINATION config)
-  install(FILES libwinpthread-1.dll DESTINATION bin)
+  install(FILES ${CONFIG_FILES}  DESTINATION ${CMAKE_INSTALL_PREFIX}config)
+  install(FILES libwinpthread-1.dll DESTINATION ${CMAKE_INSTALL_PREFIX}bin)
 endif ()
 
 
