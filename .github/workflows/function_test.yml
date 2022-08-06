@@ -17,8 +17,10 @@ jobs:
         sudo apt update
         sudo apt install -y cmake ninja-build rpm
         sudo apt install -y pip
+        sudo apt install -y python3-pip
         sudo apt install -y mosquitto-clients
         pip install Jinja2
+        pip install paho-mqtt
 
     - uses: actions/checkout@v1
     - run: git submodule update --init --recursive

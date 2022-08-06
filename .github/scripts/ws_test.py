@@ -24,7 +24,7 @@ def on_publish(self, obj, mid):
         g_pub_times += 1
 
 class Test(object):
-    def init(self, host="localhost", port=8085, tran='websockets', prot=MQTTv5):
+    def init(self, host="localhost", port=8083, tran='websockets', prot=MQTTv5):
         self._host = host
         self._port = port
         self._tran = tran
