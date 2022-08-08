@@ -60,5 +60,6 @@ if __name__=='__main__':
         print("ws v5 test failed")
         raise AssertionError
     print("ws v5 test end")
+    time.sleep(1)
 
     nanomq.terminate()
