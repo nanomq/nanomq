@@ -210,6 +210,8 @@ def ws_session_expiry_interval():
 
 def ws_v5_test():
     ws_v4_v5_test()
+    time.sleep(1)
     ws_user_properties()
+    time.sleep(1)
     ws_topic_alias()
     # ws_session_expiry_interval()
