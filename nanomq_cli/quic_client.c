@@ -156,7 +156,7 @@ msg_recv_cb(void *rmsg, void * arg)
 	       "payload => %.*s\n",topicsz, topic, payloadsz, payload);
 }
 
-int
+static int
 client(int type, const char *url, const char *qos, const char *topic, const char *data)
 {
 	nng_socket  sock;
@@ -217,7 +217,7 @@ printf_helper(char *exec)
 	exit(EXIT_FAILURE);
 }
 
-static int
+int
 quic_client(int argc, char **argv)
 {
 	int rc;

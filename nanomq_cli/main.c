@@ -48,6 +48,14 @@ static client_app apps[] = {
 	    .func = gateway_start,
 	},
 #endif
+
+#if defined(NNG_SUPP_QUIC)
+	{
+	    .name = "quic",
+	    .func = quic_client,
+	},
+#endif
+
 };
 
 static void
