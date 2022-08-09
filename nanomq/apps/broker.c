@@ -31,6 +31,7 @@
 #include "nng/supplemental/nanolib/mqtt_db.h"
 
 #include "include/bridge.h"
+#include "include/repub.h"
 #include "include/mqtt_api.h"
 #include "include/nanomq.h"
 #include "include/process.h"
@@ -786,10 +787,8 @@ broker(conf *nanomq_conf)
 
 #if defined(SUPP_RULE_ENGINE)
 	conf_rule *cr = &nanomq_conf->rule_eng;
-	uint8_t mask = 1;
 	// TODO do all work in a loop
-	if (cr->option & mask) {
-		mask << 1;
+	if (cr->option & RULE_ENG_SDB) {
 		sqlite3 *sdb;
 		char    *sqlite_path = cr->sqlite_db_path ? cr->sqlite_db_path : "/tmp/rule_engine.db";
 		int rc = sqlite3_open(sqlite_path, &sdb);
@@ -859,8 +858,7 @@ broker(conf *nanomq_conf)
 	}
 
 #if defined(FDB_SUPPORT)
-	if (cr->option & mask) {
-		mask << 1;
+	if (cr->option & RULE_ENG_FDB) {
 		// RULE_ENGINE_FDB:
 		// RULE_ENGINE_SDB:
 		pthread_t   netThread;
@@ -875,6 +873,20 @@ broker(conf *nanomq_conf)
 		nanomq_conf->rule_eng.rdb[1] = (void *) fdb;
 	}
 #endif
+
+	if (cr->option & RULE_ENG_RPB) {
+		for (int i = 0; i < cvector_size(cr->rules); i++) {
+			if (RULE_FORWORD_REPUB == cr->rules[i].forword_type) {
+				int              index = 0;
+				nng_socket *sock  = (nng_socket *) nng_alloc(
+				    sizeof(nng_socket));
+				nano_client(sock, cr->rules[i].repub);
+			}
+
+		}
+	}
+
+
 
 #endif
 
