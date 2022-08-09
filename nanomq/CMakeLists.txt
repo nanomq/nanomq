@@ -46,6 +46,7 @@ set(SOURCES
     webhook_inproc.c
     webhook_post.c
     aws_bridge.c
+    repub.c
     )
     # db_cli.c)
 
