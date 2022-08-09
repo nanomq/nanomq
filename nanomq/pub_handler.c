@@ -15,6 +15,7 @@
 #include "nng/mqtt/packet.h"
 #include "nng/supplemental/nanolib/mqtt_db.h"
 #include "nng/supplemental/nanolib/cJSON.h"
+#include "include/repub.h"
 #include "include/bridge.h"
 #include "include/pub_handler.h"
 #include "include/sub_handler.h"
@@ -855,7 +856,25 @@ rule_engine_insert_sql(nano_work *work)
 			}
 #endif
 
+			if (RULE_ENG_RPB & work->config->rule_eng.option && RULE_FORWORD_REPUB == rules[i].forword_type) {
+				cJSON *jso = NULL;
+				jso        = cJSON_CreateObject();
+
+				for (size_t j = 0; j < 9; j++) {
+					add_info_to_json(
+					    &rules[i], jso, j, work);
+				}
+
+				char *dest = cJSON_PrintUnformatted(jso);
+				repub_t *repub = rules[i].repub;
+
+				nano_client_publish(repub->sock, repub->topic, dest, strlen(dest), 0, NULL);
+
+				cJSON_free(dest);
+				cJSON_Delete(jso);
+			}
 			if (RULE_ENG_SDB & work->config->rule_eng.option && RULE_FORWORD_SQLITE == rules[i].forword_type) {
+
 
 				char sql_clause[1024] = "INSERT INTO ";
 				char key[128]         = { 0 };
@@ -912,6 +931,7 @@ rule_engine_insert_sql(nano_work *work)
 				strcat(sql_clause, ";");
 
 				// puts(sql_clause);
+				// TODO maybe each rule to one db
 				debug_msg("%s", sql_clause);
 				sqlite3 *sdb = (sqlite3 *) work->config->rule_eng.rdb[0];
 				char    *err_msg = NULL;
@@ -927,11 +947,14 @@ rule_engine_insert_sql(nano_work *work)
 				}
 
 			}
+		
 		}
 	}
 
 	return 0;
 }
+
+
 #endif
 
 reason_code
