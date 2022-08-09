@@ -25,5 +25,10 @@ if(BUILD_ZMQ_GATEWAY)
   target_link_libraries(nanomq_cli libzmq)
 endif(BUILD_ZMQ_GATEWAY)
 
+if(NNG_ENABLE_QUIC)
+  find_package(msQuic REQUIRED)
+  target_link_libraries(nanomq_cli msquic)
+endif(NNG_ENABLE_QUIC)
+
 install(TARGETS nanomq_cli RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
                                    COMPONENT Tools)
