@@ -34,7 +34,7 @@ nano_client_publish(nng_socket *sock, const char *topic, uint8_t *payload,
 	}
 
 	if ((rv = nng_sendmsg(*sock, pubmsg, NNG_FLAG_ALLOC)) != 0) {
-		// fatal("nng_sendmsg", rv);
+		debug_msg("nng_sendmsg failed %s", nng_strerror(rv));
 	}
 
 	return 0;
@@ -45,10 +45,8 @@ static void
 disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {
 	int reason = 0;
-	// get connect reason
+	// get disconnect reason
 	nng_pipe_get_int(p, NNG_OPT_MQTT_DISCONNECT_REASON, &reason);
-	// property *prop;
-	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_DISCONNECT_PROPERTY, &prop);
 	debug_msg("nano client disconnected! RC [%d] \n", reason);
 }
 
