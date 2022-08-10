@@ -8,6 +8,7 @@
 
 #include "include/nanomq.h"
 
+#if defined(SUPP_RULE_ENGINE)
 static void
 fatal(const char *func, int rv)
 {
@@ -105,3 +106,4 @@ nano_client(nng_socket *sock, repub_t *repub)
 
 	return 0;
 }
+#endif
