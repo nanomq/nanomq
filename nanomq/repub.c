@@ -41,11 +41,15 @@ nano_client_publish(nng_socket *sock, const char *topic, uint8_t *payload,
 }
 
 
-// Disconnect message callback function
 static void
 disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {
-	debug_msg("bridge client disconnected!\n");
+	int reason = 0;
+	// get connect reason
+	nng_pipe_get_int(p, NNG_OPT_MQTT_DISCONNECT_REASON, &reason);
+	// property *prop;
+	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_DISCONNECT_PROPERTY, &prop);
+	debug_msg("nano client disconnected! RC [%d] \n", reason);
 }
 
 // Connack message callback function
