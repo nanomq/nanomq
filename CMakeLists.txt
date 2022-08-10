@@ -14,6 +14,7 @@ include(CheckCCompilerFlag)
 
 option (BUILD_NANOMQ_CLI "Build nanomq CLI" OFF)
 option (BUILD_CLIENT "Build nanomq client" ON)
+option (BUILD_QUIC_CLI "Build quic client" ON)
 option (BUILD_NNG_PROXY "Build nng proxy" ON)
 option (BUILD_ZMQ_GATEWAY "Build zmq gateway" OFF)
 option (BUILD_BENCH "Build nano-bench" OFF)
@@ -188,6 +189,13 @@ if(BUILD_BENCH)
   add_definitions(-DSUPP_BENCH)
 endif()
 
+if(BUILD_QUIC_CLI)
+  set(BUILD_NANOMQ_CLI ON)
+  set(NNG_ENABLE_QUIC ON)
+  set(NNG_PROTO_MQTT_QUIC_CLIENT ON)
+  add_definitions(-DSUPP_QUIC)
+endif()
+
 if(BUILD_NNG_PROXY)
   set(BUILD_NANOMQ_CLI ON)
   add_definitions(-DSUPP_NNG_PROXY)
@@ -268,8 +276,6 @@ endif (ENABLE_JWT)
 if(BUILD_NANOMQ_CLI)
   add_subdirectory(nanomq_cli)
 endif(BUILD_NANOMQ_CLI)
-
-
 
 # Build Windows MSI package with WIX
 if (NANO_PLATFORM_WINDOWS)
