@@ -902,7 +902,7 @@ get_clients(http_msg *msg, kv **params, size_t param_num,
  		const uint8_t *user_name =
  		    conn_param_get_username(cp);
  		if (username != NULL) {
- 			if (strcmp(username, user_name) != 0) {
+ 			if (user_name == NULL || strcmp(username, user_name) != 0) {
  				goto skip;
  			}
  		}
