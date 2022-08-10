@@ -24,7 +24,7 @@ nano_client_publish(nng_socket *sock, const char *topic, uint8_t *payload,
 	nng_msg *pubmsg;
 	nng_mqtt_msg_alloc(&pubmsg, 0);
 	nng_mqtt_msg_set_packet_type(pubmsg, NNG_MQTT_PUBLISH);
-	// nng_mqtt_msg_set_publish_dup(pubmsg, dup);
+	nng_mqtt_msg_set_publish_dup(pubmsg, true);
 	nng_mqtt_msg_set_publish_qos(pubmsg, qos);
 	nng_mqtt_msg_set_publish_payload(pubmsg, payload, len);
 	nng_mqtt_msg_set_publish_topic(pubmsg, topic);
@@ -32,8 +32,8 @@ nano_client_publish(nng_socket *sock, const char *topic, uint8_t *payload,
 		nng_mqtt_msg_set_publish_property(pubmsg, props);
 	}
 
-    if ((rv = nng_sendmsg(*sock, pubmsg, NNG_FLAG_NONBLOCK)) != 0) {
-		fatal("nng_sendmsg", rv);
+	if ((rv = nng_sendmsg(*sock, pubmsg, NNG_FLAG_ALLOC)) != 0) {
+		// fatal("nng_sendmsg", rv);
 	}
 
 	return 0;

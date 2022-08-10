@@ -263,10 +263,18 @@ rule_engine_filter(nano_work *work, rule *info)
 {
 	pub_packet_struct *pp     = work->pub_packet;
 	char	      *topic  = pp->var_header.publish.topic_name.body;
+	conn_param        *cp     = work->cparam;
 	bool               filter = true;
+	if (RULE_FORWORD_REPUB == info->forword_type) {
+		const char *cid = (const char *) conn_param_get_clientid(cp);
+		if (cmp_str(cid, strlen(cid), info->repub->clientid,
+		        RULE_CMP_EQUAL)) {
+			return false;
+		}
+	}
+
 	if (topic_filter(info->topic, topic)) {
 		if (info->filter) {
-			conn_param *cp = work->cparam;
 			for (size_t j = 0; j < 9; j++) {
 				char *val = NULL;
 				if (j < 8) {
@@ -300,6 +308,7 @@ rule_engine_filter(nano_work *work, rule *info)
 						filter = cmp_str(cid,
 						    strlen(cid), val,
 						    info->cmp_type[j]);
+
 						break;
 					case RULE_USERNAME:;
 						const char *username =
@@ -869,6 +878,8 @@ rule_engine_insert_sql(nano_work *work)
 				repub_t *repub = rules[i].repub;
 
 				nano_client_publish(repub->sock, repub->topic, dest, strlen(dest), 0, NULL);
+				// puts(repub->topic);
+				// puts(dest);
 
 				cJSON_free(dest);
 				cJSON_Delete(jso);
