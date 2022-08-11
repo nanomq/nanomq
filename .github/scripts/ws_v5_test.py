@@ -1,4 +1,5 @@
 #!/usr/local/bin/pytest
+import re
 import sys
 import paho.mqtt.client as mqtt
 from paho.mqtt.client import *
@@ -18,7 +19,8 @@ g_sub_times = 0
 
 user_properties = [("filename","test.txt"),("count","1")]
 topic_alias = 10
-session_expiry_interval = 5
+session_expiry_interval = 10
+recv_msg = ""
 
 def on_message_topic_alias(self, obj, msg):
     print("Receive:" + msg.topic+" "+str(msg.qos)+" "+str(msg.payload))
@@ -39,6 +41,9 @@ def on_message_user_property(self, obj, msg):
 def on_message_session_expiry_interval(self, obj, msg):
     print("Receive:" + msg.topic+" "+str(msg.qos)+" "+str(msg.payload))
     assert msg.topic == str(msg.payload, 'utf-8')
+    global recv_msg 
+    recv_msg = str(msg.payload, 'utf-8')
+    
     self.disconnect()
 
 def on_message(self, obj, msg):
@@ -97,7 +102,7 @@ def func(proto, cmd, topic, prop=None):
 
 
     if "session/expiry/interval" == topic and cmd == "sub":
-        mqttc.connect("localhost", 8083, 60, properties=prop)
+        mqttc.connect("localhost", 8083, 60, properties=prop, clean_start=False)
         prop = None
     else:
         mqttc.connect("localhost", 8083, 60)
@@ -168,9 +173,8 @@ def ws_session_expiry_interval():
     # sub beyond session expiry interval
 
     t1 = Thread(target=func, args=(MQTTv5, "sub", "session/expiry/interval", properties))
-    # t1.daemon = True
     t1.start()
-    time.sleep(0.05)
+    time.sleep(0.1)
 
 
     # global g_sub_times
@@ -178,25 +182,19 @@ def ws_session_expiry_interval():
     t2 = Thread(target=func, args=(MQTTv5, "pub", "session/expiry/interval"))
     t2.daemon = True
     t2.start()
-    time.sleep(0.05)
-
-    # TODO
-    # It's temp test, cause I do not know why phao.mqtt interface can not receive session expiry message
-    # sub_cmd = shlex.split("mosquitto_sub -t 'session/expiry/interval' -p 1883 --id whoami/sub -x 5 -c -q 1 -V 5")
-    # process = subprocess.Popen(sub_cmd,
-    #                            stdout=subprocess.PIPE,
-    #                            universal_newlines=True)
-
-    # output = process.stdout.readline()
-    # print(output)
-    # assert output.strip() == 'session/expiry/interval'
+    time.sleep(0.1)
 
     global g_sub_times
     g_sub_times = 1
     t3 = Thread(target=func, args=(MQTTv5, "sub", "session/expiry/interval"))
     t3.daemon = True
     t3.start()
-    time.sleep(5)
+    time.sleep(3)
+
+    global recv_msg 
+    print(recv_msg)
+    assert recv_msg == "session/expiry/interval"
+
 
     # t4 = Thread(target=func, args=(MQTTv5, "pub", "session/expiry/interval"))
     # t4.daemon = True
@@ -210,8 +208,10 @@ def ws_session_expiry_interval():
 
 def ws_v5_test():
     ws_v4_v5_test()
-    time.sleep(1)
+    time.sleep(0.5)
     ws_user_properties()
-    time.sleep(1)
+    time.sleep(0.5)
     ws_topic_alias()
-    # ws_session_expiry_interval()
+    time.sleep(0.5)
+    ws_session_expiry_interval()
+    time.sleep(0.5)
