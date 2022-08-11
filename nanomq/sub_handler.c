@@ -244,7 +244,7 @@ sub_ctx_handle(nano_work *work)
 			dbtree_insert_client(
 			    work->db, topic_str, work->pid.id);
 
-			dbhash_insert_topic(work->pid.id, topic_str);
+			dbhash_insert_topic(work->pid.id, topic_str, tn->qos);
 		}
 
 		// Note.
