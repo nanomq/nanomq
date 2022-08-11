@@ -993,9 +993,10 @@ get_subscriptions(
  			}
  		}
  
- 		/*
- 		topic_node *tn = ctxt->sub_pkt->node;
- 		while (tn) {
+ 		// topic_queue *tn = pt[i]->topic;
+		topic_queue *tq = dbhash_copy_topic_queue(pt[i]->pipe);
+		topic_queue *reap_node = tq;
+ 		while (tq) {
  			cJSON *subscribe = cJSON_CreateObject();
  			if (cid) {
  				cJSON_AddStringToObject(
@@ -1005,12 +1006,14 @@ get_subscriptions(
  				    subscribe, "clientid", "");
  			}
  			cJSON_AddStringToObject(
- 			    subscribe, "topic", tn->it->topic_filter.body);
- 			cJSON_AddNumberToObject(subscribe, "qos", tn->it->qos);
+ 			    subscribe, "topic", tq->topic);
+ 			cJSON_AddNumberToObject(subscribe, "qos", tq->qos);
  			cJSON_AddItemToArray(data_info, subscribe);
- 			tn = tn->next;
+ 			tq = tq->next;
+			nng_free(reap_node->topic, strlen(reap_node->topic));
+			nng_free(reap_node, sizeof(topic_queue));
+			reap_node = tq;
  		}
- 		*/
  	skip:
  		dbhash_ptpair_free(pt[i]);
  	}
@@ -2019,7 +2022,7 @@ handle_subscribe_msg(cJSON *sub_obj, nng_socket *sock)
 			if (!topic_exist) {
 				dbtree_insert_client(db, topic_str, pid);
 
-				dbhash_insert_topic(pid, topic_str);
+				dbhash_insert_topic(pid, topic_str, qos);
 			}
 
 			topic_index++;
