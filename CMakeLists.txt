@@ -21,6 +21,7 @@ option (ENABLE_JWT "Enable jwt library" OFF)
 option (ENABLE_RULE_ENGINE "Enable rule engine" OFF)
 option (ENABLE_AWS_BRIDGE "Enable aws bridge" OFF)
 option (ENABLE_SYSLOG "Enable syslog" ON)
+option (NOLOG "Disable log" OFF)
 
 set (NNG_PROTO_MQTT_BROKER  ON)
 set (NNG_TRANSPORT_MQTT_BROKER_TCP ON)
@@ -119,8 +120,13 @@ if (NANO_PLATFORM_WINDOWS)
   set (ENABLE_SYSLOG OFF)
 endif ()
 
-if (ENABLE_SYSLOG)
-  add_definitions(-DSUPP_SYSLOG)
+if (NOT NOLOG)
+  add_definitions(-DENABLE_LOG)
+
+  if (ENABLE_SYSLOG)
+    add_definitions(-DSUPP_SYSLOG)
+  endif ()
+
 endif ()
 
 set(CMAKE_MODULE_PATH

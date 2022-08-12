@@ -505,15 +505,6 @@ int
 start_rest_server(conf *conf)
 {
 	int rv;
-
-	// 	nng_mtx_alloc(&mtx_log);
-	// 	log_set_lock(log_lock, mtx_log);
-	// 	log_set_level(LOG_DEBUG);
-	// 	logfile = fopen("web_server.log", "a");
-	// #if !defined(NOLOG)
-	// 	log_set_quiet(true);
-	// 	log_add_fp(logfile, LOG_DEBUG);
-	// #endif
 	rv = nng_thread_create(&inproc_thr, inproc_server, &conf->http_server);
 	if (rv != 0) {
 		fatal("cannot start inproc server", rv);
@@ -534,6 +525,4 @@ void
 stop_rest_server(void)
 {
 	nng_thread_destroy(inproc_thr);
-	// fclose(logfile);
-	// nng_mtx_free(mtx_log);
 }
