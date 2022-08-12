@@ -115,7 +115,7 @@ else ()
     set(NANO_PLATFORM_POSIX ON)
 endif ()
 
-if (NOT NANO_PLATFORM_LINUX)
+if (NANO_PLATFORM_WINDOWS)
   set (ENABLE_SYSLOG OFF)
 endif ()
 
