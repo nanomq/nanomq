@@ -16,7 +16,7 @@ file(GLOB CLI_SOURCE "*.c")
 
 add_executable(nanomq_cli ${CLI_SOURCE})
 
-target_link_libraries(nanomq_cli nng)
+target_link_libraries(nanomq_cli nng msquic)
 add_dependencies(nanomq_cli nng)
 
 if(BUILD_ZMQ_GATEWAY)
@@ -24,11 +24,6 @@ if(BUILD_ZMQ_GATEWAY)
   include_directories("${ZeroMQ_INCLUDE_DIR}")
   target_link_libraries(nanomq_cli libzmq)
 endif(BUILD_ZMQ_GATEWAY)
-
-if(NNG_ENABLE_QUIC)
-  find_package(msQuic REQUIRED)
-  target_link_libraries(nanomq_cli msquic)
-endif(NNG_ENABLE_QUIC)
 
 install(TARGETS nanomq_cli RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
                                    COMPONENT Tools)

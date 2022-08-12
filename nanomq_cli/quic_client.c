@@ -34,10 +34,8 @@
 //
 
 #include <nng/nng.h>
-#include <nng/mqtt/mqtt_quic.h>
-#include <nng/mqtt/mqtt_client.h>
-
-#include "msquic.h"
+#include "nng/mqtt/mqtt_client.h"
+#include "nng/mqtt/mqtt_quic.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -150,7 +148,7 @@ msg_recv_cb(void *rmsg, void * arg)
 	uint32_t topicsz, payloadsz;
 
 	char *topic   = (char *)nng_mqtt_msg_get_publish_topic(msg, &topicsz);
-	char *payload = nng_mqtt_msg_get_publish_payload(msg, &payloadsz);
+	char *payload = (char *)nng_mqtt_msg_get_publish_payload(msg, &payloadsz);
 
 	printf("topic   => %.*s\n"
 	       "payload => %.*s\n",topicsz, topic, payloadsz, payload);
