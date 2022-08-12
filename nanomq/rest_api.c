@@ -112,6 +112,12 @@ static endpoints api_ep[] = {
 	    .descr  = "A list of subscriptions of a client",
 	},
 	{
+	    .path   = "/rules/",
+	    .name   = "list_rules",
+	    .method = "GET",
+	    .descr  = "A list of subscriptions in the cluster",
+	},
+	{
 	    .path   = "/mqtt/subscribe",
 	    .name   = "mqtt_subscribe",
 	    .method = "POST",
@@ -190,6 +196,8 @@ static http_msg get_clients(http_msg *msg, kv **params, size_t param_num,
     const char *client_id, const char *username);
 static http_msg get_subscriptions(
     http_msg *msg, kv **params, size_t param_num, const char *client_id);
+static http_msg  get_rules(
+    http_msg *msg, kv **params, size_t param_num, const char *rule_id);
 static http_msg get_tree(http_msg *msg);
 static http_msg post_ctrl(http_msg *msg, const char *type);
 static http_msg get_config(http_msg *msg);
@@ -660,6 +668,18 @@ process_request(http_msg *msg, conf_http_server *config, nng_socket *sock)
 		    strcmp(uri_ct->sub_tree[1]->node, "subscriptions") == 0) {
 			ret = get_subscriptions(msg, uri_ct->params,
 			    uri_ct->params_count, uri_ct->sub_tree[2]->node);
+
+		} else if (uri_ct->sub_count == 2 &&
+		    uri_ct->sub_tree[1]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "rules") == 0) {
+			ret = get_rules(
+			    msg, uri_ct->params, uri_ct->params_count, NULL);
+		} else if (uri_ct->sub_count == 3 &&
+		    uri_ct->sub_tree[2]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "rules") == 0) {
+			ret = get_rules(msg, uri_ct->params,
+			    uri_ct->params_count, uri_ct->sub_tree[2]->node);
+
 		} else if (uri_ct->sub_count == 2 &&
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "topic-tree") == 0) {
@@ -1035,12 +1055,40 @@ get_subscriptions(
 	return res;
 }
 
+static http_msg
+get_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
+{
+	http_msg res = { 0 };
+	res.status   = NNG_HTTP_STATUS_OK;
+
+	cJSON *res_obj   = NULL;
+	cJSON *data_info = NULL;
+	data_info        = cJSON_CreateArray();
+	res_obj          = cJSON_CreateObject();
+	// TODO get config info and compose.
+
+	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+	// cJSON *meta = cJSON_CreateObject();
+	// cJSON_AddItemToObject(res_obj, "meta", meta);
+	// TODO add meta content: page, limit, count
+	cJSON_AddItemToObject(res_obj, "data", data_info);
+
+	char *dest = cJSON_PrintUnformatted(res_obj);
+
+	put_http_msg(
+	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
+
+	cJSON_free(dest);
+	cJSON_Delete(res_obj);
+	return res;
+}
+
 static void *
 get_client_info_cb(uint32_t pid)
 {
 
-	nng_pipe pipe = {.id = pid};
-	conn_param *cp = nng_pipe_cparam(pipe);
+	nng_pipe    pipe = { .id = pid };
+	conn_param *cp   = nng_pipe_cparam(pipe);
 	return (void *) conn_param_get_clientid(cp);
 }
 
