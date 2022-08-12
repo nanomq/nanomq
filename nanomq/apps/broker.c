@@ -785,6 +785,10 @@ broker(conf *nanomq_conf)
 	// add the num of other proto
 	uint64_t num_ctx = nanomq_conf->parallel;
 
+	if (rv = log_init(&nanomq_conf->log) != 0) {
+		fatal("log_init", rv);
+	}
+
 #if defined(SUPP_RULE_ENGINE)
 	conf_rule *cr = &nanomq_conf->rule_eng;
 	// TODO do all work in a loop
@@ -1082,7 +1086,7 @@ broker(conf *nanomq_conf)
 				nng_free(works[i], sizeof(struct work));
 			}
 			nng_free(works, num_ctx * sizeof(struct work *));
-
+			log_fini(&nanomq_conf->log);
 			exit(0);
 		}
 		nng_msleep(6000);

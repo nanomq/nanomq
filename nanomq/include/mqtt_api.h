@@ -18,4 +18,7 @@ extern int decode_common_mqtt_msg(nng_msg **dest, nng_msg *src);
 extern int encode_common_mqtt_msg(
     nng_msg **dest, nng_msg *src, const char *clientid, uint8_t proto_ver);
 
+extern int log_init(conf_log *log);
+extern int log_fini(conf_log *log);
+
 #endif // MQTT_API_H

@@ -11,6 +11,12 @@
 #include "nanomq.h"
 #include "nng/nng.h"
 #include "nng/protocol/mqtt/mqtt_parser.h"
+#include "nng/supplemental/nanolib/log.h"
+#include "nng/supplemental/nanolib/file.h"
+
+#if defined(DEBUG_SYSLOG)
+#include <syslog.h>
+#endif
 
 /**
  * @brief create listener for MQTT 
@@ -174,5 +180,74 @@ encode_common_mqtt_msg(
 	*dest = msg;
 
 	nng_msg_free(src);
+	return 0;
+}
+
+static int
+log_file_init(conf_log *log)
+{
+	if (log->dir != NULL && !nng_file_is_dir(log->dir)) {
+		log_fatal("%s is not a directory, make sure it's "
+		          "created before starting nanomq",
+		    log->dir);
+		return NNG_EINVAL;
+	}
+	log->dir  = log->dir == NULL ? nng_strdup("./") : log->dir;
+	log->file = log->file == NULL ? nng_strdup("nanomq.log") : log->file;
+	size_t path_len = strlen(log->dir) + strlen(log->file) + 3;
+	char * path     = nng_zalloc(path_len);
+	snprintf(path, path_len, "%s%s%s", log->dir,
+	    log->dir[strlen(log->dir) - 1] == '/' ? "" : "/", log->file);
+
+	log->fp = fopen(path, "a");
+	if (log->fp == NULL) {
+		log_fatal("open log file '%s' failed", path);
+		nng_free(path, path_len);
+		return NNG_EINVAL;
+	}
+	nng_free(path, path_len);
+	return 0;
+}
+
+int
+log_init(conf_log *log)
+{
+	int rv = 0;
+	log_set_level(log->level);
+
+	if (0 != (log->type & LOG_TO_CONSOLE)) {
+		log_add_console(log->level);
+	}
+
+	if (0 != (log->type & LOG_TO_FILE)) {
+		if (0 != (rv = log_file_init(log))) {
+			return rv;
+		}
+		log_add_fp(log->fp, log->level);
+	}
+
+#if defined(DEBUG_SYSLOG)
+	if (0 != (log->type & LOG_TO_SYSLOG)) {
+		log_add_syslog("nng-nanomq", log->level);
+	}
+#endif
+
+	return 0;
+}
+
+int
+log_fini(conf_log *log)
+{
+
+	if (0 != (log->type & LOG_TO_FILE)) {
+		fclose(log->fp);
+	}
+
+#if defined(DEBUG_SYSLOG)
+	if (0 != (log->type & LOG_TO_SYSLOG)) {
+		closelog();
+	}
+#endif
+
 	return 0;
 }
