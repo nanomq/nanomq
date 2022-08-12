@@ -127,7 +127,19 @@ static endpoints api_ep[] = {
 	    .path   = "/rules/",
 	    .name   = "create_rule",
 	    .method = "POST",
-	    .descr  = "Create a rule",
+	    .descr  = "Create a rule and return the rule ID",
+	},
+	{
+	    .path   = "/rules/:ruleid",
+	    .name   = "update_rule",
+	    .method = "PUT",
+	    .descr  = "Update the rule and return the rule ID",
+	},
+	{
+	    .path   = "/rules/:ruleid",
+	    .name   = "delete_rule",
+	    .method = "DELETE",
+	    .descr  = "Delete the rule",
 	},
 	{
 	    .path   = "/mqtt/subscribe",
@@ -209,6 +221,10 @@ static http_msg get_clients(http_msg *msg, kv **params, size_t param_num,
 static http_msg get_subscriptions(
     http_msg *msg, kv **params, size_t param_num, const char *client_id);
 static http_msg  get_rules(
+    http_msg *msg, kv **params, size_t param_num, const char *rule_id);
+static http_msg  put_rules(
+    http_msg *msg, kv **params, size_t param_num, const char *rule_id);
+static http_msg  delete_rules(
     http_msg *msg, kv **params, size_t param_num, const char *rule_id);
 static http_msg post_rules(http_msg *msg);
 static http_msg get_tree(http_msg *msg);
@@ -759,6 +775,28 @@ process_request(http_msg *msg, conf_http_server *config, nng_socket *sock)
 			code   = UNKNOWN_MISTAKE;
 			goto exit;
 		}
+	} else if (nng_strcasecmp(msg->method, "PUT") == 0) {
+		if (uri_ct->sub_count == 3 &&
+		    uri_ct->sub_tree[2]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "rules") == 0) {
+			ret = put_rules(msg, uri_ct->params,
+			    uri_ct->params_count, uri_ct->sub_tree[2]->node);
+		} else {
+			status = NNG_HTTP_STATUS_NOT_FOUND;
+			code   = UNKNOWN_MISTAKE;
+			goto exit;
+		}
+	} else if (nng_strcasecmp(msg->method, "DELETE") == 0) {
+		if (uri_ct->sub_count == 3 &&
+		    uri_ct->sub_tree[2]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "rules") == 0) {
+			ret = delete_rules(msg, uri_ct->params,
+			    uri_ct->params_count, uri_ct->sub_tree[2]->node);
+		} else {
+			status = NNG_HTTP_STATUS_NOT_FOUND;
+			code   = UNKNOWN_MISTAKE;
+			goto exit;
+		}
 	} else {
 		status = NNG_HTTP_STATUS_METHOD_NOT_ALLOWED;
 		code   = UNKNOWN_MISTAKE;
@@ -1103,6 +1141,34 @@ post_rules(http_msg *msg)
 	return res;
 
 
+}
+
+static http_msg
+put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
+{
+	http_msg res = { 0 };
+	res.status   = NNG_HTTP_STATUS_OK;
+
+	cJSON *res_obj   = NULL;
+	cJSON *data_info = NULL;
+	data_info        = cJSON_CreateArray();
+	res_obj          = cJSON_CreateObject();
+	// TODO get config info and compose.
+
+	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+	// cJSON *meta = cJSON_CreateObject();
+	// cJSON_AddItemToObject(res_obj, "meta", meta);
+	// TODO add meta content: page, limit, count
+	cJSON_AddItemToObject(res_obj, "data", data_info);
+
+	char *dest = cJSON_PrintUnformatted(res_obj);
+
+	put_http_msg(
+	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
+
+	cJSON_free(dest);
+	cJSON_Delete(res_obj);
+	return res;
 }
 
 static http_msg
