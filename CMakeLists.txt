@@ -31,9 +31,6 @@ set (FDB_DFT_DATABASE NULL)
 if (NNG_ENABLE_TLS) 
   set (NNG_TRANSPORT_MQTT_BROKER_TLS ON)
   set (NNG_TRANSPORT_MQTT_BROKER_WSS ON)
-endif()
-
-if (NNG_ENABLE_TLS)
   add_definitions(-DNNG_SUPP_TLS)
 endif()
 
@@ -191,9 +188,6 @@ endif()
 
 if(BUILD_QUIC_CLI)
   set(BUILD_NANOMQ_CLI ON)
-  set(NNG_ENABLE_QUIC ON)
-  set(NNG_PROTO_MQTT_QUIC_CLIENT ON)
-  add_definitions(-DSUPP_QUIC)
 endif()
 
 if(BUILD_NNG_PROXY)
