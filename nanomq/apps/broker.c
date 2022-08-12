@@ -29,6 +29,7 @@
 #include "nng/supplemental/nanolib/file.h"
 #include "nng/supplemental/nanolib/hash_table.h"
 #include "nng/supplemental/nanolib/mqtt_db.h"
+#include "nng/supplemental/nanolib/log.h"
 
 #include "include/bridge.h"
 #include "include/repub.h"
@@ -227,7 +228,7 @@ server_cb(void *arg)
 
 	switch (work->state) {
 	case INIT:
-		debug_msg("INIT ^^^^ ctx%d ^^^^\n", work->ctx.id);
+		log_debug("INIT ^^^^ ctx%d ^^^^\n", work->ctx.id);
 		work->state = RECV;
 		if (work->proto == PROTO_MQTT_BROKER) {
 			nng_ctx_recv(work->ctx, work->aio);
@@ -236,9 +237,9 @@ server_cb(void *arg)
 		}
 		break;
 	case RECV:
-		debug_msg("RECV  ^^^^ ctx%d ^^^^\n", work->ctx.id);
+		log_debug("RECV  ^^^^ ctx%d ^^^^\n", work->ctx.id);
 		if ((rv = nng_aio_result(work->aio)) != 0) {
-			debug_msg("ERROR: RECV nng aio result error: %d", rv);
+			log_error("RECV nng aio result error: %d", rv);
 			if (work->proto == PROTO_MQTT_BRIDGE) {
 				nng_ctx_recv(work->ctx, work->aio);
 			} else {
@@ -288,13 +289,13 @@ server_cb(void *arg)
 
 			if ((work->sub_pkt = nng_alloc(
 			         sizeof(packet_subscribe))) == NULL)
-				debug_msg("ERROR: nng_alloc");
+				log_error("nng_alloc");
 			memset(work->sub_pkt, '\0', sizeof(packet_subscribe));
 
 			if ((rv = decode_sub_msg(work)) != 0 ||
 			    (rv = sub_ctx_handle(work)) != 0) {
 				work->code = rv;
-				debug_msg("ERROR: sub_handler: [%d]", rv);
+				log_error("sub_handler: [%d]", rv);
 			}
 
 			// TODO not all codes needs to close the pipe
@@ -314,13 +315,13 @@ server_cb(void *arg)
 
 			// TODO Error handling
 			if (0 != (rv = encode_suback_msg(smsg, work)))
-				debug_msg("error in encode suback: [%d]", rv);
+				log_error("error in encode suback: [%d]", rv);
 
 			sub_pkt_free(work->sub_pkt);
 			// handle retain (Retain flag handled in npipe)
 			work->msg = NULL;
 			if (work->msg_ret) {
-				debug_msg("retain msg [%p] size [%ld] \n",
+				log_debug("retain msg [%p] size [%ld] \n",
 				    work->msg_ret,
 				    cvector_size(work->msg_ret));
 				for (int i = 0;
@@ -353,15 +354,15 @@ server_cb(void *arg)
 			smsg = work->msg;
 			if ((work->unsub_pkt = nng_alloc(
 			         sizeof(packet_unsubscribe))) == NULL)
-				debug_msg("ERROR: nng_alloc");
+				log_error("nng_alloc");
 
 			if ((rv = decode_unsub_msg(work)) != 0 ||
 			    (rv = unsub_ctx_handle(work)) != 0) {
-				debug_msg("ERROR: unsub_handler [%d]", rv);
+				log_error("unsub_handler [%d]", rv);
 			}
 
 			if (0 != (rv = encode_unsuback_msg(smsg, work)))
-				debug_msg("error in unsuback [%d]", rv);
+				log_error("in unsuback [%d]", rv);
 
 			// free unsub_pkt
 			unsub_pkt_free(work->unsub_pkt);
@@ -447,8 +448,6 @@ server_cb(void *arg)
 			// free client ctx
 			if (dbhash_check_id(work->pid.id)) {
 				destroy_sub_client(work->pid.id, work->db);
-			} else {
-				debug_msg("ERROR it should not happen");
 			}
 			if (conn_param_get_will_flag(work->cparam) == 0 ||
 			    !conn_param_get_will_topic(work->cparam) ||
@@ -468,17 +467,17 @@ server_cb(void *arg)
 		break;
 	case WAIT:
 		// do not access to cparam
-		debug_msg("WAIT ^^^^ ctx%d ^^^^", work->ctx.id);
+		log_debug("WAIT ^^^^ ctx%d ^^^^", work->ctx.id);
 		if (nng_msg_get_type(work->msg) == CMD_PUBLISH) {
 			if ((rv = nng_aio_result(work->aio)) != 0) {
-				debug_msg("WAIT nng aio result error: %d", rv);
+				log_error("WAIT nng aio result error: %d", rv);
 				fatal("WAIT nng_ctx_recv/send", rv);
 			}
 			smsg      = work->msg; // reuse the same msg
 			cvector(mqtt_msg_info) msg_infos;
 			msg_infos = work->pipe_ct->msg_infos;
 
-			debug_msg("total pipes: %ld", cvector_size(msg_infos));
+			log_debug("total pipes: %ld", cvector_size(msg_infos));
 			if (cvector_size(msg_infos))
 				if (encode_pub_message(smsg, work, PUBLISH))
 					for (int i = 0; i < cvector_size(msg_infos) && rv== 0; ++i) {
@@ -535,7 +534,7 @@ server_cb(void *arg)
 			nng_ctx_recv(work->ctx, work->aio);
 			break;
 		} else {
-			debug_msg("broker has nothing to do");
+			log_debug("broker has nothing to do");
 			if (work->msg != NULL)
 				nng_msg_free(work->msg);
 			work->msg   = NULL;
@@ -545,7 +544,7 @@ server_cb(void *arg)
 		}
 		break;
 	case SEND:
-		debug_msg("SEND ^^^^ ctx%d ^^^^", work->ctx.id);
+		log_debug("SEND ^^^^ ctx%d ^^^^", work->ctx.id);
 #if defined(SUPP_RULE_ENGINE)
 		if (work->flag == CMD_PUBLISH && work->config->rule_eng.option != RULE_ENG_OFF) {
 			rule_engine_insert_sql(work);
@@ -581,10 +580,10 @@ server_cb(void *arg)
 		}
 		break;
 	case END:
-		debug_msg("END ^^^^ ctx%d ^^^^ ", work->ctx.id);
+		log_debug("END ^^^^ ctx%d ^^^^ ", work->ctx.id);
 		if (nng_msg_get_type(work->msg) == CMD_PUBLISH) {
 			if ((rv = nng_aio_result(work->aio)) != 0) {
-				debug_msg("WAIT nng aio result error: %d", rv);
+				log_error("WAIT nng aio result error: %d", rv);
 				fatal("WAIT nng_ctx_recv/send", rv);
 			}
 			smsg      = work->msg; // reuse the same msg
@@ -593,7 +592,7 @@ server_cb(void *arg)
 			cvector(mqtt_msg_info) msg_infos;
 			msg_infos = work->pipe_ct->msg_infos;
 
-			debug_msg("total pipes: %ld", cvector_size(msg_infos));
+			log_debug("total pipes: %ld", cvector_size(msg_infos));
 			//TODO encode abstract msg only
 			if (cvector_size(msg_infos))
 				if (encode_pub_message(smsg, work, PUBLISH))
@@ -667,7 +666,7 @@ server_cb(void *arg)
 		conn_param_free(work->cparam);
 		break;
 	case CLOSE:
-		debug_msg(" CLOSE ^^^^ ctx%d ^^^^", work->ctx.id);
+		log_debug(" CLOSE ^^^^ ctx%d ^^^^", work->ctx.id);
 		smsg = nano_dismsg_composer(work->code, NULL, NULL, NULL);
 		nng_msg_free(work->msg);
 		work->msg = smsg;
@@ -797,7 +796,7 @@ broker(conf *nanomq_conf)
 		char    *sqlite_path = cr->sqlite_db_path ? cr->sqlite_db_path : "/tmp/rule_engine.db";
 		int rc = sqlite3_open(sqlite_path, &sdb);
 		if (rc != SQLITE_OK) {
-			debug_msg("Cannot open database: %s\n", sqlite3_errmsg(sdb));
+			log_fatal("Cannot open database: %s\n", sqlite3_errmsg(sdb));
 			sqlite3_close(sdb);
 			exit(1);
 		}
@@ -850,7 +849,7 @@ broker(conf *nanomq_conf)
 				// puts(table);
 				rc = sqlite3_exec(sdb, table, 0, 0, &err_msg);
 				if (rc != SQLITE_OK) {
-					debug_msg("SQL error: %s\n", err_msg);
+					log_error("SQL error: %s\n", err_msg);
 					sqlite3_free(err_msg);
 					sqlite3_close(sdb);
 					return 1;
@@ -869,7 +868,7 @@ broker(conf *nanomq_conf)
 		fdb_error_t err =
 		    fdb_select_api_version(FDB_API_VERSION);
 		if (err) {
-			debug_msg("select API version error: %s",
+			log_error("select API version error: %s",
 			    fdb_get_error(err));
 			exit(1);
 		}
@@ -897,11 +896,11 @@ broker(conf *nanomq_conf)
 	// init tree
 	dbtree_create(&db);
 	if (db == NULL) {
-		debug_msg("NNL_ERROR error in db create");
+		log_error("NNL_ERROR error in db create");
 	}
 	dbtree_create(&db_ret);
 	if (db_ret == NULL) {
-		debug_msg("NNL_ERROR error in db create");
+		log_error("NNL_ERROR error in db create");
 	}
 
 	dbhash_init_cached_table();
@@ -1192,7 +1191,7 @@ status_check(int *pid)
 {
 #ifdef NANO_PLATFORM_WINDOWS
 	(void) pid;
-	debug_msg("Not support on Windows\n");
+	log_warn("Not support on Windows\n");
 	return -1;
 #else
 	char  *data = NULL;
@@ -1201,26 +1200,26 @@ status_check(int *pid)
 	int rc;
 	if ((rc = nng_file_get(PID_PATH_NAME, (void *) &data, &size)) != 0) {
 		nng_free(data, size);
-		debug_msg(".pid file not found or unreadable\n");
+		log_warn(".pid file not found or unreadable\n");
 		return 1;
 	} else {
 		if ((data) != NULL) {
 			sscanf(data, "%u", pid);
-			debug_msg("pid read, [%u]", *pid);
+			log_info("pid read, [%u]", *pid);
 			nng_free(data, size);
 
 			if ((kill(*pid, 0)) == 0) {
-				debug_msg("there is a running NanoMQ instance "
+				log_info("there is a running NanoMQ instance "
 				          ": pid [%u]",
 				    *pid);
 				return 0;
 			}
 		}
 		if (!nng_file_delete(PID_PATH_NAME)) {
-			debug_msg(".pid file is removed");
+			log_info(".pid file is removed");
 			return 1;
 		}
-		debug_msg("unexpected error");
+		log_error("unexpected error");
 		return -1;
 	}
 #endif
@@ -1233,7 +1232,7 @@ store_pid()
 	char pid_c[12] = "";
 
 	sprintf(pid_c, "%d", nng_getpid());
-	debug_msg("%s", pid_c);
+	log_info("%s", pid_c);
 
 	status = nng_file_put(PID_PATH_NAME, pid_c, sizeof(pid_c));
 	return status;
@@ -1245,12 +1244,12 @@ active_conf(conf *nanomq_conf)
 	// check if daemonlize
 #ifdef NANO_PLATFORM_WINDOWS
 	if (nanomq_conf->daemon) {
-		fprintf(stderr, "Daemon mode is not supported on Windows\n");
+		log_error("Daemon mode is not supported on Windows");
 		exit(EXIT_FAILURE);
 	}
 #else
 	if (nanomq_conf->daemon == true && process_daemonize()) {
-		fprintf(stderr, "Error occurs, cannot daemonize\n");
+		log_error("Error occurs, cannot daemonize");
 		exit(EXIT_FAILURE);
 	}
 #endif
@@ -1547,7 +1546,7 @@ broker_start(int argc, char **argv)
 	active_conf(nanomq_conf);
 
 	if (store_pid()) {
-		debug_msg("create \"nanomq.pid\" file failed");
+		log_error("create \"nanomq.pid\" file failed");
 	}
 
 	rc = broker(nanomq_conf);
@@ -1600,7 +1599,7 @@ broker_restart(int argc, char **argv)
 int
 broker_restart(int argc, char **argv)
 {
-	fprintf(stderr, "Not support on Windows\n");
+	log_error("Not support on Windows\n");
 	exit(EXIT_SUCCESS);
 }
 
@@ -1608,7 +1607,7 @@ broker_restart(int argc, char **argv)
 int
 broker_stop(int argc, char **argv)
 {
-	fprintf(stderr, "Not support on Windows\n");
+	log_error("Not support on Windows\n");
 	exit(EXIT_SUCCESS);
 }
 

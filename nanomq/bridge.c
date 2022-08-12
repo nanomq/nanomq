@@ -2,6 +2,7 @@
 #include "nng/mqtt/mqtt_client.h"
 #include "nng/nng.h"
 #include "nng/protocol/mqtt/mqtt.h"
+#include "nng/supplemental/nanolib/log.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -32,7 +33,7 @@ bridge_publish_msg(const char *topic, uint8_t *payload, uint32_t len, bool dup,
 	if (props) {
 		nng_mqtt_msg_set_publish_property(pubmsg, props);
 	}
-	debug_msg("publish to '%s'", topic);
+	log_debug("publish to '%s'", topic);
 
 	return pubmsg;
 }
@@ -47,9 +48,9 @@ sub_callback(void *arg)
 	uint8_t *        code;
 	if (msg) {
 		code = nng_mqtt_msg_get_suback_return_codes(msg, &count);
-		debug_msg("suback %d \n", *(code));
+		log_debug("suback %d \n", *(code));
 	}
-	debug_msg("bridge: subscribe result %d \n", nng_aio_result(aio));
+	log_debug("bridge: subscribe result %d \n", nng_aio_result(aio));
 	nng_msg_free(msg);
 	nng_mqtt_client_free(client, true);
 }
@@ -63,7 +64,7 @@ disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	nng_pipe_get_int(p, NNG_OPT_MQTT_DISCONNECT_REASON, &reason);
 	// property *prop;
 	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_DISCONNECT_PROPERTY, &prop);
-	debug_msg("bridge client disconnected! RC [%d] \n", reason);
+	log_warn("bridge client disconnected! RC [%d] \n", reason);
 }
 
 // Connack message callback function
@@ -78,7 +79,7 @@ bridge_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	// get property for MQTT V5
 	// property *prop;
 	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_CONNECT_PROPERTY, &prop);
-	debug_msg("bridge client connected! RC [%d] \n", reason);
+	log_info("bridge client connected! RC [%d] \n", reason);
 
 	/* MQTT V5 SUBSCRIBE */
 	if (reason == 0 && param->config->sub_count > 0) {

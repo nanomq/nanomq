@@ -11,6 +11,7 @@
 #include "include/sub_handler.h"
 #include "nng/protocol/mqtt/mqtt_parser.h"
 #include "nng/supplemental/nanolib/nanolib.h"
+#include "nng/supplemental/nanolib/log.h"
 #include "nng/nng.h"
 #include "nng/protocol/mqtt/mqtt.h"
 
@@ -51,14 +52,14 @@ decode_unsub_msg(nano_work *work)
 		}
 	}
 
-	debug_msg("remain_len: [%ld] packet_id : [%d]", remaining_len,
+	log_debug("remain_len: [%ld] packet_id : [%d]", remaining_len,
 	    unsub_pkt->packet_id);
 
 	// handle payload
 	payload_ptr = nng_msg_payload_ptr(msg);
 
 	if ((tn = nng_alloc(sizeof(topic_node))) == NULL) {
-		debug_msg("ERROR: nng_alloc");
+		log_debug("nng_alloc");
 		return NNG_ENOMEM;
 	}
 	unsub_pkt->node = tn;
@@ -72,15 +73,15 @@ decode_unsub_msg(nano_work *work)
 			tn->topic.len = len_of_topic;
 		} else {
 			tn->reason_code = UNSPECIFIED_ERROR;
-			debug_msg("ERROR: not utf-8 format string.");
+			log_debug("not utf-8 format string.");
 			return PROTOCOL_ERROR;
 		}
 
-		debug_msg("bpos+vpos: [%d] remain_len: [%ld]", bpos + vpos,
+		log_debug("bpos+vpos: [%d] remain_len: [%ld]", bpos + vpos,
 		    remaining_len);
 		if (bpos < remaining_len - vpos) {
 			if ((tn = nng_alloc(sizeof(topic_node))) == NULL) {
-				debug_msg("ERROR: nng_alloc");
+				log_debug("nng_alloc");
 				return NNG_ENOMEM;
 			}
 			tn->next  = NULL;
@@ -111,7 +112,7 @@ encode_unsuback_msg(nng_msg *msg, nano_work *work)
 	// handle variable header first
 	NNI_PUT16(packet_id, unsub_pkt->packet_id);
 	if ((rv = nng_msg_append(msg, packet_id, 2)) != 0) {
-		debug_msg("ERROR: nng_msg_append");
+		log_debug("nng_msg_append");
 		return PROTOCOL_ERROR;
 	}
 
@@ -128,29 +129,29 @@ encode_unsuback_msg(nng_msg *msg, nano_work *work)
 			reason_code = tn->reason_code;
 			if ((rv = nng_msg_append(
 			         msg, (uint8_t *) &reason_code, 1)) != 0) {
-				debug_msg("ERROR: nng_msg_append [%d]", rv);
+				log_debug("nng_msg_append [%d]", rv);
 				return PROTOCOL_ERROR;
 			}
 			tn = tn->next;
-			debug_msg("reason_code: [%x]", reason_code);
+			log_debug("reason_code: [%x]", reason_code);
 		}
 	}
 
 	// handle fixed header
 	cmd = CMD_UNSUBACK;
 	if ((rv = nng_msg_header_append(msg, (uint8_t *) &cmd, 1)) != 0) {
-		debug_msg("ERROR: nng_msg_header_append [%d]", rv);
+		log_debug("nng_msg_header_append [%d]", rv);
 		return PROTOCOL_ERROR;
 	}
 
 	remaining_len = (uint32_t) nng_msg_len(msg);
 	len_of_varint = put_var_integer(varint, remaining_len);
 	if ((rv = nng_msg_header_append(msg, varint, len_of_varint)) != 0) {
-		debug_msg("ERROR: nng_msg_header_append [%d]", rv);
+		log_debug("nng_msg_header_append [%d]", rv);
 		return PROTOCOL_ERROR;
 	}
 
-	debug_msg("unsuback:"
+	log_debug("unsuback:"
 	          " remain: [%d]"
 	          " varint: [%d %d %d %d]"
 	          " len: [%d]"
@@ -184,17 +185,17 @@ unsub_ctx_handle(nano_work *work)
 
 		// parse topic string
 		topic_str = nng_strndup(tn->topic.body, tn->topic.len);
-		debug_msg(
+		log_debug(
 		    "find client [%s] in topic [%s].", client_id, topic_str);
 
 		rv = sub_ctx_del(work->db, topic_str, work->pid.id);
 
 		if (rv == 0) { // find the topic
 			tn->reason_code = 0x00;
-			debug_msg("find and delete this client.");
+			log_debug("find and delete this client.");
 		} else { // not find the topic
 			tn->reason_code = 0x11;
-			debug_msg("not find and response ack.");
+			log_debug("not find and response ack.");
 		}
 
 		// free local varibale
@@ -206,7 +207,7 @@ unsub_ctx_handle(nano_work *work)
 	// check treeDB
 	//	print_db_tree(work->db);
 
-	debug_msg("end of unsub ctx handle.\n");
+	log_debug("end of unsub ctx handle.\n");
 	return 0;
 }
 
@@ -214,11 +215,11 @@ void
 unsub_pkt_free(packet_unsubscribe *unsub_pkt)
 {
 	if (!unsub_pkt) {
-		debug_msg("ERROR : ctx->sub is nil");
+		log_error("ctx->sub is nil");
 		return;
 	}
 	if (!unsub_pkt->node) {
-		debug_msg("ERROR : not find topic");
+		log_error("not find topic");
 		return;
 	}
 
