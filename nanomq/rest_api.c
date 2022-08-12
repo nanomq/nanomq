@@ -115,7 +115,19 @@ static endpoints api_ep[] = {
 	    .path   = "/rules/",
 	    .name   = "list_rules",
 	    .method = "GET",
-	    .descr  = "A list of subscriptions in the cluster",
+	    .descr  = "Get rule list",
+	},
+	{
+	    .path   = "/rules/:ruleid",
+	    .name   = "get_rule_details",
+	    .method = "GET",
+	    .descr  = "Get the details of a rule",
+	},
+	{
+	    .path   = "/rules/",
+	    .name   = "create_rule",
+	    .method = "POST",
+	    .descr  = "Create a rule",
 	},
 	{
 	    .path   = "/mqtt/subscribe",
@@ -198,6 +210,7 @@ static http_msg get_subscriptions(
     http_msg *msg, kv **params, size_t param_num, const char *client_id);
 static http_msg  get_rules(
     http_msg *msg, kv **params, size_t param_num, const char *rule_id);
+static http_msg post_rules(http_msg *msg);
 static http_msg get_tree(http_msg *msg);
 static http_msg post_ctrl(http_msg *msg, const char *type);
 static http_msg get_config(http_msg *msg);
@@ -701,6 +714,10 @@ process_request(http_msg *msg, conf_http_server *config, nng_socket *sock)
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "configuration") == 0) {
 			ret = post_config(msg);
+		} else if (uri_ct->sub_count == 2 &&
+		    uri_ct->sub_tree[1]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "rules") == 0) {
+			ret = post_rules(msg);
 		} else if (uri_ct->sub_count == 3 &&
 		    uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "mqtt") == 0 &&
@@ -1053,6 +1070,39 @@ get_subscriptions(
  	cJSON_free(dest);
  	cJSON_Delete(res_obj);
 	return res;
+}
+
+static http_msg
+post_rules(http_msg *msg)
+{
+	http_msg res = { .status = NNG_HTTP_STATUS_OK };
+
+	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
+
+	if (!cJSON_IsObject(req)) {
+		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
+		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
+	}
+	cJSON *conf_data = cJSON_GetObjectItem(req, "data");
+	conf * config    = get_global_conf();
+
+	// if (cJSON_IsObject(conf_data)) {
+	// 	update_main_conf(conf_data, config);
+
+	// }
+	cJSON *res_obj = cJSON_CreateObject();
+	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+	char *dest = cJSON_PrintUnformatted(res_obj);
+
+	put_http_msg(
+	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
+
+	cJSON_free(dest);
+	cJSON_Delete(res_obj);
+	cJSON_Delete(req);
+	return res;
+
+
 }
 
 static http_msg
