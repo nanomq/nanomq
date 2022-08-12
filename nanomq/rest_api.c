@@ -1172,6 +1172,34 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 }
 
 static http_msg
+delete_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
+{
+	http_msg res = { 0 };
+	res.status   = NNG_HTTP_STATUS_OK;
+
+	cJSON *res_obj   = NULL;
+	cJSON *data_info = NULL;
+	data_info        = cJSON_CreateArray();
+	res_obj          = cJSON_CreateObject();
+	// TODO get config info and compose.
+
+	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+	// cJSON *meta = cJSON_CreateObject();
+	// cJSON_AddItemToObject(res_obj, "meta", meta);
+	// TODO add meta content: page, limit, count
+	cJSON_AddItemToObject(res_obj, "data", data_info);
+
+	char *dest = cJSON_PrintUnformatted(res_obj);
+
+	put_http_msg(
+	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
+
+	cJSON_free(dest);
+	cJSON_Delete(res_obj);
+	return res;
+}
+
+static http_msg
 get_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 {
 	http_msg res = { 0 };
