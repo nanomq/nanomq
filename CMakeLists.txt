@@ -188,6 +188,7 @@ endif()
 
 if(BUILD_QUIC_CLI)
   set(BUILD_NANOMQ_CLI ON)
+  add_definitions(-DSUPP_QUIC)
 endif()
 
 if(BUILD_NNG_PROXY)
