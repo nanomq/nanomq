@@ -75,7 +75,7 @@ endif(ENABLE_JWT)
 if(NNG_ENABLE_QUIC)
   target_link_libraries(nanomq msquic)
 endif(NNG_ENABLE_QUIC)
-target_link_libraries(nanomq apps nng)
+target_link_libraries(nanomq apps nng msquic)
 target_link_libraries(nanomq nng)
 target_compile_definitions(nanomq PRIVATE -DPARALLEL=${PARALLEL})
 
