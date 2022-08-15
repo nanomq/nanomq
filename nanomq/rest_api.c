@@ -1178,6 +1178,13 @@ post_rules(http_msg *msg)
 				    	sizeof(nng_socket));
 			cr->rules[cvector_size(cr->rules) - 1]
 			    .repub = repub;
+			cr->rules[cvector_size(cr->rules) - 1]
+			    .raw_sql = nng_strdup(rawsql);
+			cr->rules[cvector_size(cr->rules) - 1]
+			    .enabled = true;
+			cr->rules[cvector_size(cr->rules) - 1]
+			    .rule_id = rule_generate_rule_id();
+			
 			nano_client(sock, repub);
 
 		} else if (!strcasecmp(name, "sqlite")) {
@@ -1188,6 +1195,12 @@ post_rules(http_msg *msg)
 						printf("table: %s\n", jso_param->valuestring);
 						cr->rules[cvector_size(cr->rules) - 1]
 						    .sqlite_table = nng_strdup(jso_param->valuestring);
+						cr->rules[cvector_size(cr->rules) - 1]
+						    .raw_sql = nng_strdup(rawsql);
+						cr->rules[cvector_size(cr->rules) - 1]
+						    .enabled = true;
+						cr->rules[cvector_size(cr->rules) - 1]
+						    .rule_id = rule_generate_rule_id();
 					}
 				}
 			}
@@ -1202,6 +1215,15 @@ post_rules(http_msg *msg)
 	char *desc= cJSON_GetStringValue(jso_desc);
 	printf("%s\n", desc);
 
+	cJSON *res_obj = cJSON_CreateObject();
+ 	cJSON *data_info = cJSON_CreateObject();
+	cJSON *actions = cJSON_CreateArray();
+
+	cJSON_AddStringToObject(data_info, "rawsql", cr->rules[cvector_size(cr->rules) - 1].raw_sql);
+	cJSON_AddNumberToObject(data_info, "id", cr->rules[cvector_size(cr->rules) - 1].rule_id);
+	cJSON_AddBoolToObject(data_info, "enabled", cr->rules[cvector_size(cr->rules) - 1].enabled);
+	cJSON_AddItemToObject(res_obj, "data", data_info);
+	cJSON_AddItemToObject(res_obj, "actions", actions);
 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
 	char *dest = cJSON_PrintUnformatted(res_obj);
 
