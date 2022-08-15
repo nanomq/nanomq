@@ -14,6 +14,7 @@
 #include "nng/supplemental/util/platform.h"
 #include "include/broker.h"
 #include "include/nanomq.h"
+#include "include/repub.h"
 #include "include/sub_handler.h"
 #include "include/version.h"
 
@@ -1121,14 +1122,86 @@ post_rules(http_msg *msg)
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 	}
-	cJSON *conf_data = cJSON_GetObjectItem(req, "data");
-	conf * config    = get_global_conf();
 
-	// if (cJSON_IsObject(conf_data)) {
-	// 	update_main_conf(conf_data, config);
+	conf * config   = get_global_conf();
+	conf_rule *cr = &config->rule_eng;
 
-	// }
-	cJSON *res_obj = cJSON_CreateObject();
+	cJSON *jso_sql = cJSON_GetObjectItem(req, "rawsql");
+	char *rawsql = cJSON_GetStringValue(jso_sql);
+	printf("rawsql: %s\n", rawsql);
+
+	cJSON *jso_actions = cJSON_GetObjectItem(req, "actions");
+	cJSON *jso_action = NULL;
+	cJSON_ArrayForEach(jso_action, jso_actions) {
+		cJSON *jso_name = cJSON_GetObjectItem(jso_action, "name");
+		char  *name     = cJSON_GetStringValue(jso_name);
+		printf("name: %s\n", name);
+		cJSON *jso_params = cJSON_GetObjectItem(jso_action, "params");
+		cJSON *jso_param  = NULL;
+		rule_sql_parse(cr, rawsql);
+		if (!nng_strcasecmp(name, "repub")) {
+			cr->option |= RULE_ENG_RPB;
+			repub_t *repub = (repub_t *) nng_alloc(sizeof(repub_t));
+			cr->rules[cvector_size(cr->rules) - 1].forword_type = RULE_FORWORD_REPUB;
+			cJSON_ArrayForEach(jso_param, jso_params) {
+				if (jso_param) {
+					if (!nng_strcasecmp(jso_param->string, "topic")) {
+						repub->topic = nng_strdup(jso_param->valuestring);
+						printf("topic: %s\n", jso_param->valuestring);
+					} else if (!nng_strcasecmp(jso_param->string, "address")) {
+						repub->address = nng_strdup(jso_param->valuestring);
+						printf("address: %s\n", jso_param->valuestring);
+					} else if (!nng_strcasecmp(jso_param->string, "proto_ver")) {
+						repub->proto_ver = jso_param->valueint;
+						printf("proto_ver: %d\n", jso_param->valueint);
+					} else if (!nng_strcasecmp(jso_param->string, "keepalive")) {
+						repub->keepalive = jso_param->valueint;
+						printf("keepalive: %d\n", jso_param->valueint);
+					} else if (!nng_strcasecmp(jso_param->string, "clientid")) {
+						repub->clientid = nng_strdup(jso_param->valuestring);
+						printf("clientid: %s\n", jso_param->valuestring);
+					} else if (!nng_strcasecmp(jso_param->string, "username")) {
+						repub->username = nng_strdup(jso_param->valuestring);
+						printf("username: %s\n", jso_param->valuestring);
+					} else if (!nng_strcasecmp(jso_param->string, "password")) {
+						repub->password = nng_strdup(jso_param->valuestring);
+						printf("password: %s\n", jso_param->valuestring);
+					} else if (!nng_strcasecmp(jso_param->string, "clean_start")) {
+						repub->clean_start = !nng_strcasecmp(jso_param->string, "true");
+						printf("clean_start: %s\n", jso_param->valuestring);
+					} else {
+						puts("Unsupport key word!");
+					}
+				}
+			}
+			nng_socket *sock  = (nng_socket *) nng_alloc(
+				    	sizeof(nng_socket));
+			cr->rules[cvector_size(cr->rules) - 1]
+			    .repub = repub;
+			nano_client(sock, repub);
+
+		} else if (!strcasecmp(name, "sqlite")) {
+			cr->rules[cvector_size(cr->rules) - 1].forword_type = RULE_FORWORD_SQLITE;
+			cJSON_ArrayForEach(jso_param, jso_params) {
+				if (jso_param) {
+					if (!nng_strcasecmp(jso_param->string, "table")) {
+						printf("table: %s\n", jso_param->valuestring);
+						cr->rules[cvector_size(cr->rules) - 1]
+						    .sqlite_table = nng_strdup(jso_param->valuestring);
+					}
+				}
+			}
+
+		} else {
+			printf("Unsupport forword type !");
+		}
+
+	}
+
+	cJSON *jso_desc = cJSON_GetObjectItem(req, "description");
+	char *desc= cJSON_GetStringValue(jso_desc);
+	printf("%s\n", desc);
+
 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
 	char *dest = cJSON_PrintUnformatted(res_obj);
 
@@ -1139,8 +1212,6 @@ post_rules(http_msg *msg)
 	cJSON_Delete(res_obj);
 	cJSON_Delete(req);
 	return res;
-
-
 }
 
 static http_msg
