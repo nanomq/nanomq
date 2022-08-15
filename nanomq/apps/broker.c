@@ -88,7 +88,11 @@ enum options {
 	OPT_TLS_KEY,
 	OPT_TLS_KEYPASS,
 	OPT_TLS_VERIFY_PEER,
-	OPT_TLS_FAIL_IF_NO_PEER_CERT
+	OPT_TLS_FAIL_IF_NO_PEER_CERT,
+	OPT_LOG_LEVEL,
+	OPT_LOG_STDOUT,
+	OPT_LOG_FILE,
+	OPT_LOG_SYSLOG,
 };
 
 static nng_optspec cmd_opts[] = {
@@ -142,6 +146,10 @@ static nng_optspec cmd_opts[] = {
 	{ .o_name = "keypass", .o_val = OPT_TLS_KEYPASS, .o_arg = true },
 	{ .o_name = "verify", .o_val = OPT_TLS_VERIFY_PEER },
 	{ .o_name = "fail", .o_val = OPT_TLS_FAIL_IF_NO_PEER_CERT },
+	{ .o_name = "log_level", .o_val = OPT_LOG_LEVEL, .o_arg = true },
+	{ .o_name = "log_stdout", .o_val = OPT_LOG_STDOUT, .o_arg = true },
+	{ .o_name = "log_syslog", .o_val = OPT_LOG_SYSLOG, .o_arg = true },
+	{ .o_name = "log_file", .o_val = OPT_LOG_FILE, .o_arg = true },
 	{ .o_name = NULL, .o_val = 0 },
 };
 
@@ -1184,6 +1192,21 @@ print_usage(void)
 	printf("  --fail                     Server will fail if the client "
 	       "does not have a \r\n                             "
 	       "certificate to send (default: false)\n");
+	printf("  --log_level   <level>      The level of log output \n       "
+	       "                      "
+	       "(level: trace, debug, info, warn, error, fatal)\n             "
+	       "                "
+	       "(default: warn)\n");
+	printf("  --log_file    <file_path>  The path of the log file \n");
+	printf(
+	    "  --log_stdout  <true|false> Enable/Disable console log output "
+	    "(default: true)\n");
+
+#if defined(SUPP_SYSLOG)
+	printf("  --log_syslog  <true|false> Enable/Disable syslog output "
+	       "(default: false)\n");
+#endif
+
 }
 
 int
@@ -1433,6 +1456,44 @@ broker_parse_opts(int argc, char **argv, conf *config)
 			break;
 		case OPT_HTTP_PORT:
 			config->http_server.port = atoi(arg);
+			break;
+		case OPT_LOG_LEVEL:
+			config->log.level = log_level_num(arg);
+			break;
+		case OPT_LOG_FILE:
+			FREE_NONULL(config->log.file);
+			FREE_NONULL(config->log.dir);
+			config->log.type |= LOG_TO_FILE;
+			char *file_name = strrchr(arg, '/');
+			if (file_name) {
+				config->log.file = nng_strdup(file_name);
+				config->log.dir =
+				    nng_strndup(arg, file_name - arg);
+			} else {
+				config->log.file = nng_strdup(arg);
+			}
+			break;
+		case OPT_LOG_SYSLOG:
+#if defined(SUPP_SYSLOG)
+			if (nng_strcasecmp("true", arg) == 0) {
+				config->log.type |= LOG_TO_SYSLOG;
+			} else if (nng_strcasecmp("false", arg) == 0) {
+				config->log.type &= ~LOG_TO_SYSLOG;
+			}
+#else
+			fprintf(stderr,
+			    "Syslog is not supported, please make sure you "
+			    "have built nanomq with option '-D ENABLE_SYSLOG=ON' "
+			    ".\n");
+			exit(EXIT_FAILURE);
+#endif
+			break;
+		case OPT_LOG_STDOUT:
+			if (nng_strcasecmp("true", arg) == 0) {
+				config->log.type |= LOG_TO_CONSOLE;
+			} else if (nng_strcasecmp("false", arg) == 0) {
+				config->log.type &= ~LOG_TO_CONSOLE;
+			}
 			break;
 
 		default:
