@@ -1300,14 +1300,25 @@ get_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 
 	cJSON *res_obj   = NULL;
 	cJSON *data      = NULL;
-	data             = cJSON_CreateArray();
+	uint32_t id = 0;
 	res_obj          = cJSON_CreateObject();
 
-	puts(rule_id);
-	
+	if (rule_id) {
+		sscanf(rule_id, "rule:%d", &id);
+		data = cJSON_CreateObject();
+	} else {
+		data = cJSON_CreateArray();
+	}
+
 	conf * config   = get_global_conf();
 	conf_rule *cr = &config->rule_eng;
 	for (int i = 0; i < cvector_size(cr->rules); i++) {
+		if (rule_id && cr->rules[i].rule_id == id) {
+			cJSON_AddStringToObject(data, "rawsql", cr->rules[i].raw_sql);
+			cJSON_AddNumberToObject(data, "id", cr->rules[i].rule_id);
+			cJSON_AddBoolToObject(data, "enabled", cr->rules[i].enabled);
+			break;
+		}
 		cJSON *data_info          = cJSON_CreateObject();
 		cJSON_AddStringToObject(data_info, "rawsql", cr->rules[i].raw_sql);
 		cJSON_AddNumberToObject(data_info, "id", cr->rules[i].rule_id);
