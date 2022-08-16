@@ -1239,21 +1239,157 @@ post_rules(http_msg *msg)
 static http_msg
 put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 {
-	http_msg res = { 0 };
-	res.status   = NNG_HTTP_STATUS_OK;
+	http_msg res = { .status = NNG_HTTP_STATUS_OK };
 
-	cJSON *res_obj   = NULL;
-	cJSON *data_info = NULL;
-	data_info        = cJSON_CreateArray();
-	res_obj          = cJSON_CreateObject();
-	// TODO get config info and compose.
+	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
 
-	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
-	// cJSON *meta = cJSON_CreateObject();
-	// cJSON_AddItemToObject(res_obj, "meta", meta);
-	// TODO add meta content: page, limit, count
+	if (!cJSON_IsObject(req)) {
+		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
+		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
+	}
+
+	conf      *config = get_global_conf();
+	conf_rule *cr     = &config->rule_eng;
+	uint32_t  id     = 0;
+	rule *re = NULL;
+
+	sscanf(rule_id, "rule:%u", &id);
+	int i;
+	for (i = 0; i < cvector_size(cr->rules); i++) {
+		if (rule_id && cr->rules[i].rule_id == id) {
+			re = &cr->rules[i];
+			break;
+		}
+	}
+
+	cJSON *jso_sql = cJSON_GetObjectItem(req, "rawsql");
+	if (NULL != jso_sql) {
+		char *rawsql = cJSON_GetStringValue(jso_sql);
+		rule_sql_parse(cr, rawsql);
+
+		if (RULE_FORWORD_REPUB ==  re->forword_type) {
+	 		cr->rules[cvector_size(cr->rules) - 1]
+	 		    .repub = re->repub;
+		} else if (RULE_FORWORD_SQLITE ==  re->forword_type) {
+	 		cr->rules[cvector_size(cr->rules) - 1]
+	 		    .sqlite_table = re->sqlite_table;
+		}
+		
+	}
+
+	cJSON *jso_enabled = cJSON_GetObjectItem(req, "enabled");
+	if (NULL == jso_sql) {
+		char *enabled = cJSON_GetStringValue(jso_sql);
+		if (!nng_strcasecmp(enabled, "true")) {
+			// TODO reconnect if false ====> true
+			re->enabled = true;
+
+		} else if (!nng_strcasecmp(enabled, "false")) {
+			// TODO disconnect if true ====> false
+			// return 
+			re->enabled = false;
+		}
+
+	}
+
+	// TODO support multi actions
+	// cJSON *jso_actions = cJSON_GetObjectItem(req, "actions");
+	// if (NULL != jso_actions) {
+	// 	cJSON *jso_action = NULL;
+	// 	cJSON_ArrayForEach(jso_action, jso_actions) {
+	// 		cJSON *jso_name = cJSON_GetObjectItem(jso_action, "name");
+	// 		char  *name     = cJSON_GetStringValue(jso_name);
+	// 		printf("name: %s\n", name);
+	// 		cJSON *jso_params = cJSON_GetObjectItem(jso_action, "params");
+	// 		cJSON *jso_param  = NULL;
+	// 		if (!nng_strcasecmp(name, "repub")) {
+	// 			cr->option |= RULE_ENG_RPB;
+	// 			repub_t *repub = (repub_t *) nng_alloc(sizeof(repub_t));
+	// 			cr->rules[cvector_size(cr->rules) - 1].forword_type = RULE_FORWORD_REPUB;
+	// 			cJSON_ArrayForEach(jso_param, jso_params) {
+	// 				if (jso_param) {
+	// 					if (!nng_strcasecmp(jso_param->string, "topic")) {
+	// 						repub->topic = nng_strdup(jso_param->valuestring);
+	// 						printf("topic: %s\n", jso_param->valuestring);
+	// 					} else if (!nng_strcasecmp(jso_param->string, "address")) {
+	// 						repub->address = nng_strdup(jso_param->valuestring);
+	// 						printf("address: %s\n", jso_param->valuestring);
+	// 					} else if (!nng_strcasecmp(jso_param->string, "proto_ver")) {
+	// 						repub->proto_ver = jso_param->valueint;
+	// 						printf("proto_ver: %d\n", jso_param->valueint);
+	// 					} else if (!nng_strcasecmp(jso_param->string, "keepalive")) {
+	// 						repub->keepalive = jso_param->valueint;
+	// 						printf("keepalive: %d\n", jso_param->valueint);
+	// 					} else if (!nng_strcasecmp(jso_param->string, "clientid")) {
+	// 						repub->clientid = nng_strdup(jso_param->valuestring);
+	// 						printf("clientid: %s\n", jso_param->valuestring);
+	// 					} else if (!nng_strcasecmp(jso_param->string, "username")) {
+	// 						repub->username = nng_strdup(jso_param->valuestring);
+	// 						printf("username: %s\n", jso_param->valuestring);
+	// 					} else if (!nng_strcasecmp(jso_param->string, "password")) {
+	// 						repub->password = nng_strdup(jso_param->valuestring);
+	// 						printf("password: %s\n", jso_param->valuestring);
+	// 					} else if (!nng_strcasecmp(jso_param->string, "clean_start")) {
+	// 						repub->clean_start = !nng_strcasecmp(jso_param->string, "true");
+	// 						printf("clean_start: %s\n", jso_param->valuestring);
+	// 					} else {
+	// 						puts("Unsupport key word!");
+	// 					}
+	// 				}
+	// 			}
+	// 			// TODO free and disconnect
+	// 			nng_socket *sock  = (nng_socket *) nng_alloc(
+	// 				    	sizeof(nng_socket));
+	// 			if (NULL == jso_sql) {
+	// 				cr->rules[i].repub = repub;
+	// 			} else {
+	// 				cr->rules[cvector_size(cr->rules) - 1]
+	// 				    .repub = repub;
+	// 				cr->rules[cvector_size(cr->rules) - 1]
+	// 				    .enabled = true;
+	// 				cr->rules[cvector_size(cr->rules) - 1]
+	// 				    .rule_id = id;
+	// 			}
+	// 			nano_client(sock, repub);
+
+	// 		} else if (!strcasecmp(name, "sqlite")) {
+	// 			cr->rules[cvector_size(cr->rules) - 1].forword_type = RULE_FORWORD_SQLITE;
+	// 			cJSON_ArrayForEach(jso_param, jso_params) {
+	// 				if (jso_param) {
+	// 					if (!nng_strcasecmp(jso_param->string, "table")) {
+	// 						printf("table: %s\n", jso_param->valuestring);
+	// 						cr->rules[cvector_size(cr->rules) - 1]
+	// 						    .sqlite_table = nng_strdup(jso_param->valuestring);
+	// 						cr->rules[cvector_size(cr->rules) - 1]
+	// 						    .enabled = true;
+	// 						cr->rules[cvector_size(cr->rules) - 1]
+	// 						    .rule_id = id;
+	// 					}
+	// 				}
+	// 			}
+
+	// 		} else {
+	// 			printf("Unsupport forword type !");
+	// 		}
+
+	// 	}
+
+	// }
+
+	cJSON *jso_desc = cJSON_GetObjectItem(req, "description");
+	// char *desc= cJSON_GetStringValue(jso_desc);
+	// printf("%s\n", desc);
+
+	cJSON *res_obj = cJSON_CreateObject();
+ 	cJSON *data_info = cJSON_CreateObject();
+	cJSON *actions = cJSON_CreateArray();
+
+	cJSON_AddStringToObject(data_info, "rawsql", cr->rules[cvector_size(cr->rules) - 1].raw_sql);
+	cJSON_AddNumberToObject(data_info, "id", cr->rules[cvector_size(cr->rules) - 1].rule_id);
+	cJSON_AddBoolToObject(data_info, "enabled", cr->rules[cvector_size(cr->rules) - 1].enabled);
 	cJSON_AddItemToObject(res_obj, "data", data_info);
-
+	cJSON_AddItemToObject(res_obj, "actions", actions);
+	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
 	char *dest = cJSON_PrintUnformatted(res_obj);
 
 	put_http_msg(
@@ -1261,6 +1397,7 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 
 	cJSON_free(dest);
 	cJSON_Delete(res_obj);
+	cJSON_Delete(req);
 	return res;
 }
 
@@ -1271,16 +1408,28 @@ delete_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 	res.status   = NNG_HTTP_STATUS_OK;
 
 	cJSON *res_obj   = NULL;
-	cJSON *data_info = NULL;
-	data_info        = cJSON_CreateArray();
+	cJSON *data      = NULL;
+	uint32_t id = 0;
 	res_obj          = cJSON_CreateObject();
-	// TODO get config info and compose.
+
+	sscanf(rule_id, "rule:%d", &id);
+
+	conf * config   = get_global_conf();
+	conf_rule *cr = &config->rule_eng;
+	for (int i = 0; i < cvector_size(cr->rules); i++) {
+		if (rule_id && cr->rules[i].rule_id == id) {
+			// TODO free rule
+			rule *re = &cr->rules[i];
+			cvector_erase(cr->rules, i);
+			break;
+		}
+	}
 
 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
 	// cJSON *meta = cJSON_CreateObject();
 	// cJSON_AddItemToObject(res_obj, "meta", meta);
 	// TODO add meta content: page, limit, count
-	cJSON_AddItemToObject(res_obj, "data", data_info);
+	cJSON_AddItemToObject(res_obj, "data", data);
 
 	char *dest = cJSON_PrintUnformatted(res_obj);
 
