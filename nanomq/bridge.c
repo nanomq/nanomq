@@ -171,6 +171,7 @@ quic_disconnect_cb(void *rmsg, void *arg)
 	// property *prop;
 	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_DISCONNECT_PROPERTY, &prop);
 	debug_msg("quic bridge client disconnected! RC [%d] \n", reason);
+	nng_msg_free(rmsg);
 }
 
 
@@ -187,6 +188,7 @@ bridge_quic_connect_cb(void *rmsg, void *arg)
 	// property *prop;
 	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_CONNECT_PROPERTY, &prop);
 	debug_msg("quic bridge client connected! RC [%d] \n", reason);
+	nng_msg_free(rmsg);
 
 	/* MQTT V5 SUBSCRIBE */
 	if (reason == 0 && param->config->sub_count > 0) {
