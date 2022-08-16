@@ -1299,16 +1299,27 @@ get_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 	res.status   = NNG_HTTP_STATUS_OK;
 
 	cJSON *res_obj   = NULL;
-	cJSON *data_info = NULL;
-	data_info        = cJSON_CreateArray();
+	cJSON *data      = NULL;
+	data             = cJSON_CreateArray();
 	res_obj          = cJSON_CreateObject();
-	// TODO get config info and compose.
+
+	puts(rule_id);
+	
+	conf * config   = get_global_conf();
+	conf_rule *cr = &config->rule_eng;
+	for (int i = 0; i < cvector_size(cr->rules); i++) {
+		cJSON *data_info          = cJSON_CreateObject();
+		cJSON_AddStringToObject(data_info, "rawsql", cr->rules[i].raw_sql);
+		cJSON_AddNumberToObject(data_info, "id", cr->rules[i].rule_id);
+		cJSON_AddBoolToObject(data_info, "enabled", cr->rules[i].enabled);
+		cJSON_AddItemToArray(data, data_info);
+	}
 
 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
 	// cJSON *meta = cJSON_CreateObject();
 	// cJSON_AddItemToObject(res_obj, "meta", meta);
 	// TODO add meta content: page, limit, count
-	cJSON_AddItemToObject(res_obj, "data", data_info);
+	cJSON_AddItemToObject(res_obj, "data", data);
 
 	char *dest = cJSON_PrintUnformatted(res_obj);
 
