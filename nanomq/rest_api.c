@@ -1118,11 +1118,14 @@ post_rules(http_msg *msg)
 
 	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
 
+
 	if (!cJSON_IsObject(req)) {
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 	}
 
+	cJSON *res_obj = cJSON_CreateObject();
+#if defined(SUPP_RULE_ENGINE)
 	conf * config   = get_global_conf();
 	conf_rule *cr = &config->rule_eng;
 
@@ -1215,7 +1218,6 @@ post_rules(http_msg *msg)
 	char *desc= cJSON_GetStringValue(jso_desc);
 	printf("%s\n", desc);
 
-	cJSON *res_obj = cJSON_CreateObject();
  	cJSON *data_info = cJSON_CreateObject();
 	cJSON *actions = cJSON_CreateArray();
 
@@ -1224,6 +1226,8 @@ post_rules(http_msg *msg)
 	cJSON_AddBoolToObject(data_info, "enabled", cr->rules[cvector_size(cr->rules) - 1].enabled);
 	cJSON_AddItemToObject(res_obj, "data", data_info);
 	cJSON_AddItemToObject(res_obj, "actions", actions);
+#endif
+
 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
 	char *dest = cJSON_PrintUnformatted(res_obj);
 
@@ -1247,6 +1251,9 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 	}
+
+	cJSON *res_obj = cJSON_CreateObject();
+#if defined(SUPP_RULE_ENGINE)
 
 	conf      *config = get_global_conf();
 	conf_rule *cr     = &config->rule_eng;
@@ -1395,7 +1402,6 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 	// char *desc= cJSON_GetStringValue(jso_desc);
 	// printf("%s\n", desc);
 
-	cJSON *res_obj = cJSON_CreateObject();
  	cJSON *data_info = cJSON_CreateObject();
 	cJSON *actions = cJSON_CreateArray();
 
@@ -1404,6 +1410,7 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 	cJSON_AddBoolToObject(data_info, "enabled", new_rule->enabled);
 	cJSON_AddItemToObject(res_obj, "data", data_info);
 	cJSON_AddItemToObject(res_obj, "actions", actions);
+#endif
 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
 	char *dest = cJSON_PrintUnformatted(res_obj);
 
@@ -1429,6 +1436,7 @@ delete_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 
 	sscanf(rule_id, "rule:%d", &id);
 
+#if defined(SUPP_RULE_ENGINE)
 	conf * config   = get_global_conf();
 	conf_rule *cr = &config->rule_eng;
 	for (int i = 0; i < cvector_size(cr->rules); i++) {
@@ -1440,11 +1448,12 @@ delete_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 		}
 	}
 
-	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
 	// cJSON *meta = cJSON_CreateObject();
 	// cJSON_AddItemToObject(res_obj, "meta", meta);
 	// TODO add meta content: page, limit, count
 	cJSON_AddItemToObject(res_obj, "data", data);
+#endif
+	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
 
 	char *dest = cJSON_PrintUnformatted(res_obj);
 
@@ -1466,6 +1475,7 @@ get_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 	cJSON *data      = NULL;
 	uint32_t id = 0;
 	res_obj          = cJSON_CreateObject();
+#if defined(SUPP_RULE_ENGINE)
 
 	if (rule_id) {
 		sscanf(rule_id, "rule:%d", &id);
@@ -1490,11 +1500,12 @@ get_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 		cJSON_AddItemToArray(data, data_info);
 	}
 
-	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
 	// cJSON *meta = cJSON_CreateObject();
 	// cJSON_AddItemToObject(res_obj, "meta", meta);
 	// TODO add meta content: page, limit, count
 	cJSON_AddItemToObject(res_obj, "data", data);
+#endif
+	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
 
 	char *dest = cJSON_PrintUnformatted(res_obj);
 
