@@ -48,6 +48,13 @@ static client_app apps[] = {
 	    .func = gateway_start,
 	},
 #endif
+
+#if defined(SUPP_RULE_ENGINE)
+	{
+	    .name = "rules",
+	    .func = rules_start,
+	},
+#endif
 };
 
 static void
