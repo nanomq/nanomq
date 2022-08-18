@@ -28,34 +28,44 @@ enum options {
 	OPT_LIST,
 	OPT_SHOW,
 	OPT_DELETE,
+	OPT_ID,
+	OPT_SQL,
+	OPT_ENABLED,
+	OPT_ACTIONS
 };
 
 static nng_optspec cmd_opts[] = {
 	{ .o_name = "help", .o_short = 'h', .o_val = OPT_HELP },
 	{ .o_name = "list", .o_short = 'l', .o_val = OPT_LIST },
-	{ .o_name = "show", .o_short = 's', .o_val = OPT_SHOW, .o_arg = true },
-	{ .o_name    = "create",
-	    .o_short = 'c',
-	    .o_val   = OPT_CREATE,
-	    .o_arg   = true },
-	{ .o_name    = "update",
-	    .o_short = 'u',
-	    .o_val   = OPT_UPDATE,
-	    .o_arg   = true },
-	{ .o_name    = "delete",
-	    .o_short = 'd',
-	    .o_val   = OPT_DELETE,
+	{ .o_name = "show", .o_short = 's', .o_val = OPT_SHOW },
+	{ .o_name = "create", .o_short = 'c', .o_val = OPT_CREATE },
+	{ .o_name = "update", .o_short = 'u', .o_val = OPT_UPDATE },
+	{ .o_name = "delete", .o_short = 'd', .o_val = OPT_DELETE },
+	{ .o_name = "id", .o_short = 'i', .o_val = OPT_ID, .o_arg = true },
+	{ .o_name = "sql", .o_val = OPT_SQL, .o_arg = true },
+	{ .o_name = "actions", .o_val = OPT_ACTIONS, .o_arg = true },
+	{ .o_name    = "enabled",
+	    .o_short = 'e',
+	    .o_val   = OPT_ENABLED,
 	    .o_arg   = true },
 	{ .o_name = NULL, .o_val = 0 },
 };
 
 static char help_info[] =
-    "Usage: nanomq_cli rules [--action <rule>]\n\n"
-    "  --create <Rule>                Create a rule \n"
-    "  --update <RuleId>              Update a rule \n"
-    "  --list                         List all rules \n"
-    "  --show <RuleId>                Show a rule \n"
-    "  --delete <RuleId>              Delete a rule \n";
+    "Usage: nanomq_cli rules [command] [<sql>] [<actions>] [-i [<id>]]\n"
+    "                        [-e [<enabled>]]\n\n"
+    "  -c, --create          Create a rule \n"
+    "  -u, --update          Update a rule \n"
+    "  -l, --list            List all rules \n"
+    "  -s, --show            Show a rule \n"
+    "  -d, --delete          Delete a rule \n"
+	"  -i, --id              The rule id\n"
+  	"  -e, --enabled         'true' or 'false' to enable or disable the rule\n"
+	"                        [default: true]\n"
+	"  --sql <Sql>           Filter Condition SQL\n"
+	"  --actions             < Action List in JSON format: [{\"name\":\n"
+    "                        <action_name>, \"params\": {<key>: <value>}}]\n";
+
 
 static void
 send_http(char *method, int id, char *payload)
@@ -268,12 +278,11 @@ rules_parse_opts(int argc, char **argv)
 
 int rules_start(int argc, char **argv)
 {
-	// printf("%s", help_info);
+	if (1 <= argc) {
+		printf("%s", help_info);
+		return -1;
+	}
 	rules_parse_opts(argc, argv);
-	// conf_gateway_parse(conf);
-	// if (-1 != gateway_conf_check_and_set(conf)) {
-	// 	zmq_gateway(conf);
-	// }
 	return 0;
 }
 
