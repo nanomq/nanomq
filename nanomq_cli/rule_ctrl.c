@@ -1,5 +1,6 @@
 #if defined(SUPP_RULE_ENGINE)
 #include "rule_ctrl.h"
+#include <stdint.h>
 #include "nng/nng.h"
 #include "nng/supplemental/http/http.h"
 #include "nng/supplemental/nanolib/cJSON.h"
@@ -62,7 +63,7 @@ static char help_info[] =
 	"  -i, --id              The rule id\n"
   	"  -e, --enabled         'true' or 'false' to enable or disable the rule\n"
 	"                        [default: true]\n"
-	"  --sql <Sql>           Filter Condition SQL\n"
+	"  --sql                 Filter Condition SQL\n"
 	"  --actions             < Action List in JSON format: [{\"name\":\n"
     "                        <action_name>, \"params\": {<key>: <value>}}]\n";
 
@@ -217,6 +218,21 @@ rules_parse_opts(int argc, char **argv)
 	int   val;
 	int   rv;
 
+	typedef enum {
+		RULE_CREATE,
+		RULE_DELETE,
+		RULE_UPDATE,
+		RULE_SHOW,
+		RULE_LIST,
+		RULE_NONE
+	}  rule_cmd;
+
+	rule_cmd cmd          = RULE_NONE;
+	uint32_t id           = 0;
+	uint8_t  enabled      = 0;
+	char     sql[128]     = { 0 };
+	char     actions[128] = { 0 };
+
 	while ((rv = nng_opts_parse(argc, argv, cmd_opts, &val, &arg, &idx)) ==
 	    0) {
 		switch (val) {
@@ -225,24 +241,35 @@ rules_parse_opts(int argc, char **argv)
 			exit(0);
 			break;
 		case OPT_CREATE:
-			cJSON *jso = cJSON_Parse(arg);
-			if (!cJSON_IsObject(jso)) {
-				puts("Params json format illegal");
-				return -1;
-			}
-			send_http("POST", 0, arg);
+			cmd = RULE_CREATE;
 			break;
 		case OPT_UPDATE:
-			send_http("PUT", 0, arg);
+			cmd = RULE_UPDATE;
 			break;
 		case OPT_LIST:
-			send_http("GET", 0, NULL);
+			cmd = RULE_LIST;
 			break;
 		case OPT_SHOW:
-			send_http("GET", atoi(arg), NULL);
+			cmd = RULE_SHOW;
 			break;
 		case OPT_DELETE:
-			send_http("DELETE", atoi(arg), NULL);
+			cmd = RULE_DELETE;
+			break;
+		case OPT_ID:
+			id = atoi(arg);
+			break;
+		case OPT_SQL:
+			snprintf(sql, 128, "%s", arg);
+			break;
+		case OPT_ENABLED:
+			if (!strcmp("true", arg)) {
+				enabled = 2;
+			} else if (!strcmp("false", arg)) {
+				enabled = 1;
+			}
+			break;
+		case OPT_ACTIONS:
+			snprintf(actions, 128, "{ \"actions\":%s }", arg);
 			break;
 		default:
 			break;
@@ -273,12 +300,99 @@ rules_parse_opts(int argc, char **argv)
 		break;
 	}
 
+	char *dest = NULL;
+	cJSON *jso = NULL; // cJSON_CreateObject();
+	switch (cmd)
+	{
+	case RULE_CREATE:
+		if (0 != strlen(actions)) {
+			jso = cJSON_Parse(actions);
+			if (!cJSON_IsObject(jso)) {
+				puts("params json format illegal.");
+				return -1;
+			}
+		}
+
+		if (enabled != 0) {
+			cJSON_AddBoolToObject(jso, "enabled", enabled-1);
+		}
+
+		if (0 != strlen(sql)) {
+			cJSON_AddStringToObject(jso, "rawsql", sql);
+		} else {
+			puts("Error: create rule need set sql.");
+			printf("%s", help_info);
+
+		}
+		dest = cJSON_PrintUnformatted(jso);
+		send_http("POST", 0, dest);
+		break;
+	case RULE_UPDATE:
+		if (0 == id) {
+			puts("Error: update rule need set id.");
+			printf("%s", help_info);
+			return -1;
+		}
+
+		if (0 == strlen(actions) && enabled == 0 && 0 == strlen(sql)) {
+			puts("Error: update rule need set actions or enable status or sql.");
+			printf("%s", help_info);
+			return -1;
+
+		}
+
+		if (0 != strlen(actions)) {
+			jso = cJSON_Parse(actions);
+		} else {
+			jso = cJSON_CreateObject();
+		}
+
+		if (enabled != 0) {
+			cJSON_AddBoolToObject(jso, "enabled", enabled-1);
+		}
+
+		if (0 != strlen(sql)) {
+			cJSON_AddStringToObject(jso, "rawsql", sql);
+		}
+
+		dest = cJSON_PrintUnformatted(jso);
+		puts(dest);
+		send_http("PUT", id, dest);
+		break;
+	case RULE_DELETE:
+		if (0 == id) {
+			puts("Error: delete rule need set id.");
+			printf("%s", help_info);
+			return -1;
+		}
+		send_http("DELETE", id, NULL);
+		break;
+	case RULE_SHOW:
+		if (0 == id) {
+			puts("Error: show specify rule need set id.");
+			printf("%s", help_info);
+			return -1;
+		}
+		send_http("GET", id, NULL);
+		break;
+	case RULE_LIST:
+		send_http("GET", 0, NULL);
+		break;
+	case RULE_NONE:
+		puts("Error: A command is needed (create/update/delete/show/list).");
+		printf("%s", help_info);
+		break;
+	
+	default:
+		break;
+	}
+
 	return rv == -1;
 }
 
 int rules_start(int argc, char **argv)
 {
-	if (1 <= argc) {
+	if (1 >= argc) {
 		printf("%s", help_info);
 		return -1;
 	}
