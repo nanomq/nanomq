@@ -73,8 +73,15 @@ send_http(char *method, int id, char *payload)
 	void *           data;
 	nng_iov          iov;
 
+	char new_url[64] = { 0 };
+	if (0 != id) {
+		snprintf(new_url, 64, "%s/rule:%d", ori_url, id);
+	} else {
+		snprintf(new_url, 64, "%s", ori_url);
+	}
+	
 
-	if (((rv = nng_url_parse(&url, ori_url)) != 0) ||
+	if (((rv = nng_url_parse(&url, new_url)) != 0) ||
 	    ((rv = nng_http_client_alloc(&client, url)) != 0) ||
 	    ((rv = nng_http_req_alloc(&req, url)) != 0) ||
 	    ((rv = nng_http_res_alloc(&res)) != 0) ||
@@ -107,7 +114,9 @@ send_http(char *method, int id, char *payload)
 	nng_http_req_add_header(req, "Authorization", "Basic YWRtaW46cHVibGlj");
 
 	nng_http_req_set_method(req, method);
-	nng_http_req_set_data(req, payload, strlen(payload));
+	if (payload) {
+		nng_http_req_set_data(req, payload, strlen(payload));
+	}
 	nng_http_conn_write_req(conn, req, aio);
 	nng_aio_set_timeout(aio, 1000);
 	nng_aio_wait(aio);
@@ -214,16 +223,16 @@ rules_parse_opts(int argc, char **argv)
 			send_http("POST", 0, arg);
 			break;
 		case OPT_UPDATE:
-			puts(arg);
+			send_http("PUT", 0, arg);
 			break;
 		case OPT_LIST:
-			puts("list");
+			send_http("GET", 0, NULL);
 			break;
 		case OPT_SHOW:
-			puts(arg);
+			send_http("GET", atoi(arg), NULL);
 			break;
 		case OPT_DELETE:
-			puts(arg);
+			send_http("DELETE", atoi(arg), NULL);
 			break;
 		default:
 			break;
