@@ -1177,6 +1177,9 @@ post_rules(http_msg *msg)
 					}
 				}
 			}
+
+
+			// TODO set default key word
 			nng_socket *sock  = (nng_socket *) nng_alloc(
 				    	sizeof(nng_socket));
 			cr->rules[cvector_size(cr->rules) - 1]
@@ -1188,6 +1191,7 @@ post_rules(http_msg *msg)
 			cr->rules[cvector_size(cr->rules) - 1]
 			    .rule_id = rule_generate_rule_id();
 			
+			// TODO FIXME fixed connect error response.
 			nano_client(sock, repub);
 
 		} else if (!strcasecmp(name, "sqlite")) {
@@ -1215,8 +1219,11 @@ post_rules(http_msg *msg)
 	}
 
 	cJSON *jso_desc = cJSON_GetObjectItem(req, "description");
-	char *desc= cJSON_GetStringValue(jso_desc);
-	printf("%s\n", desc);
+	if (jso_desc) {
+		char *desc= cJSON_GetStringValue(jso_desc);
+		printf("%s\n", desc);
+
+	}
 
  	cJSON *data_info = cJSON_CreateObject();
 	cJSON *actions = cJSON_CreateArray();
@@ -1240,6 +1247,7 @@ post_rules(http_msg *msg)
 	return res;
 }
 
+// TODO FIXME fixed enabled status error.
 static http_msg
 put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 {
@@ -1423,6 +1431,8 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 	return res;
 }
 
+
+// TODO FIXME fixed id  is NULL
 static http_msg
 delete_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 {
@@ -1486,18 +1496,37 @@ get_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 
 	conf * config   = get_global_conf();
 	conf_rule *cr = &config->rule_eng;
-	for (int i = 0; i < cvector_size(cr->rules); i++) {
-		if (rule_id && cr->rules[i].rule_id == id) {
-			cJSON_AddStringToObject(data, "rawsql", cr->rules[i].raw_sql);
-			cJSON_AddNumberToObject(data, "id", cr->rules[i].rule_id);
-			cJSON_AddBoolToObject(data, "enabled", cr->rules[i].enabled);
-			break;
+	int i = 0;
+	for (; i < cvector_size(cr->rules); i++) {
+		if (rule_id) {
+			if (cr->rules[i].rule_id == id) {
+				cJSON_AddStringToObject(
+				    data, "rawsql", cr->rules[i].raw_sql);
+				cJSON_AddNumberToObject(
+				    data, "id", cr->rules[i].rule_id);
+				cJSON_AddBoolToObject(
+				    data, "enabled", cr->rules[i].enabled);
+				break;
+			}
+
+		} else {
+			cJSON *data_info = cJSON_CreateObject();
+			cJSON_AddStringToObject(
+			    data_info, "rawsql", cr->rules[i].raw_sql);
+			cJSON_AddNumberToObject(
+			    data_info, "id", cr->rules[i].rule_id);
+			cJSON_AddBoolToObject(
+			    data_info, "enabled", cr->rules[i].enabled);
+			cJSON_AddItemToArray(data, data_info);
 		}
-		cJSON *data_info          = cJSON_CreateObject();
-		cJSON_AddStringToObject(data_info, "rawsql", cr->rules[i].raw_sql);
-		cJSON_AddNumberToObject(data_info, "id", cr->rules[i].rule_id);
-		cJSON_AddBoolToObject(data_info, "enabled", cr->rules[i].enabled);
-		cJSON_AddItemToArray(data, data_info);
+	}
+
+
+	if (rule_id && cvector_size(cr->rules) == i) {
+		cJSON_Delete(res_obj);
+		cJSON_Delete(data);
+		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
+		    MISSING_KEY_REQUEST_PARAMES);
 	}
 
 	// cJSON *meta = cJSON_CreateObject();
@@ -1538,9 +1567,9 @@ get_tree(http_msg *msg)
 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
 	cJSON_AddItemToObject(res_obj, "data", data_info);
 
-	dbtree *       db = get_broker_db();
-	dbtree_info ***vn = (dbtree_info ***) dbtree_get_tree(
-	    db, get_client_info_cb);
+	dbtree        *db = get_broker_db();
+	dbtree_info ***vn =
+	    (dbtree_info ***) dbtree_get_tree(db, get_client_info_cb);
 
 	for (int i = 0; i < cvector_size(vn); i++) {
 		cJSON *data_info_elem = cJSON_CreateArray();
@@ -1577,7 +1606,7 @@ static char *
 mk_str(int n, char **str_arr, char *seperator)
 {
 	size_t len = 0;
-	char * str = NULL;
+	char  *str = NULL;
 	for (size_t i = 0; i < n; i++) {
 		len += strlen(str_arr[i]) + strlen(seperator) + 2;
 	}
