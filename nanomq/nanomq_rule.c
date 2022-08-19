@@ -5,11 +5,34 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include "nng/supplemental/nanolib/cvector.h"
 
 #include "include/nanomq.h"
 
 #if defined(SUPP_RULE_ENGINE)
+
+static char *key_arr[] = {
+	"Qos",
+	"Id",
+	"Topic",
+	"Clientid",
+	"Username",
+	"Password",
+	"Timestamp",
+	"Payload",
+};
+
+static char *type_arr[] = {
+	" INT",
+	" INT",
+	" TEXT",
+	" TEXT",
+	" TEXT",
+	" TEXT",
+	" INT",
+	" TEXT",
+};
+
 static void
 fatal(const char *func, int rv)
 {
@@ -41,7 +64,6 @@ nano_client_publish(nng_socket *sock, const char *topic, uint8_t *payload,
 	return 0;
 }
 
-
 static void
 disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {
@@ -61,8 +83,8 @@ connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 int
 nano_client(nng_socket *sock, repub_t *repub)
 {
-	int           rv;
-	nng_dialer    dialer;
+	int        rv;
+	nng_dialer dialer;
 
 	if (repub->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 		if ((rv = nng_mqttv5_client_open(sock)) != 0) {
@@ -110,3 +132,67 @@ nano_client(nng_socket *sock, repub_t *repub)
 	return 0;
 }
 #endif
+
+int
+nanomq_client_sqlite(conf_rule *cr, bool init_last)
+{
+	// TODO do all work in a loop
+	if (cr->option & RULE_ENG_SDB) {
+		sqlite3 *sdb;
+		int      rc = 0;
+		if (NULL == cr->rdb[0]) {
+			char *sqlite_path = cr->sqlite_db_path
+			    ? cr->sqlite_db_path
+			    : "/tmp/rule_engine.db";
+			rc                = sqlite3_open(sqlite_path, &sdb);
+			if (rc != SQLITE_OK) {
+				debug_msg("Cannot open database: %s\n",
+				    sqlite3_errmsg(sdb));
+				sqlite3_close(sdb);
+				exit(1);
+			}
+			cr->rdb[0] = (void *) sdb;
+		}
+
+		char sqlite_table[1024];
+		for (int i = 0; i < cvector_size(cr->rules); i++) {
+			if (init_last && i != cvector_size(cr->rules) - 1) {
+				continue;
+			}
+			if (RULE_FORWORD_SQLITE == cr->rules[i].forword_type) {
+				int  index      = 0;
+				char table[256] = { 0 };
+
+				snprintf(table, 128,
+				    "CREATE TABLE IF NOT EXISTS %s("
+				    "RowId INTEGER PRIMARY KEY AUTOINCREMENT",
+				    cr->rules[i].sqlite_table);
+				char *err_msg = NULL;
+				bool  first   = true;
+
+				for (; index < 8; index++) {
+					if (!cr->rules[i].flag[index])
+						continue;
+
+					strcat(table, ", ");
+					strcat(table,
+					    cr->rules[i].as[index]
+					        ? cr->rules[i].as[index]
+					        : key_arr[index]);
+					strcat(table, type_arr[index]);
+				}
+				strcat(table, ");");
+				// puts(table);
+				rc = sqlite3_exec(cr->rdb[0], table, 0, 0, &err_msg);
+				if (rc != SQLITE_OK) {
+					debug_msg("SQL error: %s\n", err_msg);
+					sqlite3_free(err_msg);
+					sqlite3_close(sdb);
+					return 1;
+				}
+			}
+		}
+	}
+
+	return 0;
+}
