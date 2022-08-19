@@ -68,6 +68,9 @@ static char help_info[] =
     "                        <action_name>, \"params\": {<key>: <value>}}]\n";
 
 
+// TODO 1. add ip port
+// TODO 2. parse return value.
+
 static void
 send_http(char *method, int id, char *payload)
 {
@@ -184,9 +187,33 @@ send_http(char *method, int id, char *payload)
 		fatal(rv);
 	}
 
-	printf("%.*s\n", (int) len, (char*) data);
+	cJSON *jso = cJSON_ParseWithLength(data, len);
+	cJSON *eles = NULL;
+	// printf("%.*s\n", (int) len, (char*) data);
 
+	if (NULL != (eles = cJSON_GetObjectItem(jso, "data"))) {
+		if (0 != id) {
+			char *val = cJSON_PrintUnformatted(eles);
+			puts(val);
+			cJSON_free(val);
+		} else {
+			cJSON *ele = NULL;
+			cJSON_ArrayForEach(ele, eles)
+			{
+				if (ele) {
+					char *val =
+					    cJSON_PrintUnformatted(ele);
+					puts(val);
+					cJSON_free(val);
+				}
+			}
+		}
 
+	} else {
+		printf("%.*s\n", (int) len, (char*) data);
+	}
+
+	cJSON_Delete(jso);
 
 out:
 	if (url) {
