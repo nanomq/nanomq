@@ -267,7 +267,7 @@ rule_engine_filter(nano_work *work, rule *info)
 	bool               filter = true;
 	if (RULE_FORWORD_REPUB == info->forword_type) {
 		const char *cid = (const char *) conn_param_get_clientid(cp);
-		if (cmp_str(cid, strlen(cid), info->repub->clientid,
+		if (info->repub->clientid && cmp_str(cid, strlen(cid), info->repub->clientid,
 		        RULE_CMP_EQUAL)) {
 			return false;
 		}
