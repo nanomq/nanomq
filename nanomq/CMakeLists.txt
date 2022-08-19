@@ -46,7 +46,7 @@ set(SOURCES
     webhook_inproc.c
     webhook_post.c
     aws_bridge.c
-    repub.c
+    nanomq_rule.c
     )
     # db_cli.c)
 
