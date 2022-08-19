@@ -1286,8 +1286,8 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 	// 3, update actions: need to deal connection，update repub/table.
 
 	sscanf(rule_id, "rule:%u", &id);
-	int i;
-	for (i = 0; i < cvector_size(cr->rules); i++) {
+	int i = 0;
+	for (; i < cvector_size(cr->rules); i++) {
 		if (rule_id && cr->rules[i].rule_id == id) {
 			old_rule = &cr->rules[i];
 			break;
@@ -1308,21 +1308,28 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 		char *sqlite_table = old_rule->sqlite_table;
 		rule_sql_parse(cr, rawsql);
 		new_rule = &cr->rules[cvector_size(cr->rules) - 1];
+		new_rule->raw_sql = nng_strdup(rawsql);
 		new_rule->enabled = true;
 		new_rule->rule_id = id;
 		if (RULE_FORWORD_REPUB == ft) {
 	 		    new_rule->repub = repub;
 		} else if (RULE_FORWORD_SQLITE == ft) {
-	 		    new_rule->sqlite_table = sqlite_table;
+	 		    new_rule->sqlite_table = nng_strdup(sqlite_table);
 		}
+
+		cvector_erase(cr->rules, i);
 		// TODO free old rule
 	} else {
+
+		if (old_rule->repub) {
+			nng_close(*(nng_socket*) old_rule->repub->sock);
+		}
 		new_rule = old_rule;
 	}
 
 	cJSON *jso_enabled = cJSON_GetObjectItem(req, "enabled");
 	if (NULL != jso_enabled) {
-		new_rule->enabled = cJSON_GetStringValue(jso_enabled);
+		new_rule->enabled = cJSON_GetNumberValue(jso_enabled);
 	}
 
 	// TODO support multi actions
@@ -1337,21 +1344,25 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 			cJSON *jso_param  = NULL;
 			if (!nng_strcasecmp(name, "repub")) {
 				cr->option |= RULE_ENG_RPB;
+				if (NULL == new_rule->repub) {
+					new_rule->repub = rule_repub_init();
+					// TODO free new->table
+				}
 				repub_t *repub = new_rule->repub;
 				new_rule->forword_type = RULE_FORWORD_REPUB;
 				cJSON_ArrayForEach(jso_param, jso_params) {
 					if (jso_param) {
 						if (!nng_strcasecmp(jso_param->string, "topic")) {
-							if (repub && repub->topic) {
+							if (repub->topic) {
 								nng_strfree(repub->topic);
 							}
 							repub->topic = nng_strdup(jso_param->valuestring);
 							printf("topic: %s\n", jso_param->valuestring);
 						} else if (!nng_strcasecmp(jso_param->string, "address")) {
-							repub->address = nng_strdup(jso_param->valuestring);
 							if (repub->address) {
 								nng_strfree(repub->address);
 							}
+							repub->address = nng_strdup(jso_param->valuestring);
 							printf("address: %s\n", jso_param->valuestring);
 						} else if (!nng_strcasecmp(jso_param->string, "proto_ver")) {
 							repub->proto_ver = jso_param->valueint;
@@ -1393,9 +1404,13 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 							printf("table: %s\n", jso_param->valuestring);
 							if (new_rule->sqlite_table) {
 								nng_strfree(new_rule->sqlite_table);
+							} else {
+								// TODO free repub;
 							}
 							new_rule->sqlite_table = nng_strdup(jso_param->valuestring);
 							new_rule->rule_id = id;
+							cr->rules[cvector_size(cr->rules) - 1] = *new_rule;
+
 						}
 					}
 				}
@@ -1408,17 +1423,25 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 
 		if ((jso_enabled || jso_actions) && new_rule->enabled) {
 			// TODO nng_mqtt_disconnct()
-			nng_close(*(nng_socket*) old_rule->repub->sock);
-			nng_socket *sock  = (nng_socket *) nng_alloc(
-				    	sizeof(nng_socket));
-			nano_client(sock, new_rule->repub);
+			// if (old_rule->repub) {
+			// 	nng_close(*(nng_socket*) old_rule->repub->sock);
+			// }
+			if (RULE_FORWORD_REPUB == new_rule->forword_type) {
+				nng_socket *sock  = (nng_socket *) nng_alloc(
+					    	sizeof(nng_socket));
+				nano_client(sock, new_rule->repub);
+			} else if (RULE_FORWORD_SQLITE == new_rule->forword_type)
+			{
+				nanomq_client_sqlite(cr, true);
+			}
+			
 		} else if (jso_enabled && false == new_rule->enabled) {
 			// TODO nng_mqtt_disconnct()
 		}
 
 	}
 
-	cJSON *jso_desc = cJSON_GetObjectItem(req, "description");
+	// cJSON *jso_desc = cJSON_GetObjectItem(req, "description");
 	// char *desc= cJSON_GetStringValue(jso_desc);
 	// printf("%s\n", desc);
 
