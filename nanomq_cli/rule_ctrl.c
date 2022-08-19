@@ -207,6 +207,9 @@ out:
 	if (aio) {
 		nng_aio_free(aio);
 	}
+	if (data) {
+		nng_free(data, len);
+	}
 }
 
 
@@ -231,7 +234,7 @@ rules_parse_opts(int argc, char **argv)
 	uint32_t id           = 0;
 	uint8_t  enabled      = 0;
 	char     sql[128]     = { 0 };
-	char     actions[128] = { 0 };
+	char     actions[512] = { 0 };
 
 	while ((rv = nng_opts_parse(argc, argv, cmd_opts, &val, &arg, &idx)) ==
 	    0) {
@@ -269,7 +272,7 @@ rules_parse_opts(int argc, char **argv)
 			}
 			break;
 		case OPT_ACTIONS:
-			snprintf(actions, 128, "{ \"actions\":%s }", arg);
+			snprintf(actions, 512, "{ \"actions\":%s }", arg);
 			break;
 		default:
 			break;
@@ -301,7 +304,7 @@ rules_parse_opts(int argc, char **argv)
 	}
 
 	char *dest = NULL;
-	cJSON *jso = NULL; // cJSON_CreateObject();
+	cJSON *jso = NULL; //cJSON_CreateObject();
 	switch (cmd)
 	{
 	case RULE_CREATE:
@@ -326,6 +329,8 @@ rules_parse_opts(int argc, char **argv)
 		}
 		dest = cJSON_PrintUnformatted(jso);
 		send_http("POST", 0, dest);
+		cJSON_free(dest);
+		cJSON_Delete(jso);
 		break;
 	case RULE_UPDATE:
 		if (0 == id) {
@@ -356,8 +361,9 @@ rules_parse_opts(int argc, char **argv)
 		}
 
 		dest = cJSON_PrintUnformatted(jso);
-		puts(dest);
 		send_http("PUT", id, dest);
+		cJSON_free(dest);
+		cJSON_Delete(jso);
 		break;
 	case RULE_DELETE:
 		if (0 == id) {
