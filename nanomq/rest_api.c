@@ -1145,7 +1145,6 @@ post_rules(http_msg *msg)
 			cr->option |= RULE_ENG_RPB;
 			repub_t *repub = rule_repub_init();
 
-			cr->rules[cvector_size(cr->rules) - 1].forword_type = RULE_FORWORD_REPUB;
 			cJSON_ArrayForEach(jso_param, jso_params) {
 				if (jso_param) {
 					if (!nng_strcasecmp(jso_param->string, "topic")) {
@@ -1185,6 +1184,7 @@ post_rules(http_msg *msg)
 				    MISSING_KEY_REQUEST_PARAMES);
 			}
 			rule_sql_parse(cr, rawsql);
+			cr->rules[cvector_size(cr->rules) - 1].forword_type = RULE_FORWORD_REPUB;
 
 
 			// TODO set default key word
@@ -1204,12 +1204,12 @@ post_rules(http_msg *msg)
 
 		} else if (!strcasecmp(name, "sqlite")) {
 			cr->option |= RULE_ENG_SDB;
-			cr->rules[cvector_size(cr->rules) - 1].forword_type = RULE_FORWORD_SQLITE;
 			cJSON_ArrayForEach(jso_param, jso_params) {
 				if (jso_param) {
 					if (!nng_strcasecmp(jso_param->string, "table")) {
 						printf("table: %s\n", jso_param->valuestring);
 						rule_sql_parse(cr, rawsql);
+						cr->rules[cvector_size(cr->rules) - 1].forword_type = RULE_FORWORD_SQLITE;
 						cr->rules[cvector_size(cr->rules) - 1]
 						    .sqlite_table = nng_strdup(jso_param->valuestring);
 						cr->rules[cvector_size(cr->rules) - 1]
@@ -1342,7 +1342,7 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 				cJSON_ArrayForEach(jso_param, jso_params) {
 					if (jso_param) {
 						if (!nng_strcasecmp(jso_param->string, "topic")) {
-							if (repub->topic) {
+							if (repub && repub->topic) {
 								nng_strfree(repub->topic);
 							}
 							repub->topic = nng_strdup(jso_param->valuestring);
@@ -1408,6 +1408,7 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 
 		if ((jso_enabled || jso_actions) && new_rule->enabled) {
 			// TODO nng_mqtt_disconnct()
+			nng_close(*(nng_socket*) old_rule->repub->sock);
 			nng_socket *sock  = (nng_socket *) nng_alloc(
 				    	sizeof(nng_socket));
 			nano_client(sock, new_rule->repub);
