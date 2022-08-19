@@ -14,7 +14,7 @@
 #include "nng/supplemental/util/platform.h"
 #include "include/broker.h"
 #include "include/nanomq.h"
-#include "include/repub.h"
+#include "include/nanomq_rule.h"
 #include "include/sub_handler.h"
 #include "include/version.h"
 
@@ -1141,10 +1141,10 @@ post_rules(http_msg *msg)
 		printf("name: %s\n", name);
 		cJSON *jso_params = cJSON_GetObjectItem(jso_action, "params");
 		cJSON *jso_param  = NULL;
-		rule_sql_parse(cr, rawsql);
 		if (!nng_strcasecmp(name, "repub")) {
 			cr->option |= RULE_ENG_RPB;
-			repub_t *repub = (repub_t *) nng_alloc(sizeof(repub_t));
+			repub_t *repub = rule_repub_init();
+
 			cr->rules[cvector_size(cr->rules) - 1].forword_type = RULE_FORWORD_REPUB;
 			cJSON_ArrayForEach(jso_param, jso_params) {
 				if (jso_param) {
@@ -1177,6 +1177,14 @@ post_rules(http_msg *msg)
 					}
 				}
 			}
+			if (NULL == repub->address || NULL == repub->topic) {
+				cJSON_Delete(req);
+				cJSON_Delete(res_obj);
+				rule_repub_free(repub);
+				return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
+				    MISSING_KEY_REQUEST_PARAMES);
+			}
+			rule_sql_parse(cr, rawsql);
 
 
 			// TODO set default key word
@@ -1195,11 +1203,13 @@ post_rules(http_msg *msg)
 			nano_client(sock, repub);
 
 		} else if (!strcasecmp(name, "sqlite")) {
+			cr->option |= RULE_ENG_SDB;
 			cr->rules[cvector_size(cr->rules) - 1].forword_type = RULE_FORWORD_SQLITE;
 			cJSON_ArrayForEach(jso_param, jso_params) {
 				if (jso_param) {
 					if (!nng_strcasecmp(jso_param->string, "table")) {
 						printf("table: %s\n", jso_param->valuestring);
+						rule_sql_parse(cr, rawsql);
 						cr->rules[cvector_size(cr->rules) - 1]
 						    .sqlite_table = nng_strdup(jso_param->valuestring);
 						cr->rules[cvector_size(cr->rules) - 1]
@@ -1208,6 +1218,7 @@ post_rules(http_msg *msg)
 						    .enabled = true;
 						cr->rules[cvector_size(cr->rules) - 1]
 						    .rule_id = rule_generate_rule_id();
+						nanomq_client_sqlite(cr, true);
 					}
 				}
 			}
