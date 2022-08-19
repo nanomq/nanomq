@@ -15,7 +15,7 @@
 #include "nng/mqtt/packet.h"
 #include "nng/supplemental/nanolib/mqtt_db.h"
 #include "nng/supplemental/nanolib/cJSON.h"
-#include "include/repub.h"
+#include "include/nanomq_rule.h"
 #include "include/bridge.h"
 #include "include/pub_handler.h"
 #include "include/sub_handler.h"

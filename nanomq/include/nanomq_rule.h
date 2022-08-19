@@ -1,7 +1,8 @@
-#ifndef NANOMQ_REPUB_H
-#define NANOMQ_REPUB_H
+#ifndef NANOMQ_RULE_H
+#define NANOMQ_RULE_H
 
 #include "nng/mqtt/mqtt_client.h"
+#include "nng/supplemental/sqlite/sqlite3.h"
 #include "nng/supplemental/nanolib/conf.h"
 #include "nng/nng.h"
 #include <stdio.h>
@@ -13,4 +14,4 @@ extern int nano_client_publish(nng_socket *sock, const char *topic,
     uint8_t *payload, uint32_t len, uint8_t qos, property *props);
 #endif
 
-#endif // NANOMQ_REPUB_H
+#endif // NANOMQ_RULE_H

@@ -31,7 +31,7 @@
 #include "nng/supplemental/nanolib/mqtt_db.h"
 
 #include "include/bridge.h"
-#include "include/repub.h"
+#include "include/nanomq_rule.h"
 #include "include/mqtt_api.h"
 #include "include/nanomq.h"
 #include "include/process.h"
