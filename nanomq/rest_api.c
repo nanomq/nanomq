@@ -1431,17 +1431,13 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 	return res;
 }
 
-
-// TODO FIXME fixed id  is NULL
 static http_msg
 delete_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 {
-	http_msg res = { 0 };
-	res.status   = NNG_HTTP_STATUS_OK;
-
-	cJSON *res_obj   = NULL;
-	cJSON *data      = NULL;
-	uint32_t id = 0;
+	http_msg res     = { 0 };
+	res.status       = NNG_HTTP_STATUS_OK;
+	cJSON   *res_obj = NULL;
+	uint32_t id      = 0;
 	res_obj          = cJSON_CreateObject();
 
 	sscanf(rule_id, "rule:%d", &id);
@@ -1449,7 +1445,9 @@ delete_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 #if defined(SUPP_RULE_ENGINE)
 	conf * config   = get_global_conf();
 	conf_rule *cr = &config->rule_eng;
-	for (int i = 0; i < cvector_size(cr->rules); i++) {
+	int i = 0;
+	size_t size = cvector_size(cr->rules);
+	for (; i < size; i++) {
 		if (rule_id && cr->rules[i].rule_id == id) {
 			// TODO free rule
 			rule *re = &cr->rules[i];
@@ -1458,10 +1456,16 @@ delete_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 		}
 	}
 
+	if (rule_id && size == i) {
+		cJSON_Delete(res_obj);
+		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
+		    MISSING_KEY_REQUEST_PARAMES);
+	}
+
+
 	// cJSON *meta = cJSON_CreateObject();
 	// cJSON_AddItemToObject(res_obj, "meta", meta);
 	// TODO add meta content: page, limit, count
-	cJSON_AddItemToObject(res_obj, "data", data);
 #endif
 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
 
@@ -1475,6 +1479,7 @@ delete_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 	return res;
 }
 
+// TODO add params realted key word
 static http_msg
 get_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 {
