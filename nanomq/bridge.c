@@ -51,7 +51,7 @@ sub_callback(void *arg)
 	}
 	debug_msg("bridge: subscribe result %d \n", nng_aio_result(aio));
 	nng_msg_free(msg);
-	nng_mqtt_client_free(client, true);
+	// nng_mqtt_client_free(client, true);
 }
 
 // Disconnect message callback function
