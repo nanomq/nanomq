@@ -53,7 +53,7 @@ sub_callback(void *arg)
 	}
 	debug_msg("bridge: subscribe result %d \n", nng_aio_result(aio));
 	nng_msg_free(msg);
-	nng_mqtt_client_free(client, true);
+	// nng_mqtt_client_free(client, true);
 }
 
 // Disconnect message callback function
@@ -266,9 +266,9 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 {
 	char *quic_scheme = "mqtt-quic";
 	char *tcp_scheme = "mqtt-tcp";
-	if (0 == strncmp(node->address, quic_scheme, sizeof(quic_scheme))) {
+	if (0 == strncmp(node->address, quic_scheme, 9)) {
 		bridge_quic_client(sock, config, node);
-	} else if (0 == strncmp(node->address, quic_scheme, sizeof(quic_scheme))) {
+	} else if (0 == strncmp(node->address, quic_scheme, 8)) {
 		bridge_tcp_client(sock, config, node);
 	} else {
 		debug_msg("Unsupported bridge protocol");
