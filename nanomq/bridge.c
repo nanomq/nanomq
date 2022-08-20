@@ -268,7 +268,7 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	char *tcp_scheme = "mqtt-tcp";
 	if (0 == strncmp(node->address, quic_scheme, 9)) {
 		bridge_quic_client(sock, config, node);
-	} else if (0 == strncmp(node->address, quic_scheme, 8)) {
+	} else if (0 == strncmp(node->address, tcp_scheme, 8)) {
 		bridge_tcp_client(sock, config, node);
 	} else {
 		debug_msg("Unsupported bridge protocol");
