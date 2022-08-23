@@ -131,7 +131,6 @@ nano_client(nng_socket *sock, repub_t *repub)
 
 	return 0;
 }
-#endif
 
 int
 nanomq_client_sqlite(conf_rule *cr, bool init_last)
@@ -196,3 +195,5 @@ nanomq_client_sqlite(conf_rule *cr, bool init_last)
 
 	return 0;
 }
+
+#endif
