@@ -172,7 +172,7 @@ quic_disconnect_cb(void *rmsg, void *arg)
 	reason = nng_mqtt_msg_get_connack_return_code(rmsg);
 	// property *prop;
 	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_DISCONNECT_PROPERTY, &prop);
-	debug_msg("quic bridge client disconnected! RC [%d] \n", reason);
+	printf("quic bridge client disconnected! RC [%d] \n", reason);
 	nng_msg_free(rmsg);
 }
 
@@ -189,7 +189,7 @@ bridge_quic_connect_cb(void *rmsg, void *arg)
 	// get property for MQTT V5
 	// property *prop;
 	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_CONNECT_PROPERTY, &prop);
-	debug_msg("quic bridge client connected! RC [%d] \n", reason);
+	printf("quic bridge client connected! RC [%d] \n", reason);
 	nng_msg_free(rmsg);
 
 	/* MQTT V5 SUBSCRIBE */
@@ -219,6 +219,7 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	int           rv;
 	nng_dialer    dialer;
 	bridge_param *bridge_arg;
+	printf("Quic bridge service start.\n");
 
 	if ((rv = nng_mqtt_quic_client_open(sock, node->address)) != 0) {
 		fatal("nng_mqtt_quic_client_open", rv);
@@ -277,7 +278,7 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 		bridge_quic_client(sock, config, node);
 #endif
 	} else {
-		debug_msg("Unsupported bridge protocol");
+		printf("Unsupported bridge protocol.\n");
 	}
 }
 
