@@ -192,7 +192,7 @@ send_http(char *method, int id, char *payload)
 	// printf("%.*s\n", (int) len, (char*) data);
 
 	if (NULL != (eles = cJSON_GetObjectItem(jso, "data"))) {
-		if (0 != id) {
+		if (cJSON_IsObject(eles)) {
 			char *val = cJSON_PrintUnformatted(eles);
 			puts(val);
 			cJSON_free(val);
@@ -341,6 +341,11 @@ rules_parse_opts(int argc, char **argv)
 				puts("params json format illegal.");
 				return -1;
 			}
+		} else {
+			puts("Error: create rule need set actions.");
+			printf("%s", help_info);
+			return -1;
+
 		}
 
 		if (enabled != 0) {
