@@ -814,7 +814,7 @@ rule_engine_insert_sql(nano_work *work)
 	}
 
 	for (size_t i = 0; i < rule_size; i++) {
-		if (rule_engine_filter(work, &rules[i])) {
+		if (true == rules[i].enabled && rule_engine_filter(work, &rules[i])) {
 #if defined(FDB_SUPPORT)
 			char fdb_key[pp->var_header.publish.topic_name.len+sizeof(uint64_t)];
 			if (RULE_ENG_FDB & work->config->rule_eng.option && RULE_FORWORD_FDB == rules[i].forword_type) {
