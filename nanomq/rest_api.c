@@ -1131,14 +1131,14 @@ post_rules(http_msg *msg)
 
 	cJSON *jso_sql = cJSON_GetObjectItem(req, "rawsql");
 	char *rawsql = cJSON_GetStringValue(jso_sql);
-	printf("rawsql: %s\n", rawsql);
+	debug_msg("rawsql: %s\n", rawsql);
 
 	cJSON *jso_actions = cJSON_GetObjectItem(req, "actions");
 	cJSON *jso_action = NULL;
 	cJSON_ArrayForEach(jso_action, jso_actions) {
 		cJSON *jso_name = cJSON_GetObjectItem(jso_action, "name");
 		char  *name     = cJSON_GetStringValue(jso_name);
-		printf("name: %s\n", name);
+		debug_msg("name: %s\n", name);
 		cJSON *jso_params = cJSON_GetObjectItem(jso_action, "params");
 		cJSON *jso_param  = NULL;
 		if (!nng_strcasecmp(name, "repub")) {
@@ -1149,28 +1149,28 @@ post_rules(http_msg *msg)
 				if (jso_param) {
 					if (!nng_strcasecmp(jso_param->string, "topic")) {
 						repub->topic = nng_strdup(jso_param->valuestring);
-						printf("topic: %s\n", jso_param->valuestring);
+						debug_msg("topic: %s\n", jso_param->valuestring);
 					} else if (!nng_strcasecmp(jso_param->string, "address")) {
 						repub->address = nng_strdup(jso_param->valuestring);
-						printf("address: %s\n", jso_param->valuestring);
+						debug_msg("address: %s\n", jso_param->valuestring);
 					} else if (!nng_strcasecmp(jso_param->string, "proto_ver")) {
 						repub->proto_ver = jso_param->valueint;
-						printf("proto_ver: %d\n", jso_param->valueint);
+						debug_msg("proto_ver: %d\n", jso_param->valueint);
 					} else if (!nng_strcasecmp(jso_param->string, "keepalive")) {
 						repub->keepalive = jso_param->valueint;
-						printf("keepalive: %d\n", jso_param->valueint);
+						debug_msg("keepalive: %d\n", jso_param->valueint);
 					} else if (!nng_strcasecmp(jso_param->string, "clientid")) {
 						repub->clientid = nng_strdup(jso_param->valuestring);
-						printf("clientid: %s\n", jso_param->valuestring);
+						debug_msg("clientid: %s\n", jso_param->valuestring);
 					} else if (!nng_strcasecmp(jso_param->string, "username")) {
 						repub->username = nng_strdup(jso_param->valuestring);
-						printf("username: %s\n", jso_param->valuestring);
+						debug_msg("username: %s\n", jso_param->valuestring);
 					} else if (!nng_strcasecmp(jso_param->string, "password")) {
 						repub->password = nng_strdup(jso_param->valuestring);
-						printf("password: %s\n", jso_param->valuestring);
+						debug_msg("password: %s\n", jso_param->valuestring);
 					} else if (!nng_strcasecmp(jso_param->string, "clean_start")) {
 						repub->clean_start = !nng_strcasecmp(jso_param->string, "true");
-						printf("clean_start: %s\n", jso_param->valuestring);
+						debug_msg("clean_start: %s\n", jso_param->valuestring);
 					} else {
 						puts("Unsupport key word!");
 					}
@@ -1190,6 +1190,9 @@ post_rules(http_msg *msg)
 			// TODO set default key word
 			nng_socket *sock  = (nng_socket *) nng_alloc(
 				    	sizeof(nng_socket));
+			// TODO FIXME fixed connect error response.
+			nano_client(sock, repub);
+
 			cr->rules[cvector_size(cr->rules) - 1]
 			    .repub = repub;
 			cr->rules[cvector_size(cr->rules) - 1]
@@ -1199,15 +1202,13 @@ post_rules(http_msg *msg)
 			cr->rules[cvector_size(cr->rules) - 1]
 			    .rule_id = rule_generate_rule_id();
 			
-			// TODO FIXME fixed connect error response.
-			nano_client(sock, repub);
 
 		} else if (!strcasecmp(name, "sqlite")) {
 			cr->option |= RULE_ENG_SDB;
 			cJSON_ArrayForEach(jso_param, jso_params) {
 				if (jso_param) {
 					if (!nng_strcasecmp(jso_param->string, "table")) {
-						printf("table: %s\n", jso_param->valuestring);
+						debug_msg("table: %s\n", jso_param->valuestring);
 						rule_sql_parse(cr, rawsql);
 						cr->rules[cvector_size(cr->rules) - 1].forword_type = RULE_FORWORD_SQLITE;
 						cr->rules[cvector_size(cr->rules) - 1]
@@ -1224,7 +1225,7 @@ post_rules(http_msg *msg)
 			}
 
 		} else {
-			printf("Unsupport forword type !");
+			debug_msg("Unsupport forword type !");
 		}
 
 	}
@@ -1232,7 +1233,7 @@ post_rules(http_msg *msg)
 	cJSON *jso_desc = cJSON_GetObjectItem(req, "description");
 	if (jso_desc) {
 		char *desc= cJSON_GetStringValue(jso_desc);
-		printf("%s\n", desc);
+		debug_msg("%s\n", desc);
 
 	}
 
@@ -1295,7 +1296,6 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 	}
 
 	if (NULL == old_rule) {
-		// TODO 
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    REQ_PARAM_ERROR);
 	}
@@ -1311,12 +1311,18 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 		new_rule->raw_sql = nng_strdup(rawsql);
 		new_rule->enabled = true;
 		new_rule->rule_id = id;
+		new_rule->forword_type = ft;
 		if (RULE_FORWORD_REPUB == ft) {
 	 		    new_rule->repub = repub;
 		} else if (RULE_FORWORD_SQLITE == ft) {
-	 		    new_rule->sqlite_table = nng_strdup(sqlite_table);
+	 		    new_rule->sqlite_table = sqlite_table;
+	 		    // new_rule->sqlite_table = nng_strdup(sqlite_table);
 		}
 
+		// Maybe cvector_push_back() will realloc, 
+		// so for safty reassagn it
+		old_rule = &cr->rules[i];
+		rule_free(old_rule);
 		cvector_erase(cr->rules, i);
 		// TODO free old rule
 	} else {
@@ -1329,7 +1335,7 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 
 	cJSON *jso_enabled = cJSON_GetObjectItem(req, "enabled");
 	if (NULL != jso_enabled) {
-		new_rule->enabled = cJSON_GetNumberValue(jso_enabled);
+		new_rule->enabled = cJSON_IsTrue(jso_enabled);
 	}
 
 	// TODO support multi actions
@@ -1339,7 +1345,7 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 		cJSON_ArrayForEach(jso_action, jso_actions) {
 			cJSON *jso_name = cJSON_GetObjectItem(jso_action, "name");
 			char  *name     = cJSON_GetStringValue(jso_name);
-			printf("name: %s\n", name);
+			debug_msg("name: %s\n", name);
 			cJSON *jso_params = cJSON_GetObjectItem(jso_action, "params");
 			cJSON *jso_param  = NULL;
 			if (!nng_strcasecmp(name, "repub")) {
@@ -1357,40 +1363,40 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 								nng_strfree(repub->topic);
 							}
 							repub->topic = nng_strdup(jso_param->valuestring);
-							printf("topic: %s\n", jso_param->valuestring);
+							debug_msg("topic: %s\n", jso_param->valuestring);
 						} else if (!nng_strcasecmp(jso_param->string, "address")) {
 							if (repub->address) {
 								nng_strfree(repub->address);
 							}
 							repub->address = nng_strdup(jso_param->valuestring);
-							printf("address: %s\n", jso_param->valuestring);
+							debug_msg("address: %s\n", jso_param->valuestring);
 						} else if (!nng_strcasecmp(jso_param->string, "proto_ver")) {
 							repub->proto_ver = jso_param->valueint;
-							printf("proto_ver: %d\n", jso_param->valueint);
+							debug_msg("proto_ver: %d\n", jso_param->valueint);
 						} else if (!nng_strcasecmp(jso_param->string, "keepalive")) {
 							repub->keepalive = jso_param->valueint;
-							printf("keepalive: %d\n", jso_param->valueint);
+							debug_msg("keepalive: %d\n", jso_param->valueint);
 						} else if (!nng_strcasecmp(jso_param->string, "clientid")) {
 							if (repub->clientid) {
 								nng_strfree(repub->clientid);
 							}
 							repub->clientid = nng_strdup(jso_param->valuestring);
-							printf("clientid: %s\n", jso_param->valuestring);
+							debug_msg("clientid: %s\n", jso_param->valuestring);
 						} else if (!nng_strcasecmp(jso_param->string, "username")) {
 							if (repub->username) {
 								nng_strfree(repub->username);
 							}
 							repub->username = nng_strdup(jso_param->valuestring);
-							printf("username: %s\n", jso_param->valuestring);
+							debug_msg("username: %s\n", jso_param->valuestring);
 						} else if (!nng_strcasecmp(jso_param->string, "password")) {
 							if (repub->password) {
 								nng_strfree(repub->password);
 							}
 							repub->password = nng_strdup(jso_param->valuestring);
-							printf("password: %s\n", jso_param->valuestring);
+							debug_msg("password: %s\n", jso_param->valuestring);
 						} else if (!nng_strcasecmp(jso_param->string, "clean_start")) {
 							repub->clean_start = !nng_strcasecmp(jso_param->string, "true");
-							printf("clean_start: %s\n", jso_param->valuestring);
+							debug_msg("clean_start: %s\n", jso_param->valuestring);
 						} else {
 							puts("Unsupport key word!");
 						}
@@ -1401,7 +1407,7 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 				cJSON_ArrayForEach(jso_param, jso_params) {
 					if (jso_param) {
 						if (!nng_strcasecmp(jso_param->string, "table")) {
-							printf("table: %s\n", jso_param->valuestring);
+							debug_msg("table: %s\n", jso_param->valuestring);
 							if (new_rule->sqlite_table) {
 								nng_strfree(new_rule->sqlite_table);
 							} else {
@@ -1416,7 +1422,7 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 				}
 
 			} else {
-				printf("Unsupport forword type !");
+				debug_msg("Unsupport forword type !");
 			}
 
 		}
@@ -1441,9 +1447,28 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 
 	}
 
+	if (jso_enabled && new_rule->enabled) {
+		// TODO nng_mqtt_disconnct()
+		// if (old_rule->repub) {
+		// 	nng_close(*(nng_socket*) old_rule->repub->sock);
+		// }
+		if (RULE_FORWORD_REPUB == new_rule->forword_type) {
+			nng_socket *sock  = (nng_socket *) nng_alloc(
+				    	sizeof(nng_socket));
+			nano_client(sock, new_rule->repub);
+		} else if (RULE_FORWORD_SQLITE == new_rule->forword_type)
+		{
+			nanomq_client_sqlite(cr, true);
+		}
+		
+	} else if (jso_enabled && false == new_rule->enabled) {
+		// TODO nng_mqtt_disconnct()
+	}
+
+
 	// cJSON *jso_desc = cJSON_GetObjectItem(req, "description");
 	// char *desc= cJSON_GetStringValue(jso_desc);
-	// printf("%s\n", desc);
+	// debug_msg("%s\n", desc);
 
  	cJSON *data_info = cJSON_CreateObject();
 	cJSON *actions = cJSON_CreateArray();
@@ -2086,7 +2111,7 @@ update_bridge_conf(cJSON *json, conf *config)
 	cJSON *sqlite = cJSON_GetObjectItem(json, "sqlite");
 
 	getBoolValue(sqlite, item, "enable", bridge.sqlite.enable, rv);
-	printf("getBoolValue: %s\n", bridge.sqlite.enable ? "true" : "false");
+	debug_msg("getBoolValue: %s\n", bridge.sqlite.enable ? "true" : "false");
 	if (rv == 0) {
 		conf_update_bool(config->bridge_file, "bridge.sqlite.enable",
 		    bridge.sqlite.enable);
