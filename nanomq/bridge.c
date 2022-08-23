@@ -1,7 +1,9 @@
 #include "include/bridge.h"
 #include "nng/mqtt/mqtt_client.h"
+#include "nng/mqtt/mqtt_quic.h"
 #include "nng/nng.h"
 #include "nng/protocol/mqtt/mqtt.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -100,8 +102,8 @@ bridge_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	}
 }
 
-int
-bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
+static int
+bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 {
 	int           rv;
 	nng_dialer    dialer;
@@ -156,3 +158,127 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 
 	return 0;
 }
+
+#if defined(SUPP_QUIC)
+
+// Disconnect message callback function
+static int
+quic_disconnect_cb(void *rmsg, void *arg)
+{
+	int reason = 0;
+	if (!rmsg)
+		return 0;
+	// get connect reason
+	reason = nng_mqtt_msg_get_connack_return_code(rmsg);
+	// property *prop;
+	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_DISCONNECT_PROPERTY, &prop);
+	printf("quic bridge client disconnected! RC [%d] \n", reason);
+	nng_msg_free(rmsg);
+}
+
+
+// Connack message callback function
+static int
+bridge_quic_connect_cb(void *rmsg, void *arg)
+{
+	// Connected succeed
+	bridge_param *param  = arg;
+	int           reason = 0;
+	// get connect reason
+	reason = nng_mqtt_msg_get_connack_return_code(rmsg);
+	// get property for MQTT V5
+	// property *prop;
+	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_CONNECT_PROPERTY, &prop);
+	printf("quic bridge client connected! RC [%d] \n", reason);
+	nng_msg_free(rmsg);
+
+	/* MQTT V5 SUBSCRIBE */
+	if (reason == 0 && param->config->sub_count > 0) {
+		nng_mqtt_topic_qos *topic_qos =
+		    nng_mqtt_topic_qos_array_create(param->config->sub_count);
+		for (size_t i = 0; i < param->config->sub_count; i++) {
+			nng_mqtt_topic_qos_array_set(topic_qos, i,
+			    param->config->sub_list[i].topic,
+			    param->config->sub_list[i].qos);
+		}
+
+		nng_mqtt_client *client =
+		    nng_mqtt_client_alloc(*param->sock, sub_callback, true);
+		// Property?
+		nng_mqtt_subscribe_async(
+		    client, topic_qos, param->config->sub_count, NULL);
+		nng_mqtt_topic_qos_array_free(
+		    topic_qos, param->config->sub_count);
+	}
+}
+
+
+static int
+bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node)
+{
+	int           rv;
+	nng_dialer    dialer;
+	bridge_param *bridge_arg;
+	printf("Quic bridge service start.\n");
+
+	if ((rv = nng_mqtt_quic_client_open(sock, node->address)) != 0) {
+		fatal("nng_mqtt_quic_client_open", rv);
+		return rv;
+	}
+	// TODO mqtt v5 protocol
+	nng_socket_set(*sock, NANO_CONF, node, sizeof(conf_bridge_node));
+
+	bridge_arg         = (bridge_param *) nng_alloc(sizeof(bridge_param));
+	bridge_arg->config = node;
+	bridge_arg->sock   = sock;
+	node->sock         = (void *) sock;
+
+	if (0 != nng_mqtt_quic_set_connect_cb(sock, bridge_quic_connect_cb, (void *)bridge_arg) ||
+	    0 != nng_mqtt_quic_set_disconnect_cb(sock, quic_disconnect_cb, (void *)bridge_arg)) {
+	    //0 != nng_mqtt_quic_set_msg_recv_cb(sock, msg_recv_cb, (void *)arg) ||
+	    //0 != nng_mqtt_quic_set_msg_send_cb(sock, msg_send_cb, (void *)arg)) {
+		debug_msg("error in quic client cb set.");
+		return -1;
+	}
+
+	// create a CONNECT message
+	/* CONNECT */
+	nng_msg *connmsg;
+	nng_mqtt_msg_alloc(&connmsg, 0);
+	nng_mqtt_msg_set_packet_type(connmsg, NNG_MQTT_CONNECT);
+	nng_mqtt_msg_set_connect_keep_alive(connmsg, node->keepalive);
+	nng_mqtt_msg_set_connect_proto_version(connmsg, node->proto_ver);
+	nng_mqtt_msg_set_connect_clean_session(connmsg, node->clean_start);
+	if (node->clientid) {
+		nng_mqtt_msg_set_connect_client_id(connmsg, node->clientid);
+	}
+	if (node->username) {
+		nng_mqtt_msg_set_connect_user_name(connmsg, node->username);
+	}
+	if (node->password) {
+		nng_mqtt_msg_set_connect_password(connmsg, node->password);
+	}
+
+	nng_sendmsg(*sock, connmsg, NNG_FLAG_NONBLOCK);
+
+	return 0;
+}
+
+#endif
+
+int
+bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
+{
+	char *quic_scheme = "mqtt-quic";
+	char *tcp_scheme = "mqtt-tcp";
+	if (0 == strncmp(node->address, tcp_scheme, 8)) {
+		bridge_tcp_client(sock, config, node);
+#if defined(SUPP_QUIC)
+	} else if (0 == strncmp(node->address, quic_scheme, 9)) {
+		bridge_quic_client(sock, config, node);
+#endif
+	} else {
+		printf("Unsupported bridge protocol.\n");
+	}
+}
+
