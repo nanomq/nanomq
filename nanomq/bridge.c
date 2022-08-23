@@ -159,6 +159,8 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	return 0;
 }
 
+#if defined(SUPP_QUIC)
+
 // Disconnect message callback function
 static int
 quic_disconnect_cb(void *rmsg, void *arg)
@@ -261,15 +263,19 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	return 0;
 }
 
+#endif
+
 int
 bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 {
 	char *quic_scheme = "mqtt-quic";
 	char *tcp_scheme = "mqtt-tcp";
-	if (0 == strncmp(node->address, quic_scheme, 9)) {
-		bridge_quic_client(sock, config, node);
-	} else if (0 == strncmp(node->address, tcp_scheme, 8)) {
+	if (0 == strncmp(node->address, tcp_scheme, 8)) {
 		bridge_tcp_client(sock, config, node);
+#if defined(SUPP_QUIC)
+	} else if (0 == strncmp(node->address, quic_scheme, 9)) {
+		bridge_quic_client(sock, config, node);
+#endif
 	} else {
 		debug_msg("Unsupported bridge protocol");
 	}
