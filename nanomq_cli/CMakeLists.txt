@@ -16,7 +16,12 @@ file(GLOB CLI_SOURCE "*.c")
 
 add_executable(nanomq_cli ${CLI_SOURCE})
 
-target_link_libraries(nanomq_cli nng msquic)
+target_link_libraries(nanomq_cli nng)
+
+if(BUILD_QUIC_CLI)
+  target_link_libraries(nanomq_cli msquic)
+endif(BUILD_QUIC_CLI)
+
 add_dependencies(nanomq_cli nng)
 
 if(BUILD_ZMQ_GATEWAY)

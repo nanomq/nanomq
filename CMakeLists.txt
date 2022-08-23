@@ -14,7 +14,7 @@ include(CheckCCompilerFlag)
 
 option (BUILD_NANOMQ_CLI "Build nanomq CLI" OFF)
 option (BUILD_CLIENT "Build nanomq client" ON)
-option (BUILD_QUIC_CLI "Build quic client" ON)
+option (BUILD_QUIC_CLI "Build quic client" OFF)
 option (BUILD_NNG_PROXY "Build nng proxy" ON)
 option (BUILD_ZMQ_GATEWAY "Build zmq gateway" OFF)
 option (BUILD_BENCH "Build nano-bench" OFF)
