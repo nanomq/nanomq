@@ -56,6 +56,12 @@ static client_app apps[] = {
 	},
 #endif
 
+#if defined(SUPP_RULE_ENGINE)
+	{
+	    .name = "rules",
+	    .func = rules_start,
+	},
+#endif
 };
 
 static void
