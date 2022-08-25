@@ -43,39 +43,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define CLIENT_SEND_Q_SZ 4
-
-static nng_msg * send_q[CLIENT_SEND_Q_SZ];
-static int send_q_pos = 0;
-static int send_q_sz = 0;
-
 static nng_socket * g_sock;
-
-static inline void
-put_send_q(nng_msg *msg)
-{
-	if (send_q_sz == 4) {
-		printf("Msg Send Queue Overflow.\n");
-		return;
-	}
-	send_q[send_q_pos] = msg;
-	send_q_pos = (++send_q_pos) % CLIENT_SEND_Q_SZ;
-	send_q_sz ++;
-}
-
-static inline nng_msg *
-get_send_q()
-{
-	nng_msg *msg;
-	if (send_q_sz == 0) {
-		printf("Msg Send Queue Is Empty.\n");
-		return NULL;
-	}
-	send_q_pos = (--send_q_pos) % CLIENT_SEND_Q_SZ;
-	msg = send_q[send_q_pos];
-	send_q_sz --;
-	return msg;
-}
 
 static nng_msg *
 mqtt_msg_compose(int type, int qos, char *topic, char *payload)
@@ -123,12 +91,6 @@ static int
 connect_cb(void *rmsg, void * arg)
 {
 	printf("[Connected][%s]...\n", (char *)arg);
-
-	nng_msg *msg;
-	while (send_q_sz > 0) {
-		msg = get_send_q();
-		nng_sendmsg(*g_sock, msg, NNG_FLAG_ALLOC);
-	}
 }
 
 static int
@@ -180,10 +142,12 @@ client(int type, const char *url, const char *qos, const char *topic, const char
 	msg = mqtt_msg_compose(1, 0, NULL, NULL);
 	nng_sendmsg(sock, msg, NNG_FLAG_ALLOC);
 
-	q = atoi(qos);
-	if (q < 0 || q > 2) {
-		printf("Qos should be in range(0~2).\n");
-		q = 0;
+	if (qos) {
+		q = atoi(qos);
+		if (q < 0 || q > 2) {
+			printf("Qos should be in range(0~2).\n");
+			q = 0;
+		}
 	}
 
 	switch (type) {
@@ -191,11 +155,13 @@ client(int type, const char *url, const char *qos, const char *topic, const char
 		break;
 	case 2:
 		msg = mqtt_msg_compose(2, q, (char *)topic, NULL);
-		put_send_q(msg);
+		nng_sendmsg(*g_sock, msg, NNG_FLAG_ALLOC);
+
 		break;
 	case 3:
 		msg = mqtt_msg_compose(3, q, (char *)topic, (char *)data);
-		put_send_q(msg);
+		nng_sendmsg(*g_sock, msg, NNG_FLAG_ALLOC);
+
 		break;
 	default:
 		printf("Unknown command.\n");
@@ -222,7 +188,6 @@ int
 quic_client(int argc, char **argv)
 {
 	int rc;
-	memset(send_q, 0, sizeof(send_q));
 
 	if (argc < 3)
 		printf_helper(argv[0]);
