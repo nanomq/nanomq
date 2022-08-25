@@ -9,6 +9,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <mysql.h>
 
 #include "include/nanomq.h"
 #include "nng/nng.h"
@@ -729,7 +730,11 @@ compose_sql_clause(rule *info, char *key, char *value, bool is_need_set, int j, 
 						switch (info->payload[pi]->type) {
 						case cJSON_Number:
 								if (is_need_set) {
-									snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s INT;\n", info->sqlite_table, info->payload[pi]->pas);
+									  if (RULE_FORWORD_SQLITE == info->forword_type) {
+										snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s INT;\n", info->sqlite_table, info->payload[pi]->pas);
+									  } else if (RULE_FORWORD_MYSOL == info->forword_type) {
+										snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s INT;\n", info->mysql->table, info->payload[pi]->pas);
+									  }
 								}
 								strcat(key, info->payload[pi]->pas);
 								strcat(key, ", ");
@@ -742,7 +747,11 @@ compose_sql_clause(rule *info, char *key, char *value, bool is_need_set, int j, 
 						case cJSON_String:
 							if (info->payload[pi]->pas) {
 								if (is_need_set) {
-									snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s TEXT;\n", info->sqlite_table, info->payload[pi]->pas);
+									  if (RULE_FORWORD_SQLITE == info->forword_type) {
+										snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s TEXT;\n", info->sqlite_table, info->payload[pi]->pas);
+									  } else if (RULE_FORWORD_MYSOL == info->forword_type) {
+										snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s TEXT;\n", info->mysql->table, info->payload[pi]->pas);
+									  }
 								}
 								strcat(key, info->payload[pi]->pas);
 								strcat(key, ", ");
@@ -756,7 +765,11 @@ compose_sql_clause(rule *info, char *key, char *value, bool is_need_set, int j, 
 						case cJSON_Object:
 							if (info->payload[pi]->pas) {
 								if (is_need_set) {
-									snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s TEXT;\n", info->sqlite_table, info->payload[pi]->pas);
+									  if (RULE_FORWORD_SQLITE == info->forword_type) {
+										snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s TEXT;\n", info->sqlite_table, info->payload[pi]->pas);
+									  } else if (RULE_FORWORD_MYSOL == info->forword_type) {
+										snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s TEXT;\n", info->mysql->table, info->payload[pi]->pas);
+									  }
 								}
 								strcat(key, info->payload[pi]->pas);
 								strcat(key, ", ");
@@ -808,6 +821,8 @@ rule_engine_insert_sql(nano_work *work)
 	static uint32_t    index      = 0;
 	static bool is_first_time = true;
 	bool is_need_set = false;
+	static bool is_first_time_mysql = true;
+	bool is_need_set_mysql = false;
 
 	if (rule_mutex == NULL) {
 		nng_mtx_alloc(&rule_mutex);
@@ -884,9 +899,8 @@ rule_engine_insert_sql(nano_work *work)
 				cJSON_free(dest);
 				cJSON_Delete(jso);
 			}
+
 			if (RULE_ENG_SDB & work->config->rule_eng.option && RULE_FORWORD_SQLITE == rules[i].forword_type) {
-
-
 				char sql_clause[1024] = "INSERT INTO ";
 				char key[128]         = { 0 };
 				snprintf(key, 128, "%s (", rules[i].sqlite_table);
@@ -958,6 +972,67 @@ rule_engine_insert_sql(nano_work *work)
 				}
 
 			}
+
+			if (RULE_ENG_MDB & work->config->rule_eng.option && RULE_FORWORD_MYSOL == rules[i].forword_type) {
+				char sql_clause[1024] = "INSERT INTO ";
+				char key[128]         = { 0 };
+				snprintf(key, 128, "%s (", rules[i].mysql->table);
+				char value[800]       = "VALUES (";
+				for (size_t j = 0; j < 9; j++) {
+					nng_mtx_lock(rule_mutex);
+					if (true == is_first_time_mysql) {
+						is_need_set_mysql   = true;
+					}
+					char *ret =
+					    compose_sql_clause(&rules[i],
+					        key, value, is_need_set_mysql, j, work);
+
+					if (ret && is_need_set_mysql) {
+						is_need_set_mysql = false;
+						// puts(ret);
+						debug_msg("%s", ret);
+						char *p = strchr(ret, '\n');
+						*p = '\0';
+  						if (mysql_query(rules[i].mysql->conn, ret)) {
+  							// fprintf(stderr, "%s\n", mysql_error(rules[i].mysql->conn));
+  						}
+
+  						if (mysql_query(rules[i].mysql->conn, ++p)) {
+  							// fprintf(stderr, "%s\n", mysql_error(rules[i].mysql->conn));
+  						}
+
+						free(ret);
+						ret = NULL;
+					}
+
+					if (true == is_first_time_mysql) {
+						is_first_time_mysql = false;
+					}
+
+					nng_mtx_unlock(rule_mutex);
+				}
+
+				
+
+				// puts(key);
+				// puts(value);
+				char *p = strrchr(key, ',');
+				*p      = ')';
+				p       = strrchr(value, ',');
+				*p      = ')';
+				strcat(sql_clause, key);
+				strcat(sql_clause, value);
+				strcat(sql_clause, ";");
+
+				puts(sql_clause);
+
+  				if (mysql_query(rules[i].mysql->conn, sql_clause)) {
+  					fprintf(stderr, "%s\n", mysql_error(rules[i].mysql->conn));
+  					mysql_close(rules[i].mysql->conn);
+  					exit(1);
+  				}
+			}
+		
 		
 		}
 	}
