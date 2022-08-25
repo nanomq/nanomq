@@ -1244,28 +1244,36 @@ post_rules(http_msg *msg)
 						puts("Unsupport key word!");
 					}
 				}
+			}
 
 
-				if (false == rule_mysql_check(mysql)) {
-					cJSON_Delete(req);
-					cJSON_Delete(res_obj);
-					rule_mysql_free(mysql);
-					return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
-					    MISSING_KEY_REQUEST_PARAMES);
-				}
+			if (false == rule_mysql_check(mysql)) {
+				cJSON_Delete(req);
+				cJSON_Delete(res_obj);
+				rule_mysql_free(mysql);
+				return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
+				    MISSING_KEY_REQUEST_PARAMES);
+			}
 
-				rule_sql_parse(cr, rawsql);
-				cr->rules[cvector_size(cr->rules) - 1]
-				    .forword_type = RULE_FORWORD_MYSOL;
-				cr->rules[cvector_size(cr->rules) - 1]
-					.mysql = mysql;
-				cr->rules[cvector_size(cr->rules) - 1]
-				    .raw_sql = nng_strdup(rawsql);
-				cr->rules[cvector_size(cr->rules) - 1]
-				    .enabled = true;
-				cr->rules[cvector_size(cr->rules) - 1]
-				    .rule_id = rule_generate_rule_id();
-				nanomq_client_mysql(cr, true);
+			rule_sql_parse(cr, rawsql);
+			cr->rules[cvector_size(cr->rules) - 1]
+			    .forword_type = RULE_FORWORD_MYSOL;
+			cr->rules[cvector_size(cr->rules) - 1]
+				.mysql = mysql;
+			cr->rules[cvector_size(cr->rules) - 1]
+			    .raw_sql = nng_strdup(rawsql);
+			cr->rules[cvector_size(cr->rules) - 1]
+			    .enabled = true;
+			cr->rules[cvector_size(cr->rules) - 1]
+			    .rule_id = rule_generate_rule_id();
+			if (-1 == nanomq_client_mysql(cr, true)) {
+				rule_free(&cr->rules[cvector_size(cr->rules) - 1]);
+				cvector_pop_back(cr->rules);
+				cJSON_Delete(req);
+				cJSON_Delete(res_obj);
+				rule_mysql_free(mysql);
+				return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
+				    MISSING_KEY_REQUEST_PARAMES);
 			}
 
 
@@ -1351,6 +1359,7 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 		rule_forword_type ft = old_rule->forword_type;
 		repub_t *repub = old_rule->repub;
 		char *sqlite_table = old_rule->sqlite_table;
+		rule_mysql *mysql = old_rule->mysql;
 		rule_sql_parse(cr, rawsql);
 		new_rule = &cr->rules[cvector_size(cr->rules) - 1];
 		new_rule->raw_sql = nng_strdup(rawsql);
@@ -1358,10 +1367,11 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 		new_rule->rule_id = id;
 		new_rule->forword_type = ft;
 		if (RULE_FORWORD_REPUB == ft) {
-	 		    new_rule->repub = repub;
+			new_rule->repub = repub;
 		} else if (RULE_FORWORD_SQLITE == ft) {
-	 		    new_rule->sqlite_table = sqlite_table;
-	 		    // new_rule->sqlite_table = nng_strdup(sqlite_table);
+			new_rule->sqlite_table = sqlite_table;
+		} else if (RULE_FORWORD_MYSOL == ft) {
+			new_rule->mysql = mysql;
 		}
 
 		// Maybe cvector_push_back() will realloc, 
@@ -1465,6 +1475,49 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 						}
 					}
 				}
+			} else if (!strcasecmp(name, "mysql")) {
+				if (NULL == new_rule->mysql) {
+					new_rule->mysql = rule_mysql_init();
+					// TODO free new->table
+				}
+				rule_mysql *mysql = new_rule->mysql;
+				new_rule->forword_type = RULE_FORWORD_MYSOL;
+				cJSON_ArrayForEach(jso_param, jso_params) {
+					if (jso_param) {
+						if (!nng_strcasecmp(jso_param->string, "table")) {
+							if (mysql->table) {
+								nng_strfree(mysql->table);
+							}
+							mysql->table = nng_strdup(jso_param->valuestring);
+							debug_msg("table: %s\n", jso_param->valuestring);
+						} else if (!nng_strcasecmp(jso_param->string, "username")) {
+							if (mysql->username) {
+								nng_strfree(mysql->username);
+							}
+							mysql->username = nng_strdup(jso_param->valuestring);
+							debug_msg("username: %s\n", jso_param->valuestring);
+						} else if (!nng_strcasecmp(jso_param->string, "password")) {
+							if (mysql->password) {
+								nng_strfree(mysql->password);
+							}
+							mysql->password = nng_strdup(jso_param->valuestring);
+							debug_msg("password: %s\n", jso_param->valuestring);
+						} else if (!nng_strcasecmp(jso_param->string, "host")) {
+							if (mysql->host) {
+								nng_strfree(mysql->host);
+							}
+							mysql->host = nng_strdup(jso_param->valuestring);
+							debug_msg("host: %s\n", jso_param->valuestring);
+						} else {
+							puts("Unsupport key word!");
+						}
+
+					}
+
+					// new_rule->rule_id = id;
+					// cr->rules[cvector_size(cr->rules) - 1] = *new_rule;
+				}
+
 
 			} else {
 				debug_msg("Unsupport forword type !");
