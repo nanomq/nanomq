@@ -1223,6 +1223,51 @@ post_rules(http_msg *msg)
 					}
 				}
 			}
+		} else if (!strcasecmp(name, "mysql")) {
+			cr->option |= RULE_ENG_MDB;
+			rule_mysql *mysql = rule_mysql_init();
+			cJSON_ArrayForEach(jso_param, jso_params) {
+				if (jso_param) {
+					if (!nng_strcasecmp(jso_param->string, "table")) {
+						mysql->table = nng_strdup(jso_param->valuestring);
+						debug_msg("table: %s\n", jso_param->valuestring);
+					} else if (!nng_strcasecmp(jso_param->string, "username")) {
+						mysql->username = nng_strdup(jso_param->valuestring);
+						debug_msg("username: %s\n", jso_param->valuestring);
+					} else if (!nng_strcasecmp(jso_param->string, "password")) {
+						mysql->password = nng_strdup(jso_param->valuestring);
+						debug_msg("password: %s\n", jso_param->valuestring);
+					} else if (!nng_strcasecmp(jso_param->string, "host")) {
+						mysql->host = nng_strdup(jso_param->valuestring);
+						debug_msg("host: %s\n", jso_param->valuestring);
+					} else {
+						puts("Unsupport key word!");
+					}
+				}
+
+
+				if (false == rule_mysql_check(mysql)) {
+					cJSON_Delete(req);
+					cJSON_Delete(res_obj);
+					rule_mysql_free(mysql);
+					return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
+					    MISSING_KEY_REQUEST_PARAMES);
+				}
+
+				rule_sql_parse(cr, rawsql);
+				cr->rules[cvector_size(cr->rules) - 1]
+				    .forword_type = RULE_FORWORD_MYSOL;
+				cr->rules[cvector_size(cr->rules) - 1]
+					.mysql = mysql;
+				cr->rules[cvector_size(cr->rules) - 1]
+				    .raw_sql = nng_strdup(rawsql);
+				cr->rules[cvector_size(cr->rules) - 1]
+				    .enabled = true;
+				cr->rules[cvector_size(cr->rules) - 1]
+				    .rule_id = rule_generate_rule_id();
+				nanomq_client_mysql(cr, true);
+			}
+
 
 		} else {
 			debug_msg("Unsupport forword type !");
