@@ -1,5 +1,6 @@
 #include "include/nanomq_rule.h"
 #include "nng/mqtt/mqtt_client.h"
+#include <mysql.h>
 #include "nng/nng.h"
 #include "nng/protocol/mqtt/mqtt.h"
 #include <stdio.h>
@@ -32,6 +33,12 @@ static char *type_arr[] = {
 	" INT",
 	" TEXT",
 };
+
+static void finish_with_error(MYSQL *con)
+{
+  fprintf(stderr, "%s\n", mysql_error(con));
+  mysql_close(con);
+}
 
 static void
 fatal(const char *func, int rv)
@@ -135,65 +142,130 @@ nano_client(nng_socket *sock, repub_t *repub)
 int
 nanomq_client_sqlite(conf_rule *cr, bool init_last)
 {
-	// TODO do all work in a loop
-	if (cr->option & RULE_ENG_SDB) {
-		sqlite3 *sdb;
-		int      rc = 0;
-		if (NULL == cr->rdb[0]) {
-			char *sqlite_path = cr->sqlite_db_path
-			    ? cr->sqlite_db_path
-			    : "/tmp/rule_engine.db";
-			rc                = sqlite3_open(sqlite_path, &sdb);
-			if (rc != SQLITE_OK) {
-				debug_msg("Cannot open database: %s\n",
-				    sqlite3_errmsg(sdb));
-				sqlite3_close(sdb);
-				exit(1);
-			}
-			cr->rdb[0] = (void *) sdb;
+	sqlite3 *sdb;
+	int      rc = 0;
+	if (NULL == cr->rdb[0]) {
+		char *sqlite_path = cr->sqlite_db
+		    ? cr->sqlite_db
+		    : "/tmp/rule_engine.db";
+		rc                = sqlite3_open(sqlite_path, &sdb);
+		if (rc != SQLITE_OK) {
+			debug_msg("Cannot open database: %s\n",
+			    sqlite3_errmsg(sdb));
+			sqlite3_close(sdb);
+			exit(1);
 		}
+		cr->rdb[0] = (void *) sdb;
+	}
 
-		char sqlite_table[1024];
-		for (int i = 0; i < cvector_size(cr->rules); i++) {
-			if (init_last && i != cvector_size(cr->rules) - 1) {
-				continue;
+	char sqlite_table[1024];
+	for (int i = 0; i < cvector_size(cr->rules); i++) {
+		if (init_last && i != cvector_size(cr->rules) - 1) {
+			continue;
+		}
+		if (RULE_FORWORD_SQLITE == cr->rules[i].forword_type) {
+			int  index      = 0;
+			char table[256] = { 0 };
+
+			snprintf(table, 128,
+			    "CREATE TABLE IF NOT EXISTS %s("
+			    "RowId INTEGER PRIMARY KEY AUTOINCREMENT",
+			    cr->rules[i].sqlite_table);
+			char *err_msg = NULL;
+			bool  first   = true;
+
+			for (; index < 8; index++) {
+				if (!cr->rules[i].flag[index])
+					continue;
+
+				strcat(table, ", ");
+				strcat(table,
+				    cr->rules[i].as[index]
+				        ? cr->rules[i].as[index]
+				        : key_arr[index]);
+				strcat(table, type_arr[index]);
 			}
-			if (RULE_FORWORD_SQLITE == cr->rules[i].forword_type) {
-				int  index      = 0;
-				char table[256] = { 0 };
-
-				snprintf(table, 128,
-				    "CREATE TABLE IF NOT EXISTS %s("
-				    "RowId INTEGER PRIMARY KEY AUTOINCREMENT",
-				    cr->rules[i].sqlite_table);
-				char *err_msg = NULL;
-				bool  first   = true;
-
-				for (; index < 8; index++) {
-					if (!cr->rules[i].flag[index])
-						continue;
-
-					strcat(table, ", ");
-					strcat(table,
-					    cr->rules[i].as[index]
-					        ? cr->rules[i].as[index]
-					        : key_arr[index]);
-					strcat(table, type_arr[index]);
-				}
-				strcat(table, ");");
-				// puts(table);
-				rc = sqlite3_exec(cr->rdb[0], table, 0, 0, &err_msg);
-				if (rc != SQLITE_OK) {
-					debug_msg("SQL error: %s\n", err_msg);
-					sqlite3_free(err_msg);
-					sqlite3_close(sdb);
-					return 1;
-				}
+			strcat(table, ");");
+			// puts(table);
+			rc = sqlite3_exec(cr->rdb[0], table, 0, 0, &err_msg);
+			if (rc != SQLITE_OK) {
+				debug_msg("SQL error: %s\n", err_msg);
+				sqlite3_free(err_msg);
+				sqlite3_close(sdb);
+				return 1;
 			}
 		}
 	}
 
 	return 0;
 }
+
+
+int
+nanomq_client_mysql(conf_rule *cr, bool init_last)
+{
+
+	int      rc = 0;
+
+	char *mysql_db = cr->mysql_db
+	    ? cr->mysql_db
+	    : "mysql_rule_db";
+
+	char mysql_table[1024];
+	for (int i = 0; i < cvector_size(cr->rules); i++) {
+		if (init_last && i != cvector_size(cr->rules) - 1) {
+			continue;
+		}
+		if (RULE_FORWORD_MYSOL == cr->rules[i].forword_type) {
+			int  index      = 0;
+			char table[256] = { 0 };
+
+			snprintf(table, 128,
+			    "CREATE TABLE IF NOT EXISTS %s("
+			    "idx INT PRIMARY KEY AUTO_INCREMENT",
+			    cr->rules[i].mysql->table);
+			char *err_msg = NULL;
+			bool  first   = true;
+
+			for (; index < 8; index++) {
+				if (!cr->rules[i].flag[index])
+					continue;
+
+				strcat(table, ", ");
+				strcat(table,
+				    cr->rules[i].as[index]
+				        ? cr->rules[i].as[index]
+				        : key_arr[index]);
+				strcat(table, type_arr[index]);
+			}
+			strcat(table, ");");
+			puts(table);
+
+			rule_mysql *mysql = cr->rules[i].mysql;
+			MYSQL *con = mysql_init(NULL);
+			mysql->conn = con;
+			if (con == NULL) {
+				fprintf(stderr, "%s\n", mysql_error(con));
+				return -1;
+			}
+
+			if (mysql_real_connect(con, mysql->host, mysql->username, mysql->password,
+			        mysql_db, 0, NULL, 0) == NULL) {
+				finish_with_error(con);
+				return -1;
+			}
+
+
+			if (mysql_query(con, table)) {
+				finish_with_error(con);
+				return -1;
+			}
+
+		}
+	}
+
+	return 0;
+}
+
 
 #endif
