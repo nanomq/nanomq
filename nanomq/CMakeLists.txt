@@ -56,6 +56,20 @@ add_executable(nanomq ${SOURCES})
 
 if(ENABLE_RULE_ENGINE)
   target_link_libraries(nanomq ${FOUNDATION_LIBRARY})
+
+  include(FindPkgConfig)
+  pkg_check_modules(LIBMYSQLCLIENT REQUIRED mysqlclient)
+
+  foreach(FLAG ${LIBMYSQLCLIENT_CFLAGS_OTHER})
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FLAG}")
+  endforeach()
+
+  link_directories(${LIBMYSQLCLIENT_LIBRARY_DIRS})
+  include_directories(${MYSQL_INCLUDE_DIR})
+  include_directories(${LIBMYSQLCLIENT_INCLUDE_DIRS})
+  # message(STATUS, "${LIBMYSQLCLIENT_INCLUDE_DIRS}")
+  target_link_libraries(nanomq PRIVATE ${LIBMYSQLCLIENT_LIBRARIES})
+
 endif(ENABLE_RULE_ENGINE)
 
 if(ENABLE_AWS_BRIDGE)
