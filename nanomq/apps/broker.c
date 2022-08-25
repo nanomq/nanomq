@@ -787,74 +787,12 @@ broker(conf *nanomq_conf)
 
 #if defined(SUPP_RULE_ENGINE)
 	conf_rule *cr = &nanomq_conf->rule_eng;
-	// TODO do all work in a loop
 	if (cr->option & RULE_ENG_SDB) {
-		sqlite3 *sdb;
-		char    *sqlite_path = cr->sqlite_db_path ? cr->sqlite_db_path : "/tmp/rule_engine.db";
-		int rc = sqlite3_open(sqlite_path, &sdb);
-		if (rc != SQLITE_OK) {
-			debug_msg("Cannot open database: %s\n", sqlite3_errmsg(sdb));
-			sqlite3_close(sdb);
-			exit(1);
-		}
-		nanomq_conf->rule_eng.rdb[0] = (void *) sdb;
-		char         sqlite_table[1024];
-		static char *key_arr[] = {
-			"Qos",
-			"Id",
-			"Topic",
-			"Clientid",
-			"Username",
-			"Password",
-			"Timestamp",
-			"Payload",
-		};
+		nanomq_client_sqlite(cr, false);
+	}
 
-		static char *type_arr[] = {
-			" INT",
-			" INT",
-			" TEXT",
-			" TEXT",
-			" TEXT",
-			" TEXT",
-			" INT",
-			" TEXT",
-		};
-
-		for (int i = 0; i < cvector_size(cr->rules); i++) {
-			if (RULE_FORWORD_SQLITE == cr->rules[i].forword_type) {
-				// TODO support create multi different table name
-				int              index = 0;
-				char             table[256] = { 0 };
-
-				snprintf(table, 128, "CREATE TABLE IF NOT EXISTS %s("
-				    "RowId INTEGER PRIMARY KEY AUTOINCREMENT", cr->rules[i].sqlite_table);
-				char *err_msg   = NULL;
-				bool  first     = true;
-
-				for (; index < 8; index++) {
-					if (!cr->rules[i].flag[index])
-						continue;
-
-					strcat(table, ", ");
-					strcat(table,
-					    cr->rules[i].as[index] ? cr->rules[i].as[index]
-					                   : key_arr[index]);
-					strcat(table, type_arr[index]);
-				}
-				strcat(table, ");");
-				// puts(table);
-				rc = sqlite3_exec(sdb, table, 0, 0, &err_msg);
-				if (rc != SQLITE_OK) {
-					debug_msg("SQL error: %s\n", err_msg);
-					sqlite3_free(err_msg);
-					sqlite3_close(sdb);
-					return 1;
-				}
-
-			}
-
-		}
+	if (cr->option & RULE_ENG_MDB) {
+		nanomq_client_mysql(cr, false);
 	}
 
 #if defined(FDB_SUPPORT)
