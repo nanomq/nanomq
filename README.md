@@ -9,7 +9,7 @@
 [![Community](https://img.shields.io/badge/Community-NanoMQ-yellow?logo=github)](https://github.com/emqx/nanomq/discussions)
 [![License](https://img.shields.io/github/license/emqx/nanomq.svg?logoColor=silver&logo=open-source-initiative&label=&color=blue)](https://github.com/emqx/nanomq/blob/master/LICENSE.txt)
 
-[![The best IoT MQTT open source team looks forward to your joining](https://static.emqx.net/images/github_readme_en_bg.png)](https://www.emqx.com/en/careers)NanoMQ MQTT Broker (NanoMQ) is a lightweight and blazing-fast MQTT Broker for the IoT Edge platform. 
+NanoMQ MQTT Broker (NanoMQ) is a lightweight and blazing-fast MQTT Broker for the IoT Edge platform. 
 
 NanoMQ bases on NNG's asynchronous I/O threading model, with an extension of MQTT support in the protocol layer and reworked transport layer, plus an enhanced asynchronous IO mechanism maximizing the overall capacity.
 
@@ -115,12 +115,14 @@ To build NanoMQ, requires a C99 & C++11 compatible compiler and [CMake](http://w
   make
   ```
 
-**Note for Mac users: mq (one of the features) is not supported** on Mac, please disable it before compiling.
+**Note (optional) build NanoMQ with QUIC bridging feature** This enable NanoMQ bridging with EMQX 5.0 via MQTT over QUIC protocol
 
   ``` bash
-  cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DMQ=0  ..
+  cmake -G Ninja -DNNG_ENABLE_QUIC=ON ..
   ninja
   ```
+  Attention: MQTT over QUIC bridging requires libmsquic preinstalled, for now we do not release formal binary package with QUIC support due to compatability.
+ 
 **Note (optional): TLS is disabled by default**. If you want to build with TLS support you will also need [mbedTLS](https://tls.mbed.org). After installing [mbedTLS](https://tls.mbed.org), you can enable it by `-DNNG_ENABLE_TLS=ON`.
 
 ```bash
