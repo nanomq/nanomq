@@ -1,6 +1,5 @@
 #include "include/nanomq_rule.h"
 #include "nng/mqtt/mqtt_client.h"
-#include <mysql.h>
 #include "nng/nng.h"
 #include "nng/protocol/mqtt/mqtt.h"
 #include <stdio.h>
@@ -11,6 +10,7 @@
 #include "include/nanomq.h"
 
 #if defined(SUPP_RULE_ENGINE)
+#include <mysql.h>
 
 static char *key_arr[] = {
 	"Qos",
@@ -204,7 +204,6 @@ nanomq_client_sqlite(conf_rule *cr, bool init_last)
 int
 nanomq_client_mysql(conf_rule *cr, bool init_last)
 {
-
 	int      rc = 0;
 
 	char *mysql_db = cr->mysql_db
@@ -239,7 +238,7 @@ nanomq_client_mysql(conf_rule *cr, bool init_last)
 				strcat(table, type_arr[index]);
 			}
 			strcat(table, ");");
-			puts(table);
+			// puts(table);
 
 			rule_mysql *mysql = cr->rules[i].mysql;
 			MYSQL *con = mysql_init(NULL);
