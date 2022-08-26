@@ -9,7 +9,10 @@
 
 #include <stdio.h>
 #include <string.h>
+
+#if defined(SUPP_RULE_ENGINE)
 #include <mysql.h>
+#endif
 
 #include "include/nanomq.h"
 #include "nng/nng.h"
@@ -991,15 +994,23 @@ rule_engine_insert_sql(nano_work *work)
 						is_need_set_mysql = false;
 						// puts(ret);
 						debug_msg("%s", ret);
-						char *p = strchr(ret, '\n');
-						*p = '\0';
-  						if (mysql_query(rules[i].mysql->conn, ret)) {
-  							// fprintf(stderr, "%s\n", mysql_error(rules[i].mysql->conn));
-  						}
 
-  						if (mysql_query(rules[i].mysql->conn, ++p)) {
-  							// fprintf(stderr, "%s\n", mysql_error(rules[i].mysql->conn));
-  						}
+						char *p   = ret;
+						char *p_b = ret;
+
+						while (NULL != p) {
+							char *p = strchr(p_b, '\n');
+							if (NULL != p) {
+								*p = '\0';
+  								if (mysql_query(rules[i].mysql->conn, p_b)) {
+  									// fprintf(stderr, "%s\n", mysql_error(rules[i].mysql->conn));
+  								}
+								p_b = ++p;
+
+							} else {
+								break;
+							}
+						}
 
 						free(ret);
 						ret = NULL;
@@ -1024,7 +1035,7 @@ rule_engine_insert_sql(nano_work *work)
 				strcat(sql_clause, value);
 				strcat(sql_clause, ";");
 
-				puts(sql_clause);
+				// puts(sql_clause);
 
   				if (mysql_query(rules[i].mysql->conn, sql_clause)) {
   					fprintf(stderr, "%s\n", mysql_error(rules[i].mysql->conn));
