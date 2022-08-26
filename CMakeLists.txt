@@ -186,8 +186,8 @@ if(BUILD_BENCH)
   add_definitions(-DSUPP_BENCH)
 endif()
 
-if(BUILD_QUIC_CLI)
-  set(BUILD_NANOMQ_CLI ON)
+if(NNG_ENABLE_QUIC)
+  set(BUILD_QUIC_CLI ON)
   add_definitions(-DSUPP_QUIC)
 endif()
 
