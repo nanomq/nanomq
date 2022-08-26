@@ -471,14 +471,14 @@ help(enum client_type type)
 		printf("  -i, --interval <ms>              Interval of "
 		       "publishing "
 		       "message (ms) [default: 10]\n");
-		printf(
-		    "  -I, --identifier <identifier>    The client identifier "
-		    "UTF-8 String (default randomly generated string)\n");
 	} else {
 		printf("  -i, --interval <ms>              Interval of "
 		       "establishing connection "
 		       "(ms) [default: 10]\n");
 	}
+
+	printf("  -I, --identifier <identifier>    The client identifier "
+	    "UTF-8 String (default randomly generated string)\n");
 	printf("  -C, --count <num>                Num of client \n");
 	printf("  -q, --qos <qos>                  Quality of service for the "
 	       "corresponding topic [default: 0]\n");
@@ -627,24 +627,19 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 		case OPT_USER:
 			ASSERT_NULL(opt->user,
 			    "User (-u, --user) may be specified "
-			    "only "
-			    "once.");
+			    "only once.");
 			opt->user = nng_strdup(arg);
 			break;
 		case OPT_PASSWD:
 			ASSERT_NULL(opt->passwd,
 			    "Password (-p, --password) may be "
-			    "specified "
-			    "only "
-			    "once.");
+			    "specified only once.");
 			opt->passwd = nng_strdup(arg);
 			break;
 		case OPT_CLIENTID:
 			ASSERT_NULL(opt->client_id,
 			    "Identifier (-I, --identifier) may be "
-			    "specified "
-			    "only "
-			    "once.");
+			    "specified only once.");
 			opt->client_id = nng_strdup(arg);
 			break;
 		case OPT_KEEPALIVE:
@@ -656,8 +651,7 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 		case OPT_WILL_MSG:
 			ASSERT_NULL(opt->will_msg,
 			    "Will_msg (--will-msg) may be specified "
-			    "only "
-			    "once.");
+			    "only once.");
 			opt->will_msg     = nng_strdup(arg);
 			opt->will_msg_len = strlen(arg);
 			break;
@@ -670,9 +664,7 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 		case OPT_WILL_TOPIC:
 			ASSERT_NULL(opt->will_topic,
 			    "Will_topic (--will-topic) may be "
-			    "specified "
-			    "only "
-			    "once.");
+			    "specified only once.");
 			opt->will_topic = nng_strdup(arg);
 			break;
 		case OPT_SECURE:
@@ -688,8 +680,7 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 		case OPT_CERTFILE:
 			ASSERT_NULL(opt->cert,
 			    "Cert (--cert) may be specified "
-			    "only "
-			    "once.");
+			    "only once.");
 			loadfile(arg, (void **) &opt->cert, &opt->cert_len);
 			break;
 		case OPT_KEYFILE:
@@ -706,16 +697,14 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 		case OPT_MSG:
 			ASSERT_NULL(opt->msg,
 			    "Data (--file, --data) may be "
-			    "specified "
-			    "only once.");
+			    "specified only once.");
 			opt->msg     = nng_strdup(arg);
 			opt->msg_len = strlen(arg);
 			break;
 		case OPT_FILE:
 			ASSERT_NULL(opt->msg,
 			    "Data (--file, --data) may be "
-			    "specified "
-			    "only once.");
+			    "specified only once.");
 			loadfile(arg, (void **) &opt->msg, &opt->msg_len);
 			break;
 		default:
