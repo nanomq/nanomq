@@ -18,8 +18,6 @@ available applications:
    * nngcat
    * gateway
 
-NanoMQ  Edge Computing Kit & Messaging bus v0.6.8-3
-Copyright 2022 EMQ X Edge Team
 ```
 It's show that gateway is ok now. 
 

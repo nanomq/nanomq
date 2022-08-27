@@ -12,7 +12,7 @@ NanoMQ in collaboration with NNG. Relying on NNG's excellent network API design,
 
 NanoMQ currently has the following functions and features:
 
-Full support for the MQTT 3.1.1 protocol. High compatibility and portability as the project relies only on the native POSIX API and is developed purely in C/C++. NanoMQ is internally fully asynchronous IO and multi-threaded parallelism, so there is good support for SMP while achieving low latency and high throughput. It is cost-effective in terms of resource usage and is suitable for all types of edge computing platforms.
+Full support for the MQTT 3.1.1 protocol. High compatibility and portability as the project relies only on the native POSIX API and is developed purely in C. NanoMQ is internally fully asynchronous IO and multi-threaded parallelism, so there is good support for SMP while achieving low latency and high throughput. It is cost-effective in terms of resource usage and is suitable for all types of edge computing platforms.
 
 
 

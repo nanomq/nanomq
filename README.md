@@ -23,7 +23,7 @@ For more information, please visit [NanoMQ homepage](https://nanomq.io/).
 
 - Cost-effective on an embedded platform;
 - Fully base on native POSIX. High Compatibility;
-- Pure C/C++ implementation. High portability;
+- Pure C implementation. High portability;
 - Fully asynchronous I/O and multi-threading;
 - Good support for SMP;
 - Low latency & High handling capacity;
@@ -87,13 +87,13 @@ With this being said, NanoMQ can run on different architectures such like x86_64
 #### Docker
 
 ```bash
-docker run -d -p 1883:1883 -p 8883:8883 --name nanomq emqx/nanomq:0.6.6
+docker run -d -p 1883:1883 -p 8883:8883 --name nanomq emqx/nanomq:0.11.0
 ```
 
 
 #### Building From Source
 
-To build NanoMQ, requires a C99 & C++11 compatible compiler and [CMake](http://www.cmake.org/) (version 3.13 or newer). 
+To build NanoMQ, requires a C99 compatible compiler and [CMake](http://www.cmake.org/) (version 3.13 or newer). 
 
 - It is recommended to compile with Ninja:
 
