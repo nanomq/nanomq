@@ -993,7 +993,7 @@ rule_engine_insert_sql(nano_work *work)
 					if (ret && is_need_set_mysql) {
 						is_need_set_mysql = false;
 						// puts(ret);
-						debug_msg("%s", ret);
+						log_debug("%s", ret);
 
 						char *p   = ret;
 						char *p_b = ret;

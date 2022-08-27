@@ -65,7 +65,7 @@ nano_client_publish(nng_socket *sock, const char *topic, uint8_t *payload,
 	}
 
 	if ((rv = nng_sendmsg(*sock, pubmsg, NNG_FLAG_ALLOC)) != 0) {
-		debug_msg("nng_sendmsg failed %s", nng_strerror(rv));
+		log_debug("nng_sendmsg failed %s", nng_strerror(rv));
 	}
 
 	return 0;
@@ -77,14 +77,14 @@ disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	int reason = 0;
 	// get disconnect reason
 	nng_pipe_get_int(p, NNG_OPT_MQTT_DISCONNECT_REASON, &reason);
-	debug_msg("nano client disconnected! RC [%d] \n", reason);
+	log_debug("nano client disconnected! RC [%d] \n", reason);
 }
 
 // Connack message callback function
 static void
 connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {
-	debug_msg("nano client connected!\n");
+	log_debug("nano client connected!\n");
 }
 
 int
@@ -150,7 +150,7 @@ nanomq_client_sqlite(conf_rule *cr, bool init_last)
 		    : "/tmp/rule_engine.db";
 		rc                = sqlite3_open(sqlite_path, &sdb);
 		if (rc != SQLITE_OK) {
-			debug_msg("Cannot open database: %s\n",
+			log_debug("Cannot open database: %s\n",
 			    sqlite3_errmsg(sdb));
 			sqlite3_close(sdb);
 			exit(1);
@@ -189,7 +189,7 @@ nanomq_client_sqlite(conf_rule *cr, bool init_last)
 			// puts(table);
 			rc = sqlite3_exec(cr->rdb[0], table, 0, 0, &err_msg);
 			if (rc != SQLITE_OK) {
-				debug_msg("SQL error: %s\n", err_msg);
+				log_debug("SQL error: %s\n", err_msg);
 				sqlite3_free(err_msg);
 				sqlite3_close(sdb);
 				return 1;
