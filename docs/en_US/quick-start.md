@@ -4,7 +4,7 @@
 
 ## Compile & Install
 
-To build NanoMQ, you will need a C99 & C++11 compatible compiler and [CMake](https://www.cmake.org/) version 3.13 or newer.
+To build NanoMQ, you will need a C99 compatible compiler and [CMake](https://www.cmake.org/) version 3.13 or newer.
 
 Basically, you need to compile and install NanoMQ by following steps :
 
@@ -35,22 +35,10 @@ cmake -DNNG_ENABLE_TLS=ON ..
 ```
 > View config file `nanomq.conf` for more parameters about TLS.
 
-
-## Compile dependency
-
-Please be aware that NanoMQ depends on nng
-
-dependency can be compiled independently
-
-```bash
-$PROJECT_PATH/nanomq/nng/build$ cmake -G Ninja ..
-$PROJECT_PATH/nanomq/nng/build$ ninja install
-```
-
 ## Start MQTT Broker
 
 ```bash
-nanomq start &
+nanomq start
 ```
 
 Currently, NanoMQ only supports MQTT 3.1.1, partially supports MQTT 5.0
