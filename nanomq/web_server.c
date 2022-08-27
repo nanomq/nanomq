@@ -16,6 +16,7 @@
 #include "nng/protocol/reqrep0/req.h"
 #include "nng/supplemental/http/http.h"
 #include "nng/supplemental/util/platform.h"
+#include "nng/supplemental/nanolib/log.h"
 
 #include "include/nanomq.h"
 #include "include/rest_api.h"
@@ -222,22 +223,13 @@ rest_handle(nng_aio *aio)
 		return;
 	}
 
-	const char *uri = nng_http_req_get_uri(req);
-	debug_msg("get http uri: %s", uri);
-
+	const char *uri    = nng_http_req_get_uri(req);
 	const char *method = nng_http_req_get_method(req);
-	debug_msg("get http method: %s", method);
-
 	const char *content_type =
 	    nng_http_req_get_header(req, "Content-Type");
-	debug_msg("get http header: Content-Type: %s", content_type);
-
 	const char *token = nng_http_req_get_header(req, "Authorization");
-	debug_msg("get http header: Authorization: %s", token);
-
 	nng_http_req_get_data(req, &data, &sz);
-	job->http_aio = aio;
-
+	job->http_aio     = aio;
 	http_msg recv_msg = { 0 };
 
 	put_http_msg(&recv_msg, content_type, method, uri, token, data, sz);
@@ -513,15 +505,6 @@ int
 start_rest_server(conf *conf)
 {
 	int rv;
-
-	// 	nng_mtx_alloc(&mtx_log);
-	// 	log_set_lock(log_lock, mtx_log);
-	// 	log_set_level(LOG_DEBUG);
-	// 	logfile = fopen("web_server.log", "a");
-	// #if !defined(NOLOG)
-	// 	log_set_quiet(true);
-	// 	log_add_fp(logfile, LOG_DEBUG);
-	// #endif
 	rv = nng_thread_create(&inproc_thr, inproc_server, &conf->http_server);
 	if (rv != 0) {
 		fatal("cannot start inproc server", rv);
@@ -529,7 +512,7 @@ start_rest_server(conf *conf)
 
 	uint16_t port = conf->http_server.port ? conf->http_server.port
 	                                       : HTTP_DEFAULT_PORT;
-	debug_msg(REST_URL, port);
+	log_info(REST_URL, port);
 	set_global_conf(conf);
 	set_http_server_conf(&conf->http_server);
 	boot_time = nng_clock();
@@ -542,6 +525,4 @@ void
 stop_rest_server(void)
 {
 	nng_thread_destroy(inproc_thr);
-	// fclose(logfile);
-	// nng_mtx_free(mtx_log);
 }

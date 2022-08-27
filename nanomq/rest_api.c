@@ -23,6 +23,7 @@
 #include "nng/protocol/mqtt/mqtt_parser.h"
 #include "nng/supplemental/http/http.h"
 #include "nng/supplemental/util/platform.h"
+#include "nng/supplemental/nanolib/log.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -570,7 +571,7 @@ jwt_authorize(http_msg *msg)
 			}
 		}
 	} else {
-		debug_msg("decode jwt token failed: return %d, result: %d", rv,
+		log_error("decode jwt token failed: return %d, result: %d", rv,
 		    validation_result);
 		if (validation_result == L8W8JWT_EXP_FAILURE) {
 			result = TOKEN_EXPIRED;
@@ -1131,14 +1132,14 @@ post_rules(http_msg *msg)
 
 	cJSON *jso_sql = cJSON_GetObjectItem(req, "rawsql");
 	char *rawsql = cJSON_GetStringValue(jso_sql);
-	debug_msg("rawsql: %s\n", rawsql);
+	log_debug("rawsql: %s\n", rawsql);
 
 	cJSON *jso_actions = cJSON_GetObjectItem(req, "actions");
 	cJSON *jso_action = NULL;
 	cJSON_ArrayForEach(jso_action, jso_actions) {
 		cJSON *jso_name = cJSON_GetObjectItem(jso_action, "name");
 		char  *name     = cJSON_GetStringValue(jso_name);
-		debug_msg("name: %s\n", name);
+		log_debug("name: %s\n", name);
 		cJSON *jso_params = cJSON_GetObjectItem(jso_action, "params");
 		cJSON *jso_param  = NULL;
 		if (!nng_strcasecmp(name, "repub")) {
@@ -1149,28 +1150,28 @@ post_rules(http_msg *msg)
 				if (jso_param) {
 					if (!nng_strcasecmp(jso_param->string, "topic")) {
 						repub->topic = nng_strdup(jso_param->valuestring);
-						debug_msg("topic: %s\n", jso_param->valuestring);
+						log_debug("topic: %s\n", jso_param->valuestring);
 					} else if (!nng_strcasecmp(jso_param->string, "address")) {
 						repub->address = nng_strdup(jso_param->valuestring);
-						debug_msg("address: %s\n", jso_param->valuestring);
+						log_debug("address: %s\n", jso_param->valuestring);
 					} else if (!nng_strcasecmp(jso_param->string, "proto_ver")) {
 						repub->proto_ver = jso_param->valueint;
-						debug_msg("proto_ver: %d\n", jso_param->valueint);
+						log_debug("proto_ver: %d\n", jso_param->valueint);
 					} else if (!nng_strcasecmp(jso_param->string, "keepalive")) {
 						repub->keepalive = jso_param->valueint;
-						debug_msg("keepalive: %d\n", jso_param->valueint);
+						log_debug("keepalive: %d\n", jso_param->valueint);
 					} else if (!nng_strcasecmp(jso_param->string, "clientid")) {
 						repub->clientid = nng_strdup(jso_param->valuestring);
-						debug_msg("clientid: %s\n", jso_param->valuestring);
+						log_debug("clientid: %s\n", jso_param->valuestring);
 					} else if (!nng_strcasecmp(jso_param->string, "username")) {
 						repub->username = nng_strdup(jso_param->valuestring);
-						debug_msg("username: %s\n", jso_param->valuestring);
+						log_debug("username: %s\n", jso_param->valuestring);
 					} else if (!nng_strcasecmp(jso_param->string, "password")) {
 						repub->password = nng_strdup(jso_param->valuestring);
-						debug_msg("password: %s\n", jso_param->valuestring);
+						log_debug("password: %s\n", jso_param->valuestring);
 					} else if (!nng_strcasecmp(jso_param->string, "clean_start")) {
 						repub->clean_start = !nng_strcasecmp(jso_param->string, "true");
-						debug_msg("clean_start: %s\n", jso_param->valuestring);
+						log_debug("clean_start: %s\n", jso_param->valuestring);
 					} else {
 						puts("Unsupport key word!");
 					}
@@ -1208,7 +1209,7 @@ post_rules(http_msg *msg)
 			cJSON_ArrayForEach(jso_param, jso_params) {
 				if (jso_param) {
 					if (!nng_strcasecmp(jso_param->string, "table")) {
-						debug_msg("table: %s\n", jso_param->valuestring);
+						log_debug("table: %s\n", jso_param->valuestring);
 						rule_sql_parse(cr, rawsql);
 						cr->rules[cvector_size(cr->rules) - 1].forword_type = RULE_FORWORD_SQLITE;
 						cr->rules[cvector_size(cr->rules) - 1]
@@ -1230,16 +1231,16 @@ post_rules(http_msg *msg)
 				if (jso_param) {
 					if (!nng_strcasecmp(jso_param->string, "table")) {
 						mysql->table = nng_strdup(jso_param->valuestring);
-						debug_msg("table: %s\n", jso_param->valuestring);
+						log_debug("table: %s\n", jso_param->valuestring);
 					} else if (!nng_strcasecmp(jso_param->string, "username")) {
 						mysql->username = nng_strdup(jso_param->valuestring);
-						debug_msg("username: %s\n", jso_param->valuestring);
+						log_debug("username: %s\n", jso_param->valuestring);
 					} else if (!nng_strcasecmp(jso_param->string, "password")) {
 						mysql->password = nng_strdup(jso_param->valuestring);
-						debug_msg("password: %s\n", jso_param->valuestring);
+						log_debug("password: %s\n", jso_param->valuestring);
 					} else if (!nng_strcasecmp(jso_param->string, "host")) {
 						mysql->host = nng_strdup(jso_param->valuestring);
-						debug_msg("host: %s\n", jso_param->valuestring);
+						log_debug("host: %s\n", jso_param->valuestring);
 					} else {
 						puts("Unsupport key word!");
 					}
@@ -1278,7 +1279,7 @@ post_rules(http_msg *msg)
 
 
 		} else {
-			debug_msg("Unsupport forword type !");
+			log_debug("Unsupport forword type !");
 		}
 
 	}
@@ -1286,7 +1287,7 @@ post_rules(http_msg *msg)
 	cJSON *jso_desc = cJSON_GetObjectItem(req, "description");
 	if (jso_desc) {
 		char *desc= cJSON_GetStringValue(jso_desc);
-		debug_msg("%s\n", desc);
+		log_debug("%s\n", desc);
 
 	}
 
@@ -1400,7 +1401,7 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 		cJSON_ArrayForEach(jso_action, jso_actions) {
 			cJSON *jso_name = cJSON_GetObjectItem(jso_action, "name");
 			char  *name     = cJSON_GetStringValue(jso_name);
-			debug_msg("name: %s\n", name);
+			log_debug("name: %s\n", name);
 			cJSON *jso_params = cJSON_GetObjectItem(jso_action, "params");
 			cJSON *jso_param  = NULL;
 			if (!nng_strcasecmp(name, "repub")) {
@@ -1418,40 +1419,40 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 								nng_strfree(repub->topic);
 							}
 							repub->topic = nng_strdup(jso_param->valuestring);
-							debug_msg("topic: %s\n", jso_param->valuestring);
+							log_debug("topic: %s\n", jso_param->valuestring);
 						} else if (!nng_strcasecmp(jso_param->string, "address")) {
 							if (repub->address) {
 								nng_strfree(repub->address);
 							}
 							repub->address = nng_strdup(jso_param->valuestring);
-							debug_msg("address: %s\n", jso_param->valuestring);
+							log_debug("address: %s\n", jso_param->valuestring);
 						} else if (!nng_strcasecmp(jso_param->string, "proto_ver")) {
 							repub->proto_ver = jso_param->valueint;
-							debug_msg("proto_ver: %d\n", jso_param->valueint);
+							log_debug("proto_ver: %d\n", jso_param->valueint);
 						} else if (!nng_strcasecmp(jso_param->string, "keepalive")) {
 							repub->keepalive = jso_param->valueint;
-							debug_msg("keepalive: %d\n", jso_param->valueint);
+							log_debug("keepalive: %d\n", jso_param->valueint);
 						} else if (!nng_strcasecmp(jso_param->string, "clientid")) {
 							if (repub->clientid) {
 								nng_strfree(repub->clientid);
 							}
 							repub->clientid = nng_strdup(jso_param->valuestring);
-							debug_msg("clientid: %s\n", jso_param->valuestring);
+							log_debug("clientid: %s\n", jso_param->valuestring);
 						} else if (!nng_strcasecmp(jso_param->string, "username")) {
 							if (repub->username) {
 								nng_strfree(repub->username);
 							}
 							repub->username = nng_strdup(jso_param->valuestring);
-							debug_msg("username: %s\n", jso_param->valuestring);
+							log_debug("username: %s\n", jso_param->valuestring);
 						} else if (!nng_strcasecmp(jso_param->string, "password")) {
 							if (repub->password) {
 								nng_strfree(repub->password);
 							}
 							repub->password = nng_strdup(jso_param->valuestring);
-							debug_msg("password: %s\n", jso_param->valuestring);
+							log_debug("password: %s\n", jso_param->valuestring);
 						} else if (!nng_strcasecmp(jso_param->string, "clean_start")) {
 							repub->clean_start = !nng_strcasecmp(jso_param->string, "true");
-							debug_msg("clean_start: %s\n", jso_param->valuestring);
+							log_debug("clean_start: %s\n", jso_param->valuestring);
 						} else {
 							puts("Unsupport key word!");
 						}
@@ -1462,7 +1463,7 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 				cJSON_ArrayForEach(jso_param, jso_params) {
 					if (jso_param) {
 						if (!nng_strcasecmp(jso_param->string, "table")) {
-							debug_msg("table: %s\n", jso_param->valuestring);
+							log_debug("table: %s\n", jso_param->valuestring);
 							if (new_rule->sqlite_table) {
 								nng_strfree(new_rule->sqlite_table);
 							} else {
@@ -1489,25 +1490,25 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 								nng_strfree(mysql->table);
 							}
 							mysql->table = nng_strdup(jso_param->valuestring);
-							debug_msg("table: %s\n", jso_param->valuestring);
+							log_debug("table: %s\n", jso_param->valuestring);
 						} else if (!nng_strcasecmp(jso_param->string, "username")) {
 							if (mysql->username) {
 								nng_strfree(mysql->username);
 							}
 							mysql->username = nng_strdup(jso_param->valuestring);
-							debug_msg("username: %s\n", jso_param->valuestring);
+							log_debug("username: %s\n", jso_param->valuestring);
 						} else if (!nng_strcasecmp(jso_param->string, "password")) {
 							if (mysql->password) {
 								nng_strfree(mysql->password);
 							}
 							mysql->password = nng_strdup(jso_param->valuestring);
-							debug_msg("password: %s\n", jso_param->valuestring);
+							log_debug("password: %s\n", jso_param->valuestring);
 						} else if (!nng_strcasecmp(jso_param->string, "host")) {
 							if (mysql->host) {
 								nng_strfree(mysql->host);
 							}
 							mysql->host = nng_strdup(jso_param->valuestring);
-							debug_msg("host: %s\n", jso_param->valuestring);
+							log_debug("host: %s\n", jso_param->valuestring);
 						} else {
 							puts("Unsupport key word!");
 						}
@@ -1520,7 +1521,7 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 
 
 			} else {
-				debug_msg("Unsupport forword type !");
+				log_debug("Unsupport forword type !");
 			}
 
 		}
@@ -1566,7 +1567,6 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 
 	// cJSON *jso_desc = cJSON_GetObjectItem(req, "description");
 	// char *desc= cJSON_GetStringValue(jso_desc);
-	// debug_msg("%s\n", desc);
 
  	cJSON *data_info = cJSON_CreateObject();
 	cJSON *actions = cJSON_CreateArray();
@@ -2209,7 +2209,7 @@ update_bridge_conf(cJSON *json, conf *config)
 	cJSON *sqlite = cJSON_GetObjectItem(json, "sqlite");
 
 	getBoolValue(sqlite, item, "enable", bridge.sqlite.enable, rv);
-	debug_msg("getBoolValue: %s\n", bridge.sqlite.enable ? "true" : "false");
+	log_debug("getBoolValue: %s\n", bridge.sqlite.enable ? "true" : "false");
 	if (rv == 0) {
 		conf_update_bool(config->bridge_file, "bridge.sqlite.enable",
 		    bridge.sqlite.enable);

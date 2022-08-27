@@ -13,12 +13,6 @@ macro (NANO_SET arg val)
   SET(${arg} ${val})
 endmacro ()
 
-# run NanoMQ without printing log
-NANO_SET(NOLOG 1)
-# build this project suport mq
-NANO_SET(MQ 1)
-# run NanoMQ without printing warning
-NANO_SET(NOWARNING 0)
 # gdb support
 NANO_SET(DEBUG 0)
 # asan support

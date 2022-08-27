@@ -20,6 +20,7 @@
 #include "nng/supplemental/http/http.h"
 #include "nng/supplemental/nanolib/conf.h"
 #include "nng/supplemental/util/platform.h"
+#include "nng/supplemental/nanolib/log.h"
 
 #define NANO_LMQ_INIT_CAP 16
 
@@ -66,7 +67,7 @@ send_msg(conf_web_hook *conf, nng_msg *msg)
 	    ((rv = nng_http_req_alloc(&req, url)) != 0) ||
 	    ((rv = nng_http_res_alloc(&res)) != 0) ||
 	    ((rv = nng_aio_alloc(&aio, NULL, NULL)) != 0)) {
-		debug_msg("init failed: %s\n", nng_strerror(rv));
+		log_error("init failed: %s\n", nng_strerror(rv));
 		goto out;
 	}
 
@@ -78,7 +79,7 @@ send_msg(conf_web_hook *conf, nng_msg *msg)
 	// TODO It could cause some problems.
 	nng_aio_wait(aio);
 	if ((rv = nng_aio_result(aio)) != 0) {
-		debug_msg("Connect failed: %s", nng_strerror(rv));
+		log_error("Connect failed: %s", nng_strerror(rv));
 		nng_aio_finish_sync(aio, rv);
 		goto out;
 	}
@@ -103,7 +104,7 @@ send_msg(conf_web_hook *conf, nng_msg *msg)
 	nng_aio_wait(aio);
 
 	if ((rv = nng_aio_result(aio)) != 0) {
-		debug_msg("Write req failed: %s", nng_strerror(rv));
+		log_error("Write req failed: %s", nng_strerror(rv));
 		nng_aio_finish_sync(aio, rv);
 		goto out;
 	}

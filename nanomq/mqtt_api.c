@@ -6,28 +6,34 @@
 // file was obtained (LICENSE.txt).  A copy of the license may also be
 // found online at https://opensource.org/licenses/MIT.
 //
-#include <nng.h>
 #include "mqtt_api.h"
 #include "nanomq.h"
 #include "nng/nng.h"
 #include "nng/protocol/mqtt/mqtt_parser.h"
+#include "nng/supplemental/nanolib/file.h"
+#include "nng/supplemental/nanolib/log.h"
+#include "nng/nng.h"
+
+#if defined(SUPP_SYSLOG)
+#include <syslog.h>
+#endif
 
 /**
- * @brief create listener for MQTT 
+ * @brief create listener for MQTT
  * and start listen
- * 
- * @param sid 
- * @param addr 
- * @param lp 
- * @param flags 
- * @return int 
+ *
+ * @param sid
+ * @param addr
+ * @param lp
+ * @param flags
+ * @return int
  */
 int
-nano_listen(
-    nng_socket sid, const char *addr, nng_listener *lp, int flags, conf *config)
+nano_listen(nng_socket sid, const char *addr, nng_listener *lp, int flags,
+    conf *config)
 {
-	int           rv;
-	nng_listener  l;
+	int          rv;
+	nng_listener l;
 
 	nng_listener_create(&l, sid, addr);
 	nng_listener_set(l, NANO_CONF, config, sizeof(conf));
@@ -174,5 +180,79 @@ encode_common_mqtt_msg(
 	*dest = msg;
 
 	nng_msg_free(src);
+	return 0;
+}
+
+static nng_mtx *log_file_mtx = NULL;
+static FILE *   log_fp       = NULL;
+
+static int
+log_file_init(conf_log *log)
+{
+	if (log->dir != NULL && !nng_file_is_dir(log->dir)) {
+		log_fatal("%s is not a directory, make sure it's "
+		          "created before starting nanomq",
+		    log->dir);
+		return NNG_EINVAL;
+	}
+	log->dir  = log->dir == NULL ? nng_strdup("./") : log->dir;
+	log->file = log->file == NULL ? nng_strdup("nanomq.log") : log->file;
+	size_t path_len = strlen(log->dir) + strlen(log->file) + 3;
+	char * path     = nng_zalloc(path_len);
+	snprintf(path, path_len, "%s%s%s", log->dir,
+	    log->dir[strlen(log->dir) - 1] == '/' ? "" : "/", log->file);
+
+	log_fp = fopen(path, "a");
+	if (log_fp == NULL) {
+		log_fatal("open log file '%s' failed", path);
+		nng_free(path, path_len);
+		return NNG_EINVAL;
+	}
+	nng_free(path, path_len);
+	return 0;
+}
+
+int
+log_init(conf_log *log)
+{
+	int rv = 0;
+
+	log_set_level(log->level);
+
+	if (0 != (log->type & LOG_TO_CONSOLE)) {
+		log_add_console(log->level, NULL);
+	}
+
+	if (0 != (log->type & LOG_TO_FILE)) {
+		if (0 != (rv = log_file_init(log)) ||
+		    0 != (rv = nng_mtx_alloc(&log_file_mtx))) {
+			return rv;
+		}
+		log_add_fp(log_fp, log->level, log_file_mtx);
+	}
+
+#if defined(SUPP_SYSLOG)
+	if (0 != (log->type & LOG_TO_SYSLOG)) {
+		log_add_syslog("nng-nanomq", log->level, NULL);
+	}
+#endif
+
+	return 0;
+}
+
+int
+log_fini(conf_log *log)
+{
+	if (0 != (log->type & LOG_TO_FILE)) {
+		fclose(log_fp);
+		nng_mtx_free(log_file_mtx);
+	}
+
+#if defined(SUPP_SYSLOG)
+	if (0 != (log->type & LOG_TO_SYSLOG)) {
+		closelog();
+	}
+#endif
+
 	return 0;
 }
