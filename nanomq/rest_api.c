@@ -23,6 +23,7 @@
 #include "nng/protocol/mqtt/mqtt_parser.h"
 #include "nng/supplemental/http/http.h"
 #include "nng/supplemental/util/platform.h"
+#include "nng/supplemental/nanolib/log.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -570,7 +571,7 @@ jwt_authorize(http_msg *msg)
 			}
 		}
 	} else {
-		debug_msg("decode jwt token failed: return %d, result: %d", rv,
+		log_error("decode jwt token failed: return %d, result: %d", rv,
 		    validation_result);
 		if (validation_result == L8W8JWT_EXP_FAILURE) {
 			result = TOKEN_EXPIRED;

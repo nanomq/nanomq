@@ -24,6 +24,7 @@
 #include "nng/protocol/reqrep0/req.h"
 #include "nng/supplemental/nanolib/conf.h"
 #include "nng/supplemental/util/platform.h"
+#include "nng/supplemental/nanolib/log.h"
 #include "pub_handler.h"
 
 #define fatal(msg, rv)                                    \
@@ -154,12 +155,12 @@ establish_mqtt_session(MQTTContext_t *mqtt_ctx, bool clean_session,
 
 	if (mqtt_status != MQTTSuccess) {
 		rv = EXIT_FAILURE;
-		debug_msg("ERROR: Connection with MQTT broker failed with "
+		log_error("Connection with MQTT broker failed with "
 		          "status %s.",
 		    MQTT_Status_strerror(mqtt_status));
 	} else {
-		debug_msg("MQTT connection successfully established with "
-		          "broker.\n");
+		log_info("MQTT connection successfully established with "
+		         "broker.\n");
 	}
 
 	return rv;
@@ -219,7 +220,7 @@ connect_retries(NetworkContext_t *net_ctx, MQTTContext_t *mqtt_ctx,
 		/* Establish a TLS session with the MQTT broker. This example
 		 * connects to the MQTT broker as specified in AWS_IOT_ENDPOINT
 		 * and AWS_MQTT_PORT at the demo config header. */
-		debug_msg("Establishing a TLS session to %s:%d.", node->host,
+		log_info("Establishing a TLS session to %s:%d.", node->host,
 		    node->port);
 		ssl_status = Openssl_Connect(net_ctx, &server_info,
 		    &ssl_credentials, TRANSPORT_SEND_RECV_TIMEOUT_MS,
@@ -250,16 +251,15 @@ connect_retries(NetworkContext_t *net_ctx, MQTTContext_t *mqtt_ctx,
 
 			if (backoff_alg_status ==
 			    BackoffAlgorithmRetriesExhausted) {
-				debug_msg(
-				    "ERROR: Connection to the broker failed, "
-				    "all attempts exhausted.");
+				log_error("Connection to the broker failed, "
+				          "all attempts exhausted.");
 				rv = EXIT_FAILURE;
 			} else if (backoff_alg_status ==
 			    BackoffAlgorithmSuccess) {
-				LogWarn(("Connection to the broker failed. "
+				log_warn("Connection to the broker failed. "
 				         "Retrying connection "
 				         "after %hu ms backoff.",
-				    (unsigned short) next_retry_back_off));
+				    (unsigned short) next_retry_back_off);
 				Clock_SleepMs(next_retry_back_off);
 			}
 		}
@@ -292,8 +292,7 @@ handle_recv_publish(MQTTPublishInfo_t *pub_info, uint16_t packet_id,
 	              &msg, pub_msg, node->clientid, node->proto_ver) != 0) ||
 	    (rv = nng_sendmsg(sock, msg, 0)) != 0) {
 		nng_msg_free(msg);
-		debug_msg(
-		    "ERROR: Failed to send publish message to broker: %d", rv);
+		log_error("Failed to send publish message to broker: %d", rv);
 	}
 }
 
@@ -333,13 +332,13 @@ event_cb(MQTTContext_t *mqtt_ctx, MQTTPacketInfo_t *packet_info,
 			mqtt_status = MQTT_GetSubAckStatusCodes(
 			    packet_info, &payload, &size);
 			if (mqtt_status != MQTTSubAckFailure) {
-				debug_msg(
+				log_debug(
 				    "Subscribed to the topic successfully.");
 			}
 			break;
 
 		case MQTT_PACKET_TYPE_UNSUBACK:
-			debug_msg("Unsubscribed from the topic");
+			log_debug("Unsubscribed from the topic");
 			/* Make sure ACK packet identifier matches with Request
 			 * packet identifier. */
 			break;
@@ -347,20 +346,19 @@ event_cb(MQTTContext_t *mqtt_ctx, MQTTPacketInfo_t *packet_info,
 		case MQTT_PACKET_TYPE_PINGRESP:
 			/* Nothing to be done from application as library
 			 * handles PINGRESP. */
-			LogWarn(("PINGRESP should not be handled by the "
+			log_warn("PINGRESP should not be handled by the "
 			         "application "
-			         "callback when using MQTT_ProcessLoop.\n"));
+			         "callback when using MQTT_ProcessLoop.");
 			break;
 
 		case MQTT_PACKET_TYPE_PUBACK:
-			debug_msg(
+			log_debug(
 			    "PUBACK received for packet id %u.\n", packet_id);
 			break;
 
 		/* Any other packet type is invalid. */
 		default:
-			debug_msg(
-			    "ERROR: Unknown packet type received:(%02x).\n",
+			log_error("Unknown packet type received:(%02x).\n",
 			    packet_info->type);
 		}
 	}
@@ -432,21 +430,19 @@ subscribe_to_topic(MQTTContext_t *mqtt_ctx, conf_bridge_node *node)
 	    MQTT_Subscribe(mqtt_ctx, sub_list, node->sub_count, sub_packet_id);
 
 	if (mqttStatus != MQTTSuccess) {
-		debug_msg(
-		    "ERROR: Failed to send SUBSCRIBE packet to broker with "
-		    "error = %s.",
+		log_error("Failed to send SUBSCRIBE packet to broker with "
+		          "error = %s.",
 		    MQTT_Status_strerror(mqttStatus));
 		returnStatus = EXIT_FAILURE;
 	} else {
-		debug_msg("SUBSCRIBE to broker successfully.\n");
+		log_info("SUBSCRIBE to broker successfully.\n");
 
 		mqttStatus =
 		    MQTT_ProcessLoop(mqtt_ctx, MQTT_PROCESS_LOOP_TIMEOUT_MS);
 
 		if (mqttStatus != MQTTSuccess) {
 			returnStatus = EXIT_FAILURE;
-			debug_msg(
-			    "ERROR: "
+			log_error(
 			    "MQTT_ProcessLoop returned with status = %s.",
 			    MQTT_Status_strerror(mqttStatus));
 		}
@@ -578,10 +574,9 @@ aws_bridge_forward(nano_work *work)
 					 * exit the loop and disconnect from
 					 * the broker. */
 					if (mqttStatus != MQTTSuccess) {
-						debug_msg(
-						    "ERROR: MQTT_ProcessLoop "
-						    "returned with "
-						    "status = %s.",
+						log_error("MQTT_ProcessLoop "
+						          "returned with "
+						          "status = %s.",
 						    MQTT_Status_strerror(
 						        mqttStatus));
 						rv = EXIT_FAILURE;

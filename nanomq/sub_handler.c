@@ -10,6 +10,7 @@
 #include "nng/protocol/mqtt/mqtt_parser.h"
 #include "nng/supplemental/nanolib/nanolib.h"
 #include "nng/supplemental/util/platform.h"
+#include "nng/supplemental/nanolib/log.h"
 
 #include "include/broker.h"
 #include "include/nanomq.h"
@@ -54,13 +55,13 @@ decode_sub_msg(nano_work *work)
 		}
 	}
 
-	debug_msg("remainLen: [%ld] packetid : [%d]", remaining_len,
+	log_debug("remainLen: [%ld] packetid : [%d]", remaining_len,
 	    sub_pkt->packet_id);
 	// handle payload
 	payload_ptr = nng_msg_payload_ptr(msg);
 
 	if ((tn = nng_zalloc(sizeof(topic_node))) == NULL) {
-		debug_msg("ERROR: nng_zalloc");
+		log_error("nng_zalloc");
 		return NNG_ENOMEM;
 	}
 	tn->next = NULL;
@@ -75,11 +76,11 @@ decode_sub_msg(nano_work *work)
 		tn->topic.body =
 		    (char *)copy_utf8_str(payload_ptr, (uint32_t *)&bpos, &len_of_topic);
 		tn->topic.len = len_of_topic;
-		debug_msg("topic: [%s] len: [%d]", tn->topic.body, len_of_topic);
+		log_info("topic: [%s] len: [%d]", tn->topic.body, len_of_topic);
 		len_of_topic = 0;
 
 		if (tn->topic.len < 1 || tn->topic.body == NULL) {
-			debug_msg("NOT utf8-encoded string OR null string.");
+			log_error("NOT utf8-encoded string OR null string.");
 			tn->reason_code = UNSPECIFIED_ERROR;
 			if (MQTT_PROTOCOL_VERSION_v5 == proto_ver)
 				tn->reason_code = TOPIC_FILTER_INVALID;
@@ -90,7 +91,7 @@ decode_sub_msg(nano_work *work)
 		tn->rap = 1; // Default Setting
 		memcpy(tn, payload_ptr + bpos, 1);
 		if (tn->retain_handling > 2) {
-			debug_msg("ERROR: error in retain_handling");
+			log_error("error in retain_handling");
 			tn->reason_code = UNSPECIFIED_ERROR;
 			return PROTOCOL_ERROR;
 		}
@@ -107,7 +108,7 @@ decode_sub_msg(nano_work *work)
 next:
 		if (bpos < remaining_len - vpos) {
 			if (NULL == (tn = nng_zalloc(sizeof(topic_node)))) {
-				debug_msg("ERROR: nng_zalloc");
+				log_error("nng_zalloc");
 				return NNG_ENOMEM;
 			}
 			tn->next = NULL;
@@ -141,7 +142,7 @@ encode_suback_msg(nng_msg *msg, nano_work *work)
 	// handle variable header first
 	NNI_PUT16(packet_id, sub_pkt->packet_id);
 	if ((rv = nng_msg_append(msg, packet_id, 2)) != 0) {
-		debug_msg("ERROR: nng_msg_append [%d]", rv);
+		log_error("nng_msg_append [%d]", rv);
 		return PROTOCOL_ERROR;
 	}
 
@@ -154,7 +155,7 @@ encode_suback_msg(nng_msg *msg, nano_work *work)
 	reason_code = PACKET_IDENTIFIER_IN_USE;
 	if (sub_pkt->packet_id == 0) {
 		if ((rv = nng_msg_append(msg, &reason_code, 1)) != 0) {
-			debug_msg("ERROR: nng_msg_append [%d]", rv);
+			log_error("nng_msg_append [%d]", rv);
 			return PROTOCOL_ERROR;
 		}
 	}
@@ -167,18 +168,18 @@ encode_suback_msg(nng_msg *msg, nano_work *work)
 		reason_code = tn->reason_code;
 		// MQTT_v3: 0x00-qos0  0x01-qos1  0x02-qos2  0x80-fail
 		if ((rv = nng_msg_append(msg, &reason_code, 1)) != 0) {
-			debug_msg("ERROR: nng_msg_append [%d]", rv);
+			log_error("nng_msg_append [%d]", rv);
 			return PROTOCOL_ERROR;
 		}
 		tn = tn->next;
-		debug_msg("reason_code: [%x]", reason_code);
+		log_debug("reason_code: [%x]", reason_code);
 	}
 
 	// If NOT find any reason codes
 	if (!sub_pkt->node && sub_pkt->packet_id != 0) {
 		reason_code = UNSPECIFIED_ERROR;
 		if ((rv = nng_msg_append(msg, &reason_code, 1)) != 0) {
-			debug_msg("ERROR: nng_msg_append [%d]", rv);
+			log_error("nng_msg_append [%d]", rv);
 			return PROTOCOL_ERROR;
 		}
 	}
@@ -186,18 +187,18 @@ encode_suback_msg(nng_msg *msg, nano_work *work)
 	// handle fixed header
 	cmd = CMD_SUBACK;
 	if ((rv = nng_msg_header_append(msg, (uint8_t *) &cmd, 1)) != 0) {
-		debug_msg("ERROR: nng_msg_header_append [%d]", rv);
+		log_error("nng_msg_header_append [%d]", rv);
 		return PROTOCOL_ERROR;
 	}
 
 	remaining_len = (uint32_t) nng_msg_len(msg);
 	len_of_varint = put_var_integer(varint, remaining_len);
 	if ((rv = nng_msg_header_append(msg, varint, len_of_varint)) != 0) {
-		debug_msg("ERROR: nng_msg_header_append [%d]", rv);
+		log_error("nng_msg_header_append [%d]", rv);
 		return PROTOCOL_ERROR;
 	}
 
-	debug_msg("remain: [%d] "
+	log_debug("remain: [%d] "
 	          "varint: [%d %d %d %d] "
 	          "len: [%d] "
 	          "packetid: [%x %x] ",
@@ -233,7 +234,7 @@ sub_ctx_handle(nano_work *work)
 	while (tn) {
 		topic_len = tn->topic.len;
 		topic_str = tn->topic.body;
-		debug_msg("topicLen: [%d] body: [%s]", topic_len, topic_str);
+		log_debug("topicLen: [%d] body: [%s]", topic_len, topic_str);
 
 		if (!topic_str)
 			goto next;
@@ -275,7 +276,7 @@ sub_ctx_handle(nano_work *work)
 #ifdef DEBUG
 	dbtree_print(work->db);
 #endif
-	debug_msg("end of sub ctx handle.\n");
+	log_debug("end of sub ctx handle.\n");
 	return 0;
 }
 
