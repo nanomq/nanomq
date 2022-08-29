@@ -191,7 +191,7 @@ With CMake, NanoMQ allows user to have broker natively tuned/configured when bui
 To use CMake configuration, navigating to `./nanomq/build` and typing the following command :
 
 ```bash
-cmake -DCFG_METHOD=CMAKE_CONFIG ..
+cmake ..
 ```
 
 Be aware that, CMake configuration is enabled by default, If you leave all parameters empty, the default value will take effect.
@@ -201,8 +201,8 @@ Be aware that, CMake configuration is enabled by default, If you leave all param
   Recommendation: equal to your CPU cores
 
   ```bash
-  cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DNNG_NUM_TASKQ_THREADS=<num> ..
-  cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DNNG_MAX_TASKQ_THREADS=<num> ..
+  cmake -G Ninja -DNNG_NUM_TASKQ_THREADS=<num> ..
+  cmake -G Ninja -DNNG_MAX_TASKQ_THREADS=<num> ..
   ```
 
 - Setting the number of concurrent resolver threads:
@@ -210,7 +210,7 @@ Be aware that, CMake configuration is enabled by default, If you leave all param
   Recommendation: 1
 
   ```bash
-  cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DNNG_RESOLV_CONCURRENCY=<num> ..
+  cmake -G Ninja -DNNG_RESOLV_CONCURRENCY=<num> ..
   ```
 
   *Inherited from NNG*
@@ -220,8 +220,8 @@ Be aware that, CMake configuration is enabled by default, If you leave all param
   Default: disabled (1)
 
   ```bash
-  cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DNOLOG=0  ..
-  cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DNOLOG=1  ..
+  cmake -G Ninja -DNOLOG=0  ..
+  cmake -G Ninja -DNOLOG=1  ..
   ```
 
 - Enabling or disabling messaging queue function 
@@ -229,8 +229,8 @@ Be aware that, CMake configuration is enabled by default, If you leave all param
   Default: enabled (1)
 
   ```bash
-  cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DMQ=1  ..
-  cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DMQ=0  ..
+  cmake -G Ninja -DMQ=1  ..
+  cmake -G Ninja -DMQ=0  ..
   ```
 
 - Setting the logical concurrency limitation:
@@ -238,24 +238,8 @@ Be aware that, CMake configuration is enabled by default, If you leave all param
   Default: 32
 
   ```bash
-  cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DPARALLEL=<num> ..
+  cmake -G Ninja -DPARALLEL=<num> ..
   ```
-
-
-
-#### config.cmake.in
-
-In the root directory of NanoMQ(`./nanomq`), there is a file named 'config.cmake.in'. It provides bunch of modifiable configurations (same as the parameters above).
-
-navigating to `./nanomq/build` , then:
-
-```bash
-cmake -DCFG_METHOD=FILE_CONFIG ..
-ninja
-```
-
-to make your modification effective. 
-
 
 
 ### Booting Parameters
@@ -264,7 +248,7 @@ Users can also change the configuration parameters of NanoMQ while booting. Howe
 
 #### NanoMQ configuration file
 
-NanoMQ will look up to it's configuration file in `/etc/` by default. Please remember to copy conf file to `/etc/` in your system if you wanna start NanoMQ without setting conf path manually. This file is different from 'config.cmake.in'. This 'nanomq.conf' allows you to configure broker when booting. Please be noted that if you start NanoMQ in the project's root directory, this file will be read automatically.
+NanoMQ will look up to it's configuration file in `/etc/` by default. Please remember to copy conf file to `/etc/` in your system if you wanna start NanoMQ without setting conf path manually. This 'nanomq.conf' allows you to configure broker when booting. Please be noted that if you start NanoMQ in the project's root directory, this file will be read automatically.
 
 Configure **MQTT bridging** in NanoMQ: by modifying `nanomq_bridge.conf`, which is in the same directory with `nanomq.conf`.
 
