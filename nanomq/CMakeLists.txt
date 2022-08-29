@@ -103,6 +103,7 @@ endif(BUILD_QUIC_CLI)
 
 target_link_libraries(nanomq nng)
 
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 # Package all static files into one libnanomq.a
 if(BUILD_NANO_LIB)
   set(FULL_OUTPUT_PATH ${CMAKE_BINARY_DIR}/libnanomq.a)
@@ -123,21 +124,29 @@ if(BUILD_NANO_LIB)
           )
 endif(BUILD_NANO_LIB)
 
+# TODO INSTALL
 
-# install(
-#   TARGETS nanomq
-#   EXPORT nanomqConfig
-#   # ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
-#   # LIBRARY  DESTINATION ${CMAKE_INSTALL_LIBDIR}
-#   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT services)
-# 
-# install(
-#   DIRECTORY include/
-#   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}
-#   COMPONENT services)
-# 
-# install(
-#   EXPORT nanomqConfig
-#   DESTINATION share/nanomq/cmake
-#   COMPONENT services)
-# 
+if(BUILD_NANO_LIB)
+  # install(
+  #   FILES ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}/libnanomq.a
+  #   LIBRARY  DESTINATION ${CMAKE_INSTALL_LIBDIR})
+
+else()
+  install(
+    TARGETS nanomq
+    EXPORT nanomqConfig
+    # ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    # LIBRARY  DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT services)
+
+  install(
+    DIRECTORY include/
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}
+    COMPONENT services)
+
+  install(
+    EXPORT nanomqConfig
+    DESTINATION share/nanomq/cmake
+    COMPONENT services)
+
+endif()
