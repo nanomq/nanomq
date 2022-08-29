@@ -119,6 +119,9 @@ check_trace(char *name)
 }
 #endif
 
+#if defined(SUPP_NANO_LIB)
+
+#else
 int
 main(int argc, char **argv)
 {
@@ -150,3 +153,5 @@ main(int argc, char **argv)
 
 	return EXIT_FAILURE;
 }
+
+#endif
