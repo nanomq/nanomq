@@ -166,6 +166,10 @@ else ()
   message(FATAL_ERROR "CFG_METHOD ERROR.")
 endif ()
 
+if(BUILD_NANO_LIB)
+  add_definitions(-DSUPP_NANO_LIB)
+endif(BUILD_NANO_LIB)
+
 if(BUILD_CLIENT)
   set(BUILD_NANOMQ_CLI ON)
   add_definitions(-DSUPP_CLIENT)

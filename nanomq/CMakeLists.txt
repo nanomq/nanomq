@@ -52,7 +52,11 @@ set(SOURCES
 
 include_directories(${FOUNDATION_INCLUDE_DIR})
 
-add_executable(nanomq ${SOURCES})
+if(BUILD_NANO_LIB)
+  add_library(nanomq ${SOURCES})
+else()
+  add_executable(nanomq ${SOURCES})
+endif()
 
 if(ENABLE_RULE_ENGINE)
   target_link_libraries(nanomq ${FOUNDATION_LIBRARY})
@@ -98,21 +102,42 @@ if(BUILD_QUIC_CLI)
 endif(BUILD_QUIC_CLI)
 
 target_link_libraries(nanomq nng)
-target_compile_definitions(nanomq PRIVATE -DPARALLEL=${PARALLEL})
 
-install(
-  TARGETS nanomq
-  EXPORT nanomqConfig
-  # ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  # LIBRARY  DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT services)
+# Package all static files into one libnanomq.a
+if(BUILD_NANO_LIB)
+  set(FULL_OUTPUT_PATH ${CMAKE_BINARY_DIR}/libnanomq.a)
+  set (tmp ${CMAKE_BINARY_DIR}/tmp)
+  file(WRITE ${tmp} "create ${FULL_OUTPUT_PATH}\n")
+  file(APPEND ${tmp} "addlib ${CMAKE_BINARY_DIR}/nanomq/libnanomq.a\n")
+  file(APPEND ${tmp} "addlib ${CMAKE_BINARY_DIR}/nng/libnng.a\n")
+  file(APPEND ${tmp} "addlib ${CMAKE_BINARY_DIR}/nanomq/apps/libapps.a\n")
+  file(APPEND ${tmp} "save\n")
+  file(APPEND ${tmp} "end\n")
 
-install(
-  DIRECTORY include/
-  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}
-  COMPONENT services)
+  add_custom_target(libnano
+          COMMAND ar -M < ${CMAKE_BINARY_DIR}/tmp
+          COMMAND rm ${CMAKE_BINARY_DIR}/tmp
+          COMMAND rm ${CMAKE_BINARY_DIR}/nanomq/libnanomq.a
+          WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+          DEPENDS apps nanomq nng
+          )
+endif(BUILD_NANO_LIB)
 
-install(
-  EXPORT nanomqConfig
-  DESTINATION share/nanomq/cmake
-  COMPONENT services)
+
+# install(
+#   TARGETS nanomq
+#   EXPORT nanomqConfig
+#   # ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
+#   # LIBRARY  DESTINATION ${CMAKE_INSTALL_LIBDIR}
+#   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT services)
+# 
+# install(
+#   DIRECTORY include/
+#   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}
+#   COMPONENT services)
+# 
+# install(
+#   EXPORT nanomqConfig
+#   DESTINATION share/nanomq/cmake
+#   COMPONENT services)
+# 
