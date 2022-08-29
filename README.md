@@ -164,6 +164,12 @@ ninja
   ninja
   ```
 
+**Note (optional): nanomq as a static lib (for message persistence) isn't built by default**, you can enable it via `-DBUILD_NANO_LIB=ON`.
+```bash
+cmake -G Ninja -DBUILD_NANO_LIB=ON ..
+ninja libnano
+```
+
 **Note (optional): nanonng are dependency of NanoMQ that can be compiled independently**.
 
 To compile nanonng (*nanonng is the fork of nng repository with MQTT support*):
@@ -173,6 +179,9 @@ cd nng/build
 cmake -G Ninja ..
 ninja
 ```
+
+
+
 
 ## Configuration 
 
