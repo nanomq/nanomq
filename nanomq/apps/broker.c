@@ -791,6 +791,10 @@ broker(conf *nanomq_conf)
 	// add the num of other proto
 	uint64_t num_ctx = nanomq_conf->parallel;
 
+	if (rv = log_init(&nanomq_conf->log) != 0) {
+		fatal("log_init", rv);
+	}
+
 #if defined(SUPP_RULE_ENGINE)
 	conf_rule *cr = &nanomq_conf->rule_eng;
 	if (cr->option & RULE_ENG_SDB) {
