@@ -6,33 +6,45 @@ NanoMQ 有丰富的工具集，其中包括 broker、 bench、 conn、 pub、 su
 
 NanoMQ 是一款用在物联网平台边缘端的超轻量 MQTT Broker。
 
-| Parameter       | abbreviation | Optional value | Default value            | Description                                                  |
-| --------------- | ------------ | -------------- | ------------------------ | ------------------------------------------------------------ |
-| --url           | -            | -              | nmq-tcp://127.0.0.1:1883 | 指定监听的 url: 'nmq-tcp://host:port', 'tls+nmq-tcp://host:port' or 'nmq-ws://host:port/path' or 'nmq-wss://host:port/path' |
-| --conf          | -            | -              | -                        | NanoMQ 配置文件路径                                          |
-| --bridge        | -            | -              | -                        | 桥接配置文件路径                                             |
-| --auth          | -            | -              | -                        | 认证配置文件路径                                             |
-| --http          | -            | true false     | false                    | Http 服务开关                                                |
-| --port          | -p           | -              | 8081                     | Http 服务端口设置                                            |
-| --tq_thread     | -t           | -              | -                        | Taskq 线程数量设置，最小为1， 最大为256                      |
-| --max_tq_thread | -T           | -              | -                        | Taskq 最大线程数量设置，最小为1， 最大为256                  |
-| --parallel      | -n           | -              | -                        | 可以处理的最大外部请求数                                     |
-| --property_size | -s           | -              | -                        | MQTT 用户属性的最大数量                                      |
-| --msq_len       | -S           | -              | -                        | 重发消息的最大数量                                           |
-| --qos_duration  | -D           | -              | -                        | Qos 定时器时间间隔                                           |
-| --daemon        | -d           | true false     | false                    | Daemon 模式运行 NanoMQ                                       |
-| --cacert        | -            | -              | -                        | PEM 编码 CA 证书路径                                         |
-| --cert          | -E           | -              | -                        | 用户证书路径                                                 |
-| --key           | -            | -              | -                        | PEM 编码用户私钥路径                                         |
-| --keypass       | -            | -              | -                        | 用户密钥。在私钥受密钥保护的情况下使用。                     |
-| --verify        | -            | true false     | false                    | 设置对端证书验证                                             |
-| --fail          | -            | true false     | false                    | 客户端证书验证操作使能位。如果设置为true，客户端无证书时拒绝连接 |
+| Parameter       | abbreviation | Optional value                         | Default value            | Description                                                  |
+| --------------- | ------------ | -------------------------------------- | ------------------------ | ------------------------------------------------------------ |
+| --url           | -            | -                                      | nmq-tcp://127.0.0.1:1883 | 指定监听的 url: 'nmq-tcp://host:port', 'tls+nmq-tcp://host:port' or 'nmq-ws://host:port/path' or 'nmq-wss://host:port/path' |
+| --conf          | -            | -                                      | -                        | NanoMQ 配置文件路径                                          |
+| --bridge        | -            | -                                      | -                        | 桥接配置文件路径                                             |
+| --auth          | -            | -                                      | -                        | 认证配置文件路径                                             |
+| --http          | -            | true false                             | false                    | Http 服务开关                                                |
+| --port          | -p           | -                                      | 8081                     | Http 服务端口设置                                            |
+| --tq_thread     | -t           | -                                      | -                        | Taskq 线程数量设置，最小为1， 最大为256                      |
+| --max_tq_thread | -T           | -                                      | -                        | Taskq 最大线程数量设置，最小为1， 最大为256                  |
+| --parallel      | -n           | -                                      | -                        | 可以处理的最大外部请求数                                     |
+| --property_size | -s           | -                                      | -                        | MQTT 用户属性的最大数量                                      |
+| --msq_len       | -S           | -                                      | -                        | 重发消息的最大数量                                           |
+| --qos_duration  | -D           | -                                      | -                        | Qos 定时器时间间隔                                           |
+| --daemon        | -d           | true false                             | false                    | Daemon 模式运行 NanoMQ                                       |
+| --cacert        | -            | -                                      | -                        | PEM 编码 CA 证书路径                                         |
+| --cert          | -E           | -                                      | -                        | 用户证书路径                                                 |
+| --key           | -            | -                                      | -                        | PEM 编码用户私钥路径                                         |
+| --keypass       | -            | -                                      | -                        | 用户密钥。在私钥受密钥保护的情况下使用。                     |
+| --verify        | -            | true false                             | false                    | 设置对端证书验证                                             |
+| --fail          | -            | true false                             | false                    | 客户端证书验证操作使能位。如果设置为true，客户端无证书时拒绝连接 |
+| --log_level     | -            | trace, debug, info, warn, error, fatal | warn                     | 日志等级                                                     |
+| --log_file      | -            | -                                      | -                        | 日志文件输出路径                                             |
+| --log_stdout    | -            | true, false                            | true                     | 日志输出到控制台                                             |
+| --log_syslog    | -            | true, false                            | false                    | 日志输出到Syslog (默认只支持Linux系统)                       |
 
 例如，我们在 url nmq-tcp://localhost:1884 上启动 NanoMQ 监听 MQTT 消息，在 url nmq-ws://localhost:8085 上启动 websocket 消息，在端口 30000 上启用 http 服务器。
 
 ```bash
 $ nanomq start --url nmq-tcp://localhost:1884 --url nmq-ws://localhost:8085 --http -p 30000
 ```
+
+nanomq命令行支持多个日志类型输出，例如以下同时启用三种输出类型, 并设置日志等级为debug：
+
+```bash
+$ nanomq start --log_level=debug --log_file=nanomq.log  --log_stdout=true --log_syslog=true
+```
+
+
 
 ## bench
 

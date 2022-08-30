@@ -4,22 +4,6 @@ NanoMQ 提供了一些编译选项可以让你根据系统性能进行调优。
 
 
 
-## 配置方式
-
-使用以下命令，NanoMQ 可以根据`config.cmake.in`内容设置编译参数:
-
-```bash
-$PROJECT_PATH/nanomq/build$ cmake -DCFG_METHOD=FILE_CONFIG  ..
-```
-
-也可以使用CMake默认参数进行编译:
-
-```bash
-$PROJECT_PATH/nanomq/build$ cmake -DCFG_METHOD=CMAKE_CONFIG ..
-```
-
-
-
 ## 参数设置
 
 限制线程数量:
