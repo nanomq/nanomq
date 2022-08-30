@@ -44,6 +44,10 @@ The configuration files of NanoMQ Broker usually have the suffix .conf. You can 
 | http_server.auth_type | Enum | Http server authentication type (*default: basic*). |
 | http_server.jwt.public.keyfile | String |public key file for *JWT*. |
 | http_server.jwt.private.keyfile | String |private key file for *JWT*. |
+| log.to | Array[Enum] | Array of log types，( *Use commas `,` to separate multiple types* )<br>Log types:  *file, console, syslog* |
+| log.level                       | Enum        | Log level：trace, debug, info, warn, error, fatal            |
+| log.dir                         | String      | The dir for log files. (if log to file)                      |
+| log.file                        | String      |The log filename. (if log to file) |
 
 ### nanomq_bridge.conf
 
