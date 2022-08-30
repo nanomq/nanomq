@@ -2,14 +2,14 @@
 
 ## 源安装
 
-#### Deb 一键安装
+### Deb 一键安装
 
 ```shell
 curl -s https://assets.emqx.com/scripts/install-nanomq-deb.sh | sudo bash
 sudo apt-get install nanomq
 ```
 
-#### Deb 手动安装
+### Deb 手动安装
 ```shell
 sudo bash -c 'cat << EOF > /etc/apt/sources.list.d/emqx_nanomq.list
 deb [signed-by=/usr/share/keyrings/emqx_nanomq-archive-keyring.gpg] https://packages.emqx.com/emqx/nanomq/any/ any main
@@ -25,16 +25,14 @@ sudo apt-get update
 sudo apt-get install nanomq
 ```
 
-
-
-#### Rpm 一键安装
+### Rpm 一键安装
 
 ```shell
 curl -s https://assets.emqx.com/scripts/install-nanomq-rpm.sh | sudo bash
 sudo yum install -y nanomq
 ```
 
-#### Rpm 手动安装
+### Rpm 手动安装
 
 ```shell
 sudo bash -c 'cat << EOF > /etc/yum.repos.d/emqx_nanomq.repo
