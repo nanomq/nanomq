@@ -4,22 +4,6 @@ NanoMQ provides several options for optimizing performance according to your sys
 
 
 
-## Configure method
-
-NanoMQ can start with contents of configure file named `config.cmake.in`.
-
-```bash
-$PROJECT_PATH/nanomq/build$ cmake -DCFG_METHOD=FILE_CONFIG ..
-```
-
-Of course, NanoMQ can start with cmake-gui or cmake with arguments.
-
-```bash
-$PROJECT_PATH/nanomq/build$ cmake -DCFG_METHOD=CMAKE_CONFIG ..
-```
-
-
-
 ## Arguments
 
 Limiting the number of threads:

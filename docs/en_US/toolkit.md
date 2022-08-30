@@ -6,33 +6,45 @@ NanoMQ contains abundant toolkit include broker, bench, conn, pub, sub client. H
 
 NanoMQ MQTT Broker (NanoMQ) is a lightweight and blazing-fast MQTT Broker for the IoT Edge platform.
 
-| Parameter       | abbreviation | Optional value | Default value            | Description                                                  |
-| --------------- | ------------ | -------------- | ------------------------ | ------------------------------------------------------------ |
-| --url           | -            | -              | nmq-tcp://127.0.0.1:1883 | Specify listener's url: 'nmq-tcp://host:port', 'tls+nmq-tcp://host:port' or 'nmq-ws://host:port/path' or 'nmq-wss://host:port/path' |
-| --conf          | -            | -              | -                        | The path of a specified nanomq configuration file            |
-| --bridge        | -            | -              | -                        | The path of a specified bridge configuration file            |
-| --auth          | -            | -              | -                        | The path of a specified authorize configuration file         |
-| --http          | -            | true false     | false                    | Enable http server                                           |
-| --port          | -p           | -              | 8081                     | The port of http server                                      |
-| --tq_thread     | -t           | -              | -                        | The number of taskq threads used, `num` greater than 1 and less than 256 |
-| --max_tq_thread | -T           | -              | -                        | The maximum number of taskq threads used, `num` greater than 1 and less than 256 |
-| --parallel      | -n           | -              | -                        | The maximum number of outstanding requests we can handle     |
-| --property_size | -s           | -              | -                        | The max size for a MQTT user property                        |
-| --msq_len       | -S           | -              | -                        | The queue length for resending messages                      |
-| --qos_duration  | -D           | -              | -                        | The interval of the qos timer                                |
-| --daemon        | -d           | true false     | false                    | Run nanomq as daemon                                         |
-| --cacert        | -            | -              | -                        | Path to the file containing PEM-encoded CA certificates      |
-| --cert          | -E           | -              | -                        | Path to a file containing the user certificate               |
-| --key           | -            | -              | -                        | Path to the file containing the user's private PEM-encoded key |
-| --keypass       | -            | -              | -                        | String containing the user's password. Only used if the private keyfile is password-protected |
-| --verify        | -            | true false     | false                    | Set verify peer certificate                                  |
-| --fail          | -            | true false     | false                    | Server will fail if the client does not have a certificate to send |
+| Parameter       | abbreviation | Optional value                         | Default value            | Description                                                  |
+| --------------- | ------------ | -------------------------------------- | ------------------------ | ------------------------------------------------------------ |
+| --url           | -            | -                                      | nmq-tcp://127.0.0.1:1883 | Specify listener's url: 'nmq-tcp://host:port', 'tls+nmq-tcp://host:port' or 'nmq-ws://host:port/path' or 'nmq-wss://host:port/path' |
+| --conf          | -            | -                                      | -                        | The path of a specified nanomq configuration file            |
+| --bridge        | -            | -                                      | -                        | The path of a specified bridge configuration file            |
+| --auth          | -            | -                                      | -                        | The path of a specified authorize configuration file         |
+| --http          | -            | true false                             | false                    | Enable http server                                           |
+| --port          | -p           | -                                      | 8081                     | The port of http server                                      |
+| --tq_thread     | -t           | -                                      | -                        | The number of taskq threads used, `num` greater than 1 and less than 256 |
+| --max_tq_thread | -T           | -                                      | -                        | The maximum number of taskq threads used, `num` greater than 1 and less than 256 |
+| --parallel      | -n           | -                                      | -                        | The maximum number of outstanding requests we can handle     |
+| --property_size | -s           | -                                      | -                        | The max size for a MQTT user property                        |
+| --msq_len       | -S           | -                                      | -                        | The queue length for resending messages                      |
+| --qos_duration  | -D           | -                                      | -                        | The interval of the qos timer                                |
+| --daemon        | -d           | true false                             | false                    | Run nanomq as daemon                                         |
+| --cacert        | -            | -                                      | -                        | Path to the file containing PEM-encoded CA certificates      |
+| --cert          | -E           | -                                      | -                        | Path to a file containing the user certificate               |
+| --key           | -            | -                                      | -                        | Path to the file containing the user's private PEM-encoded key |
+| --keypass       | -            | -                                      | -                        | String containing the user's password. Only used if the private keyfile is password-protected |
+| --verify        | -            | true false                             | false                    | Set verify peer certificate                                  |
+| --fail          | -            | true false                             | false                    | Server will fail if the client does not have a certificate to send |
+| --log_level     | -            | trace, debug, info, warn, error, fatal | warn                     | Log level                                                    |
+| --log_file      | -            | -                                      | -                        | The path of the log file                                     |
+| --log_stdout    | -            | true, false                            | true                     | Enable/Disable console log output                            |
+| --log_syslog    | -            | true, false                            | false                    | Enable/Disable syslog (only enable on Linux)                 |
 
 For example, we start NanoMQ listen mqtt message on url nmq-tcp://localhost:1884, websocket message on url nmq-ws://localhost:8085, enable http server on port 30000.
 
 ```bash
 $ nanomq start --url nmq-tcp://localhost:1884 --url nmq-ws://localhost:8085 --http -p 30000
 ```
+
+nanomq support multiple log types; For example, set output log to file ,console and syslog with log level debug: 
+
+```bash
+$ nanomq start --log_level=debug --log_file=nanomq.log  --log_stdout=true --log_syslog=true
+```
+
+
 
 ## bench
 
