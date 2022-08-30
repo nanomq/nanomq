@@ -45,6 +45,10 @@ NanoMQ 的配置文件通常以 .conf 作为后缀名，你可以在 etc 目录�
 | http_server.auth_type | Enum | Http鉴权方式。（*默认 basic*） |
 | http_server.jwt.public.keyfile | String |*JWT* 公钥文件. |
 | http_server.jwt.private.keyfile | String |*JWT* 私钥文件. |
+| log.to | Array[Enum] |日志输出类型数组，使用逗号`,`分隔多种类型<br>支持*文件，控制台，Syslog输出*，对应参数: <br>*file, console, syslog* |
+| log.level | Enum |日志等级：trace, debug, info, warn, error, fatal |
+| log.dir | String |日志文件存储路径 (输出文件时生效) |
+| log.file | String |日志文件名(输出文件时生效) |
 
 ### nanomq_bridge.conf
 
