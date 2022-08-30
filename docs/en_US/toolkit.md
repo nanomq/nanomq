@@ -219,3 +219,54 @@ For example, we start 1 client with username nano and set Qos1 .
 $ nanomq_cli conn start -h nanomq-server -q 1
 ```
 
+### Rule
+
+Execute `nanomq_cli rule --help` to get all available parameters of this command. 
+
+#### rules create
+
+Create a new rule with the following parameter:
+
+- *`<sql>`*:rule SQL
+- *`<actions>`*:  Action list in JSON format
+
+Example:
+```bash
+## Create a sqlite rule，store all datas sent to  'abc' 
+$ nanomq_cli rules --create --sql 'SELECT * FROM "abc"' --actions '[{"name":"sqlite", "params": {"table": "test01"}}]'
+
+{"rawsql":"SELECT * FROM \"abc\"","id":4,"enabled":true}
+
+```
+
+#### rules list
+
+List all rules:
+```bash
+## list all rules
+$ nanomq_cli rules --list
+
+{"rawsql":"SELECT payload.x.y as y, payload.z as z FROM \"#\" WHERE y > 10 and z != 'str'","id":1,"enabled":true}
+{"rawsql":"SELECT * FROM \"abc\"","id":2,"enabled":true}
+{"rawsql":"SELECT payload, qos FROM \"#\" WHERE qos > 0","id":3,"enabled":true}
+{"rawsql":"SELECT * FROM \"abc\"","id":4,"enabled":true}
+
+```
+#### rules show
+
+Query rules:
+```bash
+## Query rule with RuleID  '1' 
+$ nanomq_cli rules --show --id 1
+
+{"rawsql":"SELECT payload.x.y as y, payload.z as z FROM \"#\" WHERE y > 10 and z != 'str'","id":1,"enabled":true}
+```
+#### rules delete
+
+Delete a rule:
+```bash
+## Delete rule with RuleID '1' 
+$ nanomq_cli rules --delete --id 1
+
+{"code":0}
+```
