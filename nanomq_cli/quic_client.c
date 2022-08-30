@@ -36,8 +36,9 @@
 #if defined(SUPP_QUIC)
 
 #include <nng/nng.h>
-#include "nng/mqtt/mqtt_client.h"
-#include "nng/mqtt/mqtt_quic.h"
+#include <nng/mqtt/mqtt_client.h>
+#include <nng/mqtt/mqtt_quic.h>
+#include <nng/supplemental/util/platform.h>
 
 #include <stdio.h>
 #include <stdlib.h>
