@@ -192,11 +192,6 @@ bridge_handler(nano_work *work)
 	    work->pub_packet->fixed_header.dup,
 	    work->pub_packet->fixed_header.qos,
 	    work->pub_packet->fixed_header.retain, props);
-	if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
-		nng_mqttv5_msg_encode(smsg);
-	} else {
-		nng_mqtt_msg_encode(smsg);
-	}
 
 	for (size_t t = 0; t < work->config->bridge.count; t++) {
 		conf_bridge_node *node = work->config->bridge.nodes[t];
@@ -218,6 +213,11 @@ bridge_handler(nano_work *work)
 				}
 			}
 		}
+	}
+	if (!rv) {
+		work->proto_ver == MQTT_PROTOCOL_VERSION_v5
+		    ? nng_mqttv5_msg_encode(smsg)
+		    : nng_mqtt_msg_encode(smsg);
 	}
 
 	nng_msg_free(smsg);
