@@ -220,3 +220,53 @@ $ nanomq_cli sub -t t -h nanomq-server -q 1
 $ nanomq_cli conn -h nanomq-server -q 1
 ```
 
+### Rule
+
+执行 `nanomq_cli rules --help` 以获取该命令的所有可用参数。
+
+#### rules create
+
+创建一个新的规则。参数:
+
+- *`<sql>`*: 规则 SQL
+- *`<actions>`*: JSON 格式的动作列表
+
+使用举例:
+```bash
+## 创建一个 sqlite 落盘规则，存储所有发送到 'abc' 主题的消息内容
+$ nanomq_cli rules --create --sql 'SELECT * FROM "abc"' --actions '[{"name":"sqlite", "params": {"table": "test01"}}]'
+
+{"rawsql":"SELECT * FROM \"abc\"","id":4,"enabled":true}
+
+```
+
+#### rules list
+
+列出当前所有的规则:
+```bash
+$ nanomq_cli rules --list
+
+{"rawsql":"SELECT payload.x.y as y, payload.z as z FROM \"#\" WHERE y > 10 and z != 'str'","id":1,"enabled":true}
+{"rawsql":"SELECT * FROM \"abc\"","id":2,"enabled":true}
+{"rawsql":"SELECT payload, qos FROM \"#\" WHERE qos > 0","id":3,"enabled":true}
+{"rawsql":"SELECT * FROM \"abc\"","id":4,"enabled":true}
+
+```
+#### rules show
+
+查询规则:
+```bash
+## 查询 RuleID 为 '1' 的规则
+$ nanomq_cli rules --show --id 1
+
+{"rawsql":"SELECT payload.x.y as y, payload.z as z FROM \"#\" WHERE y > 10 and z != 'str'","id":1,"enabled":true}
+```
+#### rules delete
+
+删除规则:
+```bash
+## 删除 RuleID 为 'rule:1' 的规则
+$ nanomq_cli rules --delete --id 1
+
+{"code":0}
+```
