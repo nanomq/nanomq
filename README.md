@@ -122,7 +122,7 @@ To build NanoMQ, requires a C99 compatible compiler and [CMake](http://www.cmake
   ninja
   ```
   Attention: MQTT over QUIC bridging requires libmsquic preinstalled, for now we do not release formal binary package with QUIC support due to compatability.
- 
+
 **Note (optional): TLS is disabled by default**. If you want to build with TLS support you will also need [mbedTLS](https://tls.mbed.org). After installing [mbedTLS](https://tls.mbed.org), you can enable it by `-DNNG_ENABLE_TLS=ON`.
 
 ```bash
@@ -224,22 +224,13 @@ Be aware that, CMake configuration is enabled by default, If you leave all param
 
   *Inherited from NNG*
 
-- For debugging, NanoMQ has a debugging system that logs all information from all threads. Which is aligned with syslog standard. Enabling or disabling the debugging messages by (Mac users should disable it before compilation):
+- For debugging, NanoMQ has a logging system that logs all information from all threads.  Enabling or disabling the debugging messages by (Mac users should disable it before compilation):
 
   Default: disabled (1)
 
   ```bash
   cmake -G Ninja -DNOLOG=0  ..
   cmake -G Ninja -DNOLOG=1  ..
-  ```
-
-- Enabling or disabling messaging queue function 
-
-  Default: enabled (1)
-
-  ```bash
-  cmake -G Ninja -DMQ=1  ..
-  cmake -G Ninja -DMQ=0  ..
   ```
 
 - Setting the logical concurrency limitation:
@@ -270,6 +261,7 @@ nanomq start --conf <$FILE_PATH> [--bridge <$FILE_PATH>] \
 
 Docker version:
   Specify config file path from host:
+
   ```bash
   docker run -d -p 1883:1883 -v {YOU LOCAL PATH}: /etc \
               --name nanomq  emqx/nanomq:0.9.0
@@ -337,25 +329,32 @@ Docker version:
 
 The same configuration can be achieved by adding some command-line arguments when you start NanoMQ broker. There are a few arguments for you to play with. And the general usage is:
 
-```c
+```bash
 Usage: nanomq { { start | restart [--url <url>] [--conf <path>] [--bridge <path>] 
-                     [--auth <path>] [-d, --daemon] [-t, --tq_thread <num>] 
-                     [-T, -max_tq_thread <num>] [-n, --parallel <num>]
-                     [-D, --qos_duration <num>] [--http] [-p, --port] } 
-                     [--cacert <path>] [-E, --cert <path>] [--key <path>] 
-                     [--keypass <password>] [--verify] [--fail]
+                     [--aws_bridge <path>] [--webhook <path>] [--auth <path>] [--auth_http <path>] 
+                     [--sqlite <path>] [-t, --tq_thread <num>] [-T, -max_tq_thread <num>] 
+                     [-n, --parallel <num>] [-D, --qos_duration <num>] [--http] [-p, --port]  
+                     [-d, --daemon] [--cacert <path>] [-E, --cert <path>] [--key <path>] 
+                     [--keypass <password>] [--verify] [--fail] }
                      | stop }
 
 Options: 
-  --url <url>                Specify listener's url: 'nmq-tcp://host:port', 'tls+nmq-tcp://host:port' 
-                             or 'nmq-ws://host:port/path' or 'nmq-wss://host:port/path'
+  --url <url>                Specify listener's url: 'nmq-tcp://host:port', 
+                             'tls+nmq-tcp://host:port', 
+                             'nmq-ws://host:port/path', 
+                             'nmq-wss://host:port/path'
   --conf <path>              The path of a specified nanomq configuration file 
   --bridge <path>            The path of a specified bridge configuration file 
+  --webhook <path>           The path of a specified webhook configuration file 
   --auth <path>              The path of a specified authorize configuration file 
+  --auth_http <path>         The path of a specified http authorize configuration file 
+  --sqlite <path>            The path of a specified sqlite configuration file 
   --http                     Enable http server (default: false)
   -p, --port <num>           The port of http server (default: 8081)
-  -t, --tq_thread <num>      The number of taskq threads used, `num` greater than 0 and less than 256
-  -T, --max_tq_thread <num>  The maximum number of taskq threads used, `num` greater than 0 and less than 256
+  -t, --tq_thread <num>      The number of taskq threads used, 
+                             `num` greater than 0 and less than 256
+  -T, --max_tq_thread <num>  The maximum number of taskq threads used, 
+                             `num` greater than 0 and less than 256
   -n, --parallel <num>       The maximum number of outstanding requests we can handle
   -s, --property_size <num>  The max size for a MQTT user property
   -S, --msq_len <num>        The queue length for resending messages
@@ -364,10 +363,17 @@ Options:
   --cacert                   Path to the file containing PEM-encoded CA certificates
   -E, --cert                 Path to a file containing the user certificate
   --key                      Path to the file containing the user's private PEM-encoded key
-  --keypass                  String containing the user's password. Only used if the private keyfile is password-protected
+  --keypass                  String containing the user's password. 
+                             Only used if the private keyfile is password-protected
   --verify                   Set verify peer certificate (default: false)
-  --fail                     Server will fail if the client does not have a certificate to send (default: false)
-
+  --fail                     Server will fail if the client does not have a 
+                             certificate to send (default: false)
+  --log_level   <level>      The level of log output 
+                             (level: trace, debug, info, warn, error, fatal)
+                             (default: warn)
+  --log_file    <file_path>  The path of the log file 
+  --log_stdout  <true|false> Enable/Disable console log output (default: true)
+  --log_syslog  <true|false> Enable/Disable syslog output (default: false)
 ```
 
 - `start`, `restart`, and `stop` command is mandatory as it indicates whether you want to start a new broker, or replace an existing broker with a new one, or stop a running broker;
@@ -428,7 +434,7 @@ Options:
 
 - Setting the queue length for a resending message:
  'please be aware that this parameter also defines the upper limit of memory used by NanoMQ'
- 'And affect the flying window of message, please set to > 1024 if you do not want to lose message'
+  'And affect the flying window of message, please set to > 1024 if you do not want to lose message'
 
   Default: 256
 
@@ -443,6 +449,16 @@ Options:
   ```bash
   nanomq start|restart --qos_duration <num>
   ```
+
+- Setting the log option: 
+  
+  Default: log_level=warn, log_file=none, log_stdout=true, log_syslog=false
+
+  ```bash
+  nanomq start|restart --log_level=<level> [--log_file <file_path>] [--log_stdout <true|false>]  [--log_syslog <true|false>]
+  ```
+
+  
 
 **Priority: Command-Line Arguments > Environment Variables > Config files**
 
