@@ -151,7 +151,6 @@ message(STATUS "Configuring for NanoMQ version ${NANO_ABI_VERSION}")
 SET(DEBUG 0 CACHE STRING "gdb support")
 SET(ASAN 0 CACHE STRING "asan support")
 SET(TSAN 0 CACHE STRING "tsan support")
-SET(PARALLEL 32 CACHE STRING "Parallelism (min 4, max 1000)")
 
 if(BUILD_NANO_LIB)
   add_definitions(-DSUPP_NANO_LIB)
