@@ -1485,10 +1485,7 @@ broker_start(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	nanomq_conf->parallel = PARALLEL;
-
 	// Priority: config < environment variables < command opts
-
 	conf_init(nanomq_conf);
 	read_env_conf(nanomq_conf);
 
