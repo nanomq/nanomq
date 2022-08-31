@@ -137,3 +137,50 @@ The configuration files of NanoMQ Broker usually have the suffix .conf. You can 
 | auth.http.ssl.cacertfile            | String   | CA certificate file path.                   | `etc/certs/ca.pem`                                           |
 | auth.http.ssl.certfile              | String   | Client certificate file path. | `etc/certs/client-cert.pem`                                  |
 | auth.http.ssl.keyfile               | String   | Client private key file path. | `etc/certs/client.key.pem`                                   |
+
+
+### nanomq_rule.conf
+
+| Name                          | Type    | Description                                                                      |
+| ------------------------------| ------- | -------------------------------------------------------------------------------- |
+| rule_option                   | Enum    | Rule engine option, when persistence with rule engine, this option is must be ON.|
+| rule_option.sqlite            | Enum    | Rule engine plugins option (enable/disable)                                      |
+| rule_option.sqlite.conf.path  | String  | Rule engine option sqlite config path                                            |
+| rule_option.repub             | Enum    | Rule engine plugins option (enable/disable)                                      |
+| rule_option.repub.conf.path   | String  | Rule engine option repub config path                                             |
+| rule_option.mysql             | Enum    | Rule engine plugins option (enable/disable)                                      |
+| rule_option.mysql.conf.path   | String  | Rule engine option mysql config path                                             |
+
+### nanomq_rule_sqlite.conf
+
+| Name                          | Type    | Description                                                                      |
+| ------------------------------| ------- | -------------------------------------------------------------------------------- |
+| rule.sqlite.path              | String  | Rule engine option SQLite3 database path, default is /tmp/rule_engine.db         |
+| rule.sqlite.%d.table          | String  | Rule engine option SQLite3 database table name, '%d' is a placeholder            |
+| rule.event.publish.%d.sql     | String  | Rule engine sql clause, '%d' is a placeholder                                    |
+
+### nanomq_rule_mysql.conf
+
+| Name                          | Type    | Description                                                                      |
+| ------------------------------| ------- | -------------------------------------------------------------------------------- |
+| rule.sqlite.path              | String  | Rule engine option mysql database name, default is mysql_rule_db                 |
+| rule.mysql.%d.table           | String  | Rule engine option mysql database table name, '%d' is a placeholder              |
+| rule.mysql.%d.host            | String  | Rule engine option mysql database host, '%d' is a placeholder                    |
+| rule.mysql.%d.username        | String  | Rule engine option mysql database username, '%d' is a placeholder                |
+| rule.mysql.%d.password        | String  | Rule engine option mysql database password, '%d' is a placeholder                |
+| rule.event.publish.%d.sql     | String  | Rule engine sql clause, '%d' is a placeholder                                    |
+
+
+### nanomq_rule_repub.conf
+
+| Name                          | Type    | Description                                                                      |
+| ------------------------------| ------- | -------------------------------------------------------------------------------- |
+| rule.repub.%d.address         | String  | Rule engine option repub address (mqtt-tcp://host:port), '%d' is a placeholder   |
+| rule.repub.%d.topic           | String  | Rule engine option repub topic, '%d' is a placeholder                            |
+| rule.repub.%d.username        | String  | Rule engine option repub username, '%d' is a placeholder                         |
+| rule.repub.%d.password        | String  | Rule engine option repub password, '%d' is a placeholder                         |
+| rule.repub.%d.proto_ver       | Integer | Rule engine option repub protocol version, default is 4, '%d' is a placeholder   |
+| rule.repub.%d.clientid        | String  | Rule engine option repub clientid, '%d' is a placeholder                         |
+| rule.repub.%d.keepalive       | Integer | Rule engine option repub keepalive, default is 60, '%d' is a placeholder         |
+| rule.repub.%d.clean_start     | Boolean | Rule engine option repub clean_start flag, default is true '%d' is a placeholder |
+| rule.event.publish.%d.sql     | String  | Rule engine sql clause, '%d' is a placeholder                                    |
