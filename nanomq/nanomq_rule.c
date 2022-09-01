@@ -1,4 +1,5 @@
 #include "include/nanomq_rule.h"
+#include "nng/supplemental/nanolib/log.h"
 #include "nng/mqtt/mqtt_client.h"
 #include "nng/nng.h"
 #include "nng/protocol/mqtt/mqtt.h"
