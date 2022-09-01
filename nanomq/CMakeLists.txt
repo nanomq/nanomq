@@ -75,7 +75,7 @@ if(ENABLE_RULE_ENGINE)
   include_directories(${MYSQL_INCLUDE_DIR})
   include_directories(${LIBMYSQLCLIENT_INCLUDE_DIRS})
   # message(STATUS, "${LIBMYSQLCLIENT_INCLUDE_DIRS}")
-  target_link_libraries(nanomq PRIVATE ${LIBMYSQLCLIENT_LIBRARIES})
+  target_link_libraries(nanomq ${LIBMYSQLCLIENT_LIBRARIES})
 
 endif(ENABLE_RULE_ENGINE)
 
