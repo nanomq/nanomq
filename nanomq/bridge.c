@@ -91,9 +91,7 @@ bridge_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 			    param->config->sub_list[i].topic,
 			    param->config->sub_list[i].qos);
 		}
-
-		nng_mqtt_client *client =
-		    nng_mqtt_client_alloc(*param->sock, sub_callback, true);
+		nng_mqtt_client *client = param->client;
 		// Property?
 		nng_mqtt_subscribe_async(
 		    client, topic_qos, param->config->sub_count, NULL);
@@ -148,6 +146,8 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	bridge_arg         = (bridge_param *) nng_alloc(sizeof(bridge_param));
 	bridge_arg->config = node;
 	bridge_arg->sock   = sock;
+	bridge_arg->client = nng_mqtt_client_alloc(*sock, sub_callback, true);
+
 	node->sock         = (void *) sock;
 
 	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
@@ -202,9 +202,8 @@ bridge_quic_connect_cb(void *rmsg, void *arg)
 			    param->config->sub_list[i].qos);
 		}
 
-		nng_mqtt_client *client =
-		    nng_mqtt_client_alloc(*param->sock, sub_callback, true);
-		// Property?
+		nng_mqtt_client *client = param->client;
+		// TODO support MQTT V5
 		nng_mqtt_subscribe_async(
 		    client, topic_qos, param->config->sub_count, NULL);
 		nng_mqtt_topic_qos_array_free(
@@ -231,6 +230,8 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	bridge_arg         = (bridge_param *) nng_alloc(sizeof(bridge_param));
 	bridge_arg->config = node;
 	bridge_arg->sock   = sock;
+	bridge_arg->client = nng_mqtt_client_alloc(*sock, sub_callback, true);
+
 	node->sock         = (void *) sock;
 
 	if (0 != nng_mqtt_quic_set_connect_cb(sock, bridge_quic_connect_cb, (void *)bridge_arg) ||
