@@ -164,10 +164,15 @@ ninja
   ninja
   ```
 
-**Note (optional): nanomq as a static lib (for message persistence) isn't built by default**, you can enable it via `-DBUILD_NANO_LIB=ON`.
+**Note (optional): nanomq as a static lib isn't built by default**, you can enable it via `-DBUILD_STATIC_LIB=ON`.
 ```bash
-cmake -G Ninja -DBUILD_NANO_LIB=ON ..
+cmake -G Ninja -DBUILD_STATIC_LIB=ON ..
 ninja libnano
+```
+**Note (optional): nanomq as a shared lib isn't built by default**, you can enable it via `-DBUILD_SHARED_LIBS=ON`.
+```bash
+cmake -G Ninja -DBUILD_SHARED_LIBS=ON ..
+ninja
 ```
 
 **Note (optional): nanonng are dependency of NanoMQ that can be compiled independently**.
