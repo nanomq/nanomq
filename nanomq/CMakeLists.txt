@@ -55,7 +55,11 @@ include_directories(${FOUNDATION_INCLUDE_DIR})
 if(BUILD_NANO_LIB)
   add_library(nanomq ${SOURCES})
 else()
+  if(BUILD_NANO_LIB)
+  add_library(nanomq ${SOURCES})
+else()
   add_executable(nanomq ${SOURCES})
+endif()
 endif()
 
 if(ENABLE_RULE_ENGINE)
@@ -102,34 +106,7 @@ if(BUILD_QUIC_CLI)
 endif(BUILD_QUIC_CLI)
 
 target_link_libraries(nanomq nng)
-
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
-# Package all static files into one libnanomq.a
-if(BUILD_NANO_LIB)
-  set(FULL_OUTPUT_PATH ${CMAKE_BINARY_DIR}/libnanomq.a)
-  set (tmp ${CMAKE_BINARY_DIR}/tmp)
-  file(WRITE ${tmp} "create ${FULL_OUTPUT_PATH}\n")
-  file(APPEND ${tmp} "addlib ${CMAKE_BINARY_DIR}/nanomq/libnanomq.a\n")
-  file(APPEND ${tmp} "addlib ${CMAKE_BINARY_DIR}/nng/libnng.a\n")
-  file(APPEND ${tmp} "addlib ${CMAKE_BINARY_DIR}/nanomq/apps/libapps.a\n")
-  file(APPEND ${tmp} "save\n")
-  file(APPEND ${tmp} "end\n")
-
-  add_custom_target(libnano
-          COMMAND ar -M < ${CMAKE_BINARY_DIR}/tmp
-          COMMAND rm ${CMAKE_BINARY_DIR}/tmp
-          COMMAND rm ${CMAKE_BINARY_DIR}/nanomq/libnanomq.a
-          WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-          DEPENDS apps nanomq nng
-          )
-endif(BUILD_NANO_LIB)
-
-# TODO INSTALL
-
-if(BUILD_NANO_LIB)
-  # install(
-  #   FILES ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}/libnanomq.a
-  #   LIBRARY  DESTINATION ${CMAKE_INSTALL_LIBDIR})
+target_compile_definitions(nanomq PRIVATE -DPARALLEL=${PARALLEL})
 
 else()
   install(
@@ -148,5 +125,3 @@ else()
     EXPORT nanomqConfig
     DESTINATION share/nanomq/cmake
     COMPONENT services)
-
-endif()
