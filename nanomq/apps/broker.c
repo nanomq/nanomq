@@ -248,10 +248,16 @@ server_cb(void *arg)
 		log_debug("RECV  ^^^^ ctx%d ^^^^\n", work->ctx.id);
 		if ((rv = nng_aio_result(work->aio)) != 0) {
 			log_error("RECV nng aio result error: %d", rv);
-			if (work->proto == PROTO_MQTT_BRIDGE) {
+			work->state = RECV;
+			if (work->proto == PROTO_MQTT_BROKER) {
 				nng_ctx_recv(work->ctx, work->aio);
+				break;
 			} else {
-				nng_ctx_recv(work->extra_ctx, work->aio);
+				log_info("bridge connection closed with reason %d\n", rv);
+				if (rv != NNG_ECONNSHUT) {
+					nng_ctx_recv(work->extra_ctx, work->aio);
+					break;
+				}
 			}
 		}
 		if ((msg = nng_aio_get_msg(work->aio)) == NULL) {
@@ -260,7 +266,10 @@ server_cb(void *arg)
 		if (work->proto == PROTO_MQTT_BRIDGE) {
 			uint8_t type;
 			type = nng_msg_get_type(msg);
-			if (type != CMD_PUBLISH) {
+			if (type == CMD_CONNACK) {
+				log_info("bridge client is connected!");
+				nng_msg_set_cmd_type(msg, type);
+			} else if (type != CMD_PUBLISH) {
 				// only accept publish msg from upstream
 				work->state = RECV;
 				nng_msg_free(msg);

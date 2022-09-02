@@ -183,14 +183,15 @@ bridge_quic_connect_cb(void *rmsg, void *arg)
 {
 	// Connected succeed
 	bridge_param *param  = arg;
+	nng_msg *msg = rmsg;
 	int           reason = 0;
 	// get connect reason
-	reason = nng_mqtt_msg_get_connack_return_code(rmsg);
+	reason = nng_mqtt_msg_get_connack_return_code(msg);
 	// get property for MQTT V5
 	// property *prop;
 	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_CONNECT_PROPERTY, &prop);
 	log_debug("quic bridge client connected! RC [%d] \n", reason);
-	nng_msg_free(rmsg);
+	nng_msg_free(msg);
 
 	/* MQTT V5 SUBSCRIBE */
 	if (reason == 0 && param->config->sub_count > 0) {
