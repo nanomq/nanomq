@@ -35,16 +35,22 @@ static char *type_arr[] = {
 	" TEXT",
 };
 
-static void finish_with_error(MYSQL *con)
+
+static int finish_with_error(MYSQL *con, rule *rules, int index)
 {
-  fprintf(stderr, "%s\n", mysql_error(con));
-  mysql_close(con);
+	log_error("%s", mysql_error(con));
+	mysql_close(con);
+	rule *r = &rules[index];
+	rule_mysql_free(r->mysql);
+	rule_free(r);
+	cvector_erase(rules, index);
+	return -1;
 }
 
 static void
 fatal(const char *func, int rv)
 {
-	fprintf(stderr, "%s: %s\n", func, nng_strerror(rv));
+	log_error("%s", nng_strerror(rv));
 }
 
 int
@@ -239,26 +245,25 @@ nanomq_client_mysql(conf_rule *cr, bool init_last)
 				strcat(table, type_arr[index]);
 			}
 			strcat(table, ");");
-			// puts(table);
 
 			rule_mysql *mysql = cr->rules[i].mysql;
 			MYSQL *con = mysql_init(NULL);
 			mysql->conn = con;
 			if (con == NULL) {
-				fprintf(stderr, "%s\n", mysql_error(con));
-				return -1;
+				rc = finish_with_error(con, cr->rules, i--);
+				continue;
 			}
 
 			if (mysql_real_connect(con, mysql->host, mysql->username, mysql->password,
 			        mysql_db, 0, NULL, 0) == NULL) {
-				finish_with_error(con);
-				return -1;
+				rc = finish_with_error(con, cr->rules, i--);
+				continue;
 			}
 
 
 			if (mysql_query(con, table)) {
-				finish_with_error(con);
-				return -1;
+				rc = finish_with_error(con, cr->rules, i--);
+				continue;
 			}
 
 		}
