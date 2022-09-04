@@ -65,14 +65,6 @@
 enum options {
 	OPT_HELP = 1,
 	OPT_CONFFILE,
-	OPT_BRIDGEFILE,
-	OPT_AWS_BRIDGEFILE,
-	OPT_WEBHOOKFILE,
-#if defined(SUPP_RULE_ENGINE)
-	OPT_RULE_CONF,
-#endif
-	OPT_AUTHFILE,
-	OPT_AUTH_HTTP_FILE,
 	OPT_PARALLEL,
 	OPT_DAEMON,
 	OPT_THREADS,
@@ -98,14 +90,6 @@ enum options {
 static nng_optspec cmd_opts[] = {
 	{ .o_name = "help", .o_short = 'h', .o_val = OPT_HELP },
 	{ .o_name = "conf", .o_val = OPT_CONFFILE, .o_arg = true },
-	{ .o_name = "bridge", .o_val = OPT_BRIDGEFILE, .o_arg = true },
-	{ .o_name = "aws_bridge", .o_val = OPT_AWS_BRIDGEFILE, .o_arg = true },
-#if defined(SUPP_RULE_ENGINE)
-	{ .o_name = "rule", .o_val = OPT_RULE_CONF, .o_arg = true },
-#endif
-	{ .o_name = "webhook", .o_val = OPT_WEBHOOKFILE, .o_arg = true },
-	{ .o_name = "auth", .o_val = OPT_AUTHFILE, .o_arg = true },
-	{ .o_name = "auth_http", .o_val = OPT_AUTH_HTTP_FILE, .o_arg = true },
 	{ .o_name = "daemon", .o_short = 'd', .o_val = OPT_DAEMON },
 	{ .o_name    = "tq_thread",
 	    .o_short = 't',
@@ -789,6 +773,7 @@ get_broker_db(void)
 {
 	return db;
 }
+
 int
 broker(conf *nanomq_conf)
 {
@@ -799,10 +784,6 @@ broker(conf *nanomq_conf)
 	int        i, j, count;
 	// add the num of other proto
 	uint64_t num_ctx = nanomq_conf->parallel;
-
-	if (rv = log_init(&nanomq_conf->log) != 0) {
-		fatal("log_init", rv);
-	}
 
 #if defined(SUPP_RULE_ENGINE)
 	conf_rule *cr = &nanomq_conf->rule_eng;
@@ -1055,19 +1036,11 @@ void
 print_usage(void)
 {
 	printf("Usage: nanomq { { start | restart [--url <url>] "
-	       "[--conf <path>] "
-	       "[--bridge <path>] \n                     "
-	       "[--aws_bridge <path>] [--webhook <path>] "
-	       "[--auth <path>] "
-	       "[--auth_http <path>] "
-	       "\n                     "
-	       "[--sqlite <path>] "
-	       "[-t, --tq_thread <num>] "
-	       "[-T, -max_tq_thread <num>] \n                     "
-	       "[-n, --parallel <num>] "
+	       "[--conf <path>] [-t, --tq_thread <num>]\n                     "
+	       "[-T, -max_tq_thread <num>] [-n, --parallel <num>] \n                     "
 	       "[-D, --qos_duration <num>] [--http] "
-	       "[-p, --port]  \n                     "
-	       "[-d, --daemon] [--cacert <path>] [-E, --cert <path>] "
+	       "[-p, --port] [-d, --daemon] \n                     "
+	       "[--cacert <path>] [-E, --cert <path>] "
 	       "[--key <path>] \n                     "
 	       "[--keypass <password>] [--verify] [--fail] }\n            "
 	       "         | stop }\n\n");
@@ -1080,27 +1053,6 @@ print_usage(void)
 	printf("  --conf <path>              The path of a specified nanomq "
 	       "configuration file \n");
 
-#if defined(SUPP_RULE_ENGINE)
-	printf("  --rule <path>              The path of a specified rule "
-	       "configuration file \n");
-#endif
-	printf("  --bridge <path>            The path of a specified bridge "
-	       "configuration file \n");
-#if defined(SUPP_AWS_BRIDGE)
-	printf(
-	    "  --aws_bridge <path>        The path of a specified aws bridge "
-	    "configuration file \n");
-#endif
-	printf("  --webhook <path>           The path of a specified webhook "
-	       "configuration file \n");
-	printf(
-	    "  --auth <path>              The path of a specified authorize "
-	    "configuration file \n");
-	printf("  --auth_http <path>         The path of a specified http "
-	       "authorize "
-	       "configuration file \n");
-	printf("  --sqlite <path>            The path of a specified sqlite "
-	       "configuration file \n");
 	printf("  --http                     Enable http server (default: "
 	       "false)\n");
 	printf(
@@ -1281,32 +1233,6 @@ file_path_parse(int argc, char **argv, conf *config)
 		case OPT_CONFFILE:
 			FREE_NONULL(config->conf_file);
 			config->conf_file = nng_strdup(arg);
-			break;
-		case OPT_BRIDGEFILE:
-			FREE_NONULL(config->bridge_file);
-			config->bridge_file = nng_strdup(arg);
-			break;
-		case OPT_AWS_BRIDGEFILE:
-			FREE_NONULL(config->aws_bridge_file);
-			config->aws_bridge_file = nng_strdup(arg);
-			break;
-		case OPT_WEBHOOKFILE:
-			FREE_NONULL(config->web_hook_file);
-			config->web_hook_file = nng_strdup(arg);
-			break;
-#if defined(SUPP_RULE_ENGINE)
-		case OPT_RULE_CONF:
-			FREE_NONULL(config->rule_file);
-			config->rule_file = nng_strdup(arg);
-			break;
-#endif
-		case OPT_AUTHFILE:
-			FREE_NONULL(config->auth_file);
-			config->auth_file = nng_strdup(arg);
-			break;
-		case OPT_AUTH_HTTP_FILE:
-			FREE_NONULL(config->auth_http_file);
-			config->auth_http_file = nng_strdup(arg);
 			break;
 
 		default:
@@ -1504,18 +1430,7 @@ broker_start(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	conf_parser(nanomq_conf);
-	conf_auth_parser(nanomq_conf);
-	conf_bridge_parse(nanomq_conf);
-
-#if defined(SUPP_AWS_BRIDGE)
-	conf_aws_bridge_parse(nanomq_conf);
-#endif
-
-#if defined(SUPP_RULE_ENGINE)
-	conf_rule_parse(nanomq_conf);
-#endif
-	conf_web_hook_parse(nanomq_conf);
+	conf_parse(nanomq_conf);
 
 	if (!broker_parse_opts(argc, argv, nanomq_conf)) {
 		conf_fini(nanomq_conf);
@@ -1544,6 +1459,10 @@ broker_start(int argc, char **argv)
 			    ? nanomq_conf->websocket.tls_url
 			    : nng_strdup(CONF_WSS_URL_DEFAULT);
 		}
+	}
+
+	if ((rc = log_init(&nanomq_conf->log)) != 0) {
+		fatal("log_init", rc);
 	}
 
 	print_conf(nanomq_conf);
