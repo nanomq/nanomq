@@ -284,5 +284,6 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	} else {
 		printf("Unsupported bridge protocol.\n");
 	}
+	return 0;
 }
 

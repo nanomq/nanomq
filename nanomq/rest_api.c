@@ -876,7 +876,7 @@ get_uptime(char *str, size_t str_len)
 	nng_time mins   = uptime / 1000 / 60 % 60;
 	nng_time secs   = uptime / 1000 % 60;
 
-	snprintf(str, str_len, "%lu Hours, %lu minutes, %lu seconds", hours,
+	snprintf(str, str_len, "%llu Hours, %llu minutes, %llu seconds", hours,
 	    mins, secs);
 }
 
@@ -972,25 +972,26 @@ get_clients(http_msg *msg, kv **params, size_t param_num,
 		conn_param *cp = nng_pipe_cparam(pipe);
  		const uint8_t *cid  = conn_param_get_clientid(cp);
  		if (client_id != NULL) {
- 			if (strcmp(client_id, cid) != 0) {
- 				goto skip;
- 			}
- 		}
+			if (strcmp(client_id, (const char *) cid) != 0) {
+				goto skip;
+			}
+		}
  		const uint8_t *user_name =
  		    conn_param_get_username(cp);
  		if (username != NULL) {
- 			if (user_name == NULL || strcmp(username, user_name) != 0) {
- 				goto skip;
- 			}
- 		}
+			if (user_name == NULL ||
+			    strcmp(username, (const char *) user_name) != 0) {
+				goto skip;
+			}
+		}
  		uint16_t keep_alive = conn_param_get_keepalive(cp);
  		const uint8_t proto_ver =
  		    conn_param_get_protover(cp);
- 		const char *proto_name = conn_param_get_pro_name(cp);
- 		const bool  clean_start =
- 		    conn_param_get_clean_start(cp);
- 
- 		cJSON *data_info_elem;
+		const char *proto_name =
+		    (const char *) conn_param_get_pro_name(cp);
+		const bool clean_start = conn_param_get_clean_start(cp);
+
+		cJSON *data_info_elem;
  		data_info_elem = cJSON_CreateObject();
  		cJSON_AddStringToObject(
  		    data_info_elem, "client_id", (char *) cid);
@@ -2211,34 +2212,34 @@ update_bridge_conf(cJSON *json, conf *config)
 	getBoolValue(sqlite, item, "enable", bridge.sqlite.enable, rv);
 	log_debug("getBoolValue: %s\n", bridge.sqlite.enable ? "true" : "false");
 	if (rv == 0) {
-		conf_update_bool(config->bridge_file, "bridge.sqlite.enable",
+		conf_update_bool(config->conf_file, "bridge.sqlite.enable",
 		    bridge.sqlite.enable);
 	}
 	getNumberValue(sqlite, item, "disk_cache_size",
 	    bridge.sqlite.disk_cache_size, rv);
 	if (rv == 0) {
-		conf_update_u64(config->bridge_file,
+		conf_update_u64(config->conf_file,
 		    "bridge.sqlite.disk_cache_size",
 		    bridge.sqlite.disk_cache_size);
 	}
 	getStringValue(sqlite, item, "mounted_file_path",
 	    bridge.sqlite.mounted_file_path, rv);
 	if (rv == 0) {
-		conf_update(config->bridge_file,
+		conf_update(config->conf_file,
 		    "bridge.sqlite.mounted_file_path",
 		    bridge.sqlite.mounted_file_path);
 	}
 	getNumberValue(sqlite, item, "flush_mem_threshold",
 	    bridge.sqlite.flush_mem_threshold, rv);
 	if (rv == 0) {
-		conf_update_u64(config->bridge_file,
+		conf_update_u64(config->conf_file,
 		    "bridge.sqlite.flush_mem_threshold",
 		    bridge.sqlite.flush_mem_threshold);
 	}
 	getNumberValue(sqlite, item, "resend_interval",
 	    bridge.sqlite.resend_interval, rv);
 	if (rv == 0) {
-		conf_update_u64(config->bridge_file,
+		conf_update_u64(config->conf_file,
 		    "bridge.sqlite.resend_interval",
 		    bridge.sqlite.resend_interval);
 	}
@@ -2257,47 +2258,47 @@ update_bridge_conf(cJSON *json, conf *config)
 		char *key1 = "bridge.mqtt.";
 		getBoolValue(node_obj, item, "bridge_mode", node.enable, rv);
 	if (rv == 0) {
-		conf_update2_bool(config->bridge_file, key1, node.name,
+		conf_update2_bool(config->conf_file, key1, node.name,
 		    ".bridge_mode", node.enable);
 	}
 	getStringValue(node_obj, item, "address", node.address, rv);
 	if (rv == 0) {
-		conf_update2(config->bridge_file, key1, node.name, ".address",
+		conf_update2(config->conf_file, key1, node.name, ".address",
 		    node.address);
 	}
 	getNumberValue(node_obj, item, "proto_ver", node.proto_ver, rv);
 	if (rv == 0) {
-		conf_update2_u8(config->bridge_file, key1, node.name,
+		conf_update2_u8(config->conf_file, key1, node.name,
 		    ".proto_ver", node.proto_ver);
 	}
 	getStringValue(node_obj, item, "clientid", node.clientid, rv);
 	if (rv == 0) {
-		conf_update2(config->bridge_file, key1, node.name, ".clientid",
+		conf_update2(config->conf_file, key1, node.name, ".clientid",
 		    node.clientid);
 	}
 	getNumberValue(node_obj, item, "keepalive", node.keepalive, rv);
 	if (rv == 0) {
-		conf_update2_u16(config->bridge_file, key1, node.name,
+		conf_update2_u16(config->conf_file, key1, node.name,
 		    ".keepalive", node.keepalive);
 	}
 	getBoolValue(node_obj, item, "clean_start", node.clean_start, rv);
 	if (rv == 0) {
-		conf_update2_bool(config->bridge_file, key1, node.name,
+		conf_update2_bool(config->conf_file, key1, node.name,
 		    ".clean_start", node.clean_start);
 	}
 	getStringValue(node_obj, item, "username", node.username, rv);
 	if (rv == 0) {
-		conf_update2(config->bridge_file, key1, node.name, ".username",
+		conf_update2(config->conf_file, key1, node.name, ".username",
 		    node.username);
 	}
 	getStringValue(node_obj, item, "password", node.password, rv);
 	if (rv == 0) {
-		conf_update2(config->bridge_file, key1, node.name, ".password",
+		conf_update2(config->conf_file, key1, node.name, ".password",
 		    node.password);
 	}
 	getNumberValue(node_obj, item, "parallel", node.parallel, rv);
 	if (rv == 0) {
-		conf_update2_u64(config->bridge_file, key1, node.name,
+		conf_update2_u64(config->conf_file, key1, node.name,
 		    ".parallel", node.parallel);
 	}
 
@@ -2320,7 +2321,7 @@ update_bridge_conf(cJSON *json, conf *config)
 			}
 		}
 		conf_update2(
-		    config->bridge_file, key1, node.name, ".forwards", topic_str);
+		    config->conf_file, key1, node.name, ".forwards", topic_str);
 		nng_free(topic_str, length);
 	}
 
@@ -2341,7 +2342,7 @@ update_bridge_conf(cJSON *json, conf *config)
 				    "%d."
 				    "topic",
 				    node.name, i + 1);
-				conf_update(config->bridge_file, sub_keyname,
+				conf_update(config->conf_file, sub_keyname,
 				    sub_topic);
 			}
 			getNumberValue(sub_item, item, "qos", sub_qos, rv);
@@ -2353,7 +2354,7 @@ update_bridge_conf(cJSON *json, conf *config)
 				    "qos",
 				    node.name, i + 1);
 				conf_update_u8(
-				    config->bridge_file, sub_keyname, sub_qos);
+				    config->conf_file, sub_keyname, sub_qos);
 			}
 		}
 	}
@@ -2499,7 +2500,7 @@ properties_parse(property **properties, cJSON *json)
 	getStringValue(json, item, "content_type", str, rv);
 	if (rv == 0) {
 		sub_prop = property_set_value_str(
-		    CORRELATION_DATA, (uint8_t *) str, strlen(str), true);
+		    CORRELATION_DATA, str, strlen(str), true);
 		property_append(prop_list, sub_prop);
 	}
 
