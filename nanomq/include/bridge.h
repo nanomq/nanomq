@@ -11,6 +11,7 @@ typedef struct {
 	nng_socket       *sock;
 	conf_bridge_node *config;
 	nng_mqtt_client  *client;
+	conf *            conf;
 } bridge_param;
 
 extern bool topic_filter(const char *origin, const char *input);
