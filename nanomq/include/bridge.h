@@ -3,6 +3,7 @@
 
 #include "nng/mqtt/mqtt_client.h"
 #include "nng/supplemental/nanolib/conf.h"
+#include "nng/supplemental/util/platform.h"
 #include "nng/nng.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,7 +13,10 @@ typedef struct {
 	conf_bridge_node *config;
 	nng_mqtt_client  *client;
 	conf *            conf;
-	nng_aio *         aio;
+	nng_mtx *         switch_mtx;
+	nng_cv *          switch_cv;
+	nng_mtx *         exec_mtx;
+	nng_cv *          exec_cv;
 } bridge_param;
 
 extern bool topic_filter(const char *origin, const char *input);
