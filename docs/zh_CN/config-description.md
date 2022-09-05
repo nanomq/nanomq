@@ -137,3 +137,49 @@ NanoMQ 的配置文件通常以 .conf 作为后缀名，你可以在 etc 目录�
 | auth.http.ssl.cacertfile            | String   | CA 证书文件路径。                                            | `etc/certs/ca.pem`                                           |
 | auth.http.ssl.certfile              | String   | 客户端证书文件路径。                                         | `etc/certs/client-cert.pem`                                  |
 | auth.http.ssl.keyfile               | String   | 客户端私钥文件路径。                                         | `etc/certs/client.key.pem`                                   |
+
+### nanomq_rule.conf
+
+| 参数名                         | 数据类型 | 参数说明                                                                           |
+| ------------------------------| ------- | -------------------------------------------------------------------------------- |
+| rule_option                   | Enum    | 规则引擎开关, 当时用规则引擎进行持久化，必须设置该选项为 ON。                              |
+| rule_option.sqlite            | Enum    | 规则引擎插件开关 (enable/disable)                                                   |
+| rule_option.sqlite.conf.path  | String  | 规则引擎选项 sqlite3 配置文件路径                                                    |
+| rule_option.repub             | Enum    | 规则引擎 repub 选项 (enable/disable)                                               |
+| rule_option.repub.conf.path   | String  | 规则引擎 repub 配置文件路径                                                         |
+| rule_option.mysql             | Enum    | 规则引擎 mysql 选项 (enable/disable)                                               |
+| rule_option.mysql.conf.path   | String  | 规则引擎选项 mysql 配置文件路径                                                      |
+
+### nanomq_rule_sqlite.conf
+
+| 参数名                         | 数据类型 | 参数说明                                                                           |
+| ------------------------------| ------- | -------------------------------------------------------------------------------- |
+| rule.sqlite.path              | String  | 规则引擎 SQLite3 数据库路径, 默认是 /tmp/rule_engine.db                              |
+| rule.sqlite.%d.table          | String  | 规则引擎 SQLite3 数据库表名, '%d' 是占位符                                            |
+| rule.event.publish.%d.sql     | String  | 规则引擎 sql 语句, '%d' 是占位符                                                     |
+
+### nanomq_rule_mysql.conf
+
+| 参数名                         | 数据类型 | 参数说明                                                                           |
+| ------------------------------| ------- | -------------------------------------------------------------------------------- |
+| rule.sqlite.path              | String  | 规则引擎 mysql 数据库名字, 默认是 mysql_rule_db                                      |
+| rule.mysql.%d.table           | String  | 规则引擎 mysql 数据库表名字, '%d' 是占位符                                            |
+| rule.mysql.%d.host            | String  | 规则引擎 mysql 数据库主机名 '%d' 是占位符                                             |
+| rule.mysql.%d.username        | String  | 规则引擎 mysql 数据库用户名, '%d' 是占位符                                            |
+| rule.mysql.%d.password        | String  | 规则引擎 mysql 数据库密码, '%d' 是占位符                                              |
+| rule.event.publish.%d.sql     | String  | 规则引擎 sql 语句, '%d' 是占位符                                                     |
+ 
+
+### nanomq_rule_repub.conf
+
+| 参数名                         | 数据类型 | 参数说明                                                                           |
+| ------------------------------| ------- | -------------------------------------------------------------------------------- |
+| rule.repub.%d.address         | String  | 规则引擎重新发布地址 (mqtt-tcp://host:port), '%d' 是占位符                            |
+| rule.repub.%d.topic           | String  | 规则引擎重新发布主题, '%d' 是占位符                                                   |
+| rule.repub.%d.username        | String  | 规则引擎重新发布用户名, '%d' 是占位符                                                 |
+| rule.repub.%d.password        | String  | 规则引擎重新发布密码, '%d' 是占位符                                                   |
+| rule.repub.%d.proto_ver       | Integer | 规则引擎重新发布协议版本, 默认是 4, '%d' 是占位符                                       |
+| rule.repub.%d.clientid        | String  | 规则引擎重新发布客户端标识符, '%d' 是占位符                                             |
+| rule.repub.%d.keepalive       | Integer | 规则引擎重新发布保活时间, 默认值是 60, '%d' 是占位符                                     |
+| rule.repub.%d.clean_start     | Boolean | 规则引擎重新发布 clean_start 标志, 默认是 true，'%d' 是占位符                           |
+| rule.event.publish.%d.sql     | String  | 规则引擎 sql 语句, '%d' 是占位符                                                     |
