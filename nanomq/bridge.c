@@ -12,12 +12,9 @@
 
 #include "include/nanomq.h"
 
-<<<<<<< HEAD
 static int session_is_kept_tcp  = 0;
 static int session_is_kept_quic = 0;
-=======
 static nng_thread *hybridger_thr;
->>>>>>> e464089 (* NEW [bridge] Add bridge thread to do fallback between tcps and quics.)
 
 static void
 fatal(const char *func, int rv)
@@ -228,7 +225,7 @@ quic_disconnect_cb(void *rmsg, void *arg)
 	reason = nng_mqtt_msg_get_connack_return_code(rmsg);
 	// property *prop;
 	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_DISCONNECT_PROPERTY, &prop);
-	log_debug("quic bridge client disconnected! RC [%d] \n", reason);
+	log_warn("quic bridge client disconnected! RC [%d] \n", reason);
 	nng_msg_free(rmsg);
 
 	nng_aio *aio = arg;
@@ -360,6 +357,7 @@ hybridger_cb(void *arg)
 	for (;;) {
 		// Get next bridge node
 		node = bridge_arg->config;
+		log_warn("Bridge has switched to %s", node->address);
 
 		if (0 == strncmp(node->address, tcp_scheme, 8)) {
 			bridge_tcp_client(bridge_arg, aio);
@@ -368,8 +366,10 @@ hybridger_cb(void *arg)
 			bridge_quic_client(bridge_arg, aio);
 #endif
 		} else {
-			printf("Unsupported bridge protocol.\n");
+			log_error("Unsupported bridge protocol.");
 		}
+		if (bridge_arg->aio)
+			nng_aio_finish(bridge_arg->aio, 0);
 		nng_aio_wait(aio);
 	}
 
@@ -384,11 +384,21 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	bridge_arg->config = node;
 	bridge_arg->sock   = sock;
 	bridge_arg->conf   = config;
+	bridge_arg->aio    = NULL;
+
+	nng_aio *aio;
+	nng_aio_alloc(&aio, NULL, NULL);
+	nng_aio_set_timeout(aio, NNG_DURATION_DEFAULT);
+	bridge_arg->aio = aio;
 
 	int rv = nng_thread_create(&hybridger_thr, hybridger_cb, (void *)bridge_arg);
 	if (rv != 0) {
 		fatal("nng_thread_create", rv);
 	}
-	return 0;
+
+	nng_aio_wait(aio);
+	nng_aio_free(aio);
+	bridge_arg->aio = NULL;
+	return rv;
 }
 
