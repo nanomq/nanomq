@@ -150,7 +150,9 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 
 	node->sock         = (void *) sock;
 
+	// TCP bridge does not support hot update of connmsg
 	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
+	nng_socket_set_ptr(*sock, NNG_OPT_MQTT_CONNMSG, connmsg);
 	nng_mqtt_set_connect_cb(*sock, bridge_connect_cb, bridge_arg);
 	nng_mqtt_set_disconnect_cb(*sock, disconnect_cb, connmsg);
 
