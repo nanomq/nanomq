@@ -4,7 +4,7 @@
 
 ## 配置项
 
-Webhook 的配置文件位于 `etc/nanomq_web_hook.conf`, 具体配置项可查看[配置说明](./config-description.md).
+Webhook 的配置文件位于 `etc/nanomq.conf`, 具体配置项可查看[配置说明](./config-description.md).
 
 **启用Webhook**
 
@@ -14,7 +14,7 @@ web.hook.enable=true
 
 ## 触发规则
 
-在 etc/nanomq_web_hook.conf 可配置触发规则，其配置的格式如下：
+在 `etc/nanomq.conf` 可配置触发规则，其配置的格式如下：
 
 ```bash
 ## 格式示例

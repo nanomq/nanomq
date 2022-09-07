@@ -10,8 +10,6 @@ NanoMQ 是一款用在物联网平台边缘端的超轻量 MQTT Broker。
 | --------------- | ------------ | -------------------------------------- | ------------------------ | ------------------------------------------------------------ |
 | --url           | -            | -                                      | nmq-tcp://127.0.0.1:1883 | 指定监听的 url: 'nmq-tcp://host:port', 'tls+nmq-tcp://host:port' or 'nmq-ws://host:port/path' or 'nmq-wss://host:port/path' |
 | --conf          | -            | -                                      | -                        | NanoMQ 配置文件路径                                          |
-| --bridge        | -            | -                                      | -                        | 桥接配置文件路径                                             |
-| --auth          | -            | -                                      | -                        | 认证配置文件路径                                             |
 | --http          | -            | true false                             | false                    | Http 服务开关                                                |
 | --port          | -p           | -                                      | 8081                     | Http 服务端口设置                                            |
 | --tq_thread     | -t           | -                                      | -                        | Taskq 线程数量设置，最小为1， 最大为256                      |
