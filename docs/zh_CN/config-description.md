@@ -47,6 +47,8 @@ NanoMQ 的配置文件通常以 .conf 作为后缀名，你可以在 etc 目录�
 | log.level | Enum |日志等级：trace, debug, info, warn, error, fatal |
 | log.dir | String |日志文件存储路径 (输出文件时生效) |
 | log.file | String |日志文件名(输出文件时生效) |
+| log.rotation.size | Integer | 每个日志文件的最大占用空间; <br>支持单位: `KB | MB | GB`;<br> 默认: `10MB` |
+| log.rotation.count | Integer | 轮换的最大日志文件数; <br>默认: `5` |
 
 #### 标准MQTT桥接配置参数
 
@@ -86,7 +88,7 @@ NanoMQ 的配置文件通常以 .conf 作为后缀名，你可以在 etc 目录�
 | bridge.mqtt.subscription.2.topic | String        | 第2个（*以此类推*）订阅`Topic`。             |
 | bridge.mqtt.subscription.2.qos   | Integer       | 第2个（*以此类推*）订阅`Qos`。               |
 
-#### 用户名密码验证配置
+#### 用户登陆验证配置
 
 | 参数名          | 数据类型 | 参数说明                        |
 | --------------- | -------- | ------------------------------- |
@@ -113,29 +115,7 @@ NanoMQ 的配置文件通常以 .conf 作为后缀名，你可以在 etc 目录�
 | web.hook.rule.client.disconnected.\<No\> | String  | *示例: <br/>web.hook.rule.client.disconnected.1={"action": "on_client_disconnected"}* |
 | web.hook.rule.message.publish.\<No\>     | String  | 示例: <br/>*web.hook.rule.message.publish.1={"action": "on_message_publish"}* <br>*web.hook.rule.message.publish.1={"action": "on_message_publish", "topic": "topic/1/2"}* <br>*web.hook.rule.message.publish.2 = {"action": "on_message_publish", "topic": "foo/#"}* |
 
-
-
-### nanomq_gateway.conf
-
-| 参数名                             | 数据类型  | 参数说明                                                      |
-| --------------------------------- | ------- | ------------------------------------------------------------ |
-| gateway.address                   | String  | 远端 Broker 地址。                                             |
-| gateway.proto_ver                 | String  | MQTT 客户端版本（3｜4｜5)。                                     |
-| gateway.clientid                  | String  | MQTT 客户端标识符。                                             |
-| gateway.keepalive                 | Integer | 保活间隔时间。                                                  |
-| gateway.clean_start               | Boolean | 清除会话标志。                                                  |
-| gateway.parallel                  | Long    | 并行的 mqtt 客户端数量。                                         |
-| gateway.username                  | String  | 登陆的用户名。                                                  |
-| gateway.password                  | String  | 登陆的密码。                                                    |
-| gateway.forward                   | String  | 转发的主题。                                                    |
-| gateway.mqtt.subscription.topic   | String  | 订阅的 Mqtt 主题。                                              |
-| gateway.mqtt.subscription.qos     | Integer | 订阅的 Mqtt 服务级别。                                           |
-| gateway.zmq.sub.address           | String  | 远端的 ZMQ 服务订阅地址。                                         |
-| gateway.zmq.pub.address           | String  | 远端的 ZMQ 服务发布地址。                                         |
-| gateway.zmq.sub_prefix            | String  | 远端的 ZMQ 服务订阅前缀。                                         |
-| gateway.zmq.pub_prefix            | String  | 远端的 ZMQ 服务发布前缀。                                         |
-
-### nanomq_auth_http.conf
+#### HTTP身份验证配置
 
 | 参数名                              | 数据类型 | 参数说明                                                     | 默认                                                         |
 | ----------------------------------- | -------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
@@ -158,7 +138,8 @@ NanoMQ 的配置文件通常以 .conf 作为后缀名，你可以在 etc 目录�
 | auth.http.ssl.certfile              | String   | 客户端证书文件路径。                                         | `etc/certs/client-cert.pem`                                  |
 | auth.http.ssl.keyfile               | String   | 客户端私钥文件路径。                                         | `etc/certs/client.key.pem`                                   |
 
-### nanomq_rule.conf
+
+#### 规则引擎配置
 
 | 参数名                         | 数据类型 | 参数说明                                                                           |
 | ------------------------------| ------- | -------------------------------------------------------------------------------- |
@@ -170,7 +151,7 @@ NanoMQ 的配置文件通常以 .conf 作为后缀名，你可以在 etc 目录�
 | rule_option.mysql             | Enum    | 规则引擎 mysql 选项 (enable/disable)                                               |
 | rule_option.mysql.conf.path   | String  | 规则引擎选项 mysql 配置文件路径                                                      |
 
-### nanomq_rule_sqlite.conf
+#### SQLITE规则配置
 
 | 参数名                         | 数据类型 | 参数说明                                                                           |
 | ------------------------------| ------- | -------------------------------------------------------------------------------- |
@@ -178,7 +159,7 @@ NanoMQ 的配置文件通常以 .conf 作为后缀名，你可以在 etc 目录�
 | rule.sqlite.%d.table          | String  | 规则引擎 SQLite3 数据库表名, '%d' 是占位符                                            |
 | rule.event.publish.%d.sql     | String  | 规则引擎 sql 语句, '%d' 是占位符                                                     |
 
-### nanomq_rule_mysql.conf
+#### MYSQL规则配置
 
 | 参数名                         | 数据类型 | 参数说明                                                                           |
 | ------------------------------| ------- | -------------------------------------------------------------------------------- |
@@ -188,9 +169,9 @@ NanoMQ 的配置文件通常以 .conf 作为后缀名，你可以在 etc 目录�
 | rule.mysql.%d.username        | String  | 规则引擎 mysql 数据库用户名, '%d' 是占位符                                            |
 | rule.mysql.%d.password        | String  | 规则引擎 mysql 数据库密码, '%d' 是占位符                                              |
 | rule.event.publish.%d.sql     | String  | 规则引擎 sql 语句, '%d' 是占位符                                                     |
- 
 
-### nanomq_rule_repub.conf
+
+#### Repub规则配置
 
 | 参数名                         | 数据类型 | 参数说明                                                                           |
 | ------------------------------| ------- | -------------------------------------------------------------------------------- |
@@ -203,3 +184,24 @@ NanoMQ 的配置文件通常以 .conf 作为后缀名，你可以在 etc 目录�
 | rule.repub.%d.keepalive       | Integer | 规则引擎重新发布保活时间, 默认值是 60, '%d' 是占位符                                     |
 | rule.repub.%d.clean_start     | Boolean | 规则引擎重新发布 clean_start 标志, 默认是 true，'%d' 是占位符                           |
 | rule.event.publish.%d.sql     | String  | 规则引擎 sql 语句, '%d' 是占位符                                                     |
+
+
+### nanomq_gateway.conf
+
+| 参数名                             | 数据类型  | 参数说明                                                      |
+| --------------------------------- | ------- | ------------------------------------------------------------ |
+| gateway.address                   | String  | 远端 Broker 地址。                                             |
+| gateway.proto_ver                 | String  | MQTT 客户端版本（3｜4｜5)。                                     |
+| gateway.clientid                  | String  | MQTT 客户端标识符。                                             |
+| gateway.keepalive                 | Integer | 保活间隔时间。                                                  |
+| gateway.clean_start               | Boolean | 清除会话标志。                                                  |
+| gateway.parallel                  | Long    | 并行的 mqtt 客户端数量。                                         |
+| gateway.username                  | String  | 登陆的用户名。                                                  |
+| gateway.password                  | String  | 登陆的密码。                                                    |
+| gateway.forward                   | String  | 转发的主题。                                                    |
+| gateway.mqtt.subscription.topic   | String  | 订阅的 Mqtt 主题。                                              |
+| gateway.mqtt.subscription.qos     | Integer | 订阅的 Mqtt 服务级别。                                           |
+| gateway.zmq.sub.address           | String  | 远端的 ZMQ 服务订阅地址。                                         |
+| gateway.zmq.pub.address           | String  | 远端的 ZMQ 服务发布地址。                                         |
+| gateway.zmq.sub_prefix            | String  | 远端的 ZMQ 服务订阅前缀。                                         |
+| gateway.zmq.pub_prefix            | String  | 远端的 ZMQ 服务发布前缀。                                         |

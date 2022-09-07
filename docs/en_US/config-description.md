@@ -46,6 +46,8 @@ The configuration files of NanoMQ Broker usually have the suffix .conf. You can 
 | log.level                       | Enum        | Log level：trace, debug, info, warn, error, fatal            |
 | log.dir                         | String      | The dir for log files. (if log to file)                      |
 | log.file                        | String      |The log filename. (if log to file) |
+| log.rotation.size | Integer | Maximum size of each log file; <br>Supported Unit: `KB | MB | GB`;<br> Default: `10MB` |
+| log.rotation.count | Integer | Maximum rotation count of log files; <br>Default: `5` |
 
 #### MQTT bridge configuration
 
