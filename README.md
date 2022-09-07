@@ -76,13 +76,12 @@ nanomq_cli nngproxy pub0 --mqtt_url "mqtt-tcp://localhost:1883" --dial "tcp://12
 **Note: NanoMQ provides several ways of configurations so that user can achieve better performance on different platforms**, check [here](#Configuration ) for details.
 
 
+
 ## Compile & Install
 
 NanoMQ dedicates to delivering a simple but powerful Messaging Hub on various edge platforms.
 
 With this being said, NanoMQ can run on different architectures such like x86_64 and ARM with minor migration efforts.
-
-
 
 #### Docker
 
@@ -255,13 +254,10 @@ Users can also change the configuration parameters of NanoMQ while booting. Howe
 
 NanoMQ will look up to it's configuration file in `/etc/` by default. Please remember to copy conf file to `/etc/` in your system if you wanna start NanoMQ without setting conf path manually. This 'nanomq.conf' allows you to configure broker when booting. Please be noted that if you start NanoMQ in the project's root directory, this file will be read automatically.
 
-Configure **MQTT bridging** in NanoMQ: by modifying `nanomq_bridge.conf`, which is in the same directory with `nanomq.conf`.
-
 You can also write your own configuration file. Be sure to start NanoMQ in this fashion to specify an effective configuration file:
 
 ```bash
-nanomq start --conf <$FILE_PATH> [--bridge <$FILE_PATH>] \
-[--auth <$FILE_PATH>]
+nanomq start --conf <$FILE_PATH>
 ```
 
 Docker version:
@@ -299,8 +295,6 @@ Docker version:
 |NANOMQ_TLS_VERIFY_PEER| Boolean | Verify peer certificate (default: false).|
 |NANOMQ_TLS_FAIL_IF_NO_PEER_CERT| Boolean | Server will fail if the client does not have a certificate to send (default: false).|
 |NANOMQ_CONF_PATH | String | NanoMQ main config file path (defalt: /etc/nanomq.conf).|
-|NANOMQ_BRIDGE_CONF_PATH | String | Bridge config file path (defalt: /etc/nanomq_bridge.conf).|
-|NANOMQ_AUTH_CONF_PATH | String | Auth config file path (defalt: /etc/nanomq_auth_username.conf).|
 
 - Specify a broker url.
   On host system: 
@@ -335,11 +329,10 @@ Docker version:
 The same configuration can be achieved by adding some command-line arguments when you start NanoMQ broker. There are a few arguments for you to play with. And the general usage is:
 
 ```bash
-Usage: nanomq { { start | restart [--url <url>] [--conf <path>] [--bridge <path>] 
-                     [--aws_bridge <path>] [--webhook <path>] [--auth <path>] [--auth_http <path>] 
-                     [--sqlite <path>] [-t, --tq_thread <num>] [-T, -max_tq_thread <num>] 
-                     [-n, --parallel <num>] [-D, --qos_duration <num>] [--http] [-p, --port]  
-                     [-d, --daemon] [--cacert <path>] [-E, --cert <path>] [--key <path>] 
+Usage: nanomq { { start | restart [--url <url>] [--conf <path>] [-t, --tq_thread <num>]
+                     [-T, -max_tq_thread <num>] [-n, --parallel <num>] 
+                     [-D, --qos_duration <num>] [--http] [-p, --port] [-d, --daemon] 
+                     [--cacert <path>] [-E, --cert <path>] [--key <path>] 
                      [--keypass <password>] [--verify] [--fail] }
                      | stop }
 
@@ -349,11 +342,6 @@ Options:
                              'nmq-ws://host:port/path', 
                              'nmq-wss://host:port/path'
   --conf <path>              The path of a specified nanomq configuration file 
-  --bridge <path>            The path of a specified bridge configuration file 
-  --webhook <path>           The path of a specified webhook configuration file 
-  --auth <path>              The path of a specified authorize configuration file 
-  --auth_http <path>         The path of a specified http authorize configuration file 
-  --sqlite <path>            The path of a specified sqlite configuration file 
   --http                     Enable http server (default: false)
   -p, --port <num>           The port of http server (default: 8081)
   -t, --tq_thread <num>      The number of taskq threads used, 
@@ -393,7 +381,7 @@ Options:
 
   ```bash
   nanomq start|restart 					
-  nanomq start|restart --conf <$FILE_PATH> [--bridge <$FILE_PATH>] [--auth <$FILE_PATH>] 
+  nanomq start|restart --conf <$FILE_PATH> 
   ```
 
 - Telling broker that it should read your configuration file. 
@@ -401,7 +389,7 @@ Options:
   Be aware that command line arguments always has a higher priority than both 'nanomq.conf' and your configuration file: 
 
   ```bash
-  nanomq start|restart --conf <$FILE_PATH> [--bridge <$FILE_PATH>] [--auth <$FILE_PATH>]
+  nanomq start|restart --conf <$FILE_PATH> 
   ```
 
 - Running broker in daemon mode:
@@ -522,6 +510,10 @@ You could join us on [Slack](https://slack-invite.emqx.io/). We now share a work
 ### MQTT Client Examples
 
 [MQTT-Client-Examples](https://github.com/emqx/MQTT-Client-Examples)
+
+### MQTT Client SDK
+
+[NanoSDK](https://github.com/nanomq/NanoSDK)
 
 
 
