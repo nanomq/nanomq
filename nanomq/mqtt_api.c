@@ -184,7 +184,6 @@ encode_common_mqtt_msg(
 }
 
 static nng_mtx *log_file_mtx = NULL;
-static FILE *   log_fp       = NULL;
 
 static int
 log_file_init(conf_log *log)
@@ -195,20 +194,16 @@ log_file_init(conf_log *log)
 		    log->dir);
 		return NNG_EINVAL;
 	}
-	log->dir  = log->dir == NULL ? nng_strdup("./") : log->dir;
-	log->file = log->file == NULL ? nng_strdup("nanomq.log") : log->file;
-	size_t path_len = strlen(log->dir) + strlen(log->file) + 3;
-	char * path     = nng_zalloc(path_len);
-	snprintf(path, path_len, "%s%s%s", log->dir,
-	    log->dir[strlen(log->dir) - 1] == '/' ? "" : "/", log->file);
-
-	log_fp = fopen(path, "a");
-	if (log_fp == NULL) {
+	log->dir   = log->dir == NULL ? nng_strdup("./") : log->dir;
+	log->file  = log->file == NULL ? nng_strdup("nanomq.log") : log->file;
+	char *path = nano_concat_path(log->dir, log->file);
+	log->fp    = fopen(path, "a");
+	if (log->fp == NULL) {
 		log_fatal("open log file '%s' failed", path);
-		nng_free(path, path_len);
+		nng_strfree(path);
 		return NNG_EINVAL;
 	}
-	nng_free(path, path_len);
+	log->abs_path = path;
 	return 0;
 }
 
@@ -228,7 +223,7 @@ log_init(conf_log *log)
 		    0 != (rv = nng_mtx_alloc(&log_file_mtx))) {
 			return rv;
 		}
-		log_add_fp(log_fp, log->level, log_file_mtx);
+		log_add_fp(log->fp, log->level, log_file_mtx, log);
 	}
 
 #if defined(SUPP_SYSLOG)
@@ -244,7 +239,6 @@ int
 log_fini(conf_log *log)
 {
 	if (0 != (log->type & LOG_TO_FILE)) {
-		fclose(log_fp);
 		nng_mtx_free(log_file_mtx);
 	}
 
