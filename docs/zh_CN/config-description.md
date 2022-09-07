@@ -4,18 +4,16 @@
 
 NanoMQ 的配置文件通常以 .conf 作为后缀名，你可以在 etc 目录找到这些配置文件，主要配置文件包括：
 
-| 配置文件                      | 说明                    |
-| ----------------------------- | ----------------------- |
-| etc/nanomq.conf               | NanoMQ 配置文件         |
-| etc/nanomq_bridge.conf        | NanoMQ MQTT桥接配置文件 |
-| etc/nanomq_auth_username.conf | NanoMQ用户密码配置文件  |
-| etc/nanomq_web_hook.conf      | NanoMQ WebHook配置文件  |
-| etc/nanomq_gateway.conf       | NanoMQ 网关配置文件     |
-| etc/nanomq_auth_http.conf     | NanoMQ HTTP认证配置文件 |
+| 配置文件                | 说明                |
+| ----------------------- | ------------------- |
+| etc/nanomq.conf         | NanoMQ 配置文件     |
+| etc/nanomq_gateway.conf | NanoMQ 网关配置文件 |
 
 ## 参数说明
 
 ### nanomq.conf
+
+#### 基本配置参数
 
 | 参数名                  | 数据类型    | 参数说明                                                  |
 | --------------------- | ------- | ------------------------------------------------------------ |
@@ -50,7 +48,7 @@ NanoMQ 的配置文件通常以 .conf 作为后缀名，你可以在 etc 目录�
 | log.dir | String |日志文件存储路径 (输出文件时生效) |
 | log.file | String |日志文件名(输出文件时生效) |
 
-### nanomq_bridge.conf
+#### 标准MQTT桥接配置参数
 
 | 参数名                  | 数据类型    | 参数说明                                                  |
 | --------------------- | ------- | ------------------------------------------------------------ |
@@ -69,7 +67,26 @@ NanoMQ 的配置文件通常以 .conf 作为后缀名，你可以在 etc 目录�
 | bridge.mqtt.subscription.2.topic | String        | 第2个（*以此类推*）订阅`Topic`。             |
 | bridge.mqtt.subscription.2.qos   | Integer       | 第2个（*以此类推*）订阅`Qos`。 |
 
-### nanomq_auth_username.conf
+#### Aws IoT Core MQTT桥接配置参数
+
+| 参数名                           | 数据类型      | 参数说明                                     |
+| -------------------------------- | ------------- | -------------------------------------------- |
+| bridge.mqtt.bridge_mode          | Boolean       | 启动桥接功能（*默认`false`不启用*）。        |
+| bridge.mqtt.host                 | String        | AWS IoT Core服务地址。                       |
+| bridge.mqtt.port                 | Integer       | AWS IoT Core MQTT端口。                      |
+| bridge.mqtt.clientid             | String        | 桥接客户端ID（*默认NULL为自动生成随机ID*）。 |
+| bridge.mqtt.keepalive            | Integer       | 保活间隔时间。                               |
+| bridge.mqtt.clean_start          | Boolean       | 清除会话。                                   |
+| bridge.mqtt.parallel             | Long          | 桥接客户端并发数。                           |
+| bridge.mqtt.username             | String        | 登录用户名。                                 |
+| bridge.mqtt.password             | String        | 登录密码。                                   |
+| bridge.mqtt.forwards             | Array[String] | 转发Topic数组, 使用逗号`,`分隔多个`Topic`。  |
+| bridge.mqtt.subscription.1.topic | String        | 第1个订阅`Topic`。                           |
+| bridge.mqtt.subscription.1.qos   | Integer       | 第1个订阅`Qos`。                             |
+| bridge.mqtt.subscription.2.topic | String        | 第2个（*以此类推*）订阅`Topic`。             |
+| bridge.mqtt.subscription.2.qos   | Integer       | 第2个（*以此类推*）订阅`Qos`。               |
+
+#### 用户名密码验证配置
 
 | 参数名          | 数据类型 | 参数说明                        |
 | --------------- | -------- | ------------------------------- |
@@ -78,7 +95,7 @@ NanoMQ 的配置文件通常以 .conf 作为后缀名，你可以在 etc 目录�
 | auth.2.login    | String   | 第2个（*以此类推*）登录用户名。 |
 | auth.2.password | String   | 第2个（*以此类推*）登录密码。   |
 
-### nanomq_web_hook.conf
+#### WebHook配置
 
 | 参数名                                    | 数据类型 | 参数说明                                                    |
 | ---------------------------------------- | ------- | ------------------------------------------------------------ |
@@ -96,7 +113,10 @@ NanoMQ 的配置文件通常以 .conf 作为后缀名，你可以在 etc 目录�
 | web.hook.rule.client.disconnected.\<No\> | String  | *示例: <br/>web.hook.rule.client.disconnected.1={"action": "on_client_disconnected"}* |
 | web.hook.rule.message.publish.\<No\>     | String  | 示例: <br/>*web.hook.rule.message.publish.1={"action": "on_message_publish"}* <br>*web.hook.rule.message.publish.1={"action": "on_message_publish", "topic": "topic/1/2"}* <br>*web.hook.rule.message.publish.2 = {"action": "on_message_publish", "topic": "foo/#"}* |
 
+
+
 ### nanomq_gateway.conf
+
 | 参数名                             | 数据类型  | 参数说明                                                      |
 | --------------------------------- | ------- | ------------------------------------------------------------ |
 | gateway.address                   | String  | 远端 Broker 地址。                                             |
