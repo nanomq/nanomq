@@ -4,7 +4,7 @@
 
 ## Configuration item
 
-The webhook configuration file is located in: `etc/nanomq_web_hook.conf`, the detailed description of configuration items can be found in [Configuration item](./config-description.md).
+The webhook configuration file is located in: `etc/nanomq.conf`, the detailed description of configuration items can be found in [Configuration item](./config-description.md).
 
 **Enable Webhook**
 
@@ -14,7 +14,7 @@ web.hook.enable=true
 
 ## Trigger rule
 
-Trigger rules can be configured in `etc/nanomq_web_hook.conf`.  The configuration format is as follows:
+Trigger rules can be configured in `etc/nanomq.conf`.  The configuration format is as follows:
 
 ```bash
 ## Format example

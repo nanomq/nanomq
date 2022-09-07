@@ -6,15 +6,13 @@ The configuration files of NanoMQ Broker usually have the suffix .conf. You can 
 | File                      | Description                   |
 | ----------------------------- | ---------------------- |
 | etc/nanomq.conf               | NanoMQ Configuration File        |
-| etc/nanomq_bridge.conf        | NanoMQ Bridge File     |
-| etc/nanomq_auth_username.conf | NanoMQ Authorization File  |
-| etc/nanomq_web_hook.conf | NanoMQ Web Hook File  |
-| etc/nanomq_gateway.conf       | NanoMQ Gateway File     |
-| etc/nanomq_auth_http.conf     | NanoMQ HTTP Authentication File|
+| etc/nanomq_gateway.conf       | NanoMQ Gateway File (for `nanomq_cli`) |
 
 ## Parameter Description
 
 ### nanomq.conf
+
+#### basic configuration
 
 | Name                  | Type    | Description                                                  |
 | --------------------- | ------- | ------------------------------------------------------------ |
@@ -49,26 +47,45 @@ The configuration files of NanoMQ Broker usually have the suffix .conf. You can 
 | log.dir                         | String      | The dir for log files. (if log to file)                      |
 | log.file                        | String      |The log filename. (if log to file) |
 
-### nanomq_bridge.conf
+#### MQTT bridge configuration
 
 | Name                  | Type    | Description                                                  |
 | --------------------- | ------- | ------------------------------------------------------------ |
-| bridge.bridge_mode | Boolean | Enter MQTT bridge mode (default `false` ).                                  |
-| bridge.address | String | Remote Broker address. |
-| bridge.proto_ver | String | MQTT client version（3｜4｜5）. |
-| bridge.clientid | String | MQTT client identifier. |
-| bridge.keepalive | Integer | Interval of keepalive.                                       |
-| bridge.clean_start | Boolean | Clean seeson.                                                |
-| bridge.parallel | Long | Parallel of mqtt client. |
-| bridge.username | String | Login user name. |
-| bridge.password | String | Login password. |
-| bridge.forwards | Array[String] | Array of forward topics.( *Use commas `,` to separate multiple topics* ) |
+| bridge.mqtt.bridge_mode | Boolean | Enter MQTT bridge mode (default `false` ).                                  |
+| bridge.mqtt.address | String | Remote Broker address. |
+| bridge.mqtt.proto_ver | String | MQTT client version（3｜4｜5）. |
+| bridge.mqtt.clientid | String | MQTT client identifier. |
+| bridge.mqtt.keepalive | Integer | Interval of keepalive.                                       |
+| bridge.mqtt.clean_start | Boolean | Clean seeson.                                                |
+| bridge.mqtt.parallel | Long | Parallel of mqtt client. |
+| bridge.mqtt.username | String | Login user name. |
+| bridge.mqtt.password | String | Login password. |
+| bridge.mqtt.forwards | Array[String] | Array of forward topics.( *Use commas `,` to separate multiple topics* ) |
 | bridge.mqtt.subscription.1.topic | String | First `Topic`.                               |
 | bridge.mqtt.subscription.1.qos | Integer | First `Qos`.                       |
 | bridge.mqtt.subscription.2.topic | String        | Second`Topic` ( *And so on* ).             |
 | bridge.mqtt.subscription.2.qos   | Integer       | Second`Qos`( *And so on* ). |
 
-### nanomq_auth_username.conf
+#### AWS IoT Core bridge configuration
+
+| Name                                 | Type          | Description                                                  |
+| ------------------------------------ | ------------- | ------------------------------------------------------------ |
+| aws.bridge.mqtt.bridge_mode          | Boolean       | Enter MQTT bridge mode (default `false` ).                   |
+| aws.bridge.mqtt.host                 | String        | aws endpoint.                                                |
+| aws.bridge.mqtt.port                 | Integer       | aws MQTT port.                                               |
+| aws.bridge.mqtt.clientid             | String        | MQTT client identifier.                                      |
+| aws.bridge.mqtt.keepalive            | Integer       | Interval of keepalive.                                       |
+| aws.bridge.mqtt.clean_start          | Boolean       | Clean seeson.                                                |
+| aws.bridge.mqtt.parallel             | Long          | Parallel of mqtt client.                                     |
+| aws.bridge.mqtt.username             | String        | Login user name.                                             |
+| aws.bridge.mqtt.password             | String        | Login password.                                              |
+| aws.bridge.mqtt.forwards             | Array[String] | Array of forward topics.( *Use commas `,` to separate multiple topics* ) |
+| aws.bridge.mqtt.subscription.1.topic | String        | First `Topic`.                                               |
+| aws.bridge.mqtt.subscription.1.qos   | Integer       | First `Qos`.                                                 |
+| aws.bridge.mqtt.subscription.2.topic | String        | Second`Topic` ( *And so on* ).                               |
+| aws.bridge.mqtt.subscription.2.qos   | Integer       | Second`Qos`( *And so on* ).                                  |
+
+#### Authorization configuration
 
 | Name                  | Type    |  Description                                     |
 | --------------- | -------- | ------------------------------- |
@@ -76,8 +93,11 @@ The configuration files of NanoMQ Broker usually have the suffix .conf. You can 
 | auth.1.password | String   | First Password.                 |
 | auth.2.login    | String   | Second Username ( *And so on* ). |
 | auth.2.password | String   | Second Password ( *And so on* ). |
+| ... |  |  |
+| auth.{INDEX}.login | String |  |
+| auth.{INDEX}.password | String |  |
 
-### nanomq_web_hook.conf
+#### WebHook configuration
 
 | Name | Type | Description |
 | ------ | -------- | -------- |
@@ -95,27 +115,7 @@ The configuration files of NanoMQ Broker usually have the suffix .conf. You can 
 | web.hook.rule.client.disconnected.\<No\> | String  | *Example: <br/>web.hook.rule.client.disconnected.1={"action": "on_client_disconnected"}* |
 | web.hook.rule.message.publish.\<No\>     | String  | Example: <br/>*web.hook.rule.message.publish.1={"action": "on_message_publish"}* <br>*web.hook.rule.message.publish.1={"action": "on_message_publish", "topic": "topic/1/2"}* <br>*web.hook.rule.message.publish.2 = {"action": "on_message_publish", "topic": "foo/#"}* |
 
-### nanomq_gateway.conf
-
-| Name                              | Type    | Description                                                  |
-| --------------------------------- | ------- | ------------------------------------------------------------ |
-| gateway.address                   | String  | Remote Broker address.                                       |
-| gateway.proto_ver                 | String  | MQTT client version（3｜4｜5).                                |
-| gateway.clientid                  | String  | MQTT client identifier.                                      |
-| gateway.keepalive                 | Integer | Interval of keepalive.                                       |
-| gateway.clean_start               | Boolean | Clean seeson.                                                |
-| gateway.parallel                  | Long    | Parallel of mqtt client.                                     |
-| gateway.username                  | String  | Login user name.                                             |
-| gateway.password                  | String  | Login password.                                              |
-| gateway.forward                   | String  | Forward topic.                                               |
-| gateway.mqtt.subscription.topic   | String  | Mqtt subscribe topic.                                        |
-| gateway.mqtt.subscription.qos     | Integer | Mqtt subscribe qos.                                          |
-| gateway.zmq.sub.address           | String  | Remote ZMQ server subscribe address.                         |
-| gateway.zmq.pub.address           | String  | Remote ZMQ server publish address.                           |
-| gateway.zmq.sub_prefix            | String  | Remote ZMQ server subscribe prefix.                          |
-| gateway.zmq.pub_prefix            | String  | Remote ZMQ server publish prefix.                            |
-
-### nanomq_auth_http.conf
+#### Http authorication configuration
 
 | Name                              | Type | Description                                                     | default                                                         |
 | ----------------------------------- | -------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
@@ -139,7 +139,7 @@ The configuration files of NanoMQ Broker usually have the suffix .conf. You can 
 | auth.http.ssl.keyfile               | String   | Client private key file path. | `etc/certs/client.key.pem`                                   |
 
 
-### nanomq_rule.conf
+#### Rule engine configuration
 
 | Name                          | Type    | Description                                                                      |
 | ------------------------------| ------- | -------------------------------------------------------------------------------- |
@@ -151,7 +151,7 @@ The configuration files of NanoMQ Broker usually have the suffix .conf. You can 
 | rule_option.mysql             | Enum    | Rule engine plugins option (enable/disable)                                      |
 | rule_option.mysql.conf.path   | String  | Rule engine option mysql config path                                             |
 
-### nanomq_rule_sqlite.conf
+#### Rule configuration for sqlite
 
 | Name                          | Type    | Description                                                                      |
 | ------------------------------| ------- | -------------------------------------------------------------------------------- |
@@ -159,7 +159,7 @@ The configuration files of NanoMQ Broker usually have the suffix .conf. You can 
 | rule.sqlite.%d.table          | String  | Rule engine option SQLite3 database table name, '%d' is a placeholder            |
 | rule.event.publish.%d.sql     | String  | Rule engine sql clause, '%d' is a placeholder                                    |
 
-### nanomq_rule_mysql.conf
+#### Rule configuration for mysql
 
 | Name                          | Type    | Description                                                                      |
 | ------------------------------| ------- | -------------------------------------------------------------------------------- |
@@ -170,8 +170,7 @@ The configuration files of NanoMQ Broker usually have the suffix .conf. You can 
 | rule.mysql.%d.password        | String  | Rule engine option mysql database password, '%d' is a placeholder                |
 | rule.event.publish.%d.sql     | String  | Rule engine sql clause, '%d' is a placeholder                                    |
 
-
-### nanomq_rule_repub.conf
+#### Rule configuration for repub
 
 | Name                          | Type    | Description                                                                      |
 | ------------------------------| ------- | -------------------------------------------------------------------------------- |
@@ -184,3 +183,25 @@ The configuration files of NanoMQ Broker usually have the suffix .conf. You can 
 | rule.repub.%d.keepalive       | Integer | Rule engine option repub keepalive, default is 60, '%d' is a placeholder         |
 | rule.repub.%d.clean_start     | Boolean | Rule engine option repub clean_start flag, default is true '%d' is a placeholder |
 | rule.event.publish.%d.sql     | String  | Rule engine sql clause, '%d' is a placeholder                                    |
+
+
+### nanomq_gateway.conf
+
+| Name                            | Type    | Description                          |
+| ------------------------------- | ------- | ------------------------------------ |
+| gateway.address                 | String  | Remote Broker address.               |
+| gateway.proto_ver               | String  | MQTT client version（3｜4｜5).        |
+| gateway.clientid                | String  | MQTT client identifier.              |
+| gateway.keepalive               | Integer | Interval of keepalive.               |
+| gateway.clean_start             | Boolean | Clean seeson.                        |
+| gateway.parallel                | Long    | Parallel of mqtt client.             |
+| gateway.username                | String  | Login user name.                     |
+| gateway.password                | String  | Login password.                      |
+| gateway.forward                 | String  | Forward topic.                       |
+| gateway.mqtt.subscription.topic | String  | Mqtt subscribe topic.                |
+| gateway.mqtt.subscription.qos   | Integer | Mqtt subscribe qos.                  |
+| gateway.zmq.sub.address         | String  | Remote ZMQ server subscribe address. |
+| gateway.zmq.pub.address         | String  | Remote ZMQ server publish address.   |
+| gateway.zmq.sub_prefix          | String  | Remote ZMQ server subscribe prefix.  |
+| gateway.zmq.pub_prefix          | String  | Remote ZMQ server publish prefix.    |
+
