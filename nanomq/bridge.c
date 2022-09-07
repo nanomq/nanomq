@@ -157,8 +157,9 @@ bridge_tcp_client(bridge_param *bridge_arg)
 {
 	int           rv;
 	nng_dialer    dialer;
-	nng_socket *  sock;
-	conf_bridge_node *node;
+
+	nng_socket *      sock = bridge_arg->sock;
+	conf_bridge_node *node = bridge_arg->config;
 
 	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 		if ((rv = nng_mqttv5_client_open(sock)) != 0) {
@@ -228,6 +229,8 @@ quic_disconnect_cb(void *rmsg, void *arg)
 	}
 	log_warn("quic bridge client disconnected! RC [%d]", reason);
 
+	// wait 3000ms and ready to reconnect
+	nng_msleep(3000);
 	bridge_param *bridge_arg = arg;
 
 	nng_mtx_lock(bridge_arg->switch_mtx);
@@ -310,7 +313,7 @@ bridge_quic_client(bridge_param *bridge_arg)
 	    0 != nng_mqtt_quic_set_disconnect_cb(sock, quic_disconnect_cb, (void *)bridge_arg)) {
 	    //0 != nng_mqtt_quic_set_msg_recv_cb(sock, msg_recv_cb, (void *)arg) ||
 	    //0 != nng_mqtt_quic_set_msg_send_cb(sock, msg_send_cb, (void *)arg)) {
-		log_debug("error in quic client cb set.");
+		log_error("error in quic client cb setting.");
 		return -1;
 	}
 
