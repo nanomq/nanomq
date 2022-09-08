@@ -8,7 +8,7 @@ on:
     - published
 
 jobs:
-  build_packages:
+  function_test:
     runs-on: ubuntu-22.04
 
     steps:
@@ -37,7 +37,7 @@ jobs:
 
         mkdir -p build
         cd build
-        cmake -DDEBUG=ON -DASAN=ON -DNNG_ENABLE_TLS=ON ..
+        cmake -DDEBUG=ON -DASAN=ON -DNNG_ENABLE_TLS=ON -DNOLOG=OFF ..
         make
         sudo make install
     - name: test
