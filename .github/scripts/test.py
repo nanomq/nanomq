@@ -1,7 +1,10 @@
+from cmath import log
+from fileinput import close
+import os
 import subprocess
 import shlex
 import time
-import os
+from os.path import exists
 
 from mqtt_test import mqtt_test
 from mqtt_test_v5 import mqtt_v5_test
@@ -10,12 +13,26 @@ from tls_v5_test import tls_v5_test
 from ws_test import ws_test
 from ws_v5_test import ws_v5_test
 
+nanomq_log_path = "/tmp/nanomq_test.log" 
+nanomq_cmd = "nanomq start --url tls+nmq-tcp://0.0.0.0:8883 --cacert etc/certs/cacert.pem --cert etc/certs/cert.pem --key etc/certs/key.pem --qos_duration 1 --log_level debug  --log_stdout false --log_file /tmp/nanomq_test.log"
+
+def print_nanomq_log():
+    log_lines = open(nanomq_log_path, 'r')
+    for line in log_lines:
+        print(line)
+    log_lines.close()
+
 
 if __name__=='__main__':
-    nanomq = shlex.split("nanomq start --url tls+nmq-tcp://0.0.0.0:8883 --cacert etc/certs/cacert.pem --cert etc/certs/cert.pem --key etc/certs/key.pem --qos_duration 1")
+
+    if exists(nanomq_log_path):
+        os.remove(nanomq_log_path)
+
+    nanomq = shlex.split(nanomq_cmd)
     nanomq = subprocess.Popen(nanomq, 
                            stdout=subprocess.PIPE,
                            universal_newlines=True)
+                           
 
     time.sleep(0.5)
 
@@ -23,6 +40,7 @@ if __name__=='__main__':
     if False == mqtt_test():
         nanomq.terminate()
         print("mqtt v311 test failed")
+        print_nanomq_log()
         raise AssertionError
     print("mqtt v311 test end")
 
@@ -30,6 +48,7 @@ if __name__=='__main__':
     if False == mqtt_v5_test():
         nanomq.terminate()
         print("mqtt v5 test failed")
+        print_nanomq_log()
         raise AssertionError
     print("mqtt v5 test end")
 
@@ -37,6 +56,7 @@ if __name__=='__main__':
     if False == tls_test():
         nanomq.terminate()
         print("tls v311 test failed")
+        print_nanomq_log()
         raise AssertionError
     print("tls v311 test end")
 
@@ -44,22 +64,17 @@ if __name__=='__main__':
     if False == tls_v5_test():
         nanomq.terminate()
         print("tls v5 test failed")
+        print_nanomq_log()
         raise AssertionError
     print("tls v5 test end")
 
     print("ws v311 test start")
-    if False == ws_test():
-        nanomq.terminate()
-        print("ws v311 test failed")
-        raise AssertionError
+    ws_test()
     print("ws v311 test end")
 
     print("ws v5 test start")
-    if False == ws_v5_test():
-        nanomq.terminate()
-        print("ws v5 test failed")
-        raise AssertionError
+    ws_v5_test()
     print("ws v5 test end")
-    time.sleep(1)
+    time.sleep(2)
 
     nanomq.terminate()
