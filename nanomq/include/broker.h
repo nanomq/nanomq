@@ -36,6 +36,7 @@ struct work {
 	uint8_t     proto_ver;
 	uint8_t     flag; // flag for webhook & rule_engine
 	nng_aio *   aio;
+	nng_aio *   bridge_aio; // aio for sending bridging msg (merge as one aio only?)
 	nng_msg *   msg;
 	nng_msg **  msg_ret;
 	nng_ctx     ctx;        // ctx for mqtt broker
@@ -72,6 +73,7 @@ int broker_start(int argc, char **argv);
 int broker_stop(int argc, char **argv);
 int broker_restart(int argc, char **argv);
 int broker_dflt(int argc, char **argv);
+void bridge_send_cb(void *arg);
 
 #ifdef STATISTICS
 uint64_t nanomq_get_message_in(void);
