@@ -192,7 +192,17 @@ bridge_handler(nano_work *work)
 					// what if send qos msg failed?
 					// nanosdk deal with fail send
 					// and cnng_sendmsglose the pipe
-					nng_sendmsg(*socket, smsg, NNG_FLAG_NONBLOCK);
+					if (nng_aio_busy(work->bridge_aio)) {
+						log_warn("bridging aio busy! msg lost!");
+						nng_msg_free(smsg);
+					} else {
+						nng_aio_set_timeout(work->bridge_aio,
+						3000);
+						nng_aio_set_msg(
+						    work->bridge_aio, smsg);
+						nng_send_aio(
+						    *socket, work->bridge_aio);
+					}
 					rv = true;
 				}
 			}
@@ -688,6 +698,12 @@ server_cb(void *arg)
 	}
 }
 
+void bridge_send_cb(void *arg)
+{
+	nano_work *work = arg;
+
+}
+
 struct work *
 alloc_work(nng_socket sock)
 {
@@ -699,6 +715,9 @@ alloc_work(nng_socket sock)
 	}
 	if ((rv = nng_aio_alloc(&w->aio, server_cb, w)) != 0) {
 		fatal("nng_aio_alloc", rv);
+	}
+	if ((rv = nng_aio_alloc(&w->bridge_aio, bridge_send_cb, w)) != 0) {
+		fatal("bridge_aio nng_aio_alloc", rv);
 	}
 	if ((rv = nng_ctx_open(&w->ctx, sock)) != 0) {
 		fatal("nng_ctx_open", rv);
