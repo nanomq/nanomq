@@ -9,6 +9,8 @@ import signal
 
 g_port = 1883
 g_addr = "127.0.0.1"
+g_sub = "mosquitto_sub"
+g_pub = "mosquitto_pub"
 
 g_url = " -h {addr} -p {port} ".format(addr = g_addr, port = g_port)
 
@@ -62,10 +64,17 @@ def cnt_message(cmd, n, pid, message):
             n.value += 1
 
 def test_shared_subscription():
-    pub_cmd = shlex.split("mosquitto_pub -t topic_share -V 5 -m message {} -d --repeat 10".format(g_url))
-    sub_cmd = shlex.split("mosquitto_sub -t '$share/a/topic_share' {}".format(g_url))
-    sub_cmd_shared = shlex.split("mosquitto_sub -t '$share/b/topic_share' {}".format(g_url))
-    sub_cmd_non_shared = shlex.split("mosquitto_sub -t topic_share {}".format(g_url))
+
+    p_cmd = g_pub + g_url + "-t 'topic_share' -V 5 -m message -d --repeat 10"
+    s_cmd = g_sub + g_url + "-t '$share/a/topic_share'"
+    ss_cmd = g_sub + g_url + "-t '$share/b/topic_share'"
+    sn_cmd = g_sub + g_url + "-t topic_share"
+
+    pub_cmd = shlex.split(p_cmd)
+    sub_cmd = shlex.split(s_cmd)
+    sub_cmd_shared = shlex.split(ss_cmd)
+    sub_cmd_non_shared = shlex.split(sn_cmd)
+
     process1 = subprocess.Popen(sub_cmd,
                                stdout=subprocess.PIPE,
                                universal_newlines=True)
@@ -117,6 +126,13 @@ def test_shared_subscription():
         times += 1
         time.sleep(1)
         if times == 5:
+            print("Shared client did not receive message * 10")
+            print(p_cmd)
+            print(s_cmd)
+            print(ss_cmd)
+            print(ss_cmd)
+            print(ss_cmd)
+            print(sn_cmd)
             print("Shared subscription test failed!")
             return False
     
@@ -131,6 +147,13 @@ def test_shared_subscription():
         times += 1
         time.sleep(1)
         if times == 5:
+            print("Shared client did not receive message * 10")
+            print(p_cmd)
+            print(s_cmd)
+            print(ss_cmd)
+            print(ss_cmd)
+            print(ss_cmd)
+            print(sn_cmd)
             print("Shared subscription test failed!")
             return False
     
@@ -145,6 +168,13 @@ def test_shared_subscription():
         times += 1
         time.sleep(1)
         if times == 5:
+            print("Shared client did not receive message * 10")
+            print(p_cmd)
+            print(s_cmd)
+            print(ss_cmd)
+            print(ss_cmd)
+            print(ss_cmd)
+            print(sn_cmd)
             print("Shared subscription test failed!")
             return False
 
@@ -152,8 +182,11 @@ def test_shared_subscription():
     return True
 
 def test_topic_alias():
-    pub_cmd = shlex.split("mosquitto_pub -t topic -V 5 -m message -D Publish topic-alias 10 {} -d --repeat 10".format(g_url))
-    sub_cmd = shlex.split("mosquitto_sub -t topic {}".format(g_url))
+
+    s_cmd = g_sub + g_url + "-t 'topic'"
+    p_cmd = g_pub + g_url + "-t topic -V 5 -m message -D Publish topic-alias 10 -d --repeat 10"
+    pub_cmd = shlex.split(p_cmd)
+    sub_cmd = shlex.split(s_cmd)
 
     cnt = Value('i', 0)
     pid = Value('i', 0)
@@ -177,14 +210,19 @@ def test_topic_alias():
         print("Topic alias test passed!")
         return True
     else:
+        print("Sub client did not receive message * 10")
+        print(s_cmd)
+        print(p_cmd)
         print("Topic alias test failed!")
         return False
 
 
 
 def test_user_property():
-    pub_cmd = shlex.split("mosquitto_pub -t topic_test {} -m aaaa -V 5 -D Publish user-property user property".format(g_url))
-    sub_cmd = shlex.split("mosquitto_sub -t topic_test {} -V 5 -F %P".format(g_url))
+    s_cmd = g_sub + g_url + "-t 'topic_test' -V 5 -F %P"
+    p_cmd = g_pub + g_url + "-t topic_test -m aaaa -V 5 -D Publish user-property user property"
+    pub_cmd = shlex.split(p_cmd)
+    sub_cmd = shlex.split(s_cmd)
 
     cnt = Value('i', 0)
     pid = Value('i', 0)
@@ -209,6 +247,9 @@ def test_user_property():
     process1.terminate()
     os.kill(pid.value, signal.SIGKILL)
     if times == 5:
+        print("Sub client did not receive User property")
+        print(s_cmd)
+        print(p_cmd)
         print("User property test failed!")
         return False
     else:
@@ -216,10 +257,10 @@ def test_user_property():
         return True
 
 def test_session_expiry():
-    print("mosquitto_pub -t topic_test {} -m message -V 5 -q 1".format(g_url))
-    print("mosquitto_sub -t 'topic_test' {} --id client -x 5 -c -q 1 -V 5".format(g_url))
-    pub_cmd = shlex.split("mosquitto_pub -t topic_test {} -m message -V 5 -q 1".format(g_url))
-    sub_cmd = shlex.split("mosquitto_sub -t 'topic_test' {} --id client -x 5 -c -q 1 -V 5".format(g_url))
+    s_cmd = g_sub + g_url + "-t 'topic_test' --id client -x 5 -c -q 1 -V 5"
+    p_cmd = g_pub + g_url + "-t topic_test -m message -V 5 -q 1"
+    pub_cmd = shlex.split(p_cmd)
+    sub_cmd = shlex.split(s_cmd)
 
     process1 = subprocess.Popen(sub_cmd,
                                stdout=subprocess.PIPE,
@@ -239,6 +280,9 @@ def test_session_expiry():
     process3.terminate()
     os.kill(pid.value, signal.SIGKILL)
     if cnt.value != 1:
+        print("Session message was not received before session message expire")
+        print(s_cmd)
+        print(p_cmd)
         print("Session expiry interval test failed")
         return False
 
@@ -296,10 +340,15 @@ def test_message_expiry():
         return False
 
 def test_retain_as_publish():
-    pub_retain_cmd = shlex.split("mosquitto_pub -t topic {} -V 5 -m retain/as/published -d --retain".format(g_url))
-    sub_retain_cmd = shlex.split("mosquitto_sub -t topic {} -V 5 --retain-as-published -d".format(g_url))
-    sub_common_cmd = shlex.split("mosquitto_sub -t topic {} -V 5 -d".format(g_url))
-    pub_clean_retain_cmd = shlex.split("mosquitto_pub -t topic {} -V 5 -m \"\" -d".format(g_url))
+    pr_cmd = g_pub + g_url + "-t topic -V 5 -m retain/as/published -d --retain"
+    sr_cmd = g_sub + g_url + "-t topic -V 5 --retain-as-published -d"
+    sc_cmd = g_sub + g_url + "-t topic -V 5 -d"
+    pcr_cmd = g_pub + g_url + "-t topic -V 5 -m \"\" -d"
+
+    pub_retain_cmd = shlex.split(pr_cmd)
+    sub_retain_cmd = shlex.split(sr_cmd)
+    sub_common_cmd = shlex.split(sc_cmd)
+    pub_clean_retain_cmd = shlex.split(pcr_cmd)
 
     process1 = subprocess.Popen(pub_retain_cmd,
                                stdout=subprocess.PIPE,
@@ -318,7 +367,12 @@ def test_retain_as_publish():
 
     ret = True
     if cnt.value != 1 or cnt1.value != 1:
+        print(pr_cmd)
+        print(sr_cmd)
+        print(sc_cmd)
+        print(pcr_cmd)
         print("Retain As Published test failed!")
+
         ret = False
     else:
         print("Retain As Published test passed!")
@@ -337,14 +391,8 @@ def test_retain_as_publish():
 
     time.sleep(2)
     return ret
-    # clear_subclients()
 
 def mqtt_v5_test():
     # test_message_expiry()
-    ret1 = test_session_expiry()
-    ret2 = test_user_property()
-    ret3 = test_shared_subscription()
-    ret4 = test_topic_alias()
-    ret5 = test_retain_as_publish()
-    return ret1 and ret2 and ret3 and ret4 and ret5
+    return test_session_expiry() and test_user_property() and test_shared_subscription() and test_topic_alias() and test_retain_as_publish()
 
