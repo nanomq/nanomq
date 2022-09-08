@@ -107,7 +107,7 @@ def test_retain():
 
     time.sleep(1)
     process.terminate()
-    if cnt.value == 1:
+    if cnt.value != 1:
         is_success = False
         print(rp_cmd)
         print(crp_cmd)
