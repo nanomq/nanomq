@@ -241,7 +241,7 @@ server_cb(void *arg)
 	case RECV:
 		log_debug("RECV  ^^^^ ctx%d ^^^^\n", work->ctx.id);
 		if ((rv = nng_aio_result(work->aio)) != 0) {
-			log_error("RECV nng aio result error: %d", rv);
+			log_warn("RECV nng aio result error: %d", rv);
 			work->state = RECV;
 			if (work->proto == PROTO_MQTT_BROKER) {
 				nng_ctx_recv(work->ctx, work->aio);
@@ -1036,6 +1036,7 @@ broker(conf *nanomq_conf)
 			for (size_t i = 0; i < num_ctx; i++) {
 				nng_free(works[i]->pipe_ct,
 				    sizeof(struct pipe_content));
+				nng_aio_free(works[i]->bridge_aio);
 				nng_free(works[i], sizeof(struct work));
 			}
 			nng_free(works, num_ctx * sizeof(struct work *));
