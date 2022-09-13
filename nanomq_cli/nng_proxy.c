@@ -1084,13 +1084,13 @@ nng_proxy_start(int argc, char **argv)
 		return 0;
 	}
 	nng_atomic_alloc_bool(&exit_signal);
-	if (strncmp(argv[0], "sub0", 3) == 0)
+	if (strncmp(argv[1], "sub0", 3) == 0)
 		nng_proxy_client(argc-1, argv+1, SUB0);
-	else if (strncmp(argv[0], "pub0", 3) == 0)
+	else if (strncmp(argv[1], "pub0", 3) == 0)
 		nng_proxy_client(argc-1, argv+1, PUB0);
-	else if (strncmp(argv[0], "pair1", 5) == 0)
+	else if (strncmp(argv[1], "pair1", 5) == 0)
 		nng_proxy_client(argc-1, argv+1, PAIR1);
-	else if (strncmp(argv[0], "pair0", 3) == 0)
+	else if (strncmp(argv[1], "pair0", 3) == 0)
 		nng_proxy_client(argc-1, argv+1, PAIR0);
 	else
 		help(SUB0);
