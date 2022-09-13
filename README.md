@@ -66,11 +66,15 @@ nanomq_cli bench { pub | sub | conn } [--help]
 start a proxy to sub NNG url and convey nng msg to qos 2 MQTT msg and send to a specific topic "nng-mqtt" of MQTT broker:
 ```bash
 nanomq_cli nngproxy sub0 --mqtt_url "mqtt-tcp://localhost:1883" --listen "tcp://127.0.0.1:10000" -t nng-mqtt --qos 1
+nanomq_cli sub -t nng-mqtt
+nanomq_cli nngcat --pub --dial="tcp://127.0.0.1:10000" --data "cuckoo" --interval 1
 ```
 
 start a proxy sub to topic "nng-mqtt" of MQTT broker, and convert MQTT msg to NNG msg, then pub to NNG url:
 ```bash
-nanomq_cli nngproxy pub0 --mqtt_url "mqtt-tcp://localhost:1883" --dial "tcp://127.0.0.1:10000" -t msg --qos 0
+nanomq_cli nngcat --sub --listen="tcp://127.0.0.1:10000" -v  --quoted
+nanomq_cli nngproxy pub0 --mqtt_url "mqtt-tcp://localhost:1883" --dial "tcp://127.0.0.1:10000" -t nng-mqtt --qos 0
+nanomq_cli pub -t nng-mqtt -m test
 ```
 
 **Note: NanoMQ provides several ways of configurations so that user can achieve better performance on different platforms**, check [here](#Configuration ) for details.
