@@ -223,11 +223,12 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	bridge_param *bridge_arg;
 	log_debug("Quic bridge service start.\n");
 
-	if ((rv = nng_mqtt_quic_client_open(sock, node->address)) != 0) {
+	// keepalive here is for QUIC only
+	if ((rv = nng_mqtt_quic_open_keepalive(sock, node->address, node->qkeepalive)) != 0) {
 		fatal("nng_mqtt_quic_client_open", rv);
 		return rv;
 	}
-	// TODO mqtt v5 protocol
+	// mqtt v5 protocol
 	nng_socket_set(*sock, NANO_CONF, node, sizeof(conf_bridge_node));
 
 	bridge_arg         = (bridge_param *) nng_alloc(sizeof(bridge_param));
