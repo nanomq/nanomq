@@ -1197,9 +1197,14 @@ client_cb(void *arg)
 
 	case RECV:
 		if ((rv = nng_aio_result(work->aio)) != 0) {
-			nng_fatal("nng_recv_aio", rv);
-			work->state = RECV;
-			nng_ctx_recv(work->ctx, work->aio);
+			if (rv == NNG_ECONNSHUT) {
+				work->msg = nng_aio_get_msg(work->aio);
+				nng_msg_free(work->msg);
+			} else if (rv == NNG_EINTERNAL) {
+				nng_fatal("nng_recv_aio", rv);
+			}
+			work->state = INIT;
+			nng_sleep_aio(1000, work->aio);
 			break;
 		}
 		work->msg   = nng_aio_get_msg(work->aio);
@@ -1209,6 +1214,7 @@ client_cb(void *arg)
 
 	case RECV_WAIT:
 		msg = work->msg;
+		work->msg = NULL;
 		uint32_t payload_len;
 		uint8_t *payload =
 		    nng_mqtt_msg_get_publish_payload(msg, &payload_len);
@@ -1219,8 +1225,8 @@ client_cb(void *arg)
 		printf("%.*s: %.*s\n", topic_len, recv_topic, payload_len,
 		    (char *) payload);
 
-		nng_msg_header_clear(work->msg);
-		nng_msg_clear(work->msg);
+		nng_msg_header_clear(msg);
+		nng_msg_clear(msg);
 
 		work->state = RECV;
 		nng_ctx_recv(work->ctx, work->aio);
@@ -1400,6 +1406,8 @@ create_client(nng_socket *sock, struct work **works, size_t id, size_t nwork,
 #endif
 
 	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, conn_msg);
+	// by set NNG_OPT_MQTT_CONNMSG for socket, it enables online/offline msg
+	// nng_socket_set_ptr(*sock, NNG_OPT_MQTT_CONNMSG, conn_msg);
 
 	param->sock = sock;
 	param->opts = opts;
