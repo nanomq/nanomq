@@ -10,6 +10,9 @@
 
 #include "include/nanomq.h"
 
+static int session_is_kept_tcp  = 0;
+static int session_is_kept_quic = 0;
+
 static void
 fatal(const char *func, int rv)
 {
@@ -80,7 +83,11 @@ bridge_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	// get property for MQTT V5
 	// property *prop;
 	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_CONNECT_PROPERTY, &prop);
-	log_info("bridge client connected! RC [%d] \n", reason);
+	log_info("Bridge client connected! RC [%d]", reason);
+
+	// Session is saved in mqtt broker
+	if (session_is_kept_tcp == 1)
+		return;
 
 	/* MQTT V5 SUBSCRIBE */
 	if (reason == 0 && param->config->sub_count > 0) {
@@ -90,6 +97,9 @@ bridge_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 			nng_mqtt_topic_qos_array_set(topic_qos, i,
 			    param->config->sub_list[i].topic,
 			    param->config->sub_list[i].qos);
+			log_info("Bridge client subscribed topic (q%d)%s.",
+			    param->config->sub_list[i].qos,
+			    param->config->sub_list[i].topic);
 		}
 		nng_mqtt_client *client = param->client;
 		// Property?
@@ -98,6 +108,9 @@ bridge_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 		nng_mqtt_topic_qos_array_free(
 		    topic_qos, param->config->sub_count);
 	}
+
+	if (param->config->clean_start == false)
+		session_is_kept_tcp = 1;
 }
 
 static int
@@ -176,8 +189,8 @@ quic_disconnect_cb(void *rmsg, void *arg)
 	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_DISCONNECT_PROPERTY, &prop);
 	log_debug("quic bridge client disconnected! RC [%d] \n", reason);
 	nng_msg_free(rmsg);
+	return 0;
 }
-
 
 // Connack message callback function
 static int
@@ -192,8 +205,12 @@ bridge_quic_connect_cb(void *rmsg, void *arg)
 	// get property for MQTT V5
 	// property *prop;
 	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_CONNECT_PROPERTY, &prop);
-	log_debug("quic bridge client connected! RC [%d] \n", reason);
+	log_info("Quic bridge client connected! RC [%d]", reason);
 	nng_msg_free(msg);
+
+	// Session is saved in mqtt broker
+	if (session_is_kept_quic == 1)
+		return 0;
 
 	/* MQTT V5 SUBSCRIBE */
 	if (reason == 0 && param->config->sub_count > 0) {
@@ -203,6 +220,9 @@ bridge_quic_connect_cb(void *rmsg, void *arg)
 			nng_mqtt_topic_qos_array_set(topic_qos, i,
 			    param->config->sub_list[i].topic,
 			    param->config->sub_list[i].qos);
+			log_info("Quic bridge client subscribed topic (q%d)%s.",
+			    param->config->sub_list[i].qos,
+			    param->config->sub_list[i].topic);
 		}
 
 		nng_mqtt_client *client = param->client;
@@ -212,6 +232,10 @@ bridge_quic_connect_cb(void *rmsg, void *arg)
 		nng_mqtt_topic_qos_array_free(
 		    topic_qos, param->config->sub_count);
 	}
+
+	if (param->config->clean_start == false)
+		session_is_kept_quic = 1;
+	return 0;
 }
 
 
