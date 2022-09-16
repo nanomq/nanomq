@@ -19,6 +19,29 @@ fatal(const char *func, int rv)
 	fprintf(stderr, "%s: %s\n", func, nng_strerror(rv));
 }
 
+static int
+apply_sqlite_config(
+    nng_socket *sock, conf_bridge_node *config, const char *db_name)
+{
+#if defined(NNG_SUPP_SQLITE)
+	int rv;
+	// create sqlite option
+	nng_mqtt_sqlite_option *opt;
+	if ((rv = nng_mqtt_alloc_sqlite_opt(&opt)) != 0) {
+		fatal("nng_mqtt_alloc_sqlite_opt", rv);
+	}
+
+	nng_mqtt_set_sqlite_conf(opt, config);
+	// init sqlite db
+	nng_mqtt_sqlite_db_init(opt, db_name);
+
+	// set sqlite option pointer to socket
+	return nng_socket_set_ptr(*sock, NNG_OPT_MQTT_SQLITE, opt);
+#else
+	return (0);
+#endif
+}
+
 nng_msg *
 bridge_publish_msg(const char *topic, uint8_t *payload, uint32_t len, bool dup,
     uint8_t qos, bool retain, property *props)
@@ -131,7 +154,8 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 			return rv;
 		}
 	}
-	nng_socket_set(*sock, NANO_CONF, node, sizeof(conf_bridge_node));
+
+	apply_sqlite_config(sock, node, "mqtt_client.db");
 
 	if ((rv = nng_dialer_create(&dialer, *sock, node->address))) {
 		fatal("nng_dialer_create", rv);
@@ -253,7 +277,7 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 		return rv;
 	}
 	// mqtt v5 protocol
-	nng_socket_set(*sock, NANO_CONF, node, sizeof(conf_bridge_node));
+	apply_sqlite_config(sock, node, "mqtt_quic_client.db");
 
 	bridge_arg         = (bridge_param *) nng_alloc(sizeof(bridge_param));
 	bridge_arg->config = node;
