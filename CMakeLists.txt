@@ -36,6 +36,10 @@ if (NNG_ENABLE_TLS)
   add_definitions(-DNNG_SUPP_TLS)
 endif()
 
+if (NNG_ENABLE_SQLITE)
+  add_definitions(-DNNG_SUPP_SQLITE)
+endif()
+
 # If the compiler is not on Windows, does it support hiding the
 # symbols by default?  For shared libraries we would like to do this.
 if (NOT WIN32 AND NOT CYGWIN)
