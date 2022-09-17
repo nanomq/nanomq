@@ -429,14 +429,16 @@ server_cb(void *arg)
 				break;
 			}
 		} else if (work->flag == CMD_CONNACK) {
-			nng_msg_set_pipe(work->msg, work->pid);
-			// clone for sending connect event notification
-			nng_msg_clone(work->msg);
-			nng_aio_set_msg(work->aio, work->msg);
-			nng_ctx_send(work->ctx, work->aio); // send connack
-
 			uint8_t *body        = nng_msg_body(work->msg);
 			uint8_t  reason_code = *(body + 1);
+			if (work->proto == PROTO_MQTT_BROKER) {
+				// Return CONNACK to broker client
+				nng_msg_set_pipe(work->msg, work->pid);
+				// clone for sending connect event notification
+				nng_msg_clone(work->msg);
+				nng_aio_set_msg(work->aio, work->msg);
+				nng_ctx_send(work->ctx, work->aio);
+			}
 			smsg = nano_msg_notify_connect(work->cparam, reason_code);
 			webhook_entry(work, reason_code);
 			// Set V4/V5 flag for publish notify msg
@@ -816,8 +818,6 @@ broker(conf *nanomq_conf)
 
 #if defined(FDB_SUPPORT)
 	if (cr->option & RULE_ENG_FDB) {
-		// RULE_ENGINE_FDB:
-		// RULE_ENGINE_SDB:
 		pthread_t   netThread;
 		fdb_error_t err =
 		    fdb_select_api_version(FDB_API_VERSION);
