@@ -346,11 +346,10 @@ bridge_quic_client(bridge_param *bridge_arg)
 static int
 gen_fallback_url(char *url, char *new) {
 	// mqtt-quic://111.111.111.111:14567 => mqtt-tcp://111.111.111.111:1883
+	// mqtt-quic://aaa.aaa....aaa.aaa:14567 => mqtt-tcp://-:1883
 	// mqtt-quic://localhost:14567 => mqtt-tcp://localhost:1883
 	int pos_ip = 0;
 	int len_ip = 0;
-	char buf[15];
-	memset(buf, 0, 15);
 	for (int i=0; i<strlen(url)-1; ++i)
 		if (url[i] == '/' && url[i+1] == '/')
 			pos_ip = i+2;
@@ -359,10 +358,11 @@ gen_fallback_url(char *url, char *new) {
 			break;
 		len_ip ++;
 	}
-	if (len_ip < 5 || len_ip > 15)
+	if (len_ip < 2)
 		return -1;
-	strncpy(buf, url+pos_ip, len_ip);
-	sprintf(new, "mqtt-tcp://%s:1883", buf);
+	strncpy(new, "mqtt-tcp://", 11);
+	strncpy(new+11, url+pos_ip, len_ip);
+	strncpy(new+11+len_ip, ":1883", 5);
 	return 0;
 }
 
@@ -386,8 +386,8 @@ hybridger_cb(void *arg)
 		return;
 	}
 
-	char addr_back[40];
-	memset(addr_back, 0, 40);
+	char addr_back[strlen(node->address)+1];
+	memset(addr_back, '\0', strlen(node->address)+1);
 	if (0 != gen_fallback_url(node->address, addr_back))
 		strcpy(addr_back, node->address);
 	char * addrs[] = {node->address, addr_back};
