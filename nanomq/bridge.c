@@ -343,6 +343,29 @@ bridge_quic_client(bridge_param *bridge_arg)
 
 #endif
 
+static int
+gen_fallback_url(char *url, char *new) {
+	// mqtt-quic://111.111.111.111:14567 => mqtt-tcp://111.111.111.111:1883
+	// mqtt-quic://localhost:14567 => mqtt-tcp://localhost:1883
+	int pos_ip = 0;
+	int len_ip = 0;
+	char buf[15];
+	memset(buf, 0, 15);
+	for (int i=0; i<strlen(url)-1; ++i)
+		if (url[i] == '/' && url[i+1] == '/')
+			pos_ip = i+2;
+	for (int i=pos_ip; i<strlen(url); ++i) {
+		if (url[i] == ':')
+			break;
+		len_ip ++;
+	}
+	if (len_ip < 5 || len_ip > 15)
+		return -1;
+	strncpy(buf, url+pos_ip, len_ip);
+	sprintf(new, "mqtt-tcp://%s:1883", buf);
+	return 0;
+}
+
 static void
 hybridger_cb(void *arg)
 {
@@ -350,7 +373,7 @@ hybridger_cb(void *arg)
 	const char *tcp_scheme  = "mqtt-tcp";
 
 	bridge_param *bridge_arg = arg;
-	conf_bridge_node *node;
+	conf_bridge_node *node = bridge_arg->config;
 
 	int rv = nng_mtx_alloc(&bridge_arg->switch_mtx);
 	if (rv != 0) {
@@ -363,9 +386,16 @@ hybridger_cb(void *arg)
 		return;
 	}
 
+	char addr_back[40];
+	memset(addr_back, 0, 40);
+	if (0 != gen_fallback_url(node->address, addr_back))
+		strcpy(addr_back, node->address);
+	char * addrs[] = {node->address, addr_back};
+	int idx = -1;
 	for (;;) {
 		// Get next bridge node
-		node = bridge_arg->config;
+		idx = (idx + 1) % 2;
+		node->address = addrs[idx];
 		log_warn("Bridge has switched to %s", node->address);
 
 		if (0 == strncmp(node->address, tcp_scheme, 8)) {
