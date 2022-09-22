@@ -1481,12 +1481,14 @@ broker_start(int argc, char **argv)
 		}
 	}
 
+	// Active the configure for nanomq
+	active_conf(nanomq_conf);
+
 	if ((rc = log_init(&nanomq_conf->log)) != 0) {
 		fatal("log_init", rc);
 	}
 
 	print_conf(nanomq_conf);
-	active_conf(nanomq_conf);
 
 	if (store_pid()) {
 		log_error("create \"nanomq.pid\" file failed");
