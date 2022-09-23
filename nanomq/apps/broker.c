@@ -861,6 +861,7 @@ broker(conf *nanomq_conf)
 	dbhash_init_pipe_table();
 	dbhash_init_alias_table();
 
+	log_debug("db init finished");
 	/*  Create the socket. */
 	nanomq_conf->db_root = db;
 	sock.id              = 0;
@@ -873,6 +874,7 @@ broker(conf *nanomq_conf)
 	nng_socket inproc_sock;
 
 	if (nanomq_conf->http_server.enable || nanomq_conf->bridge_mode) {
+		log_debug("HTTP service initialization");
 		rv = nng_rep0_open(&inproc_sock);
 		if (rv != 0) {
 			fatal("nng_rep0_open", rv);
@@ -884,6 +886,7 @@ broker(conf *nanomq_conf)
 	}
 
 	if (nanomq_conf->web_hook.enable) {
+		log_debug("Webhook service initialization");
 		start_webhook_service(nanomq_conf);
 	}
 	if (nanomq_conf->bridge_mode) {
@@ -899,6 +902,7 @@ broker(conf *nanomq_conf)
 
 #if defined(SUPP_AWS_BRIDGE)
 		for (size_t c = 0; c < nanomq_conf->aws_bridge.count; c++) {
+			log_debug("AWS bridgging service initialization");
 			conf_bridge_node *node =
 			    nanomq_conf->aws_bridge.nodes[c];
 			if (node->enable) {
@@ -919,6 +923,7 @@ broker(conf *nanomq_conf)
 	// only create ctx when there is sub topics
 	size_t tmp = nanomq_conf->parallel;
 	if (nanomq_conf->bridge_mode) {
+		log_debug("MQTT bridging service initialization");
 		// iterates all bridge targets
 		for (size_t t = 0; t < nanomq_conf->bridge.count; t++) {
 			conf_bridge_node *node = nanomq_conf->bridge.nodes[t];
@@ -956,6 +961,7 @@ broker(conf *nanomq_conf)
 
 	// create http server ctx
 	if (nanomq_conf->http_server.enable) {
+		log_debug("NanoMQ context initialization");
 		for (i = tmp; i < tmp + HTTP_CTX_NUM; i++) {
 			works[i] = proto_work_init(sock, inproc_sock, sock,
 			    PROTO_HTTP_SERVER, db, db_ret, nanomq_conf);
