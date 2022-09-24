@@ -870,6 +870,7 @@ broker(conf *nanomq_conf)
 	if (rv != 0) {
 		fatal("nng_nmq_tcp0_open", rv);
 	}
+	log_debug("listener init finished");
 
 	nng_socket inproc_sock;
 
@@ -884,11 +885,13 @@ broker(conf *nanomq_conf)
 			num_ctx += HTTP_CTX_NUM;
 		}
 	}
+	log_debug("HTTP init finished");
 
 	if (nanomq_conf->web_hook.enable) {
 		log_debug("Webhook service initialization");
 		start_webhook_service(nanomq_conf);
 	}
+	log_debug("webhook init finished");
 	if (nanomq_conf->bridge_mode) {
 		for (size_t t = 0; t < nanomq_conf->bridge.count; t++) {
 			conf_bridge_node *node = nanomq_conf->bridge.nodes[t];
@@ -910,6 +913,7 @@ broker(conf *nanomq_conf)
 			}
 		}
 #endif
+	log_debug("bridge init finished");
 	}
 
 	struct work **works = nng_zalloc(num_ctx * sizeof(struct work *));
@@ -1486,6 +1490,8 @@ broker_start(int argc, char **argv)
 			    : nng_strdup(CONF_WSS_URL_DEFAULT);
 		}
 	}
+	// Active the configure for nanomq
+	active_conf(nanomq_conf);
 
 	// Active the configure for nanomq
 	active_conf(nanomq_conf);

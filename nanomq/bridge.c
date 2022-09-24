@@ -66,19 +66,24 @@ bridge_publish_msg(const char *topic, uint8_t *payload, uint32_t len, bool dup,
 }
 
 static void
-sub_callback(void *arg)
+send_callback(void *arg)
 {
 	nng_mqtt_client *client = (nng_mqtt_client *) arg;
-	nng_aio *        aio    = client->sub_aio;
+	nng_aio *        aio    = client->send_aio;
 	nng_msg *        msg    = nng_aio_get_msg(aio);
 	uint32_t         count;
 	uint8_t *        code;
-	if (msg) {
+	uint8_t          type;
+
+	type = nng_msg_get_type(msg);
+	if (type == CMD_SUBACK) {
 		code = nng_mqtt_msg_get_suback_return_codes(msg, &count);
-		log_debug("suback %d \n", *(code));
+		log_debug("suback return code %d \n", *(code));
+		log_debug("bridge: subscribe result %d \n", nng_aio_result(aio));
+		nng_msg_free(msg);
+	} else if(type == CMD_CONNECT) {
+		log_debug("bridge connect msg send complete");
 	}
-	log_debug("bridge: subscribe result %d \n", nng_aio_result(aio));
-	nng_msg_free(msg);
 	// nng_mqtt_client_free(client, true);
 }
 
@@ -183,7 +188,7 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	bridge_arg         = (bridge_param *) nng_alloc(sizeof(bridge_param));
 	bridge_arg->config = node;
 	bridge_arg->sock   = sock;
-	bridge_arg->client = nng_mqtt_client_alloc(*sock, sub_callback, true);
+	bridge_arg->client = nng_mqtt_client_alloc(*sock, send_callback, true);
 
 	node->sock         = (void *) sock;
 
@@ -282,9 +287,9 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	bridge_arg         = (bridge_param *) nng_alloc(sizeof(bridge_param));
 	bridge_arg->config = node;
 	bridge_arg->sock   = sock;
-	bridge_arg->client = nng_mqtt_client_alloc(*sock, sub_callback, true);
+	bridge_arg->client = nng_mqtt_client_alloc(*sock, send_callback, true);
 
-	node->sock         = (void *) sock;
+	node->sock = (void *) sock;
 
 	if (0 != nng_mqtt_quic_set_connect_cb(sock, bridge_quic_connect_cb, (void *)bridge_arg) ||
 	    0 != nng_mqtt_quic_set_disconnect_cb(sock, quic_disconnect_cb, (void *)bridge_arg)) {
@@ -312,7 +317,9 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 		nng_mqtt_msg_set_connect_password(connmsg, node->password);
 	}
 
-	nng_sendmsg(*sock, connmsg, NNG_FLAG_NONBLOCK);
+	nng_aio_set_msg(bridge_arg->client->send_aio, connmsg);
+	nng_send_aio(*sock, bridge_arg->client->send_aio);
+	// nng_sendmsg(*sock, connmsg, NNG_FLAG_NONBLOCK);
 
 	return 0;
 }
