@@ -1493,9 +1493,6 @@ broker_start(int argc, char **argv)
 	// Active the configure for nanomq
 	active_conf(nanomq_conf);
 
-	// Active the configure for nanomq
-	active_conf(nanomq_conf);
-
 	if ((rc = log_init(&nanomq_conf->log)) != 0) {
 		fatal("log_init", rc);
 	}

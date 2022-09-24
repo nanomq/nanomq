@@ -319,7 +319,6 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 
 	nng_aio_set_msg(bridge_arg->client->send_aio, connmsg);
 	nng_send_aio(*sock, bridge_arg->client->send_aio);
-	// nng_sendmsg(*sock, connmsg, NNG_FLAG_NONBLOCK);
 
 	return 0;
 }
