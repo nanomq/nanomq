@@ -34,7 +34,7 @@ if __name__=='__main__':
                            universal_newlines=True)
                            
 
-    time.sleep(0.5)
+    time.sleep(2)
 
     print("mqtt v311 test start")
     if False == mqtt_test():
