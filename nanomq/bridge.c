@@ -75,6 +75,8 @@ send_callback(void *arg)
 	uint8_t *        code;
 	uint8_t          type;
 
+	if (msg == NULL)
+		return;
 	type = nng_msg_get_type(msg);
 	if (type == CMD_SUBACK) {
 		code = nng_mqtt_msg_get_suback_return_codes(msg, &count);
