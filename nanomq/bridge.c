@@ -92,6 +92,23 @@ send_callback(void *arg)
 	// nng_mqtt_client_free(client, true);
 }
 
+// Disconnect message callback function for hyrbrid bridging
+static void
+hybrid_disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
+{
+	int reason = 0;
+	// get connect reason
+	nng_pipe_get_int(p, NNG_OPT_MQTT_DISCONNECT_REASON, &reason);
+	// property *prop;
+	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_DISCONNECT_PROPERTY, &prop);
+	log_warn("bridge client disconnected! RC [%d] \n", reason);
+	bridge_param *bridge_arg = arg;
+
+	nng_mtx_lock(bridge_arg->switch_mtx);
+	nng_cv_wake1(bridge_arg->switch_cv);
+	nng_mtx_unlock(bridge_arg->switch_mtx);
+}
+
 // Disconnect message callback function
 static void
 disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
@@ -102,12 +119,6 @@ disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	// property *prop;
 	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_DISCONNECT_PROPERTY, &prop);
 	log_warn("bridge client disconnected! RC [%d] \n", reason);
-
-	bridge_param *bridge_arg = arg;
-
-	nng_mtx_lock(bridge_arg->switch_mtx);
-	nng_cv_wake1(bridge_arg->switch_cv);
-	nng_mtx_unlock(bridge_arg->switch_mtx);
 }
 
 // Connack message callback function
@@ -152,8 +163,9 @@ bridge_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 		session_is_kept_tcp = 1;
 }
 
+
 static int
-bridge_tcp_client(bridge_param *bridge_arg)
+hybrid_bridge_tcp_client(bridge_param *bridge_arg)
 {
 	int           rv;
 	nng_dialer    dialer;
@@ -198,7 +210,7 @@ bridge_tcp_client(bridge_param *bridge_arg)
 		nng_mqtt_msg_set_connect_password(connmsg, node->password);
 	}
 
-	bridge_arg->client = nng_mqtt_client_alloc(*sock, sub_callback, true);
+	bridge_arg->client = nng_mqtt_client_alloc(*sock, send_callback, true);
 
 	node->sock         = (void *) sock;
 
@@ -213,18 +225,141 @@ bridge_tcp_client(bridge_param *bridge_arg)
 	return 0;
 }
 
+static int
+bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node)
+{
+	int           rv;
+	nng_dialer    dialer;
+	bridge_param *bridge_arg;
+
+	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
+		if ((rv = nng_mqttv5_client_open(sock)) != 0) {
+			fatal("nng_mqttv5_client_open", rv);
+			return rv;
+		}
+	} else {
+		if ((rv = nng_mqtt_client_open(sock)) != 0) {
+			fatal("nng_mqtt_client_open", rv);
+			return rv;
+		}
+	}
+
+	apply_sqlite_config(sock, node, "mqtt_client.db");
+
+	if ((rv = nng_dialer_create(&dialer, *sock, node->address))) {
+		fatal("nng_dialer_create", rv);
+		return rv;
+	}
+
+	// create a CONNECT message
+	/* CONNECT */
+	nng_msg *connmsg;
+	nng_mqtt_msg_alloc(&connmsg, 0);
+	nng_mqtt_msg_set_packet_type(connmsg, NNG_MQTT_CONNECT);
+	nng_mqtt_msg_set_connect_keep_alive(connmsg, node->keepalive);
+	nng_mqtt_msg_set_connect_proto_version(connmsg, node->proto_ver);
+	nng_mqtt_msg_set_connect_clean_session(connmsg, node->clean_start);
+	if (node->clientid) {
+		nng_mqtt_msg_set_connect_client_id(connmsg, node->clientid);
+	}
+	if (node->username) {
+		nng_mqtt_msg_set_connect_user_name(connmsg, node->username);
+	}
+	if (node->password) {
+		nng_mqtt_msg_set_connect_password(connmsg, node->password);
+	}
+
+	bridge_arg         = (bridge_param *) nng_alloc(sizeof(bridge_param));
+	bridge_arg->config = node;
+	bridge_arg->sock   = sock;
+	bridge_arg->client = nng_mqtt_client_alloc(*sock, send_callback, true);
+
+	node->sock         = (void *) sock;
+
+	// TCP bridge does not support hot update of connmsg
+	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
+	nng_socket_set_ptr(*sock, NNG_OPT_MQTT_CONNMSG, connmsg);
+	nng_mqtt_set_connect_cb(*sock, bridge_connect_cb, bridge_arg);
+	nng_mqtt_set_disconnect_cb(*sock, disconnect_cb, connmsg);
+
+	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
+
+	return 0;
+}
+
+static int
+bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node)
+{
+	int           rv;
+	nng_dialer    dialer;
+	bridge_param *bridge_arg;
+
+	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
+		if ((rv = nng_mqttv5_client_open(sock)) != 0) {
+			fatal("nng_mqttv5_client_open", rv);
+			return rv;
+		}
+	} else {
+		if ((rv = nng_mqtt_client_open(sock)) != 0) {
+			fatal("nng_mqtt_client_open", rv);
+			return rv;
+		}
+	}
+
+	apply_sqlite_config(sock, node, "mqtt_client.db");
+
+	if ((rv = nng_dialer_create(&dialer, *sock, node->address))) {
+		fatal("nng_dialer_create", rv);
+		return rv;
+	}
+
+	// create a CONNECT message
+	/* CONNECT */
+	nng_msg *connmsg;
+	nng_mqtt_msg_alloc(&connmsg, 0);
+	nng_mqtt_msg_set_packet_type(connmsg, NNG_MQTT_CONNECT);
+	nng_mqtt_msg_set_connect_keep_alive(connmsg, node->keepalive);
+	nng_mqtt_msg_set_connect_proto_version(connmsg, node->proto_ver);
+	nng_mqtt_msg_set_connect_clean_session(connmsg, node->clean_start);
+	if (node->clientid) {
+		nng_mqtt_msg_set_connect_client_id(connmsg, node->clientid);
+	}
+	if (node->username) {
+		nng_mqtt_msg_set_connect_user_name(connmsg, node->username);
+	}
+	if (node->password) {
+		nng_mqtt_msg_set_connect_password(connmsg, node->password);
+	}
+
+	bridge_arg         = (bridge_param *) nng_alloc(sizeof(bridge_param));
+	bridge_arg->config = node;
+	bridge_arg->sock   = sock;
+	bridge_arg->client = nng_mqtt_client_alloc(*sock, send_callback, true);
+
+	node->sock         = (void *) sock;
+
+	// TCP bridge does not support hot update of connmsg
+	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
+	nng_socket_set_ptr(*sock, NNG_OPT_MQTT_CONNMSG, connmsg);
+	nng_mqtt_set_connect_cb(*sock, bridge_connect_cb, bridge_arg);
+	nng_mqtt_set_disconnect_cb(*sock, disconnect_cb, connmsg);
+
+	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
+
+	return 0;
+}
+
 #if defined(SUPP_QUIC)
+
 
 // Disconnect message callback function
 static int
-quic_disconnect_cb(void *rmsg, void *arg)
+hybrid_quic_disconnect_cb(void *rmsg, void *arg)
 {
 	int reason = 0;
 	if (rmsg) {
 		// get connect reason
 		reason = nng_mqtt_msg_get_connack_return_code(rmsg);
-		// property *prop;
-		// nng_pipe_get_ptr(p, NNG_OPT_MQTT_DISCONNECT_PROPERTY, &prop);
 		nng_msg_free(rmsg);
 	}
 	log_warn("quic bridge client disconnected! RC [%d]", reason);
@@ -237,6 +372,23 @@ quic_disconnect_cb(void *rmsg, void *arg)
 	nng_cv_wake1(bridge_arg->switch_cv);
 	nng_mtx_unlock(bridge_arg->switch_mtx);
 
+	return 0;
+}
+
+
+// Disconnect message callback function
+static int
+quic_disconnect_cb(void *rmsg, void *arg)
+{
+	int reason = 0;
+	if (!rmsg)
+		return 0;
+	// get connect reason
+	reason = nng_mqtt_msg_get_connack_return_code(rmsg);
+	// property *prop;
+	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_DISCONNECT_PROPERTY, &prop);
+	log_debug("quic bridge client disconnected! RC [%d] \n", reason);
+	nng_msg_free(rmsg);
 	return 0;
 }
 
@@ -288,7 +440,7 @@ bridge_quic_connect_cb(void *rmsg, void *arg)
 
 
 static int
-bridge_quic_client(bridge_param *bridge_arg)
+hybrid_bridge_quic_client(bridge_param *bridge_arg)
 {
 	int           rv;
 	nng_dialer    dialer;
@@ -341,121 +493,77 @@ bridge_quic_client(bridge_param *bridge_arg)
 	return 0;
 }
 
-#endif
-
 static int
-gen_fallback_url(char *url, char *new) {
-	// mqtt-quic://111.111.111.111:14567 => mqtt-tcp://111.111.111.111:1883
-	// mqtt-quic://aaa.aaa....aaa.aaa:14567 => mqtt-tcp://-:1883
-	// mqtt-quic://localhost:14567 => mqtt-tcp://localhost:1883
-	int pos_ip = 0;
-	int len_ip = 0;
-	for (int i=0; i<strlen(url)-1; ++i)
-		if (url[i] == '/' && url[i+1] == '/')
-			pos_ip = i+2;
-	for (int i=pos_ip; i<strlen(url); ++i) {
-		if (url[i] == ':')
-			break;
-		len_ip ++;
+bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node)
+{
+	int           rv;
+	nng_dialer    dialer;
+	bridge_param *bridge_arg;
+	log_debug("Quic bridge service start.\n");
+
+	// keepalive here is for QUIC only
+	if ((rv = nng_mqtt_quic_open_keepalive(sock, node->address, node->qkeepalive)) != 0) {
+		fatal("nng_mqtt_quic_client_open", rv);
+		return rv;
 	}
-	if (len_ip < 2)
+	// mqtt v5 protocol
+	apply_sqlite_config(sock, node, "mqtt_quic_client.db");
+
+	bridge_arg         = (bridge_param *) nng_alloc(sizeof(bridge_param));
+	bridge_arg->config = node;
+	bridge_arg->sock   = sock;
+	bridge_arg->client = nng_mqtt_client_alloc(*sock, send_callback, true);
+
+	node->sock = (void *) sock;
+
+	if (0 != nng_mqtt_quic_set_connect_cb(sock, bridge_quic_connect_cb, (void *)bridge_arg) ||
+	    0 != nng_mqtt_quic_set_disconnect_cb(sock, quic_disconnect_cb, (void *)bridge_arg)) {
+	    //0 != nng_mqtt_quic_set_msg_recv_cb(sock, msg_recv_cb, (void *)arg) ||
+	    //0 != nng_mqtt_quic_set_msg_send_cb(sock, msg_send_cb, (void *)arg)) {
+		log_debug("error in quic client cb set.");
 		return -1;
-	strncpy(new, "mqtt-tcp://", 11);
-	strncpy(new+11, url+pos_ip, len_ip);
-	strncpy(new+11+len_ip, ":1883", 5);
+	}
+
+	// create a CONNECT message
+	/* CONNECT */
+	nng_msg *connmsg;
+	nng_mqtt_msg_alloc(&connmsg, 0);
+	nng_mqtt_msg_set_packet_type(connmsg, NNG_MQTT_CONNECT);
+	nng_mqtt_msg_set_connect_keep_alive(connmsg, node->keepalive);
+	nng_mqtt_msg_set_connect_proto_version(connmsg, node->proto_ver);
+	nng_mqtt_msg_set_connect_clean_session(connmsg, node->clean_start);
+	if (node->clientid) {
+		nng_mqtt_msg_set_connect_client_id(connmsg, node->clientid);
+	}
+	if (node->username) {
+		nng_mqtt_msg_set_connect_user_name(connmsg, node->username);
+	}
+	if (node->password) {
+		nng_mqtt_msg_set_connect_password(connmsg, node->password);
+	}
+
+	nng_aio_set_msg(bridge_arg->client->send_aio, connmsg);
+	nng_send_aio(*sock, bridge_arg->client->send_aio);
+
 	return 0;
 }
 
-static void
-hybridger_cb(void *arg)
-{
-	const char *quic_scheme = "mqtt-quic";
-	const char *tcp_scheme  = "mqtt-tcp";
-
-	bridge_param *bridge_arg = arg;
-	conf_bridge_node *node = bridge_arg->config;
-
-	int rv = nng_mtx_alloc(&bridge_arg->switch_mtx);
-	if (rv != 0) {
-		fatal("nng_mtx_alloc", rv);
-		return;
-	}
-	rv = nng_cv_alloc(&bridge_arg->switch_cv, bridge_arg->switch_mtx);
-	if (rv != 0) {
-		fatal("nng_cv_alloc", rv);
-		return;
-	}
-
-	char addr_back[strlen(node->address)+1];
-	memset(addr_back, '\0', strlen(node->address)+1);
-	if (0 != gen_fallback_url(node->address, addr_back))
-		strcpy(addr_back, node->address);
-	char * addrs[] = {node->address, addr_back};
-	int idx = -1;
-	for (;;) {
-		// Get next bridge node
-		idx = (idx + 1) % 2;
-		node->address = addrs[idx];
-		log_warn("Bridge has switched to %s", node->address);
-
-		if (0 == strncmp(node->address, tcp_scheme, 8)) {
-			bridge_tcp_client(bridge_arg);
-#if defined(SUPP_QUIC)
-		} else if (0 == strncmp(node->address, quic_scheme, 9)) {
-			bridge_quic_client(bridge_arg);
 #endif
-		} else {
-			log_error("Unsupported bridge protocol.");
-		}
-		if (bridge_arg->exec_cv) {
-			nng_mtx_lock(bridge_arg->exec_mtx);
-			nng_cv_wake1(bridge_arg->exec_cv);
-			nng_mtx_unlock(bridge_arg->exec_mtx);
-		}
-		nng_mtx_lock(bridge_arg->switch_mtx);
-		nng_cv_wait(bridge_arg->switch_cv);
-		nng_mtx_unlock(bridge_arg->switch_mtx);
-	}
-
-	log_warn("Hybridger thread is done");
-	nng_cv_free(bridge_arg->switch_cv);
-	nng_mtx_free(bridge_arg->switch_mtx);
-	bridge_arg->switch_cv = NULL;
-	bridge_arg->switch_mtx = NULL;
-}
 
 int
 bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 {
-	bridge_param *bridge_arg;
-	bridge_arg = nng_alloc(sizeof(bridge_param));
-	bridge_arg->config = node;
-	bridge_arg->sock   = sock;
-	bridge_arg->conf   = config;
-
-	int rv = nng_mtx_alloc(&bridge_arg->exec_mtx);
-	if (rv != 0) {
-		fatal("nng_mtx_alloc", rv);
-		return rv;
+	char *quic_scheme = "mqtt-quic";
+	char *tcp_scheme = "mqtt-tcp";
+	if (0 == strncmp(node->address, tcp_scheme, 8)) {
+		bridge_tcp_client(sock, config, node);
+#if defined(SUPP_QUIC)
+	} else if (0 == strncmp(node->address, quic_scheme, 9)) {
+		bridge_quic_client(sock, config, node);
+#endif
+	} else {
+		printf("Unsupported bridge protocol.\n");
 	}
-	rv = nng_cv_alloc(&bridge_arg->exec_cv, bridge_arg->exec_mtx);
-	if (rv != 0) {
-		fatal("nng_cv_alloc", rv);
-		return rv;
-	}
-
-	rv = nng_thread_create(&hybridger_thr, hybridger_cb, (void *)bridge_arg);
-	if (rv != 0) {
-		fatal("nng_thread_create", rv);
-		return rv;
-	}
-
-	nng_mtx_lock(bridge_arg->exec_mtx);
-	nng_cv_wait(bridge_arg->exec_cv);
-	nng_mtx_unlock(bridge_arg->exec_mtx);
-	// nng_cv_free(bridge_arg->exec_cv);
-	// bridge_arg->exec_cv = NULL;
-
-	return rv;
+	return 0;
 }
 
