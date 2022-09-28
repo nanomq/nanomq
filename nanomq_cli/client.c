@@ -652,7 +652,7 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 			ASSERT_NULL(opt->will_msg,
 			    "Will_msg (--will-msg) may be specified "
 			    "only once.");
-			opt->will_msg     = nng_strdup(arg);
+			opt->will_msg     = (uint8_t *) nng_strdup(arg);
 			opt->will_msg_len = strlen(arg);
 			break;
 		case OPT_WILL_QOS:
@@ -698,7 +698,7 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 			ASSERT_NULL(opt->msg,
 			    "Data (--file, --data) may be "
 			    "specified only once.");
-			opt->msg     = nng_strdup(arg);
+			opt->msg     = (uint8_t *) nng_strdup(arg);
 			opt->msg_len = strlen(arg);
 			break;
 		case OPT_FILE:
@@ -850,6 +850,8 @@ properties_classify(property *properties, client_opts *opts)
 			mqtt_property_append(opts->sub_properties, item);
 		}
 	}
+
+	return 0;
 }
 
 static properties_type

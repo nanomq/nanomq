@@ -412,7 +412,7 @@ nng_client_parse_opts(int argc, char **argv, nng_proxy_opts *nng_opts)
 			    "Will_msg (--will-msg) may be specified "
 			    "only "
 			    "once.");
-			nng_opts->will_msg     = nng_strdup(arg);
+			nng_opts->will_msg     = (uint8_t *) nng_strdup(arg);
 			nng_opts->will_msg_len = strlen(arg);
 			break;
 		case OPT_WILL_QOS:
@@ -462,7 +462,7 @@ nng_client_parse_opts(int argc, char **argv, nng_proxy_opts *nng_opts)
 			    "Data (--file, --data) may be "
 			    "specified "
 			    "only once.");
-			nng_opts->msg     = nng_strdup(arg);
+			nng_opts->msg     = (uint8_t *) nng_strdup(arg);
 			nng_opts->msg_len = strlen(arg);
 			break;
 		case OPT_FILE:
