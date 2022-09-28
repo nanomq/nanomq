@@ -92,18 +92,21 @@ static int
 connect_cb(void *rmsg, void * arg)
 {
 	printf("[Connected][%s]...\n", (char *)arg);
+	return 0;
 }
 
 static int
 disconnect_cb(void *rmsg, void * arg)
 {
 	printf("[Disconnected][%s]...\n", (char *)arg);
+	return 0;
 }
 
 static int
 msg_send_cb(void *rmsg, void * arg)
 {
 	printf("[Msg Sent][%s]...\n", (char *)arg);
+	return 0;
 }
 
 static int
@@ -118,6 +121,7 @@ msg_recv_cb(void *rmsg, void * arg)
 
 	printf("topic   => %.*s\n"
 	       "payload => %.*s\n",topicsz, topic, payloadsz, payload);
+	return 0;
 }
 
 static int
@@ -200,6 +204,7 @@ quic_client(int argc, char **argv)
 		client(3, argv[2], argv[3], argv[4], argv[5]);
 
 	printf_helper(argv[0]);
+	return 0;
 }
 
 #endif
