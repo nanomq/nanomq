@@ -287,71 +287,7 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	return 0;
 }
 
-static int
-bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node)
-{
-	int           rv;
-	nng_dialer    dialer;
-	bridge_param *bridge_arg;
-
-	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
-		if ((rv = nng_mqttv5_client_open(sock)) != 0) {
-			fatal("nng_mqttv5_client_open", rv);
-			return rv;
-		}
-	} else {
-		if ((rv = nng_mqtt_client_open(sock)) != 0) {
-			fatal("nng_mqtt_client_open", rv);
-			return rv;
-		}
-	}
-
-	apply_sqlite_config(sock, node, "mqtt_client.db");
-
-	if ((rv = nng_dialer_create(&dialer, *sock, node->address))) {
-		fatal("nng_dialer_create", rv);
-		return rv;
-	}
-
-	// create a CONNECT message
-	/* CONNECT */
-	nng_msg *connmsg;
-	nng_mqtt_msg_alloc(&connmsg, 0);
-	nng_mqtt_msg_set_packet_type(connmsg, NNG_MQTT_CONNECT);
-	nng_mqtt_msg_set_connect_keep_alive(connmsg, node->keepalive);
-	nng_mqtt_msg_set_connect_proto_version(connmsg, node->proto_ver);
-	nng_mqtt_msg_set_connect_clean_session(connmsg, node->clean_start);
-	if (node->clientid) {
-		nng_mqtt_msg_set_connect_client_id(connmsg, node->clientid);
-	}
-	if (node->username) {
-		nng_mqtt_msg_set_connect_user_name(connmsg, node->username);
-	}
-	if (node->password) {
-		nng_mqtt_msg_set_connect_password(connmsg, node->password);
-	}
-
-	bridge_arg         = (bridge_param *) nng_alloc(sizeof(bridge_param));
-	bridge_arg->config = node;
-	bridge_arg->sock   = sock;
-	bridge_arg->client = nng_mqtt_client_alloc(*sock, send_callback, true);
-
-	node->sock         = (void *) sock;
-
-	// TCP bridge does not support hot update of connmsg
-	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
-	nng_socket_set_ptr(*sock, NNG_OPT_MQTT_CONNMSG, connmsg);
-	nng_mqtt_set_connect_cb(*sock, bridge_connect_cb, bridge_arg);
-	nng_mqtt_set_disconnect_cb(*sock, disconnect_cb, connmsg);
-
-	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
-
-	return 0;
-}
-
 #if defined(SUPP_QUIC)
-
-
 // Disconnect message callback function
 static int
 hybrid_quic_disconnect_cb(void *rmsg, void *arg)
@@ -459,10 +395,10 @@ hybrid_bridge_quic_client(bridge_param *bridge_arg)
 	apply_sqlite_config(sock, node, "mqtt_quic_client.db");
 	nng_socket_set(*sock, NANO_CONF, node, sizeof(conf_bridge_node));
 
-	bridge_arg->client = nng_mqtt_client_alloc(*sock, sub_callback, true);
+	bridge_arg->client = nng_mqtt_client_alloc(*sock, send_callback, true);
 
 	if (0 != nng_mqtt_quic_set_connect_cb(sock, bridge_quic_connect_cb, (void *)bridge_arg) ||
-	    0 != nng_mqtt_quic_set_disconnect_cb(sock, quic_disconnect_cb, (void *)bridge_arg)) {
+	    0 != nng_mqtt_quic_set_disconnect_cb(sock, hybrid_quic_disconnect_cb, (void *)bridge_arg)) {
 	    //0 != nng_mqtt_quic_set_msg_recv_cb(sock, msg_recv_cb, (void *)arg) ||
 	    //0 != nng_mqtt_quic_set_msg_send_cb(sock, msg_send_cb, (void *)arg)) {
 		log_error("error in quic client cb setting.");
@@ -548,6 +484,120 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	return 0;
 }
 
+static int
+gen_fallback_url(char *url, char *new) {
+	int pos_ip = 0;
+	int len_ip = 0;
+	for (int i=0; i<strlen(url)-1; ++i)
+		if (url[i] == '/' && url[i+1] == '/')
+			pos_ip = i+2;
+	for (int i=pos_ip; i<strlen(url); ++i) {
+		if (url[i] == ':')
+			break;
+		len_ip ++;
+	}
+	if (len_ip < 2)
+		return -1;
+	strncpy(new, "mqtt-tcp://", 11);
+	strncpy(new+11, url+pos_ip, len_ip);
+	strncpy(new+11+len_ip, ":1883", 5);
+	return 0;
+}
+
+
+static void
+hybridger_cb(void *arg)
+{
+	const char *quic_scheme = "mqtt-quic";
+	const char *tcp_scheme  = "mqtt-tcp";
+
+	bridge_param *bridge_arg = arg;
+	conf_bridge_node *node = bridge_arg->config;
+
+	int rv = nng_mtx_alloc(&bridge_arg->switch_mtx);
+	if (rv != 0) {
+		fatal("nng_mtx_alloc", rv);
+		return;
+	}
+	rv = nng_cv_alloc(&bridge_arg->switch_cv, bridge_arg->switch_mtx);
+	if (rv != 0) {
+		fatal("nng_cv_alloc", rv);
+		return;
+	}
+
+	char addr_back[strlen(node->address)+1];
+	memset(addr_back, '\0', strlen(node->address)+1);
+	if (0 != gen_fallback_url(node->address, addr_back))
+		strcpy(addr_back, node->address);
+	char * addrs[] = {node->address, addr_back};
+	int idx = -1;
+	for (;;) {
+		// Get next bridge node
+		idx = (idx + 1) % 2;
+		node->address = addrs[idx];
+		log_warn("Bridge has switched to %s", node->address);
+
+		if (0 == strncmp(node->address, tcp_scheme, 8)) {
+			hybrid_bridge_tcp_client(bridge_arg);
+#if defined(SUPP_QUIC)
+		} else if (0 == strncmp(node->address, quic_scheme, 9)) {
+			hybrid_bridge_quic_client(bridge_arg);
+#endif
+		} else {
+			log_error("Unsupported bridge protocol.");
+		}
+		if (bridge_arg->exec_cv) {
+			nng_mtx_lock(bridge_arg->exec_mtx);
+			nng_cv_wake1(bridge_arg->exec_cv);
+			nng_mtx_unlock(bridge_arg->exec_mtx);
+		}
+		nng_mtx_lock(bridge_arg->switch_mtx);
+		nng_cv_wait(bridge_arg->switch_cv);
+		nng_mtx_unlock(bridge_arg->switch_mtx);
+	}
+
+	log_warn("Hybridger thread is done");
+	nng_cv_free(bridge_arg->switch_cv);
+	nng_mtx_free(bridge_arg->switch_mtx);
+	bridge_arg->switch_cv = NULL;
+	bridge_arg->switch_mtx = NULL;
+}
+
+int
+hybrid_bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
+{
+	bridge_param *bridge_arg;
+	bridge_arg = nng_alloc(sizeof(bridge_param));
+	bridge_arg->config = node;
+	bridge_arg->sock   = sock;
+	bridge_arg->conf   = config;
+
+	int rv = nng_mtx_alloc(&bridge_arg->exec_mtx);
+	if (rv != 0) {
+		fatal("nng_mtx_alloc", rv);
+		return rv;
+	}
+	rv = nng_cv_alloc(&bridge_arg->exec_cv, bridge_arg->exec_mtx);
+	if (rv != 0) {
+		fatal("nng_cv_alloc", rv);
+		return rv;
+	}
+
+	rv = nng_thread_create(&hybridger_thr, hybridger_cb, (void *)bridge_arg);
+	if (rv != 0) {
+		fatal("nng_thread_create", rv);
+		return rv;
+	}
+
+	nng_mtx_lock(bridge_arg->exec_mtx);
+	nng_cv_wait(bridge_arg->exec_cv);
+	nng_mtx_unlock(bridge_arg->exec_mtx);
+	// nng_cv_free(bridge_arg->exec_cv);
+	// bridge_arg->exec_cv = NULL;
+
+	return rv;
+}
+
 #endif
 
 int
@@ -566,4 +616,3 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	}
 	return 0;
 }
-
