@@ -7,7 +7,7 @@ RUN apt update && apt install -y cmake
 
 WORKDIR /nanomq/build
 
-RUN cmake -DNOLOG=1 .. && make install
+RUN cmake .. && make install
 
 RUN ln -s /nanomq/build/nanomq/nanomq /usr/bin/nanomq
 

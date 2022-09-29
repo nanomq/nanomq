@@ -6,7 +6,7 @@ RUN apt update && apt install -y cmake
 
 WORKDIR /nanomq/build
 
-RUN cmake -DNOLOG=1 .. && make install
+RUN cmake .. && make install
 
 FROM debian:10
 

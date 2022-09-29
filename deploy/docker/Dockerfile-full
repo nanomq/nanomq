@@ -23,7 +23,7 @@ RUN wget https://github.com/zeromq/libzmq/releases/download/v4.3.4/zeromq-4.3.4.
 
 WORKDIR /nanomq/build
 
-RUN cmake -G Ninja -DNOLOG=1 -DENABLE_JWT=ON \
+RUN cmake -G Ninja -DENABLE_JWT=ON \
     -DNNG_ENABLE_TLS=ON \
     -DNNG_ENABLE_SQLITE=ON \
     -DBUILD_ZMQ_GATEWAY=ON \
