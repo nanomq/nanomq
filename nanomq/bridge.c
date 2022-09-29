@@ -99,8 +99,6 @@ hybrid_disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	int reason = 0;
 	// get connect reason
 	nng_pipe_get_int(p, NNG_OPT_MQTT_DISCONNECT_REASON, &reason);
-	// property *prop;
-	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_DISCONNECT_PROPERTY, &prop);
 	log_warn("bridge client disconnected! RC [%d] \n", reason);
 	bridge_param *bridge_arg = arg;
 
@@ -269,7 +267,11 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 		nng_mqtt_msg_set_connect_password(connmsg, node->password);
 	}
 
-	bridge_arg         = (bridge_param *) nng_alloc(sizeof(bridge_param));
+	bridge_arg = (bridge_param *) nng_alloc(sizeof(bridge_param));
+	if (bridge_arg == NULL) {
+		log_error("memory error in allocating bridge client");
+		return NNG_ENOMEM;
+	}
 	bridge_arg->config = node;
 	bridge_arg->sock   = sock;
 	bridge_arg->client = nng_mqtt_client_alloc(*sock, send_callback, true);
@@ -387,7 +389,7 @@ hybrid_bridge_quic_client(bridge_param *bridge_arg)
 	node->sock         = (void *) sock;
 
 	// keepalive here is for QUIC only
-	if ((rv = nng_mqtt_quic_open_keepalive(sock, node->address, node->qkeepalive)) != 0) {
+	if ((rv = nng_mqtt_quic_open_keepalive(sock, node->address, (void *)node)) != 0) {
 		fatal("nng_mqtt_quic_client_open", rv);
 		return rv;
 	}
@@ -438,7 +440,7 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	log_debug("Quic bridge service start.\n");
 
 	// keepalive here is for QUIC only
-	if ((rv = nng_mqtt_quic_open_keepalive(sock, node->address, node->qkeepalive)) != 0) {
+	if ((rv = nng_mqtt_quic_open_keepalive(sock, node->address, (void *)node)) != 0) {
 		fatal("nng_mqtt_quic_client_open", rv);
 		return rv;
 	}
@@ -446,6 +448,10 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	apply_sqlite_config(sock, node, "mqtt_quic_client.db");
 
 	bridge_arg         = (bridge_param *) nng_alloc(sizeof(bridge_param));
+	if (bridge_arg == NULL) {
+		log_error("memory error in allocating bridge client");
+		return NNG_ENOMEM;
+	}
 	bridge_arg->config = node;
 	bridge_arg->sock   = sock;
 	bridge_arg->client = nng_mqtt_client_alloc(*sock, send_callback, true);
@@ -567,7 +573,11 @@ int
 hybrid_bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 {
 	bridge_param *bridge_arg;
-	bridge_arg = nng_alloc(sizeof(bridge_param));
+	if ((bridge_arg = nng_alloc(sizeof(bridge_param))) == NULL) {
+		log_error("memory error in allocating bridge client");
+		return NNG_ENOMEM;
+	}
+
 	bridge_arg->config = node;
 	bridge_arg->sock   = sock;
 	bridge_arg->conf   = config;

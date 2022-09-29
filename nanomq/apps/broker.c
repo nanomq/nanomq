@@ -899,7 +899,8 @@ broker(conf *nanomq_conf)
 				num_ctx += node->parallel;
 				node->sock = (nng_socket *) nng_alloc(
 				    sizeof(nng_socket));
-				bridge_client(node->sock, nanomq_conf, node);
+				// bridge_client(node->sock, nanomq_conf, node);
+				hybrid_bridge_client(node->sock, nanomq_conf, node);
 			}
 		}
 
