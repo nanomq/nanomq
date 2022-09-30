@@ -73,6 +73,11 @@ send_callback(void *arg)
 {
 	nng_mqtt_client *client = (nng_mqtt_client *) arg;
 	nng_aio *        aio    = client->send_aio;
+
+	if (nng_aio_result(aio) != 0) {
+		return;
+	}
+
 	nng_msg *        msg    = nng_aio_get_msg(aio);
 	uint32_t         count;
 	uint8_t *        code;
@@ -562,6 +567,7 @@ hybridger_cb(void *arg)
 		nng_mtx_unlock(bridge_arg->switch_mtx);
 		// Free bridge client
 		if (bridge_arg->client) {
+			nng_aio_finish_error(bridge_arg->client->send_aio, NNG_ECLOSED);
 			nng_mqtt_client_free(bridge_arg->client, true);
 			bridge_arg->client = NULL;
 		}
