@@ -560,6 +560,11 @@ hybridger_cb(void *arg)
 		nng_mtx_lock(bridge_arg->switch_mtx);
 		nng_cv_wait(bridge_arg->switch_cv);
 		nng_mtx_unlock(bridge_arg->switch_mtx);
+		// Free bridge client
+		if (bridge_arg->client) {
+			nng_mqtt_client_free(bridge_arg->client, true);
+			bridge_arg->client = NULL;
+		}
 	}
 
 	log_warn("Hybridger thread is done");
@@ -602,8 +607,8 @@ hybrid_bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	nng_mtx_lock(bridge_arg->exec_mtx);
 	nng_cv_wait(bridge_arg->exec_cv);
 	nng_mtx_unlock(bridge_arg->exec_mtx);
-	// nng_cv_free(bridge_arg->exec_cv);
-	// bridge_arg->exec_cv = NULL;
+	nng_cv_free(bridge_arg->exec_cv);
+	bridge_arg->exec_cv = NULL;
 
 	return rv;
 }
