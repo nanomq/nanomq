@@ -546,9 +546,12 @@ hybridger_cb(void *arg)
 		// Get next bridge node
 		idx = (idx + 1) % 2;
 		node->address = addrs[idx];
-		log_warn("Bridge has switched to %s", node->address);
+		log_warn("!! Bridge has switched to %s", node->address);
 
 		if (0 == strncmp(node->address, tcp_scheme, 8)) {
+			// TODO need to close old sock and reopen the ctxs
+			// nng_socket *tsock = bridge_arg->sock;
+			// nng_close(*tsock);
 			hybrid_bridge_tcp_client(bridge_arg);
 #if defined(SUPP_QUIC)
 		} else if (0 == strncmp(node->address, quic_scheme, 9)) {
