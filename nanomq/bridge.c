@@ -12,6 +12,12 @@
 
 #include "include/nanomq.h"
 
+#ifdef NNG_SUPP_TLS
+#include "nng/supplemental/tls/tls.h"
+static int init_dialer_tls(nng_dialer d, const char *cacert, const char *cert,
+    const char *key, const char *pass);
+#endif
+
 static int session_is_kept_tcp  = 0;
 static int session_is_kept_quic = 0;
 static nng_thread *hybridger_thr;
@@ -88,8 +94,8 @@ send_callback(void *arg)
 	type = nng_msg_get_type(msg);
 	if (type == CMD_SUBACK) {
 		code = nng_mqtt_msg_get_suback_return_codes(msg, &count);
-		log_debug("suback return code %d \n", *(code));
-		log_debug("bridge: subscribe result %d \n", nng_aio_result(aio));
+		log_debug("suback return code %d ", *(code));
+		log_debug("bridge: subscribe result %d ", nng_aio_result(aio));
 		nng_msg_free(msg);
 	} else if(type == CMD_CONNECT) {
 		log_debug("bridge connect msg send complete");
@@ -150,9 +156,9 @@ bridge_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 			nng_mqtt_topic_qos_array_set(topic_qos, i,
 			    param->config->sub_list[i].topic,
 			    param->config->sub_list[i].qos);
-			log_info("Bridge client subscribed topic (q%d)%s.",
-			    param->config->sub_list[i].qos,
-			    param->config->sub_list[i].topic);
+			log_info("Bridge client subscribed topic %s (qos %d).",
+			    param->config->sub_list[i].topic,
+			    param->config->sub_list[i].qos);
 		}
 		nng_mqtt_client *client = param->client;
 		// Property?
@@ -165,6 +171,43 @@ bridge_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	if (param->config->clean_start == false)
 		session_is_kept_tcp = 1;
 }
+
+#ifdef NNG_SUPP_TLS
+static int
+init_dialer_tls(nng_dialer d, const char *cacert, const char *cert,
+    const char *key, const char *pass)
+{
+	nng_tls_config *cfg;
+	int             rv;
+
+	if ((rv = nng_tls_config_alloc(&cfg, NNG_TLS_MODE_CLIENT)) != 0) {
+		return (rv);
+	}
+
+	if (cert != NULL && key != NULL) {
+		nng_tls_config_auth_mode(cfg, NNG_TLS_AUTH_MODE_REQUIRED);
+		if ((rv = nng_tls_config_own_cert(cfg, cert, key, pass)) !=
+		    0) {
+			goto out;
+		}
+	} else {
+		nng_tls_config_auth_mode(cfg, NNG_TLS_AUTH_MODE_NONE);
+	}
+
+	if (cacert != NULL) {
+		if ((rv = nng_tls_config_ca_chain(cfg, cacert, NULL)) != 0) {
+			goto out;
+		}
+	}
+
+	rv = nng_dialer_set_ptr(d, NNG_OPT_TLS_CONFIG, cfg);
+
+out:
+	nng_tls_config_free(cfg);
+	return (rv);
+}
+
+#endif
 
 
 static int
@@ -194,6 +237,15 @@ hybrid_bridge_tcp_client(bridge_param *bridge_arg)
 		fatal("nng_dialer_create", rv);
 		return rv;
 	}
+
+#ifdef NNG_SUPP_TLS
+	if (node->tls.enable) {
+		if ((rv = init_dialer_tls(dialer, node->tls.ca, node->tls.cert,
+		         node->tls.key, node->tls.key_password)) != 0) {
+			fatal("init_dialer_tls", rv);
+		}
+	}
+#endif
 
 	// create a CONNECT message
 	/* CONNECT */
@@ -253,6 +305,15 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 		fatal("nng_dialer_create", rv);
 		return rv;
 	}
+
+#ifdef NNG_SUPP_TLS
+	if (node->tls.enable) {
+		if ((rv = init_dialer_tls(dialer, node->tls.ca, node->tls.cert,
+		         node->tls.key, node->tls.key_password)) != 0) {
+			fatal("init_dialer_tls", rv);
+		}
+	}
+#endif
 
 	// create a CONNECT message
 	/* CONNECT */
@@ -628,15 +689,17 @@ int
 bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 {
 	char *quic_scheme = "mqtt-quic";
-	char *tcp_scheme = "mqtt-tcp";
-	if (0 == strncmp(node->address, tcp_scheme, 8)) {
+	char *tcp_scheme  = "mqtt-tcp";
+	char *tls_scheme  = "tls+mqtt-tcp";
+	if (0 == strncmp(node->address, tcp_scheme, 8) ||
+	    0 == strncmp(node->address, tls_scheme, 12)) {
 		bridge_tcp_client(sock, config, node);
 #if defined(SUPP_QUIC)
 	} else if (0 == strncmp(node->address, quic_scheme, 9)) {
 		bridge_quic_client(sock, config, node);
 #endif
 	} else {
-		printf("Unsupported bridge protocol.\n");
+		log_error("Unsupported bridge protocol.\n");
 	}
 	return 0;
 }

@@ -1224,8 +1224,10 @@ client_cb(void *arg)
 		const char *recv_topic =
 		    nng_mqtt_msg_get_publish_topic(msg, &topic_len);
 
-		printf("%.*s: %.*s\n", topic_len, recv_topic, payload_len,
-		    (char *) payload);
+		if (topic_len > 0) {
+			printf("%.*s: %.*s\n", topic_len, recv_topic,
+			    payload_len, (char *) payload);
+		}
 
 		nng_msg_header_clear(msg);
 		nng_msg_clear(msg);
