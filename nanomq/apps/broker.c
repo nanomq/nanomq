@@ -1163,7 +1163,10 @@ status_check(int *pid)
 		return 1;
 	} else {
 		if ((data) != NULL) {
-			sscanf(data, "%u", pid);
+			if (sscanf(data, "%u", pid) < 1) {
+				log_error("read pid from file error!");
+				return 1;
+			}
 			log_info("pid read, [%u]", *pid);
 			nng_free(data, size);
 

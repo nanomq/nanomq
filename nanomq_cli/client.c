@@ -1007,13 +1007,15 @@ properties_parse(int argc, char **argv, property *properties)
 				nng_free(value, strlen(value) + 1);
 				fatal("Invalid string pair: '%s', "
 				      "Require "
-				      "format: 'key=value'",
-				    arg);
+				      "format: 'key=value'", arg);
+			} else {
+				prop_item = mqtt_property_set_value_strpair(
+				    prop_id, str, strlen(str), value,
+				    strlen(value), true);
+				nng_free(str, strlen(str) + 1);
+				nng_free(value, strlen(value) + 1);
 			}
-			prop_item = mqtt_property_set_value_strpair(prop_id,
-			    str, strlen(str), value, strlen(value), true);
-			nng_free(str, strlen(str) + 1);
-			nng_free(value, strlen(value) + 1);
+
 			break;
 
 		default:
