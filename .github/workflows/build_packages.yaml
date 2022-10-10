@@ -144,7 +144,7 @@ jobs:
 
     - name: build with msquic amd64
       run: |
-        if [ "${{ matrix.arch[0] }}" = "amd64" ] || [ "${{ matrix.arch[0] }}" = "x86_64" ]; then
+        if [ "${{ matrix.arch[0] }}" = "amd64" ]; then
           set -eu
           cd build
           rm -rf `ls | grep -v _packages`
@@ -162,6 +162,16 @@ jobs:
           cd _packages; echo $(sha256sum $pkg_name | awk '{print $1}') > $pkg_name.sha256
         fi
 
+    - name: build with msquic x86_64
+      run: |
+        if [ "${{ matrix.arch[0] }}" = "x86_64" ]; then
+          set -eu
+          cd build
+          rm -rf `ls | grep -v _packages`
+          cmake -DNNG_ENABLE_QUIC=ON  ..
+          make
+          sudo make install
+        fi
     - name: build rpm with msquic x86_64
       run: |
         if [ "${{ matrix.arch[0] }}" = "x86_64" ]; then
@@ -172,8 +182,6 @@ jobs:
           sudo mv _packages/nanomq-$(git describe --abbrev=0 --tags)-1.${{ matrix.arch[0] }}.rpm _packages/$pkg_name
           cd _packages; echo $(sha256sum $pkg_name | awk '{print $1}') > $pkg_name.sha256
         fi
-
-    
 
     - uses: actions/upload-artifact@v2
       with:
