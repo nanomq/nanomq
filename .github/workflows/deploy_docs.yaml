@@ -89,8 +89,7 @@ jobs:
         tccli cdn PurgePathCache --Paths '["https://nanomq.io/docs/"]' --FlushType delete
 
     - name: update search index
-      uses: Swilder-M/docsearch-scraper-simple@v3
-      if: env.VERSION == 'latest'
+      uses: Swilder-M/docsearch-scraper-simple@v4
       env:
         APPLICATION_ID: ${{ secrets.ALGOLIA_APPLICATION_ID }}
         API_KEY: ${{ secrets.ALGOLIA_API_KEY }}
