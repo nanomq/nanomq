@@ -196,7 +196,7 @@ nanomq_client_sqlite(conf_rule *cr, bool init_last)
 			// puts(table);
 			rc = sqlite3_exec(cr->rdb[0], table, 0, 0, &err_msg);
 			if (rc != SQLITE_OK) {
-				log_debug("SQL error: %s\n", err_msg);
+				log_error("SQL error: %s\n", err_msg);
 				sqlite3_free(err_msg);
 				sqlite3_close(sdb);
 				return 1;

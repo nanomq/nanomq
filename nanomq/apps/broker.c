@@ -1494,7 +1494,7 @@ broker_start(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	conf_parse(nanomq_conf);
+	conf_parse_ver2(nanomq_conf);
 
 	if (!broker_parse_opts(argc, argv, nanomq_conf)) {
 		conf_fini(nanomq_conf);
