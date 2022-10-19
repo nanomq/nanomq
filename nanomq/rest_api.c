@@ -1922,44 +1922,44 @@ get_config(http_msg *msg, const char *type)
 	if (type != NULL) {
 		if (strcmp(type, "basic") == 0) {
 
-			cJSON *basic = basic_config(config);
+			cJSON *basic = get_basic_config(config);
 			cJSON_AddItemToObject(conf_obj, "basic", basic);
 
 		} else if (strcmp(type, "tls") == 0) {
 
-			cJSON *tls = tls_config(&config->tls, true);
+			cJSON *tls = get_tls_config(&config->tls, true);
 			cJSON_AddItemToObject(conf_obj, "tls", tls);
 
 		} else if (strcmp(type, "auth") == 0) {
 
-			cJSON *auth = auth_config(&config->auths);
+			cJSON *auth = get_auth_config(&config->auths);
 			cJSON_AddItemToObject(conf_obj, "auth", auth);
 
 		} else if (strcmp(type, "auth_http") == 0) {
 
 			cJSON *auth_http =
-			    auth_http_config(&config->auth_http);
+			    get_auth_http_config(&config->auth_http);
 			cJSON_AddItemToObject(
 			    conf_obj, "auth_http", auth_http);
 
 		} else if (strcmp(type, "websocket") == 0) {
 
-			cJSON *ws = websocker_config(&config->websocket);
+			cJSON *ws = get_websocker_config(&config->websocket);
 			cJSON_AddItemToObject(conf_obj, "websocket", ws);
 
 		} else if (strcmp(type, "http_server") == 0) {
 
-			cJSON *http = http_config(&config->http_server);
+			cJSON *http = get_http_config(&config->http_server);
 			cJSON_AddItemToObject(conf_obj, "http_server", http);
 
 		} else if (strcmp(type, "sqlite") == 0) {
 
-			cJSON *sqlite = sqlite_config(&config->sqlite);
+			cJSON *sqlite = get_sqlite_config(&config->sqlite);
 			cJSON_AddItemToObject(conf_obj, "sqlite", sqlite);
 
 		} else if (strcmp(type, "bridge") == 0) {
 
-			cJSON *bridge = bridge_config(&config->bridge);
+			cJSON *bridge = get_bridge_config(&config->bridge);
 			cJSON_AddItemToObject(conf_obj, "bridge", bridge);
 
 		}
@@ -1975,28 +1975,28 @@ get_config(http_msg *msg, const char *type)
 			code       = RPC_ERROR;
 		}
 	} else {
-		cJSON *basic = basic_config(config);
+		cJSON *basic = get_basic_config(config);
 		cJSON_AddItemToObject(conf_obj, "basic", basic);
 
-		cJSON *tls = tls_config(&config->tls, true);
+		cJSON *tls = get_tls_config(&config->tls, true);
 		cJSON_AddItemToObject(conf_obj, "tls", tls);
 
-		cJSON *auth = auth_config(&config->auths);
+		cJSON *auth = get_auth_config(&config->auths);
 		cJSON_AddItemToObject(conf_obj, "auth", auth);
 
-		cJSON *auth_http = auth_http_config(&config->auth_http);
+		cJSON *auth_http = get_auth_http_config(&config->auth_http);
 		cJSON_AddItemToObject(conf_obj, "auth_http", auth_http);
 
-		cJSON *ws = websocker_config(&config->websocket);
+		cJSON *ws = get_websocker_config(&config->websocket);
 		cJSON_AddItemToObject(conf_obj, "websocket", ws);
 
-		cJSON *http = http_config(&config->http_server);
+		cJSON *http = get_http_config(&config->http_server);
 		cJSON_AddItemToObject(conf_obj, "http_server", http);
 
-		cJSON *sqlite = sqlite_config(&config->sqlite);
+		cJSON *sqlite = get_sqlite_config(&config->sqlite);
 		cJSON_AddItemToObject(conf_obj, "sqlite", sqlite);
 
-		cJSON *bridge = bridge_config(&config->bridge);
+		cJSON *bridge = get_bridge_config(&config->bridge);
 		cJSON_AddItemToObject(conf_obj, "bridge", bridge);
 
 #ifdef SUPP_AWS_BRIDGE
