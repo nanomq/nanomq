@@ -668,55 +668,55 @@ set_auth_http_req(cJSON *json, const char *conf_path, conf_auth_http_req *req,
 		{
 			char *arg        = cJSON_GetStringValue(item);
 			req_param[index] = nng_zalloc(sizeof(conf_http_param));
-			if (strcasecmp(arg, "username") == 0) {
+			if (nng_strcasecmp(arg, "username") == 0) {
 				// str_append(&param_str, "username");
 				// str_append(&param_str, "=");
 				// str_append(&param_str, "%u");
 				update_string(
 				    req_param[index]->name, "username");
 				update_var(req_param[index]->type, USERNAME);
-			} else if (strcasecmp(arg, "password") == 0) {
+			} else if (nng_strcasecmp(arg, "password") == 0) {
 				// str_append(&param_str, "password");
 				// str_append(&param_str, "=");
 				// str_append(&param_str, "%P");
 				update_string(
 				    req_param[index]->name, "password");
 				update_var(req_param[index]->type, PASSWORD);
-			} else if (strcasecmp(arg, "clientid") == 0) {
+			} else if (nng_strcasecmp(arg, "clientid") == 0) {
 				// str_append(&param_str, "clientid");
 				// str_append(&param_str, "=");
 				// str_append(&param_str, "%c");
 				update_string(
 				    req_param[index]->name, "clientid");
 				update_var(req_param[index]->type, CLIENTID);
-			} else if (strcasecmp(arg, "access") == 0) {
+			} else if (nng_strcasecmp(arg, "access") == 0) {
 				// str_append(&param_str, "access");
 				// str_append(&param_str, "=");
 				// str_append(&param_str, "%A");
 				update_string(
 				    req_param[index]->name, "access");
 				update_var(req_param[index]->type, ACCESS);
-			} else if (strcasecmp(arg, "topic") == 0) {
+			} else if (nng_strcasecmp(arg, "topic") == 0) {
 				// str_append(&param_str, "topic");
 				// str_append(&param_str, "=");
 				// str_append(&param_str, "%t");
 				update_string(req_param[index]->name, "topic");
 				update_var(req_param[index]->type, TOPIC);
-			} else if (strcasecmp(arg, "ipaddress") == 0) {
+			} else if (nng_strcasecmp(arg, "ipaddress") == 0) {
 				// str_append(&param_str, "ipaddress");
 				// str_append(&param_str, "=");
 				// str_append(&param_str, "%a");
 				update_string(
 				    req_param[index]->name, "ipaddress");
 				update_var(req_param[index]->type, IPADDRESS);
-			} else if (strcasecmp(arg, "sockport") == 0) {
+			} else if (nng_strcasecmp(arg, "sockport") == 0) {
 				// str_append(&param_str, "sockport");
 				// str_append(&param_str, "=");
 				// str_append(&param_str, "%p");
 				update_string(
 				    req_param[index]->name, "sockport");
 				update_var(req_param[index]->type, SOCKPORT);
-			} else if (strcasecmp(arg, "common") == 0) {
+			} else if (nng_strcasecmp(arg, "common") == 0) {
 				// str_append(&param_str, "common");
 				// str_append(&param_str, "=");
 				// str_append(&param_str, "%C");
@@ -724,21 +724,21 @@ set_auth_http_req(cJSON *json, const char *conf_path, conf_auth_http_req *req,
 				    req_param[index]->name, "common");
 				update_var(
 				    req_param[index]->type, COMMON_NAME);
-			} else if (strcasecmp(arg, "protocol") == 0) {
+			} else if (nng_strcasecmp(arg, "protocol") == 0) {
 				// str_append(&param_str, "protocol");
 				// str_append(&param_str, "=");
 				// str_append(&param_str, "%r");
 				update_string(
 				    req_param[index]->name, "protocol");
 				update_var(req_param[index]->type, PROTOCOL);
-			} else if (strcasecmp(arg, "subject") == 0) {
+			} else if (nng_strcasecmp(arg, "subject") == 0) {
 				// str_append(&param_str, "subject");
 				// str_append(&param_str, "=");
 				// str_append(&param_str, "%d");
 				update_string(
 				    req_param[index]->name, "protocol");
 				update_var(req_param[index]->type, PROTOCOL);
-			} else if (strcasecmp(arg, "mountpoint") == 0) {
+			} else if (nng_strcasecmp(arg, "mountpoint") == 0) {
 				// str_append(&param_str, "mountpoint");
 				// str_append(&param_str, "=");
 				// str_append(&param_str, "%m");
