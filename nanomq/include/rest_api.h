@@ -83,4 +83,13 @@ extern http_msg process_request(
 #define REQ_SET_CONFIG 12
 #define REQ_TREE 13
 
+#define cJSON_AddStringOrNullToObject(obj, name, value)            \
+	{                                                          \
+		if (value) {                                       \
+			cJSON_AddStringToObject(obj, name, value); \
+		} else {                                           \
+			cJSON_AddNullToObject(obj, name);          \
+		}                                                  \
+	}
+
 #endif
