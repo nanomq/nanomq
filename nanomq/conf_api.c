@@ -1,9 +1,9 @@
 #include "conf_api.h"
 
-static cJSON *auth_http_req_config(conf_auth_http_req *req);
+static cJSON *get_auth_http_req_config(conf_auth_http_req *req);
 
 cJSON *
-basic_config(conf *config)
+get_basic_config(conf *config)
 {
 	cJSON *basic = cJSON_CreateObject();
 	cJSON_AddStringOrNullToObject(basic, "url", config->url);
@@ -31,7 +31,7 @@ basic_config(conf *config)
 }
 
 cJSON *
-tls_config(conf_tls *tls, bool is_server)
+get_tls_config(conf_tls *tls, bool is_server)
 {
 	cJSON *tls_obj = cJSON_CreateObject();
 	cJSON_AddBoolToObject(tls_obj, "enable", tls->enable);
@@ -47,7 +47,7 @@ tls_config(conf_tls *tls, bool is_server)
 }
 
 cJSON *
-auth_config(conf_auth *auth)
+get_auth_config(conf_auth *auth)
 {
 	cJSON *auth_arr = cJSON_CreateArray();
 	for (size_t i = 0; i < auth->count; i++) {
@@ -65,7 +65,7 @@ auth_config(conf_auth *auth)
 }
 
 static cJSON *
-auth_http_req_config(conf_auth_http_req *req)
+get_auth_http_req_config(conf_auth_http_req *req)
 {
 	cJSON *req_obj = cJSON_CreateObject();
 	cJSON_AddStringOrNullToObject(req_obj, "url", req->url);
@@ -83,14 +83,14 @@ auth_http_req_config(conf_auth_http_req *req)
 		cJSON_AddItemToArray(params, param);
 	}
 
-	cJSON *tls = tls_config(&req->tls, false);
+	cJSON *tls = get_tls_config(&req->tls, false);
 	cJSON_AddItemToObject(req_obj, "tls", tls);
 
 	return req_obj;
 }
 
 cJSON *
-auth_http_config(conf_auth_http *auth_http)
+get_auth_http_config(conf_auth_http *auth_http)
 {
 	cJSON *auth_obj = cJSON_CreateObject();
 	cJSON_AddBoolToObject(auth_obj, "enable", auth_http->enable);
@@ -99,9 +99,9 @@ auth_http_config(conf_auth_http *auth_http)
 	    auth_obj, "connect_timeout", auth_http->connect_timeout);
 	cJSON_AddNumberToObject(auth_obj, "pool_size", auth_http->pool_size);
 
-	cJSON *auth_req  = auth_http_req_config(&auth_http->auth_req);
-	cJSON *acl_req   = auth_http_req_config(&auth_http->acl_req);
-	cJSON *super_req = auth_http_req_config(&auth_http->super_req);
+	cJSON *auth_req  = get_auth_http_req_config(&auth_http->auth_req);
+	cJSON *acl_req   = get_auth_http_req_config(&auth_http->acl_req);
+	cJSON *super_req = get_auth_http_req_config(&auth_http->super_req);
 
 	cJSON_AddItemToObject(auth_obj, "auth_req", auth_req);
 	cJSON_AddItemToObject(auth_obj, "acl_req", acl_req);
@@ -111,7 +111,7 @@ auth_http_config(conf_auth_http *auth_http)
 }
 
 cJSON *
-websocker_config(conf_websocket *ws)
+get_websocker_config(conf_websocket *ws)
 {
 	cJSON *ws_obj = cJSON_CreateObject();
 	cJSON_AddBoolToObject(ws_obj, "enable", ws->enable);
@@ -122,7 +122,7 @@ websocker_config(conf_websocket *ws)
 }
 
 cJSON *
-http_config(conf_http_server *http)
+get_http_config(conf_http_server *http)
 {
 	cJSON *http_obj = cJSON_CreateObject();
 	cJSON_AddBoolToObject(http_obj, "enable", http->enable);
@@ -135,7 +135,7 @@ http_config(conf_http_server *http)
 }
 
 cJSON *
-sqlite_config(conf_sqlite *sqlite)
+get_sqlite_config(conf_sqlite *sqlite)
 {
 	cJSON *sqlite_obj = cJSON_CreateObject();
 	cJSON_AddBoolToObject(sqlite_obj, "enable", sqlite->enable);
@@ -151,10 +151,10 @@ sqlite_config(conf_sqlite *sqlite)
 }
 
 cJSON *
-bridge_config(conf_bridge *bridge)
+get_bridge_config(conf_bridge *bridge)
 {
 	cJSON *bridge_obj        = cJSON_CreateObject();
-	cJSON *bridge_sqlite_obj = sqlite_config(&bridge->sqlite);
+	cJSON *bridge_sqlite_obj = get_sqlite_config(&bridge->sqlite);
 
 	cJSON *bridge_node_obj = cJSON_CreateArray();
 	for (size_t i = 0; i < bridge->count; i++) {
@@ -203,7 +203,7 @@ bridge_config(conf_bridge *bridge)
 		}
 
 		cJSON_AddItemToObject(node_obj, "subscription", sub_infos);
-		cJSON *tls = tls_config(&node->tls, false);
+		cJSON *tls = get_tls_config(&node->tls, false);
 		cJSON_AddItemToObject(node_obj, "tls", tls);
 		cJSON_AddItemToArray(bridge_node_obj, node_obj);
 	}
