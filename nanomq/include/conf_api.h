@@ -3,15 +3,31 @@
 
 #include "nng/supplemental/nanolib/conf.h"
 #include "nng/supplemental/nanolib/cJSON.h"
+#include "nng/supplemental/nanolib/file.h"
 #include "rest_api.h"
 
 extern cJSON *get_basic_config(conf *config);
 extern cJSON *get_tls_config(conf_tls *tls, bool is_server);
 extern cJSON *get_auth_config(conf_auth *auth);
 extern cJSON *get_auth_http_config(conf_auth_http *auth_http);
-extern cJSON *get_websocker_config(conf_websocket *ws);
+extern cJSON *get_websocket_config(conf_websocket *ws);
 extern cJSON *get_http_config(conf_http_server *http);
 extern cJSON *get_sqlite_config(conf_sqlite *sqlite);
 extern cJSON *get_bridge_config(conf_bridge *bridge);
+
+extern void set_basic_config(cJSON *json, conf *config);
+extern void set_tls_config(
+    cJSON *json, const char *conf_path, conf_tls *tls, const char *key_prefix);
+extern void set_auth_config(
+    cJSON *json, const char *conf_path, conf_auth *auth);
+extern void set_auth_http_config(
+    cJSON *json, const char *conf_path, conf_auth_http *auth);
+extern void set_http_config(
+    cJSON *json, const char *conf_path, conf_http_server *http);
+extern void set_websocket_config(
+    cJSON *json, const char *conf_path, conf_websocket *ws);
+extern void set_sqlite_config(cJSON *json, const char *conf_path,
+    conf_sqlite *sqlite, const char *key_prefix);
+
 
 #endif
