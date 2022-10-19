@@ -26,12 +26,13 @@ get_basic_config(conf *config)
 	    basic, "allow_anonymous", config->allow_anonymous);
 	cJSON_AddBoolToObject(basic, "daemon", config->daemon);
 	cJSON_AddNumberToObject(
-	    basic, "max_packet_size", config->max_packet_size);
-	cJSON_AddNumberToObject(
-	    basic, "client_max_packet_size", config->client_max_packet_size);
+	    basic, "max_packet_size", config->max_packet_size / 1024);
+	cJSON_AddNumberToObject(basic, "client_max_packet_size",
+	    config->client_max_packet_size / 1024);
 	cJSON_AddNumberToObject(basic, "msq_len", config->msq_len);
 	cJSON_AddNumberToObject(basic, "qos_duration", config->qos_duration);
-	cJSON_AddNumberToObject(basic, "keepalive_backoff", config->backoff);
+	cJSON_AddNumberToObject(
+	    basic, "keepalive_backoff", (double) config->backoff);
 	cJSON_AddBoolToObject(
 	    basic, "allow_anonymous", config->allow_anonymous);
 
@@ -296,15 +297,15 @@ set_basic_config(cJSON *json, conf *config)
 	if (rv == 0) {
 		conf_update_u32(
 		    config->conf_file, "max_packet_size", max_packet_size);
-		update_var(config->max_packet_size, max_packet_size);
+		update_var(config->max_packet_size, max_packet_size * 1024);
 	}
 	getNumberValue(
 	    json, item, "client_max_packet_size", client_max_packet_size, rv);
 	if (rv == 0) {
 		conf_update_u32(config->conf_file, "client_max_packet_size",
 		    client_max_packet_size);
-		update_var(
-		    config->client_max_packet_size, client_max_packet_size);
+		update_var(config->client_max_packet_size,
+		    client_max_packet_size * 1024);
 	}
 	getNumberValue(json, item, "msq_len", msq_len, rv);
 	if (rv == 0) {
@@ -553,12 +554,12 @@ set_auth_config(cJSON *json, const char *conf_path, conf_auth *auth)
 	for (size_t i = 0; i < sz; i++) {
 		cJSON *kv = cJSON_GetArrayItem(json, i);
 		char * username, *password;
-		getStringValue(kv, item, "username", username, rv);
+		getStringValue(kv, item, "login", username, rv);
 		getStringValue(kv, item, "password", password, rv);
 
 		if (username && password) {
 			char key2[10] = { 0 };
-			snprintf(key2, sizeof(key2), "%zu", i);
+			snprintf(key2, sizeof(key2), "%zu", i + 1);
 
 			conf_update2(
 			    conf_path, "auth.", key2, ".login", username);
@@ -756,6 +757,7 @@ set_auth_http_req(cJSON *json, const char *conf_path, conf_auth_http_req *req,
 void
 set_auth_http_config(cJSON *json, const char *conf_path, conf_auth_http *auth)
 {
+	char tm_str[100] = {0};
 	bool     enable;
 	uint64_t timeout;
 	uint64_t connect_timeout;
@@ -772,14 +774,16 @@ set_auth_http_config(cJSON *json, const char *conf_path, conf_auth_http *auth)
 
 	getNumberValue(json, item, "timeout", timeout, rv);
 	if (rv == 0) {
-		conf_update_u64(conf_path, "auth_http.timeout", timeout);
+		snprintf(tm_str, sizeof(tm_str), "%llus", timeout);
+		conf_update(conf_path, "auth_http.timeout", tm_str);
 		update_var(auth->timeout, timeout);
 	}
 
 	getNumberValue(json, item, "connect_timeout", connect_timeout, rv);
 	if (rv == 0) {
-		conf_update_u64(
-		    conf_path, "auth_http.connect_timeout", connect_timeout);
+		snprintf(tm_str, sizeof(tm_str), "%llus", connect_timeout);
+		conf_update(
+		    conf_path, "auth_http.connect_timeout", tm_str);
 		update_var(auth->connect_timeout, connect_timeout);
 	}
 
