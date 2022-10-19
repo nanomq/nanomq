@@ -8,6 +8,53 @@ The configuration files of NanoMQ Broker is HOCON（Human-Optimized Config Objec
 | etc/nanomq.conf               | NanoMQ Configuration File        |
 | etc/nanomq_gateway.conf       | NanoMQ Gateway File (for `nanomq_cli`) |
 
+## Syntax
+
+In config file the values can be notated as JSON like objects, such as
+```
+websocket {
+     enable=false
+     url="nmq-ws://0.0.0.0:8083/mqtt"
+     tls_url="nmq-wss://0.0.0.0:8084/mqtt"
+}
+```
+
+Another equivalent representation is flat, such as
+
+```
+websocket.enable = false
+websocket.url="nmq-ws://0.0.0.0:8083/mqtt"
+websocket.tls_url="nmq-wss://0.0.0.0:8084/mqtt"
+```
+
+This flat format is almost backward compatible (the so called 'cuttlefish' format).
+
+It is not fully compatible because the often HOCON requires strings to be quoted,
+while cuttlefish treats all characters to the right of the `=` mark as the value.
+
+e.g. cuttlefish: cuttlefish：`websocket.url = nmq-ws://0.0.0.0:8083/mqtt`，HOCON：`websocket.url = "nmq-ws://0.0.0.0:8083/mqtt"`.
+
+### Config Overlay Rules
+HOCON objects are overlaid, in general:
+
+- Within one file, objects defined 'later' recursively override objects defined 'earlier'
+- When layered, 'later' (higher layer) objects override objects defined 'earlier' (lower layer)
+
+Below are more detailed rules.
+
+For example, in below config, the last line `debug` overwrites `error` for
+console log handler's `level` config, but leaving `to` unchanged.
+```
+log {
+    to=["file","console"]
+    level="error"
+}
+
+## ... more configs ...
+
+log.level=debug
+```
+
 ## Parameter Description
 
 ### nanomq.conf
