@@ -559,7 +559,7 @@ set_auth_config(cJSON *json, const char *conf_path, conf_auth *auth)
 
 	for (size_t i = 0; i < sz; i++) {
 		cJSON *kv = cJSON_GetArrayItem(json, i);
-		char * username, *password;
+		char * username = NULL, *password = NULL;
 		getStringValue(kv, item, "login", username, rv);
 		getStringValue(kv, item, "password", password, rv);
 
