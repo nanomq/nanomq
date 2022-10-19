@@ -8,6 +8,7 @@
 //
 
 #include "include/rest_api.h"
+#include "include/conf_api.h"
 #include "nng/supplemental/nanolib/base64.h"
 #include "nng/supplemental/nanolib/cJSON.h"
 #include "nng/supplemental/nanolib/file.h"
@@ -189,7 +190,67 @@ static endpoints api_ep[] = {
 	    .path   = "/configuration/",
 	    .name   = "get_broker_configuration",
 	    .method = "GET",
-	    .descr  = "show broker configuration",
+	    .descr  = "show all configuration of broker",
+	},
+	{
+	    .path   = "/configuration/basic",
+	    .name   = "get_basic_configuration",
+	    .method = "GET",
+	    .descr  = "show broker basic configuration",
+	},
+	{
+	    .path   = "/configuration/tls",
+	    .name   = "get_tls_configuration",
+	    .method = "GET",
+	    .descr  = "show broker tls configuration",
+	},
+	{
+	    .path   = "/configuration/http_server",
+	    .name   = "get_http_server_configuration",
+	    .method = "GET",
+	    .descr  = "show broker http_server configuration",
+	},
+	{
+	    .path   = "/configuration/websocket",
+	    .name   = "get_websocket_configuration",
+	    .method = "GET",
+	    .descr  = "show broker websocket configuration",
+	},
+	{
+	    .path   = "/configuration/webhook",
+	    .name   = "get_webhook_configuration",
+	    .method = "GET",
+	    .descr  = "show broker webhook configuration",
+	},
+	{
+	    .path   = "/configuration/auth",
+	    .name   = "get_auth_configuration",
+	    .method = "GET",
+	    .descr  = "show broker authorization configuration",
+	},
+	{
+	    .path   = "/configuration/auth_http",
+	    .name   = "get_auth_http_configuration",
+	    .method = "GET",
+	    .descr  = "show broker authorization by http configuration",
+	},
+	{
+	    .path   = "/configuration/sqlite",
+	    .name   = "get_sqlite_configuration",
+	    .method = "GET",
+	    .descr  = "show broker sqlite configuration",
+	},
+	{
+	    .path   = "/configuration/bridge",
+	    .name   = "get_bridge_configuration",
+	    .method = "GET",
+	    .descr  = "show broker bridge configuration",
+	},
+	{
+	    .path   = "/configuration/aws_bridge",
+	    .name   = "get_aws_bridge_configuration",
+	    .method = "GET",
+	    .descr  = "show broker aws_bridge configuration",
 	},
 	{
 	    .path   = "/configuration/",
@@ -231,7 +292,7 @@ static http_msg  delete_rules(
 static http_msg post_rules(http_msg *msg);
 static http_msg get_tree(http_msg *msg);
 static http_msg post_ctrl(http_msg *msg, const char *type);
-static http_msg get_config(http_msg *msg);
+static http_msg get_config(http_msg *msg, const char *type);
 static http_msg post_config(http_msg *msg);
 static http_msg post_mqtt_msg(
     http_msg *msg, nng_socket *sock, handle_mqtt_msg_cb cb);
@@ -718,7 +779,11 @@ process_request(http_msg *msg, conf_http_server *config, nng_socket *sock)
 		} else if (uri_ct->sub_count == 2 &&
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "configuration") == 0) {
-			ret = get_config(msg);
+			ret = get_config(msg, NULL);
+		} else if (uri_ct->sub_count == 3 &&
+		    uri_ct->sub_tree[2]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "configuration") == 0) {
+			ret = get_config(msg, uri_ct->sub_tree[2]->node);
 		} else {
 			status = NNG_HTTP_STATUS_NOT_FOUND;
 			code   = UNKNOWN_MISTAKE;
@@ -1845,131 +1910,93 @@ post_ctrl(http_msg *msg, const char *type)
 }
 
 static http_msg
-get_config(http_msg *msg)
+get_config(http_msg *msg, const char *type)
 {
 	http_msg res = { .status = NNG_HTTP_STATUS_OK };
+
+	enum result_code code = SUCCESS;
 
 	conf * config   = get_global_conf();
 	cJSON *conf_obj = cJSON_CreateObject();
 
-	cJSON_AddStringToObject(conf_obj, "url", config->url);
-	cJSON_AddNumberToObject(
-	    conf_obj, "num_taskq_thread", config->num_taskq_thread);
-	cJSON_AddNumberToObject(
-	    conf_obj, "max_taskq_thread", config->max_taskq_thread);
-	cJSON_AddNumberToObject(conf_obj, "parallel", config->parallel);
-	cJSON_AddNumberToObject(
-	    conf_obj, "property_size", config->property_size);
-	cJSON_AddNumberToObject(conf_obj, "msq_len", config->msq_len);
-	cJSON_AddBoolToObject(
-	    conf_obj, "allow_anonymous", config->allow_anonymous);
-	cJSON_AddBoolToObject(conf_obj, "daemon", config->daemon);
+	if (type != NULL) {
+		if (strcmp(type, "basic") == 0) {
 
-	cJSON *tls_obj = cJSON_CreateObject();
-	cJSON_AddBoolToObject(tls_obj, "enable", config->tls.enable);
-	cJSON_AddStringToObject(tls_obj, "url", config->tls.url);
-	if (config->tls.key_password) {
-		cJSON_AddStringToObject(
-		    tls_obj, "key_password", config->tls.key_password);
-	} else {
-		cJSON_AddNullToObject(tls_obj, "key_password");
-	}
-	if (config->tls.key) {
-		cJSON_AddStringToObject(tls_obj, "key", config->tls.key);
-	} else {
-		cJSON_AddNullToObject(tls_obj, "key");
-	}
-	if (config->tls.cert) {
-		cJSON_AddStringToObject(tls_obj, "cert", config->tls.cert);
-	} else {
-		cJSON_AddNullToObject(tls_obj, "cert");
-	}
-	if (config->tls.ca) {
-		cJSON_AddStringToObject(tls_obj, "cacert", config->tls.ca);
-	} else {
-		cJSON_AddNullToObject(tls_obj, "cacert");
-	}
-	cJSON_AddBoolToObject(tls_obj, "verify_peer", config->tls.verify_peer);
-	cJSON_AddBoolToObject(
-	    tls_obj, "fail_if_no_peer_cert", config->tls.set_fail);
+			cJSON *basic = basic_config(config);
+			cJSON_AddItemToObject(conf_obj, "basic", basic);
 
-	cJSON *ws_obj = cJSON_CreateObject();
-	cJSON_AddBoolToObject(ws_obj, "enable", config->websocket.enable);
-	cJSON_AddStringToObject(ws_obj, "url", config->websocket.url);
-	cJSON_AddStringToObject(ws_obj, "tls_url", config->websocket.tls_url);
+		} else if (strcmp(type, "tls") == 0) {
 
-	cJSON *http_obj = cJSON_CreateObject();
-	cJSON_AddBoolToObject(http_obj, "enable", config->http_server.enable);
-	cJSON_AddNumberToObject(http_obj, "port", config->http_server.port);
-	cJSON_AddStringToObject(
-	    http_obj, "username", config->http_server.username);
-	cJSON_AddStringToObject(
-	    http_obj, "password", config->http_server.password);
-	cJSON_AddStringToObject(http_obj, "auth_type",
-	    config->http_server.auth_type == JWT ? "jwt" : "basic");
-	cJSON_AddItemToObject(conf_obj, "tls", tls_obj);
-	cJSON_AddItemToObject(conf_obj, "websocket", ws_obj);
-	cJSON_AddItemToObject(conf_obj, "http_server", http_obj);
+			cJSON *tls = tls_config(&config->tls, true);
+			cJSON_AddItemToObject(conf_obj, "tls", tls);
 
-	cJSON *bridge_obj = cJSON_CreateObject();
-	cJSON *bridge_sqlite_obj = cJSON_CreateObject();
-	conf_bridge *bridge_conf = &config->bridge;
+		} else if (strcmp(type, "authorization") == 0) {
 
-	cJSON *bridge_node_obj = cJSON_CreateArray();
-	for (size_t i = 0; i < bridge_conf->count; i++) {
-		conf_bridge_node *node     = bridge_conf->nodes[i];
-		cJSON *           node_obj = cJSON_CreateObject();
-		cJSON_AddStringToObject(node_obj, "name", node->name);
-		cJSON_AddBoolToObject(node_obj, "bridge_mode", node->enable);
-		cJSON_AddStringToObject(node_obj, "address", node->address);
-		cJSON_AddNumberToObject(
-		    node_obj, "proto_ver", node->proto_ver);
-		cJSON_AddStringToObject(node_obj, "clientid", node->clientid);
-		cJSON_AddBoolToObject(
-		    node_obj, "clean_start", node->clean_start);
-		cJSON_AddStringToObject(node_obj, "username", node->username);
-		cJSON_AddStringToObject(node_obj, "password", node->password);
-		cJSON_AddNumberToObject(
-		    node_obj, "keepalive", node->keepalive);
-		cJSON_AddNumberToObject(node_obj, "parallel", node->parallel);
+			cJSON *auth = auth_config(&config->auths);
+			cJSON_AddItemToObject(conf_obj, "authorization", auth);
 
-		cJSON *pub_topics = cJSON_CreateArray();
-		for (size_t i = 0; i < node->forwards_count; i++) {
-			cJSON *topic = cJSON_CreateString(node->forwards[i]);
-			cJSON_AddItemToArray(pub_topics, topic);
+		} else if (strcmp(type, "websocket") == 0) {
+
+			cJSON *ws = websocker_config(&config->websocket);
+			cJSON_AddItemToObject(conf_obj, "websocket", ws);
+
+		} else if (strcmp(type, "http_server") == 0) {
+
+			cJSON *http = http_config(&config->http_server);
+			cJSON_AddItemToObject(conf_obj, "http_server", http);
+
+		} else if (strcmp(type, "sqlite") == 0) {
+
+			cJSON *sqlite = sqlite_config(&config->sqlite);
+			cJSON_AddItemToObject(conf_obj, "sqlite", sqlite);
+
+		} else if (strcmp(type, "bridge") == 0) {
+
+			cJSON *bridge = bridge_config(&config->bridge);
+			cJSON_AddItemToObject(conf_obj, "bridge", bridge);
+
 		}
-		cJSON_AddItemToObject(node_obj, "forwards", pub_topics);
-
-		cJSON *sub_infos = cJSON_CreateArray();
-		for (size_t j = 0; j < node->sub_count; j++) {
-			cJSON *   sub_obj = cJSON_CreateObject();
-			subscribe sub     = node->sub_list[j];
-			cJSON_AddStringToObject(sub_obj, "topic", sub.topic);
-			cJSON_AddNumberToObject(sub_obj, "qos", sub.qos);
-			cJSON_AddItemToArray(sub_infos, sub_obj);
+#ifdef SUPP_AWS_BRIDGE
+		else if (strcmp(type, "aws_bridge") == 0) {
+			cJSON *aws_bridge = bridge_config(&config->aws_bridge);
+			cJSON_AddItemToObject(
+			    conf_obj, "aws_bridge", aws_bridge);
 		}
+#endif
+		else {
+			res.status = NNG_HTTP_STATUS_NOT_FOUND;
+			code       = RPC_ERROR;
+		}
+	} else {
+		cJSON *basic = basic_config(config);
+		cJSON_AddItemToObject(conf_obj, "basic", basic);
 
-		cJSON_AddItemToObject(node_obj, "subscription", sub_infos);
-		cJSON_AddItemToArray(bridge_node_obj, node_obj);
+		cJSON *tls = tls_config(&config->tls, true);
+		cJSON_AddItemToObject(conf_obj, "tls", tls);
+
+		cJSON *auth = auth_config(&config->auths);
+		cJSON_AddItemToObject(conf_obj, "authorization", auth);
+
+		cJSON *ws = websocker_config(&config->websocket);
+		cJSON_AddItemToObject(conf_obj, "websocket", ws);
+
+		cJSON *http = http_config(&config->http_server);
+		cJSON_AddItemToObject(conf_obj, "http_server", http);
+
+		cJSON *sqlite = sqlite_config(&config->sqlite);
+		cJSON_AddItemToObject(conf_obj, "sqlite", sqlite);
+
+		cJSON *bridge = bridge_config(&config->bridge);
+		cJSON_AddItemToObject(conf_obj, "bridge", bridge);
+
+#ifdef SUPP_AWS_BRIDGE
+		cJSON *aws_bridge = bridge_config(&config->aws_bridge);
+		cJSON_AddItemToObject(conf_obj, "aws_bridge", aws_bridge);
+#endif
 	}
-
-	cJSON_AddBoolToObject(
-	    bridge_sqlite_obj, "enable", bridge_conf->sqlite.enable);
-	cJSON_AddNumberToObject(bridge_sqlite_obj, "disk_cache_size",
-	    bridge_conf->sqlite.disk_cache_size);
-	cJSON_AddNumberToObject(bridge_sqlite_obj, "flush_mem_threshold",
-	    bridge_conf->sqlite.flush_mem_threshold);
-	cJSON_AddNumberToObject(bridge_sqlite_obj, "resend_interval",
-	    bridge_conf->sqlite.resend_interval);
-	cJSON_AddStringToObject(bridge_sqlite_obj, "mounted_file_path",
-	    bridge_conf->sqlite.mounted_file_path);
-
-	cJSON_AddItemToObject(bridge_obj, "nodes", bridge_node_obj);
-	cJSON_AddItemToObject(bridge_obj, "sqlite", bridge_sqlite_obj);
-	cJSON_AddItemToObject(conf_obj, "bridge", bridge_obj);
 
 	cJSON *res_obj = cJSON_CreateObject();
-	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+	cJSON_AddNumberToObject(res_obj, "code", code);
 	cJSON_AddItemToObject(res_obj, "data", conf_obj);
 
 	char *dest = cJSON_PrintUnformatted(res_obj);
