@@ -2030,7 +2030,7 @@ post_config(http_msg *msg, const char *type)
 			} else if (strcmp(type, "auth_http") == 0) {
 				cJSON *auth_http = cJSON_GetObjectItem(
 				    conf_data, "auth_http");
-				if (cJSON_IsArray(auth_http)) {
+				if (cJSON_IsObject(auth_http)) {
 					set_auth_http_config(auth_http,
 					    config->conf_file, &config->auth_http);
 				}
