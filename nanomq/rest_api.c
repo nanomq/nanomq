@@ -293,7 +293,7 @@ static http_msg post_rules(http_msg *msg);
 static http_msg get_tree(http_msg *msg);
 static http_msg post_ctrl(http_msg *msg, const char *type);
 static http_msg get_config(http_msg *msg, const char *type);
-static http_msg post_config(http_msg *msg);
+static http_msg post_config(http_msg *msg, const char *type);
 static http_msg post_mqtt_msg(
     http_msg *msg, nng_socket *sock, handle_mqtt_msg_cb cb);
 static http_msg post_mqtt_msg_batch(
@@ -303,42 +303,6 @@ static int properties_parse(property **properties, cJSON *json);
 static int handle_publish_msg(cJSON *pub_obj, nng_socket *sock);
 static int handle_subscribe_msg(cJSON *sub_obj, nng_socket *sock);
 static int handle_unsubscribe_msg(cJSON *sub_obj, nng_socket *sock);
-
-static void     update_main_conf(cJSON *json, conf *config);
-static void     update_bridge_conf(cJSON *json, conf *config);
-
-#define getNumberValue(obj, item, key, value, rv)           \
-	{                                                   \
-		item = cJSON_GetObjectItem(obj, key);       \
-		if (cJSON_IsNumber(item)) {                 \
-			value = cJSON_GetNumberValue(item); \
-			rv    = (0);                        \
-		} else {                                    \
-			rv = (-1);                          \
-		}                                           \
-	}
-
-#define getBoolValue(obj, item, key, value, rv)       \
-	{                                             \
-		item = cJSON_GetObjectItem(obj, key); \
-		if (cJSON_IsBool(item)) {             \
-			value = cJSON_IsTrue(item);   \
-			rv    = (0);                  \
-		} else {                              \
-			rv = (-1);                    \
-		}                                     \
-	}
-
-#define getStringValue(obj, item, key, value, rv)           \
-	{                                                   \
-		item = cJSON_GetObjectItem(obj, key);       \
-		if (cJSON_IsString(item)) {                 \
-			value = cJSON_GetStringValue(item); \
-			rv    = (0);                        \
-		} else {                                    \
-			rv = (-1);                          \
-		}                                           \
-	}
 
 static void
 get_time_str(char *str, size_t str_len)
@@ -796,7 +760,11 @@ process_request(http_msg *msg, conf_http_server *config, nng_socket *sock)
 		} else if (uri_ct->sub_count == 2 &&
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "configuration") == 0) {
-			ret = post_config(msg);
+			ret = post_config(msg, NULL);
+		} else if (uri_ct->sub_count == 3 &&
+		    uri_ct->sub_tree[2]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "configuration") == 0) {
+			ret = post_config(msg, uri_ct->sub_tree[2]->node);
 		} else if (uri_ct->sub_count == 2 &&
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "rules") == 0) {
@@ -1944,7 +1912,7 @@ get_config(http_msg *msg, const char *type)
 
 		} else if (strcmp(type, "websocket") == 0) {
 
-			cJSON *ws = get_websocker_config(&config->websocket);
+			cJSON *ws = get_websocket_config(&config->websocket);
 			cJSON_AddItemToObject(conf_obj, "websocket", ws);
 
 		} else if (strcmp(type, "http_server") == 0) {
@@ -1970,6 +1938,8 @@ get_config(http_msg *msg, const char *type)
 			    conf_obj, "aws_bridge", aws_bridge);
 		}
 #endif
+		// TODO webhook ?
+		// TODO log ?
 		else {
 			res.status = NNG_HTTP_STATUS_NOT_FOUND;
 			code       = RPC_ERROR;
@@ -1987,7 +1957,7 @@ get_config(http_msg *msg, const char *type)
 		cJSON *auth_http = get_auth_http_config(&config->auth_http);
 		cJSON_AddItemToObject(conf_obj, "auth_http", auth_http);
 
-		cJSON *ws = get_websocker_config(&config->websocket);
+		cJSON *ws = get_websocket_config(&config->websocket);
 		cJSON_AddItemToObject(conf_obj, "websocket", ws);
 
 		cJSON *http = get_http_config(&config->http_server);
@@ -2003,6 +1973,8 @@ get_config(http_msg *msg, const char *type)
 		cJSON *aws_bridge = bridge_config(&config->aws_bridge);
 		cJSON_AddItemToObject(conf_obj, "aws_bridge", aws_bridge);
 #endif
+		// TODO webhook ?
+		// TODO log ?
 	}
 
 	cJSON *res_obj = cJSON_CreateObject();
@@ -2018,388 +1990,8 @@ get_config(http_msg *msg, const char *type)
 	return res;
 }
 
-static void
-update_main_conf(cJSON *json, conf *config)
-{
-	char *   url = NULL;
-	bool     daemon;
-	int      num_taskq_thread;
-	int      max_taskq_thread;
-	uint64_t parallel;
-	int      property_size;
-	int      msq_len;
-	int      qos_duration;
-	bool     allow_anonymous;
-
-	cJSON *item;
-	int    rv;
-	getStringValue(json, item, "url", url, rv);
-	if (rv == 0) {
-		conf_update(config->conf_file, "url", url);
-	}
-	getBoolValue(json, item, "daemon", daemon, rv);
-	if (rv == 0) {
-		conf_update_bool(config->conf_file, "daemon", daemon);
-	}
-	getNumberValue(json, item, "num_taskq_thread", num_taskq_thread, rv);
-	if (rv == 0) {
-		conf_update_int(
-		    config->conf_file, "num_taskq_thread", num_taskq_thread);
-	}
-	getNumberValue(json, item, "max_taskq_thread", max_taskq_thread, rv);
-	if (rv == 0) {
-		conf_update_int(
-		    config->conf_file, "max_taskq_thread", max_taskq_thread);
-	}
-	getNumberValue(json, item, "parallel", parallel, rv);
-	if (rv == 0) {
-		conf_update_u64(config->conf_file, "parallel", parallel);
-	}
-	getNumberValue(json, item, "property_size", property_size, rv);
-	if (rv == 0) {
-		conf_update_int(
-		    config->conf_file, "property_size", property_size);
-	}
-	getNumberValue(json, item, "msq_len", msq_len, rv);
-	if (rv == 0) {
-		conf_update_int(config->conf_file, "msq_len", msq_len);
-	}
-	getNumberValue(json, item, "qos_duration", qos_duration, rv);
-	if (rv == 0) {
-		conf_update_int(
-		    config->conf_file, "qos_duration", qos_duration);
-	}
-	getBoolValue(json, item, "allow_anonymous", allow_anonymous, rv);
-	if (rv == 0) {
-		conf_update_bool(
-		    config->conf_file, "allow_anonymous", allow_anonymous);
-	}
-
-	cJSON *tls = cJSON_GetObjectItem(json, "tls");
-	if (cJSON_IsObject(tls)) {
-		bool  tls_enable;
-		char *tls_url;
-		char *tls_keypass;
-		char *tls_key;
-		char *tls_cert;
-		char *tls_cacert;
-		bool  tls_verify_peer;
-		bool  tls_fail_if_no_peer_cert;
-
-		char   dir[1024] = { 0 };
-		size_t path_len  = 0;
-
-		getBoolValue(tls, item, "enable", tls_enable, rv);
-		if (rv == 0) {
-			conf_update_bool(
-			    config->conf_file, "tls.enable", tls_enable);
-		}
-		getStringValue(tls, item, "url", tls_url, rv);
-		if (rv == 0) {
-			conf_update(config->conf_file, "tls.url", tls_url);
-		}
-		getStringValue(tls, item, "keypass", tls_keypass, rv);
-		if (rv == 0) {
-			conf_update(
-			    config->conf_file, "tls.keypass", tls_keypass);
-		}
-		getStringValue(tls, item, "key", tls_key, rv);
-		if (rv == 0) {
-			if (config->tls.keyfile == NULL) {
-				memset(dir, 0, 1024);
-				if (nano_getcwd(dir, sizeof(dir)) != NULL) {
-					path_len = strlen(dir) +
-					    strlen("/key.pem") + 1;
-					config->tls.keyfile =
-					    nng_zalloc(path_len);
-					strcat(config->tls.keyfile, dir);
-					strcat(
-					    config->tls.keyfile, "/key.pem");
-					conf_update(config->conf_file,
-					    "tls.keyfile",
-					    config->tls.keyfile);
-				}
-			}
-			file_write_string(config->tls.keyfile, tls_key);
-		}
-		getStringValue(tls, item, "cert", tls_cert, rv);
-		if (rv == 0) {
-			if (config->tls.certfile == NULL) {
-				memset(dir, 0, 1024);
-				if (nano_getcwd(dir, sizeof(dir)) != NULL) {
-					path_len = strlen(dir) +
-					    strlen("/cert.pem") + 1;
-					config->tls.certfile =
-					    nng_zalloc(path_len);
-					strcat(config->tls.certfile, dir);
-					strcat(
-					    config->tls.certfile, "/cert.pem");
-					conf_update(config->conf_file,
-					    "tls.certfile",
-					    config->tls.certfile);
-				}
-			}
-			file_write_string(config->tls.certfile, tls_cert);
-		}
-		getStringValue(tls, item, "cacert", tls_cacert, rv);
-		if (rv == 0) {
-			if (config->tls.cafile == NULL) {
-				memset(dir, 0, 1024);
-				if (nano_getcwd(dir, sizeof(dir)) != NULL) {
-					path_len = strlen(dir) +
-					    strlen("/cacert.pem") + 1;
-					config->tls.cafile =
-					    nng_zalloc(path_len);
-					strcat(config->tls.cafile, dir);
-					strcat(
-					    config->tls.cafile, "/cacert.pem");
-					conf_update(config->conf_file,
-					    "tls.cacertfile",
-					    config->tls.cafile);
-				}
-			}
-			file_write_string(config->tls.cafile, tls_cacert);
-		}
-		getBoolValue(tls, item, "verify_peer", tls_verify_peer, rv);
-		if (rv == 0) {
-			conf_update_bool(config->conf_file, "tls.verify_peer",
-			    tls_verify_peer);
-		}
-		getBoolValue(tls, item, "fail_if_no_peer_cert",
-		    tls_fail_if_no_peer_cert, rv);
-		if (rv == 0) {
-			conf_update_bool(config->conf_file,
-			    "tls.fail_if_no_peer_cert",
-			    tls_fail_if_no_peer_cert);
-		}
-	}
-
-	cJSON *websocket = cJSON_GetObjectItem(json, "websocket");
-	if (cJSON_IsObject(websocket)) {
-		bool  ws_enable;
-		char *ws_url;
-		char *ws_tls_url;
-
-		getBoolValue(websocket, item, "enable", ws_enable, rv);
-		if (rv == 0) {
-			conf_update_bool(
-			    config->conf_file, "websocket.enable", ws_enable);
-		}
-		getStringValue(websocket, item, "url", ws_url, rv);
-		if (rv == 0) {
-			conf_update(
-			    config->conf_file, "websocket.url", ws_url);
-		}
-		getStringValue(websocket, item, "tls_url", ws_tls_url, rv);
-		if (rv == 0) {
-			conf_update(config->conf_file, "websocket.tls_url",
-			    ws_tls_url);
-		}
-	}
-
-	cJSON *http_server = cJSON_GetObjectItem(json, "http_server");
-	if (cJSON_IsObject(http_server)) {
-		bool     http_enable;
-		uint16_t http_port;
-		char *   http_username = NULL;
-		char *   http_password = NULL;
-		char *   auth_type     = NULL;
-		getBoolValue(http_server, item, "enable", http_enable, rv);
-		if (rv == 0) {
-			conf_update_bool(config->conf_file,
-			    "http_server.enable", http_enable);
-		}
-		getNumberValue(http_server, item, "port", http_port, rv);
-		if (rv == 0) {
-			conf_update_u16(
-			    config->conf_file, "http_server.port", http_port);
-		}
-		getStringValue(
-		    http_server, item, "username", http_username, rv);
-		if (rv == 0) {
-			conf_update(config->conf_file, "http_server.username",
-			    http_username);
-		}
-		getStringValue(
-		    http_server, item, "password", http_password, rv);
-		if (rv == 0) {
-			conf_update(config->conf_file, "http_server.password",
-			    http_password);
-		}
-		getStringValue(http_server, item, "auth_type", auth_type, rv);
-		if (rv == 0) {
-			if (strcmp("basic", auth_type) == 0 ||
-			    strcmp("jwt", auth_type) == 0) {
-				conf_update(config->conf_file,
-				    "http_server.auth_type", auth_type);
-			}
-		}
-	}
-}
-
-static void
-update_bridge_conf(cJSON *json, conf *config)
-{
-	int         rv;
-	cJSON *     item;
-	conf_bridge bridge = {0};
-	
-	cJSON *sqlite = cJSON_GetObjectItem(json, "sqlite");
-
-	getBoolValue(sqlite, item, "enable", bridge.sqlite.enable, rv);
-	log_debug("getBoolValue: %s\n", bridge.sqlite.enable ? "true" : "false");
-	if (rv == 0) {
-		conf_update_bool(config->conf_file, "bridge.sqlite.enable",
-		    bridge.sqlite.enable);
-	}
-	getNumberValue(sqlite, item, "disk_cache_size",
-	    bridge.sqlite.disk_cache_size, rv);
-	if (rv == 0) {
-		conf_update_u64(config->conf_file,
-		    "bridge.sqlite.disk_cache_size",
-		    bridge.sqlite.disk_cache_size);
-	}
-	getStringValue(sqlite, item, "mounted_file_path",
-	    bridge.sqlite.mounted_file_path, rv);
-	if (rv == 0) {
-		conf_update(config->conf_file,
-		    "bridge.sqlite.mounted_file_path",
-		    bridge.sqlite.mounted_file_path);
-	}
-	getNumberValue(sqlite, item, "flush_mem_threshold",
-	    bridge.sqlite.flush_mem_threshold, rv);
-	if (rv == 0) {
-		conf_update_u64(config->conf_file,
-		    "bridge.sqlite.flush_mem_threshold",
-		    bridge.sqlite.flush_mem_threshold);
-	}
-	getNumberValue(sqlite, item, "resend_interval",
-	    bridge.sqlite.resend_interval, rv);
-	if (rv == 0) {
-		conf_update_u64(config->conf_file,
-		    "bridge.sqlite.resend_interval",
-		    bridge.sqlite.resend_interval);
-	}
-
-	conf_bridge_node node = { 0 };
-
-	cJSON *node_array = cJSON_GetObjectItem(json, "nodes");
-	size_t count = cJSON_GetArraySize(node_array);
-	for (size_t i = 0; i < count; i++)
-	{
-		cJSON *node_obj = cJSON_GetArrayItem(node_array, i);
-		getStringValue(node_obj, item, "name", node.name, rv);
-		if(rv != 0 ){
-			continue;
-		}
-		char *key1 = "bridge.mqtt.";
-		getBoolValue(node_obj, item, "bridge_mode", node.enable, rv);
-	if (rv == 0) {
-		conf_update2_bool(config->conf_file, key1, node.name,
-		    ".bridge_mode", node.enable);
-	}
-	getStringValue(node_obj, item, "address", node.address, rv);
-	if (rv == 0) {
-		conf_update2(config->conf_file, key1, node.name, ".address",
-		    node.address);
-	}
-	getNumberValue(node_obj, item, "proto_ver", node.proto_ver, rv);
-	if (rv == 0) {
-		conf_update2_u8(config->conf_file, key1, node.name,
-		    ".proto_ver", node.proto_ver);
-	}
-	getStringValue(node_obj, item, "clientid", node.clientid, rv);
-	if (rv == 0) {
-		conf_update2(config->conf_file, key1, node.name, ".clientid",
-		    node.clientid);
-	}
-	getNumberValue(node_obj, item, "keepalive", node.keepalive, rv);
-	if (rv == 0) {
-		conf_update2_u16(config->conf_file, key1, node.name,
-		    ".keepalive", node.keepalive);
-	}
-	getBoolValue(node_obj, item, "clean_start", node.clean_start, rv);
-	if (rv == 0) {
-		conf_update2_bool(config->conf_file, key1, node.name,
-		    ".clean_start", node.clean_start);
-	}
-	getStringValue(node_obj, item, "username", node.username, rv);
-	if (rv == 0) {
-		conf_update2(config->conf_file, key1, node.name, ".username",
-		    node.username);
-	}
-	getStringValue(node_obj, item, "password", node.password, rv);
-	if (rv == 0) {
-		conf_update2(config->conf_file, key1, node.name, ".password",
-		    node.password);
-	}
-	getNumberValue(node_obj, item, "parallel", node.parallel, rv);
-	if (rv == 0) {
-		conf_update2_u64(config->conf_file, key1, node.name,
-		    ".parallel", node.parallel);
-	}
-
-	cJSON *pub_topics = cJSON_GetObjectItem(node_obj, "forwards");
-	if (cJSON_IsArray(pub_topics)) {
-		int    topic_count = cJSON_GetArraySize(pub_topics);
-		size_t length      = 0;
-		for (size_t i = 0; i < topic_count; i++) {
-			cJSON *item = cJSON_GetArrayItem(pub_topics, i);
-			char * str  = cJSON_GetStringValue(item);
-			length += strlen(str) + 1;
-		}
-		char *topic_str = nng_zalloc(length);
-		for (size_t j = 0; j < topic_count; j++) {
-			cJSON *item = cJSON_GetArrayItem(pub_topics, j);
-			char * str  = cJSON_GetStringValue(item);
-			strcat(topic_str, str);
-			if (j < topic_count - 1) {
-				strcat(topic_str, ",");
-			}
-		}
-		conf_update2(
-		    config->conf_file, key1, node.name, ".forwards", topic_str);
-		nng_free(topic_str, length);
-	}
-
-	cJSON *sub_infos = cJSON_GetObjectItem(node_obj, "subscription");
-	if (cJSON_IsArray(sub_infos)) {
-		int  sub_count        = cJSON_GetArraySize(sub_infos);
-		char sub_keyname[100] = { 0 };
-
-		for (int i = 0; i < sub_count; i++) {
-			cJSON * sub_item = cJSON_GetArrayItem(sub_infos, i);
-			char *  sub_topic;
-			uint8_t sub_qos;
-			getStringValue(sub_item, item, "topic", sub_topic, rv);
-			if (rv == 0) {
-				memset(sub_keyname, 0, 100);
-				sprintf(sub_keyname,
-				    "bridge.mqtt.%s.subscription."
-				    "%d."
-				    "topic",
-				    node.name, i + 1);
-				conf_update(config->conf_file, sub_keyname,
-				    sub_topic);
-			}
-			getNumberValue(sub_item, item, "qos", sub_qos, rv);
-			if (rv == 0) {
-				memset(sub_keyname, 0, 100);
-				sprintf(sub_keyname,
-				    "bridge.mqtt.%s.subscription."
-				    "%d."
-				    "qos",
-				    node.name, i + 1);
-				conf_update_u8(
-				    config->conf_file, sub_keyname, sub_qos);
-			}
-		}
-	}
-	}
-}
-
 static http_msg
-post_config(http_msg *msg)
+post_config(http_msg *msg, const char *type)
 {
 	http_msg res = { .status = NNG_HTTP_STATUS_OK };
 
@@ -2413,11 +2005,116 @@ post_config(http_msg *msg)
 	conf * config    = get_global_conf();
 
 	if (cJSON_IsObject(conf_data)) {
-		update_main_conf(conf_data, config);
+		if (type != NULL) {
+			if (strcmp(type, "basic") == 0) {
+				cJSON *basic =
+				    cJSON_GetObjectItem(conf_data, "basic");
+				if (cJSON_IsObject(basic)) {
+					set_basic_config(basic, config);
+				}
 
-		cJSON *bridge = cJSON_GetObjectItem(conf_data, "bridge");
-		if (cJSON_IsObject(bridge)) {
-			update_bridge_conf(bridge, config);
+			} else if (strcmp(type, "tls") == 0) {
+				cJSON *tls =
+				    cJSON_GetObjectItem(conf_data, "tls");
+				if (cJSON_IsObject(tls)) {
+					set_tls_config(tls, config->conf_file,
+					    &config->tls, "");
+				}
+			} else if (strcmp(type, "auth") == 0) {
+				cJSON *auth =
+				    cJSON_GetObjectItem(conf_data, "auth");
+				if (cJSON_IsArray(auth)) {
+					set_auth_config(auth,
+					    config->conf_file, &config->auths);
+				}
+			} else if (strcmp(type, "auth_http") == 0) {
+				cJSON *auth_http = cJSON_GetObjectItem(
+				    conf_data, "auth_http");
+				if (cJSON_IsArray(auth_http)) {
+					set_auth_http_config(auth_http,
+					    config->conf_file, &config->auth_http);
+				}
+			} else if (strcmp(type, "websocket") == 0) {
+				cJSON *ws = cJSON_GetObjectItem(
+				    conf_data, "websocket");
+				if (cJSON_IsObject(ws)) {
+					set_websocket_config(ws,
+					    config->conf_file,
+					    &config->websocket);
+				}
+			} else if (strcmp(type, "http_server") == 0) {
+				cJSON *http = cJSON_GetObjectItem(
+				    conf_data, "http_server");
+				if (cJSON_IsObject(http)) {
+					set_http_config(http,
+					    config->conf_file,
+					    &config->http_server);
+				}
+			} else if (strcmp(type, "sqlite") == 0) {
+				cJSON *sqlite =
+				    cJSON_GetObjectItem(conf_data, "sqlite");
+				if (cJSON_IsObject(sqlite)) {
+					set_sqlite_config(sqlite,
+					    config->conf_file, &config->sqlite,
+					    "");
+				}
+			} else if (strcmp(type, "bridge") == 0) {
+			}
+#ifdef SUPP_AWS_BRIDGE
+			else if (strcmp(type, "aws_bridge") == 0) {
+			}
+#endif
+
+		} else {
+			cJSON *basic = cJSON_GetObjectItem(conf_data, "basic");
+			if (cJSON_IsObject(basic)) {
+				set_basic_config(basic, config);
+			}
+
+			cJSON *tls = cJSON_GetObjectItem(conf_data, "tls");
+			if (cJSON_IsObject(tls)) {
+				set_tls_config(
+				    tls, config->conf_file, &config->tls, "");
+			}
+
+			cJSON *auth = cJSON_GetObjectItem(conf_data, "auth");
+			if (cJSON_IsArray(auth)) {
+				set_auth_config(
+				    auth, config->conf_file, &config->auths);
+			}
+
+			cJSON *auth_http =
+			    cJSON_GetObjectItem(conf_data, "auth_http");
+			if (cJSON_IsArray(auth_http)) {
+				set_auth_http_config(auth_http,
+				    config->conf_file, &config->auth_http);
+			}
+
+			cJSON *ws =
+			    cJSON_GetObjectItem(conf_data, "websocket");
+			if (cJSON_IsObject(ws)) {
+				set_websocket_config(
+				    ws, config->conf_file, &config->websocket);
+			}
+
+			cJSON *http =
+			    cJSON_GetObjectItem(conf_data, "http_server");
+			if (cJSON_IsObject(http)) {
+				set_http_config(http, config->conf_file,
+				    &config->http_server);
+			}
+
+			cJSON *sqlite =
+			    cJSON_GetObjectItem(conf_data, "sqlite");
+			if (cJSON_IsObject(sqlite)) {
+				set_sqlite_config(sqlite, config->conf_file,
+				    &config->sqlite, "");
+			}
+
+			// TODO bridge
+			// TODO aws_bridge
+			// TODO webhook
+			// TODO log
 		}
 	}
 	cJSON *res_obj = cJSON_CreateObject();
