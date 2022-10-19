@@ -605,13 +605,13 @@ set_auth_http_req(cJSON *json, const char *conf_path, conf_auth_http_req *req,
 	char * url;
 	char * method;
 
-	getStringValue(json, item, "url", req->url, rv);
+	getStringValue(json, item, "url", url, rv);
 	if (rv == 0) {
 		conf_update2(conf_path, key_prefix, "", "url", url);
 		update_string(req->url, url);
 	}
 
-	getStringValue(json, item, "method", req->method, rv);
+	getStringValue(json, item, "method", method, rv);
 	if (rv == 0) {
 		conf_update2(conf_path, key_prefix, "", "method", method);
 		update_string(req->method, method);
@@ -655,64 +655,65 @@ set_auth_http_req(cJSON *json, const char *conf_path, conf_auth_http_req *req,
 			req->params[i] = NULL;
 		}
 		req_param = realloc(req_param,
-		    sizeof(conf_http_param) * cJSON_GetArraySize(params));
+		    sizeof(conf_http_param *) * cJSON_GetArraySize(params));
 
 		index = 0;
 		cJSON_ArrayForEach(item, params)
 		{
-			char *arg = cJSON_GetStringValue(item);
+			char *arg        = cJSON_GetStringValue(item);
+			req_param[index] = nng_zalloc(sizeof(conf_http_param));
 			if (strcasecmp(arg, "username") == 0) {
 				str_append(&param_str, "username");
 				str_append(&param_str, "=");
-				str_append(&param_str, "%%u");
+				str_append(&param_str, "%u");
 				update_string(
 				    req_param[index]->name, "username");
 				update_var(req_param[index]->type, USERNAME);
 			} else if (strcasecmp(arg, "password") == 0) {
 				str_append(&param_str, "password");
 				str_append(&param_str, "=");
-				str_append(&param_str, "%%P");
+				str_append(&param_str, "%P");
 				update_string(
 				    req_param[index]->name, "password");
 				update_var(req_param[index]->type, PASSWORD);
 			} else if (strcasecmp(arg, "clientid") == 0) {
 				str_append(&param_str, "clientid");
 				str_append(&param_str, "=");
-				str_append(&param_str, "%%c");
+				str_append(&param_str, "%c");
 				update_string(
 				    req_param[index]->name, "clientid");
 				update_var(req_param[index]->type, CLIENTID);
 			} else if (strcasecmp(arg, "access") == 0) {
 				str_append(&param_str, "access");
 				str_append(&param_str, "=");
-				str_append(&param_str, "%%A");
+				str_append(&param_str, "%A");
 				update_string(
 				    req_param[index]->name, "access");
 				update_var(req_param[index]->type, ACCESS);
 			} else if (strcasecmp(arg, "topic") == 0) {
 				str_append(&param_str, "topic");
 				str_append(&param_str, "=");
-				str_append(&param_str, "%%t");
+				str_append(&param_str, "%t");
 				update_string(req_param[index]->name, "topic");
 				update_var(req_param[index]->type, TOPIC);
 			} else if (strcasecmp(arg, "ipaddress") == 0) {
 				str_append(&param_str, "ipaddress");
 				str_append(&param_str, "=");
-				str_append(&param_str, "%%a");
+				str_append(&param_str, "%a");
 				update_string(
 				    req_param[index]->name, "ipaddress");
 				update_var(req_param[index]->type, IPADDRESS);
 			} else if (strcasecmp(arg, "sockport") == 0) {
 				str_append(&param_str, "sockport");
 				str_append(&param_str, "=");
-				str_append(&param_str, "%%p");
+				str_append(&param_str, "%p");
 				update_string(
 				    req_param[index]->name, "sockport");
 				update_var(req_param[index]->type, SOCKPORT);
 			} else if (strcasecmp(arg, "common") == 0) {
 				str_append(&param_str, "common");
 				str_append(&param_str, "=");
-				str_append(&param_str, "%%C");
+				str_append(&param_str, "%C");
 				update_string(
 				    req_param[index]->name, "common");
 				update_var(
@@ -720,21 +721,21 @@ set_auth_http_req(cJSON *json, const char *conf_path, conf_auth_http_req *req,
 			} else if (strcasecmp(arg, "protocol") == 0) {
 				str_append(&param_str, "protocol");
 				str_append(&param_str, "=");
-				str_append(&param_str, "%%r");
+				str_append(&param_str, "%r");
 				update_string(
 				    req_param[index]->name, "protocol");
 				update_var(req_param[index]->type, PROTOCOL);
 			} else if (strcasecmp(arg, "subject") == 0) {
 				str_append(&param_str, "subject");
 				str_append(&param_str, "=");
-				str_append(&param_str, "%%d");
+				str_append(&param_str, "%d");
 				update_string(
 				    req_param[index]->name, "protocol");
 				update_var(req_param[index]->type, PROTOCOL);
 			} else if (strcasecmp(arg, "mountpoint") == 0) {
 				str_append(&param_str, "mountpoint");
 				str_append(&param_str, "=");
-				str_append(&param_str, "%%m");
+				str_append(&param_str, "%m");
 				update_string(
 				    req_param[index]->name, "mountpoint");
 				update_var(req_param[index]->type, MOUNTPOINT);
@@ -750,7 +751,7 @@ set_auth_http_req(cJSON *json, const char *conf_path, conf_auth_http_req *req,
 		}
 		update_var(req->params, req_param);
 		update_var(req->param_count, index);
-		conf_update2(conf_path, key_prefix, ".", "params", param_str);
+		conf_update2(conf_path, key_prefix, "", "params", param_str);
 	}
 }
 
@@ -768,14 +769,14 @@ set_auth_http_config(cJSON *json, const char *conf_path, conf_auth_http *auth)
 
 	getBoolValue(json, item, "enable", enable, rv);
 	if (rv == 0) {
-		conf_update_bool(conf_path, "auth_http.enable", enable);
+		conf_update_bool(conf_path, "auth.http.enable", enable);
 		update_var(auth->enable, enable);
 	}
 
 	getNumberValue(json, item, "timeout", timeout, rv);
 	if (rv == 0) {
 		snprintf(tm_str, sizeof(tm_str), "%llus", timeout);
-		conf_update(conf_path, "auth_http.timeout", tm_str);
+		conf_update(conf_path, "auth.http.timeout", tm_str);
 		update_var(auth->timeout, timeout);
 	}
 
@@ -783,13 +784,13 @@ set_auth_http_config(cJSON *json, const char *conf_path, conf_auth_http *auth)
 	if (rv == 0) {
 		snprintf(tm_str, sizeof(tm_str), "%llus", connect_timeout);
 		conf_update(
-		    conf_path, "auth_http.connect_timeout", tm_str);
+		    conf_path, "auth.http.connect_timeout", tm_str);
 		update_var(auth->connect_timeout, connect_timeout);
 	}
 
 	getNumberValue(json, item, "pool_size", pool_size, rv);
 	if (rv == 0) {
-		conf_update_u64(conf_path, "auth_http.pool_size", pool_size);
+		conf_update_u64(conf_path, "auth.http.pool_size", pool_size);
 		update_var(auth->pool_size, pool_size);
 	}
 
