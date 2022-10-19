@@ -1,5 +1,7 @@
 #include "conf_api.h"
 
+static cJSON *auth_http_req_config(conf_auth_http_req *req);
+
 cJSON *
 basic_config(conf *config)
 {
@@ -62,9 +64,50 @@ auth_config(conf_auth *auth)
 	return auth_arr;
 }
 
+static cJSON *
+auth_http_req_config(conf_auth_http_req *req)
+{
+	cJSON *req_obj = cJSON_CreateObject();
+	cJSON_AddStringOrNullToObject(req_obj, "url", req->url);
+	cJSON_AddStringOrNullToObject(req_obj, "method", req->method);
+	cJSON *headers = cJSON_CreateObject();
+	for (size_t i = 0; i < req->header_count; i++) {
+		cJSON_AddStringToObject(
+		    headers, req->headers[i]->key, req->headers[i]->value);
+	}
+	cJSON_AddItemToObject(req_obj, "headers", headers);
+
+	cJSON *params = cJSON_CreateArray();
+	for (size_t i = 0; i < req->param_count; i++) {
+		cJSON *param = cJSON_CreateString(req->params[i]->name);
+		cJSON_AddItemToArray(params, param);
+	}
+
+	cJSON *tls = tls_config(&req->tls, false);
+	cJSON_AddItemToObject(req_obj, "tls", tls);
+
+	return req_obj;
+}
+
 cJSON *
 auth_http_config(conf_auth_http *auth_http)
 {
+	cJSON *auth_obj = cJSON_CreateObject();
+	cJSON_AddBoolToObject(auth_obj, "enable", auth_http->enable);
+	cJSON_AddNumberToObject(auth_obj, "timeout", auth_http->timeout);
+	cJSON_AddNumberToObject(
+	    auth_obj, "connect_timeout", auth_http->connect_timeout);
+	cJSON_AddNumberToObject(auth_obj, "pool_size", auth_http->pool_size);
+
+	cJSON *auth_req  = auth_http_req_config(&auth_http->auth_req);
+	cJSON *acl_req   = auth_http_req_config(&auth_http->acl_req);
+	cJSON *super_req = auth_http_req_config(&auth_http->super_req);
+
+	cJSON_AddItemToObject(auth_obj, "auth_req", auth_req);
+	cJSON_AddItemToObject(auth_obj, "acl_req", acl_req);
+	cJSON_AddItemToObject(auth_obj, "super_req", super_req);
+
+	return auth_obj;
 }
 
 cJSON *

@@ -1914,7 +1914,7 @@ get_config(http_msg *msg, const char *type)
 {
 	http_msg res = { .status = NNG_HTTP_STATUS_OK };
 
-	enum result_code code = SUCCESS;
+	enum result_code code = SUCCEED;
 
 	conf * config   = get_global_conf();
 	cJSON *conf_obj = cJSON_CreateObject();
@@ -1930,10 +1930,17 @@ get_config(http_msg *msg, const char *type)
 			cJSON *tls = tls_config(&config->tls, true);
 			cJSON_AddItemToObject(conf_obj, "tls", tls);
 
-		} else if (strcmp(type, "authorization") == 0) {
+		} else if (strcmp(type, "auth") == 0) {
 
 			cJSON *auth = auth_config(&config->auths);
-			cJSON_AddItemToObject(conf_obj, "authorization", auth);
+			cJSON_AddItemToObject(conf_obj, "auth", auth);
+
+		} else if (strcmp(type, "auth_http") == 0) {
+
+			cJSON *auth_http =
+			    auth_http_config(&config->auth_http);
+			cJSON_AddItemToObject(
+			    conf_obj, "auth_http", auth_http);
 
 		} else if (strcmp(type, "websocket") == 0) {
 
@@ -1975,7 +1982,10 @@ get_config(http_msg *msg, const char *type)
 		cJSON_AddItemToObject(conf_obj, "tls", tls);
 
 		cJSON *auth = auth_config(&config->auths);
-		cJSON_AddItemToObject(conf_obj, "authorization", auth);
+		cJSON_AddItemToObject(conf_obj, "auth", auth);
+
+		cJSON *auth_http = auth_http_config(&config->auth_http);
+		cJSON_AddItemToObject(conf_obj, "auth_http", auth_http);
 
 		cJSON *ws = websocker_config(&config->websocket);
 		cJSON_AddItemToObject(conf_obj, "websocket", ws);
