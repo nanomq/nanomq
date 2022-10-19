@@ -22,6 +22,39 @@
 #define REST_HOST "http://0.0.0.0:%u"
 #define REST_URL REST_HOST REST_URI_ROOT
 
+#define getNumberValue(obj, item, key, value, rv)           \
+	{                                                   \
+		item = cJSON_GetObjectItem(obj, key);       \
+		if (cJSON_IsNumber(item)) {                 \
+			value = cJSON_GetNumberValue(item); \
+			rv    = (0);                        \
+		} else {                                    \
+			rv = (-1);                          \
+		}                                           \
+	}
+
+#define getBoolValue(obj, item, key, value, rv)       \
+	{                                             \
+		item = cJSON_GetObjectItem(obj, key); \
+		if (cJSON_IsBool(item)) {             \
+			value = cJSON_IsTrue(item);   \
+			rv    = (0);                  \
+		} else {                              \
+			rv = (-1);                    \
+		}                                     \
+	}
+
+#define getStringValue(obj, item, key, value, rv)           \
+	{                                                   \
+		item = cJSON_GetObjectItem(obj, key);       \
+		if (cJSON_IsString(item)) {                 \
+			value = cJSON_GetStringValue(item); \
+			rv    = (0);                        \
+		} else {                                    \
+			rv = (-1);                          \
+		}                                           \
+	}
+
 enum result_code {
 	SUCCEED                        = 0,
 	RPC_ERROR                      = 101,
