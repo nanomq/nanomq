@@ -48,6 +48,7 @@ set(SOURCES
     aws_bridge.c
     nanomq_rule.c
     conf_api.c
+    cmd_proc.c
     )
     # db_cli.c)
 
