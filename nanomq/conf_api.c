@@ -820,3 +820,47 @@ set_auth_http_config(cJSON *json, const char *conf_path, conf_auth_http *auth)
 		    req, conf_path, &auth->super_req, "auth.http.super_req.");
 	}
 }
+
+void
+reload_basic_config(conf *cur_conf, conf *new_conf)
+{
+	cur_conf->property_size = new_conf->property_size;
+	cur_conf->max_packet_size = new_conf->max_packet_size;
+	cur_conf->client_max_packet_size = new_conf->client_max_packet_size;
+	cur_conf->msq_len = new_conf->msq_len;
+	cur_conf->qos_duration = new_conf->qos_duration;
+	cur_conf->backoff = new_conf->backoff;
+	cur_conf->allow_anonymous = new_conf->allow_anonymous;
+}
+
+void
+reload_sqlite_config(conf_sqlite *cur_conf, conf_sqlite *new_conf)
+{
+	cur_conf->flush_mem_threshold = new_conf->flush_mem_threshold;
+}
+
+void
+reload_auth_config(conf_auth *cur_conf, conf_auth *new_conf)
+{
+	for (size_t i = 0; i < cur_conf->count; i++) {
+		free(cur_conf->usernames[i]);
+		free(cur_conf->passwords[i]);
+		cur_conf->usernames[i] = NULL;
+		cur_conf->passwords[i] = NULL;
+	}
+	free(cur_conf->usernames);
+	free(cur_conf->passwords);
+	cur_conf->usernames = NULL;
+	cur_conf->passwords = NULL;
+
+	cur_conf->count = new_conf->count;
+	if (new_conf->count == 0) {
+		return;
+	}
+	cur_conf->usernames = nng_zalloc(sizeof(char *) * cur_conf->count);
+	cur_conf->passwords = nng_zalloc(sizeof(char *) * cur_conf->count);
+	for (size_t i = 0; i < new_conf->count; i++) {
+		cur_conf->usernames[i] = nng_strdup(new_conf->usernames[i]);
+		cur_conf->passwords[i] = nng_strdup(new_conf->passwords[i]);
+	}
+}

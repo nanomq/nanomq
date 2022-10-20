@@ -29,5 +29,8 @@ extern void set_websocket_config(
 extern void set_sqlite_config(cJSON *json, const char *conf_path,
     conf_sqlite *sqlite, const char *key_prefix);
 
+extern void reload_basic_config(conf *cur_conf, conf *new_conf);
+extern void reload_sqlite_config(conf_sqlite *cur_conf, conf_sqlite *new_conf);
+extern void reload_auth_config(conf_auth *cur_conf, conf_auth *new_conf);
 
 #endif
