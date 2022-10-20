@@ -1075,13 +1075,16 @@ print_usage(void)
 {
 	printf("Usage: nanomq { { start | restart [--url <url>] "
 	       "[--conf <path>] [-t, --tq_thread <num>]\n                     "
-	       "[-T, -max_tq_thread <num>] [-n, --parallel <num>] \n                     "
+	       "[-T, -max_tq_thread <num>] [-n, --parallel <num>] \n          "
+	       "           "
 	       "[-D, --qos_duration <num>] [--http] "
 	       "[-p, --port] [-d, --daemon] \n                     "
 	       "[--cacert <path>] [-E, --cert <path>] "
 	       "[--key <path>] \n                     "
-	       "[--keypass <password>] [--verify] [--fail] }\n            "
-	       "         | stop }\n\n");
+	       "[--keypass <password>] [--verify] [--fail] } \n             "
+	       "        "
+	       "| reload [--conf <path>] \n                     "
+	       "| stop }\n\n");
 	printf("Options: \n");
 	printf("  --url <url>                Specify listener's url: "
 	       "'nmq-tcp://host:port', \r\n                             "
@@ -1257,7 +1260,7 @@ predicate_url(conf *config, char *url)
 }
 
 int
-file_path_parse(int argc, char **argv, conf *config)
+file_path_parse(int argc, char **argv, char **file_path)
 {
 	int   idx = 2;
 	char *arg;
@@ -1272,8 +1275,8 @@ file_path_parse(int argc, char **argv, conf *config)
 			exit(0);
 			break;
 		case OPT_CONFFILE:
-			FREE_NONULL(config->conf_file);
-			config->conf_file = nng_strdup(arg);
+			FREE_NONULL(*file_path);
+			*file_path = nng_strdup(arg);
 			break;
 
 		default:
@@ -1465,7 +1468,7 @@ broker_start(int argc, char **argv)
 	conf_init(nanomq_conf);
 	read_env_conf(nanomq_conf);
 
-	if (!file_path_parse(argc, argv, nanomq_conf)) {
+	if (!file_path_parse(argc, argv, &nanomq_conf->conf_file)) {
 		conf_fini(nanomq_conf);
 		fprintf(stderr, "Cannot parse command line arguments, quit\n");
 		exit(EXIT_FAILURE);
@@ -1553,8 +1556,18 @@ broker_reload(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	if (argc == 2) {
-		start_cmd_client(argv[1]);
+	char *file_path = NULL;
+	if (!file_path_parse(argc, argv, &file_path)) {
+		fprintf(stderr, "Cannot parse command line arguments, quit\n");
+		exit(EXIT_FAILURE);
+	}
+
+	char *msg = encode_client_cmd(file_path);
+
+	start_cmd_client(msg);
+
+	if (msg) {
+		nng_strfree(msg);
 	}
 
 	return 0;
