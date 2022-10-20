@@ -43,7 +43,8 @@
 #include "include/rest_api.h"
 #include "include/webhook_post.h"
 #include "include/webhook_inproc.h"
-#include <include/nanomq.h>
+#include "include/cmd_proc.h"
+#include "include/nanomq.h"
 // #if defined(SUPP_RULE_ENGINE)
 // 	#include <foundationdb/fdb_c.h>
 // 	#include <foundationdb/fdb_c_options.g.h>
@@ -58,9 +59,6 @@
 // that you will probably run into limitations on the number of open file
 // descriptors if you set this too high. (If not for that limit, this could
 // be set in the thousands, each context consumes a couple of KB.)
-#ifndef PARALLEL
-#define PARALLEL 32
-#endif
 
 enum options {
 	OPT_HELP = 1,
@@ -1026,6 +1024,8 @@ broker(conf *nanomq_conf)
 			fatal("nng_listen " INPROC_SERVER_URL, rv);
 		}
 	}
+	
+	start_cmd_server(nanomq_conf);
 
 	for (i = 0; i < num_ctx; i++) {
 		server_cb(works[i]); // this starts them going (INIT state)
@@ -1539,6 +1539,25 @@ broker_stop(int argc, char **argv)
 	}
 	fprintf(stderr, "NanoMQ stopped.\n");
 	exit(EXIT_SUCCESS);
+}
+
+int
+broker_reload(int argc, char **argv)
+{
+	int pid = 0;
+	if (status_check(&pid) != 0) {
+		fprintf(stderr,
+		    "NanoMQ is not running, use command "
+		    "'nanomq start [--conf <path>]' to start a new instance."
+		    "\n");
+		exit(EXIT_FAILURE);
+	}
+
+	if (argc == 2) {
+		start_cmd_client(argv[1]);
+	}
+
+	return 0;
 }
 
 int

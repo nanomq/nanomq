@@ -67,7 +67,7 @@ print_version(void)
 static void
 print_help(void)
 {
-	printf("\nUsage: nanomq { start | stop | restart } [--help]\n");
+	printf("\nUsage: nanomq { start | stop | restart | reload } [--help]\n");
 	print_version();
 }
 
@@ -144,6 +144,8 @@ main(int argc, char **argv)
 		broker_stop(argc, argv);
 	} else if (strcmp(argv[1], "restart") == 0) {
 		broker_restart(argc, argv);
+	} else if (strcmp(argv[1], "reload") == 0) {
+		broker_reload(argc, argv);
 	} else if (strcmp(argv[1], "--help") == 0) {
 		broker_dflt(argc, argv);
 	} else {
