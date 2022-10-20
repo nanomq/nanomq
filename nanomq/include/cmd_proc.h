@@ -10,5 +10,6 @@
 
 extern void start_cmd_server(conf *config);
 extern void start_cmd_client(const char *cmd);
+extern char *encode_client_cmd(const char *conf_file);
 
 #endif //NANOMQ_CMD_PROC_H

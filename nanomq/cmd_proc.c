@@ -2,6 +2,7 @@
 #include "include/conf_api.h"
 #include "nng/protocol/reqrep0/rep.h"
 #include "nng/protocol/reqrep0/req.h"
+#include "nng/supplemental/nanolib/cJSON.h"
 #include "nng/supplemental/util/platform.h"
 
 struct cmd_work {
@@ -27,24 +28,45 @@ fatal(const char *func, int rv)
 }
 
 static int
-handle_reload(conf *config)
+handle_recv(const char *msg, conf *config, char **err_msg)
 {
-	if (config->conf_file != NULL) {
-		conf *new_conf = nng_alloc(sizeof(conf));
-		conf_init(new_conf);
-		new_conf->conf_file = nng_strdup(config->conf_file);
-		conf_parse(new_conf);
+	cJSON *obj = cJSON_Parse(msg);
+	cJSON *item;
+	int    rv;
+	char * conf_file = NULL;
+	char * cmd       = NULL;
 
-		reload_basic_config(config, new_conf);
-		reload_sqlite_config(&config->sqlite, &new_conf->sqlite);
-		reload_auth_config(&config->auths, &new_conf->auths);
+	getStringValue(obj, item, "cmd", cmd, rv);
 
-		conf_fini(new_conf);
-		return 0;
-	} else {
-		log_error("no config file to reload");
-		return 1;
+	if (rv != 0 || nng_strcasecmp(cmd, "reload") != 0) {
+		*err_msg = nng_strdup("Invalid command");
+		rv       = -1;
+		goto out;
 	}
+	getStringValue(obj, item, "conf_file", conf_file, rv);
+
+	if (rv != 0 || (conf_file == NULL && config->conf_file == NULL)) {
+		*err_msg = nng_strdup("conf_file is not specified");
+		rv       = -1;
+		goto out;
+	}
+
+	conf *new_conf = nng_alloc(sizeof(conf));
+	conf_init(new_conf);
+	new_conf->conf_file = conf_file != NULL
+	    ? nng_strdup(conf_file)
+	    : nng_strdup(config->conf_file);
+	conf_parse(new_conf);
+
+	reload_basic_config(config, new_conf);
+	reload_sqlite_config(&config->sqlite, &new_conf->sqlite);
+	reload_auth_config(&config->auths, &new_conf->auths);
+
+	conf_fini(new_conf);
+
+out:
+	cJSON_Delete(obj);
+	return rv;
 }
 
 static void
@@ -73,19 +95,14 @@ server_cb(void *arg)
 		char *cmd = (char *) nng_msg_body(msg);
 		log_debug("recv cmd : %s", cmd);
 		char *resp = NULL;
-		if (strcmp(cmd, "reload") == 0) {
-			log_debug("reload config");
-			if (handle_reload(work->config) == 0) {
-				resp = nng_strdup("reload succeed");
-			} else {
-				resp = nng_strdup(
-				    "no configuration file, reload failed");
-			}
-		} else {
-			resp = nng_strdup("invalid command");
+
+		if (handle_recv(cmd, work->config, &resp) == 0) {
+			resp = nng_strdup("reload succeed");
 		}
+
 		nng_msg_clear(msg);
 		nng_msg_append(msg, resp, strlen(resp) + 1);
+		nng_strfree(resp);
 
 		log_debug("send resp : %s", (char *) nng_msg_body(msg));
 
@@ -93,7 +110,6 @@ server_cb(void *arg)
 		work->msg   = NULL;
 		work->state = SEND;
 		nng_ctx_send(work->ctx, work->aio);
-		nng_strfree(resp);
 		break;
 
 	case SEND:
@@ -207,6 +223,17 @@ client(const char *cmd)
 
 	nng_free(buf, sz);
 	nng_close(sock);
+}
+
+char *
+encode_client_cmd(const char *conf_file)
+{
+	cJSON *obj = cJSON_CreateObject();
+	cJSON_AddStringToObject(obj, "cmd", "reload");
+	cJSON_AddStringToObject(obj, "conf_file", conf_file);
+	char *cmd = cJSON_PrintUnformatted(obj);
+	cJSON_Delete(obj);
+	return cmd;
 }
 
 void
