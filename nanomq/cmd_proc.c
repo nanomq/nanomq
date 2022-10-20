@@ -18,8 +18,6 @@ struct cmd_work {
 	conf *   config;
 };
 
-#define CMD_PROC_PARALLEL 2
-
 static void
 fatal(const char *func, int rv)
 {
@@ -28,11 +26,11 @@ fatal(const char *func, int rv)
 }
 
 static int
-handle_recv(const char *msg, conf *config, char **err_msg)
+handle_recv(const char *msg, size_t msg_len, conf *config, char **err_msg)
 {
-	cJSON *obj = cJSON_Parse(msg);
+	cJSON *obj = cJSON_ParseWithLength(msg, msg_len);
 	cJSON *item;
-	int    rv;
+	int    rv        = 0;
 	char * conf_file = NULL;
 	char * cmd       = NULL;
 
@@ -41,14 +39,14 @@ handle_recv(const char *msg, conf *config, char **err_msg)
 	if (rv != 0 || nng_strcasecmp(cmd, "reload") != 0) {
 		*err_msg = nng_strdup("Invalid command");
 		rv       = -1;
-		goto out;
+		goto err;
 	}
 	getStringValue(obj, item, "conf_file", conf_file, rv);
 
-	if (rv != 0 || (conf_file == NULL && config->conf_file == NULL)) {
+	if (rv != 0 && config->conf_file == NULL) {
 		*err_msg = nng_strdup("conf_file is not specified");
 		rv       = -1;
-		goto out;
+		goto err;
 	}
 
 	conf *new_conf = nng_alloc(sizeof(conf));
@@ -63,14 +61,16 @@ handle_recv(const char *msg, conf *config, char **err_msg)
 	reload_auth_config(&config->auths, &new_conf->auths);
 
 	conf_fini(new_conf);
+	cJSON_Delete(obj);
+	return 0;
 
-out:
+err:
 	cJSON_Delete(obj);
 	return rv;
 }
 
-static void
-server_cb(void *arg)
+void
+cmd_server_cb(void *arg)
 {
 	struct cmd_work *work = arg;
 	nng_msg *        msg;
@@ -85,18 +85,13 @@ server_cb(void *arg)
 		if ((rv = nng_aio_result(work->aio)) != 0) {
 			fatal("nng_recv_aio", rv);
 		}
-		msg         = nng_aio_get_msg(work->aio);
-		work->msg   = msg;
-		work->state = WAIT;
-		nng_sleep_aio(1, work->aio);
-		break;
-	case WAIT:
-		msg       = work->msg;
+		msg       = nng_aio_get_msg(work->aio);
 		char *cmd = (char *) nng_msg_body(msg);
 		log_debug("recv cmd : %s", cmd);
 		char *resp = NULL;
 
-		if (handle_recv(cmd, work->config, &resp) == 0) {
+		if (handle_recv(cmd, nng_msg_len(msg), work->config, &resp) ==
+		    0) {
 			resp = nng_strdup("reload succeed");
 		}
 
@@ -127,8 +122,8 @@ server_cb(void *arg)
 	}
 }
 
-static struct cmd_work *
-alloc_work(nng_socket sock, conf *config)
+cmd_work *
+alloc_cmd_work(nng_socket sock, conf *config)
 {
 	struct cmd_work *w;
 	int              rv;
@@ -136,7 +131,7 @@ alloc_work(nng_socket sock, conf *config)
 	if ((w = nng_alloc(sizeof(*w))) == NULL) {
 		fatal("nng_alloc", NNG_ENOMEM);
 	}
-	if ((rv = nng_aio_alloc(&w->aio, server_cb, w)) != 0) {
+	if ((rv = nng_aio_alloc(&w->aio, cmd_server_cb, w)) != 0) {
 		fatal("nng_aio_alloc", rv);
 	}
 	if ((rv = nng_ctx_open(&w->ctx, sock)) != 0) {
@@ -147,6 +142,7 @@ alloc_work(nng_socket sock, conf *config)
 	return (w);
 }
 
+#if 0
 // The server runs forever.
 static void
 server(void *arg)
@@ -165,7 +161,7 @@ server(void *arg)
 	}
 
 	for (i = 0; i < CMD_PROC_PARALLEL; i++) {
-		works[i] = alloc_work(sock, config);
+		works[i] = alloc_cmd_work(sock, config);
 	}
 
 	if ((rv = nng_listen(sock, url, NULL, 0)) != 0) {
@@ -173,7 +169,7 @@ server(void *arg)
 	}
 
 	for (i = 0; i < CMD_PROC_PARALLEL; i++) {
-		server_cb(works[i]); // this starts them going (INIT state)
+		cmd_server_cb(works[i]); // this starts them going (INIT state)
 	}
 
 	for (;;) {
@@ -187,6 +183,8 @@ start_cmd_server(conf *config)
 	nng_thread *t;
 	nng_thread_create(&t, server, config);
 }
+
+#endif
 
 static void
 client(const char *cmd)
@@ -216,7 +214,7 @@ client(const char *cmd)
 		fatal("nng_recv", rv);
 	}
 	if (sz > 0) {
-		printf("reload: %.*s\n", (int) sz, (const char *) buf);
+		printf("%.*s\n", (int) sz, (const char *) buf);
 	} else {
 		printf("no response from broker\n");
 	}
