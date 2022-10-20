@@ -1024,8 +1024,6 @@ broker(conf *nanomq_conf)
 			fatal("nng_listen " INPROC_SERVER_URL, rv);
 		}
 	}
-	
-	start_cmd_server(nanomq_conf);
 
 	for (i = 0; i < num_ctx; i++) {
 		server_cb(works[i]); // this starts them going (INIT state)
@@ -1033,6 +1031,28 @@ broker(conf *nanomq_conf)
 
 	if (nanomq_conf->http_server.enable) {
 		start_rest_server(nanomq_conf);
+	}
+
+	// ipc server for receiving commands from reload command
+	nng_socket cmd_sock;
+	cmd_work * cmd_works[CMD_PROC_PARALLEL];
+
+	/*  Create the socket. */
+	rv = nng_rep0_open(&cmd_sock);
+	if (rv != 0) {
+		fatal("nng_rep0_open", rv);
+	}
+
+	for (i = 0; i < CMD_PROC_PARALLEL; i++) {
+		cmd_works[i] = alloc_cmd_work(cmd_sock, nanomq_conf);
+	}
+
+	if ((rv = nng_listen(cmd_sock, CMD_IPC_URL, NULL, 0)) != 0) {
+		fatal("nng_listen", rv);
+	}
+
+	for (i = 0; i < CMD_PROC_PARALLEL; i++) {
+		cmd_server_cb(cmd_works[i]); // this starts them going (INIT state)
 	}
 
 #if (defined DEBUG) && (defined ASAN)

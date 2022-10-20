@@ -3,13 +3,17 @@
 
 #define CMD_IPC_URL "ipc:///tmp/nanomq_cmd.ipc"
 // #define CMD_IPC_URL "tcp://127.0.0.1:10000"
+#define CMD_PROC_PARALLEL 2
 
 #include "nng/nng.h"
-#include "nng/supplemental/nanolib/log.h"
 #include "nng/supplemental/nanolib/conf.h"
+#include "nng/supplemental/nanolib/log.h"
 
-extern void start_cmd_server(conf *config);
-extern void start_cmd_client(const char *cmd);
-extern char *encode_client_cmd(const char *conf_file);
+typedef struct cmd_work cmd_work;
 
-#endif //NANOMQ_CMD_PROC_H
+extern void      cmd_server_cb(void *arg);
+extern cmd_work *alloc_cmd_work(nng_socket sock, conf *config);
+extern void      start_cmd_client(const char *cmd);
+extern char *    encode_client_cmd(const char *conf_file);
+
+#endif // NANOMQ_CMD_PROC_H
