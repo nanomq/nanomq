@@ -69,19 +69,20 @@ struct client_ctx {
 
 typedef struct client_ctx client_ctx;
 
-int broker_start(int argc, char **argv);
-int broker_stop(int argc, char **argv);
-int broker_restart(int argc, char **argv);
-int broker_dflt(int argc, char **argv);
-void bridge_send_cb(void *arg);
+extern int  broker_start(int argc, char **argv);
+extern int  broker_stop(int argc, char **argv);
+extern int  broker_restart(int argc, char **argv);
+extern int  broker_reload(int argc, char **argv);
+extern int  broker_dflt(int argc, char **argv);
+extern void bridge_send_cb(void *arg);
 
 #ifdef STATISTICS
-uint64_t nanomq_get_message_in(void);
-uint64_t nanomq_get_message_out(void);
-uint64_t nanomq_get_message_drop(void);
+extern uint64_t nanomq_get_message_in(void);
+extern uint64_t nanomq_get_message_out(void);
+extern uint64_t nanomq_get_message_drop(void);
 #endif
-dbtree *get_broker_db(void);
-struct hashmap_s *get_hashmap(void);
-int rule_engine_insert_sql(nano_work *work);
+extern dbtree *          get_broker_db(void);
+extern struct hashmap_s *get_hashmap(void);
+extern int               rule_engine_insert_sql(nano_work *work);
 
 #endif
