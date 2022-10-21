@@ -1620,6 +1620,25 @@ broker_restart(int argc, char **argv)
 	exit(EXIT_SUCCESS);
 }
 
+int
+broker_reload(int argc, char **argv)
+{
+	char *file_path = NULL;
+	if (!file_path_parse(argc, argv, &file_path)) {
+		fprintf(stderr, "Cannot parse command line arguments, quit\n");
+		exit(EXIT_FAILURE);
+	}
+
+	char *msg = encode_client_cmd(file_path);
+
+	start_cmd_client(msg);
+
+	if (msg) {
+		nng_strfree(msg);
+	}
+
+	return 0;
+}
 
 int
 broker_stop(int argc, char **argv)
