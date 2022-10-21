@@ -38,18 +38,22 @@ handle_recv(const char *msg, size_t msg_len, conf *config, char **err_msg)
 
 	if (rv != 0 || nng_strcasecmp(cmd, "reload") != 0) {
 		*err_msg = nng_strdup("Invalid command");
-		rv       = -1;
+
 		goto err;
 	}
 	getStringValue(obj, item, "conf_file", conf_file, rv);
 
 	if (rv != 0 && config->conf_file == NULL) {
 		*err_msg = nng_strdup("conf_file is not specified");
-		rv       = -1;
 		goto err;
 	}
 
 	conf *new_conf = nng_alloc(sizeof(conf));
+	if (new_conf == NULL) {
+		*err_msg = nng_strdup("alloc memory failed");
+		goto err;
+	}
+
 	conf_init(new_conf);
 	new_conf->conf_file = conf_file != NULL
 	    ? nng_strdup(conf_file)
@@ -66,7 +70,7 @@ handle_recv(const char *msg, size_t msg_len, conf *config, char **err_msg)
 
 err:
 	cJSON_Delete(obj);
-	return rv;
+	return -1;
 }
 
 void
@@ -192,7 +196,6 @@ client(const char *cmd)
 	nng_socket  sock;
 	nng_dialer  dialer;
 	int         rv;
-	nng_msg *   msg;
 	char *      buf = NULL;
 	size_t      sz  = 0;
 	const char *url = CMD_IPC_URL;
