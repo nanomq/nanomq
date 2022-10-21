@@ -139,15 +139,15 @@ main(int argc, char **argv)
 	}
 
 	if (strcmp(argv[1], "start") == 0) {
-		broker_start(argc, argv);
+		return broker_start(argc, argv);
 	} else if (strcmp(argv[1], "stop") == 0) {
-		broker_stop(argc, argv);
+		return broker_stop(argc, argv);
 	} else if (strcmp(argv[1], "restart") == 0) {
-		broker_restart(argc, argv);
+		return broker_restart(argc, argv);
 	} else if (strcmp(argv[1], "reload") == 0) {
-		broker_reload(argc, argv);
+		return broker_reload(argc, argv);
 	} else if (strcmp(argv[1], "--help") == 0) {
-		broker_dflt(argc, argv);
+		return broker_dflt(argc, argv);
 	} else {
 		print_help();
 		return EXIT_FAILURE;
