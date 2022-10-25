@@ -48,6 +48,11 @@ handle_recv(const char *msg, size_t msg_len, conf *config, char **err_msg)
 		goto err;
 	}
 
+	if (conf_file != NULL && nano_file_exists(conf_file) == false) {
+		*err_msg = nng_strdup("conf_file does not exist");
+		goto err;
+	}
+
 	conf *new_conf = nng_alloc(sizeof(conf));
 	if (new_conf == NULL) {
 		*err_msg = nng_strdup("alloc memory failed");
