@@ -3,7 +3,7 @@
 
 #define CMD_IPC_URL "ipc:///tmp/nanomq_cmd.ipc"
 // #define CMD_IPC_URL "tcp://127.0.0.1:10000"
-#define CMD_PROC_PARALLEL 2
+#define CMD_PROC_PARALLEL 1
 
 #include "nng/nng.h"
 #include "nng/supplemental/nanolib/conf.h"
