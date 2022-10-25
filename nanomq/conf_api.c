@@ -21,9 +21,6 @@ get_basic_config(conf *config)
 	    basic, "max_taskq_thread", config->max_taskq_thread);
 	cJSON_AddNumberToObject(basic, "parallel", config->parallel);
 	cJSON_AddNumberToObject(basic, "property_size", config->property_size);
-	cJSON_AddNumberToObject(basic, "msq_len", config->msq_len);
-	cJSON_AddBoolToObject(
-	    basic, "allow_anonymous", config->allow_anonymous);
 	cJSON_AddBoolToObject(basic, "daemon", config->daemon);
 	cJSON_AddNumberToObject(
 	    basic, "max_packet_size", config->max_packet_size / 1024);
