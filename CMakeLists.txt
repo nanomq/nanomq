@@ -177,6 +177,8 @@ endif()
 if(NNG_ENABLE_QUIC)
   set(BUILD_QUIC_CLI ON)
   add_definitions(-DSUPP_QUIC)
+  # This is for enabling beta feature of MSQUIC such as CUBIC/BBR
+  add_definitions(-DQUIC_API_ENABLE_PREVIEW_FEATURES)
 endif()
 
 if(BUILD_NNG_PROXY)
