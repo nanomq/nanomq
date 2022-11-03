@@ -1,15 +1,25 @@
 FROM gcc:10 as builder
 
-COPY . /nanomq
-COPY deploy/docker/docker-entrypoint.sh /usr/bin/docker-entrypoint.sh
+COPY . /tmp/nanomq
 
 RUN apt update && apt install -y cmake
 
-WORKDIR /nanomq/build
+WORKDIR /tmp/nanomq/build
 
-RUN cmake .. && make install
+RUN cmake .. && make
 
-RUN ln -s /nanomq/build/nanomq/nanomq /usr/bin/nanomq
+FROM ubuntu:22.04
+
+WORKDIR /usr/local/nanomq
+
+COPY --from=builder /tmp/nanomq/build/nanomq/nanomq /usr/local/nanomq/
+COPY --from=builder /tmp/nanomq/build/nanomq_cli/nanomq_cli /usr/local/nanomq/
+ADD deploy/docker/docker-entrypoint.sh /usr/bin/docker-entrypoint.sh
+
+RUN ln -s /usr/local/nanomq/nanomq /usr/bin/nanomq && \
+    ln -s /usr/local/nanomq/nanomq_cli /usr/bin/nanomq_cli
+
+RUN apt update && apt install -y libatomic1
 
 EXPOSE 1883
 
