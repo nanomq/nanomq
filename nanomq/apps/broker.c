@@ -1047,6 +1047,8 @@ broker(conf *nanomq_conf)
 		cmd_works[i] = alloc_cmd_work(cmd_sock, nanomq_conf);
 	}
 
+	if (nano_file_exists(IPC_URL_PATH))
+		nng_file_delete(IPC_URL_PATH);
 	if ((rv = nng_listen(cmd_sock, CMD_IPC_URL, NULL, 0)) != 0) {
 		fatal("nng_listen", rv);
 	}
