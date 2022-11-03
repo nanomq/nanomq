@@ -2,6 +2,7 @@
 #define NANOMQ_CMD_PROC_H
 
 #define CMD_IPC_URL "ipc:///tmp/nanomq_cmd.ipc"
+#define IPC_URL_PATH "/tmp/nanomq_cmd.ipc"
 // #define CMD_IPC_URL "tcp://127.0.0.1:10000"
 #define CMD_PROC_PARALLEL 1
 
