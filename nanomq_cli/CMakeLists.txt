@@ -27,7 +27,7 @@ add_dependencies(nanomq_cli nng)
 if(BUILD_ZMQ_GATEWAY)
   find_package(ZeroMQ REQUIRED)
   include_directories("${ZeroMQ_INCLUDE_DIR}")
-  target_link_libraries(nanomq_cli libzmq)
+  target_link_libraries(nanomq_cli zmq)
 endif(BUILD_ZMQ_GATEWAY)
 
 install(TARGETS nanomq_cli RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
