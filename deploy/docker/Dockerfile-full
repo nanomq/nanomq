@@ -1,10 +1,9 @@
-FROM gcc:10 as builder
+FROM gcc:11 as builder
 
 COPY . /nanomq
-COPY deploy/docker/docker-entrypoint.sh /usr/bin/docker-entrypoint.sh
 
 RUN apt update \
-    && apt install -y cmake ninja-build libmbedtls-dev libtool pkg-config build-essential autoconf automake \
+    && apt install -y cmake ninja-build libmbedtls-dev libtool pkg-config build-essential autoconf automake g++ \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /tmp/zeromq
@@ -17,6 +16,7 @@ RUN wget https://github.com/zeromq/libzmq/releases/download/v4.3.4/zeromq-4.3.4.
     && cmake -G Ninja -DWITH_PERF_TOOL=OFF  \
     -DZMQ_BUILD_TESTS=OFF  \
     -DENABLE_CPACK=OFF  \
+    -DWITH_DOC=OFF \
     -DCMAKE_BUILD_TYPE=Release .. \
     && ninja install \
     && ldconfig
@@ -25,13 +25,29 @@ WORKDIR /nanomq/build
 
 RUN cmake -G Ninja -DENABLE_JWT=ON \
     -DNNG_ENABLE_TLS=ON \
+    -DNNG_ENABLE_QUIC=ON \
     -DNNG_ENABLE_SQLITE=ON \
     -DBUILD_ZMQ_GATEWAY=ON \
-    -DBUILD_BENCH=ON ..
+    -DBUILD_BENCH=ON .. && \
+    ninja
 
-RUN ninja install
+FROM ubuntu:22.04
 
-RUN ln -s /nanomq/build/nanomq/nanomq /usr/bin/nanomq
+WORKDIR /usr/local/nanomq
+
+COPY --from=builder /nanomq/build/nanomq/nanomq /usr/local/nanomq/
+COPY --from=builder /nanomq/build/nanomq_cli/nanomq_cli /usr/local/nanomq/
+COPY --from=builder /nanomq/build/nng/src/supplemental/quic/msquic/msquic/bin/Release/libmsquic.so.2 /usr/local/lib/
+COPY --from=builder /tmp/zeromq/zeromq-4.3.4/build/lib/libzmq*  /usr/local/lib/
+COPY --from=builder /tmp/zeromq/zeromq-4.3.4/include/zmq*    /usr/local/include/
+ADD etc/nanomq.conf /etc/nanomq.conf
+ADD etc/nanomq_gateway.conf /etc/nanomq_gateway.conf 
+ADD deploy/docker/docker-entrypoint.sh /usr/bin/docker-entrypoint.sh
+
+RUN ln -s /usr/local/nanomq/nanomq /usr/bin/nanomq && \
+    ln -s /usr/local/nanomq/nanomq_cli /usr/bin/nanomq_cli
+
+RUN apt update && apt install -y libatomic1
 
 EXPOSE 1883 8883 8081
 
