@@ -13,8 +13,8 @@ FROM alpine:3.11
 COPY --from=builder /nanomq/build/nanomq/nanomq /usr/local/nanomq/
 COPY --from=builder /nanomq/build/nanomq_cli/nanomq_cli /usr/local/nanomq/
 COPY --from=builder /usr/lib/libgcc_s.so.1 /usr/lib/
-ADD etc/nanomq.conf /etc/nanomq.conf
-ADD deploy/docker/docker-entrypoint.sh /usr/bin/docker-entrypoint.sh
+COPY etc/nanomq.conf /etc/nanomq.conf
+COPY deploy/docker/docker-entrypoint.sh /usr/bin/docker-entrypoint.sh
 
 WORKDIR /usr/local/nanomq
 

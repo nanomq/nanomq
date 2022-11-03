@@ -14,7 +14,7 @@ WORKDIR /usr/local/nanomq
 
 COPY --from=builder /tmp/nanomq/build/nanomq/nanomq /usr/local/nanomq/
 COPY --from=builder /tmp/nanomq/build/nanomq_cli/nanomq_cli /usr/local/nanomq/
-ADD deploy/docker/docker-entrypoint.sh /usr/bin/docker-entrypoint.sh
+COPY deploy/docker/docker-entrypoint.sh /usr/bin/docker-entrypoint.sh
 
 RUN ln -s /usr/local/nanomq/nanomq /usr/bin/nanomq && \
     ln -s /usr/local/nanomq/nanomq_cli /usr/bin/nanomq_cli
