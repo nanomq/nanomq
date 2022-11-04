@@ -778,34 +778,34 @@ process_request(http_msg *msg, conf_http_server *config, nng_socket *sock)
 		    uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "mqtt") == 0 &&
 		    strcmp(uri_ct->sub_tree[2]->node, "publish_batch") == 0) {
-			ret = post_mqtt_msg_batch(
-			    msg, sock, handle_publish_msg);
-		} else if (uri_ct->sub_count == 3 &&
-		    uri_ct->sub_tree[2]->end &&
-		    strcmp(uri_ct->sub_tree[1]->node, "mqtt") == 0 &&
-		    strcmp(uri_ct->sub_tree[2]->node, "subscribe") == 0) {
-			ret = post_mqtt_msg(msg, sock, handle_subscribe_msg);
-		} else if (uri_ct->sub_count == 3 &&
-		    uri_ct->sub_tree[2]->end &&
+			ret =
+			    post_mqtt_msg_batch(msg, sock, handle_publish_msg);
+		} /* else if (uri_ct->sub_count == 3 &&
+		     uri_ct->sub_tree[2]->end &&
+		     strcmp(uri_ct->sub_tree[1]->node, "mqtt") == 0 &&
+		     strcmp(uri_ct->sub_tree[2]->node, "subscribe") == 0) {
+		         ret = post_mqtt_msg(msg, sock, handle_subscribe_msg);
+		 }
+		else if (uri_ct->sub_count == 3 && uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "mqtt") == 0 &&
 		    strcmp(uri_ct->sub_tree[2]->node, "subscribe_batch") ==
 		        0) {
-			ret = post_mqtt_msg_batch(
-			    msg, sock, handle_subscribe_msg);
-		} else if (uri_ct->sub_count == 3 &&
-		    uri_ct->sub_tree[2]->end &&
+		        ret = post_mqtt_msg_batch(
+		            msg, sock, handle_subscribe_msg);
+		}
+		else if (uri_ct->sub_count == 3 && uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "mqtt") == 0 &&
 		    strcmp(uri_ct->sub_tree[2]->node, "unsubscribe") == 0) {
-			ret =
-			    post_mqtt_msg(msg, sock, handle_unsubscribe_msg);
+		        ret = post_mqtt_msg(msg, sock, handle_unsubscribe_msg);
 		} else if (uri_ct->sub_count == 3 &&
 		    uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "mqtt") == 0 &&
 		    strcmp(uri_ct->sub_tree[2]->node, "unsubscribe_batch") ==
 		        0) {
-			ret = post_mqtt_msg_batch(
-			    msg, sock, handle_unsubscribe_msg);
-		} else {
+		        ret = post_mqtt_msg_batch(
+		            msg, sock, handle_unsubscribe_msg);
+		} */
+		else {
 			status = NNG_HTTP_STATUS_NOT_FOUND;
 			code   = UNKNOWN_MISTAKE;
 			goto exit;
@@ -1827,14 +1827,15 @@ ctrl_cb(void *arg)
 	nng_msleep(2000);
 
 	if (nng_strcasecmp(action, "stop") == 0) {
-		argv[2] = "stop";
-		cmd     = mk_str(3, argv, " ");
+		argv[1] = "stop";
+		cmd     = mk_str(2, argv, " ");
 	} else if (nng_strcasecmp(action, "restart") == 0) {
-		argv[2] = "restart";
+		argv[1] = "restart";
 		cmd     = mk_str(argc, argv, " ");
 	}
 	nng_strfree(action);
 	if (cmd) {
+		log_info("run system cmd: '%s'", cmd);
 		system(cmd);
 		free(cmd);
 	}
@@ -2258,7 +2259,8 @@ properties_parse(property **properties, cJSON *json)
 		    strlen(number_str), true);
 		}
 		else if (cJSON_IsBool(item)) {
-			sprintf(number_str, "%s", cJSON_IsTrue(item) ? "true" : "false");
+			snprintf(number_str, 50, "%s",
+			    cJSON_IsTrue(item) ? "true" : "false");
 			sub_prop = property_set_value_strpair(USER_PROPERTY,
 		    item->string, strlen(item->string), number_str,
 		    strlen(number_str), true);

@@ -1565,7 +1565,7 @@ bytes_to_str(const unsigned char *src, char *dest, int src_len)
 	char szTmp[4] = { 0 };
 
 	for (i = 0; i < src_len; i++) {
-		sprintf(szTmp, "%02X ", src[i]);
+		snprintf(szTmp, 4, "%02X ", src[i]);
 		memcpy(dest + (i * 3), szTmp, 3);
 	}
 	return dest;
