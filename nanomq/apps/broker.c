@@ -1049,28 +1049,30 @@ broker(conf *nanomq_conf)
 	}
 
 	// ipc server for receiving commands from reload command
-	nng_socket cmd_sock;
-	cmd_work * cmd_works[CMD_PROC_PARALLEL];
+	if (nanomq_conf->ipc_internal) {
+		nng_socket cmd_sock;
+		cmd_work  *cmd_works[CMD_PROC_PARALLEL];
 
+		/*  Create the IPC socket for CMD Server. */
+		rv = nng_rep0_open(&cmd_sock);
+		if (rv != 0) {
+			fatal("CMD socket ERROR: nng_rep0_open", rv);
+		}
 
-	/*  Create the IPC socket for CMD Server. */
-	rv = nng_rep0_open(&cmd_sock);
-	if (rv != 0) {
-		fatal("CMD socket ERROR: nng_rep0_open", rv);
-	}
+		for (i = 0; i < CMD_PROC_PARALLEL; i++) {
+			cmd_works[i] = alloc_cmd_work(cmd_sock, nanomq_conf);
+		}
 
-	for (i = 0; i < CMD_PROC_PARALLEL; i++) {
-		cmd_works[i] = alloc_cmd_work(cmd_sock, nanomq_conf);
-	}
+		if (nano_file_exists(IPC_URL_PATH))
+			nng_file_delete(IPC_URL_PATH);
+		if ((rv = nng_listen(cmd_sock, CMD_IPC_URL, NULL, 0)) != 0) {
+			fatal("nng_listen", rv);
+		}
 
-	if (nano_file_exists(IPC_URL_PATH))
-		nng_file_delete(IPC_URL_PATH);
-	if ((rv = nng_listen(cmd_sock, CMD_IPC_URL, NULL, 0)) != 0) {
-		fatal("nng_listen", rv);
-	}
-
-	for (i = 0; i < CMD_PROC_PARALLEL; i++) {
-		cmd_server_cb(cmd_works[i]); // this starts them going (INIT state)
+		for (i = 0; i < CMD_PROC_PARALLEL; i++) {
+			cmd_server_cb(cmd_works[i]); // this starts them going
+			                             // (INIT state)
+		}
 	}
 
 #if (defined DEBUG) && (defined ASAN)
