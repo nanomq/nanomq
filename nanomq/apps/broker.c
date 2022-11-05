@@ -58,7 +58,8 @@
 // (Each one of these can be thought of as a request-reply loop.)  Note
 // that you will probably run into limitations on the number of open file
 // descriptors if you set this too high. (If not for that limit, this could
-// be set in the thousands, each context consumes a couple of KB.)
+// be set in the thousands, each context consumes a couple of KB.) Recommend to
+// set as the same as your CPU cores.
 
 enum options {
 	OPT_HELP = 1,
@@ -698,10 +699,21 @@ server_cb(void *arg)
 	}
 }
 
+/**
+ * independent callback API for bridging aio
+ */
 void bridge_send_cb(void *arg)
 {
+	int rv;
 	nano_work *work = arg;
+	nng_msg *msg = NULL;
 
+	if ((rv = nng_aio_result(work->bridge_aio)) != 0) {
+		log_warn("Bridging message send failed: %d", rv);
+	}
+	msg = nng_aio_get_msg(work->bridge_aio);
+	if (msg)
+		nng_msg_free(msg);
 }
 
 struct work *
@@ -796,11 +808,11 @@ get_broker_db(void)
 int
 broker(conf *nanomq_conf)
 {
+	int        rv;
+	int        i, j, count;
 	nng_socket sock;
 	nng_socket *bridge_sock;
 	nng_pipe   pipe_id;
-	int        rv;
-	int        i, j, count;
 	// add the num of other proto
 	uint64_t num_ctx = nanomq_conf->parallel;
 
