@@ -882,6 +882,7 @@ broker(conf *nanomq_conf)
 	}
 	log_debug("listener init finished");
 
+	// HTTP Service
 	nng_socket inproc_sock;
 
 	if (nanomq_conf->http_server.enable || nanomq_conf->bridge_mode) {
@@ -896,12 +897,14 @@ broker(conf *nanomq_conf)
 		}
 	}
 	log_debug("HTTP init finished");
-
+	// Webhook service
 	if (nanomq_conf->web_hook.enable) {
 		log_debug("Webhook service initialization");
 		start_webhook_service(nanomq_conf);
 	}
 	log_debug("webhook init finished");
+
+	// bridging client
 	if (nanomq_conf->bridge_mode) {
 		for (size_t t = 0; t < nanomq_conf->bridge.count; t++) {
 			conf_bridge_node *node = nanomq_conf->bridge.nodes[t];
@@ -933,7 +936,7 @@ broker(conf *nanomq_conf)
 #endif
 	log_debug("bridge init finished");
 	}
-
+	// MQTT Broker service
 	struct work **works = nng_zalloc(num_ctx * sizeof(struct work *));
 	// create broker ctx
 	for (i = 0; i < nanomq_conf->parallel; i++) {
@@ -1049,10 +1052,11 @@ broker(conf *nanomq_conf)
 	nng_socket cmd_sock;
 	cmd_work * cmd_works[CMD_PROC_PARALLEL];
 
-	/*  Create the socket. */
+
+	/*  Create the IPC socket for CMD Server. */
 	rv = nng_rep0_open(&cmd_sock);
 	if (rv != 0) {
-		fatal("nng_rep0_open", rv);
+		fatal("CMD socket ERROR: nng_rep0_open", rv);
 	}
 
 	for (i = 0; i < CMD_PROC_PARALLEL; i++) {
@@ -1407,6 +1411,7 @@ broker_parse_opts(int argc, char **argv, conf *config)
 		case OPT_HTTP_PORT:
 			config->http_server.port = atoi(arg);
 			break;
+#if defined(ENABLE_LOG)
 		case OPT_LOG_LEVEL:
 			config->log.level = log_level_num(arg);
 			break;
@@ -1445,7 +1450,7 @@ broker_parse_opts(int argc, char **argv, conf *config)
 				config->log.type &= ~LOG_TO_CONSOLE;
 			}
 			break;
-
+#endif
 		default:
 			break;
 		}
@@ -1540,11 +1545,11 @@ broker_start(int argc, char **argv)
 	}
 	// Active the configure for nanomq
 	active_conf(nanomq_conf);
-
+#if defined(ENABLE_LOG)
 	if ((rc = log_init(&nanomq_conf->log)) != 0) {
 		fatal("log_init", rc);
 	}
-
+#endif
 	print_conf(nanomq_conf);
 
 	if (store_pid()) {
