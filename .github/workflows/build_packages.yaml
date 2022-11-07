@@ -222,7 +222,6 @@ jobs:
         suffix:
         - ""
         - "-slim"
-        - "-alpine"
         - "-full"
 
     steps:

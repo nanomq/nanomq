@@ -31,7 +31,7 @@ RUN cmake -G Ninja -DENABLE_JWT=ON \
     -DBUILD_BENCH=ON .. && \
     ninja
 
-FROM ubuntu:22.04
+FROM debian:11-slim
 
 WORKDIR /usr/local/nanomq
 

@@ -1,4 +1,4 @@
-FROM gcc:10 as builder
+FROM gcc:11 as builder
 
 COPY . /nanomq
 
@@ -8,7 +8,7 @@ WORKDIR /nanomq/build
 
 RUN cmake .. && make
 
-FROM debian:10
+FROM debian:11-slim
 
 WORKDIR /usr/local/nanomq
 
