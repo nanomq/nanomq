@@ -2,7 +2,7 @@ FROM gcc:11 as builder
 
 COPY . /nanomq
 
-RUN apt update && apt install -y cmake
+RUN apt update && DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends  cmake && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /nanomq/build
 
@@ -20,7 +20,7 @@ COPY deploy/docker/docker-entrypoint.sh /usr/bin/docker-entrypoint.sh
 RUN ln -s /usr/local/nanomq/nanomq /usr/bin/nanomq && \
     ln -s /usr/local/nanomq/nanomq_cli /usr/bin/nanomq_cli
 
-RUN apt update && apt install -y libatomic1
+RUN apt update && DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends libatomic1 && rm -rf /var/lib/apt/lists/*
 
 EXPOSE 1883
 
