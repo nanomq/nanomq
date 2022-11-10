@@ -2,11 +2,11 @@ FROM gcc:10 as builder
 
 COPY . /nanomq
 
-RUN apt update && DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends  cmake && rm -rf /var/lib/apt/lists/*
+RUN apt update && DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends libmbedtls-dev cmake && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /nanomq/build
 
-RUN cmake .. && make
+RUN cmake -DNNG_ENABLE_TLS=ON -DNNG_ENABLE_SQLITE=ON .. && make
 
 FROM debian:10
 
@@ -22,7 +22,7 @@ RUN ln -s /usr/local/nanomq/nanomq /usr/bin/nanomq && \
 
 RUN apt update && DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends libatomic1 && rm -rf /var/lib/apt/lists/*
 
-EXPOSE 1883
+EXPOSE 1883 8883
 
 ENTRYPOINT ["/usr/bin/docker-entrypoint.sh"]
 
