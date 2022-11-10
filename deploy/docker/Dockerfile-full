@@ -3,7 +3,7 @@ FROM gcc:11 as builder
 COPY . /nanomq
 
 RUN apt update \
-    && DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends cmake libmbedtls-dev libtool pkg-config build-essential autoconf automake g++ \
+    && DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends cmake libmbedtls-dev libssl-dev libtool pkg-config build-essential autoconf automake g++ \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /tmp/zeromq
@@ -26,6 +26,7 @@ WORKDIR /nanomq/build
 RUN cmake -DENABLE_JWT=ON \
     -DNNG_ENABLE_TLS=ON \
     -DNNG_ENABLE_QUIC=ON \
+    -DQUIC_USE_SYSTEM_LIBCRYPTO=ON \
     -DNNG_ENABLE_SQLITE=ON \
     -DBUILD_ZMQ_GATEWAY=ON \
     -DBUILD_BENCH=ON .. && \
