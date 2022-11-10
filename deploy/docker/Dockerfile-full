@@ -3,7 +3,7 @@ FROM gcc:11 as builder
 COPY . /nanomq
 
 RUN apt update \
-    && DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends cmake ninja-build libmbedtls-dev libtool pkg-config build-essential autoconf automake g++ \
+    && DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends cmake libmbedtls-dev libtool pkg-config build-essential autoconf automake g++ \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /tmp/zeromq
@@ -13,23 +13,23 @@ RUN wget https://github.com/zeromq/libzmq/releases/download/v4.3.4/zeromq-4.3.4.
     && cd zeromq-4.3.4 \
     && mkdir build \
     && cd build \
-    && cmake -G Ninja -DWITH_PERF_TOOL=OFF  \
+    && cmake -DWITH_PERF_TOOL=OFF  \
     -DZMQ_BUILD_TESTS=OFF  \
     -DENABLE_CPACK=OFF  \
     -DWITH_DOC=OFF \
     -DCMAKE_BUILD_TYPE=Release .. \
-    && ninja install \
+    && make install \
     && ldconfig
 
 WORKDIR /nanomq/build
 
-RUN cmake -G Ninja -DENABLE_JWT=ON \
+RUN cmake -DENABLE_JWT=ON \
     -DNNG_ENABLE_TLS=ON \
     -DNNG_ENABLE_QUIC=ON \
     -DNNG_ENABLE_SQLITE=ON \
     -DBUILD_ZMQ_GATEWAY=ON \
     -DBUILD_BENCH=ON .. && \
-    ninja
+    make -msoft-float
 
 FROM ubuntu:22.04
 
