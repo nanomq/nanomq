@@ -20,7 +20,7 @@ COPY deploy/docker/docker-entrypoint.sh /usr/bin/docker-entrypoint.sh
 RUN ln -s /usr/local/nanomq/nanomq /usr/bin/nanomq && \
     ln -s /usr/local/nanomq/nanomq_cli /usr/bin/nanomq_cli
 
-RUN apt update && DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends libatomic1 && rm -rf /var/lib/apt/lists/*
+RUN apt update && DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends libmbedtls-dev libatomic1 && rm -rf /var/lib/apt/lists/*
 
 EXPOSE 1883 8883
 

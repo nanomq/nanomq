@@ -227,16 +227,17 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - run: git submodule update --init --recursive
-    - name: build docker
-      run: docker build -t emqx/nanomq:$(git describe --tags --always)${{ matrix.suffix }} -f deploy/docker/Dockerfile${{ matrix.suffix }} .
+    - run: docker build -t emqx/nanomq:$(git describe --tags --always)${{ matrix.suffix }} -f deploy/docker/Dockerfile${{ matrix.suffix }} .
+    - run: docker run -d --name nanomq $(docker images emqx/nanomq -q | head -1)
     - name: test docker
       run: |
         set -e -x -u
         sudo apt update && sudo apt install -y mosquitto-clients
-        ip_address=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $(docker run -d $(docker images emqx/nanomq -q | head -1)))
+        ip_address=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' nanomq)
         sleep 5
         mosquitto_pub -h $ip_address -t 'topic/A' -m 'test'
-        docker rm -f $(docker ps -a -q)
+    - if: failure()
+      run: docker logs nanomq
     - uses: docker/setup-qemu-action@v1
     - uses: docker/setup-buildx-action@v1
     - uses: docker/metadata-action@v3
