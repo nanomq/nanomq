@@ -205,6 +205,7 @@ client(const char *url, nng_socket *sock_ret)
 	nng_msg *msg;
 	nng_mqtt_msg_alloc(&msg, 0);
 	nng_mqtt_msg_set_packet_type(msg, NNG_MQTT_CONNECT);
+	nng_mqtt_msg_set_connect_proto_version(msg, conf_g->proto_ver);
 	nng_mqtt_msg_set_connect_keep_alive(msg, conf_g->keepalive);
 	nng_mqtt_msg_set_connect_clean_session(msg, conf_g->clean_start);
 	if (conf_g->username) {
@@ -377,7 +378,7 @@ int
 gateway_start(int argc, char **argv)
 {
 	zmq_gateway_conf *conf =
-	    (zmq_gateway_conf *) zmalloc(sizeof(zmq_gateway_conf));
+	    (zmq_gateway_conf *) nng_alloc(sizeof(zmq_gateway_conf));
 	if (conf == NULL) {
 		fprintf(stderr, "Memory alloc error.\n");
 		exit(EXIT_FAILURE);
