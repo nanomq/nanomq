@@ -386,7 +386,7 @@ gateway_start(int argc, char **argv)
 
 	gateway_conf_init(conf);
 	gateway_parse_opts(argc, argv, conf);
-	conf_gateway_parse(conf);
+	conf_gateway_parse_ver2(conf);
 	if (-1 != gateway_conf_check_and_set(conf)) {
 		zmq_gateway(conf);
 	}
