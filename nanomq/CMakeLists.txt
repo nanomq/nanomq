@@ -49,6 +49,7 @@ set(SOURCES
     nanomq_rule.c
     conf_api.c
     cmd_proc.c
+    acl_handler.c
     )
     # db_cli.c)
 
