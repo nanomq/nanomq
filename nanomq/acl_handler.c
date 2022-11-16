@@ -23,8 +23,9 @@ auth_acl(conf *config, acl_action_type act_type, conn_param *param,
 
 	conf_acl *acl = &config->acl;
 
-	bool match  = false;
-	bool result = false;
+	bool match     = false;
+	bool sub_match = true;
+	bool result    = false;
 
 	for (size_t i = 0; i < acl->rule_count; i++) {
 		acl_rule *      rule   = acl->rules[i];
@@ -52,15 +53,23 @@ auth_acl(conf *config, acl_action_type act_type, conn_param *param,
 				    rule->rule_ct.array.rules[j];
 				switch (sub_rule->rule_type) {
 				case ACL_USERNAME:
-					match &= match_rule_content_str(
-					    &sub_rule->rule_ct,
-					    conn_param_get_username(param));
+					if (!match_rule_content_str(
+					        &sub_rule->rule_ct,
+					        conn_param_get_username(
+					            param))) {
+						sub_match = false;
+						break;
+					}
 					break;
 
 				case ACL_CLIENTID:
-					match &= match_rule_content_str(
-					    &sub_rule->rule_ct,
-					    conn_param_get_clientid(param));
+					if (!match_rule_content_str(
+					        &sub_rule->rule_ct,
+					        conn_param_get_clientid(
+					            param))) {
+						sub_match = false;
+						break;
+					}
 					break;
 
 					// TODO Not supported yet
@@ -70,9 +79,12 @@ auth_acl(conf *config, acl_action_type act_type, conn_param *param,
 				default:
 					break;
 				}
-				if (!match) {
+				if (!sub_match) {
 					break;
 				}
+			}
+			if (sub_match) {
+				match = true;
 			}
 			break;
 
