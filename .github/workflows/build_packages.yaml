@@ -29,7 +29,7 @@ jobs:
         - deb
         build_type:
         - ""
-        - "-rqlite"
+        - "-sqlite"
         include:
         - arch: [amd64, gcc, g++]
           package_type: deb
