@@ -1,0 +1,243 @@
+FROM ubuntu:22.04
+
+ARG LIB_DIR_ARM=/usr/arm-linux-gnueabihf
+ARG LIB_DIR_AARCH64=/usr/aarch64-linux-gnu
+
+
+RUN apt update \
+    && apt install -y --no-install-recommends \
+    gcc g++ \
+    gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf \
+    gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
+    cmake libmbedtls-dev libssl-dev libtool wget \
+    pkg-config build-essential autoconf automake \
+    ca-certificates git python3 uuid-dev 
+
+# install sodium for x86_64
+WORKDIR /tmp/sodium
+
+RUN wget https://download.libsodium.org/libsodium/releases/libsodium-1.0.18-stable.tar.gz \
+    && tar zxf libsodium-1.0.18-stable.tar.gz \
+    && cd libsodium-stable \
+    && mkdir build \
+    && cd build \
+    && ../configure \
+    && make install \
+    && cd ../ && rm -rf ./build 
+
+# install sodium for arm
+WORKDIR /tmp/sodium
+
+RUN cd libsodium-stable \
+    && mkdir build \
+    && cd build \
+    && ../configure --prefix=${LIB_DIR_ARM} --host=arm-linux-gnueabihf \
+    && make install \
+    && cd ../ && rm -rf ./build 
+
+# install sodium for aarch64
+WORKDIR /tmp/sodium
+
+RUN cd libsodium-stable \
+    && mkdir build \
+    && cd build \
+    && ../configure --prefix=${LIB_DIR_AARCH64} --host=aarch64-linux-gnu \ 
+    && make install \
+    && cd ../ && rm -rf ./build 
+
+
+WORKDIR /tmp/zeromq
+
+## install zeromq for x86_64
+
+RUN wget https://github.com/zeromq/libzmq/releases/download/v4.3.4/zeromq-4.3.4.tar.gz \
+    && tar zxf zeromq-4.3.4.tar.gz \
+    && cd zeromq-4.3.4 \
+    && mkdir build \
+    && cd build \
+    && cmake -DWITH_PERF_TOOL=OFF  \
+    -DZMQ_BUILD_TESTS=OFF  \
+    -DENABLE_CPACK=OFF  \
+    -DWITH_DOC=OFF \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DWITH_LIBBSD=OFF .. \
+    && make install \
+    && cd ../ && rm -rf ./build
+
+## install zeromq for arm
+WORKDIR /tmp/zeromq
+
+RUN cd zeromq-4.3.4 \
+    && mkdir build \
+    && cd build \
+    && cmake -DWITH_PERF_TOOL=OFF      \
+    -DCMAKE_C_COMPILER=arm-linux-gnueabihf-gcc     \
+    -DCMAKE_CXX_COMPILER=arm-linux-gnueabihf-g++     \
+    -DZMQ_BUILD_TESTS=OFF      \
+    -DENABLE_CPACK=OFF      \
+    -DWITH_DOC=OFF     \
+    -DCMAKE_BUILD_TYPE=Release     \
+    -DCMAKE_INSTALL_PREFIX=${LIB_DIR_ARM}     \
+    -DCMAKE_STAGING_PREFIX=${LIB_DIR_ARM}     \
+    -DCMAKE_PREFIX_PATH=${LIB_DIR_ARM} \
+    -DCMAKE_CROSSCOMPILING=ON \
+    -DWITH_LIBBSD=OFF .. \
+    && make install \
+    && cd ../ && rm -rf ./build 
+
+
+## install zeromq for aarch64
+WORKDIR /tmp/zeromq
+
+RUN cd zeromq-4.3.4 \
+    && mkdir build \
+    && cd build \
+    && cmake -DWITH_PERF_TOOL=OFF      \
+    -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc    \
+    -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++     \
+    -DZMQ_BUILD_TESTS=OFF      \
+    -DENABLE_CPACK=OFF      \
+    -DWITH_DOC=OFF     \
+    -DCMAKE_BUILD_TYPE=Release     \
+    -DCMAKE_INSTALL_PREFIX=${LIB_DIR_AARCH64}     \
+    -DCMAKE_STAGING_PREFIX=${LIB_DIR_AARCH64}     \
+    -DCMAKE_PREFIX_PATH=${LIB_DIR_AARCH64} \
+    -DCMAKE_CROSSCOMPILING=ON \
+    -DWITH_LIBBSD=OFF .. \
+    && make install \
+    && cd ../ && rm -rf ./build 
+
+
+## install zeromq for x86_64
+WORKDIR /tmp/mbedtls
+
+RUN wget https://github.com/Mbed-TLS/mbedtls/archive/refs/tags/v3.2.1.tar.gz -O mbedtls-3.2.1.tar.gz\
+    && tar zxf mbedtls-3.2.1.tar.gz \
+    && cd mbedtls-3.2.1 \  
+    && mkdir build && cd build \ 
+    && cmake  -DCMAKE_BUILD_TYPE=Release     \
+    -DENABLE_TESTING=OFF .. \
+    && make install \
+    && cd ../ && rm -rf ./build 
+
+
+## install zeromq for arm
+WORKDIR /tmp/mbedtls
+
+RUN cd mbedtls-3.2.1 \  
+    && mkdir build && cd build \
+    && cmake  -DCMAKE_BUILD_TYPE=Release     \
+    -DENABLE_TESTING=OFF \
+    -DCMAKE_C_COMPILER=arm-linux-gnueabihf-gcc    \
+    -DCMAKE_CXX_COMPILER=arm-linux-gnueabihf-g++     \
+    -DCMAKE_INSTALL_PREFIX=${LIB_DIR_ARM}     \
+    -DCMAKE_STAGING_PREFIX=${LIB_DIR_ARM}     \
+    -DCMAKE_PREFIX_PATH=${LIB_DIR_ARM} .. \
+    && make install \
+    && cd ../ && rm -rf ./build 
+
+## install zeromq for aarch64
+WORKDIR /tmp/mbedtls
+
+RUN cd mbedtls-3.2.1 \  
+    && mkdir build && cd build \
+    && cmake  -DCMAKE_BUILD_TYPE=Release     \
+    -DENABLE_TESTING=OFF \
+    -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc    \
+    -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++     \
+    -DCMAKE_INSTALL_PREFIX=${LIB_DIR_AARCH64}     \
+    -DCMAKE_STAGING_PREFIX=${LIB_DIR_AARCH64}     \
+    -DCMAKE_PREFIX_PATH=${LIB_DIR_AARCH64} .. \
+    && make install \
+    && cd ../ && rm -rf ./build 
+
+# install uuid for arm
+WORKDIR /tmp/libuuid
+
+RUN wget https://sourceforge.net/projects/libuuid/files/libuuid-1.0.3.tar.gz/download -O libuuid-1.0.3.tar.gz \
+    && tar zxf libuuid-1.0.3.tar.gz \
+    && cd  libuuid-1.0.3 \
+    && mkdir build \
+    && cd build  \
+    && ../configure --prefix=${LIB_DIR_ARM} --host=arm-linux-gnueabihf \
+    && make install \
+    && cd ../ && rm -rf build 
+
+# install uuid for aarch64
+WORKDIR /tmp/libuuid
+
+RUN cd  libuuid-1.0.3 \
+    && mkdir build \
+    && cd build  \
+    && ../configure --prefix=${LIB_DIR_AARCH64} --host=aarch64-linux-gnu \
+    && make install \
+    && cd ../ && rm -rf build 
+
+
+COPY ./ /tmp/nanomq
+
+# # install nanomq for x86_64
+WORKDIR /tmp/nanomq
+
+RUN mkdir build \
+    && cd build \
+    && cmake -DENABLE_JWT=ON \
+    -DNNG_ENABLE_TLS=ON     \
+    -DNNG_ENABLE_QUIC=ON    \
+    -DNNG_ENABLE_SQLITE=ON  \
+    -DBUILD_ZMQ_GATEWAY=OFF  \
+    -DBUILD_BENCH=ON        \
+    -DNNG_TESTS=OFF .. \
+    && make install \
+    && cd ../ && rm -rf ./build 
+
+# # # install nanomq for arm
+WORKDIR /tmp/nanomq
+
+RUN mkdir build \
+    && cd build \
+    && cmake -DENABLE_JWT=ON \
+    -DNNG_ENABLE_TLS=ON     \
+    -DNNG_ENABLE_QUIC=ON    \
+    -DNNG_ENABLE_SQLITE=ON  \
+    -DCMAKE_CROSSCOMPILING=ON \
+    -DBUILD_ZMQ_GATEWAY=ON  \
+    -DBUILD_BENCH=ON        \
+    -DCMAKE_TARGET_ARCHITECTURE=arm  \
+    toolchains $PWD/../nng/extern/msquic/cmake/toolchains/arm-linux.cmake  \
+    -DGNU_MACHINE=arm-linux-gnueabihf \
+    -DONEBRANCH=1 \
+    -DCMAKE_C_COMPILER=arm-linux-gnueabihf-gcc    \
+    -DCMAKE_CXX_COMPILER=arm-linux-gnueabihf-g++     \
+    -DCMAKE_INSTALL_PREFIX=${LIB_DIR_ARM}     \
+    -DCMAKE_STAGING_PREFIX=${LIB_DIR_ARM}     \
+    -DCMAKE_PREFIX_PATH=${LIB_DIR_ARM}      \
+    -DNNG_TESTS=OFF .. \
+    && make install \
+    && cd ../ && rm -rf ./build 
+
+
+# # # install nanomq for aarch64
+WORKDIR /tmp/nanomq
+
+RUN mkdir build \
+    && cd build \
+    && cmake -DENABLE_JWT=ON \
+    -DNNG_ENABLE_TLS=ON     \
+    -DNNG_ENABLE_QUIC=ON    \
+    -DNNG_ENABLE_SQLITE=ON  \
+    -DCMAKE_CROSSCOMPILING=ON \
+    -DBUILD_ZMQ_GATEWAY=ON  \
+    -DBUILD_BENCH=ON        \
+    -DCMAKE_TARGET_ARCHITECTURE=arm64  \
+    toolchains $PWD/../nng/extern/msquic/cmake/toolchains/aarch64-linux.cmake  \
+    -DGNU_MACHINE=aarch64-linux-gnu \
+    -DONEBRANCH=1 \
+    -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc   \
+    -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
+    -DCMAKE_INSTALL_PREFIX=${LIB_DIR_AARCH64}     \
+    -DCMAKE_STAGING_PREFIX=${LIB_DIR_AARCH64}     \
+    -DCMAKE_PREFIX_PATH=${LIB_DIR_AARCH64} \
+    -DNNG_TESTS=OFF  ..     \
+    && make install \
+    && cd ../ && rm -rf ./build 
