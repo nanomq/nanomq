@@ -18,12 +18,12 @@ jobs:
     strategy:
       matrix:
         arch:
-        - [amd64, gcc, g++]
-        - [arm64, aarch64-linux-gnu-gcc, aarch64-linux-gnu-g++]
-        - [mips, mips-linux-gnu-gcc, mips-linux-gnu-g++]
-        - [riscv64, riscv64-linux-gnu-gcc, riscv64-linux-gnu-g++]
-        - [armhf, arm-linux-gnueabihf-gcc, arm-linux-gnueabihf-g++]
-        - [armel, arm-linux-gnueabi-gcc, arm-linux-gnueabi-g++]
+        - [amd64, gcc, g++, x86_64-linux-gnu, /usr/local]
+        - [arm64, aarch64-linux-gnu-gcc, aarch64-linux-gnu-g++, arm-linux-gnueabihf, /usr/aarch64-linux-gnu]
+        - [mips, mips-linux-gnu-gcc, mips-linux-gnu-g++, mips-linux-gnu, /usr/mips-linux-gnu]
+        - [riscv64, riscv64-linux-gnu-gcc, riscv64-linux-gnu-g++, riscv64-linux-gnu, /usr/riscv64-linux-gnu]
+        - [armhf, arm-linux-gnueabihf-gcc, arm-linux-gnueabihf-g++, arm-linux-gnueabihf, /usr/arm-linux-gnueabihf]
+        - [armel, arm-linux-gnueabi-gcc, arm-linux-gnueabi-g++, arm-linux-gnueabi, /usr/arm-linux-gnueabi]
         package_type:
         - rpm
         - deb
@@ -119,7 +119,16 @@ jobs:
         cmake -DCMAKE_C_COMPILER=${{ matrix.arch[1] }} -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }} ..
         cmake --build .
         sudo make install
-        cd ../..
+        cd ../../
+
+        wget https://download.libsodium.org/libsodium/releases/libsodium-1.0.18-stable.tar.gz 
+        tar zxf libsodium-1.0.18-stable.tar.gz 
+        cd libsodium-stable 
+        mkdir build 
+        cd build 
+        ../configure --prefix=${{ matrix.arch[3] }}  --host=${{ matrix.arch[4] }} 
+        sudo make install 
+        cd ../../
 
         wget https://github.com/zeromq/libzmq/releases/download/v4.3.4/zeromq-4.3.4.tar.gz 
         tar zxf zeromq-4.3.4.tar.gz 
@@ -128,7 +137,10 @@ jobs:
         cd build 
         cmake -DWITH_PERF_TOOL=OFF      \
         -DCMAKE_C_COMPILER=${{ matrix.arch[1] }}    \
-        -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }}     \
+        -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }}   \
+        -DCMAKE_INSTALL_PREFIX=${{ matrix.arch[4] }}   \
+        -DCMAKE_STAGING_PREFIX=${{ matrix.arch[4] }}   \
+        -DCMAKE_PREFIX_PATH=${{ matrix.arch[4] }} \
         -DZMQ_BUILD_TESTS=OFF      \
         -DENABLE_CPACK=OFF      \
         -DWITH_DOC=OFF     \
@@ -136,7 +148,7 @@ jobs:
         -DCMAKE_CROSSCOMPILING=ON \
         -DWITH_LIBBSD=OFF .. \
         sudo make install 
-        cd ../..
+        cd ../../
 
         mkdir -p build
         cd build
