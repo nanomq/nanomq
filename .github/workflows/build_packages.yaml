@@ -1,5 +1,9 @@
 name: Build packages
 
+concurrency:
+  group: build-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
   pull_request:
@@ -14,13 +18,31 @@ jobs:
     strategy:
       matrix:
         arch:
-        - [x86_64, gcc, g++]
         - [amd64, gcc, g++]
         - [arm64, aarch64-linux-gnu-gcc, aarch64-linux-gnu-g++]
         - [mips, mips-linux-gnu-gcc, mips-linux-gnu-g++]
         - [riscv64, riscv64-linux-gnu-gcc, riscv64-linux-gnu-g++]
         - [armhf, arm-linux-gnueabihf-gcc, arm-linux-gnueabihf-g++]
         - [armel, arm-linux-gnueabi-gcc, arm-linux-gnueabi-g++]
+        package_type:
+        - rpm
+        - deb
+        build_type:
+        - ""
+        - "-rqlite"
+        include:
+        - arch:  [amd64, gcc, g++]
+          package_type: deb
+          build_type: "-msquic"
+        - arch:  [amd64, gcc, g++]
+          package_type: rpm
+          build_type: "-msquic"
+        - arch:  [arm64, aarch64-linux-gnu-gcc, aarch64-linux-gnu-g++]
+          package_type: deb
+          build_flag: "-msquic"
+        - arch:  [arm64, aarch64-linux-gnu-gcc, aarch64-linux-gnu-g++]
+          package_type: rpm
+          build_flag: "-msquic"
       fail-fast: false
 
     steps:
@@ -41,6 +63,31 @@ jobs:
 
     - uses: actions/checkout@v1
     - run: git submodule update --init --recursive
+
+    - name: prepare
+      id: prepare
+      run: |
+        arch="${{ matrix.arch[0] }}"
+        if [ "$arch" = "amd64" ] && [ "${{ matrix.package_type }}" = "rpm" ]; then
+          arch="x86_64"
+        fi
+
+        pkg_name="nanomq-$(git describe --abbrev=0 --tags)-linux-${arch}${{ matrix.build_type }}.${{ matrix.package_type }}"
+
+        make_flags=""
+        if [ "${{ matrix.build_type }}" = "" ]; then
+          make_flags="-DCMAKE_C_COMPILER=${{ matrix.arch[1] }} -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }} -DNNG_ENABLE_TLS=ON"
+        fi
+        if [ "${{ matrix.build_type }}" = "rqlite" ]; then
+          make_flags="-DCMAKE_C_COMPILER=${{ matrix.arch[1] }} -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }} -DNNG_ENABLE_TLS=ON -DNNG_ENABLE_SQLITE=ON"
+        fi
+        if [ "${{ matrix.build_type }}" = "msquic" ]; then
+          make_flags="-DNNG_ENABLE_QUIC=ON"
+        fi
+
+        echo "arch=${arch}" >> $GITHUB_OUTPUT
+        echo "pkg_name=${pkg_name}" >> $GITHUB_OUTPUT
+        echo "make_flags=${make_flags}" >> $GITHUB_OUTPUT
     - name: build
       run: |
         set -eu
@@ -53,135 +100,30 @@ jobs:
 
         mkdir -p build
         cd build
-        cmake -DCMAKE_C_COMPILER=${{ matrix.arch[1] }} -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }} -DNNG_ENABLE_TLS=ON ..
+        cmake ${{ steps.prepare.outputs.make_flags }} ..
         make
     - name: build deb
-      run: |
-        if [ "${{ matrix.arch[0] }}" != "x86_64" ]; then
-          set -eu
-          cd build
-          mkdir -p _packages
-          sudo checkinstall --backup=no --install=no --type=debian --arch=${{ matrix.arch[0] }}  --pkgname=nanomq --pkgversion=$(git describe --abbrev=0 --tags) --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
-          pkg_name="nanomq-$(git describe --abbrev=0 --tags)-linux-${{ matrix.arch[0] }}.deb"
-          sudo mv _packages/nanomq_$(git describe --abbrev=0 --tags)_${{ matrix.arch[0] }}.deb _packages/$pkg_name
-          cd _packages; echo $(sha256sum $pkg_name | awk '{print $1}') > $pkg_name.sha256
-        fi
-    - name: build rpm
-      shell: bash
-      run: |
-        if [ "${{ matrix.arch[0] }}" != "amd64" ]; then
-          set -eu
-          cd build
-          mkdir -p _packages
-          sudo mkdir -p /root/rpmbuild/SOURCES
-          sudo mkdir -p /root/rpmbuild/BUILD
-          sudo mkdir -p /root/rpmbuild/BUILDROOT
-          sudo checkinstall --backup=no --install=no --type=rpm --arch=${{ matrix.arch[0] }} --pkgname=nanomq --pkgversion=$(git describe --abbrev=0 --tags) --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
-          pkg_name="nanomq-$(git describe --abbrev=0 --tags)-linux-${{ matrix.arch[0] }}.rpm"
-          sudo mv _packages/nanomq-$(git describe --abbrev=0 --tags)-1.${{ matrix.arch[0] }}.rpm _packages/$pkg_name
-          cd _packages; echo $(sha256sum $pkg_name | awk '{print $1}') > $pkg_name.sha256
-        fi
-
-    - name: build with sqlite
+      if: matrix.package_type == 'deb'
       run: |
         set -eu
         cd build
-        rm -rf `ls | grep -v _packages`
-        cmake -DCMAKE_C_COMPILER=${{ matrix.arch[1] }} -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }} -DNNG_ENABLE_TLS=ON -DNNG_ENABLE_SQLITE=ON ..
-        make
-    - name: build deb with sqlite
+        mkdir -p _packages
+        sudo checkinstall --backup=no --install=no --type=debian --arch=${{ steps.prepare.outputs.arch }} --pkgname=nanomq --pkgversion=$(git describe --abbrev=0 --tags) --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
+        sudo mv _packages/nanomq_$(git describe --abbrev=0 --tags)_${{ steps.prepare.outputs.arch }}.deb _packages/${{ steps.prepare.outputs.pkg_name }}
+        cd _packages; echo $(sha256sum ${{ steps.prepare.outputs.pkg_name }} | awk '{print $1}') > ${{ steps.prepare.outputs.pkg_name }}.sha256
+    - name: build rpm
+      if: matrix.package_type == 'rpm'
       run: |
-        if [ "${{ matrix.arch[0] }}" != "x86_64" ]; then
-          set -eu
-          cd build
-          sudo checkinstall --backup=no --install=no --type=debian --arch=${{ matrix.arch[0] }}  --pkgname=nanomq --pkgversion=$(git describe --abbrev=0 --tags) --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
-          pkg_name="nanomq-$(git describe --abbrev=0 --tags)-linux-${{ matrix.arch[0] }}-sqlite.deb"
-          sudo mv _packages/nanomq_$(git describe --abbrev=0 --tags)_${{ matrix.arch[0] }}.deb _packages/$pkg_name
-          cd _packages; echo $(sha256sum $pkg_name | awk '{print $1}') > $pkg_name.sha256
-        fi
-    - name: build rpm with sqlite
-      shell: bash
-      run: |
-        if [ "${{ matrix.arch[0] }}" != "amd64" ]; then
-          set -eu
-          cd build
-          sudo checkinstall --backup=no --install=no --type=rpm --arch=${{ matrix.arch[0] }} --pkgname=nanomq --pkgversion=$(git describe --abbrev=0 --tags) --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
-          pkg_name="nanomq-$(git describe --abbrev=0 --tags)-linux-${{ matrix.arch[0] }}-sqlite.rpm"
-          sudo mv _packages/nanomq-$(git describe --abbrev=0 --tags)-1.${{ matrix.arch[0] }}.rpm _packages/$pkg_name
-          cd _packages; echo $(sha256sum $pkg_name | awk '{print $1}') > $pkg_name.sha256
-        fi
-
-    - name: build with msquic arm64
-      run: |
-        if [ "${{ matrix.arch[0] }}" = "arm64" ]; then
-          set -eu
-          cd build
-          rm -rf `ls | grep -v _packages`
-          cmake -DNNG_ENABLE_QUIC=ON  -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ -DCMAKE_TARGET_ARCHITECTURE=arm64  toolchains $PWD/nng/extern/msquic/cmake/toolchains/aarch64-linux.cmake  -DGNU_MACHINE=aarch64-linux-gnu -DONEBRANCH=1 ..
-          make
-        fi
-    - name: build deb with msquic arm64
-      run: |
-        if [ "${{ matrix.arch[0] }}" = "arm64" ]; then
-          set -eu
-          cd build
-          sudo checkinstall --backup=no --install=no --type=debian --arch=arm64  --pkgname=nanomq --pkgversion=$(git describe --abbrev=0 --tags) --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
-          pkg_name="nanomq-$(git describe --abbrev=0 --tags)-linux-arm64-msquic.deb"
-          sudo mv _packages/nanomq_$(git describe --abbrev=0 --tags)_${{ matrix.arch[0] }}.deb _packages/$pkg_name
-          cd _packages; echo $(sha256sum $pkg_name | awk '{print $1}') > $pkg_name.sha256
-        fi
-
-    - name: build rpm with msquic arm64
-      run: |
-        if [ "${{ matrix.arch[0] }}" = "arm64" ]; then
-          set -eu
-          cd build
-          sudo checkinstall --backup=no --install=no --type=rpm --arch=arm64  --pkgname=nanomq --pkgversion=$(git describe --abbrev=0 --tags) --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
-          pkg_name="nanomq-$(git describe --abbrev=0 --tags)-linux-arm64-msquic.rpm"
-          sudo mv _packages/nanomq-$(git describe --abbrev=0 --tags)-1.${{ matrix.arch[0] }}.rpm _packages/$pkg_name
-          cd _packages; echo $(sha256sum $pkg_name | awk '{print $1}') > $pkg_name.sha256
-        fi
-
-    - name: build with msquic amd64
-      run: |
-        if [ "${{ matrix.arch[0] }}" = "amd64" ]; then
-          set -eu
-          cd build
-          rm -rf `ls | grep -v _packages`
-          cmake -DNNG_ENABLE_QUIC=ON  ..
-          make
-        fi
-    - name: build deb with msquic amd64
-      run: |
-        if [ "${{ matrix.arch[0] }}" = "amd64" ]; then
-          set -eu
-          cd build
-          sudo checkinstall --backup=no --install=no --type=debian --arch=amd64  --pkgname=nanomq --pkgversion=$(git describe --abbrev=0 --tags) --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
-          pkg_name="nanomq-$(git describe --abbrev=0 --tags)-linux-amd64-msquic.deb"
-          sudo mv _packages/nanomq_$(git describe --abbrev=0 --tags)_${{ matrix.arch[0] }}.deb _packages/$pkg_name
-          cd _packages; echo $(sha256sum $pkg_name | awk '{print $1}') > $pkg_name.sha256
-        fi
-
-    - name: build with msquic x86_64
-      run: |
-        if [ "${{ matrix.arch[0] }}" = "x86_64" ]; then
-          set -eu
-          cd build
-          rm -rf `ls | grep -v _packages`
-          cmake -DNNG_ENABLE_QUIC=ON  ..
-          make
-          sudo make install
-        fi
-    - name: build rpm with msquic x86_64
-      run: |
-        if [ "${{ matrix.arch[0] }}" = "x86_64" ]; then
-          set -eu
-          cd build
-          sudo checkinstall --backup=no --install=no --type=rpm --arch=x86_64  --pkgname=nanomq --pkgversion=$(git describe --abbrev=0 --tags) --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
-          pkg_name="nanomq-$(git describe --abbrev=0 --tags)-linux-x86_64-msquic.rpm"
-          sudo mv _packages/nanomq-$(git describe --abbrev=0 --tags)-1.${{ matrix.arch[0] }}.rpm _packages/$pkg_name
-          cd _packages; echo $(sha256sum $pkg_name | awk '{print $1}') > $pkg_name.sha256
-        fi
+        set -eu
+        cd build
+        mkdir -p _packages
+        sudo mkdir -p /root/rpmbuild/SOURCES
+        sudo mkdir -p /root/rpmbuild/BUILD
+        sudo mkdir -p /root/rpmbuild/BUILDROOT
+        sudo checkinstall --backup=no --install=no --type=rpm --arch=${{ steps.prepare.outputs.arch }} --pkgname=nanomq --pkgversion=$(git describe --abbrev=0 --tags) --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
+        pkg_name="nanomq-$(git describe --abbrev=0 --tags)-linux-${{ steps.prepare.outputs.arch }}.rpm"
+        sudo mv _packages/nanomq-$(git describe --abbrev=0 --tags)-1.${{ steps.prepare.outputs.arch }}.rpm _packages/${{ steps.prepare.outputs.pkg_name }}
+        cd _packages; echo $(sha256sum ${{ steps.prepare.outputs.pkg_name }} | awk '{print $1}') > ${{ steps.prepare.outputs.pkg_name }}.sha256
 
     - uses: actions/upload-artifact@v2
       with:
