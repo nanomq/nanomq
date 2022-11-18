@@ -146,7 +146,7 @@ jobs:
         -DWITH_DOC=OFF     \
         -DCMAKE_BUILD_TYPE=Release     \
         -DCMAKE_CROSSCOMPILING=ON \
-        -DWITH_LIBBSD=OFF .. \
+        -DWITH_LIBBSD=OFF .. 
         sudo make install 
         cd ../../
 
