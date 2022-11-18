@@ -126,7 +126,7 @@ jobs:
         cd libsodium-stable 
         mkdir build 
         cd build 
-        ../configure --prefix=${{ matrix.arch[3] }}  --host=${{ matrix.arch[4] }} 
+        ../configure --prefix=${{ matrix.arch[4] }}  --host=${{ matrix.arch[3] }} 
         sudo make install 
         cd ../../
 
