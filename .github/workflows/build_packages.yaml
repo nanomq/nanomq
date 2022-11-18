@@ -121,6 +121,23 @@ jobs:
         sudo make install
         cd ../..
 
+        wget https://github.com/zeromq/libzmq/releases/download/v4.3.4/zeromq-4.3.4.tar.gz 
+        tar zxf zeromq-4.3.4.tar.gz 
+        cd zeromq-4.3.4 
+        mkdir build 
+        cd build 
+        cmake -DWITH_PERF_TOOL=OFF      \
+        -DCMAKE_C_COMPILER=${{ matrix.arch[1] }}    \
+        -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }}     \
+        -DZMQ_BUILD_TESTS=OFF      \
+        -DENABLE_CPACK=OFF      \
+        -DWITH_DOC=OFF     \
+        -DCMAKE_BUILD_TYPE=Release     \
+        -DCMAKE_CROSSCOMPILING=ON \
+        -DWITH_LIBBSD=OFF .. \
+        sudo make install 
+        cd ../..
+
         mkdir -p build
         cd build
         cmake ${{ steps.prepare.outputs.make_flags }} ..
