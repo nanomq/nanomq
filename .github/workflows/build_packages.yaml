@@ -30,25 +30,21 @@ jobs:
         build_type:
         - ""
         - "-sqlite"
-        include:
-        - arch: [amd64, gcc, g++]
-          package_type: deb
+        - "-msquic"
+        - "-full"
+        exclude:
+        - arch: [ips, mips-linux-gnu-gcc, mips-linux-gnu-g++]
           build_type: "-msquic"
-        - arch: [amd64, gcc, g++]
-          package_type: rpm
+        - arch: [riscv64, riscv64-linux-gnu-gcc, riscv64-linux-gnu-g++]
           build_type: "-msquic"
-        - arch: [arm64, aarch64-linux-gnu-gcc, aarch64-linux-gnu-g++]
-          package_type: deb
+        - arch: [armel, arm-linux-gnueabi-gcc, arm-linux-gnueabi-g++]
           build_type: "-msquic"
-        - arch: [arm64, aarch64-linux-gnu-gcc, aarch64-linux-gnu-g++]
-          package_type: rpm
-          build_type: "-msquic"
-        - arch: [armhf, arm-linux-gnueabihf-gcc, arm-linux-gnueabihf-g++]
-          package_type: deb
-          build_type: "-msquic"
-        - arch: [armhf, arm-linux-gnueabihf-gcc, arm-linux-gnueabihf-g++]
-          package_type: rpm
-          build_type: "-msquic"
+        - arch: [ips, mips-linux-gnu-gcc, mips-linux-gnu-g++]
+          build_type: "-full"
+        - arch: [riscv64, riscv64-linux-gnu-gcc, riscv64-linux-gnu-g++]
+          build_type: "-full"
+        - arch: [armel, arm-linux-gnueabi-gcc, arm-linux-gnueabi-g++]
+          build_type: "-full"
       fail-fast: false
 
     steps:
@@ -83,10 +79,11 @@ jobs:
         pkg_name="nanomq-$(git describe --abbrev=0 --tags)-linux-${arch}${{ matrix.build_type }}.${{ matrix.package_type }}"
 
         make_flags="-DCMAKE_C_COMPILER=${{ matrix.arch[1] }} -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }} -DNNG_ENABLE_TLS=ON"
-        if [ "${{ matrix.build_type }}" = "-sqlite" ]; then
+        if [ "${{ matrix.build_type }}" = "-sqlite" ] || [ "${{ matrix.build_type }}" = "-full" ]; then
           make_flags+=" -DNNG_ENABLE_SQLITE=ON"
         fi
-        if [ "${{ matrix.build_type }}" = "-msquic" ]; then
+        
+        if [ "${{ matrix.build_type }}" = "-msquic" ] || [ "${{ matrix.build_type }}" = "-full" ]; then
           make_flags+=" -DNNG_ENABLE_QUIC=ON" 
           if [ "$arch" != "x86_64" ] && [ "$arch" != "amd64" ]; then
             make_flags+=" -DONEBRANCH=1 "
@@ -100,6 +97,13 @@ jobs:
               make_flags+=" -DGNU_MACHINE=arm-linux-gnueabihf "
             fi
           fi
+        fi
+
+        if [ "${{ matrix.build_type }}" = "-full" ]; then
+          make_flags+= " -DENABLE_JWT=ON "
+          make_flags+= " -DCMAKE_CROSSCOMPILING=ON "
+          make_flags+= " -DBUILD_ZMQ_GATEWAY=ON "
+          make_flags+= " -DBUILD_BENCH=ON " 
         fi
 
         echo "arch=${arch}" >> $GITHUB_OUTPUT
