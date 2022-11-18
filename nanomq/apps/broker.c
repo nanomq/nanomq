@@ -31,6 +31,7 @@
 #include "nng/supplemental/nanolib/mqtt_db.h"
 #include "nng/supplemental/nanolib/log.h"
 
+#include "include/acl_handler.h"
 #include "include/bridge.h"
 #include "include/nanomq_rule.h"
 #include "include/mqtt_api.h"
@@ -394,7 +395,8 @@ server_cb(void *arg)
 			} else {
 				nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 			}
-			work->code = handle_pub(work, work->pipe_ct, work->proto_ver);
+			work->code = handle_pub(
+			    work, work->pipe_ct, work->proto_ver, false);
 			if (work->proto == PROTO_HTTP_SERVER ||
 			    work->proto == PROTO_AWS_BRIDGE) {
 				nng_msg *rep_msg;
@@ -445,7 +447,8 @@ server_cb(void *arg)
 			work->flag = CMD_PUBLISH;
 			nng_msg_free(work->msg);
 			work->msg = smsg;
-			handle_pub(work, work->pipe_ct, MQTT_PROTOCOL_VERSION_v311);
+			handle_pub(work, work->pipe_ct,
+			    MQTT_PROTOCOL_VERSION_v311, true);
 			// remember to free conn_param in WAIT 
 			// due to clone in protocol layer
 		} else if (work->flag == CMD_DISCONNECT_EV) {
@@ -453,7 +456,8 @@ server_cb(void *arg)
 			webhook_entry(work, 0);
 			nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 			work->flag = CMD_PUBLISH;
-			handle_pub(work, work->pipe_ct, MQTT_PROTOCOL_VERSION_v311);
+			handle_pub(work, work->pipe_ct,
+			    MQTT_PROTOCOL_VERSION_v311, true);
 			// TODO set reason code
 			// uint8_t *payload = nng_msg_payload_ptr(work->msg);
 			// uint8_t reason_code = *(payload+16);
@@ -648,7 +652,7 @@ server_cb(void *arg)
 					nng_msg_set_cmd_type(
 					    msg, CMD_PUBLISH_V5);
 					handle_pub(work, work->pipe_ct,
-					    MQTT_PROTOCOL_VERSION_v5);
+					    MQTT_PROTOCOL_VERSION_v5, false);
 					work->pub_packet->var_header.publish
 					    .properties = property_pub_by_will(
 					    will_property);
@@ -659,7 +663,7 @@ server_cb(void *arg)
 				} else {
 					nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 					handle_pub(work, work->pipe_ct,
-					    MQTT_PROTOCOL_VERSION_v311);
+					    MQTT_PROTOCOL_VERSION_v311, false);
 				}
 				work->state = WAIT;
 				nng_aio_finish(work->aio, 0);

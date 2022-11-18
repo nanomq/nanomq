@@ -23,6 +23,7 @@
 #include "include/bridge.h"
 #include "include/pub_handler.h"
 #include "include/sub_handler.h"
+#include "include/acl_handler.h"
 #include "nng/protocol/mqtt/mqtt_parser.h"
 #include "nng/supplemental/util/platform.h"
 #include "nng/supplemental/sqlite/sqlite3.h"
@@ -1055,7 +1056,7 @@ rule_engine_insert_sql(nano_work *work)
 #endif
 
 reason_code
-handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto)
+handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto, bool is_event)
 {
 	reason_code result          = SUCCESS;
 	char      **topic_queue     = NULL;
@@ -1119,6 +1120,22 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto)
 	if (topic == NULL) {
 		log_error("Topic is NULL");
 		return result;
+	}
+
+	if (!is_event && work->cparam) {
+		bool rv = auth_acl(work->config, ACL_PUB, work->cparam,
+		    work->pub_packet->var_header.publish.topic_name.body);
+
+		if (!rv) {
+			log_warn("acl deny");
+			if (work->config->acl_deny_action == ACL_DISCONNECT) {
+				log_warn("acl deny, disconnect client");
+				// TODO disconnect client
+				return BANNED;
+			}
+		} else {
+			log_info("acl allow");
+		}
 	}
 
 	cli_ctx_list = dbtree_find_clients(work->db, topic);

@@ -11,11 +11,13 @@
 #include "nng/supplemental/nanolib/nanolib.h"
 #include "nng/supplemental/util/platform.h"
 #include "nng/supplemental/nanolib/log.h"
+#include "nng/supplemental/nanolib/conf.h"
 
 #include "include/broker.h"
 #include "include/nanomq.h"
 #include "include/pub_handler.h"
 #include "include/sub_handler.h"
+#include "include/acl_handler.h"
 
 int
 decode_sub_msg(nano_work *work)
@@ -240,6 +242,21 @@ sub_ctx_handle(nano_work *work)
 			goto next;
 
 		/* Add items which not included in dbhash */
+
+		bool auth_result =
+		    auth_acl(work->config, ACL_SUB, work->cparam, topic_str);
+
+		if (!auth_result) {
+			log_warn("acl deny");
+			if (work->config->acl_deny_action == ACL_DISCONNECT) {
+				log_warn("acl deny, disconnect client");
+				// TODO disconnect client or return error code
+				goto next;
+			}
+		} else {
+			log_info("acl allow");
+		}
+
 		topic_exist = dbhash_check_topic(work->pid.id, topic_str);
 		if (!topic_exist) {
 			dbtree_insert_client(
