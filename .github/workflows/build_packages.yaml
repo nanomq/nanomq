@@ -215,6 +215,7 @@ jobs:
              ${{ secrets.EMQX_IO_RELEASE_API }}
 
   build_docker:
+    needs: [build_packages]
     runs-on: ubuntu-20.04
 
     strategy:
@@ -225,7 +226,10 @@ jobs:
         - "-full"
 
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v3
+    - uses: actions/download-artifact@v3
+      with:
+        name: packages
     - run: git submodule update --init --recursive
     - run: docker build -t emqx/nanomq:$(git describe --tags --always)${{ matrix.suffix }} -f deploy/docker/Dockerfile${{ matrix.suffix }} .
     - run: docker run -d --name nanomq $(docker images emqx/nanomq -q | head -1)
