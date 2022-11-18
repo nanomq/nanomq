@@ -43,6 +43,12 @@ jobs:
         - arch: [arm64, aarch64-linux-gnu-gcc, aarch64-linux-gnu-g++]
           package_type: rpm
           build_type: "-msquic"
+        - arch: [armhf, arm-linux-gnueabihf-gcc, arm-linux-gnueabihf-g++]
+          package_type: deb
+          build_type: "-msquic"
+        - arch: [armhf, arm-linux-gnueabihf-gcc, arm-linux-gnueabihf-g++]
+          package_type: rpm
+          build_type: "-msquic"
       fail-fast: false
 
     steps:
@@ -81,7 +87,19 @@ jobs:
           make_flags+=" -DNNG_ENABLE_SQLITE=ON"
         fi
         if [ "${{ matrix.build_type }}" = "-msquic" ]; then
-          make_flags+=" -DNNG_ENABLE_QUIC=ON"
+          make_flags+=" -DNNG_ENABLE_QUIC=ON" 
+          if [ "$arch" != "x86_64" ]; then
+            if [ "$arch" == "arm64" ]; then
+              make_flags+=" -DCMAKE_TARGET_ARCHITECTURE=arm64 "
+              make_flags+=" -DGNU_MACHINE=aarch64-linux-gnu "
+              make_flags+=" toolchains $PWD/nng/extern/msquic/cmake/toolchains/aarch64-linux.cmake "
+            elif [ "$arch" == "armhf" ]; then
+              make_flags+=" -DCMAKE_TARGET_ARCHITECTURE=arm "
+              make_flags+=" toolchains $PWD/nng/extern/msquic/cmake/toolchains/arm-linux.cmake "
+              make_flags+=" -DGNU_MACHINE=arm-linux-gnueabihf "
+            fi
+            make_flags+=" -DONEBRANCH=1 "
+          fi
         fi
 
         echo "arch=${arch}" >> $GITHUB_OUTPUT
