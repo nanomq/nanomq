@@ -74,7 +74,7 @@ jobs:
         cd ../ && rm -rf ./build
         cd ../
 
-        if [ "$arch" != "x86_64" ] && [ "$arch" != "amd64" ]; then
+        if [ "${{ matrix.arch[0] }}" != "x86_64" ] && [ "${{ matrix.arch[0] }}" != "amd64" ]; then
           wget https://sourceforge.net/projects/libuuid/files/libuuid-1.0.3.tar.gz/download -O libuuid-1.0.3.tar.gz 
           tar zxf libuuid-1.0.3.tar.gz 
           cd  libuuid-1.0.3 
@@ -82,7 +82,7 @@ jobs:
           cd build  
           ../configure --prefix=${{ matrix.arch[4] }} --host=${{ matrix.arch[3] }} 
           sudo make install 
-          cd ../ && rm -rf build
+          cd ../ && sudo rm -rf ./build
           cd ../
         fi
 
