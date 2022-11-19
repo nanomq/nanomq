@@ -74,16 +74,6 @@ jobs:
         cd ../ && rm -rf ./build
         cd ../
 
-        wget https://download.libsodium.org/libsodium/releases/libsodium-1.0.18-stable.tar.gz 
-        tar zxf libsodium-1.0.18-stable.tar.gz 
-        cd libsodium-stable 
-        mkdir build 
-        cd build 
-        ../configure --prefix=${{ matrix.arch[4] }}  --host=${{ matrix.arch[3] }} 
-        sudo make install 
-        cd ../ && rm -rf ./build
-        cd ../
-
         wget https://github.com/zeromq/libzmq/releases/download/v4.3.4/zeromq-4.3.4.tar.gz 
         tar zxf zeromq-4.3.4.tar.gz 
         cd zeromq-4.3.4 
