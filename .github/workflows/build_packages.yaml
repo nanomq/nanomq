@@ -135,9 +135,14 @@ jobs:
 
         if [ "${{ matrix.build_type }}" == "-full" ]; then
           make_flags+=" -DENABLE_JWT=ON "
-          make_flags+=" -DCMAKE_CROSSCOMPILING=ON "
           make_flags+=" -DBUILD_ZMQ_GATEWAY=ON "
           make_flags+=" -DBUILD_BENCH=ON "
+          if [ "$arch" != "x86_64" ] && [ "$arch" != "amd64" ]; then
+            make_flags+=" -DCMAKE_CROSSCOMPILING=ON "
+            make_flags+=" -DCMAKE_STAGING_PREFIX=${{ matrix.arch[4] }} "
+            make_flags+=" -DCMAKE_INSTALL_PREFIX=${{ matrix.arch[4] }} "
+            make_flags+=" -DCMAKE_PREFIX_PATH=${{ matrix.arch[4] }} "
+          fi
         fi
 
         echo "arch=${arch}" >> $GITHUB_OUTPUT
