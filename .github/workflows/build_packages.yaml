@@ -13,7 +13,7 @@ on:
 
 jobs:
   build_packages:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     strategy:
       matrix:
@@ -48,7 +48,7 @@ jobs:
       fail-fast: false
 
     steps:
-    - name: install lib
+    - name: install libs
       run: |
         sudo apt update
         sudo chmod 755 /usr/local/bin
@@ -62,7 +62,50 @@ jobs:
         sudo sed -i 's/-${RELEASE}_${ARCHITECTURE}/_${ARCHITECTURE}/g' $(which checkinstall)
         sudo apt install -y pip
         pip install Jinja2
+    
+    - name: install libs by source
+      run: |
+        set -eu
+        git clone https://github.com/Mbed-TLS/mbedtls.git && cd mbedtls
+        mkdir build && cd build
+        cmake -DCMAKE_C_COMPILER=${{ matrix.arch[1] }} -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }} -DENABLE_TESTING=OFF ..
+        cmake --build .
+        sudo make install
+        cd ../ && rm -rf ./build
+        cd ../
 
+        wget https://download.libsodium.org/libsodium/releases/libsodium-1.0.18-stable.tar.gz 
+        tar zxf libsodium-1.0.18-stable.tar.gz 
+        cd libsodium-stable 
+        mkdir build 
+        cd build 
+        ../configure --prefix=${{ matrix.arch[4] }}  --host=${{ matrix.arch[3] }} 
+        sudo make install 
+        cd ../ && rm -rf ./build
+        cd ../
+
+        wget https://github.com/zeromq/libzmq/releases/download/v4.3.4/zeromq-4.3.4.tar.gz 
+        tar zxf zeromq-4.3.4.tar.gz 
+        cd zeromq-4.3.4 
+        mkdir build 
+        cd build 
+        cmake -DWITH_PERF_TOOL=OFF      \
+        -DCMAKE_C_COMPILER=${{ matrix.arch[1] }}    \
+        -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }}   \
+        -DCMAKE_INSTALL_PREFIX=${{ matrix.arch[4] }}   \
+        -DCMAKE_STAGING_PREFIX=${{ matrix.arch[4] }}   \
+        -DCMAKE_PREFIX_PATH=${{ matrix.arch[4] }} \
+        -DZMQ_BUILD_TESTS=OFF      \
+        -DENABLE_CPACK=OFF      \
+        -DWITH_DOC=OFF     \
+        -DCMAKE_BUILD_TYPE=Release     \
+        -DCMAKE_CROSSCOMPILING=ON \
+        -DWITH_LIBBSD=OFF .. 
+        sudo make install 
+        cd ../
+        rm -rf ./build
+        cd ../
+        
     - uses: actions/checkout@v3
       with:
         fetch-depth: 0
@@ -114,41 +157,6 @@ jobs:
     - name: build
       run: |
         set -eu
-        git clone https://github.com/Mbed-TLS/mbedtls.git && cd mbedtls
-        mkdir build && cd build
-        cmake -DCMAKE_C_COMPILER=${{ matrix.arch[1] }} -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }} ..
-        cmake --build .
-        sudo make install
-        cd ../../
-
-        wget https://download.libsodium.org/libsodium/releases/libsodium-1.0.18-stable.tar.gz 
-        tar zxf libsodium-1.0.18-stable.tar.gz 
-        cd libsodium-stable 
-        mkdir build 
-        cd build 
-        ../configure --prefix=${{ matrix.arch[4] }}  --host=${{ matrix.arch[3] }} 
-        sudo make install 
-        cd ../../
-
-        wget https://github.com/zeromq/libzmq/releases/download/v4.3.4/zeromq-4.3.4.tar.gz 
-        tar zxf zeromq-4.3.4.tar.gz 
-        cd zeromq-4.3.4 
-        mkdir build 
-        cd build 
-        cmake -DWITH_PERF_TOOL=OFF      \
-        -DCMAKE_C_COMPILER=${{ matrix.arch[1] }}    \
-        -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }}   \
-        -DCMAKE_INSTALL_PREFIX=${{ matrix.arch[4] }}   \
-        -DCMAKE_STAGING_PREFIX=${{ matrix.arch[4] }}   \
-        -DCMAKE_PREFIX_PATH=${{ matrix.arch[4] }} \
-        -DZMQ_BUILD_TESTS=OFF      \
-        -DENABLE_CPACK=OFF      \
-        -DWITH_DOC=OFF     \
-        -DCMAKE_BUILD_TYPE=Release     \
-        -DCMAKE_CROSSCOMPILING=ON \
-        -DWITH_LIBBSD=OFF .. 
-        sudo make install 
-        cd ../../
 
         mkdir -p build
         cd build
