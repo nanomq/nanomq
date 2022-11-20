@@ -169,6 +169,7 @@ jobs:
         cd build
         cmake ${{ steps.prepare.outputs.make_flags }} ..
         make
+        sudo make install
     - name: build deb
       if: matrix.package_type == 'deb'
       run: |
