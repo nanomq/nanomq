@@ -242,7 +242,7 @@ jobs:
     - uses: actions/checkout@v3
     - run: git submodule update --init --recursive
     - run: docker build -t emqx/nanomq:$(git describe --tags --always)${{ matrix.suffix }} -f deploy/docker/Dockerfile${{ matrix.suffix }} .
-    - run: docker run -d -e DEBUG=1 --name nanomq $(docker images emqx/nanomq -q | head -1)
+    - run: docker run -d -e DEBUG=1 --name nanomq $(docker images emqx/nanomq -q | head -1) --url nmq-tcp://0.0.0.0:1883 --log_level debug
     - name: test docker
       run: |
         set -e -x -u
@@ -250,6 +250,10 @@ jobs:
         ip_address=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' nanomq)
         sleep 5
         mosquitto_pub -h $ip_address -t 'topic/A' -m 'test'
+    - if: failure()
+      run: docker ps -a
+    - if: failure()
+      run: docker inspect nanomq
     - if: failure()
       run: docker logs nanomq
     - uses: docker/setup-qemu-action@v2
