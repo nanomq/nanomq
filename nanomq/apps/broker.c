@@ -711,9 +711,6 @@ void bridge_send_cb(void *arg)
 	if ((rv = nng_aio_result(work->bridge_aio)) != 0) {
 		log_warn("Bridging message send failed: %d", rv);
 	}
-	msg = nng_aio_get_msg(work->bridge_aio);
-	if (msg)
-		nng_msg_free(msg);
 }
 
 struct work *
