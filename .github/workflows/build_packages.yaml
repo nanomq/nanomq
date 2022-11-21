@@ -74,39 +74,41 @@ jobs:
         cd ../ && rm -rf ./build
         cd ../
 
-        if [ "${{ matrix.arch[0] }}" != "x86_64" ] && [ "${{ matrix.arch[0] }}" != "amd64" ]; then
-          wget https://sourceforge.net/projects/libuuid/files/libuuid-1.0.3.tar.gz/download -O libuuid-1.0.3.tar.gz 
-          tar zxf libuuid-1.0.3.tar.gz 
-          cd  libuuid-1.0.3 
+        if [ "${{ matrix.arch[0] }}" != "riscv64" ]; then
+          if [ "${{ matrix.arch[0] }}" != "x86_64" ] && [ "${{ matrix.arch[0] }}" != "amd64" ]; then
+            wget https://sourceforge.net/projects/libuuid/files/libuuid-1.0.3.tar.gz/download -O libuuid-1.0.3.tar.gz 
+            tar zxf libuuid-1.0.3.tar.gz 
+            cd  libuuid-1.0.3 
+            mkdir build 
+            cd build  
+            ../configure --prefix=${{ matrix.arch[4] }} --host=${{ matrix.arch[3] }} 
+            sudo make install 
+            cd ../ && sudo rm -rf ./build
+            cd ../
+          fi
+
+          wget https://github.com/zeromq/libzmq/releases/download/v4.3.4/zeromq-4.3.4.tar.gz 
+          tar zxf zeromq-4.3.4.tar.gz 
+          cd zeromq-4.3.4 
           mkdir build 
-          cd build  
-          ../configure --prefix=${{ matrix.arch[4] }} --host=${{ matrix.arch[3] }} 
+          cd build 
+          cmake -DWITH_PERF_TOOL=OFF      \
+          -DCMAKE_C_COMPILER=${{ matrix.arch[1] }}    \
+          -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }}   \
+          -DCMAKE_INSTALL_PREFIX=${{ matrix.arch[4] }}   \
+          -DCMAKE_STAGING_PREFIX=${{ matrix.arch[4] }}   \
+          -DCMAKE_PREFIX_PATH=${{ matrix.arch[4] }} \
+          -DZMQ_BUILD_TESTS=OFF      \
+          -DENABLE_CPACK=OFF      \
+          -DWITH_DOC=OFF     \
+          -DCMAKE_BUILD_TYPE=Release     \
+          -DCMAKE_CROSSCOMPILING=ON \
+          -DWITH_LIBBSD=OFF .. 
           sudo make install 
-          cd ../ && sudo rm -rf ./build
+          cd ../
+          rm -rf ./build
           cd ../
         fi
-
-        wget https://github.com/zeromq/libzmq/releases/download/v4.3.4/zeromq-4.3.4.tar.gz 
-        tar zxf zeromq-4.3.4.tar.gz 
-        cd zeromq-4.3.4 
-        mkdir build 
-        cd build 
-        cmake -DWITH_PERF_TOOL=OFF      \
-        -DCMAKE_C_COMPILER=${{ matrix.arch[1] }}    \
-        -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }}   \
-        -DCMAKE_INSTALL_PREFIX=${{ matrix.arch[4] }}   \
-        -DCMAKE_STAGING_PREFIX=${{ matrix.arch[4] }}   \
-        -DCMAKE_PREFIX_PATH=${{ matrix.arch[4] }} \
-        -DZMQ_BUILD_TESTS=OFF      \
-        -DENABLE_CPACK=OFF      \
-        -DWITH_DOC=OFF     \
-        -DCMAKE_BUILD_TYPE=Release     \
-        -DCMAKE_CROSSCOMPILING=ON \
-        -DWITH_LIBBSD=OFF .. 
-        sudo make install 
-        cd ../
-        rm -rf ./build
-        cd ../
         
     - uses: actions/checkout@v3
       with:
