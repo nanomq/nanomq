@@ -1,8 +1,8 @@
 name: Build packages
 
-# concurrency:
-#   group: build-${{ github.event_name }}-${{ github.ref }}
-#   cancel-in-progress: true
+concurrency:
+  group: build-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
 
 on:
   push:
