@@ -1,5 +1,10 @@
 #!/bin/sh
-set -e
+
+if [ -n "$DEBUG" ]; then
+    set -ex
+else
+    set -e
+fi
 
 _main() {
 	if [ -f "/tmp/nanomq/nanomq.pid" ];then
