@@ -135,6 +135,7 @@ jobs:
         fi
         
         if [ "${{ matrix.build_type }}" == "-msquic" ] || [ "${{ matrix.build_type }}" == "-full" ]; then
+          make_flags+=" -DNNG_ENABLE_MSQUIC=ON"
           if [ "$arch" != "x86_64" ] && [ "$arch" != "amd64" ]; then
             make_flags+=" -DONEBRANCH=1 "
             if [ "$arch" == "arm64" ]; then
