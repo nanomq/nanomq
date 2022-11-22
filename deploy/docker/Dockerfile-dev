@@ -13,13 +13,12 @@ RUN wget https://github.com/zeromq/libzmq/releases/download/v4.3.4/zeromq-4.3.4.
     && cd zeromq-4.3.4 \
     && mkdir build \
     && cd build \
-    && cmake -DWITH_PERF_TOOL=OFF  \
+    && cmake -DBUILD_SHARED=OFF   \
     -DZMQ_BUILD_TESTS=OFF  \
     -DENABLE_CPACK=OFF  \
     -DWITH_DOC=OFF \
     -DCMAKE_BUILD_TYPE=Release .. \
-    && make install \
-    && ldconfig
+    && make install 
 
 WORKDIR /nanomq/build
 
@@ -29,8 +28,8 @@ RUN cmake -DENABLE_JWT=ON \
     -DQUIC_USE_SYSTEM_LIBCRYPTO=ON \
     -DNNG_ENABLE_SQLITE=ON \
     -DBUILD_ZMQ_GATEWAY=ON \
-    -DBUILD_BENCH=ON .. && \
-    make -msoft-float
+    -DBUILD_BENCH=ON .. \
+    && make
 
 FROM debian:11-slim
 
@@ -39,8 +38,6 @@ WORKDIR /usr/local/nanomq
 COPY --from=builder /nanomq/build/nanomq/nanomq /usr/local/nanomq/
 COPY --from=builder /nanomq/build/nanomq_cli/nanomq_cli /usr/local/nanomq/
 COPY --from=builder /nanomq/build/nng/src/supplemental/quic/msquic/msquic/bin/Release/libmsquic.so.2 /usr/local/lib/
-COPY --from=builder /tmp/zeromq/zeromq-4.3.4/build/lib/libzmq*  /usr/local/lib/
-COPY --from=builder /tmp/zeromq/zeromq-4.3.4/include/zmq*    /usr/local/include/
 COPY etc/nanomq.conf /etc/nanomq.conf
 COPY etc/nanomq_gateway.conf /etc/nanomq_gateway.conf 
 COPY deploy/docker/docker-entrypoint.sh /usr/bin/docker-entrypoint.sh
