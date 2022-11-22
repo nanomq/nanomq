@@ -1,20 +1,13 @@
-FROM gcc:11 as builder
+FROM ubuntu:22.04
 
-ARG DEBIAN_FRONTEND=noninteractive
+COPY nanomq-*-msquic.deb ./
+COPY deploy/docker/docker-entrypoint.sh /usr/bin/docker-entrypoint.sh
 
-COPY nanomq-*-linux-*-msquic.deb ./
-
-RUN apt update && \
-       apt  -y install sudo dialog apt-utils
-RUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections
-
-RUN apt install -y ./nanomq-*-linux-$(dpkg --print-architecture)-msquic.deb \
-    && rm -rf ./nanomq-*-linux-*-msquic.deb
-
-RUN ln -s /usr/local/nanomq/nanomq /usr/bin/nanomq && \
-    ln -s /usr/local/nanomq/nanomq_cli /usr/bin/nanomq_cli
-
-RUN apt update && DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends libatomic1 && rm -rf /var/lib/apt/lists/*
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libatomic1 \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ./nanomq-*-linux-$(dpkg --print-architecture)-msquic.deb \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf *.deb
 
 EXPOSE 1883 8883 8081
 
