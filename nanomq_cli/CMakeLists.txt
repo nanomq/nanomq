@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.3)
-project(nanomq_cli)
+project(nanomq_cli LANGUAGES CXX)
 
 if(DEBUG AND ASAN)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -fsanitize=address")
@@ -25,6 +25,7 @@ endif(BUILD_QUIC_CLI)
 add_dependencies(nanomq_cli nng)
 
 if(BUILD_ZMQ_GATEWAY)
+  set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -lstdc++")
   find_package(ZeroMQ REQUIRED)
   include_directories("${ZeroMQ_INCLUDE_DIR}")
   target_link_libraries(nanomq_cli zmq)
