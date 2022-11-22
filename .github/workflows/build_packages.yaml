@@ -96,7 +96,7 @@ jobs:
         cd zeromq-4.3.4 
         mkdir build 
         cd build 
-        cmake -DWITH_PERF_TOOL=OFF      \
+        cmake -DBUILD_SHARED=OFF      \
         -DCMAKE_C_COMPILER=${{ matrix.arch[1] }}    \
         -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }}   \
         -DCMAKE_INSTALL_PREFIX=${{ matrix.arch[4] }}   \
