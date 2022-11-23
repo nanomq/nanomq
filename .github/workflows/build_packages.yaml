@@ -193,9 +193,9 @@ jobs:
         sudo mkdir -p /root/rpmbuild/SOURCES
         sudo mkdir -p /root/rpmbuild/BUILD
         sudo mkdir -p /root/rpmbuild/BUILDROOT
-        sudo checkinstall --backup=no --install=no --type=rpm --arch=${{ steps.prepare.outputs.arch }} --pkgname=nanomq --pkgversion=$(git describe --abbrev=0 --tags) --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
-        pkg_name="nanomq-$(git describe --abbrev=0 --tags)-linux-${{ steps.prepare.outputs.arch }}.rpm"
-        sudo mv _packages/nanomq-$(git describe --abbrev=0 --tags)-1.${{ steps.prepare.outputs.arch }}.rpm _packages/${{ steps.prepare.outputs.pkg_name }}
+        pkgversion="$(git describe --abbrev=0 --tags | tr '-' '_')"
+        sudo checkinstall --backup=no --install=no --type=rpm --arch=${{ steps.prepare.outputs.arch }} --pkgname=nanomq --pkgversion=${pkgversion} --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
+        sudo mv _packages/nanomq-${pkgversion}-1.${{ steps.prepare.outputs.arch }}.rpm _packages/${{ steps.prepare.outputs.pkg_name }}
         cd _packages; echo $(sha256sum ${{ steps.prepare.outputs.pkg_name }} | awk '{print $1}') > ${{ steps.prepare.outputs.pkg_name }}.sha256
 
     - uses: actions/upload-artifact@v3
