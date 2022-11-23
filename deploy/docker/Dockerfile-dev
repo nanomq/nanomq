@@ -25,6 +25,7 @@ WORKDIR /nanomq/build
 RUN cmake -DENABLE_JWT=ON \
     -DNNG_ENABLE_TLS=ON \
     -DNNG_ENABLE_QUIC=ON \
+    -DQUIC_BUILD_SHARED=OFF \
     -DQUIC_USE_SYSTEM_LIBCRYPTO=ON \
     -DNNG_ENABLE_SQLITE=ON \
     -DBUILD_ZMQ_GATEWAY=ON \
@@ -37,7 +38,6 @@ WORKDIR /usr/local/nanomq
 
 COPY --from=builder /nanomq/build/nanomq/nanomq /usr/local/nanomq/
 COPY --from=builder /nanomq/build/nanomq_cli/nanomq_cli /usr/local/nanomq/
-COPY --from=builder /nanomq/build/nng/src/supplemental/quic/msquic/msquic/bin/Release/libmsquic.so.2 /usr/local/lib/
 COPY etc/nanomq.conf /etc/nanomq.conf
 COPY etc/nanomq_gateway.conf /etc/nanomq_gateway.conf 
 COPY deploy/docker/docker-entrypoint.sh /usr/bin/docker-entrypoint.sh
