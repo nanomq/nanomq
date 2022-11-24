@@ -227,6 +227,7 @@ set_basic_config(cJSON *json, conf *config)
 {
 	char *   url = NULL;
 	bool     daemon;
+	bool     enable;
 	int      num_taskq_thread;
 	int      max_taskq_thread;
 	uint64_t parallel;
@@ -244,6 +245,11 @@ set_basic_config(cJSON *json, conf *config)
 	if (rv == 0) {
 		// conf_update(config->conf_file, "url", url);
 		update_string(config->url, url);
+	}
+	getBoolValue(json, item, "enable", enable, rv);
+	if (rv == 0) {
+		// conf_update_bool(config->conf_file, "enable", enable);
+		update_var(config->enable, enable);
 	}
 	getBoolValue(json, item, "daemon", daemon, rv);
 	if (rv == 0) {
