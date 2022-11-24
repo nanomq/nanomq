@@ -20,6 +20,12 @@ add_executable(nanomq_cli ${CLI_SOURCE})
 target_link_libraries(nanomq_cli nng)
 
 if(BUILD_QUIC_CLI)
+  if(NANO_PLATFORM_POSIX)
+    target_link_libraries(nanomq_cli dl)
+  elseif(NANO_PLATFORM_WINDOWS)
+    target_link_libraries(nanomq_cli ws2_32)
+  endif()
+
   target_link_libraries(nanomq_cli msquic)
 endif(BUILD_QUIC_CLI)
 
