@@ -131,14 +131,17 @@ jobs:
         make_flags="-DCMAKE_C_COMPILER=${{ matrix.arch[1] }} -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }} -DNNG_ENABLE_TLS=ON"
        
         if [ "${{ matrix.build_type }}" == "-sqlite" ] || [ "${{ matrix.build_type }}" == "-full" ]; then
-          make_flags+=" -DNNG_ENABLE_SQLITE=ON"
+          make_flags+=" -DNNG_ENABLE_SQLITE=ON "
         fi
         
         if [ "${{ matrix.build_type }}" == "-msquic" ] || [ "${{ matrix.build_type }}" == "-full" ]; then
           make_flags+=" -DNNG_ENABLE_QUIC=ON "
+          make_flags+=" -DNNG_ENABLE_SQLITE=ON "
           make_flags+=" -DQUIC_BUILD_SHARED=OFF "
           if [ "$arch" != "x86_64" ] && [ "$arch" != "amd64" ]; then
             make_flags+=" -DONEBRANCH=1 "
+            make_flags+=" -DCMAKE_CROSSCOMPILING=ON "
+            make_flags+=" -DCMAKE_PREFIX_PATH=${{ matrix.arch[4] }} "
             if [ "$arch" == "arm64" ]; then
               make_flags+=" -DCMAKE_TARGET_ARCHITECTURE=arm64 "
               make_flags+=" -DGNU_MACHINE=aarch64-linux-gnu "
@@ -155,10 +158,6 @@ jobs:
           make_flags+=" -DENABLE_JWT=ON "
           make_flags+=" -DBUILD_ZMQ_GATEWAY=ON "
           make_flags+=" -DBUILD_BENCH=ON "
-          if [ "$arch" != "x86_64" ] && [ "$arch" != "amd64" ]; then
-            make_flags+=" -DCMAKE_CROSSCOMPILING=ON "
-            make_flags+=" -DCMAKE_PREFIX_PATH=${{ matrix.arch[4] }} "
-          fi
         fi
 
         echo "arch=${arch}" >> $GITHUB_OUTPUT
