@@ -994,8 +994,10 @@ broker(conf *nanomq_conf)
 		}
 	}
 
-	if ((rv = nano_listen(sock, nanomq_conf->url, NULL, 0, nanomq_conf)) != 0) {
-		fatal("nng_listen", rv);
+	if (nanomq_conf->enable) {
+		if ((rv = nano_listen(sock, nanomq_conf->url, NULL, 0, nanomq_conf)) != 0) {
+			fatal("nng_listen", rv);
+		}
 	}
 
 	// read from command line & config file
@@ -1275,6 +1277,7 @@ predicate_url(conf *config, char *url)
 	        strlen(BROKER_TCP_URL_PREFIX)) == 0) {
 		FREE_NONULL(config->url);
 		config->url = nng_strdup(url);
+		config->enable = true;
 	}
 	if (strncmp(BROKER_NMQ_TCP_TLS_URL_PREFIX, url,
 	        strlen(BROKER_NMQ_TCP_TLS_URL_PREFIX)) == 0) {
@@ -1524,9 +1527,11 @@ broker_start(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	nanomq_conf->url = nanomq_conf->url != NULL
-	    ? nanomq_conf->url
-	    : nng_strdup(CONF_TCP_URL_DEFAULT);
+	if (nanomq_conf->enable) {
+		nanomq_conf->url = nanomq_conf->url != NULL
+		    ? nanomq_conf->url
+		    : nng_strdup(CONF_TCP_URL_DEFAULT);
+	}
 
 	if (nanomq_conf->tls.enable) {
 		nanomq_conf->tls.url = nanomq_conf->tls.url != NULL
