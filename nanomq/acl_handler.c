@@ -140,7 +140,7 @@ auth_acl(conf *config, acl_action_type act_type, conn_param *param,
 			bool   found       = false;
 			for (size_t j = 0;
 			     j < rule->topic_count && found != true; j++) {
-				if (topic_filter(rule->topics[i], topic)) {
+				if (topic_filter(rule->topics[j], topic)) {
 					found = true;
 					break;
 				}

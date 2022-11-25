@@ -1131,6 +1131,8 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto, bool is
 			if (work->config->acl_deny_action == ACL_DISCONNECT) {
 				log_warn("acl deny, disconnect client");
 				// TODO disconnect client
+				return NORMAL_DISCONNECTION;
+			} else {
 				return BANNED;
 			}
 		} else {
