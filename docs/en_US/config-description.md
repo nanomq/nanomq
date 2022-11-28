@@ -3,28 +3,27 @@
 ## Introduction
 
 The configuration files of NanoMQ Broker is HOCON（Human-Optimized Config Object Notation）.It is ideal for configuration data storage that is easy for humans to read and write. You can find these configuration files in the etc directory.
-| File                      | Description                   |
-| ----------------------------- | ---------------------- |
-| etc/nanomq.conf               | NanoMQ Configuration File        |
-| etc/nanomq_gateway.conf       | NanoMQ Gateway File (for `nanomq_cli`) |
+File                    | Description
+----------------------- | --------------------------------------
+etc/nanomq.conf         | NanoMQ Configuration File
+etc/nanomq_gateway.conf | NanoMQ Gateway File (for `nanomq_cli`)
+
 
 ## Syntax
 
 In config file the values can be notated as JSON like objects, such as
-```
+```bash
 websocket {
      enable=false
-     url="nmq-ws://0.0.0.0:8083/mqtt"
-     tls_url="nmq-wss://0.0.0.0:8084/mqtt"
+     bind="0.0.0.0:8083/mqtt"
 }
 ```
 
 Another equivalent representation is flat, such as
 
-```
+```bash
 websocket.enable = false
-websocket.url="nmq-ws://0.0.0.0:8083/mqtt"
-websocket.tls_url="nmq-wss://0.0.0.0:8084/mqtt"
+websocket.bind="0.0.0.0:8083/mqtt"
 ```
 
 This flat format is almost backward compatible (the so called 'cuttlefish' format).
@@ -32,7 +31,7 @@ This flat format is almost backward compatible (the so called 'cuttlefish' forma
 It is not fully compatible because the often HOCON requires strings to be quoted,
 while cuttlefish treats all characters to the right of the `=` mark as the value.
 
-e.g. cuttlefish: cuttlefish：`websocket.url = nmq-ws://0.0.0.0:8083/mqtt`，HOCON：`websocket.url = "nmq-ws://0.0.0.0:8083/mqtt"`.
+e.g. cuttlefish: cuttlefish：`websocket.bind = 0.0.0.0:8083/mqtt`，HOCON：`websocket.bind = "0.0.0.0:8083/mqtt"`.
 
 ### Config Overlay Rules
 HOCON objects are overlaid, in general:
@@ -44,10 +43,10 @@ Below are more detailed rules.
 
 For example, in below config, the last line `debug` overwrites `error` for
 console log handler's `level` config, but leaving `to` unchanged.
-```
+```bash
 log {
-    to=["file","console"]
-    level="error"
+    to=[file,console]
+    level=error
 }
 
 ## ... more configs ...
@@ -61,93 +60,106 @@ log.level=debug
 
 #### basic configuration
 
-| Name                  | Type    | Description                                                  |
-| --------------------- | ------- | ------------------------------------------------------------ |
-| url              | String  | Url of listener.                        |
-| num_taskq_thread | Integer | Number of taskq threads used. |
-| max_taskq_thread | Integer | Maximum number of taskq threads used. |
-| parallel |Long  | Number of parallel.                                          |
-| property_size |Integer  | Max size for a MQTT property. |
-| msq_len | Integer | Queue length for resending messages. |
-| qos_duration | Integer | The interval of the qos timer.                               |
-| allow_anonymous | Boolean | Allow anonymous login.                                       |
-| tls.enable | Boolean | Enable TLS listener(*default: false*).                                         |
-| tls.url | String | URL of TLS listener. |
-| tls.key | String | User's private PEM-encoded key. |
-| tls.keypass | String | String containing the user's password. Only used if the private keyfile is password-protected. |
-| tls.cert |String  | User certificate data.                                       |
-| tls.cacert | String | User's PEM-encoded CA certificates.                          |
-| tls.verify_peer | Boolean | Verify peer certificate.                                     |
-| tls.fail_if_no_peer_cert | Boolean | Server will fail if the client does not have a certificate to send. |
-| websocket.enable | Boolean | Enable websocket listener(*default: true*). |
-| websocket.url | String  | URL of websocket listener. |
-| websocket.tls_url |  String | URL of TLS over websocket listerner. |
-| http_server.enable| Boolean | Enable http server listerner (*default: false*). |
-| http_server.port | Integer | Port of http server. |
-| http_server.username | String | User name of http server. |
-| http_server.password | String | Password of http server. |
-| http_server.auth_type | String | Http server authentication type (*default: basic*). |
-| http_server.jwt.public.keyfile | String |public key file for *JWT*. |
-| http_server.jwt.private.keyfile | String |private key file for *JWT*. |
-| log.to | Array[String] | Array of log types，( *Use commas `,` to separate multiple types* )<br>Log types:  *file, console, syslog* |
-| log.level                       | String        | Log level：trace, debug, info, warn, error, fatal            |
-| log.dir                         | String      | The dir for log files. (if log to file)                      |
-| log.file                        | String      |The log filename. (if log to file) |
-| log.rotation.size | String | Maximum size of each log file; <br>Supported Unit: `KB | MB | GB`;<br> Default: `10MB` |
-| log.rotation.count | Integer | Maximum rotation count of log files; <br>Default: `5` |
+Name                               | Type          | Description
+---------------------------------- | ------------- | ----------------------------------------------------------------------------------------------
+sys.daemon                         | Boolean       | Launch with daemon（_默认false_）。
+sys.num_taskq_thread               | Integer       | Number of taskq threads used.
+sys.max_taskq_thread               | Integer       | Maximum number of taskq threads used.
+sys.parallel                       | Long          | Number of parallel.
+listeners.property_size            | Integer       | Max size for a MQTT property.
+listeners.msq_len                  | Integer       | Queue length for resending messages.
+listeners.qos_duration             | Integer       | The interval of the qos timer.
+listeners.allow_anonymous          | Boolean       | Allow anonymous login.
+listeners.tcp.enable               | Boolean       | Enable TCP listener(_default: true_).
+listeners.tcp.bind                 | String        | Url of listener.
+listeners.ssl.enable               | Boolean       | Enable ssl listener(_default: false_).
+listeners.ssl.bind                 | String        | URL of ssl listener.
+listeners.ssl.key                  | String        | User's private PEM-encoded key.
+listeners.ssl.keypass              | String        | String containing the user's password. Only used if the private keyfile is password-protected.
+listeners.ssl.cert                 | String        | User certificate data.
+listeners.ssl.cacert               | String        | User's PEM-encoded CA certificates.
+listeners.ssl.verify_peer          | Boolean       | Verify peer certificate.
+listeners.ssl.fail_if_no_peer_cert | Boolean       | Server will fail if the client does not have a certificate to send.
+listeners.ws.enable                | Boolean       | Enable websocket listener(_default: true_).
+listeners.ws.bind                  | String        | URL of websocket listener.
+http_server.enable                 | Boolean       | Enable http server listerner (_default: false_).
+http_server.port                   | Integer       | Port of http server.
+http_server.username               | String        | User name of http server.
+http_server.password               | String        | Password of http server.
+http_server.auth_type              | String        | Http server authentication type (_default: basic_).
+http_server.jwt.public.keyfile     | String        | public key file for _JWT_.
+http_server.jwt.private.keyfile    | String        | private key file for _JWT_.
+log.to                             | Array[String] | Array of log types，( _Use commas `,` to separate multiple types_ )<br>Log types: _file, console, syslog_ 
+log.level                          | String        | Log level：trace, debug, info, warn, error, fatal 
+log.dir                            | String        | The dir for log files. (if log to file) 
+log.file                           | String        | The log filename. (if log to file) 
+log.rotation.size                  | String        | Maximum size of each log file;<br>Supported Unit: `KB | MB | GB`;<br>Default:`10MB` 
+log.rotation.count                 | Integer       | Maximum rotation count of log files;<br>Default: `5`
+
 
 #### MQTT bridge configuration
 
-| Name                  | Type    | Description                                                  |
-| --------------------- | ------- | ------------------------------------------------------------ |
-| bridge.mqtt.nodes[0].name | String | Node name |
-| bridge.mqtt.nodes[0].enable | Boolean | Enter MQTT bridge mode (default `false` ).                                  |
-| bridge.mqtt.nodes[0].address | String | Remote Broker address. |
-| bridge.mqtt.nodes[0].proto_ver | Boolean | MQTT client version（3｜4｜5）. |
-| bridge.mqtt.nodes[0].clientid | String | MQTT client identifier. |
-| bridge.mqtt.nodes[0].keepalive | Integer | Interval of keepalive.                                       |
-| bridge.mqtt.nodes[0].clean_start | Boolean | Clean seeson.                                                |
-| bridge.mqtt.nodes[0].parallel | Long | Parallel of mqtt client. |
-| bridge.mqtt.nodes[0].username | String | Login user name. |
-| bridge.mqtt.nodes[0].password | String | Login password. |
-| bridge.mqtt.nodes[0].forwards | Array[String] | Array of forward topics.( *Use commas `,` to separate multiple topics* ) |
-| bridge.mqtt.nodes[0].subscription[0].topic | String | First `Topic`.                               |
-| bridge.mqtt.nodes[0].subscription[0].qos | Integer | First `Qos`.                       |
-| bridge.mqtt.nodes[0].tls.enable | Boolean | Launch TLS （* default false*）。 |
-| bridge.mqtt.nodes[0].tls.key_password | String | String containing the user's password. only used if the private keyfile is password-protected. |
-| bridge.mqtt.nodes[0].tls.keyfile | String | User's private PEM-encoded key. |
-| bridge.mqtt.nodes[0].tls.certfile |String  | User certificate data. |
-| bridge.mqtt.nodes[0].tls.cacertfile | String | User's PEM-encoded CA certificates.|
+Name                                        | Type          | Description
+------------------------------------------- | ------------- | ----------------------------------------------------------------------------------------------
+bridge.mqtt.nodes[0].name                   | String        | Node name
+bridge.mqtt.nodes[0].enable                 | Boolean       | Enter MQTT bridge mode (default `false` ).
+bridge.mqtt.nodes[0].connector.server       | String        | Remote Broker address.
+bridge.mqtt.nodes[0].connector.proto_ver    | Boolean       | MQTT client version（3｜4｜5）.
+bridge.mqtt.nodes[0].connector.clientid     | String        | MQTT client identifier.
+bridge.mqtt.nodes[0].connector.keepalive    | Integer       | Interval of keepalive.
+bridge.mqtt.nodes[0].connector.clean_start  | Boolean       | Clean session.
+bridge.mqtt.nodes[0].connector.username     | String        | Login user name.
+bridge.mqtt.nodes[0].connector.password     | String        | Login password.
+bridge.mqtt.nodes[0].quic_keepalive         | Duration      | Interval of a sending keepalive packet via QUIC transport., （_default 120s_ )
+bridge.mqtt.nodes[0].quic_idle_timeout      | Duration      | How long a connection can go idle before it is gracefully shut down. 0 to disable timeout, which may lost disconnect event msg. （_default 120s_ )
+bridge.mqtt.nodes[0].quic_discon_timeout    | Duration      | How long to wait for an ACK before declaring a path dead and disconnecting, This affects stream living time.（_default 20s_ )
+bridge.mqtt.nodes[0].quic_handshake_timeout | Duration      | The Max time NanoMQ waits for establishing QUIC connection（_default 60s_ )
+bridge.mqtt.nodes[0].hybrid_bridging        | Boolean       | Hybrid bridging: enable or disable the hybrid bridging mode，(_default `false` _), recommend to enable it when you want to take advantage of QUIC
+bridge.mqtt.nodes[0].congestion_control     | String        | Congestion control option (cubic | bbr) (_default bbr_)
+bridge.mqtt.nodes[0].multi_stream           | Boolean       | Multiple stream option，（_default `false`_）
+bridge.mqtt.nodes[0].parallel               | Long          | Parallel of mqtt client.
+bridge.mqtt.nodes[0].forwards               | Array[String] | Array of forward topics.( _Use commas `,` to separate multiple topics_ )
+bridge.mqtt.nodes[0].subscription[0].topic  | String        | First `Topic`.
+bridge.mqtt.nodes[0].subscription[0].qos    | Integer       | First `Qos`.
+bridge.mqtt.nodes[0].ssl.enable             | Boolean       | Launch TLS （ _default false_）。
+bridge.mqtt.nodes[0].ssl.key_password       | String        | String containing the user's password. only used if the private keyfile is password-protected.
+bridge.mqtt.nodes[0].ssl.keyfile            | String        | User's private PEM-encoded key.
+bridge.mqtt.nodes[0].ssl.certfile           | String        | User certificate data.
+bridge.mqtt.nodes[0].ssl.cacertfile         | String        | User's PEM-encoded CA certificates.
+
+
 
 #### AWS IoT Core bridge configuration
 
-| Name                                 | Type          | Description                                                  |
-| ------------------------------------ | ------------- | ------------------------------------------------------------ |
-| bridge.aws.nodes[0].name | String | Node name |
-| bridge.aws.nodes[0].enable | Boolean | Enter MQTT bridge mode (default `false` ).                                  |
-| bridge.aws.nodes[0].host                 | String        | aws endpoint.                                                |
-| bridge.aws.nodes[0].port                 | Integer       | aws MQTT port.                                               |
-| bridge.aws.nodes[0].clientid             | String        | MQTT client identifier.                                      |
-| bridge.aws.nodes[0].keepalive            | Integer       | Interval of keepalive.                                       |
-| bridge.aws.nodes[0].clean_start          | Boolean       | Clean seeson.                                                |
-| bridge.aws.nodes[0].parallel             | Long          | Parallel of mqtt client.                                     |
-| bridge.aws.nodes[0].username             | String        | Login user name.                                             |
-| bridge.aws.nodes[0].password             | String        | Login password.                                              |
-| bridge.aws.nodes[0].forwards             | Array[String] | Array of forward topics.( *Use commas `,` to separate multiple topics* ) |
-| bridge.aws.nodes[0].subscription[0].topic | String | First `Topic`.                               |
-| bridge.aws.nodes[0].subscription[0].qos | Integer | First `Qos`.                       |
-| bridge.aws.nodes[0].tls.enable | Boolean | Launch TLS （* default false*）。 |
-| bridge.aws.nodes[0].tls.key_password | String | String containing the user's password. only used if the private keyfile is password-protected. |
-| bridge.aws.nodes[0].tls.keyfile | String | User's private PEM-encoded key. |
-| bridge.aws.nodes[0].tls.certfile |String  | User certificate data. |
-| bridge.aws.nodes[0].tls.cacertfile | String | User's PEM-encoded CA certificates.|
+Name                                      | Type          | Description
+----------------------------------------- | ------------- | ----------------------------------------------------------------------------------------------
+bridge.aws.nodes[0].name                  | String        | Node name
+bridge.aws.nodes[0].enable                | Boolean       | Enter MQTT bridge mode (default `false` ).
+bridge.aws.nodes[0].connector.server      | String        | AWS IoT Core URL (_IP:PORT_)。
+bridge.aws.nodes[0].connector.clientid    | String        | MQTT client identifier.
+bridge.aws.nodes[0].connector.keepalive   | Duration      | Interval of keepalive.
+bridge.aws.nodes[0].connector.clean_start | Boolean       | Clean session.
+bridge.aws.nodes[0].connector.username    | String        | Login user name.
+bridge.aws.nodes[0].connector.password    | String        | Login password.
+bridge.aws.nodes[0].parallel              | Long          | Parallel of mqtt client.
+bridge.aws.nodes[0].forwards              | Array[String] | Array of forward topics.( _Use commas `,` to separate multiple topics_ )
+bridge.aws.nodes[0].subscription[0].topic | String        | First `Topic`.
+bridge.aws.nodes[0].subscription[0].qos   | Integer       | First `Qos`.
+bridge.aws.nodes[0].ssl.enable            | Boolean       | Launch TLS （ _default false_）。
+bridge.aws.nodes[0].ssl.key_password      | String        | String containing the user's password. only used if the private keyfile is password-protected.
+bridge.aws.nodes[0].ssl.keyfile           | String        | User's private PEM-encoded key.
+bridge.aws.nodes[0].ssl.certfile          | String        | User certificate data.
+bridge.aws.nodes[0].ssl.cacertfile        | String        | User's PEM-encoded CA certificates.
+
+
 
 #### Authorization configuration
 
-| Name                  | Type    |  Description               |
-| --------------- | -------- | ------------------------------- |
-| auth[0].login    | String   | Username.                      |
-| auth[0].password | String   | Password.                      |
+Name             | Type   | Description
+---------------- | ------ | -----------
+auth[0].login    | String | Username.
+auth[0].password | String | Password.
+
 
 #### WebHook configuration
 
@@ -185,66 +197,68 @@ log.level=debug
 
 #### Rule engine configuration
 
-| Name                          | Type    | Description                                                                      |
-| ------------------------------| ------- | -------------------------------------------------------------------------------- |
-| rule.option                   | String  | Rule engine option, when persistence with rule engine, this option is must be ON.|
+Name        | Type   | Description
+----------- | ------ | ---------------------------------------------------------------------------------
+rule.option | String | Rule engine option, when persistence with rule engine, this option is must be ON.
+
 #### Rule configuration for sqlite
 
-| Name                          | Type    | Description                                                                      |
-| ------------------------------| ------- | -------------------------------------------------------------------------------- |
-| rule.sqlite.path              | String  | Rule engine option SQLite3 database path, default is /tmp/rule_engine.db         |
-| rule.sqlite.enabled           | Boolen  | Rule engine option SQLite3 is enabled,  default is true                          |
-| rule.sqlite.rules[0].enabled  | Boolen  | Rule engine option rule is enbaled, default is  true                             |
-| rule.sqlite.rules[0].table    | String  | Rule engine option SQLite3 database table name                                   |
-| rule.sqlite.rules[0].sql      | String  | Rule engine sql clause                                                           |
+Name                         | Type   | Description
+---------------------------- | ------ | ------------------------------------------------------------------------
+rule.sqlite.path             | String | Rule engine option SQLite3 database path, default is /tmp/rule_engine.db
+rule.sqlite.enabled          | Boolen | Rule engine option SQLite3 is enabled, default is true
+rule.sqlite.rules[0].enabled | Boolen | Rule engine option rule is enbaled, default is true
+rule.sqlite.rules[0].table   | String | Rule engine option SQLite3 database table name
+rule.sqlite.rules[0].sql     | String | Rule engine sql clause
+
 
 #### Rule configuration for mysql
 
-| Name                          | Type    | Description                                                                      |
-| ------------------------------| ------- | -------------------------------------------------------------------------------- |
-| rule.mysql.name               | String  | Rule engine option mysql database name, default is mysql_rule_db                 |
-| rule.mysql.enabled            | Boolen  | Rule engine option mysql is enabled,  default is true                            |
-| rule.mysql.rules[0].enabled   | Boolen  | Rule engine option rule is enbaled, default is  true                             |
-| rule.mysql.rules[0].table     | String  | Rule engine option mysql database table name                                     |
-| rule.mysql.rules[0].host      | String  | Rule engine option mysql database host                                           |
-| rule.mysql.rules[0].username  | String  | Rule engine option mysql database username                                       |
-| rule.mysql.rules[0].password  | String  | Rule engine option mysql database password                                       |
-| rule.mysql.rules[0].sql       | String  | Rule engine sql clause                                                           |
+Name                         | Type   | Description
+---------------------------- | ------ | ----------------------------------------------------------------
+rule.mysql.name              | String | Rule engine option mysql database name, default is mysql_rule_db
+rule.mysql.enabled           | Boolen | Rule engine option mysql is enabled, default is true
+rule.mysql.rules[0].enabled  | Boolen | Rule engine option rule is enbaled, default is true
+rule.mysql.rules[0].table    | String | Rule engine option mysql database table name
+rule.mysql.rules[0].host     | String | Rule engine option mysql database host
+rule.mysql.rules[0].username | String | Rule engine option mysql database username
+rule.mysql.rules[0].password | String | Rule engine option mysql database password
+rule.mysql.rules[0].sql      | String | Rule engine sql clause
+
 
 #### Rule configuration for repub
 
-| Name                          | Type    | Description                                                     |
-| ------------------------------| ------- | --------------------------------------------------------------- |
-| rule.repub.enabled               | Boolen  | Rule engine option repub is enabled,  default is true        |
-| rule.repub.rules[0].enabled      | Boolen  | Rule engine option rule is enbaled, default is  true         |
-| rule.repub.rules[0].address      | String  | Rule engine option repub address (mqtt-tcp://host:port)      |
-| rule.repub.rules[0].topic        | String  | Rule engine option repub topic                               |
-| rule.repub.rules[0].username     | String  | Rule engine option repub username                            |
-| rule.repub.rules[0].password     | String  | Rule engine option repub password                            |
-| rule.repub.rules[0].proto_ver    | Integer | Rule engine option repub protocol version, default is 4      |
-| rule.repub.rules[0].clientid     | String  | Rule engine option repub clientid                            |
-| rule.repub.rules[0].keepalive    | Integer | Rule engine option repub keepalive                           |
-| rule.repub.rules[0].clean_start  | Boolean | Rule engine option repub clean_start flag, default is true   |
-| rule.repub.rules[0].sql          | String  | Rule engine sql clause                                       |
+Name                            | Type    | Description
+------------------------------- | ------- | ----------------------------------------------------------
+rule.repub.enabled              | Boolen  | Rule engine option repub is enabled, default is true
+rule.repub.rules[0].enabled     | Boolen  | Rule engine option rule is enbaled, default is true
+rule.repub.rules[0].address     | String  | Rule engine option repub address (mqtt-tcp://host:port)
+rule.repub.rules[0].topic       | String  | Rule engine option repub topic
+rule.repub.rules[0].username    | String  | Rule engine option repub username
+rule.repub.rules[0].password    | String  | Rule engine option repub password
+rule.repub.rules[0].proto_ver   | Integer | Rule engine option repub protocol version, default is 4
+rule.repub.rules[0].clientid    | String  | Rule engine option repub clientid
+rule.repub.rules[0].keepalive   | Duration| Rule engine option repub keepalive
+rule.repub.rules[0].clean_start | Boolean | Rule engine option repub clean_start flag, default is true
+rule.repub.rules[0].sql         | String  | Rule engine sql clause
 
 
 ### nanomq_gateway.conf
 
-| Name                            | Type    | Description                          |
-| ------------------------------- | ------- | ------------------------------------ |
-| gateway.mqtt.address            | String  | Remote Broker address.               |
-| gateway.mqtt.proto_ver          | String  | MQTT client version（3｜4｜5).        |
-| gateway.mqtt.clientid           | String  | MQTT client identifier.              |
-| gateway.mqtt.keepalive          | Integer | Interval of keepalive.               |
-| gateway.mqtt.clean_start        | Boolean | Clean seeson.                        |
-| gateway.mqtt.parallel           | Long    | Parallel of mqtt client.             |
-| gateway.mqtt.username           | String  | Login user name.                     |
-| gateway.mqtt.password           | String  | Login password.                      |
-| gateway.mqtt.forward            | String  | Forward topic.                       |
-| gateway.mqtt.sub_topic          | String  | Mqtt subscribe topic.                |
-| gateway.mqtt.sub_qos            | Integer | Mqtt subscribe qos.                  |
-| gateway.zmq.sub_address         | String  | Remote ZMQ server subscribe address. |
-| gateway.zmq.pub_address         | String  | Remote ZMQ server publish address.   |
-| gateway.zmq.sub_pre             | String  | Remote ZMQ server subscribe prefix.  |
-| gateway.zmq.pub_pre             | String  | Remote ZMQ server publish prefix.    |
-
+Name                     | Type    | Description
+------------------------ | ------- | ------------------------------------
+gateway.mqtt.address     | String  | Remote Broker address.
+gateway.mqtt.proto_ver   | Integer | MQTT client version（3｜4｜5).
+gateway.mqtt.clientid    | String  | MQTT client identifier.
+gateway.mqtt.keepalive   | Duration| Interval of keepalive.
+gateway.mqtt.clean_start | Boolean | Clean session.
+gateway.mqtt.parallel    | Long    | Parallel of mqtt client.
+gateway.mqtt.username    | String  | Login user name.
+gateway.mqtt.password    | String  | Login password.
+gateway.mqtt.forward     | String  | Forward topic.
+gateway.mqtt.sub_topic   | String  | Mqtt subscribe topic.
+gateway.mqtt.sub_qos     | Integer | Mqtt subscribe qos.
+gateway.zmq.sub_address  | String  | Remote ZMQ server subscribe address.
+gateway.zmq.pub_address  | String  | Remote ZMQ server publish address.
+gateway.zmq.sub_pre      | String  | Remote ZMQ server subscribe prefix.
+gateway.zmq.pub_pre      | String  | Remote ZMQ server publish prefix.
