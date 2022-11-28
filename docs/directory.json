@@ -13,8 +13,12 @@
       "path": "features"
     },
     {
-      "title": "配置说明",
-      "path": "config-description"
+      "title": "配置说明(v014)",
+      "path": "config-description/v014.md"
+    },
+    {
+      "title": "配置说明(v013)",
+      "path": "config-description/v013.md"
     },
     {
       "title": "编译选项",
@@ -56,9 +60,14 @@
       "path": "quick-start"
     },
     {
-      "title": "Configuration",
-      "path": "config-description"
+      "title": "Configuration(v014)",
+      "path": "config-description/v014.md"
     },
+    {
+      "title": "Configuration(v013)",
+      "path": "config-description/v013.md"
+    },
+
     {
       "title": "Features",
       "path": "features"
