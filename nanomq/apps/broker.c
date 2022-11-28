@@ -64,6 +64,7 @@
 
 enum options {
 	OPT_HELP = 1,
+	OPT_HOCONFILE,
 	OPT_CONFFILE,
 	OPT_PARALLEL,
 	OPT_DAEMON,
@@ -89,7 +90,8 @@ enum options {
 
 static nng_optspec cmd_opts[] = {
 	{ .o_name = "help", .o_short = 'h', .o_val = OPT_HELP },
-	{ .o_name = "conf", .o_val = OPT_CONFFILE, .o_arg = true },
+	{ .o_name = "conf", .o_val = OPT_HOCONFILE, .o_arg = true },
+	{ .o_name = "old_conf", .o_val = OPT_CONFFILE, .o_arg = true },
 	{ .o_name = "daemon", .o_short = 'd', .o_val = OPT_DAEMON },
 	{ .o_name    = "tq_thread",
 	    .o_short = 't',
@@ -269,7 +271,7 @@ server_cb(void *arg)
 				nng_msg_free(msg);
 				nng_ctx_recv(work->extra_ctx, work->aio);
 				break;
-			} else { 
+			} else {
 				nng_msg_set_cmd_type(msg, type);
 				// clone conn_param every single time
 				conn_param_clone(nng_msg_get_conn_param(msg));
@@ -1302,7 +1304,7 @@ predicate_url(conf *config, char *url)
 		config->websocket.enable = true;
 	}
 }
-
+// Return config file type
 int
 file_path_parse(int argc, char **argv, char **file_path)
 {
@@ -1318,11 +1320,14 @@ file_path_parse(int argc, char **argv, char **file_path)
 			print_usage();
 			exit(0);
 			break;
+		case OPT_HOCONFILE:
+			FREE_NONULL(*file_path);
+			*file_path = nng_strdup(arg);
+			return OPT_HOCONFILE;
 		case OPT_CONFFILE:
 			FREE_NONULL(*file_path);
 			*file_path = nng_strdup(arg);
-			break;
-
+			return OPT_CONFFILE;
 		default:
 			break;
 		}
@@ -1513,13 +1518,16 @@ broker_start(int argc, char **argv)
 	conf_init(nanomq_conf);
 	read_env_conf(nanomq_conf);
 
-	if (!file_path_parse(argc, argv, &nanomq_conf->conf_file)) {
+	rc = file_path_parse(argc, argv, &nanomq_conf->conf_file);
+	if (!rc) {
 		conf_fini(nanomq_conf);
 		fprintf(stderr, "Cannot parse command line arguments, quit\n");
 		exit(EXIT_FAILURE);
+	} else if (rc == OPT_CONFFILE) {
+		conf_parse(nanomq_conf);
+	} else if (rc == OPT_HOCONFILE) {
+		conf_parse_ver2(nanomq_conf);
 	}
-
-	conf_parse_ver2(nanomq_conf);
 
 	if (!broker_parse_opts(argc, argv, nanomq_conf)) {
 		conf_fini(nanomq_conf);
