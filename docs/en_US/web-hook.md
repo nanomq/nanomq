@@ -4,7 +4,7 @@
 
 ## Configuration item
 
-The webhook configuration file is located in: `etc/nanomq.conf`, the detailed description of configuration items can be found in [Configuration item](./config-description.md).
+The webhook configuration file is located in: `etc/nanomq.conf`, the detailed description of configuration items can be found in [Configuration item](./config-description/v014.md).
 
 **Enable Webhook**
 
