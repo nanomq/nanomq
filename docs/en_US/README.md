@@ -19,7 +19,7 @@ Github repository address: <https://github.com/emqx/nanomq>
 
 [Quick Start](./quick-start.md)
 
-[Configuration](./config-description.md)
+[Configuration](./config-description/v014.md)
 
 [Build Options](./build-options.md)
 
