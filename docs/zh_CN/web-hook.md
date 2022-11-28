@@ -4,7 +4,7 @@
 
 ## 配置项
 
-Webhook 的配置文件位于 `etc/nanomq.conf`, 具体配置项可查看[配置说明](./config-description.md).
+Webhook 的配置文件位于 `etc/nanomq.conf`, 具体配置项可查看[配置说明](./config-description/v014.md).
 
 **启用Webhook**
 

@@ -124,7 +124,7 @@ gateway.mqtt.subscription=topic/sub
 ## Value: 1-infinity
 gateway.mqtt.parallel=2
 ```
-配置文集的[详细描述](./config-description.md).
+配置文集的[详细描述](./config-description/v014.md).
 
 启动 broker 和 zmq 的服务器, 启动 gateway: 
 ```
