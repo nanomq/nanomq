@@ -1122,7 +1122,7 @@ print_usage(void)
 	       "[--conf <path>] [-t, --tq_thread <num>]\n                     "
 	       "[-T, -max_tq_thread <num>] [-n, --parallel <num>] \n          "
 	       "           "
-	       "[-D, --qos_duration <num>] [--http] "
+	       "[--old_conf <path>] [-D, --qos_duration <num>] [--http] "
 	       "[-p, --port] [-d, --daemon] \n                     "
 	       "[--cacert <path>] [-E, --cert <path>] "
 	       "[--key <path>] \n                     "
@@ -1137,7 +1137,8 @@ print_usage(void)
 	       "'nmq-ws://host:port/path', \r\n                             "
 	       "'nmq-wss://host:port/path'\n");
 	printf("  --conf <path>              The path of a specified nanomq "
-	       "configuration file \n");
+	       " HOCON style configuration file \n");
+	printf("  --old_conf <path> parse old config file\n");
 
 	printf("  --http                     Enable http server (default: "
 	       "false)\n");
