@@ -7,7 +7,7 @@ NanoMQ 的配置文件格式是 HOCON 。 HOCON（Human-Optimized Config Object 
 配置文件                    | 说明
 ----------------------- | -------------
 etc/nanomq.conf         | NanoMQ 配置文件
-etc/nanomq_gateway.conf | NanoMQ 网关配置文件
+etc/nanomq_gateway.conf | NanoMQ 网关配置文件 (用于 `nanomq_cli`)
 
 
 ## 配置文件语法
@@ -16,7 +16,7 @@ etc/nanomq_gateway.conf | NanoMQ 网关配置文件
 ```bash
 websocket {
      enable=false
-     url="nmq-ws://0.0.0.0:8083/mqtt"
+     bind="0.0.0.0:8083/mqtt"
 }
 ```
 
@@ -24,7 +24,7 @@ websocket {
 
 ```bash
 websocket.enable = false
-websocket.url="nmq-ws://0.0.0.0:8083/mqtt"
+websocket.bind="0.0.0.0:8083/mqtt"
 ```
 
 这种扁平格式几乎与 NanoMQ 的配置文件格式向后兼容（所谓的 'cuttlefish' 格式）。
@@ -32,7 +32,7 @@ websocket.url="nmq-ws://0.0.0.0:8083/mqtt"
 它并不是完全兼容，因为 HOCON 经常要求字符串两端加上引号。
 而cuttlefish把`=`符右边的所有字符都视为值。
 
-例如，cuttlefish：`websocket.url = nmq-ws://0.0.0.0:8083/mqtt`，HOCON：`websocket.url = "nmq-ws://0.0.0.0:8083/mqtt"`。
+例如，cuttlefish：`websocket.bind = 0.0.0.0:8083/mqtt`，HOCON：`websocket.bind = "0.0.0.0:8083/mqtt"`。
 ### 配置重载规则
 HOCON的值是分层覆盖的，普遍规则如下：
 
@@ -42,7 +42,7 @@ HOCON的值是分层覆盖的，普遍规则如下：
 结下来的文档将解释更详细的规则。
 
 合并覆盖规则。在如下配置中，最后一行的 `debug` 值会覆盖覆盖原先 `level` 字段的 `error` 值，但是 `to` 字段保持不变。
-```
+```bash
 log {
     to=[file,console]
     level=error
@@ -72,8 +72,9 @@ listeners.msq_len                  | Integer       | 队列长度。
 listeners.qos_duration             | Duration      | QOS消息定时间隔时间。
 listeners.allow_anonymous          | Boolean       | 允许匿名登录。
 listeners.tcp.enable               | Boolean       | 启动TCP监听（_默认true_）。
-listeners.tcp.url                  | String        | 监听url。
+listeners.tcp.bind                  | String        | 监听 tcp url。
 listeners.ssl.enable               | Boolean       | 启动TLS监听（_默认false_）。
+listeners.ssl.bind                  | String       | 监听 tls url。
 listeners.ssl.key                  | String        | TLS私钥数据。
 listeners.ssl.keypass              | String        | TLS私钥密码。
 listeners.ssl.cert                 | String        | TLS Cert证书数据。
@@ -81,7 +82,7 @@ listeners.ssl.cacert               | String        | TLS CA证书数据。
 listeners.ssl.verify_peer          | Boolean       | 验证客户端证书。
 listeners.ssl.fail_if_no_peer_cert | Boolean       | 拒绝无证书连接，与 tls.verify_peer 配合使用。
 listeners.ws.enable                | Boolean       | 启动websocket监听（_默认true_）。
-listeners.ws.url                   | String        | Websocket监听URL。
+listeners.ws.bind                   | String        | Websocket监听URL。
 http_server.enable                 | Boolean       | 启动Http服务监听（_默认false_)。
 http_server.port                   | Integer       | Http服务端监听端口。
 http_server.username               | String        | 访问Http服务用户名。
@@ -138,7 +139,7 @@ bridge.aws.nodes[0].enable                | Boolean       | 启动桥接功能�
 bridge.aws.nodes[0].connector.server      | String        | AWS IoT Core 地址 URL (_IP:PORT_)。
 bridge.aws.nodes[0].connector.proto_ver   | Integer       | 桥接客户端 MQTT 版本（3｜4｜5）。
 bridge.aws.nodes[0].connector.clientid    | String        | 桥接客户端ID（_默认 NULL 为自动生成随机 ID_）。
-bridge.aws.nodes[0].connector.keepalive   | Integer       | 保活间隔时间。
+bridge.aws.nodes[0].connector.keepalive   | Duration      | 保活间隔时间。
 bridge.aws.nodes[0].connector.clean_start | Boolean       | 清除会话。
 bridge.aws.nodes[0].connector.username    | String        | 登录用户名。
 bridge.aws.nodes[0].connector.password    | String        | 登录密码。
