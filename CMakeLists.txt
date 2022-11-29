@@ -23,6 +23,7 @@ option (ENABLE_RULE_ENGINE "Enable rule engine" OFF)
 option (ENABLE_AWS_BRIDGE "Enable aws bridge" OFF)
 option (ENABLE_SYSLOG "Enable syslog" ON)
 option (NOLOG "Disable log" OFF)
+option (ENABLE_ACL "Enable ACL" ON)
 
 set (NNG_PROTO_MQTT_BROKER  ON)
 set (NNG_TRANSPORT_MQTT_BROKER_TCP ON)
@@ -179,6 +180,12 @@ if(NNG_ENABLE_QUIC)
   add_definitions(-DSUPP_QUIC)
   # This is for enabling beta feature of MSQUIC such as CUBIC/BBR
   add_definitions(-DQUIC_API_ENABLE_PREVIEW_FEATURES)
+endif()
+
+if(ENABLE_ACL)
+  message("-- Build NanoMQ with ACL support --")
+  set(ENABLE_ACL ON)
+  add_definitions(-DACL_SUPP)
 endif()
 
 if(BUILD_NNG_PROXY)
