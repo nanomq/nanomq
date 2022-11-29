@@ -1121,7 +1121,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto, bool is
 		log_error("Topic is NULL");
 		return result;
 	}
-
+#ifdef ACL_SUPP
 	if (!is_event && work->cparam) {
 		if (work->config->acl.enable) {
 			bool rv = auth_acl(work->config, ACL_PUB, work->cparam,
@@ -1133,7 +1133,6 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto, bool is
 				    ACL_DISCONNECT) {
 					log_warn(
 					    "acl deny, disconnect client");
-					// TODO disconnect client
 					return NORMAL_DISCONNECTION;
 				} else {
 					return BANNED;
@@ -1143,7 +1142,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto, bool is
 			}
 		}
 	}
-
+#endif
 	cli_ctx_list = dbtree_find_clients(work->db, topic);
 
 	shared_cli_list = dbtree_find_shared_clients(work->db, topic);

@@ -240,7 +240,7 @@ sub_ctx_handle(nano_work *work)
 
 		if (!topic_str)
 			goto next;
-
+#ifdef ACL_SUPP
 		/* Add items which not included in dbhash */
 		if (work->config->acl.enable) {
 			bool auth_result = auth_acl(
@@ -260,6 +260,7 @@ sub_ctx_handle(nano_work *work)
 				log_info("acl allow");
 			}
 		}
+#endif
 
 		topic_exist = dbhash_check_topic(work->pid.id, topic_str);
 		if (!topic_exist) {
