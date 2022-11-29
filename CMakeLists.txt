@@ -210,6 +210,12 @@ else()
   message("-- MODE [Release] --")
 endif(DEBUG)
 
+if (DEBUG_TRACE)
+  message("-- MODE [enable ptrace] --")
+  SET(CMAKE_BUILD_TYPE "Debug")
+  add_definitions(-DDEBUG_TRACE)
+endif(DEBUG_TRACE)
+
 #add_executable(nanomq-nng nanomq/nanomq.c)
 
 #add_dependencies(nanomq-nng nng_h)
