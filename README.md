@@ -188,7 +188,33 @@ cmake -G Ninja ..
 ninja
 ```
 
+## Debugging guide
 
+NanoMQ provides dozens of ways of debugging in case you need troubleshooting any issue when doing cross-compiling & self-development.
+
+**Note (optional): debug NanoMQ with GDB**.
+
+```bash
+cmake -G Ninja -DDEBUG=ON ..
+ninja
+```
+
+**Note (optional): debug NanoMQ with Sanitizer**.
+
+```bash
+cmake -G Ninja -DASAN=ON -DTSAN=ON ..
+ninja
+```
+
+**Note (optional): debug NanoMQ with ptrace**.
+
+ptrace is a mechanism that allows one process to “trace” the execution of another process. The tracer is able to
+pause execution, and inspect and modify memory and registers in the tracee process:
+
+```bash
+cmake -G Ninja -DDEBUG_TRACE=ON ..
+ninja
+```
 
 
 ## Configuration 
@@ -232,7 +258,7 @@ Be aware that, CMake configuration is enabled by default, If you leave all param
 
   *Inherited from NNG*
 
-- For debugging, NanoMQ has a logging system that logs all information from all threads.  Enabling or disabling the debugging messages by (Mac users should disable it before compilation):
+- For logging, NanoMQ has a loger built-in which logs all information from all threads.  Enabling or disabling the debugging messages by (Mac users should disable it before compilation):
 
   Default: disabled (1)
 
