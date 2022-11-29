@@ -264,15 +264,14 @@ server_cb(void *arg)
 			type = nng_msg_get_type(msg);
 			if (type == CMD_CONNACK) {
 				log_info("bridge client is connected!");
-				nng_msg_set_cmd_type(msg, type);
 			} else if (type != CMD_PUBLISH) {
-				// only accept publish msg from upstream
+				// only accept publish/CONNACK/DISCONNECT
+				// msg from upstream
 				work->state = RECV;
 				nng_msg_free(msg);
 				nng_ctx_recv(work->extra_ctx, work->aio);
 				break;
 			} else {
-				nng_msg_set_cmd_type(msg, type);
 				// clone conn_param every single time
 				conn_param_clone(nng_msg_get_conn_param(msg));
 			}
@@ -435,7 +434,7 @@ server_cb(void *arg)
 			uint8_t *body        = nng_msg_body(work->msg);
 			uint8_t  reason_code = *(body + 1);
 			if (work->proto == PROTO_MQTT_BROKER) {
-				// Return CONNACK to broker client
+				// Return CONNACK to clients of broker
 				nng_msg_set_pipe(work->msg, work->pid);
 				// clone for sending connect event notification
 				nng_msg_clone(work->msg);
@@ -454,7 +453,7 @@ server_cb(void *arg)
 			// remember to free conn_param in WAIT 
 			// due to clone in protocol layer
 		} else if (work->flag == CMD_DISCONNECT_EV) {
-			// v4 as default, or send V5 notify msg?
+			// Now v4 as default/send V5 notify msg?
 			webhook_entry(work, 0);
 			nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 			work->flag = CMD_PUBLISH;
@@ -474,6 +473,7 @@ server_cb(void *arg)
 				conn_param_free(work->cparam);
 			} else {
 				// set to END to send will msg
+				// TBD: relay last will msg for bridging client?
 				work->state = END;
 				// leave cp for will msg
 				nng_aio_finish(work->aio, 0);
