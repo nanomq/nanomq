@@ -1,3 +1,4 @@
+#ifdef ACL_SUPP
 #include "include/acl_handler.h"
 #include "nng/protocol/mqtt/mqtt_parser.h"
 #include "nng/supplemental/nanolib/log.h"
@@ -171,3 +172,4 @@ auth_acl(conf *config, acl_action_type act_type, conn_param *param,
 		return config->acl_nomatch == ACL_ALLOW ? true : result;
 	}
 }
+#endif
