@@ -1123,20 +1123,24 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto, bool is
 	}
 
 	if (!is_event && work->cparam) {
-		bool rv = auth_acl(work->config, ACL_PUB, work->cparam,
-		    work->pub_packet->var_header.publish.topic_name.body);
-
-		if (!rv) {
-			log_warn("acl deny");
-			if (work->config->acl_deny_action == ACL_DISCONNECT) {
-				log_warn("acl deny, disconnect client");
-				// TODO disconnect client
-				return NORMAL_DISCONNECTION;
+		if (work->config->acl.enable) {
+			bool rv = auth_acl(work->config, ACL_PUB, work->cparam,
+			    work->pub_packet->var_header.publish.topic_name
+			        .body);
+			if (!rv) {
+				log_warn("acl deny");
+				if (work->config->acl_deny_action ==
+				    ACL_DISCONNECT) {
+					log_warn(
+					    "acl deny, disconnect client");
+					// TODO disconnect client
+					return NORMAL_DISCONNECTION;
+				} else {
+					return BANNED;
+				}
 			} else {
-				return BANNED;
+				log_info("acl allow");
 			}
-		} else {
-			log_info("acl allow");
 		}
 	}
 

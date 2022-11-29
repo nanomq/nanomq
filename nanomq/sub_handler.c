@@ -242,19 +242,23 @@ sub_ctx_handle(nano_work *work)
 			goto next;
 
 		/* Add items which not included in dbhash */
-
-		bool auth_result =
-		    auth_acl(work->config, ACL_SUB, work->cparam, topic_str);
-
-		if (!auth_result) {
-			log_warn("acl deny");
-			tn->reason_code = NMQ_AUTH_SUB_ERROR;
-			if (work->config->acl_deny_action == ACL_DISCONNECT) {
-				log_warn("acl deny, disconnect client");
-				goto next;
+		if (work->config->acl.enable) {
+			bool auth_result = auth_acl(
+			    work->config, ACL_SUB, work->cparam, topic_str);
+			if (!auth_result) {
+				log_warn("acl deny");
+				tn->reason_code = NMQ_AUTH_SUB_ERROR;
+				if (work->config->acl_deny_action ==
+				    ACL_DISCONNECT) {
+					log_warn(
+					    "acl deny, disconnect client");
+					// TODO disconnect client or return
+					// error code
+					goto next;
+				}
+			} else {
+				log_info("acl allow");
 			}
-		} else {
-			log_info("acl allow");
 		}
 
 		topic_exist = dbhash_check_topic(work->pid.id, topic_str);
