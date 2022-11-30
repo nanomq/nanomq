@@ -38,6 +38,8 @@ For more information, please visit [NanoMQ homepage](https://nanomq.io/).
 nanomq start 
 nanomq stop
 nanomq restart 
+nanomq reload 
+
 ```
 MQTT Example:
 ```bash
@@ -361,9 +363,10 @@ The same configuration can be achieved by adding some command-line arguments whe
 ```bash
 Usage: nanomq { { start | restart [--url <url>] [--conf <path>] [-t, --tq_thread <num>]
                      [-T, -max_tq_thread <num>] [-n, --parallel <num>] 
-                     [-D, --qos_duration <num>] [--http] [-p, --port] [-d, --daemon] 
+                     [--old_conf <path>] [-D, --qos_duration <num>] [--http] [-p, --port] [-d, --daemon] 
                      [--cacert <path>] [-E, --cert <path>] [--key <path>] 
-                     [--keypass <password>] [--verify] [--fail] }
+                     [--keypass <password>] [--verify] [--fail] } 
+                     | reload [--conf <path>] 
                      | stop }
 
 Options: 
@@ -371,7 +374,8 @@ Options:
                              'tls+nmq-tcp://host:port', 
                              'nmq-ws://host:port/path', 
                              'nmq-wss://host:port/path'
-  --conf <path>              The path of a specified nanomq configuration file 
+  --conf <path>              The path of a specified nanomq  HOCON style configuration file 
+  --old_conf <path> parse old config file
   --http                     Enable http server (default: false)
   -p, --port <num>           The port of http server (default: 8081)
   -t, --tq_thread <num>      The number of taskq threads used, 
@@ -399,7 +403,7 @@ Options:
   --log_syslog  <true|false> Enable/Disable syslog output (default: false)
 ```
 
-- `start`, `restart`, and `stop` command is mandatory as it indicates whether you want to start a new broker, or replace an existing broker with a new one, or stop a running broker;
+- `start`, `restart`, `reload` and `stop` command is mandatory as it indicates whether you want to start a new broker, or replace an existing broker with a new one, or stop a running broker;
 
   If `stop` is chosen, no other arguments are needed, and an existing running broker will be stopped:
 
@@ -479,6 +483,12 @@ Options:
 
   ```bash
   nanomq start|restart --log_level=<level> [--log_file <file_path>] [--log_stdout <true|false>]  [--log_syslog <true|false>]
+  ```
+
+- Reload configuration file:
+  Note: Only take effect for the parameters which marked "Hot updatable" in the configuration file;
+  ```bash
+  nanomq reload [--conf <$FILE_PATH>]
   ```
 
   
