@@ -21,8 +21,7 @@ IoT 时代数据是第一生产力，而边缘则是数据诞生的地方。在�
 - 支持nanomsg/nng和ZeroMQ协议转换。
 - 丰富的HTTP REST API，支持云边协同。
 
-![image](https://user-images.githubusercontent.com/64823539/182986851-1cb2446f-ae05-4bf4-a60f-5b6890f2408f.png)
-
+![img](./images/NanoMQ-introduction.png)
 
 [功能特性](./features.md)
 

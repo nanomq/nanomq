@@ -85,7 +85,7 @@ XMeter 是一个性能测试管理平台，基于开源的 JMeter 性能测试�
 
 华为云中的测试部署图如下所示，本次测试中使用了 EMQ Benchmark Tools 来模拟大量的 MQTT 连接；而 XMeter 提供的基于 JMeter MQTT 插件的测试工具来模拟业务测试场景；XMeter 内置支持的监控工具用于监控运行 nanomq 的服务器资源使用情况，同时对比操作系统自带的信息。
 
-![img](./images/huaweicloud.png)
+![img](./images/benchmark1.png)
 
 ### **测试环境简介**
 
