@@ -423,8 +423,7 @@ server_cb(void *arg)
 				free_pub_packet(work->pub_packet);
 				work->pub_packet = NULL;
 				cvector_free(work->pipe_ct->msg_infos);
-				// free conn_param due to
-				// clone in protocol layer
+				// free conn_param due to clone in protocol layer
 				conn_param_free(work->cparam);
 				nng_aio_finish(work->aio, 0);
 				// break or return?
