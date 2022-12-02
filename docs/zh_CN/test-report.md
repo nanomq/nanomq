@@ -548,6 +548,6 @@ NanoMQ 在不同 OS 和内核版本都保持了较高的性能表现。在未用
 
 NanoMQ 架构图
 
-![img](./images/nanomq.001.jpeg)
+![img](./images/nanomq.001.png)
 
 NanoMQ 底层通过单线程 Epoll 读取内核中的网络数据，在传输层处理链接报文的解析和异步消息的生产。同时进行 IO Batch 后快速回复 QoS 消息。Connect 包处理完成建立 PIPE 后，通过异步 IO 将消息转发给协议层进行处理。协议层负责消息队列的管理和定时器的触发。最后将异步消息通过 AIO 再在应用层进行全局的逻辑处理和消息路由。
