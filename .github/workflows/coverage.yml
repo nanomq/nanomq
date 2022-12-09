@@ -1,0 +1,35 @@
+name: coverage
+on: [push]
+jobs:
+
+  linux-coverage:
+    name: linux
+    runs-on: [ ubuntu-latest ]
+    steps:
+    - name: Checkout repository and submodules
+      uses: actions/checkout@v2
+      with:
+        submodules: recursive
+
+    - name: Install mbedTLS
+      run: sudo apt-get install libmbedtls-dev
+
+    - name: Install ninja
+      run: sudo apt-get install ninja-build
+
+    - name: Configure
+      run:  mkdir build && cd build && cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug -DNNG_ENABLE_COVERAGE=ON -DNNG_ENABLE_TLS=ON -DNNG_ENABLE_SQLITE=ON ..
+
+    - name: build
+      run: cd build && ninja && sudo ninja install
+
+    - name: Test
+      run: |
+        python3 .github/scripts/test.py 
+      # run: cd build && ctest --output-on-failure
+
+    - name: Upload report
+      uses: codecov/codecov-action@v1
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        yml: ./.codecov.yml
