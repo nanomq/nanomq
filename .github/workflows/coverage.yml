@@ -11,11 +11,10 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Install mbedTLS
-      run: sudo apt-get install libmbedtls-dev
-
-    - name: Install ninja
-      run: sudo apt-get install ninja-build
+    - name: Install libs
+      run: |
+        sudo apt-get install -y libmbedtls-dev ninja-build pip python3-pip mosquitto-clients
+        pip install Jinja2 paho-mqtt
 
     - name: Configure
       run:  mkdir build && cd build && cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug -DNNG_ENABLE_COVERAGE=ON -DNNG_ENABLE_TLS=ON -DNNG_ENABLE_SQLITE=ON ..
