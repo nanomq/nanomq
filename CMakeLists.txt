@@ -223,6 +223,22 @@ if (DEBUG_TRACE)
   add_definitions(-DDEBUG_TRACE)
 endif(DEBUG_TRACE)
 
+if (NNG_ENABLE_COVERAGE)
+    # NB: This only works for GCC and Clang 3.0 and newer.  If your stuff
+    # is older than that, you will need to find something newer.  For
+    # correct reporting, we always turn off all optimizations.
+    if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
+        set(NNG_COVERAGE_C_FLAGS "-g -O0 --coverage")
+        set(CMAKE_SHARED_LINKER_FLAGS --coverage)
+    elseif (CMAKE_C_COMPILER_ID MATCHES "Clang")
+        set(NNG_COVERAGE_C_FLAGS "-g -O0 --coverage")
+        set(CMAKE_SHARED_LINKER_FLAGS --coverage)
+    else ()
+        message(FATAL_ERROR "Unable to enable coverage for your compiler.")
+    endif ()
+    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${NNG_COVERAGE_C_FLAGS}")
+endif ()
+
 #add_executable(nanomq-nng nanomq/nanomq.c)
 
 #add_dependencies(nanomq-nng nng_h)
