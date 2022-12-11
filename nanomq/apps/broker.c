@@ -1519,13 +1519,15 @@ broker_start(int argc, char **argv)
 	read_env_conf(nanomq_conf);
 
 	rc = file_path_parse(argc, argv, &nanomq_conf->conf_file);
+
 	if (!rc) {
 		conf_fini(nanomq_conf);
 		fprintf(stderr, "Cannot parse command line arguments, quit\n");
 		exit(EXIT_FAILURE);
 	} else if (rc == OPT_CONFFILE) {
 		conf_parse(nanomq_conf);
-	} else if (rc == OPT_HOCONFILE) {
+	} else {
+		// HOCON as default
 		conf_parse_ver2(nanomq_conf);
 	}
 
