@@ -51,15 +51,6 @@ apply_sqlite_config(
 #endif
 }
 
-static int
-apply_bridge_node_config(
-    nng_socket *sock, conf_bridge_node *config)
-{
-	// set bridge node option pointer to socket
-	return nng_socket_set_ptr(*sock, NNG_OPT_MQTT_BRIDGE_NODE, config);
-}
-
-
 nng_msg *
 bridge_publish_msg(const char *topic, uint8_t *payload, uint32_t len, bool dup,
     uint8_t qos, bool retain, property *props)
@@ -181,7 +172,6 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	}
 
 	apply_sqlite_config(sock, node, "mqtt_client.db");
-	// apply_bridge_node_config(sock, node);
 
 	if ((rv = nng_dialer_create(&dialer, *sock, node->address))) {
 		fatal("nng_dialer_create", rv);
@@ -315,7 +305,6 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	}
 	// mqtt v5 protocol
 	apply_sqlite_config(sock, node, "mqtt_quic_client.db");
-	apply_bridge_node_config(sock, node);
 
 	bridge_arg         = (bridge_param *) nng_alloc(sizeof(bridge_param));
 	bridge_arg->config = node;
