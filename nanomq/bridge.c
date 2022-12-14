@@ -18,8 +18,6 @@ static int init_dialer_tls(nng_dialer d, const char *cacert, const char *cert,
     const char *key, const char *pass);
 #endif
 
-static int session_is_kept_tcp  = 0;
-static int session_is_kept_quic = 0;
 static nng_thread *hybridger_thr;
 
 static void
@@ -144,10 +142,6 @@ bridge_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_CONNECT_PROPERTY, &prop);
 	log_info("Bridge client connected! RC [%d]", reason);
 
-	// Session is saved in mqtt broker
-	if (session_is_kept_tcp == 1)
-		return;
-
 	/* MQTT V5 SUBSCRIBE */
 	if (reason == 0 && param->config->sub_count > 0) {
 		nng_mqtt_topic_qos *topic_qos =
@@ -168,8 +162,6 @@ bridge_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 		    topic_qos, param->config->sub_count);
 	}
 
-	if (param->config->clean_start == false)
-		session_is_kept_tcp = 1;
 }
 
 #ifdef NNG_SUPP_TLS
@@ -412,10 +404,6 @@ bridge_quic_connect_cb(void *rmsg, void *arg)
 	log_info("Quic bridge client connected! RC [%d]", reason);
 	nng_msg_free(msg);
 
-	// Session is saved in mqtt broker
-	if (session_is_kept_quic == 1)
-		return 0;
-
 	/* MQTT V5 SUBSCRIBE */
 	if (reason == 0 && param->config->sub_count > 0) {
 		nng_mqtt_topic_qos *topic_qos =
@@ -437,8 +425,6 @@ bridge_quic_connect_cb(void *rmsg, void *arg)
 		    topic_qos, param->config->sub_count);
 	}
 
-	if (param->config->clean_start == false)
-		session_is_kept_quic = 1;
 	return 0;
 }
 
