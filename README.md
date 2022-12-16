@@ -1,7 +1,7 @@
 # NanoMQ
 
 [![GitHub Release](https://img.shields.io/github/release/emqx/nanomq?color=brightgreen&label=Release)](https://github.com/emqx/nanomq/releases)
-[![Build Status](https://img.shields.io/github/workflow/status/emqx/nanomq/Build%20packages?label=Build)](https://github.com/emqx/nanomq/actions)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/emqx/nanomq/build_packages.yaml?branch=master&label=Build)](https://github.com/emqx/nanomq/actions)
 [![Docker Pulls](https://img.shields.io/docker/pulls/nanomq/nanomq?label=Docker%20Pulls)](https://hub.docker.com/r/nanomq/nanomq)
 [![Discord](https://img.shields.io/discord/931086341838622751?label=Discord&logo=discord)](https://discord.gg/xYGf3fQnES)
 [![Twitter](https://img.shields.io/badge/Follow-EMQ-1DA1F2?logo=twitter)](https://twitter.com/EMQTech)
