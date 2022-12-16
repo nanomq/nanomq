@@ -5,12 +5,19 @@
 # found online at https://opensource.org/licenses/MIT.
 # not finished yet #
 
-cmake_minimum_required (VERSION 2.8.8)
+cmake_minimum_required (VERSION 2.8.12)
 SET(CMAKE_C_STANDARD 99)
 
 project(nanomq-nng)
 
 include(CheckCCompilerFlag)
+
+set(CMAKE_MODULE_PATH
+  ${CMAKE_MODULE_PATH}
+  "${CMAKE_CURRENT_LIST_DIR}/cmake"
+)
+
+include(NanoMQHelpers)
 
 option (BUILD_NANOMQ_CLI "Build nanomq CLI" OFF)
 option (BUILD_CLIENT "Build nanomq client" ON)
@@ -24,6 +31,7 @@ option (ENABLE_AWS_BRIDGE "Enable aws bridge" OFF)
 option (ENABLE_SYSLOG "Enable syslog" ON)
 option (NOLOG "Disable log" OFF)
 option (ENABLE_ACL "Enable ACL" ON)
+option (NANOMQ_TESTS "Enable nanomq unit tests" OFF)
 
 set (NNG_PROTO_MQTT_BROKER  ON)
 set (NNG_TRANSPORT_MQTT_BROKER_TCP ON)
@@ -40,6 +48,12 @@ endif()
 if (NNG_ENABLE_SQLITE)
   add_definitions(-DNNG_SUPP_SQLITE)
 endif()
+
+if (NANOMQ_TESTS)
+    enable_testing()
+    set(all_tests, "")
+    set(BUILD_STATIC_LIB ON)
+endif ()
 
 # If the compiler is not on Windows, does it support hiding the
 # symbols by default?  For shared libraries we would like to do this.
@@ -131,11 +145,6 @@ if (NOT NOLOG)
   endif ()
 
 endif ()
-
-set(CMAKE_MODULE_PATH
-  ${CMAKE_MODULE_PATH}
-  "${CMAKE_CURRENT_LIST_DIR}/cmake"
-)
 
 message("-- NanoMQ versions --")
 # Determine NanoMQ versions.
