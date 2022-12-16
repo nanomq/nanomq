@@ -1079,21 +1079,28 @@ broker(conf *nanomq_conf)
 		}
 	}
 
+#if defined(ENABLE_NANOMQ_TESTS)
+	bool is_testing = true;
+#else
+	bool is_testing = false;
+#endif
+
 #if (defined DEBUG) && (defined ASAN)
 #if !(defined NANO_PLATFORM_WINDOWS)
 	signal(SIGINT, intHandler);
 #endif
+
 	for (;;) {
-		if (keepRunning == 0) {
+		if (keepRunning == 0 || is_testing == true) {
 #if defined(SUPP_RULE_ENGINE)
 
-	#if defined(FDB_SUPPORT)
+#if defined(FDB_SUPPORT)
 			if (nanomq_conf->rule_eng.option & RULE_ENG_FDB) {
 				fdb_database_destroy(
 				    nanomq_conf->rule_eng.rdb[1]);
 				fdb_stop_network();
 			}
-	#endif
+#endif
 #endif
 			for (size_t i = 0; i < num_ctx; i++) {
 				nng_free(works[i]->pipe_ct,
@@ -1103,15 +1110,19 @@ broker(conf *nanomq_conf)
 			}
 			nng_free(works, num_ctx * sizeof(struct work *));
 
-			exit(0);
+			break;
 		}
 		nng_msleep(6000);
 	}
 #else
-	for (;;) {
-		nng_msleep(3600000); // neither pause() nor sleep() portable
+	if (is_testing == false) {
+		for (;;) {
+			nng_msleep(
+			    3600000); // neither pause() nor sleep() portable
+		}
 	}
 #endif
+	return 0;
 }
 
 void
@@ -1248,19 +1259,19 @@ store_pid()
 	return status;
 }
 
-void
+int
 active_conf(conf *nanomq_conf)
 {
 	// check if daemonlize
 #ifdef NANO_PLATFORM_WINDOWS
 	if (nanomq_conf->daemon) {
 		log_error("Daemon mode is not supported on Windows");
-		exit(EXIT_FAILURE);
+		return -1;
 	}
 #else
 	if (nanomq_conf->daemon == true && process_daemonize()) {
 		log_error("Error occurs, cannot daemonize");
-		exit(EXIT_FAILURE);
+		return -1;
 	}
 #endif
 	// taskq and max_taskq
@@ -1268,6 +1279,7 @@ active_conf(conf *nanomq_conf)
 		nng_taskq_setter(nanomq_conf->num_taskq_thread,
 		    nanomq_conf->max_taskq_thread);
 	}
+	return 0;
 }
 
 static void
@@ -1562,7 +1574,9 @@ broker_start(int argc, char **argv)
 		}
 	}
 	// Active the configure for nanomq
-	active_conf(nanomq_conf);
+	if ((rc = active_conf(nanomq_conf)) != 0) {
+		return rc;
+	}
 #if defined(ENABLE_LOG)
 	if ((rc = log_init(&nanomq_conf->log)) != 0) {
 		fatal("log_init", rc);
@@ -1576,7 +1590,7 @@ broker_start(int argc, char **argv)
 
 	rc = broker(nanomq_conf);
 
-	exit(rc == 0 ? EXIT_SUCCESS : EXIT_FAILURE);
+	return rc == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
 #ifndef NANO_PLATFORM_WINDOWS
