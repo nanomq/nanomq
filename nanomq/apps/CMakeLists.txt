@@ -16,3 +16,9 @@ endif()
 
 target_link_libraries(apps nng)
 target_compile_definitions(apps PRIVATE -DPARALLEL=${PARALLEL})
+
+if (NANOMQ_TESTS)
+    add_definitions(-DENABLE_NANOMQ_TESTS)
+endif(NANOMQ_TESTS)
+
+nanomq_test(broker_test)
