@@ -289,7 +289,7 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	log_debug("Quic bridge service start.\n");
 
 	// keepalive here is for QUIC only
-	if ((rv = nng_mqtt_quic_open_keepalive(sock, node->address, node->qkeepalive)) != 0) {
+	if ((rv = nng_mqtt_quic_open_conf(sock, node->address, node)) != 0) {
 		fatal("nng_mqtt_quic_client_open", rv);
 		return rv;
 	}
