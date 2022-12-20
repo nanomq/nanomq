@@ -192,8 +192,9 @@ bridge_handler(nano_work *work)
 					// what if send qos msg failed?
 					// nanosdk deal with fail send
 					// and cnng_sendmsglose the pipe
+					log_warn("ctx %d is sending msg", work->ctx.id);
 					if (nng_aio_busy(work->bridge_aio)) {
-						log_warn("bridging aio busy! msg lost!");
+						log_warn("bridging aio busy! msg lost! ctx: %d", work->ctx.id);
 						nng_msg_free(smsg);
 					} else {
 						nng_aio_set_timeout(work->bridge_aio,
@@ -703,7 +704,9 @@ server_cb(void *arg)
 void bridge_send_cb(void *arg)
 {
 	nano_work *work = arg;
+	nng_msg *msg;
 
+	// msg = nng_aio_get_msg()
 }
 
 struct work *
