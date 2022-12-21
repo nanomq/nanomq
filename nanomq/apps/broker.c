@@ -192,7 +192,7 @@ bridge_handler(nano_work *work)
 					// what if send qos msg failed?
 					// nanosdk deal with fail send
 					// and cnng_sendmsglose the pipe
-					log_warn("ctx %d is sending msg", work->ctx.id);
+					log_debug("ctx %d is sending msg", work->ctx.id);
 					if (nng_aio_busy(work->bridge_aio)) {
 						log_warn("bridging aio busy! msg lost! ctx: %d", work->ctx.id);
 						nng_msg_free(smsg);
@@ -214,8 +214,8 @@ bridge_handler(nano_work *work)
 		    ? nng_mqttv5_msg_encode(smsg)
 		    : nng_mqtt_msg_encode(smsg);
 	}
-
 	nng_msg_free(smsg);
+
 	return rv;
 }
 
@@ -706,7 +706,12 @@ void bridge_send_cb(void *arg)
 	nano_work *work = arg;
 	nng_msg *msg;
 
-	// msg = nng_aio_get_msg()
+	msg = nng_aio_get_msg(work->bridge_aio);
+	// if (msg != NULL) {
+	// 	nng_msg_free(msg);
+	// }
+	// nng_aio_set_msg(work->bridge_aio, NULL);
+	// log_warn("bridge send cb !!!!!!");
 }
 
 struct work *
