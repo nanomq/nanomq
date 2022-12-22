@@ -87,7 +87,7 @@ send_callback(void *arg)
 	uint8_t *        code;
 	uint8_t          type;
 
-	if (msg == NULL)
+	if (msg == NULL || nng_aio_result(aio) != 0)
 		return;
 	type = nng_msg_get_type(msg);
 	if (type == CMD_SUBACK) {
