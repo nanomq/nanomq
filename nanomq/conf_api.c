@@ -32,6 +32,7 @@ get_basic_config(conf *config)
 	    basic, "keepalive_backoff", (double) config->backoff);
 	cJSON_AddBoolToObject(
 	    basic, "allow_anonymous", config->allow_anonymous);
+	cJSON_AddBoolToObject(basic, "ipc_internal", config->ipc_internal);
 
 	return basic;
 }
@@ -233,6 +234,7 @@ set_basic_config(cJSON *json, conf *config)
 	uint64_t parallel;
 	int      property_size;
 	bool     allow_anonymous;
+	bool     ipc_internal;
 	uint32_t max_packet_size;
 	uint32_t client_max_packet_size;
 	int      msq_len;
@@ -297,6 +299,12 @@ set_basic_config(cJSON *json, conf *config)
 		// conf_update_bool(
 		// config->conf_file, "allow_anonymous", allow_anonymous);
 		update_var(config->allow_anonymous, allow_anonymous);
+	}
+	getBoolValue(json, item, "ipc_internal", ipc_internal, rv);
+	if (rv == 0) {
+		// conf_update_bool(
+		// config->conf_file, "ipc_internal", ipc_internal);
+		update_var(config->ipc_internal, ipc_internal);
 	}
 	getNumberValue(json, item, "max_packet_size", max_packet_size, rv);
 	if (rv == 0) {
