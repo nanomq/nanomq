@@ -6,6 +6,7 @@
 #include "nng/supplemental/nanolib/file.h"
 #include "rest_api.h"
 
+extern cJSON *get_reload_config(conf *config);
 extern cJSON *get_basic_config(conf *config);
 extern cJSON *get_tls_config(conf_tls *tls, bool is_server);
 extern cJSON *get_auth_config(conf_auth *auth);
@@ -15,6 +16,7 @@ extern cJSON *get_http_config(conf_http_server *http);
 extern cJSON *get_sqlite_config(conf_sqlite *sqlite);
 extern cJSON *get_bridge_config(conf_bridge *bridge);
 
+extern void set_reload_config(cJSON *json, conf *config);
 extern void set_basic_config(cJSON *json, conf *config);
 extern void set_tls_config(
     cJSON *json, const char *conf_path, conf_tls *tls, const char *key_prefix);

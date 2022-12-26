@@ -187,6 +187,18 @@ static endpoints api_ep[] = {
 	    .descr  = "A list of topic-tree in the cluster",
 	},
 	{
+	    .path   = "/reload/",
+	    .name   = "get_hot_updatable_configuration",
+	    .method = "GET",
+	    .descr  = "show the configuration that can be hot updated",
+	},
+	{
+	    .path   = "/reload/",
+	    .name   = "set_hot_updatable_configuration",
+	    .method = "POST",
+	    .descr  = "set the configuration that can be hot updated",
+	},
+	{
 	    .path   = "/configuration/",
 	    .name   = "get_broker_configuration",
 	    .method = "GET",
@@ -196,7 +208,7 @@ static endpoints api_ep[] = {
 	    .path   = "/configuration/basic",
 	    .name   = "get_basic_configuration",
 	    .method = "GET",
-	    .descr  = "show broker basic configuration",
+	    .descr  = "set broker basic configuration",
 	},
 	{
 	    .path   = "/configuration/tls",
@@ -292,6 +304,8 @@ static http_msg  delete_rules(
 static http_msg post_rules(http_msg *msg);
 static http_msg get_tree(http_msg *msg);
 static http_msg post_ctrl(http_msg *msg, const char *type);
+static http_msg show_reload_config(http_msg *msg);
+static http_msg post_reload_config(http_msg *msg);
 static http_msg get_config(http_msg *msg, const char *type);
 static http_msg post_config(http_msg *msg, const char *type);
 static http_msg post_mqtt_msg(
@@ -742,6 +756,10 @@ process_request(http_msg *msg, conf_http_server *config, nng_socket *sock)
 			ret = get_tree(msg);
 		} else if (uri_ct->sub_count == 2 &&
 		    uri_ct->sub_tree[1]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "reload") == 0) {
+			ret = show_reload_config(msg);
+		} else if (uri_ct->sub_count == 2 &&
+		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "configuration") == 0) {
 			ret = get_config(msg, NULL);
 		} else if (uri_ct->sub_count == 3 &&
@@ -757,6 +775,10 @@ process_request(http_msg *msg, conf_http_server *config, nng_socket *sock)
 		if (uri_ct->sub_count == 3 && uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "ctrl") == 0) {
 			ret = post_ctrl(msg, uri_ct->sub_tree[2]->node);
+		} else if (uri_ct->sub_count == 2 &&
+		    uri_ct->sub_tree[1]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "reload") == 0) {
+			ret = post_reload_config(msg);
 		} else if (uri_ct->sub_count == 2 &&
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "configuration") == 0) {
@@ -1875,6 +1897,57 @@ post_ctrl(http_msg *msg, const char *type)
 
 	cJSON_free(dest);
 
+	return res;
+}
+
+static http_msg
+show_reload_config(http_msg *msg)
+{
+	http_msg res = { .status = NNG_HTTP_STATUS_OK };
+
+	enum result_code code = SUCCEED;
+
+	conf *config = get_global_conf();
+
+	cJSON *res_obj = cJSON_CreateObject();
+	cJSON_AddNumberToObject(res_obj, "code", code);
+	cJSON *data = get_reload_config(config);
+	cJSON_AddItemToObject(res_obj, "data", data);
+
+	char *dest = cJSON_PrintUnformatted(res_obj);
+
+	put_http_msg(
+	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
+	cJSON_free(dest);
+	cJSON_Delete(res_obj);
+	return res;
+}
+
+static http_msg
+post_reload_config(http_msg *msg)
+{
+	http_msg res = { .status = NNG_HTTP_STATUS_OK };
+
+	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
+
+	if (!cJSON_IsObject(req)) {
+		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
+		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
+	}
+	cJSON *conf_data = cJSON_GetObjectItem(req, "data");
+	conf * config    = get_global_conf();
+
+	set_reload_config(conf_data, config);
+	cJSON *res_obj = cJSON_CreateObject();
+	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+	char *dest = cJSON_PrintUnformatted(res_obj);
+
+	put_http_msg(
+	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
+
+	cJSON_free(dest);
+	cJSON_Delete(res_obj);
+	cJSON_Delete(req);
 	return res;
 }
 
