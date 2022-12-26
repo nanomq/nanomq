@@ -11,6 +11,25 @@ static cJSON *get_auth_http_req_config(conf_auth_http_req *req);
 #define update_var(var, value) var = value
 
 cJSON *
+get_reload_config(conf *config)
+{
+	cJSON *data = cJSON_CreateObject();
+
+	cJSON_AddNumberToObject(data, "property_size", config->property_size);
+	cJSON_AddNumberToObject(
+	    data, "max_packet_size", config->max_packet_size / 1024);
+	cJSON_AddNumberToObject(data, "client_max_packet_size",
+	    config->client_max_packet_size / 1024);
+	cJSON_AddNumberToObject(data, "msq_len", config->msq_len);
+	cJSON_AddNumberToObject(data, "qos_duration", config->qos_duration);
+	cJSON_AddNumberToObject(
+	    data, "keepalive_backoff", (double) config->backoff);
+	cJSON_AddBoolToObject(
+	    data, "allow_anonymous", config->allow_anonymous);
+	return data;
+}
+
+cJSON *
 get_basic_config(conf *config)
 {
 	cJSON *basic = cJSON_CreateObject();
@@ -221,6 +240,60 @@ get_bridge_config(conf_bridge *bridge)
 	cJSON_AddItemToObject(bridge_obj, "sqlite", bridge_sqlite_obj);
 
 	return bridge_obj;
+}
+
+void
+set_reload_config(cJSON *json, conf *config)
+{
+	int      property_size;
+	bool     allow_anonymous;
+	uint32_t max_packet_size;
+	uint32_t client_max_packet_size;
+	int      msq_len;
+	uint32_t qos_duration;
+	float    backoff;
+
+	cJSON *item;
+	int    rv;
+
+	getNumberValue(json, item, "property_size", property_size, rv);
+	if (rv == 0) {
+		update_var(config->property_size, property_size);
+	}
+	getNumberValue(json, item, "msq_len", msq_len, rv);
+	if (rv == 0) {
+		update_var(config->msq_len, msq_len);
+	}
+	getNumberValue(json, item, "qos_duration", qos_duration, rv);
+	if (rv == 0) {
+		update_var(config->qos_duration, qos_duration);
+	}
+	getBoolValue(json, item, "allow_anonymous", allow_anonymous, rv);
+	if (rv == 0) {
+		update_var(config->allow_anonymous, allow_anonymous);
+	}
+	getNumberValue(json, item, "max_packet_size", max_packet_size, rv);
+	if (rv == 0) {
+		update_var(config->max_packet_size, max_packet_size * 1024);
+	}
+	getNumberValue(
+	    json, item, "client_max_packet_size", client_max_packet_size, rv);
+	if (rv == 0) {
+		update_var(config->client_max_packet_size,
+		    client_max_packet_size * 1024);
+	}
+	getNumberValue(json, item, "msq_len", msq_len, rv);
+	if (rv == 0) {
+		update_var(config->msq_len, msq_len);
+	}
+	getNumberValue(json, item, "qos_duration", qos_duration, rv);
+	if (rv == 0) {
+		update_var(config->qos_duration, qos_duration);
+	}
+	getNumberValue(json, item, "keepalive_backoff", backoff, rv);
+	if (rv == 0) {
+		update_var(config->backoff, backoff);
+	}
 }
 
 void
