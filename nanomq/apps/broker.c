@@ -193,16 +193,16 @@ bridge_handler(nano_work *work)
 					// nanosdk deal with fail send
 					// and cnng_sendmsglose the pipe
 					log_debug("ctx %d is sending msg", work->ctx.id);
-					if (nng_aio_busy(work->bridge_aio)) {
+					if (nng_aio_busy(work->bridge_aio[t])) {
 						log_warn("bridging aio busy! msg lost! ctx: %d", work->ctx.id);
 						nng_msg_free(smsg);
 					} else {
-						nng_aio_set_timeout(work->bridge_aio,
+						nng_aio_set_timeout(work->bridge_aio[t],
 						3000);
 						nng_aio_set_msg(
-						    work->bridge_aio, smsg);
+						    work->bridge_aio[t], smsg);
 						nng_send_aio(
-						    *socket, work->bridge_aio);
+						    *socket, work->bridge_aio[t]);
 					}
 					rv = true;
 				}
@@ -706,7 +706,7 @@ void bridge_send_cb(void *arg)
 	nano_work *work = arg;
 	nng_msg *msg;
 
-	msg = nng_aio_get_msg(work->bridge_aio);
+	msg = nng_aio_get_msg(work->bridge_aio[0]);
 	// if (msg != NULL) {
 	// 	nng_msg_free(msg);
 	// }
@@ -715,7 +715,7 @@ void bridge_send_cb(void *arg)
 }
 
 struct work *
-alloc_work(nng_socket sock)
+alloc_work(nng_socket sock, conf *config)
 {
 	struct work *w;
 	int          rv;
@@ -726,8 +726,12 @@ alloc_work(nng_socket sock)
 	if ((rv = nng_aio_alloc(&w->aio, server_cb, w)) != 0) {
 		fatal("nng_aio_alloc", rv);
 	}
-	if ((rv = nng_aio_alloc(&w->bridge_aio, bridge_send_cb, w)) != 0) {
-		fatal("bridge_aio nng_aio_alloc", rv);
+
+	w->bridge_aio = nng_alloc(config->bridge.count * sizeof(nng_aio*));
+	for (uint8_t num = 0; num < config->bridge.count; num++) {
+		if ((rv = nng_aio_alloc(&w->bridge_aio[num], bridge_send_cb, w)) != 0) {
+			fatal("bridge_aio nng_aio_alloc", rv);
+		}
 	}
 	if ((rv = nng_ctx_open(&w->ctx, sock)) != 0) {
 		fatal("nng_ctx_open", rv);
@@ -747,7 +751,7 @@ proto_work_init(nng_socket sock,nng_socket inproc_sock, nng_socket bridge_sock, 
 {
 	int        rv;
 	nano_work *w;
-	w         = alloc_work(sock);
+	w         = alloc_work(sock, config);
 	w->db     = db_tree;
 	w->db_ret = db_tree_ret;
 	w->proto  = proto;
@@ -1054,7 +1058,10 @@ broker(conf *nanomq_conf)
 			for (size_t i = 0; i < num_ctx; i++) {
 				nng_free(works[i]->pipe_ct,
 				    sizeof(struct pipe_content));
-				nng_aio_free(works[i]->bridge_aio);
+				for (uint8_t num = 0; num < works[i]->config->bridge.count; num++) {
+					nng_aio_free(works[i]->bridge_aio[num]);
+				}
+				nng_free(works[i]->bridge_aio, sizeof(nng_aio*)* works[i]->config->bridge.count);
 				nng_free(works[i], sizeof(struct work));
 			}
 			nng_free(works, num_ctx * sizeof(struct work *));
