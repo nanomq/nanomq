@@ -36,7 +36,6 @@ struct work {
 	uint8_t     proto_ver;
 	uint8_t     flag; // flag for webhook & rule_engine
 	nng_aio *   aio;
-	nng_aio *   bridge_aio; // aio for sending bridging msg (merge as one aio only?)
 	nng_msg *   msg;
 	nng_msg **  msg_ret;
 	nng_ctx     ctx;        // ctx for mqtt broker

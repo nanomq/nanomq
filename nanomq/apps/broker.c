@@ -193,17 +193,17 @@ bridge_handler(nano_work *work)
 
 					// what if send qos msg failed?
 					// nanosdk deal with fail send
-					// and cnng_sendmsglose the pipe
-					if (nng_aio_busy(work->bridge_aio)) {
-						log_warn("bridging aio busy! msg lost!");
+					// and close the pipe
+					if (nng_aio_busy(node->bridge_aio)) {
+						log_warn("bridging aio busy! msg lost! %s", node->address);
 						nng_msg_free(smsg);
 					} else {
-						nng_aio_set_timeout(work->bridge_aio,
+						nng_aio_set_timeout(node->bridge_aio,
 						3000);
 						nng_aio_set_msg(
-						    work->bridge_aio, smsg);
+						    node->bridge_aio, smsg);
 						nng_send_aio(
-						    *socket, work->bridge_aio);
+						    *socket, node->bridge_aio);
 					}
 					rv = true;
 				}
@@ -704,20 +704,6 @@ server_cb(void *arg)
 	}
 }
 
-/**
- * independent callback API for bridging aio
- */
-void bridge_send_cb(void *arg)
-{
-	int rv;
-	nano_work *work = arg;
-	nng_msg *msg = NULL;
-
-	if ((rv = nng_aio_result(work->bridge_aio)) != 0) {
-		log_warn("Bridging message send failed: %d", rv);
-	}
-}
-
 struct work *
 alloc_work(nng_socket sock)
 {
@@ -729,9 +715,6 @@ alloc_work(nng_socket sock)
 	}
 	if ((rv = nng_aio_alloc(&w->aio, server_cb, w)) != 0) {
 		fatal("nng_aio_alloc", rv);
-	}
-	if ((rv = nng_aio_alloc(&w->bridge_aio, bridge_send_cb, w)) != 0) {
-		fatal("bridge_aio nng_aio_alloc", rv);
 	}
 	if ((rv = nng_ctx_open(&w->ctx, sock)) != 0) {
 		fatal("nng_ctx_open", rv);
@@ -1102,14 +1085,25 @@ broker(conf *nanomq_conf)
 			}
 #endif
 #endif
+			// conf *conf = works[0]->config;
+			// for (size_t t = 0; t < conf->bridge.count; t++) {
+			// 	conf_bridge_node *node = conf->bridge.nodes[t];
+			// 	nng_aio_free(node->bridge_aio);
+			// 	free(node->name);
+			// 	free(node->address);
+			// 	free(node->clientid);
+			// 	nng_free(node, sizeof(conf_bridge_node));
+			// 	break;
+			// }
+			// nng_free(
+			//     conf->bridge.nodes, sizeof(conf_bridge_node **));
+
 			for (size_t i = 0; i < num_ctx; i++) {
 				nng_free(works[i]->pipe_ct,
 				    sizeof(struct pipe_content));
-				nng_aio_free(works[i]->bridge_aio);
 				nng_free(works[i], sizeof(struct work));
 			}
 			nng_free(works, num_ctx * sizeof(struct work *));
-
 			break;
 		}
 		nng_msleep(6000);
