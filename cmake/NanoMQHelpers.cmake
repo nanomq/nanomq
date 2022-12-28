@@ -7,6 +7,7 @@ include(CheckCSourceCompiles)
 function(nanomq_test NAME)
     if (NANOMQ_TESTS)
         add_executable(${NAME} ${NAME}.c ${ARGN})
+        target_link_libraries(${NAME} apps)
         target_link_libraries(${NAME} nanomq)
         target_include_directories(${NAME} PRIVATE
                 ${PROJECT_SOURCE_DIR}/include)
