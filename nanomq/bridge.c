@@ -718,10 +718,13 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	if ((rv = nng_lmq_alloc(&node->lmq, 1024) != 0)) {
 		fatal("nng_lmq_alloc falied %d", rv);
 	}
-	// alloc an AIO for bridging use only
-	if ((rv = nng_aio_alloc(&node->bridge_aio, bridge_send_cb, node)) != 0) {
-		fatal("bridge_aio nng_aio_alloc", rv);
-	}
 
+	// alloc an AIO for each ctx bridging use only
+	node->bridge_aio = nng_alloc(config->parallel * sizeof(nng_aio *));
+	for (uint32_t num = 0; num < config->parallel; num++) {
+		if ((rv = nng_aio_alloc(&node->bridge_aio[num], bridge_send_cb, node)) != 0) {
+			fatal("bridge_aio nng_aio_alloc", rv);
+		}
+	}
 	return 0;
 }

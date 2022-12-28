@@ -163,9 +163,10 @@ fatal(const char *func, int rv)
 static inline bool
 bridge_handler(nano_work *work)
 {
-	nng_msg     *smsg;
-	bool        rv = false;
+	nng_msg  *smsg;
+	bool      rv    = false;
 	property *props = NULL;
+	uint32_t  index = work->ctx.id;
 
 	if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 		mqtt_property_dup(
@@ -194,22 +195,25 @@ bridge_handler(nano_work *work)
 					// what if send qos msg failed?
 					// nanosdk deal with fail send
 					// and close the pipe
-					if (nng_aio_busy(node->bridge_aio)) {
-						if (0 != nng_lmq_put(node->lmq, smsg)) {
+					if (nng_aio_busy(
+					        node->bridge_aio[index])) {
+						if (0 !=
+						    nng_lmq_put(
+						        node->lmq, smsg)) {
 							log_warn("bridging aio busy! "
-						         "lmq full, msg lost!!");
+							         "lmq full, msg lost!!");
 							nni_msg_free(smsg);
 						}
-						log_info("bridging aio busy! "
-						         "msg cached! %s",
+						log_info(
+						    "bridging to %s aio busy! "
+						    "msg cached! ",
 						    node->address);
 					} else {
-						nng_aio_set_timeout(
-						    node->bridge_aio, 3000);
-						nng_aio_set_msg(
-						    node->bridge_aio, smsg);
-						nng_send_aio(
-						    *socket, node->bridge_aio);
+						nng_aio_set_timeout(node->bridge_aio[index],
+						    3000);
+						nng_aio_set_msg(node->bridge_aio[index],
+						    smsg);
+						nng_send_aio(*socket, node->bridge_aio[index]);
 					}
 					rv = true;
 				}
@@ -1094,7 +1098,9 @@ broker(conf *nanomq_conf)
 			conf *conf = works[0]->config;
 			for (size_t t = 0; t < conf->bridge.count; t++) {
 				conf_bridge_node *node = conf->bridge.nodes[t];
-				nng_aio_free(node->bridge_aio);
+				for (size_t i = 0; i < conf->parallel; i++)
+					nng_aio_free(node->bridge_aio[i]);
+				nng_free(node->bridge_aio, conf->parallel * sizeof(nng_aio *));
 				nng_lmq_free(node->lmq);
 				// free(node->name);
 				// free(node->address);
