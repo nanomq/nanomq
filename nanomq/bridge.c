@@ -688,6 +688,12 @@ void bridge_send_cb(void *arg)
 		return;
 	}
 	log_info("bridge msg sent sucessfully!");
+	if (nng_lmq_get(node->lmq, &msg) == 0) {
+		nng_aio_set_msg(node->bridge_aio, msg);
+		nng_socket *socket = node->sock;
+		nng_send_aio(*socket, node->bridge_aio);
+		return;
+	}
 }
 
 int
@@ -707,6 +713,10 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 #endif
 	} else {
 		log_error("Unsupported bridge protocol.\n");
+	}
+	// alloc lmq node->max_send_queue_len
+	if ((rv = nng_lmq_alloc(&node->lmq, 1024) != 0)) {
+		fatal("nng_lmq_alloc falied %d", rv);
 	}
 	// alloc an AIO for bridging use only
 	if ((rv = nng_aio_alloc(&node->bridge_aio, bridge_send_cb, node)) != 0) {
