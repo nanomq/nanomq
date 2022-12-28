@@ -671,9 +671,30 @@ hybrid_bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 
 #endif
 
+
+/**
+ * independent callback API for bridging aio
+ */
+void bridge_send_cb(void *arg)
+{
+	int rv;
+	nng_msg *msg = NULL;
+	nng_aio *aio;
+	conf_bridge_node *node = arg;
+
+	aio = node->bridge_aio;
+	if ((rv = nng_aio_result(aio)) != 0) {
+		log_warn("Bridging message send failed: %d", rv);
+		return;
+	}
+	log_info("bridge msg sent sucessfully!");
+}
+
 int
 bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 {
+	int rv;
+
 	char *quic_scheme = "mqtt-quic";
 	char *tcp_scheme  = "mqtt-tcp";
 	char *tls_scheme  = "tls+mqtt-tcp";
@@ -687,5 +708,10 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	} else {
 		log_error("Unsupported bridge protocol.\n");
 	}
+	// alloc an AIO for bridging use only
+	if ((rv = nng_aio_alloc(&node->bridge_aio, bridge_send_cb, node)) != 0) {
+		fatal("bridge_aio nng_aio_alloc", rv);
+	}
+
 	return 0;
 }
