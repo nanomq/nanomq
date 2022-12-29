@@ -189,7 +189,6 @@ bridge_handler(nano_work *work)
 				            .topic_name.body)) {
 					work->state = SEND;
 					nng_msg_clone(smsg);
-					nng_aio_set_msg(work->aio, smsg);
 					nng_socket *socket = node->sock;
 
 					// what if send qos msg failed?
@@ -197,16 +196,10 @@ bridge_handler(nano_work *work)
 					// and close the pipe
 					if (nng_aio_busy(
 					        node->bridge_aio[index])) {
-						if (0 !=
-						    nng_lmq_put(
-						        node->lmq, smsg)) {
-							log_warn("bridging aio busy! "
-							         "lmq full, msg lost!!");
-							nni_msg_free(smsg);
-						}
+						nng_msg_free(smsg);
 						log_info(
 						    "bridging to %s aio busy! "
-						    "msg cached! ",
+						    "msg lost! ",
 						    node->address);
 					} else {
 						nng_aio_set_timeout(node->bridge_aio[index],
@@ -1100,8 +1093,8 @@ broker(conf *nanomq_conf)
 				conf_bridge_node *node = conf->bridge.nodes[t];
 				for (size_t i = 0; i < conf->parallel; i++)
 					nng_aio_free(node->bridge_aio[i]);
-				nng_free(node->bridge_aio, conf->parallel * sizeof(nng_aio *));
-				nng_lmq_free(node->lmq);
+				nng_free(node->bridge_aio,
+				         conf->parallel * sizeof(nng_aio *));
 				// free(node->name);
 				// free(node->address);
 				// free(node->clientid);

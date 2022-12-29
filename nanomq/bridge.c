@@ -682,18 +682,7 @@ void bridge_send_cb(void *arg)
 	nng_aio *aio;
 	conf_bridge_node *node = arg;
 
-	aio = node->bridge_aio;
-	if ((rv = nng_aio_result(aio)) != 0) {
-		log_warn("Bridging message send failed: %d", rv);
-		return;
-	}
-	log_info("bridge msg sent sucessfully!");
-	if (nng_lmq_get(node->lmq, &msg) == 0) {
-		nng_aio_set_msg(node->bridge_aio, msg);
-		nng_socket *socket = node->sock;
-		nng_send_aio(*socket, node->bridge_aio);
-		return;
-	}
+	log_debug("bridge to %s msg sent", node->address);
 }
 
 int
@@ -714,15 +703,11 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	} else {
 		log_error("Unsupported bridge protocol.\n");
 	}
-	// alloc lmq node->max_send_queue_len
-	if ((rv = nng_lmq_alloc(&node->lmq, 1024) != 0)) {
-		fatal("nng_lmq_alloc falied %d", rv);
-	}
-
 	// alloc an AIO for each ctx bridging use only
 	node->bridge_aio = nng_alloc(config->parallel * sizeof(nng_aio *));
 	for (uint32_t num = 0; num < config->parallel; num++) {
-		if ((rv = nng_aio_alloc(&node->bridge_aio[num], bridge_send_cb, node)) != 0) {
+		if ((rv = nng_aio_alloc(
+		         &node->bridge_aio[num], bridge_send_cb, node)) != 0) {
 			fatal("bridge_aio nng_aio_alloc", rv);
 		}
 	}
