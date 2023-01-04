@@ -1,11 +1,18 @@
-#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
-#include <csignal>
-#endif
-#include <chrono>
-#include <condition_variable>
-#include <iomanip>
-#include <iostream>
-#include <sstream>
-#include <thread>
+#ifndef VSOMEIP_GATEWAY_H
+#define VSOMEIP_GATEWAY_H
 
-#include <vsomeip/vsomeip.hpp>
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include "nng/supplemental/nanolib/conf.h"
+
+extern int vsomeip_gateway(vsomeip_gateway_conf *conf);
+extern int vsomeip_gateway_start(int argc, char **argv);
+extern int vsomeip_gateway_dflt(int argc, char **argv);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif
