@@ -17,7 +17,7 @@ include_directories(${CMAKE_SOURCE_DIR}/nng/include/nng)
 
 file(GLOB CLI_SOURCE "*.c")
 
-if(BUILD_SOMEIP_GATEWAY) 
+if(BUILD_VSOMEIP_GATEWAY) 
   find_package (vsomeip3 REQUIRED)
   find_package(Boost 1.55 COMPONENTS system thread log REQUIRED)
   include_directories (
@@ -28,7 +28,7 @@ if(BUILD_SOMEIP_GATEWAY)
   target_link_libraries(nanomq_cli vsomeip3 ${Boost_LIBRARIES})
 else()
   add_executable(nanomq_cli ${CLI_SOURCE})
-endif(BUILD_SOMEIP_GATEWAY) 
+endif(BUILD_VSOMEIP_GATEWAY) 
 
 target_link_libraries(nanomq_cli nng)
 
