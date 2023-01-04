@@ -44,8 +44,15 @@ static client_app apps[] = {
 
 #if defined(SUPP_ZMQ_GATEWAY)
 	{
-	    .name = "gateway",
+	    .name = "zmq_gateway",
 	    .func = gateway_start,
+	},
+#endif
+
+#if defined(SUPP_VSOMEIP_GATEWAY)
+	{
+	    .name = "vsomeip_gateway",
+	    .func = vsomeip_gateway_start,
 	},
 #endif
 
