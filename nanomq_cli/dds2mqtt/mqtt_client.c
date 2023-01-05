@@ -193,7 +193,8 @@ mqtt_recv_loop(void *arg)
 	nng_msg       *msg;
 	while (cli->running) {
 		msg = NULL;
-		client_recv2(cli, &msg);
+		if (0 != client_recv2(cli, &msg))
+			continue;
 		nftp_vec_append(rmsgq, msg);
 	}
 }
@@ -285,12 +286,12 @@ mqtt_connect(mqtt_cli *cli, const char *url, void *dc)
 
 	cli->ddscli = ddscli;
 
-	// Create a thread to send / recv mqtt msg
-	pthread_create(&cli->thr, NULL, mqtt_loop, (void *) cli);
-
 	// XXX Create a temparary thread to recv mqtt msg
 	nftp_vec_alloc(&rmsgq);
 	pthread_create(&recvthr, NULL, mqtt_recv_loop, (void *) cli);
+
+	// Create a thread to send / recv mqtt msg
+	pthread_create(&cli->thr, NULL, mqtt_loop, (void *) cli);
 
 	return 0;
 }
