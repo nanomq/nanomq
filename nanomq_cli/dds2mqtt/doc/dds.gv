@@ -1,0 +1,33 @@
+digraph G {
+	graph [layout=dot rankdir=LR]
+
+	sQos -> sTopic
+
+	{sTopic, sQos} -> sReader
+
+	sReader -> Subscriber
+
+	pQos -> pTopic
+
+	{pTopic, pQos} -> pWriter
+
+	pWriter -> Publisher
+
+	subgraph {
+		rank = "same"
+		Publisher
+		Subscriber // [label="topic"]
+	}
+
+	Publisher -> {TopicWithQos, MultiTopics, ContentFilteredTopic} -> msg -> {QosStrategy, Expression} -> Subscriber
+
+	subgraph {
+		rank = "same"
+		TopicWithQos
+		MultiTopics
+		ContentFilteredTopic
+		QosStrategy
+		Expression
+	}
+}
+

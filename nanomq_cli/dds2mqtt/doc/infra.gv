@@ -1,0 +1,24 @@
+digraph G {
+	graph [layout=dot rankdir=LR]
+
+	subgraph cluster0 {
+		label = "For MQTT Msgs"
+		SelectedMQTTTopic -> RecvMQTTMsg -> MQTTMsgsHandleQueue
+		MQTTMsgsHandleQueue -> MQTT2DDSConvert -> SendDDSMsg
+		MQTTMsgsHandleQueue -> SendToMQTTNet
+	}
+
+	subgraph cluster1 {
+		label = "For DDS Msgs"
+		SelectedDDSTopic -> RecvDDSMsg -> DDSMsgsHandleQueue
+		DDSMsgsHandleQueue -> DDS2MQTTConvert -> SendMQTTMsg
+		DDSMsgsHandleQueue -> SendToDDSNet
+	}
+
+	LoadConfig -> {SelectedDDSTopic SelectedMQTTTopic}
+
+	SendMQTTMsg -> MQTTMsgsHandleQueue
+
+	SendDDSMsg -> DDSMsgsHandleQueue
+}
+
