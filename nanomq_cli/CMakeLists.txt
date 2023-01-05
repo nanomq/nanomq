@@ -13,13 +13,21 @@ if(DEBUG AND TSAN)
 endif(DEBUG AND TSAN)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/dds2mqtt)
 include_directories(${CMAKE_SOURCE_DIR}/nng/include/nng)
 
-file(GLOB CLI_SOURCE "*.c" "*.cc")
+file(GLOB CLI_SOURCE "*.c" "*.cc" "dds2mqtt/*.c")
 
 add_executable(nanomq_cli ${CLI_SOURCE})
 
 target_link_libraries(nanomq_cli nng)
+
+if(BUILD_DDS_PROXY)
+  find_package(CycloneDDS REQUIRED)
+  idlc_generate(TARGET HelloWorld_lib FILES "dds2mqtt/HelloWorld.idl" WARNINGS no-implicit-extensibility)
+
+  target_link_libraries(nanomq_cli HelloWorld_lib CycloneDDS::ddsc)
+endif(BUILD_DDS_PROXY)
 
 if(BUILD_QUIC_CLI)
   target_link_libraries(nanomq_cli msquic)
@@ -46,3 +54,4 @@ endif(BUILD_VSOMEIP_GATEWAY)
 
 install(TARGETS nanomq_cli RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
                                    COMPONENT Tools)
+
