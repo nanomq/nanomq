@@ -226,21 +226,21 @@ work:
 	return EXIT_SUCCESS;
 }
 
-const char *usage = "dds2mqtt {sub|pub|proxy}";
+const char *usage = " {sub|pub|proxy}";
 
 int
-dds2mqtt(int argc, char **argv)
+dds_proxy_start(int argc, char **argv)
 {
 	if (argc < 2)
 		goto helper;
 
 	if (strcmp(argv[1], "sub") == 0)
 	{
-		subscriber(argc, argv);
+		dds_subscriber(argc, argv);
 	}
 	else if (strcmp(argv[1], "pub") == 0)
 	{
-		publisher(argc, argv);
+		dds_publisher(argc, argv);
 	}
 	else if (strcmp(argv[1], "proxy") == 0)
 	{
@@ -251,7 +251,7 @@ dds2mqtt(int argc, char **argv)
 
 helper:
 
-	printf("%s\n", usage);
+	printf("%s %s\n", argv[0], usage);
 	return 1;
 }
 

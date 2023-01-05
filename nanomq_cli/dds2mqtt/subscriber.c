@@ -18,7 +18,7 @@ static mqtt_cli mqttcli;
 void print_dds_msg(struct example_struct *msg);
 
 int
-subscriber(int argc, char **argv)
+dds_subscriber(int argc, char **argv)
 {
 	dds_entity_t      participant;
 	dds_entity_t      topic;

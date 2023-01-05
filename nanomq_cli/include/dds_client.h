@@ -21,11 +21,10 @@ struct dds_cli {
 	char *ddsrecv_topic;
 };
 
-int publisher (int argc, char ** argv);
-int subscriber (int argc, char ** argv);
-int dds_proxy (int argc, char ** argv);
+int dds_publisher (int argc, char ** argv);
+int dds_subscriber (int argc, char ** argv);
 
-int dds2mqtt (int argc, char ** argv);
+int dds_proxy_start (int argc, char ** argv);
 
 #endif
 
