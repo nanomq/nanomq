@@ -14,7 +14,7 @@
 #include "mqtt_client.h"
 
 int
-publisher(int argc, char **argv)
+dds_publisher(int argc, char **argv)
 {
 	dds_entity_t   participant;
 	dds_entity_t   topic;

@@ -59,7 +59,7 @@ static client_app apps[] = {
 #if defined(SUPP_DDS_PROXY)
 	{
 	    .name = "ddsproxy",
-	    .func = dds2mqtt,
+	    .func = dds_proxy_start,
 	},
 #endif
 
