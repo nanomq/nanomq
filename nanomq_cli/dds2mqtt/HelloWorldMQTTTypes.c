@@ -31,7 +31,7 @@ HelloWorld_to_MQTT(example_struct *m1, fixed_mqtt_msg *m2)
 	/* Convert cJSON* to char* to fill m2->payload. */
 	str         = cJSON_Print(obj);
 	m2->payload = str;
-	m2->len     = 256;
+	m2->len     = strlen(str);
 	cJSON_Delete(obj);
 }
 
