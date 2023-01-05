@@ -15,20 +15,9 @@ endif(DEBUG AND TSAN)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 include_directories(${CMAKE_SOURCE_DIR}/nng/include/nng)
 
-file(GLOB CLI_SOURCE "*.c")
+file(GLOB CLI_SOURCE "*.c" "*.cc")
 
-if(BUILD_VSOMEIP_GATEWAY) 
-  find_package (vsomeip3 REQUIRED)
-  find_package(Boost 1.55 COMPONENTS system thread log REQUIRED)
-  include_directories (
-      ${Boost_INCLUDE_DIR}
-      ${VSOMEIP_INCLUDE_DIRS}
-  )
-  add_executable(nanomq_cli ${CLI_SOURCE} vsomeip_gateway.cc)
-  target_link_libraries(nanomq_cli vsomeip3 ${Boost_LIBRARIES})
-else()
-  add_executable(nanomq_cli ${CLI_SOURCE})
-endif(BUILD_VSOMEIP_GATEWAY) 
+add_executable(nanomq_cli ${CLI_SOURCE})
 
 target_link_libraries(nanomq_cli nng)
 
@@ -44,6 +33,16 @@ if(BUILD_ZMQ_GATEWAY)
   target_link_libraries(nanomq_cli zmq)
   target_link_libraries(nanomq_cli stdc++)
 endif(BUILD_ZMQ_GATEWAY)
+
+if(BUILD_VSOMEIP_GATEWAY)
+  find_package (vsomeip3 REQUIRED)
+  find_package(Boost 1.55 COMPONENTS system thread log REQUIRED)
+  include_directories (
+      ${Boost_INCLUDE_DIR}
+      ${VSOMEIP_INCLUDE_DIRS}
+  )
+  target_link_libraries(nanomq_cli vsomeip3 ${Boost_LIBRARIES})
+endif(BUILD_VSOMEIP_GATEWAY)
 
 install(TARGETS nanomq_cli RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
                                    COMPONENT Tools)
