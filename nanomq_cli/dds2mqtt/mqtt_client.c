@@ -10,6 +10,7 @@
 // This is a simple wrap for nanosdk to help send and receive mqtt msgs
 // for dds2mqtt.
 //
+#if defined(SUPP_DDS_PROXY)
 
 #include <assert.h>
 #include <pthread.h>
@@ -392,3 +393,5 @@ unsub_callback(void *arg) {
         nng_msg_free(msg);
 }
 */
+
+#endif

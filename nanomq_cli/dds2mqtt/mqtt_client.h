@@ -1,6 +1,8 @@
 #ifndef DDS2MQTT_MQTT_CLIENT
 #define DDS2MQTT_MQTT_CLIENT
 
+#if defined(SUPP_DDS_PROXY)
+
 #include <pthread.h>
 
 #include "vector.h"
@@ -52,5 +54,7 @@ int mqtt_publish(
     mqtt_cli *cli, const char *topic, uint8_t qos, uint8_t *data, int len);
 
 int mqtt_recvmsg(mqtt_cli *cli, nng_msg **msgp);
+
+#endif
 
 #endif

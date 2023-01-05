@@ -1,3 +1,12 @@
+// Author: wangha <wanghamax at gmail dot com>
+//
+// This software is supplied under the terms of the MIT License, a
+// copy of which should be located in the distribution where this
+// file was obtained (LICENSE.txt).  A copy of the license may also be
+// found online at https://opensource.org/licenses/MIT.
+//
+#if defined(SUPP_DDS_PROXY)
+
 #include "vector.h"
 #include <stdint.h>
 #include <pthread.h>
@@ -211,3 +220,5 @@ nftp_vec_len(nftp_vec *v)
 {
 	return v->len;
 }
+
+#endif
