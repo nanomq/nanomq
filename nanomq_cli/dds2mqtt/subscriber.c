@@ -1,3 +1,12 @@
+// Author: wangha <wanghamax at gmail dot com>
+//
+// This software is supplied under the terms of the MIT License, a
+// copy of which should be located in the distribution where this
+// file was obtained (LICENSE.txt).  A copy of the license may also be
+// found online at https://opensource.org/licenses/MIT.
+//
+#if defined(SUPP_DDS_PROXY)
+
 #include "HelloWorld.h"
 #include "dds/dds.h"
 #include "dds_client.h"
@@ -123,3 +132,5 @@ print_dds_msg(struct example_struct *msg)
 	printf("example_enum:%d\n", msg->example_enum);
 	printf("example_stru.message:%s\n", msg->example_stru.message);
 }
+
+#endif

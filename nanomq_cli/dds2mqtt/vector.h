@@ -13,6 +13,7 @@
 
 #include <stdlib.h>
 
+#if defined(SUPP_DDS_PROXY)
 
 #define NFTP_SIZE         32
 #define NFTP_BLOCK_SZ     (256 * 1024) // Maximal size of single package
@@ -59,5 +60,7 @@ int nftp_vec_getidx(nftp_vec *, void *, int*);
 int nftp_vec_cat(nftp_vec *, nftp_vec *);
 size_t nftp_vec_cap(nftp_vec *);
 size_t nftp_vec_len(nftp_vec *);
+
+#endif
 
 #endif

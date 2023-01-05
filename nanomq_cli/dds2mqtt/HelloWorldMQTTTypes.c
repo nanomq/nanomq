@@ -1,3 +1,12 @@
+// Author: wangha <wanghamax at gmail dot com>
+//
+// This software is supplied under the terms of the MIT License, a
+// copy of which should be located in the distribution where this
+// file was obtained (LICENSE.txt).  A copy of the license may also be
+// found online at https://opensource.org/licenses/MIT.
+//
+#if defined(SUPP_DDS_PROXY)
+
 #include <stdio.h>
 #include <string.h>
 
@@ -76,3 +85,5 @@ MQTT_to_HelloWorld(fixed_mqtt_msg *m1, example_struct *m2)
 	m2->example_stru = *es;
 	cJSON_Delete(cjson_obj);
 }
+
+#endif
