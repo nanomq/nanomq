@@ -1091,15 +1091,16 @@ broker(conf *nanomq_conf)
 			conf *conf = works[0]->config;
 			for (size_t t = 0; t < conf->bridge.count; t++) {
 				conf_bridge_node *node = conf->bridge.nodes[t];
-				for (size_t i = 0; i < conf->parallel; i++)
-					nng_aio_free(node->bridge_aio[i]);
-				nng_free(node->bridge_aio,
-				         conf->parallel * sizeof(nng_aio *));
+				if (node->enable) {
+					for (size_t i = 0; i < conf->parallel; i++) {
+						nng_aio_free(node->bridge_aio[i]);
+					}
+					nng_free(node->bridge_aio, conf->parallel * sizeof(nng_aio *));
+				}
 				// free(node->name);
 				// free(node->address);
 				// free(node->clientid);
 				// nng_free(node, sizeof(conf_bridge_node));
-				break;
 			}
 			// nng_free(
 			//     conf->bridge.nodes, sizeof(conf_bridge_node **));
