@@ -153,6 +153,7 @@ client_publish(nng_socket sock, const char *topic, uint8_t *payload,
 
 static pthread_t recvthr;
 static nftp_vec *rmsgq;
+static pthread_mutex_t rmsgq_mtx;
 
 // TODO
 // It works in a NONBLOCK way
@@ -160,10 +161,14 @@ static nftp_vec *rmsgq;
 int
 client_recv(mqtt_cli *cli, nng_msg **msgp)
 {
+	pthread_mutex_lock(&rmsgq_mtx);
 	if (nftp_vec_len(rmsgq) == 0) {
+		pthread_mutex_unlock(&rmsgq_mtx);
 		return 1;
 	}
+
 	nftp_vec_pop(rmsgq, (void **)msgp, NFTP_HEAD);
+	pthread_mutex_unlock(&rmsgq_mtx);
 	return 0;
 }
 
@@ -187,7 +192,7 @@ client_recv2(mqtt_cli *cli, nng_msg **msgp)
 	return 0;
 }
 
-static void
+static void *
 mqtt_recv_loop(void *arg)
 {
 	mqtt_cli      *cli = arg;
@@ -196,11 +201,16 @@ mqtt_recv_loop(void *arg)
 		msg = NULL;
 		if (0 != client_recv2(cli, &msg))
 			continue;
+
+		pthread_mutex_lock(&rmsgq_mtx);
 		nftp_vec_append(rmsgq, msg);
+		pthread_mutex_unlock(&rmsgq_mtx);
 	}
+
+	return NULL;
 }
 
-static void
+static void *
 mqtt_loop(void *arg)
 {
 	mqtt_cli      *cli = arg;
@@ -268,6 +278,8 @@ mqtt_loop(void *arg)
 			break;
 		}
 	}
+
+	return NULL;
 }
 
 int
@@ -289,6 +301,7 @@ mqtt_connect(mqtt_cli *cli, const char *url, void *dc)
 
 	// XXX Create a temparary thread to recv mqtt msg
 	nftp_vec_alloc(&rmsgq);
+	pthread_mutex_init(&rmsgq_mtx, NULL);
 	pthread_create(&recvthr, NULL, mqtt_recv_loop, (void *) cli);
 
 	// Create a thread to send / recv mqtt msg
@@ -300,12 +313,15 @@ mqtt_connect(mqtt_cli *cli, const char *url, void *dc)
 int
 mqtt_disconnect(mqtt_cli *cli)
 {
-	// TODO Send disconnect msg
 	cli->running = 0;
 
 	if (cli->handleq)
 		nftp_vec_free(cli->handleq);
 	pthread_mutex_destroy(&cli->mtx);
+
+	// XXX Remove the temparary rmsgq and its mtx
+	nftp_vec_free(rmsgq);
+	pthread_mutex_destroy(&rmsgq_mtx);
 	return 0;
 }
 
