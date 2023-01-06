@@ -7,9 +7,9 @@
 //
 #if defined(SUPP_DDS_PROXY)
 
+#include "dds_client.h"
 #include "HelloWorld.h"
 #include "dds/dds.h"
-#include "dds_client.h"
 #include "vector.h"
 
 #include <stdio.h>
@@ -22,8 +22,6 @@
 /* An array of one message (aka sample in dds terms) will be used. */
 #define MAX_SAMPLES 1
 
-#define MQTT_URL "mqtt-tcp://127.0.0.1:1883"
-
 static int dds_client_init(dds_cli *cli);
 static int dds_client(dds_cli *cli, mqtt_cli *mqttcli);
 
@@ -32,17 +30,53 @@ dds_proxy(int argc, char **argv)
 {
 	mqtt_cli mqttcli;
 	dds_cli  ddscli;
+	cJSON   *jso        = NULL;
+	cJSON   *tmp        = NULL;
+	cJSON   *tmp2       = NULL;
+	cJSON   *tmp3       = NULL;
+	cJSON   *tmp4       = NULL;
+	char    *broker_url = NULL;
 
 	dds_client_init(&ddscli);
 
 	// TODO set topics for ddscli & mqttcli
 	// mqtt_set_topics(argv[1], argv[2]);
-	mqttcli.mqttrecv_topic = "DDSCMD/HelloWorld";
-	mqttcli.mqttsend_topic = "DDS/HelloWorld";
-	ddscli.ddsrecv_topic   = "MQTTCMD/HelloWorld";
-	ddscli.ddssend_topic   = "MQTT/HelloWorld";
+	/* Read .conf file to get a JSON and fill topics. */
+	jso  = hocon_parse_file("/home/hermann/Documents/hermannDocuments/"
+	                         "nanomq/nanomq_cli/dds2mqtt/dds2mqtt.conf");
+	tmp  = cJSON_GetObjectItem(jso, "mqtt");
+	tmp2 = cJSON_GetObjectItem(tmp, "broker_url");
+	broker_url = tmp2->valuestring;
+	tmp        = cJSON_GetObjectItem(jso, "topic_rules");
+	// TODO Need to restruct if there is more topics.
+	tmp2                   = cJSON_GetObjectItem(tmp, "dds2mqtt");
+	dds2mqtt_rules_size    = cJSON_GetArraySize(tmp2);
+	tmp3                   = cJSON_GetArrayItem(tmp2, 0);
+	tmp4                   = cJSON_GetObjectItem(tmp3, "in");
+	ddscli.ddsrecv_topic   = tmp4->valuestring;
+	tmp4                   = cJSON_GetObjectItem(tmp3, "out");
+	mqttcli.mqttsend_topic = tmp4->valuestring;
 
-	mqtt_connect(&mqttcli, MQTT_URL, &ddscli);
+	tmp2                   = cJSON_GetObjectItem(tmp, "mqtt2dds");
+	mqtt2dds_rules_size    = cJSON_GetArraySize(tmp2);
+	tmp3                   = cJSON_GetArrayItem(tmp2, 0);
+	tmp4                   = cJSON_GetObjectItem(tmp3, "in");
+	mqttcli.mqttrecv_topic = tmp4->valuestring;
+	tmp4                   = cJSON_GetObjectItem(tmp3, "out");
+	ddscli.ddssend_topic   = tmp4->valuestring;
+
+	/* Test */
+	printf("%s\n", mqttcli.mqttrecv_topic);
+	printf("%s\n", mqttcli.mqttsend_topic);
+	printf("%s\n", ddscli.ddsrecv_topic);
+	printf("%s\n", ddscli.ddssend_topic);
+
+	// mqttcli.mqttrecv_topic = "DDSCMD/HelloWorld";
+	// mqttcli.mqttsend_topic = "DDS/HelloWorld";
+	// ddscli.ddsrecv_topic   = "MQTTCMD/HelloWorld";
+	// ddscli.ddssend_topic   = "MQTT/HelloWorld";
+
+	mqtt_connect(&mqttcli, broker_url, &ddscli);
 	mqtt_subscribe(&mqttcli, mqttcli.mqttrecv_topic, 0);
 
 	dds_client(&ddscli, &mqttcli);
@@ -120,15 +154,15 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 
 	/*
 	while (!(status & DDS_PUBLICATION_MATCHED_STATUS)) {
-		rc = dds_get_status_changes(writer, &status);
-		if (rc != DDS_RETCODE_OK)
-			DDS_FATAL("dds_get_status_changes: %s\n",
-			    dds_strretcode(-rc));
+	        rc = dds_get_status_changes(writer, &status);
+	        if (rc != DDS_RETCODE_OK)
+	                DDS_FATAL("dds_get_status_changes: %s\n",
+	                    dds_strretcode(-rc));
 	*/
 
-		/* Polling sleep. */
+	/* Polling sleep. */
 	/*
-		dds_sleepfor(DDS_MSECS(20));
+	        dds_sleepfor(DDS_MSECS(20));
 	}
 	*/
 
@@ -141,9 +175,9 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 	/* Initialize sample buffer, by pointing the void pointer within
 	 * the buffer array to a valid sample memory location. */
 	samples[0] = example_struct__alloc();
-	nng_msg *mqttmsg;
+	nng_msg       *mqttmsg;
 	fixed_mqtt_msg midmsg;
-	uint32_t len;
+	uint32_t       len;
 
 	/* Poll until data has been read. */
 	while (true) {
@@ -154,7 +188,7 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 		hd = NULL;
 
 		pthread_mutex_lock(&cli->mtx);
-		if(nftp_vec_len(handleq))
+		if (nftp_vec_len(handleq))
 			nftp_vec_pop(handleq, (void **) &hd, NFTP_HEAD);
 		pthread_mutex_unlock(&cli->mtx);
 
@@ -163,7 +197,8 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 
 		/* Do the actual read.
 		 * The return value contains the number of read samples. */
-		rc = dds_take(reader, samples, infos, MAX_SAMPLES, MAX_SAMPLES);
+		rc =
+		    dds_take(reader, samples, infos, MAX_SAMPLES, MAX_SAMPLES);
 		if (rc < 0)
 			DDS_FATAL("dds_read: %s\n", dds_strretcode(-rc));
 		/* Check if we read some data and it is valid. */
@@ -171,7 +206,7 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 			/* Print Message. */
 			msg = samples[0];
 			printf("=== [Subscriber] Received : ");
-			printf("Message (%"PRId32", %s)\n", msg->int8_test,
+			printf("Message (%" PRId32 ", %s)\n", msg->int8_test,
 			    msg->message);
 			fflush(stdout);
 
@@ -190,18 +225,21 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 			continue;
 		}
 
-work:
+	work:
 		switch (hd->type) {
 		case HANDLE_TO_DDS:
 			mqttmsg = hd->data;
-			midmsg.payload = (char *)nng_mqtt_msg_get_publish_payload(mqttmsg, &len);
+			midmsg.payload =
+			    (char *) nng_mqtt_msg_get_publish_payload(
+			        mqttmsg, &len);
 			midmsg.len = len;
-			msg = (example_struct *) samples[0];
+			msg        = (example_struct *) samples[0];
 			MQTT_to_HelloWorld(&midmsg, msg);
 			/* Send the msg received */
 			rc = dds_write(writer, msg);
 			if (rc != DDS_RETCODE_OK)
-				DDS_FATAL("dds_write: %s\n", dds_strretcode(-rc));
+				DDS_FATAL(
+				    "dds_write: %s\n", dds_strretcode(-rc));
 			printf("[DDS] Send a msg to dds.\n");
 			free(hd);
 			break;
@@ -241,16 +279,11 @@ dds_proxy_start(int argc, char **argv)
 	if (argc < 2)
 		goto helper;
 
-	if (strcmp(argv[1], "sub") == 0)
-	{
+	if (strcmp(argv[1], "sub") == 0) {
 		dds_subscriber(argc, argv);
-	}
-	else if (strcmp(argv[1], "pub") == 0)
-	{
+	} else if (strcmp(argv[1], "pub") == 0) {
 		dds_publisher(argc, argv);
-	}
-	else if (strcmp(argv[1], "proxy") == 0)
-	{
+	} else if (strcmp(argv[1], "proxy") == 0) {
 		dds_proxy(argc, argv);
 	}
 
