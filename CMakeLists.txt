@@ -258,6 +258,7 @@ if (NNG_ENABLE_COVERAGE)
         message(FATAL_ERROR "Unable to enable coverage for your compiler.")
     endif ()
     SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${NNG_COVERAGE_C_FLAGS}")
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${NNG_COVERAGE_C_FLAGS}")
 endif ()
 
 #add_executable(nanomq-nng nanomq/nanomq.c)
