@@ -32,53 +32,57 @@ dds_proxy(int argc, char **argv)
 {
 	mqtt_cli mqttcli;
 	dds_cli  ddscli;
-	cJSON   *jso                 = NULL;
-	cJSON   *tmp                 = NULL;
-	cJSON   *tmp2                = NULL;
-	cJSON   *tmp3                = NULL;
-	cJSON   *tmp4                = NULL;
-	char    *broker_url          = NULL;
-	int      dds2mqtt_rules_size = 0;
-	int      mqtt2dds_rules_size = 0;
+	cJSON   *jso                  = NULL;
+	cJSON   *jso_item_mqtt        = NULL;
+	cJSON   *jso_item_broker_url  = NULL;
+	cJSON   *jso_item_topic_rules = NULL;
+	cJSON   *jso_item_dds2mqtt    = NULL;
+	cJSON   *jso_item_mqtt2dds    = NULL;
+	cJSON   *jso_item_topic       = NULL;
+	cJSON   *jso_item_in          = NULL;
+	cJSON   *jso_item_out         = NULL;
+	char    *broker_url           = NULL;
+	int      dds2mqtt_rules_size  = 0;
+	int      mqtt2dds_rules_size  = 0;
 
 	dds_client_init(&ddscli);
 
 	// TODO set topics for ddscli & mqttcli
 	// mqtt_set_topics(argv[1], argv[2]);
 	/* Read .conf file to get a JSON and fill topics. */
-	jso  = hocon_parse_file("/home/hermann/Documents/hermannDocuments/"
-	                         "nanomq/nanomq_cli/dds2mqtt/dds2mqtt.conf");
-	tmp  = cJSON_GetObjectItem(jso, "mqtt");
-	tmp2 = cJSON_GetObjectItem(tmp, "broker_url");
-	broker_url = tmp2->valuestring;
-	tmp        = cJSON_GetObjectItem(jso, "topic_rules");
+	if (argc > 2) {
+		jso = hocon_parse_file(argv[2]);
+	} else if (argc == 2) {
+		jso = hocon_parse_file(
+		    "../../nanomq_cli/dds2mqtt/dds2mqtt.conf");
+	}
+	jso_item_mqtt       = cJSON_GetObjectItem(jso, "mqtt");
+	jso_item_broker_url = cJSON_GetObjectItem(jso_item_mqtt, "broker_url");
+	broker_url          = jso_item_broker_url->valuestring;
+	jso_item_topic_rules = cJSON_GetObjectItem(jso, "topic_rules");
 	// TODO Need to restruct if there is more topics.
-	tmp2                   = cJSON_GetObjectItem(tmp, "dds2mqtt");
-	dds2mqtt_rules_size    = cJSON_GetArraySize(tmp2);
-	tmp3                   = cJSON_GetArrayItem(tmp2, 0);
-	tmp4                   = cJSON_GetObjectItem(tmp3, "in");
-	ddscli.ddsrecv_topic   = tmp4->valuestring;
-	tmp4                   = cJSON_GetObjectItem(tmp3, "out");
-	mqttcli.mqttsend_topic = tmp4->valuestring;
-
-	tmp2                   = cJSON_GetObjectItem(tmp, "mqtt2dds");
-	mqtt2dds_rules_size    = cJSON_GetArraySize(tmp2);
-	tmp3                   = cJSON_GetArrayItem(tmp2, 0);
-	tmp4                   = cJSON_GetObjectItem(tmp3, "in");
-	mqttcli.mqttrecv_topic = tmp4->valuestring;
-	tmp4                   = cJSON_GetObjectItem(tmp3, "out");
-	ddscli.ddssend_topic   = tmp4->valuestring;
+	jso_item_dds2mqtt =
+	    cJSON_GetObjectItem(jso_item_topic_rules, "dds2mqtt");
+	dds2mqtt_rules_size    = cJSON_GetArraySize(jso_item_dds2mqtt);
+	jso_item_topic         = cJSON_GetArrayItem(jso_item_dds2mqtt, 0);
+	jso_item_in            = cJSON_GetObjectItem(jso_item_topic, "in");
+	ddscli.ddsrecv_topic   = jso_item_in->valuestring;
+	jso_item_out           = cJSON_GetObjectItem(jso_item_topic, "out");
+	mqttcli.mqttsend_topic = jso_item_out->valuestring;
+	jso_item_mqtt2dds =
+	    cJSON_GetObjectItem(jso_item_topic_rules, "mqtt2dds");
+	mqtt2dds_rules_size    = cJSON_GetArraySize(jso_item_mqtt2dds);
+	jso_item_topic         = cJSON_GetArrayItem(jso_item_mqtt2dds, 0);
+	jso_item_in            = cJSON_GetObjectItem(jso_item_topic, "in");
+	mqttcli.mqttrecv_topic = jso_item_in->valuestring;
+	jso_item_out           = cJSON_GetObjectItem(jso_item_topic, "out");
+	ddscli.ddssend_topic   = jso_item_out->valuestring;
 
 	/* Test */
-	printf("%s\n", mqttcli.mqttrecv_topic);
-	printf("%s\n", mqttcli.mqttsend_topic);
-	printf("%s\n", ddscli.ddsrecv_topic);
-	printf("%s\n", ddscli.ddssend_topic);
-
-	// mqttcli.mqttrecv_topic = "DDSCMD/HelloWorld";
-	// mqttcli.mqttsend_topic = "DDS/HelloWorld";
-	// ddscli.ddsrecv_topic   = "MQTTCMD/HelloWorld";
-	// ddscli.ddssend_topic   = "MQTT/HelloWorld";
+	// printf("%s\n", mqttcli.mqttrecv_topic);
+	// printf("%s\n", mqttcli.mqttsend_topic);
+	// printf("%s\n", ddscli.ddsrecv_topic);
+	// printf("%s\n", ddscli.ddssend_topic);
 
 	mqtt_connect(&mqttcli, broker_url, &ddscli);
 	mqtt_subscribe(&mqttcli, mqttcli.mqttrecv_topic, 0);
