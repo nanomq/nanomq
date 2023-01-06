@@ -48,7 +48,7 @@ dds_subscriber(int argc, char **argv)
 
 	/* Create a Topic. */
 	topic = dds_create_topic(
-	    participant, &example_struct_desc, "MQTT/HelloWorld", NULL, NULL);
+	    participant, &example_struct_desc, argv[2], NULL, NULL);
 	if (topic < 0)
 		DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topic));
 

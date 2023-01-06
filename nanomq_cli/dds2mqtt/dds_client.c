@@ -18,6 +18,8 @@
 
 #include "HelloWorldMQTTTypes.h"
 #include "mqtt_client.h"
+#include "nng/supplemental/nanolib/cJSON.h"
+#include "nng/supplemental/nanolib/hocon.h"
 
 /* An array of one message (aka sample in dds terms) will be used. */
 #define MAX_SAMPLES 1
@@ -30,12 +32,14 @@ dds_proxy(int argc, char **argv)
 {
 	mqtt_cli mqttcli;
 	dds_cli  ddscli;
-	cJSON   *jso        = NULL;
-	cJSON   *tmp        = NULL;
-	cJSON   *tmp2       = NULL;
-	cJSON   *tmp3       = NULL;
-	cJSON   *tmp4       = NULL;
-	char    *broker_url = NULL;
+	cJSON   *jso                 = NULL;
+	cJSON   *tmp                 = NULL;
+	cJSON   *tmp2                = NULL;
+	cJSON   *tmp3                = NULL;
+	cJSON   *tmp4                = NULL;
+	char    *broker_url          = NULL;
+	int      dds2mqtt_rules_size = 0;
+	int      mqtt2dds_rules_size = 0;
 
 	dds_client_init(&ddscli);
 
