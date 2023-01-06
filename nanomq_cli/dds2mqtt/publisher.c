@@ -42,8 +42,8 @@ dds_publisher(int argc, char **argv)
 		    dds_strretcode(-participant));
 
 	/* Create a Topic. */
-	topic = dds_create_topic(participant, &example_struct_desc,
-	    "MQTTCMD/HelloWorld", NULL, NULL);
+	topic = dds_create_topic(
+	    participant, &example_struct_desc, argv[2], NULL, NULL);
 	if (topic < 0)
 		DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topic));
 
