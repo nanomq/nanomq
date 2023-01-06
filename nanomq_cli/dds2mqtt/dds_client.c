@@ -279,7 +279,10 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 	return EXIT_SUCCESS;
 }
 
-const char *usage = " {sub|pub|proxy}";
+const char *usage = " {sub|pub|proxy}\n"
+                    " sub   <topic>\n"
+                    " pub   <topic>\n"
+                    " proxy <path/to/conf>";
 
 int
 dds_proxy_start(int argc, char **argv)
