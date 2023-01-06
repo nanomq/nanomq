@@ -16,11 +16,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/dds2mqtt)
 include_directories(${CMAKE_SOURCE_DIR}/nng/include/nng)
 
-file(GLOB CLI_SOURCE "*.c" "*.cc" "dds2mqtt/*.c")
-
-add_executable(nanomq_cli ${CLI_SOURCE})
-
-target_link_libraries(nanomq_cli nng)
+file(GLOB CLI_SOURCE "*.c" "dds2mqtt/*.c")
 
 if(BUILD_DDS_PROXY)
   find_package(CycloneDDS REQUIRED)
@@ -32,8 +28,6 @@ endif(BUILD_DDS_PROXY)
 if(BUILD_QUIC_CLI)
   target_link_libraries(nanomq_cli msquic)
 endif(BUILD_QUIC_CLI)
-
-add_dependencies(nanomq_cli nng)
 
 if(BUILD_ZMQ_GATEWAY)
   find_package(ZeroMQ REQUIRED)
@@ -49,8 +43,18 @@ if(BUILD_VSOMEIP_GATEWAY)
       ${Boost_INCLUDE_DIR}
       ${VSOMEIP_INCLUDE_DIRS}
   )
+
+  file(GLOB CLI_CXX_SOURCE "*.cc")
+  set(CLI_SOURCE ${CLI_SOURCE} ${CLI_CXX_SOURCE})
+
   target_link_libraries(nanomq_cli vsomeip3 ${Boost_LIBRARIES})
 endif(BUILD_VSOMEIP_GATEWAY)
+
+add_executable(nanomq_cli ${CLI_SOURCE})
+
+add_dependencies(nanomq_cli nng)
+
+target_link_libraries(nanomq_cli nng)
 
 install(TARGETS nanomq_cli RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
                                    COMPONENT Tools)
