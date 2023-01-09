@@ -23,10 +23,11 @@
 #include <iostream>
 #include <sstream>
 #include <thread>
+#include <vsomeip/internal/logger.hpp>
 #include <vsomeip/vsomeip.hpp>
 
-#define LOG_INF(...) fprintf(stdout, __VA_ARGS__), fprintf(stdout, "\n")
-#define LOG_ERR(...) fprintf(stderr, __VA_ARGS__), fprintf(stderr, "\n")
+#define LOG_INF VSOMEIP_INFO
+#define LOG_ERR VSOMEIP_ERROR
 
 typedef enum { INIT, RECV, WAIT, SEND } work_state;
 struct work {
@@ -70,6 +71,7 @@ int
 client_publish(nng_socket sock, const char *topic, uint8_t *payload,
     uint32_t payload_len, uint8_t qos, bool verbose)
 {
+	LOG_INF << "Send publish: '" << payload << "' to '" << topic << "'";
 	int rv;
 
 	// create a PUBLISH message
@@ -107,7 +109,7 @@ class vsomeip_client {
 	{
 		// init the application
 		if (!app_->init()) {
-			LOG_ERR("Couldn't initialize application");
+			LOG_ERR << "Couldn't initialize application";
 			return false;
 		}
 
@@ -174,20 +176,13 @@ class vsomeip_client {
 
 		// Create a payload which will be sent to the service
 		std::shared_ptr<vsomeip::payload> pl = rtm_->create_payload();
-		// std::string                       str("World");
-		// std::vector<vsomeip::byte_t>      pl_data(
-		//          std::begin(str), std::end(str));
 
 		pl->set_data(pl_data);
 		rq->set_payload(pl);
 		// Send the request to the service. Response will be delivered
 		// to the registered message handler
-		std::cout << "Send message: ";
-		std::cout.write(reinterpret_cast<const char *>(
-		                    rq->get_payload()->get_data()),
-		    rq->get_payload()->get_length());
-		std::cout << std::endl;
-
+		std::string s(pl_data.begin(), pl_data.end());
+		LOG_INF << "Send request: '" << s << "'";
 		app_->send(rq);
 	}
 
@@ -200,17 +195,15 @@ class vsomeip_client {
 		    vsomeip::return_code_e::E_OK ==
 		        _response->get_return_code()) {
 			// Get the payload and print it
-			LOG_INF("Receive message");
 			std::shared_ptr<vsomeip::payload> pl =
 			    _response->get_payload();
 			std::string resp = std::string(
 			    reinterpret_cast<const char *>(pl->get_data()),
 			    pl->get_length());
-			LOG_INF("Received: %s", resp.c_str());
+			LOG_INF << "Recv response: '" << resp.c_str() << "'";
+
 			client_publish(*conf_g->sock, conf_g->pub_topic,
 			    (uint8_t *) resp.c_str(), resp.length(), 0, false);
-
-			// stop();
 		}
 	}
 
@@ -255,7 +248,7 @@ set_sub_topic(nng_mqtt_topic_qos topic_qos[], int qos, char **topic_que)
 {
 	// for (int i = 0; i < TOPIC_CNT; i++) {
 	topic_qos[0].qos = qos;
-	printf("topic: %s\n", topic_que[0]);
+	LOG_INF << "topic: " << topic_que[0];
 	topic_qos[0].topic.buf    = (uint8_t *) topic_que[0];
 	topic_qos[0].topic.length = strlen(topic_que[0]);
 	// }
@@ -297,19 +290,20 @@ check_recv(nng_msg *msg)
 {
 
 	// Get PUBLISH payload and topic from msg;
-	uint32_t payload_len;
-	uint32_t topic_len;
+	uint32_t p_len;
+	uint32_t t_len;
 
-	uint8_t *payload = nng_mqtt_msg_get_publish_payload(msg, &payload_len);
-	const char *topic = nng_mqtt_msg_get_publish_topic(msg, &topic_len);
-	printf("RECV: '%.*s' FROM: '%.*s'\n", payload_len, (char *) payload,
-	    topic_len, topic);
+	uint8_t    *p = nng_mqtt_msg_get_publish_payload(msg, &p_len);
+	const char *t = nng_mqtt_msg_get_publish_topic(msg, &t_len);
+
+	std::string payload(p, p + p_len);
+	std::string topic(t, t + t_len);
+	LOG_INF << "Recv message: '" << payload << "' from '" << topic << "'";
 
 	if (is_available) {
-		vc_ptr->send_message(
-		    std::vector<uint8_t>(payload, payload + payload_len));
+		vc_ptr->send_message(std::vector<uint8_t>(p, p + p_len));
 	} else {
-		LOG_INF("Droped message, due to service is unavailable");
+		LOG_ERR << "Droped message, due to service is unavailable";
 	}
 
 	return 0;
