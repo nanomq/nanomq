@@ -56,16 +56,7 @@ static char help_info[] =
 static vsomeip_gateway_conf *conf_g = NULL;
 static int                   nwork  = 32;
 
-static vsomeip::service_t  service_id          = 0x1111;
-static vsomeip::instance_t service_instance_id = 0x2222;
-static vsomeip::method_t   service_method_id   = 0x3333;
-static bool                is_available        = false;
-
-void
-proxy_fatal(const char *msg, int rv)
-{
-	fprintf(stderr, "%s: %s\n", msg, nng_strerror(rv));
-}
+static bool is_available = false;
 
 int
 client_publish(nng_socket sock, const char *topic, uint8_t *payload,
@@ -85,9 +76,8 @@ client_publish(nng_socket sock, const char *topic, uint8_t *payload,
 	    pubmsg, (uint8_t *) payload, payload_len);
 	nng_mqtt_msg_set_publish_topic(pubmsg, topic);
 
-	// printf("Publishing '%s' to '%s' ...\n", payload, topic);
 	if ((rv = nng_sendmsg(sock, pubmsg, NNG_FLAG_NONBLOCK)) != 0) {
-		proxy_fatal("nng_sendmsg", rv);
+		LOG_ERR << "nng_sendmsg" << rv;
 	}
 
 	return rv;
@@ -121,14 +111,14 @@ class vsomeip_client {
 
 		// register a callback for responses from the service
 		app_->register_message_handler(vsomeip::ANY_SERVICE,
-		    service_instance_id, vsomeip::ANY_METHOD,
+		    conf_g->service_instance_id, vsomeip::ANY_METHOD,
 		    std::bind(&vsomeip_client::on_message_cbk, this,
 		        std::placeholders::_1));
 
 		// register a callback which is called as soon as the service
 		// is available
-		app_->register_availability_handler(service_id,
-		    service_instance_id,
+		app_->register_availability_handler(conf_g->service_id,
+		    conf_g->service_instance_id,
 		    std::bind(&vsomeip_client::on_availability_cbk, this,
 		        std::placeholders::_1, std::placeholders::_2,
 		        std::placeholders::_3));
@@ -149,7 +139,8 @@ class vsomeip_client {
 			// we are registered at the runtime now we can request
 			// the service and wait for the on_availability
 			// callback to be called
-			app_->request_service(service_id, service_instance_id);
+			app_->request_service(
+			    conf_g->service_id, conf_g->service_instance_id);
 		}
 	}
 
@@ -158,8 +149,9 @@ class vsomeip_client {
 	{
 		// Check if the available service is the the hello world
 		// service
-		if (service_id == _service &&
-		    service_instance_id == _instance && _is_available) {
+		if (conf_g->service_id == _service &&
+		    conf_g->service_instance_id == _instance &&
+		    _is_available) {
 			// The service is available then we send the request
 			// Create a new request
 			is_available = true;
@@ -170,9 +162,9 @@ class vsomeip_client {
 	{
 		std::shared_ptr<vsomeip::message> rq = rtm_->create_request();
 		// Set the hello world service as target of the request
-		rq->set_service(service_id);
-		rq->set_instance(service_instance_id);
-		rq->set_method(service_method_id);
+		rq->set_service(conf_g->service_id);
+		rq->set_instance(conf_g->service_instance_id);
+		rq->set_method(conf_g->service_method_id);
 
 		// Create a payload which will be sent to the service
 		std::shared_ptr<vsomeip::payload> pl = rtm_->create_payload();
@@ -188,8 +180,8 @@ class vsomeip_client {
 
 	void on_message_cbk(const std::shared_ptr<vsomeip::message> &_response)
 	{
-		if (service_id == _response->get_service() &&
-		    service_instance_id == _response->get_instance() &&
+		if (conf_g->service_id == _response->get_service() &&
+		    conf_g->service_instance_id == _response->get_instance() &&
 		    vsomeip::message_type_e::MT_RESPONSE ==
 		        _response->get_message_type() &&
 		    vsomeip::return_code_e::E_OK ==
@@ -213,11 +205,12 @@ class vsomeip_client {
 		app_->unregister_state_handler();
 		// unregister the message handler
 		app_->unregister_message_handler(vsomeip::ANY_SERVICE,
-		    service_instance_id, vsomeip::ANY_METHOD);
+		    conf_g->service_instance_id, vsomeip::ANY_METHOD);
 		// alternatively unregister all registered handlers at once
 		app_->clear_all_handler();
 		// release the service
-		app_->release_service(service_id, service_instance_id);
+		app_->release_service(
+		    conf_g->service_id, conf_g->service_instance_id);
 		// shutdown the application
 		app_->stop();
 	}
@@ -240,7 +233,7 @@ handle_signal(int _signal)
 void
 disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {
-	printf("%s: disconnected!\n", __FUNCTION__);
+	LOG_INF << __FUNCTION__ << ": disconnected!";
 }
 
 void
@@ -258,13 +251,13 @@ set_sub_topic(nng_mqtt_topic_qos topic_qos[], int qos, char **topic_que)
 void
 connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {
-	printf("%s: connected!\n", __FUNCTION__);
+	LOG_INF << __FUNCTION__ << ": connected!";
 	nng_socket sock = *(nng_socket *) arg;
 
 	nng_mqtt_topic_qos topic_qos[1];
 
 	// set_sub_topic(topic_qos, 0, &conf->sub_topic);
-	printf("topic: %s\n", conf_g->sub_topic);
+	LOG_INF << "topic: " << conf_g->sub_topic;
 	topic_qos[0].qos          = 0;
 	topic_qos[0].topic.buf    = (uint8_t *) conf_g->sub_topic;
 	topic_qos[0].topic.length = strlen(conf_g->sub_topic);
@@ -281,7 +274,7 @@ connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	int rv = 0;
 	rv     = nng_sendmsg(sock, msg, NNG_FLAG_NONBLOCK);
 	if (rv != 0) {
-		proxy_fatal("nng_sendmsg", rv);
+		LOG_ERR << "nng_sendmsg" << rv;
 	}
 }
 
@@ -300,10 +293,14 @@ check_recv(nng_msg *msg)
 	std::string topic(t, t + t_len);
 	LOG_INF << "Recv message: '" << payload << "' from '" << topic << "'";
 
-	if (is_available) {
-		vc_ptr->send_message(std::vector<uint8_t>(p, p + p_len));
-	} else {
-		LOG_ERR << "Droped message, due to service is unavailable";
+	if (p_len > 0) {
+		if (is_available) {
+			vc_ptr->send_message(
+			    std::vector<uint8_t>(p, p + p_len));
+		} else {
+			LOG_ERR << "Dropped message, due to service is "
+			           "unavailable";
+		}
 	}
 
 	return 0;
@@ -324,7 +321,7 @@ vsomeip_gateway_sub_cb(void *arg)
 	case RECV:
 		if ((rv = nng_aio_result(work->aio)) != 0) {
 			// nng_msg_free(work->msg);
-			proxy_fatal("nng_send_aio", rv);
+			LOG_ERR << "nng_send_aio" << rv;
 		}
 		msg = nng_aio_get_msg(work->aio);
 
@@ -336,7 +333,7 @@ vsomeip_gateway_sub_cb(void *arg)
 		nng_ctx_recv(work->ctx, work->aio);
 		break;
 	default:
-		proxy_fatal("bad state!", NNG_ESTATE);
+		LOG_ERR << "bad state!" << NNG_ESTATE ;
 		break;
 	}
 }
@@ -349,13 +346,13 @@ proxy_alloc_work(nng_socket sock)
 
 	if ((w = reinterpret_cast<struct work *>(nng_alloc(sizeof(*w)))) ==
 	    NULL) {
-		proxy_fatal("nng_alloc", NNG_ENOMEM);
+		LOG_ERR << "nng_alloc" << NNG_ENOMEM;
 	}
 	if ((rv = nng_aio_alloc(&w->aio, vsomeip_gateway_sub_cb, w)) != 0) {
-		proxy_fatal("nng_aio_alloc", rv);
+		LOG_ERR << "nng_aio_alloc" << rv;
 	}
 	if ((rv = nng_ctx_open(&w->ctx, sock)) != 0) {
-		proxy_fatal("nng_ctx_open", rv);
+		LOG_ERR << "nng_ctx_open" << rv;
 	}
 	w->state = INIT;
 	return (w);
@@ -370,7 +367,7 @@ client(const char *url, nng_socket *sock_ret)
 	struct work *works[nwork];
 
 	if ((rv = nng_mqtt_client_open(&sock)) != 0) {
-		proxy_fatal("nng_socket", rv);
+		LOG_ERR << "nng_socket" << rv;
 		return rv;
 	}
 
@@ -399,7 +396,7 @@ client(const char *url, nng_socket *sock_ret)
 	nng_mqtt_set_disconnect_cb(sock, disconnect_cb, NULL);
 
 	if ((rv = nng_dialer_create(&dialer, sock, url)) != 0) {
-		proxy_fatal("nng_dialer_create", rv);
+		LOG_ERR << "nng_dialer_create" << rv;
 	}
 
 	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, msg);
@@ -445,25 +442,50 @@ vsomeip_gateway_conf_init(vsomeip_gateway_conf *conf)
 	conf->proto_ver = 4;
 	conf->keepalive = 60;
 
-	// TODO Init vsomeip option
-
+	conf->service_id          = 0;
+	conf->service_instance_id = 0;
+	conf->service_method_id   = 0;
+	conf->conf_path           = NULL;
 	return;
 }
 
 static int
 vsomeip_gateway_conf_check_and_set(vsomeip_gateway_conf *conf)
 {
+	if (!conf->service_id) {
+		LOG_ERR << "Pls set service id";
+	}
+
+	if (!conf->service_instance_id) {
+		LOG_ERR << "Pls set service instance id";
+	}
+
+	if (!conf->service_method_id) {
+		LOG_ERR << "Pls set service method id";
+	}
+
+	if (!conf->conf_path) {
+		LOG_INF << "Use default conf.";
+	} else {
+		char vsomeip_config[128];
+		snprintf(vsomeip_config, 128, "VSOMEIP_CONFIGURATION=%s",
+		    conf->conf_path);
+		putenv(vsomeip_config);
+	}
+
 	if (!conf->sub_topic || !conf->pub_topic) {
-		fprintf(stderr, "Pls set sub/pub topic before.");
+		LOG_ERR << "Pls set sub/pub topic before.";
 		return -1;
 	}
+
 	if (conf->mqtt_url == NULL) {
 		conf->mqtt_url ? conf->mqtt_url
 		               : nng_strdup("mqtt-tcp://broker.emqx.io:1883");
-		printf("Set default mqtt-url: %s\n", conf->mqtt_url);
+		LOG_INF << "Set default mqtt-url: " <<  conf->mqtt_url;
 	}
 
-	nwork  = conf->parallel;
+	nwork = conf->parallel;
+
 	conf_g = conf;
 	return 0;
 }
@@ -493,26 +515,23 @@ vsomeip_gateway_parse_opts(int argc, char **argv, vsomeip_gateway_conf *config)
 
 	switch (rv) {
 	case NNG_EINVAL:
-		fprintf(stderr,
-		    "Option %s is invalid.\nTry 'nanomq_cli vsomeip_gateway "
+		LOG_ERR <<
+		    "Option" << argv[idx] << "is invalid.\nTry 'nanomq_cli vsomeip_gateway "
 		    "--help' for "
-		    "more information.\n",
-		    argv[idx]);
+		    "more information.\n";
 		break;
 	case NNG_EAMBIGUOUS:
-		fprintf(stderr,
-		    "Option %s is ambiguous (specify in full).\nTry "
+		LOG_ERR <<
+		    "Option" << argv[idx] << "is ambiguous (specify in full).\nTry "
 		    "'nanomq_cli "
-		    "vsomeip_gateway --help' for more information.\n",
-		    argv[idx]);
+		    "vsomeip_gateway --help' for more information.\n";
 		break;
 	case NNG_ENOARG:
-		fprintf(stderr,
-		    "Option %s requires argument.\nTry 'nanomq_cli "
+		LOG_ERR <<
+		    "Option" << argv[idx] << "requires argument.\nTry 'nanomq_cli "
 		    "vsomeip_gateway "
 		    "--help' "
-		    "for more information.\n",
-		    argv[idx]);
+		    "for more information.\n";
 		break;
 	default:
 		break;
@@ -527,7 +546,7 @@ vsomeip_gateway_start(int argc, char **argv)
 	vsomeip_gateway_conf *conf =
 	    (vsomeip_gateway_conf *) nng_alloc(sizeof(vsomeip_gateway_conf));
 	if (conf == NULL) {
-		fprintf(stderr, "Memory alloc error.\n");
+		LOG_ERR << "Memory alloc error.";
 		exit(EXIT_FAILURE);
 	}
 
