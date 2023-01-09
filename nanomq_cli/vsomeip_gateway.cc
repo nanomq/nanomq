@@ -302,6 +302,7 @@ check_recv(nng_msg *msg)
 			           "unavailable";
 		}
 	}
+	nng_msg_free(msg);
 
 	return 0;
 }
