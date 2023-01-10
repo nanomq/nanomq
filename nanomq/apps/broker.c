@@ -1529,7 +1529,6 @@ broker_start(int argc, char **argv)
 
 	// Priority: config < environment variables < command opts
 	conf_init(nanomq_conf);
-	read_env_conf(nanomq_conf);
 
 	rc = file_path_parse(argc, argv, &nanomq_conf->conf_file);
 
@@ -1543,6 +1542,8 @@ broker_start(int argc, char **argv)
 		// HOCON as default
 		conf_parse_ver2(nanomq_conf);
 	}
+
+	read_env_conf(nanomq_conf);
 
 	if (!broker_parse_opts(argc, argv, nanomq_conf)) {
 		conf_fini(nanomq_conf);
