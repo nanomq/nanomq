@@ -44,19 +44,19 @@ struct mqtt_cli {
 	dds_gateway_conf *config;
 };
 
-extern int mqtt_connect(mqtt_cli *cli, void *ddscli, dds_gateway_conf *config);
+int mqtt_connect(mqtt_cli *cli, void *ddscli, dds_gateway_conf *config);
 
-extern int mqtt_disconnect(mqtt_cli *cli);
+int mqtt_disconnect(mqtt_cli *cli);
 
-extern int mqtt_subscribe(mqtt_cli *cli, const char *topic, const uint8_t qos);
+int mqtt_subscribe(mqtt_cli *cli, const char *topic, const uint8_t qos);
 
 // Not supported yet
-extern int mqtt_unsubscribe(mqtt_cli *cli, const char *topic);
+int mqtt_unsubscribe(mqtt_cli *cli, const char *topic);
 
-extern int mqtt_publish(
+int mqtt_publish(
     mqtt_cli *cli, const char *topic, uint8_t qos, uint8_t *data, int len);
 
-extern int mqtt_recvmsg(mqtt_cli *cli, nng_msg **msgp);
+int mqtt_recvmsg(mqtt_cli *cli, nng_msg **msgp);
 
 #endif
 
