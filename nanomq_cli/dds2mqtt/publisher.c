@@ -19,7 +19,7 @@
 #include <nng/nng.h>
 #include <nng/supplemental/util/platform.h>
 
-#include "HelloWorldMQTTTypes.h"
+#include "HelloWorld_mqtt_conversion.h"
 #include "mqtt_client.h"
 
 int
@@ -99,7 +99,7 @@ dds_publisher(int argc, char **argv)
 		mqttmsg.payload = data;
 		mqttmsg.len = len;
 
-		MQTT_to_HelloWorld(&mqttmsg, &msg);
+		mqtt_to_HelloWorld(&mqttmsg, &msg);
 		*/
 
 		/* Create a message to write. */

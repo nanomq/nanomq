@@ -21,7 +21,7 @@
 #include <string.h>
 #include <time.h>
 
-#include "HelloWorldMQTTTypes.h"
+#include "HelloWorld_mqtt_conversion.h"
 #include "mqtt_client.h"
 #include "vector.h"
 #include "dds_client.h"
@@ -269,7 +269,7 @@ mqtt_loop(void *arg)
 			// Translate DDS msg to MQTT format
 			ddsmsg = hd->data;
 			printf("[MQTT] send msg to mqtt.\n");
-			HelloWorld_to_MQTT(ddsmsg, &mqttmsg);
+			HelloWorld_to_mqtt(ddsmsg, &mqttmsg);
 			mqtt_publish(cli, cli->mqttsend_topic, 0,
 			    (uint8_t *)mqttmsg.payload, mqttmsg.len);
 			break;

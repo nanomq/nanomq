@@ -11,11 +11,11 @@
 #include <string.h>
 
 #include "HelloWorld.h"
-#include "HelloWorldMQTTTypes.h"
+#include "HelloWorld_mqtt_conversion.h"
 #include "supplemental/nanolib/cJSON.h"
 
 void
-HelloWorld_to_MQTT(example_struct *m1, fixed_mqtt_msg *m2)
+HelloWorld_to_mqtt(example_struct *m1, fixed_mqtt_msg *m2)
 {
 	cJSON *obj     = NULL;
 	cJSON *sub_obj = NULL;
@@ -45,7 +45,7 @@ HelloWorld_to_MQTT(example_struct *m1, fixed_mqtt_msg *m2)
 }
 
 void
-MQTT_to_HelloWorld(fixed_mqtt_msg *m1, example_struct *m2)
+mqtt_to_HelloWorld(fixed_mqtt_msg *m1, example_struct *m2)
 {
 	cJSON              *cjson_obj  = NULL;
 	cJSON              *cjson_tmp  = NULL;
