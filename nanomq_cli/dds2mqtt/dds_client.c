@@ -50,43 +50,28 @@ dds_proxy(int argc, char **argv)
 	// TODO set topics for ddscli & mqttcli
 	// mqtt_set_topics(argv[1], argv[2]);
 	/* Read .conf file to get a JSON and fill topics. */
-	if (argc > 2) {
-		jso           = hocon_parse_file(argv[2]);
-		jso_item_mqtt = cJSON_GetObjectItem(jso, "mqtt");
-		jso_item_broker_url =
-		    cJSON_GetObjectItem(jso_item_mqtt, "broker_url");
-		broker_url           = jso_item_broker_url->valuestring;
-		jso_item_topic_rules = cJSON_GetObjectItem(jso, "topic_rules");
-		// TODO Need to restruct if there is more topics.
-		jso_item_dds2mqtt =
-		    cJSON_GetObjectItem(jso_item_topic_rules, "dds2mqtt");
-		dds2mqtt_rules_size = cJSON_GetArraySize(jso_item_dds2mqtt);
-		jso_item_topic      = cJSON_GetArrayItem(jso_item_dds2mqtt, 0);
-		jso_item_in = cJSON_GetObjectItem(jso_item_topic, "in");
-		ddscli.ddsrecv_topic = jso_item_in->valuestring;
-		jso_item_out = cJSON_GetObjectItem(jso_item_topic, "out");
-		mqttcli.mqttsend_topic = jso_item_out->valuestring;
-		jso_item_mqtt2dds =
-		    cJSON_GetObjectItem(jso_item_topic_rules, "mqtt2dds");
-		mqtt2dds_rules_size = cJSON_GetArraySize(jso_item_mqtt2dds);
-		jso_item_topic      = cJSON_GetArrayItem(jso_item_mqtt2dds, 0);
-		jso_item_in = cJSON_GetObjectItem(jso_item_topic, "in");
-		mqttcli.mqttrecv_topic = jso_item_in->valuestring;
-		jso_item_out = cJSON_GetObjectItem(jso_item_topic, "out");
-		ddscli.ddssend_topic = jso_item_out->valuestring;
-
-		/* Test */
-		// printf("%s\n", mqttcli.mqttrecv_topic);
-		// printf("%s\n", mqttcli.mqttsend_topic);
-		// printf("%s\n", ddscli.ddsrecv_topic);
-		// printf("%s\n", ddscli.ddssend_topic);
-	} else if (argc == 2) {
-		broker_url             = "mqtt-tcp://127.0.0.1:1883";
-		mqttcli.mqttrecv_topic = "DDSCMD/topic1";
-		mqttcli.mqttsend_topic = "DDS/topic1";
-		ddscli.ddsrecv_topic   = "MQTTCMD/topic1";
-		ddscli.ddssend_topic   = "MQTT/topic1";
-	}
+	jso                 = hocon_parse_file(argv[2]);
+	jso_item_mqtt       = cJSON_GetObjectItem(jso, "mqtt");
+	jso_item_broker_url = cJSON_GetObjectItem(jso_item_mqtt, "broker_url");
+	broker_url          = jso_item_broker_url->valuestring;
+	jso_item_topic_rules = cJSON_GetObjectItem(jso, "topic_rules");
+	// TODO Need to restruct if there is more topics.
+	jso_item_dds2mqtt =
+	    cJSON_GetObjectItem(jso_item_topic_rules, "dds2mqtt");
+	dds2mqtt_rules_size    = cJSON_GetArraySize(jso_item_dds2mqtt);
+	jso_item_topic         = cJSON_GetArrayItem(jso_item_dds2mqtt, 0);
+	jso_item_in            = cJSON_GetObjectItem(jso_item_topic, "in");
+	ddscli.ddsrecv_topic   = jso_item_in->valuestring;
+	jso_item_out           = cJSON_GetObjectItem(jso_item_topic, "out");
+	mqttcli.mqttsend_topic = jso_item_out->valuestring;
+	jso_item_mqtt2dds =
+	    cJSON_GetObjectItem(jso_item_topic_rules, "mqtt2dds");
+	mqtt2dds_rules_size    = cJSON_GetArraySize(jso_item_mqtt2dds);
+	jso_item_topic         = cJSON_GetArrayItem(jso_item_mqtt2dds, 0);
+	jso_item_in            = cJSON_GetObjectItem(jso_item_topic, "in");
+	mqttcli.mqttrecv_topic = jso_item_in->valuestring;
+	jso_item_out           = cJSON_GetObjectItem(jso_item_topic, "out");
+	ddscli.ddssend_topic   = jso_item_out->valuestring;
 
 	mqtt_connect(&mqttcli, broker_url, &ddscli);
 	mqtt_subscribe(&mqttcli, mqttcli.mqttrecv_topic, 0);
@@ -283,15 +268,12 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 	return EXIT_SUCCESS;
 }
 
-const char *usage = " {sub|pub|proxy}\n"
-                    " sub   <topic>\n"
-                    " pub   <topic>\n"
-                    " proxy <path/to/conf>";
+const char *usage = " {sub <topic> | pub <topic> | proxy <path/to/conf>}\n";
 
 int
 dds_proxy_start(int argc, char **argv)
 {
-	if (argc < 2)
+	if (argc < 3)
 		goto helper;
 
 	if (strcmp(argv[1], "sub") == 0) {
@@ -300,6 +282,8 @@ dds_proxy_start(int argc, char **argv)
 		dds_publisher(argc, argv);
 	} else if (strcmp(argv[1], "proxy") == 0) {
 		dds_proxy(argc, argv);
+	} else {
+		goto helper;
 	}
 
 	return 0;

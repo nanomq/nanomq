@@ -27,7 +27,7 @@ Step1. Turn on nanomq
 Step2. Start the dds2mqtt proxy
 
 ```
-./nanomq_cli ddsproxy proxy
+./nanomq_cli ddsproxy proxy ../../nanomq_cli/dds2mqtt/dds2mqtt.conf
 ```
 
 Test msgs from DDS to MQTT
