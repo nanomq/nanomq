@@ -14,11 +14,13 @@ typedef struct dds_cli dds_cli;
 struct dds_cli {
 	int running;
 
-	nftp_vec       *handleq;
+	nftp_vec *      handleq;
 	pthread_mutex_t mtx;
 
 	char *ddssend_topic;
 	char *ddsrecv_topic;
+
+	dds_gateway_conf *config;
 };
 
 int dds_publisher (int argc, char ** argv);
