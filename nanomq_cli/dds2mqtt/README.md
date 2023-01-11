@@ -27,7 +27,7 @@ Step1. Turn on nanomq
 Step2. Start the dds2mqtt proxy
 
 ```
-./dds2mqtt proxy
+./nanomq_cli ddsproxy proxy
 ```
 
 Test msgs from DDS to MQTT
@@ -35,13 +35,13 @@ Test msgs from DDS to MQTT
 Step3.
 
 ```
-./nanomq_cli/nanomq_cli sub --url "mqtt-tcp://127.0.0.1:1883" -t "DDS/HelloWorld"
+./nanomq_cli sub --url "mqtt-tcp://127.0.0.1:1883" -t "DDS/topic1"
 ```
 
 Step4.
 
 ```
-./dds2mqtt pub
+./nanomq_cli ddsproxy pub "MQTTCMD/topic1"
 ```
 
 Test msgs from MQTT to DDS
@@ -49,13 +49,13 @@ Test msgs from MQTT to DDS
 Step5.
 
 ```
-./dds2mqtt sub
+./naomq_cli ddsproxy sub "MQTT/topic1"
 ```
 
 Step6.
 
 ```
-./nanomq_cli/nanomq_cli pub -t DDSCMD/HelloWorld -m '{
+./nanomq_cli pub -t "DDSCMD/topic1" -m '{
         "int8_test":    1,
         "uint8_test":   50,
         "int16_test":   27381,
