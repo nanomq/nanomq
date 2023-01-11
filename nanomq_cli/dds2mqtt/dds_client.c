@@ -20,87 +20,141 @@
 #include "mqtt_client.h"
 #include "nng/supplemental/nanolib/cJSON.h"
 #include "nng/supplemental/nanolib/hocon.h"
+#include "nng/supplemental/nanolib/conf.h"
+#include "nng/supplemental/util/options.h"
 
 /* An array of one message (aka sample in dds terms) will be used. */
 #define MAX_SAMPLES 1
 
-static int dds_client_init(dds_cli *cli);
+static int dds_client_init(dds_cli *cli, dds_gateway_conf *config);
 static int dds_client(dds_cli *cli, mqtt_cli *mqttcli);
+
+enum options {
+	OPT_HELP = 1,
+	OPT_CONFIG_PATH,
+	OPT_INVALID,
+};
+
+static nng_optspec cmd_opts[] = {
+	{
+	    .o_name  = "help",
+	    .o_short = 'h',
+	    .o_val   = OPT_HELP,
+	},
+	{
+	    .o_name = "conf",
+	    .o_val  = OPT_CONFIG_PATH,
+	    .o_arg  = true,
+	},
+	{
+	    .o_name = NULL,
+	    .o_val  = 0,
+	},
+};
+
+static void
+help(void)
+{
+	printf("Usage: nanomq_cli ddsproxy proxy "
+	       "[-h, --help] [--conf <path>]\n");
+}
+
+int
+cmd_parse_opts(int argc, char **argv, char **file_path)
+{
+	int   idx = 2;
+	char *arg;
+	int   val;
+	int   rv;
+	char *path = NULL;
+
+	while ((rv = nng_opts_parse(argc, argv, cmd_opts, &val, &arg, &idx)) ==
+	    0) {
+		switch (val) {
+		case OPT_HELP:
+			help();
+			exit(0);
+			break;
+
+		case OPT_CONFIG_PATH:
+			if (path != NULL) {
+				nng_strfree(path);
+				path = NULL;
+			}
+			path       = nng_strdup(arg);
+			*file_path = path;
+			break;
+
+		default:
+			break;
+		}
+	}
+
+	switch (rv) {
+	case NNG_EINVAL:
+		fprintf(stderr,
+		    "Option %s is invalid.\nTry 'nanomq --help' for "
+		    "more information.\n",
+		    argv[idx]);
+		break;
+	case NNG_EAMBIGUOUS:
+		fprintf(stderr,
+		    "Option %s is ambiguous (specify in full).\nTry 'nanomq "
+		    "broker --help' for more information.\n",
+		    argv[idx]);
+		break;
+	case NNG_ENOARG:
+		fprintf(stderr,
+		    "Option %s requires argument.\nTry 'nanomq --help' "
+		    "for more information.\n",
+		    argv[idx]);
+		break;
+	default:
+		break;
+	}
+
+	return rv == -1;
+}
 
 int
 dds_proxy(int argc, char **argv)
 {
 	mqtt_cli mqttcli;
 	dds_cli  ddscli;
-	cJSON   *jso                  = NULL;
-	cJSON   *jso_item_mqtt        = NULL;
-	cJSON   *jso_item_broker_url  = NULL;
-	cJSON   *jso_item_topic_rules = NULL;
-	cJSON   *jso_item_dds2mqtt    = NULL;
-	cJSON   *jso_item_mqtt2dds    = NULL;
-	cJSON   *jso_item_topic       = NULL;
-	cJSON   *jso_item_in          = NULL;
-	cJSON   *jso_item_out         = NULL;
-	char    *broker_url           = NULL;
-	int      dds2mqtt_rules_size  = 0;
-	int      mqtt2dds_rules_size  = 0;
-
-	dds_client_init(&ddscli);
-
-	// TODO set topics for ddscli & mqttcli
-	// mqtt_set_topics(argv[1], argv[2]);
-	/* Read .conf file to get a JSON and fill topics. */
-	if (argc > 2) {
-		jso           = hocon_parse_file(argv[2]);
-		jso_item_mqtt = cJSON_GetObjectItem(jso, "mqtt");
-		jso_item_broker_url =
-		    cJSON_GetObjectItem(jso_item_mqtt, "broker_url");
-		broker_url           = jso_item_broker_url->valuestring;
-		jso_item_topic_rules = cJSON_GetObjectItem(jso, "topic_rules");
-		// TODO Need to restruct if there is more topics.
-		jso_item_dds2mqtt =
-		    cJSON_GetObjectItem(jso_item_topic_rules, "dds2mqtt");
-		dds2mqtt_rules_size = cJSON_GetArraySize(jso_item_dds2mqtt);
-		jso_item_topic      = cJSON_GetArrayItem(jso_item_dds2mqtt, 0);
-		jso_item_in = cJSON_GetObjectItem(jso_item_topic, "in");
-		ddscli.ddsrecv_topic = jso_item_in->valuestring;
-		jso_item_out = cJSON_GetObjectItem(jso_item_topic, "out");
-		mqttcli.mqttsend_topic = jso_item_out->valuestring;
-		jso_item_mqtt2dds =
-		    cJSON_GetObjectItem(jso_item_topic_rules, "mqtt2dds");
-		mqtt2dds_rules_size = cJSON_GetArraySize(jso_item_mqtt2dds);
-		jso_item_topic      = cJSON_GetArrayItem(jso_item_mqtt2dds, 0);
-		jso_item_in = cJSON_GetObjectItem(jso_item_topic, "in");
-		mqttcli.mqttrecv_topic = jso_item_in->valuestring;
-		jso_item_out = cJSON_GetObjectItem(jso_item_topic, "out");
-		ddscli.ddssend_topic = jso_item_out->valuestring;
-
-		/* Test */
-		// printf("%s\n", mqttcli.mqttrecv_topic);
-		// printf("%s\n", mqttcli.mqttsend_topic);
-		// printf("%s\n", ddscli.ddsrecv_topic);
-		// printf("%s\n", ddscli.ddssend_topic);
-	} else if (argc == 2) {
-		broker_url             = "mqtt-tcp://127.0.0.1:1883";
-		mqttcli.mqttrecv_topic = "DDSCMD/topic1";
-		mqttcli.mqttsend_topic = "DDS/topic1";
-		ddscli.ddsrecv_topic   = "MQTTCMD/topic1";
-		ddscli.ddssend_topic   = "MQTT/topic1";
+	dds_gateway_conf config = { 0 };
+	
+	if (cmd_parse_opts(argc, argv, &config.path) == 0) {
+		fprintf(stderr, "invalid options.\n");
+		exit(1);
 	}
+	conf_dds_gateway_parse_ver2(&config);
+	if (config.path == NULL) {
+		fprintf(stderr, "configuration file is required.\n");
+		exit(1);
+	}
+	dds_client_init(&ddscli, &config);
 
-	mqtt_connect(&mqttcli, broker_url, &ddscli);
+	mqttcli.mqttrecv_topic = config.forward.mqtt2dds.from;
+	mqttcli.mqttsend_topic = config.forward.dds2mqtt.to;
+
+	ddscli.ddsrecv_topic = config.forward.dds2mqtt.from;
+	ddscli.ddssend_topic = config.forward.mqtt2dds.to;
+
+	mqtt_connect(&mqttcli, &ddscli, &config);
 	mqtt_subscribe(&mqttcli, mqttcli.mqttrecv_topic, 0);
 
 	dds_client(&ddscli, &mqttcli);
 
+	conf_dds_gateway_destory(&config);
 	return 0;
 }
 
 static int
-dds_client_init(dds_cli *cli)
+dds_client_init(dds_cli *cli, dds_gateway_conf *config)
 {
 	nftp_vec_alloc(&cli->handleq);
 	pthread_mutex_init(&cli->mtx, NULL);
+	cli->config = config;
 
 	return 0;
 }

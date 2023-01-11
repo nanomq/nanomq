@@ -76,15 +76,25 @@ connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 // Connect to the given address.
 int
 client_connect(
-    nng_socket *sock, nng_dialer *dialer, const char *url, bool verbose)
+    nng_socket *sock, nng_dialer *dialer, dds_gateway_conf *config, bool verbose)
 {
 	int rv;
 
-	if ((rv = nng_mqtt_client_open(sock)) != 0) {
-		fatal("nng_socket", rv);
+	dds_gateway_mqtt *mqtt_conf = &config->mqtt;
+
+	if (mqtt_conf->proto_ver == 5) {
+		if ((rv = nng_mqttv5_client_open(sock)) != 0) {
+			fatal("nng_socket", rv);
+		}
+	} else {
+		if ((rv = nng_mqtt_client_open(sock)) != 0) {
+			fatal("nng_socket", rv);
+		}
 	}
 
-	if ((rv = nng_dialer_create(dialer, *sock, url)) != 0) {
+	mqtt_conf->sock = sock;
+
+	if ((rv = nng_dialer_create(dialer, *sock, mqtt_conf->address)) != 0) {
 		fatal("nng_dialer_create", rv);
 	}
 
@@ -93,14 +103,14 @@ client_connect(
 	nng_msg *connmsg;
 	nng_mqtt_msg_alloc(&connmsg, 0);
 	nng_mqtt_msg_set_packet_type(connmsg, NNG_MQTT_CONNECT);
-	nng_mqtt_msg_set_connect_proto_version(connmsg, 4);
+	nng_mqtt_msg_set_connect_proto_version(connmsg, mqtt_conf->proto_ver);
 	nng_mqtt_msg_set_connect_keep_alive(connmsg, 60);
-	nng_mqtt_msg_set_connect_user_name(connmsg, "nng_mqtt_client");
-	nng_mqtt_msg_set_connect_password(connmsg, "secrets");
+	nng_mqtt_msg_set_connect_user_name(connmsg, mqtt_conf->username);
+	nng_mqtt_msg_set_connect_password(connmsg, mqtt_conf->password);
 	nng_mqtt_msg_set_connect_will_msg(
 	    connmsg, (uint8_t *) "bye-bye", strlen("bye-bye"));
 	nng_mqtt_msg_set_connect_will_topic(connmsg, "will_topic");
-	nng_mqtt_msg_set_connect_clean_session(connmsg, true);
+	nng_mqtt_msg_set_connect_clean_session(connmsg, mqtt_conf->clean_start);
 
 	nng_mqtt_set_connect_cb(*sock, connect_cb, sock);
 	nng_mqtt_set_disconnect_cb(*sock, disconnect_cb, connmsg);
@@ -114,7 +124,11 @@ client_connect(
 
 	printf("Connecting to server ...\n");
 	nng_dialer_set_ptr(*dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
-	nng_dialer_start(*dialer, NNG_FLAG_NONBLOCK);
+	if (0 != (rv = nng_dialer_start(*dialer, NNG_FLAG_ALLOC))) {
+		fprintf(stderr, "nng_dialer_start: %s(%d)\n", nng_strerror(rv),
+		    rv);
+		exit(1);
+	}
 
 	return (0);
 }
@@ -283,13 +297,15 @@ mqtt_loop(void *arg)
 }
 
 int
-mqtt_connect(mqtt_cli *cli, const char *url, void *dc)
+mqtt_connect(mqtt_cli *cli, void *dc, dds_gateway_conf *config)
 {
 	bool       verbose = 1;
 	nng_dialer dialer;
 	dds_cli *  ddscli = dc;
 
-	client_connect(&cli->sock, &dialer, url, verbose);
+	cli->config = config;
+
+	client_connect(&cli->sock, &dialer, cli->config, verbose);
 
 	// Start mqtt thread
 	cli->running = 1;
