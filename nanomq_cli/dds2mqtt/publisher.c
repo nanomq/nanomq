@@ -111,8 +111,10 @@ dds_publisher(int argc, char **argv)
 		msg.uint32_test = 32;
 		msg.int64_test  = 64;
 		msg.uint64_test = 128;
-		strcpy(msg.message, "data->message");
-		strcpy(sub_msg.message, "stru.message");
+		strncpy((char *) msg.message, "data->message",
+		    strlen("data->message"));
+		strncpy((char *) sub_msg.message, "stru.message",
+		    strlen("data->message"));
 		msg.example_enum = 0;
 		msg.example_stru = sub_msg;
 
