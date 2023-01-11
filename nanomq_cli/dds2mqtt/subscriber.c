@@ -14,7 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "HelloWorldMQTTTypes.h"
+#include "HelloWorld_mqtt_conversion.h"
 #include "mqtt_client.h"
 
 /* An array of one message (aka sample in dds terms) will be used. */
@@ -91,7 +91,7 @@ dds_subscriber(int argc, char **argv)
 
 			/*
 			fixed_mqtt_msg mqttmsg;
-			HelloWorld_to_MQTT(msg, &mqttmsg);
+			HelloWorld_to_mqtt(msg, &mqttmsg);
 			int rv = mqtt_publish(&mqttcli, "HelloWorld", 0,
 			mqttmsg.payload, mqttmsg.len); if (rv != 0)
 			        printf("error in mqtt publish.\n");

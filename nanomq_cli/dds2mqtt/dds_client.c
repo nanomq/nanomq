@@ -16,7 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "HelloWorldMQTTTypes.h"
+#include "HelloWorld_mqtt_conversion.h"
 #include "mqtt_client.h"
 #include "nng/supplemental/nanolib/cJSON.h"
 #include "nng/supplemental/nanolib/hocon.h"
@@ -246,7 +246,7 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 			        mqttmsg, &len);
 			midmsg.len = len;
 			msg        = (example_struct *) samples[0];
-			MQTT_to_HelloWorld(&midmsg, msg);
+			mqtt_to_HelloWorld(&midmsg, msg);
 			/* Send the msg received */
 			rc = dds_write(writer, msg);
 			if (rc != DDS_RETCODE_OK)
