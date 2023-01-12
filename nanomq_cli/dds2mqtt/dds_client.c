@@ -93,20 +93,22 @@ cmd_parse_opts(int argc, char **argv, char **file_path)
 	switch (rv) {
 	case NNG_EINVAL:
 		fprintf(stderr,
-		    "Option %s is invalid.\nTry 'nanomq --help' for "
-		    "more information.\n",
+		    "Option %s is invalid.\nTry 'nanomq_cli ddsproxy proxy "
+		    "--help' for more information.\n",
 		    argv[idx]);
 		break;
 	case NNG_EAMBIGUOUS:
 		fprintf(stderr,
-		    "Option %s is ambiguous (specify in full).\nTry 'nanomq "
-		    "broker --help' for more information.\n",
+		    "Option %s is ambiguous (specify in full).\nTry "
+		    "'nanomq_cli ddsproxy proxy --help' for more "
+		    "information.\n",
 		    argv[idx]);
 		break;
 	case NNG_ENOARG:
 		fprintf(stderr,
-		    "Option %s requires argument.\nTry 'nanomq --help' "
-		    "for more information.\n",
+		    "Option %s requires argument.\n"
+		    "Try 'nanomq_cli ddsproxy proxy --help' for more "
+		    "information.\n",
 		    argv[idx]);
 		break;
 	default:
