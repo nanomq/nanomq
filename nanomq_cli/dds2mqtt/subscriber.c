@@ -7,14 +7,14 @@
 //
 #if defined(SUPP_DDS_PROXY)
 
-#include "HelloWorld.h"
+#include "dds_type.h"
 #include "dds/dds.h"
 #include "dds_client.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "HelloWorld_mqtt_conversion.h"
+#include "dds_mqtt_type_conversion.h"
 #include "mqtt_client.h"
 
 /* An array of one message (aka sample in dds terms) will be used. */

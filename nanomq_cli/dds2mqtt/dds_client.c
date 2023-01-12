@@ -8,7 +8,7 @@
 #if defined(SUPP_DDS_PROXY)
 
 #include "dds_client.h"
-#include "HelloWorld.h"
+#include "dds_type.h"
 #include "dds/dds.h"
 #include "vector.h"
 
@@ -16,7 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "HelloWorld_mqtt_conversion.h"
+#include "dds_mqtt_type_conversion.h"
 #include "mqtt_client.h"
 #include "nng/supplemental/nanolib/cJSON.h"
 #include "nng/supplemental/nanolib/hocon.h"
@@ -302,7 +302,7 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 			        mqttmsg, &len);
 			midmsg.len = len;
 			msg        = (example_struct *) samples[0];
-			mqtt_to_HelloWorld(&midmsg, msg);
+			mqtt_to_dds_type_convert(&midmsg, msg);
 			/* Send the msg received */
 			rc = dds_write(writer, msg);
 			if (rc != DDS_RETCODE_OK)

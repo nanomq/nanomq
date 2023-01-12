@@ -3,7 +3,7 @@
 
 #if defined(SUPP_DDS_PROXY)
 
-#include "HelloWorld.h"
+#include "dds_type.h"
 
 // It should not be changed
 typedef struct fixed_mqtt_msg {
@@ -11,9 +11,9 @@ typedef struct fixed_mqtt_msg {
 	uint32_t len;
 } fixed_mqtt_msg;
 
-void HelloWorld_to_mqtt(example_struct *m1, fixed_mqtt_msg *m2);
+void dds_to_mqtt_type_convert(example_struct *m1, fixed_mqtt_msg *m2);
 
-void mqtt_to_HelloWorld(fixed_mqtt_msg *m1, example_struct *m2);
+void mqtt_to_dds_type_convert(fixed_mqtt_msg *m1, example_struct *m2);
 
 #endif
 
