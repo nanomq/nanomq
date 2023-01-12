@@ -22,9 +22,9 @@ add_executable(nanomq_cli ${CLI_SOURCE})
 
 if(BUILD_DDS_PROXY)
   find_package(CycloneDDS REQUIRED)
-  idlc_generate(TARGET HelloWorld_lib FILES "dds2mqtt/HelloWorld.idl" WARNINGS no-implicit-extensibility)
+  idlc_generate(TARGET dds_type_lib FILES "dds2mqtt/dds_type.idl" WARNINGS no-implicit-extensibility)
 
-  target_link_libraries(nanomq_cli HelloWorld_lib CycloneDDS::ddsc)
+  target_link_libraries(nanomq_cli dds_type_lib CycloneDDS::ddsc)
 endif(BUILD_DDS_PROXY)
 
 if(BUILD_QUIC_CLI)
