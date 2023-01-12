@@ -69,39 +69,7 @@ dds_publisher(int argc, char **argv)
 		dds_sleepfor(DDS_MSECS(20));
 	}
 
-	/*
-	nng_msg* rmsg;
-	mqtt_cli cli;
-	uint32_t len;
-	const char* url = "mqtt-tcp://127.0.0.1:1883";
-	const char* mqtttopic = "MQTTCMD-HelloWorld";
-
-	mqtt_connect(&cli, url);
-	mqtt_subscribe(&cli, mqtttopic, 0);
-	*/
-
 	while (1) {
-		/*
-		if (0 != mqtt_recvmsg(&cli, &rmsg)) {
-		  printf("Error in recv.\n");
-		}
-		const char* t = nng_mqtt_msg_get_publish_topic(rmsg, &len);
-		printf("Topic: %-*s\n", len, t);
-		if (strncmp(t, mqtttopic, len) != 0) {
-		  printf("Error in Topic.\n");
-		}
-
-		fixed_mqtt_msg mqttmsg;
-		uint8_t* data = nng_mqtt_msg_get_publish_payload(rmsg, &len);
-		if (!data || len == 0) {
-		  printf("Error in msg.\n");
-		}
-		mqttmsg.payload = data;
-		mqttmsg.len = len;
-
-		mqtt_to_HelloWorld(&mqttmsg, &msg);
-		*/
-
 		/* Create a message to write. */
 		msg.int8_test   = 1;
 		msg.uint8_test  = 2;
