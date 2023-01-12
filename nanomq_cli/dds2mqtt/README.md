@@ -24,23 +24,23 @@ Select topics from configure file is not supported.
 
 Step1. Turn on nanomq
 
-Step2. Start the dds2mqtt proxy
+Step2. Start the dds2mqtt proxy 
 
-```
-./nanomq_cli ddsproxy proxy
+```bash
+./nanomq_cli ddsproxy proxy --conf nanomq_dds_gateway.conf
 ```
 
 Test msgs from DDS to MQTT
 
 Step3.
 
-```
+```bash
 ./nanomq_cli sub --url "mqtt-tcp://127.0.0.1:1883" -t "DDS/topic1"
 ```
 
 Step4.
 
-```
+```bash
 ./nanomq_cli ddsproxy pub "MQTTCMD/topic1"
 ```
 
@@ -48,14 +48,14 @@ Test msgs from MQTT to DDS
 
 Step5.
 
-```
+```bash
 ./naomq_cli ddsproxy sub "MQTT/topic1"
 ```
 
 Step6.
 
-```
-./nanomq_cli pub -t "DDSCMD/topic1" -m '{
+```bash
+./nanomq_cli pub --url "mqtt-tcp://127.0.0.1:1883" -t "DDSCMD/topic1" -m '{
         "int8_test":    1,
         "uint8_test":   50,
         "int16_test":   27381,
