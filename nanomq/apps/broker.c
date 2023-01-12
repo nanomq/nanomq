@@ -166,7 +166,7 @@ bridge_handler(nano_work *work)
 	nng_msg  *smsg;
 	bool      rv    = false;
 	property *props = NULL;
-	uint32_t  index = work->ctx.id;
+	uint32_t  index = work->ctx.id - 1;
 
 	if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 		mqtt_property_dup(
@@ -194,6 +194,7 @@ bridge_handler(nano_work *work)
 					// what if send qos msg failed?
 					// nanosdk deal with fail send
 					// and close the pipe
+					log_error("ctx id %d", index);
 					if (nng_aio_busy(
 					        node->bridge_aio[index])) {
 						nng_msg_free(smsg);
