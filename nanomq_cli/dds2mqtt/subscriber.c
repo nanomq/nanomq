@@ -20,10 +20,6 @@
 /* An array of one message (aka sample in dds terms) will be used. */
 #define MAX_SAMPLES 1
 
-#define MQTT_URL "mqtt-tcp://127.0.0.1:1883"
-
-static mqtt_cli mqttcli;
-
 void print_dds_msg(struct example_struct *msg);
 
 int
@@ -60,9 +56,6 @@ dds_subscriber(int argc, char **argv)
 		DDS_FATAL("dds_create_reader: %s\n", dds_strretcode(-reader));
 	dds_delete_qos(qos);
 
-	// MQTT Client create
-	// mqtt_connect(&mqttcli, MQTT_URL);
-
 	printf("\n=== [Subscriber] Waiting for a sample ...\n");
 	fflush(stdout);
 
@@ -88,14 +81,6 @@ dds_subscriber(int argc, char **argv)
 			    msg->message);
 			print_dds_msg(msg);
 			fflush(stdout);
-
-			/*
-			fixed_mqtt_msg mqttmsg;
-			HelloWorld_to_mqtt(msg, &mqttmsg);
-			int rv = mqtt_publish(&mqttcli, "HelloWorld", 0,
-			mqttmsg.payload, mqttmsg.len); if (rv != 0)
-			        printf("error in mqtt publish.\n");
-		    */
 		} else {
 			/* Polling sleep. */
 			dds_sleepfor(DDS_MSECS(20));
