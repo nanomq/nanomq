@@ -18,6 +18,14 @@ include_directories(${CMAKE_SOURCE_DIR}/nng/include/nng)
 
 file(GLOB CLI_SOURCE "*.c" "dds2mqtt/*.c")
 
+
+if(BUILD_VSOMEIP_GATEWAY)
+  file(GLOB CLI_CXX_SOURCE "*.cc")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${NNG_COVERAGE_C_FLAGS}")
+  set(CLI_SOURCE ${CLI_SOURCE} ${CLI_CXX_SOURCE})
+endif(BUILD_VSOMEIP_GATEWAY)
+
+
 add_executable(nanomq_cli ${CLI_SOURCE})
 
 if(BUILD_DDS_PROXY)
@@ -46,9 +54,6 @@ if(BUILD_VSOMEIP_GATEWAY)
       ${VSOMEIP_INCLUDE_DIRS}
   )
 
-  file(GLOB CLI_CXX_SOURCE "*.cc")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${NNG_COVERAGE_C_FLAGS}")
-  set(CLI_SOURCE ${CLI_SOURCE} ${CLI_CXX_SOURCE})
 
   target_link_libraries(nanomq_cli vsomeip3 ${Boost_LIBRARIES})
 endif(BUILD_VSOMEIP_GATEWAY)
