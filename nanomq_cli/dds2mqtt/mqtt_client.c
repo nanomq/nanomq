@@ -122,7 +122,7 @@ client_connect(
 		printf("%s\n", buff);
 	}
 
-	printf("Connecting to server ...\n");
+	printf("\n[MQTT] Connecting to server ...\n");
 	nng_dialer_set_ptr(*dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
 	if (0 != (rv = nng_dialer_start(*dialer, NNG_FLAG_ALLOC))) {
 		fprintf(stderr, "nng_dialer_start: %s(%d)\n", nng_strerror(rv),
@@ -193,12 +193,18 @@ client_recv2(mqtt_cli *cli, nng_msg **msgp)
 	nng_msg *msg;
 	if ((rv = nng_recvmsg(cli->sock, &msg, NNG_FLAG_NONBLOCK)) != 0) {
 		printf("Error in nng_recvmsg %d.\n", rv);
-		return -2;
+		return -1;
 	}
 
 	// we should only receive publish messages
-	if (nng_mqtt_msg_get_packet_type(msg) != NNG_MQTT_PUBLISH) {
-		printf("Invalid MQTT Msg type.\n");
+	nng_mqtt_packet_type type = nng_mqtt_msg_get_packet_type(msg);
+
+	if (type == NNG_MQTT_CONNACK) {
+		return -2;
+	}
+
+	if (type != NNG_MQTT_PUBLISH) {
+		printf("Received a %x type msg. Skip.\n", type);
 		return -3;
 	}
 
@@ -299,7 +305,7 @@ mqtt_loop(void *arg)
 int
 mqtt_connect(mqtt_cli *cli, void *dc, dds_gateway_conf *config)
 {
-	bool       verbose = 1;
+	bool       verbose = 0;
 	nng_dialer dialer;
 	dds_cli *  ddscli = dc;
 
@@ -389,7 +395,7 @@ int
 mqtt_publish(
     mqtt_cli *cli, const char *topic, uint8_t qos, uint8_t *data, int len)
 {
-	return client_publish(cli->sock, topic, data, len, qos, 1);
+	return client_publish(cli->sock, topic, data, len, qos, 0);
 }
 
 int
