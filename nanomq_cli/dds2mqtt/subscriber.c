@@ -36,7 +36,7 @@ dds_subscriber(int argc, char **argv)
 	(void) argc;
 	(void) argv;
 
-	dds_domainid_t domian_id = DDS_DOMAIN_DEFAULT;
+	dds_domainid_t domian_id = 0;
 
 	if (argc >= 4) {
 		domian_id = atol(argv[3]);
