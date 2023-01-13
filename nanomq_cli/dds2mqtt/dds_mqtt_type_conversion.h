@@ -11,9 +11,9 @@ typedef struct fixed_mqtt_msg {
 	uint32_t len;
 } fixed_mqtt_msg;
 
-void dds_to_mqtt_type_convert(example_struct *m1, fixed_mqtt_msg *m2);
+void dds_to_mqtt_type_convert(DDS_TYPE_NAME *m1, fixed_mqtt_msg *m2);
 
-void mqtt_to_dds_type_convert(fixed_mqtt_msg *m1, example_struct *m2);
+void mqtt_to_dds_type_convert(fixed_mqtt_msg *m1, DDS_TYPE_NAME *m2);
 
 #endif
 

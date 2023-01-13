@@ -15,7 +15,7 @@
 #include "supplemental/nanolib/cJSON.h"
 
 void
-dds_to_mqtt_type_convert(example_struct *m1, fixed_mqtt_msg *m2)
+dds_to_mqtt_type_convert(DDS_TYPE_NAME *m1, fixed_mqtt_msg *m2)
 {
 	cJSON *obj     = NULL;
 	cJSON *sub_obj = NULL;
@@ -45,7 +45,7 @@ dds_to_mqtt_type_convert(example_struct *m1, fixed_mqtt_msg *m2)
 }
 
 void
-mqtt_to_dds_type_convert(fixed_mqtt_msg *m1, example_struct *m2)
+mqtt_to_dds_type_convert(fixed_mqtt_msg *m1, DDS_TYPE_NAME *m2)
 {
 	cJSON              *cjson_obj  = NULL;
 	cJSON              *cjson_tmp  = NULL;
@@ -58,7 +58,7 @@ mqtt_to_dds_type_convert(fixed_mqtt_msg *m1, example_struct *m2)
 	if (cjson_obj == NULL) {
 		printf("Parse fail!\n");
 	}
-	/* Fill the struct example_struct *m2. */
+	/* Fill the struct DDS_TYPE_NAME *m2. */
 	cjson_tmp       = cJSON_GetObjectItem(cjson_obj, "int8_test");
 	m2->int8_test   = cjson_tmp->valueint;
 	cjson_tmp       = cJSON_GetObjectItem(cjson_obj, "uint8_test");
