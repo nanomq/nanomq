@@ -181,7 +181,7 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 	dds_entity_t      topicr;
 	dds_entity_t      reader;
 	dds_entity_t      writer;
-	example_struct   *msg;
+	DDS_TYPE_NAME    *msg;
 	void             *samples[MAX_SAMPLES];
 	dds_sample_info_t infos[MAX_SAMPLES];
 	dds_return_t      rc;
@@ -200,13 +200,13 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 
 	/* Create a Topic. */
 	topicr = dds_create_topic(
-	    participant, &example_struct_desc, cli->ddsrecv_topic, NULL, NULL);
+	    participant, &DDS_TYPE_NAME_DESC(), cli->ddsrecv_topic, NULL, NULL);
 	if (topicr < 0)
 		DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topicr));
 
 	/* Create a Topic. for writer */
 	topicw = dds_create_topic(
-	    participant, &example_struct_desc, cli->ddssend_topic, NULL, NULL);
+	    participant, &DDS_TYPE_NAME_DESC(), cli->ddssend_topic, NULL, NULL);
 	if (topicw < 0)
 		DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topicw));
 
@@ -254,7 +254,7 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 
 	/* Initialize sample buffer, by pointing the void pointer within
 	 * the buffer array to a valid sample memory location. */
-	samples[0] = example_struct__alloc();
+	samples[0] = DDS_TYPE_NAME_ALLOC();
 	nng_msg       *mqttmsg;
 	fixed_mqtt_msg midmsg;
 	uint32_t       len;
@@ -313,7 +313,7 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 			    (char *) nng_mqtt_msg_get_publish_payload(
 			        mqttmsg, &len);
 			midmsg.len = len;
-			msg        = (example_struct *) samples[0];
+			msg        = (DDS_TYPE_NAME *) samples[0];
 			mqtt_to_dds_type_convert(&midmsg, msg);
 			/* Send the msg received */
 			rc = dds_write(writer, msg);
@@ -337,7 +337,7 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 	}
 
 	/* Free the data location. */
-	example_struct_free(samples[0], DDS_FREE_ALL);
+	DDS_TYPE_NAME_FREE(samples[0], DDS_FREE_ALL);
 
 	/* Deleting the participant will delete all its children recursively as
 	 * well. */
@@ -361,6 +361,11 @@ dds_proxy_start(int argc, char **argv)
 {
 	if (argc < 2)
 		goto helper;
+
+#if !defined(DDS_TYPE_NAME)
+	printf("Set DDS_TYPE_NAME in cmake and continue.\n");
+	return 2;
+#endif
 
 	if (strcmp(argv[1], "sub") == 0) {
 		dds_subscriber(argc, argv);

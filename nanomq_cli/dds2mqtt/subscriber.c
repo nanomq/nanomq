@@ -20,7 +20,7 @@
 /* An array of one message (aka sample in dds terms) will be used. */
 #define MAX_SAMPLES 1
 
-void print_dds_msg(struct example_struct *msg);
+void print_dds_msg(struct DDS_TYPE_NAME *msg);
 
 int
 dds_subscriber(int argc, char **argv)
@@ -28,7 +28,7 @@ dds_subscriber(int argc, char **argv)
 	dds_entity_t      participant;
 	dds_entity_t      topic;
 	dds_entity_t      reader;
-	example_struct   *msg;
+	DDS_TYPE_NAME    *msg;
 	void             *samples[MAX_SAMPLES];
 	dds_sample_info_t infos[MAX_SAMPLES];
 	dds_return_t      rc;
@@ -44,7 +44,7 @@ dds_subscriber(int argc, char **argv)
 
 	/* Create a Topic. */
 	topic = dds_create_topic(
-	    participant, &example_struct_desc, argv[2], NULL, NULL);
+	    participant, &DDS_TYPE_NAME_DESC(), argv[2], NULL, NULL);
 	if (topic < 0)
 		DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topic));
 
@@ -61,7 +61,7 @@ dds_subscriber(int argc, char **argv)
 
 	/* Initialize sample buffer, by pointing the void pointer within
 	 * the buffer array to a valid sample memory location. */
-	samples[0] = example_struct__alloc();
+	samples[0] = DDS_TYPE_NAME_ALLOC();
 
 	/* Poll until data has been read. */
 	while (true) {
@@ -75,7 +75,7 @@ dds_subscriber(int argc, char **argv)
 		/* Check if we read some data and it is valid. */
 		if ((rc > 0) && (infos[0].valid_data)) {
 			/* Print Message. */
-			msg = (example_struct *) samples[0];
+			msg = (DDS_TYPE_NAME *) samples[0];
 			printf("=== [Subscriber] Received : ");
 			printf("Message (%" PRId32 ", %s)\n", msg->int8_test,
 			    msg->message);
@@ -88,7 +88,7 @@ dds_subscriber(int argc, char **argv)
 	}
 
 	/* Free the data location. */
-	example_struct_free(samples[0], DDS_FREE_ALL);
+	DDS_TYPE_NAME_FREE(samples[0], DDS_FREE_ALL);
 
 	/* Deleting the participant will delete all its children recursively as
 	 * well. */
@@ -100,7 +100,7 @@ dds_subscriber(int argc, char **argv)
 }
 
 void
-print_dds_msg(struct example_struct *msg)
+print_dds_msg(struct DDS_TYPE_NAME *msg)
 {
 	if (msg == NULL) {
 		printf("ITS NULL!\n");

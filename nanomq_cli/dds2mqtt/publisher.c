@@ -29,7 +29,7 @@ dds_publisher(int argc, char **argv)
 	dds_entity_t   topic;
 	dds_entity_t   writer;
 	dds_return_t   rc;
-	example_struct msg;
+	DDS_TYPE_NAME  msg;
 	test_struct    sub_msg;
 	uint32_t       status = 0;
 	(void) argc;
@@ -43,7 +43,7 @@ dds_publisher(int argc, char **argv)
 
 	/* Create a Topic. */
 	topic = dds_create_topic(
-	    participant, &example_struct_desc, argv[2], NULL, NULL);
+	    participant, &DDS_TYPE_NAME_DESC(), argv[2], NULL, NULL);
 	if (topic < 0)
 		DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topic));
 
