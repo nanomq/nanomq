@@ -329,6 +329,12 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	if (node->password) {
 		nng_mqtt_msg_set_connect_password(connmsg, node->password);
 	}
+	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
+		property *plist = mqtt_property_alloc();
+		property *p1 = mqtt_property_set_value_u8(SESSION_EXPIRY_INTERVAL, 30);
+		mqtt_property_append(plist, p1);
+		nng_mqtt_msg_set_connect_property(connmsg, plist);
+	}
 
 	bridge_arg = (bridge_param *) nng_alloc(sizeof(bridge_param));
 	if (bridge_arg == NULL) {
