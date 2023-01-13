@@ -33,10 +33,12 @@ struct dds_cli {
 	dds_gateway_conf *config;
 };
 
+char *dds_shm_xml(bool enable, const char *log_level);
+
 int dds_publisher (int argc, char ** argv);
 int dds_subscriber (int argc, char ** argv);
-
 int dds_proxy_start (int argc, char ** argv);
+
 
 #endif
 

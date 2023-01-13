@@ -11,6 +11,8 @@
 #include "dds_type.h"
 #include "dds/dds.h"
 #include "dds/ddsrt/environ.h"
+#include "dds/ddsrt/io.h"
+#include "dds/ddsrt/heap.h"
 #include "nng/supplemental/nanolib/file.h"
 #include "vector.h"
 
@@ -28,8 +30,9 @@
 /* An array of one message (aka sample in dds terms) will be used. */
 #define MAX_SAMPLES 1
 
-static int dds_client_init(dds_cli *cli, dds_gateway_conf *config);
-static int dds_client(dds_cli *cli, mqtt_cli *mqttcli);
+static int  dds_client_init(dds_cli *cli, dds_gateway_conf *config);
+static int  dds_client(dds_cli *cli, mqtt_cli *mqttcli);
+static void dds_inner_config(dds_gateway_dds *config);
 
 enum options {
 	OPT_HELP = 1,
@@ -120,6 +123,45 @@ cmd_parse_opts(int argc, char **argv, char **file_path)
 	return rv == -1;
 }
 
+char *
+dds_shm_xml(bool enable, const char *log_level)
+{
+	char *configstr = NULL;
+	ddsrt_asprintf(&configstr,
+	    "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}"
+	    "<SharedMemory>"
+	    "<Enable>%s</Enable>"
+	    "<LogLevel>%s</LogLevel>"
+	    "</SharedMemory>",
+	    enable ? "true" : "false", log_level == NULL ? "info" : log_level);
+
+	return configstr;
+}
+
+static void
+dds_inner_config(dds_gateway_dds *config)
+{
+	if (config->shm_mode == false) {
+		return;
+	}
+	if (config->domain_id == DDS_DOMAIN_DEFAULT) {
+		DDS_FATAL("please set another domain id when using shm mode");
+	}
+	char *configstr = dds_shm_xml(config->shm_mode, config->shm_log_level);
+	char *xconfigstr = ddsrt_expand_envvars(configstr, config->domain_id);
+
+	const dds_entity_t dom =
+	    dds_create_domain(config->domain_id, xconfigstr);
+
+	ddsrt_free(xconfigstr);
+	ddsrt_free(configstr);	
+	
+	if (dom < 0) {
+		DDS_FATAL(
+		    "dds_create_domain: %s\n", dds_strretcode(-dom));
+	}
+}
+
 int
 dds_proxy(int argc, char **argv)
 {
@@ -199,15 +241,7 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 
 	dds_gateway_dds *dds_conf = &cli->config->dds;
 
-	/* Set CYCLONEDDS_URI */
-	if (dds_conf->dds_uri != NULL) {
-		if (nano_file_exists(dds_conf->dds_uri)) {
-			ddsrt_setenv("CYCLONEDDS_URI", dds_conf->dds_uri);
-		} else {
-			DDS_FATAL("cyclonedds config file not found: [%s]\n",
-			    dds_conf->dds_uri);
-		}
-	}
+	dds_inner_config(dds_conf);
 
 	/* Create a Participant. */
 	participant = dds_create_participant(dds_conf->domain_id, NULL, NULL);
