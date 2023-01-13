@@ -92,11 +92,14 @@ send_callback(void *arg)
 	type = nng_msg_get_type(msg);
 	if (type == CMD_SUBACK) {
 		code = nng_mqtt_msg_get_suback_return_codes(msg, &count);
-		log_debug("suback return code %d ", *(code));
-		log_debug("bridge: subscribe result %d ", nng_aio_result(aio));
+		log_info("bridge: subscribe aio result %d suback code", nng_aio_result(aio), *(code));
 		nng_msg_free(msg);
 	} else if(type == CMD_CONNECT) {
-		log_debug("bridge connect msg send complete");
+		log_debug("send bridge connect msg complete");
+	}
+	if (nng_lmq_get(client->msgq, &msg) == 0) {
+		nng_aio_set_msg(client->send_aio, msg);
+		nng_send_aio(client->sock, client->send_aio);
 	}
 	// nng_mqtt_client_free(client, true);
 }
@@ -310,11 +313,13 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	// create a CONNECT message
 	/* CONNECT */
 	nng_msg *connmsg;
+
 	nng_mqtt_msg_alloc(&connmsg, 0);
 	nng_mqtt_msg_set_packet_type(connmsg, NNG_MQTT_CONNECT);
 	nng_mqtt_msg_set_connect_keep_alive(connmsg, node->keepalive);
 	nng_mqtt_msg_set_connect_proto_version(connmsg, node->proto_ver);
 	nng_mqtt_msg_set_connect_clean_session(connmsg, node->clean_start);
+
 	if (node->clientid) {
 		nng_mqtt_msg_set_connect_client_id(connmsg, node->clientid);
 	}
@@ -323,6 +328,12 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	}
 	if (node->password) {
 		nng_mqtt_msg_set_connect_password(connmsg, node->password);
+	}
+	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
+		property *plist = mqtt_property_alloc();
+		property *p1 = mqtt_property_set_value_u8(SESSION_EXPIRY_INTERVAL, 30);
+		mqtt_property_append(plist, p1);
+		nng_mqtt_msg_set_connect_property(connmsg, plist);
 	}
 
 	bridge_arg = (bridge_param *) nng_alloc(sizeof(bridge_param));
@@ -393,9 +404,10 @@ static int
 bridge_quic_connect_cb(void *rmsg, void *arg)
 {
 	// Connected succeed
-	bridge_param *param  = arg;
-	nng_msg *msg = rmsg;
-	int           reason = 0;
+	bridge_param    *param  = arg;
+	nng_msg         *msg    = rmsg;
+	nng_mqtt_client *client = param->client;
+	int              reason = 0;
 	// get connect reason
 	reason = nng_mqtt_msg_get_connack_return_code(msg);
 	// get property for MQTT V5
@@ -404,8 +416,24 @@ bridge_quic_connect_cb(void *rmsg, void *arg)
 	log_info("Quic bridge client connected! RC [%d]", reason);
 	nng_msg_free(msg);
 
-	/* MQTT V5 SUBSCRIBE */
-	if (reason == 0 && param->config->sub_count > 0) {
+	if (reason != 0 || param->config->sub_count <= 0)
+		return -1;
+	/* MQTT SUBSCRIBE */
+	if (param->config->multi_stream) {
+		for (size_t i = 0; i < param->config->sub_count; i++) {
+			nng_mqtt_topic_qos *topic_qos =
+			    nng_mqtt_topic_qos_array_create(1);
+			nng_mqtt_topic_qos_array_set(topic_qos, 0,
+			    param->config->sub_list[i].topic,
+			    param->config->sub_list[i].qos);
+			log_info("Quic bridge client subscribe to topic (QoS "
+			         "%d)%s.",
+			    param->config->sub_list[i].qos,
+			    param->config->sub_list[i].topic);
+			nng_mqtt_subscribe_async(client, topic_qos, 1, NULL);
+			nng_mqtt_topic_qos_array_free(topic_qos, 1);
+		}
+	} else {
 		nng_mqtt_topic_qos *topic_qos =
 		    nng_mqtt_topic_qos_array_create(param->config->sub_count);
 		for (size_t i = 0; i < param->config->sub_count; i++) {
@@ -416,8 +444,6 @@ bridge_quic_connect_cb(void *rmsg, void *arg)
 			    param->config->sub_list[i].qos,
 			    param->config->sub_list[i].topic);
 		}
-
-		nng_mqtt_client *client = param->client;
 		// TODO support MQTT V5
 		nng_mqtt_subscribe_async(
 		    client, topic_qos, param->config->sub_count, NULL);

@@ -12,7 +12,7 @@ typedef struct {
 	nng_socket       *sock;
 	conf_bridge_node *config;
 	nng_mqtt_client  *client;
-	conf	     *conf;
+	conf             *conf;
 	nng_mtx          *switch_mtx;
 	nng_cv           *switch_cv;
 	nng_mtx          *exec_mtx;
