@@ -20,7 +20,15 @@ Note. libddsc and libnng should be installed.
 
 Select topics from configure file is not supported.
 
-## TEST
+## Update IDL
+
+Update dds_type.idl. Then go to path/to/nanomq directory.
+
+Edit CMakeLists.txt and specific your structure name in dds_type.idl as DDS_TYPE_NAME.
+
+Note. The code about type conversation between DDS_TYPE_NAME and MQTT should be provided.
+
+## Quick start
 
 Step1. Turn on nanomq
 
