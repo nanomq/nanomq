@@ -57,7 +57,7 @@ Test msgs from MQTT to DDS
 Step5.
 
 ```bash
-./naomq_cli ddsproxy sub "MQTT/topic1"
+./nanomq_cli ddsproxy sub "MQTT/topic1"
 ```
 
 Step6.
