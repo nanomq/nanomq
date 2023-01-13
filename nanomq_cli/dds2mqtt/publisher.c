@@ -35,8 +35,14 @@ dds_publisher(int argc, char **argv)
 	(void) argc;
 	(void) argv;
 
+	dds_domainid_t domian_id = DDS_DOMAIN_DEFAULT;
+
+	if (argc >= 4) {
+		domian_id = atol(argv[3]);
+	}
+
 	/* Create a Participant. */
-	participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
+	participant = dds_create_participant(domian_id, NULL, NULL);
 	if (participant < 0)
 		DDS_FATAL("dds_create_participant: %s\n",
 		    dds_strretcode(-participant));
