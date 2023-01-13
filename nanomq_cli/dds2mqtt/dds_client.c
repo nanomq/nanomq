@@ -10,6 +10,8 @@
 #include "dds_client.h"
 #include "dds_type.h"
 #include "dds/dds.h"
+#include "dds/ddsrt/environ.h"
+#include "nng/supplemental/nanolib/file.h"
 #include "vector.h"
 
 #include <stdio.h>
@@ -123,8 +125,11 @@ dds_proxy(int argc, char **argv)
 {
 	mqtt_cli mqttcli;
 	dds_cli  ddscli;
+
 	dds_gateway_conf config = { 0 };
-	
+
+	conf_dds_gateway_init(&config);
+
 	if (cmd_parse_opts(argc, argv, &config.path) == 0) {
 		fprintf(stderr, "invalid options.\n");
 		exit(1);
@@ -192,8 +197,20 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 	/* Get current client's handle queue */
 	nftp_vec *handleq = cli->handleq;
 
+	dds_gateway_dds *dds_conf = &cli->config->dds;
+
+	/* Set CYCLONEDDS_URI */
+	if (dds_conf->dds_uri != NULL) {
+		if (nano_file_exists(dds_conf->dds_uri)) {
+			ddsrt_setenv("CYCLONEDDS_URI", dds_conf->dds_uri);
+		} else {
+			DDS_FATAL("cyclonedds config file not found: [%s]\n",
+			    dds_conf->dds_uri);
+		}
+	}
+
 	/* Create a Participant. */
-	participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
+	participant = dds_create_participant(dds_conf->domain_id, NULL, NULL);
 	if (participant < 0)
 		DDS_FATAL("dds_create_participant: %s\n",
 		    dds_strretcode(-participant));
@@ -352,14 +369,14 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 }
 
 const char *usage = " {sub|pub|proxy}\n"
-                    " sub   <topic>\n"
-                    " pub   <topic>\n"
-                    " proxy <path/to/conf>";
+                    " \tsub   <topic> [<domain_id>]\n"
+                    " \tpub   <topic> [<domain_id>]\n"
+                    " \tproxy --conf <path/to/conf>";
 
 int
 dds_proxy_start(int argc, char **argv)
 {
-	if (argc < 2)
+	if (argc < 3)
 		goto helper;
 
 #if !defined(DDS_TYPE_NAME)
@@ -373,12 +390,14 @@ dds_proxy_start(int argc, char **argv)
 		dds_publisher(argc, argv);
 	} else if (strcmp(argv[1], "proxy") == 0) {
 		dds_proxy(argc, argv);
+	} else if (strcmp(argv[1], "--help") == 0 ||
+	    (strcmp(argv[1], "-h") == 0)) {
+		printf("%s %s\n", argv[0], usage);
 	}
 
 	return 0;
 
 helper:
-
 	printf("%s %s\n", argv[0], usage);
 	return 1;
 }
