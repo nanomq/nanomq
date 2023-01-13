@@ -134,6 +134,18 @@ dds_proxy(int argc, char **argv)
 		fprintf(stderr, "configuration file is required.\n");
 		exit(1);
 	}
+
+	/* Configuration from file */
+	printf("[mqtt]\n");
+	printf("broker.url. %s\n", config.mqtt.address);
+
+	printf("[dds]\n");
+	printf("domain.id. %d\n", config.dds.domain_id);
+
+	printf("[topic forward rules]\n");
+	printf("dds2mqtt. %s => %s\n", config.forward.dds2mqtt.from, config.forward.dds2mqtt.to);
+	printf("mqtt2dds. %s => %s\n", config.forward.mqtt2dds.from, config.forward.mqtt2dds.to);
+
 	dds_client_init(&ddscli, &config);
 
 	mqttcli.mqttrecv_topic = config.forward.mqtt2dds.from;
@@ -213,7 +225,7 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 	if (writer < 0)
 		DDS_FATAL("dds_create_writer: %s\n", dds_strretcode(-writer));
 
-	printf("=== [Publisher]  Waiting for a reader to be discovered ...\n");
+	printf("=== [Publisher] Started\n");
 	fflush(stdout);
 
 	rc = dds_set_status_mask(writer, DDS_PUBLICATION_MATCHED_STATUS);
@@ -237,7 +249,7 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 	// MQTT Client create
 	// mqtt_connect(&mqttcli, MQTT_URL);
 
-	printf("\n=== [Subscriber] Waiting for a sample ...\n");
+	printf("\n=== [Subscriber] Started\n");
 	fflush(stdout);
 
 	/* Initialize sample buffer, by pointing the void pointer within
