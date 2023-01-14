@@ -20,6 +20,7 @@ typedef struct {
 
 void  dds_handle_cmd(int argc, char **argv, dds_client_opts *opts);
 int   dds_cmd_parse_opts(int argc, char **argv, dds_client_opts *opts);
+void  dds_client_opts_fini(dds_client_opts *opts);
 char *dds_shm_xml(bool enable, const char *log_level);
 void dds_set_shm_mode(dds_client_opts *opts);
 

@@ -176,6 +176,21 @@ dds_handle_cmd(
 	}
 }
 
+void
+dds_client_opts_fini(dds_client_opts *opts)
+{
+	if (opts->topic) {
+		nng_strfree(opts->topic);
+		opts->topic = NULL;
+	}
+	if (opts->shm_log_level) {
+		nng_strfree(opts->shm_log_level);
+		opts->shm_log_level = NULL;
+	}
+	opts->domain_id = 0;
+	opts->shm_mode  = false;
+}
+
 char *
 dds_shm_xml(bool enable, const char *log_level)
 {
