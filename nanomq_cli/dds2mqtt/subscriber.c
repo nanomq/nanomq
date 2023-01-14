@@ -16,6 +16,7 @@
 
 #include "dds_mqtt_type_conversion.h"
 #include "mqtt_client.h"
+#include "dds_utils.h"
 
 /* An array of one message (aka sample in dds terms) will be used. */
 #define MAX_SAMPLES 1
@@ -33,24 +34,20 @@ dds_subscriber(int argc, char **argv)
 	dds_sample_info_t infos[MAX_SAMPLES];
 	dds_return_t      rc;
 	dds_qos_t        *qos;
-	(void) argc;
-	(void) argv;
 
-	dds_domainid_t domian_id = 0;
+	dds_client_opts opts = { .cli_type = DDS_SUB };
 
-	if (argc >= 4) {
-		domian_id = atol(argv[3]);
-	}
+	dds_handle_cmd(argc, argv, &opts);
 
 	/* Create a Participant. */
-	participant = dds_create_participant(domian_id, NULL, NULL);
+	participant = dds_create_participant(opts.domain_id, NULL, NULL);
 	if (participant < 0)
 		DDS_FATAL("dds_create_participant: %s\n",
 		    dds_strretcode(-participant));
 
 	/* Create a Topic. */
 	topic = dds_create_topic(
-	    participant, &DDS_TYPE_NAME_DESC(), argv[2], NULL, NULL);
+	    participant, &DDS_TYPE_NAME_DESC(), opts.topic, NULL, NULL);
 	if (topic < 0)
 		DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topic));
 
