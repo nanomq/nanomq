@@ -99,6 +99,8 @@ dds_subscriber(int argc, char **argv)
 	if (rc != DDS_RETCODE_OK)
 		DDS_FATAL("dds_delete: %s\n", dds_strretcode(-rc));
 
+	dds_client_opts_fini(&opts);
+
 	return EXIT_SUCCESS;
 }
 
