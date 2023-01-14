@@ -21,6 +21,7 @@
 #include <string.h>
 
 #include "dds_mqtt_type_conversion.h"
+#include "dds_utils.h"
 #include "mqtt_client.h"
 #include "nng/supplemental/nanolib/cJSON.h"
 #include "nng/supplemental/nanolib/hocon.h"
@@ -33,6 +34,7 @@
 static int  dds_client_init(dds_cli *cli, dds_gateway_conf *config);
 static int  dds_client(dds_cli *cli, mqtt_cli *mqttcli);
 static void dds_inner_config(dds_gateway_dds *config);
+static int  cmd_parse_opts(int argc, char **argv, char **file_path);
 
 enum options {
 	OPT_HELP = 1,
@@ -60,11 +62,15 @@ static nng_optspec cmd_opts[] = {
 static void
 help(void)
 {
-	printf("Usage: nanomq_cli ddsproxy proxy "
-	       "[-h, --help] [--conf <path>]\n");
+	printf("Usage: \n");
+	printf("nanomq_cli ddsproxy proxy --conf <config path> "
+	       "[-h, --help] \n\n");
+
+	printf("<config path> must be set: \n");
+	printf("\t--conf <path>     Specify dds proxy configuration file.\n");
 }
 
-int
+static int
 cmd_parse_opts(int argc, char **argv, char **file_path)
 {
 	int   idx = 2;
@@ -123,21 +129,6 @@ cmd_parse_opts(int argc, char **argv, char **file_path)
 	return rv == -1;
 }
 
-char *
-dds_shm_xml(bool enable, const char *log_level)
-{
-	char *configstr = NULL;
-	ddsrt_asprintf(&configstr,
-	    "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}"
-	    "<SharedMemory>"
-	    "<Enable>%s</Enable>"
-	    "<LogLevel>%s</LogLevel>"
-	    "</SharedMemory>",
-	    enable ? "true" : "false", log_level == NULL ? "info" : log_level);
-
-	return configstr;
-}
-
 static void
 dds_inner_config(dds_gateway_dds *config)
 {
@@ -178,7 +169,10 @@ dds_proxy(int argc, char **argv)
 	}
 	conf_dds_gateway_parse_ver2(&config);
 	if (config.path == NULL) {
-		fprintf(stderr, "configuration file is required.\n");
+		fprintf(stderr, "Configuration file is required.\n");
+		fprintf(stderr,
+		    "Please specify a configuration file with '--conf "
+		    "<path>' \n");
 		exit(1);
 	}
 
@@ -402,15 +396,16 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 	return EXIT_SUCCESS;
 }
 
-const char *usage = " {sub|pub|proxy}\n"
-                    " \tsub   <topic> [<domain_id>]\n"
-                    " \tpub   <topic> [<domain_id>]\n"
-                    " \tproxy --conf <path/to/conf>";
+const char *usage = " nanomq_cli ddsproxy { sub | pub | proxy } [--help] \n\n"
+					" available apps: \n"
+                    " \t* sub   \n"
+                    " \t* pub   \n"
+                    " \t* proxy ";
 
 int
 dds_proxy_start(int argc, char **argv)
 {
-	if (argc < 3)
+	if (argc < 2)
 		goto helper;
 
 #if !defined(DDS_TYPE_NAME)
@@ -426,13 +421,13 @@ dds_proxy_start(int argc, char **argv)
 		dds_proxy(argc, argv);
 	} else if (strcmp(argv[1], "--help") == 0 ||
 	    (strcmp(argv[1], "-h") == 0)) {
-		printf("%s %s\n", argv[0], usage);
+		printf("%s\n", usage);
 	}
 
 	return 0;
 
 helper:
-	printf("%s %s\n", argv[0], usage);
+	printf("%s\n", usage);
 	return 1;
 }
 
