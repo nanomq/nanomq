@@ -49,7 +49,7 @@ Step3.
 Step4.
 
 ```bash
-./nanomq_cli ddsproxy pub "MQTTCMD/topic1"
+./nanomq_cli ddsproxy pub -t "MQTTCMD/topic1"
 ```
 
 Test msgs from MQTT to DDS
@@ -57,7 +57,7 @@ Test msgs from MQTT to DDS
 Step5.
 
 ```bash
-./nanomq_cli ddsproxy sub "MQTT/topic1"
+./nanomq_cli ddsproxy sub -t "MQTT/topic1"
 ```
 
 Step6.
