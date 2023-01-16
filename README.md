@@ -141,11 +141,18 @@ ninja
   cmake -G Ninja -DBUILD_CLIENT=OFF ..
   ninja
   ```
-**Note (optional): gateway tool isn't built by default**, you can enable it via `-DBUILD_ZMQ_GATEWAY=ON`.
+**Note (optional): zeromq gateway tool isn't built by default**, you can enable it via `-DBUILD_ZMQ_GATEWAY=ON`.
 
   ``` bash
   cmake -G Ninja -DBUILD_ZMQ_GATEWAY=ON ..
   ninja
+  ```
+
+**Note (optional): dds proxy isn't built by default**, you can enable it via `-DBUILD_DDS_PROXY=ON`.
+
+  ``` bash
+cmake -G Ninja -DBUILD_DDS_PROXY=ON ..
+ninja
   ```
 
 **Note (optional): bench tool isn't built by default**, you can enable it via `-DBUILD_BENCH=ON`.
