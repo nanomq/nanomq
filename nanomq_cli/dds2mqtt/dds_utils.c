@@ -1,4 +1,7 @@
 #include "dds_utils.h"
+
+#if defined(SUPP_DDS_PROXY)
+
 #include "dds/dds.h"
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/io.h"
@@ -222,3 +225,5 @@ dds_set_shm_mode(dds_client_opts *opts)
 		DDS_FATAL("dds_create_domain: %s\n", dds_strretcode(-dom));
 	}
 }
+
+#endif

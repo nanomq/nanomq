@@ -1,6 +1,8 @@
 #ifndef NANOMQ_CLI_DDS_UTILS_H
 #define NANOMQ_CLI_DDS_UTILS_H
 
+#if defined(SUPP_DDS_PROXY)
+
 #include "nng/nng.h"
 #include "nng/supplemental/util/options.h"
 
@@ -23,5 +25,7 @@ int   dds_cmd_parse_opts(int argc, char **argv, dds_client_opts *opts);
 void  dds_client_opts_fini(dds_client_opts *opts);
 char *dds_shm_xml(bool enable, const char *log_level);
 void dds_set_shm_mode(dds_client_opts *opts);
+
+#endif
 
 #endif
