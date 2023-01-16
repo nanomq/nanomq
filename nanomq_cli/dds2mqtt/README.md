@@ -18,7 +18,8 @@ Note. libddsc and libnng should be installed.
 
 ## NOTE
 
-Select topics from configure file is not supported.
++ Select topics from configure file is not supported.
++ [How to enable and run Cyclone DDS with shared memory exchange](./doc/Shared_memory.md).
 
 ## Update IDL
 
@@ -31,6 +32,10 @@ Note. The code about type conversation between DDS_TYPE_NAME and MQTT should be 
 ## Quick start
 
 Step1. Turn on nanomq
+
+```bash
+./nanomq start
+```
 
 Step2. Start the dds2mqtt proxy 
 
