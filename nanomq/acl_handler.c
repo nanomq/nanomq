@@ -38,13 +38,13 @@ auth_acl(conf *config, acl_action_type act_type, conn_param *param,
 
 		switch (rule->rule_type) {
 		case ACL_USERNAME:
-			match = match_rule_content_str(
-			    &rule->rule_ct.ct, conn_param_get_username(param));
+			match = match_rule_content_str(&rule->rule_ct.ct,
+			    (const char *) conn_param_get_username(param));
 			break;
 
 		case ACL_CLIENTID:
-			match = match_rule_content_str(
-			    &rule->rule_ct.ct, conn_param_get_clientid(param));
+			match = match_rule_content_str(&rule->rule_ct.ct,
+			    (const char *) conn_param_get_clientid(param));
 			break;
 
 		case ACL_AND:
@@ -56,8 +56,9 @@ auth_acl(conf *config, acl_action_type act_type, conn_param *param,
 				case ACL_USERNAME:
 					if (!match_rule_content_str(
 					        &sub_rule->rule_ct,
-					        conn_param_get_username(
-					            param))) {
+					        (const char *)
+					            conn_param_get_username(
+					                param))) {
 						sub_match = false;
 						break;
 					}
@@ -66,8 +67,9 @@ auth_acl(conf *config, acl_action_type act_type, conn_param *param,
 				case ACL_CLIENTID:
 					if (!match_rule_content_str(
 					        &sub_rule->rule_ct,
-					        conn_param_get_clientid(
-					            param))) {
+					        (const char *)
+					            conn_param_get_clientid(
+					                param))) {
 						sub_match = false;
 						break;
 					}
@@ -98,13 +100,17 @@ auth_acl(conf *config, acl_action_type act_type, conn_param *param,
 				case ACL_USERNAME:
 					match |= match_rule_content_str(
 					    &sub_rule->rule_ct,
-					    conn_param_get_username(param));
+					    (const char *)
+					        conn_param_get_username(
+					            param));
 					break;
 
 				case ACL_CLIENTID:
 					match |= match_rule_content_str(
 					    &sub_rule->rule_ct,
-					    conn_param_get_clientid(param));
+					    (const char *)
+					        conn_param_get_clientid(
+					            param));
 					break;
 
 					// TODO Not supported yet
