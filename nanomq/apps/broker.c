@@ -1149,8 +1149,9 @@ print_usage(void)
 	       "'nmq-ws://host:port/path', \r\n                             "
 	       "'nmq-wss://host:port/path'\n");
 	printf("  --conf <path>              The path of a specified nanomq "
-	       " HOCON style configuration file \n");
-	printf("  --old_conf <path> parse old config file\n");
+	       "HOCON style configuration file \n");
+	printf("  --old_conf <path>          The path of a specified nanomq "
+	       "deprecated version configuration file\n");
 
 	printf("  --http                     Enable http server (default: "
 	       "false)\n");
@@ -1254,7 +1255,7 @@ store_pid()
 	int  status;
 	char pid_c[12] = "";
 
-	sprintf(pid_c, "%d", nng_getpid());
+	snprintf(pid_c, 10, "%d", nng_getpid());
 	log_info("%s", pid_c);
 
 	status = nng_file_put(PID_PATH_NAME, pid_c, sizeof(pid_c));
