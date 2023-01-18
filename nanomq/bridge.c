@@ -266,13 +266,13 @@ conn_property(conf_bridge_conn_properties *conf_prop)
 			    conf_prop->topic_alias_maximum);
 			mqtt_property_append(link_list, prop);
 		}
-		if (conf_prop->request_response_info != 1) {
+		if (conf_prop->request_response_info != 0) {
 			prop = mqtt_property_set_value_u8(
 			    REQUEST_RESPONSE_INFORMATION,
 			    conf_prop->request_response_info);
 			mqtt_property_append(link_list, prop);
 		}
-		if (conf_prop->request_problem_info != 0) {
+		if (conf_prop->request_problem_info != 1) {
 			prop = mqtt_property_set_value_u8(
 			    REQUEST_PROBLEM_INFORMATION,
 			    conf_prop->request_problem_info);
