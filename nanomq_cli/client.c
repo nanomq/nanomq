@@ -396,7 +396,18 @@ fatal(const char *msg, ...)
 	vfprintf(stderr, msg, ap);
 	va_end(ap);
 	fprintf(stderr, "\n");
+	fflush(stderr);
 	exit(1);
+}
+
+void
+console(const char *fmt, ...)
+{
+	va_list ap;
+	va_start(ap, fmt);
+	vfprintf(stdout, fmt, ap);
+	va_end(ap);
+	fflush(stdout);
 }
 
 static void
@@ -411,7 +422,7 @@ properties_help(enum client_type type)
 	for (size_t i = 0;
 	     i < sizeof(properties_usage) / sizeof(properties_usage[0]); i++) {
 		if (0 != (type & properties_usage[i].type)) {
-			printf("  --%s\n", properties_usage[i].usage);
+			console("  --%s\n", properties_usage[i].usage);
 		}
 	}
 }
@@ -421,15 +432,15 @@ help(enum client_type type)
 {
 	switch (type) {
 	case PUB:
-		printf("Usage: nanomq_cli pub <addr> "
+		console("Usage: nanomq_cli pub <addr> "
 		       "[<topic>...] [<opts>...] [<src>]\n\n");
 		break;
 	case SUB:
-		printf("Usage: nanomq_cli sub <addr> "
+		console("Usage: nanomq_cli sub <addr> "
 		       "[<topic>...] [<opts>...]\n\n");
 		break;
 	case CONN:
-		printf("Usage: nanomq_cli conn <addr> "
+		console("Usage: nanomq_cli conn <addr> "
 		       "[<opts>...]\n\n");
 		break;
 
@@ -437,79 +448,79 @@ help(enum client_type type)
 		break;
 	}
 
-	printf("<addr> must be one or more of:\n");
-	printf("  --url <url>                      The url for mqtt broker "
+	console("<addr> must be one or more of:\n");
+	console("  --url <url>                      The url for mqtt broker "
 	       "('mqtt-tcp://host:port' or 'tls+mqtt-tcp://host:port') \n");
-	printf("                                   [default: "
+	console("                                   [default: "
 	       "mqtt-tcp://127.0.0.1:1883]\n");
 
 	if (type == PUB || type == SUB) {
-		printf("\n<topic> must be set:\n");
-		printf(
+		console("\n<topic> must be set:\n");
+		console(
 		    "  -t, --topic <topic>              Topic for publish or "
 		    "subscribe\n");
 	}
 
-	printf("\n<opts> may be any of:\n");
-	printf("  -V, --version <version: 3|4|5>   The MQTT version used by "
+	console("\n<opts> may be any of:\n");
+	console("  -V, --version <version: 3|4|5>   The MQTT version used by "
 	       "the client [default: 4]\n");
-	printf("  -n, --parallel             	   The number of parallel for "
+	console("  -n, --parallel             	   The number of parallel for "
 	       "client [default: 1]\n");
-	printf("  -v, --verbose              	   Enable verbose mode\n");
-	printf("  -u, --user <user>                The username for "
+	console("  -v, --verbose              	   Enable verbose mode\n");
+	console("  -u, --user <user>                The username for "
 	       "authentication\n");
-	printf("  -p, --password <password>        The password for "
+	console("  -p, --password <password>        The password for "
 	       "authentication\n");
-	printf("  -k, --keepalive <keepalive>      A keep alive of the client "
+	console("  -k, --keepalive <keepalive>      A keep alive of the client "
 	       "(in seconds) [default: 60]\n");
 	if (type == PUB) {
-		printf("  -m, --msg <message>              The message to "
+		console("  -m, --msg <message>              The message to "
 		       "publish\n");
-		printf("  -L, --limit <num>                Max count of "
+		console("  -L, --limit <num>                Max count of "
 		       "publishing "
 		       "message [default: 1]\n");
-		printf("  -i, --interval <ms>              Interval of "
+		console("  -i, --interval <ms>              Interval of "
 		       "publishing "
 		       "message (ms) [default: 10]\n");
 	} else {
-		printf("  -i, --interval <ms>              Interval of "
+		console("  -i, --interval <ms>              Interval of "
 		       "establishing connection "
 		       "(ms) [default: 10]\n");
 	}
 
-	printf("  -I, --identifier <identifier>    The client identifier "
+	console("  -I, --identifier <identifier>    The client identifier "
 	    "UTF-8 String (default randomly generated string)\n");
-	printf("  -C, --count <num>                Num of client \n");
-	printf("  -q, --qos <qos>                  Quality of service for the "
+	console("  -C, --count <num>                Num of client \n");
+	console("  -q, --qos <qos>                  Quality of service for the "
 	       "corresponding topic [default: 0]\n");
-	printf("  -r, --retain                     The message will be "
+	console("  -r, --retain                     The message will be "
 	       "retained [default: false]\n");
-	printf("  -c, --clean_session <true|false> Define a clean start for "
+	console("  -c, --clean_session <true|false> Define a clean start for "
 	       "the connection [default: true]\n");
-	printf("  --will-qos <qos>                 Quality of service level "
+	console("  --will-qos <qos>                 Quality of service level "
 	       "for the will message [default: 0]\n");
-	printf("  --will-msg <message>             The payload of the will "
+	console("  --will-msg <message>             The payload of the will "
 	       "message\n");
-	printf("  --will-topic <topic>             The topic of the will "
+	console("  --will-topic <topic>             The topic of the will "
 	       "message\n");
-	printf("  --will-retain                    Will message as retained "
+	console("  --will-retain                    Will message as retained "
 	       "message [default: false]\n");
 
 	properties_help(type);
 
 #if defined(NNG_SUPP_TLS)
-	printf("  -s, --secure                     Enable TLS/SSL mode\n");
-	printf(
+	console("  -s, --secure                     Enable TLS/SSL mode\n");
+	console(
 	    "      --cacert <file>              CA certificates file path\n");
-	printf("      -E, --cert <file>            Certificate file path\n");
-	printf("      --key <file>                 Private key file path\n");
-	printf("      --keypass <key password>     Private key password\n");
+	console("      -E, --cert <file>            Certificate file path\n");
+	console("      --key <file>                 Private key file path\n");
+	console("      --keypass <key password>     Private key password\n");
 #endif
 
 	if (type == PUB) {
-		printf("\n<src> may be one of:\n");
-		printf("  -m, --msg  <data>                \n");
-		printf("  -f, --file <file>                \n");
+		console("\n<src> may be one of:\n");
+		console("  -m, --msg  <data>                \n");
+		console("  -f, --file <file>                \n");
 	}
 }
 
@@ -707,8 +718,6 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 			    "specified only once.");
 			loadfile(arg, (void **) &opt->msg, &opt->msg_len);
 			break;
-		default:
-			break;
 		}
 	}
 	switch (rv) {
@@ -761,7 +770,7 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 		break;
 	}
 
-	return rv;
+ 	return rv;
 }
 
 static uint8_t
@@ -1227,7 +1236,7 @@ client_cb(void *arg)
 		    nng_mqtt_msg_get_publish_topic(msg, &topic_len);
 
 		if (topic_len > 0) {
-			printf("%.*s: %.*s\n", topic_len, recv_topic,
+			console("%.*s: %.*s\n", topic_len, recv_topic,
 			    payload_len, (char *) payload);
 		}
 
@@ -1335,7 +1344,7 @@ connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	int                   reason = 0;
 	// get connect reason
 	nng_pipe_get_int(p, NNG_OPT_MQTT_CONNECT_REASON, &reason);
-	printf("%s: %s connect result: %d \n", __FUNCTION__, param->opts->url,
+	console("%s: %s connect result: %d \n", __FUNCTION__, param->opts->url,
 	    reason);
 
 	property *prop = NULL;
@@ -1375,7 +1384,7 @@ disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	// property *prop;
 	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_DISCONNECT_PROPERTY, &prop);
 	// nng_socket_get?
-	printf("disconnected reason : %d\n", reason);
+	console("disconnected reason : %d\n", reason);
 }
 
 static void
@@ -1422,7 +1431,9 @@ create_client(nng_socket *sock, struct work **works, size_t id, size_t nwork,
 	nng_mqtt_set_connect_cb(*sock, connect_cb, param);
 	nng_mqtt_set_disconnect_cb(*sock, disconnect_cb, conn_msg);
 
-	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
+	if ((rv = nng_dialer_start(dialer, NNG_FLAG_ALLOC)) != 0) {
+		nng_fatal("nng_dialer_start", rv);
+	}
 
 	average_msgs(opts, works);
 	for (size_t i = 0; i < opts->parallel; i++) {
