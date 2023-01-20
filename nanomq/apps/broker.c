@@ -194,7 +194,6 @@ bridge_handler(nano_work *work)
 					// what if send qos msg failed?
 					// nanosdk deal with fail send
 					// and close the pipe
-					log_error("ctx id %d", index);
 					if (nng_aio_busy(
 					        node->bridge_aio[index])) {
 						nng_msg_free(smsg);
