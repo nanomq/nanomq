@@ -35,6 +35,8 @@ if(BUILD_DDS_PROXY)
   target_link_libraries(nanomq_cli dds_type_lib CycloneDDS::ddsc)
 endif(BUILD_DDS_PROXY)
 
+target_link_libraries(nanomq_cli nng)
+
 if(BUILD_QUIC_CLI)
   target_link_libraries(nanomq_cli msquic)
 endif(BUILD_QUIC_CLI)
@@ -60,7 +62,6 @@ endif(BUILD_VSOMEIP_GATEWAY)
 
 add_dependencies(nanomq_cli nng)
 
-target_link_libraries(nanomq_cli nng)
 
 install(TARGETS nanomq_cli RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
                                    COMPONENT Tools)
