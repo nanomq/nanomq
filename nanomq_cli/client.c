@@ -1767,8 +1767,6 @@ create_quic_client(nng_socket *sock, struct work **works, size_t id,
 
 	param->sock = sock;
 
-	param->client = nng_mqtt_client_alloc(*sock, quic_msg_send_cb, true);
-
 	// create a CONNECT message
 	/* CONNECT */
 	nng_msg *connmsg = connect_msg(param->opts);
@@ -1781,9 +1779,15 @@ create_quic_client(nng_socket *sock, struct work **works, size_t id,
 		fatal("Failed to set Quic client callback.\n");
 	}
 
+	param->client = nng_mqtt_client_alloc(*sock, quic_msg_send_cb, true);
+
 	if (param->opts->type == PUB) {
 		nng_msg *pub_msg = publish_msg(param->opts);
 		nng_lmq_put(param->client->msgq, pub_msg);
+		for (size_t i = 1; i < param->opts->total_msg_count; i++) {
+			nng_msg_clone(pub_msg);
+			nng_lmq_put(param->client->msgq, pub_msg);
+		}
 	}
 
 	nng_aio_set_msg(param->client->send_aio, connmsg);
