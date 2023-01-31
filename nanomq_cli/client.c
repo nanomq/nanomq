@@ -464,9 +464,10 @@ help(enum client_type type)
 
 	console("<addr> must be one or more of:\n");
 	console("  --url <url>                      The url for mqtt broker "
-	       "('mqtt-tcp://host:port' or 'tls+mqtt-tcp://host:port') \n");
+	        "('mqtt-tcp://host:port',\n                                   "
+	        "'tls+mqtt-tcp://host:port' or 'mqtt-quic://host:port') \n");
 	console("                                   [default: "
-	       "mqtt-tcp://127.0.0.1:1883]\n");
+	        "mqtt-tcp://127.0.0.1:1883]\n");
 
 	if (type == PUB || type == SUB) {
 		console("\n<topic> must be set:\n");
@@ -1506,7 +1507,10 @@ client(int argc, char **argv, enum client_type type)
 #if defined(SUPP_QUIC)
 		create_client_func = create_quic_client;
 #else
-		nng_fatal("quic", NNG_ENOTSUP);
+		fatal("Quic client is disabled for now !\nPlease recompile "
+		      "nanomq_cli "
+		      "with option `-DNNG_ENABLE_QUIC=ON` to Enable Quic "
+		      "support");
 #endif
 	} else {
 		create_client_func = create_client;
