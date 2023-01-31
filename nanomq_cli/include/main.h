@@ -7,7 +7,6 @@
 #include "nngcat.h"
 #include "zmq_gateway.h"
 #include "vsomeip_gateway.h"
-#include "quic_client.h"
 #include "rule_ctrl.h"
 #include "dds_client.h"
 
