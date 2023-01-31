@@ -504,12 +504,19 @@ help(enum client_type type)
 	}
 
 	console("  -I, --identifier <identifier>    The client identifier "
-	    "UTF-8 String (default randomly generated string)\n");
+	        "UTF-8 String (default randomly generated string)\n");
 	console("  -C, --count <num>                Num of client \n");
-	console("  -q, --qos <qos>                  Quality of service for the "
-	       "corresponding topic [default: 0]\n");
+
+	console("  -q, --qos <qos>                  Quality of "
+	        "service for the "
+	        "corresponding topic ");
+	if (type == SUB) {
+		console("[default: 2]\n");
+	} else {
+		console("[default: 0]\n");
+	}
 	console("  -r, --retain                     The message will be "
-	       "retained [default: false]\n");
+	        "retained [default: false]\n");
 	console("  -c, --clean_session <true|false> Define a clean start for "
 	       "the connection [default: true]\n");
 	console("  --will-qos <qos>                 Quality of service level "
@@ -1071,7 +1078,7 @@ set_default_conf(client_opts *opt)
 {
 	opt->total_msg_count = 1;
 	opt->interval        = 10;
-	opt->qos             = 0;
+	opt->qos             = opts->type == SUB ? 2 : 0;
 	opt->retain          = false;
 	opt->parallel        = 1;
 	opt->version         = 4;
@@ -1471,8 +1478,8 @@ client(int argc, char **argv, enum client_type type)
 {
 	int rv;
 	opts = nng_zalloc(sizeof(client_opts));
-	set_default_conf(opts);
 	opts->type = type;
+	set_default_conf(opts);
 
 	client_parse_opts(argc, argv, opts);
 
