@@ -85,6 +85,13 @@ struct client_opts {
 
 typedef struct client_opts client_opts;
 
+struct connect_param {
+	nng_socket *     sock;
+	nng_mqtt_client *client;
+	client_opts *    opts;
+	size_t           id;
+};
+
 client_opts *opts = NULL;
 
 enum options {
@@ -384,6 +391,13 @@ struct work {
 	client_opts *opts;
 	size_t       msg_count;
 };
+
+#if defined(SUPP_QUIC)
+#include <nng/mqtt/mqtt_quic.h>
+
+static void create_quic_client(nng_socket *sock, struct work **works,
+    size_t id, size_t nwork, struct connect_param *param);
+#endif
 
 static void average_msgs(client_opts *opts, struct work **works);
 static void free_opts(void);
@@ -1331,12 +1345,6 @@ connect_msg(client_opts *opt)
 	return msg;
 }
 
-struct connect_param {
-	nng_socket * sock;
-	client_opts *opts;
-	size_t       id;
-};
-
 static void
 connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {
@@ -1491,12 +1499,26 @@ client(int argc, char **argv, enum client_type type)
 	struct work ***works =
 	    nng_zalloc(sizeof(struct work **) * opts->clients);
 
+	void (*create_client_func)(nng_socket *, struct work **, size_t,
+	    size_t, struct connect_param *);
+
+	if (strncmp("mqtt-quic", opts->url, 9) == 0) {
+#if defined(SUPP_QUIC)
+		create_client_func = create_quic_client;
+#else
+		nng_fatal("quic", NNG_ENOTSUP);
+#endif
+	} else {
+		create_client_func = create_client;
+	}
+
 	for (size_t i = 0; i < opts->clients; i++) {
 		param[i]       = nng_zalloc(sizeof(struct connect_param));
 		param[i]->opts = opts;
 		socket[i]      = nng_zalloc(sizeof(nng_socket));
 		works[i] = nng_zalloc(sizeof(struct work **) * opts->parallel);
-		create_client(
+
+		create_client_func(
 		    socket[i], works[i], i, opts->parallel, param[i]);
 		nng_msleep(opts->interval);
 	}
@@ -1604,5 +1626,159 @@ free_opts(void)
 		free(opts);
 	}
 }
+
+#if defined(SUPP_QUIC)
+
+static int
+quic_connect_cb(void *rmsg, void *arg)
+{
+	nng_msg *             msg   = rmsg;
+	struct connect_param *param = arg;
+	if (msg != NULL) {
+		uint8_t reason = nng_mqtt_msg_get_connack_return_code(msg);
+		console("%s: %s connect result: %d \n", __FUNCTION__,
+		    param->opts->url, reason);
+		if (reason == 0) {
+			if (param->opts->type == SUB &&
+			    param->opts->topic_count > 0) {
+				nng_mqtt_topic_qos *topics_qos =
+				    nng_mqtt_topic_qos_array_create(
+				        param->opts->topic_count);
+				size_t i = 0;
+				for (struct topic *tp = param->opts->topic;
+				     tp != NULL &&
+				     i < param->opts->topic_count;
+				     tp = tp->next, i++) {
+					nng_mqtt_topic_qos_array_set(
+					    topics_qos, i, tp->val,
+					    param->opts->qos);
+				}
+				nng_mqtt_subscribe_async(param->client,
+				    topics_qos, param->opts->topic_count,
+				    param->opts->sub_properties);
+				nng_mqtt_topic_qos_array_free(
+				    topics_qos, param->opts->topic_count);
+			}
+		}
+	}
+
+	return 0;
+}
+
+static int
+quic_disconnect_cb(void *rmsg, void *arg)
+{
+	int reason = 0;
+	if (!rmsg) {
+		return 0;
+	}
+	// get connect reason
+	reason = nng_mqtt_msg_get_connack_return_code(rmsg);
+	// property *prop;
+	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_DISCONNECT_PROPERTY, &prop);
+	console("%s: reason %d\n", __FUNCTION__, reason);
+	nng_msg_free(rmsg);
+	return 0;
+}
+
+static void
+quic_msg_send_cb(void *arg)
+{
+	console("%s: ", __FUNCTION__);
+
+	nng_mqtt_client *client = (nng_mqtt_client *) arg;
+	nng_aio *        aio    = client->send_aio;
+
+	int rv;
+
+	if ((rv = nng_aio_result(aio)) != 0) {
+		console("aio result: %s(%d)\n", nng_strerror(rv), rv);
+		return;
+	}
+
+	nng_msg *msg   = nng_aio_get_msg(aio);
+	uint32_t count = 0;
+	uint8_t *code;
+	uint8_t  type;
+
+	if (msg == NULL)
+		return;
+
+	type = nng_msg_get_type(msg);
+
+	if (type == CMD_SUBACK) {
+		code = nng_mqtt_msg_get_suback_return_codes(msg, &count);
+		console("suback result: ", nng_aio_result(aio));
+		for (size_t i = 0; i < count; i++) {
+			console("%d ", code[i]);
+		}
+		console("\n");
+		nng_msg_free(msg);
+	} else if (type == CMD_CONNECT) {
+		console("connect msg is sent\n");
+	} else if (type == CMD_PUBLISH || type == CMD_PUBLISH_V5) {
+		console("publish msg is sent\n");
+	} else {
+		console("\n");
+	}
+
+	if (nng_lmq_get(client->msgq, &msg) == 0) {
+		nng_aio_set_msg(client->send_aio, msg);
+		nng_send_aio(client->sock, client->send_aio);
+	}
+	return;
+}
+
+static int
+quic_msg_recv_cb(void *rmsg, void *arg)
+{
+	nng_msg *msg = rmsg;
+	uint32_t topicsz, payloadsz;
+
+	char *topic = (char *) nng_mqtt_msg_get_publish_topic(msg, &topicsz);
+	char *payload =
+	    (char *) nng_mqtt_msg_get_publish_payload(msg, &payloadsz);
+
+	console("%s: %.*s: %.*s\n", __FUNCTION__, topicsz, topic, payloadsz,
+	    payload);
+	return 0;
+}
+
+static void
+create_quic_client(nng_socket *sock, struct work **works, size_t id,
+    size_t nwork, struct connect_param *param)
+{
+	int        rv;
+
+	if ((rv = nng_mqtt_quic_client_open(sock, param->opts->url)) != 0) {
+		nng_fatal("nng_mqtt_quic_client_open", rv);
+	}
+
+	param->sock = sock;
+
+	param->client = nng_mqtt_client_alloc(*sock, quic_msg_send_cb, true);
+
+	// create a CONNECT message
+	/* CONNECT */
+	nng_msg *connmsg = connect_msg(param->opts);
+
+	if (0 != nng_mqtt_quic_set_connect_cb(sock, quic_connect_cb, param) ||
+	    0 !=
+	        nng_mqtt_quic_set_disconnect_cb(
+	            sock, quic_disconnect_cb, NULL) ||
+	    0 != nng_mqtt_quic_set_msg_recv_cb(sock, quic_msg_recv_cb, NULL)) {
+		fatal("Failed to set Quic client callback.\n");
+	}
+
+	if (param->opts->type == PUB) {
+		nng_msg *pub_msg = publish_msg(param->opts);
+		nng_lmq_put(param->client->msgq, pub_msg);
+	}
+
+	nng_aio_set_msg(param->client->send_aio, connmsg);
+	nng_send_aio(*sock, param->client->send_aio);
+}
+
+#endif
 
 #endif
