@@ -63,13 +63,6 @@ static client_app apps[] = {
 	},
 #endif
 
-#if defined(SUPP_QUIC)
-	{
-	    .name = "quic",
-	    .func = quic_client,
-	},
-#endif
-
 #if defined(SUPP_RULE_ENGINE)
 	{
 	    .name = "rules",
