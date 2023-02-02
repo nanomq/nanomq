@@ -4,6 +4,7 @@
 #include "nng/supplemental/nanolib/conf.h"
 #include "nng/supplemental/util/options.h"
 #include <zmq.h>
+#include "web_server.h"
 
 struct work {
 	enum { INIT, RECV, WAIT, SEND } state;
@@ -387,6 +388,9 @@ gateway_start(int argc, char **argv)
 	gateway_conf_init(conf);
 	gateway_parse_opts(argc, argv, conf);
 	conf_gateway_parse_ver2(conf);
+	if (conf.http_server.enable) {
+		start_rest_server(&conf.http_server);
+	}
 	if (-1 != gateway_conf_check_and_set(conf)) {
 		zmq_gateway(conf);
 	}
