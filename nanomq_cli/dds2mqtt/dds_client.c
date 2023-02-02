@@ -27,6 +27,7 @@
 #include "nng/supplemental/nanolib/hocon.h"
 #include "nng/supplemental/nanolib/conf.h"
 #include "nng/supplemental/util/options.h"
+#include "web_server.h"
 
 /* An array of one message (aka sample in dds terms) will be used. */
 #define MAX_SAMPLES 1
@@ -174,6 +175,9 @@ dds_proxy(int argc, char **argv)
 		    "Please specify a configuration file with '--conf "
 		    "<path>' \n");
 		exit(1);
+	}
+	if (config.http_server.enable) {
+		start_rest_server(&config.http_server);
 	}
 
 	/* Configuration from file */
