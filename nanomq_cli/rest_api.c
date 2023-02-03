@@ -8,7 +8,7 @@
 
 #include "nng/supplemental/http/http.h"
 #include "nng/supplemental/util/platform.h"
-
+#include "proxy.h"
 
 typedef struct {
 	char *key;
@@ -308,26 +308,69 @@ basic_authorize(http_msg *msg, conf_http_server *config)
 }
 
 static http_msg
-get_config(http_msg *msg, const char* proxy_name)
+get_config(http_msg *msg, proxy_info *proxy, const char *name)
 {
-	if (nng_strcasecmp(proxy_name, "dds") == 0) {
+	http_msg res = { .status = NNG_HTTP_STATUS_OK };
 
-	} else if (nng_strcasecmp(proxy_name, "zmq") == 0) {
+	if (nng_strcasecmp(name, proxy->proxy_name) == 0) {
+		char * file_data = NULL;
+		size_t file_sz =
+		    file_load_data(proxy->conf_path, (void **) &file_data);
+		if (file_sz > 0) {
+			put_http_msg(&res, "text/plain",
+			    POST_METHOD, NULL, NULL, file_data, file_sz);
+			return res;
+		} else {
+			error_response(
+			    msg, NNG_HTTP_STATUS_NO_CONTENT, UNKNOWN_MISTAKE);
+		}
+	} else {
+		return error_response(
+		    msg, NNG_HTTP_STATUS_NOT_FOUND, REQ_PARAM_ERROR);
+	}
+}
 
-	} else if (nng_strcasecmp(proxy_name, "someip") == 0) {
+static http_msg
+post_config(http_msg *msg, proxy_info *proxy, const char *name)
+{
+	http_msg res = { .status = NNG_HTTP_STATUS_OK };
 
+	if (nng_strcasecmp(name, proxy->proxy_name) == 0) {
+		// Only support Content-type: text/plain
+		int rv =
+		    nng_file_put(proxy->conf_path, msg->data, msg->data_len);
+		if (rv == 0) {
+			cJSON *res_obj = cJSON_CreateObject();
+			cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+
+			char *dest = cJSON_PrintUnformatted(res_obj);
+
+			put_http_msg(&res, "application/json", NULL, NULL,
+			    NULL, dest, strlen(dest));
+			cJSON_free(dest);
+			cJSON_Delete(res_obj);
+			return res;
+
+		} else {
+			return error_response(msg,
+			    NNG_HTTP_STATUS_INTERNAL_SERVER_ERROR,
+			    UNKNOWN_MISTAKE);
+		}
+	} else {
+		return error_response(
+		    msg, NNG_HTTP_STATUS_NOT_FOUND, REQ_PARAM_ERROR);
 	}
 }
 
 http_msg
-process_request(http_msg *msg, conf_http_server *config)
+process_request(http_msg *msg, proxy_info *proxy)
 {
 	http_msg         ret    = { 0 };
 	uint16_t         status = NNG_HTTP_STATUS_OK;
 	enum result_code code   = SUCCEED;
 	uri_content *    uri_ct = NULL;
 
-	if ((code = basic_authorize(msg, config)) != SUCCEED) {
+	if ((code = basic_authorize(msg, proxy->http_server)) != SUCCEED) {
 		status = NNG_HTTP_STATUS_UNAUTHORIZED;
 		goto exit;
 	}
@@ -335,11 +378,14 @@ process_request(http_msg *msg, conf_http_server *config)
 	uri_ct = uri_parse(msg->uri);
 	if (nng_strcasecmp(msg->method, "GET") == 0) {
 		if (uri_ct->sub_count == 3 && uri_ct->sub_tree[2]->end &&
-		    strcmp(uri_ct->sub_tree[1]->node, "configuration")) {
-			ret = get_config(msg, uri_ct->sub_tree[2]->node);
+		    strcmp(uri_ct->sub_tree[1]->node, "configuration") == 0) {
+			ret = get_config(msg, proxy ,uri_ct->sub_tree[2]->node);
 		}
 	} else if (nng_strcasecmp(msg->method, "POST") == 0) {
-
+		if (uri_ct->sub_count == 3 && uri_ct->sub_tree[2]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "configuration") == 0) {
+			ret = post_config(msg, proxy ,uri_ct->sub_tree[2]->node);
+		}
 	} else {
 		status = NNG_HTTP_STATUS_METHOD_NOT_ALLOWED;
 		code   = UNKNOWN_MISTAKE;
