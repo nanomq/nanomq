@@ -556,7 +556,14 @@ vsomeip_gateway_start(int argc, char **argv)
 	vsomeip_gateway_parse_opts(argc, argv, conf);
 	conf_vsomeip_gateway_parse_ver2(conf);
 	if (conf->http_server.enable) {
-		start_rest_server(&conf->http_server);
+		proxy_info info = {
+			.proxy_name  = "someip",
+			.conf        = &config,
+			.conf_path   = config.path,
+			.http_server = &config->http_server,
+		};
+
+		start_rest_server(&info);
 	}
 	if (-1 != vsomeip_gateway_conf_check_and_set(conf)) {
 		vsomeip_gateway(conf);
