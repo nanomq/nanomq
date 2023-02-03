@@ -523,7 +523,6 @@ quic_ack_cb(void *arg)
 		// property *prop;
 		// nng_pipe_get_ptr(p, NNG_OPT_MQTT_CONNECT_PROPERTY, &prop);
 		log_info("Quic bridge client connected! RC [%d]", reason);
-		nng_msg_free(msg);
 
 		if (reason != 0 || param->config->sub_count <= 0)
 			return -1;
