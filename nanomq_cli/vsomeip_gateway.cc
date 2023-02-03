@@ -555,8 +555,8 @@ vsomeip_gateway_start(int argc, char **argv)
 	vsomeip_gateway_conf_init(conf);
 	vsomeip_gateway_parse_opts(argc, argv, conf);
 	conf_vsomeip_gateway_parse_ver2(conf);
-	if (conf.http_server.enable) {
-		start_rest_server(&conf.http_server);
+	if (conf->http_server.enable) {
+		start_rest_server(&conf->http_server);
 	}
 	if (-1 != vsomeip_gateway_conf_check_and_set(conf)) {
 		vsomeip_gateway(conf);
