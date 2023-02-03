@@ -12,6 +12,8 @@
 
 #include "include/nanomq.h"
 
+#define SUPP_QUIC
+
 #ifdef NNG_SUPP_TLS
 #include "nng/supplemental/tls/tls.h"
 static int init_dialer_tls(nng_dialer d, const char *cacert, const char *cert,
@@ -501,6 +503,78 @@ quic_disconnect_cb(void *rmsg, void *arg)
 	return 0;
 }
 
+static int
+quic_pub_cb(void *arg)
+{
+	int result = 0;
+
+	nng_aio *aio = arg;
+	nng_socket *sock = nng_aio_get_prov_data(aio);
+	nng_msg *msg = nng_aio_get_msg(aio);
+	if ((result = nng_aio_result(aio)) != 0) {
+		log_debug("no msg wating!");
+		return 0;
+	}
+	if (nng_msg_get_type(msg) == CMD_CONNACK) {
+		bridge_param    *param  = nng_aio_get_output(aio, 0);
+		nng_mqtt_client *client = param->client;
+		int              reason = 0;
+		// get connect reason
+		reason = nng_mqtt_msg_get_connack_return_code(msg);
+		// get property for MQTT V5
+		// property *prop;
+		// nng_pipe_get_ptr(p, NNG_OPT_MQTT_CONNECT_PROPERTY, &prop);
+		log_info("Quic bridge client connected! RC [%d]", reason);
+		nng_msg_free(msg);
+
+		if (reason != 0 || param->config->sub_count <= 0)
+			return -1;
+		/* MQTT SUBSCRIBE */
+		if (param->config->multi_stream) {
+			for (size_t i = 0; i < param->config->sub_count; i++) {
+				nng_mqtt_topic_qos *topic_qos =
+				    nng_mqtt_topic_qos_array_create(1);
+				nng_mqtt_topic_qos_array_set(topic_qos, 0,
+				    param->config->sub_list[i].topic,
+				    param->config->sub_list[i].qos);
+				log_info("Quic bridge client subscribe to "
+				         "topic (QoS "
+				         "%d)%s.",
+				    param->config->sub_list[i].qos,
+				    param->config->sub_list[i].topic);
+				nng_mqtt_subscribe_async(
+				    client, topic_qos, 1, NULL);
+				nng_mqtt_topic_qos_array_free(topic_qos, 1);
+			}
+		} else {
+			nng_mqtt_topic_qos *topic_qos =
+			    nng_mqtt_topic_qos_array_create(
+			        param->config->sub_count);
+			for (size_t i = 0; i < param->config->sub_count; i++) {
+				nng_mqtt_topic_qos_array_set(topic_qos, i,
+				    param->config->sub_list[i].topic,
+				    param->config->sub_list[i].qos);
+				log_info("Quic bridge client subscribed topic "
+				         "(q%d)%s.",
+				    param->config->sub_list[i].qos,
+				    param->config->sub_list[i].topic);
+			}
+			// TODO support MQTT V5
+			nng_mqtt_subscribe_async(
+			    client, topic_qos, param->config->sub_count, NULL);
+			nng_mqtt_topic_qos_array_free(
+			    topic_qos, param->config->sub_count);
+		}
+	}
+
+	log_debug("ACK msg is recevied in bridging");
+
+	nng_msg_free(msg);
+	// To clean the cached msg if any
+	nng_recv_aio(*sock, aio);
+	return 0;
+}
+
 // Connack message callback function
 static int
 bridge_quic_connect_cb(void *rmsg, void *arg)
@@ -517,6 +591,7 @@ bridge_quic_connect_cb(void *rmsg, void *arg)
 	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_CONNECT_PROPERTY, &prop);
 	log_info("Quic bridge client connected! RC [%d]", reason);
 	nng_msg_free(msg);
+	return -1;
 
 	if (reason != 0 || param->config->sub_count <= 0)
 		return -1;
@@ -645,6 +720,7 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 		log_debug("error in quic client cb set.");
 		return -1;
 	}
+	nng_mqtt_quic_ack_callback_set(sock, quic_pub_cb, (void *)bridge_arg);
 
 	// create a CONNECT message
 	/* CONNECT */
