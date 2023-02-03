@@ -129,19 +129,24 @@ uri_param_parse(const char *path, size_t *count)
 	for (size_t i = 0; i < num; i++) {
 		char *key   = nng_zalloc(strlen(kv_str[i]));
 		char *value = nng_zalloc(strlen(kv_str[i]));
-		if (2 == sscanf(kv_str[i], "%[^=]=%s", key, value)) {
-			params[i]        = nng_zalloc(sizeof(kv));
-			params[i]->key   = key;
-			params[i]->value = value;
-			param_count++;
-		} else {
-			if (key) {
+		if (key && value) {
+			int res = sscanf(kv_str[i], "%[^=]=%s", key, value);
+			if (res == 2) {
+				params[i]        = nng_zalloc(sizeof(kv));
+				params[i]->key   = key;
+				params[i]->value = value;
+				param_count++;
+			} else {
 				free(key);
-			}
-			if (value) {
 				free(value);
 			}
+		} else {
+			if (key)
+				free(key);
+			if (value)
+				free(value);
 		}
+
 		free(kv_str[i]);
 		kv_str[i] = NULL;
 	}
@@ -317,11 +322,11 @@ get_config(http_msg *msg, proxy_info *proxy, const char *name)
 		size_t file_sz =
 		    file_load_data(proxy->conf_path, (void **) &file_data);
 		if (file_sz > 0) {
-			put_http_msg(&res, "text/plain",
-			    POST_METHOD, NULL, NULL, file_data, file_sz);
+			put_http_msg(&res, "text/plain", POST_METHOD, NULL,
+			    NULL, file_data, file_sz);
 			return res;
 		} else {
-			error_response(
+			return error_response(
 			    msg, NNG_HTTP_STATUS_NO_CONTENT, UNKNOWN_MISTAKE);
 		}
 	} else {
