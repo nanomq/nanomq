@@ -9,6 +9,7 @@
 
 #include "include/rest_api.h"
 #include "include/web_server.h"
+#include "include/proxy.h"
 
 #define INPROC_URL "inproc://cli_rest"
 
@@ -43,7 +44,7 @@ struct rest_work {
 	nng_aio *         aio;
 	nng_msg *         msg;
 	nng_ctx           ctx;
-	conf_http_server *conf;
+	proxy_info *      proxy;
 };
 
 static nng_socket        req_sock;
@@ -51,7 +52,7 @@ static nng_mtx *         job_lock;
 static rest_job *        job_freelist;
 static nng_thread *      inproc_thr;
 
-static struct rest_work *alloc_work(nng_socket sock, conf_http_server *conf);
+static struct rest_work *alloc_work(nng_socket sock, proxy_info *proxy);
 static void              inproc_cb(void *arg);
 static void              rest_job_cb(void *arg);
 
@@ -320,29 +321,28 @@ rest_start(uint16_t port)
 	nng_url_free(url);
 }
 
-
 void
 inproc_server(void *arg)
 {
-	conf_http_server * rest_conf = arg;
+	proxy_info *       proxy = arg;
 	nng_socket         sock;
-	struct rest_work **works =
-	    nng_zalloc(rest_conf->parallel * sizeof(struct rest_work *));
+	struct rest_work **works = nng_zalloc(
+	    proxy->http_server->parallel * sizeof(struct rest_work *));
 
 	int rv;
 	if ((rv = nng_rep0_open(&sock)) != 0) {
 		fatal("nng_rep0_open", rv);
 	}
 
-	for (size_t i = 0; i < rest_conf->parallel; i++) {
-		works[i] = alloc_work(sock, rest_conf);
+	for (size_t i = 0; i < proxy->http_server->parallel; i++) {
+		works[i] = alloc_work(sock, proxy);
 	}
 
 	if ((rv = nng_listen(sock, INPROC_URL, NULL, 0)) != 0) {
 		fatal("nng_listen", rv);
 	}
 
-	for (size_t i = 0; i < rest_conf->parallel; i++) {
+	for (size_t i = 0; i < proxy->http_server->parallel; i++) {
 		inproc_cb(works[i]);
 	}
 
@@ -350,12 +350,12 @@ inproc_server(void *arg)
 		nng_msleep(3600000); // neither pause() nor sleep() portable
 	}
 
-	for (size_t i = 0; i < rest_conf->parallel; i++) {
+	for (size_t i = 0; i < proxy->http_server->parallel; i++) {
 		nng_free(works[i], sizeof(struct rest_work));
 	}
-	nng_free(works, rest_conf->parallel * sizeof(struct rest_work *));
+	nng_free(
+	    works, proxy->http_server->parallel * sizeof(struct rest_work *));
 }
-
 
 static void
 inproc_cb(void *arg)
@@ -377,7 +377,7 @@ inproc_cb(void *arg)
 
 		msg               = nng_aio_get_msg(work->aio);
 		http_msg *http_ct = (http_msg *) nng_msg_body(msg);
-		http_msg  res     = process_request(http_ct, work->conf);
+		http_msg  res     = process_request(http_ct, work->proxy);
 
 		// response to client
 		nng_msg_alloc(&work->msg, sizeof(http_msg));
@@ -407,7 +407,7 @@ inproc_cb(void *arg)
 }
 
 static struct rest_work *
-alloc_work(nng_socket sock, conf_http_server *conf)
+alloc_work(nng_socket sock, proxy_info *proxy)
 {
 	struct rest_work *w;
 	int               rv;
@@ -421,25 +421,24 @@ alloc_work(nng_socket sock, conf_http_server *conf)
 	if ((rv = nng_ctx_open(&w->ctx, sock)) != 0) {
 		fatal("nng_ctx_open", rv);
 	}
-	w->conf  = conf;
+	w->proxy = proxy;
 	w->state = SRV_INIT;
 	return (w);
 }
 
 int
-start_rest_server(conf_http_server *conf)
+start_rest_server(proxy_info *proxy)
 {
 	int rv;
-	rv = nng_thread_create(&inproc_thr, inproc_server, conf);
+	rv = nng_thread_create(&inproc_thr, inproc_server, proxy);
 	if (rv != 0) {
 		fatal("cannot start inproc server", rv);
 	}
 
-	uint16_t port = conf->port ? conf->port : HTTP_DEFAULT_PORT;
+	rest_start(proxy->http_server->port);
 
-	rest_start(port);
-
-	printf("start http server listener: " REST_URL "\n",  port);
+	printf("Start http server listener: " REST_URL "\n",
+	    proxy->http_server->port);
 
 	return rv;
 }

@@ -28,6 +28,7 @@
 #include "nng/supplemental/nanolib/conf.h"
 #include "nng/supplemental/util/options.h"
 #include "web_server.h"
+#include "proxy.h"
 
 /* An array of one message (aka sample in dds terms) will be used. */
 #define MAX_SAMPLES 1
@@ -177,7 +178,14 @@ dds_proxy(int argc, char **argv)
 		exit(1);
 	}
 	if (config.http_server.enable) {
-		start_rest_server(&config.http_server);
+		proxy_info info = {
+			.proxy_name  = "dds",
+			.conf        = &config,
+			.conf_path   = config.path,
+			.http_server = &config.http_server,
+		};
+
+		start_rest_server(&info);
 	}
 
 	/* Configuration from file */
@@ -185,7 +193,7 @@ dds_proxy(int argc, char **argv)
 	printf("broker.url. %s\n", config.mqtt.address);
 
 	printf("[dds]\n");
-	printf("domain.id. %d\n", config.dds.domain_id);
+	printf("domain.id. %ld\n", config.dds.domain_id);
 
 	printf("[topic forward rules]\n");
 	printf("dds2mqtt. %s => %s\n", config.forward.dds2mqtt.from, config.forward.dds2mqtt.to);
