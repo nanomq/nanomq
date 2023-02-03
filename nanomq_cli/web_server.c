@@ -189,10 +189,7 @@ rest_handle(nng_aio *aio)
 {
 	struct rest_job *job;
 	nng_http_req *   req  = nng_aio_get_input(aio, 0);
-	nng_http_conn *  conn = nng_aio_get_input(aio, 2);
-	const char *     clen;
 	size_t           sz;
-	nng_iov          iov;
 	int              rv;
 	void *           data;
 
