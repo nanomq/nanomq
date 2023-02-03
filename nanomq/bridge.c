@@ -588,43 +588,6 @@ bridge_quic_connect_cb(void *rmsg, void *arg)
 	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_CONNECT_PROPERTY, &prop);
 	log_info("Quic bridge client connected! RC [%d]", reason);
 	nng_msg_free(msg);
-	return -1;
-
-	if (reason != 0 || param->config->sub_count <= 0)
-		return -1;
-	/* MQTT SUBSCRIBE */
-	if (param->config->multi_stream) {
-		for (size_t i = 0; i < param->config->sub_count; i++) {
-			nng_mqtt_topic_qos *topic_qos =
-			    nng_mqtt_topic_qos_array_create(1);
-			nng_mqtt_topic_qos_array_set(topic_qos, 0,
-			    param->config->sub_list[i].topic,
-			    param->config->sub_list[i].qos);
-			log_info("Quic bridge client subscribe to topic (QoS "
-			         "%d)%s.",
-			    param->config->sub_list[i].qos,
-			    param->config->sub_list[i].topic);
-			nng_mqtt_subscribe_async(client, topic_qos, 1, NULL);
-			nng_mqtt_topic_qos_array_free(topic_qos, 1);
-		}
-	} else {
-		nng_mqtt_topic_qos *topic_qos =
-		    nng_mqtt_topic_qos_array_create(param->config->sub_count);
-		for (size_t i = 0; i < param->config->sub_count; i++) {
-			nng_mqtt_topic_qos_array_set(topic_qos, i,
-			    param->config->sub_list[i].topic,
-			    param->config->sub_list[i].qos);
-			log_info("Quic bridge client subscribed topic (q%d)%s.",
-			    param->config->sub_list[i].qos,
-			    param->config->sub_list[i].topic);
-		}
-		// TODO support MQTT V5
-		nng_mqtt_subscribe_async(
-		    client, topic_qos, param->config->sub_count, NULL);
-		nng_mqtt_topic_qos_array_free(
-		    topic_qos, param->config->sub_count);
-	}
-
 	return 0;
 }
 
