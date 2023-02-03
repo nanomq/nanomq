@@ -12,8 +12,6 @@
 
 #include "include/nanomq.h"
 
-#define SUPP_QUIC
-
 #ifdef NNG_SUPP_TLS
 #include "nng/supplemental/tls/tls.h"
 static int init_dialer_tls(nng_dialer d, const char *cacert, const char *cert,
@@ -504,19 +502,19 @@ quic_disconnect_cb(void *rmsg, void *arg)
 }
 
 static int
-quic_pub_cb(void *arg)
+quic_ack_cb(void *arg)
 {
 	int result = 0;
 
-	nng_aio *aio = arg;
-	nng_socket *sock = nng_aio_get_prov_data(aio);
+	nng_aio      *aio   = arg;
+	bridge_param *param = nng_aio_get_prov_data(aio);
+	nng_socket   *sock  = param->sock;
 	nng_msg *msg = nng_aio_get_msg(aio);
 	if ((result = nng_aio_result(aio)) != 0) {
 		log_debug("no msg wating!");
 		return 0;
 	}
 	if (nng_msg_get_type(msg) == CMD_CONNACK) {
-		bridge_param    *param  = nng_aio_get_output(aio, 0);
 		nng_mqtt_client *client = param->client;
 		int              reason = 0;
 		// get connect reason
@@ -720,7 +718,7 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 		log_debug("error in quic client cb set.");
 		return -1;
 	}
-	nng_mqtt_quic_ack_callback_set(sock, quic_pub_cb, (void *)bridge_arg);
+	nng_mqtt_quic_ack_callback_set(sock, quic_ack_cb, (void *)bridge_arg);
 
 	// create a CONNECT message
 	/* CONNECT */
