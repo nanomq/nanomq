@@ -163,7 +163,7 @@ encode_suback_msg(nng_msg *msg, nano_work *work)
 	}
 
 	// Note. When packet_id is zero, topic node must be empty. So, Dont worry
-	// the order of reasone codes would be changed.
+	// about that the order of reason codes would be changed.
 	// handle payload
 	tn = sub_pkt->node;
 	while (tn) {

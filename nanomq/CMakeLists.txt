@@ -157,3 +157,5 @@ else()
     COMPONENT services)
 
 endif()
+
+nanomq_test(sub_handler_test)
