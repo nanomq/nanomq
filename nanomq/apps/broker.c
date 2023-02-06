@@ -365,7 +365,6 @@ server_cb(void *arg)
 			// free conn_param in SEND state
 			break;
 		} else if (work->flag == CMD_UNSUBSCRIBE) {
-			work->pid = nng_msg_get_pipe(work->msg);
 			smsg = work->msg;
 			if ((work->unsub_pkt = nng_alloc(
 			         sizeof(packet_unsubscribe))) == NULL)
@@ -382,7 +381,6 @@ server_cb(void *arg)
 			// free unsub_pkt
 			unsub_pkt_free(work->unsub_pkt);
 
-			work->pid.id = 0;
 			nng_msg_set_pipe(work->msg, work->pid);
 			nng_aio_set_msg(work->aio, work->msg);
 			work->msg   = NULL;
