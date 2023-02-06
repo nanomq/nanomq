@@ -33,7 +33,7 @@ decode_unsub_msg(nano_work *work)
 	uint8_t property_id;
 	topic_node *       tn, *_tn;
 
-	const uint8_t proto_ver = conn_param_get_protover(work->cparam);
+	const uint8_t proto_ver = work->proto_ver;
 
 	// handle varibale header
 	variable_ptr = nng_msg_body(msg);
