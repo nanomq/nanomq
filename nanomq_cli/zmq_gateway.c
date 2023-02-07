@@ -384,17 +384,18 @@ gateway_start(int argc, char **argv)
 		fprintf(stderr, "Memory alloc error.\n");
 		exit(EXIT_FAILURE);
 	}
+	proxy_info *info = NULL;
 
 	gateway_conf_init(conf);
 	gateway_parse_opts(argc, argv, conf);
 	conf_gateway_parse_ver2(conf);
 	if (conf->http_server.enable) {
-		proxy_info info = {
-			.proxy_name  = "zmq",
-			.conf        = &config,
-			.conf_path   = config.path,
-			.http_server = &config->http_server,
-		};
+		info->proxy_name  = "zmq";
+		info->conf        = config;
+		info->conf_path   = config->path;
+		info->http_server = &config->http_server;
+		info->args.argc   = argc;
+		info->args.argv   = argv;
 
 		start_rest_server(&info);
 	}
