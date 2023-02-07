@@ -384,19 +384,13 @@ gateway_start(int argc, char **argv)
 		fprintf(stderr, "Memory alloc error.\n");
 		exit(EXIT_FAILURE);
 	}
-	proxy_info *info = NULL;
 
 	gateway_conf_init(conf);
 	gateway_parse_opts(argc, argv, conf);
 	conf_gateway_parse_ver2(conf);
 	if (conf->http_server.enable) {
-		info->proxy_name  = PROXY_NAME_ZEROMQ;
-		info->conf        = conf;
-		info->conf_path   = conf->path;
-		info->http_server = &conf->http_server;
-		info->args.argc   = argc;
-		info->args.argv   = argv;
-
+		proxy_info *info = proxy_info_alloc(PROXY_NAME_ZEROMQ, conf,
+		    conf->path, &conf->http_server, argc, argv);
 		start_rest_server(info);
 	}
 	if (-1 != gateway_conf_check_and_set(conf)) {
