@@ -367,6 +367,92 @@ post_config(http_msg *msg, proxy_info *proxy, const char *name)
 	}
 }
 
+static char *
+mk_str(int n, char **str_arr, char *seperator)
+{
+	size_t len = 0;
+	char  *str = NULL;
+	for (size_t i = 0; i < n; i++) {
+		len += strlen(str_arr[i]) + strlen(seperator) + 2;
+	}
+	str = calloc(1, len);
+	for (size_t i = 0; i < n; i++) {
+		strcat(str, str_arr[i]);
+		strcat(str, seperator);
+	}
+	return str;
+}
+
+typedef struct {
+	enum { CMD_STOP, CMD_RESTART } cmd;
+	cmd_args *args;
+} ctrl_args;
+
+#ifndef NANO_PLATFORM_WINDOWS
+#include <unistd.h>
+
+static void
+ctrl_cb(void *arg)
+{
+	ctrl_args *ctrl = arg;
+
+	char *cmd = NULL;
+
+	nng_msleep(2000);
+
+	switch (ctrl->cmd) {
+	case CMD_RESTART:
+		execv(ctrl->args->argv[0], ctrl->args->argv + 1);
+	case CMD_STOP:
+		free(ctrl);
+		exit(0);
+		break;
+
+	default:
+		break;
+	}
+}
+#endif
+
+static http_msg
+post_ctrl(http_msg *msg, proxy_info *proxy, const char *type)
+{
+	http_msg    res = { .status = NNG_HTTP_STATUS_OK };
+	nng_thread *thread;
+	int         code = SUCCEED;
+	cJSON *     res_obj;
+
+	ctrl_args *ctrl = nng_zalloc(sizeof(ctrl_args));
+	ctrl->args = &proxy->args;
+
+	if (nng_strcasecmp(type, "stop") == 0) {
+		ctrl->cmd = CMD_STOP;
+	} else if (nng_strcasecmp(type, "restart") == 0) {
+		ctrl->cmd = CMD_RESTART;
+	} else {
+		res.status = NNG_HTTP_STATUS_NOT_FOUND;
+		code       = RPC_ERROR;
+		free(ctrl);
+		goto exit;
+	}
+
+	nng_thread_create(&thread, ctrl_cb, ctrl);
+
+exit:
+
+	res_obj = cJSON_CreateObject();
+	cJSON_AddNumberToObject(res_obj, "code", code);
+	char *dest = cJSON_PrintUnformatted(res_obj);
+	cJSON_Delete(res_obj);
+
+	put_http_msg(
+	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
+
+	cJSON_free(dest);
+
+	return res;
+}
+
 http_msg
 process_request(http_msg *msg, proxy_info *proxy)
 {
@@ -384,12 +470,18 @@ process_request(http_msg *msg, proxy_info *proxy)
 	if (nng_strcasecmp(msg->method, "GET") == 0) {
 		if (uri_ct->sub_count == 3 && uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "configuration") == 0) {
-			ret = get_config(msg, proxy ,uri_ct->sub_tree[2]->node);
+			ret =
+			    get_config(msg, proxy, uri_ct->sub_tree[2]->node);
 		}
 	} else if (nng_strcasecmp(msg->method, "POST") == 0) {
 		if (uri_ct->sub_count == 3 && uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "configuration") == 0) {
-			ret = post_config(msg, proxy ,uri_ct->sub_tree[2]->node);
+			ret =
+			    post_config(msg, proxy, uri_ct->sub_tree[2]->node);
+		} else if (uri_ct->sub_count == 3 &&
+		    uri_ct->sub_tree[2]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "ctrl") == 0) {
+			ret = post_ctrl(msg, proxy, uri_ct->sub_tree[2]->node);
 		}
 	} else {
 		status = NNG_HTTP_STATUS_METHOD_NOT_ALLOWED;

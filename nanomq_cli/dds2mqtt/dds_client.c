@@ -183,6 +183,10 @@ dds_proxy(int argc, char **argv)
 			.conf        = &config,
 			.conf_path   = config.path,
 			.http_server = &config.http_server,
+			.args = {
+				.argc = argc,
+				.argv = argv,
+			},
 		};
 
 		start_rest_server(&info);
@@ -418,7 +422,7 @@ int
 dds_proxy_start(int argc, char **argv)
 {
 	if (argc < 2)
-		goto helper;
+		goto help;
 
 #if !defined(DDS_TYPE_NAME)
 	printf("Set DDS_TYPE_NAME in cmake and continue.\n");
@@ -434,11 +438,13 @@ dds_proxy_start(int argc, char **argv)
 	} else if (strcmp(argv[1], "--help") == 0 ||
 	    (strcmp(argv[1], "-h") == 0)) {
 		printf("%s\n", usage);
+	} else {
+		goto help;
 	}
 
 	return 0;
 
-helper:
+help:
 	printf("%s\n", usage);
 	return 1;
 }
