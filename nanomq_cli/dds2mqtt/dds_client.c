@@ -182,7 +182,7 @@ dds_proxy(int argc, char **argv)
 	if (config->http_server.enable) {
 		info = nng_zalloc(sizeof(proxy_info));
 
-		info->proxy_name  = "dds";
+		info->proxy_name  = PROXY_NAME_DDS;
 		info->conf        = config;
 		info->conf_path   = config->path;
 		info->http_server = &config->http_server;

@@ -3,6 +3,10 @@
 
 #include "nng/supplemental/nanolib/conf.h"
 
+#define PROXY_NAME_DDS "dds"
+#define PROXY_NAME_SOMEIP "someip"
+#define PROXY_NAME_ZEROMQ "zmq"
+
 typedef struct {
 	int    argc;
 	char **argv;

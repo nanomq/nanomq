@@ -390,7 +390,7 @@ gateway_start(int argc, char **argv)
 	gateway_parse_opts(argc, argv, conf);
 	conf_gateway_parse_ver2(conf);
 	if (conf->http_server.enable) {
-		info->proxy_name  = "zmq";
+		info->proxy_name  = PROXY_NAME_ZEROMQ;
 		info->conf        = config;
 		info->conf_path   = config->path;
 		info->http_server = &config->http_server;

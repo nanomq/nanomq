@@ -558,7 +558,7 @@ vsomeip_gateway_start(int argc, char **argv)
 	conf_vsomeip_gateway_parse_ver2(conf);
 	if (conf->http_server.enable) {
 		info              = nng_zalloc(sizeof(proxy_info));
-		info->proxy_name  = "someip";
+		info->proxy_name  = PROXY_NAME_SOMEIP;
 		info->conf        = config;
 		info->conf_path   = config->path;
 		info->http_server = &config->http_server;
