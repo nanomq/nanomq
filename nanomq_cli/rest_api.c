@@ -3,6 +3,7 @@
 #include "nng/supplemental/nanolib/cJSON.h"
 #include "nng/supplemental/nanolib/file.h"
 #include "nng/supplemental/nanolib/conf.h"
+#include "nng/supplemental/nanolib/cvector.h"
 #include "nng/supplemental/util/platform.h"
 #include "nng/nng.h"
 
@@ -396,13 +397,19 @@ ctrl_cb(void *arg)
 {
 	ctrl_args *ctrl = arg;
 
-	char *cmd = NULL;
+	char *argv[ctrl->args->argc + 1];
+
+	for (size_t i = 0; i < ctrl->args->argc; i++) {
+		argv[i] = ctrl->args->argv[i];
+	}
+
+	argv[ctrl->args->argc] = NULL;
 
 	nng_msleep(2000);
 
 	switch (ctrl->cmd) {
 	case CMD_RESTART:
-		execv(ctrl->args->argv[0], ctrl->args->argv + 1);
+		execv(argv[0], argv);
 	case CMD_STOP:
 		free(ctrl);
 		exit(0);
