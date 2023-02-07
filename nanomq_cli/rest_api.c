@@ -382,7 +382,7 @@ ctrl_cb(void *arg)
 {
 	ctrl_args *ctrl = arg;
 
-	char *argv[ctrl->args->argc + 1];
+	char **argv = nng_zalloc(sizeof(char *) * (ctrl->args->argc + 1));
 
 	for (size_t i = 0; i < ctrl->args->argc; i++) {
 		argv[i] = ctrl->args->argv[i];
@@ -400,6 +400,7 @@ ctrl_cb(void *arg)
 #endif
 
 	case CMD_STOP:
+		free(argv);
 		free(ctrl);
 		exit(0);
 		break;
