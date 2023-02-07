@@ -33,9 +33,9 @@ main()
 	payload_ptr  = NULL;
 	variable_ptr = NULL;
 	// set topic for test:$MQTT.
-	uint8_t topic[] = { 0x00, 0x05, 0x24, 0x4D, 0x51, 0x54, 0x54, '\0',
-		0x00, 0x05, 0x25, 0x4D, 0x51, 0x54, 0x54, '\0' };
-	payload_ptr     = topic;
+	uint8_t topic[] = { 0x00, 0x05/* topic length */, 0x24, 0x4D, 0x51, 0x54, 0x54/* topic body*/, 0x00/* topic option*/,
+	 0x00, 0x05, 0x25, 0x4D, 0x51, 0x54, 0x54, 0x00 };
+	payload_ptr       = topic;
 	nng_msg_set_payload_ptr(msg, payload_ptr);
 	// set remaining_len.
 	remaining_len = nng_msg_len(msg);
@@ -61,11 +61,11 @@ main()
 	assert(rv == 0);
 
 	topic_node *node = work->sub_pkt->node;
-	rv               = strcmp(node->topic.body, "$MQTT");
+	rv               = strncmp(node->topic.body, "$MQTT", 5);
 	assert(rv == 0);
 
 	node = node->next;
-	rv   = strcmp(node->topic.body, "%MQTT");
+	rv   = strncmp(node->topic.body, "%MQTT", 5);
 	assert(rv == 0);
 
 	/* test for encode_suback_msg() */
@@ -80,7 +80,7 @@ main()
 
 	NNI_GET16(variable_ptr + 2, reason_code);
 	assert(reason_code == GRANTED_QOS_2);
-	
+
 	fix_ptr = nng_msg_header(msg);
 	assert(*(uint8_t *) fix_ptr == CMD_SUBACK);
 
