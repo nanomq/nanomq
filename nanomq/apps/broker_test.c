@@ -5,9 +5,16 @@
 
 int main()
 {
-    int rv = broker_start(0, NULL);
+	int rv = 0;
 
-    assert(rv == 0);
+	rv = broker_start(0, NULL);
+	assert(rv == 0);
 
-    return 0;
+	rv = broker_reload(0, NULL);
+	assert(rv == 0);
+
+	rv = broker_dflt(0, NULL);
+	assert(rv == 0);
+
+	return 0;
 }
