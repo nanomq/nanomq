@@ -495,13 +495,13 @@ vsomeip_gateway_conf_check_and_set(vsomeip_gateway_conf *conf)
 int
 vsomeip_gateway_parse_opts(int argc, char **argv, vsomeip_gateway_conf *config)
 {
-	int   idx = 1;
+	int   idx = 2;
 	char *arg;
 	int   val;
 	int   rv;
 
-	while ((rv = nng_opts_parse(argc, argv, cmd_opts, &val, &arg, &idx)) ==
-	    0) {
+	while ((rv = nng_opts_parse(
+	            argc - 1, argv + 1, cmd_opts, &val, &arg, &idx)) == 0) {
 		switch (val) {
 		case OPT_HELP:
 			printf("%s", help_info);

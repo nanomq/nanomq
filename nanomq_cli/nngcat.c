@@ -708,7 +708,7 @@ sendrecv(nng_socket sock)
 int
 nng_cat_dflt(int ac, char **av)
 {
-	int            idx;
+	int            idx = 2;
 	char *         arg;
 	int            val;
 	int            rv;
@@ -724,7 +724,8 @@ nng_cat_dflt(int ac, char **av)
 	addrend  = &addrs;
 	topicend = &topics;
 
-	while ((rv = nng_opts_parse(ac, av, opts, &val, &arg, &idx)) == 0) {
+	while ((rv = nng_opts_parse(ac - 1, av + 1, opts, &val, &arg, &idx)) ==
+	    0) {
 		switch (val) {
 		case OPT_HELP:
 			help();

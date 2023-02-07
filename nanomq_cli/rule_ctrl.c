@@ -243,7 +243,7 @@ out:
 int
 rules_parse_opts(int argc, char **argv)
 {
-	int   idx = 1;
+	int   idx = 2;
 	char *arg;
 	int   val;
 	int   rv;
@@ -263,8 +263,8 @@ rules_parse_opts(int argc, char **argv)
 	char     sql[128]     = { 0 };
 	char     actions[512] = { 0 };
 
-	while ((rv = nng_opts_parse(argc, argv, cmd_opts, &val, &arg, &idx)) ==
-	    0) {
+	while ((rv = nng_opts_parse(
+	            argc - 1, argv + 1, cmd_opts, &val, &arg, &idx)) == 0) {
 		switch (val) {
 		case OPT_HELP:
 			printf("%s", help_info);
@@ -430,7 +430,7 @@ rules_parse_opts(int argc, char **argv)
 
 int rules_start(int argc, char **argv)
 {
-	if (1 >= argc) {
+	if (2 >= argc) {
 		printf("%s", help_info);
 		return -1;
 	}

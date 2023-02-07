@@ -81,8 +81,8 @@ cmd_parse_opts(int argc, char **argv, char **file_path)
 	int   rv;
 	char *path = NULL;
 
-	while ((rv = nng_opts_parse(argc, argv, cmd_opts, &val, &arg, &idx)) ==
-	    0) {
+	while ((rv = nng_opts_parse(
+	            argc - 1, argv + 1, cmd_opts, &val, &arg, &idx)) == 0) {
 		switch (val) {
 		case OPT_HELP:
 			help();
@@ -426,7 +426,7 @@ const char *usage = " nanomq_cli ddsproxy { sub | pub | proxy } [--help] \n\n"
 int
 dds_proxy_start(int argc, char **argv)
 {
-	if (argc < 2)
+	if (argc < 3)
 		goto help;
 
 #if !defined(DDS_TYPE_NAME)
@@ -434,14 +434,14 @@ dds_proxy_start(int argc, char **argv)
 	return 2;
 #endif
 
-	if (strcmp(argv[1], "sub") == 0) {
+	if (strcmp(argv[2], "sub") == 0) {
 		dds_subscriber(argc, argv);
-	} else if (strcmp(argv[1], "pub") == 0) {
+	} else if (strcmp(argv[2], "pub") == 0) {
 		dds_publisher(argc, argv);
-	} else if (strcmp(argv[1], "proxy") == 0) {
+	} else if (strcmp(argv[2], "proxy") == 0) {
 		dds_proxy(argc, argv);
-	} else if (strcmp(argv[1], "--help") == 0 ||
-	    (strcmp(argv[1], "-h") == 0)) {
+	} else if (strcmp(argv[2], "--help") == 0 ||
+	    (strcmp(argv[2], "-h") == 0)) {
 		printf("%s\n", usage);
 	} else {
 		goto help;

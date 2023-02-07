@@ -76,7 +76,7 @@ nnb_conn_opt_init(int argc, char **argv)
 	opt->host        = NULL;
 
 	init_tls(&opt->tls);
-	conn_opt_set(argc + 1, argv - 1, opt);
+	conn_opt_set(argc - 2, argv + 2, opt);
 	if (opt->host == NULL) {
 		opt->host = nng_strdup("localhost");
 	}
@@ -145,7 +145,7 @@ nnb_pub_opt_init(int argc, char **argv)
 
 	init_tls(&opt->tls);
 
-	pub_opt_set(argc - 1, argv + 1, opt);
+	pub_opt_set(argc - 2, argv + 2, opt);
 	if (opt->host == NULL) {
 		opt->host = nng_strdup("localhost");
 	}
@@ -210,7 +210,7 @@ nnb_sub_opt_init(int argc, char **argv)
 
 	init_tls(&opt->tls);
 
-	sub_opt_set(argc - 1, argv + 1, opt);
+	sub_opt_set(argc - 2, argv + 2, opt);
 	if (opt->topic == NULL) {
 		fprintf(stderr, "Error: topic required!\n");
 		fprintf(stderr, "Usage: %s\n", sub_info);

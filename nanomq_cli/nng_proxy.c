@@ -321,7 +321,7 @@ intarg(const char *val, int maxv)
 int
 nng_client_parse_opts(int argc, char **argv, nng_proxy_opts *nng_opts)
 {
-	int    idx = 1;
+	int    idx = 2;
 	char * arg;
 	int    val;
 	int    rv;
@@ -330,8 +330,8 @@ nng_client_parse_opts(int argc, char **argv, nng_proxy_opts *nng_opts)
 	struct topic **topicend;
 	topicend = &nng_opts->topic;
 
-	while ((rv = nng_opts_parse(argc, argv, cmd_opts, &val, &arg, &idx)) ==
-	    0) {
+	while ((rv = nng_opts_parse(
+	            argc - 1, argv + 1, cmd_opts, &val, &arg, &idx)) == 0) {
 		switch (val) {
 		case OPT_HELP:
 			help(nng_opts->type);
@@ -1079,19 +1079,19 @@ nng_sub0_start(int argc, char **argv)
 int
 nng_proxy_start(int argc, char **argv)
 {
-	if (argc < 3) {
+	if (argc < 4) {
 		help(0);
 		return 0;
 	}
 	nng_atomic_alloc_bool(&exit_signal);
-	if (strncmp(argv[1], "sub0", 3) == 0)
-		nng_proxy_client(argc-1, argv+1, SUB0);
-	else if (strncmp(argv[1], "pub0", 3) == 0)
-		nng_proxy_client(argc-1, argv+1, PUB0);
-	else if (strncmp(argv[1], "pair1", 5) == 0)
-		nng_proxy_client(argc-1, argv+1, PAIR1);
-	else if (strncmp(argv[1], "pair0", 3) == 0)
-		nng_proxy_client(argc-1, argv+1, PAIR0);
+	if (strncmp(argv[2], "sub0", 3) == 0)
+		nng_proxy_client(argc, argv, SUB0);
+	else if (strncmp(argv[2], "pub0", 3) == 0)
+		nng_proxy_client(argc, argv, PUB0);
+	else if (strncmp(argv[2], "pair1", 5) == 0)
+		nng_proxy_client(argc, argv, PAIR1);
+	else if (strncmp(argv[2], "pair0", 3) == 0)
+		nng_proxy_client(argc, argv, PAIR0);
 	else
 		help(SUB0);
 	return 0;

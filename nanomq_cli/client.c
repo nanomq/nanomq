@@ -607,7 +607,7 @@ freetopic(struct topic *endp)
 int
 client_parse_opts(int argc, char **argv, client_opts *opt)
 {
-	int    idx = 1;
+	int    idx = 2;
 	char * arg;
 	int    val;
 	int    rv;
@@ -616,8 +616,8 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 	struct topic **topicend;
 	topicend = &opt->topic;
 
-	while ((rv = nng_opts_parse(argc, argv, cmd_opts, &val, &arg, &idx)) ==
-	    0) {
+	while ((rv = nng_opts_parse(
+	            argc - 1, argv + 1, cmd_opts, &val, &arg, &idx)) == 0) {
 		switch (val) {
 		case OPT_HELP:
 			help(opt->type);
@@ -978,7 +978,7 @@ properties_type_parse(int val)
 static int
 properties_parse(int argc, char **argv, property *properties)
 {
-	int   idx = 1;
+	int   idx = 2;
 	char *arg;
 	int   val;
 	int   rv;
@@ -993,8 +993,8 @@ properties_parse(int argc, char **argv, property *properties)
 	property *prop_list = properties;
 	property *prop_item;
 
-	while ((rv = nng_opts_parse(argc, argv, cmd_opts, &val, &arg, &idx)) ==
-	    0) {
+	while ((rv = nng_opts_parse(
+	            argc - 1, argv + 1, cmd_opts, &val, &arg, &idx)) == 0) {
 		properties_type prop_id = properties_type_parse(val);
 		if (prop_id == 0)
 			continue;

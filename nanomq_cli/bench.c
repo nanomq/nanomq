@@ -554,7 +554,7 @@ bench_dflt(int argc, char **argv)
 int
 bench_start(int argc, char **argv)
 {
-	if (argc < 2) {
+	if (argc < 3) {
 		bench_dflt(argc, argv);
 		exit(EXIT_FAILURE);
 	}
@@ -562,7 +562,7 @@ bench_start(int argc, char **argv)
 	nnb_pub_opt * p_opt;
 	nnb_sub_opt * s_opt;
 	nnb_conn_opt *c_opt;
-	if (!strcmp(argv[1], "pub")) {
+	if (!strcmp(argv[2], "pub")) {
 		p_opt = nnb_pub_opt_init(argc, argv);
 		if (0 == p_opt->limit) {
 			nng_atomic_set(statistics.send_limit, INT_MAX);
@@ -573,13 +573,13 @@ bench_start(int argc, char **argv)
 			nnb_publish(p_opt);
 			nng_msleep(p_opt->interval);
 		}
-	} else if (!strcmp(argv[1], "sub")) {
+	} else if (!strcmp(argv[2], "sub")) {
 		s_opt= nnb_sub_opt_init(argc, argv);
 		for (int i = 0; i < s_opt->count; i++) {
 			nnb_subscribe(s_opt);
 			nng_msleep(s_opt->interval);
 		}
-	} else if (!strcmp(argv[1], "conn")) {
+	} else if (!strcmp(argv[2], "conn")) {
 		c_opt = nnb_conn_opt_init(argc, argv);
 		for (int i = 0; i < c_opt->count; i++) {
 			nnb_connect(c_opt);

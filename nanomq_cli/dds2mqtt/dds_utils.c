@@ -68,8 +68,8 @@ dds_cmd_parse_opts(int argc, char **argv, dds_client_opts *opts)
 	int   val;
 	int   rv;
 
-	while ((rv = nng_opts_parse(argc, argv, cmd_opts, &val, &arg, &idx)) ==
-	    0) {
+	while ((rv = nng_opts_parse(
+	            argc - 1, argv + 1, cmd_opts, &val, &arg, &idx)) == 0) {
 		switch (val) {
 		case OPT_DDS_HELP:
 			help(opts->cli_type);
