@@ -103,7 +103,7 @@ main(int argc, char **argv)
 
 	for (size_t i = 0; i < sizeof(apps) / sizeof(apps[0]); i++) {
 		if (strcmp(app_name, apps[i].name) == 0) {
-			return apps[i].func(argc - 1, argv + 1);
+			return apps[i].func(argc, argv);
 		}
 	}
 
