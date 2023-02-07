@@ -11,6 +11,10 @@
 #include "nng/supplemental/util/platform.h"
 #include "proxy.h"
 
+#ifndef NANO_PLATFORM_WINDOWS
+#include <unistd.h>
+#endif
+
 typedef struct {
 	char *key;
 	char *value;
@@ -27,6 +31,11 @@ struct uri_content {
 	size_t params_count;
 	kv **  params;
 };
+
+typedef struct {
+	enum { CMD_STOP, CMD_RESTART } cmd;
+	cmd_args *args;
+} ctrl_args;
 
 typedef struct uri_content uri_content;
 
@@ -384,13 +393,6 @@ mk_str(int n, char **str_arr, char *seperator)
 	return str;
 }
 
-typedef struct {
-	enum { CMD_STOP, CMD_RESTART } cmd;
-	cmd_args *args;
-} ctrl_args;
-
-#ifndef NANO_PLATFORM_WINDOWS
-#include <unistd.h>
 
 static void
 ctrl_cb(void *arg)
@@ -408,8 +410,12 @@ ctrl_cb(void *arg)
 	nng_msleep(2000);
 
 	switch (ctrl->cmd) {
+
+#ifndef NANO_PLATFORM_WINDOWS
 	case CMD_RESTART:
 		execv(argv[0], argv);
+#endif
+
 	case CMD_STOP:
 		free(ctrl);
 		exit(0);
@@ -419,7 +425,6 @@ ctrl_cb(void *arg)
 		break;
 	}
 }
-#endif
 
 static http_msg
 post_ctrl(http_msg *msg, proxy_info *proxy, const char *type)
@@ -436,6 +441,10 @@ post_ctrl(http_msg *msg, proxy_info *proxy, const char *type)
 		ctrl->cmd = CMD_STOP;
 	} else if (nng_strcasecmp(type, "restart") == 0) {
 		ctrl->cmd = CMD_RESTART;
+#ifdef NANO_PLATFORM_WINDOWS
+		res.status = NNG_HTTP_STATUS_NOT_ACCEPTABLE;
+		code       = RPC_ERROR;
+#endif
 	} else {
 		res.status = NNG_HTTP_STATUS_NOT_FOUND;
 		code       = RPC_ERROR;
