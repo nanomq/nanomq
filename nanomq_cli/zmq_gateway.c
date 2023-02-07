@@ -391,13 +391,13 @@ gateway_start(int argc, char **argv)
 	conf_gateway_parse_ver2(conf);
 	if (conf->http_server.enable) {
 		info->proxy_name  = PROXY_NAME_ZEROMQ;
-		info->conf        = config;
-		info->conf_path   = config->path;
-		info->http_server = &config->http_server;
+		info->conf        = conf;
+		info->conf_path   = conf->path;
+		info->http_server = &conf->http_server;
 		info->args.argc   = argc;
 		info->args.argv   = argv;
 
-		start_rest_server(&info);
+		start_rest_server(info);
 	}
 	if (-1 != gateway_conf_check_and_set(conf)) {
 		zmq_gateway(conf);
