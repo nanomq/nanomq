@@ -161,62 +161,67 @@ dds_proxy(int argc, char **argv)
 	mqtt_cli mqttcli;
 	dds_cli  ddscli;
 
-	dds_gateway_conf config = { 0 };
+	dds_gateway_conf *config = nng_zalloc(sizeof(dds_gateway_conf));
 
-	conf_dds_gateway_init(&config);
+	proxy_info *info = NULL;
 
-	if (cmd_parse_opts(argc, argv, &config.path) == 0) {
+	conf_dds_gateway_init(config);
+
+	if (cmd_parse_opts(argc, argv, &config->path) == 0) {
 		fprintf(stderr, "invalid options.\n");
 		exit(1);
 	}
-	conf_dds_gateway_parse_ver2(&config);
-	if (config.path == NULL) {
+	conf_dds_gateway_parse_ver2(config);
+	if (config->path == NULL) {
 		fprintf(stderr, "Configuration file is required.\n");
 		fprintf(stderr,
 		    "Please specify a configuration file with '--conf "
 		    "<path>' \n");
 		exit(1);
 	}
-	if (config.http_server.enable) {
-		proxy_info info = {
-			.proxy_name  = "dds",
-			.conf        = &config,
-			.conf_path   = config.path,
-			.http_server = &config.http_server,
-			.args = {
-				.argc = argc,
-				.argv = argv,
-			},
-		};
+	if (config->http_server.enable) {
+		info = nng_zalloc(sizeof(proxy_info));
 
-		start_rest_server(&info);
+		info->proxy_name  = "dds";
+		info->conf        = config;
+		info->conf_path   = config->path;
+		info->http_server = &config->http_server;
+		info->args.argc   = argc;
+		info->args.argv   = argv;
+
+		start_rest_server(info);
 	}
 
 	/* Configuration from file */
 	printf("[mqtt]\n");
-	printf("broker.url. %s\n", config.mqtt.address);
+	printf("broker.url. %s\n", config->mqtt.address);
 
 	printf("[dds]\n");
-	printf("domain.id. %ld\n", config.dds.domain_id);
+	printf("domain.id. %ld\n", config->dds.domain_id);
 
 	printf("[topic forward rules]\n");
-	printf("dds2mqtt. %s => %s\n", config.forward.dds2mqtt.from, config.forward.dds2mqtt.to);
-	printf("mqtt2dds. %s => %s\n", config.forward.mqtt2dds.from, config.forward.mqtt2dds.to);
+	printf("dds2mqtt. %s => %s\n", config->forward.dds2mqtt.from, config->forward.dds2mqtt.to);
+	printf("mqtt2dds. %s => %s\n", config->forward.mqtt2dds.from, config->forward.mqtt2dds.to);
 
-	dds_client_init(&ddscli, &config);
+	dds_client_init(&ddscli, config);
 
-	mqttcli.mqttrecv_topic = config.forward.mqtt2dds.from;
-	mqttcli.mqttsend_topic = config.forward.dds2mqtt.to;
+	mqttcli.mqttrecv_topic = config->forward.mqtt2dds.from;
+	mqttcli.mqttsend_topic = config->forward.dds2mqtt.to;
 
-	ddscli.ddsrecv_topic = config.forward.dds2mqtt.from;
-	ddscli.ddssend_topic = config.forward.mqtt2dds.to;
+	ddscli.ddsrecv_topic = config->forward.dds2mqtt.from;
+	ddscli.ddssend_topic = config->forward.mqtt2dds.to;
 
-	mqtt_connect(&mqttcli, &ddscli, &config);
+	mqtt_connect(&mqttcli, &ddscli, config);
 	mqtt_subscribe(&mqttcli, mqttcli.mqttrecv_topic, 0);
 
 	dds_client(&ddscli, &mqttcli);
 
-	conf_dds_gateway_destory(&config);
+	conf_dds_gateway_destory(config);
+
+	free(config);
+	if (info)
+		free(info);
+
 	return 0;
 }
 
