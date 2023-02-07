@@ -107,7 +107,7 @@ encode_unsuback_msg(nng_msg *msg, nano_work *work)
 	topic_node *tn;
 
 	packet_unsubscribe *unsub_pkt = work->unsub_pkt;
-	const uint8_t       proto_ver = conn_param_get_protover(work->cparam);
+	const uint8_t       proto_ver = work->proto_ver;
 
 	// handle variable header first
 	NNI_PUT16(packet_id, unsub_pkt->packet_id);
