@@ -551,20 +551,13 @@ vsomeip_gateway_start(int argc, char **argv)
 		LOG_ERR << "Memory alloc error.";
 		exit(EXIT_FAILURE);
 	}
-	proxy_info *info = NULL;
 
 	vsomeip_gateway_conf_init(conf);
 	vsomeip_gateway_parse_opts(argc, argv, conf);
 	conf_vsomeip_gateway_parse_ver2(conf);
 	if (conf->http_server.enable) {
-		info              = nng_zalloc(sizeof(proxy_info));
-		info->proxy_name  = PROXY_NAME_SOMEIP;
-		info->conf        = conf;
-		info->conf_path   = conf->path;
-		info->http_server = &conf->http_server;
-		info->args.argc   = argc;
-		info->args.argv   = argv;
-
+		proxy_info *info = proxy_info_alloc(PROXY_NAME_SOMEIP, conf,
+		    conf->path, &conf->http_server, argc, argv);
 		start_rest_server(info);
 	}
 	if (-1 != vsomeip_gateway_conf_check_and_set(conf)) {

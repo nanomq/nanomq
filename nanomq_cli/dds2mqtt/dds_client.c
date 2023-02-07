@@ -180,14 +180,8 @@ dds_proxy(int argc, char **argv)
 		exit(1);
 	}
 	if (config->http_server.enable) {
-		info = nng_zalloc(sizeof(proxy_info));
-
-		info->proxy_name  = PROXY_NAME_DDS;
-		info->conf        = config;
-		info->conf_path   = config->path;
-		info->http_server = &config->http_server;
-		info->args.argc   = argc;
-		info->args.argv   = argv;
+		info = proxy_info_alloc(PROXY_NAME_DDS, config, config->path,
+		    &config->http_server, argc, argv);
 
 		start_rest_server(info);
 	}
