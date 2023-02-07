@@ -1,5 +1,3 @@
-
-
 #include <assert.h>
 #include <stdio.h>
 
@@ -35,7 +33,8 @@ main()
 	payload_ptr  = NULL;
 	variable_ptr = NULL;
 	// set topic for test:$MQTT.
-	uint8_t topic[] = { 0x00, 0x05, 0x24, 0x4D, 0x51, 0x54, 0x54, '\0' };
+	uint8_t topic[] = { 0x00, 0x05, 0x24, 0x4D, 0x51, 0x54, 0x54, 0x00,
+		0x05, 0x25, 0x4D, 0x51, 0x54, 0x54 };
 	payload_ptr     = topic;
 	nng_msg_set_payload_ptr(msg, payload_ptr);
 	// set remaining_len.
@@ -49,15 +48,17 @@ main()
 	/* test for function decode_unsub_msg() */
 	uint8_t packet_id[2] = { 0x00, 0x05 };
 	nng_msg_append(work->msg, packet_id, 2);
-	remaining_len = 6;
+	remaining_len = 12;
 	nng_msg_set_remaining_len(work->msg, remaining_len);
 
 	rv = decode_unsub_msg(work);
 	assert(rv == 0);
 
 	topic_node *node = work->unsub_pkt->node;
-	rv = strcmp(node->topic.body, "$MQTT");
-
+	rv               = strncmp(node->topic.body, "$MQTT", 5);
+	assert(rv == 0);
+	node = node->next;
+	rv   = strncmp(node->topic.body, "%MQTT", 5);
 	assert(rv == 0);
 
 	/* test for encode_unsuback_msg() */
