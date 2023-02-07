@@ -57,6 +57,7 @@ mqtt_to_dds_type_convert(fixed_mqtt_msg *m1, DDS_TYPE_NAME *m2)
 	cjson_obj = cJSON_Parse(str);
 	if (cjson_obj == NULL) {
 		printf("Parse fail!\n");
+		return;
 	}
 	/* Fill the struct DDS_TYPE_NAME *m2. */
 	cjson_tmp       = cJSON_GetObjectItem(cjson_obj, "int8_test");
