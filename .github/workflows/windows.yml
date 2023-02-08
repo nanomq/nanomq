@@ -31,33 +31,34 @@ jobs:
           name: packages
           path: "install/*.zip"
 
-      # - uses: Rory-Z/upload-release-asset@v1
-      #   with:
-      #     owner: ${{ github.repository_owner }}
-      #     repo: nanomq
-      #     token: ${{ github.token }}
-      #     path: ${pkg_name}.zip
-      #     ref: ${{ github.ref }}
+      - uses: Rory-Z/upload-release-asset@v1
+        if: github.event_name == 'release'
+        with:
+          owner: ${{ github.repository_owner }}
+          repo: nanomq
+          token: ${{ github.token }}
+          path: install/*.zip
+          ref: ${{ github.ref }}
 
-      # - name: upload to aws s3
-      #   if: github.event_name == 'release'
-      #   run: |
-      #     aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-      #     aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      #     aws configure set default.region us-west-2
-      #     aws s3 cp --recursive ${pkg_name}.zip s3://packages.emqx/nanomq/$(git describe --abbrev=0 --tags)
+      - name: upload to aws s3
+        if: github.event_name == 'release'
+        run: |
+          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws configure set default.region us-west-2
+          aws s3 cp --recursive install/*.zip s3://packages.emqx/nanomq/$(git describe --abbrev=0 --tags)
 
-      # - name: update nanomq.io
-      #   if: github.event_name == 'release'
-      #   run: |
-      #     set -e -x -u
-      #     curl -w %{http_code} \
-      #         --insecure \
-      #         -H "Content-Type: application/json" \
-      #         -H "token: ${{ secrets.EMQX_IO_TOKEN }}" \
-      #         -X POST \
-      #         -d "{\"repo\":\"emqx/nanomq\", \"tag\": \"${{ github.ref_name }}\" }" \
-      #         ${{ secrets.EMQX_IO_RELEASE_API }}
+      - name: update nanomq.io
+        if: github.event_name == 'release'
+        run: |
+          set -e -x -u
+          curl -w %{http_code} \
+              --insecure \
+              -H "Content-Type: application/json" \
+              -H "token: ${{ secrets.EMQX_IO_TOKEN }}" \
+              -X POST \
+              -d "{\"repo\":\"emqx/nanomq\", \"tag\": \"${{ github.ref_name }}\" }" \
+              ${{ secrets.EMQX_IO_RELEASE_API }}
 
 
 
