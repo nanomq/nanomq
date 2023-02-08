@@ -75,7 +75,7 @@ help(void)
 static int
 cmd_parse_opts(int argc, char **argv, char **file_path)
 {
-	int   idx = 2;
+	int   idx = 1;
 	char *arg;
 	int   val;
 	int   rv;

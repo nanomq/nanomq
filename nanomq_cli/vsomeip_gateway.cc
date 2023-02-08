@@ -495,7 +495,7 @@ vsomeip_gateway_conf_check_and_set(vsomeip_gateway_conf *conf)
 int
 vsomeip_gateway_parse_opts(int argc, char **argv, vsomeip_gateway_conf *config)
 {
-	int   idx = 2;
+	int   idx = 1;
 	char *arg;
 	int   val;
 	int   rv;

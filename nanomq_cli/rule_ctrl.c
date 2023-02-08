@@ -243,7 +243,7 @@ out:
 int
 rules_parse_opts(int argc, char **argv)
 {
-	int   idx = 2;
+	int   idx = 1;
 	char *arg;
 	int   val;
 	int   rv;

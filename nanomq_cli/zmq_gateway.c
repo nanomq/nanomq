@@ -328,7 +328,7 @@ gateway_conf_check_and_set(zmq_gateway_conf *conf)
 int
 gateway_parse_opts(int argc, char **argv, zmq_gateway_conf *config)
 {
-	int   idx = 2;
+	int   idx = 1;
 	char *arg;
 	int   val;
 	int   rv;
