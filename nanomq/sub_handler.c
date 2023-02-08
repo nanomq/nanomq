@@ -19,6 +19,11 @@
 #include "include/sub_handler.h"
 #include "include/acl_handler.h"
 
+/**
+ * @brief decode msg in work->payload to create topic_nodes.
+ * @param work nano_work
+ * @return error code
+ */
 int
 decode_sub_msg(nano_work *work)
 {
@@ -122,6 +127,12 @@ next:
 	return 0;
 }
 
+/**
+ * @brief encode a suback nng_msg via nano_work.
+ * @param msg suback nng_msg
+ * @param work nano_work
+ * @return error code
+ */
 int
 encode_suback_msg(nng_msg *msg, nano_work *work)
 {
