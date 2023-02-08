@@ -607,7 +607,7 @@ freetopic(struct topic *endp)
 int
 client_parse_opts(int argc, char **argv, client_opts *opt)
 {
-	int    idx = 2;
+	int    idx = 1;
 	char * arg;
 	int    val;
 	int    rv;
@@ -978,7 +978,7 @@ properties_type_parse(int val)
 static int
 properties_parse(int argc, char **argv, property *properties)
 {
-	int   idx = 2;
+	int   idx = 1;
 	char *arg;
 	int   val;
 	int   rv;

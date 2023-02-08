@@ -708,7 +708,7 @@ sendrecv(nng_socket sock)
 int
 nng_cat_dflt(int ac, char **av)
 {
-	int            idx = 2;
+	int            idx = 1;
 	char *         arg;
 	int            val;
 	int            rv;
