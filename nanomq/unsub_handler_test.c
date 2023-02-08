@@ -32,7 +32,7 @@ main()
 	size_t   remaining_len;
 	payload_ptr  = NULL;
 	variable_ptr = NULL;
-	// set topic for test:$MQTT.
+	// set topic for test:$MQTT and %MQTT.
 	uint8_t topic[] = { 0x00, 0x05, 0x24, 0x4D, 0x51, 0x54, 0x54, 0x00,
 		0x05, 0x25, 0x4D, 0x51, 0x54, 0x54 };
 	payload_ptr     = topic;
