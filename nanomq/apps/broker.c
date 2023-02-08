@@ -869,7 +869,7 @@ broker(conf *nanomq_conf)
 	log_debug("listener init finished");
 
 	// HTTP Service
-	nng_socket inproc_sock;
+	nng_socket inproc_sock = { 0 };
 
 	if (nanomq_conf->http_server.enable || nanomq_conf->bridge_mode) {
 		log_debug("HTTP service initialization");
