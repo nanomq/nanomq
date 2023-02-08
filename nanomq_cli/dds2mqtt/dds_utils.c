@@ -63,7 +63,7 @@ static void help(dds_client_type cli_type);
 int
 dds_cmd_parse_opts(int argc, char **argv, dds_client_opts *opts)
 {
-	int   idx = 1;
+	int   idx = 2;
 	char *arg;
 	int   val;
 	int   rv;
