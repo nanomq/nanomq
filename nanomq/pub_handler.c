@@ -1287,6 +1287,13 @@ append_bytes_with_type(
 	return 1;
 }
 
+/**
+ * @brief encode dest_msg with work.
+ * @param dest_msg nng_msg
+ * @param work nano_work
+ * @param cmd mqtt_control_packet_types
+ * @return bool
+ */
 bool
 encode_pub_message(
     nng_msg *dest_msg, const nano_work *work, mqtt_control_packet_types cmd)
@@ -1423,6 +1430,12 @@ encode_pub_message(
 	return true;
 }
 
+/**
+ * @brief decode work->msg to fill work->pub_packet.
+ * @param work nano_work
+ * @param proto check protocol verison, more need to be done in MQTTv5
+ * @return reason_code
+ */
 reason_code
 decode_pub_message(nano_work *work, uint8_t proto)
 {
