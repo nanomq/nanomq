@@ -68,6 +68,7 @@ available tools:
    * bench
    * nngproxy
    * nngcat
+   * ddsproxy
 
 Copyright 2022 EMQ Edge Computing Team
 ```
@@ -158,7 +159,7 @@ $ nanomq_cli bench pub -c 100 -i 10 -t bench -s 256 -p 8883 --certfile path/to/c
 
 ## client
 
-目前客户端支持 MQTT 版本 3.1/3.1.1。
+目前客户端完整支持MQTT3.1.1，部分支持MQTT5.0 。
 
 ### Pub
 
@@ -166,7 +167,7 @@ $ nanomq_cli bench pub -c 100 -i 10 -t bench -s 256 -p 8883 --certfile path/to/c
 
 | Parameter       | abbreviation | Optional value | Default value             | Description          |
 | --------------- | ------------ | -------------- | ------------------------- | -------------------- |
-| --url           | -            | -              | mqtt-tcp://127.0.0.1:1883 | 连接到服务端的 url   |
+| --url           | -            | -              | mqtt-tcp://127.0.0.1:1883 | 连接到服务端的 url     |
 | --version       | -V           | 3 4 5          | 4                         | MQTT 协议版本        |
 | --parallel      | -n           | -              | 1                         | 客户端并行数         |
 | --verbose       | -v           | -              | disable                   | 是否详细输出         |
@@ -174,7 +175,7 @@ $ nanomq_cli bench pub -c 100 -i 10 -t bench -s 256 -p 8883 --certfile path/to/c
 | --password      | -P           | -              | None; optional            | 客户端密码           |
 | --topic         | -t           | -              | None; required            | 发布的主题           |
 | --msg           | -m           | -              | None; required            | 发布的消息           |
-| --qos           | -q           | -              | 0                         | Qos 级别             |
+| --qos           | -q           | -              | Publish: *0*<br>Subscribe: *1* | Qos 级别       |
 | --retain        | -r           | true false     | false                     | 保留标识位           |
 | --keepalive     | -k           | -              | 300                       | 保活时间             |
 | --count         | -C           | -              | 1                         | 客户端数量           |
@@ -195,7 +196,7 @@ $ nanomq_cli bench pub -c 100 -i 10 -t bench -s 256 -p 8883 --certfile path/to/c
 例如，我们使用用户名 nano 启动 1 个客户端，并向主题 `t` 发送 100 条 Qos2 消息测试。
 
 ```bash
-$ nanomq_cli pub -t t -h nanomq-server -q 2 -u nano -L 100 -m test
+$ nanomq_cli pub -t t --url "mqtt-tcp://broker.emqx.io:1883" -q 2 -u nano -L 100 -m test
 ```
 
 ### Sub
@@ -205,7 +206,7 @@ $ nanomq_cli pub -t t -h nanomq-server -q 2 -u nano -L 100 -m test
 例如，我们使用用户名 nano 启动 1 个客户端，并从主题 `t` 设置 Qos1。
 
 ```bash
-$ nanomq_cli sub -t t -h nanomq-server -q 1
+$ nanomq_cli sub -t t --url "mqtt-tcp://broker.emqx.io:1883" -q 1
 ```
 
 ### Conn
@@ -215,7 +216,7 @@ $ nanomq_cli sub -t t -h nanomq-server -q 1
 例如，我们使用用户名 nano 启动 1 个客户端并设置 Qos1 。
 
 ```bash
-$ nanomq_cli conn -h nanomq-server -q 1
+$ nanomq_cli conn --url "mqtt-tcp://broker.emqx.io:1883" -q 1
 ```
 
 ### Rule
