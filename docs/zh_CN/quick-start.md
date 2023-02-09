@@ -115,7 +115,7 @@ $PROJECT_PATH/nanomq/nng/build$ ninja install
 nanomq start &
 ```
 
-目前，NanoMQ 只支持 MQTT 3.1.1，部分支持 MQTT 5.0。
+目前，NanoMQ完整支持MQTT 3.1.1和部分MQTT 5.0协议。
 
 
 
