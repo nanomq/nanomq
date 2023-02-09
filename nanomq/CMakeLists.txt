@@ -160,3 +160,4 @@ endif()
 
 nanomq_test(sub_handler_test)
 nanomq_test(unsub_handler_test)
+nanomq_test(pub_handler_test)
