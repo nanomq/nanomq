@@ -93,7 +93,7 @@ cmake -DNNG_ENABLE_TLS=ON ..
 nanomq start
 ```
 
-Currently, NanoMQ only supports MQTT 3.1.1, partially supports MQTT 5.0
+Currently, NanoMQ fully supports MQTT 3.1.1, partially supports MQTT 5.0
 
 
 

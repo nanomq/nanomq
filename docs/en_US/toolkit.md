@@ -68,6 +68,7 @@ available tools:
    * bench
    * nngproxy
    * nngcat
+   * ddsproxy
 
 Copyright 2022 EMQ Edge Computing Team
 ```
@@ -155,11 +156,9 @@ $ nanomq_cli bench sub -c 100 -i 10 -t bench -p 8883 --certfile path/to/client-c
 $ nanomq_cli bench pub -c 100 -i 10 -t bench -s 256 -p 8883 --certfile path/to/client-cert.pem --keyfile path/to/client-key.pem
 ```
 
-## client
+## Client
 
-An MQTT version 3.1/3.1.1 client for now.
-
-### Pub
+### Publish
 
 When executing `nanomq_cli pub --help`, you will get the available parameter output.
 
@@ -173,7 +172,7 @@ When executing `nanomq_cli pub --help`, you will get the available parameter out
 | --password      | -P           | -              | None; optional            | Client password                                           |
 | --topic         | -t           | -              | None; required            | Published topics                                          |
 | --msg           | -m           | -              | None; required            | Publish message                                           |
-| --qos           | -q           | -              | 0                         | Qos level                                                 |
+| --qos           | -q           | -              | *0* for publish<br>*2* for subscribe | Qos level                                 |
 | --retain        | -r           | true false     | false                     | Whether the message sets the Retain flag                  |
 | --keepalive     | -k           | -              | 300                       | Client keepalive time                                     |
 | --count         | -C           | -              | 1                         | Num of client                                             |
@@ -191,20 +190,20 @@ When executing `nanomq_cli pub --help`, you will get the available parameter out
 | --will-topic    | -            | -              | None                      | The topic of the will message                             |
 | --will-retain   | -            | true false     | false                     | Will message as retained message                          |
 
-For example, we start 1 client with username nano and send 100 Qos2 messages test to the topic `t` .
+For example, we start 1 client with username *nano* and send *100* *Qos2* messages *test* to the topic `t` .
 
 ```bash
-$ nanomq_cli pub start -t "topic" -h nanomq-server -q 2 -u nano -L 100 -m test
+$ nanomq_cli pub start -t "topic" -q 2 -u nano -L 100 -m test --url "mqtt-tcp://broker.emqx.io:1883"
 ```
 
-### Sub
+### Subscribe
 
 Execute `nanomq_cli sub --help` to get all available parameters of this command. Their explanations have been included in the table above and are omitted here.
 
 For example, we start 1 client with username nano and set Qos1 from topic `t` .
 
 ```bash
-$ nanomq_cli sub -t t -h nanomq-server -q 1
+$ nanomq_cli sub -t t -q 1 --url "mqtt-tcp://broker.emqx.io:1883"
 ```
 
 ### Conn
@@ -214,7 +213,7 @@ Execute `nanomq_cli conn start --help` to get all available parameters of this c
 For example, we start 1 client with username nano and set Qos1 .
 
 ```bash
-$ nanomq_cli conn start -h nanomq-server -q 1
+$ nanomq_cli conn start -q 1 --url "mqtt-tcp://broker.emqx.io:1883"
 ```
 
 ### Rule
