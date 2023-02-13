@@ -97,7 +97,9 @@ foreach_client(
 	ctx_list_len = cvector_size(cli_ctx_list);
 
 	// Dont using msg info buf, Just for Cheat Compiler
-	mqtt_msg_info *msg_info, msg_info_buf;
+	mqtt_msg_info *msg_info     = NULL;
+	mqtt_msg_info  msg_info_buf = { 0 };
+
 	cvector(mqtt_msg_info) msg_infos = pipe_ct->msg_infos;
 	cvector_grow(msg_infos, ctx_list_len);
 
