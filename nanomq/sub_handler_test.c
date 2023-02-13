@@ -9,7 +9,8 @@
 int
 main()
 {
-	int rv = 0;
+	u_int32_t rv = 0;
+	u_int32_t *p_rv = NULL;
 
 	nano_work *work;
 	nng_socket sock;
@@ -99,6 +100,14 @@ main()
 	rv = sub_ctx_handle(work);
 	assert(rv == 0);
 	// TODO check work->db.
+	dbtree_print(work->db);
+	p_rv = dbtree_find_clients(work->db, "$MQTT");
+	assert(p_rv != NULL);
+	cvector_free(p_rv);
+
+	p_rv = dbtree_find_clients(work->db, "%MQTT");
+	assert(p_rv != NULL);
+	cvector_free(p_rv);
 	// TODO should free by dbtree_delete_client() and dbhash_del_topic()
 
 	/* test for sub_ctx_del()*/
@@ -112,7 +121,7 @@ main()
 	/* test for free sub_pkt() */
 	sub_pkt_free(work->sub_pkt);
 
-	nng_free(nanomq_conf,sizeof(conf));
+	nng_free(nanomq_conf, sizeof(conf));
 	dbhash_destroy_pipe_table();
 	dbtree_destory(work->db);
 	dbtree_destory(work->db_ret);
