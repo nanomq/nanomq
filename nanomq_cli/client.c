@@ -1680,8 +1680,9 @@ static int
 quic_disconnect_cb(void *rmsg, void *arg)
 {
 	int reason = 0;
-	if (!rmsg) {
-		return 0;
+	if (rmsg == NULL) {
+		console("%s: Got null msg\n", __func__);
+		return 1;
 	}
 	// get connect reason
 	reason = nng_mqtt_msg_get_connack_return_code(rmsg);
@@ -1744,6 +1745,10 @@ static int
 quic_msg_recv_cb(void *rmsg, void *arg)
 {
 	nng_msg *msg = rmsg;
+	if (msg == NULL) {
+		console("%s: Got null msg\n", __func__);
+		return 1;
+	}
 	uint32_t topicsz, payloadsz;
 
 	char *topic = (char *) nng_mqtt_msg_get_publish_topic(msg, &topicsz);
