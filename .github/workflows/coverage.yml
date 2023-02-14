@@ -13,7 +13,7 @@ jobs:
 
     - name: Install libs
       run: |
-        sudo apt-get install -y libmbedtls-dev ninja-build pip python3-pip mosquitto-clients
+        sudo apt-get install -y libmbedtls-dev ninja-build pip python3-pip mosquitto-clients lcov
         pip install Jinja2 paho-mqtt
 
     - name: Configure
@@ -25,8 +25,11 @@ jobs:
     - name: Test
       run: cd build && ctest --output-on-failure
 
+    - name: Preprocess
+      run: cd build && lcov -c -d . -o lcov.info
+
     - name: Upload report
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        file: ./.codecov.yml
+        file: build/lcov.info
