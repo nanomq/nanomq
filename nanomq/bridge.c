@@ -501,18 +501,18 @@ quic_disconnect_cb(void *rmsg, void *arg)
 	return 0;
 }
 
-static int
+static void
 quic_ack_cb(void *arg)
 {
 	int result = 0;
 
-	nng_aio      *aio   = arg;
+	nng_aio *     aio   = arg;
 	bridge_param *param = nng_aio_get_prov_data(aio);
-	nng_socket   *sock  = param->sock;
-	nng_msg *msg = nng_aio_get_msg(aio);
+	nng_socket *  sock  = param->sock;
+	nng_msg *     msg   = nng_aio_get_msg(aio);
 	if ((result = nng_aio_result(aio)) != 0) {
 		log_debug("no msg wating!");
-		return 0;
+		return;
 	}
 	if (nng_msg_get_type(msg) == CMD_CONNACK) {
 		nng_mqtt_client *client = param->client;
@@ -525,7 +525,7 @@ quic_ack_cb(void *arg)
 		log_info("Quic bridge client connected! RC [%d]", reason);
 
 		if (reason != 0 || param->config->sub_count <= 0)
-			return -1;
+			return;
 		/* MQTT SUBSCRIBE */
 		if (param->config->multi_stream) {
 			for (size_t i = 0; i < param->config->sub_count; i++) {
@@ -569,7 +569,6 @@ quic_ack_cb(void *arg)
 	nng_msg_free(msg);
 	// To clean the cached msg if any
 	nng_recv_aio(*sock, aio);
-	return 0;
 }
 
 // Connack message callback function
