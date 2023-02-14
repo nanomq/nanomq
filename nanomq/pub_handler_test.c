@@ -4,6 +4,63 @@
 #include "include/nanomq.h"
 #include "include/pub_handler.h"
 
+void
+test_handler_pub()
+{
+	reason_code rc = 0;
+	// init work
+	nano_work *work;
+	work            = nng_alloc(sizeof(*work));
+	work->pipe_ct   = nng_alloc(sizeof(struct pipe_content));
+	work->proto_ver = MQTT_PROTOCOL_VERSION_v311;
+	dbtree_create(&work->db);
+	dbhash_init_pipe_table();
+	// init work->msg
+	nng_msg *msg;
+	nng_msg_alloc(&msg,0);
+	work->msg                    = msg;
+	struct fixed_header *fix_hd  = nng_alloc(sizeof(*fix_hd));
+	fix_hd->qos                  = 1;
+	fix_hd->packet_type          = PUBLISH;
+	// test data
+	uint32_t remaining_len      = 13;
+	uint32_t topic_len          = 7;
+	uint32_t data_len           = 4;
+	// topic: $MQTT
+	uint8_t topic[] = {
+		0x00, 0x05 /* topic length */,
+		0x24, 0x4D, 0x51, 0x54, 0x54 /* topic body*/
+	};
+	// topic: $MQT+
+	uint8_t topic_false[] = {
+		0x00, 0x05 /* topic length */,
+		0x24, 0x4D, 0x51, 0x54, 0x2B /* topic body*/
+	};
+	// data: data
+	uint8_t data[] = { 0x64, 0x61, 0x74, 0x61 };
+	// packetid: 5
+	uint8_t pkt_id[] = { 0x00, 0x05 };
+	// init msg->body and msg->header
+	nng_msg_append(msg, topic, topic_len);
+	nng_msg_append(msg, pkt_id, 2);
+	nng_msg_append(msg, data, data_len);
+	nng_msg_set_remaining_len(msg, remaining_len);
+	nng_msg_header_append(msg, fix_hd, sizeof(*fix_hd));
+	
+	rc = handle_pub(work, work->pipe_ct, work->proto_ver, true);
+	assert(rc == 0);
+
+	nng_free(fix_hd, sizeof(*fix_hd));
+	free_pub_packet(work->pub_packet);
+	dbhash_destroy_pipe_table();
+	dbtree_destory(work->db);
+	nng_msg_free(msg);
+	nng_free(work->pipe_ct,sizeof(struct pipe_content));
+	nng_free(work, sizeof(*work));
+
+	return;
+}
+
 int
 main()
 {
@@ -145,6 +202,8 @@ main()
 	nng_msg_free(msg);
 	nng_msg_free(tpcError_msg);
 	nng_free(work, sizeof(*work));
+
+	test_handler_pub();
 
 	return SUCCESS;
 }
