@@ -1,5 +1,6 @@
 import time 
 import socket
+import os
 
 def check_input(input, sleep_time = 0.01):
 	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -27,7 +28,7 @@ def check_crash_log(crash_log):
 	return True
 
 def fuzzy_test():
-    with open('./fuzzy_test.txt', 'r') as f:
+    with open('./.github/scripts/fuzzy_test.txt', 'r') as f:
         crash_log = f.readlines()
 	
     if (check_crash_log(crash_log) == False):
