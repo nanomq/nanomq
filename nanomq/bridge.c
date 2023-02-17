@@ -867,12 +867,16 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 		log_error("Unsupported bridge protocol.\n");
 	}
 	// alloc an AIO for each ctx bridging use only
-	node->bridge_aio = nng_alloc(config->parallel * sizeof(nng_aio *));
-	for (uint32_t num = 0; num < config->parallel; num++) {
+	node->bridge_aio = nng_alloc(
+	    (config->parallel + node->parallel * 2) * sizeof(nng_aio *));
+
+	for (uint32_t num = 0; num < (config->parallel + node->parallel * 2);
+	     num++) {
 		if ((rv = nng_aio_alloc(
 		         &node->bridge_aio[num], bridge_send_cb, node)) != 0) {
 			fatal("bridge_aio nng_aio_alloc", rv);
 		}
+		log_debug("parallel %d", num);
 	}
 	return 0;
 }
