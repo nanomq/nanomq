@@ -13,11 +13,14 @@ NanoMQ MQTT Broker (NanoMQ) is a lightweight and blazing-fast MQTT Broker for th
 
 NanoMQ bases on NNG's asynchronous I/O threading model, with an extension of MQTT support in the protocol layer and reworked transport layer, plus an enhanced asynchronous IO mechanism maximizing the overall capacity.
 
-NanoMQ fully supports MQTT V3.1.1 and partially supports MQTT V5.0.
+NanoMQ fully supports MQTT V3.1.1 and MQTT V5.0.
 
 For more information, please visit [NanoMQ homepage](https://nanomq.io/).
 
-
+*Unsupport features of MQTT 5.0* 
+- Auth https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901217
+- Request/Response https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901252
+- Server Redirection https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901255
 
 ## Features
 
