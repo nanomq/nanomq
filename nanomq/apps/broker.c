@@ -235,11 +235,13 @@ server_cb(void *arg)
 
 	switch (work->state) {
 	case INIT:
-		log_debug("INIT ^^^^ ctx%d ^^^^\n", work->ctx.id);
+		// log_debug("INIT ^^^^^^^^ ctx [%d] ^^^^^^^^ \n", work->ctx.id);
 		work->state = RECV;
 		if (work->proto == PROTO_MQTT_BROKER) {
+			log_debug("INIT ^^^^^^^^ ctx [%d] ^^^^^^^^ \n", work->ctx.id);
 			nng_ctx_recv(work->ctx, work->aio);
 		} else {
+			log_debug("INIT ^^^^^^^^ extra ctx [%d] ^^^^^^^^ \n", work->extra_ctx.id);
 			nng_ctx_recv(work->extra_ctx, work->aio);
 		}
 		break;
@@ -1089,11 +1091,14 @@ broker(conf *nanomq_conf)
 			conf *conf = works[0]->config;
 			for (size_t t = 0; t < conf->bridge.count; t++) {
 				conf_bridge_node *node = conf->bridge.nodes[t];
+				size_t aio_count = (conf->parallel + node->parallel * 2);
 				if (node->enable) {
-					for (size_t i = 0; i < conf->parallel; i++) {
+					for (size_t i = 0; i < aio_count; i++) {
+						nng_aio_finish_error(node->bridge_aio[i], 0);
+						nng_aio_abort(node->bridge_aio[i], NNG_ECLOSED);
 						nng_aio_free(node->bridge_aio[i]);
 					}
-					nng_free(node->bridge_aio, conf->parallel * sizeof(nng_aio *));
+					nng_free(node->bridge_aio, aio_count * sizeof(nng_aio *));
 				}
 				// free(node->name);
 				// free(node->address);
