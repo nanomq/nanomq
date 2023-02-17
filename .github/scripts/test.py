@@ -78,7 +78,11 @@ if __name__=='__main__':
     print("ws v5 test end")
 
     print("fuzzy test start")
-    fuzzy_test()
+    if( False == fuzzy_test()):
+        nanomq.terminate()
+        print("fuzzy test failed")
+        print_nanomq_log()
+        raise AssertionError
     print("fuzzy test end")
 
     time.sleep(2)
