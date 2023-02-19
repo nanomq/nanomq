@@ -43,8 +43,8 @@ mk_handle(int type, void *data, int len)
 	return hd;
 }
 
-void
-fatal(const char *msg, int rv)
+static void
+dds2mqtt_fatal(const char *msg, int rv)
 {
 	fprintf(stderr, "%s: %s\n", msg, nng_strerror(rv));
 }
@@ -74,7 +74,7 @@ connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 }
 
 // Connect to the given address.
-int
+static int
 client_connect(
     nng_socket *sock, nng_dialer *dialer, dds_gateway_conf *config, bool verbose)
 {
@@ -84,18 +84,18 @@ client_connect(
 
 	if (mqtt_conf->proto_ver == 5) {
 		if ((rv = nng_mqttv5_client_open(sock)) != 0) {
-			fatal("nng_socket", rv);
+			dds2mqtt_fatal("nng_socket", rv);
 		}
 	} else {
 		if ((rv = nng_mqtt_client_open(sock)) != 0) {
-			fatal("nng_socket", rv);
+			dds2mqtt_fatal("nng_socket", rv);
 		}
 	}
 
 	mqtt_conf->sock = sock;
 
 	if ((rv = nng_dialer_create(dialer, *sock, mqtt_conf->address)) != 0) {
-		fatal("nng_dialer_create", rv);
+		dds2mqtt_fatal("nng_dialer_create", rv);
 	}
 
 	// create a CONNECT message
@@ -134,7 +134,7 @@ client_connect(
 }
 
 // Publish a message to the given topic and with the given QoS.
-int
+static int
 client_publish(nng_socket sock, const char *topic, uint8_t *payload,
     uint32_t payload_len, uint8_t qos, bool verbose)
 {
@@ -159,7 +159,7 @@ client_publish(nng_socket sock, const char *topic, uint8_t *payload,
 
 	printf("Publishing to '%s' ...\n", topic);
 	if ((rv = nng_sendmsg(sock, pubmsg, NNG_FLAG_NONBLOCK)) != 0) {
-		fatal("nng_sendmsg", rv);
+		dds2mqtt_fatal("nng_sendmsg", rv);
 	}
 
 	return rv;
@@ -172,7 +172,7 @@ static pthread_mutex_t rmsgq_mtx;
 // TODO
 // It works in a NONBLOCK way
 // Return 0 when got msg. return 1 when no msg; else errors happened
-int
+static int
 client_recv(mqtt_cli *cli, nng_msg **msgp)
 {
 	pthread_mutex_lock(&rmsgq_mtx);
@@ -186,7 +186,7 @@ client_recv(mqtt_cli *cli, nng_msg **msgp)
 	return 0;
 }
 
-int
+static int
 client_recv2(mqtt_cli *cli, nng_msg **msgp)
 {
 	int      rv;
