@@ -6,20 +6,11 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <errno.h>
+#include "nng/supplemental/nanolib/utils.h"
 
 static int conn_opt_set(int argc, char **argv, nnb_conn_opt *opt);
 static int sub_opt_set(int argc, char **argv, nnb_sub_opt *opt);
 static int pub_opt_set(int argc, char **argv, nnb_pub_opt *opt);
-
-static void
-fatal(const char *msg, ...)
-{
-	va_list ap;
-	va_start(ap, msg);
-	vfprintf(stderr, msg, ap);
-	va_end(ap);
-	fprintf(stderr, "\n");
-}
 
 static void
 init_tls(tls_opt *tls)

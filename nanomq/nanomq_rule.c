@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "nng/supplemental/nanolib/cvector.h"
+#include "nng/supplemental/nanolib/utils.h"
 
 #include "include/nanomq.h"
 
@@ -45,12 +46,6 @@ static int finish_with_error(MYSQL *con, rule *rules, int index)
 	rule_free(r);
 	cvector_erase(rules, index);
 	return -1;
-}
-
-static void
-fatal(const char *func, int rv)
-{
-	log_error("%s", nng_strerror(rv));
 }
 
 int
@@ -102,18 +97,18 @@ nano_client(nng_socket *sock, repub_t *repub)
 
 	if (repub->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 		if ((rv = nng_mqttv5_client_open(sock)) != 0) {
-			fatal("nng_mqttv5_client_open", rv);
+			nng_fatal("nng_mqttv5_client_open", rv);
 			return rv;
 		}
 	} else {
 		if ((rv = nng_mqtt_client_open(sock)) != 0) {
-			fatal("nng_mqtt_client_open", rv);
+			nng_fatal("nng_mqtt_client_open", rv);
 			return rv;
 		}
 	}
 
 	if ((rv = nng_dialer_create(&dialer, *sock, repub->address))) {
-		fatal("nng_dialer_create", rv);
+		nng_fatal("nng_dialer_create", rv);
 		return rv;
 	}
 

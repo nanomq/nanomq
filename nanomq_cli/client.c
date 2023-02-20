@@ -17,10 +17,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <nng/mqtt/mqtt_client.h>
-#include <nng/nng.h>
-#include <nng/supplemental/util/options.h>
-#include <nng/supplemental/util/platform.h>
+#include "nng/mqtt/mqtt_client.h"
+#include "nng/nng.h"
+#include "nng/supplemental/util/options.h"
+#include "nng/supplemental/util/platform.h"
+#include "nng/supplemental/nanolib/utils.h"
+
 
 #if defined(SUPP_CLIENT)
 
@@ -31,7 +33,6 @@ static int init_dialer_tls(nng_dialer d, const char *cacert, const char *cert,
 #endif
 
 static void loadfile(const char *path, void **datap, size_t *lenp);
-static void fatal(const char *msg, ...);
 
 #define ASSERT_NULL(p, fmt, ...)           \
 	if ((p) != NULL) {                 \
@@ -402,18 +403,6 @@ static void create_quic_client(nng_socket *sock, struct work **works,
 static void average_msgs(client_opts *opts, struct work **works);
 static void free_opts(void);
 
-static void
-fatal(const char *msg, ...)
-{
-	va_list ap;
-	va_start(ap, msg);
-	vfprintf(stderr, msg, ap);
-	va_end(ap);
-	fprintf(stderr, "\n");
-	fflush(stderr);
-	exit(1);
-}
-
 void
 console(const char *fmt, ...)
 {
@@ -422,12 +411,6 @@ console(const char *fmt, ...)
 	vfprintf(stdout, fmt, ap);
 	va_end(ap);
 	fflush(stdout);
-}
-
-static void
-nng_fatal(const char *msg, int rv)
-{
-	fatal("%s:%s", msg, nng_strerror(rv));
 }
 
 static void

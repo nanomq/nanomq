@@ -19,8 +19,9 @@
 #include "nng/protocol/pipeline0/push.h"
 #include "nng/supplemental/http/http.h"
 #include "nng/supplemental/nanolib/conf.h"
-#include "nng/supplemental/util/platform.h"
 #include "nng/supplemental/nanolib/log.h"
+#include "nng/supplemental/nanolib/utils.h"
+#include "nng/supplemental/util/platform.h"
 
 #define NANO_LMQ_INIT_CAP 16
 
@@ -43,13 +44,6 @@ struct hook_work {
 static void webhook_cb(void *arg);
 
 static nng_thread *inproc_thr;
-
-static void
-fatal(uint32_t id, const char *func, int rv)
-{
-	fprintf(stderr, "[%d] %s: %s\n", id, func, nng_strerror(rv));
-	// exit(1);
-}
 
 static void
 send_msg(conf_web_hook *conf, nng_msg *msg)
@@ -175,7 +169,7 @@ webhook_cb(void *arg)
 
 	case HOOK_RECV:
 		if ((rv = nng_aio_result(work->aio)) != 0) {
-			fatal(work->id, "nng_recv_aio", rv);
+			nng_fatal("nng_recv_aio", rv);
 		}
 		work->msg = nng_aio_get_msg(work->aio);
 		nng_mtx_lock(work->mtx);
@@ -183,7 +177,7 @@ webhook_cb(void *arg)
 			size_t lmq_cap = nng_lmq_cap(work->lmq);
 			if ((rv = nng_lmq_resize(
 			         work->lmq, lmq_cap + (lmq_cap / 2))) != 0) {
-				fatal(work->id, "nng_lmq_resize", rv);
+				nng_fatal("nng_lmq_resize", rv);
 			}
 		}
 		nng_lmq_put(work->lmq, work->msg);
@@ -194,7 +188,7 @@ webhook_cb(void *arg)
 		break;
 
 	default:
-		fatal(work->id, "bad state!", NNG_ESTATE);
+		nng_fatal("bad state!", NNG_ESTATE);
 		break;
 	}
 }
@@ -206,19 +200,19 @@ alloc_work(nng_socket sock, conf_web_hook *conf)
 	int               rv;
 
 	if ((w = nng_alloc(sizeof(*w))) == NULL) {
-		fatal(w->id, "nng_alloc", NNG_ENOMEM);
+		nng_fatal("nng_alloc", NNG_ENOMEM);
 	}
 	if ((rv = nng_aio_alloc(&w->aio, webhook_cb, w)) != 0) {
-		fatal(w->id, "nng_aio_alloc", rv);
+		nng_fatal("nng_aio_alloc", rv);
 	}
 	if ((rv = nng_mtx_alloc(&w->mtx)) != 0) {
-		fatal(w->id, "nng_mtx_alloc", rv);
+		nng_fatal("nng_mtx_alloc", rv);
 	}
 	if ((rv = nng_lmq_alloc(&w->lmq, NANO_LMQ_INIT_CAP) != 0)) {
-		fatal(w->id, "nng_lmq_alloc", rv);
+		nng_fatal("nng_lmq_alloc", rv);
 	}
 	if ((rv = nng_thread_create(&w->thread, thread_cb, w)) != 0) {
-		fatal(w->id, "nng_thread_create", rv);
+		nng_fatal("nng_thread_create", rv);
 	}
 
 	w->conf  = conf;
@@ -232,8 +226,8 @@ alloc_work(nng_socket sock, conf_web_hook *conf)
 void
 webhook_thr(void *arg)
 {
-	conf *            conf = arg;
-	nng_socket        sock;
+	conf *             conf = arg;
+	nng_socket         sock;
 	struct hook_work **works =
 	    nng_zalloc(conf->web_hook.pool_size * sizeof(struct hook_work *));
 
@@ -243,7 +237,7 @@ webhook_thr(void *arg)
 	/*  Create the socket. */
 	rv = nng_pull0_open(&sock);
 	if (rv != 0) {
-		fatal(0, "nng_rep0_open", rv);
+		nng_fatal("nng_rep0_open", rv);
 	}
 
 	for (i = 0; i < conf->web_hook.pool_size; i++) {
@@ -252,7 +246,7 @@ webhook_thr(void *arg)
 	}
 
 	if ((rv = nng_listen(sock, WEB_HOOK_INPROC_URL, NULL, 0)) != 0) {
-		fatal(0, "nng_listen", rv);
+		nng_fatal("nng_listen", rv);
 	}
 
 	for (i = 0; i < conf->web_hook.pool_size; i++) {
@@ -274,7 +268,7 @@ start_webhook_service(conf *conf)
 {
 	int rv = nng_thread_create(&inproc_thr, webhook_thr, conf);
 	if (rv != 0) {
-		fatal(0, "nng_thread_create", rv);
+		nng_fatal("nng_thread_create", rv);
 	}
 	nng_msleep(500);
 	return rv;
