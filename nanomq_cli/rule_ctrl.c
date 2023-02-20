@@ -6,13 +6,7 @@
 #include "nng/supplemental/nanolib/cJSON.h"
 #include "nng/supplemental/nanolib/conf.h"
 #include "nng/supplemental/util/options.h"
-
-void
-fatal(int rv)
-{
-	fprintf(stderr, "%s\n", nng_strerror(rv));
-	exit(1);
-}
+#include "nng/supplemental/nanolib/utils.h"
 
 
 struct work {
@@ -146,7 +140,7 @@ send_http(char *method, int id, char *payload)
 	nng_aio_wait(aio);
 
 	if ((rv = nng_aio_result(aio)) != 0) {
-		fatal(rv);
+		nng_fatal("nng_aio_result", rv);
 	}
 
 	if (nng_http_res_get_status(res) != NNG_HTTP_STATUS_OK) {
@@ -184,7 +178,7 @@ send_http(char *method, int id, char *payload)
 	nng_aio_wait(aio);
 
 	if ((rv = nng_aio_result(aio)) != 0) {
-		fatal(rv);
+		nng_fatal("nng_aio_result", rv);
 	}
 
 	cJSON *jso = cJSON_ParseWithLength(data, len);

@@ -6,6 +6,7 @@
 #include <nng/supplemental/tls/tls.h>
 #include <nng/supplemental/util/options.h>
 #include <nng/supplemental/util/platform.h>
+#include "nng/supplemental/nanolib/utils.h"
 #include <stdarg.h>
 
 #ifndef PARALLEL
@@ -56,22 +57,6 @@ bench_count_init(bench_statistics *bs)
 	nng_atomic_alloc(&bs->send_limit);
 	nng_atomic_alloc(&bs->last_send_cnt);
 	nng_atomic_alloc(&bs->index_cnt);
-}
-
-static void
-fatal(const char *msg, ...)
-{
-	va_list ap;
-	va_start(ap, msg);
-	vfprintf(stderr, msg, ap);
-	va_end(ap);
-	fprintf(stderr, "\n");
-}
-
-void
-nng_fatal(const char *msg, int rv)
-{
-	fatal("%s: %s\n", msg, nng_strerror(rv));
 }
 
 static int

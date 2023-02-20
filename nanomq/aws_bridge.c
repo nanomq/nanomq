@@ -23,15 +23,10 @@
 #include "nng/nng.h"
 #include "nng/protocol/reqrep0/req.h"
 #include "nng/supplemental/nanolib/conf.h"
+#include "nng/supplemental/nanolib/utils.h"
 #include "nng/supplemental/util/platform.h"
 #include "nng/supplemental/nanolib/log.h"
 #include "pub_handler.h"
-
-#define fatal(msg, rv)                                    \
-	{                                                 \
-		printf("%s:%s\n", msg, nng_strerror(rv)); \
-		exit(1);                                  \
-	}
 
 /**
  * @brief ALPN (Application-Layer Protocol Negotiation) protocol name for AWS
@@ -460,12 +455,12 @@ mqtt_thread(void *arg)
 	nng_socket req_sock;
 
 	if ((rv = nng_req0_open(&req_sock)) != 0) {
-		fatal("nng_rep0_open", rv);
+		nng_fatal("nng_rep0_open", rv);
 	}
 
 	if ((rv = nng_dial(
 	         req_sock, INPROC_SERVER_URL, NULL, NNG_FLAG_NONBLOCK)) != 0) {
-		fatal("nng_dial " INPROC_SERVER_URL, rv);
+		nng_fatal("nng_dial " INPROC_SERVER_URL, rv);
 	}
 
 	conf_bridge_node *    node        = (conf_bridge_node *) arg;

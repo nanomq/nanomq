@@ -10,22 +10,23 @@
 #include "nng_proxy.h"
 #include "client.h"
 
-#include <nng/mqtt/mqtt_client.h>
-#include <nng/nng.h>
-#include <nng/protocol/bus0/bus.h>
-#include <nng/protocol/pair0/pair.h>
-#include <nng/protocol/pair1/pair.h>
-#include <nng/protocol/pipeline0/pull.h>
-#include <nng/protocol/pipeline0/push.h>
-#include <nng/protocol/pubsub0/pub.h>
-#include <nng/protocol/pubsub0/sub.h>
-#include <nng/protocol/reqrep0/rep.h>
-#include <nng/protocol/reqrep0/req.h>
-#include <nng/protocol/survey0/respond.h>
-#include <nng/protocol/survey0/survey.h>
-#include <nng/supplemental/tls/tls.h>
-#include <nng/supplemental/util/options.h>
-#include <nng/supplemental/util/platform.h>
+#include "nng/mqtt/mqtt_client.h"
+#include "nng/nng.h"
+#include "nng/protocol/bus0/bus.h"
+#include "nng/protocol/pair0/pair.h"
+#include "nng/protocol/pair1/pair.h"
+#include "nng/protocol/pipeline0/pull.h"
+#include "nng/protocol/pipeline0/push.h"
+#include "nng/protocol/pubsub0/pub.h"
+#include "nng/protocol/pubsub0/sub.h"
+#include "nng/protocol/reqrep0/rep.h"
+#include "nng/protocol/reqrep0/req.h"
+#include "nng/protocol/survey0/respond.h"
+#include "nng/protocol/survey0/survey.h"
+#include "nng/supplemental/tls/tls.h"
+#include "nng/supplemental/util/options.h"
+#include "nng/supplemental/util/platform.h"
+#include "nng/supplemental/nanolib/utils.h"
 
 
 #if defined(SUPP_CLIENT)
@@ -37,7 +38,6 @@ static int init_dialer_tls(nng_dialer d, const char *cacert, const char *cert,
 #endif
 
 static void loadfile(const char *path, void **datap, size_t *lenp);
-static void fatal(const char *msg, ...);
 
 #define ASSERT_NULL(p, fmt, ...)           \
 	if ((p) != NULL) {                 \
@@ -201,22 +201,6 @@ struct work {
 };
 
 static nng_atomic_bool *exit_signal;
-
-static void
-fatal(const char *msg, ...)
-{
-	va_list ap;
-	va_start(ap, msg);
-	vfprintf(stderr, msg, ap);
-	va_end(ap);
-	fprintf(stderr, "\n");
-}
-
-static void
-nng_fatal(const char *msg, int rv)
-{
-	fatal("%s:%s", msg, nng_strerror(rv));
-}
 
 static void
 help(enum nng_proto type)

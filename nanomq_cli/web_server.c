@@ -6,18 +6,13 @@
 #include "nng/supplemental/http/http.h"
 #include "nng/supplemental/util/platform.h"
 #include "nng/supplemental/nanolib/conf.h"
+#include "nng/supplemental/nanolib/utils.h"
 
 #include "include/rest_api.h"
 #include "include/web_server.h"
 #include "include/proxy.h"
 
 #define INPROC_URL "inproc://cli_rest"
-
-#define fatal(msg, rv)                                             \
-	{                                                          \
-		fprintf(stderr, "%s:%s\n", msg, nng_strerror(rv)); \
-		exit(1);                                           \
-	}
 
 typedef enum {
 	SEND_REQ, // Sending REQ request
@@ -177,7 +172,7 @@ rest_job_cb(void *arg)
 		rest_recycle_job(job);
 		return;
 	default:
-		fatal("bad case", NNG_ESTATE);
+		nng_fatal("bad case", NNG_ESTATE);
 		break;
 	}
 }
@@ -238,7 +233,7 @@ rest_start(uint16_t port)
 	int               rv;
 
 	if ((rv = nng_mtx_alloc(&job_lock)) != 0) {
-		fatal("nng_mtx_alloc", rv);
+		nng_fatal("nng_mtx_alloc", rv);
 	}
 	job_freelist = NULL;
 
@@ -246,38 +241,38 @@ rest_start(uint16_t port)
 	// from the argument list.
 	snprintf(rest_addr, sizeof(rest_addr), REST_URL, port);
 	if ((rv = nng_url_parse(&url, rest_addr)) != 0) {
-		fatal("nng_url_parse", rv);
+		nng_fatal("nng_url_parse", rv);
 	}
 
 	// Create the REQ socket, and put it in raw mode, connected to
 	// the remote REP server (our inproc server in this case).
 	if ((rv = nng_req0_open(&req_sock)) != 0) {
-		fatal("nng_req0_open", rv);
+		nng_fatal("nng_req0_open", rv);
 	}
 	if ((rv = nng_dial(req_sock, INPROC_URL, NULL, NNG_FLAG_NONBLOCK)) !=
 	    0) {
-		fatal("nng_dial(" INPROC_URL ")", rv);
+		nng_fatal("nng_dial(" INPROC_URL ")", rv);
 	}
 
 	// Get a suitable HTTP server instance.  This creates one
 	// if it doesn't already exist.
 	if ((rv = nng_http_server_hold(&server, url)) != 0) {
-		fatal("nng_http_server_hold", rv);
+		nng_fatal("nng_http_server_hold", rv);
 	}
 
 	// Allocate the handler - we use a dynamic handler for REST
 	// using the function "rest_handle" declared above.
 	rv = nng_http_handler_alloc(&handler, url->u_path, rest_handle);
 	if (rv != 0) {
-		fatal("nng_http_handler_alloc", rv);
+		nng_fatal("nng_http_handler_alloc", rv);
 	}
 
 	if ((rv = nng_http_handler_set_tree(handler)) != 0) {
-		fatal("nng_http_handler_set_tree", rv);
+		nng_fatal("nng_http_handler_set_tree", rv);
 	}
 
 	if ((rv = nng_http_handler_set_method(handler, NULL)) != 0) {
-		fatal("nng_http_handler_set_method", rv);
+		nng_fatal("nng_http_handler_set_method", rv);
 	}
 
 	// We want to collect the body, and we (arbitrarily) limit this to
@@ -287,32 +282,32 @@ rest_start(uint16_t port)
 	// chunked transfers.
 	if ((rv = nng_http_handler_collect_body(handler, true, 1024 * 128)) !=
 	    0) {
-		fatal("nng_http_handler_collect_body", rv);
+		nng_fatal("nng_http_handler_collect_body", rv);
 	}
 
 	rv = nng_http_handler_alloc_directory(&handler_file, "", "./dist");
 	if (rv != 0) {
-		fatal("nng_http_handler_alloc_file", rv);
+		nng_fatal("nng_http_handler_alloc_file", rv);
 	}
 
 	if ((rv = nng_http_handler_set_method(handler_file, "GET")) != 0) {
-		fatal("nng_http_handler_set_method", rv);
+		nng_fatal("nng_http_handler_set_method", rv);
 	}
 
 	if ((rv = nng_http_handler_collect_body(handler_file, true, 1024)) !=
 	    0) {
-		fatal("nng_http_handler_collect_body", rv);
+		nng_fatal("nng_http_handler_collect_body", rv);
 	}
 
 	if ((rv = nng_http_server_add_handler(server, handler_file)) != 0) {
-		fatal("nng_http_handler_add_handler", rv);
+		nng_fatal("nng_http_handler_add_handler", rv);
 	}
 	if ((rv = nng_http_server_add_handler(server, handler)) != 0) {
-		fatal("nng_http_handler_add_handler", rv);
+		nng_fatal("nng_http_handler_add_handler", rv);
 	}
 
 	if ((rv = nng_http_server_start(server)) != 0) {
-		fatal("nng_http_server_start", rv);
+		nng_fatal("nng_http_server_start", rv);
 	}
 
 	nng_url_free(url);
@@ -328,7 +323,7 @@ inproc_server(void *arg)
 
 	int rv;
 	if ((rv = nng_rep0_open(&sock)) != 0) {
-		fatal("nng_rep0_open", rv);
+		nng_fatal("nng_rep0_open", rv);
 	}
 
 	for (size_t i = 0; i < proxy->http_server->parallel; i++) {
@@ -336,7 +331,7 @@ inproc_server(void *arg)
 	}
 
 	if ((rv = nng_listen(sock, INPROC_URL, NULL, 0)) != 0) {
-		fatal("nng_listen", rv);
+		nng_fatal("nng_listen", rv);
 	}
 
 	for (size_t i = 0; i < proxy->http_server->parallel; i++) {
@@ -369,7 +364,7 @@ inproc_cb(void *arg)
 
 	case SRV_RECV:
 		if ((rv = nng_aio_result(work->aio)) != 0) {
-			fatal("nng_ctx_recv", rv);
+			nng_fatal("nng_ctx_recv", rv);
 		}
 
 		msg               = nng_aio_get_msg(work->aio);
@@ -391,14 +386,14 @@ inproc_cb(void *arg)
 	case SRV_SEND:
 		if ((rv = nng_aio_result(work->aio)) != 0) {
 			nng_msg_free(work->msg);
-			fatal("nng_ctx_send", rv);
+			nng_fatal("nng_ctx_send", rv);
 		}
 		work->state = SRV_RECV;
 		nng_ctx_recv(work->ctx, work->aio);
 		break;
 
 	default:
-		fatal("bad state!", NNG_ESTATE);
+		nng_fatal("bad state!", NNG_ESTATE);
 		break;
 	}
 }
@@ -410,13 +405,13 @@ alloc_work(nng_socket sock, proxy_info *proxy)
 	int               rv;
 
 	if ((w = nng_alloc(sizeof(*w))) == NULL) {
-		fatal("nng_alloc", NNG_ENOMEM);
+		nng_fatal("nng_alloc", NNG_ENOMEM);
 	}
 	if ((rv = nng_aio_alloc(&w->aio, inproc_cb, w)) != 0) {
-		fatal("nng_aio_alloc", rv);
+		nng_fatal("nng_aio_alloc", rv);
 	}
 	if ((rv = nng_ctx_open(&w->ctx, sock)) != 0) {
-		fatal("nng_ctx_open", rv);
+		nng_fatal("nng_ctx_open", rv);
 	}
 	w->proxy = proxy;
 	w->state = SRV_INIT;
@@ -429,7 +424,7 @@ start_rest_server(proxy_info *proxy)
 	int rv;
 	rv = nng_thread_create(&inproc_thr, inproc_server, proxy);
 	if (rv != 0) {
-		fatal("cannot start inproc server", rv);
+		nng_fatal("cannot start inproc server", rv);
 	}
 
 	rest_start(proxy->http_server->port);

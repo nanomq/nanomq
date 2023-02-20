@@ -5,6 +5,7 @@
 #include "nng/protocol/mqtt/mqtt.h"
 #include "nng/supplemental/nanolib/log.h"
 #include "nng/supplemental/util/platform.h"
+#include "nng/supplemental/nanolib/utils.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,12 +24,6 @@ static property *conn_property(conf_bridge_conn_properties *conf_prop);
 
 static nng_thread *hybridger_thr;
 
-static void
-fatal(const char *func, int rv)
-{
-	fprintf(stderr, "%s: %s\n", func, nng_strerror(rv));
-}
-
 static int
 apply_sqlite_config(
     nng_socket *sock, conf_bridge_node *config, const char *db_name)
@@ -38,7 +33,7 @@ apply_sqlite_config(
 	// create sqlite option
 	nng_mqtt_sqlite_option *opt;
 	if ((rv = nng_mqtt_alloc_sqlite_opt(&opt)) != 0) {
-		fatal("nng_mqtt_alloc_sqlite_opt", rv);
+		nng_fatal("nng_mqtt_alloc_sqlite_opt", rv);
 	}
 
 	nng_mqtt_set_sqlite_conf(opt, config);
@@ -314,12 +309,12 @@ hybrid_bridge_tcp_client(bridge_param *bridge_arg)
 
 	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 		if ((rv = nng_mqttv5_client_open(sock)) != 0) {
-			fatal("nng_mqttv5_client_open", rv);
+			nng_fatal("nng_mqttv5_client_open", rv);
 			return rv;
 		}
 	} else {
 		if ((rv = nng_mqtt_client_open(sock)) != 0) {
-			fatal("nng_mqtt_client_open", rv);
+			nng_fatal("nng_mqtt_client_open", rv);
 			return rv;
 		}
 	}
@@ -327,7 +322,7 @@ hybrid_bridge_tcp_client(bridge_param *bridge_arg)
 	apply_sqlite_config(sock, node, "mqtt_client.db");
 
 	if ((rv = nng_dialer_create(&dialer, *sock, node->address))) {
-		fatal("nng_dialer_create", rv);
+		nng_fatal("nng_dialer_create", rv);
 		return rv;
 	}
 
@@ -335,7 +330,7 @@ hybrid_bridge_tcp_client(bridge_param *bridge_arg)
 	if (node->tls.enable) {
 		if ((rv = init_dialer_tls(dialer, node->tls.ca, node->tls.cert,
 		         node->tls.key, node->tls.key_password)) != 0) {
-			fatal("init_dialer_tls", rv);
+			nng_fatal("init_dialer_tls", rv);
 		}
 	}
 #endif
@@ -387,12 +382,12 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 
 	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 		if ((rv = nng_mqttv5_client_open(sock)) != 0) {
-			fatal("nng_mqttv5_client_open", rv);
+			nng_fatal("nng_mqttv5_client_open", rv);
 			return rv;
 		}
 	} else {
 		if ((rv = nng_mqtt_client_open(sock)) != 0) {
-			fatal("nng_mqtt_client_open", rv);
+			nng_fatal("nng_mqtt_client_open", rv);
 			return rv;
 		}
 	}
@@ -400,7 +395,7 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	apply_sqlite_config(sock, node, "mqtt_client.db");
 
 	if ((rv = nng_dialer_create(&dialer, *sock, node->address))) {
-		fatal("nng_dialer_create", rv);
+		nng_fatal("nng_dialer_create", rv);
 		return rv;
 	}
 
@@ -408,7 +403,7 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	if (node->tls.enable) {
 		if ((rv = init_dialer_tls(dialer, node->tls.ca, node->tls.cert,
 		         node->tls.key, node->tls.key_password)) != 0) {
-			fatal("init_dialer_tls", rv);
+			nng_fatal("init_dialer_tls", rv);
 		}
 	}
 #endif
@@ -604,7 +599,7 @@ hybrid_bridge_quic_client(bridge_param *bridge_arg)
 
 	// keepalive here is for QUIC only
 	if ((rv = nng_mqtt_quic_open_keepalive(sock, node->address, (void *)node)) != 0) {
-		fatal("nng_mqtt_quic_client_open", rv);
+		nng_fatal("nng_mqtt_quic_client_open", rv);
 		return rv;
 	}
 	// TODO mqtt v5 protocol
@@ -655,7 +650,7 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 
 	// keepalive here is for QUIC only
 	if ((rv = nng_mqtt_quic_open_keepalive(sock, node->address, (void *)node)) != 0) {
-		fatal("nng_mqtt_quic_client_open", rv);
+		nng_fatal("nng_mqtt_quic_client_open", rv);
 		return rv;
 	}
 	// mqtt v5 protocol
@@ -737,12 +732,12 @@ hybridger_cb(void *arg)
 
 	int rv = nng_mtx_alloc(&bridge_arg->switch_mtx);
 	if (rv != 0) {
-		fatal("nng_mtx_alloc", rv);
+		nng_fatal("nng_mtx_alloc", rv);
 		return;
 	}
 	rv = nng_cv_alloc(&bridge_arg->switch_cv, bridge_arg->switch_mtx);
 	if (rv != 0) {
-		fatal("nng_cv_alloc", rv);
+		nng_fatal("nng_cv_alloc", rv);
 		return;
 	}
 
@@ -808,18 +803,18 @@ hybrid_bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 
 	int rv = nng_mtx_alloc(&bridge_arg->exec_mtx);
 	if (rv != 0) {
-		fatal("nng_mtx_alloc", rv);
+		nng_fatal("nng_mtx_alloc", rv);
 		return rv;
 	}
 	rv = nng_cv_alloc(&bridge_arg->exec_cv, bridge_arg->exec_mtx);
 	if (rv != 0) {
-		fatal("nng_cv_alloc", rv);
+		nng_fatal("nng_cv_alloc", rv);
 		return rv;
 	}
 
 	rv = nng_thread_create(&hybridger_thr, hybridger_cb, (void *)bridge_arg);
 	if (rv != 0) {
-		fatal("nng_thread_create", rv);
+		nng_fatal("nng_thread_create", rv);
 		return rv;
 	}
 
@@ -874,7 +869,7 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	     num++) {
 		if ((rv = nng_aio_alloc(
 		         &node->bridge_aio[num], bridge_send_cb, node)) != 0) {
-			fatal("bridge_aio nng_aio_alloc", rv);
+			nng_fatal("bridge_aio nng_aio_alloc", rv);
 		}
 		log_debug("parallel %d", num);
 	}

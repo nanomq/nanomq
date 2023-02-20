@@ -30,6 +30,7 @@
 #include "nng/supplemental/nanolib/hash_table.h"
 #include "nng/supplemental/nanolib/mqtt_db.h"
 #include "nng/supplemental/nanolib/log.h"
+#include "nng/supplemental/nanolib/utils.h"
 
 #include "include/acl_handler.h"
 #include "include/bridge.h"
@@ -153,13 +154,6 @@ intHandler(int dummy)
 }
 #endif
 
-void
-fatal(const char *func, int rv)
-{
-	fprintf(stderr, "%s: %s\n", func, nng_strerror(rv));
-	exit(1);
-}
-
 static inline bool
 bridge_handler(nano_work *work)
 {
@@ -262,7 +256,7 @@ server_cb(void *arg)
 			}
 		}
 		if ((msg = nng_aio_get_msg(work->aio)) == NULL) {
-			fatal("RECV NULL MSG", rv);
+			nng_fatal("RECV NULL MSG", rv);
 		}
 		if (work->proto == PROTO_MQTT_BRIDGE) {
 			uint8_t type;
@@ -491,7 +485,7 @@ server_cb(void *arg)
 		if (nng_msg_get_type(work->msg) == CMD_PUBLISH) {
 			if ((rv = nng_aio_result(work->aio)) != 0) {
 				log_error("WAIT nng aio result error: %d", rv);
-				fatal("WAIT nng_ctx_recv/send", rv);
+				nng_fatal("WAIT nng_ctx_recv/send", rv);
 			}
 			smsg      = work->msg; // reuse the same msg
 			cvector(mqtt_msg_info) msg_infos;
@@ -578,7 +572,7 @@ server_cb(void *arg)
 			work->msg = NULL;
 		}
 		if ((rv = nng_aio_result(work->aio)) != 0) {
-			fatal("SEND nng_ctx_send", rv);
+			nng_fatal("SEND nng_ctx_send", rv);
 		}
 		if (work->pub_packet != NULL) {
 			free_pub_packet(work->pub_packet);
@@ -604,7 +598,7 @@ server_cb(void *arg)
 		if (nng_msg_get_type(work->msg) == CMD_PUBLISH) {
 			if ((rv = nng_aio_result(work->aio)) != 0) {
 				log_error("WAIT nng aio result error: %d", rv);
-				fatal("WAIT nng_ctx_recv/send", rv);
+				nng_fatal("WAIT nng_ctx_recv/send", rv);
 			}
 			smsg      = work->msg; // reuse the same msg
 			work->msg = NULL;
@@ -702,7 +696,7 @@ server_cb(void *arg)
 		nng_ctx_recv(work->ctx, work->aio);
 		break;
 	default:
-		fatal("bad state!", NNG_ESTATE);
+		nng_fatal("bad state!", NNG_ESTATE);
 		break;
 	}
 }
@@ -714,13 +708,13 @@ alloc_work(nng_socket sock)
 	int          rv;
 
 	if ((w = nng_alloc(sizeof(*w))) == NULL) {
-		fatal("nng_alloc", NNG_ENOMEM);
+		nng_fatal("nng_alloc", NNG_ENOMEM);
 	}
 	if ((rv = nng_aio_alloc(&w->aio, server_cb, w)) != 0) {
-		fatal("nng_aio_alloc", rv);
+		nng_fatal("nng_aio_alloc", rv);
 	}
 	if ((rv = nng_ctx_open(&w->ctx, sock)) != 0) {
-		fatal("nng_ctx_open", rv);
+		nng_fatal("nng_ctx_open", rv);
 	}
 
 	w->pipe_ct = nng_alloc(sizeof(struct pipe_content));
@@ -747,29 +741,29 @@ proto_work_init(nng_socket sock,nng_socket inproc_sock, nng_socket bridge_sock, 
 	// only create ctx for extra ctx that are required to receive msg
 	if (config->http_server.enable && proto == PROTO_HTTP_SERVER) {
 		if ((rv = nng_ctx_open(&w->extra_ctx, inproc_sock)) != 0) {
-			fatal("nng_ctx_open", rv);
+			nng_fatal("nng_ctx_open", rv);
 		}
 	} else if (config->bridge_mode) {
 		if (proto == PROTO_MQTT_BRIDGE) {
 			if ((rv = nng_ctx_open(&w->extra_ctx, bridge_sock)) !=
 			    0) {
-				fatal("nng_ctx_open", rv);
+				nng_fatal("nng_ctx_open", rv);
 			}
 		} else if (proto == PROTO_AWS_BRIDGE) {
 			if ((rv = nng_ctx_open(&w->extra_ctx, inproc_sock)) !=
 			    0) {
-				fatal("nng_ctx_open", rv);
+				nng_fatal("nng_ctx_open", rv);
 			}
 		}
 	}
 
 	if(config->web_hook.enable) {
 		if ((rv = nng_push0_open(&w->webhook_sock)) != 0) {
-			fatal("nng_socket", rv);
+			nng_fatal("nng_socket", rv);
 		}
 		if ((rv = nng_dial(w->webhook_sock, WEB_HOOK_INPROC_URL, NULL,
 		         0)) != 0) {
-			fatal("nng_dial", rv);
+			nng_fatal("nng_dial", rv);
 		}
 	}
 
@@ -866,7 +860,7 @@ broker(conf *nanomq_conf)
 	sock.data            = nanomq_conf;
 	rv                   = nng_nmq_tcp0_open(&sock);
 	if (rv != 0) {
-		fatal("nng_nmq_tcp0_open", rv);
+		nng_fatal("nng_nmq_tcp0_open", rv);
 	}
 	log_debug("listener init finished");
 
@@ -877,7 +871,7 @@ broker(conf *nanomq_conf)
 		log_debug("HTTP service initialization");
 		rv = nng_rep0_open(&inproc_sock);
 		if (rv != 0) {
-			fatal("nng_rep0_open", rv);
+			nng_fatal("nng_rep0_open", rv);
 		}
 		// set 4 ctx for HTPP as default
 		if (nanomq_conf->http_server.enable) {
@@ -983,7 +977,7 @@ broker(conf *nanomq_conf)
 
 	if (nanomq_conf->enable) {
 		if ((rv = nano_listen(sock, nanomq_conf->url, NULL, 0, nanomq_conf)) != 0) {
-			fatal("nng_listen", rv);
+			nng_fatal("nng_listen", rv);
 		}
 	}
 
@@ -991,7 +985,7 @@ broker(conf *nanomq_conf)
 	if (nanomq_conf->websocket.enable) {
 		if ((rv = nano_listen(
 		         sock, nanomq_conf->websocket.url, NULL, 0, nanomq_conf)) != 0) {
-			fatal("nng_listen ws", rv);
+			nng_fatal("nng_listen ws", rv);
 		}
 	}
 
@@ -1000,25 +994,25 @@ broker(conf *nanomq_conf)
 
 		if ((rv = nng_listener_create(
 		         &tls_listener, sock, nanomq_conf->tls.url)) != 0) {
-			fatal("nng_listener_create tls", rv);
+			nng_fatal("nng_listener_create tls", rv);
 		}
 		nng_listener_set(
 		    tls_listener, NANO_CONF, nanomq_conf, sizeof(nanomq_conf));
 
 		init_listener_tls(tls_listener, &nanomq_conf->tls);
 		if ((rv = nng_listener_start(tls_listener, 0)) != 0) {
-			fatal("nng_listener_start tls", rv);
+			nng_fatal("nng_listener_start tls", rv);
 		}
 		// TODO websocket ssl 
 		// if (nanomq_conf->websocket.enable) {
 		// 	nng_listener wss_listener;
 		// 	if ((rv = nng_listener_create(&wss_listener, sock,
 		// 	         nanomq_conf->tls.url)) != 0) {
-		// 		fatal("nng_listener_create wss", rv);
+		// 		nng_fatal("nng_listener_create wss", rv);
 		// 	}
 		// 	init_listener_tls(wss_listener, &nanomq_conf->tls);
 		// 	if ((rv = nng_listener_start(wss_listener, 0)) != 0) {
-		// 		fatal("nng_listener_start wss", rv);
+		// 		nng_fatal("nng_listener_start wss", rv);
 		// 	}
 		// }
 	}
@@ -1026,7 +1020,7 @@ broker(conf *nanomq_conf)
 	if (nanomq_conf->http_server.enable || nanomq_conf->bridge_mode) {
 		if ((rv = nano_listen(inproc_sock, INPROC_SERVER_URL, NULL, 0,
 		         nanomq_conf)) != 0) {
-			fatal("nng_listen " INPROC_SERVER_URL, rv);
+			nng_fatal("nng_listen " INPROC_SERVER_URL, rv);
 		}
 	}
 
@@ -1046,7 +1040,7 @@ broker(conf *nanomq_conf)
 		/*  Create the IPC socket for CMD Server. */
 		rv = nng_rep0_open(&cmd_sock);
 		if (rv != 0) {
-			fatal("CMD socket ERROR: nng_rep0_open", rv);
+			nng_fatal("CMD socket ERROR: nng_rep0_open", rv);
 		}
 
 		for (i = 0; i < CMD_PROC_PARALLEL; i++) {
@@ -1056,7 +1050,7 @@ broker(conf *nanomq_conf)
 		if (nano_file_exists(IPC_URL_PATH))
 			nng_file_delete(IPC_URL_PATH);
 		if ((rv = nng_listen(cmd_sock, CMD_IPC_URL, NULL, 0)) != 0) {
-			fatal("nng_listen", rv);
+			nng_fatal("nng_listen", rv);
 		}
 
 		for (i = 0; i < CMD_PROC_PARALLEL; i++) {
@@ -1585,7 +1579,7 @@ broker_start(int argc, char **argv)
 	}
 #if defined(ENABLE_LOG)
 	if ((rc = log_init(&nanomq_conf->log)) != 0) {
-		fatal("log_init", rc);
+		nng_fatal("log_init", rc);
 	}
 #endif
 	print_conf(nanomq_conf);
