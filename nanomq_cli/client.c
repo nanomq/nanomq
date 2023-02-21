@@ -546,10 +546,10 @@ long_arg(const char *val, long minv, long maxv)
 		val++;
 		if (v > maxv) {
 			fatal(
-			    "Integer argument too large (value < %d).", maxv);
+			    "Integer argument too large (value < %ld).", maxv);
 		} else if (v < minv) {
 			fatal(
-			    "Integer argument too small (value > %d).", minv);
+			    "Integer argument too small (value > %ld).", minv);
 		}
 	}
 	if (v < 0) {
