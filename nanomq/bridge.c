@@ -89,8 +89,8 @@ send_callback(void *arg)
 	type = nng_msg_get_type(msg);
 	if (type == CMD_SUBACK) {
 		code = nng_mqtt_msg_get_suback_return_codes(msg, &count);
-		log_debug("suback return code %d \n", *(code));
-		log_debug("bridge: subscribe result %d \n", nng_aio_result(aio));
+		log_info("bridge: suback return code %d \n", *(code));
+		log_info("bridge: subscribe result %d \n", nng_aio_result(aio));
 		nng_msg_free(msg);
 	} else if(type == CMD_CONNECT) {
 		log_debug("bridge connect msg send complete");
