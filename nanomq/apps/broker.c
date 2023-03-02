@@ -436,6 +436,7 @@ server_cb(void *arg)
 				nng_msg_clone(work->msg);
 				nng_aio_set_msg(work->aio, work->msg);
 				nng_ctx_send(work->ctx, work->aio);
+				dbhash_insert_client(work->pid.id);
 			}
 			smsg = nano_msg_notify_connect(work->cparam, reason_code);
 			webhook_entry(work, reason_code);

@@ -1018,28 +1018,28 @@ get_clients(http_msg *msg, kv **params, size_t param_num,
 
  	cJSON *data_info;
  	data_info = cJSON_CreateArray();
- 
- 	dbtree *          db   = get_broker_db();
- 	dbhash_ptpair_t **pt   = dbhash_get_ptpair_all();
- 	size_t            size = cvector_size(pt);
- 	for (size_t i = 0; i < size; i++) {
-		nng_pipe pipe = {.id = pt[i]->pipe };
+
+	dbtree *  db      = get_broker_db();
+	uint32_t *pipe_id = dbhash_get_ptpair_pid_all();
+	size_t    size    = cvector_size(pipe_id);
+
+	for (size_t i = 0; i < size; i++) {
+		nng_pipe pipe = {.id = pipe_id[i]};
 		conn_param *cp = nng_pipe_cparam(pipe);
  		const uint8_t *cid  = conn_param_get_clientid(cp);
- 		if (client_id != NULL) {
+		if (client_id != NULL) {
 			if (strcmp(client_id, (const char *) cid) != 0) {
-				goto skip;
+				continue;
 			}
 		}
- 		const uint8_t *user_name =
- 		    conn_param_get_username(cp);
- 		if (username != NULL) {
+		const uint8_t *user_name = conn_param_get_username(cp);
+		if (username != NULL) {
 			if (user_name == NULL ||
 			    strcmp(username, (const char *) user_name) != 0) {
-				goto skip;
+				continue;
 			}
 		}
- 		uint16_t keep_alive = conn_param_get_keepalive(cp);
+		uint16_t keep_alive = conn_param_get_keepalive(cp);
  		const uint8_t proto_ver =
  		    conn_param_get_protover(cp);
 		const char *proto_name =
@@ -1054,7 +1054,8 @@ get_clients(http_msg *msg, kv **params, size_t param_num,
  		    user_name == NULL ? "" : (char *) user_name);
  		cJSON_AddNumberToObject(
  		    data_info_elem, "keepalive", keep_alive);
- 		cJSON_AddStringToObject(
+		// TODO get realtime connect state
+		cJSON_AddStringToObject(
  		    data_info_elem, "conn_state", "connected");
  		cJSON_AddBoolToObject(
  		    data_info_elem, "clean_start", clean_start);
@@ -1069,11 +1070,8 @@ get_clients(http_msg *msg, kv **params, size_t param_num,
  // #endif
  		cJSON_AddItemToArray(data_info, data_info_elem);
  
- 	skip:
- 		dbhash_ptpair_free(pt[i]);
- 
- 	}
- 	cvector_free(pt);
+	}
+	cvector_free(pipe_id);
  
  	cJSON *res_obj;
  
