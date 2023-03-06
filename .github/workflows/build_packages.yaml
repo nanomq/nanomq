@@ -66,7 +66,7 @@ jobs:
     - name: install mbed-tls
       run: |
         set -eu
-        git clone https://github.com/Mbed-TLS/mbedtls.git && cd mbedtls
+        git clone https://github.com/Mbed-TLS/mbedtls.git && cd mbedtls &&  git checkout tags/v3.3.0
         mkdir build && cd build
         cmake -DCMAKE_C_COMPILER=${{ matrix.arch[1] }} -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }} -DENABLE_TESTING=OFF ..
         cmake --build .
