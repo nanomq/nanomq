@@ -291,7 +291,7 @@ static http_msg error_response(
 
 static http_msg get_endpoints(http_msg *msg);
 static http_msg get_brokers(http_msg *msg);
-static http_msg get_nodes(http_msg *msg);
+static http_msg get_nodes(http_msg *msg, nng_socket *broker_sock);
 static http_msg get_clients(http_msg *msg, kv **params, size_t param_num,
     const char *client_id, const char *username, nng_socket *broker_sock);
 static http_msg get_subscriptions(
@@ -710,7 +710,7 @@ process_request(http_msg *msg, conf_http_server *config, nng_socket *sock)
 		} else if (uri_ct->sub_count == 2 &&
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "nodes") == 0) {
-			ret = get_nodes(msg);
+			ret = get_nodes(msg, config->broker_sock);
 		} else if (uri_ct->sub_count == 2 &&
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "clients") == 0) {
@@ -979,8 +979,16 @@ get_brokers(http_msg *msg)
 	return res;
 }
 
+static void
+get_conn_count_cb(void *key, void *value, void *arg)
+{
+	uint32_t count = *(uint32_t *) arg;
+	count++;
+	*(uint32_t *) arg = count;
+}
+
 static http_msg
-get_nodes(http_msg *msg)
+get_nodes(http_msg *msg, nng_socket *broker_sock)
 {
 	http_msg res = { .status = NNG_HTTP_STATUS_OK };
 
@@ -995,7 +1003,17 @@ get_nodes(http_msg *msg)
 	cJSON *array = cJSON_CreateArray();
 	cJSON *item  = cJSON_CreateObject();
 
-	cJSON_AddNumberToObject(item, "connections", dbhash_get_pipe_cnt());
+	uint32_t conn_count = 0;
+
+	nng_id_map *pipe_id_map;
+
+	if (nng_socket_get_ptr(*broker_sock, NMQ_OPT_MQTT_PIPES,
+	        (void **) &pipe_id_map) == 0) {
+		nng_id_map_foreach2(
+		    pipe_id_map, get_conn_count_cb, &conn_count);
+	}
+
+	cJSON_AddNumberToObject(item, "connections", conn_count);
 	cJSON_AddStringToObject(item, "node_status", "Running");
 	cJSON_AddStringToObject(item, "uptime", runtime);
 	cJSON_AddStringToObject(item, "version", version);
