@@ -22,6 +22,7 @@
 #include "nng/nng.h"
 #include "nng/mqtt/mqtt_client.h"
 #include "nng/protocol/mqtt/mqtt_parser.h"
+#include "nng/protocol/mqtt/nmq_mqtt.h"
 #include "nng/supplemental/http/http.h"
 #include "nng/supplemental/util/platform.h"
 #include "nng/supplemental/nanolib/log.h"
@@ -292,7 +293,7 @@ static http_msg get_endpoints(http_msg *msg);
 static http_msg get_brokers(http_msg *msg);
 static http_msg get_nodes(http_msg *msg);
 static http_msg get_clients(http_msg *msg, kv **params, size_t param_num,
-    const char *client_id, const char *username);
+    const char *client_id, const char *username, nng_socket *broker_sock);
 static http_msg get_subscriptions(
     http_msg *msg, kv **params, size_t param_num, const char *client_id);
 static http_msg  get_rules(
@@ -714,20 +715,20 @@ process_request(http_msg *msg, conf_http_server *config, nng_socket *sock)
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "clients") == 0) {
 			ret = get_clients(msg, uri_ct->params,
-			    uri_ct->params_count, NULL, NULL);
+			    uri_ct->params_count, NULL, NULL, config->broker_sock);
 		} else if (uri_ct->sub_count == 3 &&
 		    uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "clients") == 0) {
 			ret = get_clients(msg, uri_ct->params,
 			    uri_ct->params_count, uri_ct->sub_tree[2]->node,
-			    NULL);
+			    NULL, config->broker_sock);
 		} else if (uri_ct->sub_count == 4 &&
 		    uri_ct->sub_tree[3]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "clients") == 0 &&
 		    strcmp(uri_ct->sub_tree[2]->node, "username") == 0) {
 			ret = get_clients(msg, uri_ct->params,
 			    uri_ct->params_count, NULL,
-			    uri_ct->sub_tree[3]->node);
+			    uri_ct->sub_tree[3]->node, config->broker_sock);
 		} else if (uri_ct->sub_count == 2 &&
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "subscriptions") == 0) {
@@ -1010,73 +1011,85 @@ get_nodes(http_msg *msg)
 	return res;
 }
 
+typedef struct {
+	cJSON *array;
+	char * client_id;
+	char * username;
+} client_info;
+
+static void
+get_client_cb(void *key, void *value, void *json_obj)
+{
+	client_info *info    = json_obj;
+	uint32_t     pipe_id = *(uint32_t *) key;
+	nng_pipe     pipe    = { .id = pipe_id };
+
+	conn_param *   cp  = nng_pipe_cparam(pipe);
+	const uint8_t *cid = conn_param_get_clientid(cp);
+	if (info->client_id != NULL) {
+		if (strcmp(info->client_id, (const char *) cid) != 0) {
+			return;
+		}
+	}
+	const uint8_t *user_name = conn_param_get_username(cp);
+	if (info->username != NULL) {
+		if (user_name == NULL ||
+		    strcmp(info->username, (const char *) user_name) != 0) {
+			return;
+		}
+	}
+
+	uint16_t      keep_alive  = conn_param_get_keepalive(cp);
+	const uint8_t proto_ver   = conn_param_get_protover(cp);
+	const char *  proto_name  = (const char *) conn_param_get_pro_name(cp);
+	const bool    clean_start = conn_param_get_clean_start(cp);
+
+	cJSON *data_info_elem;
+	data_info_elem = cJSON_CreateObject();
+	cJSON_AddStringToObject(data_info_elem, "client_id", (char *) cid);
+	cJSON_AddStringToObject(data_info_elem, "username",
+	    user_name == NULL ? "" : (char *) user_name);
+	cJSON_AddNumberToObject(data_info_elem, "keepalive", keep_alive);
+	//TODO Get connect state from nano_pipe
+	cJSON_AddStringToObject(data_info_elem, "conn_state", "connected");
+	cJSON_AddBoolToObject(data_info_elem, "clean_start", clean_start);
+	cJSON_AddStringToObject(data_info_elem, "proto_name", proto_name);
+	cJSON_AddNumberToObject(data_info_elem, "proto_ver", proto_ver);
+	// #ifdef STATISTICS
+	// 		cJSON_AddNumberToObject(data_info_elem, "recv_msg",
+	// 		    ctxt->recv_cnt != NULL ?
+	// nng_atomic_get64(ctxt->recv_cnt) : 0); #endif
+	cJSON_AddItemToArray(info->array, data_info_elem);
+}
+
 static http_msg
 get_clients(http_msg *msg, kv **params, size_t param_num,
-    const char *client_id, const char *username)
+    const char *client_id, const char *username, nng_socket *broker_sock)
 {
 	http_msg res = { .status = NNG_HTTP_STATUS_OK };
 
  	cJSON *data_info;
- 	data_info = cJSON_CreateArray();
- 
- 	dbtree *          db   = get_broker_db();
- 	dbhash_ptpair_t **pt   = dbhash_get_ptpair_all();
- 	size_t            size = cvector_size(pt);
- 	for (size_t i = 0; i < size; i++) {
-		nng_pipe pipe = {.id = pt[i]->pipe };
-		conn_param *cp = nng_pipe_cparam(pipe);
- 		const uint8_t *cid  = conn_param_get_clientid(cp);
- 		if (client_id != NULL) {
-			if (strcmp(client_id, (const char *) cid) != 0) {
-				goto skip;
-			}
-		}
- 		const uint8_t *user_name =
- 		    conn_param_get_username(cp);
- 		if (username != NULL) {
-			if (user_name == NULL ||
-			    strcmp(username, (const char *) user_name) != 0) {
-				goto skip;
-			}
-		}
- 		uint16_t keep_alive = conn_param_get_keepalive(cp);
- 		const uint8_t proto_ver =
- 		    conn_param_get_protover(cp);
-		const char *proto_name =
-		    (const char *) conn_param_get_pro_name(cp);
-		const bool clean_start = conn_param_get_clean_start(cp);
+	cJSON *res_obj;
+	data_info = cJSON_CreateArray();
 
-		cJSON *data_info_elem;
- 		data_info_elem = cJSON_CreateObject();
- 		cJSON_AddStringToObject(
- 		    data_info_elem, "client_id", (char *) cid);
- 		cJSON_AddStringToObject(data_info_elem, "username",
- 		    user_name == NULL ? "" : (char *) user_name);
- 		cJSON_AddNumberToObject(
- 		    data_info_elem, "keepalive", keep_alive);
- 		cJSON_AddStringToObject(
- 		    data_info_elem, "conn_state", "connected");
- 		cJSON_AddBoolToObject(
- 		    data_info_elem, "clean_start", clean_start);
- 		cJSON_AddStringToObject(
- 		    data_info_elem, "proto_name", proto_name);
- 		cJSON_AddNumberToObject(
- 		    data_info_elem, "proto_ver", proto_ver);
- // #ifdef STATISTICS
- // 		cJSON_AddNumberToObject(data_info_elem, "recv_msg",
- // 		    ctxt->recv_cnt != NULL ? nng_atomic_get64(ctxt->recv_cnt)
- // 		                           : 0);
- // #endif
- 		cJSON_AddItemToArray(data_info, data_info_elem);
- 
- 	skip:
- 		dbhash_ptpair_free(pt[i]);
- 
- 	}
- 	cvector_free(pt);
- 
- 	cJSON *res_obj;
- 
+	nng_id_map *pipe_id_map;
+
+	if (nng_socket_get_ptr(*broker_sock, NMQ_OPT_MQTT_PIPES,
+	        (void **) &pipe_id_map) != 0) {
+		goto out;
+	}
+
+	
+	client_info info = {
+		.array     = data_info,
+		.client_id = (char *) client_id,
+		.username  = (char *) username,
+	};
+
+	nng_id_map_foreach2(pipe_id_map, get_client_cb, &info);
+
+ out:
+
  	res_obj = cJSON_CreateObject();
  	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
  

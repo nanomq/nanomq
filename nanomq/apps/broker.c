@@ -1029,6 +1029,7 @@ broker(conf *nanomq_conf)
 	}
 
 	if (nanomq_conf->http_server.enable) {
+		nanomq_conf->http_server.broker_sock = &sock;
 		start_rest_server(nanomq_conf);
 	}
 
