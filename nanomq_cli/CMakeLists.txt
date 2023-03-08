@@ -38,7 +38,7 @@ endif(BUILD_DDS_PROXY)
 target_link_libraries(nanomq_cli nng)
 
 if(BUILD_QUIC_CLI)
-  target_link_libraries(nanomq_cli msquic OpenSSL)
+  target_link_libraries(nanomq_cli msquic OpenSSLQuic)
 endif(BUILD_QUIC_CLI)
 
 if(BUILD_ZMQ_GATEWAY)

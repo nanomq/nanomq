@@ -99,7 +99,7 @@ endif(ENABLE_JWT)
 
 if(NNG_ENABLE_QUIC)
   target_link_libraries(nanomq msquic)
-  target_link_libraries(nanomq OpenSSL)
+  target_link_libraries(nanomq OpenSSLQuic)
 endif(NNG_ENABLE_QUIC)
 
 target_link_libraries(nanomq apps nng)
