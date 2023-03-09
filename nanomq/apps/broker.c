@@ -1148,40 +1148,7 @@ print_usage(void)
 int
 status_check(int *pid)
 {
-#ifdef NANO_PLATFORM_WINDOWS
-	(void) pid;
-	log_warn("Not support on Windows\n");
 	return -1;
-#else
-	char  *data = NULL;
-	size_t size = 0;
-
-	int rc;
-	if ((rc = nng_file_get(PID_PATH_NAME, (void *) &data, &size)) != 0) {
-		nng_free(data, size);
-		log_warn(".pid file not found or unreadable\n");
-		return 1;
-	} else {
-		if ((data) != NULL) {
-			sscanf(data, "%u", pid);
-			log_info("pid read, [%u]", *pid);
-			nng_free(data, size);
-
-			if ((kill(*pid, 0)) == 0) {
-				log_info("there is a running NanoMQ instance "
-				          ": pid [%u]",
-				    *pid);
-				return 0;
-			}
-		}
-		if (!nng_file_delete(PID_PATH_NAME)) {
-			log_info(".pid file is removed");
-			return 1;
-		}
-		log_error("unexpected error");
-		return -1;
-	}
-#endif
 }
 
 int
