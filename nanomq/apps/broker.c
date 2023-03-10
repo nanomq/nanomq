@@ -338,7 +338,7 @@ server_cb(void *arg)
 				for (int i = 0;
 				     i < cvector_size(work->msg_ret) &&
 				     check_msg_exp(work->msg_ret[i],
-				         nng_msg_get_proto_data(
+				         nng_mqtt_msg_get_publish_property(
 				             work->msg_ret[i]));
 				     i++) {
 					nng_msg *m = work->msg_ret[i];
