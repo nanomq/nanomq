@@ -15,6 +15,7 @@
 #endif
 
 #include "nng/mqtt/mqtt_client.h"
+#include "nng/protocol/mqtt/nmq_mqtt.h"
 #include "nng/supplemental/tls/tls.h"
 #include "nng/supplemental/util/options.h"
 #include "nng/supplemental/util/platform.h"
@@ -737,6 +738,12 @@ proto_work_init(nng_socket sock,nng_socket inproc_sock, nng_socket bridge_sock, 
 	w->proto  = proto;
 	w->config = config;
 	w->code   = SUCCESS;
+
+	w->sqlite_db = NULL;
+
+#if defined(NNG_SUPP_SQLITE)
+	nng_socket_get_ptr(sock, NMQ_OPT_MQTT_QOS_DB, &w->sqlite_db);
+#endif
 
 	// only create ctx for extra ctx that are required to receive msg
 	if (config->http_server.enable && proto == PROTO_HTTP_SERVER) {

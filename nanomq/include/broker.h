@@ -53,6 +53,8 @@ struct work {
 	struct pub_packet_struct *pub_packet;
 	packet_subscribe *        sub_pkt;
 	packet_unsubscribe *      unsub_pkt;
+
+	void *sqlite_db;
 };
 
 struct client_ctx {
