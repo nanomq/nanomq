@@ -343,7 +343,11 @@ server_cb(void *arg)
 				             work->msg_ret[i]));
 				     i++) {
 					nng_msg *m = work->msg_ret[i];
-					nng_msg_clone(m);
+					if (!work->config->sqlite.enable) {
+						// Unnecessary to clone msg if
+						// alloced from sqlite db
+						nng_msg_clone(m);
+					}
 					work->msg = m;
 					nng_aio_set_msg(work->aio, work->msg);
 					nng_msg_set_pipe(work->msg, work->pid);
