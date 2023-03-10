@@ -1173,7 +1173,24 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto, bool is
 }
 
 #if ENABLE_RETAIN
-static void inline handle_pub_retain(const nano_work *work, char *topic)
+
+#if defined(NNG_SUPP_SQLITE)
+
+static void inline handle_pub_retain_sqlite(const nano_work *work, char *topic)
+{
+	if (work->pub_packet->fixed_header.retain) {
+		if (work->pub_packet->payload.len > 0) {
+			nng_mqtt_qos_db_set_retain(
+			    work->sqlite_db, topic, work->msg);
+		} else {
+			nng_mqtt_qos_db_remove_retain(work->sqlite_db, topic);
+		}
+	}
+}
+
+#endif
+
+static void inline handle_pub_retain_dbtree(const nano_work *work, char *topic)
 {
 	dbtree_retain_msg *retain = NULL;
 
@@ -1221,7 +1238,20 @@ static void inline handle_pub_retain(const nano_work *work, char *topic)
 		}
 	}
 }
+
+static void inline handle_pub_retain(const nano_work *work, char *topic)
+{
+#if defined(NNG_SUPP_SQLITE)
+	if (work->config->sqlite.enable && work->sqlite_db) {
+		handle_pub_retain_sqlite(work, topic);
+		return;
+	}
 #endif
+	handle_pub_retain_dbtree(work, topic);
+}
+
+#endif
+
 
 void
 free_pub_packet(struct pub_packet_struct *pub_packet)
