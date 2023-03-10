@@ -1196,15 +1196,10 @@ static void inline handle_pub_retain(const nano_work *work, char *topic)
 			if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5 &&
 			    work->pub_packet->var_header.publish.properties !=
 			        NULL) {
-				property_dup(&prop,
-				    work->pub_packet->var_header.publish
-				        .properties);
 				if (work->proto == PROTO_MQTT_BROKER) {
 					nng_mqtt_msg_proto_data_alloc(retain->message);
 					nng_mqttv5_msg_decode(retain->message);
 				}
-				nng_msg_proto_set_property(
-				    retain->message, (void *) prop);
 			}
 			log_debug("found retain [%p], message: [%p][%p]\n",
 			    retain, retain->message,
