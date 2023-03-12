@@ -15,6 +15,7 @@
 #endif
 
 #include "nng/mqtt/mqtt_client.h"
+#include "nng/protocol/mqtt/nmq_mqtt.h"
 #include "nng/supplemental/tls/tls.h"
 #include "nng/supplemental/util/options.h"
 #include "nng/supplemental/util/platform.h"
@@ -336,13 +337,16 @@ server_cb(void *arg)
 				    work->msg_ret,
 				    cvector_size(work->msg_ret));
 				for (int i = 0;
-				     i < cvector_size(work->msg_ret) &&
+				     i < cvector_size(work->msg_ret) /*&&
 				     check_msg_exp(work->msg_ret[i],
-				         nng_mqtt_msg_get_publish_property(
-				             work->msg_ret[i]));
-				     i++) {
+				     nng_mqtt_msg_get_publish_property(
+				         work->msg_ret[i]));i++) {
 					nng_msg *m = work->msg_ret[i];
-					nng_msg_clone(m);
+					if (!work->config->sqlite.enable) {
+						// Unnecessary to clone msg if
+						// alloced from sqlite db
+						nng_msg_clone(m);
+					}
 					work->msg = m;
 					nng_aio_set_msg(work->aio, work->msg);
 					nng_msg_set_pipe(work->msg, work->pid);
@@ -737,6 +741,12 @@ proto_work_init(nng_socket sock,nng_socket inproc_sock, nng_socket bridge_sock, 
 	w->proto  = proto;
 	w->config = config;
 	w->code   = SUCCESS;
+
+	w->sqlite_db = NULL;
+
+#if defined(NNG_SUPP_SQLITE)
+	nng_socket_get_ptr(sock, NMQ_OPT_MQTT_QOS_DB, &w->sqlite_db);
+#endif
 
 	// only create ctx for extra ctx that are required to receive msg
 	if (config->http_server.enable && proto == PROTO_HTTP_SERVER) {

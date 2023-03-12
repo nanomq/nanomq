@@ -289,6 +289,28 @@ sub_ctx_handle(nano_work *work)
 		// Retain msg
 		uint8_t rh = tn->retain_handling;
 
+#if defined(NNG_SUPP_SQLITE)
+		if (work->config->sqlite.enable && work->sqlite_db != NULL) {
+			if (rh == 0 || (rh == 1 && !topic_exist)) {
+				nng_msg **msg_vec =
+				    nng_mqtt_qos_db_find_retain(
+				        work->sqlite_db, topic_str);
+
+				if (msg_vec != NULL) {
+					for (size_t i = 0;
+					     i < cvector_size(msg_vec); i++) {
+						if (msg_vec[i] != NULL) {
+							cvector_push_back(
+							    work->msg_ret,
+							    msg_vec[i]);
+						}
+					}
+					cvector_free(msg_vec);
+				}
+			}
+			goto next;
+		}
+#endif
 		if (rh == 0 || (rh == 1 && !topic_exist))
 			r = dbtree_find_retain(work->db_ret, topic_str);
 
