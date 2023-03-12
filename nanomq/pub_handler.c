@@ -1181,7 +1181,7 @@ static void inline handle_pub_retain_sqlite(const nano_work *work, char *topic)
 	if (work->pub_packet->fixed_header.retain) {
 		if (work->pub_packet->payload.len > 0) {
 			nng_mqtt_qos_db_set_retain(
-			    work->sqlite_db, topic, work->msg);
+			    work->sqlite_db, topic, work->msg, work->proto_ver);
 		} else {
 			nng_mqtt_qos_db_remove_retain(work->sqlite_db, topic);
 		}
@@ -1210,11 +1210,11 @@ static void inline handle_pub_retain_dbtree(const nano_work *work, char *topic)
 			retain->exist   = true;
 			retain->m       = NULL;
 			// reserve property info
+			nng_mqtt_msg_proto_data_alloc(retain->message);
 			if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5 &&
 			    work->pub_packet->var_header.publish.properties !=
 			        NULL) {
 				if (work->proto == PROTO_MQTT_BROKER) {
-					nng_mqtt_msg_proto_data_alloc(retain->message);
 					nng_mqttv5_msg_decode(retain->message);
 				}
 			}
