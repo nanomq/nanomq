@@ -337,10 +337,11 @@ server_cb(void *arg)
 				    work->msg_ret,
 				    cvector_size(work->msg_ret));
 				for (int i = 0;
-				     i < cvector_size(work->msg_ret) /*&&
+				     i < cvector_size(work->msg_ret) &&
 				     check_msg_exp(work->msg_ret[i],
-				     nng_mqtt_msg_get_publish_property(
-				         work->msg_ret[i]));i++) {
+				         nng_mqtt_msg_get_publish_property(
+				             work->msg_ret[i]));
+				     i++) {
 					nng_msg *m = work->msg_ret[i];
 					if (!work->config->sqlite.enable) {
 						// Unnecessary to clone msg if
