@@ -13,9 +13,10 @@ from tls_v5_test import tls_v5_test
 from ws_test import ws_test
 from ws_v5_test import ws_v5_test
 from fuzzy_test import fuzzy_test
+from rest_api_test import rest_api_test
 
 nanomq_log_path = "/tmp/nanomq_test.log" 
-nanomq_cmd = "nanomq start --url tls+nmq-tcp://0.0.0.0:8883 --cacert etc/certs/cacert.pem --cert etc/certs/cert.pem --key etc/certs/key.pem --qos_duration 1 --log_level debug  --log_stdout false --log_file /tmp/nanomq_test.log"
+nanomq_cmd = "nanomq start --url tls+nmq-tcp://0.0.0.0:8883 --http --cacert etc/certs/cacert.pem --cert etc/certs/cert.pem --key etc/certs/key.pem --qos_duration 1 --log_level debug  --log_stdout false --log_file /tmp/nanomq_test.log"
 
 def print_nanomq_log():
     log_lines = open(nanomq_log_path, 'r')
@@ -84,6 +85,15 @@ if __name__=='__main__':
         print_nanomq_log()
         raise AssertionError
     print("fuzzy test end")
+
+    print("rest api test start")
+    if False == rest_api_test():
+        nanomq.terminate()
+        print("mqtt v311 test failed")
+        print_nanomq_log()
+        raise AssertionError
+    print("rest api test end")
+
 
     time.sleep(2)
 

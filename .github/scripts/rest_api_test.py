@@ -46,7 +46,7 @@ def test_post_api():
     param_list = [param1, param2]
 
     for item in param_list:
-        print("testing Post API: " + item.path)
+        print("testing Post API: " + base_url + item.path)
         response = requests.post(
             base_url + item.path, json.dumps(item.payload), auth=('admin', 'public'))
         if response.status_code != 200:
