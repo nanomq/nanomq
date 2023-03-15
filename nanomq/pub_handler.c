@@ -1555,10 +1555,11 @@ decode_pub_message(nano_work *work, uint8_t proto)
 			if (pub_packet->var_header.publish.properties) {
 				if (check_properties(
 				        pub_packet->var_header.publish
-				            .properties) != 0 ||
-				    property_get_value(pub_packet->var_header
-				                           .publish.properties,
-				        SUBSCRIPTION_IDENTIFIER) != NULL) {
+				            .properties) != 0) {
+					// check if subid exist in publish msg from client
+				    // property_get_value(pub_packet->var_header
+				    //                        .publish.properties,
+				    //     SUBSCRIPTION_IDENTIFIER) != NULL
 					return PROTOCOL_ERROR;
 				}
 			}
