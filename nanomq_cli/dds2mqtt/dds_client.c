@@ -15,6 +15,7 @@
 #include "dds/ddsrt/heap.h"
 #include "nng/supplemental/nanolib/file.h"
 #include "vector.h"
+#include "idl_convert.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -373,10 +374,13 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 			    (char *) nng_mqtt_msg_get_publish_payload(
 			        mqttmsg, &len);
 			midmsg.len = len;
-			msg        = (DDS_TYPE_NAME *) samples[0];
-			mqtt_to_dds_type_convert(&midmsg, msg);
+			// msg        = (DDS_TYPE_NAME *) samples[0];
+			// mqtt_to_dds_type_convert(&midmsg, msg);
+			DDS_TYPE_NAME *dds_msg =
+			    mqtt_to_dds_example_struct_convert(
+			        cJSON_Parse(midmsg.payload));
 			/* Send the msg received */
-			rc = dds_write(writer, msg);
+			rc = dds_write(writer, dds_msg);
 			if (rc != DDS_RETCODE_OK)
 				DDS_FATAL(
 				    "dds_write: %s\n", dds_strretcode(-rc));

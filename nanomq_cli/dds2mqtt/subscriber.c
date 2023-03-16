@@ -118,9 +118,23 @@ print_dds_msg(struct DDS_TYPE_NAME *msg)
 	printf("uint32_test:%d\n", msg->uint32_test);
 	printf("int64_test:%ld\n", msg->int64_test);
 	printf("uint64_test:%ld\n", msg->uint64_test);
-	printf("message:%s\n", msg->message);
+
+	printf("message:\n");
+	for (size_t i = 0; i < 256; i++)
+	{
+		printf("%02x ", msg->message[i]);
+	}
+	printf("\n");
+	
 	printf("example_enum:%d\n", msg->example_enum);
-	printf("example_stru.message:%s\n", msg->example_stru.message);
+	
+	printf("example_stru.message:\n");
+
+	for (size_t i = 0; i < 256; i++)
+	{
+		printf("%02x ", msg->example_stru.message[i]);
+	}
+	printf("\n");
 }
 
 #endif
