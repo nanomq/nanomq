@@ -11,6 +11,7 @@ test_handler_pub()
 	// init work
 	nano_work *work;
 	work            = nng_alloc(sizeof(*work));
+	work->config    = NULL;
 	work->pipe_ct   = nng_alloc(sizeof(struct pipe_content));
 	work->proto_ver = MQTT_PROTOCOL_VERSION_v311;
 	dbtree_create(&work->db);

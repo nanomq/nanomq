@@ -1241,7 +1241,8 @@ static void inline handle_pub_retain_dbtree(const nano_work *work, char *topic)
 static void inline handle_pub_retain(const nano_work *work, char *topic)
 {
 #if defined(NNG_SUPP_SQLITE)
-	if (work->config->sqlite.enable && work->sqlite_db) {
+	if (work->config != NULL && work->config->sqlite.enable &&
+	    work->sqlite_db) {
 		handle_pub_retain_sqlite(work, topic);
 		return;
 	}
