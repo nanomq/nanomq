@@ -1,4 +1,5 @@
 #include "idl_convert.h"
+#include "stdio.h"
 #include <stdlib.h>
 
 cJSON *dds_to_mqtt_test_enum_convert(test_enum *num)
@@ -65,16 +66,31 @@ test_enum mqtt_to_dds_test_enum_convert(cJSON *obj)
 
 test_struct *mqtt_to_dds_test_struct_convert(cJSON *obj)
 {
-	test_struct *st = (test_struct*) malloc(sizeof(test_struct));
+	test_struct *st = (test_struct*) calloc(1, sizeof(test_struct));
 	cJSON *item = NULL;
 	item = cJSON_GetObjectItem(obj, "message");
 
 	// ARRAY_NUMBER_uint8_256
-	int i0 = 0;
-	cJSON *message0 = NULL;
-	cJSON_ArrayForEach(item, message0) {
-		st->message[i0] = (uint8_t)message0->valuedouble;
-		i0++;
+	switch (item->type)
+	{
+	case cJSON_String:;
+		int cap = sizeof(st->message) / sizeof(uint8_t);
+		int len = strlen(item->valuestring);
+		memcpy(st->message, item->valuestring, len < cap ? len : cap);
+		printf("value: %s %s\n", st->message, item->valuestring);
+		break;
+	case cJSON_Array:;
+		int i0 = 0;
+		cJSON *message0 = NULL;
+		cJSON_ArrayForEach(item, message0) {
+			st->message[i0] = (uint8_t) message0->valuedouble;
+			printf("%d %d", st->message[i0], message0->valuedouble);
+			i0++;
+		}
+		break;
+	
+	default:
+		break;
 	}
 
 
@@ -115,11 +131,26 @@ example_struct *mqtt_to_dds_example_struct_convert(cJSON *obj)
 	item = cJSON_GetObjectItem(obj, "message");
 
 	// ARRAY_NUMBER_uint8_256
-	int i0 = 0;
-	cJSON *message0 = NULL;
-	cJSON_ArrayForEach(item, message0) {
-		st->message[i0] = (uint8_t) message0->valuedouble;
-		i0++;
+	switch (item->type)
+	{
+	case cJSON_String:;
+		int cap = sizeof(st->message) / sizeof(uint8_t);
+		int len = strlen(item->valuestring);
+		memcpy(st->message, item->valuestring, len < cap ? len : cap);
+		printf("value: %s %s\n", st->message, item->valuestring);
+		break;
+	case cJSON_Array:;
+		int i0 = 0;
+		cJSON *message0 = NULL;
+		cJSON_ArrayForEach(item, message0) {
+			st->message[i0] = (uint8_t) message0->valuedouble;
+			printf("%d %d", st->message[i0], message0->valuedouble);
+			i0++;
+		}
+		break;
+	
+	default:
+		break;
 	}
 
 
