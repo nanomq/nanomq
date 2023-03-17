@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include "idl_convert.h"
 
 #include "dds_mqtt_type_conversion.h"
 #include "mqtt_client.h"
@@ -289,9 +290,17 @@ mqtt_loop(void *arg)
 			// Translate DDS msg to MQTT format
 			ddsmsg = hd->data;
 			printf("[MQTT] send msg to mqtt.\n");
-			dds_to_mqtt_type_convert(ddsmsg, &mqttmsg);
+			// dds_to_mqtt_type_convert(ddsmsg, &mqttmsg);
+			cJSON *json = dds_to_mqtt_example_struct_convert(ddsmsg);
+			mqttmsg.payload = cJSON_PrintUnformatted(json);
+			mqttmsg.len = strlen(mqttmsg.payload);
+			cJSON_free(json);
+
 			mqtt_publish(cli, cli->mqttsend_topic, 0,
 			    (uint8_t *)mqttmsg.payload, mqttmsg.len);
+			nng_free(mqttmsg.payload, mqttmsg.len);
+			mqttmsg.len = 0;
+
 			break;
 		default:
 			printf("Unsupported handle type.\n");

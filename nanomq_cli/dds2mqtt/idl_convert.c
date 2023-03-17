@@ -1,6 +1,7 @@
 #include "idl_convert.h"
 #include "stdio.h"
 #include <stdlib.h>
+#include <string.h>
 
 cJSON *dds_to_mqtt_test_enum_convert(test_enum *num)
 {
@@ -42,6 +43,8 @@ cJSON *dds_to_mqtt_example_struct_convert(example_struct *st)
 	cJSON_AddNumberToObject(obj, "int64_test", st->int64_test);
 	cJSON_AddNumberToObject(obj, "uint64_test", st->uint64_test);
 
+
+	st->message
 	// ARRAY_NUMBER_uint8_256
 	cJSON *message = cJSON_CreateDoubleArray((const double *)st->message, 256);
 	cJSON_AddItemToObject(obj, "message", message);
@@ -84,7 +87,7 @@ test_struct *mqtt_to_dds_test_struct_convert(cJSON *obj)
 		cJSON *message0 = NULL;
 		cJSON_ArrayForEach(item, message0) {
 			st->message[i0] = (uint8_t) message0->valuedouble;
-			printf("%d %d", st->message[i0], message0->valuedouble);
+			printf("%d %d", st->message[i0], (uint8_t) message0->valuedouble);
 			i0++;
 		}
 		break;
@@ -144,7 +147,7 @@ example_struct *mqtt_to_dds_example_struct_convert(cJSON *obj)
 		cJSON *message0 = NULL;
 		cJSON_ArrayForEach(item, message0) {
 			st->message[i0] = (uint8_t) message0->valuedouble;
-			printf("%d %d", st->message[i0], message0->valuedouble);
+			printf("%d %d", st->message[i0], (uint8_t) message0->valuedouble);
 			i0++;
 		}
 		break;
