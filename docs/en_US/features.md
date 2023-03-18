@@ -30,4 +30,4 @@ With a built-in Actor framwork, NanoMQ can scales out to engage multiple cores. 
 NanoMQ is born for the edge and delivers exceptionally high throughput and low latency with a built-in actor model. Such performance enables more possibilities for data convergence in an edge-centric paradigm.
 
 ## All-round
-To tackle the fragmented protocol status quo of edge computing. NanoMQ provides an all-around messaging bus for mainstream protocols such as MQTT, nanomsg, WebSocket. ZMQ and DDS are also on our roadmap. Additionally, NanoMQ also provides a benchmarking and MQTT testing toolkit inside the package.
+To tackle the fragmented protocol status quo of edge computing. NanoMQ provides an all-around messaging bus for mainstream protocols such as MQTT, nanomsg, WebSocket. Other popular brokerless protocols like ZeroMQ & DDS is also included. Additionally, NanoMQ also provides a benchmarking and MQTT testing toolkit inside the package.
