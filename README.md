@@ -17,11 +17,6 @@ NanoMQ fully supports MQTT V3.1.1 and MQTT V5.0.
 
 For more information, please visit [NanoMQ homepage](https://nanomq.io/).
 
-*Unsupport features of MQTT 5.0* 
-- Auth https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901217
-- Request/Response https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901252
-- Server Redirection https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901255
-
 ## Features
 
 - Cost-effective on an embedded platform;
@@ -95,7 +90,7 @@ With this being said, NanoMQ can run on different architectures such like x86_64
 #### Docker
 
 ```bash
-docker run -d -p 1883:1883 -p 8883:8883 --name nanomq emqx/nanomq:0.11.0
+docker run -d -p 1883:1883 -p 8883:8883 --name nanomq emqx/nanomq:0.16.3
 ```
 
 
@@ -129,7 +124,6 @@ To build NanoMQ, requires a C99 compatible compiler and [CMake](http://www.cmake
   cmake -G Ninja -DNNG_ENABLE_QUIC=ON ..
   ninja
   ```
-  Attention: MQTT over QUIC bridging requires libmsquic preinstalled, for now we do not release formal binary package with QUIC support due to compatability.
 
 **Note (optional): TLS is disabled by default**. If you want to build with TLS support you will also need [mbedTLS](https://tls.mbed.org). After installing [mbedTLS](https://tls.mbed.org), you can enable it by `-DNNG_ENABLE_TLS=ON`.
 
@@ -511,6 +505,8 @@ Options:
 
 ## Community
 
+Some quotes from NNG's maintainer --- Garrett:
+I’m very excited about the synergy between the NanoMQ and NNG projects, and grateful for sponsorship that NNG has received from the NanoMQ team. The NanoMQ team has been able to push NNG's envelope, and the collaboration has already yielded substantial improvements for both projects. Further, the cooperation between these two project will make MQTT and SP (nanomsg) protocols easy to use within a single project as well as other capabilities (such as websockets, HTTPS clients and servers), greatly expanding the toolset within easy reach of the IoT developer. Further this comes without the usual licensing or portability/embeddability challenges that face other projects. Additional planned collaborative work will further expand on these capabilities to the benefit of our shared communities.
 ### Our Website
 
 Visit our [official website](https://nanomq.io/) to have a good grasp on NanoMQ MQTT broker and see how it can be applied in current industries.
@@ -557,6 +553,10 @@ You could join us on [Slack](https://slack-invite.emqx.io/). We now share a work
 
 [MQTT SN](http://mqtt.org/new/wp-content/uploads/2009/06/MQTT-SN_spec_v1.2.pdf)
 
+*Unsupport features of MQTT 5.0* 
+- Auth https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901217
+- Request/Response https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901252
+- Server Redirection https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901255
 ### MQTT Client Examples
 
 [MQTT-Client-Examples](https://github.com/emqx/MQTT-Client-Examples)
