@@ -74,22 +74,9 @@ nanomq_cli pub -t nng-mqtt -m test
 
 
 
-## Compile & Install
+## Building from source
 
-NanoMQ dedicates to delivering a simple but powerful Messaging Hub on various edge platforms.
-
-With this being said, NanoMQ can run on different architectures such like x86_64 and ARM with minor migration efforts.
-
-#### Docker
-
-```bash
-docker run -d -p 1883:1883 -p 8883:8883 --name nanomq emqx/nanomq:0.16.3
-```
-
-
-#### Building From Source
-
-To build NanoMQ, requires a C99 compatible compiler and [CMake](http://www.cmake.org/) (version 3.13 or newer). 
+A C99 compatible compiler and [CMake](http://www.cmake.org/) (version 3.13 or newer) is required. 
 
 - It is recommended to compile with Ninja:
 
@@ -101,7 +88,7 @@ To build NanoMQ, requires a C99 compatible compiler and [CMake](http://www.cmake
   ninja
   ```
 
-- Or to compile without Ninja:
+- You can also compile without Ninja:
 
   ``` bash
   git clone https://github.com/emqx/nanomq.git ; cd nanomq
@@ -110,82 +97,10 @@ To build NanoMQ, requires a C99 compatible compiler and [CMake](http://www.cmake
   cmake .. 
   make
   ```
+  
+  NanoMQ supports various features: QUIC bridging, TLS, MQTT client, zeromq, dds proxy, bench tool,JWT dependency (for http server), SQLite3 (for message persistence), etc. You can build NanoMQ with these features optionally.
 
-**Note (optional) build NanoMQ with QUIC bridging feature** This enable NanoMQ bridging with EMQX 5.0 via MQTT over QUIC protocol
-
-  ``` bash
-  cmake -G Ninja -DNNG_ENABLE_QUIC=ON ..
-  ninja
-  ```
-
-**Note (optional): TLS is disabled by default**. If you want to build with TLS support you will also need [mbedTLS](https://tls.mbed.org). After installing [mbedTLS](https://tls.mbed.org), you can enable it by `-DNNG_ENABLE_TLS=ON`.
-
-```bash
-cmake -G Ninja -DNNG_ENABLE_TLS=ON ..
-ninja
-```
-
-**Note (optional): client ( pub / sub / conn ) is built by default**, you can disable it via `-DBUILD_CLIENT=OFF`.
-
-  ``` bash
-  cmake -G Ninja -DBUILD_CLIENT=OFF ..
-  ninja
-  ```
-**Note (optional): zeromq gateway tool isn't built by default**, you can enable it via `-DBUILD_ZMQ_GATEWAY=ON`.
-
-  ``` bash
-  cmake -G Ninja -DBUILD_ZMQ_GATEWAY=ON ..
-  ninja
-  ```
-
-**Note (optional): dds proxy isn't built by default**, you can enable it via `-DBUILD_DDS_PROXY=ON`.
-
-  ``` bash
-cmake -G Ninja -DBUILD_DDS_PROXY=ON ..
-ninja
-  ```
-
-**Note (optional): bench tool isn't built by default**, you can enable it via `-DBUILD_BENCH=ON`.
-
-  ``` bash
-  cmake -G Ninja -DBUILD_BENCH=ON ..
-  ninja
-  ```
-
-**Note (optional): JWT dependency (for http server) isn't built by default**, you can enable it via `-DENABLE_JWT=ON`.
-
-  ``` bash
-  cmake -G Ninja -DENABLE_JWT=ON ..
-  ninja
-  ```
-
-**Note (optional): SQLite3 (for message persistence) isn't built by default**, you can enable it via `-DNNG_ENABLE_SQLITE=ON`.
-
-  ``` bash
-  cmake -G Ninja -DNNG_ENABLE_SQLITE=ON ..
-  ninja
-  ```
-
-**Note (optional): nanomq as a static lib isn't built by default**, you can enable it via `-DBUILD_STATIC_LIB=ON`.
-```bash
-cmake -G Ninja -DBUILD_STATIC_LIB=ON ..
-ninja libnano
-```
-**Note (optional): nanomq as a shared lib isn't built by default**, you can enable it via `-DBUILD_SHARED_LIBS=ON`.
-```bash
-cmake -G Ninja -DBUILD_SHARED_LIBS=ON ..
-ninja
-```
-
-**Note (optional): nanonng are dependency of NanoMQ that can be compiled independently**.
-
-To compile nanonng (*nanonng is the fork of nng repository with MQTT support*):
-
-```bash
-cd nng/build
-cmake -G Ninja ..
-ninja
-```
+  See [build options](https://nanomq.io/docs/en/latest/build-options.html#arguments) for details.
 
 ## Debugging guide
 
