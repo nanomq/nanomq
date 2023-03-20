@@ -18,10 +18,15 @@ cJSON *dds_to_mqtt_test_struct_convert(test_struct *st)
  	obj = cJSON_CreateObject();
 
 	// ARRAY_NUMBER_uint8_256
-	cJSON *message = cJSON_CreateDoubleArray((const double *)st->message, 256);
-	
+	// cJSON *message = cJSON_CreateDoubleArray((const double *)st->message, 256);
+
+	cJSON *message = cJSON_CreateArray();
 	cJSON_AddItemToObject(obj, "message", message);
 
+	for (int i = 0; (i < (size_t) 256); i++) {
+		cJSON *n = cJSON_CreateNumber(st->message[i]);
+		cJSON_AddItemToArray(message, n);
+	}
 
 	return obj;
 }
@@ -44,11 +49,15 @@ cJSON *dds_to_mqtt_example_struct_convert(example_struct *st)
 	cJSON_AddNumberToObject(obj, "uint64_test", st->uint64_test);
 
 
-	st->message
 	// ARRAY_NUMBER_uint8_256
-	cJSON *message = cJSON_CreateDoubleArray((const double *)st->message, 256);
+	// cJSON *message = cJSON_CreateDoubleArray((const double *)st->message, 256);
+	cJSON *message = cJSON_CreateArray();
 	cJSON_AddItemToObject(obj, "message", message);
 
+	for (int i = 0; (i < (size_t) 256); i++) {
+		cJSON *n = cJSON_CreateNumber(st->message[i]);
+		cJSON_AddItemToArray(message, n);
+	}
 
 	cJSON_AddItemToObject(obj, "example_enum", dds_to_mqtt_test_enum_convert(&st->example_enum));
 
@@ -97,7 +106,6 @@ test_struct *mqtt_to_dds_test_struct_convert(cJSON *obj)
 	}
 
 
-
 	return st;
 }
 
@@ -105,7 +113,7 @@ test_struct *mqtt_to_dds_test_struct_convert(cJSON *obj)
 
 example_struct *mqtt_to_dds_example_struct_convert(cJSON *obj)
 {
-	example_struct *st = (example_struct*) malloc(sizeof(example_struct));
+	example_struct *st = (example_struct*) calloc(1, sizeof(example_struct));
 	cJSON *item = NULL;
 	item = cJSON_GetObjectItem(obj, "int8_test");
 	st->int8_test = item->valuedouble;
@@ -140,7 +148,7 @@ example_struct *mqtt_to_dds_example_struct_convert(cJSON *obj)
 		int cap = sizeof(st->message) / sizeof(uint8_t);
 		int len = strlen(item->valuestring);
 		memcpy(st->message, item->valuestring, len < cap ? len : cap);
-		printf("value: %s %s\n", st->message, item->valuestring);
+		// printf("value: %s %s\n", st->message, item->valuestring);
 		break;
 	case cJSON_Array:;
 		int i0 = 0;
