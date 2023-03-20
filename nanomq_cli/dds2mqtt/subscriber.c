@@ -13,8 +13,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "idl_convert.h"
 
-#include "dds_mqtt_type_conversion.h"
+// #include "dds_mqtt_type_conversion.h"
 #include "mqtt_client.h"
 #include "dds_utils.h"
 
@@ -110,33 +111,12 @@ print_dds_msg(struct DDS_TYPE_NAME *msg)
 	if (msg == NULL) {
 		printf("ITS NULL!\n");
 	}
-	printf("int8_test:%d\n", msg->int8_test);
-	printf("uint8_test:%d\n", msg->uint8_test);
-	printf("int16_test:%d\n", msg->int16_test);
-	printf("uint16_test:%d\n", msg->uint16_test);
-	printf("int32_test:%d\n", msg->int32_test);
-	printf("uint32_test:%d\n", msg->uint32_test);
-	printf("int64_test:%ld\n", msg->int64_test);
-	printf("uint64_test:%ld\n", msg->uint64_test);
 
-	printf("message:\n");
-	// for (size_t i = 0; i < 256; i++)
-	// {
-	// 	printf("%02x ", msg->message[i]);
-	// }
-	printf("%s\n", msg->message);
-	printf("\n");
-	
-	printf("example_enum:%d\n", msg->example_enum);
-	
-	printf("example_stru.message:\n");
-
-	printf("%s\n", msg->example_stru.message);
-	// for (size_t i = 0; i < 256; i++)
-	// {
-	// 	printf("%0 ", msg->example_stru.message[i]);
-	// }
-	printf("\n");
+	cJSON *json = dds_to_mqtt_example_struct_convert(msg);
+	char * str  = cJSON_Print(json);
+	printf("%s\n", str);
+	cJSON_free(str);
+	cJSON_Delete(json);
 }
 
 #endif
