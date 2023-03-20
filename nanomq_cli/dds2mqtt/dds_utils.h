@@ -18,6 +18,12 @@ typedef struct {
 	char *          shm_log_level;
 } dds_client_opts;
 
+// It should not be changed
+typedef struct fixed_mqtt_msg {
+	char    *payload;
+	uint32_t len;
+} fixed_mqtt_msg;
+
 void  dds_handle_cmd(int argc, char **argv, dds_client_opts *opts);
 int   dds_cmd_parse_opts(int argc, char **argv, dds_client_opts *opts);
 void  dds_client_opts_fini(dds_client_opts *opts);

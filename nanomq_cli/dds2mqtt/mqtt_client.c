@@ -22,10 +22,11 @@
 #include <time.h>
 #include "idl_convert.h"
 
-#include "dds_mqtt_type_conversion.h"
+// #include "dds_mqtt_type_conversion.h"
 #include "mqtt_client.h"
 #include "vector.h"
 #include "dds_client.h"
+#include "dds_utils.h"
 
 #include <nng/mqtt/mqtt_client.h>
 #include <nng/nng.h>
