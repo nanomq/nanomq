@@ -11,8 +11,11 @@
 
 NanoMQ is an Ultra-lightweight and Blazing-fast MQTT Broker for IoT Edge. 
 
-NanoMQ fully supports MQTT V3.1.1, V5.0 and QoS 0,1,2 message.
-NanoMQ also provides `nanomq_cli` utility for publishing and subscribing.
+NanoMQ uses NNG,a Lightweight Messaging Library,to implement asynchronous I/O.
+
+NanoMQ fully supports MQTT V3.1.1, V5.0 and QoS 0,1,2.
+
+NanoMQ also provides `nanomq_cli` utility for publishing, subscribing and testing.
 
 For more detailed information, please visit [NanoMQ homepage](https://nanomq.io/).
 
@@ -29,33 +32,19 @@ For more detailed information, please visit [NanoMQ homepage](https://nanomq.io/
 
 ## Quick Start
 
-**NanoMQ broker usage**
-
-```bash
-nanomq start 
-nanomq stop
-nanomq restart 
-nanomq reload 
-
-```
-MQTT Example:
+Start NanoMQ with default configuration:
 ```bash
 nanomq start 
 ```
-
-**NanoMQ MQTT client usage**
+Use `nanomq_cli` to subscribe a topic:
 ```bash
-# Publish
-nanomq_cli pub --url <url> -t <topic> -m <message> [--help]
-
-# Subscribe 
-nanomq_cli sub --url <url> -t <topic> [--help]
-
-# Connect
-nanomq_cli conn --url <url> [--help]
+nanomq_cli sub -t 'test/topic' [--help]
 ```
-
-**NanoMQ MQTT bench usage**
+And publish a message to a topic:
+```bash
+nanomq_cli pub -t 'test/topic' -m "Hello World!" [--help]
+```
+You can use `bench` to conduct performance and stress tests:
 ```bash
 nanomq_cli bench { pub | sub | conn } [--help]
 ```
