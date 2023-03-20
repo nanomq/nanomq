@@ -9,19 +9,18 @@
 [![Community](https://img.shields.io/badge/Community-NanoMQ-yellow?logo=github)](https://github.com/emqx/nanomq/discussions)
 [![License](https://img.shields.io/github/license/emqx/nanomq.svg?logoColor=silver&logo=open-source-initiative&label=&color=blue)](https://github.com/emqx/nanomq/blob/master/LICENSE.txt)
 
-NanoMQ MQTT Broker (NanoMQ) is a lightweight and blazing-fast MQTT Broker for the IoT Edge platform. 
+NanoMQ is an Ultra-lightweight and Blazing-fast MQTT Broker for IoT Edge. 
 
-NanoMQ bases on NNG's asynchronous I/O threading model, with an extension of MQTT support in the protocol layer and reworked transport layer, plus an enhanced asynchronous IO mechanism maximizing the overall capacity.
+NanoMQ fully supports MQTT V3.1.1, V5.0 and QoS 0,1,2 message.
+NanoMQ also provides `nanomq_cli` utility for publishing and subscribing.
 
-NanoMQ fully supports MQTT V3.1.1 and MQTT V5.0.
-
-For more information, please visit [NanoMQ homepage](https://nanomq.io/).
+For more detailed information, please visit [NanoMQ homepage](https://nanomq.io/).
 
 ## Features
 
-- Cost-effective on an embedded platform;
-- Fully base on native POSIX. High Compatibility;
-- Pure C implementation. High portability;
+- Cost-effective on embedded platforms.
+- High Compatibility. Fully based on standard POSIX.
+- High portability. Pure C implementation.
 - Fully asynchronous I/O and multi-threading;
 - Good support for SMP;
 - Low latency & High handling capacity;
@@ -374,37 +373,37 @@ Usage: nanomq { { start | restart [--url <url>] [--conf <path>] [-t, --tq_thread
                      | stop }
 
 Options: 
-  --url <url>                Specify listener's url: 'nmq-tcp://host:port', 
-                             'tls+nmq-tcp://host:port', 
-                             'nmq-ws://host:port/path', 
-                             'nmq-wss://host:port/path'
-  --conf <path>              The path of a specified nanomq  HOCON style configuration file 
-  --old_conf <path> parse old config file
-  --http                     Enable http server (default: false)
-  -p, --port <num>           The port of http server (default: 8081)
-  -t, --tq_thread <num>      The number of taskq threads used, 
-                             `num` greater than 0 and less than 256
-  -T, --max_tq_thread <num>  The maximum number of taskq threads used, 
-                             `num` greater than 0 and less than 256
-  -n, --parallel <num>       The maximum number of outstanding requests we can handle
-  -s, --property_size <num>  The max size for a MQTT user property
-  -S, --msq_len <num>        The queue length for resending messages
-  -D, --qos_duration <num>   The interval of the qos timer
-  -d, --daemon               Run nanomq as daemon (default: false)
-  --cacert                   Path to the file containing PEM-encoded CA certificates
-  -E, --cert                 Path to a file containing the user certificate
-  --key                      Path to the file containing the user's private PEM-encoded key
-  --keypass                  String containing the user's password. 
-                             Only used if the private keyfile is password-protected
-  --verify                   Set verify peer certificate (default: false)
-  --fail                     Server will fail if the client does not have a 
-                             certificate to send (default: false)
-  --log_level   <level>      The level of log output 
-                             (level: trace, debug, info, warn, error, fatal)
-                             (default: warn)
-  --log_file    <file_path>  The path of the log file 
-  --log_stdout  <true|false> Enable/Disable console log output (default: true)
-  --log_syslog  <true|false> Enable/Disable syslog output (default: false)
+  --url <url>                 Specify listener's url: 'nmq-tcp://host:port', 
+                              'tls+nmq-tcp://host:port', 
+                              'nmq-ws://host:port/path', 
+                              'nmq-wss://host:port/path'
+  --conf <path>               The path of a specified nanomq HOCON style configuration file 
+  --old_conf <path>           Parse old config file
+  --http                      Enable http server (default: false)
+  -p, --port <num>            The port of http server (default: 8081)
+  -t, --tq_thread <num>       The number of taskq threads used, 
+                              `num` greater than 0 and less than 256
+  -T, --max_tq_thread <num>   The maximum number of taskq threads used, 
+                              `num` greater than 0 and less than 256
+  -n, --parallel <num>        The maximum number of outstanding requests we can handle
+  -s, --property_size <num>   The max size for a MQTT user property
+  -S, --msq_len <num>         The queue length for resending messages
+  -D, --qos_duration <num>    The interval of the qos timer
+  -d, --daemon                Run nanomq as daemon (default: false)
+  --cacert                    Path to the file containing PEM-encoded CA certificates
+  -E, --cert                  Path to a file containing the user certificate
+  --key                       Path to the file containing the user's private PEM-encoded key
+  --keypass                   String containing the user's password. 
+                              Only used if the private keyfile is password-protected
+  --verify                    Set verify peer certificate (default: false)
+  --fail                      Server will fail if the client does not have a 
+                              certificate to send (default: false)
+  --log_level   <level>       The level of log output 
+                              (level: trace, debug, info, warn, error, fatal)
+                              (default: warn)
+  --log_file    <file_path>   The path of the log file 
+  --log_stdout  <true|false>  Enable/Disable console log output (default: true)
+  --log_syslog  <true|false>  Enable/Disable syslog output (default: false)
 ```
 
 - `start`, `restart`, `reload` and `stop` command is mandatory as it indicates whether you want to start a new broker, or replace an existing broker with a new one, or stop a running broker;
