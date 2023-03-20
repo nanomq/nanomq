@@ -30,6 +30,9 @@ For more detailed information, please visit [NanoMQ homepage](https://nanomq.io/
 
 ![image](https://user-images.githubusercontent.com/64823539/182988350-f6e2520f-6e6f-46db-b469-685bec977270.png)
 
+## Installing
+See [NanoMQ Download](https://nanomq.io/downloads) for details on installing binaries on various platforms.
+
 ## Quick Start
 
 Start NanoMQ with default configuration:
@@ -50,6 +53,8 @@ nanomq_cli bench { pub | sub | conn } [--help]
 ```
 
 **NanoMQ nng message proxy**
+
+NanoMQ is also able to convert MQTT msg and NNG msg.
 
 start a proxy to sub NNG url and convey nng msg to qos 2 MQTT msg and send to a specific topic "nng-mqtt" of MQTT broker:
 ```bash
