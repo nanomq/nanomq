@@ -19,20 +19,20 @@
 #include <nng/nng.h>
 #include <nng/supplemental/util/platform.h>
 
-#include "dds_mqtt_type_conversion.h"
+// #include "dds_mqtt_type_conversion.h"
 #include "mqtt_client.h"
 #include "dds_utils.h"
 
 int
 dds_publisher(int argc, char **argv)
 {
-	dds_entity_t   participant;
-	dds_entity_t   topic;
-	dds_entity_t   writer;
-	dds_return_t   rc;
-	DDS_TYPE_NAME  msg;
-	test_struct    sub_msg;
-	uint32_t       status = 0;
+	dds_entity_t  participant;
+	dds_entity_t  topic;
+	dds_entity_t  writer;
+	dds_return_t  rc;
+	DDS_TYPE_NAME msg     = { 0 };
+	test_struct   sub_msg = { 0 };
+	uint32_t      status  = 0;
 
 	dds_client_opts opts = { .cli_type = DDS_PUB };
 
