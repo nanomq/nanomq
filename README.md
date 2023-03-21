@@ -31,7 +31,7 @@ For more detailed information, please visit [NanoMQ homepage](https://nanomq.io/
 ![image](https://user-images.githubusercontent.com/64823539/182988350-f6e2520f-6e6f-46db-b469-685bec977270.png)
 
 ## Installing
-See [NanoMQ Download](https://nanomq.io/downloads) for details on installing binaries on various platforms.
+See [NanoMQ Download](https://nanomq.io/downloads) for details on installing binaries for various platforms.
 
 ## Quick Start
 
@@ -76,7 +76,7 @@ nanomq_cli pub -t nng-mqtt -m test
 
 ## Building from source
 
-A C99 compatible compiler and [CMake](http://www.cmake.org/) (version 3.13 or newer) is required. 
+A C99 compatible compiler and [CMake](http://www.cmake.org/) (version 3.13 or newer) is required to build NanoMQ. 
 
 - It is recommended to compile with Ninja:
 
@@ -98,9 +98,7 @@ A C99 compatible compiler and [CMake](http://www.cmake.org/) (version 3.13 or ne
   make
   ```
   
-  NanoMQ supports various features: QUIC bridging, TLS, MQTT client, zeromq, dds proxy, bench tool,JWT dependency (for http server), SQLite3 (for message persistence), etc. You can build NanoMQ with these features optionally.
-
-  See [build options](https://nanomq.io/docs/en/latest/build-options.html#arguments) for details.
+  NanoMQ supports various features: QUIC bridging, TLS, MQTT client, zeromq, dds proxy, bench tool,JWT dependency (for http server), SQLite3 (for message persistence), etc. You can build NanoMQ with these features optionally. Check [build options](https://nanomq.io/docs/en/latest/build-options.html#arguments) for details.
 
 ## Debugging guide
 
