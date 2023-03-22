@@ -15,14 +15,13 @@
 #include <string.h>
 #include "idl_convert.h"
 
-// #include "dds_mqtt_type_conversion.h"
 #include "mqtt_client.h"
 #include "dds_utils.h"
 
 /* An array of one message (aka sample in dds terms) will be used. */
 #define MAX_SAMPLES 1
 
-void print_dds_msg(struct DDS_TYPE_NAME *msg);
+static void print_dds_msg(void *msg, dds_to_mqtt_fn_t func);
 
 int
 dds_subscriber(int argc, char **argv)
@@ -30,7 +29,6 @@ dds_subscriber(int argc, char **argv)
 	dds_entity_t      participant;
 	dds_entity_t      topic;
 	dds_entity_t      reader;
-	DDS_TYPE_NAME    *msg;
 	void             *samples[MAX_SAMPLES];
 	dds_sample_info_t infos[MAX_SAMPLES];
 	dds_return_t      rc;
@@ -40,6 +38,13 @@ dds_subscriber(int argc, char **argv)
 
 	dds_handle_cmd(argc, argv, &opts);
 
+	dds_handler_set *dds_handles = dds_get_handler(opts.struct_name);
+
+	if (dds_handles == NULL) {
+		DDS_FATAL("dds_get_handler: %s\n", "dds_handles is NULL");
+		exit(1);
+	}
+
 	/* Create a Participant. */
 	participant = dds_create_participant(opts.domain_id, NULL, NULL);
 	if (participant < 0)
@@ -48,7 +53,7 @@ dds_subscriber(int argc, char **argv)
 
 	/* Create a Topic. */
 	topic = dds_create_topic(
-	    participant, &DDS_TYPE_NAME_DESC(), opts.topic, NULL, NULL);
+	    participant, dds_handles->desc, opts.topic, NULL, NULL);
 	if (topic < 0)
 		DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topic));
 
@@ -65,7 +70,7 @@ dds_subscriber(int argc, char **argv)
 
 	/* Initialize sample buffer, by pointing the void pointer within
 	 * the buffer array to a valid sample memory location. */
-	samples[0] = DDS_TYPE_NAME_ALLOC();
+	samples[0] = dds_handles->alloc();
 
 	/* Poll until data has been read. */
 	while (true) {
@@ -79,11 +84,8 @@ dds_subscriber(int argc, char **argv)
 		/* Check if we read some data and it is valid. */
 		if ((rc > 0) && (infos[0].valid_data)) {
 			/* Print Message. */
-			msg = (DDS_TYPE_NAME *) samples[0];
 			printf("=== [Subscriber] Received : ");
-			printf("Message (%" PRId32 ", %s)\n", msg->int8_test,
-			    msg->message);
-			print_dds_msg(msg);
+			print_dds_msg(samples[0], dds_handles->dds2mqtt);
 			fflush(stdout);
 		} else {
 			/* Polling sleep. */
@@ -92,7 +94,7 @@ dds_subscriber(int argc, char **argv)
 	}
 
 	/* Free the data location. */
-	DDS_TYPE_NAME_FREE(samples[0], DDS_FREE_ALL);
+	dds_handles->free(samples[0], DDS_FREE_ALL);
 
 	/* Deleting the participant will delete all its children recursively as
 	 * well. */
@@ -106,13 +108,13 @@ dds_subscriber(int argc, char **argv)
 }
 
 void
-print_dds_msg(struct DDS_TYPE_NAME *msg)
+print_dds_msg(void *msg, dds_to_mqtt_fn_t func)
 {
 	if (msg == NULL) {
 		printf("ITS NULL!\n");
 	}
 
-	cJSON *json = dds_to_mqtt_example_struct_convert(msg);
+	cJSON *json = func(msg);
 	char * str  = cJSON_Print(json);
 	printf("%s\n", str);
 	cJSON_free(str);
