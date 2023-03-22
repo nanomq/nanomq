@@ -18,6 +18,8 @@ enum options {
 	OPT_DDS_HELP = 1,
     OPT_DDS_DOMAIN_ID,
     OPT_DDS_TOPIC,
+	OPT_DDS_STRUCT_NAME,
+	OPT_DDS_MSG,
     OPT_DDS_SHM_MODE,
     OPT_DDS_SHM_LOG_LEVEL,
 	OPT_DDS_INVALID,
@@ -30,28 +32,40 @@ static nng_optspec cmd_opts[] = {
 	    .o_val   = OPT_DDS_HELP,
 	},
 	{
-	    .o_name = "domain_id",
-        .o_short = 'd',
-        .o_val = OPT_DDS_DOMAIN_ID,
-        .o_arg = true,
+	    .o_name  = "domain_id",
+	    .o_short = 'd',
+	    .o_val   = OPT_DDS_DOMAIN_ID,
+	    .o_arg   = true,
 	},
-    {
-        .o_name = "topic",
-        .o_short = 't',
-        .o_val = OPT_DDS_TOPIC,
-        .o_arg = true,
-    },
-    {
-        .o_name = "shm_mode",
-        .o_short = 's',
-        .o_val = OPT_DDS_SHM_MODE,
-    },
-    {
-        .o_name = "shm_log_level",
-        .o_short = 'l',
-        .o_val = OPT_DDS_SHM_LOG_LEVEL,
-        .o_arg = true,
-    },
+	{
+	    .o_name  = "struct",
+	    .o_short = 'n',
+	    .o_val   = OPT_DDS_STRUCT_NAME,
+	    .o_arg   = true,
+	},
+	{
+	    .o_name  = "msg",
+	    .o_short = 'm',
+	    .o_val   = OPT_DDS_MSG,
+	    .o_arg   = true,
+	},
+	{
+	    .o_name  = "topic",
+	    .o_short = 't',
+	    .o_val   = OPT_DDS_TOPIC,
+	    .o_arg   = true,
+	},
+	{
+	    .o_name  = "shm_mode",
+	    .o_short = 's',
+	    .o_val   = OPT_DDS_SHM_MODE,
+	},
+	{
+	    .o_name  = "shm_log_level",
+	    .o_short = 'l',
+	    .o_val   = OPT_DDS_SHM_LOG_LEVEL,
+	    .o_arg   = true,
+	},
 	{
 	    .o_name = NULL,
 	    .o_val  = 0,
@@ -85,6 +99,29 @@ dds_cmd_parse_opts(int argc, char **argv, dds_client_opts *opts)
 				nng_strfree(opts->topic);
 			}
 			opts->topic = nng_strdup(arg);
+			break;
+
+		case OPT_DDS_STRUCT_NAME:
+			if (opts->struct_name != NULL) {
+				nng_strfree(opts->struct_name);
+			}
+			opts->struct_name = nng_strdup(arg);
+			break;
+
+		case OPT_DDS_MSG:
+			if (cJSON_IsObject(opts->msg)) {
+				cJSON_Delete(opts->msg);
+				opts->msg = NULL;
+			}
+			cJSON *json = cJSON_Parse(arg);
+			if (cJSON_IsObject(json)) {
+				opts->msg = json;
+			} else {
+
+				fprintf(
+				    stderr, "Invalid json string: %s\n", arg);
+				exit(1);
+			}
 			break;
 
 		case OPT_DDS_SHM_MODE:
@@ -135,14 +172,20 @@ static void
 help(dds_client_type cli_type)
 {
 	printf("Usage: \n"
-	       "nanomq_cli ddsproxy %s -t <topic>  \n"
+	       "nanomq_cli ddsproxy %s -t <topic> -n <struct> \n"
 	       "       [-h, --help] [-d, --domain_id <domain id>] \n"
            "       [-s, --shm_mode] [-l, --shm_log_level <level>]\n\n",
 	    cli_type == DDS_PUB ? "pub" : "sub");
 
-	printf("<topic> must be set: \n");
+	printf("Requirements: \n");
 	printf("\t-t, --topic <topic>            Topic for publish or "
 	       "subscribe\n");
+	printf("\t-n, --struct <struct name>     Specify structure name from "
+	       "idl file\n");
+	if (cli_type == DDS_PUB) {
+		printf("\t-m, --msg <message>            Input message as "
+		       "JSON format");
+	}
 	printf("\n");
 	printf("Options:\n");
 	printf("\t-d, --domain_id <domain id>    Specify a DDS domain id "
@@ -179,6 +222,25 @@ dds_handle_cmd(
 		exit(1);
 	}
 
+	if (opts->struct_name == NULL) {
+		fprintf(stderr, "Structure name is required.\n");
+		fprintf(stderr,
+		    "Please specify a structure name with '-n, --struct "
+		    "<struct>'\n");
+		exit(1);
+	}
+
+	if (opts->cli_type == DDS_PUB) {
+		if (!cJSON_IsObject(opts->msg)) {
+			fprintf(stderr, "Message is required.\n");
+			fprintf(stderr,
+			    "Please input message with '-m, "
+			    "--msg "
+			    "<json>'\n");
+			exit(1);
+		}
+	}
+
 	if (opts->shm_mode) {
 		dds_set_shm_mode(opts);
 	}
@@ -194,6 +256,14 @@ dds_client_opts_fini(dds_client_opts *opts)
 	if (opts->shm_log_level) {
 		nng_strfree(opts->shm_log_level);
 		opts->shm_log_level = NULL;
+	}
+	if (opts->struct_name) {
+		nng_strfree(opts->struct_name);
+		opts->struct_name = NULL;
+	}
+	if (cJSON_IsObject(opts->msg)){
+		cJSON_Delete(opts->msg);
+		opts->msg = NULL;
 	}
 	opts->domain_id = 0;
 	opts->shm_mode  = false;
@@ -229,6 +299,23 @@ dds_set_shm_mode(dds_client_opts *opts)
 	if (dom < 0) {
 		DDS_FATAL("dds_create_domain: %s\n", dds_strretcode(-dom));
 	}
+}
+
+dds_handler_set *
+dds_get_handler(const char *struct_name)
+{
+	for (size_t i = 0; i < sizeof(dds_struct_handler_map) /
+	         sizeof(dds_struct_handler_map[0]);
+	     i++) {
+		if (strcmp(dds_struct_handler_map[i].struct_name,
+		        struct_name) == 0) {
+			return &dds_struct_handler_map[i].op_set;
+		}
+	}
+	DDS_FATAL(
+	    "Please make sure the struct name is correct and included in "
+	    "the idl file\n");
+	return NULL;
 }
 
 #endif
