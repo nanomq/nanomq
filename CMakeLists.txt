@@ -217,7 +217,6 @@ endif(BUILD_VSOMEIP_GATEWAY)
 if(BUILD_DDS_PROXY)
   set(BUILD_NANOMQ_CLI ON)
   add_definitions(-DSUPP_DDS_PROXY)
-  add_definitions(-DDDS_TYPE_NAME=example_struct)
 endif(BUILD_DDS_PROXY)
 
 if (DEBUG)
