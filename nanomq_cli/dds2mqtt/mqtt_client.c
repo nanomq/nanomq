@@ -243,6 +243,9 @@ mqtt_loop(void *arg)
 	int            rv;
 	dds_cli       *ddscli = cli->ddscli;
 
+	dds_handler_set *dds_handlers =
+	    dds_get_handler(ddscli->config->forward.mqtt2dds.struct_name);
+
 	while (cli->running) {
 		// If handle queue is not empty. Handle it first.
 		// Or we need to receive msgs from nng in a NONBLOCK way and
@@ -292,7 +295,7 @@ mqtt_loop(void *arg)
 			ddsmsg = hd->data;
 			printf("[MQTT] send msg to mqtt.\n");
 			// dds_to_mqtt_type_convert(ddsmsg, &mqttmsg);
-			cJSON *json = dds_to_mqtt_example_struct_convert(ddsmsg);
+			cJSON *json     = dds_handlers->dds2mqtt(ddsmsg);
 			mqttmsg.payload = cJSON_PrintUnformatted(json);
 			mqttmsg.len = strlen(mqttmsg.payload);
 			cJSON_free(json);
