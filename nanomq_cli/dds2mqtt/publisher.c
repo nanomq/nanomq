@@ -19,7 +19,6 @@
 #include <nng/nng.h>
 #include <nng/supplemental/util/platform.h>
 
-// #include "dds_mqtt_type_conversion.h"
 #include "mqtt_client.h"
 #include "dds_utils.h"
 
@@ -30,13 +29,18 @@ dds_publisher(int argc, char **argv)
 	dds_entity_t  topic;
 	dds_entity_t  writer;
 	dds_return_t  rc;
-	DDS_TYPE_NAME msg     = { 0 };
-	test_struct   sub_msg = { 0 };
 	uint32_t      status  = 0;
 
 	dds_client_opts opts = { .cli_type = DDS_PUB };
 
 	dds_handle_cmd(argc, argv, &opts);
+
+	dds_handler_set *dds_handles = dds_get_handler(opts.struct_name);
+
+	if (dds_handles == NULL) {
+		DDS_FATAL("dds_get_handler: %s\n", "dds_handles is NULL");
+		exit(1);
+	}
 
 	/* Create a Participant. */
 	participant = dds_create_participant(opts.domain_id, NULL, NULL);
@@ -46,7 +50,7 @@ dds_publisher(int argc, char **argv)
 
 	/* Create a Topic. */
 	topic = dds_create_topic(
-	    participant, &DDS_TYPE_NAME_DESC(), opts.topic, NULL, NULL);
+	    participant, dds_handles->desc, opts.topic, NULL, NULL);
 	if (topic < 0)
 		DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topic));
 
@@ -72,29 +76,22 @@ dds_publisher(int argc, char **argv)
 		dds_sleepfor(DDS_MSECS(20));
 	}
 
+	void *dds_data = dds_handles->alloc();
+
 	while (1) {
-		/* Create a message to write. */
-		msg.int8_test   = 1;
-		msg.uint8_test  = 2;
-		msg.int16_test  = 4;
-		msg.uint16_test = 8;
-		msg.int32_test  = 16;
-		msg.uint32_test = 32;
-		msg.int64_test  = 64;
-		msg.uint64_test = 128;
-		strncpy((char *) msg.message, "data->message",
-		    strlen("data->message"));
-		strncpy((char *) sub_msg.message, "stru.message",
-		    strlen("data->message"));
-		msg.example_enum = 0;
-		msg.example_stru = sub_msg;
-
-		printf("=== [Publisher]  Writing : ");
-		printf(
-		    "Message (%" PRId32 ", %s)\n", msg.int8_test, msg.message);
+		char *json_str = cJSON_Print(opts.msg);
+		printf("=== [Publisher]  Writing : %s\n", json_str);
 		fflush(stdout);
+		cJSON_free(json_str);
 
-		rc = dds_write(writer, &msg);
+		if (dds_handles->mqtt2dds(opts.msg, dds_data) != 0) {
+			fprintf(stderr,
+			    "Failed to convert json to struct '%s' \n",
+			    opts.struct_name);
+			break;
+		}
+
+		rc = dds_write(writer, dds_data);
 		if (rc != DDS_RETCODE_OK)
 			DDS_FATAL("dds_write: %s\n", dds_strretcode(-rc));
 		break;
