@@ -24,6 +24,13 @@ struct example_struct
 	uint64 uint64_test;
 	// array example
 	uint8  message[256];
+
+	string text;
+
+	string<100> text100;
+
+	char charset[50];
+	
 	test_enum example_enum;
 	test_struct example_stru;
 };
