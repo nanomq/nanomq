@@ -244,7 +244,7 @@ mqtt_loop(void *arg)
 	dds_cli       *ddscli = cli->ddscli;
 
 	dds_handler_set *dds_handlers =
-	    dds_get_handler(ddscli->config->forward.mqtt2dds.struct_name);
+	    dds_get_handler(ddscli->config->forward.dds2mqtt.struct_name);
 
 	while (cli->running) {
 		// If handle queue is not empty. Handle it first.
