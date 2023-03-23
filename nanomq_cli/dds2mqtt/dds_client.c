@@ -248,12 +248,20 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 	/* Get current client's handle queue */
 	nftp_vec *handleq = cli->handleq;
 
-	dds_handler_set *dds_handles =
+	dds_handler_set *dds_reader_handles =
 	    dds_get_handler(cli->config->forward.dds2mqtt.struct_name);
 
-	if (dds_handles == NULL) {
-		DDS_FATAL("Failed to get handler from struct '%s'",
+	if (dds_reader_handles == NULL) {
+		DDS_FATAL("Failed to get reader handler from struct '%s'",
 		    cli->config->forward.dds2mqtt.struct_name);
+		exit(1);
+	}
+
+	dds_handler_set *dds_writer_handles =
+	    dds_get_handler(cli->config->forward.mqtt2dds.struct_name);
+	if (dds_reader_handles == NULL) {
+		DDS_FATAL("Failed to get writer handler from struct '%s'",
+		    cli->config->forward.mqtt2dds.struct_name);
 		exit(1);
 	}
 
@@ -267,16 +275,16 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 		DDS_FATAL("dds_create_participant: %s\n",
 		    dds_strretcode(-participant));
 
-	/* Create a Topic. */
+	/* Create a Topic for reader */
 	topicr = dds_create_topic(
-	    participant, dds_handles->desc, cli->ddsrecv_topic, NULL, NULL);
+	    participant, dds_reader_handles->desc, cli->ddsrecv_topic, NULL, NULL);
 
 	if (topicr < 0)
 		DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topicr));
 
-	/* Create a Topic. for writer */
+	/* Create a Topic for writer */
 	topicw = dds_create_topic(
-	    participant, dds_handles->desc, cli->ddssend_topic, NULL, NULL);
+	    participant, dds_writer_handles->desc, cli->ddssend_topic, NULL, NULL);
 	if (topicw < 0)
 		DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topicw));
 
@@ -308,7 +316,7 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 
 	/* Initialize sample buffer, by pointing the void pointer within
 	 * the buffer array to a valid sample memory location. */
-	samples[0] = dds_handles->alloc();
+	samples[0] = dds_reader_handles->alloc();
 	nng_msg *      mqttmsg;
 	fixed_mqtt_msg midmsg;
 	uint32_t       len;
@@ -338,7 +346,8 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 		/* Check if we read some data and it is valid. */
 		if ((rc > 0) && (infos[0].valid_data)) {
 			/* Print Message. */
-			printf("=== [Subscriber] Received : ");
+			printf("=== [Subscriber] Received struct '%s'\n",
+			    dds_reader_handles->desc->m_typename);
 			fflush(stdout);
 
 			/* Make a handle */
@@ -365,7 +374,7 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 			        mqttmsg, &len);
 			midmsg.len = len;
 
-			dds_handles->mqtt2dds(
+			dds_writer_handles->mqtt2dds(
 			    cJSON_Parse(midmsg.payload), samples[0]);
 			/* Send the msg received */
 			rc = dds_write(writer, samples[0]);
@@ -389,7 +398,7 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 	}
 
 	/* Free the data location. */
-	dds_handles->free(samples[0], DDS_FREE_ALL);
+	dds_reader_handles->free(samples[0], DDS_FREE_ALL);
 
 	/* Deleting the participant will delete all its children recursively as
 	 * well. */
