@@ -314,9 +314,7 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 	printf("\n=== [Subscriber] Started\n");
 	fflush(stdout);
 
-	/* Initialize sample buffer, by pointing the void pointer within
-	 * the buffer array to a valid sample memory location. */
-	samples[0] = dds_reader_handles->alloc();
+	
 	nng_msg *      mqttmsg;
 	fixed_mqtt_msg midmsg;
 	uint32_t       len;
@@ -328,6 +326,11 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 		// put it to the handle queue. Sleep when handle queue is
 		// empty.
 		hd = NULL;
+
+		/* Initialize sample buffer, by pointing the void pointer
+		 * within the buffer array to a valid sample memory location.
+		 */
+		samples[0] = dds_reader_handles->alloc();
 
 		pthread_mutex_lock(&cli->mtx);
 		if (nftp_vec_len(handleq))
@@ -357,10 +360,10 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 			pthread_mutex_lock(&cli->mtx);
 			nftp_vec_append(handleq, (void *) hd);
 			pthread_mutex_unlock(&cli->mtx);
-
 			continue;
 		} else {
 			/* Polling sleep. */
+			dds_reader_handles->free(samples[0], DDS_FREE_ALL);
 			dds_sleepfor(DDS_MSECS(20));
 			continue;
 		}

@@ -295,9 +295,10 @@ mqtt_loop(void *arg)
 			ddsmsg = hd->data;
 			printf("[MQTT] send msg to mqtt.\n");
 			// dds_to_mqtt_type_convert(ddsmsg, &mqttmsg);
-			cJSON *json     = dds_handlers->dds2mqtt(ddsmsg);
+			cJSON *json = dds_handlers->dds2mqtt(ddsmsg);
+			dds_handlers->free(ddsmsg, DDS_FREE_ALL);
 			mqttmsg.payload = cJSON_PrintUnformatted(json);
-			mqttmsg.len = strlen(mqttmsg.payload);
+			mqttmsg.len     = strlen(mqttmsg.payload);
 			cJSON_free(json);
 
 			mqtt_publish(cli, cli->mqttsend_topic, 0,
