@@ -29,10 +29,21 @@ endif(BUILD_VSOMEIP_GATEWAY)
 add_executable(nanomq_cli ${CLI_SOURCE})
 
 if(BUILD_DDS_PROXY)
-  find_package(CycloneDDS REQUIRED)
-  idlc_generate(TARGET dds_type_lib FILES "dds2mqtt/dds_type.idl" WARNINGS no-implicit-extensibility)
+  if(NOT IDL_FILE_PATH)
+    set(IDL_FILE_PATH "${CMAKE_SOURCE_DIR}/etc/idl/dds_type.idl")
+    message("Set default idl file path: ${IDL_FILE_PATH}")
+  else()
+    message("Set user's idl file path: ${IDL_FILE_PATH}")
+  endif()
 
-  target_link_libraries(nanomq_cli dds_type_lib CycloneDDS::ddsc)
+  get_filename_component(IDL_FILE_NAME ${IDL_FILE_PATH} NAME_WE)
+
+  set(IDL_LIB_NAME "${IDL_FILE_NAME}_lib")
+
+  find_package(CycloneDDS REQUIRED)
+  idlc_generate(TARGET ${IDL_LIB_NAME} FILES ${IDL_FILE_PATH} WARNINGS no-implicit-extensibility)
+
+  target_link_libraries(nanomq_cli ${IDL_LIB_NAME} CycloneDDS::ddsc)
 endif(BUILD_DDS_PROXY)
 
 target_link_libraries(nanomq_cli nng)
