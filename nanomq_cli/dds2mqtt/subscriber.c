@@ -67,13 +67,13 @@ dds_subscriber(int argc, char **argv)
 
 	printf("\n=== [Subscriber] Waiting for a sample ...\n");
 	fflush(stdout);
-
-	/* Initialize sample buffer, by pointing the void pointer within
-	 * the buffer array to a valid sample memory location. */
-	samples[0] = dds_handles->alloc();
-
+	
 	/* Poll until data has been read. */
 	while (true) {
+		/* Initialize sample buffer, by pointing the void pointer
+		 * within the buffer array to a valid sample memory location.
+		 */
+		samples[0] = dds_handles->alloc();
 		/* Do the actual read.
 		 * The return value contains the number of read samples. */
 		rc =
@@ -91,10 +91,9 @@ dds_subscriber(int argc, char **argv)
 			/* Polling sleep. */
 			dds_sleepfor(DDS_MSECS(20));
 		}
+		/* Free the data location. */
+		dds_handles->free(samples[0], DDS_FREE_ALL);
 	}
-
-	/* Free the data location. */
-	dds_handles->free(samples[0], DDS_FREE_ALL);
 
 	/* Deleting the participant will delete all its children recursively as
 	 * well. */
