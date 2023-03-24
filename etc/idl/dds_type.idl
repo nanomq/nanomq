@@ -1,0 +1,36 @@
+// enum example
+enum test_enum
+{
+	enum1,
+	enum2
+};
+
+struct test_struct
+{
+	uint8 message[256];
+};
+
+//struct example
+struct example_struct
+{
+	//base type example
+	int8    int8_test;
+	uint8   uint8_test;
+	int16   int16_test;
+	uint16  uint16_test;
+	int32   int32_test;
+	uint32  uint32_test;
+	int64   int64_test;
+	uint64  uint64_test;
+	float   float_test;
+	double  double_test;
+
+	// array example
+	uint8   message[256];
+	
+	test_enum   example_enum;
+	test_struct example_stru;
+};
+
+//define the struct will be used as dds struct
+#pragma keylist example_struct
