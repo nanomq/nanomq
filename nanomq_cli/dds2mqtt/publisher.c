@@ -7,7 +7,6 @@
 //
 #if defined(SUPP_DDS_PROXY)
 
-#include "dds_type.h"
 #include "dds/dds.h"
 #include "dds_client.h"
 #include <stdio.h>
