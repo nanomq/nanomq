@@ -1038,12 +1038,12 @@ typedef struct {
 static void
 get_client_cb(void *key, void *value, void *json_obj)
 {
-	client_info *info    = json_obj;
-	uint32_t     pipe_id = *(uint32_t *) key;
-	nng_pipe     pipe    = { .id = pipe_id };
-
-	conn_param *   cp  = nng_pipe_cparam(pipe);
-	const uint8_t *cid = conn_param_get_clientid(cp);
+	client_info   *info    = json_obj;
+	uint32_t       pipe_id = *(uint32_t *) key;
+	nng_pipe       pipe    = { .id = pipe_id };
+	bool           status  = nng_pipe_status(pipe);
+	conn_param    *cp      = nng_pipe_cparam(pipe);
+	const uint8_t *cid     = conn_param_get_clientid(cp);
 	if (info->client_id != NULL) {
 		if (strcmp(info->client_id, (const char *) cid) != 0) {
 			return;
@@ -1068,8 +1068,10 @@ get_client_cb(void *key, void *value, void *json_obj)
 	cJSON_AddStringToObject(data_info_elem, "username",
 	    user_name == NULL ? "" : (char *) user_name);
 	cJSON_AddNumberToObject(data_info_elem, "keepalive", keep_alive);
-	//TODO Get connect state from nano_pipe
-	cJSON_AddStringToObject(data_info_elem, "conn_state", "connected");
+	if (status)
+		cJSON_AddStringToObject(data_info_elem, "conn_state", "disconnected");
+	else
+		cJSON_AddStringToObject(data_info_elem, "conn_state", "connected");
 	cJSON_AddBoolToObject(data_info_elem, "clean_start", clean_start);
 	cJSON_AddStringToObject(data_info_elem, "proto_name", proto_name);
 	cJSON_AddNumberToObject(data_info_elem, "proto_ver", proto_ver);
