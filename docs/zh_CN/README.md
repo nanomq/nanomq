@@ -14,7 +14,7 @@ IoT 时代数据是第一生产力，而边缘则是数据诞生的地方。在�
 目前**NanoMQ**具有的功能和特性有：
 
 - 完整支持*MQTT 3.1.1*和*MQTT 5.0*
-- 多种桥接方式，包括MQTT/QUIC/nanomsg/ZeroMQ等，与云端和其他服务进行数据同步。
+- 多种桥接方式，包括 MQTT/QUIC/nanomsg/ZeroMQ/DDS 等，与云端和其他服务进行数据同步。
 - 支持WebSocket和TLS加密连接。
 - 嵌入式规则引擎 + Webhook插件，无缝集成。
 - 内置数据持久化，断网缓存自动续传。
@@ -23,7 +23,6 @@ IoT 时代数据是第一生产力，而边缘则是数据诞生的地方。在�
 
 *不支持的 MQTT 5.0 特性*
 - Auth https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901217
-- Request/Response https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901252
 - Server Redirection https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901255
 
 ![img](./images/NanoMQ-introduction.png)

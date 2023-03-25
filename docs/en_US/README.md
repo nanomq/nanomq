@@ -18,7 +18,7 @@ Github repository address: <https://github.com/emqx/nanomq>
 - For now **NanoMQ** has following features:
 
 - **MQTT 3.1.1** & **MQTT 5.0** Broker.
-- Bridging message from edge to multiple clouds via MQTT/QUIC/nanomsg/ZeroMQ.
+- Bridging message from edge to multiple clouds via MQTT/QUIC/nanomsg/ZeroMQ/DDS.
 - Support WebSocket and TLS encryption.
 - Embedded with internal Rule-Engine & WebHook plugins.
 - Data store in SQLite or other databases while network is lost.
@@ -27,7 +27,6 @@ Github repository address: <https://github.com/emqx/nanomq>
 
 *Unsupport features of MQTT 5.0* 
 - Auth https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901217
-- Request/Response https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901252
 - Server Redirection https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901255
 
 [Features](./features.md)
