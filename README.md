@@ -555,7 +555,6 @@ You could join us on [Slack](https://slack-invite.emqx.io/). We now share a work
 
 *Unsupport features of MQTT 5.0* 
 - Auth https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901217
-- Request/Response https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901252
 - Server Redirection https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901255
 ### MQTT Client Examples
 
