@@ -323,6 +323,7 @@ sub_ctx_handle(nano_work *work)
 			cvector_push_back(work->msg_ret, r[i]->message);
 		}
 		cvector_free(r);
+		r = NULL;
 
 	next:
 		tn = tn->next;
