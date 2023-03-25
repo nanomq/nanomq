@@ -598,7 +598,7 @@ hybrid_bridge_quic_client(bridge_param *bridge_arg)
 	node->sock         = (void *) sock;
 
 	// keepalive here is for QUIC only
-	if ((rv = nng_mqtt_quic_open_keepalive(sock, node->address, (void *)node)) != 0) {
+	if ((rv = nng_mqtt_quic_open_conf(sock, node->address, (void *)node)) != 0) {
 		nng_fatal("nng_mqtt_quic_client_open", rv);
 		return rv;
 	}
@@ -649,7 +649,7 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	log_debug("Quic bridge service start.\n");
 
 	// keepalive here is for QUIC only
-	if ((rv = nng_mqtt_quic_open_keepalive(sock, node->address, (void *)node)) != 0) {
+	if ((rv = nng_mqtt_quic_open_conf(sock, node->address, (void *)node)) != 0) {
 		nng_fatal("nng_mqtt_quic_client_open", rv);
 		return rv;
 	}
