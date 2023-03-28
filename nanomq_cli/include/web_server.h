@@ -12,7 +12,16 @@
 #define HTTP_DEFAULT_PASSWORD "public"
 #define HTTP_DEFAULT_PORT 8082
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern int  start_rest_server(proxy_info *proxy);
 extern void stop_rest_server(void);
+
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif // __NANOMQ_CLI_WEB_SERVER_H__
