@@ -20,7 +20,15 @@ typedef struct {
 	cmd_args          args;
 } proxy_info;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 proxy_info *proxy_info_alloc(const char *name, void *conf, char *conf_path,
     conf_http_server *http_conf, int argc, char **argv);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
