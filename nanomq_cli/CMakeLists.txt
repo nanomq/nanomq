@@ -40,6 +40,9 @@ if(BUILD_DDS_PROXY)
 
   set(IDL_LIB_NAME "${IDL_FILE_NAME}_lib")
 
+  include(SerialGenerate)
+  serial_generate(${IDL_FILE_PATH} idl_convert ${CMAKE_CURRENT_SOURCE_DIR}/dds2mqtt)
+
   find_package(CycloneDDS REQUIRED)
   idlc_generate(TARGET ${IDL_LIB_NAME} FILES ${IDL_FILE_PATH} WARNINGS no-implicit-extensibility)
 
