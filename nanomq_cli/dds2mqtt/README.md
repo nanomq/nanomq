@@ -4,84 +4,311 @@ Here we combine dds with mqtt. So DDS node can communicate with MQTT broker.
 
 DDS node <--local--> NanoSDK client <--network--> NanoMQ Broker
 
-## Requires
 
-Select cyclonedds as dds backend.
 
-+ CycloneDDS version == 0.10.1
+## Building
 
-NanoSDK is a MQTT SDK.
+### Iceoryx
 
-+ NanoSDK version >= 0.7.5
+> If you're no plan to use Iceoryx, just skip this step.
 
-Note. libddsc and libnng should be installed.
+```bash
+$ git clone https://github.com/eclipse-iceoryx/iceoryx.git
+$ cd iceoryx
+$ git checkout release_2.0
+$ mkdir build && cd build
+$ cmake -G Ninja -DCMAKE_INSTALL_PREFIX={USER_LIBRARY_PATH} ../iceoryx_meta
+$ ninja
+$ sudo ninja install
+```
 
-## NOTE
+### CycloneDDS
 
-+ Select topics from configure file is not supported.
-+ [How to enable and run Cyclone DDS with shared memory exchange](./doc/Shared_memory.md).
+```bash
+$ git clone https://github.com/eclipse-cyclonedds/cyclonedds.git
+$ cd cyclonedds
+$ mkdir build && cd build
+$ cmake -G Ninja -DCMAKE_INSTALL_PREFIX={USER_LIBRARY_PATH} -DCMAKE_PREFIX_PATH={USER_LIBRARY_PATH} -DBUILD_EXAMPLES=ON ..
+$ ninja 
+$ sudo ninja install
+```
 
-## Update IDL
+> Specify you installation path by `USER_LIBRARY_PATH`. 
 
-Update dds_type.idl. Then go to path/to/nanomq directory.
 
-Edit CMakeLists.txt and specific your structure name in dds_type.idl as DDS_TYPE_NAME.
 
-Note. The code about type conversation between DDS_TYPE_NAME and MQTT should be provided.
+## DDS Proxy on NanoMQ_CLI 
+
+### Building idl-serial-code-gen
+
+Compile the `IDL` code generator.
+
+```bash
+$ git clone https://github.com/nanomq/idl-serial.git
+$ cd idl-serial
+$ mkdir build && cd build
+$ cmake -G Ninja -DCMAKE_INSTALL_PREFIX={USER_LIBRARY_PATH}..
+$ ninja 
+$ sudo ninja install
+```
+
+
+
+### Build NanoMQ with DDS Proxy
+
+1. Specify idl file path by cmake option `IDL_FILE_PATH` (default path: `etc/idl/dds_type.idl`), enable DDS by `-DBUILD_DDS_PROXY=ON` ;
+
+```bash
+$ git clone https://github.com/emqx/nanomq.git 
+$ cd nanomq 
+$ mkdir build && cd build 
+$ cmake -G Ninja -DIDL_FILE_PATH={IDL_PATH} -DCMAKE_PREFIX_PATH={USER_LIBRARY_PATH} -DBUILD_DDS_PROXY=ON .. 
+$ ninja  
+$ sudo ninja install
+```
+
+2. Check if  `dds` client is built in `nanomq_cli` ;
+
+```bash
+$ ./nanomq_cli/nanomq_cli  
+   nanomq_cli { pub | sub | conn | nngproxy | nngcat | dds } [--help] 
+   
+   available tools:   
+     * pub   
+     * sub   
+     * conn   
+     * nngproxy   
+     * nngcat   
+     * dds 
+   
+   Copyright 2022 EMQ Edge Computing Team
+```
+
+```bash
+$ ./nanomq_cli/nanomq_cli dds
+ nanomq_cli dds { sub | pub | proxy } [--help] 
+
+ available apps: 
+        * sub   
+        * pub   
+        * proxy 
+```
+
+
 
 ## Quick start
 
-Step1. Turn on nanomq
+### Configuration
+
+#### Configuring DDS Proxy
+
+##### DDS subscription and MQTT publish
+
+- DDS  Topic for subscribe
+
+- -  `forward_rules.dds_to_mqtt.from_dds = "MQTTCMD/topic1"`
+
+- MQTT Topic for publish
+
+- - `forward_rules.dds_to_mqtt.to_mqtt = "DDS/topic1"`
+
+- Specify dds structure name for subscribe
+
+- - `forward_rules.dds_to_mqtt.struct_name = "remote_control_result_t"`
+
+##### MQTT subscription and DDS publish
+
+- MQTT Topic for subscribe
+
+- -  `forward_rules.dds_to_mqtt.from_dds = "DDSCMD/topic1"`
+
+- DDS Topic for publish
+
+- - `forward_rules.dds_to_mqtt.to_mqtt = "MQTT/topic1"`
+
+- Specify dds structure name for publish
+
+- - `forward_rules.dds_to_mqtt.struct_name = "remote_control_req_t"`
+
+ **Note: The `struct_name` must be included in the `IDL` file .**
 
 ```bash
-./nanomq start
-```
+## Forwarding rules
+forward_rules = {
+	## DDS to MQTT
+    dds_to_mqtt = {
+        from_dds = "MQTTCMD/topic1"
+        to_mqtt = "DDS/topic1"
+        struct_name = "remote_control_result_t"
+    }
+    ## MQTT to DDS
+    mqtt_to_dds = {
+        from_mqtt = "DDSCMD/topic1"
+        to_dds = "MQTT/topic1"
+        struct_name = "remote_control_req_t"
+    }
+}
 
-Step2. Start the dds2mqtt proxy 
+## DDS Configuration
+dds {
+    # # dds domain id
+    # # default: 0
+    # # Value: uint32
+    domain_id = 0
+    
+    shared_memory = {
+        # # Enable shared memory transport.
+        # # Iceoryx is required if enable shared memory transport.
+        # #
+        # # Default: false
+        # # Value:  boolean
+        enable = false
+        
+        # # controls the output of the iceoryx runtime and can be set to, in order of decreasing output:
+        # # log level: verbose, debug, info, warn, error, fatal, off
+        # # Default:  info
+        # # Value: enum
+        log_level = info
+    }
+}
 
-```bash
-./nanomq_cli ddsproxy proxy --conf nanomq_dds_gateway.conf
-```
-
-Test msgs from DDS to MQTT
-
-Step3.
-
-```bash
-./nanomq_cli sub --url "mqtt-tcp://127.0.0.1:1883" -t "DDS/topic1"
-```
-
-Step4.
-
-```bash
-./nanomq_cli ddsproxy pub -t "MQTTCMD/topic1"
-```
-
-Test msgs from MQTT to DDS
-
-Step5.
-
-```bash
-./nanomq_cli ddsproxy sub -t "MQTT/topic1"
-```
-
-Step6.
-
-```bash
-./nanomq_cli pub --url "mqtt-tcp://127.0.0.1:1883" -t "DDSCMD/topic1" -m '{
-        "int8_test":    1,
-        "uint8_test":   50,
-        "int16_test":   27381,
-        "uint16_test":  1,
-        "int32_test":   0,
-        "uint32_test":  32,
-        "int64_test":   6820785120,
-        "uint64_test":  25855901936,
-        "message":      "aaabbbddd",
-        "example_enum": 0,
-        "example_stru": {
-                "message":      "abc"
+## MQTT client Configuration
+mqtt {
+	connector {
+        # # Bridge address: host:port .
+        # #
+        # # Value: String
+        # # Example: mqtt-tcp://127.0.0.1:1883
+        # #          tls+mqtt-tcp://127.0.0.1:8883
+        server = "mqtt-tcp://127.0.0.1:1883"
+        
+        # # Protocol version of the bridge.
+        # #
+        # # Value: Enum
+        # # - 5: mqttv5
+        # # - 4: mqttv311
+        # # - 3: mqttv31
+        proto_ver = 4
+        # # The ClientId of a remote bridge.
+        # # Default random string.
+        # #
+        # # Value: String
+        # clientid="bridge_client"
+        
+        # # Ping: interval of a downward bridge.
+        # #
+        # # Value: Duration
+        # # Default: 10 seconds
+        keepalive = 60s
+        # # The Clean start flag of a remote bridge.
+        # #
+        # # Value: boolean
+        # # Default: false
+        # #
+        # # NOTE: Some IoT platforms require clean_start
+        # #       must be set to 'true'
+        clean_start = false
+        # # The username for a remote bridge.
+        # #
+        # # Value: String
+        username = username
+        # # The password for a remote bridge.
+        # #
+        # # Value: String
+        password = passwd
+        
+        ssl {
+            # # enable ssl
+            # # 
+            # # Value: true | false
+            enable = false
+            # # Ssl key password
+            # # String containing the user's password. Only used if the private keyfile
+            # # is password-protected.
+            # #
+            # # Value: String
+            key_password = "yourpass"
+            # # Ssl keyfile
+            # # Path of the file containing the client's private key.
+            # #
+            # # Value: File
+            keyfile = "/etc/certs/key.pem"
+            # # Ssl cert file
+            # # Path of the file containing the client certificate.
+            # #
+            # # Value: File
+            certfile = "/etc/certs/cert.pem"
+            # # Ssl ca cert file
+            # # Path of the file containing the server's root CA certificate.  
+            # # 
+            # # This certificate is used to identify the AWS IoT server and is publicly
+            # # available.
+            # #
+            # # Value: File
+            cacertfile = "/etc/certs/cacert.pem"
         }
+    }
+}
+```
+
+
+
+### Running
+
+1. Start MQTT Broker
+
+```bash
+$ nanomq start
+```
+
+or
+
+```bash
+$ emqx start
+```
+
+2. Start DDS Proxy
+
+```bash
+$ ./nanomq_cli dds proxy --conf nanomq_dds_gateway.conf
+```
+
+3. Start MQTT client and subscribe topic `DDS/topic1`
+
+```bash
+$ ./nanomq_cli sub --url "mqtt-tcp://127.0.0.1:1883" -t "DDS/topic1"
+```
+
+4. Start DDS client, specify structure name `remote_control_result_t` and publish message ( *JSON format* ) to DDS topic `MQTTCMD/topic1`
+
+```bash
+$ ./nanomq_cli dds pub -t "MQTTCMD/topic1" --struct "remote_control_result_t"  -m '{
+  "req_result_code": 1,
+  "req_token": [1,2,3,4,5,6],
+  "req_result_msg": [7,8,9,10,11],
+  "req_id": [12,13,14],
+  "req_token_len": 6,
+  "req_id_len": 3
 }'
 ```
+
+5. Start DDS client to subscribe DDS topic `MQTT/topic1` and specify structure name `remote_control_req_t`
+
+```bash
+$ ./nanomq_cli dds sub -t "MQTT/topic1" --struct "remote_control_req_t"
+```
+
+6. Start MQTT client to publish message ( *JSON format*) to MQTT topic `DDSCMD/topic1`
+
+```bash
+$ ./nanomq_cli pub --url "mqtt-tcp://127.0.0.1:1883" -t "DDSCMD/topic1" -m '{ 
+  "req": 1,         
+  "req_id": [15,16],
+  "req_id_len": 2
+ }'
+```
+
+
+
+### 
 
