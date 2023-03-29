@@ -923,7 +923,7 @@ create_client(nng_socket *sock, nng_socket psock, struct work **works,
 		     tp != NULL && i < param->nng_opts->topic_count;
 		     tp = tp->next, i++) {
 			nng_mqtt_topic_qos_array_set(
-			    topics_qos, i, tp->val, param->nng_opts->qos);
+			    topics_qos, i, tp->val, param->nng_opts->qos, 1, 0, 0);
 		}
 
 		nng_mqtt_msg_set_subscribe_topics(
