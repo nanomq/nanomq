@@ -71,16 +71,14 @@ bridge_publish_msg(const char *topic, uint8_t *payload, uint32_t len, bool dup,
 }
 
 static void
-send_callback(void *arg)
+send_callback(nng_mqtt_client *client, nng_msg *msg, void *obj) 
 {
-	nng_mqtt_client *client = (nng_mqtt_client *) arg;
 	nng_aio *        aio    = client->send_aio;
 
 	if (nng_aio_result(aio) != 0) {
 		return;
 	}
 
-	nng_msg *        msg    = nng_aio_get_msg(aio);
 	uint32_t         count;
 	uint8_t *        code;
 	uint8_t          type;
@@ -150,7 +148,7 @@ bridge_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 		for (size_t i = 0; i < param->config->sub_count; i++) {
 			nng_mqtt_topic_qos_array_set(topic_qos, i,
 			    param->config->sub_list[i].topic,
-			    param->config->sub_list[i].qos);
+			    param->config->sub_list[i].qos, 1, 0, 0);
 			log_info("Bridge client subscribed topic %s (qos %d).",
 			    param->config->sub_list[i].topic,
 			    param->config->sub_list[i].qos);
@@ -358,7 +356,7 @@ hybrid_bridge_tcp_client(bridge_param *bridge_arg)
 		nng_mqtt_msg_set_connect_property(connmsg, properties);
 	}
 
-	bridge_arg->client = nng_mqtt_client_alloc(*sock, send_callback, true);
+	bridge_arg->client = nng_mqtt_client_alloc(*sock, &send_callback, true);
 
 	node->sock         = (void *) sock;
 
@@ -440,7 +438,7 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	}
 	bridge_arg->config = node;
 	bridge_arg->sock   = sock;
-	bridge_arg->client = nng_mqtt_client_alloc(*sock, send_callback, true);
+	bridge_arg->client = nng_mqtt_client_alloc(*sock, &send_callback, true);
 
 	node->sock         = (void *) sock;
 
@@ -528,7 +526,7 @@ quic_ack_cb(void *arg)
 				    nng_mqtt_topic_qos_array_create(1);
 				nng_mqtt_topic_qos_array_set(topic_qos, 0,
 				    param->config->sub_list[i].topic,
-				    param->config->sub_list[i].qos);
+				    param->config->sub_list[i].qos, 1, 0, 0);
 				log_info("Quic bridge client subscribe to "
 				         "topic (QoS "
 				         "%d)%s.",
@@ -545,7 +543,7 @@ quic_ack_cb(void *arg)
 			for (size_t i = 0; i < param->config->sub_count; i++) {
 				nng_mqtt_topic_qos_array_set(topic_qos, i,
 				    param->config->sub_list[i].topic,
-				    param->config->sub_list[i].qos);
+				    param->config->sub_list[i].qos, 1, 0, 0);
 				log_info("Quic bridge client subscribed topic "
 				         "(q%d)%s.",
 				    param->config->sub_list[i].qos,
@@ -606,7 +604,7 @@ hybrid_bridge_quic_client(bridge_param *bridge_arg)
 	apply_sqlite_config(sock, node, "mqtt_quic_client.db");
 	nng_socket_set(*sock, NANO_CONF, node, sizeof(conf_bridge_node));
 
-	bridge_arg->client = nng_mqtt_client_alloc(*sock, send_callback, true);
+	bridge_arg->client = nng_mqtt_client_alloc(*sock, &send_callback, true);
 
 	if (0 != nng_mqtt_quic_set_connect_cb(sock, bridge_quic_connect_cb, (void *)bridge_arg) ||
 	    0 != nng_mqtt_quic_set_disconnect_cb(sock, hybrid_quic_disconnect_cb, (void *)bridge_arg)) {
@@ -663,7 +661,7 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	}
 	bridge_arg->config = node;
 	bridge_arg->sock   = sock;
-	bridge_arg->client = nng_mqtt_client_alloc(*sock, send_callback, true);
+	bridge_arg->client = nng_mqtt_client_alloc(*sock, &send_callback, true);
 
 	node->sock = (void *) sock;
 
