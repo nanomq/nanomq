@@ -255,6 +255,34 @@ mqtt {
 
 ### Running
 
+#### Iceoryx
+
+>  If you don't want to start running Cyclone DDS with shared memory exchange or haven't enabled shared memory transpot layer, just skip the following steps
+
+1. Create an example `iceoryx` configuration file which has a memory pool of 2^15 blocks which can store data types of 16384 bytes (+ 64 byte header = 16448 byte block): <br>
+
+   ```toml
+   [general]
+   version = 1
+   
+   [[segment]]
+   
+   [[segment.mempool]]
+   size = 16448
+   count = 32768
+   ```
+
+   Please save this file as *iox_config.toml* in your own directory.
+
+2. Start `RouDi` in `iceoryx` in a terminal.<br>
+
+   ```bash
+   $ cd {USER_LIBRARY_PATH}
+   $ bin/iox-roudi -c iox_config.toml
+   ```
+
+#### DDS Proxy
+
 1. Start MQTT Broker
 
 ```bash
@@ -307,8 +335,4 @@ $ ./nanomq_cli pub --url "mqtt-tcp://127.0.0.1:1883" -t "DDSCMD/topic1" -m '{
   "req_id_len": 2
  }'
 ```
-
-
-
-### 
 
