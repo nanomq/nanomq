@@ -58,7 +58,7 @@ static client_app apps[] = {
 
 #if defined(SUPP_DDS_PROXY)
 	{
-	    .name = "ddsproxy",
+	    .name = "dds",
 	    .func = dds_proxy_start,
 	},
 #endif

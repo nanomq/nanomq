@@ -414,7 +414,7 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 	return EXIT_SUCCESS;
 }
 
-const char *usage = " nanomq_cli ddsproxy { sub | pub | proxy } [--help] \n\n"
+const char *usage = " nanomq_cli dds { sub | pub | proxy } [--help] \n\n"
 					" available apps: \n"
                     " \t* sub   \n"
                     " \t* pub   \n"
