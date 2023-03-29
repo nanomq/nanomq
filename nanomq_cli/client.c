@@ -1362,7 +1362,7 @@ connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 			     tp != NULL && i < param->opts->topic_count;
 			     tp = tp->next, i++) {
 				nng_mqtt_topic_qos_array_set(
-				    topics_qos, i, tp->val, param->opts->qos);
+				    topics_qos, i, tp->val, param->opts->qos, 1, 0, 0);
 			}
 			nng_mqtt_subscribe(*param->sock, topics_qos,
 			    param->opts->topic_count,
@@ -1645,7 +1645,7 @@ quic_connect_cb(void *rmsg, void *arg)
 				     tp = tp->next, i++) {
 					nng_mqtt_topic_qos_array_set(
 					    topics_qos, i, tp->val,
-					    param->opts->qos);
+					    param->opts->qos, 1, 0, 0);
 				}
 				nng_mqtt_subscribe_async(param->client,
 				    topics_qos, param->opts->topic_count,
