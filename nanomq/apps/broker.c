@@ -1,5 +1,5 @@
 //
-// Copyright 2022 NanoMQ Team, Inc. <jaylin@emqx.io>
+// Copyright 2023 NanoMQ Team, Inc. <jaylin@emqx.io>
 //
 // This software is supplied under the terms of the MIT License, a
 // copy of which should be located in the distribution where this
@@ -350,13 +350,13 @@ server_cb(void *arg)
 					}
 					work->msg = m;
 					nng_aio_set_msg(work->aio, work->msg);
-					nng_msg_set_pipe(work->msg, work->pid);
+					nng_aio_set_prov_data(work->aio, &work->pid.id);
 					nng_ctx_send(work->ctx, work->aio);
 				}
 				cvector_free(work->msg_ret);
 			}
 			nng_msg_set_cmd_type(smsg, CMD_SUBACK);
-			nng_msg_set_pipe(smsg, work->pid);
+			nng_aio_set_prov_data(work->aio, &work->pid.id);
 			nng_aio_set_msg(work->aio, smsg);
 			work->msg   = NULL;
 			work->state = SEND;
@@ -381,8 +381,7 @@ server_cb(void *arg)
 
 			// free unsub_pkt
 			unsub_pkt_free(work->unsub_pkt);
-
-			nng_msg_set_pipe(work->msg, work->pid);
+			nng_aio_set_prov_data(work->aio, &work->pid.id);
 			nng_aio_set_msg(work->aio, work->msg);
 			work->msg   = NULL;
 			work->state = SEND;
@@ -436,7 +435,7 @@ server_cb(void *arg)
 			uint8_t  reason_code = *(body + 1);
 			if (work->proto == PROTO_MQTT_BROKER) {
 				// Return CONNACK to clients of broker
-				nng_msg_set_pipe(work->msg, work->pid);
+				nng_aio_set_prov_data(work->aio, &work->pid.id);
 				// clone for sending connect event notification
 				nng_msg_clone(work->msg);
 				nng_aio_set_msg(work->aio, work->msg);
@@ -496,14 +495,14 @@ server_cb(void *arg)
 			cvector(mqtt_msg_info) msg_infos;
 			msg_infos = work->pipe_ct->msg_infos;
 
-			log_debug("total pipes: %ld", cvector_size(msg_infos));
+			log_trace("total pipes: %ld", cvector_size(msg_infos));
 			if (cvector_size(msg_infos))
 				if (encode_pub_message(smsg, work, PUBLISH))
 					for (int i = 0; i < cvector_size(msg_infos) && rv== 0; ++i) {
 						msg_info = &msg_infos[i];
 						nng_msg_clone(smsg);
 						work->pid.id = msg_info->pipe;
-						nng_msg_set_pipe(smsg, work->pid);
+						nng_aio_set_prov_data(work->aio, &work->pid.id);
 						work->msg = smsg;
 						nng_aio_set_msg(work->aio, work->msg);
 						nng_ctx_send(work->ctx, work->aio);
@@ -619,7 +618,7 @@ server_cb(void *arg)
 						msg_info = &msg_infos[i];
 						nng_msg_clone(smsg);
 						work->pid.id = msg_info->pipe;
-						nng_msg_set_pipe(smsg, work->pid);
+						nng_aio_set_prov_data(work->aio, &work->pid.id);
 						work->msg = smsg;
 						nng_aio_set_msg(work->aio, work->msg);
 						nng_ctx_send(work->ctx, work->aio);
@@ -690,7 +689,7 @@ server_cb(void *arg)
 		nng_msg_free(work->msg);
 		work->msg = smsg;
 		// compose a disconnect msg
-		nng_msg_set_pipe(work->msg, work->pid);
+		nng_aio_set_prov_data(work->aio, &work->pid.id);
 		// clone for sending connect event notification
 		nng_aio_set_msg(work->aio, work->msg);
 		nng_ctx_send(work->ctx, work->aio); // send connack
