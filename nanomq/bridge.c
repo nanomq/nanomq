@@ -93,10 +93,6 @@ send_callback(nng_mqtt_client *client, nng_msg *msg, void *obj)
 	} else if(type == CMD_CONNECT) {
 		log_debug("send bridge connect msg complete");
 	}
-	if (nng_lmq_get(client->msgq, &msg) == 0) {
-		nng_aio_set_msg(client->send_aio, msg);
-		nng_send_aio(client->sock, client->send_aio);
-	}
 	// nng_mqtt_client_free(client, true);
 }
 
