@@ -27,7 +27,7 @@ $ sudo ninja install
 
 开启 QUIC 桥接功能的 NanoMQ 编译安装完成后, 需在配置`nanomq.conf`文件中进行配置MQTT over QUIC 桥接功能和对应的主题，使用 `mqtt-quic` 作为 URL 前缀即是采用 QUIC 作为 MQTT 的传输层；
 
-具体配置参数请参考桥接[Hocon版本配置](./config-description/v014.md#标准MQTT桥接配置参数) 或 [旧版本配置](./config-description/v013.md#标准MQTT桥接配置参数) (*不推荐*), 以下配置示例为Hocon格式配置:
+具体配置参数请参考桥接[Hocon版本配置](../config-description/v014.md) 或 [旧版本配置](../config-description/v013.md) (*不推荐*), 以下配置示例为Hocon格式配置:
 
 重点配置项：
 

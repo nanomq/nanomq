@@ -4,7 +4,7 @@
 
 需在配置`nanomq.conf`文件中进行配置
 
-具体配置参数请参考桥接[配置](./config-description/v014.md),  以下配置示例为Hocon格式配置:
+具体配置参数请参考桥接[配置](../config-description/v014.md),  以下配置示例为Hocon格式配置:
 
 重点配置项：
 
