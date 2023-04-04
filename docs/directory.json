@@ -49,8 +49,16 @@
       "path": "zmq-gateway"
     },
     {
-      "title": "MQTT桥接",
+      "title": "MQTT 桥接",
       "path": "bridges/README"
+    },
+    {
+      "title": "MQTT over TCP桥接",
+      "path": "bridges/tcp-bridge"
+    },
+    {
+      "title": "MQTT over QUIC桥接",
+      "path": "bridges/quic-bridge"
     }
   ],
   "en": [
