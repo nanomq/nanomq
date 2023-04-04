@@ -47,8 +47,11 @@
     {
       "title": "ZMQ 网关",
       "path": "zmq-gateway"
+    },
+    {
+      "title": "MQTT桥接",
+      "path": "bridges/README"
     }
-    
   ],
   "en": [
     {
