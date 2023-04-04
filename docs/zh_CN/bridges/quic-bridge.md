@@ -40,7 +40,6 @@ $ sudo ninja install
 QUIC专用配置:
 
 - 混合桥接模式开关：`bridges.mqtt.nodes[].hybrid_bridging`
-- 拥塞控制选项 (cubic \| bbr) (_默认_ `bbr`): `bridges.mqtt.nodes[].congestion_control`
 - 多流桥接开关: `bridges.mqtt.nodes[].multi_stream`
 
 
