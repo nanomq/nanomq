@@ -1,6 +1,6 @@
 # NanoMQ桥接到EMQX
 
-### 配置
+## 配置
 
 需在配置`nanomq.conf`文件中进行配置
 
@@ -64,7 +64,7 @@ bridges.mqtt {
 
 如需查看运行过程中更多日志数据，可以在配置文件中设置日志等级 `log.level`
 
-### 运行
+## 运行
 
 启动 NanoMQ 时使用`--conf`执行配置文件路径（若配置文件已放置于系统路径`/etc/nanomq.conf`则无需在命令行指定）
 
@@ -72,11 +72,11 @@ bridges.mqtt {
 $ nanomq start --conf nanomq.conf
 ```
 
-### 验证桥接
+## 验证桥接
 
 验证桥接是否成功，只需往桥接的上下行主题发送数据即可，也可以使用 NanoMQ 自带的 nanomq_cli 工具中的 QUIC 客户端来与 EMQX 5.0 测试验证。
 
-#### 测试消息转发
+### 测试消息转发
 
 使用nanomq自带客户端工具测试桥接消息的收发。
 
@@ -101,7 +101,7 @@ $ nanomq start --conf nanomq.conf
    $ nanomq_cli pub -t  "forward1/msg"  -m "forward_msg"
    ```
 
-#### 测试消息接收
+### 测试消息接收
 
 1. 订阅本地NanoMQ Broker的主题：
 
