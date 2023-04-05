@@ -110,6 +110,18 @@
     {
       "title": "ZMQ Gateway",
       "path": "zmq-gateway"
+    },
+    {
+      "title": "MQTT Bridge",
+      "path": "bridges/README"
+    },
+    {
+      "title": "MQTT over TCP Bridge",
+      "path": "bridges/tcp-bridge"
+    },
+    {
+      "title": "MQTT over QUIC Bridge",
+      "path": "bridges/quic-bridge"
     }
   ]
 }
