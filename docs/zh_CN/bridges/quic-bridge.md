@@ -2,7 +2,14 @@
 
 NanoMQ已支持MQTT over QUIC桥接，用户可以使用 QUIC 作为 MQTT 协议的传输层来与 EMQX 5.0 消息服务建立桥接进行数据同步，从而为无法集成或找到合适的 MQTT over QUIC SDK 的端侧设备和难以修改固件的嵌入式设备提供在 IoT 场景利用 QUIC 协议优势的捷径。依靠 EMQX+NanoMQ 的云边一体化的消息架构，用户能够快速且低成本的在泛物联网场景中完成跨时空地域的数据采集和同步需求。
 
+支持特性：
 
+- 多流传输 
+- 混合桥接模式 
+- 设置QoS 消息更高的优先传输级别
+- 初始的 RTT（Round Trip Time） 预测值设置
+- 重置 QUIC 传输层拥塞控制检测的最大空闲时间
+- TLS双向认证
 
 ## 启用 MQTT over QUIC 桥接
 
@@ -136,9 +143,9 @@ $ nanomq start --old_conf nanomq.conf
    forward1/msg: forward_msg
    ```
 
-2. 发布消息到本地NanoMQ Broker主题:
+2. 发布消息到本地**NanoMQ** Broker主题:
 
-   发布消息到NanoMQ Broker，主题为 “`forward1/msg`”：
+   发布消息到**NanoMQ** Broker，主题为 “`forward1/msg`”：
 
    在第2个终端上执行消息发布:
 
@@ -159,7 +166,7 @@ $ nanomq start --old_conf nanomq.conf
    recv/topic1: cmd_msg
    ```
 
-2. 发布消息到远端EMQX Broker主题“`cmd/topic1`”：
+2. 发布消息到远端**EMQX** Broker主题“`cmd/topic1`”：
 
    在第4个终端上执行消息发布:
 
