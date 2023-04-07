@@ -1,5 +1,10 @@
 # NanoMQ桥接到EMQX
 
+桥接是一种连接多个 MQTT 消息中间件的方式。不同于集群，工作在桥接模式下的节点之间不会复制主题树和路由表。桥接模式所做的是：
+
+- 按照规则把消息转发至桥接节点； 
+- 从桥接节点订阅主题，并在收到消息后在本节点/集群中转发该消息。
+
 ## 配置
 
 需在配置`nanomq.conf`文件中进行配置
@@ -66,7 +71,7 @@ bridges.mqtt {
 
 ## 运行
 
-启动 NanoMQ 时使用`--conf`执行配置文件路径（若配置文件已放置于系统路径`/etc/nanomq.conf`则无需在命令行指定）
+启动 NanoMQ 时使用`--conf` 指定配置文件路径（若配置文件已放置于系统路径`/etc/nanomq.conf` 则无需在命令行指定）
 
 ```bash
 $ nanomq start --conf nanomq.conf
@@ -103,7 +108,7 @@ $ nanomq start --conf nanomq.conf
 
 ### 测试消息接收
 
-1. 订阅本地NanoMQ Broker的主题：
+1. 订阅本地**NanoMQ** Broker的主题：
 
    从**NanoMQ**订阅主题 “`cmd/topic1`”, 该主题将接收到**EMQX**上发布的数据：
 
@@ -114,7 +119,7 @@ $ nanomq start --conf nanomq.conf
    recv/topic1: cmd_msg
    ```
 
-2. 发布消息到远端EMQX Broker主题“`cmd/topic1`”：
+2. 发布消息到远端**EMQX** Broker主题“`cmd/topic1`”：
 
    在第4个终端上执行消息发布:
 
