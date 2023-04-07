@@ -10,7 +10,7 @@ DDS node <--local--> NanoSDK client <--network--> NanoMQ Broker
 
 ### Iceoryx
 
-> If you're no plan to use Iceoryx, just skip this step.
+> If you have no plan to use Iceoryx, just skip this step.
 
 ```bash
 $ git clone https://github.com/eclipse-iceoryx/iceoryx.git
@@ -41,7 +41,7 @@ $ sudo ninja install
 
 ### Building idl-serial-code-gen
 
-Compile the `IDL` code generator.
+Build  `IDL` code generator.
 
 ```bash
 $ git clone https://github.com/nanomq/idl-serial.git
