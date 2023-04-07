@@ -1,5 +1,10 @@
 # MQTT over TCP Bridge
 
+Bridging is a way to connect multiple MQTT broker. Unlike swarms, topic trees and routing tables are not replicated between nodes operating in bridge mode.
+
+- Forward the message to the bridge node according to the rules;
+- Subscribe to the topic from the bridge node, and forward the message in this node/group after collecting the message.
+
 ## Configuring
 
 For specific configuration parameters, please refer to [configuration](../config-description/v014.md) the following configuration example is in Hocon format.
