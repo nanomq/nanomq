@@ -2,6 +2,15 @@
 
 NanoMQ has supported MQTT over QUIC bridging, users can use QUIC as the transport layer of the MQTT protocol to establish a bridge with the EMQX 5.0 message service for data synchronization. This provides a shortcut for end-user devices that cannot integrate or find a suitable MQTT over QUIC SDK, as well as embedded devices that are difficult to modify the firmware, to take advantage of the advantages of the QUIC protocol in IoT scenarios.With the cloud-edge integrated message architecture of EMQX+NanoMQ, users can complete the data collection and synchronization needs across spatiotemporal regions in general IoT scenarios quickly with low costs.
 
+Features：
+
+- Multiple stream
+- Hybird bridging
+- High priority for qos (1|2) message
+- Initail RTT（Round Trip Time）estimate time
+- *Reset congestion control after being idle*
+- TLS verify peer
+
 ## Start MQTT over QUIC bridging
 
 ### Building
@@ -47,9 +56,9 @@ bridges.mqtt {
 			name = emqx
 			enable = true
 			connector {
-				## TCP URL格式:  mqtt-tcp://host:port
-				## TLS URL格式:  tls+mqtt-tcp://host:port
-				## QUIC URL格式: mqtt-quic://host:port
+				## TCP URL format:  mqtt-tcp://host:port
+				## TLS URL format:  tls+mqtt-tcp://host:port
+				## QUIC URL format: mqtt-quic://host:port
 				server = "mqtt-quic://iot-platform.cloud:14567"
 				proto_ver = 4
 				username = emqx
