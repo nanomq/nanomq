@@ -9,59 +9,52 @@
 [![Community](https://img.shields.io/badge/Community-NanoMQ-yellow?logo=github)](https://github.com/emqx/nanomq/discussions)
 [![License](https://img.shields.io/github/license/emqx/nanomq.svg?logoColor=silver&logo=open-source-initiative&label=&color=blue)](https://github.com/emqx/nanomq/blob/master/LICENSE.txt)
 
-NanoMQ MQTT Broker (NanoMQ) is a lightweight and blazing-fast MQTT Broker for the IoT Edge platform. 
+NanoMQ is an Ultra-lightweight and Blazing-fast MQTT Broker for IoT Edge. 
 
-NanoMQ bases on NNG's asynchronous I/O threading model, with an extension of MQTT support in the protocol layer and reworked transport layer, plus an enhanced asynchronous IO mechanism maximizing the overall capacity.
+NanoMQ uses NNG,a Lightweight Messaging Library,to implement asynchronous I/O.
 
-NanoMQ fully supports MQTT V3.1.1 and MQTT V5.0.
+NanoMQ fully supports MQTT V3.1.1, V5.0 and QoS 0,1,2.
 
-For more information, please visit [NanoMQ homepage](https://nanomq.io/).
+NanoMQ also provides `nanomq_cli` utility for publishing, subscribing and testing.
+
+For more detailed information, please visit [NanoMQ homepage](https://nanomq.io/).
 
 ## Features
 
-- Cost-effective on an embedded platform;
-- Fully base on native POSIX. High Compatibility;
-- Pure C implementation. High portability;
+- Cost-effective on embedded platforms.
+- High Compatibility. Fully based on standard POSIX.
+- High portability. Pure C implementation.
 - Fully asynchronous I/O and multi-threading;
 - Good support for SMP;
 - Low latency & High handling capacity;
 
 ![image](https://user-images.githubusercontent.com/64823539/182988350-f6e2520f-6e6f-46db-b469-685bec977270.png)
 
+## Installing
+See [NanoMQ Download](https://nanomq.io/downloads) for details on installing binaries for various platforms.
+
 ## Quick Start
 
-**NanoMQ broker usage**
-
-```bash
-nanomq start 
-nanomq stop
-nanomq restart 
-nanomq reload 
-
-```
-MQTT Example:
+Start NanoMQ with default configuration:
 ```bash
 nanomq start 
 ```
-
-**NanoMQ MQTT client usage**
+Use `nanomq_cli` to subscribe a topic:
 ```bash
-# Publish
-nanomq_cli pub --url <url> -t <topic> -m <message> [--help]
-
-# Subscribe 
-nanomq_cli sub --url <url> -t <topic> [--help]
-
-# Connect
-nanomq_cli conn --url <url> [--help]
+nanomq_cli sub -t 'test/topic' [--help]
 ```
-
-**NanoMQ MQTT bench usage**
+And publish a message to a topic:
+```bash
+nanomq_cli pub -t 'test/topic' -m "Hello World!" [--help]
+```
+You can use `bench` to conduct performance and stress tests:
 ```bash
 nanomq_cli bench { pub | sub | conn } [--help]
 ```
 
 **NanoMQ nng message proxy**
+
+NanoMQ is also able to convert MQTT msg and NNG msg.
 
 start a proxy to sub NNG url and convey nng msg to qos 2 MQTT msg and send to a specific topic "nng-mqtt" of MQTT broker:
 ```bash
@@ -81,22 +74,9 @@ nanomq_cli pub -t nng-mqtt -m test
 
 
 
-## Compile & Install
+## Building from source
 
-NanoMQ dedicates to delivering a simple but powerful Messaging Hub on various edge platforms.
-
-With this being said, NanoMQ can run on different architectures such like x86_64 and ARM with minor migration efforts.
-
-#### Docker
-
-```bash
-docker run -d -p 1883:1883 -p 8883:8883 --name nanomq emqx/nanomq:0.16.3
-```
-
-
-#### Building From Source
-
-To build NanoMQ, requires a C99 compatible compiler and [CMake](http://www.cmake.org/) (version 3.13 or newer). 
+A C99 compatible compiler and [CMake](http://www.cmake.org/) (version 3.13 or newer) is required to build NanoMQ. 
 
 - It is recommended to compile with Ninja:
 
@@ -108,7 +88,7 @@ To build NanoMQ, requires a C99 compatible compiler and [CMake](http://www.cmake
   ninja
   ```
 
-- Or to compile without Ninja:
+- You can also compile without Ninja:
 
   ``` bash
   git clone https://github.com/emqx/nanomq.git ; cd nanomq
@@ -117,82 +97,8 @@ To build NanoMQ, requires a C99 compatible compiler and [CMake](http://www.cmake
   cmake .. 
   make
   ```
-
-**Note (optional) build NanoMQ with QUIC bridging feature** This enable NanoMQ bridging with EMQX 5.0 via MQTT over QUIC protocol
-
-  ``` bash
-  cmake -G Ninja -DNNG_ENABLE_QUIC=ON ..
-  ninja
-  ```
-
-**Note (optional): TLS is disabled by default**. If you want to build with TLS support you will also need [mbedTLS](https://tls.mbed.org). After installing [mbedTLS](https://tls.mbed.org), you can enable it by `-DNNG_ENABLE_TLS=ON`.
-
-```bash
-cmake -G Ninja -DNNG_ENABLE_TLS=ON ..
-ninja
-```
-
-**Note (optional): client ( pub / sub / conn ) is built by default**, you can disable it via `-DBUILD_CLIENT=OFF`.
-
-  ``` bash
-  cmake -G Ninja -DBUILD_CLIENT=OFF ..
-  ninja
-  ```
-**Note (optional): zeromq gateway tool isn't built by default**, you can enable it via `-DBUILD_ZMQ_GATEWAY=ON`.
-
-  ``` bash
-  cmake -G Ninja -DBUILD_ZMQ_GATEWAY=ON ..
-  ninja
-  ```
-
-**Note (optional): dds proxy isn't built by default**, you can enable it via `-DBUILD_DDS_PROXY=ON`.
-
-  ``` bash
-cmake -G Ninja -DBUILD_DDS_PROXY=ON ..
-ninja
-  ```
-
-**Note (optional): bench tool isn't built by default**, you can enable it via `-DBUILD_BENCH=ON`.
-
-  ``` bash
-  cmake -G Ninja -DBUILD_BENCH=ON ..
-  ninja
-  ```
-
-**Note (optional): JWT dependency (for http server) isn't built by default**, you can enable it via `-DENABLE_JWT=ON`.
-
-  ``` bash
-  cmake -G Ninja -DENABLE_JWT=ON ..
-  ninja
-  ```
-
-**Note (optional): SQLite3 (for message persistence) isn't built by default**, you can enable it via `-DNNG_ENABLE_SQLITE=ON`.
-
-  ``` bash
-  cmake -G Ninja -DNNG_ENABLE_SQLITE=ON ..
-  ninja
-  ```
-
-**Note (optional): nanomq as a static lib isn't built by default**, you can enable it via `-DBUILD_STATIC_LIB=ON`.
-```bash
-cmake -G Ninja -DBUILD_STATIC_LIB=ON ..
-ninja libnano
-```
-**Note (optional): nanomq as a shared lib isn't built by default**, you can enable it via `-DBUILD_SHARED_LIBS=ON`.
-```bash
-cmake -G Ninja -DBUILD_SHARED_LIBS=ON ..
-ninja
-```
-
-**Note (optional): nanonng are dependency of NanoMQ that can be compiled independently**.
-
-To compile nanonng (*nanonng is the fork of nng repository with MQTT support*):
-
-```bash
-cd nng/build
-cmake -G Ninja ..
-ninja
-```
+  
+  NanoMQ supports various features: QUIC bridging, TLS, MQTT client, zeromq, dds proxy, bench tool,JWT dependency (for http server), SQLite3 (for message persistence), etc. You can build NanoMQ with these features optionally. Check [build options](https://nanomq.io/docs/en/latest/build-options.html#arguments) for details.
 
 ## Debugging guide
 
@@ -374,37 +280,37 @@ Usage: nanomq { { start | restart [--url <url>] [--conf <path>] [-t, --tq_thread
                      | stop }
 
 Options: 
-  --url <url>                Specify listener's url: 'nmq-tcp://host:port', 
-                             'tls+nmq-tcp://host:port', 
-                             'nmq-ws://host:port/path', 
-                             'nmq-wss://host:port/path'
-  --conf <path>              The path of a specified nanomq  HOCON style configuration file 
-  --old_conf <path> parse old config file
-  --http                     Enable http server (default: false)
-  -p, --port <num>           The port of http server (default: 8081)
-  -t, --tq_thread <num>      The number of taskq threads used, 
-                             `num` greater than 0 and less than 256
-  -T, --max_tq_thread <num>  The maximum number of taskq threads used, 
-                             `num` greater than 0 and less than 256
-  -n, --parallel <num>       The maximum number of outstanding requests we can handle
-  -s, --property_size <num>  The max size for a MQTT user property
-  -S, --msq_len <num>        The queue length for resending messages
-  -D, --qos_duration <num>   The interval of the qos timer
-  -d, --daemon               Run nanomq as daemon (default: false)
-  --cacert                   Path to the file containing PEM-encoded CA certificates
-  -E, --cert                 Path to a file containing the user certificate
-  --key                      Path to the file containing the user's private PEM-encoded key
-  --keypass                  String containing the user's password. 
-                             Only used if the private keyfile is password-protected
-  --verify                   Set verify peer certificate (default: false)
-  --fail                     Server will fail if the client does not have a 
-                             certificate to send (default: false)
-  --log_level   <level>      The level of log output 
-                             (level: trace, debug, info, warn, error, fatal)
-                             (default: warn)
-  --log_file    <file_path>  The path of the log file 
-  --log_stdout  <true|false> Enable/Disable console log output (default: true)
-  --log_syslog  <true|false> Enable/Disable syslog output (default: false)
+  --url <url>                 Specify listener's url: 'nmq-tcp://host:port', 
+                              'tls+nmq-tcp://host:port', 
+                              'nmq-ws://host:port/path', 
+                              'nmq-wss://host:port/path'
+  --conf <path>               The path of a specified nanomq HOCON style configuration file 
+  --old_conf <path>           Parse old config file
+  --http                      Enable http server (default: false)
+  -p, --port <num>            The port of http server (default: 8081)
+  -t, --tq_thread <num>       The number of taskq threads used, 
+                              `num` greater than 0 and less than 256
+  -T, --max_tq_thread <num>   The maximum number of taskq threads used, 
+                              `num` greater than 0 and less than 256
+  -n, --parallel <num>        The maximum number of outstanding requests we can handle
+  -s, --property_size <num>   The max size for a MQTT user property
+  -S, --msq_len <num>         The queue length for resending messages
+  -D, --qos_duration <num>    The interval of the qos timer
+  -d, --daemon                Run nanomq as daemon (default: false)
+  --cacert                    Path to the file containing PEM-encoded CA certificates
+  -E, --cert                  Path to a file containing the user certificate
+  --key                       Path to the file containing the user's private PEM-encoded key
+  --keypass                   String containing the user's password. 
+                              Only used if the private keyfile is password-protected
+  --verify                    Set verify peer certificate (default: false)
+  --fail                      Server will fail if the client does not have a 
+                              certificate to send (default: false)
+  --log_level   <level>       The level of log output 
+                              (level: trace, debug, info, warn, error, fatal)
+                              (default: warn)
+  --log_file    <file_path>   The path of the log file 
+  --log_stdout  <true|false>  Enable/Disable console log output (default: true)
+  --log_syslog  <true|false>  Enable/Disable syslog output (default: false)
 ```
 
 - `start`, `restart`, `reload` and `stop` command is mandatory as it indicates whether you want to start a new broker, or replace an existing broker with a new one, or stop a running broker;
