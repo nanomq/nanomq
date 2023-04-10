@@ -64,7 +64,8 @@ To build NanoMQ, requires a C99 compatible compiler and [CMake](http://www.cmake
 - Or compile with `make`:
 
   ``` bash
-  git clone https://github.com/emqx/nanomq.git ; cd nanomq
+  git clone https://github.com/emqx/nanomq.git 
+  cd nanomq
   git submodule update --init --recursive
   mkdir build && cd build
   cmake .. 
