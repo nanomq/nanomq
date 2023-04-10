@@ -13,12 +13,17 @@
       "path": "features"
     },
     {
-      "title": "配置说明(v014)",
-      "path": "config-description/v014"
-    },
-    {
-      "title": "配置说明(v013)",
-      "path": "config-description/v013"
+      "title": "配置说明",
+      "children": [
+        {
+          "title": "配置说明(v014)",
+          "path": "config-description/v014"
+        },
+        {
+          "title": "配置说明(v013)",
+          "path": "config-description/v013"
+        }
+      ]
     },
     {
       "title": "编译选项",
@@ -26,11 +31,16 @@
     },
     {
       "title": "HTTP APIs",
-      "path": "http-api/v4"
-    },
-    {
-      "title": "HTTP-API (v1)",
-      "path": "http-api/v1"
+      "children": [
+        {
+          "title": "HTTP APIs",
+          "path": "http-api/v4"
+        },
+        {
+          "title": "HTTP-API (v1)",
+          "path": "http-api/v1"
+        }
+      ]
     },
     {
       "title": "Web Hook",
@@ -50,15 +60,16 @@
     },
     {
       "title": "MQTT 桥接",
-      "path": "bridges/README"
-    },
-    {
-      "title": "MQTT over TCP桥接",
-      "path": "bridges/tcp-bridge"
-    },
-    {
-      "title": "MQTT over QUIC桥接",
-      "path": "bridges/quic-bridge"
+      "children": [
+        {
+          "title": "MQTT over TCP桥接",
+          "path": "bridges/tcp-bridge"
+        },
+        {
+          "title": "MQTT over QUIC桥接",
+          "path": "bridges/quic-bridge"
+        }
+      ]
     }
   ],
   "en": [
@@ -71,14 +82,18 @@
       "path": "quick-start"
     },
     {
-      "title": "Configuration(v014)",
-      "path": "config-description/v014"
+      "title": "Configuration",
+      "children": [
+        {
+          "title": "Configuration(v014)",
+          "path": "config-description/v014"
+        },
+        {
+          "title": "Configuration(v013)",
+          "path": "config-description/v013"
+        }
+      ]
     },
-    {
-      "title": "Configuration(v013)",
-      "path": "config-description/v013"
-    },
-
     {
       "title": "Features",
       "path": "features"
@@ -89,11 +104,16 @@
     },
     {
       "title": "HTTP APIs",
-      "path": "http-api/v4"
-    },
-    {
-      "title": "HTTP-API (v1)",
-      "path": "http-api/v1"
+      "children": [
+        {
+          "title": "HTTP APIs",
+          "path": "http-api/v4"
+        },
+        {
+          "title": "HTTP-API (v1)",
+          "path": "http-api/v1"
+        }
+      ]
     },
     {
       "title": "Web Hook",
@@ -113,15 +133,16 @@
     },
     {
       "title": "MQTT Bridge",
-      "path": "bridges/README"
-    },
-    {
-      "title": "MQTT over TCP Bridge",
-      "path": "bridges/tcp-bridge"
-    },
-    {
-      "title": "MQTT over QUIC Bridge",
-      "path": "bridges/quic-bridge"
+      "children": [
+        {
+          "title": "MQTT over TCP Bridge",
+          "path": "bridges/tcp-bridge"
+        },
+        {
+          "title": "MQTT over QUIC Bridge",
+          "path": "bridges/quic-bridge"
+        }
+      ]
     }
   ]
 }
