@@ -43,7 +43,7 @@ Github repository address: <https://github.com/emqx/nanomq>
 
 [Toolkit](./toolkit.md)
 
-[MQTT Bridge](./bridges/README.md)
+[MQTT Bridge](./bridges/tcp-bridge.md)
 
 [Test Report](./test-report.md)
 
