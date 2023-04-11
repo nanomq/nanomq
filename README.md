@@ -40,6 +40,14 @@ docker run -d --name nanomq -p 1883:1883 -p 8083:8083 -p 8883:8883 emqx/nanomq:l
 
 If you prefer to install and manage NanoMQ yourself, you can download the lastest version from [nanomq.io/downloads](https://nanomq.io/downloads).
 
+#### Run NanoMQ:
+
+```bash
+nanomq start
+## or run nanomq with a specified configuration file
+nanomq start --conf <config_file>
+```
+
 
 
 ## Build From Source
@@ -95,10 +103,18 @@ There are some configuration options specified using CMake defines in addition t
 
 ## Resources
 
+- NanoMQ 
+  - [Blog](https://www.emqx.com/en/blog/category/nanomq)
+  
+  - [Official website](https://nanomq.io/)
+
 - MQTT Specifications 
   - [MQTT Version 3.1.1](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html)
   - [MQTT Version 5.0](https://docs.oasis-open.org/mqtt/mqtt/v5.0/cs02/mqtt-v5.0-cs02.html)
   - [MQTT SN](http://mqtt.org/new/wp-content/uploads/2009/06/MQTT-SN_spec_v1.2.pdf)
+  - *Unsupport features of MQTT 5.0*
+    - Auth https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901217
+    - Server Redirection https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901255
 
 - MQTT Client Examples
   - [MQTT-Client-Examples](https://github.com/emqx/MQTT-Client-Examples)
@@ -109,12 +125,13 @@ There are some configuration options specified using CMake defines in addition t
 - Internet of Vehicles
   - [Internet of Vehicles](https://www.emqx.com/en/blog/category/internet-of-vehicles). Build a reliable, efficient, and industry-specific IoV platform based on EMQ's practical experience, from theoretical knowledge such as protocol selection to practical operations like platform architecture design.
 
+- DDS 
+  - [CycloneDDS](https://cyclonedds.io/)
+  - [DDS proxy on NanoMQ_CLI](./nanomq_cli/dds2mqtt/README.md)
 
 
-## Community
 
-Some quotes from NNG's maintainer --- Garrett:
-I’m very excited about the synergy between the NanoMQ and NNG projects, and grateful for sponsorship that NNG has received from the NanoMQ team. The NanoMQ team has been able to push NNG's envelope, and the collaboration has already yielded substantial improvements for both projects. Further, the cooperation between these two project will make MQTT and SP (nanomsg) protocols easy to use within a single project as well as other capabilities (such as websockets, HTTPS clients and servers), greatly expanding the toolset within easy reach of the IoT developer. Further this comes without the usual licensing or portability/embeddability challenges that face other projects. Additional planned collaborative work will further expand on these capabilities to the benefit of our shared communities.
+## Get Involved
 
 ### Our Website
 
@@ -137,6 +154,13 @@ You could join us on [Slack](https://slack-invite.emqx.io/). We now share a work
 - `#nanomq`: is a channel for general usage, where for asking question or sharing using experience; 
 - `#nanomq-dev`: is a channel for MQTT lover and developer, your great thoughts are what we love to hear;
 - `#nanomq-nng`: is a channel for guys who are interested in NNG, one of our fabulous dependencies.
+
+
+
+## Community
+
+Some quotes from NNG's maintainer --- Garrett:
+I’m very excited about the synergy between the NanoMQ and NNG projects, and grateful for sponsorship that NNG has received from the NanoMQ team. The NanoMQ team has been able to push NNG's envelope, and the collaboration has already yielded substantial improvements for both projects. Further, the cooperation between these two project will make MQTT and SP (nanomsg) protocols easy to use within a single project as well as other capabilities (such as websockets, HTTPS clients and servers), greatly expanding the toolset within easy reach of the IoT developer. Further this comes without the usual licensing or portability/embeddability challenges that face other projects. Additional planned collaborative work will further expand on these capabilities to the benefit of our shared communities.
 
 ### Open Source 
 
