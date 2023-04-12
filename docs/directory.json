@@ -59,6 +59,10 @@
       "path": "zmq-gateway"
     },
     {
+      "title": "Docker",
+      "path": "docker"
+    },
+    {
       "title": "MQTT 桥接",
       "children": [
         {
@@ -130,6 +134,10 @@
     {
       "title": "ZMQ Gateway",
       "path": "zmq-gateway"
+    },
+    {
+      "title": "Docker",
+      "path": "docker"
     },
     {
       "title": "MQTT Bridge",
