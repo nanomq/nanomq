@@ -26,7 +26,6 @@ For more information about NanoMQ official docker image, see [Docker Hub - nanom
 
 Here are some ways to modify configuration file on Docker container:
 
-- 在Docker容器中修改`/etc/nanomq.conf`，可以通过来达到修改配置参数的目的, 可参考[配置说明](./config-description/v014.md) ;
 - Modify `/etc/nanomq.conf ` on docker container, refer to [configruation description](./config-description/v014.md)
 - Copy your configuration file from local host to container path `/etc/nanomq.conf`:  `docker cp nanomq.conf nanomq:/etc/nanomq.conf`
 - Modify configuration parameters by environment variables, for example: 
