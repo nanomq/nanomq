@@ -185,8 +185,8 @@ unsub_ctx_handle(nano_work *work)
 
 		// parse topic string
 		topic_str = nng_strndup(tn->topic.body, tn->topic.len);
-		log_debug(
-		    "find client [%s] in topic [%s].", client_id, topic_str);
+		log_info(
+		    "Unsub topic [%s] in client [%s].", topic_str, client_id);
 
 		rv = sub_ctx_del(work->db, topic_str, work->pid.id);
 
