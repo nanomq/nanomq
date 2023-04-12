@@ -43,6 +43,8 @@ Github repository address: <https://github.com/emqx/nanomq>
 
 [MQTT Bridge](./bridges/tcp-bridge.md)
 
+[Docker](./docker.md)
+
 [Test Report](./test-report.md)
 
 [ZMQ Gateway](./zmq-gateway.md)
