@@ -4,8 +4,6 @@
 
 Github repository address: <https://github.com/emqx/nanomq>
 
-[NanoMQ](https://nanomq.io/) aims to deliver simple and powerful message-centric services for different edge computing platforms; strives to remove the gap between hardware development and cloud computing; connects the physical world and digital intelligence from the open source community; thus popularizing edge computing applications and helping to connect everything.
-
 **NanoMQ** in collaboration with **NNG**. Relying on **NNG**'s excellent network API design, **NanoMQ** can focus on **MQTT** broker performance and more extended features.The goal is to provide better SMP support and high performance-price ratio in edge devices and MECs. There are plans to add other IoT protocols such as ZMQ, NanoMSG and SP in the future.
 
 **NanoMQ** currently has the following functions and features:
