@@ -6,7 +6,7 @@ This chapter introduces how to use the official Docker image to install and run 
 
 ## Use Docker to run NanoMQ
 
-This section will introduce how to use the Docker image to install the latest version of NanoMQ. If you want to work with other versions, please visit the [NanoMQ Deployment page](https://www.emqx.com/zh/try?product=nanomq).
+This section will introduce how to use the Docker image to install the latest version of NanoMQ. If you want to work with other versions, please visit the [NanoMQ Deployment page](https://www.emqx.com/en/try?product=nanomq).
 
 1. To get the Docker image, run:
 
