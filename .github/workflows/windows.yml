@@ -40,8 +40,24 @@ jobs:
           overwrite: true
           file_glob: true
 
-
-
-
-
-        
+      - name: update nanomq.io
+        if: github.event_name == 'release'
+        run: |
+          try {
+            $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
+            $headers.Add("token", "${{ secrets.EMQX_IO_TOKEN }}")
+            $headers.Add("Content-Type", "application/json")
+            $body = "{`"repo`": `"emqx/nanomq`", `"tag`": `"${{ github.ref_name }}`"}"
+            $response = Invoke-WebRequest ${{ secrets.EMQX_IO_RELEASE_API }} -Method 'POST' -Headers $headers -Body $body
+            if ($response.StatusCode -eq 200) {
+              Write-Host "HTTP status code: $($response.StatusCode)"
+              Write-Host "Success"
+            } else {
+              Write-Host "HTTP status code: $($response.StatusCode)"
+              Write-Host "Response: $($response.Content)"
+              exit 1
+            }
+          } catch {
+            Write-Host "An error occurred: $($_.Exception.Message)"
+            exit 1
+          }

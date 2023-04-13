@@ -227,6 +227,15 @@ jobs:
              -d "{\"repo\":\"emqx/nanomq\", \"tag\": \"${{ github.ref_name }}\" }" \
              ${{ secrets.EMQX_IO_RELEASE_API }}
 
+    - uses: Swilder-M/push-packages@master
+      if: github.event_name == 'release'
+      env:
+        GIT_TOKEN: ${{ github.token }}
+        PACKAGECLOUD_TOKEN: ${{ secrets.PACKAGECLOUD_TOKEN }}
+      with:
+        product: nanomq
+        version: ${{ github.ref_name }}
+
   build_docker:
     needs: [build_packages]
     runs-on: ubuntu-20.04
