@@ -31,14 +31,16 @@ jobs:
           name: packages
           path: "install/*.zip"
 
-      - uses: Rory-Z/upload-release-asset@v1
+      - uses: svenstaro/upload-release-action@v2
         if: github.event_name == 'release'
         with:
           owner: ${{ github.repository_owner }}
-          repo: nanomq
-          token: ${{ github.token }}
-          path: "install/*.zip"
-          ref: ${{ github.ref }}
+          repo_name: nanomq
+          repo_token: ${{ github.token }}
+          file: install/nanomq*.zip
+          tag: ${{ github.ref }}
+          overwrite: true
+          file_glob: true
 
       - name: upload to aws s3
         if: github.event_name == 'release'
@@ -46,7 +48,7 @@ jobs:
           aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws configure set default.region us-west-2
-          aws s3 cp --recursive install/*.zip s3://packages.emqx/nanomq/$(git describe --abbrev=0 --tags)
+          aws s3 cp --recursive install/nanomq*.zip s3://packages.emqx/nanomq/$(git describe --abbrev=0 --tags)
 
       - name: update nanomq.io
         if: github.event_name == 'release'
