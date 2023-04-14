@@ -21,12 +21,10 @@ jobs:
         run: cmake --build build --target install
 
       - name: Package
-        id: package
         run: |
           $pkg_name="nanomq-$(git describe --abbrev=0 --tags)-windows-x86_64.zip"
           Compress-Archive -Path install/* -DestinationPath $pkg_name
           mv $pkg_name ./install/ 
-          echo "pkg_name=$pkg_name" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v3
         with:
@@ -48,7 +46,7 @@ jobs:
           aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws configure set default.region us-west-2
-          aws s3 cp install/${{ steps.package.outputs.pkg_name }} s3://packages.emqx/nanomq/$(git describe --abbrev=0 --tags)/${{ steps.package.outputs.pkg_name }}
+          aws s3 cp install/ s3://packages.emqx/nanomq/$(git describe --abbrev=0 --tags)/ --recursive --exclude "*" --include "nanomq*.zip"
 
       - name: update nanomq.io
         if: github.event_name == 'release'
