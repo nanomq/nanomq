@@ -4,7 +4,7 @@ The OMG Data Distribution Service (DDS™) is a middleware protocol and API stan
 
 [Cyclone DDS](https://cyclonedds.io/) is a high performing, OMG-DDS standard based data sharing technology which allows system designers to create digital twins of their systems' entities to share their states, events, data-streams and messages on the network in real-time and fault-tolerant way.
 
-# DDS to MQTT Proxy
+## DDS to MQTT Proxy
 
 Here we combine dds with mqtt. So DDS node can communicate with MQTT broker.
 
