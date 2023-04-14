@@ -22,7 +22,7 @@ jobs:
         pip install Jinja2
         pip install paho-mqtt
 
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v3
     - run: git submodule update --init --recursive
     - name: build
       run: |

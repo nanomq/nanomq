@@ -10,8 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: check out code
-      uses: actions/checkout@main
-
+      uses: actions/checkout@v3
     - name: install markdownlint
       run: sudo npm install -g markdownlint-cli
 
@@ -22,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: check out code
-      uses: actions/checkout@main
+      uses: actions/checkout@v3
 
     - name: check directory config
       run: python3 .github/scripts/directory_check.py directory.json $(pwd)/docs
