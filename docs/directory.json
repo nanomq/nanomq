@@ -74,6 +74,10 @@
           "path": "bridges/quic-bridge"
         }
       ]
+    },
+    {
+      "title": "DDS",
+      "path": "dds"
     }
   ],
   "en": [
@@ -151,6 +155,10 @@
           "path": "bridges/quic-bridge"
         }
       ]
+    },
+    {
+      "title": "DDS",
+      "path": "dds"
     }
   ]
 }
