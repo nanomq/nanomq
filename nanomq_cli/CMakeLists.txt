@@ -16,8 +16,11 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/dds2mqtt)
 include_directories(${CMAKE_SOURCE_DIR}/nng/include/nng)
 
-file(GLOB CLI_SOURCE "*.c" "dds2mqtt/*.c")
+file(GLOB CLI_SOURCE "*.c")
 
+if(BUILD_DDS_PROXY)
+  file(GLOB CLI_SOURCE ${CLI_SOURCE} "dds2mqtt/*.c")
+endif()
 
 if(BUILD_VSOMEIP_GATEWAY)
   file(GLOB CLI_CXX_SOURCE "*.cc")
