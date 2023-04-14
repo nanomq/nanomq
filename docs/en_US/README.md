@@ -45,6 +45,8 @@ Github repository address: <https://github.com/emqx/nanomq>
 
 [Docker](./docker.md)
 
+[DDS](./dds.md)
+
 [Test Report](./test-report.md)
 
 [ZMQ Gateway](./zmq-gateway.md)

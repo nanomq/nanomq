@@ -22,6 +22,7 @@ IoT 时代数据是第一生产力，而边缘则是数据诞生的地方。在�
 - 丰富的HTTP REST API，支持云边协同。
 
 *不支持的 MQTT 5.0 特性*
+
 - Auth https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901217
 - Server Redirection https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901255
 
@@ -44,6 +45,8 @@ IoT 时代数据是第一生产力，而边缘则是数据诞生的地方。在�
 [MQTT 桥接](./bridges/tcp-bridge.md)
 
 [Docker](./docker.md)
+
+[DDS](./dds.md)
 
 [测试报告](./test-report.md)
 
