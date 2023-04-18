@@ -21,6 +21,7 @@ static int init_dialer_tls(nng_dialer d, const char *cacert, const char *cert,
 
 static property *sub_property(conf_bridge_sub_properties *conf_prop);
 static property *conn_property(conf_bridge_conn_properties *conf_prop);
+static property *will_property(conf_bridge_conn_will_properties *will_prop);
 
 static nng_thread *hybridger_thr;
 
@@ -45,6 +46,49 @@ apply_sqlite_config(
 #else
 	return (0);
 #endif
+}
+
+nng_msg *
+create_connect_msg(conf_bridge_node *node)
+{
+	// create a CONNECT message
+	/* CONNECT */
+	nng_msg *connmsg;
+	nng_mqtt_msg_alloc(&connmsg, 0);
+	nng_mqtt_msg_set_packet_type(connmsg, NNG_MQTT_CONNECT);
+	nng_mqtt_msg_set_connect_keep_alive(connmsg, node->keepalive);
+	nng_mqtt_msg_set_connect_proto_version(connmsg, node->proto_ver);
+	nng_mqtt_msg_set_connect_clean_session(connmsg, node->clean_start);
+	if (node->clientid) {
+		nng_mqtt_msg_set_connect_client_id(connmsg, node->clientid);
+	}
+	if (node->username) {
+		nng_mqtt_msg_set_connect_user_name(connmsg, node->username);
+	}
+	if (node->password) {
+		nng_mqtt_msg_set_connect_password(connmsg, node->password);
+	}
+	if (node->will_flag) {
+		nng_mqtt_msg_set_connect_will_topic(connmsg, node->will_topic);
+		nng_mqtt_msg_set_connect_will_msg(connmsg,
+		    (uint8_t *) node->will_payload,
+		    strlen(node->will_payload));
+		nng_mqtt_msg_set_connect_will_qos(connmsg, node->will_qos);
+		nng_mqtt_msg_set_connect_will_retain(
+		    connmsg, node->will_retain);
+	}
+
+	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
+		property *properties = conn_property(node->conn_properties);
+		nng_mqtt_msg_set_connect_property(connmsg, properties);
+		if (node->will_flag) {
+			property *will_properties =
+			    will_property(node->will_properties);
+			nng_mqtt_msg_set_connect_will_property(
+			    connmsg, will_properties);
+		}
+	}
+	return connmsg;
 }
 
 nng_msg *
@@ -235,6 +279,66 @@ sub_property(conf_bridge_sub_properties *conf_prop)
 }
 
 static property *
+will_property(conf_bridge_conn_will_properties *will_prop)
+{
+	if (will_prop) {
+		property *link_list = mqtt_property_alloc();
+		property *prop;
+		if (will_prop->payload_format_indicator != 0) {
+			prop = mqtt_property_set_value_u8(
+			    PAYLOAD_FORMAT_INDICATOR,
+			    will_prop->payload_format_indicator);
+			mqtt_property_append(link_list, prop);
+		}
+		if (will_prop->message_expiry_interval != 0) {
+			prop = mqtt_property_set_value_u32(
+			    MESSAGE_EXPIRY_INTERVAL,
+			    will_prop->message_expiry_interval);
+			mqtt_property_append(link_list, prop);
+		}
+		if (will_prop->content_type) {
+			prop = mqtt_property_set_value_str(CONTENT_TYPE,
+			    will_prop->content_type,
+			    strlen(will_prop->content_type), false);
+			mqtt_property_append(link_list, prop);
+		}
+		if (will_prop->response_topic) {
+			prop = mqtt_property_set_value_str(RESPONSE_TOPIC,
+			    will_prop->response_topic,
+			    strlen(will_prop->response_topic), false);
+			mqtt_property_append(link_list, prop);
+		}
+		if (will_prop->correlation_data) {
+			prop = mqtt_property_set_value_str(CORRELATION_DATA,
+			    will_prop->correlation_data,
+			    strlen(will_prop->correlation_data), false);
+			mqtt_property_append(link_list, prop);
+		}
+		if (will_prop->will_delay_interval != 0) {
+			prop = mqtt_property_set_value_u32(WILL_DELAY_INTERVAL,
+			    will_prop->will_delay_interval);
+			mqtt_property_append(link_list, prop);
+		}
+		if (will_prop->user_property_size > 0 &&
+		    will_prop->user_property) {
+			for (size_t i = 0; i < will_prop->user_property_size;
+			     i++) {
+				prop = mqtt_property_set_value_strpair(
+				    USER_PROPERTY,
+				    will_prop->user_property[i]->key,
+				    strlen(will_prop->user_property[i]->key),
+				    will_prop->user_property[i]->value,
+				    strlen(will_prop->user_property[i]->value),
+				    false);
+				mqtt_property_append(link_list, prop);
+			}
+		}
+		return link_list;
+	}
+	return NULL;
+}
+
+static property *
 conn_property(conf_bridge_conn_properties *conf_prop)
 {
 	if (conf_prop) {
@@ -329,29 +433,7 @@ hybrid_bridge_tcp_client(bridge_param *bridge_arg)
 	}
 #endif
 
-	// create a CONNECT message
-	/* CONNECT */
-	nng_msg *connmsg;
-	nng_mqtt_msg_alloc(&connmsg, 0);
-	nng_mqtt_msg_set_packet_type(connmsg, NNG_MQTT_CONNECT);
-	nng_mqtt_msg_set_connect_keep_alive(connmsg, node->keepalive);
-	nng_mqtt_msg_set_connect_proto_version(connmsg, node->proto_ver);
-	nng_mqtt_msg_set_connect_clean_session(connmsg, node->clean_start);
-	if (node->clientid) {
-		nng_mqtt_msg_set_connect_client_id(connmsg, node->clientid);
-	}
-	if (node->username) {
-		nng_mqtt_msg_set_connect_user_name(connmsg, node->username);
-	}
-	if (node->password) {
-		nng_mqtt_msg_set_connect_password(connmsg, node->password);
-	}
-
-	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
-		property *properties = conn_property(node->conn_properties);
-		nng_mqtt_msg_set_connect_property(connmsg, properties);
-	}
-
+	nng_msg *connmsg   = create_connect_msg(node);
 	bridge_arg->client = nng_mqtt_client_alloc(*sock, &send_callback, true);
 
 	node->sock         = (void *) sock;
@@ -403,29 +485,7 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 #endif
 
 	// create a CONNECT message
-	/* CONNECT */
-	nng_msg *connmsg;
-
-	nng_mqtt_msg_alloc(&connmsg, 0);
-	nng_mqtt_msg_set_packet_type(connmsg, NNG_MQTT_CONNECT);
-	nng_mqtt_msg_set_connect_keep_alive(connmsg, node->keepalive);
-	nng_mqtt_msg_set_connect_proto_version(connmsg, node->proto_ver);
-	nng_mqtt_msg_set_connect_clean_session(connmsg, node->clean_start);
-
-	if (node->clientid) {
-		nng_mqtt_msg_set_connect_client_id(connmsg, node->clientid);
-	}
-	if (node->username) {
-		nng_mqtt_msg_set_connect_user_name(connmsg, node->username);
-	}
-	if (node->password) {
-		nng_mqtt_msg_set_connect_password(connmsg, node->password);
-	}
-
-	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
-		property *properties = conn_property(node->conn_properties);
-		nng_mqtt_msg_set_connect_property(connmsg, properties);
-	}
+	nng_msg *connmsg = create_connect_msg(node);
 
 	bridge_arg = (bridge_param *) nng_alloc(sizeof(bridge_param));
 	if (bridge_arg == NULL) {
@@ -612,21 +672,7 @@ hybrid_bridge_quic_client(bridge_param *bridge_arg)
 
 	// create a CONNECT message
 	/* CONNECT */
-	nng_msg *connmsg;
-	nng_mqtt_msg_alloc(&connmsg, 0);
-	nng_mqtt_msg_set_packet_type(connmsg, NNG_MQTT_CONNECT);
-	nng_mqtt_msg_set_connect_keep_alive(connmsg, node->keepalive);
-	nng_mqtt_msg_set_connect_proto_version(connmsg, node->proto_ver);
-	nng_mqtt_msg_set_connect_clean_session(connmsg, node->clean_start);
-	if (node->clientid) {
-		nng_mqtt_msg_set_connect_client_id(connmsg, node->clientid);
-	}
-	if (node->username) {
-		nng_mqtt_msg_set_connect_user_name(connmsg, node->username);
-	}
-	if (node->password) {
-		nng_mqtt_msg_set_connect_password(connmsg, node->password);
-	}
+	nng_msg *connmsg = create_connect_msg(node);
 
 	nng_aio_set_msg(bridge_arg->client->send_aio, connmsg);
 	nng_send_aio(*sock, bridge_arg->client->send_aio);
@@ -672,21 +718,7 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 
 	// create a CONNECT message
 	/* CONNECT */
-	nng_msg *connmsg;
-	nng_mqtt_msg_alloc(&connmsg, 0);
-	nng_mqtt_msg_set_packet_type(connmsg, NNG_MQTT_CONNECT);
-	nng_mqtt_msg_set_connect_keep_alive(connmsg, node->keepalive);
-	nng_mqtt_msg_set_connect_proto_version(connmsg, node->proto_ver);
-	nng_mqtt_msg_set_connect_clean_session(connmsg, node->clean_start);
-	if (node->clientid) {
-		nng_mqtt_msg_set_connect_client_id(connmsg, node->clientid);
-	}
-	if (node->username) {
-		nng_mqtt_msg_set_connect_user_name(connmsg, node->username);
-	}
-	if (node->password) {
-		nng_mqtt_msg_set_connect_password(connmsg, node->password);
-	}
+	nng_msg *connmsg   = create_connect_msg(node);
 
 	nng_aio_set_msg(bridge_arg->client->send_aio, connmsg);
 	nng_send_aio(*sock, bridge_arg->client->send_aio);
