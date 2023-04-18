@@ -45,6 +45,7 @@
 #endif
 
 typedef int (handle_mqtt_msg_cb) (cJSON *, nng_socket *);
+#define METRICS_DATA_SIZE 1024
 
 typedef struct {
 	char *key;
@@ -277,6 +278,12 @@ static endpoints api_ep[] = {
 	    .method = "POST",
 	    .descr  = "Control broker stop or restart",
 	},
+	{
+	    .path   = "/metrics",
+	    .name   = "metrics",
+	    .method = "GET",
+	    .descr  = "Returns all statistical metrics",
+	},
 };
 
 static tree **      uri_parse_tree(const char *path, size_t *count);
@@ -293,6 +300,8 @@ static http_msg get_endpoints(http_msg *msg);
 static http_msg get_brokers(http_msg *msg);
 static http_msg get_nodes(http_msg *msg, nng_socket *broker_sock);
 static http_msg get_clients(http_msg *msg, kv **params, size_t param_num,
+    const char *client_id, const char *username, nng_socket *broker_sock);
+static http_msg get_metrics(http_msg *msg, kv **params, size_t param_num,
     const char *client_id, const char *username, nng_socket *broker_sock);
 static http_msg get_subscriptions(
     http_msg *msg, kv **params, size_t param_num, const char *client_id);
@@ -713,6 +722,11 @@ process_request(http_msg *msg, conf_http_server *config, nng_socket *sock)
 			ret = get_nodes(msg, config->broker_sock);
 		} else if (uri_ct->sub_count == 2 &&
 		    uri_ct->sub_tree[1]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "metrics") == 0) {
+			ret = get_metrics(msg, uri_ct->params,
+			    uri_ct->params_count, NULL, NULL, config->broker_sock);
+		} else if (uri_ct->sub_count == 2 &&
+		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "clients") == 0) {
 			ret = get_clients(msg, uri_ct->params,
 			    uri_ct->params_count, NULL, NULL, config->broker_sock);
@@ -1035,6 +1049,13 @@ typedef struct {
 	char * username;
 } client_info;
 
+typedef struct {
+	uint32_t connections;
+	uint32_t sessions;
+	uint32_t topics;
+	uint32_t subscribers;
+} client_stats;
+
 static void
 get_client_cb(void *key, void *value, void *json_obj)
 {
@@ -1080,6 +1101,25 @@ get_client_cb(void *key, void *value, void *json_obj)
 	// 		    ctxt->recv_cnt != NULL ?
 	// nng_atomic_get64(ctxt->recv_cnt) : 0); #endif
 	cJSON_AddItemToArray(info->array, data_info_elem);
+}
+
+static void
+get_metric_cb(void *key, void *value, void *stats)
+{
+	client_stats *s = (client_stats *) stats;
+	s->sessions++;
+	uint32_t       pipe_id = *(uint32_t *) key;
+	nng_pipe       pipe    = { .id = pipe_id };
+	bool           status  = nng_pipe_status(pipe);
+
+	conn_param    *cp      = nng_pipe_cparam(pipe);
+	const uint8_t *cid     = conn_param_get_clientid(cp);
+	if (!status) s->connections++;
+
+	// #ifdef STATISTICS
+	// 		cJSON_AddNumberToObject(data_info_elem, "recv_msg",
+	// 		    ctxt->recv_cnt != NULL ?
+	// nng_atomic_get64(ctxt->recv_cnt) : 0); #endif
 }
 
 static http_msg
