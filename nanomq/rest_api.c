@@ -1169,6 +1169,39 @@ get_clients(http_msg *msg, kv **params, size_t param_num,
 	return res;
 }
 
+static void
+compose_metrics(char *ret, client_stats *ms, client_stats *s)
+{
+	char fmt[] = "# TYPE nanomq_connections_count gauge"
+	             "\n# HELP nanomq_connections_count"
+	             "\nnanomq_connections_count %d"
+	             "\n# TYPE nanomq_connections_max gauge"
+	             "\n# HELP nanomq_connections_max"
+	             "\nnanomq_connections_max %d"
+	             "\n# TYPE nanomq_sessions_count gauge"
+	             "\n# HELP nanomq_sessions_count"
+	             "\nnanomq_sessions_count %d"
+	             "\n# TYPE nanomq_sessions_max gauge"
+	             "\n# HELP nanomq_sessions_max"
+	             "\nnanomq_sessions_max %d"
+	             "\n# TYPE nanomq_topics_count gauge"
+	             "\n# HELP nanomq_topics_count"
+	             "\nnanomq_topics_count %d"
+	             "\n# TYPE nanomq_topics_max gauge"
+	             "\n# HELP nanomq_topics_max"
+	             "\nnanomq_topics_max %d"
+				 "\n# TYPE emqx_subscribers_count gauge"
+				 "\n# HELP emqx_subscribers_count"
+				 "\nemqx_subscribers_count %d"
+				 "\n# TYPE emqx_subscribers_max gauge"
+				 "\n# HELP emqx_subscribers_max"
+				 "\nemqx_subscribers_max %d";
+
+	snprintf(ret, METRICS_DATA_SIZE, fmt, s->connections, ms->connections, s->sessions,
+	    ms->sessions, s->topics, ms->topics, s->subscribers,
+	    ms->subscribers);
+}
+
 static http_msg
 get_subscriptions(
     http_msg *msg, kv **params, size_t param_num, const char *client_id)
