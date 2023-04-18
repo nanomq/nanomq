@@ -1,5 +1,5 @@
 //
-// Copyright 2021 NanoMQ Team, Inc. <jaylin@emqx.io>
+// Copyright 2023 NanoMQ Team, Inc. <jaylin@emqx.io>
 //
 // This software is supplied under the terms of the MIT License, a
 // copy of which should be located in the distribution where this
@@ -19,6 +19,7 @@
 
 #include "nng/mqtt/mqtt_client.h"
 #include "nng/nng.h"
+#include "nng/protocol/mqtt/mqtt_parser.h"
 #include "nng/supplemental/util/options.h"
 #include "nng/supplemental/util/platform.h"
 #include "nng/supplemental/nanolib/utils.h"
@@ -32,6 +33,7 @@ static int init_dialer_tls(nng_dialer d, const char *cacert, const char *cert,
     const char *key, const char *pass);
 #endif
 
+static nng_msg    *conn_msg;
 static void loadfile(const char *path, void **datap, size_t *lenp);
 
 #define ASSERT_NULL(p, fmt, ...)           \
@@ -1265,6 +1267,11 @@ client_cb(void *arg)
 			work->state = SEND_WAIT;
 			nng_sleep_aio(work->opts->interval, work->aio);
 		} else {
+			void *cp = nng_msg_get_conn_param(conn_msg);
+			// a silly way to avoid ASAN complaining
+			if (cp != NULL)
+				conn_param_free(cp);
+			nng_msg_free(conn_msg);
 			nng_closeall();
 			exit(1);
 		}
@@ -1407,7 +1414,7 @@ create_client(nng_socket *sock, struct work **works, size_t id, size_t nwork,
 		works[i] = alloc_work(*sock, opts);
 	}
 
-	nng_msg *conn_msg = connect_msg(opts);
+	conn_msg = connect_msg(opts);
 
 	if ((rv = nng_dialer_create(&dialer, *sock, opts->url)) != 0) {
 		nng_fatal("nng_dialer_create", rv);
@@ -1760,7 +1767,7 @@ create_quic_client(nng_socket *sock, struct work **works, size_t id,
 
 	// create a CONNECT message
 	/* CONNECT */
-	nng_msg *connmsg = connect_msg(param->opts);
+	conn_msg = connect_msg(param->opts);
 
 	if (0 != nng_mqtt_quic_set_connect_cb(sock, quic_connect_cb, param) ||
 	    0 !=
@@ -1781,7 +1788,7 @@ create_quic_client(nng_socket *sock, struct work **works, size_t id,
 		}
 	}
 
-	nng_aio_set_msg(param->client->send_aio, connmsg);
+	nng_aio_set_msg(param->client->send_aio, conn_msg);
 	nng_send_aio(*sock, param->client->send_aio);
 }
 
