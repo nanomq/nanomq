@@ -1202,6 +1202,15 @@ compose_metrics(char *ret, client_stats *ms, client_stats *s)
 	    ms->subscribers);
 }
 
+void
+update_max_stats(client_stats *ms, client_stats *s)
+{
+	ms->sessions = ms->sessions > s->sessions ? ms->sessions : s->sessions;
+	ms->connections = ms->connections > s->connections ? ms->connections : s->connections;
+	ms->topics      = ms->topics > s->topics ? ms->topics : s->topics;
+	ms->subscribers = ms->subscribers > s->subscribers ? ms->subscribers : s->subscribers;
+}
+
 static http_msg
 get_subscriptions(
     http_msg *msg, kv **params, size_t param_num, const char *client_id)
