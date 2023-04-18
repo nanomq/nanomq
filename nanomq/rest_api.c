@@ -1212,6 +1212,35 @@ update_max_stats(client_stats *ms, client_stats *s)
 }
 
 static http_msg
+get_metrics(http_msg *msg, kv **params, size_t param_num,
+    const char *client_id, const char *username, nng_socket *broker_sock)
+{
+	http_msg res = { .status = NNG_HTTP_STATUS_OK };
+
+	client_stats stats = { 0 };
+	static client_stats max_stats = { 0 };
+	nng_id_map *pipe_id_map;
+
+	if (nng_socket_get_ptr(*broker_sock, NMQ_OPT_MQTT_PIPES,
+	        (void **) &pipe_id_map) != 0) {
+		goto out;
+	}
+
+	nng_id_map_foreach2(pipe_id_map, get_metric_cb, &stats);
+
+ out:
+	 char dest[METRICS_DATA_SIZE]        = { 0 };
+	 update_max_stats(&max_stats, &stats);
+	 compose_metrics(dest, &max_stats, &stats);
+	 put_http_msg(
+	     &res, "text/plain", NULL, NULL, NULL, dest, strlen(dest));
+
+	 return res;
+}
+
+
+
+static http_msg
 get_subscriptions(
     http_msg *msg, kv **params, size_t param_num, const char *client_id)
 {
