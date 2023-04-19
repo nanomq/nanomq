@@ -1184,6 +1184,12 @@ compose_metrics(char *ret, client_stats *ms, client_stats *s)
 	             "\n# TYPE nanomq_sessions_max gauge"
 	             "\n# HELP nanomq_sessions_max"
 	             "\nnanomq_sessions_max %d"
+	             "\n# TYPE nanomq_topics_count gauge"
+	             "\n# HELP nanomq_topics_count"
+	             "\nnanomq_topics_count %d"
+	             "\n# TYPE nanomq_topics_max gauge"
+	             "\n# HELP nanomq_topics_max"
+	             "\nnanomq_topics_max %d"
 	             "\n# TYPE nanomq_subscribers_count gauge"
 	             "\n# HELP nanomq_subscribers_count"
 	             "\nnanomq_subscribers_count %d"
@@ -1192,17 +1198,47 @@ compose_metrics(char *ret, client_stats *ms, client_stats *s)
 	             "\nnanomq_subscribers_max %d";
 
 	snprintf(ret, METRICS_DATA_SIZE, fmt, s->connections, ms->connections,
-	    s->sessions, ms->sessions, s->subscribers, ms->subscribers);
+	    s->sessions, ms->sessions, s->topics, ms->topics, s->subscribers, ms->subscribers);
 }
 
-void
+static void
 update_max_stats(client_stats *ms, client_stats *s)
 {
+	//TODO not strictly the maximum value.
+	ms->topics = ms->topics > s->topics ? ms->topics : s->topics;
 	ms->sessions = ms->sessions > s->sessions ? ms->sessions : s->sessions;
 	ms->connections = ms->connections > s->connections ? ms->connections : s->connections;
 	ms->subscribers = ms->subscribers > s->subscribers ? ms->subscribers : s->subscribers;
 }
 
+static void *
+get_client_exist_cb(uint32_t pid)
+{
+	return (void *) pid;
+}
+
+static size_t
+get_topics_count()
+{
+	dbtree        *db = get_broker_db();
+	dbtree_info ***vn =
+	    (dbtree_info ***) dbtree_get_tree(db, get_client_exist_cb);
+	size_t counter = 0;
+
+	for (int i = 0; i < cvector_size(vn); i++) {
+		for (int j = 0; j < cvector_size(vn[i]); j++) {
+			nng_free(vn[i][j]->topic, strlen(vn[i][j]->topic));
+			if (vn[i][j]->clients) {
+				counter++;
+			}
+			cvector_free(vn[i][j]->clients);
+			nng_free(vn[i][j], sizeof(dbtree_info));
+		}
+		cvector_free(vn[i]);
+	}
+	cvector_free(vn);
+	return counter;
+}
 
 static http_msg
 get_metrics(http_msg *msg, kv **params, size_t param_num,
@@ -1220,16 +1256,16 @@ get_metrics(http_msg *msg, kv **params, size_t param_num,
 	}
 
 	nng_id_map_foreach2(pipe_id_map, get_metric_cb, &stats);
-	stats.subscribers = dbhash_get_pipe_cnt();
+	stats.subscribers            = dbhash_get_pipe_cnt();
+	stats.topics                 = get_topics_count();
+	char dest[METRICS_DATA_SIZE] = { 0 };
+	update_max_stats(&max_stats, &stats);
+	compose_metrics(dest, &max_stats, &stats);
 
- out:
-	 char dest[METRICS_DATA_SIZE]        = { 0 };
-	 update_max_stats(&max_stats, &stats);
-	 compose_metrics(dest, &max_stats, &stats);
-	 put_http_msg(
-	     &res, "text/plain", NULL, NULL, NULL, dest, strlen(dest));
+out:
+	put_http_msg(&res, "text/plain", NULL, NULL, NULL, dest, strlen(dest));
 
-	 return res;
+	return res;
 }
 
 
