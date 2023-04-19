@@ -634,16 +634,16 @@ server_cb(void *arg)
 			init_pipe_content(work->pipe_ct);
 
 			// processing will msg
-			if (conn_param_get_will_flag(work->cparam)) {
-				msg = nano_pubmsg_composer(&msg,
-				    conn_param_get_will_retain(work->cparam),
-				    conn_param_get_will_qos(work->cparam),
-				    (mqtt_string *) conn_param_get_will_msg(
-				        work->cparam),
-				    (mqtt_string *) conn_param_get_will_topic(
-				        work->cparam),
-				    conn_param_get_protover(work->cparam),
-					nng_clock());
+			if (conn_param_get_will_flag(work->cparam) &&
+			    (msg = nano_pubmsg_composer(&msg,
+			         conn_param_get_will_retain(work->cparam),
+			         conn_param_get_will_qos(work->cparam),
+			         (mqtt_string *) conn_param_get_will_msg(
+			             work->cparam),
+			         (mqtt_string *) conn_param_get_will_topic(
+			             work->cparam),
+			         conn_param_get_protover(work->cparam),
+			         nng_clock())) != NULL) {
 				work->msg = msg;
 				work->flag = CMD_PUBLISH;
 				// Set V4/V5 flag for publish msg
@@ -670,6 +670,8 @@ server_cb(void *arg)
 				work->state = WAIT;
 				nng_aio_finish(work->aio, 0);
 			} else {
+				// free Conn_param once more in case invalid last-will msg
+				conn_param_free(work->cparam);
 				if (work->msg != NULL)
 					nng_msg_free(work->msg);
 				work->msg = NULL;
