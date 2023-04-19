@@ -932,8 +932,8 @@ reload_auth_config(conf_auth *cur_conf, conf_auth *new_conf)
 		cur_conf->usernames[i] = NULL;
 		cur_conf->passwords[i] = NULL;
 	}
-	free(cur_conf->usernames);
-	free(cur_conf->passwords);
+	cvector_free(cur_conf->usernames);
+	cvector_free(cur_conf->passwords);
 	cur_conf->usernames = NULL;
 	cur_conf->passwords = NULL;
 
