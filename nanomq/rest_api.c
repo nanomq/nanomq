@@ -1054,6 +1054,9 @@ typedef struct {
 	uint32_t sessions;
 	uint32_t topics;
 	uint32_t subscribers;
+	uint32_t message_received;
+	uint32_t message_sent;
+	uint32_t message_dropped;
 } client_stats;
 
 static void
@@ -1195,10 +1198,21 @@ compose_metrics(char *ret, client_stats *ms, client_stats *s)
 	             "\nnanomq_subscribers_count %d"
 	             "\n# TYPE nanomq_subscribers_max gauge"
 	             "\n# HELP nanomq_subscribers_max"
-	             "\nnanomq_subscribers_max %d";
+	             "\nnanomq_subscribers_max %d"
+	             "\n# TYPE nanomq_messages_received counter"
+	             "\n# HELP nanomq_messages_received"
+	             "\nnanomq_messages_received %d"
+	             "\n# TYPE nanomq_messages_sent counter"
+	             "\n# HELP nanomq_messages_sent"
+	             "\nnanomq_messages_sent %d"
+	             "\n# TYPE nanomq_messages_dropped counter"
+	             "\n# HELP nanomq_messages_dropped"
+	             "\nnanomq_messages_dropped %d\n";
 
 	snprintf(ret, METRICS_DATA_SIZE, fmt, s->connections, ms->connections,
-	    s->sessions, ms->sessions, s->topics, ms->topics, s->subscribers, ms->subscribers);
+	    s->sessions, ms->sessions, s->topics, ms->topics, s->subscribers,
+	    ms->subscribers, s->message_received, s->message_sent,
+	    s->message_dropped);
 }
 
 static void
@@ -1258,6 +1272,9 @@ get_metrics(http_msg *msg, kv **params, size_t param_num,
 	nng_id_map_foreach2(pipe_id_map, get_metric_cb, &stats);
 	stats.subscribers            = dbhash_get_pipe_cnt();
 	stats.topics                 = get_topics_count();
+	stats.message_received       = nanomq_get_message_in();
+	stats.message_sent           = nanomq_get_message_out();
+	stats.message_dropped        = nanomq_get_message_drop();
 	char dest[METRICS_DATA_SIZE] = { 0 };
 	update_max_stats(&max_stats, &stats);
 	compose_metrics(dest, &max_stats, &stats);
