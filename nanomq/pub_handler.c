@@ -1487,10 +1487,9 @@ decode_pub_message(nano_work *work, uint8_t proto)
 	case PUBLISH:
 		// variable header
 		// topic length
-		NNI_GET16(msg_body + pos,
-		    pub_packet->var_header.publish.topic_name.len);
 		pub_packet->var_header.publish.topic_name.body =
 		    (char *) copy_utf8_str(msg_body, &pos, (int *)&len);
+		pub_packet->var_header.publish.topic_name.len = len;
 
 		if (pub_packet->var_header.publish.topic_name.len > 0 &&
 		    pub_packet->var_header.publish.topic_name.body != NULL) {
