@@ -1194,48 +1194,31 @@ static void inline handle_pub_retain_sqlite(const nano_work *work, char *topic)
 
 static void inline handle_pub_retain_dbtree(const nano_work *work, char *topic)
 {
-	dbtree_retain_msg *retain = NULL;
-
+	nng_msg *ret = NULL;
 	if (work->pub_packet->fixed_header.retain) {
-		dbtree_retain_msg *r = NULL;
 
 		if (work->pub_packet->payload.len > 0) {
-			retain = nng_alloc(sizeof(dbtree_retain_msg));
-			if (retain == NULL) {
-				return;
-			}
-			retain->qos = work->pub_packet->fixed_header.qos;
 			nng_msg_clone(work->msg);
 
 			property *prop  = NULL;
-			retain->message = work->msg;
-			retain->exist   = true;
-			retain->m       = NULL;
 			// reserve property info
-			nng_mqtt_msg_proto_data_alloc(retain->message);
+			nng_mqtt_msg_proto_data_alloc(work->msg);
 			if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5 &&
 			    work->pub_packet->var_header.publish.properties !=
 			        NULL) {
 				if (work->proto == PROTO_MQTT_BROKER) {
-					nng_mqttv5_msg_decode(retain->message);
+					nng_mqttv5_msg_decode(work->msg);
 				}
 			}
-			log_debug("found retain [%p], message: [%p][%p]\n",
-			    retain, retain->message,
-			    nng_msg_payload_ptr(retain->message));
-			r = dbtree_insert_retain(work->db_ret, topic, retain);
+			ret = dbtree_insert_retain(work->db_ret, topic, work->msg);
 		} else {
 			log_debug("delete retain message");
-			r = dbtree_delete_retain(work->db_ret, topic);
+			ret = dbtree_delete_retain(work->db_ret, topic);
 		}
-		dbtree_retain_msg *ret = (dbtree_retain_msg *) r;
+
 
 		if (ret != NULL) {
-			if (ret->message) {
-				nng_msg_free(ret->message);
-			}
-			nng_free(ret, sizeof(dbtree_retain_msg));
-			ret = NULL;
+				nng_msg_free(ret);
 		}
 	}
 }
