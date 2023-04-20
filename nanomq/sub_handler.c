@@ -242,8 +242,6 @@ sub_ctx_handle(nano_work *work)
 	// TODO
 #endif
 
-	dbtree_retain_msg **r = NULL;
-
 	while (tn) {
 		topic_len = tn->topic.len;
 		topic_str = tn->topic.body;
@@ -312,19 +310,10 @@ sub_ctx_handle(nano_work *work)
 		}
 #endif
 		if (rh == 0 || (rh == 1 && !topic_exist))
-			r = dbtree_find_retain(work->db_ret, topic_str);
+			work->msg_ret = dbtree_find_retain(work->db_ret, topic_str);
 
-		if (!r)
+		if (!work->msg_ret)
 			goto next;
-
-		for (size_t i = 0; i < cvector_size(r); i++) {
-			if (!r[i])
-				continue;
-			nng_msg_clone(r[i]->message);
-			cvector_push_back(work->msg_ret, r[i]->message);
-		}
-		cvector_free(r);
-		r = NULL;
 
 	next:
 		tn = tn->next;
