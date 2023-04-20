@@ -403,6 +403,7 @@ inproc_cb(void *arg)
 
 		// response to client
 		nng_msg_alloc(&work->msg, sizeof(http_msg));
+		// TODO performace bottlenect here (Copy structure 3 times)
 		memcpy(nng_msg_body(work->msg), &res, sizeof(http_msg));
 		destory_http_msg(http_ct);
 		nng_msg_free(msg);
