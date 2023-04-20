@@ -352,6 +352,7 @@ server_cb(void *arg)
 					nng_aio_set_msg(work->aio, work->msg);
 					nng_aio_set_prov_data(work->aio, &work->pid.id);
 					nng_ctx_send(work->ctx, work->aio);
+					nng_msg_free(m);
 				}
 				cvector_free(work->msg_ret);
 			}
