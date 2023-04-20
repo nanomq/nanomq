@@ -1045,8 +1045,9 @@ broker(conf *nanomq_conf)
 
 	// ipc server for receiving commands from reload command
 	if (nanomq_conf->ipc_internal) {
+#if !defined(BUILD_APP_LIB)
 		nng_socket cmd_sock;
-		cmd_work  *cmd_works[CMD_PROC_PARALLEL];
+		cmd_work * cmd_works[CMD_PROC_PARALLEL];
 
 		/*  Create the IPC socket for CMD Server. */
 		rv = nng_rep0_open(&cmd_sock);
@@ -1068,6 +1069,9 @@ broker(conf *nanomq_conf)
 			cmd_server_cb(cmd_works[i]); // this starts them going
 			                             // (INIT state)
 		}
+#else
+		log_error("Not support for App lib\n");
+#endif
 	}
 
 #if defined(ENABLE_NANOMQ_TESTS)
@@ -1595,16 +1599,18 @@ broker_start(int argc, char **argv)
 #endif
 	print_conf(nanomq_conf);
 
+#if !defined(BUILD_APP_LIB)
 	if (store_pid()) {
 		log_error("create \"nanomq.pid\" file failed");
 	}
+#endif
 
 	rc = broker(nanomq_conf);
 
 	return rc == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
-#ifndef NANO_PLATFORM_WINDOWS
+#if (!defined(NANO_PLATFORM_WINDOWS) && !defined(BUILD_APP_LIB))
 
 int
 broker_stop(int argc, char **argv)
@@ -1678,7 +1684,7 @@ broker_restart(int argc, char **argv)
 int
 broker_restart(int argc, char **argv)
 {
-	log_error("Not support on Windows\n");
+	log_error("Not support on Windows or App lib\n");
 	exit(EXIT_SUCCESS);
 }
 
@@ -1705,7 +1711,7 @@ broker_reload(int argc, char **argv)
 int
 broker_stop(int argc, char **argv)
 {
-	log_error("Not support on Windows\n");
+	log_error("Not support on Windows or App lib\n");
 	exit(EXIT_SUCCESS);
 }
 
