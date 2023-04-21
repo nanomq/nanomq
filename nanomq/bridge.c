@@ -170,7 +170,7 @@ hybrid_disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 
 // Disconnect message callback function
 static void
-disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
+tcp_disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {
 	int reason = 0;
 	// get connect reason
@@ -455,7 +455,7 @@ hybrid_bridge_tcp_client(bridge_param *bridge_arg)
 	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
 	nng_socket_set_ptr(*sock, NNG_OPT_MQTT_CONNMSG, connmsg);
 	nng_mqtt_set_connect_cb(*sock, bridge_connect_cb, bridge_arg);
-	nng_mqtt_set_disconnect_cb(*sock, disconnect_cb, bridge_arg);
+	nng_mqtt_set_disconnect_cb(*sock, hybrid_disconnect_cb, bridge_arg);
 
 	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
 
@@ -515,7 +515,7 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
 	nng_socket_set_ptr(*sock, NNG_OPT_MQTT_CONNMSG, connmsg);
 	nng_mqtt_set_connect_cb(*sock, bridge_connect_cb, bridge_arg);
-	nng_mqtt_set_disconnect_cb(*sock, disconnect_cb, connmsg);
+	nng_mqtt_set_disconnect_cb(*sock, tcp_disconnect_cb, bridge_arg);
 
 	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
 
