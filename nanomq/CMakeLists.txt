@@ -50,8 +50,8 @@ set(SOURCES
     conf_api.c
     cmd_proc.c
     acl_handler.c
+    apps/broker.c
     )
-    # db_cli.c)
 
 include_directories(${FOUNDATION_INCLUDE_DIR})
 
@@ -92,7 +92,6 @@ if(ENABLE_AWS_BRIDGE)
 
 endif(ENABLE_AWS_BRIDGE)
 
-# target_link_libraries(nanomq apps nano_shared)
 if(ENABLE_JWT)
   target_link_libraries(nanomq l8w8jwt)
 endif(ENABLE_JWT)
@@ -101,10 +100,8 @@ if(NNG_ENABLE_QUIC)
   target_link_libraries(nanomq msquic OpenSSLQuic)
 endif(NNG_ENABLE_QUIC)
 
-target_link_libraries(nanomq apps nng)
-
 if(BUILD_QUIC_CLI)
-  target_link_libraries(nanomq apps nng msquic)
+  target_link_libraries(nanomq nng msquic)
 endif(BUILD_QUIC_CLI)
 
 target_link_libraries(nanomq nng)
@@ -127,7 +124,7 @@ if(BUILD_STATIC_LIB)
           COMMAND rm ${CMAKE_BINARY_DIR}/tmp
           COMMAND rm ${CMAKE_BINARY_DIR}/nanomq/libnanomq.a
           WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-          DEPENDS apps nanomq nng
+          DEPENDS nanomq nng
           )
 endif(BUILD_STATIC_LIB)
 
