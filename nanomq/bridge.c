@@ -930,3 +930,72 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	}
 	return 0;
 }
+
+int
+bridge_client_without_aio(nng_socket *sock, conf *config, conf_bridge_node *node)
+{
+	int rv;
+
+	char *quic_scheme = "mqtt-quic";
+	char *tcp_scheme  = "mqtt-tcp";
+	char *tls_scheme  = "tls+mqtt-tcp";
+	if (0 == strncmp(node->address, tcp_scheme, 8) ||
+	    0 == strncmp(node->address, tls_scheme, 12)) {
+		bridge_tcp_client(sock, config, node);
+#if defined(SUPP_QUIC)
+	} else if (0 == strncmp(node->address, quic_scheme, 9)) {
+		bridge_quic_client(sock, config, node);
+#endif
+	} else {
+		log_error("Unsupported bridge protocol.\n");
+	}
+
+	return 0;
+}
+
+int
+bridge_reload(nng_mqtt_client *client, conf *config, conf_bridge_node *node)
+{
+	// 1. Send disconnect msg to broker and wait peer to close the connection.
+	nng_msg *dismsg;
+	if ((dismsg = create_disconnect_msg()) == NULL)
+		return -1;
+
+	nng_socket *sock = (nng_socket *)node->sock;
+	// Hold on until the last sending done
+	nng_aio_wait(client->send_aio);
+	nng_aio_set_msg(client->send_aio, dismsg);
+
+	nng_aio_set_timeout(client->send_aio, 1000);
+	nng_send_aio(*sock, client->send_aio);
+	log_info("bridge send disconnect to broker");
+	// Wait for the disconnect msg be sent
+
+	// To stop the forwarding and subscribe function of bridge.
+	// If the socket keep open. The bridge_aio(forwarding) and extra_ctx(subscribe) should be stop.
+	// To stop the bridge_aio. Just set node->enable to false.
+	// To stop the extra_ctx. Calling nni_ctx_close would set it's c_close flag to ture.
+	// And which also would make the socket be closed finally when socket receive any messages.
+	//
+	// So. The answer is closing the socket.
+	// If we close the socket. We should stop and close extra_ctx in work when get a NNG_ECLOSED.
+	// Here we still need to set node->enable to false to stop forwarding.
+	node->enable = false;
+	nng_aio_set_prov_data(node->bridge_reload_aio, NULL); // Reset the prov_data
+	log_info("bridge close");
+	nng_close(*sock);
+
+	// After close the socket. We need to reopen the extra_ctx with the new socket to receive msgs.
+	// And reset the node->enable to ture to make forwarding works.
+	nng_socket *newsock = nng_alloc(sizeof(nng_socket));
+	log_info("new socket create");
+	bridge_client_without_aio(newsock, config, node);
+	// Trigger work reload via aio
+	nng_aio_set_prov_data(node->bridge_reload_aio, (void *)newsock);
+	node->enable = true;
+	log_info("try to reload");
+	// proto_bridge_work_reload();
+
+	// 2. Re-eatablish the connection with new configration
+	return 0;
+}
