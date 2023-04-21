@@ -229,6 +229,7 @@ server_cb(void *arg)
 	int            rv;
 
 	mqtt_msg_info *msg_info;
+	nng_socket    *newsock = NULL;
 
 	switch (work->state) {
 	case INIT:
@@ -252,6 +253,16 @@ server_cb(void *arg)
 				break;
 			} else {
 				log_info("bridge connection closed with reason %d\n", rv);
+				if (rv == NNG_ECLOSED) { // Close actively
+					nng_ctx_close(work->extra_ctx);
+					log_info("close extra_ctx%d\n", work->extra_ctx.id);
+					while ((newsock = nng_aio_get_prov_data(
+					        work->bridge_reload_aio)) == NULL)
+						nng_msleep(1000);
+					proto_bridge_work_reload(work, newsock);
+					log_info("Hot-reload bridge successfully ctx%d", work->extra_ctx.id);
+					break;
+				}
 				if (rv != NNG_ECONNSHUT) {
 					nng_ctx_recv(work->extra_ctx, work->aio);
 					break;
@@ -961,6 +972,8 @@ broker(conf *nanomq_conf)
 		for (size_t t = 0; t < nanomq_conf->bridge.count; t++) {
 			conf_bridge_node *node = nanomq_conf->bridge.nodes[t];
 			if (node->enable) {
+				nng_aio *bridge_reload_aio; // Reload aio each bridge
+				nng_aio_alloc(&bridge_reload_aio, NULL, NULL);
 				bridge_sock = node->sock;
 				for (i = tmp; i < (tmp + node->parallel);
 				     i++) {
@@ -968,7 +981,9 @@ broker(conf *nanomq_conf)
 					    inproc_sock, *bridge_sock,
 					    PROTO_MQTT_BRIDGE, db, db_ret,
 					    nanomq_conf);
+					works[i]->bridge_reload_aio = bridge_reload_aio;
 				}
+				node->bridge_reload_aio = bridge_reload_aio;
 				tmp += node->parallel;
 			}
 		}
