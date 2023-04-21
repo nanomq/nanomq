@@ -921,7 +921,8 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	node->bridge_aio = nng_alloc(
 	    (config->parallel + node->parallel * 2) * sizeof(nng_aio *));
 
-	for (uint32_t num = 0; num < config->parallel; num++) {
+	for (uint32_t num = 0; num < (config->parallel + node->parallel * 2);
+			num++) {
 		if ((rv = nng_aio_alloc(
 		         &node->bridge_aio[num], bridge_send_cb, node)) != 0) {
 			nng_fatal("bridge_aio nng_aio_alloc", rv);
