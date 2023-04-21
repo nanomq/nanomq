@@ -92,6 +92,19 @@ create_connect_msg(conf_bridge_node *node)
 }
 
 nng_msg *
+create_disconnect_msg()
+{
+	nng_msg *msg;
+	if (0 != nng_mqtt_msg_alloc(&msg, 0))
+		return NULL;
+
+	nng_mqtt_msg_set_packet_type(msg, NNG_MQTT_DISCONNECT);
+	nng_mqtt_msg_set_disconnect_reason_code(msg, NORMAL_DISCONNECTION);
+
+	return msg;
+}
+
+nng_msg *
 bridge_publish_msg(const char *topic, uint8_t *payload, uint32_t len, bool dup,
     uint8_t qos, bool retain, property *props)
 {
@@ -115,7 +128,7 @@ bridge_publish_msg(const char *topic, uint8_t *payload, uint32_t len, bool dup,
 }
 
 static void
-send_callback(nng_mqtt_client *client, nng_msg *msg, void *obj) 
+send_callback(nng_mqtt_client *client, nng_msg *msg, void *obj)
 {
 	nng_aio *        aio    = client->send_aio;
 
@@ -859,7 +872,8 @@ hybrid_bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 /**
  * independent callback API for bridging aio
  */
-void bridge_send_cb(void *arg)
+void
+bridge_send_cb(void *arg)
 {
 	int rv;
 	nng_msg *msg = NULL;
