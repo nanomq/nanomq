@@ -168,6 +168,15 @@ hybrid_disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	nng_mtx_unlock(bridge_arg->switch_mtx);
 }
 
+void
+bridge_reeatablish(void *arg)
+{
+	bridge_param *bridge_arg = arg;
+
+	bridge_reload(bridge_arg->client, bridge_arg->conf, bridge_arg->config);
+	// bridge_client(bridge_arg->sock, bridge_arg->conf, bridge_arg->config);
+}
+
 // Disconnect message callback function
 static void
 tcp_disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
@@ -178,6 +187,12 @@ tcp_disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	// property *prop;
 	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_DISCONNECT_PROPERTY, &prop);
 	log_warn("bridge client disconnected! RC [%d] \n", reason);
+
+	nng_aio *re;;
+	nng_aio_alloc(&re, bridge_reeatablish, arg);
+	nng_aio_finish(re, 0);
+	// nng_aio_wait(re);
+	// nng_aio_free(re);
 }
 
 // Connack message callback function
@@ -507,6 +522,7 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	}
 	bridge_arg->config = node;
 	bridge_arg->sock   = sock;
+	bridge_arg->conf   = config;
 	bridge_arg->client = nng_mqtt_client_alloc(*sock, &send_callback, true);
 
 	node->sock         = (void *) sock;
@@ -546,20 +562,19 @@ hybrid_quic_disconnect_cb(void *rmsg, void *arg)
 	return 0;
 }
 
-
 // Disconnect message callback function
 static int
 quic_disconnect_cb(void *rmsg, void *arg)
 {
 	int reason = 0;
-	if (!rmsg)
-		return 0;
 	// get connect reason
-	reason = nng_mqtt_msg_get_connack_return_code(rmsg);
-	// property *prop;
-	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_DISCONNECT_PROPERTY, &prop);
-	log_debug("quic bridge client disconnected! RC [%d] \n", reason);
-	nng_msg_free(rmsg);
+	if (rmsg) {
+		reason = nng_mqtt_msg_get_connack_return_code(rmsg);
+		log_debug("quic bridge client disconnected! RC [%d] \n", reason);
+		nng_msg_free(rmsg);
+	}
+
+	bridge_reeatablish(arg);
 	return 0;
 }
 
@@ -716,6 +731,7 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	}
 	bridge_arg->config = node;
 	bridge_arg->sock   = sock;
+	bridge_arg->conf   = config;
 	bridge_arg->client = nng_mqtt_client_alloc(*sock, &send_callback, true);
 
 	node->sock = (void *) sock;
