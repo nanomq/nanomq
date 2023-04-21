@@ -155,6 +155,8 @@ intHandler(int dummy)
 }
 #endif
 
+static void proto_bridge_work_reload(nano_work *w, nng_socket *bridge_sock);
+
 static inline bool
 bridge_handler(nano_work *work)
 {
@@ -727,6 +729,20 @@ alloc_work(nng_socket sock)
 
 	w->state = INIT;
 	return (w);
+}
+
+static void
+proto_bridge_work_reload(nano_work *w, nng_socket *bridge_sock)
+{
+	int rv;
+	if ((rv = nng_ctx_open(&w->extra_ctx, *bridge_sock)) != 0) {
+		nng_fatal("nng_ctx_open", rv);
+	}
+	// Reset the state of work
+	w->code  = SUCCESS;
+	w->state = INIT;
+
+	server_cb(w);
 }
 
 nano_work *
