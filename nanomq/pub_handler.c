@@ -1218,7 +1218,7 @@ static void inline handle_pub_retain_dbtree(const nano_work *work, char *topic)
 
 
 		if (ret != NULL) {
-				nng_msg_free(ret);
+			nng_msg_free(ret);
 		}
 	}
 }
