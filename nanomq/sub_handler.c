@@ -241,7 +241,7 @@ sub_ctx_handle(nano_work *work)
 #ifdef STATISTICS
 	// TODO
 #endif
-
+	nng_msg **retain = work->msg_ret;
 	while (tn) {
 		topic_len = tn->topic.len;
 		topic_str = tn->topic.body;
@@ -310,7 +310,16 @@ sub_ctx_handle(nano_work *work)
 		}
 #endif
 		if (rh == 0 || (rh == 1 && !topic_exist))
-			work->msg_ret = dbtree_find_retain(work->db_ret, topic_str);
+			retain = dbtree_find_retain(work->db_ret, topic_str);
+		work->msg_ret = (work->msg_ret == NULL) ? retain : work->msg_ret; 
+
+		for (size_t i = 0; i < cvector_size(retain) && work->msg_ret != retain; i++) {
+			if (!retain[i])
+				continue;
+			cvector_push_back(work->msg_ret, retain[i]);
+			if (i == cvector_size(retain))
+				cvector_free(retain);
+		}
 
 		if (!work->msg_ret)
 			goto next;
