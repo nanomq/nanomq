@@ -325,7 +325,6 @@ server_cb(void *arg)
 
 				work->state = CLOSE;
 				nng_aio_finish(work->aio, 0);
-				// TODO break or return?
 				break;
 			}
 
@@ -347,11 +346,7 @@ server_cb(void *arg)
 				             work->msg_ret[i]));
 				     i++) {
 					nng_msg *m = work->msg_ret[i];
-					if (!work->config->sqlite.enable) {
-						// Unnecessary to clone msg if
-						// alloced from sqlite db
-						nng_msg_clone(m);
-					}
+					nng_msg_clone(m);
 					work->msg = m;
 					nng_aio_set_msg(work->aio, work->msg);
 					nng_aio_set_prov_data(work->aio, &work->pid.id);
