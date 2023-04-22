@@ -317,9 +317,10 @@ sub_ctx_handle(nano_work *work)
 			if (!retain[i])
 				continue;
 			cvector_push_back(work->msg_ret, retain[i]);
-			if (i == cvector_size(retain))
-				cvector_free(retain);
 		}
+		if (retain != work->msg_ret)
+			cvector_free(retain);
+		
 
 		if (!work->msg_ret)
 			goto next;
