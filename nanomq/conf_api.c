@@ -200,13 +200,7 @@ get_bridge_connector(conf_bridge_node *node)
 {
 	cJSON *connector = cJSON_CreateObject();
 
-	if (node->address) {
-		cJSON_AddStringToObject(connector, "address", node->address);
-	} else {
-		cJSON_AddStringOrNullToObject(connector, "host", node->host);
-		cJSON_AddNumberToObject(connector, "port", node->port);
-	}
-
+	cJSON_AddStringToObject(connector, "server", node->address);
 	cJSON_AddNumberToObject(connector, "proto_ver", node->proto_ver);
 	cJSON_AddStringOrNullToObject(connector, "clientid", node->clientid);
 	cJSON_AddBoolToObject(connector, "clean_start", node->clean_start);
@@ -308,22 +302,32 @@ get_bridge_sub_properties(conf_bridge_node *node)
 }
 
 static void
+add_time_field(cJSON *obj, const char *key, uint64_t second)
+{
+	char time[100] = { 0 };
+	snprintf(time, 100, "%zus", second);
+	//FIXME It's more reasonable to use 'ms' .
+	cJSON_AddStringToObject(obj, key, time);
+}
+
+static void
 add_bridge_quic(cJSON *obj, conf_bridge_node *node)
 {
 #if defined(SUPP_QUIC)
-	cJSON_AddNumberToObject(obj, "quic_keepalive", node->qkeepalive);
-	cJSON_AddNumberToObject(
-	    obj, "quic_idle_timeout", node->qidle_timeout);
-	cJSON_AddNumberToObject(
-	    obj, "quic_discon_timeout", node->qdiscon_timeout);
-	// cJSON_AddNumberToObject(
+	add_time_field(obj, "quic_keepalive", node->qkeepalive);
+	
+	add_time_field(
+	    obj, "quic_idle_timeout", (uint64_t)node->qidle_timeout);
+	add_time_field(
+	    obj, "quic_discon_timeout", (uint64_t)node->qdiscon_timeout);
+	// add_time_field(
 	//     obj, "quic_handshake_timeout", node->quic_handshake_timeout);
-	cJSON_AddNumberToObject(
-	    obj, "quic_send_idle_timeout", node->qsend_idle_timeout);
-	cJSON_AddNumberToObject(
-	    obj, "quic_initial_rtt_ms", node->qinitial_rtt_ms);
-	cJSON_AddNumberToObject(
-	    obj, "quic_max_ack_delay_ms", node->qmax_ack_delay_ms);
+	add_time_field(
+	    obj, "quic_send_idle_timeout", (uint64_t)node->qsend_idle_timeout);
+	add_time_field(
+	    obj, "quic_initial_rtt_ms", (uint64_t)node->qinitial_rtt_ms);
+	add_time_field(
+	    obj, "quic_max_ack_delay_ms", (uint64_t)node->qmax_ack_delay_ms);
 	cJSON_AddBoolToObject(obj, "quic_multi_stream", node->multi_stream);
 	cJSON_AddBoolToObject(obj, "hybrid_bridging", node->hybrid);
 	cJSON_AddBoolToObject(obj, "quic_qos_priority", node->qos_first);
@@ -336,7 +340,6 @@ get_bridge_config(conf_bridge *bridge, const char *node_name)
 {
 	cJSON *bridge_obj        = cJSON_CreateObject();
 	
-
 	cJSON *bridge_node_obj = cJSON_CreateArray();
 	for (size_t i = 0; i < bridge->count; i++) {
 		if (node_name != NULL &&
@@ -1100,21 +1103,5 @@ reload_auth_config(conf_auth *cur_conf, conf_auth *new_conf)
 	for (size_t i = 0; i < new_conf->count; i++) {
 		cur_conf->usernames[i] = nng_strdup(new_conf->usernames[i]);
 		cur_conf->passwords[i] = nng_strdup(new_conf->passwords[i]);
-	}
-}
-
-void
-set_bridge_conf(conf_bridge *cur_conf, conf_bridge *new_conf, const char *name)
-{
-
-	for (size_t i = 0; i < cur_conf->count; i++) {
-		conf_bridge_node *node = &cur_conf[i];
-		if (name != NULL && strcmp(node->name, name) != 0) {
-			continue;
-		}
-
-		
-
-
 	}
 }
