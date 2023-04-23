@@ -19,6 +19,12 @@ static int init_dialer_tls(nng_dialer d, const char *cacert, const char *cert,
     const char *key, const char *pass);
 #endif
 
+static void bridge_tcp_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg);
+
+#if defined(SUPP_QUIC)
+static int  bridge_quic_connect_cb(void *rmsg, void *arg);
+#endif
+
 static property *sub_property(conf_bridge_sub_properties *conf_prop);
 static property *conn_property(conf_bridge_conn_properties *conf_prop);
 static property *will_property(conf_bridge_conn_will_properties *will_prop);
@@ -151,90 +157,6 @@ send_callback(nng_mqtt_client *client, nng_msg *msg, void *obj)
 		log_debug("send bridge connect msg complete");
 	}
 	// nng_mqtt_client_free(client, true);
-}
-
-// Disconnect message callback function for hyrbrid bridging
-static void
-hybrid_disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
-{
-	int reason = 0;
-	// get connect reason
-	nng_pipe_get_int(p, NNG_OPT_MQTT_DISCONNECT_REASON, &reason);
-	log_warn("bridge client disconnected! RC [%d] \n", reason);
-	bridge_param *bridge_arg = arg;
-
-	nng_mtx_lock(bridge_arg->switch_mtx);
-	nng_cv_wake1(bridge_arg->switch_cv);
-	nng_mtx_unlock(bridge_arg->switch_mtx);
-}
-
-void
-bridge_reeatablish(void *arg)
-{
-	bridge_param *bridge_arg = arg;
-
-	bridge_reload(bridge_arg->client, bridge_arg->conf, bridge_arg->config);
-	// bridge_client(bridge_arg->sock, bridge_arg->conf, bridge_arg->config);
-}
-
-// Disconnect message callback function
-static void
-tcp_disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
-{
-	int reason = 0;
-	// get connect reason
-	nng_pipe_get_int(p, NNG_OPT_MQTT_DISCONNECT_REASON, &reason);
-	// property *prop;
-	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_DISCONNECT_PROPERTY, &prop);
-	log_warn("bridge client disconnected! RC [%d] \n", reason);
-
-	nng_aio *re;;
-	nng_aio_alloc(&re, bridge_reeatablish, arg);
-	nng_aio_finish(re, 0);
-	// nng_aio_wait(re);
-	// nng_aio_free(re);
-}
-
-// Connack message callback function
-static void
-bridge_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
-{
-	// Connected succeed
-	bridge_param *param  = arg;
-	int           reason = 0;
-	// get connect reason
-	nng_pipe_get_int(p, NNG_OPT_MQTT_CONNECT_REASON, &reason);
-	// get property for MQTT V5
-	// property *prop;
-	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_CONNECT_PROPERTY, &prop);
-	log_info("Bridge client connected! RC [%d]", reason);
-
-	/* MQTT V5 SUBSCRIBE */
-	if (reason == 0 && param->config->sub_count > 0) {
-		nng_mqtt_topic_qos *topic_qos =
-		    nng_mqtt_topic_qos_array_create(param->config->sub_count);
-		for (size_t i = 0; i < param->config->sub_count; i++) {
-			nng_mqtt_topic_qos_array_set(topic_qos, i,
-			    param->config->sub_list[i].topic,
-			    param->config->sub_list[i].qos, 1, 0, 0);
-			log_info("Bridge client subscribed topic %s (qos %d).",
-			    param->config->sub_list[i].topic,
-			    param->config->sub_list[i].qos);
-		}
-		nng_mqtt_client *client = param->client;
-
-		// Property
-		property *properties = NULL;
-		if (param->config->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
-			properties =
-			    sub_property(param->config->sub_properties);
-		}
-		nng_mqtt_subscribe_async(
-		    client, topic_qos, param->config->sub_count, properties);
-		nng_mqtt_topic_qos_array_free(
-		    topic_qos, param->config->sub_count);
-	}
-
 }
 
 #ifdef NNG_SUPP_TLS
@@ -424,65 +346,35 @@ conn_property(conf_bridge_conn_properties *conf_prop)
 	return NULL;
 }
 
+static void
+hybrid_tcp_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
+{
+	bridge_tcp_connect_cb(p, ev, arg);
+}
+
+// Disconnect message callback function for hybrid bridging
+static void
+hybrid_tcp_disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
+{
+	int reason = 0;
+	// get connect reason
+	nng_pipe_get_int(p, NNG_OPT_MQTT_DISCONNECT_REASON, &reason);
+	log_warn("bridge client disconnected! RC [%d] \n", reason);
+	bridge_param *bridge_arg = arg;
+
+	nng_mtx_lock(bridge_arg->switch_mtx);
+	nng_cv_wake1(bridge_arg->switch_cv);
+	nng_mtx_unlock(bridge_arg->switch_mtx);
+}
+
 static int
-hybrid_bridge_tcp_client(bridge_param *bridge_arg)
+hybrid_tcp_client(bridge_param *bridge_arg)
 {
 	int           rv;
 	nng_dialer    dialer;
 
 	nng_socket *      sock = bridge_arg->sock;
 	conf_bridge_node *node = bridge_arg->config;
-
-	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
-		if ((rv = nng_mqttv5_client_open(sock)) != 0) {
-			nng_fatal("nng_mqttv5_client_open", rv);
-			return rv;
-		}
-	} else {
-		if ((rv = nng_mqtt_client_open(sock)) != 0) {
-			nng_fatal("nng_mqtt_client_open", rv);
-			return rv;
-		}
-	}
-
-	apply_sqlite_config(sock, node, "mqtt_client.db");
-
-	if ((rv = nng_dialer_create(&dialer, *sock, node->address))) {
-		nng_fatal("nng_dialer_create", rv);
-		return rv;
-	}
-
-#ifdef NNG_SUPP_TLS
-	if (node->tls.enable) {
-		if ((rv = init_dialer_tls(dialer, node->tls.ca, node->tls.cert,
-		         node->tls.key, node->tls.key_password)) != 0) {
-			nng_fatal("init_dialer_tls", rv);
-		}
-	}
-#endif
-
-	nng_msg *connmsg   = create_connect_msg(node);
-	bridge_arg->client = nng_mqtt_client_alloc(*sock, &send_callback, true);
-
-	node->sock         = (void *) sock;
-
-	// TCP bridge does not support hot update of connmsg
-	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
-	nng_socket_set_ptr(*sock, NNG_OPT_MQTT_CONNMSG, connmsg);
-	nng_mqtt_set_connect_cb(*sock, bridge_connect_cb, bridge_arg);
-	nng_mqtt_set_disconnect_cb(*sock, hybrid_disconnect_cb, bridge_arg);
-
-	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
-
-	return 0;
-}
-
-static int
-bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node)
-{
-	int           rv;
-	nng_dialer    dialer;
-	bridge_param *bridge_arg;
 
 	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 		if ((rv = nng_mqttv5_client_open(sock)) != 0) {
@@ -530,8 +422,8 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	// TCP bridge does not support hot update of connmsg
 	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
 	nng_socket_set_ptr(*sock, NNG_OPT_MQTT_CONNMSG, connmsg);
-	nng_mqtt_set_connect_cb(*sock, bridge_connect_cb, bridge_arg);
-	nng_mqtt_set_disconnect_cb(*sock, tcp_disconnect_cb, bridge_arg);
+	nng_mqtt_set_connect_cb(*sock, hybrid_tcp_connect_cb, bridge_arg);
+	nng_mqtt_set_disconnect_cb(*sock, hybrid_tcp_disconnect_cb, bridge_arg);
 
 	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
 
@@ -562,21 +454,180 @@ hybrid_quic_disconnect_cb(void *rmsg, void *arg)
 	return 0;
 }
 
-// Disconnect message callback function
 static int
-quic_disconnect_cb(void *rmsg, void *arg)
+hybrid_quic_connect_cb(void *rmsg, void *arg)
 {
-	int reason = 0;
-	// get connect reason
-	if (rmsg) {
-		reason = nng_mqtt_msg_get_connack_return_code(rmsg);
-		log_debug("quic bridge client disconnected! RC [%d] \n", reason);
-		nng_msg_free(rmsg);
+	return bridge_quic_connect_cb(rmsg, arg);
+}
+
+static int
+hybrid_quic_client(bridge_param *bridge_arg)
+{
+	int           rv;
+	nng_dialer    dialer;
+	log_info("Quic bridge service start.");
+
+	nng_socket *sock = bridge_arg->sock;
+	conf_bridge_node* node = bridge_arg->config;
+	node->sock         = (void *) sock;
+
+	// keepalive here is for QUIC only
+	if ((rv = nng_mqtt_quic_open_conf(sock, node->address, (void *)node)) != 0) {
+		nng_fatal("nng_mqtt_quic_client_open", rv);
+		return rv;
+	}
+	// TODO mqtt v5 protocol
+	apply_sqlite_config(sock, node, "mqtt_quic_client.db");
+	nng_socket_set(*sock, NANO_CONF, node, sizeof(conf_bridge_node));
+
+	bridge_arg->client = nng_mqtt_client_alloc(*sock, &send_callback, true);
+
+	if (0 != nng_mqtt_quic_set_connect_cb(sock, hybrid_quic_connect_cb, (void *)bridge_arg) ||
+	    0 != nng_mqtt_quic_set_disconnect_cb(sock, hybrid_quic_disconnect_cb, (void *)bridge_arg)) {
+	    //0 != nng_mqtt_quic_set_msg_recv_cb(sock, msg_recv_cb, (void *)arg) ||
+	    //0 != nng_mqtt_quic_set_msg_send_cb(sock, msg_send_cb, (void *)arg)) {
+		log_error("error in quic client cb setting.");
+		return -1;
 	}
 
-	bridge_reeatablish(arg);
+	// create a CONNECT message
+	/* CONNECT */
+	nng_msg *connmsg = create_connect_msg(node);
+
+	nng_aio_set_msg(bridge_arg->client->send_aio, connmsg);
+	nng_send_aio(*sock, bridge_arg->client->send_aio);
+
 	return 0;
 }
+#endif
+
+static int
+gen_fallback_url(char *url, char *new) {
+	int pos_ip = 0;
+	int len_ip = 0;
+	for (int i=0; i<strlen(url)-1; ++i)
+		if (url[i] == '/' && url[i+1] == '/')
+			pos_ip = i+2;
+	for (int i=pos_ip; i<strlen(url); ++i) {
+		if (url[i] == ':')
+			break;
+		len_ip ++;
+	}
+	if (len_ip < 2)
+		return -1;
+	strncpy(new, "mqtt-tcp://", 11);
+	strncpy(new+11, url+pos_ip, len_ip);
+	strncpy(new+11+len_ip, ":1883", 5);
+	return 0;
+}
+
+static void
+hybridger_cb(void *arg)
+{
+	const char *quic_scheme = "mqtt-quic";
+	const char *tcp_scheme  = "mqtt-tcp";
+
+	bridge_param *bridge_arg = arg;
+	conf_bridge_node *node = bridge_arg->config;
+
+	int rv = nng_mtx_alloc(&bridge_arg->switch_mtx);
+	if (rv != 0) {
+		nng_fatal("nng_mtx_alloc", rv);
+		return;
+	}
+	rv = nng_cv_alloc(&bridge_arg->switch_cv, bridge_arg->switch_mtx);
+	if (rv != 0) {
+		nng_fatal("nng_cv_alloc", rv);
+		return;
+	}
+
+	char addr_back[strlen(node->address)+1];
+	memset(addr_back, '\0', strlen(node->address)+1);
+	if (0 != gen_fallback_url(node->address, addr_back))
+		strcpy(addr_back, node->address);
+	char * addrs[] = {node->address, addr_back};
+	int idx = -1;
+	for (;;) {
+		// Get next bridge node
+		idx = (idx + 1) % 2;
+		node->address = addrs[idx];
+		log_warn("!! Bridge has switched to %s", node->address);
+
+		if (0 == strncmp(node->address, tcp_scheme, 8)) {
+			// TODO need to close old sock and reopen the ctxs
+			// nng_socket *tsock = bridge_arg->sock;
+			// nng_close(*tsock);
+			hybrid_tcp_client(bridge_arg);
+#if defined(SUPP_QUIC)
+		} else if (0 == strncmp(node->address, quic_scheme, 9)) {
+			hybrid_quic_client(bridge_arg);
+#endif
+		} else {
+			log_error("Unsupported bridge protocol.");
+		}
+		if (bridge_arg->exec_cv) {
+			nng_mtx_lock(bridge_arg->exec_mtx);
+			nng_cv_wake1(bridge_arg->exec_cv);
+			nng_mtx_unlock(bridge_arg->exec_mtx);
+		}
+		nng_mtx_lock(bridge_arg->switch_mtx);
+		nng_cv_wait(bridge_arg->switch_cv);
+		nng_mtx_unlock(bridge_arg->switch_mtx);
+		// Free bridge client
+		if (bridge_arg->client) {
+			nng_aio_finish_error(bridge_arg->client->send_aio, NNG_ECLOSED);
+			nng_mqtt_client_free(bridge_arg->client, true);
+			bridge_arg->client = NULL;
+		}
+	}
+
+	log_warn("Hybridger thread is done");
+	nng_cv_free(bridge_arg->switch_cv);
+	nng_mtx_free(bridge_arg->switch_mtx);
+	bridge_arg->switch_cv = NULL;
+	bridge_arg->switch_mtx = NULL;
+}
+
+int
+hybrid_bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
+{
+	bridge_param *bridge_arg;
+	if ((bridge_arg = nng_alloc(sizeof(bridge_param))) == NULL) {
+		log_error("memory error in allocating bridge client");
+		return NNG_ENOMEM;
+	}
+
+	bridge_arg->config = node;
+	bridge_arg->sock   = sock;
+	bridge_arg->conf   = config;
+
+	int rv = nng_mtx_alloc(&bridge_arg->exec_mtx);
+	if (rv != 0) {
+		nng_fatal("nng_mtx_alloc", rv);
+		return rv;
+	}
+	rv = nng_cv_alloc(&bridge_arg->exec_cv, bridge_arg->exec_mtx);
+	if (rv != 0) {
+		nng_fatal("nng_cv_alloc", rv);
+		return rv;
+	}
+
+	rv = nng_thread_create(&hybridger_thr, hybridger_cb, (void *)bridge_arg);
+	if (rv != 0) {
+		nng_fatal("nng_thread_create", rv);
+		return rv;
+	}
+
+	nng_mtx_lock(bridge_arg->exec_mtx);
+	nng_cv_wait(bridge_arg->exec_cv);
+	nng_mtx_unlock(bridge_arg->exec_mtx);
+	nng_cv_free(bridge_arg->exec_cv);
+	bridge_arg->exec_cv = NULL;
+
+	return rv;
+}
+
+#if defined(SUPP_QUIC)
 
 static void
 quic_ack_cb(void *arg)
@@ -667,54 +718,34 @@ bridge_quic_connect_cb(void *rmsg, void *arg)
 	return 0;
 }
 
-
+// Disconnect message callback function
 static int
-hybrid_bridge_quic_client(bridge_param *bridge_arg)
+bridge_quic_disconnect_cb(void *rmsg, void *arg)
 {
-	int           rv;
-	nng_dialer    dialer;
-	log_info("Quic bridge service start.");
-
-	nng_socket *sock = bridge_arg->sock;
-	conf_bridge_node* node = bridge_arg->config;
-	node->sock         = (void *) sock;
-
-	// keepalive here is for QUIC only
-	if ((rv = nng_mqtt_quic_open_conf(sock, node->address, (void *)node)) != 0) {
-		nng_fatal("nng_mqtt_quic_client_open", rv);
-		return rv;
-	}
-	// TODO mqtt v5 protocol
-	apply_sqlite_config(sock, node, "mqtt_quic_client.db");
-	nng_socket_set(*sock, NANO_CONF, node, sizeof(conf_bridge_node));
-
-	bridge_arg->client = nng_mqtt_client_alloc(*sock, &send_callback, true);
-
-	if (0 != nng_mqtt_quic_set_connect_cb(sock, bridge_quic_connect_cb, (void *)bridge_arg) ||
-	    0 != nng_mqtt_quic_set_disconnect_cb(sock, hybrid_quic_disconnect_cb, (void *)bridge_arg)) {
-	    //0 != nng_mqtt_quic_set_msg_recv_cb(sock, msg_recv_cb, (void *)arg) ||
-	    //0 != nng_mqtt_quic_set_msg_send_cb(sock, msg_send_cb, (void *)arg)) {
-		log_error("error in quic client cb setting.");
-		return -1;
+	int reason = 0;
+	// get connect reason
+	if (rmsg) {
+		reason = nng_mqtt_msg_get_connack_return_code(rmsg);
+		log_debug("quic bridge client disconnected! RC [%d] \n", reason);
+		nng_msg_free(rmsg);
 	}
 
-	// create a CONNECT message
-	/* CONNECT */
-	nng_msg *connmsg = create_connect_msg(node);
-
-	nng_aio_set_msg(bridge_arg->client->send_aio, connmsg);
-	nng_send_aio(*sock, bridge_arg->client->send_aio);
-
+	bridge_param *bridge_arg = arg;
+	conf_bridge_node *node = bridge_arg->config;
+	nng_aio_finish(node->bridge_reload_aio2, 0);
 	return 0;
 }
 
 static int
-bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node)
+bridge_quic_client(bridge_param *bridge_arg)
 {
 	int           rv;
 	nng_dialer    dialer;
-	bridge_param *bridge_arg;
 	log_debug("Quic bridge service start.\n");
+
+	nng_socket       *sock   = bridge_arg->sock;
+	conf             *config = bridge_arg->conf;
+	conf_bridge_node *node   = bridge_arg->config;
 
 	// keepalive here is for QUIC only
 	if ((rv = nng_mqtt_quic_open_conf(sock, node->address, (void *)node)) != 0) {
@@ -724,20 +755,8 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	// mqtt v5 protocol
 	apply_sqlite_config(sock, node, "mqtt_quic_client.db");
 
-	bridge_arg         = (bridge_param *) nng_alloc(sizeof(bridge_param));
-	if (bridge_arg == NULL) {
-		log_error("memory error in allocating bridge client");
-		return NNG_ENOMEM;
-	}
-	bridge_arg->config = node;
-	bridge_arg->sock   = sock;
-	bridge_arg->conf   = config;
-	bridge_arg->client = nng_mqtt_client_alloc(*sock, &send_callback, true);
-
-	node->sock = (void *) sock;
-
 	if (0 != nng_mqtt_quic_set_connect_cb(sock, bridge_quic_connect_cb, (void *)bridge_arg) ||
-	    0 != nng_mqtt_quic_set_disconnect_cb(sock, quic_disconnect_cb, (void *)bridge_arg)) {
+	    0 != nng_mqtt_quic_set_disconnect_cb(sock, bridge_quic_disconnect_cb, (void *)bridge_arg)) {
 	    //0 != nng_mqtt_quic_set_msg_recv_cb(sock, msg_recv_cb, (void *)arg) ||
 	    //0 != nng_mqtt_quic_set_msg_send_cb(sock, msg_send_cb, (void *)arg)) {
 		log_debug("error in quic client cb set.");
@@ -754,136 +773,116 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 
 	return 0;
 }
+#endif
 
-static int
-gen_fallback_url(char *url, char *new) {
-	int pos_ip = 0;
-	int len_ip = 0;
-	for (int i=0; i<strlen(url)-1; ++i)
-		if (url[i] == '/' && url[i+1] == '/')
-			pos_ip = i+2;
-	for (int i=pos_ip; i<strlen(url); ++i) {
-		if (url[i] == ':')
-			break;
-		len_ip ++;
+// Connack message callback function
+static void
+bridge_tcp_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
+{
+	// Connected succeed
+	bridge_param *param  = arg;
+	int           reason = 0;
+	// get connect reason
+	nng_pipe_get_int(p, NNG_OPT_MQTT_CONNECT_REASON, &reason);
+	// get property for MQTT V5
+	// property *prop;
+	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_CONNECT_PROPERTY, &prop);
+	log_info("Bridge client connected! RC [%d]", reason);
+
+	/* MQTT V5 SUBSCRIBE */
+	if (reason == 0 && param->config->sub_count > 0) {
+		nng_mqtt_topic_qos *topic_qos =
+		    nng_mqtt_topic_qos_array_create(param->config->sub_count);
+		for (size_t i = 0; i < param->config->sub_count; i++) {
+			nng_mqtt_topic_qos_array_set(topic_qos, i,
+			    param->config->sub_list[i].topic,
+			    param->config->sub_list[i].qos, 1, 0, 0);
+			log_info("Bridge client subscribed topic %s (qos %d).",
+			    param->config->sub_list[i].topic,
+			    param->config->sub_list[i].qos);
+		}
+		nng_mqtt_client *client = param->client;
+
+		// Property
+		property *properties = NULL;
+		if (param->config->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
+			properties =
+			    sub_property(param->config->sub_properties);
+		}
+		nng_mqtt_subscribe_async(
+		    client, topic_qos, param->config->sub_count, properties);
+		nng_mqtt_topic_qos_array_free(
+		    topic_qos, param->config->sub_count);
 	}
-	if (len_ip < 2)
-		return -1;
-	strncpy(new, "mqtt-tcp://", 11);
-	strncpy(new+11, url+pos_ip, len_ip);
-	strncpy(new+11+len_ip, ":1883", 5);
-	return 0;
 }
 
-
+// Disconnect message callback function
 static void
-hybridger_cb(void *arg)
+bridge_tcp_disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {
-	const char *quic_scheme = "mqtt-quic";
-	const char *tcp_scheme  = "mqtt-tcp";
+	int reason = 0;
+	// get connect reason
+	nng_pipe_get_int(p, NNG_OPT_MQTT_DISCONNECT_REASON, &reason);
+	// property *prop;
+	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_DISCONNECT_PROPERTY, &prop);
+	log_warn("bridge client disconnected! RC [%d] \n", reason);
 
 	bridge_param *bridge_arg = arg;
 	conf_bridge_node *node = bridge_arg->config;
-
-	int rv = nng_mtx_alloc(&bridge_arg->switch_mtx);
-	if (rv != 0) {
-		nng_fatal("nng_mtx_alloc", rv);
-		return;
-	}
-	rv = nng_cv_alloc(&bridge_arg->switch_cv, bridge_arg->switch_mtx);
-	if (rv != 0) {
-		nng_fatal("nng_cv_alloc", rv);
-		return;
-	}
-
-	char addr_back[strlen(node->address)+1];
-	memset(addr_back, '\0', strlen(node->address)+1);
-	if (0 != gen_fallback_url(node->address, addr_back))
-		strcpy(addr_back, node->address);
-	char * addrs[] = {node->address, addr_back};
-	int idx = -1;
-	for (;;) {
-		// Get next bridge node
-		idx = (idx + 1) % 2;
-		node->address = addrs[idx];
-		log_warn("!! Bridge has switched to %s", node->address);
-
-		if (0 == strncmp(node->address, tcp_scheme, 8)) {
-			// TODO need to close old sock and reopen the ctxs
-			// nng_socket *tsock = bridge_arg->sock;
-			// nng_close(*tsock);
-			hybrid_bridge_tcp_client(bridge_arg);
-#if defined(SUPP_QUIC)
-		} else if (0 == strncmp(node->address, quic_scheme, 9)) {
-			hybrid_bridge_quic_client(bridge_arg);
-#endif
-		} else {
-			log_error("Unsupported bridge protocol.");
-		}
-		if (bridge_arg->exec_cv) {
-			nng_mtx_lock(bridge_arg->exec_mtx);
-			nng_cv_wake1(bridge_arg->exec_cv);
-			nng_mtx_unlock(bridge_arg->exec_mtx);
-		}
-		nng_mtx_lock(bridge_arg->switch_mtx);
-		nng_cv_wait(bridge_arg->switch_cv);
-		nng_mtx_unlock(bridge_arg->switch_mtx);
-		// Free bridge client
-		if (bridge_arg->client) {
-			nng_aio_finish_error(bridge_arg->client->send_aio, NNG_ECLOSED);
-			nng_mqtt_client_free(bridge_arg->client, true);
-			bridge_arg->client = NULL;
-		}
-	}
-
-	log_warn("Hybridger thread is done");
-	nng_cv_free(bridge_arg->switch_cv);
-	nng_mtx_free(bridge_arg->switch_mtx);
-	bridge_arg->switch_cv = NULL;
-	bridge_arg->switch_mtx = NULL;
+	nng_aio_finish(node->bridge_reload_aio2, 0);
 }
 
-int
-hybrid_bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
+static int
+bridge_tcp_client(bridge_param *bridge_arg)
 {
-	bridge_param *bridge_arg;
-	if ((bridge_arg = nng_alloc(sizeof(bridge_param))) == NULL) {
-		log_error("memory error in allocating bridge client");
-		return NNG_ENOMEM;
+	int           rv;
+	nng_dialer    dialer;
+
+	nng_socket       *sock   = bridge_arg->sock;
+	conf             *config = bridge_arg->conf;
+	conf_bridge_node *node   = bridge_arg->config;
+
+	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
+		if ((rv = nng_mqttv5_client_open(sock)) != 0) {
+			nng_fatal("nng_mqttv5_client_open", rv);
+			return rv;
+		}
+	} else {
+		if ((rv = nng_mqtt_client_open(sock)) != 0) {
+			nng_fatal("nng_mqtt_client_open", rv);
+			return rv;
+		}
 	}
 
-	bridge_arg->config = node;
-	bridge_arg->sock   = sock;
-	bridge_arg->conf   = config;
+	apply_sqlite_config(sock, node, "mqtt_client.db");
 
-	int rv = nng_mtx_alloc(&bridge_arg->exec_mtx);
-	if (rv != 0) {
-		nng_fatal("nng_mtx_alloc", rv);
+	if ((rv = nng_dialer_create(&dialer, *sock, node->address))) {
+		nng_fatal("nng_dialer_create", rv);
 		return rv;
 	}
-	rv = nng_cv_alloc(&bridge_arg->exec_cv, bridge_arg->exec_mtx);
-	if (rv != 0) {
-		nng_fatal("nng_cv_alloc", rv);
-		return rv;
+
+#ifdef NNG_SUPP_TLS
+	if (node->tls.enable) {
+		if ((rv = init_dialer_tls(dialer, node->tls.ca, node->tls.cert,
+		         node->tls.key, node->tls.key_password)) != 0) {
+			nng_fatal("init_dialer_tls", rv);
+		}
 	}
-
-	rv = nng_thread_create(&hybridger_thr, hybridger_cb, (void *)bridge_arg);
-	if (rv != 0) {
-		nng_fatal("nng_thread_create", rv);
-		return rv;
-	}
-
-	nng_mtx_lock(bridge_arg->exec_mtx);
-	nng_cv_wait(bridge_arg->exec_cv);
-	nng_mtx_unlock(bridge_arg->exec_mtx);
-	nng_cv_free(bridge_arg->exec_cv);
-	bridge_arg->exec_cv = NULL;
-
-	return rv;
-}
-
 #endif
 
+	// create a CONNECT message
+	nng_msg *connmsg = create_connect_msg(node);
+
+	// TCP bridge does not support hot update of connmsg
+	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
+	nng_socket_set_ptr(*sock, NNG_OPT_MQTT_CONNMSG, connmsg);
+	nng_mqtt_set_connect_cb(*sock, bridge_tcp_connect_cb, bridge_arg);
+	nng_mqtt_set_disconnect_cb(*sock, bridge_tcp_disconnect_cb, bridge_arg);
+
+	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
+
+	return 0;
+}
 
 /**
  * independent callback API for bridging aio
@@ -907,19 +906,38 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	char *quic_scheme = "mqtt-quic";
 	char *tcp_scheme  = "mqtt-tcp";
 	char *tls_scheme  = "tls+mqtt-tcp";
+
+	bridge_param *bridge_arg;
+	bridge_arg = (bridge_param *) nng_alloc(sizeof(bridge_param));
+	if (bridge_arg == NULL) {
+		log_error("memory error in allocating bridge client");
+		return NNG_ENOMEM;
+	}
+	bridge_arg->config = node;
+	bridge_arg->sock   = sock;
+	bridge_arg->conf   = config;
+	bridge_arg->client = nng_mqtt_client_alloc(*sock, &send_callback, true);
+
 	if (0 == strncmp(node->address, tcp_scheme, 8) ||
 	    0 == strncmp(node->address, tls_scheme, 12)) {
-		bridge_tcp_client(sock, config, node);
+		bridge_tcp_client(bridge_arg);
 #if defined(SUPP_QUIC)
 	} else if (0 == strncmp(node->address, quic_scheme, 9)) {
-		bridge_quic_client(sock, config, node);
+		bridge_quic_client(bridge_arg);
 #endif
 	} else {
+		nng_mqtt_client_free(bridge_arg->client, true);
+		nng_free(bridge_arg, sizeof(bridge_param));
 		log_error("Unsupported bridge protocol.\n");
 	}
+
 	// alloc an AIO for each ctx bridging use only
 	node->bridge_aio = nng_alloc(
 	    (config->parallel + node->parallel * 2) * sizeof(nng_aio *));
+
+	nng_aio_alloc(&node->bridge_reload_aio2, bridge_reload2, bridge_arg);
+
+	node->sock = (void *) sock;
 
 	for (uint32_t num = 0; num < (config->parallel + node->parallel * 2);
 			num++) {
@@ -933,19 +951,22 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 }
 
 int
-bridge_client_without_aio(nng_socket *sock, conf *config, conf_bridge_node *node)
+bridge_client_without_aio(bridge_param *bridge_arg)
 {
 	int rv;
 
 	char *quic_scheme = "mqtt-quic";
 	char *tcp_scheme  = "mqtt-tcp";
 	char *tls_scheme  = "tls+mqtt-tcp";
+
+	conf_bridge_node *node = bridge_arg->config;
+
 	if (0 == strncmp(node->address, tcp_scheme, 8) ||
 	    0 == strncmp(node->address, tls_scheme, 12)) {
-		bridge_tcp_client(sock, config, node);
+		bridge_tcp_client(bridge_arg);
 #if defined(SUPP_QUIC)
 	} else if (0 == strncmp(node->address, quic_scheme, 9)) {
-		bridge_quic_client(sock, config, node);
+		bridge_quic_client(bridge_arg);
 #endif
 	} else {
 		log_error("Unsupported bridge protocol.\n");
@@ -954,13 +975,19 @@ bridge_client_without_aio(nng_socket *sock, conf *config, conf_bridge_node *node
 	return 0;
 }
 
-int
-bridge_reload(nng_mqtt_client *client, conf *config, conf_bridge_node *node)
+void
+bridge_reload2(void *arg)
 {
+	bridge_param *bridge_arg = arg;
+
+	nng_mqtt_client  *client = bridge_arg->client;
+	conf             *config = bridge_arg->conf;
+	conf_bridge_node *node   = bridge_arg->config;
+
 	// 1. Send disconnect msg to broker and wait peer to close the connection.
 	nng_msg *dismsg;
 	if ((dismsg = create_disconnect_msg()) == NULL)
-		return -1;
+		return;
 
 	nng_socket *sock = (nng_socket *)node->sock;
 	// Hold on until the last sending done
