@@ -2903,6 +2903,8 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 		conf_bridge_node_parse(node, &config->sqlite, node_obj);
 		bridge->nodes[i] = node;
 		found = true;
+		//TODO @Wangha add logic to restart bridge client 
+		//TODO parameters: config, node, node->sock
 		break;
 	}
 
