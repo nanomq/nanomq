@@ -179,39 +179,176 @@ get_sqlite_config(conf_sqlite *sqlite)
 }
 
 cJSON *
-get_bridge_config(conf_bridge *bridge)
+get_user_properties(conf_user_property **up, size_t count)
+{
+	if (count > 0) {
+		cJSON *user_properties = cJSON_CreateArray();
+		for (size_t i = 0; i < count; i++) {
+			cJSON *item = cJSON_CreateObject();
+			cJSON_AddStringToObject(item, "key", up[i]->key);
+			cJSON_AddStringToObject(item, "value", up[i]->value);
+			cJSON_AddItemToArray(user_properties, item);
+		}
+		return user_properties;
+	} else {
+		return NULL;
+	}
+}
+
+cJSON *
+get_bridge_connector(conf_bridge_node *node)
+{
+	cJSON *connector = cJSON_CreateObject();
+
+	if (node->address) {
+		cJSON_AddStringToObject(connector, "address", node->address);
+	} else {
+		cJSON_AddStringOrNullToObject(connector, "host", node->host);
+		cJSON_AddNumberToObject(connector, "port", node->port);
+	}
+
+	cJSON_AddNumberToObject(connector, "proto_ver", node->proto_ver);
+	cJSON_AddStringOrNullToObject(connector, "clientid", node->clientid);
+	cJSON_AddBoolToObject(connector, "clean_start", node->clean_start);
+	cJSON_AddStringOrNullToObject(connector, "username", node->username);
+	cJSON_AddStringOrNullToObject(connector, "password", node->password);
+	cJSON_AddNumberToObject(connector, "keepalive", node->keepalive);
+
+	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
+		if (node->conn_properties != NULL) {
+			conf_bridge_conn_properties *conn_prop =
+			    node->conn_properties;
+			cJSON *conn_prop_obj = cJSON_CreateObject();
+			cJSON_AddNumberToObject(conn_prop_obj,
+			    "session_expiry_interval",
+			    conn_prop->session_expiry_interval);
+			cJSON_AddNumberToObject(conn_prop_obj,
+			    "receive_maximum", conn_prop->receive_maximum);
+			cJSON_AddNumberToObject(conn_prop_obj,
+			    "maximum_packet_size",
+			    conn_prop->maximum_packet_size);
+			cJSON_AddNumberToObject(conn_prop_obj,
+			    "topic_alias_maximum",
+			    conn_prop->topic_alias_maximum);
+			cJSON_AddBoolToObject(conn_prop_obj,
+			    "request_response_information",
+			    conn_prop->request_response_info);
+			cJSON_AddBoolToObject(conn_prop_obj,
+			    "request_problem_information",
+			    conn_prop->request_problem_info);
+
+			if (conn_prop->user_property_size) {
+				cJSON *user_properties = get_user_properties(conn_prop->user_property,
+				    conn_prop->user_property_size);
+				cJSON_AddItemToObject(conn_prop_obj,
+				    "user_properties", user_properties);
+			}
+
+			cJSON_AddItemToObject(
+			    connector, "conn_properties", conn_prop_obj);
+		}
+
+		if (node->will_properties != NULL) {
+			conf_bridge_conn_will_properties *will_prop =
+			    node->will_properties;
+			cJSON *will_prop_obj = cJSON_CreateObject();
+			cJSON_AddNumberToObject(will_prop_obj,
+			    "payload_format_indicator",
+			    will_prop->payload_format_indicator);
+			cJSON_AddNumberToObject(will_prop_obj,
+			    "message_expiry_interval",
+			    will_prop->message_expiry_interval);
+			cJSON_AddStringToObject(will_prop_obj,
+			    "content_type", will_prop->content_type);
+			cJSON_AddNumberToObject(will_prop_obj,
+			    "will_delay_interval",
+			    will_prop->will_delay_interval);
+			cJSON_AddStringToObject(will_prop_obj,
+			    "response_topic", will_prop->response_topic);
+			cJSON_AddStringToObject(will_prop_obj,
+			    "correlation_data", will_prop->correlation_data);
+
+			if (will_prop->user_property_size) {
+				cJSON *user_properties = get_user_properties(
+				    will_prop->user_property,
+				    will_prop->user_property_size);
+				cJSON_AddItemToObject(will_prop_obj,
+				    "user_properties", user_properties);
+			}
+
+			cJSON_AddItemToObject(
+			    connector, "will_properties", will_prop_obj);
+		}
+	}
+
+	return connector;
+}
+
+cJSON *
+get_bridge_sub_properties(conf_bridge_node *node)
+{
+	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5 &&
+	    node->sub_properties) {
+		conf_bridge_sub_properties *sub_prop = node->sub_properties;
+		cJSON *sub_prop_obj                  = cJSON_CreateObject();
+		cJSON_AddNumberToObject(
+		    sub_prop_obj, "identifier", sub_prop->identifier);
+
+		if (sub_prop->user_property_size) {
+			cJSON *user_properties =
+			    get_user_properties(sub_prop->user_property,
+			        sub_prop->user_property_size);
+			cJSON_AddItemToObject(
+			    sub_prop_obj, "user_properties", user_properties);
+		}
+
+		return sub_prop_obj;
+	}
+	return NULL;
+}
+
+static void
+add_bridge_quic(cJSON *obj, conf_bridge_node *node)
+{
+#if defined(NNG_SUPP_QUIC)
+	cJSON_AddNumberToObject(obj, "quic_keepalive", node->quic_keepalive);
+	cJSON_AddNumberToObject(
+	    obj, "quic_idle_timeout", node->quic_idle_timeout);
+	cJSON_AddNumberToObject(
+	    obj, "quic_discon_timeout", node->quic_discon_timeout);
+	cJSON_AddNumberToObject(
+	    obj, "quic_handshake_timeout", node->quic_handshake_timeout);
+	cJSON_AddNumberToObject(
+	    obj, "quic_send_idle_timeout", node->quic_send_idle_timeout);
+	cJSON_AddNumberToObject(
+	    obj, "quic_initial_rtt_ms", node->quic_initial_rtt_ms);
+	cJSON_AddNumberToObject(
+	    obj, "quic_max_ack_delay_ms", node->quic_max_ack_delay_ms);
+#endif
+}
+
+cJSON *
+get_bridge_config(conf_bridge *bridge, const char *node_name)
 {
 	cJSON *bridge_obj        = cJSON_CreateObject();
 	cJSON *bridge_sqlite_obj = get_sqlite_config(&bridge->sqlite);
 
 	cJSON *bridge_node_obj = cJSON_CreateArray();
 	for (size_t i = 0; i < bridge->count; i++) {
+		if (node_name != NULL &&
+		    strcmp(node_name, bridge->nodes[i]->name) != 0) {
+			continue;
+		}
+
 		conf_bridge_node *node     = bridge->nodes[i];
 		cJSON *           node_obj = cJSON_CreateObject();
 		cJSON_AddStringOrNullToObject(node_obj, "name", node->name);
-		cJSON_AddBoolToObject(node_obj, "bridge_mode", node->enable);
-		if (node->address) {
-			cJSON_AddStringToObject(
-			    node_obj, "address", node->address);
-		} else {
-			cJSON_AddStringOrNullToObject(
-			    node_obj, "host", node->host);
-			cJSON_AddNumberToObject(node_obj, "port", node->port);
-		}
-
-		cJSON_AddNumberToObject(
-		    node_obj, "proto_ver", node->proto_ver);
-		cJSON_AddStringOrNullToObject(
-		    node_obj, "clientid", node->clientid);
-		cJSON_AddBoolToObject(
-		    node_obj, "clean_start", node->clean_start);
-		cJSON_AddStringOrNullToObject(
-		    node_obj, "username", node->username);
-		cJSON_AddStringOrNullToObject(
-		    node_obj, "password", node->password);
-		cJSON_AddNumberToObject(
-		    node_obj, "keepalive", node->keepalive);
+		cJSON_AddBoolToObject(node_obj, "enable", node->enable);
 		cJSON_AddNumberToObject(node_obj, "parallel", node->parallel);
+
+		cJSON *connector = get_bridge_connector(node);
+
+		cJSON_AddItemToObject(node_obj, "connector", connector);
 
 		cJSON *pub_topics = cJSON_CreateArray();
 		for (size_t i = 0; i < node->forwards_count; i++) {
@@ -231,13 +368,23 @@ get_bridge_config(conf_bridge *bridge)
 		}
 
 		cJSON_AddItemToObject(node_obj, "subscription", sub_infos);
+
+		if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
+			cJSON *sub_properties =
+			    get_bridge_sub_properties(node);
+			cJSON_AddItemToObject(
+			    node_obj, "sub_properties", sub_properties);
+		}
+
 		cJSON *tls = get_tls_config(&node->tls, false);
 		cJSON_AddItemToObject(node_obj, "tls", tls);
 		cJSON_AddItemToArray(bridge_node_obj, node_obj);
 	}
 
 	cJSON_AddItemToObject(bridge_obj, "nodes", bridge_node_obj);
+#if defined(NNG_SUPP_SQLITE)
 	cJSON_AddItemToObject(bridge_obj, "sqlite", bridge_sqlite_obj);
+#endif
 
 	return bridge_obj;
 }
@@ -946,5 +1093,21 @@ reload_auth_config(conf_auth *cur_conf, conf_auth *new_conf)
 	for (size_t i = 0; i < new_conf->count; i++) {
 		cur_conf->usernames[i] = nng_strdup(new_conf->usernames[i]);
 		cur_conf->passwords[i] = nng_strdup(new_conf->passwords[i]);
+	}
+}
+
+void
+set_bridge_conf(conf_bridge *cur_conf, conf_bridge *new_conf, const char *name)
+{
+
+	for (size_t i = 0; i < cur_conf->count; i++) {
+		conf_bridge_node *node = &cur_conf[i];
+		if (name != NULL && strcmp(node->name, name) != 0) {
+			continue;
+		}
+
+		
+
+
 	}
 }
