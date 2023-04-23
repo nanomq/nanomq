@@ -153,6 +153,30 @@ static endpoints api_ep[] = {
 	    .descr  = "Subscribe a topic",
 	},
 	{
+		.path = "/bridges/:bridge_name",
+		.name = "get_mqtt_bridges",
+		.method = "GET",
+		.descr = "Get the details of bridge",
+	},
+	// { TODO not supported
+	// 	.path = "/bridges/",
+	// 	.name = "post_mqtt_bridge",
+	// 	.method = "POST",
+	// 	.descr = "Create a bridge client",
+	// },
+	{
+		.path = "/bridges/:bridge_name",
+		.name = "put_mqtt_bridge",
+		.method = "PUT",
+		.descr = "Edit a bridge client",
+	},
+	{
+		.path = "/bridges/:bridge_name",
+		.name = "delete_mqtt_bridge",
+		.method = "DELETE",
+		.descr = "DELETE a bridge client",
+	},
+	{
 	    .path   = "/mqtt/publish",
 	    .name   = "mqtt_publish",
 	    .method = "POST",
@@ -322,6 +346,8 @@ static http_msg post_mqtt_msg(
     http_msg *msg, nng_socket *sock, handle_mqtt_msg_cb cb);
 static http_msg post_mqtt_msg_batch(
     http_msg *msg, nng_socket *sock, handle_mqtt_msg_cb cb);
+static http_msg get_mqtt_bridge(http_msg *msg, const char *name);
+static http_msg put_mqtt_bridge(http_msg *msg, const char *name);
 
 static int properties_parse(property **properties, cJSON *json);
 static int handle_publish_msg(cJSON *pub_obj, nng_socket *sock);
@@ -781,6 +807,14 @@ process_request(http_msg *msg, conf_http_server *config, nng_socket *sock)
 		    uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "configuration") == 0) {
 			ret = get_config(msg, uri_ct->sub_tree[2]->node);
+		} else if (uri_ct->sub_count == 2 &&
+		    uri_ct->sub_tree[1]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "bridges") == 0) {
+			ret = get_mqtt_bridge(msg, NULL);
+		} else if (uri_ct->sub_count == 3 &&
+		    uri_ct->sub_tree[2]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "bridges") == 0) {
+			ret = get_mqtt_bridge(msg, uri_ct->sub_tree[2]->node);
 		} else {
 			status = NNG_HTTP_STATUS_NOT_FOUND;
 			code   = UNKNOWN_MISTAKE;
@@ -2192,7 +2226,7 @@ get_config(http_msg *msg, const char *type)
 
 		} else if (strcmp(type, "bridge") == 0) {
 
-			cJSON *bridge = get_bridge_config(&config->bridge);
+			cJSON *bridge = get_bridge_config(&config->bridge, NULL);
 			cJSON_AddItemToObject(conf_obj, "bridge", bridge);
 
 		}
@@ -2232,7 +2266,7 @@ get_config(http_msg *msg, const char *type)
 		cJSON *sqlite = get_sqlite_config(&config->sqlite);
 		cJSON_AddItemToObject(conf_obj, "sqlite", sqlite);
 
-		cJSON *bridge = get_bridge_config(&config->bridge);
+		cJSON *bridge = get_bridge_config(&config->bridge, NULL);
 		cJSON_AddItemToObject(conf_obj, "bridge", bridge);
 
 #ifdef SUPP_AWS_BRIDGE
@@ -2814,4 +2848,46 @@ out:
 	}
 	return error_response(
 	    msg, NNG_HTTP_STATUS_BAD_REQUEST, REQ_PARAMS_JSON_FORMAT_ILLEGAL);
+}
+
+static http_msg
+get_mqtt_bridge(http_msg *msg, const char *name)
+{
+	http_msg res = { .status = NNG_HTTP_STATUS_OK };
+
+	conf * config    = get_global_conf();
+
+	cJSON *bridge_json = cJSON_CreateObject();
+
+	cJSON *bridge = get_bridge_config(&config->bridge, name);
+	cJSON_AddItemToObject(bridge_json, "bridge", bridge);
+
+	cJSON *res_obj = cJSON_CreateObject();
+	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+	cJSON_AddItemToObject(res_obj, "data", bridge_json);
+
+	char *dest = cJSON_PrintUnformatted(res_obj);
+
+	put_http_msg(
+	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
+	cJSON_free(dest);
+	cJSON_Delete(res_obj);
+	return res;
+}
+
+static http_msg
+put_mqtt_bridge(http_msg *msg, const char *name)
+{
+	http_msg res = { .status = NNG_HTTP_STATUS_OK };
+
+	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
+
+	if (!cJSON_IsObject(req)) {
+		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
+		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
+	}
+	cJSON *conf_data = cJSON_GetObjectItem(req, "data");
+	conf * config    = get_global_conf();
+
+	
 }
