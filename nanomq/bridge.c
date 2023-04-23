@@ -727,15 +727,11 @@ bridge_quic_disconnect_cb(void *rmsg, void *arg)
 }
 
 static int
-bridge_quic_client(bridge_param *bridge_arg)
+bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge_param *bridge_arg)
 {
 	int           rv;
 	nng_dialer    dialer;
 	log_debug("Quic bridge service start.\n");
-
-	nng_socket       *sock   = bridge_arg->sock;
-	conf             *config = bridge_arg->conf;
-	conf_bridge_node *node   = bridge_arg->config;
 
 	// keepalive here is for QUIC only
 	if ((rv = nng_mqtt_quic_open_conf(sock, node->address, (void *)node)) != 0) {
@@ -823,14 +819,10 @@ bridge_tcp_disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 }
 
 static int
-bridge_tcp_client(bridge_param *bridge_arg)
+bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge_param *bridge_arg)
 {
 	int           rv;
 	nng_dialer    dialer;
-
-	nng_socket       *sock   = bridge_arg->sock;
-	conf             *config = bridge_arg->conf;
-	conf_bridge_node *node   = bridge_arg->config;
 
 	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 		if ((rv = nng_mqttv5_client_open(sock)) != 0) {
@@ -910,10 +902,10 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 
 	if (0 == strncmp(node->address, tcp_scheme, 8) ||
 	    0 == strncmp(node->address, tls_scheme, 12)) {
-		bridge_tcp_client(bridge_arg);
+		bridge_tcp_client(sock, config, node, bridge_arg);
 #if defined(SUPP_QUIC)
 	} else if (0 == strncmp(node->address, quic_scheme, 9)) {
-		bridge_quic_client(bridge_arg);
+		bridge_quic_client(sock, config, node, bridge_arg);
 #endif
 	} else {
 		nng_mqtt_client_free(bridge_arg->client, true);
@@ -941,7 +933,8 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 }
 
 int
-bridge_client_without_aio(bridge_param *bridge_arg)
+bridge_client_without_aio(nng_socket *sock, conf *config, conf_bridge_node *node,
+		bridge_param *bridge_arg)
 {
 	int rv;
 
@@ -949,14 +942,12 @@ bridge_client_without_aio(bridge_param *bridge_arg)
 	char *tcp_scheme  = "mqtt-tcp";
 	char *tls_scheme  = "tls+mqtt-tcp";
 
-	conf_bridge_node *node = bridge_arg->config;
-
 	if (0 == strncmp(node->address, tcp_scheme, 8) ||
 	    0 == strncmp(node->address, tls_scheme, 12)) {
-		bridge_tcp_client(bridge_arg);
+		bridge_tcp_client(sock, config, node, bridge_arg);
 #if defined(SUPP_QUIC)
 	} else if (0 == strncmp(node->address, quic_scheme, 9)) {
-		bridge_quic_client(bridge_arg);
+		bridge_quic_client(sock, config, node, bridge_arg);
 #endif
 	} else {
 		log_error("Unsupported bridge protocol.\n");
@@ -1006,11 +997,12 @@ bridge_reload2(void *arg)
 	// After close the socket. We need to reopen the extra_ctx with the new socket to receive msgs.
 	// And reset the node->enable to ture to make forwarding works.
 	nng_socket *newsock = nng_alloc(sizeof(nng_socket));
+	// Update the sock in node
 	bridge_arg->sock = newsock;
 	node->sock = newsock;
 	log_info("new socket create");
 
-	bridge_client_without_aio(bridge_arg);
+	bridge_client_without_aio(newsock, config, node, bridge_arg);
 	// Trigger work reload via aio
 	nng_aio_set_prov_data(node->bridge_reload_aio, (void *)newsock);
 	node->enable = true;
