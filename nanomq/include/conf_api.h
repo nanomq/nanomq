@@ -16,6 +16,8 @@ extern cJSON *get_websocket_config(conf_websocket *ws);
 extern cJSON *get_http_config(conf_http_server *http);
 extern cJSON *get_sqlite_config(conf_sqlite *sqlite);
 extern cJSON *get_bridge_config(conf_bridge *bridge, const char *node_name);
+extern void   set_bridge_node_conf(
+      conf_bridge *config, cJSON *node_obj, const char *name);
 
 extern void set_reload_config(cJSON *json, conf *config);
 extern void set_basic_config(cJSON *json, conf *config);

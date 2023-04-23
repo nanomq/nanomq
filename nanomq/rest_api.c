@@ -882,11 +882,14 @@ process_request(http_msg *msg, conf_http_server *config, nng_socket *sock)
 			goto exit;
 		}
 	} else if (nng_strcasecmp(msg->method, "PUT") == 0) {
-		if (uri_ct->sub_count == 3 &&
-		    uri_ct->sub_tree[2]->end &&
+		if (uri_ct->sub_count == 3 && uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "rules") == 0) {
 			ret = put_rules(msg, uri_ct->params,
 			    uri_ct->params_count, uri_ct->sub_tree[2]->node);
+		} else if (uri_ct->sub_count == 3 &&
+		    uri_ct->sub_tree[2]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "bridges") == 0) {
+			ret = put_mqtt_bridge(msg, uri_ct->sub_tree[2]->node);
 		} else {
 			status = NNG_HTTP_STATUS_NOT_FOUND;
 			code   = UNKNOWN_MISTAKE;
@@ -2886,8 +2889,38 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 	}
-	cJSON *conf_data = cJSON_GetObjectItem(req, "data");
-	conf * config    = get_global_conf();
+	cJSON *node_obj = cJSON_GetObjectItem(req, "data");
+	conf * config   = get_global_conf();
 
-	
+	bool         found  = false;
+	conf_bridge *bridge = &config->bridge;
+	for (size_t i = 0; i < bridge->count; i++) {
+		conf_bridge_node *node = bridge->nodes[i];
+		if (name != NULL && strcmp(node->name, name) != 0) {
+			continue;
+		}
+		conf_bridge_node_destroy(node);
+		conf_bridge_node_parse(node, &config->sqlite, node_obj);
+		bridge->nodes[i] = node;
+		found = true;
+		break;
+	}
+
+	if (found) {
+		cJSON *res_obj = cJSON_CreateObject();
+		cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+		char *dest = cJSON_PrintUnformatted(res_obj);
+
+		put_http_msg(&res, "application/json", NULL, NULL, NULL, dest,
+		    strlen(dest));
+
+		cJSON_free(dest);
+		cJSON_Delete(res_obj);
+		cJSON_Delete(req);
+		return res;
+	} else {
+		cJSON_Delete(req);
+		return error_response(
+		    msg, NNG_HTTP_STATUS_NOT_FOUND, REQ_PARAM_ERROR);
+	}
 }
