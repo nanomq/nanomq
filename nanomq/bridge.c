@@ -996,15 +996,12 @@ bridge_reload2(void *arg)
 
 	// After close the socket. We need to reopen the extra_ctx with the new socket to receive msgs.
 	// And reset the node->enable to ture to make forwarding works.
-	nng_socket *newsock = nng_alloc(sizeof(nng_socket));
-	// Update the sock in node
-	bridge_arg->sock = newsock;
-	node->sock = newsock;
-	log_info("new socket create");
 
-	bridge_client_without_aio(newsock, config, node, bridge_arg);
+	log_info("socket reuse");
+	// socket reuse and open a new mqtt connection
+	bridge_client_without_aio(sock, config, node, bridge_arg);
 	// Trigger work reload via aio
-	nng_aio_set_prov_data(node->bridge_reload_aio, (void *)newsock);
+	nng_aio_set_prov_data(node->bridge_reload_aio, (void *)sock);
 	node->enable = true;
 	log_info("try to reload");
 	// proto_bridge_work_reload();
