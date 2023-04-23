@@ -404,17 +404,7 @@ hybrid_tcp_client(bridge_param *bridge_arg)
 	}
 #endif
 
-	// create a CONNECT message
-	nng_msg *connmsg = create_connect_msg(node);
-
-	bridge_arg = (bridge_param *) nng_alloc(sizeof(bridge_param));
-	if (bridge_arg == NULL) {
-		log_error("memory error in allocating bridge client");
-		return NNG_ENOMEM;
-	}
-	bridge_arg->config = node;
-	bridge_arg->sock   = sock;
-	bridge_arg->conf   = config;
+	nng_msg *connmsg   = create_connect_msg(node);
 	bridge_arg->client = nng_mqtt_client_alloc(*sock, &send_callback, true);
 
 	node->sock         = (void *) sock;
@@ -1016,8 +1006,11 @@ bridge_reload2(void *arg)
 	// After close the socket. We need to reopen the extra_ctx with the new socket to receive msgs.
 	// And reset the node->enable to ture to make forwarding works.
 	nng_socket *newsock = nng_alloc(sizeof(nng_socket));
+	bridge_arg->sock = newsock;
+	node->sock = newsock;
 	log_info("new socket create");
-	bridge_client_without_aio(newsock, config, node);
+
+	bridge_client_without_aio(bridge_arg);
 	// Trigger work reload via aio
 	nng_aio_set_prov_data(node->bridge_reload_aio, (void *)newsock);
 	node->enable = true;
@@ -1025,5 +1018,4 @@ bridge_reload2(void *arg)
 	// proto_bridge_work_reload();
 
 	// 2. Re-eatablish the connection with new configration
-	return 0;
 }
