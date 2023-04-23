@@ -898,7 +898,6 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	bridge_arg->config = node;
 	bridge_arg->sock   = sock;
 	bridge_arg->conf   = config;
-	bridge_arg->client = nng_mqtt_client_alloc(*sock, &send_callback, true);
 
 	if (0 == strncmp(node->address, tcp_scheme, 8) ||
 	    0 == strncmp(node->address, tls_scheme, 12)) {
@@ -908,10 +907,11 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 		bridge_quic_client(sock, config, node, bridge_arg);
 #endif
 	} else {
-		nng_mqtt_client_free(bridge_arg->client, true);
 		nng_free(bridge_arg, sizeof(bridge_param));
 		log_error("Unsupported bridge protocol.\n");
 	}
+
+	bridge_arg->client = nng_mqtt_client_alloc(*sock, &send_callback, true);
 
 	// alloc an AIO for each ctx bridging use only
 	node->bridge_aio = nng_alloc(
