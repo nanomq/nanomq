@@ -310,20 +310,24 @@ get_bridge_sub_properties(conf_bridge_node *node)
 static void
 add_bridge_quic(cJSON *obj, conf_bridge_node *node)
 {
-#if defined(NNG_SUPP_QUIC)
-	cJSON_AddNumberToObject(obj, "quic_keepalive", node->quic_keepalive);
+#if defined(SUPP_QUIC)
+	cJSON_AddNumberToObject(obj, "quic_keepalive", node->qkeepalive);
 	cJSON_AddNumberToObject(
-	    obj, "quic_idle_timeout", node->quic_idle_timeout);
+	    obj, "quic_idle_timeout", node->qidle_timeout);
 	cJSON_AddNumberToObject(
-	    obj, "quic_discon_timeout", node->quic_discon_timeout);
+	    obj, "quic_discon_timeout", node->qdiscon_timeout);
+	// cJSON_AddNumberToObject(
+	//     obj, "quic_handshake_timeout", node->quic_handshake_timeout);
 	cJSON_AddNumberToObject(
-	    obj, "quic_handshake_timeout", node->quic_handshake_timeout);
+	    obj, "quic_send_idle_timeout", node->qsend_idle_timeout);
 	cJSON_AddNumberToObject(
-	    obj, "quic_send_idle_timeout", node->quic_send_idle_timeout);
+	    obj, "quic_initial_rtt_ms", node->qinitial_rtt_ms);
 	cJSON_AddNumberToObject(
-	    obj, "quic_initial_rtt_ms", node->quic_initial_rtt_ms);
-	cJSON_AddNumberToObject(
-	    obj, "quic_max_ack_delay_ms", node->quic_max_ack_delay_ms);
+	    obj, "quic_max_ack_delay_ms", node->qmax_ack_delay_ms);
+	cJSON_AddBoolToObject(obj, "quic_multi_stream", node->multi_stream);
+	cJSON_AddBoolToObject(obj, "hybrid_bridging", node->hybrid);
+	cJSON_AddBoolToObject(obj, "quic_qos_priority", node->qos_first);
+	cJSON_AddBoolToObject(obj, "quic_0rtt", node->quic_0rtt);
 #endif
 }
 
@@ -331,7 +335,7 @@ cJSON *
 get_bridge_config(conf_bridge *bridge, const char *node_name)
 {
 	cJSON *bridge_obj        = cJSON_CreateObject();
-	cJSON *bridge_sqlite_obj = get_sqlite_config(&bridge->sqlite);
+	
 
 	cJSON *bridge_node_obj = cJSON_CreateArray();
 	for (size_t i = 0; i < bridge->count; i++) {
@@ -379,10 +383,13 @@ get_bridge_config(conf_bridge *bridge, const char *node_name)
 		cJSON *tls = get_tls_config(&node->tls, false);
 		cJSON_AddItemToObject(node_obj, "tls", tls);
 		cJSON_AddItemToArray(bridge_node_obj, node_obj);
+
+		add_bridge_quic(node_obj, node);
 	}
 
 	cJSON_AddItemToObject(bridge_obj, "nodes", bridge_node_obj);
 #if defined(NNG_SUPP_SQLITE)
+	cJSON *bridge_sqlite_obj = get_sqlite_config(&bridge->sqlite);
 	cJSON_AddItemToObject(bridge_obj, "sqlite", bridge_sqlite_obj);
 #endif
 
