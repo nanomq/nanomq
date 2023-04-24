@@ -544,7 +544,9 @@ server_cb(void *arg)
 			smsg = NULL;
 			work->msg = NULL;
 			// free conn_param due to clone in protocol layer
-			conn_param_free(work->cparam);
+			if (work->proto != PROTO_MQTT_BRIDGE) {
+				conn_param_free(work->cparam);
+			}
 			free_pub_packet(work->pub_packet);
 			work->pub_packet = NULL;
 			cvector_free(msg_infos);
