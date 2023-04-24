@@ -842,6 +842,9 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 		nng_fatal("nng_dialer_create", rv);
 		return rv;
 	}
+	// set backoff param to 24s
+	nng_dialer_setopt_ms(dialer, NNG_OPT_MQTT_RECONNECT_BACKOFF_MAX, 240000);
+
 
 #ifdef NNG_SUPP_TLS
 	if (node->tls.enable) {
