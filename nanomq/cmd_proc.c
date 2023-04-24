@@ -206,7 +206,9 @@ client(const char *cmd)
 		nng_fatal("nng_dialer_create", rv);
 	}
 	nng_socket_set_ms(sock, NNG_OPT_REQ_RESENDTIME, 2000);
-	nng_dialer_start(dialer, NNG_FLAG_ALLOC);
+	if ((rv = nng_dialer_start(dialer, NNG_FLAG_ALLOC)) != 0) {
+		nng_fatal("nng_dialer_start", rv);
+	}
 
 	if ((rv = nng_send(sock, (void *) cmd, strlen(cmd) + 1, 0)) != 0) {
 		nng_fatal("nng_send", rv);
