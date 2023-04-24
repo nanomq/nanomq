@@ -6,6 +6,7 @@
 #include "nng/supplemental/nanolib/log.h"
 #include "nng/supplemental/util/platform.h"
 #include "nng/supplemental/nanolib/utils.h"
+#include "nng/protocol/mqtt/mqtt_parser.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -814,6 +815,14 @@ bridge_tcp_disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	log_warn("bridge client disconnected! RC [%d] \n", reason);
 
 	bridge_param *bridge_arg = arg;
+	// Free cparam kept
+	void *cparam = nng_msg_get_conn_param(bridge_arg->connmsg);
+	if (cparam != NULL)
+		conn_param_free(cparam);
+	nng_msg_free(bridge_arg->connmsg);
+	bridge_arg->connmsg = NULL;
+
+	// Hot-update
 	conf_bridge_node *node = bridge_arg->config;
 	nng_aio_finish(node->bridge_reload_aio2, 0);
 }
@@ -854,6 +863,7 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 
 	// create a CONNECT message
 	nng_msg *connmsg = create_connect_msg(node);
+	bridge_arg->connmsg = connmsg;
 
 	// TCP bridge does not support hot update of connmsg
 	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
