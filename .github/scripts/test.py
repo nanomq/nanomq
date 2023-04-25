@@ -14,6 +14,7 @@ from ws_test import ws_test
 from ws_v5_test import ws_v5_test
 from fuzzy_test import fuzzy_test
 from rest_api_test import rest_api_test
+from vulnerability_test import vul_test
 
 nanomq_log_path = "/tmp/nanomq_test.log" 
 nanomq_cmd = "nanomq start --url tls+nmq-tcp://0.0.0.0:8883 --http --cacert etc/certs/cacert.pem --cert etc/certs/cert.pem --key etc/certs/key.pem --qos_duration 1 --log_level debug  --log_stdout false --log_file /tmp/nanomq_test.log"
@@ -94,6 +95,9 @@ if __name__=='__main__':
         raise AssertionError
     print("rest api test end")
 
+    print("vul_test test start")
+    vul_test()
+    print("vul_test test end")
 
     time.sleep(2)
 
