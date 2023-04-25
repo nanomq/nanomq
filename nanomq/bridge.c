@@ -724,9 +724,11 @@ bridge_quic_disconnect_cb(void *rmsg, void *arg)
 		nng_msg_free(rmsg);
 	}
 
+	/*
 	bridge_param *bridge_arg = arg;
 	conf_bridge_node *node = bridge_arg->config;
 	nng_aio_finish(node->bridge_reload_aio2, 0);
+	*/
 	return 0;
 }
 
@@ -825,8 +827,11 @@ bridge_tcp_disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	nng_msg_free(bridge_arg->connmsg);
 	bridge_arg->connmsg = NULL;
 
+	// Hot-update
+	/*
 	conf_bridge_node *node = bridge_arg->config;
 	nng_aio_finish(node->bridge_reload_aio2, 0);
+	*/
 }
 
 static int
@@ -935,6 +940,7 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	nng_aio_alloc(&node->bridge_reload_aio2, bridge_reload2, bridge_arg);
 
 	node->sock = (void *) sock;
+	node->bridge_arg = (void *) bridge_arg;
 
 	for (uint32_t num = 0; num < (config->parallel + node->parallel * 2);
 	     num++) {
