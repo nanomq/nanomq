@@ -967,6 +967,8 @@ bridge_client_without_aio(nng_socket *sock, conf *config, conf_bridge_node *node
 	} else {
 		log_error("Unsupported bridge protocol.\n");
 	}
+	// Update the sock in client due to it's a constant rather than pointer
+	bridge_arg->client->sock = *sock;
 
 	return 0;
 }
