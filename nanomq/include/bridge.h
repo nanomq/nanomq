@@ -28,6 +28,6 @@ extern int hybrid_bridge_client(
 extern nng_msg *bridge_publish_msg(const char *topic, uint8_t *payload,
     uint32_t len, bool dup, uint8_t qos, bool retain, property *props);
 extern void bridge_reload2(void *arg);
-extern int  bridge_reload(nng_mqtt_client *client, conf *config, conf_bridge_node *node);
+extern int  bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node);
 
 #endif // NANOMQ_BRIDGE_H
