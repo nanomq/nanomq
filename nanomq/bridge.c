@@ -979,21 +979,17 @@ bridge_client_without_aio(nng_socket *sock, conf *config, conf_bridge_node *node
 	return 0;
 }
 
-void
-bridge_reload2(void *arg)
+int
+bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 {
-	bridge_param *bridge_arg = arg;
-
-	nng_mqtt_client  *client = bridge_arg->client;
-	conf             *config = bridge_arg->conf;
-	conf_bridge_node *node   = bridge_arg->config;
-
 	// 1. Send disconnect msg to broker and wait peer to close the connection.
 	nng_msg *dismsg;
 	if ((dismsg = create_disconnect_msg()) == NULL)
-		return;
+		return -1;
 
-	nng_socket *sock = (nng_socket *)node->sock;
+	bridge_param *bridge_arg = (bridge_param *)node->bridge_arg;
+	nng_mqtt_client *client  = bridge_arg->client;
+
 	// Hold on until the last sending done
 	nng_aio_wait(client->send_aio);
 	nng_aio_set_msg(client->send_aio, dismsg);
@@ -1030,4 +1026,17 @@ bridge_reload2(void *arg)
 	// proto_bridge_work_reload();
 
 	// 2. Re-eatablish the connection with new configration
+	return 0;
+}
+
+void
+bridge_reload2(void *arg)
+{
+	bridge_param *bridge_arg = arg;
+
+	conf             *config = bridge_arg->conf;
+	conf_bridge_node *node   = bridge_arg->config;
+	nng_socket       *sock   = (nng_socket *)node->sock;
+
+	bridge_reload(sock, config, node);
 }
