@@ -8,6 +8,7 @@
 //
 
 #include "include/rest_api.h"
+#include "include/bridge.h"
 #include "include/conf_api.h"
 #include "nng/supplemental/nanolib/base64.h"
 #include "nng/supplemental/nanolib/cJSON.h"
@@ -3043,6 +3044,7 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 		found = true;
 		//TODO @Wangha add logic to restart bridge client 
 		//TODO parameters: config, node, node->sock
+		bridge_reload(node->sock, config, node);
 		break;
 	}
 
