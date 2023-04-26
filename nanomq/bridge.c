@@ -756,6 +756,8 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 	}
 	nng_mqtt_quic_ack_callback_set(sock, quic_ack_cb, (void *)bridge_arg);
 
+	bridge_arg->client = nng_mqtt_client_alloc(*sock, &send_callback, true);
+
 	// create a CONNECT message
 	/* CONNECT */
 	nng_msg *connmsg   = create_connect_msg(node);
@@ -871,6 +873,8 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	}
 #endif
 
+	bridge_arg->client = nng_mqtt_client_alloc(*sock, &send_callback, true);
+
 	// create a CONNECT message
 	nng_msg *connmsg = create_connect_msg(node);
 	bridge_arg->connmsg = connmsg;
@@ -930,8 +934,6 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 		nng_free(bridge_arg, sizeof(bridge_param));
 		log_error("Unsupported bridge protocol.\n");
 	}
-
-	bridge_arg->client = nng_mqtt_client_alloc(*sock, &send_callback, true);
 
 	// alloc an AIO for each ctx bridging use only
 	node->bridge_aio = nng_alloc(
