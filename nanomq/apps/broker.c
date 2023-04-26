@@ -1106,6 +1106,7 @@ broker(conf *nanomq_conf)
 		log_error("Not support for App lib\n");
 #endif
 	}
+	printf("NanoMQ Broker is started successfully!\n");
 
 #if defined(ENABLE_NANOMQ_TESTS)
 	bool is_testing = true;
