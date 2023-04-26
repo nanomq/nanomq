@@ -215,26 +215,6 @@ jobs:
         aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws configure set default.region us-west-2
         aws s3 cp --recursive build/_packages s3://packages.emqx/nanomq/$(git describe --abbrev=0 --tags)
-    - name: update nanomq.io
-      if: github.event_name == 'release'
-      run: |
-        set -e -x -u
-        curl -w %{http_code} \
-             --insecure \
-             -H "Content-Type: application/json" \
-             -H "token: ${{ secrets.EMQX_IO_TOKEN }}" \
-             -X POST \
-             -d "{\"repo\":\"emqx/nanomq\", \"tag\": \"${{ github.ref_name }}\" }" \
-             ${{ secrets.EMQX_IO_RELEASE_API }}
-
-    - uses: Swilder-M/push-packages@master
-      if: github.event_name == 'release'
-      env:
-        GIT_TOKEN: ${{ github.token }}
-        PACKAGECLOUD_TOKEN: ${{ secrets.PACKAGECLOUD_TOKEN }}
-      with:
-        product: nanomq
-        version: ${{ github.ref_name }}
 
   build_docker:
     needs: [build_packages]
@@ -297,3 +277,28 @@ jobs:
         labels: ${{ steps.meta.outputs.labels }}
         file: deploy/docker/Dockerfile${{ matrix.suffix }}
         context: .
+
+  publish_packages:
+    needs: [build_packages, build_docker]
+    runs-on: ubuntu-20.04
+    steps:
+    - name: update nanomq.io
+      if: github.event_name == 'release'
+      run: |
+        set -e -x -u
+        curl -w %{http_code} \
+             --insecure \
+             -H "Content-Type: application/json" \
+             -H "token: ${{ secrets.EMQX_IO_TOKEN }}" \
+             -X POST \
+             -d "{\"repo\":\"emqx/nanomq\", \"tag\": \"${{ github.ref_name }}\" }" \
+             ${{ secrets.EMQX_IO_RELEASE_API }}
+
+    - uses: Swilder-M/push-packages@master
+      if: github.event_name == 'release'
+      env:
+        GIT_TOKEN: ${{ github.token }}
+        PACKAGECLOUD_TOKEN: ${{ secrets.PACKAGECLOUD_TOKEN }}
+      with:
+        product: nanomq
+        version: ${{ github.ref_name }}
