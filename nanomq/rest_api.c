@@ -598,6 +598,10 @@ jwt_authorize(http_msg *msg)
 	params.verification_key        = (uint8_t *) server->jwt.public_key;
 	params.verification_key_length = server->jwt.public_key_len;
 
+	params.validate_aud        = NULL;
+	params.validate_aud_length = 0;
+
+	params.validate_iat          = 0;
 	params.validate_exp          = 1;
 	params.exp_tolerance_seconds = 200;
 
