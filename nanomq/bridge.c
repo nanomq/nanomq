@@ -20,6 +20,10 @@ static int init_dialer_tls(nng_dialer d, const char *cacert, const char *cert,
     const char *key, const char *pass);
 #endif
 
+static const char *quic_scheme = "mqtt-quic";
+static const char *tcp_scheme  = "mqtt-tcp";
+static const char *tls_scheme  = "tls+mqtt-tcp";
+
 static void bridge_tcp_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg);
 
 #if defined(SUPP_QUIC)
@@ -516,9 +520,6 @@ gen_fallback_url(char *url, char *new) {
 static void
 hybridger_cb(void *arg)
 {
-	const char *quic_scheme = "mqtt-quic";
-	const char *tcp_scheme  = "mqtt-tcp";
-
 	bridge_param *bridge_arg = arg;
 	conf_bridge_node *node = bridge_arg->config;
 
@@ -544,13 +545,13 @@ hybridger_cb(void *arg)
 		node->address = addrs[idx];
 		log_warn("!! Bridge has switched to %s", node->address);
 
-		if (0 == strncmp(node->address, tcp_scheme, 8)) {
+		if (0 == strncmp(node->address, tcp_scheme, strlen(tcp_scheme))) {
 			// TODO need to close old sock and reopen the ctxs
 			// nng_socket *tsock = bridge_arg->sock;
 			// nng_close(*tsock);
 			hybrid_tcp_client(bridge_arg);
 #if defined(SUPP_QUIC)
-		} else if (0 == strncmp(node->address, quic_scheme, 9)) {
+		} else if (0 == strncmp(node->address, quic_scheme, strlen(quic_scheme))) {
 			hybrid_quic_client(bridge_arg);
 #endif
 		} else {
@@ -909,10 +910,6 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 {
 	int rv;
 
-	char *quic_scheme = "mqtt-quic";
-	char *tcp_scheme  = "mqtt-tcp";
-	char *tls_scheme  = "tls+mqtt-tcp";
-
 	bridge_param *bridge_arg;
 	bridge_arg = (bridge_param *) nng_alloc(sizeof(bridge_param));
 	if (bridge_arg == NULL) {
@@ -923,11 +920,11 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	bridge_arg->sock   = sock;
 	bridge_arg->conf   = config;
 
-	if (0 == strncmp(node->address, tcp_scheme, 8) ||
-	    0 == strncmp(node->address, tls_scheme, 12)) {
+	if (0 == strncmp(node->address, tcp_scheme, strlen(tcp_scheme)) ||
+	    0 == strncmp(node->address, tls_scheme, strlen(tls_scheme))) {
 		bridge_tcp_client(sock, config, node, bridge_arg);
 #if defined(SUPP_QUIC)
-	} else if (0 == strncmp(node->address, quic_scheme, 9)) {
+	} else if (0 == strncmp(node->address, quic_scheme, strlen(quic_scheme))) {
 		bridge_quic_client(sock, config, node, bridge_arg);
 #endif
 	} else {
@@ -961,15 +958,11 @@ bridge_client_without_aio(nng_socket *sock, conf *config, conf_bridge_node *node
 {
 	int rv;
 
-	char *quic_scheme = "mqtt-quic";
-	char *tcp_scheme  = "mqtt-tcp";
-	char *tls_scheme  = "tls+mqtt-tcp";
-
-	if (0 == strncmp(node->address, tcp_scheme, 8) ||
-	    0 == strncmp(node->address, tls_scheme, 12)) {
+	if (0 == strncmp(node->address, tcp_scheme, strlen(tcp_scheme)) ||
+	    0 == strncmp(node->address, tls_scheme, strlen(tls_scheme))) {
 		bridge_tcp_client(sock, config, node, bridge_arg);
 #if defined(SUPP_QUIC)
-	} else if (0 == strncmp(node->address, quic_scheme, 9)) {
+	} else if (0 == strncmp(node->address, quic_scheme, strlen(quic_scheme))) {
 		bridge_quic_client(sock, config, node, bridge_arg);
 #endif
 	} else {
