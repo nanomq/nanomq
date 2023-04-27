@@ -533,7 +533,7 @@ hybridger_cb(void *arg)
 
 	char addr_back[160] = {'\0'};
 	if (0 != gen_fallback_url(node->address, addr_back))
-		strncpy(addr_back, node->address, strlen(node->address));
+		strcpy(addr_back, node->address);
 	char * addrs[] = {node->address, addr_back};
 	int idx = -1;
 	for (;;) {
