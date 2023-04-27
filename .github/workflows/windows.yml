@@ -23,7 +23,7 @@ jobs:
       - name: Package
         if: github.event_name == 'release'
         run: |
-          $pkg_name="nanomq-$(git describe --abbrev=0 --tags)-windows-x86_64.zip"
+          $pkg_name="nanomq-${{ github.event.release.tag_name }}-windows-x86_64.zip"
           Compress-Archive -Path install/* -DestinationPath $pkg_name
           mv $pkg_name ./install/ 
 
