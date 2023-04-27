@@ -474,6 +474,8 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 		nng_fatal("nng_dialer_create", rv);
 		return rv;
 	}
+	// set backoff param to 24s
+	nng_dialer_setopt_ms(dialer, NNG_OPT_MQTT_RECONNECT_BACKOFF_MAX, 240000);
 
 #ifdef NNG_SUPP_TLS
 	if (node->tls.enable) {
@@ -837,8 +839,6 @@ hybrid_bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 		nng_fatal("nng_cv_alloc", rv);
 		return rv;
 	}
-	// set backoff param to 24s
-	nng_dialer_setopt_ms(dialer, NNG_OPT_MQTT_RECONNECT_BACKOFF_MAX, 240000);
 
 
 	rv = nng_thread_create(&hybridger_thr, hybridger_cb, (void *)bridge_arg);
