@@ -15,11 +15,7 @@ jobs:
     - name: install lib
       run: |
         sudo apt update
-        sudo apt install -y cmake ninja-build rpm
-        sudo apt install -y pip
-        sudo apt install -y python3-pip
-        sudo apt install -y mosquitto-clients
-        sudo apt install -y netcat
+        sudo apt install -y cmake ninja-build rpm pip python3-pip mosquitto-clients netcat
         pip install Jinja2
         pip install paho-mqtt
 
