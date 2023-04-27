@@ -21,12 +21,14 @@ jobs:
         run: cmake --build build --target install
 
       - name: Package
+        if: github.event_name == 'release'
         run: |
           $pkg_name="nanomq-$(git describe --abbrev=0 --tags)-windows-x86_64.zip"
           Compress-Archive -Path install/* -DestinationPath $pkg_name
           mv $pkg_name ./install/ 
 
       - uses: actions/upload-artifact@v3
+        if: github.event_name == 'release'
         with:
           name: packages
           path: "install/*.zip"
