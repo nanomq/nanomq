@@ -1009,7 +1009,17 @@ bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 	node->enable = false;
 	nng_aio_set_prov_data(node->bridge_reload_aio, NULL); // Reset the prov_data
 	log_info("bridge close");
-	nng_close(*sock);
+
+	if (0 == strncmp(node->address, tcp_scheme, strlen(tcp_scheme)) ||
+	    0 == strncmp(node->address, tls_scheme, strlen(tls_scheme))) {
+		nng_close(*sock);
+#if defined(SUPP_QUIC)
+	} else if (0 == strncmp(node->address, quic_scheme, strlen(quic_scheme))) {
+		nng_mqtt_quic_client_close(sock);
+#endif
+	} else {
+		log_error("Unsupported bridge protocol.\n");
+	}
 
 	// After close the socket. We need to reopen the extra_ctx with the new socket to receive msgs.
 	// And reset the node->enable to ture to make forwarding works.
