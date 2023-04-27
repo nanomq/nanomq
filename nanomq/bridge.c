@@ -156,7 +156,10 @@ send_callback(nng_mqtt_client *client, nng_msg *msg, void *obj)
 	type = nng_msg_get_type(msg);
 	if (type == CMD_SUBACK) {
 		code = nng_mqtt_msg_get_suback_return_codes(msg, &count);
-		log_info("bridge: subscribe aio result %d suback code", nng_aio_result(aio), *(code));
+		log_info("bridge: subscribe aio result %d", nng_aio_result(aio));
+		for (int i=0; i<count; ++i) {
+			log_info("bridge: suback code %d ", *(code + i));
+		}
 		nng_msg_free(msg);
 	} else if(type == CMD_CONNECT) {
 		log_debug("send bridge connect msg complete");
@@ -672,7 +675,7 @@ quic_ack_cb(void *arg)
 				    param->config->sub_list[i].topic,
 				    param->config->sub_list[i].qos, 1, 0, 0);
 				log_info("Quic bridge client subscribed topic "
-				         "(q%d)%s.",
+				         "(q%d)%s..",
 				    param->config->sub_list[i].qos,
 				    param->config->sub_list[i].topic);
 			}
