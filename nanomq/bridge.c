@@ -884,8 +884,12 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	bridge_arg->connmsg = connmsg;
 
 	// TCP bridge does not support hot update of connmsg
-	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
-	nng_socket_set_ptr(*sock, NNG_OPT_MQTT_CONNMSG, connmsg);
+	if (0 != nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg)) {
+		log_warn("Error in updating connmsg");
+	}
+	if (0 != nng_socket_set_ptr(*sock, NNG_OPT_MQTT_CONNMSG, connmsg)) {
+		log_warn("Error in updating connmsg");
+	}
 	nng_mqtt_set_connect_cb(*sock, bridge_tcp_connect_cb, bridge_arg);
 	nng_mqtt_set_disconnect_cb(*sock, bridge_tcp_disconnect_cb, bridge_arg);
 
@@ -980,6 +984,10 @@ bridge_client_without_aio(nng_socket *sock, conf *config, conf_bridge_node *node
 int
 bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 {
+	log_error("Bridge hot-reload is not supported yet");
+	log_error("(mqtt-tcp is in experiment and mqtt-quic is in developing).");
+	log_error("Remove the return below if you want have a try.");
+	return -3;
 	// 1. Send disconnect msg to broker and wait peer to close the connection.
 	nng_msg *dismsg;
 	if ((dismsg = create_disconnect_msg()) == NULL)
