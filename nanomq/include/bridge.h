@@ -27,7 +27,13 @@ extern int hybrid_bridge_client(
     nng_socket *sock, conf *config, conf_bridge_node *node);
 extern nng_msg *bridge_publish_msg(const char *topic, uint8_t *payload,
     uint32_t len, bool dup, uint8_t qos, bool retain, property *props);
+
 extern void bridge_reload2(void *arg);
 extern int  bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node);
+
+extern int bridge_subscribe(nng_socket *sock, conf_bridge_node *node,
+    nng_mqtt_topic_qos *topic_qos, size_t sub_count, property *properties);
+extern int bridge_unsubscribe(nng_socket *sock, conf_bridge_node *node,
+    nng_mqtt_topic_qos *topic_qos, size_t unsub_count, property *properties);
 
 #endif // NANOMQ_BRIDGE_H
