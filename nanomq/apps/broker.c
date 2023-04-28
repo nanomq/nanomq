@@ -253,7 +253,7 @@ server_cb(void *arg)
 				break;
 			} else {
 				log_info("bridge connection closed with reason %d\n", rv);
-				if (rv == NNG_ECLOSED) { // Close actively
+				if (rv == NNG_ECLOSED) { // The end of extra_ctx
 					nng_ctx_close(work->extra_ctx);
 					log_info("close extra_ctx%d\n", work->extra_ctx.id);
 					while ((newsock = nng_aio_get_prov_data(
