@@ -982,6 +982,36 @@ bridge_client_without_aio(nng_socket *sock, conf *config, conf_bridge_node *node
 }
 
 int
+bridge_subscribe(nng_socket *sock, conf_bridge_node *node,
+        nng_mqtt_topic_qos *topic_qos, size_t sub_count, property *properties)
+{
+	for (size_t i = 0; i < sub_count; i++) {
+		log_info("Bridge client subscribed topic %s (qos %d).",
+		    topic_qos[i].topic, topic_qos[i].qos);
+	}
+	bridge_param *bridge_arg = (bridge_param *)node->bridge_arg;
+	nng_mqtt_client *client  = bridge_arg->client;
+
+	nng_mqtt_subscribe_async(client, topic_qos, sub_count, properties);
+	nng_mqtt_topic_qos_array_free(topic_qos, sub_count);
+}
+
+int
+bridge_unsubscribe(nng_socket *sock, conf_bridge_node *node,
+        nng_mqtt_topic_qos *topic_qos, size_t unsub_count, property *properties)
+{
+	for (size_t i = 0; i < unsub_count; i++) {
+		log_info("Bridge client unsubscribed topic %s (qos %d).",
+		    topic_qos[i].topic, topic_qos[i].qos);
+	}
+	bridge_param *bridge_arg = (bridge_param *)node->bridge_arg;
+	nng_mqtt_client *client  = bridge_arg->client;
+
+	nng_mqtt_unsubscribe_async(client, topic_qos, sub_count, properties);
+	nng_mqtt_topic_qos_array_free(topic_qos, sub_count);
+}
+
+int
 bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 {
 	log_error("Bridge hot-reload is not supported yet");
