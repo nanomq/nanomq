@@ -985,30 +985,38 @@ int
 bridge_subscribe(nng_socket *sock, conf_bridge_node *node,
         nng_mqtt_topic_qos *topic_qos, size_t sub_count, property *properties)
 {
+	int rv;
+
 	for (size_t i = 0; i < sub_count; i++) {
-		log_info("Bridge client subscribed topic %s (qos %d).",
-		    topic_qos[i].topic, topic_qos[i].qos);
+		log_info("Bridge client subscribed topic %.*s (qos %d).",
+		    topic_qos[i].topic.length, topic_qos[i].topic.buf, topic_qos[i].qos);
 	}
 	bridge_param *bridge_arg = (bridge_param *)node->bridge_arg;
 	nng_mqtt_client *client  = bridge_arg->client;
 
-	nng_mqtt_subscribe_async(client, topic_qos, sub_count, properties);
+	rv = nng_mqtt_subscribe_async(client, topic_qos, sub_count, properties);
 	nng_mqtt_topic_qos_array_free(topic_qos, sub_count);
+
+	return rv;
 }
 
 int
 bridge_unsubscribe(nng_socket *sock, conf_bridge_node *node,
-        nng_mqtt_topic_qos *topic_qos, size_t unsub_count, property *properties)
+        nng_mqtt_topic *topics, size_t unsub_count, property *properties)
 {
+	int rv;
+
 	for (size_t i = 0; i < unsub_count; i++) {
-		log_info("Bridge client unsubscribed topic %s (qos %d).",
-		    topic_qos[i].topic, topic_qos[i].qos);
+		log_info("Bridge client unsubscribed topic %.*s.",
+		    topics[i].length, topics[i].buf);
 	}
 	bridge_param *bridge_arg = (bridge_param *)node->bridge_arg;
 	nng_mqtt_client *client  = bridge_arg->client;
 
-	nng_mqtt_unsubscribe_async(client, topic_qos, sub_count, properties);
-	nng_mqtt_topic_qos_array_free(topic_qos, sub_count);
+	rv = nng_mqtt_unsubscribe_async(client, topics, unsub_count, properties);
+	nng_mqtt_topic_array_free(topics, unsub_count);
+
+	return rv;
 }
 
 int
