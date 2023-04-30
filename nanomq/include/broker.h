@@ -47,7 +47,6 @@ struct work {
 	reason_code code; // MQTT reason code
 
 	nng_socket webhook_sock;
-	nng_aio *  bridge_reload_aio;
 
 	struct pipe_content *     pipe_ct;
 	conn_param *              cparam;
