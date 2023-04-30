@@ -6,6 +6,7 @@
 #include "nng/supplemental/nanolib/log.h"
 #include "nng/supplemental/util/platform.h"
 #include "nng/supplemental/nanolib/utils.h"
+#include "nng/protocol/mqtt/mqtt_parser.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -165,6 +166,13 @@ disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	// property *prop;
 	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_DISCONNECT_PROPERTY, &prop);
 	log_warn("bridge client disconnected! RC [%d] \n", reason);
+	bridge_param *bridge_arg = arg;
+	// Free cparam kept
+	void *cparam = nng_msg_get_conn_param(bridge_arg->connmsg);
+	if (cparam != NULL)
+		conn_param_free(cparam);
+	nng_msg_free(bridge_arg->connmsg);
+	bridge_arg->connmsg = NULL;
 }
 
 // Connack message callback function
@@ -434,6 +442,7 @@ hybrid_bridge_tcp_client(bridge_param *bridge_arg)
 #endif
 
 	nng_msg *connmsg   = create_connect_msg(node);
+	bridge_arg->connmsg = connmsg;
 	bridge_arg->client = nng_mqtt_client_alloc(*sock, &send_callback, true);
 
 	node->sock         = (void *) sock;
@@ -488,6 +497,7 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 
 	// create a CONNECT message
 	nng_msg *connmsg = create_connect_msg(node);
+	bridge_arg->connmsg = connmsg;
 
 	bridge_arg = (bridge_param *) nng_alloc(sizeof(bridge_param));
 	if (bridge_arg == NULL) {
@@ -630,6 +640,7 @@ bridge_quic_connect_cb(void *rmsg, void *arg)
 	bridge_param    *param  = arg;
 	nng_msg         *msg    = rmsg;
 	nng_mqtt_client *client = param->client;
+	conn_param      *cp;
 	int              reason = 0;
 	// get connect reason
 	reason = nng_mqtt_msg_get_connack_return_code(msg);
@@ -637,6 +648,8 @@ bridge_quic_connect_cb(void *rmsg, void *arg)
 	// property *prop;
 	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_CONNECT_PROPERTY, &prop);
 	log_info("Quic bridge client connected! RC [%d]", reason);
+	cp = nng_msg_get_conn_param(msg);
+	conn_param_free(cp);
 	nng_msg_free(msg);
 	return 0;
 }
