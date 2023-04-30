@@ -249,11 +249,11 @@ server_cb(void *arg)
 				nng_ctx_recv(work->ctx, work->aio);
 				break;
 			} else {
-				log_info("bridge connection closed with reason %d\n", rv);
 				if (rv != NNG_ECONNSHUT) {
 					nng_ctx_recv(work->extra_ctx, work->aio);
 					break;
 				}
+				log_info("bridge connection closed with reason %d\n", rv);
 			}
 		}
 		if ((msg = nng_aio_get_msg(work->aio)) == NULL) {
@@ -271,9 +271,6 @@ server_cb(void *arg)
 				nng_msg_free(msg);
 				nng_ctx_recv(work->extra_ctx, work->aio);
 				break;
-			} else {
-				// clone conn_param every single time
-				conn_param_clone(nng_msg_get_conn_param(msg));
 			}
 		} else if (work->proto == PROTO_HTTP_SERVER ||
 		    work->proto == PROTO_AWS_BRIDGE) {
