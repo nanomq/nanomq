@@ -644,16 +644,15 @@ bridge_quic_connect_cb(void *rmsg, void *arg)
 	int              reason = 0;
 	// get connect reason
 	reason = nng_mqtt_msg_get_connack_return_code(msg);
+	cp     = nng_msg_get_conn_param(msg);
 	// get property for MQTT V5
 	// property *prop;
 	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_CONNECT_PROPERTY, &prop);
-	log_info("Quic bridge client connected! RC [%d]", reason);
-	cp = nng_msg_get_conn_param(msg);
-	conn_param_free(cp);
+	log_info("Quic bridge client %s connected! RC [%d]",
+	    conn_param_get_clientid(cp), reason);
 	nng_msg_free(msg);
 	return 0;
 }
-
 
 static int
 hybrid_bridge_quic_client(bridge_param *bridge_arg)

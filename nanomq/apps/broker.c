@@ -463,18 +463,23 @@ server_cb(void *arg)
 			if (dbhash_check_id(work->pid.id)) {
 				destroy_sub_client(work->pid.id, work->db);
 			}
-			if (conn_param_get_will_flag(work->cparam) == 0 ||
-			    !conn_param_get_will_topic(work->cparam) ||
-			    !conn_param_get_will_msg(work->cparam)) {
-				// no will msg - free the cp
-				conn_param_free(work->cparam);
-			} else {
-				// set to END to send will msg
-				// TBD: relay last will msg for bridging client?
-				work->state = END;
-				// leave cp for will msg
-				nng_aio_finish(work->aio, 0);
-				break;
+			// bridge's will msg only valid at remote
+			if (work->proto != PROTO_MQTT_BRIDGE) {
+				if (conn_param_get_will_flag(work->cparam) ==
+				        0 ||
+				    !conn_param_get_will_topic(work->cparam) ||
+				    !conn_param_get_will_msg(work->cparam)) {
+					// no will msg - free the cp
+					conn_param_free(work->cparam);
+				} else {
+					// set to END to send will msg
+					// TBD: relay last will msg for
+					// bridging client?
+					work->state = END;
+					// leave cp for will msg
+					nng_aio_finish(work->aio, 0);
+					break;
+				}
 			}
 		}
 		work->state = WAIT;
@@ -528,9 +533,7 @@ server_cb(void *arg)
 			smsg = NULL;
 			work->msg = NULL;
 			// free conn_param due to clone in protocol layer
-			if (work->proto != PROTO_MQTT_BRIDGE) {
-				conn_param_free(work->cparam);
-			}
+			conn_param_free(work->cparam);
 			free_pub_packet(work->pub_packet);
 			work->pub_packet = NULL;
 			cvector_free(msg_infos);
@@ -598,6 +601,7 @@ server_cb(void *arg)
 		break;
 	case END:
 		log_debug("END ^^^^ ctx%d ^^^^ ", work->ctx.id);
+		// send disconnect event msg first
 		if (nng_msg_get_type(work->msg) == CMD_PUBLISH) {
 			if ((rv = nng_aio_result(work->aio)) != 0) {
 				log_error("WAIT nng aio result error: %d", rv);
