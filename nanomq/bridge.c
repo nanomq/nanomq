@@ -168,9 +168,9 @@ disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	log_warn("bridge client disconnected! RC [%d] \n", reason);
 	bridge_param *bridge_arg = arg;
 	// Free cparam kept
-	void *cparam = nng_msg_get_conn_param(bridge_arg->connmsg);
-	if (cparam != NULL)
-		conn_param_free(cparam);
+	// void *cparam = nng_msg_get_conn_param(bridge_arg->connmsg);
+	// if (cparam != NULL)
+	// 	conn_param_free(cparam);
 	nng_msg_free(bridge_arg->connmsg);
 	bridge_arg->connmsg = NULL;
 }
@@ -497,18 +497,18 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 
 	// create a CONNECT message
 	nng_msg *connmsg = create_connect_msg(node);
-	bridge_arg->connmsg = connmsg;
 
 	bridge_arg = (bridge_param *) nng_alloc(sizeof(bridge_param));
 	if (bridge_arg == NULL) {
 		log_error("memory error in allocating bridge client");
 		return NNG_ENOMEM;
 	}
-	bridge_arg->config = node;
-	bridge_arg->sock   = sock;
-	bridge_arg->client = nng_mqtt_client_alloc(*sock, &send_callback, true);
+	bridge_arg->connmsg = connmsg;
+	bridge_arg->config  = node;
+	bridge_arg->sock    = sock;
+	bridge_arg->client  = nng_mqtt_client_alloc(*sock, &send_callback, true);
 
-	node->sock         = (void *) sock;
+	node->sock = (void *) sock;
 
 	// TCP bridge does not support hot update of connmsg
 	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
@@ -648,7 +648,7 @@ bridge_quic_connect_cb(void *rmsg, void *arg)
 	// get property for MQTT V5
 	// property *prop;
 	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_CONNECT_PROPERTY, &prop);
-	log_info("Quic bridge client %s connected! RC [%d]",
+	log_info("Quic bridge Client-ID: %s connected! RC [%d]",
 	    conn_param_get_clientid(cp), reason);
 	nng_msg_free(msg);
 	return 0;
