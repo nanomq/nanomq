@@ -188,11 +188,11 @@ bridge_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 		    nng_mqtt_topic_qos_array_create(param->config->sub_count);
 		for (size_t i = 0; i < param->config->sub_count; i++) {
 			nng_mqtt_topic_qos_array_set(topic_qos, i,
-			    param->config->sub_list[i].topic,
-			    param->config->sub_list[i].qos, 1, 0, 0);
+			    param->config->sub_list[i]->topic,
+			    param->config->sub_list[i]->qos, 1, 0, 0);
 			log_info("Bridge client subscribed topic %s (qos %d).",
-			    param->config->sub_list[i].topic,
-			    param->config->sub_list[i].qos);
+			    param->config->sub_list[i]->topic,
+			    param->config->sub_list[i]->qos);
 		}
 		nng_mqtt_client *client = param->client;
 
@@ -586,13 +586,13 @@ quic_ack_cb(void *arg)
 				nng_mqtt_topic_qos *topic_qos =
 				    nng_mqtt_topic_qos_array_create(1);
 				nng_mqtt_topic_qos_array_set(topic_qos, 0,
-				    param->config->sub_list[i].topic,
-				    param->config->sub_list[i].qos, 1, 0, 0);
+				    param->config->sub_list[i]->topic,
+				    param->config->sub_list[i]->qos, 1, 0, 0);
 				log_info("Quic bridge client subscribe to "
 				         "topic (QoS "
 				         "%d)%s.",
-				    param->config->sub_list[i].qos,
-				    param->config->sub_list[i].topic);
+				    param->config->sub_list[i]->qos,
+				    param->config->sub_list[i]->topic);
 				nng_mqtt_subscribe_async(
 				    client, topic_qos, 1, NULL);
 				nng_mqtt_topic_qos_array_free(topic_qos, 1);
@@ -603,12 +603,12 @@ quic_ack_cb(void *arg)
 			        param->config->sub_count);
 			for (size_t i = 0; i < param->config->sub_count; i++) {
 				nng_mqtt_topic_qos_array_set(topic_qos, i,
-				    param->config->sub_list[i].topic,
-				    param->config->sub_list[i].qos, 1, 0, 0);
+				    param->config->sub_list[i]->topic,
+				    param->config->sub_list[i]->qos, 1, 0, 0);
 				log_info("Quic bridge client subscribed topic "
 				         "(q%d)%s.",
-				    param->config->sub_list[i].qos,
-				    param->config->sub_list[i].topic);
+				    param->config->sub_list[i]->qos,
+				    param->config->sub_list[i]->topic);
 			}
 			// TODO support MQTT V5
 			nng_mqtt_subscribe_async(

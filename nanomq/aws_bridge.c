@@ -412,9 +412,9 @@ subscribe_to_topic(MQTTContext_t *mqtt_ctx, conf_bridge_node *node)
 
 	/* This example subscribes to only one topic and uses QOS1. */
 	for (size_t i = 0; i < node->sub_count; i++) {
-		sub_list[i].qos               = node->sub_list[i].qos;
-		sub_list[i].pTopicFilter      = node->sub_list[i].topic;
-		sub_list[i].topicFilterLength = node->sub_list[i].topic_len;
+		sub_list[i].qos               = node->sub_list[i]->qos;
+		sub_list[i].pTopicFilter      = node->sub_list[i]->topic;
+		sub_list[i].topicFilterLength = node->sub_list[i]->topic_len;
 	}
 
 	/* Generate packet identifier for the SUBSCRIBE packet. */
