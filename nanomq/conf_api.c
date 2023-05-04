@@ -366,11 +366,11 @@ get_bridge_config(conf_bridge *bridge, const char *node_name)
 
 		cJSON *sub_infos = cJSON_CreateArray();
 		for (size_t j = 0; j < node->sub_count; j++) {
-			cJSON *sub_obj = cJSON_CreateObject();
-			topics sub     = node->sub_list[j];
+			cJSON * sub_obj = cJSON_CreateObject();
+			topics *sub     = node->sub_list[j];
 			cJSON_AddStringOrNullToObject(
-			    sub_obj, "topic", sub.topic);
-			cJSON_AddNumberToObject(sub_obj, "qos", sub.qos);
+			    sub_obj, "topic", sub->topic);
+			cJSON_AddNumberToObject(sub_obj, "qos", sub->qos);
 			cJSON_AddItemToArray(sub_infos, sub_obj);
 		}
 
