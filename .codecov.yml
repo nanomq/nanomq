@@ -1,2 +1,4 @@
+ignore:
+ - "**/*_test.c"
 coverage:
  range: 50..95
