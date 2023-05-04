@@ -825,7 +825,6 @@ bridge_tcp_disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	nng_msg_free(bridge_arg->connmsg);
 	bridge_arg->connmsg = NULL;
 
-	bridge_param *bridge_arg = arg;
 	conf_bridge_node *node = bridge_arg->config;
 	nng_aio_finish(node->bridge_reload_aio2, 0);
 }
