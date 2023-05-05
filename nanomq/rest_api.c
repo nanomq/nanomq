@@ -3015,6 +3015,28 @@ free_string_list(char **list, size_t count)
 	}
 }
 
+static nng_mqtt_topic_qos *
+convert_topic_qos(topics **list, size_t count)
+{
+	nng_mqtt_topic_qos *topics = nng_mqtt_topic_qos_array_create(count);
+	for (size_t i = 0; i < count; i++) {
+		nng_mqtt_topic_qos_array_set(
+		    topics, i, list[i]->topic, list[i]->qos, 1, 0, 0);
+	}
+	return topics;
+}
+
+static nng_mqtt_topic *
+convert_topic(char **list, size_t count)
+{
+	nng_mqtt_topic *topics = nng_mqtt_topic_array_create(count);
+
+	for (size_t i = 0; i < count; i++) {
+		nng_mqtt_topic_array_set(topics, i, list[i]);
+	}
+	return topics;
+}
+
 static http_msg
 post_mqtt_bridge_sub(http_msg *msg, const char *name)
 {
@@ -3129,9 +3151,12 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 		cvector_free(sub_topics);
 		found = true;
 
-		// TODO convert sub_topics to nng_mqtt_topic_qos
+		// convert sub_topics to nng_mqtt_topic_qos
+		// TODO uncomment the following line if you want to use nng_mqtt_topic_qos
+		// nng_mqtt_topic_qos *topic_list = convert_topic_qos(node->sub_list, node->sub_count);
+
 		// TODO @Wangha handle subscribe
-		// TODO params: config, node, node->sock, nng_mqtt_topic_qos, sub_count, prop_list
+		// TODO params: config, node, node->sock, topic_list, sub_count, prop_list
 		break;
 	}
 
@@ -3249,10 +3274,12 @@ post_mqtt_bridge_unsub(http_msg *msg, const char *name)
 		}
 
 		found = true;
-		// TODO convert unsub_topics to nng_mqtt_topic 
+		// convert unsub_topics to nng_mqtt_topic
+		// TODO uncomment the following line if you want to use nng_mqtt_topic
+		// nng_mqtt_topic *topic_list = convert_topic(unsub_topics, unsub_count);
 
 		// TODO @Wangha handle unsubscribe
-		// TODO params: config, node, node->sock, nng_mqtt_topic, unsub_count
+		// TODO params: config, node, node->sock, topic_list, unsub_count, prop_list
 		break;
 	}
 
