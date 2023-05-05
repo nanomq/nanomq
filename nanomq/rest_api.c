@@ -2668,6 +2668,7 @@ handle_publish_msg(cJSON *pub_obj, nng_socket *sock)
 	if (cJSON_IsObject(json_prop)) {
 		rv = properties_parse(&props, json_prop);
 		if (rv != 0) {
+			property_free(props);
 			goto out;
 		}
 	}
@@ -2989,8 +2990,24 @@ free_topic_list(topics **list, size_t count)
 	if (list && count > 0) {
 		for (size_t i = 0; i < count; i++) {
 			if (list[i]->topic) {
-				free(list[i]->topic);
+				nng_free(list[i]->topic, list[i]->topic_len);
 				list[i]->topic = NULL;
+			}
+			nng_free(list[i], sizeof(topics));
+		}
+		cvector_free(list);
+		list = NULL;
+	}
+}
+
+static void
+free_string_list(char **list, size_t count)
+{
+	if (list && count > 0) {
+		for (size_t i = 0; i < count; i++) {
+			if (list[i]) {
+				free(list[i]);
+				list[i] = NULL;
 			}
 		}
 		cvector_free(list);
@@ -3023,12 +3040,14 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 	}
 
 	size_t   array_size = cJSON_GetArraySize(sub_array);
+
 	topics **sub_topics = NULL;
 	size_t   sub_count  = 0;
 
 	cJSON *item;
 	int    rv = 0;
 
+	// Get topic list 
 	for (size_t i = 0; i < array_size; i++) {
 		topics *tp       = nng_zalloc(sizeof(topics));
 		cJSON * sub_item = cJSON_GetArrayItem(sub_array, i);
@@ -3045,13 +3064,11 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 		sub_count++;
 	}
 
-	// properties
+	// Get properties
 	cJSON *json_prop = cJSON_GetObjectItem(data_obj, "sub_properties");
 	conf_bridge_sub_properties *sub_props = NULL;
-	property *prop_list = NULL;
+	
 	if (cJSON_IsObject(json_prop)) {
-		properties_parse(&prop_list, json_prop);
-
 		sub_props = nng_zalloc(sizeof(conf_bridge_sub_properties));
 		getNumberValue(
 		    json_prop, item, "identifier", sub_props->identifier, rv);
@@ -3091,6 +3108,15 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 		if (name != NULL && strcmp(node->name, name) != 0) {
 			continue;
 		}
+
+		// Decode properties to nng_mqtt_property
+		property *prop_list = NULL;
+		if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
+			if (cJSON_IsObject(json_prop)) {
+				properties_parse(&prop_list, json_prop);
+			}
+		}
+
 		if (sub_count > 0) {			
 			// TODO handle repeated topics
 			cvector_copy(sub_topics, node->sub_list);
@@ -3100,7 +3126,9 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 			free_sub_property(node->sub_properties);
 			node->sub_properties = sub_props;
 		}
+		cvector_free(sub_topics);
 		found = true;
+
 		// TODO convert sub_topics to nng_mqtt_topic_qos
 		// TODO @Wangha handle subscribe
 		// TODO params: config, node, node->sock, nng_mqtt_topic_qos, sub_count, prop_list
@@ -3110,13 +3138,10 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 	if (!found) {
 		status = NNG_HTTP_STATUS_NOT_FOUND;
 		code   = REQ_PARAM_ERROR;
-		free_topic_list(sub_topics, sub_count);
 		free_sub_property(sub_props);
-		property_free(prop_list);
+		free_topic_list(sub_topics, sub_count);
 		goto out;
 	}
-
-	cJSON_Delete(req);
 
 	cJSON *res_obj = cJSON_CreateObject();
 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
@@ -3125,7 +3150,9 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 	put_http_msg(
 	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
 
+	cJSON_Delete(req);
 	cJSON_free(dest);
+	cJSON_Delete(res_obj);
 	return res;
 
 out:
@@ -3134,11 +3161,9 @@ out:
 	}
 
 	return error_response(msg,
-	    code == NNG_HTTP_STATUS_NOT_FOUND ? code
-	                                      : NNG_HTTP_STATUS_BAD_REQUEST,
-	    (uint16_t) (status == REQ_PARAM_ERROR
-	            ? status
-	            : REQ_PARAMS_JSON_FORMAT_ILLEGAL));
+	    status == NNG_HTTP_STATUS_NOT_FOUND ? status
+	                                        : NNG_HTTP_STATUS_BAD_REQUEST,
+	    (code == REQ_PARAM_ERROR ? code : REQ_PARAMS_JSON_FORMAT_ILLEGAL));
 }
 
 static http_msg
@@ -3158,13 +3183,13 @@ post_mqtt_bridge_unsub(http_msg *msg, const char *name)
 		goto out;
 	}
 
+	// Get unsub topic list
 	cJSON *unsub_array = cJSON_GetObjectItem(data_obj, "unsubscription");
-
 	if (!cJSON_IsArray(unsub_array)) {
 		goto out;
 	}
 
-	topics **unsub_topics = NULL;
+	char **  unsub_topics = NULL;
 	size_t   unsub_count  = 0;
 
 	cJSON *item;
@@ -3173,25 +3198,16 @@ post_mqtt_bridge_unsub(http_msg *msg, const char *name)
 	size_t   array_size = cJSON_GetArraySize(unsub_array);
 	
 	for (size_t i = 0; i < array_size; i++) {
-		topics *tp       = nng_zalloc(sizeof(topics));
 		cJSON * unsub_item = cJSON_GetArrayItem(unsub_array, i);
 		char *topic = NULL;
 		getStringValue(unsub_item, item, "topic", topic, rv);
 		if (rv == 0) {
-			tp->topic     = nng_strdup(topic);
-			tp->topic_len = strlen(tp->topic);
+			topic     = nng_strdup(topic);
 		} else {
 			continue;
 		}
-		cvector_push_back(unsub_topics, tp);
+		cvector_push_back(unsub_topics, topic);
 		unsub_count++;
-	}
-
-	// properties
-	cJSON *json_prop = cJSON_GetObjectItem(data_obj, "unsub_properties");
-	property *prop_list = NULL;
-	if (cJSON_IsObject(json_prop)) {
-		properties_parse(&prop_list, json_prop);
 	}
 
 	conf *config = get_global_conf();
@@ -3204,16 +3220,28 @@ post_mqtt_bridge_unsub(http_msg *msg, const char *name)
 			continue;
 		}
 
+		// Get properties
+		property *prop_list = NULL;
+		if (node->proto_ver == MQTT_VERSION_V5) {
+			cJSON *json_prop =
+			    cJSON_GetObjectItem(data_obj, "unsub_properties");
+
+			if (cJSON_IsObject(json_prop)) {
+				properties_parse(&prop_list, json_prop);
+			}
+		}
+
 		for (size_t i = 0; i < unsub_count; i++) {
-			topics *unsub_topic = unsub_topics[i];
-			for (size_t j = 0; j < node->sub_count; j++)
-			{
+			char *unsub_topic = unsub_topics[i];
+			for (size_t j = 0; j < node->sub_count; j++) {
 				topics *sub_topic = node->sub_list[j];
-				if (strcmp(unsub_topic->topic, sub_topic->topic) == 0) {
-					
+				if (strcmp(unsub_topic,
+				        sub_topic->topic) == 0) {
+
 					cvector_erase(node->sub_list, j);
 					node->sub_count--;
-					nng_free(sub_topic->topic, sub_topic->topic_len);
+					nng_free(sub_topic->topic,
+					    sub_topic->topic_len);
 					nng_free(sub_topic, sizeof(topics));
 					break;
 				}
@@ -3228,15 +3256,13 @@ post_mqtt_bridge_unsub(http_msg *msg, const char *name)
 		break;
 	}
 
+	free_string_list(unsub_topics, unsub_count);
+
 	if (!found) {
 		status = NNG_HTTP_STATUS_NOT_FOUND;
 		code   = REQ_PARAM_ERROR;
-		free_topic_list(unsub_topics, unsub_count);
-		property_free(prop_list);
 		goto out;
 	}
-
-	cJSON_Delete(req);
 
 	cJSON *res_obj = cJSON_CreateObject();
 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
@@ -3245,7 +3271,9 @@ post_mqtt_bridge_unsub(http_msg *msg, const char *name)
 	put_http_msg(
 	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
 
+	cJSON_Delete(req);
 	cJSON_free(dest);
+	cJSON_Delete(res_obj);
 	return res;
 
 out:
@@ -3254,9 +3282,7 @@ out:
 	}
 
 	return error_response(msg,
-	    code == NNG_HTTP_STATUS_NOT_FOUND ? code
-	                                      : NNG_HTTP_STATUS_BAD_REQUEST,
-	    (uint16_t) (status == REQ_PARAM_ERROR
-	            ? status
-	            : REQ_PARAMS_JSON_FORMAT_ILLEGAL));
+	    status == NNG_HTTP_STATUS_NOT_FOUND ? status
+	                                        : NNG_HTTP_STATUS_BAD_REQUEST,
+	    (code == REQ_PARAM_ERROR ? code : REQ_PARAMS_JSON_FORMAT_ILLEGAL));
 }
