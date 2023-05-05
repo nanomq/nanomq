@@ -2,6 +2,12 @@
 
 ## 源安装
 
+### AUR 一键安装
+
+```bash
+yay -S nanomq-git
+```
+
 ### Deb 一键安装
 
 ```shell
