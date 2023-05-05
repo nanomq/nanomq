@@ -2,6 +2,12 @@
 
 ## Install from packagecloud source
 
+### Install via AUR
+
+```bash
+yay -S nanomq-git
+```
+
 ### Install via DEB source
 
 ```shell
