@@ -1042,6 +1042,12 @@ bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 	nng_send_aio(*sock, client->send_aio);
 	log_info("bridge send disconnect to broker");
 	// Wait for the disconnect msg be sent
+	nng_aio_wait(client->send_aio);
+	nng_msg_free(dismsg);
+
+	// Free the client
+	nng_mqtt_client_free(client, true);
+	bridge_arg->client = NULL;
 
 	// To stop the forwarding and subscribe function of bridge.
 	// If the socket keep open. The bridge_aio(forwarding) and extra_ctx(subscribe) should be stop.
