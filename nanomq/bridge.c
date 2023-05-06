@@ -830,8 +830,8 @@ bridge_tcp_disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	// void *cparam = nng_msg_get_conn_param(bridge_arg->connmsg);
 	// if (cparam != NULL)
 	//  conn_param_free(cparam);
-	nng_msg_free(bridge_arg->connmsg);
-	bridge_arg->connmsg = NULL;
+	// nng_msg_free(bridge_arg->connmsg);
+	// bridge_arg->connmsg = NULL;
 
 	// Hot-update
 	/*
@@ -1048,6 +1048,11 @@ bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 	// Free the client
 	nng_mqtt_client_free(client, true);
 	bridge_arg->client = NULL;
+	// Free the connect msg
+	if (bridge_arg->connmsg) {
+		nng_msg_free(bridge_arg->connmsg);
+		bridge_arg->connmsg = NULL;
+	}
 
 	// To stop the forwarding and subscribe function of bridge.
 	// If the socket keep open. The bridge_aio(forwarding) and extra_ctx(subscribe) should be stop.
