@@ -166,13 +166,6 @@ disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	// property *prop;
 	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_DISCONNECT_PROPERTY, &prop);
 	log_warn("bridge client disconnected! RC [%d] \n", reason);
-	bridge_param *bridge_arg = arg;
-	// Free cparam kept
-	// void *cparam = nng_msg_get_conn_param(bridge_arg->connmsg);
-	// if (cparam != NULL)
-	// 	conn_param_free(cparam);
-	nng_msg_free(bridge_arg->connmsg);
-	bridge_arg->connmsg = NULL;
 }
 
 // Connack message callback function
