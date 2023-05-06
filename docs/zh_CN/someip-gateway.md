@@ -4,7 +4,7 @@
 
 目前 someip-gateway 功能依赖于 [vsomeip](https://github.com/COVESA/vsomeip)。
 
-#### 安装 vsomeip
+### 安装 vsomeip
 请参照 [vsomeip](https://github.com/COVESA/vsomeip) 安装指定依赖，以下假定已安装相关依赖。
 
 ```shell
@@ -17,7 +17,7 @@ make -j8
 make install
 ```
 
-#### 编译 hello_world_service
+### 编译 hello_world_service
 
 ```shell
 cd vsomeip/examples/hello_world

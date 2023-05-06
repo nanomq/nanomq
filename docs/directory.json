@@ -82,6 +82,10 @@
     {
       "title": "DDS",
       "path": "dds"
+    },
+    {
+      "title": "SOME/IP 网关",
+      "path": "someip-gateway"
     }
   ],
   "en": [
@@ -167,6 +171,11 @@
     {
       "title": "DDS",
       "path": "dds"
+    },
+    {
+      "title": "SOME/IP Gateway",
+      "path": "someip-gateway"
     }
+
   ]
 }
