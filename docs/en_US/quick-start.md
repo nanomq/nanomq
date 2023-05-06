@@ -4,8 +4,28 @@
 
 ### Install via AUR
 
+- Nanomq basic edition
+
 ```bash
-yay -S nanomq-git
+yay -S nanomq
+```
+
+- Nanomq sqlite edition
+
+```bash
+yay -S nanomq-sqlite
+```
+
+- Nanomq msquic edition
+
+```bash
+yay -S nanomq-msquic
+```
+
+- Nanomq full edition
+
+```bash
+yay -S nanomq-full
 ```
 
 ### Install via DEB source
