@@ -40,6 +40,8 @@ IoT 时代数据是第一生产力，而边缘则是数据诞生的地方。在�
 
 [Web Hook](./web-hook.md)
 
+[SOME/IP 网关](./someip-gateway.md)
+
 [工具集](./toolkit.md)
 
 [MQTT 桥接](./bridges/tcp-bridge.md)

@@ -8,7 +8,7 @@ Github repository address: <https://github.com/emqx/nanomq>
 
 **NanoMQ** currently has the following functions and features:
 
-- Full support for **MQTT 3.1.1** and **MQTT 5.0** protocol. 
+- Full support for **MQTT 3.1.1** and **MQTT 5.0** protocol.
 - High compatibility and portability as the project relies only on the native **POSIX API** and is developed purely in C.
 - **NanoMQ** is internally fully asynchronous IO and multi-threaded parallelism, so there is good support for SMP while achieving low latency and high throughput.
 - It is cost-effective in terms of resource usage and is suitable for all types of edge computing platforms.
@@ -16,6 +16,7 @@ Github repository address: <https://github.com/emqx/nanomq>
 - For now **NanoMQ** has following features:
 
 - **MQTT 3.1.1** & **MQTT 5.0** Broker.
+
 - Bridging message from edge to multiple clouds via MQTT/QUIC/nanomsg/ZeroMQ/DDS.
 - Support WebSocket and TLS encryption.
 - Embedded with internal Rule-Engine & WebHook plugins.
@@ -23,9 +24,10 @@ Github repository address: <https://github.com/emqx/nanomq>
 - Provide Event WebHook & Rich HTTP APIs
 - Support multi-protocols such as WebSocket/ZeroMQ/nanomsg/NNG and TLS.
 
-*Unsupport features of MQTT 5.0* 
-- Auth https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901217
-- Server Redirection https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901255
+_Unsupport features of MQTT 5.0_
+
+- Auth <https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901217>
+- Server Redirection <https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901255>
 
 [Features](./features.md)
 
@@ -38,6 +40,8 @@ Github repository address: <https://github.com/emqx/nanomq>
 [HTTP APIs](./http-api/v4.md)
 
 [Web Hook](./web-hook.md)
+
+[SOME/IP 网关](./someip-gateway.md)
 
 [Toolkit](./toolkit.md)
 
