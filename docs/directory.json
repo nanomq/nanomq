@@ -39,6 +39,10 @@
         {
           "title": "HTTP-API (v1)",
           "path": "http-api/v1"
+        },
+        {
+          "title": "JWT认证",
+          "path": "http-api/jwt"
         }
       ]
     },
@@ -120,6 +124,10 @@
         {
           "title": "HTTP-API (v1)",
           "path": "http-api/v1"
+        },
+        {
+          "title": "JWT Authorization",
+          "path": "http-api/jwt"
         }
       ]
     },
