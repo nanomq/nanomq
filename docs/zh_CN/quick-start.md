@@ -4,8 +4,28 @@
 
 ### AUR 一键安装
 
+- Nanomq 基础版
+
 ```bash
-yay -S nanomq-git
+yay -S nanomq
+```
+
+- Nanomq sqlite 版
+
+```bash
+yay -S nanomq-sqlite
+```
+
+- Nanomq msquic 版
+
+```bash
+yay -S nanomq-msquic
+```
+
+- Nanomq full 版
+
+```bash
+yay -S nanomq-full
 ```
 
 ### Deb 一键安装
