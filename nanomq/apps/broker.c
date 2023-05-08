@@ -1081,7 +1081,7 @@ broker(conf *nanomq_conf)
 	printf("NanoMQ Broker is started successfully!\n");
 
 #if defined(ENABLE_NANOMQ_TESTS)
-	bool is_testing = true;
+	bool is_testing = false;
 #else
 	bool is_testing = false;
 #endif
