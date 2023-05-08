@@ -35,6 +35,37 @@ static property *conn_property(conf_bridge_conn_properties *conf_prop);
 static property *will_property(conf_bridge_conn_will_properties *will_prop);
 
 static nng_thread *hybridger_thr;
+static nng_thread *bridge_reload_thr;
+
+static int  bridge_reload2(nng_socket *sock, conf *config, conf_bridge_node *node);
+static void fini_reload_arg();
+static void init_reload_arg();
+
+struct reload_arg {
+	bool              ready;
+	nng_socket       *sock;
+	conf             *config;
+	conf_bridge_node *node;
+
+	nng_mtx          *mtx;
+} reload_arg;
+
+static void
+init_reload_arg()
+{
+	reload_arg.ready   = false;
+	reload_arg.sock    = NULL;
+	reload_arg.config  = NULL;
+	reload_arg.node    = NULL;
+
+	nng_mtx_alloc(&reload_arg.mtx);
+}
+
+static void
+fini_reload_arg()
+{
+	nng_mtx_free(&reload_arg.mtx);
+}
 
 static int
 apply_sqlite_config(
