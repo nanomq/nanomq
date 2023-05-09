@@ -1099,15 +1099,6 @@ bridge_reload2(nng_socket *sock, conf *config, conf_bridge_node *node)
 	nng_aio_wait(client->send_aio);
 	nng_msg_free(dismsg);
 
-	// Free the client
-	nng_mqtt_client_free(client, true);
-	bridge_arg->client = NULL;
-	// Free the connect msg
-	if (bridge_arg->connmsg) {
-		nng_msg_free(bridge_arg->connmsg);
-		bridge_arg->connmsg = NULL;
-	}
-
 	// To stop the forwarding and subscribe function of bridge.
 	// If the socket keep open. The bridge_aio(forwarding) and extra_ctx(subscribe) should be stop.
 	// To stop the bridge_aio. Just set node->enable to false.
@@ -1130,6 +1121,15 @@ bridge_reload2(nng_socket *sock, conf *config, conf_bridge_node *node)
 #endif
 	} else {
 		log_error("Unsupported bridge protocol.\n");
+	}
+
+	// Free the client
+	nng_mqtt_client_free(client, true);
+	bridge_arg->client = NULL;
+	// Free the connect msg
+	if (bridge_arg->connmsg) {
+		nng_msg_free(bridge_arg->connmsg);
+		bridge_arg->connmsg = NULL;
 	}
 
 	// After close the socket. We need to reopen the extra_ctx with the new socket to receive msgs.
