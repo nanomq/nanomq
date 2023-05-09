@@ -29,6 +29,10 @@ dds_publisher(int argc, char **argv)
 	dds_entity_t  writer;
 	dds_return_t  rc;
 	uint32_t      status  = 0;
+	dds_qos_t    *qospub;
+	dds_qos_t    *qosw;
+	const char   *partitionspub[] = { "partition" };
+	dds_entity_t  publisher;
 
 	dds_client_opts opts = { .cli_type = DDS_PUB };
 
@@ -53,8 +57,22 @@ dds_publisher(int argc, char **argv)
 	if (topic < 0)
 		DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topic));
 
+	/* Qos for Publisher */
+	qospub = dds_create_qos();
+	dds_qset_partition(qospub, 1, partitionspub);
+
+	/* Create the Publisher. */
+	publisher = dds_create_publisher(participant, qospub, NULL);
+	if (publisher < 0)
+		DDS_FATAL("dds_create_publisher: %s\n", dds_strretcode(-publisher));
+	dds_delete_qos(qospub);
+
+	/* Qos for Writer */
+	qosw = dds_create_qos();
+	dds_qset_reliability(qosw, DDS_RELIABILITY_RELIABLE, DDS_SECS(10));
+
 	/* Create a Writer. */
-	writer = dds_create_writer(participant, topic, NULL, NULL);
+	writer = dds_create_writer(publisher, topic, qosw, NULL);
 	if (writer < 0)
 		DDS_FATAL("dds_create_writer: %s\n", dds_strretcode(-writer));
 
