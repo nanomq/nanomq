@@ -2257,7 +2257,7 @@ get_config(http_msg *msg, const char *type)
 #ifdef SUPP_AWS_BRIDGE
 		else if (strcmp(type, "aws_bridge") == 0) {
 			cJSON *aws_bridge =
-			    get_bridge_config(&config->aws_bridge);
+			    get_bridge_config(&config->aws_bridge, NULL);
 			cJSON_AddItemToObject(
 			    conf_obj, "aws_bridge", aws_bridge);
 		}
@@ -2294,7 +2294,7 @@ get_config(http_msg *msg, const char *type)
 		cJSON_AddItemToObject(conf_obj, "bridge", bridge);
 
 #ifdef SUPP_AWS_BRIDGE
-		cJSON *aws_bridge = get_bridge_config(&config->aws_bridge);
+		cJSON *aws_bridge = get_bridge_config(&config->aws_bridge, NULL);
 		cJSON_AddItemToObject(conf_obj, "aws_bridge", aws_bridge);
 #endif
 		// TODO webhook ?
