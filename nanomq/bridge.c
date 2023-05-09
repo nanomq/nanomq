@@ -37,6 +37,7 @@ static property *will_property(conf_bridge_conn_will_properties *will_prop);
 static nng_thread *hybridger_thr;
 static nng_thread *bridge_reload_thr;
 
+static void bridge_reload_cb(void *reload_arg);
 static int  bridge_reload2(nng_socket *sock, conf *config, conf_bridge_node *node);
 static void fini_reload_arg();
 static void init_reload_arg();
@@ -974,6 +975,10 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 		}
 		log_debug("parallel %d", num);
 	}
+
+	init_reload_arg();
+	nng_thread_create(&bridge_reload_thr, bridge_reload_cb, (void *)&reload_arg);
+
 	return 0;
 }
 
@@ -1038,8 +1043,38 @@ bridge_unsubscribe(nng_socket *sock, conf_bridge_node *node,
 	return rv;
 }
 
-int
-bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
+static void
+bridge_reload_cb(void *reload_arg)
+{
+	struct reload_arg *arg = reload_arg;
+
+	nng_socket *sock;
+	conf *config;
+	conf_bridge_node *node;
+
+	for (;;) {
+		nng_mtx_lock(arg->mtx);
+
+		if (!arg->ready) {
+			nng_mtx_unlock(arg->mtx);
+			nng_msleep(1000);
+			continue;
+		}
+
+		sock   = arg->sock;
+		config = arg->config;
+		node   = arg->node;
+
+		arg->ready = false;
+
+		nng_mtx_unlock(arg->mtx);
+
+		bridge_reload2(sock, config, node);
+	}
+}
+
+static int
+bridge_reload2(nng_socket *sock, conf *config, conf_bridge_node *node)
 {
 	log_error("Bridge hot-reload is not supported yet");
 	log_error("(mqtt-tcp is in experiment and mqtt-quic is in developing).");
