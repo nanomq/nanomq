@@ -31,7 +31,6 @@ dds_subscriber(int argc, char **argv)
 	void             *samples[MAX_SAMPLES];
 	dds_sample_info_t infos[MAX_SAMPLES];
 	dds_return_t      rc;
-	dds_qos_t        *qos;
 	dds_qos_t        *qossub;
 	dds_qos_t        *qosr;
 	const char       *partitionssub[] = { "partition" };
@@ -71,14 +70,14 @@ dds_subscriber(int argc, char **argv)
 	dds_delete_qos(qossub);
 
 	/* Qos for Reader. */
-	qos = dds_create_qos();
-	dds_qset_reliability(qos, DDS_RELIABILITY_RELIABLE, DDS_SECS(10));
+	qosr = dds_create_qos();
+	dds_qset_reliability(qosr, DDS_RELIABILITY_RELIABLE, DDS_SECS(10));
 
 	/* Create a reliable Reader. */
-	reader = dds_create_reader(subscriber, topic, qos, NULL);
+	reader = dds_create_reader(subscriber, topic, qosr, NULL);
 	if (reader < 0)
 		DDS_FATAL("dds_create_reader: %s\n", dds_strretcode(-reader));
-	dds_delete_qos(qos);
+	dds_delete_qos(qosr);
 
 	printf("\n=== [Subscriber] Waiting for a sample ...\n");
 	fflush(stdout);
