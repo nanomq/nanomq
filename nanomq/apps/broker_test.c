@@ -2,6 +2,7 @@
 #include <assert.h>
 #include <pthread.h>
 #include <signal.h>
+#include <unistd.h>
 
 #include "include/broker.h"
 
@@ -52,24 +53,19 @@ main()
 {
 	int rv = 0;
 
-	// broker_stop(0, NULL);
-
 	char *cmd_sub = "mosquitto_sub -h 127.0.0.1 -p 1883 -t topic1 -t topic2 -U topic2 -q 2";
 	char *cmd_pub = "mosquitto_pub -h 127.0.0.1 -p 1883 -t topic1 -m message -q 2";
 
 	// char *cmd_sub = "mosquitto_sub -h 116.205.239.134 -p 1883 -t topic -q 1";
 	// char *cmd_pub = "mosquitto_pub -h 116.205.239.134 -p 1883 -t topic -m massage -q 1";
 
-	pthread_t nmq, re_nmq, stop_nmq;
+	pthread_t nmq;
 	pid_t pid_sub, pid_unsub;
 	FILE *p_pub = NULL;
 
 	int buf_size = 128;
 	char buf[buf_size];
 	int infp, outfp;
-
-
-	// pthread_create(&nmq, NULL, broker_stop, NULL);
 
 	// create nmq thread
 	pthread_create(&nmq, NULL, broker_start, NULL);
