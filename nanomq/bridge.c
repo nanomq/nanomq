@@ -1148,14 +1148,24 @@ bridge_reload2(nng_socket *sock, conf *config, conf_bridge_node *node)
 	return 0;
 }
 
-void
-bridge_reload2(void *arg)
+int
+bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 {
-	bridge_param *bridge_arg = arg;
+	bool status;
 
-	conf             *config = bridge_arg->conf;
-	conf_bridge_node *node   = bridge_arg->config;
-	nng_socket       *sock   = (nng_socket *)node->sock;
+	nng_mtx_lock(reload_arg.mtx);
 
-	bridge_reload(sock, config, node);
+	status = reload_arg.ready;
+
+	reload_arg.ready = true;
+	reload_arg.sock = sock;
+	reload_arg.config = config;
+	reload_arg.node = node;
+
+	nng_mtx_unlock(reload_arg.mtx);
+
+	if (status == true)
+		return -1;
+
+	return 0;
 }
