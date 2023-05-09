@@ -32,6 +32,10 @@ dds_subscriber(int argc, char **argv)
 	dds_sample_info_t infos[MAX_SAMPLES];
 	dds_return_t      rc;
 	dds_qos_t        *qos;
+	dds_qos_t        *qossub;
+	dds_qos_t        *qosr;
+	const char       *partitionssub[] = { "partition" };
+	dds_entity_t      subscriber;
 
 	dds_client_opts opts = { .cli_type = DDS_SUB };
 
@@ -56,10 +60,22 @@ dds_subscriber(int argc, char **argv)
 	if (topic < 0)
 		DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topic));
 
-	/* Create a reliable Reader. */
+	/* Qos for Subscriber */
+	qossub = dds_create_qos();
+	dds_qset_partition(qossub, 1, partitionssub);
+
+	/* Create the Subscriber */
+	subscriber = dds_create_subscriber(participant, qossub, NULL);
+	if (subscriber < 0)
+		DDS_FATAL("dds_create_subscriber: %s\n", dds_strretcode(-subscriber));
+	dds_delete_qos(qossub);
+
+	/* Qos for Reader. */
 	qos = dds_create_qos();
 	dds_qset_reliability(qos, DDS_RELIABILITY_RELIABLE, DDS_SECS(10));
-	reader = dds_create_reader(participant, topic, qos, NULL);
+
+	/* Create a reliable Reader. */
+	reader = dds_create_reader(subscriber, topic, qos, NULL);
 	if (reader < 0)
 		DDS_FATAL("dds_create_reader: %s\n", dds_strretcode(-reader));
 	dds_delete_qos(qos);
