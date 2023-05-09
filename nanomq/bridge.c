@@ -65,7 +65,7 @@ init_reload_arg()
 static void
 fini_reload_arg()
 {
-	nng_mtx_free(&reload_arg.mtx);
+	nng_mtx_free(reload_arg.mtx);
 }
 
 static int
