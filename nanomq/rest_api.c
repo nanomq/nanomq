@@ -1209,7 +1209,7 @@ get_clients(http_msg *msg, kv **params, size_t param_num,
 		goto out;
 	}
 
-	
+
 	client_info info = {
 		.array     = data_info,
 		.client_id = (char *) client_id,
@@ -1222,18 +1222,18 @@ get_clients(http_msg *msg, kv **params, size_t param_num,
 
  	res_obj = cJSON_CreateObject();
  	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
- 
+
  	// cJSON *meta = cJSON_CreateObject();
- 
+
  	// cJSON_AddItemToObject(res_obj, "meta", meta);
  	// TODO add meta content: page, limit, count
  	cJSON_AddItemToObject(res_obj, "data", data_info);
  	char *dest = cJSON_PrintUnformatted(res_obj);
  	cJSON_Delete(res_obj);
- 
+
  	put_http_msg(
  	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
- 
+
  	cJSON_free(dest);
 
 	return res;
@@ -1460,12 +1460,12 @@ get_subscriptions(
 {
 	http_msg res = { 0 };
  	res.status   = NNG_HTTP_STATUS_OK;
- 
+
  	cJSON *res_obj   = NULL;
  	cJSON *data_info = NULL;
  	data_info        = cJSON_CreateArray();
  	res_obj          = cJSON_CreateObject();
- 
+
  	dbtree *          db   = get_broker_db();
  	dbhash_ptpair_t **pt   = dbhash_get_ptpair_all();
  	size_t            size = cvector_size(pt);
@@ -1483,7 +1483,7 @@ get_subscriptions(
  				}
  			}
  		}
- 
+
  		// topic_queue *tn = pt[i]->topic;
 		topic_queue *tq = dbhash_copy_topic_queue(pt[i]->pipe);
 		topic_queue *reap_node = tq;
@@ -1509,18 +1509,18 @@ get_subscriptions(
  		dbhash_ptpair_free(pt[i]);
  	}
  	cvector_free(pt);
- 
+
  	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
  	// cJSON *meta = cJSON_CreateObject();
  	// cJSON_AddItemToObject(res_obj, "meta", meta);
  	// TODO add meta content: page, limit, count
  	cJSON_AddItemToObject(res_obj, "data", data_info);
- 
+
  	char *dest = cJSON_PrintUnformatted(res_obj);
- 
+
  	put_http_msg(
  	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
- 
+
  	cJSON_free(dest);
  	cJSON_Delete(res_obj);
 	return res;
@@ -1616,7 +1616,6 @@ post_rules(http_msg *msg)
 			    .enabled = true;
 			cr->rules[cvector_size(cr->rules) - 1]
 			    .rule_id = rule_generate_rule_id();
-			
 
 		} else if (!strcasecmp(name, "sqlite")) {
 			cr->option |= RULE_ENG_SDB;
@@ -1750,7 +1749,7 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 	rule *new_rule = NULL;
 
 	// Updated three parts， enabled status，sql and action
-	// 1. update sql: parse sql, set raw_sql, set rule_id, do not need deal connection. free origin sql data， 
+	// 1. update sql: parse sql, set raw_sql, set rule_id, do not need deal connection. free origin sql data,
 	// 2. update enabled status: need to deal connection,  status changed will lead to connect/disconnect.
 	// 3, update actions: need to deal connection，update repub/table.
 
@@ -1789,7 +1788,7 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 			new_rule->mysql = mysql;
 		}
 
-		// Maybe cvector_push_back() will realloc, 
+		// Maybe cvector_push_back() will realloc,
 		// so for safty reassagn it
 		old_rule = &cr->rules[i];
 		rule_free(old_rule);
@@ -1953,7 +1952,7 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 			{
 				nanomq_client_sqlite(cr, true);
 			}
-			
+
 		} else if (jso_enabled && false == new_rule->enabled) {
 			// TODO nng_mqtt_disconnct()
 		}
@@ -1973,7 +1972,7 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 		{
 			nanomq_client_sqlite(cr, true);
 		}
-		
+
 	} else if (jso_enabled && false == new_rule->enabled) {
 		// TODO nng_mqtt_disconnct()
 	}
@@ -2702,7 +2701,7 @@ properties_parse(property **properties, cJSON *json)
 		} else {
 			continue;
 		}
-		
+
 		property_append(prop_list, sub_prop);
 	}
 
@@ -2917,7 +2916,7 @@ out:
 /**
  * Post MQTT msg to broker via HTTP REST API
 */
-static http_msg 
+static http_msg
 post_mqtt_msg(http_msg *msg, nng_socket *sock, handle_mqtt_msg_cb cb)
 {
 	http_msg res = { .status = NNG_HTTP_STATUS_OK };
@@ -3042,7 +3041,7 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 		node->parallel   = parallel;
 		bridge->nodes[i] = node;
 		found = true;
-		//TODO @Wangha add logic to restart bridge client 
+		//TODO @Wangha add logic to restart bridge client
 		//TODO parameters: config, node, node->sock
 		bridge_reload(node->sock, config, node);
 		break;
@@ -3185,7 +3184,7 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 	cJSON *item;
 	int    rv = 0;
 
-	// Get topic list 
+	// Get topic list
 	for (size_t i = 0; i < array_size; i++) {
 		topics *tp       = nng_zalloc(sizeof(topics));
 		cJSON * sub_item = cJSON_GetArrayItem(sub_array, i);
@@ -3205,7 +3204,7 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 	// Get properties
 	cJSON *json_prop = cJSON_GetObjectItem(data_obj, "sub_properties");
 	conf_bridge_sub_properties *sub_props = NULL;
-	
+
 	if (cJSON_IsObject(json_prop)) {
 		sub_props = nng_zalloc(sizeof(conf_bridge_sub_properties));
 		getNumberValue(
@@ -3255,7 +3254,7 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 			}
 		}
 
-		if (sub_count > 0) {			
+		if (sub_count > 0) {
 			// TODO handle repeated topics
 			cvector_copy(sub_topics, node->sub_list);
 			node->sub_count += sub_count;
@@ -3337,7 +3336,7 @@ post_mqtt_bridge_unsub(http_msg *msg, const char *name)
 	int    rv = 0;
 
 	size_t   array_size = cJSON_GetArraySize(unsub_array);
-	
+
 	for (size_t i = 0; i < array_size; i++) {
 		cJSON * unsub_item = cJSON_GetArrayItem(unsub_array, i);
 		char *topic = NULL;
