@@ -70,7 +70,7 @@ send_msg(conf_web_hook *conf, nng_msg *msg)
 	nng_http_client_connect(client, aio);
 
 	// Wait for it to finish.
-	// TODO It could cause some problems.
+
 	nng_aio_wait(aio);
 	if ((rv = nng_aio_result(aio)) != 0) {
 		log_error("Connect failed: %s", nng_strerror(rv));
@@ -94,7 +94,6 @@ send_msg(conf_web_hook *conf, nng_msg *msg)
 	nng_http_req_set_data(req, nng_msg_body(msg), nng_msg_len(msg));
 	nng_http_conn_write_req(conn, req, aio);
 	nng_aio_set_timeout(aio, 1000);
-	// TODO It could cause some problems.
 	nng_aio_wait(aio);
 
 	if ((rv = nng_aio_result(aio)) != 0) {
@@ -124,6 +123,7 @@ out:
 	}
 }
 
+// an independent thread of each work obj for sending HTTP msg
 static void
 thread_cb(void *arg)
 {
@@ -164,6 +164,7 @@ webhook_cb(void *arg)
 	switch (work->state) {
 	case HOOK_INIT:
 		work->state = HOOK_RECV;
+		// get MQTT msg from broker via inproc aio
 		nng_recv_aio(work->sock, work->aio);
 		break;
 
@@ -245,11 +246,13 @@ webhook_thr(void *arg)
 		works[i]->id = i;
 	}
 
+	// NanoMQ core thread talks to others via INPROC
 	if ((rv = nng_listen(sock, WEB_HOOK_INPROC_URL, NULL, 0)) != 0) {
 		nng_fatal("nng_listen", rv);
 	}
 
 	for (i = 0; i < conf->web_hook.pool_size; i++) {
+		// shares taskq threads with broker
 		webhook_cb(works[i]);
 	}
 

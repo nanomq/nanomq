@@ -106,6 +106,9 @@ create_cparam(const char *clientid, uint8_t proto_ver)
 	return cparam;
 }
 
+/**
+ * Pair with encode_common_mqtt_msg
+*/
 int
 decode_common_mqtt_msg(nng_msg **dest, nng_msg *src)
 {
