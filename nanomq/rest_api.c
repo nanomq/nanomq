@@ -2605,6 +2605,9 @@ err:
 	return -1;
 }
 
+/**
+ * send MQTT msg to broker socket
+*/
 static int
 handle_publish_msg(cJSON *pub_obj, nng_socket *sock)
 {
@@ -2802,6 +2805,9 @@ out:
 	return REQ_PARAM_ERROR;
 }
 
+/**
+ * Post MQTT msg to broker via HTTP REST API
+*/
 static http_msg 
 post_mqtt_msg(http_msg *msg, nng_socket *sock, handle_mqtt_msg_cb cb)
 {
@@ -2812,9 +2818,9 @@ post_mqtt_msg(http_msg *msg, nng_socket *sock, handle_mqtt_msg_cb cb)
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 	}
-
+	// send msg to broker via cb
 	int rv = cb(req, sock);
-
+	// return result code
 	cJSON *res_obj = cJSON_CreateObject();
 	cJSON_AddNumberToObject(res_obj, "code", rv);
 	char *dest = cJSON_PrintUnformatted(res_obj);
