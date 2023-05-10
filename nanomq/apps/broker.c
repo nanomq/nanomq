@@ -1081,7 +1081,7 @@ broker(conf *nanomq_conf)
 	printf("NanoMQ Broker is started successfully!\n");
 
 #if defined(ENABLE_NANOMQ_TESTS)
-	bool is_testing = false;
+	bool is_testing = true;
 #else
 	bool is_testing = false;
 #endif
@@ -1090,6 +1090,11 @@ broker(conf *nanomq_conf)
 #if !(defined NANO_PLATFORM_WINDOWS)
 	signal(SIGINT, intHandler);
 #endif
+
+	if (is_testing == true) {
+		// broker should hang on to accept request.
+		nng_msleep(500);
+	}
 
 	for (;;) {
 		if (keepRunning == 0 || is_testing == true) {
