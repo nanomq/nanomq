@@ -47,9 +47,10 @@ if(BUILD_DDS_PROXY)
   serial_generate(${IDL_FILE_PATH} idl_convert ${CMAKE_CURRENT_SOURCE_DIR}/dds2mqtt)
 
   find_package(CycloneDDS REQUIRED)
-  idlc_generate(TARGET ${IDL_LIB_NAME} FILES ${IDL_FILE_PATH} WARNINGS no-implicit-extensibility)
-
+  find_package(OpenSSL)
+  idlc_generate(TARGET ${IDL_LIB_NAME} FILES ${IDL_FILE_PATH})
   target_link_libraries(nanomq_cli ${IDL_LIB_NAME} CycloneDDS::ddsc)
+  target_link_libraries(nanomq_cli OpenSSL::SSL OpenSSL::Crypto)
 endif(BUILD_DDS_PROXY)
 
 target_link_libraries(nanomq_cli nng)
@@ -82,4 +83,5 @@ add_dependencies(nanomq_cli nng)
 
 install(TARGETS nanomq_cli RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
                                    COMPONENT Tools)
+
 
