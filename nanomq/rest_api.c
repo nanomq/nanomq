@@ -3036,9 +3036,13 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 		if (name != NULL && strcmp(node->name, name) != 0) {
 			continue;
 		}
+
+		nng_mtx_lock(node->mtx);
 		conf_bridge_node_destroy(node);
 		conf_bridge_node_parse(node, &bridge->sqlite, node_obj);
-		node->parallel   = parallel;
+		node->parallel = parallel;
+		nng_mtx_unlock(node->mtx);
+
 		found = true;
 		//TODO @Wangha add logic to restart bridge client
 		//TODO parameters: config, node, node->sock
@@ -3241,7 +3245,10 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 	conf_bridge *bridge = &config->bridge;
 	for (size_t i = 0; i < bridge->count; i++) {
 		conf_bridge_node *node = bridge->nodes[i];
+
+		nng_mtx_lock(node->mtx);
 		if (name != NULL && strcmp(node->name, name) != 0) {
+			nng_mtx_unlock(node->mtx);
 			continue;
 		}
 
@@ -3262,6 +3269,8 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 			free_sub_property(node->sub_properties);
 			node->sub_properties = sub_props;
 		}
+		nng_mtx_unlock(node->mtx);
+
 		cvector_free(sub_topics);
 		found = true;
 
@@ -3355,7 +3364,9 @@ post_mqtt_bridge_unsub(http_msg *msg, const char *name)
 	conf_bridge *bridge = &config->bridge;
 	for (size_t i = 0; i < bridge->count; i++) {
 		conf_bridge_node *node = bridge->nodes[i];
+		nng_mtx_lock(node->mtx);
 		if (name != NULL && strcmp(node->name, name) != 0) {
+			nng_mtx_unlock(node->mtx);
 			continue;
 		}
 
@@ -3386,6 +3397,7 @@ post_mqtt_bridge_unsub(http_msg *msg, const char *name)
 				}
 			}
 		}
+		nng_mtx_unlock(node->mtx);
 
 		found = true;
 		// convert unsub_topics to nng_mqtt_topic
