@@ -179,6 +179,7 @@ bridge_handler(nano_work *work)
 
 	for (size_t t = 0; t < work->config->bridge.count; t++) {
 		conf_bridge_node *node = work->config->bridge.nodes[t];
+		nng_mtx_lock(node->mtx);
 		if (node->enable) {
 			for (size_t i = 0; i < node->forwards_count; i++) {
 				if (topic_filter(node->forwards[i],
@@ -209,6 +210,7 @@ bridge_handler(nano_work *work)
 				}
 			}
 		}
+		nng_mtx_unlock(node->mtx);
 	}
 	if (!rv) {
 		work->proto_ver == MQTT_PROTOCOL_VERSION_v5
