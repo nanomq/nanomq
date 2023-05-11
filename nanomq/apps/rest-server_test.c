@@ -44,6 +44,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <assert.h>
 
 // utility function
 void
@@ -375,15 +376,6 @@ inproc_server(void *arg)
 
 	bool auth_res = false;
 
-// #if defined(ENABLE_NANOMQ_TESTS)
-	time_t start_time, end_time;
-	start_time = time(NULL);
-	printf("\tsay something!\n");
-	nng_msleep(1000);
-	end_time = time(NULL);
-	printf("\tdiff is %d\n", difftime(end_time, start_time));
-// #endif
-
 	if (((rv = nng_rep0_open(&s)) != 0) ||
 	    ((rv = nng_listen(s, INPROC_URL, NULL, 0)) != 0)) {
 		fatal("unable to set up inproc", rv);
@@ -453,24 +445,21 @@ inproc_server(void *arg)
 		if ((rv = nng_send(s, res, strlen(res), 0)) != 0) {
 			fatal("inproc sendmsg", rv);
 		}
-// #if defined(ENABLE_NANOMQ_TESTS)
-		// end_time = time(NULL);
-		// if (difftime(end_time, start_time) >= 1) {
-		// 	break;
-		// }
-		printf("there is a msg!\n");
-		nng_msleep(1000);
+		nng_msleep(500);
 		break;
-		// #endif
 	}
 }
 
 int
 main(int argc, char **argv)
 {
+	char *cmd = "curl -d TEST -s http://127.0.0.1:8888/api/rest/rot13";
 	int         rv;
 	nng_thread *inproc_thr;
 	uint16_t    port = 0;
+	FILE       *f_cmd = NULL;
+	int         data_size = 128;
+	char       data[data_size];
 
 	rv = nng_thread_create(&inproc_thr, inproc_server, NULL);
 	if (rv != 0) {
@@ -480,9 +469,12 @@ main(int argc, char **argv)
 		port = (uint16_t) atoi(getenv("PORT"));
 	}
 	port = port ? port : 8888;
-	printf("\t rest start dayo\n");
 	rest_start(port);
-	printf("\t test dayo\n");
+
+	f_cmd = popen(cmd, "r");
+	fgets(data, data_size, f_cmd);
+	assert(strncmp(data, "OK", 2) == 0);
+	pclose(f_cmd);
 
 	// This runs forever.  The inproc_thr never exits, so we
 	// just block behind its condition variable.
