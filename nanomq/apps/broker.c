@@ -920,19 +920,19 @@ broker(conf *nanomq_conf)
 #endif
 			}
 		}
-	log_debug("TCP bridge client init finished");
-	}
-#if defined(SUPP_AWS_BRIDGE)
-	for (size_t c = 0; c < nanomq_conf->aws_bridge.count; c++) {
-		log_debug("AWS bridgging service initialization");
-		conf_bridge_node *node =
-		    nanomq_conf->aws_bridge.nodes[c];
-		if (node->enable) {
-			num_ctx += node->parallel;
-		}
-	}
-#endif
 
+#if defined(SUPP_AWS_BRIDGE)
+		for (size_t c = 0; c < nanomq_conf->aws_bridge.count; c++) {
+			log_debug("AWS bridgging service initialization");
+			conf_bridge_node *node =
+			    nanomq_conf->aws_bridge.nodes[c];
+			if (node->enable) {
+				num_ctx += node->parallel;
+			}
+		}
+#endif
+	log_debug("bridge init finished");
+	}
 	// MQTT Broker service
 	struct work **works = nng_zalloc(num_ctx * sizeof(struct work *));
 	// create broker ctx
@@ -961,24 +961,25 @@ broker(conf *nanomq_conf)
 				tmp += node->parallel;
 			}
 		}
-		log_debug("MQTT bridging service initialization complete");
-	}
 
 #if defined(SUPP_AWS_BRIDGE)
-	for (size_t t = 0; t < nanomq_conf->aws_bridge.count; t++) {
-		conf_bridge_node *node = nanomq_conf->aws_bridge.nodes[t];
-		if (node->enable) {
-			for (i = tmp; i < (tmp + node->parallel); i++) {
-				works[i] = proto_work_init(sock, inproc_sock,
-				    sock, PROTO_AWS_BRIDGE, db, db_ret,
-				    nanomq_conf);
+		for (size_t t = 0; t < nanomq_conf->aws_bridge.count; t++) {
+			conf_bridge_node *node =
+			    nanomq_conf->aws_bridge.nodes[t];
+			if (node->enable) {
+				for (i = tmp; i < (tmp + node->parallel);
+				     i++) {
+					works[i] =
+					    proto_work_init(sock, inproc_sock,
+					        sock, PROTO_AWS_BRIDGE, db,
+					        db_ret, nanomq_conf);
+				}
+				tmp += node->parallel;
+				aws_bridge_client(node);
 			}
-			tmp += node->parallel;
-			aws_bridge_client(node);
 		}
-		log_debug("AWS IoT Core bridging service initialization complete");
-	}
 #endif
+	}
 
 	// create http server ctx
 	if (nanomq_conf->http_server.enable) {
