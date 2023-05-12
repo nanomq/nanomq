@@ -3044,8 +3044,7 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 		nng_mtx_unlock(node->mtx);
 
 		found = true;
-		//TODO @Wangha add logic to restart bridge client
-		//TODO parameters: config, node, node->sock
+		// restart bridge client, parameters: config, node, node->sock
 		bridge_reload(node->sock, config, node);
 		break;
 	}
