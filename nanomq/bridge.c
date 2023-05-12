@@ -1076,10 +1076,6 @@ bridge_reload_cb(void *reload_arg)
 static int
 bridge_reload2(nng_socket *sock, conf *config, conf_bridge_node *node)
 {
-	log_error("Bridge hot-reload is not supported yet");
-	log_error("(mqtt-tcp is in experiment and mqtt-quic is in developing).");
-	log_error("Remove the return below if you want have a try.");
-	return -3;
 	// 1. Send disconnect msg to broker and wait peer to close the connection.
 	nng_msg *dismsg;
 	if ((dismsg = create_disconnect_msg()) == NULL)
@@ -1134,7 +1130,6 @@ bridge_reload2(nng_socket *sock, conf *config, conf_bridge_node *node)
 	// After close the socket. We need to reopen the extra_ctx with the new socket to receive msgs.
 	// And reset the node->enable to ture to make forwarding works.
 
-	log_info("socket reuse");
 	// socket reuse and open a new mqtt connection
 	bridge_client_without_aio(sock, config, node, bridge_arg);
 	// Trigger work reload via aio
@@ -1151,6 +1146,17 @@ int
 bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 {
 	bool status;
+
+	if (0 == strncmp(node->address, tcp_scheme, strlen(tcp_scheme)) ||
+	    0 == strncmp(node->address, tls_scheme, strlen(tls_scheme))) {
+#if defined(SUPP_QUIC)
+	} else if (0 == strncmp(node->address, quic_scheme, strlen(quic_scheme))) {
+		log_error("Hot update quic bridge is not supported yet.");
+		return -2;
+#endif
+	} else {
+		log_error("Unsupported bridge protocol.\n");
+	}
 
 	nng_mtx_lock(reload_arg.mtx);
 
