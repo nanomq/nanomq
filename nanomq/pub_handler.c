@@ -1488,13 +1488,14 @@ decode_pub_message(nano_work *work, uint8_t proto)
 		// variable header
 		// topic length
 		pub_packet->var_header.publish.topic_name.body =
-		    (char *) copyn_utf8_str(msg_body, &pos, (int *) &len,
-		        nng_msg_remaining_len(msg) - 3);
-		if (len >= 0 &&
-		    pub_packet->var_header.publish.topic_name.body != NULL)
+		    (char *) copyn_utf8_str(msg_body, &pos, (int *) &len, msg_len);
+		if (len >= 0)
+			// topic could be NULL here (topic alias)
 			pub_packet->var_header.publish.topic_name.len = len;
-		else
+		else {
+			log_warn("Invalid msg: Protocol error!");
 			return PROTOCOL_ERROR;
+		}
 
 		if (pub_packet->var_header.publish.topic_name.body != NULL) {
 			if (strchr(
