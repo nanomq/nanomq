@@ -80,9 +80,9 @@ decode_sub_msg(nano_work *work)
 		tn->reason_code  = GRANTED_QOS_2; // default
 
 		// TODO Decoding topic has potential buffer overflow
-		tn->topic.body =
-		    (char *)copyn_utf8_str(payload_ptr, (uint32_t *)&bpos, &len_of_topic, remaining_len);
-		tn->topic.len = len_of_topic;
+		tn->topic.body = (char *) copyn_utf8_str(payload_ptr,
+		    (uint32_t *) &bpos, &len_of_topic, remaining_len);
+		tn->topic.len  = len_of_topic;
 		log_info("topic: [%s] len: [%d]", tn->topic.body, len_of_topic);
 		len_of_topic = 0;
 
