@@ -1488,8 +1488,10 @@ decode_pub_message(nano_work *work, uint8_t proto)
 		// variable header
 		// topic length
 		pub_packet->var_header.publish.topic_name.body =
-		    (char *) copy_utf8_str(msg_body, &pos, (int *)&len);
-		if (len >= 0)
+		    (char *) copyn_utf8_str(msg_body, &pos, (int *) &len,
+		        nng_msg_remaining_len(msg) - 3);
+		if (len >= 0 &&
+		    pub_packet->var_header.publish.topic_name.body != NULL)
 			pub_packet->var_header.publish.topic_name.len = len;
 		else
 			return PROTOCOL_ERROR;

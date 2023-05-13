@@ -81,7 +81,7 @@ decode_sub_msg(nano_work *work)
 
 		// TODO Decoding topic has potential buffer overflow
 		tn->topic.body =
-		    (char *)copy_utf8_str(payload_ptr, (uint32_t *)&bpos, &len_of_topic);
+		    (char *)copyn_utf8_str(payload_ptr, (uint32_t *)&bpos, &len_of_topic, remaining_len);
 		tn->topic.len = len_of_topic;
 		log_info("topic: [%s] len: [%d]", tn->topic.body, len_of_topic);
 		len_of_topic = 0;
