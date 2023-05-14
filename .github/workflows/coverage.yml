@@ -1,5 +1,5 @@
 name: coverage
-on: [pull_request]
+on: [push]
 jobs:
 
   linux-coverage:
@@ -7,13 +7,13 @@ jobs:
     runs-on: [ ubuntu-latest ]
     steps:
     - name: Checkout repository and submodules
-      uses: actions/checkout@v3
+      uses: actions/checkout@v1
       with:
         submodules: recursive
 
     - name: Install libs
       run: |
-        sudo apt-get install -y libmbedtls-dev ninja-build pip python3-pip mosquitto-clients lcov
+        sudo apt-get install -y libmbedtls-dev ninja-build pip python3-pip mosquitto-clients
         pip install Jinja2 paho-mqtt
 
     - name: Configure
@@ -24,9 +24,6 @@ jobs:
 
     - name: Test
       run: cd build && ctest --output-on-failure
-
-    - name: Preprocess
-      run: cd build && lcov -c -d . -o lcov.info
 
     - name: Upload report
       uses: codecov/codecov-action@v3
