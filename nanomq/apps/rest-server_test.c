@@ -232,8 +232,6 @@ rest_handle(nng_aio *aio)
 	int              rv;
 	void *           data;
 
-	printf("rest handleeeeeeeeeee\n");
-
 	// printf("%s\n", __FUNCTION__);
 	if ((job = rest_get_job()) == NULL) {
 		nng_aio_finish(aio, NNG_ENOMEM);
@@ -245,16 +243,16 @@ rest_handle(nng_aio *aio)
 		nng_aio_finish(aio, rv);
 		return;
 	}
-	printf("\r\n");
 	const char *uri = nng_http_req_get_uri(req);
-	printf("uri: [%s]\n", uri);
 	const char *method = nng_http_req_get_method(req);
-	printf("method: [%s]\n", method);
 	const char *token = nng_http_req_get_header(req, "TOKEN");
-	printf("header: token: [%s]\n", token);
 	const char *content_type =
 	    nng_http_req_get_header(req, "content-type");
-	printf("header: content-type: [%s]\n", content_type);
+	// printf("\r\n");
+	// printf("uri: [%s]\n", uri);
+	// printf("method: [%s]\n", method);
+	// printf("header: token: [%s]\n", token);
+	// printf("header: content-type: [%s]\n", content_type);
 
 	if (strcasecmp(method, "get") == 0) {
 		data = strchr(uri, '?');
@@ -383,13 +381,14 @@ inproc_server(void *arg)
 	// This is simple enough that we don't need concurrency.  Plus it
 	// makes for an easier demo.
 	for (;;) {
-		printf("in the loop\n");
 		char *body;
 		if ((rv = nng_recvmsg(s, &msg, 0)) != 0) {
 			fatal("inproc recvmsg", rv);
 		}
 		body = nng_msg_body(msg);
-		printf("Received: %s\n", (char *) body);
+		assert(strncmp(body, "TEST", 4) == 0);
+		// printf("Received: %s\n", (char *) body);
+		nng_msg_free(msg); // free the msg in test.
 		// count++;
 		// current = nng_clock();
 
