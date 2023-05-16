@@ -1687,27 +1687,22 @@ quic_disconnect_cb(void *rmsg, void *arg)
 }
 
 static void
-quic_msg_send_cb(void *arg)
+quic_msg_send_cb(nng_mqtt_client *client, nng_msg *msg, void *obj)
 {
 	console("%s: ", __FUNCTION__);
 
-	nng_mqtt_client *client = (nng_mqtt_client *) arg;
 	nng_aio *        aio    = client->send_aio;
 
 	int rv;
 
-	if ((rv = nng_aio_result(aio)) != 0) {
+	if ((rv = nng_aio_result(aio)) != 0 || msg == NULL) {
 		console("aio result: %s(%d)\n", nng_strerror(rv), rv);
 		return;
 	}
 
-	nng_msg *msg   = nng_aio_get_msg(aio);
 	uint32_t count = 0;
 	uint8_t *code;
 	uint8_t  type;
-
-	if (msg == NULL)
-		return;
 
 	type = nng_msg_get_type(msg);
 
