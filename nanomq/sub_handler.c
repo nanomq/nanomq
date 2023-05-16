@@ -311,15 +311,19 @@ sub_ctx_handle(nano_work *work)
 #endif
 		if (rh == 0 || (rh == 1 && !topic_exist))
 			retain = dbtree_find_retain(work->db_ret, topic_str);
-		work->msg_ret = (work->msg_ret == NULL) ? retain : work->msg_ret; 
+		work->msg_ret = (work->msg_ret == NULL) ? retain : work->msg_ret;
 
-		for (size_t i = 0; i < cvector_size(retain) && work->msg_ret != retain; i++) {
+		for (size_t i = 0; retain != NULL &&
+		     i < cvector_size(retain) && work->msg_ret != retain;
+		     i++) {
 			if (!retain[i])
 				continue;
 			cvector_push_back(work->msg_ret, retain[i]);
 		}
-		if (retain != work->msg_ret)
+		if (retain != work->msg_ret) {
 			cvector_free(retain);
+			retain = NULL;
+		}
 		
 
 		if (!work->msg_ret)
