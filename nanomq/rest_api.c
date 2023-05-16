@@ -1334,6 +1334,30 @@ get_topics_count()
 	return counter;
 }
 
+static uint64_t
+get_cpu_time()
+{
+	FILE *fd;
+	int   n;
+	char  buff[256];
+
+	fd = fopen("/proc/stat", "r");
+	if (fd == NULL) {
+		log_error("open /proc/stat failed!");
+		return -1;
+	}
+
+	fgets(buff, sizeof(buff), fd);
+	long user, nice, sys, idle, iowait, irq, sirq, steal;
+
+	sscanf(buff, "%*s %u %u %u %u %u %u %u", &user, &nice, &sys, &idle,
+	    &iowait, &irq, &sirq, &steal);
+
+	fclose(fd);
+
+	return user + nice + sys + idle + iowait + irq + sirq + steal;
+}
+
 static http_msg
 get_metrics(http_msg *msg, kv **params, size_t param_num,
     const char *client_id, const char *username, nng_socket *broker_sock)
