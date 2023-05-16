@@ -42,10 +42,13 @@
 #else
 #define nano_localtime(t, pTm) localtime_r(t, pTm)
 #define nano_strtok strtok_r
+#include <unistd.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 #endif
 
 typedef int (handle_mqtt_msg_cb) (cJSON *, nng_socket *);
-#define METRICS_DATA_SIZE 1024
+#define METRICS_DATA_SIZE 2048
 
 typedef struct {
 	char *key;
@@ -1115,6 +1118,8 @@ typedef struct {
 	uint32_t message_received;
 	uint32_t message_sent;
 	uint32_t message_dropped;
+	uint32_t memory;
+	uint32_t cpu;
 } client_stats;
 
 static void
@@ -1265,12 +1270,24 @@ compose_metrics(char *ret, client_stats *ms, client_stats *s)
 	             "\nnanomq_messages_sent %d"
 	             "\n# TYPE nanomq_messages_dropped counter"
 	             "\n# HELP nanomq_messages_dropped"
-	             "\nnanomq_messages_dropped %d\n";
+	             "\nnanomq_messages_dropped %d"
+	             "\n# TYPE nanomq_memory_usage gauge"
+	             "\n# HELP nanomq_memory_usage (MB)"
+	             "\nnanomq_memory_usage %d"
+	             "\n# TYPE nanomq_memory_usage_max gauge"
+	             "\n# HELP nanomq_memory_usage_max (MB)"
+	             "\nnanomq_memory_usage_max %d"
+	             "\n# TYPE nanomq_cpu_usage gauge"
+	             "\n# HELP nanomq_cpu_usage"
+	             "\nnanomq_cpu_usage %d%"
+	             "\n# TYPE nanomq_cpu_usage gauge"
+	             "\n# HELP nanomq_cpu_usage"
+	             "\nnanomq_cpu_usage %d%\n";
 
 	snprintf(ret, METRICS_DATA_SIZE, fmt, s->connections, ms->connections,
 	    s->sessions, ms->sessions, s->topics, ms->topics, s->subscribers,
 	    ms->subscribers, s->message_received, s->message_sent,
-	    s->message_dropped);
+	    s->message_dropped, s->memory, ms->memory, s->cpu, ms->cpu);
 }
 
 static void
@@ -1328,11 +1345,12 @@ get_metrics(http_msg *msg, kv **params, size_t param_num,
 	}
 
 	nng_id_map_foreach2(pipe_id_map, get_metric_cb, &stats);
-	stats.subscribers            = dbhash_get_pipe_cnt();
-	stats.topics                 = get_topics_count();
-	stats.message_received       = nanomq_get_message_in();
-	stats.message_sent           = nanomq_get_message_out();
-	stats.message_dropped        = nanomq_get_message_drop();
+	stats.subscribers      = dbhash_get_pipe_cnt();
+	stats.topics           = get_topics_count();
+	stats.message_received = nanomq_get_message_in();
+	stats.message_sent     = nanomq_get_message_out();
+	stats.message_dropped  = nanomq_get_message_drop();
+
 	char dest[METRICS_DATA_SIZE] = { 0 };
 	update_max_stats(&max_stats, &stats);
 	compose_metrics(dest, &max_stats, &stats);
