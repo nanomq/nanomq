@@ -1290,14 +1290,19 @@ compose_metrics(char *ret, client_stats *ms, client_stats *s)
 	    s->message_dropped, s->memory, ms->memory, s->cpu, ms->cpu);
 }
 
+#define max_stats(s, ms, field) ms->field > s->field ? ms->field : s->field
+
 static void
 update_max_stats(client_stats *ms, client_stats *s)
 {
-	//TODO not strictly the maximum value.
-	ms->topics = ms->topics > s->topics ? ms->topics : s->topics;
-	ms->sessions = ms->sessions > s->sessions ? ms->sessions : s->sessions;
-	ms->connections = ms->connections > s->connections ? ms->connections : s->connections;
-	ms->subscribers = ms->subscribers > s->subscribers ? ms->subscribers : s->subscribers;
+	// TODO not strictly the maximum value.
+	ms->topics      = max_stats(s, ms, topics);
+	ms->sessions    = max_stats(s, ms, sessions);
+	ms->connections = max_stats(s, ms, connections);
+	ms->subscribers = max_stats(s, ms, subscribers);
+	ms->memory      = max_stats(s, ms, memory);
+	ms->cpu         = max_stats(s, ms, cpu);
+
 }
 
 static void *
