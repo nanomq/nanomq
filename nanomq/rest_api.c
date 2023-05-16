@@ -3279,11 +3279,11 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 		found = true;
 
 		// convert sub_topics to nng_mqtt_topic_qos
-		// TODO uncomment the following line if you want to use nng_mqtt_topic_qos
-		// nng_mqtt_topic_qos *topic_list = convert_topic_qos(node->sub_list, node->sub_count);
+		nng_mqtt_topic_qos *topic_list = convert_topic_qos(node->sub_list, node->sub_count);
 
-		// TODO @Wangha handle subscribe
+		// handle subscribe
 		// TODO params: config, node, node->sock, topic_list, sub_count, prop_list
+		bridge_subscribe(node->sock, node, topic_list, sub_count, prop_list);
 		break;
 	}
 
@@ -3405,11 +3405,11 @@ post_mqtt_bridge_unsub(http_msg *msg, const char *name)
 
 		found = true;
 		// convert unsub_topics to nng_mqtt_topic
-		// TODO uncomment the following line if you want to use nng_mqtt_topic
-		// nng_mqtt_topic *topic_list = convert_topic(unsub_topics, unsub_count);
+		nng_mqtt_topic *topic_list = convert_topic(unsub_topics, unsub_count);
 
-		// TODO @Wangha handle unsubscribe
+		// handle unsubscribe
 		// TODO params: config, node, node->sock, topic_list, unsub_count, prop_list
+		bridge_unsubscribe(node->sock, node, topic_list, unsub_count, prop_list);
 		break;
 	}
 
