@@ -1370,9 +1370,15 @@ update_process_info(client_stats *s)
 {
 	static long last_cpu_time  = 0;
 	static long last_proc_time = 0;
-	long        cpu_time       = get_cpu_time();
-	int         pid            = getpid();
-	char        stat_file[256];
+
+	long cpu_time = get_cpu_time();
+	if (cpu_time == -1) {
+		s->cpu_percent = -1;
+		return -1;
+	}
+
+	int  pid = getpid();
+	char stat_file[256];
 	snprintf(stat_file, sizeof(stat_file), "/proc/%d/stat", pid);
 
 	FILE *fp = fopen(stat_file, "r");
@@ -1394,10 +1400,11 @@ update_process_info(client_stats *s)
 
 	s->memory = (float) rss * getpagesize() / (1024 * 1024);
 
-	long  proc_time   = utime + stime + cutime + cstime;
+	long   proc_time   = utime + stime + cutime + cstime;
 	double cpu_percent = 100.0 *
 	    ((double) (proc_time - last_proc_time) /
-	        (cpu_time - last_cpu_time));
+	        (cpu_time - last_cpu_time == 0 ? -1
+	                                       : cpu_time - last_cpu_time));
 	s->cpu_percent = cpu_percent <= 0 ? 0 : cpu_percent;
 	log_debug("NanoMQ memory usage: %.2f MB\n", s->memory);
 	log_debug("NanoMQ cpu usage: %.2f %\n", s->cpu_percent);
