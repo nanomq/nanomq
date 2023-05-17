@@ -1341,7 +1341,6 @@ static long
 get_cpu_time()
 {
 	FILE *fd;
-	int   n;
 	char  buff[256];
 
 	fd = fopen("/proc/stat", "r");
@@ -1353,11 +1352,15 @@ get_cpu_time()
 	fgets(buff, sizeof(buff), fd);
 	uint32_t user, nice, sys, idle, iowait, irq, sirq, steal;
 
-	sscanf(buff, "%*s %u %u %u %u %u %u %u %u", &user, &nice, &sys, &idle,
+	int rc = sscanf(buff, "%*s %u %u %u %u %u %u %u %u", &user, &nice, &sys, &idle,
 	    &iowait, &irq, &sirq, &steal);
 
 	fclose(fd);
 
+	if (rc != 8) {
+		log_error("scanf error!");
+		return -1;
+	}
 	long ret = user + nice + sys + idle + iowait + irq + sirq + steal;
 	return ret;
 }
@@ -1367,8 +1370,8 @@ update_process_info(client_stats *s)
 {
 	static long last_cpu_time  = 0;
 	static long last_proc_time = 0;
-	long    cpu_time       = get_cpu_time();
-	pid_t       pid            = getpid();
+	long        cpu_time       = get_cpu_time();
+	int         pid            = getpid();
 	char        stat_file[256];
 	snprintf(stat_file, sizeof(stat_file), "/proc/%d/stat", pid);
 
@@ -1378,11 +1381,11 @@ update_process_info(client_stats *s)
 		return -1;
 	}
 
-	long utime, stime, cutime, cstime, starttime, rss;
+	long utime, stime, cutime, cstime, rss;
 	if (fscanf(fp,
-	        "%*d %*s %*c %*d %*d %*d %*d %*d %*u %*lu %*lu %*lu %*lu %lu "
-	        "%lu %ld %ld %*ld %*ld %*ld %*ld %llu %*lu %ld",
-	        &utime, &stime, &cutime, &cstime, &starttime, &rss) != 6) {
+	        "%*d %*s %*c %*d %*d %*d %*d %*d %*u %*u %*u %*u %*u %lu "
+	        "%lu %ld %ld %*d %*d %*d %*d %*u %*u %ld",
+	        &utime, &stime, &cutime, &cstime, &rss) != 5) {
 		perror("Error reading file");
 		fclose(fp);
 		return -1;
