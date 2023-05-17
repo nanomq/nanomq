@@ -1085,7 +1085,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 	}
 
 	if (PUBLISH != work->pub_packet->fixed_header.packet_type) {
-		return result;
+		return MALFORMED_PACKET;
 	}
 
 	topic        = work->pub_packet->var_header.publish.topic_name.body;
@@ -1116,7 +1116,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 					log_error("could not find "
 					          "topic by alias: %d",
 					    pdata->p_value.u16);
-					return result;
+					return TOPIC_FILTER_INVALID;
 				}
 			}
 		}
@@ -1124,7 +1124,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 
 	if (topic == NULL) {
 		log_error("Topic is NULL");
-		return result;
+		return TOPIC_FILTER_INVALID;
 	}
 #ifdef ACL_SUPP
 	if (!is_event && work->cparam) {
