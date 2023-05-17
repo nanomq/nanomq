@@ -1268,9 +1268,6 @@ client_cb(void *arg)
 			nng_sleep_aio(work->opts->interval, work->aio);
 		} else {
 			void *cp = nng_msg_get_conn_param(conn_msg);
-			// a silly way to avoid ASAN complaining
-			if (cp != NULL)
-				conn_param_free(cp);
 			nng_msg_free(conn_msg);
 			nng_closeall();
 			exit(1);
