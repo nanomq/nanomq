@@ -42,6 +42,9 @@
 #else
 #define nano_localtime(t, pTm) localtime_r(t, pTm)
 #define nano_strtok strtok_r
+#endif
+
+#if NANO_PLATFORM_LINUX
 #include <unistd.h>
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -1393,8 +1396,8 @@ update_process_info(client_stats *s)
 	    ((double) (proc_time - last_proc_time) /
 	        (cpu_time - last_cpu_time));
 	s->cpu_percent = cpu_percent <= 0 ? 0 : cpu_percent;
-	log_error("NanoMQ memory usage: %.2f MB\n", s->memory);
-	log_error("NanoMQ cpu usage: %.2f %\n", s->cpu_percent);
+	log_debug("NanoMQ memory usage: %.2f MB\n", s->memory);
+	log_debug("NanoMQ cpu usage: %.2f %\n", s->cpu_percent);
 
 	last_proc_time = proc_time;
 	last_cpu_time  = cpu_time;
@@ -1423,7 +1426,10 @@ get_metrics(http_msg *msg, kv **params, size_t param_num,
 	stats.message_received = nanomq_get_message_in();
 	stats.message_sent     = nanomq_get_message_out();
 	stats.message_dropped  = nanomq_get_message_drop();
+
+#if NANO_PLATFORM_LINUX
 	update_process_info(&stats);
+#endif
 
 	char dest[METRICS_DATA_SIZE] = { 0 };
 	update_max_stats(&max_stats, &stats);
