@@ -1118,8 +1118,8 @@ typedef struct {
 	uint32_t message_received;
 	uint32_t message_sent;
 	uint32_t message_dropped;
-	uint32_t memory;
-	uint32_t cpu;
+	float    memory;
+	float    cpu_percent;
 } client_stats;
 
 static void
@@ -1273,21 +1273,22 @@ compose_metrics(char *ret, client_stats *ms, client_stats *s)
 	             "\nnanomq_messages_dropped %d"
 	             "\n# TYPE nanomq_memory_usage gauge"
 	             "\n# HELP nanomq_memory_usage (MB)"
-	             "\nnanomq_memory_usage %d"
+	             "\nnanomq_memory_usage %.2f"
 	             "\n# TYPE nanomq_memory_usage_max gauge"
 	             "\n# HELP nanomq_memory_usage_max (MB)"
-	             "\nnanomq_memory_usage_max %d"
+	             "\nnanomq_memory_usage_max %.2f"
 	             "\n# TYPE nanomq_cpu_usage gauge"
 	             "\n# HELP nanomq_cpu_usage"
-	             "\nnanomq_cpu_usage %d%"
+	             "\nnanomq_cpu_usage %.2f%"
 	             "\n# TYPE nanomq_cpu_usage gauge"
 	             "\n# HELP nanomq_cpu_usage"
-	             "\nnanomq_cpu_usage %d%\n";
+	             "\nnanomq_cpu_usage %.2f%\n";
 
 	snprintf(ret, METRICS_DATA_SIZE, fmt, s->connections, ms->connections,
 	    s->sessions, ms->sessions, s->topics, ms->topics, s->subscribers,
 	    ms->subscribers, s->message_received, s->message_sent,
-	    s->message_dropped, s->memory, ms->memory, s->cpu, ms->cpu);
+	    s->message_dropped, s->memory, ms->memory, s->cpu_percent,
+	    ms->cpu_percent);
 }
 
 #define max_stats(s, ms, field) ms->field > s->field ? ms->field : s->field
@@ -1301,8 +1302,7 @@ update_max_stats(client_stats *ms, client_stats *s)
 	ms->connections = max_stats(s, ms, connections);
 	ms->subscribers = max_stats(s, ms, subscribers);
 	ms->memory      = max_stats(s, ms, memory);
-	ms->cpu         = max_stats(s, ms, cpu);
-
+	ms->cpu_percent = max_stats(s, ms, cpu_percent);
 }
 
 static void *
@@ -1334,7 +1334,7 @@ get_topics_count()
 	return counter;
 }
 
-static uint64_t
+static long
 get_cpu_time()
 {
 	FILE *fd;
@@ -1348,14 +1348,58 @@ get_cpu_time()
 	}
 
 	fgets(buff, sizeof(buff), fd);
-	long user, nice, sys, idle, iowait, irq, sirq, steal;
+	uint32_t user, nice, sys, idle, iowait, irq, sirq, steal;
 
-	sscanf(buff, "%*s %u %u %u %u %u %u %u", &user, &nice, &sys, &idle,
+	sscanf(buff, "%*s %u %u %u %u %u %u %u %u", &user, &nice, &sys, &idle,
 	    &iowait, &irq, &sirq, &steal);
 
 	fclose(fd);
 
-	return user + nice + sys + idle + iowait + irq + sirq + steal;
+	long ret = user + nice + sys + idle + iowait + irq + sirq + steal;
+	return ret;
+}
+
+static long
+update_process_info(client_stats *s)
+{
+	static long last_cpu_time  = 0;
+	static long last_proc_time = 0;
+	long    cpu_time       = get_cpu_time();
+	pid_t       pid            = getpid();
+	char        stat_file[256];
+	snprintf(stat_file, sizeof(stat_file), "/proc/%d/stat", pid);
+
+	FILE *fp = fopen(stat_file, "r");
+	if (fp == NULL) {
+		perror("Error opening file");
+		return -1;
+	}
+
+	long utime, stime, cutime, cstime, starttime, rss;
+	if (fscanf(fp,
+	        "%*d %*s %*c %*d %*d %*d %*d %*d %*u %*lu %*lu %*lu %*lu %lu "
+	        "%lu %ld %ld %*ld %*ld %*ld %*ld %llu %*lu %ld",
+	        &utime, &stime, &cutime, &cstime, &starttime, &rss) != 6) {
+		perror("Error reading file");
+		fclose(fp);
+		return -1;
+	}
+	fclose(fp);
+
+	s->memory = (float) rss * getpagesize() / (1024 * 1024);
+
+	long  proc_time   = utime + stime + cutime + cstime;
+	double cpu_percent = 100.0 *
+	    ((double) (proc_time - last_proc_time) /
+	        (cpu_time - last_cpu_time));
+	s->cpu_percent = cpu_percent <= 0 ? 0 : cpu_percent;
+	log_error("NanoMQ memory usage: %.2f MB\n", s->memory);
+	log_error("NanoMQ cpu usage: %.2f %\n", s->cpu_percent);
+
+	last_proc_time = proc_time;
+	last_cpu_time  = cpu_time;
+
+	return 0;
 }
 
 static http_msg
@@ -1379,6 +1423,7 @@ get_metrics(http_msg *msg, kv **params, size_t param_num,
 	stats.message_received = nanomq_get_message_in();
 	stats.message_sent     = nanomq_get_message_out();
 	stats.message_dropped  = nanomq_get_message_drop();
+	update_process_info(&stats);
 
 	char dest[METRICS_DATA_SIZE] = { 0 };
 	update_max_stats(&max_stats, &stats);
