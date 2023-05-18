@@ -106,6 +106,8 @@ enum options {
 	OPT_INTERVAL,
 	OPT_VERSION,
 	OPT_URL,
+	OPT_HOST,
+	OPT_PORT,
 	OPT_PUB,
 	OPT_SUB,
 	OPT_TOPIC,
@@ -159,7 +161,7 @@ enum options {
 };
 
 static nng_optspec cmd_opts[] = {
-	{ .o_name = "help", .o_short = 'h', .o_val = OPT_HELP },
+	{ .o_name = "help", .o_val = OPT_HELP },
 	{ .o_name = "verbose", .o_short = 'v', .o_val = OPT_VERBOSE },
 	{ .o_name    = "parallel",
 	    .o_short = 'n',
@@ -172,6 +174,14 @@ static nng_optspec cmd_opts[] = {
 	{ .o_name    = "limit",
 	    .o_short = 'L',
 	    .o_val   = OPT_MSGCOUNT,
+	    .o_arg   = true },
+	{ .o_name    = "host",
+	    .o_short = 'h',
+	    .o_val   = OPT_HOST,
+	    .o_arg   = true },
+	{ .o_name    = "port",
+	    .o_short = 'p',
+	    .o_val   = OPT_PORT,
 	    .o_arg   = true },
 	{ .o_name    = "count",
 	    .o_short = 'C',
@@ -210,7 +220,7 @@ static nng_optspec cmd_opts[] = {
 	{ .o_name = "will-retain", .o_val = OPT_WILL_RETAIN },
 	{ .o_name = "will-topic", .o_val = OPT_WILL_TOPIC, .o_arg = true },
 	{ .o_name = "secure", .o_short = 's', .o_val = OPT_SECURE },
-	{ .o_name = "cacert", .o_val = OPT_CACERT, .o_arg = true },
+	{ .o_name = "cafile", .o_val = OPT_CACERT, .o_arg = true },
 	{ .o_name = "key", .o_val = OPT_KEYFILE, .o_arg = true },
 	{ .o_name = "keypass", .o_val = OPT_KEYPASS, .o_arg = true },
 	{
@@ -592,11 +602,14 @@ freetopic(struct topic *endp)
 int
 client_parse_opts(int argc, char **argv, client_opts *opt)
 {
-	int    idx = 1;
-	char * arg;
-	int    val;
-	int    rv;
-	size_t filelen = 0;
+	char    *arg;
+	int      val;
+	int      rv;
+	int      idx     = 1;
+	char    *proto   = "mqtt-tcp";
+	char    *host    = "127.0.0.1";
+	char    *port    = "1883";
+	size_t   filelen = 0;
 
 	struct topic **topicend;
 	topicend = &opt->topic;
@@ -631,6 +644,12 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 			    "URL (--url) may be specified "
 			    "only once.");
 			opt->url = nng_strdup(arg);
+			break;
+		case OPT_HOST:
+			host = arg;
+			break;
+		case OPT_PORT:
+			port = arg;
 			break;
 		case OPT_TOPIC:
 			topicend = addtopic(topicend, arg);
@@ -687,6 +706,7 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 			break;
 		case OPT_SECURE:
 			opt->enable_ssl = true;
+			proto = "tls+mqtt-tcp";
 			break;
 		case OPT_CACERT:
 			ASSERT_NULL(opt->cacert,
@@ -742,9 +762,11 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 		break;
 	}
 
-	if (!opt->url) {
-		opt->url = nng_strdup("mqtt-tcp://127.0.0.1:1883");
-	}
+
+	char addr[128] = { 0 };
+	snprintf(addr, 128, "%s://%s:%s", proto, host, port);
+	opt->url = nng_strdup(addr);
+
 
 	switch (opt->type) {
 	case PUB:
