@@ -169,7 +169,7 @@ static nng_optspec cmd_opts[] = {
 	    .o_val   = OPT_PARALLEL,
 	    .o_arg   = true },
 	{ .o_name    = "interval",
-	    .o_short = 'i',
+	    .o_short = 'I',
 	    .o_val   = OPT_INTERVAL,
 	    .o_arg   = true },
 	{ .o_name    = "limit",
@@ -201,11 +201,11 @@ static nng_optspec cmd_opts[] = {
 	{ .o_name = "retain", .o_short = 'r', .o_val = OPT_RETAIN },
 	{ .o_name = "user", .o_short = 'u', .o_val = OPT_USER, .o_arg = true },
 	{ .o_name    = "password",
-	    .o_short = 'p',
+	    .o_short = 'P',
 	    .o_val   = OPT_PASSWD,
 	    .o_arg   = true },
 	{ .o_name    = "id",
-	    .o_short = 'I',
+	    .o_short = 'i',
 	    .o_val   = OPT_CLIENTID,
 	    .o_arg   = true },
 	{ .o_name    = "keepalive",
@@ -482,7 +482,7 @@ help(enum client_type type)
 	console("  -v, --verbose              	   Enable verbose mode\n");
 	console("  -u, --user <user>                The username for "
 	        "authentication\n");
-	console("  -p, --password <password>        The password for "
+	console("  -P, --password <password>        The password for "
 	       "authentication\n");
 	console("  -k, --keepalive <keepalive>      A keep alive of the client "
 	       "(in seconds) [default: 60]\n");
@@ -496,12 +496,12 @@ help(enum client_type type)
 		       "publishing "
 		       "message (ms) [default: 10]\n");
 	} else {
-		console("  -i, --interval <ms>              Interval of "
+		console("  -I, --interval <ms>              Interval of "
 		       "establishing connection "
 		       "(ms) [default: 10]\n");
 	}
 
-	console("  -I, --identifier <identifier>    The client identifier "
+	console("  -i, --identifier <identifier>    The client identifier "
 	        "UTF-8 String (default randomly generated string)\n");
 	console("  -C, --count <num>                Num of client \n");
 
@@ -674,13 +674,13 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 			break;
 		case OPT_PASSWD:
 			ASSERT_NULL(opt->passwd,
-			    "Password (-p, --password) may be "
+			    "Password (-P, --password) may be "
 			    "specified only once.");
 			opt->passwd = nng_strdup(arg);
 			break;
 		case OPT_CLIENTID:
 			ASSERT_NULL(opt->client_id,
-			    "Identifier (-I, --identifier) may be "
+			    "Identifier (-i, --identifier) may be "
 			    "specified only once.");
 			opt->client_id = nng_strdup(arg);
 			break;
