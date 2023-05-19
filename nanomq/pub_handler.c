@@ -376,6 +376,13 @@ rule_engine_filter(nano_work *work, rule *info)
 					}
 				}
 			}
+		} else {
+			if (!pp->payload.data || pp->payload.len <= 0) {
+				filter = false;
+			}
+
+			payload_filter(pp, info);
+			filter = true;
 		}
 	} else {
 		// printf("MISMATCH filter: %s, topic: %s\n", info->topic,
