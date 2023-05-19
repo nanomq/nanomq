@@ -122,6 +122,7 @@ enum options {
 	OPT_WILL_QOS,
 	OPT_WILL_RETAIN,
 	OPT_WILL_TOPIC,
+	OPT_QUIC,
 	OPT_SECURE,
 	OPT_CACERT,
 	OPT_CERTFILE,
@@ -220,6 +221,7 @@ static nng_optspec cmd_opts[] = {
 	{ .o_name = "will-retain", .o_val = OPT_WILL_RETAIN },
 	{ .o_name = "will-topic", .o_val = OPT_WILL_TOPIC, .o_arg = true },
 	{ .o_name = "secure", .o_short = 's', .o_val = OPT_SECURE },
+	{ .o_name = "quic", .o_val = OPT_QUIC },
 	{ .o_name = "cafile", .o_val = OPT_CACERT, .o_arg = true },
 	{ .o_name = "key", .o_val = OPT_KEYFILE, .o_arg = true },
 	{ .o_name = "keypass", .o_val = OPT_KEYPASS, .o_arg = true },
@@ -441,15 +443,15 @@ help(enum client_type type)
 {
 	switch (type) {
 	case PUB:
-		console("Usage: nanomq_cli pub <addr> "
+		console("Usage: nanomq_cli pup"
 		       "[<topic>...] [<opts>...] [<src>]\n\n");
 		break;
 	case SUB:
-		console("Usage: nanomq_cli sub <addr> "
+		console("Usage: nanomq_cli sub"
 		       "[<topic>...] [<opts>...]\n\n");
 		break;
 	case CONN:
-		console("Usage: nanomq_cli conn <addr> "
+		console("Usage: nanomq_cli conn"
 		       "[<opts>...]\n\n");
 		break;
 
@@ -457,12 +459,6 @@ help(enum client_type type)
 		break;
 	}
 
-	console("<addr> must be one or more of:\n");
-	console("  --url <url>                      The url for mqtt broker "
-	        "('mqtt-tcp://host:port',\n                                   "
-	        "'tls+mqtt-tcp://host:port' or 'mqtt-quic://host:port') \n");
-	console("                                   [default: "
-	        "mqtt-tcp://127.0.0.1:1883]\n");
 
 	if (type == PUB || type == SUB) {
 		console("\n<topic> must be set:\n");
@@ -472,13 +468,20 @@ help(enum client_type type)
 	}
 
 	console("\n<opts> may be any of:\n");
+	console("  -h, --host                       Mqtt host to connect to. "
+	        "Defaults to localhost.\n");
+	console("  -p, --port                       Network port to connect "
+	        "to. ( Defaults to 1883\n");
+	console("                                   for plain MQTT, 8883 for "
+	        "MQTT over TLS, 14567\n");
+	console("                                   for MQTT over QUIC.) \n");
 	console("  -V, --version <version: 3|4|5>   The MQTT version used by "
-	       "the client [default: 4]\n");
+	        "the client [default: 4]\n");
 	console("  -n, --parallel             	   The number of parallel for "
-	       "client [default: 1]\n");
+	        "client [default: 1]\n");
 	console("  -v, --verbose              	   Enable verbose mode\n");
 	console("  -u, --user <user>                The username for "
-	       "authentication\n");
+	        "authentication\n");
 	console("  -p, --password <password>        The password for "
 	       "authentication\n");
 	console("  -k, --keepalive <keepalive>      A keep alive of the client "
@@ -513,15 +516,17 @@ help(enum client_type type)
 	console("  -r, --retain                     The message will be "
 	        "retained [default: false]\n");
 	console("  -c, --clean_session <true|false> Define a clean start for "
-	       "the connection [default: true]\n");
+	        "the connection [default: true]\n");
 	console("  --will-qos <qos>                 Quality of service level "
-	       "for the will message [default: 0]\n");
+	        "for the will message [default: 0]\n");
 	console("  --will-msg <message>             The payload of the will "
-	       "message\n");
+	        "message\n");
 	console("  --will-topic <topic>             The topic of the will "
-	       "message\n");
+	        "message\n");
 	console("  --will-retain                    Will message as retained "
-	       "message [default: false]\n");
+	        "message [default: false]\n");
+	console("  --quic                           QUIC transport [default: "
+	        "false]\n");
 
 	properties_help(type);
 
@@ -608,7 +613,7 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 	int      idx     = 1;
 	char    *proto   = "mqtt-tcp";
 	char    *host    = "127.0.0.1";
-	char    *port    = "1883";
+	char    *port    = NULL;
 	size_t   filelen = 0;
 
 	struct topic **topicend;
@@ -706,7 +711,15 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 			break;
 		case OPT_SECURE:
 			opt->enable_ssl = true;
-			proto = "tls+mqtt-tcp";
+			proto           = "tls+mqtt-tcp";
+			port            = port == NULL ? "8883" : port;
+			puts(port);
+			break;
+		case OPT_QUIC:
+			opt->enable_ssl = true;
+			proto           = "mqtt-quic";
+			port            = port == NULL ? "14567" : port;
+			puts(port);
 			break;
 		case OPT_CACERT:
 			ASSERT_NULL(opt->cacert,
@@ -764,6 +777,7 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 
 
 	char addr[128] = { 0 };
+	port = port == NULL ? "1883" : port;
 	snprintf(addr, 128, "%s://%s:%s", proto, host, port);
 	opt->url = nng_strdup(addr);
 
