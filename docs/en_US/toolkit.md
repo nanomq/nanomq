@@ -58,7 +58,9 @@ When executing `nanomq_cli pub --help`, you will get the available parameter out
 
 | Parameter       | abbreviation | Optional value | Default value             | Description                                               |
 | --------------- | ------------ | -------------- | ------------------------- | --------------------------------------------------------- |
-| --url           | -            | mqtt-tcp://host:port<br>tls+mqtt-tcp://host:port<br>mqtt-quic://host<br> | mqtt-tcp://127.0.0.1:1883 | The url for mqtt broker                                   |
+| --host          | -h           | -              | Defaults to localhost.    | Mqtt host to connect to.  |
+| --port          | -p           | -              | Defaults to 1883 for plain MQTT, 8883 for MQTT over TLS, 14567 for MQTT over QUIC | Network port to connect to.                                   |
+| --quic          | -            | -              | Defaults to false.    |  QUIC transport option.  |
 | --version       | -V           | 4 \| 5        | 4                         | MQTT protocol version used                                |
 | --parallel      | -n           | -              | 1                         | The number of parallel for client                         |
 | --verbose       | -v           | -              | disable                   | Enable verbose mode                                       |
@@ -72,12 +74,12 @@ When executing `nanomq_cli pub --help`, you will get the available parameter out
 | --count         | -C           | -              | 1                         | Num of client                                             |
 | --clean_session | -c           | true false     | true                      | Whether to establish a connection by cleaning the session |
 | --ssl           | -s           | true false     | false                     | Whether to enable SSL                                     |
-| --cacert        | -            | -              | None                      | Client SSL certificate                                    |
+| --cafile        | -            | -              | None                      | Client SSL certificate                                    |
 | --cert          | -E           | -              | None                      | Certificate file path                                     |
 | --key           | -            | true false     | false                     | Private key file path                                     |
 | --keypass       | -            | -              | None                      | Private key password                                      |
-| --interval      | -i           | -              | 10                        | Interval to create a client; unit: ms                     |
-| --identifier    | -I           | -              | random                    | The client identifier UTF-8 String                        |
+| --interval      | -I           | -              | 10                        | Interval to create a client; unit: ms                     |
+| --identifier    | -i           | -              | random                    | The client identifier UTF-8 String                        |
 | --limit         | -L           | -              | 1                         | Max count of publishing message                           |
 | --will-qos      | -            | -              | 0                         | Quality of service level for the will message             |
 | --will-msg      | -            | -              | None                      | The payload of the will message                           |
@@ -87,7 +89,7 @@ When executing `nanomq_cli pub --help`, you will get the available parameter out
 For example, we start 1 client with username *nano* and send *100* *Qos2* messages *test* to the topic `t` .
 
 ```bash
-$ nanomq_cli pub start -t "topic" -q 2 -u nano -L 100 -m test --url "mqtt-tcp://broker.emqx.io:1883"
+$ nanomq_cli pub -t "topic" -q 2 -u nano -L 100 -m test -h broker.emqx.io -p 1883
 ```
 
 ### Subscribe
@@ -97,17 +99,17 @@ Execute `nanomq_cli sub --help` to get all available parameters of this command.
 For example, we start 1 client with username nano and set Qos1 from topic `t` .
 
 ```bash
-$ nanomq_cli sub -t t -q 1 --url "mqtt-tcp://broker.emqx.io:1883"
+$ nanomq_cli sub -t t -q 1 -h broker.emqx.io -p 1883 
 ```
 
 ### Conn
 
-Execute `nanomq_cli conn start --help` to get all available parameters of this command. Their explanations have been included in the table above and are omitted here.
+Execute `nanomq_cli conn --help` to get all available parameters of this command. Their explanations have been included in the table above and are omitted here.
 
 For example, we start 1 client with username nano and set Qos1 .
 
 ```bash
-$ nanomq_cli conn start -q 1 --url "mqtt-tcp://broker.emqx.io:1883"
+$ nanomq_cli conn -q 1 -h broker.emqx.io -p 1883
 ```
 
 ### Rule
