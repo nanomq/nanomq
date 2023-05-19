@@ -60,7 +60,9 @@ $ nanomq start --conf <config_file>
 
 | Parameter       | abbreviation | Optional value | Default value             | Description          |
 | --------------- | ------------ | -------------- | ------------------------- | -------------------- |
-| --url           | -            | mqtt-tcp://host:port<br/>tls+mqtt-tcp://host:port<br/>mqtt-quic://host<br/> | mqtt-tcp://127.0.0.1:1883 | 连接到服务端的 url     |
+| --host          | -h           | -              | Defaults to localhost.    | 远端 IP.  |
+| --port          | -p           | -              | Defaults to 1883 TCP MQTT, 8883 for MQTT over TLS, 14567 for MQTT over QUIC | 远端端口.                                   |
+| --quic          | -            | -              | Defaults to false. |  QUIC 传输选项            |
 | --version       | -V           | 4 5          | 4                         | MQTT 协议版本        |
 | --parallel      | -n           | -              | 1                         | 客户端并行数         |
 | --verbose       | -v           | -              | disable                   | 是否详细输出         |
@@ -74,12 +76,12 @@ $ nanomq start --conf <config_file>
 | --count         | -C           | -              | 1                         | 客户端数量           |
 | --clean_session | -c           | true false     | true                      | 会话清除             |
 | --ssl           | -s           | true false     | false                     | SSL 使能位           |
-| --cacert        | -            | -              | None                      | SSL 证书             |
+| --cafile        | -            | -              | None                      | SSL 证书             |
 | --cert          | -E           | -              | None                      | 证书路径             |
 | --key           | -            | true false     | false                     | 私钥路径             |
 | --keypass       | -            | -              | None                      | 私钥密码             |
-| --interval      | -i           | -              | 10                        | 创建客户端间隔（ms） |
-| --identifier    | -I           | -              | random                    | 客户端订阅标识符     |
+| --interval      | -I           | -              | 10                        | 创建客户端间隔（ms） |
+| --identifier    | -i           | -              | random                    | 客户端订阅标识符     |
 | --limit         | -L           | -              | 1                         | 最大发布消息刷量     |
 | --will-qos      | -            | -              | 0                         | 遗愿消息的 qos 级别  |
 | --will-msg      | -            | -              | None                      | 遗愿消息             |
@@ -89,7 +91,7 @@ $ nanomq start --conf <config_file>
 例如，我们使用用户名 nano 启动 1 个客户端，并向主题 `t` 发送 100 条 Qos2 消息测试。
 
 ```bash
-$ nanomq_cli pub -t t --url "mqtt-tcp://broker.emqx.io:1883" -q 2 -u nano -L 100 -m test
+$ nanomq_cli pub -t "topic" -q 2 -u nano -L 100 -m test -h broker.emqx.io -p 1883t
 ```
 
 ### Sub
@@ -99,7 +101,7 @@ $ nanomq_cli pub -t t --url "mqtt-tcp://broker.emqx.io:1883" -q 2 -u nano -L 100
 例如，我们使用用户名 nano 启动 1 个客户端，并从主题 `t` 设置 Qos1。
 
 ```bash
-$ nanomq_cli sub -t t --url "mqtt-tcp://broker.emqx.io:1883" -q 1
+$ nanomq_cli sub -t t -q 1 -h broker.emqx.io -p 1883 
 ```
 
 ### Conn
@@ -109,7 +111,7 @@ $ nanomq_cli sub -t t --url "mqtt-tcp://broker.emqx.io:1883" -q 1
 例如，我们使用用户名 nano 启动 1 个客户端并设置 Qos1 。
 
 ```bash
-$ nanomq_cli conn --url "mqtt-tcp://broker.emqx.io:1883" -q 1
+$ nanomq_cli conn -q 1 -h broker.emqx.io -p 1883
 ```
 
 ### Rule
