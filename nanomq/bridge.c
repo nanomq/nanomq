@@ -41,6 +41,7 @@ static void bridge_reload_cb(void *reload_arg);
 static int  bridge_reload2(nng_socket *sock, conf *config, conf_bridge_node *node);
 static void fini_reload_arg();
 static void init_reload_arg();
+static void quic_ack_cb(void *arg);
 
 struct reload_arg {
 	bool              ready;
@@ -520,6 +521,7 @@ hybrid_quic_client(bridge_param *bridge_arg)
 		log_error("error in quic client cb setting.");
 		return -1;
 	}
+	nng_mqtt_quic_ack_callback_set(sock, quic_ack_cb, (void *)bridge_arg);
 
 	// create a CONNECT message
 	/* CONNECT */
@@ -591,6 +593,20 @@ hybridger_cb(void *arg)
 #endif
 		} else {
 			log_error("Unsupported bridge protocol.");
+		}
+		// alloc an AIO for each ctx bridging use only
+		node->bridge_aio = nng_alloc(
+		    (bridge_arg->conf->parallel + node->parallel * 2) *
+		    sizeof(nng_aio *));
+
+		for (uint32_t num = 0;
+		     num < (bridge_arg->conf->parallel + node->parallel * 2);
+		     num++) {
+			if ((rv = nng_aio_alloc(&node->bridge_aio[num],
+			         NULL, node)) != 0) {
+				nng_fatal("bridge_aio nng_aio_alloc", rv);
+			}
+			log_debug("parallel %d", num);
 		}
 		if (bridge_arg->exec_cv) {
 			nng_mtx_lock(bridge_arg->exec_mtx);

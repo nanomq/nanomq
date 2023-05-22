@@ -10,10 +10,10 @@
 
 typedef struct {
 	nng_socket       *sock;
-	conf_bridge_node *config;
+	conf_bridge_node *config;		// bridge conf file
 	nng_mqtt_client  *client;
 	nng_msg          *connmsg;
-	conf             *conf;
+	conf             *conf;			//parent conf file
 	nng_mtx          *switch_mtx;
 	nng_cv           *switch_cv;
 	nng_mtx          *exec_mtx;
