@@ -3245,6 +3245,7 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 
 	conf *config = get_global_conf();
 
+	rv = 0;
 	bool         found  = false;
 	conf_bridge *bridge = &config->bridge;
 	for (size_t i = 0; i < bridge->count; i++) {
@@ -3255,6 +3256,7 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 			nng_mtx_unlock(node->mtx);
 			continue;
 		}
+		nng_mtx_unlock(node->mtx);
 
 		// Decode properties to nng_mqtt_property
 		property *prop_list = NULL;
@@ -3264,34 +3266,42 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 			}
 		}
 
-		if (sub_count > 0) {
-			// TODO handle repeated topics
-			cvector_copy(sub_topics, node->sub_list);
-			node->sub_count += sub_count;
-		}
-		if (sub_props != NULL) {
-			free_sub_property(node->sub_properties);
-			node->sub_properties = sub_props;
-		}
-		nng_mtx_unlock(node->mtx);
-
-		cvector_free(sub_topics);
 		found = true;
 
 		// convert sub_topics to nng_mqtt_topic_qos
-		nng_mqtt_topic_qos *topic_list = convert_topic_qos(node->sub_list, node->sub_count);
+		nng_mqtt_topic_qos *topic_list = convert_topic_qos(sub_topics, sub_count);
 
 		// handle subscribe
 		// TODO params: config, node, node->sock, topic_list, sub_count, prop_list
-		bridge_subscribe(node->sock, node, topic_list, sub_count, prop_list);
+		rv = bridge_subscribe(node->sock, node, topic_list, sub_count, prop_list);
+
+		if (rv == 0) {
+			// Add to sub_list in node only when bridge_subscribe successfully
+			nng_mtx_lock(node->mtx);
+			if (sub_count > 0) {
+				// TODO handle repeated topics
+				cvector_copy(sub_topics, node->sub_list);
+				node->sub_count += sub_count;
+			}
+			if (sub_props != NULL) {
+				free_sub_property(node->sub_properties);
+				node->sub_properties = sub_props;
+			}
+			nng_mtx_unlock(node->mtx);
+		}
+
+		nng_mqtt_topic_qos_array_free(topic_list, sub_count);
 		break;
 	}
 
-	if (!found) {
-		status = NNG_HTTP_STATUS_NOT_FOUND;
+	if (!found || rv != 0) {
+		if (!found) {
+			status = NNG_HTTP_STATUS_NOT_FOUND;
+			free_topic_list(sub_topics, sub_count);
+		} else if (rv != 0)
+			status = NNG_HTTP_STATUS_BAD_REQUEST;
 		code   = REQ_PARAM_ERROR;
 		free_sub_property(sub_props);
-		free_topic_list(sub_topics, sub_count);
 		goto out;
 	}
 
