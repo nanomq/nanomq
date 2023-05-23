@@ -1069,16 +1069,58 @@ bridge_unsubscribe(nng_socket *sock, conf_bridge_node *node,
         nng_mqtt_topic *topics, size_t unsub_count, property *properties)
 {
 	int rv;
+	nng_msg *msg;
+	uint8_t *rc = NULL, rc0=1;
+	uint32_t rcsz;
+
+	if (unsub_count < 1)
+		return -1;
 
 	for (size_t i = 0; i < unsub_count; i++) {
 		log_info("Bridge client unsubscribed topic %.*s.",
 		    topics[i].length, topics[i].buf);
 	}
 	bridge_param *bridge_arg = (bridge_param *)node->bridge_arg;
-	nng_mqtt_client *client  = bridge_arg->client;
 
-	rv = nng_mqtt_unsubscribe_async(client, topics, unsub_count, properties);
-	nng_mqtt_topic_array_free(topics, unsub_count);
+	// create a UNSUBSCRIBE message
+	nng_msg *unsubmsg;
+	nng_mqtt_msg_alloc(&unsubmsg, 0);
+	nng_mqtt_msg_set_packet_type(unsubmsg, NNG_MQTT_UNSUBSCRIBE);
+	nng_mqtt_msg_set_unsubscribe_topics(unsubmsg, topics, unsub_count);
+	if (properties)
+		nng_mqtt_msg_set_unsubscribe_property(unsubmsg, properties);
+
+	// Send message
+	nng_aio *aio;
+	nng_aio_alloc(&aio, NULL, NULL);
+	nng_aio_set_msg(aio, unsubmsg);
+	nng_send_aio(*sock, aio);
+
+	// Hold to get suback
+	nng_aio_wait(aio);
+
+	if (nng_aio_result(aio) != 0 || (msg = nng_aio_get_msg(aio)) == NULL) {
+		// Connection losted
+		log_warn("Can't get unsuback. Maybe connection of bridge was closed.");
+		rv = -3;
+		goto done;
+	}
+
+	if (nng_mqtt_msg_get_packet_type(msg) != NNG_MQTT_UNSUBACK) {
+		log_warn("Unknown error in handle bridge unsubscribe");
+		goto done;
+	}
+	rc = nng_mqtt_msg_get_unsuback_return_codes(msg, &rcsz);
+	for (int i=0; i<rcsz; ++i) {
+		log_info("SUBACK reason code %d", rc[i]);
+		if (rc[i] == 0x80)
+			rv = -2;
+	}
+
+done:
+	if (rc)
+		free(rc);
+	nng_aio_free(aio);
 
 	return rv;
 }
