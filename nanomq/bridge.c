@@ -1007,16 +1007,50 @@ int
 bridge_subscribe(nng_socket *sock, conf_bridge_node *node,
         nng_mqtt_topic_qos *topic_qos, size_t sub_count, property *properties)
 {
-	int rv;
+	int rv = 0;
+	nng_msg *msg;
+	uint8_t *rc = NULL, rc0=1;
+	uint32_t rcsz;
 
 	for (size_t i = 0; i < sub_count; i++) {
 		log_info("Bridge client subscribed topic %.*s (qos %d).",
 		    topic_qos[i].topic.length, topic_qos[i].topic.buf, topic_qos[i].qos);
 	}
 	bridge_param *bridge_arg = (bridge_param *)node->bridge_arg;
-	nng_mqtt_client *client  = bridge_arg->client;
 
-	rv = nng_mqtt_subscribe_async(client, topic_qos, sub_count, properties);
+	// create a SUBSCRIBE message
+	nng_msg *submsg;
+	nng_mqtt_msg_alloc(&submsg, 0);
+	nng_mqtt_msg_set_packet_type(submsg, NNG_MQTT_SUBSCRIBE);
+	nng_mqtt_msg_set_subscribe_topics(submsg, topic_qos, sub_count);
+	if (properties)
+		nng_mqtt_msg_set_subscribe_property(submsg, properties);
+
+	// Send message
+	nng_aio *aio;
+	nng_aio_alloc(&aio, NULL, NULL);
+	nng_aio_set_msg(aio, submsg);
+	nng_send_aio(*sock, aio);
+
+	// Hold to get suback
+	nng_aio_wait(aio);
+
+	msg = nng_aio_get_msg(aio);
+	if (nng_mqtt_msg_get_packet_type(msg) != NNG_MQTT_SUBACK) {
+		log_warn("Unknown error in handle bridge subscribe");
+		goto done;
+	}
+	rc = nng_mqtt_msg_get_suback_return_codes(msg, &rcsz);
+	for (int i=0; i<rcsz; ++i) {
+		log_info("SUBACK reason code %d", rc[i]);
+		if (rc[i] == 0x80)
+			rv = -2;
+	}
+
+done:
+	if (rc)
+		free(rc);
+	nng_aio_free(aio);
 	nng_mqtt_topic_qos_array_free(topic_qos, sub_count);
 
 	return rv;
