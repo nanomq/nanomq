@@ -3374,6 +3374,7 @@ post_mqtt_bridge_unsub(http_msg *msg, const char *name)
 
 	conf *config = get_global_conf();
 
+	rv = 0;
 	bool         found  = false;
 	conf_bridge *bridge = &config->bridge;
 	for (size_t i = 0; i < bridge->count; i++) {
@@ -3383,6 +3384,7 @@ post_mqtt_bridge_unsub(http_msg *msg, const char *name)
 			nng_mtx_unlock(node->mtx);
 			continue;
 		}
+		nng_mtx_unlock(node->mtx);
 
 		// Get properties
 		property *prop_list = NULL;
@@ -3395,6 +3397,22 @@ post_mqtt_bridge_unsub(http_msg *msg, const char *name)
 			}
 		}
 
+		found = true;
+
+		// convert unsub_topics to nng_mqtt_topic
+		nng_mqtt_topic *topic_list = convert_topic(unsub_topics, unsub_count);
+
+		// handle unsubscribe
+		// TODO params: config, node, node->sock, topic_list, unsub_count, prop_list
+		rv = bridge_unsubscribe(node->sock, node, topic_list, unsub_count, prop_list);
+
+		nng_mqtt_topic_array_free(topic_list, unsub_count);
+
+		if (rv != 0) {
+			break;
+		}
+
+		nng_mtx_lock(node->mtx);
 		for (size_t i = 0; i < unsub_count; i++) {
 			char *unsub_topic = unsub_topics[i];
 			for (size_t j = 0; j < node->sub_count; j++) {
@@ -3412,21 +3430,17 @@ post_mqtt_bridge_unsub(http_msg *msg, const char *name)
 			}
 		}
 		nng_mtx_unlock(node->mtx);
-
-		found = true;
-		// convert unsub_topics to nng_mqtt_topic
-		nng_mqtt_topic *topic_list = convert_topic(unsub_topics, unsub_count);
-
-		// handle unsubscribe
-		// TODO params: config, node, node->sock, topic_list, unsub_count, prop_list
-		bridge_unsubscribe(node->sock, node, topic_list, unsub_count, prop_list);
 		break;
 	}
 
 	free_string_list(unsub_topics, unsub_count);
 
-	if (!found) {
-		status = NNG_HTTP_STATUS_NOT_FOUND;
+	if (!found || rv != 0) {
+		if (!found)
+			status = NNG_HTTP_STATUS_NOT_FOUND;
+		else if (rv != 0)
+			status = NNG_HTTP_STATUS_BAD_REQUEST;
+
 		code   = REQ_PARAM_ERROR;
 		goto out;
 	}
