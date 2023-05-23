@@ -1012,6 +1012,9 @@ bridge_subscribe(nng_socket *sock, conf_bridge_node *node,
 	uint8_t *rc = NULL, rc0=1;
 	uint32_t rcsz;
 
+	if (sub_count < 1)
+		return -1;
+
 	for (size_t i = 0; i < sub_count; i++) {
 		log_info("Bridge client subscribed topic %.*s (qos %d).",
 		    topic_qos[i].topic.length, topic_qos[i].topic.buf, topic_qos[i].qos);
@@ -1035,7 +1038,13 @@ bridge_subscribe(nng_socket *sock, conf_bridge_node *node,
 	// Hold to get suback
 	nng_aio_wait(aio);
 
-	msg = nng_aio_get_msg(aio);
+	if (nng_aio_result(aio) != 0 || (msg = nng_aio_get_msg(aio)) == NULL) {
+		// Connection losted
+		log_warn("Can't get suback. Maybe connection of bridge was closed.");
+		rv = -3;
+		goto done;
+	}
+
 	if (nng_mqtt_msg_get_packet_type(msg) != NNG_MQTT_SUBACK) {
 		log_warn("Unknown error in handle bridge subscribe");
 		goto done;
@@ -1051,7 +1060,6 @@ done:
 	if (rc)
 		free(rc);
 	nng_aio_free(aio);
-	nng_mqtt_topic_qos_array_free(topic_qos, sub_count);
 
 	return rv;
 }
