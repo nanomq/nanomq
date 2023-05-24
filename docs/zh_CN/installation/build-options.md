@@ -1,10 +1,57 @@
-# 编译选项
+# 编译安装
+
+编译 NanoMQ 需要支持 C99 标准的编译环境和高于 3.13 的 [CMake](https://cmake.org/) 版本。
+
+您可以通过以下步骤来编译和安装 NanoMQ：
+
+```bash
+$ mkdir build
+$ cd build
+$ cmake -G Ninja ..
+$ sudo ninja install
+```
+
+或者你可以不用 ninja 来编译：
+
+```bash
+$ mkdir build 
+$ cd build
+$ cmake .. 
+$ make
+```
+
+可增加 cmake 编译参数 `NNG_ENABLE_TLS` 来支持 **TLS** 连接:
+
+>需提前安装 [mbedTLS](https://tls.mbed.org).
+
+```bash
+cmake -G Ninja -DNNG_ENABLE_TLS=ON ..
+```
+
+或者
+
+```bash
+cmake -DNNG_ENABLE_TLS=ON ..
+```
+
+> 查看配置文件 `nanomq.conf` 了解更多TLS相关配置参数.
+
+## 编译依赖
+
+请注意，NanoMQ 依赖于nng
+
+依赖项可以独立编译
+
+```bash
+$PROJECT_PATH/nanomq/nng/build$ cmake -G Ninja ..
+$PROJECT_PATH/nanomq/nng/build$ ninja install
+```
+
+## 编译选项
 
 NanoMQ 提供了一些编译选项可以让你根据系统性能进行调优。
 
-
-
-## 参数设置
+### 参数设置
 
 限制线程数量:
 

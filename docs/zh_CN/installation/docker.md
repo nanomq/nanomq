@@ -2,7 +2,20 @@
 
 本章节将指导您使用官方 Docker 镜像快速安装和运行 EMQX，并提供Docker部署的配置方法。
 
+## Docker安装
 
+```
+docker run -d --name nanomq emqx/nanomq:0.10.5
+```
+
+指定配置文件启动
+
+```
+docker run -d -p 1883:1883 -v {YOU LOCAL PATH}: /etc \
+            --name nanomq  emqx/nanomq:0.10.5
+```
+
+详细Docker配置方式请参阅Readme文档
 
 ## 通过Docker运行NanoMQ
 

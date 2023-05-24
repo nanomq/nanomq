@@ -2,18 +2,39 @@
   "cn": [
     {
       "title": "NanoMQ 介绍",
-      "path": "./"
+      "path": "./",
+      "children": [
+        {
+          "title": "功能特性",
+          "path": "features"
+        }
+      ]
     },
     {
       "title": "开始使用",
       "path": "quick-start"
     },
-    {
-      "title": "功能特性",
-      "path": "features"
+    { 
+      "title": "安装部署",
+      "path": "installation/overview",
+      "children": [
+        {
+          "title": "Docker 部署指南",
+          "path": "installation/docker"
+        },
+        {
+          "title": "使用安装包",
+          "path": "installation/packages"
+        },
+        {
+          "title": "编译安装",
+          "path": "installation/build-options"
+        }
+      ]
     },
     {
       "title": "配置说明",
+      "path": "config-description/overview",
       "children": [
         {
           "title": "配置说明(v014)",
@@ -26,79 +47,129 @@
       ]
     },
     {
-      "title": "编译选项",
-      "path": "build-options"
-    },
-    {
-      "title": "HTTP APIs",
+      "title": "访问控制",
+      "path": "access-control/overview",
       "children": [
         {
-          "title": "HTTP APIs",
-          "path": "http-api/v4"
-        },
-        {
-          "title": "HTTP-API (v1)",
-          "path": "http-api/v1"
-        },
-        {
-          "title": "JWT认证",
+          "title": "JWT 认证",
           "path": "http-api/jwt"
         }
       ]
     },
     {
-      "title": "Web Hook",
-      "path": "web-hook"
-    },
-    {
-      "title": "工具集",
-      "path": "toolkit"
-    },
-    {
-      "title": "测试报告",
-      "path": "test-report"
-    },
-    {
-      "title": "ZMQ 网关",
-      "path": "zmq-gateway"
-    },
-    {
-      "title": "Docker",
-      "path": "docker"
-    },
-    {
-      "title": "MQTT 桥接",
-      "children": [
+      "title": "NanoMQ 规则",
+      "path": "rule/overview",
+      "children":[
         {
-          "title": "MQTT over TCP桥接",
-          "path": "bridges/tcp-bridge"
+          "title": "使用 Webhook 配置规则",
+          "path": "web-hook"
         },
         {
-          "title": "MQTT over QUIC桥接",
-          "path": "bridges/quic-bridge"
+          "title": "通过配置项配置规则",
+          "path": "rule/config-rule-engine"
         }
       ]
     },
     {
-      "title": "DDS",
-      "path": "dds"
+      "title": "MQTT 桥接",
+      "path": "bridges/overview",
+      "children": [
+        {
+          "title": "MQTT over TCP 桥接",
+          "path": "bridges/tcp-bridge"
+        },
+        {
+          "title": "MQTT over QUIC 桥接",
+          "path": "bridges/quic-bridge"
+        }
+      ]
+    },
+    {"title": "多协议网关",
+     "path": "gateway/overview",
+     "children": [
+      {
+        "title": "ZMQ 网关",
+        "path": "zmq-gateway" 
+      },
+      {
+        "title": "SOME/IP 网关",
+        "path": "someip-gateway"
+      },
+      { 
+        "title": "DDS 网关",
+        "path": "dds"
+      }
+     ]
     },
     {
-      "title": "SOME/IP 网关",
-      "path": "someip-gateway"
-    }
+      "title": "命令行接口",
+      "path": "toolkit/overview",
+      "children": [
+     {
+       "title": "使用命令行配置",
+       "path": "toolkit/command-line"
+     },
+     {
+       "title": "工具集",
+       "path": "toolkit"
+     }
+    ]
+   },
+   {
+     "title": "HTTP APIs",
+     "path": "http-api/overview",
+     "children": [
+       {
+         "title": "HTTP APIs",
+         "path": "http-api/v4"
+       },
+       {
+         "title": "HTTP-API (v1)",
+         "path": "http-api/v1"
+       }
+     ]
+   },
+   {
+    "title": "测试报告",
+    "path": "test-report"
+  }
   ],
   "en": [
     {
       "title": "Introduction",
-      "path": "./"
+      "path": "./",
+      "children": [
+        {
+          "title": "Features",
+          "path": "features"
+        }
+      ]
     },
     {
       "title": "Getting Started",
       "path": "quick-start"
     },
+    { 
+      "title": "Installation",
+      "path": "installation/overview",
+      "children": [
+        {
+          "title": "Install with Docker",
+          "path": "installation/docker"
+        },
+        {
+          "title": "Install with Packages",
+          "path": "installation/packages"
+        },
+        {
+          "title": "Compile and Performance Tuning",
+          "path": "installation/build-options"
+        }
+      ]
+    },
     {
       "title": "Configuration",
+      "path": "config-description/overview",
       "children": [
         {
           "title": "Configuration(v014)",
@@ -111,52 +182,32 @@
       ]
     },
     {
-      "title": "Features",
-      "path": "features"
-    },
-    {
-      "title": "Build Options",
-      "path": "build-options"
-    },
-    {
-      "title": "HTTP APIs",
+      "title": "Access Control",
+      "path": "access-control/overview",
       "children": [
         {
-          "title": "HTTP APIs",
-          "path": "http-api/v4"
-        },
-        {
-          "title": "HTTP-API (v1)",
-          "path": "http-api/v1"
-        },
-        {
-          "title": "JWT Authorization",
+          "title": "JWT Authentication",
           "path": "http-api/jwt"
         }
       ]
     },
     {
-      "title": "Web Hook",
-      "path": "web-hook"
-    },
-    {
-      "title": "TOOLKIT",
-      "path": "toolkit"
-    },
-    {
-      "title": "Test Report",
-      "path": "test-report"
-    },
-    {
-      "title": "ZMQ Gateway",
-      "path": "zmq-gateway"
-    },
-    {
-      "title": "Docker",
-      "path": "docker"
+      "title": "Rules",
+      "path": "rule/overview",
+      "children":[
+        {
+          "title": "Configure with Webhook",
+          "path": "web-hook"
+        },
+        {
+          "title": "Configure with Rule Engine",
+          "path": "rule/config-rule-engine"
+        }
+      ]
     },
     {
       "title": "MQTT Bridge",
+      "path": "bridges/overview",
       "children": [
         {
           "title": "MQTT over TCP Bridge",
@@ -168,13 +219,53 @@
         }
       ]
     },
-    {
-      "title": "DDS",
-      "path": "dds"
+    {"title": "Multi-Protocol Gateway",
+     "path": "gateway/overview",
+     "children": [
+      {
+        "title": "ZMQ Gateway",
+        "path": "zmq-gateway" 
+      },
+      {
+        "title": "SOME/IP Gateway",
+        "path": "someip-gateway"
+      },
+      { 
+        "title": "DDS Gateway",
+        "path": "dds"
+      }
+     ]
+    },
+    {"title": "Command Line Interface",
+     "path": "toolkit/overview",
+     "children": [
+      {
+        "title": "Configure with Command Line",
+        "path": "toolkit/command-line"
+      },
+      {
+        "title": "Toolkit",
+        "path": "toolkit/namomq-bench"
+      }
+     ]
     },
     {
-      "title": "SOME/IP Gateway",
-      "path": "someip-gateway"
+      "title": "HTTP APIs",
+      "path": "http-api/overview",
+      "children": [
+        {
+          "title": "HTTP APIs",
+          "path": "http-api/v4"
+        },
+        {
+          "title": "HTTP-API (v1)",
+          "path": "http-api/v1"
+        }
+      ]
+    },
+    {
+      "title": "Test Report",
+      "path": "test-report"
     }
 
   ]
