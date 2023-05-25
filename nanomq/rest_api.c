@@ -339,6 +339,8 @@ static http_msg get_clients(http_msg *msg, kv **params, size_t param_num,
     const char *client_id, const char *username, nng_socket *broker_sock);
 static http_msg get_prometheus(http_msg *msg, kv **params, size_t param_num,
     const char *client_id, const char *username, nng_socket *broker_sock);
+static http_msg get_metrics(http_msg *msg, kv **params, size_t param_num,
+    const char *client_id, const char *username, nng_socket *broker_sock);
 static http_msg get_subscriptions(
     http_msg *msg, kv **params, size_t param_num, const char *client_id);
 static http_msg  get_rules(
@@ -768,6 +770,11 @@ process_request(http_msg *msg, conf_http_server *config, nng_socket *sock)
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "prometheus") == 0) {
 			ret = get_prometheus(msg, uri_ct->params,
+			    uri_ct->params_count, NULL, NULL, config->broker_sock);
+		} else if (uri_ct->sub_count == 2 &&
+		    uri_ct->sub_tree[1]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "metrics") == 0) {
+			ret = get_metrics(msg, uri_ct->params,
 			    uri_ct->params_count, NULL, NULL, config->broker_sock);
 		} else if (uri_ct->sub_count == 2 &&
 		    uri_ct->sub_tree[1]->end &&
@@ -1457,6 +1464,39 @@ out:
 	return res;
 }
 
+static http_msg
+get_metrics(http_msg *msg, kv **params, size_t param_num,
+    const char *client_id, const char *username, nng_socket *broker_sock)
+{
+	http_msg res     = { .status = NNG_HTTP_STATUS_OK };
+	cJSON   *res_obj = cJSON_CreateObject();
+	cJSON   *metrics = cJSON_CreateArray();
+
+	client_stats stats = { 0 };
+
+#if NANO_PLATFORM_LINUX
+	update_process_info(&stats);
+#endif
+	char cpu[16] = { 0 };
+	char mem[16] = { 0 };
+	snprintf(cpu, 16, "%.2f%%", stats.cpu_percent);
+	snprintf(mem, 16, "%.2fM", stats.memory);
+
+	cJSON_AddItemToObject(res_obj, "metrics", metrics);
+	cJSON_AddStringToObject(res_obj, "cpuinfo", cpu);
+	cJSON_AddStringToObject(res_obj, "memory", mem);
+
+	// cJSON *meta = cJSON_CreateObject();
+	// cJSON_AddItemToObject(res_obj, "meta", meta);
+	// TODO add meta content: page, limit, count
+	char *dest = cJSON_PrintUnformatted(res_obj);
+	put_http_msg(&res, "", NULL, NULL, NULL, dest, strlen(dest));
+
+	cJSON_free(dest);
+	cJSON_Delete(res_obj);
+
+	return res;
+}
 
 static http_msg
 get_subscriptions(
