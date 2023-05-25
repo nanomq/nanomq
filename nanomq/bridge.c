@@ -414,24 +414,24 @@ hybrid_tcp_client(bridge_param *bridge_arg)
 	int           rv;
 	nng_dialer    dialer;
 
-	nng_socket *      sock = bridge_arg->sock;
+	nng_socket *      new;
 	conf_bridge_node *node = bridge_arg->config;
 
 	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
-		if ((rv = nng_mqttv5_client_open(sock)) != 0) {
+		if ((rv = nng_mqttv5_client_open(new)) != 0) {
 			nng_fatal("nng_mqttv5_client_open", rv);
 			return rv;
 		}
 	} else {
-		if ((rv = nng_mqtt_client_open(sock)) != 0) {
+		if ((rv = nng_mqtt_client_open(new)) != 0) {
 			nng_fatal("nng_mqtt_client_open", rv);
 			return rv;
 		}
 	}
 
-	apply_sqlite_config(sock, node, "mqtt_client.db");
+	apply_sqlite_config(new, node, "mqtt_client.db");
 
-	if ((rv = nng_dialer_create(&dialer, *sock, node->address))) {
+	if ((rv = nng_dialer_create(&dialer, *new, node->address))) {
 		nng_fatal("nng_dialer_create", rv);
 		return rv;
 	}
@@ -447,15 +447,17 @@ hybrid_tcp_client(bridge_param *bridge_arg)
 
 	nng_msg *connmsg   = create_connect_msg(node);
 	bridge_arg->connmsg = connmsg;
-	bridge_arg->client = nng_mqtt_client_alloc(*sock, &send_callback, true);
+	bridge_arg->client = nng_mqtt_client_alloc(*new, &send_callback, true);
 
-	node->sock         = (void *) sock;
+	node->sock         = (void *) new;
+	bridge_arg->sock   = new;
+	log_error("new sock: %p", node->sock);
 
 	// TCP bridge does not support hot update of connmsg
 	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
-	nng_socket_set_ptr(*sock, NNG_OPT_MQTT_CONNMSG, connmsg);
-	nng_mqtt_set_connect_cb(*sock, hybrid_tcp_connect_cb, bridge_arg);
-	nng_mqtt_set_disconnect_cb(*sock, hybrid_tcp_disconnect_cb, bridge_arg);
+	nng_socket_set_ptr(*new, NNG_OPT_MQTT_CONNMSG, connmsg);
+	nng_mqtt_set_connect_cb(*new, hybrid_tcp_connect_cb, bridge_arg);
+	nng_mqtt_set_disconnect_cb(*new, hybrid_tcp_disconnect_cb, bridge_arg);
 
 	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
 
@@ -516,8 +518,6 @@ hybrid_quic_client(bridge_param *bridge_arg)
 
 	if (0 != nng_mqtt_quic_set_connect_cb(sock, hybrid_quic_connect_cb, (void *)bridge_arg) ||
 	    0 != nng_mqtt_quic_set_disconnect_cb(sock, hybrid_quic_disconnect_cb, (void *)bridge_arg)) {
-	    //0 != nng_mqtt_quic_set_msg_recv_cb(sock, msg_recv_cb, (void *)arg) ||
-	    //0 != nng_mqtt_quic_set_msg_send_cb(sock, msg_send_cb, (void *)arg)) {
 		log_error("error in quic client cb setting.");
 		return -1;
 	}
@@ -570,6 +570,19 @@ hybridger_cb(void *arg)
 		nng_fatal("nng_cv_alloc", rv);
 		return;
 	}
+	// alloc an AIO for each ctx bridging use only
+	node->bridge_aio =
+	    nng_alloc((bridge_arg->conf->parallel + node->parallel * 2) *
+	        sizeof(nng_aio *));
+
+	for (uint32_t num = 0;
+	     num < (bridge_arg->conf->parallel + node->parallel * 2); num++) {
+		if ((rv = nng_aio_alloc(&node->bridge_aio[num], NULL, node)) !=
+		    0) {
+			nng_fatal("bridge_aio nng_aio_alloc", rv);
+		}
+		log_debug("parallel %d", num);
+	}
 
 	char addr_back[160] = {'\0'};
 	if (0 != gen_fallback_url(node->address, addr_back))
@@ -584,29 +597,17 @@ hybridger_cb(void *arg)
 
 		if (0 == strncmp(node->address, tcp_scheme, strlen(tcp_scheme))) {
 			// TODO need to close old sock and reopen the ctxs
-			// nng_socket *tsock = bridge_arg->sock;
-			// nng_close(*tsock);
+			nng_socket *tsock = bridge_arg->sock;
 			hybrid_tcp_client(bridge_arg);
+			nng_socket *nsock = bridge_arg->sock;
+			nng_sock_remove(*tsock, *nsock);
+			nng_close(*tsock);
 #if defined(SUPP_QUIC)
 		} else if (0 == strncmp(node->address, quic_scheme, strlen(quic_scheme))) {
 			hybrid_quic_client(bridge_arg);
 #endif
 		} else {
 			log_error("Unsupported bridge protocol.");
-		}
-		// alloc an AIO for each ctx bridging use only
-		node->bridge_aio = nng_alloc(
-		    (bridge_arg->conf->parallel + node->parallel * 2) *
-		    sizeof(nng_aio *));
-
-		for (uint32_t num = 0;
-		     num < (bridge_arg->conf->parallel + node->parallel * 2);
-		     num++) {
-			if ((rv = nng_aio_alloc(&node->bridge_aio[num],
-			         NULL, node)) != 0) {
-				nng_fatal("bridge_aio nng_aio_alloc", rv);
-			}
-			log_debug("parallel %d", num);
 		}
 		if (bridge_arg->exec_cv) {
 			nng_mtx_lock(bridge_arg->exec_mtx);
