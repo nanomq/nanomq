@@ -254,17 +254,6 @@ server_cb(void *arg)
 				nng_ctx_recv(work->ctx, work->aio);
 				break;
 			} else {
-				log_info("bridge connection closed with reason %d\n", rv);
-				if (rv == NNG_ECLOSED) { // The end of extra_ctx
-					nng_ctx_close(work->extra_ctx);
-					log_info("close extra_ctx%d\n", work->extra_ctx.id);
-					while ((newsock = nng_aio_get_prov_data(
-					        work->bridge_reload_aio)) == NULL)
-						nng_msleep(1000);
-					proto_bridge_work_reload(work, newsock);
-					log_info("Hot-reload bridge successfully ctx%d", work->extra_ctx.id);
-					break;
-				}
 				if (rv != NNG_ECONNSHUT) {
 					nng_ctx_recv(work->extra_ctx, work->aio);
 					break;
