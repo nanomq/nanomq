@@ -601,7 +601,7 @@ hybridger_cb(void *arg)
 			hybrid_tcp_client(bridge_arg);
 			nng_socket *nsock = bridge_arg->sock;
 			if (tsock != nsock) {
-				nng_sock_remove(*tsock, *nsock);
+				nng_sock_replace(*tsock, *nsock);
 				nng_close(*tsock);
 				nng_free(tsock, sizeof(nng_socket));
 			}
@@ -611,7 +611,7 @@ hybridger_cb(void *arg)
 			hybrid_quic_client(bridge_arg);
 			nng_socket *nsock = bridge_arg->sock;
 			if (tsock != nsock) {
-				nng_sock_remove(*tsock, *nsock);
+				nng_sock_replace(*tsock, *nsock);
 				nng_close(*tsock);
 				nng_free(tsock, sizeof(nng_socket));
 			}
