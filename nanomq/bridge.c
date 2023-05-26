@@ -414,7 +414,7 @@ hybrid_tcp_client(bridge_param *bridge_arg)
 	int           rv;
 	nng_dialer    dialer;
 
-	nng_socket *      new;
+	nng_socket *new = (nng_socket *) nng_alloc(sizeof(nng_socket));
 	conf_bridge_node *node = bridge_arg->config;
 
 	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
@@ -451,7 +451,6 @@ hybrid_tcp_client(bridge_param *bridge_arg)
 
 	node->sock         = (void *) new;
 	bridge_arg->sock   = new;
-	log_error("new sock: %p", node->sock);
 
 	// TCP bridge does not support hot update of connmsg
 	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
@@ -501,34 +500,36 @@ hybrid_quic_client(bridge_param *bridge_arg)
 	nng_dialer    dialer;
 	log_info("Quic bridge service start.");
 
-	nng_socket *sock = bridge_arg->sock;
+	// always alloc a new sock pointer in hybrid mode
+	nng_socket *new = (nng_socket *) nng_alloc(sizeof(nng_socket));
 	conf_bridge_node* node = bridge_arg->config;
-	node->sock         = (void *) sock;
 
 	// keepalive here is for QUIC only
-	if ((rv = nng_mqtt_quic_open_conf(sock, node->address, (void *)node)) != 0) {
+	if ((rv = nng_mqtt_quic_open_conf(new, node->address, (void *)node)) != 0) {
 		nng_fatal("nng_mqtt_quic_client_open", rv);
 		return rv;
 	}
 	// TODO mqtt v5 protocol
-	apply_sqlite_config(sock, node, "mqtt_quic_client.db");
-	nng_socket_set(*sock, NANO_CONF, node, sizeof(conf_bridge_node));
+	apply_sqlite_config(new, node, "mqtt_quic_client.db");
+	nng_socket_set(*new, NANO_CONF, node, sizeof(conf_bridge_node));
 
-	bridge_arg->client = nng_mqtt_client_alloc(*sock, &send_callback, true);
+	bridge_arg->client = nng_mqtt_client_alloc(*new, &send_callback, true);
+	bridge_arg->sock   = new;
+	node->sock         = new;
 
-	if (0 != nng_mqtt_quic_set_connect_cb(sock, hybrid_quic_connect_cb, (void *)bridge_arg) ||
-	    0 != nng_mqtt_quic_set_disconnect_cb(sock, hybrid_quic_disconnect_cb, (void *)bridge_arg)) {
+	if (0 != nng_mqtt_quic_set_connect_cb(new, hybrid_quic_connect_cb, (void *)bridge_arg) ||
+	    0 != nng_mqtt_quic_set_disconnect_cb(new, hybrid_quic_disconnect_cb, (void *)bridge_arg)) {
 		log_error("error in quic client cb setting.");
 		return -1;
 	}
-	nng_mqtt_quic_ack_callback_set(sock, quic_ack_cb, (void *)bridge_arg);
+	nng_mqtt_quic_ack_callback_set(new, quic_ack_cb, (void *)bridge_arg);
 
 	// create a CONNECT message
 	/* CONNECT */
 	nng_msg *connmsg = create_connect_msg(node);
 
 	nng_aio_set_msg(bridge_arg->client->send_aio, connmsg);
-	nng_send_aio(*sock, bridge_arg->client->send_aio);
+	nng_send_aio(*new, bridge_arg->client->send_aio);
 
 	return 0;
 }
@@ -591,20 +592,29 @@ hybridger_cb(void *arg)
 	int idx = -1;
 	for (;;) {
 		// Get next bridge node
+		nng_socket *tsock = bridge_arg->sock;
 		idx = (idx + 1) % 2;
 		node->address = addrs[idx];
 		log_warn("!! Bridge has switched to %s", node->address);
 
 		if (0 == strncmp(node->address, tcp_scheme, strlen(tcp_scheme))) {
-			// TODO need to close old sock and reopen the ctxs
-			nng_socket *tsock = bridge_arg->sock;
 			hybrid_tcp_client(bridge_arg);
 			nng_socket *nsock = bridge_arg->sock;
-			nng_sock_remove(*tsock, *nsock);
-			nng_close(*tsock);
+			if (tsock != nsock) {
+				nng_sock_remove(*tsock, *nsock);
+				nng_close(*tsock);
+				nng_free(tsock, sizeof(nng_socket));
+			}
 #if defined(SUPP_QUIC)
-		} else if (0 == strncmp(node->address, quic_scheme, strlen(quic_scheme))) {
+		} else if (0 ==
+		    strncmp(node->address, quic_scheme, strlen(quic_scheme))) {
 			hybrid_quic_client(bridge_arg);
+			nng_socket *nsock = bridge_arg->sock;
+			if (tsock != nsock) {
+				nng_sock_remove(*tsock, *nsock);
+				nng_close(*tsock);
+				nng_free(tsock, sizeof(nng_socket));
+			}
 #endif
 		} else {
 			log_error("Unsupported bridge protocol.");
@@ -903,7 +913,8 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 		return rv;
 	}
 	// set backoff param to 24s
-	nng_dialer_setopt_ms(dialer, NNG_OPT_MQTT_RECONNECT_BACKOFF_MAX, 240000);
+	nng_duration duration = 240000;
+	nng_dialer_set(dialer, NNG_OPT_MQTT_RECONNECT_BACKOFF_MAX, &duration, sizeof(nng_duration));
 
 
 #ifdef NNG_SUPP_TLS
