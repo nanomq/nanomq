@@ -798,10 +798,21 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 	log_debug("Quic bridge service start.\n");
 
 	// keepalive here is for QUIC only
-	if ((rv = nng_mqtt_quic_open_conf(sock, node->address, (void *)node)) != 0) {
-		nng_fatal("nng_mqtt_quic_client_open", rv);
-		return rv;
+
+	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
+		if ((rv = nng_mqttv5_quic_open_conf(
+		         sock, node->address, (void *) node)) != 0) {
+			nng_fatal("nng_mqttv5_quic_client_open", rv);
+			return rv;
+		}
+	} else {
+		if ((rv = nng_mqtt_quic_open_conf(
+		         sock, node->address, (void *) node)) != 0) {
+			nng_fatal("nng_mqtt_quic_client_open", rv);
+			return rv;
+		}
 	}
+
 	// mqtt v5 protocol
 	apply_sqlite_config(sock, node, "mqtt_quic_client.db");
 
