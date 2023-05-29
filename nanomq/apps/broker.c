@@ -66,8 +66,8 @@
 
 enum options {
 	OPT_HELP = 1,
-	OPT_HOCONFILE,
-	OPT_CONFFILE,
+	OPT_HOCONFILE = 2, /* Do not change this value, it is used beyond this file. */
+	OPT_CONFFILE = 3,  /* Do not change this value, it is used beyond this file. */
 	OPT_PARALLEL,
 	OPT_DAEMON,
 	OPT_THREADS,
@@ -1090,7 +1090,7 @@ broker(conf *nanomq_conf)
 		if (nano_file_exists(IPC_URL_PATH))
 			nng_file_delete(IPC_URL_PATH);
 		if ((rv = nng_listen(cmd_sock, CMD_IPC_URL, NULL, 0)) != 0) {
-			nng_fatal("nng_listen", rv);
+			nng_fatal("nng_listen ipc", rv);
 		}
 
 		for (i = 0; i < CMD_PROC_PARALLEL; i++) {
@@ -1381,13 +1381,10 @@ file_path_parse(int argc, char **argv, char **file_path)
 			exit(0);
 			break;
 		case OPT_HOCONFILE:
-			FREE_NONULL(*file_path);
-			*file_path = nng_strdup(arg);
-			return OPT_HOCONFILE;
 		case OPT_CONFFILE:
 			FREE_NONULL(*file_path);
 			*file_path = nng_strdup(arg);
-			return OPT_CONFFILE;
+			return val;
 		default:
 			break;
 		}
@@ -1679,12 +1676,13 @@ broker_reload(int argc, char **argv)
 	}
 
 	char *file_path = NULL;
-	if (!file_path_parse(argc, argv, &file_path)) {
+	int   rc        = file_path_parse(argc, argv, &file_path);
+	if (!rc) {
 		fprintf(stderr, "Cannot parse command line arguments, quit\n");
 		exit(EXIT_FAILURE);
 	}
 
-	char *msg = encode_client_cmd(file_path);
+	char *msg = encode_client_cmd(file_path, rc);
 
 	start_cmd_client(msg);
 
@@ -1726,12 +1724,13 @@ int
 broker_reload(int argc, char **argv)
 {
 	char *file_path = NULL;
-	if (!file_path_parse(argc, argv, &file_path)) {
+	int   rc        = file_path_parse(argc, argv, &file_path);
+	if (!rc) {
 		fprintf(stderr, "Cannot parse command line arguments, quit\n");
 		exit(EXIT_FAILURE);
 	}
 
-	char *msg = encode_client_cmd(file_path);
+	char *msg = encode_client_cmd(file_path, rc);
 
 	start_cmd_client(msg);
 
