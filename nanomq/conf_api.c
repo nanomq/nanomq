@@ -1065,13 +1065,13 @@ set_auth_http_config(cJSON *json, const char *conf_path, conf_auth_http *auth)
 void
 reload_basic_config(conf *cur_conf, conf *new_conf)
 {
-	cur_conf->property_size = new_conf->property_size;
-	cur_conf->max_packet_size = new_conf->max_packet_size;
+	cur_conf->property_size          = new_conf->property_size;
+	cur_conf->max_packet_size        = new_conf->max_packet_size;
 	cur_conf->client_max_packet_size = new_conf->client_max_packet_size;
-	cur_conf->msq_len = new_conf->msq_len;
-	cur_conf->qos_duration = new_conf->qos_duration;
-	cur_conf->backoff = new_conf->backoff;
-	cur_conf->allow_anonymous = new_conf->allow_anonymous;
+	cur_conf->msq_len                = new_conf->msq_len;
+	cur_conf->qos_duration           = new_conf->qos_duration;
+	cur_conf->backoff                = new_conf->backoff;
+	cur_conf->allow_anonymous        = new_conf->allow_anonymous;
 }
 
 void
@@ -1104,4 +1104,16 @@ reload_auth_config(conf_auth *cur_conf, conf_auth *new_conf)
 		cur_conf->usernames[i] = nng_strdup(new_conf->usernames[i]);
 		cur_conf->passwords[i] = nng_strdup(new_conf->passwords[i]);
 	}
+}
+
+void
+reload_log_config(conf_log *old, conf_log *new)
+{
+#if defined(ENABLE_LOG)
+	int rc = 0;
+	log_fini(old);
+	if ((rc = log_init(new)) != 0) {
+		nng_fatal("log_reload", rc);
+	}
+#endif
 }
