@@ -37,5 +37,6 @@ extern void set_sqlite_config(cJSON *json, const char *conf_path,
 extern void reload_basic_config(conf *cur_conf, conf *new_conf);
 extern void reload_sqlite_config(conf_sqlite *cur_conf, conf_sqlite *new_conf);
 extern void reload_auth_config(conf_auth *cur_conf, conf_auth *new_conf);
+extern void reload_log_config(conf_log *cur_conf, conf_log *new_conf);
 
 #endif
