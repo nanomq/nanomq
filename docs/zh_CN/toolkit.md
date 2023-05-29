@@ -28,7 +28,7 @@ NanoMQ 是一款用在物联网平台边缘端的超轻量 MQTT Broker。
 | --log_level     | -            | trace, debug, info, warn, error, fatal | warn                     | 日志等级                                                     |
 | --log_file      | -            | -                                      | -                        | 日志文件输出路径                                             |
 | --log_stdout    | -            | true, false                            | true                     | 日志输出到控制台                                             |
-| --log_syslog    | -            | true, false                            | false                    | 日志输出到Syslog (默认只支持Linux系统)                       |
+| --log_syslog    | -            | true, false                            | false                    | 日志输出到Syslog (默认只支持兼容 POSIX 的系统)                       |
 
 例如，我们在 url nmq-tcp://localhost:1884 上启动 NanoMQ 监听 MQTT 消息，在 url nmq-ws://localhost:8085 上启动 websocket 消息，在端口 30000 上启用 http 服务器。
 
@@ -50,13 +50,13 @@ $ nanomq start --conf <config_file>
 
 
 
-## Client
+## NanoMQ Client
 
-目前客户端完整支持MQTT3.1.1，部分支持MQTT5.0 。
+NanoMQ 的客户端工具在 `nanomq_cli` 中。目前客户端完整支持MQTT3.1.1，部分支持MQTT5.0 。
 
 ### Pub
 
-执行 `nanomq pub --help` 时，您将获得可用的参数输出。
+执行 `nanomq_cli pub --help` 时，您将获得可用的参数输出。
 
 | Parameter       | abbreviation | Optional value | Default value             | Description          |
 | --------------- | ------------ | -------------- | ------------------------- | -------------------- |
