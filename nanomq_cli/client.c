@@ -66,6 +66,7 @@ struct client_opts {
 	char *           client_id;
 	uint16_t         keepalive;
 	bool             clean_session;
+	bool             stdin_line;
 	uint8_t *        msg;
 	size_t           msg_len;
 	uint8_t *        will_msg;
@@ -130,6 +131,7 @@ enum options {
 	OPT_KEYPASS,
 	OPT_MSG,
 	OPT_FILE,
+	OPT_STDIN_LINE,
 	// property options >>>>>>>>>>>>>
 	OPT_PAYLOAD_FORMAT_INDICATOR,
 	OPT_MESSAGE_EXPIRY_INTERVAL,
@@ -233,6 +235,7 @@ static nng_optspec cmd_opts[] = {
 	},
 	{ .o_name = "msg", .o_short = 'm', .o_val = OPT_MSG, .o_arg = true },
 	{ .o_name = "file", .o_short = 'f', .o_val = OPT_FILE, .o_arg = true },
+	{ .o_name = "stdin-line", .o_short = 'l', .o_val = OPT_STDIN_LINE },
 	{ .o_name  = "payload_format_indicator",
 	    .o_val = OPT_PAYLOAD_FORMAT_INDICATOR,
 	    .o_arg = true },
@@ -713,13 +716,11 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 			opt->enable_ssl = true;
 			proto           = "tls+mqtt-tcp";
 			port            = port == NULL ? "8883" : port;
-			puts(port);
 			break;
 		case OPT_QUIC:
 			opt->enable_ssl = true;
 			proto           = "mqtt-quic";
 			port            = port == NULL ? "14567" : port;
-			puts(port);
 			break;
 		case OPT_CACERT:
 			ASSERT_NULL(opt->cacert,
@@ -758,6 +759,9 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 			    "specified only once.");
 			loadfile(arg, (void **) &opt->msg, &opt->msg_len);
 			break;
+		case OPT_STDIN_LINE:
+			opt->stdin_line = true;
+			break;
 		}
 	}
 	switch (rv) {
@@ -790,10 +794,10 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 			      "information. ");
 		}
 
-		if (opt->msg == NULL) {
+		if (opt->msg == NULL && opt->stdin_line == false) {
 			fatal(
 			    "Missing required option: '(-m, --msg) "
-			    "<message>' or '(-f, --file) <file>'\nTry "
+			    "<message>' ,(-l, --stdin-line) or '(-f, --file) <file>'\nTry "
 			    "'nanomq_cli pub --help' for more information. ");
 		}
 		break;
@@ -1219,6 +1223,17 @@ publish_msg(client_opts *opt)
 	nng_mqtt_msg_set_packet_type(pubmsg, NNG_MQTT_PUBLISH);
 	nng_mqtt_msg_set_publish_qos(pubmsg, opt->qos);
 	nng_mqtt_msg_set_publish_retain(pubmsg, opt->retain);
+	if (opt->stdin_line) {
+		if (opt->msg)
+			free(opt->msg);
+		opt->msg = NULL;
+		opt->msg_len = 0;
+		size_t len;
+		if ((opt->msg_len = getline((char**) &(opt->msg), &len, stdin)) == -1) {
+			console("Read line error!");
+		} 
+		opt->msg_len--;
+	}
 	nng_mqtt_msg_set_publish_payload(pubmsg, opt->msg, opt->msg_len);
 	nng_mqtt_msg_set_publish_topic(pubmsg, opt->topic->val);
 	nng_mqtt_msg_set_publish_property(pubmsg, opt->pub_properties);
@@ -1295,18 +1310,24 @@ client_cb(void *arg)
 			nng_msg_free(work->msg);
 			nng_fatal("nng_send_aio", rv);
 		}
-		work->msg_count--;
-		if (work->msg_count > 0) {
-			nng_msg_dup(&msg, work->msg);
-			nng_aio_set_msg(work->aio, msg);
-			msg         = NULL;
-			work->state = SEND_WAIT;
-			nng_sleep_aio(work->opts->interval, work->aio);
+
+		if (work->opts->stdin_line) {
+			work->state = INIT;
+			nng_sleep_aio(0, work->aio);
 		} else {
-			void *cp = nng_msg_get_conn_param(conn_msg);
-			nng_msg_free(conn_msg);
-			nng_closeall();
-			exit(1);
+			work->msg_count--;
+			if (work->msg_count > 0) {
+				nng_msg_dup(&msg, work->msg);
+				nng_aio_set_msg(work->aio, msg);
+				msg         = NULL;
+				work->state = SEND_WAIT;
+				nng_sleep_aio(work->opts->interval, work->aio);
+			} else {
+				void *cp = nng_msg_get_conn_param(conn_msg);
+				nng_msg_free(conn_msg);
+				nng_closeall();
+				exit(1);
+			}
 		}
 		break;
 
