@@ -1595,6 +1595,34 @@ broker_start(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
+#if defined(ENABLE_NANOMQ_TESTS)
+	// TODO: use the conf_file for test
+	// 1. free the old nanomq_conf->conf_file.
+	if (nanomq_conf->conf_file != NULL) {
+		nng_free(
+		    nanomq_conf->conf_file, sizeof(nanomq_conf->conf_file));
+		nanomq_conf->conf_file = NULL;
+	}
+	// 2. replace the conf_file with new conf_file for test.
+	// char *buf = nano_getcwd(NULL, 0);
+	// if (buf != NULL) {
+	// 	printf("\tcwd:%s-----------------------\n", buf);
+	// 	nng_free(buf, sizeof(buf));
+	// }
+	// TODO: how can I find the conf file correctly
+	char *conf_file = "/home/hermann/Documents/hermannDocuments/nanomq/"
+	                  "etc/nanomq_test.conf";
+	nanomq_conf->conf_file = conf_file;
+	// 3. conf_parse(nanomq_conf) which will set nanomq_conf with its
+	// conf_file.
+	conf_parse_ver2(nanomq_conf);
+	// if (nanomq_conf->web_hook.enable == true) {
+	// 	printf("\tyesssss--------------------------------------\n");
+	// } else if (nanomq_conf->web_hook.enable == false) {
+	// 	printf("\tnot good-------------------------\n");
+	// }
+#endif
+
 	if (nanomq_conf->enable) {
 		nanomq_conf->url = nanomq_conf->url != NULL
 		    ? nanomq_conf->url
