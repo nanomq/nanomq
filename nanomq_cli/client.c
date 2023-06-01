@@ -1787,7 +1787,10 @@ create_quic_client(nng_socket *sock, struct work **works, size_t id,
 {
 	int rv;
 
-	if ((rv = nng_mqtt_quic_client_open(sock, param->opts->url)) != 0) {
+	rv = param->opts->version == MQTT_PROTOCOL_VERSION_v5
+	    ? nng_mqttv5_quic_client_open(sock, param->opts->url)
+	    : nng_mqtt_quic_client_open(sock, param->opts->url);
+	if (rv != 0) {
 		nng_fatal("nng_mqtt_quic_client_open", rv);
 	}
 
@@ -1808,11 +1811,14 @@ create_quic_client(nng_socket *sock, struct work **works, size_t id,
 	nng_sendmsg(*sock, conn_msg, NNG_FLAG_ALLOC);
 
 	if (param->opts->type == PUB) {
+		nng_msg *pub_msg = publish_msg(param->opts);
 		for (size_t i = 1; i < param->opts->total_msg_count; i++) {
-			nng_msg *pub_msg = publish_msg(param->opts);
 			nng_msleep(param->opts->interval);
+			nng_msg_clone(pub_msg);
 			nng_sendmsg(*sock, pub_msg, NNG_FLAG_ALLOC);
 		}
+
+		nng_msg_free(pub_msg);
 	}
 }
 
