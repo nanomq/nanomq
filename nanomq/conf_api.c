@@ -1107,12 +1107,15 @@ reload_auth_config(conf_auth *cur_conf, conf_auth *new_conf)
 }
 
 void
-reload_log_config(conf_log *old, conf_log *new)
+reload_log_config(conf *old, conf *new)
 {
 #if defined(ENABLE_LOG)
 	int rc = 0;
-	log_fini(old);
-	if ((rc = log_init(new)) != 0) {
+	conf_log log = old->log;
+	old->log     = new->log;
+	new->log     = log;
+	log_fini(&new->log);
+	if ((rc = log_init(&old->log)) != 0) {
 		nng_fatal("log_reload", rc);
 	}
 #endif

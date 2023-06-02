@@ -74,9 +74,10 @@ handle_recv(const char *msg, size_t msg_len, conf *config, char **err_msg)
 	reload_basic_config(config, new_conf);
 	reload_sqlite_config(&config->sqlite, &new_conf->sqlite);
 	reload_auth_config(&config->auths, &new_conf->auths);
-	reload_log_config(&config->log, &new_conf->log);
+	reload_log_config(config, new_conf);
 
-	// conf_fini(new_conf);
+
+	conf_fini(new_conf);
 	cJSON_Delete(obj);
 	return 0;
 
