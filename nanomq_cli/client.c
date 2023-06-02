@@ -1111,6 +1111,7 @@ set_default_conf(client_opts *opt)
 	opt->clean_session   = true;
 	opt->enable_ssl      = false;
 	opt->verbose         = false;
+	opt->stdin_line      = false;
 	opt->topic_count     = 0;
 	opt->clients         = 1;
 	opt->conn_properties = NULL;
@@ -1837,6 +1838,27 @@ create_quic_client(nng_socket *sock, struct work **works, size_t id,
 			nng_msleep(param->opts->interval);
 			nng_msg_clone(pub_msg);
 			nng_sendmsg(*sock, pub_msg, NNG_FLAG_ALLOC);
+		}
+
+		nng_msg_clone(pub_msg);
+		nng_sendmsg(*sock, pub_msg, NNG_FLAG_ALLOC);
+		while (param->opts->stdin_line) {
+			uint8_t *msg     = NULL;
+			size_t msg_len = 0;
+			size_t len;
+			if ((msg_len = getline((char**)&(msg), &len, stdin)) == -1) {
+				console("Read line error!");
+			}
+			msg_len--;
+			if (msg_len > 0)  {
+				size_t free_len = 0;
+				char *free = nng_mqtt_msg_get_publish_payload(pub_msg, &free_len);
+				nng_free(free, free_len);
+				nng_msg_clone(pub_msg);
+				nng_mqtt_msg_set_publish_payload(
+				pub_msg, (uint8_t*)msg, msg_len);
+				nng_sendmsg(*sock, pub_msg, NNG_FLAG_ALLOC);
+			}
 		}
 
 		nng_msg_free(pub_msg);
