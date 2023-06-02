@@ -1689,6 +1689,9 @@ broker_reload(int argc, char **argv)
 	if (msg) {
 		nng_strfree(msg);
 	}
+	if (file_path) {
+		nng_strfree(file_path);
+	}
 
 	return 0;
 }
