@@ -493,11 +493,14 @@ help(enum client_type type)
 		console("  -m, --msg <message>              The message to "
 		       "publish\n");
 		console("  -L, --limit <num>                Max count of "
-		       "publishing "
-		       "message [default: 1]\n");
+		        "publishing "
+		        "message [default: 1]\n");
+		console("  -l, --stdin-line                 Send messages "
+		        "read from stdin, splitting separate lines into "
+		        "separate messages.[default: false]\n");
 		console("  -i, --interval <ms>              Interval of "
-		       "publishing "
-		       "message (ms) [default: 10]\n");
+		        "publishing "
+		        "message (ms) [default: 10]\n");
 	} else {
 		console("  -I, --interval <ms>              Interval of "
 		       "establishing connection "
