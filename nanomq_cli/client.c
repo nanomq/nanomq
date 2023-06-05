@@ -23,6 +23,7 @@
 #include "nng/supplemental/util/options.h"
 #include "nng/supplemental/util/platform.h"
 #include "nng/supplemental/nanolib/utils.h"
+#include "nng/supplemental/nanolib/file.h"
 
 
 #if defined(SUPP_CLIENT)
@@ -1235,7 +1236,7 @@ publish_msg(client_opts *opt)
 		opt->msg = NULL;
 		opt->msg_len = 0;
 		size_t len;
-		if ((opt->msg_len = getline((char**) &(opt->msg), &len, stdin)) == -1) {
+		if ((opt->msg_len = nano_getline((char**) &(opt->msg), &len, stdin)) == -1) {
 			console("Read line error!");
 		} 
 		opt->msg_len--;
@@ -1857,12 +1858,12 @@ create_quic_client(nng_socket *sock, struct work **works, size_t id,
 			uint8_t *msg     = NULL;
 			size_t msg_len = 0;
 			size_t len;
-			if ((msg_len = getline((char**)&(msg), &len, stdin)) == -1) {
+			if ((msg_len = nano_getline((char**)&(msg), &len, stdin)) == -1) {
 				console("Read line error!");
 			}
 			msg_len--;
 			if (msg_len > 0)  {
-				size_t free_len = 0;
+				uint32_t free_len = 0;
 				char *free = nng_mqtt_msg_get_publish_payload(pub_msg, &free_len);
 				nng_free(free, free_len);
 				nng_msg_clone(pub_msg);
