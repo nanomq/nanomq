@@ -1218,11 +1218,13 @@ out:
 
 #endif
 
+
 nng_msg *
 publish_msg(client_opts *opt)
 {
 	// create a PUBLISH message
 	nng_msg *pubmsg;
+	property *props = NULL;
 	nng_mqtt_msg_alloc(&pubmsg, 0);
 	nng_mqtt_msg_set_packet_type(pubmsg, NNG_MQTT_PUBLISH);
 	nng_mqtt_msg_set_publish_qos(pubmsg, opt->qos);
@@ -1240,7 +1242,11 @@ publish_msg(client_opts *opt)
 	}
 	nng_mqtt_msg_set_publish_payload(pubmsg, opt->msg, opt->msg_len);
 	nng_mqtt_msg_set_publish_topic(pubmsg, opt->topic->val);
-	nng_mqtt_msg_set_publish_property(pubmsg, opt->pub_properties);
+	if (opt->version == MQTT_PROTOCOL_VERSION_v5) {
+		mqtt_property_dup(&props, opt->pub_properties);
+		nng_mqtt_msg_set_publish_property(pubmsg, props);
+	}
+
 	return pubmsg;
 }
 
@@ -1839,7 +1845,9 @@ create_quic_client(nng_socket *sock, struct work **works, size_t id,
 		nng_msg *pub_msg = publish_msg(param->opts);
 		for (size_t i = 1; i < param->opts->total_msg_count; i++) {
 			nng_msleep(param->opts->interval);
-			nng_msg_clone(pub_msg);
+			// nng_msg_clone will caused duplicate packet id.
+			// nng_msg_clone(pub_msg);
+			nng_msg *pub_msg = publish_msg(param->opts);
 			nng_sendmsg(*sock, pub_msg, NNG_FLAG_ALLOC);
 		}
 
