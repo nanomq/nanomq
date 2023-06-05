@@ -69,4 +69,10 @@ docker run -d -p 1883:1883 -p 8883:8883 \
 | NANOMQ_TLS_KEY_PASSWORD         | String   | TLS私钥密码.                                              |
 | NANOMQ_TLS_VERIFY_PEER          | Boolean  | 验证客户端证书(*默认false*).                              |
 | NANOMQ_TLS_FAIL_IF_NO_PEER_CERT | Boolean  | 拒绝无证书连接，与 tls.verify_peer 配合使用(*默认false*). |
+| NANOMQ_LOG_TO                   | String   | 日志输出类型数组，使用竖线`|`分隔多种类型<br>支持文件，控制台，Syslog输出，对应参数:<br>file, console, syslog |
+| NANOMQ_LOG_LEVEL                | String   | 日志等级：trace, debug, info, warn, error, fatal |
+| NANOMQ_LOG_DIR                  | String   | 日志文件存储路径 (输出文件时生效) |
+| NANOMQ_LOG_FILE                 | String   | 日志文件名(输出文件时生效) |
+| NANOMQ_LOG_ROTATION_SIZE        | String   | 每个日志文件的最大占用空间;<br>支持单位: `KB| MB | GB`;<br> 默认:`10MB` |
+| NANOMQ_LOG_ROTATION_COUNT       | Integer  | 轮换的最大日志文件数;<br> 默认: `5` |
 | NANOMQ_CONF_PATH                | String   | NanoMQ配置文件路径 (*默认: `/etc/nanomq.conf`*).          |
