@@ -83,6 +83,7 @@ NanoMQ 的客户端工具在 `nanomq_cli` 中。目前客户端完整支持MQTT3
 | --interval      | -I           | -              | 10                        | 创建客户端间隔（ms） |
 | --identifier    | -i           | -              | random                    | 客户端订阅标识符     |
 | --limit         | -L           | -              | 1                         | 最大发布消息刷量     |
+| --stdin-line    | -l           | -              | false                     | 发送从 stdin 读取的消息，将单独的行拆分为单独的消息|
 | --will-qos      | -            | -              | 0                         | 遗愿消息的 qos 级别  |
 | --will-msg      | -            | -              | None                      | 遗愿消息             |
 | --will-topic    | -            | -              | None                      | 遗愿消息主题         |

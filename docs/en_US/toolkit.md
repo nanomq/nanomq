@@ -81,6 +81,7 @@ When executing `nanomq_cli pub --help`, you will get the available parameter out
 | --interval      | -I           | -              | 10                        | Interval to create a client; unit: ms                     |
 | --identifier    | -i           | -              | random                    | The client identifier UTF-8 String                        |
 | --limit         | -L           | -              | 1                         | Max count of publishing message                           |
+| --stdin-line    | -l           | -              | false                     | Send messages read from stdin, splitting separate lines into separate messages.
 | --will-qos      | -            | -              | 0                         | Quality of service level for the will message             |
 | --will-msg      | -            | -              | None                      | The payload of the will message                           |
 | --will-topic    | -            | -              | None                      | The topic of the will message                             |
