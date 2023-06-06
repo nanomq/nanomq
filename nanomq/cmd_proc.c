@@ -68,7 +68,7 @@ handle_recv(const char *msg, size_t msg_len, conf *config, char **err_msg)
 		conf_parse(new_conf);
 		break;
 	default:
-		break;
+		goto err;
 	}
 
 	reload_basic_config(config, new_conf);
@@ -110,6 +110,8 @@ cmd_server_cb(void *arg)
 		if (handle_recv(cmd, nng_msg_len(msg), work->config, &resp) ==
 		    0) {
 			resp = nng_strdup("reload succeed");
+		} else {
+			resp = nng_strdup("reload failed!");
 		}
 
 		nng_msg_clear(msg);
