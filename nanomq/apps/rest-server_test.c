@@ -9,7 +9,8 @@
 //
 
 #define INPROC_URL "inproc://rot13"
-#define REST_URL "http://127.0.0.1:%u/api/rest/rot13"
+#define REST_URL "http://127.0.0.1:%u"
+// #define REST_URL "http://127.0.0.1:%u/api/rest/rot13"
 // #define REST_URL "http://0.0.0.0:%u/hook"
 
 // REST API -> NNG REP server demonstration.
@@ -38,6 +39,7 @@
 #include <nng/protocol/reqrep0/req.h>
 #include <nng/supplemental/http/http.h>
 #include <nng/supplemental/util/platform.h>
+#include "include/broker.h"
 
 #include <ctype.h>
 #include <stdio.h>
@@ -47,12 +49,12 @@
 #include <assert.h>
 
 // utility function
-void
-fatal(const char *what, int rv)
-{
-	fprintf(stderr, "%s: %s\n", what, nng_strerror(rv));
-	exit(1);
-}
+// void
+// fatal(const char *what, int rv)
+// {
+// 	fprintf(stderr, "%s: %s\n", what, nng_strerror(rv));
+// 	exit(1);
+// }
 
 // This server acts as a proxy.  We take HTTP POST requests, convert them to
 // REQ messages, and when the reply is received, send the reply back to
@@ -220,7 +222,7 @@ rest_job_cb(void *arg)
 
 // Our rest server just takes the message body, creates a request ID
 // for it, and sends it on.  This runs in raw mode, so
-void
+static void
 rest_handle(nng_aio *aio)
 {
 	struct rest_job *job;
@@ -280,7 +282,7 @@ rest_handle(nng_aio *aio)
 	nng_ctx_send(job->ctx, job->aio);
 }
 
-void
+static void
 rest_start(uint16_t port)
 {
 	nng_http_server * server;
@@ -297,6 +299,7 @@ rest_start(uint16_t port)
 	// Set up some strings, etc.  We use the port number
 	// from the argument list.
 	snprintf(rest_addr, sizeof(rest_addr), REST_URL, port);
+	printf("rest_addr:%s\n", rest_addr);
 	if ((rv = nng_url_parse(&url, rest_addr)) != 0) {
 		fatal("nng_url_parse", rv);
 	}
@@ -344,6 +347,7 @@ rest_start(uint16_t port)
 		fatal("nng_http_handler_add_handler", rv);
 	}
 	if ((rv = nng_http_server_start(server)) != 0) {
+		printf("things go wrong\n");
 		fatal("nng_http_server_start", rv);
 	}
 
@@ -358,7 +362,7 @@ rest_start(uint16_t port)
 // especially that this uses inproc, so nothing can get to it directly
 // from outside the process.
 //
-void
+static void
 inproc_server(void *arg)
 {
 	nng_socket s;
@@ -386,9 +390,13 @@ inproc_server(void *arg)
 			fatal("inproc recvmsg", rv);
 		}
 		body = nng_msg_body(msg);
-		assert(strncmp(body, "TEST", 4) == 0);
-		// printf("Received: %s\n", (char *) body);
-		nng_msg_free(msg); // free the msg in test.
+		// assert(strncmp(body, "TEST", 4) == 0);
+		printf("Received: %s\n", (char *) body);
+		// nng_msg_frechar *buf = nano_getcwd(NULL, 0);
+	// if (buf != NULL) {
+	// 	printf("\tcwd:%s-----------------------\n", buf);
+	// 	nng_free(buf, sizeof(buf));
+	// }e(msg); // free the msg in test.
 		// count++;
 		// current = nng_clock();
 
@@ -452,13 +460,17 @@ inproc_server(void *arg)
 int
 main(int argc, char **argv)
 {
-	char *cmd = "curl -d TEST -s http://127.0.0.1:8888/api/rest/rot13";
+	char *cmd = "curl -d TEST -s http://127.0.0.1:8888";
+	char *cmd_pub = "mosquitto_pub -h 127.0.0.1 -p 1883 -t topic1 -m message -q 2";
 	int         rv;
 	nng_thread *inproc_thr;
-	uint16_t    port = 0;
-	FILE       *f_cmd = NULL;
+	uint16_t    port = 0; // if I set the port as 80, then the server can not start successfully. why?
+	
 	int         data_size = 128;
 	char       data[data_size];
+
+	// FILE       *f_cmd = NULL;
+	FILE *p_pub = NULL;
 
 	rv = nng_thread_create(&inproc_thr, inproc_server, NULL);
 	if (rv != 0) {
@@ -468,15 +480,29 @@ main(int argc, char **argv)
 		port = (uint16_t) atoi(getenv("PORT"));
 	}
 	port = port ? port : 8888;
+	printf("port:%d\n", port);
 	rest_start(port);
+	nng_msleep(500);
 
-	f_cmd = popen(cmd, "r");
-	fgets(data, data_size, f_cmd);
-	assert(strncmp(data, "OK", 2) == 0);
-	pclose(f_cmd);
+	nng_thread *nmq;
+	nng_thread_create(&nmq, broker_start, NULL);
+	nng_msleep(500); // wait a while before a client request
 
+	// f_cmd = popen(cmd, "r");
+	// fgets(data, data_size, f_cmd);
+	// assert(strncmp(data, "OK", 2) == 0);
+
+
+	p_pub = popen(cmd_pub, "r");
+	// pipe to pub
+	p_pub = popen(cmd_pub, "r");
+	pclose(p_pub);
+
+	// pclose(f_cmd);
+
+	nng_msleep(500);
 	// This runs forever.  The inproc_thr never exits, so we
 	// just block behind its condition variable.
-	nng_thread_destroy(inproc_thr);
+	// nng_thread_destroy(inproc_thr);
+	nng_thread_destroy(nmq);
 }
-
