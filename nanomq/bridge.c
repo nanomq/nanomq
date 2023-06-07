@@ -721,8 +721,15 @@ quic_ack_cb(void *arg)
 				         "%d)%s.",
 				    param->config->sub_list[i]->qos,
 				    param->config->sub_list[i]->topic);
+
+				property *properties = NULL;
+				if (param->config->proto_ver ==
+				    MQTT_PROTOCOL_VERSION_v5) {
+					properties = sub_property(
+					    param->config->sub_properties);
+				}
 				nng_mqtt_subscribe_async(
-				    client, topic_qos, 1, NULL);
+				    client, topic_qos, 1, properties);
 				nng_mqtt_topic_qos_array_free(topic_qos, 1);
 			}
 		} else {
@@ -738,9 +745,14 @@ quic_ack_cb(void *arg)
 				    param->config->sub_list[i]->qos,
 				    param->config->sub_list[i]->topic);
 			}
-			// TODO support MQTT V5
-			nng_mqtt_subscribe_async(
-			    client, topic_qos, param->config->sub_count, NULL);
+			property *properties = NULL;
+			if (param->config->proto_ver ==
+			    MQTT_PROTOCOL_VERSION_v5) {
+				properties = sub_property(
+				    param->config->sub_properties);
+			}
+			nng_mqtt_subscribe_async(client, topic_qos,
+			    param->config->sub_count, properties);
 			nng_mqtt_topic_qos_array_free(
 			    topic_qos, param->config->sub_count);
 		}
