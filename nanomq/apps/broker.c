@@ -1616,11 +1616,11 @@ broker_start(int argc, char **argv)
 	// 3. conf_parse(nanomq_conf) which will set nanomq_conf with its
 	// conf_file.
 	conf_parse_ver2(nanomq_conf);
-	// if (nanomq_conf->web_hook.enable == true) {
-	// 	printf("\tyesssss--------------------------------------\n");
-	// } else if (nanomq_conf->web_hook.enable == false) {
-	// 	printf("\tnot good-------------------------\n");
-	// }
+	if (nanomq_conf->web_hook.enable == true) {
+		printf("\twebhook is enabled\n");
+	} else if (nanomq_conf->web_hook.enable == false) {
+		printf("\twebhook is not enabled\n");
+	}
 #endif
 
 	if (nanomq_conf->enable) {
