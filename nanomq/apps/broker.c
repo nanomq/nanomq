@@ -1609,13 +1609,19 @@ broker_start(int argc, char **argv)
 	// 	printf("\tcwd:%s-----------------------\n", buf);
 	// 	nng_free(buf, sizeof(buf));
 	// }
-	// TODO: how can I find the conf file correctly
+	// TODO: how can I find the conf file correctly -> use a function to turn on all features.
 	char *conf_file = "/home/hermann/Documents/hermannDocuments/nanomq/"
 	                  "etc/nanomq_test.conf";
 	nanomq_conf->conf_file = conf_file;
+	printf("\tconf_file:%s\n", nanomq_conf->conf_file);
+	if(nano_file_exists(conf_file)) {
+		printf("\tfind the file\n");
+	} else {
+		printf("\tcould not find the file\n");
+	}
 	// 3. conf_parse(nanomq_conf) which will set nanomq_conf with its
 	// conf_file.
-	conf_parse_ver2(nanomq_conf);
+	conf_parse(nanomq_conf);
 	if (nanomq_conf->web_hook.enable == true) {
 		printf("\twebhook is enabled\n");
 	} else if (nanomq_conf->web_hook.enable == false) {

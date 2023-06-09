@@ -8,10 +8,12 @@
 // found online at https://opensource.org/licenses/MIT.
 //
 
-#define INPROC_URL "inproc://rot13"
-#define REST_URL "http://127.0.0.1:%u"
-// #define REST_URL "http://127.0.0.1:%u/api/rest/rot13"
-// #define REST_URL "http://0.0.0.0:%u/hook"
+// This is a test only Scenario for advanced features of NanoMQ, like webhook.
+
+#define INPROC_URL "inproc://test"
+#define REST_URL "http://0.0.0.0:%u/hook"
+
+int webhook_msg_cnt = 0; // this is a silly signal to indicate whether the webhook tests pass
 
 // REST API -> NNG REP server demonstration.
 
@@ -384,19 +386,23 @@ inproc_server(void *arg)
 	}
 	// This is simple enough that we don't need concurrency.  Plus it
 	// makes for an easier demo.
-	for (;;) {
+	for (;webhook_msg_cnt<5;) {
 		char *body;
 		if ((rv = nng_recvmsg(s, &msg, 0)) != 0) {
 			fatal("inproc recvmsg", rv);
 		}
 		body = nng_msg_body(msg);
 		// assert(strncmp(body, "TEST", 4) == 0);
-		printf("Received: %s\n", (char *) body);
+		printf("\tReceived: %s\n", (char *) body);
+		webhook_msg_cnt++;
+		printf("\twebhook_msg:%d\n", webhook_msg_cnt);
+		nng_msg_free(msg);
+
 		// nng_msg_frechar *buf = nano_getcwd(NULL, 0);
-	// if (buf != NULL) {
-	// 	printf("\tcwd:%s-----------------------\n", buf);
-	// 	nng_free(buf, sizeof(buf));
-	// }e(msg); // free the msg in test.
+		// if (buf != NULL) {
+		// 	printf("\tcwd:%s-----------------------\n", buf);
+		// 	nng_free(buf, sizeof(buf));
+		// }e(msg); // free the msg in test.
 		// count++;
 		// current = nng_clock();
 
@@ -452,16 +458,17 @@ inproc_server(void *arg)
 		if ((rv = nng_send(s, res, strlen(res), 0)) != 0) {
 			fatal("inproc sendmsg", rv);
 		}
-		nng_msleep(500);
-		break;
+		// nng_msleep(500);
 	}
 }
 
 int
 main(int argc, char **argv)
 {
-	char *cmd = "curl -d TEST -s http://127.0.0.1:8888";
-	char *cmd_pub = "mosquitto_pub -h 127.0.0.1 -p 1883 -t topic1 -m message -q 2";
+	// char *cmd = "curl -d TEST -s http://127.0.0.1:8888/hook";
+	char *cmd_pub = "mosquitto_pub -h 127.0.0.1 -p 1881 -t topic1 -m message -q 2";
+	// char *cmd_pub = "mosquitto_pub -h 116.205.239.134 -p 1883 -t topic1 -m message -q 2";
+
 	int         rv;
 	nng_thread *inproc_thr;
 	uint16_t    port = 0; // if I set the port as 80, then the server can not start successfully. why?
@@ -469,7 +476,7 @@ main(int argc, char **argv)
 	int         data_size = 128;
 	char       data[data_size];
 
-	// FILE       *f_cmd = NULL;
+	// FILE *f_cmd = NULL;
 	FILE *p_pub = NULL;
 
 	rv = nng_thread_create(&inproc_thr, inproc_server, NULL);
@@ -481,28 +488,26 @@ main(int argc, char **argv)
 	}
 	port = port ? port : 8888;
 	printf("port:%d\n", port);
-	rest_start(port);
+	rest_start(port); 
 	nng_msleep(500);
 
 	nng_thread *nmq;
 	nng_thread_create(&nmq, broker_start, NULL);
-	nng_msleep(500); // wait a while before a client request
+	nng_msleep(1000); // wait a while for broker to init.
 
 	// f_cmd = popen(cmd, "r");
 	// fgets(data, data_size, f_cmd);
 	// assert(strncmp(data, "OK", 2) == 0);
 
-
-	p_pub = popen(cmd_pub, "r");
 	// pipe to pub
 	p_pub = popen(cmd_pub, "r");
-	pclose(p_pub);
-
-	// pclose(f_cmd);
 
 	nng_msleep(500);
+	pclose(p_pub);
+	// pclose(f_cmd);
 	// This runs forever.  The inproc_thr never exits, so we
 	// just block behind its condition variable.
-	// nng_thread_destroy(inproc_thr);
+	nng_thread_destroy(inproc_thr);
 	nng_thread_destroy(nmq);
+	printf("\tend_webhook_msg:%d\n", webhook_msg_cnt);
 }
