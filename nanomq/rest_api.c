@@ -1312,7 +1312,7 @@ update_max_stats(client_stats *ms, client_stats *s)
 static void *
 get_client_exist_cb(uint32_t pid)
 {
-	return (void *) pid;
+	return (void*) (long long) pid;
 }
 
 static size_t
