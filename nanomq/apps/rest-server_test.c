@@ -8,12 +8,15 @@
 // found online at https://opensource.org/licenses/MIT.
 //
 
-// This is a test only Scenario for advanced features of NanoMQ, like webhook.
+// This is a test only Scenario for advanced features of NanoMQ, like webhook, etc.
 
 #define INPROC_URL "inproc://test"
 #define REST_URL "http://0.0.0.0:%u/hook"
 
 int webhook_msg_cnt = 0; // this is a silly signal to indicate whether the webhook tests pass
+
+// NOTE: All codes above main() are just supplemental functions that can
+// provide a RESTful httpserver for test.
 
 // REST API -> NNG REP server demonstration.
 
@@ -24,17 +27,6 @@ int webhook_msg_cnt = 0; // this is a silly signal to indicate whether the webho
 // NNG REP server (builtin inproc_server, for demonstration purposes only).
 // The reply is obtained from the server, and sent back to the client via
 // the HTTP server framework.
-
-// Example usage:
-//
-// % export CPPFLAGS="-I /usr/local/include"
-// % export LDFLAGS="-L /usr/local/lib -lnng"
-// % export CC="cc"
-// % ${CC} ${CPPFLAGS} server.c -o server ${LDFLAGS}
-// % ./server &
-// % curl -d TEST http://127.0.0.1:8888/api/rest/rot13
-// GRFG
-//
 
 #include <nng/nng.h>
 #include <nng/protocol/reqrep0/rep.h>
@@ -49,14 +41,6 @@ int webhook_msg_cnt = 0; // this is a silly signal to indicate whether the webho
 #include <string.h>
 #include <time.h>
 #include <assert.h>
-
-// utility function
-// void
-// fatal(const char *what, int rv)
-// {
-// 	fprintf(stderr, "%s: %s\n", what, nng_strerror(rv));
-// 	exit(1);
-// }
 
 // This server acts as a proxy.  We take HTTP POST requests, convert them to
 // REQ messages, and when the reply is received, send the reply back to
@@ -370,15 +354,6 @@ inproc_server(void *arg)
 	nng_socket s;
 	int        rv;
 	nng_msg *  msg;
-	uint64_t   last_count = 0;
-	uint64_t   count      = 0;
-
-	nng_time current    = nng_clock();
-	nng_time last       = current;
-	nng_time used_time  = 0;
-	nng_time total_time = 0;
-
-	bool auth_res = false;
 
 	if (((rv = nng_rep0_open(&s)) != 0) ||
 	    ((rv = nng_listen(s, INPROC_URL, NULL, 0)) != 0)) {
@@ -386,79 +361,20 @@ inproc_server(void *arg)
 	}
 	// This is simple enough that we don't need concurrency.  Plus it
 	// makes for an easier demo.
-	for (;webhook_msg_cnt<5;) {
+	for (;;) {
 		char *body;
 		if ((rv = nng_recvmsg(s, &msg, 0)) != 0) {
 			fatal("inproc recvmsg", rv);
 		}
 		body = nng_msg_body(msg);
-		// assert(strncmp(body, "TEST", 4) == 0);
-		printf("\tReceived: %s\n", (char *) body);
-		webhook_msg_cnt++;
-		printf("\twebhook_msg:%d\n", webhook_msg_cnt);
+		// printf("\tReceived: %s\n", (char *) body);
 		nng_msg_free(msg);
+		webhook_msg_cnt++;
 
-		// nng_msg_frechar *buf = nano_getcwd(NULL, 0);
-		// if (buf != NULL) {
-		// 	printf("\tcwd:%s-----------------------\n", buf);
-		// 	nng_free(buf, sizeof(buf));
-		// }e(msg); // free the msg in test.
-		// count++;
-		// current = nng_clock();
-
-		// used_time = current - last;
-		// if (used_time >= 1000) {
-		// 	last = current;
-		// 	total_time += used_time;
-		// 	printf("recv (%lu), total=%lu, rate=%lf(msg/sec)\n",
-		// total_time, 	    count, (count - last_count) * 1000.0 /
-		// used_time); 	last_count = count;
-		// }
-#if 0
-		auth_res = false;
-		if (nng_msg_len(msg) > 0) {
-			printf("\nrecv: \n%s\n", (char *) body);
-			if (strstr(nng_msg_body(msg),
-			        "username=user001&password=pass001") != NULL ||
-			    strstr(nng_msg_body(msg),
-			        "username=user002&password=pass002") != NULL) {
-				auth_res = true;
-			} else if ((strstr(nng_msg_body(msg),
-			                "\"username\":\"user001\"") != NULL &&
-			               strstr(nng_msg_body(msg),
-			                   "\"password\":\"pass001\"") !=
-			                   NULL) ||
-			    ((strstr(nng_msg_body(msg),
-			          "\"username\":\"user002\"") != NULL &&
-			        strstr(nng_msg_body(msg),
-			            "\"password\":\"pass002\"") != NULL))) {
-				auth_res = true;
-
-			} 
-		}else {
-			
-		}
-#endif
-
-		// for (int i = 0; i < nng_msg_len(msg); i++) {
-		// 	// Table lookup would be faster, but this works.
-		// 	if (isupper(body[i])) {
-		// 		char base = body[i] - 'A';
-		// 		base      = (base + 13) % 26;
-		// 		body[i]   = base + 'A';
-		// 	} else if (islower(body[i])) {
-		// 		char base = body[i] - 'a';
-		// 		base      = (base + 13) % 26;
-		// 		body[i]   = base + 'a';
-		// 	}
-		// }
-
-		// char *res = auth_res ? "ok" : "failed";
 		char *res = "OK";
 		if ((rv = nng_send(s, res, strlen(res), 0)) != 0) {
 			fatal("inproc sendmsg", rv);
 		}
-		// nng_msleep(500);
 	}
 }
 
@@ -467,47 +383,27 @@ main(int argc, char **argv)
 {
 	// char *cmd = "curl -d TEST -s http://127.0.0.1:8888/hook";
 	char *cmd_pub = "mosquitto_pub -h 127.0.0.1 -p 1881 -t topic1 -m message -q 2";
-	// char *cmd_pub = "mosquitto_pub -h 116.205.239.134 -p 1883 -t topic1 -m message -q 2";
 
 	int         rv;
 	nng_thread *inproc_thr;
-	uint16_t    port = 0; // if I set the port as 80, then the server can not start successfully. why?
-	
-	int         data_size = 128;
-	char       data[data_size];
-
-	// FILE *f_cmd = NULL;
+	uint16_t    port = 8888;
 	FILE *p_pub = NULL;
 
 	rv = nng_thread_create(&inproc_thr, inproc_server, NULL);
 	if (rv != 0) {
 		fatal("cannot start inproc server", rv);
 	}
-	if (getenv("PORT") != NULL) {
-		port = (uint16_t) atoi(getenv("PORT"));
-	}
-	port = port ? port : 8888;
-	printf("port:%d\n", port);
 	rest_start(port); 
-	nng_msleep(500);
 
 	nng_thread *nmq;
 	nng_thread_create(&nmq, broker_start, NULL);
 	nng_msleep(1000); // wait a while for broker to init.
 
-	// f_cmd = popen(cmd, "r");
-	// fgets(data, data_size, f_cmd);
-	// assert(strncmp(data, "OK", 2) == 0);
-
-	// pipe to pub
+	// pipe to pub to trigger webhook
 	p_pub = popen(cmd_pub, "r");
-
-	nng_msleep(500);
 	pclose(p_pub);
-	// pclose(f_cmd);
-	// This runs forever.  The inproc_thr never exits, so we
-	// just block behind its condition variable.
-	nng_thread_destroy(inproc_thr);
+
 	nng_thread_destroy(nmq);
-	printf("\tend_webhook_msg:%d\n", webhook_msg_cnt);
+	assert(webhook_msg_cnt == 5);
+	// printf("\tend_webhook_msg:%d\n", webhook_msg_cnt);
 }
