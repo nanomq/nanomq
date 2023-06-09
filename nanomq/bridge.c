@@ -10,6 +10,13 @@
 
 #include "include/nanomq.h"
 
+#ifdef NNG_SUPP_TLS
+#include <nng/supplemental/tls/tls.h>
+
+static int  init_dialer_tls(nng_dialer d, const char *cacert, const char *cert,
+     const char *key, const char *pass);
+#endif
+
 static int session_is_kept_tcp  = 0;
 static int session_is_kept_quic = 0;
 
@@ -18,6 +25,8 @@ fatal(const char *func, int rv)
 {
 	fprintf(stderr, "%s: %s\n", func, nng_strerror(rv));
 }
+
+#define nng_fatal(func, rv) fatal(func, rv)
 
 static int
 apply_sqlite_config(
@@ -178,6 +187,17 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 		fatal("nng_dialer_create", rv);
 		return rv;
 	}
+
+#ifdef NNG_SUPP_TLS
+	if (node->tls.enable) {
+		if ((rv = init_dialer_tls(dialer, node->tls.ca, node->tls.cert,
+		         node->tls.key, node->tls.key_password)) != 0) {
+			nng_fatal("init_dialer_tls", rv);
+		}
+	}
+#endif
+
+
 
 	// create a CONNECT message
 	/* CONNECT */
@@ -343,7 +363,8 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 {
 	char *quic_scheme = "mqtt-quic";
 	char *tcp_scheme = "mqtt-tcp";
-	if (0 == strncmp(node->address, tcp_scheme, 8)) {
+	char *tls_scheme = "tls+mqtt-tcp";
+	if (0 == strncmp(node->address, tcp_scheme, 8) || 0 == strncmp(node->address, tls_scheme, 12)) {
 		bridge_tcp_client(sock, config, node);
 #if defined(SUPP_QUIC)
 	} else if (0 == strncmp(node->address, quic_scheme, 9)) {
@@ -355,3 +376,39 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	return 0;
 }
 
+#ifdef NNG_SUPP_TLS
+static int
+init_dialer_tls(nng_dialer d, const char *cacert, const char *cert,
+    const char *key, const char *pass)
+{
+	nng_tls_config *cfg;
+	int             rv;
+
+	if ((rv = nng_tls_config_alloc(&cfg, NNG_TLS_MODE_CLIENT)) != 0) {
+		return (rv);
+	}
+
+	if (cert != NULL && key != NULL) {
+		nng_tls_config_auth_mode(cfg, NNG_TLS_AUTH_MODE_REQUIRED);
+		if ((rv = nng_tls_config_own_cert(cfg, cert, key, pass)) !=
+		    0) {
+			goto out;
+		}
+	} else {
+		nng_tls_config_auth_mode(cfg, NNG_TLS_AUTH_MODE_NONE);
+	}
+
+	if (cacert != NULL) {
+		if ((rv = nng_tls_config_ca_chain(cfg, cacert, NULL)) != 0) {
+			goto out;
+		}
+	}
+
+	rv = nng_dialer_set_ptr(d, NNG_OPT_TLS_CONFIG, cfg);
+
+out:
+	nng_tls_config_free(cfg);
+	return (rv);
+}
+
+#endif
