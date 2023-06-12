@@ -1,13 +1,3 @@
-//
-// Copyright 2018 Staysail Systems, Inc. <info@staysail.tech>
-// Copyright 2018 Capitar IT Group BV <info@capitar.com>
-//
-// This software is supplied under the terms of the MIT License, a
-// copy of which should be located in the distribution where this
-// file was obtained (LICENSE.txt).  A copy of the license may also be
-// found online at https://opensource.org/licenses/MIT.
-//
-
 // This is a test only Scenario for advanced features of NanoMQ, like webhook, etc.
 
 #define INPROC_URL "inproc://test"
@@ -18,13 +8,11 @@ int webhook_msg_cnt = 0; // this is a silly signal to indicate whether the webho
 // NOTE: All codes above main() are just supplemental functions that can
 // provide a RESTful httpserver for test.
 
-// REST API -> NNG REP server demonstration.
-
 // This is a silly demo -- it listens on port 8888 (or $PORT if present),
-// and accepts HTTP POST requests at /api/rest/rot13
+// and accepts HTTP POST requests at /test
 //
 // These requests are converted into an NNG REQ message, and sent to an
-// NNG REP server (builtin inproc_server, for demonstration purposes only).
+// NNG REP server (builtin inproc_server, for test purposes only).
 // The reply is obtained from the server, and sent back to the client via
 // the HTTP server framework.
 
@@ -503,7 +491,7 @@ main(int argc, char **argv)
 	pclose(p_pub);
 
 	nng_thread_destroy(nmq);
-	free_conf(conf);
+	// free_conf(conf);
 	assert(webhook_msg_cnt == 5);
-	// printf("\tend_webhook_msg:%d\n", webhook_msg_cnt);
+	printf("\tend_webhook_msg:%d\n", webhook_msg_cnt);
 }
