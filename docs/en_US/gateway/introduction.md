@@ -1,6 +1,6 @@
 # Multi-Protocol Gateway
 
-This section introduces multi-protocol gateways, including ZMQ gateway, SOME/IP Gateway and DDS Gateway.
+This section introduces multi-protocol gateways, including ZMQ gateway, SOME/IP Gateway, and DDS Gateway.
 
 ## [ZMQ Gateway](./zmq-gateway.md)
 

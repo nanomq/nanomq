@@ -4,6 +4,7 @@ NanoMQ Broker provides HTTP APIs for integration with external systems, such as 
 
 NanoMQ Broker's HTTP API service listens on port 8081 by default. You can modify the listening port through the configuration file of `etc/nanomq.conf`. All API calls with `api/v1`.
 
-## Interface security
+NanoMQ currently provides 2 versions of HTTP APIs, you can click the link below to learn the details:
 
-NanoMQ Broker's HTTP API uses the method of [Basic Authentication](https://en.wikipedia.org/wiki/Basic_access_authentication) or [JWT Authentication](./jwt.md). The `username` and `password` must be filled. The default `username` and `password` are: `admin/public`. You can modify username and password through the configuration file of `etc/nanomq.conf`.
+- [HTTP API (V4)](./v4.md)
+- [HTTP API (V1)](./v1.md)

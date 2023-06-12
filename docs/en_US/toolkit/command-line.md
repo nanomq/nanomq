@@ -1,6 +1,14 @@
-# Use Command Line
+# Command Line Interface Guide
 
-## broker
+This page introduces how to use the command line interface for broker, client, and rule-related operations. 
+
+- **[Broker](#broker)**: The broker section provides details about the parameters that can be used when starting the NanoMQ broker.
+- **[Client](#client)**: This part discusses how to interact with the NanoMQ broker as a client. The operations are split into three main categories: Publish, Subscribe, and Conn.
+- **[Rule](#rule)**: This section is dedicated to creating and managing rules. 
+
+Each command comes with a range of optional parameters, allowing for a high degree of control and customization over how you interact with the NanoMQ broker and MQTT messages. 
+
+## Broker
 
 NanoMQ MQTT Broker (NanoMQ) is a lightweight and blazing-fast MQTT Broker for the IoT Edge platform.
 
@@ -108,11 +116,11 @@ For example, we start 1 client with username nano and set Qos1 .
 $ nanomq_cli conn start -q 1 --url "mqtt-tcp://broker.emqx.io:1883"
 ```
 
-### Rule
+## Rule
 
 Execute `nanomq_cli rule --help` to get all available parameters of this command. 
 
-#### rules create
+#### Rules Create
 
 Create a new rule with the following parameter:
 
@@ -129,7 +137,7 @@ $ nanomq_cli rules --create --sql 'SELECT * FROM "abc"' --actions '[{"name":"sql
 
 ```
 
-#### rules list
+### Rules List
 
 List all rules:
 
@@ -144,7 +152,7 @@ $ nanomq_cli rules --list
 
 ```
 
-#### rules show
+### Rules Show
 
 Query rules:
 
@@ -155,7 +163,7 @@ $ nanomq_cli rules --show --id 1
 {"rawsql":"SELECT payload.x.y as y, payload.z as z FROM \"#\" WHERE y > 10 and z != 'str'","id":1,"enabled":true}
 ```
 
-#### rules delete
+### Rule Delete
 
 Delete a rule:
 
