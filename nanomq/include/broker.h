@@ -18,6 +18,10 @@
 
 #define STATISTICS
 
+#if defined(ENABLE_NANOMQ_TESTS)
+	#undef STATISTICS
+#endif
+
 typedef struct work nano_work;
 struct work {
 	enum {

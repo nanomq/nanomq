@@ -1434,9 +1434,11 @@ get_metrics(http_msg *msg, kv **params, size_t param_num,
 	nng_id_map_foreach2(pipe_id_map, get_metric_cb, &stats);
 	stats.subscribers      = dbhash_get_pipe_cnt();
 	stats.topics           = get_topics_count();
+#ifdef STATISTICS
 	stats.message_received = nanomq_get_message_in();
 	stats.message_sent     = nanomq_get_message_out();
 	stats.message_dropped  = nanomq_get_message_drop();
+#endif
 
 #if NANO_PLATFORM_LINUX
 	update_process_info(&stats);
