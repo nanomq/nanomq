@@ -1675,6 +1675,66 @@ broker_start(int argc, char **argv)
 	return rc == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
+int
+broker_start_with_conf(conf *nanomq_conf)
+{
+
+	int rc = 0;
+	int pid = 0;
+
+	if (!status_check(&pid)) {
+		fprintf(stderr,
+		    "One NanoMQ instance is still running, a new instance for "
+		    "test won't be started until the other one is stopped.\n");
+		exit(EXIT_FAILURE);
+	}
+
+	if (nanomq_conf->enable) {
+		nanomq_conf->url = nanomq_conf->url != NULL
+		    ? nanomq_conf->url
+		    : nng_strdup(CONF_TCP_URL_DEFAULT);
+	}
+
+	if (nanomq_conf->tls.enable) {
+		nanomq_conf->tls.url = nanomq_conf->tls.url != NULL
+		    ? nanomq_conf->tls.url
+		    : nng_strdup(CONF_TLS_URL_DEFAULT);
+	}
+
+	if (nanomq_conf->websocket.enable) {
+		nanomq_conf->websocket.url = nanomq_conf->websocket.url != NULL
+		    ? nanomq_conf->websocket.url
+		    : nng_strdup(CONF_WS_URL_DEFAULT);
+
+		if (nanomq_conf->tls.enable) {
+			nanomq_conf->websocket.tls_url =
+			    nanomq_conf->websocket.tls_url != NULL
+			    ? nanomq_conf->websocket.tls_url
+			    : nng_strdup(CONF_WSS_URL_DEFAULT);
+		}
+	}
+	// Active the configure for nanomq
+	if ((rc = active_conf(nanomq_conf)) != 0) {
+		return rc;
+	}
+#if defined(ENABLE_LOG)
+	if ((rc = log_init(&nanomq_conf->log)) != 0) {
+		nng_fatal("log_init", rc);
+	}
+#endif
+	print_conf(nanomq_conf);
+
+#if !defined(BUILD_APP_LIB)
+	if (store_pid()) {
+		log_error("create \"nanomq.pid\" file failed");
+	}
+#endif
+	// TODO: more check for arg nanomq_conf?
+	rc = broker(nanomq_conf);
+
+	return rc == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+}
+
 #if (!defined(NANO_PLATFORM_WINDOWS) && !defined(BUILD_APP_LIB))
 
 int
