@@ -369,9 +369,9 @@ inproc_server(void *arg)
 static conf*
 get_webhook_conf()
 {
-	conf             *nanomq_conf;
-	conf_http_header *header;
-	conf_web_hook_rule    *webhook_rule;
+	conf               *nanomq_conf;
+	conf_http_header   *header;
+	conf_web_hook_rule *webhook_rule;
 	if ((nanomq_conf = nng_zalloc(sizeof(conf))) == NULL) {
 		fprintf(stderr,
 		    "Cannot allocate storge for configuration, quit\n");
@@ -394,53 +394,49 @@ get_webhook_conf()
 	nanomq_conf->tls.enable         = false;
 	nanomq_conf->websocket.enable   = false;
 	nanomq_conf->http_server.enable = false;
+
 	// conf for webhook
 	nanomq_conf->web_hook.enable         = true;
 	nanomq_conf->web_hook.url            = "http://0.0.0.0:8888/hook";
 	nanomq_conf->web_hook.encode_payload = plain;
 	nanomq_conf->web_hook.pool_size      = 32;
 
-
+	// set up webhook headers
 	nanomq_conf->web_hook.header_count = 1;
 	nanomq_conf->web_hook.headers = realloc(nanomq_conf->web_hook.headers,
 	    nanomq_conf->web_hook.header_count * sizeof(conf_http_header *));
-
-	header        = calloc(1, sizeof(conf_http_header));
-	header->key   = "content-type";
-	header->value = "application/json";
+		
+	header                        = calloc(1, sizeof(conf_http_header));
+	header->key                   = "content-type";
+	header->value                 = "application/json";
 	nanomq_conf->web_hook.headers[0] = header;
 
-
+	// set up webhook rules
 	nanomq_conf->web_hook.rule_count = 5;
 	nanomq_conf->web_hook.rules      = realloc(nanomq_conf->web_hook.rules,
-	    nanomq_conf->web_hook.rule_count * sizeof(conf_web_hook_rule *));
+	         nanomq_conf->web_hook.rule_count * sizeof(conf_web_hook_rule *));
 
-	webhook_rule = calloc(1, sizeof(conf_web_hook_rule));
+	webhook_rule                   = calloc(1, sizeof(conf_web_hook_rule));
 	webhook_rule->event            = CLIENT_CONNECT;
 	webhook_rule->rule_num         = 1;
-
 	webhook_rule->action           = "on_client_connect";
 	nanomq_conf->web_hook.rules[0] = webhook_rule;
-
-	webhook_rule = calloc(1, sizeof(conf_web_hook_rule));
+	webhook_rule                   = calloc(1, sizeof(conf_web_hook_rule));
 	webhook_rule->event            = CLIENT_CONNACK;
 	webhook_rule->rule_num         = 1;
 	webhook_rule->action           = "on_client_connack";
 	nanomq_conf->web_hook.rules[1] = webhook_rule;
-
-	webhook_rule = calloc(1, sizeof(conf_web_hook_rule));
+	webhook_rule                   = calloc(1, sizeof(conf_web_hook_rule));
 	webhook_rule->event            = CLIENT_CONNECTED;
 	webhook_rule->rule_num         = 1;
 	webhook_rule->action           = "on_client_connected";
 	nanomq_conf->web_hook.rules[2] = webhook_rule;
-
-	webhook_rule = calloc(1, sizeof(conf_web_hook_rule));
+	webhook_rule                   = calloc(1, sizeof(conf_web_hook_rule));
 	webhook_rule->event            = CLIENT_DISCONNECTED;
 	webhook_rule->rule_num         = 1;
 	webhook_rule->action           = "on_client_disconnected";
 	nanomq_conf->web_hook.rules[3] = webhook_rule;
-	
-	webhook_rule = calloc(1, sizeof(conf_web_hook_rule));
+	webhook_rule                   = calloc(1, sizeof(conf_web_hook_rule));
 	webhook_rule->event            = MESSAGE_PUBLISH;
 	webhook_rule->rule_num         = 1;
 	webhook_rule->action           = "on_message_publish";
@@ -449,49 +445,34 @@ get_webhook_conf()
 	return nanomq_conf;
 }
 
-static void free_conf(conf* conf)
-{
-	for (int i = 0; i<conf->web_hook.header_count;++i) {
-		nng_free(conf->web_hook.headers[i], sizeof(conf_http_header));
-	}
-	nng_free(conf->web_hook.headers, sizeof(conf_http_header *));
-	for (int i = 0; i < conf->web_hook.rule_count;++i) {
-		nng_free(conf->web_hook.rules[i], sizeof(conf_web_hook_rule));
-	}
-	nng_free(conf->web_hook.rules, sizeof(conf_web_hook_rule *));
-	nng_free(conf, sizeof(conf));
-}
-
 int
 main(int argc, char **argv)
 {
-	// char *cmd = "curl -d TEST -s http://127.0.0.1:8888/hook";
 	char *cmd_pub = "mosquitto_pub -h 127.0.0.1 -p 1881 -t topic1 -m message -q 2";
 
 	int         rv;
 	nng_thread *inproc_thr;
 	uint16_t    port = 8888;
-	FILE *p_pub = NULL;
 
+	// start the RESTful http server thread
 	rv = nng_thread_create(&inproc_thr, inproc_server, NULL);
 	if (rv != 0) {
 		fatal("cannot start inproc server", rv);
 	}
 	rest_start(port);
 
+	// start nmq thread
 	nng_thread *nmq;
 	conf       *conf = get_webhook_conf();
-	// print_conf(conf);
 	nng_thread_create(&nmq, broker_start_with_conf, conf);
-	// nng_thread_create(&nmq, broker_start, NULL);
 	nng_msleep(800); // wait a while for broker to init.
 
-	// pipe to pub to trigger webhook
+	// pipe for pub to trigger webhook
+	FILE *p_pub = NULL;
 	p_pub = popen(cmd_pub, "r");
 	pclose(p_pub);
 
 	nng_thread_destroy(nmq);
-	// free_conf(conf);
 	assert(webhook_msg_cnt == 5);
-	printf("\tend_webhook_msg:%d\n", webhook_msg_cnt);
+	// printf("\tend_webhook_msg:%d\n", webhook_msg_cnt);
 }
