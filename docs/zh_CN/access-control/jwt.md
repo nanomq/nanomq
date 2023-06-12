@@ -1,8 +1,8 @@
-## 启用JWT身份验证
+## 启用 JWT 身份验证
 
 ### 编译
 
-NanoMQ中JWT作为扩展特性，默认不加入编译目标。可通过设置编译选项 `-DENABLE_JWT=ON `启用JWT:
+NanoMQ 中 JWT 作为扩展特性，默认不加入编译目标。可通过设置编译选项 `-DENABLE_JWT=ON `启用 JWT:
 
 ```bash
 $ cmake -DENABLE_JWT=ON ..
@@ -11,7 +11,7 @@ $ make
 
 ### 生成公私钥
 
-签发 JWT 前需要生成一对公私钥, 并注意根据需要修改公钥文件名 (**文件名会被自动设置为Token载荷中**`iss`**字段的值**)；
+签发 JWT 前需要生成一对公私钥, 并注意根据需要修改公钥文件名 (**文件名会被自动设置为 Token 载荷中**`iss`**字段的值**)；
 
 使用 OpenSSL 命令行工具生成 RSA 密钥：
 
@@ -24,7 +24,7 @@ $ openssl rsa -in nanomq.key -out nanomq.pub -pubout
 
 ### 配置
 
-NanoMQ的HTTP身份验证方式默认使用`Basic`认证，需要在配置文件中修改`auth_type`为`JWT`,并指定`JWT`公钥文件的路径:
+NanoMQ 的 HTTP 身份验证方式默认使用`Basic`认证，需要在配置文件中修改`auth_type`为`JWT`,并指定`JWT`公钥文件的路径:
 
 ```c
 http_server {
@@ -61,19 +61,19 @@ http_server {
 }
 ```
 
-### 启动NanoMQ
+### 启动 NanoMQ
 
-启动nanomq并指定配置文件
+启动 nanomq 并指定配置文件
 
 ```bash
 $ nanomq start --conf ./nanomq.conf
 ```
 
-### Token规则
+### Token 规则
 
-使用HTTP客户端访问NanoMQ HTTP服务端前需先生成Token;
+使用 HTTP 客户端访问 NanoMQ HTTP 服务端前需先生成 Token;
 
-NanoMQ中所需要的JWT结构如下:
+NanoMQ 中所需要的 JWT 结构如下:
 
 ```bash
 header
@@ -93,29 +93,29 @@ payload
 
 #### 头部
 
-- 令牌类型（typ）：使用 JWT
-- 使用的算法（alg）：使用 RS256
+- 令牌类型（ typ ）：使用 JWT
+- 使用的算法（ alg ）：使用 RS256
 
 #### 载荷
 
-- 签发者(iss):         根据需求定义，但要确保与生成的公钥文件名称一致。例如，生成 nanomq.pub 的公钥文件, 则iss设置为 "nanomq.pub"
+- 签发者(iss):         根据需求定义，但要确保与生成的公钥文件名称一致。例如，生成 nanomq.pub 的公钥文件, 则 iss 设置为 "nanomq.pub"
 - 签发时间(iat):     签发时间
 - 过期时间(exp)：签发过期时间
 
-### 生成Token
+### 生成 Token
 
 使用 [JWT 官网](https://jwt.io/)工具生成。在 Decoded 中填写：
 
-- Algorithm：RS256
-- Header：头部
-- Payload：载荷
-- Verify Signature：分别填入公私钥 -----BEGIN PUBLIC KEY----- 和 -----BEGIN RSA PRIVATE KEY-----。
+- Algorithm ： RS256
+- Header ：头部
+- Payload ：载荷
+- Verify Signature ：分别填入公私钥 -----BEGIN PUBLIC KEY----- 和 -----BEGIN RSA PRIVATE KEY-----
 
 
 
-### 访问NanoMQ HTTP Server
+### 访问 NanoMQ HTTP Server
 
-使用curl并填入以上生成的token访问NanoMQ HTTP服务:
+使用 curl 并填入以上生成的 token 访问 NanoMQ HTTP 服务:
 
 ```bash
 $ curl --location 'http://127.0.0.1:8081/api/v4' \

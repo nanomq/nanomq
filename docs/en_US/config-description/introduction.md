@@ -11,7 +11,7 @@ The configuration files of NanoMQ Broker is HOCON（Human-Optimized Config Objec
 
 ## Syntax
 
-In config file the values can be notated as JSON like objects, such as
+In the configuration file the values can be notated as JSON-like objects, such as
 
 ```bash
 websocket {
@@ -29,8 +29,7 @@ websocket.bind="0.0.0.0:8083/mqtt"
 
 This flat format is almost backward compatible (the so called 'cuttlefish' format).
 
-It is not fully compatible because the often HOCON requires strings to be quoted,
-while cuttlefish treats all characters to the right of the `=` mark as the value.
+It is not fully compatible because HOCON requires strings to be quoted, while cuttlefish treats all characters to the right of the `=` mark as the value.
 
 e.g. cuttlefish: cuttlefish：`websocket.bind = 0.0.0.0:8083/mqtt`，HOCON：`websocket.bind = "0.0.0.0:8083/mqtt"`.
 

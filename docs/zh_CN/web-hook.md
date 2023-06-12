@@ -4,9 +4,9 @@
 
 ## 配置项
 
-Webhook 的配置文件位于 `etc/nanomq.conf`, 具体配置项可查看[配置说明](./config-description/v014.md).
+Webhook 的配置文件位于 `etc/nanomq.conf`, 具体配置项可查看[配置说明](./config-description/v014.md)。
 
-**启用Webhook**
+**启用 Webhook**
 
 ```bash
 web.hook.enable=true
@@ -43,8 +43,8 @@ web.hook.rule.message.publish.2={"action": "on_message_publish", "topic": "foo/#
 
 触发规则，其值为一个 JSON 字符串，其中可用的 Key 有：
 
-- action：字符串，取固定值
-- topic：字符串，表示一个主题过滤器，操作的主题只有与该主题匹配才能触发事件的转发
+- action ：字符串，取固定值
+- topic ：字符串，表示一个主题过滤器，操作的主题只有与该主题匹配才能触发事件的转发
 
 例如，我们只将与 a/b/c 和 foo/# 主题匹配的消息转发到 Web 服务器上，其配置应该为：
 
@@ -74,9 +74,9 @@ Body: <JSON>    # Body 为 JSON 格式字符串
 | --------- | ------- | ------------------------------------------- |
 | action    | string  | 事件名称 固定为："client_connack"           |
 | clientid  | string  | 客户端 ClientId                             |
-| username  | string  | 客户端 Username，不存在时该值为 "undefined" |
+| username  | string  | 客户端 Username ，不存在时该值为 "undefined" |
 | keepalive | integer | 客户端申请的心跳保活时间                    |
-| proto_ver | integer | 协议版本号 （3 ｜ 4 ｜ 5）                  |
+| proto_ver | integer | 协议版本号 （ 3 ｜ 4 ｜ 5 ）                  |
 | conn_ack  | string  | "success" 表示成功，其它表示失败的原因      |
 
 **client.disconnected**
@@ -85,7 +85,7 @@ Body: <JSON>    # Body 为 JSON 格式字符串
 | -------- | ------ | ------------------------------------------- |
 | action   | string | 事件名称 固定为："client_disconnected"      |
 | clientid | string | 客户端 ClientId                             |
-| username | string | 客户端 Username，不存在时该值为 "undefined" |
+| username | string | 客户端 Username ，不存在时该值为 "undefined" |
 | reason   | string | 错误原因                                    |
 
 **message.publish**
@@ -94,7 +94,7 @@ Body: <JSON>    # Body 为 JSON 格式字符串
 | -------------- | ------- | ------------------------------------------- |
 | action         | string  | 事件名称 固定为："message_publish"          |
 | from_client_id | string  | 发布端 ClientId                             |
-| from_username  | string  | 发布端 Username，不存在时该值为 "undefined" |
+| from_username  | string  | 发布端 Username ，不存在时该值为 "undefined" |
 | topic          | string  | 取消订阅的主题                              |
 | qos            | enum    | QoS 等级，可取 0 1 2                        |
 | retain         | bool    | 是否为 Retain 消息                          |

@@ -1,4 +1,4 @@
-# NanoMQ桥接到EMQX
+# NanoMQ 桥接到 EMQX
 
 桥接是一种连接多个 MQTT 消息中间件的方式。不同于集群，工作在桥接模式下的节点之间不会复制主题树和路由表。桥接模式所做的是：
 
@@ -9,17 +9,17 @@
 
 需在配置`nanomq.conf`文件中进行配置
 
-具体配置参数请参考桥接[配置](../config-description/v014.md),  以下配置示例为Hocon格式配置:
+具体配置参数请参考桥接[配置](../config-description/v014.md),  以下配置示例为 Hocon 格式配置:
 
 重点配置项：
 
 - 桥接功能启用: `bridges.mqtt.nodes[].enable`
 
-- 远端broker地址: `bridges.mqtt.nodes[].connector.server`
-- 转发远端Topic数组(支持MQTT 通配符):  `bridges.mqtt.nodes[].forwards`
-- 订阅远端Topic数组(支持MQTT 通配符):   `bridges.mqtt.nodes[].subscription`
+- 远端 broker 地址: `bridges.mqtt.nodes[].connector.server`
+- 转发远端 Topic 数组(支持 MQTT 通配符):  `bridges.mqtt.nodes[].forwards`
+- 订阅远端 Topic 数组(支持 MQTT 通配符):   `bridges.mqtt.nodes[].subscription`
 
-nanomq.conf桥接配置部分
+nanomq.conf 桥接配置部分
 
 ```bash
 bridges.mqtt {
@@ -30,11 +30,11 @@ bridges.mqtt {
 			## 启用桥接功能
 			enable = true
 			connector {
-				## TCP URL格式:  mqtt-tcp://host:port
-				## TLS URL格式:  tls+mqtt-tcp://host:port
-				## QUIC URL格式: mqtt-quic://host:port
+				## TCP URL 格式:  mqtt-tcp://host:port
+				## TLS URL 格式:  tls+mqtt-tcp://host:port
+				## QUIC URL 格式: mqtt-quic://host:port
 				server = "mqtt-tcp://broker.emqx.io:1883"
-				## MQTT协议版本 （4 ｜ 5）
+				## MQTT 协议版本 （ 4 ｜ 5 ）
 				proto_ver = 4
 				# username = admin
 				# password = public
@@ -83,24 +83,24 @@ $ nanomq start --conf nanomq.conf
 
 ### 测试消息转发
 
-使用nanomq自带客户端工具测试桥接消息的收发。
+使用 nanomq 自带客户端工具测试桥接消息的收发。
 
-1. 订阅远端EMQX Broker的主题：
+1. 订阅远端 EMQX Broker 的主题：
 
    从**EMQX**订阅转发的主题 “`forward1/#`”, 该主题将接收到从**NanoMQ**上转发的数据：
 
-   在第1个终端上执行订阅:
+   在第 1 个终端上执行订阅:
 
    ```bash
    $ nanomq_cli sub --url "mqtt-tcp://broker.emqx.io:1883" -t  "forward1/#"
    forward1/msg: forward_msg
    ```
 
-2. 发布消息到本地NanoMQ Broker主题:
+2. 发布消息到本地 NanoMQ Broker 主题:
 
-   发布消息到NanoMQ Broker，主题为 “`forward1/msg`”：
+   发布消息到 NanoMQ Broker ，主题为 “`forward1/msg`”：
 
-   在第2个终端上执行消息发布:
+   在第 2 个终端上执行消息发布:
 
    ```bash
    $ nanomq_cli pub -t  "forward1/msg"  -m "forward_msg"
@@ -108,20 +108,20 @@ $ nanomq start --conf nanomq.conf
 
 ### 测试消息接收
 
-1. 订阅本地**NanoMQ** Broker的主题：
+1. 订阅本地**NanoMQ** Broker 的主题：
 
    从**NanoMQ**订阅主题 “`cmd/topic1`”, 该主题将接收到**EMQX**上发布的数据：
 
-   在第3个终端上执行订阅:
+   在第 3 个终端上执行订阅:
 
    ```bash
    $ nanomq_cli sub -t "recv/topic1"
    recv/topic1: cmd_msg
    ```
 
-2. 发布消息到远端**EMQX** Broker主题“`cmd/topic1`”：
+2. 发布消息到远端**EMQX** Broker 主题“`cmd/topic1`”：
 
-   在第4个终端上执行消息发布:
+   在第 4 个终端上执行消息发布:
 
    ```bash
    $ nanomq_cli pub --url "mqtt-tcp://broker.emqx.io:1883" -t  "recv/topic1" -m "cmd_msg"

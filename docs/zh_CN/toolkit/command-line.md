@@ -2,7 +2,7 @@
 
 ## broker
 
-NanoMQ 是一款用在物联网平台边缘端的超轻量 MQTT Broker。
+NanoMQ 是一款用在物联网平台边缘端的超轻量 MQTT Broker 。
 
 | Parameter       | abbreviation | Optional value                         | Default value            | Description                                                  |
 | --------------- | ------------ | -------------------------------------- | ------------------------ | ------------------------------------------------------------ |
@@ -10,8 +10,8 @@ NanoMQ 是一款用在物联网平台边缘端的超轻量 MQTT Broker。
 | --conf          | -            | -                                      | -                        | NanoMQ 配置文件路径                                          |
 | --http          | -            | true false                             | false                    | Http 服务开关                                                |
 | --port          | -p           | -                                      | 8081                     | Http 服务端口设置                                            |
-| --tq_thread     | -t           | -                                      | -                        | Taskq 线程数量设置，最小为1， 最大为256                      |
-| --max_tq_thread | -T           | -                                      | -                        | Taskq 最大线程数量设置，最小为1， 最大为256                  |
+| --tq_thread     | -t           | -                                      | -                        | Taskq 线程数量设置，最小为 1 ， 最大为 256                      |
+| --max_tq_thread | -T           | -                                      | -                        | Taskq 最大线程数量设置，最小为 1 ， 最大为 256                  |
 | --parallel      | -n           | -                                      | -                        | 可以处理的最大外部请求数                                     |
 | --property_size | -s           | -                                      | -                        | MQTT 用户属性的最大数量                                      |
 | --msq_len       | -S           | -                                      | -                        | 重发消息的最大数量                                           |
@@ -22,11 +22,11 @@ NanoMQ 是一款用在物联网平台边缘端的超轻量 MQTT Broker。
 | --key           | -            | -                                      | -                        | PEM 编码用户私钥路径                                         |
 | --keypass       | -            | -                                      | -                        | 用户密钥。在私钥受密钥保护的情况下使用。                     |
 | --verify        | -            | true false                             | false                    | 设置对端证书验证                                             |
-| --fail          | -            | true false                             | false                    | 客户端证书验证操作使能位。如果设置为true，客户端无证书时拒绝连接 |
+| --fail          | -            | true false                             | false                    | 客户端证书验证操作使能位。如果设置为 true ，客户端无证书时拒绝连接 |
 | --log_level     | -            | trace, debug, info, warn, error, fatal | warn                     | 日志等级                                                     |
 | --log_file      | -            | -                                      | -                        | 日志文件输出路径                                             |
 | --log_stdout    | -            | true, false                            | true                     | 日志输出到控制台                                             |
-| --log_syslog    | -            | true, false                            | false                    | 日志输出到Syslog (默认只支持Linux系统)                       |
+| --log_syslog    | -            | true, false                            | false                    | 日志输出到 Syslog (默认只支持 Linux 系统)                       |
 
 例如，我们在 url nmq-tcp://localhost:1884 上启动 NanoMQ 监听 MQTT 消息，在 url nmq-ws://localhost:8085 上启动 websocket 消息，在端口 30000 上启用 http 服务器。
 
@@ -34,7 +34,7 @@ NanoMQ 是一款用在物联网平台边缘端的超轻量 MQTT Broker。
 $ nanomq start --url nmq-tcp://localhost:1884 --url nmq-ws://localhost:8085 --http -p 30000
 ```
 
-nanomq命令行支持多个日志类型输出，例如以下同时启用三种输出类型, 并设置日志等级为debug：
+nanomq 命令行支持多个日志类型输出，例如以下同时启用三种输出类型, 并设置日志等级为 debug ：
 
 ```bash
 $ nanomq start --log_level=debug --log_file=nanomq.log  --log_stdout=true --log_syslog=true
@@ -50,7 +50,7 @@ $ nanomq start --conf <config_file>
 
 ## Client
 
-目前客户端完整支持MQTT3.1.1，部分支持MQTT5.0 。
+目前客户端完整支持 MQTT3.1.1 ，部分支持 MQTT5.0 。
 
 ### Pub
 
@@ -76,7 +76,7 @@ $ nanomq start --conf <config_file>
 | --cert          | -E           | -                                                            | None                           | 证书路径             |
 | --key           | -            | true false                                                   | false                          | 私钥路径             |
 | --keypass       | -            | -                                                            | None                           | 私钥密码             |
-| --interval      | -i           | -                                                            | 10                             | 创建客户端间隔（ms） |
+| --interval      | -i           | -                                                            | 10                             | 创建客户端间隔（ ms ） |
 | --identifier    | -I           | -                                                            | random                         | 客户端订阅标识符     |
 | --limit         | -L           | -                                                            | 1                              | 最大发布消息刷量     |
 | --will-qos      | -            | -                                                            | 0                              | 遗愿消息的 qos 级别  |
@@ -94,7 +94,7 @@ $ nanomq_cli pub -t t --url "mqtt-tcp://broker.emqx.io:1883" -q 2 -u nano -L 100
 
 执行 `nanomq_cli sub --help` 以获取该命令的所有可用参数。它们的解释已包含在上表中，此处不再赘述。
 
-例如，我们使用用户名 nano 启动 1 个客户端，并从主题 `t` 设置 Qos1。
+例如，我们使用用户名 nano 启动 1 个客户端，并从主题 `t` 设置 Qos1 。
 
 ```bash
 $ nanomq_cli sub -t t --url "mqtt-tcp://broker.emqx.io:1883" -q 1

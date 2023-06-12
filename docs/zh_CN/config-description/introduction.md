@@ -1,6 +1,6 @@
 # 配置说明
 
-NanoMQ 的配置文件格式是 HOCON 。 HOCON（Human-Optimized Config Object Notation）是一个JSON的超集，非常适用于易于人类读写的配置数据存储。你可以在 etc 目录找到这些配置文件，主要配置文件包括：
+NanoMQ 的配置文件格式是 HOCON 。 HOCON（ Human-Optimized Config Object Notation ）是一个 JSON 的超集，非常适用于易于人类读写的配置数据存储。你可以在 etc 目录找到这些配置文件，主要配置文件包括：
 
 | 配置文件                | 说明                                    |
 | ----------------------- | --------------------------------------- |
@@ -23,19 +23,19 @@ websocket {
 
 ```bash
 websocket.enable = false
-websocket.bind="0.0.0.0:8083/mqtt"
+websocket.bind ="0.0.0.0:8083/mqtt"
 ```
 
 这种扁平格式几乎与 NanoMQ 的配置文件格式向后兼容（所谓的 'cuttlefish' 格式）。
 
 它并不是完全兼容，因为 HOCON 经常要求字符串两端加上引号。
-而cuttlefish把`=`符右边的所有字符都视为值。
+而 cuttlefish 把`=`符右边的所有字符都视为值。
 
-例如，cuttlefish：`websocket.bind = 0.0.0.0:8083/mqtt`，HOCON：`websocket.bind = "0.0.0.0:8083/mqtt"`。
+例如，cuttlefish: `websocket.bind = 0.0.0.0:8083/mqtt`， HOCON: `websocket.bind = "0.0.0.0:8083/mqtt"`。
 
 ### 配置重载规则
 
-HOCON的值是分层覆盖的，普遍规则如下：
+HOCON 的值是分层覆盖的，普遍规则如下：
 
 - 在同一个文件中，后（在文件底部）定义的值，覆盖前（在文件顶部）到值。
 - 当按层级覆盖时，高层级的值覆盖低层级的值。

@@ -4,14 +4,14 @@ Bench 是使用 NanoSDK 编写的简洁强大的 MQTT 协议性能测试工具�
 
 ## Compile 
 
-**注意**：bench 工具默认不构建，您可以通过`-DBUILD_BENCH=ON` 启用它。
+**注意**： bench 工具默认不构建，您可以通过`-DBUILD_BENCH=ON` 启用它。
 
 ```bash
 $ cmake -G Ninja -DBUILD_BENCH=ON ..
 $ Ninja
 ```
 
-编译完成后，会生成一个名为“nanomq”的可执行文件。执行以下命令确认可以正常使用：
+编译完成后，会生成一个名为“ nanomq ”的可执行文件。执行以下命令确认可以正常使用：
 
 ```bash
 $ nanomq_cli 
