@@ -1,12 +1,16 @@
 # Configure with Rule Engine
 
-#### Rule Engine Configuration
+This section provides a comprehensive guide on setting up the rule engine according to your specific needs using a configuration file.
+
+## Rule Engine Configuration
 
 | Name        | Type   | Description                                                  |
 | ----------- | ------ | ------------------------------------------------------------ |
 | rule.option | String | Rule engine option, when persistent with rule engine, this option is must be ON. |
 
-#### Rule Configuration for SQLite
+## Data Persistence with SQLite
+
+NanoMQ supports data persistence with SQLite, see below for the configuration items. 
 
 | Name                         | Type   | Description                                                  |
 | ---------------------------- | ------ | ------------------------------------------------------------ |
@@ -16,8 +20,9 @@
 | rule.sqlite.rules[0].table   | String | Rule engine option SQLite3 database table name               |
 | rule.sqlite.rules[0].sql     | String | Rule engine sql clause                                       |
 
+## Data Persistence with MySQL
 
-#### Rule Configuration for MySQL
+NanoMQ supports data persistence with MySQL, see below for the configuration items. 
 
 | Name                         | Type   | Description                                                  |
 | ---------------------------- | ------ | ------------------------------------------------------------ |
@@ -30,8 +35,9 @@
 | rule.mysql.rules[0].password | String | Rule engine option mysql database password                   |
 | rule.mysql.rules[0].sql      | String | Rule engine sql clause                                       |
 
+## Rule Configuration for Republish
 
-#### Rule configuration for repub
+Republish is a feature in NanoMQ that enables republishing of MQTT messages. The following parameters control its behavior:
 
 | Name                            | Type     | Description                                                |
 | ------------------------------- | -------- | ---------------------------------------------------------- |
@@ -46,6 +52,3 @@
 | rule.repub.rules[0].keepalive   | Duration | Rule engine option repub keepalive                         |
 | rule.repub.rules[0].clean_start | Boolean  | Rule engine option repub clean_start flag, default is true |
 | rule.repub.rules[0].sql         | String   | Rule engine sql clause                                     |
-
-
-### 

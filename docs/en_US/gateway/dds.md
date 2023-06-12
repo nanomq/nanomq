@@ -1,16 +1,14 @@
 # DDS
 
-The OMG Data Distribution Service (DDS™) is a middleware protocol and API standard for data-centric connectivity from the [Object Management Group® (OMG®)](https://www.omg.org/). It integrates the components of a system together, providing low-latency data connectivity, extreme reliability, and a scalable architecture that business and mission-critical Internet of Things (IoT) applications need.
+The OMG Data Distribution Service (DDS™) is a middleware protocol and API standard for data-centric connectivity from the [Object Management Group® (OMG®)](https://www.omg.org/). It integrates the components of a system together, providing low-latency data connectivity, extreme reliability, and scalable architecture that business and mission-critical Internet of Things (IoT) applications need.
 
-[Cyclone DDS](https://cyclonedds.io/) is a high performing, OMG-DDS standard based data sharing technology which allows system designers to create digital twins of their systems' entities to share their states, events, data-streams and messages on the network in real-time and fault-tolerant way.
+[Cyclone DDS](https://cyclonedds.io/) is a high-performing, OMG-DDS standard-based data-sharing technology that allows system designers to create digital twins of their systems' entities to share their states, events, data-streams, and messages on the network in a real-time and fault-tolerant way.
 
 ## DDS to MQTT Proxy
 
-Here we combine dds with mqtt. So DDS node can communicate with MQTT broker.
+Here we combine dds with MQTT. So DDS node can communicate with MQTT broker.
 
-<img src="./images/dds-mqtt.png" style="zoom: 67%;" />
-
-
+![dds-mqtt](./assets/dds-mqtt.png)
 
 ## Building
 

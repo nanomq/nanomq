@@ -180,7 +180,7 @@
       ]
     },
     {
-      "title": "Rules",
+      "title": "Rule Engine",
       "path": "rule/introduction",
       "children":[
         {
@@ -188,13 +188,13 @@
           "path": "rule/web-hook"
         },
         {
-          "title": "Configure with Rule Engine",
-          "path": "rule/config-rule-engine"
+          "title": "Configure with Configuration File",
+          "path": "rule/config-file"
         }
       ]
     },
     {
-      "title": "MQTT Bridge",
+      "title": "MQTT Data Bridge",
       "path": "bridges/introduction",
       "children": [
         {
