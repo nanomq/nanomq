@@ -173,5 +173,3 @@ $ nanomq_cli rules --delete --id 1
 
 {"code":0}
 ```
-
-## 
