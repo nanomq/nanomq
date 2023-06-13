@@ -250,6 +250,7 @@ log_fini(conf_log *log)
 		closelog();
 	}
 #endif
+	log_clear_callback();
 
 	return 0;
 }

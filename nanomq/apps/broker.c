@@ -66,8 +66,8 @@
 
 enum options {
 	OPT_HELP = 1,
-	OPT_HOCONFILE,
-	OPT_CONFFILE,
+	OPT_HOCONFILE = 2, /* Do not change this value, it is used beyond this file. */
+	OPT_CONFFILE = 3,  /* Do not change this value, it is used beyond this file. */
 	OPT_PARALLEL,
 	OPT_DAEMON,
 	OPT_THREADS,
@@ -155,6 +155,8 @@ intHandler(int dummy)
 }
 #endif
 
+static void proto_bridge_work_reload(nano_work *w, nng_socket *bridge_sock);
+
 static inline bool
 bridge_handler(nano_work *work)
 {
@@ -177,6 +179,7 @@ bridge_handler(nano_work *work)
 
 	for (size_t t = 0; t < work->config->bridge.count; t++) {
 		conf_bridge_node *node = work->config->bridge.nodes[t];
+		nng_mtx_lock(node->mtx);
 		if (node->enable) {
 			for (size_t i = 0; i < node->forwards_count; i++) {
 				if (topic_filter(node->forwards[i],
@@ -207,6 +210,7 @@ bridge_handler(nano_work *work)
 				}
 			}
 		}
+		nng_mtx_unlock(node->mtx);
 	}
 	if (!rv) {
 		work->proto_ver == MQTT_PROTOCOL_VERSION_v5
@@ -227,6 +231,7 @@ server_cb(void *arg)
 	int            rv;
 
 	mqtt_msg_info *msg_info;
+	nng_socket    *newsock = NULL;
 
 	switch (work->state) {
 	case INIT:
@@ -734,6 +739,20 @@ alloc_work(nng_socket sock)
 	return (w);
 }
 
+static void
+proto_bridge_work_reload(nano_work *w, nng_socket *bridge_sock)
+{
+	int rv;
+	if ((rv = nng_ctx_open(&w->extra_ctx, *bridge_sock)) != 0) {
+		nng_fatal("nng_ctx_open", rv);
+	}
+	// Reset the state of work
+	w->code  = SUCCESS;
+	w->state = INIT;
+
+	server_cb(w);
+}
+
 nano_work *
 proto_work_init(nng_socket sock,nng_socket inproc_sock, nng_socket bridge_sock, uint8_t proto,
     dbtree *db_tree, dbtree *db_tree_ret, conf *config)
@@ -950,6 +969,8 @@ broker(conf *nanomq_conf)
 		for (size_t t = 0; t < nanomq_conf->bridge.count; t++) {
 			conf_bridge_node *node = nanomq_conf->bridge.nodes[t];
 			if (node->enable) {
+				nng_aio *bridge_reload_aio; // Reload aio each bridge
+				nng_aio_alloc(&bridge_reload_aio, NULL, NULL);
 				bridge_sock = node->sock;
 				for (i = tmp; i < (tmp + node->parallel);
 				     i++) {
@@ -957,7 +978,9 @@ broker(conf *nanomq_conf)
 					    inproc_sock, *bridge_sock,
 					    PROTO_MQTT_BRIDGE, db, db_ret,
 					    nanomq_conf);
+					works[i]->bridge_reload_aio = bridge_reload_aio;
 				}
+				node->bridge_reload_aio = bridge_reload_aio;
 				tmp += node->parallel;
 			}
 		}
@@ -1067,7 +1090,7 @@ broker(conf *nanomq_conf)
 		if (nano_file_exists(IPC_URL_PATH))
 			nng_file_delete(IPC_URL_PATH);
 		if ((rv = nng_listen(cmd_sock, CMD_IPC_URL, NULL, 0)) != 0) {
-			nng_fatal("nng_listen", rv);
+			nng_fatal("nng_listen ipc", rv);
 		}
 
 		for (i = 0; i < CMD_PROC_PARALLEL; i++) {
@@ -1358,13 +1381,10 @@ file_path_parse(int argc, char **argv, char **file_path)
 			exit(0);
 			break;
 		case OPT_HOCONFILE:
-			FREE_NONULL(*file_path);
-			*file_path = nng_strdup(arg);
-			return OPT_HOCONFILE;
 		case OPT_CONFFILE:
 			FREE_NONULL(*file_path);
 			*file_path = nng_strdup(arg);
-			return OPT_CONFFILE;
+			return val;
 		default:
 			break;
 		}
@@ -1656,17 +1676,21 @@ broker_reload(int argc, char **argv)
 	}
 
 	char *file_path = NULL;
-	if (!file_path_parse(argc, argv, &file_path)) {
+	int   rc        = file_path_parse(argc, argv, &file_path);
+	if (!rc) {
 		fprintf(stderr, "Cannot parse command line arguments, quit\n");
 		exit(EXIT_FAILURE);
 	}
 
-	char *msg = encode_client_cmd(file_path);
+	char *msg = encode_client_cmd(file_path, rc);
 
 	start_cmd_client(msg);
 
 	if (msg) {
 		nng_strfree(msg);
+	}
+	if (file_path) {
+		nng_strfree(file_path);
 	}
 
 	return 0;
@@ -1703,12 +1727,13 @@ int
 broker_reload(int argc, char **argv)
 {
 	char *file_path = NULL;
-	if (!file_path_parse(argc, argv, &file_path)) {
+	int   rc        = file_path_parse(argc, argv, &file_path);
+	if (!rc) {
 		fprintf(stderr, "Cannot parse command line arguments, quit\n");
 		exit(EXIT_FAILURE);
 	}
 
-	char *msg = encode_client_cmd(file_path);
+	char *msg = encode_client_cmd(file_path, rc);
 
 	start_cmd_client(msg);
 

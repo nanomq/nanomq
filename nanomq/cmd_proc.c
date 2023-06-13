@@ -57,11 +57,25 @@ handle_recv(const char *msg, size_t msg_len, conf *config, char **err_msg)
 	new_conf->conf_file = conf_file != NULL
 	    ? nng_strdup(conf_file)
 	    : nng_strdup(config->conf_file);
-	conf_parse(new_conf);
+
+	int conf_type = 2;
+	getNumberValue(obj, item, "conf_type", conf_type, rv);
+	switch (conf_type) {
+	case 2: /* OPT_HOCONFILE */
+		conf_parse_ver2(new_conf);
+		break;
+	case 3: /* OPT_CONFILE */
+		conf_parse(new_conf);
+		break;
+	default:
+		goto err;
+	}
 
 	reload_basic_config(config, new_conf);
 	reload_sqlite_config(&config->sqlite, &new_conf->sqlite);
 	reload_auth_config(&config->auths, &new_conf->auths);
+	reload_log_config(config, new_conf);
+
 
 	conf_fini(new_conf);
 	cJSON_Delete(obj);
@@ -96,6 +110,8 @@ cmd_server_cb(void *arg)
 		if (handle_recv(cmd, nng_msg_len(msg), work->config, &resp) ==
 		    0) {
 			resp = nng_strdup("reload succeed");
+		} else {
+			resp = nng_strdup("reload failed!");
 		}
 
 		nng_msg_clear(msg);
@@ -228,11 +244,12 @@ client(const char *cmd)
 }
 
 char *
-encode_client_cmd(const char *conf_file)
+encode_client_cmd(const char *conf_file, int type)
 {
 	cJSON *obj = cJSON_CreateObject();
 	cJSON_AddStringToObject(obj, "cmd", "reload");
 	cJSON_AddStringToObject(obj, "conf_file", conf_file);
+	cJSON_AddNumberToObject(obj, "conf_type", type);
 	char *cmd = cJSON_PrintUnformatted(obj);
 	cJSON_Delete(obj);
 	return cmd;

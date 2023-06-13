@@ -8,6 +8,7 @@
 //
 
 #include "include/rest_api.h"
+#include "include/bridge.h"
 #include "include/conf_api.h"
 #include "nng/supplemental/nanolib/base64.h"
 #include "nng/supplemental/nanolib/cJSON.h"
@@ -44,8 +45,14 @@
 #define nano_strtok strtok_r
 #endif
 
+#if NANO_PLATFORM_LINUX
+#include <unistd.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+#endif
+
 typedef int (handle_mqtt_msg_cb) (cJSON *, nng_socket *);
-#define METRICS_DATA_SIZE 1024
+#define METRICS_DATA_SIZE 2048
 
 typedef struct {
 	char *key;
@@ -1115,6 +1122,8 @@ typedef struct {
 	uint32_t message_received;
 	uint32_t message_sent;
 	uint32_t message_dropped;
+	float    memory;
+	float    cpu_percent;
 } client_stats;
 
 static void
@@ -1200,7 +1209,7 @@ get_clients(http_msg *msg, kv **params, size_t param_num,
 		goto out;
 	}
 
-	
+
 	client_info info = {
 		.array     = data_info,
 		.client_id = (char *) client_id,
@@ -1213,18 +1222,18 @@ get_clients(http_msg *msg, kv **params, size_t param_num,
 
  	res_obj = cJSON_CreateObject();
  	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
- 
+
  	// cJSON *meta = cJSON_CreateObject();
- 
+
  	// cJSON_AddItemToObject(res_obj, "meta", meta);
  	// TODO add meta content: page, limit, count
  	cJSON_AddItemToObject(res_obj, "data", data_info);
  	char *dest = cJSON_PrintUnformatted(res_obj);
  	cJSON_Delete(res_obj);
- 
+
  	put_http_msg(
  	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
- 
+
  	cJSON_free(dest);
 
 	return res;
@@ -1265,22 +1274,39 @@ compose_metrics(char *ret, client_stats *ms, client_stats *s)
 	             "\nnanomq_messages_sent %d"
 	             "\n# TYPE nanomq_messages_dropped counter"
 	             "\n# HELP nanomq_messages_dropped"
-	             "\nnanomq_messages_dropped %d\n";
+	             "\nnanomq_messages_dropped %d"
+	             "\n# TYPE nanomq_memory_usage gauge"
+	             "\n# HELP nanomq_memory_usage (MB)"
+	             "\nnanomq_memory_usage %.2f"
+	             "\n# TYPE nanomq_memory_usage_max gauge"
+	             "\n# HELP nanomq_memory_usage_max (MB)"
+	             "\nnanomq_memory_usage_max %.2f"
+	             "\n# TYPE nanomq_cpu_usage gauge"
+	             "\n# HELP nanomq_cpu_usage"
+	             "\nnanomq_cpu_usage %.2f%"
+	             "\n# TYPE nanomq_cpu_usage gauge"
+	             "\n# HELP nanomq_cpu_usage"
+	             "\nnanomq_cpu_usage %.2f%\n";
 
 	snprintf(ret, METRICS_DATA_SIZE, fmt, s->connections, ms->connections,
 	    s->sessions, ms->sessions, s->topics, ms->topics, s->subscribers,
 	    ms->subscribers, s->message_received, s->message_sent,
-	    s->message_dropped);
+	    s->message_dropped, s->memory, ms->memory, s->cpu_percent,
+	    ms->cpu_percent);
 }
+
+#define max_stats(s, ms, field) ms->field > s->field ? ms->field : s->field
 
 static void
 update_max_stats(client_stats *ms, client_stats *s)
 {
-	//TODO not strictly the maximum value.
-	ms->topics = ms->topics > s->topics ? ms->topics : s->topics;
-	ms->sessions = ms->sessions > s->sessions ? ms->sessions : s->sessions;
-	ms->connections = ms->connections > s->connections ? ms->connections : s->connections;
-	ms->subscribers = ms->subscribers > s->subscribers ? ms->subscribers : s->subscribers;
+	// TODO not strictly the maximum value.
+	ms->topics      = max_stats(s, ms, topics);
+	ms->sessions    = max_stats(s, ms, sessions);
+	ms->connections = max_stats(s, ms, connections);
+	ms->subscribers = max_stats(s, ms, subscribers);
+	ms->memory      = max_stats(s, ms, memory);
+	ms->cpu_percent = max_stats(s, ms, cpu_percent);
 }
 
 static void *
@@ -1312,6 +1338,84 @@ get_topics_count()
 	return counter;
 }
 
+static long
+get_cpu_time()
+{
+	FILE *fd;
+	char  buff[256];
+
+	fd = fopen("/proc/stat", "r");
+	if (fd == NULL) {
+		log_error("open /proc/stat failed!");
+		return -1;
+	}
+
+	fgets(buff, sizeof(buff), fd);
+	uint32_t user, nice, sys, idle, iowait, irq, sirq, steal;
+
+	int rc = sscanf(buff, "%*s %u %u %u %u %u %u %u %u", &user, &nice, &sys, &idle,
+	    &iowait, &irq, &sirq, &steal);
+
+	fclose(fd);
+
+	if (rc != 8) {
+		log_error("scanf error!");
+		return -1;
+	}
+	long ret = user + nice + sys + idle + iowait + irq + sirq + steal;
+	return ret;
+}
+
+static long
+update_process_info(client_stats *s)
+{
+	static long last_cpu_time  = 0;
+	static long last_proc_time = 0;
+
+	long cpu_time = get_cpu_time();
+	if (cpu_time == -1) {
+		s->cpu_percent = -1;
+		return -1;
+	}
+
+	int  pid = getpid();
+	char stat_file[256];
+	snprintf(stat_file, sizeof(stat_file), "/proc/%d/stat", pid);
+
+	FILE *fp = fopen(stat_file, "r");
+	if (fp == NULL) {
+		perror("Error opening file");
+		return -1;
+	}
+
+	long utime, stime, cutime, cstime, rss;
+	if (fscanf(fp,
+	        "%*d %*s %*c %*d %*d %*d %*d %*d %*u %*u %*u %*u %*u %lu "
+	        "%lu %ld %ld %*d %*d %*d %*d %*u %*u %ld",
+	        &utime, &stime, &cutime, &cstime, &rss) != 5) {
+		perror("Error reading file");
+		fclose(fp);
+		return -1;
+	}
+	fclose(fp);
+
+	s->memory = (float) rss * getpagesize() / (1024 * 1024);
+
+	long   proc_time   = utime + stime + cutime + cstime;
+	double cpu_percent = 100.0 *
+	    ((double) (proc_time - last_proc_time) /
+	        (cpu_time - last_cpu_time == 0 ? -1
+	                                       : cpu_time - last_cpu_time));
+	s->cpu_percent = cpu_percent <= 0 ? 0 : cpu_percent;
+	log_debug("NanoMQ memory usage: %.2f MB\n", s->memory);
+	log_debug("NanoMQ cpu usage: %.2f %\n", s->cpu_percent);
+
+	last_proc_time = proc_time;
+	last_cpu_time  = cpu_time;
+
+	return 0;
+}
+
 static http_msg
 get_metrics(http_msg *msg, kv **params, size_t param_num,
     const char *client_id, const char *username, nng_socket *broker_sock)
@@ -1328,11 +1432,16 @@ get_metrics(http_msg *msg, kv **params, size_t param_num,
 	}
 
 	nng_id_map_foreach2(pipe_id_map, get_metric_cb, &stats);
-	stats.subscribers            = dbhash_get_pipe_cnt();
-	stats.topics                 = get_topics_count();
-	stats.message_received       = nanomq_get_message_in();
-	stats.message_sent           = nanomq_get_message_out();
-	stats.message_dropped        = nanomq_get_message_drop();
+	stats.subscribers      = dbhash_get_pipe_cnt();
+	stats.topics           = get_topics_count();
+	stats.message_received = nanomq_get_message_in();
+	stats.message_sent     = nanomq_get_message_out();
+	stats.message_dropped  = nanomq_get_message_drop();
+
+#if NANO_PLATFORM_LINUX
+	update_process_info(&stats);
+#endif
+
 	char dest[METRICS_DATA_SIZE] = { 0 };
 	update_max_stats(&max_stats, &stats);
 	compose_metrics(dest, &max_stats, &stats);
@@ -1351,12 +1460,12 @@ get_subscriptions(
 {
 	http_msg res = { 0 };
  	res.status   = NNG_HTTP_STATUS_OK;
- 
+
  	cJSON *res_obj   = NULL;
  	cJSON *data_info = NULL;
  	data_info        = cJSON_CreateArray();
  	res_obj          = cJSON_CreateObject();
- 
+
  	dbtree *          db   = get_broker_db();
  	dbhash_ptpair_t **pt   = dbhash_get_ptpair_all();
  	size_t            size = cvector_size(pt);
@@ -1374,7 +1483,7 @@ get_subscriptions(
  				}
  			}
  		}
- 
+
  		// topic_queue *tn = pt[i]->topic;
 		topic_queue *tq = dbhash_copy_topic_queue(pt[i]->pipe);
 		topic_queue *reap_node = tq;
@@ -1400,18 +1509,18 @@ get_subscriptions(
  		dbhash_ptpair_free(pt[i]);
  	}
  	cvector_free(pt);
- 
+
  	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
  	// cJSON *meta = cJSON_CreateObject();
  	// cJSON_AddItemToObject(res_obj, "meta", meta);
  	// TODO add meta content: page, limit, count
  	cJSON_AddItemToObject(res_obj, "data", data_info);
- 
+
  	char *dest = cJSON_PrintUnformatted(res_obj);
- 
+
  	put_http_msg(
  	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
- 
+
  	cJSON_free(dest);
  	cJSON_Delete(res_obj);
 	return res;
@@ -1507,7 +1616,6 @@ post_rules(http_msg *msg)
 			    .enabled = true;
 			cr->rules[cvector_size(cr->rules) - 1]
 			    .rule_id = rule_generate_rule_id();
-			
 
 		} else if (!strcasecmp(name, "sqlite")) {
 			cr->option |= RULE_ENG_SDB;
@@ -1641,7 +1749,7 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 	rule *new_rule = NULL;
 
 	// Updated three parts， enabled status，sql and action
-	// 1. update sql: parse sql, set raw_sql, set rule_id, do not need deal connection. free origin sql data， 
+	// 1. update sql: parse sql, set raw_sql, set rule_id, do not need deal connection. free origin sql data,
 	// 2. update enabled status: need to deal connection,  status changed will lead to connect/disconnect.
 	// 3, update actions: need to deal connection，update repub/table.
 
@@ -1680,7 +1788,7 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 			new_rule->mysql = mysql;
 		}
 
-		// Maybe cvector_push_back() will realloc, 
+		// Maybe cvector_push_back() will realloc,
 		// so for safty reassagn it
 		old_rule = &cr->rules[i];
 		rule_free(old_rule);
@@ -1844,7 +1952,7 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 			{
 				nanomq_client_sqlite(cr, true);
 			}
-			
+
 		} else if (jso_enabled && false == new_rule->enabled) {
 			// TODO nng_mqtt_disconnct()
 		}
@@ -1864,7 +1972,7 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 		{
 			nanomq_client_sqlite(cr, true);
 		}
-		
+
 	} else if (jso_enabled && false == new_rule->enabled) {
 		// TODO nng_mqtt_disconnct()
 	}
@@ -2593,7 +2701,7 @@ properties_parse(property **properties, cJSON *json)
 		} else {
 			continue;
 		}
-		
+
 		property_append(prop_list, sub_prop);
 	}
 
@@ -2808,7 +2916,7 @@ out:
 /**
  * Post MQTT msg to broker via HTTP REST API
 */
-static http_msg 
+static http_msg
 post_mqtt_msg(http_msg *msg, nng_socket *sock, handle_mqtt_msg_cb cb)
 {
 	http_msg res = { .status = NNG_HTTP_STATUS_OK };
@@ -2928,13 +3036,16 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 		if (name != NULL && strcmp(node->name, name) != 0) {
 			continue;
 		}
+
+		nng_mtx_lock(node->mtx);
 		conf_bridge_node_destroy(node);
 		conf_bridge_node_parse(node, &bridge->sqlite, node_obj);
-		node->parallel   = parallel;
-		bridge->nodes[i] = node;
+		node->parallel = parallel;
+		nng_mtx_unlock(node->mtx);
+
 		found = true;
-		//TODO @Wangha add logic to restart bridge client 
-		//TODO parameters: config, node, node->sock
+		// restart bridge client, parameters: config, node, node->sock
+		bridge_reload(node->sock, config, node);
 		break;
 	}
 
@@ -3075,7 +3186,7 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 	cJSON *item;
 	int    rv = 0;
 
-	// Get topic list 
+	// Get topic list
 	for (size_t i = 0; i < array_size; i++) {
 		topics *tp       = nng_zalloc(sizeof(topics));
 		cJSON * sub_item = cJSON_GetArrayItem(sub_array, i);
@@ -3095,7 +3206,7 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 	// Get properties
 	cJSON *json_prop = cJSON_GetObjectItem(data_obj, "sub_properties");
 	conf_bridge_sub_properties *sub_props = NULL;
-	
+
 	if (cJSON_IsObject(json_prop)) {
 		sub_props = nng_zalloc(sizeof(conf_bridge_sub_properties));
 		getNumberValue(
@@ -3133,7 +3244,10 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 	conf_bridge *bridge = &config->bridge;
 	for (size_t i = 0; i < bridge->count; i++) {
 		conf_bridge_node *node = bridge->nodes[i];
+
+		nng_mtx_lock(node->mtx);
 		if (name != NULL && strcmp(node->name, name) != 0) {
+			nng_mtx_unlock(node->mtx);
 			continue;
 		}
 
@@ -3145,7 +3259,7 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 			}
 		}
 
-		if (sub_count > 0) {			
+		if (sub_count > 0) {
 			// TODO handle repeated topics
 			cvector_copy(sub_topics, node->sub_list);
 			node->sub_count += sub_count;
@@ -3154,6 +3268,8 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 			free_sub_property(node->sub_properties);
 			node->sub_properties = sub_props;
 		}
+		nng_mtx_unlock(node->mtx);
+
 		cvector_free(sub_topics);
 		found = true;
 
@@ -3227,7 +3343,7 @@ post_mqtt_bridge_unsub(http_msg *msg, const char *name)
 	int    rv = 0;
 
 	size_t   array_size = cJSON_GetArraySize(unsub_array);
-	
+
 	for (size_t i = 0; i < array_size; i++) {
 		cJSON * unsub_item = cJSON_GetArrayItem(unsub_array, i);
 		char *topic = NULL;
@@ -3247,7 +3363,9 @@ post_mqtt_bridge_unsub(http_msg *msg, const char *name)
 	conf_bridge *bridge = &config->bridge;
 	for (size_t i = 0; i < bridge->count; i++) {
 		conf_bridge_node *node = bridge->nodes[i];
+		nng_mtx_lock(node->mtx);
 		if (name != NULL && strcmp(node->name, name) != 0) {
+			nng_mtx_unlock(node->mtx);
 			continue;
 		}
 
@@ -3278,6 +3396,7 @@ post_mqtt_bridge_unsub(http_msg *msg, const char *name)
 				}
 			}
 		}
+		nng_mtx_unlock(node->mtx);
 
 		found = true;
 		// convert unsub_topics to nng_mqtt_topic

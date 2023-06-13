@@ -23,6 +23,7 @@
 #include "nng/supplemental/util/options.h"
 #include "nng/supplemental/util/platform.h"
 #include "nng/supplemental/nanolib/utils.h"
+#include "nng/supplemental/nanolib/file.h"
 
 
 #if defined(SUPP_CLIENT)
@@ -66,6 +67,7 @@ struct client_opts {
 	char *           client_id;
 	uint16_t         keepalive;
 	bool             clean_session;
+	bool             stdin_line;
 	uint8_t *        msg;
 	size_t           msg_len;
 	uint8_t *        will_msg;
@@ -106,6 +108,8 @@ enum options {
 	OPT_INTERVAL,
 	OPT_VERSION,
 	OPT_URL,
+	OPT_HOST,
+	OPT_PORT,
 	OPT_PUB,
 	OPT_SUB,
 	OPT_TOPIC,
@@ -120,6 +124,7 @@ enum options {
 	OPT_WILL_QOS,
 	OPT_WILL_RETAIN,
 	OPT_WILL_TOPIC,
+	OPT_QUIC,
 	OPT_SECURE,
 	OPT_CACERT,
 	OPT_CERTFILE,
@@ -127,6 +132,7 @@ enum options {
 	OPT_KEYPASS,
 	OPT_MSG,
 	OPT_FILE,
+	OPT_STDIN_LINE,
 	// property options >>>>>>>>>>>>>
 	OPT_PAYLOAD_FORMAT_INDICATOR,
 	OPT_MESSAGE_EXPIRY_INTERVAL,
@@ -159,19 +165,27 @@ enum options {
 };
 
 static nng_optspec cmd_opts[] = {
-	{ .o_name = "help", .o_short = 'h', .o_val = OPT_HELP },
+	{ .o_name = "help", .o_val = OPT_HELP },
 	{ .o_name = "verbose", .o_short = 'v', .o_val = OPT_VERBOSE },
 	{ .o_name    = "parallel",
 	    .o_short = 'n',
 	    .o_val   = OPT_PARALLEL,
 	    .o_arg   = true },
 	{ .o_name    = "interval",
-	    .o_short = 'i',
+	    .o_short = 'I',
 	    .o_val   = OPT_INTERVAL,
 	    .o_arg   = true },
 	{ .o_name    = "limit",
 	    .o_short = 'L',
 	    .o_val   = OPT_MSGCOUNT,
+	    .o_arg   = true },
+	{ .o_name    = "host",
+	    .o_short = 'h',
+	    .o_val   = OPT_HOST,
+	    .o_arg   = true },
+	{ .o_name    = "port",
+	    .o_short = 'p',
+	    .o_val   = OPT_PORT,
 	    .o_arg   = true },
 	{ .o_name    = "count",
 	    .o_short = 'C',
@@ -190,11 +204,11 @@ static nng_optspec cmd_opts[] = {
 	{ .o_name = "retain", .o_short = 'r', .o_val = OPT_RETAIN },
 	{ .o_name = "user", .o_short = 'u', .o_val = OPT_USER, .o_arg = true },
 	{ .o_name    = "password",
-	    .o_short = 'p',
+	    .o_short = 'P',
 	    .o_val   = OPT_PASSWD,
 	    .o_arg   = true },
 	{ .o_name    = "id",
-	    .o_short = 'I',
+	    .o_short = 'i',
 	    .o_val   = OPT_CLIENTID,
 	    .o_arg   = true },
 	{ .o_name    = "keepalive",
@@ -210,7 +224,8 @@ static nng_optspec cmd_opts[] = {
 	{ .o_name = "will-retain", .o_val = OPT_WILL_RETAIN },
 	{ .o_name = "will-topic", .o_val = OPT_WILL_TOPIC, .o_arg = true },
 	{ .o_name = "secure", .o_short = 's', .o_val = OPT_SECURE },
-	{ .o_name = "cacert", .o_val = OPT_CACERT, .o_arg = true },
+	{ .o_name = "quic", .o_val = OPT_QUIC },
+	{ .o_name = "cafile", .o_val = OPT_CACERT, .o_arg = true },
 	{ .o_name = "key", .o_val = OPT_KEYFILE, .o_arg = true },
 	{ .o_name = "keypass", .o_val = OPT_KEYPASS, .o_arg = true },
 	{
@@ -221,6 +236,7 @@ static nng_optspec cmd_opts[] = {
 	},
 	{ .o_name = "msg", .o_short = 'm', .o_val = OPT_MSG, .o_arg = true },
 	{ .o_name = "file", .o_short = 'f', .o_val = OPT_FILE, .o_arg = true },
+	{ .o_name = "stdin-line", .o_short = 'l', .o_val = OPT_STDIN_LINE },
 	{ .o_name  = "payload_format_indicator",
 	    .o_val = OPT_PAYLOAD_FORMAT_INDICATOR,
 	    .o_arg = true },
@@ -431,15 +447,15 @@ help(enum client_type type)
 {
 	switch (type) {
 	case PUB:
-		console("Usage: nanomq_cli pub <addr> "
+		console("Usage: nanomq_cli pup"
 		       "[<topic>...] [<opts>...] [<src>]\n\n");
 		break;
 	case SUB:
-		console("Usage: nanomq_cli sub <addr> "
+		console("Usage: nanomq_cli sub"
 		       "[<topic>...] [<opts>...]\n\n");
 		break;
 	case CONN:
-		console("Usage: nanomq_cli conn <addr> "
+		console("Usage: nanomq_cli conn"
 		       "[<opts>...]\n\n");
 		break;
 
@@ -447,12 +463,6 @@ help(enum client_type type)
 		break;
 	}
 
-	console("<addr> must be one or more of:\n");
-	console("  --url <url>                      The url for mqtt broker "
-	        "('mqtt-tcp://host:port',\n                                   "
-	        "'tls+mqtt-tcp://host:port' or 'mqtt-quic://host:port') \n");
-	console("                                   [default: "
-	        "mqtt-tcp://127.0.0.1:1883]\n");
 
 	if (type == PUB || type == SUB) {
 		console("\n<topic> must be set:\n");
@@ -462,14 +472,21 @@ help(enum client_type type)
 	}
 
 	console("\n<opts> may be any of:\n");
+	console("  -h, --host                       Mqtt host to connect to. "
+	        "Defaults to localhost.\n");
+	console("  -p, --port                       Network port to connect "
+	        "to. ( Defaults to 1883\n");
+	console("                                   for plain MQTT, 8883 for "
+	        "MQTT over TLS, 14567\n");
+	console("                                   for MQTT over QUIC.) \n");
 	console("  -V, --version <version: 3|4|5>   The MQTT version used by "
-	       "the client [default: 4]\n");
+	        "the client [default: 4]\n");
 	console("  -n, --parallel             	   The number of parallel for "
-	       "client [default: 1]\n");
+	        "client [default: 1]\n");
 	console("  -v, --verbose              	   Enable verbose mode\n");
 	console("  -u, --user <user>                The username for "
-	       "authentication\n");
-	console("  -p, --password <password>        The password for "
+	        "authentication\n");
+	console("  -P, --password <password>        The password for "
 	       "authentication\n");
 	console("  -k, --keepalive <keepalive>      A keep alive of the client "
 	       "(in seconds) [default: 60]\n");
@@ -477,18 +494,21 @@ help(enum client_type type)
 		console("  -m, --msg <message>              The message to "
 		       "publish\n");
 		console("  -L, --limit <num>                Max count of "
-		       "publishing "
-		       "message [default: 1]\n");
+		        "publishing "
+		        "message [default: 1]\n");
+		console("  -l, --stdin-line                 Send messages "
+		        "read from stdin, splitting separate lines into "
+		        "separate messages.[default: false]\n");
 		console("  -i, --interval <ms>              Interval of "
-		       "publishing "
-		       "message (ms) [default: 10]\n");
+		        "publishing "
+		        "message (ms) [default: 10]\n");
 	} else {
-		console("  -i, --interval <ms>              Interval of "
+		console("  -I, --interval <ms>              Interval of "
 		       "establishing connection "
 		       "(ms) [default: 10]\n");
 	}
 
-	console("  -I, --identifier <identifier>    The client identifier "
+	console("  -i, --identifier <identifier>    The client identifier "
 	        "UTF-8 String (default randomly generated string)\n");
 	console("  -C, --count <num>                Num of client \n");
 
@@ -503,15 +523,17 @@ help(enum client_type type)
 	console("  -r, --retain                     The message will be "
 	        "retained [default: false]\n");
 	console("  -c, --clean_session <true|false> Define a clean start for "
-	       "the connection [default: true]\n");
+	        "the connection [default: true]\n");
 	console("  --will-qos <qos>                 Quality of service level "
-	       "for the will message [default: 0]\n");
+	        "for the will message [default: 0]\n");
 	console("  --will-msg <message>             The payload of the will "
-	       "message\n");
+	        "message\n");
 	console("  --will-topic <topic>             The topic of the will "
-	       "message\n");
+	        "message\n");
 	console("  --will-retain                    Will message as retained "
-	       "message [default: false]\n");
+	        "message [default: false]\n");
+	console("  --quic                           QUIC transport [default: "
+	        "false]\n");
 
 	properties_help(type);
 
@@ -592,11 +614,14 @@ freetopic(struct topic *endp)
 int
 client_parse_opts(int argc, char **argv, client_opts *opt)
 {
-	int    idx = 1;
-	char * arg;
-	int    val;
-	int    rv;
-	size_t filelen = 0;
+	char    *arg;
+	int      val;
+	int      rv;
+	int      idx     = 1;
+	char    *proto   = "mqtt-tcp";
+	char    *host    = "127.0.0.1";
+	char    *port    = NULL;
+	size_t   filelen = 0;
 
 	struct topic **topicend;
 	topicend = &opt->topic;
@@ -632,6 +657,12 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 			    "only once.");
 			opt->url = nng_strdup(arg);
 			break;
+		case OPT_HOST:
+			host = arg;
+			break;
+		case OPT_PORT:
+			port = arg;
+			break;
 		case OPT_TOPIC:
 			topicend = addtopic(topicend, arg);
 			opt->topic_count++;
@@ -650,13 +681,13 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 			break;
 		case OPT_PASSWD:
 			ASSERT_NULL(opt->passwd,
-			    "Password (-p, --password) may be "
+			    "Password (-P, --password) may be "
 			    "specified only once.");
 			opt->passwd = nng_strdup(arg);
 			break;
 		case OPT_CLIENTID:
 			ASSERT_NULL(opt->client_id,
-			    "Identifier (-I, --identifier) may be "
+			    "Identifier (-i, --identifier) may be "
 			    "specified only once.");
 			opt->client_id = nng_strdup(arg);
 			break;
@@ -687,6 +718,13 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 			break;
 		case OPT_SECURE:
 			opt->enable_ssl = true;
+			proto           = "tls+mqtt-tcp";
+			port            = port == NULL ? "8883" : port;
+			break;
+		case OPT_QUIC:
+			opt->enable_ssl = true;
+			proto           = "mqtt-quic";
+			port            = port == NULL ? "14567" : port;
 			break;
 		case OPT_CACERT:
 			ASSERT_NULL(opt->cacert,
@@ -725,6 +763,9 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 			    "specified only once.");
 			loadfile(arg, (void **) &opt->msg, &opt->msg_len);
 			break;
+		case OPT_STDIN_LINE:
+			opt->stdin_line = true;
+			break;
 		}
 	}
 	switch (rv) {
@@ -742,9 +783,12 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 		break;
 	}
 
-	if (!opt->url) {
-		opt->url = nng_strdup("mqtt-tcp://127.0.0.1:1883");
-	}
+
+	char addr[128] = { 0 };
+	port = port == NULL ? "1883" : port;
+	snprintf(addr, 128, "%s://%s:%s", proto, host, port);
+	opt->url = nng_strdup(addr);
+
 
 	switch (opt->type) {
 	case PUB:
@@ -754,10 +798,10 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 			      "information. ");
 		}
 
-		if (opt->msg == NULL) {
+		if (opt->msg == NULL && opt->stdin_line == false) {
 			fatal(
 			    "Missing required option: '(-m, --msg) "
-			    "<message>' or '(-f, --file) <file>'\nTry "
+			    "<message>' ,(-l, --stdin-line) or '(-f, --file) <file>'\nTry "
 			    "'nanomq_cli pub --help' for more information. ");
 		}
 		break;
@@ -1071,6 +1115,7 @@ set_default_conf(client_opts *opt)
 	opt->clean_session   = true;
 	opt->enable_ssl      = false;
 	opt->verbose         = false;
+	opt->stdin_line      = false;
 	opt->topic_count     = 0;
 	opt->clients         = 1;
 	opt->conn_properties = NULL;
@@ -1174,18 +1219,35 @@ out:
 
 #endif
 
+
 nng_msg *
 publish_msg(client_opts *opt)
 {
 	// create a PUBLISH message
 	nng_msg *pubmsg;
+	property *props = NULL;
 	nng_mqtt_msg_alloc(&pubmsg, 0);
 	nng_mqtt_msg_set_packet_type(pubmsg, NNG_MQTT_PUBLISH);
 	nng_mqtt_msg_set_publish_qos(pubmsg, opt->qos);
 	nng_mqtt_msg_set_publish_retain(pubmsg, opt->retain);
+	if (opt->stdin_line) {
+		if (opt->msg)
+			free(opt->msg);
+		opt->msg = NULL;
+		opt->msg_len = 0;
+		size_t len;
+		if ((opt->msg_len = nano_getline((char**) &(opt->msg), &len, stdin)) == -1) {
+			console("Read line error!");
+		} 
+		opt->msg_len--;
+	}
 	nng_mqtt_msg_set_publish_payload(pubmsg, opt->msg, opt->msg_len);
 	nng_mqtt_msg_set_publish_topic(pubmsg, opt->topic->val);
-	nng_mqtt_msg_set_publish_property(pubmsg, opt->pub_properties);
+	if (opt->version == MQTT_PROTOCOL_VERSION_v5) {
+		mqtt_property_dup(&props, opt->pub_properties);
+		nng_mqtt_msg_set_publish_property(pubmsg, props);
+	}
+
 	return pubmsg;
 }
 
@@ -1259,21 +1321,24 @@ client_cb(void *arg)
 			nng_msg_free(work->msg);
 			nng_fatal("nng_send_aio", rv);
 		}
-		work->msg_count--;
-		if (work->msg_count > 0) {
-			nng_msg_dup(&msg, work->msg);
-			nng_aio_set_msg(work->aio, msg);
-			msg         = NULL;
-			work->state = SEND_WAIT;
-			nng_sleep_aio(work->opts->interval, work->aio);
+
+		if (work->opts->stdin_line) {
+			work->state = INIT;
+			nng_sleep_aio(0, work->aio);
 		} else {
-			void *cp = nng_msg_get_conn_param(conn_msg);
-			// a silly way to avoid ASAN complaining
-			if (cp != NULL)
-				conn_param_free(cp);
-			nng_msg_free(conn_msg);
-			nng_closeall();
-			exit(1);
+			work->msg_count--;
+			if (work->msg_count > 0) {
+				nng_msg_dup(&msg, work->msg);
+				nng_aio_set_msg(work->aio, msg);
+				msg         = NULL;
+				work->state = SEND_WAIT;
+				nng_sleep_aio(work->opts->interval, work->aio);
+			} else {
+				void *cp = nng_msg_get_conn_param(conn_msg);
+				nng_msg_free(conn_msg);
+				nng_closeall();
+				exit(1);
+			}
 		}
 		break;
 
@@ -1687,27 +1752,22 @@ quic_disconnect_cb(void *rmsg, void *arg)
 }
 
 static void
-quic_msg_send_cb(void *arg)
+quic_msg_send_cb(nng_mqtt_client *client, nng_msg *msg, void *obj)
 {
 	console("%s: ", __FUNCTION__);
 
-	nng_mqtt_client *client = (nng_mqtt_client *) arg;
 	nng_aio *        aio    = client->send_aio;
 
 	int rv;
 
-	if ((rv = nng_aio_result(aio)) != 0) {
+	if ((rv = nng_aio_result(aio)) != 0 || msg == NULL) {
 		console("aio result: %s(%d)\n", nng_strerror(rv), rv);
 		return;
 	}
 
-	nng_msg *msg   = nng_aio_get_msg(aio);
 	uint32_t count = 0;
 	uint8_t *code;
 	uint8_t  type;
-
-	if (msg == NULL)
-		return;
 
 	type = nng_msg_get_type(msg);
 
@@ -1757,9 +1817,12 @@ static void
 create_quic_client(nng_socket *sock, struct work **works, size_t id,
     size_t nwork, struct connect_param *param)
 {
-	int        rv;
+	int rv;
 
-	if ((rv = nng_mqtt_quic_client_open(sock, param->opts->url)) != 0) {
+	rv = param->opts->version == MQTT_PROTOCOL_VERSION_v5
+	    ? nng_mqttv5_quic_client_open(sock, param->opts->url)
+	    : nng_mqtt_quic_client_open(sock, param->opts->url);
+	if (rv != 0) {
 		nng_fatal("nng_mqtt_quic_client_open", rv);
 	}
 
@@ -1777,19 +1840,41 @@ create_quic_client(nng_socket *sock, struct work **works, size_t id,
 		fatal("Failed to set Quic client callback.\n");
 	}
 
-	param->client = nng_mqtt_client_alloc(*sock, quic_msg_send_cb, true);
+	nng_sendmsg(*sock, conn_msg, NNG_FLAG_ALLOC);
 
 	if (param->opts->type == PUB) {
 		nng_msg *pub_msg = publish_msg(param->opts);
-		nng_lmq_put(param->client->msgq, pub_msg);
 		for (size_t i = 1; i < param->opts->total_msg_count; i++) {
-			nng_msg_clone(pub_msg);
-			nng_lmq_put(param->client->msgq, pub_msg);
+			nng_msleep(param->opts->interval);
+			// nng_msg_clone will caused duplicate packet id.
+			// nng_msg_clone(pub_msg);
+			nng_msg *pub_msg = publish_msg(param->opts);
+			nng_sendmsg(*sock, pub_msg, NNG_FLAG_ALLOC);
 		}
-	}
 
-	nng_aio_set_msg(param->client->send_aio, conn_msg);
-	nng_send_aio(*sock, param->client->send_aio);
+		nng_msg_clone(pub_msg);
+		nng_sendmsg(*sock, pub_msg, NNG_FLAG_ALLOC);
+		while (param->opts->stdin_line) {
+			uint8_t *msg     = NULL;
+			size_t msg_len = 0;
+			size_t len;
+			if ((msg_len = nano_getline((char**)&(msg), &len, stdin)) == -1) {
+				console("Read line error!");
+			}
+			msg_len--;
+			if (msg_len > 0)  {
+				uint32_t free_len = 0;
+				char *free = nng_mqtt_msg_get_publish_payload(pub_msg, &free_len);
+				nng_free(free, free_len);
+				nng_msg_clone(pub_msg);
+				nng_mqtt_msg_set_publish_payload(
+				pub_msg, (uint8_t*)msg, msg_len);
+				nng_sendmsg(*sock, pub_msg, NNG_FLAG_ALLOC);
+			}
+		}
+
+		nng_msg_free(pub_msg);
+	}
 }
 
 #endif

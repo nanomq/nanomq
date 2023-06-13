@@ -80,4 +80,10 @@ docker run -d -p 1883:1883 -p 8883:8883 \
 | NANOMQ_TLS_KEY_PASSWORD         | String  | String containing the user's password. Only used if the private keyfile is password-protected. |
 | NANOMQ_TLS_VERIFY_PEER          | Boolean | Verify peer certificate (default: false).                    |
 | NANOMQ_TLS_FAIL_IF_NO_PEER_CERT | Boolean | Server will fail if the client does not have a certificate to send (default: false). |
+| NANOMQ_LOG_TO                   | String  | Array of log types，( _Use vertical line `|` to separate multiple types_ )<br>Log types: _file, console, syslog_ |
+| NANOMQ_LOG_LEVEL                | String  | Log level：trace, debug, info, warn, error, fatal |
+| NANOMQ_LOG_DIR                  | String  | The dir for log files. (if log to file) |
+| NANOMQ_LOG_FILE                 | String  | The log filename. (if log to file) |
+| NANOMQ_LOG_ROTATION_SIZE        | String  | Maximum size of each log file;<br>Supported Unit: `KB | MB | GB`;<br>Default:`10MB` |
+| NANOMQ_LOG_ROTATION_COUNT       | Integer | Maximum rotation count of log files;<br>Default: `5` |
 | NANOMQ_CONF_PATH                | String  | NanoMQ main config file path (defalt: /etc/nanomq.conf).     |

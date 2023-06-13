@@ -18,18 +18,11 @@ include_directories(${CMAKE_SOURCE_DIR}/nng/include/nng)
 
 file(GLOB CLI_SOURCE "*.c")
 
-if(BUILD_DDS_PROXY)
-  file(GLOB CLI_SOURCE ${CLI_SOURCE} "dds2mqtt/*.c")
-endif()
-
 if(BUILD_VSOMEIP_GATEWAY)
   file(GLOB CLI_CXX_SOURCE "*.cc")
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${NNG_COVERAGE_C_FLAGS}")
   set(CLI_SOURCE ${CLI_SOURCE} ${CLI_CXX_SOURCE})
 endif(BUILD_VSOMEIP_GATEWAY)
-
-
-add_executable(nanomq_cli ${CLI_SOURCE})
 
 if(BUILD_DDS_PROXY)
   if(NOT IDL_FILE_PATH)
@@ -49,11 +42,17 @@ if(BUILD_DDS_PROXY)
   find_package(CycloneDDS REQUIRED)
   find_package(OpenSSL)
   idlc_generate(TARGET ${IDL_LIB_NAME} FILES ${IDL_FILE_PATH})
+  file(GLOB CLI_SOURCE ${CLI_SOURCE} "dds2mqtt/*.c")
+endif(BUILD_DDS_PROXY)
+
+add_executable(nanomq_cli ${CLI_SOURCE})
+
+target_link_libraries(nanomq_cli nng)
+
+if(BUILD_DDS_PROXY)
   target_link_libraries(nanomq_cli ${IDL_LIB_NAME} CycloneDDS::ddsc)
   target_link_libraries(nanomq_cli OpenSSL::SSL OpenSSL::Crypto)
 endif(BUILD_DDS_PROXY)
-
-target_link_libraries(nanomq_cli nng)
 
 if(BUILD_QUIC_CLI)
   target_link_libraries(nanomq_cli msquic OpenSSLQuic)
