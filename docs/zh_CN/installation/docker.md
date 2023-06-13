@@ -39,7 +39,7 @@ docker run -d --name nanomq -p 1883:1883 -p 8083:8083 -p 8883:8883 emqx/nanomq:l
 
 Docker 容器中修改配置文件可使用以下几种方式:
 
-- 在 Docker 容器中修改`/etc/nanomq.conf`来达到修改配置参数的目的, 可参考[配置说明](./config-description/v014.md) ;
+- 在 Docker 容器中修改`/etc/nanomq.conf`来达到修改配置参数的目的, 可参考[配置说明](../config-description/v014.md) ;
 
 - 将本机已修改的配置文件通过 docker cp 命令拷贝到容器中 `/etc/nanomq.conf`路径:  `docker cp nanomq.conf nanomq:/etc/nanomq.conf`
 

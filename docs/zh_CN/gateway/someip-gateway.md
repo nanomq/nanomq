@@ -99,6 +99,7 @@ http_server {
 
 以 VSOMEIP 项目提供的例程服务 `hello_world_service` 为需要连接和转发的 SOME/IP 服务，启动
 SOME/IP gateway 将 NanoMQ 和其对接。(如何安装启动此示例服务请参考 VSOMEIP 项目文档，该服务也可以更换成其他 SOME/IP 兼容的服务)
+
 ``` shell
 ldconfig
 ./hello_world_service // 启动 SOME/IP Server
@@ -108,9 +109,9 @@ nanomq cli vsomeip gateway--conf /etc/nanomq_vsomeip_gateway.conf// 启动 SOME/
 之后在 topic/pub 主题发消息就能在对应的 topic/sub 收到 hello_world_service 回复的消息。
 
 运行如图：
-![img](./images/hello_service.png)
-![img](./images/nanomq_someip_gateway.png)
-![img](./images/someip_gateway.png)
-![img](./images/pub_sub.png)
+![img](./assets/hello_service.png)
+![img](./assets/nanomq_someip_gateway.png)
+![img](./assets/someip_gateway.png)
+![img](./assets/pub_sub.png)
 
 目前还只能提供透传服务，后续会根据用户使用的数据序列化/版序列化格式工具，如 IDL/FIDL 提供类似于 DDS Proxy Gateway 一样的自动代码生成+序列化功能。
