@@ -4,6 +4,7 @@
 #include "nng/supplemental/nanolib/conf.h"
 #include "nng/supplemental/nanolib/cJSON.h"
 #include "nng/supplemental/nanolib/file.h"
+#include "nng/supplemental/nanolib/utils.h"
 #include "nng/supplemental/nanolib/cvector.h"
 #include "rest_api.h"
 

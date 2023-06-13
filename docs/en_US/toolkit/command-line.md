@@ -53,7 +53,17 @@ or start with a specified configuration file:
 ```bash
 $ nanomq start --conf <config_file>
 ```
-
+### NanoMQ Reload
+NanoMQ supports reload command and can dynamically update the configuration parameters of NanoMQ. Currently, it supports dynamic updates in four parts: `basic, sqlite, auth, log`. The detailed description of the parameters can be found in the [Configuration File](config-description/v014.md) section.
+Running reload requires starting NanoMQ first. Assuming that we have already started NanoMQ, modified the configuration of the log section, and started reload to update the log:
+```Bash
+$ nanomq reload --conf <config_file>
+```
+A successful update will return `reload succeeded`.
+If you use the old configuration file, you can also use it like `nanomq start --old_conf` to update. 
+```Bash
+$ nanomq reload --old_conf <config_file>
+```
 
 
 ## Client

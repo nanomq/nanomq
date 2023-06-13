@@ -34,7 +34,7 @@ NanoMQ 是一款用在物联网平台边缘端的超轻量 MQTT Broker 。
 $ nanomq start --url nmq-tcp://localhost:1884 --url nmq-ws://localhost:8085 --http -p 30000
 ```
 
-nanomq 命令行支持多个日志类型输出，例如以下同时启用三种输出类型, 并设置日志等级为 debug ：
+nanomq 命令行支持多个日志类型输出，例如以下同时启用三种输出类型, 并设置日志等级为 debug：
 
 ```bash
 $ nanomq start --log_level=debug --log_file=nanomq.log  --log_stdout=true --log_syslog=true
@@ -45,8 +45,18 @@ $ nanomq start --log_level=debug --log_file=nanomq.log  --log_stdout=true --log_
 ```bash
 $ nanomq start --conf <config_file>
 ```
+### NanoMQ Reload
+NanoMQ 支持 reload 功能，可以动态更新 NanoMQ 的配置参数，目前支持 `basic, sqlite, auth, log` 四个部分的动态更新，参数的详细描述见 [配置文件](config-description/v014.md) 部分。
+运行 reload 需要首先启动 NanoMQ, 以下假设我们已经启动了 NanoMQ，修改了 log 部分的配置，启动 reload 来更新 log:
 
-
+```bash
+$ nanomq reload --conf <config_file>
+```
+更新成功会返回 `reload succeed`。
+如果你使用旧的配置文件同样可以像 `nanomq start ` 一样使用 `--old_conf` 命令来更新
+```bash
+$ nanomq reload --old_conf <config_file>
+```
 
 ## Client
 
