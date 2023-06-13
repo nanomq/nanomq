@@ -62,15 +62,17 @@ set_char(char *out, unsigned int *index, char c)
 	switch (c) {
 	case 'i':
 		out[idx++] = 'i';
-		out[idx++] = 'a';
+		// out[idx++] = 'a';
 		break;
 	case '+':
-		out[idx++] = 'i';
-		out[idx++] = 'b';
+		// out[idx++] = 'i';
+		// out[idx++] = 'b';
+		out[idx++] = 'A';
 		break;
 	case '/':
-		out[idx++] = 'i';
-		out[idx++] = 'c';
+		// out[idx++] = 'i';
+		// out[idx++] = 'c';
+		out[idx++] = 'B';
 		break;
 	default:
 		out[idx++] = c;
