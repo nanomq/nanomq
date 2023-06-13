@@ -56,7 +56,7 @@
       "children":[
         {
           "title": "使用 Webhook 配置规则",
-          "path": "web-hook"
+          "path": "rule/web-hook"
         },
         {
           "title": "通过配置项配置规则",
@@ -105,7 +105,7 @@
      },
      {
        "title": "工具集",
-       "path": "bench"
+       "path": "toolkit/bench"
      }
     ]
    },
@@ -212,15 +212,15 @@
      "children": [
       {
         "title": "ZMQ Gateway",
-        "path": "zmq-gateway" 
+        "path": "gateway/zmq-gateway" 
       },
       {
         "title": "SOME/IP Gateway",
-        "path": "someip-gateway"
+        "path": "gateway/someip-gateway"
       },
       { 
         "title": "DDS Gateway",
-        "path": "dds"
+        "path": "gateway/dds"
       }
      ]
     },
@@ -233,7 +233,7 @@
       },
       {
         "title": "Toolkit",
-        "path": "toolkit/namomq-bench"
+        "path": "toolkit/bench"
       }
      ]
     },
