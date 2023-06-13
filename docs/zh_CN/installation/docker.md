@@ -5,14 +5,14 @@
 ## Docker 安装
 
 ```
-docker run -d --name nanomq emqx/nanomq:0.10.5
+docker run -d --name nanomq emqx/nanomq:latest
 ```
 
 指定配置文件启动
 
 ```
 docker run -d -p 1883:1883 -v {YOU LOCAL PATH}: /etc \
-            --name nanomq  emqx/nanomq:0.10.5
+            --name nanomq  emqx/nanomq:latest
 ```
 
 详细 Docker 配置方式请参阅 Readme 文档
@@ -63,23 +63,29 @@ docker run -d -p 1883:1883 -p 8883:8883 \
 | NANOMQ_DAEMON                   | Boolean  | 后台启动（_默认 false _）                                 |
 | NANOMQ_NUM_TASKQ_THREAD         | Integer  | 任务线程数  (设置范围: 0 ~ 256).                          |
 | NANOMQ_MAX_TASKQ_THREAD         | Integer  | 最大任务线程数 (设置范围: 0 ~ 256).                       |
-| NANOMQ_PARALLEL                 | Long     | 并行数 .                                                   |
-| NANOMQ_PROPERTY_SIZE            | Integer  | 最大属性长度 .                                             |
-| NANOMQ_MSQ_LEN                  | Integer  | 队列长度 .                                                 |
-| NANOMQ_QOS_DURATION             | Integer  | QOS 消息定时间隔时间 .                                      |
+| NANOMQ_PARALLEL                 | Long     | 并行数.                                                   |
+| NANOMQ_PROPERTY_SIZE            | Integer  | 最大属性长度.                                             |
+| NANOMQ_MSQ_LEN                  | Integer  | 队列长度.                                                 |
+| NANOMQ_QOS_DURATION             | Integer  | QOS消息定时间隔时间.                                      |
 | NANOMQ_ALLOW_ANONYMOUS          | Boolean  | 允许匿名登录 (默认: true).                                |
-| NANOMQ_WEBSOCKET_ENABLE         | Boolean  | 启动 websocket 监听（_默认 true_） .                          |
+| NANOMQ_WEBSOCKET_ENABLE         | Boolean  | 启动websocket监听（_默认true_）.                          |
 | NANOMQ_WEBSOCKET_URL            | String   | 'nmq-ws://host:port/path', 'nmq-wss://host:port/path'     |
-| NANOMQ_HTTP_SERVER_ENABLE       | Boolean  | 启动 Http 服务监听（_默认 false_).                           |
-| NANOMQ_HTTP_SERVER_PORT         | Integer  | Http 服务端监听端口 (默认: 8081).                          |
-| NANOMQ_HTTP_SERVER_USERNAME     | String   | 访问 Http 服务用户名 .                                       |
-| NANOMQ_HTTP_SERVER_PASSWORD     | String   | 访问 Http 服务密码 .                                         |
-| NANOMQ_TLS_ENABLE               | Boolean  | 启动 TLS 监听（_默认 false_) .                               |
+| NANOMQ_HTTP_SERVER_ENABLE       | Boolean  | 启动Http服务监听（_默认false_).                           |
+| NANOMQ_HTTP_SERVER_PORT         | Integer  | Http服务端监听端口 (默认: 8081).                          |
+| NANOMQ_HTTP_SERVER_USERNAME     | String   | 访问Http服务用户名.                                       |
+| NANOMQ_HTTP_SERVER_PASSWORD     | String   | 访问Http服务密码.                                         |
+| NANOMQ_TLS_ENABLE               | Boolean  | 启动TLS监听（_默认false_) .                               |
 | NANOMQ_TLS_URL                  | String   | 'tls+nmq-tcp://host:port'.                                |
-| NANOMQ_TLS_CA_CERT_PATH         | String   | TLS CA 证书数据。                                          |
-| NANOMQ_TLS_CERT_PATH            | String   | TLS Cert 证书数据。                                        |
-| NANOMQ_TLS_KEY_PATH             | String   | TLS 私钥数据 .                                              |
-| NANOMQ_TLS_KEY_PASSWORD         | String   | TLS 私钥密码 .                                              |
-| NANOMQ_TLS_VERIFY_PEER          | Boolean  | 验证客户端证书(*默认 false*).                              |
-| NANOMQ_TLS_FAIL_IF_NO_PEER_CERT | Boolean  | 拒绝无证书连接，与 tls.verify_peer 配合使用(*默认 false*). |
-| NANOMQ_CONF_PATH                | String   | NanoMQ 配置文件路径 (*默认: `/etc/nanomq.conf`*).          |
+| NANOMQ_TLS_CA_CERT_PATH         | String   | TLS CA证书数据。                                          |
+| NANOMQ_TLS_CERT_PATH            | String   | TLS Cert证书数据。                                        |
+| NANOMQ_TLS_KEY_PATH             | String   | TLS私钥数据.                                              |
+| NANOMQ_TLS_KEY_PASSWORD         | String   | TLS私钥密码.                                              |
+| NANOMQ_TLS_VERIFY_PEER          | Boolean  | 验证客户端证书(*默认false*).                              |
+| NANOMQ_TLS_FAIL_IF_NO_PEER_CERT | Boolean  | 拒绝无证书连接，与 tls.verify_peer 配合使用(*默认false*). |
+| NANOMQ_LOG_TO                   | String   | 日志输出类型数组，使用竖线`|`分隔多种类型<br>支持文件，控制台，Syslog输出，对应参数:<br>file, console, syslog |
+| NANOMQ_LOG_LEVEL                | String   | 日志等级：trace, debug, info, warn, error, fatal |
+| NANOMQ_LOG_DIR                  | String   | 日志文件存储路径 (输出文件时生效) |
+| NANOMQ_LOG_FILE                 | String   | 日志文件名(输出文件时生效) |
+| NANOMQ_LOG_ROTATION_SIZE        | String   | 每个日志文件的最大占用空间;<br>支持单位: `KB| MB | GB`;<br> 默认:`10MB` |
+| NANOMQ_LOG_ROTATION_COUNT       | Integer  | 轮换的最大日志文件数;<br> 默认: `5` |
+| NANOMQ_CONF_PATH                | String   | NanoMQ配置文件路径 (*默认: `/etc/nanomq.conf`*).          |
