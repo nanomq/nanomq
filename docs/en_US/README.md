@@ -33,35 +33,3 @@ All-round: Support multiple protocols such as ZeroMQ/nanomsg/NNG/WebSocket. Enab
 **Cross-platform**: Highly compatible and portable with any POSIX-based platform.
 
 **Interoperability**: Transparent and customizable data flow. EdgeOps friendly.
-
-
-
-## Document Overview
-
-<!--@Lena to update after the whole doc is complete-->
-
-[Features](./features.md)
-
-[Quick Start](./quick-start.md)
-
-[Configuration](./config-description/v014.md)
-
-[Build Options](./build-options.md)
-
-[HTTP APIs](./http-api/v4.md)
-
-[Web Hook](./web-hook.md)
-
-[SOME/IP 网关](./someip-gateway.md)
-
-[Toolkit](./toolkit.md)
-
-[MQTT Bridge](./bridges/tcp-bridge.md)
-
-[Docker](./docker.md)
-
-[DDS](./dds.md)
-
-[Test Report](./test-report.md)
-
-[ZMQ Gateway](./zmq-gateway.md)
