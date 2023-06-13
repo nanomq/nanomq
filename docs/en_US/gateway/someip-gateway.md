@@ -109,6 +109,6 @@ nanomq cli vsomeip gateway--conf /etc/nanomq_vsomeip_gateway.conf// Launch SOME/
 
 Afterwards, sending a message in the `topic/pub` topic will receive a response message from the `hello_world_service` in the corresponding `topic/sub` topic.
 
-Running as shown in the figure: ![img](./images/hello_service.png) ![img](./images/nanomq_someip_gateway.png) ![img](./images/someip_gateway.png) ![img](./images/pub_sub.png)
+Running as shown in the figure: ![img](./assets/hello_service.png) ![img](./assets/nanomq_someip_gateway.png) ![img](./assets/someip_gateway.png) ![img](./assets/pub_sub.png)
 
 Currently, only transparent pass-through service is provided. In the future, automatic code generation and serialization functions similar to the DDS Proxy Gateway will be provided based on the data serialization/deserialization format tools used by users, such as IDL/FIDL.
