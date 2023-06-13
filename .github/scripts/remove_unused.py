@@ -8,13 +8,13 @@ docs_path = sys.argv[1]
 def get_markdown_file(dir_config, base_path):
     current_files = []
     for row in dir_config:
-        if row.get('children'):
-            current_files += get_markdown_file(row['children'], base_path)
-        else:
+        if row.get('path'):
             current_files.append(
                 f'{base_path}/README.md' if row['path'] == './'
                 else f'{base_path}/{row["path"]}.md'
             )
+        if row.get('children'):
+            current_files += get_markdown_file(row['children'], base_path)
     return current_files
 
 
