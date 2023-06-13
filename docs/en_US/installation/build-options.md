@@ -1,8 +1,44 @@
-# Build Options
+# Compile & Install
+
+To build NanoMQ, you will need a C99 compatible compiler and [CMake](https://www.cmake.org/) version 3.13 or newer.
+
+Basically, you need to compile and install NanoMQ by following the steps :
+
+```bash
+$ mkdir build
+$ cd build
+$ cmake -G Ninja ..
+$ sudo ninja install
+```
+
+Or you can compile it without ninja:
+
+```bash
+$ mkdir build 
+$ cd build
+$ cmake .. 
+$ make
+```
+
+Add `NNG_ENABLE_TLS` to enable **TLS**:
+
+>[mbedTLS](https://tls.mbed.org) needs to be installed first.
+
+```bash
+cmake -G Ninja -DNNG_ENABLE_TLS=ON ..
+```
+
+or
+
+```bash
+cmake -DNNG_ENABLE_TLS=ON ..
+```
+
+> View config file `nanomq.conf` for more parameters about TLS.
+
+## Build Options
 
 NanoMQ provides several options for optimizing performance according to your system.
-
-
 
 ## Arguments
 
@@ -150,5 +186,4 @@ cd nng/build
 cmake -G Ninja ..
 ninja
 ```
-
 

@@ -1,15 +1,15 @@
-# MQTT over QUIC桥接
+# MQTT over QUIC 桥接
 
-NanoMQ已支持MQTT over QUIC桥接，用户可以使用 QUIC 作为 MQTT 协议的传输层来与 EMQX 5.0 消息服务建立桥接进行数据同步，从而为无法集成或找到合适的 MQTT over QUIC SDK 的端侧设备和难以修改固件的嵌入式设备提供在 IoT 场景利用 QUIC 协议优势的捷径。依靠 EMQX+NanoMQ 的云边一体化的消息架构，用户能够快速且低成本的在泛物联网场景中完成跨时空地域的数据采集和同步需求。
+NanoMQ 已支持 MQTT over QUIC 桥接，用户可以使用 QUIC 作为 MQTT 协议的传输层来与 EMQX 5.0 消息服务建立桥接进行数据同步，从而为无法集成或找到合适的 MQTT over QUIC SDK 的端侧设备和难以修改固件的嵌入式设备提供在 IoT 场景利用 QUIC 协议优势的捷径。依靠 EMQX+NanoMQ 的云边一体化的消息架构，用户能够快速且低成本的在泛物联网场景中完成跨时空地域的数据采集和同步需求。
 
 支持特性：
 
 - 多流传输 
 - 混合桥接模式 
-- 设置QoS 消息更高的优先传输级别
-- 初始的 RTT（Round Trip Time） 预测值设置
+- 设置 QoS 消息更高的优先传输级别
+- 初始的 RTT （ Round Trip Time ） 预测值设置
 - 重置 QUIC 传输层拥塞控制检测的最大空闲时间
-- TLS双向认证
+- TLS 双向认证
 
 ## 启用 MQTT over QUIC 桥接
 
@@ -20,38 +20,38 @@ NanoMQ 的 QUIC 模组处于默认关闭状态，需通过编译选项打开后�
 ```bash
 $ git clone https://github.com/emqx/nanomq.git
 $ cd nanomq 
-## 使用国内网络拉取submodule可能耗时较久
+## 使用国内网络拉取 submodule 可能耗时较久
 $ git submodule update --init --recursive
 $ mkdir build && cd build
-## 默认编译`msquic`为动态库，如需设置编译目标为静态库则添加cmake编译选项 `-DQUIC_BUILD_SHARED=OFF`
+## 默认编译`msquic`为动态库，如需设置编译目标为静态库则添加 cmake 编译选项 `-DQUIC_BUILD_SHARED=OFF`
 $ cmake -G Ninja -DNNG_ENABLE_QUIC=ON ..
 $ sudo ninja install
 ```
 
 
 
-### QUIC桥接配置
+### QUIC 桥接配置
 
-开启 QUIC 桥接功能的 NanoMQ 编译安装完成后, 需在配置`nanomq.conf`文件中进行配置MQTT over QUIC 桥接功能和对应的主题，使用 `mqtt-quic` 作为 URL 前缀即是采用 QUIC 作为 MQTT 的传输层；
+开启 QUIC 桥接功能的 NanoMQ 编译安装完成后, 需在配置`nanomq.conf`文件中进行配置 MQTT over QUIC 桥接功能和对应的主题，使用 `mqtt-quic` 作为 URL 前缀即是采用 QUIC 作为 MQTT 的传输层；
 
-具体配置参数请参考桥接[Hocon版本配置](../config-description/v014.md) 或 [旧版本配置](../config-description/v013.md) (*不推荐*), 以下配置示例为Hocon格式配置:
+具体配置参数请参考桥接[Hocon 版本配置](../config-description/v014.md) 或 [旧版本配置](../config-description/v013.md) (*不推荐*), 以下配置示例为 Hocon 格式配置:
 
 重点配置项：
 
 - 桥接功能启用: `bridges.mqtt.nodes[].enable`
 
-- 远端broker地址: `bridges.mqtt.nodes[].connector.server`
-- 转发远端Topic数组(支持MQTT 通配符):  `bridges.mqtt.nodes[].forwards`
-- 订阅远端Topic数组(支持MQTT 通配符):   `bridges.mqtt.nodes[].subscription`
+- 远端 broker 地址: `bridges.mqtt.nodes[].connector.server`
+- 转发远端 Topic 数组(支持 MQTT 通配符):  `bridges.mqtt.nodes[].forwards`
+- 订阅远端 Topic 数组(支持 MQTT 通配符):   `bridges.mqtt.nodes[].subscription`
 
-QUIC专用配置:
+QUIC 专用配置:
 
 - 混合桥接模式开关：`bridges.mqtt.nodes[].hybrid_bridging`
 - 多流桥接开关: `bridges.mqtt.nodes[].multi_stream`
 
 
 
-nanomq.conf的桥接配置部分:
+nanomq.conf 的桥接配置部分:
 
 ```bash
 bridges.mqtt {
@@ -60,9 +60,9 @@ bridges.mqtt {
 			name = emqx
 			enable = true
 			connector {
-				## TCP URL格式:  mqtt-tcp://host:port
-				## TLS URL格式:  tls+mqtt-tcp://host:port
-				## QUIC URL格式: mqtt-quic://host:port
+				## TCP URL 格式:  mqtt-tcp://host:port
+				## TLS URL 格式:  tls+mqtt-tcp://host:port
+				## QUIC URL 格式: mqtt-quic://host:port
 				server = "mqtt-quic://iot-platform.cloud:14567"
 				proto_ver = 4
 				username = emqx
@@ -107,7 +107,7 @@ bridges.mqtt {
 
 然后启动 NanoMQ 即可：
 
-Hocon格式配置
+Hocon 格式配置
 
 ```bash
 $ nanomq start --conf nanomq.conf
@@ -127,27 +127,27 @@ $ nanomq start --old_conf nanomq.conf
 
 #### 测试消息转发
 
-使用nanomq自带客户端工具测试桥接消息的收发。
+使用 nanomq 自带客户端工具测试桥接消息的收发。
 
-1. 订阅远端EMQX Broker的主题：
+1. 订阅远端 EMQX Broker 的主题：
 
    从**EMQX**订阅转发的主题 “`forward1/#`”, 该主题将接收到从**NanoMQ**上转发的数据：
 
-   在第1个终端上执行订阅:
+   在第 1 个终端上执行订阅:
 
    ```bash
-   ## --url {远端broker} 
+   ## --url {远端 broker} 
    ## -u {用户名} 
    ## -p {密码}
    $ nanomq_cli sub --url "mqtt-quic://iot-platform.cloud:14567" -t  "forward1/#" -u emqx -p emqx123
    forward1/msg: forward_msg
    ```
 
-2. 发布消息到本地**NanoMQ** Broker主题:
+2. 发布消息到本地**NanoMQ** Broker 主题:
 
-   发布消息到**NanoMQ** Broker，主题为 “`forward1/msg`”：
+   发布消息到**NanoMQ** Broker ，主题为 “`forward1/msg`”：
 
-   在第2个终端上执行消息发布:
+   在第 2 个终端上执行消息发布:
 
    ```bash
    $ nanomq_cli pub -t  "forward1/msg"  -m "forward_msg"
@@ -155,20 +155,20 @@ $ nanomq start --old_conf nanomq.conf
 
 #### 测试消息接收
 
-1. 订阅本地NanoMQ Broker的主题：
+1. 订阅本地 NanoMQ Broker 的主题：
 
    从**NanoMQ**订阅主题 “`cmd/topic1`”, 该主题将接收到**EMQX**上发布的数据：
 
-   在第3个终端上执行订阅:
+   在第 3 个终端上执行订阅:
 
    ```bash
    $ nanomq_cli sub -t "recv/topic1"
    recv/topic1: cmd_msg
    ```
 
-2. 发布消息到远端**EMQX** Broker主题“`cmd/topic1`”：
+2. 发布消息到远端**EMQX** Broker 主题“`cmd/topic1`”：
 
-   在第4个终端上执行消息发布:
+   在第 4 个终端上执行消息发布:
 
    ```bash
    $ nanomq_cli pub --url "mqtt-quic://iot-platform.cloud:14567" -t  "recv/topic1" -m "cmd_msg" -u emqx -p emqx123

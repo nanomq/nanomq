@@ -98,7 +98,7 @@ http_server {
 ```
 
 以 VSOMEIP 项目提供的例程服务 `hello_world_service` 为需要连接和转发的 SOME/IP 服务，启动
-SOME/IP gateway 将 NanoMQ 和其对接。(如何安装启动此示例服务请参考 VSOMEIP 项目文档，该服务也可以更换成其他SOME/IP 兼容的服务)
+SOME/IP gateway 将 NanoMQ 和其对接。(如何安装启动此示例服务请参考 VSOMEIP 项目文档，该服务也可以更换成其他 SOME/IP 兼容的服务)
 ``` shell
 ldconfig
 ./hello_world_service // 启动 SOME/IP Server

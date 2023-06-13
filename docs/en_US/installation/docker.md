@@ -2,7 +2,14 @@
 
 This chapter introduces how to use the official Docker image to install and run NanoMQ, and provides some ways to configure it;
 
+## Install with Docker 
 
+Install through the defined docker configuration file.
+
+```
+docker run -d -p 1883:1883 -v {YOU LOCAL PATH}: /etc \
+            --name nanomq  emqx/nanomq:latest
+```
 
 ## Use Docker to run NanoMQ
 

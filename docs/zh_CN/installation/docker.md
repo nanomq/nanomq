@@ -1,12 +1,25 @@
-# Docker部署
+# Docker 部署
 
-本章节将指导您使用官方 Docker 镜像快速安装和运行 EMQX，并提供Docker部署的配置方法。
+本章节将指导您使用官方 Docker 镜像快速安装和运行 EMQX ，并提供 Docker 部署的配置方法。
 
+## Docker 安装
 
+```
+docker run -d --name nanomq emqx/nanomq:latest
+```
 
-## 通过Docker运行NanoMQ
+指定配置文件启动
 
-本节主要介绍如何通过 Docker 镜像安装最新版本的 EMQX，如希望体验其他版本，可以前往 [NanoMQ 下载页面](https://www.emqx.com/zh/try?product=nanomq)。
+```
+docker run -d -p 1883:1883 -v {YOU LOCAL PATH}: /etc \
+            --name nanomq  emqx/nanomq:latest
+```
+
+详细 Docker 配置方式请参阅 Readme 文档
+
+## 通过 Docker 运行 NanoMQ
+
+本节主要介绍如何通过 Docker 镜像安装最新版本的 EMQX ，如希望体验其他版本，可以前往 [NanoMQ 下载页面](https://www.emqx.com/zh/try?product=nanomq)。
 
 1. 运行以下命令获取 Docker 镜像：
 
@@ -24,11 +37,11 @@ docker run -d --name nanomq -p 1883:1883 -p 8083:8083 -p 8883:8883 emqx/nanomq:l
 
 ### 配置
 
-Docker容器中修改配置文件可使用以下几种方式:
+Docker 容器中修改配置文件可使用以下几种方式:
 
-- 在Docker容器中修改`/etc/nanomq.conf`来达到修改配置参数的目的, 可参考[配置说明](./config-description/v014.md) ;
+- 在 Docker 容器中修改`/etc/nanomq.conf`来达到修改配置参数的目的, 可参考[配置说明](./config-description/v014.md) ;
 
-- 将本机已修改的配置文件通过docker cp命令拷贝到容器中 `/etc/nanomq.conf`路径:  `docker cp nanomq.conf nanomq:/etc/nanomq.conf`
+- 将本机已修改的配置文件通过 docker cp 命令拷贝到容器中 `/etc/nanomq.conf`路径:  `docker cp nanomq.conf nanomq:/etc/nanomq.conf`
 
 - 通过环境变量修改配置参数, 例如: 
 

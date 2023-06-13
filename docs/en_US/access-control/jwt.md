@@ -1,15 +1,15 @@
 ## JWT Authorization
 
-### Building
+## Building
 
-JWT as an extended feature in NanoMQ, it is disabled by default. To enable JWT with cmake option `-DENABLE_JWT=ON `:
+JWT is an extended feature in NanoMQ, it is disabled by default. To enable JWT with cmake option `-DENABLE_JWT=ON `:
 
 ```bash
 $ cmake -DENABLE_JWT=ON ..
 $ make
 ```
 
-### Generate a public and private key file
+## Generate a public and private key file
 
 Before issuing JWT, it's necessary to generate a pair of public and private keys. 
 
@@ -24,7 +24,7 @@ $ openssl genrsa -out nanomq.key 2048
 $ openssl rsa -in nanomq.key -out nanomq.pub -pubout
 ```
 
-### Configuration
+## Configuration
 
 The default authorization mode is `Basic` , you need to change the `auth_type ` to `JWT` in the configuration file and specify the path to  `JWT` public key file.
 
@@ -63,7 +63,7 @@ http_server {
 }
 ```
 
-### Start NanoMQ
+## Start NanoMQ
 
 Start NanoMQ and specify the path to configuration path.
 
@@ -71,7 +71,7 @@ Start NanoMQ and specify the path to configuration path.
 $ nanomq start --conf ./nanomq.conf
 ```
 
-### Token rules
+## Token rules
 
 Generate a token for HTTP client;
 
@@ -93,29 +93,27 @@ payload
 }
 ```
 
-#### Header
+### Header
 
-- typ:  Using JWT
-- alg:  Using RS256
+- typ: Using JWT
+- alg: Using RS256
 
-#### Payload
+### Payload
 
-- iss:    Defined it according to the requirements, but ensure that it is consistent with the filename of the generated public key file. For example, if the file name is "nanomq.pub", the `iss` should be `nanomq.pub`.
-- iat：  Time of issuance.
-- exp：Expiration time of issuance.
+- iss: Defined it according to the requirements, but ensure that it is consistent with the filename of the generated public key file. For example, if the file name is "nanomq.pub", the `iss` should be `nanomq.pub`.
+- iat: Time of issuance.
+- exp: Expiration time of issuance.
 
 ### Token generation
 
 You can use [JWT official website tool](https://jwt.io/) to generate a JWT. Fill in the **Decoded** section as follows: 
 
-- Algorithm：RS256
-- Header：Header
-- Payload：Payload
-- Verify Signature：Fille in public and private key.
+- Algorithm: RS256
+- Header: Header
+- Payload: Payload
+- Verify Signature: Fille in public and private key.
 
-
-
-### Send request to NanoMQ HTTP Server
+### Send Request to NanoMQ HTTP Server
 
 Use `curl` to send a `GET` request with the generated token to NanoMQ HTTP Server : 
 
