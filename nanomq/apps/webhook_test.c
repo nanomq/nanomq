@@ -355,7 +355,8 @@ inproc_server(void *arg)
 			fatal("inproc recvmsg", rv);
 		}
 		body = nng_msg_body(msg);
-		// printf("\tReceived: %s\n", (char *) body);
+		if(webhook_msg_cnt >= 5)
+		printf("\tReceived: %s\n", (char *) body);
 		nng_msg_free(msg);
 		webhook_msg_cnt++;
 
@@ -416,43 +417,61 @@ get_webhook_conf()
 	nanomq_conf->web_hook.rules      = realloc(nanomq_conf->web_hook.rules,
 	         nanomq_conf->web_hook.rule_count * sizeof(conf_web_hook_rule *));
 
-	webhook_rule                   = calloc(1, sizeof(conf_web_hook_rule));
-	webhook_rule->event            = CLIENT_CONNECT;
-	webhook_rule->rule_num         = 1;
-	webhook_rule->action           = "on_client_connect";
-	nanomq_conf->web_hook.rules[0] = webhook_rule;
-	webhook_rule                   = calloc(1, sizeof(conf_web_hook_rule));
-	webhook_rule->event            = CLIENT_CONNACK;
-	webhook_rule->rule_num         = 1;
-	webhook_rule->action           = "on_client_connack";
-	nanomq_conf->web_hook.rules[1] = webhook_rule;
-	webhook_rule                   = calloc(1, sizeof(conf_web_hook_rule));
-	webhook_rule->event            = CLIENT_CONNECTED;
-	webhook_rule->rule_num         = 1;
-	webhook_rule->action           = "on_client_connected";
-	nanomq_conf->web_hook.rules[2] = webhook_rule;
-	webhook_rule                   = calloc(1, sizeof(conf_web_hook_rule));
-	webhook_rule->event            = CLIENT_DISCONNECTED;
-	webhook_rule->rule_num         = 1;
-	webhook_rule->action           = "on_client_disconnected";
-	nanomq_conf->web_hook.rules[3] = webhook_rule;
+	
 	webhook_rule                   = calloc(1, sizeof(conf_web_hook_rule));
 	webhook_rule->event            = MESSAGE_PUBLISH;
 	webhook_rule->rule_num         = 1;
 	webhook_rule->action           = "on_message_publish";
+	nanomq_conf->web_hook.rules[0] = webhook_rule;
+	webhook_rule                   = calloc(1, sizeof(conf_web_hook_rule));
+	webhook_rule->event            = CLIENT_CONNECT;
+	webhook_rule->rule_num         = 1;
+	webhook_rule->action           = "on_client_connect";
+	nanomq_conf->web_hook.rules[1] = webhook_rule;
+	webhook_rule                   = calloc(1, sizeof(conf_web_hook_rule));
+	webhook_rule->event            = CLIENT_CONNACK;
+	webhook_rule->rule_num         = 1;
+	webhook_rule->action           = "on_client_connack";
+	nanomq_conf->web_hook.rules[2] = webhook_rule;
+	webhook_rule                   = calloc(1, sizeof(conf_web_hook_rule));
+	webhook_rule->event            = CLIENT_CONNECTED;
+	webhook_rule->rule_num         = 1;
+	webhook_rule->action           = "on_client_connected";
+	nanomq_conf->web_hook.rules[3] = webhook_rule;
+	webhook_rule                   = calloc(1, sizeof(conf_web_hook_rule));
+	webhook_rule->event            = CLIENT_DISCONNECTED;
+	webhook_rule->rule_num         = 1;
+	webhook_rule->action           = "on_client_disconnected";
 	nanomq_conf->web_hook.rules[4] = webhook_rule;
 
 	return nanomq_conf;
 }
 
+static conf*
+get_wbhk_conf_base62()
+{
+	conf *conf                    = get_webhook_conf();
+	conf->web_hook.encode_payload = base62;
+	nng_free(conf->web_hook.rules[4], sizeof(conf_web_hook_rule));
+	nng_free(conf->web_hook.rules[3], sizeof(conf_web_hook_rule));
+	nng_free(conf->web_hook.rules[2], sizeof(conf_web_hook_rule));
+	nng_free(conf->web_hook.rules[1], sizeof(conf_web_hook_rule));
+	conf->web_hook.rule_count = 1;
+	return conf;
+}
+
 int
 main(int argc, char **argv)
 {
-	char *cmd_pub = "mosquitto_pub -h 127.0.0.1 -p 1881 -t topic1 -m message -q 2";
+	char *cmd_pub =
+	    "mosquitto_pub -h 127.0.0.1 -p 1881 -t topic1 -m message -q 2";
 
 	int         rv;
 	nng_thread *inproc_thr;
 	uint16_t    port = 8888;
+	nng_thread *nmq;
+	FILE       *p_pub = NULL;
+	conf       *conf;
 
 	// start the RESTful http server thread
 	rv = nng_thread_create(&inproc_thr, inproc_server, NULL);
@@ -462,17 +481,28 @@ main(int argc, char **argv)
 	rest_start(port);
 
 	// start nmq thread
-	nng_thread *nmq;
-	conf       *conf = get_webhook_conf();
+	conf = get_webhook_conf();
 	nng_thread_create(&nmq, broker_start_with_conf, conf);
 	nng_msleep(800); // wait a while for broker to init.
 
 	// pipe for pub to trigger webhook
-	FILE *p_pub = NULL;
 	p_pub = popen(cmd_pub, "r");
 	pclose(p_pub);
 
 	nng_thread_destroy(nmq);
 	assert(webhook_msg_cnt == 5);
+
+	// TODO: kill the last broker
+
+	// test for base62 as encoding method
+	conf = get_wbhk_conf_base62();
+	nng_thread_create(&nmq, broker_start_with_conf, conf);
+	nng_msleep(800); // wait a while for broker to init.
+
+	p_pub = popen(cmd_pub, "r");
+	pclose(p_pub);
+
+	nng_thread_destroy(nmq);
+	assert(webhook_msg_cnt == 8);
 	// printf("\tend_webhook_msg:%d\n", webhook_msg_cnt);
 }
