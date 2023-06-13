@@ -46,7 +46,7 @@
       "children": [
         {
           "title": "JWT 认证",
-          "path": "http-api/jwt"
+          "path": "acess-control/jwt"
         }
       ]
     },
