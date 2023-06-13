@@ -46,7 +46,7 @@
       "children": [
         {
           "title": "JWT 认证",
-          "path": "acess-control/jwt"
+          "path": "access-control/jwt"
         }
       ]
     },
@@ -175,7 +175,7 @@
       "children": [
         {
           "title": "JWT Authentication",
-          "path": "acess-control/jwt"
+          "path": "access-control/jwt"
         }
       ]
     },
