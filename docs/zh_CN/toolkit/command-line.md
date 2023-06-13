@@ -50,54 +50,57 @@ $ nanomq start --conf <config_file>
 
 ## Client
 
-目前客户端完整支持 MQTT3.1.1 ，部分支持 MQTT5.0 。
+NanoMQ 的客户端工具在 `nanomq_cli` 中。目前客户端完整支持MQTT3.1.1/5.0 。
+
 
 ### Pub
 
-执行 `nanomq pub --help` 时，您将获得可用的参数输出。
+执行 `nanomq_cli pub --help` 时，您将获得可用的参数输出。
 
-| Parameter       | abbreviation | Optional value                                               | Default value                  | Description          |
-| --------------- | ------------ | ------------------------------------------------------------ | ------------------------------ | -------------------- |
-| --url           | -            | mqtt-tcp://host:port<br/>tls+mqtt-tcp://host:port<br/>mqtt-quic://host<br/> | mqtt-tcp://127.0.0.1:1883      | 连接到服务端的 url   |
-| --version       | -V           | 4 5                                                          | 4                              | MQTT 协议版本        |
-| --parallel      | -n           | -                                                            | 1                              | 客户端并行数         |
-| --verbose       | -v           | -                                                            | disable                        | 是否详细输出         |
-| --user          | -u           | -                                                            | None; optional                 | 客户端用户名         |
-| --password      | -P           | -                                                            | None; optional                 | 客户端密码           |
-| --topic         | -t           | -                                                            | None; required                 | 发布的主题           |
-| --msg           | -m           | -                                                            | None; required                 | 发布的消息           |
-| --qos           | -q           | -                                                            | Publish: *0*<br>Subscribe: *1* | Qos 级别             |
-| --retain        | -r           | true false                                                   | false                          | 保留标识位           |
-| --keepalive     | -k           | -                                                            | 300                            | 保活时间             |
-| --count         | -C           | -                                                            | 1                              | 客户端数量           |
-| --clean_session | -c           | true false                                                   | true                           | 会话清除             |
-| --ssl           | -s           | true false                                                   | false                          | SSL 使能位           |
-| --cacert        | -            | -                                                            | None                           | SSL 证书             |
-| --cert          | -E           | -                                                            | None                           | 证书路径             |
-| --key           | -            | true false                                                   | false                          | 私钥路径             |
-| --keypass       | -            | -                                                            | None                           | 私钥密码             |
-| --interval      | -i           | -                                                            | 10                             | 创建客户端间隔（ ms ） |
-| --identifier    | -I           | -                                                            | random                         | 客户端订阅标识符     |
-| --limit         | -L           | -                                                            | 1                              | 最大发布消息刷量     |
-| --will-qos      | -            | -                                                            | 0                              | 遗愿消息的 qos 级别  |
-| --will-msg      | -            | -                                                            | None                           | 遗愿消息             |
-| --will-topic    | -            | -                                                            | None                           | 遗愿消息主题         |
-| --will-retain   | -            | true false                                                   | false                          | 遗愿消息保留标示位   |
+| Parameter       | abbreviation | Optional value | Default value             | Description          |
+| --------------- | ------------ | -------------- | ------------------------- | -------------------- |
+| --host          | -h           | -              | Defaults to localhost.    | 远端 IP.  |
+| --port          | -p           | -              | Defaults to 1883 TCP MQTT, 8883 for MQTT over TLS, 14567 for MQTT over QUIC | 远端端口.                                   |
+| --quic          | -            | -              | Defaults to false. |  QUIC 传输选项            |
+| --version       | -V           | 4 5          | 4                         | MQTT 协议版本        |
+| --parallel      | -n           | -              | 1                         | 客户端并行数         |
+| --verbose       | -v           | -              | disable                   | 是否详细输出         |
+| --user          | -u           | -              | None; optional            | 客户端用户名         |
+| --password      | -P           | -              | None; optional            | 客户端密码           |
+| --topic         | -t           | -              | None; required            | 发布的主题           |
+| --msg           | -m           | -              | None; required            | 发布的消息           |
+| --qos           | -q           | -              | Publish: *0*<br>Subscribe: *1* | Qos 级别       |
+| --retain        | -r           | true false     | false                     | 保留标识位           |
+| --keepalive     | -k           | -              | 300                       | 保活时间             |
+| --count         | -C           | -              | 1                         | 客户端数量           |
+| --clean_session | -c           | true false     | true                      | 会话清除             |
+| --ssl           | -s           | true false     | false                     | SSL 使能位           |
+| --cafile        | -            | -              | None                      | SSL 证书             |
+| --cert          | -E           | -              | None                      | 证书路径             |
+| --key           | -            | true false     | false                     | 私钥路径             |
+| --keypass       | -            | -              | None                      | 私钥密码             |
+| --interval      | -I           | -              | 10                        | 创建客户端间隔（ms） |
+| --identifier    | -i           | -              | random                    | 客户端订阅标识符     |
+| --limit         | -L           | -              | 1                         | 最大发布消息刷量     |
+| --stdin-line    | -l           | -              | false                     | 发送从 stdin 读取的消息，将单独的行拆分为单独的消息|
+| --will-qos      | -            | -              | 0                         | 遗愿消息的 qos 级别  |
+| --will-msg      | -            | -              | None                      | 遗愿消息             |
+| --will-topic    | -            | -              | None                      | 遗愿消息主题         |
+| --will-retain   | -            | true false     | false                     | 遗愿消息保留标示位   |
 
 例如，我们使用用户名 nano 启动 1 个客户端，并向主题 `t` 发送 100 条 Qos2 消息测试。
 
 ```bash
-$ nanomq_cli pub -t t --url "mqtt-tcp://broker.emqx.io:1883" -q 2 -u nano -L 100 -m test
+$ nanomq_cli pub -t "topic" -q 2 -u nano -L 100 -m test -h broker.emqx.io -p 1883
 ```
-
 ### Sub
 
 执行 `nanomq_cli sub --help` 以获取该命令的所有可用参数。它们的解释已包含在上表中，此处不再赘述。
 
-例如，我们使用用户名 nano 启动 1 个客户端，并从主题 `t` 设置 Qos1 。
+例如，我们使用用户名 nano 启动 1 个客户端，并从主题 `t` 设置 Qos1。
 
 ```bash
-$ nanomq_cli sub -t t --url "mqtt-tcp://broker.emqx.io:1883" -q 1
+$ nanomq_cli sub -t t -q 1 -h broker.emqx.io -p 1883 
 ```
 
 ### Conn
@@ -107,7 +110,7 @@ $ nanomq_cli sub -t t --url "mqtt-tcp://broker.emqx.io:1883" -q 1
 例如，我们使用用户名 nano 启动 1 个客户端并设置 Qos1 。
 
 ```bash
-$ nanomq_cli conn --url "mqtt-tcp://broker.emqx.io:1883" -q 1
+$ nanomq_cli conn -q 1 -h broker.emqx.io -p 1883
 ```
 
 ### Rule
@@ -122,7 +125,6 @@ $ nanomq_cli conn --url "mqtt-tcp://broker.emqx.io:1883" -q 1
 - *`<actions>`*: JSON 格式的动作列表
 
 使用举例:
-
 ```bash
 ## 创建一个 sqlite 落盘规则，存储所有发送到 'abc' 主题的消息内容
 $ nanomq_cli rules --create --sql 'SELECT * FROM "abc"' --actions '[{"name":"sqlite", "params": {"table": "test01"}}]'
@@ -134,7 +136,6 @@ $ nanomq_cli rules --create --sql 'SELECT * FROM "abc"' --actions '[{"name":"sql
 #### rules list
 
 列出当前所有的规则:
-
 ```bash
 $ nanomq_cli rules --list
 
@@ -144,29 +145,23 @@ $ nanomq_cli rules --list
 {"rawsql":"SELECT * FROM \"abc\"","id":4,"enabled":true}
 
 ```
-
 #### rules show
 
 查询规则:
-
 ```bash
 ## 查询 RuleID 为 '1' 的规则
 $ nanomq_cli rules --show --id 1
 
 {"rawsql":"SELECT payload.x.y as y, payload.z as z FROM \"#\" WHERE y > 10 and z != 'str'","id":1,"enabled":true}
 ```
-
 #### rules delete
 
 删除规则:
-
 ```bash
 ## 删除 RuleID 为 'rule:1' 的规则
 $ nanomq_cli rules --delete --id 1
 
 {"code":0}
 ```
-
-
 
 ## 
