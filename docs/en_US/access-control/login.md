@@ -1,4 +1,4 @@
-# Login Authorization Configuration
+# Login Authentication
 
 User Login authorization configuration allows users to authenticate using a simple username and password.
 

@@ -174,8 +174,20 @@
       "path": "access-control/introduction",
       "children": [
         {
+          "title": "Login Authentication",
+          "path": "access-control/login"
+        },
+        {
           "title": "JWT Authentication",
           "path": "access-control/jwt"
+        },
+        {
+          "title": "Access Control List",
+          "path": "access-control/acl"
+        },
+        {
+          "title": "HTTP",
+          "path": "access-control/http"
         }
       ]
     },
