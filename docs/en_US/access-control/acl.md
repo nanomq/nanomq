@@ -1,4 +1,4 @@
-# Access Control Configuration
+# Access Control List
 
 Access Control List (ACL) provides a more fine-grained approach to authorization. It defines rules that are matched from top to bottom. Once a rule is matched, its permission is applied, and the remaining rules are ignored.
 
