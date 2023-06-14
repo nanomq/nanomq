@@ -3038,6 +3038,9 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 		if (name != NULL && strcmp(node->name, name) != 0) {
 			continue;
 		}
+		if (node->enable != true) {
+			continue;
+		}
 
 		nng_mtx_lock(node->mtx);
 		conf_bridge_node_destroy(node);
