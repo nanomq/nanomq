@@ -1034,29 +1034,6 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 }
 
 int
-bridge_client_without_aio(nng_socket *sock, conf *config, conf_bridge_node *node,
-		bridge_param *bridge_arg)
-{
-	int rv;
-
-	if (0 == strncmp(node->address, tcp_scheme, strlen(tcp_scheme)) ||
-	    0 == strncmp(node->address, tls_scheme, strlen(tls_scheme))) {
-		bridge_tcp_client(sock, config, node, bridge_arg);
-#if defined(SUPP_QUIC)
-	} else if (0 == strncmp(node->address, quic_scheme, strlen(quic_scheme))) {
-		bridge_quic_client(sock, config, node, bridge_arg);
-#endif
-	} else {
-		log_error("Unsupported bridge protocol.\n");
-	}
-
-	// Update the sock in client due to it's a constant rather than pointer
-	bridge_arg->client->sock = *sock;
-
-	return 0;
-}
-
-int
 bridge_subscribe(nng_socket *sock, conf_bridge_node *node,
         nng_mqtt_topic_qos *topic_qos, size_t sub_count, property *properties)
 {
@@ -1129,7 +1106,7 @@ bridge_reload2(nng_socket *sock, conf *config, conf_bridge_node *node)
 {
 	// 1. Send disconnect msg to broker and wait peer to close the connection.
 	nng_msg *dismsg;
-	nng_socket *tsock = sock;
+	nng_socket *tsock;
 	nng_socket *new = (nng_socket *) nng_alloc(sizeof(nng_socket));
 
 	if ((dismsg = create_disconnect_msg()) == NULL)
@@ -1137,6 +1114,8 @@ bridge_reload2(nng_socket *sock, conf *config, conf_bridge_node *node)
 
 	bridge_param *bridge_arg = (bridge_param *)node->bridge_arg;
 	nng_mqtt_client *client  = bridge_arg->client;
+	tsock = bridge_arg->sock;
+	sock = tsock;
 
 	// Hold on until the last sending done
 	nng_aio_wait(client->send_aio);
@@ -1147,6 +1126,7 @@ bridge_reload2(nng_socket *sock, conf *config, conf_bridge_node *node)
 	log_info("bridge send disconnect to broker");
 	// Wait for the disconnect msg be sent
 	nng_aio_wait(client->send_aio);
+	nng_msg_free(dismsg);
 
 	// To stop the forwarding and subscribe function of bridge.
 	// If the socket keep open. The bridge_aio(forwarding) and extra_ctx(subscribe) should be stop.
@@ -1200,6 +1180,8 @@ bridge_reload2(nng_socket *sock, conf *config, conf_bridge_node *node)
 	// Trigger work reload via aio
 	nng_aio_set_prov_data(node->bridge_reload_aio, (void *)new);
 	node->enable = true;
+	bridge_arg->client->sock = *new;
+	bridge_arg->sock = new;
 
 	// 2. Re-eatablish the connection with new configration
 	return 0;
