@@ -13,58 +13,51 @@
 
 重点配置项：
 
-- 桥接功能启用: `bridges.mqtt.nodes[].enable`
-
-- 远端 broker 地址: `bridges.mqtt.nodes[].connector.server`
-- 转发远端 Topic 数组(支持 MQTT 通配符):  `bridges.mqtt.nodes[].forwards`
-- 订阅远端 Topic 数组(支持 MQTT 通配符):   `bridges.mqtt.nodes[].subscription`
+- 远端 broker 地址: `bridges.mqtt.name.server`
+- 转发远端 Topic 数组(支持 MQTT 通配符):  `bridges.mqtt.name.forwards`
+- 订阅远端 Topic 数组(支持 MQTT 通配符):   `bridges.mqtt.name.subscription`
 
 nanomq.conf 桥接配置部分
 
 ```bash
-bridges.mqtt {
-	nodes = [ 
+bridges.mqtt.name {
+	## TCP URL 格式:  mqtt-tcp://host:port
+	## TLS URL 格式:  tls+mqtt-tcp://host:port
+	## QUIC URL 格式: mqtt-quic://host:port
+	server = "mqtt-tcp://broker.emqx.io:1883"
+	## MQTT 协议版本 （ 4 ｜ 5 ）
+	proto_ver = 4
+	# username = admin
+	# password = public
+	clean_start = true
+	keepalive = 60s
+	## 如果通过 TLS 桥接将下面的代码取消注释
+	## ssl {
+	## 	keyfile = "/etc/certs/key.pem"
+	## 	certfile = "/etc/certs/cert.pem"
+	## 	cacertfile = "/etc/certs/cacert.pem"
+	## }
+	forwards = ["forward1/#","forward2/#"]
+	subscription = [
 		{
-			## 桥接节点名
-			name = emqx
-			## 启用桥接功能
-			enable = true
-			connector {
-				## TCP URL 格式:  mqtt-tcp://host:port
-				## TLS URL 格式:  tls+mqtt-tcp://host:port
-				## QUIC URL 格式: mqtt-quic://host:port
-				server = "mqtt-tcp://broker.emqx.io:1883"
-				## MQTT 协议版本 （ 4 ｜ 5 ）
-				proto_ver = 4
-				# username = admin
-				# password = public
-				clean_start = true
-				keepalive = 60s
-				ssl {
-					enable = false
-					keyfile = "/etc/certs/key.pem"
-					certfile = "/etc/certs/cert.pem"
-					cacertfile = "/etc/certs/cacert.pem"
-				}
-			}
-			forwards = ["forward1/#","forward2/#"]
-			subscription = [
-				{
-					topic = "recv/topic1"
-					qos = 1
-				},
-				{
-					topic = "recv/topic2"
-					qos = 2
-				}
-			]
-			congestion_control = cubic
-			parallel = 2
-			max_send_queue_len = 1024
-			max_recv_queue_len = 1024
+			topic = "recv/topic1"
+			qos = 1
+		},
+		{
+			topic = "recv/topic2"
+			qos = 2
 		}
 	]
+	max_parallel_processes = 2 
+	max_send_queue_len = 1024
+	max_recv_queue_len = 1024
 }
+```
+
+这里你也可以使用 HOCON 的 `include` 语法，将桥接的配置放到单独的配置文件里 
+`nanomq_bridge.conf` 然后在 nanomq.conf 加入下面的语句
+```shell
+include "path/to/nanomq_bridge.conf" 
 ```
 
 如需查看运行过程中更多日志数据，可以在配置文件中设置日志等级 `log.level`
@@ -92,7 +85,7 @@ $ nanomq start --conf nanomq.conf
    在第 1 个终端上执行订阅:
 
    ```bash
-   $ nanomq_cli sub --url "mqtt-tcp://broker.emqx.io:1883" -t  "forward1/#"
+   $ nanomq_cli sub -h "broker.emqx.io" -t  "forward1/#"
    forward1/msg: forward_msg
    ```
 
@@ -124,7 +117,7 @@ $ nanomq start --conf nanomq.conf
    在第 4 个终端上执行消息发布:
 
    ```bash
-   $ nanomq_cli pub --url "mqtt-tcp://broker.emqx.io:1883" -t  "recv/topic1" -m "cmd_msg"
+   $ nanomq_cli pub -h "broker.emqx.io" -t  "recv/topic1" -m "cmd_msg"
    ```
 
    
