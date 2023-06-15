@@ -11,7 +11,7 @@ For specific configuration parameters, please refer to [configuration](../config
 
 Key configuration parameters:
 
-- Remote broker address: `bridges.mqtt.name.connector.server`
+- Remote broker address: `bridges.mqtt.name.server`
 - Forward topic array:  `bridges.mqtt.name.forwards`
 - Subscribe topic arrary:   `bridges.mqtt.name.subscription`
 

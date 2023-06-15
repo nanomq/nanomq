@@ -36,8 +36,6 @@ For specific configuration parameters, please refer to [Hocon version](../config
 
 Key configuration parameters:
 
-- Enable bridge mode: `bridges.mqtt.name.enable`
-
 - Remote broker address: `bridges.mqtt.name.connector.server`
 - Forward topic array:  `bridges.mqtt.name.forwards`
 - Subscribe topic arrary:   `bridges.mqtt.name.subscription`
@@ -115,10 +113,6 @@ To verify that bridging has succeeded, simply send data to the bridging's upstre
    Subscribe in the 1st terminal:
 
    ```bash
-   ## --url {remote broker} 
-   ## -u {username} 
-   ## -p {password}
-
    ## -h {remote host} 
    ## -p {remote host} 
    ## --quic {enable quic}
