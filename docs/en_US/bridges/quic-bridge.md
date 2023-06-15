@@ -36,64 +36,49 @@ For specific configuration parameters, please refer to [Hocon version](../config
 
 Key configuration parameters:
 
-- Enable bridge mode: `bridges.mqtt.nodes[].enable`
+- Enable bridge mode: `bridges.mqtt.name.enable`
 
-- Remote broker address: `bridges.mqtt.nodes[].connector.server`
-- Forward topic array:  `bridges.mqtt.nodes[].forwards`
-- Subscribe topic arrary:   `bridges.mqtt.nodes[].subscription`
+- Remote broker address: `bridges.mqtt.name.connector.server`
+- Forward topic array:  `bridges.mqtt.name.forwards`
+- Subscribe topic arrary:   `bridges.mqtt.name.subscription`
 
 For QUIC:
 
-- Hybrid bridge mode：`bridges.mqtt.nodes[].hybrid_bridging`
-- Multiple stream mode: `bridges.mqtt.nodes[].multi_stream`
+- Hybrid bridge mode：`bridges.mqtt.name.hybrid_bridging`
+- Multiple stream mode: `bridges.mqtt.name.multi_stream`
 
 The bridge configuration part of `nanomq.conf`:
 
 ```bash
-bridges.mqtt {
-	nodes = [ 
+bridges.mqtt.name {
+	## TCP URL format:  mqtt-tcp://host:port
+	## TLS URL format:  tls+mqtt-tcp://host:port
+	## QUIC URL format: mqtt-quic://host:port
+	server = "mqtt-quic://iot-platform.cloud:14567"
+	proto_ver = 4
+	username = emqx
+	password = emqx123
+	clean_start = true
+	keepalive = 60s
+	forwards = ["forward1/#","forward2/#"]
+	quic_keepalive = 120s
+	quic_idle_timeout = 120s
+	quic_discon_timeout = 20s
+	quic_handshake_timeout = 60s
+	hybrid_bridging = false
+	subscription = [
 		{
-			name = emqx
-			enable = true
-			connector {
-				## TCP URL format:  mqtt-tcp://host:port
-				## TLS URL format:  tls+mqtt-tcp://host:port
-				## QUIC URL format: mqtt-quic://host:port
-				server = "mqtt-quic://iot-platform.cloud:14567"
-				proto_ver = 4
-				username = emqx
-				password = emqx123
-				clean_start = true
-				keepalive = 60s
-				ssl {
-					enable = false
-					keyfile = "/etc/certs/key.pem"
-					certfile = "/etc/certs/cert.pem"
-					cacertfile = "/etc/certs/cacert.pem"
-				}
-			}
-			forwards = ["forward1/#","forward2/#"]
-			quic_keepalive = 120s
-			quic_idle_timeout = 120s
-			quic_discon_timeout = 20s
-			quic_handshake_timeout = 60s
-			hybrid_bridging = false
-			congestion_control = cubic
-			subscription = [
-				{
-					topic = "recv/topic1"
-					qos = 1
-				},
-				{
-					topic = "recv/topic2"
-					qos = 2
-				}
-			]
-      parallel = 2
-      max_send_queue_len = 1024
-      max_recv_queue_len = 1024
+			topic = "recv/topic1"
+			qos = 1
+		},
+		{
+			topic = "recv/topic2"
+			qos = 2
 		}
 	]
+    max_parallel_processes = 2 
+    max_send_queue_len = 1024
+    max_recv_queue_len = 1024
 }
 ```
 
@@ -133,7 +118,13 @@ To verify that bridging has succeeded, simply send data to the bridging's upstre
    ## --url {remote broker} 
    ## -u {username} 
    ## -p {password}
-   $ nanomq_cli sub --url "mqtt-quic://iot-platform.cloud:14567" -t  "forward1/#" -u emqx -p emqx123
+
+   ## -h {remote host} 
+   ## -p {remote host} 
+   ## --quic {enable quic}
+   ## -u {username} 
+   ## -P {password}
+   $ nanomq_cli sub --quic -h "iot-platform.cloud" -p 14567 -t  "forward1/#" -u emqx -P emqx123
    forward1/msg: forward_msg
    ```
 
@@ -165,7 +156,7 @@ To verify that bridging has succeeded, simply send data to the bridging's upstre
    Publish in the 4th terminal:
 
    ```bash
-   $ nanomq_cli pub --url "mqtt-quic://iot-platform.cloud:14567" -t  "recv/topic1" -m "cmd_msg" -u emqx -p emqx123
+   $ nanomq_cli pub --quic -h "iot-platform.cloud" -p 14567 -t  "recv/topic1" -m "cmd_msg" -u emqx -P emqx123
    ```
 
    
