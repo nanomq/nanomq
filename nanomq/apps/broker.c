@@ -155,8 +155,6 @@ intHandler(int dummy)
 }
 #endif
 
-static void proto_bridge_work_reload(nano_work *w, nng_socket *bridge_sock);
-
 static inline bool
 bridge_handler(nano_work *work)
 {
@@ -248,7 +246,7 @@ server_cb(void *arg)
 	case RECV:
 		log_debug("RECV  ^^^^ ctx%d ^^^^\n", work->ctx.id);
 		if ((rv = nng_aio_result(work->aio)) != 0) {
-			log_warn("RECV nng aio result error: %d", rv);
+			// log_warn("RECV nng aio result error: %d", rv);
 			work->state = RECV;
 			if (work->proto == PROTO_MQTT_BROKER) {
 				nng_ctx_recv(work->ctx, work->aio);
@@ -737,20 +735,6 @@ alloc_work(nng_socket sock)
 
 	w->state = INIT;
 	return (w);
-}
-
-static void
-proto_bridge_work_reload(nano_work *w, nng_socket *bridge_sock)
-{
-	int rv;
-	if ((rv = nng_ctx_open(&w->extra_ctx, *bridge_sock)) != 0) {
-		nng_fatal("nng_ctx_open", rv);
-	}
-	// Reset the state of work
-	w->code  = SUCCESS;
-	w->state = INIT;
-
-	server_cb(w);
 }
 
 nano_work *
