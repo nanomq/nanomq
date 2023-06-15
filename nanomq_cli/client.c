@@ -1840,6 +1840,7 @@ create_quic_client(nng_socket *sock, struct work **works, size_t id,
 		fatal("Failed to set Quic client callback.\n");
 	}
 
+	param->client = nng_mqtt_client_alloc(*sock, quic_msg_send_cb, true);
 	nng_sendmsg(*sock, conn_msg, NNG_FLAG_ALLOC);
 
 	if (param->opts->type == PUB) {
