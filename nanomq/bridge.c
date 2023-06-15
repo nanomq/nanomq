@@ -1129,6 +1129,9 @@ bridge_reload2(nng_socket *sock, conf *config, conf_bridge_node *node)
 {
 	// 1. Send disconnect msg to broker and wait peer to close the connection.
 	nng_msg *dismsg;
+	nng_socket *tsock = sock;
+	nng_socket *new = (nng_socket *) nng_alloc(sizeof(nng_socket));
+
 	if ((dismsg = create_disconnect_msg()) == NULL)
 		return -1;
 
@@ -1158,36 +1161,45 @@ bridge_reload2(nng_socket *sock, conf *config, conf_bridge_node *node)
 	nng_aio_set_prov_data(node->bridge_reload_aio, NULL); // Reset the prov_data
 	log_info("bridge close");
 
-	if (0 == strncmp(node->address, tcp_scheme, strlen(tcp_scheme)) ||
-	    0 == strncmp(node->address, tls_scheme, strlen(tls_scheme))) {
-		nng_close(*sock);
-#if defined(SUPP_QUIC)
-	} else if (0 == strncmp(node->address, quic_scheme, strlen(quic_scheme))) {
-		nng_mqtt_quic_client_close(sock);
-#endif
-	} else {
-		log_error("Unsupported bridge protocol.\n");
-	}
-
 	// Free the client
 	nng_mqtt_client_free(client, true);
 	bridge_arg->client = NULL;
-	// Free the connect msg
-	if (bridge_arg->connmsg) {
-		nng_msg_free(bridge_arg->connmsg);
-		bridge_arg->connmsg = NULL;
-	}
+	// No need to free the connect msg
 
 	// After close the socket. We need to reopen the extra_ctx with the new socket to receive msgs.
 	// And reset the node->enable to ture to make forwarding works.
 
 	// socket reuse and open a new mqtt connection
-	bridge_client_without_aio(sock, config, node, bridge_arg);
+	if (0 == strncmp(node->address, tcp_scheme, strlen(tcp_scheme)) ||
+	    0 == strncmp(node->address, tls_scheme, strlen(tls_scheme))) {
+
+		bridge_tcp_client(new, config, node, bridge_arg);
+#if defined(SUPP_QUIC)
+	} else if (0 == strncmp(node->address, quic_scheme, strlen(quic_scheme))) {
+		bridge_quic_client(sock, config, node, bridge_arg);
+#endif
+	} else {
+		log_error("Unsupported bridge protocol.\n");
+		return -1;
+	}
+	if (0 == strncmp(node->address, tcp_scheme, strlen(tcp_scheme)) ||
+	    0 == strncmp(node->address, tls_scheme, strlen(tls_scheme))) {
+		nng_sock_replace(*tsock, *new);
+		nng_close(*tsock);
+		nng_free(tsock, sizeof(nng_socket));
+#if defined(SUPP_QUIC)
+	} else if (0 ==
+	    strncmp(node->address, quic_scheme, strlen(quic_scheme))) {
+		nng_mqtt_quic_client_close(sock);
+#endif
+	} else {
+		log_error("Unsupported bridge protocol.\n");
+	}
+	// Update the sock in client due to it's a constant rather than pointer
+	bridge_arg->client->sock = *new;
 	// Trigger work reload via aio
-	nng_aio_set_prov_data(node->bridge_reload_aio, (void *)sock);
+	nng_aio_set_prov_data(node->bridge_reload_aio, (void *)new);
 	node->enable = true;
-	log_info("try to reload");
-	// proto_bridge_work_reload();
 
 	// 2. Re-eatablish the connection with new configration
 	return 0;
