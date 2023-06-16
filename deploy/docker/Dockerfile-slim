@@ -1,4 +1,4 @@
-FROM gcc:11 as builder
+FROM gcc:11.3 as builder
 
 COPY . /nanomq
 

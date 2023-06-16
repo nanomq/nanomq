@@ -16,6 +16,7 @@ jobs:
     runs-on: ubuntu-20.04
 
     strategy:
+      fail-fast: false
       matrix:
         arch:
         - [amd64, gcc, g++, x86_64-linux-gnu, /usr/local]
@@ -45,7 +46,6 @@ jobs:
           build_type: "-full"
         - arch: [armel, arm-linux-gnueabi-gcc, arm-linux-gnueabi-g++]
           build_type: "-full"
-      fail-fast: false
 
     steps:
     - name: install toolchains
@@ -221,6 +221,7 @@ jobs:
     runs-on: ubuntu-20.04
 
     strategy:
+      fail-fast: false
       matrix:
         suffix:
         - ""
