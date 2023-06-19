@@ -597,7 +597,8 @@ hybridger_cb(void *arg)
 		node->address = addrs[idx];
 		log_warn("!! Bridge has switched to %s", node->address);
 
-		if (0 == strncmp(node->address, tcp_scheme, strlen(tcp_scheme))) {
+		if (0 == strncmp(node->address, tcp_scheme, strlen(tcp_scheme)) ||
+		    0 == strncmp(node->address, tls_scheme, strlen(tls_scheme))) {
 			hybrid_tcp_client(bridge_arg);
 			nng_socket *nsock = bridge_arg->sock;
 			if (tsock != nsock) {
@@ -1191,10 +1192,14 @@ bridge_reload2(nng_socket *sock, conf *config, conf_bridge_node *node)
 	return 0;
 }
 
+// For now, NanoMQ only supports dynamic TCP bridging
 int
 bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 {
+	int  rv;
 	bool status;
+	if (node->address == NULL)
+		return -1;
 
 	if (0 == strncmp(node->address, tcp_scheme, strlen(tcp_scheme)) ||
 	    0 == strncmp(node->address, tls_scheme, strlen(tls_scheme))) {
@@ -1206,6 +1211,43 @@ bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 	} else {
 		log_error("Unsupported bridge protocol.\n");
 	}
+	
+	return bridge_reload2(sock, config, node);
+
+	// nng_socket *socket = node->sock;
+	nng_dialer    dialer;
+	nng_socket *new = (nng_socket *) nng_alloc(sizeof(nng_socket));
+
+	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
+		if ((rv = nng_mqttv5_client_open(new)) != 0) {
+			nng_fatal("nng_mqttv5_client_open", rv);
+			return rv;
+		}
+	} else {
+		if ((rv = nng_mqtt_client_open(new)) != 0) {
+			nng_fatal("nng_mqtt_client_open", rv);
+			return rv;
+		}
+	}
+
+	apply_sqlite_config(new, node, "mqtt_client.db");
+
+	if ((rv = nng_dialer_create(&dialer, *new, node->address))) {
+		nng_fatal("nng_dialer_create", rv);
+		return rv;
+	}
+
+#ifdef NNG_SUPP_TLS
+	if (node->tls.enable) {
+		if ((rv = init_dialer_tls(dialer, node->tls.ca, node->tls.cert,
+		         node->tls.key, node->tls.key_password)) != 0) {
+			nng_fatal("init_dialer_tls", rv);
+		}
+	}
+#endif
+	// nng_mtx_lock(bridge_arg->switch_mtx);
+	// nng_cv_wake1(bridge_arg->switch_cv);
+	// nng_mtx_unlock(bridge_arg->switch_mtx);
 
 	nng_mtx_lock(reload_arg.mtx);
 
