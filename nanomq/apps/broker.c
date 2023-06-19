@@ -1574,7 +1574,6 @@ broker_start(int argc, char **argv)
 		fprintf(stderr, "Cannot parse command line arguments, quit\n");
 		exit(EXIT_FAILURE);
 	}
-	
 	if (nanomq_conf->enable) {
 		nanomq_conf->url = nanomq_conf->url != NULL
 		    ? nanomq_conf->url
