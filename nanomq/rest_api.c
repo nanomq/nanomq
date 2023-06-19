@@ -3027,7 +3027,7 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 	}
-	cJSON *node_obj = cJSON_GetObjectItem(req, "data");
+	cJSON *node_obj = cJSON_GetObjectItem(req, name);
 	conf * config   = get_global_conf();
 
 	bool         found  = false;
@@ -3046,6 +3046,7 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 		conf_bridge_node_destroy(node);
 		conf_bridge_node_parse(node, &bridge->sqlite, node_obj);
 		node->parallel = parallel;
+		// node->name = name;
 		nng_mtx_unlock(node->mtx);
 
 		found = true;
