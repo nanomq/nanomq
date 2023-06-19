@@ -35,12 +35,7 @@ static property *conn_property(conf_bridge_conn_properties *conf_prop);
 static property *will_property(conf_bridge_conn_will_properties *will_prop);
 
 static nng_thread *hybridger_thr;
-static nng_thread *bridge_reload_thr;
 
-static void bridge_reload_cb(void *reload_arg);
-static int  bridge_reload2(nng_socket *sock, conf *config, conf_bridge_node *node);
-static void fini_reload_arg();
-static void init_reload_arg();
 static void quic_ack_cb(void *arg);
 
 struct reload_arg {
@@ -1031,10 +1026,6 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 		}
 		log_debug("parallel %d", num);
 	}
-
-	init_reload_arg();
-	nng_thread_create(&bridge_reload_thr, bridge_reload_cb, (void *)&reload_arg);
-
 	return 0;
 }
 
@@ -1076,51 +1067,38 @@ bridge_unsubscribe(nng_socket *sock, conf_bridge_node *node,
 	return rv;
 }
 
-static void
-bridge_reload_cb(void *reload_arg)
+// For now, NanoMQ only supports dynamic TCP bridging
+int
+bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 {
-	struct reload_arg *arg = reload_arg;
+	int  rv;
+	bool status;
+	if (node->address == NULL)
+		return -1;
 
-	nng_socket *sock;
-	conf *config;
-	conf_bridge_node *node;
-
-	for (;;) {
-		nng_mtx_lock(arg->mtx);
-
-		if (!arg->ready) {
-			nng_mtx_unlock(arg->mtx);
-			nng_msleep(1000);
-			continue;
-		}
-
-		sock   = arg->sock;
-		config = arg->config;
-		node   = arg->node;
-
-		arg->ready = false;
-
-		nng_mtx_unlock(arg->mtx);
-
-		bridge_reload2(sock, config, node);
+	if (0 == strncmp(node->address, tcp_scheme, strlen(tcp_scheme)) ||
+	    0 == strncmp(node->address, tls_scheme, strlen(tls_scheme))) {
+#if defined(SUPP_QUIC)
+	} else if (0 ==
+	    strncmp(node->address, quic_scheme, strlen(quic_scheme))) {
+		log_error("Hot update quic bridge is not supported yet.");
+		return -2;
+#endif
+	} else {
+		log_error("Unsupported bridge protocol.\n");
 	}
-}
 
-static int
-bridge_reload2(nng_socket *sock, conf *config, conf_bridge_node *node)
-{
-	// 1. Send disconnect msg to broker and wait peer to close the connection.
-	nng_msg *dismsg;
+	nng_msg    *dismsg;
 	nng_socket *tsock;
 	nng_socket *new = (nng_socket *) nng_alloc(sizeof(nng_socket));
 
 	if ((dismsg = create_disconnect_msg()) == NULL)
 		return -1;
 
-	bridge_param *bridge_arg = (bridge_param *)node->bridge_arg;
-	nng_mqtt_client *client  = bridge_arg->client;
-	tsock = bridge_arg->sock;
-	sock = tsock;
+	bridge_param    *bridge_arg = (bridge_param *) node->bridge_arg;
+	nng_mqtt_client *client     = bridge_arg->client;
+	tsock                       = bridge_arg->sock;
+	sock                        = tsock;
 
 	// Hold on until the last sending done
 	nng_aio_wait(client->send_aio);
@@ -1131,28 +1109,18 @@ bridge_reload2(nng_socket *sock, conf *config, conf_bridge_node *node)
 	log_info("bridge send disconnect to broker");
 	// Wait for the disconnect msg be sent
 	nng_aio_wait(client->send_aio);
-	nng_msg_free(dismsg);
 
-	// To stop the forwarding and subscribe function of bridge.
-	// If the socket keep open. The bridge_aio(forwarding) and extra_ctx(subscribe) should be stop.
-	// To stop the bridge_aio. Just set node->enable to false.
-	// To stop the extra_ctx. Calling nni_ctx_close would set it's c_close flag to ture.
-	// And which also would make the socket be closed finally when socket receive any messages.
-	//
-	// So. The answer is closing the socket.
-	// If we close the socket. We should stop and close extra_ctx in work when get a NNG_ECLOSED.
-	// Here we still need to set node->enable to false to stop forwarding.
+	nng_mtx_lock(node->mtx);
 	node->enable = false;
-	nng_aio_set_prov_data(node->bridge_reload_aio, NULL); // Reset the prov_data
-	log_info("bridge close");
-
+	nng_mtx_unlock(node->mtx);
 	// Free the client
 	nng_mqtt_client_free(client, true);
 	bridge_arg->client = NULL;
 	// No need to free the connect msg
 
-	// After close the socket. We need to reopen the extra_ctx with the new socket to receive msgs.
-	// And reset the node->enable to ture to make forwarding works.
+	// After close the socket. We need to reopen the extra_ctx with the new
+	// socket to receive msgs. And reset the node->enable to ture to make
+	// forwarding works.
 
 	// socket reuse and open a new mqtt connection
 	if (0 == strncmp(node->address, tcp_scheme, strlen(tcp_scheme)) ||
@@ -1160,7 +1128,8 @@ bridge_reload2(nng_socket *sock, conf *config, conf_bridge_node *node)
 
 		bridge_tcp_client(new, config, node, bridge_arg);
 #if defined(SUPP_QUIC)
-	} else if (0 == strncmp(node->address, quic_scheme, strlen(quic_scheme))) {
+	} else if (0 ==
+	    strncmp(node->address, quic_scheme, strlen(quic_scheme))) {
 		bridge_quic_client(sock, config, node, bridge_arg);
 #endif
 	} else {
@@ -1182,86 +1151,9 @@ bridge_reload2(nng_socket *sock, conf *config, conf_bridge_node *node)
 	}
 	// Update the sock in client due to it's a constant rather than pointer
 	bridge_arg->client->sock = *new;
-	// Trigger work reload via aio
-	nng_aio_set_prov_data(node->bridge_reload_aio, (void *)new);
-	node->enable = true;
+	node->enable             = true;
 	bridge_arg->client->sock = *new;
-	bridge_arg->sock = new;
-
-	// 2. Re-eatablish the connection with new configration
-	return 0;
-}
-
-// For now, NanoMQ only supports dynamic TCP bridging
-int
-bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
-{
-	int  rv;
-	bool status;
-	if (node->address == NULL)
-		return -1;
-
-	if (0 == strncmp(node->address, tcp_scheme, strlen(tcp_scheme)) ||
-	    0 == strncmp(node->address, tls_scheme, strlen(tls_scheme))) {
-#if defined(SUPP_QUIC)
-	} else if (0 == strncmp(node->address, quic_scheme, strlen(quic_scheme))) {
-		log_error("Hot update quic bridge is not supported yet.");
-		return -2;
-#endif
-	} else {
-		log_error("Unsupported bridge protocol.\n");
-	}
-	
-	return bridge_reload2(sock, config, node);
-
-	// nng_socket *socket = node->sock;
-	nng_dialer    dialer;
-	nng_socket *new = (nng_socket *) nng_alloc(sizeof(nng_socket));
-
-	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
-		if ((rv = nng_mqttv5_client_open(new)) != 0) {
-			nng_fatal("nng_mqttv5_client_open", rv);
-			return rv;
-		}
-	} else {
-		if ((rv = nng_mqtt_client_open(new)) != 0) {
-			nng_fatal("nng_mqtt_client_open", rv);
-			return rv;
-		}
-	}
-
-	apply_sqlite_config(new, node, "mqtt_client.db");
-
-	if ((rv = nng_dialer_create(&dialer, *new, node->address))) {
-		nng_fatal("nng_dialer_create", rv);
-		return rv;
-	}
-
-#ifdef NNG_SUPP_TLS
-	if (node->tls.enable) {
-		if ((rv = init_dialer_tls(dialer, node->tls.ca, node->tls.cert,
-		         node->tls.key, node->tls.key_password)) != 0) {
-			nng_fatal("init_dialer_tls", rv);
-		}
-	}
-#endif
-	// nng_mtx_lock(bridge_arg->switch_mtx);
-	// nng_cv_wake1(bridge_arg->switch_cv);
-	// nng_mtx_unlock(bridge_arg->switch_mtx);
-
-	nng_mtx_lock(reload_arg.mtx);
-
-	status = reload_arg.ready;
-
-	reload_arg.ready = true;
-	reload_arg.sock = sock;
-	reload_arg.config = config;
-	reload_arg.node = node;
-
-	nng_mtx_unlock(reload_arg.mtx);
-
-	if (status == true)
-		return -1;
+	bridge_arg->sock         = new;
 
 	return 0;
 }
