@@ -1,7 +1,7 @@
 // This is a test only Scenario for advanced features of NanoMQ, like webhook, etc.
 
-#define INPROC_URL "inproc://test"
-#define REST_URL "http://0.0.0.0:%u/hook"
+#define INPROC_TEST_URL "inproc://test"
+#define REST_TEST_URL "http://0.0.0.0:%u/hook"
 
 int webhook_msg_cnt = 0; // this is a silly signal to indicate whether the webhook tests pass
 
@@ -240,6 +240,8 @@ rest_handle(nng_aio *aio)
 		}
 	} else if (strcasecmp(method, "post") == 0) {
 		nng_http_req_get_data(req, &data, &sz);
+	} else {
+		rest_http_fatal(job, "method not supported:%s", method);
 	}
 
 	job->http_aio = aio;
@@ -273,7 +275,7 @@ rest_start(uint16_t port)
 
 	// Set up some strings, etc.  We use the port number
 	// from the argument list.
-	snprintf(rest_addr, sizeof(rest_addr), REST_URL, port);
+	snprintf(rest_addr, sizeof(rest_addr), REST_TEST_URL, port);
 	if ((rv = nng_url_parse(&url, rest_addr)) != 0) {
 		fatal("nng_url_parse", rv);
 	}
@@ -283,9 +285,9 @@ rest_start(uint16_t port)
 	if ((rv = nng_req0_open(&req_sock)) != 0) {
 		fatal("nng_req0_open", rv);
 	}
-	if ((rv = nng_dial(req_sock, INPROC_URL, NULL, NNG_FLAG_NONBLOCK)) !=
+	if ((rv = nng_dial(req_sock, INPROC_TEST_URL, NULL, NNG_FLAG_NONBLOCK)) !=
 	    0) {
-		fatal("nng_dial(" INPROC_URL ")", rv);
+		fatal("nng_dial(" INPROC_TEST_URL ")", rv);
 	}
 
 	// Get a suitable HTTP server instance.  This creates one
@@ -321,7 +323,6 @@ rest_start(uint16_t port)
 		fatal("nng_http_handler_add_handler", rv);
 	}
 	if ((rv = nng_http_server_start(server)) != 0) {
-		printf("things go wrong\n");
 		fatal("nng_http_server_start", rv);
 	}
 
@@ -344,17 +345,16 @@ inproc_server(void *arg)
 	nng_msg *  msg;
 
 	if (((rv = nng_rep0_open(&s)) != 0) ||
-	    ((rv = nng_listen(s, INPROC_URL, NULL, 0)) != 0)) {
+	    ((rv = nng_listen(s, INPROC_TEST_URL, NULL, 0)) != 0)) {
 		fatal("unable to set up inproc", rv);
 	}
 	// This is simple enough that we don't need concurrency.  Plus it
 	// makes for an easier demo.
 	for (;;) {
-		char *body;
 		if ((rv = nng_recvmsg(s, &msg, 0)) != 0) {
 			fatal("inproc recvmsg", rv);
 		}
-		body = nng_msg_body(msg);
+		char *body = nng_msg_body(msg);
 		if(webhook_msg_cnt >= 5)
 		printf("\tReceived: %s\n", (char *) body);
 		nng_msg_free(msg);
