@@ -27,10 +27,12 @@
 #include "nng/supplemental/http/http.h"
 #include "nng/supplemental/util/platform.h"
 #include "nng/supplemental/nanolib/log.h"
+
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 #ifdef SUPP_JWT
 #include "l8w8jwt/decode.h"
