@@ -953,8 +953,6 @@ broker(conf *nanomq_conf)
 		for (size_t t = 0; t < nanomq_conf->bridge.count; t++) {
 			conf_bridge_node *node = nanomq_conf->bridge.nodes[t];
 			if (node->enable) {
-				nng_aio *bridge_reload_aio; // Reload aio each bridge
-				nng_aio_alloc(&bridge_reload_aio, NULL, NULL);
 				bridge_sock = node->sock;
 				for (i = tmp; i < (tmp + node->parallel);
 				     i++) {
@@ -962,9 +960,7 @@ broker(conf *nanomq_conf)
 					    inproc_sock, *bridge_sock,
 					    PROTO_MQTT_BRIDGE, db, db_ret,
 					    nanomq_conf);
-					works[i]->bridge_reload_aio = bridge_reload_aio;
 				}
-				node->bridge_reload_aio = bridge_reload_aio;
 				tmp += node->parallel;
 			}
 		}
