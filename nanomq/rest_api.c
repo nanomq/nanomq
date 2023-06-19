@@ -3046,7 +3046,6 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 		conf_bridge_node_destroy(node);
 		conf_bridge_node_parse(node, &bridge->sqlite, node_obj);
 		node->parallel = parallel;
-		// node->name = name;
 		nng_mtx_unlock(node->mtx);
 
 		found = true;
