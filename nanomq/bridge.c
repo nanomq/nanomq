@@ -38,32 +38,6 @@ static nng_thread *hybridger_thr;
 
 static void quic_ack_cb(void *arg);
 
-struct reload_arg {
-	bool              ready;
-	nng_socket       *sock;
-	conf             *config;
-	conf_bridge_node *node;
-
-	nng_mtx          *mtx;
-} reload_arg;
-
-static void
-init_reload_arg()
-{
-	reload_arg.ready   = false;
-	reload_arg.sock    = NULL;
-	reload_arg.config  = NULL;
-	reload_arg.node    = NULL;
-
-	nng_mtx_alloc(&reload_arg.mtx);
-}
-
-static void
-fini_reload_arg()
-{
-	nng_mtx_free(reload_arg.mtx);
-}
-
 static int
 apply_sqlite_config(
     nng_socket *sock, conf_bridge_node *config, const char *db_name)
@@ -1071,8 +1045,6 @@ bridge_unsubscribe(nng_socket *sock, conf_bridge_node *node,
 int
 bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 {
-	int  rv;
-	bool status;
 	if (node->address == NULL)
 		return -1;
 
