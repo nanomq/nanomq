@@ -1067,7 +1067,7 @@ int
 bridge_unsubscribe(nng_socket *sock, conf_bridge_node *node,
         nng_mqtt_topic *topics, size_t unsub_count, property *properties)
 {
-	int rv;
+	int rv = 0;
 	nng_msg *msg;
 	uint8_t *rc = NULL, rc0=1;
 	uint32_t rcsz;
