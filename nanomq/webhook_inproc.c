@@ -248,7 +248,7 @@ webhook_thr(void *arg)
 
 	// NanoMQ core thread talks to others via INPROC
 	if ((rv = nng_listen(sock, WEB_HOOK_INPROC_URL, NULL, 0)) != 0) {
-		nng_fatal("nng_listen", rv);
+		nng_fatal("webhook nng_listen", rv);
 	}
 
 	for (i = 0; i < conf->web_hook.pool_size; i++) {
