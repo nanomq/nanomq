@@ -3274,7 +3274,6 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 		nng_mqtt_topic_qos *topic_list = convert_topic_qos(sub_topics, sub_count);
 
 		// handle subscribe
-		// TODO params: config, node, node->sock, topic_list, sub_count, prop_list
 		rv = bridge_subscribe(node->sock, node, topic_list, sub_count, prop_list);
 
 		if (rv == 0) {
@@ -3317,6 +3316,7 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 	cJSON_Delete(req);
 	cJSON_free(dest);
 	cJSON_Delete(res_obj);
+	free_topic_list(sub_topics, sub_count);
 	return res;
 
 out:
