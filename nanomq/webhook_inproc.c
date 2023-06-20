@@ -45,6 +45,8 @@ static void webhook_cb(void *arg);
 
 static nng_thread *inproc_thr;
 
+static int wbhkKeepRunning = 1;
+
 static void
 send_msg(conf_web_hook *conf, nng_msg *msg)
 {
@@ -132,6 +134,9 @@ thread_cb(void *arg)
 	nng_msg *         msg = NULL;
 	int               rv;
 	while (true) {
+		if(wbhkKeepRunning == 0) {
+			break;
+		}
 		if (!nng_lmq_empty(lmq)) {
 			nng_mtx_lock(w->mtx);
 			rv = nng_lmq_get(lmq, &msg);
@@ -159,6 +164,9 @@ thread_cb(void *arg)
 static void
 webhook_cb(void *arg)
 {
+	if(wbhkKeepRunning == 0) {
+		return;
+	}
 	struct hook_work *work = arg;
 	int               rv;
 	switch (work->state) {
@@ -223,11 +231,24 @@ alloc_work(nng_socket sock, conf_web_hook *conf)
 	return (w);
 }
 
+static void
+free_work(struct hook_work *work)
+{
+	nng_aio_free(work->aio);
+	// nng_aio_finish(work->aio);
+	// nng_aio_wait(work->aio);
+	nng_mtx_free(work->mtx);
+	nng_lmq_free(work->lmq);
+	nng_thread_destroy(work->thread);
+	nng_free(work, sizeof(struct hook_work));
+}
+
 // The server runs forever.
 void
 webhook_thr(void *arg)
 {
-	conf *             conf = arg;
+	printf("\t webhook_thr:%d\n", wbhkKeepRunning);
+	conf              *conf = arg;
 	nng_socket         sock;
 	struct hook_work **works =
 	    nng_zalloc(conf->web_hook.pool_size * sizeof(struct hook_work *));
@@ -245,7 +266,6 @@ webhook_thr(void *arg)
 		works[i]     = alloc_work(sock, &conf->web_hook);
 		works[i]->id = i;
 	}
-
 	// NanoMQ core thread talks to others via INPROC
 	if ((rv = nng_listen(sock, WEB_HOOK_INPROC_URL, NULL, 0)) != 0) {
 		nng_fatal("webhook nng_listen", rv);
@@ -257,11 +277,17 @@ webhook_thr(void *arg)
 	}
 
 	for (;;) {
-		nng_msleep(3600000); // neither pause() nor sleep() portable
+		if (wbhkKeepRunning == 0) {
+			break;
+		}
+		nng_msleep(3000);
+		// nng_msleep(3600000); // neither pause() nor sleep() portable
 	}
 
+	nng_close(sock);
+
 	for (i = 0; i < conf->web_hook.pool_size; i++) {
-		nng_free(works[i], sizeof(struct hook_work));
+		free_work(works[i]);
 	}
 	nng_free(works, conf->web_hook.pool_size * sizeof(struct hook_work *));
 }
@@ -269,7 +295,8 @@ webhook_thr(void *arg)
 int
 start_webhook_service(conf *conf)
 {
-	int rv = nng_thread_create(&inproc_thr, webhook_thr, conf);
+	wbhkKeepRunning = 1;
+	int rv          = nng_thread_create(&inproc_thr, webhook_thr, conf);
 	if (rv != 0) {
 		nng_fatal("nng_thread_create", rv);
 	}
@@ -280,6 +307,7 @@ start_webhook_service(conf *conf)
 int
 stop_webhook_service(void)
 {
+	wbhkKeepRunning = 0;
 	nng_thread_destroy(inproc_thr);
 	return 0;
 }
