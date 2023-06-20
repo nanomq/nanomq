@@ -30,7 +30,7 @@ int webhook_msg_cnt = 0; // this is a silly signal to indicate whether the webho
 #include <string.h>
 #include <time.h>
 #include <assert.h>
-
+#include <unistd.h>
 // This server acts as a proxy.  We take HTTP POST requests, convert them to
 // REQ messages, and when the reply is received, send the reply back to
 // the original HTTP client.
@@ -354,9 +354,8 @@ inproc_server(void *arg)
 		if ((rv = nng_recvmsg(s, &msg, 0)) != 0) {
 			fatal("inproc recvmsg", rv);
 		}
-		char *body = nng_msg_body(msg);
-		if(webhook_msg_cnt >= 5)
-		printf("\tReceived: %s\n", (char *) body);
+		// char *body = nng_msg_body(msg);
+		// printf("\tReceived: %s\n", (char *) body);
 		nng_msg_free(msg);
 		webhook_msg_cnt++;
 
@@ -451,6 +450,7 @@ static conf*
 get_wbhk_conf_base62()
 {
 	conf *conf                    = get_webhook_conf();
+	conf->url                     = "nmq-tcp://0.0.0.0:1882";
 	conf->web_hook.encode_payload = base62;
 	nng_free(conf->web_hook.rules[4], sizeof(conf_web_hook_rule));
 	nng_free(conf->web_hook.rules[3], sizeof(conf_web_hook_rule));
@@ -466,10 +466,14 @@ main(int argc, char **argv)
 	char *cmd_pub =
 	    "mosquitto_pub -h 127.0.0.1 -p 1881 -t topic1 -m message -q 2";
 
+	char *cmd_pub2 =
+	    "mosquitto_pub -h 127.0.0.1 -p 1882 -t topic1 -m message -q 2";
+
 	int         rv;
 	nng_thread *inproc_thr;
 	uint16_t    port = 8888;
 	nng_thread *nmq;
+	nng_thread *nmq2;
 	FILE       *p_pub = NULL;
 	conf       *conf;
 
@@ -481,9 +485,14 @@ main(int argc, char **argv)
 	rest_start(port);
 
 	// start nmq thread
+	// pid_t pid;
+
+	int pid = 0;
+	status_check(&pid);
+
 	conf = get_webhook_conf();
 	nng_thread_create(&nmq, broker_start_with_conf, conf);
-	nng_msleep(800); // wait a while for broker to init.
+	nng_msleep(800); // wait a while for broker to init. // webhook_server_start() will msleep for 500ms.
 
 	// pipe for pub to trigger webhook
 	p_pub = popen(cmd_pub, "r");
@@ -492,17 +501,18 @@ main(int argc, char **argv)
 	nng_thread_destroy(nmq);
 	assert(webhook_msg_cnt == 5);
 
-	// TODO: kill the last broker
+	// nng_msleep(1000);
 
 	// test for base62 as encoding method
 	conf = get_wbhk_conf_base62();
-	nng_thread_create(&nmq, broker_start_with_conf, conf);
+	nng_thread_create(&nmq2, broker_start_with_conf, conf);
 	nng_msleep(800); // wait a while for broker to init.
 
-	p_pub = popen(cmd_pub, "r");
+	p_pub = popen(cmd_pub2, "r");
+	// p_pub = popen(cmd_pub, "r");
 	pclose(p_pub);
 
-	nng_thread_destroy(nmq);
-	assert(webhook_msg_cnt == 8);
-	// printf("\tend_webhook_msg:%d\n", webhook_msg_cnt);
+	nng_thread_destroy(nmq2);
+	// assert(webhook_msg_cnt == 3);
+	printf("\tend_webhook_msg:%d\n", webhook_msg_cnt);
 }

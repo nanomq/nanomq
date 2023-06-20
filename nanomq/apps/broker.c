@@ -781,7 +781,7 @@ proto_work_init(nng_socket sock,nng_socket inproc_sock, nng_socket bridge_sock, 
 		}
 		if ((rv = nng_dial(w->webhook_sock, WEB_HOOK_INPROC_URL, NULL,
 		         0)) != 0) {
-			nng_fatal("nng_dial", rv);
+			nng_fatal("webhook nng_dial", rv);
 		}
 	}
 
@@ -995,7 +995,7 @@ broker(conf *nanomq_conf)
 
 	if (nanomq_conf->enable) {
 		if ((rv = nano_listen(sock, nanomq_conf->url, NULL, 0, nanomq_conf)) != 0) {
-			nng_fatal("nng_listen", rv);
+			nng_fatal("broker nng_listen", rv);
 		}
 	}
 
@@ -1137,6 +1137,13 @@ broker(conf *nanomq_conf)
 				nng_free(works[i], sizeof(struct work));
 			}
 			nng_free(works, num_ctx * sizeof(struct work *));
+
+			if(conf->web_hook.enable) {
+				stop_webhook_service();
+			}
+			dbtree_destory(db);
+			dbtree_destory(db_ret);
+			// nng_close(sock);
 			break;
 		}
 		nng_msleep(6000);
@@ -1669,11 +1676,6 @@ broker_start_with_conf(conf *nanomq_conf)
 #endif
 	print_conf(nanomq_conf);
 
-#if !defined(BUILD_APP_LIB)
-	if (store_pid()) {
-		log_error("create \"nanomq.pid\" file failed");
-	}
-#endif
 	// TODO: more check for arg nanomq_conf?
 	rc = broker(nanomq_conf);
 
