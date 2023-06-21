@@ -3316,6 +3316,7 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 	cJSON_Delete(req);
 	cJSON_free(dest);
 	cJSON_Delete(res_obj);
+	cvector_free(sub_topics);
 	return res;
 
 out:
