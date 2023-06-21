@@ -3385,6 +3385,9 @@ post_mqtt_bridge_unsub(http_msg *msg, const char *name)
 			nng_mtx_unlock(node->mtx);
 			continue;
 		}
+		if (!node->enable) {
+			continue;
+		}
 		nng_mtx_unlock(node->mtx);
 
 		// Get properties
