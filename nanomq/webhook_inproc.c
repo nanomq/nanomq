@@ -259,8 +259,6 @@ webhook_thr(void *arg)
 		nng_msleep(3600000); // neither pause() nor sleep() portable
 	}
 
-	nng_close(sock);
-
 	for (i = 0; i < conf->web_hook.pool_size; i++) {
 		nng_free(works[i], sizeof(struct hook_work));
 	}
@@ -270,7 +268,7 @@ webhook_thr(void *arg)
 int
 start_webhook_service(conf *conf)
 {
-	int rv          = nng_thread_create(&inproc_thr, webhook_thr, conf);
+	int rv = nng_thread_create(&inproc_thr, webhook_thr, conf);
 	if (rv != 0) {
 		nng_fatal("nng_thread_create", rv);
 	}
