@@ -3298,11 +3298,11 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 	if (!found || rv != 0) {
 		if (!found) {
 			status = NNG_HTTP_STATUS_NOT_FOUND;
-			free_topic_list(sub_topics, sub_count);
 		} else if (rv != 0)
 			status = NNG_HTTP_STATUS_BAD_REQUEST;
 		code   = REQ_PARAM_ERROR;
 		free_sub_property(sub_props);
+		free_topic_list(sub_topics, sub_count);
 		goto out;
 	}
 
