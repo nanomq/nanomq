@@ -2,6 +2,8 @@
 #define INPROC_TEST_URL "inproc://test"
 #define REST_TEST_URL "http://0.0.0.0:%u/hook"
 
+int webhook_msg_cnt = 0; // this is a silly signal to indicate whether the webhook tests pass
+
 // This is a silly demo for test -- it listens on port 8888 (or $PORT if present),
 // and accepts HTTP POST requests at /test
 //
@@ -15,16 +17,15 @@
 #include <nng/protocol/reqrep0/req.h>
 #include <nng/supplemental/http/http.h>
 #include <nng/supplemental/util/platform.h>
+#include <nng/supplemental/nanolib/conf.h>
+#include "include/broker.h"
+
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <assert.h>
-#include <unistd.h>
-
-#include <nng/supplemental/nanolib/conf.h>
-#include "include/broker.h"
 
 // This server acts as a proxy.  We take HTTP POST requests, convert them to
 // REQ messages, and when the reply is received, send the reply back to
@@ -63,8 +64,6 @@ nng_socket req_sock;
 // deallocate them from the callback; we just reuse them.
 nng_mtx * job_lock;
 rest_job *job_freelist;
-
-int webhook_msg_cnt = 0; // this is a silly signal to indicate whether the webhook tests pass
 
 static void rest_job_cb(void *arg);
 

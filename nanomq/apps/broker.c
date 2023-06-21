@@ -1669,6 +1669,12 @@ broker_start_with_conf(conf *nanomq_conf)
 #endif
 	print_conf(nanomq_conf);
 
+#if !defined(BUILD_APP_LIB)
+	if (store_pid()) {
+		log_error("create \"nanomq.pid\" file failed");
+	}
+#endif
+
 	// TODO: more check for arg nanomq_conf?
 	rc = broker(nanomq_conf);
 

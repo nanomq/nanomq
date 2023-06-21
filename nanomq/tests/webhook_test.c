@@ -1,4 +1,3 @@
-// // This is a test only Scenario for advanced features of NanoMQ, like webhook, etc.
 #include "tests_api.h"
 
 int
@@ -22,7 +21,7 @@ main(int argc, char **argv)
 
 	conf = get_webhook_conf();
 	nng_thread_create(&nmq, (void *) broker_start_with_conf, conf);
-	nng_msleep(800); // wait a while for broker to init. //
+	nng_msleep(800); // wait a while for broker to init. 
 	                 // webhook_server_start() will msleep for 500ms.
 
 	// pipe for pub to trigger webhook
