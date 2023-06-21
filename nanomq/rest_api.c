@@ -3387,6 +3387,7 @@ post_mqtt_bridge_unsub(http_msg *msg, const char *name)
 			continue;
 		}
 		if (!node->enable) {
+			nng_mtx_unlock(node->mtx);
 			continue;
 		}
 		nng_mtx_unlock(node->mtx);
