@@ -1,7 +1,10 @@
 // This is a test only Scenario for advanced features of NanoMQ, like webhook, etc.
-
 #define INPROC_TEST_URL "inproc://test"
 #define REST_TEST_URL "http://0.0.0.0:%u/hook"
+
+
+#include <nng/supplemental/nanolib/conf.h>
+#include "include/broker.h"
 
 int webhook_msg_cnt = 0; // this is a silly signal to indicate whether the webhook tests pass
 
@@ -21,9 +24,6 @@ int webhook_msg_cnt = 0; // this is a silly signal to indicate whether the webho
 #include <nng/protocol/reqrep0/req.h>
 #include <nng/supplemental/http/http.h>
 #include <nng/supplemental/util/platform.h>
-#include <nng/supplemental/nanolib/conf.h>
-#include "include/broker.h"
-
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,6 +31,9 @@ int webhook_msg_cnt = 0; // this is a silly signal to indicate whether the webho
 #include <time.h>
 #include <assert.h>
 #include <unistd.h>
+
+// #include "tests_api.h"
+
 // This server acts as a proxy.  We take HTTP POST requests, convert them to
 // REQ messages, and when the reply is received, send the reply back to
 // the original HTTP client.
@@ -259,8 +262,8 @@ rest_handle(nng_aio *aio)
 	nng_ctx_send(job->ctx, job->aio);
 }
 
-static void
-rest_start(uint16_t port)
+void
+test_rest_start(uint16_t port)
 {
 	nng_http_server * server;
 	nng_http_handler *handler;
@@ -337,8 +340,8 @@ rest_start(uint16_t port)
 // especially that this uses inproc, so nothing can get to it directly
 // from outside the process.
 //
-static void
-inproc_server(void *arg)
+void
+test_inproc_server(void *arg)
 {
 	nng_socket s;
 	int        rv;
@@ -366,7 +369,7 @@ inproc_server(void *arg)
 	}
 }
 
-static conf*
+conf*
 get_webhook_conf()
 {
 	conf               *nanomq_conf;
@@ -446,11 +449,10 @@ get_webhook_conf()
 	return nanomq_conf;
 }
 
-static conf*
+conf*
 get_wbhk_conf_base62()
 {
 	conf *conf                    = get_webhook_conf();
-	conf->url                     = "nmq-tcp://0.0.0.0:1882";
 	conf->web_hook.encode_payload = base62;
 	nng_free(conf->web_hook.rules[4], sizeof(conf_web_hook_rule));
 	nng_free(conf->web_hook.rules[3], sizeof(conf_web_hook_rule));
@@ -458,61 +460,4 @@ get_wbhk_conf_base62()
 	nng_free(conf->web_hook.rules[1], sizeof(conf_web_hook_rule));
 	conf->web_hook.rule_count = 1;
 	return conf;
-}
-
-int
-main(int argc, char **argv)
-{
-	char *cmd_pub =
-	    "mosquitto_pub -h 127.0.0.1 -p 1881 -t topic1 -m message -q 2";
-
-	char *cmd_pub2 =
-	    "mosquitto_pub -h 127.0.0.1 -p 1882 -t topic1 -m message -q 2";
-
-	int         rv;
-	nng_thread *inproc_thr;
-	uint16_t    port = 8888;
-	nng_thread *nmq;
-	nng_thread *nmq2;
-	FILE       *p_pub = NULL;
-	conf       *conf;
-
-	// start the RESTful http server thread
-	rv = nng_thread_create(&inproc_thr, inproc_server, NULL);
-	if (rv != 0) {
-		fatal("cannot start inproc server", rv);
-	}
-	rest_start(port);
-
-	// start nmq thread
-	// pid_t pid;
-
-	int pid = 0;
-	status_check(&pid);
-
-	conf = get_webhook_conf();
-	nng_thread_create(&nmq, broker_start_with_conf, conf);
-	nng_msleep(800); // wait a while for broker to init. // webhook_server_start() will msleep for 500ms.
-
-	// pipe for pub to trigger webhook
-	p_pub = popen(cmd_pub, "r");
-	pclose(p_pub);
-
-	nng_thread_destroy(nmq);
-	assert(webhook_msg_cnt == 5);
-
-	// nng_msleep(1000);
-
-	// test for base62 as encoding method
-	conf = get_wbhk_conf_base62();
-	nng_thread_create(&nmq2, broker_start_with_conf, conf);
-	nng_msleep(800); // wait a while for broker to init.
-
-	p_pub = popen(cmd_pub2, "r");
-	// p_pub = popen(cmd_pub, "r");
-	pclose(p_pub);
-
-	nng_thread_destroy(nmq2);
-	// assert(webhook_msg_cnt == 3);
-	printf("\tend_webhook_msg:%d\n", webhook_msg_cnt);
 }
