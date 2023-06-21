@@ -1287,8 +1287,8 @@ bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 	}
 	// Update the sock in client due to it's a constant rather than pointer
 	bridge_arg->client->sock = *new;
+	node->sock               = new;
 	node->enable             = true;
-	bridge_arg->client->sock = *new;
 	bridge_arg->sock         = new;
 	nng_mtx_unlock(&reload_lock);
 
