@@ -22,7 +22,6 @@ main(int argc, char **argv)
 
 	conf = get_webhook_conf();
 	nng_thread_create(&nmq, (void *) broker_start_with_conf, conf);
-	// nng_thread_create(&nmq, (void*)broker_start, NULL);
 	nng_msleep(800); // wait a while for broker to init. //
 	                 // webhook_server_start() will msleep for 500ms.
 
@@ -32,5 +31,5 @@ main(int argc, char **argv)
 
 	nng_thread_destroy(nmq);
 	assert(webhook_msg_cnt == 5);
-	printf("\tend_webhook_msg:%d\n", webhook_msg_cnt);
+	// printf("\tend_webhook_msg:%d\n", webhook_msg_cnt);
 }

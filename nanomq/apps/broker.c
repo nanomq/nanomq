@@ -1137,13 +1137,6 @@ broker(conf *nanomq_conf)
 				nng_free(works[i], sizeof(struct work));
 			}
 			nng_free(works, num_ctx * sizeof(struct work *));
-
-			if(conf->web_hook.enable) {
-				stop_webhook_service();
-			}
-			dbtree_destory(db);
-			dbtree_destory(db_ret);
-			// nng_close(sock);
 			break;
 		}
 		nng_msleep(6000);
