@@ -29,6 +29,7 @@ if(ENABLE_JWT)
 endif(ENABLE_JWT)
 
 add_subdirectory(apps)
+add_subdirectory(tests)
 
 # set(PARALLEL 128 CACHE STRING "Parallelism (min 4, max 1000)")
 
@@ -158,7 +159,3 @@ endif()
 if (NANOMQ_TESTS)
     add_definitions(-DENABLE_NANOMQ_TESTS)
 endif(NANOMQ_TESTS)
-
-nanomq_test(sub_handler_test)
-nanomq_test(unsub_handler_test)
-nanomq_test(pub_handler_test)
