@@ -1098,8 +1098,8 @@ bridge_subscribe(nng_socket *sock, conf_bridge_node *node,
         nng_mqtt_topic_qos *topic_qos, size_t sub_count, property *properties)
 {
 	int rv = 0;
-	nng_msg *msg;
-	uint8_t *rc = NULL, rc0=1;
+	nng_msg *msg = NULL;
+	uint8_t *rc = NULL;
 	uint32_t rcsz;
 
 	if (sub_count < 1)
@@ -1111,9 +1111,11 @@ bridge_subscribe(nng_socket *sock, conf_bridge_node *node,
 	}
 	bridge_param *bridge_arg = (bridge_param *)node->bridge_arg;
 
+	pthread_mutex_lock(&reload_lock);
 	// create a SUBSCRIBE message
 	nng_msg *submsg;
-	nng_mqtt_msg_alloc(&submsg, 0);
+	if (nng_mqtt_msg_alloc(&submsg, 0) != 0)
+		return NNG_ENOMEM;
 	nng_mqtt_msg_set_packet_type(submsg, NNG_MQTT_SUBSCRIBE);
 	nng_mqtt_msg_set_subscribe_topics(submsg, topic_qos, sub_count);
 	if (properties)
@@ -1121,12 +1123,16 @@ bridge_subscribe(nng_socket *sock, conf_bridge_node *node,
 
 	// Send message
 	nng_aio *aio;
-	nng_aio_alloc(&aio, NULL, NULL);
+	if ((rv = nng_aio_alloc(&aio, NULL, NULL)) != 0) {
+		pthread_mutex_unlock(&reload_lock);
+		return rv;
+	}
 	nng_aio_set_msg(aio, submsg);
 	nng_send_aio(*sock, aio);
 
 	// Hold to get suback
 	nng_aio_wait(aio);
+	pthread_mutex_unlock(&reload_lock);
 
 	if (nng_aio_result(aio) != 0 || (msg = nng_aio_get_msg(aio)) == NULL) {
 		// Connection losted
@@ -1158,8 +1164,8 @@ bridge_unsubscribe(nng_socket *sock, conf_bridge_node *node,
         nng_mqtt_topic *topics, size_t unsub_count, property *properties)
 {
 	int rv = 0;
-	nng_msg *msg;
-	uint8_t *rc = NULL, rc0=1;
+	nng_msg *msg = NULL;
+	uint8_t *rc = NULL;
 	uint32_t rcsz;
 
 	if (unsub_count < 1)
@@ -1171,9 +1177,11 @@ bridge_unsubscribe(nng_socket *sock, conf_bridge_node *node,
 	}
 	bridge_param *bridge_arg = (bridge_param *)node->bridge_arg;
 
+	pthread_mutex_lock(&reload_lock);
 	// create a UNSUBSCRIBE message
 	nng_msg *unsubmsg;
-	nng_mqtt_msg_alloc(&unsubmsg, 0);
+	if (nng_mqtt_msg_alloc(&unsubmsg, 0) != 0)
+		return NNG_ENOMEM;
 	nng_mqtt_msg_set_packet_type(unsubmsg, NNG_MQTT_UNSUBSCRIBE);
 	nng_mqtt_msg_set_unsubscribe_topics(unsubmsg, topics, unsub_count);
 	if (properties)
@@ -1181,12 +1189,16 @@ bridge_unsubscribe(nng_socket *sock, conf_bridge_node *node,
 
 	// Send message
 	nng_aio *aio;
-	nng_aio_alloc(&aio, NULL, NULL);
+	if ((rv = nng_aio_alloc(&aio, NULL, NULL)) != 0){
+		pthread_mutex_unlock(&reload_lock);
+		return rv;
+	}
 	nng_aio_set_msg(aio, unsubmsg);
 	nng_send_aio(*sock, aio);
 
 	// Hold to get suback
 	nng_aio_wait(aio);
+	pthread_mutex_unlock(&reload_lock);
 
 	if (nng_aio_result(aio) != 0 || (msg = nng_aio_get_msg(aio)) == NULL) {
 		// Connection losted
@@ -1254,7 +1266,7 @@ bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 	// Wait for the disconnect msg be sent
 	nng_aio_wait(client->send_aio);
 
-	nng_mtx_lock(&reload_lock);
+	pthread_mutex_lock(&reload_lock);
 	node->enable = false;
 	// No need to Free the nng_mqtt_client, reuse it.
 
@@ -1290,7 +1302,7 @@ bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 	node->sock               = new;
 	node->enable             = true;
 	bridge_arg->sock         = new;
-	nng_mtx_unlock(&reload_lock);
+	pthread_mutex_unlock(&reload_lock);
 
 	return 0;
 }
