@@ -1154,7 +1154,8 @@ bridge_subscribe(nng_socket *sock, conf_bridge_node *node,
 
 done:
 	nng_aio_free(aio);
-	nng_msg_free(msg);
+	if (msg)
+		nng_msg_free(msg);
 
 	return rv;
 }
@@ -1220,7 +1221,8 @@ bridge_unsubscribe(nng_socket *sock, conf_bridge_node *node,
 
 done:
 	nng_aio_free(aio);
-	nng_msg_free(msg);
+	if (msg)
+		nng_msg_free(msg);
 
 	return rv;
 }
