@@ -11,7 +11,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <pthread.h>
 
 #include "include/nanomq.h"
 
@@ -26,7 +25,7 @@ static const char *tcp_scheme  = "mqtt-tcp";
 static const char *tls_scheme  = "tls+mqtt-tcp";
 
 // lock is necessary for protecting nni_sock
-static pthread_mutex_t reload_lock = PTHREAD_MUTEX_INITIALIZER;
+static nng_mtx *reload_lock = NULL;
 
 static void bridge_tcp_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg);
 
@@ -628,6 +627,9 @@ hybrid_bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	bridge_arg->config = node;
 	bridge_arg->sock   = sock;
 	bridge_arg->conf   = config;
+	if (reload_lock == NULL) {
+		nng_mtx_alloc(&reload_lock);
+	}
 
 	int rv = nng_mtx_alloc(&bridge_arg->exec_mtx);
 	if (rv != 0) {
@@ -1062,6 +1064,9 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 		log_error("invalid bridging config!");
 		return -1;
 	}
+	if (reload_lock == NULL) {
+		nng_mtx_alloc(&reload_lock);
+	}
 
 	if (0 == strncmp(node->address, tcp_scheme, strlen(tcp_scheme)) ||
 	    0 == strncmp(node->address, tls_scheme, strlen(tls_scheme))) {
@@ -1111,7 +1116,7 @@ bridge_subscribe(nng_socket *sock, conf_bridge_node *node,
 	}
 	bridge_param *bridge_arg = (bridge_param *)node->bridge_arg;
 
-	pthread_mutex_lock(&reload_lock);
+	nng_mtx_lock(reload_lock);
 	// create a SUBSCRIBE message
 	nng_msg *submsg;
 	if (nng_mqtt_msg_alloc(&submsg, 0) != 0)
@@ -1124,7 +1129,7 @@ bridge_subscribe(nng_socket *sock, conf_bridge_node *node,
 	// Send message
 	nng_aio *aio;
 	if ((rv = nng_aio_alloc(&aio, NULL, NULL)) != 0) {
-		pthread_mutex_unlock(&reload_lock);
+		nng_mtx_unlock(reload_lock);
 		return rv;
 	}
 	nng_aio_set_msg(aio, submsg);
@@ -1132,7 +1137,7 @@ bridge_subscribe(nng_socket *sock, conf_bridge_node *node,
 
 	// Hold to get suback
 	nng_aio_wait(aio);
-	pthread_mutex_unlock(&reload_lock);
+	nng_mtx_unlock(reload_lock);
 
 	if (nng_aio_result(aio) != 0 || (msg = nng_aio_get_msg(aio)) == NULL) {
 		// Connection losted
@@ -1178,7 +1183,7 @@ bridge_unsubscribe(nng_socket *sock, conf_bridge_node *node,
 	}
 	bridge_param *bridge_arg = (bridge_param *)node->bridge_arg;
 
-	pthread_mutex_lock(&reload_lock);
+	nng_mtx_lock(reload_lock);
 	// create a UNSUBSCRIBE message
 	nng_msg *unsubmsg;
 	if (nng_mqtt_msg_alloc(&unsubmsg, 0) != 0)
@@ -1191,7 +1196,7 @@ bridge_unsubscribe(nng_socket *sock, conf_bridge_node *node,
 	// Send message
 	nng_aio *aio;
 	if ((rv = nng_aio_alloc(&aio, NULL, NULL)) != 0){
-		pthread_mutex_unlock(&reload_lock);
+		nng_mtx_unlock(reload_lock);
 		return rv;
 	}
 	nng_aio_set_msg(aio, unsubmsg);
@@ -1199,7 +1204,7 @@ bridge_unsubscribe(nng_socket *sock, conf_bridge_node *node,
 
 	// Hold to get suback
 	nng_aio_wait(aio);
-	pthread_mutex_unlock(&reload_lock);
+	nng_mtx_unlock(reload_lock);
 
 	if (nng_aio_result(aio) != 0 || (msg = nng_aio_get_msg(aio)) == NULL) {
 		// Connection losted
@@ -1268,7 +1273,7 @@ bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 	// Wait for the disconnect msg be sent
 	nng_aio_wait(client->send_aio);
 
-	pthread_mutex_lock(&reload_lock);
+	nng_mtx_lock(reload_lock);
 	node->enable = false;
 	// No need to Free the nng_mqtt_client, reuse it.
 
@@ -1284,6 +1289,7 @@ bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 #endif
 	} else {
 		log_error("Unsupported bridge protocol.\n");
+		nng_mtx_unlock(reload_lock);
 		return -1;
 	}
 	if (0 == strncmp(node->address, tcp_scheme, strlen(tcp_scheme)) ||
@@ -1304,7 +1310,7 @@ bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 	node->sock               = new;
 	node->enable             = true;
 	bridge_arg->sock         = new;
-	pthread_mutex_unlock(&reload_lock);
+	nng_mtx_unlock(reload_lock);
 
 	return 0;
 }
