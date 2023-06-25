@@ -1,10 +1,10 @@
 #include "tests_api.h"
 
 conf*
-get_wbhk_conf_base62()
+get_wbhk_conf_base64()
 {
 	conf *conf                    = get_webhook_conf();
-	conf->web_hook.encode_payload = base62;
+	conf->web_hook.encode_payload = base64;
 	return conf;
 }
 
@@ -26,8 +26,8 @@ main(int argc, char **argv)
 		fatal("cannot start inproc server", rv);
 	}
 	test_rest_start(port);
-	// test for base62 as encoding method
-	conf = get_wbhk_conf_base62();
+	// test for base64 as encoding method
+	conf = get_wbhk_conf_base64();
 	nng_thread_create(&nmq, broker_start_with_conf, conf);
 	nng_msleep(800); // wait a while for broker to init.
 	                 // webhook_server_start() will msleep for 500ms.
