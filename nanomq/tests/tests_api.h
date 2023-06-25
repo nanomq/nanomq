@@ -363,11 +363,9 @@ test_inproc_server(void *arg)
 }
 
 conf*
-get_webhook_conf()
+get_dflt_conf()
 {
 	conf               *nanomq_conf;
-	conf_http_header   *header;
-	conf_web_hook_rule *webhook_rule;
 	if ((nanomq_conf = nng_zalloc(sizeof(conf))) == NULL) {
 		fprintf(stderr,
 		    "Cannot allocate storge for configuration, quit\n");
@@ -390,6 +388,16 @@ get_webhook_conf()
 	nanomq_conf->tls.enable         = false;
 	nanomq_conf->websocket.enable   = false;
 	nanomq_conf->http_server.enable = false;
+	nanomq_conf->web_hook.enable    = false;
+	return nanomq_conf;
+}
+
+conf*
+get_webhook_conf()
+{
+	conf *nanomq_conf = get_dflt_conf();
+	conf_http_header   *header;
+	conf_web_hook_rule *webhook_rule;
 
 	// conf for webhook
 	nanomq_conf->web_hook.enable         = true;
@@ -412,7 +420,6 @@ get_webhook_conf()
 	nanomq_conf->web_hook.rules      = realloc(nanomq_conf->web_hook.rules,
 	         nanomq_conf->web_hook.rule_count * sizeof(conf_web_hook_rule *));
 
-	
 	webhook_rule                   = calloc(1, sizeof(conf_web_hook_rule));
 	webhook_rule->event            = MESSAGE_PUBLISH;
 	webhook_rule->rule_num         = 1;
@@ -440,17 +447,4 @@ get_webhook_conf()
 	nanomq_conf->web_hook.rules[4] = webhook_rule;
 
 	return nanomq_conf;
-}
-
-conf*
-get_wbhk_conf_base62()
-{
-	conf *conf                    = get_webhook_conf();
-	conf->web_hook.encode_payload = base62;
-	nng_free(conf->web_hook.rules[4], sizeof(conf_web_hook_rule));
-	nng_free(conf->web_hook.rules[3], sizeof(conf_web_hook_rule));
-	nng_free(conf->web_hook.rules[2], sizeof(conf_web_hook_rule));
-	nng_free(conf->web_hook.rules[1], sizeof(conf_web_hook_rule));
-	conf->web_hook.rule_count = 1;
-	return conf;
 }
