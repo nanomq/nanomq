@@ -21,7 +21,7 @@ main(int argc, char **argv)
 	// test for base62 as encoding method
 	conf = get_wbhk_conf_base62();
 	nng_thread_create(&nmq, broker_start_with_conf, conf);
-    nng_msleep(800); // wait a while for broker to init.
+	nng_msleep(800); // wait a while for broker to init.
 	                 // webhook_server_start() will msleep for 500ms.
 
 	p_pub = popen(cmd_pub, "r");
