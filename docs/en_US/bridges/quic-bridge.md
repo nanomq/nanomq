@@ -114,7 +114,7 @@ To verify that bridging has succeeded, simply send data to the bridging's upstre
 
    ```bash
    ## -h {remote host} 
-   ## -p {remote host} 
+   ## -p {remote port}
    ## --quic {enable quic}
    ## -u {username} 
    ## -P {password}
