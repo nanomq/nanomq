@@ -125,7 +125,7 @@ $ nanomq start --old_conf nanomq.conf
 
    ```bash
    ## -h {远端 host} 
-   ## -p {远端 host} 
+   ## -p {远端 port}
    ## --quic {开启 quic}
    ## -u {用户名} 
    ## -P {密码}
