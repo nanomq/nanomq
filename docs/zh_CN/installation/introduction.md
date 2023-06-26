@@ -1,23 +1,23 @@
 #  安装
 
-本节介绍了如何通过各种方法安装 NanoMQ，比如通过 Docker 安装 NanoMQ，通过安装包安装，或通过源码编译安装。
+本节介绍了如何通过各种方法安装 NanoMQ，比如通过 Docker 安装，通过安装包安装，或通过源码编译安装。
 
-**[用Docker安装](http://localhost:8080/docs/en/latest/installation/docker.html)**
+**[通过 Docker 安装](./docker.md)**
 
-Docker用户会发现一个使用官方Docker镜像来安装和运行NanoMQ的指南。它还提供了为NanoMQ的使用配置Docker的说明，以及配置NanoMQ安装的环境变量的综合列表。
+本节主要介绍了如何通过 Docker 安装和运行 NanoMQ，以及通过配置文件或环境变量进行配置。 
 
-**[用软件包管理器安装](http://localhost:8080/docs/en/latest/installation/packages.html)**
+**[通过安装包安装](./packages.md)**
 
-NanoMQ目前提供以下安装包：
+NanoMQ 目前提供以下安装包：
 
-| 方法             | 描述                                                         |
+| 安装包           | 描述                                                         |
 | ---------------- | ------------------------------------------------------------ |
-| AUR (Arch Linux) | 对于Arch Linux用户来说，NanoMQ可以使用AUR帮助器'yay'来安装。可以安装不同的版本，包括基本版、sqlite版、msquic版和完整版。 |
-| DEB来源          | 基于Debian的Linux发行版如Ubuntu可以使用这种方法来安装NanoMQ。我们提供了一个脚本来简化安装过程。 |
-| 手动DEB包        | 本节还提供了详细的步骤，将官方的emqx NanoMQ软件库添加到源列表中，并使用apt-get手动安装该软件。 |
-| 转速来源         | 基于RHEL的Linux发行版如CentOS可以使用这种方法。提供了一个脚本来简化安装过程。 |
-| 手动转速包       | 本节还提供了详细的步骤，将官方EMQX NanoMQ仓库添加到yum配置中，并使用yum手动安装该软件。 |
+| AUR (Arch Linux) | Arch Linux 用户可通过 AUR 源安装 NanoMQ，目前支持安装 NanoMQ 基本版、sqlite 版、msquic 版和完整版。 |
+| deb 一键安装     | Ubuntu 用户可通过 deb 包一键安装 NanoMQ。                    |
+| deb 手动安装     | Ubuntu 用户也可将官方的 EMQX NanoMQ 软件库添加到源列表中，并使用 apt-get 手动安装 NanoMQ。 |
+| rpm 一键安装     | CentOS 可通过 rpm 包一键安装。                               |
+| rpm 手动安装     | CentOS 用户也可将官方的 EMQX NanoMQ 软件库添加到 yum 配置中，并使用 yum 手动安装 NanoMQ。 |
 
-**[ 从源头建立](http://localhost:8080/docs/en/latest/installation/build-options.html)**
+**[ 通过源代码编译安装](./build-options.md)**
 
-如果你想从源代码编译和安装NanoMQ，这部分还包括操作说明和可选的编译参数列表，以便进一步定制。
+NanoMQ 同样支持基于从源代码编译和安装，本节同时提供了编译参数列表，以便更好地满足用户的需求。
