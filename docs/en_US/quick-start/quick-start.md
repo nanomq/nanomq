@@ -10,11 +10,11 @@ Run the command below to speedily run NanoMQ with Docker:
 docker run -d --name nanomq -p 1883:1883 -p 8083:8083 -p 8883:8883 emqx/nanomq:latest
 ```
 
-For more information about NanoMQ official docker image, see [Docker Hub - nanomq](https://hub.docker.com/r/emqx/nanomq)
+For more information about NanoMQ official Docker image, see [Docker Hub - nanomq](https://hub.docker.com/r/emqx/nanomq)
 
 ## Experience the NanoMQ Services
 
-Now the NanoMQ is started with docker, exposing ports1883, 8083, and 8883 for MQTT traffic, MQTT over WebSockets, and MQTT over SSL/TLS for secure communication respectively. This section guides you through how to use the MQTTX client tool to experience the messaging services. 
+Now the NanoMQ is started with Docker, exposing ports1883, 8083, and 8883 for MQTT traffic, MQTT over WebSockets, and MQTT over SSL/TLS for secure communication respectively. This section guides you through how to use the MQTTX client tool to experience the messaging services. 
 
 ### Setup the MQTTX Client
 
@@ -33,6 +33,13 @@ Click on **New Connection** on the home page. In the **General** panel, set as f
 
 Then click **Connect** in the top-right corner. A prompt will pop up indicating the connection is successfully set up.
 
+### Subscribe to a Topic
+
+On the **Connections** page, Click on the **+ New Subscription** button, then act as follows:
+
+- Enter the topic you want to subscribe to, in this case, `test/topic`. For the rest, you can keep the default setting. 
+- Click on **Confirm**.
+
 ### Publish a Message
 
 On the **Connections** page, act as follows:
@@ -41,16 +48,7 @@ On the **Connections** page, act as follows:
 - Enter the message payload you want to send, for instance, "Hello NanoMQ".
 - Click on publish icon.
 
-A message will appear in the dialog box area, indicating the message is successfully published to the NanoMQ broker. 
-
-### Subscribe to a Topic
-
-On the **Connections** page, Click on the **+ New Subscription** button, then act as follows:
-
-- Enter the topic you want to subscribe to, in this case, `test/topic`. For the rest, you can keep the default setting. 
-- Click on **Confirm**.
-
-You should now receive any message that is published to this topic. The message you published should now appear in the dialog box area.
+A message will appear in the dialog box area, indicating the message is successfully published to the NanoMQ broker and forwarded to the subscribed topic. 
 
 <img src="./assets/mqttx.png" alt="Pub/Sub" style="zoom:50%;" />
 
@@ -106,7 +104,7 @@ bridges.mqtt {
 }
 ```
 
-### Start the NanoMQ Docker Container with the Configuration File
+### Start NanoMQ with the Configuration File
 
 Now you can start the Docker container, and use the `-v` flag to mount your local configuration file into the Docker container:
 
@@ -120,42 +118,32 @@ Replace `/path/to/your/nanomq.conf` with the actual path to your `nanomq.conf` f
 
 ### Test bridging
 
-This section will continue using the MQTTX client tool to test the MQTT data bridge you created. To verify the bridge configuration, you need to check whether messages published to the `forward` topic on your local broker are received under the same topic on the remote broker, and vice versa for the `subscription` topic. If this behavior is observed, it means your bridge is correctly configured and functioning. 
+This section will continue using the MQTTX client tool to test the MQTT data bridge you created.You will create 2 clients for connecting NanoMQ and the MQTT bridge and verify the messaging services between NanoMQ and the MQTT bridge. 
 
-To test the configuration, let's create 2 connections with MQTTX:
-
-**Connection to NanoMQ broker**
+**Client connecting NanoMQ**
 
 ![Connect to NanoMQ](./assets/connect-nanomq.png)
 
-**Connection to public MQTT broker**
+**Client connecting MQTT bridge**
 
 ![Connect to Public Broker](./assets/connect-public-broker.png)
 
-**Publish with the NanoMQ Client**
+**Verify messging NanoMQ to MQTT bridge**
 
-On your local broker connection, `NanoMQTest` in this example, 
+On your client connecting the MQTT bridge, `MQTTbridge` in this example, subscribe to the `forward1/#` topic.
 
-1. Subscribe to the `forward1/#` topic. This is the topic your local broker will forward messages to on the remote broker.
-2. Publish a message to the `forward1/msg` topic, for example, `Hello from NanoMQ`
+On your client connecting NanoMQ, `NanoMQTest` in this example, publish a message to the `forward1/msg` topic, for example, `Hello from NanoMQ`
 
-On your remote broker connection, `MQTTbridge` in this example,
-
-1. Subscribe to the `forward1/#` topic.
-2. Verify that you received the message that was published from the local broker.
+Verify that you received the message that was published from the local broker.
 
 <img src="./assets/hellofromnano.png" alt="message from nanomq" style="zoom:50%;" />
 
-**Publish with the Public Broker**
+**Verify the messaging service of NanoMQ**
 
-On your remote broker connection, `MQTTbridge` in this example,
+On your client connecting NanoMQ, `NanoMQTest` in this example, subscribe to the `recv/topic1` topic.
 
-1. Subscribe to the `recv/topic1` topic. This is the topic your remote broker will forward messages to on the local broker.
-2. Publish a message to the `recv/topic1` topic, for example, `Hello from broker.emqx.io`
+On your client connecting the MQTT bridge, `MQTTbridge` in this example, publish a message to the `recv/topic1` topic, for example, `Hello from broker.emqx.io`
 
-On your local broker connection, `NanoMQTest` in this example, 
-
-1. Subscribe to the `recv/topic1` topic.
-2. Verify that you received the message that was published from broker.emqx.io
+Verify that you received the message that was published from broker.emqx.io.
 
 ![message from broker](./assets/hellofrombroker.png)
