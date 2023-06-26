@@ -4,7 +4,8 @@ NanoMQ 提供了可拓展的事件驱动型 WebHook 接口，本节将介绍如�
 
 ## 配置项
 
-WebHook 的配置文件位于 `etc/nanomq.conf`, 具体配置项可查看[配置说明](../config-description/v014.md)。
+Webhook 的配置文件位于 `etc/nanomq.conf`, 具体配置项可查看[配置说明](../config-description/v013.md)。
+
 
 **启用 WebHook**
 
@@ -20,6 +21,7 @@ web.hook.enable=true
 ## 格式示例
 web.hook.rule.<Event>.<Number>=<Rule>
 
+
 ## 示例值
 web.hook.rule.message.publish.1={"action": "on_message_publish", "topic": "a/b/c"}
 web.hook.rule.message.publish.2={"action": "on_message_publish", "topic": "foo/#"}
@@ -29,9 +31,9 @@ web.hook.rule.message.publish.2={"action": "on_message_publish", "topic": "foo/#
 
 目前支持以下事件：
 
-| 名称                | 说明         | 执行时机                     |
+| 名称                 | 说明         | 执行时机                     |
 | ------------------- | ------------ | ---------------------------- |
-| client.connack      | 下发连接应答 | 服务端准备下发连接应答报文时 |
+| client.connack      | 下发连接应答  | 服务端准备下发连接应答报文时 |
 | client.disconnected | 连接断开     | 客户端连接层在准备关闭时     |
 | message.publish     | 消息发布     | 服务端在发布（路由）消息前   |
 
