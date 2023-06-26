@@ -51,7 +51,7 @@ bridges.mqtt.name {
 	max_recv_queue_len = 1024
 }
 ```
-Here, you can use the include syntax of HOCON to put the
+Here, you can use the `include` syntax of HOCON to put the
 configuration file of the bridge into nanomq_bridge.conf.
 ```shell
 include "path/to/nanomq_bridge.conf" 
