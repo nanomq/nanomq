@@ -45,7 +45,19 @@
       "path": "access-control/introduction",
       "children": [
         {
+          "title": "登录认证",
+          "path": "access-control/login"
+        },  
+        {
           "title": "JWT 认证",
+          "path": "access-control/jwt"
+        },
+        {
+          "title": "访问控制列表",
+          "path": "access-control/acl"
+        },
+        {
+          "title": "HTTP 认证",
           "path": "access-control/jwt"
         }
       ]
