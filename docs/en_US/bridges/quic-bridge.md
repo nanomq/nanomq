@@ -37,8 +37,8 @@ For specific configuration parameters, please refer to [Hocon version](../config
 Key configuration parameters:
 
 - Remote broker address: `bridges.mqtt.name.connector.server`
-- Forward topic array:  `bridges.mqtt.name.forwards`
-- Subscribe topic arrary:   `bridges.mqtt.name.subscription`
+- Forward topic array(Support MQTT Wildcard):  `bridges.mqtt.name.forwards`
+- Subscribe topic array(Support MQTT Wildcard):   `bridges.mqtt.name.subscription`
 
 For QUIC:
 
