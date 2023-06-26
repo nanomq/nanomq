@@ -21,7 +21,7 @@ get_http_server_conf()
 static void
 check_http_status_code(char *buff, char *sc)
 {
-	printf("sc=%s\n", sc);
+	// printf("sc=%s\n", sc);
 	assert(strncmp(buff, sc, 12) == 0);
 }
 
@@ -33,7 +33,7 @@ check_http_result_code(char *buff, int rc)
 	assert(root != NULL);
 	cJSON *result_code = cJSON_GetObjectItemCaseSensitive(root, "code");
 	assert(cJSON_IsNumber(result_code));
-	printf("rc=%d\n", rc);
+	// printf("rc=%d\n", rc);
 	assert(result_code->valueint == rc);
 	cJSON_Delete(root);
 }
@@ -49,6 +49,7 @@ check_http_return(FILE *fd, char *sc, int rc)
 			check_http_status_code(buff, sc);
 		} else if (index == 5) {
 			check_http_result_code(buff, rc);
+			// printf("data:%s\n", buff);
 		} else {
 			continue;
 		}
@@ -56,7 +57,7 @@ check_http_return(FILE *fd, char *sc, int rc)
 }
 
 static void
-test_endpoints()
+test_get_endpoints()
 {
 	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
 	            "'http://localhost:8081/api/v4'";
@@ -67,10 +68,55 @@ test_endpoints()
 }
 
 static void
-test_brokers()
+test_get_brokers()
 {
 	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
 	            "'http://localhost:8081/api/v4/brokers'";
+	FILE *fd;
+	fd = popen(cmd, "r");
+	check_http_return(fd, STATUS_CODE_OK, RESULT_CODE_SUCCESS);
+	pclose(fd);
+}
+
+static void
+test_get_nodes()
+{
+	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
+	            "'http://localhost:8081/api/v4/nodes'";
+	FILE *fd;
+	fd = popen(cmd, "r");
+	check_http_return(fd, STATUS_CODE_OK, RESULT_CODE_SUCCESS);
+	pclose(fd);
+}
+
+static void
+test_get_clients()
+{
+	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
+	            "'http://localhost:8081/api/v4/clients'";
+	FILE *fd;
+	fd = popen(cmd, "r");
+	check_http_return(fd, STATUS_CODE_OK, RESULT_CODE_SUCCESS);
+	pclose(fd);
+}
+
+static void
+test_get_subscriptions()
+{
+	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
+	            "'http://localhost:8081/api/v4/subscriptions'";
+			
+	FILE *fd;
+	fd = popen(cmd, "r");
+	check_http_return(fd, STATUS_CODE_OK, RESULT_CODE_SUCCESS);
+	pclose(fd);
+}
+
+static void
+test_get_subscriptions_clientid()
+{
+	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
+	            "'http://localhost:8081/api/v4/subscriptions/123'";
 	FILE *fd;
 	fd = popen(cmd, "r");
 	check_http_return(fd, STATUS_CODE_OK, RESULT_CODE_SUCCESS);
@@ -86,9 +132,17 @@ main()
 	conf = get_http_server_conf();
 	nng_thread_create(&nmq, broker_start_with_conf, conf);
 
-	test_endpoints();
+	test_get_endpoints();
 
-	test_brokers();
+	test_get_brokers();
+
+	test_get_nodes();
+
+	test_get_clients();
+
+	test_get_subscriptions();
+
+	test_get_subscriptions_clientid();
 
 	nng_thread_destroy(nmq);
 }
