@@ -409,7 +409,7 @@ main()
 	assert(test_get_nodes());
 
 	assert(test_get_clients());
-	assert(test_get_clientid);
+	assert(test_get_clientid());
 	assert(test_get_client_user_name());
 
 	assert(test_get_subscriptions());
