@@ -15,7 +15,7 @@ webhook {
 
 ## Webhook Trigger Rules
 
-The WebHook trigger rules is a JSON string,  and the available keys are:
+NanoMQ provides the following configuration keys for WebHook:
 
 - `event`: string, taking a fixed value
 - `topic`: a string, functioning like a topic filter, the messaging forwarding action will only be triggered if the message topic matches the one specified in the rule. 
