@@ -47,7 +47,7 @@ $ sudo ninja install
 
 ### 编译安装 IDL 代码生成器
 
-在 DDS 中，IDL (Interface Definition Language) 代码生成器主要负责将由 IDL 编写的接口定义转化为一种特定的编程语言的源代码。为了方便用户能够简单快速上手 DDS Proxy 功能，NanoMQ 提供了 IDL 代码生成器：[idl-serial-code-gen](https://github.com/nanomq/idl-serial)，用于根据用户的 DDS IDL 文件来自动生成 JSON 序列化和反序列化代码。
+为方便用户快速上手 DDS Proxy，NanoMQ 提供了 IDL 代码生成器：[idl-serial-code-gen](https://github.com/nanomq/idl-serial)，用于根据用户的 DDS IDL 文件来自动生成 JSON 序列化和反序列化代码。
 
 运行以下代码编译 `IDL` 代码生成器 `idl-serial` 
 
