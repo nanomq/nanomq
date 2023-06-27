@@ -5,30 +5,10 @@
 #define STATUS_CODE_UNAUTHORIZED "HTTP/1.1 401"
 #define STATUS_CODE_NOT_FOUND "HTTP/1.1 404"
 
-enum result_code {
-	SUCCEED                        = 0,
-	RPC_ERROR                      = 101,
-	UNKNOWN_MISTAKE                = 102,
-	WRONG_USERNAME_OR_PASSWORD     = 103,
-	EMPTY_USERNAME_OR_PASSWORD     = 104,
-	USER_DOES_NOT_EXIST            = 105,
-	ADMIN_CANNOT_BE_DELETED        = 106,
-	MISSING_KEY_REQUEST_PARAMES    = 107,
-	REQ_PARAM_ERROR                = 108,
-	REQ_PARAMS_JSON_FORMAT_ILLEGAL = 109,
-	PLUGIN_IS_ENABLED              = 110,
-	PLUGIN_IS_CLOSED               = 111,
-	CLIENT_IS_OFFLINE              = 112,
-	USER_ALREADY_EXISTS            = 113,
-	OLD_PASSWORD_IS_WRONG          = 114,
-	ILLEGAL_SUBJECT                = 115,
-	TOKEN_EXPIRED                  = 116,
-};
-
 static cJSON *jsn; // TODO: this could be used for further check.
 
 static conf *
-get_http_server_conf()
+get_http_server_test_conf()
 {
 	conf *nmq_conf = get_dflt_conf();
 
@@ -388,14 +368,15 @@ main()
 	conf       *conf;
 	FILE       *fd;
 
-	conf = get_http_server_conf();
+	conf = get_http_server_test_conf();
 	nng_thread_create(&nmq, broker_start_with_conf, conf);
 	fd = popen(cmd, "r");
 	nng_msleep(50); // wait a while after sub
 
 	// TODO: there is a potential connection refuse case & although they
 	// work fine separately but if test_pub() is behind test_gets() there
-	// will be a memleak, got to figure out why.
+	// will be a memleak, which indicates there are potential bugs. Got to
+	// figure out why.
 	assert(test_pub());
 	assert(test_pub_batch());
 	// not supported for now.
