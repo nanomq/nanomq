@@ -1,10 +1,10 @@
 # Configure with WebHook
 
-## Configuration item
+NanoMQ is equipped with an event-driven WebHook interface, this section introduces how to enable the WebHook interface, relevant configuration items, and how WebHook is triggered by topics or events.
 
-The webhook configuration file is located in: `etc/nanomq.conf`, the detailed description of configuration items can be found in [Configuration item](../config-description/v014.md).
+The webhook configuration file is located in `etc/nanomq.conf`, the detailed description of configuration items can be found in [Configuration Item](../config-description/v014.md).
 
-**Enable Webhook**
+## Enable Webhook
 
 ```bash
 webhook {
@@ -13,67 +13,27 @@ webhook {
 ```
 **📢 Attention:** Starting from NanoMQ version 0.18, the `enable` option has been removed. Therefore, to enable the `webhook` configuration, simply add this module to the configuration file as shown above.
 
-## Trigger rule
+## Webhook Trigger Rules
 
-Trigger rules can be configured in `etc/nanomq.conf`.  The configuration format is as follows:
+The WebHook trigger rules is a JSON string,  and the available keys are:
+
+- `event`: string, taking a fixed value
+- `topic`: a string, functioning like a topic filter, the messaging forwarding action will only be triggered if the message topic matches the one specified in the rule. 
+
+**Syntax**
 
 ```bash
-## Format example
 webhook.events = [
     ## Multi rules can be added here.
     {
         <Rule>
     }
 ]
-
-## Example
-webhook.events = [
-	url = "http://127.0.0.1:80"
-	headers.content-type = "application/json"
-	body.encoding = plain
-	pool_size = 32
-
-	{ 
-		# # Webhook event.
-		# #
-		# # Value: String
-		# # Supported event list:
-		# # event: on_client_connack
-		# # event: on_client_disconnected
-		# # event: on_message_publish
-		event = "on_message_publish"
-
-		# # Webhook topic.
-		# #
-		# # Value: String
-		# # Support on message publish
-		topic = "a/b/c"
-	}
-	{
-		event = "on_client_connack"
-	}
-]
-
 ```
 
-### Trigger event
+**Example**
 
-The following events are currently supported:
-
-| Name                   | Description                  | **Execution timing**                               |
-| ---------------------- | ---------------------------- | -------------------------------------------------- |
-| on_client_connack      | Issue connection acknowledge | When the server is ready to send connack packet    |
-| on_client_disconnected | disconnected                 | When the client connection layer is about to close |
-| on_message_publish     | message published            | Before the server rpublishes (routes) the message  |
-
-### Rule
-
-The trigger rule's 'value is a JSON string, and the available Keys are:
-
-- event: string, taking a fixed value
-- topic: a string, indicating a topic filter, the operation topic can only trigger the forwarding of the event if it matches the topic
-
-For example, we only forward messages matching the topics of `a/b/c` and `foo/#` to the web server, and the configuration should be:
+For example, you want to forward messages matching the topics of `a/b/c` and `foo/#` to the web server, and the configuration should be:
 
 ```bash
 webhook.events = [
@@ -88,50 +48,97 @@ webhook.events = [
 ]
 ```
 
-In this way, Webhook will only forward messages matching the topics of `a/b/c` and `foo/#`, such as `foo/bar`, etc., instead of forwarding `a/b/d` or `fo/bar`
+## WebHook Trigger Events
 
-## Webhook event parameters
+WebHook can be triggered by the following events :
 
-When the event is triggered, Webhook will group each event into an HTTP request and sent it to the web server configured by url according to the configuration. The request format is:
+| Name                   | Description                  | **Execution timing**                               |
+| ---------------------- | ---------------------------- | -------------------------------------------------- |
+| on_client_connack      | Issue connection acknowledge | When the server is ready to send connack packet    |
+| on_client_disconnected | disconnected                 | When the client connection layer is about to close |
+| on_message_publish     | message published            | Before the broker publishes (routes) the message   |
+
+## Event Parameters
+
+When an event occurs, the NanoMQ WebHook interface will package that event into an HTTP request. This request is then sent to a web server, the location of which is determined by a pre-configured URL. 
+
+The request format is:
 
 ```bash
-URL: <url>      # From the url field in the configuration
+URL: <url>      # From the url field in the configuration file
 Method: POST    # Fixed as POST method
 
 Body: <JSON>    # Body is a JSON format string
 ```
 
-For different events, the content of the request body is different. The following table lists the parameters of the body in each event:
+The `body` for different events may differ. The following tables list the body parameters supported in each type of event:
 
 **on_client_connack**
 
-| Key       | Type    | Description                                                 |
-| --------- | ------- | ----------------------------------------------------------- |
-| action    | string  | event name<br/>fixed at: "client_connack"                   |
-| clientid  | string  | client ClientId                                             |
-| username  | string  | client Username, When not existed, the value is "undefined" |
-| keepalive | integer | Heartbeat keepalive time applied by client                  |
-| proto_ver | integer | Protocol version number （3 ｜ 4 ｜ 5）                     |
-| conn_ack  | string  | "success" means success, other means failure                |
+| Key       | Type    | Description                                                  |
+| --------- | ------- | ------------------------------------------------------------ |
+| action    | string  | Event name<br />Value: "client_connack", cannot be modified  |
+| clientid  | string  | Client's Client ID                                           |
+| username  | string  | Client's Username, when there is no username, will use "undefined" |
+| keepalive | integer | Heartbeat keepalive time applied by the client               |
+| proto_ver | integer | Protocol version number （3 ｜ 4 ｜ 5）                      |
+| conn_ack  | string  | "success" or failure                                         |
 
 **on_client_disconnected**
 
-| Key      | Type   | Description                                                 |
-| -------- | ------ | ----------------------------------------------------------- |
-| action   | string | event name<br/>fixed at: "client_disconnected"              |
-| clientid | string | client ClientId                                             |
-| username | string | client Username, When not existed, the value is "undefined" |
-| reason   | string | error reason                                                |
+| Key      | Type   | Description                                                  |
+| -------- | ------ | ------------------------------------------------------------ |
+| action   | string | Event name<br />Value: "client_disconnected", cannot be modified |
+| clientid | string | Client's Client ID                                           |
+| username | string | Client's Username, when there is no username, will use "undefined" |
+| reason   | string | Error reasons                                                |
 
 **on_message_publish**
 
 | Key            | Type    | Description                                                  |
 | -------------- | ------- | ------------------------------------------------------------ |
-| action         | string  | event name<br/>fixed at: "message_publish"                   |
-| from_client_id | string  | Publisher's ClientId                                         |
-| from_username  | string  | Publisher's Username, When not existed, the value is "undefined" |
+| action         | string  | Event name<br/>Value: "message_publish", cannot be modified  |
+| from_client_id | string  | Publisher's Client ID                                        |
+| from_username  | string  | Publisher's Username, when there is no username, will use "undefined" |
 | topic          | string  | Unsubscribed topic                                           |
 | qos            | enum    | QoS level, and the optional value is `0` `1` `2`             |
 | retain         | bool    | Whether it is a Retain message                               |
 | payload        | string  | Message Payload                                              |
 | ts             | integer | Timestamp (second)                                           |
+
+## Configure Multiple Rules
+
+NanoMQ supports defining multiple trigger rules through the configuration file. This section will demonstrate by defining two WebHook trigger rules as an example:
+
+- Rule 1: When a message is sent to the "a/b/c" topic, trigger the WebHook. 
+- Rule 2: When a client initiates a connection request, trigger the WebHook.
+
+The sample configuration is as follows:
+
+```bash
+webhook.events = [
+	url = "http://127.0.0.1:80"
+	headers.content-type = "application/json"
+	body.encoding = plain
+	pool_size = 32
+
+	{ 
+		event = "on_message_publish"
+		topic = "a/b/c"
+	}
+	{
+		event = "on_client_connack"
+	}
+]
+
+```
+
+where,
+
+`event`: WebHook triggered event, string, supported events include:
+
+- `on_client_connack`: Client connects
+- `on_client_disconnected`: Client disconnects
+- `on_message_publish`: Message published
+
+`topic`: The topic that the message is published into, a string 
