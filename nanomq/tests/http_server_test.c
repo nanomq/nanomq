@@ -25,6 +25,8 @@ enum result_code {
 	TOKEN_EXPIRED                  = 116,
 };
 
+static cJSON *jsn; // TODO: this could be used for further check.
+
 static conf *
 get_http_server_conf()
 {
@@ -59,6 +61,7 @@ check_http_result_code(char *buff, int rc)
 	cJSON *root = NULL;
 
 	root = cJSON_Parse(buff);
+	jsn  = root;
 	if (root == NULL) {
 		rv = false;
 		goto exit;
@@ -145,6 +148,28 @@ test_get_clients()
 }
 
 static bool
+test_get_clientid()
+{
+	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
+	            "'http://localhost:8081/api/v4/clients/clientid-test'";
+	FILE *fd  = popen(cmd, "r");
+	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
+	pclose(fd);
+	return rv;
+}
+
+static bool
+test_get_client_user_name()
+{
+	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
+	            "'http://localhost:8081/api/v4/clients/username/user-test'";
+	FILE *fd  = popen(cmd, "r");
+	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
+	pclose(fd);
+	return rv;
+}
+
+static bool
 test_get_subscriptions()
 {
 	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
@@ -159,7 +184,7 @@ static bool
 test_get_subscriptions_clientid()
 {
 	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
-	            "'http://localhost:8081/api/v4/subscriptions/123'";
+	            "'http://localhost:8081/api/v4/subscriptions/client-id-test'";
 	FILE *fd  = popen(cmd, "r");
 	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
 	pclose(fd);
@@ -205,16 +230,21 @@ test_not_found()
 int
 main()
 {
+	char       *cmd = "mosquitto_sub -h 127.0.0.1 -p 1881 -t topic-test -u user-test -i clientid-test";
 	nng_thread *nmq;
 	conf       *conf;
+	FILE       *fd;
 
 	conf = get_http_server_conf();
 	nng_thread_create(&nmq, broker_start_with_conf, conf);
+	fd = popen(cmd, "r");
 
 	assert(test_get_endpoints());
 	assert(test_get_brokers());
 	assert(test_get_nodes());
 	assert(test_get_clients());
+	assert(test_get_clientid);
+	assert(test_get_client_user_name());
 	assert(test_get_subscriptions());
 	assert(test_get_subscriptions_clientid());
 
