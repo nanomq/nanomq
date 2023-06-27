@@ -1,12 +1,12 @@
 # WebHook
 
-
+NanoMQ 提供了可拓展的事件驱动型 WebHook 接口，本节将介绍如何启用 WebHook 功能，如何通过规则定义 WebHook 的触发时间和方式。
 
 ## 配置项
 
-Webhook 的配置文件位于 `etc/nanomq.conf`, 具体配置项可查看[配置说明](../config-description/v014.md)。
+WebHook 的配置文件位于 `etc/nanomq.conf`, 具体配置项可查看[配置说明](../config-description/v014.md)。
 
-**启用 Webhook**
+**启用 WebHook**
 
 ```bash
 web.hook.enable=true
@@ -53,11 +53,11 @@ web.hook.rule.message.publish.1 = {"action": "on_message_publish", "topic": "a/b
 web.hook.rule.message.publish.2 = {"action": "on_message_publish", "topic": "foo/#"}
 ```
 
-这样 Webhook 仅会转发与 a/b/c 和 foo/# 主题匹配的消息，例如 foo/bar 等。
+这样 WebHook 仅会转发与 a/b/c 和 foo/# 主题匹配的消息，例如 foo/bar 等。
 
-## Webhook 事件参数
+## WebHook 事件参数
 
-事件触发时 Webhook 会按照配置将每个事件组成一个 HTTP 请求发送到 url 所配置的 Web 服务器上。其请求格式为：
+事件触发时 WebHook 会按照配置将每个事件组成一个 HTTP 请求发送到 url 所配置的 Web 服务器上。其请求格式为：
 
 ```bash
 URL: <url>      # 来自于配置中的 `url` 字段

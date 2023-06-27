@@ -26,14 +26,14 @@ yay -S nanomq-msquic
 yay -S nanomq-full
 ```
 
-## Install via DEB source
+## Install via deb source
 
 ```shell
 curl -s https://assets.emqx.com/scripts/install-nanomq-deb.sh | sudo bash
 sudo apt-get install nanomq
 ```
 
-## Install Deb package manually
+## Install deb package manually
 
 ```shell
 sudo bash -c 'cat << EOF > /etc/apt/sources.list.d/emqx_nanomq.list
@@ -52,14 +52,14 @@ sudo apt-get install nanomq
 
 
 
-## Install via RPM source
+## Install via rpm source
 
 ```shell
 curl -s https://assets.emqx.com/scripts/install-nanomq-rpm.sh | sudo bash
 sudo yum install -y nanomq
 ```
 
-## Install RPM package manually
+## Install rpm package manually
 
 ```shell
 sudo bash -c 'cat << EOF > /etc/yum.repos.d/emqx_nanomq.repo

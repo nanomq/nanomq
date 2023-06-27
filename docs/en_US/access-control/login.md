@@ -39,5 +39,11 @@ authorization {
 }
 ```
 
-In this configuration, `no_match` and `deny_action` are set to `allow` and `ignore` respectively. The `cache` is disabled, and the `sources` parameter has a simple type with two users, `admin` and `client`, both with the password `public`. So user `admin` and `client` are allowed to work with NanoMQ unless explicitly denied by the system.  
+In this configuration, 
+
+- `no_match` and `deny_action` are set to `allow` and `ignore` respectively.
+- `cache` is disabled.
+- `sources` is the users that can access NanoMQ, two users are listed here, `admin` and `client`, both with the password `public`. 
+
+According to the setting, user `admin` and `client` are allowed to work with NanoMQ unless explicitly denied by the system.  
 

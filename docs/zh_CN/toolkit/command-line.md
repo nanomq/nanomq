@@ -2,9 +2,9 @@
 
 ## broker
 
-NanoMQ 是一款用在物联网平台边缘端的超轻量 MQTT Broker 。
+NanoMQ 是一款用在物联网平台边缘端的超轻量 MQTT Broker。
 
-| Parameter       | abbreviation | Optional value                         | Default value            | Description                                                  |
+| 参数       | 缩写 | 可选值                         | 默认值            | 说明                                                  |
 | --------------- | ------------ | -------------------------------------- | ------------------------ | ------------------------------------------------------------ |
 | --url           | -            | -                                      | nmq-tcp://127.0.0.1:1883 | 指定监听的 url: 'nmq-tcp://host:port', 'tls+nmq-tcp://host:port' or 'nmq-ws://host:port/path' or 'nmq-wss://host:port/path' |
 | --conf          | -            | -                                      | -                        | NanoMQ 配置文件路径                                          |

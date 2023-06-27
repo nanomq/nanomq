@@ -2,38 +2,38 @@
 
 ## AUR 一键安装
 
-- Nanomq 基础版
+- NanoMQ 基础版
 
 ```bash
 yay -S nanomq
 ```
 
-- Nanomq sqlite 版
+- NanoMQ sqlite 版
 
 ```bash
 yay -S nanomq-sqlite
 ```
 
-- Nanomq msquic 版
+- NanoMQ msquic 版
 
 ```bash
 yay -S nanomq-msquic
 ```
 
-- Nanomq full 版
+- NanoMQ 完整版
 
 ```bash
 yay -S nanomq-full
 ```
 
-## Deb 一键安装
+## deb 一键安装
 
 ```shell
 curl -s https://assets.emqx.com/scripts/install-nanomq-deb.sh | sudo bash
 sudo apt-get install nanomq
 ```
 
-## Deb 手动安装
+## deb 手动安装
 
 ```shell
 sudo bash -c 'cat << EOF > /etc/apt/sources.list.d/emqx_nanomq.list
@@ -50,14 +50,14 @@ sudo apt-get update
 sudo apt-get install nanomq
 ```
 
-## Rpm 一键安装
+## rpm 一键安装
 
 ```shell
 curl -s https://assets.emqx.com/scripts/install-nanomq-rpm.sh | sudo bash
 sudo yum install -y nanomq
 ```
 
-## Rpm 手动安装
+## rpm 手动安装
 
 ```shell
 sudo bash -c 'cat << EOF > /etc/yum.repos.d/emqx_nanomq.repo
