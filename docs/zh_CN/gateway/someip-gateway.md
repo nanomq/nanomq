@@ -104,7 +104,7 @@ SOME/IP gateway 与 NanoMQ 对接。
 ldconfig
 ./hello_world_service // 启动 SOME/IP Server
 nanomq start // 启动 NanoMQ MQTT Broker
-nanomq cli vsomeip gateway--conf /etc/nanomq_vsomeip_gateway.conf// 启动 SOME/IP proxy
+./nanomq_cli vsomeip_gateway --conf ../etc/nanomq_vsomeip_gateway.conf // 启动 SOME/IP proxy
 ```
 配置好 SOME/IP 网关之后，当您通过 MQTT 客户端向 `topic/pub` 主题发送一条消息时，SOME/IP 网关会将这条消息转发给预先指定的 SOME/IP 服务，即 `hello_world_service`；SOME/IP 服务接收到消息后会产生一个回应，并通过 SOME/IP 网关将回应消息转发到 `topic/sub` 主题，订阅该主题的客户端即可收到相应回复消息。
 
