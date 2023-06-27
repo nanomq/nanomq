@@ -6,7 +6,7 @@ Under the trend of software-defined cars, SOME/IP shows high efficiency and secu
 
 NanoMQ now supports SOME-IP data communication based on the AUTOSAR standard via the SOME/IP Gateway. It can be deployed in the central gateway of the vehicle to aggregate data and interface with the TSP platform. The security of the gateway is ensured through MQTT over QUIC/TCP + TLS encrypted connection.
 
-<img src="/Users/lena/Documents/GitHub/Lena Pan/nanomq-1/docs/zh_CN/gateway/assets/someip-solution.png" alt="SOME/IP + MQTT 共同应用场景" style="zoom:50%;" />
+<img src="./assets/someip-solution.png" alt="SOME/IP + MQTT Solution" style="zoom:50%;" />
 
 ## Prerequisites
 
@@ -113,10 +113,10 @@ nanomq_cli vsomeip_gateway --conf ../etc/nanomq_vsomeip_gateway.conf // Launch S
 Once the SOME/IP Gateway is configured, when you send a message to the `topic/pub` topic via your MQTT client, the SOME/IP Gateway will forward this message to the pre-specified SOME/IP service, namely `hello_world_service`. Upon receipt, the SOME/IP service will generate a response and route it back to the `topic/sub` topic via the SOME/IP Gateway. Any client subscribed to this topic will then receive the corresponding response message.
 
 Here's an illustration of the running process:
-![img](/Users/lena/Documents/GitHub/Lena Pan/nanomq-1/docs/zh_CN/gateway/assets/hello_service.png)
-![img](/Users/lena/Documents/GitHub/Lena Pan/nanomq-1/docs/zh_CN/gateway/assets/nanomq_someip_gateway.png)
-![img](/Users/lena/Documents/GitHub/Lena Pan/nanomq-1/docs/zh_CN/gateway/assets/someip_gateway.png)
-![img](/Users/lena/Documents/GitHub/Lena Pan/nanomq-1/docs/zh_CN/gateway/assets/pub_sub.png)
+![img](./assets/hello_service.png)
+![img](./assets/nanomq_someip_gateway.png)
+![img](./assets/someip_gateway.png)
+![img](./assets/pub_sub.png)
 
 At present, the SOME/IP Gateway in NanoMQ supports transparent services only, meaning the original data remains unchanged as it passes through the gateway. However, we're constantly striving for enhancement. Our future plans include developing advanced features like automatic code generation and data serialization, catering to user preferences in terms of data serialization and deserialization format tools like IDL or FIDL. We appreciate your patience and look forward to offering these improved functionalities.
 
