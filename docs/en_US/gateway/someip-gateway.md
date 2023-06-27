@@ -104,7 +104,7 @@ To connect and forward to the SOME/IP service, which is the example service `hel
 ldconfig
 ./hello_world_service // Launch SOME/IP Server
 nanomq start // Launch NanoMQ MQTT Broker
-nanomq cli vsomeip gateway--conf /etc/nanomq_vsomeip_gateway.conf// Launch SOME/IP proxy
+nanomq_cli vsomeip_gateway --conf ../etc/nanomq_vsomeip_gateway.conf // Launch SOME/IP proxy
 ```
 
 Afterwards, sending a message in the `topic/pub` topic will receive a response message from the `hello_world_service` in the corresponding `topic/sub` topic.
