@@ -305,6 +305,21 @@ test_unsub()
 }
 
 static bool
+test_post_configuration()
+{
+	char *cmd = "curl -i --basic -u admin_test:pw_test -X POST "
+	            "'http://localhost:8081/api/v4/configuration' -d "
+	            "'{\"data\": {\"property_size\": 64, \"max_packet_size\": "
+	            "3, \"client_max_packet_size\": 5,\"msq_len\": "
+	            "2048, \"qos_duration\": 10, \"keepalive_backoff\": "
+	            "1250, \"allow_anonymous\": false}}'";
+	FILE *fd  = popen(cmd, "r");
+	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
+	pclose(fd);
+	return rv;
+}
+
+static bool
 test_unauthorized()
 {
 	char *cmd = "curl -i --basic -u admin:pw -X GET "
@@ -388,21 +403,33 @@ main()
 	// assert(test_unsub());
 
 	assert(test_get_endpoints());
+
 	assert(test_get_brokers());
+
 	assert(test_get_nodes());
+
 	assert(test_get_clients());
 	assert(test_get_clientid);
 	assert(test_get_client_user_name());
+
 	assert(test_get_subscriptions());
 	assert(test_get_subscriptions_clientid());
+
 	assert(test_get_topic_tree());
+
 	assert(test_get_reload());
+	assert(test_post_configuration());
+
 	assert(test_get_bridges());
 
+	// TODO: more test on bridges & rule engine
+
+	// failing tests
 	assert(test_unauthorized());
 	assert(test_bad_request());
 	assert(test_not_found());
 
+	// broker ctrl test
 	assert(test_restart());
 	assert(test_stop());
 
