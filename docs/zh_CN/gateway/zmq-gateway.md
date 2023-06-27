@@ -1,6 +1,9 @@
 # ZMQ GATEWAY
 
+NanoMQ 通过 ZMQ 网关使用 ZeroMQ 消息队列进行数据传输与路由。它是一种高性能、低延迟的消息传递机制。
+
 ## 编译
+
 Gateway 默认情况是不编译的，可以通过 -DBUILD_ZMQ_GATEWAY=ON 选项设置使 gateway 编译。
 
 ```

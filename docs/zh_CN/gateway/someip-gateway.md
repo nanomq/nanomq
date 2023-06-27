@@ -1,5 +1,7 @@
 # SOME/IP GATEWAY
 
+SOME/IP 是一种针对汽车以太网电子/电气系统的中间件解决方案，SOME/IP 网关负责 MQTT 消息和 SOME/IP 消息之间的数据转换。
+
 ## 依赖
 
 目前 someip-gateway 功能依赖于 [vsomeip](https://github.com/COVESA/vsomeip)。

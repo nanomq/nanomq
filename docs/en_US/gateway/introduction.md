@@ -12,4 +12,4 @@ The SOME/IP gateway is responsible for transforming MQTT messages into SOME/IP m
 
 ## [DDS Gateway](./dds.md)
 
-[DDS](https://www.omg.org/spec/DDS/About-DDS/) is a standard for high-performance, scalable, real-time, platform-independent, and predictable publish-subscribe messaging. The Object Management Group (OMG) manages the standard. [Cyclone DDS](https://cyclonedds.io/) is a popular implementation of the DDS standard.
+[DDS](https://www.omg.org/spec/DDS/About-DDS/) is a standard for high-performance, scalable, real-time, platform-independent, and predictable publish-subscribe messaging. The Object Management Group (OMG) manages the standard. [Cyclone DDS](https://cyclonedds.io/) is a popular implementation of the DDS standard. 
