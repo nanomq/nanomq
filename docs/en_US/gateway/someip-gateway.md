@@ -55,7 +55,7 @@ Before starting, specify the bridged topic and the address of the required SOME/
 
 Suppose you wish to route the data received from the SOME/IP service to the `topic/pub` topic of your local MQTT Broker. Moreover, you want to channel the MQTT messages received through the `topic/sub` topic to the SOME/IP service. You can accomplish this through the following configuration:
 
-```apacheconf
+```apache
 gateway.mqtt {
     address = "mqtt-tcp://localhost:1883"
     sub_topic = "topic/sub" # message from mqtt
