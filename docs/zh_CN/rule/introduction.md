@@ -2,7 +2,7 @@
 
 NanoMQ 内置简单的规则引擎帮助用户灵活处理边缘数据，实现类似复杂的消息路由场景、触发自动化操作，以及将其他系统与你的 MQTT 环境进行集成等场景，比如与 eKuiper 集成在边缘进行流式数据分析
 
-本章主要介绍如何通过 [WebHook](./web-hook.md) 或 [配置文件](./config-file.md) 进行配置。
+本章主要介绍如何通过 [WebHook](./web-hook.md) 或 [配置文件](./config-rule-engine.md) 进行配置。
 
 ## 通过 WebHook 配置
 
