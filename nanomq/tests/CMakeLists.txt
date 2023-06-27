@@ -1,0 +1,8 @@
+nanomq_test(sub_handler_test)
+nanomq_test(unsub_handler_test)
+nanomq_test(pub_handler_test)
+nanomq_test(broker_test)
+nanomq_test(webhook_test)
+nanomq_test(webhook_base62_test)
+nanomq_test(webhook_base64_test)
+nanomq_test(http_server_test)

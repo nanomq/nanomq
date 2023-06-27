@@ -27,6 +27,7 @@
 #include "nng/supplemental/http/http.h"
 #include "nng/supplemental/util/platform.h"
 #include "nng/supplemental/nanolib/log.h"
+
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -1011,7 +1012,7 @@ get_uptime(char *str, size_t str_len)
 	nng_time mins   = uptime / 1000 / 60 % 60;
 	nng_time secs   = uptime / 1000 % 60;
 
-	snprintf(str, str_len, "%llu Hours, %llu minutes, %llu seconds", hours,
+	snprintf(str, str_len, "%lu Hours, %lu minutes, %lu seconds", hours,
 	    mins, secs);
 }
 
@@ -3027,7 +3028,7 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 	}
-	cJSON *node_obj = cJSON_GetObjectItem(req, "data");
+	cJSON *node_obj = cJSON_GetObjectItem(req, name);
 	conf * config   = get_global_conf();
 
 	bool         found  = false;
@@ -3036,6 +3037,9 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 		conf_bridge_node *node     = bridge->nodes[i];
 		size_t            parallel = node->parallel;
 		if (name != NULL && strcmp(node->name, name) != 0) {
+			continue;
+		}
+		if (node->enable != true) {
 			continue;
 		}
 
@@ -3242,6 +3246,7 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 
 	conf *config = get_global_conf();
 
+	rv = 0;
 	bool         found  = false;
 	conf_bridge *bridge = &config->bridge;
 	for (size_t i = 0; i < bridge->count; i++) {
@@ -3252,6 +3257,7 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 			nng_mtx_unlock(node->mtx);
 			continue;
 		}
+		nng_mtx_unlock(node->mtx);
 
 		// Decode properties to nng_mqtt_property
 		property *prop_list = NULL;
@@ -3261,31 +3267,38 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 			}
 		}
 
-		if (sub_count > 0) {
-			// TODO handle repeated topics
-			cvector_copy(sub_topics, node->sub_list);
-			node->sub_count += sub_count;
-		}
-		if (sub_props != NULL) {
-			free_sub_property(node->sub_properties);
-			node->sub_properties = sub_props;
-		}
-		nng_mtx_unlock(node->mtx);
-
-		cvector_free(sub_topics);
 		found = true;
 
 		// convert sub_topics to nng_mqtt_topic_qos
-		// TODO uncomment the following line if you want to use nng_mqtt_topic_qos
-		// nng_mqtt_topic_qos *topic_list = convert_topic_qos(node->sub_list, node->sub_count);
+		nng_mqtt_topic_qos *topic_list = convert_topic_qos(sub_topics, sub_count);
 
-		// TODO @Wangha handle subscribe
-		// TODO params: config, node, node->sock, topic_list, sub_count, prop_list
+		// handle subscribe
+		rv = bridge_subscribe(node->sock, node, topic_list, sub_count, prop_list);
+
+		if (rv == 0) {
+			// Add to sub_list in node only when bridge_subscribe successfully
+			nng_mtx_lock(node->mtx);
+			if (sub_count > 0) {
+				// TODO handle repeated topics
+				cvector_copy(sub_topics, node->sub_list);
+				node->sub_count += sub_count;
+			}
+			if (sub_props != NULL) {
+				free_sub_property(node->sub_properties);
+				node->sub_properties = sub_props;
+			}
+			nng_mtx_unlock(node->mtx);
+		}
+
+		nng_mqtt_topic_qos_array_free(topic_list, sub_count);
 		break;
 	}
 
-	if (!found) {
-		status = NNG_HTTP_STATUS_NOT_FOUND;
+	if (!found || rv != 0) {
+		if (!found) {
+			status = NNG_HTTP_STATUS_NOT_FOUND;
+		} else if (rv != 0)
+			status = NNG_HTTP_STATUS_BAD_REQUEST;
 		code   = REQ_PARAM_ERROR;
 		free_sub_property(sub_props);
 		free_topic_list(sub_topics, sub_count);
@@ -3302,6 +3315,7 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 	cJSON_Delete(req);
 	cJSON_free(dest);
 	cJSON_Delete(res_obj);
+	cvector_free(sub_topics);
 	return res;
 
 out:
@@ -3361,6 +3375,7 @@ post_mqtt_bridge_unsub(http_msg *msg, const char *name)
 
 	conf *config = get_global_conf();
 
+	rv = 0;
 	bool         found  = false;
 	conf_bridge *bridge = &config->bridge;
 	for (size_t i = 0; i < bridge->count; i++) {
@@ -3370,6 +3385,11 @@ post_mqtt_bridge_unsub(http_msg *msg, const char *name)
 			nng_mtx_unlock(node->mtx);
 			continue;
 		}
+		if (!node->enable) {
+			nng_mtx_unlock(node->mtx);
+			continue;
+		}
+		nng_mtx_unlock(node->mtx);
 
 		// Get properties
 		property *prop_list = NULL;
@@ -3382,6 +3402,22 @@ post_mqtt_bridge_unsub(http_msg *msg, const char *name)
 			}
 		}
 
+		found = true;
+
+		// convert unsub_topics to nng_mqtt_topic
+		nng_mqtt_topic *topic_list = convert_topic(unsub_topics, unsub_count);
+
+		// handle unsubscribe
+		// TODO params: config, node, node->sock, topic_list, unsub_count, prop_list
+		rv = bridge_unsubscribe(node->sock, node, topic_list, unsub_count, prop_list);
+
+		nng_mqtt_topic_array_free(topic_list, unsub_count);
+
+		if (rv != 0) {
+			break;
+		}
+
+		nng_mtx_lock(node->mtx);
 		for (size_t i = 0; i < unsub_count; i++) {
 			char *unsub_topic = unsub_topics[i];
 			for (size_t j = 0; j < node->sub_count; j++) {
@@ -3399,21 +3435,17 @@ post_mqtt_bridge_unsub(http_msg *msg, const char *name)
 			}
 		}
 		nng_mtx_unlock(node->mtx);
-
-		found = true;
-		// convert unsub_topics to nng_mqtt_topic
-		// TODO uncomment the following line if you want to use nng_mqtt_topic
-		// nng_mqtt_topic *topic_list = convert_topic(unsub_topics, unsub_count);
-
-		// TODO @Wangha handle unsubscribe
-		// TODO params: config, node, node->sock, topic_list, unsub_count, prop_list
 		break;
 	}
 
 	free_string_list(unsub_topics, unsub_count);
 
-	if (!found) {
-		status = NNG_HTTP_STATUS_NOT_FOUND;
+	if (!found || rv != 0) {
+		if (!found)
+			status = NNG_HTTP_STATUS_NOT_FOUND;
+		else if (rv != 0)
+			status = NNG_HTTP_STATUS_BAD_REQUEST;
+
 		code   = REQ_PARAM_ERROR;
 		goto out;
 	}

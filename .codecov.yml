@@ -1,5 +1,5 @@
 ignore:
- - "**/*_test.c"
+ - "nanomq/tests"
  - "nanomq_cli"
 coverage:
  range: 50..95

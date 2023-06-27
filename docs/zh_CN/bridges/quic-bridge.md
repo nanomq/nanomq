@@ -38,67 +38,55 @@ $ sudo ninja install
 
 重点配置项：
 
-- 桥接功能启用: `bridges.mqtt.nodes[].enable`
-
-- 远端 broker 地址: `bridges.mqtt.nodes[].connector.server`
-- 转发远端 Topic 数组(支持 MQTT 通配符):  `bridges.mqtt.nodes[].forwards`
-- 订阅远端 Topic 数组(支持 MQTT 通配符):   `bridges.mqtt.nodes[].subscription`
+- 远端 broker 地址: `bridges.mqtt.name.server`
+- 转发远端 Topic 数组(支持 MQTT 通配符):  `bridges.mqtt.name.forwards`
+- 订阅远端 Topic 数组(支持 MQTT 通配符):   `bridges.mqtt.name.subscription`
 
 QUIC 专用配置:
 
-- 混合桥接模式开关：`bridges.mqtt.nodes[].hybrid_bridging`
-- 多流桥接开关: `bridges.mqtt.nodes[].multi_stream`
-
+- 混合桥接模式开关：`bridges.mqtt.name.hybrid_bridging`
+- 多流桥接开关: `bridges.mqtt.name.multi_stream`
 
 
 nanomq.conf 的桥接配置部分:
 
 ```bash
-bridges.mqtt {
-	nodes = [ 
+bridges.mqtt.name {
+	## TCP URL 格式:  mqtt-tcp://host:port
+	## TLS URL 格式:  tls+mqtt-tcp://host:port
+	## QUIC URL 格式: mqtt-quic://host:port
+	server = "mqtt-quic://iot-platform.cloud:14567"
+	proto_ver = 4
+	username = emqx
+	password = emqx123
+	clean_start = true
+	keepalive = 60s
+	forwards = ["forward1/#","forward2/#"]
+	quic_keepalive = 120s
+	quic_idle_timeout = 120s
+	quic_discon_timeout = 20s
+	quic_handshake_timeout = 60s
+	hybrid_bridging = false
+	subscription = [
 		{
-			name = emqx
-			enable = true
-			connector {
-				## TCP URL 格式:  mqtt-tcp://host:port
-				## TLS URL 格式:  tls+mqtt-tcp://host:port
-				## QUIC URL 格式: mqtt-quic://host:port
-				server = "mqtt-quic://iot-platform.cloud:14567"
-				proto_ver = 4
-				username = emqx
-				password = emqx123
-				clean_start = true
-				keepalive = 60s
-				ssl {
-					enable = false
-					keyfile = "/etc/certs/key.pem"
-					certfile = "/etc/certs/cert.pem"
-					cacertfile = "/etc/certs/cacert.pem"
-				}
-			}
-			forwards = ["forward1/#","forward2/#"]
-			quic_keepalive = 120s
-			quic_idle_timeout = 120s
-			quic_discon_timeout = 20s
-			quic_handshake_timeout = 60s
-			hybrid_bridging = false
-			congestion_control = cubic
-			subscription = [
-				{
-					topic = "recv/topic1"
-					qos = 1
-				},
-				{
-					topic = "recv/topic2"
-					qos = 2
-				}
-			]
-      parallel = 2
-      max_send_queue_len = 1024
-      max_recv_queue_len = 1024
+			topic = "recv/topic1"
+			qos = 1
+		},
+		{
+			topic = "recv/topic2"
+			qos = 2
 		}
 	]
+	max_parallel_processes = 2 
+	max_send_queue_len = 1024
+	max_recv_queue_len = 1024
 }
+```
+
+这里你也可以使用 HOCON 的 `include` 语法，将桥接的配置放到单独的配置文件里 
+`nanomq_bridge.conf` 然后在 nanomq.conf 加入下面的语句。
+```shell
+include "path/to/nanomq_bridge.conf" 
 ```
 
 如需查看运行过程中更多日志数据，可以在配置文件中设置日志等级 `log.level`
@@ -136,10 +124,12 @@ $ nanomq start --old_conf nanomq.conf
    在第 1 个终端上执行订阅:
 
    ```bash
-   ## --url {远端 broker} 
+   ## -h {远端 host} 
+   ## -p {远端 port}
+   ## --quic {开启 quic}
    ## -u {用户名} 
-   ## -p {密码}
-   $ nanomq_cli sub --url "mqtt-quic://iot-platform.cloud:14567" -t  "forward1/#" -u emqx -p emqx123
+   ## -P {密码}
+   $ nanomq_cli sub --quic -h "iot-platform.cloud" -p 14567 -t  "forward1/#" -u emqx -P emqx123
    forward1/msg: forward_msg
    ```
 
@@ -171,7 +161,7 @@ $ nanomq start --old_conf nanomq.conf
    在第 4 个终端上执行消息发布:
 
    ```bash
-   $ nanomq_cli pub --url "mqtt-quic://iot-platform.cloud:14567" -t  "recv/topic1" -m "cmd_msg" -u emqx -p emqx123
+   $ nanomq_cli pub --quic -h "iot-platform.cloud" -p 14567 -t  "recv/topic1" -m "cmd_msg" -u emqx -P emqx123
    ```
 
    

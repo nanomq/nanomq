@@ -227,7 +227,7 @@ alloc_work(nng_socket sock, conf_web_hook *conf)
 void
 webhook_thr(void *arg)
 {
-	conf *             conf = arg;
+	conf              *conf = arg;
 	nng_socket         sock;
 	struct hook_work **works =
 	    nng_zalloc(conf->web_hook.pool_size * sizeof(struct hook_work *));
@@ -245,10 +245,9 @@ webhook_thr(void *arg)
 		works[i]     = alloc_work(sock, &conf->web_hook);
 		works[i]->id = i;
 	}
-
 	// NanoMQ core thread talks to others via INPROC
 	if ((rv = nng_listen(sock, WEB_HOOK_INPROC_URL, NULL, 0)) != 0) {
-		nng_fatal("nng_listen", rv);
+		nng_fatal("webhook nng_listen", rv);
 	}
 
 	for (i = 0; i < conf->web_hook.pool_size; i++) {
