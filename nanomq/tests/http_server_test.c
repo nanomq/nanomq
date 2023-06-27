@@ -48,6 +48,10 @@ check_http_status_code(char *buff, char *sc)
 	bool rv = true;
 
 	if (strncmp(buff, sc, 12) != 0) {
+		fprintf(stderr,
+		    "status code not match. what we expect:%s,"
+			" what we get:%s\n",
+		    sc, buff);
 		rv = false;
 	}
 
@@ -72,6 +76,10 @@ check_http_result_code(char *buff, int rc)
 		goto exit;
 	}
 	if (result_code->valueint != rc) {
+		fprintf(stderr,
+		    "result code not match. what we expect:%d,"
+		    " what we get:%d\n",
+		    rc, result_code->valueint);
 		rv = false;
 		goto exit;
 	}
@@ -161,10 +169,11 @@ test_get_clientid()
 static bool
 test_get_client_user_name()
 {
-	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
-	            "'http://localhost:8081/api/v4/clients/username/user-test'";
-	FILE *fd  = popen(cmd, "r");
-	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
+	char *cmd =
+	    "curl -i --basic -u admin_test:pw_test -X GET "
+	    "'http://localhost:8081/api/v4/clients/username/user-test'";
+	FILE *fd = popen(cmd, "r");
+	bool  rv = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
 	pclose(fd);
 	return rv;
 }
@@ -183,10 +192,81 @@ test_get_subscriptions()
 static bool
 test_get_subscriptions_clientid()
 {
-	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
-	            "'http://localhost:8081/api/v4/subscriptions/client-id-test'";
+	char *cmd =
+	    "curl -i --basic -u admin_test:pw_test -X GET "
+	    "'http://localhost:8081/api/v4/subscriptions/client-id-test'";
+	FILE *fd = popen(cmd, "r");
+	bool  rv = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
+	pclose(fd);
+	return rv;
+}
+
+static bool
+test_pub()
+{
+	char *cmd =
+	    "curl -i --basic -u admin_test:pw_test -X POST "
+	    "'http://localhost:8081/api/v4/mqtt/publish' -d "
+	    "'{\"topic\":\"topic-test\", \"payload\":\"Hello World\", "
+	    "\"qos\":1, "
+	    "\"retain\":false, \"clientid\":\"clientid-test\", "
+	    "\"properties\": "
+	    "{\"user_properties\": { \"id\": 10010, \"name\": \"name\", "
+	    "\"foo\": \"bar\"}, \"content_type\": \"text/plain\"}}'";
+	FILE *fd = popen(cmd, "r");
+	bool  rv = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
+	pclose(fd);
+	return rv;
+}
+
+static bool
+test_pub_batch()
+{
+	char *cmd =
+	    "curl -i --basic -u admin_test:pw_test -X POST "
+	    "'http://localhost:8081/api/v4/mqtt/publish_batch' -d "
+	    "'[{\"topic\":\"topic-test\", \"payload\":\"Hello World\", "
+	    "\"qos\":1, "
+	    "\"retain\":false, \"clientid\":\"clientid-test\", "
+	    "\"properties\": "
+	    "{\"user_properties\": { \"id\": 10010, \"name\": \"name\", "
+	    "\"foo\": \"bar\"}, \"content_type\": "
+	    "\"text/plain\"}},{\"topic\":\"topic-test\", \"payload\":\"Hello "
+	    "World Again\", "
+	    "\"qos\":1, "
+	    "\"retain\":false, \"clientid\":\"clientid-test\", "
+	    "\"properties\": "
+	    "{\"user_properties\": { \"id\": 10010, \"name\": \"name\", "
+	    "\"foo\": \"bar\"}, \"content_type\": \"text/plain\"}}]'";
+	// printf("cmd:%s\n", cmd);
+	FILE *fd = popen(cmd, "r");
+	bool  rv = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
+	pclose(fd);
+	return rv;
+}
+
+static bool
+test_sub()
+{
+	char *cmd = "curl -i --basic -u admin_test:pw_test -X POST "
+	            "'http://localhost:8081/api/v4/mqtt/subscribe' -d "
+	            "'{\"topics\":\"a,b,c\",\"qos\":1,\"clientid\":\"clientid-"
+	            "test\"}'";
 	FILE *fd  = popen(cmd, "r");
 	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
+	pclose(fd);
+	return rv;
+}
+
+static bool
+test_unsub()
+{
+	char *cmd =
+	    "curl -i --basic -u admin_test:pw_test -X POST "
+	    "'http://localhost:8081/api/v4/mqtt/unsubscribe' -d "
+	    "'{\"topics\":\"a\",\"qos\":1,\"clientid\":\"clientid-test\"}'";
+	FILE *fd = popen(cmd, "r");
+	bool  rv = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
 	pclose(fd);
 	return rv;
 }
@@ -230,7 +310,8 @@ test_not_found()
 int
 main()
 {
-	char       *cmd = "mosquitto_sub -h 127.0.0.1 -p 1881 -t topic-test -u user-test -i clientid-test";
+	char *cmd = "mosquitto_sub -h 127.0.0.1 -p 1881 -t topic-test -u "
+	            "user-test -i clientid-test";
 	nng_thread *nmq;
 	conf       *conf;
 	FILE       *fd;
@@ -238,6 +319,16 @@ main()
 	conf = get_http_server_conf();
 	nng_thread_create(&nmq, broker_start_with_conf, conf);
 	fd = popen(cmd, "r");
+	nng_msleep(50); // wait a while after sub
+
+	// TODO: there is a potential connection refuse case & although they
+	// work fine separately but if test_pub() is behind test_gets() there
+	// will be a memleak, got to figure out why.
+	assert(test_pub());
+	assert(test_pub_batch());
+	// not supported for now.
+	// assert(test_sub());
+	// assert(test_unsub());
 
 	assert(test_get_endpoints());
 	assert(test_get_brokers());
