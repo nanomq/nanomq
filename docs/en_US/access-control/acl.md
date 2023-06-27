@@ -8,7 +8,7 @@ Access Control List (ACL) provides a more fine-grained approach to authorization
 | -------- | -------------- | -------- | -------------------------------------------- |
 | permit   | enum           | Yes      | permission: `allow` ,`deny`                  |
 | action   | enum           | No       | operation : `publish`, `subscribe`, `pubsub` |
-| topics   | Arrary[String] | No       | Array of Topic                               |
+| topics   | Array[String]  | No       | Array of Topic                               |
 | username | String         | No       | Username: "`#`" means all users              |
 | clientid | String         | No       | ClientID: "`#`" means all client IDs         |
 | and      | Array[Object]  | No       | `AND` operator                               |
