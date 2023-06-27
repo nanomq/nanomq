@@ -202,6 +202,39 @@ test_get_subscriptions_clientid()
 }
 
 static bool
+test_get_topic_tree()
+{
+	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
+	            "'http://localhost:8081/api/v4/topic-tree'";
+	FILE *fd  = popen(cmd, "r");
+	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
+	pclose(fd);
+	return rv;
+}
+
+static bool
+test_get_reload()
+{
+	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
+	            "'http://localhost:8081/api/v4/reload'";
+	FILE *fd  = popen(cmd, "r");
+	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
+	pclose(fd);
+	return rv;
+}
+
+static bool
+test_get_bridges()
+{
+	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
+	            "'http://localhost:8081/api/v4/bridges'";
+	FILE *fd  = popen(cmd, "r");
+	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
+	pclose(fd);
+	return rv;
+}
+
+static bool
 test_pub()
 {
 	char *cmd =
@@ -307,6 +340,30 @@ test_not_found()
 	return rv;
 }
 
+static bool
+test_restart()
+{
+	char *cmd = "curl -i --basic -u admin_test:pw_test -X POST "
+	            "'http://localhost:8081/api/v4/ctrl/restart'";
+	FILE *fd  = popen(cmd, "r");
+	bool  rv =
+	    check_http_return(fd, STATUS_CODE_OK, SUCCEED);
+	pclose(fd);
+	return rv;
+}
+
+static bool
+test_stop()
+{
+	char *cmd = "curl -i --basic -u admin_test:pw_test -X POST "
+	            "'http://localhost:8081/api/v4/ctrl/stop'";
+	FILE *fd  = popen(cmd, "r");
+	bool  rv =
+	    check_http_return(fd, STATUS_CODE_OK, SUCCEED);
+	pclose(fd);
+	return rv;
+}
+
 int
 main()
 {
@@ -338,10 +395,16 @@ main()
 	assert(test_get_client_user_name());
 	assert(test_get_subscriptions());
 	assert(test_get_subscriptions_clientid());
+	assert(test_get_topic_tree());
+	assert(test_get_reload());
+	assert(test_get_bridges());
 
 	assert(test_unauthorized());
 	assert(test_bad_request());
 	assert(test_not_found());
+
+	assert(test_restart());
+	assert(test_stop());
 
 	nng_thread_destroy(nmq);
 }
