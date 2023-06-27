@@ -114,5 +114,5 @@ nanomq cli vsomeip gateway--conf /etc/nanomq_vsomeip_gateway.conf// 启动 SOME/
 ![img](./assets/someip_gateway.png)
 ![img](./assets/pub_sub.png)
 
-目前，NanoMQ 的 SOME/IP 网关仅支持透明传输（透传）服务，即原始数据经过 SOME/IP 网关后不会有任何的改变或处理，我们后续计划根据用户所使用的数据序列化和反序列化格式工具，比如 IDL 或 FIDL，提供更多高级功能，比如 自动代码生成和数据序列化，敬请期待。
+目前，NanoMQ 的 SOME/IP 网关仅支持透明传输（透传）服务，即原始数据经过 SOME/IP 网关后不会有任何的改变或处理，我们后续计划根据用户所使用的数据序列化和反序列化格式工具，比如 IDL 或 FIDL，提供更多高级功能，比如自动代码生成和数据序列化，敬请期待。
 
