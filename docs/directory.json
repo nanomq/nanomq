@@ -1,11 +1,11 @@
 {
   "cn": [
     {
-      "title": "NanoMQ 介绍",
+      "title": "产品简介",
       "path": "./"
     },
     {
-      "title": "开始使用",
+      "title": "快速上手",
       "path": "quick-start"
     },
     { 
@@ -218,7 +218,7 @@
       ]
     },
     {
-      "title": "MQTT Data Bridge",
+      "title": "MQTT Data Bridges",
       "path": "bridges/introduction",
       "children": [
         {
