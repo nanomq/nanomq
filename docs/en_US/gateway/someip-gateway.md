@@ -1,12 +1,22 @@
-# SOME/IP GATEWAY
+# SOME/IP Gateway
 
-## Dependencies
+Developed by the German company BMW, SOME/IP (**Scalable service-Oriented MiddlewarE over IP**) is a service-oriented vehicle Ethernet communication protocol that supports a Service-Oriented Architecture (SOA). Unlike traditional vehicular buses, according to the SOME/IP protocol, data is only transmitted when at least one recipient in the network needs the relevant data, thus greatly improving the utilization rate of network bandwidth.
 
-Currently, the functionality of someip-gateway relies on [vsomeip](https://github.com/COVESA/vsomeip).
+Under the trend of software-defined cars, SOME/IP shows high efficiency and security in handling data from various sources within the car. It can interface with traditional TSP platforms and offload computations to new-generation application services like ADAS.
 
-### Installing vsomeip
+NanoMQ now supports SOME-IP data communication based on the AUTOSAR standard via the SOME/IP Gateway. It can be deployed in the central gateway of the vehicle to aggregate data and interface with the TSP platform. The security of the gateway is ensured through MQTT over QUIC/TCP + TLS encrypted connection.
 
-Please refer to [vsomeip](https://github.com/COVESA/vsomeip) for installation instructions for the required dependencies. The following assumes that the relevant dependencies have been installed.
+<img src="/Users/lena/Documents/GitHub/Lena Pan/nanomq-1/docs/zh_CN/gateway/assets/someip-solution.png" alt="SOME/IP + MQTT 共同应用场景" style="zoom:50%;" />
+
+## Prerequisites
+
+The SOME/IP Gateway function of NanoMQ depends on [vSOMEIP](https://github.com/COVESA/vsomeip). Run the following commands to install vSOMEIP.
+
+::: tip
+
+Check the installation dependencies of vSOMEIP on the [vSOMEIP GitHub page](https://github.com/COVESA/vsomeip)
+
+:::
 
 ```shell
 git clone https://github.com/COVESA/vsomeip.git
@@ -18,7 +28,9 @@ make -j8
 make install
 ```
 
-### Compile hello_world_service
+### Compile the Sample Service
+
+Compile the hello_world_service sample service in vSOMEIP, which will be subsequently used to test the NanoMQ's SOME/IP Gateway.
 
 ```shell
 cd vsomeip/examples/hello_world
@@ -28,23 +40,22 @@ cmake ..
 make -j8
 ```
 
-## Compile
+## Enable SOME/IP Protocol Conversion
 
-Enable SOME/IP protocol conversion for NanoMQ during the compilation phase with the following command:
+Enable the SOME/IP protocol conversion feature for NanoMQ at the compile stage with the following command:
 
 ```shell
 cmake -G Ninja -DBUILD_VSOMEIP_GATEWAY=ON ..
 ninja
 ```
 
-## Running the Gateway
+## Configure the SOME/IP Gateway
 
-Before starting to use it, configure the bridged topics and the SOME/IP service address for request through the independent configuration file `etc/nanomq_vsomeip_gateway.conf`. For example, with this configuration, the data received from the SOME/IP service will be forwarded to the topic/pub topic of the local MQTT Broker, and the MQTT messages received from the topic topic/sub will be forwarded to the SOME/IP service.
+Before starting, specify the bridged topic and the address of the required SOME/IP service via the `etc/nanomq_vsomeip_gateway.conf` configuration file.
 
-```apache
-##====================================================================
-# # Configuration for MQTT VSOMEIP Gateway
-# #====================================================================
+Suppose you wish to route the data received from the SOME/IP service to the `topic/pub` topic of your local MQTT Broker. Moreover, you want to channel the MQTT messages received through the `topic/sub` topic to the SOME/IP service. You can accomplish this through the following configuration:
+
+```apacheconf
 gateway.mqtt {
     address = "mqtt-tcp://localhost:1883"
     sub_topic = "topic/sub" # message from mqtt
@@ -66,49 +77,46 @@ gateway.vsomeip {
     # conf_path = "/etc/vsomeip.json"
 }
 
-# #============================================================
-# # Http server
-# #============================================================
 http_server {
-    # # allow http server
-    # #
-    # # Value: true | false
-    enable = false
-    # # http server port
-    # #
-    # # Value: 0 - 65535
-    port = 8082
-    # # parallel for http server
-    # # Handle a specified maximum number of outstanding requests
-    # #
-    # # Value: 1-infinity
-    parallel = 2
-    # # username
-    # #
-    # # Basic authorization
-    # #
-    # # Value: String
-    username = admin
-    # # password
-    # #
-    # # Basic authorization
-    # #
-    # # Value: String
-    password = public
+	enable = false
+	port = 8082
+	parallel = 2
+	username = admin
+	password = public
 }
 ```
 
-To connect and forward to the SOME/IP service, which is the example service `hello_world_service` provided by the VSOMEIP project, start the SOME/IP gateway to integrate with NanoMQ. (Please refer to the VSOMEIP project documentation for instructions on how to install and start this example service. This service can also be replaced with other SOME/IP compatible services.)
+In this example, you've designated two distinct SOME/IP services, each corresponding to its respective MQTT topic, namely `someip/1234/5678/9ABC` and `someip/1111/2222/3333`.
 
-```shell
+- When the SOME/IP gateway receives a message from a particular combination of `service_id`, `service_instance_id`, and `service_method_id`, it promptly transposes it into an MQTT message and publishes it onto the related topic.
+- When the SOME/IP gateway receives messages from an MQTT topic, it will transcribe the message into the SOME/IP format and forward it to the predefined SOME/IP service.
+
+## Test the SOME/IP Gateway
+
+This section uses the `hello_world_service` sample service provided by the vSOMEIP project to connect and forward the SOME/IP service, and integrate it with NanoMQ via the SOME/IP gateway.
+
+::: tip
+
+For guidance on how to install and initiate this sample service, please refer to the vSOMEIP project documentation. This service can also be replaced with other SOME/IP-compatible services.
+
+:::
+
+Use the following commands to initiate `hello_world_service`:
+
+``` shell
 ldconfig
 ./hello_world_service // Launch SOME/IP Server
 nanomq start // Launch NanoMQ MQTT Broker
 nanomq_cli vsomeip_gateway --conf ../etc/nanomq_vsomeip_gateway.conf // Launch SOME/IP proxy
 ```
 
-Afterwards, sending a message in the `topic/pub` topic will receive a response message from the `hello_world_service` in the corresponding `topic/sub` topic.
+Once the SOME/IP Gateway is configured, when you send a message to the `topic/pub` topic via your MQTT client, the SOME/IP Gateway will forward this message to the pre-specified SOME/IP service, namely `hello_world_service`. Upon receipt, the SOME/IP service will generate a response and route it back to the `topic/sub` topic via the SOME/IP Gateway. Any client subscribed to this topic will then receive the corresponding response message.
 
-Running as shown in the figure: ![img](./assets/hello_service.png) ![img](./assets/nanomq_someip_gateway.png) ![img](./assets/someip_gateway.png) ![img](./assets/pub_sub.png)
+Here's an illustration of the running process:
+![img](/Users/lena/Documents/GitHub/Lena Pan/nanomq-1/docs/zh_CN/gateway/assets/hello_service.png)
+![img](/Users/lena/Documents/GitHub/Lena Pan/nanomq-1/docs/zh_CN/gateway/assets/nanomq_someip_gateway.png)
+![img](/Users/lena/Documents/GitHub/Lena Pan/nanomq-1/docs/zh_CN/gateway/assets/someip_gateway.png)
+![img](/Users/lena/Documents/GitHub/Lena Pan/nanomq-1/docs/zh_CN/gateway/assets/pub_sub.png)
 
-Currently, only transparent pass-through service is provided. In the future, automatic code generation and serialization functions similar to the DDS Proxy Gateway will be provided based on the data serialization/deserialization format tools used by users, such as IDL/FIDL.
+At present, the SOME/IP Gateway in NanoMQ supports transparent services only, meaning the original data remains unchanged as it passes through the gateway. However, we're constantly striving for enhancement. Our future plans include developing advanced features like automatic code generation and data serialization, catering to user preferences in terms of data serialization and deserialization format tools like IDL or FIDL. We appreciate your patience and look forward to offering these improved functionalities.
+

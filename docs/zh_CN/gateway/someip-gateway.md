@@ -49,7 +49,7 @@ ninja
 
 开始使用前，首先通过 `etc/nanomq_vsomeip_gateway.conf` 配置文件来设置桥接的主题和需要请求的 SOME/IP 服务地址。
 
-例如，您希望将从 SOME/IP 服务接收到的数据转发至本地 MQTT Broker 的 topic/pub 主题，同时将通过主题 topic/sub 收到的 MQTT 消息转发至 SOME/IP 服务，可通过如下配置实现：
+例如，您希望将从 SOME/IP 服务接收到的数据转发至本地 MQTT Broker 的 `topic/pub` 主题，同时将通过主题 `topic/sub` 收到的 MQTT 消息转发至 SOME/IP 服务，可通过如下配置实现：
 
 ```apacheconf
 gateway.mqtt {
