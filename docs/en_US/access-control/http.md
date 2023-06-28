@@ -23,6 +23,8 @@ HTTP Authorization provides yet another method for authentication and authorizat
 
 Example :
 
+If you need to use `http_auth`, you can modify it in the format of the following example, and then put the configuration of `http_auth` into the `auth {}` configuration.
+
 ```bash
 http_auth = {
   auth_req {
