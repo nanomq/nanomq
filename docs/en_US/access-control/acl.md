@@ -16,7 +16,7 @@ Access Control List (ACL) provides a more fine-grained approach to authorization
 
 ## Configuration Example
 
-This configuration defines various rules for different users and topics, providing a flexible mechanism for managing permissions.
+This configuration defines various rules for different users and topics, providing a flexible mechanism for managing permissions. Please write the rules in the correct format into the `nanomq_acl.conf` file and `include` it in `nanomq.conf`, as described in the [Access Control Introduction](introduction.md). 
 ```bash
 rules = [
   ## Allow MQTT client using username "dashboard"  to subscribe to "$SYS/#" topics
