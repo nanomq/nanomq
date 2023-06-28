@@ -7,60 +7,27 @@ Authentication and authorization are two fundamental security measures required 
 In NanoMQ, authentication is configured using a structure similar to the one below:
 
 ```bash
-authorization {
-  sources = [
-    { ...   },
-    { ...   }
-  ]
+auth {
+  allow_anonymous = true
   no_match = allow
   deny_action = ignore
   cache {
-    enable = true
     max_size = 1024
-    ttl = 1m
+    duration = 1m
   }
+  password = {include "/etc/nanomq_pwd.conf"}
+  acl = {include "/etc/nanomq_acl.conf"}
 }
 ```
 
 where, 
 
-- `sources` is an optional list that configures the chain of authenticators;
+- `allow_anonymous` data type is `boolean`, with a default value of `true`, which allows anonymous login.
 - `no_match` determines the default action for a request if none of the configured authenticators found any authentication rules
 - `deny_action` determines what to do if a request was rejected according to the authorization checks
 -  `cache` is an optional value with caching settings.
-
-## Authorization Configuration
-
-In NanoMQ, authorization is configured using a structure similar to the one below:
-```bash
-authorization {
-	no_match = allow
-	deny_action = ignore
-
-	cache = {
-		enable = false
-		max_size = 32
-		ttl = 1m
-	}
-	sources = [
-    {
-        type = file
-        enable = false
-
-        rules = [
-          {"permit": "allow", "username": "dashboard", "action": "subscribe", "topics": ["$SYS/#"]}
-          {"permit": "allow", "ipaddr": "127.0.0.1", "action": "pubsub", "topics": ["$SYS/#", "#"]}
-          {"permit": "deny", "username": "#", "action": "subscribe", "topics": ["$SYS/#", "#"]}
-          {"permit": "allow"}
-        ]
-      }
-	]
-}
-```
-
-where, 
-
-- `no_match` determines the default action for a publish/subscribe request if none of the configured authorizers found any authorization rules.
-- `deny_action` determines what to do if a request was rejected according to the checks
--  `cache` is an optional value with caching settings.
-- `sources`  is an optional list that configures the chain of authorizers;
+Optional value with caching settings.
+- `cache.max_size` — optional integer value, default is 32. Specifies the maximum number of elements in the cache. Older records are evicted from the cache when the specified number is exceeded.
+- `cache.ttl` — optional duration value, default is `1m`. Specifies how long cached values are kept in the cache.
+- `password` is password file path. This will include the contents of the "nanomq_pwd.conf" file in your configuration, so make sure that the file only contains the password in the correct format, using `include` to include your pwd file.
+- `acl` is acl file path, This will include the contents of the "nanomq_acl.conf" file in your configuration, so make sure that the file only contains the acl in the correct format, using `include` to include your acl file.
