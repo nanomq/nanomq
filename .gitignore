@@ -40,3 +40,5 @@ cmake-build-debug/
 
 # Generate files
 fdb_version.h
+nng
+nng
