@@ -62,20 +62,9 @@ $ sudo ninja install
 
 编译完成生成可执行文件 `idl-serial-code-gen`。
 
-### 生成 Json<->Struct 转换代码
-
-使用 `idl` 文件 `dds_structs.idl` 生成 `C` 代码 `idl_convert.c` 和 `idl_convert.h`
-
-```
-## 生成C代码 idl_convert.c 和 idl_convert.h
-$ ./idl-serial-code-gen  dds_structs.idl  idl_convert
-```
-
 ### 编译 NanoMQ DDS Proxy
 
-1. 将以上步骤中生成的代码文件 `idl_convert.c` 和 `idl_convert.h` 拷贝到 `nanomq_cli/dds2mqtt` 路径下
-
-2. 通过 cmake 参数 `IDL_FILE_PATH` 指定 `idl` 文件路径 (不指定则默认为工程路径下的 `etc/idl/dds_type.idl`)
+1. 通过 cmake 参数 `IDL_FILE_PATH` 指定 `idl` 文件路径 (不指定则默认为工程路径下的 `etc/idl/dds_type.idl`)
 
    ```
    $ git clone https://github.com/emqx/nanomq.git $ cd nanomq $ mkdir build && cd build $ cmake -G Ninja -DIDL_FILE_PATH={IDL_PATH} -DCMAKE_PREFIX_PATH={DDS_LIBRARY_PATH} -DBUILD_DDS_PROXY=ON .. $ ninja  $ sudo ninja install
