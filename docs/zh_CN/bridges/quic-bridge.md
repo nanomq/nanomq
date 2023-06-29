@@ -86,7 +86,7 @@ bridges.mqtt.name {
 
 ::: tip 
 
-使用 `mqtt-quic` 作为 URL 前缀即是采用 QUIC 作为 MQTT 的传输层，
+使用 `mqtt-quic` 作为 URL 前缀即是采用 QUIC 作为 MQTT 的传输层。
 
 :::
 
@@ -151,7 +151,7 @@ $ nanomq start --old_conf nanomq.conf
    新建一个命令行窗口，前往 build 文件夹下的 nanomq_cli 文件夹，执行以下命令进行订阅：
 
    ```bash
-   ## -h {远端 host} 
+   ## -h {host} 
    ## -p {端口号，如不指定将使用默认端口号 1883（MQTT）或 14567（QUIC）}
    ## -t {主题名称}
    ## --quic {开启 quic}
@@ -204,11 +204,6 @@ QUIC 协议相较于 TCP 的一大优势在于解决了队首阻塞的问题，�
 
 ![NanoMQ 多流桥接](./assets/multi-stream.png)
 
-目前多流桥接将 Stream 分为以下两种类型
-
-- **控制流：**对于每个 MQTT over QUIC 连接，首次建立时必须先建立此 Stream，所有 MQTT 控制信令如 CONNECT/PINGREQ/PINGRESP 都默认在此流上传输。连接以控制流作为探测当前网络环境和连接健康度的唯一指标，控制流断开将导致连接重连。但用户也可以选择在控制流上传输 PUBLISH 包。
-- **数据流：**桥接客户端每次进行 PUBLISH 和 SUBSCRIBE 操作都会根据使用的主题创建一个对应的数据流。此流由订阅或发布行为开启，服务端与客户端都会标识记录 PUBLISH 和 SUBSCRIBE 包中 Topic 和 此 Stream 的对应关系。所有发布到此 Topic 的数据都会被定向到此数据流。有别于控制流，数据流断开不会导致连接断开，而是下次自动重建。
-
 ### 启用多流桥接
 
 如希望使用多流桥接，只需打开对应的配置选项：
@@ -257,4 +252,4 @@ mqtt_sub_stream: create new pipe 0x61c000020080 for topic nanomq/1
 quic_strm_cb: QUIC_STREAM_EVENT_START_COMPLETE [0x618000020080] ID: 4 Status: 0
 ```
 
-之后 NanoMQ 就会自动根据 Topic 将数据包导流至不同的 Stream 发送。经过内部测试，在使用模拟 2s 延迟和 40% 丢包的弱网环境时，能够得到 stream 数量倍数的延时降低。
+之后 NanoMQ 就会自动根据 Topic 将数据包导流至不同的 Stream 发送。经过内部测试，在使用模拟 2s 延迟和 40% 丢包的弱网环境时，多流桥接可以显著降低延时。
