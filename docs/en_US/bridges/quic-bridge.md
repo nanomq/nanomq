@@ -50,50 +50,35 @@ Before setting up MQTT over QUIC bridging, you should install EMQX 5.0, which pr
 Once the QUIC module is enabled, you need to configure the MQTT over QUIC bridging feature and related topics in the `nanomq.conf` file. The following configuration file, for example, defines the server address for MQTT over QUIC bridging, connection credentials, connection parameters, message forwarding rules, subscription topics, and queue length.
 
 ```bash
-bridges.mqtt {
-	nodes = [ 
+bridges.mqtt.name {
+	## TCP URL format:  mqtt-tcp://host:port
+	## TLS URL format:  tls+mqtt-tcp://host:port
+	## QUIC URL format: mqtt-quic://host:port
+	server = "mqtt-quic://iot-platform.cloud:14567"
+	proto_ver = 4
+	username = emqx
+	password = emqx123
+	clean_start = true
+	keepalive = 60s
+	forwards = ["forward1/#","forward2/#"]
+	quic_keepalive = 120s
+	quic_idle_timeout = 120s
+	quic_discon_timeout = 20s
+	quic_handshake_timeout = 60s
+	hybrid_bridging = false
+	subscription = [
 		{
-			name = emqx
-			enable = true
-			connector {
-				## TCP URL format:  mqtt-tcp://host:port
-				## TLS URL format:  tls+mqtt-tcp://host:port
-				## QUIC URL format: mqtt-quic://host:port
-				server = "mqtt-quic://iot-platform.cloud:14567"
-				proto_ver = 4
-				username = emqx
-				password = emqx123
-				clean_start = true
-				keepalive = 60s
-				ssl {
-					enable = false
-					keyfile = "/etc/certs/key.pem"
-					certfile = "/etc/certs/cert.pem"
-					cacertfile = "/etc/certs/cacert.pem"
-				}
-			}
-			forwards = ["forward1/#","forward2/#"]
-			quic_keepalive = 120s
-			quic_idle_timeout = 120s
-			quic_discon_timeout = 20s
-			quic_handshake_timeout = 60s
-			hybrid_bridging = false
-			congestion_control = cubic
-			subscription = [
-				{
-					topic = "recv/topic1"
-					qos = 1
-				},
-				{
-					topic = "recv/topic2"
-					qos = 2
-				}
-			]
-      parallel = 2
-      max_send_queue_len = 1024
-      max_recv_queue_len = 1024
+			topic = "recv/topic1"
+			qos = 1
+		},
+		{
+			topic = "recv/topic2"
+			qos = 2
 		}
 	]
+	max_parallel_processes = 2 
+	max_send_queue_len = 1024
+	max_recv_queue_len = 1024
 }
 ```
 
@@ -171,13 +156,13 @@ This section uses NanoMQ's built-in client tool to test the newly built MQTT ove
    ## --m {message payload}
    ## -u {username} 
    ## -P {password}
-   $ ./nanomq_cli sub --quic -h "remote.broker.address" -t "forward1/#" -q 2 -u emqx -P emqx123
+   $ ./nanomq_cli sub --quic -h "remote.broker.address" -t "forward1/#" -q 2
    ```
 
 2. Open another command line window and publish a message to the **NanoMQ** Broker with the topic "`forward1/msg`":
 
    ```bash
-   ./nanomq_cli pub --quic -h "local.broker.address" -t "forward1/msg" -m "forward_msg" -q 2
+   ./nanomq_cli pub -h "local.broker.address" -t "forward1/msg" -m "forward_msg" -q 2
    ```
 
 3. Go back to the first command line window, you will see the message forwarded by the NanoMQ Broker, for example:
@@ -195,7 +180,7 @@ This section uses NanoMQ's built-in client tool to test the newly built MQTT ove
    In the second command line window, navigate to the `nanomq_cli` folder under the `build` folder, and execute the following command to subscribe:
 
    ```bash
-   ./nanomq_cli sub --quic -h "local.broker.address" -t "recv/topic1" -q 2
+   ./nanomq_cli sub -h "local.broker.address" -t "recv/topic1" -q 2
    ```
 
 2. In the first command line window, publish a message to the remote **EMQX** Broker with the topic "`cmd/topic1`":
