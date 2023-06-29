@@ -26,8 +26,8 @@ where,
 - `no_match` determines the default action for a request if none of the configured authenticators found any authentication rules
 - `deny_action` determines what to do if a request was rejected according to the authorization checks
 -  `cache` is an optional value with caching settings.
-Optional value with caching settings.
-- `cache.max_size` — optional integer value, default is 32. Specifies the maximum number of elements in the cache. Older records are evicted from the cache when the specified number is exceeded.
-- `cache.ttl` — optional duration value, default is `1m`. Specifies how long cached values are kept in the cache.
+Optional value with caching settings:
+- `cache.max_size`: an optional integer value, default is 32. Specifies the maximum number of elements in the cache. When this limit is exceeded, the oldest records will be removed from the cache.
+- `cache.ttl`: an optional duration value, default is `1m`. Specifies how long cached values are kept in the cache.
 - `password` is password file path. This will include the contents of the "nanomq_pwd.conf" file in your configuration, so make sure that the file only contains the password in the correct format, using `include` to include your pwd file.
 - `acl` is acl file path, This will include the contents of the "nanomq_acl.conf" file in your configuration, so make sure that the file only contains the acl in the correct format, using `include` to include your acl file.
