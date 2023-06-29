@@ -1367,6 +1367,7 @@ get_cpu_time()
 	return ret;
 }
 
+#if NANO_PLATFORM_LINUX
 static long
 update_process_info(client_stats *s)
 {
@@ -1416,6 +1417,7 @@ update_process_info(client_stats *s)
 
 	return 0;
 }
+#endif
 
 static http_msg
 get_metrics(http_msg *msg, kv **params, size_t param_num,

@@ -19,6 +19,7 @@ int webhook_msg_cnt = 0; // this is a silly signal to indicate whether the webho
 #include <nng/supplemental/util/platform.h>
 #include <nng/supplemental/nanolib/conf.h>
 #include "include/broker.h"
+#include "include/rest_api.h"
 
 #include <ctype.h>
 #include <stdio.h>

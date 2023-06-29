@@ -19,7 +19,7 @@ docker run -d -p 1883:1883 -v {YOU LOCAL PATH}: /etc \
 
 ## 通过 Docker 运行 NanoMQ
 
-本节主要介绍如何通过 Docker 镜像安装最新版本的 EMQX ，如希望体验其他版本，可以前往 [NanoMQ 下载页面](https://www.emqx.com/zh/try?product=nanomq)。
+本节主要介绍如何通过 Docker 镜像安装最新版本的 NanoMQ ，如希望体验其他版本，可以前往 [NanoMQ 下载页面](https://www.emqx.com/zh/try?product=nanomq)。
 
 1. 运行以下命令获取 Docker 镜像：
 

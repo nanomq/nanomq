@@ -1,12 +1,12 @@
 {
   "cn": [
     {
-      "title": "NanoMQ 介绍",
+      "title": "产品简介",
       "path": "./"
     },
     {
-      "title": "开始使用",
-      "path": "quick-start"
+      "title": "快速上手",
+      "path": "quick-start/quick-start"
     },
     { 
       "title": "安装部署",
@@ -45,7 +45,19 @@
       "path": "access-control/introduction",
       "children": [
         {
+          "title": "登录认证",
+          "path": "access-control/login"
+        },  
+        {
           "title": "JWT 认证",
+          "path": "access-control/jwt"
+        },
+        {
+          "title": "访问控制列表",
+          "path": "access-control/acl"
+        },
+        {
+          "title": "HTTP 认证",
           "path": "access-control/jwt"
         }
       ]
@@ -206,7 +218,7 @@
       ]
     },
     {
-      "title": "MQTT Data Bridge",
+      "title": "MQTT Data Bridges",
       "path": "bridges/introduction",
       "children": [
         {

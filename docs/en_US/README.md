@@ -6,6 +6,8 @@ Github repository address: <https://github.com/emqx/nanomq>
 
 **NanoMQ** in collaboration with **NNG**. Relying on **NNG**'s excellent network API design, **NanoMQ** can focus on **MQTT** broker performance and more extended features. The goal is to provide better SMP support and a high performance-price ratio in edge devices and MECs. There are plans to add other IoT protocols such as ZMQ, NanoMSG, and SP in the future.
 
+<img src="./images/NanoMQ-introduction.png" alt="img" style="zoom:50%;" />
+
 ## Key Features
 
 Fully MQTT 5.0 Compliant: Fully support MQTT 5.0/3.1.1, Compatible with all standard open-source MQTT SDKs.

@@ -1,0 +1,147 @@
+# 快速上手
+
+NanoMQ MQTT Broker (NanoMQ) 是一款用于物联网边缘的超轻量级 MQTT 消息服务器。本指南将以 Docker 部署为例，演示如何快速上手 NanoMQ。
+
+## 通过 Docker 运行NanoMQ
+
+运行以下命令快速通过 Docker运行 NanoMQ，分别指定端口 1883、8083 和 8883 用于监听 MQTT、MQTT over WebSockets 和 MQTT over SSL/TLS 流量。
+
+```bash
+docker run -d --name nanomq -p 1883:1883 -p 8083:8083 -p 8883:8883 emqx/nanomq:latest
+```
+
+更多关于 NanoMQ 官方 Docker 镜像的信息，请访问 [Docker Hub - nanomq](https://hub.docker.com/r/emqx/nanomq)
+
+## 体验 NanoMQ 消息服务
+
+通过 Docker 启动 NanoMQ 后，本节将演示如何通过 [MQTTX 客户端工具](https://mqttx.app/zh) 来体验 NanoMQ 的消息服务。首先，下载并安装 [MQTTX 桌面客户端](https://mqttx.app/zh/downloads)。
+
+### 通过 MQTT X 连接 NanoMQ
+
+打开主程序页面，点击左侧菜单栏的 `+` 按钮。如果页面为空，您也可以直接点击右侧的 **新建连接** 按钮来快速设定新的客户端连接。
+
+![Connect to NanoMQ](./assets/connect-nanomq.png)
+
+1. 在**名称**字段，输入连接名称。
+2. MQTTX 会自动填入一个客户端 ID。
+3. 在**服务器地址**字段设置协议和服务器地址：这里将选择 MQTT 作为协议，并填入 `localhost` （或 Docker 实际运行的 IP）。
+4. 将**端口**设为 1883 (或根据实际需要设置)。
+
+然后点击右上角的**连接**，MQTTX 会通过弹窗的形式提示连接已成功建立。
+
+### 订阅主题
+
+连接成功后，即可进入连接的主界面。点击页面右上角的**添加订阅**按钮，在弹出的对话框中：
+
+- 输入您想订阅的主题，如 `test/topic` ，其他字段可保留默认设置。
+-  单击**确认**。
+
+### 发布信息
+
+在连接主界面右下角的消息对话框中，设置消息主题和内容：
+
+- 指定你要发布的主题，例如 `test/topic` 。
+- 输入你想发送的消息，例如，"Hello NanoMQ"。
+- 点击发送图标。
+
+对话框区域将出现一条消息，表明该消息已成功发布到 NanoMQ 并被转发到订阅主题。
+
+<img src="./assets/mqttx.png" alt="Pub/Sub" style="zoom:50%;" />
+
+## 快速上手数据桥接
+
+本教程将继续演示如何搭建一个 MQTT over TCP 数据桥接。
+
+### 拉取 NanoMQ Docker 镜像
+
+从 Docker Hub 拉取最新的 NanoMQ 镜像：
+
+```bash
+docker pull emqx/nanomq:latest
+```
+
+### 创建 NanoMQ 配置文件
+
+在本地新建 NanoMQ 配置文件，用于保存 NanoMQ 的订阅和桥接配置。这里将使用 EMQ 提供的[免费公共桥接 broker.emqx.io:1883](https://www.emqx.com/en/mqtt/public-mqtt5-broker) 来构建 MQTT over TCP 数据桥接。
+
+使用文本编辑器创建一个名为 `nanomq.conf` 的新文件， 贴入以下桥接配置：
+
+```bash
+bridges.mqtt {
+    nodes = [ 
+        {
+            name = emqx
+            enable = true
+            connector {
+                server = "mqtt-tcp://broker.emqx.io:1883"
+                proto_ver = 4
+                clean_start = true
+                keepalive = 60s
+            }
+            forwards = ["forward1/#","forward2/#"]
+            subscription = [
+                {
+                    topic = "recv/topic1"
+                    qos = 1
+                },
+                {
+                    topic = "recv/topic2"
+                    qos = 2
+                }
+            ]
+            congestion_control = cubic
+            parallel = 2
+            max_send_queue_len = 1024
+            max_recv_queue_len = 1024
+        }
+    ]
+}
+```
+
+### 通过配置文件启动 NanoMQ
+
+通过 Docker 启动 NanoMQ，其中通过 `-v` 将本地配置文件加载到 Docker：
+
+```bash
+docker run -d -p 1883:1883 \
+           -v /path/to/your/nanomq.conf:/etc/nanomq.conf \
+           --name nanomq emqx/nanomq:latest
+```
+
+::: tip
+
+将 `/path/to/your/nanomq.conf` 替换为 `nanomq.conf` 文件的实际路径。
+
+:::
+
+### 测试桥接
+
+本节将继续使用 MQTTX 客户端工具来测试新建的 MQTT 数据桥接，我们将新建 2 个连接，分别连接到 NanoMQ 和 MQTT 数据桥接，用于验证 NanoMQ 和数据桥接的消息收发服务。
+
+**连接到 NanoMQ**
+
+![Connect to NanoMQ](./assets/connect-nanomq.png)
+
+**连接到数据桥接**
+
+![Connect to Public Broker](./assets/connect-public-broker.png)
+
+**验证 NanoMQ 到数据桥接的消息服务**
+
+在连接数据桥接的客户端 `MQTTbridge` 中，订阅 `forward1/#` 主题。
+
+在连接 NanoMQ 的客户端 `NanoMQTest` 中，向 `forward1/#` 主题发送消息 ，如 `Hello from NanoMQ` 。
+
+可以看到，消息被成功转发到 MQTT 数据桥接。
+
+<img src="./assets/hellofromnano.png" alt="message from nanomq" style="zoom:50%;" />
+
+**验证数据桥接到  NanoMQ 的消息服务**
+
+在连接 NanoMQ 的客户端 `NanoMQTest` 中，订阅 `recv/topic1` 主题。
+
+在连接数据桥接的客户端 `MQTTbridge` 中，向 `recv/topic1` 主题发布信息，例如： `Hello from broker.emqx.io` 。
+
+验证是否收到了从broker.emqx.io发布的消息。
+
+![message from broker](./assets/hellofrombroker.png)

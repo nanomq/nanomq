@@ -1,12 +1,13 @@
 # WebHook
 
-
+NanoMQ 提供了可拓展的事件驱动型 WebHook 接口，本节将介绍如何启用 WebHook 功能，如何通过规则定义 WebHook 的触发时间和方式。
 
 ## 配置项
 
-Webhook 的配置文件位于 `etc/nanomq.conf`, 具体配置项可查看[配置说明](../config-description/v014.md)。
+Webhook 的配置文件位于 `etc/nanomq.conf`, 具体配置项可查看[配置说明](../config-description/v013.md)。
 
-**启用 Webhook**
+
+**启用 WebHook**
 
 ```bash
 web.hook.enable=true
@@ -20,6 +21,7 @@ web.hook.enable=true
 ## 格式示例
 web.hook.rule.<Event>.<Number>=<Rule>
 
+
 ## 示例值
 web.hook.rule.message.publish.1={"action": "on_message_publish", "topic": "a/b/c"}
 web.hook.rule.message.publish.2={"action": "on_message_publish", "topic": "foo/#"}
@@ -29,9 +31,9 @@ web.hook.rule.message.publish.2={"action": "on_message_publish", "topic": "foo/#
 
 目前支持以下事件：
 
-| 名称                | 说明         | 执行时机                     |
+| 名称                 | 说明         | 执行时机                     |
 | ------------------- | ------------ | ---------------------------- |
-| client.connack      | 下发连接应答 | 服务端准备下发连接应答报文时 |
+| client.connack      | 下发连接应答  | 服务端准备下发连接应答报文时 |
 | client.disconnected | 连接断开     | 客户端连接层在准备关闭时     |
 | message.publish     | 消息发布     | 服务端在发布（路由）消息前   |
 
@@ -53,11 +55,11 @@ web.hook.rule.message.publish.1 = {"action": "on_message_publish", "topic": "a/b
 web.hook.rule.message.publish.2 = {"action": "on_message_publish", "topic": "foo/#"}
 ```
 
-这样 Webhook 仅会转发与 a/b/c 和 foo/# 主题匹配的消息，例如 foo/bar 等。
+这样 WebHook 仅会转发与 a/b/c 和 foo/# 主题匹配的消息，例如 foo/bar 等。
 
-## Webhook 事件参数
+## WebHook 事件参数
 
-事件触发时 Webhook 会按照配置将每个事件组成一个 HTTP 请求发送到 url 所配置的 Web 服务器上。其请求格式为：
+事件触发时 WebHook 会按照配置将每个事件组成一个 HTTP 请求发送到 url 所配置的 Web 服务器上。其请求格式为：
 
 ```bash
 URL: <url>      # 来自于配置中的 `url` 字段

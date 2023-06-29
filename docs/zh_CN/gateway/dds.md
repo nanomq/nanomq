@@ -1,14 +1,17 @@
 # DDS Proxy
 
+
 数据分发服务 DDS 是一种以数据为中心的分布式实时通信中间件协议。采用发布/订阅体系架构，提供丰富的 QoS 服务质量策略，以保障数据进行实时、高效、灵活地分发，可以满足各种去中心化的实时通信应用需求。
 
 [Cyclone DDS](https://cyclonedds.io/) 是一款基于 OMG (Object Management Group) DDS 规范的开源 DDS 实现，用于发布/订阅消息的实时系统。NanoMQ 自 v0.16 版本引入了基于 Cyclone DDS 开发的 DDS Proxy 插件，此插件能够完成将 DDS 消息转换为 MQTT 消息并桥接上云，支持用户将 DDS 的数据通过 NanoMQ 来完成跨域传输并通过 MQTT 和云端互通。
 
 结合 MQTT + DDS 两种协议，DDS 网关可以完美融合 broker + brokerless 两种消息模式，有效实现云边一体化的消息场景。
 
+
 ![DDS 协议代理](./assets/DDS+MQTT.png)
 
 ## 前置准备
+
 
 启动 DDS 网关之前，需要先安装 CycloneDDS 和 Iceoryx。CycloneDDS 是 DDS 网关的核心依赖，而 Iceoryx 是 CycloneDDS 通过共享内存通信所需的依赖。
 
