@@ -165,7 +165,7 @@ $ nanomq start --old_conf nanomq.conf
 2. 新建一个命令行窗口，发布消息到 **NanoMQ** Broker，主题为 “`forward1/msg`”：
 
    ```bash
-   $ ./nanomq_cli pub --quic -h "your.host.address"  -t "nanomq/1" -m "forward_msg" -q 2
+   $ ./nanomq_cli pub --quic -h "your.host.address"  -t "forward1/msg" -m "forward_msg" -q 2
    ```
 
 3. 返回第一个命令行窗口，可以看到由 NanoMQ Broker 转发到消息，例如：
