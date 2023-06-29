@@ -1,131 +1,281 @@
-# 编译安装
+# 源码编译安装
 
-编译 NanoMQ 需要支持 C99 标准的编译环境和高于 3.13 的 [CMake](https://cmake.org/) 版本。
+作为一款用于物联网边缘的超轻量级 MQTT 消息服务器，NanoMQ 支持在各种边缘平台运行，例如支持 x86_64 和 ARM 等架构。
 
-您可以通过以下步骤来编译和安装 NanoMQ ：
+## 前置准备
+
+正式安装前，请先安装以下依赖项：
+
+- 支持 C99 标准的编译环境
+- Git
+- [CMake](https://www.cmake.org/)：3.13 或以上
+
+## 源码编译
+
+在 NanoMQ 的安装目录，运行以下命令进行编译：
+
+:::: tabs type:card
+
+::: tab 通过 Ninja 编译（推荐）
 
 ```bash
-$ mkdir build
-$ cd build
-$ cmake -G Ninja ..
-$ sudo ninja install
+git clone https://github.com/emqx/nanomq.git
+cd nanomq
+git submodule update --init --recursive
+mkdir build && cd build
+cmake -G Ninja ..
+ninja
 ```
 
-或者你可以不用 ninja 来编译：
+::: tab 通过 make 编译
 
 ```bash
-$ mkdir build 
-$ cd build
-$ cmake .. 
-$ make
+git clone https://github.com/emqx/nanomq.git 
+cd nanomq
+git submodule update --init --recursive
+mkdir build && cd build
+cmake .. 
+make
 ```
 
-可增加 cmake 编译参数 `NNG_ENABLE_TLS` 来支持 **TLS** 连接:
+编译完成后，您将在命令行窗口看到类似提示：
 
->需提前安装 [mbedTLS](https://tls.mbed.org).
+ ```bash
+[495/495] Linking CXX executable nng/tests/cplusplus_pair
+ ```
+
+## 启动 NanoMQ
+
+编译完成后，您可在 `build` -> `NanoMQ` 找到相关可执行文件。
+
+运行以下命令启动 NanoMQ：
+
+```bash
+./nanomq start
+```
+
+成功启动后，您可在命令行窗口看到以下提示：
+
+```bash
+NanoMQ Broker is started successfully!
+```
+
+## 更多编译选项
+
+除常见设置（如 `CMAKE_BUILD_TYPE`）外，你还可通过 CMake 配置更多高级功能，如启用 [MQTT over QUIC](../bridges/quic-bridge) 数据桥接或 [ZMQ 网关](../gateway/zmq-gateway)，具体参见下表：
+
+| 编译选项                 | 说明                                                   |
+| ------------------------ | ------------------------------------------------------ |
+| `-DNNG_ENABLE_QUIC=ON`   | 启用 QUIC 桥接                                         |
+| `-DNNG_ENABLE_TLS=ON`    | 编译启用 TLS，依赖项：[mbedTLS](https://tls.mbed.org/) |
+| `-DBUILD_CLIENT=OFF`     | 停用客户端套件，包括 pub、sub 、conn                   |
+| `-DBUILD_ZMQ_GATEWAY=ON` | 启用 ZeroMQ 网关                                       |
+| `-DBUILD_DDS_PROXY=ON`   | 启用 DDS Proxy，包括 proxy、sub、pub                   |
+| `-DBUILD_BENCH=ON`       | 编译启用 MQTT Bench                                    |
+| `-DENABLE_JWT=ON`        | 编译启用 HTTP Server 所需的 JWT 依赖项                 |
+| `-DNNG_ENABLE_SQLITE=ON` | 支持 SQLite                                            |
+| `-DBUILD_STATIC_LIB=ON`  | 作为静态库编译                                         |
+| `-DBUILD_SHARED_LIBS=ON` | 作为共享库编译                                         |
+| `-DDEBUG=ON`             | 启用调试标志                                           |
+| `-DASAN=ON`              | 启用 Sanitizer                                         |
+| `-DDEBUG_TRACE=ON`       | 启用 ptrace，用于进程跟踪和检查                        |
+
+### MQTT over QUIC 数据桥接
+
+依赖项：libmsquic
+
+NanoMQ 支持通过 MQTT over QUIC 协议与 EMQX 5.0 进行桥接。
+
+由于兼容性问题，目前尚未发布支持 QUIC 的二进制包。如希望使用 MQTT over QUIC，应通过编译方式安装 NanoMQ，命令如下：
+
+```bash
+cmake -G Ninja -DNNG_ENABLE_QUIC=ON ..
+ninja
+```
+
+### TLS
+
+依赖项: [mbedTLS](https://tls.mbed.org/)
+
+默认情况下，TLS 为未启用状态。如希望启用，可在编译阶段通过 `-DNNG_ENABLE_TLS=ON` 启用。
+
+`Ninja`：
 
 ```bash
 cmake -G Ninja -DNNG_ENABLE_TLS=ON ..
 ```
 
-或者
+`make`：
 
 ```bash
 cmake -DNNG_ENABLE_TLS=ON ..
 ```
 
-> 查看配置文件 `nanomq.conf` 了解更多 TLS 相关配置参数 .
+::: tip
 
-## 编译依赖
+关于 TLS 的详细配置参数，可参考配置文件  `etc/nanomq_example.conf`
 
-请注意， NanoMQ 依赖于 nng
+:::
 
-依赖项可以独立编译
+### 客户端管理
+
+NanoMQ 会在构建时默认安装客户端工具（pub、sub 、conn）。如希望禁用客户端工具，可通过 `-DBUILD_CLIENT=OFF` 实现：
 
 ```bash
-$PROJECT_PATH/nanomq/nng/build$ cmake -G Ninja ..
-$PROJECT_PATH/nanomq/nng/build$ ninja install
+cmake -G Ninja -DBUILD_CLIENT=OFF ..
+ninja
 ```
 
-## 编译选项
+### 网关工具
 
-NanoMQ 提供了一些编译选项可以让你根据系统性能进行调优。
+默认情况下，网关为未启用状态。如希望启用，如 ZMQ 网关，可通过 `-DBUILD_ZMQ_GATEWAY=ON` 实现：
 
-### 参数设置
-
-限制线程数量:
-
-```bash
-$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DNNG_RESOLV_CONCURRENCY=1                           														-DNNG_NUM_TASKQ_THREADS=5 -DNNG_MAX_TASKQ_THREADS=5 ..
+```
+bashCopy code
+cmake -G Ninja -DBUILD_ZMQ_GATEWAY=ON ..
+ninja
 ```
 
-NanoMQ 支持日志输出，并符合 Syslog 标准，可以通过以下设置 NOLOG 变量来选择启用或禁用日志:
+### Benchmark 基准测试工具 
 
-```bash
-# 禁用日志
+默认情况下，Benchmark 为未启用状态。如希望启用，可通过 `-DBUILD_BENCH=ON` 实现：
+
+```
+bashCopy code
+cmake -G Ninja -DBUILD_BENCH=ON ..
+ninja
+```
+
+### JWT 依赖
+
+HTTP Server 的  JWT 依赖默认未启用。如希望启用，可通过 `-DENABLE_JWT=ON` 实现：
+
+```
+bashCopy code
+cmake -G Ninja -DENABLE_JWT=ON ..
+ninja
+```
+
+### SQLite 支持
+
+NanoMQ 支持通过 SQLite3 实现消息的持久化，该功能默认未启用。如希望启用，可通过 `-DNNG_ENABLE_SQLITE=ON` 实现：
+
+```
+bashCopy code
+cmake -G Ninja -DNNG_ENABLE_SQLITE=ON ..
+ninja
+```
+
+### 静态库
+
+如通过以静态库的方式编译 NanoMQ，可通过 `-DBUILD_STATIC_LIB=ON` 实现：
+
+```
+bashCopy code
+cmake -G Ninja -DBUILD_STATIC_LIB=ON ..
+ninja libnano
+```
+
+### 共享库
+
+如通过以共享库的方式编译 NanoMQ，可通过  `-DBUILD_SHARED_LIBS=ON` 实现：
+
+```
+bashCopy code
+cmake -G Ninja -DBUILD_SHARED_LIBS=ON ..
+ninja
+```
+
+### NanoNNG 依赖
+
+NanoNNG 是含 MQTT 支持的 NNG 仓库分枝，可单独编译：
+
+```
+bashCopy code
+cd nng/build
+cmake -G Ninja ..
+ninja
+```
+
+## 性能调优
+
+NanoMQ 提供了多种性能调优方式，您可根据需求进行选择。
+
+## 参数设置
+
+**线程数量限制**
+
+```sh
+$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DNNG_RESOLV_CONCURRENCY=1                                														 -DNNG_NUM_TASKQ_THREADS=5 -DNNG_MAX_TASKQ_THREADS=5 ..
+```
+
+**调试**：NanoMQ 提供调试功能，启用后，将按照 Syslog 标准记录所有线程信息。您可选择禁用/启用该功能。
+
+```sh
 $PROJECT_PATH/nanomq/build$ cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DNOLOG=1  ..
-# 启用日志
 $PROJECT_PATH/nanomq/build$ cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DNOLOG=0  ..
 ```
 
-MQTT 客户端
-
-NanoMQ 默认支持客户端使用，也可以通过 -DBUILD_CLIENT=OFF 来禁用客户端的编译:
+**MQTT 客户端**：MQTT 客户端默认启用，您可通过 `-DBUILD_CLIENT=OFF` 禁用。
 
 ```bash
-# 禁用客户端
+# Disable client
 $PROJECT_PATH/nanomq/build$ cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DBUILD_CLIENT=OFF ..
-# 启用客户端
+# Enable client
 $PROJECT_PATH/nanomq/build$ cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DBUILD_CLIENT=ON ..
 ```
 
-消息队列: 
+**消息队列**：mqueue 消息队列默认启用，但 macOS 系统中暂不支持，您可通过 `-DMQ=0` 禁用。
 
-MQ 消息队列默认启用，但目前尚未支持 macOS ，可以通过 -DMQ=0 禁用:
-
-```bash
-# 禁用 MQ
+```sh
+# Enable MQ
 $PROJECT_PATH/nanomq/build$ cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DMQ=1  ..
-# 启用 MQ
+# Disable MQ
 $PROJECT_PATH/nanomq/build$ cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DMQ=0  ..
 ```
 
-系统调优参数:
+### 系统调优
+
+::: tip
+
+运行以下命令前，请根据实际场景替换 `{size}`、 `{PARALLEL}` 字段。
+
+:::
 
 为 MQTT 数据包设置**固定头**加**可变头**最大长度，默认为 64 字节：
 
-```bash
+```sh
 $PROJECT_PATH/nanomq/build$ cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DNANO_PACKET_SIZE={size} ..
 ```
 
 为 MQTT 数据包设置**固定头**最大长度，默认为 5 字节：
 
-```bash
+```sh
 $PROJECT_PATH/nanomq/build$ cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DNANO_HEADER_SIZE={size} ..
 ```
 
 为 MQTT 数据包设置**属性**最大长度，默认为 32 字节：
 
-```bash
+```sh
 $PROJECT_PATH/nanomq/build$ cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DNANO_PROPERTY_SIZE={size} ..
 ```
 
-为 QOS > 0 的消息设置队列长度，默认为 64: 
+为 QOS > 0的消息设置队列长度，默认为 64：
 
-```bash
+```sh
 $PROJECT_PATH/nanomq/build$ cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DNANO_QOS_LEN={size} ..
 ```
 
-设置重发消息的队列长度，默认为 64:
+设置重发消息的队列长度，默认为 64：
 
-```bash
+```sh
 $PROJECT_PATH/nanomq/build$ cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DNANO_MSQ_LEN={size} ..
 ```
 
-设置逻辑并发数限制，默认为 32 ，使用-DPARALLEL 指定:
 
-```bash
-$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DPARALLEL={parallel} ..
+设置逻辑并发数限制，默认为 32，使用 -DPARALLEL 指定：
+
+```sh
+$PROJECT_PATH/nanomq/build$ cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DPARALLEL={PARALLEL} ..
 ```
 
-如果希望获取更多参数相关信息，请访问项目 Wiki 页面。

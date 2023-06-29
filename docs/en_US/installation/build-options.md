@@ -7,11 +7,10 @@ NanoMQ is dedicated to providing a powerful messaging hub that can be used on va
 Before you begin, ensure you have the following installed:
 
 - A C99-compatible compiler
+- Git
 - [CMake](https://www.cmake.org/): 3.13 or later
 
 ## Compile from the Source Code
-
-Navigate to the directory where you want to clone and build NanoMQ.
 
 1. Navigate to the directory where you want to clone and build NanoMQ.
 
@@ -76,7 +75,7 @@ Apart from common settings like `CMAKE_BUILD_TYPE`, you can specify additional c
 | `-DNNG_ENABLE_TLS=ON`    | Builds NanoMQ with TLS support. Dependency: [mbedTLS](https://tls.mbed.org/). |
 | `-DBUILD_CLIENT=OFF`     | Disables the client suite, including pub, sub, and conn.     |
 | `-DBUILD_ZMQ_GATEWAY=ON` | Builds with ZeroMQ gateway tool.                             |
-| `-DBUILD_DDS_PROXY=ON`   | Builds with DDS client (proxy, sub, pub).                    |
+| `-DBUILD_DDS_PROXY=ON`   | Builds with DDS proxy (proxy, sub, pub).                     |
 | `-DBUILD_BENCH=ON`       | Builds with MQTT bench.                                      |
 | `-DENABLE_JWT=ON`        | Builds JWT dependency for the HTTP server.                   |
 | `-DNNG_ENABLE_SQLITE=ON` | Builds with SQLite support.                                  |
@@ -86,7 +85,7 @@ Apart from common settings like `CMAKE_BUILD_TYPE`, you can specify additional c
 | `-DASAN=ON`              | Enables sanitizer.                                           |
 | `-DDEBUG_TRACE=ON`       | Enables ptrace, allowing process tracing and inspection.     |
 
-### QUIC Data Bridge
+### MQTT over QUIC Data Bridge
 
 NanoMQ supports bridging with EMQX 5.0 via MQTT over QUIC protocol. This feature requires libmsquic preinstalled. Note that as of now, we do not release a formal binary package with QUIC support due to compatibility issues. To enable QUIC bridging during the build process, use the following command:
 
@@ -128,7 +127,7 @@ ninja
 
 ### Gateway Tool
 
-The gateway tool, which provides ZeroMQ gateway functionality, isn't built by default. For example, to enable the ZMQ gateway, use the `-DBUILD_ZMQ_GATEWAY=ON` flag:
+The gateway tool, for example, ZeroMQ, isn't built by default. For example, to enable the ZMQ gateway, use the `-DBUILD_ZMQ_GATEWAY=ON` flag:
 
 ```
 bashCopy code
@@ -234,7 +233,7 @@ $PROJECT_PATH/nanomq/build$ cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DMQ=1  ..
 $PROJECT_PATH/nanomq/build$ cmake -G Ninja -DCFG_METHOD=CMAKE_CONFIG -DMQ=0  ..
 ```
 
-### System Running
+### System Tunning
 
 ::: tip
 
