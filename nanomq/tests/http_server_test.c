@@ -79,7 +79,7 @@ check_http_return(FILE *fd, char *sc, int rc)
 
 	while (fgets(buff, sizeof(buff), fd) != NULL) {
 		index++;
-		// printf("buff:%s\n", buff); // debug only.
+		printf("buff:%s\n", buff); // debug only.
 		if (index == 1 && !check_http_status_code(buff, sc)) {
 			rv = false;
 		} else if (index == 5 && !check_http_result_code(buff, rc)) {
@@ -253,7 +253,7 @@ static bool
 test_get_rule()
 {
 	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
-	            "'http://localhost:8081/api/v4/rules/rule:1'";
+	            "'http://localhost:8081/api/v4/rules/rule:4'";
 	FILE *fd  = popen(cmd, "r");
 	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
 	pclose(fd);
@@ -264,8 +264,32 @@ static bool
 test_put_rule()
 {
 	char *cmd = "curl -i --basic -u admin_test:pw_test -X PUT "
-	            "'http://localhost:8081/api/v4/rules/rule:1'"
-				"-d {}";
+	            "'http://localhost:8081/api/v4/rules/rule:4'"
+				"-d '{\"rawsql\":\"select * from \\\"t/b\\\"\"}'";
+	printf("\ncmd:%s\n", cmd);
+	FILE *fd  = popen(cmd, "r");
+	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
+	pclose(fd);
+	return rv;
+}
+
+static bool
+test_disable_rule()
+{
+	char *cmd = "curl -i --basic -u admin_test:pw_test -X PUT "
+	            "'http://localhost:8081/api/v4/rules/rule:4'"
+				"-d '{\"enabled\": false}'";
+	FILE *fd  = popen(cmd, "r");
+	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
+	pclose(fd);
+	return rv;
+}
+
+static bool
+test_del_rule()
+{
+	char *cmd = "curl -i --basic -u admin_test:pw_test -X DELETE "
+	            "'http://localhost:8081/api/v4/rules/rule:4'";
 	FILE *fd  = popen(cmd, "r");
 	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
 	pclose(fd);
@@ -465,8 +489,11 @@ main()
 
 	// TODO: more test on bridges & rule engine
 	// assert(test_post_rules()); // potential bug
-	// assert(test_get_rules());
-	// assert(test_get_rule());
+	assert(test_get_rules());
+	assert(test_get_rule());
+	assert(test_put_rule());
+	assert(test_disable_rule());
+	assert(test_del_rule());
 
 	// failing tests
 	assert(test_unauthorized());
