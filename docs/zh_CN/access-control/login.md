@@ -14,6 +14,8 @@
 username:password
 ```
 并在 `nanomq.conf` 中 `include`，可参照 [访问控制介绍](./introduction.md)。
+示例：
+`password = {include "/etc/nanomq_pwd.conf"}`
 ## 配置示例
 
 ```bash

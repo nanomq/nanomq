@@ -15,6 +15,8 @@
 ## 配置实例
 
 在以下配置文件中，我们为不同的用户和主题定义了不同的访问规则，实现了灵活的授权检查机制。请以正确的格式将规则写入 `nanomq_acl.conf` 文件，并在 `nanomq.conf` 中 `include`，可参照 [访问控制介绍](./introduction.md)。
+示例：
+`acl = {include "/etc/nanomq_acl.conf"}`
 
 ```bash
 rules = [
