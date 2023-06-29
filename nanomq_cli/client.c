@@ -447,7 +447,7 @@ help(enum client_type type)
 {
 	switch (type) {
 	case PUB:
-		console("Usage: nanomq_cli pup"
+		console("Usage: nanomq_cli pub"
 		       "[<topic>...] [<opts>...] [<src>]\n\n");
 		break;
 	case SUB:
