@@ -10,6 +10,8 @@ User Login authorization configuration allows users to authenticate using a simp
 | `password` | String | Password    |
 
 Write the username and password in this format `username:password` and save it to the `nanomq_pwd.conf` file. And include it in `nanomq.conf`, as described in the [Access Control Introduction](introduction.md).
+examlpe:
+`password = {include "/etc/nanomq_pwd.conf"}`
 
 ## Configuration Example
 
