@@ -163,19 +163,19 @@ mqtt {
 2. 启动 DDS Proxy
 
    ```bash
-   $ ./nanomq_cli dds proxy --conf nanomq_dds_gateway.conf
+   $ ./nanomq_cli dds proxy --conf PATH/TO/nanomq_dds_gateway.conf
    ```
 
 3. 启动 MQTT 客户端订阅主题 `DDS/topic1`
 
    ```bash
-   $ ./nanomq_cli sub --url "mqtt-tcp://127.0.0.1:1883" -t "DDS/topic1"
+   $ ./nanomq_cli sub -h "127.0.0.1" -p 1883 -t "DDS/topic1"
    ```
 
 4. 启动 DDS 客户端, 指定结构体名称`remote_control_result_t`并发布消息(*命令行参数为 JSON 格式*)到 DDS 主题 `MQTTCMD/topic1`
 
    ```bash
-   $ ./nanomq_cli dds pub -t "MQTTCMD/topic1" --struct             "remote_control_result_t"  -m '{
+   $ ./nanomq_cli dds pub -t "MQTTCMD/topic1" --struct "remote_control_result_t"  -m '{
     "req_result_code": 1,
     "req_token": [1,2,3,4,5,6],
     "req_result_msg": [7,8,9,10,11],
@@ -188,13 +188,13 @@ mqtt {
 5. 启动 DDS 客户端订阅 DDS 主题 `MQTT/topic1`并指定接收的结构体名称`remote_control_req_t`
 
    ```bash
-   $ ./nanomq_cli dds sub -t "MQTT/topic1" --struct    "remote_control_req_t"
+   $ ./nanomq_cli dds sub -t "MQTT/topic1" --struct "remote_control_req_t"
    ```
 
 6. 启动 MQTT 客户端发布消息(*JSON*)到 MQTT 主题 `DDSCMD/topic1`
 
    ```bash
-   $ ./nanomq_cli pub --url "mqtt-tcp://127.0.0.1:1883" -t "DDSCMD/topic1" -m '{ 
+   $ ./nanomq_cli pub -h "127.0.0.1" -p 1883 -t "DDSCMD/topic1" -m '{
     "req": 1,         
     "req_id": [15,16],
     "req_id_len": 2
