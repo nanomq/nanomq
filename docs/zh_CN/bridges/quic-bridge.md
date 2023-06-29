@@ -180,19 +180,19 @@ $ nanomq start --old_conf nanomq.conf
 
    为 **NanoMQ** 订阅主题 “`cmd/topic1`”，用于接收 **EMQX** 发布的数据：
 
-   新建第三个命令行窗口，前往 build 文件夹下的 nanomq_cli 文件夹，执行以下命令进行订阅：
+   在第二个命令行窗口中，前往 build 文件夹下的 nanomq_cli 文件夹，执行以下命令进行订阅：
 
    ```bash
    $ ./nanomq_cli sub --quic -h "your.host.address"  -t "recv/topic1" -q 2
    ```
    
-2. 新建第四个命令行窗口，发布消息到远端 **EMQX** Broker，主题为 “`cmd/topic1`”：
+2. 在第一个命令行窗口，发布消息到远端 **EMQX** Broker，主题为 “`cmd/topic1`”：
 
    ```bash
    $ ./nanomq_cli pub --quic -h "your.host.address"  -t "recv/topic1" -m "cmd_msg" -q 2 -u emqx -P emqx123
    ```
    
-3. 返回第三个命令行窗口，将能看到远端 **EMQX** Broker 发送的消息，例如：
+3. 返回第二个命令行窗口，将能看到远端 **EMQX** Broker 发送的消息，例如：
 
    ```bash
    quic_msg_recv_cb: recv/topic1: cmd_msg
