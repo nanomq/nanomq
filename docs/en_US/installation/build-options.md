@@ -7,7 +7,6 @@ NanoMQ is dedicated to providing a powerful messaging hub that can be used on va
 Before you begin, ensure you have the following installed:
 
 - A C99-compatible compiler
-- [Git LFS](https://git-lfs.github.com/)
 - [CMake](https://www.cmake.org/): 3.13 or later
 
 ## Compile from the Source Code
