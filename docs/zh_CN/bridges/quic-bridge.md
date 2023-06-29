@@ -159,13 +159,13 @@ $ nanomq start --old_conf nanomq.conf
    ## --m {消息 payload}
    ## -u {用户名} 
    ## -P {密码}
-   $ ./nanomq_cli sub --quic -h "your.host.address"  -t "forward1/#" -q 2 -u emqx -P emqx123
+   $ ./nanomq_cli sub --quic -h "remote.broker.address"  -t "forward1/#" -q 2
    ```
 
 2. 新建一个命令行窗口，发布消息到 **NanoMQ** Broker，主题为 “`forward1/msg`”：
 
    ```bash
-   $ ./nanomq_cli pub --quic -h "your.host.address"  -t "forward1/msg" -m "forward_msg" -q 2
+   $ ./nanomq_cli pub -h "local.broker.address"  -t "forward1/msg" -m "forward_msg" -q 2
    ```
 
 3. 返回第一个命令行窗口，可以看到由 NanoMQ Broker 转发到消息，例如：
@@ -183,13 +183,13 @@ $ nanomq start --old_conf nanomq.conf
    在第二个命令行窗口中，前往 build 文件夹下的 nanomq_cli 文件夹，执行以下命令进行订阅：
 
    ```bash
-   $ ./nanomq_cli sub --quic -h "your.host.address"  -t "recv/topic1" -q 2
+   $ ./nanomq_cli sub -h "local.broker.address"  -t "recv/topic1" -q 2
    ```
    
 2. 在第一个命令行窗口，发布消息到远端 **EMQX** Broker，主题为 “`cmd/topic1`”：
 
    ```bash
-   $ ./nanomq_cli pub --quic -h "your.host.address"  -t "recv/topic1" -m "cmd_msg" -q 2 -u emqx -P emqx123
+   $ ./nanomq_cli pub --quic -h "remote.broker.address"  -t "recv/topic1" -m "cmd_msg" -q 2 -u emqx -P emqx123
    ```
    
 3. 返回第二个命令行窗口，将能看到远端 **EMQX** Broker 发送的消息，例如：
