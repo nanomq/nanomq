@@ -145,6 +145,8 @@ mqtt {
 - DDS 发布 Topic：`forward_rules.dds_to_mqtt.to_mqtt = "MQTT/topic1"`
 - 指定发布的 DDS 结构体名称：`forward_rules.dds_to_mqtt.struct_name = "remote_control_req_t"`
 
+**注意：`struct_name` 应包含在 `IDL` 文件中。**
+
 ### 测试  DDS Proxy
 
 1. 启动 MQTT Broker
