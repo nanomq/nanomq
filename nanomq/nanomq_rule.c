@@ -12,7 +12,6 @@
 #include "include/nanomq.h"
 
 #if defined(SUPP_RULE_ENGINE)
-#include <mysql.h>
 
 static char *key_arr[] = {
 	"Qos",
@@ -36,17 +35,6 @@ static char *type_arr[] = {
 	" TEXT",
 };
 
-
-static int finish_with_error(MYSQL *con, rule *rules, int index)
-{
-	log_error("%s", mysql_error(con));
-	mysql_close(con);
-	rule *r = &rules[index];
-	rule_mysql_free(r->mysql);
-	rule_free(r);
-	cvector_erase(rules, index);
-	return -1;
-}
 
 int
 nano_client_publish(nng_socket *sock, const char *topic, uint8_t *payload,
@@ -141,6 +129,8 @@ nano_client(nng_socket *sock, repub_t *repub)
 	return 0;
 }
 
+
+#if defined(NNG_SUPP_SQLITE)
 int
 nanomq_client_sqlite(conf_rule *cr, bool init_last)
 {
@@ -202,6 +192,22 @@ nanomq_client_sqlite(conf_rule *cr, bool init_last)
 	return 0;
 }
 
+#endif
+
+
+#if defined(SUPP_MYSQL)
+#include <mysql.h>
+
+static int finish_with_error(MYSQL *con, rule *rules, int index)
+{
+	log_error("%s", mysql_error(con));
+	mysql_close(con);
+	rule *r = &rules[index];
+	rule_mysql_free(r->mysql);
+	rule_free(r);
+	cvector_erase(rules, index);
+	return -1;
+}
 
 int
 nanomq_client_mysql(conf_rule *cr, bool init_last)
@@ -266,6 +272,7 @@ nanomq_client_mysql(conf_rule *cr, bool init_last)
 
 	return 0;
 }
+#endif
 
 
 #endif
