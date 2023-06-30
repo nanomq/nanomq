@@ -61,8 +61,7 @@ else()
   add_executable(nanomq ${SOURCES})
 endif()
 
-if(ENABLE_RULE_ENGINE)
-  target_link_libraries(nanomq ${FOUNDATION_LIBRARY})
+if(ENABLE_MYSQL)
 
   include(FindPkgConfig)
   pkg_check_modules(LIBMYSQLCLIENT REQUIRED mysqlclient)
@@ -77,7 +76,7 @@ if(ENABLE_RULE_ENGINE)
   # message(STATUS, "${LIBMYSQLCLIENT_INCLUDE_DIRS}")
   target_link_libraries(nanomq ${LIBMYSQLCLIENT_LIBRARIES})
 
-endif(ENABLE_RULE_ENGINE)
+endif(ENABLE_MYSQL)
 
 if(ENABLE_AWS_BRIDGE)
   target_link_libraries(nanomq
