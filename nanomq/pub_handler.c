@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#if defined(SUPP_RULE_ENGINE)
+#if defined(SUPP_MYSQL)
 #include <mysql.h>
 #endif
 
@@ -864,8 +864,8 @@ rule_engine_insert_sql(nano_work *work)
 				}
 
 				char *dest = cJSON_PrintUnformatted(jso);
-				// puts(key);
-				// puts(dest);
+				log_debug("%s", key);
+				log_debug("%s", dest);
 
 				FDBTransaction *tr = NULL;
 				fdb_error_t     e =
@@ -907,13 +907,14 @@ rule_engine_insert_sql(nano_work *work)
 				repub_t *repub = rules[i].repub;
 
 				nano_client_publish(repub->sock, repub->topic, dest, strlen(dest), 0, NULL);
-				// puts(repub->topic);
-				// puts(dest);
+				log_debug("%s", repub->topic);
+				log_debug("%s", dest);
 
 				cJSON_free(dest);
 				cJSON_Delete(jso);
 			}
 
+#if defined(NNG_SUPP_SQLITE)
 			if (RULE_ENG_SDB & work->config->rule_eng.option && RULE_FORWORD_SQLITE == rules[i].forword_type) {
 				char sql_clause[1024] = "INSERT INTO ";
 				char key[128]         = { 0 };
@@ -928,7 +929,7 @@ rule_engine_insert_sql(nano_work *work)
 					    compose_sql_clause(&rules[i],
 					        key, value, is_need_set, j, work);
 					if (ret) {
-						// puts(ret);
+						log_debug("%s", ret);
 						log_debug("%s", ret);
 						sqlite3 *sdb =
 						    (sqlite3 *) work->config
@@ -959,8 +960,8 @@ rule_engine_insert_sql(nano_work *work)
 
 				
 
-				// puts(key);
-				// puts(value);
+				log_debug("%s", key);
+				log_debug("%s", value);
 				char *p = strrchr(key, ',');
 				*p      = ')';
 				p       = strrchr(value, ',');
@@ -969,7 +970,7 @@ rule_engine_insert_sql(nano_work *work)
 				strcat(sql_clause, value);
 				strcat(sql_clause, ";");
 
-				// puts(sql_clause);
+				log_debug("%s", sql_clause);
 				log_debug("%s", sql_clause);
 				sqlite3 *sdb = (sqlite3 *) work->config->rule_eng.rdb[0];
 				char    *err_msg = NULL;
@@ -986,6 +987,10 @@ rule_engine_insert_sql(nano_work *work)
 
 			}
 
+#endif
+
+
+#if defined(SUPP_MYSQL)
 			if (RULE_ENG_MDB & work->config->rule_eng.option && RULE_FORWORD_MYSOL == rules[i].forword_type) {
 				char sql_clause[1024] = "INSERT INTO ";
 				char key[128]         = { 0 };
@@ -1002,7 +1007,6 @@ rule_engine_insert_sql(nano_work *work)
 
 					if (ret && is_need_set_mysql) {
 						is_need_set_mysql = false;
-						// puts(ret);
 						log_debug("%s", ret);
 
 						char *p   = ret;
@@ -1035,8 +1039,8 @@ rule_engine_insert_sql(nano_work *work)
 
 				
 
-				// puts(key);
-				// puts(value);
+				log_debug("%s", key);
+				log_debug("%s", value);
 				char *p = strrchr(key, ',');
 				*p      = ')';
 				p       = strrchr(value, ',');
@@ -1045,16 +1049,14 @@ rule_engine_insert_sql(nano_work *work)
 				strcat(sql_clause, value);
 				strcat(sql_clause, ";");
 
-				// puts(sql_clause);
-
+				log_debug("%s", sql_clause);
   				if (mysql_query(rules[i].mysql->conn, sql_clause)) {
   					fprintf(stderr, "%s\n", mysql_error(rules[i].mysql->conn));
   					mysql_close(rules[i].mysql->conn);
   					exit(1);
   				}
 			}
-		
-		
+#endif
 		}
 	}
 
