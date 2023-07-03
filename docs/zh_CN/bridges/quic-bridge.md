@@ -116,7 +116,7 @@ include "path/to/nanomq_bridge.conf"
 
 ## 启动 NanoMQ
 
-在 NanoMQ 的安装目录，运行以下命令启动 NanoMQ
+启动 NanoMQ 时使用`--conf` 指定配置文件路径（若配置文件已放置于系统路径 `/etc/nanomq.conf` 则无需在命令行指定）。
 
 :::: tabs type:card
 
