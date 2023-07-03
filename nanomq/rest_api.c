@@ -481,6 +481,7 @@ uri_param_parse(const char *path, size_t *count)
 		free(kv_str[i]);
 		kv_str[i] = NULL;
 	}
+	free(kv_str);
 
 	*count = param_count;
 	return params;
