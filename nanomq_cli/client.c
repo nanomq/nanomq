@@ -1334,8 +1334,6 @@ client_cb(void *arg)
 				work->state = SEND_WAIT;
 				nng_sleep_aio(work->opts->interval, work->aio);
 			} else {
-				void *cp = nng_msg_get_conn_param(conn_msg);
-				nng_msg_free(conn_msg);
 				nng_closeall();
 				exit(1);
 			}
