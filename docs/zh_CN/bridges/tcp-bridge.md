@@ -1,13 +1,10 @@
-# NanoMQ 桥接到 EMQX
+# MQTT over TCP 桥接
 
-桥接是一种连接多个 MQTT 消息中间件的方式。不同于集群，工作在桥接模式下的节点之间不会复制主题树和路由表。桥接模式所做的是：
-
-- 按照规则把消息转发至桥接节点； 
-- 从桥接节点订阅主题，并在收到消息后在本节点/集群中转发该消息。
+MQTT over TCP 桥接是一种使用传输控制协议（TCP）作为底层通信协议的 MQTT 桥接方式。这种桥接方式利用了 TCP 的可靠传输特性，确保了 MQTT 消息在跨网络或跨代理通信时的完整性和准确性。通过优化的配置和管理，MQTT over TCP 桥接可以灵活地应对各种网络环境和应用场景，是实现物联网（IoT）设备间通信的重要工具。NanoMQ 现已支持通过 MQTT over TCP 桥接连接至 [EMQX 企业级 MQTT 物联网接入平台](https://www.emqx.com/zh/products/emqx)。
 
 ## 配置
 
-需在配置`nanomq.conf`文件中进行配置
+需在配置 `nanomq.conf`文件中进行配置
 
 具体配置参数请参考桥接[配置](../config-description/v014.md),  以下配置示例为 Hocon 格式配置:
 
