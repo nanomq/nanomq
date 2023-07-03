@@ -7,7 +7,7 @@ Bridging is a way to connect multiple MQTT broker. Unlike swarms, topic trees an
 
 ## Configuring
 
-For specific configuration parameters, please refer to [configuration](../config-description/v014.md) the following configuration example is in Hocon format.
+For specific configuration parameters, please refer to [configuration](../config-description/v018.md) the following configuration example is in Hocon format.
 
 Key configuration parameters:
 

@@ -64,7 +64,7 @@ NanoMQ 也支持通过配置文件或环境变量加载自定义配置。
 
    `docker cp nanomq.conf nanomq:/etc/nanomq.conf`
 
-以下为启用 TLS 连接的 MQTT 桥接配置示例，更多关于 NanoMQ 的配置项说明，可参考 [配置说明](../config-description/v014.md)：<!--这里的配置项需要更新吗？-->
+以下为启用 TLS 连接的 MQTT 桥接配置示例，更多关于 NanoMQ 的配置项说明，可参考 [配置说明](../config-description/v018.md)：<!--这里的配置项需要更新吗？-->
 
 ```bash
 docker run -d -p 1883:1883 -p 8883:8883 \

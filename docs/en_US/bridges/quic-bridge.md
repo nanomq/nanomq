@@ -99,7 +99,7 @@ Using `mqtt-quic` as the URL prefix indicates the use of QUIC as the transport l
 - Switch for hybrid bridging mode: bridges.mqtt.name.hybrid_bridging`
 - Switch for multi-stream bridging: `bridges.mqtt.name.multi_stream`
 
-For detailed configuration parameters, please refer to [Hocon version configuration](../config-description/v014.md) or [Old version configuration](../config-description/v013.md) (*Not Recommended*).
+For detailed configuration parameters, please refer to [Hocon version configuration](../config-description/v018.md) or [Old version configuration](../config-description/v013.md) (*Not Recommended*).
 
 If you choose to use Hocon version configuration items, apart from writing the related configurations directly into `nanomq.conf`, you can also define a separate configuration file for bridging, such as `nanomq_bridge.conf`. You can then include this file in `nanomq.conf` using HOCON's `include` syntax.
 
