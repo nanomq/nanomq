@@ -1,21 +1,14 @@
 # MQTT over TCP Bridge
 
-Bridging is a way to connect multiple MQTT broker. Unlike swarms, topic trees and routing tables are not replicated between nodes operating in bridge mode.
+MQTT over TCP Bridging serves as a reliable communication strategy, leveraging the trustworthiness of the Transmission Control Protocol (TCP) to ensure the accuracy and integrity of MQTT messages during cross-network or cross-proxy communications. With the flexibility to adapt to various network environments and application scenarios, it plays a pivotal role in facilitating communication between Internet of Things (IoT) devices. 
 
-- Forward the message to the bridge node according to the rules;
-- Subscribe to the topic from the bridge node, and forward the message in this node/group after collecting the message.
+NanoMQ now supports MQTT over TCP bridging, enabling connections to the [EMQX Enterprise MQTT IoT Access Platform](https://www.emqx.com/zh/products/emqx).
 
-## Configuring
+## Configure MQTT over TCP Bridge
 
-For specific configuration parameters, please refer to [configuration](../config-description/v014.md) the following configuration example is in Hocon format.
+NanoMQ comes with built-in support for MQTT over TCP bridging. Thus, after [installing NanoMQ](../installation/introduction.md) through any given method, you can immediately configure and enable MQTT over TCP bridging via the configuration file.
 
-Key configuration parameters:
-
-- Remote broker address: `bridges.mqtt.name.server`
-- Forward topic array(Support MQTT Wildcard):  `bridges.mqtt.name.forwards`
-- Subscribe topic array(Support MQTT Wildcard):   `bridges.mqtt.name.subscription`
-
-The bridge configuration part of `nanomq.conf`:
+This section utilizes EMQ's [free public bridge broker.emqx.io:1883](https://www.emqx.com/en/mqtt/public-mqtt5-broker) to establish MQTT over TCP data bridging. Insert the following content (in HOCON format) into the `etc/nanomq.conf` configuration file:
 
 ```bash
 bridges.mqtt.name {
@@ -51,75 +44,83 @@ bridges.mqtt.name {
 	max_recv_queue_len = 1024
 }
 ```
-Here, you can use the `include` syntax of HOCON to put the
-configuration file of the bridge into nanomq_bridge.conf.
-```shell
+::: tip
+
+Using `mqtt-tcp` as the URL prefix signifies the use of TCP as the transport layer for MQTT.
+
+:::
+
+**Key Configuration Items**
+
+- Remote broker address: `bridges.mqtt.name.server`
+- Array of remote topics to forward (supporting MQTT wildcard): `bridges.mqtt.name.forwards`
+- Array of remote topics to subscribe to (supporting MQTT wildcard): `bridges.mqtt.name.subscription`
+
+Refer to the bridging [Hocon version configuration](../config-description/v014.md) or [Old version configuration](../config-description/v013.md) (*not recommended*) for detailed configuration parameters.
+
+If using Hocon version configuration items, you can either directly write the related configurations into `nanomq.conf`, or create a separate configuration file for bridging, such as `nanomq_bridge.conf`, and use HOCON's `include` syntax to reference this file in `nanomq.conf`:
+
+Example:
+
+```
+shellCopy code
 include "path/to/nanomq_bridge.conf" 
 ```
 
-It's  available to print more log  by setting `log.level` in the configuration file if needed.
+To view more log data during runtime, you can set the log level `log.level` in the configuration file.
 
-## Running
+## Start NanoMQ
 
-Start NanoMQ with `--conf` to specify the configuration file path (if the configuration file is placed in the system path `/etc/nanomq.conf`, no need to specify on the command line)
+When launching NanoMQ, use the `--conf` command line option to specify the path to the configuration file (If the configuration file is already located in the system path `/etc/nanomq.conf`, there's no need to specify it in the command line).
 
+:::: tabs type:card
+
+::: tab Hocon Configuration Format
 
 ```bash
 $ nanomq start --conf nanomq.conf
 ```
 
-## Test bridging
+:::
 
-To verify that bridging has succeeded, simply send data to the bridging's upstream and downstream topics, or use mqtt client included in nanomq_cli to verify communication with EMQX 5.0.
+::: tab Old Configuration Format
 
-### Forwarding messge 
+```bash
+$ nanomq start --old_conf nanomq.conf
+```
 
+:::
 
-1.Subscribe topic from EMQX broker：
+::::
 
-  Subscribe forward topic `forward1/#` from EMQX, then will be received the messages from `NanoMQ`;
+## Test the Bridge
 
-   Subscribe in the 1st terminal:
+This section will guide you in testing the newly established MQTT data bridge using the [MQTTX Client Tool](https://mqttx.app/). We will create two connections, one to NanoMQ and the other to the MQTT data bridge, to verify the message sending and receiving services of both NanoMQ and the data bridge.
 
-   ```bash
-   $ nanomq_cli sub -h "broker.emqx.io" -t  "forward1/#"
-   forward1/msg: forward_msg
-   ```
+**Client connecting NanoMQ**
 
-2. Publish message to the topic of local nanomq broker: 
+![Connect to NanoMQ](/Users/lena/Documents/GitHub/nanomq/docs/en_US/bridges/assets/connect-nanomq.png)
 
-   Publish message to NanoMQ broker with topic `forward1/msg` :
+**Client connecting MQTT bridge**
 
-   Publish in the 2nd terminal: 
+![Connect to Public Broker](/Users/lena/Documents/GitHub/nanomq/docs/en_US/bridges/assets/connect-public-broker.png)
 
-   ```bash
-   $ nanomq_cli pub -t  "forward1/msg"  -m "forward_msg"
-   ```
+**Verify messging from NanoMQ to MQTT bridge**
 
-### Subscribing message
+On your client connecting the MQTT bridge, `MQTTbridge` in this example, subscribe to the `forward1/#` topic.
 
-1. Subscribe local topic from NanoMQ broker:
+On your client connecting NanoMQ, `NanoMQTest` in this example, publish a message to the `forward1/msg` topic, for example, `Hello from NanoMQ`
 
-   Subscribe topic `cmd/topic1` from NanoMQ, then it will be received message from EMQX.
+Verify that you received the message that was published from the local broker.
 
-   Subscribe in the 3rd terminal: 
+<img src="/Users/lena/Documents/GitHub/nanomq/docs/en_US/quick-start/assets/hellofromnano.png" alt="message from nanomq" style="zoom:50%;" />
 
-   ```bash
-   $ nanomq_cli sub -t "recv/topic1"
-   recv/topic1: cmd_msg
-   ```
+**Verify the messaging from MQTT to NanoMQ**
 
-2. Publish message to remote EMQX broker with topic `cmd/topic1`:
+On your client connecting NanoMQ, `NanoMQTest` in this example, subscribe to the `recv/topic1` topic.
 
-   Publish in the 4th terminal:
+On your client connecting the MQTT bridge, `MQTTbridge` in this example, publish a message to the `recv/topic1` topic, for example, `Hello from broker.emqx.io`
 
-   ```bash
-   $ nanomq_cli pub -h "broker.emqx.io" -t  "recv/topic1" -m "cmd_msg"
-   ```
+Verify that you received the message that was published from broker.emqx.io.
 
-   
-
-
-
-
-
+![message from broker](./assets/hellofrombroker.png)

@@ -1,6 +1,8 @@
 # MQTT over QUIC Bridge
 
-NanoMQ has supported MQTT over QUIC bridging, users can use QUIC as the transport layer of the MQTT protocol to establish a bridge with the EMQX 5.0 message service for data synchronization. This provides a shortcut for end-user devices that cannot integrate or find a suitable MQTT over QUIC SDK, as well as embedded devices that are difficult to modify the firmware, to take advantage of the advantages of the QUIC protocol in IoT scenarios. With the cloud-edge integrated message architecture of EMQX+NanoMQ, users can complete the data collection and synchronization needs across spatiotemporal regions in general IoT scenarios quickly with low costs.
+NanoMQ has supported MQTT over QUIC bridging, users can use QUIC as the transport layer of the MQTT protocol to establish a bridge with the EMQX 5.0 message service for data synchronization. This provides a shortcut for end-user devices that cannot integrate or find a suitable MQTT over QUIC SDK, as well as embedded devices that are difficult to modify the firmware, to take advantage of the advantages of the QUIC protocol in IoT scenarios. 
+
+With the cloud-edge integrated message architecture of EMQX+NanoMQ, users can complete the data collection and synchronization needs across spatiotemporal regions in general IoT scenarios quickly with low costs.
 
 **Feature list：**
 
@@ -171,11 +173,11 @@ This section uses NanoMQ's built-in client tool to test the newly built MQTT ove
    quic_msg_recv_cb: forward1/#: forward_msg
    ```
 
-### Message Receiving Test
+### Test Message Receiving
 
 1. Subscribe to the message topic for the local NanoMQ Broker:
 
-   Subscribe to the topic`cmd/topic1` for **NanoMQ** to receive data published by **EMQX**:
+   Subscribe to the topic `cmd/topic1` for **NanoMQ** to receive data published by **EMQX**:
 
    In the second command line window, navigate to the `nanomq_cli` folder under the `build` folder, and execute the following command to subscribe:
 
