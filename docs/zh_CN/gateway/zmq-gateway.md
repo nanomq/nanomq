@@ -8,9 +8,7 @@ NanoMQ 通过 ZMQ 网关实现了对 ZeroMQ 消息队列的数据传输与路由
 
 ## 启用 ZMQ 网关
 
-请通过 `-DBUILD_ZMQ_GATEWAY=ON` 选项启用 ZMQ 网关编译，参考[编译方式安装 NanoMQ](https://github.com/emqx/nanomq/installation/build-options.md)。
-
-示例代码如下：
+如希望启用 ZMQ 网关，请通过[编译方式安装 NanoMQ](../installation/build-options.md)，并通过 `-DBUILD_ZMQ_GATEWAY=ON` 选项启用 ZMQ 网关编译，示例代码如下：
 
 ```bash
 cmake -G Ninja -DBUILD_ZMQ_GATEWAY=ON ..
