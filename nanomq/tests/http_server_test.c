@@ -1,5 +1,4 @@
 #include "tests_api.h"
-// #include <direct.h>
 
 #define STATUS_CODE_OK "HTTP/1.1 200"
 #define STATUS_CODE_BAD_REQUEST "HTTP/1.1 400"
@@ -54,7 +53,6 @@ check_http_status_code(char *buff, char *sc)
 static bool
 check_http_result_code(char *buff, int rc)
 {
-	
 	int    rv   = true;
 	if (rc == RESULTE_CODE_PASS) {
 		return rv;
@@ -98,8 +96,10 @@ check_http_return(FILE *fd, char *sc, int rc)
 		// printf("buff:%s\n", buff); // debug only.
 		if (index == 1 && !check_http_status_code(buff, sc)) {
 			rv = false;
+			break;
 		} else if (index == 5 && !check_http_result_code(buff, rc)) {
 			rv = false;
+			break;
 		} else {
 			continue;
 		}
@@ -123,6 +123,7 @@ test_get_brokers()
 {
 	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
 	            "'http://localhost:8081/api/v4/brokers'";
+	// printf("cmd:%s\n", cmd);
 	FILE *fd  = popen(cmd, "r");
 	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
 	pclose(fd);
@@ -280,7 +281,7 @@ static bool
 test_post_rules()
 {
 	char *cmd = "curl -i --basic -u admin_test:pw_test 'http://localhost:8081/api/v4/rules' -X POST -d '{  \"rawsql\": \"select * from \\\"t/a\\\"\",  \"actions\": [{  \"name\": \"repub\",  \"params\": {  \"topic\": \"repub1\", \"address\":\"broker.emqx.io:1881\", \"clean_start\": \"true\", \"clientid\": \"id\", \"username\": \"admin\", \"password\": \"public\", \"proto_ver\": 4, \"keepalive\": 60      }  }],  \"description\": \"repub-rule\"}'";
-	printf("cmd:%s\n", cmd);
+	// printf("cmd:%s\n", cmd);
 	FILE *fd  = popen(cmd, "r");
 	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
 	pclose(fd);
@@ -315,7 +316,7 @@ test_put_rule()
 	char *cmd = "curl -i --basic -u admin_test:pw_test -X PUT "
 	            "'http://localhost:8081/api/v4/rules/rule:4'"
 				"-d '{\"rawsql\":\"select * from \\\"t/b\\\"\"}'";
-	printf("\ncmd:%s\n", cmd);
+	// printf("\ncmd:%s\n", cmd);
 	FILE *fd  = popen(cmd, "r");
 	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
 	pclose(fd);
@@ -501,7 +502,7 @@ main()
 
 	conf = get_http_server_test_conf();
 	nng_thread_create(&nmq, broker_start_with_conf, conf);
-	nng_msleep(100);  // wait a while for broker to init
+	// nng_msleep(100);  // wait a while for broker to init
 	fd = popen(cmd, "r");
 	nng_msleep(50); // wait a while after sub
 
