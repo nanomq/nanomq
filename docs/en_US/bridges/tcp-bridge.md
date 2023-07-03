@@ -99,11 +99,11 @@ This section will guide you in testing the newly established MQTT data bridge us
 
 **Client connecting NanoMQ**
 
-![Connect to NanoMQ](/Users/lena/Documents/GitHub/nanomq/docs/en_US/bridges/assets/connect-nanomq.png)
+![Connect to NanoMQ](./assets/connect-nanomq.png)
 
 **Client connecting MQTT bridge**
 
-![Connect to Public Broker](/Users/lena/Documents/GitHub/nanomq/docs/en_US/bridges/assets/connect-public-broker.png)
+![Connect to Public Broker](./assets/connect-public-broker.png)
 
 **Verify messging from NanoMQ to MQTT bridge**
 
@@ -113,7 +113,7 @@ On your client connecting NanoMQ, `NanoMQTest` in this example, publish a messag
 
 Verify that you received the message that was published from the local broker.
 
-<img src="/Users/lena/Documents/GitHub/nanomq/docs/en_US/quick-start/assets/hellofromnano.png" alt="message from nanomq" style="zoom:50%;" />
+<img src="./assets/hellofromnano.png" alt="message from nanomq" style="zoom:50%;" />
 
 **Verify the messaging from MQTT to NanoMQ**
 
