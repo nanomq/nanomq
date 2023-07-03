@@ -8,7 +8,9 @@ NanoMQ 通过 ZMQ 网关实现了对 ZeroMQ 消息队列的数据传输与路由
 
 ## 启用 ZMQ 网关
 
-如希望启用 ZMQ 网关，请通过[编译方式安装 NanoMQ](../installation/build-options.md)，并通过 `-DBUILD_ZMQ_GATEWAY=ON` 选项启用 ZMQ 网关编译，示例代码如下：
+请通过 `-DBUILD_ZMQ_GATEWAY=ON` 选项启用 ZMQ 网关编译，参考[编译方式安装 NanoMQ](https://github.com/emqx/nanomq/installation/build-options.md)。
+
+示例代码如下：
 
 ```bash
 cmake -G Ninja -DBUILD_ZMQ_GATEWAY=ON ..
@@ -139,7 +141,7 @@ gateway.mqtt.parallel=2
 
 更多关于 ZMQ 网关配置项的解释，可以参考[配置参数文件](../config-description/v014.md)。
 
-## 启动 ZMQ 网关
+## 测试 ZMQ 网关
 
 配置完成后，您可通过如下命令启动 NanoMQ Broker、ZMQ 服务器 和 ZMQ 网关，实现 ZMQ 服务器和 MQTT Broker 之间的消息传递：
 
@@ -148,6 +150,3 @@ $ nanomq start
 $ {your.zmq.server}
 $ nanomq_cli gateway --conf path/to/nanomq_gateway.conf
 ```
-## 测试 ZMQ 网关
-
-<!--to be added-->
