@@ -25,7 +25,82 @@ rules.repub.rules[0].clientid     | String   | 规则引擎重新发布客户端
 rules.repub.rules[0].keepalive    | Duration | 规则引擎重新发布保活时间, 默认值是 60
 rules.repub.rules[0].clean_start  | Boolean  | 规则引擎重新发布 clean_start 标志, 默认是 true
 rules.repub.rules[0].sql          | String   | 规则引擎 sql 语句
+**事例**
+```sh
+rules.repub {
+	rules = [
+		{
+			# # Repub address: host:port .
+			# #
+			# # Value: String
+			# # Example: mqtt-tcp://127.0.0.1:1883
+			server = "mqtt-tcp://localhost:1883"
+			# # Repub topic .
+			# #
+			# # Value: String
+			# # Example: topic/repub
+			topic = "topic/repub1"
+			# # Protocol version of the Repub.
+			# #
+			# # Value: Enum
+			# # - 5: mqttv5
+			# # - 4: mqttv311
+			# # - 3: mqttv31
+			proto_ver = 4
+			# # The ClientId of a Repub client.
+			# # Default random string.
+			# #
+			# # Value: String
+			clientid = "repub_client1"
+			# # Ping interval of a Repub client.
+			# #
+			# # Value: Duration
+			# # Default: 60 seconds
+			keepalive = 60s
+			# # The Clean start flag of a Repub client.
+			# #
+			# # Value: boolean
+			# # Default: true
+			# #
+			# # NOTE: Some IoT platforms require clean_start
+			# #       must be set to 'true'
+			clean_start = true
+			# # The username for a Repub client.
+			# #
+			# # Value: String
+			username = username
+			# # The password for a Repub.
+			# #
+			# # Value: String
+			password = passwd
+			# # Rule engine option sql
+			# # Rule engine sql clause.
+			# # 
+			# # Value: String
+			sql =  "SELECT topic, payload FROM \"abc\""
+		}
+	]
+}
+```
 
+上面的 `config` 的事例将 NanoMQ 规则引擎的 `repub` 打开，当收到从主题 `abc` 来的消息时，将把 `topic` 和 `payload` 打包成 JSON 发到 `topic/repub1`。
+
+将上面的配置加入到 `/etc/nanomq.conf` 中, 在第一个窗口启动 `nanomq`:
+```sh
+$ nanomq start
+
+```
+在第二个窗口启动 `nanomq_cli` 从配置文件中的 `server` 指向的地址订阅主题 `topic/repub1`:
+```sh
+$ nanomq_cli sub -t topic/repub1
+connect_cb: mqtt-tcp://127.0.0.1:1883 connect result: 0 
+topic/repub1: {"topic":"abc","payload":"aaa"}
+```
+在第三个窗口发布消息 `aaa` 到主题 `abc`:
+```sh
+$ nanomq_cli pub -t abc -m aaa
+```
+可以看到第二个窗口收到来自主题 `topic/repub1` 的消息。
 
 ## SQLite 规则配置
 
