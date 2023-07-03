@@ -16,7 +16,7 @@ NanoMQ 通过 ZMQ 网关实现了对 ZeroMQ 消息队列的数据传输与路由
 cmake -G Ninja -DBUILD_ZMQ_GATEWAY=ON ..
 ninja
 ```
-编译完成后，可进入 build -> nanomq_cli 文件夹，执行命令 `nanomq` 确认 ZMQ 网关是否正确安装：<!--其他网关需要也加上吧-->
+编译完成后，可进入 build -> nanomq_cli 文件夹，执行命令 `nanomq` 确认 ZMQ 网关是否正确安装：
 ```bash
 $ ./nanomq_cli nanomq
 available tools:

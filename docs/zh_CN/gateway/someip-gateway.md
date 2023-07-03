@@ -45,9 +45,36 @@ cmake -G Ninja -DBUILD_VSOMEIP_GATEWAY=ON ..
 ninja
 ```
 
+编译完成后，可进入 build -> nanomq_cli 文件夹，执行命令 `nanomq` 确认网关是否正确安装：
+
+```bash
+$ ./nanomq_cli nanomq
+available tools:
+   * broker
+   * pub
+   * sub
+   * conn
+   * nngproxy
+   * nngcat
+   * gateway
+
+NanoMQ  Edge Computing Kit & Messaging bus v0.6.8-3
+Copyright 2022 EMQX Edge Team
+```
+
+运行命令 `nanomq gateway` 或者 `nanomq gateway --help` 可看到以下输出：
+
+```
+Usage: nanomq_cli gateway [--conf <path>]
+
+  --conf <path>  The path of a specified nanomq configuration file 
+```
+
+即我们需要首先为该网关指定相关配置文件。
+
 ## 配置 SOME/IP 网关
 
-开始使用前，首先通过 `etc/nanomq_vsomeip_gateway.conf` 配置文件来设置桥接的主题和需要请求的 SOME/IP 服务地址。
+通过 `etc/nanomq_vsomeip_gateway.conf` 配置文件来设置桥接的主题和需要请求的 SOME/IP 服务地址。
 
 例如，您希望将从 SOME/IP 服务接收到的数据转发至本地 MQTT Broker 的 `topic/pub` 主题，同时将通过主题 `topic/sub` 收到的 MQTT 消息转发至 SOME/IP 服务，可通过如下配置实现：
 
