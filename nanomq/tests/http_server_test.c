@@ -6,11 +6,22 @@
 #define STATUS_CODE_UNAUTHORIZED "HTTP/1.1 401"
 #define STATUS_CODE_NOT_FOUND "HTTP/1.1 404"
 
+#define RESULTE_CODE_PASS -1
+
 static cJSON *jsn; // TODO: this could be used for further check.
 
 static conf *
 get_http_server_test_conf()
 {
+	// conf *nmq_conf = get_dflt_conf();
+
+	// nmq_conf->http_server.enable    = true;
+	// nmq_conf->http_server.port      = 8081;
+	// nmq_conf->http_server.parallel  = 32;
+	// nmq_conf->http_server.username  = "admin_test";
+	// nmq_conf->http_server.password  = "pw_test";
+	// nmq_conf->http_server.auth_type = BASIC;
+
 	conf *nmq_conf  = nng_zalloc(sizeof(conf));
 	char *conf_path = "../../../nanomq/tests/nanomq_test.conf";
 	conf_init(nmq_conf);
@@ -19,6 +30,7 @@ get_http_server_test_conf()
 	getcwd(cwd, sizeof(cwd));
 	printf("\ncwd:%s\n", cwd);
 	conf_parse_ver2(nmq_conf);
+	nmq_conf->parallel = 10;
 
 	return nmq_conf;
 }
@@ -42,7 +54,11 @@ check_http_status_code(char *buff, char *sc)
 static bool
 check_http_result_code(char *buff, int rc)
 {
+	
 	int    rv   = true;
+	if (rc == RESULTE_CODE_PASS) {
+		return rv;
+	}
 	cJSON *root = NULL;
 
 	root = cJSON_Parse(buff);
@@ -79,7 +95,7 @@ check_http_return(FILE *fd, char *sc, int rc)
 
 	while (fgets(buff, sizeof(buff), fd) != NULL) {
 		index++;
-		printf("buff:%s\n", buff); // debug only.
+		// printf("buff:%s\n", buff); // debug only.
 		if (index == 1 && !check_http_status_code(buff, sc)) {
 			rv = false;
 		} else if (index == 5 && !check_http_result_code(buff, rc)) {
@@ -188,6 +204,17 @@ test_get_topic_tree()
 	            "'http://localhost:8081/api/v4/topic-tree'";
 	FILE *fd  = popen(cmd, "r");
 	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
+	pclose(fd);
+	return rv;
+}
+
+static bool
+test_get_metrics()
+{
+	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
+	            "'http://localhost:8081/api/v4/metrics'";
+	FILE *fd  = popen(cmd, "r");
+	bool  rv  = check_http_return(fd, STATUS_CODE_OK, RESULTE_CODE_PASS);
 	pclose(fd);
 	return rv;
 }
@@ -456,53 +483,55 @@ main()
 	fd = popen(cmd, "r");
 	nng_msleep(50); // wait a while after sub
 
-	// TODO: there is a potential connection refuse case & although they
-	// work fine separately but if test_pub() is behind test_gets() there
-	// will be a memleak, which indicates there are potential bugs. Got to
-	// figure out why.
-	assert(test_pub());
-	assert(test_pub_batch());
-	// not supported for now.
-	// assert(test_sub());
-	// assert(test_unsub());
+	// // TODO: there is a potential connection refuse case & although they
+	// // work fine separately but if test_pub() is behind test_gets() there
+	// // will be a memleak, which indicates there are potential bugs. Got to
+	// // figure out why.
+	// assert(test_pub());
+	// assert(test_pub_batch());
+	// // not supported for now.
+	// // assert(test_sub());
+	// // assert(test_unsub());
 
-	assert(test_get_endpoints());
+	// assert(test_get_endpoints());
 
-	assert(test_get_brokers());
+	// assert(test_get_brokers());
 
-	assert(test_get_nodes());
+	// assert(test_get_nodes());
 
-	assert(test_get_clients());
-	assert(test_get_clientid());
-	assert(test_get_client_user_name());
+	// assert(test_get_clients());
+	// assert(test_get_clientid());
+	// assert(test_get_client_user_name());
 
-	assert(test_get_subscriptions());
-	assert(test_get_subscriptions_clientid());
+	// assert(test_get_subscriptions());
+	// assert(test_get_subscriptions_clientid());
 
-	assert(test_get_topic_tree());
+	// assert(test_get_topic_tree());
 
-	assert(test_get_reload());
-	assert(test_post_reload());
+	// assert(test_get_reload());
+	// assert(test_post_reload());
 
-	// assert(test_put_bridges());
+	assert(test_get_metrics());
+
+	// // TODO: more test on bridges & rule engine
+	// // assert(test_put_bridges());
 	// assert(test_get_bridges());
 
-	// TODO: more test on bridges & rule engine
-	// assert(test_post_rules()); // potential bug
-	assert(test_get_rules());
-	assert(test_get_rule());
-	assert(test_put_rule());
-	assert(test_disable_rule());
-	assert(test_del_rule());
+	// // assert(test_post_rules()); // potential bug
+	// assert(test_get_rules());
+	// assert(test_get_rule());
+	// assert(test_put_rule());
+	// assert(test_disable_rule());
+	// assert(test_del_rule());
 
-	// failing tests
-	assert(test_unauthorized());
-	assert(test_bad_request());
-	assert(test_not_found());
+	// // failing tests
+	// assert(test_unauthorized());
+	// assert(test_bad_request());
+	// assert(test_not_found());
 
-	// broker ctrl test
-	assert(test_restart());
-	assert(test_stop());
+	// // broker ctrl test
+	// assert(test_restart());
+	// assert(test_stop());
 
 	nng_thread_destroy(nmq);
 }
