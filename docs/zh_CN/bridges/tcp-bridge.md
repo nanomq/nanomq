@@ -4,7 +4,7 @@ MQTT over TCP 桥接是一种使用传输控制协议（TCP）作为底层通信
 
 ## 配置 MQTT over TCP 桥接
 
-NanoMQ 已内置对 MQTT over TCP 桥接的支持，因此当您通过各种方式[安装 NanoMQ](../installation/introduction.md) 后，即可直接通过配置文件配置并启用 MQTT over TPC 桥接。
+NanoMQ 已内置对 MQTT over TCP 桥接的支持，因此当您通过各种方式[安装 NanoMQ](../installation/introduction.md) 后，即可直接通过配置文件配置并启用 MQTT over TCP 桥接。
 
 这里将使用 EMQ 提供的[免费公共桥接 broker.emqx.io:1883](https://www.emqx.com/en/mqtt/public-mqtt5-broker) 来构建 MQTT over TCP 数据桥接。在配置文件 `etc/nanomq.conf` 中贴入如下内容（HOCON 格式）：
 
