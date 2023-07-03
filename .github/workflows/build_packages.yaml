@@ -62,6 +62,8 @@ jobs:
         sudo sed -i 's/-${RELEASE}_${ARCHITECTURE}/_${ARCHITECTURE}/g' $(which checkinstall)
         sudo apt install -y pip
         pip install Jinja2
+        sudo apt-get install pkg-config
+        sudo apt install libmysqlclient-dev
     
     - name: install mbed-tls
       run: |
@@ -158,6 +160,8 @@ jobs:
           make_flags+=" -DENABLE_JWT=ON "
           make_flags+=" -DBUILD_ZMQ_GATEWAY=ON "
           make_flags+=" -DBUILD_BENCH=ON "
+          make_flags+=" -DENABLE_MYSQL=ON "
+          make_flags+=" -DENABLE_RULE_ENGINE=ON "
         fi
 
         echo "arch=${arch}" >> $GITHUB_OUTPUT
