@@ -220,6 +220,17 @@ test_get_metrics()
 }
 
 static bool
+test_get_uri()
+{
+	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
+	            "'http://localhost:8081/api/v4/?name=ferret&color=purple'";
+	FILE *fd  = popen(cmd, "r");
+	bool  rv  = check_http_return(fd, STATUS_CODE_NOT_FOUND, RESULTE_CODE_PASS);
+	pclose(fd);
+	return rv;
+}
+
+static bool
 test_get_reload()
 {
 	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
@@ -329,7 +340,7 @@ test_pub()
 	char *cmd =
 	    "curl -i --basic -u admin_test:pw_test -X POST "
 	    "'http://localhost:8081/api/v4/mqtt/publish' -d "
-	    "'{\"topic\":\"topic-test\", \"payload\":\"Hello World\", "
+	    "'{\"topics\":\"topic-test,topic-test2\", \"payload\":\"Hello World\", "
 	    "\"qos\":1, "
 	    "\"retain\":false, \"clientid\":\"clientid-test\", "
 	    "\"properties\": "
@@ -483,35 +494,36 @@ main()
 	fd = popen(cmd, "r");
 	nng_msleep(50); // wait a while after sub
 
-	// // TODO: there is a potential connection refuse case & although they
-	// // work fine separately but if test_pub() is behind test_gets() there
-	// // will be a memleak, which indicates there are potential bugs. Got to
-	// // figure out why.
-	// assert(test_pub());
-	// assert(test_pub_batch());
-	// // not supported for now.
-	// // assert(test_sub());
-	// // assert(test_unsub());
+	// TODO: there is a potential connection refuse case & although they
+	// work fine separately but if test_pub() is behind test_gets() there
+	// will be a memleak, which indicates there are potential bugs. Got to
+	// figure out why.
+	assert(test_pub());
+	assert(test_pub_batch());
+	// not supported for now.
+	// assert(test_sub());
+	// assert(test_unsub());
 
-	// assert(test_get_endpoints());
+	assert(test_get_endpoints());
 
-	// assert(test_get_brokers());
+	assert(test_get_brokers());
 
-	// assert(test_get_nodes());
+	assert(test_get_nodes());
 
-	// assert(test_get_clients());
-	// assert(test_get_clientid());
-	// assert(test_get_client_user_name());
+	assert(test_get_clients());
+	assert(test_get_clientid());
+	assert(test_get_client_user_name());
 
-	// assert(test_get_subscriptions());
-	// assert(test_get_subscriptions_clientid());
+	assert(test_get_subscriptions());
+	assert(test_get_subscriptions_clientid());
 
-	// assert(test_get_topic_tree());
+	assert(test_get_topic_tree());
 
-	// assert(test_get_reload());
-	// assert(test_post_reload());
+	assert(test_get_reload());
+	assert(test_post_reload());
 
 	assert(test_get_metrics());
+	assert(test_get_uri());
 
 	// // TODO: more test on bridges & rule engine
 	// // assert(test_put_bridges());
@@ -524,14 +536,14 @@ main()
 	// assert(test_disable_rule());
 	// assert(test_del_rule());
 
-	// // failing tests
-	// assert(test_unauthorized());
-	// assert(test_bad_request());
-	// assert(test_not_found());
+	// failing tests
+	assert(test_unauthorized());
+	assert(test_bad_request());
+	assert(test_not_found());
 
-	// // broker ctrl test
-	// assert(test_restart());
-	// assert(test_stop());
+	// broker ctrl test
+	assert(test_restart());
+	assert(test_stop());
 
 	nng_thread_destroy(nmq);
 }
