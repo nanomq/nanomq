@@ -40,20 +40,49 @@ cmake ..
 make -j8
 ```
 
-## Enable SOME/IP Protocol Conversion
+## Enable SOME/IP Gateway
 
-Enable the SOME/IP protocol conversion feature for NanoMQ at the compile stage with the following command:
+You can enable the SOME/IP gateway feature during the compilation process using the `-DBUILD_VSOMEIP_GATEWAY=ON` switch. For further details on the compilation, refer to [this guide on installing NanoMQ via compilation](../installation/build-options.md).
+
+Example command:
 
 ```shell
 cmake -G Ninja -DBUILD_VSOMEIP_GATEWAY=ON ..
 ninja
 ```
 
+After the compilation is complete, you can navigate to the build -> nanomq_cli directory, and execute the `nanomq` command to verify if the ZMQ gateway is correctly installed:
+
+```bash
+$ ./nanomq_cli nanomq
+available applications:
+   * broker
+   * pub
+   * sub
+   * conn
+   * nngproxy
+   * nngcat
+   * gateway
+  
+NanoMQ  Edge Computing Kit & Messaging bus v0.6.8-3
+Copyright 2023 EMQX Edge Team
+```
+
+Then run the command `nanomq gateway` or `nanomq gateway --help` and you will get:
+
+```
+Usage: nanomq_cli gateway [--conf <path>]
+
+  --conf <path>  The path of a specified nanomq configuration file 
+```
+
+The output indicates that you should first specify a configuration file for this gateway.
+
 ## Configure the SOME/IP Gateway
 
-Before starting, specify the bridged topic and the address of the required SOME/IP service via the `etc/nanomq_vsomeip_gateway.conf` configuration file.
+The configuration file `etc/nanomq_vsomeip_gateway.conf` allows you to specify the topics and service addresses for bridging.
 
-Suppose you wish to route the data received from the SOME/IP service to the `topic/pub` topic of your local MQTT Broker. Moreover, you want to channel the MQTT messages received through the `topic/sub` topic to the SOME/IP service. You can accomplish this through the following configuration:
+Suppose you wish to route the data received from the SOME/IP service to your local MQTT Broker's topic/pub topic. Moreover, you want to channel the MQTT messages received through the `topic/sub` topic to the SOME/IP service. You can accomplish this through the following configuration:
 
 ```apache
 gateway.mqtt {
@@ -97,7 +126,7 @@ This section uses the `hello_world_service` sample service provided by the vSOME
 
 ::: tip
 
-For guidance on how to install and initiate this sample service, please refer to the vSOMEIP project documentation. This service can also be replaced with other SOME/IP-compatible services.
+For guidance on installing and initiating this sample service, please refer to the vSOMEIP project documentation. This service can also be replaced with other SOME/IP-compatible services.
 
 :::
 

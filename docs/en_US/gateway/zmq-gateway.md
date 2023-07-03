@@ -1,14 +1,24 @@
-# ZMQ GATEWAY
+# ZMQ Gateway
 
-## Compile
-Gateway tool isn't built by default, you can enable it via -DBUILD_ZMQ_GATEWAY=ON.
+[**ZeroMQ**](https://en.wikipedia.org/wiki/ZeroMQ) (also spelled **ØMQ**, **0MQ,** or **ZMQ**) is an asynchronous messaging library, aimed at use in distributed or concurrent applications. It provides a message queue, but unlike message-oriented middleware, a ZeroMQ system can run without a dedicated message broker; the zero in the name is for zero brokers.
 
-```
+NanoMQ supports data transmission and routing for ZeroMQ message queues through its ZMQ gateway.
+
+## Enable ZMQ Gateway
+
+You can enable the ZMQ gateway feature during the compilation process using the `-DBUILD_ZMQ_GATEWAY=ON` switch. For further details on the compilation, refer to [this guide on installing NanoMQ via compilation](../installation/build-options.md).
+
+Example command:
+
+```bash
 cmake -G Ninja -DBUILD_ZMQ_GATEWAY=ON ..
 ninja
 ```
-Now we run command `nanomq` will get output below:
-```
+
+After the compilation is complete, you can navigate to the build -> nanomq_cli directory, and execute the `nanomq` command to verify if the ZMQ gateway is correctly installed:
+
+```bash
+$ ./nanomq_cli nanomq
 available applications:
    * broker
    * pub
@@ -17,22 +27,25 @@ available applications:
    * nngproxy
    * nngcat
    * gateway
-
+   
+NanoMQ  Edge Computing Kit & Messaging bus v0.6.8-3
+Copyright 2023 EMQX Edge Team
 ```
-It's show that gateway is ok now. 
+Then run the command `nanomq gateway` or `nanomq gateway --help` and you will get:
 
-## Run
-Run command `nanomq gateway` or `nanomq gateway --help` will get:
 ```
 Usage: nanomq_cli gateway [--conf <path>]
 
   --conf <path>  The path of a specified nanomq configuration file 
 ```
-The output indicate that gateway need a configure file.
+The output indicates that you should first specify a configuration file for this gateway.
 
-### Confiure file
-Here is a configure file template.
-```
+### Configure the ZMQ Gateway
+The configuration file `etc/nanomq_zmq_gateway.conf` allows you to specify the topics and service addresses for bridging.
+
+Suppose you aim to build a powerful gateway that connects a local NanoMQ Broker, ZeroMQ client, and a remote MQTT broker ([broker.emqx.io:1883](https://www.emqx.com/zh/mqtt/public-mqtt5-broker)). In this case, you can use the following configuration file to facilitate cross-protocol and cross-network message transmission under the `sub` and `pub` topics:
+
+```bash
 ##====================================================================
 ## Configuration for MQTT ZeroMQ Gateway
 ##====================================================================
@@ -124,11 +137,15 @@ gateway.mqtt.parallel=2
 ```
 Configure file description can find [here](../config-description/v019.md).
 
-Launch broker and zmq server, then launch nanomq gateway 
-```
+## Test ZMQ Gateway
+
+After setting up the configuration, use the following commands to start the NanoMQ Broker, ZMQ server, and ZMQ gateway. This will enable the message transmission between the ZMQ server and the MQTT Broker:
+
+```bash
 $ nanomq start
-$ your zmq server
+$ {your.zmq.server}
 $ nanomq_cli gateway --conf path/to/nanomq_gateway.conf
 ```
-Gateway will transfer data between zmq and mqtt broker.
+
+
 
