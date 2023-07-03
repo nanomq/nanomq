@@ -83,7 +83,7 @@ After compiling, an executable file `idl-serial-code-gen` will be generated.
    ```
    $ ./nanomq_cli/nanomq_cli
    nanomq_cli { pub | sub | conn | nngproxy | nngcat | dds } [--help]
-
+   
    available tools:
       * pub
       * sub
@@ -91,7 +91,7 @@ After compiling, an executable file `idl-serial-code-gen` will be generated.
       * nngproxy
       * nngcat
       * dds
-   Copyright 2022 EMQ Edge Computing Team
+   Copyright 2023 EMQ Edge Computing Team
    ```
 
 ## Configure DDS Proxy
