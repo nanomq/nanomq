@@ -69,14 +69,29 @@ $ sudo ninja install
 
 1. 通过 cmake 参数 `IDL_FILE_PATH` 指定 `idl` 文件路径 (不指定则默认为工程路径下的 `etc/idl/dds_type.idl`)
 
-   ```
-   $ git clone https://github.com/emqx/nanomq.git $ cd nanomq $ mkdir build && cd build $ cmake -G Ninja -DIDL_FILE_PATH={IDL_PATH} -DCMAKE_PREFIX_PATH={DDS_LIBRARY_PATH} -DBUILD_DDS_PROXY=ON .. $ ninja  $ sudo ninja install
+   ```bash
+   $ git clone https://github.com/emqx/nanomq.git
+   $ cd nanomq
+   $ mkdir build && cd build
+   $ cmake -G Ninja -DIDL_FILE_PATH={IDL_PATH} -DCMAKE_PREFIX_PATH={DDS_LIBRARY_PATH} -DBUILD_DDS_PROXY=ON ..
+   $ ninja
+   $ sudo ninja install
    ```
 
 3. 执行以下命令查看是否已编译  `dds`
 
    ```
-   $ ./nanomq_cli/nanomq_cli  nanomq_cli { pub | sub | conn | nngproxy | nngcat | dds } [--help] available tools:   * pub   * sub   * conn   * nngproxy   * nngcat   * dds Copyright 2022 EMQ Edge Computing Team
+   $ ./nanomq_cli/nanomq_cli
+   nanomq_cli { pub | sub | conn | nngproxy | nngcat | dds } [--help]
+
+   available tools:
+      * pub
+      * sub
+      * conn
+      * nngproxy
+      * nngcat
+      * dds
+   Copyright 2022 EMQ Edge Computing Team
    ```
 
 ## 配置 DDS Proxy
@@ -174,7 +189,7 @@ mqtt {
    $ ./nanomq_cli sub -h "127.0.0.1" -p 1883 -t "DDS/topic1"
    ```
 
-4. 启动 DDS 客户端, 指定结构体名称`remote_control_result_t`并发布消息(*命令行参数为 JSON 格式*)到 DDS 主题 `MQTTCMD/topic1`
+4. 启动 DDS 客户端, 指定结构体名称 `remote_control_result_t` 并发布消息(*命令行参数为 JSON 格式*)到 DDS 主题 `MQTTCMD/topic1`
 
    ```bash
    $ ./nanomq_cli dds pub -t "MQTTCMD/topic1" --struct "remote_control_result_t"  -m '{
@@ -187,7 +202,7 @@ mqtt {
    }'
    ```
 
-5. 启动 DDS 客户端订阅 DDS 主题 `MQTT/topic1`并指定接收的结构体名称`remote_control_req_t`
+5. 启动 DDS 客户端订阅 DDS 主题 `MQTT/topic1` 并指定接收的结构体名称 `remote_control_req_t`
 
    ```bash
    $ ./nanomq_cli dds sub -t "MQTT/topic1" --struct "remote_control_req_t"
