@@ -69,14 +69,29 @@ After compiling, an executable file `idl-serial-code-gen` will be generated.
 
 1. Specify the `idl` file path through the cmake parameter `IDL_FILE_PATH` (If not specified, it defaults to the `etc/idl/dds_type.idl` in the project path)
 
-   ```
-   $ git clone https://github.com/emqx/nanomq.git $ cd nanomq $ mkdir build && cd build $ cmake -G Ninja -DIDL_FILE_PATH={IDL_PATH} -DCMAKE_PREFIX_PATH={DDS_LIBRARY_PATH} -DBUILD_DDS_PROXY=ON .. $ ninja  $ sudo ninja install
+   ```bash
+   $ git clone https://github.com/emqx/nanomq.git
+   $ cd nanomq
+   $ mkdir build && cd build
+   $ cmake -G Ninja -DIDL_FILE_PATH={IDL_PATH} -DCMAKE_PREFIX_PATH={DDS_LIBRARY_PATH} -DBUILD_DDS_PROXY=ON ..
+   $ ninja
+   $ sudo ninja install
    ```
 
 3. Execute the following command to check if `dds` has been compiled.
 
    ```
-   $ ./nanomq_cli/nanomq_cli  nanomq_cli { pub | sub | conn | nngproxy | nngcat | dds } [--help] available tools:   * pub   * sub   * conn   * nngproxy   * nngcat   * dds Copyright 2022 EMQ Edge Computing Team
+   $ ./nanomq_cli/nanomq_cli
+   nanomq_cli { pub | sub | conn | nngproxy | nngcat | dds } [--help]
+
+   available tools:
+      * pub
+      * sub
+      * conn
+      * nngproxy
+      * nngcat
+      * dds
+   Copyright 2022 EMQ Edge Computing Team
    ```
 
 ## Configure DDS Proxy
