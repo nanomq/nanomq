@@ -112,7 +112,58 @@ rules.sqlite.path              | String    | 规则引擎 SQLite3 数据库路�
 rules.sqlite.rules[0].table    | String    | 规则引擎 SQLite3 数据库表名
 rules.sqlite.rules[0].sql      | String    | 规则引擎 sql 语句
 
+**事例**
+```sh
+rules.sqlite {
+	# # Rule engine option SQLite3 database path
+	# # Rule engine db path, default is exec path.
+	# # 
+	# # Value: File
+	path = "/tmp/sqlite_rule.db"
+	rules = [
+		{
+			# # Rule engine option sql
+			# # Rule engine sql clause.
+			# # 
+			# # Value: String
+			sql = "SELECT topic, payload FROM \"abc\""
+			# # Rule engine option SQLite3 database table name
+			# # Rule engine db table name.
+			# # 
+			# # Value: String
+			table = broker
+		}
+	]
+}
+```
+当收到来自主题 `abc` 的消息, 会触发 NanoMQ 的规则引擎存储 `topic` 和 `payload` 两个字段的内容到 `path` 指定的 database 文件的表 broker 内, 流程类似于 `repub` 如下：
 
+将上面的配置加入到 `/etc/nanomq.conf` 中, 在第一个窗口启动 `nanomq`:
+```sh
+$ nanomq start
+
+```
+在第二个窗口发布消息 `aaa` 到主题 `abc`:
+```sh
+$ nanomq_cli pub -t abc -m aaa
+```
+在第二个窗口查看 SQLite 保存的消息。
+```sh
+$ sqlite3 /tmp/sqlite_rule.db
+SQLite version 3.11.0 2016-02-15 17:29:24
+Enter ".help" for usage hints.
+sqlite> .header on
+sqlite> .table
+broker
+sqlite> select * from broker1;
+RowId|Topic|Payload
+1|abc|aaa
+```
+**📢注意**：使用 `sqlite3` 命令前确保已安装，如未安装可通过一下命令安装：
+```sh
+apt update
+apt install sqlite3
+```
 
 ## MySQL 规则配置
 
