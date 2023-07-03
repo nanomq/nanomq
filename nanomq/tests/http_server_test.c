@@ -242,6 +242,17 @@ test_get_reload()
 }
 
 static bool
+test_get_configuration()
+{
+	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
+	            "'http://localhost:8081/api/v4/configuration'";
+	FILE *fd  = popen(cmd, "r");
+	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
+	pclose(fd);
+	return rv;
+}
+
+static bool
 test_get_bridges()
 {
 	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
@@ -520,6 +531,7 @@ main()
 	assert(test_get_topic_tree());
 
 	assert(test_get_reload());
+	assert(test_get_configuration());
 	assert(test_post_reload());
 
 	assert(test_get_metrics());
