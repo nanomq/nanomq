@@ -16,7 +16,7 @@ webhook {
     ......
 }
 ```
-**📢 Attention:** for NanoMQ 0-14 ~ 0.17 users, you also need to activate this feature with the `enable` configuration item. For details, see [Configuration v0.14](../config-description/v014.md)
+**📢 Attention:** for NanoMQ 0-14 ~ 0.18 users, you also need to activate this feature with the `enable` configuration item. For details, see [Configuration v0.14](../config-description/v014.md)
 
 ```bash
 webhook {

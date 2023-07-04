@@ -16,7 +16,7 @@ webhook {
     ......
 }
 ```
-**📢 注意** 对于 0.14 ~ 0.17 版本，还需通过 `enable` 选项启用相关功能，如下所示。具体可参考 [配置 - v0.14](../config-description/v014.md)
+**📢 注意** 对于 0.14 ~ 0.18 版本，还需通过 `enable` 选项启用相关功能，如下所示。具体可参考 [配置 - v0.14](../config-description/v014.md)
 
 ```bash
 webhook {
