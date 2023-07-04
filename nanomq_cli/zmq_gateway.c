@@ -25,7 +25,7 @@ static nng_optspec cmd_opts[] = {
 };
 
 static char help_info[] =
-    "Usage: nanomq_cli gateway start [--conf <path>]\n\n"
+    "Usage: nanomq_cli zmq_gateway [--conf <path>]\n\n"
     "  --conf <path>  The path of a specified nanomq configuration file \n";
 
 static zmq_gateway_conf *conf_g = NULL;
