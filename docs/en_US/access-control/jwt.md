@@ -1,4 +1,4 @@
-## JWT Authorization
+# JWT Authorization
 
 ## Building
 
