@@ -66,7 +66,7 @@ NanoMQ also allows loading custom configurations through a configuration file or
 
 If you wish to start NanoMQ via a configuration file:
 
-- Modify `/etc/nanomq.conf` in the Docker container
+- Modify `/etc/nanomq.conf` in the Docker container, refer to [configruation description](../config-description/v018.md)
 
 - Copy the modified configuration file from your local machine to the Docker container's `/etc/nanomq.conf` path using the `docker cp` command:
 

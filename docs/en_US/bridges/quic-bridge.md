@@ -1,6 +1,8 @@
 # MQTT over QUIC Bridge
 
-NanoMQ has supported MQTT over QUIC bridging, users can use QUIC as the transport layer of the MQTT protocol to establish a bridge with the EMQX 5.0 message service for data synchronization. This provides a shortcut for end-user devices that cannot integrate or find a suitable MQTT over QUIC SDK, as well as embedded devices that are difficult to modify the firmware, to take advantage of the advantages of the QUIC protocol in IoT scenarios. With the cloud-edge integrated message architecture of EMQX+NanoMQ, users can complete the data collection and synchronization needs across spatiotemporal regions in general IoT scenarios quickly with low costs.
+NanoMQ has supported MQTT over QUIC bridging, users can use QUIC as the transport layer of the MQTT protocol to establish a bridge with the EMQX 5.0 message service for data synchronization. This provides a shortcut for end-user devices that cannot integrate or find a suitable MQTT over QUIC SDK, as well as embedded devices that are difficult to modify the firmware, to take advantage of the advantages of the QUIC protocol in IoT scenarios. 
+
+With the cloud-edge integrated message architecture of EMQX+NanoMQ, users can complete the data collection and synchronization needs across spatiotemporal regions in general IoT scenarios quickly with low costs.
 
 **Feature list：**
 
@@ -99,7 +101,7 @@ Using `mqtt-quic` as the URL prefix indicates the use of QUIC as the transport l
 - Switch for hybrid bridging mode: bridges.mqtt.name.hybrid_bridging`
 - Switch for multi-stream bridging: `bridges.mqtt.name.multi_stream`
 
-For detailed configuration parameters, please refer to [Hocon version configuration](../config-description/v014.md) or [Old version configuration](../config-description/v013.md) (*Not Recommended*).
+For detailed configuration parameters, please refer to [Hocon version configuration](../config-description/v018.md) or [Old version configuration](../config-description/v013.md) (*Not Recommended*).
 
 If you choose to use Hocon version configuration items, apart from writing the related configurations directly into `nanomq.conf`, you can also define a separate configuration file for bridging, such as `nanomq_bridge.conf`. You can then include this file in `nanomq.conf` using HOCON's `include` syntax.
 
@@ -171,11 +173,11 @@ This section uses NanoMQ's built-in client tool to test the newly built MQTT ove
    quic_msg_recv_cb: forward1/#: forward_msg
    ```
 
-### Message Receiving Test
+### Test Message Receiving
 
 1. Subscribe to the message topic for the local NanoMQ Broker:
 
-   Subscribe to the topic`cmd/topic1` for **NanoMQ** to receive data published by **EMQX**:
+   Subscribe to the topic `cmd/topic1` for **NanoMQ** to receive data published by **EMQX**:
 
    In the second command line window, navigate to the `nanomq_cli` folder under the `build` folder, and execute the following command to subscribe:
 

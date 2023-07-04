@@ -128,7 +128,7 @@ This section will continue using the MQTTX client tool to test the MQTT data bri
 
 ![Connect to Public Broker](./assets/connect-public-broker.png)
 
-**Verify messging NanoMQ to MQTT bridge**
+**Verify messging from NanoMQ to MQTT bridge**
 
 On your client connecting the MQTT bridge, `MQTTbridge` in this example, subscribe to the `forward1/#` topic.
 
@@ -138,7 +138,7 @@ Verify that you received the message that was published from the local broker.
 
 <img src="./assets/hellofromnano.png" alt="message from nanomq" style="zoom:50%;" />
 
-**Verify the messaging service of NanoMQ**
+**Verify messaging from MQTT to NanoMQ**
 
 On your client connecting NanoMQ, `NanoMQTest` in this example, subscribe to the `recv/topic1` topic.
 
