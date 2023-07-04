@@ -1,6 +1,27 @@
 # Linux
 
-For Linux users, NanoMQ has provided the following installation methods. 
+For Linux users, NanoMQ currently provides four deployment versions, each with distinct functionalities as detailed in the table below:
+
+| Function                | NanoMQ Basic Version (default) | NanoMQ **SQLite Edition** | **NanoMQ MsQuic Edition** | NanoMQ Full Version |
+| ----------------------- | ------------------------------ | ------------------------- | ------------------------- | ------------------- |
+| MQTT Broker Function    | ✅                              | ✅                         | ✅                         | ✅                   |
+| TLS/SSL                 | ✅                              | ✅                         | ✅                         | ✅                   |
+| SQLite                  | ✅                              | ✅                         | ❌                         | ✅                   |
+| Rule Engine             | ❌                              | ❌                         | ✅                         | ✅                   |
+| MQTT over TCP Bridging  | ✅                              | ✅                         | ✅                         | ✅                   |
+| MQTT over QUIC Bridging | ❌                              | ❌                         | ✅                         | ✅                   |
+| AWS Bridging *          | ❌                              | ❌                         | ❌                         | ❌                   |
+| ZMQ Gateway             | ❌                              | ❌                         | ❌                         | ✅                   |
+| SOME/IP Gateway         | ❌                              | ❌                         | ❌                         | ✅                   |
+| DDS Gateway             | ❌                              | ❌                         | ❌                         | ✅                   |
+| Bench Benchmark Tools   | ❌                              | ❌                         | ✅                         | ✅                   |
+
+- You can select the appropriate installation version of NanoMQ based on your specific business requirements. To do this, simply replace `nanomq` in the installation command with the corresponding version code:
+  - For the SQLite Edition of NanoMQ, use `nanomq-sqlite`.
+  - For the MsQuic Edition of NanoMQ, use `nanomq-msquic`.
+  - For the Full Version of NanoMQ, use `nanomq-full`.
+
+## Install NanoMQ
 
 **Install with Apt/Yum Source**
 
@@ -98,13 +119,13 @@ The AUR (Arch User Repository) is a community-driven repository for Arch Linux u
    yay -S nanomq
    ```
 
-- Nanomq sqlite edition
+- Nanomq SQLite edition
 
    ```bash
    yay -S nanomq-sqlite
    ```
 
-- Nanomq msquic edition
+- Nanomq MsQuic edition
 
    ```bash
    yay -S nanomq-msquic
@@ -115,8 +136,6 @@ The AUR (Arch User Repository) is a community-driven repository for Arch Linux u
    ```bash
    yay -S nanomq-full
    ```
-
-
 
 
 
