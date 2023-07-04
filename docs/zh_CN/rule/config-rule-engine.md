@@ -189,4 +189,87 @@ rules.mysql.name.conn.password     | String   | 规则引擎 mysql 数据库密
 rules.mysql.name.rules[0].table    | String   | 规则引擎 mysql 数据库名字, 默认是 mysql_rules_db
 rules.mysql.name.rules[0].sql      | String   | 规则引擎 sql 语句
 
+**事例**
 
+```sh
+# # Currently, MySQL rule only supports the configuration of one database.
+rules.mysql.mysql_rule_db {
+	conn = {
+		# # The host for a mqsql client.
+		# #
+		# # Value: String
+		host = localhost
+		# # The username for a mqsql client.
+		# #
+		# # Value: String
+		username = username
+		# # The password for a mysql client.
+		# #
+		# # Value: String
+		password = password
+		# # Rule engine option mysql database name
+		# # Rule engine db path, default is exec path.
+		# # 
+		# # Value: File
+		database = db_name
+	}
+	
+	rules = [
+		{
+			# # Rule engine option mysql database table name
+			# # Rule engine db table name.
+			# # 
+			# # Value: String
+			table = broker1
+			# # Rule engine option sql
+			# # Rule engine sql clause.
+			# # 
+			# # Value: String
+			sql = "SELECT * FROM \"abc\""
+		}
+	]
+}
+```
+
+当收到来自主题 `abc` 的消息, 会触发 NanoMQ 的规则引擎存储将 `field` 的所有字段的内容存到 `database` 指定的文件的表 `broker1` 内, 流程类似于 `repub` 如下：
+
+将上面的配置加入到 `/etc/nanomq.conf` 中, 在第一个窗口启动 `nanomq`:
+```sh
+$ nanomq start
+
+```
+在第二个窗口发布消息 `aaa` 到主题 `abc`:
+```sh
+$ nanomq_cli pub -t abc -m aaa
+```
+在第二个窗口查看 MySQL 保存的消息。
+```sh
+root@962d33aac193:/# mysql -u username -p
+Enter password:
+Welcome to the MySQL monitor.  Commands end with ; or \g.
+Your MySQL connection id is 18
+Server version: 5.7.33-0ubuntu0.16.04.1 (Ubuntu)
+
+Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+
+Oracle is a registered trademark of Oracle Corporation and/or its
+affiliates. Other names may be trademarks of their respective
+owners.
+
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+
+mysql> use db_name
+Reading table information for completion of table and column names
+You can turn off this feature to get a quicker startup with -A
+
+Database changed
+mysql> select * from broker1;
++-----+------+------+-------+-----------------+----------+----------+------------+-----------------+
+| idx | Qos  | Id   | Topic | Clientid        | Username | Password | Timestamp  | Payload         |
++-----+------+------+-------+-----------------+----------+----------+------------+-----------------+
+|   1 |    0 |    0 | abc   | nanomq-fcfd2f11 | (null)   | (null)   | 1688437187 | aaaaaaaaaaaaaaa |
++-----+------+------+-------+-----------------+----------+----------+------------+-----------------+
+1 row in set (0.00 sec)
+
+```
+**📢注意**：确保 `conn` 配置项中各个参数是有效的，其中 `database` 需要提前创建。
