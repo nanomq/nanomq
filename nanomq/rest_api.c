@@ -481,6 +481,7 @@ uri_param_parse(const char *path, size_t *count)
 		free(kv_str[i]);
 		kv_str[i] = NULL;
 	}
+	free(kv_str);
 
 	*count = param_count;
 	return params;
@@ -1284,10 +1285,10 @@ compose_metrics(char *ret, client_stats *ms, client_stats *s)
 	             "\nnanomq_memory_usage_max %.2f"
 	             "\n# TYPE nanomq_cpu_usage gauge"
 	             "\n# HELP nanomq_cpu_usage"
-	             "\nnanomq_cpu_usage %.2f%"
+	             "\nnanomq_cpu_usage %.2f"
 	             "\n# TYPE nanomq_cpu_usage gauge"
 	             "\n# HELP nanomq_cpu_usage"
-	             "\nnanomq_cpu_usage %.2f%\n";
+	             "\nnanomq_cpu_usage %.2f\n";
 
 	snprintf(ret, METRICS_DATA_SIZE, fmt, s->connections, ms->connections,
 	    s->sessions, ms->sessions, s->topics, ms->topics, s->subscribers,
