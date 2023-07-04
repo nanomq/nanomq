@@ -40,6 +40,12 @@ or Full version
 docker pull emqx/nanomq:0.18.2-full
 ```
 
+:::
+
+To pull the NanoMQ Full Version, please also specify the target version. 
+
+:::
+
 For more information about the official NanoMQ image, please visit [Docker Hub - nanomq](https://hub.docker.com/r/emqx/nanomq).
 
 ## Run NanoMQ with Docker
