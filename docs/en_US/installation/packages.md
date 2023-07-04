@@ -1,80 +1,122 @@
-# Install from packagecloud source
+# Linux
 
-## Install via AUR
+For Linux users, NanoMQ has provided the following installation methods. 
+
+**Install with Apt/Yum Source**
+
+| OS                                              | Installation Method |
+| ----------------------------------------------- | ------------------- |
+| Debian-based distributions like Ubuntu          | Apt                 |
+| Red Hat-based distributions like CentOS, Fedora | Yum                 |
+
+**Install with Package**
+
+| Architecture | Debian Package (.deb) | RPM Package (.rpm) |
+| ------------ | --------------------- | ------------------ |
+| **amd64**    | Yes                   | No                 |
+| **arm64**    | Yes                   | Yes                |
+| **riscv64**  | Yes                   | Yes                |
+| **mips**     | Yes                   | Yes                |
+| **armhf**    | Yes                   | Yes                |
+| **armel**    | Yes                   | Yes                |
+| **X86_64**   | No                    | Yes                |
+
+## Install with Apt source
+
+NanoMQ supports installing with Apt source to provide our users with a convenient and reliable way to manage NanoMQ installation and updates. Here is how to install NanoMQ with Apt source:
+
+1. Download the NanoMQ repository:
+
+   ```bash
+   curl -s https://assets.emqx.com/scripts/install-nanomq-deb.sh | sudo bash
+   ```
+
+2. Install NanoMQ:
+
+   ```bash
+   sudo apt-get install nanomq
+   ```
+
+3. Start NanoMQ:
+
+   ```bash
+   nanomq start  
+   ```
+
+## Install with Yum source
+
+For Red Hat-based distributions like CentOS, Fedora, NanoMQ also supports installing with Yum source. Here is how to install NanoMQ with Yum source:
+
+1. Download the NanoMQ repository:
+
+   ```bash
+   curl -s https://assets.emqx.com/scripts/install-nanomq-rpm.sh | sudo bash
+   ```
+
+2. Install NanoMQ:
+
+   ```bash
+   sudo yum install -y nanomq
+   ```
+
+3. Start NanoMQ:
+
+   ```bash
+   nanomq start  
+   ```
+
+## Install with Package
+
+This section takes installing v0.18.2 under the arm64 architecture as an example, for more installation options, you may refer to the [NanoMQ Download](https://nanomq.io/downloads?os=Linux) page.
+
+1. Download [anomq-0.18.2-linux-x86_64.rpm](https://www.emqx.com/en/downloads/nanomq/0.18.2/nanomq-0.18.2-linux-x86_64.rpm).
+
+   ```bash
+   wget https://www.emqx.com/en/downloads/nanomq/0.18.2/nanomq-0.18.2-linux-arm64.deb
+   ```
+
+2. Install NanoMQ
+
+   ```bash
+   sudo apt install ./nanomq-0.18.2-linux-arm64.deb
+   ```
+
+3. Run NanoMQ
+
+   ```bash
+   nanomq start
+   ```
+
+## Install with AUR
+
+The AUR (Arch User Repository) is a community-driven repository for Arch Linux users. It contains package descriptions (PKGBUILDs) that allow you to compile a package from the source and then install it via the Arch Linux package manager (`pacman`). NanoMQ also supports installing with AUR
+
 
 - Nanomq basic edition
 
-```bash
-yay -S nanomq
-```
+   ```bash
+   yay -S nanomq
+   ```
 
 - Nanomq sqlite edition
 
-```bash
-yay -S nanomq-sqlite
-```
+   ```bash
+   yay -S nanomq-sqlite
+   ```
 
 - Nanomq msquic edition
 
-```bash
-yay -S nanomq-msquic
-```
+   ```bash
+   yay -S nanomq-msquic
+   ```
 
 - Nanomq full edition
 
-```bash
-yay -S nanomq-full
-```
-
-## Install via deb source
-
-```shell
-curl -s https://assets.emqx.com/scripts/install-nanomq-deb.sh | sudo bash
-sudo apt-get install nanomq
-```
-
-## Install deb package manually
-
-```shell
-sudo bash -c 'cat << EOF > /etc/apt/sources.list.d/emqx_nanomq.list
-deb [signed-by=/usr/share/keyrings/emqx_nanomq-archive-keyring.gpg] https://packages.emqx.com/emqx/nanomq/any/ any main
-deb-src [signed-by=/usr/share/keyrings/emqx_nanomq-archive-keyring.gpg] https://packages.emqx.com/emqx/nanomq/any/ any main
-EOF'
-
-gpg_key_url="https://packages.emqx.com/emqx/nanomq/gpgkey"
-gpg_keyring_path="/usr/share/keyrings/emqx_nanomq-archive-keyring.gpg"
-curl -fsSL "${gpg_key_url}" | gpg --dearmor > ${gpg_keyring_path}
-mv ${gpg_keyring_path} /etc/apt/trusted.gpg.d/emqx_nanomq.gpg
-
-sudo apt-get update
-sudo apt-get install nanomq
-```
+   ```bash
+   yay -S nanomq-full
+   ```
 
 
 
-## Install via rpm source
 
-```shell
-curl -s https://assets.emqx.com/scripts/install-nanomq-rpm.sh | sudo bash
-sudo yum install -y nanomq
-```
 
-## Install rpm package manually
-
-```shell
-sudo bash -c 'cat << EOF > /etc/yum.repos.d/emqx_nanomq.repo
-[emqx_nanomq]
-name=emqx_nanomq
-baseurl=https://packages.emqx.com/emqx/nanomq/rpm_any/rpm_any/$basearch
-repo_gpgcheck=1
-gpgcheck=0
-enabled=1
-gpgkey=https://packages.emqx.com/emqx/nanomq/gpgkey
-sslverify=1
-sslcacert=/etc/pki/tls/certs/ca-bundle.crt
-metadata_expire=300
-EOF'
-
-sudo yum -q makecache -y --disablerepo='*' --enablerepo='emqx_nanomq'
-sudo yum install -y nanomq
-```

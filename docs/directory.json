@@ -17,8 +17,12 @@
           "path": "installation/docker"
         },
         {
-          "title": "使用安装包",
+          "title": "Linux",
           "path": "installation/packages"
+        },
+        {
+          "title": "Windows",
+          "path": "installation/windows"
         },
         {
           "title": "编译安装",
@@ -158,8 +162,12 @@
           "path": "installation/docker"
         },
         {
-          "title": "Install with Packages",
+          "title": "Linux",
           "path": "installation/packages"
+        },
+        {
+          "title": "Windows",
+          "path": "installation/windows"
         },
         {
           "title": "Compile and Performance Tuning",
