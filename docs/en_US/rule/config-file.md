@@ -189,3 +189,88 @@ rules.mysql.name.conn.password      | String | Rule engine option mysql database
 rules.mysql.name.rules[0].table     | String | Rule engine option mysql database table name
 rules.mysql.name.rules[0].sql       | String | Rule engine sql clause
 
+**example**
+
+```sh
+# # Currently, MySQL rule only supports the configuration of one database.
+rules.mysql.mysql_rule_db {
+	conn = {
+		# # The host for a mqsql client.
+		# #
+		# # Value: String
+		host = localhost
+		# # The username for a mqsql client.
+		# #
+		# # Value: String
+		username = username
+		# # The password for a mysql client.
+		# #
+		# # Value: String
+		password = password
+		# # Rule engine option mysql database name
+		# # Rule engine db path, default is exec path.
+		# # 
+		# # Value: File
+		database = db_name
+	}
+	
+	rules = [
+		{
+			# # Rule engine option mysql database table name
+			# # Rule engine db table name.
+			# # 
+			# # Value: String
+			table = broker1
+			# # Rule engine option sql
+			# # Rule engine sql clause.
+			# # 
+			# # Value: String
+			sql = "SELECT * FROM \"abc\""
+		}
+	]
+}
+```
+
+When a message is received from the topic `abc`, the rule engine of NanoMQ will be triggered to store the contents of all fields in the `field` to a database table called `broker1` in the database file specified by the `database` field. The process is similar to the `repub` as follows:
+
+Add the above configuration to `/etc/nanomq.conf` and start `nanomq` in the first terminal window with the following command:
+
+```sh
+$ nanomq start
+
+```
+Publish the message `aaa` to the topic `abc` in the second terminal window with the following command:
+```sh
+$ nanomq_cli pub -t abc -m aaa
+```
+Then, in the second terminal window, view the messages saved in MySQL.
+```sh
+root@962d33aac193:/# mysql -u username -p
+Enter password:
+Welcome to the MySQL monitor.  Commands end with ; or \g.
+Your MySQL connection id is 18
+Server version: 5.7.33-0ubuntu0.16.04.1 (Ubuntu)
+
+Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+
+Oracle is a registered trademark of Oracle Corporation and/or its
+affiliates. Other names may be trademarks of their respective
+owners.
+
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+
+mysql> use db_name
+Reading table information for completion of table and column names
+You can turn off this feature to get a quicker startup with -A
+
+Database changed
+mysql> select * from broker1;
++-----+------+------+-------+-----------------+----------+----------+------------+-----------------+
+| idx | Qos  | Id   | Topic | Clientid        | Username | Password | Timestamp  | Payload         |
++-----+------+------+-------+-----------------+----------+----------+------------+-----------------+
+|   1 |    0 |    0 | abc   | nanomq-fcfd2f11 | (null)   | (null)   | 1688437187 | aaaaaaaaaaaaaaa |
++-----+------+------+-------+-----------------+----------+----------+------------+-----------------+
+1 row in set (0.00 sec)
+
+```
+**📢Note**: Make sure that all parameters in the `conn` configuration item are valid, and that the `database` parameter needs to be created in advance.
