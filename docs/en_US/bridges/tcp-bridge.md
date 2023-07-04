@@ -56,7 +56,7 @@ Using `mqtt-tcp` as the URL prefix signifies the use of TCP as the transport lay
 - Array of remote topics to forward (supporting MQTT wildcard): `bridges.mqtt.name.forwards`
 - Array of remote topics to subscribe to (supporting MQTT wildcard): `bridges.mqtt.name.subscription`
 
-Refer to the bridging [Hocon version configuration](../config-description/v018.md) or [Old version configuration](../config-description/v014.md) (*not recommended*) for detailed configuration parameters.
+Refer to the bridging [Hocon version configuration](../config-description/v018.md) or [Old version configuration](../config-description/v013.md) (*not recommended*) for detailed configuration parameters.
 
 If using Hocon version configuration items, you can either directly write the related configurations into `nanomq.conf`, or create a separate configuration file for bridging, such as `nanomq_bridge.conf`, and use HOCON's `include` syntax to reference this file in `nanomq.conf`:
 
