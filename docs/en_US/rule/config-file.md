@@ -110,6 +110,60 @@ Name                         | Type   | Description
 rules.sqlite.path             | String | Rule engine option SQLite3 database path, default is /tmp/rule_engine.db
 rules.sqlite.rules[0].table   | String | Rule engine option SQLite3 database table name
 rules.sqlite.rules[0].sql     | String | Rule engine sql clause
+
+**example**
+```sh
+rules.sqlite {
+	# # Rule engine option SQLite3 database path
+	# # Rule engine db path, default is exec path.
+	# # 
+	# # Value: File
+	path = "/tmp/sqlite_rule.db"
+	rules = [
+		{
+			# # Rule engine option sql
+			# # Rule engine sql clause.
+			# # 
+			# # Value: String
+			sql = "SELECT topic, payload FROM \"abc\""
+			# # Rule engine option SQLite3 database table name
+			# # Rule engine db table name.
+			# # 
+			# # Value: String
+			table = broker
+		}
+	]
+}
+```
+When a message is received from the topic `abc`, the rule engine of NanoMQ will be triggered to store the contents of the `topic` and `payload` fields in a database table called `broker` in the database file specified by the `path` field. The process is similar to the `repub` as follows:
+
+Add the above configuration to `/etc/nanomq.conf` and start `nanomq` in the first terminal window.
+```sh
+$ nanomq start
+
+```
+Publish the message `aaa` to the topic `abc` in the second terminal window with the following command:
+```sh
+$ nanomq_cli pub -t abc -m aaa
+```
+Then, in the second terminal window, view the messages saved in SQLite:
+```sh
+$ sqlite3 /tmp/sqlite_rule.db
+SQLite version 3.11.0 2016-02-15 17:29:24
+Enter ".help" for usage hints.
+sqlite> .header on
+sqlite> .table
+broker
+sqlite> select * from broker1;
+RowId|Topic|Payload
+1|abc|aaa
+```
+**📢Note**: Make sure that `sqlite3` command is installed before using it. If it is not installed, you can install it using the following command:
+```sh
+apt update
+apt install sqlite3
+```
+
 ## Data Persistence with MySQL
 
 NanoMQ supports data persistence with MySQL, see below for the configuration items. 
