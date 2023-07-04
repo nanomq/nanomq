@@ -2,10 +2,18 @@
 
 This section provides a comprehensive guide on setting up the rule engine according to your specific needs using a configuration file and it will cover the following topics:
 
-- [Rule engine configuration](#rule-engine-configuration)
-- [Republish rule](#republish-rule)
-- [Data Persistence with SQLite](#data-persistence-with-sqlite)
-- [Data Persistence with MySQL](#data-persistence-with-mysql)
+- [Configure with Rule Engine](#configure-with-rule-engine)
+	- [Rule Engine Configuration](#rule-engine-configuration)
+	- [Republish Rule](#republish-rule)
+		- [Create the Rule](#create-the-rule)
+		- [Test the Rule](#test-the-rule)
+	- [Data Persistence with SQLite](#data-persistence-with-sqlite)
+		- [Create the Rule](#create-the-rule-1)
+		- [Test the Rule](#test-the-rule-1)
+	- [Data Persistence with MySQL](#data-persistence-with-mysql)
+		- [Configuration Item](#configuration-item)
+		- [Create the Rule](#create-the-rule-2)
+		- [Test the Rule](#test-the-rule-2)
 
 ## Rule Engine Configuration
 
@@ -29,7 +37,7 @@ rules.repub.rules[0].sql         | String  | Rule engine SQL clause
 
 ### Create the Rule
 
-Suppose you want to create a `repub` rule, upon receipt of a message from the `abc` topic, NanoMQ will encapsulate the `topic` and `payload` fields into a JSON structure and then forward this JSON-structured message to the `abc` topic. To implement this, the necessary configuration should be appended to the `/etc/nanomq.conf` file. The changes will take effect after NanoMQ restarts. 
+Suppose you want to create a `repub` rule, upon receipt of a message from the `abc` topic, NanoMQ will encapsulate the `topic` and `payload` fields into a JSON structure and then forward this JSON-structured message to the `topic/repub1` topic. To implement this, the necessary configuration should be appended to the `/etc/nanomq.conf` file. The changes will take effect after NanoMQ restarts. 
 
 ```sh
 rules.repub {
@@ -270,7 +278,7 @@ rules.mysql.mysql_rule_db {
 3. Then, in the second terminal window, view the messages saved in MySQL.
 
    ```sh
-   root@962d33aac193:/# mysql -u username -p
+   $ mysql -u username -p
    Enter password:
    Welcome to the MySQL monitor.  Commands end with ; or \g.
    Your MySQL connection id is 18
@@ -289,13 +297,14 @@ rules.mysql.mysql_rule_db {
    You can turn off this feature to get a quicker startup with -A
 
    Database changed
-mysql> select * from broker1;
-+-----+------+------+-------+-----------------+----------+----------+------------+-----------------+
-| idx | Qos  | Id   | Topic | Clientid        | Username | Password | Timestamp  | Payload         |
-+-----+------+------+-------+-----------------+----------+----------+------------+-----------------+
-|   1 |    0 |    0 | abc   | nanomq-fcfd2f11 | (null)   | (null)   | 1688437187 | aaaaaaaaaaaaaaa |
-+-----+------+------+-------+-----------------+----------+----------+------------+-----------------+
-1 row in set (0.00 sec)
+   mysql> select * from broker1;
+   +-----+------+------+-------+-----------------+----------+----------+------------+-----------------+
+   | idx | Qos  | Id   | Topic | Clientid        | Username | Password | Timestamp  | Payload         |
+   +-----+------+------+-------+-----------------+----------+----------+------------+-----------------+
+   |   1 |    0 |    0 | abc   | nanomq-fcfd2f11 | (null)   | (null)   | 1688437187 | aaaaaaaaaaaaaaa |
+   +-----+------+------+-------+-----------------+----------+----------+------------+-----------------+
+   1 row in set (0.00 sec)
+   ```
 
 
 
