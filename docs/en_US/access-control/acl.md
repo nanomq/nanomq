@@ -27,6 +27,7 @@ rules = [
 
   ## Allow users with IP address "127.0.0.1" to publish/subscribe to topics "$SYS/#", "#"
   {"permit": "allow", "ipaddr": "127.0.0.1", "action": "pubsub", "topics": ["$SYS/#", "#"]}
+  ## It is not valid now. Currently client's ipaddr is not exposed to broker.
 
   ## Deny "All Users" subscribe to "$SYS/#" "#" Topics
   {"permit": "deny", "username": "#", "action": "subscribe", "topics": ["$SYS/#", "#"]}
