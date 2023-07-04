@@ -5,7 +5,7 @@
 #define STATUS_CODE_UNAUTHORIZED "HTTP/1.1 401"
 #define STATUS_CODE_NOT_FOUND "HTTP/1.1 404"
 
-#define RESULTE_CODE_PASS -1
+#define RESULT_CODE_PASS -1
 
 static cJSON *jsn; // TODO: this could be used for further check.
 
@@ -54,7 +54,7 @@ static bool
 check_http_result_code(char *buff, int rc)
 {
 	int    rv   = true;
-	if (rc == RESULTE_CODE_PASS) {
+	if (rc == RESULT_CODE_PASS) {
 		return rv;
 	}
 	cJSON *root = NULL;
@@ -215,7 +215,7 @@ test_get_metrics()
 	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
 	            "'http://localhost:8081/api/v4/metrics'";
 	FILE *fd  = popen(cmd, "r");
-	bool  rv  = check_http_return(fd, STATUS_CODE_OK, RESULTE_CODE_PASS);
+	bool  rv  = check_http_return(fd, STATUS_CODE_OK, RESULT_CODE_PASS);
 	pclose(fd);
 	return rv;
 }
@@ -226,7 +226,7 @@ test_get_uri()
 	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
 	            "'http://localhost:8081/api/v4/?name=ferret&color=purple'";
 	FILE *fd  = popen(cmd, "r");
-	bool  rv  = check_http_return(fd, STATUS_CODE_NOT_FOUND, RESULTE_CODE_PASS);
+	bool  rv  = check_http_return(fd, STATUS_CODE_NOT_FOUND, RESULT_CODE_PASS);
 	pclose(fd);
 	return rv;
 }
