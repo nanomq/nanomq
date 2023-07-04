@@ -1,6 +1,11 @@
 # MQTT Data Bridges
 
-Bridging is a way to connect multiple MQTT brokers. This section introduces MQTT over TCP bridge and MQTT over QUIC bridge. 
+Bridging is a way to connect multiple MQTT brokers. Unlike swarms, topic trees, and routing tables are not replicated between nodes operating in bridge mode.
+
+- Forward the message to the bridge node according to the rules;
+- Subscribe to the topic from the bridge node, and forward the message to this node/group after collecting the message.
+
+This section introduces MQTT over TCP bridge and MQTT over QUIC bridge. 
 
 ## MQTT over TCP Bridging
 
