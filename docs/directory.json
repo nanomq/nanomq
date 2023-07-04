@@ -13,7 +13,7 @@
       "path": "installation/introduction",
       "children": [
         {
-          "title": "Docker 部署指南",
+          "title": "Docker 部署",
           "path": "installation/docker"
         },
         {
@@ -62,7 +62,7 @@
         },
         {
           "title": "HTTP 认证",
-          "path": "access-control/jwt"
+          "path": "access-control/http"
         }
       ]
     },
