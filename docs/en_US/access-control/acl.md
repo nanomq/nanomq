@@ -25,8 +25,6 @@ rules = [
   ## Allow MQTT client using username "dashboard"  to subscribe to "$SYS/#" topics
   {"permit": "allow", "username": "dashboard", "action": "subscribe", "topics": ["$SYS/#"]}
 
-  ## Allow users with IP address "127.0.0.1" to publish/subscribe to topics "$SYS/#", "#"
-
   ## Deny "All Users" subscribe to "$SYS/#" "#" Topics
   {"permit": "deny", "username": "#", "action": "subscribe", "topics": ["$SYS/#", "#"]}
 
