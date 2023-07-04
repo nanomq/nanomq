@@ -34,7 +34,7 @@ Copyright 2022 EMQ Edge Computing Team
 Then run the command `./nanomq_cli zmq_gateway --help` and you will get:
 
 ```
-Usage: nanomq_cli zmq_gateway start [--conf <path>]
+Usage: nanomq_cli zmq_gateway [--conf <path>]
 
   --conf <path>  The path of a specified nanomq configuration file 
 ```
