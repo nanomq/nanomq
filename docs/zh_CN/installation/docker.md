@@ -37,7 +37,7 @@ docker pull emqx/nanomq:latest-slim
 或完整版
 
 ```bash
-docker pull emqx/nanomq:latest-full
+docker pull emqx/nanomq:0.18.2-full
 ```
 
 有关 NanoMQ 官方镜像的更多信息，请查看 [Docker Hub - nanomq](https://hub.docker.com/r/emqx/nanomq)。
