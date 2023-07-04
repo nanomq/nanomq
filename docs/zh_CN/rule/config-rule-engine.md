@@ -2,10 +2,19 @@
 
 本节将介绍如何通过 `nanomq.conf` 配置文件来配置规则引擎，并将覆盖以下主题：
 
-- [规则引擎配置](#规则引擎配置)
-- [转发规则配置](#repub-规则配置)
-- [离线消息 - SQLite 规则配置](#sqlite-规则配置)
-- [离线消息 - MySQL 规则配置](#mysql-规则配置)
+- [配置文件](#配置文件)
+	- [规则引擎配置](#规则引擎配置)
+	- [转发规则](#转发规则)
+		- [创建规则](#创建规则)
+		- [测试规则](#测试规则)
+	- [SQLite 规则](#sqlite-规则)
+		- [创建规则](#创建规则-1)
+		- [测试规则](#测试规则-1)
+	- [MySQL 规则配置](#mysql-规则配置)
+		- [前置准备](#前置准备)
+		- [配置项](#配置项)
+		- [创建规则](#创建规则-2)
+		- [测试规则](#测试规则-2)
 
 ## 规则引擎配置
 
@@ -259,7 +268,7 @@ $ nanomq_cli pub -t abc -m aaa
 ```
 在第二个窗口查看 MySQL 保存的消息。
 ```sh
-root@962d33aac193:/# mysql -u username -p
+$ mysql -u username -p
 Enter password:
 Welcome to the MySQL monitor.  Commands end with ; or \g.
 Your MySQL connection id is 18
