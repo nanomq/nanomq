@@ -22,16 +22,18 @@ NanoMQ currently provides three Docker deployment versions, each with distinct f
 
 [^*]: AWS bridging is currently unavailable with Docker deployment. To use AWS bridging, please [build NanoMQ from the source code](./build-options.md).
 
-Depending on your needs, you can choose the Docker image to pull:
+Based on your requirements, you can select the Docker image to download. For instance, using `latest` in the command below will download the most recent basic deployment version.
 
 ```bash
 docker pull emqx/nanomq:latest
 ```
 
-or Slim version
+To get the Slim or Full version of a certain release, don't forget to include the release number.
+
+For the Slim version:
 
 ```bash
-docker pull emqx/nanomq:latest-slim
+docker pull emqx/nanomq:0.18.2-slim
 ```
 
 or Full version

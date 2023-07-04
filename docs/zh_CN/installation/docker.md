@@ -22,16 +22,18 @@ NanoMQ 目前提供了三个 Docker 部署版本，功能差异见下表：<!-- 
 
 [^*]: Docker 部署中暂不支持 AWS 桥接，如希望使用 AWS 桥接，请通过[源码编译安装](./build-options.md)。
 
-您可根据需要选择要拉取的 Docker 镜像：
+您可根据需要选择要拉取的 Docker 镜像，如`latest`，此时将拉取最新的基础版镜像：
 
 ```bash
 docker pull emqx/nanomq:latest
 ```
 
-或 Slim 版
+如希望拉取指定版本 Slim 或者完整版镜像，还应指定版本号：
+
+如
 
 ```bash
-docker pull emqx/nanomq:latest-slim
+docker pull emqx/nanomq:0.18.2-slim
 ```
 
 或完整版
@@ -39,12 +41,6 @@ docker pull emqx/nanomq:latest-slim
 ```bash
 docker pull emqx/nanomq:0.18.2-full
 ```
-
-:::
-
-如希望拉取完整版，请同时指定版本号。
-
-:::
 
 有关 NanoMQ 官方镜像的更多信息，请查看 [Docker Hub - nanomq](https://hub.docker.com/r/emqx/nanomq)。
 
