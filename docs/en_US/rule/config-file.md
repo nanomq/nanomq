@@ -4,7 +4,7 @@ This section provides a comprehensive guide on setting up the rule engine accord
 
 ## Rule Engine Configuration
 
-By default, the rule engine function is disabled. To enable it, please compile with the `-DENABLE_RULE_ENGINE=ON` option. Once the rule engine is enabled, the `repub` function is supported by default.
+By default, the rule engine function is disabled. To enable it, please [compile with the `-DENABLE_RULE_ENGINE=ON` option](../installation/build-options.md). Once the rule engine is enabled, the `repub` function is supported by default.
 
 ## Rule Configuration for Republish
 
@@ -19,10 +19,11 @@ rules.repub.rules[0].password    | String  | Rule engine option repub password
 rules.repub.rules[0].proto_ver   | Integer | Rule engine option repub protocol version, default is 4
 rules.repub.rules[0].clientid    | String  | Rule engine option repub clientid
 rules.repub.rules[0].keepalive   | Duration| Rule engine option repub keepalive
-rules.repub.rules[0].clean_start | Boolean | Rule engine option repub clean_start flag, default is true
-rules.repub.rules[0].sql         | String  | Rule engine sql clause
+rules.repub.rules[0].clean_start | Boolean | Rule engine option repub clean_start flag, default is True 
+rules.repub.rules[0].sql         | String  | Rule engine SQL clause 
 
-**example**
+**Example**
+
 ```sh
 rules.repub {
 	rules = [
@@ -80,14 +81,18 @@ rules.repub {
 }
 ```
 
-The example above opens the repub of the NanoMQ rule engine in the config. When a message is received from the topic `abc`, the `topic` and `payload` will be packaged as JSON and sent to the topic `topic/repub1`.
+The example above opens the repub of the NanoMQ rule engine in the config. When a message is received from the topic `abc`, the `topic` and `payload` will be packaged as JSON and sent to the topic `topic/repub1`. Add the above configuration to `/etc/nanomq.conf`. 
 
-Add the above configuration to `/etc/nanomq.conf` and start `nanomq` in the first terminal window.
+### Test the Rule
+
+This section will use `nanomq_cli` to test the newly created rule.
+
+Start `nanomq` in the first terminal window.
+
 ```sh
 $ nanomq start
-
 ```
-Start `nanomq_cli` in the second terminal window and subscribe to the topic `topic/repub1` from the address pointed to by `server` in the configuration file.
+Start `nanomq_cli` in the second terminal window and subscribe to the topic `topic/repub1` from the address specified by `server` in the configuration file.
 ```sh
 $ nanomq_cli sub -t topic/repub1
 connect_cb: mqtt-tcp://127.0.0.1:1883 connect result: 0 
