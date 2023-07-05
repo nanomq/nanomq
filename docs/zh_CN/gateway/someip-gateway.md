@@ -26,7 +26,7 @@ make install
 
 ### 编译例程服务
 
-编译 vSOMEIP 中的 hello_world_service 例程服务，稍后我们将通过该例程测试 NanoMQ 的SOME/IP 网关。
+编译 vSOMEIP 中的 `hello_world_service` 例程服务，稍后我们将通过该例程测试 NanoMQ 的 SOME/IP 网关。
 
 ```shell
 cd vsomeip/examples/hello_world
@@ -45,29 +45,29 @@ cmake -G Ninja -DBUILD_VSOMEIP_GATEWAY=ON ..
 ninja
 ```
 
-编译完成后，可进入 build -> nanomq_cli 文件夹，执行命令 `nanomq` 确认网关是否正确安装：
+编译完成后，可进入 build -> nanomq_cli 文件夹，执行命令 `nanomq_cli` 确认网关是否正确安装：
 
 ```bash
-$ ./nanomq_cli nanomq
+$ ./nanomq_cli
+nanomq_cli { pub | sub | conn | nngproxy | nngcat | vsomeip_gateway } [--help]
+
 available tools:
-   * broker
    * pub
    * sub
    * conn
    * nngproxy
    * nngcat
-   * gateway
+   * vsomeip_gateway
 
-NanoMQ  Edge Computing Kit & Messaging bus v0.6.8-3
-Copyright 2022 EMQX Edge Team
+Copyright 2022 EMQ Edge Computing Team
 ```
 
-运行命令 `nanomq gateway` 或者 `nanomq gateway --help` 可看到以下输出：
+运行命令 `nanomq_cli vsomeip_gateway --help` 可看到以下输出：
 
 ```
-Usage: nanomq_cli gateway [--conf <path>]
+Usage: nanomq_cli vsomeip_gateway [--conf <path>]
 
-  --conf <path>  The path of a specified nanomq configuration file 
+  --conf <path>  The path of a specified nanomq_vsomeip_gateway.conf file
 ```
 
 即我们需要首先为该网关指定相关配置文件。
@@ -109,19 +109,15 @@ http_server {
 }
 ```
 
-这个示例中定义了两个 SOME/IP 服务，分别对应 MQTT 主题 `someip/1234/5678/9ABC` 和 `someip/1111/2222/3333`。
-
-- 当接收到来自指定 `service_id`，`service_instance_id` 和 `service_method_id` 的消息后，SOME/IP 网关会自动将其转换为 MQTT 消息，并发布到相应的主题上。
-- 当 SOME/IP 网关从 MQTT 主题接收到消息时，也会自动将其转换为 SOME/IP 格式，并发送给指定的SOME/IP 服务。
 
 ## 测试 SOME/IP 网关
 
-本节将通过 vSOMEIP 项目提供的例程服务 `hello_world_service` 来连接和转发的 SOME/IP 服务，并通过
+本节将使用上面编译好的 `hello_world_service` 作为 SOME/IP 的服务端，并通过
 SOME/IP gateway 与 NanoMQ 对接。
 
 ::: tip
 
-有关如何安装启动此示例服务请参考 VSOMEIP 项目文档，该服务也可以更换成其他 SOME/IP 兼容的服务。
+该服务可以更换成其他 SOME/IP 兼容的服务。
 
 :::
 
@@ -131,9 +127,9 @@ SOME/IP gateway 与 NanoMQ 对接。
 ldconfig
 ./hello_world_service // 启动 SOME/IP Server
 nanomq start // 启动 NanoMQ MQTT Broker
-./nanomq_cli vsomeip_gateway --conf ../etc/nanomq_vsomeip_gateway.conf // 启动 SOME/IP proxy
+./nanomq_cli vsomeip_gateway --conf path/to/nanomq_vsomeip_gateway.conf // 启动 SOME/IP proxy
 ```
-配置好 SOME/IP 网关之后，当您通过 MQTT 客户端向 `topic/pub` 主题发送一条消息时，SOME/IP 网关会将这条消息转发给预先指定的 SOME/IP 服务，即 `hello_world_service`；SOME/IP 服务接收到消息后会产生一个回应，并通过 SOME/IP 网关将回应消息转发到 `topic/sub` 主题，订阅该主题的客户端即可收到相应回复消息。
+配置好 SOME/IP 网关之后，当您通过 MQTT 客户端向 `topic/sub` 主题发送一条消息时，SOME/IP 网关会将这条消息转发给预先指定的 SOME/IP 服务，即 `hello_world_service`；SOME/IP 服务接收到消息后会产生一个回应，并通过 SOME/IP 网关将回应消息转发到 `topic/pub` 主题，订阅该主题的客户端即可收到相应回复消息。
 
 运行如图：
 ![img](./assets/hello_service.png)
