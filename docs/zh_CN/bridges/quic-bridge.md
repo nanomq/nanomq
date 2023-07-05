@@ -3,7 +3,6 @@
 NanoMQ 已支持 MQTT over QUIC 桥接，用户可以使用 QUIC 作为 MQTT 协议的传输层来与 EMQX 5.0 消息服务建立桥接进行数据同步，从而为无法集成或找到合适的 MQTT over QUIC SDK 的端侧设备和难以修改固件的嵌入式设备提供在 IoT 场景利用 QUIC 协议优势的捷径。依靠 EMQX+NanoMQ 的云边一体化的消息架构，用户能够快速且低成本的在泛物联网场景中完成跨时空地域的数据采集和同步需求。
 
 
-- Hybird bridging : automatically downgrade to TCP if QUIC is not availiable
 - Message prioritization: Assign High priority for QoS (1|2) message to ensure bandwidth usage
 
 QUIC 桥接具有以下独特的优势和特性：
