@@ -1,4 +1,5 @@
 # JWT Authorization
+JWT Authorization provides a secure way of quering NanoMQ' HTTP APIs.
 
 ## Building
 
