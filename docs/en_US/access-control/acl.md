@@ -2,7 +2,9 @@
 
 Access Control List (ACL) provides a more fine-grained approach to authorization. It defines rules that are matched from top to bottom. Once a rule is matched, its permission is applied, and the remaining rules are ignored.
 
-## Configuration Items
+## Configure in HOCON 
+
+### Configuration Items
 
 | Name     | Type           | Required | Description                                  |
 | -------- | -------------- | -------- | -------------------------------------------- |
@@ -14,7 +16,7 @@ Access Control List (ACL) provides a more fine-grained approach to authorization
 | and      | Array[Object]  | No       | `AND` operator                               |
 | or       | Array[Object]  | No       | `OR` operator                                |
 
-## Configuration Example
+### Configuration Example
 
 This configuration defines various rules for different users and topics, providing a flexible mechanism for managing permissions. Please write the rules in the correct format into the `nanomq_acl.conf` file and `include` it in `nanomq.conf`, as described in the [Access Control Introduction](introduction.md). 
 example:
@@ -34,5 +36,33 @@ rules = [
   ## Allow any other publish/subscribe operation
   {"permit": "allow"}
 ]
+```
+
+## Configure in KV Format
+
+NanoMQ also supports configure access controls in KV format. 
+
+**Syntax**
+
+```bash
+acl.rule.<No>=<Spec>
+```
+
+**Example**
+
+To implement this, the necessary configuration should be appended to the `/etc/nanomq.conf` file. The changes will take effect after NanoMQ restarts.
+
+```bash
+## Allow MQTT client using username "dashboard"  to subscribe to "$SYS/#" topics
+acl.rule.1={"permit": "allow", "username": "dashboard", "action": "subscribe", "topics": ["$SYS/#"]}
+
+## Allow users with IP address "127.0.0.1" to publish/subscribe to topics "$SYS/#", "#"
+acl.rule.2={"permit": "allow", "ipaddr": "127.0.0.1", "action": "pubsub", "topics": ["$SYS/#", "#"]}
+
+## Deny "All Users" subscribe to "$SYS/#" "#" Topics
+acl.rule.3={"permit": "deny", "username": "#", "action": "subscribe", "topics": ["$SYS/#", "#"]}
+
+## Allow any other publish/subscribe operation
+acl.rule.4={"permit": "allow"}
 ```
 

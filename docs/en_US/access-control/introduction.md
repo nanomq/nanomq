@@ -2,7 +2,12 @@
 
 Authentication and authorization are two fundamental security measures required in any system to verify the identity of users and ensure they have the necessary permissions to perform various actions. In the context of NanoMQ, a broker for MQTT services, these two aspects play a crucial role in ensuring the integrity and security of the entire system. In this document, we will explore various methods used for authentication and authorization in NanoMQ: User Login Authorization, Access Control List (ACL), and HTTP Authorization.
 
-## Authentication Configuration
+The configuration file is located in `etc/nanomq.conf`, NanoMQ offers 2 formats of configuration files:
+
+- [HOCON (recommended, supported since v0.14 or above)](../config-description/v019.md)
+- [Key-Value format](../config-description/v013.md)
+
+## Authentication Configuration in HOCON
 
 In NanoMQ, authentication is configured using a structure similar to the one below:
 
@@ -20,6 +25,12 @@ auth {
 }
 ```
 
+::: tip
+
+for NanoMQ 0-14 ~ 0.18 users, you also need to activate this feature with the `auth.enable = true` configuration item. For details, see [Configuration v0.14](../config-description/v014.md)
+
+:::
+
 where, 
 
 - `allow_anonymous` data type is `boolean`, with a default value of `true`, which allows anonymous login.
@@ -31,3 +42,8 @@ Optional value with caching settings:
 - `cache.ttl`: an optional duration value, default is `1m`. Specifies how long cached values are kept in the cache.
 - `password` is password file path. This will include the contents of the "nanomq_pwd.conf" file in your configuration, so make sure that the file only contains the password in the correct format, using `include` to include your pwd file.
 - `acl` is acl file path, This will include the contents of the "nanomq_acl.conf" file in your configuration, so make sure that the file only contains the acl in the correct format, using `include` to include your acl file.
+
+## Authentication Configuration in KV Format
+
+
+
