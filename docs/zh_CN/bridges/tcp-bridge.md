@@ -8,6 +8,10 @@ NanoMQ 已内置对 MQTT over TCP 桥接的支持，因此当您通过各种方�
 
 这里将使用 EMQ 提供的[免费公共桥接 broker.emqx.io:1883](https://www.emqx.com/en/mqtt/public-mqtt5-broker) 来构建 MQTT over TCP 数据桥接。在配置文件 `etc/nanomq.conf` 中贴入如下内容（HOCON 格式）：
 
+:::: tabs type:card
+
+::: tab Hocon 格式配置
+
 ```bash
 bridges.mqtt.name {
 	## TCP URL 格式:  mqtt-tcp://host:port
@@ -43,9 +47,28 @@ bridges.mqtt.name {
 }
 ```
 
+:::
+
+::: tab 旧版本配置
+
+```bash
+bridge.mqtt.emqx.address=mqtt-tcp://your_server_address:port
+bridge.mqtt.emqx.proto_ver=4
+bridge.mqtt.emqx.clientid=bridge_client
+bridge.mqtt.emqx.clean_start=false
+bridge.mqtt.emqx.forwards=topic1/#,topic2/#
+bridge.mqtt.emqx.subscription.1.topic=cmd/topic1
+bridge.mqtt.emqx.subscription.1.qos=1
+```
+
+:::
+
+::::
+
 ::: tip 
 
 使用 `mqtt-tcp` 作为 URL 前缀即是采用 TCP 作为 MQTT 的传输层。
+由 quic 作为前缀的配置选项对于 TCP 桥接不生效。
 
 :::
 
