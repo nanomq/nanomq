@@ -72,7 +72,7 @@
       "children":[
         {
           "title": "使用 Webhook 配置规则",
-          "path": "rule/web-hook-0.18"
+          "path": "rule/web-hook-0.19"
         },
         {
           "title": "通过配置项配置规则",
@@ -217,7 +217,7 @@
       "children":[
         {
           "title": "Configure with Webhook",
-          "path": "rule/web-hook-0.18"
+          "path": "rule/web-hook-0.19"
         },
         {
           "title": "Configure with Configuration File",
