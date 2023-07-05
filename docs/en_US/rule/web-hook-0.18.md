@@ -16,7 +16,7 @@ webhook {
     ......
 }
 ```
-**📢 Attention:** for NanoMQ 0-14 ~ 0.18 users, you also need to activate this feature with the `webhook.enable=true` configuration item. For details, see [Configuration v0.14](../config-description/v014.md)
+**📢 Attention:** for NanoMQ 0-14 ~ 0.18 users, you also need to activate this feature with the `webhook.enable = true` configuration item. For details, see [Configuration v0.14](../config-description/v014.md)
 
 Starting from NanoMQ version 0.18, the `enable` option has been removed. Therefore, to enable the `webhook` configuration, simply add this module to the configuration file as shown above.
 
