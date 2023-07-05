@@ -15,7 +15,7 @@ cmake -G Ninja -DBUILD_ZMQ_GATEWAY=ON ..
 ninja
 ```
 
-After the compilation is complete, you can navigate to the build -> nanomq_cli directory, and execute the `nanomq` command to verify if the ZMQ gateway is correctly installed:
+After the compilation is complete, you can navigate to the build -> nanomq_cli directory, and execute the `nanomq_cli` command to verify if the ZMQ gateway is correctly installed:
 
 ```bash
 $ ./nanomq_cli
