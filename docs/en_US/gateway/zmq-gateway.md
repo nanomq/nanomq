@@ -122,7 +122,7 @@ gateway.mqtt.subscription=topic/sub
 ## Value: 1-infinity
 gateway.mqtt.parallel=2
 ```
-Configure file description can find [here](../config-description/v018.md).
+Configure file description can find [here](../config-description/v019.md).
 
 Launch broker and zmq server, then launch nanomq gateway 
 ```

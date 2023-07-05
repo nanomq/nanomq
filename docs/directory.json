@@ -31,6 +31,10 @@
       "path": "config-description/introduction",
       "children": [
         {
+          "title": "配置说明(v019)",
+          "path": "config-description/v019"
+        },
+        {
           "title": "配置说明(v014)",
           "path": "config-description/v014"
         },
@@ -171,6 +175,10 @@
       "title": "Configuration",
       "path": "config-description/introduction",
       "children": [
+        {
+          "title": "Configuration(v019)",
+          "path": "config-description/v019"
+        },
         {
           "title": "Configuration(v014)",
           "path": "config-description/v014"

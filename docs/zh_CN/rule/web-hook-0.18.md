@@ -1,6 +1,6 @@
 # WebHook
 
-NanoMQ 提供了可拓展到事件驱动型 WebHook 接口，用户可通过规则配置 WebHook 的触发事件或消息主题。Webhook 的配置文件位于 `etc/nanomq.conf`，具体配置项可查看[配置说明](../config-description/v018.md)。
+NanoMQ 提供了可拓展到事件驱动型 WebHook 接口，用户可通过规则配置 WebHook 的触发事件或消息主题。Webhook 的配置文件位于 `etc/nanomq.conf`，具体配置项可查看[配置说明](../config-description/v019.md)。
 
 ## 启用 Webhook
 添加 webhook 对应的选项到 `etc/nanomq.conf` 即可, 如下：

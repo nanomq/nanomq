@@ -2,7 +2,7 @@
 
 NanoMQ is equipped with an event-driven WebHook interface, this section introduces how to enable the WebHook interface, relevant configuration items, and how WebHook is triggered by topics or events.
 
-The webhook configuration file is located in `etc/nanomq.conf`, the detailed description of configuration items can be found in [Configuration Item](../config-description/v018.md).
+The webhook configuration file is located in `etc/nanomq.conf`, the detailed description of configuration items can be found in [Configuration Item](../config-description/v019.md).
 
 ## Enable Webhook
 
