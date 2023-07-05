@@ -2,7 +2,7 @@
 
 本节将指导您使用官方 Docker 镜像快速安装和运行 NanoMQ，以及 Docker 部署模式下如何加载自定义配置。我们将以最新版的 NanoMQ 为例进行说明，如希望体验其他版本，可前往 [NanoMQ 下载页面](https://www.emqx.com/zh/try?product=nanomq)。
 
-## Docker 镜像
+## 拉取 Docker 镜像
 
 NanoMQ 目前提供了三个 Docker 部署版本，功能差异见下表：
 
