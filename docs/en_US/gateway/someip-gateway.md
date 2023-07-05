@@ -128,10 +128,10 @@ This service can also be replaced with other SOME/IP-compatible services.
 Use the following commands to initiate `hello_world_service`:
 
 ``` shell
-ldconfig
-./hello_world_service // Launch SOME/IP Server
-nanomq start // Launch NanoMQ MQTT Broker
-nanomq_cli vsomeip_gateway --conf path/to/nanomq_vsomeip_gateway.conf // Launch SOME/IP proxy
+$ ldconfig
+$ ./hello_world_service // Launch SOME/IP Server
+$ nanomq start // Launch NanoMQ MQTT Broker
+$ nanomq_cli vsomeip_gateway --conf path/to/nanomq_vsomeip_gateway.conf // Launch SOME/IP proxy
 ```
 
 Once the SOME/IP Gateway is configured, when you send a message to the `topic/sub` topic via your MQTT client, the SOME/IP Gateway will forward this message to the pre-specified SOME/IP service, namely `hello_world_service`. Upon receipt, the SOME/IP service will generate a response and route it back to the `topic/pub` topic via the SOME/IP Gateway. Any client subscribed to this topic will then receive the corresponding response message.
