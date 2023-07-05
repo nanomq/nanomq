@@ -40,7 +40,12 @@ Before you begin, ensure you have the following installed:
    make
    ```
 
+​		:::
+
+​		::::
+
 Wait until the terminal indicates that all required modules are compiled. For example, you should see something like:
+
  ```bash
  [495/495] Linking CXX executable nng/tests/cplusplus_pair
  ```

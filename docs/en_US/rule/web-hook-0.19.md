@@ -137,7 +137,6 @@ webhook.events = [
 		event = "on_client_connack"
 	}
 ]
-
 ```
 
 where,
@@ -155,7 +154,7 @@ where,
 ### Enable Webhook
 
 ```bash
-web.hook.enable=true
+web.hook.enable = true
 ```
 
 ### Rule Syntax

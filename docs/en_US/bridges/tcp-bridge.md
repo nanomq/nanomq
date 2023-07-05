@@ -2,7 +2,7 @@
 
 MQTT over TCP Bridging serves as a reliable communication strategy, leveraging the trustworthiness of the Transmission Control Protocol (TCP) to ensure the accuracy and integrity of MQTT messages during cross-network or cross-proxy communications. With the flexibility to adapt to various network environments and application scenarios, it plays a pivotal role in facilitating communication between Internet of Things (IoT) devices. 
 
-NanoMQ now supports MQTT over TCP bridging, enabling connections to the [EMQX Enterprise MQTT IoT Access Platform](https://www.emqx.com/zh/products/emqx).
+NanoMQ now supports MQTT over TCP bridging, enabling connections to the [EMQX Enterprise MQTT IoT Access Platform](https://www.emqx.com/products/emqx).
 
 ## Configure MQTT over TCP Bridge
 
@@ -56,7 +56,7 @@ Using `mqtt-tcp` as the URL prefix signifies the use of TCP as the transport lay
 - Array of remote topics to forward (supporting MQTT wildcard): `bridges.mqtt.name.forwards`
 - Array of remote topics to subscribe to (supporting MQTT wildcard): `bridges.mqtt.name.subscription`
 
-Refer to the bridging [Hocon version configuration](../config-description/v019.md) or [Old version configuration](../config-description/v013.md) (*not recommended*) for detailed configuration parameters.
+Refer to the bridging [Hocon version configuration](../config-description/v019.md) or [Classic KV-format configuration](../config-description/v013.md) (*not recommended*) for detailed configuration parameters.
 
 If using Hocon version configuration items, you can either directly write the related configurations into `nanomq.conf`, or create a separate configuration file for bridging, such as `nanomq_bridge.conf`, and use HOCON's `include` syntax to reference this file in `nanomq.conf`:
 
