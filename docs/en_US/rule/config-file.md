@@ -1,19 +1,6 @@
 # Configure with Rule Engine
 
-This section provides a comprehensive guide on setting up the rule engine according to your specific needs using a configuration file and it will cover the following topics:
-
-- [Configure with Rule Engine](#configure-with-rule-engine)
-	- [Rule Engine Configuration](#rule-engine-configuration)
-	- [Republish Rule](#republish-rule)
-		- [Create the Rule](#create-the-rule)
-		- [Test the Rule](#test-the-rule)
-	- [Data Persistence with SQLite](#data-persistence-with-sqlite)
-		- [Create the Rule](#create-the-rule-1)
-		- [Test the Rule](#test-the-rule-1)
-	- [Data Persistence with MySQL](#data-persistence-with-mysql)
-		- [Configuration Item](#configuration-item)
-		- [Create the Rule](#create-the-rule-2)
-		- [Test the Rule](#test-the-rule-2)
+This section provides a comprehensive guide on setting up the rule engine according to your specific needs using a configuration file.
 
 ## Rule Engine Configuration
 
@@ -122,7 +109,7 @@ You should see the message received in the second window from the topic `topic/r
 ## Data Persistence with SQLite
 
 NanoMQ supports data persistence with SQLite, see below for the configuration items. 
-To enable `SQLite`, please compile with the `-DNNG_ENABLE_SQLITE=ON` option. For detailed operation steps, see [Build from Source Code](../installation/build-options.md)/
+To enable `SQLite`, please compile with the `-DNNG_ENABLE_SQLITE=ON` option. For detailed operation steps, see [Build from Source Code](../installation/build-options.md).
 
 Name                         | Type   | Description
 ---------------------------- | ------ | ------------------------------------------------------------------------
@@ -285,17 +272,17 @@ rules.mysql.mysql_rule_db {
    Server version: 5.7.33-0ubuntu0.16.04.1 (Ubuntu)
    
    Copyright (c) 2000, 2021, Oracle and/or its affiliates.
-
+   
    Oracle is a registered trademark of Oracle Corporation and/or its
    affiliates. Other names may be trademarks of their respective
    owners.
-
+   
    Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
-
+   
    mysql> use db_name
    Reading table information for completion of table and column names
    You can turn off this feature to get a quicker startup with -A
-
+   
    Database changed
    mysql> select * from broker1;
    +-----+------+------+-------+-----------------+----------+----------+------------+-----------------+
