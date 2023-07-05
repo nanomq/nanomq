@@ -126,8 +126,6 @@ gateway.zmq {
 ```
 配置文集的[详细描述](../config-description/v019.md)。
 
-更多关于 ZMQ 网关配置项的解释，可以参考[配置参数文件](../config-description/v014.md)。
-
 ## 测试 ZMQ 网关
 
 配置完成后，您可通过如下命令启动 NanoMQ Broker、ZMQ 服务器 和 ZMQ 网关，实现 ZMQ 服务器和 MQTT Broker 之间的消息传递：
