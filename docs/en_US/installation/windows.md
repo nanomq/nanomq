@@ -4,7 +4,7 @@ This section will guide you on installing and starting NanoMQ on Windows with a 
 
 ::: tip
 
-This page takes v0.18.2 as an example, if you'd like to work with the other version, you may refer to the [NanoMQ Download](https://nanomq.io/downloads?os=Linux) page.
+This page takes v0.18.2 as an example, if you'd like to work with the other version, you may refer to the [NanoMQ Download](https://nanomq.io/downloads?os=Windows) page.
 
 :::
 
