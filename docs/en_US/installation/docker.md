@@ -1,83 +1,175 @@
 # Deploy with Docker
 
-This chapter introduces how to use the official Docker image to install and run NanoMQ, and provides some ways to configure it;
+This section guides you through the quick installation and running of NanoMQ using the official Docker image. You'll also learn how to load custom configurations in the Docker deployment mode. This section uses the latest version of NanoMQ as an example. If you're interested in trying out other versions, head over to the [NanoMQ Download Page](https://www.emqx.com/zh/try?product=nanomq).
 
-## Install with Docker 
+## Docker Images
 
-Install through the defined docker configuration file.
+NanoMQ currently provides three Docker deployment versions, each with distinct functionalities as detailed in the table below:<!-- this should be checked before the final release-->
 
-```
-docker run -d -p 1883:1883 -v {YOU LOCAL PATH}: /etc \
-            --name nanomq  emqx/nanomq:latest
-```
+| Function                | NanoMQ Basic Version (default) | NanoMQ Slim Version | NanoMQ Full Version |
+| ----------------------- | ------------------------------ | ------------------- | ------------------- |
+| MQTT Broker Function    | ✅                              | ✅                   | ✅                   |
+| TLS/SSL                 | ❌                              | ✅                   | ✅                   |
+| SQLite                  | ❌                              | ✅                   | ✅                   |
+| Rule Engine             | ❌                              | ❌                   | ✅                   |
+| MQTT over TCP Bridging  | ✅                              | ✅                   | ✅                   |
+| MQTT over QUIC Bridging | ❌                              | ❌                   | ✅                   |
+| AWS Bridging *          | ❌                              | ❌                   | ❌                   |
+| ZMQ Gateway             | ❌                              | ❌                   | ✅                   |
+| SOME/IP Gateway         | ❌                              | ❌                   | ✅                   |
+| DDS Gateway             | ❌                              | ❌                   | ✅                   |
+| Bench Benchmark Tools   | ❌                              | ❌                   | ✅                   |
 
-## Use Docker to run NanoMQ
+[^*]: AWS bridging is currently unavailable with Docker deployment. To use AWS bridging, please [build NanoMQ from the source code](./build-options.md).
 
-This section will introduce how to use the Docker image to install the latest version of NanoMQ. If you want to work with other versions, please visit the [NanoMQ Deployment page](https://www.emqx.com/en/try?product=nanomq).
-
-1. To get the Docker image, run:
+Based on your requirements, you can select the Docker image to download. For instance, using `latest` in the command below will download the most recent basic deployment version.
 
 ```bash
-docker pull emqx/nanomq:lastest
+docker pull emqx/nanomq:latest
 ```
 
-2. To start the Docker container, run:
+To get the Slim or Full version of a certain release, don't forget to include the release number.
+
+For the Slim version:
+
+```bash
+docker pull emqx/nanomq:0.18.2-slim
+```
+
+or Full version
+
+```bash
+docker pull emqx/nanomq:0.18.2-full
+```
+
+:::
+
+To pull the NanoMQ Full Version, please also specify the target version. 
+
+:::
+
+For more information about the official NanoMQ image, please visit [Docker Hub - nanomq](https://hub.docker.com/r/emqx/nanomq).
+
+## Run NanoMQ with Docker
+
+To start NanoMQ, execute the following command:
 
 ```bash
 docker run -d --name nanomq -p 1883:1883 -p 8083:8083 -p 8883:8883 emqx/nanomq:latest
 ```
 
-For more information about NanoMQ official docker image, see [Docker Hub - nanomq](https://hub.docker.com/r/emqx/nanomq)
+## Load Custom Configurations
 
-### Configuring
+NanoMQ also allows loading custom configurations through a configuration file or environment variables.
 
-Here are some ways to modify configuration file on Docker container:
+### Load through Configuration File
 
-- Modify `/etc/nanomq.conf ` on docker container, refer to [configruation description](../config-description/v019.md)
-- Copy your configuration file from local host to container path `/etc/nanomq.conf`:  `docker cp nanomq.conf nanomq:/etc/nanomq.conf`
-- Modify configuration parameters by environment variables, for example: 
+If you wish to start NanoMQ via a configuration file:
+
+- Modify `/etc/nanomq.conf` in the Docker container, refer to [configruation description](../config-description/v019.md)
+
+- Copy the modified configuration file from your local machine to the Docker container's `/etc/nanomq.conf` path using the `docker cp` command:
+
+  ```bash
+  docker cp nanomq.conf nanomq:/etc/nanomq.conf
+  ```
+
+Here's an example configuration for enabling MQTT bridging with TLS connection. For more explanations on NanoMQ's configurations, please refer to the [Configuration Guide](../config-description/v019.md):
 
 ```bash
-docker run -d -p 1883:1883 -p 8883:8883 \
-           -e NANOMQ_BROKER_URL="nmq-tcp://0.0.0.0:1883" \
-           -e NANOMQ_TLS_ENABLE=true \
-           -e NANOMQ_TLS_URL="tls+nmq-tcp://0.0.0.0:8883" \
-           --name nanomq emqx/nanomq
+bridges.mqtt.name {
+	server = "mqtt-tcp://broker.emqx.io:1883"
+	proto_ver = 4
+	clean_start = true
+	keepalive = 60s
+	forwards = ["forward1/#","forward2/#"]
+	subscription = [
+		{
+			topic = "recv/topic1"
+			qos = 1
+		},
+		{
+			topic = "recv/topic2"
+			qos = 2
+		}
+	]
+	max_parallel_processes = 2 
+	max_send_queue_len = 1024
+	max_recv_queue_len = 1024
+}
 ```
 
-> The specific parameters are described in the table below
+After updating the configuration file, you can start NanoMQ with the following command:
 
-#### NanoMQ Environment variables
+```bash
+docker run -d -p 1883:1883 -v {YOU LOCAL PATH}: /etc \
+            --name nanomq  emqx/nanomq:latest
+```
 
-| Name                            | Type    | Description                                                  |
-| ------------------------------- | ------- | ------------------------------------------------------------ |
-| NANOMQ_BROKER_URL               | String  | 'nmq-tcp://host:port', 'tls+nmq-tcp://host:port'             |
-| NANOMQ_DAEMON                   | Boolean | Set nanomq as daemon (default: false).                       |
-| NANOMQ_NUM_TASKQ_THREAD         | Integer | Number of taskq threads used, `num` greater than 0 and less than 256. |
-| NANOMQ_MAX_TASKQ_THREAD         | Integer | Maximum number of taskq threads used, `num` greater than 0 and less than 256. |
-| NANOMQ_PARALLEL                 | Long    | Number of parallel.                                          |
-| NANOMQ_PROPERTY_SIZE            | Integer | Max size for a MQTT user property.                           |
-| NANOMQ_MSQ_LEN                  | Integer | Queue length for resending messages.                         |
-| NANOMQ_QOS_DURATION             | Integer | The interval of the qos timer.                               |
-| NANOMQ_ALLOW_ANONYMOUS          | Boolean | Allow anonymous login (default: true).                       |
-| NANOMQ_WEBSOCKET_ENABLE         | Boolean | Enable websocket listener (default: true).                   |
-| NANOMQ_WEBSOCKET_URL            | String  | 'nmq-ws://host:port/path', 'nmq-wss://host:port/path'        |
-| NANOMQ_HTTP_SERVER_ENABLE       | Boolean | Enable http server (default: false).                         |
-| NANOMQ_HTTP_SERVER_PORT         | Integer | Port for http server (default: 8081).                        |
-| NANOMQ_HTTP_SERVER_USERNAME     | String  | Http server user name for auth.                              |
-| NANOMQ_HTTP_SERVER_PASSWORD     | String  | Http server password for auth.                               |
-| NANOMQ_TLS_ENABLE               | Boolean | Enable TLS connection.                                       |
-| NANOMQ_TLS_URL                  | String  | 'tls+nmq-tcp://host:port'.                                   |
-| NANOMQ_TLS_CA_CERT_PATH         | String  | Path to the file containing PEM-encoded CA certificates.     |
-| NANOMQ_TLS_CERT_PATH            | String  | Path to a file containing the user certificate.              |
-| NANOMQ_TLS_KEY_PATH             | String  | Path to the file containing the user's private PEM-encoded key. |
-| NANOMQ_TLS_KEY_PASSWORD         | String  | String containing the user's password. Only used if the private keyfile is password-protected. |
-| NANOMQ_TLS_VERIFY_PEER          | Boolean | Verify peer certificate (default: false).                    |
-| NANOMQ_TLS_FAIL_IF_NO_PEER_CERT | Boolean | Server will fail if the client does not have a certificate to send (default: false). |
-| NANOMQ_LOG_TO                   | String  | Array of log types，( _Use vertical line `|` to separate multiple types_ )<br>Log types: _file, console, syslog_ |
-| NANOMQ_LOG_LEVEL                | String  | Log level：trace, debug, info, warn, error, fatal |
-| NANOMQ_LOG_DIR                  | String  | The dir for log files. (if log to file) |
-| NANOMQ_LOG_FILE                 | String  | The log filename. (if log to file) |
-| NANOMQ_LOG_ROTATION_SIZE        | String  | Maximum size of each log file;<br>Supported Unit: `KB | MB | GB`;<br>Default:`10MB` |
-| NANOMQ_LOG_ROTATION_COUNT       | Integer | Maximum rotation count of log files;<br>Default: `5` |
-| NANOMQ_CONF_PATH                | String  | NanoMQ main config file path (defalt: /etc/nanomq.conf).     |
+### Load through Environment Variables
+
+NanoMQ also supports custom configurations through environment variables. Here is a list of supported environment variables:
+
+| Variables                       | Data Type | Description                                                  |
+| ------------------------------- | --------- | ------------------------------------------------------------ |
+| NANOMQ_BROKER_URL               | String    | `nmq-tcp://host:port`<br /> `tls+nmq-tcp://host:port`        |
+| NANOMQ_DAEMON                   | Boolean   | Daemon mode (default: False)                                 |
+| NANOMQ_NUM_TASKQ_THREAD         | Integer   | Number of task queue threads (range: 0 ~ 256)                |
+| NANOMQ_MAX_TASKQ_THREAD         | Integer   | Maximum task queue threads (range: 0 ~ 256)                  |
+| NANOMQ_PARALLEL                 | Long      | Number of parallel operations                                |
+| NANOMQ_PROPERTY_SIZE            | Integer   | Maximum property length                                      |
+| NANOMQ_MSQ_LEN                  | Integer   | Queue length                                                 |
+| NANOMQ_QOS_DURATION             | Integer   | QoS message interval                                         |
+| NANOMQ_ALLOW_ANONYMOUS          | Boolean   | Allow anonymous login (default: True)                        |
+| NANOMQ_WEBSOCKET_ENABLE         | Boolean   | Enable WebSocket listening (default: True)                   |
+| NANOMQ_WEBSOCKET_URL            | String    | `nmq-ws://host:port/path` <br />`nmq-wss://host:port/path`   |
+| NANOMQ_HTTP_SERVER_ENABLE       | Boolean   | Enable HTTP server listening (default: False)                |
+| NANOMQ_HTTP_SERVER_PORT         | Integer   | HTTP server listening port (default: 8081)                   |
+| NANOMQ_HTTP_SERVER_USERNAME     | String    | Username to access HTTP service                              |
+| NANOMQ_HTTP_SERVER_PASSWORD     | String    | Password to access HTTP service                              |
+| NANOMQ_TLS_ENABLE               | Boolean   | Enable TLS listening (default: False)                        |
+| NANOMQ_TLS_URL                  | String    | 'tls+nmq-tcp://host:port'                                    |
+| NANOMQ_TLS_CA_CERT_PATH         | String    | Path to TLS CA certificate data                              |
+| NANOMQ_TLS_CERT_PATH            | String    | Path to TLS Cert certificate data                            |
+| NANOMQ_TLS_KEY_PATH             | String    | Path to TLS private key data                                 |
+| NANOMQ_TLS_KEY_PASSWORD         | String    | Password for TLS private key                                 |
+| NANOMQ_TLS_VERIFY_PEER          | Boolean   | Verify client certificate (default: False)                   |
+| NANOMQ_TLS_FAIL_IF_NO_PEER_CERT | Boolean   | Deny connection without a certificate, used with tls.verify_peer (default: False) |
+| NANOMQ_LOG_TO                   | String    | Log output types, separated by vertical line `|`<br />Values: file, console, syslog |
+| NANOMQ_LOG_LEVEL                | String    | Log level: trace, debug, info, warn, error, fatal            |
+| NANOMQ_LOG_DIR                  | String    | Path to store log files (effective when output is file)      |
+| NANOMQ_LOG_FILE                 | String    | Log file name (effective when output is a file)              |
+| NANOMQ_LOG_ROTATION_SIZE        | String    | Maximum occupied space per log file; <br />Unit: `KB | MB | GB`;<br />Default: `10MB` |
+| NANOMQ_LOG_ROTATION_COUNT       | Integer   | Maximum number of rotated log files;<br />Default: `5`       |
+| NANOMQ_CONF_PATH                | String    | NanoMQ configuration file path (default: `/etc/nanomq.conf`) |
+
+**Example: Specify the configuration file path through environment variables**
+
+```bash
+docker run -d -p 1883:1883 -e NANOMQ_CONF_PATH="/usr/local/etc/nanomq.conf" \
+            [-v {LOCAL PATH}:{CONTAINER PATH}] \
+            --name nanomq emqx/nanomq:0.18.2-slim
+```
+
+## Performance Tunning
+
+To achieve better performance, you can adjust the following configurations in the `nanomq.conf` file:
+
+| Configuration Item      | Type    | Description                                                  |
+| ----------------------- | ------- | ------------------------------------------------------------ |
+| system.num_taskq_thread | Integer | Number of task queue threads used, recommended to match the number of CPU cores. |
+| system.max_taskq_thread | Integer | Maximum number of task queue threads that can be used, recommended to match the number of CPU cores. |
+| system.parallel         | Long    | Number of parallel processing tasks, recommended to match the number of CPU cores. |
+| mqtt.session.msq_len    | Integer | Length of the Inflight window/queue for resending messages. It's recommended (depending on the memory) to set it to the maximum value: 65535. |
+
+**Example**
+
+Suppose you are working with a 4-core operating system, you can set as follows for optimized performance. The updates will take effect after NanoMQ restarts.
+
+```bash
+system.num_taskq_thread = 4
+system.max_taskq_thread = 4
+system.parallel = 8
+mqtt.session.msq_len = 65535
+```
+
