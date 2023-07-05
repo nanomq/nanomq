@@ -26,7 +26,7 @@ mkdir build && cd build
 cmake -G Ninja ..
 ninja
 ```
-
+:::
 ::: tab 通过 make 编译
 
 ```bash
