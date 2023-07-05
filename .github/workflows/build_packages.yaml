@@ -63,14 +63,25 @@ jobs:
         sudo apt install -y pip
         pip install Jinja2
         sudo apt-get install pkg-config
-        sudo apt install libmysqlclient-dev
-    
+
     - name: install mbed-tls
       run: |
         set -eu
         git clone https://github.com/Mbed-TLS/mbedtls.git && cd mbedtls &&  git checkout tags/v3.3.0
         mkdir build && cd build
         cmake -DCMAKE_C_COMPILER=${{ matrix.arch[1] }} -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }} -DENABLE_TESTING=OFF ..
+    
+    - name: install libmysqlclient
+      run: |
+        set -eu
+        wget https://downloads.mysql.com/archives/get/p/19/file/mysql-connector-c-6.1.5-src.tar.gz
+        tar -zxvf mysql-connector-c-6.1.5-src.tar.gz
+        cd mysql-connector-c-6.1.5-src && mkdir build && cd build
+        cmake ..
+        cmake --build .
+        rm CMakeCache.txt 
+        cmake -DCMAKE_C_COMPILER=${{ matrix.arch[1] }} -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }}   -DCMAKE_INSTALL_PREFIX=${{ matrix.arch[4] }}   \
+        -DCMAKE_PREFIX_PATH=${{ matrix.arch[4] }} ..
         cmake --build .
         sudo make install
         cd ../ && rm -rf ./build
@@ -157,11 +168,11 @@ jobs:
         fi
 
         if [ "${{ matrix.build_type }}" == "-full" ]; then
+          make_flags+=" -DENABLE_MYSQL=ON "
+          make_flags+=" -DENABLE_RULE_ENGINE=ON "
           make_flags+=" -DENABLE_JWT=ON "
           make_flags+=" -DBUILD_ZMQ_GATEWAY=ON "
           make_flags+=" -DBUILD_BENCH=ON "
-          make_flags+=" -DENABLE_MYSQL=ON "
-          make_flags+=" -DENABLE_RULE_ENGINE=ON "
         fi
 
         echo "arch=${arch}" >> $GITHUB_OUTPUT
