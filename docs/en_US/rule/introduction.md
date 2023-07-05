@@ -2,7 +2,7 @@
 
 In NanoMQ, you can leverage the powerful rule engine to implement dynamic responses to various events within the system. NanoMQ rule engine it an indispensable tool for managing complex message routing scenarios, triggering automated actions, and integrating other systems with your MQTT setup.
 
-This chapter is divided into two main parts: configuration via [WebHook](./web-hook-0.18.md) or the [configuration file](./config-file.md).
+This chapter is divided into two main parts: configuration via [WebHook](./web-hook-0.19.md) or the [configuration file](./config-file.md).
 
 ## Configure with WebHook
 
