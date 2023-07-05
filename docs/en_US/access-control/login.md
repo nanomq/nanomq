@@ -1,5 +1,7 @@
 # Login Authentication
 
+This feature folllows MQTT protocol username/password authenticaton [5.4.1 Authentication of Clients by the Server](http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Security). It can be used by the Server for authentication and authorization.
+
 User Login authorization configuration allows users to authenticate using a simple username and password.
 
 ## Configuration Items
@@ -12,6 +14,7 @@ User Login authorization configuration allows users to authenticate using a simp
 Write the username and password in this format `username:password` and save it to the `nanomq_pwd.conf` file. And include it in `nanomq.conf`, as described in the [Access Control Introduction](introduction.md).
 examlpe:
 `password = {include "/etc/nanomq_pwd.conf"}`
+The User Name MUST be a UTF-8 encoded string as defined in MQTT Standard.
 
 ## Configuration Example
 
