@@ -9,8 +9,8 @@ NanoMQ 目前提供了三个 Docker 部署版本，功能差异见下表：<!-- 
 | 功能                 | NanoMQ 基础版（默认） | NanoMQ Slim 版 | NanoMQ 完整版 |
 | -------------------- | --------------------- | -------------- | ------------- |
 | MQTT Broker 功能     | ✅                     | ✅              | ✅             |
-| TLS/SSL              | ✅                     | ✅              | ✅             |
-| SQLite               | ✅                     | ✅              | ✅             |
+| TLS/SSL              | ❌                     | ✅              | ✅             |
+| SQLite               | ❌                     | ✅              | ✅             |
 | 规则引擎             | ❌                     | ❌              | ✅             |
 | MQTT over TCP 桥接   | ✅                     | ✅              | ✅             |
 | MQTT over QUIC 桥接  | ❌                     | ❌              | ✅             |

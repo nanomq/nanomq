@@ -6,12 +6,12 @@ With the cloud-edge integrated message architecture of EMQX+NanoMQ, users can co
 
 **Feature list：**
 
-- Multiple streams
-- Hybird bridging
-- High priority for QoS (1|2) message
-- Initail RTT（Round Trip Time）estimate time
-- *Reset congestion control after being idle*
-- TLS verify peer
+QUIC bridging shares following exclusive features and special advantages
+
+- Multi-stream : Topic-Stream pair, avoid of head of line blocking problem.
+- Hybird bridging : automatically downgrade to TCP if QUIC is not availiable
+- Message prioritization: Assign High priority for QoS (1|2) message to ensure bandwidth usage
+- O-RTT Quick reconnect : 0 RTT（Round Trip Time）estimate time
 
 ## Enable MQTT over QUIC
 
@@ -28,7 +28,7 @@ $ sudo ninja install
 
 ::: tip
 
-For macOS users, you can complie with `make`:
+For macOS users, you must complie with `make` + single thread:
 
 ```bash
 $ git clone https://github.com/emqx/nanomq.git
@@ -36,7 +36,7 @@ $ cd nanomq
 $ git submodule update --init --recursive
 $ mkdir build && cd build
 $ cmake -DNNG_ENABLE_QUIC=ON ..
-$ make
+$ make -j1
 ```
 
 :::
@@ -45,7 +45,7 @@ $ make
 
 ### Prerequisites
 
-Before setting up MQTT over QUIC bridging, you should install EMQX 5.0, which provides the MQTT over QUIC messaging services. For instructions on enabling QUIC bridging in EMQX, refer to the [EMQX - MQTT over QUIC tutorial](https://docs.emqx.com/zh/enterprise/v5.0/mqtt-over-quic/getting-started.html).
+Before setting up MQTT over QUIC bridging, you should install EMQX 5, which provides the MQTT over QUIC messaging services. For instructions on enabling QUIC bridging in EMQX, refer to the [EMQX - MQTT over QUIC tutorial](https://docs.emqx.com/zh/enterprise/v5.0/mqtt-over-quic/getting-started.html).
 
 ### Bridge Configuration
 
@@ -83,6 +83,7 @@ bridges.mqtt.name {
 	max_recv_queue_len = 1024
 }
 ```
+Here we only show example of HOCON style configurations.
 
 ::: tip 
 
@@ -101,7 +102,7 @@ Using `mqtt-quic` as the URL prefix indicates the use of QUIC as the transport l
 - Switch for hybrid bridging mode: bridges.mqtt.name.hybrid_bridging`
 - Switch for multi-stream bridging: `bridges.mqtt.name.multi_stream`
 
-For detailed configuration parameters, please refer to [Hocon version configuration](../config-description/v018.md) or [Old version configuration](../config-description/v013.md) (*Not Recommended*).
+For detailed configuration parameters, please refer to [Hocon version configuration](../config-description/v019.md) or [Old version configuration](../config-description/v013.md) (*Not Recommended*).
 
 If you choose to use Hocon version configuration items, apart from writing the related configurations directly into `nanomq.conf`, you can also define a separate configuration file for bridging, such as `nanomq_bridge.conf`. You can then include this file in `nanomq.conf` using HOCON's `include` syntax.
 
@@ -203,7 +204,7 @@ One of the significant advantages of the QUIC protocol over TCP is that it solve
 
 ![NanoMQ multi-stream](./assets/multi-stream.png)
 
-### Enable Multi-Stream Bridging
+### Enable Multi-Stream Bridging + QoS Prioritization
 
 To use multi-stream bridging, you simply need to activate the corresponding configuration option:
 
@@ -212,8 +213,15 @@ To use multi-stream bridging, you simply need to activate the corresponding conf
 ::: tab Hocon
 
 ```bash
-quic_multi_stream = false
-quic_qos_priority=true
+## multi-stream: enable or disable the multi-stream bridging mode
+## Value: true/false
+## Default: false
+quic_multi_stream = true
+# # quic_qos_priority: send QoS 1/2 msg in high prority
+# # QoS 0 messages remain as same
+## Value: true/false
+## Default: true
+quic_qos_priority = true
 ```
 
 :::
@@ -221,13 +229,7 @@ quic_qos_priority=true
 ::: tab old version
 
 ```bash
-## multi-stream: enable or disable the multi-stream bridging mode
-## Value: true/false
-## Default: false
 bridge.mqtt.emqx.quic_multi_stream=false
-
-## Value: true/false
-## Default: true
 bridge.mqtt.emqx.quic_qos_priority=true
 ```
 
@@ -251,3 +253,4 @@ quic_strm_cb: QUIC_STREAM_EVENT_START_COMPLETE [0x618000020080] ID: 4 Status: 0
 
 Afterward, NanoMQ will automatically route the data packets to different streams based on the topic for transmission. Through internal testing conducted in a simulated weak network environment with 2s latency and 40% packet loss, a significant reduction in latency proportional to the number of streams was observed. 
 
+In the meantime, QoS 1/2 packets shares higher priority than QoS 0, which means NanoMQ can assure the more important messages get first seat in limited network bandwidth situation. Therefore users can get best usage of ther network capacity and prevent non-critical messages causing congestion.

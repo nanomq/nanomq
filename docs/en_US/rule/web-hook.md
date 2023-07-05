@@ -1,3 +1,5 @@
+Not included in the manual anymore
+
 # Configure with WebHook
 
 ## Configuration item

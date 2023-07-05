@@ -31,6 +31,10 @@
       "path": "config-description/introduction",
       "children": [
         {
+          "title": "配置说明(v019)",
+          "path": "config-description/v019"
+        },
+        {
           "title": "配置说明(v014)",
           "path": "config-description/v014"
         },
@@ -63,12 +67,12 @@
       ]
     },
     {
-      "title": "NanoMQ 规则",
+      "title": "规则引擎",
       "path": "rule/introduction",
       "children":[
         {
           "title": "使用 Webhook 配置规则",
-          "path": "rule/web-hook"
+          "path": "rule/web-hook-0.18"
         },
         {
           "title": "通过配置项配置规则",
@@ -172,6 +176,10 @@
       "path": "config-description/introduction",
       "children": [
         {
+          "title": "Configuration(v019)",
+          "path": "config-description/v019"
+        },
+        {
           "title": "Configuration(v014)",
           "path": "config-description/v014"
         },
@@ -209,7 +217,7 @@
       "children":[
         {
           "title": "Configure with Webhook",
-          "path": "rule/web-hook"
+          "path": "rule/web-hook-0.18"
         },
         {
           "title": "Configure with Configuration File",

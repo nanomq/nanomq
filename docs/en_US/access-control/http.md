@@ -1,6 +1,8 @@
 # HTTP Authorization Configuration
 
-HTTP Authorization provides yet another method for authentication and authorization. It supports CONNECT requests, while PUBLISH & SUBSCRIBE are not implemented yet.
+HTTP Authorization provides yet another method for authorization.
+NanoMQ will send an HTTP POST request in the format as configured to target HTTP server when receving `CONNECT` packets from MQTT clients, and relys on the return code of HTTP POST for client's authorization. It enables extensive authorization with external HTTP service.
+For now, HTTP Authorization only supports `MQTT CONNECT`, will add support for `PUBLISH` & `SUBSCRIB` in future. Please post an issue if you need further support urgently.
 
 ## Configuration Item
 
@@ -26,30 +28,34 @@ Example :
 If you need to use `http_auth`, you can modify it in the format of the following example, and then put the configuration of `http_auth` into the `auth {}` configuration.
 
 ```bash
-http_auth = {
-  auth_req {
-    url = "http://127.0.0.1:80/mqtt/auth"
-    method = post
-    headers.content-type = "application/x-www-form-urlencoded"
-    params = {clientid = "%c", username = "%u", password = "%p"}
-  }
+auth {
+  ...
+    http_auth = {
+      auth_req {
+        url = "http://127.0.0.1:80/mqtt/auth"
+        method = post
+        headers.content-type = "application/x-www-form-urlencoded"
+        params = {clientid = "%c", username = "%u", password = "%p"}
+      }
 
-  super_req {
-    url = "http://127.0.0.1:80/mqtt/superuser"
-    method = "post"
-    headers.content-type = "application/x-www-form-urlencoded"
-    params = {clientid = "%c", username = "%u", password = "%p"}
-  }
+      super_req {
+        url = "http://127.0.0.1:80/mqtt/superuser"
+        method = "post"
+        headers.content-type = "application/x-www-form-urlencoded"
+        params = {clientid = "%c", username = "%u", password = "%p"}
+      }
 
-  acl_req {
-    url = "http://127.0.0.1:8991/mqtt/acl"
-    method = "post"
-    headers.content-type = "application/x-www-form-urlencoded"
-    params = {clientid = "%c", username = "%u", access = "%A", ipaddr = "%a", topic = "%t", mountpoint = "%m"}
-  }
+      acl_req {
+        url = "http://127.0.0.1:8991/mqtt/acl"
+        method = "post"
+        headers.content-type = "application/x-www-form-urlencoded"
+        params = {clientid = "%c", username = "%u", access = "%A", ipaddr = "%a", topic = "%t", mountpoint = "%m"}
+      }
 
-  timeout = 5s
-  connect_timeout = 5s
-  pool_size = 32
+      timeout = 5s
+      connect_timeout = 5s
+      pool_size = 32
+    }
+...
 }
 ```

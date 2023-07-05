@@ -9,8 +9,8 @@ NanoMQ currently provides three Docker deployment versions, each with distinct f
 | Function                | NanoMQ Basic Version (default) | NanoMQ Slim Version | NanoMQ Full Version |
 | ----------------------- | ------------------------------ | ------------------- | ------------------- |
 | MQTT Broker Function    | ✅                              | ✅                   | ✅                   |
-| TLS/SSL                 | ✅                              | ✅                   | ✅                   |
-| SQLite                  | ✅                              | ✅                   | ✅                   |
+| TLS/SSL                 | ❌                              | ✅                   | ✅                   |
+| SQLite                  | ❌                              | ✅                   | ✅                   |
 | Rule Engine             | ❌                              | ❌                   | ✅                   |
 | MQTT over TCP Bridging  | ✅                              | ✅                   | ✅                   |
 | MQTT over QUIC Bridging | ❌                              | ❌                   | ✅                   |
@@ -144,11 +144,14 @@ NanoMQ also supports custom configurations through environment variables. Here i
 | NANOMQ_CONF_PATH                | String    | NanoMQ configuration file path (default: `/etc/nanomq.conf`) |
 
 **Example: Specify the configuration file path through environment variables**
+- Modify `/etc/nanomq.conf ` on docker container, refer to [configruation description](../config-description/v019.md)
+- Copy your configuration file from local host to container path `/etc/nanomq.conf`:  `docker cp nanomq.conf nanomq:/etc/nanomq.conf`
+- Modify configuration parameters by environment variables, for example: 
 
 ```bash
 docker run -d -p 1883:1883 -e NANOMQ_CONF_PATH="/usr/local/etc/nanomq.conf" \
             [-v {LOCAL PATH}:{CONTAINER PATH}] \
-            --name nanomq emqx/nanomq:0.14.0-slim
+            --name nanomq emqx/nanomq:0.18.2-slim
 ```
 
 ## 性能调优
