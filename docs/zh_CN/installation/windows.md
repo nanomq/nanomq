@@ -1,16 +1,16 @@
 # Windows
 
-This section will guide you on installing and starting NanoMQ on Windows with a zip file.
+本章节将指导您如何在 Windows 系统中通过 zip 的形式下载安装并启动 NanoMQ。
 
 ::: tip
 
-This page takes v0.18.2 as an example, if you'd like to work with the other version, you may refer to the [NanoMQ Download](https://nanomq.io/downloads?os=Linux) page.
+本页将以安装 NanoMQ 0.18.2 为例进行演示，如希望使用其他版本，可参考 [NanoMQ 下载](https://nanomq.io/zh/downloads?os=Windows) 页面.
 
 :::
 
-1. Download [nanomq-0.18.2-windows-x86_64.zip](https://www.emqx.com/en/downloads/nanomq/0.18.2/nanomq-0.18.2-windows-x86_64.zip), and unzip it.
+1. 下载 [nanomq-0.18.2-windows-x86_64.zip](https://www.emqx.com/zh/downloads/nanomq/0.18.2/nanomq-0.18.2-windows-x86_64.zip) 并解压缩。
 
-2. To start NanoMQ, run:
+2. 通过以下命令启动 NanoMQ：
 
    ```
    nanomq start  

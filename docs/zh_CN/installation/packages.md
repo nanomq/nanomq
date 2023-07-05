@@ -1,78 +1,142 @@
-# 使用安装包源安装
+# Linux
 
-## AUR 一键安装
+针对 Linux 用户，NanoMQ 目前提供四种部署版本，您可从下表中了解各版本的功能差异：
 
-- NanoMQ 基础版
+| 功能               | NanoMQ 基础版 | NanoMQ **SQLite版** | **NanoMQ MsQuic版** | NanoMQ完整版 |
+| ------------------ | ------------- | ------------------- | ------------------- | ------------ |
+| MQTT Broker功能    | ✅             | ✅                   | ✅                   | ✅            |
+| TLS/SSL            | ✅             | ✅                   | ✅                   | ✅            |
+| SQLite             | ✅             | ✅                   | ❌                   | ✅            |
+| 规则引擎           | ❌             | ❌                   | ✅                   | ✅            |
+| MQTT over TCP桥接  | ✅             | ✅                   | ✅                   | ✅            |
+| MQTT over QUIC桥接 | ❌             | ❌                   | ✅                   | ✅            |
+| AWS桥接 *          | ❌             | ❌                   | ❌                   | ❌            |
+| ZMQ网关            | ❌             | ❌                   | ❌                   | ✅            |
+| SOME/IP网关        | ❌             | ❌                   | ❌                   | ✅            |
+| DDS网关            | ❌             | ❌                   | ❌                   | ✅            |
+| Bench基准测试工具  | ❌             | ❌                   | ✅                   | ✅            |
 
-```bash
-yay -S nanomq
-```
+您可根据具体业务需求，选择适合的 NanoMQ 安装版本，并在安装命令中将 `nanomq` 替换为相应的版本代码：
 
-- NanoMQ sqlite 版
+- SQLite 版的NanoMQ：`nanomq-sqlite`
+- MsQuic 版的NanoMQ：`nanomq-msquic`
+- NanoMQ 完整版：`nanomq-full`
 
-```bash
-yay -S nanomq-sqlite
-```
+## 安装 NanoMQ
 
-- NanoMQ msquic 版
+**使用 Apt/Yum 源安装**
 
-```bash
-yay -S nanomq-msquic
-```
+| 操作系统                                 | 安装方法 |
+| ---------------------------------------- | -------- |
+| 基于 Debian 的发行版，如 Ubuntu          | Apt      |
+| 基于 Red Hat的 发行版，如 CentOS，Fedora | Yum      |
 
-- NanoMQ 完整版
+**使用包安装**
 
-```bash
-yay -S nanomq-full
-```
+| 架构        | Debian 包 (.deb) | RPM 包 (.rpm) |
+| ----------- | ---------------- | ------------- |
+| **amd64**   | 是               | 否            |
+| **arm64**   | 是               | 是            |
+| **riscv64** | 是               | 是            |
+| **mips**    | 是               | 是            |
+| **armhf**   | 是               | 是            |
+| **armel**   | 是               | 是            |
+| **X86_64**  | 否               | 是            |
 
-## deb 一键安装
+## 使用 Apt 源安装
 
-```shell
-curl -s https://assets.emqx.com/scripts/install-nanomq-deb.sh | sudo bash
-sudo apt-get install nanomq
-```
+NanoMQ 支持使用 Apt 源安装，为用户提供了一种便捷可靠的方式来管理 NanoMQ 的安装和更新。以下是如何使用 Apt 源安装 NanoMQ 的方法：
 
-## deb 手动安装
+1. 下载 NanoMQ 仓库：
 
-```shell
-sudo bash -c 'cat << EOF > /etc/apt/sources.list.d/emqx_nanomq.list
-deb [signed-by=/usr/share/keyrings/emqx_nanomq-archive-keyring.gpg] https://packages.emqx.com/emqx/nanomq/any/ any main
-deb-src [signed-by=/usr/share/keyrings/emqx_nanomq-archive-keyring.gpg] https://packages.emqx.com/emqx/nanomq/any/ any main
-EOF'
+   ```bash
+   curl -s https://assets.emqx.com/scripts/install-nanomq-deb.sh | sudo bash
+   ```
 
-gpg_key_url="https://packages.emqx.com/emqx/nanomq/gpgkey"
-gpg_keyring_path="/usr/share/keyrings/emqx_nanomq-archive-keyring.gpg"
-curl -fsSL "${gpg_key_url}" | gpg --dearmor > ${gpg_keyring_path}
-mv ${gpg_keyring_path} /etc/apt/trusted.gpg.d/emqx_nanomq.gpg
+2. 安装 NanoMQ：
 
-sudo apt-get update
-sudo apt-get install nanomq
-```
+   ```bash
+   sudo apt-get install nanomq
+   ```
 
-## rpm 一键安装
+3. 启动 NanoMQ：
 
-```shell
-curl -s https://assets.emqx.com/scripts/install-nanomq-rpm.sh | sudo bash
-sudo yum install -y nanomq
-```
+   ```bash
+   nanomq start  
+   ```
 
-## rpm 手动安装
+## 使用 Yum 源安装
 
-```shell
-sudo bash -c 'cat << EOF > /etc/yum.repos.d/emqx_nanomq.repo
-[emqx_nanomq]
-name=emqx_nanomq
-baseurl=https://packages.emqx.com/emqx/nanomq/rpm_any/rpm_any/$basearch
-repo_gpgcheck=1
-gpgcheck=0
-enabled=1
-gpgkey=https://packages.emqx.com/emqx/nanomq/gpgkey
-sslverify=1
-sslcacert=/etc/pki/tls/certs/ca-bundle.crt
-metadata_expire=300
-EOF'
+对于基于 Red Hat 的发行版，如 CentOS，Fedora，NanoMQ 也支持使用 Yum 源安装。以下是如何使用 Yum 源安装NanoMQ的方法：
 
-sudo yum -q makecache -y --disablerepo='*' --enablerepo='emqx_nanomq'
-sudo yum install -y nanomq
-```
+1. 下载 NanoMQ 仓库：
+
+   ```bash
+   curl -s https://assets.emqx.com/scripts/install-nanomq-rpm.sh | sudo bash
+   ```
+
+2. 安装 NanoMQ：
+
+   ```bash
+   sudo yum install -y nanomq
+   ```
+
+3. 启动 NanoMQ：
+
+   ```bash
+   nanomq start  
+   ```
+
+## 使用包安装
+
+本节以在 arm64 架构下安装 v0.18.2 为例，更多安装选项，您可以参考 [NanoMQ 下载](https://nanomq.io/downloads?os=Linux)页面。
+
+1. 下载 [anomq-0.18.2-linux-x86_64.rpm](https://www.emqx.com/zh/downloads/nanomq/0.18.2/nanomq-0.18.2-linux-x86_64.rpm).
+
+   ```bash
+   wget https://www.emqx.com/en/downloads/nanomq/0.18.2/nanomq-0.18.2-linux-arm64.deb
+   ```
+
+2. 安装 NanoMQ
+
+   ```bash
+   sudo apt install ./nanomq-0.18.2-linux-arm64.deb
+   ```
+
+3. 运行 NanoMQ
+
+   ```bash
+   nanomq start
+   ```
+
+## 使用 AUR 安装
+
+AUR（Arch 用户仓库）是针对基于 Arch 的 Linux 发行版用户的由社区驱动的仓库。它包含名为 PKGBUILD 的包描述，它可让你使用 makepkg 从源代码编译软件包，然后通过 pacman（Arch Linux 中的软件包管理器）安装。NanoMQ 支持通过 AUR 安装。
+
+
+- 安装基础版
+
+  ```bash
+  yay -S nanomq
+  ```
+
+- 安装 SQLite 版
+
+  ```bash
+  yay -S nanomq-sqlite
+  ```
+
+- 安装 MsQuic 版
+
+  ```bash
+  yay -S nanomq-msquic
+  ```
+
+- 安装完整版
+
+  ```bash
+  yay -S nanomq-full
+  ```
+
+
+
