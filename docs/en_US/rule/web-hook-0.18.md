@@ -5,7 +5,7 @@ NanoMQ is equipped with an event-driven WebHook interface, this section introduc
 The webhook configuration file is located in `etc/nanomq.conf`, NanoMQ offers 2 formats of configuration files:
 
 - [HOCON (recommended, supported since v0.14 or above)](../config-description/v019.md)
-- [JSON](../config-description/v013.md)
+- [Key-Value format](../config-description/v013.md)
 
 ## Configure in HOCON
 
@@ -16,14 +16,7 @@ webhook {
     ......
 }
 ```
-**📢 Attention:** for NanoMQ 0-14 ~ 0.18 users, you also need to activate this feature with the `enable` configuration item. For details, see [Configuration v0.14](../config-description/v014.md)
-
-```bash
-webhook {
-		enable = true
-    ......
-}
-```
+**📢 Attention:** for NanoMQ 0-14 ~ 0.18 users, you also need to activate this feature with the `webhook.enable=true` configuration item. For details, see [Configuration v0.14](../config-description/v014.md)
 
 Starting from NanoMQ version 0.18, the `enable` option has been removed. Therefore, to enable the `webhook` configuration, simply add this module to the configuration file as shown above.
 
@@ -157,7 +150,7 @@ where,
 
 `topic`: The topic that the message is published into, a string 
 
-## Configure in JSON
+## Configure in Key-Value Format
 
 ### Enable Webhook
 

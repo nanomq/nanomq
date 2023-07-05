@@ -4,7 +4,7 @@ NanoMQ 提供了可拓展到事件驱动型 WebHook 接口，用户可通过规�
 
 - [HOCON（推荐）](../config-description/v019.md)：NanoMQ 0.14 版本及以上
 
-- [旧版本配置](../config-description/v013.md)
+- [旧版本 KV 格式配置](../config-description/v013.md)
 
 ## 通过 HOCON 格式配置
 
@@ -16,14 +16,7 @@ webhook {
     ......
 }
 ```
-**📢 注意** 对于 0.14 ~ 0.18 版本，还需通过 `enable` 选项启用相关功能，如下所示。具体可参考 [配置 - v0.14](../config-description/v014.md)
-
-```bash
-webhook {
-    enable = true
-    ......
-}
-```
+**📢 注意** 对于 0.14 ~ 0.18 版本，还需通过 `webhook.enable = true` 选项启用相关功能，如下所示。具体可参考 [配置 - v0.14](../config-description/v014.md)
 
 ### 规则语法
 
@@ -148,7 +141,7 @@ webhook.events = [
 
 `topic`：消息的发布主题，类型为 string
 
-## 通过 JSON 格式配置
+## 通过 KV 格式配置
 
 ### 启用 WebHook
 
