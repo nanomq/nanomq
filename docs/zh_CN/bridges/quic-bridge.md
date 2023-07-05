@@ -2,14 +2,19 @@
 
 NanoMQ 已支持 MQTT over QUIC 桥接，用户可以使用 QUIC 作为 MQTT 协议的传输层来与 EMQX 5.0 消息服务建立桥接进行数据同步，从而为无法集成或找到合适的 MQTT over QUIC SDK 的端侧设备和难以修改固件的嵌入式设备提供在 IoT 场景利用 QUIC 协议优势的捷径。依靠 EMQX+NanoMQ 的云边一体化的消息架构，用户能够快速且低成本的在泛物联网场景中完成跨时空地域的数据采集和同步需求。
 
-支持特性：
+QUIC bridging shares following exclusive features and special advantages
 
-- 多流传输 
-- 混合桥接模式 
-- 设置 QoS 消息更高的优先传输级别
-- 初始的 RTT （ Round Trip Time ） 预测值设置
-- 重置 QUIC 传输层拥塞控制检测的最大空闲时间
-- TLS 双向认证
+- Multi-stream : Topic-Stream pair, avoid of head of line blocking problem.
+- Hybird bridging : automatically downgrade to TCP if QUIC is not availiable
+- Message prioritization: Assign High priority for QoS (1|2) message to ensure bandwidth usage
+- O-RTT Quick reconnect : 0 RTT（Round Trip Time）estimate time
+
+QUIC 桥接具有以下独特的优势和特性：
+
+- 多流传输 ： 自动创建 主题-流 的配对，避免 TCP 的队头阻塞问题。
+- 混合桥接模式 ： 能够根据 QUIC 传输层的连接情况自动降级到 TCP 以保证通道可用。
+- QoS 消息优先传输：能够给 QoS 消息赋予高优先级，使其在网络带宽有限的情况下优先得到传输。
+- 0-RTT 快速重连： QUIC 连接断开时，能够以 0-RTT （Round Trip Time）的低时延快速重连。
 
 ## 启用 MQTT over QUIC 桥接
 
@@ -18,7 +23,7 @@ NanoMQ 的 QUIC 模组处于默认关闭状态，如希望使用 MQTT over QUIC 
 ```bash
 $ git clone https://github.com/emqx/nanomq.git
 $ cd nanomq 
-## 使用国内网络拉取 submodule 可能耗时较久
+## 使用国内网络拉取 MSQUIC submodule 可能耗时较久
 $ git submodule update --init --recursive
 $ mkdir build && cd build
 ## 默认编译`msquic`为动态库，如需设置编译目标为静态库则添加 cmake 编译选项 `-DQUIC_BUILD_SHARED=OFF`
@@ -28,7 +33,7 @@ $ sudo ninja install
 
 ::: tip
 
-对于 macOS 系统，可通过 `make` 进行编译，代码如下：
+对于 macOS 系统，只可以通过 `make` 进行编译，并且设置单线程模式，命令如下：
 
 ```bash
 $ git clone https://github.com/emqx/nanomq.git
@@ -36,7 +41,7 @@ $ cd nanomq
 $ git submodule update --init --recursive
 $ mkdir build && cd build
 $ cmake -DNNG_ENABLE_QUIC=ON ..
-$ make
+$ make -j1
 ```
 
 :::
@@ -45,18 +50,22 @@ $ make
 
 ### 前置准备
 
-配置 MQTT over QUIC 桥接前，应先安装 EMQX 5.0 来提供消息服务，有关如何在 EMQX 中启用 QUIC 桥接，可参考 [EMQX - MQTT over QUIC 教程](https://docs.emqx.com/zh/enterprise/v5.0/mqtt-over-quic/getting-started.html)。
+配置 MQTT over QUIC 桥接前，应先安装 EMQX 5 来提供消息服务，有关如何在 EMQX 中启用 QUIC 桥接，可参考 [EMQX - MQTT over QUIC 教程](https://docs.emqx.com/zh/enterprise/v5.0/mqtt-over-quic/getting-started.html)。
 
 ### 配置桥接 
 
 启动 QUIC 模组后，您需要在 `nanomq.conf ` 文件中配置 MQTT over QUIC 桥接功能和对应的主题，例如，在下面的配置文件中，我们定义了 MQTT over QUIC 桥接的服务器地址、连接凭证、连接参数、消息转发规则、订阅主题和队列长度等内容：
+
+:::: tabs type:card
+
+::: tab Hocon 格式配置
 
 ```bash
 bridges.mqtt.name {
 	## TCP URL 格式:  mqtt-tcp://host:port
 	## TLS URL 格式:  tls+mqtt-tcp://host:port
 	## QUIC URL 格式: mqtt-quic://host:port
-	server = "mqtt-quic://iot-platform.cloud:14567"
+	server = "mqtt-quic://your_server_address:port"
 	proto_ver = 4
 	username = emqx
 	password = emqx123
@@ -83,6 +92,28 @@ bridges.mqtt.name {
 	max_recv_queue_len = 1024
 }
 ```
+
+:::
+
+::: tab 经典配置格式
+
+```bash
+bridge.mqtt.emqx.address=mqtt-quic://your_server_address:port
+bridge.mqtt.emqx.proto_ver=4
+bridge.mqtt.emqx.quic_keepalive=120
+bridge.mqtt.emqx.quic_idle_timeout=120
+bridge.mqtt.emqx.hybrid_bridging=false
+bridge.mqtt.emqx.quic_multi_stream=false
+bridge.mqtt.emqx.clientid=bridge_client
+bridge.mqtt.emqx.clean_start=false
+bridge.mqtt.emqx.forwards=topic1/#,topic2/#
+bridge.mqtt.emqx.subscription.1.topic=cmd/topic1
+bridge.mqtt.emqx.subscription.1.qos=1
+```
+
+:::
+
+::::
 
 ::: tip 
 
@@ -128,7 +159,7 @@ $ nanomq start --conf nanomq.conf
 
 :::
 
-::: tab 旧版本配置
+::: tab 经典配置版本
 
 ```bash
 $ nanomq start --old_conf nanomq.conf
@@ -204,7 +235,7 @@ QUIC 协议相较于 TCP 的一大优势在于解决了队首阻塞的问题，�
 
 ![NanoMQ 多流桥接](./assets/multi-stream.png)
 
-### 启用多流桥接
+### 启用多流桥接 + QoS 消息优先传输
 
 如希望使用多流桥接，只需打开对应的配置选项：
 
@@ -213,7 +244,7 @@ QUIC 协议相较于 TCP 的一大优势在于解决了队首阻塞的问题，�
 ::: tab Hocon 格式配置
 
 ```bash
-quic_multi_stream = false
+quic_multi_stream = true
 quic_qos_priority=true
 ```
 
@@ -225,7 +256,7 @@ quic_qos_priority=true
 ## multi-stream: enable or disable the multi-stream bridging mode
 ## Value: true/false
 ## Default: false
-bridge.mqtt.emqx.quic_multi_stream=false
+bridge.mqtt.emqx.quic_multi_stream=true
 
 ## 在流中是否赋予Qos消息高传输优先级
 ## 针对每个流单独生效，非主题优先级
@@ -253,3 +284,4 @@ quic_strm_cb: QUIC_STREAM_EVENT_START_COMPLETE [0x618000020080] ID: 4 Status: 0
 ```
 
 之后 NanoMQ 就会自动根据 Topic 将数据包导流至不同的 Stream 发送。经过内部测试，在使用模拟 2s 延迟和 40% 丢包的弱网环境时，多流桥接可以显著降低延时。
+同时，QoS 1/2 消息报文享有相较于 QoS 0 更高的优先级，依靠此区别 NanoMQ 可以帮助用户更好的分配和管理网络带宽的使用，将有限且宝贵的带宽资源留给更有价值的数据，从而避免高价值数据因为网络拥塞而无法同步导致的数据丢失。
