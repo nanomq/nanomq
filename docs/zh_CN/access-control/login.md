@@ -1,4 +1,5 @@
 # 登录认证
+此功能遵守 MQTT 协议中的 用户名/密码认证规范，可参考[5.4.1 Authentication of Clients by the Server](http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Security) 此部分规范提供了 MQTT Broker 一种对客户端进行鉴权的方法。此处使用此方法进行登录验证。
 
 登录认证将基于用户名和密码进行验证登录用户的身份。
 
