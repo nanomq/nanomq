@@ -53,7 +53,7 @@ $ make -j1
 
 :::: tabs type:card
 
-::: tab Hocon 格式配置
+::: tab Hocon 配置格式
 
 ```bash
 bridges.mqtt.name {
@@ -90,7 +90,7 @@ bridges.mqtt.name {
 
 :::
 
-::: tab 经典配置格式
+::: tab 经典 KV 配置格式
 
 ```bash
 bridge.mqtt.emqx.address=mqtt-quic://your_server_address:port
@@ -146,7 +146,7 @@ include "path/to/nanomq_bridge.conf"
 
 :::: tabs type:card
 
-::: tab Hocon 格式配置
+::: tab Hocon 配置格式
 
 ```bash
 $ nanomq start --conf nanomq.conf
@@ -154,7 +154,7 @@ $ nanomq start --conf nanomq.conf
 
 :::
 
-::: tab 经典配置版本
+::: tab 经典 KV 配置格式
 
 ```bash
 $ nanomq start --old_conf nanomq.conf

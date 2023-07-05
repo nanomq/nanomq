@@ -62,7 +62,7 @@
         },
         {
           "title": "HTTP 认证",
-          "path": "access-control/jwt"
+          "path": "access-control/http"
         }
       ]
     },
