@@ -23,9 +23,6 @@ rules = [
   ## 允许用户名为"dashboard" 的 MQTT 客户端通过订阅"$SYS/#"主题
   {"permit": "allow", "username": "dashboard", "action": "subscribe", "topics": ["$SYS/#"]}
 
-  ## 允许 IP 为 "127.0.0.1" 的用户订阅"$SYS/#", "#"主题或向其发送消息。
-  {"permit": "allow", "ipaddr": "127.0.0.1", "action": "pubsub", "topics": ["$SYS/#", "#"]}
-
   ## 拒绝"所有用户"订阅"$SYS/#" "#"主题
   {"permit": "deny", "username": "#", "action": "subscribe", "topics": ["$SYS/#", "#"]}
 
