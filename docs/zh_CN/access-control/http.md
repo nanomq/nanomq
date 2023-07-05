@@ -1,6 +1,9 @@
 # HTTP 认证
 
-NanoMQ 同时支持 HTTP 认证。本页将给出相关的配置项以及一个配置示例。
+NanoMQ 同时支持 HTTP 认证。HTTP 认证功能支持用户使用外部 HTTP 服务进行客户端行为的授权。当 NanoMQ 从 MQTT 客户端接收 `CONNECT` 数据包时，NanoMQ 将按照配置为目标 HTTP 服务器的格式发送 HTTP POST 请求，并依靠 HTTP POST 的返回码进行客户端授权决定是否允许其连接。
+目前，HTTP Authorization 仅支持 `MQTT CONNECT`，将来将添加对 `PUBLISH` 和 `SUBSCRIB` 的支持。如果您急需进一步的支持，请在 Github 发布 Feature Request。
+
+本页将给出此功能的相关的配置项以及一个配置示例。
 
 ## 配置项
 
@@ -26,30 +29,34 @@ NanoMQ 同时支持 HTTP 认证。本页将给出相关的配置项以及一个�
 - 如果需要使用 `http_auth`，可按着下面事例的格式修改，然后将 `http_auth` 的配置放到配置 `auth {}` 内。
 
 ```bash
-http_auth = {
-  auth_req {
-    url = "http://127.0.0.1:80/mqtt/auth"
-    method = post
-    headers.content-type = "application/x-www-form-urlencoded"
-    params = {clientid = "%c", username = "%u", password = "%p"}
-  }
+auth {
+  ...
+    http_auth = {
+      auth_req {
+        url = "http://127.0.0.1:80/mqtt/auth"
+        method = post
+        headers.content-type = "application/x-www-form-urlencoded"
+        params = {clientid = "%c", username = "%u", password = "%p"}
+      }
 
-  super_req {
-    url = "http://127.0.0.1:80/mqtt/superuser"
-    method = "post"
-    headers.content-type = "application/x-www-form-urlencoded"
-    params = {clientid = "%c", username = "%u", password = "%p"}
-  }
+      super_req {
+        url = "http://127.0.0.1:80/mqtt/superuser"
+        method = "post"
+        headers.content-type = "application/x-www-form-urlencoded"
+        params = {clientid = "%c", username = "%u", password = "%p"}
+      }
 
-  acl_req {
-    url = "http://127.0.0.1:8991/mqtt/acl"
-    method = "post"
-    headers.content-type = "application/x-www-form-urlencoded"
-    params = {clientid = "%c", username = "%u", access = "%A", ipaddr = "%a", topic = "%t", mountpoint = "%m"}
-  }
+      acl_req {
+        url = "http://127.0.0.1:8991/mqtt/acl"
+        method = "post"
+        headers.content-type = "application/x-www-form-urlencoded"
+        params = {clientid = "%c", username = "%u", access = "%A", ipaddr = "%a", topic = "%t", mountpoint = "%m"}
+      }
 
-  timeout = 5s
-  connect_timeout = 5s
-  pool_size = 32
+      timeout = 5s
+      connect_timeout = 5s
+      pool_size = 32
+    }
+...
 }
 ```
