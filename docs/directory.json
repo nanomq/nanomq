@@ -63,12 +63,12 @@
       ]
     },
     {
-      "title": "NanoMQ 规则",
+      "title": "规则引擎",
       "path": "rule/introduction",
       "children":[
         {
           "title": "使用 Webhook 配置规则",
-          "path": "rule/web-hook"
+          "path": "rule/web-hook-0.18"
         },
         {
           "title": "通过配置项配置规则",
@@ -209,7 +209,7 @@
       "children":[
         {
           "title": "Configure with Webhook",
-          "path": "rule/web-hook"
+          "path": "rule/web-hook-0.18"
         },
         {
           "title": "Configure with Configuration File",
