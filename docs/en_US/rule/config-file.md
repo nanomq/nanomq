@@ -73,7 +73,7 @@ rules.repub {
 			# #
 			# # Value: String
 			password = passwd
-			# # sql
+			# # SQL
 			# # Rule engine sql clause.
 			# # 
 			# # Value: String
