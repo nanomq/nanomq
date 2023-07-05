@@ -151,7 +151,7 @@ docker run -d -p 1883:1883 -e NANOMQ_CONF_PATH="/usr/local/etc/nanomq.conf" \
             --name nanomq emqx/nanomq:0.18.2-slim
 ```
 
-## 性能调优
+## Performance Tunning
 
 To achieve better performance, you can adjust the following configurations in the `nanomq.conf` file:
 
