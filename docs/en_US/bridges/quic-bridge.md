@@ -8,9 +8,9 @@ With the cloud-edge integrated message architecture of EMQX+NanoMQ, users can co
 
 QUIC bridging shares following exclusive features and special advantages
 
-- Multi-stream : Topic-Stream pair, avoid of head of line blocking problem.
-- Hybird bridging : automatically downgrade to TCP if QUIC is not availiable
-- Message prioritization: Assign High priority for QoS (1|2) message to ensure bandwidth usage
+- Multi-stream: Topic-Stream pair, avoid of head of line blocking problem.
+- Hybrid bridging: automatically downgrade to TCP if QUIC is not available
+- Message prioritization: Assign High priority for QoS (1|2) messages to ensure bandwidth usage
 - O-RTT Quick reconnect : 0 RTT（Round Trip Time）estimate time
 
 ## Enable MQTT over QUIC
@@ -45,7 +45,7 @@ $ make -j1
 
 ### Prerequisites
 
-Before setting up MQTT over QUIC bridging, you should install EMQX 5, which provides the MQTT over QUIC messaging services. For instructions on enabling QUIC bridging in EMQX, refer to the [EMQX - MQTT over QUIC tutorial](https://docs.emqx.com/zh/enterprise/v5.0/mqtt-over-quic/getting-started.html).
+Before setting up MQTT over QUIC bridging, you should install EMQX 5, which provides the MQTT over QUIC messaging services. For instructions on enabling QUIC bridging in EMQX, refer to the [EMQX - MQTT over QUIC tutorial](https://docs.emqx.com/en/enterprise/v5.0/mqtt-over-quic/getting-started.html).
 
 ### Bridge Configuration
 
@@ -102,7 +102,7 @@ Using `mqtt-quic` as the URL prefix indicates the use of QUIC as the transport l
 - Switch for hybrid bridging mode: bridges.mqtt.name.hybrid_bridging`
 - Switch for multi-stream bridging: `bridges.mqtt.name.multi_stream`
 
-For detailed configuration parameters, please refer to [Hocon version configuration](../config-description/v019.md) or [Old version configuration](../config-description/v013.md) (*Not Recommended*).
+For detailed configuration parameters, please refer to [Hocon version configuration](../config-description/v019.md) or [Classic KV-format configuration](../config-description/v013.md) (*Not Recommended*).
 
 If you choose to use Hocon version configuration items, apart from writing the related configurations directly into `nanomq.conf`, you can also define a separate configuration file for bridging, such as `nanomq_bridge.conf`. You can then include this file in `nanomq.conf` using HOCON's `include` syntax.
 
@@ -226,7 +226,7 @@ quic_qos_priority = true
 
 :::
 
-::: tab old version
+::: tab KV format
 
 ```bash
 bridge.mqtt.emqx.quic_multi_stream=false

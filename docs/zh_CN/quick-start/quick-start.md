@@ -62,7 +62,7 @@ docker pull emqx/nanomq:latest
 
 ### 创建 NanoMQ 配置文件
 
-在本地新建 NanoMQ 配置文件，用于保存 NanoMQ 的订阅和桥接配置。这里将使用 EMQ 提供的[免费公共桥接 broker.emqx.io:1883](https://www.emqx.com/en/mqtt/public-mqtt5-broker) 来构建 MQTT over TCP 数据桥接。
+在本地新建 NanoMQ 配置文件，用于保存 NanoMQ 的订阅和桥接配置。这里将使用 EMQ 提供的[免费公共桥接 broker.emqx.io:1883](https://www.emqx.com/zh/mqtt/public-mqtt5-broker) 来构建 MQTT over TCP 数据桥接。
 
 使用文本编辑器创建一个名为 `nanomq.conf` 的新文件， 贴入以下桥接配置：
 
@@ -142,6 +142,6 @@ docker run -d -p 1883:1883 \
 
 在连接数据桥接的客户端 `MQTTbridge` 中，向 `recv/topic1` 主题发布信息，例如： `Hello from broker.emqx.io` 。
 
-验证是否收到了从broker.emqx.io发布的消息。
+验证是否收到了 broker.emqx.io 发布的消息。
 
 ![message from broker](./assets/hellofrombroker.png)

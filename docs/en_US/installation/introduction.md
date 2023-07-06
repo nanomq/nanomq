@@ -18,7 +18,7 @@ NanoMQ currently provides the following installation packages:
 | rpm Source      | RHEL-based Linux distributions like CentOS can use this method. A script is provided to ease the installation process. |
 | rpm RPM Package | This section also provides detailed steps to add the official EMQX NanoMQ repository to the yum configuration and install the software manually using yum. |
 
-**[Build from source](./build-options.md)**
+**[Build from source code](./build-options.md)**
 
  If you wish to compile and install NanoMQ from the source, this section also includes the operation instructions and a list of optional build arguments for further customization.
 

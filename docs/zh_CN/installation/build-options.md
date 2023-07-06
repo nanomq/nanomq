@@ -26,7 +26,7 @@ mkdir build && cd build
 cmake -G Ninja ..
 ninja
 ```
-
+:::
 ::: tab 通过 make 编译
 
 ```bash
@@ -37,6 +37,10 @@ mkdir build && cd build
 cmake .. 
 make
 ```
+
+:::
+
+::::
 
 编译完成后，您将在命令行窗口看到类似提示：
 
@@ -84,7 +88,7 @@ NanoMQ Broker is started successfully!
 
 依赖项：libmsquic
 
-NanoMQ 支持通过 MQTT over QUIC 协议与 EMQX 5.0 进行桥接。
+NanoMQ 支持通过 MQTT over QUIC 协议与 EMQX 5 进行桥接。
 
 由于兼容性问题，目前尚未发布支持 QUIC 的二进制包。如希望使用 MQTT over QUIC，应通过编译方式安装 NanoMQ，命令如下：
 

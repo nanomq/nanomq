@@ -84,7 +84,7 @@ The configuration file `etc/nanomq_vsomeip_gateway.conf` allows you to specify t
 
 Suppose you wish to route the data received from the SOME/IP service to your local MQTT Broker's `topic/pub` topic. Moreover, you want to channel the MQTT messages received through the `topic/sub` topic to the SOME/IP service. You can accomplish this through the following configuration:
 
-```apache
+```bash
 gateway.mqtt {
     address = "mqtt-tcp://localhost:1883"
     sub_topic = "topic/sub" # message from mqtt
@@ -127,7 +127,7 @@ This service can also be replaced with other SOME/IP-compatible services.
 
 Use the following commands to initiate `hello_world_service`:
 
-``` shell
+``` bash
 $ ldconfig
 $ ./hello_world_service // Launch SOME/IP Server
 $ nanomq start // Launch NanoMQ MQTT Broker
