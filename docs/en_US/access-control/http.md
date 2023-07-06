@@ -111,7 +111,7 @@ $ nanomq start --conf ./nanomq.conf
 
 If you are using the KV format, start NanoMQ with the command below:
 
-```
+```bash
 $ nanomq start --conf ./nanomq_old.conf
 ```
 
