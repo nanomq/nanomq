@@ -10,7 +10,7 @@ NanoMQ 现已内置 AWS IoT Core 桥接功能，帮助用户解决兼容性问�
 
 首先，在开发环境中安装 AWS 的 IoT Device SDK。
 
-#### 安装 AWS SDK
+### 安装 AWS SDK
 
 ```awk
 ## 下载源码
@@ -33,7 +33,7 @@ sudo ldconfig
 
 关于 AWS SDK 的更多信息请参考：https://github.com/aws/aws-iot-device-sdk-embedded-C
 
-#### 编译安装 NanoMQ
+### 编译安装 NanoMQ
 
 ```bash
 git clone https://github.com/emqx/nanomq.git 
