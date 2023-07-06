@@ -12,15 +12,15 @@ Github repository address: <https://github.com/emqx/nanomq>
 
 Fully MQTT 5.0 Compliant: Fully support MQTT 5.0/3.1.1, Compatible with all standard open-source MQTT SDKs.
 
-MQTT Bridges supported: Bridging message from edge to multiple clouds. In-line connections to Global cloud services.
+[**MQTT Bridges supported**](./bridges/introduction.md): Bridging message from edge to multiple clouds. In-line connections to Global cloud services.
 
-Message Persistence: Preserve your business-critical data with built-in data persistence, and resume uploading automatically when the connection is restored.
+[**Rule Engine**](./rule/introduction.md): Unlock the flexibility of data with a SQL-based rule engine. Integrates with eKuiper to bring stream processing to the edge.
 
-Rule Engine: Unlock the flexibility of data with a SQL-based rule engine. Integrates with eKuiper to bring stream processing to the edge.
+[**Message Persistence**](./rule/config-file.md#sqlite-rule): Preserve your business-critical data with built-in data persistence, and resume uploading automatically when the connection is restored.
 
-Integrability: Reduce the cost of integrating edge computing applications with event-driven WebHooks. Easy to maintain with EdgeOps friendly HTTP APIs.
+[**Integrability**](./http-api/introduction.md): Reduce the cost of integrating edge computing applications with event-driven WebHooks. Easy to maintain with EdgeOps friendly HTTP APIs.
 
-All-round: Support multiple protocols such as ZeroMQ/nanomsg/NNG/WebSocket. Enabling flexible and diverse routing topology on edge with. Secure your IoT connections with TLS/SSL.
+[**Multi-Language Protocol**](./gateway/introduction.md): Support multiple protocols such as ZeroMQ/nanomsg/NNG/WebSocket. Enabling flexible and diverse routing topology on edge with. Secure your IoT connections with TLS/SSL.
 
 ## Why NanoMQ
 

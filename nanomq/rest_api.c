@@ -708,12 +708,16 @@ basic_authorize(http_msg *msg)
 	char *auth = nng_alloc(auth_len);
 	snprintf(auth, auth_len, "%s:%s", server->username, server->password);
 
-	uint8_t *decode      = nng_alloc(auth_len);
-	decode[auth_len - 1] = '\0';
+	size_t decode_len    = token_len * 6 / 8 + 1;
+	uint8_t *decode      = nng_alloc(decode_len);
+	// No more than 3 '=' placeholders in token
+	decode[decode_len - 1] = '\0';
+	decode[decode_len - 2] = '\0';
+	decode[decode_len - 3] = '\0';
 
 	base64_decode((const char *) token, token_len, decode);
 
-	if (strncmp(auth, (const char *) decode, auth_len) != 0) {
+	if (strcmp(auth, (const char *) decode) != 0) {
 		result = WRONG_USERNAME_OR_PASSWORD;
 	}
 
