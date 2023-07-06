@@ -102,15 +102,16 @@ rules.repub {
 完整的配置项列表，可参考 [配置说明 - v013](../config-description/v013.md)
 
 ```bash
-rule_option.repub.rules[0].address=mqtt-tcp://localhost:1883
-rule_option.repub.rules[0].topic=topic/repub1
-rule_option.repub.rules[0].proto_ver=4
-rule_option.repub.rules[0].clientid=repub_client1
-rule_option.repub.rules[0].keepalive=60s
-rule_option.repub.rules[0].clean_start=true
-rule_option.repub.rules[0].username=username
-rule_option.repub.rules[0].password=passwd
-rule_option.repub.rules[0].sql=SELECT topic, payload FROM "abc"
+rule_option.repub=enable 
+rule.repub.2.address=mqtt-tcp://localhost:1883
+rule.repub.2.topic=topic/repub1
+rule.repub.2.proto_ver=4
+rule.repub.2.clientid=repub_client1
+rule.repub.2.keepalive=60
+rule.repub.2.clean_start=true
+rule.repub.2.username=username
+rule.repub.2.password=passwd
+rule.event.publish.2.sql="SELECT topic, payload FROM "abc""
 ```
 
 :::
@@ -191,9 +192,11 @@ rules.sqlite {
 完整的配置项列表，可参考 [配置说明 - v013](../config-description/v013.md)
 
 ```bash
-rules.sqlite.path=/tmp/sqlite_rule.db
-rules.sqlite.rules[0].sql=SELECT topic, payload FROM "abc"
-rules.sqlite.rules[0].table=broker
+rule_option=ON
+rule_option.sqlite=enable
+rule_option.sqlite.conf.path=/tmp/sqlite_rule.db
+rule.sqlite.1.table=broker
+rule.event.publish.1.sql=SELECT topic, payload FROM "abc"
 ```
 
 :::
@@ -206,7 +209,6 @@ rules.sqlite.rules[0].table=broker
 
 ```sh
 $ nanomq start
-
 ```
 在第二个窗口启动 `nanomq_cli`，发布消息 `aaa` 到主题 `abc`:
 ```sh
@@ -323,12 +325,14 @@ rules.mysql.mysql_rule_db {
 完整的配置项列表，可参考 [配置说明 - v013 ](../config-description/v013.md) <!--这里的第一个参数名称觉得不太合理-->
 
 ```bash
-rule.sqlite.0.path=localhost
-rule.mysql.0.username=username
-rule.mysql.0.password=password
-rule.mysql.0.database=db_name
-rule.mysql.0.table=broker1
-rule.event.publish.0.sql=SELECT * FROM "abc"
+rule_option=ON
+rule_option.mysql=enable
+rule.mysql.name=mysql_rule.db
+rule.mysql.1.table=broker
+rule.mysql.1.host=localhost
+rule.mysql.1.username=username
+rule.mysql.1.password=password
+rule.event.publish.1.sql=SELECT * FROM "abc"
 ```
 
 :::
