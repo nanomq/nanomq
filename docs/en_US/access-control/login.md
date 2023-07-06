@@ -11,12 +11,13 @@ User Login authorization configuration allows users to authenticate using a simp
 | `username` | String | Username    |
 | `password` | String | Password    |
 
-Write the username and password in this format `username:password` and save it to the `nanomq_pwd.conf` file. And include it in `nanomq.conf`, as described in the [Access Control Introduction](introduction.md).
-examlpe:
-`password = {include "/etc/nanomq_pwd.conf"}`
-The User Name MUST be a UTF-8 encoded string as defined in MQTT Standard.
+Write the username and password in the format below and save it to the `nanomq_pwd.conf` file. 
 
-## Configuration Example
+```bash
+username:password
+```
+
+**Example**
 
 ```bash
 # # Write "username":"password" in this way.
@@ -24,5 +25,27 @@ admin: public
 client: public
 ```
 
+::: tip 
+
+The User Name MUST be a UTF-8 encoded string as defined in MQTT Standard.
+
+:::
+
 In this configuration, there are two users, `admin` and `client`, both with the password `public`. So user `admin` and `client` are allowed to work with NanoMQ when `allow_anonymous` is `false` unless explicitly denied by the system.  
+
+And include it in `nanomq.conf`, as described in the [Access Control Introduction](introduction.md).
+example:
+
+```bash
+password = {include "/etc/nanomq_pwd.conf"}
+```
+
+## Configure in KV Format
+
+Users wishing to use the KV configuration format can refer to the following structure and write their configurations into the `nanomq_old.conf` file. The relevant settings will take effect after NanoMQ is restarted.
+
+```bash
+username=admin
+password=public
+```
 

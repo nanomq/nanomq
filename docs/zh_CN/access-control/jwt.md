@@ -35,7 +35,7 @@ NanoMQ 的 HTTP 身份验证方式默认使用 `Basic` 认证，需要在配置�
 
 - 完整的配置项列表，可参考[配置说明 - v019](../config-description/v019.md)
 
-- NanoMQ 0.14 ~ 0.18 版本用户，可参考 [配置说明 - v0.14](../config-description/v019.md)
+- NanoMQ 0.14 ~ 0.18 版本用户，可参考 [配置说明 - v0.14](../config-description/v014.md)
 
 ```c
 http_server {

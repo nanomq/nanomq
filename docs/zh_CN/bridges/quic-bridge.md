@@ -55,6 +55,12 @@ $ make -j1
 
 ::: tab Hocon 配置格式
 
+希望使用 HOCON 配置格式的用户，可参考以下格式，将配置写入 `nanomq.conf`文件，相关设置将在 NanoMQ 重启后生效。
+
+- 完整的配置项列表，可参考[配置说明 - v019](../config-description/v019.md)
+
+- NanoMQ 0.14 ~ 0.18 版本用户，可参考 [配置说明 - v0.14](../config-description/v014.md)
+
 ```bash
 bridges.mqtt.name {
 	## TCP URL 格式:  mqtt-tcp://host:port
@@ -91,6 +97,10 @@ bridges.mqtt.name {
 :::
 
 ::: tab 经典 KV 配置格式
+
+希望使用 KV 配置格式的用户，可参考以下格式，将配置写入 `nanomq_old.conf `文件，相关设置将在 NanoMQ 重启后生效。
+
+完整的配置项列表，可参考[配置说明 - v013](../config-description/v013.md)
 
 ```bash
 bridge.mqtt.emqx.address=mqtt-quic://your_server_address:port
