@@ -10,7 +10,7 @@ NanoMQ 已内置对 MQTT over TCP 桥接的支持，因此当您通过各种方�
 
 :::: tabs type:card
 
-::: tab Hocon 格式配置
+::: tab Hocon 配置格式
 
 ```bash
 bridges.mqtt.name {
@@ -49,7 +49,7 @@ bridges.mqtt.name {
 
 :::
 
-::: tab 旧版本配置
+::: tab 经典 KV 配置格式
 
 ```bash
 bridge.mqtt.emqx.address=mqtt-tcp://your_server_address:port
@@ -96,7 +96,7 @@ include "path/to/nanomq_bridge.conf"
 
 :::: tabs type:card
 
-::: tab Hocon 格式配置
+::: tab Hocon 配置格式
 
 ```bash
 $ nanomq start --conf nanomq.conf
@@ -104,7 +104,7 @@ $ nanomq start --conf nanomq.conf
 
 :::
 
-::: tab 旧版本配置
+::: tab KV 配置格式
 
 ```bash
 $ nanomq start --old_conf nanomq.conf

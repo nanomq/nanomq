@@ -169,8 +169,8 @@ web.hook.rule.<Event>.<Number>=<Rule>
 例如，我们只将与 a/b/c 和 foo/# 主题匹配的消息转发到 Web 服务器上，其配置应该为：
 
 ```bash
-web.hook.rule.message.publish.1 = {"action": "on_message_publish", "topic": "a/b/c"}
-web.hook.rule.message.publish.2 = {"action": "on_message_publish", "topic": "foo/#"}
+web.hook.rule.message.publish.1={"action": "on_message_publish", "topic": "a/b/c"}
+web.hook.rule.message.publish.2={"action": "on_message_publish", "topic": "foo/#"}
 ```
 
 这样 WebHook 仅会转发与 a/b/c 和 foo/# 主题匹配的消息，例如 foo/bar 等。
