@@ -194,7 +194,7 @@ rules.sqlite {
 ```bash
 rule_option=ON
 rule_option.sqlite=enable
-rule_option.sqlite.conf.path=/tmp/sqlite_rule.db
+rule.sqlite.path=/tmp/sqlite_rule.db
 rule.sqlite.1.table=broker
 rule.event.publish.1.sql=SELECT topic, payload FROM "abc"
 ```
