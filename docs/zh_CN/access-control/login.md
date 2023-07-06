@@ -23,7 +23,7 @@ client: public
 ```
 
 ::: tip
-用户名应按照 MQTT 表位，为 UTF-8 格式。
+用户名应按照 MQTT 标准，为 UTF-8 格式。
 
 :::
 
