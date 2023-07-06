@@ -22,6 +22,11 @@ admin: public
 client: public
 ```
 
+::: tip
+用户名应按照 MQTT 表位，为 UTF-8 格式。
+
+:::
+
 其中：
 
 `admin` 和 `client`，密码均为 `public`，当 `allow_anonymous = false` 时， 只有用户 `admin` 和 `client` 可访问 NanoMQ。
@@ -41,5 +46,3 @@ password = {include "/etc/nanomq_pwd.conf"}
 username=admin
 password=public
 ```
-
-<!--这里不确定对不对-->

@@ -10,6 +10,15 @@ NanoMQ comes with built-in support for MQTT over TCP bridging. Thus, after [inst
 
 This section utilizes EMQ's [free public bridge broker.emqx.io:1883](https://www.emqx.com/en/mqtt/public-mqtt5-broker) to establish MQTT over TCP data bridging. Insert the following content (in HOCON format) into the `etc/nanomq.conf` configuration file:
 
+:::: tabs type:card
+
+::: tab HOCON
+
+Users wishing to use the HOCON configuration format can refer to the following structure and write their configurations into the `nanomq.conf` file. The relevant settings will take effect after NanoMQ is restarted.
+
+- For a complete list of configuration options, refer to [Configuration Description - v019](../config-description/v019.md)
+- For users of NanoMQ versions 0.14 ~ 0.18, please refer to [Configuration Description - v0.14](../config-description/v014.md)
+
 ```bash
 bridges.mqtt.name {
 	## TCP URL format:  mqtt-tcp://host:port
@@ -44,6 +53,28 @@ bridges.mqtt.name {
 	max_recv_queue_len = 1024
 }
 ```
+:::
+
+::: tab KV format
+
+Users wishing to use the KV configuration format can refer to the following structure and write their configurations into the `nanomq_old.conf` file. The relevant settings will take effect after NanoMQ is restarted.
+
+- For a complete list of configuration options, refer to [Configuration Description - v013](
+
+```bash
+bridge.mqtt.emqx.address=mqtt-tcp://your_server_address:port
+bridge.mqtt.emqx.proto_ver=4
+bridge.mqtt.emqx.clientid=bridge_client
+bridge.mqtt.emqx.clean_start=false
+bridge.mqtt.emqx.forwards=topic1/#,topic2/#
+bridge.mqtt.emqx.subscription.1.topic=cmd/topic1
+bridge.mqtt.emqx.subscription.1.qos=1
+```
+
+:::
+
+::::
+
 ::: tip
 
 Using `mqtt-tcp` as the URL prefix signifies the use of TCP as the transport layer for MQTT.
@@ -56,14 +87,11 @@ Using `mqtt-tcp` as the URL prefix signifies the use of TCP as the transport lay
 - Array of remote topics to forward (supporting MQTT wildcard): `bridges.mqtt.name.forwards`
 - Array of remote topics to subscribe to (supporting MQTT wildcard): `bridges.mqtt.name.subscription`
 
-Refer to the bridging [Hocon version configuration](../config-description/v019.md) or [Classic KV-format configuration](../config-description/v013.md) (*not recommended*) for detailed configuration parameters.
-
 If using Hocon version configuration items, you can either directly write the related configurations into `nanomq.conf`, or create a separate configuration file for bridging, such as `nanomq_bridge.conf`, and use HOCON's `include` syntax to reference this file in `nanomq.conf`:
 
 Example:
 
-```
-shellCopy code
+```bash
 include "path/to/nanomq_bridge.conf" 
 ```
 
@@ -124,3 +152,5 @@ On your client connecting the MQTT bridge, `MQTTbridge` in this example, publish
 Verify that you received the message that was published from broker.emqx.io.
 
 ![message from broker](./assets/hellofrombroker.png)
+
+If you're interested in evaluating the performance of MQTT over QUIC bridging, you can conduct a benchmark test. Please refer to the guide available at [Toolkit - Bench](../toolkit/bench.md) for detailed instructions.

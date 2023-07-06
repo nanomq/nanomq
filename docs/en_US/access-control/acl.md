@@ -33,3 +33,31 @@ rules = [
 ]
 ```
 
+## Configure in KV format
+
+Users wishing to use the KV configuration format can refer to the following structure and write their configurations into the `nanomq_old.conf` file. The relevant settings will take effect after NanoMQ is restarted. 
+
+- For a complete list of configuration options, refer to [Configuration Description - v013](../config-description/v013.md)
+
+**Syntax:**
+
+```bash
+acl.rule.<No>=<Spec>
+```
+
+**Example**
+
+```bash
+## Allow MQTT client using username "dashboard"  to subscribe to "$SYS/#" topics
+acl.rule.1={"permit": "allow", "username": "dashboard", "action": "subscribe", "topics": ["$SYS/#"]}
+
+## Allow users with IP address "127.0.0.1" to publish/subscribe to topics "$SYS/#", "#"
+acl.rule.2={"permit": "allow", "ipaddr": "127.0.0.1", "action": "pubsub", "topics": ["$SYS/#", "#"]}
+
+## Deny "All Users" subscribe to "$SYS/#" "#" Topics
+acl.rule.3={"permit": "deny", "username": "#", "action": "subscribe", "topics": ["$SYS/#", "#"]}
+
+## Allow any other publish/subscribe operation
+acl.rule.4={"permit": "allow"}
+```
+

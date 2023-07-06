@@ -29,6 +29,15 @@ $ openssl rsa -in nanomq.key -out nanomq.pub -pubout
 
 The default authorization mode is `Basic` , you need to change the `auth_type ` to `JWT` in the configuration file and specify the path to  `JWT` public key file.
 
+:::: tabs type:card
+
+::: tab HOCON
+
+Users wishing to use the HOCON configuration format can refer to the following structure and write their configurations into the `nanomq.conf` file. The relevant settings will take effect after NanoMQ is restarted.
+
+- For a complete list of configuration options, refer to [Configuration Description - v019](../config-description/v019.md)
+- For users of NanoMQ versions 0.14 ~ 0.18, please refer to [Configuration Description - v0.14](../config-description/v014.md)
+
 ```c
 http_server {
     # # http server port
@@ -64,12 +73,37 @@ http_server {
 }
 ```
 
+::: tab KV format
+
+Users wishing to use the KV configuration format can refer to the following structure and write their configurations into the `nanomq_old.conf` file. The relevant settings will take effect after NanoMQ is restarted.
+
+- For a complete list of configuration options, refer to [Configuration Description - v013](../config-description/v013.md)
+
+```bash
+http_server.port=8081
+http_server.parallel=32
+http_server.username=admin
+http_server.password=public
+http_server.auth_type=jwt
+http_server.jwt.public.keyfile="/etc/certs/jwt/nanomq.pub"
+```
+
+:::
+
+::::
+
 ## Start NanoMQ
 
-Start NanoMQ and specify the path to configuration path.
+Start NanoMQ and specify the path to the configuration path.
 
 ```bash
 $ nanomq start --conf ./nanomq.conf
+```
+
+If you are using the KV format, start NanoMQ with the command below:
+
+```
+$ nanomq start --conf ./nanomq_old.conf
 ```
 
 ## Token rules

@@ -18,7 +18,7 @@ NanoMQ 同时支持 HTTP 认证。HTTP 认证功能支持用户使用外部 HTTP
 
 - 完成的配置项列表，可参考[配置说明 - v019](../config-description/v019.md)
 
-- NanoMQ 0.14 ~ 0.18 版本用户，可参考 [配置说明 - v0.14](https://nanomq.io/docs/zh/latest/config-description/v014.html)
+- NanoMQ 0.14 ~ 0.18 版本用户，可参考 [配置说明 - v0.14](../config-description/v014.md)
 
 
 ```bash
@@ -102,3 +102,18 @@ auth.http.ssl.keyfile=<Your Value>
 :::
 
 ::::
+
+## 启动 NanoMQ
+
+启动 NanoMQ 并指定配置文件
+
+```bash
+$ nanomq start --conf ./nanomq.conf
+```
+
+如使用 KV 格式配置文件，可通过如下格式启动 NanoMQ
+
+```bash
+$ nanomq start --conf ./nanomq_old.conf
+```
+

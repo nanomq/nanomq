@@ -6,11 +6,17 @@ MQTT over TCP 桥接是一种使用传输控制协议（TCP）作为底层通信
 
 NanoMQ 已内置对 MQTT over TCP 桥接的支持，因此当您通过各种方式[安装 NanoMQ](../installation/introduction.md) 后，即可直接通过配置文件配置并启用 MQTT over TCP 桥接。
 
-这里将使用 EMQ 提供的[免费公共桥接 broker.emqx.io:1883](https://www.emqx.com/en/mqtt/public-mqtt5-broker) 来构建 MQTT over TCP 数据桥接。在配置文件 `etc/nanomq.conf` 中贴入如下内容（HOCON 格式）：
+这里将使用 EMQ 提供的[免费公共桥接 broker.emqx.io:1883](https://www.emqx.com/en/mqtt/public-mqtt5-broker) 来构建 MQTT over TCP 数据桥接。
 
 :::: tabs type:card
 
 ::: tab Hocon 配置格式
+
+希望使用 HOCON 配置格式的用户，可参考以下格式，将配置写入 `nanomq.conf`文件，相关设置将在 NanoMQ 重启后生效。
+
+- 完整的配置项列表，可参考[配置说明 - v019](../config-description/v019.md)
+
+- NanoMQ 0.14 ~ 0.18 版本用户，可参考 [配置说明 - v0.14](../config-description/v014.md)
 
 ```bash
 bridges.mqtt.name {
@@ -50,6 +56,10 @@ bridges.mqtt.name {
 :::
 
 ::: tab 经典 KV 配置格式
+
+希望使用 KV 配置格式的用户，可参考以下格式，将配置写入 `nanomq_old.conf `文件，相关设置将在 NanoMQ 重启后生效。
+
+完整的配置项列表，可参考[配置说明 - v013](../config-description/v013.md)
 
 ```bash
 bridge.mqtt.emqx.address=mqtt-tcp://your_server_address:port

@@ -2,7 +2,7 @@
 
 NanoMQ has supported MQTT over QUIC bridging, users can use QUIC as the transport layer of the MQTT protocol to establish a bridge with the EMQX 5.0 message service for data synchronization. This provides a shortcut for end-user devices that cannot integrate or find a suitable MQTT over QUIC SDK, as well as embedded devices that are difficult to modify the firmware, to take advantage of the advantages of the QUIC protocol in IoT scenarios. 
 
-With the cloud-edge integrated message architecture of EMQX+NanoMQ, users can complete the data collection and synchronization needs across spatiotemporal regions in general IoT scenarios quickly with low costs.
+The combined cloud-edge message architecture of EMQX and NanoMQ provides a cost-effective solution for IoT scenarios, allowing users to efficiently gather and synchronize data across different regions. 
 
 **Feature list：**
 
@@ -28,7 +28,7 @@ $ sudo ninja install
 
 ::: tip
 
-For macOS users, you must complie with `make` + single thread:
+For macOS users, you must compile with `make` + single thread:
 
 ```bash
 $ git clone https://github.com/emqx/nanomq.git
@@ -51,12 +51,21 @@ Before setting up MQTT over QUIC bridging, you should install EMQX 5, which prov
 
 Once the QUIC module is enabled, you need to configure the MQTT over QUIC bridging feature and related topics in the `nanomq.conf` file. The following configuration file, for example, defines the server address for MQTT over QUIC bridging, connection credentials, connection parameters, message forwarding rules, subscription topics, and queue length.
 
+:::: tabs type:card
+
+::: tab HOCON
+
+Users wishing to use the HOCON configuration format can refer to the following structure and write their configurations into the `nanomq.conf` file. The relevant settings will take effect after NanoMQ is restarted.
+
+- For a complete list of configuration options, refer to [Configuration Description - v019](../config-description/v019.md)
+- For users of NanoMQ versions 0.14 ~ 0.18, please refer to [Configuration Description - v0.14](../config-description/v014.md)
+
 ```bash
 bridges.mqtt.name {
 	## TCP URL format:  mqtt-tcp://host:port
 	## TLS URL format:  tls+mqtt-tcp://host:port
 	## QUIC URL format: mqtt-quic://host:port
-	server = "mqtt-quic://iot-platform.cloud:14567"
+	server = "mqtt-quic://remote.broker.address"
 	proto_ver = 4
 	username = emqx
 	password = emqx123
@@ -83,7 +92,31 @@ bridges.mqtt.name {
 	max_recv_queue_len = 1024
 }
 ```
-Here we only show example of HOCON style configurations.
+:::
+
+::: tab KV format
+
+Users wishing to use the KV configuration format can refer to the following structure and write their configurations into the `nanomq_old.conf` file. The relevant settings will take effect after NanoMQ is restarted.
+
+- For a complete list of configuration options, refer to [Configuration Description - v013](../config-description/v013.md)
+
+```bash
+bridge.mqtt.emqx.address=mqtt-quic://your_server_address:port
+bridge.mqtt.emqx.proto_ver=4
+bridge.mqtt.emqx.quic_keepalive=120
+bridge.mqtt.emqx.quic_idle_timeout=120
+bridge.mqtt.emqx.hybrid_bridging=false
+bridge.mqtt.emqx.quic_multi_stream=false
+bridge.mqtt.emqx.clientid=bridge_client
+bridge.mqtt.emqx.clean_start=false
+bridge.mqtt.emqx.forwards=topic1/#,topic2/#
+bridge.mqtt.emqx.subscription.1.topic=cmd/topic1
+bridge.mqtt.emqx.subscription.1.qos=1
+```
+
+:::
+
+::::
 
 ::: tip 
 
@@ -99,12 +132,10 @@ Using `mqtt-quic` as the URL prefix indicates the use of QUIC as the transport l
 
 **QUIC-Specific Configurations**
 
-- Switch for hybrid bridging mode: bridges.mqtt.name.hybrid_bridging`
-- Switch for multi-stream bridging: `bridges.mqtt.name.multi_stream`
+- Switch for hybrid bridging mode: `bridges.mqtt.name.hybrid_bridging` <!--add a link or section about the hybrid bridging contents are ready-->
+- [Switch for multi-stream bridging](#quic-multi-stream-bridging): `bridges.mqtt.name.multi_stream`
 
-For detailed configuration parameters, please refer to [Hocon version configuration](../config-description/v019.md) or [Classic KV-format configuration](../config-description/v013.md) (*Not Recommended*).
-
-If you choose to use Hocon version configuration items, apart from writing the related configurations directly into `nanomq.conf`, you can also define a separate configuration file for bridging, such as `nanomq_bridge.conf`. You can then include this file in `nanomq.conf` using HOCON's `include` syntax.
+If you choose to use HOCON configuration format, apart from writing the related configurations directly into `nanomq.conf`, you can also define a separate configuration file for bridging, such as `nanomq_bridge.conf`. You can then include this file in `nanomq.conf` using HOCON's `include` syntax.
 
 Example:
 
@@ -197,6 +228,8 @@ This section uses NanoMQ's built-in client tool to test the newly built MQTT ove
    ```bash
    quic_msg_recv_cb: recv/topic1: cmd_msg
    ```
+
+If you're interested in evaluating the performance of MQTT over QUIC bridging, you can conduct a benchmark test. Please refer to the guide available at [Toolkit - Bench](../toolkit/bench.md) for detailed instructions.
 
 ## QUIC Multi-Stream Bridging
 

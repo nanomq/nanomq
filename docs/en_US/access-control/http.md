@@ -1,31 +1,23 @@
 # HTTP Authorization Configuration
 
-HTTP Authorization provides yet another method for authorization.
-NanoMQ will send an HTTP POST request in the format as configured to target HTTP server when receving `CONNECT` packets from MQTT clients, and relys on the return code of HTTP POST for client's authorization. It enables extensive authorization with external HTTP service.
-For now, HTTP Authorization only supports `MQTT CONNECT`, will add support for `PUBLISH` & `SUBSCRIB` in future. Please post an issue if you need further support urgently.
+HTTP Authorization provides yet another method for authorization. NanoMQ will send an HTTP POST request in the format as configured to the target HTTP server when receiving `CONNECT` packets from MQTT clients, and relies on the return code of HTTP POST for the client's authorization. It enables extensive authorization with external HTTP service.
 
-## Configuration Item
+::: tip
 
-| Name                              | Type | Description                                                     | default                                                         |
-| ----------------------------------- | -------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| auth.http_auth.auth_req.url              | String   | Specify the target URL of the authentication request. | `http://127.0.0.1:80/mqtt/auth`                              |
-| auth.http_auth.auth_req.method           | String     | Specify the request method of the authentication request.<br />(`POST`  , `GET`) | `POST`                                                       |
-| auth.http_auth.auth_req.headers.\<Any\>  | String   | Specify the data in the HTTP request header.<br /> `<Key>` Specify the field name in the HTTP request header, and the value of this configuration item is the corresponding field value. <br />`<Key>` can be the standard HTTP request header field. Users can also customize the field to configure multiple different request header fields. | `auth.http_auth.auth_req.headers.content-type = application/x-www-form-urlencoded` <br/>`auth.http_auth.auth_req.headers.accept = */*` |
-| auth.http_auth.auth_req.params           | Array[Object]    | Specify the data carried in the authentication request. <br /><br />When using the **GET** method, the value of `auth.http_auth.auth_req.params` will be converted into `k=v` key-value pairs separated by `&` and sent as query string parameters. <br /><br />When using the **POST** method, the value of `auth.http_auth.auth_req.params` will be converted into `k=v` key-value pairs separated by `&` and sent in the form of Request Body. All placeholders will be replaced by run-time data , and the available placeholders are as follows:<br />`%u: Username`<br />`%c: MQTT Client ID`<br />`%a: Client's network IP address`<br />`%r: The protocol used by the client can be:mqtt, mqtt-sn, coap, lwm2m and stomp`<br />`%P: Password`<br />`%p: Server port for client connection`<br />`%C: Common Name in client certificate`<br />`%d: Subject in client certificate` | `auth.http_auth.auth_req.params = {clientid= "%c", username= "%u", password= "%P"}`                        |
-| auth.http_auth.super_req.url             | String   | Specify the target URL for the superuser authentication request. | `http://127.0.0.1:80/mqtt/superuser`                         |
-| auth.http_auth.super_req.method          | String   | Specifies the request method of the super user authentication request.<br />(`POST`  , `GET`) | `POST`                                                       |
-| auth.http_auth.super_req.headers.\<Any\> | String   | Specify the data in the HTTP request header.<br /><br /> `<Key>` Specify the field name in the HTTP request header, and the value of this configuration item is the corresponding field value. <br /><br />`<Key>` can be the standard HTTP request header field. Users can also customize the field to configure multiple different request header fields. | `auth.http_auth.super_req.headers.content-type = application/x-www-form-urlencoded`<br/>`auth.http_auth.super_req.headers.accept = */*` |
-| auth.http_auth.super_req.params          | Array[Object]    | Specify the data carried in the authentication request. <br /><br />When using the **GET** method, the value of `auth.http_auth.auth_req.params` will be converted into `k=v` key-value pairs separated by `&` and sent as query string parameters. <br /><br />When using the **POST** method, the value of `auth.http_auth.auth_req.params` will be converted into `k=v` key-value pairs separated by `&` and sent in the form of Request Body. All placeholders will be replaced by run-time data, and the available placeholders are the same as those of `auth.http_auth.auth_req.params`. | `auth.http_auth.super_req.params = {clientid= "%c", username= "%u", password= "%P"}`                                    |
-| auth.http_auth.acl_req.url               | String   | Specify the target URL for ACL verification requests. | `http://127.0.0.1:8991/mqtt/acl`                             |
-| auth.http_auth.acl_req.method            | String   | Specifies the request method for ACL verification requests.<br />(`POST`  , `GET`) | `POST`                                                       |
-| auth.http_auth.acl_req.headers.\<Any\>   | String   | Specify the data in the HTTP request header. <br /><br />`<Key>` Specify the field name in the HTTP request header, and the value of this configuration item is the corresponding field value. <br /><br />`<Key>` can be the standard HTTP request header field. User can also customize the field to configure multiple different request header fields. | `auth.http_auth.super_req.headers.content-type = application/x-www-form-urlencoded`<br/>`auth.http_auth.super_req.headers.accept = */*` |
-| auth.http_auth.acl_req.params            | Array[Object]    | Specify the data carried in the authentication request. <br /><br />When using the **GET** method, the value of `auth.http_auth.auth_req.params` will be converted into `k=v` key-value pairs separated by `&` and sent as query string parameters. <br /><br />When using the **POST** method, the value of `auth.http_auth.auth_req.params` will be converted into `k=v` key-value pairs separated by `&` and sent in the form of Request Body. All placeholders will be replaced by run-time data , and the available placeholders are as follows:<br /><br />`%A: Permission to be verified, 1 means subscription, 2 means publish`<br />`%u: UserName`<br />`%c: MQTT Client ID`<br />`%a: Client network IP address`<br />`%r: The protocol used by the client can be: mqtt, mqtt-sn, coap, lwm2m and stomp`<br />`%m: Mount point`<br />`%t: Topic` | `auth.http_auth.acl_req.params = {clientid = "%c", username = "%u", access = "%A", ipaddr = "%a", topic = "%t", mountpoint = "%m"}` |
-| auth.http_auth.timeout                   | Integer  | HTTP request timeout. Any setting equivalent to `0s` means never timeout. | `5s`                                                         |
-| auth.http_auth.connect_timeout           | Integer  | Connection timeout for HTTP requests. Any setting value equivalent to `0s` means never time out. | `5s`                                                         |
+For now, HTTP Authorization only supports `MQTT CONNECT`, will add support for `PUBLISH` & `SUBSCRIBE` in the future. Please post an issue if you need further support urgently.
 
-Example :
+:::
 
-If you need to use `http_auth`, you can modify it in the format of the following example, and then put the configuration of `http_auth` into the `auth {}` configuration.
+## Configuration Example
+
+:::: tabs type:card
+
+::: tab HOCON
+
+If you need to use `http_auth`, you can modify it in the format of the following example, and then put the configuration of `http_auth` into the `auth {}` configuration. The relevant settings will take effect after NanoMQ is restarted.
+
+- For a complete list of configuration options, refer to [Configuration Description - v019](../config-description/v019.md)
+- For users of NanoMQ versions 0.14 ~ 0.18, please refer to [Configuration Description - v0.14](../config-description/v014.md)
 
 ```bash
 auth {
@@ -59,3 +51,67 @@ auth {
 ...
 }
 ```
+
+:::
+
+::: tab KV format
+
+Users wishing to use the KV configuration format can refer to the following structure and write their configurations into the `nanomq_old.conf` file. The relevant settings will take effect after NanoMQ is restarted.
+
+- For a complete list of configuration options, refer to [Configuration Description - v013](../config-description/v013.md)
+
+```bash
+auth.http.enable=<Your Value>
+
+auth.http.auth_req.url="http://127.0.0.1:80/mqtt/auth"
+auth.http.auth_req.method="post"
+auth.http.auth_req.headers.<Any>=<Your Value>
+
+auth.http.auth_req.params.clientid="%c"
+auth.http.auth_req.params.username="%u"
+auth.http.auth_req.params.password="%p"
+
+auth.http.super_req.url="http://127.0.0.1:80/mqtt/superuser"
+auth.http.super_req.method="post"
+auth.http.super_req.headers.<Any>=<Your Value>
+
+auth.http.super_req.params.clientid="%c"
+auth.http.super_req.params.username="%u"
+auth.http.super_req.params.password="%p"
+
+auth.http.acl_req.url="http://127.0.0.1:8991/mqtt/acl"
+auth.http.acl_req.method="post"
+auth.http.acl_req.headers.<Any>=<Your Value>
+
+auth.http.acl_req.params.clientid="%c"
+auth.http.acl_req.params.username="%u"
+auth.http.acl_req.params.access="%A"
+auth.http.acl_req.params.ipaddr="%a"
+auth.http.acl_req.params.topic="%t"
+auth.http.acl_req.params.mountpoint="%m"
+
+auth.http.timeout="5s"
+auth.http.connect_timeout="5s"
+auth.http.ssl.cacertfile=<Your Value>
+auth.http.ssl.certfile=<Your Value>
+auth.http.ssl.keyfile=<Your Value>
+```
+
+:::
+
+::::
+
+## Start NanoMQ
+
+Start NanoMQ and specify the path to the configuration path.
+
+```bash
+$ nanomq start --conf ./nanomq.conf
+```
+
+If you are using the KV format, start NanoMQ with the command below:
+
+```
+$ nanomq start --conf ./nanomq_old.conf
+```
+
