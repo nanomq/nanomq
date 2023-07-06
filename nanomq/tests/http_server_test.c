@@ -12,24 +12,25 @@ static cJSON *jsn; // TODO: this could be used for further check.
 static conf *
 get_http_server_test_conf()
 {
-	conf *nmq_conf = get_dflt_conf();
+	// conf *nmq_conf = get_dflt_conf();
 
-	nmq_conf->http_server.enable    = true;
-	nmq_conf->http_server.port      = 8081;
-	nmq_conf->http_server.parallel  = 32;
-	nmq_conf->http_server.username  = "admin_test";
-	nmq_conf->http_server.password  = "pw_test";
-	nmq_conf->http_server.auth_type = BASIC;
+	// nmq_conf->http_server.enable    = true;
+	// nmq_conf->http_server.port      = 8081;
+	// nmq_conf->http_server.parallel  = 32;
+	// nmq_conf->http_server.username  = "admin_test";
+	// nmq_conf->http_server.password  = "pw_test";
+	// nmq_conf->http_server.auth_type = BASIC;
 
-	// conf *nmq_conf  = nng_zalloc(sizeof(conf));
-	// char *conf_path = "../../../nanomq/tests/nanomq_test.conf";
-	// conf_init(nmq_conf);
-	// nmq_conf->conf_file = conf_path;
-	// char cwd[1024];
-	// getcwd(cwd, sizeof(cwd));
-	// printf("\ncwd:%s\n", cwd);
-	// conf_parse_ver2(nmq_conf);
-	// nmq_conf->parallel = 10;
+	// get conf from file
+	conf *nmq_conf  = nng_zalloc(sizeof(conf));
+	char *conf_path = "../../../nanomq/tests/nanomq_test.conf";
+	conf_init(nmq_conf);
+	nmq_conf->conf_file = conf_path;
+	char cwd[1024];
+	getcwd(cwd, sizeof(cwd));
+	printf("\ncwd:%s\n", cwd);
+	conf_parse_ver2(nmq_conf);
+	nmq_conf->parallel = 10;
 
 	return nmq_conf;
 }
