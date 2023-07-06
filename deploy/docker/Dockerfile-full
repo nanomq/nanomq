@@ -4,7 +4,7 @@ COPY nanomq-*-full.deb ./
 COPY deploy/docker/docker-entrypoint.sh /usr/bin/docker-entrypoint.sh
 
 RUN apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libatomic1 libmysqlclient-dev\
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libatomic1 \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ./nanomq-*-linux-$(dpkg --print-architecture)-full.deb \
     && rm -rf /var/lib/apt/lists/* \
     && rm -rf *.deb \

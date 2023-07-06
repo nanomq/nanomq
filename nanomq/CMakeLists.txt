@@ -67,18 +67,26 @@ endif()
 
 if(ENABLE_MYSQL)
 
+  find_package(PkgConfig REQUIRED)
   include(FindPkgConfig)
   pkg_check_modules(LIBMYSQLCLIENT REQUIRED mysqlclient)
 
   foreach(FLAG ${LIBMYSQLCLIENT_CFLAGS_OTHER})
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FLAG}")
   endforeach()
-
   link_directories(${LIBMYSQLCLIENT_LIBRARY_DIRS})
   include_directories(${MYSQL_INCLUDE_DIR})
   include_directories(${LIBMYSQLCLIENT_INCLUDE_DIRS})
   # message(STATUS, "${LIBMYSQLCLIENT_INCLUDE_DIRS}")
-  target_link_libraries(nanomq ${LIBMYSQLCLIENT_LIBRARIES})
+
+  execute_process(COMMAND pkg-config --libs --static mysqlclient OUTPUT_VARIABLE MYLIB_STATIC_LDFLAGS)
+  string(STRIP ${MYLIB_STATIC_LDFLAGS} MYLIB_STATIC_LDFLAGS)
+
+
+  target_link_libraries(nanomq ${MYLIB_STATIC_LDFLAGS})
+  target_link_libraries(nanomq stdc++)
+  message(STATUS ${MYLIB_STATIC_LDFLAGS})
+  # target_link_libraries(nanomq ${LIBMYSQLCLIENT_STATIC_LIBRARIES})
 
 endif(ENABLE_MYSQL)
 
