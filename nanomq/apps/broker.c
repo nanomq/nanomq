@@ -1027,18 +1027,20 @@ broker(conf *nanomq_conf)
 		if ((rv = nng_listener_start(tls_listener, 0)) != 0) {
 			nng_fatal("nng_listener_start tls", rv);
 		}
-		// TODO websocket ssl 
-		// if (nanomq_conf->websocket.enable) {
-		// 	nng_listener wss_listener;
-		// 	if ((rv = nng_listener_create(&wss_listener, sock,
-		// 	         nanomq_conf->tls.url)) != 0) {
-		// 		nng_fatal("nng_listener_create wss", rv);
-		// 	}
-		// 	init_listener_tls(wss_listener, &nanomq_conf->tls);
-		// 	if ((rv = nng_listener_start(wss_listener, 0)) != 0) {
-		// 		nng_fatal("nng_listener_start wss", rv);
-		// 	}
-		// }
+		if (nanomq_conf->websocket.enable) {
+			nng_listener wss_listener;
+			if ((rv = nng_listener_create(&wss_listener, sock,
+			         nanomq_conf->websocket.tls_url)) != 0) {
+				nng_fatal("nng_listener_create wss", rv);
+			}
+			nng_listener_set(
+					wss_listener, NANO_CONF, nanomq_conf, sizeof(nanomq_conf));
+
+			init_listener_tls(wss_listener, &nanomq_conf->tls);
+			if ((rv = nng_listener_start(wss_listener, 0)) != 0) {
+				nng_fatal("nng_listener_start wss", rv);
+			}
+		}
 	}
 
 	if (nanomq_conf->http_server.enable || nanomq_conf->bridge_mode) {
