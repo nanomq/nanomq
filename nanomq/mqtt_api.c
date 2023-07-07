@@ -254,3 +254,61 @@ log_fini(conf_log *log)
 
 	return 0;
 }
+
+char *
+nano_pipe_get_local_address4(nng_pipe p)
+{
+	int           rv;
+	nng_sockaddr  addr;
+	uint8_t      *arr;
+	char         *res;
+
+	rv = nng_pipe_getopt_sockaddr(p, NNG_OPT_LOCADDR, &addr);
+	if (rv != 0)
+		return NULL;
+
+	arr = (uint8_t *)&addr.s_in.sa_addr;
+
+	if ((res = malloc(sizeof(char) * 15)) == NULL)
+		return NULL;
+
+	sprintf(res, "%d.%d.%d.%d", arr[0], arr[1], arr[2], arr[3]);
+	return res;
+}
+
+uint8_t *
+nano_pipe_get_local_address6(nng_pipe p)
+{
+	int           rv;
+	nng_sockaddr  addr;
+	uint8_t      *arr;
+	uint8_t      *res;
+
+	rv = nng_pipe_getopt_sockaddr(p, NNG_OPT_LOCADDR, &addr);
+	if (rv != 0)
+		return NULL;
+
+	arr = &addr.s_in6.sa_addr;
+
+	if ((res = malloc(sizeof(uint8_t) * 16)) == NULL)
+		return NULL;
+
+	memcpy(res, arr, 16);
+
+	return res;
+}
+
+uint16_t
+nano_pipe_get_local_port(nng_pipe p)
+{
+	int           rv;
+	nng_sockaddr  addr;
+	uint8_t      *arr;
+	char         *res;
+
+	rv = nng_pipe_getopt_sockaddr(p, NNG_OPT_LOCADDR, &addr);
+	if (rv != 0)
+		return 0;
+
+	return htons(addr.s_in.sa_port);
+}
