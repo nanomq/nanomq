@@ -140,5 +140,13 @@ The AUR (Arch User Repository) is a community-driven repository for Arch Linux u
    yay -S nanomq-full
    ```
 
+## Installation package folders
+
+二进制安装包内容有：
+| Folders     | functional           |
+| ----------- | ------------------- |
+| **/etc**    | All configuration files of NanoMQ |
+| **/usr/local/bin**   |   NanoMQ' binary files   |
+| **/usr/local/lib**   | internal dynamic/static libs of NanoMQ                |
 
 
