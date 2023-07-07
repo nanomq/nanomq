@@ -13,6 +13,7 @@
 ## 源码编译
 
 在 NanoMQ 的安装目录，运行以下命令进行编译：
+*Ninja非必须，可以使用传统 Make 命令编译*
 
 :::: tabs type:card
 
@@ -66,7 +67,7 @@ NanoMQ Broker is started successfully!
 
 ## 更多编译选项
 
-除常见设置（如 `CMAKE_BUILD_TYPE`）外，你还可通过 CMake 配置更多高级功能，如启用 [MQTT over QUIC](../bridges/quic-bridge) 数据桥接或 [ZMQ 网关](../gateway/zmq-gateway)，具体参见下表：
+除常见设置（如 `CMAKE_BUILD_TYPE`）外，你还可通过 CMake 配置更多高级功能，如启用 [MQTT over QUIC](../bridges/quic-bridge) 数据桥接或 [ZMQ 网关](../gateway/zmq-gateway)，一些常见的编译选项参见下表：
 
 | 编译选项                 | 说明                                                   |
 | ------------------------ | ------------------------------------------------------ |
@@ -78,10 +79,12 @@ NanoMQ Broker is started successfully!
 | `-DBUILD_BENCH=ON`       | 编译启用 MQTT Bench                                    |
 | `-DENABLE_JWT=ON`        | 编译启用 HTTP Server 所需的 JWT 依赖项                 |
 | `-DNNG_ENABLE_SQLITE=ON` | 支持 SQLite                                            |
+| `-DENABLE_AWS_BRIDGE=ON` | 支持 AWS IoT Core 桥接                                |
 | `-DBUILD_STATIC_LIB=ON`  | 作为静态库编译                                         |
 | `-DBUILD_SHARED_LIBS=ON` | 作为共享库编译                                         |
 | `-DDEBUG=ON`             | 启用调试标志                                           |
 | `-DASAN=ON`              | 启用 Sanitizer                                         |
+| `-DNOLOG=1`              |  关闭 Log 系统，提高性能                              |
 | `-DDEBUG_TRACE=ON`       | 启用 ptrace，用于进程跟踪和检查                        |
 
 ### MQTT over QUIC 数据桥接
@@ -192,7 +195,7 @@ ninja
 
 ### NanoNNG 依赖
 
-NanoNNG 是含 MQTT 支持的 NNG 仓库分枝，可单独编译：
+NanoNNG 是含 MQTT 支持的 NNG 仓库分支，由 NanoMQ 自行维护，可单独编译：
 
 ```
 bashCopy code
