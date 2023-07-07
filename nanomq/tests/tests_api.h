@@ -449,3 +449,16 @@ get_webhook_conf()
 
 	return nanomq_conf;
 }
+
+conf *
+get_test_conf()
+{
+	// get conf from file
+	conf *nmq_conf  = nng_zalloc(sizeof(conf));
+	char *conf_path = "../../../nanomq/tests/nanomq_test.conf";
+	conf_init(nmq_conf);
+	nmq_conf->conf_file = conf_path;
+	conf_parse_ver2(nmq_conf);
+
+	return nmq_conf;
+}

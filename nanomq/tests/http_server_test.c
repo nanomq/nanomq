@@ -9,32 +9,6 @@
 
 static cJSON *jsn; // TODO: this could be used for further check.
 
-static conf *
-get_http_server_test_conf()
-{
-	// conf *nmq_conf = get_dflt_conf();
-
-	// nmq_conf->http_server.enable    = true;
-	// nmq_conf->http_server.port      = 8081;
-	// nmq_conf->http_server.parallel  = 32;
-	// nmq_conf->http_server.username  = "admin_test";
-	// nmq_conf->http_server.password  = "pw_test";
-	// nmq_conf->http_server.auth_type = BASIC;
-
-	// get conf from file
-	conf *nmq_conf  = nng_zalloc(sizeof(conf));
-	char *conf_path = "../../../nanomq/tests/nanomq_test.conf";
-	conf_init(nmq_conf);
-	nmq_conf->conf_file = conf_path;
-	char cwd[1024];
-	getcwd(cwd, sizeof(cwd));
-	printf("\ncwd:%s\n", cwd);
-	conf_parse_ver2(nmq_conf);
-	nmq_conf->parallel = 10;
-
-	return nmq_conf;
-}
-
 static bool
 check_http_status_code(char *buff, char *sc)
 {
@@ -501,7 +475,7 @@ main()
 	conf       *conf;
 	FILE       *fd;
 
-	conf = get_http_server_test_conf();
+	conf = get_test_conf();
 	nng_thread_create(&nmq, broker_start_with_conf, conf);
 	// nng_msleep(100);  // wait a while for broker to init
 	fd = popen(cmd, "r");
