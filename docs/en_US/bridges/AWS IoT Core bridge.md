@@ -30,7 +30,7 @@ sudo ldconfig
 
 Find more information about AWS IoT Device SDK here：https://github.com/aws/aws-iot-device-sdk-embedded-C
 
-### Install NanoMQ with option
+### Build NanoMQ from Source Code
 
 ```bash
 git clone https://github.com/emqx/nanomq.git 
@@ -62,7 +62,7 @@ Here's how to configure it on the AWS IoT Core side. Note: The Configuration pre
 
 ![Policy](./assets/policy.png)
 
-## Configuring NanoMQ Bridge
+## Configure NanoMQ Bridge
 
 After you successfully installed NanoMQ with AWS IoT Core Bridge enabled, you need to modify the bridge functionality and corresponding parameters and topics in the configuration file; for example, in the following configuration file, we define the server domain URL, connection credentials, connection parameters, message forwarding Topics, subscription Topics, and queue length for the AWS IoT Core bridge. Note: The MQTT ClientID, certificate file, and subscription/publication topic in the configuration file must match the policy definition defined on the AWS IoT Core side, otherwise, data will not be available and the connection will be rejected.
 
@@ -124,7 +124,7 @@ bridges.aws.c1 {
 
 :::
 
-::: tab Classical KV configuration
+::: tab Classic KV configuration
 
 If you want to use the KV configuration format, you can refer to the following format to write the configuration to the `nanomq_old.conf` file, and the relevant settings will take effect after NanoMQ is restarted.
 
@@ -196,7 +196,7 @@ $ nanomq start --conf nanomq.conf
 
 :::
 
-::: tab Classical KV config
+::: tab Classic KV config
 
 ```bash
 $ nanomq start --old_conf nanomq.conf
