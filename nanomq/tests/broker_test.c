@@ -2,6 +2,7 @@
 #include <assert.h>
 #include <signal.h>
 #include <unistd.h>
+#include <sys/types.h>
 
 #include "include/broker.h"
 
@@ -50,7 +51,7 @@ main()
 	// char *cmd_sub = "mosquitto_sub -h 116.205.239.134 -p 1883 -t topic -q 1";
 	// char *cmd_pub = "mosquitto_pub -h 116.205.239.134 -p 1883 -t topic -m massage -q 1";
 
-	pthread_t nmq;
+	nng_thread *nmq;
 	pid_t pid_sub;
 	FILE *p_pub = NULL;
 
