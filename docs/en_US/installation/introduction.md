@@ -24,7 +24,7 @@ For Windows users, you can install NanoMQ with a zip package.
 
 **[Build from source code](./build-options.md)**
 
- If you wish to compile and install NanoMQ from the source, this section also includes the operation instructions and a list of optional build arguments for further customization.
+NanoMQ offers the ability to compile from source code. This section provides a guide to cater to more advanced requirements.
 
 
 

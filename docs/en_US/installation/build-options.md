@@ -72,7 +72,7 @@ NanoMQ Broker is started successfully!
 
 ## Advanced Compilation Options
 
-Apart from common settings like `CMAKE_BUILD_TYPE`, you can specify additional configurations for NanoMQ using CMake. This allows you to enable features such as an [MQTT over QUIC](../bridges/quic-bridge) data bridge or a [ZMQ gateway](../gateway/zmq-gateway). See the table below for a list of supported advanced build options.
+Apart from common settings like `CMAKE_BUILD_TYPE`, you can specify additional configurations for NanoMQ using CMake. This allows you to enable features such as an [MQTT over QUIC](../bridges/quic-bridge) data bridge or a [ZMQ gateway](../gateway/zmq-gateway). See the table below for a list of commonly used build options.
 
 | Build Option             | Description                                                  |
 | ------------------------ | ------------------------------------------------------------ |
@@ -88,6 +88,7 @@ Apart from common settings like `CMAKE_BUILD_TYPE`, you can specify additional c
 | `-DBUILD_SHARED_LIBS=ON` | Builds as a shared library.                                  |
 | `-DDEBUG=ON`             | Enables the debug flag.                                      |
 | `-DASAN=ON`              | Enables sanitizer.                                           |
+| `-DNOLOG=1`              | Disable the log system to improve system performance         |
 | `-DDEBUG_TRACE=ON`       | Enables ptrace, allowing process tracing and inspection.     |
 
 ### MQTT over QUIC Data Bridge
@@ -192,7 +193,7 @@ ninja
 
 ### NanoNNG Dependency
 
-NanoNNG, which is a fork of the NNG repository with MQTT support, can be compiled independently:
+NanoNNG, which is a fork of the NNG repository with MQTT support and maintained by NanoMQ, can be compiled independently:
 
 ```
 bashCopy code

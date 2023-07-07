@@ -12,8 +12,8 @@ For Linux users, NanoMQ currently provides four deployment versions, each with d
 | MQTT over QUIC Bridging | ❌                              | ❌                         | ✅                         | ✅                   |
 | AWS Bridging *          | ❌                              | ❌                         | ❌                         | ❌                   |
 | ZMQ Gateway             | ❌                              | ❌                         | ❌                         | ✅                   |
-| SOME/IP Gateway         | ❌                              | ❌                         | ❌                         | ✅                   |
-| DDS Gateway             | ❌                              | ❌                         | ❌                         | ✅                   |
+| SOME/IP Gateway         | ❌                              | ❌                         | ❌                         | ❌                   |
+| DDS Gateway             | ❌                              | ❌                         | ❌                         | ❌                   |
 | Bench Benchmark Tools   | ❌                              | ❌                         | ✅                         | ✅                   |
 
 - You can select the appropriate installation version of NanoMQ based on your specific business requirements. To do this, simply replace `nanomq` in the installation command with the corresponding version code:
