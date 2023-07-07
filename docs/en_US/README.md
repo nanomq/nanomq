@@ -2,7 +2,7 @@
 
 [NanoMQ](https://nanomq.io/) is an open-source edge computing project released in Jan 2021 and it is the next generation of lightweight, high-performance **MQTT** messaging broker for the IoT edge computing scenario.
 
-Github repository address: <https://github.com/emqx/nanomq>
+Github repository address: [https://github.com/emqx/nanomq](https://github.com/emqx/nanomq)
 
 **NanoMQ** in collaboration with **NNG**. Relying on **NNG**'s excellent network API design, **NanoMQ** can focus on **MQTT** broker performance and more extended features. The goal is to provide better SMP support and a high performance-price ratio in edge devices and MECs. There are plans to add other IoT protocols such as ZMQ, NanoMSG, and SP in the future.
 
