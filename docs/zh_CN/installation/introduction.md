@@ -20,8 +20,8 @@
 
 [**Windows 系统**](./windows.md)
 
-对于 Windows 用户，NanoMQ 支持通过 ZIP 包的形式进行安装。
+对于 Windows 用户，NanoMQ 支持通过 ZIP 包和 MIS 安装包的形式进行安装。
 
 **[通过源代码编译安装](./build-options.md)**
 
-NanoMQ 同样支持基于从源代码编译和安装，本节同时提供了编译参数列表，以便更好地满足用户的需求。
+NanoMQ 同样支持基于从源代码编译和安装，若您需要启用 NanoMQ 的高级功能，本节同时提供了教程文档，以便更好地满足进阶需求。
