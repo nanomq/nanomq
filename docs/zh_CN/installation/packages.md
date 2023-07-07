@@ -140,5 +140,12 @@ AUR（Arch 用户仓库）是针对基于 Arch 的 Linux 发行版用户的由�
   yay -S nanomq-full
   ```
 
+## 安装包内容
 
+二进制安装包内容有：
+| 文件目录     | 作用                 |
+| ----------- | ------------------- |
+| **/etc**    | 所有的 NanoMQ 配置文件 |
+| **/usr/local/bin**   |   NanoMQ 的可执行文件   |
+| **/usr/local/lib**   | NanoMQ 内部的静态和动态库文件               |
 
