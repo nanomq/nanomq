@@ -20,7 +20,8 @@
 
 [**Windows 系统**](./windows.md)
 
-对于 Windows 用户，NanoMQ 支持通过 ZIP 包和 MIS 安装包的形式进行安装。
+对于 Windows 用户，NanoMQ 支持直接下载 EXE 可执行文件的方式和 MSI 安装包的形式使用。
+或者您可以参考此篇文章自己进行编译安装: https://www.emqx.com/zh/blog/install-mqtt-broker-on-windows
 
 **[通过源代码编译安装](./build-options.md)**
 
