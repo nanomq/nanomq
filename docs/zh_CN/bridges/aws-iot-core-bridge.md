@@ -31,7 +31,7 @@ sudo cp ../demos/logging-stack/logging_*.h  /usr/local/include/aws/
 sudo ldconfig
 ```
 
-关于 AWS SDK 的更多信息请参考：https://github.com/aws/aws-iot-device-sdk-embedded-C
+关于 AWS SDK 的更多信息请参考 [GitHub 页面](https://github.com/aws/aws-iot-device-sdk-embedded-C)
 
 ### 编译安装 NanoMQ
 
@@ -47,21 +47,25 @@ sudo ninja install
 
 ## 配置 AWS IoT Core
 
-此处介绍如何在 AWS IoT Core 侧进行相关配置。注意：配置信息可能由于 AWS 服务的更新和修改而失效。详细配置方式请参考 https://aws.amazon.com/cn/iot-core/resources/。
-
-
+此处介绍如何在 AWS IoT Core 侧进行相关配置。注意：配置信息可能由于 AWS 服务的更新和修改而失效。详细配置方式请参考[官方页面](https://aws.amazon.com/cn/iot-core/resources/)。
 
 1. 在 **管理** -> **所有设备** -> **物品** 界面创建您的物品组和物品，以及对应的证书/主题/设备影子等等。
 
-![Create_Object](./assets/aws_create_obj.png)
+   ![Create_Object](./assets/aws_create_obj.png)
+
+   
 
 2. 在 **安全性** -> **证书** 处下载相关的 CRT 证书。
 
-![Certification](./assets/certs.png)
+   ![Certification](./assets/certs.png)
+
+   
 
 3. 在 **安全性**-> **策略** 处创建对应的 MQTT 客户端行为鉴权策略，此处需要定义 NanoMQ 桥接所需要的客户端标识和发布/订阅的主题。
 
-![Policy](./assets/policy.png)
+   ![Policy](./assets/policy.png)
+
+
 
 ## 配置 NanoMQ MQTT 桥接
 
@@ -177,7 +181,7 @@ aws.bridge.mqtt.aws.tls.fail_if_no_peer_cert=false
 
 ### 启动 NanoMQ 开始桥接
 
-启动 NanoMQ 时使用 `--conf` 指定配置文件路径（若配置文件已放置于系统路径 `/etc/nanomq.conf` 则无需在命令行指定）。
+启动 NanoMQ 时使用 `--conf` 指定配置文件路径（若配置文件已放置于系统路径 `etc` 则无需在命令行指定）。
 
 :::: tabs type:card
 
@@ -203,7 +207,7 @@ $ nanomq start --old_conf nanomq.conf
 
 用户可以在 AWS IoT Core 的 MQTT 测试客户端工具上验证桥接是否成功。
 
-如在本地向 NanoMQ 的桥接主题 `topic_1`发布一条消息 `hello`,
+如在本地向 NanoMQ 的桥接主题 `topic_1`发布一条消息 `hello`：
 
 ```bash
 $ ./nanomq_cli pub -h "local.broker.address"  -t "topic_1" -m "hello" -q 1

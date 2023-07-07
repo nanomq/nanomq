@@ -6,7 +6,7 @@ Authentication and authorization are two fundamental security measures required 
 
 In NanoMQ, authentication is configured using a structure similar to the one below:
 
-:::
+:::tip
 
 NanoMQ also supports configuring in KV format. For details, see [Configuration Parameters - v013](../config-description/v013.md)
 
