@@ -21,4 +21,8 @@ extern int encode_common_mqtt_msg(
 extern int log_init(conf_log *log);
 extern int log_fini(conf_log *log);
 
+extern char *nano_pipe_get_local_address4(nng_pipe p);
+extern uint8_t *nano_pipe_get_local_address6(nng_pipe p);
+extern uint16_t nano_pipe_get_local_port(nng_pipe p);
+
 #endif // MQTT_API_H
