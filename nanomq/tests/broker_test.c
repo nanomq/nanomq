@@ -3,6 +3,7 @@
 #include <signal.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <string.h>
 
 #include "include/broker.h"
 
@@ -25,13 +26,26 @@ popen_sub(int *outfp)
 		dup2(fd_pipe[STDOUT_FILENO], STDOUT_FILENO);
 
 		// TODO: use a more flexible way instead of hard coding.
-		execl("/bin/mosquitto_sub", "mosquitto_sub", "-t", "topic1", "-t",
-	    "topic2", "-U", "topic2", "-h", "127.0.0.1", "-p", "1883", "-q",
-	    "2", NULL);
-		perror("execl");
+		// char cmd_sub[] = "mosquitto_sub -h 127.0.0.1 -p 1883 -t "
+		//                  "topic1 -t topic2 -U topic2 -q 2";
+
+		// char *b[50];
+		// int   i     = 0;
+		// char *token = strtok(cmd_sub, " ");
+		// while (token != NULL) {
+		// 	b[i++] = token;
+		// 	strcpy(b[i++], token); 
+		// 	printf("%s\n", token);
+		// 	token = strtok(NULL, " ");
+		// }
+		// execv("/bin/mosquitto_sub", b);
+
+		char *arg[] = { "mosquitto_sub", "-t", "topic1", "-t",
+			"topic2", "-U", "topic2", "-h", "127.0.0.1", "-p",
+			"1883", "-q", "2", NULL };
+		execv("/bin/mosquitto_sub", arg);
 		exit(1);
-	}
-	else {
+	} else {
 		// parent only need to read
 		close(fd_pipe[STDOUT_FILENO]);
 		*outfp = fd_pipe[STDIN_FILENO];
