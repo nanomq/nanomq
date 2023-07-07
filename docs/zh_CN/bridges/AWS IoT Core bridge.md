@@ -59,7 +59,7 @@ sudo ninja install
 
 ![Certification](./assets/certs.png)
 
-3. 在 **安全性 **-> **策略** 处创建对应的 MQTT 客户端行为鉴权策略，此处需要定义 NanoMQ 桥接所需要的客户端标识和发布/订阅的主题。
+3. 在 **安全性**-> **策略** 处创建对应的 MQTT 客户端行为鉴权策略，此处需要定义 NanoMQ 桥接所需要的客户端标识和发布/订阅的主题。
 
 ![Policy](./assets/policy.png)
 
