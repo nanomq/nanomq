@@ -16,8 +16,8 @@ NanoMQ currently provides three Docker deployment versions, each with distinct f
 | MQTT over QUIC Bridging | ❌                              | ❌                   | ✅                   |
 | AWS Bridging *          | ❌                              | ❌                   | ❌                   |
 | ZMQ Gateway             | ❌                              | ❌                   | ✅                   |
-| SOME/IP Gateway         | ❌                              | ❌                   | ✅                   |
-| DDS Gateway             | ❌                              | ❌                   | ✅                   |
+| SOME/IP Gateway         | ❌                              | ❌                   | ❌                   |
+| DDS Gateway             | ❌                              | ❌                   | ❌                   |
 | Bench Benchmark Tools   | ❌                              | ❌                   | ✅                   |
 
 [^*]: AWS bridging is currently unavailable with Docker deployment. To use AWS bridging, please [build NanoMQ from the source code](./build-options.md).

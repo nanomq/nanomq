@@ -12,8 +12,8 @@ For Linux users, NanoMQ currently provides four deployment versions, each with d
 | MQTT over QUIC Bridging | ❌                              | ❌                         | ✅                         | ✅                   |
 | AWS Bridging *          | ❌                              | ❌                         | ❌                         | ❌                   |
 | ZMQ Gateway             | ❌                              | ❌                         | ❌                         | ✅                   |
-| SOME/IP Gateway         | ❌                              | ❌                         | ❌                         | ✅                   |
-| DDS Gateway             | ❌                              | ❌                         | ❌                         | ✅                   |
+| SOME/IP Gateway         | ❌                              | ❌                         | ❌                         | ❌                   |
+| DDS Gateway             | ❌                              | ❌                         | ❌                         | ❌                   |
 | Bench Benchmark Tools   | ❌                              | ❌                         | ✅                         | ✅                   |
 
 [^*]: AWS bridging is currently unavailable with Docker deployment. To use AWS bridging, please [build NanoMQ from the source code](./build-options.md).
@@ -140,5 +140,13 @@ The AUR (Arch User Repository) is a community-driven repository for Arch Linux u
    yay -S nanomq-full
    ```
 
+## Installation package folders
+
+二进制安装包内容有：
+| Folders     | functional           |
+| ----------- | ------------------- |
+| **/etc**    | All configuration files of NanoMQ |
+| **/usr/local/bin**   |   NanoMQ' binary files   |
+| **/usr/local/lib**   | internal dynamic/static libs of NanoMQ                |
 
 

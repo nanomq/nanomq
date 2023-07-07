@@ -18,7 +18,7 @@ jobs:
         run: cmake -B build
 
       - name: Build
-        run: cmake --build build --target install
+        run: cmake --build build --config Release --target install 
 
       - name: Package
         if: github.event_name == 'release'
