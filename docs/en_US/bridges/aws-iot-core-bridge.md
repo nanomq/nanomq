@@ -4,7 +4,7 @@
 
 AWS IoT Core bridging is now built into NanoMQ to help users address compatibility issues. **NanoMQ** is responsible for forwarding the received data of the specified *topic* to the remote **AWS IoT MQTT Broker**, and also subscribes to a specific *topic* from the broker in order to receive the data and forward it locally.
 
-Due to the conflict between the AWS IoT SDK and NanoMQ's QUIC dependency - MsQUIC on the OpenSSL reference version, NanoMQ does not enable and build this bridging feature into the standard distribution by default. To enable AWS IoT Core bridging, compile & install NanoMQ from source code is required. This document section describes how to enable AWS IoT Core bridging and configure it via the configuration file 'nanomq.conf', and test the new bridge channel.
+Due to the conflict between the AWS IoT SDK and NanoMQ's QUIC dependency - MsQUIC on the OpenSSL reference version, NanoMQ does not enable and build this bridging feature into the standard distribution by default. To enable AWS IoT Core bridging, compile & install NanoMQ from source code is required. This document section describes how to enable AWS IoT Core bridging and configure it via the configuration file `nanomq.conf`, and test the new bridge channel.
 
 ## Compile & Install AWS IoT Core bridging Feature
 
@@ -46,11 +46,11 @@ sudo ninja install
 
 ## Configure AWS IoT Core
 
-Here's how to configure it on the AWS IoT Core side. Note: The Configuration presented in this doc could be invalidated due to updates and modifications to AWS services. For details about how to configure it, see docs from official: https://aws.amazon.com/cn/iot-core/resources/.
+Here's how to configure it on the AWS IoT Core side. Note: The Configuration presented in this doc could be invalidated due to updates and modifications to AWS services. For details about how to configure it, see docs from the official: https://aws.amazon.com/cn/iot-core/resources/.
 
 
 
-1.  At **Manage** -> **All devices** -> **Things** page，You can create new objects and group, with corresponding Certification/Topics/Device Shadows etc。
+1.  At **Manage** -> **All devices** -> **Things** page, You can create new objects and groups, with corresponding Certification/Topics/Device Shadows etc.
 
 ![Create_Object](./assets/aws_create_obj.png)
 
