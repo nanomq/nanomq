@@ -8,7 +8,7 @@ NanoMQ now supports MQTT over TCP bridging, enabling connections to the [EMQX En
 
 NanoMQ comes with built-in support for MQTT over TCP bridging. Thus, after [installing NanoMQ](../installation/introduction.md) through any given method, you can immediately configure and enable MQTT over TCP bridging via the configuration file.
 
-This section utilizes EMQ's [free public bridge broker.emqx.io:1883](https://www.emqx.com/en/mqtt/public-mqtt5-broker) to establish MQTT over TCP data bridging. Insert the following content (in HOCON format) into the `etc/nanomq.conf` configuration file:
+This section utilizes EMQ's [free public bridge broker.emqx.io:1883](https://www.emqx.com/en/mqtt/public-mqtt5-broker) to establish MQTT over TCP data bridging. Insert the following content (in HOCON format) into the configuration file:
 
 :::: tabs type:card
 
@@ -59,7 +59,7 @@ bridges.mqtt.name {
 
 Users wishing to use the KV configuration format can refer to the following structure and write their configurations into the `nanomq_old.conf` file. The relevant settings will take effect after NanoMQ is restarted.
 
-- For a complete list of configuration options, refer to [Configuration Description - v013](
+- For a complete list of configuration options, refer to [Configuration Description - v013](../config-description/v013.md)
 
 ```bash
 bridge.mqtt.emqx.address=mqtt-tcp://your_server_address:port

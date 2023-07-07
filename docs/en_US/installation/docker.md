@@ -42,12 +42,6 @@ or Full version
 docker pull emqx/nanomq:0.18.2-full
 ```
 
-:::
-
-To pull the NanoMQ Full Version, please also specify the target version. 
-
-:::
-
 For more information about the official NanoMQ image, please visit [Docker Hub - nanomq](https://hub.docker.com/r/emqx/nanomq).
 
 ## Run NanoMQ with Docker
@@ -66,7 +60,7 @@ NanoMQ also allows loading custom configurations through a configuration file or
 
 If you wish to start NanoMQ via a configuration file:
 
-- Modify `/etc/nanomq.conf` in the Docker container, refer to [configruation description](../config-description/v019.md)
+- Modify `/etc/nanomq.conf` in the Docker container
 
 - Copy the modified configuration file from your local machine to the Docker container's `/etc/nanomq.conf` path using the `docker cp` command:
 
@@ -122,7 +116,7 @@ NanoMQ also supports custom configurations through environment variables. Here i
 | NANOMQ_QOS_DURATION             | Integer   | QoS message interval                                         |
 | NANOMQ_ALLOW_ANONYMOUS          | Boolean   | Allow anonymous login (default: True)                        |
 | NANOMQ_WEBSOCKET_ENABLE         | Boolean   | Enable WebSocket listening (default: True)                   |
-| NANOMQ_WEBSOCKET_URL            | String    | `nmq-ws://host:port/path` <br />`nmq-wss://host:port/path`   |
+| NANOMQ_WEBSOCKET_URL            | String    | `nmq-ws://host:port/path` <br /><br />`nmq-wss://host:port/path` |
 | NANOMQ_HTTP_SERVER_ENABLE       | Boolean   | Enable HTTP server listening (default: False)                |
 | NANOMQ_HTTP_SERVER_PORT         | Integer   | HTTP server listening port (default: 8081)                   |
 | NANOMQ_HTTP_SERVER_USERNAME     | String    | Username to access HTTP service                              |
@@ -139,7 +133,7 @@ NanoMQ also supports custom configurations through environment variables. Here i
 | NANOMQ_LOG_LEVEL                | String    | Log level: trace, debug, info, warn, error, fatal            |
 | NANOMQ_LOG_DIR                  | String    | Path to store log files (effective when output is file)      |
 | NANOMQ_LOG_FILE                 | String    | Log file name (effective when output is a file)              |
-| NANOMQ_LOG_ROTATION_SIZE        | String    | Maximum occupied space per log file; <br />Unit: `KB | MB | GB`;<br />Default: `10MB` |
+| NANOMQ_LOG_ROTATION_SIZE        | String    | Maximum occupied space per log file; <br /><br />Unit: `KB | MB | GB`;<br /><br />Default: `10MB` |
 | NANOMQ_LOG_ROTATION_COUNT       | Integer   | Maximum number of rotated log files;<br />Default: `5`       |
 | NANOMQ_CONF_PATH                | String    | NanoMQ configuration file path (default: `/etc/nanomq.conf`) |
 

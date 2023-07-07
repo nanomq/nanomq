@@ -16,4 +16,7 @@
    nanomq start  
    ```
 
-   
+
+
+
+注意：Windows 版目前只提供最基础的 MQTT 消息服务。

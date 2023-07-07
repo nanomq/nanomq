@@ -24,7 +24,7 @@ rules.repub.rules[0].sql         | String  | Rule engine SQL clause
 
 ### Create the Rule
 
-Suppose you want to create a `repub` rule, upon receipt of a message from the `abc` topic, NanoMQ will encapsulate the `topic` and `payload` fields into a JSON structure and then forward this JSON-structured message to the `topic/repub1` topic. To implement this, the necessary configuration should be appended to the `/etc/nanomq.conf` file. The changes will take effect after NanoMQ restarts. 
+Suppose you want to create a `repub` rule, upon receipt of a message from the `abc` topic, NanoMQ will encapsulate the `topic` and `payload` fields into a JSON structure and then forward this JSON-structured message to the `topic/repub1` topic.
 
 :::: tabs type:card
 
@@ -153,7 +153,7 @@ rules.sqlite.rules[0].sql     | String | Rule engine SQL clause
 
 ### Create the Rule
 
-Suppose you want to create a data persistence rule with SQLite. When a message is received from the topic `abc`, the rule engine of NanoMQ will be triggered to store the contents of the `topic` and `payload` fields into a database table named `broker`. To implement this, the necessary configuration should be appended to the `/etc/nanomq.conf` file. The changes will take effect after NanoMQ restarts. 
+Suppose you want to create a data persistence rule with SQLite. When a message is received from the topic `abc`, the rule engine of NanoMQ will be triggered to store the contents of the `topic` and `payload` fields into a database table named `broker`.
 
 :::: tabs type:card
 
@@ -269,7 +269,7 @@ rules.mysql.name.rules[0].sql       | String | Rule engine SQL clause
 
 ### Create the Rule
 
-Suppose you want to create a data persistence rule with MySQL. When a message is received from the topic `abc`, the rule engine of NanoMQ will be triggered to store the contents of all fields into a database table named `broker1`. To implement this, the necessary configuration should be appended to the `/etc/nanomq.conf` file. The changes will take effect after NanoMQ restarts. 
+Suppose you want to create a data persistence rule with MySQL. When a message is received from the topic `abc`, the rule engine of NanoMQ will be triggered to store the contents of all fields into a database table named `broker1`.
 
 :::: tabs type:card
 

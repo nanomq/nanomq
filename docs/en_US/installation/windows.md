@@ -17,3 +17,5 @@ This page takes v0.18.2 as an example, if you'd like to work with the other vers
    ```
 
    
+
+Note: The Windows edition is only built with the basic MQTT messaging services.

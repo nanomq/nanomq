@@ -77,6 +77,7 @@ Apart from common settings like `CMAKE_BUILD_TYPE`, you can specify additional c
 | Build Option             | Description                                                  |
 | ------------------------ | ------------------------------------------------------------ |
 | `-DNNG_ENABLE_QUIC=ON`   | Enables the QUIC bridging feature in NanoMQ.                 |
+| `-DENABLE_AWS_BRIDGE=ON` | Enables the AWS IoT Core bridging feature. <br />**Note**: This feature is not compatible with MQTT over QUIC bridging. Users can operate only one type of bridging at a time. |
 | `-DNNG_ENABLE_TLS=ON`    | Builds NanoMQ with TLS support. Dependency: [mbedTLS](https://tls.mbed.org/). |
 | `-DBUILD_CLIENT=OFF`     | Disables the client suite, including pub, sub, and conn.     |
 | `-DBUILD_ZMQ_GATEWAY=ON` | Builds with ZeroMQ gateway tool.                             |

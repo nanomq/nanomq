@@ -4,14 +4,14 @@ NanoMQ has supported MQTT over QUIC bridging, users can use QUIC as the transpor
 
 The combined cloud-edge message architecture of EMQX and NanoMQ provides a cost-effective solution for IoT scenarios, allowing users to efficiently gather and synchronize data across different regions. 
 
-**Feature list：**
+**Feature List**
 
 QUIC bridging shares following exclusive features and special advantages
 
-- Multi-stream: Topic-Stream pair, avoid of head of line blocking problem.
+- Multi-stream: Topic-Stream pair, avoid head of line blocking problem
 - Hybrid bridging: automatically downgrade to TCP if QUIC is not available
 - Message prioritization: Assign High priority for QoS (1|2) messages to ensure bandwidth usage
-- O-RTT Quick reconnect : 0 RTT（Round Trip Time）estimate time
+- O-RTT Quick reconnect: 0 RTT（Round Trip Time）estimate time
 
 ## Enable MQTT over QUIC
 
@@ -49,7 +49,7 @@ Before setting up MQTT over QUIC bridging, you should install EMQX 5, which prov
 
 ### Bridge Configuration
 
-Once the QUIC module is enabled, you need to configure the MQTT over QUIC bridging feature and related topics in the `nanomq.conf` file. The following configuration file, for example, defines the server address for MQTT over QUIC bridging, connection credentials, connection parameters, message forwarding rules, subscription topics, and queue length.
+Once the QUIC module is enabled, you need to configure the MQTT over QUIC bridging feature and related topics in the configuration file. The following configuration file, for example, defines the server address for MQTT over QUIC bridging, connection credentials, connection parameters, message forwarding rules, subscription topics, and queue length.
 
 :::: tabs type:card
 

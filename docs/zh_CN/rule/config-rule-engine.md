@@ -24,7 +24,7 @@ rules.repub.rules[0].sql          | String   | 规则引擎 SQL 语句
 
 ### 创建规则
 
-假设我们希望配置一条 `repub`  规则，根据规则，当收到从主题 `abc` 发来的消息时，NanoMQ 会将 `topic` 和 `payload` 打包成 JSON 并转发到 `topic/repub1`，可将以下内容贴入配置文件 `nanomq.conf` 即可，相关配置将在 NanoMQ 重启后生效。
+假设我们希望配置一条 `repub`  规则，根据规则，当收到从主题 `abc` 发来的消息时，NanoMQ 会将 `topic` 和 `payload` 打包成 JSON 并转发到 `topic/repub1`。
 
 :::: tabs type:card
 
