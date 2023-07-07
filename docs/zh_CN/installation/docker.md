@@ -16,8 +16,8 @@ NanoMQ 目前提供了三个 Docker 部署版本，功能差异见下表：<!-- 
 | MQTT over QUIC 桥接  | ❌                     | ❌              | ✅             |
 | AWS 桥接 *           | ❌                     | ❌              | ❌             |
 | ZMQ 网关             | ❌                     | ❌              | ✅             |
-| SOME/IP 网关         | ❌                     | ❌              | ✅             |
-| DDS 网关             | ❌                     | ❌              | ✅             |
+| SOME/IP 网关         | ❌                     | ❌              | ❌             |
+| DDS 网关             | ❌                     | ❌              | ❌             |
 | Bench 基准测试工具集 | ❌                     | ❌              | ✅             |
 
 [^*]: Docker 部署中暂不支持 AWS 桥接，如希望使用 AWS 桥接，请通过[源码编译安装](./build-options.md)。
