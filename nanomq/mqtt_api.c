@@ -269,7 +269,7 @@ nano_pipe_get_local_address(nng_pipe p)
 
 	arr = (uint8_t *)&addr.s_in.sa_addr;
 
-	if ((res = malloc(sizeof(char) * 15)) == NULL)
+	if ((res = malloc(sizeof(char) * 16)) == NULL)
 		return NULL;
 
 	sprintf(res, "%d.%d.%d.%d", arr[0], arr[1], arr[2], arr[3]);
