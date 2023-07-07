@@ -1,6 +1,6 @@
 # AWS IoT Core Bridging
 
-[AWS IoT Core] (https://docs.aws.amazon.com/zh_cn/iot/latest/developerguide/protocols.html) is one of the widely used public cloud IoT services in Europe and the United States. However, because it is not fully aligned with the standard MQTT protocol and does not support QoS 2 messages, standard MQTT SDKs are not seamlessly compatible.
+[AWS IoT Core](https://docs.aws.amazon.com/zh_cn/iot/latest/developerguide/protocols.html) is one of the widely used public cloud IoT services in Europe and the United States. However, because it is not fully aligned with the standard MQTT protocol and does not support QoS 2 messages, standard MQTT SDKs are not seamlessly compatible.
 
 AWS IoT Core bridging is now built into NanoMQ to help users address compatibility issues. **NanoMQ** is responsible for forwarding the received data of the specified *topic* to the remote **AWS IoT MQTT Broker**, and also subscribes to a specific *topic* from the broker in order to receive the data and forward it locally.
 
