@@ -24,7 +24,17 @@ rules.repub.rules[0].sql          | String   | 规则引擎 SQL 语句
 
 ### 创建规则
 
-假设我们希望配置一条 `repub`  规则，根据规则，当收到从主题 `abc` 发来的消息时，NanoMQ 会将 `topic` 和 `payload` 打包成 JSON 并转发到 `topic/repub1`，可将以下内容贴入配置文件 `nanomq.conf` 即可，相关配置将在 NanoMQ 重启后生效。
+假设我们希望配置一条 `repub`  规则，根据规则，当收到从主题 `abc` 发来的消息时，NanoMQ 会将 `topic` 和 `payload` 打包成 JSON 并转发到 `topic/repub1`。
+
+:::: tabs type:card
+
+::: tab HOCON 配置格式
+
+希望使用 HOCON 配置格式的用户，可参考以下格式，将配置写入 `nanomq.conf`文件，相关设置将在 NanoMQ 重启后生效。
+
+- 完整的配置项列表，可参考 [配置说明 - v019](../config-description/v019.md)
+
+- NanoMQ 0.14 ~ 0.18 版本用户，可参考 [配置说明 - v0.14](../config-description/v019.md)
 
 ```sh
 rules.repub {
@@ -83,6 +93,31 @@ rules.repub {
 }
 ```
 
+:::
+
+::: tab KV 配置格式
+
+希望使用 KV 配置格式的用户，可参考以下格式，将配置写入 `nanomq_old.conf `文件，相关设置将在 NanoMQ 重启后生效。
+
+完整的配置项列表，可参考 [配置说明 - v013](../config-description/v013.md)
+
+```bash
+rule_option.repub=enable 
+rule.repub.2.address=mqtt-tcp://localhost:1883
+rule.repub.2.topic=topic/repub1
+rule.repub.2.proto_ver=4
+rule.repub.2.clientid=repub_client1
+rule.repub.2.keepalive=60
+rule.repub.2.clean_start=true
+rule.repub.2.username=username
+rule.repub.2.password=passwd
+rule.event.publish.2.sql="SELECT topic, payload FROM "abc""
+```
+
+:::
+
+::::
+
 ### 测试规则
 
 在第一个窗口启动 `nanomq`：
@@ -113,7 +148,17 @@ rules.sqlite.rules[0].sql      | String    | 规则引擎 SQL 语句
 
 ### 创建规则
 
-假设我们希望配置一条 `sqlite`  规则，根据规则，当收到从主题 `abc` 发来的消息时，触发 NanoMQ 的规则引擎存储，并将 `topic` 和 `payload` 两个字段的内容存储到 database 文件的表 `broker` 中。可将以下内容贴入配置文件 `nanomq.conf` 即可，相关配置将在 NanoMQ 重启后生效。
+假设我们希望配置一条 `sqlite`  规则，根据规则，当收到从主题 `abc` 发来的消息时，触发 NanoMQ 的规则引擎存储，并将 `topic` 和 `payload` 两个字段的内容存储到 database 文件的表 `broker` 中。
+
+:::: tabs type:card
+
+::: tab HOCON 配置格式
+
+希望使用 HOCON 配置格式的用户，可参考以下格式，将配置写入 `nanomq.conf`文件，相关设置将在 NanoMQ 重启后生效。
+
+- 完整的配置项列表，可参考 [配置说明 - v019](../config-description/v019.md)
+
+- NanoMQ 0.14 ~ 0.18 版本用户，可参考 [配置说明 - v0.14](../config-description/v019.md)
 
 ```sh
 rules.sqlite {
@@ -138,13 +183,32 @@ rules.sqlite {
 	]
 }
 ```
+:::
+
+::: tab KV 配置格式
+
+希望使用 KV 配置格式的用户，可参考以下格式，将配置写入 `nanomq_old.conf `文件，相关设置将在 NanoMQ 重启后生效。
+
+完整的配置项列表，可参考 [配置说明 - v013](../config-description/v013.md)
+
+```bash
+rule_option=ON
+rule_option.sqlite=enable
+rule.sqlite.path=/tmp/sqlite_rule.db
+rule.sqlite.1.table=broker
+rule.event.publish.1.sql=SELECT topic, payload FROM "abc"
+```
+
+:::
+
+::::
+
 ### 测试规则
 
  在第一个窗口启动 `nanomq`：
 
 ```sh
 $ nanomq start
-
 ```
 在第二个窗口启动 `nanomq_cli`，发布消息 `aaa` 到主题 `abc`:
 ```sh
@@ -200,7 +264,17 @@ rules.mysql.name.rules[0].sql      | String   | 规则引擎 sql 语句
 
 ### 创建规则
 
-我们希望创建如下规则，当收到来自主题 `abc` 的消息，会触发 NanoMQ 的规则引擎存储，并将 `field` 的所有字段的内容存到 `database` 指定的表 `broker1` 内。可将以下内容贴入配置文件 `nanomq.conf` 即可，相关配置将在 NanoMQ 重启后生效。
+我们希望创建如下规则，当收到来自主题 `abc` 的消息，会触发 NanoMQ 的规则引擎存储，并将 `field` 的所有字段的内容存到 `database` 指定的表 `broker1` 内。
+
+:::: tabs type:card
+
+::: tab HOCON 配置格式
+
+希望使用 HOCON 配置格式的用户，可参考以下格式，将配置写入 `nanomq.conf`文件，相关设置将在 NanoMQ 重启后生效。
+
+- 完整的配置项列表，可参考 [配置说明 - v019](../config-description/v019.md)
+
+- NanoMQ 0.14 ~ 0.18 版本用户，可参考 [配置说明 - v0.14](../config-description/v019.md)
 
 ```sh
 # # Currently, MySQL rule only supports the configuration of one database.
@@ -241,6 +315,29 @@ rules.mysql.mysql_rule_db {
 	]
 }
 ```
+
+:::
+
+::: tab KV 配置格式
+
+希望使用 KV 配置格式的用户，可参考以下格式，将配置写入 `nanomq_old.conf `文件，相关设置将在 NanoMQ 重启后生效。
+
+完整的配置项列表，可参考 [配置说明 - v013 ](../config-description/v013.md) <!--这里的第一个参数名称觉得不太合理-->
+
+```bash
+rule_option=ON
+rule_option.mysql=enable
+rule.mysql.name=mysql_rule.db
+rule.mysql.1.table=broker
+rule.mysql.1.host=localhost
+rule.mysql.1.username=username
+rule.mysql.1.password=password
+rule.event.publish.1.sql=SELECT * FROM "abc"
+```
+
+:::
+
+::::
 
 ### 测试规则
 

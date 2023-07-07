@@ -27,7 +27,7 @@ $ openssl rsa -in nanomq.key -out nanomq.pub -pubout
 
 ## Configuration
 
-The default authorization mode is `Basic` , you need to change the `auth_type ` to `JWT` in the configuration file and specify the path to  `JWT` public key file.
+The default authorization mode is `Basic`, you need to change the `auth_type ` to `JWT` in the configuration file and specify the path to  `JWT` public key file.
 
 :::: tabs type:card
 
@@ -72,6 +72,8 @@ http_server {
     }
 }
 ```
+
+:::
 
 ::: tab KV format
 

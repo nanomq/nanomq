@@ -16,10 +16,13 @@ For Linux users, NanoMQ currently provides four deployment versions, each with d
 | DDS Gateway             | ❌                              | ❌                         | ❌                         | ❌                   |
 | Bench Benchmark Tools   | ❌                              | ❌                         | ✅                         | ✅                   |
 
-- You can select the appropriate installation version of NanoMQ based on your specific business requirements. To do this, simply replace `nanomq` in the installation command with the corresponding version code:
-  - For the SQLite Edition of NanoMQ, use `nanomq-sqlite`.
-  - For the MsQuic Edition of NanoMQ, use `nanomq-msquic`.
-  - For the Full Version of NanoMQ, use `nanomq-full`.
+[^*]: AWS bridging is currently unavailable with Docker deployment. To use AWS bridging, please [build NanoMQ from the source code](./build-options.md).
+
+You can select the appropriate installation version of NanoMQ based on your specific business requirements. To do this, simply replace `nanomq` in the installation command with the corresponding version code:
+
+- For the SQLite Edition of NanoMQ, use `nanomq-sqlite`
+- For the MsQuic Edition of NanoMQ, use `nanomq-msquic`
+- For the Full Version of NanoMQ, use `nanomq-full`
 
 ## Install NanoMQ
 

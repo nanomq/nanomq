@@ -4,7 +4,7 @@
 
 AWS IoT Core bridging is now built into NanoMQ to help users address compatibility issues. **NanoMQ** is responsible for forwarding the received data of the specified *topic* to the remote **AWS IoT MQTT Broker**, and also subscribes to a specific *topic* from the broker in order to receive the data and forward it locally.
 
-Due to the conflict between the AWS IoT SDK and NanoMQ's QUIC dependency - MsQUIC on the OpenSSL reference version, NanoMQ does not enable and build this bridging feature into the standard distribution by default. To enable AWS IoT Core bridging, compile & install NanoMQ from source code is required. This document section describes how to enable AWS IoT Core bridging and configure it via the configuration file 'nanomq.conf', and test the new bridge channel.
+Due to the conflict between the AWS IoT SDK and NanoMQ's QUIC dependency - MsQUIC on the OpenSSL reference version, NanoMQ does not enable and build this bridging feature into the standard distribution by default. To enable AWS IoT Core bridging, compile & install NanoMQ from source code is required. This document section describes how to enable AWS IoT Core bridging and configure it via the configuration file `nanomq.conf`, and test the new bridge channel.
 
 ## Compile & Install AWS IoT Core bridging Feature
 
@@ -28,7 +28,7 @@ sudo cp ../demos/logging-stack/logging_*.h  /usr/local/include/aws/
 sudo ldconfig
 ```
 
-Find more information about AWS IoT Device SDK here：https://github.com/aws/aws-iot-device-sdk-embedded-C
+Find more information about AWS IoT Device SDK on the [GitHub page](https://github.com/aws/aws-iot-device-sdk-embedded-C)
 
 ### Build NanoMQ from Source Code
 
@@ -46,21 +46,27 @@ sudo ninja install
 
 ## Configure AWS IoT Core
 
-Here's how to configure it on the AWS IoT Core side. Note: The Configuration presented in this doc could be invalidated due to updates and modifications to AWS services. For details about how to configure it, see docs from official: https://aws.amazon.com/cn/iot-core/resources/.
+Here's how to configure it on the AWS IoT Core side. Note: The Configuration presented in this doc could be invalidated due to updates and modifications to AWS services. For details about how to configure it, see docs from the [official website](https://aws.amazon.com/cn/iot-core/resources/).
 
 
 
-1.  At **Manage** -> **All devices** -> **Things** page，You can create new objects and group, with corresponding Certification/Topics/Device Shadows etc。
+1. At **Manage** -> **All devices** -> **Things** page, You can create new objects and groups, with corresponding Certification/Topics/Device Shadows etc.
 
-![Create_Object](./assets/aws_create_obj.png)
+   ![Create_Object](./assets/aws_create_obj.png)
+
+   
 
 2. Download your Certificates at **Security** -> **Certificates** page. 
 
-![Certification](./assets/certs.png)
+   ![Certification](./assets/certs.png)
+
+
 
 3. Create a corresponding MQTT client behavior authentication policy at  **Security **-> **Policies**  page. And defines the client identifier, publish/subscribe topics, these parameters will be used in NanoMQ Bridge.
 
-![Policy](./assets/policy.png)
+   ![Policy](./assets/policy.png)
+
+
 
 ## Configure NanoMQ Bridge
 
@@ -169,13 +175,13 @@ Unlike standard MQTT Broker, SSL/TLS is compulsory in AWS IoT Core, Client's Cer
 
 - When you set up publish/subscribe topics and QoS in NanoMQ, make sure they match the ones you set in your AWS IoT security policies: `iot:Subscribe`，`iot:Publish`，`iot:Receive`，`iot:RetainPublish`. Otherwise，messages will not be accepted due to authorization failure. 
   
-  Related configuration items:：
+  Related configuration items:
   
   - Publishing Topics：`aws.bridge.mqtt.aws.forwards`
   - Subscription Topics：`aws.bridge.mqtt.aws.subscription.1.topic`
   - Message QoS：`aws.bridge.mqtt.aws.subscription.1.qos`
   
-- When you configure SSL/TLS certificates in NanoMQ, you need to ensure that these certificate files match the certificates required for the type of item created in the AWS IoT Core Dashboard.
+- When you configure SSL/TLS certificates in NanoMQ, you need to ensure that these certificate files match the certificates required for the type of item created in the AWS IoT Core Dashboard. Related configuration items:
   
   - `aws.bridge.mqtt.aws.tls.keyfile`
   - `aws.bridge.mqtt.aws.tls.certfile`
@@ -184,7 +190,7 @@ Unlike standard MQTT Broker, SSL/TLS is compulsory in AWS IoT Core, Client's Cer
 
 ### Start NanoMQ Bridging
 
-You can start NanoMQ with `--conf` to specify a path of your own configuration file.（Not necessary if the config file is located in `/etc/nanomq.conf`）。
+You can start NanoMQ with `--conf` to specify a path of your own configuration file.（Not necessary if the config file is located in `etc` folder).
 
 :::: tabs type:card
 

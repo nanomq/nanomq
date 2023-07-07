@@ -24,7 +24,16 @@ rules.repub.rules[0].sql         | String  | Rule engine SQL clause
 
 ### Create the Rule
 
-Suppose you want to create a `repub` rule, upon receipt of a message from the `abc` topic, NanoMQ will encapsulate the `topic` and `payload` fields into a JSON structure and then forward this JSON-structured message to the `topic/repub1` topic. To implement this, the necessary configuration should be appended to the `/etc/nanomq.conf` file. The changes will take effect after NanoMQ restarts. 
+Suppose you want to create a `repub` rule, upon receipt of a message from the `abc` topic, NanoMQ will encapsulate the `topic` and `payload` fields into a JSON structure and then forward this JSON-structured message to the `topic/repub1` topic.
+
+:::: tabs type:card
+
+::: tab HOCON
+
+Users wishing to use the HOCON configuration format can refer to the following structure and write their configurations into the `nanomq.conf` file. The relevant settings will take effect after NanoMQ is restarted.
+
+- For a complete list of configuration options, refer to [Configuration Description - v019](../config-description/v019.md)
+- For users of NanoMQ versions 0.14 ~ 0.18, please refer to [Configuration Description - v0.14](../config-description/v014.md)
 
 ```sh
 rules.repub {
@@ -83,6 +92,31 @@ rules.repub {
 }
 ```
 
+:::
+
+::: tab KV format
+
+Users wishing to use the KV configuration format can refer to the following structure and write their configurations into the `nanomq_old.conf` file. The relevant settings will take effect after NanoMQ is restarted.
+
+- For a complete list of configuration options, refer to [Configuration Description - v013](../config-description/v013.md)
+
+```bash
+rule_option.repub=enable 
+rule.repub.2.address=mqtt-tcp://localhost:1883
+rule.repub.2.topic=topic/repub1
+rule.repub.2.proto_ver=4
+rule.repub.2.clientid=repub_client1
+rule.repub.2.keepalive=60
+rule.repub.2.clean_start=true
+rule.repub.2.username=username
+rule.repub.2.password=passwd
+rule.event.publish.2.sql="SELECT topic, payload FROM "abc""
+```
+
+:::
+
+::::
+
 ### Test the Rule
 
 This section will use `nanomq_cli` to test the newly created rule.
@@ -119,7 +153,16 @@ rules.sqlite.rules[0].sql     | String | Rule engine SQL clause
 
 ### Create the Rule
 
-Suppose you want to create a data persistence rule with SQLite. When a message is received from the topic `abc`, the rule engine of NanoMQ will be triggered to store the contents of the `topic` and `payload` fields into a database table named `broker`. To implement this, the necessary configuration should be appended to the `/etc/nanomq.conf` file. The changes will take effect after NanoMQ restarts. 
+Suppose you want to create a data persistence rule with SQLite. When a message is received from the topic `abc`, the rule engine of NanoMQ will be triggered to store the contents of the `topic` and `payload` fields into a database table named `broker`.
+
+:::: tabs type:card
+
+::: tab HOCON
+
+Users wishing to use the HOCON configuration format can refer to the following structure and write their configurations into the `nanomq.conf` file. The relevant settings will take effect after NanoMQ is restarted.
+
+- For a complete list of configuration options, refer to [Configuration Description - v019](../config-description/v019.md)
+- For users of NanoMQ versions 0.14 ~ 0.18, please refer to [Configuration Description - v0.14](../config-description/v014.md)
 
 ```sh
 rules.sqlite {
@@ -144,6 +187,25 @@ rules.sqlite {
 	]
 }
 ```
+:::
+
+::: tab KV format
+
+Users wishing to use the KV configuration format can refer to the following structure and write their configurations into the `nanomq_old.conf` file. The relevant settings will take effect after NanoMQ is restarted.
+
+- For a complete list of configuration options, refer to [Configuration Description - v013](../config-description/v013.md)
+
+```bash
+rule_option=ON
+rule_option.sqlite=enable
+rule.sqlite.path=/tmp/sqlite_rule.db
+rule.sqlite.1.table=broker
+rule.event.publish.1.sql=SELECT topic, payload FROM "abc"
+```
+
+:::
+::::
+
 ### Test the Rule
 
 1. Start `nanomq` in the first terminal window.
@@ -207,7 +269,16 @@ rules.mysql.name.rules[0].sql       | String | Rule engine SQL clause
 
 ### Create the Rule
 
-Suppose you want to create a data persistence rule with MySQL. When a message is received from the topic `abc`, the rule engine of NanoMQ will be triggered to store the contents of all fields into a database table named `broker1`. To implement this, the necessary configuration should be appended to the `/etc/nanomq.conf` file. The changes will take effect after NanoMQ restarts. 
+Suppose you want to create a data persistence rule with MySQL. When a message is received from the topic `abc`, the rule engine of NanoMQ will be triggered to store the contents of all fields into a database table named `broker1`.
+
+:::: tabs type:card
+
+::: tab HOCON
+
+Users wishing to use the HOCON configuration format can refer to the following structure and write their configurations into the `nanomq.conf` file. The relevant settings will take effect after NanoMQ is restarted.
+
+- For a complete list of configuration options, refer to [Configuration Description - v019](../config-description/v019.md)
+- For users of NanoMQ versions 0.14 ~ 0.18, please refer to [Configuration Description - v0.14](../config-description/v014.md)
 
 ```sh
 # # Currently, MySQL rule only supports the configuration of one database.
@@ -248,6 +319,28 @@ rules.mysql.mysql_rule_db {
 	]
 }
 ```
+
+:::
+
+::: tab KV format
+
+Users wishing to use the KV configuration format can refer to the following structure and write their configurations into the `nanomq_old.conf` file. The relevant settings will take effect after NanoMQ is restarted.
+
+- For a complete list of configuration options, refer to [Configuration Description - v013](../config-description/v013.md)
+
+```bash
+rule_option=ON
+rule_option.mysql=enable
+rule.mysql.name=mysql_rule.db
+rule.mysql.1.table=broker
+rule.mysql.1.host=localhost
+rule.mysql.1.username=username
+rule.mysql.1.password=password
+rule.event.publish.1.sql=SELECT * FROM "abc"
+```
+
+:::
+::::
 
 ### Test the Rule
 

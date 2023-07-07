@@ -57,7 +57,7 @@ webhook.events = [
 
 ### WebHook Trigger Events
 
-WebHook can be triggered by the following events :
+WebHook can be triggered by the following events:
 
 | Name                   | Description                  | **Execution timing**                               |
 | ---------------------- | ---------------------------- | -------------------------------------------------- |

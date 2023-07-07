@@ -14,3 +14,7 @@ This section provides an in-depth guide to configuring MQTT over TCP bridging, e
 ## [MQTT over QUIC Bridging](./quic-bridge.md)
 
 In cases where integration with MQTT over TCP bridging is hard to implement, NanoMQ has innovatively introduced a new protocol, MQTT over QUIC. QUIC, initially developed by Google, was later adopted as a worldwide standard by the Internet Engineering Task Force (IETF). With MQTT over QUIC bridging, you can take full advantage of the QUIC protocol's benefits in IoT scenarios. 
+
+## [AWS IoT Core Bridging](./aws-iot-core-bridge.md)
+
+[AWS IoT Core](https://docs.aws.amazon.com/zh_cn/iot/latest/developerguide/protocols.html) is one of the widely used public cloud IoT services in Europe and the United States.  However, because it is not fully aligned with the standard MQTT protocol and does not support QoS 2 messages, standard MQTT SDKs are not seamlessly compatible. AWS IoT Core bridging is now built into NanoMQ to help users address compatibility issues. 
