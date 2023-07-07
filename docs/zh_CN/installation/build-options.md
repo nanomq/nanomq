@@ -79,12 +79,11 @@ NanoMQ Broker is started successfully!
 | `-DBUILD_BENCH=ON`       | 编译启用 MQTT Bench                                    |
 | `-DENABLE_JWT=ON`        | 编译启用 HTTP Server 所需的 JWT 依赖项                 |
 | `-DNNG_ENABLE_SQLITE=ON` | 支持 SQLite                                            |
-| `-DENABLE_AWS_BRIDGE=ON` | 支持 AWS IoT Core 桥接                                |
 | `-DBUILD_STATIC_LIB=ON`  | 作为静态库编译                                         |
 | `-DBUILD_SHARED_LIBS=ON` | 作为共享库编译                                         |
 | `-DDEBUG=ON`             | 启用调试标志                                           |
 | `-DASAN=ON`              | 启用 Sanitizer                                         |
-| `-DNOLOG=1`              |  关闭 Log 系统，提高性能                              |
+| `-DNOLOG=1`              | 关闭 Log 系统，提高性能                                |
 | `-DDEBUG_TRACE=ON`       | 启用 ptrace，用于进程跟踪和检查                        |
 
 ### MQTT over QUIC 数据桥接
