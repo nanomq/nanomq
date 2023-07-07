@@ -9,9 +9,9 @@ NanoMQ 的默认配置文件格式是 HOCON 。 HOCON（ Human-Optimized Config 
 | etc/nanomq.conf         | NanoMQ 主配置文件                         |
 | etc/nanomq_pwd.conf | NanoMQ 用户名密码登录鉴权配置文件                 |
 | etc/nanomq_acl.conf | NanoMQ ACL 访问控制鉴权配置文件                 |
-| etc/nanomq_vsomeip_gateway.conf | NanoMQ SOME/IP 网关配置文件         |
-| etc/nanomq_dds_gateway.conf | NanoMQ DDS 网关配置文件         |
-| etc/nanomq_bridge.conf | NanoMQ 桥接配置文件         |
+| etc/nanomq_vsomeip_gateway.conf | NanoMQ SOME/IP 网关配置文件(用于 `nanomq_cli`)          |
+| etc/nanomq_dds_gateway.conf | NanoMQ DDS 网关配置文件(用于 `nanomq_cli`)          |
+| etc/nanomq_bridge.conf | NanoMQ 桥接配置文件(用于 `nanomq_cli`)          |
 | etc/nanomq_zmq_gateway.conf | NanoMQ ZeroMQ 配置文件 (用于 `nanomq_cli`) |
 
 ## Classical KV
