@@ -1,12 +1,24 @@
 # 配置说明
+NanoMQ 配置文件有 2 个版本：经典 KV 版本和 HOCON 版本。HOCON 版本是在 0.14 版本引入的新配置格式。 KV 版本是 NanoMQ 原有的配置文件格式，会长期保留和对旧用户兼容（但一些新功能将只支持新 HOCON 配置格式）。
 
-NanoMQ 的配置文件格式是 HOCON 。 HOCON（ Human-Optimized Config Object Notation ）是一个 JSON 的超集，非常适用于易于人类读写的配置数据存储。你可以在 etc 目录找到这些配置文件，主要配置文件包括：
+## HOCON
+NanoMQ 的默认配置文件格式是 HOCON 。 HOCON（ Human-Optimized Config Object Notation ）是一个 JSON 的超集，非常适用于易于人类读写的配置数据存储。你可以在 etc 目录找到这些配置文件，周边功能如鉴权/网关等可以使用独立的配置文件（通过 Include 方式指定路径），主要配置文件包括：
 
 | 配置文件                | 说明                                    |
 | ----------------------- | --------------------------------------- |
-| etc/nanomq.conf         | NanoMQ 配置文件                         |
-| etc/nanomq_gateway.conf | NanoMQ 网关配置文件 (用于 `nanomq_cli`) |
+| etc/nanomq.conf         | NanoMQ 主配置文件                         |
+| etc/nanomq_pwd.conf | NanoMQ 用户名密码登录鉴权配置文件                 |
+| etc/nanomq_acl.conf | NanoMQ ACL 访问控制鉴权配置文件                 |
+| etc/nanomq_vsomeip_gateway.conf | NanoMQ SOME/IP 网关配置文件         |
+| etc/nanomq_dds_gateway.conf | NanoMQ DDS 网关配置文件         |
+| etc/nanomq_bridge.conf | NanoMQ 桥接配置文件         |
+| etc/nanomq_zmq_gateway.conf | NanoMQ ZeroMQ 配置文件 (用于 `nanomq_cli`) |
 
+## Classical KV
+在经典配置文件中，所有功能都统一在单一配置文件中，可以参考 etc/nanomq_old.conf 中的注释。
+如需使用 SOME/IP和DDS 网关等功能，还需要使用最新 HOCON 格式配置。
+
+以下内容以 HOCON 配置文件为基准。
 
 ## 配置文件语法
 
