@@ -4,7 +4,7 @@ This section guides you through the quick installation and running of NanoMQ usi
 
 ## Docker Images
 
-NanoMQ currently provides three Docker deployment versions, each with distinct functionalities as detailed in the table below:<!-- this should be checked before the final release-->
+NanoMQ currently provides three Docker deployment versions, each with distinct functionalities as detailed in the table below:
 
 | Function                | NanoMQ Basic Version (default) | NanoMQ Slim Version | NanoMQ Full Version |
 | ----------------------- | ------------------------------ | ------------------- | ------------------- |
