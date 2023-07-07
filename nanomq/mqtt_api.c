@@ -256,7 +256,7 @@ log_fini(conf_log *log)
 }
 
 char *
-nano_pipe_get_local_address4(nng_pipe p)
+nano_pipe_get_local_address(nng_pipe p)
 {
 	int           rv;
 	nng_sockaddr  addr;
@@ -312,3 +312,19 @@ nano_pipe_get_local_port(nng_pipe p)
 
 	return htons(addr.s_in.sa_port);
 }
+
+uint16_t
+nano_pipe_get_local_port6(nng_pipe p)
+{
+	int           rv;
+	nng_sockaddr  addr;
+	uint8_t      *arr;
+	char         *res;
+
+	rv = nng_pipe_getopt_sockaddr(p, NNG_OPT_LOCADDR, &addr);
+	if (rv != 0)
+		return 0;
+
+	return htons(addr.s_in6.sa_port);
+}
+
