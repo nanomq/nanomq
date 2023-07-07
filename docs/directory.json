@@ -95,7 +95,12 @@
         {
           "title": "MQTT over QUIC 桥接",
           "path": "bridges/quic-bridge"
+        },
+        {
+          "title": "AWS IoT Core 桥接",
+          "path": "bridges/aws-iot-core-bridge"
         }
+
       ]
     },
     {"title": "多协议网关",
@@ -244,6 +249,10 @@
         {
           "title": "MQTT over QUIC Bridge",
           "path": "bridges/quic-bridge"
+        },
+        {
+          "title": "AWS IoT Core Bridge",
+          "path": "bridges/aws-iot-core-bridge"
         }
       ]
     },

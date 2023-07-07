@@ -16,6 +16,8 @@
 | DDS网关            | ❌             | ❌                   | ❌                   | ✅            |
 | Bench基准测试工具  | ❌             | ❌                   | ✅                   | ✅            |
 
+[^*]: Docker 部署中暂不支持 AWS 桥接，如希望使用 AWS 桥接，请通过[源码编译安装](./build-options.md)。
+
 您可根据具体业务需求，选择适合的 NanoMQ 安装版本，并在安装命令中将 `nanomq` 替换为相应的版本代码：
 
 - SQLite 版的NanoMQ：`nanomq-sqlite`
