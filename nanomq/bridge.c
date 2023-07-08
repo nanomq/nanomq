@@ -669,7 +669,7 @@ quic_ack_cb(void *arg)
 	bridge_param *param = nng_aio_get_prov_data(aio);
 	nng_socket *  sock  = param->sock;
 	nng_msg *     msg   = nng_aio_get_msg(aio);
-	if ((msg == NULL || result = nng_aio_result(aio)) != 0) {
+	if (msg == NULL || (result = nng_aio_result(aio)) != 0) {
 		log_debug("no msg wating!");
 		return;
 	}
