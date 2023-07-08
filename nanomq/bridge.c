@@ -668,7 +668,7 @@ quic_ack_cb(void *arg)
 	bridge_param *param = nng_aio_get_prov_data(aio);
 	nng_socket *  sock  = param->sock;
 	nng_msg *     msg   = nng_aio_get_msg(aio);
-	if ((result = nng_aio_result(aio)) != 0) {
+	if ((msg == NULL || result = nng_aio_result(aio)) != 0) {
 		log_debug("no msg wating!");
 		return;
 	}
@@ -737,6 +737,7 @@ quic_ack_cb(void *arg)
 	log_debug("ACK msg is recevied in bridging");
 
 	nng_msg_free(msg);
+	nng_aio_set_msg(aio, NULL);
 	// To clean the cached msg if any
 	nng_recv_aio(*sock, aio);
 }
