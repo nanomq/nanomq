@@ -102,15 +102,15 @@ Users wishing to use the KV configuration format can refer to the following stru
 
 ```bash
 rule_option.repub=enable 
-rule.repub.2.address=mqtt-tcp://localhost:1883
-rule.repub.2.topic=topic/repub1
-rule.repub.2.proto_ver=4
-rule.repub.2.clientid=repub_client1
-rule.repub.2.keepalive=60
-rule.repub.2.clean_start=true
-rule.repub.2.username=username
-rule.repub.2.password=passwd
-rule.event.publish.2.sql="SELECT topic, payload FROM "abc""
+rule.repub.1.address=mqtt-tcp://localhost:1883
+rule.repub.1.topic=topic/repub1
+rule.repub.1.proto_ver=4
+rule.repub.1.clientid=repub_client1
+rule.repub.1.keepalive=60
+rule.repub.1.clean_start=true
+rule.repub.1.username=username
+rule.repub.1.password=passwd
+rule.repub.event.publish.1.sql="SELECT topic, payload FROM "abc""
 ```
 
 :::
@@ -200,7 +200,7 @@ rule_option=ON
 rule_option.sqlite=enable
 rule.sqlite.path=/tmp/sqlite_rule.db
 rule.sqlite.1.table=broker
-rule.event.publish.1.sql=SELECT topic, payload FROM "abc"
+rule.sqlite.event.publish.1.sql=SELECT topic, payload FROM "abc"
 ```
 
 :::
@@ -336,7 +336,7 @@ rule.mysql.1.table=broker
 rule.mysql.1.host=localhost
 rule.mysql.1.username=username
 rule.mysql.1.password=password
-rule.event.publish.1.sql=SELECT * FROM "abc"
+rule.mysql.event.publish.1.sql=SELECT * FROM "abc"
 ```
 
 :::
