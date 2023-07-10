@@ -77,6 +77,8 @@ NanoMQ Broker is started successfully!
 | `-DBUILD_CLIENT=OFF`     | 停用客户端套件，包括 pub、sub 、conn                         |
 | `-DBUILD_ZMQ_GATEWAY=ON` | 启用 ZeroMQ 网关                                             |
 | `-DBUILD_DDS_PROXY=ON`   | 启用 DDS Proxy，包括 proxy、sub、pub                         |
+| `-DBUILD_VSOMEIP_GATEWAY`| 开启 vsomeip gateway                                        |
+| `-DBUILD_NNG_PROXY`      | 开启 nng proxy                                              |
 | `-DBUILD_BENCH=ON`       | 编译启用 MQTT Bench                                          |
 | `-DENABLE_JWT=ON`        | 编译启用 HTTP Server 所需的 JWT 依赖项                       |
 | `-DNNG_ENABLE_SQLITE=ON` | 支持 SQLite                                                  |
@@ -86,6 +88,12 @@ NanoMQ Broker is started successfully!
 | `-DASAN=ON`              | 启用 Sanitizer                                               |
 | `-DNOLOG=1`              | 关闭 Log 系统，提高性能                                |
 | `-DDEBUG_TRACE=ON`       | 启用 ptrace，用于进程跟踪和检查                              |
+| `-DENABLE_RULE_ENGINE=ON`| 启用规则引擎                                           |
+| `-DENABLE_MYSQL=ON`      | 启用 MySQL                                                 |
+| `-DENABLE_ACL`           | 启用 ACL                                                   |
+| `-DENABLE_SYSLOG`        | 启用 syslog                                                |
+| `-DNANOMQ_TESTS`         | 启用 NanoMQ 单元测试                                     |
+
 
 ### MQTT over QUIC 数据桥接
 
@@ -138,7 +146,6 @@ ninja
 默认情况下，网关为未启用状态。如希望启用，如 ZMQ 网关，可通过 `-DBUILD_ZMQ_GATEWAY=ON` 实现：
 
 ```
-bashCopy code
 cmake -G Ninja -DBUILD_ZMQ_GATEWAY=ON ..
 ninja
 ```
@@ -148,7 +155,6 @@ ninja
 默认情况下，Benchmark 为未启用状态。如希望启用，可通过 `-DBUILD_BENCH=ON` 实现：
 
 ```
-bashCopy code
 cmake -G Ninja -DBUILD_BENCH=ON ..
 ninja
 ```
@@ -158,7 +164,6 @@ ninja
 HTTP Server 的  JWT 依赖默认未启用。如希望启用，可通过 `-DENABLE_JWT=ON` 实现：
 
 ```
-bashCopy code
 cmake -G Ninja -DENABLE_JWT=ON ..
 ninja
 ```
@@ -168,7 +173,6 @@ ninja
 NanoMQ 支持通过 SQLite3 实现消息的持久化，该功能默认未启用。如希望启用，可通过 `-DNNG_ENABLE_SQLITE=ON` 实现：
 
 ```
-bashCopy code
 cmake -G Ninja -DNNG_ENABLE_SQLITE=ON ..
 ninja
 ```
@@ -178,7 +182,6 @@ ninja
 如通过以静态库的方式编译 NanoMQ，可通过 `-DBUILD_STATIC_LIB=ON` 实现：
 
 ```
-bashCopy code
 cmake -G Ninja -DBUILD_STATIC_LIB=ON ..
 ninja libnano
 ```
@@ -188,7 +191,6 @@ ninja libnano
 如通过以共享库的方式编译 NanoMQ，可通过  `-DBUILD_SHARED_LIBS=ON` 实现：
 
 ```
-bashCopy code
 cmake -G Ninja -DBUILD_SHARED_LIBS=ON ..
 ninja
 ```
@@ -198,7 +200,6 @@ ninja
 NanoNNG 是含 MQTT 支持的 NNG 仓库分支，由 NanoMQ 自行维护，可单独编译：
 
 ```
-bashCopy code
 cd nng/build
 cmake -G Ninja ..
 ninja
