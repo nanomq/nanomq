@@ -5,10 +5,11 @@ For Linux users, NanoMQ currently provides four deployment versions, each with d
 | Function                | NanoMQ Basic Version (default) | NanoMQ **SQLite Edition** | **NanoMQ MsQuic Edition** | NanoMQ Full Version |
 | ----------------------- | ------------------------------ | ------------------------- | ------------------------- | ------------------- |
 | MQTT Broker Function    | ✅                              | ✅                         | ✅                         | ✅                   |
-| TLS/SSL                 | ❌                              | ✅                         | ✅                         | ✅                   |
+| TLS/SSL                 | ✅                              | ✅                         | ✅                         | ✅                   |
 | SQLite                  | ❌                              | ✅                         | ❌                         | ✅                   |
 | Rule Engine             | ❌                              | ❌                         | ✅                         | ✅                   |
 | MQTT over TCP Bridging  | ✅                              | ✅                         | ✅                         | ✅                   |
+| MQTT over TLS Bridging  | ✅                              | ✅                         | ✅                         | ✅                   |
 | MQTT over QUIC Bridging | ❌                              | ❌                         | ✅                         | ✅                   |
 | AWS Bridging *          | ❌                              | ❌                         | ❌                         | ❌                   |
 | ZMQ Gateway             | ❌                              | ❌                         | ❌                         | ✅                   |
