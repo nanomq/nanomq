@@ -73,34 +73,85 @@ Create a new configuration file on your local machine. This will hold the settin
 You can use a text editor to create a new file named `nanomq.conf`, and then copy the following bridge configuration into the file:
 
 ```bash
-bridges.mqtt {
-    nodes = [ 
-        {
-            name = emqx
-            enable = true
-            connector {
-                server = "mqtt-tcp://broker.emqx.io:1883"
-                proto_ver = 4
-                clean_start = true
-                keepalive = 60s
-            }
-            forwards = ["forward1/#","forward2/#"]
-            subscription = [
-                {
-                    topic = "recv/topic1"
-                    qos = 1
-                },
-                {
-                    topic = "recv/topic2"
-                    qos = 2
-                }
-            ]
-            congestion_control = cubic
-            parallel = 2
-            max_send_queue_len = 1024
-            max_recv_queue_len = 1024
-        }
-    ]
+bridges.mqtt.emqx1 {
+	# # Bridge address: host:port .
+	# #
+	# # Value: String
+	# # Example: mqtt-tcp://127.0.0.1:1883
+	# #          tls+mqtt-tcp://127.0.0.1:8883
+	# #          mqtt-quic://54.75.171.11:14567
+	server = "mqtt-tcp://broker.emqx.io:1883"
+	# # Protocol version of the bridge.
+	# #
+	# # Value: Enum
+	# # - 5: mqttv5
+	# # - 4: mqttv311
+	# # - 3: mqttv31
+	proto_ver = 4
+	# # The ClientId of a remote bridge.
+	# # Default random string.
+	# #
+	# # Value: String
+	# clientid="bridge_client"
+	# # Ping: interval of a downward bridge.
+	# #
+	# # Value: Duration
+	# # Default: 10 seconds
+	keepalive = 60s
+	# # The Clean start flag of a remote bridge.
+	# #
+	# # Value: boolean
+	# # Default: false
+	# #
+	# # NOTE: Some IoT platforms require clean_start
+	# #       must be set to 'true'
+	clean_start = false
+	# # The username for a remote bridge.
+	# #
+	# # Value: String
+	username = username
+	# # The password for a remote bridge.
+	# #
+	# # Value: String
+	password = passwd
+	# # Topics that need to be forward to IoTHUB
+	# #
+	# # Value: String
+	# # Example: topic1/#,topic2/#
+	forwards = ["topic1/#", "topic2/#"]
+
+	subscription = [
+		{
+			# # Need to subscribe to remote broker topics
+			# #
+			# # Value: String
+			topic = "recv/topic1"
+			# # Need to subscribe to remote topics QoS.
+			# # Please set QoS for each subscription topic
+			# # otherwise topic is invalid, NanoMQ won't sub to any topic
+			# # Value: Number
+			qos = 1
+		}
+		{
+			topic = "recv/topic2"
+			qos = 2
+		}
+	]
+	# # max_parallel_processes
+	# # Handle a specified maximum number of outstanding requests
+	# #
+	# # Value: 1-infinity
+	max_parallel_processes = 2
+	# # max send queue length
+	# # Handle a specified maximum number of message send queue length
+	# #
+	# # Value: 1-infinity
+	max_send_queue_len = 32
+	# # max receive queue length
+	# # Handle a specified maximum number of message receive queue length
+	# #
+	# # Value: 1-infinity
+	max_recv_queue_len = 128
 }
 ```
 
