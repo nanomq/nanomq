@@ -62,6 +62,7 @@ Users wishing to use the KV configuration format can refer to the following stru
 - For a complete list of configuration options, refer to [Configuration Description - v013](../config-description/v013.md)
 
 ```bash
+bridge.mqtt.emqx.bridge_mode=true
 bridge.mqtt.emqx.address=mqtt-tcp://your_server_address:port
 bridge.mqtt.emqx.proto_ver=4
 bridge.mqtt.emqx.clientid=bridge_client
@@ -69,6 +70,9 @@ bridge.mqtt.emqx.clean_start=false
 bridge.mqtt.emqx.forwards=topic1/#,topic2/#
 bridge.mqtt.emqx.subscription.1.topic=cmd/topic1
 bridge.mqtt.emqx.subscription.1.qos=1
+bridge.mqtt.emqx.parallel=2
+bridge.mqtt.emqx.max_send_queue_len=32
+bridge.mqtt.emqx.max_recv_queue_len=128
 ```
 
 :::
@@ -87,7 +91,7 @@ Using `mqtt-tcp` as the URL prefix signifies the use of TCP as the transport lay
 - Array of remote topics to forward (supporting MQTT wildcard): `bridges.mqtt.name.forwards`
 - Array of remote topics to subscribe to (supporting MQTT wildcard): `bridges.mqtt.name.subscription`
 
-If using Hocon version configuration items, you can either directly write the related configurations into `nanomq.conf`, or create a separate configuration file for bridging, such as `nanomq_bridge.conf`, and use HOCON's `include` syntax to reference this file in `nanomq.conf`:
+If using Hocon version configuration items and NanoMQ version >= 0.19, you can either directly write the related configurations into `nanomq.conf`, or create a separate configuration file for bridging, such as `nanomq_bridge.conf`, and use HOCON's `include` syntax to reference this file in `nanomq.conf`:
 
 Example:
 
