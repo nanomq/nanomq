@@ -51,13 +51,10 @@ acl.rule.<No>=<Spec>
 ## Allow MQTT client using username "dashboard"  to subscribe to "$SYS/#" topics
 acl.rule.1={"permit": "allow", "username": "dashboard", "action": "subscribe", "topics": ["$SYS/#"]}
 
-## Allow users with IP address "127.0.0.1" to publish/subscribe to topics "$SYS/#", "#"
-acl.rule.2={"permit": "allow", "ipaddr": "127.0.0.1", "action": "pubsub", "topics": ["$SYS/#", "#"]}
-
 ## Deny "All Users" subscribe to "$SYS/#" "#" Topics
-acl.rule.3={"permit": "deny", "username": "#", "action": "subscribe", "topics": ["$SYS/#", "#"]}
+acl.rule.2={"permit": "deny", "username": "#", "action": "subscribe", "topics": ["$SYS/#", "#"]}
 
 ## Allow any other publish/subscribe operation
-acl.rule.4={"permit": "allow"}
+acl.rule.3={"permit": "allow"}
 ```
 
