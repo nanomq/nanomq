@@ -82,6 +82,8 @@ Apart from common settings like `CMAKE_BUILD_TYPE`, you can specify additional c
 | `-DBUILD_CLIENT=OFF`     | Disables the client suite, including pub, sub, and conn.     |
 | `-DBUILD_ZMQ_GATEWAY=ON` | Builds with ZeroMQ gateway tool.                             |
 | `-DBUILD_DDS_PROXY=ON`   | Builds with DDS proxy (proxy, sub, pub).                     |
+| `-DBUILD_VSOMEIP_GATEWAY`| Build vsomeip gateway                                        |
+| `-DBUILD_NNG_PROXY`      | Build nng proxy                                              |
 | `-DBUILD_BENCH=ON`       | Builds with MQTT bench.                                      |
 | `-DENABLE_JWT=ON`        | Builds JWT dependency for the HTTP server.                   |
 | `-DNNG_ENABLE_SQLITE=ON` | Builds with SQLite support.                                  |
@@ -91,6 +93,11 @@ Apart from common settings like `CMAKE_BUILD_TYPE`, you can specify additional c
 | `-DASAN=ON`              | Enables sanitizer.                                           |
 | `-DNOLOG=1`              | Disable the log system to improve system performance         |
 | `-DDEBUG_TRACE=ON`       | Enables ptrace, allowing process tracing and inspection.     |
+| `-DENABLE_RULE_ENGINE=ON`| Enable rule engine                                           |
+| `-DENABLE_MYSQL=ON`      | Enable MySQL                                                 |
+| `-DENABLE_ACL`           | Enable ACL                                                   |
+| `-DENABLE_SYSLOG`        | Enable syslog                                                |
+| `-DNANOMQ_TESTS`         | Enable nanomq unit tests                                     |
 
 ### MQTT over QUIC Data Bridge
 
@@ -137,7 +144,6 @@ ninja
 The gateway tool, for example, ZeroMQ, isn't built by default. For example, to enable the ZMQ gateway, use the `-DBUILD_ZMQ_GATEWAY=ON` flag:
 
 ```
-bashCopy code
 cmake -G Ninja -DBUILD_ZMQ_GATEWAY=ON ..
 ninja
 ```
@@ -147,7 +153,6 @@ ninja
 The benchmarking tool isn't built by default. To enable it, use the `-DBUILD_BENCH=ON` flag:
 
 ```
-bashCopy code
 cmake -G Ninja -DBUILD_BENCH=ON ..
 ninja
 ```
@@ -157,7 +162,6 @@ ninja
  JWT dependency, which is required for the HTTP server, isn't built by default. To enable it, use the `-DENABLE_JWT=ON` flag:
 
 ```
-bashCopy code
 cmake -G Ninja -DENABLE_JWT=ON ..
 ninja
 ```
@@ -167,7 +171,6 @@ ninja
 SQLite3, which is used for message persistence, isn't built by default. To enable it, use the `-DNNG_ENABLE_SQLITE=ON` flag:
 
 ```
-bashCopy code
 cmake -G Ninja -DNNG_ENABLE_SQLITE=ON ..
 ninja
 ```
@@ -177,7 +180,6 @@ ninja
 By default, NanoMQ isn't built as a static library. To enable it, use the `-DBUILD_STATIC_LIB=ON` flag:
 
 ```
-bashCopy code
 cmake -G Ninja -DBUILD_STATIC_LIB=ON ..
 ninja libnano
 ```
@@ -187,7 +189,6 @@ ninja libnano
 Similarly, NanoMQ isn't built as a shared library by default. To enable it, use the `-DBUILD_SHARED_LIBS=ON` flag:
 
 ```
-bashCopy code
 cmake -G Ninja -DBUILD_SHARED_LIBS=ON ..
 ninja
 ```
@@ -197,7 +198,6 @@ ninja
 NanoNNG, which is a fork of the NNG repository with MQTT support and maintained by NanoMQ, can be compiled independently:
 
 ```
-bashCopy code
 cd nng/build
 cmake -G Ninja ..
 ninja
