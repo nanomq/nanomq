@@ -22,33 +22,33 @@ If you need to use `http_auth`, you can modify it in the format of the following
 ```bash
 auth {
   ...
-    http_auth = {
-      auth_req {
-        url = "http://127.0.0.1:80/mqtt/auth"
-        method = post
-        headers.content-type = "application/x-www-form-urlencoded"
-        params = {clientid = "%c", username = "%u", password = "%p"}
-      }
-
-      super_req {
-        url = "http://127.0.0.1:80/mqtt/superuser"
-        method = "post"
-        headers.content-type = "application/x-www-form-urlencoded"
-        params = {clientid = "%c", username = "%u", password = "%p"}
-      }
-
-      acl_req {
-        url = "http://127.0.0.1:8991/mqtt/acl"
-        method = "post"
-        headers.content-type = "application/x-www-form-urlencoded"
-        params = {clientid = "%c", username = "%u", access = "%A", ipaddr = "%a", topic = "%t", mountpoint = "%m"}
-      }
-
-      timeout = 5s
-      connect_timeout = 5s
-      pool_size = 32
+  http_auth = {
+    auth_req {
+      url = "http://127.0.0.1:80/mqtt/auth"
+      method = post
+      headers.content-type = "application/x-www-form-urlencoded"
+      params = {clientid = "%c", username = "%u", password = "%p"}
     }
-...
+
+    super_req {
+      url = "http://127.0.0.1:80/mqtt/superuser"
+      method = "post"
+      headers.content-type = "application/x-www-form-urlencoded"
+      params = {clientid = "%c", username = "%u", password = "%p"}
+    }
+
+    acl_req {
+      url = "http://127.0.0.1:8991/mqtt/acl"
+      method = "post"
+      headers.content-type = "application/x-www-form-urlencoded"
+      params = {clientid = "%c", username = "%u", access = "%A", ipaddr = "%a", topic = "%t", mountpoint = "%m"}
+    }
+
+    timeout = 5s
+    connect_timeout = 5s
+    pool_size = 32
+  }
+  ...
 }
 ```
 
@@ -106,12 +106,12 @@ auth.http.ssl.keyfile=<Your Value>
 Start NanoMQ and specify the path to the configuration path.
 
 ```bash
-$ nanomq start --conf ./nanomq.conf
+$ nanomq start --conf path/to/nanomq.conf
 ```
 
 If you are using the KV format, start NanoMQ with the command below:
 
 ```bash
-$ nanomq start --conf ./nanomq_old.conf
+$ nanomq start --old_conf path/to/nanomq_old.conf
 ```
 
