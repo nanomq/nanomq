@@ -23,17 +23,17 @@ The below sections are based on the HOCON configuration format.
 In the configuration file the values can be notated as JSON-like objects, such as
 
 ```bash
-websocket {
-     enable=false
-     bind="0.0.0.0:8083/mqtt"
+log {
+    dir = "/tmp"
+    file = "nanomq.log"
 }
 ```
 
 Another equivalent representation is flat, such as
 
 ```bash
-websocket.enable = false
-websocket.bind="0.0.0.0:8083/mqtt"
+log.dir = "/tmp"
+log.file = "nanomq.log"
 ```
 
 This flat format is almost backward compatible (the so called 'cuttlefish' format).
