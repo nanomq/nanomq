@@ -24,33 +24,33 @@ NanoMQ 同时支持 HTTP 认证。HTTP 认证功能支持用户使用外部 HTTP
 ```bash
 auth {
   ...
-    http_auth = {
-      auth_req {
-        url = "http://127.0.0.1:80/mqtt/auth"
-        method = post
-        headers.content-type = "application/x-www-form-urlencoded"
-        params = {clientid = "%c", username = "%u", password = "%p"}
-      }
-
-      super_req {
-        url = "http://127.0.0.1:80/mqtt/superuser"
-        method = "post"
-        headers.content-type = "application/x-www-form-urlencoded"
-        params = {clientid = "%c", username = "%u", password = "%p"}
-      }
-
-      acl_req {
-        url = "http://127.0.0.1:8991/mqtt/acl"
-        method = "post"
-        headers.content-type = "application/x-www-form-urlencoded"
-        params = {clientid = "%c", username = "%u", access = "%A", ipaddr = "%a", topic = "%t", mountpoint = "%m"}
-      }
-
-      timeout = 5s
-      connect_timeout = 5s
-      pool_size = 32
+  http_auth = {
+    auth_req {
+      url = "http://127.0.0.1:80/mqtt/auth"
+      method = post
+      headers.content-type = "application/x-www-form-urlencoded"
+      params = {clientid = "%c", username = "%u", password = "%p"}
     }
-...
+
+    super_req {
+      url = "http://127.0.0.1:80/mqtt/superuser"
+      method = "post"
+      headers.content-type = "application/x-www-form-urlencoded"
+      params = {clientid = "%c", username = "%u", password = "%p"}
+    }
+
+    acl_req {
+      url = "http://127.0.0.1:8991/mqtt/acl"
+      method = "post"
+      headers.content-type = "application/x-www-form-urlencoded"
+      params = {clientid = "%c", username = "%u", access = "%A", ipaddr = "%a", topic = "%t", mountpoint = "%m"}
+    }
+
+    timeout = 5s
+    connect_timeout = 5s
+    pool_size = 32
+  }
+  ...
 }
 ```
 
@@ -108,12 +108,12 @@ auth.http.ssl.keyfile=<Your Value>
 启动 NanoMQ 并指定配置文件
 
 ```bash
-$ nanomq start --conf ./nanomq.conf
+$ nanomq start --conf path/to/nanomq.conf
 ```
 
 如使用 KV 格式配置文件，可通过如下格式启动 NanoMQ
 
 ```bash
-$ nanomq start --conf ./nanomq_old.conf
+$ nanomq start --old_conf path/to/nanomq_old.conf
 ```
 
