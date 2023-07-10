@@ -103,6 +103,7 @@ bridges.mqtt.name {
 完整的配置项列表，可参考[配置说明 - v013](../config-description/v013.md)
 
 ```bash
+bridge.mqtt.emqx.bridge_mode=true
 bridge.mqtt.emqx.address=mqtt-quic://your_server_address:port
 bridge.mqtt.emqx.proto_ver=4
 bridge.mqtt.emqx.quic_keepalive=120
@@ -114,6 +115,9 @@ bridge.mqtt.emqx.clean_start=false
 bridge.mqtt.emqx.forwards=topic1/#,topic2/#
 bridge.mqtt.emqx.subscription.1.topic=cmd/topic1
 bridge.mqtt.emqx.subscription.1.qos=1
+bridge.mqtt.emqx.parallel=2
+bridge.mqtt.emqx.max_send_queue_len=32
+bridge.mqtt.emqx.max_recv_queue_len=128
 ```
 
 :::
@@ -140,7 +144,7 @@ bridge.mqtt.emqx.subscription.1.qos=1
 
 具体配置参数请参考桥接 [Hocon 版本配置](../config-description/v019.md) 或 [旧版本配置](../config-description/v013.md) (*不推荐*)
 
-如使用 Hocon 版本配置项，除将相关配置直接写入  `nanomq.conf ` 中外，您也可单独为桥接定义一份配置文件，如 `nanomq_bridge.conf` ，然后通过 HOCON 的 `include` 语法在 `nanomq.conf` 中引用此文件：
+如使用 Hocon 版本配置项 NanoMQ 版本在 0.19 及以上，除将相关配置直接写入  `nanomq.conf ` 中外，您也可单独为桥接定义一份配置文件，如 `nanomq_bridge.conf` ，然后通过 HOCON 的 `include` 语法在 `nanomq.conf` 中引用此文件：
 
 示例：
 

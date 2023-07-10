@@ -101,6 +101,7 @@ Users wishing to use the KV configuration format can refer to the following stru
 - For a complete list of configuration options, refer to [Configuration Description - v013](../config-description/v013.md)
 
 ```bash
+bridge.mqtt.emqx.bridge_mode=true
 bridge.mqtt.emqx.address=mqtt-quic://your_server_address:port
 bridge.mqtt.emqx.proto_ver=4
 bridge.mqtt.emqx.quic_keepalive=120
@@ -112,6 +113,9 @@ bridge.mqtt.emqx.clean_start=false
 bridge.mqtt.emqx.forwards=topic1/#,topic2/#
 bridge.mqtt.emqx.subscription.1.topic=cmd/topic1
 bridge.mqtt.emqx.subscription.1.qos=1
+bridge.mqtt.emqx.parallel=2
+bridge.mqtt.emqx.max_send_queue_len=32
+bridge.mqtt.emqx.max_recv_queue_len=128
 ```
 
 :::
@@ -135,7 +139,7 @@ Using `mqtt-quic` as the URL prefix indicates the use of QUIC as the transport l
 - Switch for hybrid bridging mode: `bridges.mqtt.name.hybrid_bridging` <!--add a link or section about the hybrid bridging contents are ready-->
 - [Switch for multi-stream bridging](#quic-multi-stream-bridging): `bridges.mqtt.name.multi_stream`
 
-If you choose to use HOCON configuration format, apart from writing the related configurations directly into `nanomq.conf`, you can also define a separate configuration file for bridging, such as `nanomq_bridge.conf`. You can then include this file in `nanomq.conf` using HOCON's `include` syntax.
+If you choose to use HOCON configuration format and NanoMQ version >= 0.19, apart from writing the related configurations directly into `nanomq.conf`, you can also define a separate configuration file for bridging, such as `nanomq_bridge.conf`. You can then include this file in `nanomq.conf` using HOCON's `include` syntax.
 
 Example:
 
