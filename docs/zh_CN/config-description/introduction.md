@@ -25,17 +25,17 @@ NanoMQ 的默认配置文件格式是 HOCON 。 HOCON（ Human-Optimized Config 
 在配置文件中，值可以被记为类似 JSON 的对象，例如
 
 ```bash
-websocket {
-     enable=false
-     bind="0.0.0.0:8083/mqtt"
+log {
+    dir = "/tmp"
+    file = "nanomq.log"
 }
 ```
 
 另一种等价的表示方法是扁平的，例如
 
 ```bash
-websocket.enable = false
-websocket.bind ="0.0.0.0:8083/mqtt"
+log.dir = "/tmp"
+log.file = "nanomq.log"
 ```
 
 这种扁平格式几乎与 NanoMQ 的配置文件格式向后兼容（所谓的 'cuttlefish' 格式）。
