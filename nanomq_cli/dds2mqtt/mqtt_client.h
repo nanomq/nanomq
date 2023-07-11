@@ -37,7 +37,7 @@ struct mqtt_cli {
 
 	// dds client
 	void *ddscli;
-
+	nng_mqtt_client *client;
 	char *mqttrecv_topic;
 	char *mqttsend_topic;
 
