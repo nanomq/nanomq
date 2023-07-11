@@ -60,7 +60,7 @@ disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	// property *prop;
 	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_DISCONNECT_PROPERTY, &prop);
 	// nng_socket_get?
-	printf("%s: disconnected!\n", __FUNCTION__);
+	printf("[MQTT] %s: disconnected!\n", __FUNCTION__);
 }
 
 static void
@@ -72,16 +72,23 @@ connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	// get property for MQTT V5
 	// property *prop;
 	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_CONNECT_PROPERTY, &prop);
-	printf("%s: connected!\n", __FUNCTION__);
+	printf("[MQTT] %s: connected!\n", __FUNCTION__);
+
+	mqtt_cli *cli = arg;
+	mqtt_subscribe(cli);
+
 }
 
 // Connect to the given address.
 static int
 client_connect(
-    nng_socket *sock, nng_dialer *dialer, dds_gateway_conf *config, bool verbose)
+    mqtt_cli *cli, nng_dialer *dialer, bool verbose)
 {
+
 	int rv;
 
+	nng_socket       *sock      = &cli->sock;
+	dds_gateway_conf *config    = cli->config;
 	dds_gateway_mqtt *mqtt_conf = &config->mqtt;
 
 	if (mqtt_conf->proto_ver == 5) {
@@ -114,7 +121,7 @@ client_connect(
 	nng_mqtt_msg_set_connect_will_topic(connmsg, "will_topic");
 	nng_mqtt_msg_set_connect_clean_session(connmsg, mqtt_conf->clean_start);
 
-	nng_mqtt_set_connect_cb(*sock, connect_cb, sock);
+	nng_mqtt_set_connect_cb(*sock, connect_cb, cli);
 	nng_mqtt_set_disconnect_cb(*sock, disconnect_cb, connmsg);
 
 	uint8_t buff[1024] = { 0 };
@@ -194,7 +201,7 @@ client_recv2(mqtt_cli *cli, nng_msg **msgp)
 	int      rv;
 	nng_msg *msg;
 	if ((rv = nng_recvmsg(cli->sock, &msg, NNG_FLAG_NONBLOCK)) != 0) {
-		printf("Error in nng_recvmsg %d.\n", rv);
+		printf("[MQTT] Error in nng_recvmsg %d.\n", rv);
 		return -1;
 	}
 
@@ -206,7 +213,7 @@ client_recv2(mqtt_cli *cli, nng_msg **msgp)
 	}
 
 	if (type != NNG_MQTT_PUBLISH) {
-		printf("Received a %x type msg. Skip.\n", type);
+		printf("[MQTT] Received a %x type msg. Skip.\n", type);
 		return -3;
 	}
 
@@ -325,7 +332,7 @@ mqtt_connect(mqtt_cli *cli, void *dc, dds_gateway_conf *config)
 
 	cli->config = config;
 
-	client_connect(&cli->sock, &dialer, cli->config, verbose);
+	client_connect(cli, &dialer, verbose);
 
 	// Start mqtt thread
 	cli->running = 1;
@@ -361,33 +368,61 @@ mqtt_disconnect(mqtt_cli *cli)
 	return 0;
 }
 
+
+static void
+send_callback (nng_mqtt_client *client, nng_msg *msg, void *arg) {
+	nng_aio *        aio    = client->send_aio;
+	uint32_t         count;
+	uint8_t *        code;
+	uint8_t          type;
+
+	if (msg == NULL)
+		return;
+	switch (nng_mqtt_msg_get_packet_type(msg)) {
+	case NNG_MQTT_SUBACK:
+		code = nng_mqtt_msg_get_suback_return_codes(
+		    msg, &count);
+		printf("[MQTT] SUBACK reason codes are: ");
+		for (int i = 0; i < count; ++i)
+			printf("%d ", code[i]);
+		printf("\n");
+		break;
+	case NNG_MQTT_UNSUBACK:
+		code = nng_mqtt_msg_get_unsuback_return_codes(
+		    msg, &count);
+		printf("[MQTT] UNSUBACK reason codes are");
+		for (int i = 0; i < count; ++i)
+			printf("%d ", code[i]);
+		printf("\n");
+		break;
+	case NNG_MQTT_PUBACK:
+		printf("PUBACK");
+		break;
+	default:
+		printf("Sending in async way is done.\n");
+		break;
+	}
+	printf("[MQTT] aio mqtt result %d \n", nng_aio_result(aio));
+	// printf("suback %d \n", *code);
+	nng_msg_free(msg);
+}
+
+
 int
-mqtt_subscribe(mqtt_cli *cli, const char *topic, const uint8_t qos)
+mqtt_subscribe(mqtt_cli *cli)
 {
 	nng_mqtt_topic_qos subscriptions[] = {
 		{
-		    .qos   = qos,
+		    .qos   = 0,
 		    .topic = {
-				.buf    = (uint8_t *) topic,
-		        .length = (uint32_t) strlen(topic),
+				.buf    = (uint8_t *) cli->mqttrecv_topic,
+		        .length = (uint32_t) strlen(cli->mqttrecv_topic),
 			},
 		},
 	};
 
-	// Sync subscription
-	return nng_mqtt_subscribe(cli->sock, subscriptions, 1, NULL);
-	/*
-	nng_mqtt_cb_opt cb_opt = {
-	        .sub_ack_cb = sub_callback,
-	        .unsub_ack_cb = unsub_callback,
-	};
-
-	// Asynchronous subscription
-	nng_mqtt_client *client = nng_mqtt_client_alloc(sock, &cb_opt, true);
-	nng_mqtt_subscribe_async(client, subscriptions, 1, NULL);
-
-	return 0;
-	*/
+	nng_mqtt_client *client = nng_mqtt_client_alloc(cli->sock, &send_callback, true);
+	return nng_mqtt_subscribe_async(client, subscriptions, 1, NULL);
 }
 
 int
