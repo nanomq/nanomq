@@ -303,8 +303,6 @@ nano_pipe_get_local_port(nng_pipe p)
 {
 	int           rv;
 	nng_sockaddr  addr;
-	uint8_t      *arr;
-	char         *res;
 
 	rv = nng_pipe_getopt_sockaddr(p, NNG_OPT_LOCADDR, &addr);
 	if (rv != 0)
@@ -318,8 +316,6 @@ nano_pipe_get_local_port6(nng_pipe p)
 {
 	int           rv;
 	nng_sockaddr  addr;
-	uint8_t      *arr;
-	char         *res;
 
 	rv = nng_pipe_getopt_sockaddr(p, NNG_OPT_LOCADDR, &addr);
 	if (rv != 0)
