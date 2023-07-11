@@ -52,6 +52,46 @@ dds2mqtt_fatal(const char *msg, int rv)
 }
 
 static void
+send_callback (nng_mqtt_client *client, nng_msg *msg, void *arg) {
+	nng_aio *        aio    = client->send_aio;
+	uint32_t         count;
+	uint8_t *        code;
+	uint8_t          type;
+
+	if (msg == NULL)
+		return;
+	switch (nng_mqtt_msg_get_packet_type(msg)) {
+	case NNG_MQTT_SUBACK:
+		code = nng_mqtt_msg_get_suback_return_codes(
+		    msg, &count);
+		printf("[MQTT] SUBACK reason codes are: ");
+		for (int i = 0; i < count; ++i)
+			printf("%d ", code[i]);
+		printf("\n");
+		break;
+	case NNG_MQTT_UNSUBACK:
+		code = nng_mqtt_msg_get_unsuback_return_codes(
+		    msg, &count);
+		printf("[MQTT] UNSUBACK reason codes are");
+		for (int i = 0; i < count; ++i)
+			printf("%d ", code[i]);
+		printf("\n");
+		break;
+	case NNG_MQTT_PUBACK:
+		printf("PUBACK");
+		break;
+	default:
+		printf("Sending in async way is done.\n");
+		break;
+	}
+	printf("[MQTT] aio mqtt result %d \n", nng_aio_result(aio));
+	// printf("suback %d \n", *code);
+	nng_msg_free(msg);
+}
+
+
+
+static void
 disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {
 	int reason = 0;
@@ -91,6 +131,8 @@ client_connect(
 	dds_gateway_conf *config    = cli->config;
 	dds_gateway_mqtt *mqtt_conf = &config->mqtt;
 
+
+
 	if (mqtt_conf->proto_ver == 5) {
 		if ((rv = nng_mqttv5_client_open(sock)) != 0) {
 			dds2mqtt_fatal("nng_socket", rv);
@@ -106,6 +148,8 @@ client_connect(
 	if ((rv = nng_dialer_create(dialer, *sock, mqtt_conf->address)) != 0) {
 		dds2mqtt_fatal("nng_dialer_create", rv);
 	}
+
+	cli->client = nng_mqtt_client_alloc(cli->sock, &send_callback, true);
 
 	// create a CONNECT message
 	/* CONNECT */
@@ -369,44 +413,6 @@ mqtt_disconnect(mqtt_cli *cli)
 }
 
 
-static void
-send_callback (nng_mqtt_client *client, nng_msg *msg, void *arg) {
-	nng_aio *        aio    = client->send_aio;
-	uint32_t         count;
-	uint8_t *        code;
-	uint8_t          type;
-
-	if (msg == NULL)
-		return;
-	switch (nng_mqtt_msg_get_packet_type(msg)) {
-	case NNG_MQTT_SUBACK:
-		code = nng_mqtt_msg_get_suback_return_codes(
-		    msg, &count);
-		printf("[MQTT] SUBACK reason codes are: ");
-		for (int i = 0; i < count; ++i)
-			printf("%d ", code[i]);
-		printf("\n");
-		break;
-	case NNG_MQTT_UNSUBACK:
-		code = nng_mqtt_msg_get_unsuback_return_codes(
-		    msg, &count);
-		printf("[MQTT] UNSUBACK reason codes are");
-		for (int i = 0; i < count; ++i)
-			printf("%d ", code[i]);
-		printf("\n");
-		break;
-	case NNG_MQTT_PUBACK:
-		printf("PUBACK");
-		break;
-	default:
-		printf("Sending in async way is done.\n");
-		break;
-	}
-	printf("[MQTT] aio mqtt result %d \n", nng_aio_result(aio));
-	// printf("suback %d \n", *code);
-	nng_msg_free(msg);
-}
-
 
 int
 mqtt_subscribe(mqtt_cli *cli)
@@ -421,8 +427,7 @@ mqtt_subscribe(mqtt_cli *cli)
 		},
 	};
 
-	nng_mqtt_client *client = nng_mqtt_client_alloc(cli->sock, &send_callback, true);
-	return nng_mqtt_subscribe_async(client, subscriptions, 1, NULL);
+	return nng_mqtt_subscribe_async(cli->client, subscriptions, 1, NULL);
 }
 
 int
