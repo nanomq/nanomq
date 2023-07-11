@@ -48,7 +48,7 @@ int mqtt_connect(mqtt_cli *cli, void *ddscli, dds_gateway_conf *config);
 
 int mqtt_disconnect(mqtt_cli *cli);
 
-int mqtt_subscribe(mqtt_cli *cli, const char *topic, const uint8_t qos);
+int mqtt_subscribe(mqtt_cli *cli);
 
 // Not supported yet
 int mqtt_unsubscribe(mqtt_cli *cli, const char *topic);
