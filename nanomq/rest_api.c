@@ -1141,7 +1141,7 @@ typedef struct {
 	uint32_t message_received;
 	uint32_t message_sent;
 	uint32_t message_dropped;
-	float    memory;
+	uint64_t memory;
 	float    cpu_percent;
 } client_stats;
 
@@ -1295,17 +1295,17 @@ compose_metrics(char *ret, client_stats *ms, client_stats *s)
 	             "\n# HELP nanomq_messages_dropped"
 	             "\nnanomq_messages_dropped %d"
 	             "\n# TYPE nanomq_memory_usage gauge"
-	             "\n# HELP nanomq_memory_usage (MB)"
-	             "\nnanomq_memory_usage %.2f"
+	             "\n# HELP nanomq_memory_usage (b)"
+	             "\nnanomq_memory_usage %ld"
 	             "\n# TYPE nanomq_memory_usage_max gauge"
-	             "\n# HELP nanomq_memory_usage_max (MB)"
-	             "\nnanomq_memory_usage_max %.2f"
+	             "\n# HELP nanomq_memory_usage_max (b)"
+	             "\nnanomq_memory_usage_max %ld"
 	             "\n# TYPE nanomq_cpu_usage gauge"
-	             "\n# HELP nanomq_cpu_usage"
-	             "\nnanomq_cpu_usage %.2f %%"
-	             "\n# TYPE nanomq_cpu_usage gauge"
-	             "\n# HELP nanomq_cpu_usage"
-	             "\nnanomq_cpu_usage %.2f %%\n";
+	             "\n# HELP nanomq_cpu_usage (%%)"
+	             "\nnanomq_cpu_usage %.2f"
+	             "\n# TYPE nanomq_cpu_usage_max gauge"
+	             "\n# HELP nanomq_cpu_usage_max (%%)"
+	             "\nnanomq_cpu_usage_max %.2f\n";
 
 	snprintf(ret, METRICS_DATA_SIZE, fmt, s->connections, ms->connections,
 	    s->sessions, ms->sessions, s->topics, ms->topics, s->subscribers,
@@ -1419,7 +1419,7 @@ update_process_info(client_stats *s)
 	}
 	fclose(fp);
 
-	s->memory = (float) rss * getpagesize() / (1024 * 1024);
+	s->memory = rss * getpagesize();
 
 	long   proc_time   = utime + stime + cutime + cstime;
 	double cpu_percent = 100.0 *
@@ -1427,7 +1427,7 @@ update_process_info(client_stats *s)
 	        (cpu_time - last_cpu_time == 0 ? -1
 	                                       : cpu_time - last_cpu_time));
 	s->cpu_percent = cpu_percent <= 0 ? 0 : cpu_percent;
-	log_debug("NanoMQ memory usage: %.2f MB\n", s->memory);
+	log_debug("NanoMQ memory usage: %ld\n", s->memory);
 	log_debug("NanoMQ cpu usage: %.2f %\n", s->cpu_percent);
 
 	last_proc_time = proc_time;
@@ -1489,9 +1489,9 @@ get_metrics(http_msg *msg, kv **params, size_t param_num,
 	update_process_info(&stats);
 #endif
 	char cpu[16] = { 0 };
-	char mem[16] = { 0 };
+	char mem[64] = { 0 };
 	snprintf(cpu, 16, "%.2f%%", stats.cpu_percent);
-	snprintf(mem, 16, "%.2fM", stats.memory);
+	snprintf(mem, 64, "%ld", stats.memory);
 
 	cJSON_AddItemToObject(res_obj, "metrics", metrics);
 	cJSON_AddStringToObject(res_obj, "cpuinfo", cpu);
@@ -1501,7 +1501,7 @@ get_metrics(http_msg *msg, kv **params, size_t param_num,
 	// cJSON_AddItemToObject(res_obj, "meta", meta);
 	// TODO add meta content: page, limit, count
 	char *dest = cJSON_PrintUnformatted(res_obj);
-	put_http_msg(&res, "", NULL, NULL, NULL, dest, strlen(dest));
+	put_http_msg(&res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
 
 	cJSON_free(dest);
 	cJSON_Delete(res_obj);
