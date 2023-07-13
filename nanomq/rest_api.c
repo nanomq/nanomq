@@ -316,6 +316,12 @@ static endpoints api_ep[] = {
 	    .method = "GET",
 	    .descr  = "Returns all statistical metrics",
 	},
+	{
+	    .path   = "/prometheus",
+	    .name   = "prometheus",
+	    .method = "GET",
+	    .descr  = "Returns all prometheus data",
+	},
 };
 
 static tree **      uri_parse_tree(const char *path, size_t *count);
@@ -332,6 +338,8 @@ static http_msg get_endpoints(http_msg *msg);
 static http_msg get_brokers(http_msg *msg);
 static http_msg get_nodes(http_msg *msg, nng_socket *broker_sock);
 static http_msg get_clients(http_msg *msg, kv **params, size_t param_num,
+    const char *client_id, const char *username, nng_socket *broker_sock);
+static http_msg get_prometheus(http_msg *msg, kv **params, size_t param_num,
     const char *client_id, const char *username, nng_socket *broker_sock);
 static http_msg get_metrics(http_msg *msg, kv **params, size_t param_num,
     const char *client_id, const char *username, nng_socket *broker_sock);
@@ -765,6 +773,11 @@ process_request(http_msg *msg, conf_http_server *config, nng_socket *sock)
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "nodes") == 0) {
 			ret = get_nodes(msg, config->broker_sock);
+		} else if (uri_ct->sub_count == 2 &&
+		    uri_ct->sub_tree[1]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "prometheus") == 0) {
+			ret = get_prometheus(msg, uri_ct->params,
+			    uri_ct->params_count, NULL, NULL, config->broker_sock);
 		} else if (uri_ct->sub_count == 2 &&
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "metrics") == 0) {
@@ -1425,7 +1438,7 @@ update_process_info(client_stats *s)
 #endif
 
 static http_msg
-get_metrics(http_msg *msg, kv **params, size_t param_num,
+get_prometheus(http_msg *msg, kv **params, size_t param_num,
     const char *client_id, const char *username, nng_socket *broker_sock)
 {
 	http_msg res = { .status = NNG_HTTP_STATUS_OK };
