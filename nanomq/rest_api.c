@@ -2078,33 +2078,46 @@ delete_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 	uint32_t id      = 0;
 	res_obj          = cJSON_CreateObject();
 
-	sscanf(rule_id, "rule:%d", &id);
-
 #if defined(SUPP_RULE_ENGINE)
-	conf * config   = get_global_conf();
-	conf_rule *cr = &config->rule_eng;
-	int i = 0;
-	size_t size = cvector_size(cr->rules);
-	for (; i < size; i++) {
-		if (rule_id && cr->rules[i].rule_id == id) {
-			// TODO free rule
-			rule *re = &cr->rules[i];
-			cvector_erase(cr->rules, i);
-			break;
+	if (rule_id) {
+		sscanf(rule_id, "rule:%d", &id);
+		conf      *config = get_global_conf();
+		conf_rule *cr     = &config->rule_eng;
+		int        i      = 0;
+		size_t     size   = cvector_size(cr->rules);
+		for (; i < size; i++) {
+			if (cr->rules[i].rule_id == id) {
+				rule *re = &cr->rules[i];
+				switch (re->forword_type)
+				{
+				case RULE_FORWORD_MYSOL:
+					rule_mysql_free(re->mysql);
+					break;
+				case RULE_FORWORD_REPUB:
+					rule_repub_free(re->repub);
+					break;
+				default:
+					break;
+				}
+				rule_free(re);
+				cvector_erase(cr->rules, i);
+				break;
+			}
 		}
+
+		if (size == i) {
+			goto error;
+		}
+
+		// cJSON *meta = cJSON_CreateObject();
+		// cJSON_AddItemToObject(res_obj, "meta", meta);
+		// TODO add meta content: page, limit, count
+		cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+
+	} else {
+		goto error;
 	}
 
-	if (rule_id && size == i) {
-		cJSON_Delete(res_obj);
-		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
-		    MISSING_KEY_REQUEST_PARAMES);
-	}
-
-
-	// cJSON *meta = cJSON_CreateObject();
-	// cJSON_AddItemToObject(res_obj, "meta", meta);
-	// TODO add meta content: page, limit, count
-	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
 #else
 	cJSON_AddNumberToObject(res_obj, "code", PLUGIN_IS_CLOSED);
 #endif
@@ -2117,6 +2130,10 @@ delete_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 	cJSON_free(dest);
 	cJSON_Delete(res_obj);
 	return res;
+error:
+	cJSON_Delete(res_obj);
+	return error_response(
+	    msg, NNG_HTTP_STATUS_BAD_REQUEST, MISSING_KEY_REQUEST_PARAMES);
 }
 
 static void
@@ -2124,8 +2141,7 @@ get_rules_helper(cJSON *data, rule *r)
 {
 
 	char *forword_type = NULL;
-	switch (r->forword_type)
-	{
+	switch (r->forword_type) {
 	case RULE_FORWORD_SQLITE:
 		forword_type = "sqlite";
 		break;
@@ -2144,16 +2160,15 @@ get_rules_helper(cJSON *data, rule *r)
 	cJSON_AddBoolToObject(data, "enabled", r->enabled);
 }
 
-// TODO add params realted key word
 static http_msg
 get_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 {
 	http_msg res = { 0 };
 	res.status   = NNG_HTTP_STATUS_OK;
 
-	cJSON *res_obj   = NULL;
-	cJSON *data      = NULL;
-	uint32_t id = 0;
+	cJSON   *res_obj = NULL;
+	cJSON   *data    = NULL;
+	uint32_t id      = 0;
 	res_obj          = cJSON_CreateObject();
 #if defined(SUPP_RULE_ENGINE)
 
@@ -2164,9 +2179,9 @@ get_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 		data = cJSON_CreateArray();
 	}
 
-	conf * config   = get_global_conf();
-	conf_rule *cr = &config->rule_eng;
-	int i = 0;
+	conf      *config = get_global_conf();
+	conf_rule *cr     = &config->rule_eng;
+	int        i      = 0;
 	for (; i < cvector_size(cr->rules); i++) {
 		if (rule_id) {
 			if (cr->rules[i].rule_id == id) {
@@ -2180,7 +2195,6 @@ get_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 			cJSON_AddItemToArray(data, data_info);
 		}
 	}
-
 
 	if (rule_id && cvector_size(cr->rules) == i) {
 		cJSON_Delete(res_obj);
