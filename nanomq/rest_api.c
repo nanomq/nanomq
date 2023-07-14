@@ -1770,9 +1770,11 @@ post_rules(http_msg *msg)
 	cJSON_AddBoolToObject(data_info, "enabled", cr->rules[cvector_size(cr->rules) - 1].enabled);
 	cJSON_AddItemToObject(res_obj, "data", data_info);
 	cJSON_AddItemToObject(res_obj, "actions", actions);
-#endif
-
 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+#else
+	cJSON_AddNumberToObject(res_obj, "code", PLUGIN_IS_CLOSED);
+
+#endif
 	char *dest = cJSON_PrintUnformatted(res_obj);
 
 	put_http_msg(
@@ -2051,8 +2053,11 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 	cJSON_AddBoolToObject(data_info, "enabled", new_rule->enabled);
 	cJSON_AddItemToObject(res_obj, "data", data_info);
 	cJSON_AddItemToObject(res_obj, "actions", actions);
-#endif
+
 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+#else
+	cJSON_AddNumberToObject(res_obj, "code", PLUGIN_IS_CLOSED);
+#endif
 	char *dest = cJSON_PrintUnformatted(res_obj);
 
 	put_http_msg(
@@ -2099,8 +2104,10 @@ delete_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 	// cJSON *meta = cJSON_CreateObject();
 	// cJSON_AddItemToObject(res_obj, "meta", meta);
 	// TODO add meta content: page, limit, count
-#endif
 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+#else
+	cJSON_AddNumberToObject(res_obj, "code", PLUGIN_IS_CLOSED);
+#endif
 
 	char *dest = cJSON_PrintUnformatted(res_obj);
 
@@ -2171,8 +2178,10 @@ get_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 	// cJSON_AddItemToObject(res_obj, "meta", meta);
 	// TODO add meta content: page, limit, count
 	cJSON_AddItemToObject(res_obj, "data", data);
-#endif
 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+#else
+	cJSON_AddNumberToObject(res_obj, "code", PLUGIN_IS_CLOSED);
+#endif
 
 	char *dest = cJSON_PrintUnformatted(res_obj);
 
