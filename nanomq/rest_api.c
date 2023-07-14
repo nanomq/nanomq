@@ -2119,6 +2119,31 @@ delete_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 	return res;
 }
 
+static void
+get_rules_helper(cJSON *data, rule *r)
+{
+
+	char *forword_type = NULL;
+	switch (r->forword_type)
+	{
+	case RULE_FORWORD_SQLITE:
+		forword_type = "sqlite";
+		break;
+	case RULE_FORWORD_REPUB:
+		forword_type = "repub";
+		break;
+	case RULE_FORWORD_MYSOL:
+		forword_type = "mysql";
+		break;
+	default:
+		break;
+	}
+	cJSON_AddStringToObject(data, "forward_type", forword_type);
+	cJSON_AddStringToObject(data, "rawsql", r->raw_sql);
+	cJSON_AddNumberToObject(data, "id", r->rule_id);
+	cJSON_AddBoolToObject(data, "enabled", r->enabled);
+}
+
 // TODO add params realted key word
 static http_msg
 get_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
@@ -2145,23 +2170,13 @@ get_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 	for (; i < cvector_size(cr->rules); i++) {
 		if (rule_id) {
 			if (cr->rules[i].rule_id == id) {
-				cJSON_AddStringToObject(
-				    data, "rawsql", cr->rules[i].raw_sql);
-				cJSON_AddNumberToObject(
-				    data, "id", cr->rules[i].rule_id);
-				cJSON_AddBoolToObject(
-				    data, "enabled", cr->rules[i].enabled);
+				get_rules_helper(data, &cr->rules[i]);
 				break;
 			}
 
 		} else {
 			cJSON *data_info = cJSON_CreateObject();
-			cJSON_AddStringToObject(
-			    data_info, "rawsql", cr->rules[i].raw_sql);
-			cJSON_AddNumberToObject(
-			    data_info, "id", cr->rules[i].rule_id);
-			cJSON_AddBoolToObject(
-			    data_info, "enabled", cr->rules[i].enabled);
+			get_rules_helper(data_info, &cr->rules[i]);
 			cJSON_AddItemToArray(data, data_info);
 		}
 	}
