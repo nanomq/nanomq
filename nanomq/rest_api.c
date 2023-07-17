@@ -1707,6 +1707,92 @@ post_rules_mysql(conf_rule *cr, cJSON *jso_params, char *rawsql)
 }
 #endif
 
+#if defined(SUPP_RULE_ENGINE)
+static int
+post_rules_repub(conf_rule *cr, cJSON *jso_params, char *rawsql)
+{
+	cJSON   *jso_param = NULL;
+	repub_t *repub     = rule_repub_init();
+
+	cJSON_ArrayForEach(jso_param, jso_params)
+	{
+		if (jso_param) {
+			if (!nng_strcasecmp(jso_param->string, "topic")) {
+				repub->topic =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "topic: %s\n", jso_param->valuestring);
+			} else if (!nng_strcasecmp(
+			               jso_param->string, "address")) {
+				repub->address =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "address: %s\n", jso_param->valuestring);
+			} else if (!nng_strcasecmp(
+			               jso_param->string, "proto_ver")) {
+				repub->proto_ver = jso_param->valueint;
+				log_debug(
+				    "proto_ver: %d\n", jso_param->valueint);
+			} else if (!nng_strcasecmp(
+			               jso_param->string, "keepalive")) {
+				repub->keepalive = jso_param->valueint;
+				log_debug(
+				    "keepalive: %d\n", jso_param->valueint);
+			} else if (!nng_strcasecmp(
+			               jso_param->string, "clientid")) {
+				repub->clientid =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "clientid: %s\n", jso_param->valuestring);
+			} else if (!nng_strcasecmp(
+			               jso_param->string, "username")) {
+				repub->username =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "username: %s\n", jso_param->valuestring);
+			} else if (!nng_strcasecmp(
+			               jso_param->string, "password")) {
+				repub->password =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "password: %s\n", jso_param->valuestring);
+			} else if (!nng_strcasecmp(
+			               jso_param->string, "clean_start")) {
+				repub->clean_start =
+				    !nng_strcasecmp(jso_param->string, "true");
+				log_debug("clean_start: %s\n",
+				    jso_param->valuestring);
+			} else {
+				puts("Unsupport key word!");
+			}
+		}
+	}
+	if (NULL == repub->address || NULL == repub->topic) {
+		rule_repub_free(repub);
+		return MISSING_KEY_REQUEST_PARAMES;
+	}
+
+	nng_socket *sock = (nng_socket *) nng_alloc(sizeof(nng_socket));
+	if (nano_client(sock, repub) != 0) {
+		rule_repub_free(repub);
+		nng_free(sock, sizeof(nng_socket));
+		return MISSING_KEY_REQUEST_PARAMES;
+	}
+
+	rule_sql_parse(cr, rawsql);
+	cr->rules[cvector_size(cr->rules) - 1].forword_type =
+	    RULE_FORWORD_REPUB;
+
+	cr->rules[cvector_size(cr->rules) - 1].repub   = repub;
+	cr->rules[cvector_size(cr->rules) - 1].raw_sql = nng_strdup(rawsql);
+	cr->rules[cvector_size(cr->rules) - 1].enabled = true;
+	cr->rules[cvector_size(cr->rules) - 1].rule_id =
+	    rule_generate_rule_id();
+	cr->option |= RULE_ENG_RPB;
+	return SUCCEED;
+}
+#endif
+
 static http_msg
 post_rules(http_msg *msg)
 {
@@ -1715,7 +1801,6 @@ post_rules(http_msg *msg)
 
 	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
 
-
 	if (!cJSON_IsObject(req)) {
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
@@ -1723,88 +1808,33 @@ post_rules(http_msg *msg)
 
 	cJSON *res_obj = cJSON_CreateObject();
 #if defined(SUPP_RULE_ENGINE)
-	conf * config   = get_global_conf();
-	conf_rule *cr = &config->rule_eng;
+	conf      *config = get_global_conf();
+	conf_rule *cr     = &config->rule_eng;
 
 	cJSON *jso_sql = cJSON_GetObjectItem(req, "rawsql");
-	char *rawsql = cJSON_GetStringValue(jso_sql);
+	char  *rawsql  = cJSON_GetStringValue(jso_sql);
 	log_debug("rawsql: %s\n", rawsql);
 
 	cJSON *jso_actions = cJSON_GetObjectItem(req, "actions");
-	cJSON *jso_action = NULL;
-	cJSON_ArrayForEach(jso_action, jso_actions) {
+	cJSON *jso_action  = NULL;
+	cJSON_ArrayForEach(jso_action, jso_actions)
+	{
 		cJSON *jso_name = cJSON_GetObjectItem(jso_action, "name");
 		char  *name     = cJSON_GetStringValue(jso_name);
 		log_debug("name: %s\n", name);
 		cJSON *jso_params = cJSON_GetObjectItem(jso_action, "params");
 		cJSON *jso_param  = NULL;
 		if (!nng_strcasecmp(name, "repub")) {
-			cr->option |= RULE_ENG_RPB;
-			repub_t *repub = rule_repub_init();
-
-			cJSON_ArrayForEach(jso_param, jso_params) {
-				if (jso_param) {
-					if (!nng_strcasecmp(jso_param->string, "topic")) {
-						repub->topic = nng_strdup(jso_param->valuestring);
-						log_debug("topic: %s\n", jso_param->valuestring);
-					} else if (!nng_strcasecmp(jso_param->string, "address")) {
-						repub->address = nng_strdup(jso_param->valuestring);
-						log_debug("address: %s\n", jso_param->valuestring);
-					} else if (!nng_strcasecmp(jso_param->string, "proto_ver")) {
-						repub->proto_ver = jso_param->valueint;
-						log_debug("proto_ver: %d\n", jso_param->valueint);
-					} else if (!nng_strcasecmp(jso_param->string, "keepalive")) {
-						repub->keepalive = jso_param->valueint;
-						log_debug("keepalive: %d\n", jso_param->valueint);
-					} else if (!nng_strcasecmp(jso_param->string, "clientid")) {
-						repub->clientid = nng_strdup(jso_param->valuestring);
-						log_debug("clientid: %s\n", jso_param->valuestring);
-					} else if (!nng_strcasecmp(jso_param->string, "username")) {
-						repub->username = nng_strdup(jso_param->valuestring);
-						log_debug("username: %s\n", jso_param->valuestring);
-					} else if (!nng_strcasecmp(jso_param->string, "password")) {
-						repub->password = nng_strdup(jso_param->valuestring);
-						log_debug("password: %s\n", jso_param->valuestring);
-					} else if (!nng_strcasecmp(jso_param->string, "clean_start")) {
-						repub->clean_start = !nng_strcasecmp(jso_param->string, "true");
-						log_debug("clean_start: %s\n", jso_param->valuestring);
-					} else {
-						puts("Unsupport key word!");
-					}
-				}
+			if ((rc = post_rules_repub(cr, jso_params, rawsql)) !=
+			    SUCCEED) {
+				goto error;
 			}
-			if (NULL == repub->address || NULL == repub->topic) {
-				cJSON_Delete(req);
-				cJSON_Delete(res_obj);
-				rule_repub_free(repub);
-				return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
-				    MISSING_KEY_REQUEST_PARAMES);
-			}
-			rule_sql_parse(cr, rawsql);
-			cr->rules[cvector_size(cr->rules) - 1].forword_type = RULE_FORWORD_REPUB;
-
-
-			// TODO set default key word
-			nng_socket *sock  = (nng_socket *) nng_alloc(
-				    	sizeof(nng_socket));
-			// TODO FIXME fixed connect error response.
-			nano_client(sock, repub);
-
-			cr->rules[cvector_size(cr->rules) - 1]
-			    .repub = repub;
-			cr->rules[cvector_size(cr->rules) - 1]
-			    .raw_sql = nng_strdup(rawsql);
-			cr->rules[cvector_size(cr->rules) - 1]
-			    .enabled = true;
-			cr->rules[cvector_size(cr->rules) - 1]
-			    .rule_id = rule_generate_rule_id();
 
 #if defined(NNG_SUPP_SQLITE)
 		} else if (!strcasecmp(name, "sqlite")) {
-			if ((rc = post_rules_sqlite(cr, jso_params, rawsql)) != SUCCEED) {
-				cJSON_Delete(req);
-				cJSON_Delete(res_obj);
-				return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST, rc);
+			if ((rc = post_rules_sqlite(cr, jso_params, rawsql)) !=
+			    SUCCEED) {
+				goto error;
 			}
 #endif
 
@@ -1812,35 +1842,35 @@ post_rules(http_msg *msg)
 		} else if (!strcasecmp(name, "mysql")) {
 			if ((rc = post_rules_mysql(cr, jso_params, rawsql)) !=
 			    SUCCEED) {
-				cJSON_Delete(req);
-				cJSON_Delete(res_obj);
-				return error_response(
-				    msg, NNG_HTTP_STATUS_BAD_REQUEST, rc);
+					goto error;
 			}
 #endif
 		} else {
 			log_error("Unsupport forword type !");
+			rc = PLUGIN_IS_CLOSED;
+		error:
 			cJSON_Delete(req);
 			cJSON_Delete(res_obj);
-			return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
-			    PLUGIN_IS_CLOSED);
+			return error_response(
+			    msg, NNG_HTTP_STATUS_BAD_REQUEST, rc);
 		}
-
 	}
 
 	cJSON *jso_desc = cJSON_GetObjectItem(req, "description");
 	if (jso_desc) {
-		char *desc= cJSON_GetStringValue(jso_desc);
+		char *desc = cJSON_GetStringValue(jso_desc);
 		log_debug("%s\n", desc);
-
 	}
 
- 	cJSON *data_info = cJSON_CreateObject();
-	cJSON *actions = cJSON_CreateArray();
+	cJSON *data_info = cJSON_CreateObject();
+	cJSON *actions   = cJSON_CreateArray();
 
-	cJSON_AddStringToObject(data_info, "rawsql", cr->rules[cvector_size(cr->rules) - 1].raw_sql);
-	cJSON_AddNumberToObject(data_info, "id", cr->rules[cvector_size(cr->rules) - 1].rule_id);
-	cJSON_AddBoolToObject(data_info, "enabled", cr->rules[cvector_size(cr->rules) - 1].enabled);
+	cJSON_AddStringToObject(data_info, "rawsql",
+	    cr->rules[cvector_size(cr->rules) - 1].raw_sql);
+	cJSON_AddNumberToObject(
+	    data_info, "id", cr->rules[cvector_size(cr->rules) - 1].rule_id);
+	cJSON_AddBoolToObject(data_info, "enabled",
+	    cr->rules[cvector_size(cr->rules) - 1].enabled);
 	cJSON_AddItemToObject(res_obj, "data", data_info);
 	cJSON_AddItemToObject(res_obj, "actions", actions);
 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
