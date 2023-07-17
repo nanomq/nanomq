@@ -1692,7 +1692,7 @@ post_rules_mysql(conf_rule *cr, cJSON *jso_params, char *rawsql)
 
 	rule_sql_parse(cr, rawsql);
 	cr->rules[cvector_size(cr->rules) - 1].forword_type =
-	    RULE_FORWORD_MYSOL;
+	    RULE_FORWORD_MYSQL;
 	cr->rules[cvector_size(cr->rules) - 1].mysql   = mysql;
 	cr->rules[cvector_size(cr->rules) - 1].raw_sql = nng_strdup(rawsql);
 	cr->rules[cvector_size(cr->rules) - 1].enabled = true;
@@ -1889,7 +1889,7 @@ post_rules(http_msg *msg)
 	return res;
 }
 
-// TODO FIXME fixed enabled status error.
+
 static http_msg
 put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 {
@@ -1898,6 +1898,7 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
 
 	if (!cJSON_IsObject(req)) {
+		cJSON_Delete(req);
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 	}
@@ -1918,6 +1919,8 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 
 	sscanf(rule_id, "rule:%u", &id);
 	int i = 0;
+
+	// Get old rule;
 	for (; i < cvector_size(cr->rules); i++) {
 		if (rule_id && cr->rules[i].rule_id == id) {
 			old_rule = &cr->rules[i];
@@ -1933,32 +1936,35 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 	cJSON *jso_sql = cJSON_GetObjectItem(req, "rawsql");
 	if (NULL != jso_sql) {
 		char *rawsql = cJSON_GetStringValue(jso_sql);
-		rule_forword_type ft = old_rule->forword_type;
-		repub_t *repub = old_rule->repub;
-		char *sqlite_table = old_rule->sqlite_table;
-		rule_mysql *mysql = old_rule->mysql;
 		rule_sql_parse(cr, rawsql);
 		new_rule = &cr->rules[cvector_size(cr->rules) - 1];
+		new_rule->forword_type = old_rule->forword_type;
 		new_rule->raw_sql = nng_strdup(rawsql);
 		new_rule->enabled = true;
 		new_rule->rule_id = id;
-		new_rule->forword_type = ft;
-		if (RULE_FORWORD_REPUB == ft) {
-			new_rule->repub = repub;
-		} else if (RULE_FORWORD_SQLITE == ft) {
-			new_rule->sqlite_table = sqlite_table;
-		} else if (RULE_FORWORD_MYSOL == ft) {
-			new_rule->mysql = mysql;
+
+		switch (old_rule->forword_type)
+		{
+		case RULE_FORWORD_REPUB:
+			new_rule->repub = old_rule->repub;
+			break;
+		case RULE_FORWORD_MYSQL:
+			new_rule->mysql = old_rule->mysql;
+			break;
+		case RULE_FORWORD_SQLITE:
+			new_rule->sqlite_table = old_rule->sqlite_table;
+			break;
+		default:
+			break;
 		}
 
 		// Maybe cvector_push_back() will realloc,
-		// so for safty reassagn it
+		// so for safety reassign it.
 		old_rule = &cr->rules[i];
 		rule_free(old_rule);
 		cvector_erase(cr->rules, i);
 		// TODO free old rule
 	} else {
-
 		if (old_rule->repub) {
 			nng_close(*(nng_socket*) old_rule->repub->sock);
 		}
@@ -2058,7 +2064,7 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 					// TODO free new->table
 				}
 				rule_mysql *mysql = new_rule->mysql;
-				new_rule->forword_type = RULE_FORWORD_MYSOL;
+				new_rule->forword_type = RULE_FORWORD_MYSQL;
 				cJSON_ArrayForEach(jso_param, jso_params) {
 					if (jso_param) {
 						if (!nng_strcasecmp(jso_param->string, "table")) {
@@ -2193,7 +2199,7 @@ delete_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 				rule *re = &cr->rules[i];
 				switch (re->forword_type)
 				{
-				case RULE_FORWORD_MYSOL:
+				case RULE_FORWORD_MYSQL:
 					rule_mysql_free(re->mysql);
 					break;
 				case RULE_FORWORD_REPUB:
@@ -2251,7 +2257,7 @@ get_rules_helper(cJSON *data, rule *r)
 	case RULE_FORWORD_REPUB:
 		forword_type = "repub";
 		break;
-	case RULE_FORWORD_MYSOL:
+	case RULE_FORWORD_MYSQL:
 		forword_type = "mysql";
 		break;
 	default:
