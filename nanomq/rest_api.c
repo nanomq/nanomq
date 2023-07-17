@@ -1644,10 +1644,74 @@ post_rules_sqlite(conf_rule *cr, cJSON *jso_params, char *rawsql)
 }
 #endif
 
+
+#if defined(SUPP_MYSQL)
+static int
+post_rules_mysql(conf_rule *cr, cJSON *jso_params, char *rawsql)
+{
+	cJSON *jso_param = NULL;
+	rule_mysql *mysql = rule_mysql_init();
+	cJSON_ArrayForEach(jso_param, jso_params)
+	{
+		if (jso_param) {
+			if (!nng_strcasecmp(jso_param->string, "table")) {
+				mysql->table =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "table: %s\n", jso_param->valuestring);
+			} else if (!nng_strcasecmp(
+			               jso_param->string, "username")) {
+				mysql->username =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "username: %s\n", jso_param->valuestring);
+			} else if (!nng_strcasecmp(
+			               jso_param->string, "password")) {
+				mysql->password =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "password: %s\n", jso_param->valuestring);
+			} else if (!nng_strcasecmp(
+			               jso_param->string, "host")) {
+				mysql->host =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "host: %s\n", jso_param->valuestring);
+			} else {
+				rule_mysql_free(mysql);
+				log_error("Unsupport key word!");
+				return REQ_PARAM_ERROR;
+			}
+		}
+	}
+
+	if (false == rule_mysql_check(mysql)) {
+		rule_mysql_free(mysql);
+		return MISSING_KEY_REQUEST_PARAMES;
+	}
+
+	rule_sql_parse(cr, rawsql);
+	cr->rules[cvector_size(cr->rules) - 1].forword_type =
+	    RULE_FORWORD_MYSOL;
+	cr->rules[cvector_size(cr->rules) - 1].mysql   = mysql;
+	cr->rules[cvector_size(cr->rules) - 1].raw_sql = nng_strdup(rawsql);
+	cr->rules[cvector_size(cr->rules) - 1].enabled = true;
+	cr->rules[cvector_size(cr->rules) - 1].rule_id =
+	    rule_generate_rule_id();
+	if (-1 == nanomq_client_mysql(cr, true)) {
+		return REQ_PARAM_ERROR;
+	}
+
+	cr->option |= RULE_ENG_MDB;
+	return SUCCEED;
+}
+#endif
+
 static http_msg
 post_rules(http_msg *msg)
 {
 	http_msg res = { .status = NNG_HTTP_STATUS_OK };
+	int      rc  = SUCCEED;
 
 	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
 
@@ -1737,7 +1801,6 @@ post_rules(http_msg *msg)
 
 #if defined(NNG_SUPP_SQLITE)
 		} else if (!strcasecmp(name, "sqlite")) {
-			int rc = SUCCEED;
 			if ((rc = post_rules_sqlite(cr, jso_params, rawsql)) != SUCCEED) {
 				cJSON_Delete(req);
 				cJSON_Delete(res_obj);
@@ -1747,56 +1810,12 @@ post_rules(http_msg *msg)
 
 #if defined(SUPP_MYSQL)
 		} else if (!strcasecmp(name, "mysql")) {
-			cr->option |= RULE_ENG_MDB;
-			rule_mysql *mysql = rule_mysql_init();
-			cJSON_ArrayForEach(jso_param, jso_params) {
-				if (jso_param) {
-					if (!nng_strcasecmp(jso_param->string, "table")) {
-						mysql->table = nng_strdup(jso_param->valuestring);
-						log_debug("table: %s\n", jso_param->valuestring);
-					} else if (!nng_strcasecmp(jso_param->string, "username")) {
-						mysql->username = nng_strdup(jso_param->valuestring);
-						log_debug("username: %s\n", jso_param->valuestring);
-					} else if (!nng_strcasecmp(jso_param->string, "password")) {
-						mysql->password = nng_strdup(jso_param->valuestring);
-						log_debug("password: %s\n", jso_param->valuestring);
-					} else if (!nng_strcasecmp(jso_param->string, "host")) {
-						mysql->host = nng_strdup(jso_param->valuestring);
-						log_debug("host: %s\n", jso_param->valuestring);
-					} else {
-						puts("Unsupport key word!");
-					}
-				}
-			}
-
-
-			if (false == rule_mysql_check(mysql)) {
+			if ((rc = post_rules_mysql(cr, jso_params, rawsql)) !=
+			    SUCCEED) {
 				cJSON_Delete(req);
 				cJSON_Delete(res_obj);
-				rule_mysql_free(mysql);
-				return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
-				    MISSING_KEY_REQUEST_PARAMES);
-			}
-
-			rule_sql_parse(cr, rawsql);
-			cr->rules[cvector_size(cr->rules) - 1]
-			    .forword_type = RULE_FORWORD_MYSOL;
-			cr->rules[cvector_size(cr->rules) - 1]
-				.mysql = mysql;
-			cr->rules[cvector_size(cr->rules) - 1]
-			    .raw_sql = nng_strdup(rawsql);
-			cr->rules[cvector_size(cr->rules) - 1]
-			    .enabled = true;
-			cr->rules[cvector_size(cr->rules) - 1]
-			    .rule_id = rule_generate_rule_id();
-			if (-1 == nanomq_client_mysql(cr, true)) {
-				rule_free(&cr->rules[cvector_size(cr->rules) - 1]);
-				cvector_pop_back(cr->rules);
-				cJSON_Delete(req);
-				cJSON_Delete(res_obj);
-				rule_mysql_free(mysql);
-				return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
-				    MISSING_KEY_REQUEST_PARAMES);
+				return error_response(
+				    msg, NNG_HTTP_STATUS_BAD_REQUEST, rc);
 			}
 #endif
 		} else {
