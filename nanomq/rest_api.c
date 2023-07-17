@@ -1581,6 +1581,69 @@ get_subscriptions(
 	return res;
 }
 
+#if defined(NNG_SUPP_SQLITE)
+
+static bool
+sqlite_table_exist(conf_rule *cr, char *name)
+{
+	for (size_t i = 0; i < cvector_size(cr->rules); i++) {
+		if (cr->rules[i].forword_type == RULE_FORWORD_SQLITE) {
+			if (nng_strcasecmp(cr->rules[i].sqlite_table, name) ==
+			    0) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+static int
+post_rules_sqlite(conf_rule *cr, cJSON *jso_params, char *rawsql)
+{
+	cJSON *jso_param = NULL;
+	cJSON_ArrayForEach(jso_param, jso_params)
+	{
+		if (jso_param) {
+			if (!nng_strcasecmp(jso_param->string, "table")) {
+				if (sqlite_table_exist(
+				        cr, jso_param->valuestring)) {
+					log_error("Sqlite table %s "
+					          "is "
+					          "exist!",
+					    jso_param->valuestring);
+					return REQ_PARAM_ERROR;
+				}
+				log_debug(
+				    "table: %s\n", jso_param->valuestring);
+				rule_sql_parse(cr, rawsql);
+				cr->rules[cvector_size(cr->rules) - 1]
+				    .forword_type = RULE_FORWORD_SQLITE;
+				cr->rules[cvector_size(cr->rules) - 1]
+				    .sqlite_table =
+				    nng_strdup(jso_param->valuestring);
+				cr->rules[cvector_size(cr->rules) - 1]
+				    .raw_sql = nng_strdup(rawsql);
+				cr->rules[cvector_size(cr->rules) - 1]
+				    .enabled = true;
+				cr->rules[cvector_size(cr->rules) - 1]
+				    .rule_id = rule_generate_rule_id();
+				if (1 == nanomq_client_sqlite(cr, true)) {
+					log_error("Sqlite post error!");
+					rule_free(&cr->rules[cvector_size(
+					                         cr->rules) -
+					    1]);
+					cvector_pop_back(cr->rules);
+					return PLUGIN_IS_CLOSED;
+				}
+			}
+		}
+	}
+
+	cr->option |= RULE_ENG_SDB;
+	return SUCCEED;
+}
+#endif
+
 static http_msg
 post_rules(http_msg *msg)
 {
@@ -1674,24 +1737,11 @@ post_rules(http_msg *msg)
 
 #if defined(NNG_SUPP_SQLITE)
 		} else if (!strcasecmp(name, "sqlite")) {
-			cr->option |= RULE_ENG_SDB;
-			cJSON_ArrayForEach(jso_param, jso_params) {
-				if (jso_param) {
-					if (!nng_strcasecmp(jso_param->string, "table")) {
-						log_debug("table: %s\n", jso_param->valuestring);
-						rule_sql_parse(cr, rawsql);
-						cr->rules[cvector_size(cr->rules) - 1].forword_type = RULE_FORWORD_SQLITE;
-						cr->rules[cvector_size(cr->rules) - 1]
-						    .sqlite_table = nng_strdup(jso_param->valuestring);
-						cr->rules[cvector_size(cr->rules) - 1]
-						    .raw_sql = nng_strdup(rawsql);
-						cr->rules[cvector_size(cr->rules) - 1]
-						    .enabled = true;
-						cr->rules[cvector_size(cr->rules) - 1]
-						    .rule_id = rule_generate_rule_id();
-						nanomq_client_sqlite(cr, true);
-					}
-				}
+			int rc = SUCCEED;
+			if ((rc = post_rules_sqlite(cr, jso_params, rawsql)) != SUCCEED) {
+				cJSON_Delete(req);
+				cJSON_Delete(res_obj);
+				return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST, rc);
 			}
 #endif
 
@@ -1750,7 +1800,11 @@ post_rules(http_msg *msg)
 			}
 #endif
 		} else {
-			log_debug("Unsupport forword type !");
+			log_error("Unsupport forword type !");
+			cJSON_Delete(req);
+			cJSON_Delete(res_obj);
+			return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
+			    PLUGIN_IS_CLOSED);
 		}
 
 	}
