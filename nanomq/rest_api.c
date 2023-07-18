@@ -1889,11 +1889,116 @@ post_rules(http_msg *msg)
 	return res;
 }
 
+static int
+put_rules_mysql_parse(cJSON *jso_params, rule_mysql *mysql)
+{
+	cJSON *jso_param = NULL;
+	cJSON_ArrayForEach(jso_param, jso_params)
+	{
+		if (jso_param) {
+			if (!nng_strcasecmp(jso_param->string, "table")) {
+				if (mysql->table) {
+					nng_strfree(mysql->table);
+				}
+				mysql->table =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "table: %s\n", jso_param->valuestring);
+			} else if (!nng_strcasecmp(
+			               jso_param->string, "username")) {
+				if (mysql->username) {
+					nng_strfree(mysql->username);
+				}
+				mysql->username =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "username: %s\n", jso_param->valuestring);
+			} else if (!nng_strcasecmp(
+			               jso_param->string, "password")) {
+				if (mysql->password) {
+					nng_strfree(mysql->password);
+				}
+				mysql->password =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "password: %s\n", jso_param->valuestring);
+			} else if (!nng_strcasecmp(
+			               jso_param->string, "host")) {
+				if (mysql->host) {
+					nng_strfree(mysql->host);
+				}
+				mysql->host =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "host: %s\n", jso_param->valuestring);
+			} else {
+				log_error("Unsupport key word!");
+				return REQ_PARAM_ERROR;
+			}
+		}
+	}
+
+	return SUCCEED;
+}
+
+static int
+put_rules_update_action(cJSON *jso_actions, rule *new_rule, conf_rule *cr)
+{
+	cJSON *jso_action = NULL;
+	int    rc         = SUCCEED;
+	cJSON_ArrayForEach(jso_action, jso_actions)
+	{
+		cJSON *jso_name = cJSON_GetObjectItem(jso_action, "name");
+		char  *name     = cJSON_GetStringValue(jso_name);
+		log_debug("name: %s\n", name);
+		cJSON *jso_params = cJSON_GetObjectItem(jso_action, "params");
+		cJSON *jso_param  = NULL;
+		if (!nng_strcasecmp(name, "repub")) {
+			if (new_rule->forword_type != RULE_FORWORD_REPUB) {
+				log_error("Unsupport change from other type to repub");
+				return REQ_PARAM_ERROR;
+			}
+			repub_t *repub = new_rule->repub;
+			rc = put_rules_repub_parse(jso_params, repub);
+			if (rc != SUCCEED) {
+				rule_repub_free(repub);
+				return rc;
+			}
+		} else if (!strcasecmp(name, "sqlite")) {
+			if (new_rule->forword_type != RULE_FORWORD_SQLITE) {
+				log_error("Unsupport change from other type to sqlite");
+				return REQ_PARAM_ERROR;
+			}
+			rc = put_rules_sqlite_parse(jso_params, new_rule);
+			cr->rules[cvector_size(cr->rules) - 1] =
+			    *new_rule;
+			if (rc != SUCCEED) {
+				return rc;
+			}
+		} else if (!strcasecmp(name, "mysql")) {
+			if (new_rule->forword_type != RULE_FORWORD_MYSQL) {
+				log_error("Unsupport change from other type to mysql");
+				return REQ_PARAM_ERROR;
+			}
+			rule_mysql *mysql = new_rule->mysql;
+			rc = put_rules_mysql_parse(jso_params, mysql);
+			if (rc != SUCCEED) {
+				rule_mysql_free(mysql);
+				return rc;
+			}
+		} else {
+			log_debug("Unsupport forword type !");
+			return REQ_PARAM_ERROR;
+		}
+	}
+	return rc;
+}
 
 static http_msg
 put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 {
 	http_msg res = { .status = NNG_HTTP_STATUS_OK };
+	int      rc  = SUCCEED;
 
 	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
 
@@ -1963,7 +2068,6 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 		old_rule = &cr->rules[i];
 		rule_free(old_rule);
 		cvector_erase(cr->rules, i);
-		// TODO free old rule
 	} else {
 		if (old_rule->repub) {
 			nng_close(*(nng_socket*) old_rule->repub->sock);
@@ -1979,133 +2083,10 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 	// TODO support multi actions
 	cJSON *jso_actions = cJSON_GetObjectItem(req, "actions");
 	if (NULL != jso_actions) {
-		cJSON *jso_action = NULL;
-		cJSON_ArrayForEach(jso_action, jso_actions) {
-			cJSON *jso_name = cJSON_GetObjectItem(jso_action, "name");
-			char  *name     = cJSON_GetStringValue(jso_name);
-			log_debug("name: %s\n", name);
-			cJSON *jso_params = cJSON_GetObjectItem(jso_action, "params");
-			cJSON *jso_param  = NULL;
-			if (!nng_strcasecmp(name, "repub")) {
-				cr->option |= RULE_ENG_RPB;
-				if (NULL == new_rule->repub) {
-					new_rule->repub = rule_repub_init();
-					// TODO free new->table
-				}
-				repub_t *repub = new_rule->repub;
-				new_rule->forword_type = RULE_FORWORD_REPUB;
-				cJSON_ArrayForEach(jso_param, jso_params) {
-					if (jso_param) {
-						if (!nng_strcasecmp(jso_param->string, "topic")) {
-							if (repub->topic) {
-								nng_strfree(repub->topic);
-							}
-							repub->topic = nng_strdup(jso_param->valuestring);
-							log_debug("topic: %s\n", jso_param->valuestring);
-						} else if (!nng_strcasecmp(jso_param->string, "address")) {
-							if (repub->address) {
-								nng_strfree(repub->address);
-							}
-							repub->address = nng_strdup(jso_param->valuestring);
-							log_debug("address: %s\n", jso_param->valuestring);
-						} else if (!nng_strcasecmp(jso_param->string, "proto_ver")) {
-							repub->proto_ver = jso_param->valueint;
-							log_debug("proto_ver: %d\n", jso_param->valueint);
-						} else if (!nng_strcasecmp(jso_param->string, "keepalive")) {
-							repub->keepalive = jso_param->valueint;
-							log_debug("keepalive: %d\n", jso_param->valueint);
-						} else if (!nng_strcasecmp(jso_param->string, "clientid")) {
-							if (repub->clientid) {
-								nng_strfree(repub->clientid);
-							}
-							repub->clientid = nng_strdup(jso_param->valuestring);
-							log_debug("clientid: %s\n", jso_param->valuestring);
-						} else if (!nng_strcasecmp(jso_param->string, "username")) {
-							if (repub->username) {
-								nng_strfree(repub->username);
-							}
-							repub->username = nng_strdup(jso_param->valuestring);
-							log_debug("username: %s\n", jso_param->valuestring);
-						} else if (!nng_strcasecmp(jso_param->string, "password")) {
-							if (repub->password) {
-								nng_strfree(repub->password);
-							}
-							repub->password = nng_strdup(jso_param->valuestring);
-							log_debug("password: %s\n", jso_param->valuestring);
-						} else if (!nng_strcasecmp(jso_param->string, "clean_start")) {
-							repub->clean_start = !nng_strcasecmp(jso_param->string, "true");
-							log_debug("clean_start: %s\n", jso_param->valuestring);
-						} else {
-							puts("Unsupport key word!");
-						}
-					}
-				}
-			} else if (!strcasecmp(name, "sqlite")) {
-				new_rule->forword_type = RULE_FORWORD_SQLITE;
-				cJSON_ArrayForEach(jso_param, jso_params) {
-					if (jso_param) {
-						if (!nng_strcasecmp(jso_param->string, "table")) {
-							log_debug("table: %s\n", jso_param->valuestring);
-							if (new_rule->sqlite_table) {
-								nng_strfree(new_rule->sqlite_table);
-							} else {
-								// TODO free repub;
-							}
-							new_rule->sqlite_table = nng_strdup(jso_param->valuestring);
-							new_rule->rule_id = id;
-							cr->rules[cvector_size(cr->rules) - 1] = *new_rule;
-
-						}
-					}
-				}
-			} else if (!strcasecmp(name, "mysql")) {
-				if (NULL == new_rule->mysql) {
-					new_rule->mysql = rule_mysql_init();
-					// TODO free new->table
-				}
-				rule_mysql *mysql = new_rule->mysql;
-				new_rule->forword_type = RULE_FORWORD_MYSQL;
-				cJSON_ArrayForEach(jso_param, jso_params) {
-					if (jso_param) {
-						if (!nng_strcasecmp(jso_param->string, "table")) {
-							if (mysql->table) {
-								nng_strfree(mysql->table);
-							}
-							mysql->table = nng_strdup(jso_param->valuestring);
-							log_debug("table: %s\n", jso_param->valuestring);
-						} else if (!nng_strcasecmp(jso_param->string, "username")) {
-							if (mysql->username) {
-								nng_strfree(mysql->username);
-							}
-							mysql->username = nng_strdup(jso_param->valuestring);
-							log_debug("username: %s\n", jso_param->valuestring);
-						} else if (!nng_strcasecmp(jso_param->string, "password")) {
-							if (mysql->password) {
-								nng_strfree(mysql->password);
-							}
-							mysql->password = nng_strdup(jso_param->valuestring);
-							log_debug("password: %s\n", jso_param->valuestring);
-						} else if (!nng_strcasecmp(jso_param->string, "host")) {
-							if (mysql->host) {
-								nng_strfree(mysql->host);
-							}
-							mysql->host = nng_strdup(jso_param->valuestring);
-							log_debug("host: %s\n", jso_param->valuestring);
-						} else {
-							puts("Unsupport key word!");
-						}
-
-					}
-
-					// new_rule->rule_id = id;
-					// cr->rules[cvector_size(cr->rules) - 1] = *new_rule;
-				}
-
-
-			} else {
-				log_debug("Unsupport forword type !");
-			}
-
+		rc = put_rules_update_action(jso_actions, new_rule, cr);
+		if (rc != SUCCEED) {
+			return error_response(
+			    msg, NNG_HTTP_STATUS_BAD_REQUEST, rc);
 		}
 
 		if ((jso_enabled || jso_actions) && new_rule->enabled) {
@@ -2127,29 +2108,7 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 		} else if (jso_enabled && false == new_rule->enabled) {
 			// TODO nng_mqtt_disconnct()
 		}
-
 	}
-
-	if (jso_enabled && new_rule->enabled) {
-		// TODO nng_mqtt_disconnct()
-		// if (old_rule->repub) {
-		// 	nng_close(*(nng_socket*) old_rule->repub->sock);
-		// }
-		if (RULE_FORWORD_REPUB == new_rule->forword_type) {
-			nng_socket *sock  = (nng_socket *) nng_alloc(
-				    	sizeof(nng_socket));
-			nano_client(sock, new_rule->repub);
-		} else if (RULE_FORWORD_SQLITE == new_rule->forword_type)
-		{
-#if defined(NNG_SUPP_SQLITE)
-			nanomq_client_sqlite(cr, true);
-#endif
-		}
-
-	} else if (jso_enabled && false == new_rule->enabled) {
-		// TODO nng_mqtt_disconnct()
-	}
-
 
 	// cJSON *jso_desc = cJSON_GetObjectItem(req, "description");
 	// char *desc= cJSON_GetStringValue(jso_desc);
