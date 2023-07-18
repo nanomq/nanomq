@@ -2114,8 +2114,8 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 	}
 
 	if (NULL == old_rule) {
-		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
-		    REQ_PARAM_ERROR);
+		rc = REQ_PARAM_ERROR;
+		goto error;
 	}
 
 	cJSON *jso_sql = cJSON_GetObjectItem(req, "rawsql");
@@ -2123,21 +2123,21 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 		char *rawsql = cJSON_GetStringValue(jso_sql);
 		rule_sql_parse(cr, rawsql);
 		new_rule = &cr->rules[cvector_size(cr->rules) - 1];
-		new_rule->forword_type = old_rule->forword_type;
+		new_rule->forword_type = cr->rules[i].forword_type;
 		new_rule->raw_sql = nng_strdup(rawsql);
 		new_rule->enabled = true;
 		new_rule->rule_id = id;
 
-		switch (old_rule->forword_type)
+		switch (cr->rules[i].forword_type)
 		{
 		case RULE_FORWORD_REPUB:
-			new_rule->repub = old_rule->repub;
+			new_rule->repub = cr->rules[i].repub;
 			break;
 		case RULE_FORWORD_MYSQL:
-			new_rule->mysql = old_rule->mysql;
+			new_rule->mysql = cr->rules[i].mysql;
 			break;
 		case RULE_FORWORD_SQLITE:
-			new_rule->sqlite_table = old_rule->sqlite_table;
+			new_rule->sqlite_table = cr->rules[i].sqlite_table;
 			break;
 		default:
 			break;
@@ -2165,6 +2165,9 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 	if (NULL != jso_actions) {
 		rc = put_rules_update_action(jso_actions, new_rule, cr);
 		if (rc != SUCCEED) {
+		error:
+			cJSON_Delete(res_obj);
+			cJSON_Delete(req);
 			return error_response(
 			    msg, NNG_HTTP_STATUS_BAD_REQUEST, rc);
 		}
@@ -2175,9 +2178,7 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 			// 	nng_close(*(nng_socket*) old_rule->repub->sock);
 			// }
 			if (RULE_FORWORD_REPUB == new_rule->forword_type) {
-				nng_socket *sock  = (nng_socket *) nng_alloc(
-					    	sizeof(nng_socket));
-				nano_client(sock, new_rule->repub);
+				nano_client(new_rule->repub->sock, new_rule->repub);
 			} else if (RULE_FORWORD_SQLITE == new_rule->forword_type)
 			{
 #if defined(NNG_SUPP_SQLITE)
