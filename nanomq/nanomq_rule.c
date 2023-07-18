@@ -85,18 +85,18 @@ nano_client(nng_socket *sock, repub_t *repub)
 
 	if (repub->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 		if ((rv = nng_mqttv5_client_open(sock)) != 0) {
-			nng_fatal("nng_mqttv5_client_open", rv);
+			log_error("nng_mqttv5_client_open: %d", rv);
 			return rv;
 		}
 	} else {
 		if ((rv = nng_mqtt_client_open(sock)) != 0) {
-			nng_fatal("nng_mqtt_client_open", rv);
+			log_error("nng_mqtt_client_open: %d", rv);
 			return rv;
 		}
 	}
 
 	if ((rv = nng_dialer_create(&dialer, *sock, repub->address))) {
-		nng_fatal("nng_dialer_create", rv);
+		log_error("Unsupport prefix: %s", repub->address);
 		return rv;
 	}
 
@@ -124,9 +124,9 @@ nano_client(nng_socket *sock, repub_t *repub)
 	nng_mqtt_set_connect_cb(*sock, connect_cb, repub);
 	nng_mqtt_set_disconnect_cb(*sock, disconnect_cb, connmsg);
 
-	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
+	rv = nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
 
-	return 0;
+	return rv;
 }
 
 
@@ -145,7 +145,7 @@ nanomq_client_sqlite(conf_rule *cr, bool init_last)
 			log_debug("Cannot open database: %s\n",
 			    sqlite3_errmsg(sdb));
 			sqlite3_close(sdb);
-			exit(1);
+			return 1;
 		}
 		cr->rdb[0] = (void *) sdb;
 	}
@@ -223,7 +223,7 @@ nanomq_client_mysql(conf_rule *cr, bool init_last)
 		if (init_last && i != cvector_size(cr->rules) - 1) {
 			continue;
 		}
-		if (RULE_FORWORD_MYSOL == cr->rules[i].forword_type) {
+		if (RULE_FORWORD_MYSQL == cr->rules[i].forword_type) {
 			int  index      = 0;
 			char table[256] = { 0 };
 
@@ -270,7 +270,7 @@ nanomq_client_mysql(conf_rule *cr, bool init_last)
 		}
 	}
 
-	return 0;
+	return rc;
 }
 #endif
 
