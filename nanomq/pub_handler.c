@@ -746,7 +746,7 @@ compose_sql_clause(rule *info, char *key, char *value, bool is_need_set, int j, 
 								if (is_need_set) {
 									  if (RULE_FORWORD_SQLITE == info->forword_type) {
 										snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s INT;\n", info->sqlite_table, info->payload[pi]->pas);
-									  } else if (RULE_FORWORD_MYSOL == info->forword_type) {
+									  } else if (RULE_FORWORD_MYSQL == info->forword_type) {
 										snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s INT;\n", info->mysql->table, info->payload[pi]->pas);
 									  }
 								}
@@ -763,7 +763,7 @@ compose_sql_clause(rule *info, char *key, char *value, bool is_need_set, int j, 
 								if (is_need_set) {
 									  if (RULE_FORWORD_SQLITE == info->forword_type) {
 										snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s TEXT;\n", info->sqlite_table, info->payload[pi]->pas);
-									  } else if (RULE_FORWORD_MYSOL == info->forword_type) {
+									  } else if (RULE_FORWORD_MYSQL == info->forword_type) {
 										snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s TEXT;\n", info->mysql->table, info->payload[pi]->pas);
 									  }
 								}
@@ -781,7 +781,7 @@ compose_sql_clause(rule *info, char *key, char *value, bool is_need_set, int j, 
 								if (is_need_set) {
 									  if (RULE_FORWORD_SQLITE == info->forword_type) {
 										snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s TEXT;\n", info->sqlite_table, info->payload[pi]->pas);
-									  } else if (RULE_FORWORD_MYSOL == info->forword_type) {
+									  } else if (RULE_FORWORD_MYSQL == info->forword_type) {
 										snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s TEXT;\n", info->mysql->table, info->payload[pi]->pas);
 									  }
 								}
@@ -991,7 +991,7 @@ rule_engine_insert_sql(nano_work *work)
 
 
 #if defined(SUPP_MYSQL)
-			if (RULE_ENG_MDB & work->config->rule_eng.option && RULE_FORWORD_MYSOL == rules[i].forword_type) {
+			if (RULE_ENG_MDB & work->config->rule_eng.option && RULE_FORWORD_MYSQL == rules[i].forword_type) {
 				char sql_clause[1024] = "INSERT INTO ";
 				char key[128]         = { 0 };
 				snprintf(key, 128, "%s (", rules[i].mysql->table);
