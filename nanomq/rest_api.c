@@ -1889,6 +1889,32 @@ post_rules(http_msg *msg)
 	return res;
 }
 
+
+static int
+put_rules_sqlite_parse(cJSON *jso_params, rule *new_rule)
+{
+	cJSON *jso_param = NULL;
+	cJSON_ArrayForEach(jso_param, jso_params)
+	{
+		if (jso_param) {
+			if (!nng_strcasecmp(jso_param->string, "table")) {
+				log_debug(
+				    "table: %s\n", jso_param->valuestring);
+				if (new_rule->sqlite_table) {
+					nng_strfree(new_rule->sqlite_table);
+				}
+				new_rule->sqlite_table =
+				    nng_strdup(jso_param->valuestring);
+			} else {
+				log_error("Unsupport key word!");
+				return REQ_PARAM_ERROR;
+			}
+		}
+	}
+
+	return SUCCEED;
+}
+
 static int
 put_rules_mysql_parse(cJSON *jso_params, rule_mysql *mysql)
 {
