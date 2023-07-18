@@ -1889,6 +1889,60 @@ post_rules(http_msg *msg)
 	return res;
 }
 
+static int
+put_rules_repub_parse(cJSON *jso_params, repub_t *repub)
+{
+	cJSON *jso_param = NULL;
+
+	cJSON_ArrayForEach(jso_param, jso_params)
+	{
+		if (!nng_strcasecmp(jso_param->string, "topic")) {
+			if (repub->topic) {
+				nng_strfree(repub->topic);
+			}
+			repub->topic = nng_strdup(jso_param->valuestring);
+			log_debug("topic: %s\n", jso_param->valuestring);
+		} else if (!nng_strcasecmp(jso_param->string, "address")) {
+			if (repub->address) {
+				nng_strfree(repub->address);
+			}
+			repub->address = nng_strdup(jso_param->valuestring);
+			log_debug("address: %s\n", jso_param->valuestring);
+		} else if (!nng_strcasecmp(jso_param->string, "proto_ver")) {
+			repub->proto_ver = jso_param->valueint;
+			log_debug("proto_ver: %d\n", jso_param->valueint);
+		} else if (!nng_strcasecmp(jso_param->string, "keepalive")) {
+			repub->keepalive = jso_param->valueint;
+			log_debug("keepalive: %d\n", jso_param->valueint);
+		} else if (!nng_strcasecmp(jso_param->string, "clientid")) {
+			if (repub->clientid) {
+				nng_strfree(repub->clientid);
+			}
+			repub->clientid = nng_strdup(jso_param->valuestring);
+			log_debug("clientid: %s\n", jso_param->valuestring);
+		} else if (!nng_strcasecmp(jso_param->string, "username")) {
+			if (repub->username) {
+				nng_strfree(repub->username);
+			}
+			repub->username = nng_strdup(jso_param->valuestring);
+			log_debug("username: %s\n", jso_param->valuestring);
+		} else if (!nng_strcasecmp(jso_param->string, "password")) {
+			if (repub->password) {
+				nng_strfree(repub->password);
+			}
+			repub->password = nng_strdup(jso_param->valuestring);
+			log_debug("password: %s\n", jso_param->valuestring);
+		} else if (!nng_strcasecmp(jso_param->string, "clean_start")) {
+			repub->clean_start =
+			    !nng_strcasecmp(jso_param->string, "true");
+			log_debug("clean_start: %s\n", jso_param->valuestring);
+		} else {
+			log_error("Unsupport key word!");
+			return REQ_PARAM_ERROR;
+		}
+	}
+	return SUCCEED;
+}
 
 static int
 put_rules_sqlite_parse(cJSON *jso_params, rule *new_rule)
