@@ -1730,7 +1730,7 @@ post_rules(http_msg *msg)
 
 			rule_sql_parse(cr, rawsql);
 			cr->rules[cvector_size(cr->rules) - 1]
-			    .forword_type = RULE_FORWORD_MYSOL;
+			    .forword_type = RULE_FORWORD_MYSQL;
 			cr->rules[cvector_size(cr->rules) - 1]
 				.mysql = mysql;
 			cr->rules[cvector_size(cr->rules) - 1]
@@ -1844,7 +1844,7 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 			new_rule->repub = repub;
 		} else if (RULE_FORWORD_SQLITE == ft) {
 			new_rule->sqlite_table = sqlite_table;
-		} else if (RULE_FORWORD_MYSOL == ft) {
+		} else if (RULE_FORWORD_MYSQL == ft) {
 			new_rule->mysql = mysql;
 		}
 
@@ -1955,7 +1955,7 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 					// TODO free new->table
 				}
 				rule_mysql *mysql = new_rule->mysql;
-				new_rule->forword_type = RULE_FORWORD_MYSOL;
+				new_rule->forword_type = RULE_FORWORD_MYSQL;
 				cJSON_ArrayForEach(jso_param, jso_params) {
 					if (jso_param) {
 						if (!nng_strcasecmp(jso_param->string, "table")) {
@@ -2090,7 +2090,7 @@ delete_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 				rule *re = &cr->rules[i];
 				switch (re->forword_type)
 				{
-				case RULE_FORWORD_MYSOL:
+				case RULE_FORWORD_MYSQL:
 					rule_mysql_free(re->mysql);
 					break;
 				case RULE_FORWORD_REPUB:
@@ -2148,7 +2148,7 @@ get_rules_helper(cJSON *data, rule *r)
 	case RULE_FORWORD_REPUB:
 		forword_type = "repub";
 		break;
-	case RULE_FORWORD_MYSOL:
+	case RULE_FORWORD_MYSQL:
 		forword_type = "mysql";
 		break;
 	default:

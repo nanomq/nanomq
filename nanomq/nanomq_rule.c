@@ -223,7 +223,7 @@ nanomq_client_mysql(conf_rule *cr, bool init_last)
 		if (init_last && i != cvector_size(cr->rules) - 1) {
 			continue;
 		}
-		if (RULE_FORWORD_MYSOL == cr->rules[i].forword_type) {
+		if (RULE_FORWORD_MYSQL == cr->rules[i].forword_type) {
 			int  index      = 0;
 			char table[256] = { 0 };
 
