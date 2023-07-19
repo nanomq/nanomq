@@ -162,6 +162,68 @@ mqtt {
 
 **注意：`struct_name` 应包含在 `IDL` 文件中。**
 
+
+如果你希望通过 HTTP API 动态更新配置或者控制网关的重启或停止，可以通过将以下配置加入到 `nanomq_dds_gateway.conf` 中，启动 HTTP 服务：
+
+```bash
+# #============================================================
+# # Http server
+# #============================================================
+http_server {
+	# # http server port
+	# #
+	# # Value: 0 - 65535
+	port = 8082
+	# # parallel for http server
+	# # Handle a specified maximum number of outstanding requests
+	# #
+	# # Value: 1-infinity
+	parallel = 2
+	# # username
+	# #
+    # # Basic authorization 
+    # #
+	# # Value: String
+	username = admin
+	# # password
+	# #
+    # # Basic authorization
+    # #
+	# # Value: String
+	password = public
+}
+```
+## HTTP API
+HTTP API 提供了如下几个接口：
+- 获取配置文件：
+```shell
+$ curl --basic -u admin:public 'http://127.0.0.1:8082/api/v4/proxy/configuration/dds' --output nanomq_dds_gateway.conf
+```
+- 更新配置文件：
+```shell
+$ curl --basic -u admin:public 'http://127.0.0.1:8082/api/v4/proxy/configuration/dds' --header 'Content-Type: text/plain'  --data-binary '@nanomq_dds_gateway.conf'
+```
+- 停止网关：
+```shell
+$ curl --basic -u admin:public 'http://127.0.0.1:8082/api/v4/proxy/ctrl/stop' \
+--header 'Content-Type: application/json' \
+--data '{
+    "req": 10,
+    "action": "stop",
+    "seq": 1234
+}'
+```
+- 重启网关：
+```shell
+$ curl --basic -u admin:public 'http://127.0.0.1:8082/api/v4/proxy/ctrl/restart' \
+--header 'Content-Type: application/json' \
+--data '{
+    "req": 10,
+    "action": "restart",
+    "seq": 1234
+}'
+```
+
 ### 测试  DDS Proxy
 
 1. 启动 MQTT Broker
