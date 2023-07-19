@@ -1581,7 +1581,7 @@ get_subscriptions(
 	return res;
 }
 
-#if defined(NNG_SUPP_SQLITE)
+#if defined(NNG_SUPP_SQLITE)  && defined(SUPP_RULE_ENGINE)
 
 static bool
 sqlite_table_exist(conf_rule *cr, char *name)
@@ -1645,7 +1645,7 @@ post_rules_sqlite(conf_rule *cr, cJSON *jso_params, char *rawsql)
 #endif
 
 
-#if defined(SUPP_MYSQL)
+#if defined(SUPP_MYSQL) && defined(SUPP_RULE_ENGINE)
 static int
 post_rules_mysql(conf_rule *cr, cJSON *jso_params, char *rawsql)
 {
