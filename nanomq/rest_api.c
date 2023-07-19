@@ -2303,7 +2303,7 @@ get_rules_helper(cJSON *data, rule *r)
 	default:
 		break;
 	}
-	cJSON_AddStringToObject(data, "forward_type", forword_type);
+	cJSON_AddStringToObject(data, "name", forword_type);
 	cJSON_AddStringToObject(data, "rawsql", r->raw_sql);
 	cJSON_AddNumberToObject(data, "id", r->rule_id);
 	cJSON_AddBoolToObject(data, "enabled", r->enabled);
