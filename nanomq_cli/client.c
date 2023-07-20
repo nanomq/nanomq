@@ -1195,13 +1195,10 @@ init_dialer_tls(nng_dialer d, const char *cacert, const char *cert,
 	}
 
 	if (cert != NULL && key != NULL) {
-		nng_tls_config_auth_mode(cfg, NNG_TLS_AUTH_MODE_REQUIRED);
 		if ((rv = nng_tls_config_own_cert(cfg, cert, key, pass)) !=
 		    0) {
 			goto out;
 		}
-	} else {
-		nng_tls_config_auth_mode(cfg, NNG_TLS_AUTH_MODE_NONE);
 	}
 
 	if (cacert != NULL) {
