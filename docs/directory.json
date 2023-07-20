@@ -8,7 +8,7 @@
       "title": "快速上手",
       "path": "quick-start/quick-start"
     },
-    { 
+    {
       "title": "安装部署",
       "path": "installation/introduction",
       "children": [
@@ -35,16 +35,40 @@
       "path": "config-description/introduction",
       "children": [
         {
-          "title": "配置说明(v019)",
-          "path": "config-description/v019"
+          "title": "NanoMQ 基础配置项",
+          "path": "config-description/broker"
         },
         {
-          "title": "配置说明(v014)",
-          "path": "config-description/v014"
+          "title": "MQTT 消息服务",
+          "path": "config-description/mqtt"
         },
         {
-          "title": "配置说明(v013)",
-          "path": "config-description/v013"
+          "title": "HTTP 服务器",
+          "path": "config-description/http-server"
+        },
+        {
+          "title": "认证与授权",
+          "path": "config-description/acl"
+        },
+        {
+          "title": "规则引擎",
+          "path": "config-description/rules"
+        },
+        {
+          "title": "WebHook",
+          "path": "config-description/webhook"
+        },
+        {
+          "title": "数据桥接",
+          "path": "config-description/bridges"
+        },
+        {
+          "title": "日志",
+          "path": "config-description/logs"
+        },
+        {
+          "title": "网关",
+          "path": "config-description/gateway"
         }
       ]
     },
@@ -55,7 +79,7 @@
         {
           "title": "登录认证",
           "path": "access-control/login"
-        },  
+        },
         {
           "title": "JWT 认证",
           "path": "access-control/jwt"
@@ -73,7 +97,7 @@
     {
       "title": "规则引擎",
       "path": "rule/introduction",
-      "children":[
+      "children": [
         {
           "title": "使用 Webhook 配置规则",
           "path": "rule/web-hook-0.19"
@@ -100,58 +124,72 @@
           "title": "AWS IoT Core 桥接",
           "path": "bridges/aws-iot-core-bridge"
         }
-
       ]
     },
-    {"title": "多协议网关",
-     "path": "gateway/introduction",
-     "children": [
-      {
-        "title": "ZMQ 网关",
-        "path": "gateway/zmq-gateway" 
-      },
-      {
-        "title": "SOME/IP 网关",
-        "path": "gateway/someip-gateway"
-      },
-      { 
-        "title": "DDS 网关",
-        "path": "gateway/dds"
-      }
-     ]
+    {
+      "title": "多协议网关",
+      "path": "gateway/introduction",
+      "children": [
+        {
+          "title": "ZMQ 网关",
+          "path": "gateway/zmq-gateway"
+        },
+        {
+          "title": "SOME/IP 网关",
+          "path": "gateway/someip-gateway"
+        },
+        {
+          "title": "DDS 网关",
+          "path": "gateway/dds"
+        }
+      ]
     },
     {
       "title": "命令行接口",
       "path": "toolkit/toolkit",
       "children": [
-     {
-       "title": "使用命令行配置",
-       "path": "toolkit/command-line"
-     },
-     {
-       "title": "工具集",
-       "path": "toolkit/bench"
-     }
-    ]
-   },
-   {
-     "title": "HTTP APIs",
-     "path": "http-api/introduction",
-     "children": [
-       {
-         "title": "HTTP APIs",
-         "path": "http-api/v4"
-       },
-       {
-         "title": "HTTP-API (v1)",
-         "path": "http-api/v1"
-       }
-     ]
-   },
-   {
-    "title": "测试报告",
-    "path": "test-report"
-  }
+        {
+          "title": "使用命令行配置",
+          "path": "toolkit/command-line"
+        },
+        {
+          "title": "工具集",
+          "path": "toolkit/bench"
+        }
+      ]
+    },
+    {
+      "title": "HTTP APIs",
+      "path": "http-api/introduction",
+      "children": [
+        {
+          "title": "HTTP APIs",
+          "path": "http-api/v4"
+        },
+        {
+          "title": "HTTP-API (v1)",
+          "path": "http-api/v1"
+        }
+      ]
+    },
+    {
+      "title": "测试报告",
+      "path": "test-report"
+    }
+  {
+      "title": "更多配置选项",
+      "path": "config-description/more-config",
+      "children": [
+        {
+          "title": "配置说明(v014)",
+          "path": "config-description/v014"
+        },
+        {
+          "title": "配置说明(v013)",
+          "path": "config-description/v013"
+        }
+      ]
+    }
   ],
   "en": [
     {
@@ -162,7 +200,7 @@
       "title": "Getting Started",
       "path": "quick-start/quick-start"
     },
-    { 
+    {
       "title": "Installation",
       "path": "installation/introduction",
       "children": [
@@ -189,16 +227,40 @@
       "path": "config-description/introduction",
       "children": [
         {
-          "title": "Configuration(v019)",
-          "path": "config-description/v019"
+          "title": "Broker Configuration",
+          "path": "config-description/broker"
         },
         {
-          "title": "Configuration(v014)",
-          "path": "config-description/v014"
+          "title": "MQTT Configuration",
+          "path": "config-description/mqtt"
         },
         {
-          "title": "Configuration(v013)",
-          "path": "config-description/v013"
+          "title": "HTTP Server",
+          "path": "config-description/http-server"
+        },
+        {
+          "title": "Authentication and Authorization",
+          "path": "config-description/acl"
+        },
+        {
+          "title": "Rule Engine",
+          "path": "config-description/rules"
+        },
+        {
+          "title": "WebHook",
+          "path": "config-description/webhook"
+        },
+        {
+          "title": "Data Bridges",
+          "path": "config-description/bridges"
+        },
+        {
+          "title": "Log",
+          "path": "config-description/logs"
+        },
+        {
+          "title": "Gateway",
+          "path": "config-description/gateway"
         }
       ]
     },
@@ -227,7 +289,7 @@
     {
       "title": "Rule Engine",
       "path": "rule/introduction",
-      "children":[
+      "children": [
         {
           "title": "Configure with Webhook",
           "path": "rule/web-hook-0.19"
@@ -256,35 +318,37 @@
         }
       ]
     },
-    {"title": "Multi-Protocol Gateway",
-     "path": "gateway/introduction",
-     "children": [
-      {
-        "title": "ZMQ Gateway",
-        "path": "gateway/zmq-gateway" 
-      },
-      {
-        "title": "SOME/IP Gateway",
-        "path": "gateway/someip-gateway"
-      },
-      { 
-        "title": "DDS Gateway",
-        "path": "gateway/dds"
-      }
-     ]
+    {
+      "title": "Multi-Protocol Gateway",
+      "path": "gateway/introduction",
+      "children": [
+        {
+          "title": "ZMQ Gateway",
+          "path": "gateway/zmq-gateway"
+        },
+        {
+          "title": "SOME/IP Gateway",
+          "path": "gateway/someip-gateway"
+        },
+        {
+          "title": "DDS Gateway",
+          "path": "gateway/dds"
+        }
+      ]
     },
-    {"title": "Command Line Interface",
-     "path": "toolkit/toolkit",
-     "children": [
-      {
-        "title": "Configure with Command Line",
-        "path": "toolkit/command-line"
-      },
-      {
-        "title": "Toolkit",
-        "path": "toolkit/bench"
-      }
-     ]
+    {
+      "title": "Command Line Interface",
+      "path": "toolkit/toolkit",
+      "children": [
+        {
+          "title": "Configure with Command Line",
+          "path": "toolkit/command-line"
+        },
+        {
+          "title": "Toolkit",
+          "path": "toolkit/bench"
+        }
+      ]
     },
     {
       "title": "HTTP APIs",
@@ -303,7 +367,20 @@
     {
       "title": "Test Report",
       "path": "test-report"
+    },
+    {
+      "title": "Apendix",
+      "path": "config-description/more-config",
+      "children": [
+        {
+          "title": "NanoMQ 0.14-0.18 Configuration",
+          "path": "config-description/v014"
+        }
+        {
+          "title": "Classic KV Format Configuration",
+          "path": "config-description/v013"
+        }
+      ]
     }
-
   ]
 }
