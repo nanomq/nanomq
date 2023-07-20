@@ -128,6 +128,8 @@ Using `mqtt-quic` as the URL prefix indicates the use of QUIC as the transport l
 
 :::
 
+Tips: If you enabled SQLite feature, NanoMQ will automatically flush cached messages into disk when network is disconnected. Unlike TCP, NanoMQ will resend cached messages immediately once bridging connection is restored. Without any delaying, message will be send one by one.
+
 **Key Configuration Items**
 
 - Remote broker address: `bridges.mqtt.name.server`
