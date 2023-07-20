@@ -1017,7 +1017,9 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 #endif
 
 	bridge_arg->client = nng_mqtt_client_alloc(*sock, &send_callback, true);
-
+	// set retry interval as 10s
+	nng_duration retry = 10000;
+	nng_socket_set_ms(*sock, NNG_OPT_MQTT_RETRY_INTERVAL, retry);
 	// create a CONNECT message
 	nng_msg *connmsg = create_connect_msg(node);
 	bridge_arg->connmsg = connmsg;
