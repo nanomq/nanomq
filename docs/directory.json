@@ -175,17 +175,17 @@
     {
       "title": "测试报告",
       "path": "test-report"
-    }
+    },
   {
-      "title": "更多配置选项",
+      "title": "拓展阅读",
       "path": "config-description/more-config",
       "children": [
         {
-          "title": "配置说明(v014)",
+          "title": "NanoMQ 0.14-0.18 配置说明",
           "path": "config-description/v014"
         },
         {
-          "title": "配置说明(v013)",
+          "title": "经典 KV 格式配置说明",
           "path": "config-description/v013"
         }
       ]
@@ -373,11 +373,11 @@
       "path": "config-description/more-config",
       "children": [
         {
-          "title": "NanoMQ 0.14-0.18 Configuration",
+          "title": "NanoMQ 0.14-0.18 Configuration Guide",
           "path": "config-description/v014"
-        }
+        },
         {
-          "title": "Classic KV Format Configuration",
+          "title": "Classic KV Format Configuration Guide",
           "path": "config-description/v013"
         }
       ]
