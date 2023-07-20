@@ -206,7 +206,7 @@ $ curl --basic -u admin:public 'http://127.0.0.1:8082/api/v4/proxy/configuration
 $ curl --basic -u admin:public 'http://127.0.0.1:8082/api/v4/proxy/configuration/dds' --header 'Content-Type: text/plain'  --data-binary '@nanomq_dds_gateway.conf'
 ```
 
-- Restart gateway:
+- Stop gateway:
 ```shell
 $ curl --basic -u admin:public 'http://127.0.0.1:8082/api/v4/proxy/ctrl/stop' \
 --header 'Content-Type: application/json' \
@@ -216,7 +216,7 @@ $ curl --basic -u admin:public 'http://127.0.0.1:8082/api/v4/proxy/ctrl/stop' \
     "seq": 1234
 }'
 ```
-- 重启网关：
+- Restart gateway：
 ```shell
 $ curl --basic -u admin:public 'http://127.0.0.1:8082/api/v4/proxy/ctrl/restart' \
 --header 'Content-Type: application/json' \
