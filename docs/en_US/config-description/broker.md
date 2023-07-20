@@ -36,7 +36,9 @@ sqlite {
 
 ### Configuration Items
 
-- `disk_cache_size`: Specifies the maximum number of messages that can be cached in the SQLite database. A value of 0 indicates no limit.
-- `mounted_file_path`: Specifies the file path where the SQLite database file is mounted.
-- `flush_mem_threshold`: Specifies the threshold for flushing messages to the SQLite database. When the number of messages reaches this threshold, they are flushed to the SQLite database.
-- `resend_interval`: Specifies the interval, in milliseconds, for resending the messages after a failure is recovered. This is not related to the trigger for the resend operation.
+- `disk_cache_size`: Specifies the maximum number of messages that can be cached in the SQLite database; default: 102400; Optional Values:
+  - 0:  Ineffecitve
+  - 1 - infinity
+- `mounted_file_path`: Specifies the file path where the SQLite database file is mounted; default: `nanomq running path`
+- `flush_mem_threshold`: Specifies the threshold for flushing messages to the SQLite database. When the number of messages reaches this threshold, they are flushed to the SQLite database; default: 100, Value range: 1-infinity
+- `resend_interval`: Specifies the interval, in milliseconds, for resending the messages after a failure is recovered. This is not related to the trigger for the resend operation; default: 5000. Note:  **Only work for broker**.

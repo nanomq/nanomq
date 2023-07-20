@@ -43,12 +43,24 @@
           "path": "config-description/mqtt"
         },
         {
+          "title": "监听器",
+          "path": "config-description/listener"
+        },
+        {
+          "title": "数据桥接",
+          "path": "config-description/bridges"
+        },
+        {
+          "title": "WebHook",
+          "path": "config-description/webhook"
+        },
+        {
           "title": "HTTP 服务器",
           "path": "config-description/http-server"
         },
         {
-          "title": "监听器",
-          "path": "config-description/listener"
+          "title": "日志",
+          "path": "config-description/logs"
         },
         {
           "title": "认证与授权",
@@ -57,18 +69,6 @@
         {
           "title": "规则引擎",
           "path": "config-description/rules"
-        },
-        {
-          "title": "WebHook",
-          "path": "config-description/webhook"
-        },
-        {
-          "title": "数据桥接",
-          "path": "config-description/bridges"
-        },
-        {
-          "title": "日志",
-          "path": "config-description/logs"
         },
         {
           "title": "网关",
@@ -180,7 +180,7 @@
       "title": "测试报告",
       "path": "test-report"
     },
-  {
+    {
       "title": "拓展阅读",
       "path": "config-description/more-config",
       "children": [
@@ -239,12 +239,24 @@
           "path": "config-description/mqtt"
         },
         {
+          "title": "Listener",
+          "path": "config-description/listener"
+        },
+        {
+          "title": "Data Bridges",
+          "path": "config-description/bridges"
+        },
+        {
+          "title": "WebHook",
+          "path": "config-description/webhook"
+        },
+        {
           "title": "HTTP Server",
           "path": "config-description/http-server"
         },
         {
-          "title": "Listener",
-          "path": "config-description/listener"
+          "title": "Log",
+          "path": "config-description/logs"
         },
         {
           "title": "Access Control",
@@ -253,18 +265,6 @@
         {
           "title": "Rule Engine",
           "path": "config-description/rules"
-        },
-        {
-          "title": "WebHook",
-          "path": "config-description/webhook"
-        },
-        {
-          "title": "Data Bridges",
-          "path": "config-description/bridges"
-        },
-        {
-          "title": "Log",
-          "path": "config-description/logs"
         },
         {
           "title": "Gateway",

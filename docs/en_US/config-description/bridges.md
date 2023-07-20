@@ -57,15 +57,21 @@ bridges.mqtt.emqx1 = {
     }
   ]
   max_parallel_processes = 2              # Maximum number of parallel processes for handling outstanding requests
+  max_send_queue_len = 32								  # Maximum number of message send queue length
+  max_recv_queue_len = 128								# Maximum number of message receive queue length
 }
-
 ```
 
 This configuration enables NanoMQ to establish an MQTT over TCP bridge connection to a remote MQTT server, using will message and secure communication with SSL.
 
 ### **Configuration Items**
 
-- `server`: Specifies the MQTT server address for the bridge.
+- bridges.mqtt.\<name>: Specifies the name of the bridge. 
+- `server`: Specifies the MQTT server address for the bridge. Example: 
+  - mqtt-tcp://127.0.0.1:1883 for MQTT over TCP bridge
+  - tls+mqtt-tcp://127.0.0.1:8883 for MQTT over TCP bridge with SSL eneabled
+  - mqtt-quic://54.75.171.11:14567 for MQTT over QUIC bridge
+
 - `proto_ver`: Specifies the MQTT protocol version to use. Options:
   - `5` for MQTT v5
 
@@ -77,7 +83,9 @@ This configuration enables NanoMQ to establish an MQTT over TCP bridge connectio
 - `clean_start`: Specifies the clean start flag for the bridge. **Note**: Some IoT platforms require this to be set to `false`.
 - `username`: Specifies the username for the bridge.
 - `password`: Specifies the password for the bridge.
-- `forwards`: This is an array of topics that need to be forwarded to the remote MQTT server.
+- `forwards`: This is an array of topics that need to be forwarded to the remote MQTT server, including
+  - `topic`
+  - `qos`
 
 - `ssl`: Contains settings for SSL/TLS security:
   - `key_password`: Specifies the password for the client's private key file, if it's password-protected.
@@ -86,22 +94,33 @@ This configuration enables NanoMQ to establish an MQTT over TCP bridge connectio
   - `cacertfile`: Specifies the path to the server's root CA certificate file. This certificate is used to identify the AWS IoT server.
 - `subscription`: This is an array of topic objects that need to be subscribed from the remote MQTT server. Each object defines a topic and the QoS level for the subscription.
 - `max_parallel_processes`: Specifies the maximum number of parallel processes for handling outstanding requests.
+- `max_send_queue_len`: Specifies the maximum number of messages that can be queued for sending.
+- `max_recv_queue_len`: Specifies the maximum number of messages that can be queued for processing. 
 
-**MQTT 5** 
+### **MQTT 5** 
 
  if MQTT v5 is to be used (`proto_ver = 5`), the following configuration items are also supported:
 
-| Configuration Item             | Description                                                  | Value Range     |
-| ------------------------------ | ------------------------------------------------------------ | --------------- |
-| `maximum_packet_size`          | Specifies the maximum packet size for the MQTT connection    | 1 - 4294967295  |
-| `receive_maximum`              | Limits the number of QoS 1 and QoS 2 publications that the client can process concurrently. This only applies to the current network connection. <br />If left unconfigured, it will use the default value: 65535. <!--to be confirmed--> | 1 - 65535       |
-| `topic_alias_maximum`          | Specifies the highest value that the client will accept as a Topic Alias sent by the server. Used to limit the number of Topic Aliases that the client is willing to hold on this connection | 0 - 65535       |
-| `request_problem_information`  | Specifies if the server should send additional diagnostic information (i.e., a Reason String or User Properties) in case of failures:  <br /><br />- If set to 0, the server is allowed to include additional diagnostic information only when responding with PUBLISH, CONNACK or DISCONNECT packets. For all other packet types, the server must not include this information. If the server violates this rule, the client will disconnect and report a Protocol Error. <!--to be confirmed--><br /><br />-  If set to 1, the server has the discretion to include additional diagnostic information in any type of packet where it's allowed. | 0 or 1          |
-| `request_response_information` | Specifies whether to request the server to return Response Information in the CONNACK. <br /><br />- If set to 0, the server must not return Response Information.<br /><br />-  If set to 1, the server may return Response Information in the CONNACK packet | 0 or 1          |
-| `session_expiry_interval`      | Specifies the session expiry interval.<br /><br />- If set to 0, the session ends when the network connection is closed.<br /><br />- If set to 4294967295 (UINT_MAX), the session will never expire | 0 - 4294967295  |
-| `user_property`                | A map of key-value pairs. Allowed to appear multiple times to represent multiple name-value pairs. The same name is allowed to appear more than once | Key-value pairs |
+**Connection related:**
 
-**Will Message**
+| Configuration Item                             | Description                                                  | Value Range                      |
+| ---------------------------------------------- | ------------------------------------------------------------ | -------------------------------- |
+| `conn_property.maximum_packet_size`            | Specifies the maximum packet size for the MQTT connection    | 1 - 4294967295                   |
+| `conn_properties.receive_maximum`              | Limits the number of QoS 1 and QoS 2 publications that the client can process concurrently. This only applies to the current network connection. <br />If left unconfigured, it will use the default value: 65535. <!--to be confirmed--> | 1 - 65535                        |
+| `conn_properties.topic_alias_maximum`          | Specifies the highest value that the client will accept as a Topic Alias sent by the server. Used to limit the number of Topic Aliases that the client is willing to hold on this connection | 0 - 65535                        |
+| `conn_properties.request_problem_information`  | Specifies if the server should send additional diagnostic information (i.e., a Reason String or User Properties) in case of failures:  <br /><br />- If set to 0, the server is allowed to include additional diagnostic information only when responding with PUBLISH, CONNACK or DISCONNECT packets. For all other packet types, the server must not include this information. If the server violates this rule, the client will disconnect and report a Protocol Error. <!--to be confirmed--><br /><br />-  If set to 1, the server has the discretion to include additional diagnostic information in any type of packet where it's allowed. | 0 or 1                           |
+| `conn_properties.request_response_information` | Specifies whether to request the server to return Response Information in the CONNACK. <br /><br />- If set to 0, the server must not return Response Information.<br /><br />-  If set to 1, the server may return Response Information in the CONNACK packet | 0 or 1                           |
+| `conn_properties.session_expiry_interval`      | Specifies the session expiry interval.<br /><br />- If set to 0, the session ends when the network connection is closed.<br /><br />- If set to 4294967295 (UINT_MAX), the session will never expire | 0 - 4294967295                   |
+| `conn_properties.user_property`                | A map of key-value pairs. Allowed to appear multiple times to represent multiple name-value pairs. The same name is allowed to appear more than once. | Map[key(String) - value(String)] |
+
+**Subscription Related**
+
+| Configuration Item             | Description             | Value Range                       |
+| ------------------------------ | ----------------------- | --------------------------------- |
+| `sub_properties.identifier`    | Subscription Identifier | 1 ~ 268,435,455                   |
+| `sub_properties.user_property` | User Property           | Map[key(String) - value(String)]* |
+
+### **Will Message**
 
 The above example configuration also leverages the feature of will messages. In MQTT, a Will Message is a message that is set up at the time of establishing the MQTT connection from the client to the broker. This message is stored at the broker and is forwarded to the specified topics when the broker detects that the client has disconnected unexpectedly. The main purpose of the Will Message is to notify other clients about an ungracefully disconnected client. Below are detailed explain of the will message related configuration items:
 
@@ -157,45 +176,56 @@ bridges.mqtt.emqx1 = {
     }
   ]
   max_parallel_processes = 2              # Maximum number of parallel processes for handling outstanding requests
+  max_send_queue_len = 32								  # Maximum number of message send queue length
+  max_recv_queue_len = 128								# Maximum number of message receive queue length
 }
-
 ```
 
 #### **Configuration Items**
 
 This part will focus on the MQTT over QUIC bridge-related configuration items, for other configuration items not included here, you may refer to [MQTT over TCP Bridge](#mqtt-over-tcp-bridge).
 
+- Server: Specifies the MQTT server address for the bridge. For MQTT over QUIC bridge, it should be, for example, `mqtt-quic://54.75.171.11:14567` 
 - `quic_keepalive`: Specifies the interval for sending keep-alive packets over QUIC. The default is 120 seconds.
 - `quic_idle_timeout`: Specifies the maximum amount of time a connection can remain idle before it is gracefully shut down. Setting it to 0 disables the timeout, but this could result in lost disconnect event messages. The default is 120 seconds.
 - `quic_discon_timeout`: Specifies the maximum amount of time to wait for an acknowledgment (ACK) before declaring a path dead and disconnecting. This setting affects the lifespan of the stream. The default is 20 seconds.
-
 - `quic_handshake_timeout`: Specifies the maximum amount of time to wait for a QUIC connection to be established. If the handshake process takes longer than this, it is discarded. The default is 60 seconds.
-
-- `quic_send_idle_timeout`:  Resets the congestion control after being idle for a specified amount of time. The default is 2 seconds.
-
+- `quic_send_idle_timeout`:  Resets the congestion control after being idle for a specified amount of time. The default is 60 seconds.
 - `quic_initial_rtt_ms`: Specifies the initial estimate for the round-trip time (RTT) in milliseconds. The default is 800 milliseconds.
-
 - `quic_max_ack_delay_ms`: Specifies the maximum amount of time to wait after receiving data before sending an ACK. The default is 100 milliseconds.
+- `hybrid_bridging`: Specifies whether to enable the hybrid bridging mode. This should be enabled if you want to use QUIC but aren't sure if the public network supports it. The default is `false`.
+- `quic_multi_stream`: Specifies whether to enable the multi-stream bridging mode. This is a work-in-progress feature and should not be enabled. The default is `false`.
+- `quic_qos_priority`: This sends QoS 1/2 messages with high priority, while QoS 0 messages remain the same. The default is `true`.
+ - `quic_0rtt`: Specifies whether to enable the 0RTT feature of QUIC, which allows connections to be re-established quickly. The default is `true`.
 
-- `hybrid_bridging`: Specifies whether to enable the hybrid bridging mode. This should be enabled if you want to use QUIC but aren't sure if the public network supports it. The default is false.
+::: tip
 
-- `quic_multi_stream`: Specifies whether to enable the multi-stream bridging mode. This is a work-in-progress feature and should not be enabled. The default is false.
+The SSL configuration is invalid when operating in MQTT over QUIC mode.
 
-- `quic_qos_priority`: This sends QoS 1/2 messages with high priority, while QoS 0 messages remain the same. The default is true.
-
- - `quic_0rtt`: Specifies whether to enable the 0RTT feature of QUIC, which allows connections to be re-established quickly. The default is true.
+:::
 
 ## MQTT Bridges Cache
 
- The cache configuration is a standalone component that can be commonly used across MQTT data bridges.
+NanoMQ provides the functionality to configure multiple data bridges by utilizing the `nanomq.conf` configuration files. Each bridge can be distinctly identified by unique names. Furthermore, the "cache" configuration is a standalone component that can be commonly used across these data bridges. For instance, if you need to implement message caching in more than one data bridge, you can effortlessly incorporate the cache component as illustrated below.
 
 ### **Example Configuration**
 
 ```hcl
+## First bridge client
+bridges.mqtt.emqx1 {
+  ......
+}
+
+## Second bridge client
+bridges.mqtt.emqx2 {
+  ......
+}
+
 bridges.mqtt.cache {
     disk_cache_size = 102400   # Max message limitation for caching
     mounted_file_path="/tmp/"  # Mounted file path 
     flush_mem_threshold = 100  # The threshold of flushing messages to flash
+}
 ```
 
 ### **Configuration Items**
@@ -207,11 +237,9 @@ bridges.mqtt.cache {
 
 ::: tip
 
-NanoMQ uses SQLite to deliver the cache feature, for details on the configuration, see [SQLite](#sqlite)
+NanoMQ uses SQLite to deliver the cache feature, for details on the configuration, see [SQLite](broker.md#cache)
 
 :::
-
-
 
 ## AWS IoT Core Bridge
 
@@ -257,4 +285,3 @@ bridges.aws.c1 = {
 - `forwards`: Specifies the topics that need to be forwarded to AWS IoT Core. For example, ["topic1/#", "topic2/#"].
 - `subscription`: Specifies the topics that the bridge should subscribe to from AWS IoT Core. Each topic has a name (`topic`) and a Quality of Service level (`qos`).
 - `max_parallel_processes`: Specifies the maximum number of outstanding requests that can be handled simultaneously.
-- The SSL configuration is invalid when operating in MQTT over QUIC mode.
