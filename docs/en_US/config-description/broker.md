@@ -1,8 +1,9 @@
-# NanoMQ Broker Configuration
+# NanoMQ Broker
 
  The system configuration provides settings to control the number of task queue threads and the maximum number of concurrent tasks in the NanoMQ broker.
 
-**Example Configuration**
+## Task Queue
+### Example Configuration
 
 ```hcl
 system {
@@ -12,17 +13,17 @@ system {
 }
 ```
 
-**Configuration Item**
+### Configuration Item
 
 - `num_taskq_thread`: Specifies the number of task queue threads to use. The acceptable range is between 1 and 255. If the value is set to 0, the system automatically determines the number of threads.
 - `max_taskq_thread`: Specifies the maximum number of task queue threads to use. The acceptable range is between 1 and 255. If the value is set to 0, the system automatically determines the maximum number of threads.
 - `parallel`: Specifies the maximum number of outstanding requests that the system can handle at once. The acceptable range is between 1 and 255. If the value is set to 0, the system automatically determines the number of parallel tasks.
 
-## SQLite 
+## Cache 
 
 NanoMQ uses SQLite to implement the caching for MQTT data bridges. 
 
-**Example Configuration**
+### Example Configuration
 
 ```hcl
 sqlite {
@@ -33,7 +34,7 @@ sqlite {
 }
 ```
 
-**Configuration Items**
+### Configuration Items
 
 - `disk_cache_size`: Specifies the maximum number of messages that can be cached in the SQLite database. A value of 0 indicates no limit.
 - `mounted_file_path`: Specifies the file path where the SQLite database file is mounted.

@@ -1,8 +1,8 @@
-# Log
+# Logs
 
 Log in NanoMQ allows you to customize how the broker generates and manages log files. This configuration includes settings for the destination of the logs, the log levels, and the handling of log file rotation.
 
-**Example Configuration**
+## **Example Configuration**
 
 ```hcl
 log = {
@@ -17,7 +17,7 @@ log = {
 }
 ```
 
-**Configuration Items**
+## **Configuration Items**
 
 - `to`: Specifies the destination(s) where the logs will be emitted. Optional values:
   - `file`: Write logs to a file.

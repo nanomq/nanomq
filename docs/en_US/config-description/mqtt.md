@@ -1,8 +1,8 @@
-# MQTT
+# MQTT Messaging
 
 MQTT Messaging configuration allows you to specify settings for the MQTT protocol used by your NanoMQ broker.
 
-**Example Configuration**
+## **Example Configuration**
 
 ```hcl
 mqtt = {
@@ -14,7 +14,7 @@ mqtt = {
 }
 ```
 
-**Configuration Items**
+## **Configuration Items**
 
 | Configuration Item     | Description                                                  | Value Range      |
 | ---------------------- | ------------------------------------------------------------ | ---------------- |
@@ -22,7 +22,7 @@ mqtt = {
 | `max_mqueue_len`       | Specifies the maximum length of the in-flight window queue. <br /><br />**Note**: This item may affect the system performance and memory consumption, please set it with caution. | 1 ~ infinity     |
 | `retry_interval`       | Specifies the retry interval for QoS 1/2 message delivering  | 1 ~ infinity     |
 | `keepalive_multiplier` | Specifies the multiplier for the MQTT keepalive timeout. The broker will disconnect the client if there's no activity for `Keepalive * backoff` time. | Float > 0.5      |
-| `property_size`        | Specifies the maximum size for a MQTT user property.         | 1 ~ infinity     |
+| `property_size`        | Specifies the maximum size for an MQTT user property.        | 1 ~ infinity     |
 
 ::: tip
 
@@ -30,10 +30,11 @@ All of these MQTT configurations in NanoMQ support hot upgrading. This means tha
 
 :::
 
+## Upcoming Features
+
 More configuration items will be supported in upcoming releases, please stay tuned. 
 
 - ​    `max_inflight_window`
 - ​    `max_awaiting_rel`
 - ​    `await_rel_timeout`
 
-## 

@@ -47,6 +47,10 @@
           "path": "config-description/http-server"
         },
         {
+          "title": "监听器",
+          "path": "config-description/listener"
+        },
+        {
           "title": "认证与授权",
           "path": "config-description/acl"
         },
@@ -227,11 +231,11 @@
       "path": "config-description/introduction",
       "children": [
         {
-          "title": "Broker Configuration",
+          "title": "NanoMQ Broker",
           "path": "config-description/broker"
         },
         {
-          "title": "MQTT Configuration",
+          "title": "MQTT Messaging",
           "path": "config-description/mqtt"
         },
         {
@@ -239,7 +243,11 @@
           "path": "config-description/http-server"
         },
         {
-          "title": "Authentication and Authorization",
+          "title": "Listener",
+          "path": "config-description/listener"
+        },
+        {
+          "title": "Access Control",
           "path": "config-description/acl"
         },
         {

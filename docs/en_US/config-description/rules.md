@@ -6,7 +6,7 @@ In NanoMQ, you can leverage the powerful rule engine to implement dynamic respon
 
 This part introduces the settings for handling MQTT messages using SQLite. This includes settings for the SQLite database path and SQL rules for manipulating MQTT messages.
 
-**Example Configuration**
+### Example Configuration
 
 ```hcl
 rules.sqlite = {
@@ -29,7 +29,7 @@ In this example configuration, two SQL rules are defined.
 - The first rule selects and manipulates data from MQTT messages where `y > 10` and `z != 'str'`. 
 - The second rule selects the `topic` and `payload` from MQTT messages where the topic is `"abc"`. The resulting data from these rules is stored in the `broker` and `broker1` tables in the SQLite database, respectively.
 
-**Configuration Items**
+### **Configuration Items**
 
 - `path`: Specifies the path to the SQLite database file.
 - `rules`: This is an array of rule objects. Each object defines a SQL rule for manipulating MQTT messages.
@@ -40,7 +40,7 @@ In this example configuration, two SQL rules are defined.
 
 This part  specifies settings for handling MQTT messages using MySQL. This includes settings for the MySQL database connection and SQL rules for manipulating MQTT messages.
 
-**Example Configuration**
+### **Example Configuration**
 
 ```hcl
 rules.mysql.mysql_rule_db = {
@@ -70,7 +70,7 @@ In this example configuration, two SQL rules are defined:
 - The first rule selects and manipulates data from MQTT messages where `y > 10` and `z != 'str'`. 
 - The second rule selects all data from MQTT messages where the topic is `"abc"`. The resulting data from these rules is stored in the `broker` and `broker1` tables in the MySQL database, respectively.
 
-**Configuration Items**
+### **Configuration Items**
 
 - `conn`: This object defines the connection settings for the MySQL client.
   - `host`: Specifies the host of the MySQL server. 
@@ -81,11 +81,11 @@ In this example configuration, two SQL rules are defined:
   - `table`: Specifies the MySQL database table that the rule applies to.
   - `sql`: Specifies the SQL clause for the rule. This clause is used to select and manipulate data from MQTT messages.
 
-## Message Republishing Rule
+## Message Republishing
 
 This part introduces the settings for handling the republishing of MQTT messages. This includes settings for the MQTT server where messages will be republished, the topic to republish on, and SQL rules for manipulating MQTT messages before republishing.
 
-**Example Configuration**
+### **Example Configuration**
 
 ```hcl
 rules.repub = {
@@ -121,7 +121,7 @@ In this example configuration, two republishing rules are defined:
 - The first rule selects and manipulates data from MQTT messages where `y > 10` and `z != 'str'` and republishes the messages on `topic/repub1`. 
 - The second rule selects the `topic` and `payload` from MQTT messages where the topic is `"abc"` and republishes the messages on `topic/repub2`.
 
-**Configuration Items**
+### **Configuration Items**
 
 `rules`: This is an array of rule objects. Each object defines a republishing rule.
 

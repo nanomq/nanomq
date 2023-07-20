@@ -2,9 +2,9 @@
 
 The Listener configuration allows you to specify settings for different types of connections that your NanoMQ broker can accept. There are four types of listeners: TCP Listener, SSL Listener, WebSocket Listener, and Secure WebSocket Listener.
 
-## TCP Listener
+## MQTT/TCP Listener - 1883
 
-**Example Configuration**
+### **Example Configuration**
 
 ```hcl
 listeners.tcp.tcp_listener_1 = {
@@ -12,13 +12,13 @@ listeners.tcp.tcp_listener_1 = {
 }
 ```
 
-**Configuration Items**
+### **Configuration Items**
 
 - `bind`: Specifies the IP address and port that the TCP listener should bind to. The value should be in the format `<ip:port>`.
 
-## SSL Listener
+## MQTT/SSL Listener - 8883
 
-**Example Configuration**
+### **Example Configuration**
 
 ```hcl
 listeners.ssl.<listener-name> = {
@@ -32,7 +32,7 @@ listeners.ssl.<listener-name> = {
 }
 ```
 
-**Configuration Items**
+### **Configuration Items**
 
 - `bind`: Specifies the IP address and port that the SSL listener should bind to.
 - `key_password`: A string that contains the password needed to decrypt the private keyfile, only needed if the private keyfile has been encrypted with a password. 
@@ -46,31 +46,31 @@ listeners.ssl.<listener-name> = {
   - `true`: Rejects the connection if the client sends an empty certificate.
   - `false`: Rejects the connection only when the client sends an invalid certificate.
 
-## WebSocket Listener
+## MQTT/WebSocket Listener - 8083
 
-**Example Configuration**
+### **Example Configuration**
 
 ```hcl
 listeners.ws.<listener-name> = {
-  bind = "0.0.0.0:8083/mqtt"			# Bind to all network interfaces on port 8883
+  bind = "0.0.0.0:8083/mqtt"			# Bind to all network interfaces on port 8083
 }
 ```
 
-**Configuration Items**
+### **Configuration Items**
 
 - `bind`: Specifies the IP address and port that the WebSocket listener should bind to.
 
-## Secure WebSocket Listener
+## MQTT/Secure WebSocket Listener - 8084
 
-**Example Configuration**
+### **Example Configuration**
 
 ```hcl
 listeners.wss.<listener-name> = {
-  bind = "0.0.0.0:8084"           	# Bind to all network interfaces on port 8883
+  bind = "0.0.0.0:8084"           	# Bind to all network interfaces on port 8084
 }
 ```
 
-**Configuration Items**
+### **Configuration Items**
 
 - `bind`: Specifies the IP address and port that the Secure WebSocket listener should bind to.
 

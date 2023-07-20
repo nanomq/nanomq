@@ -1,8 +1,8 @@
-# Authentication and Authorization
+# Access Control
 
 This section introduces authentication and authorization-related settings. 
 
-**Example Configuration**
+## **Example Configuration**
 
 ```hcl
 auth {
@@ -20,7 +20,7 @@ auth {
 }
 ```
 
-**Configuration Items**
+## **Configuration Items**
 
 - `allow_anonymous`: Specifies whether clients are allowed to connect without providing a username and password.
 - `no_match`: Specifies the default action (allow or deny) if no ACL rules match the client's operation.
@@ -35,14 +35,14 @@ auth {
 
 ACL can use separate configuration files (specified by the `include` method). And below are the explanation of each configuration file.
 
-### nanomq_pwd.conf
+## nanomq_pwd.conf
 
 ```hcl
 admin: public # Username and password for the admin user
 client: public # Username and password for a client user
 ```
 
-### nanomq_acl.conf
+## nanomq_acl.conf
 
 ```hcl
 rules = [
@@ -70,7 +70,7 @@ Each rule is processed in order, and processing stops at the first match. If no 
 
 This section outlines the configuration for HTTP authentication, which allows the MQTT broker to authenticate clients using HTTP requests. It includes settings for authentication requests (`auth_req`), superuser requests (`super_req`), and Access Control List (ACL) requests (`acl_req`).
 
-**Example Configuration**
+### **Example Configuration**
 
 ```hcl
 http_auth = {
@@ -104,7 +104,7 @@ http_auth = {
 }
 ```
 
-**Configuration Items**
+### **Configuration Items**
 
 `auth_req` and `super_req` 
 

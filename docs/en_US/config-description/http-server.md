@@ -2,7 +2,7 @@
 
 The following configuration sets up an HTTP server for NanoMQ, including the server port, connection limit, authentication type, and JWT public key file if JWT authentication is used.
 
-**Example Configuration**
+## Example Configuration
 
 ```hcl
 http_server = {
@@ -17,7 +17,7 @@ http_server = {
 }
 ```
 
-**Configuration Items**
+## Configuration Items
 
 - `port`: Specifies the port on which the HTTP server will listen. Value range: 0 ~ 65535.
 - `limit_conn`: Specifies the maximum number of outstanding requests that the server can handle at once. Value range: 1 ~ infinity.

@@ -9,7 +9,7 @@ Bridging is a way to connect multiple MQTT brokers. Unlike swarms, topic trees, 
 
 In NanoMQ, the MQTT over TCP Bridge configuration is used to specify settings for the MQTT Bridge that uses TCP as its transport protocol. This allows NanoMQ to communicate with remote MQTT servers and exchange MQTT messages with them.
 
-**Example Configuration**
+### **Example Configuration**
 
 ```hcl
 bridges.mqtt.emqx1 = {
@@ -63,7 +63,7 @@ bridges.mqtt.emqx1 = {
 
 This configuration enables NanoMQ to establish an MQTT over TCP bridge connection to a remote MQTT server, using will message and secure communication with SSL.
 
-**Configuration Items**
+### **Configuration Items**
 
 - `server`: Specifies the MQTT server address for the bridge.
 - `proto_ver`: Specifies the MQTT protocol version to use. Options:
@@ -123,7 +123,7 @@ The above example configuration also leverages the feature of will messages. In 
 
 This part introduces the settings for the MQTT Bridge that uses QUIC as its transport protocol. QUIC is a modern transport protocol that provides reliable, secure communication with improved performance compared to TCP.
 
-**Example Configuration**
+### **Example Configuration**
 
 ```hcl
 bridges.mqtt.emqx1 = {
@@ -161,7 +161,7 @@ bridges.mqtt.emqx1 = {
 
 ```
 
-**Configuration Items**
+#### **Configuration Items**
 
 This part will focus on the MQTT over QUIC bridge-related configuration items, for other configuration items not included here, you may refer to [MQTT over TCP Bridge](#mqtt-over-tcp-bridge).
 
@@ -185,11 +185,11 @@ This part will focus on the MQTT over QUIC bridge-related configuration items, f
 
  - `quic_0rtt`: Specifies whether to enable the 0RTT feature of QUIC, which allows connections to be re-established quickly. The default is true.
 
-## MQTT Bridges Cache Configuration
+## MQTT Bridges Cache
 
  The cache configuration is a standalone component that can be commonly used across MQTT data bridges.
 
-**Example Configuration**
+### **Example Configuration**
 
 ```hcl
 bridges.mqtt.cache {
@@ -198,7 +198,7 @@ bridges.mqtt.cache {
     flush_mem_threshold = 100  # The threshold of flushing messages to flash
 ```
 
-**Configuration Items**
+### **Configuration Items**
 
 - `disk_cache_size`: Specifies the maximum number of messages that can be cached in the MQTT bridges. A value of 0 indicates no limit.
 - `mounted_file_path`: Specifies the file path where the cache file for the MQTT bridges is mounted.
@@ -217,7 +217,7 @@ NanoMQ uses SQLite to deliver the cache feature, for details on the configuratio
 
 This part introduces the settings for the MQTT Bridge that connects to AWS IoT Core. AWS IoT Core is a managed cloud service that lets connected devices easily and securely interact with cloud applications and other devices.
 
-**Example Configuration**
+### **Example Configuration**
 
 ```hcl
 bridges.aws.c1 = {
@@ -241,7 +241,7 @@ bridges.aws.c1 = {
 }
 ```
 
-**Configuration Items**
+### **Configuration Items**
 
 - `server`: Specifies the address (host:port) of the AWS IoT Core server. For example, "127.0.0.1:8883".
 - `proto_ver`: Specifies the MQTT protocol version used by the bridge. Possible values are 4 (for MQTT v3.1.1) and 5 (for MQTT v5).

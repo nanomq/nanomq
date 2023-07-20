@@ -2,7 +2,7 @@
 
 Webhook in NanoMQ allows the broker to send HTTP requests to specified endpoints when certain events occur. These events include client connections, message publications, session terminations, and more. With this feature, you can integrate NanoMQ with other services and build complex event-driven architectures.
 
-**Example Configuration**
+## **Example Configuration**
 
 ```hcl
 webhook = {
@@ -22,7 +22,7 @@ webhook = {
 }
 ```
 
-**Configuration Items**
+## **Configuration Items**
 
 - `url`: Specifies the URL that the webhook will send HTTP requests to when the specified events occur. This should be the endpoint of a service that can handle these requests appropriately.
 - `headers.content-type`:  Defines the HTTP header for the content type of the request. For example, "application/json", meaning that the body of the HTTP request will be formatted as a JSON object.
