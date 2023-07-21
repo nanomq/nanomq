@@ -58,6 +58,13 @@ if(NNG_ENABLE_PLUGIN)
   set(SOURCES ${SOURCES} plugin/plugin.c)
 endif(NNG_ENABLE_PLUGIN)
 
+if (ENABLE_FILETRANSFER)
+	ADD_DEFINITIONS(-DENABLE_FILETRANSFER)
+	set(SOURCES ${SOURCES}
+        extern/file_transfer.c
+        )
+endif (ENABLE_FILETRANSFER)
+
 include_directories(${FOUNDATION_INCLUDE_DIR})
 
 if(BUILD_STATIC_LIB)
@@ -116,6 +123,7 @@ endif()
 
 
 target_link_libraries(nanomq nng)
+target_link_libraries(nanomq paho-mqtt3c)
 
 target_compile_definitions(nanomq PRIVATE -DPARALLEL=${PARALLEL})
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
