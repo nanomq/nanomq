@@ -5,7 +5,7 @@ Bridging is a way to connect multiple MQTT brokers. Unlike swarms, topic trees, 
 - Forward the message to the bridge node according to the rules;
 - Subscribe to the topic from the bridge node, and forward the message to this node/group after collecting the message.
 
-This section introduces MQTT over TCP bridge and MQTT over QUIC bridge. 
+This section introduces MQTT over TCP bridge, MQTT over QUIC bridge, and AWS IoT Core Bridge. 
 
 ## [MQTT over TCP Bridging](./tcp-bridge.md)
 

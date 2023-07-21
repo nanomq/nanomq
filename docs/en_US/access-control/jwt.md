@@ -35,7 +35,7 @@ The default authorization mode is `Basic`, you need to change the `auth_type ` t
 
 Users wishing to use the HOCON configuration format can refer to the following structure and write their configurations into the `nanomq.conf` file. The relevant settings will take effect after NanoMQ is restarted.
 
-- For a complete list of configuration options, refer to [Configuration Description - v019](../config-description/v019.md)
+- For a complete list of configuration options, refer to [Configuration Description](../config-description/http-server.md)
 - For users of NanoMQ versions 0.14 ~ 0.18, please refer to [Configuration Description - v0.14](../config-description/v014.md)
 
 ```c

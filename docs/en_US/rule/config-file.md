@@ -32,7 +32,7 @@ Suppose you want to create a `repub` rule, upon receipt of a message from the `a
 
 Users wishing to use the HOCON configuration format can refer to the following structure and write their configurations into the `nanomq.conf` file. The relevant settings will take effect after NanoMQ is restarted.
 
-- For a complete list of configuration options, refer to [Configuration Description - v019](../config-description/v019.md)
+- For a complete list of configuration options, refer to [Configuration Description](../config-description/rules.md)
 - For users of NanoMQ versions 0.14 ~ 0.18, please refer to [Configuration Description - v0.14](../config-description/v014.md)
 
 ```sh
@@ -161,7 +161,7 @@ Suppose you want to create a data persistence rule with SQLite. When a message i
 
 Users wishing to use the HOCON configuration format can refer to the following structure and write their configurations into the `nanomq.conf` file. The relevant settings will take effect after NanoMQ is restarted.
 
-- For a complete list of configuration options, refer to [Configuration Description - v019](../config-description/v019.md)
+- For a complete list of configuration options, refer to [Configuration Description ](../config-description/rules.md)
 - For users of NanoMQ versions 0.14 ~ 0.18, please refer to [Configuration Description - v0.14](../config-description/v014.md)
 
 ```sh

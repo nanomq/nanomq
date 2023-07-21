@@ -16,7 +16,7 @@ This section utilizes EMQ's [free public bridge broker.emqx.io:1883](https://www
 
 Users wishing to use the HOCON configuration format can refer to the following structure and write their configurations into the `nanomq.conf` file. The relevant settings will take effect after NanoMQ is restarted.
 
-- For a complete list of configuration options, refer to [Configuration Description - v019](../config-description/v019.md)
+- For a complete list of configuration options, refer to [Configuration Description](../config-description/bridges.md)
 - For users of NanoMQ versions 0.14 ~ 0.18, please refer to [Configuration Description - v0.14](../config-description/v014.md)
 
 ```bash

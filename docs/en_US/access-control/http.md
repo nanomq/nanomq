@@ -16,7 +16,7 @@ For now, HTTP Authorization only supports `MQTT CONNECT`, will add support for `
 
 If you need to use `http_auth`, you can modify it in the format of the following example, and then put the configuration of `http_auth` into the `auth {}` configuration. The relevant settings will take effect after NanoMQ is restarted.
 
-- For a complete list of configuration options, refer to [Configuration Description - v019](../config-description/v019.md)
+- For a complete list of configuration options, refer to [Configuration Description](../config-description/acl.md)
 - For users of NanoMQ versions 0.14 ~ 0.18, please refer to [Configuration Description - v0.14](../config-description/v014.md)
 
 ```bash

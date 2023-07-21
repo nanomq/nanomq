@@ -123,7 +123,7 @@ gateway.zmq {
     pub_pre="pub_prefix"
 }
 ```
-Configure file description can find [here](../config-description/v019.md).
+Configure file description can find [here](../config-description/gateway.md).
 
 ## Test ZMQ Gateway
 
