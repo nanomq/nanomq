@@ -70,7 +70,10 @@ static int start_listening(MQTTClient client,
 		ret = MQTTClient_receive(client, &topicName, &topicNameLen, &message, 1000 * 60);
 		if (ret == MQTTCLIENT_SUCCESS) {
 			if (message != NULL) {
-				printf("rhack: %s: %d: topic: %s message: %s\n", __func__, __LINE__, topicName, message->payload);
+				if (DEBUG) {
+					printf("Message arrived topic: %s message: %s\n",
+														topicName, message->payload);
+				}
 
 				cJSON *cjson_objs = cJSON_Parse(message->payload);
 				if (cjson_objs == NULL) {
