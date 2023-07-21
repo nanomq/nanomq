@@ -257,80 +257,44 @@ int send_file(MQTTClient client,
 	return 0;
 }
 
-void print_usage() {
-    printf("usage: mqtt_c_file_transfer [-h|--help] [--port PORT] [--host HOST] [--username USERNAME] [--password PASSWORD] --file FILE [--file-name FILE_NAME] [--segments-ttl-seconds SEGMENTS_TTL_SECONDS] [--expire-after-seconds EXPIRE_AFTER_SECONDS] --file-id FILE_ID [--client-id CLIENT_ID]");
+void print_file_transfer_usage() {
+	printf("usage: mqtt_c_file_transfer [-h|--help] [--port PORT] [--host HOST] [--username USERNAME] [--password PASSWORD] --file FILE [--file-name FILE_NAME] [--segments-ttl-seconds SEGMENTS_TTL_SECONDS] [--expire-after-seconds EXPIRE_AFTER_SECONDS] --file-id FILE_ID [--client-id CLIENT_ID]");
 }
 
 /*
-    Read command line arguments into write back variables and fill in default
-    values.
+	Read command line arguments into write back variables and fill in default
+	values.
 */
-void read_command_line_arguments(
-        int argc,
-        char *argv[],
-        char **file_path,
-        char **file_id,
-        char **username,
-        char **password,
-        char **file_name,
-        char **client_id,
-        char **host,
-        int *port,
-        long *segments_ttl_seconds,
-        long *expire_after_seconds) {
-    // Fill in default values
-    *file_name = "myfile.txt";
-    *host = "localhost";
-    *port = 1883;
-    *segments_ttl_seconds = -1;
-    *expire_after_seconds = -1;
-    *client_id = CLIENTID;
-    *username = NULL;
-    *password = NULL;
-    // Check if -h or --help is passed in
-    if (argc == 2 && (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0)) {
-        print_usage();
-        exit(0);
-    }
-    *file_path = NULL;
-    *file_id = NULL;
-    // Read command line arguments
-    for (int i = 1; i < argc; i+=2) {
-        if (strcmp(argv[i], "--file") == 0) {
-            *file_path = argv[i + 1];
-        } else if (strcmp(argv[i], "--file-id") == 0) {
-            *file_id = argv[i + 1];
-        } else if (strcmp(argv[i], "--file-name") == 0) {
-            *file_name = argv[i + 1];
-        } else if (strcmp(argv[i], "--client-id") == 0) {
-            *client_id = argv[i + 1];
-        } else if (strcmp(argv[i], "--username") == 0) {
-            *username = argv[i + 1];
-        } else if (strcmp(argv[i], "--password") == 0) {
-            *password = argv[i + 1];
-        } else if (strcmp(argv[i], "--host") == 0) {
-            *host = argv[i + 1];
-        } else if (strcmp(argv[i], "--port") == 0) {
-            *port = atoi(argv[i + 1]);
-        } else if (strcmp(argv[i], "--segments-ttl-seconds") == 0) {
-            *segments_ttl_seconds = atol(argv[i + 1]);
-        } else if (strcmp(argv[i], "--expire-after-seconds") == 0) {
-            *expire_after_seconds = atol(argv[i + 1]);
-        } else {
-            printf("Unknown argument %s\n", argv[i]);
-            print_usage();
-            exit(1);
-        }
-        if (DEBUG) {
-            printf("Argument %s %s\n", argv[i], argv[i + 1]);
-        }
-    }
-    // Check if --file and --file-id are passed in
-    if (*file_path == NULL || *file_id == NULL) {
-        printf("Missing required arguments\n");
-        print_usage();
-        exit(1);
-    }
+void initial_param(
+		int argc,
+		char *argv[],
+		char **file_path,
+		char **file_id,
+		char **username,
+		char **password,
+		char **file_name,
+		char **client_id,
+		char **host,
+		int *port,
+		long *segments_ttl_seconds,
+		long *expire_after_seconds) {
+	// Fill in default values
+	*file_name = "myfile.txt";
+	*host = "localhost";
+	*port = 1883;
+	*segments_ttl_seconds = -1;
+	*expire_after_seconds = -1;
+	*client_id = CLIENTID;
+	*username = NULL;
+	*password = NULL;
+	char *fpa = malloc(sizeof(char) * 30);
+	char *fida = malloc(sizeof(char) * 30);
+
+	memset(fpa, '\0', 30);
+	memset(fida, '\0', 30);
+
+	*file_path = fpa;
+	*file_id = fida;
 }
 
 int main(int argc, char *argv[]) {
