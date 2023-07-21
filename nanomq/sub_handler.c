@@ -1,4 +1,4 @@
-// Copyright 2020 NanoMQ Team, Inc. <jaylin@emqx.io>
+// Copyright 2023 NanoMQ Team, Inc. <jaylin@emqx.io>
 //
 // This software is supplied under the terms of the MIT License, a
 // copy of which should be located in the distribution where this
@@ -83,7 +83,7 @@ decode_sub_msg(nano_work *work)
 		tn->topic.body = (char *) copyn_utf8_str(payload_ptr,
 		    (uint32_t *) &bpos, &len_of_topic, remaining_len);
 		tn->topic.len  = len_of_topic;
-		log_info("topic: [%s] len: [%d]", tn->topic.body, len_of_topic);
+		log_info("topic: [%s] len: [%d] pid [%d]", tn->topic.body, len_of_topic, sub_pkt->packet_id);
 		len_of_topic = 0;
 
 		if (tn->topic.len < 1 || tn->topic.body == NULL) {

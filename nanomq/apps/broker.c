@@ -195,8 +195,8 @@ bridge_handler(nano_work *work)
 						nng_msg_free(smsg);
 						log_info(
 						    "bridging to %s aio busy! "
-						    "msg lost! ",
-						    node->address);
+						    "msg lost! Ctx: %d",
+						    node->address, work->ctx.id);
 					} else {
 						nng_aio_set_timeout(node->bridge_aio[index],
 						    3000);

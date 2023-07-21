@@ -1,5 +1,5 @@
 //
-// Copyright 2020 NanoMQ Team, Inc. <jaylin@emqx.io>
+// Copyright 2023 NanoMQ Team, Inc. <jaylin@emqx.io>
 //
 // This software is supplied under the terms of the MIT License, a
 // copy of which should be located in the distribution where this
@@ -185,8 +185,8 @@ unsub_ctx_handle(nano_work *work)
 
 		// parse topic string
 		topic_str = nng_strndup(tn->topic.body, tn->topic.len);
-		log_debug(
-		    "find client [%s] in topic [%s].", client_id, topic_str);
+		log_info("UnSub topic [%s] in client [%s]. pid [%d]",
+		         topic_str, client_id, work->unsub_pkt->packet_id);
 
 		rv = sub_ctx_del(work->db, topic_str, work->pid.id);
 
