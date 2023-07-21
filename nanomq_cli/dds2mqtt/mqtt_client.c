@@ -31,6 +31,13 @@
 #include <nng/mqtt/mqtt_client.h>
 #include <nng/nng.h>
 #include <nng/supplemental/util/platform.h>
+#include "nng/supplemental/nanolib/utils.h"
+
+#ifdef NNG_SUPP_TLS
+#include <nng/supplemental/tls/tls.h>
+static int init_dialer_tls(nng_dialer d, const char *cacert, const char *cert,
+    const char *key, const char *pass);
+#endif
 
 handle *
 mk_handle(int type, void *data, int len)
@@ -174,6 +181,17 @@ client_connect(
 		nng_mqtt_msg_dump(connmsg, buff, sizeof(buff), true);
 		printf("%s\n", buff);
 	}
+
+#ifdef NNG_SUPP_TLS
+
+	conf_tls tls = mqtt_conf->tls;
+	if (tls.enable) {
+		if ((rv = init_dialer_tls(*dialer, tls.ca, tls.cert,
+		         tls.key, tls.key_password)) != 0) {
+			fatal("init_dialer_tls", rv);
+		}
+	}
+#endif
 
 	printf("\n[MQTT] Connecting to server ...\n");
 	nng_dialer_set_ptr(*dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
@@ -485,5 +503,47 @@ unsub_callback(void *arg) {
         nng_msg_free(msg);
 }
 */
+
+
+#ifdef NNG_SUPP_TLS
+static int
+init_dialer_tls(nng_dialer d, const char *cacert, const char *cert,
+    const char *key, const char *pass)
+{
+	nng_tls_config *cfg;
+	int             rv;
+
+	if ((rv = nng_tls_config_alloc(&cfg, NNG_TLS_MODE_CLIENT)) != 0) {
+		return (rv);
+	}
+
+	if (cert != NULL && key != NULL) {
+		nng_tls_config_auth_mode(cfg, NNG_TLS_AUTH_MODE_REQUIRED);
+		if ((rv = nng_tls_config_own_cert(cfg, cert, key, pass)) !=
+		    0) {
+			goto out;
+		}
+	} else {
+		nng_tls_config_auth_mode(cfg, NNG_TLS_AUTH_MODE_NONE);
+	}
+
+	if (cacert != NULL) {
+		if ((rv = nng_tls_config_ca_chain(cfg, cacert, NULL)) != 0) {
+			goto out;
+		}
+	}
+
+	rv = nng_dialer_set_ptr(d, NNG_OPT_TLS_CONFIG, cfg);
+
+out:
+	nng_tls_config_free(cfg);
+	return (rv);
+}
+
+#endif
+
+
+
+
 
 #endif
