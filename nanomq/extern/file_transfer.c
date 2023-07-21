@@ -297,90 +297,101 @@ void initial_param(
 	*file_id = fida;
 }
 
-int main(int argc, char *argv[]) {
-    int rc;
-    MQTTClient client;
-    // Declare variables to store command line arguments
-    char *file_path;
-    char *file_id;
-    char *file_name;
-    char *client_id;
-    char *host;
-    int port;
-    char *username;
-    char *password;
-    long segments_ttl_seconds;
-    long expire_after_seconds;
-    // Read command line arguments
-    read_command_line_arguments(
-            argc,
-            argv,
-            &file_path,
-            &file_id,
-            &username,
-            &password,
-            &file_name,
-            &client_id,
-            &host,
-            &port,
-            &segments_ttl_seconds,
-            &expire_after_seconds);
-    if (DEBUG) {
-        // Print command line arguments
-        printf("file_path: %s\n", file_path);
-        printf("file_id: %s\n", file_id);
-        printf("file_name: %s\n", file_name);
-        printf("client_id: %s\n", client_id);
-        printf("host: %s\n", host);
-        printf("port: %d\n", port);
-        if (username != NULL) {
-            printf("username: %s\n", username);
-        }
-        if (password != NULL) {
-            printf("password: %s\n", password);
-        }
-        printf("segments_ttl_seconds: %ld\n", segments_ttl_seconds);
-        printf("expire_after_seconds: %ld\n", expire_after_seconds);
-    }
-    // Construct address string from host and port
-    char address[2048];
-    rc = snprintf(address, 2048, "tcp://%s:%d", host, port);
-    if (rc < 0 || rc >= 2048) {
-        printf("Failed to construct address string\n");
-        exit(1);
-    }
-    // Create client
-    MQTTClient_create(&client, address, client_id, 0, NULL);
-    MQTTClient_connectOptions conn_opts = MQTTClient_connectOptions_initializer;
-    conn_opts.username = username;
-    conn_opts.password = password;
-    if ((rc = MQTTClient_connect(client, &conn_opts)) != MQTTCLIENT_SUCCESS) {
-        printf("Failed to connect, return code %d\n", rc);
-        exit(1);
-    } else {
-        if (DEBUG) {
-            printf("Connected to MQTT Broker!\n");
-        }
-    }
-    // Calculate expire time
-    unsigned long expire_time_s_since_epoch;
-    if (expire_after_seconds == -1) {
-        expire_time_s_since_epoch = -1;
-    } else {
-        expire_time_s_since_epoch = time(NULL) + expire_after_seconds;
-    }
-    // Send file
-    int result = send_file(client,
-                           file_path,
-                           file_id,
-                           file_name,
-                           expire_time_s_since_epoch,
-                           segments_ttl_seconds);
-    MQTTClient_disconnect(client, TIMEOUT);
-    MQTTClient_destroy(&client);
-    if (result == 0) {
-        return 0;
-    } else {
-        return 1;
-    }
+int file_transfer(int argc, char *argv[]) {
+	int rc;
+	MQTTClient client;
+	// Declare variables to store command line arguments
+	char *file_path;
+	char *file_id;
+	char *file_name;
+	char *client_id;
+	char *host;
+	int port;
+	char *username;
+	char *password;
+	long segments_ttl_seconds;
+	long expire_after_seconds;
+	printf("rhack: argc == 0\n");
+	// Read command line arguments
+	initial_param(
+			argc,
+			argv,
+			&file_path,
+			&file_id,
+			&username,
+			&password,
+			&file_name,
+			&client_id,
+			&host,
+			&port,
+			&segments_ttl_seconds,
+			&expire_after_seconds);
+	if (DEBUG) {
+		printf("file_path: %s\n", file_path);
+		printf("file_id: %s\n", file_id);
+		printf("file_name: %s\n", file_name);
+		printf("client_id: %s\n", client_id);
+		printf("host: %s\n", host);
+		printf("port: %d\n", port);
+		if (username != NULL) {
+			printf("username: %s\n", username);
+		}
+		if (password != NULL) {
+			printf("password: %s\n", password);
+		}
+		printf("segments_ttl_seconds: %ld\n", segments_ttl_seconds);
+		printf("expire_after_seconds: %ld\n", expire_after_seconds);
+	}
+	// Construct address string from host and port
+	char address[2048];
+	rc = snprintf(address, 2048, "tcp://%s:%d", host, port);
+	if (rc < 0 || rc >= 2048) {
+		printf("Failed to construct address string\n");
+		printf("Something wrong occurred. File transfer thread exiting...\n");
+		exit(1);
+	}
+	// Create client
+	MQTTClient_createOptions options;
+	options.MQTTVersion = MQTTVERSION_5;
+	strncpy(options.struct_id, "MQCO", 4);
+	rc = MQTTClient_createWithOptions(&client, address, client_id, 0, NULL, &options);
+	if (rc != MQTTCLIENT_SUCCESS) {
+		printf("Create mqtt client failed: %d\n", rc);
+		printf("Something wrong occurred. File transfer thread exiting...\n");
+		exit(1);
+	}
+	MQTTResponse mqttrc;
+	MQTTClient_connectOptions conn_opts = MQTTClient_connectOptions_initializer;
+	conn_opts.username = username;
+	conn_opts.password = password;
+	conn_opts.MQTTVersion = MQTTVERSION_5;
+	conn_opts.cleanstart = 0;
+	conn_opts.cleansession = 0;
+	MQTTProperties props = MQTTProperties_initializer;
+	MQTTProperties willProps = MQTTProperties_initializer;
+	mqttrc = MQTTClient_connect5(client, &conn_opts, &props, &willProps);
+	if (mqttrc.reasonCode != MQTTCLIENT_SUCCESS) {
+		printf("Failed to connect, return code %d\n", mqttrc.reasonCode);
+		printf("Something wrong occurred. File transfer thread exiting...\n");
+		exit(1);
+	} else {
+		if (DEBUG) {
+			printf("Connected to MQTT Broker!\n");
+		}
+	}
+	// Calculate expire time
+	unsigned long expire_time_s_since_epoch;
+	if (expire_after_seconds == -1) {
+		expire_time_s_since_epoch = -1;
+	} else {
+		expire_time_s_since_epoch = time(NULL) + expire_after_seconds;
+	}
+	(void)start_listening(client,
+						  expire_time_s_since_epoch,
+						  segments_ttl_seconds);
+	printf("Something wrong occurred. File transfer thread exiting...\n");
+
+	(void)MQTTClient_disconnect5(client, TIMEOUT, MQTTREASONCODE_NORMAL_DISCONNECTION, &props);
+	(void)MQTTClient_destroy(&client);
+	return -1;
 }
