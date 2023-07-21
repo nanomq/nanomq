@@ -43,6 +43,54 @@
 #define TIMEOUT	 100000L
 #define DEBUG	   1
 
+static int publish_send_result(MQTTClient client,
+							   char *file_id,
+							   int success)
+{
+	int rc;
+	int buf_size = 128;
+	int payloadLen = 30;
+	char payload[payloadLen];
+	rc = snprintf(
+			payload,
+			payloadLen,
+			"{\n"
+			"  \"result\": \%s\",\n"
+			"}",
+			success ? "success" : "fail");
+	if (rc < 0 || rc >= payloadLen) {
+		printf("Failed to create payload for initial message\n");
+		return -1;
+	}
+	// Create topic of the form file_transfer/{file_id}/result for result message
+	char topic[buf_size];
+	MQTTClient_deliveryToken token;
+	rc = snprintf(topic, buf_size, "file_transfer/%s/result", file_id);
+	if (rc < 0 || rc >= buf_size) {
+		printf("Failed to create topic for result message\n");
+		return -1;
+	}
+	// Publish result message
+	if (DEBUG) {
+		printf("Publishing result message to topic %s\n", topic);
+		printf("Payload:\n %s\n", payload);
+	}
+	MQTTProperties props = MQTTProperties_initializer;
+	MQTTResponse mqttrc;
+	mqttrc = MQTTClient_publish5(client, topic, strlen(payload), payload, 2, 0, &props, &token);
+	if (mqttrc.reasonCode != MQTTCLIENT_SUCCESS) {
+		printf("Failed to publish message, return code %d\n", rc);
+		return -1;
+	}
+	rc = MQTTClient_waitForCompletion(client, token, TIMEOUT);
+	if (rc != MQTTCLIENT_SUCCESS) {
+		printf("Failed to publish message, return code %d\n", rc);
+		return -1;
+	}
+
+	return 0;
+}
+
 static int start_listening(MQTTClient client,
 						   unsigned long expire_time_s_since_epoch,
 						   unsigned long segments_ttl_seconds)
@@ -99,13 +147,16 @@ static int start_listening(MQTTClient client,
 												cjson_filename->valuestring,
 												expire_time_s_since_epoch,
 												segments_ttl_seconds);
-						if (result == 0) {
-							if (DEBUG) {
-								printf("Send file: %s success\n", cjson_filepath->valuestring);
-							}
-							continue;
-						} else {
-							printf("Send file: %s failed\n", cjson_filepath->valuestring);
+
+						printf("Send file file_id: %s %s\n", cjson_fileid->valuestring,
+												!result ? "success" : "fail");
+						result = publish_send_result(client, cjson_fileid->valuestring,
+												!result);
+						if (DEBUG) {
+							printf("Send file file_id: %s transfer result: %s\n",
+												cjson_fileid->valuestring,
+												!result ? "success" : "fail");
+
 						}
 					}
 				}
