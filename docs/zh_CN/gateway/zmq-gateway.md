@@ -122,7 +122,67 @@ gateway.zmq {
     pub_pre="pub_prefix"
 }
 ```
-配置文集的[详细描述](../config-description/v019.md)。
+如果你希望通过 HTTP API 动态更新配置或者控制网关的重启或停止，可以通过将以下配置加入到 `nanomq_zmq_gateway.conf` 中，启动 HTTP 服务：
+
+```bash
+# #============================================================
+# # Http server
+# #============================================================
+http_server {
+	# # http server port
+	# #
+	# # Value: 0 - 65535
+	port = 8082
+	# # parallel for http server
+	# # Handle a specified maximum number of outstanding requests
+	# #
+	# # Value: 1-infinity
+	parallel = 2
+	# # username
+	# #
+    # # Basic authorization 
+    # #
+	# # Value: String
+	username = admin
+	# # password
+	# #
+    # # Basic authorization
+    # #
+	# # Value: String
+	password = public
+}
+```
+## HTTP API
+HTTP API 提供了如下几个接口：
+- 获取配置文件：
+```shell
+$ curl --basic -u admin:public 'http://127.0.0.1:8082/api/v4/proxy/configuration/zmq' --output nanomq_zmq_gateway.conf
+```
+- 更新配置文件：
+```shell
+$ curl --basic -u admin:public 'http://127.0.0.1:8082/api/v4/proxy/configuration/zmq' --header 'Content-Type: text/plain'  --data-binary '@nanomq_zmq_gateway.conf'
+```
+- 停止网关：
+```shell
+$ curl --basic -u admin:public 'http://127.0.0.1:8082/api/v4/proxy/ctrl/stop' \
+--header 'Content-Type: application/json' \
+--data '{
+    "req": 10,
+    "action": "stop",
+    "seq": 1234
+}'
+```
+- 重启网关：
+```shell
+$ curl --basic -u admin:public 'http://127.0.0.1:8082/api/v4/proxy/ctrl/restart' \
+--header 'Content-Type: application/json' \
+--data '{
+    "req": 10,
+    "action": "restart",
+    "seq": 1234
+}'
+```
+
 
 ## 测试 ZMQ 网关
 

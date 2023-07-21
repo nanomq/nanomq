@@ -78,7 +78,7 @@ Usage: nanomq_cli vsomeip_gateway [--conf <path>]
 
 例如，您希望将从 SOME/IP 服务接收到的数据转发至本地 MQTT Broker 的 `topic/pub` 主题，同时将通过主题 `topic/sub` 收到的 MQTT 消息转发至 SOME/IP 服务，可通过如下配置实现：
 
-```apacheconf
+```bash
 gateway.mqtt {
     address = "mqtt-tcp://localhost:1883"
     sub_topic = "topic/sub" # message from mqtt
@@ -100,14 +100,69 @@ gateway.vsomeip {
     # conf_path = "/etc/vsomeip.json"
 }
 
+```
+
+如果你希望通过 HTTP API 动态更新配置或者控制网关的重启或停止，可以通过将以下配置加入到 `nanomq_vsomeip_gateway.conf` 中，启动 HTTP 服务：
+
+```bash
+# #============================================================
+# # Http server
+# #============================================================
 http_server {
-	enable = false
+	# # http server port
+	# #
+	# # Value: 0 - 65535
 	port = 8082
+	# # parallel for http server
+	# # Handle a specified maximum number of outstanding requests
+	# #
+	# # Value: 1-infinity
 	parallel = 2
+	# # username
+	# #
+    # # Basic authorization 
+    # #
+	# # Value: String
 	username = admin
+	# # password
+	# #
+    # # Basic authorization
+    # #
+	# # Value: String
 	password = public
 }
 ```
+## HTTP API
+HTTP API 提供了如下几个接口：
+- 获取配置文件：
+```shell
+$ curl --basic -u admin:public 'http://127.0.0.1:8082/api/v4/proxy/configuration/someip' --output nanomq_vsomeip_gateway.conf
+```
+- 更新配置文件：
+```shell
+$ curl --basic -u admin:public 'http://127.0.0.1:8082/api/v4/proxy/configuration/someip' --header 'Content-Type: text/plain'  --data-binary '@nanomq_vsomeip_gateway.conf'
+```
+- 停止网关：
+```shell
+$ curl --basic -u admin:public 'http://127.0.0.1:8082/api/v4/proxy/ctrl/stop' \
+--header 'Content-Type: application/json' \
+--data '{
+    "req": 10,
+    "action": "stop",
+    "seq": 1234
+}'
+```
+- 重启网关：
+```shell
+$ curl --basic -u admin:public 'http://127.0.0.1:8082/api/v4/proxy/ctrl/restart' \
+--header 'Content-Type: application/json' \
+--data '{
+    "req": 10,
+    "action": "restart",
+    "seq": 1234
+}'
+```
+
 
 
 ## 测试 SOME/IP 网关

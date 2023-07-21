@@ -333,7 +333,7 @@ get_config(http_msg *msg, proxy_info *proxy, const char *name)
 		    file_load_data(proxy->conf_path, (void **) &file_data);
 		if (file_sz > 0) {
 			put_http_msg(&res, "text/plain", POST_METHOD, NULL,
-			    NULL, file_data, file_sz);
+			    NULL, file_data, file_sz-1);
 			return res;
 		} else {
 			return error_response(

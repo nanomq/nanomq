@@ -125,6 +125,71 @@ gateway.zmq {
 ```
 Configure file description can find [here](../config-description/gateway.md).
 
+If you wish to dynamically update configuration or control the gateway's restart or shutdown through an HTTP API, you can add the following configuration to `nanomq_zmq_gateway.conf` and start the HTTP service:
+
+```bash
+# #============================================================
+# # Http server
+# #============================================================
+http_server {
+	# # http server port
+	# #
+	# # Value: 0 - 65535
+	port = 8082
+	# # parallel for http server
+	# # Handle a specified maximum number of outstanding requests
+	# #
+	# # Value: 1-infinity
+	parallel = 2
+	# # username
+	# #
+    # # Basic authorization 
+    # #
+	# # Value: String
+	username = admin
+	# # password
+	# #
+    # # Basic authorization
+    # #
+	# # Value: String
+	password = public
+}
+```
+## HTTP API
+The HTTP API provides the following interfaces:
+
+- Get configuration file:
+```shell
+$ curl --basic -u admin:public 'http://127.0.0.1:8082/api/v4/proxy/configuration/zmq' --output nanomq_zmq_gateway.conf
+```
+
+- Update configuration file:
+```shell
+$ curl --basic -u admin:public 'http://127.0.0.1:8082/api/v4/proxy/configuration/zmq' --header 'Content-Type: text/plain'  --data-binary '@nanomq_zmq_gateway.conf'
+```
+
+- Stop gateway:
+```shell
+$ curl --basic -u admin:public 'http://127.0.0.1:8082/api/v4/proxy/ctrl/stop' \
+--header 'Content-Type: application/json' \
+--data '{
+    "req": 10,
+    "action": "stop",
+    "seq": 1234
+}'
+```
+
+- Restart gateway:
+```shell
+$ curl --basic -u admin:public 'http://127.0.0.1:8082/api/v4/proxy/ctrl/restart' \
+--header 'Content-Type: application/json' \
+--data '{
+    "req": 10,
+    "action": "restart",
+    "seq": 1234
+}'
+```
+
 ## Test ZMQ Gateway
 
 After setting up the configuration, use the following commands to start the NanoMQ Broker, ZMQ server, and ZMQ gateway. This will enable the message transmission between the ZMQ server and the MQTT Broker:
