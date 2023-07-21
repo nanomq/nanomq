@@ -112,22 +112,15 @@ http_auth = {
 
 ### **Configuration Items**
 
-`auth_req` and `super_req` 
+#### `auth_req`
 
-::: tip
-
-The `super_req` and `auth_req` groups share identical configuration items in their setups except the URL path. However, they serve different purposes. The `super_req` configuration refers to the Superuser, who has the privilege to bypass all other access control rules.
-
-:::
-
-- `url`: Specifies the HTTP URL API path for the corresponding request. Example:
-
-  - http://127.0.0.1:80/mqtt/auth for auth_req
-  -  http://127.0.0.1:80/mqtt/superuser for super_req
+- `url`: Specifies the HTTP URL API path for the corresponding request. Example: http://127.0.0.1:80/mqtt/auth
 
 - `method`: Specifies the HTTP request method for the corresponding request. This could be either `post` or `get`. Default: `post`
 
 - `headers.content-type`: Specifies the HTTP request headers for the corresponding request. The content-type header is used to indicate the media type of the resource that the request sends to the server. <!--in the doc site, it is auth.http_auth.auth_req.headers.<Any> and do we still need Examples: auth.http.auth_req.headers.accept = */*-->
+
+  - `headers.accept`: Specifies the value for the `Accept` header in the HTTP request sent for authentication.
 
 - `params`: Specifies the parameters used to construct the request body or query string parameters. 
 
@@ -137,28 +130,46 @@ The `super_req` and `auth_req` groups share identical configuration items in the
   Option values include:
 
   - `%u`: Username
-
   - `%c`: MQTT Client ID
-
   - `%a`: Client's network IP address
-
   - `%r`: The protocol used by the client can be:mqtt, mqtt-sn, coap, lwm2m and stomp
-
   - `%P`: Password
-
   - `%p`: Server port for client connection
-
   - `%C`: Common Name in client certificate
-
   - `%d`: Subject in client certificate
 
-    
+#### `super_req` 
 
-`acl_req`: 
+::: tip
+
+The `super_req` configuration refers to the Superuser, who has the privilege to bypass all other access control rules. It shares identical configuration items in their setups except the URL path. 
+
+:::
+
+- `url`: For example, http://127.0.0.1:80/mqtt/superuser
+
+- `method`
+
+- `headers.content-type`<!--in the doc site, it is auth.http_auth.auth_req.headers.<Any> and do we still need Examples: auth.http.auth_req.headers.accept = */*-->
+
+  - `headers.accept`
+
+- `params`: Specifies the parameters used to construct the request body or query string parameters. 
+
+  - When using the **GET** method, the value will be converted into `k=v` key-value pairs separated by `&` and sent as query string parameters. All placeholders will be replaced by run-time data.
+  - When using the **POST** method, the value will be converted into `k=v` key-value pairs separated by `&` and sent in the form of Request Body. All placeholders will be replaced by run-time data.
+
+  Option values are identical with the that in [`auth_req`](#auth-req)
+
+#### `acl_req`
 
 - `url`: Specifies the HTTP URL API path for the corresponding request.
+
 - `method`: Specifies the HTTP request method for the corresponding request. This could be either `post` or `get`. Default: `post`
+
 - `headers.content-type`: Specifies the HTTP request headers for the corresponding request. The content-type header is used to indicate the media type of the resource that the request sends to the server. <!--in the doc site, it is auth.http_auth.acl_req.headers.<Any> -->
+
+  - `headers.accept`
 
 - `params`: Specifies the parameters used to construct the request body or query string parameters：
 
@@ -167,9 +178,7 @@ The `super_req` and `auth_req` groups share identical configuration items in the
 
   These parameters can include variables like: 
 
-  - `%A`: Permission to be verified
-    - 1: subscription, 
-    - 2: publish
+  - `%A`: Permission to be verified: `1` for subscription and `2` for publish
   - `%u`: Username
   - `%c`: MQTT Client ID
   - `%a`: Client's network IP address

@@ -31,7 +31,7 @@ In this example configuration, two SQL rules are defined.
 
 ### **Configuration Items**
 
-- `path`: Specifies the path to the SQLite database file.
+- `path`: Specifies the path to the SQLite database file. 
 - `rules`: This is an array of rule objects. Each object defines a SQL rule for manipulating MQTT messages.
   - `sql`: Specifies the SQL clause for the rule. This clause is used to select and manipulate data from MQTT messages.
   - `table`: Specifies the SQLite database table that the rule applies to.
@@ -76,7 +76,7 @@ In this example configuration, two SQL rules are defined:
   - `host`: Specifies the host of the MySQL server. 
   - `username`: Specifies the username for the MySQL server.
   - `password`: Specifies the password for the MySQL server.
-  - `database`: Specifies the name of the database on the MySQL server. **Note**: Only one MySQL database can be configured. <!--这里对吗？-->
+  - `database`: Specifies the name of the database on the MySQL server; default: `mysql_rule_db`. **Note**: Only one MySQL database can be configured. <!--这里对吗？-->
 - `rules`: This is an array of rule objects. Each object defines a SQL rule for manipulating MQTT messages.
   - `table`: Specifies the MySQL database table that the rule applies to.
   - `sql`: Specifies the SQL clause for the rule. This clause is used to select and manipulate data from MQTT messages.
@@ -137,5 +137,3 @@ In this example configuration, two republishing rules are defined:
 - `username`: Specifies the username for the republishing client.
 - `password`: Specifies the password for the republishing client.
 - `sql`: Specifies the SQL clause for the rule. This clause is used to select and manipulate data from MQTT messages before republishing.
-
-## 
