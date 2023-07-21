@@ -37,149 +37,224 @@
 
 #include <MQTTClient.h>
 
-#define CLIENTID    "c-client"
-#define TIMEOUT     100000L
-#define DEBUG       0
+#include "nng/supplemental/nanolib/cJSON.h"
 
+#define CLIENTID	"c-client"
+#define TIMEOUT	 100000L
+#define DEBUG	   1
+
+static int start_listening(MQTTClient client,
+						   unsigned long expire_time_s_since_epoch,
+						   unsigned long segments_ttl_seconds)
+{
+	char *topicName = NULL;
+	MQTTClient_message *message = NULL;
+	int topicNameLen = 0;
+	int ret;
+	MQTTSubscribe_options subopts = MQTTSubscribe_options_initializer;
+	MQTTProperties props = MQTTProperties_initializer;
+
+	subopts.retainAsPublished = 1;
+	subopts.noLocal = 0;
+	subopts.retainHandling = 0;
+
+	MQTTResponse mqttrc;
+	mqttrc = MQTTClient_subscribe5(client, "file_transfer", 2, &subopts, &props);
+	if (mqttrc.reasonCode < MQTTCLIENT_SUCCESS) {
+		printf("Client subscribe topic failed\n", mqttrc.reasonCode);
+		return -1;
+	}
+
+	/* dead loop */
+	while (1) {
+		ret = MQTTClient_receive(client, &topicName, &topicNameLen, &message, 1000 * 60);
+		if (ret == MQTTCLIENT_SUCCESS) {
+			if (message != NULL) {
+				printf("rhack: %s: %d: topic: %s message: %s\n", __func__, __LINE__, topicName, message->payload);
+
+				cJSON *cjson_objs = cJSON_Parse(message->payload);
+				if (cjson_objs == NULL) {
+					printf("Parse json failed\n");
+				} else {
+					cJSON *cjson_filepath = cJSON_GetObjectItem(cjson_objs, "file_path");
+					cJSON *cjson_fileid = cJSON_GetObjectItem(cjson_objs, "file_id");
+					cJSON *cjson_filename = cJSON_GetObjectItem(cjson_objs, "file_name");
+					if (cjson_filepath == NULL || cjson_fileid == NULL ||
+							cjson_filename == NULL) {
+						printf("Input Json invalid\n");
+					} else {
+						if (DEBUG) {
+							printf("Input Json: filepath: %s fileid: %s filename: %s\n",
+															cjson_filepath->valuestring,
+															cjson_fileid->valuestring,
+															cjson_filename->valuestring);
+						}
+						// Send file
+						int result = send_file(client,
+												cjson_filepath->valuestring,
+												cjson_fileid->valuestring,
+												cjson_filename->valuestring,
+												expire_time_s_since_epoch,
+												segments_ttl_seconds);
+						if (result == 0) {
+							if (DEBUG) {
+								printf("Send file: %s success\n", cjson_filepath->valuestring);
+							}
+							continue;
+						} else {
+							printf("Send file: %s failed\n", cjson_filepath->valuestring);
+						}
+					}
+				}
+			} else {
+				printf("Arrived message is NULL\n");
+			}
+		} else {
+			printf("Client message receive failed return code: %d\n", ret);
+		}
+	}
+}
 
 int send_file(MQTTClient client,
-              char *file_path,
-              char *file_id,
-              char *file_name,
-              unsigned long expire_time_s_since_epoch,
-              unsigned long segments_ttl_seconds) {
-    FILE *fp = fopen(file_path, "rb");
-    int rc;
-    int qos = 1;
-    const size_t buf_size = 2048;
-    if (fp == NULL) {
-        printf("Failed to open file %s\n", file_path);
-        return -1;
-    }
-    // Get file size
-    fseek(fp, 0L, SEEK_END);
-    long file_size = ftell(fp);
-    fseek(fp, 0L, SEEK_SET);
-    // Create payload for initial message 
-    char payload[buf_size];
-    char expire_at_str[128];
-    char segments_ttl_str[128];
-    if (expire_time_s_since_epoch == -1) {
-        expire_at_str[0] = '\0';
-    } else {
-        // No need to check return value since we know the buffer is large enough
-        snprintf(expire_at_str,
-                128,
-                "  \"expire_at\": %ld,\n",
-                expire_time_s_since_epoch);
-    }
-    if (segments_ttl_seconds == -1) {
-        segments_ttl_str[0] = '\0';
-    } else {
-        // No need to check return value since we know the buffer is large enough
-        snprintf(segments_ttl_str,
-                128,
-                "  \"segments_ttl\": %ld,\n",
-                segments_ttl_seconds);
-    }
-    rc = snprintf(
-            payload,
-            buf_size,
-            "{\n"
-            "  \"name\": \"%s\",\n"
-            "  \"size\": %ld,\n"
-            "%s"
-            "%s"
-            "  \"user_data\": {}\n"
-            "}",
-            file_name,
-            file_size,
-            expire_at_str,
-            segments_ttl_str);
-    if (rc < 0 || rc >= buf_size) {
-        printf("Failed to create payload for initial message\n");
-        return -1;
-    }
-    // Create topic of the form $file/{file_id}/init for initial message
-    char topic[buf_size];
-    MQTTClient_deliveryToken token;
-    rc = snprintf(topic, buf_size, "$file/%s/init", file_id);
-    if (rc < 0 || rc >= buf_size) {
-        printf("Failed to create topic for initial message\n");
-        return -1;
-    }
-    // Publish initial message
-    if (DEBUG) {
-        printf("Publishing initial message to topic %s\n", topic);
-        printf("Payload: %s\n", payload);
-    }
-    rc = MQTTClient_publish(client, topic, strlen(payload), payload, 1, 0, &token);
-    if (rc != MQTTCLIENT_SUCCESS) {
-        printf("Failed to publish message, return code %d\n", rc);
-        return -1;
-    }
-    rc = MQTTClient_waitForCompletion(client, token, TIMEOUT);
-    if (rc != MQTTCLIENT_SUCCESS) {
-        printf("Failed to publish message, return code %d\n", rc);
-        return -1;
-    }
-    // Read binary chunks of max size 1024 bytes and publish them to the broker
-    // The chunks are published to the topic of the form $file/{file_id}/{offset}
-    // The chunks are read into the payload
-    size_t chunk_size = 1024;
-    size_t offset = 0;
-    size_t read_bytes;
-    while ((read_bytes = fread(payload, 1, chunk_size, fp)) > 0) {
-        rc = snprintf(topic, buf_size, "$file/%s/%lu", file_id, offset);
-        if (rc < 0 || rc >= buf_size) {
-            printf("Failed to create topic for file chunk\n");
-            return -1;
-        }
-        if (DEBUG) {
-            printf("Publishing file chunk to topic %s offset %lu\n", topic, offset);
-        }
-        rc = MQTTClient_publish(client, topic, read_bytes, payload, 1, 0, &token);
-        if (rc != MQTTCLIENT_SUCCESS) {
-            printf("Failed to publish file chunk, return code %d\n", rc);
-            return -1;
-        }
-        rc = MQTTClient_waitForCompletion(client, token, TIMEOUT);
-        if (rc != MQTTCLIENT_SUCCESS) {
-            printf("Failed to publish file chunk, return code %d\n", rc);
-            return -1;
-        }
-        offset += read_bytes;
-    }
-    // Check if we reached the end of the file
-    if (feof(fp)) {
-        if (DEBUG) {
-            printf("Reached end of file\n");
-        }
-    } else {
-        printf("Failed to read file\n");
-        return -1;
-    }
-    fclose(fp);
-    // Send final message to the topic $file/{file_id}/fin/{file_size} with an empty payload
-    rc = snprintf(topic, buf_size, "$file/%s/fin/%ld", file_id, file_size);
-    if (rc < 0 || rc >= buf_size) {
-        printf("Failed to create topic for final message\n");
-        return -1;
-    }
-    if (DEBUG) {
-        printf("Publishing final message to topic %s\n", topic);
-    }
-    rc = MQTTClient_publish(client, topic, 0, "", 1, 0, &token);
-    if (rc != MQTTCLIENT_SUCCESS) {
-        printf("Failed to publish final message, return code %d\n", rc);
-        return -1;
-    }
-    rc = MQTTClient_waitForCompletion(client, token, TIMEOUT);
-    if (rc != MQTTCLIENT_SUCCESS) {
-        printf("Failed to publish final message, return code %d\n", rc);
-        return -1;
-    }
-    return 0;
+			  char *file_path,
+			  char *file_id,
+			  char *file_name,
+			  unsigned long expire_time_s_since_epoch,
+			  unsigned long segments_ttl_seconds) {
+	FILE *fp = fopen(file_path, "rb");
+	int rc;
+	int qos = 1;
+	const size_t buf_size = 1024 * 10;
+	if (fp == NULL) {
+		printf("Failed to open file %s\n", file_path);
+		return -1;
+	}
+	// Get file size
+	fseek(fp, 0L, SEEK_END);
+	long file_size = ftell(fp);
+	fseek(fp, 0L, SEEK_SET);
+	// Create payload for initial message 
+	char payload[buf_size];
+	char expire_at_str[128];
+	char segments_ttl_str[128];
+	if (expire_time_s_since_epoch == -1) {
+		expire_at_str[0] = '\0';
+	} else {
+		// No need to check return value since we know the buffer is large enough
+		snprintf(expire_at_str,
+				128,
+				"  \"expire_at\": %ld,\n",
+				expire_time_s_since_epoch);
+	}
+	if (segments_ttl_seconds == -1) {
+		segments_ttl_str[0] = '\0';
+	} else {
+		// No need to check return value since we know the buffer is large enough
+		snprintf(segments_ttl_str,
+				128,
+				"  \"segments_ttl\": %ld,\n",
+				segments_ttl_seconds);
+	}
+	rc = snprintf(
+			payload,
+			buf_size,
+			"{\n"
+			"  \"name\": \"%s\",\n"
+			"  \"size\": %ld,\n"
+			"%s"
+			"%s"
+			"  \"user_data\": {}\n"
+			"}",
+			file_name,
+			file_size,
+			expire_at_str,
+			segments_ttl_str);
+	if (rc < 0 || rc >= buf_size) {
+		printf("Failed to create payload for initial message\n");
+		return -1;
+	}
+	// Create topic of the form $file/{file_id}/init for initial message
+	char topic[buf_size];
+	MQTTClient_deliveryToken token;
+	rc = snprintf(topic, buf_size, "$file/%s/init", file_id);
+	if (rc < 0 || rc >= buf_size) {
+		printf("Failed to create topic for initial message\n");
+		return -1;
+	}
+	// Publish initial message
+	if (DEBUG) {
+		printf("Publishing initial message to topic %s\n", topic);
+		printf("Payload: %s\n", payload);
+	}
+	MQTTProperties props = MQTTProperties_initializer;
+	MQTTResponse mqttrc;
+	mqttrc = MQTTClient_publish5(client, topic, strlen(payload), payload, 2, 0, &props, &token);
+	if (mqttrc.reasonCode != MQTTCLIENT_SUCCESS) {
+		printf("Failed to publish message, return code %d\n", rc);
+		return -1;
+	}
+	rc = MQTTClient_waitForCompletion(client, token, TIMEOUT);
+	if (rc != MQTTCLIENT_SUCCESS) {
+		printf("Failed to publish message, return code %d\n", rc);
+		return -1;
+	}
+	// Read binary chunks of max size 1024 bytes and publish them to the broker
+	// The chunks are published to the topic of the form $file/{file_id}/{offset}
+	// The chunks are read into the payload
+	size_t chunk_size = 1024 * 10;
+	size_t offset = 0;
+	size_t read_bytes;
+	while ((read_bytes = fread(payload, 1, chunk_size, fp)) > 0) {
+		rc = snprintf(topic, buf_size, "$file/%s/%lu", file_id, offset);
+		if (rc < 0 || rc >= buf_size) {
+			printf("Failed to create topic for file chunk\n");
+			return -1;
+		}
+		if (DEBUG) {
+			printf("Publishing file chunk to topic %s offset %lu\n", topic, offset);
+		}
+		mqttrc = MQTTClient_publish5(client, topic, read_bytes, payload, 1, 0, &props, &token);
+		if (mqttrc.reasonCode != MQTTCLIENT_SUCCESS) {
+			printf("Failed to publish file chunk, return code %d\n", rc);
+			return -1;
+		}
+		rc = MQTTClient_waitForCompletion(client, token, TIMEOUT);
+		if (rc != MQTTCLIENT_SUCCESS) {
+			printf("Failed to publish file chunk, return code %d\n", rc);
+			return -1;
+		}
+		offset += read_bytes;
+	}
+	// Check if we reached the end of the file
+	if (feof(fp)) {
+		if (DEBUG) {
+			printf("Reached end of file\n");
+		}
+	} else {
+		printf("Failed to read file\n");
+		return -1;
+	}
+	fclose(fp);
+	// Send final message to the topic $file/{file_id}/fin/{file_size} with an empty payload
+	rc = snprintf(topic, buf_size, "$file/%s/fin/%ld", file_id, file_size);
+	if (rc < 0 || rc >= buf_size) {
+		printf("Failed to create topic for final message\n");
+		return -1;
+	}
+	if (DEBUG) {
+		printf("Publishing final message to topic %s\n", topic);
+	}
+	mqttrc = MQTTClient_publish5(client, topic, 0, "", 1, 0, &props, &token);
+	if (mqttrc.reasonCode != MQTTCLIENT_SUCCESS) {
+		printf("Failed to publish final message, return code %d\n", rc);
+		return -1;
+	}
+	rc = MQTTClient_waitForCompletion(client, token, TIMEOUT);
+	if (rc != MQTTCLIENT_SUCCESS) {
+		printf("Failed to publish final message, return code %d\n", rc);
+		return -1;
+	}
+	return 0;
 }
 
 void print_usage() {
