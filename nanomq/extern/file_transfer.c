@@ -311,7 +311,6 @@ int file_transfer(int argc, char *argv[]) {
 	char *password;
 	long segments_ttl_seconds;
 	long expire_after_seconds;
-	printf("rhack: argc == 0\n");
 	// Read command line arguments
 	initial_param(
 			argc,
