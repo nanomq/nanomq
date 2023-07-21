@@ -184,7 +184,7 @@ The `super_req` configuration refers to the Superuser, who has the privilege to 
   - `%a`: Client's network IP address
   - `%r`: The protocol used by the client can be:mqtt, mqtt-sn, coap, lwm2m and stomp
   - `%m`: Mount point
-  - ``%t`: Topic
+  - `%t`: Topic
 
 **General ACL configuration items**
 
