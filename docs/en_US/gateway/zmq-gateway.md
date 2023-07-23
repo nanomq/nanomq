@@ -123,6 +123,7 @@ gateway.zmq {
     pub_pre="pub_prefix"
 }
 ```
+Configure file description can find [here](../config-description/gateway.md).
 
 If you wish to dynamically update configuration or control the gateway's restart or shutdown through an HTTP API, you can add the following configuration to `nanomq_zmq_gateway.conf` and start the HTTP service:
 

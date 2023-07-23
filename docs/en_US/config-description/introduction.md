@@ -1,6 +1,10 @@
 # Configuration
 
-NanoMQ configuration files come in two versions: the Classic KV version and the HOCON version. The HOCON version is a new configuration format introduced in version 0.14. The KV version is the original configuration file format of NanoMQ, which will be retained and compatible with older users for the long term (although some new features will only support the new HOCON configuration format).
+NanoMQ has incorporated HOCON syntax support since version 0.14. However, there have been syntax updates introduced in version 0.19. For this reason, users of NanoMQ versions 0.14 to 0.18 should consult the [NanoMQ 0.14-0.18 Configuration Guide](https://chat.openai.com/c/v014.md) for specifics on the appropriate syntax.
+
+While NanoMQ continues to support the traditional Key-Value (KV) configuration syntax, it's important to note that some new features will only be compatible with the HOCON configuration format. For details on the KV syntax, please refer to the [Classic KV Format Configuration Guide](https://chat.openai.com/c/v013.md).
+
+The focus of this chapter is to provide guidance on configuring NanoMQ using the updated HOCON syntax.
 
 ## HOCON
 
@@ -64,3 +68,4 @@ log {
 
 log.level=debug
 ```
+

@@ -68,7 +68,7 @@ If you wish to start NanoMQ via a configuration file:
   docker cp nanomq.conf nanomq:/etc/nanomq.conf
   ```
 
-Here's an example configuration for enabling MQTT bridging with TLS connection. For more explanations on NanoMQ's configurations, please refer to the [Configuration Guide](../config-description/v019.md):
+Here's an example configuration for enabling MQTT bridging with TLS connection. For more explanations on NanoMQ's configurations, please refer to the [Configuration Guide](../config-description/introduction.md):
 
 ```bash
 bridges.mqtt.name {

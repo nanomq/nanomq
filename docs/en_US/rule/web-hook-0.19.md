@@ -4,7 +4,7 @@ NanoMQ is equipped with an event-driven WebHook interface, this section introduc
 
 The webhook configuration file is located in `etc/nanomq.conf`, NanoMQ offers 2 formats of configuration files:
 
-- [HOCON (recommended, supported since v0.14 or above)](../config-description/v019.md)
+- [HOCON (recommended, supported since v0.14 or above)](../config-description/webhook.md)
 - [Key-Value format](../config-description/v013.md)
 
 ## Configure in HOCON

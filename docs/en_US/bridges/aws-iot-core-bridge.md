@@ -80,9 +80,9 @@ Note: The MQTT ClientID, certificate file, and subscription/publication topic in
 
 Users who wish to use the HOCON configuration format can refer to the following format to write the configuration to the `nanomq.conf` file, and the relevant settings will take effect after the NanoMQ restart.
 
-- Full details of Configuration，refer to [Configurations - v019](../config-description/v019.md)
+- Full details of Configuration，refer to [Configurations](../config-description/bridges.md)
 
-- NanoMQ 0.14 ~ 0.18 ，refer to [Configuration - v0.14](../config-description/v019.md)
+- NanoMQ 0.14 ~ 0.18 ，refer to [Configuration - v0.14](../config-description/v014.md)
 
 ```bash
 # # ci is the node name, you can setup multiple bridging targer with different node name
