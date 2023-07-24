@@ -148,11 +148,11 @@ The `super_req` configuration refers to the Superuser, who has the privilege to 
 
 - `url`: For example, http://127.0.0.1:80/mqtt/superuser
 
-- `method`
+- `method`：Specifies the HTTP request method for the corresponding request. This could be either `post` or `get`. Default: `post`
 
-- `headers.content-type`<!--in the doc site, it is auth.http_auth.auth_req.headers.<Any> and do we still need Examples: auth.http.auth_req.headers.accept = */*-->
+- `headers.content-type`：Specifies the HTTP request headers for the corresponding request. The content-type header is used to indicate the media type of the resource that the request sends to the server. <!--in the doc site, it is auth.http_auth.auth_req.headers.<Any> and do we still need Examples: auth.http.auth_req.headers.accept = */*-->
 
-  - `headers.accept`
+  - `headers.accept`: Specifies the value for the `Accept` header in the HTTP request sent for authentication.
 
 - `params`: Specifies the parameters used to construct the request body or query string parameters. 
 
@@ -169,12 +169,12 @@ The `super_req` configuration refers to the Superuser, who has the privilege to 
 
 - `headers.content-type`: Specifies the HTTP request headers for the corresponding request. The content-type header is used to indicate the media type of the resource that the request sends to the server. <!--in the doc site, it is auth.http_auth.acl_req.headers.<Any> -->
 
-  - `headers.accept`
+  - `headers.accept`：Specifies the value for the `Accept` header in the HTTP request sent for authentication.
 
 - `params`: Specifies the parameters used to construct the request body or query string parameters：
 
-  - When using the **GET** method, the value of `auth.http_auth.auth_req.params` will be converted into `k=v` key-value pairs separated by `&` and sent as query string parameters. 
-  - When using the **POST** method, the value of `auth.http_auth.auth_req.params` will be converted into `k=v` key-value pairs separated by `&` and sent in the form of Request Body. All placeholders will be replaced by run-time data ,
+  - When using the **GET** method, the value will be converted into `k=v` key-value pairs separated by `&` and sent as query string parameters. 
+  - When using the **POST** method, the value will be converted into `k=v` key-value pairs separated by `&` and sent in the form of Request Body. All placeholders will be replaced by run-time data ,
 
   These parameters can include variables like: 
 
