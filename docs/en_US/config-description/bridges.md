@@ -283,5 +283,5 @@ bridges.aws.c1 = {
   - `certfile`: Specifies the path to the client's certificate file.
   - `cacertfile`: Specifies the path to the server's root CA certificate file. This certificate is used to identify the AWS IoT server.
 - `forwards`: Specifies the topics that need to be forwarded to AWS IoT Core. For example, ["topic1/#", "topic2/#"].
-- `subscription`: Specifies the topics that the bridge should subscribe to from AWS IoT Core. Each topic has a name (`topic`) and a Quality of Service level (`qos`).
+- `subscription`: Specifies the topics that the bridge should subscribe to from AWS IoT Core. Each group has a name (`topic`) and a Quality of Service level (`qos`).
 - `max_parallel_processes`: Specifies the maximum number of outstanding requests that can be handled simultaneously.
