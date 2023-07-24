@@ -263,6 +263,7 @@ client_cb(void *arg)
 		nng_msg_clear(work->msg);
 
 		nng_mqtt_msg_set_packet_type(work->msg, NNG_MQTT_PUBLISH);
+		nng_mqtt_msg_set_publish_qos(work->msg, 1);
 		nng_mqtt_msg_set_publish_topic(work->msg, topic);
 		nng_mqtt_msg_set_publish_payload(
 		    work->msg, payload, strlen(payload));
@@ -358,8 +359,9 @@ client_cb(void *arg)
 			printf("Publishing final message to topic %s\n", topic3);
 		}
 
-		nng_mqtt_msg_set_packet_type(work->msg, NNG_MQTT_PUBLISH);
-		nng_mqtt_msg_set_publish_topic(work->msg, topic3);
+		nng_mqtt_msg_set_packet_type(finimsg, NNG_MQTT_PUBLISH);
+		nng_mqtt_msg_set_publish_qos(finimsg, 1);
+		nng_mqtt_msg_set_publish_topic(finimsg, topic3);
 		nng_mqtt_msg_set_publish_payload(
 		    work->msg, "", 0);
 
