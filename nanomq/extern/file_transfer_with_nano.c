@@ -292,9 +292,10 @@ client_cb(void *arg)
 			nng_ctx_recv(work->ctx, work->aio);
 			break;
 		}
-		nng_msg *new_msg = nng_aio_get_msg(work->aio);
 		int read_bytes;
 		int chunk_size = 1024;
+		nng_msg *newmsg;
+		nng_mqtt_msg_alloc(&newmsg, 0);
 		payload = malloc(sizeof(char) * buf_size);
 		memset(payload, 0, buf_size);
 		if ((read_bytes = fread(payload, 1, chunk_size, work->fp)) > 0) {
@@ -313,28 +314,32 @@ client_cb(void *arg)
 			if (DEBUG) {
 				printf("Publishing file chunk to topic %s offset %lu\n", topic, work->file_off);
 			}
-
-			nng_mqtt_msg_set_packet_type(new_msg, NNG_MQTT_PUBLISH);
-			nng_mqtt_msg_set_publish_topic(new_msg, topic);
+			nng_mqtt_msg_set_packet_type(newmsg, NNG_MQTT_PUBLISH);
+			nng_mqtt_msg_set_publish_qos(newmsg, 1);
+			nng_mqtt_msg_set_publish_topic(newmsg, topic);
 			nng_mqtt_msg_set_publish_payload(
-			    new_msg, payload, strlen(payload));
+			    newmsg, payload, strlen(payload));
 
 //			printf("SEND: '%.*s' TO:   '%s'\n", strlen(payload),
 //			    (char *) payload, topic);
 
-			nng_aio_set_msg(work->aio, new_msg);
+			nng_aio_set_msg(work->aio, newmsg);
 			work->file_off += read_bytes;
-			work->msg = NULL;
 			nng_ctx_send(work->ctx, work->aio);
 	//		printf("SEND: '%.*s' TO:   '%s'\n", strlen(send_data),
 	//		    (char *) send_data, topic);
+			nng_msleep(100);
 		} else {
 			work->state = SEND_FINI;
+			nng_sleep_aio(0, work->aio);
 		}
 		free(payload);
 		break;
 
 	case SEND_FINI:
+		nng_msleep(30 * 1000);
+		nng_msg *finimsg;
+		nng_mqtt_msg_alloc(&finimsg, 0);
 		printf("rhack: %s: %d\n", __func__, __LINE__);
 		if ((rv = nng_aio_result(work->aio)) != 0) {
 			nng_msg_free(work->msg);
@@ -363,10 +368,9 @@ client_cb(void *arg)
 		nng_mqtt_msg_set_publish_qos(finimsg, 1);
 		nng_mqtt_msg_set_publish_topic(finimsg, topic3);
 		nng_mqtt_msg_set_publish_payload(
-		    work->msg, "", 0);
+		    finimsg, "", 0);
 
-		nng_aio_set_msg(work->aio, work->msg);
-		work->msg   = NULL;
+		nng_aio_set_msg(work->aio, finimsg);
 		work->state = SEND_FINI_DONE;
 		free(topic3);
 		nng_ctx_send(work->ctx, work->aio);
