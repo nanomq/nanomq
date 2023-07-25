@@ -200,9 +200,9 @@ http_auth = {
 
 `pool_size`：连接进程池大小
 
-## 近期特性
+## 功能预告
 
-在接下里的版本中，NanoMQ 即将支持与 HTTP 身份验证相关的 TLS 配置项，包括`acl_rep`、`super_req` 和 `http_auth`，敬请期待。
+在接下里的版本中，NanoMQ 即将支持与 HTTP 身份验证相关的 TLS 配置项，敬请期待。
 
 ```
 tls {

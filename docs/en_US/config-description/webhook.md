@@ -1,6 +1,6 @@
 # WebHook
 
-Webhook in NanoMQ allows the broker to send HTTP requests to specified endpoints when certain events occur. These events include client connections, message publications, session terminations, and more. With this feature, you can integrate NanoMQ with other services and build complex event-driven architectures.
+WebHook in NanoMQ allows the broker to send HTTP requests to specified endpoints when certain events occur. These events include client connections, message publications, session terminations, and more. This feature lets you integrate NanoMQ with other services and build complex event-driven architectures.
 
 ## **Example Configuration**
 
@@ -24,8 +24,8 @@ webhook = {
 
 ## **Configuration Items**
 
-- `url`: Specifies the URL that the webhook will send HTTP requests to when the specified events occur. This should be the endpoint of a service that can handle these requests appropriately.
-- `headers.content-type`:  Defines the HTTP header for the content type of the request. For example, "application/json", meaning that the body of the HTTP request will be formatted as a JSON object. 
+- `url`: Specifies the URL to which the webhook will send HTTP requests when the events occur. This should be the endpoint of a service that can handle these requests appropriately.
+- `headers.content-type`:  Defines the HTTP header for the content type of the request. For example, "application/json" means that the HTTP request's body will be formatted as a JSON object. 
 - `body.encoding`: Specifies the encoding format of the payload field in the HTTP body. This field only appears in the `on_message_publish` and `on_message_delivered` events. The value can be `plain`, `base64`, or `base62`.
 - `pool_size`: Specifies the connection process pool size. This determines the number of concurrent connections that the webhook can maintain with the endpoint specified in the `url`. Default: 32
 - `events`: This is an array of event objects. Each object specifies an event that will trigger the webhook:

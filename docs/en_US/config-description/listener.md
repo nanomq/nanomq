@@ -41,7 +41,7 @@ listeners.ssl.<listener-name> = {
 - `cacertfile`: Specifies the path to the file that contains the PEM-encoded CA certificates.
 - `verify_peer`: Specifies whether the server requests a certificate from the client, optional value: 
   - `true`: verify_peer
-  - `false ` verify_none
+  - `false `: verify_none
 - `fail_if_no_peer_cert`: Specifies whether to deny the connection if no certificate is provided, valid only when `verify_peer` is set to true, optional values: 
   - `true`: Rejects the connection if the client sends an empty certificate.
   - `false`: Rejects the connection only when the client sends an invalid certificate.
