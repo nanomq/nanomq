@@ -41,4 +41,4 @@ sqlite {
   - 1 - infinity
 - `mounted_file_path`: Specifies the file path where the SQLite database file is mounted; default: `nanomq running path`
 - `flush_mem_threshold`: Specifies the threshold for flushing messages to the SQLite database. When the number of messages reaches this threshold, they are flushed to the SQLite database; default: 100, Value range: 1-infinity
-- `resend_interval`: Specifies the interval, in milliseconds, for resending the messages after a failure is recovered. This is not related to the trigger for the resend operation; default: 5000. Note:  **Only work for broker**. <!--@jaylin, not quite sure what does only work for broker mean-->
+- `resend_interval`: Specifies the interval, in milliseconds, for resending the messages after a failure is recovered. This is unrelated to the trigger for the resend operation; default: 5000. Note:  **Only work for the NanoMQ broker to resend cached messages to local client, not for bridging connections**.
