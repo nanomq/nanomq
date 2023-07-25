@@ -1,6 +1,6 @@
-# Listener 监听器 
+# 监听器（ Listener ） 
 
-NanoMQ 支持四种类型的监听器：TCP 监听器，SSL 监听器，WebSocket 监听器和 Secure WebSocket 监听器。
+NanoMQ 支持四种监听器类型：TCP 监听器，SSL 监听器，WebSocket 监听器和 Secure WebSocket 监听器。
 
 ## MQTT/TCP 监听器 - 1883
 
@@ -22,20 +22,20 @@ listeners.tcp.tcp_listener_1 = {
 
 ```hcl
 listeners.ssl.<listener-name> = {
-  bind = "0.0.0.0:8883"              # 绑定 8883 端口
-  # key_password = <yourpass>        # 解密私钥文件所需的密码字符串
-  keyfile = "/etc/certs/key.pem"     # 密钥文件路径
-  certfile = "/etc/certs/cert.pem"   # 用户证书文件路径
+  bind = "0.0.0.0:8883"                # 绑定 8883 端口
+  # key_password = <yourpass>          # 解密私钥文件所需的密码字符串
+  keyfile = "/etc/certs/key.pem"       # 密钥文件路径
+  certfile = "/etc/certs/cert.pem"     # 用户证书文件路径
   cacertfile = "/etc/certs/cacert.pem" # CA 证书文件路径
-  verify_peer = false					  		 # 是否从客户端请求证书	
-  fail_if_no_peer_cert = false			 # 如客户端未提供证书，是否拒绝连接
+  verify_peer = false					  		   # 是否从客户端请求证书	
+  fail_if_no_peer_cert = false			   # 如客户端未提供证书，是否拒绝连接
 }
 ```
 
 ### **配置项**
 
 - `bind`：指定监听器应绑定的 IP 地址和端口。
-- `key_password`：包含解密私钥文件所需的密码的字符串，只需在私钥文件已加密的情况下设置。 
+- `key_password`：包含解密私钥文件所需的密码字符串，只需在私钥文件已加密的情况下设置。 
 - `keyfile`：经 PEM 格式编码的私钥文件路径。
 - `certfile`：用户证书文件路径。
 - `cacertfile`：经 PEM 格式编码 CA 证书文件路径。
@@ -43,7 +43,7 @@ listeners.ssl.<listener-name> = {
   - `true`：verify_peer
   - `false `：verify_none
 - `fail_if_no_peer_cert`：是否拒绝无证书连接，仅在 `verify_peer` 设置为 true 的情况下生效，可选值：
-  - `true`：如果客户端发送空证书，拒绝连接
+  - `true`：如客户端发送空证书，拒绝连接。
   - `false`：仅当客户端发送无效证书时拒绝连接。
 
 ## MQTT/WebSocket 监听器 - 8083
@@ -76,10 +76,13 @@ listeners.wss.<listener-name> = {
 
 ::: tip
 
-Secure WebSocket 监听器与 SSL 监听器共用 `keyfile`、`certfile` 和 `cacertfile` 配置。因此，如已经在 SSL 监听器部分完成相应配置，则无需重复配置。 如尚未配置 SSL 监听器，则需要为 Secure WebSocket 监听器进行以下配置：
+Secure WebSocket 监听器与 SSL 监听器共用 `keyfile`、`certfile` 和 `cacertfile` 配置。因此，如已在 SSL 监听器部分完成相应配置，则无需重复配置。 如尚未配置 SSL 监听器，则需要为 Secure WebSocket 监听器进行以下配置：
 
 - `keyfile`
 - `certfile`
 - `cacertfile`
 
 :::
+
+<!--@jaylin can we add multiple listeners, if yes, it's good if we could give some examples.-->
+

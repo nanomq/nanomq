@@ -16,11 +16,11 @@ bridges.mqtt.emqx1 = {
   server = "mqtt-tcp://127.0.0.1:1883"    # MQTT 服务器地址
   proto_ver = 4                           # MQTT 协议版本
   clientid = "bridge_client"              # 桥接的客户端 ID
-  keepalive = "60s"                       # 桥接的 ping 间隔
+  keepalive = "60s"                       # 桥接的保活间隔时间（s）
   clean_start = false                     # 清除会话
   username = "username"                   # 桥接用户名
   password = "passwd"                     # 桥接密码
-  will = {                                # Will
+  will = {                                # 遗嘱消息相关配置
   	topic = "will_topic"                  # Will 主题
   	qos = 1                               # Will QoS
   	retain = false                        # 是否应保留遗嘱消息
@@ -71,7 +71,6 @@ bridges.mqtt.emqx1 = {
   - MQTT over TCP 桥接：mqtt-tcp://127.0.0.1:1883
   - 经 SSL 加密的 MQTT over TCP 桥接：tls+mqtt-tcp://127.0.0.1:8883
   - MQTT over QUIC 桥接：mqtt-quic://54.75.171.11:14567
-
 - `proto_ver`：指定 MQTT 协议版本：可选值：
   - `5`：MQTT v5
 
@@ -83,16 +82,13 @@ bridges.mqtt.emqx1 = {
 - `clean_start`：清除会话。注意：有些 IoT 平台会要求该项设为 `false`。
 - `username`：登录用户名。
 - `password`：登录密码。
-- `forwards`：转发到远端 MQTT 服务器多主题数组，包括：
-  - `topic`
-  - `qos`
-
+- `forwards`：转发到远端 MQTT 服务器的主题数组，应包括消息主题（`topic`）和 QoS （`qos`）。
 - `ssl`：SSL/TLS 相关配置项：
   - `key_password`：TLS 私钥密码。
   - `keyfile`：TLS 私钥数据。
   - `certfile`：TLS Cert 证书数据。
   - `cacertfile`：TLS CA 证书数据。
-- `subscription`：需要从远程MQTT服务器订阅的主题对象数组，每个数组内将定义消息主题和 QoS 等级。
+- `subscription`：需要从远程 MQTT 服务器订阅的主题对象数组，每个数组内将定义消息主题和 QoS 等级。
 - `max_parallel_processes`：接客户端并发数。
 - `max_send_queue_len`：最大发送队列长度。
 - `max_recv_queue_len`：最大接收队列长度。
@@ -109,8 +105,8 @@ bridges.mqtt.emqx1 = {
 | `conn_properties.receive_maximum`              | QoS 1 和 QoS 2 消息的最大接收数量，仅在当前连接下有效。<br />如未配置，将使用默认值 65535。 <!--to be confirmed--> | 1 - 65535                        |
 | `conn_properties.topic_alias_maximum`          | 主题别名最大长度 | 0 - 65535                        |
 | `conn_properties.request_problem_information`  | 请求问题信息： <br /><br />- 如设为 0，服务器仅可在 PUBLISH、CONNACK 或 DISCONNECT 包中插入问题信息。如违反该规则，客户端则将断开连接并返回协议错误信息。 <!--to be confirmed--><br /><br />-  如设为 1，则不限制包的类型。 | 0 或 1                           |
-| `conn_properties.request_response_information` | 请求响应信息 <br /><br />- 如设为 0，服务器禁止返回响应信息。 <!--to be confirmed--><br /><br />-  如设为 1，服务器可以在 CONNACK 包中返回响应信息。 | 0 或 1                           |
-| `conn_properties.session_expiry_interval`      | 会话过期间隔<br /><br />- 如设为 0，会话会在网络连接关闭后结束。<br /><br />- 如设为 4294967295 (UINT_MAX)，会话则永不过期。 | 0 - 4294967295                   |
+| `conn_properties.request_response_information` | 请求响应信息： <br /><br />- 如设为 0，服务器禁止返回响应信息。 <!--to be confirmed--><br /><br />-  如设为 1，服务器可以在 CONNACK 包中返回响应信息。 | 0 或 1                           |
+| `conn_properties.session_expiry_interval`      | 会话过期间隔：<br /><br />- 如设为 0，会话将在网络连接关闭后结束。<br /><br />- 如设为 4294967295 (UINT_MAX)，会话则永不过期。 | 0 - 4294967295                   |
 | `conn_properties.user_property`                | 用户属性键值对。 | Map[key(String) - value(String)] |
 
 **订阅相关**
@@ -155,7 +151,7 @@ bridges.mqtt.emqx1 = {
   server = "mqtt-quic://127.0.0.1:14567"  # MQTT 服务器地址
   proto_ver = 4                           # MQTT 协议版本
   clientid = "bridge_client"              # 桥接的客户端 ID
-  keepalive = "60s"                       # 桥接的 ping 间隔
+  keepalive = "60s"                       # 桥接的保活间隔时间（s）
   clean_start = false                     # 清除会话
   username = "username"                   # 桥接用户名
   password = "passwd"                     # 桥接密码
@@ -191,7 +187,7 @@ bridges.mqtt.emqx1 = {
 
 本部分重点介绍 MQTT over QUIC 桥接相关的配置项，其他配置项可参考 [MQTT over TCP 桥接](#mqtt-over-tcp-桥接)。
 
-- Server：桥接的 MQTT 服务器地址。例如 `mqtt-quic://54.75.171.11:14567`
+- Server：桥接的 MQTT 服务器地址，例如 `mqtt-quic://54.75.171.11:14567`
 - `quic_keepalive`：QUIC 传输层保活时间，缺省为 120 秒。
 - `quic_idle_timeout`：QUIC 连接最大过期时间，超时后，连接将被断开。0 表示永不超时，缺省为 120 秒。
 - `quic_discon_timeout`：QUIC 等待连接 ACK 最大时间 ，缺省为 `20s`。
@@ -260,7 +256,7 @@ bridges.aws.c1 = {
   server = "127.0.0.1:8883"             # AWS IoT Core 服务器地址
   proto_ver = 4                         # MQTT 协议版本
   clientid = "aws_bridge_client"        # 桥接的客户端 ID
-  keepalive = "60s"                     # 桥接的 ping 间隔
+  keepalive = "60s"                     # 桥接的保活间隔时间（s）
   clean_start = true                    # 清除会话
   forwards = ["topic1/#", "topic2/#"]   # 要转发到远端 AWS IoT Core 的主题
   subscription = [                      # 要从 AWS IoT Core 订阅的主题

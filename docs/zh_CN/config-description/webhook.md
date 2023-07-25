@@ -26,10 +26,10 @@ webhook = {
 
 - `url`：Webhook URL。
 - `headers.content-type`:  定义请求内容类型的 HTTP 头，如，"application/json"，表示 HTTP 请求的 Payload 将被格式化为 JSON 对象。
-- `body.encoding`：指定 HTTP 体中 Payload 字段的编码格式。此字段仅在 `on_message_publish` 和 `on_message_delivered` 事件中出现。其值可以是 `plain`、`base64` 或 `base62`。
+- `body.encoding`：指定 HTTP 体中 Payload 字段的编码格式。此字段仅针对 `on_message_publish` 和 `on_message_delivered` 事件有效。取值：`plain`、`base64` 或 `base62`。
 - `pool_size`：指定连接进程池的大小，即 WebHook 可以与 `url` 指定的端点维持的并发连接数量。默认值：32。
 - `events`：一组事件对象的数组，每个对象指定一个将触发 WebHook 的事件：
-  - `event`: 将触发 WebHook 的事件的名称，支持：
+  - `event`: 将触发 WebHook 的事件的名称，取值：
     - `on_client_connack`
     - `on_client_disconnected`
     - `on_message_publish`
@@ -39,7 +39,7 @@ webhook = {
 
 **TLS**
 
-在接下来的版本中，NanoMQ 即将支持与 HTTP 身份验证相关的 TLS 配置项，敬请期待。
+在接下来的版本中，NanoMQ 将支持与 HTTP 身份验证相关的 TLS 配置项，敬请期待。
 
 ```
 tls {

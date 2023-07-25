@@ -26,13 +26,13 @@ mqtt = {
 
 ::: tip
 
-以上 MQTT 相关配置都支持热升级，保存配置文件即生效，无需重启 NanoMQ 代理。
+以上 MQTT 相关配置均支持热升级，保存配置文件即生效，无需重启 NanoMQ。
 
 :::
 
 ## 功能预告
 
-在 NanoMQ 即将推出的版本中，将支持更多配置项，敬请期待：
+接下来，NanoMQ 将支持更多配置项，敬请期待：
 
 - ​    `max_inflight_window`
 - ​    `max_awaiting_rel`

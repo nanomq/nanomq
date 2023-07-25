@@ -4,7 +4,7 @@ NanoMQ has incorporated HOCON syntax support since version 0.14. However, there 
 
 While NanoMQ continues to support the traditional Key-Value (KV) configuration syntax, it's important to note that some new features will only be compatible with the HOCON configuration format. For details on the KV syntax, please refer to the [Classic KV Format Configuration Guide](https://chat.openai.com/c/v013.md).
 
-The focus of this chapter is to provide guidance on configuring NanoMQ using the updated HOCON syntax.
+**The focus of this chapter is to provide guidance on configuring NanoMQ using the updated HOCON syntax.**
 
 ## HOCON
 
