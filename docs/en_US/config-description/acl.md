@@ -83,7 +83,6 @@ http_auth = {
 		url = "http://127.0.0.1:80/mqtt/auth"                       # HTTP URL API path for Auth Request
 		method = post                                               # HTTP Request Method for Auth Request
 		headers.content-type = "application/x-www-form-urlencoded"  # HTTP Request Headers for Auth Request
-		auth.http_auth.auth_req.headers.accept = */*
 		params = {clientid = "%c", username = "%u", password = "%p"} # Parameters to construct request body
 	}
 	
