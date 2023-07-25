@@ -33,7 +33,7 @@ NanoMQ 的 HTTP 身份验证方式默认使用 `Basic` 认证，需要在配置�
 
 希望使用 HOCON 配置格式的用户，可参考以下格式，将配置写入 `nanomq.conf`文件，相关设置将在 NanoMQ 重启后生效。
 
-- 完整的配置项列表，可参考[配置说明 - v019](../config-description/v019.md)
+- 完整的配置项列表，可参考[配置说明](../config-description/http-server.md)
 
 - NanoMQ 0.14 ~ 0.18 版本用户，可参考 [配置说明 - v0.14](../config-description/v014.md)
 
@@ -78,7 +78,7 @@ http_server {
 
 希望使用 KV 配置格式的用户，可参考以下格式，将配置写入 `nanomq_old.conf `文件，相关设置将在 NanoMQ 重启后生效。
 
-完整的配置项列表，可参考[配置说明 - v013](../config-description/v013.md)
+完整的配置项列表，可参考[经典 KV 格式配置说明](../config-description/v013.md)
 
 ```bash
 http_server.port=8081

@@ -57,7 +57,7 @@ $ make -j1
 
 希望使用 HOCON 配置格式的用户，可参考以下格式，将配置写入 `nanomq.conf`文件，相关设置将在 NanoMQ 重启后生效。
 
-- 完整的配置项列表，可参考[配置说明 - v019](../config-description/v019.md)
+- 完整的配置项列表，可参考[配置说明 - v019](../config-description/bridges.md)
 
 - NanoMQ 0.14 ~ 0.18 版本用户，可参考 [配置说明 - v0.14](../config-description/v014.md)
 
@@ -100,7 +100,7 @@ bridges.mqtt.name {
 
 希望使用 KV 配置格式的用户，可参考以下格式，将配置写入 `nanomq_old.conf `文件，相关设置将在 NanoMQ 重启后生效。
 
-完整的配置项列表，可参考[配置说明 - v013](../config-description/v013.md)
+完整的配置项列表，可参考[经典 KV 格式配置说明](../config-description/v013.md)
 
 ```bash
 bridge.mqtt.emqx.bridge_mode=true
@@ -142,7 +142,7 @@ bridge.mqtt.emqx.max_recv_queue_len=128
 - 多流桥接开关: `bridges.mqtt.name.multi_stream`
 
 
-具体配置参数请参考桥接 [Hocon 版本配置](../config-description/v019.md) 或 [旧版本配置](../config-description/v013.md) (*不推荐*)
+具体配置参数请参考桥接 [Hocon 版本配置](../config-description/bridges.md) 或 [旧版本配置](../config-description/v013.md) (*不推荐*)
 
 如使用 Hocon 版本配置项 NanoMQ 版本在 0.19 及以上，除将相关配置直接写入  `nanomq.conf ` 中外，您也可单独为桥接定义一份配置文件，如 `nanomq_bridge.conf` ，然后通过 HOCON 的 `include` 语法在 `nanomq.conf` 中引用此文件：
 

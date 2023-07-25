@@ -2,7 +2,7 @@
 
 NanoMQ 提供了可拓展到事件驱动型 WebHook 接口，用户可通过规则配置 WebHook 的触发事件或消息主题。Webhook 的配置文件位于 `etc/nanomq.conf`。NanoMQ 提供了两个版本的配置文件，您可根据需要及部署版本选择：
 
-- [HOCON（推荐）](../config-description/v019.md)：NanoMQ 0.14 版本及以上
+- [HOCON（推荐）](../config-description/webhook.md)：NanoMQ 0.14 版本及以上
 
 - [经典 KV 格式](../config-description/v013.md)
 

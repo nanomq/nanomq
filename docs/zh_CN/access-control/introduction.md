@@ -6,11 +6,11 @@
 
 ## 认证配置
 
-在 NanoMQ 中，[以 HOCON 格式](../config-description/v019.md)为例，认证通过以下结构进行配置：
+在 NanoMQ 中，[以 HOCON 格式](../config-description/acl.md)为例，认证通过以下结构进行配置：
 
 :::tip
 
-NanoMQ 同时支持经典的 KV 配置格式，具体可参考[配置说明 - v013](../config-description/v013.md)
+NanoMQ 同时支持经典的 KV 配置格式，具体可参考[经典 KV 格式配置说明](../config-description/v013.md)
 
 :::
 

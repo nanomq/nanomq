@@ -32,9 +32,9 @@ rules.repub.rules[0].sql          | String   | 规则引擎 SQL 语句
 
 希望使用 HOCON 配置格式的用户，可参考以下格式，将配置写入 `nanomq.conf`文件，相关设置将在 NanoMQ 重启后生效。
 
-- 完整的配置项列表，可参考 [配置说明 - v019](../config-description/v019.md)
+- 完整的配置项列表，可参考 [配置说明 - v019](../config-description/rules.md)
 
-- NanoMQ 0.14 ~ 0.18 版本用户，可参考 [配置说明 - v0.14](../config-description/v019.md)
+- NanoMQ 0.14 ~ 0.18 版本用户，可参考 [配置说明 - v0.14](../config-description/v014.md)
 
 ```sh
 rules.repub {
@@ -99,7 +99,7 @@ rules.repub {
 
 希望使用 KV 配置格式的用户，可参考以下格式，将配置写入 `nanomq_old.conf `文件，相关设置将在 NanoMQ 重启后生效。
 
-完整的配置项列表，可参考 [配置说明 - v013](../config-description/v013.md)
+完整的配置项列表，可参考 [经典 KV 格式配置说明](../config-description/v013.md)
 
 ```bash
 rule_option.repub=enable 
@@ -156,9 +156,9 @@ rules.sqlite.rules[0].sql      | String    | 规则引擎 SQL 语句
 
 希望使用 HOCON 配置格式的用户，可参考以下格式，将配置写入 `nanomq.conf`文件，相关设置将在 NanoMQ 重启后生效。
 
-- 完整的配置项列表，可参考 [配置说明 - v019](../config-description/v019.md)
+- 完整的配置项列表，可参考 [配置说明 - v019](../config-description/rules.md)
 
-- NanoMQ 0.14 ~ 0.18 版本用户，可参考 [配置说明 - v0.14](../config-description/v019.md)
+- NanoMQ 0.14 ~ 0.18 版本用户，可参考 [配置说明 - v0.14](../config-description/v014.md)
 
 ```sh
 rules.sqlite {
@@ -189,7 +189,7 @@ rules.sqlite {
 
 希望使用 KV 配置格式的用户，可参考以下格式，将配置写入 `nanomq_old.conf `文件，相关设置将在 NanoMQ 重启后生效。
 
-完整的配置项列表，可参考 [配置说明 - v013](../config-description/v013.md)
+完整的配置项列表，可参考 [经典 KV 格式配置说明](../config-description/v013.md)
 
 ```bash
 rule_option=ON
@@ -272,9 +272,9 @@ rules.mysql.name.rules[0].sql      | String   | 规则引擎 sql 语句
 
 希望使用 HOCON 配置格式的用户，可参考以下格式，将配置写入 `nanomq.conf`文件，相关设置将在 NanoMQ 重启后生效。
 
-- 完整的配置项列表，可参考 [配置说明 - v019](../config-description/v019.md)
+- 完整的配置项列表，可参考 [配置说明 - v019](../config-description/rules.md)
 
-- NanoMQ 0.14 ~ 0.18 版本用户，可参考 [配置说明 - v0.14](../config-description/v019.md)
+- NanoMQ 0.14 ~ 0.18 版本用户，可参考 [配置说明 - v0.14](../config-description/v014.md)
 
 ```sh
 # # Currently, MySQL rule only supports the configuration of one database.
