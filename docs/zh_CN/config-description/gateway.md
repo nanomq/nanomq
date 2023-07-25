@@ -56,11 +56,7 @@ http_server {
 
 ### 配置项
 
-包括 MQTT 网关、ZMQ 网关和可选的 HTTP 服务器的设置
-
 #### gateway.mqtt
-
-`gateway.mqtt` 配置用于指定 MQTT 网关如何与 MQTT broker 通信：
 
 - `address`：MQTT Broker 的地址，格式："mqtt-tcp://host:port"。
 - `sub_topic`：网关应从 MQTT broker 订阅的主题。
@@ -73,8 +69,6 @@ http_server {
 - `parallel`：最大并行进程数。
 
 #### gateway.zmq
-
-`gateway.zmq` 配置用于指定 MQTT 网关如何与 ZeroMQ 通信：
 
 - `sub_address`：ZeroMQ 订阅地址，格式："tcp://host:port"。
 - `pub_address`：ZeroMQ 发布地址：格式： "tcp://host:port"。
@@ -152,12 +146,12 @@ HTTP 服务器部分的配置与 ZMQ 网关相同，可参考 [ZMQ 网关 - HTTP
 - `forward`：要转发到 SOME/IP 网关的主题。
 - `parallel`：最大并行进程数。
 
-#### gateway.vsomeip <!--the vsomeip in the configuration file may need to be renamed-->
+#### gateway.vsomeip <!-- @jaylin the vsomeip in the configuration file may need to be renamed-->
 
 - `service_id`：指定 VSOMEIP 服务的服务 ID。
 - `service_instance_id`：指定 VSOMEIP 服务的实例 ID。
 - `service_method_id`：指定 VSOMEIP 服务的方法 ID。
-- `conf_path`：指定 VSOMEIP 配置文件的路径。
+- `conf_path`：指定 SOMEIP 配置文件的路径。
 
 ## DDS 网关
 

@@ -22,7 +22,7 @@ log = {
 - `to`: Specifies the destination(s) where the logs will be emitted. Optional values:
   - `file`: Write logs to a file.
   - `console`: Write logs to standard I/O
-  - `syslog`: Wwrite logs to syslog
+  - `syslog`: Write logs to syslog
 - `level`: Specifies the log level. Only messages with a severity level equal to or higher than this level will be logged. Optional values:
   - `trace`
   - `debug`

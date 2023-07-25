@@ -11,7 +11,7 @@ In order to utilize these gateways, you must first build NanoMQ from its source 
 When configuring various gateways in NanoMQ, you can manage each gateway's configuration independently. For each gateway, create a separate configuration file:
 
 - `nanomq_zmq_gateway.conf` for the ZeroMQ gateway.
-- `nanomq_vsomeip_gateway.conf` for the vSomeIP gateway.
+- `nanomq_vsomeip_gateway.conf` for the SomeIP gateway.
 - `nanomq_dds_gateway.conf` for the DDS gateway.
 
 Once these configuration files are complete, you can use the `nanomq_cli` tool to enable each configuration.
@@ -96,7 +96,7 @@ The `http_server` configuration allows you to configure an HTTP server for dynam
 
 ## SOME/IP Gateway
 
-NanoMQ now supports SOME-IP data communication based on the AUTOSAR standard via the SOME/IP Gateway.  
+NanoMQ now supports SOME/IP data communication based on the AUTOSAR standard via the SOME/IP Gateway.  
 
 ### **Example Configuration**
 
@@ -154,7 +154,7 @@ The configuration items for the optional HTTP server are the same, for details, 
 - `forward`: Specifies the topic that should be forwarded to the VSOMEIP gateway.
 - `parallel`: Specifies the maximum number of concurrent requests that the MQTT client should handle.
 
-#### gateway.vsomeip <!--the vsomeip in the configuration file may need to be renamed-->
+#### gateway.vsomeip <!--@jaylin the vsomeip in the configuration file may need to be renamed-->
 
 - `service_id`: Specifies the service ID for the VSOMEIP service.
 - `service_instance_id`: Specifies the instance ID for the VSOMEIP service.

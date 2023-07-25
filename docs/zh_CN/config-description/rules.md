@@ -76,7 +76,7 @@ rules.mysql.mysql_rule_db = {
   - `host`： MySQL 服务器的主机。
   - `username`：MySQL 服务器的用户名。
   - `password`：MySQL 服务器的密码。
-  - `database`：MySQL 服务器上的数据库名称；默认为 `mysql_rule_db`。**注意**：只能配置一个 MySQL 数据库。<!--这里对吗？-->
+  - `database`：MySQL 服务器上的数据库名称；默认为 `mysql_rule_db`。**注意**：只能配置一个 MySQL 数据库。<!-- @jaylin 这里对吗？-->
 - `rules`：规则对象数组，每个对象定义了一条针对 MQTT 消息的 SQL 规则。
   - `table`：规则适用的 MySQL 数据库表。
   - `sql`：规则 SQL，用于从 MQTT 消息中筛选和管理数据。
@@ -127,13 +127,13 @@ rules.repub = {
 
 - `server`：重新发布的目标 MQTT 服务器地址。
 - `topic`：重新发布的目标主题。
-- `proto_ver`: MQTT 协议版本；默认为 4，可选值包括：
+- `proto_ver`：MQTT 协议版本；默认为 4，可选值包括：
   - `5`： MQTT v5
   - `4`：MQTT v3.1.1
   - `3`：MQTT v3.1
 - `clientid`：重新发布客户端的客户端 ID。
 - `keepalive`：重新发布保活时间，缺省为 60s
-- `clean_start`：是否清除会话。注意：有些 IoT 平台要求高选项设为 true。
+- `clean_start`：是否清除会话。注意：有些 IoT 平台要求该选项设为 true。
 - `username`：重新发布客户端的用户名。
 - `password`：重新发布客户端的密码。
 - `sql`：规则 SQL，用于从 MQTT 消息中选择和操作数据。

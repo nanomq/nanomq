@@ -25,11 +25,11 @@ auth {
 - `allow_anonymous`：数据类型为 `boolean`, 缺省值为 `true`，即允许匿名登录。
 - `no_match`：可选值，可以设置为 `allow` 或 `deny`。缺省值是 `allow`。 当 NanoMQ 无法从认证链中为某个客户端匹配到任何规则时候，将会使用这个默认的规则。
 - `deny_action`：可选值，指定当拒绝访问发生时，应该如何对待这个客户端的 MQTT 连接。 
-  - `ignore` （缺省值）: 操作会被丢弃，例如，对于发布动作，消息会被丢弃；对于订阅操作，订阅请求会被拒绝
+  - `ignore` （缺省值）: 操作会被丢弃，例如，对于发布动作，消息会被丢弃；对于订阅操作，订阅请求会被拒绝。
   - `disconnect`：断开当前客户端连接。
 - `cache`: 可选值，ACL 缓存的配置。
   - `max_size`：规定每个客户端允许缓存的 ACL 规则数量。当超过上限时，老的记录将会被删掉；缺省值：32
-  - `ttl`：规定 ACL 规则缓存有效时间；缺省值：1m
+  - `ttl`：规定 ACL 规则缓存有效时间；缺省值：1m。
 
 您可通过单独的配置文件配置用户名/密码（`nanomq_pwd.conf`）或访问规则（`nanomq_acl.conf`），并通过 `include` 语法在主配置文件 `nanomq.conf` 中引用：
 
@@ -56,10 +56,10 @@ client:public   # 客户端的用户名和密码
 
 ```hcl
 rules = [
-	# # 允许使用用户名"dashboard"的MQTT客户端订阅"$SYS/#"主题
+	# # 允许使用用户名 "dashboard" 的 MQTT 客户端订阅 "$SYS/#" 主题
 	{"permit": "allow", "username": "dashboard", "action": "subscribe", "topics": ["$SYS/#"]}
 	
-	# # 拒绝"所有用户"订阅"$SYS/#" "#"主题
+	# # 拒绝"所有用户"订阅 "$SYS/#" "#" 主题
 	# {"permit": "deny", "username": "#", "action": "subscribe", "topics": ["$SYS/#", "#"]}
 	
 	# # 允许任何其他发布/订阅操作
@@ -128,7 +128,7 @@ http_auth = {
 
 - `method`：认证请求的请求方法，可选值：`POST` , `GET`；缺省值：`post`
 
-- `headers.content-type`：指定 HTTP 请求头部中的数据。`content-type` 用于指示请求发送给服务器的资源的媒体类型。 <!--in the doc site, it is auth.http_auth.auth_req.headers.<Any> and do we still need Examples: auth.http.auth_req.headers.accept = */*-->
+- `headers.content-type`：指定 HTTP 请求头部中的数据。`content-type` 用于指示请求发送给服务器的资源的媒体类型。 <!-- @jaylin in the doc site, it is auth.http_auth.auth_req.headers.<Any> and do we still need Examples: auth.http.auth_req.headers.accept = */*-->
 
   - `headers.accept`：指定客户端期望接收的媒体类型。例如，"*/*" 表示接收所有媒体类型。
 
@@ -158,13 +158,19 @@ http_auth = {
 :::
 
 - `url`：指定超级用户认证请求的目标 URL，例如 http://127.0.0.1:80/mqtt/superuser
+
 - `method`：指定超级用户认证请求的请求方法；可选值：`POST` , `GET`
-- `headers.content-type`：指定 HTTP 请求头部中的数据。`content-type` 用于指示请求发送给服务器的资源的媒体类型。 <!--in the doc site, it is auth.http_auth.auth_req.headers.<Any> and do we still need Examples: auth.http.auth_req.headers.accept = */*-->
+
+- `headers.content-type`：指定 HTTP 请求头部中的数据。`content-type` 用于指示请求发送给服务器的资源的媒体类型。 <!--@jaylin in the doc site, it is auth.http_auth.auth_req.headers.<Any> and do we still need Examples: auth.http.auth_req.headers.accept = */*-->
+
 - `headers.accept`：指定客户端期望接收的媒体类型。例如，"*/*" 表示接收所有媒体类型。
+
 - `params`： 指定认证请求中携带的数据。以 `,` 分隔的 `k=v` 键值对，`v` 可以是固定内容，也可以是占位符。
   - 使用 **GET** 方法时，值将被转换为以 `&` 分隔的 `k=v` 键值对以查询字符串参数的形式发送。
   - 使用 **POST** 方法时，值将被转换为以 `&` 分隔的 `k=v` 键值对以 Request Body 的形式发送。
    所有的占位符都会被运行时数据所替换，可用的占位符可参考 [`auth_req`](#auth-req) 部分。
+  
+  <!--@jaylin and in the configuration example, there seem to be 2 places for setting the superuser url-->
 
 #### `acl_req`
 
@@ -204,7 +210,7 @@ http_auth = {
 
 在接下里的版本中，NanoMQ 即将支持与 HTTP 身份验证相关的 TLS 配置项，敬请期待。
 
-```
+```hcl
 tls {
    	keyfile="/etc/certs/key.pem"
   	certfile="/etc/certs/cert.pem"
