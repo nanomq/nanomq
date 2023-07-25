@@ -118,9 +118,11 @@ http_auth = {
 
 - `method`: Specifies the HTTP request method for the corresponding request. This could be either `post` or `get`. Default: `post`
 
-- `headers.content-type`: Specifies the HTTP request headers for the corresponding request. The content-type header is used to indicate the media type of the resource that the request sends to the server. <!--@jaylin in the doc site, it is auth.http_auth.auth_req.headers.<Any> and do we still need Examples: auth.http.auth_req.headers.accept = */*-->
+- `headers.<Any>`: Specify the data in the HTTP request header. <Key> Specify the field name in the HTTP request header, and the value of this configuration item is the corresponding field value. <Key> can be the standard HTTP request header field. User can also customize the field to configure multiple different request header fields. Example as follows:
 
-  - `headers.accept`: Specifies the value for the `Accept` header in the HTTP request sent for authentication.
+- `headers.content-type`: Specifies the HTTP request headers for the corresponding request. The content-type header is used to indicate the media type of the resource that the request sends to the server.  You can keep specifying other headers of HTTP here as following `headers.accept`:
+
+- `headers.accept`: Specifies the value for the `Accept` header in the HTTP request sent for authentication. Other headers like `cookie` and `date` follows same rule.
 
 - `params`: Specifies the parameters used to construct the request body or query string parameters. 
 
@@ -150,9 +152,11 @@ The `super_req` configuration refers to the Superuser, who has the privilege to 
 
 - `method`：Specifies the HTTP request method for the corresponding request. This could be either `post` or `get`. Default: `post`
 
-- `headers.content-type`：Specifies the HTTP request headers for the corresponding request. The content-type header is used to indicate the media type of the resource that the request sends to the server. <!--@jaylin in the doc site, it is auth.http_auth.auth_req.headers.<Any> and do we still need Examples: auth.http.auth_req.headers.accept = */*-->
+- `headers.<Any>`: Specify the data in the HTTP request header. <Key> Specify the field name in the HTTP request header, and the value of this configuration item is the corresponding field value. <Key> can be the standard HTTP request header field. User can also customize the field to configure multiple different request header fields. Example as follows:
 
-  - `headers.accept`: Specifies the value for the `Accept` header in the HTTP request sent for authentication.
+- `headers.content-type`：Specifies the HTTP request headers for the corresponding request. The content-type header is used to indicate the media type of the resource that the request sends to the server. You can keep specifying other headers of HTTP here as following `headers.accept`:
+
+  - `headers.accept`: Specifies the value for the `Accept` header in the HTTP request sent for authentication. Accept header is used by HTTP clients to tell the server which type of content they expect/prefer as response.
 
 - `params`: Specifies the parameters used to construct the request body or query string parameters. 
 
@@ -161,7 +165,6 @@ The `super_req` configuration refers to the Superuser, who has the privilege to 
 
   Option values are identical with the that in [`auth_req`](#auth-req)
   
-  <!--@jaylin and in the configuration example, there seem to be 2 places for setting the superuser url-->
 
 #### `acl_req`
 
@@ -169,9 +172,11 @@ The `super_req` configuration refers to the Superuser, who has the privilege to 
 
 - `method`: Specifies the HTTP request method for the corresponding request. This could be either `post` or `get`. Default: `post`
 
-- `headers.content-type`: Specifies the HTTP request headers for the corresponding request. The content-type header is used to indicate the media type of the resource that the request sends to the server. <!--@jaylin in the doc site, it is auth.http_auth.acl_req.headers.<Any> -->
+- `headers.<Any>`: Specify the data in the HTTP request header. <Key> Specify the field name in the HTTP request header, and the value of this configuration item is the corresponding field value. <Key> can be the standard HTTP request header field. User can also customize the field to configure multiple different request header fields. Example as follows:
 
-  - `headers.accept`：Specifies the value for the `Accept` header in the HTTP request sent for authentication.
+- `headers.content-type: Specifies the HTTP request headers for the corresponding request. The content-type header is used to indicate the media type of the resource that the request sends to the server. You can keep specifying other headers of HTTP here as following `headers.accept`:
+
+- `headers.accept`：Specifies the value for the `Accept` header in the HTTP request sent for authentication.
 
 - `params`: Specifies the parameters used to construct the request body or query string parameters：
 
