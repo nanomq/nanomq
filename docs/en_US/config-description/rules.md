@@ -26,8 +26,8 @@ rules.sqlite = {
 
 In this example configuration, two SQL rules are defined.
 
-- The first rule selects and manipulates data from MQTT messages where `y > 10` and `z != 'str'`. 
-- The second rule selects the `topic` and `payload` from MQTT messages where the topic is `"abc"`. The resulting data from these rules is stored in the `broker` and `broker1` tables in the SQLite database, respectively.
+- The first rule selects and manipulates data from MQTT messages where `y > 10` and `z != 'str'`. The resulting data will be stored in the `broker` table in the SQLite database.
+- The second rule selects the `topic` and `payload` from MQTT messages where the topic is `"abc"`. The resulting data from these rules will be stored in the  `broker1` table in the SQLite database.
 
 ### **Configuration Items**
 
@@ -38,7 +38,7 @@ In this example configuration, two SQL rules are defined.
 
 ## Data Persistence with MySQL
 
-This part  specifies settings for handling MQTT messages using MySQL. This includes settings for the MySQL database connection and SQL rules for manipulating MQTT messages.
+This part specifies settings for handling MQTT messages using MySQL. This includes settings for the MySQL database connection and SQL rules for manipulating MQTT messages.
 
 ### **Example Configuration**
 
@@ -67,8 +67,8 @@ rules.mysql.mysql_rule_db = {
 
 In this example configuration, two SQL rules are defined:
 
-- The first rule selects and manipulates data from MQTT messages where `y > 10` and `z != 'str'`. 
-- The second rule selects all data from MQTT messages where the topic is `"abc"`. The resulting data from these rules is stored in the `broker` and `broker1` tables in the MySQL database, respectively.
+- The first rule selects and manipulates data from MQTT messages where `y > 10` and `z != 'str'`. The resulting data will be stored in the `broker` table.
+- The second rule selects all data from MQTT messages where the topic is `"abc"`. The resulting data will be stored in the `broker1` table.
 
 ### **Configuration Items**
 
