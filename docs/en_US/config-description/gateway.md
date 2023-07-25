@@ -60,8 +60,6 @@ http_server {
 
 ### Configuration Items
 
-includes settings for the MQTT gateway, ZMQ gateway, and an optional HTTP server. Here is a sample configuration:
-
 #### gateway.mqtt
 
 The `gateway.mqtt` configuration is used to specify how the MQTT gateway communicates with the MQTT broker:
@@ -136,8 +134,6 @@ http_server {
 
 ### **Configuration Items**
 
-The MQTT VSOMEIP Gateway configuration includes settings for the MQTT gateway, VSOMEIP gateway, and an optional HTTP server. 
-
 ::: tip
 
 The configuration items for the optional HTTP server are the same, for details, see [HTTP Sever](#http_server-optional).
@@ -205,7 +201,6 @@ mqtt {
         password = "passwd"  									# MQTT password
         
         ssl {
-            enable = false  									# Enable SSL
             key_password = "yourpass"  				# Password for the SSL key
             keyfile = "/etc/certs/key.pem"  	# Path to the SSL key file
             certfile = "/etc/certs/cert.pem"  # Path to the SSL certificate file
@@ -223,8 +218,6 @@ http_server {
 ```
 
 ### **Configuration Items**
-
-The DDS Bridge configuration includes settings for forwarding rules, DDS settings, MQTT connector settings, and an optional HTTP server. 
 
 ::: tip
 
@@ -259,7 +252,6 @@ The configuration items for the optional HTTP server are the same, for details, 
 - `username`: Specifies the username for the MQTT client.
 - `password`: Specifies the password for the MQTT client.
 - `ssl`: Specifies the SSL settings. 
-  - `enable`: Specifies whether to enable SSL. <!--do we still need this field?-->
   - `key_password`: Specifies the password for the SSL key file.
   - `keyfile`: Specifies the path to the SSL key file.
   - `certfile`: Specifies the path to the SSL certificate file.

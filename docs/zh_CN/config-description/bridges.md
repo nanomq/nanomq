@@ -1,4 +1,4 @@
-# Data Bridges
+# 数据桥接
 
 桥接是一种连接多个 MQTT 消息中间件的策略，其特性与集群模式显著不同。在桥接模式下，节点之间不进行主题树或路由表的复制操作。桥接模式的核心职能包括：
 
@@ -23,7 +23,7 @@ bridges.mqtt.emqx1 = {
   will = {                                # Will
   	topic = "will_topic"                  # Will 主题
   	qos = 1                               # Will QoS
-  	retain = false                        # 是否博啊流 Will payload
+  	retain = false                        # 是否应保留遗嘱消息
   	payload = "will_message"              # Will payload
   	properties = {                        # Will 消息属性
     	payload_format_indicator = 0
@@ -283,7 +283,7 @@ bridges.aws.c1 = {
 - `proto_ver`：指定桥接使用的 MQTT 协议版本，可选值 4（MQTT v3.1.1）和 5（MQTT v5）。
 - `clientid`：指定桥接到 AWS IoT Core 的客户端 ID。默认值为随机字符串。
 - `keepalive`：指定向 AWS IoT Core 发送保活消息的间隔。默认是 60 秒。
-- `clean_start`：指定是否清楚会话。注意：有些 IoT 平台要求高选项设为 true。
+- `clean_start`：指定是否清除会话。注意：有些 IoT 平台要求高选项设为 true。
 - `username` 和 `password`：桥接的登录用户名和密码。
 - `ssl`：SSL/TLS 相关配置：
   - `key_password`：TLS 私钥密码。
