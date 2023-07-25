@@ -92,8 +92,7 @@ http_auth = {
 	auth_req {
 		url = "http://127.0.0.1:80/mqtt/auth"                       # Auth 请求的 HTTP URL API 路径
 		method = post                                               # Auth 请求的 HTTP 请求方法
-		headers.content-type = "application/x-www-form-urlencoded"  # Auth 请求的 HTTP 请求头
-		auth.http_auth.auth_req.headers.accept = */*								# 客户端期望接收的媒体类型
+		headers.content-type = "application/x-www-form-urlencoded"  # Auth 请求的 HTTP 请求头			
 		params = {clientid = "%c", username = "%u", password = "%p"} # 请求体的构造参数
 	}
 	
@@ -128,9 +127,11 @@ http_auth = {
 
 - `method`：认证请求的请求方法，可选值：`POST` , `GET`；缺省值：`post`
 
-- `headers.content-type`：指定 HTTP 请求头部中的数据。`content-type` 用于指示请求发送给服务器的资源的媒体类型。 <!-- @jaylin in the doc site, it is auth.http_auth.auth_req.headers.<Any> and do we still need Examples: auth.http.auth_req.headers.accept = */*-->
+- `headers.<Any>`：指定 HTTP 请求头部中的数据。<Any> 是可以被 任意<Key> 替换来指定 HTTP 请求头部中的字段名，此配置项的值为相应的字段值。<Key> 可以是标准的 HTTP 请求头部字段，也可以自定义的字段，可以配置多个不同的请求头部字段。如以下两个示例：
 
-  - `headers.accept`：指定客户端期望接收的媒体类型。例如，"*/*" 表示接收所有媒体类型。
+- `headers.content-type`：指定 HTTP 请求头部中的数据。`content-type` 用于指示请求发送给服务器的资源的媒体类型。
+
+- `headers.accept`：指定客户端期望接收的媒体类型。例如，"*/*" 表示接收所有媒体类型。
 
 - `params`： 指定认证请求中携带的数据。以 `,` 分隔的 `k=v` 键值对，`v` 可以是固定内容，也可以是占位符。
 
@@ -161,7 +162,8 @@ http_auth = {
 
 - `method`：指定超级用户认证请求的请求方法；可选值：`POST` , `GET`
 
-- `headers.content-type`：指定 HTTP 请求头部中的数据。`content-type` 用于指示请求发送给服务器的资源的媒体类型。 <!--@jaylin in the doc site, it is auth.http_auth.auth_req.headers.<Any> and do we still need Examples: auth.http.auth_req.headers.accept = */*-->
+- `headers.<Any>`：指定 HTTP 请求头部中的数据。<Any> 是可以被 任意<Key> 替换来指定 HTTP 请求头部中的字段名，此配置项的值为相应的字段值。<Key> 可以是标准的 HTTP 请求头部字段，也可以自定义的字段，可以配置多个不同的请求头部字段。如以下两个示例：
+- `headers.content-type`：指定 HTTP 请求头部中的数据。`content-type` 用于指示请求发送给服务器的资源的媒体类型。
 
 - `headers.accept`：指定客户端期望接收的媒体类型。例如，"*/*" 表示接收所有媒体类型。
 
@@ -169,16 +171,16 @@ http_auth = {
   - 使用 **GET** 方法时，值将被转换为以 `&` 分隔的 `k=v` 键值对以查询字符串参数的形式发送。
   - 使用 **POST** 方法时，值将被转换为以 `&` 分隔的 `k=v` 键值对以 Request Body 的形式发送。
    所有的占位符都会被运行时数据所替换，可用的占位符可参考 [`auth_req`](#auth-req) 部分。
-  
-  <!--@jaylin and in the configuration example, there seem to be 2 places for setting the superuser url-->
+
 
 #### `acl_req`
 
 - `url`：指定 ACL 验证请求的目标 URL。
 
 - `method`：指定 ACL 验证请求的请求方法。可选值：`POST` , `GET`；缺省值： `post`
-
-- `headers.content-type`： 指定 HTTP 请求头部中的数据。`content-type` 用于指示请求发送给服务器的资源的媒体类型。 <!--in the doc site, it is auth.http_auth.auth_req.headers.<Any> and do we still need Examples: auth.http.auth_req.headers.accept = */*-->
+  
+- `headers.<Any>`：指定 HTTP 请求头部中的数据。<Any> 是可以被 任意<Key> 替换来指定 HTTP 请求头部中的字段名，此配置项的值为相应的字段值。<Key> 可以是标准的 HTTP 请求头部字段，也可以自定义的字段，可以配置多个不同的请求头部字段。如以下两个示例：
+- `headers.content-type`： 指定 HTTP 请求头部中的数据。`content-type` 用于指示请求发送给服务器的资源的媒体类型。
 
 - `headers.accept`：指定客户端期望接收的媒体类型。例如，"*/*" 表示接收所有媒体类型。
 
