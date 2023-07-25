@@ -46,7 +46,7 @@ $ nanomq start --log_level=debug --log_file=nanomq.log  --log_stdout=true --log_
 $ nanomq start --conf <config_file>
 ```
 ### NanoMQ Reload
-NanoMQ 支持 reload 功能，可以动态更新 NanoMQ 的配置参数，目前支持 `basic, sqlite, auth, log` 四个部分的动态更新，参数的详细描述见 [配置文件](../config-description/v019.md) 部分。
+NanoMQ 支持 reload 功能，可以动态更新 NanoMQ 的配置参数，目前支持 `basic, sqlite, auth, log` 四个部分的动态更新，参数的详细描述见 [配置文件](../config-description/introduction.md) 部分。
 运行 reload 需要首先启动 NanoMQ, 以下假设我们已经启动了 NanoMQ，修改了 log 部分的配置，启动 reload 来更新 log:
 
 ```bash

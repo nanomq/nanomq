@@ -66,7 +66,7 @@ NanoMQ 也支持通过配置文件或环境变量加载自定义配置。
 
    `docker cp nanomq.conf nanomq:/etc/nanomq.conf`
 
-以下为 MQTT 桥接配置示例，更多关于 NanoMQ 的配置项说明，可参考 [配置说明](../config-description/v019.md)：
+以下为 MQTT 桥接配置示例，更多关于 NanoMQ 的配置项说明，可参考 [配置说明](../config-description/introduction.md)：
 
 ```bash
 bridges.mqtt.name {
