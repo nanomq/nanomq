@@ -37,6 +37,6 @@ main(int argc, char **argv)
 
 	nng_thread_destroy(nmq);
 
-	assert(webhook_msg_cnt == 5);
 	// printf("\tend_webhook_msg:%d\n", webhook_msg_cnt);
+	assert(webhook_msg_cnt == 5);
 }

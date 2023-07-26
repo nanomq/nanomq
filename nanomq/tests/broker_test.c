@@ -1,58 +1,5 @@
-#include <stdio.h>
-#include <assert.h>
-#include <signal.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <string.h>
-
 #include "include/broker.h"
-
-pid_t
-popen_sub(int *outfp)
-{
-	int   fd_pipe[2];
-	pid_t pid;
-
-	if (pipe(fd_pipe) != 0)
-		return -1;
-
-	pid = fork();
-
-	if (pid < 0)
-		return pid;
-	else if (pid == 0) {
-		// child only need to write
-		close(fd_pipe[STDIN_FILENO]);
-		dup2(fd_pipe[STDOUT_FILENO], STDOUT_FILENO);
-
-		// TODO: use a more flexible way instead of hard coding.
-		// char cmd_sub[] = "mosquitto_sub -h 127.0.0.1 -p 1883 -t "
-		//                  "topic1 -t topic2 -U topic2 -q 2";
-
-		// char *b[50];
-		// int   i     = 0;
-		// char *token = strtok(cmd_sub, " ");
-		// while (token != NULL) {
-		// 	b[i++] = token;
-		// 	strcpy(b[i++], token); 
-		// 	printf("%s\n", token);
-		// 	token = strtok(NULL, " ");
-		// }
-		// execv("/bin/mosquitto_sub", b);
-
-		char *arg[] = { "mosquitto_sub", "-t", "topic1", "-t",
-			"topic2", "-U", "topic2", "-h", "127.0.0.1", "-p",
-			"1883", "-q", "2", NULL };
-		execv("/bin/mosquitto_sub", arg);
-		exit(1);
-	} else {
-		// parent only need to read
-		close(fd_pipe[STDOUT_FILENO]);
-		*outfp = fd_pipe[STDIN_FILENO];
-	}
-
-	return pid;
-}
+#include "tests_api.h"
 
 int
 main()
@@ -78,7 +25,10 @@ main()
 	nng_msleep(50); // wait a while before sub
 
 	// pipe to sub
-	pid_sub = popen_sub(&outfp);
+	char *arg[] = { "mosquitto_sub", "-t", "topic1", "-t", "topic2", "-U",
+		"topic2", "-h", "127.0.0.1", "-p", "1883", "-q", "2", NULL };
+
+	pid_sub = popen_sub_with_cmd(&outfp, arg);
 	nng_msleep(50); // pub should be slightly behind sub
 	// pipe to pub
 	p_pub   = popen(cmd_pub, "r");
