@@ -50,7 +50,7 @@
 #define DEBUG	   1
 
 struct work {
-	enum { INIT, RECV, WAIT, SEND_INIT, SEND_FILE, SEND_FINI, SEND_FINI_DONE, SEND } state;
+	enum { INIT, RECV, WAIT, SEND_INIT, SEND_FILE, SEND_FILE_RESULT, SEND_WAIT_ACK, SEND_FINI, SEND_FINI_DONE, SEND } state;
 	nng_aio *aio;
 	nng_msg *msg;
 	nng_ctx  ctx;
@@ -283,17 +283,15 @@ client_cb(void *arg)
 		break;
 
 	case SEND_FILE:
-//		printf("rhack: %s: %d work: %p\n", __func__, __LINE__, work);
 		if ((rv = nng_aio_result(work->aio)) != 0) {
 			nng_msg_free(work->msg);
-			printf("rhack: %s: %d work: %p\n", __func__, __LINE__, work);
 			fatal("nng_send_aio", rv);
 			work->state = RECV;
 			nng_ctx_recv(work->ctx, work->aio);
 			break;
 		}
 		int read_bytes;
-		int chunk_size = 1024;
+		int chunk_size = 1024 * 10;
 		nng_msg *newmsg;
 		nng_mqtt_msg_alloc(&newmsg, 0);
 		payload = malloc(sizeof(char) * buf_size);
@@ -318,16 +316,16 @@ client_cb(void *arg)
 			nng_mqtt_msg_set_publish_qos(newmsg, 1);
 			nng_mqtt_msg_set_publish_topic(newmsg, topic);
 			nng_mqtt_msg_set_publish_payload(
-			    newmsg, payload, strlen(payload));
+			    newmsg, payload, read_bytes);
 
-//			printf("SEND: '%.*s' TO:   '%s'\n", strlen(payload),
+//			printf("SEND: '%.*s' TO:   '%s'\n", read_bytes,
 //			    (char *) payload, topic);
 
 			nng_aio_set_msg(work->aio, newmsg);
 			work->file_off += read_bytes;
+			work->state = SEND_WAIT_ACK;
+			work->msg = NULL;
 			nng_ctx_send(work->ctx, work->aio);
-	//		printf("SEND: '%.*s' TO:   '%s'\n", strlen(send_data),
-	//		    (char *) send_data, topic);
 			nng_msleep(100);
 		} else {
 			work->state = SEND_FINI;
@@ -335,12 +333,21 @@ client_cb(void *arg)
 		}
 		free(payload);
 		break;
+	case SEND_WAIT_ACK:
+		if ((rv = nng_aio_result(work->aio)) != 0) {
+			printf("SEND_WAIT_ACK failed: %d retry...\n", rv);
+			work->state = SEND_WAIT_ACK;
+			nng_ctx_recv(work->ctx, work->aio);
+			break;
+		}
+		work->msg = NULL;
 
+		work->state = SEND_FILE;
+		nng_sleep_aio(0, work->aio);
+		break;
 	case SEND_FINI:
-		nng_msleep(30 * 1000);
 		nng_msg *finimsg;
 		nng_mqtt_msg_alloc(&finimsg, 0);
-		printf("rhack: %s: %d\n", __func__, __LINE__);
 		if ((rv = nng_aio_result(work->aio)) != 0) {
 			nng_msg_free(work->msg);
 			printf("rhack: %s: %d rv: %d\n", __func__, __LINE__, rv);
@@ -470,7 +477,6 @@ int file_transfer(int argc, char *argv[]) {
 	struct work *works[nwork];
 	int          i;
 	int          rv;
-	
 	if ((rv = nng_mqttv5_client_open(&sock)) != 0) {
 		fatal("nng_socket", rv);
 	}

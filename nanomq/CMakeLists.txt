@@ -60,10 +60,14 @@ endif(NNG_ENABLE_PLUGIN)
 
 if (ENABLE_FILETRANSFER)
 	ADD_DEFINITIONS(-DENABLE_FILETRANSFER)
-	set(SOURCES ${SOURCES}
-        extern/file_transfer_with_nano.c
-        )
-endif (ENABLE_FILETRANSFER)
+	#		set(SOURCES ${SOURCES}
+	#			extern/file_transfer.c
+	#        )
+			set(SOURCES ${SOURCES}
+				extern/file_transfer_with_nano.c
+			)
+endif()
+
 
 include_directories(${FOUNDATION_INCLUDE_DIR})
 
