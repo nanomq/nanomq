@@ -136,22 +136,25 @@ static int start_listening(MQTTClient client,
 					cJSON *cjson_fileid = cJSON_GetObjectItem(cjson_objs, "file_id");
 					cJSON *cjson_filename = cJSON_GetObjectItem(cjson_objs, "file_name");
 					cJSON *cjson_requestid = cJSON_GetObjectItem(cjson_objs, "request-id");
+					cJSON *cjson_segmentsize = cJSON_GetObjectItem(cjson_objs, "segment-size");
 					if (cjson_filepath == NULL || cjson_fileid == NULL ||
 							cjson_filename == NULL || cjson_requestid == NULL) {
 						printf("Input Json invalid\n");
 					} else {
 						if (DEBUG) {
-							printf("Input Json: filepath: %s fileid: %s filename: %s\n",
+							printf("Input Json: filepath: %s fileid: %s filename: %s request-id: %s segment-size: %u\n",
 															cjson_filepath->valuestring,
 															cjson_fileid->valuestring,
 															cjson_filename->valuestring,
-															cjson_requestid->valuestring);
+															cjson_requestid->valuestring,
+															cjson_segmentsize == NULL ? 0U : cjson_segmentsize->valueint);
 						}
 						// Send file
 						int result = send_file(client,
 												cjson_filepath->valuestring,
 												cjson_fileid->valuestring,
 												cjson_filename->valuestring,
+												cjson_segmentsize == NULL ? 0U : cjson_segmentsize->valueint,
 												expire_time_s_since_epoch,
 												segments_ttl_seconds);
 
@@ -180,6 +183,7 @@ int send_file(MQTTClient client,
 			  char *file_path,
 			  char *file_id,
 			  char *file_name,
+			  unsigned int chunk_size,
 			  unsigned long expire_time_s_since_epoch,
 			  unsigned long segments_ttl_seconds) {
 	FILE *fp = fopen(file_path, "rb");
@@ -262,12 +266,17 @@ int send_file(MQTTClient client,
 	}
 
 	memset(payload, 0, buf_size);
+	size_t offset = 0;
+	size_t read_bytes;
+
 	// Read binary chunks of max size 1024 bytes and publish them to the broker
 	// The chunks are published to the topic of the form $file/{file_id}/{offset}
 	// The chunks are read into the payload
-	size_t chunk_size = 1024;
-	size_t offset = 0;
-	size_t read_bytes;
+	//
+	// Payload's length is depend on buf_size, buf_size is 10240 now.
+	if (chunk_size > 10240 || chunk_size == 0) {
+		chunk_size = 10240;
+	}
 	while ((read_bytes = fread(payload, 1, chunk_size, fp)) > 0) {
 		rc = snprintf(topic, buf_size, "$file/%s/%lu", file_id, offset);
 		if (rc < 0 || rc >= buf_size) {
