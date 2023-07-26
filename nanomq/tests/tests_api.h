@@ -21,11 +21,13 @@ int webhook_msg_cnt = 0; // this is a silly signal to indicate whether the webho
 #include "include/broker.h"
 #include "include/rest_api.h"
 
+#include <sys/types.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 #include <assert.h>
 
 // This server acts as a proxy.  We take HTTP POST requests, convert them to
@@ -454,11 +456,48 @@ conf *
 get_test_conf()
 {
 	// get conf from file
-	conf *nmq_conf  = nng_zalloc(sizeof(conf));
+	conf *nmq_conf = NULL;
+	if((nmq_conf = nng_zalloc(sizeof(conf))) == NULL) {
+		return nmq_conf;
+	}
 	char *conf_path = "../../../nanomq/tests/nanomq_test.conf";
 	conf_init(nmq_conf);
 	nmq_conf->conf_file = conf_path;
 	conf_parse_ver2(nmq_conf);
 
 	return nmq_conf;
+}
+
+pid_t
+popen_sub_with_cmd(int *outfp)
+{
+	int   fd_pipe[2];
+	pid_t pid;
+
+	if (pipe(fd_pipe) != 0)
+		return -1;
+
+	pid = fork();
+
+	if (pid < 0)
+		return pid;
+	else if (pid == 0) {
+		// child only need to write
+		close(fd_pipe[STDIN_FILENO]);
+		dup2(fd_pipe[STDOUT_FILENO], STDOUT_FILENO);
+
+		// TODO: use a more flexible way instead of hard coding.
+		execl("/bin/mosquitto_sub", "mosquitto_sub", "-t", "topic1", "-t",
+	    "topic2", "-U", "topic2", "-h", "127.0.0.1", "-p", "1883", "-q",
+	    "2", NULL);
+		perror("execl");
+		exit(1);
+	}
+	else {
+		// parent only need to read
+		close(fd_pipe[STDOUT_FILENO]);
+		*outfp = fd_pipe[STDIN_FILENO];
+	}
+
+	return pid;
 }

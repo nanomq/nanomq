@@ -57,6 +57,7 @@ if (NANOMQ_TESTS)
     enable_testing()
     set(all_tests, "")
     set(BUILD_STATIC_LIB ON)
+    add_definitions(-DENABLE_NANOMQ_TESTS)
 endif ()
 
 # If the compiler is not on Windows, does it support hiding the
