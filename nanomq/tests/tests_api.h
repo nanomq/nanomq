@@ -21,14 +21,18 @@ int webhook_msg_cnt = 0; // this is a silly signal to indicate whether the webho
 #include "include/broker.h"
 #include "include/rest_api.h"
 
-#include <sys/types.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <unistd.h>
 #include <assert.h>
+#include <signal.h>
+
+#ifndef NANO_PLATFORM_WINDOWS
+#include <unistd.h>
+#include <sys/types.h>
+#endif
 
 // This server acts as a proxy.  We take HTTP POST requests, convert them to
 // REQ messages, and when the reply is received, send the reply back to
@@ -469,7 +473,7 @@ get_test_conf()
 }
 
 pid_t
-popen_sub_with_cmd(int *outfp)
+popen_sub_with_cmd(int *outfp, char *arg[])
 {
 	int   fd_pipe[2];
 	pid_t pid;
@@ -485,15 +489,9 @@ popen_sub_with_cmd(int *outfp)
 		// child only need to write
 		close(fd_pipe[STDIN_FILENO]);
 		dup2(fd_pipe[STDOUT_FILENO], STDOUT_FILENO);
-
-		// TODO: use a more flexible way instead of hard coding.
-		execl("/bin/mosquitto_sub", "mosquitto_sub", "-t", "topic1", "-t",
-	    "topic2", "-U", "topic2", "-h", "127.0.0.1", "-p", "1883", "-q",
-	    "2", NULL);
-		perror("execl");
+		execv("/bin/mosquitto_sub", arg);
 		exit(1);
-	}
-	else {
+	} else {
 		// parent only need to read
 		close(fd_pipe[STDOUT_FILENO]);
 		*outfp = fd_pipe[STDIN_FILENO];
