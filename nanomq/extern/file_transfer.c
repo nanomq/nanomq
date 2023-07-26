@@ -73,7 +73,7 @@ static int publish_send_result(MQTTClient client,
 	// Publish result message
 	if (DEBUG) {
 		printf("Publishing result message to topic %s\n", topic);
-		printf("Payload:\n %s\n", payload);
+		printf("Payload:\n%s\n", payload);
 	}
 	MQTTProperties props = MQTTProperties_initializer;
 	MQTTResponse mqttrc;
@@ -191,6 +191,7 @@ int send_file(MQTTClient client,
 	char payload[buf_size];
 	char expire_at_str[128];
 	char segments_ttl_str[128];
+	memset(payload, 0, buf_size);
 	if (expire_time_s_since_epoch == -1) {
 		expire_at_str[0] = '\0';
 	} else {
@@ -212,9 +213,9 @@ int send_file(MQTTClient client,
 	rc = snprintf(
 			payload,
 			buf_size,
-			"{\n"
-			"  \"name\": \"%s\",\n"
-			"  \"size\": %ld,\n"
+			"{"
+			"\"name\": \"%s\","
+			"\"size\": %ld,"
 			"%s"
 			"%s"
 			"  \"user_data\": {}\n"
@@ -242,7 +243,7 @@ int send_file(MQTTClient client,
 	}
 	MQTTProperties props = MQTTProperties_initializer;
 	MQTTResponse mqttrc;
-	mqttrc = MQTTClient_publish5(client, topic, strlen(payload), payload, 2, 0, &props, &token);
+	mqttrc = MQTTClient_publish5(client, topic, strlen(payload), payload, 1, 0, &props, &token);
 	if (mqttrc.reasonCode != MQTTCLIENT_SUCCESS) {
 		printf("Failed to publish message, return code %d\n", rc);
 		return -1;
@@ -252,10 +253,12 @@ int send_file(MQTTClient client,
 		printf("Failed to publish message, return code %d\n", rc);
 		return -1;
 	}
+
+	memset(payload, 0, buf_size);
 	// Read binary chunks of max size 1024 bytes and publish them to the broker
 	// The chunks are published to the topic of the form $file/{file_id}/{offset}
 	// The chunks are read into the payload
-	size_t chunk_size = 1024 * 10;
+	size_t chunk_size = 1024;
 	size_t offset = 0;
 	size_t read_bytes;
 	while ((read_bytes = fread(payload, 1, chunk_size, fp)) > 0) {
@@ -277,6 +280,7 @@ int send_file(MQTTClient client,
 			printf("Failed to publish file chunk, return code %d\n", rc);
 			return -1;
 		}
+		memset(payload, 0, buf_size);
 		offset += read_bytes;
 	}
 	// Check if we reached the end of the file
