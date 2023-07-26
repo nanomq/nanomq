@@ -45,19 +45,24 @@
 
 static int publish_send_result(MQTTClient client,
 							   char *file_id,
+							   char *requestid,
 							   int success)
 {
 	int rc;
 	int buf_size = 128;
-	int payloadLen = 30;
+	int payloadLen = 128;
 	char payload[payloadLen];
 	rc = snprintf(
 			payload,
 			payloadLen,
 			"{\n"
-			"  \"result\": \%s\",\n"
+			"  \"request-id\": \"%s\",\n"
+			"  \"success\": \"%s\",\n"
+			"  \"message\": \"%s\",\n"
 			"}",
-			success ? "success" : "fail");
+			requestid,
+			success ? "true" : "false",
+			"");
 	if (rc < 0 || rc >= payloadLen) {
 		printf("Failed to create payload for initial message\n");
 		return -1;
@@ -130,15 +135,17 @@ static int start_listening(MQTTClient client,
 					cJSON *cjson_filepath = cJSON_GetObjectItem(cjson_objs, "file_path");
 					cJSON *cjson_fileid = cJSON_GetObjectItem(cjson_objs, "file_id");
 					cJSON *cjson_filename = cJSON_GetObjectItem(cjson_objs, "file_name");
+					cJSON *cjson_requestid = cJSON_GetObjectItem(cjson_objs, "request-id");
 					if (cjson_filepath == NULL || cjson_fileid == NULL ||
-							cjson_filename == NULL) {
+							cjson_filename == NULL || cjson_requestid == NULL) {
 						printf("Input Json invalid\n");
 					} else {
 						if (DEBUG) {
 							printf("Input Json: filepath: %s fileid: %s filename: %s\n",
 															cjson_filepath->valuestring,
 															cjson_fileid->valuestring,
-															cjson_filename->valuestring);
+															cjson_filename->valuestring,
+															cjson_requestid->valuestring);
 						}
 						// Send file
 						int result = send_file(client,
@@ -151,7 +158,7 @@ static int start_listening(MQTTClient client,
 						printf("Send file file_id: %s %s\n", cjson_fileid->valuestring,
 												!result ? "success" : "fail");
 						result = publish_send_result(client, cjson_fileid->valuestring,
-												!result);
+												cjson_requestid->valuestring, !result);
 						if (DEBUG) {
 							printf("Send file file_id: %s transfer result: %s\n",
 												cjson_fileid->valuestring,
