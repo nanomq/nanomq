@@ -95,6 +95,27 @@ static int publish_send_result(MQTTClient client,
 	return 0;
 }
 
+static inline int parse_input(cJSON *cjson_objs,
+							  cJSON **cjson_filepaths,
+							  cJSON **cjson_filenames, cJSON **cjson_fileids,
+							  cJSON **cjson_requestid, cJSON **cjson_segmentsize)
+{
+	*cjson_filepaths = cJSON_GetObjectItem(cjson_objs, "files");
+	*cjson_filenames = cJSON_GetObjectItem(cjson_objs, "filenames");
+	*cjson_fileids = cJSON_GetObjectItem(cjson_objs, "fileids");
+	*cjson_requestid = cJSON_GetObjectItem(cjson_objs, "request_id");
+	*cjson_segmentsize = cJSON_GetObjectItem(cjson_objs, "segment-size");
+	if (*cjson_filepaths == NULL || *cjson_fileids == NULL ||
+		*cjson_filenames == NULL || *cjson_requestid == NULL ||
+		cJSON_GetArraySize(*cjson_filepaths) == 0 ||
+		cJSON_GetArraySize(*cjson_filepaths) != cJSON_GetArraySize(*cjson_fileids) ||
+		cJSON_GetArraySize(*cjson_filepaths) != cJSON_GetArraySize(*cjson_filenames)) {
+		return -1;
+	} 
+
+	return 0;
+}
+
 static int start_listening(MQTTClient client,
 						   unsigned long expire_time_s_since_epoch,
 						   unsigned long segments_ttl_seconds)
@@ -131,33 +152,24 @@ static int start_listening(MQTTClient client,
 				if (cjson_objs == NULL) {
 					printf("Parse json failed\n");
 				} else {
-					cJSON *cjson_filepaths = cJSON_GetObjectItem(cjson_objs, "files");
-					cJSON *cjson_filenames = cJSON_GetObjectItem(cjson_objs, "filenames");
-					cJSON *cjson_fileids = cJSON_GetObjectItem(cjson_objs, "fileids");
-					cJSON *cjson_requestid = cJSON_GetObjectItem(cjson_objs, "request_id");
-					cJSON *cjson_segmentsize = cJSON_GetObjectItem(cjson_objs, "segment-size");
-					if (cjson_filepaths == NULL || cjson_fileids == NULL ||
-						cjson_filenames == NULL || cjson_requestid == NULL ||
-						cJSON_GetArraySize(cjson_filepaths) == 0 ||
-						cJSON_GetArraySize(cjson_filepaths) != cJSON_GetArraySize(cjson_fileids) ||
-						cJSON_GetArraySize(cjson_filepaths) != cJSON_GetArraySize(cjson_filenames)) {
-						printf("Input Json invalid\n");
+					int result;
+					cJSON *cjson_filepaths;
+					cJSON *cjson_filenames;
+					cJSON *cjson_fileids;
+					cJSON *cjson_requestid;
+					cJSON *cjson_segmentsize;
+					result = parse_input(cjson_objs, &cjson_filepaths,
+										 &cjson_filenames, &cjson_fileids,
+										 &cjson_requestid, &cjson_segmentsize);
+					if (result) {
+						printf("INPUT JSON INVALID!\n");
+						continue;
 					} else {
 						int fileCount = cJSON_GetArraySize(cjson_filepaths);
 						if (DEBUG) {
 							printf("Input Json: request-id: %s segment-size: %u\n",
 															cjson_requestid->valuestring,
 															cjson_segmentsize == NULL ? 0U : cjson_segmentsize->valueint);
-							for (int i = 0; i < fileCount; i++) {
-								cJSON *pathEle = cJSON_GetArrayItem(cjson_filepaths, i);
-								cJSON *idEle = cJSON_GetArrayItem(cjson_fileids, i);
-								cJSON *nameEle = cJSON_GetArrayItem(cjson_filenames, i);
-								printf("Input Json: filepath: %s fileid: %s filename: %s\n",
-															pathEle->valuestring,
-															idEle->valuestring,
-															nameEle->valuestring);
-							}
-
 						}
 						int result = -1;;
 						for (int i = 0; i < fileCount; i++) {
