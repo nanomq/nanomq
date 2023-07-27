@@ -44,7 +44,6 @@
 #define DEBUG	   1
 
 static int publish_send_result(MQTTClient client,
-							   char *file_id,
 							   char *requestid,
 							   int success)
 {
@@ -67,14 +66,14 @@ static int publish_send_result(MQTTClient client,
 		printf("Failed to create payload for initial message\n");
 		return -1;
 	}
-	// Create topic of the form file_transfer/{file_id}/result for result message
+	// Create topic of the form file_transfer/result for result message
 	char topic[buf_size];
 	MQTTClient_deliveryToken token;
-	rc = snprintf(topic, buf_size, "file_transfer/%s/result", file_id);
-	if (rc < 0 || rc >= buf_size) {
-		printf("Failed to create topic for result message\n");
-		return -1;
-	}
+	strcpy(topic, "file_transfer/result");
+//	if (rc < 0 || rc >= buf_size) {
+//		printf("Failed to create topic for result message\n");
+//		return -1;
+//	}
 	// Publish result message
 	if (DEBUG) {
 		printf("Publishing result message to topic %s\n", topic);
@@ -132,41 +131,63 @@ static int start_listening(MQTTClient client,
 				if (cjson_objs == NULL) {
 					printf("Parse json failed\n");
 				} else {
-					cJSON *cjson_filepath = cJSON_GetObjectItem(cjson_objs, "file_path");
-					cJSON *cjson_fileid = cJSON_GetObjectItem(cjson_objs, "file_id");
-					cJSON *cjson_filename = cJSON_GetObjectItem(cjson_objs, "file_name");
-					cJSON *cjson_requestid = cJSON_GetObjectItem(cjson_objs, "request-id");
+					cJSON *cjson_filepaths = cJSON_GetObjectItem(cjson_objs, "files");
+					cJSON *cjson_filenames = cJSON_GetObjectItem(cjson_objs, "filenames");
+					cJSON *cjson_fileids = cJSON_GetObjectItem(cjson_objs, "fileids");
+					cJSON *cjson_requestid = cJSON_GetObjectItem(cjson_objs, "request_id");
 					cJSON *cjson_segmentsize = cJSON_GetObjectItem(cjson_objs, "segment-size");
-					if (cjson_filepath == NULL || cjson_fileid == NULL ||
-							cjson_filename == NULL || cjson_requestid == NULL) {
+					if (cjson_filepaths == NULL || cjson_fileids == NULL ||
+						cjson_filenames == NULL || cjson_requestid == NULL ||
+						cJSON_GetArraySize(cjson_filepaths) == 0 ||
+						cJSON_GetArraySize(cjson_filepaths) != cJSON_GetArraySize(cjson_fileids) ||
+						cJSON_GetArraySize(cjson_filepaths) != cJSON_GetArraySize(cjson_filenames)) {
 						printf("Input Json invalid\n");
 					} else {
+						int fileCount = cJSON_GetArraySize(cjson_filepaths);
 						if (DEBUG) {
-							printf("Input Json: filepath: %s fileid: %s filename: %s request-id: %s segment-size: %u\n",
-															cjson_filepath->valuestring,
-															cjson_fileid->valuestring,
-															cjson_filename->valuestring,
+							printf("Input Json: request-id: %s segment-size: %u\n",
 															cjson_requestid->valuestring,
 															cjson_segmentsize == NULL ? 0U : cjson_segmentsize->valueint);
+							for (int i = 0; i < fileCount; i++) {
+								cJSON *pathEle = cJSON_GetArrayItem(cjson_filepaths, i);
+								cJSON *idEle = cJSON_GetArrayItem(cjson_fileids, i);
+								cJSON *nameEle = cJSON_GetArrayItem(cjson_filenames, i);
+								printf("Input Json: filepath: %s fileid: %s filename: %s\n",
+															pathEle->valuestring,
+															idEle->valuestring,
+															nameEle->valuestring);
+							}
+
 						}
-						// Send file
-						int result = send_file(client,
-												cjson_filepath->valuestring,
-												cjson_fileid->valuestring,
-												cjson_filename->valuestring,
-												cjson_segmentsize == NULL ? 0U : cjson_segmentsize->valueint,
-												expire_time_s_since_epoch,
-												segments_ttl_seconds);
-
-						printf("Send file file_id: %s %s\n", cjson_fileid->valuestring,
+						int result = -1;;
+						for (int i = 0; i < fileCount; i++) {
+							cJSON *pathEle = cJSON_GetArrayItem(cjson_filepaths, i);
+							cJSON *idEle = cJSON_GetArrayItem(cjson_fileids, i);
+							cJSON *nameEle = cJSON_GetArrayItem(cjson_filenames, i);
+							printf("Sending file: filepath: %s fileid: %s filename: %s\n",
+														pathEle->valuestring,
+														idEle->valuestring,
+														nameEle->valuestring);
+							// Send file
+							result = send_file(client,
+													pathEle->valuestring,
+													idEle->valuestring,
+													nameEle->valuestring,
+													cjson_segmentsize == NULL ? 0U : cjson_segmentsize->valueint,
+													expire_time_s_since_epoch,
+													segments_ttl_seconds);
+							printf("Send file file_id: %s %s\n", idEle->valuestring,
 												!result ? "success" : "fail");
-						result = publish_send_result(client, cjson_fileid->valuestring,
-												cjson_requestid->valuestring, !result);
+							/* fail */
+							if (result) {
+								break;
+							}
+						}
+						result = publish_send_result(client, cjson_requestid->valuestring, !result);
 						if (DEBUG) {
-							printf("Send file file_id: %s transfer result: %s\n",
-												cjson_fileid->valuestring,
+							printf("Send file request-id: %s transfer result: %s\n",
+												cjson_requestid->valuestring,
 												!result ? "success" : "fail");
-
 						}
 					}
 				}
