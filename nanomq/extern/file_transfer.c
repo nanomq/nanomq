@@ -54,10 +54,10 @@ static int publish_send_result(MQTTClient client,
 	rc = snprintf(
 			payload,
 			payloadLen,
-			"{\n"
-			"  \"request-id\": \"%s\",\n"
-			"  \"success\": \"%s\",\n"
-			"  \"message\": \"%s\",\n"
+			"{"
+			"  \"request-id\": \"%s\","
+			"  \"success\": %s,"
+			"  \"message\": \"%s\""
 			"}",
 			requestid,
 			success ? "true" : "false",
