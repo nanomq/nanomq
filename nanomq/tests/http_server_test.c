@@ -240,12 +240,74 @@ test_get_bridges()
 }
 
 static bool
+test_get_bridge()
+{
+	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
+	            "'http://localhost:8081/api/v4/bridges/emqx'";
+	FILE *fd  = popen(cmd, "r");
+	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
+	pclose(fd);
+	return rv;
+}
+
+static bool
 test_put_bridges()
 {
 	char *cmd =
 	    "curl -i --basic -u admin_test:pw_test -X PUT "
-	    "'http://localhost:8081/api/v4/bridges/emqx'"
-	    "-d '{\"data\": {\"name\": \"emqx\",\"enable\":true,\"parallel\": 8,\"connector\": {\"server\": \"mqtt-tcp://127.0.0.1:1881\",\"proto_ver\": 4, \"clientid\": null,\"clean_start\": false,\"username\": \"emqx\",\"password\": \"emqx123\",\"keepalive\": 60},\"forwards\": [\"topic1/#\",\"topic2/#\"],\"subscription\": [{\"topic\": \"cmd/topic1\", \"qos\": 1}, {\"topic\": \"cmd/topic2\",\"qos\": 2}]}}'";
+	    "'http://localhost:8081/api/v4/bridges/emqx' -d '{"
+    	"\"emqx\": {"
+        "\"name\": \"emqx\","
+        "\"enable\": true,"
+        "\"parallel\": 8,"
+        "\"server\": \"mqtt-tcp://broker.emqx.io:1883\","
+        "\"proto_ver\": 5,"
+        "\"clientid\": \"hello3\","
+        "\"clean_start\": true,"
+        "\"username\": \"emqx\","
+        "\"password\": \"emqx123\","
+        "\"keepalive\": 60,"
+        "\"forwards\": [\"topic1/#\", \"topic3/#\"],"
+        "\"subscription\": [{\"topic\": \"cmd/topic1\",\"qos\": 1},"
+        "{\"topic\": \"cmd/topic3\",\"qos\": 2}]"
+		"}"
+    	"}'";
+	FILE *fd = popen(cmd, "r");
+	bool  rv = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
+	pclose(fd);
+	return rv;
+}
+
+static bool
+test_put_bridges_sub()
+{
+	char *cmd = "curl -i --location "
+	            "'http://localhost:8081/api/v4/bridges/sub/emqx' "
+	            "--basic -u admin_test:pw_test -d '{"
+	            "\"data\": {"
+	            "\"subscription\": [{\"topic\": "
+	            "\"cmd/topic4\"},{\"topic\": \"cmd/topic5\"}],"
+	            "\"sub_properties\": {\"user_properties\": [{\"key\": "
+	            "\"key1\",\"value\": \"value1\"},{\"key\": "
+	            "\"key2\",\"value\": \"value2\"}]}}}'";
+	FILE *fd = popen(cmd, "r");
+	bool  rv = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
+	pclose(fd);
+	return rv;
+}
+
+static bool
+test_put_bridges_unsub()
+{
+	char *cmd = "curl -i --location "
+	            "'http://localhost:8081/api/v4/bridges/unsub/emqx' "
+	            "--basic -u admin_test:pw_test -d '{"
+	            "\"data\": {"
+	            "\"unsubscription\": [{\"topic\": "
+	            "\"cmd/topic1\"},{\"topic\": \"cmd/topic2\"}],"
+	            "\"unsub_properties\": {\"user_properties\": [{\"key\": "
+	            "\"key1\",\"value\": \"value1\"},{\"key\": "
+	            "\"key2\",\"value\": \"value2\"}]}}}'";
 	FILE *fd = popen(cmd, "r");
 	bool  rv = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
 	pclose(fd);
@@ -514,11 +576,14 @@ main()
 	assert(test_get_metrics());
 	assert(test_get_uri());
 
-	// // TODO: more test on bridges & rule engine
-	// // assert(test_put_bridges());
-	// assert(test_get_bridges());
+	// TODO: more test on bridges & rule engine
+	assert(test_get_bridges());
+	assert(test_get_bridge());
+	assert(test_put_bridges());
+	assert(test_put_bridges_sub());
+	assert(test_put_bridges_unsub());
 
-	// // assert(test_post_rules()); // potential bug
+	// assert(test_post_rules()); // potential bug
 	// assert(test_get_rules());
 	// assert(test_get_rule());
 	// assert(test_put_rule());
@@ -533,7 +598,6 @@ main()
 	// broker ctrl test
 	// --> ctrl cmd will msleep() for 2 seconds, so they are not fully
 	// tested now.
-	//
 	// assert(test_restart());
 	// assert(test_stop());
 
