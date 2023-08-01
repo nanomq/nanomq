@@ -63,11 +63,11 @@ if (ENABLE_FILETRANSFER)
 	#		set(SOURCES ${SOURCES}
 	#			extern/file_transfer.c
 	#        )
-			set(SOURCES ${SOURCES}
-				extern/file_transfer_with_nano.c
-			)
+	target_link_libraries(nanomq paho-mqtt3c)
+	set(SOURCES ${SOURCES}
+		extern/file_transfer_with_nano.c
+	)
 endif()
-
 
 include_directories(${FOUNDATION_INCLUDE_DIR})
 
@@ -127,7 +127,6 @@ endif()
 
 
 target_link_libraries(nanomq nng)
-target_link_libraries(nanomq paho-mqtt3c)
 
 target_compile_definitions(nanomq PRIVATE -DPARALLEL=${PARALLEL})
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
@@ -177,3 +176,11 @@ else()
     COMPONENT services)
 
 endif()
+
+if (NANOMQ_TESTS)
+    add_definitions(-DENABLE_NANOMQ_TESTS)
+endif(NANOMQ_TESTS)
+
+nanomq_test(sub_handler_test)
+nanomq_test(unsub_handler_test)
+nanomq_test(pub_handler_test)
