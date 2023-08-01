@@ -71,7 +71,6 @@ check_http_return(FILE *fd, char *sc, int rc)
 		// printf("buff:%s\n", buff); // debug only.
 		if (index == 1 && !check_http_status_code(buff, sc)) {
 			rv = false;
-			break;
 		} else if (index == 5 && !check_http_result_code(buff, rc)) {
 			rv = false;
 			break;
@@ -579,9 +578,9 @@ main()
 	// TODO: more test on bridges & rule engine
 	assert(test_get_bridges());
 	assert(test_get_bridge());
-	assert(test_put_bridges());
 	assert(test_put_bridges_sub());
 	assert(test_put_bridges_unsub());
+	assert(test_put_bridges());
 
 	// assert(test_post_rules()); // potential bug
 	// assert(test_get_rules());
