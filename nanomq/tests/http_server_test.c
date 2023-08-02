@@ -316,8 +316,15 @@ test_put_bridges_unsub()
 static bool
 test_post_rules()
 {
-	char *cmd = "curl -i --basic -u admin_test:pw_test 'http://localhost:8081/api/v4/rules' -X POST -d '{  \"rawsql\": \"select * from \\\"t/a\\\"\",  \"actions\": [{  \"name\": \"repub\",  \"params\": {  \"topic\": \"repub1\", \"address\":\"broker.emqx.io:1881\", \"clean_start\": \"true\", \"clientid\": \"id\", \"username\": \"admin\", \"password\": \"public\", \"proto_ver\": 4, \"keepalive\": 60      }  }],  \"description\": \"repub-rule\"}'";
-	// printf("cmd:%s\n", cmd);
+	char *cmd =
+	    "curl -i --basic -u admin_test:pw_test "
+	    "'http://localhost:8081/api/v4/rules' -X POST -d '{  \"rawsql\": "
+	    "\"select * from \\\"t/a\\\"\",  \"actions\": [{  \"name\": "
+	    "\"repub\",  \"params\": {  \"topic\": \"repub1\", "
+	    "\"address\":\"mqtt-tcp://localhost:1881\", \"clean_start\": \"true\", "
+	    "\"clientid\": \"id\", \"username\": \"admin\", \"password\": "
+	    "\"public\", \"proto_ver\": 4, \"keepalive\": 60      }  }],  "
+	    "\"description\": \"repub-rule\"}'";
 	FILE *fd  = popen(cmd, "r");
 	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
 	pclose(fd);
@@ -339,7 +346,7 @@ static bool
 test_get_rule()
 {
 	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
-	            "'http://localhost:8081/api/v4/rules/rule:4'";
+	            "'http://localhost:8081/api/v4/rules/rule:2'";
 	FILE *fd  = popen(cmd, "r");
 	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
 	pclose(fd);
@@ -349,10 +356,10 @@ test_get_rule()
 static bool
 test_put_rule()
 {
-	char *cmd = "curl -i --basic -u admin_test:pw_test -X PUT "
-	            "'http://localhost:8081/api/v4/rules/rule:4'"
+	char *cmd = "curl -i --basic -u admin_test:pw_test -XPUT "
+	            "'http://localhost:8081/api/v4/rules/rule:3' "
 				"-d '{\"rawsql\":\"select * from \\\"t/b\\\"\"}'";
-	// printf("\ncmd:%s\n", cmd);
+	printf("\ncmd:%s\n", cmd);
 	FILE *fd  = popen(cmd, "r");
 	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
 	pclose(fd);
@@ -362,8 +369,8 @@ test_put_rule()
 static bool
 test_disable_rule()
 {
-	char *cmd = "curl -i --basic -u admin_test:pw_test -X PUT "
-	            "'http://localhost:8081/api/v4/rules/rule:4'"
+	char *cmd = "curl -i --basic -u admin_test:pw_test -XPUT "
+	            "'http://localhost:8081/api/v4/rules/rule:3' "
 				"-d '{\"enabled\": false}'";
 	FILE *fd  = popen(cmd, "r");
 	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
@@ -374,8 +381,8 @@ test_disable_rule()
 static bool
 test_del_rule()
 {
-	char *cmd = "curl -i --basic -u admin_test:pw_test -X DELETE "
-	            "'http://localhost:8081/api/v4/rules/rule:4'";
+	char *cmd = "curl -i --basic -u admin_test:pw_test -XDELETE "
+	            "'http://localhost:8081/api/v4/rules/rule:3'";
 	FILE *fd  = popen(cmd, "r");
 	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
 	pclose(fd);
@@ -575,28 +582,27 @@ main()
 	assert(test_get_metrics());
 	assert(test_get_uri());
 
-	// TODO: more test on bridges & rule engine
 	assert(test_get_bridges());
 	assert(test_get_bridge());
 	assert(test_put_bridges_sub());
 	assert(test_put_bridges_unsub());
 	assert(test_put_bridges());
 
-	// assert(test_post_rules()); // potential bug
-	// assert(test_get_rules());
-	// assert(test_get_rule());
-	// assert(test_put_rule());
-	// assert(test_disable_rule());
-	// assert(test_del_rule());
+	assert(test_post_rules());
+	assert(test_get_rules());
+	assert(test_get_rule());
+	assert(test_put_rule());
+	assert(test_disable_rule());
+	assert(test_del_rule());
 
 	// failing tests
 	assert(test_unauthorized());
 	assert(test_bad_request());
 	assert(test_not_found());
 
-	// broker ctrl test
-	// --> ctrl cmd will msleep() for 2 seconds, so they are not fully
-	// tested now.
+	// // broker ctrl test
+	// // --> ctrl cmd will msleep() for 2 seconds, so they are not fully
+	// // tested now.
 	// assert(test_restart());
 	// assert(test_stop());
 
