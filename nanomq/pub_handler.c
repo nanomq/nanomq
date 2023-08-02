@@ -1035,6 +1035,9 @@ rule_engine_insert_sql(nano_work *work)
 					}
 
 					nng_mtx_unlock(rule_mutex);
+
+					nng_mtx_free(rule_mutex);
+					rule_mutex = NULL;
 				}
 
 				
