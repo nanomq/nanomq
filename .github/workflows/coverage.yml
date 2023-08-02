@@ -13,11 +13,11 @@ jobs:
 
     - name: Install libs
       run: |
-        sudo apt-get install -y libmbedtls-dev ninja-build pip python3-pip mosquitto-clients
+        sudo apt-get install -y libmbedtls-dev ninja-build pip python3-pip mosquitto-clients pkg-config libmysqlclient-dev sqlite3
         pip install Jinja2 paho-mqtt
 
     - name: Configure
-      run:  mkdir build && cd build && cmake -G Ninja -DNANOMQ_TESTS=ON -DDEBUG=ON -DASAN=ON -DNNG_ENABLE_COVERAGE=ON -DNNG_ENABLE_TLS=ON -DNNG_ENABLE_SQLITE=ON -DENABLE_RULE_ENGINE=ON ..
+      run:  mkdir build && cd build && cmake -G Ninja -DNANOMQ_TESTS=ON -DDEBUG=ON -DASAN=ON -DNNG_ENABLE_COVERAGE=ON -DNNG_ENABLE_TLS=ON -DNNG_ENABLE_SQLITE=ON -DENABLE_RULE_ENGINE=ON -DENABLE_MYSQL=ON ..
 
     - name: build
       run: cd build && ninja
