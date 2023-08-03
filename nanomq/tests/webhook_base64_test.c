@@ -23,7 +23,7 @@ main(int argc, char **argv)
 	// start the RESTful http server thread
 	rv = nng_thread_create(&inproc_thr, test_inproc_server, NULL);
 	if (rv != 0) {
-		fatal("cannot start inproc server", rv);
+		nng_fatal("cannot start inproc server", rv);
 	}
 	test_rest_start(port);
 	// test for base64 as encoding method

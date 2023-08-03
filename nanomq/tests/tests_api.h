@@ -18,6 +18,7 @@ int webhook_msg_cnt = 0; // this is a silly signal to indicate whether the webho
 #include <nng/supplemental/http/http.h>
 #include <nng/supplemental/util/platform.h>
 #include <nng/supplemental/nanolib/conf.h>
+#include <nng/supplemental/nanolib/utils.h>
 #include "include/broker.h"
 #include "include/rest_api.h"
 
@@ -193,7 +194,7 @@ rest_job_cb(void *arg)
 		rest_recycle_job(job);
 		return;
 	default:
-		fatal("bad case", NNG_ESTATE);
+		nng_fatal("bad case", NNG_ESTATE);
 		break;
 	}
 }
@@ -244,7 +245,7 @@ rest_handle(nng_aio *aio)
 	} else if (strcasecmp(method, "post") == 0) {
 		nng_http_req_get_data(req, &data, &sz);
 	} else {
-		rest_http_fatal(job, "method not supported:%s", method);
+		rest_http_fatal(job, "method not supported:%s", NNG_HTTP_STATUS_METHOD_NOT_ALLOWED);
 	}
 
 	job->http_aio = aio;
@@ -272,7 +273,7 @@ test_rest_start(uint16_t port)
 	int               rv;
 
 	if ((rv = nng_mtx_alloc(&job_lock)) != 0) {
-		fatal("nng_mtx_alloc", rv);
+		nng_fatal("nng_mtx_alloc", rv);
 	}
 	job_freelist = NULL;
 
@@ -280,38 +281,38 @@ test_rest_start(uint16_t port)
 	// from the argument list.
 	snprintf(rest_addr, sizeof(rest_addr), REST_TEST_URL, port);
 	if ((rv = nng_url_parse(&url, rest_addr)) != 0) {
-		fatal("nng_url_parse", rv);
+		nng_fatal("nng_url_parse", rv);
 	}
 
 	// Create the REQ socket, and put it in raw mode, connected to
 	// the remote REP server (our inproc server in this case).
 	if ((rv = nng_req0_open(&req_sock)) != 0) {
-		fatal("nng_req0_open", rv);
+		nng_fatal("nng_req0_open", rv);
 	}
 	if ((rv = nng_dial(req_sock, INPROC_TEST_URL, NULL, NNG_FLAG_NONBLOCK)) !=
 	    0) {
-		fatal("nng_dial(" INPROC_TEST_URL ")", rv);
+		nng_fatal("nng_dial(" INPROC_TEST_URL ")", rv);
 	}
 
 	// Get a suitable HTTP server instance.  This creates one
 	// if it doesn't already exist.
 	if ((rv = nng_http_server_hold(&server, url)) != 0) {
-		fatal("nng_http_server_hold", rv);
+		nng_fatal("nng_http_server_hold", rv);
 	}
 
 	// Allocate the handler - we use a dynamic handler for REST
 	// using the function "rest_handle" declared above.
 	rv = nng_http_handler_alloc(&handler, url->u_path, rest_handle);
 	if (rv != 0) {
-		fatal("nng_http_handler_alloc", rv);
+		nng_fatal("nng_http_handler_alloc", rv);
 	}
 
 	if ((rv = nng_http_handler_set_tree(handler)) != 0) {
-		fatal("nng_http_handler_set_tree", rv);
+		nng_fatal("nng_http_handler_set_tree", rv);
 	}
 
 	if ((rv = nng_http_handler_set_method(handler, NULL)) != 0) {
-		fatal("nng_http_handler_set_method", rv);
+		nng_fatal("nng_http_handler_set_method", rv);
 	}
 	// We want to collect the body, and we (arbitrarily) limit this to
 	// 128KB.  The default limit is 1MB.  You can explicitly collect
@@ -320,13 +321,13 @@ test_rest_start(uint16_t port)
 	// chunked transfers.
 	if ((rv = nng_http_handler_collect_body(handler, true, 1024 * 128)) !=
 	    0) {
-		fatal("nng_http_handler_collect_body", rv);
+		nng_fatal("nng_http_handler_collect_body", rv);
 	}
 	if ((rv = nng_http_server_add_handler(server, handler)) != 0) {
-		fatal("nng_http_handler_add_handler", rv);
+		nng_fatal("nng_http_handler_add_handler", rv);
 	}
 	if ((rv = nng_http_server_start(server)) != 0) {
-		fatal("nng_http_server_start", rv);
+		nng_fatal("nng_http_server_start", rv);
 	}
 
 	nng_url_free(url);
@@ -349,13 +350,13 @@ test_inproc_server(void *arg)
 
 	if (((rv = nng_rep0_open(&s)) != 0) ||
 	    ((rv = nng_listen(s, INPROC_TEST_URL, NULL, 0)) != 0)) {
-		fatal("unable to set up inproc", rv);
+		nng_fatal("unable to set up inproc", rv);
 	}
 	// This is simple enough that we don't need concurrency.  Plus it
 	// makes for an easier demo.
 	for (;;) {
 		if ((rv = nng_recvmsg(s, &msg, 0)) != 0) {
-			fatal("inproc recvmsg", rv);
+			nng_fatal("inproc recvmsg", rv);
 		}
 		// char *body = nng_msg_body(msg);
 		// printf("\tReceived: %s\n", (char *) body);
@@ -364,7 +365,7 @@ test_inproc_server(void *arg)
 
 		char *res = "OK";
 		if ((rv = nng_send(s, res, strlen(res), 0)) != 0) {
-			fatal("inproc sendmsg", rv);
+			nng_fatal("inproc sendmsg", rv);
 		}
 	}
 }

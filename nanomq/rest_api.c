@@ -2150,7 +2150,7 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 		cvector_erase(cr->rules, i);
 	} else {
 		if (old_rule->repub) {
-			nng_close(*(nng_socket*) old_rule->repub->sock);
+			nng_close(*(nng_socket *) old_rule->repub->sock);
 		}
 		new_rule = old_rule;
 	}
