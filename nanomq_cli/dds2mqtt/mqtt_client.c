@@ -274,6 +274,8 @@ client_recv2(mqtt_cli *cli, nng_msg **msgp)
 		return -2;
 	}
 
+	printf("[MQTT] Receive mqtt message\n");
+
 	if (type != NNG_MQTT_PUBLISH) {
 		printf("[MQTT] Received a %x type msg. Skip.\n", type);
 		return -3;
