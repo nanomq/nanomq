@@ -838,10 +838,6 @@ rule_engine_insert_sql(nano_work *work)
 	static bool is_first_time_mysql = true;
 	bool is_need_set_mysql = false;
 
-	if (rule_mutex == NULL) {
-		nng_mtx_alloc(&rule_mutex);
-	}
-
 	for (size_t i = 0; i < rule_size; i++) {
 		if (true == rules[i].enabled && rule_engine_filter(work, &rules[i])) {
 #if defined(FDB_SUPPORT)
@@ -921,6 +917,9 @@ rule_engine_insert_sql(nano_work *work)
 				snprintf(key, 128, "%s (", rules[i].sqlite_table);
 				char value[800]       = "VALUES (";
 				for (size_t j = 0; j < 9; j++) {
+					if (rule_mutex == NULL) {
+						nng_mtx_alloc(&rule_mutex);
+					}
 					nng_mtx_lock(rule_mutex);
 					if (true == is_first_time) {
 						is_need_set   = true;
@@ -956,6 +955,8 @@ rule_engine_insert_sql(nano_work *work)
 					}
 
 					nng_mtx_unlock(rule_mutex);
+					nng_mtx_free(rule_mutex);
+					rule_mutex = NULL;
 				}
 
 				
@@ -997,6 +998,9 @@ rule_engine_insert_sql(nano_work *work)
 				snprintf(key, 128, "%s (", rules[i].mysql->table);
 				char value[800]       = "VALUES (";
 				for (size_t j = 0; j < 9; j++) {
+					if (rule_mutex == NULL) {
+						nng_mtx_alloc(&rule_mutex);
+					}
 					nng_mtx_lock(rule_mutex);
 					if (true == is_first_time_mysql) {
 						is_need_set_mysql   = true;
@@ -1035,7 +1039,6 @@ rule_engine_insert_sql(nano_work *work)
 					}
 
 					nng_mtx_unlock(rule_mutex);
-
 					nng_mtx_free(rule_mutex);
 					rule_mutex = NULL;
 				}
