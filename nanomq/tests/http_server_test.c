@@ -97,7 +97,6 @@ test_get_brokers()
 {
 	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
 	            "'http://localhost:8081/api/v4/brokers'";
-	// printf("cmd:%s\n", cmd);
 	FILE *fd  = popen(cmd, "r");
 	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
 	pclose(fd);
@@ -346,7 +345,7 @@ static bool
 test_get_rule()
 {
 	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
-	            "'http://localhost:8081/api/v4/rules/rule:2'";
+	            "'http://localhost:8081/api/v4/rules/rule:3'";
 	FILE *fd  = popen(cmd, "r");
 	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
 	pclose(fd);
@@ -359,7 +358,6 @@ test_put_rule()
 	char *cmd = "curl -i --basic -u admin_test:pw_test -XPUT "
 	            "'http://localhost:8081/api/v4/rules/rule:3' "
 				"-d '{\"rawsql\":\"select * from \\\"t/b\\\"\"}'";
-	printf("\ncmd:%s\n", cmd);
 	FILE *fd  = popen(cmd, "r");
 	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
 	pclose(fd);
@@ -426,7 +424,6 @@ test_pub_batch()
 	    "\"properties\": "
 	    "{\"user_properties\": { \"id\": 10010, \"name\": \"name\", "
 	    "\"foo\": \"bar\"}, \"content_type\": \"text/plain\"}}]'";
-	// printf("cmd:%s\n", cmd);
 	FILE *fd = popen(cmd, "r");
 	bool  rv = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
 	pclose(fd);
@@ -494,7 +491,7 @@ test_bad_request()
 	FILE *fd  = popen(cmd, "r");
 	bool  rv  = check_http_return(
             fd, STATUS_CODE_BAD_REQUEST, REQ_PARAMS_JSON_FORMAT_ILLEGAL);
-	close(fd);
+	pclose(fd);
 	return rv;
 }
 
