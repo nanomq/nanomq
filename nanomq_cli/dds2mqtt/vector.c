@@ -116,11 +116,11 @@ nftp_vec_push(nftp_vec *v, void *entry, int flag)
 		v->low --;
 		pos = v->low;
 	} else if (NFTP_TAIL == flag) {
-		if (v->low + v->len > v->cap) {
+		if (v->len > v->cap) {
 			pthread_mutex_unlock(&v->mtx);
 			return (NFTP_ERR_OVERFLOW);
 		}
-		pos = v->low + v->len;
+		pos = (v->low + v->len) / v->cap;
 	} else {
 		pthread_mutex_unlock(&v->mtx);
 		return (NFTP_ERR_FLAG);
@@ -144,7 +144,7 @@ nftp_vec_pop(nftp_vec *v, void **entryp, int flag)
 	pthread_mutex_lock(&v->mtx);
 	if (NFTP_HEAD == flag) {
 		pos = v->low;
-		v->low ++;
+		v->low = (v->low ++) / v->cap;
 	} else if (NFTP_TAIL == flag) {
 		pos = v->low + v->len - 1;
 	} else {
