@@ -15,7 +15,7 @@
 
 #if defined(SUPP_DDS_PROXY)
 
-#define NFTP_SIZE         32
+#define NFTP_SIZE         128
 #define NFTP_BLOCK_SZ     (256 * 1024) // Maximal size of single package
 #define NFTP_FILES        32 // Receive up to 32 files at once
 #define NFTP_HASH(p, n)   nftp_djb_hashn(p, n)
