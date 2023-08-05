@@ -37,6 +37,7 @@
 
 #include <MQTTClient.h>
 
+#include "nng/nng.h"
 #include "nng/supplemental/nanolib/cJSON.h"
 
 #define CLIENTID	"c-client"
