@@ -43,6 +43,7 @@
 #define CLIENTID	"c-client"
 #define TIMEOUT	 100000L
 #define DEBUG	   1
+#define MAX_DELAY_7_DAYS (1000 * 60 * 60 * 24 * 7)
 
 static int publish_send_result(MQTTClient client,
 							   char *requestid,
@@ -99,13 +100,15 @@ static int publish_send_result(MQTTClient client,
 static inline int parse_input(cJSON *cjson_objs,
 							  cJSON **cjson_filepaths,
 							  cJSON **cjson_filenames, cJSON **cjson_fileids,
-							  cJSON **cjson_requestid, cJSON **cjson_segmentsize)
+							  cJSON **cjson_requestid, cJSON **cjson_segmentsize,
+							  cJSON **cjson_delete)
 {
 	*cjson_filepaths = cJSON_GetObjectItem(cjson_objs, "files");
 	*cjson_filenames = cJSON_GetObjectItem(cjson_objs, "filenames");
 	*cjson_fileids = cJSON_GetObjectItem(cjson_objs, "fileids");
 	*cjson_requestid = cJSON_GetObjectItem(cjson_objs, "request_id");
 	*cjson_segmentsize = cJSON_GetObjectItem(cjson_objs, "segment-size");
+	*cjson_delete = cJSON_GetObjectItem(cjson_objs, "delete");
 	if (*cjson_filepaths == NULL || *cjson_fileids == NULL ||
 		*cjson_filenames == NULL || *cjson_requestid == NULL ||
 		cJSON_GetArraySize(*cjson_filepaths) == 0 ||
@@ -115,6 +118,20 @@ static inline int parse_input(cJSON *cjson_objs,
 	} 
 
 	return 0;
+}
+
+void
+delete_delay_cb(void *arg)
+{
+	char *filename = arg;
+	int ret;
+	if (filename != NULL) {
+		ret = nni_file_delete(filename);
+		printf("delete_delay_cb: file:%s result: %d\n", filename, ret);
+	} else {
+		printf("filename is NULL and delete failed\n");
+	}
+	return;
 }
 
 static int start_listening(MQTTClient client,
@@ -159,9 +176,11 @@ static int start_listening(MQTTClient client,
 					cJSON *cjson_fileids;
 					cJSON *cjson_requestid;
 					cJSON *cjson_segmentsize;
+					cJSON *cjson_delete;
 					result = parse_input(cjson_objs, &cjson_filepaths,
 										 &cjson_filenames, &cjson_fileids,
-										 &cjson_requestid, &cjson_segmentsize);
+										 &cjson_requestid, &cjson_segmentsize,
+										 &cjson_delete);
 					if (result) {
 						printf("INPUT JSON INVALID!\n");
 						continue;
@@ -194,6 +213,36 @@ static int start_listening(MQTTClient client,
 							/* fail */
 							if (result) {
 								break;
+							} else {
+								if (cjson_delete != NULL && cjson_delete->valueint >= 0) {
+									if (cjson_delete->valueint == 0) {
+										int ret;
+										ret = nng_file_delete(pathEle->valuestring);
+										printf("Delete imediately: file:%s result: %d\n", pathEle->valuestring, ret);
+									} else {
+										nng_aio *a;
+										char *filename;
+										filename = nng_alloc(strlen(pathEle->valuestring) + 1);
+										if (filename == NULL) {
+											printf("Alloc filename failed continue...\n");
+											continue;
+										}
+										strcpy(filename, pathEle->valuestring);
+
+										/* Delete after 7 days at the latest */
+										int delay = cjson_delete->valueint * 1000;
+										if (delay > MAX_DELAY_7_DAYS) {
+											delay = MAX_DELAY_7_DAYS;
+										}
+										nng_aio_alloc(&a, delete_delay_cb, filename);
+										nng_sleep_aio(delay, a);
+										printf("Send file finished: Will delete %s in %d milliseconds\n",
+																						pathEle->valuestring,
+																						delay);
+									}
+								} else {
+									printf("Send file finished will not delete: %s\n", pathEle->valuestring);
+								}
 							}
 						}
 						result = publish_send_result(client, cjson_requestid->valuestring, !result);
