@@ -83,14 +83,14 @@ http_auth = {
 		url = "http://127.0.0.1:80/mqtt/auth"                       # HTTP URL API path for Auth Request
 		method = post                                               # HTTP Request Method for Auth Request
 		headers.content-type = "application/x-www-form-urlencoded"  # HTTP Request Headers for Auth Request
-		params = {clientid = "%c", username = "%u", password = "%p"} # Parameters to construct request body
+		params = {clientid = "%c", username = "%u", password = "%P"} # Parameters to construct request body
 	}
 	
 	super_req {
 		url = "http://127.0.0.1:80/mqtt/superuser"                   # HTTP URL API path for SuperUser Request
 		method = "post"                                              # HTTP Request Method for SuperUser Request
 		headers.content-type = "application/x-www-form-urlencoded"   # HTTP Request Headers for SuperUser Request
-		params = {clientid = "%c", username = "%u", password = "%p"} # Parameters to construct request body
+		params = {clientid = "%c", username = "%u", password = "%P"} # Parameters to construct request body
 	}
 	
 	acl_req {

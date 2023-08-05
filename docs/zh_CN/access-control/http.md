@@ -29,14 +29,14 @@ auth {
       url = "http://127.0.0.1:80/mqtt/auth"
       method = post
       headers.content-type = "application/x-www-form-urlencoded"
-      params = {clientid = "%c", username = "%u", password = "%p"}
+      params = {clientid = "%c", username = "%u", password = "%P"}
     }
 
     super_req {
       url = "http://127.0.0.1:80/mqtt/superuser"
       method = "post"
       headers.content-type = "application/x-www-form-urlencoded"
-      params = {clientid = "%c", username = "%u", password = "%p"}
+      params = {clientid = "%c", username = "%u", password = "%P"}
     }
 
     acl_req {
