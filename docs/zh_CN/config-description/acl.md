@@ -93,14 +93,14 @@ http_auth = {
 		url = "http://127.0.0.1:80/mqtt/auth"                       # Auth 请求的 HTTP URL API 路径
 		method = post                                               # Auth 请求的 HTTP 请求方法
 		headers.content-type = "application/x-www-form-urlencoded"  # Auth 请求的 HTTP 请求头			
-		params = {clientid = "%c", username = "%u", password = "%p"} # 请求体的构造参数
+		params = {clientid = "%c", username = "%u", password = "%P"} # 请求体的构造参数
 	}
 	
 	super_req {
 		url = "http://127.0.0.1:80/mqtt/superuser"                   # SuperUser 请求的 HTTP URL API 路径
 		method = "post"                                              # SuperUser 请求的 HTTP 请求方法
 		headers.content-type = "application/x-www-form-urlencoded"   # SuperUser 请求的 HTTP 请求头
-		params = {clientid = "%c", username = "%u", password = "%p"} # 请求体的构造参数
+		params = {clientid = "%c", username = "%u", password = "%P"} # 请求体的构造参数
 	}
 	
 	acl_req {
