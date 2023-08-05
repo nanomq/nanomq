@@ -263,7 +263,7 @@ nano_pipe_get_local_address(nng_pipe p)
 	uint8_t      *arr;
 	char         *res;
 
-	rv = nng_pipe_getopt_sockaddr(p, NNG_OPT_LOCADDR, &addr);
+	rv = nng_pipe_get_addr(p, NNG_OPT_LOCADDR, &addr);
 	if (rv != 0)
 		return NULL;
 
@@ -284,7 +284,7 @@ nano_pipe_get_local_address6(nng_pipe p)
 	uint8_t      *arr;
 	uint8_t      *res;
 
-	rv = nng_pipe_getopt_sockaddr(p, NNG_OPT_LOCADDR, &addr);
+	rv = nng_pipe_get_addr(p, NNG_OPT_LOCADDR, &addr);
 	if (rv != 0)
 		return NULL;
 
@@ -304,7 +304,7 @@ nano_pipe_get_local_port(nng_pipe p)
 	int           rv;
 	nng_sockaddr  addr;
 
-	rv = nng_pipe_getopt_sockaddr(p, NNG_OPT_LOCADDR, &addr);
+	rv = nng_pipe_get_addr(p, NNG_OPT_LOCADDR, &addr);
 	if (rv != 0)
 		return 0;
 
@@ -317,7 +317,7 @@ nano_pipe_get_local_port6(nng_pipe p)
 	int           rv;
 	nng_sockaddr  addr;
 
-	rv = nng_pipe_getopt_sockaddr(p, NNG_OPT_LOCADDR, &addr);
+	rv = nng_pipe_get_addr(p, NNG_OPT_LOCADDR, &addr);
 	if (rv != 0)
 		return 0;
 
