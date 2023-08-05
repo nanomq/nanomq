@@ -831,8 +831,6 @@ bridge_tcp_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	// Connected succeed
 	bridge_param *param  = arg;
 	int           reason = 0;
-	char         *addr;
-	uint16_t      port;
 	// get connect reason
 	nng_pipe_get_int(p, NNG_OPT_MQTT_CONNECT_REASON, &reason);
 	// get property for MQTT V5
@@ -865,8 +863,6 @@ bridge_tcp_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 		nng_mqtt_topic_qos_array_free(
 		    topic_qos, param->config->sub_count);
 	}
-	if (addr)
-		free(addr);
 }
 
 // Disconnect message callback function
