@@ -59,14 +59,13 @@ if(NNG_ENABLE_PLUGIN)
 endif(NNG_ENABLE_PLUGIN)
 
 if (ENABLE_FILETRANSFER)
-	ADD_DEFINITIONS(-DENABLE_FILETRANSFER)
-	#		set(SOURCES ${SOURCES}
-	#			extern/file_transfer.c
-	#        )
-	target_link_libraries(nanomq paho-mqtt3c)
-	set(SOURCES ${SOURCES}
-		extern/file_transfer_with_nano.c
-	)
+    ADD_DEFINITIONS(-DENABLE_FILETRANSFER)
+    set(SOURCES ${SOURCES}
+        extern/file_transfer.c
+    )
+#    set(SOURCES ${SOURCES}
+#        extern/file_transfer_with_nano.c
+#    )
 endif()
 
 include_directories(${FOUNDATION_INCLUDE_DIR})
@@ -125,6 +124,9 @@ if (CMAKE_INSTALL_RPATH)
 endif()
 
 
+if(ENABLE_FILETRANSFER)
+target_link_libraries(nanomq paho-mqtt3c)
+endif(ENABLE_FILETRANSFER)
 
 target_link_libraries(nanomq nng)
 
