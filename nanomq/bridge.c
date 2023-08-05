@@ -835,13 +835,10 @@ bridge_tcp_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	uint16_t      port;
 	// get connect reason
 	nng_pipe_get_int(p, NNG_OPT_MQTT_CONNECT_REASON, &reason);
-	addr = nano_pipe_get_local_address(p);
-	port = nano_pipe_get_local_port(p);
 	// get property for MQTT V5
 	// property *prop;
 	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_CONNECT_PROPERTY, &prop);
 	log_info("Bridge client connected! RC [%d]", reason);
-	log_info("Local ip4 address [%s] port [%d]", addr, port);
 
 	/* MQTT V5 SUBSCRIBE */
 	if (reason == 0 && param->config->sub_count > 0) {
