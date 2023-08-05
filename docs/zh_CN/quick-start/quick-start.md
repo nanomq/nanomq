@@ -165,6 +165,24 @@ docker run -d -p 1883:1883 \
 
 :::
 
+### 客户端上线/下线事件消息
+
+由于 NanoMQ 内置的 Actor 模型和全异步 I/O， 可以支持事件驱动的消息模式。可以通过订阅系统事件主题来获取上下线的消息。桥接通道的上下线也会在此系统事件主题中发布对应的消息，只需根据桥接客户端ID来分辨即可。
+
+上线消息：
+
+```bash
+Topic: $SYS/brokers/connected
+Message: {"username":"hello", "ts":1691225605933,"proto_name":"MQTT","keepalive":60,"return_code":"0","proto_ver":4,"client_id":"nanomq-8a2a5c2e","clean_start":1, "IPv4":"127.0.0.1"}
+```
+
+下线消息：
+
+```bash
+Topic: $SYS/brokers/disconnected
+Message: {"username":"hello","ts":1691225608391,"reason_code":"8b","client_id":"nanomq-8a2a5c2e","IPv4":"127.0.0.1"}
+```
+
 ### 测试桥接
 
 本节将继续使用 MQTTX 客户端工具来测试新建的 MQTT 数据桥接，我们将新建 2 个连接，分别连接到 NanoMQ 和 MQTT 数据桥接，用于验证 NanoMQ 和数据桥接的消息收发服务。

@@ -167,6 +167,25 @@ docker run -d -p 1883:1883 \
 
 Replace `/path/to/your/nanomq.conf` with the actual path to your `nanomq.conf` file on your local machine.
 
+### Online/Offline event message
+
+Thanks to the embedded Actor model and asynchronous I/O, NanoMQ natively support event-driven messaging mode. Users could get online and offline event messages of clients by subscribing to system topic.
+
+The status of bridging channel will also trigger a event message on SYS topic, with a unique client identifier set in the configuration file.
+
+Online message:
+
+```bash
+Topic: $SYS/brokers/connected
+Message: {"username":"hello", "ts":1691225605933,"proto_name":"MQTT","keepalive":60,"return_code":"0","proto_ver":4,"client_id":"nanomq-8a2a5c2e","clean_start":1, "IPv4":"127.0.0.1"}
+```
+
+offline message:
+
+```bash
+Topic: $SYS/brokers/disconnected
+Message: {"username":"hello","ts":1691225608391,"reason_code":"8b","client_id":"nanomq-8a2a5c2e","IPv4":"127.0.0.1"}
+```
 ### Test bridging
 
 This section will continue using the MQTTX client tool to test the MQTT data bridge you created.You will create 2 clients for connecting NanoMQ and the MQTT bridge and verify the messaging services between NanoMQ and the MQTT bridge. 
