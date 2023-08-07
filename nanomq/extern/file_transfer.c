@@ -294,11 +294,19 @@ int send_file(MQTTClient client,
 	FILE *fp = fopen(file_path, "rb");
 	int rc;
 	int qos = 1;
+	bool isLock = true;
 	const size_t buf_size = 1024 * 10;
 	if (fp == NULL) {
 		printf("Failed to open file %s\n", file_path);
 		return -1;
 	}
+
+	rc = do_flock(fp, LOCK_SH);
+	if (rc != 0) {
+		isLock = false;
+		printf("Failed to lock file. Still send file without a file lock...\n");
+	}
+
 	// Get file size
 	fseek(fp, 0L, SEEK_END);
 	long file_size = ftell(fp);
@@ -413,6 +421,15 @@ int send_file(MQTTClient client,
 		printf("Failed to read file\n");
 		return -1;
 	}
+
+	if (isLock) {
+		rc = do_flock(fp, LOCK_UN);
+		if (rc != 0) {
+			isLock = false;
+			printf("Failed to unlock file\n");
+		}
+	}
+
 	fclose(fp);
 	// Send final message to the topic $file/{file_id}/fin/{file_size} with an empty payload
 	rc = snprintf(topic, buf_size, "$file/%s/fin/%ld", file_id, file_size);
