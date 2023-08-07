@@ -34,6 +34,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
+#include <sys/file.h>
+#include <errno.h>
 
 #include <MQTTClient.h>
 
@@ -260,6 +262,26 @@ static int start_listening(MQTTClient client,
 			printf("Client message receive failed return code: %d\n", ret);
 		}
 	}
+}
+
+static int do_flock(FILE *fp, int op)
+{
+	int fd;
+	int rc;
+
+	fd = fileno(fp);
+	if (fd == -1) {
+		printf("Failed to get file discription\n");
+		return -1;
+	}
+
+	rc = flock(fd, op);
+	if (rc != 0) {
+		printf("Failed to do lock opration with file: op: %d rc: %d error: %s\n",
+													op, rc, strerror(errno));
+	}
+
+	return rc;
 }
 
 int send_file(MQTTClient client,
