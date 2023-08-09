@@ -227,7 +227,7 @@ rule.sqlite.event.publish.1.sql=SELECT topic, payload FROM "abc"
    sqlite> .header on
    sqlite> .table
    broker
-   sqlite> select * from broker1;
+   sqlite> select * from broker;
    RowId|Topic|Payload
    1|abc|aaa
    ```
