@@ -68,10 +68,10 @@ check_http_return(FILE *fd, char *sc, int rc)
 
 	while (fgets(buff, sizeof(buff), fd) != NULL) {
 		index++;
-		// printf("buff:%s\n", buff); // debug only.
+		// printf("\nbuff:%s\n", buff); // debug only.
 		if (index == 1 && !check_http_status_code(buff, sc)) {
 			rv = false;
-		} else if (index == 5 && !check_http_result_code(buff, rc)) {
+		} else if (index == 8 && !check_http_result_code(buff, rc)) {
 			rv = false;
 			break;
 		} else {
@@ -534,6 +534,18 @@ test_stop()
 	return rv;
 }
 
+static bool
+test_get_prometheus()
+{
+	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
+	            "'http://localhost:8081/api/v4/prometheus'";
+	FILE *fd  = popen(cmd, "r");
+	bool  rv =
+	    check_http_return(fd, STATUS_CODE_OK, RESULT_CODE_PASS);
+	pclose(fd);
+	return rv;
+}
+
 int
 main()
 {
@@ -565,6 +577,7 @@ main()
 	assert(test_get_brokers());
 
 	assert(test_get_nodes());
+	assert(test_get_prometheus());
 
 	assert(test_get_clients());
 	assert(test_get_clientid());
