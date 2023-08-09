@@ -4,6 +4,7 @@
 #define STATUS_CODE_BAD_REQUEST "HTTP/1.1 400"
 #define STATUS_CODE_UNAUTHORIZED "HTTP/1.1 401"
 #define STATUS_CODE_NOT_FOUND "HTTP/1.1 404"
+#define STATUS_CODE_METHOD_NOT_ALLOW "HTTP/1.1 405"
 
 #define RESULT_CODE_PASS -1
 
@@ -546,6 +547,42 @@ test_get_prometheus()
 	return rv;
 }
 
+static bool
+test_misuse_of_put()
+{
+	char *cmd = "curl -i --basic -u admin_test:pw_test -X PUT "
+	            "'http://localhost:8081/api/v4/foo'";
+	FILE *fd  = popen(cmd, "r");
+	bool  rv =
+	    check_http_return(fd, STATUS_CODE_NOT_FOUND, UNKNOWN_MISTAKE);
+	pclose(fd);
+	return rv;
+}
+
+static bool
+test_misuse_of_del()
+{
+	char *cmd = "curl -i --basic -u admin_test:pw_test -X DELETE "
+	            "'http://localhost:8081/api/v4/foo'";
+	FILE *fd  = popen(cmd, "r");
+	bool  rv =
+	    check_http_return(fd, STATUS_CODE_NOT_FOUND, UNKNOWN_MISTAKE);
+	pclose(fd);
+	return rv;
+}
+
+static bool
+test_misuse_of_method()
+{
+	char *cmd = "curl -i --basic -u admin_test:pw_test -X METHOD "
+	            "'http://localhost:8081/api/v4/foo'";
+	FILE *fd  = popen(cmd, "r");
+	bool  rv =
+	    check_http_return(fd, STATUS_CODE_METHOD_NOT_ALLOW, UNKNOWN_MISTAKE);
+	pclose(fd);
+	return rv;
+}
+
 int
 main()
 {
@@ -612,6 +649,10 @@ main()
 	assert(test_unauthorized());
 	assert(test_bad_request());
 	assert(test_not_found());
+
+	assert(test_misuse_of_put());
+	assert(test_misuse_of_del());
+	assert(test_misuse_of_method());
 
 	// // broker ctrl test
 	// // --> ctrl cmd will msleep() for 2 seconds, so they are not fully
