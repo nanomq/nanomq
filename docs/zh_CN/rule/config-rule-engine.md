@@ -222,7 +222,7 @@ Enter ".help" for usage hints.
 sqlite> .header on
 sqlite> .table
 broker
-sqlite> select * from broker1;
+sqlite> select * from broker;
 RowId|Topic|Payload
 1|abc|aaa
 ```
