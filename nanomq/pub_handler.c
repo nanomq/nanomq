@@ -32,8 +32,6 @@
 #define ENABLE_RETAIN 1
 #define SUPPORT_MQTT5_0 1
 
-static nng_mtx *rule_mutex = NULL;
-
 #ifdef STATISTICS
 typedef struct {
 	bool            initialed;
@@ -838,9 +836,7 @@ rule_engine_insert_sql(nano_work *work)
 	static bool is_first_time_mysql = true;
 	bool is_need_set_mysql = false;
 
-	if (rule_mutex == NULL) {
-		nng_mtx_alloc(&rule_mutex);
-	}
+	nng_mtx *rule_mutex = work->config->rule_eng.rule_mutex;
 
 	for (size_t i = 0; i < rule_size; i++) {
 		if (true == rules[i].enabled && rule_engine_filter(work, &rules[i])) {
