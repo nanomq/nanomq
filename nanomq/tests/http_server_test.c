@@ -654,6 +654,9 @@ main()
 	assert(test_misuse_of_del());
 	assert(test_misuse_of_method());
 
+	// TODO: more post & get config test; post & get rules test in repub,
+	// sqlite, mysql
+
 	// // broker ctrl test
 	// // --> ctrl cmd will msleep() for 2 seconds, so they are not fully
 	// // tested now.
