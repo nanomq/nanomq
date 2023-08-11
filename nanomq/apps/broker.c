@@ -1121,7 +1121,8 @@ broker(conf *nanomq_conf)
 #endif
 			conf *conf = works[0]->config;
 			if(is_testing == true && conf->bridge.count > 0) {
-				nng_msleep(3000);
+				// bridge might need more time to response to the resquest
+				nng_msleep(4000); 
 			}
 			for (size_t t = 0; t < conf->bridge.count; t++) {
 				conf_bridge_node *node = conf->bridge.nodes[t];
