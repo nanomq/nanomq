@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include "nng/nng.h"
 #include "nng/supplemental/util/platform.h"
 
 
@@ -47,6 +48,7 @@
 #define HASHMAP_USED
 #endif
 
+typedef struct hashmap_s hashmap_s;
 /* We need to keep keys and values. */
 struct hashmap_element_s {
   const char *key;
@@ -72,19 +74,19 @@ extern "C" {
 #endif
 
 int nano_hashmap_create(const unsigned initial_size,
-                   struct hashmap_s *const out_hashmap) HASHMAP_USED;
+                   struct hashmap_s * out_hashmap) HASHMAP_USED;
 
-int nano_hashmap_put(struct hashmap_s *const hashmap, const char *const key,
+int nano_hashmap_put(struct hashmap_s * hashmap, const char *const key,
                 const unsigned len, uint32_t value) HASHMAP_USED;
 
 uint32_t nano_hashmap_get(const struct hashmap_s *const hashmap,
                   const char *const key,
                   const unsigned len) HASHMAP_USED;
 
-int nano_hashmap_remove(struct hashmap_s *const m, const char *const key,
+int nano_hashmap_remove(struct hashmap_s * m, const char *const key,
             const unsigned len);
 
-void nano_hashmap_destroy(struct hashmap_s *const m);
+void nano_hashmap_destroy(struct hashmap_s * m);
 
 
 #if defined(__cplusplus)
