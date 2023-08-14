@@ -413,9 +413,6 @@ struct work {
 
 #if defined(SUPP_QUIC)
 #include <nng/mqtt/mqtt_quic.h>
-
-static void create_quic_client(nng_socket *sock, struct work **works,
-    size_t id, size_t nwork, struct connect_param *param);
 #endif
 
 static void average_msgs(client_opts *opts, struct work **works);
@@ -1458,16 +1455,29 @@ disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 
 static void
 create_client(nng_socket *sock, struct work **works, size_t id, size_t nwork,
-    struct connect_param *param)
+    struct connect_param *param, bool isquic)
 {
 	int        rv;
 	nng_dialer dialer;
 
-	rv = param->opts->version == MQTT_PROTOCOL_VERSION_v5
-	    ? nng_mqttv5_client_open(sock)
-	    : nng_mqtt_client_open(sock);
-	if (rv != 0) {
-		nng_fatal("nng_socket", rv);
+	if (isquic) {
+#if defined(SUPP_QUIC)
+		if (param->opts->version == MQTT_PROTOCOL_VERSION_v5) {
+			console("MQTT V5 OVER QUIC is not supported yet");
+			return;
+		}
+		rv = nng_mqtt_quic_client_open(sock);
+		if (rv != 0) {
+			nng_fatal("nng_socket", rv);
+		}
+#endif
+	} else {
+		rv = param->opts->version == MQTT_PROTOCOL_VERSION_v5
+		    ? nng_mqttv5_client_open(sock)
+		    : nng_mqtt_client_open(sock);
+		if (rv != 0) {
+			nng_fatal("nng_socket", rv);
+		}
 	}
 
 	for (size_t i = 0; i < opts->parallel; i++) {
@@ -1490,6 +1500,7 @@ create_client(nng_socket *sock, struct work **works, size_t id, size_t nwork,
 #endif
 
 	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, conn_msg);
+	// nng_dialer_set_bool(dialer, NNG_OPT_QUIC_ENABLE_0RTT, true);
 	// by set NNG_OPT_MQTT_CONNMSG for socket, it enables online/offline msg
 	// nng_socket_set_ptr(*sock, NNG_OPT_MQTT_CONNMSG, conn_msg);
 
@@ -1560,20 +1571,16 @@ client(int argc, char **argv, enum client_type type)
 	struct work ***works =
 	    nng_zalloc(sizeof(struct work **) * opts->clients);
 
-	void (*create_client_func)(nng_socket *, struct work **, size_t,
-	    size_t, struct connect_param *);
+	bool isquic = false;
 
 	if (strncmp("mqtt-quic", opts->url, 9) == 0) {
-#if defined(SUPP_QUIC)
-		create_client_func = create_quic_client;
-#else
+#if !defined(SUPP_QUIC)
 		fatal("Quic client is disabled for now !\nPlease recompile "
 		      "nanomq_cli "
 		      "with option `-DNNG_ENABLE_QUIC=ON` to Enable Quic "
 		      "support");
 #endif
-	} else {
-		create_client_func = create_client;
+		isquic = true;
 	}
 
 	for (size_t i = 0; i < opts->clients; i++) {
@@ -1582,8 +1589,8 @@ client(int argc, char **argv, enum client_type type)
 		socket[i]      = nng_zalloc(sizeof(nng_socket));
 		works[i] = nng_zalloc(sizeof(struct work **) * opts->parallel);
 
-		create_client_func(
-		    socket[i], works[i], i, opts->parallel, param[i]);
+		create_client(
+		    socket[i], works[i], i, opts->parallel, param[i], isquic);
 		nng_msleep(opts->interval);
 	}
 
