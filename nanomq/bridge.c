@@ -467,31 +467,43 @@ hybrid_quic_client(bridge_param *bridge_arg)
 	conf_bridge_node* node = bridge_arg->config;
 
 	// keepalive here is for QUIC only
-	if ((rv = nng_mqtt_quic_open_conf(new, node->address, (void *)node)) != 0) {
-		nng_fatal("nng_mqtt_quic_client_open", rv);
-		return rv;
+	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
+		log_info("MQTT V5 OVER QUIC is not supported yet.");
+		/*
+		if ((rv = nng_mqtt_quic_client_open(new)) != 0) {
+			nng_fatal("nng_mqtt_quic_client_open", rv);
+			return rv;
+		}
+		*/
+	} else {
+		if ((rv = nng_mqtt_quic_client_open(new)) != 0) {
+			nng_fatal("nng_mqtt_quic_client_open", rv);
+			return rv;
+		}
 	}
+
 	// TODO mqtt v5 protocol
 	apply_sqlite_config(new, node, "mqtt_quic_client.db");
-	nng_socket_set(*new, NANO_CONF, node, sizeof(conf_bridge_node));
 
-	bridge_arg->client = nng_mqtt_client_alloc(*new, &send_callback, true);
-	bridge_arg->sock   = new;
-	node->sock         = new;
-
-	if (0 != nng_mqtt_quic_set_connect_cb(new, hybrid_quic_connect_cb, (void *)bridge_arg) ||
-	    0 != nng_mqtt_quic_set_disconnect_cb(new, hybrid_quic_disconnect_cb, (void *)bridge_arg)) {
-		log_error("error in quic client cb setting.");
-		return -1;
+	if ((rv = nng_dialer_create(&dialer, *new, node->address))) {
+		nng_fatal("nng_dialer_create", rv);
+		return rv;
 	}
-	nng_mqtt_quic_ack_callback_set(new, quic_ack_cb, (void *)bridge_arg);
 
-	// create a CONNECT message
-	/* CONNECT */
-	nng_msg *connmsg = create_connect_msg(node);
+	nng_msg *connmsg   = create_connect_msg(node);
+	bridge_arg->connmsg = connmsg;
+	bridge_arg->client = nng_mqtt_client_alloc(*new, &send_callback, true);
 
-	nng_aio_set_msg(bridge_arg->client->send_aio, connmsg);
-	nng_send_aio(*new, bridge_arg->client->send_aio);
+	node->sock         = (void *) new;
+	bridge_arg->sock   = new;
+
+	// TCP bridge does not support hot update of connmsg
+	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
+	nng_socket_set_ptr(*new, NNG_OPT_MQTT_CONNMSG, connmsg);
+	nng_mqtt_set_connect_cb(*new, hybrid_quic_connect_cb, bridge_arg);
+	nng_mqtt_set_disconnect_cb(*new, hybrid_quic_disconnect_cb, bridge_arg);
+
+	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
 
 	return 0;
 }
