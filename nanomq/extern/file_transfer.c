@@ -411,6 +411,13 @@ int send_file(MQTTClient client,
 		}
 		memset(payload, 0, buf_size);
 		offset += read_bytes;
+		if (offset == file_size) {
+			break;
+		}
+		if (chunk_size > file_size - offset) {
+			/* Processing the last chunk */
+			chunk_size = file_size - offset;
+		}
 	}
 	// Check if we reached the end of the file
 	if (feof(fp)) {
@@ -418,8 +425,9 @@ int send_file(MQTTClient client,
 			printf("Reached end of file\n");
 		}
 	} else {
-		printf("Failed to read file\n");
-		return -1;
+		if (DEBUG) {
+			printf("Failed to reach end of file errno: %d\n", errno);
+		}
 	}
 
 	if (isLock) {
