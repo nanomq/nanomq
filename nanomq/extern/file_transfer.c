@@ -551,7 +551,7 @@ int file_transfer(int argc, char *argv[]) {
 	if (rc < 0 || rc >= 2048) {
 		printf("Failed to construct address string\n");
 		printf("Something wrong occurred. File transfer thread exiting...\n");
-		exit(1);
+		return -1;
 	}
 	// Create client
 	MQTTClient_createOptions options;
@@ -561,7 +561,7 @@ int file_transfer(int argc, char *argv[]) {
 	if (rc != MQTTCLIENT_SUCCESS) {
 		printf("Create mqtt client failed: %d\n", rc);
 		printf("Something wrong occurred. File transfer thread exiting...\n");
-		exit(1);
+		return -1;
 	}
 	MQTTResponse mqttrc;
 	MQTTClient_connectOptions conn_opts = MQTTClient_connectOptions_initializer;
