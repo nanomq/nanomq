@@ -572,15 +572,16 @@ int file_transfer(int argc, char *argv[]) {
 	conn_opts.cleansession = 0;
 	MQTTProperties props = MQTTProperties_initializer;
 	MQTTProperties willProps = MQTTProperties_initializer;
+
 	mqttrc = MQTTClient_connect5(client, &conn_opts, &props, &willProps);
-	if (mqttrc.reasonCode != MQTTCLIENT_SUCCESS) {
-		printf("Failed to connect, return code %d\n", mqttrc.reasonCode);
-		printf("Something wrong occurred. File transfer thread exiting...\n");
-		exit(1);
-	} else {
-		if (DEBUG) {
-			printf("Connected to MQTT Broker!\n");
-		}
+	while (mqttrc.reasonCode != MQTTCLIENT_SUCCESS) {
+		printf("Failed to connect, return code %d. Try connect again in 30s...\n", mqttrc.reasonCode);
+		nng_msleep(30 * 1000);
+		mqttrc = MQTTClient_connect5(client, &conn_opts, &props, &willProps);
+	}
+
+	if (DEBUG) {
+		printf("Connected to MQTT Broker!\n");
 	}
 	// Calculate expire time
 	unsigned long expire_time_s_since_epoch;
