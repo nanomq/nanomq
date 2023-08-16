@@ -53,12 +53,6 @@ mk_handle(int type, void *data, int len)
 }
 
 static void
-dds2mqtt_fatal(const char *msg, int rv)
-{
-	fprintf(stderr, "%s: %s\n", msg, nng_strerror(rv));
-}
-
-static void
 send_callback (nng_mqtt_client *client, nng_msg *msg, void *arg) {
 	nng_aio *        aio    = client->send_aio;
 	uint32_t         count;
@@ -71,28 +65,25 @@ send_callback (nng_mqtt_client *client, nng_msg *msg, void *arg) {
 	case NNG_MQTT_SUBACK:
 		code = nng_mqtt_msg_get_suback_return_codes(
 		    msg, &count);
-		printf("[MQTT] SUBACK reason codes are: ");
+		log_dds("[MQTT] SUBACK reason codes are: ");
 		for (int i = 0; i < count; ++i)
-			printf("%d ", code[i]);
-		printf("\n");
+			log_dds("%d ", code[i]);
 		break;
 	case NNG_MQTT_UNSUBACK:
 		code = nng_mqtt_msg_get_unsuback_return_codes(
 		    msg, &count);
-		printf("[MQTT] UNSUBACK reason codes are");
+		log_dds("[MQTT] UNSUBACK reason codes are");
 		for (int i = 0; i < count; ++i)
-			printf("%d ", code[i]);
-		printf("\n");
+			log_dds("%d ", code[i]);
 		break;
 	case NNG_MQTT_PUBACK:
-		printf("PUBACK");
+		log_dds("Received a PUBACK");
 		break;
 	default:
-		printf("Sending in async way is done.\n");
+		log_dds("Sending in async way is done.");
 		break;
 	}
-	printf("[MQTT] aio mqtt result %d \n", nng_aio_result(aio));
-	// printf("suback %d \n", *code);
+	log_dds("[MQTT] aio mqtt result %d", nng_aio_result(aio));
 	nng_msg_free(msg);
 }
 
@@ -107,7 +98,7 @@ disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	// property *prop;
 	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_DISCONNECT_PROPERTY, &prop);
 	// nng_socket_get?
-	printf("[MQTT] %s: disconnected!\n", __FUNCTION__);
+	log_dds("[MQTT] %d disconnected!", p.id);
 }
 
 static void
@@ -119,7 +110,7 @@ connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	// get property for MQTT V5
 	// property *prop;
 	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_CONNECT_PROPERTY, &prop);
-	printf("[MQTT] %s: connected!\n", __FUNCTION__);
+	log_dds("[MQTT] %d connected!\n", p.id);
 
 	mqtt_cli *cli = arg;
 	mqtt_subscribe(cli);
@@ -142,18 +133,18 @@ client_connect(
 
 	if (mqtt_conf->proto_ver == 5) {
 		if ((rv = nng_mqttv5_client_open(sock)) != 0) {
-			dds2mqtt_fatal("nng_socket", rv);
+			log_dds("nng_socket: %s", nng_strerror(rv));
 		}
 	} else {
 		if ((rv = nng_mqtt_client_open(sock)) != 0) {
-			dds2mqtt_fatal("nng_socket", rv);
+			log_dds("nng_socket: %s", nng_strerror(rv));
 		}
 	}
 
 	mqtt_conf->sock = sock;
 
 	if ((rv = nng_dialer_create(dialer, *sock, mqtt_conf->address)) != 0) {
-		dds2mqtt_fatal("nng_dialer_create", rv);
+		log_dds("nng_dialer_create: %s", nng_strerror(rv));
 	}
 
 	cli->client = nng_mqtt_client_alloc(cli->sock, &send_callback, true);
@@ -179,7 +170,7 @@ client_connect(
 
 	if (verbose) {
 		nng_mqtt_msg_dump(connmsg, buff, sizeof(buff), true);
-		printf("%s\n", buff);
+		log_dds("%s\n", buff);
 	}
 
 #ifdef NNG_SUPP_TLS
@@ -193,11 +184,10 @@ client_connect(
 	}
 #endif
 
-	printf("\n[MQTT] Connecting to server ...\n");
+	log_dds("[MQTT] Connecting to server ...");
 	nng_dialer_set_ptr(*dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
 	if (0 != (rv = nng_dialer_start(*dialer, NNG_FLAG_ALLOC))) {
-		fprintf(stderr, "nng_dialer_start: %s(%d)\n", nng_strerror(rv),
-		    rv);
+		log_dds("nng_dialer_start: %s(%d)\n", nng_strerror(rv), rv);
 		exit(1);
 	}
 
@@ -225,12 +215,12 @@ client_publish(nng_socket sock, const char *topic, uint8_t *payload,
 	if (verbose) {
 		uint8_t print[1024] = { 0 };
 		nng_mqtt_msg_dump(pubmsg, print, 1024, true);
-		printf("%s\n", print);
+		log_dds("%s\n", print);
 	}
 
-	printf("Publishing to '%s' ...\n", topic);
+	log_dds("Publishing to '%s' ...\n", topic);
 	if ((rv = nng_sendmsg(sock, pubmsg, NNG_FLAG_NONBLOCK)) != 0) {
-		dds2mqtt_fatal("nng_sendmsg", rv);
+		log_dds("nng_sendmsg: %s", nng_strerror(rv));
 	}
 
 	return rv;
@@ -263,7 +253,7 @@ client_recv2(mqtt_cli *cli, nng_msg **msgp)
 	int      rv;
 	nng_msg *msg;
 	if ((rv = nng_recvmsg(cli->sock, &msg, NNG_FLAG_NONBLOCK)) != 0) {
-		printf("[MQTT] Error in nng_recvmsg %d.\n", rv);
+		log_dds("[MQTT] Error in nng_recvmsg %d.\n", rv);
 		return -1;
 	}
 
@@ -274,10 +264,10 @@ client_recv2(mqtt_cli *cli, nng_msg **msgp)
 		return -2;
 	}
 
-	printf("[MQTT] Receive mqtt message\n");
+	log_dds("[MQTT] Receive mqtt message\n");
 
 	if (type != NNG_MQTT_PUBLISH) {
-		printf("[MQTT] Received a %x type msg. Skip.\n", type);
+		log_dds("[MQTT] Received a %x type msg. Skip.\n", type);
 		return -3;
 	}
 
@@ -334,7 +324,7 @@ mqtt_loop(void *arg)
 
 		rv = client_recv(cli, &msg);
 		if (rv < 0) {
-			printf("Errror in recv msg\n");
+			log_dds("Errror in recv msg\n");
 			continue;
 		} else if (rv == 0) {
 			// Received msg and put to handleq
@@ -359,12 +349,12 @@ mqtt_loop(void *arg)
 			nftp_vec_append(ddscli->handleq, (void *) hd);
 			pthread_mutex_unlock(&ddscli->mtx);
 
-			printf("[MQTT] send msg to dds.\n");
+			log_dds("[MQTT] send msg to dds.\n");
 			break;
 		case HANDLE_TO_MQTT:
 			// Translate DDS msg to MQTT format
 			ddsmsg = hd->data;
-			printf("[MQTT] send msg to mqtt.\n");
+			log_dds("[MQTT] send msg to mqtt.\n");
 			// dds_to_mqtt_type_convert(ddsmsg, &mqttmsg);
 			cJSON *json = dds_handlers->dds2mqtt(ddsmsg);
 			dds_handlers->free(ddsmsg, DDS_FREE_ALL);
@@ -379,7 +369,7 @@ mqtt_loop(void *arg)
 
 			break;
 		default:
-			printf("Unsupported handle type.\n");
+			log_dds("Unsupported handle type.\n");
 			break;
 		}
 	}
