@@ -133,18 +133,18 @@ client_connect(
 
 	if (mqtt_conf->proto_ver == 5) {
 		if ((rv = nng_mqttv5_client_open(sock)) != 0) {
-			log_dds("nng_socket: %s", nng_strerror(rv));
+			log_dds("nng_socket: %s\n", nng_strerror(rv));
 		}
 	} else {
 		if ((rv = nng_mqtt_client_open(sock)) != 0) {
-			log_dds("nng_socket: %s", nng_strerror(rv));
+			log_dds("nng_socket: %s\n", nng_strerror(rv));
 		}
 	}
 
 	mqtt_conf->sock = sock;
 
 	if ((rv = nng_dialer_create(dialer, *sock, mqtt_conf->address)) != 0) {
-		log_dds("nng_dialer_create: %s", nng_strerror(rv));
+		log_dds("nng_dialer_create: %s\n", nng_strerror(rv));
 	}
 
 	cli->client = nng_mqtt_client_alloc(cli->sock, &send_callback, true);
@@ -215,12 +215,12 @@ client_publish(nng_socket sock, const char *topic, uint8_t *payload,
 	if (verbose) {
 		uint8_t print[1024] = { 0 };
 		nng_mqtt_msg_dump(pubmsg, print, 1024, true);
-		log_dds("%s\n", print);
+		log_dds("%s", print);
 	}
 
-	log_dds("Publishing to '%s' ...\n", topic);
+	log_dds("Publishing to '%s' ...", topic);
 	if ((rv = nng_sendmsg(sock, pubmsg, NNG_FLAG_NONBLOCK)) != 0) {
-		log_dds("nng_sendmsg: %s", nng_strerror(rv));
+		log_dds("nng_sendmsg: %s\n", nng_strerror(rv));
 	}
 
 	return rv;
@@ -253,7 +253,7 @@ client_recv2(mqtt_cli *cli, nng_msg **msgp)
 	int      rv;
 	nng_msg *msg;
 	if ((rv = nng_recvmsg(cli->sock, &msg, NNG_FLAG_NONBLOCK)) != 0) {
-		log_dds("[MQTT] Error in nng_recvmsg %d.\n", rv);
+		log_dds("[MQTT] Error in nng_recvmsg %d.", rv);
 		return -1;
 	}
 
@@ -264,10 +264,10 @@ client_recv2(mqtt_cli *cli, nng_msg **msgp)
 		return -2;
 	}
 
-	log_dds("[MQTT] Receive mqtt message\n");
+	log_dds("[MQTT] Receive mqtt message");
 
 	if (type != NNG_MQTT_PUBLISH) {
-		log_dds("[MQTT] Received a %x type msg. Skip.\n", type);
+		log_dds("[MQTT] Received a %x type msg. Skip.", type);
 		return -3;
 	}
 
@@ -324,7 +324,7 @@ mqtt_loop(void *arg)
 
 		rv = client_recv(cli, &msg);
 		if (rv < 0) {
-			log_dds("Errror in recv msg\n");
+			log_dds("Error in recv msg\n");
 			continue;
 		} else if (rv == 0) {
 			// Received msg and put to handleq
@@ -349,12 +349,12 @@ mqtt_loop(void *arg)
 			nftp_vec_append(ddscli->handleq, (void *) hd);
 			pthread_mutex_unlock(&ddscli->mtx);
 
-			log_dds("[MQTT] send msg to dds.\n");
+			log_dds("[MQTT] send msg to dds.");
 			break;
 		case HANDLE_TO_MQTT:
 			// Translate DDS msg to MQTT format
 			ddsmsg = hd->data;
-			log_dds("[MQTT] send msg to mqtt.\n");
+			log_dds("[MQTT] send msg to mqtt.");
 			// dds_to_mqtt_type_convert(ddsmsg, &mqttmsg);
 			cJSON *json = dds_handlers->dds2mqtt(ddsmsg);
 			dds_handlers->free(ddsmsg, DDS_FREE_ALL);
