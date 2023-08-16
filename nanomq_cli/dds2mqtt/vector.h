@@ -61,6 +61,14 @@ int nftp_vec_cat(nftp_vec *, nftp_vec *);
 size_t nftp_vec_cap(nftp_vec *);
 size_t nftp_vec_len(nftp_vec *);
 
+#define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
+
+#define log_dds(format, arg...)                         \
+	do {                                                    \
+		fprintf(stderr, "%s:%d(%s) " format "\n", __FILENAME__, \
+		    __LINE__, __FUNCTION__, ##arg);                     \
+	} while (0)
+
 #endif
 
 #endif
