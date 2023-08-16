@@ -12,6 +12,7 @@
 #define DDS2MQTT_VECTOR
 
 #include <stdlib.h>
+#include <time.h>
 
 #if defined(SUPP_DDS_PROXY)
 
@@ -63,10 +64,22 @@ size_t nftp_vec_len(nftp_vec *);
 
 #define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 
+char buf[64];
+static inline char *
+now()
+{
+	time_t timer;
+	struct tm *tm_info;
+	timer = time(NULL);
+	tm_info = localtime(&timer);
+	strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", tm_info);
+	return buf;
+}
+
 #define log_dds(format, arg...)                         \
 	do {                                                    \
-		fprintf(stderr, "%s:%d(%s) " format "\n", __FILENAME__, \
-		    __LINE__, __FUNCTION__, ##arg);                     \
+		fprintf(stderr, "%s %s:%d(%s) " format "\n", now(), \
+		    __FILENAME__, __LINE__, __FUNCTION__, ##arg);   \
 	} while (0)
 
 #endif
