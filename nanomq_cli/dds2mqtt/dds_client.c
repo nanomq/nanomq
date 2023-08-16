@@ -378,7 +378,7 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 		/* Check if we read some data and it is valid. */
 		if ((rc > 0) && (infos[0].valid_data)) {
 			/* Print Message. */
-			log_dds("=== [Subscriber] Received struct '%s'\n",
+			log_dds("=== [Subscriber] Received struct '%s'",
 			    dds_reader_handles->desc->m_typename);
 			fflush(stdout);
 
@@ -421,7 +421,7 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 			pthread_mutex_lock(&mqttcli->mtx);
 			nftp_vec_append(mqttcli->handleq, hd);
 			pthread_mutex_unlock(&mqttcli->mtx);
-			log_dds("[DDS] Send a msg to mqtt.\n");
+			log_dds("[DDS] Send a msg to mqtt.");
 			break;
 		default:
 			log_dds("Unsupported handle type.\n");
