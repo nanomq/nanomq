@@ -168,15 +168,14 @@ dds_proxy(int argc, char **argv)
 	conf_dds_gateway_init(config);
 
 	if (cmd_parse_opts(argc, argv, &config->path) == 0) {
-		fprintf(stderr, "invalid options.\n");
+		log_dds("invalid options.");
 		exit(1);
 	}
 	conf_dds_gateway_parse_ver2(config);
 	if (config->path == NULL) {
-		fprintf(stderr, "Configuration file is required.\n");
-		fprintf(stderr,
-		    "Please specify a configuration file with '--conf "
-		    "<path>' \n");
+		log_dds("Configuration file is required.");
+		log_dds("Please specify a configuration file with '--conf "
+		    "<path>'");
 		exit(1);
 	}
 	if (config->http_server.enable) {
@@ -187,15 +186,15 @@ dds_proxy(int argc, char **argv)
 	}
 
 	/* Configuration from file */
-	printf("[mqtt]\n");
-	printf("broker.url. %s\n", config->mqtt.address);
+	log_dds("[mqtt]");
+	log_dds("broker.url. %s", config->mqtt.address);
 
-	printf("[dds]\n");
-	printf("domain.id. %ld\n", config->dds.domain_id);
+	log_dds("[dds]");
+	log_dds("domain.id. %ld", config->dds.domain_id);
 
-	printf("[topic forward rules]\n");
-	printf("dds2mqtt. %s => %s\n", config->forward.dds2mqtt.from, config->forward.dds2mqtt.to);
-	printf("mqtt2dds. %s => %s\n", config->forward.mqtt2dds.from, config->forward.mqtt2dds.to);
+	log_dds("[topic forward rules]");
+	log_dds("dds2mqtt. %s => %s", config->forward.dds2mqtt.from, config->forward.dds2mqtt.to);
+	log_dds("mqtt2dds. %s => %s", config->forward.mqtt2dds.from, config->forward.mqtt2dds.to);
 
 	dds_client_init(&ddscli, config);
 
@@ -307,7 +306,7 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 		DDS_FATAL("dds_create_reader: %s\n", dds_strretcode(-reader));
 	dds_delete_qos(qosr);
 
-	printf("\n=== [Subscriber] Started\n");
+	log_dds("=== [Subscriber] Started");
 	fflush(stdout);
 
 	/* Qos for Publisher */
@@ -338,7 +337,7 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 	if (writer < 0)
 		DDS_FATAL("dds_create_writer: %s\n", dds_strretcode(-writer));
 
-	printf("=== [Publisher] Started\n");
+	log_dds("=== [Publisher] Started");
 	fflush(stdout);
 
 	rc = dds_set_status_mask(writer, DDS_PUBLICATION_MATCHED_STATUS);
@@ -379,7 +378,7 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 		/* Check if we read some data and it is valid. */
 		if ((rc > 0) && (infos[0].valid_data)) {
 			/* Print Message. */
-			printf("=== [Subscriber] Received struct '%s'\n",
+			log_dds("=== [Subscriber] Received struct '%s'\n",
 			    dds_reader_handles->desc->m_typename);
 			fflush(stdout);
 
@@ -414,7 +413,7 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 			if (rc != DDS_RETCODE_OK)
 				DDS_FATAL(
 				    "dds_write: %s\n", dds_strretcode(-rc));
-			printf("[DDS] Send a msg to dds.\n");
+			log_dds("[DDS] Send a msg to dds.");
 			free(hd);
 			break;
 		case HANDLE_TO_MQTT:
@@ -422,10 +421,10 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 			pthread_mutex_lock(&mqttcli->mtx);
 			nftp_vec_append(mqttcli->handleq, hd);
 			pthread_mutex_unlock(&mqttcli->mtx);
-			printf("[DDS] Send a msg to mqtt.\n");
+			log_dds("[DDS] Send a msg to mqtt.\n");
 			break;
 		default:
-			printf("Unsupported handle type.\n");
+			log_dds("Unsupported handle type.\n");
 			break;
 		}
 	}
