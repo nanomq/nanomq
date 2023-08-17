@@ -33,6 +33,10 @@
 /* An array of one message (aka sample in dds terms) will be used. */
 #define MAX_SAMPLES 1
 
+static int recv_cnt = 0;
+static int sent_cnt = 0;
+static int forward2mqtt_cnt = 0;
+
 static int  dds_client_init(dds_cli *cli, dds_gateway_conf *config);
 static int  dds_client(dds_cli *cli, mqtt_cli *mqttcli);
 static void dds_inner_config(dds_gateway_dds *config);
@@ -385,8 +389,8 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 		/* Check if we read some data and it is valid. */
 		if ((rc > 0) && (infos[0].valid_data)) {
 			/* Print Message. */
-			log_dds("=== [Subscriber] Received struct '%s'",
-			    dds_reader_handles->desc->m_typename);
+			log_dds("[DDS] Subscriber received struct '%s', counter %d",
+			    dds_reader_handles->desc->m_typename, ++recv_cnt);
 
 			/* Make a handle */
 			hd = mk_handle(HANDLE_TO_MQTT, samples[0], 0);
@@ -419,7 +423,8 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 			if (rc != DDS_RETCODE_OK)
 				DDS_FATAL(
 				    "dds_write: %s\n", dds_strretcode(-rc));
-			log_dds("[DDS] Send a msg to dds.");
+			log_dds("[DDS] Publisher sent struct '%s', counter %d",
+				dds_writer_handles->desc->m_typename, ++sent_cnt);
 			free(hd);
 			break;
 		case HANDLE_TO_MQTT:
@@ -427,7 +432,7 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 			pthread_mutex_lock(&mqttcli->mtx);
 			nftp_vec_append(mqttcli->handleq, hd);
 			pthread_mutex_unlock(&mqttcli->mtx);
-			log_dds("[DDS] Send a msg to mqtt.");
+			log_dds("[DDS] Forward msg to mqtt, counter %d", ++forward2mqtt_cnt);
 			break;
 		default:
 			log_dds("Unsupported handle type.\n");
