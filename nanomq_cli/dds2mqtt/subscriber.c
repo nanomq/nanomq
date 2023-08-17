@@ -61,6 +61,8 @@ dds_subscriber(int argc, char **argv)
 
 	/* Qos for Subscriber */
 	qossub = dds_create_qos();
+	if (opts.partition != NULL)
+		partitionssub[0] = opts.partition;
 	dds_qset_partition(qossub, 1, partitionssub);
 
 	/* Create the Subscriber */

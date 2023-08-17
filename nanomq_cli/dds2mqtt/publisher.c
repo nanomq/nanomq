@@ -59,6 +59,8 @@ dds_publisher(int argc, char **argv)
 
 	/* Qos for Publisher */
 	qospub = dds_create_qos();
+	if (opts.partition != NULL)
+		partitionspub[0] = opts.partition;
 	dds_qset_partition(qospub, 1, partitionspub);
 
 	/* Create the Publisher. */
