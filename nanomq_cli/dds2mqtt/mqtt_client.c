@@ -286,6 +286,13 @@ mqtt_recv_loop(void *arg)
 			continue;
 
 		pthread_mutex_lock(&rmsgq_mtx);
+		if (nftp_vec_len(rmsgq) * 4 == nftp_vec_cap(rmsgq)) {
+			log_dds("WARNING 1 / 4 of the queue from MQTT to DDS is used.");
+		} else if (nftp_vec_len(rmsgq) * 2 == nftp_vec_cap(rmsgq)) {
+			log_dds("WARNING 1 / 2 of the queue from MQTT to DDS is used.");
+		} else if (nftp_vec_len(rmsgq) == nftp_vec_cap(rmsgq)) {
+			log_dds("WARNING All of the queue from MQTT to DDS is used. Drop msg.");
+		}
 		nftp_vec_append(rmsgq, msg);
 		pthread_mutex_unlock(&rmsgq_mtx);
 	}
