@@ -20,6 +20,7 @@ typedef struct {
 	cJSON *         msg;
 	bool            shm_mode;
 	char *          shm_log_level;
+	char *          partition;
 } dds_client_opts;
 
 // It should not be changed
