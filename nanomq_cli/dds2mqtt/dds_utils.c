@@ -16,12 +16,13 @@
 
 enum options {
 	OPT_DDS_HELP = 1,
-    OPT_DDS_DOMAIN_ID,
-    OPT_DDS_TOPIC,
+	OPT_DDS_DOMAIN_ID,
+	OPT_DDS_TOPIC,
 	OPT_DDS_STRUCT_NAME,
 	OPT_DDS_MSG,
-    OPT_DDS_SHM_MODE,
-    OPT_DDS_SHM_LOG_LEVEL,
+	OPT_DDS_SHM_MODE,
+	OPT_DDS_SHM_LOG_LEVEL,
+	OPT_DDS_PARTITION,
 	OPT_DDS_INVALID,
 };
 
@@ -64,6 +65,12 @@ static nng_optspec cmd_opts[] = {
 	    .o_name  = "shm_log_level",
 	    .o_short = 'l',
 	    .o_val   = OPT_DDS_SHM_LOG_LEVEL,
+	    .o_arg   = true,
+	},
+	{
+	    .o_name  = "partition",
+	    .o_short = 'p',
+	    .o_val   = OPT_DDS_PARTITION,
 	    .o_arg   = true,
 	},
 	{
@@ -135,6 +142,13 @@ dds_cmd_parse_opts(int argc, char **argv, dds_client_opts *opts)
 			opts->shm_log_level = nng_strdup(arg);
 			break;
 
+		case OPT_DDS_PARTITION:
+			if (opts->partition != NULL) {
+				nng_strfree(opts->partition);
+			}
+			opts->partition = nng_strdup(arg);
+			break;
+
 		default:
 			break;
 		}
@@ -174,7 +188,8 @@ help(dds_client_type cli_type)
 	printf("Usage: \n"
 	       "nanomq_cli ddsproxy %s -t <topic> -n <struct> \n"
 	       "       [-h, --help] [-d, --domain_id <domain id>] \n"
-           "       [-s, --shm_mode] [-l, --shm_log_level <level>]\n\n",
+           "       [-s, --shm_mode] [-l, --shm_log_level <level>]\n",
+           "       [-p, --partition <partition name>]\n\n",
 	    cli_type == DDS_PUB ? "pub" : "sub");
 
 	printf("Requirements: \n");
@@ -197,6 +212,8 @@ help(dds_client_type cli_type)
 	printf("\t                               (verbose, debug, info, warn, "
 	       "error, fatal, off)\n");
 	printf("\t                               (default: info)\n");
+	printf("\t-p, --partition <partition>    Specify a DDS Partition name"
+	       "(default: partition)\n");
 	printf("\n");
 }
 
@@ -208,6 +225,7 @@ dds_handle_cmd(
 	opts->topic         = NULL;
 	opts->shm_mode      = false;
 	opts->shm_log_level = NULL;
+	opts->partition     = NULL;
 
 	if (!dds_cmd_parse_opts(argc, argv, opts)) {
 		help(opts->cli_type);
