@@ -184,6 +184,11 @@ dds_proxy(int argc, char **argv)
 
 		start_rest_server(info);
 	}
+	// Partition must be set
+	if (!config->dds.subscriber_partition)
+		config->dds.subscriber_partition = strdup("partition");
+	if (!config->dds.publisher_partition)
+		config->dds.publisher_partition = strdup("partition");
 
 	/* Configuration from file */
 	log_dds("[mqtt]");
@@ -191,6 +196,8 @@ dds_proxy(int argc, char **argv)
 
 	log_dds("[dds]");
 	log_dds("domain.id. %ld", config->dds.domain_id);
+	log_dds("subscriber.partition. %s", config->dds.subscriber_partition);
+	log_dds("publisher.partition. %s", config->dds.publisher_partition);
 
 	log_dds("[topic forward rules]");
 	log_dds("dds2mqtt. %s => %s", config->forward.dds2mqtt.from, config->forward.dds2mqtt.to);
