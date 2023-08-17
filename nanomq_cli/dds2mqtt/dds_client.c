@@ -380,7 +380,6 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 			/* Print Message. */
 			log_dds("=== [Subscriber] Received struct '%s'",
 			    dds_reader_handles->desc->m_typename);
-			fflush(stdout);
 
 			/* Make a handle */
 			hd = mk_handle(HANDLE_TO_MQTT, samples[0], 0);
