@@ -346,7 +346,7 @@ mqtt_loop(void *arg)
 		// else No msgs available
 
 		// Sleep and continue
-		nng_msleep(500);
+		nng_msleep(200);
 		continue;
 	work:
 		switch (hd->type) {
