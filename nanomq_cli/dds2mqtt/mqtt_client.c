@@ -39,6 +39,10 @@ static int init_dialer_tls(nng_dialer d, const char *cacert, const char *cert,
     const char *key, const char *pass);
 #endif
 
+static int recv_cnt = 0;
+static int sent_cnt = 0;
+static int forward2dds_cnt = 0;
+
 handle *
 mk_handle(int type, void *data, int len)
 {
@@ -87,8 +91,6 @@ send_callback (nng_mqtt_client *client, nng_msg *msg, void *arg) {
 	nng_msg_free(msg);
 }
 
-
-
 static void
 disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {
@@ -128,8 +130,6 @@ client_connect(
 	nng_socket       *sock      = &cli->sock;
 	dds_gateway_conf *config    = cli->config;
 	dds_gateway_mqtt *mqtt_conf = &config->mqtt;
-
-
 
 	if (mqtt_conf->proto_ver == 5) {
 		if ((rv = nng_mqttv5_client_open(sock)) != 0) {
@@ -218,7 +218,7 @@ client_publish(nng_socket sock, const char *topic, uint8_t *payload,
 		log_dds("%s", print);
 	}
 
-	log_dds("Publishing to '%s' ...", topic);
+	log_dds("[MQTT] Sent to '%s', counter %d", topic, ++sent_cnt);
 	if ((rv = nng_sendmsg(sock, pubmsg, NNG_FLAG_NONBLOCK)) != 0) {
 		log_dds("nng_sendmsg: %s\n", nng_strerror(rv));
 	}
@@ -264,12 +264,14 @@ client_recv2(mqtt_cli *cli, nng_msg **msgp)
 		return -2;
 	}
 
-	log_dds("[MQTT] Receive mqtt message");
-
 	if (type != NNG_MQTT_PUBLISH) {
 		log_dds("[MQTT] Received a %x type msg. Skip.", type);
 		return -3;
 	}
+
+	uint32_t topicsz;
+	const char * topic = nng_mqtt_msg_get_publish_topic(msg, &topicsz);
+	log_dds("[MQTT] Received from '%.*s', counter %d", topicsz, topic, ++recv_cnt);
 
 	*msgp = msg;
 	return 0;
@@ -356,12 +358,11 @@ mqtt_loop(void *arg)
 			nftp_vec_append(ddscli->handleq, (void *) hd);
 			pthread_mutex_unlock(&ddscli->mtx);
 
-			log_dds("[MQTT] send msg to dds.");
+			log_dds("[MQTT] forward msg to dds, counter %d", ++forward2dds_cnt);
 			break;
 		case HANDLE_TO_MQTT:
 			// Translate DDS msg to MQTT format
 			ddsmsg = hd->data;
-			log_dds("[MQTT] send msg to mqtt.");
 			// dds_to_mqtt_type_convert(ddsmsg, &mqttmsg);
 			cJSON *json = dds_handlers->dds2mqtt(ddsmsg);
 			dds_handlers->free(ddsmsg, DDS_FREE_ALL);
