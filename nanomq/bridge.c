@@ -1,6 +1,5 @@
 #include "include/bridge.h"
 #include "nng/mqtt/mqtt_client.h"
-#include "nng/mqtt/mqtt_quic.h"
 #include "nng/nng.h"
 #include "nng/protocol/mqtt/mqtt.h"
 #include "nng/supplemental/nanolib/log.h"
@@ -14,6 +13,10 @@
 
 #include "include/nanomq.h"
 #include "include/mqtt_api.h"
+
+#ifdef SUPP_QUIC
+#include "nng/mqtt/mqtt_quic_client.h"
+#endif
 
 #ifdef NNG_SUPP_TLS
 #include "nng/supplemental/tls/tls.h"
