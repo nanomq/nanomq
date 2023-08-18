@@ -412,7 +412,7 @@ struct work {
 };
 
 #if defined(SUPP_QUIC)
-#include <nng/mqtt/mqtt_quic.h>
+#include <nng/mqtt/mqtt_quic_client.h>
 #endif
 
 static void average_msgs(client_opts *opts, struct work **works);
