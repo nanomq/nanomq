@@ -42,12 +42,12 @@
 #include "nng/nng.h"
 #include "nng/supplemental/nanolib/cJSON.h"
 
-#define CLIENTID	"c-client"
-#define TIMEOUT	 100000L
-#define DEBUG	   1
-#define MAX_DELAY_7_DAYS (1000 * 60 * 60 * 24 * 7)
-#define TOPIC_LEN 1024
-#define BUF_SIZE  1024 * 10
+#define DEBUG                   1
+#define MAX_DELAY_7_DAYS        (1000 * 60 * 60 * 24 * 7)
+#define TOPIC_LEN               1024
+#define BUF_SIZE                1024 * 10
+#define FT_SUB_TOPIC            "file_transfer"
+#define FT_RESULT_TOPIC         "file_transfer/result"
 //
 // Publish a message to the given topic and with the given QoS.
 int
@@ -107,7 +107,7 @@ static int publish_send_result(nng_socket *sock,
 	}
 
 	// Create topic of the form file_transfer/result for result message
-	strcpy(topic, "file_transfer/result");
+	strcpy(topic, FT_RESULT_TOPIC);
 	// Publish result message
 	if (DEBUG) {
 		printf("Publishing result message to topic %s\n", topic);
@@ -419,42 +419,6 @@ void print_file_transfer_usage() {
 	printf("usage: mqtt_c_file_transfer [-h|--help] [--port PORT] [--host HOST] [--username USERNAME] [--password PASSWORD] --file FILE [--file-name FILE_NAME] [--segments-ttl-seconds SEGMENTS_TTL_SECONDS] [--expire-after-seconds EXPIRE_AFTER_SECONDS] --file-id FILE_ID [--client-id CLIENT_ID]");
 }
 
-/*
-	Read command line arguments into write back variables and fill in default
-	values.
-*/
-void initial_param(
-		int argc,
-		char *argv[],
-		char **file_path,
-		char **file_id,
-		char **username,
-		char **password,
-		char **file_name,
-		char **client_id,
-		char **host,
-		int *port,
-		long *segments_ttl_seconds,
-		long *expire_after_seconds) {
-	// Fill in default values
-	*file_name = "myfile.txt";
-	*host = "localhost";
-	*port = 1883;
-	*segments_ttl_seconds = -1;
-	*expire_after_seconds = -1;
-	*client_id = CLIENTID;
-	*username = NULL;
-	*password = NULL;
-	char *fpa = malloc(sizeof(char) * 30);
-	char *fida = malloc(sizeof(char) * 30);
-
-	memset(fpa, '\0', 30);
-	memset(fida, '\0', 30);
-
-	*file_path = fpa;
-	*file_id = fida;
-}
-
 static void
 disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {
@@ -529,24 +493,20 @@ client_connect(nng_socket *sock, const char *url)
 }
 
 
-void process_msg(nng_socket *sock, nng_msg *msg, bool verbose)
+static int process_msg(nng_socket *sock, nng_msg *msg, bool verbose)
 {
 		uint32_t topic_len = 0;
 		uint32_t payload_len = 0;
 		const char *topic = nng_mqtt_msg_get_publish_topic(msg, &topic_len);
-	        char *      payload =
-	            (char *) nng_mqtt_msg_get_publish_payload(
-	                msg, &payload_len);
+		char *payload = nng_mqtt_msg_get_publish_payload(msg, &payload_len);
 
 	    printf("Receive \'%.*s\' from \'%.*s\'\n", payload_len, payload, topic_len, topic);
-		property *pl = nng_mqtt_msg_get_publish_property(msg);
-		if (pl != NULL) {
-			//kemqtt_property_foreach(pl, print_property);
-		}
 
 		cJSON *cjson_objs = cJSON_Parse(payload);
 		if (cjson_objs == NULL) {
 			printf("Parse json failed\n");
+			nng_msg_free(msg);
+			return -1;
 		} else {
 			int result;
 			cJSON *cjson_filepaths;
@@ -562,7 +522,8 @@ void process_msg(nng_socket *sock, nng_msg *msg, bool verbose)
 								 &cjson_delete, &cjson_interval);
 			if (result) {
 				printf("INPUT JSON INVALID!\n");
-				//continue;
+				nng_msg_free(msg);
+				return -1;
 			} else {
 				int fileCount = cJSON_GetArraySize(cjson_filepaths);
 				if (DEBUG) {
@@ -636,14 +597,13 @@ void process_msg(nng_socket *sock, nng_msg *msg, bool verbose)
 		}
 
 		nng_msg_free(msg);
+		return 0;
 }
 
 
 void start_listening(nng_socket *sock)
 {
 	int rv;
-
-#define FT_SUB_TOPIC "file_transfer"
 
 	nng_mqtt_topic_qos subscriptions[] = {
 		{
@@ -658,10 +618,10 @@ void start_listening(nng_socket *sock)
 		},
 	};
 
-	printf("nng_mqtt_subscribe start\n");
 	rv = nng_mqtt_subscribe(*sock, subscriptions, 1, NULL);
-	printf("nng_mqtt_subscribe finished rv: %d\n", rv);
 	printf("Start receiving loop:\n");
+
+	/* dead loop ?*/
 	while (true) {
 		nng_msg *msg;
 		printf("Start recvmsg:\n");
@@ -670,8 +630,11 @@ void start_listening(nng_socket *sock)
 			continue;
 		}
 
-		printf("rhack: recvmsg return rv: %d type: %d\n", rv, nng_mqtt_msg_get_packet_type(msg));
-		process_msg(sock, msg, true);
+		printf("recvmsg return rv: %d type: %d\n", rv, nng_mqtt_msg_get_packet_type(msg));
+		rv = process_msg(sock, msg, true);
+		if (rv) {
+			printf("something wrong occured when process msg\n");
+		}
 	}
 
 	return;
@@ -679,47 +642,13 @@ void start_listening(nng_socket *sock)
 
 int file_transfer(int argc, char *argv[]) {
 	int rc;
-//	MQTTClient client;
-	// Declare variables to store command line arguments
-	char *file_path;
-	char *file_id;
-	char *file_name;
-	char *client_id;
-	char *host;
-	int port;
-	char *username;
-	char *password;
-	long segments_ttl_seconds;
-	long expire_after_seconds;
-	// Read command line arguments
-	initial_param(
-			argc,
-			argv,
-			&file_path,
-			&file_id,
-			&username,
-			&password,
-			&file_name,
-			&client_id,
-			&host,
-			&port,
-			&segments_ttl_seconds,
-			&expire_after_seconds);
+	nng_socket sock;
+	char *host = "localhost";
+	int port = 1883;
+
 	if (DEBUG) {
-		printf("file_path: %s\n", file_path);
-		printf("file_id: %s\n", file_id);
-		printf("file_name: %s\n", file_name);
-		printf("client_id: %s\n", client_id);
 		printf("host: %s\n", host);
 		printf("port: %d\n", port);
-		if (username != NULL) {
-			printf("username: %s\n", username);
-		}
-		if (password != NULL) {
-			printf("password: %s\n", password);
-		}
-		printf("segments_ttl_seconds: %ld\n", segments_ttl_seconds);
-		printf("expire_after_seconds: %ld\n", expire_after_seconds);
 	}
 	// Construct address string from host and port
 	char address[2048];
@@ -731,7 +660,6 @@ int file_transfer(int argc, char *argv[]) {
 	}
 	// Create client
 	
-	nng_socket sock;
 	client_connect(&sock, address);
 
 	if (DEBUG) {
