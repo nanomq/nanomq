@@ -46,6 +46,7 @@
 #define TIMEOUT	 100000L
 #define DEBUG	   1
 #define MAX_DELAY_7_DAYS (1000 * 60 * 60 * 24 * 7)
+#define TOPIC_LEN 1024
 //
 // Publish a message to the given topic and with the given QoS.
 int
@@ -68,20 +69,10 @@ client_publish(nng_socket sock, const char *topic, uint8_t *payload, uint32_t pa
 
 	nng_mqtt_msg_set_publish_property(pubmsg, plist);
 
-	if (verbose) {
-		uint8_t print[1024] = { 0 };
-	}
-
-	property *pl = nng_mqtt_msg_get_publish_property(pubmsg);
-	if (pl != NULL) {
-		//mqtt_property_foreach(pl, print_property);
-	}
-
 	printf("Publishing to '%s' ...\n", topic);
 	if ((rv = nng_sendmsg(sock, pubmsg, 0)) != 0) {
 		fatal("nng_sendmsg", rv);
 	}
-//	nng_msleep(500);
 
 	return rv;
 }
@@ -93,11 +84,15 @@ static int publish_send_result(nng_socket *sock,
 {
 	int rc;
 	int buf_size = 128;
-	int payloadLen = 128;
-	char payload[payloadLen];
+	char payload[buf_size];
+	char topic[TOPIC_LEN];
+
+	memset(topic, 0, TOPIC_LEN);
+	memset(payload, 0, buf_size);
+
 	rc = snprintf(
 			payload,
-			payloadLen,
+			buf_size,
 			"{"
 			"  \"request-id\": \"%s\","
 			"  \"success\": %s,"
@@ -106,21 +101,97 @@ static int publish_send_result(nng_socket *sock,
 			requestid,
 			success ? "true" : "false",
 			"");
-	if (rc < 0 || rc >= payloadLen) {
+	if (rc < 0 || rc >= buf_size) {
 		printf("Failed to create payload for initial message\n");
 		return -1;
 	}
+
 	// Create topic of the form file_transfer/result for result message
-	char topic[buf_size];
 	strcpy(topic, "file_transfer/result");
 	// Publish result message
 	if (DEBUG) {
 		printf("Publishing result message to topic %s\n", topic);
 		printf("Payload:\n%s\n", payload);
 	}
+
 	rc = client_publish(*sock, topic, payload, strlen(payload), 1, true);
 	if (rc != 0) {
-		printf("Failed to publish message, return code %d\n", rc);
+		printf("Failed to publish result message, return code %d\n", rc);
+		return -1;
+	}
+
+	return 0;
+}
+
+static int publish_initial(const nng_socket *sock,
+						   const char *file_id,
+						   const char *file_name,
+						   const long file_size,
+						   const unsigned long expire_time_s_since_epoch,
+						   const unsigned long segments_ttl_seconds)
+{
+	const size_t buf_size = 1024 * 10;
+	char payload[buf_size];
+	char expire_at_str[128];
+	char segments_ttl_str[128];
+	char topic[TOPIC_LEN];
+	int rc;
+
+	memset(payload, 0, buf_size);
+	memset(expire_at_str, 0, 128);
+	memset(segments_ttl_str, 0, 128);
+	memset(topic, 0, TOPIC_LEN);
+
+	if (expire_time_s_since_epoch != -1) {
+		// No need to check return value since we know the buffer is large enough
+		snprintf(expire_at_str,
+				128,
+				"  \"expire_at\": %ld,\n",
+				expire_time_s_since_epoch);
+	}
+
+	if (segments_ttl_seconds != -1) {
+		// No need to check return value since we know the buffer is large enough
+		snprintf(segments_ttl_str,
+				128,
+				"  \"segments_ttl\": %ld,\n",
+				segments_ttl_seconds);
+	}
+
+	rc = snprintf(
+			payload,
+			buf_size,
+			"{"
+			"\"name\": \"%s\","
+			"\"size\": %ld,"
+			"%s"
+			"%s"
+			"  \"user_data\": {}\n"
+			"}",
+			file_name,
+			file_size,
+			expire_at_str,
+			segments_ttl_str);
+	if (rc < 0 || rc >= buf_size) {
+		printf("Failed to create payload for initial message\n");
+		return -1;
+	}
+
+	// Create topic of the form $file/{file_id}/init for initial message
+	rc = snprintf(topic, TOPIC_LEN, "$file/%s/init", file_id);
+	if (rc < 0 || rc >= TOPIC_LEN) {
+		printf("Failed to create topic for initial message\n");
+		return -1;
+	}
+
+	if (DEBUG) {
+		printf("Publishing initial message to topic %s\n", topic);
+		printf("Payload: %s\n", payload);
+	}
+
+	rc = client_publish(*sock, topic, (uint8_t *)payload, (uint32_t)strlen(payload), 1, true);
+	if (rc != 0) {
+		printf("Failed to publish initial message, return code %d\n", rc);
 		return -1;
 	}
 
@@ -185,105 +256,26 @@ static int do_flock(FILE *fp, int op)
 	return rc;
 }
 
-int send_file(nng_socket *sock,
-			  char *file_path,
-			  char *file_id,
-			  char *file_name,
-			  unsigned int chunk_size,
-			  unsigned int interval,
-			  unsigned long expire_time_s_since_epoch,
-			  unsigned long segments_ttl_seconds) {
-	FILE *fp = fopen(file_path, "rb");
-	int rc;
-	int qos = 1;
-	bool isLock = true;
-	const size_t buf_size = 1024 * 10;
-	if (fp == NULL) {
-		printf("Failed to open file %s\n", file_path);
-		return -1;
-	}
-
-	rc = do_flock(fp, LOCK_SH);
-	if (rc != 0) {
-		isLock = false;
-		printf("Failed to lock file. Still send file without a file lock...\n");
-	}
-
-	// Get file size
-	fseek(fp, 0L, SEEK_END);
-	long file_size = ftell(fp);
-	fseek(fp, 0L, SEEK_SET);
-	// Create payload for initial message 
+static int publish_file(nng_socket *sock,
+						FILE *fp,
+						char *file_id,
+						long file_size,
+						unsigned int chunk_size,
+						unsigned int interval)
+{
+	size_t buf_size = 1024 * 10;
 	char payload[buf_size];
-	char expire_at_str[128];
-	char segments_ttl_str[128];
-	memset(payload, 0, buf_size);
-	if (expire_time_s_since_epoch == -1) {
-		expire_at_str[0] = '\0';
-	} else {
-		// No need to check return value since we know the buffer is large enough
-		snprintf(expire_at_str,
-				128,
-				"  \"expire_at\": %ld,\n",
-				expire_time_s_since_epoch);
-	}
-	if (segments_ttl_seconds == -1) {
-		segments_ttl_str[0] = '\0';
-	} else {
-		// No need to check return value since we know the buffer is large enough
-		snprintf(segments_ttl_str,
-				128,
-				"  \"segments_ttl\": %ld,\n",
-				segments_ttl_seconds);
-	}
-	rc = snprintf(
-			payload,
-			buf_size,
-			"{"
-			"\"name\": \"%s\","
-			"\"size\": %ld,"
-			"%s"
-			"%s"
-			"  \"user_data\": {}\n"
-			"}",
-			file_name,
-			file_size,
-			expire_at_str,
-			segments_ttl_str);
-	if (rc < 0 || rc >= buf_size) {
-		printf("Failed to create payload for initial message\n");
-		return -1;
-	}
-	// Create topic of the form $file/{file_id}/init for initial message
-	char topic[buf_size];
-	rc = snprintf(topic, buf_size, "$file/%s/init", file_id);
-	if (rc < 0 || rc >= buf_size) {
-		printf("Failed to create topic for initial message\n");
-		return -1;
-	}
-	// Publish initial message
-	if (DEBUG) {
-		printf("Publishing initial message to topic %s\n", topic);
-		printf("Payload: %s\n", payload);
-	}
-	rc = client_publish(*sock, topic, (uint8_t *)payload, (uint32_t)strlen(payload), 1, true);
-	if (rc != 0) {
-		printf("Failed to publish message, return code %d\n", rc);
-		return -1;
-	}
+	size_t offset = 0;
+	size_t read_bytes = 0;
+	char topic[TOPIC_LEN];
+	int rc = 0;
 
 	memset(payload, 0, buf_size);
-	size_t offset = 0;
-	size_t read_bytes;
+	memset(topic, 0, TOPIC_LEN);
 
 	// Read binary chunks of max size 1024 bytes and publish them to the broker
 	// The chunks are published to the topic of the form $file/{file_id}/{offset}
 	// The chunks are read into the payload
-	//
-	// Payload's length is depend on buf_size, buf_size is 10240 now.
-	if (chunk_size > 10240 || chunk_size == 0) {
-		chunk_size = 10240;
-	}
 	while ((read_bytes = fread(payload, 1, chunk_size, fp)) > 0) {
 		rc = snprintf(topic, buf_size, "$file/%s/%lu", file_id, offset);
 		if (rc < 0 || rc >= buf_size) {
@@ -310,6 +302,93 @@ int send_file(nng_socket *sock,
 			chunk_size = file_size - offset;
 		}
 	}
+
+	return 0;
+}
+
+static int publish_fin(nng_socket *sock,
+					   char *file_id,
+					   long file_size)
+{
+	int rc = 0;
+	size_t buf_size = 1024 * 10;
+	char topic[TOPIC_LEN];
+
+	memset(topic, 0, TOPIC_LEN);
+
+	// Send final message to the topic $file/{file_id}/fin/{file_size} with an empty payload
+	rc = snprintf(topic, buf_size, "$file/%s/fin/%ld", file_id, file_size);
+	if (rc < 0 || rc >= buf_size) {
+		printf("Failed to create topic for final message\n");
+		return -1;
+	}
+	if (DEBUG) {
+		printf("Publishing final message to topic %s\n", topic);
+	}
+
+	rc = client_publish(*sock, topic, (uint8_t *)"", (uint32_t)0, 1, true);
+	if (rc != 0) {
+		printf("Failed to publish message, return code %d\n", rc);
+		return -1;
+	}
+
+	return 0;
+}
+
+int send_file(nng_socket *sock,
+			  char *file_path,
+			  char *file_id,
+			  char *file_name,
+			  unsigned int chunk_size,
+			  unsigned int interval,
+			  unsigned long expire_time_s_since_epoch,
+			  unsigned long segments_ttl_seconds) {
+	FILE *fp;
+	int rc = 0;
+	bool isLock = true;
+	long file_size;
+
+	// Payload's length is depend on buf_size, buf_size is 10240 now.
+	if (chunk_size > 10240 || chunk_size == 0) {
+		chunk_size = 10240;
+	}
+
+	fp = fopen(file_path, "rb");
+	if (fp == NULL) {
+		printf("Failed to open file %s\n", file_path);
+		return -1;
+	}
+
+	rc = do_flock(fp, LOCK_SH);
+	if (rc != 0) {
+		isLock = false;
+		printf("Failed to lock file. Still send file without a file lock...\n");
+	}
+
+	// Get file size
+	fseek(fp, 0L, SEEK_END);
+	file_size = ftell(fp);
+	fseek(fp, 0L, SEEK_SET);
+
+	// Create payload for initial message 
+	rc = publish_initial(sock,
+						 file_id, file_name, file_size,
+						 expire_time_s_since_epoch,
+						 segments_ttl_seconds);
+
+	if (rc) {
+		fclose(fp);
+		return -1;
+	}
+	
+	rc = publish_file(sock,
+					  fp, file_id, file_size,
+					  chunk_size, interval);
+	if (rc) {
+		fclose(fp);
+		return -1;
+	}
+
 	// Check if we reached the end of the file
 	if (feof(fp)) {
 		if (DEBUG) {
@@ -330,21 +409,12 @@ int send_file(nng_socket *sock,
 	}
 
 	fclose(fp);
-	// Send final message to the topic $file/{file_id}/fin/{file_size} with an empty payload
-	rc = snprintf(topic, buf_size, "$file/%s/fin/%ld", file_id, file_size);
-	if (rc < 0 || rc >= buf_size) {
-		printf("Failed to create topic for final message\n");
+
+	rc = publish_fin(sock, file_id, file_size);
+	if (rc) {
 		return -1;
-	}
-	if (DEBUG) {
-		printf("Publishing final message to topic %s\n", topic);
 	}
 
-	rc = client_publish(*sock, topic, (uint8_t *)"", (uint32_t)0, 1, true);
-	if (rc != 0) {
-		printf("Failed to publish message, return code %d\n", rc);
-		return -1;
-	}
 	return 0;
 }
 
