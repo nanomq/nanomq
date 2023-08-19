@@ -40,6 +40,7 @@
 #include "nng/mqtt/mqtt_client.h"
 
 #include "nng/nng.h"
+#include "nng/supplemental/nanolib/log.h"
 #include "nng/supplemental/nanolib/cJSON.h"
 
 #define DEBUG                   1
@@ -70,7 +71,7 @@ client_publish(nng_socket sock, const char *topic, uint8_t *payload, uint32_t pa
 
 	nng_mqtt_msg_set_publish_property(pubmsg, plist);
 
-	printf("Publishing to '%s' ...\n", topic);
+	log_info("Publishing to '%s' ...\n", topic);
 	if ((rv = nng_sendmsg(sock, pubmsg, 0)) != 0) {
 		fatal("nng_sendmsg", rv);
 	}
@@ -102,7 +103,7 @@ static int publish_send_result(nng_socket *sock,
 			success ? "true" : "false",
 			"");
 	if (rc < 0 || rc >= BUF_SIZE) {
-		printf("Failed to create payload for initial message\n");
+		log_warn("Failed to create payload for initial message\n");
 		return -1;
 	}
 
@@ -110,13 +111,13 @@ static int publish_send_result(nng_socket *sock,
 	strcpy(topic, FT_RESULT_TOPIC);
 	// Publish result message
 	if (DEBUG) {
-		printf("Publishing result message to topic %s\n", topic);
-		printf("Payload:\n%s\n", payload);
+		log_info("Publishing result message to topic %s\n", topic);
+		log_info("Payload:\n%s\n", payload);
 	}
 
 	rc = client_publish(*sock, topic, payload, strlen(payload), 1, true);
 	if (rc != 0) {
-		printf("Failed to publish result message, return code %d\n", rc);
+		log_warn("Failed to publish result message, return code %d\n", rc);
 		return -1;
 	}
 
@@ -172,25 +173,25 @@ static int publish_initial(const nng_socket *sock,
 			expire_at_str,
 			segments_ttl_str);
 	if (rc < 0 || rc >= BUF_SIZE) {
-		printf("Failed to create payload for initial message\n");
+		log_warn("Failed to create payload for initial message\n");
 		return -1;
 	}
 
 	// Create topic of the form $file/{file_id}/init for initial message
 	rc = snprintf(topic, TOPIC_LEN, "$file/%s/init", file_id);
 	if (rc < 0 || rc >= TOPIC_LEN) {
-		printf("Failed to create topic for initial message\n");
+		log_warn("Failed to create topic for initial message\n");
 		return -1;
 	}
 
 	if (DEBUG) {
-		printf("Publishing initial message to topic %s\n", topic);
-		printf("Payload: %s\n", payload);
+		log_info("Publishing initial message to topic %s\n", topic);
+		log_info("Payload: %s\n", payload);
 	}
 
 	rc = client_publish(*sock, topic, (uint8_t *)payload, (uint32_t)strlen(payload), 1, true);
 	if (rc != 0) {
-		printf("Failed to publish initial message, return code %d\n", rc);
+		log_warn("Failed to publish initial message, return code %d\n", rc);
 		return -1;
 	}
 
@@ -227,10 +228,10 @@ delete_delay_cb(void *arg)
 	char *filename = arg;
 	int ret;
 	if (filename != NULL) {
-		ret = nni_file_delete(filename);
-		printf("delete_delay_cb: file:%s result: %d\n", filename, ret);
+		ret = nng_file_delete(filename);
+		log_warn("delete_delay_cb: file:%s result: %d\n", filename, ret);
 	} else {
-		printf("filename is NULL and delete failed\n");
+		log_warn("filename is NULL and delete failed\n");
 	}
 	return;
 }
@@ -242,13 +243,13 @@ static int do_flock(FILE *fp, int op)
 
 	fd = fileno(fp);
 	if (fd == -1) {
-		printf("Failed to get file discription\n");
+		log_warn("Failed to get file discription\n");
 		return -1;
 	}
 
 	rc = flock(fd, op);
 	if (rc != 0) {
-		printf("Failed to do lock opration with file: op: %d rc: %d error: %s\n",
+		log_warn("Failed to do lock opration with file: op: %d rc: %d error: %s\n",
 													op, rc, strerror(errno));
 	}
 
@@ -277,15 +278,15 @@ static int publish_file(nng_socket *sock,
 	while ((read_bytes = fread(payload, 1, chunk_size, fp)) > 0) {
 		rc = snprintf(topic, BUF_SIZE, "$file/%s/%lu", file_id, offset);
 		if (rc < 0 || rc >= BUF_SIZE) {
-			printf("Failed to create topic for file chunk\n");
+			log_warn("Failed to create topic for file chunk\n");
 			return -1;
 		}
 		if (DEBUG) {
-			printf("Publishing file chunk to topic %s offset %lu\n", topic, offset);
+			log_info("Publishing file chunk to topic %s offset %lu\n", topic, offset);
 		}
 		rc = client_publish(*sock, topic, (uint8_t *)payload, (uint32_t)read_bytes, 1, true);
 		if (rc != 0) {
-			printf("Failed to publish message, return code %d\n", rc);
+			log_warn("Failed to publish message, return code %d\n", rc);
 			return -1;
 		}
 		nng_msleep(interval);
@@ -316,16 +317,16 @@ static int publish_fin(nng_socket *sock,
 	// Send final message to the topic $file/{file_id}/fin/{file_size} with an empty payload
 	rc = snprintf(topic, BUF_SIZE, "$file/%s/fin/%ld", file_id, file_size);
 	if (rc < 0 || rc >= BUF_SIZE) {
-		printf("Failed to create topic for final message\n");
+		log_warn("Failed to create topic for final message\n");
 		return -1;
 	}
 	if (DEBUG) {
-		printf("Publishing final message to topic %s\n", topic);
+		log_info("Publishing final message to topic %s\n", topic);
 	}
 
 	rc = client_publish(*sock, topic, (uint8_t *)"", (uint32_t)0, 1, true);
 	if (rc != 0) {
-		printf("Failed to publish message, return code %d\n", rc);
+		log_warn("Failed to publish message, return code %d\n", rc);
 		return -1;
 	}
 
@@ -352,14 +353,14 @@ int send_file(nng_socket *sock,
 
 	fp = fopen(file_path, "rb");
 	if (fp == NULL) {
-		printf("Failed to open file %s\n", file_path);
+		log_warn("Failed to open file %s\n", file_path);
 		return -1;
 	}
 
 	rc = do_flock(fp, LOCK_SH);
 	if (rc != 0) {
 		isLock = false;
-		printf("Failed to lock file. Still send file without a file lock...\n");
+		log_warn("Failed to lock file. Still send file without a file lock...\n");
 	}
 
 	// Get file size
@@ -389,11 +390,11 @@ int send_file(nng_socket *sock,
 	// Check if we reached the end of the file
 	if (feof(fp)) {
 		if (DEBUG) {
-			printf("Reached end of file\n");
+			log_info("Reached end of file\n");
 		}
 	} else {
 		if (DEBUG) {
-			printf("Failed to reach end of file errno: %d\n", errno);
+			log_warn("Failed to reach end of file errno: %d\n", errno);
 		}
 	}
 
@@ -401,7 +402,7 @@ int send_file(nng_socket *sock,
 		rc = do_flock(fp, LOCK_UN);
 		if (rc != 0) {
 			isLock = false;
-			printf("Failed to unlock file\n");
+			log_warn("Failed to unlock file\n");
 		}
 	}
 
@@ -415,20 +416,13 @@ int send_file(nng_socket *sock,
 	return 0;
 }
 
-void print_file_transfer_usage() {
-	printf("usage: mqtt_c_file_transfer [-h|--help] [--port PORT] [--host HOST] [--username USERNAME] [--password PASSWORD] --file FILE [--file-name FILE_NAME] [--segments-ttl-seconds SEGMENTS_TTL_SECONDS] [--expire-after-seconds EXPIRE_AFTER_SECONDS] --file-id FILE_ID [--client-id CLIENT_ID]");
-}
-
 static void
 disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {
 	int reason = 0;
-	// get connect reason
+	// get disconnect reason
 	nng_pipe_get_int(p, NNG_OPT_MQTT_DISCONNECT_REASON, &reason);
-	// property *prop;
-	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_DISCONNECT_PROPERTY, &prop);
-	// nng_socket_get?
-	printf("%s: disconnected! RC [%d] \n", __FUNCTION__, reason);
+	log_warn("%s: disconnected! RC [%d] \n", __FUNCTION__, reason);
 }
 
 static void
@@ -437,10 +431,7 @@ connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	int reason;
 	// get connect reason
 	nng_pipe_get_int(p, NNG_OPT_MQTT_CONNECT_REASON, &reason);
-	// get property for MQTT V5
-	// property *prop;
-	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_CONNECT_PROPERTY, &prop);
-	printf("%s: connected! RC [%d] \n", __FUNCTION__, reason);
+	log_info("%s: connected! RC [%d] \n", __FUNCTION__, reason);
 }
 
 //
@@ -478,16 +469,16 @@ client_connect(nng_socket *sock, const char *url)
 
 	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
 
-	printf("Connecting to server ... url: %s\n", url);
+	log_info("Connecting to server ... url: %s\n", url);
 	/* connect as sync mode */
 	rv = nng_dialer_start(dialer, 0);
 	while (rv != 0) {
-		printf("Connect to %s failed, retry in 10s....\n", url);
+		log_warn("Connect to %s failed, retry in 10s....\n", url);
 		nng_msleep(10 * 1000);
 		rv = nng_dialer_start(dialer, 0);
 	}
 
-	printf("Connecting to server finished rv: %d ...\n", rv);
+	log_info("Connecting to server finished rv: %d ...\n", rv);
 
 	return (0);
 }
@@ -500,11 +491,11 @@ static int process_msg(nng_socket *sock, nng_msg *msg, bool verbose)
 		const char *topic = nng_mqtt_msg_get_publish_topic(msg, &topic_len);
 		char *payload = nng_mqtt_msg_get_publish_payload(msg, &payload_len);
 
-	    printf("Receive \'%.*s\' from \'%.*s\'\n", payload_len, payload, topic_len, topic);
+	    log_info("Receive \'%.*s\' from \'%.*s\'\n", payload_len, payload, topic_len, topic);
 
 		cJSON *cjson_objs = cJSON_Parse(payload);
 		if (cjson_objs == NULL) {
-			printf("Parse json failed\n");
+			log_warn("Parse json failed\n");
 			nng_msg_free(msg);
 			return -1;
 		} else {
@@ -521,13 +512,13 @@ static int process_msg(nng_socket *sock, nng_msg *msg, bool verbose)
 								 &cjson_requestid, &cjson_segmentsize,
 								 &cjson_delete, &cjson_interval);
 			if (result) {
-				printf("INPUT JSON INVALID!\n");
+				log_warn("INPUT JSON INVALID!\n");
 				nng_msg_free(msg);
 				return -1;
 			} else {
 				int fileCount = cJSON_GetArraySize(cjson_filepaths);
 				if (DEBUG) {
-					printf("Input Json: request-id: %s segment-size: %u interval: %u\n",
+					log_info("Input Json: request-id: %s segment-size: %u interval: %u\n",
 													cjson_requestid->valuestring,
 													cjson_segmentsize == NULL ? 0U : cjson_segmentsize->valueint,
 													cjson_interval == NULL ? 0U : cjson_interval->valueint);
@@ -537,7 +528,7 @@ static int process_msg(nng_socket *sock, nng_msg *msg, bool verbose)
 					cJSON *pathEle = cJSON_GetArrayItem(cjson_filepaths, i);
 					cJSON *idEle = cJSON_GetArrayItem(cjson_fileids, i);
 					cJSON *nameEle = cJSON_GetArrayItem(cjson_filenames, i);
-					printf("Sending file: filepath: %s fileid: %s filename: %s\n",
+					log_info("Sending file: filepath: %s fileid: %s filename: %s\n",
 												pathEle->valuestring,
 												idEle->valuestring,
 												nameEle->valuestring);
@@ -550,7 +541,7 @@ static int process_msg(nng_socket *sock, nng_msg *msg, bool verbose)
 									   cjson_interval == NULL ? 0U : cjson_interval->valueint,
 									   -1,
 									   -1);
-					printf("Send file file_id: %s %s\n", idEle->valuestring,
+					log_info("Send file file_id: %s %s\n", idEle->valuestring,
 										!result ? "success" : "fail");
 					/* fail */
 					if (result) {
@@ -560,13 +551,13 @@ static int process_msg(nng_socket *sock, nng_msg *msg, bool verbose)
 							if (cjson_delete->valueint == 0) {
 								int ret;
 								ret = nng_file_delete(pathEle->valuestring);
-								printf("Delete imediately: file:%s result: %d\n", pathEle->valuestring, ret);
+								log_info("Delete imediately: file:%s result: %d\n", pathEle->valuestring, ret);
 							} else {
 								nng_aio *a;
 								char *filename;
 								filename = nng_alloc(strlen(pathEle->valuestring) + 1);
 								if (filename == NULL) {
-									printf("Alloc filename failed continue...\n");
+									log_warn("Alloc filename failed continue...\n");
 									continue;
 								}
 								strcpy(filename, pathEle->valuestring);
@@ -578,18 +569,18 @@ static int process_msg(nng_socket *sock, nng_msg *msg, bool verbose)
 								}
 								nng_aio_alloc(&a, delete_delay_cb, filename);
 								nng_sleep_aio(delay, a);
-								printf("Send file finished: Will delete %s in %d milliseconds\n",
+								log_warn("Send file finished: Will delete %s in %d milliseconds\n",
 																				pathEle->valuestring,
 																				delay);
 							}
 						} else {
-							printf("Send file finished will not delete: %s\n", pathEle->valuestring);
+							log_info("Send file finished will not delete: %s\n", pathEle->valuestring);
 						}
 					}
 				}
 				result = publish_send_result(sock, cjson_requestid->valuestring, !result);
 				if (DEBUG) {
-					printf("Send file request-id: %s transfer result: %s\n",
+					log_info("Send file request-id: %s transfer result: %s\n",
 										cjson_requestid->valuestring,
 										!result ? "success" : "fail");
 				}
@@ -619,21 +610,23 @@ void start_listening(nng_socket *sock)
 	};
 
 	rv = nng_mqtt_subscribe(*sock, subscriptions, 1, NULL);
-	printf("Start receiving loop:\n");
+	log_info("Start receiving loop:\n");
 
-	/* dead loop ?*/
+	/* dead loop? */
 	while (true) {
 		nng_msg *msg;
-		printf("Start recvmsg:\n");
+		log_info("Start recvmsg:\n");
 		if ((rv = nng_recvmsg(*sock, &msg, 0)) != 0) {
 			fatal("nng_recvmsg", rv);
 			continue;
 		}
 
-		printf("recvmsg return rv: %d type: %d\n", rv, nng_mqtt_msg_get_packet_type(msg));
-		rv = process_msg(sock, msg, true);
-		if (rv) {
-			printf("something wrong occured when process msg\n");
+		log_info("recvmsg return rv: %d type: %d\n", rv, nng_mqtt_msg_get_packet_type(msg));
+		if (nng_mqtt_msg_get_packet_type(msg) == NNG_MQTT_PUBLISH) {
+			rv = process_msg(sock, msg, true);
+			if (rv) {
+				log_warn("something wrong occured when process msg\n");
+			}
 		}
 	}
 
@@ -647,23 +640,22 @@ int file_transfer(int argc, char *argv[]) {
 	int port = 1883;
 
 	if (DEBUG) {
-		printf("host: %s\n", host);
-		printf("port: %d\n", port);
+		log_info("host: %s\n", host);
+		log_info("port: %d\n", port);
 	}
 	// Construct address string from host and port
 	char address[2048];
 	rc = snprintf(address, 2048, "mqtt-tcp://%s:%d", host, port);
 	if (rc < 0 || rc >= 2048) {
-		printf("Failed to construct address string\n");
-		printf("Something wrong occurred. File transfer thread exiting...\n");
+		log_warn("Failed to construct address string\n");
+		log_warn("Something wrong occurred. File transfer thread exiting...\n");
 		return -1;
 	}
-	// Create client
-	
+
 	client_connect(&sock, address);
 
 	if (DEBUG) {
-		printf("Connected to MQTT Broker!\n");
+		log_info("Connected to MQTT Broker!\n");
 	}
 	
 	(void) start_listening(&sock);
