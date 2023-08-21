@@ -636,7 +636,7 @@ void start_listening(nng_socket *sock)
 int file_transfer(int argc, char *argv[]) {
 	int rc;
 	nng_socket sock;
-	char *host = "localhost";
+	char *host = "127.0.0.1";
 	int port = 1883;
 
 	if (DEBUG) {
