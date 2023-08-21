@@ -125,10 +125,6 @@ if (CMAKE_INSTALL_RPATH)
 endif()
 
 
-if(ENABLE_FILETRANSFER)
-target_link_libraries(nanomq paho-mqtt3c)
-endif(ENABLE_FILETRANSFER)
-
 target_link_libraries(nanomq nng)
 
 target_compile_definitions(nanomq PRIVATE -DPARALLEL=${PARALLEL})
