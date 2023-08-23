@@ -291,44 +291,19 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 		DDS_FATAL("dds_create_participant: %s\n",
 		    dds_strretcode(-participant));
 
-	/* Qos for Subscriber */
-	qossub = dds_create_qos();
-	dds_qset_partition(qossub, 1, partitionssub);
-
-	/* Create the Subscriber */
-	subscriber = dds_create_subscriber(participant, qossub, NULL);
-	if (subscriber < 0)
-		DDS_FATAL("dds_create_subscriber: %s\n", dds_strretcode(-subscriber));
-	dds_delete_qos(qossub);
-
 	/* Topic for Reader */
 	topicr = dds_create_topic(
 	    participant, dds_reader_handles->desc, cli->ddsrecv_topic, NULL, NULL);
 	if (topicr < 0)
 		DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topicr));
 
-	/* Qos for Reader. */
-	qosr = dds_create_qos();
-	dds_qset_reliability(qosr, DDS_RELIABILITY_RELIABLE, DDS_SECS(10));
-
 	/* Create the Reader */
-	reader = dds_create_reader(subscriber, topicr, qosr, NULL);
+	reader = dds_create_reader(participant, topicr, NULL, NULL);
 	if (reader < 0)
 		DDS_FATAL("dds_create_reader: %s\n", dds_strretcode(-reader));
-	dds_delete_qos(qosr);
 
 	log_dds("=== [Subscriber] Started");
 	fflush(stdout);
-
-	/* Qos for Publisher */
-	qospub = dds_create_qos();
-	dds_qset_partition(qospub, 1, partitionspub);
-
-	/* Create the Publisher. */
-	publisher = dds_create_publisher(participant, qospub, NULL);
-	if (publisher < 0)
-		DDS_FATAL("dds_create_publisher: %s\n", dds_strretcode(-publisher));
-	dds_delete_qos(qospub);
 
 	/* Topic for writer */
 	topicw = dds_create_topic(
@@ -339,12 +314,8 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 	// TODO Topics for writer and reader **MUST** be different.
 	// Or Circle messages happened
 
-	/* Qos for Writer */
-	qosw = dds_create_qos();
-	dds_qset_reliability(qosw, DDS_RELIABILITY_RELIABLE, DDS_SECS(10));
-
 	/* Create a Writer */
-	writer = dds_create_writer(publisher, topicw, qosw, NULL);
+	writer = dds_create_writer(participant, topicw, NULL, NULL);
 	if (writer < 0)
 		DDS_FATAL("dds_create_writer: %s\n", dds_strretcode(-writer));
 
