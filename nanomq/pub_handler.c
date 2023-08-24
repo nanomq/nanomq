@@ -221,7 +221,7 @@ payload_filter(pub_packet_struct *pp, rule *info)
 		}
 
 		switch (jp->type) {
-		case cJSON_Number:;
+		case cJSON_Number:
 			long num = cJSON_GetNumberValue(jp);
 
 			if (payload->filter && !cmp_int(num, atoi(payload->filter), payload->cmp_type)) {
@@ -231,7 +231,7 @@ payload_filter(pub_packet_struct *pp, rule *info)
 				payload->type  = cJSON_Number;
 			}
 			break;
-		case cJSON_String:;
+		case cJSON_String:
 			char *str = cJSON_GetStringValue(jp);
 			if (payload->filter && !cmp_str(str, strlen(str), payload->filter, payload->cmp_type)) {
 				filter = false;
@@ -242,7 +242,7 @@ payload_filter(pub_packet_struct *pp, rule *info)
 				payload->type  = cJSON_String;
 			}
 			break;
-		case cJSON_Object:;
+		case cJSON_Object:
 			cJSON *filter = cJSON_Parse(payload->filter);
 			if (!payload->is_store && filter && !cJSON_Compare(jp, filter, true)) {
 				filter = false;
@@ -306,7 +306,7 @@ rule_engine_filter(nano_work *work, rule *info)
 						    strlen(topic), val,
 						    info->cmp_type[j]);
 						break;
-					case RULE_CLIENTID:;
+					case RULE_CLIENTID:
 						const char *cid = (const char
 						        *)
 						    conn_param_get_clientid(
@@ -316,7 +316,7 @@ rule_engine_filter(nano_work *work, rule *info)
 						    info->cmp_type[j]);
 
 						break;
-					case RULE_USERNAME:;
+					case RULE_USERNAME:
 						const char *username =
 						    (const char *)
 						        conn_param_get_username(
@@ -325,7 +325,7 @@ rule_engine_filter(nano_work *work, rule *info)
 						    strlen(username), val,
 						    info->cmp_type[j]);
 						break;
-					case RULE_PASSWORD:;
+					case RULE_PASSWORD:
 						const char *password =
 						    (const char *)
 						        conn_param_get_password(
@@ -421,7 +421,7 @@ generate_key(rule *info, int j, nano_work *work)
 				sprintf(str, "%d", pp->var_header.publish.packet_id);
 			}
 			break;
-		case RULE_TOPIC:;
+		case RULE_TOPIC:
 			char *topic = pp->var_header.publish.topic_name.body;
 			if (info->key->auto_inc) {
 				sprintf(str, "%s%d", topic, index++);
@@ -429,7 +429,7 @@ generate_key(rule *info, int j, nano_work *work)
 				sprintf(str, "%s", topic);
 			}
 			break;
-		case RULE_CLIENTID:;
+		case RULE_CLIENTID:
 			char *cid = (char *) conn_param_get_clientid(cp);
 			if (info->key->auto_inc) {
 				sprintf(str, "%s%d", cid, index++);
@@ -437,7 +437,7 @@ generate_key(rule *info, int j, nano_work *work)
 				sprintf(str, "%s", cid);
 			}
 			break;
-		case RULE_USERNAME:;
+		case RULE_USERNAME:
 			char *username = (char *) conn_param_get_username(cp);
 			if (info->key->auto_inc) {
 				sprintf(str, "%s%d", username, index++);
@@ -445,7 +445,7 @@ generate_key(rule *info, int j, nano_work *work)
 				sprintf(str, "%s", username);
 			}
 			break;
-		case RULE_PASSWORD:;
+		case RULE_PASSWORD:
 			char *password = (char *) conn_param_get_password(cp);
 			if (info->key->auto_inc) {
 				sprintf(str, "%s%d", password, index++);
@@ -460,7 +460,7 @@ generate_key(rule *info, int j, nano_work *work)
 				sprintf(str, "%ld", (unsigned long)time(NULL));
 			}
 			break;
-		case RULE_PAYLOAD_ALL:;
+		case RULE_PAYLOAD_ALL:
 			char *payload = pp->payload.data;
 			if (info->key->auto_inc) {
 				sprintf(str, "%s%d", payload, index++);
@@ -468,7 +468,7 @@ generate_key(rule *info, int j, nano_work *work)
 				sprintf(str, "%s", payload);
 			}
 			break;
-		case RULE_PAYLOAD_FIELD:;
+		case RULE_PAYLOAD_FIELD:
 			cJSON *jp = cJSON_ParseWithLength(pp->payload.data, pp->payload.len);
 			for (int k = 0; k < cvector_size(info->key->key_arr); k++) {
 				if (jp == NULL) {
@@ -538,7 +538,7 @@ add_info_to_json(rule *info, cJSON *jso, int j, nano_work *work)
 				    pp->var_header.publish.packet_id);
 			}
 			break;
-		case RULE_TOPIC:;
+		case RULE_TOPIC:
 			char *topic = pp->var_header.publish.topic_name.body;
 			if (info->as[j]) {
 				cJSON_AddStringToObject(
@@ -547,7 +547,7 @@ add_info_to_json(rule *info, cJSON *jso, int j, nano_work *work)
 				cJSON_AddStringToObject(jso, "topic", topic);
 			}
 			break;
-		case RULE_CLIENTID:;
+		case RULE_CLIENTID:
 			char *cid = (char *) conn_param_get_clientid(cp);
 			if (info->as[j]) {
 				cJSON_AddStringToObject(jso, info->as[j], cid);
@@ -555,7 +555,7 @@ add_info_to_json(rule *info, cJSON *jso, int j, nano_work *work)
 				cJSON_AddStringToObject(jso, "clientid", cid);
 			}
 			break;
-		case RULE_USERNAME:;
+		case RULE_USERNAME:
 			char *username = (char *) conn_param_get_username(cp);
 			if (info->as[j]) {
 				cJSON_AddStringToObject(
@@ -565,7 +565,7 @@ add_info_to_json(rule *info, cJSON *jso, int j, nano_work *work)
 				    jso, "username", username);
 			}
 			break;
-		case RULE_PASSWORD:;
+		case RULE_PASSWORD:
 			char *password = (char *) conn_param_get_password(cp);
 			if (info->as[j]) {
 				cJSON_AddStringToObject(
@@ -584,7 +584,7 @@ add_info_to_json(rule *info, cJSON *jso, int j, nano_work *work)
 				    (unsigned long)time(NULL));
 			}
 			break;
-		case RULE_PAYLOAD_ALL:;
+		case RULE_PAYLOAD_ALL:
 			char *payload = pp->payload.data;
 			cJSON *jp = cJSON_ParseWithLength(payload, pp->payload.len);
 
@@ -653,7 +653,6 @@ compose_sql_clause(rule *info, char *key, char *value, bool is_need_set, int j, 
 	conn_param        *cp = work->cparam;
 	char *ret = NULL;
 
-
 	if (info->flag[j]) {
 		switch (j) {
 		case RULE_QOS:
@@ -672,7 +671,7 @@ compose_sql_clause(rule *info, char *key, char *value, bool is_need_set, int j, 
 			}
 			sprintf(value, "%s\'%d\'", value, pp->var_header.publish.packet_id);
 			break;
-		case RULE_TOPIC:;
+		case RULE_TOPIC:
 			char *topic = pp->var_header.publish.topic_name.body;
 			if (info->as[j]) {
 				strcat(key, info->as[j]);
@@ -681,7 +680,7 @@ compose_sql_clause(rule *info, char *key, char *value, bool is_need_set, int j, 
 			}
 			sprintf(value, "%s\'%s\'", value, topic);
 			break;
-		case RULE_CLIENTID:;
+		case RULE_CLIENTID:
 			char *cid = (char *) conn_param_get_clientid(cp);
 			if (info->as[j]) {
 				strcat(key, info->as[j]);
@@ -690,7 +689,7 @@ compose_sql_clause(rule *info, char *key, char *value, bool is_need_set, int j, 
 			}
 			sprintf(value, "%s\'%s\'", value, cid);
 			break;
-		case RULE_USERNAME:;
+		case RULE_USERNAME:
 			char *username = (char *) conn_param_get_username(cp);
 			if (info->as[j]) {
 				strcat(key, info->as[j]);
@@ -699,7 +698,7 @@ compose_sql_clause(rule *info, char *key, char *value, bool is_need_set, int j, 
 			}
 			sprintf(value, "%s\'%s\'", value, username);
 			break;
-		case RULE_PASSWORD:;
+		case RULE_PASSWORD:
 			char *password = (char *) conn_param_get_password(cp);
 			if (info->as[j]) {
 				strcat(key, info->as[j]);
@@ -717,7 +716,7 @@ compose_sql_clause(rule *info, char *key, char *value, bool is_need_set, int j, 
 
 			sprintf(value, "%s%lu", value, (unsigned long) time(NULL));
 			break;
-		case RULE_PAYLOAD_ALL:;
+		case RULE_PAYLOAD_ALL:
 			char *payload = pp->payload.data;
 
 			if (info->as[j]) {
@@ -729,7 +728,7 @@ compose_sql_clause(rule *info, char *key, char *value, bool is_need_set, int j, 
 			sprintf(value, "%s\'%s\'", value, payload);
 			break;
 
-		case RULE_PAYLOAD_FIELD:;
+		case RULE_PAYLOAD_FIELD:
 
 			char ret_key[512] = { 0 };
 			char tmp_key[128] = { 0 };
