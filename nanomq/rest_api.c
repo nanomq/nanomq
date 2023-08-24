@@ -1581,7 +1581,7 @@ get_subscriptions(
 	return res;
 }
 
-#if defined(NNG_SUPP_SQLITE)  && defined(SUPP_RULE_ENGINE)
+#if defined(NNG_SUPP_SQLITE) && defined(SUPP_RULE_ENGINE)
 
 static bool
 sqlite_table_exist(conf_rule *cr, char *name)
@@ -1830,7 +1830,7 @@ post_rules(http_msg *msg)
 				goto error;
 			}
 
-#if defined(NNG_SUPP_SQLITE)
+#if defined(NNG_SUPP_SQLITE) && defined(SUPP_RULE_ENGINE)
 		} else if (!strcasecmp(name, "sqlite")) {
 			if ((rc = post_rules_sqlite(cr, jso_params, rawsql)) !=
 			    SUCCEED) {
@@ -1838,7 +1838,7 @@ post_rules(http_msg *msg)
 			}
 #endif
 
-#if defined(SUPP_MYSQL)
+#if defined(SUPP_MYSQL) && defined(SUPP_RULE_ENGINE)
 		} else if (!strcasecmp(name, "mysql")) {
 			if ((rc = post_rules_mysql(cr, jso_params, rawsql)) !=
 			    SUCCEED) {
