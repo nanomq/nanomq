@@ -59,7 +59,7 @@ size_t nftp_vec_len(nftp_vec *);
 
 #define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 
-char buf[64];
+static char buf[64];
 static inline char *
 now()
 {
