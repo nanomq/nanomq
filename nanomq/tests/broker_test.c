@@ -21,7 +21,7 @@ main()
 	int infp, outfp;
 
 	// create nmq thread
-	nng_thread_create(&nmq, broker_start, NULL);
+	nng_thread_create(&nmq, (void *) broker_start_with_conf, NULL);
 	nng_msleep(50); // wait a while before sub
 
 	// pipe to sub

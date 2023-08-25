@@ -20,7 +20,7 @@ main(int argc, char **argv)
 	test_rest_start(port);
 
 	conf = get_webhook_conf();
-	nng_thread_create(&nmq, (void *) broker_start_with_conf, conf);
+	nng_thread_create(&nmq, (void *) broker_start_with_conf, (void *) conf);
 	nng_msleep(800); // wait a while for broker to init.
 	                 // webhook_server_start() will msleep for 500ms.
 

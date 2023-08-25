@@ -13,7 +13,7 @@ main()
 	// create nmq thread
 	nmq_conf = get_test_conf();
 	assert(nmq_conf != NULL);
-	nng_thread_create(&nmq, broker_start_with_conf, nmq_conf);
+	nng_thread_create(&nmq, (void *) broker_start_with_conf, (void *) nmq_conf);
 	nng_msleep(50); // wait a while before sub
 
 	p_pub   = popen(cmd_pub, "r");
