@@ -252,8 +252,6 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 	dds_sample_info_t infos[MAX_SAMPLES];
 	dds_return_t      rc;
 	dds_qos_t        *qos;
-	const char       *partitionssub[] = { "partition" };
-	const char       *partitionspub[] = { "partition" };
 	dds_qos_t        *qospub;
 	dds_qos_t        *qossub;
 	dds_qos_t        *qosw;
@@ -282,6 +280,9 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 	}
 
 	dds_gateway_dds *dds_conf = &cli->config->dds;
+
+	const char *partitionssub[] = { dds_conf->subscriber_partition };
+	const char *partitionspub[] = { dds_conf->publisher_partition };
 
 	dds_inner_config(dds_conf);
 
