@@ -19,9 +19,10 @@ struct handle {
 	int   type; // 1->To dds network 2->To mqtt network
 	void *data;
 	int   len;
+	char *topic; // DDS topic or MQTT topic, Source topic
 };
 
-handle *mk_handle(int type, void *data, int len);
+handle *mk_handle(int type, void *data, int len, char *topic);
 
 typedef struct mqtt_cli mqtt_cli;
 

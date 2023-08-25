@@ -44,14 +44,15 @@ static int sent_cnt = 0;
 static int forward2dds_cnt = 0;
 
 handle *
-mk_handle(int type, void *data, int len)
+mk_handle(int type, void *data, int len, char *topic)
 {
 	handle *hd = malloc(sizeof(handle));
 	if (hd == NULL)
 		return NULL;
-	hd->data = data;
-	hd->type = type;
-	hd->len  = len;
+	hd->data  = data;
+	hd->type  = type;
+	hd->len   = len;
+	hd->topic = topic;
 
 	return hd;
 }
@@ -116,7 +117,6 @@ connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 
 	mqtt_cli *cli = arg;
 	mqtt_subscribe(cli);
-
 }
 
 // Connect to the given address.
@@ -374,6 +374,9 @@ mqtt_loop(void *arg)
 			    (uint8_t *)mqttmsg.payload, mqttmsg.len);
 			nng_free(mqttmsg.payload, mqttmsg.len);
 			mqttmsg.len = 0;
+
+			free(hd->topic);
+			free(hd);
 
 			break;
 		default:
