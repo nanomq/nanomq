@@ -204,8 +204,18 @@ dds_proxy(int argc, char **argv)
 	log_dds("publisher.partition. %s", config->dds.publisher_partition);
 
 	log_dds("[topic forward rules]");
-	log_dds("dds2mqtt. %s => %s", config->forward.dds2mqtt.from, config->forward.dds2mqtt.to);
-	log_dds("mqtt2dds. %s => %s", config->forward.mqtt2dds.from, config->forward.mqtt2dds.to);
+	log_dds("[dds to mqtt]");
+	for (size_t i=0; i<config->forward.dds2mqtt_sz; ++i)
+		log_dds("%s => %s {%s}",
+			config->forward.dds2mqtt[i]->from,
+			config->forward.dds2mqtt[i]->to,
+			config->forward.dds2mqtt[i]->struct_name);
+	log_dds("[mqtt to dds]");
+	for (size_t i=0; i<config->forward.mqtt2dds_sz; ++i)
+		log_dds("%s => %s {%s}",
+			config->forward.mqtt2dds[i]->from,
+			config->forward.mqtt2dds[i]->to,
+			config->forward.mqtt2dds[i]->struct_name);
 
 	dds_client_init(&ddscli, config);
 
