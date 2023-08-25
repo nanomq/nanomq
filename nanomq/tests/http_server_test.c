@@ -594,7 +594,7 @@ main()
 
 	conf = get_test_conf();
 	assert(conf != NULL);
-	nng_thread_create(&nmq, broker_start_with_conf, conf);
+	nng_thread_create(&nmq, (void *) broker_start_with_conf, (void *) conf);
 	// nng_msleep(100);  // wait a while for broker to init
 	fd = popen(cmd, "r");
 	nng_msleep(50); // wait a while after sub

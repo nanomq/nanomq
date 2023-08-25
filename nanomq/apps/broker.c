@@ -1632,18 +1632,32 @@ broker_start(int argc, char **argv)
 	return rc == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
-int
-broker_start_with_conf(conf *nanomq_conf)
+void *
+broker_start_with_conf(void *nmq_conf)
 {
 
 	int rc = 0;
 	int pid = 0;
+	int *res = &rc;
+	conf *nanomq_conf = nmq_conf;
 
 	if (!status_check(&pid)) {
 		fprintf(stderr,
 		    "One NanoMQ instance is still running, a new instance for "
 		    "test won't be started until the other one is stopped.\n");
 		exit(EXIT_FAILURE);
+	}
+
+	if (nanomq_conf == NULL) {
+		if ((nanomq_conf = nng_zalloc(sizeof(conf))) == NULL) {
+			fprintf(stderr,
+			    "Cannot allocate storge for configuration, "
+			    "quit\n");
+			exit(EXIT_FAILURE);
+		}
+
+		conf_init(nanomq_conf);
+		read_env_conf(nanomq_conf);
 	}
 
 	if (nanomq_conf->enable) {
@@ -1672,7 +1686,7 @@ broker_start_with_conf(conf *nanomq_conf)
 	}
 	// Active the configure for nanomq
 	if ((rc = active_conf(nanomq_conf)) != 0) {
-		return rc;
+		return (void *) res;
 	}
 #if defined(ENABLE_LOG)
 	if ((rc = log_init(&nanomq_conf->log)) != 0) {
@@ -1689,8 +1703,9 @@ broker_start_with_conf(conf *nanomq_conf)
 
 	// TODO: more check for arg nanomq_conf?
 	rc = broker(nanomq_conf);
-
-	return rc == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+	
+	*res = rc == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+	return (void *)res;
 }
 
 #if (!defined(NANO_PLATFORM_WINDOWS) && !defined(BUILD_APP_LIB))

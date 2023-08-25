@@ -80,7 +80,7 @@ extern int  broker_restart(int argc, char **argv);
 extern int  broker_reload(int argc, char **argv);
 extern int  broker_dflt(int argc, char **argv);
 extern void bridge_send_cb(void *arg);
-extern int  broker_start_with_conf(conf *nanomq_conf);
+extern void *broker_start_with_conf(void *nmq_conf);
 
 #ifdef STATISTICS
 extern uint64_t nanomq_get_message_in(void);

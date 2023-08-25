@@ -25,7 +25,7 @@ main()
 	// create nmq thread
 	conf = get_test_conf();
 	assert(conf != NULL);
-	nng_thread_create(&nmq, broker_start_with_conf, conf);
+	nng_thread_create(&nmq, (void *) broker_start_with_conf, (void *) conf);
 	nng_msleep(50); // wait a while before sub
 
 	pid_sub_nmq = popen_sub_with_cmd(&outfp_nmq, cmd_sub_nmq);
