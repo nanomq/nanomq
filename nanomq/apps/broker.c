@@ -1638,7 +1638,6 @@ broker_start_with_conf(void *nmq_conf)
 
 	int rc = 0;
 	int pid = 0;
-	int *res = &rc;
 	conf *nanomq_conf = nmq_conf;
 
 	if (!status_check(&pid)) {
@@ -1686,7 +1685,7 @@ broker_start_with_conf(void *nmq_conf)
 	}
 	// Active the configure for nanomq
 	if ((rc = active_conf(nanomq_conf)) != 0) {
-		return (void *) res;
+		broker_start_rc = rc;
 	}
 #if defined(ENABLE_LOG)
 	if ((rc = log_init(&nanomq_conf->log)) != 0) {
@@ -1704,8 +1703,8 @@ broker_start_with_conf(void *nmq_conf)
 	// TODO: more check for arg nanomq_conf?
 	rc = broker(nanomq_conf);
 	
-	*res = rc == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
-	return (void *)res;
+	broker_start_rc = rc == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+	return NULL;
 }
 
 #if (!defined(NANO_PLATFORM_WINDOWS) && !defined(BUILD_APP_LIB))

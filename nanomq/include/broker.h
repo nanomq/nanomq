@@ -72,6 +72,8 @@ struct client_ctx {
 	uint8_t     proto_ver;
 };
 
+static int broker_start_rc;
+
 typedef struct client_ctx client_ctx;
 
 extern int  broker_start(int argc, char **argv);
