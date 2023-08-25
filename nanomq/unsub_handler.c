@@ -24,7 +24,8 @@ decode_unsub_msg(nano_work *work)
 	uint32_t bpos = 0; // pos in payload
 
 	uint32_t len_of_varint = 0, len_of_property = 0, len_of_properties = 0;
-	uint32_t len_of_str = 0, len_of_topic;
+	uint32_t len_of_str = 0;
+	int      len_of_topic;
 
 	packet_unsubscribe *unsub_pkt     = work->unsub_pkt;
 	nng_msg *           msg           = work->msg;

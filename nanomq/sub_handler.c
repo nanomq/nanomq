@@ -113,7 +113,7 @@ decode_sub_msg(nano_work *work)
 		}
 
 next:
-		if (bpos < remaining_len - vpos) {
+		if (bpos < (int) (remaining_len - vpos)) {
 			if (NULL == (tn = nng_zalloc(sizeof(topic_node)))) {
 				log_error("nng_zalloc");
 				return NNG_ENOMEM;
