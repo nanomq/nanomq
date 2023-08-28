@@ -433,37 +433,20 @@ mqtt_disconnect(mqtt_cli *cli)
 	return 0;
 }
 
-
-
 int
 mqtt_subscribe(mqtt_cli *cli)
 {
-	nng_mqtt_topic_qos subscriptions[] = {
-		{
-		    .qos   = 0,
-		    .topic = {
-				.buf    = (uint8_t *) cli->mqttrecv_topic,
-		        .length = (uint32_t) strlen(cli->mqttrecv_topic),
-			},
-		},
-	};
+	dds_gateway_conf *config = cli->config;
 
-	return nng_mqtt_subscribe_async(cli->client, subscriptions, 1, NULL);
-}
+	nng_mqtt_topic_qos subscriptions[config->forward.mqtt2dds_sz];
 
-int
-mqtt_unsubscribe(mqtt_cli *cli, const char *topic)
-{
-	nng_mqtt_topic unsubscriptions[] = {
-		{
-		    .buf    = (uint8_t *) topic,
-		    .length = (uint32_t) strlen(topic),
-		},
-	};
+	for (size_t i=0; i<config->forward.mqtt2dds_sz; ++i) {
+		subscriptions[i].qos = 0;
+		subscriptions[i].topic.buf = config->forward.mqtt2dds[i]->from;
+		subscriptions[i].topic.length = strlen(config->forward.mqtt2dds[i]->from);
+	}
 
-	// nng_mqtt_unsubscribe_async(client, unsubscriptions, 1, NULL);
-
-	return 0;
+	return nng_mqtt_subscribe_async(cli->client, subscriptions, config->forward.mqtt2dds_sz, NULL);
 }
 
 int
