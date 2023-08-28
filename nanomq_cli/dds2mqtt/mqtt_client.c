@@ -314,7 +314,7 @@ mqtt_loop(void *arg)
 	dds_cli       *ddscli = cli->ddscli;
 
 	dds_handler_set *dds_handlers =
-	    dds_get_handler(ddscli->config->forward.dds2mqtt.struct_name);
+		dds_get_handler(ddscli->config->forward.dds2mqtt[0]->struct_name);
 
 	while (cli->running) {
 		// If handle queue is not empty. Handle it first.
@@ -337,7 +337,10 @@ mqtt_loop(void *arg)
 			continue;
 		} else if (rv == 0) {
 			// Received msg and put to handleq
-			hd = mk_handle(HANDLE_TO_DDS, msg, 0);
+			uint32_t topicsz;
+			const char *topic = nng_mqtt_msg_get_publish_topic(msg, &topicsz);
+			char *srctopic = strndup(topic, topicsz);
+			hd = mk_handle(HANDLE_TO_DDS, msg, 0, srctopic);
 
 			pthread_mutex_lock(&cli->mtx);
 			nftp_vec_append(cli->handleq, (void *) hd);
