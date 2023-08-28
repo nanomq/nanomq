@@ -253,11 +253,11 @@ dds_proxy(int argc, char **argv)
 
 	dds_client_init(&ddscli, config);
 
-	mqttcli.mqttrecv_topic = config->forward.mqtt2dds.from;
-	mqttcli.mqttsend_topic = config->forward.dds2mqtt.to;
+	mqttcli.mqttrecv_topic = config->forward.mqtt2dds[0]->from;
+	mqttcli.mqttsend_topic = config->forward.dds2mqtt[0]->to;
 
-	ddscli.ddsrecv_topic = config->forward.dds2mqtt.from;
-	ddscli.ddssend_topic = config->forward.mqtt2dds.to;
+	ddscli.ddsrecv_topic = config->forward.dds2mqtt[0]->from;
+	ddscli.ddssend_topic = config->forward.mqtt2dds[0]->to;
 
 	mqtt_connect(&mqttcli, &ddscli, config);
 
@@ -309,19 +309,19 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 	nftp_vec *handleq = cli->handleq;
 
 	dds_handler_set *dds_reader_handles =
-	    dds_get_handler(cli->config->forward.dds2mqtt.struct_name);
+	    dds_get_handler(cli->config->forward.dds2mqtt[0]->struct_name);
 
 	if (dds_reader_handles == NULL) {
 		DDS_FATAL("Failed to get reader handler from struct '%s'",
-		    cli->config->forward.dds2mqtt.struct_name);
+		    cli->config->forward.dds2mqtt[0]->struct_name);
 		exit(1);
 	}
 
 	dds_handler_set *dds_writer_handles =
-	    dds_get_handler(cli->config->forward.mqtt2dds.struct_name);
+	    dds_get_handler(cli->config->forward.mqtt2dds[0]->struct_name);
 	if (dds_reader_handles == NULL) {
 		DDS_FATAL("Failed to get writer handler from struct '%s'",
-		    cli->config->forward.mqtt2dds.struct_name);
+		    cli->config->forward.mqtt2dds[0]->struct_name);
 		exit(1);
 	}
 
