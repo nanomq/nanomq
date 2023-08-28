@@ -436,7 +436,10 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 				    "dds_write: %s\n", dds_strretcode(-rc));
 			log_dds("[DDS] Publisher sent struct '%s', counter %d",
 				dds_writer_handles->desc->m_typename, ++sent_cnt);
+
+			free(hd->topic);
 			free(hd);
+
 			break;
 		case HANDLE_TO_MQTT:
 			// Put to MQTTClient's handle queue
