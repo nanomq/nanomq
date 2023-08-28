@@ -159,6 +159,40 @@ dds_inner_config(dds_gateway_dds *config)
 	}
 }
 
+static void
+dds_data_available(dds_entity_t rd, void *arg)
+{
+	dds_cli *cli = arg;
+	handle  *hd;
+	uint32_t rc = 0;
+	void *samples[MAX_SAMPLES];
+	dds_sample_info_t infos[MAX_SAMPLES];
+
+	nftp_vec *handleq = cli->handleq;
+
+	dds_handler_set *dds_reader_handles =
+	    dds_get_handler(cli->config->forward.dds2mqtt[0]->struct_name);
+	samples[0] = dds_reader_handles->alloc();
+
+	rc = dds_take(rd, samples, infos, MAX_SAMPLES, MAX_SAMPLES);
+	if (rc < 0)
+		DDS_FATAL("dds_take: %s\n", dds_strretcode(-rc));
+
+	if ((rc > 0) && (infos[0].valid_data)) {
+		log_dds("[DDS] Subscriber received struct '%s', counter %d",
+		    dds_reader_handles->desc->m_typename, ++recv_cnt);
+
+		/* Make a handle */
+		char *topic = strdup("A DDS TOPIC NOT I DO NOT KNOW HOW TO GET"); // TODO
+		hd = mk_handle(HANDLE_TO_MQTT, samples[0], 0, topic);
+
+		/* Put msg to handleq */
+		pthread_mutex_lock(&cli->mtx);
+		nftp_vec_append(handleq, (void *) hd);
+		pthread_mutex_unlock(&cli->mtx);
+	}
+}
+
 int
 dds_proxy(int argc, char **argv)
 {
@@ -258,8 +292,9 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 	dds_entity_t      writer;
 	dds_entity_t      publisher;
 	dds_entity_t      subscriber;
+	dds_entity_t      waitSet;
+	dds_entity_t      readCond;
 	void             *samples[MAX_SAMPLES];
-	dds_sample_info_t infos[MAX_SAMPLES];
 	dds_return_t      rc;
 	dds_qos_t        *qos;
 	dds_qos_t        *qospub;
@@ -268,6 +303,7 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 	dds_qos_t        *qosr;
 	uint32_t          status = 0;
 	handle           *hd;
+	dds_listener_t   *listener;
 
 	/* Get current client's handle queue */
 	nftp_vec *handleq = cli->handleq;
@@ -302,6 +338,14 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 		DDS_FATAL("dds_create_participant: %s\n",
 		    dds_strretcode(-participant));
 
+	/* Create a listener */
+	listener = dds_create_listener(NULL);
+	dds_lset_data_available_arg(listener, dds_data_available, cli, true);
+
+	// Create waitSet
+	waitSet = dds_create_waitset(participant);
+	readCond = 0;
+
 	/* Qos for Subscriber */
 	qossub = dds_create_qos();
 	dds_qset_partition(qossub, 1, partitionssub);
@@ -322,8 +366,13 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 	qosr = dds_create_qos();
 	dds_qset_reliability(qosr, DDS_RELIABILITY_RELIABLE, DDS_SECS(10));
 
+	// Set wait set
+	status = dds_waitset_attach(waitSet, waitSet, waitSet);
+	if (status < 0)
+		DDS_FATAL("dds_waitset_attach: %s\n", dds_strretcode(-status));
+
 	/* Create the Reader */
-	reader = dds_create_reader(subscriber, topicr, qosr, NULL);
+	reader = dds_create_reader(subscriber, topicr, qosr, listener);
 	if (reader < 0)
 		DDS_FATAL("dds_create_reader: %s\n", dds_strretcode(-reader));
 	dds_delete_qos(qosr);
@@ -381,7 +430,6 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 		/* Initialize sample buffer, by pointing the void pointer
 		 * within the buffer array to a valid sample memory location.
 		 */
-		samples[0] = dds_reader_handles->alloc();
 
 		pthread_mutex_lock(&cli->mtx);
 		if (nftp_vec_len(handleq))
@@ -391,32 +439,10 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 		if (hd)
 			goto work;
 
-		/* Do the actual read.
-		 * The return value contains the number of read samples. */
-		rc =
-		    dds_take(reader, samples, infos, MAX_SAMPLES, MAX_SAMPLES);
-		if (rc < 0)
-			DDS_FATAL("dds_read: %s\n", dds_strretcode(-rc));
-		/* Check if we read some data and it is valid. */
-		if ((rc > 0) && (infos[0].valid_data)) {
-			/* Print Message. */
-			log_dds("[DDS] Subscriber received struct '%s', counter %d",
-			    dds_reader_handles->desc->m_typename, ++recv_cnt);
-
-			/* Make a handle */
-			hd = mk_handle(HANDLE_TO_MQTT, samples[0], 0);
-
-			/* Put msg to handleq */
-			pthread_mutex_lock(&cli->mtx);
-			nftp_vec_append(handleq, (void *) hd);
-			pthread_mutex_unlock(&cli->mtx);
-			continue;
-		} else {
-			/* Polling sleep. */
-			dds_reader_handles->free(samples[0], DDS_FREE_ALL);
-			dds_sleepfor(DDS_MSECS(20));
-			continue;
-		}
+		/* Polling sleep. */
+		dds_reader_handles->free(samples[0], DDS_FREE_ALL);
+		dds_sleepfor(DDS_MSECS(20));
+		continue;
 
 	work:
 		switch (hd->type) {
