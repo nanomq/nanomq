@@ -11,6 +11,6 @@ function(nanomq_test NAME)
         target_include_directories(${NAME} PRIVATE
                 ${PROJECT_SOURCE_DIR}/include)
         add_test(NAME nanomq.${NAME} COMMAND ${NAME} -t -v)
-        set_tests_properties(nanomq.${NAME} PROPERTIES TIMEOUT 180)
+        set_tests_properties(nanomq.${NAME} PROPERTIES TIMEOUT 60)
     endif ()
 endfunction()
