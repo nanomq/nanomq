@@ -23,7 +23,7 @@ main()
 	char buf_emqx[buf_size];
 
 	// create nmq thread
-	conf = get_test_conf();
+	conf = get_test_conf(BRIDGE_CONF);
 	assert(conf != NULL);
 	nng_thread_create(&nmq, (void *) broker_start_with_conf, (void *) conf);
 	nng_msleep(50); // wait a while before sub

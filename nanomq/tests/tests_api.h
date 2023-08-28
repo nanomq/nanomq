@@ -1,6 +1,8 @@
 // This is a test only Scenario for advanced features of NanoMQ, like webhook, etc.
 #define INPROC_TEST_URL "inproc://test"
 #define REST_TEST_URL "http://0.0.0.0:%u/hook"
+#define	ALL_FEATURE_CONF_PATH "../../../nanomq/tests/nanomq_test.conf"
+#define	BRIDGE_CONF_PATH "../../../nanomq/tests/nanomq_bridge_test.conf"
 
 int webhook_msg_cnt = 0; // this is a silly signal to indicate whether the webhook tests pass
 
@@ -50,6 +52,10 @@ int webhook_msg_cnt = 0; // this is a silly signal to indicate whether the webho
 //
 // The above flow is pretty linear, and so we use contexts (nng_ctx) to
 // obtain parallelism.
+typedef enum {
+	ALL_FEATURE_CONF,
+	BRIDGE_CONF,
+} conf_type;
 
 typedef enum {
 	SEND_REQ, // Sending REQ request
@@ -458,14 +464,24 @@ get_webhook_conf()
 }
 
 conf *
-get_test_conf()
+get_test_conf(conf_type type)
 {
 	// get conf from file
 	conf *nmq_conf = NULL;
-	if((nmq_conf = nng_zalloc(sizeof(conf))) == NULL) {
+	char *conf_path = NULL;
+	if ((nmq_conf = nng_zalloc(sizeof(conf))) == NULL) {
 		return nmq_conf;
 	}
-	char *conf_path = "../../../nanomq/tests/nanomq_test.conf";
+	switch (type) {
+	case ALL_FEATURE_CONF:
+		conf_path = ALL_FEATURE_CONF_PATH;
+		break;
+	case BRIDGE_CONF:
+		conf_path = BRIDGE_CONF_PATH;
+		break;
+	default:
+		break;
+	}
 	conf_init(nmq_conf);
 	nmq_conf->conf_file = conf_path;
 	conf_parse_ver2(nmq_conf);

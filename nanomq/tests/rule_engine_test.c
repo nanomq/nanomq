@@ -11,7 +11,7 @@ main()
 	conf       *nmq_conf = NULL;
 
 	// create nmq thread
-	nmq_conf = get_test_conf();
+	nmq_conf = get_test_conf(ALL_FEATURE_CONF);
 	assert(nmq_conf != NULL);
 	nng_thread_create(&nmq, (void *) broker_start_with_conf, (void *) nmq_conf);
 	nng_msleep(50); // wait a while before sub
