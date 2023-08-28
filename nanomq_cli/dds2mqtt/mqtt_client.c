@@ -57,6 +57,28 @@ mk_handle(int type, void *data, int len, char *topic)
 	return hd;
 }
 
+dds_gateway_topic *
+find_dds_topic(dds_gateway_conf *conf, const char *mqtttopic)
+{
+	dds_gateway_topic **tl = conf->forward.mqtt2dds;
+	for (size_t i=0; i<conf->forward.mqtt2dds; ++i) {
+		if (0 == strcmp(mqtttopic, tl[i]->from))
+			return tl[i];
+	}
+	return NULL;
+}
+
+dds_gateway_topic *
+find_mqtt_topic(dds_gateway_conf *conf, const char *ddstopic)
+{
+	dds_gateway_topic **tl = conf->forward.dds2mqtt;
+	for (size_t i=0; i<conf->forward.dds2mqtt_sz; ++i) {
+		if (0 == strcmp(ddstopic, tl[i]->from))
+			return tl[i];
+	}
+	return NULL;
+}
+
 static void
 send_callback (nng_mqtt_client *client, nng_msg *msg, void *arg) {
 	nng_aio *        aio    = client->send_aio;
