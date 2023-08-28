@@ -592,7 +592,7 @@ main()
 	conf       *conf;
 	FILE       *fd;
 
-	conf = get_test_conf();
+	conf = get_test_conf(ALL_FEATURE_CONF);
 	assert(conf != NULL);
 	nng_thread_create(&nmq, (void *) broker_start_with_conf, (void *) conf);
 	// nng_msleep(100);  // wait a while for broker to init
