@@ -59,6 +59,10 @@ int mqtt_publish(
 
 int mqtt_recvmsg(mqtt_cli *cli, nng_msg **msgp);
 
+// Return not just topic but also the struct_name
+dds_gateway_topic *find_dds_topic(dds_gateway_conf *conf, const char *mqtttopic);
+dds_gateway_topic *find_mqtt_topic(dds_gateway_conf *conf, const char *ddstopic);
+
 #endif
 
 #endif
