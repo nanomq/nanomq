@@ -467,8 +467,9 @@ conf *
 get_test_conf(conf_type type)
 {
 	// get conf from file
-	conf *nmq_conf = NULL;
+	conf *nmq_conf  = NULL;
 	char *conf_path = NULL;
+
 	if ((nmq_conf = nng_zalloc(sizeof(conf))) == NULL) {
 		return nmq_conf;
 	}
