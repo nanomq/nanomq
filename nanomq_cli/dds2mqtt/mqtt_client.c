@@ -61,7 +61,7 @@ dds_gateway_topic *
 find_dds_topic(dds_gateway_conf *conf, const char *mqtttopic)
 {
 	dds_gateway_topic **tl = conf->forward.mqtt2dds;
-	for (size_t i=0; i<conf->forward.mqtt2dds; ++i) {
+	for (size_t i=0; i<conf->forward.mqtt2dds_sz; ++i) {
 		if (0 == strcmp(mqtttopic, tl[i]->from))
 			return tl[i];
 	}
