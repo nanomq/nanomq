@@ -253,9 +253,6 @@ dds_proxy(int argc, char **argv)
 
 	dds_client_init(&ddscli, config);
 
-	mqttcli.mqttrecv_topic = config->forward.mqtt2dds[0]->from;
-	mqttcli.mqttsend_topic = config->forward.dds2mqtt[0]->to;
-
 	ddscli.ddsrecv_topic = config->forward.dds2mqtt[0]->from;
 	ddscli.ddssend_topic = config->forward.mqtt2dds[0]->to;
 
