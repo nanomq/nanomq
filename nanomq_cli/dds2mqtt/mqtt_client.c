@@ -335,7 +335,8 @@ mqtt_loop(void *arg)
 	int            rv;
 	dds_cli       *ddscli = cli->ddscli;
 
-	dds_handler_set *dds_handlers =
+	dds_gateway_conf *conf = cli->config;
+	dds_handler_set  *dds_handlers =
 		dds_get_handler(ddscli->config->forward.dds2mqtt[0]->struct_name);
 
 	while (cli->running) {
@@ -395,7 +396,13 @@ mqtt_loop(void *arg)
 			mqttmsg.len     = strlen(mqttmsg.payload);
 			cJSON_free(json);
 
-			mqtt_publish(cli, cli->mqttsend_topic, 0,
+			dds_gateway_topic *dt = find_mqtt_topic(conf, hd->topic);
+			if (!dt) {
+				free(hd->topic);
+				free(hd);
+				break;
+			}
+			mqtt_publish(cli, dt->to, 0,
 			    (uint8_t *)mqttmsg.payload, mqttmsg.len);
 			nng_free(mqttmsg.payload, mqttmsg.len);
 			mqttmsg.len = 0;
