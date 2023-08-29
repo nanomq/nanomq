@@ -5,6 +5,7 @@
 // file was obtained (LICENSE.txt).  A copy of the license may also be
 // found online at https://opensource.org/licenses/MIT.
 //
+#include <dds/ddsc/dds_basic_types.h>
 #if defined(SUPP_DDS_PROXY)
 
 #include "dds_client.h"
@@ -151,12 +152,138 @@ dds_inner_config(dds_gateway_dds *config)
 	    dds_create_domain(config->domain_id, xconfigstr);
 
 	ddsrt_free(xconfigstr);
-	ddsrt_free(configstr);	
-	
+	ddsrt_free(configstr);
+
 	if (dom < 0) {
 		DDS_FATAL(
 		    "dds_create_domain: %s\n", dds_strretcode(-dom));
 	}
+}
+
+static void
+dds_subcli_send(dds_subcli *scli, char *payload)
+{
+	uint32_t rc = 0;
+	void    *samples[MAX_SAMPLES];
+
+	samples[0] = scli->handles->alloc();
+	scli->handles->mqtt2dds(cJSON_Parse(payload), samples[0]);
+	/* Send the msg received */
+	rc = dds_write(scli->scli, samples[0]);
+	if (rc != DDS_RETCODE_OK)
+		DDS_FATAL("dds_write: %s\n", dds_strretcode(-rc));
+	log_dds("[DDS] Publisher sent struct '%s', counter %d",
+		scli->handles->desc->m_typename, ++sent_cnt);
+	/* Free the data location. */
+	scli->handles->free(samples[0], DDS_FREE_ALL);
+}
+
+static int
+dds_subcli_init(dds_subcli *scli, bool isrd, const char *topic, dds_entity_t participant, dds_entity_t parent, dds_listener_t* listener, dds_gateway_conf *config)
+{
+	uint32_t rc = 0;
+	dds_entity_t topicw, topicr;
+	dds_qos_t *qosw, *qosr;
+	dds_handler_set *dds_handles;
+	dds_entity_t reader, writer;
+
+	pthread_mutex_init(&scli->mtx, NULL);
+
+	if (isrd) {
+		scli->ddsrecv_topic = (char *)topic;
+		scli->ddssend_topic = NULL;
+
+		dds_handles = NULL;
+		dds_gateway_topic **tl = config->forward.dds2mqtt;
+		for (size_t i=0; i<config->forward.dds2mqtt_sz; ++i) {
+			if (0 == strcmp(topic, tl[i]->from)) {
+				dds_handles = dds_get_handler(tl[i]->struct_name);
+				if (dds_handles == NULL) {
+					log_dds("ERROR Invaild structure:%s", tl[i]->struct_name);
+					return -1;
+				}
+			}
+		}
+
+		if (dds_handles == NULL) {
+			log_dds("ERROR Incorrect topic:%s", topic);
+			return -1;
+		}
+
+		scli->handles = dds_handles;
+
+		/* Topic for reader */
+		topicr = dds_create_topic(
+		    participant, dds_handles->desc, scli->ddsrecv_topic, NULL, NULL);
+		if (topicr < 0) {
+			DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topicr));
+			return topicr;
+		}
+
+		/* Qos for Reader. */
+		qosr = dds_create_qos();
+		dds_qset_reliability(qosr, DDS_RELIABILITY_RELIABLE, DDS_SECS(10));
+
+		/* Create the Reader */
+		reader = dds_create_reader(parent, topicr, qosr, listener);
+		if (reader < 0)
+			DDS_FATAL("dds_create_reader: %s\n", dds_strretcode(-reader));
+		dds_delete_qos(qosr);
+
+		scli->scli = reader;
+	} else {
+		scli->ddsrecv_topic = NULL;
+		scli->ddssend_topic = (char *)topic;
+
+		dds_handles = NULL;
+		dds_gateway_topic **tl = config->forward.mqtt2dds;
+		for (size_t i=0; i<config->forward.mqtt2dds_sz; ++i) {
+			if (0 == strcmp(topic, tl[i]->to)) {
+				dds_handles = dds_get_handler(tl[i]->struct_name);
+				if (dds_handles == NULL) {
+					log_dds("ERROR Invaild structure:%s", tl[i]->struct_name);
+					return -1;
+				}
+			}
+		}
+
+		if (dds_handles == NULL) {
+			log_dds("ERROR Incorrect topic:%s", topic);
+			return -1;
+		}
+
+		scli->handles = dds_handles;
+
+		/* Topic for writer */
+		topicw = dds_create_topic(
+		    participant, dds_handles->desc, scli->ddssend_topic, NULL, NULL);
+		if (topicw < 0) {
+			DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topicw));
+			return topicw;
+		}
+
+		/* Qos for Writer */
+		qosw = dds_create_qos();
+		dds_qset_reliability(qosw, DDS_RELIABILITY_RELIABLE, DDS_SECS(10));
+
+		/* Create a Writer */
+		writer = dds_create_writer(parent, topicw, qosw, NULL);
+		if (writer < 0) {
+			DDS_FATAL("dds_create_writer: %s\n", dds_strretcode(-writer));
+			return writer;
+		}
+
+		rc = dds_set_status_mask(writer, DDS_PUBLICATION_MATCHED_STATUS);
+		if (rc != DDS_RETCODE_OK) {
+			DDS_FATAL("dds_set_status_mask: %s\n", dds_strretcode(-rc));
+			return rc;
+		}
+
+		scli->scli = writer;
+	}
+
+	scli->config = config;
+	return 0;
 }
 
 static void
@@ -253,9 +380,6 @@ dds_proxy(int argc, char **argv)
 
 	dds_client_init(&ddscli, config);
 
-	ddscli.ddsrecv_topic = config->forward.dds2mqtt[0]->from;
-	ddscli.ddssend_topic = config->forward.mqtt2dds[0]->to;
-
 	mqtt_connect(&mqttcli, &ddscli, config);
 
 	dds_client(&ddscli, &mqttcli);
@@ -272,6 +396,11 @@ dds_proxy(int argc, char **argv)
 static int
 dds_client_init(dds_cli *cli, dds_gateway_conf *config)
 {
+	cli->nsubrdclis = 0;
+	cli->subrdclis = NULL;
+	cli->nsubwrclis = 0;
+	cli->subwrclis = NULL;
+
 	nftp_vec_alloc(&cli->handleq);
 	pthread_mutex_init(&cli->mtx, NULL);
 	cli->config = config;
@@ -283,51 +412,30 @@ static int
 dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 {
 	dds_entity_t      participant;
-	dds_entity_t      topicw;
-	dds_entity_t      topicr;
 	dds_entity_t      reader;
 	dds_entity_t      writer;
 	dds_entity_t      publisher;
 	dds_entity_t      subscriber;
 	dds_entity_t      waitSet;
 	dds_entity_t      readCond;
-	void             *samples[MAX_SAMPLES];
 	dds_return_t      rc;
-	dds_qos_t        *qos;
 	dds_qos_t        *qospub;
 	dds_qos_t        *qossub;
-	dds_qos_t        *qosw;
-	dds_qos_t        *qosr;
 	uint32_t          status = 0;
 	handle           *hd;
 	dds_listener_t   *listener;
+	dds_subcli       *scli;
 
 	/* Get current client's handle queue */
 	nftp_vec *handleq = cli->handleq;
 
-	dds_handler_set *dds_reader_handles =
-	    dds_get_handler(cli->config->forward.dds2mqtt[0]->struct_name);
-
-	if (dds_reader_handles == NULL) {
-		DDS_FATAL("Failed to get reader handler from struct '%s'",
-		    cli->config->forward.dds2mqtt[0]->struct_name);
-		exit(1);
-	}
-
-	dds_handler_set *dds_writer_handles =
-	    dds_get_handler(cli->config->forward.mqtt2dds[0]->struct_name);
-	if (dds_reader_handles == NULL) {
-		DDS_FATAL("Failed to get writer handler from struct '%s'",
-		    cli->config->forward.mqtt2dds[0]->struct_name);
-		exit(1);
-	}
-
 	dds_gateway_dds *dds_conf = &cli->config->dds;
 
+	dds_inner_config(dds_conf);
+
+	// Setting partitions
 	const char *partitionssub[] = { dds_conf->subscriber_partition };
 	const char *partitionspub[] = { dds_conf->publisher_partition };
-
-	dds_inner_config(dds_conf);
 
 	/* Create a Participant. */
 	participant = dds_create_participant(dds_conf->domain_id, NULL, NULL);
@@ -353,26 +461,10 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 		DDS_FATAL("dds_create_subscriber: %s\n", dds_strretcode(-subscriber));
 	dds_delete_qos(qossub);
 
-	/* Topic for Reader */
-	topicr = dds_create_topic(
-	    participant, dds_reader_handles->desc, cli->ddsrecv_topic, NULL, NULL);
-	if (topicr < 0)
-		DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topicr));
-
-	/* Qos for Reader. */
-	qosr = dds_create_qos();
-	dds_qset_reliability(qosr, DDS_RELIABILITY_RELIABLE, DDS_SECS(10));
-
 	// Set wait set
 	status = dds_waitset_attach(waitSet, waitSet, waitSet);
 	if (status < 0)
 		DDS_FATAL("dds_waitset_attach: %s\n", dds_strretcode(-status));
-
-	/* Create the Reader */
-	reader = dds_create_reader(subscriber, topicr, qosr, listener);
-	if (reader < 0)
-		DDS_FATAL("dds_create_reader: %s\n", dds_strretcode(-reader));
-	dds_delete_qos(qosr);
 
 	log_dds("=== [Subscriber] Started");
 	fflush(stdout);
@@ -387,33 +479,36 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 		DDS_FATAL("dds_create_publisher: %s\n", dds_strretcode(-publisher));
 	dds_delete_qos(qospub);
 
-	/* Topic for writer */
-	topicw = dds_create_topic(
-	    participant, dds_writer_handles->desc, cli->ddssend_topic, NULL, NULL);
-	if (topicw < 0)
-		DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topicw));
-
-	// TODO Topics for writer and reader **MUST** be different.
-	// Or Circle messages happened
-
-	/* Qos for Writer */
-	qosw = dds_create_qos();
-	dds_qset_reliability(qosw, DDS_RELIABILITY_RELIABLE, DDS_SECS(10));
-
-	/* Create a Writer */
-	writer = dds_create_writer(publisher, topicw, qosw, NULL);
-	if (writer < 0)
-		DDS_FATAL("dds_create_writer: %s\n", dds_strretcode(-writer));
-
 	log_dds("=== [Publisher] Started");
 	fflush(stdout);
 
-	rc = dds_set_status_mask(writer, DDS_PUBLICATION_MATCHED_STATUS);
-	if (rc != DDS_RETCODE_OK)
-		DDS_FATAL("dds_set_status_mask: %s\n", dds_strretcode(-rc));
-	
+	// Create readers for subscriber
+	cli->subrdclis = nng_alloc(sizeof(dds_subcli) * cli->config->forward.dds2mqtt_sz);
+	for (size_t i=0; i<cli->config->forward.dds2mqtt_sz; ++i) {
+		scli = nng_alloc(sizeof(*scli));
+		status = dds_subcli_init(scli, true,
+		        cli->config->forward.dds2mqtt[i]->from, participant,
+		        subscriber, listener, cli->config);
+		if (status != 0)
+			continue;
+		cli->subrdclis[cli->nsubrdclis++] = scli;
+		log_dds("=== [DDS READER] Started {%s}", cli->config->forward.dds2mqtt[i]->from);
+	}
+
+	// Create writers for publisher
+	cli->subwrclis = nng_alloc(sizeof(dds_subcli) * cli->config->forward.mqtt2dds_sz);
+	for (size_t i=0; i<cli->config->forward.mqtt2dds_sz; ++i) {
+		scli = nng_alloc(sizeof(*scli));
+		status = dds_subcli_init(scli, false,
+		        cli->config->forward.mqtt2dds[i]->to, participant,
+		        publisher, NULL, cli->config);
+		if (status != 0)
+			continue;
+		cli->subwrclis[cli->nsubwrclis++] = scli;
+	}
+
 	nng_msg *      mqttmsg;
-	fixed_mqtt_msg midmsg;
+	char *         payload;
 	uint32_t       len;
 
 	/* Poll until data has been read. */
@@ -437,7 +532,6 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 			goto work;
 
 		/* Polling sleep. */
-		dds_reader_handles->free(samples[0], DDS_FREE_ALL);
 		dds_sleepfor(DDS_MSECS(20));
 		continue;
 
@@ -445,20 +539,20 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 		switch (hd->type) {
 		case HANDLE_TO_DDS:
 			mqttmsg = hd->data;
-			midmsg.payload =
-			    (char *) nng_mqtt_msg_get_publish_payload(
-			        mqttmsg, &len);
-			midmsg.len = len;
+			payload = (char *) nng_mqtt_msg_get_publish_payload(mqttmsg, &len);
 
-			dds_writer_handles->mqtt2dds(
-			    cJSON_Parse(midmsg.payload), samples[0]);
-			/* Send the msg received */
-			rc = dds_write(writer, samples[0]);
-			if (rc != DDS_RETCODE_OK)
-				DDS_FATAL(
-				    "dds_write: %s\n", dds_strretcode(-rc));
-			log_dds("[DDS] Publisher sent struct '%s', counter %d",
-				dds_writer_handles->desc->m_typename, ++sent_cnt);
+			// Find the right sub client
+			dds_gateway_topic *dt = find_dds_topic(cli->config, hd->topic);
+			for (size_t i=0; i<cli->nsubwrclis; ++i) {
+				if (0 == strcmp(dt->to, cli->subwrclis[i]->ddssend_topic)) {
+					scli = cli->subwrclis[i];
+				}
+			}
+			if (!scli) {
+				log_dds("no writer found for topic %s", dt->to);
+				break;
+			}
+			dds_subcli_send(scli, payload);
 
 			free(hd->topic);
 			free(hd);
@@ -476,9 +570,6 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 			break;
 		}
 	}
-
-	/* Free the data location. */
-	dds_reader_handles->free(samples[0], DDS_FREE_ALL);
 
 	/* Deleting the participant will delete all its children recursively as
 	 * well. */
