@@ -662,6 +662,7 @@ main()
 	// // tested now.
 	// assert(test_restart());
 	// assert(test_stop());
+	pclose(fd);
 
 	nng_thread_destroy(nmq);
 }
