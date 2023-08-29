@@ -187,8 +187,6 @@ dds_subcli_init(dds_subcli *scli, bool isrd, const char *topic, dds_entity_t par
 	dds_handler_set *dds_handles;
 	dds_entity_t reader, writer;
 
-	pthread_mutex_init(&scli->mtx, NULL);
-
 	if (isrd) {
 		scli->ddsrecv_topic = (char *)topic;
 		scli->ddssend_topic = NULL;
@@ -202,6 +200,7 @@ dds_subcli_init(dds_subcli *scli, bool isrd, const char *topic, dds_entity_t par
 					log_dds("ERROR Invaild structure:%s", tl[i]->struct_name);
 					return -1;
 				}
+				break;
 			}
 		}
 
@@ -244,6 +243,7 @@ dds_subcli_init(dds_subcli *scli, bool isrd, const char *topic, dds_entity_t par
 					log_dds("ERROR Invaild structure:%s", tl[i]->struct_name);
 					return -1;
 				}
+				break;
 			}
 		}
 
@@ -505,6 +505,7 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 		if (status != 0)
 			continue;
 		cli->subwrclis[cli->nsubwrclis++] = scli;
+		log_dds("=== [DDS WRITER] Started {%s}", cli->config->forward.mqtt2dds[i]->to);
 	}
 
 	nng_msg *      mqttmsg;
@@ -549,7 +550,7 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 				}
 			}
 			if (!scli) {
-				log_dds("no writer found for topic %s", dt->to);
+				log_dds("ERROR no writer found for topic %s", dt->to);
 				break;
 			}
 			dds_subcli_send(scli, payload);

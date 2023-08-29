@@ -47,7 +47,6 @@ struct dds_cli {
 
 struct dds_subcli {
 	dds_entity_t    scli;
-	pthread_mutex_t mtx;
 
 	char *ddssend_topic;
 	char *ddsrecv_topic;
