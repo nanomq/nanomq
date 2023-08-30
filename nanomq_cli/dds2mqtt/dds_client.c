@@ -168,7 +168,9 @@ dds_subcli_send(dds_subcli *scli, char *payload)
 	void    *samples[MAX_SAMPLES];
 
 	samples[0] = scli->handles->alloc();
-	scli->handles->mqtt2dds(cJSON_Parse(payload), samples[0]);
+	cJSON *json = cJSON_Parse(payload);
+	scli->handles->mqtt2dds(json, samples[0]);
+	cJSON_Delete(json);
 	/* Send the msg received */
 	rc = dds_write(scli->scli, samples[0]);
 	if (rc != DDS_RETCODE_OK)
