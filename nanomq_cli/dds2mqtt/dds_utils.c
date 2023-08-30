@@ -275,6 +275,10 @@ dds_client_opts_fini(dds_client_opts *opts)
 		nng_strfree(opts->shm_log_level);
 		opts->shm_log_level = NULL;
 	}
+	if (opts->partition) {
+		nng_strfree(opts->partition);
+		opts->partition = NULL;
+	}
 	if (opts->struct_name) {
 		nng_strfree(opts->struct_name);
 		opts->struct_name = NULL;
