@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 
 // #include "dds_mqtt_type_conversion.h"
 #include "dds_utils.h"
@@ -337,6 +338,10 @@ dds_proxy(int argc, char **argv)
 {
 	mqtt_cli mqttcli;
 	dds_cli  ddscli;
+
+#ifdef DEBUG
+	signal(SIGINT, exit);
+#endif
 
 	dds_gateway_conf *config = nng_zalloc(sizeof(dds_gateway_conf));
 
