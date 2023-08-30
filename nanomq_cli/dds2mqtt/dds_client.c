@@ -309,8 +309,20 @@ dds_data_available(dds_entity_t rd, void *arg)
 		log_dds("[DDS] Subscriber received struct '%s', counter %d",
 		    dds_reader_handles->desc->m_typename, ++recv_cnt);
 
+		char *topic = NULL;
+		for (size_t i=0; i<cli->nsubrdclis; ++i) {
+			if (rd == cli->subrdclis[i]->scli) {
+				topic = strdup(cli->subrdclis[i]->ddsrecv_topic);
+				break;
+			}
+		}
+
+		if (topic == NULL) {
+			log_dds("no topic found for dds reader: %d", rd);
+			return;
+		}
+
 		/* Make a handle */
-		char *topic = strdup("A DDS TOPIC NOT I DO NOT KNOW HOW TO GET"); // TODO
 		hd = mk_handle(HANDLE_TO_MQTT, samples[0], 0, topic);
 
 		/* Put msg to handleq */
