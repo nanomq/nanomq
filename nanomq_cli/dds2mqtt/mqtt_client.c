@@ -394,7 +394,7 @@ mqtt_loop(void *arg)
 			dds_handlers->free(ddsmsg, DDS_FREE_ALL);
 			mqttmsg.payload = cJSON_PrintUnformatted(json);
 			mqttmsg.len     = strlen(mqttmsg.payload);
-			cJSON_free(json);
+			cJSON_Delete(json);
 
 			dds_gateway_topic *dt = find_mqtt_topic(conf, hd->topic);
 			if (!dt) {
