@@ -385,17 +385,23 @@ dds_proxy(int argc, char **argv)
 
 	log_dds("[topic forward rules]");
 	log_dds("[dds to mqtt]");
-	for (size_t i=0; i<config->forward.dds2mqtt_sz; ++i)
+	for (size_t i=0; i<config->forward.dds2mqtt_sz; ++i) {
 		log_dds("%s => %s {%s}",
 			config->forward.dds2mqtt[i]->from,
 			config->forward.dds2mqtt[i]->to,
 			config->forward.dds2mqtt[i]->struct_name);
+		if (NULL == dds_get_handler(config->forward.dds2mqtt[i]->struct_name))
+			exit(0);
+	}
 	log_dds("[mqtt to dds]");
-	for (size_t i=0; i<config->forward.mqtt2dds_sz; ++i)
+	for (size_t i=0; i<config->forward.mqtt2dds_sz; ++i) {
 		log_dds("%s => %s {%s}",
 			config->forward.mqtt2dds[i]->from,
 			config->forward.mqtt2dds[i]->to,
 			config->forward.mqtt2dds[i]->struct_name);
+		if (NULL == dds_get_handler(config->forward.mqtt2dds[i]->struct_name))
+			exit(0);
+	}
 
 	dds_client_init(&ddscli, config);
 
@@ -574,6 +580,7 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 			}
 			dds_subcli_send(scli, payload);
 
+			nng_msg_free(mqttmsg);
 			free(hd->topic);
 			free(hd);
 

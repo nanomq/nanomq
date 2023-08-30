@@ -11,6 +11,7 @@
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/io.h"
 #include "dds/ddsrt/heap.h"
+#include "vector.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -334,9 +335,9 @@ dds_get_handler(const char *struct_name)
 			return &dds_struct_handler_map[i].op_set;
 		}
 	}
-	DDS_FATAL(
-	    "Please make sure the struct name is correct and included in "
-	    "the idl file\n");
+	log_dds(
+	    "ERROR Please make sure the struct name (%s) is correct "
+	    "and included in the idl file\n", struct_name);
 	return NULL;
 }
 
