@@ -77,6 +77,7 @@ dds_publisher(int argc, char **argv)
 	writer = dds_create_writer(publisher, topic, qosw, NULL);
 	if (writer < 0)
 		DDS_FATAL("dds_create_writer: %s\n", dds_strretcode(-writer));
+	dds_delete_qos(qosw);
 
 	printf("=== [Publisher]  Waiting for a reader to be discovered ...\n");
 	fflush(stdout);
