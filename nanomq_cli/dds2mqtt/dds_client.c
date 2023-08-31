@@ -228,8 +228,10 @@ dds_subcli_init(dds_subcli *scli, bool isrd, const char *topic, dds_entity_t par
 
 		/* Create the Reader */
 		reader = dds_create_reader(parent, topicr, qosr, listener);
-		if (reader < 0)
+		if (reader < 0) {
 			DDS_FATAL("dds_create_reader: %s\n", dds_strretcode(-reader));
+			return reader;
+		}
 		dds_delete_qos(qosr);
 
 		scli->scli = reader;
@@ -275,6 +277,7 @@ dds_subcli_init(dds_subcli *scli, bool isrd, const char *topic, dds_entity_t par
 			DDS_FATAL("dds_create_writer: %s\n", dds_strretcode(-writer));
 			return writer;
 		}
+		dds_delete_qos(qosw);
 
 		rc = dds_set_status_mask(writer, DDS_PUBLICATION_MATCHED_STATUS);
 		if (rc != DDS_RETCODE_OK) {
