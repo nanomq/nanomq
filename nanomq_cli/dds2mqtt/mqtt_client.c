@@ -397,19 +397,15 @@ mqtt_loop(void *arg)
 			cJSON_Delete(json);
 
 			dds_gateway_topic *dt = find_mqtt_topic(conf, hd->topic);
-			if (!dt) {
-				free(hd->topic);
-				free(hd);
-				break;
+			if (dt) {
+				mqtt_publish(cli, dt->to, 0,
+				    (uint8_t *)mqttmsg.payload, mqttmsg.len);
+				nng_free(mqttmsg.payload, mqttmsg.len);
+				mqttmsg.len = 0;
 			}
-			mqtt_publish(cli, dt->to, 0,
-			    (uint8_t *)mqttmsg.payload, mqttmsg.len);
-			nng_free(mqttmsg.payload, mqttmsg.len);
-			mqttmsg.len = 0;
 
 			free(hd->topic);
 			free(hd);
-
 			break;
 		default:
 			log_dds("Unsupported handle type.\n");
