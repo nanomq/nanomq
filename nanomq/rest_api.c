@@ -1205,6 +1205,7 @@ post_rules(http_msg *msg)
 			    .rule_id = rule_generate_rule_id();
 			
 
+#if defined(NNG_SUPP_SQLITE)
 		} else if (!strcasecmp(name, "sqlite")) {
 			cr->option |= RULE_ENG_SDB;
 			cJSON_ArrayForEach(jso_param, jso_params) {
@@ -1225,6 +1226,9 @@ post_rules(http_msg *msg)
 					}
 				}
 			}
+#endif
+
+#if defined(SUPP_MYSQL)
 		} else if (!strcasecmp(name, "mysql")) {
 			cr->option |= RULE_ENG_MDB;
 			rule_mysql *mysql = rule_mysql_init();
@@ -1277,8 +1281,7 @@ post_rules(http_msg *msg)
 				return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 				    MISSING_KEY_REQUEST_PARAMES);
 			}
-
-
+#endif
 		} else {
 			log_debug("Unsupport forword type !");
 		}
@@ -1538,7 +1541,9 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 				nano_client(sock, new_rule->repub);
 			} else if (RULE_FORWORD_SQLITE == new_rule->forword_type)
 			{
+#if defined(NNG_SUPP_SQLITE)
 				nanomq_client_sqlite(cr, true);
+#endif
 			}
 			
 		} else if (jso_enabled && false == new_rule->enabled) {
@@ -1558,7 +1563,9 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 			nano_client(sock, new_rule->repub);
 		} else if (RULE_FORWORD_SQLITE == new_rule->forword_type)
 		{
+#if defined(NNG_SUPP_SQLITE)
 			nanomq_client_sqlite(cr, true);
+#endif
 		}
 		
 	} else if (jso_enabled && false == new_rule->enabled) {

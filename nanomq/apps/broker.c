@@ -814,15 +814,21 @@ broker(conf *nanomq_conf)
 	// add the num of other proto
 	uint64_t num_ctx = nanomq_conf->parallel;
 
+
 #if defined(SUPP_RULE_ENGINE)
 	conf_rule *cr = &nanomq_conf->rule_eng;
+
+#if defined(NNG_SUPP_SQLITE)
 	if (cr->option & RULE_ENG_SDB) {
 		nanomq_client_sqlite(cr, false);
 	}
+#endif
 
+#if defined(SUPP_MYSQL)
 	if (cr->option & RULE_ENG_MDB) {
 		nanomq_client_mysql(cr, false);
 	}
+#endif
 
 #if defined(FDB_SUPPORT)
 	if (cr->option & RULE_ENG_FDB) {

@@ -20,6 +20,7 @@ option (BUILD_ZMQ_GATEWAY "Build zmq gateway" OFF)
 option (BUILD_BENCH "Build nano-bench" OFF)
 option (ENABLE_JWT "Enable jwt library" OFF)
 option (ENABLE_RULE_ENGINE "Enable rule engine" OFF)
+option (ENABLE_MYSQL "Enable MYSQL" OFF)
 option (ENABLE_AWS_BRIDGE "Enable aws bridge" OFF)
 option (ENABLE_SYSLOG "Enable syslog" ON)
 option (NOLOG "Disable log" OFF)
@@ -248,6 +249,11 @@ if (ENABLE_RULE_ENGINE)
   ## )
 
 endif (ENABLE_RULE_ENGINE)
+
+if (ENABLE_MYSQL)
+  add_definitions(-DSUPP_MYSQL)
+endif (ENABLE_MYSQL)
+
 
 add_subdirectory(nng)
 add_subdirectory(nanomq)
