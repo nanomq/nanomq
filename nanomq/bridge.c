@@ -824,6 +824,80 @@ bridge_quic_disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 }
 
 static int
+bridge_quic_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge_param *bridge_arg)
+{
+	int           rv;
+	nng_dialer    dialer;
+
+	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
+		if ((rv = nng_mqttv5_client_open(sock)) != 0) {
+			nng_fatal("nng_mqttv5_client_open", rv);
+			return rv;
+		}
+	} else {
+		if ((rv = nng_mqtt_quic_client_open(sock)) != 0) {
+			nng_fatal("nng_mqtt_client_open", rv);
+			return rv;
+		}
+	}
+
+	apply_sqlite_config(sock, node, "mqtt_quic_client.db");
+
+	if ((rv = nng_dialer_create(&dialer, *sock, node->address))) {
+		nng_fatal("nng_dialer_create", rv);
+		return rv;
+	}
+	// set backoff param to 24s
+	nng_duration duration = 240000;
+	nng_dialer_set(dialer, NNG_OPT_MQTT_RECONNECT_BACKOFF_MAX, &duration, sizeof(nng_duration));
+
+	bridge_arg->client->sock = *sock;
+
+	// create a CONNECT message
+	nng_msg *connmsg = create_connect_msg(node);
+	bridge_arg->connmsg = connmsg;
+
+	// TCP bridge does not support hot update of connmsg
+	if (0 != nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg)) {
+		log_warn("Error in updating connmsg");
+	}
+	if (0 != nng_socket_set_ptr(*sock, NNG_OPT_MQTT_CONNMSG, connmsg)) {
+		log_warn("Error in updating connmsg");
+	}
+	nng_mqtt_set_connect_cb(*sock, NULL, NULL);
+	nng_mqtt_set_disconnect_cb(*sock, bridge_tcp_disconnect_cb, bridge_arg);
+	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
+
+	if (bridge_arg->config->sub_count > 0) {
+		nng_mqtt_topic_qos *topic_qos =
+		    nng_mqtt_topic_qos_array_create(
+		        bridge_arg->config->sub_count);
+		for (size_t i = 0; i < bridge_arg->config->sub_count; i++) {
+			nng_mqtt_topic_qos_array_set(topic_qos, i,
+			    bridge_arg->config->sub_list[i]->topic,
+			    bridge_arg->config->sub_list[i]->qos, 1, 0, 0);
+			log_info("Bridge client subscribed topic %s (qos %d).",
+			    bridge_arg->config->sub_list[i]->topic,
+			    bridge_arg->config->sub_list[i]->qos);
+		}
+		nng_mqtt_client *client = bridge_arg->client;
+
+		// Property
+		property *properties = NULL;
+		if (bridge_arg->config->proto_ver ==
+		    MQTT_PROTOCOL_VERSION_v5) {
+			properties =
+			    sub_property(bridge_arg->config->sub_properties);
+		}
+		nng_mqtt_subscribe_async(client, topic_qos,
+		    bridge_arg->config->sub_count, properties);
+		nng_mqtt_topic_qos_array_free(
+		    topic_qos, bridge_arg->config->sub_count);
+	}
+	return 0;
+}
+
+static int
 bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge_param *bridge_arg)
 {
 	int           rv;
@@ -1296,8 +1370,8 @@ bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 #if defined(SUPP_QUIC)
 	} else if (0 ==
 	    strncmp(node->address, quic_scheme, strlen(quic_scheme))) {
-		log_error("Hot update quic bridge is not supported yet.");
-		return -2;
+		log_error("Hot update quic bridge is testing.");
+		// return -2;
 #endif
 	} else {
 		log_error("Unsupported bridge protocol.\n");
@@ -1336,8 +1410,7 @@ bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 #if defined(SUPP_QUIC)
 	} else if (0 ==
 	    strncmp(node->address, quic_scheme, strlen(quic_scheme))) {
-		log_error("Bridging reload of QUIC is not supported");
-		// bridge_quic_client(sock, config, node, bridge_arg);
+		bridge_quic_reload(new, config, node, bridge_arg);
 #endif
 	} else {
 		log_error("Unsupported bridge protocol.\n");
