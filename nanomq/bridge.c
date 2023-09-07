@@ -1370,8 +1370,7 @@ bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 #if defined(SUPP_QUIC)
 	} else if (0 ==
 	    strncmp(node->address, quic_scheme, strlen(quic_scheme))) {
-		log_error("Hot update quic bridge is testing.");
-		// return -2;
+		log_info("Hot update quic bridge is an experimental function so far.");
 #endif
 	} else {
 		log_error("Unsupported bridge protocol.\n");
