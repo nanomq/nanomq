@@ -1391,13 +1391,10 @@ bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 
 	// Hold on until the last sending done
 	nng_aio_wait(client->send_aio);
-	nng_aio_set_msg(client->send_aio, dismsg);
 
-	nng_aio_set_timeout(client->send_aio, 1000);
-	nng_send_aio(*sock, client->send_aio);
-	log_info("bridge send disconnect to broker");
 	// Wait for the disconnect msg be sent
-	// nng_aio_wait(client->send_aio);
+	nng_sendmsg(*sock, dismsg, NNG_FLAG_ALLOC);
+	log_info("bridge sent disconnect to broker");
 
 	nng_mtx_lock(reload_lock);
 	node->enable = false;
