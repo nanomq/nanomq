@@ -110,6 +110,7 @@ create_connect_msg(conf_bridge_node *node)
 			    connmsg, will_properties);
 		}
 	}
+	nng_mqtt_msg_encode(connmsg);
 	return connmsg;
 }
 
