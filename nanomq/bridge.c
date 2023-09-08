@@ -871,32 +871,6 @@ bridge_quic_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 	nng_mqtt_set_disconnect_cb(*sock, bridge_quic_disconnect_cb, bridge_arg);
 	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
 
-	if (bridge_arg->config->sub_count > 0) {
-		nng_mqtt_topic_qos *topic_qos =
-		    nng_mqtt_topic_qos_array_create(
-		        bridge_arg->config->sub_count);
-		for (size_t i = 0; i < bridge_arg->config->sub_count; i++) {
-			nng_mqtt_topic_qos_array_set(topic_qos, i,
-			    bridge_arg->config->sub_list[i]->topic,
-			    bridge_arg->config->sub_list[i]->qos, 1, 0, 0);
-			log_info("Bridge client subscribed topic %s (qos %d).",
-			    bridge_arg->config->sub_list[i]->topic,
-			    bridge_arg->config->sub_list[i]->qos);
-		}
-		nng_mqtt_client *client = bridge_arg->client;
-
-		// Property
-		property *properties = NULL;
-		if (bridge_arg->config->proto_ver ==
-		    MQTT_PROTOCOL_VERSION_v5) {
-			properties =
-			    sub_property(bridge_arg->config->sub_properties);
-		}
-		nng_mqtt_subscribe_async(client, topic_qos,
-		    bridge_arg->config->sub_count, properties);
-		nng_mqtt_topic_qos_array_free(
-		    topic_qos, bridge_arg->config->sub_count);
-	}
 	return 0;
 }
 
