@@ -537,7 +537,7 @@ help(enum client_type type)
 #if defined(NNG_SUPP_TLS)
 	console("  -s, --secure                     Enable TLS/SSL mode\n");
 	console(
-	    "      --cacert <file>              CA certificates file path\n");
+	        "      --cafile <file>              CA certificates file path\n");
 	console("      -E, --cert <file>            Certificate file path\n");
 	console("      --key <file>                 Private key file path\n");
 	console("      --keypass <key password>     Private key password\n");
@@ -725,7 +725,7 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 			break;
 		case OPT_CACERT:
 			ASSERT_NULL(opt->cacert,
-			    "CA Certificate (--cacert) may be "
+			    "CA Certificate (--cafile) may be "
 			    "specified only once.");
 			loadfile(
 			    arg, (void **) &opt->cacert, &opt->cacert_len);
