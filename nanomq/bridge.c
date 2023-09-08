@@ -858,6 +858,8 @@ bridge_quic_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 	nng_msg *connmsg = create_connect_msg(node);
 	bridge_arg->connmsg = connmsg;
 
+	execone = 1;
+
 	// TCP bridge does not support hot update of connmsg
 	if (0 != nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg)) {
 		log_warn("Error in updating connmsg");
@@ -865,8 +867,8 @@ bridge_quic_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 	if (0 != nng_socket_set_ptr(*sock, NNG_OPT_MQTT_CONNMSG, connmsg)) {
 		log_warn("Error in updating connmsg");
 	}
-	nng_mqtt_set_connect_cb(*sock, NULL, NULL);
-	nng_mqtt_set_disconnect_cb(*sock, bridge_tcp_disconnect_cb, bridge_arg);
+	nng_mqtt_set_connect_cb(*sock, bridge_quic_connect_cb, bridge_arg);
+	nng_mqtt_set_disconnect_cb(*sock, bridge_quic_disconnect_cb, bridge_arg);
 	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
 
 	if (bridge_arg->config->sub_count > 0) {
