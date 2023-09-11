@@ -695,14 +695,21 @@ quic_ack_cb(void *arg)
 			for (size_t i = 0; i < param->config->sub_count; i++) {
 				nng_mqtt_topic_qos *topic_qos =
 				    nng_mqtt_topic_qos_array_create(1);
-				nng_mqtt_topic_qos_array_set(topic_qos, 0,
+				nng_mqtt_topic_qos_array_set(topic_qos, i,
 				    param->config->sub_list[i]->topic,
-				    param->config->sub_list[i]->qos, 1, 0, 0);
-				log_info("Quic bridge client subscribe to "
-				         "topic (QoS "
-				         "%d)%s.",
+				    param->config->sub_list[i]->qos, 1,
+				    param->config->sub_list[i]
+				        ->retain_as_published,
+				    param->config->sub_list[i]
+				        ->retain_handling);
+				log_info("Bridge client subscribed topic %s "
+				         "(qos %d rap %d rh %d).",
+				    param->config->sub_list[i]->topic,
 				    param->config->sub_list[i]->qos,
-				    param->config->sub_list[i]->topic);
+				    param->config->sub_list[i]
+				        ->retain_as_published,
+				    param->config->sub_list[i]
+				        ->retain_handling);
 
 				property *properties = NULL;
 				if (param->config->proto_ver ==
@@ -721,11 +728,19 @@ quic_ack_cb(void *arg)
 			for (size_t i = 0; i < param->config->sub_count; i++) {
 				nng_mqtt_topic_qos_array_set(topic_qos, i,
 				    param->config->sub_list[i]->topic,
-				    param->config->sub_list[i]->qos, 1, 0, 0);
-				log_info("Quic bridge client subscribed topic "
-				         "(q%d)%s.",
+				    param->config->sub_list[i]->qos, 1,
+				    param->config->sub_list[i]
+				        ->retain_as_published,
+				    param->config->sub_list[i]
+				        ->retain_handling);
+				log_info("Bridge client subscribed topic %s "
+				         "(qos %d rap %d rh %d).",
+				    param->config->sub_list[i]->topic,
 				    param->config->sub_list[i]->qos,
-				    param->config->sub_list[i]->topic);
+				    param->config->sub_list[i]
+				        ->retain_as_published,
+				    param->config->sub_list[i]
+				        ->retain_handling);
 			}
 			property *properties = NULL;
 			if (param->config->proto_ver ==
@@ -948,10 +963,14 @@ bridge_tcp_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 		for (size_t i = 0; i < param->config->sub_count; i++) {
 			nng_mqtt_topic_qos_array_set(topic_qos, i,
 			    param->config->sub_list[i]->topic,
-			    param->config->sub_list[i]->qos, 1, 0, 0);
-			log_info("Bridge client subscribed topic %s (qos %d).",
+			    param->config->sub_list[i]->qos, 1,
+			    param->config->sub_list[i]->retain_as_published,
+			    param->config->sub_list[i]->retain_handling);
+			log_info("Bridge client subscribed topic %s (qos %d rap %d rh %d).",
 			    param->config->sub_list[i]->topic,
-			    param->config->sub_list[i]->qos);
+			    param->config->sub_list[i]->qos,
+				param->config->sub_list[i]->retain_as_published,
+				param->config->sub_list[i]->retain_handling);
 		}
 		nng_mqtt_client *client = param->client;
 
@@ -1051,10 +1070,14 @@ bridge_tcp_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 		for (size_t i = 0; i < bridge_arg->config->sub_count; i++) {
 			nng_mqtt_topic_qos_array_set(topic_qos, i,
 			    bridge_arg->config->sub_list[i]->topic,
-			    bridge_arg->config->sub_list[i]->qos, 1, 0, 0);
-			log_info("Bridge client subscribed topic %s (qos %d).",
+			    bridge_arg->config->sub_list[i]->qos, 1,
+			    bridge_arg->config->sub_list[i]->retain_as_published,
+			    bridge_arg->config->sub_list[i]->retain_handling);
+			log_info("Bridge client subscribed topic %s (qos %d rap %d rh %d).",
 			    bridge_arg->config->sub_list[i]->topic,
-			    bridge_arg->config->sub_list[i]->qos);
+			    bridge_arg->config->sub_list[i]->qos,
+				bridge_arg->config->sub_list[i]->retain_as_published,
+				bridge_arg->config->sub_list[i]->retain_handling);
 		}
 		nng_mqtt_client *client = bridge_arg->client;
 
