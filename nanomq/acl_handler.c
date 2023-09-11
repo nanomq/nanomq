@@ -46,7 +46,10 @@ auth_acl(conf *config, acl_action_type act_type, conn_param *param,
 			match = match_rule_content_str(&rule->rule_ct.ct,
 			    (const char *) conn_param_get_clientid(param));
 			break;
-
+		case ACL_IPADDR:
+			match = match_rule_content_str(&rule->rule_ct.ct,
+			    (const char *) conn_param_get_ip_addr_v4(param));
+			break;
 		case ACL_AND:
 			for (size_t j = 0; j < rule->rule_ct.array.count;
 			     j++) {
@@ -75,9 +78,16 @@ auth_acl(conf *config, acl_action_type act_type, conn_param *param,
 					}
 					break;
 
-					// TODO Not supported yet
-					// case ACL_IPADDR:
-					// 	break;
+				case ACL_IPADDR:
+					if (!match_rule_content_str(
+					        &sub_rule->rule_ct,
+					        (const char *)
+					            conn_param_get_ip_addr_v4(
+					                param))) {
+						sub_match = false;
+						break;
+					}
+					break;
 
 				default:
 					break;
@@ -113,9 +123,13 @@ auth_acl(conf *config, acl_action_type act_type, conn_param *param,
 					            param));
 					break;
 
-					// TODO Not supported yet
-					// case ACL_IPADDR:
-					// 	break;
+				case ACL_IPADDR:
+					match |= match_rule_content_str(
+					    &sub_rule->rule_ct,
+					    (const char *)
+					        conn_param_get_ip_addr_v4(
+					            param));
+					break;
 
 				default:
 					break;
@@ -125,10 +139,6 @@ auth_acl(conf *config, acl_action_type act_type, conn_param *param,
 				}
 			}
 			break;
-
-			// TODO Not supported yet
-			// case ACL_IPADDR:
-			// 	break;
 
 		case ACL_NONE:
 			match = true;
