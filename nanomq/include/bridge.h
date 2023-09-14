@@ -7,6 +7,8 @@
 #include "nng/supplemental/util/platform.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include "broker.h"
+#include "pub_handler.h"
 
 typedef struct {
 	nng_socket       *sock;
@@ -25,6 +27,7 @@ extern int  bridge_client(
      nng_socket *sock, conf *config, conf_bridge_node *bridge_conf);
 extern int hybrid_bridge_client(
     nng_socket *sock, conf *config, conf_bridge_node *node);
+extern int bridge_handle_sub_reflection(nano_work *work, conf_bridge *bridge, char *topic, int *len);
 extern nng_msg *bridge_publish_msg(const char *topic, uint8_t *payload,
     uint32_t len, bool dup, uint8_t qos, bool retain, property *props);
 
