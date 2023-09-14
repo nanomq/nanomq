@@ -1095,6 +1095,14 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 
 	topic        = work->pub_packet->var_header.publish.topic_name.body;
 	uint32_t len = work->pub_packet->var_header.publish.topic_name.len;
+
+	if (work->proto == PROTO_MQTT_BRIDGE) {
+#if defined(SUPP_AWS_BRIDGE)
+		(void)bridge_handle_sub_reflection(work, &work->config->aws_bridge, topic, &len);
+#endif
+		(void)bridge_handle_sub_reflection(work, &work->config->bridge, topic, &len);
+	}
+
 	// deal with topic alias
 	if (proto == MQTT_PROTOCOL_VERSION_v5) {
 		property_data *pdata = property_get_value(
