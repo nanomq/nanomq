@@ -36,14 +36,28 @@ bridges.mqtt.name {
 	## 	certfile = "/etc/certs/cert.pem"
 	## 	cacertfile = "/etc/certs/cacert.pem"
 	## }
-	forwards = ["forward1/#","forward2/#"]
-	subscription = [
+	forwards = [
 		{
-			topic = "recv/topic1"
+			remote_topic = "fwd/topic1"
+			local_topic = "local/topic1"
 			qos = 1
 		},
 		{
-			topic = "recv/topic2"
+			remote_topic = "fwd/topic2"
+			local_topic = "local/topic2"
+			qos = 2
+		}
+	]
+
+	subscription = [
+		{
+			remote_topic = "recv/topic1"
+			local_topic = "local/topic1"
+			qos = 1
+		},
+		{
+			remote_topic = "recv/topic2"
+			local_topic = "local/topic2"
 			qos = 2
 		}
 	]
@@ -67,8 +81,10 @@ bridge.mqtt.emqx.address=mqtt-tcp://your_server_address:port
 bridge.mqtt.emqx.proto_ver=4
 bridge.mqtt.emqx.clientid=bridge_client
 bridge.mqtt.emqx.clean_start=false
-bridge.mqtt.emqx.forwards=topic1/#,topic2/#
-bridge.mqtt.emqx.subscription.1.topic=cmd/topic1
+bridge.mqtt.emqx.forwards.1.remote_topic=fwd/topic1
+bridge.mqtt.emqx.forwards.1.local_topic=local/topic1
+bridge.mqtt.emqx.subscription.1.remote_topic=cmd/topic1
+bridge.mqtt.emqx.subscription.1.local_topic=local/topic1
 bridge.mqtt.emqx.subscription.1.qos=1
 bridge.mqtt.emqx.parallel=2
 bridge.mqtt.emqx.max_send_queue_len=32
