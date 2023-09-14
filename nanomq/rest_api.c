@@ -3358,10 +3358,15 @@ free_topic_list(topics **list, size_t count)
 {
 	if (list && count > 0) {
 		for (size_t i = 0; i < count; i++) {
-			if (list[i]->topic) {
-				nng_free(list[i]->topic, list[i]->topic_len);
-				list[i]->topic = NULL;
+			if (list[i]->remote_topic) {
+				nng_free(list[i]->remote_topic, list[i]->remote_topic_len);
+				list[i]->remote_topic = NULL;
 			}
+			if (list[i]->local_topic) {
+				nng_free(list[i]->local_topic, list[i]->local_topic_len);
+				list[i]->local_topic = NULL;
+			}
+
 			nng_free(list[i], sizeof(topics));
 		}
 		cvector_free(list);
@@ -3390,7 +3395,7 @@ convert_topic_qos(topics **list, size_t count)
 	nng_mqtt_topic_qos *topics = nng_mqtt_topic_qos_array_create(count);
 	for (size_t i = 0; i < count; i++) {
 		nng_mqtt_topic_qos_array_set(
-		    topics, i, list[i]->topic, list[i]->qos, 1, 0, 0);
+		    topics, i, list[i]->remote_topic, list[i]->qos, 1, 0, 0);
 	}
 	return topics;
 }
@@ -3446,8 +3451,8 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 		char *topic = NULL;
 		getStringValue(sub_item, item, "topic", topic, rv);
 		if (rv == 0) {
-			tp->topic     = nng_strdup(topic);
-			tp->topic_len = strlen(tp->topic);
+			tp->remote_topic     = nng_strdup(topic);
+			tp->remote_topic_len = strlen(tp->remote_topic);
 		} else {
 			continue;
 		}
@@ -3669,12 +3674,12 @@ post_mqtt_bridge_unsub(http_msg *msg, const char *name)
 			for (size_t j = 0; j < node->sub_count; j++) {
 				topics *sub_topic = node->sub_list[j];
 				if (strcmp(unsub_topic,
-				        sub_topic->topic) == 0) {
+				        sub_topic->remote_topic) == 0) {
 
 					cvector_erase(node->sub_list, j);
 					node->sub_count--;
-					nng_free(sub_topic->topic,
-					    sub_topic->topic_len);
+					nng_free(sub_topic->remote_topic,
+					    sub_topic->remote_topic_len);
 					nng_free(sub_topic, sizeof(topics));
 					break;
 				}
