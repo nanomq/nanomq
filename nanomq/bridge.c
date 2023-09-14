@@ -127,6 +127,39 @@ create_disconnect_msg()
 	return msg;
 }
 
+int
+bridge_handle_sub_reflection(nano_work *work, conf_bridge *bridge, char *topic, int *len)
+{
+	for (size_t t = 0; t < bridge->count; t++) {
+		conf_bridge_node *node = bridge->nodes[t];
+		if (node->enable) {
+			for (size_t i = 0; i < node->sub_count; i++) {
+				if (topic != NULL && node->sub_list[i]->remote_topic != NULL) {
+					if (strncmp(topic, node->sub_list[i]->remote_topic, *len) == 0) {
+						topics *sub_topic = node->sub_list[i];
+						/* release old topic area */
+						nng_free(topic, strlen(topic));
+
+						char *local_topic = nng_alloc(sub_topic->local_topic_len + 1);
+						memset(local_topic, 0, sub_topic->local_topic_len + 1);
+
+						strncpy(local_topic, sub_topic->local_topic, sub_topic->local_topic_len);
+
+						work->pub_packet->var_header.publish.topic_name.body = local_topic;
+						work->pub_packet->var_header.publish.topic_name.len = sub_topic->local_topic_len;
+
+						topic = work->pub_packet->var_header.publish.topic_name.body;
+						*len = work->pub_packet->var_header.publish.topic_name.len;
+
+						return 0;
+					}
+				}
+			}
+		}
+	}
+	return -1;
+}
+
 nng_msg *
 bridge_publish_msg(const char *topic, uint8_t *payload, uint32_t len, bool dup,
     uint8_t qos, bool retain, property *props)
