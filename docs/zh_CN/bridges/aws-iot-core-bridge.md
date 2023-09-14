@@ -110,14 +110,26 @@ bridges.aws.c1 {
 	# # available.
 	cacertfile = "/etc/certs/cacert.pem"
 	}
-	forwards = ["topic1/#", "topic2/#"]
+	forwards = [
+		{
+			remote_topic = "fwd/topic1"
+			local_topic = "local/topic1"
+		},
+		{
+			remote_topic = "fwd/topic2"
+			local_topic = "local/topic2"
+		}
+	]
+
 	subscription = [
 		{
-			topic = "cmd/topic1"
+			remote_topic = "cmd/topic1"
+			local_topic = "local/topic1"
 			qos = 1
 		},
 		{
-			topic = "cmd/topic2"
+			remote_topic = "cmd/topic2"
+			local_topic = "local/topic2"
 			qos = 2
 		}
 	]
@@ -141,8 +153,10 @@ aws.bridge.mqtt.aws.bridge_mode=true
 aws.bridge.mqtt.aws.clientid=aws_bridge_client
 aws.bridge.mqtt.aws.keepalive=60
 aws.bridge.mqtt.aws.clean_start=true
-aws.bridge.mqtt.aws.forwards=topic_1
-aws.bridge.mqtt.aws.subscription.1.topic=cmd/topic1
+aws.bridge.mqtt.aws.forwards.1.remote_topic=fwd/topic_1
+aws.bridge.mqtt.aws.forwards.1.local_topic=local/topic_1
+aws.bridge.mqtt.aws.subscription.1.remote_topic=cmd/topic1
+aws.bridge.mqtt.aws.subscription.1.local_topic=local/topic1
 aws.bridge.mqtt.aws.subscription.1.qos=1
 aws.bridge.mqtt.aws.parallel=2
 aws.bridge.mqtt.aws.tls.enable=true
@@ -169,8 +183,10 @@ aws.bridge.mqtt.aws.tls.fail_if_no_peer_cert=false
 - `aws.bridge.mqtt.aws.host`：远端 AWS IoT Core 服务URL，需从 AWS IoT Core Dashboard 获取。
 - `aws.bridge.mqtt.aws.clientid`：桥接客户端的标识符，需要与安全性策略中的 ` iot:Connect`  里规定的 client 相匹配。
 - 当你在 NanoMQ 中设置发布/订阅的 Topic 和 QoS 时，要确保它们与你在 AWS IoT 安全策略中设定的 `iot:Subscribe`，`iot:Publish`，`iot:Receive`，`iot:RetainPublish` 一致。否则，可能会因为权限不匹配，而导致消息不能正常发送或接收，相关配置项如下：
-  - 发布主题：`aws.bridge.mqtt.aws.forwards`
-  - 订阅主题：`aws.bridge.mqtt.aws.subscription.1.topic`
+  - 发布主题：`aws.bridge.mqtt.aws.forwards.1.remote_topic`
+  - 远端主题对应的本地主题：`aws.bridge.mqtt.aws.forwards.1.local_topic`
+  - 订阅主题：`aws.bridge.mqtt.aws.subscription.1.remote_topic`
+  - 远端主题对应的本地主题：`aws.bridge.mqtt.aws.subscription.1.local_topic`
   - 消息 QoS：`aws.bridge.mqtt.aws.subscription.1.qos`
 
 - 当你在 NanoMQ 中配置 SSL/TLS 证书时，需要保证这些证书文件与在 AWS IoT Core Dashboard 中创建的物品类型所需要的证书相匹配，相关配置项如下：
