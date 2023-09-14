@@ -113,14 +113,26 @@ bridges.aws.c1 {
 	# # available.
 	cacertfile = "/etc/certs/cacert.pem"
 	}
-	forwards = ["topic1/#", "topic2/#"]
+	forwards = [
+		{
+			remote_topic = "fwd/topic1"
+			local_topic = "local/topic1"
+		},
+		{
+			remote_topic = "fwd/topic2"
+			local_topic = "local/topic2"
+		}
+	]
+
 	subscription = [
 		{
-			topic = "cmd/topic1"
+			remote_topic = "cmd/topic1"
+			local_topic = "local/topic1"
 			qos = 1
 		},
 		{
-			topic = "cmd/topic2"
+			remote_topic = "cmd/topic2"
+			local_topic = "local/topic2"
 			qos = 2
 		}
 	]
@@ -144,9 +156,10 @@ aws.bridge.mqtt.aws.bridge_mode=true
 aws.bridge.mqtt.aws.clientid=aws_bridge_client
 aws.bridge.mqtt.aws.keepalive=60
 aws.bridge.mqtt.aws.clean_start=true
-aws.bridge.mqtt.aws.forwards=topic_1
-aws.bridge.mqtt.aws.subscription.1.topic=cmd/topic1
-aws.bridge.mqtt.aws.subscription.1.qos=1
+aws.bridge.mqtt.aws.forwards.1.remote_topic=fwd/topic_1
+aws.bridge.mqtt.aws.forwards.1.local_topic=local/topic_1
+aws.bridge.mqtt.aws.subscription.1.remote_topic=cmd/topic1
+aws.bridge.mqtt.aws.subscription.1.local_topic=local/topic1
 aws.bridge.mqtt.aws.parallel=2
 aws.bridge.mqtt.aws.tls.enable=true
 ## aws.bridge.mqtt.aws.tls.key_password=yourpass
@@ -177,8 +190,10 @@ Unlike standard MQTT Broker, SSL/TLS is compulsory in AWS IoT Core, Client's Cer
   
   Related configuration items:
   
-  - Publishing Topics：`aws.bridge.mqtt.aws.forwards`
-  - Subscription Topics：`aws.bridge.mqtt.aws.subscription.1.topic`
+  - Publishing Topics：`aws.bridge.mqtt.aws.forwards.1.remote_topic`
+  - Publishing Topics(local topic with reflection)：`aws.bridge.mqtt.aws.forwards.1.local_topic`
+  - Subscription Topics：`aws.bridge.mqtt.aws.subscription.1.remote_topic`
+  - Subscription Topics(local topic with reflection)：`aws.bridge.mqtt.aws.subscription.1.local_topic`
   - Message QoS：`aws.bridge.mqtt.aws.subscription.1.qos`
   
 - When you configure SSL/TLS certificates in NanoMQ, you need to ensure that these certificate files match the certificates required for the type of item created in the AWS IoT Core Dashboard. Related configuration items:
