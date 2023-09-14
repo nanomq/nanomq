@@ -281,7 +281,7 @@ handle_recv_publish(MQTTPublishInfo_t *pub_info, uint16_t packet_id,
 	nng_mqtt_msg_set_publish_qos(pub_msg, pub_info->qos);
 	nng_mqtt_msg_set_publish_retain(pub_msg, pub_info->retain);
 	nng_mqtt_msg_set_publish_topic(pub_msg, pub_info->pTopicName);
-	nni_mqtt_msg_set_publish_topic_len(pub_msg, pub_info->topicNameLength);
+	nng_mqtt_msg_set_publish_topic_len(pub_msg, pub_info->topicNameLength);
 
 	nng_msg *msg = NULL;
 	if ((rv = encode_common_mqtt_msg(
