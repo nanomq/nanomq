@@ -158,7 +158,6 @@ intHandler(int dummy)
 static inline bool
 bridge_handler(nano_work *work)
 {
-	nng_msg  *smsg;
 	bool      rv    = false;
 	property *props = NULL;
 	uint32_t  index = work->ctx.id - 1;
@@ -168,23 +167,33 @@ bridge_handler(nano_work *work)
 		    &props, work->pub_packet->var_header.publish.properties);
 	}
 
-	smsg = bridge_publish_msg(
-	    work->pub_packet->var_header.publish.topic_name.body,
-	    work->pub_packet->payload.data, work->pub_packet->payload.len,
-	    work->pub_packet->fixed_header.dup,
-	    work->pub_packet->fixed_header.qos,
-	    work->pub_packet->fixed_header.retain, props);
-
 	for (size_t t = 0; t < work->config->bridge.count; t++) {
 		conf_bridge_node *node = work->config->bridge.nodes[t];
 		nng_mtx_lock(node->mtx);
 		if (node->enable) {
 			for (size_t i = 0; i < node->forwards_count; i++) {
-				if (topic_filter(node->forwards[i],
+				if (topic_filter(node->forwards_list[i]->local_topic,
 				        work->pub_packet->var_header.publish
 				            .topic_name.body)) {
 					work->state = SEND;
-					nng_msg_clone(smsg);
+
+					nng_msg *bridge_msg = NULL;
+					bridge_msg = bridge_publish_msg(
+						    node->forwards_list[i]->remote_topic,
+						    work->pub_packet->payload.data, work->pub_packet->payload.len,
+						    work->pub_packet->fixed_header.dup,
+						    work->pub_packet->fixed_header.qos,
+						    work->pub_packet->fixed_header.retain, NULL);
+					if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
+						mqtt_property_dup(
+						    &props, work->pub_packet->var_header.publish.properties);
+					}
+
+					work->proto_ver == MQTT_PROTOCOL_VERSION_v5
+					    ? nng_mqttv5_msg_encode(bridge_msg)
+					    : nng_mqtt_msg_encode(bridge_msg);
+
+
 					nng_socket *socket = node->sock;
 
 					// what if send qos msg failed?
@@ -192,7 +201,7 @@ bridge_handler(nano_work *work)
 					// and close the pipe
 					if (nng_aio_busy(
 					        node->bridge_aio[index])) {
-						nng_msg_free(smsg);
+						nng_msg_free(bridge_msg);
 						log_info(
 						    "bridging to %s aio busy! "
 						    "msg lost! Ctx: %d",
@@ -201,7 +210,7 @@ bridge_handler(nano_work *work)
 						nng_aio_set_timeout(node->bridge_aio[index],
 						    3000);
 						nng_aio_set_msg(node->bridge_aio[index],
-						    smsg);
+						    bridge_msg);
 						nng_send_aio(*socket, node->bridge_aio[index]);
 					}
 					rv = true;
@@ -210,12 +219,6 @@ bridge_handler(nano_work *work)
 		}
 		nng_mtx_unlock(node->mtx);
 	}
-	if (!rv) {
-		work->proto_ver == MQTT_PROTOCOL_VERSION_v5
-		    ? nng_mqttv5_msg_encode(smsg)
-		    : nng_mqtt_msg_encode(smsg);
-	}
-	nng_msg_free(smsg);
 
 	return rv;
 }
