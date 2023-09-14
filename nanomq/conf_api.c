@@ -357,19 +357,26 @@ get_bridge_config(conf_bridge *bridge, const char *node_name)
 
 		cJSON_AddItemToObject(node_obj, "connector", connector);
 
-		cJSON *pub_topics = cJSON_CreateArray();
-		for (size_t i = 0; i < node->forwards_count; i++) {
-			cJSON *topic = cJSON_CreateString(node->forwards[i]);
-			cJSON_AddItemToArray(pub_topics, topic);
+		cJSON *pub_infos = cJSON_CreateArray();
+		for (size_t j = 0; j < node->forwards_count; j++) {
+			cJSON * pub_obj = cJSON_CreateObject();
+			topics *pub     = node->forwards_list[j];
+			cJSON_AddStringOrNullToObject(
+				pub_obj, "remote_topic", pub->remote_topic);
+			cJSON_AddStringOrNullToObject(
+				pub_obj, "local_topic", pub->local_topic);
+			cJSON_AddItemToArray(pub_infos, pub_obj);
 		}
-		cJSON_AddItemToObject(node_obj, "forwards", pub_topics);
+		cJSON_AddItemToObject(node_obj, "forwards", pub_infos);
 
 		cJSON *sub_infos = cJSON_CreateArray();
 		for (size_t j = 0; j < node->sub_count; j++) {
 			cJSON * sub_obj = cJSON_CreateObject();
 			topics *sub     = node->sub_list[j];
 			cJSON_AddStringOrNullToObject(
-			    sub_obj, "topic", sub->topic);
+			    sub_obj, "remote_topic", sub->remote_topic);
+			cJSON_AddStringOrNullToObject(
+			    sub_obj, "local_topic", sub->local_topic);
 			cJSON_AddNumberToObject(sub_obj, "qos", sub->qos);
 			cJSON_AddItemToArray(sub_infos, sub_obj);
 		}
