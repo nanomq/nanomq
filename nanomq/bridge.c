@@ -145,7 +145,7 @@ bridge_publish_msg(const char *topic, uint8_t *payload, uint32_t len, bool dup,
 	if (props) {
 		nng_mqtt_msg_set_publish_property(pubmsg, props);
 	}
-	log_debug("publish to '%s'", topic);
+	log_debug("bridge: publish to '%s'", topic);
 
 	return pubmsg;
 }
@@ -962,12 +962,12 @@ bridge_tcp_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 		    nng_mqtt_topic_qos_array_create(param->config->sub_count);
 		for (size_t i = 0; i < param->config->sub_count; i++) {
 			nng_mqtt_topic_qos_array_set(topic_qos, i,
-			    param->config->sub_list[i]->topic,
+			    param->config->sub_list[i]->remote_topic,
 			    param->config->sub_list[i]->qos, 1,
 			    param->config->sub_list[i]->retain_as_published,
 			    param->config->sub_list[i]->retain_handling);
 			log_info("Bridge client subscribed topic %s (qos %d rap %d rh %d).",
-			    param->config->sub_list[i]->topic,
+			    param->config->sub_list[i]->remote_topic,
 			    param->config->sub_list[i]->qos,
 				param->config->sub_list[i]->retain_as_published,
 				param->config->sub_list[i]->retain_handling);
@@ -1069,12 +1069,12 @@ bridge_tcp_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 		        bridge_arg->config->sub_count);
 		for (size_t i = 0; i < bridge_arg->config->sub_count; i++) {
 			nng_mqtt_topic_qos_array_set(topic_qos, i,
-			    bridge_arg->config->sub_list[i]->topic,
+			    bridge_arg->config->sub_list[i]->remote_topic,
 			    bridge_arg->config->sub_list[i]->qos, 1,
 			    bridge_arg->config->sub_list[i]->retain_as_published,
 			    bridge_arg->config->sub_list[i]->retain_handling);
 			log_info("Bridge client subscribed topic %s (qos %d rap %d rh %d).",
-			    bridge_arg->config->sub_list[i]->topic,
+			    bridge_arg->config->sub_list[i]->remote_topic,
 			    bridge_arg->config->sub_list[i]->qos,
 				bridge_arg->config->sub_list[i]->retain_as_published,
 				bridge_arg->config->sub_list[i]->retain_handling);
