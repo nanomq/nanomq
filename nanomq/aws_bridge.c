@@ -414,8 +414,8 @@ subscribe_to_topic(MQTTContext_t *mqtt_ctx, conf_bridge_node *node)
 	/* This example subscribes to only one topic and uses QOS1. */
 	for (size_t i = 0; i < node->sub_count; i++) {
 		sub_list[i].qos               = node->sub_list[i]->qos;
-		sub_list[i].pTopicFilter      = node->sub_list[i]->topic;
-		sub_list[i].topicFilterLength = node->sub_list[i]->topic_len;
+		sub_list[i].pTopicFilter      = node->sub_list[i]->remote_topic;
+		sub_list[i].topicFilterLength = node->sub_list[i]->remote_topic_len;
 	}
 
 	/* Generate packet identifier for the SUBSCRIBE packet. */
@@ -530,25 +530,26 @@ aws_bridge_publish_msg(const char *topic, uint8_t *payload, uint32_t len,
 void
 aws_bridge_forward(nano_work *work)
 {
-	MQTTPublishInfo_t pub_info = aws_bridge_publish_msg(
-	    work->pub_packet->var_header.publish.topic_name.body,
-	    work->pub_packet->payload.data, work->pub_packet->payload.len,
-	    work->pub_packet->fixed_header.dup,
-	    work->pub_packet->fixed_header.qos,
-	    work->pub_packet->fixed_header.retain);
-
 	int rv;
 
 	for (size_t t = 0; t < work->config->aws_bridge.count; t++) {
 		conf_bridge_node *node = work->config->aws_bridge.nodes[t];
 		if (node->enable) {
 			for (size_t i = 0; i < node->forwards_count; i++) {
-				if (topic_filter(node->forwards[i],
+				if (topic_filter(node->forwards_list[i]->local_topic,
 				        work->pub_packet->var_header.publish
 				            .topic_name.body)) {
 					MQTTContext_t *mqtt_ctx = node->sock;
 					uint16_t       packet_id =
 					    MQTT_GetPacketId(mqtt_ctx);
+					MQTTPublishInfo_t pub_info = aws_bridge_publish_msg(
+					    node->forwards_list[i]->remote_topic,
+					    work->pub_packet->payload.data, work->pub_packet->payload.len,
+					    work->pub_packet->fixed_header.dup,
+					    work->pub_packet->fixed_header.qos,
+					    work->pub_packet->fixed_header.retain);
+
+
 					rv = MQTT_Publish(
 					    mqtt_ctx, &pub_info, packet_id);
 
