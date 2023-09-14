@@ -15,7 +15,7 @@ NanoMQ 同时支持经典的 KV 配置格式，具体可参考[经典 KV 格式�
 :::
 
 ```bash
-auth 3
+auth {
   allow_anonymous = true
   no_match = allow
   deny_action = ignore
