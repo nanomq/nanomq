@@ -36,6 +36,7 @@ int webhook_msg_cnt = 0; // this is a silly signal to indicate whether the webho
 #ifndef NANO_PLATFORM_WINDOWS
 #include <unistd.h>
 #include <sys/types.h>
+#include <fcntl.h>
 #endif
 
 // This server acts as a proxy.  We take HTTP POST requests, convert them to
@@ -517,6 +518,34 @@ popen_sub_with_cmd(int *outfp, char *arg[])
 	} else {
 		// parent only need to read
 		close(fd_pipe[STDOUT_FILENO]);
+		*outfp = fd_pipe[STDIN_FILENO];
+	}
+
+	return pid;
+}
+pid_t
+popen_sub_with_cmd_nonblock(int *outfp, char *arg[])
+{
+	int   fd_pipe[2];
+	pid_t pid;
+
+	if (pipe(fd_pipe) != 0)
+		return -1;
+
+	pid = fork();
+
+	if (pid < 0)
+		return pid;
+	else if (pid == 0) {
+		// child only need to write
+		close(fd_pipe[STDIN_FILENO]);
+		dup2(fd_pipe[STDOUT_FILENO], STDOUT_FILENO);
+		execv("/bin/mosquitto_sub", arg);
+		exit(1);
+	} else {
+		// parent only need to read
+		close(fd_pipe[STDOUT_FILENO]);
+		fcntl(fd_pipe[STDIN_FILENO], F_SETFL, O_NONBLOCK);
 		*outfp = fd_pipe[STDIN_FILENO];
 	}
 
