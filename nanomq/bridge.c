@@ -730,15 +730,16 @@ quic_ack_cb(void *arg)
 				nng_mqtt_topic_qos *topic_qos =
 				    nng_mqtt_topic_qos_array_create(1);
 				nng_mqtt_topic_qos_array_set(topic_qos, i,
-				    param->config->sub_list[i]->topic,
+				    param->config->sub_list[i]->remote_topic,
 				    param->config->sub_list[i]->qos, 1,
 				    param->config->sub_list[i]
 				        ->retain_as_published,
 				    param->config->sub_list[i]
 				        ->retain_handling);
-				log_info("Bridge client subscribed topic %s "
+				log_info("Bridge client subscribed remote_topic: %s local_topic: %s "
 				         "(qos %d rap %d rh %d).",
-				    param->config->sub_list[i]->topic,
+				    param->config->sub_list[i]->remote_topic,
+				    param->config->sub_list[i]->local_topic,
 				    param->config->sub_list[i]->qos,
 				    param->config->sub_list[i]
 				        ->retain_as_published,
@@ -761,15 +762,16 @@ quic_ack_cb(void *arg)
 			        param->config->sub_count);
 			for (size_t i = 0; i < param->config->sub_count; i++) {
 				nng_mqtt_topic_qos_array_set(topic_qos, i,
-				    param->config->sub_list[i]->topic,
+				    param->config->sub_list[i]->remote_topic,
 				    param->config->sub_list[i]->qos, 1,
 				    param->config->sub_list[i]
 				        ->retain_as_published,
 				    param->config->sub_list[i]
 				        ->retain_handling);
-				log_info("Bridge client subscribed topic %s "
+				log_info("Bridge client subscribed remote_topic: %s local_topic: %s "
 				         "(qos %d rap %d rh %d).",
-				    param->config->sub_list[i]->topic,
+				    param->config->sub_list[i]->remote_topic,
+				    param->config->sub_list[i]->local_topic,
 				    param->config->sub_list[i]->qos,
 				    param->config->sub_list[i]
 				        ->retain_as_published,
@@ -829,12 +831,12 @@ bridge_quic_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 			nng_mqtt_topic_qos *topic_qos =
 			    nng_mqtt_topic_qos_array_create(1);
 			nng_mqtt_topic_qos_array_set(topic_qos, 0,
-			    param->config->sub_list[i]->topic,
+			    param->config->sub_list[i]->remote_topic,
 			    param->config->sub_list[i]->qos, 1, 0, 0);
 			log_info("Quic bridge client subscribe to "
 			         "topic (QoS %d)%s.",
 			    param->config->sub_list[i]->qos,
-			    param->config->sub_list[i]->topic);
+			    param->config->sub_list[i]->remote_topic);
 
 			property *properties = NULL;
 			if (param->config->proto_ver ==
