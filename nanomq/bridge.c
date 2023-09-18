@@ -43,7 +43,7 @@ static property *sub_property(conf_bridge_sub_properties *conf_prop);
 static property *conn_property(conf_bridge_conn_properties *conf_prop);
 static property *will_property(conf_bridge_conn_will_properties *will_prop);
 
-static nng_thread *hybridger_thr;
+static nng_thread *hybrid_thr;
 
 static int execone = 1;
 
@@ -581,7 +581,7 @@ gen_fallback_url(char *url, char *new) {
 }
 
 static void
-hybridger_cb(void *arg)
+hybrid_cb(void *arg)
 {
 	bridge_param *bridge_arg = arg;
 	conf_bridge_node *node = bridge_arg->config;
@@ -661,7 +661,7 @@ hybridger_cb(void *arg)
 		}
 	}
 
-	log_warn("Hybridger thread is done");
+	log_warn("Hybrid thread is done");
 	nng_cv_free(bridge_arg->switch_cv);
 	nng_mtx_free(bridge_arg->switch_mtx);
 	bridge_arg->switch_cv = NULL;
@@ -695,7 +695,7 @@ hybrid_bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 		return rv;
 	}
 
-	rv = nng_thread_create(&hybridger_thr, hybridger_cb, (void *)bridge_arg);
+	rv = nng_thread_create(&hybrid_thr, hybrid_cb, (void *)bridge_arg);
 	if (rv != 0) {
 		nng_fatal("nng_thread_create", rv);
 		return rv;
@@ -1369,8 +1369,6 @@ bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 #if defined(SUPP_QUIC)
 	} else if (0 ==
 	    strncmp(node->address, quic_scheme, strlen(quic_scheme))) {
-		// TODO
-		// nng_mqtt_quic_client_close(sock);
 		nng_sock_replace(*tsock, *new);
 		nng_close(*tsock);
 		nng_free(tsock, sizeof(nng_socket));
