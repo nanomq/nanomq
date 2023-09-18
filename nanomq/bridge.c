@@ -45,6 +45,8 @@ static property *will_property(conf_bridge_conn_will_properties *will_prop);
 
 static nng_thread *hybridger_thr;
 
+static int execone = 1;
+
 static void quic_ack_cb(void *arg);
 
 static int
@@ -542,7 +544,8 @@ hybrid_quic_client(bridge_param *bridge_arg)
 
 	nng_msg *connmsg   = create_connect_msg(node);
 	bridge_arg->connmsg = connmsg;
-	bridge_arg->client = nng_mqtt_client_alloc(*new, &send_callback, true);
+
+	execone = 1;
 
 	node->sock         = (void *) new;
 	bridge_arg->sock   = new;
@@ -810,8 +813,6 @@ quic_ack_cb(void *arg)
 	// To clean the cached msg if any
 	nng_recv_aio(*sock, aio);
 }
-
-static int execone = 1;
 
 // Connack message callback function
 static void
