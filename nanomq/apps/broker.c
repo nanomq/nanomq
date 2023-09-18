@@ -162,11 +162,6 @@ bridge_handler(nano_work *work)
 	property *props = NULL;
 	uint32_t  index = work->ctx.id - 1;
 
-	if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
-		mqtt_property_dup(
-		    &props, work->pub_packet->var_header.publish.properties);
-	}
-
 	for (size_t t = 0; t < work->config->bridge.count; t++) {
 		conf_bridge_node *node = work->config->bridge.nodes[t];
 		nng_mtx_lock(node->mtx);
