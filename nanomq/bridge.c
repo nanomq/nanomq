@@ -462,16 +462,21 @@ hybrid_tcp_client(bridge_param *bridge_arg)
 	}
 #endif
 
+	bridge_arg->client = nng_mqtt_client_alloc(*new, &send_callback, true);
+
 	nng_msg *connmsg   = create_connect_msg(node);
 	bridge_arg->connmsg = connmsg;
-	bridge_arg->client = nng_mqtt_client_alloc(*new, &send_callback, true);
 
 	node->sock         = (void *) new;
 	bridge_arg->sock   = new;
 
 	// TCP bridge does not support hot update of connmsg
-	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
-	nng_socket_set_ptr(*new, NNG_OPT_MQTT_CONNMSG, connmsg);
+	if (0 != nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg)) {
+		log_warn("Error in updating connmsg");
+	}
+	if (0 != nng_socket_set_ptr(*new, NNG_OPT_MQTT_CONNMSG, connmsg)) {
+		log_warn("Error in updating connmsg");
+	}
 	nng_mqtt_set_connect_cb(*new, hybrid_tcp_connect_cb, bridge_arg);
 	nng_mqtt_set_disconnect_cb(*new, hybrid_tcp_disconnect_cb, bridge_arg);
 
@@ -506,7 +511,7 @@ hybrid_quic_client(bridge_param *bridge_arg)
 {
 	int           rv;
 	nng_dialer    dialer;
-	log_info("Quic bridge service start.");
+	log_info("Quic hybrid service start.");
 
 	// always alloc a new sock pointer in hybrid mode
 	nng_socket *new = (nng_socket *) nng_alloc(sizeof(nng_socket));
@@ -514,13 +519,11 @@ hybrid_quic_client(bridge_param *bridge_arg)
 
 	// keepalive here is for QUIC only
 	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
-		log_info("MQTT V5 OVER QUIC is not supported yet.");
-		/*
+		log_error("MQTT V5 OVER QUIC is not supported yet.");
 		if ((rv = nng_mqtt_quic_client_open(new)) != 0) {
-			nng_fatal("nng_mqtt_quic_client_open", rv);
+			nng_fatal("nng_mqttv5_quic_client_open", rv);
 			return rv;
 		}
-		*/
 	} else {
 		if ((rv = nng_mqtt_quic_client_open(new)) != 0) {
 			nng_fatal("nng_mqtt_quic_client_open", rv);
@@ -528,13 +531,14 @@ hybrid_quic_client(bridge_param *bridge_arg)
 		}
 	}
 
-	// TODO mqtt v5 protocol
 	apply_sqlite_config(new, node, "mqtt_quic_client.db");
 
 	if ((rv = nng_dialer_create(&dialer, *new, node->address))) {
 		nng_fatal("nng_dialer_create", rv);
 		return rv;
 	}
+
+	bridge_arg->client = nng_mqtt_client_alloc(*new, &send_callback, true);
 
 	nng_msg *connmsg   = create_connect_msg(node);
 	bridge_arg->connmsg = connmsg;
@@ -591,23 +595,23 @@ hybridger_cb(void *arg)
 		nng_fatal("nng_cv_alloc", rv);
 		return;
 	}
+	uint32_t aio_cnt = bridge_arg->conf->parallel + node->parallel * 2;
 	// alloc an AIO for each ctx bridging use only
-	node->bridge_aio =
-	    nng_alloc((bridge_arg->conf->parallel + node->parallel * 2) *
-	        sizeof(nng_aio *));
+	node->bridge_aio = nng_alloc(aio_cnt * sizeof(nng_aio *));
 
-	for (uint32_t num = 0;
-	     num < (bridge_arg->conf->parallel + node->parallel * 2); num++) {
+	for (uint32_t num = 0; num < aio_cnt; num++) {
 		if ((rv = nng_aio_alloc(&node->bridge_aio[num], NULL, node)) !=
 		    0) {
 			nng_fatal("bridge_aio nng_aio_alloc", rv);
 		}
-		log_debug("parallel %d", num);
 	}
+	log_debug("parallel %d aios", aio_cnt);
 
 	char addr_back[160] = {'\0'};
-	if (0 != gen_fallback_url(node->address, addr_back))
+	if (0 != gen_fallback_url(node->address, addr_back)) {
+		log_warn("Can't generate backup address for current hybrid bridge");
 		strcpy(addr_back, node->address);
+	}
 	char * addrs[] = {node->address, addr_back};
 	int idx = -1;
 	for (;;) {
@@ -941,6 +945,7 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 	log_debug("Quic bridge service start.\n");
 
 	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
+		log_error("MQTT V5 OVER QUIC is not supported yet.");
 		if ((rv = nng_mqtt_quic_client_open(sock)) != 0) {
 			nng_fatal("nng_mqttv5_quic_client_open", rv);
 			return rv;
