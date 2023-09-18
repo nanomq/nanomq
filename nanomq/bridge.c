@@ -47,8 +47,6 @@ static nng_thread *hybridger_thr;
 
 static int execone = 1;
 
-static void quic_ack_cb(void *arg);
-
 static int
 apply_sqlite_config(
     nng_socket *sock, conf_bridge_node *config, const char *db_name)
@@ -713,106 +711,6 @@ hybrid_bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 }
 
 #if defined(SUPP_QUIC)
-
-static void
-quic_ack_cb(void *arg)
-{
-	int result = 0;
-
-	nng_aio *     aio   = arg;
-	bridge_param *param = nng_aio_get_prov_data(aio);
-	nng_socket *  sock  = param->sock;
-	nng_msg *     msg   = nng_aio_get_msg(aio);
-	if (msg == NULL || (result = nng_aio_result(aio)) != 0) {
-		log_debug("no msg wating!");
-		return;
-	}
-	if (nng_msg_get_type(msg) == CMD_CONNACK) {
-		nng_mqtt_client *client = param->client;
-		int              reason = 0;
-		// get connect reason
-		reason = nng_mqtt_msg_get_connack_return_code(msg);
-		// get property for MQTT V5
-		// property *prop;
-		// nng_pipe_get_ptr(p, NNG_OPT_MQTT_CONNECT_PROPERTY, &prop);
-		log_info("Quic bridge client connected! RC [%d]", reason);
-
-		if (reason != 0 || param->config->sub_count <= 0)
-			return;
-		/* MQTT SUBSCRIBE */
-		if (param->config->multi_stream) {
-			for (size_t i = 0; i < param->config->sub_count; i++) {
-				nng_mqtt_topic_qos *topic_qos =
-				    nng_mqtt_topic_qos_array_create(1);
-				nng_mqtt_topic_qos_array_set(topic_qos, i,
-				    param->config->sub_list[i]->remote_topic,
-				    param->config->sub_list[i]->qos, 1,
-				    param->config->sub_list[i]
-				        ->retain_as_published,
-				    param->config->sub_list[i]
-				        ->retain_handling);
-				log_info("Bridge client subscribed remote_topic: %s local_topic: %s "
-				         "(qos %d rap %d rh %d).",
-				    param->config->sub_list[i]->remote_topic,
-				    param->config->sub_list[i]->local_topic,
-				    param->config->sub_list[i]->qos,
-				    param->config->sub_list[i]
-				        ->retain_as_published,
-				    param->config->sub_list[i]
-				        ->retain_handling);
-
-				property *properties = NULL;
-				if (param->config->proto_ver ==
-				    MQTT_PROTOCOL_VERSION_v5) {
-					properties = sub_property(
-					    param->config->sub_properties);
-				}
-				nng_mqtt_subscribe_async(
-				    client, topic_qos, 1, properties);
-				nng_mqtt_topic_qos_array_free(topic_qos, 1);
-			}
-		} else {
-			nng_mqtt_topic_qos *topic_qos =
-			    nng_mqtt_topic_qos_array_create(
-			        param->config->sub_count);
-			for (size_t i = 0; i < param->config->sub_count; i++) {
-				nng_mqtt_topic_qos_array_set(topic_qos, i,
-				    param->config->sub_list[i]->remote_topic,
-				    param->config->sub_list[i]->qos, 1,
-				    param->config->sub_list[i]
-				        ->retain_as_published,
-				    param->config->sub_list[i]
-				        ->retain_handling);
-				log_info("Bridge client subscribed remote_topic: %s local_topic: %s "
-				         "(qos %d rap %d rh %d).",
-				    param->config->sub_list[i]->remote_topic,
-				    param->config->sub_list[i]->local_topic,
-				    param->config->sub_list[i]->qos,
-				    param->config->sub_list[i]
-				        ->retain_as_published,
-				    param->config->sub_list[i]
-				        ->retain_handling);
-			}
-			property *properties = NULL;
-			if (param->config->proto_ver ==
-			    MQTT_PROTOCOL_VERSION_v5) {
-				properties = sub_property(
-				    param->config->sub_properties);
-			}
-			nng_mqtt_subscribe_async(client, topic_qos,
-			    param->config->sub_count, properties);
-			nng_mqtt_topic_qos_array_free(
-			    topic_qos, param->config->sub_count);
-		}
-	}
-
-	log_debug("ACK msg is recevied in bridging");
-
-	nng_msg_free(msg);
-	nng_aio_set_msg(aio, NULL);
-	// To clean the cached msg if any
-	nng_recv_aio(*sock, aio);
-}
 
 // Connack message callback function
 static void
