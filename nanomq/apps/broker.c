@@ -178,16 +178,16 @@ bridge_handler(nano_work *work)
 					work->state = SEND;
 
 					nng_msg *bridge_msg = NULL;
+					if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
+						mqtt_property_dup(
+						    &props, work->pub_packet->var_header.publish.properties);
+					}
 					bridge_msg = bridge_publish_msg(
 						    node->forwards_list[i]->remote_topic,
 						    work->pub_packet->payload.data, work->pub_packet->payload.len,
 						    work->pub_packet->fixed_header.dup,
 						    work->pub_packet->fixed_header.qos,
-						    work->pub_packet->fixed_header.retain, NULL);
-					if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
-						mqtt_property_dup(
-						    &props, work->pub_packet->var_header.publish.properties);
-					}
+						    work->pub_packet->fixed_header.retain, props);
 
 					work->proto_ver == MQTT_PROTOCOL_VERSION_v5
 					    ? nng_mqttv5_msg_encode(bridge_msg)
