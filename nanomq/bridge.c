@@ -127,38 +127,46 @@ create_disconnect_msg()
 	return msg;
 }
 
-int
-bridge_handle_sub_reflection(nano_work *work, conf_bridge *bridge)
+static inline void
+bridge_handle_topic_sub_reflection(nano_work *work, conf_bridge_node *node)
 {
-	for (size_t t = 0; t < bridge->count; t++) {
-		conf_bridge_node *node = bridge->nodes[t];
-		if (node->enable) {
-			for (size_t i = 0; i < node->sub_count; i++) {
-				char *topic = work->pub_packet->var_header.publish.topic_name.body;
-				int len = work->pub_packet->var_header.publish.topic_name.len;
-				if (topic != NULL && node->sub_list[i]->remote_topic != NULL) {
-					if (topic_filter(node->sub_list[i]->remote_topic, topic)) {
-						topics *sub_topic = node->sub_list[i];
+	for (size_t i = 0; i < node->sub_count; i++) {
+		char *topic = work->pub_packet->var_header.publish.topic_name.body;
+		int len = work->pub_packet->var_header.publish.topic_name.len;
+		if (topic != NULL && node->sub_list[i]->remote_topic != NULL) {
+			if (topic_filter(node->sub_list[i]->remote_topic, topic)) {
+				topics *sub_topic = node->sub_list[i];
 
-						char *local_topic = nng_strdup(sub_topic->local_topic);
-						if (local_topic == NULL) {
-							log_error("bridge: alloc local_topic failed");
-							return -1;
-						}
-
-						/* release old topic area */
-						nng_strfree(topic);
-
-						work->pub_packet->var_header.publish.topic_name.body = local_topic;
-						work->pub_packet->var_header.publish.topic_name.len = sub_topic->local_topic_len;
-
-						return 0;
-					}
+				char *local_topic = nng_strdup(sub_topic->local_topic);
+				if (local_topic == NULL) {
+					log_error("bridge: alloc local_topic failed");
+					return;
 				}
+
+				/* release old topic area */
+				nng_strfree(topic);
+
+				work->pub_packet->var_header.publish.topic_name.body = local_topic;
+				work->pub_packet->var_header.publish.topic_name.len = sub_topic->local_topic_len;
+
+				return;
 			}
 		}
 	}
-	return -1;
+	return;
+}
+
+void
+bridge_handle_topic_reflection(nano_work *work, conf_bridge *bridge)
+{
+	for (size_t i = 0; i < bridge->count; i++) {
+		conf_bridge_node *node = bridge->nodes[i];
+		if (node->enable) {
+			bridge_handle_topic_sub_reflection(work, node);
+		}
+	}
+
+	return;
 }
 
 nng_msg *

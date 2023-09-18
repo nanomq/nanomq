@@ -1095,9 +1095,9 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 
 	if (work->proto == PROTO_MQTT_BRIDGE) {
 #if defined(SUPP_AWS_BRIDGE)
-		(void)bridge_handle_sub_reflection(work, &work->config->aws_bridge);
+		bridge_handle_topic_reflection(work, &work->config->aws_bridge);
 #endif
-		(void)bridge_handle_sub_reflection(work, &work->config->bridge);
+		bridge_handle_topic_reflection(work, &work->config->bridge);
 	}
 
 	topic        = work->pub_packet->var_header.publish.topic_name.body;
