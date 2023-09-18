@@ -173,7 +173,8 @@ bridge_handler(nano_work *work)
 					work->state = SEND;
 
 					nng_msg *bridge_msg = NULL;
-					if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
+					if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5 &&
+						node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 						mqtt_property_dup(
 						    &props, work->pub_packet->var_header.publish.properties);
 					}
@@ -184,10 +185,10 @@ bridge_handler(nano_work *work)
 						    work->pub_packet->fixed_header.qos,
 						    work->pub_packet->fixed_header.retain, props);
 
-					work->proto_ver == MQTT_PROTOCOL_VERSION_v5
+					
+					node->proto_ver == MQTT_PROTOCOL_VERSION_v5
 					    ? nng_mqttv5_msg_encode(bridge_msg)
 					    : nng_mqtt_msg_encode(bridge_msg);
-
 
 					nng_socket *socket = node->sock;
 
@@ -202,10 +203,8 @@ bridge_handler(nano_work *work)
 						    "msg lost! Ctx: %d",
 						    node->address, work->ctx.id);
 					} else {
-						nng_aio_set_timeout(node->bridge_aio[index],
-						    3000);
-						nng_aio_set_msg(node->bridge_aio[index],
-						    bridge_msg);
+						nng_aio_set_timeout(node->bridge_aio[index], 3000);
+						nng_aio_set_msg(node->bridge_aio[index], bridge_msg);
 						nng_send_aio(*socket, node->bridge_aio[index]);
 					}
 					rv = true;
