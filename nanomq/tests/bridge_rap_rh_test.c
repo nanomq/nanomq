@@ -19,7 +19,7 @@ main()
 	char *cmd_resub = "curl -i --location "
 	            "'http://localhost:8081/api/v4/bridges/sub/emqx' "
 	            "--basic -u admin_test:pw_test -d '{\"data\": "
-	            "{\"subscription\": [{\"topic\": \"cmd/topic1\", \"retain_handling\": 1}]}}'";
+	            "{\"subscription\": [{\"remote_topic\":\"cmd/topic1\",\"local_topic\":\"cmd_lo/topic1\",\"qos\": 1, \"retain_handling\":1}]}'";
 
 	char *cmd_pub_emqx_rap0 = "mosquitto_pub -h broker.emqx.io -p 1883 -t recv/topic1 -m message-to-nmq -V mqttv5 -q 2 --retain -x 90";
 	char *cmd_pub_emqx_rh0 = "mosquitto_pub -h broker.emqx.io -p 1883 -t recv/topic2 -m message-to-nmq -V mqttv5 -q 2 --retain -x 90";
@@ -63,20 +63,17 @@ main()
 	conf = get_test_conf(BRIDGE_CONF);
 	assert(conf != NULL);
 	nng_thread_create(&nmq, (void *) broker_start_with_conf, (void *) conf);
-	nng_msleep(500); // wait a while before sub
+	nng_msleep(1000); // wait a while before sub
 	pid_sub_nmq_rap0 = popen_sub_with_cmd(&outfp_nmq_rap0, cmd_sub_nmq_rap0);
+	pid_sub_nmq_rh0 = popen_sub_with_cmd(&outfp_nmq_rh0, cmd_sub_nmq_rh0);
+	pid_sub_nmq_rh1 = popen_sub_with_cmd(&outfp_nmq_rh1, cmd_sub_nmq_rh1);
 	// TODO: better check the retain flag
 	assert(read(outfp_nmq_rap0, buf_rap0, buf_size) > 0);
 	assert(strncmp(buf_rap0, "message-to-nmq", 14) == 0);
-	memset(buf_rap0, 0, buf_size);
-	pid_sub_nmq_rh0 = popen_sub_with_cmd(&outfp_nmq_rh0, cmd_sub_nmq_rh0);
 	assert(read(outfp_nmq_rh0, buf_rh0, buf_size) > 0);
 	assert(strncmp(buf_rh0, "message-to-nmq", 14) == 0);
-	memset(buf_rh0, 0, buf_size);
-	pid_sub_nmq_rh1 = popen_sub_with_cmd(&outfp_nmq_rh1, cmd_sub_nmq_rh1);
 	assert(read(outfp_nmq_rh1, buf_rh1, buf_size) > 0);
 	assert(strncmp(buf_rh1, "message-to-nmq", 14) == 0);
-	memset(buf_rh1, 0, buf_size);
 
 	// resub to trigger rh1. 
 	popen(cmd_resub, "r");
