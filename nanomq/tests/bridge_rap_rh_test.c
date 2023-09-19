@@ -10,10 +10,10 @@ main()
 	cmd/topic1: rap 1, rh 1
 	cmd/topic2: rap 1, rh 2
 	*/
-	char *cmd_sub_nmq_rap0[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", "1881", "-t", "recv/topic1", "-V", "mqttv5", "-q", "2", "-i", "id-nmq-test", NULL};
-	char *cmd_sub_nmq_rh0[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", "1881", "-t", "recv/topic2", "-V", "mqttv5", "-q", "2", "-i", "id-nmq-test", NULL};
-	char *cmd_sub_nmq_rh1[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", "1881", "-t", "cmd/topic1", "-V", "mqttv5", "-q", "2", "-i", "id-nmq-test", NULL};
-	char *cmd_sub_nmq_rh2[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", "1881", "-t", "cmd/topic2", "-V", "mqttv5", "-q", "2", "-i", "id-nmq-test", NULL};
+	char *cmd_sub_nmq_rap0[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", "1881", "-t", "recv_lo/topic1", "-V", "mqttv5", "-q", "2", "-i", "id-nmq-test", NULL};
+	char *cmd_sub_nmq_rh0[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", "1881", "-t", "recv_lo/topic2", "-V", "mqttv5", "-q", "2", "-i", "id-nmq-test", NULL};
+	char *cmd_sub_nmq_rh1[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", "1881", "-t", "cmd_lo/topic1", "-V", "mqttv5", "-q", "2", "-i", "id-nmq-test", NULL};
+	char *cmd_sub_nmq_rh2[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", "1881", "-t", "cmd_lo/topic2", "-V", "mqttv5", "-q", "2", "-i", "id-nmq-test", NULL};
 
 	// bridge client resub can not parse rh, so we can not test rh1 for now.
 	char *cmd_resub = "curl -i --location "
@@ -21,10 +21,10 @@ main()
 	            "--basic -u admin_test:pw_test -d '{\"data\": "
 	            "{\"subscription\": [{\"topic\": \"cmd/topic1\", \"retain_handling\": 1}]}}'";
 
-	char *cmd_pub_emqx_rap0 = "mosquitto_pub -h broker.emqx.io -p 1883 -t recv/topic1 -m message-to-nmq -V mqttv5 -q 2 --retain";
-	char *cmd_pub_emqx_rh0 = "mosquitto_pub -h broker.emqx.io -p 1883 -t recv/topic2 -m message-to-nmq -V mqttv5 -q 2 --retain";
-	char *cmd_pub_emqx_rh1 = "mosquitto_pub -h broker.emqx.io -p 1883 -t cmd/topic1 -m message-to-nmq -V mqttv5 -q 2 --retain";
-	char *cmd_pub_emqx_rh2 = "mosquitto_pub -h broker.emqx.io -p 1883 -t cmd/topic2 -m message-to-nmq -V mqttv5 -q 2 --retain";
+	char *cmd_pub_emqx_rap0 = "mosquitto_pub -h broker.emqx.io -p 1883 -t recv/topic1 -m message-to-nmq -V mqttv5 -q 2 --retain -x 90";
+	char *cmd_pub_emqx_rh0 = "mosquitto_pub -h broker.emqx.io -p 1883 -t recv/topic2 -m message-to-nmq -V mqttv5 -q 2 --retain -x 90";
+	char *cmd_pub_emqx_rh1 = "mosquitto_pub -h broker.emqx.io -p 1883 -t cmd/topic1 -m message-to-nmq -V mqttv5 -q 2 --retain -x 90";
+	char *cmd_pub_emqx_rh2 = "mosquitto_pub -h broker.emqx.io -p 1883 -t cmd/topic2 -m message-to-nmq -V mqttv5 -q 2 --retain -x 90";
 
 	nng_thread *nmq;
 	pid_t       pid_sub_nmq_rap0;
