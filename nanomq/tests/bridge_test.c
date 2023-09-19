@@ -4,8 +4,8 @@
 int
 main()
 {
-	char *cmd_sub_emqx[] = {"mosquitto_sub", "-h", "broker.emqx.io", "-p", "1883", "-t", "forward1/test", "-V", "mqttv5", "-q", "2", NULL};
-	char *cmd_sub_nmq[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", "1881", "-t", "recv/topic1", "-V", "mqttv5", "-q", "2", NULL};
+	char *cmd_sub_emqx[] = {"mosquitto_sub", "-h", "broker.emqx.io", "-p", "1883", "-t", "fwd1/test", "-V", "mqttv5", "-q", "2", NULL};
+	char *cmd_sub_nmq[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", "1881", "-t", "recv_lo/topic1", "-V", "mqttv5", "-q", "2", NULL};
 
 	char *cmd_pub_nmq = "mosquitto_pub -h 127.0.0.1 -p 1881 -t forward1/test -m message-to-emqx -V mqttv5 -q 2";
 	char *cmd_pub_emqx = "mosquitto_pub -h broker.emqx.io -p 1883 -t recv/topic1 -m message-to-nmq -V mqttv5 -q 2";
