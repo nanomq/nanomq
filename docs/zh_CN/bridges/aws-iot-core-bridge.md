@@ -113,23 +113,23 @@ bridges.aws.c1 {
 	forwards = [
 		{
 			remote_topic = "fwd/topic1"
-			local_topic = "local/topic1"
+			local_topic = "topic1"
 		},
 		{
 			remote_topic = "fwd/topic2"
-			local_topic = "local/topic2"
+			local_topic = "topic2"
 		}
 	]
 
 	subscription = [
 		{
 			remote_topic = "cmd/topic1"
-			local_topic = "local/topic1"
+			local_topic = "topic1"
 			qos = 1
 		},
 		{
 			remote_topic = "cmd/topic2"
-			local_topic = "local/topic2"
+			local_topic = "topic2"
 			qos = 2
 		}
 	]
@@ -154,9 +154,9 @@ aws.bridge.mqtt.aws.clientid=aws_bridge_client
 aws.bridge.mqtt.aws.keepalive=60
 aws.bridge.mqtt.aws.clean_start=true
 aws.bridge.mqtt.aws.forwards.1.remote_topic=fwd/topic_1
-aws.bridge.mqtt.aws.forwards.1.local_topic=local/topic_1
+aws.bridge.mqtt.aws.forwards.1.local_topic=topic_1
 aws.bridge.mqtt.aws.subscription.1.remote_topic=cmd/topic1
-aws.bridge.mqtt.aws.subscription.1.local_topic=local/topic1
+aws.bridge.mqtt.aws.subscription.1.local_topic=topic1
 aws.bridge.mqtt.aws.subscription.1.qos=1
 aws.bridge.mqtt.aws.parallel=2
 aws.bridge.mqtt.aws.tls.enable=true
