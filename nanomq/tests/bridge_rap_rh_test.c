@@ -77,7 +77,7 @@ main()
 
 	// resub to trigger rh1. 
 	popen(cmd_resub, "r");
-	nng_msleep(500);
+	nng_msleep(1000);
 	pid_sub_nmq_rh1_re = popen_sub_with_cmd_nonblock(&outfp_nmq_rh1, cmd_sub_nmq_rh1);
 	pid_sub_nmq_rh2 = popen_sub_with_cmd_nonblock(&outfp_nmq_rh2, cmd_sub_nmq_rh2);
 	// consider the msg is not recvieved after 2s.
