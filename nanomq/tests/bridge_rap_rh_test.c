@@ -21,10 +21,10 @@ main()
 	            "--basic -u admin_test:pw_test -d '{\"data\": "
 	            "{\"subscription\": [{\"remote_topic\":\"cmd/topic1\",\"local_topic\":\"cmd_lo/topic1\",\"qos\": 1, \"retain_handling\":1}]}'";
 
-	char *cmd_pub_emqx_rap0 = "mosquitto_pub -h broker.emqx.io -p 1883 -t recv/topic1 -m message-to-nmq -V mqttv5 -q 2 --retain -x 90";
-	char *cmd_pub_emqx_rh0 = "mosquitto_pub -h broker.emqx.io -p 1883 -t recv/topic2 -m message-to-nmq -V mqttv5 -q 2 --retain -x 90";
-	char *cmd_pub_emqx_rh1 = "mosquitto_pub -h broker.emqx.io -p 1883 -t cmd/topic1 -m message-to-nmq -V mqttv5 -q 2 --retain -x 90";
-	char *cmd_pub_emqx_rh2 = "mosquitto_pub -h broker.emqx.io -p 1883 -t cmd/topic2 -m message-to-nmq -V mqttv5 -q 2 --retain -x 90";
+	char *cmd_pub_emqx_rap0 = "mosquitto_pub -h broker.emqx.io -p 1883 -t recv/topic1 -m message-to-nmq-rap0 -V mqttv5 -q 2 --retain -x 90";
+	char *cmd_pub_emqx_rh0 = "mosquitto_pub -h broker.emqx.io -p 1883 -t recv/topic2 -m message-to-nmq-rh0 -V mqttv5 -q 2 --retain -x 90";
+	char *cmd_pub_emqx_rh1 = "mosquitto_pub -h broker.emqx.io -p 1883 -t cmd/topic1 -m message-to-nmq-rh1 -V mqttv5 -q 2 --retain -x 90";
+	char *cmd_pub_emqx_rh2 = "mosquitto_pub -h broker.emqx.io -p 1883 -t cmd/topic2 -m message-to-nmq-hrh2 -V mqttv5 -q 2 --retain -x 90";
 
 	nng_thread *nmq;
 	pid_t       pid_sub_nmq_rap0;
@@ -52,31 +52,35 @@ main()
 	memset(buf_rh0, 0, buf_size);
 	memset(buf_rh1, 0, buf_size);
 	memset(buf_rh2, 0, buf_size);
+	printf("\ntest\n");
 
 	// pub the retain msgs.
 	p_pub_emqx_rap0 = popen(cmd_pub_emqx_rap0, "r");
 	p_pub_emqx_rh0 = popen(cmd_pub_emqx_rh0, "r");
 	p_pub_emqx_rh1 = popen(cmd_pub_emqx_rh1, "r");
 	p_pub_emqx_rh2 = popen(cmd_pub_emqx_rh2, "r");
-
+	nng_msleep(1500);
 	// create nmq thread
 	conf = get_test_conf(BRIDGE_CONF);
 	assert(conf != NULL);
 	nng_thread_create(&nmq, (void *) broker_start_with_conf, (void *) conf);
-	nng_msleep(800); // wait a while before sub
+	nng_msleep(50); // wait a while before sub
 	pid_sub_nmq_rap0 = popen_sub_with_cmd(&outfp_nmq_rap0, cmd_sub_nmq_rap0);
 	pid_sub_nmq_rh0 = popen_sub_with_cmd(&outfp_nmq_rh0, cmd_sub_nmq_rh0);
 	pid_sub_nmq_rh1 = popen_sub_with_cmd(&outfp_nmq_rh1, cmd_sub_nmq_rh1);
 	// TODO: better check the retain flag
 	assert(read(outfp_nmq_rap0, buf_rap0, buf_size) > 0);
-	assert(strncmp(buf_rap0, "message-to-nmq", 14) == 0);
+	assert(strncmp(buf_rap0, "message-to-nmq-rap0", 19) == 0);
 	printf("rap0 got the msg\n");
 	assert(read(outfp_nmq_rh0, buf_rh0, buf_size) > 0);
-	assert(strncmp(buf_rh0, "message-to-nmq", 14) == 0);
+	assert(strncmp(buf_rh0, "message-to-nmq-rh0", 18) == 0);
 	printf("rh0 got the msg\n");
 	assert(read(outfp_nmq_rh1, buf_rh1, buf_size) > 0);
-	assert(strncmp(buf_rh1, "message-to-nmq", 14) == 0);
+	assert(strncmp(buf_rh1, "message-to-nmq-rh1", 18) == 0);
 	printf("rh1 got the msg\n");
+	memset(buf_rap0, 0, buf_size);
+	memset(buf_rh0, 0, buf_size);
+	memset(buf_rh1, 0, buf_size);
 
 	// resub to trigger rh1. 
 	// popen(cmd_resub, "r"); // rest api for bridge client to resub is not available now.
