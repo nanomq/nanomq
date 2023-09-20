@@ -194,20 +194,20 @@ class vsomeip_client {
 	{
 		if (conf_g->service_id == _response->get_service() &&
 		    conf_g->service_instance_id == _response->get_instance() &&
-		    vsomeip::message_type_e::MT_RESPONSE ==
-		        _response->get_message_type() &&
 		    vsomeip::return_code_e::E_OK ==
 		        _response->get_return_code()) {
-			// Get the payload and print it
-			std::shared_ptr<vsomeip::payload> pl =
-			    _response->get_payload();
-			std::string resp = std::string(
-			    reinterpret_cast<const char *>(pl->get_data()),
-			    pl->get_length());
-			LOG_INF << "Recv response: '" << resp.c_str() << "'";
-
-			client_publish(*conf_g->sock, conf_g->pub_topic,
-			    (uint8_t *) resp.c_str(), resp.length(), 0, false);
+			std::shared_ptr<vsomeip::payload> pl;
+			switch (_response->get_message_type()) {
+			case vsomeip_v3::message_type_e::MT_RESPONSE:
+			case vsomeip_v3::message_type_e::MT_NOTIFICATION:
+				pl =  _response->get_payload();
+				client_publish(*conf_g->sock, conf_g->pub_topic,
+				    (uint8_t *) pl->get_data(), pl->get_length(), 0, false);
+				break;
+			default:
+				LOG_ERR << "Unsupport Recv response type: '" << (int)_response->get_message_type() << "'";
+				break;
+			}
 		}
 	}
 
