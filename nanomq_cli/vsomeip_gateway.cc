@@ -123,6 +123,17 @@ class vsomeip_client {
 		    std::bind(&vsomeip_client::on_availability_cbk, this,
 		        std::placeholders::_1, std::placeholders::_2,
 		        std::placeholders::_3));
+
+        std::set<vsomeip::eventgroup_t> its_groups;
+        its_groups.insert(conf_g->service_eventgroup_id);
+        app_->request_event(
+                conf_g->service_id,
+                conf_g->service_instance_id,
+                conf_g->service_event_id,
+                its_groups,
+                vsomeip::event_type_e::ET_FIELD);
+        app_->subscribe(conf_g->service_id, conf_g->service_instance_id, conf_g->service_eventgroup_id);
+
 		return true;
 	}
 
