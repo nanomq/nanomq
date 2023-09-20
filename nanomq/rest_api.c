@@ -3445,20 +3445,28 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 
 	// Get topic list
 	for (size_t i = 0; i < array_size; i++) {
-		topics *tp       = nng_zalloc(sizeof(topics));
+		topics *tp = nng_zalloc(sizeof(topics));
 		// default value for qos, rap and rh.
-		uint8_t qos      = 0;
-		uint8_t rap      = 1;
-		uint8_t rh       = 0;
+		uint8_t qos          = 0;
+		uint8_t rap          = 1;
+		uint8_t rh           = 0;
+		char   *remote_topic = NULL;
+		char   *local_topic  = NULL;
 		cJSON  *sub_item = cJSON_GetArrayItem(sub_array, i);
 		getNumberValue(sub_item, item, "qos", qos, rv);
 		getNumberValue(sub_item, item, "retain_as_published", rap, rv);
 		getNumberValue(sub_item, item, "retain_handling", rh, rv);
-		char *topic = NULL;
-		getStringValue(sub_item, item, "topic", topic, rv);
+		getStringValue(sub_item, item, "remote_topic", remote_topic, rv);
 		if (rv == 0) {
-			tp->remote_topic     = nng_strdup(topic);
+			tp->remote_topic     = nng_strdup(remote_topic);
 			tp->remote_topic_len = strlen(tp->remote_topic);
+		} else {
+			continue;
+		}
+		getStringValue(sub_item, item, "local_topic", local_topic, rv);
+		if (rv == 0) {
+			tp->local_topic     = nng_strdup(local_topic);
+			tp->local_topic_len = strlen(tp->local_topic);
 		} else {
 			continue;
 		}
