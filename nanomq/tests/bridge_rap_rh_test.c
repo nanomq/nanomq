@@ -52,14 +52,12 @@ main()
 	memset(buf_rh0, 0, buf_size);
 	memset(buf_rh1, 0, buf_size);
 	memset(buf_rh2, 0, buf_size);
-	printf("\ntest\n");
-
 	// pub the retain msgs.
 	p_pub_emqx_rap0 = popen(cmd_pub_emqx_rap0, "r");
 	p_pub_emqx_rh0 = popen(cmd_pub_emqx_rh0, "r");
 	p_pub_emqx_rh1 = popen(cmd_pub_emqx_rh1, "r");
 	p_pub_emqx_rh2 = popen(cmd_pub_emqx_rh2, "r");
-	nng_msleep(1500);
+	nng_msleep(2000);
 	// create nmq thread
 	conf = get_test_conf(BRIDGE_CONF);
 	assert(conf != NULL);
