@@ -63,31 +63,35 @@ main()
 	conf = get_test_conf(BRIDGE_CONF);
 	assert(conf != NULL);
 	nng_thread_create(&nmq, (void *) broker_start_with_conf, (void *) conf);
-	nng_msleep(1000); // wait a while before sub
+	nng_msleep(800); // wait a while before sub
 	pid_sub_nmq_rap0 = popen_sub_with_cmd(&outfp_nmq_rap0, cmd_sub_nmq_rap0);
 	pid_sub_nmq_rh0 = popen_sub_with_cmd(&outfp_nmq_rh0, cmd_sub_nmq_rh0);
 	pid_sub_nmq_rh1 = popen_sub_with_cmd(&outfp_nmq_rh1, cmd_sub_nmq_rh1);
 	// TODO: better check the retain flag
 	assert(read(outfp_nmq_rap0, buf_rap0, buf_size) > 0);
 	assert(strncmp(buf_rap0, "message-to-nmq", 14) == 0);
+	printf("rap0 got the msg\n");
 	assert(read(outfp_nmq_rh0, buf_rh0, buf_size) > 0);
 	assert(strncmp(buf_rh0, "message-to-nmq", 14) == 0);
+	printf("rh0 got the msg\n");
 	assert(read(outfp_nmq_rh1, buf_rh1, buf_size) > 0);
 	assert(strncmp(buf_rh1, "message-to-nmq", 14) == 0);
+	printf("rh1 got the msg\n");
 
 	// resub to trigger rh1. 
-	popen(cmd_resub, "r");
-	nng_msleep(1000);
+	// popen(cmd_resub, "r"); // rest api for bridge client to resub is not available now.
+	// nng_msleep(1000);
 	pid_sub_nmq_rh1_re = popen_sub_with_cmd_nonblock(&outfp_nmq_rh1, cmd_sub_nmq_rh1);
 	pid_sub_nmq_rh2 = popen_sub_with_cmd_nonblock(&outfp_nmq_rh2, cmd_sub_nmq_rh2);
-	// consider the msg is not recvieved after 2s.
+	// consider the msg is not been recvieved after 2s.
 	nng_msleep(2000);
-	int a = read(outfp_nmq_rh1, buf_rh1, buf_size);
-	int b = read(outfp_nmq_rh2, buf_rh2, buf_size);
-	printf("a=%d, b=%d\n", a, b);
+	int rh1_buf = read(outfp_nmq_rh1, buf_rh1, buf_size);
+	int rh2_buf = read(outfp_nmq_rh2, buf_rh2, buf_size);
+	printf("rh1_buf size=%d, rh2_buf size=%d\n", rh1_buf, rh2_buf);
 	// assert(read(outfp_nmq_rh1, buf_rh1, buf_size) == 0);
 	// read is supposed to return 0, may need further check.
 	assert(read(outfp_nmq_rh2, buf_rh2, buf_size) == -1);
+	printf("rap2 got no msg\n");
 
 	kill(pid_sub_nmq_rap0, SIGKILL);
 	kill(pid_sub_nmq_rh0, SIGKILL);
