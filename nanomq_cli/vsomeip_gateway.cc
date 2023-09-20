@@ -458,6 +458,8 @@ vsomeip_gateway_conf_init(vsomeip_gateway_conf *conf)
 	conf->service_id          = 0;
 	conf->service_instance_id = 0;
 	conf->service_method_id   = 0;
+	conf->service_event_id   = 0;
+	conf->service_eventgroup_id   = 0;
 	conf->conf_path           = NULL;
 	return;
 }
@@ -475,6 +477,14 @@ vsomeip_gateway_conf_check_and_set(vsomeip_gateway_conf *conf)
 
 	if (!conf->service_method_id) {
 		LOG_ERR << "Pls set service method id";
+	}
+
+	if (!conf->service_event_id) {
+		LOG_ERR << "Pls set service event id";
+	}
+
+	if (!conf->service_eventgroup_id) {
+		LOG_ERR << "Pls set service event group id";
 	}
 
 	if (!conf->conf_path) {
