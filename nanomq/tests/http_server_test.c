@@ -585,15 +585,19 @@ main()
 {
 	char *cmd = "mosquitto_sub -h 127.0.0.1 -p 1881 -t topic-test -u "
 	            "user-test -i clientid-test";
+	char *cmd2 = "mosquitto_sub -h 127.0.0.1 -p 1881 -t topic-test2 -u "
+	            "user-test -i clientid-test";
 	nng_thread *nmq;
 	conf       *conf;
 	FILE       *fd;
+	FILE       *fd2;
 
 	conf = get_test_conf(ALL_FEATURE_CONF);
 	assert(conf != NULL);
 	nng_thread_create(&nmq, (void *) broker_start_with_conf, (void *) conf);
 	// nng_msleep(100);  // wait a while for broker to init
 	fd = popen(cmd, "r");
+	fd2 = popen(cmd2, "r");
 	nng_msleep(50); // wait a while after sub
 
 	// TODO: there is a potential connection refuse case & although they
@@ -632,8 +636,8 @@ main()
 	assert(test_get_bridges());
 	assert(test_get_bridge());
 	// TODO: rest api need change for topic reflection in bridge.
-	// assert(test_put_bridges_sub());
-	// assert(test_put_bridges_unsub());
+	assert(test_put_bridges_sub()); // this is not 100% right due to the new topic reflection
+	// assert(test_put_bridges_unsub()); // bridge unsub has to change for topic reflection
 	assert(test_put_bridges());
 
 	assert(test_post_rules());
@@ -661,6 +665,7 @@ main()
 	// assert(test_restart());
 	// assert(test_stop());
 	pclose(fd);
+	pclose(fd2);
 
 	nng_thread_destroy(nmq);
 }
