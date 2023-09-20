@@ -3446,8 +3446,14 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 	// Get topic list
 	for (size_t i = 0; i < array_size; i++) {
 		topics *tp       = nng_zalloc(sizeof(topics));
-		cJSON * sub_item = cJSON_GetArrayItem(sub_array, i);
-		getNumberValue(sub_item, item, "qos", tp->qos, rv);
+		// default value for qos, rap and rh.
+		uint8_t qos      = 0;
+		uint8_t rap      = 1;
+		uint8_t rh       = 0;
+		cJSON  *sub_item = cJSON_GetArrayItem(sub_array, i);
+		getNumberValue(sub_item, item, "qos", qos, rv);
+		getNumberValue(sub_item, item, "retain_as_published", rap, rv);
+		getNumberValue(sub_item, item, "retain_handling", rh, rv);
 		char *topic = NULL;
 		getStringValue(sub_item, item, "topic", topic, rv);
 		if (rv == 0) {
@@ -3456,6 +3462,9 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 		} else {
 			continue;
 		}
+		tp->qos                 = qos;
+		tp->retain_as_published = rap;
+		tp->retain_handling     = rh;
 		cvector_push_back(sub_topics, tp);
 		sub_count++;
 	}
