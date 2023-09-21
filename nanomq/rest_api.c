@@ -3403,8 +3403,9 @@ convert_topic_qos(topics **list, size_t count)
 {
 	nng_mqtt_topic_qos *topics = nng_mqtt_topic_qos_array_create(count);
 	for (size_t i = 0; i < count; i++) {
-		nng_mqtt_topic_qos_array_set(
-		    topics, i, list[i]->remote_topic, list[i]->qos, 1, 0, 0);
+		nng_mqtt_topic_qos_array_set(topics, i, list[i]->remote_topic,
+		    list[i]->qos, 1, list[i]->retain_as_published,
+		    list[i]->retain_handling);
 	}
 	return topics;
 }
