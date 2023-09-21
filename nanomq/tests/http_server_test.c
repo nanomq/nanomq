@@ -619,16 +619,16 @@ main()
 	assert(test_get_brokers());
 
 	assert(test_get_nodes());
-	// assert(test_get_prometheus());
+	assert(test_get_prometheus());
 
-	// assert(test_get_clients());
-	// assert(test_get_clientid());
-	// assert(test_get_client_user_name());
+	assert(test_get_clients());
+	assert(test_get_clientid());
+	assert(test_get_client_user_name());
 
-	// assert(test_get_subscriptions());
-	// assert(test_get_subscriptions_clientid());
+	assert(test_get_subscriptions());
+	assert(test_get_subscriptions_clientid());
 
-	// assert(test_get_topic_tree());
+	assert(test_get_topic_tree());
 
 	assert(test_get_reload());
 	assert(test_get_configuration());
