@@ -281,8 +281,8 @@ test_put_bridges_sub()
 	            "'http://localhost:8081/api/v4/bridges/sub/emqx' "
 	            "--basic -u admin_test:pw_test -d '{"
 	            "\"data\": {"
-	            "\"subscription\": [{\"topic\": "
-	            "\"cmd/topic4\"},{\"topic\": \"cmd/topic5\"}],"
+	            "\"subscription\": [{\"remote_topic\": "
+	            "\"cmd/topic4\",\"local_topic\": \"cmd_lo/topic4\"}],"
 	            "\"sub_properties\": {\"user_properties\": [{\"key\": "
 	            "\"key1\",\"value\": \"value1\"},{\"key\": "
 	            "\"key2\",\"value\": \"value2\"}]}}}'";
@@ -300,7 +300,7 @@ test_put_bridges_unsub()
 	            "--basic -u admin_test:pw_test -d '{"
 	            "\"data\": {"
 	            "\"unsubscription\": [{\"remote_topic\": \"cmd/topic1\", \"local_topic\": \"cmd_lo/topic1\"},"
-				"{\"remote_topic\": \"cmd/topic2\", \"local_topic\": \"cmd_lo/topic2\"}"
+				"{\"remote_topic\": \"cmd/topic2\", \"local_topic\": \"cmd_lo/topic2\"}],"
 	            "\"unsub_properties\": {\"user_properties\": [{\"key\": "
 	            "\"key1\",\"value\": \"value1\"},{\"key\": "
 	            "\"key2\",\"value\": \"value2\"}]}}}'";
@@ -640,7 +640,7 @@ main()
 	assert(test_get_bridges());
 	assert(test_get_bridge());
 	// TODO: rest api need change for topic reflection in bridge.
-	// assert(test_put_bridges_sub()); // this is not 100% right due to the new topic reflection
+	assert(test_put_bridges_sub());
 	// assert(test_put_bridges_unsub()); // bridge unsub has to change for topic reflection
 	assert(test_put_bridges());
 
