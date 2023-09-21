@@ -1156,6 +1156,7 @@ get_client_cb(void *key, void *value, void *json_obj)
 	const uint8_t *cid     = conn_param_get_clientid(cp);
 	if (info->client_id != NULL) {
 		if (strcmp(info->client_id, (const char *) cid) != 0) {
+			conn_param_free(cp);
 			return;
 		}
 	}
@@ -1163,6 +1164,7 @@ get_client_cb(void *key, void *value, void *json_obj)
 	if (info->username != NULL) {
 		if (user_name == NULL ||
 		    strcmp(info->username, (const char *) user_name) != 0) {
+			conn_param_free(cp);
 			return;
 		}
 	}
@@ -1190,6 +1192,8 @@ get_client_cb(void *key, void *value, void *json_obj)
 	// 		    ctxt->recv_cnt != NULL ?
 	// nng_atomic_get64(ctxt->recv_cnt) : 0); #endif
 	cJSON_AddItemToArray(info->array, data_info_elem);
+
+	conn_param_free(cp);
 }
 
 static void
@@ -1204,6 +1208,8 @@ get_metric_cb(void *key, void *value, void *stats)
 	conn_param    *cp      = nng_pipe_cparam(pipe);
 	const uint8_t *cid     = conn_param_get_clientid(cp);
 	if (!status) s->connections++;
+
+	conn_param_free(cp);
 
 	// #ifdef STATISTICS
 	// 		cJSON_AddNumberToObject(data_info_elem, "recv_msg",
@@ -1532,12 +1538,13 @@ get_subscriptions(
  		if (cp) {
  			cid = (const char *) conn_param_get_clientid(
  			    cp);
- 			if (client_id) {
- 				if (strcmp(client_id, cid) != 0) {
+			conn_param_free(cp);
+			if (client_id) {
+				if (strcmp(client_id, cid) != 0) {
  					goto skip;
  				}
- 			}
- 		}
+			}
+		}
 
  		// topic_queue *tn = pt[i]->topic;
 		topic_queue *tq = dbhash_copy_topic_queue(pt[i]->pipe);
@@ -2377,7 +2384,9 @@ get_client_info_cb(uint32_t pid)
 
 	nng_pipe    pipe = { .id = pid };
 	conn_param *cp   = nng_pipe_cparam(pipe);
-	return (void *) conn_param_get_clientid(cp);
+	uint8_t    *clientid = conn_param_get_clientid(cp);
+	conn_param_free(cp);
+	return (void *) clientid;
 }
 
 static http_msg
