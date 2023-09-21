@@ -3707,6 +3707,8 @@ post_mqtt_bridge_unsub(http_msg *msg, const char *name)
 					node->sub_count--;
 					nng_free(sub_topic->remote_topic,
 					    sub_topic->remote_topic_len);
+					nng_free(sub_topic->local_topic,
+					    sub_topic->local_topic_len);
 					nng_free(sub_topic, sizeof(topics));
 					break;
 				}
