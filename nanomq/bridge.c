@@ -514,13 +514,10 @@ hybrid_quic_client(bridge_param *bridge_arg)
 
 	// keepalive here is for QUIC only
 	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
-		log_info("MQTT V5 OVER QUIC is not supported yet.");
-		/*
-		if ((rv = nng_mqtt_quic_client_open(new)) != 0) {
-			nng_fatal("nng_mqtt_quic_client_open", rv);
+		if ((rv = nng_mqttv5_quic_client_open(new)) != 0) {
+			nng_fatal("nng_mqttv5_quic_client_open", rv);
 			return rv;
 		}
-		*/
 	} else {
 		if ((rv = nng_mqtt_quic_client_open(new)) != 0) {
 			nng_fatal("nng_mqtt_quic_client_open", rv);
@@ -943,7 +940,7 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 	log_debug("Quic bridge service start.\n");
 
 	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
-		if ((rv = nng_mqtt_quic_client_open(sock)) != 0) {
+		if ((rv = nng_mqttv5_quic_client_open(sock)) != 0) {
 			nng_fatal("nng_mqttv5_quic_client_open", rv);
 			return rv;
 		}

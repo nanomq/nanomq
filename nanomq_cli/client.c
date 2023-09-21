@@ -1462,11 +1462,9 @@ create_client(nng_socket *sock, struct work **works, size_t id, size_t nwork,
 
 	if (isquic) {
 #if defined(SUPP_QUIC)
-		if (param->opts->version == MQTT_PROTOCOL_VERSION_v5) {
-			console("MQTT V5 OVER QUIC is not supported yet");
-			return;
-		}
-		rv = nng_mqtt_quic_client_open(sock);
+		rv = param->opts->version == MQTT_PROTOCOL_VERSION_v5
+		    ? nng_mqttv5_quic_client_open(sock)
+		    : nng_mqtt_quic_client_open(sock);
 		if (rv != 0) {
 			nng_fatal("nng_socket", rv);
 		}
