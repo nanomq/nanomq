@@ -1453,6 +1453,24 @@ disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	console("disconnected reason : %d\n", reason);
 }
 
+static int
+quic_connect_cb(void *rmsg, void *arg)
+{
+	struct connect_param *param  = arg;
+	int                   reason = 0;
+
+	console("%s: %s connect\n", __FUNCTION__, param->opts->url);
+
+	return 0;
+}
+
+static int
+quic_disconnect_cb(void *rmsg, void *arg)
+{
+	console("bridge client disconnected!\n");
+	return 0;
+}
+
 static void
 create_client(nng_socket *sock, struct work **works, size_t id, size_t nwork,
     struct connect_param *param, bool isquic)
@@ -1468,6 +1486,13 @@ create_client(nng_socket *sock, struct work **works, size_t id, size_t nwork,
 		if (rv != 0) {
 			nng_fatal("nng_socket", rv);
 		}
+		if (param->opts->version == MQTT_PROTOCOL_VERSION_v5) {
+			nng_mqttv5_quic_set_connect_cb(sock, quic_connect_cb, param);
+			nng_mqttv5_quic_set_disconnect_cb(sock, quic_disconnect_cb, param);
+		} else {
+			nng_mqtt_quic_set_connect_cb(sock, quic_connect_cb, param);
+			nng_mqtt_quic_set_disconnect_cb(sock, quic_disconnect_cb, param);
+		}
 #endif
 	} else {
 		rv = param->opts->version == MQTT_PROTOCOL_VERSION_v5
@@ -1476,6 +1501,8 @@ create_client(nng_socket *sock, struct work **works, size_t id, size_t nwork,
 		if (rv != 0) {
 			nng_fatal("nng_socket", rv);
 		}
+		nng_mqtt_set_connect_cb(*sock, connect_cb, param);
+		nng_mqtt_set_disconnect_cb(*sock, disconnect_cb, conn_msg);
 	}
 
 	for (size_t i = 0; i < opts->parallel; i++) {
@@ -1505,9 +1532,6 @@ create_client(nng_socket *sock, struct work **works, size_t id, size_t nwork,
 	param->sock = sock;
 	param->opts = opts;
 	param->id   = id;
-
-	nng_mqtt_set_connect_cb(*sock, connect_cb, param);
-	nng_mqtt_set_disconnect_cb(*sock, disconnect_cb, conn_msg);
 
 	if ((rv = nng_dialer_start(dialer, NNG_FLAG_ALLOC)) != 0) {
 		nng_fatal("nng_dialer_start", rv);
