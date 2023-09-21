@@ -165,7 +165,7 @@ test_get_subscriptions_clientid()
 {
 	char *cmd =
 	    "curl -i --basic -u admin_test:pw_test -X GET "
-	    "'http://localhost:8081/api/v4/subscriptions/client-id-test'";
+	    "'http://localhost:8081/api/v4/subscriptions/clientid-test'";
 	FILE *fd = popen(cmd, "r");
 	bool  rv = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
 	pclose(fd);
@@ -584,10 +584,10 @@ int
 main()
 {
 	char *cmd[] = { "mosquitto_sub", "-h", "127.0.0.1", "-p", "1881", "-t",
-		"topic-test", "-u", "user-test", "-i", "client-id-test",
+		"topic-test", "-u", "user-test", "-i", "clientid-test",
 		NULL };
 	char *cmd2[] = { "mosquitto_sub", "-h", "127.0.0.1", "-p", "1881", "-t",
-		"topic-test2", "-u", "user-test2", "-i", "client-id-test2",
+		"topic-test2", "-u", "user-test2", "-i", "clientid-test2",
 		NULL };
 	nng_thread *nmq;
 	conf       *conf;
