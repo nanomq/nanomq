@@ -641,7 +641,7 @@ main()
 	assert(test_get_bridge());
 	assert(test_put_bridges_sub());
 	assert(test_put_bridges_unsub()); // the usage of unsub rest api may need further discussion.
-	// assert(test_put_bridges()); TODO: there is a potential bug here with will_flag. 
+	assert(test_put_bridges()); 
 
 	assert(test_post_rules());
 	assert(test_get_rules());
