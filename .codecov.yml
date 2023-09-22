@@ -3,3 +3,12 @@ ignore:
  - "nanomq_cli"
 coverage:
  range: 50..95
+ status:
+  patch: false
+  project:
+    default:
+      # basic
+      target: auto
+      threshold: 5%
+      base: auto
+      if_ci_failed: success
