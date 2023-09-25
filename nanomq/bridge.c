@@ -43,9 +43,9 @@ static property *sub_property(conf_bridge_sub_properties *conf_prop);
 static property *conn_property(conf_bridge_conn_properties *conf_prop);
 static property *will_property(conf_bridge_conn_will_properties *will_prop);
 
-static nng_thread *hybridger_thr;
+static nng_thread *hybrid_thr;
 
-static void quic_ack_cb(void *arg);
+static int execone = 1;
 
 static int
 apply_sqlite_config(
@@ -462,16 +462,21 @@ hybrid_tcp_client(bridge_param *bridge_arg)
 	}
 #endif
 
+	bridge_arg->client = nng_mqtt_client_alloc(*new, &send_callback, true);
+
 	nng_msg *connmsg   = create_connect_msg(node);
 	bridge_arg->connmsg = connmsg;
-	bridge_arg->client = nng_mqtt_client_alloc(*new, &send_callback, true);
 
 	node->sock         = (void *) new;
 	bridge_arg->sock   = new;
 
 	// TCP bridge does not support hot update of connmsg
-	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
-	nng_socket_set_ptr(*new, NNG_OPT_MQTT_CONNMSG, connmsg);
+	if (0 != nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg)) {
+		log_warn("Error in updating connmsg");
+	}
+	if (0 != nng_socket_set_ptr(*new, NNG_OPT_MQTT_CONNMSG, connmsg)) {
+		log_warn("Error in updating connmsg");
+	}
 	nng_mqtt_set_connect_cb(*new, hybrid_tcp_connect_cb, bridge_arg);
 	nng_mqtt_set_disconnect_cb(*new, hybrid_tcp_disconnect_cb, bridge_arg);
 
@@ -506,7 +511,7 @@ hybrid_quic_client(bridge_param *bridge_arg)
 {
 	int           rv;
 	nng_dialer    dialer;
-	log_info("Quic bridge service start.");
+	log_info("Quic hybrid service start.");
 
 	// always alloc a new sock pointer in hybrid mode
 	nng_socket *new = (nng_socket *) nng_alloc(sizeof(nng_socket));
@@ -525,7 +530,6 @@ hybrid_quic_client(bridge_param *bridge_arg)
 		}
 	}
 
-	// TODO mqtt v5 protocol
 	apply_sqlite_config(new, node, "mqtt_quic_client.db");
 
 	if ((rv = nng_dialer_create(&dialer, *new, node->address))) {
@@ -533,9 +537,12 @@ hybrid_quic_client(bridge_param *bridge_arg)
 		return rv;
 	}
 
+	bridge_arg->client = nng_mqtt_client_alloc(*new, &send_callback, true);
+
 	nng_msg *connmsg   = create_connect_msg(node);
 	bridge_arg->connmsg = connmsg;
-	bridge_arg->client = nng_mqtt_client_alloc(*new, &send_callback, true);
+
+	execone = 1;
 
 	node->sock         = (void *) new;
 	bridge_arg->sock   = new;
@@ -573,7 +580,7 @@ gen_fallback_url(char *url, char *new) {
 }
 
 static void
-hybridger_cb(void *arg)
+hybrid_cb(void *arg)
 {
 	bridge_param *bridge_arg = arg;
 	conf_bridge_node *node = bridge_arg->config;
@@ -588,23 +595,23 @@ hybridger_cb(void *arg)
 		nng_fatal("nng_cv_alloc", rv);
 		return;
 	}
+	uint32_t aio_cnt = bridge_arg->conf->parallel + node->parallel * 2;
 	// alloc an AIO for each ctx bridging use only
-	node->bridge_aio =
-	    nng_alloc((bridge_arg->conf->parallel + node->parallel * 2) *
-	        sizeof(nng_aio *));
+	node->bridge_aio = nng_alloc(aio_cnt * sizeof(nng_aio *));
 
-	for (uint32_t num = 0;
-	     num < (bridge_arg->conf->parallel + node->parallel * 2); num++) {
+	for (uint32_t num = 0; num < aio_cnt; num++) {
 		if ((rv = nng_aio_alloc(&node->bridge_aio[num], NULL, node)) !=
 		    0) {
 			nng_fatal("bridge_aio nng_aio_alloc", rv);
 		}
-		log_debug("parallel %d", num);
 	}
+	log_debug("parallel %d aios", aio_cnt);
 
 	char addr_back[160] = {'\0'};
-	if (0 != gen_fallback_url(node->address, addr_back))
+	if (0 != gen_fallback_url(node->address, addr_back)) {
+		log_warn("Can't generate backup address for current hybrid bridge");
 		strcpy(addr_back, node->address);
+	}
 	char * addrs[] = {node->address, addr_back};
 	int idx = -1;
 	for (;;) {
@@ -653,7 +660,7 @@ hybridger_cb(void *arg)
 		}
 	}
 
-	log_warn("Hybridger thread is done");
+	log_warn("Hybrid thread is done");
 	nng_cv_free(bridge_arg->switch_cv);
 	nng_mtx_free(bridge_arg->switch_mtx);
 	bridge_arg->switch_cv = NULL;
@@ -687,7 +694,7 @@ hybrid_bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 		return rv;
 	}
 
-	rv = nng_thread_create(&hybridger_thr, hybridger_cb, (void *)bridge_arg);
+	rv = nng_thread_create(&hybrid_thr, hybrid_cb, (void *)bridge_arg);
 	if (rv != 0) {
 		nng_fatal("nng_thread_create", rv);
 		return rv;
@@ -703,108 +710,6 @@ hybrid_bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 }
 
 #if defined(SUPP_QUIC)
-
-static void
-quic_ack_cb(void *arg)
-{
-	int result = 0;
-
-	nng_aio *     aio   = arg;
-	bridge_param *param = nng_aio_get_prov_data(aio);
-	nng_socket *  sock  = param->sock;
-	nng_msg *     msg   = nng_aio_get_msg(aio);
-	if (msg == NULL || (result = nng_aio_result(aio)) != 0) {
-		log_debug("no msg wating!");
-		return;
-	}
-	if (nng_msg_get_type(msg) == CMD_CONNACK) {
-		nng_mqtt_client *client = param->client;
-		int              reason = 0;
-		// get connect reason
-		reason = nng_mqtt_msg_get_connack_return_code(msg);
-		// get property for MQTT V5
-		// property *prop;
-		// nng_pipe_get_ptr(p, NNG_OPT_MQTT_CONNECT_PROPERTY, &prop);
-		log_info("Quic bridge client connected! RC [%d]", reason);
-
-		if (reason != 0 || param->config->sub_count <= 0)
-			return;
-		/* MQTT SUBSCRIBE */
-		if (param->config->multi_stream) {
-			for (size_t i = 0; i < param->config->sub_count; i++) {
-				nng_mqtt_topic_qos *topic_qos =
-				    nng_mqtt_topic_qos_array_create(1);
-				nng_mqtt_topic_qos_array_set(topic_qos, i,
-				    param->config->sub_list[i]->remote_topic,
-				    param->config->sub_list[i]->qos, 1,
-				    param->config->sub_list[i]
-				        ->retain_as_published,
-				    param->config->sub_list[i]
-				        ->retain_handling);
-				log_info("Bridge client subscribed remote_topic: %s local_topic: %s "
-				         "(qos %d rap %d rh %d).",
-				    param->config->sub_list[i]->remote_topic,
-				    param->config->sub_list[i]->local_topic,
-				    param->config->sub_list[i]->qos,
-				    param->config->sub_list[i]
-				        ->retain_as_published,
-				    param->config->sub_list[i]
-				        ->retain_handling);
-
-				property *properties = NULL;
-				if (param->config->proto_ver ==
-				    MQTT_PROTOCOL_VERSION_v5) {
-					properties = sub_property(
-					    param->config->sub_properties);
-				}
-				nng_mqtt_subscribe_async(
-				    client, topic_qos, 1, properties);
-				nng_mqtt_topic_qos_array_free(topic_qos, 1);
-			}
-		} else {
-			nng_mqtt_topic_qos *topic_qos =
-			    nng_mqtt_topic_qos_array_create(
-			        param->config->sub_count);
-			for (size_t i = 0; i < param->config->sub_count; i++) {
-				nng_mqtt_topic_qos_array_set(topic_qos, i,
-				    param->config->sub_list[i]->remote_topic,
-				    param->config->sub_list[i]->qos, 1,
-				    param->config->sub_list[i]
-				        ->retain_as_published,
-				    param->config->sub_list[i]
-				        ->retain_handling);
-				log_info("Bridge client subscribed remote_topic: %s local_topic: %s "
-				         "(qos %d rap %d rh %d).",
-				    param->config->sub_list[i]->remote_topic,
-				    param->config->sub_list[i]->local_topic,
-				    param->config->sub_list[i]->qos,
-				    param->config->sub_list[i]
-				        ->retain_as_published,
-				    param->config->sub_list[i]
-				        ->retain_handling);
-			}
-			property *properties = NULL;
-			if (param->config->proto_ver ==
-			    MQTT_PROTOCOL_VERSION_v5) {
-				properties = sub_property(
-				    param->config->sub_properties);
-			}
-			nng_mqtt_subscribe_async(client, topic_qos,
-			    param->config->sub_count, properties);
-			nng_mqtt_topic_qos_array_free(
-			    topic_qos, param->config->sub_count);
-		}
-	}
-
-	log_debug("ACK msg is recevied in bridging");
-
-	nng_msg_free(msg);
-	nng_aio_set_msg(aio, NULL);
-	// To clean the cached msg if any
-	nng_recv_aio(*sock, aio);
-}
-
-static int execone = 1;
 
 // Connack message callback function
 static void
@@ -1467,8 +1372,6 @@ bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 #if defined(SUPP_QUIC)
 	} else if (0 ==
 	    strncmp(node->address, quic_scheme, strlen(quic_scheme))) {
-		// TODO
-		// nng_mqtt_quic_client_close(sock);
 		nng_sock_replace(*tsock, *new);
 		nng_close(*tsock);
 		nng_free(tsock, sizeof(nng_socket));

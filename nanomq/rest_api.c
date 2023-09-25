@@ -1156,6 +1156,7 @@ get_client_cb(void *key, void *value, void *json_obj)
 	const uint8_t *cid     = conn_param_get_clientid(cp);
 	if (info->client_id != NULL) {
 		if (strcmp(info->client_id, (const char *) cid) != 0) {
+			conn_param_free(cp);
 			return;
 		}
 	}
@@ -1163,6 +1164,7 @@ get_client_cb(void *key, void *value, void *json_obj)
 	if (info->username != NULL) {
 		if (user_name == NULL ||
 		    strcmp(info->username, (const char *) user_name) != 0) {
+			conn_param_free(cp);
 			return;
 		}
 	}
@@ -1190,6 +1192,8 @@ get_client_cb(void *key, void *value, void *json_obj)
 	// 		    ctxt->recv_cnt != NULL ?
 	// nng_atomic_get64(ctxt->recv_cnt) : 0); #endif
 	cJSON_AddItemToArray(info->array, data_info_elem);
+
+	conn_param_free(cp);
 }
 
 static void
@@ -1204,6 +1208,8 @@ get_metric_cb(void *key, void *value, void *stats)
 	conn_param    *cp      = nng_pipe_cparam(pipe);
 	const uint8_t *cid     = conn_param_get_clientid(cp);
 	if (!status) s->connections++;
+
+	conn_param_free(cp);
 
 	// #ifdef STATISTICS
 	// 		cJSON_AddNumberToObject(data_info_elem, "recv_msg",
@@ -1532,12 +1538,13 @@ get_subscriptions(
  		if (cp) {
  			cid = (const char *) conn_param_get_clientid(
  			    cp);
- 			if (client_id) {
- 				if (strcmp(client_id, cid) != 0) {
+			conn_param_free(cp);
+			if (client_id) {
+				if (strcmp(client_id, cid) != 0) {
  					goto skip;
  				}
- 			}
- 		}
+			}
+		}
 
  		// topic_queue *tn = pt[i]->topic;
 		topic_queue *tq = dbhash_copy_topic_queue(pt[i]->pipe);
@@ -2377,7 +2384,9 @@ get_client_info_cb(uint32_t pid)
 
 	nng_pipe    pipe = { .id = pid };
 	conn_param *cp   = nng_pipe_cparam(pipe);
-	return (void *) conn_param_get_clientid(cp);
+	uint8_t    *clientid = conn_param_get_clientid(cp);
+	conn_param_free(cp);
+	return (void *) clientid;
 }
 
 static http_msg
@@ -3394,8 +3403,9 @@ convert_topic_qos(topics **list, size_t count)
 {
 	nng_mqtt_topic_qos *topics = nng_mqtt_topic_qos_array_create(count);
 	for (size_t i = 0; i < count; i++) {
-		nng_mqtt_topic_qos_array_set(
-		    topics, i, list[i]->remote_topic, list[i]->qos, 1, 0, 0);
+		nng_mqtt_topic_qos_array_set(topics, i, list[i]->remote_topic,
+		    list[i]->qos, 1, list[i]->retain_as_published,
+		    list[i]->retain_handling);
 	}
 	return topics;
 }
@@ -3445,17 +3455,34 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 
 	// Get topic list
 	for (size_t i = 0; i < array_size; i++) {
-		topics *tp       = nng_zalloc(sizeof(topics));
-		cJSON * sub_item = cJSON_GetArrayItem(sub_array, i);
-		getNumberValue(sub_item, item, "qos", tp->qos, rv);
-		char *topic = NULL;
-		getStringValue(sub_item, item, "topic", topic, rv);
+		topics *tp = nng_zalloc(sizeof(topics));
+		// default value for qos, rap and rh.
+		uint8_t qos          = 0;
+		uint8_t rap          = 1;
+		uint8_t rh           = 0;
+		char   *remote_topic = NULL;
+		char   *local_topic  = NULL;
+		cJSON  *sub_item = cJSON_GetArrayItem(sub_array, i);
+		getNumberValue(sub_item, item, "qos", qos, rv);
+		getNumberValue(sub_item, item, "retain_as_published", rap, rv);
+		getNumberValue(sub_item, item, "retain_handling", rh, rv);
+		getStringValue(sub_item, item, "remote_topic", remote_topic, rv);
 		if (rv == 0) {
-			tp->remote_topic     = nng_strdup(topic);
+			tp->remote_topic     = nng_strdup(remote_topic);
 			tp->remote_topic_len = strlen(tp->remote_topic);
 		} else {
 			continue;
 		}
+		getStringValue(sub_item, item, "local_topic", local_topic, rv);
+		if (rv == 0) {
+			tp->local_topic     = nng_strdup(local_topic);
+			tp->local_topic_len = strlen(tp->local_topic);
+		} else {
+			continue;
+		}
+		tp->qos                 = qos;
+		tp->retain_as_published = rap;
+		tp->retain_handling     = rh;
 		cvector_push_back(sub_topics, tp);
 		sub_count++;
 	}
@@ -3680,6 +3707,8 @@ post_mqtt_bridge_unsub(http_msg *msg, const char *name)
 					node->sub_count--;
 					nng_free(sub_topic->remote_topic,
 					    sub_topic->remote_topic_len);
+					nng_free(sub_topic->local_topic,
+					    sub_topic->local_topic_len);
 					nng_free(sub_topic, sizeof(topics));
 					break;
 				}

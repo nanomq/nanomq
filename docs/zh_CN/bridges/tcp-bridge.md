@@ -39,12 +39,12 @@ bridges.mqtt.name {
 	forwards = [
 		{
 			remote_topic = "fwd/topic1"
-			local_topic = "local/topic1"
+			local_topic = "topic1"
 			qos = 1
 		},
 		{
 			remote_topic = "fwd/topic2"
-			local_topic = "local/topic2"
+			local_topic = "topic2"
 			qos = 2
 		}
 	]
@@ -52,12 +52,12 @@ bridges.mqtt.name {
 	subscription = [
 		{
 			remote_topic = "recv/topic1"
-			local_topic = "local/topic1"
+			local_topic = "topic1"
 			qos = 1
 		},
 		{
 			remote_topic = "recv/topic2"
-			local_topic = "local/topic2"
+			local_topic = "topic2"
 			qos = 2
 		}
 	]
@@ -82,9 +82,9 @@ bridge.mqtt.emqx.proto_ver=4
 bridge.mqtt.emqx.clientid=bridge_client
 bridge.mqtt.emqx.clean_start=false
 bridge.mqtt.emqx.forwards.1.remote_topic=fwd/topic1
-bridge.mqtt.emqx.forwards.1.local_topic=local/topic1
+bridge.mqtt.emqx.forwards.1.local_topic=topic1
 bridge.mqtt.emqx.subscription.1.remote_topic=cmd/topic1
-bridge.mqtt.emqx.subscription.1.local_topic=local/topic1
+bridge.mqtt.emqx.subscription.1.local_topic=topic1
 bridge.mqtt.emqx.subscription.1.qos=1
 bridge.mqtt.emqx.parallel=2
 bridge.mqtt.emqx.max_send_queue_len=32

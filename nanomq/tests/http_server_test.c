@@ -165,7 +165,7 @@ test_get_subscriptions_clientid()
 {
 	char *cmd =
 	    "curl -i --basic -u admin_test:pw_test -X GET "
-	    "'http://localhost:8081/api/v4/subscriptions/client-id-test'";
+	    "'http://localhost:8081/api/v4/subscriptions/clientid-test'";
 	FILE *fd = popen(cmd, "r");
 	bool  rv = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
 	pclose(fd);
@@ -228,6 +228,105 @@ test_get_configuration()
 }
 
 static bool
+test_get_configuration_basic()
+{
+	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
+	            "'http://localhost:8081/api/v4/configuration/basic'";
+	FILE *fd  = popen(cmd, "r");
+	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
+	pclose(fd);
+	return rv;
+}
+
+static bool
+test_get_configuration_tls()
+{
+	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
+	            "'http://localhost:8081/api/v4/configuration/tls'";
+	FILE *fd  = popen(cmd, "r");
+	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
+	pclose(fd);
+	return rv;
+}
+
+static bool
+test_get_configuration_auth()
+{
+	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
+	            "'http://localhost:8081/api/v4/configuration/auth'";
+	FILE *fd  = popen(cmd, "r");
+	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
+	pclose(fd);
+	return rv;
+}
+
+static bool
+test_get_configuration_auth_http()
+{
+	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
+	            "'http://localhost:8081/api/v4/configuration/auth_http'";
+	FILE *fd  = popen(cmd, "r");
+	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
+	pclose(fd);
+	return rv;
+}
+
+static bool
+test_get_configuration_websocket()
+{
+	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
+	            "'http://localhost:8081/api/v4/configuration/websocket'";
+	FILE *fd  = popen(cmd, "r");
+	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
+	pclose(fd);
+	return rv;
+}
+
+static bool
+test_get_configuration_http_server()
+{
+	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
+	            "'http://localhost:8081/api/v4/configuration/http_server'";
+	FILE *fd  = popen(cmd, "r");
+	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
+	pclose(fd);
+	return rv;
+}
+
+static bool
+test_get_configuration_sqlite()
+{
+	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
+	            "'http://localhost:8081/api/v4/configuration/sqlite'";
+	FILE *fd  = popen(cmd, "r");
+	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
+	pclose(fd);
+	return rv;
+}
+
+static bool
+test_get_configuration_bridge()
+{
+	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
+	            "'http://localhost:8081/api/v4/configuration/bridge'";
+	FILE *fd  = popen(cmd, "r");
+	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
+	pclose(fd);
+	return rv;
+}
+
+static bool
+test_get_configuration_foo()
+{
+	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
+	            "'http://localhost:8081/api/v4/configuration/foo'";
+	FILE *fd  = popen(cmd, "r");
+	bool  rv  = check_http_return(fd, STATUS_CODE_NOT_FOUND, SUCCEED);
+	pclose(fd);
+	return rv;
+}
+
+static bool
 test_get_bridges()
 {
 	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
@@ -266,11 +365,8 @@ test_put_bridges()
         "\"username\": \"emqx\","
         "\"password\": \"emqx123\","
         "\"keepalive\": 60,"
-        "\"forwards\": [\"topic1/#\", \"topic3/#\"],"
-        "\"subscription\": [{\"topic\": \"cmd/topic1\",\"qos\": 1},"
-        "{\"topic\": \"cmd/topic3\",\"qos\": 2}]"
-		"}"
-    	"}'";
+        "\"forwards\": [{\"remote_topic\":\"topic1/#\",\"local_topic\":\"topic1_lo/#\"}],"
+        "\"subscription\": [{\"remote_topic\":\"topic1/#\",\"local_topic\":\"topic1_lo/#\",\"qos\": 1}]}}'";
 	FILE *fd = popen(cmd, "r");
 	bool  rv = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
 	pclose(fd);
@@ -284,8 +380,8 @@ test_put_bridges_sub()
 	            "'http://localhost:8081/api/v4/bridges/sub/emqx' "
 	            "--basic -u admin_test:pw_test -d '{"
 	            "\"data\": {"
-	            "\"subscription\": [{\"topic\": "
-	            "\"cmd/topic4\"},{\"topic\": \"cmd/topic5\"}],"
+	            "\"subscription\": [{\"remote_topic\": "
+	            "\"cmd/topic4\",\"local_topic\": \"cmd_lo/topic4\"}],"
 	            "\"sub_properties\": {\"user_properties\": [{\"key\": "
 	            "\"key1\",\"value\": \"value1\"},{\"key\": "
 	            "\"key2\",\"value\": \"value2\"}]}}}'";
@@ -302,8 +398,8 @@ test_put_bridges_unsub()
 	            "'http://localhost:8081/api/v4/bridges/unsub/emqx' "
 	            "--basic -u admin_test:pw_test -d '{"
 	            "\"data\": {"
-	            "\"unsubscription\": [{\"topic\": "
-	            "\"cmd/topic1\"},{\"topic\": \"cmd/topic2\"}],"
+	            "\"unsubscription\": [{\"topic\": \"cmd/topic1\"},"
+				"{\"topic\": \"cmd/topic2\"}],"
 	            "\"unsub_properties\": {\"user_properties\": [{\"key\": "
 	            "\"key1\",\"value\": \"value1\"},{\"key\": "
 	            "\"key2\",\"value\": \"value2\"}]}}}'";
@@ -586,17 +682,25 @@ test_misuse_of_method()
 int
 main()
 {
-	char *cmd = "mosquitto_sub -h 127.0.0.1 -p 1881 -t topic-test -u "
-	            "user-test -i clientid-test";
+	char *cmd[] = { "mosquitto_sub", "-h", "127.0.0.1", "-p", "1881", "-t",
+		"topic-test", "-u", "user-test", "-i", "clientid-test",
+		NULL };
+	char *cmd2[] = { "mosquitto_sub", "-h", "127.0.0.1", "-p", "1881", "-t",
+		"topic-test2", "-u", "user-test2", "-i", "clientid-test2",
+		NULL };
 	nng_thread *nmq;
 	conf       *conf;
-	FILE       *fd;
+	pid_t       pid_sub;
+	pid_t       pid_sub2;
+	int         outfp;
+	int         outfp2;
 
 	conf = get_test_conf(ALL_FEATURE_CONF);
 	assert(conf != NULL);
 	nng_thread_create(&nmq, (void *) broker_start_with_conf, (void *) conf);
-	// nng_msleep(100);  // wait a while for broker to init
-	fd = popen(cmd, "r");
+	nng_msleep(100);  // wait a while for broker to init
+	pid_sub = popen_sub_with_cmd(&outfp, cmd);
+	pid_sub2 = popen_sub_with_cmd(&outfp2, cmd2);
 	nng_msleep(50); // wait a while after sub
 
 	// TODO: there is a potential connection refuse case & although they
@@ -627,6 +731,16 @@ main()
 
 	assert(test_get_reload());
 	assert(test_get_configuration());
+	assert(test_get_configuration_basic());
+	assert(test_get_configuration_tls());
+	assert(test_get_configuration_auth());
+	assert(test_get_configuration_auth_http());
+	assert(test_get_configuration_websocket());
+	assert(test_get_configuration_http_server());
+	assert(test_get_configuration_sqlite());
+	assert(test_get_configuration_bridge());
+	assert(test_get_configuration_foo());
+
 	assert(test_post_reload());
 
 	assert(test_get_metrics());
@@ -635,8 +749,8 @@ main()
 	assert(test_get_bridges());
 	assert(test_get_bridge());
 	assert(test_put_bridges_sub());
-	assert(test_put_bridges_unsub());
-	assert(test_put_bridges());
+	assert(test_put_bridges_unsub()); // the usage of unsub rest api may need further discussion.
+	assert(test_put_bridges()); 
 
 	assert(test_post_rules());
 	assert(test_get_rules());
@@ -662,7 +776,8 @@ main()
 	// // tested now.
 	// assert(test_restart());
 	// assert(test_stop());
-	pclose(fd);
+	kill(pid_sub, SIGKILL);
+	kill(pid_sub2, SIGKILL);
 
 	nng_thread_destroy(nmq);
 }
