@@ -519,8 +519,7 @@ hybrid_quic_client(bridge_param *bridge_arg)
 
 	// keepalive here is for QUIC only
 	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
-		log_error("MQTT V5 OVER QUIC is not supported yet.");
-		if ((rv = nng_mqtt_quic_client_open(new)) != 0) {
+		if ((rv = nng_mqttv5_quic_client_open(new)) != 0) {
 			nng_fatal("nng_mqttv5_quic_client_open", rv);
 			return rv;
 		}
@@ -743,7 +742,9 @@ bridge_quic_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 			    nng_mqtt_topic_qos_array_create(1);
 			nng_mqtt_topic_qos_array_set(topic_qos, 0,
 			    param->config->sub_list[i]->remote_topic,
-			    param->config->sub_list[i]->qos, 1, 0, 0);
+			    param->config->sub_list[i]->qos, 1,
+				param->config->sub_list[i]->retain_as_published,
+			    param->config->sub_list[i]->retain_handling);
 			log_info("Quic bridge client subscribe to "
 			         "topic (QoS %d)%s.",
 			    param->config->sub_list[i]->qos,
@@ -844,8 +845,7 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 	log_debug("Quic bridge service start.\n");
 
 	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
-		log_error("MQTT V5 OVER QUIC is not supported yet.");
-		if ((rv = nng_mqtt_quic_client_open(sock)) != 0) {
+		if ((rv = nng_mqttv5_quic_client_open(sock)) != 0) {
 			nng_fatal("nng_mqttv5_quic_client_open", rv);
 			return rv;
 		}
@@ -865,9 +865,12 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 	// set backoff param to 24s
 	nng_duration duration = 240000;
 	nng_dialer_set(dialer, NNG_OPT_MQTT_RECONNECT_BACKOFF_MAX, &duration, sizeof(nng_duration));
-	// nng_dialer_set_bool(dialer, NNG_OPT_QUIC_ENABLE_0RTT, true);
-	// nng_dialer_set_bool(dialer, NNG_OPT_QUIC_ENABLE_MULTISTREAM, true);
-
+	nng_dialer_set_bool(dialer, NNG_OPT_QUIC_ENABLE_0RTT, true);
+	if (node->multi_stream) {
+		//better remove the option from dialer
+		nng_dialer_set_bool(dialer, NNG_OPT_QUIC_ENABLE_MULTISTREAM, true);
+		nng_socket_set_bool(*sock, NNG_OPT_QUIC_ENABLE_MULTISTREAM, true);
+	}
 	bridge_arg->client = nng_mqtt_client_alloc(*sock, &send_callback, true);
 
 	// create a CONNECT message
