@@ -16,7 +16,17 @@
    nanomq start  
    ```
 
+**Window支持功能**
 
-
-
-注意：Windows 版目前只提供最基础的 MQTT 消息服务。
+|        功能         | 支持 |         说明          |
+| ------------------ | ---- | -------------------- |
+| MQTT Broker功能     |  ✅  | 支持3.1、3.1.1、5.0   |
+| TLS/SSL            |  ✅  | 需要手动安装mebedtls   |
+| WebSocket          |  ✅  |                      |
+| QUIC               |  ❌  |                      |
+| MQTT over TCP桥接   | ✅  |                       |
+| HTTP APIs          |  ✅  |                      |
+| 规则引擎             |  ✅ |   目前只支持repub      |
+| webhook            |  ❌  |                      |
+| CLI客户端工具        |  ✅  |                      |
+| Bench 基准测试工具   |  ❌  |                      |
