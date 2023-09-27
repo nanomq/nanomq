@@ -1461,6 +1461,27 @@ quic_connect_cb(void *rmsg, void *arg)
 
 	console("%s: %s connect\n", __FUNCTION__, param->opts->url);
 
+	if (reason == 0) {
+		if (param->opts->type == SUB && param->opts->topic_count > 0) {
+			nng_mqtt_topic_qos *topics_qos =
+			    nng_mqtt_topic_qos_array_create(
+			        param->opts->topic_count);
+			size_t i = 0;
+			for (struct topic *tp = param->opts->topic;
+			     tp != NULL && i < param->opts->topic_count;
+			     tp = tp->next, i++) {
+				nng_mqtt_topic_qos_array_set(
+				    topics_qos, i, tp->val, param->opts->qos, 1, 0, 0);
+			}
+			nng_mqtt_subscribe(*param->sock, topics_qos,
+			    param->opts->topic_count,
+			    param->opts->sub_properties);
+			nng_mqtt_topic_qos_array_free(
+			    topics_qos, param->opts->topic_count);
+		}
+	}
+
+
 	return 0;
 }
 
