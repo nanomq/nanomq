@@ -1330,11 +1330,12 @@ bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 		log_error("Unsupported bridge protocol.\n");
 		return -2;
 	}
-
+#if defined(SUPP_QUIC)
 	if (node->hybrid == true) {
 		log_error("Not allow to reload if hybrid is turned on.");
 		return -3;
 	}
+#endif
 
 	nng_msg    *dismsg;
 	nng_socket *tsock;
