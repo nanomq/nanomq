@@ -3306,7 +3306,10 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 
 		found = true;
 		// restart bridge client, parameters: config, node, node->sock
-		bridge_reload(node->sock, config, node);
+		if (0 != bridge_reload(node->sock, config, node)) {
+			// Error might happened in reload bridge
+			found = false;
+		}
 		break;
 	}
 
