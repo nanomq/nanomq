@@ -936,6 +936,9 @@ bridge_tcp_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 		nng_mqtt_topic_qos_array_free(
 		    topic_qos, param->config->sub_count);
 	}
+	if (param->config->sub_count == 0) {
+		log_info("No subscriptions were set.");
+	}
 }
 
 // Disconnect message callback function
@@ -1325,6 +1328,12 @@ bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 #endif
 	} else {
 		log_error("Unsupported bridge protocol.\n");
+		return -2;
+	}
+
+	if (node->hybrid == true) {
+		log_error("Not allow to reload if hybrid is turned on.");
+		return -3;
 	}
 
 	nng_msg    *dismsg;
