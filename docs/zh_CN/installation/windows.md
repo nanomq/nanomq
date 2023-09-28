@@ -21,7 +21,7 @@
 |        功能         | 支持 |         说明          |
 | ------------------ | ---- | -------------------- |
 | MQTT Broker功能     |  ✅  | 支持3.1、3.1.1、5.0   |
-| TLS/SSL            |  ✅  | 需要手动安装mebedtls   |
+| TLS/SSL            |  ✅  | 需要手动安装mbedtls   |
 | WebSocket          |  ✅  |                      |
 | QUIC               |  ❌  |                      |
 | MQTT over TCP桥接   | ✅  |                       |
