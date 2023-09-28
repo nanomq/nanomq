@@ -21,7 +21,7 @@ unzip aws-iot-device-sdk-embedded-C-202108.00.zip
 
 ## 编译
 cd aws-iot-device-sdk-embedded-C
-mkdir build
+mkdir build && cd build
 cmake -G Ninja -DBUILD_DEMOS=OFF -DCMAKE_C_STANDARD=99 -DINSTALL_TO_SYSTEM=ON ..
 ninja
 
