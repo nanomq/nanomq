@@ -328,13 +328,13 @@ event_cb(MQTTContext_t *mqtt_ctx, MQTTPacketInfo_t *packet_info,
 			mqtt_status = MQTT_GetSubAckStatusCodes(
 			    packet_info, &payload, &size);
 			if (mqtt_status != MQTTSubAckFailure) {
-				log_debug(
+				log_info(
 				    "Subscribed to the topic successfully.");
 			}
 			break;
 
 		case MQTT_PACKET_TYPE_UNSUBACK:
-			log_debug("Unsubscribed from the topic");
+			log_info("Unsubscribed from the topic");
 			/* Make sure ACK packet identifier matches with Request
 			 * packet identifier. */
 			break;
@@ -348,7 +348,7 @@ event_cb(MQTTContext_t *mqtt_ctx, MQTTPacketInfo_t *packet_info,
 			break;
 
 		case MQTT_PACKET_TYPE_PUBACK:
-			log_debug(
+			log_info(
 			    "PUBACK received for packet id %u.\n", packet_id);
 			break;
 
