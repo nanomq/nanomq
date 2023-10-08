@@ -127,12 +127,12 @@ bridges.aws.c1 {
 		{
 			remote_topic = "cmd/topic1"
 			local_topic = "topic1"
-			qos = 1
+			qos = 0
 		},
 		{
 			remote_topic = "cmd/topic2"
 			local_topic = "topic2"
-			qos = 2
+			qos = 1
 		}
 	]
 	max_parallel_processes = 2
