@@ -16,8 +16,14 @@ jobs:
         sudo apt-get install -y libmbedtls-dev ninja-build pip python3-pip mosquitto-clients pkg-config libmysqlclient-dev sqlite3
         pip install Jinja2 paho-mqtt
 
+    - name: Install AWS SDK
+      run: |
+          wget https://github.com/aws/aws-iot-device-sdk-embedded-C/releases/download/202108.00/aws-iot-device-sdk-embedded-C-202108.00.zip
+          unzip aws-iot-device-sdk-embedded-C-202108.00.zip
+          cd aws-iot-device-sdk-embedded-C && mkdir build && cd build && cmake -G Ninja -DBUILD_DEMOS=OFF -DCMAKE_C_STANDARD=99 -DINSTALL_TO_SYSTEM=ON .. && ninja && sudo ninja install && sudo cp ../demos/logging-stack/logging_*.h  /usr/local/include/aws/ && sudo ldconfig
+      
     - name: Configure
-      run:  mkdir build && cd build && cmake -G Ninja -DNANOMQ_TESTS=ON -DDEBUG=ON -DASAN=ON -DNNG_ENABLE_COVERAGE=ON -DNNG_ENABLE_TLS=ON -DNNG_ENABLE_SQLITE=ON -DENABLE_RULE_ENGINE=ON -DENABLE_MYSQL=ON ..
+      run:  mkdir build && cd build && cmake -G Ninja -DNANOMQ_TESTS=ON -DDEBUG=ON -DASAN=ON -DNNG_ENABLE_COVERAGE=ON -DNNG_ENABLE_TLS=ON -DNNG_ENABLE_SQLITE=ON -DENABLE_RULE_ENGINE=ON -DENABLE_MYSQL=ON -DENABLE_AWS_BRIDGE=ON -DNNG_ENABLE_QUIC=OFF ..
 
     - name: build
       run: cd build && ninja

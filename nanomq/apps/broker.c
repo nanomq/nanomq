@@ -1117,7 +1117,7 @@ broker(conf *nanomq_conf)
 #endif
 #endif
 			conf *conf = works[0]->config;
-			if(is_testing == true && conf->bridge.count > 0) {
+			if(is_testing == true && (conf->bridge.count > 0 || conf->aws_bridge.count > 0)) {
 				// bridge might need more time to response to the resquest
 				nng_msleep(8 * 1000); 
 			}
