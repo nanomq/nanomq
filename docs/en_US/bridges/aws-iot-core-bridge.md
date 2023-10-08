@@ -85,10 +85,9 @@ Users who wish to use the HOCON configuration format can refer to the following 
 - NanoMQ 0.14 ~ 0.18 ，refer to [Configuration - v0.14](../config-description/v014.md)
 
 ```bash
-# # ci is the node name, you can setup multiple bridging targer with different node name
+# # c1 is the node name, you can setup multiple bridging targer with different node name
 bridges.aws.c1 {
 	server = "$HOST_URL:8883"
-	# # AWS IoT Core only supports MQTT 3.1.1
 	proto_ver = 4
 	clientid = "aws_bridge_client"
 	keepalive = 60s
