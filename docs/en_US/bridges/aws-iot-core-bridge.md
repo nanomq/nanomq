@@ -56,13 +56,13 @@ Here's how to configure it on the AWS IoT Core side. Note: The Configuration pre
 
    
 
-2. Download your Certificates at **Security** -> **Certificates** page. 
+2. Download your Certificates at **Security** -> **Certificates** page. Attach Policy to Certificates and attach Certificates to Things.
 
    ![Certification](./assets/certs.png)
 
 
 
-3. Create a corresponding MQTT client behavior authentication policy at  **Security **-> **Policies**  page. And defines the client identifier, publish/subscribe topics, these parameters will be used in NanoMQ Bridge.
+3. Create a corresponding MQTT client behavior authentication policy at  **Security**-> **Policies**  page. And defines the client identifier, publish/subscribe topics, these parameters will be used in NanoMQ Bridge.
 
    ![Policy](./assets/policy.png)
 
