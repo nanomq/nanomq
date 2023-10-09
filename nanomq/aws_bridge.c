@@ -2,7 +2,7 @@
 #include "broker.h"
 #include "mqtt_api.h"
 
-// #if defined(SUPP_AWS_BRIDGE)
+#if defined(SUPP_AWS_BRIDGE)
 
 #include <assert.h>
 /* POSIX includes. */
@@ -602,4 +602,4 @@ aws_bridge_client(conf_bridge_node *node)
 	return ret;
 }
 
-// #endif
+#endif

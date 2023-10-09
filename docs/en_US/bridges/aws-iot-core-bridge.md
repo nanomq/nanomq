@@ -126,12 +126,12 @@ bridges.aws.c1 {
 	subscription = [
 		{
 			remote_topic = "cmd/topic1"
-			local_topic = "topic1"
+			local_topic = "topic3"
 			qos = 0
 		},
 		{
 			remote_topic = "cmd/topic2"
-			local_topic = "topic2"
+			local_topic = "topic4"
 			qos = 1
 		}
 	]
@@ -230,10 +230,10 @@ $ nanomq start --old_conf nanomq.conf
 
 Now you can verify whether the bridging channel is working by publishing a message to NanoMQ. Then check on the MQTT test client tool in AWS IoT Core.
 
-For example, publish a message `hello` locally to the bridge topic `topic_1` of NanoMQ,
+For example, publish a message `hello` locally to the bridge topic `topic1` of NanoMQ,
 
 ```bash
-$ ./nanomq_cli pub -h "local.broker.address"  -t "topic_1" -m "hello" -q 1
+$ ./nanomq_cli pub -h "local.broker.address"  -t "topic1" -m "hello" -q 1
 ```
 
 On AWS MQTT test client menu：
