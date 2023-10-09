@@ -4,7 +4,7 @@
 int
 main()
 {
-	char *cmd_sub[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", "1881", "-t", "nmqtest", "-V", "mqttv5", NULL};
+	char *cmd_sub[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", "1881", "-t", "nmqtest_sub", "-V", "mqttv5", NULL};
 
 	char *cmd_pub= "mosquitto_pub -h 127.0.0.1 -p 1881 -t nmqtest_lo -m message-to-aws -V mqttv5";
 
