@@ -55,7 +55,7 @@ sudo ninja install
 
    
 
-2. 在 **安全性** -> **证书** 处下载相关的 CRT 证书。
+2. 在 **安全性** -> **证书** 处下载相关的 CRT 证书，并将策略附加到证书上，证书附加到物品上。
 
    ![Certification](./assets/certs.png)
 
@@ -123,12 +123,12 @@ bridges.aws.c1 {
 	subscription = [
 		{
 			remote_topic = "cmd/topic1"
-			local_topic = "topic1"
+			local_topic = "topic3"
 			qos = 0
 		},
 		{
 			remote_topic = "cmd/topic2"
-			local_topic = "topic2"
+			local_topic = "topic4"
 			qos = 1
 		}
 	]
@@ -222,10 +222,10 @@ $ nanomq start --old_conf nanomq.conf
 
 用户可以在 AWS IoT Core 的 MQTT 测试客户端工具上验证桥接是否成功。
 
-如在本地向 NanoMQ 的桥接主题 `topic_1`发布一条消息 `hello`：
+如在本地向 NanoMQ 的桥接主题 `topic1`发布一条消息 `hello`：
 
 ```bash
-$ ./nanomq_cli pub -h "local.broker.address"  -t "topic_1" -m "hello" -q 1
+$ ./nanomq_cli pub -h "local.broker.address"  -t "topic1" -m "hello" -q 1
 ```
 
 即可在AWS 界面看到：
