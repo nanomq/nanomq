@@ -2,7 +2,7 @@
 #include "broker.h"
 #include "mqtt_api.h"
 
-#if defined(SUPP_AWS_BRIDGE)
+// #if defined(SUPP_AWS_BRIDGE)
 
 #include <assert.h>
 /* POSIX includes. */
@@ -278,10 +278,19 @@ handle_recv_publish(MQTTPublishInfo_t *pub_info, uint16_t packet_id,
 	nng_mqtt_msg_set_publish_payload(
 	    pub_msg, (uint8_t *) pub_info->pPayload, pub_info->payloadLength);
 
-	nng_mqtt_msg_set_publish_qos(pub_msg, pub_info->qos);
 	nng_mqtt_msg_set_publish_retain(pub_msg, pub_info->retain);
-	nng_mqtt_msg_set_publish_topic(pub_msg, pub_info->pTopicName);
-	nng_mqtt_msg_set_publish_topic_len(pub_msg, pub_info->topicNameLength);
+	for (int i = 0; i < node->sub_count; i++) {
+		if (strncmp(pub_info->pTopicName,
+		        node->sub_list[i]->remote_topic,
+		        node->sub_list[i]->remote_topic_len) == 0) {
+			nng_mqtt_msg_set_publish_topic(
+			    pub_msg, node->sub_list[i]->local_topic);
+			nng_mqtt_msg_set_publish_topic_len(
+			    pub_msg, node->sub_list[i]->local_topic_len);
+			nng_mqtt_msg_set_publish_qos(
+			    pub_msg, node->sub_list[i]->qos);
+		}
+	}
 
 	nng_msg *msg = NULL;
 	if ((rv = encode_common_mqtt_msg(
@@ -593,4 +602,4 @@ aws_bridge_client(conf_bridge_node *node)
 	return ret;
 }
 
-#endif
+// #endif
