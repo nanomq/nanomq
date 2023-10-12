@@ -43,9 +43,9 @@ We use GitHub pull request to review proposed code changes. So you need to obtai
 2. **Clone** the repository locally from your personal fork. `git clone https://github.com/<Github_user>/nanomq.git`.
 3. Add NanoMQ repo as additional Git remote so that you can sync between local repo and NanoMQ.
 
-  ```shell
-  git remote add upstream https://github.com/emqx/nanomq.git
-  ```
+```shell
+git remote add upstream https://github.com/emqx/nanomq.git
+```
 
 ### Create a branch to work on
 
@@ -54,8 +54,8 @@ the state of the branch you expect your changes to be merged into. The `master` 
 it is recommended to set `master` as base branch.
 
 ```shell
-$ git fetch upstream
-$ git checkout -b <my-branch> upstream/master
+git fetch upstream
+git checkout -b <my-branch> upstream/master
 ```
 
 Now you can use your favorite IDE or editor to make change happens.
@@ -68,15 +68,15 @@ look at the PR status result, and make sure that all testcases run successfully.
 You can run the test suit locally in advance.
 
 ```shell
-$ cmake .. -DDEBUG=ON -DASAN=ON -DNANOMQ_TESTS=ON <-DCMAKE_BUILD_TYPE=ON>
-$ make
-$ ctest --output-on-failure
+cmake .. -DDEBUG=ON -DASAN=ON -DNANOMQ_TESTS=ON <-DCMAKE_BUILD_TYPE=ON>
+make
+ctest --output-on-failure
 ```
 Note: some tests may fail due to bad Internet connection, you can still submit your commits to run test via Github action.
 
 ### Licensing
 
-All code contributed to NanoMQ should be licensed under MIT license. Be sure every new files you have added include the right license header.
+All code contributed to NanoMQ should be licensed under MIT license. Be sure every new file you have added include the right license header.
 
 ### Sign-off commit
 
@@ -101,7 +101,7 @@ against `master` branch.
 
 Organize your commits to make our reviewing job easier. We prefer multiple small pull requests, instead of a single large pull request.
  Within one pull request, we prefer a relatively small number of commits with logical steps. 
- For most pull requests, it is better to squash your changes down to 1 commit.
+ For most pull requests, it is better to squash your changes down to one commit.
 
 Make sure all your commits comply to the [commit message guidelines](#commit-message-guidelines).
 
