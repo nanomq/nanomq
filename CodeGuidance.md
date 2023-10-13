@@ -60,8 +60,11 @@ This is a brief introduction for NanoMQ project, note that code structure presen
 
 ![image](docs/zh_CN/images/NanoMQ_state_machine.png)
 
+<!-- 
 ## Data Structure
 
 ## NanoNNG Interface
 
-check nanomq/nng/src/nng.c to get all.
+TODO: list commom nanonng interface 
+check nanomq/nng/src/nng.c to get all. 
+-->
