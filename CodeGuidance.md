@@ -1,6 +1,6 @@
 # Code Guidance
 
-code structure, state machine, important data structure, nng interface.
+This guide covers code structure, state machine, important data structure and commom nng interface that you may need to know before you make code changes.
 
 ## Code Structure
 
@@ -56,6 +56,12 @@ This is a brief introduction for NanoMQ project, note that code structure presen
 
 ## State Machine
 
+`nano_work` is the bottom worker of NanoMQ project, it can be used for broker, http server and bridge. All these protos work in the same state machine. `nano_work` has 6 states, namely `INIT`, `RECV`, `SEND`, `WAIT`, `END`, `CLOSE`. `nano_work` start with `INIT` after initialization, then try to recv msgs and transform state to `RECV`. `RECV` is the major state where `nano_work` takes various actions according to the msg type then transform into another state. If `nano_work` fails to handle msgs, then it will transform into the `CLOSE` state to compose and send a disconnect msg. If it succeeds to handle msgs, then it may go to the `SEND`  state to check whether the optional rule engine or webhook actions should be taken. When receiving pub msgs, connack msgs, or disconnect events, it will take corresponding action and go to the `WAIT` state to encode and send the pub msg. `END` state is mainly for will msgs. All these states `CLOSE`, `SEND`, `WAIT`, `END` will end with a action to free msgs and try to receive msgs again, then transform into the `RECV` state forming a closed loop. You can check the diagram blow for more information.
+
+![image](docs/zh_CN/images/NanoMQ_state_machine.png)
+
 ## Data Structure
 
-## NNG Interface
+## NanoNNG Interface
+
+check nanomq/nng/src/nng.c to get all.
