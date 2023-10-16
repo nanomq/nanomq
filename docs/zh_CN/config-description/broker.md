@@ -41,4 +41,4 @@ sqlite {
   - 1 - infinity
 - `mounted_file_path`：数据库文件存储路径，缺省为 NanoMQ 的运行路径。
 - `flush_mem_threshold`：内存缓存消息数阈值，达到阈值后再写入 SQLite 表中，取值范围：1-infinity，缺省为  `100`。
-- `resend_interval`：故障恢复后的重发时间间隔，单位： ms；缺省为`5000`。注意: **该参数只对 Broker 有效** <!--@jaylin 这里不太理解-->
+- `resend_interval`：故障恢复后的重发时间间隔，单位： ms；缺省为`5000`。注意: **该参数只对 Broker 有效**
