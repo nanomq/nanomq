@@ -225,6 +225,7 @@ bridges.mqtt.cache {
     disk_cache_size = 102400   # Max message limitation for caching
     mounted_file_path="/tmp/"  # Mounted file path 
     flush_mem_threshold = 100  # The threshold of flushing messages to flash
+    resend_interval     = 3000 # The interval of resending cached SQLite msg
 }
 ```
 
@@ -233,7 +234,7 @@ bridges.mqtt.cache {
 - `disk_cache_size`: Specifies the maximum number of messages that can be cached in the MQTT bridges. A value of 0 indicates no limit.
 - `mounted_file_path`: Specifies the file path where the cache file for the MQTT bridges is mounted.
 - `flush_mem_threshold`: Specifies the threshold for flushing messages to the cache file. When the number of messages reaches this threshold, they are flushed to the cache file.
-- `resend_interval`: Specifies the interval, in milliseconds, for resending the messages after a failure is recovered. This is not related to the trigger for the resend operation.
+- `resend_interval`: Specifies the interval, in milliseconds, for resending the messages after a failure is recovered. This is not related to the trigger for the resend operation. Only takes effect in bridging.
 
 ::: tip
 
