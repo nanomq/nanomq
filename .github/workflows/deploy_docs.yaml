@@ -13,26 +13,37 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     if: github.repository_owner == 'emqx'
     steps:
     - name: clone docs
-      uses: actions/checkout@v3
+      uses: actions/checkout@main
       with:
         fetch-depth: 0
         path: docs-files
 
     - name: clone frontend
-      uses: actions/checkout@v3
+      uses: actions/checkout@main
       with:
         repository: 'emqx/emqx-io-docs-frontend'
+        ref: next
         token: ${{ secrets.CI_GIT_TOKEN }}
         path: frontend
 
-    - name: use node.js
-      uses: actions/setup-node@v1
+    - name: use python
+      uses: actions/setup-python@v4
       with:
-        node-version: 14.15
+        python-version: 3.8
+  
+    - name: use node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version-file: 'frontend/.nvmrc'
+  
+    - name: use pnpm
+      uses: pnpm/action-setup@v2
+      with:
+        version: 8
 
     - name: set env
       run: |
@@ -49,30 +60,32 @@ jobs:
     - name: remove unused files
       run: |
         cd docs-files
-        python3 .github/scripts/remove_unused.py $(pwd)/docs
+        python3 .github/scripts/remove_unused.py directory.json $(pwd)/docs
 
     - name: move files
       run: |
-        rm frontend/docs/en/README.md || true
-        rm frontend/docs/zh/README.md || true
         rm frontend/docs/*.md || true
-        rm frontend/README.md
+        rm frontend/README.md || true
         mkdir -p frontend/docs/en/${VERSION}/
         mkdir -p frontend/docs/zh/${VERSION}/
-        mkdir -p frontend/docs/.vuepress/public/api/
+        mkdir -p frontend/docs/public/api/
         cp -r docs-files/docs/en_US/* frontend/docs/en/${VERSION}/
         cp -r docs-files/docs/zh_CN/* frontend/docs/zh/${VERSION}/
-        cp docs-files/docs/directory.json frontend/docs/.vuepress/config/directory.json
-        echo "[\"latest\"]" > frontend/docs/.vuepress/public/api/${DOCS_TYPE}_versions.json
+        cp docs-files/directory.json frontend/docs/.vitepress/config/directory.json
+
+    - name: generate version config
+      run: |
+        echo '["latest"]' > frontend/docs/public/api/${DOCS_TYPE}_versions.json
 
     - name: build docs
       run: |
         cd frontend
-        yarn && yarn build
+        pnpm install
+        pnpm build
 
     - name: upload dist
       run: |
-        cd frontend/docs/.vuepress/
+        cd frontend/docs/.vitepress/
         pip3 install coscmd
         coscmd config -a ${{ secrets.TENCENT_COS_ID }} -s ${{ secrets.TENCENT_COS_KEY }} -b nanomq-io-1302406139 -r ap-hongkong
         coscmd delete -r -f docs/en/${VERSION} || true
@@ -89,7 +102,7 @@ jobs:
         tccli cdn PurgePathCache --Paths '["https://nanomq.io/docs/", "https://nanomq-docs.emqx.net/"]' --FlushType delete
 
     - name: update search index
-      uses: Swilder-M/docsearch-scraper-simple@v4
+      uses: Swilder-M/docsearch-scraper-simple@next
       env:
         APPLICATION_ID: ${{ secrets.ALGOLIA_APPLICATION_ID }}
         API_KEY: ${{ secrets.ALGOLIA_API_KEY }}
