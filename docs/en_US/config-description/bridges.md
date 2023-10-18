@@ -45,31 +45,31 @@ bridges.mqtt.emqx1 = {
     cacertfile = "/etc/certs/cacert.pem"  # SSL CA cert file
   }
   
-  forwards = [                            # Topics to forward to the remote MQTT server
-		{
-			remote_topic = "fwd/topic1"
-			local_topic = "topic1"
-		},
-		{
-			remote_topic = "fwd/topic2"
-			local_topic = "topic2"
-		}
-	]
-  subscription = [                        # Topics to subscribe from the remote MQTT server
-		{
-			remote_topic = "cmd/topic1"
-			local_topic = "topic3"            
-			qos = 1
-		},
-		{
-			remote_topic = "cmd/topic2"
-			local_topic = "topic4"
-			qos = 2
-		}
-	]
+  forwards = [                            # Topics that need to be forwarded to the remote MQTT server
+    {
+      remote_topic = "fwd/topic1"
+      local_topic = "topic1"
+    },
+    {
+      remote_topic = "fwd/topic2"
+      local_topic = "topic2"
+    }
+  ]     
+  subscription = [                        # Topics that need to be subscribed from the remote MQTT server
+    {
+      remote_topic = "cmd/topic1"
+      local_topic = "topic3"
+      qos = 1
+    },
+    {
+      remote_topic = "cmd/topic2"
+      local_topic = "topic4"
+      qos = 2
+    }
+  ]
   max_parallel_processes = 2              # Maximum number of parallel processes for handling outstanding requests
-  max_send_queue_len = 32								  # Maximum number of message send queue length
-  max_recv_queue_len = 128								# Maximum number of message receive queue length
+  max_send_queue_len = 32                 # Maximum number of message send queue length
+  max_recv_queue_len = 128                # Maximum number of message receive queue length
 }
 ```
 
@@ -176,32 +176,32 @@ bridges.mqtt.emqx1 = {
   quic_qos_priority = true                # Send QoS 1/2 messages in high priority
   quic_0rtt = true                        # Enable or disable 0-RTT, QUIC feature for quick re-establishment of connections
   forwards = [                            # Topics that need to be forwarded to the remote MQTT server
-		{
-			remote_topic = "fwd/topic1"
-			local_topic = "topic1"
-			qos = 1
-		},
-		{
-			remote_topic = "fwd/topic2"
-			local_topic = "topic2"
-			qos = 2
-		}
-	]     
+    {
+      remote_topic = "fwd/topic1"
+      local_topic = "topic1"
+      qos = 1
+    },
+    {
+      remote_topic = "fwd/topic2"
+      local_topic = "topic2"
+      qos = 2
+    }
+  ]     
   subscription = [                        # Topics that need to be subscribed from the remote MQTT server
-		{
-			remote_topic = "cmd/topic1"
-			local_topic = "topic3"
-			qos = 1
-		},
-		{
-			remote_topic = "cmd/topic2"
-			local_topic = "topic4"
-			qos = 2
-		}
-	]
+    {
+      remote_topic = "cmd/topic1"
+      local_topic = "topic3"
+      qos = 1
+    },
+    {
+      remote_topic = "cmd/topic2"
+      local_topic = "topic4"
+      qos = 2
+    }
+  ]
   max_parallel_processes = 2              # Maximum number of parallel processes for handling outstanding requests
-  max_send_queue_len = 32								  # Maximum number of message send queue length
-  max_recv_queue_len = 128								# Maximum number of message receive queue length
+  max_send_queue_len = 32                 # Maximum number of message send queue length
+  max_recv_queue_len = 128                # Maximum number of message receive queue length
 }
 ```
 
@@ -280,27 +280,27 @@ bridges.aws.c1 = {
   keepalive = "60s"                     # Ping interval for the bridge
   clean_start = true                    # Clean start flag for the bridge
   forwards = [                          # Topics that need to be forwarded to AWS IoT Core
-		{
-			remote_topic = "fwd/topic1"
-			local_topic = "topic1"
-		},
-		{
-			remote_topic = "fwd/topic2"
-			local_topic = "topic2"
-		}
-	]   
-  subscription = [                      # Topics that need to be forwarded to AWS IoT Core  
     {
-			remote_topic = "cmd/topic1"
-			local_topic = "topic3"
-			qos = 1
-		},
-		{
-			remote_topic = "cmd/topic2"
-			local_topic = "topic4"
-			qos = 2
-		}
-	]
+      remote_topic = "fwd/topic1"
+      local_topic = "topic1"
+    },
+    {
+      remote_topic = "fwd/topic2"
+      local_topic = "topic2"
+    }
+  ]     
+  subscription = [                        # Topics that need to be forwarded to AWS IoT Core
+    {
+      remote_topic = "cmd/topic1"
+      local_topic = "topic3"
+      qos = 1
+    },
+    {
+      remote_topic = "cmd/topic2"
+      local_topic = "topic4"
+      qos = 2
+    }
+  ]
   max_parallel_processes = 2            # Maximum number of parallel processes for handling outstanding requests
 }
 ```

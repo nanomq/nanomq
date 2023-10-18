@@ -90,12 +90,12 @@ bridges.mqtt.name {
 		{
 			remote_topic = "cmd/topic1"
 			local_topic = "topic3"
-			qos = 0
+			qos = 1
 		},
 		{
 			remote_topic = "cmd/topic2"
 			local_topic = "topic4"
-			qos = 1
+			qos = 2
 		}
 	]
 	max_parallel_processes = 2 
