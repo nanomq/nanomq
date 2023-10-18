@@ -72,7 +72,18 @@ bridges.mqtt.name {
 	password = emqx123
 	clean_start = true
 	keepalive = 60s
-	forwards = ["forward1/#","forward2/#"]
+	forwards = [
+		{
+			remote_topic = "fwd/topic1"
+			local_topic = "topic1"
+			qos = 1
+		},
+		{
+			remote_topic = "fwd/topic2"
+			local_topic = "topic2"
+			qos = 2
+		}
+	]
 	quic_keepalive = 120s
 	quic_idle_timeout = 120s
 	quic_discon_timeout = 20s
@@ -80,11 +91,13 @@ bridges.mqtt.name {
 	hybrid_bridging = false
 	subscription = [
 		{
-			topic = "recv/topic1"
+			remote_topic = "cmd/topic1"
+			local_topic = "topic3"
 			qos = 1
 		},
 		{
-			topic = "recv/topic2"
+			remote_topic = "cmd/topic2"
+			local_topic = "topic4"
 			qos = 2
 		}
 	]

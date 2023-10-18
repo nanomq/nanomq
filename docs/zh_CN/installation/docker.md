@@ -74,14 +74,25 @@ bridges.mqtt.name {
 	proto_ver = 4
 	clean_start = true
 	keepalive = 60s
-	forwards = ["forward1/#","forward2/#"]
+	forwards = [
+		{
+			remote_topic = "fwd/topic1"
+			local_topic = "topic1"
+		}
+		{
+			remote_topic = "fwd/topic2"
+			local_topic = "topic2"
+		}
+	]
 	subscription = [
 		{
-			topic = "recv/topic1"
+			remote_topic = "cmd/topic1"
+			local_topic = "topic3"
 			qos = 1
 		},
 		{
-			topic = "recv/topic2"
+			remote_topic = "cmd/topic2"
+			local_topic = "topic4"
 			qos = 2
 		}
 	]

@@ -52,12 +52,12 @@ bridges.mqtt.name {
 	subscription = [
 		{
 			remote_topic = "recv/topic1"
-			local_topic = "topic1"
+			local_topic = "topic3"
 			qos = 1
 		},
 		{
 			remote_topic = "recv/topic2"
-			local_topic = "topic2"
+			local_topic = "topic4"
 			qos = 2
 		}
 	]

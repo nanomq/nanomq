@@ -118,22 +118,35 @@ bridges.mqtt.emqx1 {
 	# #
 	# # Value: String
 	# # Example: topic1/#,topic2/#
-	forwards = ["topic1/#", "topic2/#"]
+	forwards = [
+		{
+			remote_topic = "fwd/topic1"
+			local_topic = "topic1"
+			qos = 1
+		},
+		{
+			remote_topic = "fwd/topic2"
+			local_topic = "topic2"
+			qos = 2
+		}
+	]
 
 	subscription = [
 		{
 			# # Need to subscribe to remote broker topics
 			# #
 			# # Value: String
-			topic = "recv/topic1"
+			remote_topic = "cmd/topic1"
+			local_topic = "topic3"
 			# # Need to subscribe to remote topics QoS.
 			# # Please set QoS for each subscription topic
 			# # otherwise topic is invalid, NanoMQ won't sub to any topic
 			# # Value: Number
 			qos = 1
-		}
+		},
 		{
-			topic = "recv/topic2"
+			remote_topic = "cmd/topic2"
+			local_topic = "topic4"
 			qos = 2
 		}
 	]
