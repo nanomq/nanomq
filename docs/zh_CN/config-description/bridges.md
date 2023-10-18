@@ -46,27 +46,27 @@ bridges.mqtt.emqx1 = {
   }
   
   forwards = [                            # 要转发到远端 MQTT 服务器的主题
-		{
-			remote_topic = "fwd/topic1"
-			local_topic = "topic1"              
-		}
-		{
-			remote_topic = "fwd/topic2"
-			local_topic = "topic2"
-		}
-	]
+    {
+      remote_topic = "fwd/topic1"
+      local_topic = "topic1"
+    },
+    {
+      remote_topic = "fwd/topic2"
+      local_topic = "topic2"
+    }
+  ]     
   subscription = [                        # 要从远端 MQTT 服务器订阅的主题
     {
-			remote_topic = "cmd/topic1"
-			local_topic = "topic3"
-			qos = 1
-		},
-		{
-			remote_topic = "cmd/topic2"
-			local_topic = "topic4"
-			qos = 2
-		}
-	]
+      remote_topic = "cmd/topic1"
+      local_topic = "topic3"
+      qos = 1
+    },
+    {
+      remote_topic = "cmd/topic2"
+      local_topic = "topic4"
+      qos = 2
+    }
+  ]
   max_parallel_processes = 2              # 最大并行进程数
   max_send_queue_len = 32                 # 消息发送队列的最大长度
   max_recv_queue_len = 128                # 消息接收队列的最大长度
@@ -178,32 +178,32 @@ bridges.mqtt.emqx1 = {
   quic_qos_priority = true                # 高优先级发送 QOS 1 或 2 的消息
   quic_0rtt = true                        # 0RTT 开关，用于快速重新建立连接
   forwards = [                            # 要转发到远端 MQTT 服务器的主题
-		{
-			remote_topic = "fwd/topic1"
-			local_topic = "topic1"
-			qos = 1
-		},
-		{
-			remote_topic = "fwd/topic2"
-			local_topic = "topic2"
-			qos = 2
-		}
-	]
+    {
+      remote_topic = "fwd/topic1"
+      local_topic = "topic1"
+      qos = 1
+    },
+    {
+      remote_topic = "fwd/topic2"
+      local_topic = "topic2"
+      qos = 2
+    }
+  ]     
   subscription = [                        # 要从远端 MQTT 服务器订阅的主题
-		{
-			remote_topic = "cmd/topic1"        
-			local_topic = "topic1"
-			qos = 1
-		},
-		{
-			remote_topic = "cmd/topic2"
-			local_topic = "topic2"
-			qos = 2
-		}
-	]
+    {
+      remote_topic = "cmd/topic1"
+      local_topic = "topic3"
+      qos = 1
+    },
+    {
+      remote_topic = "cmd/topic2"
+      local_topic = "topic4"
+      qos = 2
+    }
+  ]
   max_parallel_processes = 2              # 最大并行进程数
-  max_send_queue_len = 32								  # 消息发送队列的最大长度
-  max_recv_queue_len = 128								# 消息接收队列的最大长度
+  max_send_queue_len = 32                 # 消息发送队列的最大长度
+  max_recv_queue_len = 128                # 消息接收队列的最大长度
 }
 ```
 
@@ -283,29 +283,27 @@ bridges.aws.c1 = {
   keepalive = "60s"                     # 桥接的保活间隔时间（s）
   clean_start = true                    # 清除会话
   forwards = [                          # 要转发到远端 AWS IoT Core 的主题
-		{
-			remote_topic = "fwd/topic1"
-			local_topic = "topic1"
-			qos = 1
-		},
-		{
-			remote_topic = "fwd/topic2"
-			local_topic = "topic2"
-			qos = 2
-		}
-	]   
+    {
+      remote_topic = "fwd/topic1"
+      local_topic = "topic1"
+    },
+    {
+      remote_topic = "fwd/topic2"
+      local_topic = "topic2"
+    }
+  ]     
   subscription = [                      # 要从 AWS IoT Core 订阅的主题
-		{
-			remote_topic = "cmd/topic1"        
-			local_topic = "topic1"
-			qos = 1
-		},
-		{
-			remote_topic = "cmd/topic2"
-			local_topic = "topic2"
-			qos = 2
-		}
-	]
+    {
+      remote_topic = "cmd/topic1"
+      local_topic = "topic3"
+      qos = 1
+    },
+    {
+      remote_topic = "cmd/topic2"
+      local_topic = "topic4"
+      qos = 2
+    }
+  ]
   max_parallel_processes = 2            # 最大并行进程数
 }
 ```
