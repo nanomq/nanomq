@@ -178,12 +178,21 @@ bridge_handler(nano_work *work)
 						mqtt_property_dup(
 						    &props, work->pub_packet->var_header.publish.properties);
 					}
+					char *publish_topic;
+					// No change if remote topic == ""
+					if (node->forwards_list[i]->remote_topic_len == 0) {
+						publish_topic = work->pub_packet->
+							var_header.publish.topic_name.body;
+					} else {
+						publish_topic = node->forwards_list[i]->remote_topic;
+					}
 					bridge_msg = bridge_publish_msg(
-						    node->forwards_list[i]->remote_topic,
-						    work->pub_packet->payload.data, work->pub_packet->payload.len,
-						    work->pub_packet->fixed_header.dup,
-						    work->pub_packet->fixed_header.qos,
-						    work->pub_packet->fixed_header.retain, props);
+						publish_topic,
+						work->pub_packet->payload.data,
+						work->pub_packet->payload.len,
+						work->pub_packet->fixed_header.dup,
+						work->pub_packet->fixed_header.qos,
+						work->pub_packet->fixed_header.retain, props);
 
 					
 					node->proto_ver == MQTT_PROTOCOL_VERSION_v5
