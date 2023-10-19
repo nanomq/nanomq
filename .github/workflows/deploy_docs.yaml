@@ -71,7 +71,7 @@ jobs:
         mkdir -p frontend/docs/public/api/
         cp -r docs-files/docs/en_US/* frontend/docs/en/${VERSION}/
         cp -r docs-files/docs/zh_CN/* frontend/docs/zh/${VERSION}/
-        cp docs-files/directory.json frontend/docs/.vitepress/config/directory.json
+        cp docs-files/docs/directory.json frontend/docs/.vitepress/config/directory.json
 
     - name: generate version config
       run: |
