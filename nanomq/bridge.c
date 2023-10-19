@@ -137,6 +137,10 @@ bridge_handle_topic_sub_reflection(nano_work *work, conf_bridge_node *node)
 			if (topic_filter(node->sub_list[i]->remote_topic, topic)) {
 				topics *sub_topic = node->sub_list[i];
 
+				// No change and send to local if local topic == ""
+				if (strlen(sub_topic->local_topic) == 0) {
+					return;
+				}
 				char *local_topic = nng_strdup(sub_topic->local_topic);
 				if (local_topic == NULL) {
 					log_error("bridge: alloc local_topic failed");
