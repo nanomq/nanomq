@@ -1062,6 +1062,9 @@ rule_engine_insert_sql(nano_work *work)
 
 #endif
 
+// only deal with locale publishing
+// client - broker - client + bridge - broker - client
+// broker - bridge is not included
 reason_code
 handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
     bool is_event)
@@ -1094,11 +1097,14 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 	}
 
 	if (work->proto == PROTO_MQTT_BRIDGE) {
-#if defined(SUPP_AWS_BRIDGE)
-		bridge_handle_topic_reflection(work, &work->config->aws_bridge);
-#endif
 		bridge_handle_topic_reflection(work, &work->config->bridge);
 	}
+
+#if defined(SUPP_AWS_BRIDGE)
+	if (work->proto == PROTO_AWS_BRIDGE) {
+		bridge_handle_topic_reflection(work, &work->config->aws_bridge);
+	}
+#endif
 
 	topic        = work->pub_packet->var_header.publish.topic_name.body;
 	uint32_t len = work->pub_packet->var_header.publish.topic_name.len;
