@@ -143,7 +143,7 @@ The AUR (Arch User Repository) is a community-driven repository for Arch Linux u
 
 ## Installation package folders
 
-二进制安装包内容有：
+The binary installation package contents are:
 | Folders     | functional           |
 | ----------- | ------------------- |
 | **/etc**    | All configuration files of NanoMQ |
