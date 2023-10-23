@@ -93,7 +93,7 @@ bridges.mqtt.emqx1 = {
 - `clean_start`：清除会话。注意：有些 IoT 平台会要求该项设为 `false`。
 - `username`：登录用户名。
 - `password`：登录密码。
-- `forwards`：转发到远端 MQTT 服务器的主题数组，应包括消息主题（`topic`）和 QoS （`qos`）。
+- `forwards`：转发到远端 MQTT 服务器的主题数组，应包括消息主题（`remote_topic`）、（`local_topic`）和 QoS （`qos`）。
 - `ssl`：SSL/TLS 相关配置项：
   - `key_password`：TLS 私钥密码。
   - `keyfile`：TLS 私钥数据。
@@ -321,6 +321,6 @@ bridges.aws.c1 = {
   - `keyfile`：TLS 私钥数据。
   - `certfile`：TLS Cert 证书数据。
   - `cacertfile`：TLS CA 证书数据。
-- `forwards`：要转发到 AWS IoT Core 的 Topic 数组，例如 ["topic1/#", "topic2/#"]。
+- `forwards`：要转发到 AWS IoT Core 的 Topic 数组。
 - `subscription`：要从 AWS IoT Core 订阅的主题，每组配置应包含消息主题和对应的 QoS 等级。
 - `max_parallel_processes`：最大并行进程数。

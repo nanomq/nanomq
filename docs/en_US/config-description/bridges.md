@@ -95,7 +95,8 @@ This configuration enables NanoMQ to establish an MQTT over TCP bridge connectio
 - `username`: Specifies the username for the bridge.
 - `password`: Specifies the password for the bridge.
 - `forwards`: This is an array of topics that need to be forwarded to the remote MQTT server, including
-  - `topic`
+  - `remote_topic`: Topics refection that need to forward to in the remote MQTT server. 
+  - `local_topic`: Topics that need to be forwarded to the remote MQTT server.
   - `qos`
 
 - `ssl`: Contains settings for SSL/TLS security:
@@ -318,6 +319,6 @@ bridges.aws.c1 = {
   - `keyfile`: Specifies the path to the client's private key file.
   - `certfile`: Specifies the path to the client's certificate file.
   - `cacertfile`: Specifies the path to the server's root CA certificate file. This certificate is used to identify the AWS IoT server.
-- `forwards`: Specifies the topics that need to be forwarded to AWS IoT Core. For example, ["topic1/#", "topic2/#"].
-- `subscription`: Specifies the topics that the bridge should subscribe to from AWS IoT Core. Each group has a name (`topic`) and a Quality of Service level (`qos`).
+- `forwards`: Specifies the topics that need to be forwarded to AWS IoT Core.
+- `subscription`: Specifies the topics that the bridge should subscribe to from AWS IoT Core. Each group has a (`remote_topic`), `local_topic`, and a Quality of Service level (`qos`).
 - `max_parallel_processes`: Specifies the maximum number of outstanding requests that can be handled simultaneously.
