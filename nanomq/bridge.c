@@ -138,7 +138,7 @@ bridge_handle_topic_sub_reflection(nano_work *work, conf_bridge_node *node)
 				topics *sub_topic = node->sub_list[i];
 
 				// No change and send to local if local topic == ""
-				if (strlen(sub_topic->local_topic) == 0) {
+				if (strlen(sub_topic->local_topic_len) == 0) {
 					return;
 				}
 				char *local_topic = nng_strdup(sub_topic->local_topic);
