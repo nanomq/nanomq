@@ -20,7 +20,7 @@ IoT 时代数据是第一生产力，而边缘则是数据诞生的地方。在�
 
 [**消息持久化**](./rule/config-rule-engine.md#sqlite-规则)：针对物联网复杂网络环境场景设计数据持久化和数据缓存功能，桥接消息可以本地缓存后断网续传。重要数据可以在边缘持久化滚动更新。
 
-[**丰富的集成 API**](./http-api/introduction.md)：提供可拓展的事件驱动型 WebHook 接口和运维友好的 HTTP APIs，帮助减少边缘计算应用开发和集成的成本。
+[**丰富的集成 API**](./api/introduction.md)：提供可拓展的事件驱动型 WebHook 接口和运维友好的 HTTP APIs，帮助减少边缘计算应用开发和集成的成本。
 
 [**多协议网关**](./gateway/introduction.md)：通过协议网关支持 nanomsg/ZeroMQ/Websocket 等常用的消息协议，方便在边缘建立灵活的数据路由拓扑。并提供连接加密和安全保障。
 

@@ -18,7 +18,7 @@ Fully MQTT 5.0 Compliant: Fully support MQTT 5.0/3.1.1, Compatible with all stan
 
 [**Message Persistence**](./rule/config-file.md#sqlite-rule): Preserve your business-critical data with built-in data persistence, and resume uploading automatically when the connection is restored.
 
-[**Integrability**](./http-api/introduction.md): Reduce the cost of integrating edge computing applications with event-driven WebHooks. Easy to maintain with EdgeOps friendly HTTP APIs.
+[**Integrability**](./api/introduction.md): Reduce the cost of integrating edge computing applications with event-driven WebHooks. Easy to maintain with EdgeOps friendly HTTP APIs.
 
 [**Multi-Language Protocol**](./gateway/introduction.md): Support multiple protocols such as ZeroMQ/nanomsg/NNG/WebSocket. Enabling flexible and diverse routing topology on edge with. Secure your IoT connections with TLS/SSL.
 

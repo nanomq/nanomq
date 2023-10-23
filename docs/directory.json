@@ -11,6 +11,7 @@
     {
       "title": "安装部署",
       "path": "installation/introduction",
+      "collapsed": true,
       "children": [
         {
           "title": "Docker 部署",
@@ -33,6 +34,7 @@
     {
       "title": "配置说明",
       "path": "config-description/introduction",
+      "collapsed": true,
       "children": [
         {
           "title": "NanoMQ 基础配置项",
@@ -79,6 +81,7 @@
     {
       "title": "访问控制",
       "path": "access-control/introduction",
+      "collapsed": true,
       "children": [
         {
           "title": "登录认证",
@@ -101,6 +104,7 @@
     {
       "title": "规则引擎",
       "path": "rule/introduction",
+      "collapsed": true,
       "children": [
         {
           "title": "使用 Webhook 配置规则",
@@ -115,6 +119,7 @@
     {
       "title": "MQTT 桥接",
       "path": "bridges/introduction",
+      "collapsed": true,
       "children": [
         {
           "title": "MQTT over TCP 桥接",
@@ -133,6 +138,7 @@
     {
       "title": "多协议网关",
       "path": "gateway/introduction",
+      "collapsed": true,
       "children": [
         {
           "title": "ZMQ 网关",
@@ -151,6 +157,7 @@
     {
       "title": "命令行接口",
       "path": "toolkit/toolkit",
+      "collapsed": true,
       "children": [
         {
           "title": "使用命令行配置",
@@ -164,15 +171,16 @@
     },
     {
       "title": "HTTP APIs",
-      "path": "http-api/introduction",
+      "path": "api/introduction",
+      "collapsed": true,
       "children": [
         {
           "title": "HTTP APIs",
-          "path": "http-api/v4"
+          "path": "api/v4"
         },
         {
           "title": "HTTP-API (v1)",
-          "path": "http-api/v1"
+          "path": "api/v1"
         }
       ]
     },
@@ -183,6 +191,7 @@
     {
       "title": "拓展阅读",
       "path": "config-description/more-config",
+      "collapsed": true,
       "children": [
         {
           "title": "NanoMQ 0.14-0.18 配置说明",
@@ -207,6 +216,7 @@
     {
       "title": "Installation",
       "path": "installation/introduction",
+      "collapsed": true,
       "children": [
         {
           "title": "Install with Docker",
@@ -229,6 +239,7 @@
     {
       "title": "Configuration",
       "path": "config-description/introduction",
+      "collapsed": true,
       "children": [
         {
           "title": "NanoMQ Broker",
@@ -275,6 +286,7 @@
     {
       "title": "Access Control",
       "path": "access-control/introduction",
+      "collapsed": true,
       "children": [
         {
           "title": "Login Authentication",
@@ -297,6 +309,7 @@
     {
       "title": "Rule Engine",
       "path": "rule/introduction",
+      "collapsed": true,
       "children": [
         {
           "title": "Configure with Webhook",
@@ -311,6 +324,7 @@
     {
       "title": "MQTT Data Bridges",
       "path": "bridges/introduction",
+      "collapsed": true,
       "children": [
         {
           "title": "MQTT over TCP Bridge",
@@ -329,6 +343,7 @@
     {
       "title": "Multi-Protocol Gateway",
       "path": "gateway/introduction",
+      "collapsed": true,
       "children": [
         {
           "title": "ZMQ Gateway",
@@ -347,6 +362,7 @@
     {
       "title": "Command Line Interface",
       "path": "toolkit/toolkit",
+      "collapsed": true,
       "children": [
         {
           "title": "Configure with Command Line",
@@ -360,15 +376,16 @@
     },
     {
       "title": "HTTP APIs",
-      "path": "http-api/introduction",
+      "path": "api/introduction",
+      "collapsed": true,
       "children": [
         {
           "title": "HTTP APIs",
-          "path": "http-api/v4"
+          "path": "api/v4"
         },
         {
           "title": "HTTP-API (v1)",
-          "path": "http-api/v1"
+          "path": "api/v1"
         }
       ]
     },
@@ -379,6 +396,7 @@
     {
       "title": "Appendix",
       "path": "config-description/more-config",
+      "collapsed": true,
       "children": [
         {
           "title": "NanoMQ 0.14-0.18 Configuration Guide",

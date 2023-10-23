@@ -117,7 +117,7 @@ http_auth = {
 
 - `method`: Specifies the HTTP request method for the corresponding request. This could be either `post` or `get`. Default: `post`
 
-- `headers.<Any>`: Specify the data in the HTTP request header. <Key> Specify the field name in the HTTP request header, and the value of this configuration item is the corresponding field value. <Key> can be the standard HTTP request header field. User can also customize the field to configure multiple different request header fields. Example as follows:
+- `headers.<Any>`: Specify the data in the HTTP request header. \<Key> Specify the field name in the HTTP request header, and the value of this configuration item is the corresponding field value. \<Key> can be the standard HTTP request header field. User can also customize the field to configure multiple different request header fields. Example as follows:
 
 - `headers.content-type`: Specifies the HTTP request headers for the corresponding request. The content-type header is used to indicate the media type of the resource that the request sends to the server.  You can keep specifying other headers of HTTP here as following `headers.accept`:
 
@@ -151,7 +151,7 @@ The `super_req` configuration refers to the Superuser, who has the privilege to 
 
 - `method`：Specifies the HTTP request method for the corresponding request. This could be either `post` or `get`. Default: `post`
 
-- `headers.<Any>`: Specify the data in the HTTP request header. <Key> Specify the field name in the HTTP request header, and the value of this configuration item is the corresponding field value. <Key> can be the standard HTTP request header field. User can also customize the field to configure multiple different request header fields. Example as follows:
+- `headers.<Any>`: Specify the data in the HTTP request header. \<Key> Specify the field name in the HTTP request header, and the value of this configuration item is the corresponding field value. \<Key> can be the standard HTTP request header field. User can also customize the field to configure multiple different request header fields. Example as follows:
 
 - `headers.content-type`：Specifies the HTTP request headers for the corresponding request. The content-type header is used to indicate the media type of the resource that the request sends to the server. You can keep specifying other headers of HTTP here as following `headers.accept`:
 
@@ -171,7 +171,7 @@ The `super_req` configuration refers to the Superuser, who has the privilege to 
 
 - `method`: Specifies the HTTP request method for the corresponding request. This could be either `post` or `get`. Default: `post`
 
-- `headers.<Any>`: Specify the data in the HTTP request header. <Key> Specify the field name in the HTTP request header, and the value of this configuration item is the corresponding field value. <Key> can be the standard HTTP request header field. User can also customize the field to configure multiple different request header fields. Example as follows:
+- `headers.<Any>`: Specify the data in the HTTP request header. \<Key> Specify the field name in the HTTP request header, and the value of this configuration item is the corresponding field value. \<Key> can be the standard HTTP request header field. User can also customize the field to configure multiple different request header fields. Example as follows:
 
 - `headers.content-type: Specifies the HTTP request headers for the corresponding request. The content-type header is used to indicate the media type of the resource that the request sends to the server. You can keep specifying other headers of HTTP here as following `headers.accept`:
 
