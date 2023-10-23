@@ -277,20 +277,11 @@ handle_recv_publish(MQTTPublishInfo_t *pub_info, uint16_t packet_id,
 
 	nng_mqtt_msg_set_publish_payload(
 	    pub_msg, (uint8_t *) pub_info->pPayload, pub_info->payloadLength);
-
+	// Leave topic reflection logic in handle_pub func
+	nng_mqtt_msg_set_publish_qos(pub_msg, pub_info->qos);
 	nng_mqtt_msg_set_publish_retain(pub_msg, pub_info->retain);
-	for (int i = 0; i < node->sub_count; i++) {
-		if (strncmp(pub_info->pTopicName,
-		        node->sub_list[i]->remote_topic,
-		        node->sub_list[i]->remote_topic_len) == 0) {
-			nng_mqtt_msg_set_publish_topic(
-			    pub_msg, node->sub_list[i]->local_topic);
-			nng_mqtt_msg_set_publish_topic_len(
-			    pub_msg, node->sub_list[i]->local_topic_len);
-			nng_mqtt_msg_set_publish_qos(
-			    pub_msg, node->sub_list[i]->qos);
-		}
-	}
+	nng_mqtt_msg_set_publish_topic(pub_msg, pub_info->pTopicName);
+	nng_mqtt_msg_set_publish_topic_len(pub_msg, pub_info->topicNameLength);
 
 	nng_msg *msg = NULL;
 	if ((rv = encode_common_mqtt_msg(
@@ -551,8 +542,16 @@ aws_bridge_forward(nano_work *work)
 					MQTTContext_t *mqtt_ctx = node->sock;
 					uint16_t       packet_id =
 					    MQTT_GetPacketId(mqtt_ctx);
+					char *publish_topic;
+					// No change if remote topic == ""
+					if (node->forwards_list[i]->remote_topic_len == 0) {
+						publish_topic = work->pub_packet->
+							var_header.publish.topic_name.body;
+					} else {
+						publish_topic = node->forwards_list[i]->remote_topic;
+					}
 					MQTTPublishInfo_t pub_info = aws_bridge_publish_msg(
-					    node->forwards_list[i]->remote_topic,
+					    publish_topic,
 					    work->pub_packet->payload.data, work->pub_packet->payload.len,
 					    work->pub_packet->fixed_header.dup,
 					    work->pub_packet->fixed_header.qos,
