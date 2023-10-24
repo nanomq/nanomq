@@ -5,6 +5,7 @@
 #define	BRIDGE_CONF_PATH "../../../nanomq/tests/nanomq_bridge_test.conf"
 #define	BRIDGE_TLS_CONF_PATH "../../../nanomq/tests/nanomq_bridge_tls_test.conf"
 #define	BRIDGE_AWS_CONF_PATH "../../../nanomq/tests/nanomq_aws_test.conf"
+#define	BRIDGE_MUTI_CONF_PATH "../../../nanomq/tests/nanomq_muti_bridges_test.conf"
 
 int webhook_msg_cnt = 0; // this is a silly signal to indicate whether the webhook tests pass
 
@@ -60,6 +61,7 @@ typedef enum {
 	BRIDGE_CONF,
 	BRIDGE_TLS_CONF,
 	BRIDGE_AWS_CONF,
+	BRIDGE_MUTI_CONF,
 } conf_type;
 
 typedef enum {
@@ -490,6 +492,9 @@ get_test_conf(conf_type type)
 		break;
 	case BRIDGE_AWS_CONF:
 		conf_path = BRIDGE_AWS_CONF_PATH;
+		break;
+	case BRIDGE_MUTI_CONF:
+		conf_path = BRIDGE_MUTI_CONF_PATH;
 		break;
 	default:
 		break;
