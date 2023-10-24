@@ -1316,7 +1316,6 @@ done:
 	return rv;
 }
 
-// For now, NanoMQ only supports dynamic TCP bridging
 int
 bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 {
@@ -1353,8 +1352,8 @@ bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 	tsock                       = bridge_arg->sock;
 	sock                        = tsock;
 
-	// Hold on until the last sending done
-	nng_aio_wait(client->send_aio);
+	// no point to wait for ACK from last aio send of previous socket.
+	nng_aio_finish_error(client->send_aio, NNG_ECANCELED);
 
 	// Wait for the disconnect msg be sent
 	nng_sendmsg(*sock, dismsg, NNG_FLAG_ALLOC);
