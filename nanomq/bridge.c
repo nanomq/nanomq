@@ -1353,6 +1353,7 @@ bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 	tsock                       = bridge_arg->sock;
 	sock                        = tsock;
 
+	nng_aio_finish_error(client->send_aio, NNG_ECLOSED);
 	// Hold on until the last sending done
 	nng_aio_wait(client->send_aio);
 
