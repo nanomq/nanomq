@@ -264,7 +264,7 @@ This configuration takes up around 3000 kb of memory on startup.
 
 ### Test results
 
-Publishing the message side
+<details><summary>Publishing the message side</summary>
 
 /emqtt_bench pub -h 192.168.24.221 -c 10 -I 5 -i 30 -p 1883 -t msg -q 0 -V 4 -s 16 -L 50000
 
@@ -322,7 +322,9 @@ sent(24001): total=47274, rate=1999(msg/sec)
 
 sent(25001): total=50000, rate=2001(msg/sec)
 
-Receiving the message side
+</details>
+
+<details><summary>Receiving the message side</summary>
 
 ./emqtt_bench sub -h 192.168.24.221 -c 500 -i 10 -p 1883 -t msg -q 0 -V 4
 
@@ -414,7 +416,9 @@ recv(51064): total=24866633, rate=1204424(msg/sec)
 
 recv(52000): total=25000000, rate=133367(msg/sec)
 
-QoS 1:
+</details>
+
+<details><summary>QoS 1</summary>
 
 connected: 500
 
@@ -551,6 +555,9 @@ recv(80001): total=24994829, rate=415638(msg/sec)
 recv(81001): total=24998319, rate=3490(msg/sec)
 
 recv(82001): total=25000000, rate=1681(msg/sec)
+
+</details>
+
 
 ### System monitoring information
 
