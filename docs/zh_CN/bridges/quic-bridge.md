@@ -242,7 +242,7 @@ $ nanomq start --old_conf nanomq.conf
 2. 在第一个命令行窗口，发布消息到远端 **EMQX** Broker，主题为 “`cmd/topic1`”：
 
    ```bash
-   $ ./nanomq_cli pub --quic -h "remote.broker.address"  -t "recv/topic1" -m "cmd_msg" -q 2 -u emqx -P emqx123
+   $ ./nanomq_cli pub --quic -h "remote.broker.address" -p 14567 -t "recv/topic1" -m "cmd_msg" -q 2 -u emqx -P emqx123
    ```
    
 3. 返回第二个命令行窗口，将能看到远端 **EMQX** Broker 发送的消息，例如：
