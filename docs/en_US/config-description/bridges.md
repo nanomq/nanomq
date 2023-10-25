@@ -95,16 +95,19 @@ This configuration enables NanoMQ to establish an MQTT over TCP bridge connectio
 - `username`: Specifies the username for the bridge.
 - `password`: Specifies the password for the bridge.
 - `forwards`: This is an array of topics that need to be forwarded to the remote MQTT server, including
-  - `remote_topic`: Topics refection that need to forward to in the remote MQTT server. 
+  - `remote_topic`: Topics refection topic, will change the topic in publish msg. Just leave `remote_topic=""` to preserve the original topic in msg   
   - `local_topic`: Topics that need to be forwarded to the remote MQTT server.
-  - `qos`
 
 - `ssl`: Contains settings for SSL/TLS security:
   - `key_password`: Specifies the password for the client's private key file, if it's password-protected.
   - `keyfile`: Specifies the path to the client's private key file.
   - `certfile`: Specifies the path to the client's certificate file.
   - `cacertfile`: Specifies the path to the server's root CA certificate file. This certificate is used to identify the AWS IoT server.
-- `subscription`: This is an array of topic objects that need to be subscribed from the remote MQTT server. Each object defines a topic and the QoS level for the subscription.
+- `subscription`: This is an array of topic objects that need to be subscribed from the remote MQTT server. Each object defines a topic and the QoS level for the subscription. Including
+  - `remote_topic`: The topic filter used to subscribe to the remote broker.
+  - `local_topic`: This is for Topic reflection, if you want the vanila way, then just leave `local_topic=""` to preserve the original topic in msg from remote broker.
+  - `qos`: Define the QoS in the subscribe packet. This is a must. 
+
 - `max_parallel_processes`: Specifies the maximum number of parallel processes for handling outstanding requests.
 - `max_send_queue_len`: Specifies the maximum number of messages that can be queued for sending.
 - `max_recv_queue_len`: Specifies the maximum number of messages that can be queued for processing. 
@@ -270,6 +273,8 @@ NanoMQ uses SQLite to deliver the cache feature, for details on the configuratio
 ## AWS IoT Core Bridge
 
 This part introduces the settings for the MQTT Bridge that connects to AWS IoT Core. AWS IoT Core is a managed cloud service that lets connected devices easily and securely interact with cloud applications and other devices.
+
+AWS IoT cannot be enabled with MQTT over QUIC bridging due to the incompatibility between MsQUIC and AWS IoT SDK.
 
 ### **Example Configuration**
 

@@ -231,13 +231,13 @@ This section uses NanoMQ's built-in client tool to test the newly built MQTT ove
    In the second command line window, navigate to the `nanomq_cli` folder under the `build` folder, and execute the following command to subscribe:
 
    ```bash
-   ./nanomq_cli sub -h "local.broker.address" -t "recv/topic1" -q 2
+   ./nanomq_cli sub -h "local.broker.address" -p 14567 -t "recv/topic1" -q 2
    ```
 
 2. In the first command line window, publish a message to the remote **EMQX** Broker with the topic "`cmd/topic1`":
 
    ```bash
-   $ ./nanomq_cli pub --quic -h "remote.broker.address" -t "recv/topic1" -m "cmd_msg" -q 2 -u emqx -P emqx123
+   $ ./nanomq_cli pub --quic -h "remote.broker.address" -p 14567 -t "recv/topic1" -m "cmd_msg" -q 2 -u emqx -P emqx123
    ```
 
 3. Go back to the second command line window, you will see the message sent by the remote **EMQX** Broker, for example:
