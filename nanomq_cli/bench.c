@@ -143,7 +143,7 @@ sub_cb(void *arg)
 			nng_mqtt_msg_set_packet_type(msg, NNG_MQTT_SUBSCRIBE);
 			char *topic = nnb_opt_get_topic(
 			    sub_opt->topic, sub_opt->username, work->msg);
-			// log_info("topic: %s", topic);
+			printf("Subscribe topic: %s\n", topic);
 			nng_mqtt_topic_qos topic_qos[] = {
 				{ .qos     = sub_opt->qos,
 				    .topic = { .buf = (uint8_t *) topic,
@@ -294,8 +294,7 @@ connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	switch (opt_flag) {
 	case SUB:;
 		nng_atomic_inc(statistics.acnt);
-		printf("connected: %d. Topics: [\"%s\"]\n",
-		    nng_atomic_get(statistics.acnt), sub_opt->topic);
+		printf("connected: %d.\n", nng_atomic_get(statistics.acnt));
 		break;
 	case PUB:
 		nng_atomic_inc(statistics.acnt);
