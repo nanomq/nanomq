@@ -52,12 +52,12 @@ bridges.mqtt.name {
 
 	subscription = [
 		{
-			remote_topic = "cmd/topic1"
+			remote_topic = "cmd/topic3"
 			local_topic = "topic3"
 			qos = 1
 		},
 		{
-			remote_topic = "cmd/topic2"
+			remote_topic = "cmd/topic4"
 			local_topic = "topic4"
 			qos = 2
 		}
@@ -155,21 +155,21 @@ This section will guide you in testing the newly established MQTT data bridge us
 
 ![Connect to Public Broker](./assets/connect-public-broker.png)
 
-**Verify messging from NanoMQ to MQTT bridge**
+**Verify messages are forwarded from NanoMQ to MQTT bridge**
 
-On your client connecting the MQTT bridge, `MQTTbridge` in this example, subscribe to the `forward1/#` topic.
+On your client connecting the MQTT bridge, `MQTTbridge` in this example, subscribe to the `fwd/#` topic.
 
-On your client connecting NanoMQ, `NanoMQTest` in this example, publish a message to the `forward1/msg` topic, for example, `Hello from NanoMQ`
+On your client connecting NanoMQ, `NanoMQTest` in this example, publish a message to the `topic1` topic, for example, `Hello from NanoMQ`
 
 Verify that you received the message that was published from the local broker.
 
 <img src="./assets/hellofromnano.png" alt="message from nanomq" style="zoom:50%;" />
 
-**Verify the messaging from MQTT to NanoMQ**
+**Verify subscribed messages are received by NanoMQ from MQTT bridge**
 
-On your client connecting NanoMQ, `NanoMQTest` in this example, subscribe to the `recv/topic1` topic.
+On your client connecting NanoMQ, `NanoMQTest` in this example, subscribe to the `topic3` topic.
 
-On your client connecting the MQTT bridge, `MQTTbridge` in this example, publish a message to the `recv/topic1` topic, for example, `Hello from broker.emqx.io`
+On your client connecting the MQTT bridge, `MQTTbridge` in this example, publish a message to the `cmd/topic3` topic, for example, `Hello from broker.emqx.io`
 
 Verify that you received the message that was published from broker.emqx.io.
 
