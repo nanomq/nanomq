@@ -121,7 +121,7 @@ Then you can navigate to NanoMQ repo to create a pull request. Our GitHub repo p
 Each commit message start with a '*' and consists of a **tppe**, a **scope** and a **subject**.
 
 ```text
-* <type>(<scope>): <subject>
+* <type> [<scope>] <subject>
 ```
 
 Examples:
@@ -163,3 +163,4 @@ The promotion contributions include but not limited to:
 - Offering to mentor another contributor
 
 Thank you for your great effort to the NanoMQ community and the open-source world!
+
