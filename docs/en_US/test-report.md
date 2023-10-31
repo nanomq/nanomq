@@ -615,3 +615,11 @@ Server environment 2
 ### Test result analysis
 
 As can be seen, the user state time of the CPU becomes significantly more in single-core scenarios. This is because NanoMQ's multi-threaded optimization for multi-core scenarios has been specifically made to support SMP, which significantly reduces the number of CPU context switches. However, the large number of individually sent and received tasks in single-core scenarios does not fully exploit this advantage.
+
+## Summary
+
+NanoMQ architecture diagram
+
+![img](./images/nanomq.001.png)
+
+The bottom layer of NanoMQ reads the network data in the kernel through single-threaded Epoll, and handles the parsing of link messages and the production of asynchronous messages at the transport layer. Quickly reply to QoS messages after performing IO Batch at the same time. After the Connect package processing is completed and the PIPE is established, the message is forwarded to the protocol layer for processing through asynchronous IO. The protocol layer is responsible for the management of the message queue and the triggering of the timer. Finally, the asynchronous message is passed through AIO and then global logical processing and message routing are performed at the application layer.
