@@ -16,7 +16,7 @@ Fully MQTT 5.0 Compliant: Fully support MQTT 5.0/3.1.1, Compatible with all stan
 
 [**Rule Engine**](./rule/introduction.md): Unlock the flexibility of data with a SQL-based rule engine. Integrates with eKuiper to bring stream processing to the edge.
 
-[**Message Persistence**](./rule/config-file.md#sqlite-rule): Preserve your business-critical data with built-in data persistence, and resume uploading automatically when the connection is restored.
+[**Message Persistence**](./rule/config-file.md#data-persistence-with-sqlite): Preserve your business-critical data with built-in data persistence, and resume uploading automatically when the connection is restored.
 
 [**Integrability**](./api/introduction.md): Reduce the cost of integrating edge computing applications with event-driven WebHooks. Easy to maintain with EdgeOps friendly HTTP APIs.
 
