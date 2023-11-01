@@ -208,8 +208,8 @@ $ nanomq start --old_conf nanomq.conf
    ## -p {端口号，如不指定将使用默认端口号 1883（MQTT）或 14567（QUIC）}
    ## -t {主题名称}
    ## --quic {开启 quic}
-   ## --q {消息 QoS，可选值 0、1、2}
-   ## --m {消息 payload}
+   ## -q {消息 QoS，可选值 0、1、2}
+   ## -m {消息 payload}
    ## -u {用户名} 
    ## -P {密码}
    $ ./nanomq_cli sub --quic -h "remote.broker.address"  -t "forward1/#" -q 2
