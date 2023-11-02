@@ -511,15 +511,46 @@ test_get_rule()
 }
 
 static bool
-test_put_rule()
+test_put_rule_repub()
 {
 	char *cmd = "curl -i --basic -u admin_test:pw_test -XPUT "
 	            "'http://localhost:8081/api/v4/rules/rule:3' "
-				"-d '{\"rawsql\":\"select * from \\\"t/b\\\"\"}'";
+				"-d '{\"rawsql\":\"select * from \\\"t/b\\\"\","
+				"\"actions\": [{\"name\":\"repub\", \"params\": { \"topic\": \"repub1\", "
+	    		"\"address\":\"mqtt-tcp://localhost:1881\", \"clean_start\": \"true\", "
+	    		// TODO: there is a memleak in nanoclient connmsg sending.
+	    		// "\"clientid\": \"id\", \"username\": \"admin\", \"password\":"
+	    		// "\"public\", "
+	    		"\"proto_ver\": 4, \"keepalive\": 60}}]}'";
 	FILE *fd  = popen(cmd, "r");
 	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
 	pclose(fd);
 	return rv;
+}
+
+static bool
+test_put_rule_sqlite()
+{
+	char *cmd = "curl -i --basic -u admin_test:pw_test -XPUT "
+	            "'http://localhost:8081/api/v4/rules/rule:5' "
+				"-d '{\"rawsql\":\"select * from \\\"t/b\\\"\","
+				"\"actions\": [{\"name\": \"sqlite\","
+				"\"params\": {\"table\": \"table_sqlite\"}}],"
+				"\"description\": \"sqlite-rule\"}'";
+	// printf("cmd:%s\n", cmd);
+	FILE *fd  = popen(cmd, "r");
+	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
+	pclose(fd);
+	return rv;
+}
+
+static bool
+test_put_rule()
+{
+	assert(test_put_rule_repub());
+	// assert(test_put_rule_sqlite());
+	// TODO: put_rule_mysql() & check rule type to update
+	return true;
 }
 
 static bool
