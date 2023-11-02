@@ -410,7 +410,7 @@ test_put_bridges_unsub()
 }
 
 static bool
-test_post_rules()
+test_post_rules_repub()
 {
 	char *cmd =
 	    "curl -i --basic -u admin_test:pw_test "
@@ -419,7 +419,7 @@ test_post_rules()
 	    "\"repub\",  \"params\": {  \"topic\": \"repub1\", "
 	    "\"address\":\"mqtt-tcp://localhost:1881\", \"clean_start\": "
 	    "\"true\", "
-		// TODO: there is a memleak in nanoclient connmsg sending.
+	    // TODO: there is a memleak in nanoclient connmsg sending.
 	    // "\"clientid\": \"id\", \"username\": \"admin\", \"password\":"
 	    // "\"public\", "
 	    "\"proto_ver\": 4, \"keepalive\": 60      }  }],  "
@@ -427,7 +427,65 @@ test_post_rules()
 	FILE *fd  = popen(cmd, "r");
 	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
 	pclose(fd);
-	return rv;
+	return rv;	
+}
+
+static bool
+test_post_rules_sqlite()
+{
+	char *cmd =
+	    "curl -i --basic -u admin_test:pw_test "
+	    "'http://localhost:8081/api/v4/rules' -X POST -d '{  \"rawsql\": "
+	    "\"select * from \\\"t/b\\\"\",  \"actions\": [{  \"name\": "
+	    "\"sqlite\",  \"params\": {  \"table\": \"table_sqlite\"}  }],  "
+	    "\"description\": \"sqlite-rule\"}'";
+	FILE *fd  = popen(cmd, "r");
+	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
+	pclose(fd);
+	return rv;	
+}
+
+static bool
+test_post_rules_mysql()
+{
+	char *cmd =
+	    "curl -i --basic -u admin_test:pw_test "
+	    "'http://localhost:8081/api/v4/rules' -X POST -d '{  \"rawsql\": "
+	    "\"select * from \\\"t/c\\\"\",  \"actions\": [{  \"name\": "
+	    "\"mysql\",  \"params\": {  \"table\": \"table_mysql\", "
+	    "\"username\":\"username\", \"password\": \"password\", "
+	    "\"host\": \"localhost\"} }],  "
+	    "\"description\": \"mysql-rule\"}'";
+	FILE *fd  = popen(cmd, "r");
+	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
+	pclose(fd);
+	return rv;	
+}
+
+static bool
+test_post_rules_unsupported()
+{
+	char *cmd =
+	    "curl -i --basic -u admin_test:pw_test "
+	    "'http://localhost:8081/api/v4/rules' -X POST -d '{  \"rawsql\": "
+	    "\"select * from \\\"t/d\\\"\",  \"actions\": [{  \"name\": "
+	    "\"mesql\",  \"params\": {  \"topic\": \"mesql1\"}  }],  "
+	    "\"description\": \"unsup-rule\"}'";
+	FILE *fd  = popen(cmd, "r");
+	bool  rv  = check_http_return(fd, STATUS_CODE_BAD_REQUEST, PLUGIN_IS_CLOSED);
+	pclose(fd);
+	return rv;	
+}
+
+static bool
+test_post_rules()
+{
+	assert(test_post_rules_repub());
+	assert(test_post_rules_sqlite());
+	// no mysql in ci env yet
+	// assert(test_post_rules_mysql());
+	assert(test_post_rules_unsupported());
+	return true;
 }
 
 static bool
