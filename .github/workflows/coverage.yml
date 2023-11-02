@@ -4,7 +4,7 @@ jobs:
 
   linux-coverage:
     name: linux
-    runs-on: [ ubuntu-latest ]
+    runs-on: ["self-hosted","ephemeral","linux","x64"]
     steps:
     - name: Checkout repository and submodules
       uses: actions/checkout@v3

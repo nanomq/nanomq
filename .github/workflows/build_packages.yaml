@@ -13,7 +13,7 @@ on:
 
 jobs:
   build_packages:
-    runs-on: ubuntu-20.04
+    runs-on: ["self-hosted","ephemeral","linux","x64"]
 
     strategy:
       fail-fast: false
@@ -202,6 +202,7 @@ jobs:
       with:
         name: packages
         path: "build/_packages/*"
+        retention-days: 7
     - uses: Rory-Z/upload-release-asset@v1
       if: github.event_name == 'release'
       with:
@@ -220,7 +221,7 @@ jobs:
 
   build_docker:
     needs: [build_packages]
-    runs-on: ubuntu-20.04
+    runs-on: ["self-hosted","ephemeral","linux","x64"]
 
     strategy:
       fail-fast: false
@@ -283,7 +284,7 @@ jobs:
 
   publish_packages:
     needs: [build_packages, build_docker]
-    runs-on: ubuntu-20.04
+    runs-on: ["self-hosted","ephemeral","linux","x64"]
     steps:
     - name: update nanomq.io
       if: github.event_name == 'release'

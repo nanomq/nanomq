@@ -9,7 +9,7 @@ on:
 
 jobs:
   function_test:
-    runs-on: ubuntu-22.04
+    runs-on: ["self-hosted","ephemeral","linux","x64"]
 
     steps:
     - name: install lib

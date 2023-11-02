@@ -7,7 +7,7 @@ on:
 
 jobs:
   markdown_check:
-    runs-on: ubuntu-latest
+    runs-on: ["self-hosted","ephemeral","linux","x64"]
     steps:
     - name: check out code
       uses: actions/checkout@main
@@ -18,7 +18,7 @@ jobs:
       run: markdownlint -c .github/workflows/markdown_config.json ./docs/
 
   directory_check:
-    runs-on: ubuntu-latest
+    runs-on: ["self-hosted","ephemeral","linux","x64"]
     steps:
     - name: check out code
       uses: actions/checkout@main

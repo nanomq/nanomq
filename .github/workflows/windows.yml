@@ -32,6 +32,7 @@ jobs:
         with:
           name: packages
           path: "install/*.zip"
+          retention-days: 7
 
       - uses: svenstaro/upload-release-action@v2
         if: github.event_name == 'release'
