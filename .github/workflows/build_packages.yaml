@@ -6,6 +6,9 @@ concurrency:
 
 on:
   push:
+    branches:
+      - master
+      - moi_0_18_1
   pull_request:
   release:
     types:

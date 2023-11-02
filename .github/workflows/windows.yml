@@ -2,6 +2,9 @@ name: Build packages for Windows
 
 on:
   push:
+    branches:
+      - master
+      - moi_0_18_1
   pull_request:
   release:
     types:
