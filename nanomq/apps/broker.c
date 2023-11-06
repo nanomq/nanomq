@@ -316,7 +316,9 @@ server_cb(void *arg)
 				log_info("bridge connection closed with reason %d\n", rv);
 			}
 		}
-
+		if ((msg = nng_aio_get_msg(work->aio)) == NULL) {
+			NANO_NNG_FATAL("RECV NULL MSG", rv);
+		}
 		if (work->proto == PROTO_MQTT_BRIDGE) {
 			uint8_t type;
 			type = nng_msg_get_type(msg);
@@ -549,7 +551,7 @@ server_cb(void *arg)
 		if (nng_msg_get_type(work->msg) == CMD_PUBLISH) {
 			if ((rv = nng_aio_result(work->aio)) != 0) {
 				log_error("WAIT nng aio result error: %d", rv);
-				NANO_NNG_FATAL("WAIT nng_ctx_recv/send", rv);	// shall nerver reach here
+				NANO_NNG_FATAL("WAIT nng_ctx_recv/send", rv);
 			}
 			smsg      = work->msg; // reuse the same msg
 			cvector(mqtt_msg_info) msg_infos;
@@ -638,7 +640,7 @@ server_cb(void *arg)
 			work->msg = NULL;
 		}
 		if ((rv = nng_aio_result(work->aio)) != 0) {
-			log_error("SEND nng_ctx_send error %d", rv);
+			NANO_NNG_FATAL("SEND nng_ctx_send", rv);
 		}
 		if (work->pub_packet != NULL) {
 			free_pub_packet(work->pub_packet);
@@ -665,6 +667,7 @@ server_cb(void *arg)
 		if (nng_msg_get_type(work->msg) == CMD_PUBLISH) {
 			if ((rv = nng_aio_result(work->aio)) != 0) {
 				log_error("WAIT nng aio result error: %d", rv);
+				NANO_NNG_FATAL("WAIT nng_ctx_recv/send", rv);
 			}
 			smsg      = work->msg; // reuse the same msg
 
