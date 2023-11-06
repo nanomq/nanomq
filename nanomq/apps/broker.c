@@ -155,6 +155,14 @@ intHandler(int dummy)
 }
 #endif
 
+void
+termHandler(int dummy)
+{
+	fprintf(stderr, "\nReceive SIGTERM signal.");
+	fprintf(stderr, "\nBroker exit(0).\n");
+	exit(EXIT_FAILURE);
+}
+
 static inline bool
 bridge_handler(nano_work *work)
 {
@@ -1096,6 +1104,8 @@ broker(conf *nanomq_conf)
 #endif
 	}
 	printf("NanoMQ Broker is started successfully!\n");
+
+	signal(SIGTERM, termHandler);
 
 #if defined(ENABLE_NANOMQ_TESTS)
 	bool is_testing = true;
