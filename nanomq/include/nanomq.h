@@ -1,6 +1,8 @@
 #ifndef NANOMQ_NANOMQ_H
 #define NANOMQ_NANOMQ_H
 
+#include "nng/supplemental/nanolib/log.h"
+
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
@@ -52,6 +54,12 @@
 	    (((uint64_t)(uint8_t)(ptr)[7]))
 
 #define NANO_UNUSED(x) (x) __attribute__((unused))
+
+#define NANO_NNG_FATAL(s, rv)				\
+	do {									\
+		log_fatal(s);						\
+		nng_fatal((s), (rv));				\
+	} while(0)
 
 extern int    get_cache_argc();
 extern char **get_cache_argv();
