@@ -1,4 +1,5 @@
 #include "conf_api.h"
+#include "include/nanomq.h"
 
 static cJSON *get_auth_http_req_config(conf_auth_http_req *req);
 
@@ -1123,7 +1124,7 @@ reload_log_config(conf *old, conf *new)
 	new->log     = log;
 	log_fini(&new->log);
 	if ((rc = log_init(&old->log)) != 0) {
-		nng_fatal("log_reload", rc);
+		NANO_NNG_FATAL("log_reload", rc);
 	}
 #endif
 }
