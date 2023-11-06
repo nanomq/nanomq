@@ -170,7 +170,7 @@ webhook_cb(void *arg)
 
 	case HOOK_RECV:
 		if ((rv = nng_aio_result(work->aio)) != 0) {
-			nng_fatal("nng_recv_aio", rv);
+			NANO_NNG_FATAL("nng_recv_aio", rv);
 		}
 		work->msg = nng_aio_get_msg(work->aio);
 		nng_mtx_lock(work->mtx);
@@ -178,7 +178,7 @@ webhook_cb(void *arg)
 			size_t lmq_cap = nng_lmq_cap(work->lmq);
 			if ((rv = nng_lmq_resize(
 			         work->lmq, lmq_cap + (lmq_cap / 2))) != 0) {
-				nng_fatal("nng_lmq_resize", rv);
+				NANO_NNG_FATAL("nng_lmq_resize", rv);
 			}
 		}
 		nng_lmq_put(work->lmq, work->msg);
@@ -189,7 +189,7 @@ webhook_cb(void *arg)
 		break;
 
 	default:
-		nng_fatal("bad state!", NNG_ESTATE);
+		NANO_NNG_FATAL("bad state!", NNG_ESTATE);
 		break;
 	}
 }
@@ -201,19 +201,19 @@ alloc_work(nng_socket sock, conf_web_hook *conf)
 	int               rv;
 
 	if ((w = nng_alloc(sizeof(*w))) == NULL) {
-		nng_fatal("nng_alloc", NNG_ENOMEM);
+		NANO_NNG_FATAL("nng_alloc", NNG_ENOMEM);
 	}
 	if ((rv = nng_aio_alloc(&w->aio, webhook_cb, w)) != 0) {
-		nng_fatal("nng_aio_alloc", rv);
+		NANO_NNG_FATAL("nng_aio_alloc", rv);
 	}
 	if ((rv = nng_mtx_alloc(&w->mtx)) != 0) {
-		nng_fatal("nng_mtx_alloc", rv);
+		NANO_NNG_FATAL("nng_mtx_alloc", rv);
 	}
 	if ((rv = nng_lmq_alloc(&w->lmq, NANO_LMQ_INIT_CAP) != 0)) {
-		nng_fatal("nng_lmq_alloc", rv);
+		NANO_NNG_FATAL("nng_lmq_alloc", rv);
 	}
 	if ((rv = nng_thread_create(&w->thread, thread_cb, w)) != 0) {
-		nng_fatal("nng_thread_create", rv);
+		NANO_NNG_FATAL("nng_thread_create", rv);
 	}
 
 	w->conf  = conf;
@@ -238,7 +238,7 @@ webhook_thr(void *arg)
 	/*  Create the socket. */
 	rv = nng_pull0_open(&sock);
 	if (rv != 0) {
-		nng_fatal("nng_rep0_open", rv);
+		NANO_NNG_FATAL("nng_rep0_open", rv);
 	}
 
 	for (i = 0; i < conf->web_hook.pool_size; i++) {
@@ -247,7 +247,7 @@ webhook_thr(void *arg)
 	}
 	// NanoMQ core thread talks to others via INPROC
 	if ((rv = nng_listen(sock, WEB_HOOK_INPROC_URL, NULL, 0)) != 0) {
-		nng_fatal("webhook nng_listen", rv);
+		NANO_NNG_FATAL("webhook nng_listen", rv);
 	}
 
 	for (i = 0; i < conf->web_hook.pool_size; i++) {
@@ -270,7 +270,7 @@ start_webhook_service(conf *conf)
 {
 	int rv = nng_thread_create(&inproc_thr, webhook_thr, conf);
 	if (rv != 0) {
-		nng_fatal("nng_thread_create", rv);
+		NANO_NNG_FATAL("nng_thread_create", rv);
 	}
 	nng_msleep(500);
 	return rv;

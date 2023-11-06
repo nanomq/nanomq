@@ -1,5 +1,6 @@
 #include "include/cmd_proc.h"
 #include "include/conf_api.h"
+#include "include/nanomq.h"
 #include "nng/protocol/reqrep0/rep.h"
 #include "nng/protocol/reqrep0/req.h"
 #include "nng/supplemental/nanolib/cJSON.h"
@@ -100,7 +101,7 @@ cmd_server_cb(void *arg)
 		break;
 	case RECV:
 		if ((rv = nng_aio_result(work->aio)) != 0) {
-			nng_fatal("nng_recv_aio", rv);
+			NANO_NNG_FATAL("nng_recv_aio", rv);
 		}
 		msg       = nng_aio_get_msg(work->aio);
 		char *cmd = (char *) nng_msg_body(msg);
@@ -129,14 +130,14 @@ cmd_server_cb(void *arg)
 	case SEND:
 		if ((rv = nng_aio_result(work->aio)) != 0) {
 			nng_msg_free(work->msg);
-			nng_fatal("nng_send_aio", rv);
+			NANO_NNG_FATAL("nng_send_aio", rv);
 		}
 		work->state = RECV;
 		nng_ctx_recv(work->ctx, work->aio);
 		break;
 
 	default:
-		nng_fatal("bad state!", NNG_ESTATE);
+		NANO_NNG_FATAL("bad state!", NNG_ESTATE);
 		break;
 	}
 }
@@ -148,13 +149,13 @@ alloc_cmd_work(nng_socket sock, conf *config)
 	int              rv;
 
 	if ((w = nng_alloc(sizeof(*w))) == NULL) {
-		nng_fatal("nng_alloc", NNG_ENOMEM);
+		NANO_NNG_FATAL("nng_alloc", NNG_ENOMEM);
 	}
 	if ((rv = nng_aio_alloc(&w->aio, cmd_server_cb, w)) != 0) {
-		nng_fatal("nng_aio_alloc", rv);
+		NANO_NNG_FATAL("nng_aio_alloc", rv);
 	}
 	if ((rv = nng_ctx_open(&w->ctx, sock)) != 0) {
-		nng_fatal("nng_ctx_open", rv);
+		NANO_NNG_FATAL("nng_ctx_open", rv);
 	}
 	w->config = config;
 	w->state  = INIT;
@@ -176,7 +177,7 @@ server(void *arg)
 	/*  Create the socket. */
 	rv = nng_rep0_open(&sock);
 	if (rv != 0) {
-		nng_fatal("nng_rep0_open", rv);
+		NANO_NNG_FATAL("nng_rep0_open", rv);
 	}
 
 	for (i = 0; i < CMD_PROC_PARALLEL; i++) {
@@ -184,7 +185,7 @@ server(void *arg)
 	}
 
 	if ((rv = nng_listen(sock, url, NULL, 0)) != 0) {
-		nng_fatal("nng_listen", rv);
+		NANO_NNG_FATAL("nng_listen", rv);
 	}
 
 	for (i = 0; i < CMD_PROC_PARALLEL; i++) {
@@ -216,22 +217,22 @@ client(const char *cmd)
 	const char *url = CMD_IPC_URL;
 
 	if ((rv = nng_req0_open(&sock)) != 0) {
-		nng_fatal("nng_req0_open", rv);
+		NANO_NNG_FATAL("nng_req0_open", rv);
 	}
 	if ((rv = nng_dialer_create(&dialer, sock, url)) != 0) {
-		nng_fatal("nng_dialer_create", rv);
+		NANO_NNG_FATAL("nng_dialer_create", rv);
 	}
 	nng_socket_set_ms(sock, NNG_OPT_REQ_RESENDTIME, 2000);
 	if ((rv = nng_dialer_start(dialer, NNG_FLAG_ALLOC)) != 0) {
-		nng_fatal("nng_dialer_start", rv);
+		NANO_NNG_FATAL("nng_dialer_start", rv);
 	}
 
 	if ((rv = nng_send(sock, (void *) cmd, strlen(cmd) + 1, 0)) != 0) {
-		nng_fatal("nng_send", rv);
+		NANO_NNG_FATAL("nng_send", rv);
 	}
 
 	if ((rv = nng_recv(sock, &buf, &sz, NNG_FLAG_ALLOC)) != 0) {
-		nng_fatal("nng_recv", rv);
+		NANO_NNG_FATAL("nng_recv", rv);
 	}
 	if (sz > 0) {
 		printf("%.*s\n", (int) sz, (const char *) buf);
