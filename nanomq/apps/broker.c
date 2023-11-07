@@ -1105,8 +1105,6 @@ broker(conf *nanomq_conf)
 	}
 	printf("NanoMQ Broker is started successfully!\n");
 
-	signal(SIGTERM, termHandler);
-
 #if defined(ENABLE_NANOMQ_TESTS)
 	bool is_testing = true;
 #else
@@ -1115,6 +1113,7 @@ broker(conf *nanomq_conf)
 
 #if (defined DEBUG) && (defined ASAN)
 #if !(defined NANO_PLATFORM_WINDOWS)
+	signal(SIGTERM, termHandler);
 	signal(SIGINT, intHandler);
 #endif
 
