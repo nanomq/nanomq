@@ -456,12 +456,12 @@ mqtt_thread(void *arg)
 	nng_socket req_sock;
 
 	if ((rv = nng_req0_open(&req_sock)) != 0) {
-		NANO_NNG_FATAL("nng_rep0_open", rv);
+		NANO_NNG_FATAL("nng_rep0_open ", rv);
 	}
 
 	if ((rv = nng_dial(
 	         req_sock, INPROC_SERVER_URL, NULL, NNG_FLAG_NONBLOCK)) != 0) {
-		NANO_NNG_FATAL("nng_dial", rv);
+		NANO_NNG_FATAL("INPROC nng_dial", rv);
 	}
 
 	conf_bridge_node *    node        = (conf_bridge_node *) arg;
