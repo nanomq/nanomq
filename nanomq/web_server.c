@@ -261,7 +261,7 @@ rest_start(uint16_t port)
 	snprintf(rest_addr, sizeof(rest_addr), REST_URL, port);
 	if ((rv = nng_url_parse(&url, rest_addr)) != 0) {
 		log_error("nng_url_parse %s failed ", rest_addr);
-		return NNG_ECANCELED;
+		return;
 	}
 
 	// Create the REQ socket, and put it in raw mode, connected to
