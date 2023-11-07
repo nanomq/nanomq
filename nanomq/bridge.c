@@ -484,9 +484,56 @@ hybrid_tcp_disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	log_warn("bridge client disconnected! RC [%d] \n", reason);
 	bridge_param *bridge_arg = arg;
 
+<<<<<<< HEAD
 	nng_mtx_lock(bridge_arg->switch_mtx);
 	nng_cv_wake1(bridge_arg->switch_cv);
 	nng_mtx_unlock(bridge_arg->switch_mtx);
+=======
+	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
+		if ((rv = nng_mqttv5_client_open(sock)) != 0) {
+			log_error("nng_mqttv5_client_open failed %d", rv);
+			return rv;
+		}
+	} else {
+		if ((rv = nng_mqtt_client_open(sock)) != 0) {
+			log_error("nng_mqtt_client_open failed %d", rv);
+			return rv;
+		}
+	}
+
+	apply_sqlite_config(sock, node, "mqtt_client.db");
+
+	if ((rv = nng_dialer_create(&dialer, *sock, node->address))) {
+		NANO_NNG_FATAL("nng_dialer_create", rv);
+		return rv;
+	}
+
+#ifdef NNG_SUPP_TLS
+	if (node->tls.enable) {
+		if ((rv = init_dialer_tls(dialer, node->tls.ca, node->tls.cert,
+		         node->tls.key, node->tls.key_password)) != 0) {
+			log_error("init_dialer_tls failed %d", rv);
+			return rv;
+		}
+	}
+#endif
+
+	nng_msg *connmsg   = create_connect_msg(node);
+	bridge_arg->connmsg = connmsg;
+	bridge_arg->client = nng_mqtt_client_alloc(*sock, &send_callback, true);
+
+	node->sock         = (void *) sock;
+
+	// TCP bridge does not support hot update of connmsg
+	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
+	nng_socket_set_ptr(*sock, NNG_OPT_MQTT_CONNMSG, connmsg);
+	nng_mqtt_set_connect_cb(*sock, bridge_connect_cb, bridge_arg);
+	nng_mqtt_set_disconnect_cb(*sock, disconnect_cb, bridge_arg);
+
+	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
+
+	return 0;
+>>>>>>> b5d5f30e (* MDF [log/debug] program shall not exit under non-lethal case)
 }
 
 static int
@@ -499,6 +546,7 @@ hybrid_tcp_client(bridge_param *bridge_arg)
 	conf_bridge_node *node = bridge_arg->config;
 
 	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
+<<<<<<< HEAD
 		if ((rv = nng_mqttv5_client_open(new)) != 0) {
 			log_error("Initializing mqttv5 client failed %d", rv);
 			return rv;
@@ -506,14 +554,28 @@ hybrid_tcp_client(bridge_param *bridge_arg)
 	} else {
 		if ((rv = nng_mqtt_client_open(new)) != 0) {
 			log_error("Initializing mqtt client failed %d", rv);
+=======
+		if ((rv = nng_mqttv5_client_open(sock)) != 0) {
+			log_error(" nng_mqttv5_client_open failed %d", rv);
+			return rv;
+		}
+	} else {
+		if ((rv = nng_mqtt_client_open(sock)) != 0) {
+			log_error(" nng_mqtt_client_open failed %d", rv);
+>>>>>>> b5d5f30e (* MDF [log/debug] program shall not exit under non-lethal case)
 			return rv;
 		}
 	}
 
 	apply_sqlite_config(new, node, "mqtt_client.db");
 
+<<<<<<< HEAD
 	if ((rv = nng_dialer_create(&dialer, *new, node->address))) {
 		log_error("nng_dialer_create %d", rv);
+=======
+	if ((rv = nng_dialer_create(&dialer, *sock, node->address))) {
+		log_error("nng_dialer_create failed %d", rv);
+>>>>>>> b5d5f30e (* MDF [log/debug] program shall not exit under non-lethal case)
 		return rv;
 	}
 
