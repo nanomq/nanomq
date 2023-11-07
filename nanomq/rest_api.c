@@ -1961,9 +1961,6 @@ put_rules_sqlite_parse(cJSON *jso_params, rule *new_rule)
 			if (!nng_strcasecmp(jso_param->string, "table")) {
 				log_debug(
 				    "table: %s\n", jso_param->valuestring);
-				if (new_rule->sqlite_table) {
-					nng_strfree(new_rule->sqlite_table);
-				}
 				new_rule->sqlite_table =
 				    nng_strdup(jso_param->valuestring);
 			} else {
