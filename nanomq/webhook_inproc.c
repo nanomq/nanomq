@@ -178,7 +178,7 @@ webhook_cb(void *arg)
 			size_t lmq_cap = nng_lmq_cap(work->lmq);
 			if ((rv = nng_lmq_resize(
 			         work->lmq, lmq_cap + (lmq_cap / 2))) != 0) {
-				NANO_NNG_FATAL("nng_lmq_resize", rv);
+				NANO_NNG_FATAL("nng_lmq_resize mem error", rv);
 			}
 		}
 		nng_lmq_put(work->lmq, work->msg);
@@ -238,7 +238,8 @@ webhook_thr(void *arg)
 	/*  Create the socket. */
 	rv = nng_pull0_open(&sock);
 	if (rv != 0) {
-		NANO_NNG_FATAL("nng_rep0_open", rv);
+		log_error("nng_rep0_open %d", rv);
+		return rv;
 	}
 
 	for (i = 0; i < conf->web_hook.pool_size; i++) {
@@ -247,7 +248,8 @@ webhook_thr(void *arg)
 	}
 	// NanoMQ core thread talks to others via INPROC
 	if ((rv = nng_listen(sock, WEB_HOOK_INPROC_URL, NULL, 0)) != 0) {
-		NANO_NNG_FATAL("webhook nng_listen", rv);
+		log_error("webhook nng_listen %d", rv);
+		return rv;
 	}
 
 	for (i = 0; i < conf->web_hook.pool_size; i++) {

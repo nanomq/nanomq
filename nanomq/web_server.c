@@ -188,7 +188,7 @@ rest_job_cb(void *arg)
 		rest_recycle_job(job);
 		return;
 	default:
-		NANO_NNG_FATAL("bad case", NNG_ESTATE);
+		log_error("bad case");
 		break;
 	}
 }
@@ -260,7 +260,8 @@ rest_start(uint16_t port)
 	// from the argument list.
 	snprintf(rest_addr, sizeof(rest_addr), REST_URL, port);
 	if ((rv = nng_url_parse(&url, rest_addr)) != 0) {
-		NANO_NNG_FATAL("nng_url_parse", rv);
+		log_error("nng_url_parse %s failed ", rest_addr);
+		return NNG_ECANCELED;
 	}
 
 	// Create the REQ socket, and put it in raw mode, connected to

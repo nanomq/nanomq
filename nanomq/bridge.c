@@ -56,7 +56,7 @@ apply_sqlite_config(
 	// create sqlite option
 	nng_mqtt_sqlite_option *opt;
 	if ((rv = nng_mqtt_alloc_sqlite_opt(&opt)) != 0) {
-		NANO_NNG_FATAL("nng_mqtt_alloc_sqlite_opt", rv);
+		NANO_NNG_FATAL("Initializing SQLite with nng_mqtt_alloc_sqlite_opt", rv);
 	}
 
 	nng_mqtt_set_sqlite_conf(opt, config);
@@ -440,12 +440,12 @@ hybrid_tcp_client(bridge_param *bridge_arg)
 
 	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 		if ((rv = nng_mqttv5_client_open(new)) != 0) {
-			NANO_NNG_FATAL("nng_mqttv5_client_open", rv);
+			log_error("Initializing mqttv5 client failed %d", rv);
 			return rv;
 		}
 	} else {
 		if ((rv = nng_mqtt_client_open(new)) != 0) {
-			NANO_NNG_FATAL("nng_mqtt_client_open", rv);
+			log_error("Initializing mqtt client failed %d", rv);
 			return rv;
 		}
 	}
@@ -453,7 +453,7 @@ hybrid_tcp_client(bridge_param *bridge_arg)
 	apply_sqlite_config(new, node, "mqtt_client.db");
 
 	if ((rv = nng_dialer_create(&dialer, *new, node->address))) {
-		NANO_NNG_FATAL("nng_dialer_create", rv);
+		log_error("nng_dialer_create %d", rv);
 		return rv;
 	}
 
@@ -461,7 +461,8 @@ hybrid_tcp_client(bridge_param *bridge_arg)
 	if (node->tls.enable) {
 		if ((rv = init_dialer_tls(dialer, node->tls.ca, node->tls.cert,
 		         node->tls.key, node->tls.key_password)) != 0) {
-			NANO_NNG_FATAL("init_dialer_tls", rv);
+			log_error("init_dialer_tls %d", rv);
+			return rv;
 		}
 	}
 #endif
@@ -524,12 +525,12 @@ hybrid_quic_client(bridge_param *bridge_arg)
 	// keepalive here is for QUIC only
 	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 		if ((rv = nng_mqttv5_quic_client_open(new)) != 0) {
-			NANO_NNG_FATAL("nng_mqttv5_quic_client_open", rv);
+			log_error("Initializing mqttv5 QUIC client failed %d", rv);
 			return rv;
 		}
 	} else {
 		if ((rv = nng_mqtt_quic_client_open(new)) != 0) {
-			NANO_NNG_FATAL("nng_mqtt_quic_client_open", rv);
+			log_error("Initializing mqtt quic client failed %d", rv);
 			return rv;
 		}
 	}
@@ -537,7 +538,7 @@ hybrid_quic_client(bridge_param *bridge_arg)
 	apply_sqlite_config(new, node, "mqtt_quic_client.db");
 
 	if ((rv = nng_dialer_create(&dialer, *new, node->address))) {
-		NANO_NNG_FATAL("nng_dialer_create", rv);
+		log_error("dialer create failed %d", rv);
 		return rv;
 	}
 
@@ -591,12 +592,12 @@ hybrid_cb(void *arg)
 
 	int rv = nng_mtx_alloc(&bridge_arg->switch_mtx);
 	if (rv != 0) {
-		NANO_NNG_FATAL("nng_mtx_alloc", rv);
+		NANO_NNG_FATAL("nng_mtx_alloc mem error", rv);
 		return;
 	}
 	rv = nng_cv_alloc(&bridge_arg->switch_cv, bridge_arg->switch_mtx);
 	if (rv != 0) {
-		NANO_NNG_FATAL("nng_cv_alloc", rv);
+		NANO_NNG_FATAL("nng_cv_alloc mem error", rv);
 		return;
 	}
 	uint32_t aio_cnt = bridge_arg->conf->parallel + node->parallel * 2;
@@ -798,13 +799,13 @@ bridge_quic_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 	nng_dialer    dialer;
 
 	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
-		if ((rv = nng_mqttv5_client_open(sock)) != 0) {
-			NANO_NNG_FATAL("nng_mqttv5_client_open", rv);
+		if ((rv = nng_mqttv5_quic_client_open(sock)) != 0) {
+			log_error("Initializing mqttv5 quic client failed %d", rv);
 			return rv;
 		}
 	} else {
 		if ((rv = nng_mqtt_quic_client_open(sock)) != 0) {
-			NANO_NNG_FATAL("nng_mqtt_client_open", rv);
+			log_error("Initializing mqttv quic client failed %d", rv);
 			return rv;
 		}
 	}
@@ -812,7 +813,7 @@ bridge_quic_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 	apply_sqlite_config(sock, node, "mqtt_quic_client.db");
 
 	if ((rv = nng_dialer_create(&dialer, *sock, node->address))) {
-		NANO_NNG_FATAL("nng_dialer_create", rv);
+		log_error("nng_dialer_create failed %d", rv);
 		return rv;
 	}
 	// set backoff param to 24s
@@ -850,12 +851,12 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 
 	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 		if ((rv = nng_mqttv5_quic_client_open(sock)) != 0) {
-			NANO_NNG_FATAL("nng_mqttv5_quic_client_open", rv);
+			log_error("Initializing mqttv5 quic client failed %d", rv);
 			return rv;
 		}
 	} else {
 		if ((rv = nng_mqtt_quic_client_open(sock)) != 0) {
-			NANO_NNG_FATAL("nng_mqtt_quic_client_open", rv);
+			log_error("Initializing mqtt quic client failed %d", rv);
 			return rv;
 		}
 	}
@@ -863,7 +864,7 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 	apply_sqlite_config(sock, node, "mqtt_quic_client.db");
 
 	if ((rv = nng_dialer_create(&dialer, *sock, node->address))) {
-		NANO_NNG_FATAL("nng_dialer_create", rv);
+		log_error("nng_dialer_create failed %d", rv);
 		return rv;
 	}
 	// set backoff param to 24s
@@ -974,12 +975,12 @@ bridge_tcp_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 
 	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 		if ((rv = nng_mqttv5_client_open(sock)) != 0) {
-			NANO_NNG_FATAL("nng_mqttv5_client_open", rv);
+			log_error(" nng_mqttv5_client_open failed %d", rv);
 			return rv;
 		}
 	} else {
 		if ((rv = nng_mqtt_client_open(sock)) != 0) {
-			NANO_NNG_FATAL("nng_mqtt_client_open", rv);
+			log_error(" nng_mqtt_client_open failed %d", rv);
 			return rv;
 		}
 	}
@@ -987,7 +988,7 @@ bridge_tcp_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	apply_sqlite_config(sock, node, "mqtt_client.db");
 
 	if ((rv = nng_dialer_create(&dialer, *sock, node->address))) {
-		NANO_NNG_FATAL("nng_dialer_create", rv);
+		log_error("nng_dialer_create failed %d", rv);
 		return rv;
 	}
 	// set backoff param to 24s
@@ -999,7 +1000,8 @@ bridge_tcp_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	if (node->tls.enable) {
 		if ((rv = init_dialer_tls(dialer, node->tls.ca, node->tls.cert,
 		         node->tls.key, node->tls.key_password)) != 0) {
-			NANO_NNG_FATAL("init_dialer_tls", rv);
+			log_error("init_dialer_tls failed %d", rv);
+			return rv;
 		}
 	}
 #endif
@@ -1063,12 +1065,12 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 
 	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 		if ((rv = nng_mqttv5_client_open(sock)) != 0) {
-			NANO_NNG_FATAL("nng_mqttv5_client_open", rv);
+			log_error("nng_mqttv5_client_open failed %d", rv);
 			return rv;
 		}
 	} else {
 		if ((rv = nng_mqtt_client_open(sock)) != 0) {
-			NANO_NNG_FATAL("nng_mqtt_client_open", rv);
+			log_error("nng_mqtt_client_open failed %d", rv);
 			return rv;
 		}
 	}
@@ -1076,7 +1078,7 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	apply_sqlite_config(sock, node, "mqtt_client.db");
 
 	if ((rv = nng_dialer_create(&dialer, *sock, node->address))) {
-		NANO_NNG_FATAL("nng_dialer_create", rv);
+		log_error("nng_dialer_create failed %d", rv);
 		return rv;
 	}
 	// set backoff param to 24s
@@ -1088,7 +1090,8 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	if (node->tls.enable) {
 		if ((rv = init_dialer_tls(dialer, node->tls.ca, node->tls.cert,
 		         node->tls.key, node->tls.key_password)) != 0) {
-			NANO_NNG_FATAL("init_dialer_tls", rv);
+			log_error("init_dialer_tls failed %d", rv);
+			return rv;
 		}
 	}
 #endif
