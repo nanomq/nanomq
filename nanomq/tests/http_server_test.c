@@ -532,7 +532,7 @@ static bool
 test_put_rule_sqlite()
 {
 	char *cmd = "curl -i --basic -u admin_test:pw_test -XPUT "
-	            "'http://localhost:8081/api/v4/rules/rule:5' "
+	            "'http://localhost:8081/api/v4/rules/rule:4' "
 				"-d '{\"rawsql\":\"select * from \\\"t/b\\\"\","
 				"\"actions\": [{\"name\": \"sqlite\","
 				"\"params\": {\"table\": \"table_sqlite\"}}],"
@@ -545,11 +545,26 @@ test_put_rule_sqlite()
 }
 
 static bool
+test_put_rule_mysql()
+{
+	char *cmd = "curl -i --basic -u admin_test:pw_test -XPUT "
+	            "'http://localhost:8081/api/v4/rules/rule:2' "
+				"-d '{\"rawsql\":\"select * from \\\"t/b\\\"\","
+				"\"actions\": [{\"name\": \"mysql\","
+				"\"params\": {\"table\": \"table_mysql\"}}],"
+				"\"description\": \"mysql-rule\"}'";
+	FILE *fd  = popen(cmd, "r");
+	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
+	pclose(fd);
+	return rv;
+}
+
+static bool
 test_put_rule()
 {
 	assert(test_put_rule_repub());
-	// assert(test_put_rule_sqlite());
-	// TODO: put_rule_mysql() & check rule type to update
+	assert(test_put_rule_sqlite());
+	assert(test_put_rule_mysql());
 	return true;
 }
 
