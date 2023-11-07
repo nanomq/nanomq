@@ -482,7 +482,7 @@ test_post_rules()
 {
 	assert(test_post_rules_repub());
 	assert(test_post_rules_sqlite());
-	// no mysql in ci env yet
+	// mysql connect to local mysql sever will fail in ci
 	// assert(test_post_rules_mysql());
 	assert(test_post_rules_unsupported());
 	return true;
@@ -513,15 +513,18 @@ test_get_rule()
 static bool
 test_put_rule_repub()
 {
-	char *cmd = "curl -i --basic -u admin_test:pw_test -XPUT "
-	            "'http://localhost:8081/api/v4/rules/rule:3' "
-				"-d '{\"rawsql\":\"select * from \\\"t/b\\\"\","
-				"\"actions\": [{\"name\":\"repub\", \"params\": { \"topic\": \"repub1\", "
-	    		"\"address\":\"mqtt-tcp://localhost:1881\", \"clean_start\": \"true\", "
-	    		// TODO: there is a memleak in nanoclient connmsg sending.
-	    		// "\"clientid\": \"id\", \"username\": \"admin\", \"password\":"
-	    		// "\"public\", "
-	    		"\"proto_ver\": 4, \"keepalive\": 60}}]}'";
+	char *cmd =
+	    "curl -i --basic -u admin_test:pw_test -XPUT "
+	    "'http://localhost:8081/api/v4/rules/rule:3' "
+	    "-d '{\"rawsql\":\"select * from \\\"t/b\\\"\","
+	    "\"actions\": [{\"name\":\"repub\", \"params\": { \"topic\": "
+	    "\"repub1\", "
+	    "\"address\":\"mqtt-tcp://localhost:1881\", \"clean_start\": "
+	    "\"true\", "
+	    // TODO: there is a memleak in nanoclient connmsg sending.
+	    // "\"clientid\": \"id\", \"username\": \"admin\", \"password\":"
+	    // "\"public\", "
+	    "\"proto_ver\": 4, \"keepalive\": 60}}]}'";
 	FILE *fd  = popen(cmd, "r");
 	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
 	pclose(fd);
@@ -533,10 +536,10 @@ test_put_rule_sqlite()
 {
 	char *cmd = "curl -i --basic -u admin_test:pw_test -XPUT "
 	            "'http://localhost:8081/api/v4/rules/rule:4' "
-				"-d '{\"rawsql\":\"select * from \\\"t/b\\\"\","
-				"\"actions\": [{\"name\": \"sqlite\","
-				"\"params\": {\"table\": \"table_sqlite\"}}],"
-				"\"description\": \"sqlite-rule\"}'";
+	            "-d '{\"rawsql\":\"select * from \\\"t/b\\\"\","
+	            "\"actions\": [{\"name\": \"sqlite\","
+	            "\"params\": {\"table\": \"table_sqlite\"}}],"
+	            "\"description\": \"sqlite-rule\"}'";
 	// printf("cmd:%s\n", cmd);
 	FILE *fd  = popen(cmd, "r");
 	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
@@ -549,10 +552,10 @@ test_put_rule_mysql()
 {
 	char *cmd = "curl -i --basic -u admin_test:pw_test -XPUT "
 	            "'http://localhost:8081/api/v4/rules/rule:2' "
-				"-d '{\"rawsql\":\"select * from \\\"t/b\\\"\","
-				"\"actions\": [{\"name\": \"mysql\","
-				"\"params\": {\"table\": \"table_mysql\"}}],"
-				"\"description\": \"mysql-rule\"}'";
+	            "-d '{\"rawsql\":\"select * from \\\"t/b\\\"\","
+	            "\"actions\": [{\"name\": \"mysql\","
+	            "\"params\": {\"table\": \"table_mysql\"}}],"
+	            "\"description\": \"mysql-rule\"}'";
 	FILE *fd  = popen(cmd, "r");
 	bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
 	pclose(fd);
@@ -564,7 +567,7 @@ test_put_rule()
 {
 	assert(test_put_rule_repub());
 	assert(test_put_rule_sqlite());
-	assert(test_put_rule_mysql());
+	// assert(test_put_rule_mysql());
 	return true;
 }
 
@@ -805,7 +808,7 @@ main()
 	nng_msleep(100);  // wait a while for broker to init
 	pid_sub = popen_sub_with_cmd(&outfp, cmd);
 	pid_sub2 = popen_sub_with_cmd(&outfp2, cmd2);
-	nng_msleep(50); // wait a while after sub
+	nng_msleep(500); // wait a while after sub
 
 	// TODO: there is a potential connection refuse case & although they
 	// work fine separately but if test_pub() is behind test_gets() there
