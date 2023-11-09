@@ -47,6 +47,11 @@ endif(BUILD_DDS_PROXY)
 
 add_executable(nanomq_cli ${CLI_SOURCE})
 
+if(BUILD_NFTP)
+  add_subdirectory(nftp-codec)
+  target_link_libraries(nanomq_cli nftp-codec)
+endif(BUILD_NFTP)
+
 target_link_libraries(nanomq_cli nng)
 
 if(BUILD_DDS_PROXY)
