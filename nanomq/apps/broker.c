@@ -878,6 +878,7 @@ broker(conf *nanomq_conf)
 	nanomq_conf->total_ctx = nanomq_conf->parallel;		// match with num of aio
 	num_work = nanomq_conf->parallel;					// match with num of works
 
+	log_error("NanoMQ Broker is starting...!\n");
 
 #if defined(SUPP_RULE_ENGINE)
 	conf_rule *cr = &nanomq_conf->rule_eng;
@@ -1217,7 +1218,7 @@ broker(conf *nanomq_conf)
 
 	/* rhack: end */
 
-	printf("NanoMQ Broker is started successfully!\n");
+	log_error("NanoMQ Broker is started successfully!\n");
 
 #if defined(ENABLE_NANOMQ_TESTS)
 	bool is_testing = true;
