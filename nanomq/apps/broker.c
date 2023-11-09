@@ -10,10 +10,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#if !defined(NANO_PLATFORM_WINDOWS)
-#include <signal.h>
-#endif
-
 #include "nng/mqtt/mqtt_client.h"
 #include "nng/protocol/mqtt/nmq_mqtt.h"
 #include "nng/supplemental/tls/tls.h"
@@ -63,6 +59,41 @@
 // descriptors if you set this too high. (If not for that limit, this could
 // be set in the thousands, each context consumes a couple of KB.) Recommend to
 // set as the same as your CPU cores.
+
+#if !defined(NANO_PLATFORM_WINDOWS)
+#include <signal.h>
+#include <errno.h>
+static const all_signals[] = {
+#ifdef SIGHUP
+	SIGHUP,
+#endif
+#ifdef SIGQUIT
+	SIGQUIT,
+#endif
+#ifdef SIGTRAP
+	SIGTRAP,
+#endif
+#ifdef SIGIO
+	SIGIO,
+#endif
+	SIGABRT,
+	SIGFPE,
+	SIGILL,
+	SIGINT,
+	SIGSEGV,
+	SIGTERM
+};
+
+int sig_handler(int signum)
+{
+	log_error("signal caught!!!! signumber: %d\n", signum);
+
+	if (signum == SIGINT) {
+		exit(EXIT_FAILURE);
+	}
+}
+#endif
+
 
 enum options {
 	OPT_HELP = 1,
@@ -147,21 +178,7 @@ static nng_optspec cmd_opts[] = {
 
 #if (defined DEBUG) && (defined ASAN)
 int keepRunning = 1;
-void
-intHandler(int dummy)
-{
-	keepRunning = 0;
-	fprintf(stderr, "\nBroker exit(0).\n");
-}
 #endif
-
-void
-termHandler(int dummy)
-{
-	fprintf(stderr, "\nReceive SIGTERM signal.");
-	fprintf(stderr, "\nBroker exit(0).\n");
-	exit(EXIT_FAILURE);
-}
 
 static inline bool
 bridge_handler(nano_work *work)
@@ -1114,8 +1131,19 @@ broker(conf *nanomq_conf)
 
 #if (defined DEBUG) && (defined ASAN)
 #if !(defined NANO_PLATFORM_WINDOWS)
-	signal(SIGTERM, termHandler);
-	signal(SIGINT, intHandler);
+	struct sigaction  act;
+	i = 0;
+
+	memset(&act, 0, sizeof act);
+	sigemptyset(&act.sa_mask);
+	act.sa_handler = sig_handler;
+	act.sa_flags = 0;
+
+	do {
+		if (sigaction(all_signals[i], &act, NULL)) {
+			fprintf(stderr, "Cannot install signal %d handler: %s.\n", all_signals[i], strerror(errno));
+		}
+	} while (all_signals[i++] != SIGTERM);
 #endif
 
 	if (is_testing == true) {
