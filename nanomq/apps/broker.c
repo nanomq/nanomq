@@ -317,6 +317,10 @@ server_cb(void *arg)
 			}
 		}
 
+		if ((msg = nng_aio_get_msg(work->aio)) == NULL) {
+			nng_fatal("RECV NULL MSG", rv);
+		}
+
 		if (work->proto == PROTO_MQTT_BRIDGE) {
 			uint8_t type;
 			type = nng_msg_get_type(msg);
