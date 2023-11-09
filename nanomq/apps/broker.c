@@ -870,6 +870,43 @@ void *fileTransfer_cli(void *extra)
 }
 #endif
 
+#include <signal.h>
+#include <errno.h>
+
+static const all_signals[] = {
+#ifdef SIGHUP
+	SIGHUP,  /* POSIX.1 */
+#endif
+#ifdef SIGQUIT
+	SIGQUIT, /* POSIX.1 */
+#endif
+#ifdef SIGTRAP
+	SIGTRAP, /* POSIX.1 */
+#endif
+#ifdef SIGIO
+	SIGIO,   /* BSD/Linux */
+#endif
+
+/*
+ * Other signal names omitted for brevity
+*/
+
+/* C89/C99/C11 standard signals: */
+	SIGABRT,
+	SIGFPE,
+	SIGILL,
+	SIGINT,
+	SIGSEGV,
+/* SIGTERM (C89/C99/C11) is also the terminating signal number */
+	SIGTERM
+};
+
+int sig_handler(int signum)
+{
+	log_error("signal caught!!!! signumber: %d\n", signum);
+    exit(EXIT_FAILURE);
+}
+
 int
 broker(conf *nanomq_conf)
 {
@@ -883,6 +920,20 @@ broker(conf *nanomq_conf)
 	num_work = nanomq_conf->parallel;					// match with num of works
 
 	log_error("NanoMQ Broker is starting...!\n");
+
+	struct sigaction  act;
+	i = 0;
+
+	memset(&act, 0, sizeof act);
+	sigemptyset(&act.sa_mask);
+	act.sa_handler = sig_handler;
+	act.sa_flags = 0;
+
+	do {
+		if (sigaction(all_signals[i], &act, NULL)) {
+			fprintf(stderr, "Cannot install signal %d handler: %s.\n", all_signals[i], strerror(errno));
+		}
+	} while (all_signals[i++] != SIGTERM);
 
 #if defined(SUPP_RULE_ENGINE)
 	conf_rule *cr = &nanomq_conf->rule_eng;
