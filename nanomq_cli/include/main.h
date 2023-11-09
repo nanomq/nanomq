@@ -9,5 +9,6 @@
 #include "vsomeip_gateway.h"
 #include "rule_ctrl.h"
 #include "dds_client.h"
+#include "nftp _client.h"
 
 #endif // NANOMQ_CLI_MAIN_H

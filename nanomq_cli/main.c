@@ -69,6 +69,16 @@ static client_app apps[] = {
 	    .func = rules_start,
 	},
 #endif
+#if defined(SUPP_NFTP)
+	{
+	    .name = "nftp_client",
+	    .func = nftp_client,
+	},
+	{
+	    .name = "nftp_server",
+	    .func = nftp_server,
+	},
+#endif
 };
 
 static void
