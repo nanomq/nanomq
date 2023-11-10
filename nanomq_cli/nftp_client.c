@@ -19,10 +19,6 @@
 #include <nng/nng.h>
 #include <nng/supplemental/util/platform.h>
 
-// Subcommands
-#define PUBLISH "pub"
-#define SUBSCRIBE "sub"
-
 #define MQTTV5 "aaaaaaaaa"
 
 #ifdef MQTTV5
@@ -80,13 +76,8 @@ static int stats_push(int v) {
 	return -1;
 }
 
-// void
-// fatal(const char *msg, int rv)
-// {
-// 	fprintf(stderr, "%s: %s\n", msg, nng_strerror(rv));
-// }
-
 int keepRunning = 1;
+
 void
 intHandler(int dummy)
 {
@@ -156,7 +147,6 @@ client_connect(
 		nng_mqtt_msg_set_connect_client_id(connmsg, FSENDERCLIENTID);
 		nng_mqtt_msg_set_connect_user_name(connmsg, "nng_mqtt_client");
 	} else {
-
 		nng_mqtt_msg_set_connect_client_id(connmsg, FRECVERCLIENTID);
 		nng_mqtt_msg_set_connect_user_name(connmsg, "aaa");
 	}
@@ -501,7 +491,7 @@ nftp_server(const int argc, const char **argv)
 		},
 		{
 		    .qos   = 0,
-		    .topic = { 
+		    .topic = { nftp_proto_fini
 				.buf    = (uint8_t *) FTOPIC_BLOCKS,
 		        .length = strlen(FTOPIC_BLOCKS),
 			},
@@ -574,7 +564,7 @@ nftp_server(const int argc, const char **argv)
 			free(nftp_reply_msg);
 
 			nng_msg_free(msg);
-			msg = NULL;
+			msg = NULL;subscriptions
 			continue;
 		}
 
