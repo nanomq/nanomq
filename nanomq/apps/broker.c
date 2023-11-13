@@ -155,6 +155,14 @@ intHandler(int dummy)
 }
 #endif
 
+void
+termHandler(int dummy)
+{
+	fprintf(stderr, "\nReceive SIGTERM signal.");
+	fprintf(stderr, "\nBroker exit(0).\n");
+	exit(EXIT_FAILURE);
+}
+
 static inline bool
 bridge_handler(nano_work *work)
 {
@@ -1105,6 +1113,7 @@ broker(conf *nanomq_conf)
 
 #if (defined DEBUG) && (defined ASAN)
 #if !(defined NANO_PLATFORM_WINDOWS)
+	signal(SIGTERM, termHandler);
 	signal(SIGINT, intHandler);
 #endif
 
