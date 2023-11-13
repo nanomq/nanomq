@@ -259,14 +259,18 @@ server_cb(void *arg)
 		break;
 	case RECV:
 		log_debug("RECV  ^^^^ ctx%d ^^^^\n", work->ctx.id);
-		if ((rv = nng_aio_result(work->aio)) != 0 || ((msg = nng_aio_get_msg(work->aio)) == NULL)) {
+		msg = nng_aio_get_msg(work->aio);
+		if ((rv = nng_aio_result(work->aio)) != 0) {
 			log_error("RECV nng aio result error: %d or NULL msg received", rv);
 			work->state = RECV;
 			if (work->proto == PROTO_MQTT_BROKER) {
+				if (msg != NULL)
+					nng_msg_free(msg);
 				nng_ctx_recv(work->ctx, work->aio);
 				break;
 			} else {
-				if (rv != NNG_ECONNSHUT) {
+				// check notify msg of bridge
+				if (rv != NNG_ECONNSHUT || msg == NULL) {
 					nng_ctx_recv(work->extra_ctx, work->aio);
 					break;
 				}
