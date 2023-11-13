@@ -16,7 +16,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-extern int nftp_client(int argc, char **argv);
-extern int nftp_server(int argc, char **argv);
+extern int nftp_start(int argc, char **argv);
 
 #endif
