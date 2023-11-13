@@ -3471,6 +3471,7 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 			tp->remote_topic     = nng_strdup(remote_topic);
 			tp->remote_topic_len = strlen(tp->remote_topic);
 		} else {
+			nng_free(tp, sizeof(topics));
 			continue;
 		}
 		getStringValue(sub_item, item, "local_topic", local_topic, rv);
@@ -3478,6 +3479,7 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 			tp->local_topic     = nng_strdup(local_topic);
 			tp->local_topic_len = strlen(tp->local_topic);
 		} else {
+			nng_free(tp, sizeof(topics));
 			continue;
 		}
 		tp->qos                 = qos;
