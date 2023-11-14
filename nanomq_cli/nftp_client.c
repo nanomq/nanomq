@@ -383,6 +383,9 @@ set_default_opts(nftp_opts *n_opts)
 static void
 free_opts(nftp_opts *n_opts)
 {
+	if(strncmp(n_opts->url,FURL,25) != 0) {
+		nng_strfree(n_opts->url);
+	}
 	if (n_opts->path_to_file != NULL) {
 		nng_strfree(n_opts->path_to_file);
 	}
