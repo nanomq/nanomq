@@ -300,6 +300,7 @@ int send_file(MQTTClient client,
 		printf("Failed to open file %s\n", file_path);
 		return -1;
 	}
+	printf("FT: Ready to send file: %s\n", file_path);
 
 	rc = do_flock(fp, LOCK_SH);
 	if (rc != 0) {
@@ -458,6 +459,8 @@ int send_file(MQTTClient client,
 		printf("Failed to publish final message, return code %d\n", rc);
 		return -1;
 	}
+
+	printf("FT: Send file successfully: %s\n", file_path);
 	return 0;
 }
 
