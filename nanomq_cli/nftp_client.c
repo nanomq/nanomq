@@ -269,14 +269,12 @@ wait_ack_and_giveme(void *args)
 
 		// we should only receive publish messages
 		if (nng_mqtt_msg_get_packet_type(msg) != NNG_MQTT_PUBLISH) {
-			printf("NOT PUBLISH??? %d \n",
-			    nng_mqtt_msg_get_packet_type(msg));
 			nng_msg_free(msg);
 			continue;
 		}
 
 		payload = nng_mqtt_msg_get_publish_payload(msg, &payload_len);
-		printf("Received payload length %d \n", payload_len);
+		// printf("Received payload length %d \n", payload_len);
 
 		if (payload[0] == NFTP_TYPE_ACK) {
 			g_wait = 0;
@@ -343,7 +341,7 @@ ask_nextid(void *args)
 		if (stats_push(nextid) < 0) {
 			continue;
 		}
-		printf("ask nextid %d\n", nextid);
+		// printf("ask nextid %d\n", nextid);
 
 		rv = nftp_proto_maker(fname_curr, NFTP_TYPE_GIVEME, 0, nextid,
 		    (char **) &payload, (int *) &payload_len);
@@ -508,12 +506,12 @@ nftp_client(const int argc, const char **argv, int client_type)
 		free(nftp_hello_msg);
 
 		// Wait an ACK
-		printf("wait ack\n");
+		// printf("wait ack\n");
 		// TODO condition variable
 		while (g_wait == 1) {
 			nng_msleep(500);
 		}
-		printf("get ack and start\n");
+		// printf("get ack and start\n");
 		// reset g_wait
 		g_wait = 1;
 
@@ -521,7 +519,6 @@ nftp_client(const int argc, const char **argv, int client_type)
 		rv = nftp_file_blocks(n_opts->path_to_file, &blocks);
 		if (rv != 0)
 			printf("blocks rv %d\n", rv);
-		printf("blocks %zu\n", blocks);
 		nng_msleep(1000);
 
 		// Send FILEs and END
@@ -550,7 +547,7 @@ nftp_client(const int argc, const char **argv, int client_type)
 		client_publish(sock, FTOPIC_BLOCKS, (uint8_t *) nftp_end_msg,
 		    nftp_end_len, 1, 1);
 		free(nftp_end_msg);
-		printf("done\n");
+		printf("file send done\n");
 	} else if (client_type == RECV) {
 		nng_thread *thr;
 		nng_thread_create(&thr, ask_nextid, (void *) &sock);
@@ -579,14 +576,14 @@ nftp_client(const int argc, const char **argv, int client_type)
 
 			payload = nng_mqtt_msg_get_publish_payload(
 			    msg, &payload_len);
-			printf("Received payload %d \n", payload_len);
+			// printf("Received payload %d \n", payload_len);
 
 			rv = nftp_proto_handler((char *) payload, payload_len,
 			    &nftp_reply_msg, &nftp_reply_len);
-			if (rv != 0) {
-				printf("Error in handling payload [%x] \n",
-				    payload[0]);
-			}
+			// if (rv != 0) {
+			// 	printf("Error in handling payload [%x] \n",
+			// 	    payload[0]);
+			// }
 
 			if (payload[0] == NFTP_TYPE_HELLO) {
 				char *fname_;
