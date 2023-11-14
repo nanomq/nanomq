@@ -8,17 +8,17 @@
 
 #if defined(SUPP_NFTP)
 #include <assert.h>
+#include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <signal.h>
 #include <time.h>
 
 #include <nng/mqtt/mqtt_client.h>
 #include <nng/nng.h>
+#include <nng/supplemental/util/options.h>
 #include <nng/supplemental/util/platform.h>
-#include "nng/supplemental/util/options.h"
 
 #define MQTTV5 "aaaaaaaaa"
 
@@ -26,8 +26,8 @@
 
 #define FTOPIC_ALLINONE "file/file-123"
 
-#define FTOPIC_HELLO  FTOPIC_ALLINONE
-#define FTOPIC_ACK    FTOPIC_ALLINONE
+#define FTOPIC_HELLO FTOPIC_ALLINONE
+#define FTOPIC_ACK FTOPIC_ALLINONE
 #define FTOPIC_BLOCKS FTOPIC_ALLINONE
 #define FTOPIC_GIVEME FTOPIC_ALLINONE
 
@@ -44,25 +44,25 @@
 #define FSENDERCLIENTID "file-123-sender"
 #define FRECVERCLIENTID "file-123-recver"
 
-#define NFTP_TYPE_HELLO   0x01
-#define NFTP_TYPE_ACK     0x02
-#define NFTP_TYPE_FILE    0x03
-#define NFTP_TYPE_END     0x04
-#define NFTP_TYPE_GIVEME  0x05
+#define NFTP_TYPE_HELLO 0x01
+#define NFTP_TYPE_ACK 0x02
+#define NFTP_TYPE_FILE 0x03
+#define NFTP_TYPE_END 0x04
+#define NFTP_TYPE_GIVEME 0x05
 
 static char *fname_curr = NULL;
-static int   flen_curr = 0;
+static int   flen_curr  = 0;
 
 #define STN 5
-static int stcnt = 0;
-static int stats[STN] = {0};
+static int stcnt      = 0;
+static int stats[STN] = { 0 };
 
-enum client_type { SEND, RECV };
+enum client_type { SEND = 1, RECV };
 
 typedef struct nftp_opts {
-	char            *url;
-	char            *path_to_file;
-	char            *dir;
+	char *url;
+	char *path_to_file;
+	char *dir;
 } nftp_opts;
 
 enum options {
@@ -75,32 +75,43 @@ enum options {
 static nng_optspec cmd_opts[] = {
 	{ .o_name = "help", .o_short = 'h', .o_val = OPT_HELP },
 	{ .o_name = "url", .o_val = OPT_MQTT_URL, .o_arg = true },
-	{ .o_name = "file", .o_short = 'm', .o_val = OPT_PATH_TO_FILE, .o_arg = true },
+	{ .o_name = "file", .o_short = 'f', .o_val = OPT_PATH_TO_FILE, .o_arg = true },
 	{ .o_name = "dir", .o_short = 'd', .o_val = OPT_DIR, .o_arg = true },
 
 	{ .o_name = NULL, .o_val = 0 },
 };
 
-nftp_opts *n_opts = NULL;
-
 static void
-print_help()
+print_help(enum client_type type)
 {
-	printf("Usage: nanomq_cli nftp send --file <path2file> [<opts>]\n");
-	printf("Usage: nanomq_cli nftp recv [<opts>]\n");
+	if (type == 0) {
+		printf("Usage: nanomq_cli nftp { send | recv } [<opts>]\n");
 
-	printf("<opts>:\n");
-	printf("  --url <url>                           The url for mqtt broker "
-	    "('mqtt-tcp://host:port' or 'tls+mqtt-tcp://host:port') \n");
-	printf("                                        [default: "
-	       "mqtt-tcp://127.0.0.1:1883]\n");
-	printf("--dir, -d                               Directory to save file. [default: current directory]\n");
+		printf("<opts>:\n");
+		printf(
+		    "  --url <url>                  The url for mqtt broker "
+		    "('mqtt-tcp://host:port' or 'tls+mqtt-tcp://host:port') "
+		    "\n");
+		printf("                               [default: "
+		       "mqtt-tcp://127.0.0.1:1883]\n");
+		printf("--file, -f                     Path to the file.\n");
+		printf("--dir, -d                      Directory to save "
+		       "file, ended with '\'. [default: current directory]\n");
+	} else if (type == SEND) {
+		printf("Usage: nanomq_cli nftp send --file <path2file> [--url "
+		       "<url4broker>]\n");
+	} else if (type == RECV) {
+		printf("Usage: nanomq_cli nftp recv [--dir <path4dir> --url "
+		       "<url4broker>]\n");
+	}
 }
 
-static int stats_push(int v) {
-	for (int i=0; i<stcnt; i++) {
+static int
+stats_push(int v)
+{
+	for (int i = 0; i < stcnt; i++) {
 		if (stats[i] != v) {
-			stcnt = 1;
+			stcnt    = 1;
 			stats[0] = v;
 		}
 	}
@@ -113,7 +124,7 @@ static int stats_push(int v) {
 	}
 	// If stack is not full
 	stats[stcnt] = v;
-	stcnt ++;
+	stcnt++;
 	return -1;
 }
 
@@ -154,10 +165,10 @@ connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 
 // Connect to the given address.
 int
-client_connect(
-    nng_socket *sock, nng_dialer *dialer, const char *url, bool verbose, bool isclient)
+client_connect(nng_socket *sock, nng_dialer *dialer, const char *url,
+    bool verbose, int client_type)
 {
-	int        rv;
+	int rv;
 
 #ifdef MQTTV5
 	if ((rv = nng_mqttv5_client_open(sock)) != 0) {
@@ -184,10 +195,10 @@ client_connect(
 	nng_mqtt_msg_set_connect_proto_version(connmsg, 4);
 #endif
 	nng_mqtt_msg_set_connect_keep_alive(connmsg, 60);
-	if (isclient) {
+	if (client_type == SEND) {
 		nng_mqtt_msg_set_connect_client_id(connmsg, FSENDERCLIENTID);
 		nng_mqtt_msg_set_connect_user_name(connmsg, "nng_mqtt_client");
-	} else {
+	} else if (client_type == RECV){
 		nng_mqtt_msg_set_connect_client_id(connmsg, FRECVERCLIENTID);
 		nng_mqtt_msg_set_connect_user_name(connmsg, "aaa");
 	}
@@ -207,7 +218,7 @@ client_connect(
 		printf("%s\n", buff);
 	}
 
-	printf("Connecting to server ...\n");
+	printf("Connecting to Broker:%s ...\n", url);
 	nng_dialer_set_ptr(*dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
 	nng_dialer_start(*dialer, NNG_FLAG_NONBLOCK);
 
@@ -245,8 +256,8 @@ static int g_wait = 1;
 void
 wait_ack_and_giveme(void *args)
 {
-	int rv;
-	nng_socket sock = *(nng_socket *)args;
+	int        rv;
+	nng_socket sock = *(nng_socket *) args;
 	while (true) {
 		nng_msg *msg;
 		uint8_t *payload;
@@ -258,7 +269,8 @@ wait_ack_and_giveme(void *args)
 
 		// we should only receive publish messages
 		if (nng_mqtt_msg_get_packet_type(msg) != NNG_MQTT_PUBLISH) {
-			printf("NOT PUBLISH??? %d \n", nng_mqtt_msg_get_packet_type(msg));
+			printf("NOT PUBLISH??? %d \n",
+			    nng_mqtt_msg_get_packet_type(msg));
 			nng_msg_free(msg);
 			continue;
 		}
@@ -279,31 +291,32 @@ wait_ack_and_giveme(void *args)
 		}
 
 		// handle giveme
-		char * nftp_file_msg;
-		int    nftp_file_len;
-		if ((rv = nftp_proto_handler((char *)payload, payload_len, &nftp_file_msg, &nftp_file_len)) != 0) {
+		char *nftp_file_msg;
+		int   nftp_file_len;
+		if ((rv = nftp_proto_handler((char *) payload, payload_len,
+		         &nftp_file_msg, &nftp_file_len)) != 0) {
 			printf("Error in handle giveme %d\n", rv);
 			nng_msg_free(msg);
 			continue;
 		}
-		client_publish(sock, FTOPIC_BLOCKS, (uint8_t *)nftp_file_msg, nftp_file_len, 1, 1);
+		client_publish(sock, FTOPIC_BLOCKS, (uint8_t *) nftp_file_msg,
+		    nftp_file_len, 1, 1);
 
 		nng_msg_free(msg);
 		free(nftp_file_msg);
 	}
 }
 
-
 void
 ask_nextid(void *args)
 {
-	int rv;
-	nng_socket sock = *(nng_socket *)args;
+	int        rv;
+	nng_socket sock = *(nng_socket *) args;
 	while (true) {
 		nng_msg *msg;
 		uint8_t *payload;
 		uint32_t payload_len;
-		int blocks, nextid;
+		int      blocks, nextid;
 
 		nng_msleep(100);
 
@@ -311,14 +324,17 @@ ask_nextid(void *args)
 			continue;
 		}
 
-		if ((rv = nftp_proto_recv_status(fname_curr, &blocks, &nextid)) != 0) {
-			printf("Done!!! The ctx of this file has been erase %s %d\n", fname_curr, rv);
+		if ((rv = nftp_proto_recv_status(
+		         fname_curr, &blocks, &nextid)) != 0) {
+			printf("Done!!! The ctx of this file has been erase "
+			       "%s %d\n",
+			    fname_curr, rv);
 			free(fname_curr);
 			fname_curr = NULL;
 			continue;
 		}
 
-		if (nextid > blocks-1) {
+		if (nextid > blocks - 1) {
 			// no more giveme needed
 			printf("should not be here %d %d\n", nextid, blocks);
 			continue;
@@ -329,38 +345,55 @@ ask_nextid(void *args)
 		}
 		printf("ask nextid %d\n", nextid);
 
-		rv = nftp_proto_maker(fname_curr, NFTP_TYPE_GIVEME, 0, nextid, (char **)&payload, (int *)&payload_len);
+		rv = nftp_proto_maker(fname_curr, NFTP_TYPE_GIVEME, 0, nextid,
+		    (char **) &payload, (int *) &payload_len);
 		if (rv != 0) {
-			printf("errror in make giveme %s %d\n", fname_curr, rv);
+			printf(
+			    "error in make giveme %s %d\n", fname_curr, rv);
 			continue;
 		}
 
-		client_publish(sock, FTOPIC_GIVEME, (uint8_t *)payload, payload_len, 1, 1);
+		client_publish(sock, FTOPIC_GIVEME, (uint8_t *) payload,
+		    payload_len, 1, 1);
 		free(payload);
 	}
 }
 
 static void
-send_callback(nng_mqtt_client *client, nng_msg *msg, void *arg) {
+send_callback(nng_mqtt_client *client, nng_msg *msg, void *arg)
+{
 	nng_aio *aio = client->send_aio;
 	uint32_t count;
 	uint8_t *code;
-	code = (uint8_t *)nng_mqtt_msg_get_suback_return_codes(msg, &count);
-	printf("aio mqtt result %d \n", nng_aio_result(aio));
-	for (int i=0; i<count; ++i)
-		printf("suback %x \n", code[i]);
+	// code = (uint8_t *) nng_mqtt_msg_get_suback_return_codes(msg, &count);
+	// printf("aio mqtt result %d \n", nng_aio_result(aio));
+	// for (int i = 0; i < count; ++i)
+	// 	printf("suback %x \n", code[i]);
 	nng_msg_free(msg);
 }
 
+static void
+set_default_opts(nftp_opts *n_opts)
+{
+	n_opts->url = FURL;
+	n_opts->path_to_file = NULL;
+	n_opts->dir          = NULL;
+}
 
 static void
-set_default_opts(nftp_opts *nftp_opts)
+free_opts(nftp_opts *n_opts)
 {
-	nftp_opts->url = FURL;
+	if (n_opts->path_to_file != NULL) {
+		nng_strfree(n_opts->path_to_file);
+	}
+	if (n_opts->dir != NULL) {
+		nng_strfree(n_opts->dir);
+	}
+	nng_free(n_opts, sizeof(nftp_opts));
 }
 
 static int
-client_parse_opts(int argc, char **argv, nftp_opts *nftp_opts)
+client_parse_opts(int argc, char **argv, nftp_opts *n_opts)
 {
 	int    idx = 1;
 	char  *arg;
@@ -369,18 +402,19 @@ client_parse_opts(int argc, char **argv, nftp_opts *nftp_opts)
 	size_t filelen = 0;
 
 	while ((rv = nng_opts_parse(
-	            argc - 1, argv + 1, cmd_opts, &val, &arg, &idx)) == 0) {
+	            argc - 2, argv + 2, cmd_opts, &val, &arg, &idx)) == 0) {
 		switch (val) {
 		case OPT_HELP:
-			print_help();
-			exit(0);
-			break;
-			break;
+			print_help(0);
+			return 0;
 		case OPT_MQTT_URL:
+			n_opts->url = nng_strdup(arg);
 			break;
 		case OPT_PATH_TO_FILE:
+			n_opts->path_to_file = nng_strdup(arg);
 			break;
 		case OPT_DIR:
+			n_opts->dir = nng_strdup(arg);
 			break;
 		}
 	}
@@ -393,23 +427,25 @@ nftp_client(const int argc, const char **argv, int client_type)
 	nng_socket sock;
 	nng_dialer dailer;
 
-	const char *exe = argv[0];
-
-	const char *cmd = argv[1];
-
-	const char *url         = FURL;
 	int         rv          = 0;
 	char       *verbose_env = getenv("VERBOSE");
 	bool        verbose     = verbose_env && strlen(verbose_env) > 0;
 
+	nftp_opts *n_opts = NULL;
+
 	n_opts = nng_zalloc(sizeof(nftp_opts));
 	set_default_opts(n_opts);
-	client_parse_opts(argc, argv, n_opts);
+	client_parse_opts(argc, argv,n_opts);
+
+	if (client_type == SEND && n_opts->path_to_file == NULL) {
+		print_help(SEND);
+		goto exit;
+	}
 
 	nftp_proto_init();
 
 	// TODO: more opts for sub or pub
-	client_connect(&sock, &dailer, url, verbose, true);
+	client_connect(&sock, &dailer, n_opts->url, verbose, client_type);
 
 	signal(SIGINT, intHandler);
 
@@ -418,7 +454,6 @@ nftp_client(const int argc, const char **argv, int client_type)
 #else
 	int count = 2;
 #endif
-
 	nng_mqtt_topic_qos subscriptions[] = {
 #ifdef MQTTV5
 		{
@@ -449,85 +484,77 @@ nftp_client(const int argc, const char **argv, int client_type)
 	nng_mqtt_client *client =
 	    nng_mqtt_client_alloc(sock, &send_callback, true);
 	nng_mqtt_subscribe_async(client, subscriptions, count, NULL);
-	// Sync subscription
-	// rv = nng_mqtt_subscribe(&sock, subscriptions, 1, NULL);
-
-	// Asynchronous subscription
-	nng_thread *thr;
-	nng_thread_create(&thr, wait_ack_and_giveme, (void *) &sock);
-	nng_msleep(1000);
 	if (client_type == SEND) {
-		char fpath[256];
-		while (true) {
-			printf("/path/to/file==>>");
-			if (gets(fpath) == NULL) {
-				printf("Invalid input fpath\n");
-				continue;
-			}
-			if (0 == nftp_file_exist(fpath)) {
-				printf("%s is not exist\n", fpath);
-				continue;
-			}
-
-			// Send a Hello
-			char *nftp_hello_msg = NULL;
-			int   nftp_hello_len = 0;
-			rv = nftp_proto_maker(fpath, NFTP_TYPE_HELLO, 0, 0,
-			    &nftp_hello_msg, &nftp_hello_len);
-			if (rv != 0)
-				printf("hello make rv %d\n", rv);
-			client_publish(sock, FTOPIC_HELLO,
-			    (uint8_t *) nftp_hello_msg, nftp_hello_len, 1, 1);
-			free(nftp_hello_msg);
-
-			// Wait an ACK
-			printf("wait ack\n");
-			// TODO condition variable
-			while (g_wait == 1) {
-				nng_msleep(500);
-			}
-			printf("get ack and start\n");
-			// reset g_wait
-			g_wait = 1;
-
-			size_t blocks = 0;
-			rv            = nftp_file_blocks(fpath, &blocks);
-			if (rv != 0)
-				printf("blocks rv %d\n", rv);
-			printf("blocks %zu\n", blocks);
-			nng_msleep(1000);
-
-			// Send FILEs and END
-			for (int i = 0; i < blocks - 1; ++i) {
-				char *nftp_file_msg;
-				int   nftp_file_len;
-				if (i % 10 == 0) {
-					printf("Cancel sending block %d to "
-					       "simulate poor network.\n",
-					    i);
-					continue;
-				}
-				nftp_proto_maker(fpath, NFTP_TYPE_FILE, 0, i,
-				    &nftp_file_msg, &nftp_file_len);
-				client_publish(sock, FTOPIC_BLOCKS,
-				    (uint8_t *) nftp_file_msg, nftp_file_len,
-				    1, 1);
-				free(nftp_file_msg);
-				// Assume 1 Mbps bandwidth
-				// 1Mbps / 8bit * 32KB ~= 4 Packets/sec
-				nng_msleep(50);
-			}
-			char *nftp_end_msg;
-			int   nftp_end_len;
-			nftp_proto_maker(fpath, NFTP_TYPE_END, 0, blocks - 1,
-			    &nftp_end_msg, &nftp_end_len);
-			client_publish(sock, FTOPIC_BLOCKS,
-			    (uint8_t *) nftp_end_msg, nftp_end_len, 1, 1);
-			free(nftp_end_msg);
-			printf("done\n");
+		if (0 == nftp_file_exist(n_opts->path_to_file)) {
+			printf("%s is not exist\n", n_opts->path_to_file);
+			goto exit;
 		}
-	} else if (client_type == RECV) {
+		nng_thread *thr;
+		nng_thread_create(&thr, wait_ack_and_giveme, (void *) &sock);
+		nng_msleep(1000);
 
+		// Send a Hello
+		char *nftp_hello_msg = NULL;
+		int   nftp_hello_len = 0;
+		rv = nftp_proto_maker(n_opts->path_to_file, NFTP_TYPE_HELLO, 0,
+		    0, &nftp_hello_msg, &nftp_hello_len);
+		if (rv != 0)
+			printf("hello make rv %d\n", rv);
+		client_publish(sock, FTOPIC_HELLO, (uint8_t *) nftp_hello_msg,
+		    nftp_hello_len, 1, 1);
+		free(nftp_hello_msg);
+
+		// Wait an ACK
+		printf("wait ack\n");
+		// TODO condition variable
+		while (g_wait == 1) {
+			nng_msleep(500);
+		}
+		printf("get ack and start\n");
+		// reset g_wait
+		g_wait = 1;
+
+		size_t blocks = 0;
+		rv = nftp_file_blocks(n_opts->path_to_file, &blocks);
+		if (rv != 0)
+			printf("blocks rv %d\n", rv);
+		printf("blocks %zu\n", blocks);
+		nng_msleep(1000);
+
+		// Send FILEs and END
+		for (int i = 0; i < blocks - 1; ++i) {
+			char *nftp_file_msg;
+			int   nftp_file_len;
+			if (i % 10 == 0) {
+				printf("Cancel sending block %d to "
+				       "simulate poor network.\n",
+				    i);
+				continue;
+			}
+			nftp_proto_maker(n_opts->path_to_file, NFTP_TYPE_FILE,
+			    0, i, &nftp_file_msg, &nftp_file_len);
+			client_publish(sock, FTOPIC_BLOCKS,
+			    (uint8_t *) nftp_file_msg, nftp_file_len, 1, 1);
+			free(nftp_file_msg);
+			// Assume 1 Mbps bandwidth
+			// 1Mbps / 8bit * 32KB ~= 4 Packets/sec
+			nng_msleep(50);
+		}
+		char *nftp_end_msg;
+		int   nftp_end_len;
+		nftp_proto_maker(n_opts->path_to_file, NFTP_TYPE_END, 0,
+		    blocks - 1, &nftp_end_msg, &nftp_end_len);
+		client_publish(sock, FTOPIC_BLOCKS, (uint8_t *) nftp_end_msg,
+		    nftp_end_len, 1, 1);
+		free(nftp_end_msg);
+		printf("done\n");
+	} else if (client_type == RECV) {
+		nng_thread *thr;
+		nng_thread_create(&thr, ask_nextid, (void *) &sock);
+		nng_msleep(1000);
+		if (n_opts->dir != NULL) {
+			nftp_set_recvdir(n_opts->dir);
+		}
 		while (true) {
 			nng_msg *msg;
 			char    *nftp_reply_msg = NULL;
@@ -536,14 +563,13 @@ nftp_client(const int argc, const char **argv, int client_type)
 			uint32_t payload_len;
 
 			if ((rv = nng_recvmsg(sock, &msg, 0)) != 0) {
-				fatal("nng_recvmsg", rv);
+				nng_fatal("nng_recvmsg", rv);
 				continue;
 			}
 
 			// we should only receive publish messages
 			if (nng_mqtt_msg_get_packet_type(msg) !=
 			    NNG_MQTT_PUBLISH) {
-				printf("NOT PUBLISH???\n");
 				nng_msg_free(msg);
 				continue;
 			}
@@ -562,7 +588,7 @@ nftp_client(const int argc, const char **argv, int client_type)
 			if (payload[0] == NFTP_TYPE_HELLO) {
 				char *fname_;
 				int   flen_;
-				printf("Received HELLO");
+				printf("Received HELLO\n");
 				nftp_proto_hello_get_fname((char *) payload,
 				    (int) payload_len, &fname_, &flen_);
 
@@ -572,7 +598,7 @@ nftp_client(const int argc, const char **argv, int client_type)
 				// works.
 
 				printf("file name %s ..\n", fname_curr);
-				printf("reply ack\n");
+				// printf("reply ack\n");
 				client_publish(sock, FTOPIC_ACK,
 				    (uint8_t *) nftp_reply_msg, nftp_reply_len,
 				    1, 1);
@@ -598,11 +624,10 @@ nftp_client(const int argc, const char **argv, int client_type)
 			msg = NULL;
 		}
 	}
-
-	for (;;)
-		nng_msleep(1000);
 	// nng_mqtt_disconnect(&sock, 5, NULL);
 	nftp_proto_fini();
+exit:
+	free_opts(n_opts);
 
 	return 0;
 }
@@ -610,16 +635,16 @@ nftp_client(const int argc, const char **argv, int client_type)
 int
 nftp_start(const int argc, const char **argv)
 {
-	if(argc < 4) {
-		print_help();
+	if (argc < 3) {
+		print_help(0);
 		return 0;
 	}
-	if(strncmp(argv[2],"send",4) == 0) {
+	if (strncmp(argv[2], "send", 4) == 0) {
 		nftp_client(argc, argv, SEND);
-	} else if (strncmp(argv[2],"recv",4) == 0) {
+	} else if (strncmp(argv[2], "recv", 4) == 0) {
 		nftp_client(argc, argv, RECV);
 	} else {
-		print_help();
+		print_help(0);
 	}
 	return 0;
 }
