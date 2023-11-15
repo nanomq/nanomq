@@ -11,7 +11,7 @@ $ cmake -G Ninja -DBUILD_BENCH=ON ..
 $ Ninja
 ```
 
-编译完成后，会生成一个名为“ nanomq ”的可执行文件。执行以下命令确认可以正常使用：
+编译完成后，会生成一个名为“ nanomq_cli ”的可执行文件。执行以下命令确认可以正常使用：
 
 ```bash
 $ nanomq_cli 
