@@ -164,8 +164,12 @@
           "path": "toolkit/command-line"
         },
         {
-          "title": "工具集",
+          "title": "bench工具",
           "path": "toolkit/bench"
+        },
+        {
+          "title": "nftp工具",
+          "path": "toolkit/nftp"
         }
       ]
     },
@@ -369,8 +373,12 @@
           "path": "toolkit/command-line"
         },
         {
-          "title": "Toolkit",
+          "title": "Bench Tool",
           "path": "toolkit/bench"
+        },
+        {
+          "title": "NFTP Tool",
+          "path": "toolkit/nftp"
         }
       ]
     },

@@ -14,6 +14,6 @@ This guide introduces how to use the command line interface for broker, client, 
 
 `Bench` is a powerful MQTT protocol performance testing tool designed using NanoSDK. This tool allows users to conduct comprehensive performance tests such as publishing and subscribing to messages, creating numerous connections, and more, helping users better understand their system's capabilities, limitations, and bottlenecks.
 
-## nftp
+## NFTP
 
 `nftp` is a light-weight, no run time file transfer tool based on MQTT. `nftp` support P to P/ N to 1/ 1 to N，asynchronous send / recv，discontinued transmission.
