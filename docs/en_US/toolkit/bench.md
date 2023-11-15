@@ -4,7 +4,7 @@ Bench is a concise and powerful MQTT protocol performance testing tool written w
 
 ## Compile 
 
-**Note **: bench tool isn't built by default, you can enable it via `-DBUILD_BENCH=ON`.
+**Note**: bench tool isn't built by default, you can enable it via `-DBUILD_BENCH=ON`.
 
 ```bash
 $ cmake -G Ninja -DBUILD_BENCH=ON ..
@@ -111,13 +111,15 @@ $ nanomq_cli bench sub -c 100 -i 10 -t bench -p 8883 --certfile path/to/client-c
 $ nanomq_cli bench pub -c 100 -i 10 -t bench -s 256 -p 8883 --certfile path/to/client-cert.pem --keyfile path/to/client-key.pem
 ```
 
-# nftp
+##
 
-`nftp` is a light-weight, no run time file transfer tool based on MQTT. `nftp` support P to P/ N to 1/ 1 to N，asynchronous send / recv，discontinued transmission.
+# NFTP
+
+`nftp` is a light-weight, no run time file transfer tool based on MQTT. `nftp` support P to P/ N to 1/ 1 to N transmission，asynchronous send / recv，discontinued transmission.
 
 ## Compile 
 
-**Note **: nftp tool isn't built by default, you can enable it via `-DBUILD_NFTP=ON`.
+**Note**: nftp tool isn't built by default, you can enable it via `-DBUILD_NFTP=ON`.
 
 ```bash
 $ cmake -G Ninja -DBUILD_NFTP=ON ..
@@ -156,7 +158,7 @@ There are two subcommands of `bench`:
 
 Start `nftp recv` in the receive side and start `nftp send` in the send side. For specific usage, please refer to the following content.
 
-## parameter
+## Parameter
 
 When executing `nanomq_cli nftp --help`, you will get the available parameter output.
 
@@ -166,7 +168,7 @@ When executing `nanomq_cli nftp --help`, you will get the available parameter ou
 | --file            | -f           | -              | None; required    | path to the file             |
 | --dir             | -d           | -              | current directory | directory to receive files   |
 
-## send
+## Send
 
 Execute `nanomq_cli nftp send --help` to get all available parameters of this subcommand. Their explanations have been included in the table above and are omitted here.
 
@@ -176,7 +178,7 @@ For example, we send file '/tmp/aaa/filename.c':
 $ nanomq_cli nftp send --file /tmp/aaa/filename.c
 ```
 
-## Connect
+## Recv
 
 Execute `nanomq_cli nftp recv --help` to get all available parameters of this subcommand. Their explanations have been included in the table above and are omitted here.
 

@@ -2,7 +2,7 @@
 
 Bench 是使用 NanoSDK 编写的简洁强大的 MQTT 协议性能测试工具。
 
-## Compile 
+## 编译 
 
 **注意**： bench 工具默认不构建，您可以通过`-DBUILD_BENCH=ON` 启用它。
 
@@ -111,11 +111,13 @@ $ nanomq_cli bench sub -c 100 -i 10 -t bench -p 8883 --certfile path/to/client-c
 $ nanomq_cli bench pub -c 100 -i 10 -t bench -s 256 -p 8883 --certfile path/to/client-cert.pem --keyfile path/to/client-key.pem
 ```
 
-# nftp
+##
+
+# NFTP
 
 nftp 是基于MQTT的轻量级文件传输工具。
 
-## Compile 
+## 编译 
 
 **注意**： nftp 工具默认不构建，您可以通过`-DBUILD_NFTP=ON` 启用它。
 
