@@ -1120,7 +1120,7 @@ broker(conf *nanomq_conf)
 
 	if (is_testing == true) {
 		// broker should hang on to accept request.
-		nng_msleep(1000);
+		nng_msleep(2000);
 	}
 
 	for (;;) {
