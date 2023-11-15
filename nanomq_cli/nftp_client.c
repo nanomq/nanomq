@@ -394,7 +394,7 @@ free_opts(nftp_opts *n_opts)
 }
 
 static int
-client_parse_opts(int argc, char **argv, nftp_opts *n_opts)
+client_parse_opts(int argc, char **argv, nftp_opts *n_opts, int client_type)
 {
 	int    idx = 1;
 	char  *arg;
@@ -406,7 +406,13 @@ client_parse_opts(int argc, char **argv, nftp_opts *n_opts)
 	            argc - 2, argv + 2, cmd_opts, &val, &arg, &idx)) == 0) {
 		switch (val) {
 		case OPT_HELP:
-			print_help(0);
+			if (client_type == SEND) {
+				print_help(SEND);
+			} else if (client_type == RECV) {
+				print_help(RECV);
+			} else {
+				print_help(0);
+			}
 			return 0;
 		case OPT_MQTT_URL:
 			n_opts->url = nng_strdup(arg);
@@ -436,7 +442,7 @@ nftp_client(const int argc, const char **argv, int client_type)
 
 	n_opts = nng_zalloc(sizeof(nftp_opts));
 	set_default_opts(n_opts);
-	client_parse_opts(argc, argv,n_opts);
+	client_parse_opts(argc, argv, n_opts, client_type);
 
 	if (client_type == SEND && n_opts->path_to_file == NULL) {
 		print_help(SEND);
