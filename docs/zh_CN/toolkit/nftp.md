@@ -7,6 +7,7 @@ nftp 是基于MQTT的轻量级文件传输工具。
 **注意**： nftp 工具默认不构建，您可以通过`-DBUILD_NFTP=ON` 启用它。
 
 ```bash
+$ mkdir build && cd build
 $ cmake -G Ninja -DBUILD_NFTP=ON ..
 $ Ninja
 ```
