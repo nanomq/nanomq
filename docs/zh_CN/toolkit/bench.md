@@ -7,6 +7,7 @@ Bench 是使用 NanoSDK 编写的简洁强大的 MQTT 协议性能测试工具�
 **注意**： bench 工具默认不构建，您可以通过`-DBUILD_BENCH=ON` 启用它。
 
 ```bash
+$ mkdir build && cd build
 $ cmake -G Ninja -DBUILD_BENCH=ON ..
 $ Ninja
 ```

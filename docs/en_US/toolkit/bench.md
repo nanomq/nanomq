@@ -7,6 +7,7 @@ Bench is a concise and powerful MQTT protocol performance testing tool written w
 **Note**: bench tool isn't built by default, you can enable it via `-DBUILD_BENCH=ON`.
 
 ```bash
+$ mkdir build && cd build
 $ cmake -G Ninja -DBUILD_BENCH=ON ..
 $ Ninja
 ```

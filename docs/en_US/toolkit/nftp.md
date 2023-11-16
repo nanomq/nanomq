@@ -7,6 +7,7 @@
 **Note**: nftp tool isn't built by default, you can enable it via `-DBUILD_NFTP=ON`.
 
 ```bash
+$ mkdir build && cd build
 $ cmake -G Ninja -DBUILD_NFTP=ON ..
 $ Ninja
 ```
