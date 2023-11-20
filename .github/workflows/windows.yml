@@ -57,7 +57,7 @@ jobs:
             $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
             $headers.Add("token", "${{ secrets.EMQX_IO_TOKEN }}")
             $headers.Add("Content-Type", "application/json")
-            $body = "{`"repo`": `"emqx/nanomq`", `"tag`": `"${{ github.ref_name }}`"}"
+            $body = "{`"repo`": `"nanomq/nanomq`", `"tag`": `"${{ github.ref_name }}`"}"
             $response = Invoke-WebRequest ${{ secrets.EMQX_IO_RELEASE_API }} -Method 'POST' -Headers $headers -Body $body
             if ($response.StatusCode -eq 200) {
               Write-Host "HTTP status code: $($response.StatusCode)"

@@ -314,7 +314,7 @@ jobs:
              -H "Content-Type: application/json" \
              -H "token: ${{ secrets.EMQX_IO_TOKEN }}" \
              -X POST \
-             -d "{\"repo\":\"emqx/nanomq\", \"tag\": \"${{ github.ref_name }}\" }" \
+             -d "{\"repo\":\"nanomq/nanomq\", \"tag\": \"${{ github.ref_name }}\" }" \
              ${{ secrets.EMQX_IO_RELEASE_API }}
 
     - uses: Swilder-M/push-packages@master
