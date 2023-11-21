@@ -1549,12 +1549,12 @@ broker_start(int argc, char **argv)
 
 	conf *nanomq_conf;
 
-	if (!status_check(&pid)) {
-		fprintf(stderr,
-		    "One NanoMQ instance is still running, a new instance "
-		    "won't be started until the other one is stopped.\n");
-		exit(EXIT_FAILURE);
-	}
+	// if (!status_check(&pid)) {
+	// 	fprintf(stderr,
+	// 	    "One NanoMQ instance is still running, a new instance "
+	// 	    "won't be started until the other one is stopped.\n");
+	// 	exit(EXIT_FAILURE);
+	// }
 
 	if ((nanomq_conf = nng_zalloc(sizeof(conf))) == NULL) {
 		fprintf(stderr,
@@ -1638,12 +1638,12 @@ broker_start_with_conf(conf *nanomq_conf)
 	int rc = 0;
 	int pid = 0;
 
-	if (!status_check(&pid)) {
-		fprintf(stderr,
-		    "One NanoMQ instance is still running, a new instance for "
-		    "test won't be started until the other one is stopped.\n");
-		exit(EXIT_FAILURE);
-	}
+	// if (!status_check(&pid)) {
+	// 	fprintf(stderr,
+	// 	    "One NanoMQ instance is still running, a new instance for "
+	// 	    "test won't be started until the other one is stopped.\n");
+	// 	exit(EXIT_FAILURE);
+	// }
 
 	if (nanomq_conf->enable) {
 		nanomq_conf->url = nanomq_conf->url != NULL
