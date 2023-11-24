@@ -20,7 +20,7 @@ Describe what occurred.
 If possible include actual reproduction test code here.
 Minimal C test cases are perferred.
 
-** Environment Details **
+**Environment Details**
  - NanoMQ version
  - Operating system and version
  - Compiler and language used
