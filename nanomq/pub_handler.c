@@ -1096,16 +1096,6 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 		return MALFORMED_PACKET;
 	}
 
-	if (work->proto == PROTO_MQTT_BRIDGE) {
-		bridge_handle_topic_reflection(work, &work->config->bridge);
-	}
-
-#if defined(SUPP_AWS_BRIDGE)
-	if (work->proto == PROTO_AWS_BRIDGE) {
-		bridge_handle_topic_reflection(work, &work->config->aws_bridge);
-	}
-#endif
-
 	topic        = work->pub_packet->var_header.publish.topic_name.body;
 	uint32_t len = work->pub_packet->var_header.publish.topic_name.len;
 
@@ -1145,6 +1135,20 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 		log_error("Topic is NULL");
 		return TOPIC_FILTER_INVALID;
 	}
+
+	if (work->proto == PROTO_MQTT_BRIDGE) {
+		bridge_handle_topic_reflection(work, &work->config->bridge);
+	}
+
+#if defined(SUPP_AWS_BRIDGE)
+	if (work->proto == PROTO_AWS_BRIDGE) {
+		bridge_handle_topic_reflection(
+		    work, &work->config->aws_bridge);
+	}
+#endif
+
+	topic = work->pub_packet->var_header.publish.topic_name.body;
+
 #ifdef ACL_SUPP
 	if (!is_event && work->cparam) {
 		if (work->config->acl.enable) {
