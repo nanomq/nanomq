@@ -1482,6 +1482,7 @@ decode_pub_message(nano_work *work, uint8_t proto)
 	uint32_t pos      = 0;
 	uint32_t used_pos = 0;
 	uint32_t len, len_of_varint;
+	bool     is_copy = false;
 
 	nng_msg                  *msg        = work->msg;
 	struct pub_packet_struct *pub_packet = work->pub_packet;
@@ -1559,10 +1560,12 @@ decode_pub_message(nano_work *work, uint8_t proto)
 		used_pos = pos;
 
 		if (MQTT_PROTOCOL_VERSION_v5 == proto) {
+			if (work->proto == PROTO_MQTT_BRIDGE)
+				is_copy = true;
 			pub_packet->var_header.publish.properties =
 			    decode_properties(msg, &pos,
 			        &pub_packet->var_header.publish.prop_len,
-			        false);
+			        is_copy);
 			log_debug("property len: %d",
 			    pub_packet->var_header.publish.prop_len);
 
