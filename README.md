@@ -89,6 +89,7 @@ There are some configuration options specified using CMake defines in addition t
 - `-DNNG_ENABLE_TLS=ON`: to build with TLS support. (Need to install  [mbedTLS](https://tls.mbed.org) in advance)
 - `-DBUILD_CLIENT=OFF`: to disable nanomq tools client suite  (including pub / sub / conn )
 - `-DBUILD_ZMQ_GATEWAY=ON`: to build `nanomq_cli` with zeromq gateway tool
+- `-DBUILD_NFTP=ON`: to build `nanomq_cli` with nftp client
 - `-DBUILD_DDS_PROXY=ON`: to build `nanomq_cli` with dds client ( proxy / sub / pub )
 - `-DBUILD_BENCH=ON`: to build  `nanomq_cli` mqtt bench
 - ` -DENABLE_JWT=ON`: to build  JWT dependency for http server
