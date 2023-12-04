@@ -104,6 +104,8 @@ if(BUILD_QUIC_CLI)
   target_link_libraries(nanomq nng msquic)
 endif(BUILD_QUIC_CLI)
 
+set_target_properties(nanomq PROPERTIES LINK_FLAGS "-Wl,-rpath,${CMAKE_INSTALL_RPATH}")
+
 target_link_libraries(nanomq nng)
 
 target_compile_definitions(nanomq PRIVATE -DPARALLEL=${PARALLEL})
