@@ -199,7 +199,7 @@ bridge_handler(nano_work *work)
 						    node->address, work->ctx.id);
 					} else {
 						nng_aio_set_timeout(node->bridge_aio[index],
-						    3000);
+						    60000);
 						nng_aio_set_msg(node->bridge_aio[index],
 						    smsg);
 						nng_send_aio(*socket, node->bridge_aio[index]);
