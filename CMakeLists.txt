@@ -37,6 +37,7 @@ option (ENABLE_SYSLOG "Enable syslog" ON)
 option (NOLOG "Disable log" OFF)
 option (ENABLE_ACL "Enable ACL" ON)
 option (NANOMQ_TESTS "Enable nanomq unit tests" OFF)
+option (BUILD_WTIH_STATIC_LIBS "build with static lib" OFF)
 
 set (NNG_PROTO_MQTT_BROKER  ON)
 set (NNG_TRANSPORT_MQTT_BROKER_TCP ON)
