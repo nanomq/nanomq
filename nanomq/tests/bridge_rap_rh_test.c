@@ -67,14 +67,14 @@ main()
 	pid_sub_nmq_rh1 = popen_sub_with_cmd(&outfp_nmq_rh1, cmd_sub_nmq_rh1);
 	// TODO: better check the retain flag
 	assert(read(outfp_nmq_rap0, buf_rap0, buf_size) > 0);
+	printf("rap0 got the msg: %s\n", buf_rap0);
 	assert(strncmp(buf_rap0, "message-to-nmq-rap0", 19) == 0);
-	printf("rap0 got the msg\n");
 	assert(read(outfp_nmq_rh0, buf_rh0, buf_size) > 0);
+	printf("rh0 got the msg: %s\n", buf_rh0);
 	assert(strncmp(buf_rh0, "message-to-nmq-rh0", 18) == 0);
-	printf("rh0 got the msg\n");
 	assert(read(outfp_nmq_rh1, buf_rh1, buf_size) > 0);
+	printf("rh1 got the msg: %s\n", buf_rh1);
 	assert(strncmp(buf_rh1, "message-to-nmq-rh1", 18) == 0);
-	printf("rh1 got the msg\n");
 	memset(buf_rap0, 0, buf_size);
 	memset(buf_rh0, 0, buf_size);
 	memset(buf_rh1, 0, buf_size);

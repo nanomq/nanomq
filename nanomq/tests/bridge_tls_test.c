@@ -4,11 +4,11 @@
 int
 main()
 {
-	char *cmd_sub_emqx[] = {"mosquitto_sub", "-h", "432121.xyz", "-p", "8883", "-t", "fwd1/test", "-V", "mqttv5", "-q", "2", "--cafile", "../../../etc/certs/cacert.pem", "--insecure", NULL};
+	char *cmd_sub_emqx[] = {"mosquitto_sub", "-h", "us.432121.xyz", "-p", "8883", "-t", "fwd1/test", "-V", "mqttv5", "-q", "2", "--cafile", "../../../etc/certs/cacert.pem", "--insecure", NULL};
 	char *cmd_sub_nmq[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", "8883", "-t", "recv_lo/topic1", "-V", "mqttv5", "-q", "2", "--cafile", "../../../etc/certs/cacert.pem", "--insecure", NULL};
 
 	char *cmd_pub_nmq = "mosquitto_pub -h 127.0.0.1 -p 8883 -t forward1/test -m message-to-emqx -V mqttv5 -q 2 --cafile ../../../etc/certs/cacert.pem --insecure";
-	char *cmd_pub_emqx = "mosquitto_pub -h 432121.xyz -p 8883 -t recv/topic1 -m message-to-nmq -V mqttv5 -q 2 --cafile ../../../etc/certs/cacert.pem --insecure";
+	char *cmd_pub_emqx = "mosquitto_pub -h us.432121.xyz -p 8883 -t recv/topic1 -m message-to-nmq -V mqttv5 -q 2 --cafile ../../../etc/certs/cacert.pem --insecure";
 
 	nng_thread *nmq;
 	pid_t       pid_sub_nmq;
@@ -28,7 +28,7 @@ main()
 	conf = get_test_conf(BRIDGE_TLS_CONF);
 	assert(conf != NULL);
 	nng_thread_create(&nmq, (void *) broker_start_with_conf, (void *) conf);
-	nng_msleep(2000); // wait a while before sub
+	nng_msleep(1000); // wait a while before sub
 	pid_sub_nmq = popen_sub_with_cmd(&outfp_nmq, cmd_sub_nmq);
 	pid_sub_emqx = popen_sub_with_cmd(&outfp_emqx, cmd_sub_emqx);
 	nng_msleep(2000);
