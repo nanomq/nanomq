@@ -146,6 +146,15 @@ thread_cb(void *arg)
 			        0 == strncmp(body, EKUIPER2NANO_IPC, strlen(EKUIPER2NANO_IPC))) {
 				// Reserve
 				log_warn("I got a msg from ekuiper!");
+				// Update the position
+				body += strlen(EKUIPER2NANO_IPC);
+
+				cJSON *root = cJSON_Parse(body);
+				uint32_t key = cJSON_GetObjectItem(root,"key")->valueint;
+				uint32_t offset = cJSON_GetObjectItem(root,"offset")->valueint;
+				log_warn("key %ld offset %ld", key, offset);
+				cJSON_Delete(root);
+
 				nng_msg_free(msg);
 			} else {
 				// send webhook http requests
