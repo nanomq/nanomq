@@ -4,7 +4,7 @@
 #include "nng/supplemental/nanolib/conf.h"
 #include "nng/nng.h"
 
-#define WEB_HOOK_INPROC_URL "inproc://webhook"
+#define WEB_HOOK_INPROC_URL "ipc:///tmp/webhook.ipc"
 
 extern int start_webhook_service(conf *conf);
 extern int stop_webhook_service(void);
