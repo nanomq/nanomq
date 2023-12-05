@@ -24,7 +24,7 @@
 #include "nng/supplemental/util/platform.h"
 
 #define NANO_LMQ_INIT_CAP 16
-#define NANO_IPC "IPC://EKUIPER2NANO:"
+#define EKUIPER2NANO_IPC "IPC://EKUIPER2NANO:"
 
 // The server keeps a list of work items, sorted by expiration time,
 // so that we can use this to set the timeout to the correct value for
@@ -142,8 +142,8 @@ thread_cb(void *arg)
 			if (0 != rv)
 				continue;
 			body = (char *) nng_msg_body(msg);
-			if (nng_msg_len(msg) > strlen(NANO_IPC) &&
-				0 == strncmp(body, NANO_IPC, strlen(NANO_IPC))) {
+			if (nng_msg_len(msg) > strlen(EKUIPER2NANO_IPC) &&
+			        0 == strncmp(body, EKUIPER2NANO_IPC, strlen(EKUIPER2NANO_IPC))) {
 				// Reserve
 				log_warn("I got a msg from ekuiper!");
 				nng_msg_free(msg);
