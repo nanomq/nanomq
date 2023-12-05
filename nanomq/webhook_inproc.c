@@ -24,6 +24,7 @@
 #include "nng/supplemental/util/platform.h"
 
 #define NANO_LMQ_INIT_CAP 16
+#define NANO_IPC "IPC://EKUIPER2NANO:"
 
 // The server keeps a list of work items, sorted by expiration time,
 // so that we can use this to set the timeout to the correct value for
@@ -131,12 +132,23 @@ thread_cb(void *arg)
 	nng_lmq *         lmq = w->lmq;
 	nng_msg *         msg = NULL;
 	int               rv;
+	char *            body;
+
 	while (true) {
 		if (!nng_lmq_empty(lmq)) {
 			nng_mtx_lock(w->mtx);
 			rv = nng_lmq_get(lmq, &msg);
 			nng_mtx_unlock(w->mtx);
-			if (0 == rv) {
+			if (0 != rv)
+				continue;
+			body = (char *) nng_msg_body(msg);
+			if (nng_msg_len(msg) > strlen(NANO_IPC) &&
+				0 == strncmp(body, NANO_IPC, strlen(NANO_IPC))) {
+				// Reserve
+				log_warn("I got a msg from ekuiper!");
+				nng_msg_free(msg);
+			} else {
+				// send webhook http requests
 				send_msg(w->conf, msg);
 				nng_msg_free(msg);
 			}
