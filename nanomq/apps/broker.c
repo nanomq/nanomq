@@ -44,6 +44,7 @@
 #include "include/webhook_inproc.h"
 #include "include/cmd_proc.h"
 #include "include/nanomq.h"
+#include "include/nano_exchange.h"
 // #if defined(SUPP_RULE_ENGINE)
 // 	#include <foundationdb/fdb_c.h>
 // 	#include <foundationdb/fdb_c_options.g.h>
@@ -250,6 +251,60 @@ bridge_handler(nano_work *work)
 
 	return rv;
 }
+
+unsigned int key = 1;
+
+static inline bool
+exchange_handler(nano_work *work)
+{
+	bool      rv    = false;
+	property *props = NULL;
+	uint32_t  index = work->ctx.id - 1;
+
+	for (size_t t = 0; t < work->config->exchange.count; t++) {
+		conf_exchange_client_node *node = work->config->exchange.nodes[t];
+		nng_mtx_lock(node->mtx);
+					work->state = SEND;
+					nng_msg *bridge_msg = NULL;
+					if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
+						mqtt_property_dup(
+						    &props, work->pub_packet->var_header.publish.properties);
+					}
+					bridge_msg = bridge_publish_msg(
+						work->pub_packet->var_header.publish.topic_name.body,
+						work->pub_packet->payload.data,
+						work->pub_packet->payload.len,
+						work->pub_packet->fixed_header.dup,
+						work->pub_packet->fixed_header.qos,
+						work->pub_packet->fixed_header.retain, props);
+
+					
+				//	node->proto_ver == MQTT_PROTOCOL_VERSION_v5
+				//	    ? nng_mqttv5_msg_encode(bridge_msg)
+				//	    : nng_mqtt_msg_encode(bridge_msg);
+					nng_mqtt_msg_encode(bridge_msg);
+					nng_socket *socket = node->sock;
+
+					nng_aio *aio = NULL;
+					nng_aio_alloc(&aio, NULL, NULL);
+					int *nkey = nng_alloc(sizeof(int));
+					*nkey = key;
+					key = key + 1;
+				
+					nng_aio_set_prov_data(aio, nkey);
+					nng_aio_set_msg(aio, bridge_msg);
+				
+					nng_send_aio(*socket, aio);
+					nng_aio_wait(aio);
+					nng_aio_free(aio);
+
+//					rv = nng_sendmsg(*socket, bridge_msg, NNG_FLAG_NONBLOCK);
+		nng_mtx_unlock(node->mtx);
+	}
+
+	return rv;
+}
+
 
 void
 server_cb(void *arg)
@@ -554,6 +609,8 @@ server_cb(void *arg)
 				aws_bridge_forward(work);
 #endif
 			}
+			/* exchange client */
+			exchange_handler(work);
 			//check webhook & rule engine
 			conf_web_hook *hook_conf   = &(work->config->web_hook);
 			uint8_t rule_opt = RULE_ENG_OFF;
@@ -973,6 +1030,14 @@ broker(conf *nanomq_conf)
 		}
 #endif
 	log_debug("bridge init finished");
+	}
+
+	for (int i = 0; i < nanomq_conf->exchange.count; i++) {
+		conf_exchange_client_node *node = nanomq_conf->exchange.nodes[i];
+
+		node->sock = (nng_socket *) nng_alloc(sizeof(nng_socket));
+		nano_exchange_client(node->sock, nanomq_conf, node);
+		log_error("rhack: exchange sock init successed!\n");
 	}
 	// MQTT Broker service
 	struct work **works = nng_zalloc(num_ctx * sizeof(struct work *));

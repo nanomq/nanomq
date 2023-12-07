@@ -38,6 +38,7 @@ set(SOURCES
     nanomq.c
     process.c
     bridge.c
+	nano_exchange.c
     pub_handler.c
     sub_handler.c
     unsub_handler.c
