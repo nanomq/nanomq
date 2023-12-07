@@ -1,5 +1,5 @@
 //
-// Copyright 2022 NanoMQ Team, Inc. <jaylin@emqx.io>
+// Copyright 2023 NanoMQ Team, Inc. <jaylin@emqx.io>
 //
 // This software is supplied under the terms of the MIT License, a
 // copy of which should be located in the distribution where this
@@ -195,6 +195,7 @@ webhook_cb(void *arg)
 		if ((rv = nng_aio_result(work->aio)) != 0) {
 			NANO_NNG_FATAL("nng_recv_aio", rv);
 		}
+		// TODO find a way to differ msg of webhook and MQ 
 		work->msg = nng_aio_get_msg(work->aio);
 		nng_mtx_lock(work->mtx);
 		if (nng_lmq_full(work->lmq)) {
@@ -210,7 +211,9 @@ webhook_cb(void *arg)
 		work->state = HOOK_RECV;
 		nng_recv_aio(work->sock, work->aio);
 		break;
-
+	case HOOK_WAIT:
+		//MQ
+		break;
 	default:
 		NANO_NNG_FATAL("bad state!", NNG_ESTATE);
 		break;
@@ -308,3 +311,4 @@ stop_webhook_service(void)
 	nng_thread_destroy(inproc_thr);
 	return 0;
 }
+
