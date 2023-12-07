@@ -40,6 +40,7 @@ struct hook_work {
 	conf_web_hook *conf;
 	uint32_t       id;
 	bool           busy;
+	conf_exchange *exchange;
 };
 
 static void webhook_cb(void *arg);
@@ -133,6 +134,7 @@ thread_cb(void *arg)
 	nng_msg *         msg = NULL;
 	int               rv;
 	char *            body;
+	conf_exchange *   exconf = w->exchange;
 
 	while (true) {
 		if (!nng_lmq_empty(lmq)) {
@@ -153,8 +155,8 @@ thread_cb(void *arg)
 				uint32_t key = cJSON_GetObjectItem(root,"key")->valueint;
 				uint32_t offset = cJSON_GetObjectItem(root,"offset")->valueint;
 				log_warn("key %ld offset %ld", key, offset);
+				nng_sendmsg(exconf->nodes[]);
 				cJSON_Delete(root);
-
 				nng_msg_free(msg);
 			} else {
 				// send webhook http requests
@@ -216,7 +218,7 @@ webhook_cb(void *arg)
 }
 
 static struct hook_work *
-alloc_work(nng_socket sock, conf_web_hook *conf)
+alloc_work(nng_socket sock, conf_web_hook *conf, conf_exchange *exconf)
 {
 	struct hook_work *w;
 	int               rv;
@@ -237,10 +239,11 @@ alloc_work(nng_socket sock, conf_web_hook *conf)
 		NANO_NNG_FATAL("nng_thread_create", rv);
 	}
 
-	w->conf  = conf;
-	w->sock  = sock;
-	w->state = HOOK_INIT;
-	w->busy  = false;
+	w->conf     = conf;
+	w->sock     = sock;
+	w->state    = HOOK_INIT;
+	w->busy     = false;
+	w->exchange = exconf;
 	return (w);
 }
 
@@ -264,7 +267,7 @@ webhook_thr(void *arg)
 	}
 
 	for (i = 0; i < conf->web_hook.pool_size; i++) {
-		works[i]     = alloc_work(sock, &conf->web_hook);
+		works[i] = alloc_work(sock, &conf->web_hook, &conf->exchange);
 		works[i]->id = i;
 	}
 	// NanoMQ core thread talks to others via INPROC
