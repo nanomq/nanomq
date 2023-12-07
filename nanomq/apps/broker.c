@@ -935,6 +935,16 @@ broker(conf *nanomq_conf)
 		}
 	}
 	log_debug("HTTP init finished");
+
+	// Exchange service
+	for (int i = 0; i < nanomq_conf->exchange.count; i++) {
+		conf_exchange_client_node *node = nanomq_conf->exchange.nodes[i];
+
+		node->sock = (nng_socket *) nng_alloc(sizeof(nng_socket));
+		nano_exchange_client(node->sock, nanomq_conf, node);
+		log_debug("exchange %d init finished!\n", i);
+	}
+
 	// Webhook service
 	if (nanomq_conf->web_hook.enable) {
 		log_debug("Webhook service initialization");
