@@ -53,6 +53,7 @@ if(BUILD_NFTP)
 endif(BUILD_NFTP)
 
 target_link_libraries(nanomq_cli nng)
+set_target_properties(nanomq_cli PROPERTIES LINK_FLAGS "-Wl,-rpath,${CMAKE_INSTALL_RPATH}")
 
 if(BUILD_DDS_PROXY)
   target_link_libraries(nanomq_cli ${IDL_LIB_NAME} CycloneDDS::ddsc)
