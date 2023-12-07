@@ -890,9 +890,6 @@ broker(conf *nanomq_conf)
 
 		}
 	}
-
-
-
 #endif
 
 	// init tree
@@ -1042,6 +1039,7 @@ broker(conf *nanomq_conf)
 	}
 
 	if (nanomq_conf->enable) {
+		// TODO: Multiple listener
 		if ((rv = nano_listen(sock, nanomq_conf->url, NULL, 0, nanomq_conf)) != 0) {
 			NANO_NNG_FATAL("broker nng_listen", rv);
 		}
@@ -1102,6 +1100,7 @@ broker(conf *nanomq_conf)
 	}
 
 	// ipc server for receiving commands from reload command
+	// Interact with HTTP external
 	if (nanomq_conf->ipc_internal) {
 #if !defined(BUILD_APP_LIB)
 		nng_socket cmd_sock;
