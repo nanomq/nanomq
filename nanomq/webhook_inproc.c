@@ -196,10 +196,12 @@ webhook_cb(void *arg)
 			uint32_t key = cJSON_GetObjectItem(root,"key")->valueint;
 			uint32_t offset = cJSON_GetObjectItem(root,"offset")->valueint;
 			log_warn("key %ld offset %ld", key, offset);
-			// Get msgs from exchange
+			// Get msgs from exchange then send in HOOK_WAIT
 
 			cJSON_Delete(root);
 			nng_msg_free(msg);
+			work->state = HOOK_WAIT;
+			break;
 		}
 
 		nng_mtx_lock(work->mtx);
