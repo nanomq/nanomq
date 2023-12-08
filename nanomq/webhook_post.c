@@ -253,7 +253,7 @@ webhook_entry(nano_work *work, uint8_t reason)
 		// dup msg for now, or reuse it?
 		nng_msg *msg;
 		nng_msg_dup(&msg, work->msg);
-		nng_sendmsg(*sock, work->msg, NNG_FLAG_NONBLOCK);
+		nng_sendmsg(*sock, msg, NNG_FLAG_NONBLOCK);
 	}
 	if (!hook_conf->enable)
 		return 0;
