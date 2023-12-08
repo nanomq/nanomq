@@ -247,13 +247,17 @@ webhook_entry(nano_work *work, uint8_t reason)
 	conf_exchange *ex_conf   = &work->config->exchange;
 	conn_param    *cparam    = work->cparam;
 	nng_socket    *sock      = &work->webhook_sock;
+	nng_socket    *ex_sock;
 
 	// process MQ msg first, only pub msg is valid
 	if (ex_conf->count > 0 && work->flag == CMD_PUBLISH) {
 		// dup msg for now, or reuse it?
 		nng_msg *msg;
 		nng_msg_dup(&msg, work->msg);
-		nng_sendmsg(*sock, msg, NNG_FLAG_NONBLOCK);
+
+		ex_sock = ex_conf->nodes[0]->sock;
+		nng_sendmsg(*ex_sock, msg, NNG_FLAG_NONBLOCK);
+		// nng_sendmsg(*sock, msg, NNG_FLAG_NONBLOCK);
 	}
 	if (!hook_conf->enable)
 		return 0;
