@@ -273,6 +273,7 @@ webhook_entry(nano_work *work, uint8_t reason)
 		g_msg_index ++;
 		if (g_msg_index % 2000 == 0)
 			printf("%d msgs in exchange\n", g_msg_index);
+		nng_aio_free(aio);
 		// nng_sendmsg(*sock, msg, NNG_FLAG_NONBLOCK);
 	}
 	if (!hook_conf->enable)
