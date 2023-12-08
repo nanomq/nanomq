@@ -155,9 +155,16 @@ thread_cb(void *arg)
 				uint32_t key = cJSON_GetObjectItem(root,"key")->valueint;
 				uint32_t offset = cJSON_GetObjectItem(root,"offset")->valueint;
 				log_warn("key %ld offset %ld", key, offset);
-				nng_sendmsg(exconf->nodes[]);
+
+				nng_aio *aio = NULL;
+				nng_aio_alloc(&aio, NULL, NULL);
+				nng_aio_set_msg(aio, msg);
+				nng_aio_set_prov_data(aio, &key);
+
+				// TODO Now topic filter was set in exchange
+				nng_send_aio(*(nng_socket *)exconf->nodes[0]->sock, aio);
 				cJSON_Delete(root);
-				nng_msg_free(msg);
+				// nng_msg_free(msg);
 			} else {
 				// send webhook http requests
 				send_msg(w->conf, msg);
