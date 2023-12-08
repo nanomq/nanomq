@@ -239,6 +239,8 @@ webhook_client_disconnect(nng_socket *sock, conf_web_hook *hook_conf,
 	return rv;
 }
 
+static uint32_t g_msg_index = 0;
+
 inline int
 webhook_entry(nano_work *work, uint8_t reason)
 {
@@ -254,9 +256,23 @@ webhook_entry(nano_work *work, uint8_t reason)
 		// dup msg for now, or reuse it?
 		nng_msg *msg;
 		nng_msg_dup(&msg, work->msg);
+		nng_mqtt_msg_proto_data_alloc(msg);
+		int rv = nng_mqtt_msg_decode(msg);
+		if (rv != 0)
+			return rv;
+
+		nng_aio *aio;
+		int *nkey = nng_alloc(sizeof(int));
+		*nkey = g_msg_index;
+		nng_aio_alloc(&aio, NULL, NULL);
+		nng_aio_set_prov_data(aio, (void *)nkey);
+		nng_aio_set_msg(aio, msg);
 
 		ex_sock = ex_conf->nodes[0]->sock;
-		nng_sendmsg(*ex_sock, msg, NNG_FLAG_NONBLOCK);
+		nng_send_aio(*ex_sock, aio);
+		g_msg_index ++;
+		if (g_msg_index % 2000 == 0)
+			printf("%d msgs in exchange\n", g_msg_index);
 		// nng_sendmsg(*sock, msg, NNG_FLAG_NONBLOCK);
 	}
 	if (!hook_conf->enable)
