@@ -133,8 +133,6 @@ thread_cb(void *arg)
 	nng_lmq *         lmq = w->lmq;
 	nng_msg *         msg = NULL;
 	int               rv;
-	char *            body;
-	conf_exchange *   exconf = w->exchange;
 
 	while (true) {
 		if (!nng_lmq_empty(lmq)) {
@@ -143,33 +141,9 @@ thread_cb(void *arg)
 			nng_mtx_unlock(w->mtx);
 			if (0 != rv)
 				continue;
-			body = (char *) nng_msg_body(msg);
-			if (nng_msg_len(msg) > strlen(EKUIPER2NANO_IPC) &&
-			        0 == strncmp(body, EKUIPER2NANO_IPC, strlen(EKUIPER2NANO_IPC))) {
-				// Reserve
-				log_warn("I got a msg from ekuiper!");
-				// Update the position
-				body += strlen(EKUIPER2NANO_IPC);
-
-				cJSON *root = cJSON_Parse(body);
-				uint32_t key = cJSON_GetObjectItem(root,"key")->valueint;
-				uint32_t offset = cJSON_GetObjectItem(root,"offset")->valueint;
-				log_warn("key %ld offset %ld", key, offset);
-
-				nng_aio *aio = NULL;
-				nng_aio_alloc(&aio, NULL, NULL);
-				nng_aio_set_msg(aio, msg);
-				nng_aio_set_prov_data(aio, &key);
-
-				// TODO Now topic filter was set in exchange
-				nng_send_aio(*(nng_socket *)exconf->nodes[0]->sock, aio);
-				cJSON_Delete(root);
-				// nng_msg_free(msg);
-			} else {
-				// send webhook http requests
-				send_msg(w->conf, msg);
-				nng_msg_free(msg);
-			}
+			// send webhook http requests
+			send_msg(w->conf, msg);
+			nng_msg_free(msg);
 		} else {
 			// try to reduce lmq cap
 			size_t lmq_len = nng_lmq_len(w->lmq);
@@ -191,6 +165,9 @@ webhook_cb(void *arg)
 {
 	struct hook_work *work = arg;
 	int               rv;
+	char *            body;
+	conf_exchange *   exconf = work->exchange;
+
 	switch (work->state) {
 	case HOOK_INIT:
 		work->state = HOOK_RECV;
@@ -202,8 +179,26 @@ webhook_cb(void *arg)
 		if ((rv = nng_aio_result(work->aio)) != 0) {
 			NANO_NNG_FATAL("nng_recv_aio", rv);
 		}
-		// TODO find a way to differ msg of webhook and MQ 
+
+		// differ msg of webhook and MQ by prefix of body
 		work->msg = nng_aio_get_msg(work->aio);
+		body = (char *) nng_msg_body(msg);
+		if (nng_msg_len(msg) > strlen(EKUIPER2NANO_IPC) &&
+		        0 == strncmp(body, EKUIPER2NANO_IPC, strlen(EKUIPER2NANO_IPC))) {
+			log_warn("I got a msg from ekuiper!");
+			// Update the position
+			body += strlen(EKUIPER2NANO_IPC);
+
+			cJSON *root = cJSON_Parse(body);
+			uint32_t key = cJSON_GetObjectItem(root,"key")->valueint;
+			uint32_t offset = cJSON_GetObjectItem(root,"offset")->valueint;
+			log_warn("key %ld offset %ld", key, offset);
+			// Get msgs from exchange
+
+			cJSON_Delete(root);
+			nng_msg_free(msg);
+		}
+
 		nng_mtx_lock(work->mtx);
 		if (nng_lmq_full(work->lmq)) {
 			size_t lmq_cap = nng_lmq_cap(work->lmq);
