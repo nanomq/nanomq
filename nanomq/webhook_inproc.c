@@ -24,7 +24,7 @@
 #include "nng/supplemental/util/platform.h"
 
 #define NANO_LMQ_INIT_CAP 16
-#define EKUIPER2NANO_IPC "IPC://EKUIPER2NANO:"
+#define EXTERNAL2NANO_IPC "IPC://EXTERNAL2NANO:"
 
 // The server keeps a list of work items, sorted by expiration time,
 // so that we can use this to set the timeout to the correct value for
@@ -167,6 +167,7 @@ webhook_cb(void *arg)
 	int               rv;
 	char *            body;
 	conf_exchange *   exconf = work->exchange;
+	nng_msg *         msg;
 
 	switch (work->state) {
 	case HOOK_INIT:
@@ -180,14 +181,16 @@ webhook_cb(void *arg)
 			NANO_NNG_FATAL("nng_recv_aio", rv);
 		}
 
-		// differ msg of webhook and MQ by prefix of body
+		// differ msg of webhook and MQ (cmd) by prefix of body
 		work->msg = nng_aio_get_msg(work->aio);
+
+		msg = work->msg;
 		body = (char *) nng_msg_body(msg);
-		if (nng_msg_len(msg) > strlen(EKUIPER2NANO_IPC) &&
-		        0 == strncmp(body, EKUIPER2NANO_IPC, strlen(EKUIPER2NANO_IPC))) {
+		if (nng_msg_len(msg) > strlen(EXTERNAL2NANO_IPC) &&
+		        0 == strncmp(body, EXTERNAL2NANO_IPC, strlen(EXTERNAL2NANO_IPC))) {
 			log_warn("I got a msg from ekuiper!");
 			// Update the position
-			body += strlen(EKUIPER2NANO_IPC);
+			body += strlen(EXTERNAL2NANO_IPC);
 
 			cJSON *root = cJSON_Parse(body);
 			uint32_t key = cJSON_GetObjectItem(root,"key")->valueint;
