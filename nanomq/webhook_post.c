@@ -242,7 +242,7 @@ webhook_client_disconnect(nng_socket *sock, conf_web_hook *hook_conf,
 static uint32_t g_msg_index = 0;
 
 inline int
-webhook_entry(nano_work *work, uint8_t reason)
+hook_entry(nano_work *work, uint8_t reason)
 {
 	int            rv        = 0;
 	conf_web_hook *hook_conf = &work->config->web_hook;
