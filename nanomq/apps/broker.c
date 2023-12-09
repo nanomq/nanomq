@@ -89,9 +89,11 @@ void sig_handler(int signum)
 {
 	log_error("signal signumber: %d received!\n", signum);
 
-	if (signum == SIGINT || signum == SIGABRT) {
+	if (signum == SIGINT || signum == SIGABRT || signum == SIGSEGV) {
 		exit(EXIT_FAILURE);
 	}
+	if (signum == SIGILL)
+		exit(EXIT_SUCCESS);
 }
 #endif
 
@@ -607,7 +609,7 @@ server_cb(void *arg)
 			rule_engine_insert_sql(work);
 		}
 #endif
-		// webhook here
+		// external hook here
 		hook_entry(work, 0);
 
 		if (NULL != work->msg) {
@@ -1147,7 +1149,7 @@ broker(conf *nanomq_conf)
 	bool is_testing = false;
 #endif
 
-#if (defined DEBUG) && (defined ASAN)
+#if (defined DEBUG) && (!defined ASAN)
 #if !(defined NANO_PLATFORM_WINDOWS)
 	struct sigaction  act;
 	i = 0;
