@@ -11,16 +11,17 @@
 #include <stdlib.h>
 
 #include "nng/mqtt/mqtt_client.h"
+#include "nng/exchange/exchange_client.h"
 #include "nng/protocol/mqtt/nmq_mqtt.h"
-#include "nng/supplemental/tls/tls.h"
-#include "nng/supplemental/util/options.h"
-#include "nng/supplemental/util/platform.h"
-#include "nng/supplemental/sqlite/sqlite3.h"
 #include "nng/protocol/pipeline0/pull.h"
 #include "nng/protocol/pipeline0/push.h"
 #include "nng/protocol/reqrep0/rep.h"
 #include "nng/protocol/mqtt/mqtt_parser.h"
 #include "nng/protocol/mqtt/nmq_mqtt.h"
+#include "nng/supplemental/tls/tls.h"
+#include "nng/supplemental/util/options.h"
+#include "nng/supplemental/util/platform.h"
+#include "nng/supplemental/sqlite/sqlite3.h"
 #include "nng/supplemental/nanolib/conf.h"
 #include "nng/supplemental/nanolib/env.h"
 #include "nng/supplemental/nanolib/file.h"
@@ -63,7 +64,7 @@
 #if !defined(NANO_PLATFORM_WINDOWS)
 #include <signal.h>
 #include <errno.h>
-static const all_signals[] = {
+static const int all_signals[] = {
 #ifdef SIGHUP
 	SIGHUP,
 #endif
@@ -84,11 +85,11 @@ static const all_signals[] = {
 	SIGTERM
 };
 
-int sig_handler(int signum)
+void sig_handler(int signum)
 {
-	log_error("signal caught!!!! signumber: %d\n", signum);
+	log_error("signal signumber: %d received!\n", signum);
 
-	if (signum == SIGINT) {
+	if (signum == SIGINT || signum == SIGABRT) {
 		exit(EXIT_FAILURE);
 	}
 }
@@ -475,7 +476,7 @@ server_cb(void *arg)
 				nng_ctx_send(work->ctx, work->aio);
 			}
 			smsg = nano_msg_notify_connect(work->cparam, reason_code);
-			webhook_entry(work, reason_code);
+			hook_entry(work, reason_code);
 			// Set V4/V5 flag for publish notify msg
 			nng_msg_set_cmd_type(smsg, CMD_PUBLISH);
 			work->flag = CMD_PUBLISH;
@@ -487,7 +488,7 @@ server_cb(void *arg)
 			// due to clone in protocol layer
 		} else if (work->flag == CMD_DISCONNECT_EV) {
 			// Now v4 as default/send V5 notify msg?
-			webhook_entry(work, 0);
+			hook_entry(work, 0);
 			nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 			work->flag = CMD_PUBLISH;
 			handle_pub(work, work->pipe_ct,
@@ -607,7 +608,7 @@ server_cb(void *arg)
 		}
 #endif
 		// webhook here
-		webhook_entry(work, 0);
+		hook_entry(work, 0);
 
 		if (NULL != work->msg) {
 			nng_msg_free(work->msg);
@@ -661,7 +662,7 @@ server_cb(void *arg)
 						nng_aio_set_msg(work->aio, work->msg);
 						nng_ctx_send(work->ctx, work->aio);
 					}
-			webhook_entry(work, 0);
+			hook_entry(work, 0);
 			nng_msg_free(smsg);
 			smsg = NULL;
 			work->msg = NULL;
@@ -938,10 +939,18 @@ broker(conf *nanomq_conf)
 		conf_exchange_client_node *node = nanomq_conf->exchange.nodes[i];
 
 		node->sock = (nng_socket *) nng_alloc(sizeof(nng_socket));
-		nano_exchange_client(node->sock, nanomq_conf, node);
+		if ((rv = nng_exchange_client_open(node->sock)) != 0) {
+			log_error("nng_exchange_client_open failed %d", rv);
+		} else {
+			void *ex;
+			for (int i = 0; i < cvector_size(node->ex_list); i++) {
+				ex = node->ex_list[i];
+				nng_socket_set_ptr(
+				    *node->sock, NNG_OPT_EXCHANGE_ADD, ex);
+			}
+		}
 		log_debug("exchange %d init finished!\n", i);
 	}
-
 	// Webhook service
 	if (nanomq_conf->web_hook.enable) {
 		log_debug("Webhook service initialization");
