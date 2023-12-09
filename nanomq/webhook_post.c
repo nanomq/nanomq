@@ -22,7 +22,7 @@ static void         set_char(char *out, unsigned int *index, char c);
 static unsigned int base62_encode(
     const unsigned char *in, unsigned int inlen, char *out);
 
-#define BASE62_ENCODE_OUT_SIZE(s) ((unsigned int) ((((s) *8) / 6) + 2))
+#define BASE62_ENCODE_OUT_SIZE(s) ((unsigned int) ((((s) * 8) / 6) + 2))
 
 static bool
 event_filter(conf_web_hook *hook_conf, webhook_event event)
@@ -252,29 +252,36 @@ hook_entry(nano_work *work, uint8_t reason)
 	nng_socket    *ex_sock;
 
 	// process MQ msg first, only pub msg is valid
-	if (ex_conf->count > 0 && work->flag == CMD_PUBLISH) {
+	// CMD_PUBLISHV5?
+	if (ex_conf->count > 0 && nng_msg_get_type(work->msg) == CMD_PUBLISH &&
+	    work->flag == CMD_PUBLISH) {
 		// dup msg for now, or reuse it?
 		nng_msg *msg;
-		nng_msg_dup(&msg, work->msg);
-		nng_mqtt_msg_proto_data_alloc(msg);
-		int rv = nng_mqtt_msg_decode(msg);
-		if (rv != 0)
-			return rv;
+		nng_msg_alloc(&msg, 0);
+		nng_msg_header_append(msg, nng_msg_header(work->msg), nng_msg_header_len(work->msg));
+		nng_msg_append(msg, nng_msg_body(work->msg), nng_msg_len(work->msg));
+		// nng_msg_dup(&msg, work->msg);
+		for (size_t i = 0; i < ex_conf->count; i++) {
+			if (topic_filter(ex_conf->nodes[i]->ex_list[0]->topic,
+			        work->pub_packet->var_header.publish.topic_name
+			            .body)) {
+				nng_aio *aio;
+				int     *nkey = nng_alloc(sizeof(int));
+				*nkey         = g_msg_index;
+				nng_aio_alloc(&aio, NULL, NULL);
+				nng_aio_set_prov_data(aio, (void *) nkey);
+				nng_aio_set_msg(aio, msg);
 
-		nng_aio *aio;
-		int *nkey = nng_alloc(sizeof(int));
-		*nkey = g_msg_index;
-		nng_aio_alloc(&aio, NULL, NULL);
-		nng_aio_set_prov_data(aio, (void *)nkey);
-		nng_aio_set_msg(aio, msg);
-
-		ex_sock = ex_conf->nodes[0]->sock;
-		nng_send_aio(*ex_sock, aio);
-		g_msg_index ++;
-		if (g_msg_index % 2000 == 0)
-			printf("%d msgs in exchange\n", g_msg_index);
-		nng_aio_free(aio);
-		// nng_sendmsg(*sock, msg, NNG_FLAG_NONBLOCK);
+				ex_sock = ex_conf->nodes[0]->sock;
+				nng_send_aio(*ex_sock, aio);
+				g_msg_index++;
+				if (g_msg_index % 2000 == 0)
+					printf("%d msgs in exchange\n",
+					    g_msg_index);
+				nng_aio_free(aio);
+				// nng_sendmsg(*sock, msg, NNG_FLAG_NONBLOCK);
+			}
+		}
 	}
 	if (!hook_conf->enable)
 		return 0;
