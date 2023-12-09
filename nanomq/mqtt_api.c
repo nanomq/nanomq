@@ -1,11 +1,17 @@
 //
-// Copyright 2022 NanoMQ Team, Inc. <jaylin@emqx.io>
+// Copyright 2023 NanoMQ Team, Inc. <jaylin@emqx.io>
 //
 // This software is supplied under the terms of the MIT License, a
 // copy of which should be located in the distribution where this
 // file was obtained (LICENSE.txt).  A copy of the license may also be
 // found online at https://opensource.org/licenses/MIT.
 //
+#ifdef NANO_PLATFORM_WINDOWS
+#include <winsock.h>
+#else
+#include <arpa/inet.h>
+#endif
+
 #include "mqtt_api.h"
 #include "nanomq.h"
 #include "nng/nng.h"
@@ -288,7 +294,7 @@ nano_pipe_get_local_address6(nng_pipe p)
 	if (rv != 0)
 		return NULL;
 
-	arr = &addr.s_in6.sa_addr;
+	arr = (uint8_t *) &addr.s_in6.sa_addr;
 
 	if ((res = malloc(sizeof(uint8_t) * 16)) == NULL)
 		return NULL;
