@@ -267,8 +267,7 @@ hook_entry(nano_work *work, uint8_t reason)
 		// nng_msg_dup(&msg, work->msg);
 		for (size_t i = 0; i < ex_conf->count; i++) {
 			if (topic_filter(ex_conf->nodes[i]->ex_list[0]->topic,
-			        work->pub_packet->var_header.publish.topic_name
-			            .body)) {
+			        work->pub_packet->var_header.publish.topic_name.body)) {
 				nng_aio *aio;
 				int     *nkey = nng_alloc(sizeof(int));
 				*nkey         = g_msg_index;
@@ -342,6 +341,16 @@ flush_lmq_to_disk(nng_lmq *lmq, void *handle, nng_aio *aio)
 	void    **datas;
 	uint32_t *keys;
 	size_t   *lens;
+
+	if (nng_aio_busy(aio)) {
+		// TODO Clean lmq???
+		log_error("nng aio still busy");
+		return;
+	}
+	if (false == nng_aio_begin(aio)) {
+		log_error("nng aio begin failed");
+		return;
+	}
 
 	keys = nng_alloc(sizeof(uint32_t)* len);
 	datas = nng_alloc(sizeof(void *) * len);
