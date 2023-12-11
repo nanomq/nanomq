@@ -1165,7 +1165,9 @@ broker(conf *nanomq_conf)
 		}
 	} while (all_signals[i++] != SIGTERM);
 #endif
+#endif
 
+#if (defined DEBUG) && (defined ASAN)
 	if (is_testing == true) {
 		// broker should hang on to accept request.
 		nng_msleep(2000);
