@@ -334,13 +334,15 @@ next:
 static int
 flush_lmq_to_disk(nng_lmq *lmq, void *handle, nng_aio *aio)
 {
-	size_t  len = nng_lmq_len(lmq);
-	nng_msg *msg;
-	int      rv;
-	nng_msg **msgs;
+	size_t    len = nng_lmq_len(lmq);
+	nng_msg * msg;
+	int       rv;
+	void    **datas;
+	uint32_t *keys;
 
-	msgs = nng_alloc(sizeof(void *) * len);
-	if (!msgs)
+	keys = nng_alloc(sizeof(uint32_t)* len);
+	datas = nng_alloc(sizeof(void *) * len);
+	if (!datas || !keys)
 		return NNG_ENOMEM;
 
 	int len2 = 0;
@@ -348,11 +350,13 @@ flush_lmq_to_disk(nng_lmq *lmq, void *handle, nng_aio *aio)
 		rv = nng_lmq_get(lmq, &msg);
 		if (rv != 0 || msg == NULL)
 			continue;
-		msgs[len2 ++] = msg;
+		datas[len2] = msg;
+		keys[len2] = *(uint32_t *)nng_msg_get_proto_data(msg);
+		len2 ++;
 	}
 
 	// write to disk
-	// parquet_flush(handle, msgs, len2, aio);
+	// parquet_write_batch(handle, keys, datas, len2, aio);
 	// finish aio after flushing to disk
 	return 0;
 }
