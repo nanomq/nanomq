@@ -929,7 +929,7 @@ broker(conf *nanomq_conf)
 		if (rv != 0) {
 			NANO_NNG_FATAL("nng_rep0_open", rv);
 		}
-		// set 4 ctx for HTPP as default
+		// set 4 ctx for HTTP as default
 		if (nanomq_conf->http_server.enable) {
 			num_ctx += HTTP_CTX_NUM;
 		}
@@ -957,6 +957,8 @@ broker(conf *nanomq_conf)
 	if (nanomq_conf->web_hook.enable) {
 		log_debug("Webhook service initialization");
 		start_webhook_service(nanomq_conf);
+		if (nanomq_conf->exchange.count > 0)
+			hook_exchange_init(nanomq_conf);
 	}
 	log_debug("webhook init finished");
 
