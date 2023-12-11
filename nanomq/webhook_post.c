@@ -14,6 +14,7 @@
 #include "nng/supplemental/nanolib/base64.h"
 #include "nng/supplemental/nanolib/cJSON.h"
 #include "nng/protocol/mqtt/mqtt_parser.h"
+#include "nng/supplemental/nanolib/log.h"
 
 static bool event_filter(conf_web_hook *hook_conf, webhook_event event);
 static bool event_filter_with_topic(
@@ -22,7 +23,7 @@ static void         set_char(char *out, unsigned int *index, char c);
 static unsigned int base62_encode(
     const unsigned char *in, unsigned int inlen, char *out);
 
-static int flush_lmq_to_disk(nng_lmq *lmq, void *handle, nng_aio *aio);
+static int flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio);
 
 #define BASE62_ENCODE_OUT_SIZE(s) ((unsigned int) ((((s) * 8) / 6) + 2))
 
@@ -268,34 +269,18 @@ hook_entry(nano_work *work, uint8_t reason)
 		for (size_t i = 0; i < ex_conf->count; i++) {
 			if (topic_filter(ex_conf->nodes[i]->ex_list[0]->topic,
 			        work->pub_packet->var_header.publish.topic_name.body)) {
-				nng_aio *aio;
+				nng_aio *aio = hook_conf->saio;
 				int     *nkey = nng_alloc(sizeof(int));
 				*nkey         = g_msg_index;
-				nng_aio_alloc(&aio, NULL, NULL);
+
 				nng_aio_set_prov_data(aio, (void *) nkey);
 				nng_aio_set_msg(aio, msg);
 
-				ex_sock = ex_conf->nodes[0]->sock;
+				ex_sock = ex_conf->nodes[i]->sock;
 				nng_send_aio(*ex_sock, aio);
 				g_msg_index++;
 				if (g_msg_index % 2000 == 0)
-					printf("%d msgs in exchange\n",
-					    g_msg_index);
-				nng_aio_wait(aio);
-				msg_del = nng_aio_get_msg(aio);
-				if (msg_del == NULL)
-					goto next;
-				// Cache to lmq. Flush to disk when full.
-				nng_mtx_lock(hook_conf->ex_mtx);
-				nng_lmq_put(hook_conf->ex_lmq, msg_del);
-				if (nng_lmq_full(hook_conf->ex_lmq)) {
-					// TODO Ask Parquet
-					flush_lmq_to_disk(hook_conf->ex_lmq, NULL, hook_conf->ex_aio);
-				}
-				nng_mtx_unlock(hook_conf->ex_mtx);
-next:
-				nng_aio_free(aio);
-				// nng_sendmsg(*sock, msg, NNG_FLAG_NONBLOCK);
+					printf("%d msgs in exchange\n", g_msg_index);
 			}
 		}
 	}
@@ -333,9 +318,8 @@ next:
 }
 
 static int
-flush_lmq_to_disk(nng_lmq *lmq, void *handle, nng_aio *aio)
+flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio)
 {
-	size_t    len = nng_lmq_len(lmq);
 	nng_msg * msg;
 	int       rv;
 	void    **datas;
@@ -343,13 +327,13 @@ flush_lmq_to_disk(nng_lmq *lmq, void *handle, nng_aio *aio)
 	size_t   *lens;
 
 	if (nng_aio_busy(aio)) {
-		// TODO Clean lmq???
+		// TODO Clean smsg???
 		log_error("nng aio still busy");
-		return;
+		return NNG_EBUSY;
 	}
 	if (false == nng_aio_begin(aio)) {
 		log_error("nng aio begin failed");
-		return;
+		return NNG_EBUSY;
 	}
 
 	keys = nng_alloc(sizeof(uint32_t)* len);
@@ -360,8 +344,8 @@ flush_lmq_to_disk(nng_lmq *lmq, void *handle, nng_aio *aio)
 
 	int len2 = 0;
 	for (int i=0; i<(int)len; ++i) {
-		rv = nng_lmq_get(lmq, &msg);
-		if (rv != 0 || msg == NULL)
+		msg = smsg[i];
+		if (msg == NULL)
 			continue;
 		datas[len2] = nng_msg_payload_ptr(msg);
 		lens[len2] = nng_msg_len(msg) -
@@ -376,6 +360,37 @@ flush_lmq_to_disk(nng_lmq *lmq, void *handle, nng_aio *aio)
 	return 0;
 }
 
+static void
+send_exchange_cb(void *arg)
+{
+	conf *nanomq_conf = arg;
+	conf_web_hook *hook_conf = &nanomq_conf->web_hook;
+	conf_exchange *ex_conf   = &nanomq_conf->exchange;
+
+	nng_aio *aio = hook_conf->saio;
+
+	if (nng_aio_result(aio) != 0) {
+		log_error("error in send to exchange");
+		return;
+	}
+
+	nng_msg *msg = nng_aio_get_msg(aio);
+	if (!msg) {
+		log_warn("no msg in aio");
+		return;
+	}
+
+	size_t    msgs_len = *(size_t *)nng_aio_get_prov_data(aio);
+	nng_msg **msgs_del = nng_msg_get_proto_data(msg);
+	if (!msgs_del)
+		return;
+
+	// Flush to disk. TODO Ask Parquet
+	nng_mtx_lock(hook_conf->ex_mtx);
+	flush_smsg_to_disk(msgs_del, msgs_len, NULL, hook_conf->ex_aio);
+	nng_mtx_unlock(hook_conf->ex_mtx);
+}
+
 int
 hook_exchange_init(conf *nanomq_conf)
 {
@@ -383,7 +398,7 @@ hook_exchange_init(conf *nanomq_conf)
 	conf_exchange *ex_conf   = &nanomq_conf->exchange;
 
 	nng_mtx_alloc(&hook_conf->ex_mtx);
-	nng_lmq_alloc(&hook_conf->ex_lmq, 4096 /*TODO*/);
 	nng_aio_alloc(&hook_conf->ex_aio, NULL, NULL);
+	nng_aio_alloc(&hook_conf->saio, send_exchange_cb, nanomq_conf);
 }
 
