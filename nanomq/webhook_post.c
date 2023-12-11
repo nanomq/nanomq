@@ -22,6 +22,8 @@ static void         set_char(char *out, unsigned int *index, char c);
 static unsigned int base62_encode(
     const unsigned char *in, unsigned int inlen, char *out);
 
+static int flush_lmq_to_disk(nng_lmq *lmq, void *handle, nng_aio *aio);
+
 #define BASE62_ENCODE_OUT_SIZE(s) ((unsigned int) ((((s) * 8) / 6) + 2))
 
 static bool
@@ -255,8 +257,8 @@ hook_entry(nano_work *work, uint8_t reason)
 	// CMD_PUBLISHV5?
 	if (ex_conf->count > 0 && nng_msg_get_type(work->msg) == CMD_PUBLISH &&
 	    work->flag == CMD_PUBLISH) {
-		// dup msg for now, or reuse it?
-		nng_msg *msg;
+		// dup msg for now, TODO or reuse it?
+		nng_msg *msg, *msg_del;
 		nng_msg_alloc(&msg, 0);
 		nng_msg_header_append(msg, nng_msg_header(work->msg), nng_msg_header_len(work->msg));
 		nng_msg_append(msg, nng_msg_body(work->msg), nng_msg_len(work->msg));
@@ -278,6 +280,19 @@ hook_entry(nano_work *work, uint8_t reason)
 				if (g_msg_index % 2000 == 0)
 					printf("%d msgs in exchange\n",
 					    g_msg_index);
+				nng_aio_wait(aio);
+				msg_del = nng_aio_get_msg(aio);
+				if (msg_del == NULL)
+					goto next;
+				// Cache to lmq. Flush to disk when full.
+				nni_mtx_lock(&hook_conf->ex_mtx);
+				nng_lmq_put(hook_conf->ex_lmq, msg_del);
+				if (nng_lmq_full(hook_conf->ex_lmq)) {
+					// TODO Ask Parquet
+					flush_lmq_to_disk(hook_conf->ex_lmq, NULL, hook_conf->ex_aio);
+				}
+				nni_mtx_unlock(&hook_conf->ex_mtx);
+next:
 				nng_aio_free(aio);
 				// nng_sendmsg(*sock, msg, NNG_FLAG_NONBLOCK);
 			}
@@ -315,3 +330,30 @@ hook_entry(nano_work *work, uint8_t reason)
 	work->flag = 0;
 	return rv;
 }
+
+static int
+flush_lmq_to_disk(nng_lmq *lmq, void *handle, nng_aio *aio)
+{
+	size_t  len = nng_lmq_len(lmq);
+	nng_msg *msg;
+	int     *rv;
+	nng_msg *msgs;
+
+	msgs = nng_alloc(sizeof(void *) * len);
+	if (!msgs)
+		return NNG_ENOMEM;
+
+	int len2 = 0;
+	for (int i=0; i<(int)len; ++i) {
+		rv = nng_lmq_get(lmq, &msg);
+		if (rv != 0 || msg == NULL)
+			continue;
+		msgs[len2 ++] = msg;
+	}
+
+	// write to disk
+	// parquet_flush(handle, msgs, len2, aio);
+	// finish aio after flushing to disk
+	return 0;
+}
+
