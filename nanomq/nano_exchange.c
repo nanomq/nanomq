@@ -20,7 +20,7 @@
 
 //#include "nng/exchange/exchange_client.h"
 
-#define NNG_OPT_EXCHANGE_ADD             "exchange-client-add"
+#define NNG_OPT_EXCHANGE_BIND             "exchange-client-bind"
 
 int
 nano_exchange_client(nng_socket *sock, conf *config, conf_exchange_client_node *node)
@@ -32,10 +32,8 @@ nano_exchange_client(nng_socket *sock, conf *config, conf_exchange_client_node *
 		return rv;
 	}
 	void *ex;
-	for (int i = 0; i < cvector_size(node->ex_list); i++) {
-		ex = node->ex_list[i];
-		nng_socket_set_ptr(*sock, NNG_OPT_EXCHANGE_ADD, ex);
-	}
+	ex = node->exchange;
+	nng_socket_set_ptr(*sock, NNG_OPT_EXCHANGE_BIND, ex);
 
 	return 0;
 }
