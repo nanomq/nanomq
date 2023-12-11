@@ -285,13 +285,13 @@ hook_entry(nano_work *work, uint8_t reason)
 				if (msg_del == NULL)
 					goto next;
 				// Cache to lmq. Flush to disk when full.
-				nni_mtx_lock(&hook_conf->ex_mtx);
+				nng_mtx_lock(hook_conf->ex_mtx);
 				nng_lmq_put(hook_conf->ex_lmq, msg_del);
 				if (nng_lmq_full(hook_conf->ex_lmq)) {
 					// TODO Ask Parquet
 					flush_lmq_to_disk(hook_conf->ex_lmq, NULL, hook_conf->ex_aio);
 				}
-				nni_mtx_unlock(&hook_conf->ex_mtx);
+				nng_mtx_unlock(hook_conf->ex_mtx);
 next:
 				nng_aio_free(aio);
 				// nng_sendmsg(*sock, msg, NNG_FLAG_NONBLOCK);
@@ -336,8 +336,8 @@ flush_lmq_to_disk(nng_lmq *lmq, void *handle, nng_aio *aio)
 {
 	size_t  len = nng_lmq_len(lmq);
 	nng_msg *msg;
-	int     *rv;
-	nng_msg *msgs;
+	int      rv;
+	nng_msg **msgs;
 
 	msgs = nng_alloc(sizeof(void *) * len);
 	if (!msgs)
@@ -355,5 +355,16 @@ flush_lmq_to_disk(nng_lmq *lmq, void *handle, nng_aio *aio)
 	// parquet_flush(handle, msgs, len2, aio);
 	// finish aio after flushing to disk
 	return 0;
+}
+
+int
+hook_exchange_init(conf *nanomq_conf)
+{
+	conf_web_hook *hook_conf = &nanomq_conf->web_hook;
+	conf_exchange *ex_conf   = &nanomq_conf->exchange;
+
+	nng_mtx_alloc(&hook_conf->ex_mtx);
+	nng_lmq_alloc(&hook_conf->ex_lmq, 4096 /*TODO*/);
+	nng_aio_alloc(&hook_conf->ex_aio, NULL, NULL);
 }
 
