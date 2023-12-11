@@ -279,6 +279,11 @@ hook_entry(nano_work *work, uint8_t reason)
 					printf("%d msgs in exchange\n",
 					    g_msg_index);
 				nng_aio_free(aio);
+				msg = nng_aio_get_msg();
+				lmq = rinbuffer count
+				get all from nng_lmq
+				aio to flush disk, if busy, drop.
+				nng_batch_parquet_write(); 	//lmq to disk
 				// nng_sendmsg(*sock, msg, NNG_FLAG_NONBLOCK);
 			}
 		}
