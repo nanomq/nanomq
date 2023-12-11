@@ -262,6 +262,8 @@ hook_entry(nano_work *work, uint8_t reason)
 		nng_msg_alloc(&msg, 0);
 		nng_msg_header_append(msg, nng_msg_header(work->msg), nng_msg_header_len(work->msg));
 		nng_msg_append(msg, nng_msg_body(work->msg), nng_msg_len(work->msg));
+		nng_msg_set_payload_ptr(msg, nng_msg_body(msg) +
+		        (nng_msg_payload_ptr(work->msg) - (uint8_t *)nng_msg_body(work->msg)));
 		// nng_msg_dup(&msg, work->msg);
 		for (size_t i = 0; i < ex_conf->count; i++) {
 			if (topic_filter(ex_conf->nodes[i]->ex_list[0]->topic,
@@ -339,10 +341,12 @@ flush_lmq_to_disk(nng_lmq *lmq, void *handle, nng_aio *aio)
 	int       rv;
 	void    **datas;
 	uint32_t *keys;
+	size_t   *lens;
 
 	keys = nng_alloc(sizeof(uint32_t)* len);
 	datas = nng_alloc(sizeof(void *) * len);
-	if (!datas || !keys)
+	lens = nng_alloc(sizeof(size_t) * len);
+	if (!datas || !keys || !lens)
 		return NNG_ENOMEM;
 
 	int len2 = 0;
@@ -350,13 +354,15 @@ flush_lmq_to_disk(nng_lmq *lmq, void *handle, nng_aio *aio)
 		rv = nng_lmq_get(lmq, &msg);
 		if (rv != 0 || msg == NULL)
 			continue;
-		datas[len2] = msg;
+		datas[len2] = nng_msg_payload_ptr(msg);
+		lens[len2] = nng_msg_len(msg) -
+		        (nng_msg_payload_ptr(msg) - (uint8_t *)nng_msg_body(msg));
 		keys[len2] = *(uint32_t *)nng_msg_get_proto_data(msg);
 		len2 ++;
 	}
 
 	// write to disk
-	// parquet_write_batch(handle, keys, datas, len2, aio);
+	// parquet_write_batch(handle, keys, datas, lens, len2, aio);
 	// finish aio after flushing to disk
 	return 0;
 }
