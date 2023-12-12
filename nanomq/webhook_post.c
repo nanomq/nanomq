@@ -259,7 +259,7 @@ hook_entry(nano_work *work, uint8_t reason)
 	if (ex_conf->count > 0 && nng_msg_get_type(work->msg) == CMD_PUBLISH &&
 	    work->flag == CMD_PUBLISH) {
 		// dup msg for now, TODO or reuse it?
-		nng_msg *msg, *msg_del;
+		nng_msg *msg;
 		nng_msg_alloc(&msg, 0);
 		nng_msg_header_append(msg, nng_msg_header(work->msg), nng_msg_header_len(work->msg));
 		nng_msg_append(msg, nng_msg_body(work->msg), nng_msg_len(work->msg));
@@ -399,6 +399,16 @@ hook_exchange_init(conf *nanomq_conf)
 
 	nng_mtx_alloc(&hook_conf->ex_mtx);
 	nng_aio_alloc(&hook_conf->ex_aio, NULL, NULL);
-	nng_aio_alloc(&hook_conf->saio, send_exchange_cb, nanomq_conf);
+	hook_conf->saios = nng_alloc(sizeof(nng_aio *) * nanomq_conf->parallel);
+}
+
+int
+hook_exchange_sender_init(conf *nanomq_conf, struct work **works)
+{
+	conf_web_hook *hook_conf = &nanomq_conf->web_hook;
+
+	for (int i=0; i<nanomq_conf->parallel; ++i) {
+		nng_aio_alloc(&hook_conf->saios[i], send_exchange_cb, works[i]);
+	}
 }
 
