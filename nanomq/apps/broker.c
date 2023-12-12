@@ -945,11 +945,8 @@ broker(conf *nanomq_conf)
 			log_error("nng_exchange_client_open failed %d", rv);
 		} else {
 			void *ex;
-			for (int i = 0; i < cvector_size(node->ex_list); i++) {
-				ex = node->ex_list[i];
-				nng_socket_set_ptr(
-				    *node->sock, NNG_OPT_EXCHANGE_ADD, ex);
-			}
+			ex = node->exchange;
+			nng_socket_set_ptr(*node->sock, NNG_OPT_EXCHANGE_BIND, ex);
 		}
 		log_debug("exchange %d init finished!\n", i);
 	}
