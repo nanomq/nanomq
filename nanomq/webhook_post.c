@@ -269,18 +269,22 @@ hook_entry(nano_work *work, uint8_t reason)
 		for (size_t i = 0; i < ex_conf->count; i++) {
 			if (topic_filter(ex_conf->nodes[i]->exchange->topic,
 			        work->pub_packet->var_header.publish.topic_name.body)) {
-				nng_aio *aio = hook_conf->saio;
+				if (work->ctx.id > work->config->parallel || work->ctx.id < 0)
+					log_error("parallel %d idx %d", work->config->parallel);
+				nng_aio *aio = hook_conf->saios[work->ctx.id-1];
 				int     *nkey = nng_alloc(sizeof(int));
-				*nkey         = g_msg_index;
+				*nkey         = g_msg_index++;
+				if (nng_aio_busy(aio))
+					nng_aio_wait(aio);
 
 				nng_aio_set_prov_data(aio, (void *) nkey);
 				nng_aio_set_msg(aio, msg);
 
 				ex_sock = ex_conf->nodes[i]->sock;
 				nng_send_aio(*ex_sock, aio);
-				g_msg_index++;
 				if (g_msg_index % 2000 == 0)
 					printf("%d msgs in exchange\n", g_msg_index);
+				break;
 			}
 		}
 	}
@@ -363,11 +367,13 @@ flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio)
 static void
 send_exchange_cb(void *arg)
 {
-	conf *nanomq_conf = arg;
+	struct work *w = arg;
+
+	conf *nanomq_conf = w->config;
 	conf_web_hook *hook_conf = &nanomq_conf->web_hook;
 	conf_exchange *ex_conf   = &nanomq_conf->exchange;
 
-	nng_aio *aio = hook_conf->saio;
+	nng_aio *aio = hook_conf->saios[w->ctx.id-1];
 
 	if (nng_aio_result(aio) != 0) {
 		log_error("error in send to exchange");
@@ -380,7 +386,8 @@ send_exchange_cb(void *arg)
 		return;
 	}
 
-	size_t    msgs_len = *(size_t *)nng_aio_get_prov_data(aio);
+	// TODO size_t    msgs_len = *(size_t *)nng_aio_get_prov_data(aio);
+	size_t    msgs_len = ex_conf->nodes[0]->exchange->rb_count;
 	nng_msg **msgs_del = nng_msg_get_proto_data(msg);
 	if (!msgs_del)
 		return;
@@ -396,6 +403,7 @@ hook_exchange_init(conf *nanomq_conf)
 {
 	conf_web_hook *hook_conf = &nanomq_conf->web_hook;
 	conf_exchange *ex_conf   = &nanomq_conf->exchange;
+	nng_aio *saio;
 
 	nng_mtx_alloc(&hook_conf->ex_mtx);
 	nng_aio_alloc(&hook_conf->ex_aio, NULL, NULL);
