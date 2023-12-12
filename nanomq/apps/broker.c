@@ -1047,6 +1047,10 @@ broker(conf *nanomq_conf)
 			    PROTO_HTTP_SERVER, db, db_ret, nanomq_conf);
 		}
 	}
+	// create exchange senders
+	if (nanomq_conf->web_hook.enable && nanomq_conf->exchange.count > 0) {
+		hook_exchange_sender_init(nanomq_conf, works);
+	}
 
 	if (nanomq_conf->enable) {
 		// TODO: Multiple listener
