@@ -267,7 +267,7 @@ hook_entry(nano_work *work, uint8_t reason)
 		        (nng_msg_payload_ptr(work->msg) - (uint8_t *)nng_msg_body(work->msg)));
 		// nng_msg_dup(&msg, work->msg);
 		for (size_t i = 0; i < ex_conf->count; i++) {
-			if (topic_filter(ex_conf->nodes[i]->ex_list[0]->topic,
+			if (topic_filter(ex_conf->nodes[i]->exchange->topic,
 			        work->pub_packet->var_header.publish.topic_name.body)) {
 				nng_aio *aio = hook_conf->saio;
 				int     *nkey = nng_alloc(sizeof(int));
