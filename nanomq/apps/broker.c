@@ -87,7 +87,7 @@ static const all_signals[] = {
 
 int sig_handler(int signum)
 {
-	log_error("signal caught!!!! signumber: %d\n", signum);
+//	log_error("signal caught!!!! signumber: %d\n", signum);
 
 	if (signum == SIGINT) {
 		exit(EXIT_FAILURE);
@@ -293,9 +293,26 @@ exchange_handler(nano_work *work)
 				
 					nng_aio_set_prov_data(aio, nkey);
 					nng_aio_set_msg(aio, bridge_msg);
+					nng_aio_begin(aio);
 				
 					nng_send_aio(*socket, aio);
 					nng_aio_wait(aio);
+					nng_msg **msglist = nng_aio_get_prov_data(aio);
+					nng_msg *msg = nng_aio_get_msg(aio);
+					if (msglist != NULL && msg != NULL) {
+						int *list_len = nng_msg_get_proto_data(msg);
+						log_error("rhack: queue is full list_len: %d\n", *list_len);
+						for (int i = 0; i < *list_len; i++) {
+							int *keyp = nng_msg_get_proto_data(msglist[i]);
+							log_error("rhack: key: %d\n", *keyp);
+							nng_free(keyp, sizeof(int));
+							nng_msg_free(msglist[i]);
+						}
+						nng_msg_free(msg);
+						nng_free(msglist, sizeof(nng_msg *) * (*list_len));
+						nng_free(list_len, sizeof(int));
+					}
+					log_error("rhack: free aio aio: %p\n", aio);
 					nng_aio_free(aio);
 
 //					rv = nng_sendmsg(*socket, bridge_msg, NNG_FLAG_NONBLOCK);
