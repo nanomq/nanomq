@@ -270,7 +270,7 @@ hook_entry(nano_work *work, uint8_t reason)
 			if (topic_filter(ex_conf->nodes[i]->exchange->topic,
 			        work->pub_packet->var_header.publish.topic_name.body)) {
 
-				if (work->ctx.id > work->config->parallel || work->ctx.id < 0)
+				if (work->ctx.id > work->config->parallel)
 					log_error("parallel %d idx %d", work->config->parallel);
 
 				nng_aio *aio = hook_conf->saios[work->ctx.id-1];
@@ -331,7 +331,6 @@ static int
 flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio)
 {
 	nng_msg * msg;
-	int       rv;
 	void    **datas;
 	uint32_t *keys;
 	size_t   *lens;
@@ -374,7 +373,6 @@ send_exchange_cb(void *arg)
 
 	conf *nanomq_conf = w->config;
 	conf_web_hook *hook_conf = &nanomq_conf->web_hook;
-	conf_exchange *ex_conf   = &nanomq_conf->exchange;
 
 	nng_aio *aio = hook_conf->saios[w->ctx.id-1];
 
@@ -410,12 +408,12 @@ int
 hook_exchange_init(conf *nanomq_conf)
 {
 	conf_web_hook *hook_conf = &nanomq_conf->web_hook;
-	conf_exchange *ex_conf   = &nanomq_conf->exchange;
-	nng_aio *saio;
 
 	nng_mtx_alloc(&hook_conf->ex_mtx);
 	nng_aio_alloc(&hook_conf->ex_aio, NULL, NULL);
 	hook_conf->saios = nng_alloc(sizeof(nng_aio *) * nanomq_conf->parallel);
+
+	return 0;
 }
 
 int
@@ -426,5 +424,7 @@ hook_exchange_sender_init(conf *nanomq_conf, struct work **works)
 	for (int i=0; i<nanomq_conf->parallel; ++i) {
 		nng_aio_alloc(&hook_conf->saios[i], send_exchange_cb, works[i]);
 	}
+
+	return 0;
 }
 
