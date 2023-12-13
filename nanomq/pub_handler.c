@@ -1593,6 +1593,7 @@ decode_pub_message(nano_work *work, uint8_t proto)
 		// payload
 		pub_packet->payload.len =
 		    (uint32_t) (msg_len - (size_t) used_pos);
+		nng_msg_set_payload_ptr(msg, msg_body + pos);
 
 		if (pub_packet->payload.len > 0) {
 			pub_packet->payload.data =
