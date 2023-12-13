@@ -363,6 +363,7 @@ flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio)
 	// write to disk
 	// parquet_write_batch(handle, keys, datas, lens, len2, aio);
 	// finish aio after flushing to disk
+	nng_free(smsg, len);
 	return 0;
 }
 
@@ -399,6 +400,10 @@ send_exchange_cb(void *arg)
 	nng_mtx_lock(hook_conf->ex_mtx);
 	flush_smsg_to_disk(msgs_del, msgs_len, NULL, hook_conf->ex_aio);
 	nng_mtx_unlock(hook_conf->ex_mtx);
+
+	nng_msg_free(msg);
+	if (msgs_lenp)
+		nng_free(msgs_lenp, sizeof(int));
 }
 
 int
