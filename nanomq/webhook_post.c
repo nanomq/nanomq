@@ -406,23 +406,23 @@ send_exchange_cb(void *arg)
 }
 
 int
-hook_exchange_init(conf *nanomq_conf)
+hook_exchange_init(conf *nanomq_conf, uint64_t num_ctx)
 {
 	conf_web_hook *hook_conf = &nanomq_conf->web_hook;
 
 	nng_mtx_alloc(&hook_conf->ex_mtx);
 	nng_aio_alloc(&hook_conf->ex_aio, NULL, NULL);
-	hook_conf->saios = nng_alloc(sizeof(nng_aio *) * nanomq_conf->parallel);
+	hook_conf->saios = nng_alloc(sizeof(nng_aio *) * num_ctx);
 
 	return 0;
 }
 
 int
-hook_exchange_sender_init(conf *nanomq_conf, struct work **works)
+hook_exchange_sender_init(conf *nanomq_conf, struct work **works, uint64_t num_ctx)
 {
 	conf_web_hook *hook_conf = &nanomq_conf->web_hook;
 
-	for (int i=0; i<nanomq_conf->parallel; ++i) {
+	for (int i=0; i<num_ctx; ++i) {
 		nng_aio_alloc(&hook_conf->saios[i], send_exchange_cb, works[i]);
 	}
 

@@ -955,7 +955,7 @@ broker(conf *nanomq_conf)
 		log_debug("Webhook service initialization");
 		start_webhook_service(nanomq_conf);
 		if (nanomq_conf->exchange.count > 0)
-			hook_exchange_init(nanomq_conf);
+			hook_exchange_init(nanomq_conf, num_ctx);
 	}
 	log_debug("webhook init finished");
 
@@ -1049,7 +1049,7 @@ broker(conf *nanomq_conf)
 	}
 	// create exchange senders
 	if (nanomq_conf->web_hook.enable && nanomq_conf->exchange.count > 0) {
-		hook_exchange_sender_init(nanomq_conf, works);
+		hook_exchange_sender_init(nanomq_conf, works, num_ctx);
 	}
 
 	if (nanomq_conf->enable) {
