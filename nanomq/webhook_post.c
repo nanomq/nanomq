@@ -269,11 +269,17 @@ hook_entry(nano_work *work, uint8_t reason)
 		for (size_t i = 0; i < ex_conf->count; i++) {
 			if (topic_filter(ex_conf->nodes[i]->exchange->topic,
 			        work->pub_packet->var_header.publish.topic_name.body)) {
+
 				if (work->ctx.id > work->config->parallel || work->ctx.id < 0)
 					log_error("parallel %d idx %d", work->config->parallel);
+
 				nng_aio *aio = hook_conf->saios[work->ctx.id-1];
 				int     *nkey = nng_alloc(sizeof(int));
-				*nkey         = g_msg_index++;
+
+				nng_mtx_lock(hook_conf->ex_mtx);
+				*nkey = g_msg_index++;
+				nng_mtx_unlock(hook_conf->ex_mtx);
+
 				if (nng_aio_busy(aio))
 					nng_aio_wait(aio);
 
@@ -330,11 +336,6 @@ flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio)
 	uint32_t *keys;
 	size_t   *lens;
 
-	if (nng_aio_busy(aio)) {
-		// TODO Clean smsg???
-		log_error("nng aio still busy");
-		return NNG_EBUSY;
-	}
 	if (false == nng_aio_begin(aio)) {
 		log_error("nng aio begin failed");
 		return NNG_EBUSY;
@@ -358,6 +359,7 @@ flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio)
 		len2 ++;
 	}
 
+	log_error("ready to flush");
 	// write to disk
 	// parquet_write_batch(handle, keys, datas, lens, len2, aio);
 	// finish aio after flushing to disk
