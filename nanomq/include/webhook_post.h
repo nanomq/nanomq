@@ -15,4 +15,5 @@ extern int webhook_client_disconnect(nng_socket *sock,
     uint8_t reason, const char *username, const char *client_id);
 extern int hook_entry(nano_work *work, uint8_t reason);
 extern int hook_exchange_init(conf *nanomq_conf);
+extern int hook_exchange_sender_init(conf *nanomq_conf, struct work **works);
 #endif
