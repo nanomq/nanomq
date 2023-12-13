@@ -381,16 +381,17 @@ send_exchange_cb(void *arg)
 	}
 
 	nng_msg *msg = nng_aio_get_msg(aio);
-	if (!msg) {
-		log_warn("no msg in aio");
+	if (!msg)
 		return;
-	}
 
-	// TODO size_t    msgs_len = *(size_t *)nng_aio_get_prov_data(aio);
-	size_t    msgs_len = ex_conf->nodes[0]->exchange->rb_count;
-	nng_msg **msgs_del = nng_msg_get_proto_data(msg);
+	nng_msg **msgs_del = nng_aio_get_prov_data(aio);
 	if (!msgs_del)
 		return;
+
+	int *msgs_lenp = (int *)nng_msg_get_proto_data(msg);
+	int  msgs_len;
+	if (msgs_lenp)
+		msgs_len = *msgs_lenp;
 
 	// Flush to disk. TODO Ask Parquet
 	nng_mtx_lock(hook_conf->ex_mtx);
