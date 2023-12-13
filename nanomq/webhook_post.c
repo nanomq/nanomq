@@ -13,6 +13,7 @@
 #include "nng/supplemental/util/platform.h"
 #include "nng/supplemental/nanolib/base64.h"
 #include "nng/supplemental/nanolib/cJSON.h"
+#include "nng/supplemental/nanolib/parquet.h"
 #include "nng/protocol/mqtt/mqtt_parser.h"
 #include "nng/supplemental/nanolib/log.h"
 
@@ -334,7 +335,7 @@ flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio)
 	nng_msg * msg;
 	void    **datas;
 	uint32_t *keys;
-	size_t   *lens;
+	uint32_t *lens;
 
 	if (false == nng_aio_begin(aio)) {
 		log_error("nng aio begin failed");
@@ -343,7 +344,7 @@ flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio)
 
 	keys = nng_alloc(sizeof(uint32_t)* len);
 	datas = nng_alloc(sizeof(void *) * len);
-	lens = nng_alloc(sizeof(size_t) * len);
+	lens = nng_alloc(sizeof(uint32_t) * len);
 	if (!datas || !keys || !lens)
 		return NNG_ENOMEM;
 
@@ -361,8 +362,10 @@ flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio)
 
 	log_error("ready to flush");
 	// write to disk
-	// parquet_write_batch(handle, keys, datas, lens, len2, aio);
-	// finish aio after flushing to disk
+	parquet_object *parquet_obj;
+	parquet_obj = parquet_object_alloc(keys, (uint8_t **)datas, lens, len2, aio);
+	parquet_write_batch_async(parquet_obj);
+
 	nng_free(smsg, len);
 	return 0;
 }
@@ -421,6 +424,17 @@ int
 hook_exchange_sender_init(conf *nanomq_conf, struct work **works, uint64_t num_ctx)
 {
 	conf_web_hook *hook_conf = &nanomq_conf->web_hook;
+
+	// TODO
+	parquet_conf *parquet_conf = nng_alloc(sizeof(parquet_conf ));
+	parquet_conf->comp_type = GZIP;
+	parquet_conf->dir = "/home/wangha/Documents/nanomq/build";
+	parquet_conf->file_name_prefix = "test-parquet-";
+	parquet_conf->file_count = 4;
+	parquet_conf->file_index = 0;
+	parquet_conf->file_size = 10000;
+
+	parquet_write_launcher(parquet_conf);
 
 	for (int i=0; i<num_ctx; ++i) {
 		nng_aio_alloc(&hook_conf->saios[i], send_exchange_cb, works[i]);
