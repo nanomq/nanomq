@@ -263,9 +263,9 @@ hook_entry(nano_work *work, uint8_t reason)
 		nng_msg_alloc(&msg, 0);
 		nng_msg_header_append(msg, nng_msg_header(work->msg), nng_msg_header_len(work->msg));
 		nng_msg_append(msg, nng_msg_body(work->msg), nng_msg_len(work->msg));
-		void *body_ptr = nng_msg_body(work->msg);
-		ptrdiff_t offset = (ptrdiff_t)(nng_msg_payload_ptr(work->msg) - (*(uint8_t *)&body_ptr));
-		nng_msg_set_payload_ptr(msg, nng_msg_body(msg) + offset);
+		uint8_t *body_ptr = nng_msg_body(work->msg);
+		ptrdiff_t offset = (ptrdiff_t)(nng_msg_payload_ptr(work->msg) - body_ptr);
+		nng_msg_set_payload_ptr(msg, (uint8_t *)nng_msg_body(msg) + offset);
 		// nng_msg_dup(&msg, work->msg);
 		for (size_t i = 0; i < ex_conf->count; i++) {
 			if (topic_filter(ex_conf->nodes[i]->exchange->topic,
