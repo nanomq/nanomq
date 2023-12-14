@@ -954,8 +954,6 @@ broker(conf *nanomq_conf)
 	if (nanomq_conf->web_hook.enable) {
 		log_debug("Webhook service initialization");
 		start_webhook_service(nanomq_conf);
-		if (nanomq_conf->exchange.count > 0)
-			hook_exchange_init(nanomq_conf, num_ctx);
 	}
 	log_debug("webhook init finished");
 
@@ -989,7 +987,7 @@ broker(conf *nanomq_conf)
 			}
 		}
 #endif
-	log_debug("bridge init finished");
+		log_debug("bridge init finished");
 	}
 	// MQTT Broker service
 	struct work **works = nng_zalloc(num_ctx * sizeof(struct work *));
@@ -1047,7 +1045,11 @@ broker(conf *nanomq_conf)
 			    PROTO_HTTP_SERVER, db, db_ret, nanomq_conf);
 		}
 	}
-	// create exchange senders
+
+	// Init exchange part in hook
+	if (nanomq_conf->exchange.count > 0)
+		hook_exchange_init(nanomq_conf, num_ctx);
+	// create exchange senders in hook
 	if (nanomq_conf->web_hook.enable && nanomq_conf->exchange.count > 0) {
 		hook_exchange_sender_init(nanomq_conf, works, num_ctx);
 	}
