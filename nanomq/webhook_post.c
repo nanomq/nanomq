@@ -377,6 +377,7 @@ send_exchange_cb(void *arg)
 
 	conf *nanomq_conf = w->config;
 	conf_web_hook *hook_conf = &nanomq_conf->web_hook;
+	conf_parquet  *parquet_conf = &nanomq_conf->parquet;
 
 	nng_aio *aio = hook_conf->saios[w->ctx.id-1];
 
@@ -398,10 +399,17 @@ send_exchange_cb(void *arg)
 	if (msgs_lenp)
 		msgs_len = *msgs_lenp;
 
-	// Flush to disk. TODO Ask Parquet
-	nng_mtx_lock(hook_conf->ex_mtx);
-	flush_smsg_to_disk(msgs_del, msgs_len, NULL, hook_conf->ex_aio);
-	nng_mtx_unlock(hook_conf->ex_mtx);
+	// Flush to disk. Call Parquet
+	if (parquet_conf->enable) {
+		nng_mtx_lock(hook_conf->ex_mtx);
+		flush_smsg_to_disk(msgs_del, msgs_len, NULL, hook_conf->ex_aio);
+		nng_mtx_unlock(hook_conf->ex_mtx);
+	} else {
+		for (int i=0; i<msgs_len; ++i)
+			if (msgs_del[i])
+				nng_msg_free(msgs_del[i]);
+		nng_free(msgs_del, msgs_len);
+	}
 
 	nng_msg_free(msg);
 	if (msgs_lenp)
@@ -424,13 +432,16 @@ int
 hook_exchange_sender_init(conf *nanomq_conf, struct work **works, uint64_t num_ctx)
 {
 	conf_web_hook *hook_conf = &nanomq_conf->web_hook;
-
 	conf_parquet *parquet_conf = &nanomq_conf->parquet;
-	parquet_write_launcher(parquet_conf);
 
 	for (int i=0; i<num_ctx; ++i) {
 		nng_aio_alloc(&hook_conf->saios[i], send_exchange_cb, works[i]);
 	}
+
+	if (!parquet_conf->enable)
+		return -1;
+
+	parquet_write_launcher(parquet_conf);
 
 	return 0;
 }
