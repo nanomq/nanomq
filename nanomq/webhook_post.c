@@ -425,15 +425,7 @@ hook_exchange_sender_init(conf *nanomq_conf, struct work **works, uint64_t num_c
 {
 	conf_web_hook *hook_conf = &nanomq_conf->web_hook;
 
-	// TODO
-	parquet_conf *parquet_conf = nng_alloc(sizeof(parquet_conf ));
-	parquet_conf->comp_type = UNCOMPRESSED;
-	parquet_conf->dir = strdup("/home/wangha/Documents/nanomq/build");
-	parquet_conf->file_name_prefix = strdup("test-parquet-");
-	parquet_conf->file_count = 4;
-	parquet_conf->file_index = 0;
-	parquet_conf->file_size = 10000;
-
+	conf_parquet *parquet_conf = &nanomq_conf->parquet;
 	parquet_write_launcher(parquet_conf);
 
 	for (int i=0; i<num_ctx; ++i) {
