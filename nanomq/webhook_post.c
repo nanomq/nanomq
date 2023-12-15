@@ -360,11 +360,14 @@ flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio)
 		len2 ++;
 	}
 
-	log_error("ready to flush");
+#ifdef SUPP_PARQUET
+	if (len2 > 0)
+		log_info("flush to parquet %d...", keys[0]);
 	// write to disk
 	parquet_object *parquet_obj;
 	parquet_obj = parquet_object_alloc(keys, (uint8_t **)datas, lens, len2, aio);
 	parquet_write_batch_async(parquet_obj);
+#endif
 
 	nng_free(smsg, len);
 	return 0;
@@ -441,7 +444,9 @@ hook_exchange_sender_init(conf *nanomq_conf, struct work **works, uint64_t num_c
 	if (!parquet_conf->enable)
 		return -1;
 
+#ifdef SUPP_PARQUET
 	parquet_write_launcher(parquet_conf);
+#endif
 
 	return 0;
 }
