@@ -202,8 +202,8 @@ if(BUILD_BENCH)
   add_definitions(-DSUPP_BENCH)
 endif()
 
-if (NNG_ENABLE_PARQUET)
-  set(ENABLE_PARQUET ON)
+if(ENABLE_PARQUET)
+  set(NNG_ENABLE_PARQUET ON)
   add_definitions(-DSUPP_PARQUET)
 endif()
 
