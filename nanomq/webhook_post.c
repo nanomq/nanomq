@@ -397,8 +397,10 @@ send_exchange_cb(void *arg)
 		return;
 
 	nng_msg **msgs_del = nng_aio_get_prov_data(aio);
-	if (!msgs_del)
+	if (!msgs_del) {
+		nng_msg_free(msg);
 		return;
+	}
 
 	int *msgs_lenp = (int *)nng_msg_get_proto_data(msg);
 	int  msgs_len;
