@@ -409,8 +409,12 @@ send_exchange_cb(void *arg)
 		nng_mtx_unlock(hook_conf->ex_mtx);
 	} else {
 		for (int i=0; i<msgs_len; ++i)
-			if (msgs_del[i])
+			if (msgs_del[i]) {
+				void *key = nng_msg_get_proto_data(msgs_del[i]);
+				if (key)
+					nng_free(key, sizeof(int));
 				nng_msg_free(msgs_del[i]);
+			}
 		nng_free(msgs_del, msgs_len);
 	}
 
