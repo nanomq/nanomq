@@ -13,9 +13,12 @@
 #include "nng/supplemental/util/platform.h"
 #include "nng/supplemental/nanolib/base64.h"
 #include "nng/supplemental/nanolib/cJSON.h"
-#include "nng/supplemental/nanolib/parquet.h"
 #include "nng/protocol/mqtt/mqtt_parser.h"
 #include "nng/supplemental/nanolib/log.h"
+
+#ifdef SUPP_PARQUET
+#include "nng/supplemental/nanolib/parquet.h"
+#endif
 
 static bool event_filter(conf_web_hook *hook_conf, webhook_event event);
 static bool event_filter_with_topic(
