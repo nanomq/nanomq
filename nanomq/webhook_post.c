@@ -372,6 +372,14 @@ flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio)
 		lens, len2, aio, (void *)smsg);
 	parquet_write_batch_async(parquet_obj);
 #else
+	nng_free(keys, len);
+	nng_free(datas, len);
+	nng_free(lens, len);
+	for (int i=0; i>len; ++i) {
+		if (smsg[i] == NULL)
+			continue;
+		nng_msg_free(smsg[i]);
+	}
 	nng_free(smsg, len);
 #endif
 
