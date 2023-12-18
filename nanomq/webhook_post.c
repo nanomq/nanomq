@@ -125,7 +125,7 @@ webhook_msg_publish(nng_socket *sock, conf_web_hook *hook_conf,
 	}
 
 	cJSON *obj = cJSON_CreateObject();
-	
+
 	cJSON_AddNumberToObject(obj, "ts", nng_timestamp());
 	cJSON_AddStringToObject(
 	    obj, "topic", pub_packet->var_header.publish.topic_name.body);
@@ -428,13 +428,49 @@ send_exchange_cb(void *arg)
 		nng_free(msgs_lenp, sizeof(int));
 }
 
+// Better to be done in sync
+static void
+send_parquet_cb(void *arg)
+{
+	conf_web_hook *hook_conf = arg;
+	nng_aio *aio = hook_conf->ex_aio;
+
+	nng_msg **msgs_del = nng_aio_get_prov_data(aio);
+	uint32_t *msgs_lenp = (uint32_t *)nng_aio_get_msg(aio);
+
+	if (msgs_lenp == NULL || *msgs_lenp == 0) {
+		log_warn("Failed to free parquet msgs lenp");
+		return;
+	}
+
+	if (msgs_del == NULL) {
+		log_warn("Failed to free parquet msgs del");
+		return;
+	}
+
+	for (int i=0; i<*msgs_lenp; ++i)
+		if (msgs_del[i]) {
+			void *key = nng_msg_get_proto_data(msgs_del[i]);
+			if (key)
+				nng_free(key, sizeof(int));
+			nng_msg_free(msgs_del[i]);
+		}
+	nng_free(msgs_del, *msgs_lenp);
+	nng_free(msgs_lenp, sizeof(uint32_t));
+
+	if (nng_aio_result(aio) != 0) {
+		log_warn("Write data to parquet failed");
+		return;
+	}
+}
+
 int
 hook_exchange_init(conf *nanomq_conf, uint64_t num_ctx)
 {
 	conf_web_hook *hook_conf = &nanomq_conf->web_hook;
 
 	nng_mtx_alloc(&hook_conf->ex_mtx);
-	nng_aio_alloc(&hook_conf->ex_aio, NULL, NULL);
+	nng_aio_alloc(&hook_conf->ex_aio, send_parquet_cb, hook_conf);
 	hook_conf->saios = nng_alloc(sizeof(nng_aio *) * num_ctx);
 
 	return 0;
