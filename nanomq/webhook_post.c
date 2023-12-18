@@ -340,6 +340,17 @@ flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio)
 	uint32_t *keys;
 	uint32_t *lens;
 
+	if (nng_aio_busy(aio)) {
+		for (int i=0; i>len; ++i) {
+			if (smsg[i] == NULL)
+				continue;
+			nng_msg_free(smsg[i]);
+		}
+		nng_free(smsg, len);
+		log_warn("flush aio is busy");
+		return NNG_EBUSY;
+	}
+
 	if (false == nng_aio_begin(aio)) {
 		log_error("nng aio begin failed");
 		return NNG_EBUSY;
