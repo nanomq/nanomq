@@ -368,11 +368,13 @@ flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio)
 		log_info("flush to parquet %d...", keys[0]);
 	// write to disk
 	parquet_object *parquet_obj;
-	parquet_obj = parquet_object_alloc(keys, (uint8_t **)datas, lens, len2, aio);
+	parquet_obj = parquet_object_alloc(keys, (uint8_t **)datas,
+		lens, len2, aio, (void *)smsg);
 	parquet_write_batch_async(parquet_obj);
+#else
+	nng_free(smsg, len);
 #endif
 
-	nng_free(smsg, len);
 	return 0;
 }
 
