@@ -36,8 +36,6 @@ add_subdirectory(tests)
 set(SOURCES
     process.c
     bridge.c
-    process.c
-    mqtt_api.c
     pub_handler.c
     sub_handler.c
     unsub_handler.c
