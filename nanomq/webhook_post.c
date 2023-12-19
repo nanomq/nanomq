@@ -341,9 +341,12 @@ flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio)
 	uint32_t *lens;
 
 	if (nng_aio_busy(aio)) {
-		for (int i=0; i>len; ++i) {
+		for (int i=0; i<len; ++i) {
 			if (smsg[i] == NULL)
 				continue;
+			void *key = nng_msg_get_proto_data(smsg[i]);
+			if (key)
+				nng_free(key, sizeof(uint32_t));
 			nng_msg_free(smsg[i]);
 		}
 		nng_free(smsg, len);
@@ -386,9 +389,12 @@ flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio)
 	nng_free(keys, len);
 	nng_free(datas, len);
 	nng_free(lens, len);
-	for (int i=0; i>len; ++i) {
+	for (int i=0; i<len; ++i) {
 		if (smsg[i] == NULL)
 			continue;
+		void *key = nng_msg_get_proto_data(smsg[i]);
+		if (key)
+			nng_free(key, sizeof(uint32_t));
 		nng_msg_free(smsg[i]);
 	}
 	nng_free(smsg, len);
