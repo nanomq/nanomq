@@ -34,6 +34,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
+#include <ctype.h>
 #include <sys/file.h>
 #include <errno.h>
 #include "nng/mqtt/mqtt_client.h"
@@ -70,7 +71,7 @@ client_publish(nng_socket sock, const char *topic, uint8_t *payload, uint32_t pa
 
 	log_info("Publishing to '%s' ...\n", topic);
 	if ((rv = nng_sendmsg(sock, pubmsg, 0)) != 0) {
-		fatal("nng_sendmsg", rv);
+		log_error("nng_sendmsg", rv);
 	}
 
 	return rv;
@@ -129,7 +130,7 @@ static int do_flock(FILE *fp, int op)
 	return rc;
 }
 
-static int publish_file(nng_socket *sock, FILE *fp, char *file_name)
+static int publish_file(nng_socket *sock, FILE *fp, char *file_name, char *md5)
 {
 	char *payload;
 	char topic[TOPIC_LEN];
@@ -152,7 +153,7 @@ static int publish_file(nng_socket *sock, FILE *fp, char *file_name)
 		return -1;
 	}
 
-	rc = sprintf(topic, "$file/upload/%s", file_name);
+	rc = sprintf(topic, "$file/upload/%s/%s", md5, file_name);
 	if (DEBUG) {
 		log_info("Publishing file to topic %s\n", topic);
 	}
@@ -167,6 +168,32 @@ static int publish_file(nng_socket *sock, FILE *fp, char *file_name)
 	return 0;
 }
 
+#define STR_VALUE(val) #val
+#define STR(name) STR_VALUE(name)
+
+#define PATH_LEN 256
+#define MD5_LEN 32
+
+int CalcFileMD5(char *file_name, char *md5_sum)
+{
+	#define MD5SUM_CMD_FMT "md5sum %." STR(PATH_LEN) "s 2>/dev/null"
+	char cmd[PATH_LEN + sizeof (MD5SUM_CMD_FMT)];
+	sprintf(cmd, MD5SUM_CMD_FMT, file_name);
+	#undef MD5SUM_CMD_FMT
+
+	FILE *p = popen(cmd, "r");
+	if (p == NULL) return 0;
+
+	int i, ch;
+	for (i = 0; i < MD5_LEN && isxdigit(ch = fgetc(p)); i++) {
+		*md5_sum++ = ch;
+	}
+
+	*md5_sum = '\0';
+	pclose(p);
+	return i == MD5_LEN;
+}
+
 int send_file(nng_socket *sock,
 			  char *file_path,
 			  char *file_name)
@@ -174,6 +201,7 @@ int send_file(nng_socket *sock,
 	FILE *fp;
 	int rc = 0;
 	bool isLock = true;
+	char md5[MD5_LEN + 1];
 
 	fp = fopen(file_path, "rb");
 	if (fp == NULL) {
@@ -187,7 +215,19 @@ int send_file(nng_socket *sock,
 		log_warn("Failed to lock file. Still send file without a file lock...\n");
 	}
 
-	rc = publish_file(sock, fp, file_name);
+	if (!CalcFileMD5(file_path, md5)) {
+		rc = do_flock(fp, LOCK_UN);
+		if (rc != 0) {
+			isLock = false;
+			log_warn("Failed to unlock file\n");
+		}
+		fclose(fp);
+
+		log_error("md5sum Error occured!");
+
+		return -1;
+	}
+	rc = publish_file(sock, fp, file_name, md5);
 	if (rc) {
 		fclose(fp);
 		return -1;
