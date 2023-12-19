@@ -1,4 +1,5 @@
 #include "conf_api.h"
+#include "include/mqtt_api.h"
 #include "include/nanomq.h"
 
 static cJSON *get_auth_http_req_config(conf_auth_http_req *req);

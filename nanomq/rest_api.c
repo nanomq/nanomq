@@ -7,6 +7,14 @@
 // found online at https://opensource.org/licenses/MIT.
 //
 
+#include "nng/nng.h"
+#include "nng/mqtt/mqtt_client.h"
+#include "nng/protocol/mqtt/mqtt_parser.h"
+#include "nng/protocol/mqtt/nmq_mqtt.h"
+#include "nng/supplemental/http/http.h"
+#include "nng/supplemental/util/platform.h"
+#include "nng/supplemental/nanolib/log.h"
+
 #include "include/rest_api.h"
 #include "include/bridge.h"
 #include "include/conf_api.h"
@@ -19,14 +27,7 @@
 #include "include/nanomq_rule.h"
 #include "include/sub_handler.h"
 #include "include/version.h"
-
-#include "nng/nng.h"
-#include "nng/mqtt/mqtt_client.h"
-#include "nng/protocol/mqtt/mqtt_parser.h"
-#include "nng/protocol/mqtt/nmq_mqtt.h"
-#include "nng/supplemental/http/http.h"
-#include "nng/supplemental/util/platform.h"
-#include "nng/supplemental/nanolib/log.h"
+#include "include/mqtt_api.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -2379,9 +2380,9 @@ static void *
 get_client_info_cb(uint32_t pid)
 {
 
-	nng_pipe    pipe = { .id = pid };
-	conn_param *cp   = nng_pipe_cparam(pipe);
-	uint8_t    *clientid = conn_param_get_clientid(cp);
+	nng_pipe       pipe     = { .id = pid };
+	conn_param    *cp       = nng_pipe_cparam(pipe);
+	const uint8_t *clientid = conn_param_get_clientid(cp);
 	conn_param_free(cp);
 	return (void *) clientid;
 }

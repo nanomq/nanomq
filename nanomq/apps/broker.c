@@ -44,6 +44,7 @@
 #include "include/webhook_post.h"
 #include "include/webhook_inproc.h"
 #include "include/cmd_proc.h"
+#include "include/process.h"
 #include "include/nanomq.h"
 // #if defined(SUPP_RULE_ENGINE)
 // 	#include <foundationdb/fdb_c.h>
