@@ -34,10 +34,10 @@ add_subdirectory(tests)
 # set(PARALLEL 128 CACHE STRING "Parallelism (min 4, max 1000)")
 
 set(SOURCES
-    mqtt_api.c
-    nanomq.c
     process.c
     bridge.c
+    process.c
+    mqtt_api.c
     pub_handler.c
     sub_handler.c
     unsub_handler.c
@@ -51,8 +51,10 @@ set(SOURCES
     conf_api.c
     cmd_proc.c
     acl_handler.c
+    mqtt_api.c
+    nanomq.c
     apps/broker.c
-    )
+)
 
 include_directories(${FOUNDATION_INCLUDE_DIR})
 
@@ -104,7 +106,12 @@ if(BUILD_QUIC_CLI)
   target_link_libraries(nanomq nng msquic)
 endif(BUILD_QUIC_CLI)
 
-set_target_properties(nanomq PROPERTIES LINK_FLAGS "-Wl,-rpath,${CMAKE_INSTALL_RPATH}")
+if (CMAKE_INSTALL_RPATH)
+  set_target_properties(nanomq PROPERTIES LINK_FLAGS "-Wl,-rpath,${CMAKE_INSTALL_RPATH}")
+  message("Dynamic link rpath: ${CMAKE_INSTALL_RPATH}")
+endif()
+
+
 
 target_link_libraries(nanomq nng)
 
