@@ -74,23 +74,6 @@ jobs:
         sudo make install
         cd ../ && rm -rf ./build
         cd ../
-    
-    - name: install libmysqlclient
-      if: matrix.arch[0] != 'mips'
-      run: |
-        set -eu
-        wget https://downloads.mysql.com/archives/get/p/19/file/mysql-connector-c-6.1.5-src.tar.gz
-        tar -zxvf mysql-connector-c-6.1.5-src.tar.gz
-        cd mysql-connector-c-6.1.5-src && mkdir build && cd build
-        cmake ..
-        cmake --build .
-        rm CMakeCache.txt 
-        cmake -DCMAKE_C_COMPILER=${{ matrix.arch[1] }} -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }}   -DCMAKE_INSTALL_PREFIX=${{ matrix.arch[4] }}   \
-        -DCMAKE_PREFIX_PATH=${{ matrix.arch[4] }} ..
-        cmake --build .
-        sudo make install
-        cd ../ && rm -rf ./build
-        cd ../
 
     - name: install uuid
       if: matrix.arch[0] != 'riscv64' &&  matrix.arch[0] != 'x86_64'  &&  matrix.arch[0] != 'amd64'
