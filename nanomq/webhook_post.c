@@ -407,6 +407,7 @@ static void
 send_exchange_cb(void *arg)
 {
 	struct work *w = arg;
+	int          rv;
 
 	conf *nanomq_conf = w->config;
 	conf_web_hook *hook_conf = &nanomq_conf->web_hook;
@@ -414,8 +415,8 @@ send_exchange_cb(void *arg)
 
 	nng_aio *aio = hook_conf->saios[w->ctx.id-1];
 
-	if (nng_aio_result(aio) != 0) {
-		log_error("error in send to exchange");
+	if ((rv = nng_aio_result(aio)) != 0) {
+		log_error("error %d in send to exchange", rv);
 		return;
 	}
 
@@ -424,6 +425,7 @@ send_exchange_cb(void *arg)
 		return;
 
 	nng_msg **msgs_del = nng_aio_get_prov_data(aio);
+	nng_aio_set_prov_data(aio, NULL);
 	if (!msgs_del) {
 		nng_msg_free(msg);
 		return;
