@@ -278,17 +278,17 @@ hook_entry(nano_work *work, uint8_t reason)
 				if (work->ctx.id > work->config->parallel)
 					log_error("parallel %d idx %d", work->config->parallel);
 
-				nng_aio *aio = hook_conf->saios[work->ctx.id-1];
-				int     *nkey = nng_alloc(sizeof(int));
+				nng_aio  *aio = hook_conf->saios[work->ctx.id-1];
+				uint32_t nkey; // should be uint32_t
 
 				nng_mtx_lock(hook_conf->ex_mtx);
-				*nkey = g_msg_index++;
+				nkey = g_msg_index++;
 				nng_mtx_unlock(hook_conf->ex_mtx);
 
 				if (nng_aio_busy(aio))
 					nng_aio_wait(aio);
 
-				nng_aio_set_prov_data(aio, (void *) nkey);
+				nng_aio_set_prov_data(aio, (void *)(uintptr_t)nkey);
 				nng_aio_set_msg(aio, msg);
 
 				ex_sock = ex_conf->nodes[i]->sock;
@@ -344,9 +344,6 @@ flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio)
 		for (int i=0; i<len; ++i) {
 			if (smsg[i] == NULL)
 				continue;
-			void *key = nng_msg_get_proto_data(smsg[i]);
-			if (key)
-				nng_free(key, sizeof(uint32_t));
 			nng_msg_free(smsg[i]);
 		}
 		nng_free(smsg, len);
@@ -373,7 +370,7 @@ flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio)
 		datas[len2] = nng_msg_payload_ptr(msg);
 		lens[len2] = nng_msg_len(msg) -
 		        (nng_msg_payload_ptr(msg) - (uint8_t *)nng_msg_body(msg));
-		keys[len2] = *(uint32_t *)nng_msg_get_proto_data(msg);
+		keys[len2] = (uint32_t)(uintptr_t)nng_msg_get_proto_data(msg);
 		len2 ++;
 	}
 
@@ -392,9 +389,6 @@ flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio)
 	for (int i=0; i<len; ++i) {
 		if (smsg[i] == NULL)
 			continue;
-		void *key = nng_msg_get_proto_data(smsg[i]);
-		if (key)
-			nng_free(key, sizeof(uint32_t));
 		nng_msg_free(smsg[i]);
 	}
 	nng_free(smsg, len);
