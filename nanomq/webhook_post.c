@@ -1,5 +1,5 @@
 //
-// Copyright 2020 NanoMQ Team, Inc. <jaylin@emqx.io>
+// Copyright 2023 NanoMQ Team, Inc. <jaylin@emqx.io>
 //
 // This software is supplied under the terms of the MIT License, a
 // copy of which should be located in the distribution where this
@@ -270,23 +270,23 @@ hook_entry(nano_work *work, uint8_t reason)
 		uint8_t *body_ptr = nng_msg_body(work->msg);
 		ptrdiff_t offset = (ptrdiff_t)(nng_msg_payload_ptr(work->msg) - body_ptr);
 		nng_msg_set_payload_ptr(msg, (uint8_t *)nng_msg_body(msg) + offset);
-		// nng_msg_dup(&msg, work->msg);
+
 		for (size_t i = 0; i < ex_conf->count; i++) {
 			if (topic_filter(ex_conf->nodes[i]->exchange->topic,
 			        work->pub_packet->var_header.publish.topic_name.body)) {
 
 				if (work->ctx.id > work->config->parallel)
-					log_error("parallel %d idx %d", work->config->parallel);
+					log_error("parallel %d idx %d", work->config->parallel);	// shall be a bug if triggered
 
 				nng_aio  *aio = hook_conf->saios[work->ctx.id-1];
 				uint32_t nkey; // should be uint32_t
 
 				nng_mtx_lock(hook_conf->ex_mtx);
 				nkey = g_msg_index++;
+				// nkey = (uint32_t)(nng_clock() & 0xFFFFFFFF);
 				nng_mtx_unlock(hook_conf->ex_mtx);
 
-				if (nng_aio_busy(aio))
-					nng_aio_wait(aio);
+				nng_aio_wait(aio);
 
 				nng_aio_set_prov_data(aio, (void *)(uintptr_t)nkey);
 				nng_aio_set_msg(aio, msg);
