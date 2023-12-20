@@ -351,11 +351,6 @@ flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio)
 		return NNG_EBUSY;
 	}
 
-	if (false == nng_aio_begin(aio)) {
-		log_error("nng aio begin failed");
-		return NNG_EBUSY;
-	}
-
 	keys = nng_alloc(sizeof(uint32_t)* len);
 	datas = nng_alloc(sizeof(void *) * len);
 	lens = nng_alloc(sizeof(uint32_t) * len);
@@ -375,8 +370,13 @@ flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio)
 	}
 
 #ifdef SUPP_PARQUET
+	if (false == nng_aio_begin(aio)) {
+		log_error("nng aio begin failed");
+		return NNG_EBUSY;
+	}
+
 	if (len2 > 0)
-		log_info("flush to parquet %d...", keys[0]);
+		log_warn("flush to parquet %d...", keys[0]);
 	// write to disk
 	parquet_object *parquet_obj;
 	parquet_obj = parquet_object_alloc(keys, (uint8_t **)datas,
