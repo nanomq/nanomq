@@ -433,14 +433,13 @@ send_exchange_cb(void *arg)
 	// Flush to disk. Call Parquet
 	if (parquet_conf->enable) {
 		nng_mtx_lock(hook_conf->ex_mtx);
-		flush_smsg_to_disk(msgs_del, msgs_len, NULL, hook_conf->ex_aio);
+		rv = flush_smsg_to_disk(msgs_del, msgs_len, NULL, hook_conf->ex_aio);
+		if (rv != 0)
+			log_error("flush error %d", rv);
 		nng_mtx_unlock(hook_conf->ex_mtx);
 	} else {
 		for (int i=0; i<msgs_len; ++i)
 			if (msgs_del[i]) {
-				void *key = nng_msg_get_proto_data(msgs_del[i]);
-				if (key)
-					nng_free(key, sizeof(int));
 				nng_msg_free(msgs_del[i]);
 			}
 		nng_free(msgs_del, msgs_len);
@@ -473,9 +472,6 @@ send_parquet_cb(void *arg)
 
 	for (int i=0; i<*msgs_lenp; ++i)
 		if (msgs_del[i]) {
-			void *key = nng_msg_get_proto_data(msgs_del[i]);
-			if (key)
-				nng_free(key, sizeof(int));
 			nng_msg_free(msgs_del[i]);
 		}
 	nng_free(msgs_del, *msgs_lenp);
