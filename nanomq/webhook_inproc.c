@@ -188,19 +188,8 @@ webhook_cb(void *arg)
 		body = (char *) nng_msg_body(msg);
 		if (nng_msg_len(msg) > strlen(EXTERNAL2NANO_IPC) &&
 		        0 == strncmp(body, EXTERNAL2NANO_IPC, strlen(EXTERNAL2NANO_IPC))) {
-			log_warn("I got a msg from ekuiper!");
-			// Update the position
-			body += strlen(EXTERNAL2NANO_IPC);
-
-			cJSON *root = cJSON_Parse(body);
-			uint32_t key = cJSON_GetObjectItem(root,"key")->valueint;
-			uint32_t offset = cJSON_GetObjectItem(root,"offset")->valueint;
-			log_warn("key %ld offset %ld", key, offset);
-			// Get msgs from exchange then send in HOOK_WAIT
-
-			cJSON_Delete(root);
-			nng_msg_free(msg);
 			work->state = HOOK_WAIT;
+			nng_aio_finish(work->aio, 0);
 			break;
 		}
 
@@ -220,6 +209,24 @@ webhook_cb(void *arg)
 		break;
 	case HOOK_WAIT:
 		//MQ
+		work->msg = nng_aio_get_msg(work->aio);
+		msg = work->msg;
+		body = (char *) nng_msg_body(msg);
+		// Update the position
+		body += strlen(EXTERNAL2NANO_IPC);
+
+		cJSON *root = cJSON_Parse(body);
+		uint32_t key = cJSON_GetObjectItem(root,"key")->valueint;
+		uint32_t offset = cJSON_GetObjectItem(root,"offset")->valueint;
+		log_warn("key %ld offset %ld", key, offset);
+		// Get msgs from exchange then send in HOOK_WAIT
+
+		cJSON_Delete(root);
+		nng_msg_free(msg);
+		work->msg   = NULL;
+		// Start next recv
+		work->state = HOOK_RECV;
+		nng_recv_aio(work->sock, work->aio);
 		break;
 	default:
 		NANO_NNG_FATAL("bad state!", NNG_ESTATE);
