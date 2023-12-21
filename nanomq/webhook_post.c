@@ -293,8 +293,6 @@ hook_entry(nano_work *work, uint8_t reason)
 
 				ex_sock = ex_conf->nodes[i]->sock;
 				nng_send_aio(*ex_sock, aio);
-				if (g_msg_index % 2000 == 0)
-					printf("%d msgs in exchange\n", g_msg_index);
 				break;
 			}
 		}
