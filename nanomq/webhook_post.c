@@ -259,9 +259,9 @@ hook_entry(nano_work *work, uint8_t reason)
 	nng_socket    *ex_sock;
 
 	// process MQ msg first, only pub msg is valid
-	// CMD_PUBLISHV5?
-	if (ex_conf->count > 0 && nng_msg_get_type(work->msg) == CMD_PUBLISH &&
-	    work->flag == CMD_PUBLISH) {
+	// discard online/offline event msg?
+	if (ex_conf->count > 0 && (work->flag == CMD_PUBLISH)
+		&& nng_msg_get_type(work->msg) == CMD_PUBLISH) {
 		// dup msg for now, TODO or reuse it?
 		nng_msg *msg;
 		nng_msg_alloc(&msg, 0);
