@@ -234,19 +234,20 @@ webhook_cb(void *arg)
 		// TODO Find right socket
 		nng_aio *aio;
 		nng_aio_alloc(&aio, NULL, NULL);
-		nng_aio_set_prov_data(aio, (uintptr_t)key);
+		nng_aio_set_prov_data(aio, (void *)(uintptr_t)key);
 		nng_aio_set_msg(aio, (nng_msg *)(uintptr_t)offset);
 		// search msgs from MQ
-		nng_recv_aio(ex_sock, aio);
+		nng_recv_aio(*ex_sock, aio);
 
 		nng_aio_wait(aio);
-		nng_msg **msgs_res = nng_aio_get_msg(aio);
+		nng_msg **msgs_res = (nng_msg **)nng_aio_get_msg(aio);
 		uint32_t  msgs_len = (uintptr_t)nng_aio_get_prov_data(aio);
 
 		nng_aio_free(aio);
 		for (int i=0; i<msgs_len; ++i) {
 			nng_msg_free(msgs_res[i]);
 		}
+		nng_free(msgs_res, sizeof(nng_msg) * msgs_len);
 
 		cJSON_Delete(root);
 		nng_msg_free(msg);
