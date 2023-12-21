@@ -208,9 +208,20 @@ webhook_cb(void *arg)
 		nng_recv_aio(work->sock, work->aio);
 		break;
 	case HOOK_WAIT:
-		//MQ
+		// Search on MQ and Parquet
 		work->msg = nng_aio_get_msg(work->aio);
-		msg = work->msg;
+		msg       = work->msg;
+		work->msg = NULL;
+
+		nng_socket *ex_sock = exconf->nodes[0]->sock;
+		if (exconf->count == 0) {
+			log_error("Exchange is not enabled");
+			nng_msg_free(msg);
+			// Start next recv
+			work->state = HOOK_RECV;
+			nng_recv_aio(work->sock, work->aio);
+		}
+
 		body = (char *) nng_msg_body(msg);
 		// Update the position
 		body += strlen(EXTERNAL2NANO_IPC);
@@ -219,11 +230,26 @@ webhook_cb(void *arg)
 		uint32_t key = cJSON_GetObjectItem(root,"key")->valueint;
 		uint32_t offset = cJSON_GetObjectItem(root,"offset")->valueint;
 		log_warn("key %ld offset %ld", key, offset);
-		// Get msgs from exchange then send in HOOK_WAIT
+
+		// TODO Find right socket
+		nng_aio *aio;
+		nng_aio_alloc(&aio, NULL, NULL);
+		nng_aio_set_prov_data(aio, (uintptr_t)key);
+		nng_aio_set_msg(aio, (nng_msg *)(uintptr_t)offset);
+		// search msgs from MQ
+		nng_recv_aio(ex_sock, aio);
+
+		nng_aio_wait(aio);
+		nng_msg **msgs_res = nng_aio_get_msg(aio);
+		uint32_t  msgs_len = (uintptr_t)nng_aio_get_prov_data(aio);
+
+		nng_aio_free(aio);
+		for (int i=0; i<msgs_len; ++i) {
+			nng_msg_free(msgs_res[i]);
+		}
 
 		cJSON_Delete(root);
 		nng_msg_free(msg);
-		work->msg   = NULL;
 		// Start next recv
 		work->state = HOOK_RECV;
 		nng_recv_aio(work->sock, work->aio);
