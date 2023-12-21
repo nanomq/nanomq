@@ -23,6 +23,10 @@
 #include "nng/supplemental/nanolib/utils.h"
 #include "nng/supplemental/util/platform.h"
 
+#ifdef SUPP_PARQUET
+#include "nng/supplemental/nanolib/parquet.h"
+#endif
+
 #define NANO_LMQ_INIT_CAP 16
 #define EXTERNAL2NANO_IPC "IPC://EXTERNAL2NANO:"
 
@@ -242,12 +246,27 @@ webhook_cb(void *arg)
 		nng_aio_wait(aio);
 		nng_msg **msgs_res = (nng_msg **)nng_aio_get_msg(aio);
 		uint32_t  msgs_len = (uintptr_t)nng_aio_get_prov_data(aio);
-
 		nng_aio_free(aio);
-		for (int i=0; i<msgs_len; ++i) {
-			nng_msg_free(msgs_res[i]);
+
+		// Get msgs and send to localhost:1883 to active handler
+		if (msgs_len > 0 && msgs_res != NULL) {
+			for (int i=0; i<msgs_len; ++i) {
+				// TODO NEED Clone before took from exchange
+				// nng_msg_free(msgs_res[i]);
+			}
+			nng_free(msgs_res, sizeof(nng_msg *) * msgs_len);
+#ifdef SUPP_PARQUET
+		} else {
+			// TODO Ask Parquet
+			// Get file names and send to localhost:1883 to active handler
+			if (offset == 0) {
+				char *fname = parquet_find(key);
+			} else {
+				uint32_t sz;
+				char **fname = parquet_find(key, offset, &sz);
+			}
+#endif
 		}
-		nng_free(msgs_res, sizeof(nng_msg) * msgs_len);
 
 		cJSON_Delete(root);
 		nng_msg_free(msg);
