@@ -289,6 +289,7 @@ hook_entry(nano_work *work, uint8_t reason)
 				nng_aio_wait(aio);
 
 				nng_aio_set_prov_data(aio, (void *)(uintptr_t)nkey);
+				nng_msg_clone(msg);
 				nng_aio_set_msg(aio, msg);
 
 				ex_sock = ex_conf->nodes[i]->sock;
@@ -296,7 +297,9 @@ hook_entry(nano_work *work, uint8_t reason)
 				break;
 			}
 		}
+		nng_msg_free(msg); // Cloned for each exchange before
 	}
+
 	if (!hook_conf->enable)
 		return 0;
 	switch (work->flag) {
