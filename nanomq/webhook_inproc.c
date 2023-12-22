@@ -374,6 +374,9 @@ webhook_cb(void *arg)
 				nng_msg_clone(msgs_res[i]);
 
 			send_mqtt_msg_cat(work->mqtt_sock, "$file/upload/webhook", msgs_res, msgs_len);
+
+			for (int i=0; i<msgs_len; ++i)
+				nng_msg_free(msgs_res[i]);
 			nng_free(msgs_res, sizeof(nng_msg *) * msgs_len);
 #ifdef SUPP_PARQUET
 		} else {
@@ -394,6 +397,9 @@ webhook_cb(void *arg)
 			}
 			if (fnames) {
 				send_mqtt_msg_file(work->mqtt_sock, "$file/upload/webhook", fnames, sz);
+				for (int i=0; i<(int)sz; ++i)
+					nng_free((void *)fnames[i], 0);
+				nng_free(fnames, sz);
 			}
 #endif
 		}
