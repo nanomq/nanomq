@@ -55,27 +55,6 @@ static void webhook_cb(void *arg);
 
 static nng_thread *inproc_thr;
 
-static char *
-get_file_bname(char *fpath)
-{
-        char * bname;
-#ifdef _WIN32
-        if ((bname = malloc(strlen(fpath)+16)) == NULL) return NULL;
-        char ext[16];
-        _splitpath_s(fpath,
-                NULL, 0,    // Don't need drive
-                NULL, 0,    // Don't need directory
-                bname, strlen(fpath) + 15,  // just the filename
-                ext  , 15);
-        strncpy(bname+strlen(bname), ext, 15);
-#else
-		#include <libgen.h>
-        // strcpy(bname, basename(fpath));
-        bname = basename(fpath);
-#endif
-        return bname;
-}
-
 static int
 send_mqtt_msg_cat(nng_socket *sock, const char *topic, nng_msg **msgs, uint32_t len)
 {
@@ -117,11 +96,33 @@ send_mqtt_msg_cat(nng_socket *sock, const char *topic, nng_msg **msgs, uint32_t 
 	return rv;
 }
 
+#ifdef SUPP_PARQUET
+
+static char *
+get_file_bname(char *fpath)
+{
+        char * bname;
+#ifdef _WIN32
+        if ((bname = malloc(strlen(fpath)+16)) == NULL) return NULL;
+        char ext[16];
+        _splitpath_s(fpath,
+                NULL, 0,    // Don't need drive
+                NULL, 0,    // Don't need directory
+                bname, strlen(fpath) + 15,  // just the filename
+                ext  , 15);
+        strncpy(bname+strlen(bname), ext, 15);
+#else
+		#include <libgen.h>
+        // strcpy(bname, basename(fpath));
+        bname = basename(fpath);
+#endif
+        return bname;
+}
+
 static int
 send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uint32_t len)
 {
 	int rv;
-	uint32_t sz = 64;
 	const char ** filenames = malloc(sizeof(char *) * len);
 	for (int i=0; i<len; ++i) {
 		filenames[i] = get_file_bname((char *)fpaths[i]);
@@ -167,6 +168,8 @@ send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uin
 
 	return rv;
 }
+
+#endif
 
 static void
 send_msg(conf_web_hook *conf, nng_msg *msg)
