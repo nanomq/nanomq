@@ -59,8 +59,8 @@ static char *
 get_file_bname(char *fpath)
 {
         char * bname;
-        // if ((bname = malloc(strlen(fpath)+16)) == NULL) return NULL;
 #ifdef _WIN32
+        if ((bname = malloc(strlen(fpath)+16)) == NULL) return NULL;
         char ext[16];
         _splitpath_s(fpath,
                 NULL, 0,    // Don't need drive
@@ -81,7 +81,7 @@ send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uin
 {
 	int rv;
 	uint32_t sz = 64;
-	char ** filenames = malloc(sizeof(char *) * len);
+	const char ** filenames = malloc(sizeof(char *) * len);
 	for (int i=0; i<len; ++i) {
 		filenames[i] = get_file_bname((char *)fpaths[i]);
 	}
@@ -93,7 +93,7 @@ send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uin
 	if (!files_obj)
 		return -1;
 
-	cJSON *filenames_obj = cJSON_CreateStringArray(fpaths, len);
+	cJSON *filenames_obj = cJSON_CreateStringArray(filenames, len);
 	if (!filenames_obj)
 		return -1;
 	cJSON_AddItemToObject(obj, "filenames", filenames_obj);
@@ -118,10 +118,11 @@ send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uin
 	//property *plist = mqtt_property_alloc();
 	//nng_mqtt_msg_set_publish_property(pubmsg, plist);
 
-	log_info("Publishing to '%s' ...\n", topic);
+	log_info("Publishing to '%s' '%s'...\n", topic, buf);
 	if ((rv = nng_sendmsg(*sock, pubmsg, 0)) != 0) {
 		log_error("nng_sendmsg", rv);
 	}
+	free(buf);
 
 	return rv;
 }
