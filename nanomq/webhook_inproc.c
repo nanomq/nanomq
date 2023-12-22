@@ -23,6 +23,8 @@
 #include "nng/supplemental/nanolib/utils.h"
 #include "nng/supplemental/util/platform.h"
 
+#include "nng/mqtt/mqtt_client.h"
+
 #ifdef SUPP_PARQUET
 #include "nng/supplemental/nanolib/parquet.h"
 #endif
@@ -45,11 +47,43 @@ struct hook_work {
 	uint32_t       id;
 	bool           busy;
 	conf_exchange *exchange;
+	nng_socket    *mqtt_sock;
 };
 
 static void webhook_cb(void *arg);
 
 static nng_thread *inproc_thr;
+
+static int
+send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uint32_t len)
+{
+	int rv;
+	uint32_t sz = 64;
+	for (int i=0; i<len; ++i) {
+		sz += strlen(fpaths[i]);
+	}
+	char *buf = malloc(sizeof(char) * sz);
+
+	// create a PUBLISH message
+	nng_msg *pubmsg;
+	nng_mqtt_msg_alloc(&pubmsg, 0);
+	nng_mqtt_msg_set_packet_type(pubmsg, NNG_MQTT_PUBLISH);
+	nng_mqtt_msg_set_publish_dup(pubmsg, 0);
+	nng_mqtt_msg_set_publish_qos(pubmsg, 0);
+	nng_mqtt_msg_set_publish_retain(pubmsg, 0);
+	nng_mqtt_msg_set_publish_payload(
+	    pubmsg, (uint8_t *) buf, strlen(buf));
+	nng_mqtt_msg_set_publish_topic(pubmsg, topic);
+	//property *plist = mqtt_property_alloc();
+	//nng_mqtt_msg_set_publish_property(pubmsg, plist);
+
+	log_info("Publishing to '%s' ...\n", topic);
+	if ((rv = nng_sendmsg(*sock, pubmsg, 0)) != 0) {
+		log_error("nng_sendmsg", rv);
+	}
+
+	return rv;
+}
 
 static void
 send_msg(conf_web_hook *conf, nng_msg *msg)
@@ -171,6 +205,7 @@ webhook_cb(void *arg)
 	int               rv;
 	char *            body;
 	conf_exchange *   exconf = work->exchange;
+	conf_web_hook *   hook_conf = work->conf;
 	nng_msg *         msg;
 
 	switch (work->state) {
@@ -259,11 +294,20 @@ webhook_cb(void *arg)
 		} else {
 			// TODO Ask Parquet
 			// Get file names and send to localhost:1883 to active handler
+			const char **fnames = NULL;
+			uint32_t sz;
 			if (offset == 0) {
-				char *fname = parquet_find(key);
+				sz = 1;
+				const char *fname = parquet_find(key);
+				if (fname) {
+					fnames = malloc(sizeof(char *) * sz);
+					fnames[0] = fname;
+				}
 			} else {
-				uint32_t sz;
-				char **fname = parquet_find(key, offset, &sz);
+				fnames = parquet_find_span(key, offset, &sz);
+			}
+			if (fnames) {
+				send_mqtt_msg_file(work->mqtt_sock, "$file/upload/webhook", fnames, sz);
 			}
 #endif
 		}
@@ -278,6 +322,43 @@ webhook_cb(void *arg)
 		NANO_NNG_FATAL("bad state!", NNG_ESTATE);
 		break;
 	}
+}
+
+static nng_msg *
+create_connect_msg()
+{
+	// create a CONNECT message
+	/* CONNECT */
+	nng_msg *connmsg;
+	nng_mqtt_msg_alloc(&connmsg, 0);
+	nng_mqtt_msg_set_packet_type(connmsg, NNG_MQTT_CONNECT);
+	nng_mqtt_msg_set_connect_proto_version(connmsg, 4);
+	nng_mqtt_msg_set_connect_client_id(connmsg, "hook-trigger");
+	nng_mqtt_msg_encode(connmsg);
+	return connmsg;
+}
+
+static void
+trigger_tcp_disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
+{
+	int reason = 0;
+	// get disconnect reason
+	nng_pipe_get_int(p, NNG_OPT_MQTT_DISCONNECT_REASON, &reason);
+	// property *prop;
+	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_DISCONNECT_PROPERTY, &prop);
+	log_warn("bridge client disconnected! RC [%d] \n", reason);
+}
+
+static void
+trigger_tcp_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
+{
+	int           reason = 0;
+	// get connect reason
+	nng_pipe_get_int(p, NNG_OPT_MQTT_CONNECT_REASON, &reason);
+	// get property for MQTT V5
+	// property *prop;
+	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_CONNECT_PROPERTY, &prop);
+	log_info("trigger connected! RC [%d]", reason);
 }
 
 static struct hook_work *
@@ -316,6 +397,7 @@ webhook_thr(void *arg)
 {
 	conf              *conf = arg;
 	nng_socket         sock;
+	nng_socket         mqtt_sock;
 	struct hook_work **works =
 	    nng_zalloc(conf->web_hook.pool_size * sizeof(struct hook_work *));
 
@@ -325,13 +407,37 @@ webhook_thr(void *arg)
 	/*  Create the socket. */
 	rv = nng_pull0_open(&sock);
 	if (rv != 0) {
-		log_error("nng_rep0_open %d", rv);
+		log_error("nng_pull0_open %d", rv);
 		return;
 	}
+
+	/* Create a mqtt sock */
+	rv = nng_mqtt_client_open(&mqtt_sock);
+	if (rv != 0) {
+		log_error("nng_mqtt_client_open %d", rv);
+		return;
+	}
+	nng_dialer dialer;
+	if ((rv = nng_dialer_create(&dialer, mqtt_sock, "mqtt-tcp://127.0.0.1:1883"))) {
+		log_error("nng_dialer_create failed %d", rv);
+		return;
+	}
+	// nng_duration duration = (nng_duration) node->backoff_max * 1000;
+	// nng_dialer_set(dialer, NNG_OPT_MQTT_RECONNECT_BACKOFF_MAX, &duration, sizeof(nng_duration));
+
+	nng_msg *connmsg = create_connect_msg();
+	if (0 != nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg)) {
+		log_warn("Error in updating connmsg");
+	}
+	nng_mqtt_set_connect_cb(mqtt_sock, trigger_tcp_connect_cb, NULL);
+	nng_mqtt_set_disconnect_cb(mqtt_sock, trigger_tcp_disconnect_cb, NULL);
+
+	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
 
 	for (i = 0; i < conf->web_hook.pool_size; i++) {
 		works[i] = alloc_work(sock, &conf->web_hook, &conf->exchange);
 		works[i]->id = i;
+		works[i]->mqtt_sock = &mqtt_sock;
 	}
 	// NanoMQ core thread talks to others via INPROC
 	if ((rv = nng_listen(sock, WEB_HOOK_INPROC_URL, NULL, 0)) != 0) {
