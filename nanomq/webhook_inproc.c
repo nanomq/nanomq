@@ -364,10 +364,6 @@ webhook_cb(void *arg)
 		nng_recv_aio(*ex_sock, aio);
 
 		nng_aio_wait(aio);
-		if (nng_aio_result(aio) != 0) {
-			nng_aio_free(aio);
-			goto skip;
-		}
 
 		nng_msg **msgs_res = (nng_msg **)nng_aio_get_msg(aio);
 		uint32_t  msgs_len = (uintptr_t)nng_aio_get_prov_data(aio);
@@ -381,7 +377,7 @@ webhook_cb(void *arg)
 			for (int i=0; i<msgs_len; ++i)
 				nng_msg_clone(msgs_res[i]);
 
-			send_mqtt_msg_cat(work->mqtt_sock, "$file/upload/webhook", msgs_res, msgs_len);
+			send_mqtt_msg_cat(work->mqtt_sock, "file_transfer", msgs_res, msgs_len);
 
 			for (int i=0; i<msgs_len; ++i)
 				nng_msg_free(msgs_res[i]);
@@ -404,7 +400,7 @@ webhook_cb(void *arg)
 				fnames = parquet_find_span(key, offset, &sz);
 			}
 			if (fnames) {
-				send_mqtt_msg_file(work->mqtt_sock, "$file/upload/webhook", fnames, sz);
+				send_mqtt_msg_file(work->mqtt_sock, "file_transfer", fnames, sz);
 				for (int i=0; i<(int)sz; ++i)
 					nng_free((void *)fnames[i], 0);
 				nng_free(fnames, sz);
