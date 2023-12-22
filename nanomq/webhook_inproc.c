@@ -115,8 +115,8 @@ send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uin
 	nng_mqtt_msg_set_publish_payload(
 	    pubmsg, (uint8_t *) buf, strlen(buf));
 	nng_mqtt_msg_set_publish_topic(pubmsg, topic);
-	//property *plist = mqtt_property_alloc();
-	//nng_mqtt_msg_set_publish_property(pubmsg, plist);
+	// property *plist = mqtt_property_alloc();
+	// nng_mqtt_msg_set_publish_property(pubmsg, plist);
 
 	log_info("Publishing to '%s' '%s'...\n", topic, buf);
 	if ((rv = nng_sendmsg(*sock, pubmsg, 0)) != 0) {
@@ -152,8 +152,8 @@ send_msg(conf_web_hook *conf, nng_msg *msg)
 	nng_http_client_connect(client, aio);
 
 	// Wait for it to finish.
-
 	nng_aio_wait(aio);
+
 	if ((rv = nng_aio_result(aio)) != 0) {
 		log_error("Connect failed: %s", nng_strerror(rv));
 		nng_aio_finish_sync(aio, rv);
@@ -247,7 +247,6 @@ webhook_cb(void *arg)
 	int               rv;
 	char *            body;
 	conf_exchange *   exconf = work->exchange;
-	conf_web_hook *   hook_conf = work->conf;
 	nng_msg *         msg;
 
 	switch (work->state) {
@@ -327,8 +326,14 @@ webhook_cb(void *arg)
 
 		// Get msgs and send to localhost:1883 to active handler
 		if (msgs_len > 0 && msgs_res != NULL) {
+			log_info("Publishing %ld msgs took from exchange...", msgs_len);
 			for (int i=0; i<msgs_len; ++i) {
-				// TODO NEED Clone before took from exchange
+				// TODO NEED Clone before took from exchange instead of here
+				nng_msg_clone(msgs_res[i]);
+
+				if ((rv = nng_sendmsg(*work->mqtt_sock, msgs_res[i], 0)) != 0) {
+					log_error("nng_sendmsg", rv);
+				}
 				// nng_msg_free(msgs_res[i]);
 			}
 			nng_free(msgs_res, sizeof(nng_msg *) * msgs_len);
