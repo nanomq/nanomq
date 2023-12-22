@@ -18,6 +18,7 @@
 #include "nng/protocol/pipeline0/pull.h"
 #include "nng/protocol/pipeline0/push.h"
 #include "nng/supplemental/http/http.h"
+#include "nng/supplemental/nanolib/cJSON.h"
 #include "nng/supplemental/nanolib/conf.h"
 #include "nng/supplemental/nanolib/log.h"
 #include "nng/supplemental/nanolib/utils.h"
@@ -54,15 +55,55 @@ static void webhook_cb(void *arg);
 
 static nng_thread *inproc_thr;
 
+static char *
+get_file_bname(char *fpath)
+{
+        char * bname;
+        // if ((bname = malloc(strlen(fpath)+16)) == NULL) return NULL;
+#ifdef _WIN32
+        char ext[16];
+        _splitpath_s(fpath,
+                NULL, 0,    // Don't need drive
+                NULL, 0,    // Don't need directory
+                bname, strlen(fpath) + 15,  // just the filename
+                ext  , 15);
+        strcpy(bname+strlen(bname), ext, 15);
+#else
+		#include <libgen.h>
+        // strcpy(bname, basename(fpath));
+        bname = basename(fpath);
+#endif
+        return bname;
+}
+
 static int
 send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uint32_t len)
 {
 	int rv;
 	uint32_t sz = 64;
+	char ** filenames = malloc(sizeof(char *) * len);
 	for (int i=0; i<len; ++i) {
-		sz += strlen(fpaths[i]);
+		filenames[i] = get_file_bname((char *)fpaths[i]);
 	}
-	char *buf = malloc(sizeof(char) * sz);
+
+	// Create a json as payload to trigger file transport
+	cJSON *obj = cJSON_CreateObject();
+	cJSON *files_obj = cJSON_CreateStringArray(fpaths, len);
+	cJSON_AddItemToObject(obj, "files", files_obj);
+	if (!files_obj)
+		return -1;
+
+	cJSON *filenames_obj = cJSON_CreateStringArray(fpaths, len);
+	if (!filenames_obj)
+		return -1;
+	cJSON_AddItemToObject(obj, "filenames", filenames_obj);
+	cJSON * delete_obj = cJSON_AddNumberToObject(obj, "delete", -1);
+
+	char *buf = cJSON_PrintUnformatted(obj);
+	cJSON_Delete(obj);
+	for (int i=0; i<len; ++i)
+		filenames[i];
+	free(filenames);
 
 	// create a PUBLISH message
 	nng_msg *pubmsg;
