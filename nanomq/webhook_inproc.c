@@ -67,7 +67,7 @@ get_file_bname(char *fpath)
                 NULL, 0,    // Don't need directory
                 bname, strlen(fpath) + 15,  // just the filename
                 ext  , 15);
-        strcpy(bname+strlen(bname), ext, 15);
+        strncpy(bname+strlen(bname), ext, 15);
 #else
 		#include <libgen.h>
         // strcpy(bname, basename(fpath));
