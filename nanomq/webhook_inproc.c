@@ -73,14 +73,16 @@ send_mqtt_msg_cat(nng_socket *sock, const char *topic, nng_msg **msgs, uint32_t 
 		uint32_t diff;
 		diff = nng_msg_len(msgs[i]) -
 			((uintptr_t)nng_msg_payload_ptr(msgs[i]) - (uintptr_t) nng_msg_body(msgs[i]));
-		memcpy(buf + pos, nng_msg_payload_ptr(msgs[i]), diff);
+		if (sz >= pos + diff)
+			memcpy(buf + pos, nng_msg_payload_ptr(msgs[i]), diff);
+		else
+			log_error("buffer overflow!");
 		pos += diff;
 	}
 
 	nng_mqtt_msg_alloc(&pubmsg, 0);
 	nng_mqtt_msg_set_packet_type(pubmsg, NNG_MQTT_PUBLISH);
-	nng_mqtt_msg_set_publish_dup(pubmsg, 0);
-	nng_mqtt_msg_set_publish_qos(pubmsg, 0);
+	nng_mqtt_msg_set_publish_qos(pubmsg, 1);
 	nng_mqtt_msg_set_publish_retain(pubmsg, 0);
 	nng_mqtt_msg_set_publish_payload(pubmsg, (uint8_t *) buf, pos);
 	nng_mqtt_msg_set_publish_topic(pubmsg, topic);
@@ -337,13 +339,12 @@ webhook_cb(void *arg)
 		msg       = work->msg;
 		work->msg = NULL;
 
+		// TODO match exchange with IPC msg (by MQ name)
 		nng_socket *ex_sock = exconf->nodes[0]->sock;
 		if (exconf->count == 0) {
 			log_error("Exchange is not enabled");
 			nng_msg_free(msg);
-			// Start next recv
-			work->state = HOOK_RECV;
-			nng_recv_aio(work->sock, work->aio);
+			goto skip;
 		}
 
 		body = (char *) nng_msg_body(msg);
@@ -355,7 +356,6 @@ webhook_cb(void *arg)
 		uint32_t offset = cJSON_GetObjectItem(root,"offset")->valueint;
 		log_warn("key %ld offset %ld", key, offset);
 
-		// TODO Find right socket
 		nng_aio *aio;
 		nng_aio_alloc(&aio, NULL, NULL);
 		nng_aio_set_prov_data(aio, (void *)(uintptr_t)key);
@@ -364,6 +364,11 @@ webhook_cb(void *arg)
 		nng_recv_aio(*ex_sock, aio);
 
 		nng_aio_wait(aio);
+		if (nng_aio_result(aio) != 0) {
+			nng_aio_free(aio);
+			goto skip;
+		}
+
 		nng_msg **msgs_res = (nng_msg **)nng_aio_get_msg(aio);
 		uint32_t  msgs_len = (uintptr_t)nng_aio_get_prov_data(aio);
 		nng_aio_free(aio);
@@ -409,6 +414,7 @@ webhook_cb(void *arg)
 
 		cJSON_Delete(root);
 		nng_msg_free(msg);
+skip:
 		// Start next recv
 		work->state = HOOK_RECV;
 		nng_recv_aio(work->sock, work->aio);
@@ -513,13 +519,11 @@ webhook_thr(void *arg)
 		return;
 	}
 	nng_dialer dialer;
+	// need to expose url
 	if ((rv = nng_dialer_create(&dialer, mqtt_sock, "mqtt-tcp://127.0.0.1:1883"))) {
 		log_error("nng_dialer_create failed %d", rv);
 		return;
 	}
-	// nng_duration duration = (nng_duration) node->backoff_max * 1000;
-	// nng_dialer_set(dialer, NNG_OPT_MQTT_RECONNECT_BACKOFF_MAX, &duration, sizeof(nng_duration));
-
 	nng_msg *connmsg = create_connect_msg();
 	if (0 != nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg)) {
 		log_warn("Error in updating connmsg");
