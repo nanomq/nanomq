@@ -940,7 +940,10 @@ broker(conf *nanomq_conf)
 	// Exchange service
 	for (int i = 0; i < nanomq_conf->exchange.count; i++) {
 		conf_exchange_client_node *node = nanomq_conf->exchange.nodes[i];
-
+		if (node == NULL) {
+			log_error("Wrong exchange %d configuration!", i);
+			continue;
+		}
 		node->sock = (nng_socket *) nng_alloc(sizeof(nng_socket));
 		if ((rv = nng_exchange_client_open(node->sock)) != 0) {
 			log_error("nng_exchange_client_open failed %d", rv);
