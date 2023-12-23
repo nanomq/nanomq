@@ -1,4 +1,4 @@
-# NanoMQ
+# LF Edge NanoMQ
 
 [![GitHub Release](https://img.shields.io/github/release/emqx/nanomq?color=brightgreen&label=Release)](https://github.com/emqx/nanomq/releases)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/emqx/nanomq/build_packages.yaml?branch=master&label=Build)](https://github.com/emqx/nanomq/actions)
