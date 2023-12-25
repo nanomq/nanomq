@@ -86,12 +86,8 @@ send_mqtt_msg_cat(nng_socket *sock, const char *topic, nng_msg **msgs, uint32_t 
 	nng_mqtt_msg_set_publish_retain(pubmsg, 0);
 	nng_mqtt_msg_set_publish_payload(pubmsg, (uint8_t *) buf, pos);
 	nng_mqtt_msg_set_publish_topic(pubmsg, topic);
-	// property *plist = mqtt_property_alloc();
-	// nng_mqtt_msg_set_publish_property(pubmsg, plist);
 
-	// log_info("Publishing to '%s' '%s'...\n", topic, buf);
-
-	if ((rv = nng_sendmsg(*sock, pubmsg, 0)) != 0) {
+	if ((rv = nng_sendmsg(*sock, pubmsg, NNG_FLAG_ALLOC)) != 0) {
 		log_error("nng_sendmsg", rv);
 	}
 	nng_free(buf, pos);
@@ -159,11 +155,9 @@ send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uin
 	nng_mqtt_msg_set_publish_payload(
 	    pubmsg, (uint8_t *) buf, strlen(buf));
 	nng_mqtt_msg_set_publish_topic(pubmsg, topic);
-	// property *plist = mqtt_property_alloc();
-	// nng_mqtt_msg_set_publish_property(pubmsg, plist);
 
 	log_info("Publishing to '%s' '%s'...\n", topic, buf);
-	if ((rv = nng_sendmsg(*sock, pubmsg, 0)) != 0) {
+	if ((rv = nng_sendmsg(*sock, pubmsg, NNG_FLAG_ALLOC)) != 0) {
 		log_error("nng_sendmsg", rv);
 	}
 	free(buf);
