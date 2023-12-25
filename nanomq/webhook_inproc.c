@@ -156,7 +156,11 @@ send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uin
 	    pubmsg, (uint8_t *) buf, strlen(buf));
 	nng_mqtt_msg_set_publish_topic(pubmsg, topic);
 
-	log_info("Publishing to '%s' '%s'...\n", topic, buf);
+	if (strlen(buf) > 10)
+		log_info("Publishing to '%s' '%.*s...'", topic, 10, buf);
+	else
+		log_info("Publishing to '%s' '%s'", topic, buf);
+
 	if ((rv = nng_sendmsg(*sock, pubmsg, NNG_FLAG_ALLOC)) != 0) {
 		log_error("nng_sendmsg", rv);
 	}
@@ -378,31 +382,29 @@ webhook_cb(void *arg)
 			for (int i=0; i<msgs_len; ++i)
 				nng_msg_free(msgs_res[i]);
 			nng_free(msgs_res, sizeof(nng_msg *) * msgs_len);
-#ifdef SUPP_PARQUET
-		} else {
-			// TODO Ask Parquet
-			// Get file names and send to localhost:1883 to active handler
-			log_info("Ask parquet ...", msgs_len);
-			const char **fnames = NULL;
-			uint32_t sz;
-			if (offset == 0) {
-				sz = 1;
-				const char *fname = parquet_find(key);
-				if (fname) {
-					fnames = malloc(sizeof(char *) * sz);
-					fnames[0] = fname;
-				}
-			} else {
-				fnames = parquet_find_span(key, offset, &sz);
-			}
-			if (fnames) {
-				send_mqtt_msg_file(work->mqtt_sock, "file_transfer", fnames, sz);
-				for (int i=0; i<(int)sz; ++i)
-					nng_free((void *)fnames[i], 0);
-				nng_free(fnames, sz);
-			}
-#endif
 		}
+#ifdef SUPP_PARQUET
+		// Get file names and send to localhost:1883 to active handler
+		const char **fnames = NULL;
+		uint32_t sz;
+		if (offset == 0) {
+			sz = 1;
+			const char *fname = parquet_find(key);
+			if (fname) {
+				fnames = malloc(sizeof(char *) * sz);
+				fnames[0] = fname;
+			}
+		} else {
+			fnames = parquet_find_span(key, offset, &sz);
+		}
+		if (fnames) {
+			send_mqtt_msg_file(work->mqtt_sock, "file_transfer", fnames, sz);
+			for (int i=0; i<(int)sz; ++i)
+				nng_free((void *)fnames[i], 0);
+			nng_free(fnames, sz);
+			log_info("Ask parquet and found.");
+		}
+#endif
 
 		cJSON_Delete(root);
 		nng_msg_free(msg);
