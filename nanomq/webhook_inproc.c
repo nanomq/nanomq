@@ -398,11 +398,13 @@ webhook_cb(void *arg)
 			fnames = parquet_find_span(key, offset, &sz);
 		}
 		if (fnames) {
-			send_mqtt_msg_file(work->mqtt_sock, "file_transfer", fnames, sz);
+			if (sz > 0) {
+				log_info("Ask parquet and found.");
+				send_mqtt_msg_file(work->mqtt_sock, "file_transfer", fnames, sz);
+			}
 			for (int i=0; i<(int)sz; ++i)
 				nng_free((void *)fnames[i], 0);
 			nng_free(fnames, sz);
-			log_info("Ask parquet and found.");
 		}
 #endif
 
