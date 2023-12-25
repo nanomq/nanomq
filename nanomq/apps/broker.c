@@ -553,7 +553,7 @@ server_cb(void *arg)
 		if (nng_msg_get_type(work->msg) == CMD_PUBLISH) {
 			if ((rv = nng_aio_result(work->aio)) != 0) {
 				log_error("WAIT nng aio result error: %d", rv);
-				NANO_NNG_FATAL("WAIT nng_ctx_recv/send", rv);
+				NANO_NNG_FATAL("WAIT nng_ctx_recv/send", rv);	// shall nerver reach here
 			}
 			smsg      = work->msg; // reuse the same msg
 			cvector(mqtt_msg_info) msg_infos;
@@ -642,7 +642,7 @@ server_cb(void *arg)
 			work->msg = NULL;
 		}
 		if ((rv = nng_aio_result(work->aio)) != 0) {
-			NANO_NNG_FATAL("SEND nng_ctx_send", rv);
+			log_error("SEND nng_ctx_send error %d", rv);
 		}
 		if (work->pub_packet != NULL) {
 			free_pub_packet(work->pub_packet);
@@ -870,43 +870,6 @@ void *fileTransfer_cli(void *extra)
 }
 #endif
 
-#include <signal.h>
-#include <errno.h>
-
-static const all_signals[] = {
-#ifdef SIGHUP
-	SIGHUP,  /* POSIX.1 */
-#endif
-#ifdef SIGQUIT
-	SIGQUIT, /* POSIX.1 */
-#endif
-#ifdef SIGTRAP
-	SIGTRAP, /* POSIX.1 */
-#endif
-#ifdef SIGIO
-	SIGIO,   /* BSD/Linux */
-#endif
-
-/*
- * Other signal names omitted for brevity
-*/
-
-/* C89/C99/C11 standard signals: */
-	SIGABRT,
-	SIGFPE,
-	SIGILL,
-	SIGINT,
-	SIGSEGV,
-/* SIGTERM (C89/C99/C11) is also the terminating signal number */
-	SIGTERM
-};
-
-int sig_handler(int signum)
-{
-	log_error("signal caught!!!! signumber: %d\n", signum);
-    exit(EXIT_FAILURE);
-}
-
 int
 broker(conf *nanomq_conf)
 {
@@ -919,21 +882,6 @@ broker(conf *nanomq_conf)
 	nanomq_conf->total_ctx = nanomq_conf->parallel;		// match with num of aio
 	num_work = nanomq_conf->parallel;					// match with num of works
 
-	log_error("NanoMQ Broker is starting...!\n");
-
-	struct sigaction  act;
-	i = 0;
-
-	memset(&act, 0, sizeof act);
-	sigemptyset(&act.sa_mask);
-	act.sa_handler = sig_handler;
-	act.sa_flags = 0;
-
-	do {
-		if (sigaction(all_signals[i], &act, NULL)) {
-			fprintf(stderr, "Cannot install signal %d handler: %s.\n", all_signals[i], strerror(errno));
-		}
-	} while (all_signals[i++] != SIGTERM);
 
 #if defined(SUPP_RULE_ENGINE)
 	conf_rule *cr = &nanomq_conf->rule_eng;
