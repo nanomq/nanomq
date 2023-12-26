@@ -352,7 +352,14 @@ webhook_cb(void *arg)
 		cJSON *root = cJSON_Parse(body);
 		char *keystr = cJSON_GetObjectItem(root,"key")->valuestring;
 		uint64_t key;
-		sscanf(keystr, "%I64x", &key);
+		if (keystr) {
+			sscanf(keystr, "%I64x", &key);
+			free(keystr);
+		} else {
+			log_error("error in paring key in json");
+			nng_msg_free(msg);
+			goto skip;
+		}
 		uint32_t offset = cJSON_GetObjectItem(root,"offset")->valueint;
 		log_warn("key %lld offset %ld", key, offset);
 
