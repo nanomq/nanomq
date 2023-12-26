@@ -281,7 +281,7 @@ hook_entry(nano_work *work, uint8_t reason)
 
 				nng_mtx_lock(hook_conf->ex_mtx);
 				nng_time ts = nng_timestamp();
-				nkey = ts / 1000;
+				nkey = ts & 0xFFFFFFFF;
 				nng_mtx_unlock(hook_conf->ex_mtx);
 
 				nng_aio_wait(aio);

@@ -350,7 +350,11 @@ webhook_cb(void *arg)
 		body += strlen(EXTERNAL2NANO_IPC);
 
 		cJSON *root = cJSON_Parse(body);
-		uint32_t key = cJSON_GetObjectItem(root,"key")->valueint;
+		char *keystr = cJSON_GetObjectItem(root,"key")->valuestring;
+		uint64_t k64;
+		sscanf(keystr, "%I64x", &k64);
+		uint32_t key = k64 & 0xFFFFFFFF;
+
 		uint32_t offset = cJSON_GetObjectItem(root,"offset")->valueint;
 		log_warn("key %ld offset %ld", key, offset);
 
