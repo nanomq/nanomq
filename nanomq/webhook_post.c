@@ -246,8 +246,6 @@ webhook_client_disconnect(nng_socket *sock, conf_web_hook *hook_conf,
 	return rv;
 }
 
-static uint32_t g_msg_index = 0;
-
 inline int
 hook_entry(nano_work *work, uint8_t reason)
 {
@@ -282,8 +280,8 @@ hook_entry(nano_work *work, uint8_t reason)
 				uint32_t nkey; // should be uint32_t
 
 				nng_mtx_lock(hook_conf->ex_mtx);
-				nkey = g_msg_index++;
-				// nkey = (uint32_t)(nng_clock() & 0xFFFFFFFF);
+				nng_time ts = nng_timestamp();
+				nkey = ts / 1000;
 				nng_mtx_unlock(hook_conf->ex_mtx);
 
 				nng_aio_wait(aio);
