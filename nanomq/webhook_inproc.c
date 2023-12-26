@@ -350,14 +350,20 @@ webhook_cb(void *arg)
 		body += strlen(EXTERNAL2NANO_IPC);
 
 		cJSON *root = cJSON_Parse(body);
-		uint32_t key = cJSON_GetObjectItem(root,"key")->valueint;
+		char *keystr = cJSON_GetObjectItem(root,"key")->valuestring;
+		uint64_t key;
+		sscanf(keystr, "%I64x", &key);
 		uint32_t offset = cJSON_GetObjectItem(root,"offset")->valueint;
-		log_warn("key %ld offset %ld", key, offset);
+		log_warn("key %lld offset %ld", key, offset);
+
+		nng_msg *m;
+		nng_msg_alloc(&m, 0);
+		nng_msg_set_timestamp(m, key);
+		nng_msg_set_proto_data(m, NULL, (void *)(uintptr_t)offset);
 
 		nng_aio *aio;
 		nng_aio_alloc(&aio, NULL, NULL);
-		nng_aio_set_prov_data(aio, (void *)(uintptr_t)key);
-		nng_aio_set_msg(aio, (nng_msg *)(uintptr_t)offset);
+		nng_aio_set_msg(aio, m);
 		// search msgs from MQ
 		nng_recv_aio(*ex_sock, aio);
 

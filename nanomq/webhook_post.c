@@ -268,6 +268,8 @@ hook_entry(nano_work *work, uint8_t reason)
 		uint8_t *body_ptr = nng_msg_body(work->msg);
 		ptrdiff_t offset = (ptrdiff_t)(nng_msg_payload_ptr(work->msg) - body_ptr);
 		nng_msg_set_payload_ptr(msg, (uint8_t *)nng_msg_body(msg) + offset);
+		nng_time ts = nng_timestamp();
+		nng_msg_set_timestamp(msg, ts);
 
 		for (size_t i = 0; i < ex_conf->count; i++) {
 			if (topic_filter(ex_conf->nodes[i]->exchange->topic,
@@ -277,16 +279,8 @@ hook_entry(nano_work *work, uint8_t reason)
 					log_error("parallel %d idx %d", work->config->parallel);	// shall be a bug if triggered
 
 				nng_aio  *aio = hook_conf->saios[work->ctx.id-1];
-				uint32_t nkey; // should be uint32_t
-
-				nng_mtx_lock(hook_conf->ex_mtx);
-				nng_time ts = nng_timestamp();
-				nkey = ts / 1000;
-				nng_mtx_unlock(hook_conf->ex_mtx);
-
 				nng_aio_wait(aio);
 
-				nng_aio_set_prov_data(aio, (void *)(uintptr_t)nkey);
 				nng_msg_clone(msg);
 				nng_aio_set_msg(aio, msg);
 
@@ -336,7 +330,7 @@ flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio)
 {
 	nng_msg * msg;
 	void    **datas;
-	uint32_t *keys;
+	uint64_t *keys;
 	uint32_t *lens;
 
 	if (nng_aio_busy(aio)) {
@@ -350,7 +344,7 @@ flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio)
 		return NNG_EBUSY;
 	}
 
-	keys = nng_alloc(sizeof(uint32_t)* len);
+	keys = nng_alloc(sizeof(uint64_t)* len);
 	datas = nng_alloc(sizeof(void *) * len);
 	lens = nng_alloc(sizeof(uint32_t) * len);
 	if (!datas || !keys || !lens)
@@ -364,7 +358,7 @@ flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio)
 		datas[len2] = nng_msg_payload_ptr(msg);
 		lens[len2] = nng_msg_len(msg) -
 		        (nng_msg_payload_ptr(msg) - (uint8_t *)nng_msg_body(msg));
-		keys[len2] = (uint32_t)(uintptr_t)nng_msg_get_proto_data(msg);
+		keys[len2] = nng_msg_get_timestamp(msg);
 		len2 ++;
 	}
 
@@ -375,7 +369,7 @@ flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio)
 	}
 
 	if (len2 > 0)
-		log_warn("flush to parquet %d...", keys[0]);
+		log_warn("flush to parquet %lld...", keys[0]);
 	// write to disk
 	parquet_object *parquet_obj;
 	parquet_obj = parquet_object_alloc(keys, (uint8_t **)datas,
