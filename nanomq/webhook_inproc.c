@@ -400,6 +400,7 @@ webhook_cb(void *arg)
 		nng_aio_wait(aio);
 		if (nng_aio_result(aio) != 0)
 			log_warn("error in taking msgs from exchange");
+		nng_msg_free(m);
 
 		nng_msg **msgs_res = (nng_msg **)nng_aio_get_msg(aio);
 		uint32_t  msgs_len = (uintptr_t)nng_aio_get_prov_data(aio);
