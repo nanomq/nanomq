@@ -24,7 +24,7 @@ auth {
 
 - `allow_anonymous`: Specifies whether clients are allowed to connect without providing a username and password. Default: `true`
 - `no_match`: Specifies the default action (allow or deny) if no ACL rules match the client's operation. Default: `allow`
-- `deny_action`: Specifies the action to take if an ACL check rejects an operation. DefaultL `ignore`; supported options are 
+- `deny_action`: Specifies the action to take if an ACL check rejects an operation. Default: `ignore`; supported options are 
   - `ignore`: do nothing
   - `disconnect`: disconnect the client
 - `cache` (optional): Contains settings related to the ACL cache:
