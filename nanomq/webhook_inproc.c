@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <inttypes.h>
 
 #include "include/webhook_inproc.h"
 #include "nanomq.h"
@@ -353,8 +354,8 @@ webhook_cb(void *arg)
 		char *keystr = cJSON_GetObjectItem(root,"key")->valuestring;
 		uint64_t key;
 		if (keystr) {
-			sscanf(keystr, "%I64x", &key);
-			free(keystr);
+			sscanf(keystr, "%" SCNu64, &key);
+			// sscanf(keystr, "%I64x", &key);
 		} else {
 			log_error("error in paring key in json");
 			nng_msg_free(msg);
