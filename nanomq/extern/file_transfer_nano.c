@@ -80,13 +80,16 @@ client_publish(nng_socket sock, const char *topic, uint8_t *payload, uint32_t pa
 static inline int parse_input(cJSON *cjson_objs,
 							  cJSON **cjson_filepaths,
 							  cJSON **cjson_filenames,
+							  cJSON **cjson_type,
 							  cJSON **cjson_delete)
 {
 	*cjson_filepaths = cJSON_GetObjectItem(cjson_objs, "files");
 	*cjson_filenames = cJSON_GetObjectItem(cjson_objs, "filenames");
 	*cjson_delete = cJSON_GetObjectItem(cjson_objs, "delete");
+	*cjson_type = cJSON_GetObjectItem(cjson_objs, "type");
 	if (*cjson_filepaths == NULL ||
 		*cjson_filenames == NULL ||
+		*cjson_type == NULL ||
 		cJSON_GetArraySize(*cjson_filepaths) == 0 ||
 		cJSON_GetArraySize(*cjson_filepaths) != cJSON_GetArraySize(*cjson_filenames)) {
 		return -1;
@@ -130,7 +133,7 @@ static int do_flock(FILE *fp, int op)
 	return rc;
 }
 
-static int publish_file(nng_socket *sock, FILE *fp, char *file_name, char *md5)
+static int publish_file(nng_socket *sock, FILE *fp, char *file_name, char *md5, char *type)
 {
 	char *payload;
 	char topic[TOPIC_LEN];
@@ -153,7 +156,7 @@ static int publish_file(nng_socket *sock, FILE *fp, char *file_name, char *md5)
 		return -1;
 	}
 
-	rc = sprintf(topic, "$file/upload/%s/%s", md5, file_name);
+	rc = sprintf(topic, "$file/upload/%s/%s/%s", type, md5, file_name);
 	if (DEBUG) {
 		log_info("Publishing file to topic %s\n", topic);
 	}
@@ -196,7 +199,8 @@ int CalcFileMD5(char *file_name, char *md5_sum)
 
 int send_file(nng_socket *sock,
 			  char *file_path,
-			  char *file_name)
+			  char *file_name,
+			  char *type)
 {
 	FILE *fp;
 	int rc = 0;
@@ -227,7 +231,7 @@ int send_file(nng_socket *sock,
 
 		return -1;
 	}
-	rc = publish_file(sock, fp, file_name, md5);
+	rc = publish_file(sock, fp, file_name, md5, type);
 	if (rc) {
 		fclose(fp);
 		return -1;
@@ -333,8 +337,9 @@ static int process_msg(nng_socket *sock, nng_msg *msg, bool verbose)
 			cJSON *cjson_filepaths;
 			cJSON *cjson_filenames;
 			cJSON *cjson_delete;
+			cJSON *cjson_type;
 			result = parse_input(cjson_objs, &cjson_filepaths,
-								 &cjson_filenames, &cjson_delete);
+								 &cjson_filenames, &cjson_type, &cjson_delete);
 			if (result) {
 				log_warn("INPUT JSON INVALID!\n");
 				nng_msg_free(msg);
@@ -345,11 +350,12 @@ static int process_msg(nng_socket *sock, nng_msg *msg, bool verbose)
 				for (int i = 0; i < fileCount; i++) {
 					cJSON *pathEle = cJSON_GetArrayItem(cjson_filepaths, i);
 					cJSON *nameEle = cJSON_GetArrayItem(cjson_filenames, i);
-					log_info("Sending file: filepath: %s filename: %s\n",
+					log_info("Sending file: filepath: %s filename: %s type: %s\n",
 												pathEle->valuestring,
-												nameEle->valuestring);
+												nameEle->valuestring,
+												cjson_type->valuestring);
 					// Send file
-					result = send_file(sock, pathEle->valuestring, nameEle->valuestring);
+					result = send_file(sock, pathEle->valuestring, nameEle->valuestring, cjson_type->valuestring);
 					log_info("Send file file_name: %s %s\n", nameEle->valuestring,
 										!result ? "success" : "fail");
 					/* fail */
