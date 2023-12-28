@@ -32,7 +32,7 @@
 #endif
 
 #define NANO_LMQ_INIT_CAP 16
-#define EXTERNAL2NANO_IPC "IPC://EXTERNAL2NANO:"
+#define EXTERNAL2NANO_IPC "IPC://EXTERNAL2NANO"
 
 // The server keeps a list of work items, sorted by expiration time,
 // so that we can use this to set the timeout to the correct value for
@@ -293,6 +293,7 @@ webhook_cb(void *arg)
 	char *            body;
 	conf_exchange *   exconf = work->exchange;
 	nng_msg *         msg;
+	cJSON *           root;
 
 	switch (work->state) {
 	case HOOK_INIT:
@@ -311,12 +312,34 @@ webhook_cb(void *arg)
 
 		msg = work->msg;
 		body = (char *) nng_msg_body(msg);
+
+		root = cJSON_Parse(body);
+		if (root) {
+			cJSON *idjo = cJSON_GetObjectItem(root, "ID");
+			char *idstr = NULL;
+			if (idjo)
+				idstr = idjo->valuestring;
+			if (idstr) {
+				if (strcmp(idstr, EXTERNAL2NANO_IPC) == 0) {
+					cJSON_Delete(root);
+					root = NULL;
+					work->state = HOOK_WAIT;
+					nng_aio_finish(work->aio, 0);
+					break;
+				}
+			}
+			cJSON_Delete(root);
+			root = NULL;
+		}
+
+		/*
 		if (nng_msg_len(msg) > strlen(EXTERNAL2NANO_IPC) &&
 		        0 == strncmp(body, EXTERNAL2NANO_IPC, strlen(EXTERNAL2NANO_IPC))) {
 			work->state = HOOK_WAIT;
 			nng_aio_finish(work->aio, 0);
 			break;
 		}
+		*/
 
 		nng_mtx_lock(work->mtx);
 		if (nng_lmq_full(work->lmq)) {
@@ -347,10 +370,8 @@ webhook_cb(void *arg)
 		}
 
 		body = (char *) nng_msg_body(msg);
-		// Update the position
-		body += strlen(EXTERNAL2NANO_IPC);
 
-		cJSON *root = cJSON_Parse(body);
+		root = cJSON_Parse(body);
 		char *keystr = cJSON_GetObjectItem(root,"key")->valuestring;
 		uint64_t key;
 		if (keystr) {
@@ -359,6 +380,7 @@ webhook_cb(void *arg)
 		} else {
 			log_error("error in paring key in json");
 			nng_msg_free(msg);
+			cJSON_free(root);
 			goto skip;
 		}
 		uint32_t offset = cJSON_GetObjectItem(root,"offset")->valueint;
@@ -423,6 +445,7 @@ webhook_cb(void *arg)
 #endif
 
 		cJSON_Delete(root);
+		root = NULL;
 		nng_msg_free(msg);
 skip:
 		// Start next recv
