@@ -313,7 +313,11 @@ hook_work_cb(void *arg)
 		msg = work->msg;
 		body = (char *) nng_msg_body(msg);
 
-		root = cJSON_Parse(body);
+		root = NULL;
+		if (exconf->count > 0) {
+			// Only parse msg when exchange is enabled
+			root = cJSON_Parse(body);
+		}
 		if (root) {
 			cJSON *idjo = cJSON_GetObjectItem(root, "ID");
 			char *idstr = NULL;
@@ -332,6 +336,7 @@ hook_work_cb(void *arg)
 			root = NULL;
 		}
 
+		// TODO If it's a msg to webhook???
 		nng_mtx_lock(work->mtx);
 		if (nng_lmq_full(work->lmq)) {
 			size_t lmq_cap = nng_lmq_cap(work->lmq);
