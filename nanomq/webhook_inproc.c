@@ -332,15 +332,6 @@ webhook_cb(void *arg)
 			root = NULL;
 		}
 
-		/*
-		if (nng_msg_len(msg) > strlen(EXTERNAL2NANO_IPC) &&
-		        0 == strncmp(body, EXTERNAL2NANO_IPC, strlen(EXTERNAL2NANO_IPC))) {
-			work->state = HOOK_WAIT;
-			nng_aio_finish(work->aio, 0);
-			break;
-		}
-		*/
-
 		nng_mtx_lock(work->mtx);
 		if (nng_lmq_full(work->lmq)) {
 			size_t lmq_cap = nng_lmq_cap(work->lmq);
@@ -539,13 +530,20 @@ hook_cb(void *arg)
 	conf              *conf = arg;
 	nng_socket         sock;
 	nng_socket         mqtt_sock;
+	size_t             works_num = 0;
+	int                rv;
+	size_t             i;
+
+	if (conf->exchange.count > 0) {
+		works_num += 4 * conf->exchange.count;
+	}
+	if (conf->web_hook.enable) {
+		works_num += conf->web_hook.pool_size;
+	}
 	struct hook_work **works =
-	    nng_zalloc(conf->web_hook.pool_size * sizeof(struct hook_work *));
+	    nng_zalloc(works_num * sizeof(struct hook_work *));
 
-	int    rv;
-	size_t i;
-
-	/*  Create the socket. */
+	/* Create the socket. */
 	rv = nng_pull0_open(&sock);
 	if (rv != 0) {
 		log_error("nng_pull0_open %d", rv);
@@ -573,7 +571,7 @@ hook_cb(void *arg)
 
 	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
 
-	for (i = 0; i < conf->web_hook.pool_size; i++) {
+	for (i = 0; i < works_num; i++) {
 		works[i] = alloc_work(sock, &conf->web_hook, &conf->exchange);
 		works[i]->id = i;
 		works[i]->mqtt_sock = &mqtt_sock;
@@ -584,7 +582,7 @@ hook_cb(void *arg)
 		return;
 	}
 
-	for (i = 0; i < conf->web_hook.pool_size; i++) {
+	for (i = 0; i < works_num; i++) {
 		// shares taskq threads with broker
 		webhook_cb(works[i]);
 	}
@@ -593,10 +591,10 @@ hook_cb(void *arg)
 		nng_msleep(3600000); // neither pause() nor sleep() portable
 	}
 
-	for (i = 0; i < conf->web_hook.pool_size; i++) {
+	for (i = 0; i < works_num; i++) {
 		nng_free(works[i], sizeof(struct hook_work));
 	}
-	nng_free(works, conf->web_hook.pool_size * sizeof(struct hook_work *));
+	nng_free(works, works_num * sizeof(struct hook_work *));
 }
 
 int
