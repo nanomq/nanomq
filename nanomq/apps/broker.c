@@ -560,15 +560,17 @@ server_cb(void *arg)
 			}
 			//check webhook & rule engine
 			conf_web_hook *hook_conf   = &(work->config->web_hook);
+			conf_exchange *exge_conf = &(work->config->exchange);
 			uint8_t rule_opt = RULE_ENG_OFF;
 #if defined(SUPP_RULE_ENGINE)
 			rule_opt = work->config->rule_eng.option;
 #endif
-			if (hook_conf->enable || rule_opt != RULE_ENG_OFF) {
+			if (hook_conf->enable || exge_conf->count > 0 || rule_opt != RULE_ENG_OFF) {
 				work->state = SEND;
 				nng_aio_finish(work->aio, 0);
 				break;
 			}
+			// skip one IO switching
 			nng_msg_free(work->msg);
 			smsg = NULL;
 			work->msg = NULL;
@@ -1051,10 +1053,9 @@ broker(conf *nanomq_conf)
 	}
 
 	// Init exchange part in hook
-	if (nanomq_conf->exchange.count > 0)
+	if (nanomq_conf->exchange.count > 0) {
 		hook_exchange_init(nanomq_conf, num_ctx);
-	// create exchange senders in hook
-	if (nanomq_conf->web_hook.enable && nanomq_conf->exchange.count > 0) {
+		// create exchange senders in hook
 		hook_exchange_sender_init(nanomq_conf, works, num_ctx);
 	}
 
