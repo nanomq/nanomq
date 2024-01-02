@@ -956,12 +956,10 @@ broker(conf *nanomq_conf)
 		}
 		log_debug("exchange %d init finished!\n", i);
 	}
-	// Webhook service
-	if (nanomq_conf->web_hook.enable) {
-		log_debug("Webhook service initialization");
-		start_webhook_service(nanomq_conf);
-	}
-	log_debug("webhook init finished");
+	// Hook service
+	log_debug("Hook service start");
+	start_hook_service(nanomq_conf);
+	log_trace("Hook service started");
 
 	// bridging client
 	if (nanomq_conf->bridge_mode) {

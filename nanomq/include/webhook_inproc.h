@@ -6,7 +6,7 @@
 
 #define HOOK_IPC_URL "ipc:///tmp/nanomq_hook.ipc"
 
-extern int start_webhook_service(conf *conf);
-extern int stop_webhook_service(void);
+extern int start_hook_service(conf *conf);
+extern int stop_hook_service(void);
 
 #endif
