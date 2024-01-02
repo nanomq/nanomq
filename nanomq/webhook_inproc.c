@@ -54,7 +54,7 @@ struct hook_work {
 
 static void webhook_cb(void *arg);
 
-static nng_thread *inproc_thr;
+static nng_thread *hook_thr;
 
 static int
 send_mqtt_msg_cat(nng_socket *sock, const char *topic, nng_msg **msgs, uint32_t len)
@@ -533,8 +533,8 @@ alloc_work(nng_socket sock, conf_web_hook *conf, conf_exchange *exconf)
 }
 
 // The server runs forever.
-void
-webhook_thr(void *arg)
+static void
+hook_thr(void *arg)
 {
 	conf              *conf = arg;
 	nng_socket         sock;
@@ -600,9 +600,9 @@ webhook_thr(void *arg)
 }
 
 int
-start_webhook_service(conf *conf)
+start_hook_service(conf *conf)
 {
-	int rv = nng_thread_create(&inproc_thr, webhook_thr, conf);
+	int rv = nng_thread_create(&hook_thr, hook_thr, conf);
 	if (rv != 0) {
 		NANO_NNG_FATAL("nng_thread_create", rv);
 	}
@@ -611,9 +611,9 @@ start_webhook_service(conf *conf)
 }
 
 int
-stop_webhook_service(void)
+stop_hook_service(void)
 {
-	nng_thread_destroy(inproc_thr);
+	nng_thread_destroy(hook_thr);
 	return 0;
 }
 
