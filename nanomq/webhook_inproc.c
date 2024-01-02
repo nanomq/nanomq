@@ -52,7 +52,7 @@ struct hook_work {
 	nng_socket    *mqtt_sock;
 };
 
-static void webhook_cb(void *arg);
+static void hook_work_cb(void *arg);
 
 static nng_thread *hook_thr;
 
@@ -286,7 +286,7 @@ thread_cb(void *arg)
 }
 
 static void
-webhook_cb(void *arg)
+hook_work_cb(void *arg)
 {
 	struct hook_work *work = arg;
 	int               rv;
@@ -502,7 +502,7 @@ alloc_work(nng_socket sock, conf_web_hook *conf, conf_exchange *exconf)
 	if ((w = nng_alloc(sizeof(*w))) == NULL) {
 		NANO_NNG_FATAL("nng_alloc", NNG_ENOMEM);
 	}
-	if ((rv = nng_aio_alloc(&w->aio, webhook_cb, w)) != 0) {
+	if ((rv = nng_aio_alloc(&w->aio, hook_work_cb, w)) != 0) {
 		NANO_NNG_FATAL("nng_aio_alloc", rv);
 	}
 	if ((rv = nng_mtx_alloc(&w->mtx)) != 0) {
@@ -535,7 +535,7 @@ hook_cb(void *arg)
 	size_t             i;
 
 	if (conf->exchange.count > 0) {
-		works_num += 4 * conf->exchange.count;
+		works_num += 8 * conf->exchange.count;
 	}
 	if (conf->web_hook.enable) {
 		works_num += conf->web_hook.pool_size;
@@ -578,13 +578,13 @@ hook_cb(void *arg)
 	}
 	// NanoMQ core thread talks to others via INPROC
 	if ((rv = nng_listen(sock, HOOK_IPC_URL, NULL, 0)) != 0) {
-		log_error("webhook nng_listen %d", rv);
+		log_error("hook nng_listen %d", rv);
 		return;
 	}
 
 	for (i = 0; i < works_num; i++) {
 		// shares taskq threads with broker
-		webhook_cb(works[i]);
+		hook_work_cb(works[i]);
 	}
 
 	for (;;) {
