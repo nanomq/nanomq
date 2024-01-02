@@ -579,7 +579,7 @@ webhook_thr(void *arg)
 		works[i]->mqtt_sock = &mqtt_sock;
 	}
 	// NanoMQ core thread talks to others via INPROC
-	if ((rv = nng_listen(sock, WEB_HOOK_INPROC_URL, NULL, 0)) != 0) {
+	if ((rv = nng_listen(sock, HOOK_IPC_URL, NULL, 0)) != 0) {
 		log_error("webhook nng_listen %d", rv);
 		return;
 	}

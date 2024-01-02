@@ -559,7 +559,7 @@ server_cb(void *arg)
 #endif
 			}
 			//check webhook & rule engine
-			conf_web_hook *hook_conf   = &(work->config->web_hook);
+			conf_web_hook *hook_conf = &(work->config->web_hook);
 			conf_exchange *exge_conf = &(work->config->exchange);
 			uint8_t rule_opt = RULE_ENG_OFF;
 #if defined(SUPP_RULE_ENGINE)
@@ -817,7 +817,7 @@ proto_work_init(nng_socket sock,nng_socket inproc_sock, nng_socket bridge_sock, 
 		if ((rv = nng_push0_open(&w->webhook_sock)) != 0) {
 			NANO_NNG_FATAL("nng_socket", rv);
 		}
-		if ((rv = nng_dial(w->webhook_sock, WEB_HOOK_INPROC_URL, NULL,
+		if ((rv = nng_dial(w->webhook_sock, HOOK_IPC_URL, NULL,
 		         0)) != 0) {
 			NANO_NNG_FATAL("webhook nng_dial", rv);
 		}
