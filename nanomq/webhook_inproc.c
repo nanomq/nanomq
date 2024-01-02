@@ -366,9 +366,9 @@ hook_work_cb(void *arg)
 		char *keystr = cJSON_GetObjectItem(root,"key")->valuestring;
 		uint64_t key;
 		if (keystr) {
-			char *keystr2 = sscanf(keystr, "%" SCNu64, &key);
-			if (!keystr2) {
-				log_error("error in read key to number");
+			rv = sscanf(keystr, "%" SCNu64, &key);
+			if (rv == 0) {
+				log_error("error in read key to number %s", keystr);
 				nng_msg_free(msg);
 				cJSON_free(root);
 				goto skip;
