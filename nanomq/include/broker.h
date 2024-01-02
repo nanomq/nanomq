@@ -50,7 +50,7 @@ struct work {
 	conf *      config;
 	reason_code code; // MQTT reason code
 
-	nng_socket webhook_sock;
+	nng_socket hook_sock;
 
 	struct pipe_content *     pipe_ct;
 	conn_param *              cparam;

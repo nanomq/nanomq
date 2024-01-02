@@ -813,13 +813,12 @@ proto_work_init(nng_socket sock,nng_socket inproc_sock, nng_socket bridge_sock, 
 		}
 	}
 
-	if(config->web_hook.enable) {
-		if ((rv = nng_push0_open(&w->webhook_sock)) != 0) {
+	if(config->web_hook.enable || config->exchange.count > 0) {
+		if ((rv = nng_push0_open(&w->hook_sock)) != 0) {
 			NANO_NNG_FATAL("nng_socket", rv);
 		}
-		if ((rv = nng_dial(w->webhook_sock, HOOK_IPC_URL, NULL,
-		         0)) != 0) {
-			NANO_NNG_FATAL("webhook nng_dial", rv);
+		if ((rv = nng_dial(w->hook_sock, HOOK_IPC_URL, NULL, 0)) != 0) {
+			NANO_NNG_FATAL("hook nng_dial", rv);
 		}
 	}
 

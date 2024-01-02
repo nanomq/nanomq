@@ -253,7 +253,7 @@ hook_entry(nano_work *work, uint8_t reason)
 	conf_web_hook *hook_conf = &work->config->web_hook;
 	conf_exchange *ex_conf   = &work->config->exchange;
 	conn_param    *cparam    = work->cparam;
-	nng_socket    *sock      = &work->webhook_sock;
+	nng_socket    *sock      = &work->hook_sock;
 	nng_socket    *ex_sock;
 
 	// process MQ msg first, only pub msg is valid
