@@ -534,7 +534,7 @@ alloc_work(nng_socket sock, conf_web_hook *conf, conf_exchange *exconf)
 
 // The server runs forever.
 static void
-hook_thr(void *arg)
+hook_cb(void *arg)
 {
 	conf              *conf = arg;
 	nng_socket         sock;
@@ -602,7 +602,7 @@ hook_thr(void *arg)
 int
 start_hook_service(conf *conf)
 {
-	int rv = nng_thread_create(&hook_thr, hook_thr, conf);
+	int rv = nng_thread_create(&hook_thr, hook_cb, conf);
 	if (rv != 0) {
 		NANO_NNG_FATAL("nng_thread_create", rv);
 	}

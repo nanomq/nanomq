@@ -957,9 +957,11 @@ broker(conf *nanomq_conf)
 		log_debug("exchange %d init finished!\n", i);
 	}
 	// Hook service
-	log_debug("Hook service start");
-	start_hook_service(nanomq_conf);
-	log_trace("Hook service started");
+	if (nanomq_conf->web_hook.enable || nanomq_conf->exchange.count > 0) {
+		log_debug("Hook service start");
+		start_hook_service(nanomq_conf);
+		log_trace("Hook service started");
+	}
 
 	// bridging client
 	if (nanomq_conf->bridge_mode) {
