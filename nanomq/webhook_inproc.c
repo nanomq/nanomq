@@ -375,7 +375,13 @@ webhook_cb(void *arg)
 		char *keystr = cJSON_GetObjectItem(root,"key")->valuestring;
 		uint64_t key;
 		if (keystr) {
-			sscanf(keystr, "%" SCNu64, &key);
+			char *keystr2 = sscanf(keystr, "%" SCNu64, &key);
+			if (!keystr2) {
+				log_error("error in read key to number");
+				nng_msg_free(msg);
+				cJSON_free(root);
+				goto skip;
+			}
 			// sscanf(keystr, "%I64x", &key);
 		} else {
 			log_error("error in paring key in json");
