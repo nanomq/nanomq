@@ -957,9 +957,8 @@ broker(conf *nanomq_conf)
 	}
 	// Hook service
 	if (nanomq_conf->web_hook.enable || nanomq_conf->exchange.count > 0) {
-		log_debug("Hook service start");
 		start_hook_service(nanomq_conf);
-		log_trace("Hook service started");
+		log_debug("Hook service started");
 	}
 
 	// bridging client
