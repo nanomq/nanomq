@@ -218,7 +218,7 @@ bridge_handler(nano_work *work)
 					uint8_t retain;
 					retain =
 					    node->forwards_list[i]->retain ==
-					        NORETAIN
+					        NO_RETAIN
 					    ? work->pub_packet->fixed_header
 					          .retain
 					    : node->forwards_list[i]->retain;

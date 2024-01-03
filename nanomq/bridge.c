@@ -153,6 +153,11 @@ bridge_handle_topic_sub_reflection(nano_work *work, conf_bridge_node *node)
 				work->pub_packet->var_header.publish.topic_name.body = local_topic;
 				work->pub_packet->var_header.publish.topic_name.len = sub_topic->local_topic_len;
 
+				work->pub_packet->fixed_header.retain =
+				    sub_topic->retain == NO_RETAIN
+				    ? work->pub_packet->fixed_header.retain
+				    : sub_topic->retain;
+
 				return;
 			}
 		}
