@@ -323,7 +323,6 @@ hook_work_cb(void *arg)
 			root = NULL;
 		}
 		if (root) {
-			cJSON *idjo = cJSON_GetObjectItem(root, "ID");
 			char *idstr = NULL;
 			if (idjo)
 				idstr = idjo->valuestring;
@@ -361,13 +360,14 @@ hook_work_cb(void *arg)
 		msg       = work->msg;
 		work->msg = NULL;
 
-		// TODO match exchange with IPC msg (by MQ name)
-		nng_socket *ex_sock = exconf->nodes[0]->sock;
 		if (exconf->count == 0) {
 			log_error("Exchange is not enabled");
 			nng_msg_free(msg);
 			goto skip;
 		}
+
+		// TODO match exchange with IPC msg (by MQ name)
+		nng_socket *ex_sock = exconf->nodes[0]->sock;
 
 		body = (char *) nng_msg_body(msg);
 
