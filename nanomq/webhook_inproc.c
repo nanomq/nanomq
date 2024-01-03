@@ -314,9 +314,13 @@ hook_work_cb(void *arg)
 		body = (char *) nng_msg_body(msg);
 
 		root = NULL;
-		if (exconf->count > 0) {
-			// Only parse msg when exchange is enabled
-			root = cJSON_Parse(body);
+		// TODO Not efficent
+		// Only parse msg when exchange is enabled
+		root = cJSON_Parse(body);
+		cJSON *idjo = cJSON_GetObjectItem(root, "ID");
+		if (!idjo) {
+			cJSON_Delete(root);
+			root = NULL;
 		}
 		if (root) {
 			cJSON *idjo = cJSON_GetObjectItem(root, "ID");
