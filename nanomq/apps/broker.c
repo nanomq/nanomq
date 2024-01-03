@@ -217,10 +217,11 @@ bridge_handler(nano_work *work)
 					}
 					uint8_t retain;
 					retain =
-					    node->forwards_list[i]->retain == 0
-					    ? 0
-					    : work->pub_packet->fixed_header
-					          .retain;
+					    node->forwards_list[i]->retain ==
+					        NORETAIN
+					    ? work->pub_packet->fixed_header
+					          .retain
+					    : node->forwards_list[i]->retain;
 					bridge_msg = bridge_publish_msg(
 					    publish_topic,
 					    work->pub_packet->payload.data,
