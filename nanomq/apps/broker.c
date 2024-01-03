@@ -215,15 +215,21 @@ bridge_handler(nano_work *work)
 					} else {
 						publish_topic = node->forwards_list[i]->remote_topic;
 					}
+					uint8_t retain;
+					retain =
+					    node->forwards_list[i]->retain == 0
+					    ? 0
+					    : work->pub_packet->fixed_header
+					          .retain;
 					bridge_msg = bridge_publish_msg(
-						publish_topic,
-						work->pub_packet->payload.data,
-						work->pub_packet->payload.len,
-						work->pub_packet->fixed_header.dup,
-						work->pub_packet->fixed_header.qos,
-						work->pub_packet->fixed_header.retain, props);
+					    publish_topic,
+					    work->pub_packet->payload.data,
+					    work->pub_packet->payload.len,
+					    work->pub_packet->fixed_header.dup,
+					    work->pub_packet->fixed_header.qos,
+					    retain,
+					    props);
 
-					
 					node->proto_ver == MQTT_PROTOCOL_VERSION_v5
 					    ? nng_mqttv5_msg_encode(bridge_msg)
 					    : nng_mqtt_msg_encode(bridge_msg);
