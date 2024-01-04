@@ -264,6 +264,10 @@ sub_ctx_handle(nano_work *work)
 					// TODO disconnect client or return
 					// error code
 					goto next;
+				} else if (work->config->acl_deny_action ==
+				    ACL_IGNORE) {
+					log_warn("acl deny, ignore");
+					goto next;
 				}
 			} else {
 				log_info("acl allow");
