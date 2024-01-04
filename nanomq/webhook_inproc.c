@@ -32,7 +32,7 @@
 #endif
 
 #define NANO_LMQ_INIT_CAP 16
-#define EXTERNAL2NANO_IPC "IPC://EXTERNAL2NANO"
+#define EXTERNAL2NANO_IPC "EX2NANO"
 
 // The server keeps a list of work items, sorted by expiration time,
 // so that we can use this to set the timeout to the correct value for
@@ -317,7 +317,7 @@ hook_work_cb(void *arg)
 		// TODO Not efficent
 		// Only parse msg when exchange is enabled
 		root = cJSON_Parse(body);
-		cJSON *idjo = cJSON_GetObjectItem(root, "ID");
+		cJSON *idjo = cJSON_GetObjectItem(root, "id");
 		if (!idjo) {
 			cJSON_Delete(root);
 			root = NULL;
