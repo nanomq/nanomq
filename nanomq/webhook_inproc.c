@@ -380,34 +380,38 @@ hook_work_cb(void *arg)
 			if (0 == strcmp(cmdstr, "write")) {
 				log_warn("Write cmd is not supported");
 				nng_msg_free(msg);
-				cJSON_free(root);
+				cJSON_Delete(root);
 				goto skip;
 			} else if (0 == strcmp(cmdstr, "search")) {
 				log_debug("Search is triggered");
 			} else {
 				log_warn("Invalid cmd");
 				nng_msg_free(msg);
-				cJSON_free(root);
+				cJSON_Delete(root);
 				goto skip;
 			}
 		} else {
 			// TODO Stop? Or Ignore
+			log_warn("No cmd field found in json msg");
 		}
-		char *keystr = cJSON_GetObjectItem(root,"key")->valuestring;
+		cJSON *keyjo = cJSON_GetObjectItem(root,"key");
+		char *keystr = NULL;
 		uint64_t key;
+		if (keyjo)
+			keystr = keyjo->valuestring;
 		if (keystr) {
 			rv = sscanf(keystr, "%" SCNu64, &key);
 			if (rv == 0) {
 				log_error("error in read key to number %s", keystr);
 				nng_msg_free(msg);
-				cJSON_free(root);
+				cJSON_Delete(root);
 				goto skip;
 			}
 			// sscanf(keystr, "%I64x", &key);
 		} else {
-			log_error("error in paring key in json");
+			log_warn("No key field found in json msg");
 			nng_msg_free(msg);
-			cJSON_free(root);
+			cJSON_Delete(root);
 			goto skip;
 		}
 		uint32_t offset = cJSON_GetObjectItem(root,"offset")->valueint;
