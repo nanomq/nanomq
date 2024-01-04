@@ -414,7 +414,10 @@ hook_work_cb(void *arg)
 			cJSON_Delete(root);
 			goto skip;
 		}
-		uint32_t offset = cJSON_GetObjectItem(root,"offset")->valueint;
+		uint32_t offset = 0;
+		cJSON *offsetjo = cJSON_GetObjectItem(root,"offset");
+		if (offsetjo)
+			offset = offsetjo->valueint;
 		log_warn("key %lld offset %ld", key, offset);
 
 		nng_msg *m;
