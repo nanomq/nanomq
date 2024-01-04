@@ -29,8 +29,8 @@ auth {
 where, 
 
 - `allow_anonymous` data type is `boolean`, with a default value of `true`, which allows anonymous login.
-- `no_match` determines the default action for a request if none of the configured authenticators found any authentication rules
-- `deny_action` determines what to do if a request was rejected according to the authorization checks
+- `no_match` determines the default action for a request if none of the configured authenticators found any authentication rules.
+- `deny_action` determines what to do if a request was rejected according to the authorization checks. The available options are `ignore` or `disconnect`
 - `cache` is an optional value with caching settings, with the following optional setting options:
   - `cache.max_size`: an optional integer value, default is 32. Specifies the maximum number of elements in the cache. When this limit is exceeded, the oldest records will be removed from the cache.
   - `cache.ttl`: an optional duration value, default is `1m`. Specifies how long cached values are kept in the cache.
