@@ -372,6 +372,27 @@ hook_work_cb(void *arg)
 		body = (char *) nng_msg_body(msg);
 
 		root = cJSON_Parse(body);
+		cJSON *cmdjo = cJSON_GetObjectItem(root,"cmd");
+		char *cmdstr = NULL;
+		if (cmdjo)
+			cmdstr = cmdjo->valuestring;
+		if (cmdstr) {
+			if (0 == strcmp(cmdstr, "write")) {
+				log_warn("Write cmd is not supported");
+				nng_msg_free(msg);
+				cJSON_free(root);
+				goto skip;
+			} else if (0 == strcmp(cmdstr, "search")) {
+				log_debug("Search is triggered");
+			} else {
+				log_warn("Invalid cmd");
+				nng_msg_free(msg);
+				cJSON_free(root);
+				goto skip;
+			}
+		} else {
+			// TODO Stop? Or Ignore
+		}
 		char *keystr = cJSON_GetObjectItem(root,"key")->valuestring;
 		uint64_t key;
 		if (keystr) {
