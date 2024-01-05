@@ -272,7 +272,7 @@ hook_entry(nano_work *work, uint8_t reason)
 		nng_msg_set_timestamp(msg, ts);
 
 		for (size_t i = 0; i < ex_conf->count; i++) {
-			if (topic_filter(ex_conf->nodes[i]->exchange->topic,
+			if (topic_filter(ex_conf->nodes[i]->topic,
 			        work->pub_packet->var_header.publish.topic_name.body)) {
 
 				if (work->ctx.id > work->config->parallel)

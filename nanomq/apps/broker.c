@@ -947,7 +947,7 @@ broker(conf *nanomq_conf)
 
 	// Exchange service
 	for (int i = 0; i < nanomq_conf->exchange.count; i++) {
-		conf_exchange_client_node *node = nanomq_conf->exchange.nodes[i];
+		conf_exchange_node *node = nanomq_conf->exchange.nodes[i];
 		if (node == NULL) {
 			log_error("Wrong exchange %d configuration!", i);
 			continue;
@@ -956,9 +956,7 @@ broker(conf *nanomq_conf)
 		if ((rv = nng_exchange_client_open(node->sock)) != 0) {
 			log_error("nng_exchange_client_open failed %d", rv);
 		} else {
-			void *ex;
-			ex = node->exchange;
-			nng_socket_set_ptr(*node->sock, NNG_OPT_EXCHANGE_BIND, ex);
+			nng_socket_set_ptr(*node->sock, NNG_OPT_EXCHANGE_BIND, (void *)node);
 		}
 		log_debug("exchange %d init finished!\n", i);
 	}
