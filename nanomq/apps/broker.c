@@ -1060,6 +1060,12 @@ broker(conf *nanomq_conf)
 		hook_exchange_init(nanomq_conf, num_ctx);
 		// create exchange senders in hook
 		hook_exchange_sender_init(nanomq_conf, works, num_ctx);
+		// TODO expose this
+		char url_zzz[128] = "tcp://127.0.0.1:10000";
+		nng_socket *mq_sock = nanomq_conf->exchange.nodes[0]->sock;
+		if ((rv = nano_listen(*mq_sock, url_zzz, NULL, 0, nanomq_conf)) != 0) {
+			NANO_NNG_FATAL("broker nng_listen", rv);
+		}
 	}
 
 	if (nanomq_conf->enable) {
