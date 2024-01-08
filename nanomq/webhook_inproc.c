@@ -394,31 +394,47 @@ hook_work_cb(void *arg)
 			// TODO Stop? Or Ignore
 			log_warn("No cmd field found in json msg");
 		}
-		cJSON *keyjo = cJSON_GetObjectItem(root,"key");
-		char *keystr = NULL;
-		uint64_t key;
-		if (keyjo)
-			keystr = keyjo->valuestring;
-		if (keystr) {
-			rv = sscanf(keystr, "%" SCNu64, &key);
+
+		cJSON *skeyjo = cJSON_GetObjectItem(root, "start_key");
+		char *skeystr = NULL;
+		uint64_t start_key;
+		if (skeyjo)
+			skeystr = skeyjo->valuestring;
+		if (skeystr) {
+			rv = sscanf(skeystr, "%" SCNu64, &start_key);
 			if (rv == 0) {
-				log_error("error in read key to number %s", keystr);
+				log_error("error in read start_key to number %s", skeystr);
 				nng_msg_free(msg);
 				cJSON_Delete(root);
 				goto skip;
 			}
-			// sscanf(keystr, "%I64x", &key);
 		} else {
-			log_warn("No key field found in json msg");
+			log_warn("No start_key field found in json msg");
 			nng_msg_free(msg);
 			cJSON_Delete(root);
 			goto skip;
 		}
-		uint32_t offset = 0;
-		cJSON *offsetjo = cJSON_GetObjectItem(root,"offset");
-		if (offsetjo)
-			offset = offsetjo->valueint;
-		log_warn("key %lld offset %ld", key, offset);
+
+		cJSON *ekeyjo = cJSON_GetObjectItem(root, "end_key");
+		char *ekeystr = NULL;
+		uint64_t end_key;
+		if (ekeyjo)
+			ekeystr = ekeyjo->valuestring;
+		if (ekeystr) {
+			rv = sscanf(ekeystr, "%" SCNu64, &end_key);
+			if (rv == 0) {
+				log_error("error in read end_key to number %s", ekeystr);
+				nng_msg_free(msg);
+				cJSON_Delete(root);
+				goto skip;
+			}
+		} else {
+			log_warn("No end_key field found in json msg");
+			nng_msg_free(msg);
+			cJSON_Delete(root);
+			goto skip;
+		}
+		log_info("start_key %lld end_key %lld", start_key, end_key);
 
 		nng_msg *m;
 		nng_msg_alloc(&m, 0);
