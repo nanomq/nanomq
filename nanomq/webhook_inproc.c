@@ -438,8 +438,16 @@ hook_work_cb(void *arg)
 
 		nng_msg *m;
 		nng_msg_alloc(&m, 0);
-		nng_msg_set_timestamp(m, key);
-		nng_msg_set_proto_data(m, NULL, (void *)(uintptr_t)offset);
+		nng_time *tss = nng_alloc(sizeof(nng_time) * 2);
+		if (!tss || !m) {
+			log_error("Error in alloc memory");
+			nng_msg_free(msg);
+			cJSON_Delete(root);
+			goto skip;
+		}
+		tss[0] = start_key;
+		tss[1] = end_key;
+		nng_msg_set_proto_data(m, NULL, (void *)tss);
 
 		nng_aio *aio;
 		nng_aio_alloc(&aio, NULL, NULL);
@@ -451,6 +459,7 @@ hook_work_cb(void *arg)
 		if (nng_aio_result(aio) != 0)
 			log_warn("error in taking msgs from exchange");
 		nng_msg_free(m);
+		nng_free(tss, 0);
 
 		nng_msg **msgs_res = (nng_msg **)nng_aio_get_msg(aio);
 		uint32_t  msgs_len = (uintptr_t)nng_aio_get_prov_data(aio);
