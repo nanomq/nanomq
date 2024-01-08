@@ -483,16 +483,9 @@ hook_work_cb(void *arg)
 		// Get file names and send to localhost:1883 to active handler
 		const char **fnames = NULL;
 		uint32_t sz;
-		if (offset == 0) {
-			sz = 1;
-			const char *fname = parquet_find(key);
-			if (fname) {
-				fnames = malloc(sizeof(char *) * sz);
-				fnames[0] = fname;
-			}
-		} else {
-			fnames = parquet_find_span(key, offset, &sz);
-		}
+		uint64_t mid_key = (start_key + end_key) / 2;
+		uint64_t offset = (start_key - mid_key) / 2;
+		fnames = parquet_find_span(mid_key, offset, &sz);
 		if (fnames) {
 			if (sz > 0) {
 				log_info("Ask parquet and found.");
