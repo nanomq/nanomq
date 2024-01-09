@@ -428,26 +428,29 @@ hook_work_cb(void *arg)
 				cJSON_Delete(root);
 				goto skip;
 			}
-		} else {
-			log_warn("No end_key field found in json msg");
-			nng_msg_free(msg);
-			cJSON_Delete(root);
-			goto skip;
 		}
 		log_info("start_key %lld end_key %lld", start_key, end_key);
 
 		nng_msg *m;
 		nng_msg_alloc(&m, 0);
-		nng_time *tss = nng_alloc(sizeof(nng_time) * 2);
-		if (!tss || !m) {
+		if (!m) {
 			log_error("Error in alloc memory");
 			nng_msg_free(msg);
 			cJSON_Delete(root);
 			goto skip;
 		}
-		tss[0] = start_key;
-		tss[1] = end_key;
-		nng_msg_set_proto_data(m, NULL, (void *)tss);
+
+		nng_time *tss = NULL;
+		// When end key exists. Fuzzing search.
+		if (ekeystr) {
+			tss = nng_alloc(sizeof(nng_time) * 2);
+			tss[0] = start_key;
+			tss[1] = end_key;
+			nng_msg_set_proto_data(m, NULL, (void *)tss);
+		} else {
+			// Not exists. then normal search
+			nng_msg_set_timestamp(m, start_key);
+		}
 
 		nng_aio *aio;
 		nng_aio_alloc(&aio, NULL, NULL);
@@ -459,7 +462,8 @@ hook_work_cb(void *arg)
 		if (nng_aio_result(aio) != 0)
 			log_warn("error in taking msgs from exchange");
 		nng_msg_free(m);
-		nng_free(tss, 0);
+		if (ekeystr)
+			nng_free(tss, 0);
 
 		nng_msg **msgs_res = (nng_msg **)nng_aio_get_msg(aio);
 		uint32_t  msgs_len = (uintptr_t)nng_aio_get_prov_data(aio);
