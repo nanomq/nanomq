@@ -1384,29 +1384,6 @@ store_pid()
 	return status;
 }
 
-int
-active_conf(conf *nanomq_conf)
-{
-	// check if daemonlize
-#ifdef NANO_PLATFORM_WINDOWS
-	if (nanomq_conf->daemon) {
-		log_error("Daemon mode is not supported on Windows");
-		return -1;
-	}
-#else
-	if (nanomq_conf->daemon == true && process_daemonize()) {
-		log_error("Error occurs, cannot daemonize");
-		return -1;
-	}
-#endif
-	// taskq and max_taskq
-	if (nanomq_conf->num_taskq_thread || nanomq_conf->max_taskq_thread) {
-		nng_taskq_setter(nanomq_conf->num_taskq_thread,
-		    nanomq_conf->max_taskq_thread);
-	}
-	return 0;
-}
-
 static void
 predicate_url(conf *config, char *url)
 {
@@ -1695,10 +1672,18 @@ broker_start(int argc, char **argv)
 			    : nng_strdup(CONF_WSS_URL_DEFAULT);
 		}
 	}
-	// Active the configure for nanomq
-	if ((rc = active_conf(nanomq_conf)) != 0) {
-		return rc;
+	// Active daemonize
+#ifdef NANO_PLATFORM_WINDOWS
+	if (nanomq_conf->daemon) {
+		log_error("Daemon mode is not supported on Windows");
+		rc = -1;
 	}
+#else
+	if (nanomq_conf->daemon == true && process_daemonize()) {
+		log_error("Error occurs, cannot daemonize");
+		rc = -1;
+	}
+#endif
 #if defined(ENABLE_LOG)
 	if ((rc = log_init(&nanomq_conf->log)) != 0) {
 		NANO_NNG_FATAL("log_init", rc);
@@ -1768,10 +1753,19 @@ broker_start_with_conf(void *nmq_conf)
 			    : nng_strdup(CONF_WSS_URL_DEFAULT);
 		}
 	}
-	// Active the configure for nanomq
-	if ((rc = active_conf(nanomq_conf)) != 0) {
-		broker_start_rc = rc;
+	// check if daemonlize
+#ifdef NANO_PLATFORM_WINDOWS
+	if (nanomq_conf->daemon) {
+		log_error("Daemon mode is not supported on Windows");
+		broker_start_rc = -1;
 	}
+#else
+	if (nanomq_conf->daemon == true && process_daemonize()) {
+		log_error("Error occurs, cannot daemonize");
+		broker_start_rc = -1;
+	}
+#endif
+
 #if defined(ENABLE_LOG)
 	if ((rc = log_init(&nanomq_conf->log)) != 0) {
 		NANO_NNG_FATAL("log_init", rc);
