@@ -489,10 +489,11 @@ hook_work_cb(void *arg)
 		uint32_t sz = 0;
 		if (ekeystr) {
 			// fuzzing search
-			uint64_t mid_key = (start_key + end_key) / 2;
-			uint64_t offset = (start_key - mid_key) / 2;
+			uint64_t mid_key = (end_key + start_key) / 2;
+			uint64_t offset = mid_key - start_key + 1;
 			fnames = parquet_find_span(mid_key, offset, &sz);
 		} else {
+			// normal search
 			const char *fname = parquet_find(start_key);
 			if (fname) {
 				sz = 1;
