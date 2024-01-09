@@ -417,7 +417,7 @@ hook_work_cb(void *arg)
 
 		cJSON *ekeyjo = cJSON_GetObjectItem(root, "end_key");
 		char *ekeystr = NULL;
-		uint64_t end_key;
+		uint64_t end_key = 0;
 		if (ekeyjo)
 			ekeystr = ekeyjo->valuestring;
 		if (ekeystr) {
@@ -484,12 +484,22 @@ hook_work_cb(void *arg)
 			nng_free(msgs_res, sizeof(nng_msg *) * msgs_len);
 		}
 #ifdef SUPP_PARQUET
-		// Get file names and send to localhost:1883 to active handler
+		// Get file names and send to localhost to active handler
 		const char **fnames = NULL;
-		uint32_t sz;
-		uint64_t mid_key = (start_key + end_key) / 2;
-		uint64_t offset = (start_key - mid_key) / 2;
-		fnames = parquet_find_span(mid_key, offset, &sz);
+		uint32_t sz = 0;
+		if (ekeystr) {
+			// fuzzing search
+			uint64_t mid_key = (start_key + end_key) / 2;
+			uint64_t offset = (start_key - mid_key) / 2;
+			fnames = parquet_find_span(mid_key, offset, &sz);
+		} else {
+			const char *fname = parquet_find(start_key);
+			if (fname) {
+				sz = 1;
+				fname = malloc(sizeof(char *) * sz);
+				fnames[0] = fname;
+			}
+		}
 		if (fnames) {
 			if (sz > 0) {
 				log_info("Ask parquet and found.");
