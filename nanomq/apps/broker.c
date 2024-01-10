@@ -656,7 +656,6 @@ server_cb(void *arg)
 				log_error("WAIT nng aio result error: %d", rv);
 			}
 			smsg      = work->msg; // reuse the same msg
-			work->msg = NULL;
 
 			cvector(mqtt_msg_info) msg_infos;
 			msg_infos = work->pipe_ct->msg_infos;
