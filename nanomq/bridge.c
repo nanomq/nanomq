@@ -109,8 +109,10 @@ create_connect_msg(conf_bridge_node *node)
 			nng_mqtt_msg_set_connect_will_property(
 			    connmsg, will_properties);
 		}
+		nng_mqttv5_msg_encode(connmsg);
+	} else {
+		nng_mqtt_msg_encode(connmsg);
 	}
-	nng_mqtt_msg_encode(connmsg);
 	return connmsg;
 }
 
@@ -187,6 +189,7 @@ bridge_publish_msg(const char *topic, uint8_t *payload, uint32_t len, bool dup,
 	// create a PUBLISH message
 	nng_msg *pubmsg;
 	nng_mqtt_msg_alloc(&pubmsg, 0);
+	// we dont check rv only because this is already a valid msg from another broker
 	nng_mqtt_msg_set_packet_type(pubmsg, NNG_MQTT_PUBLISH);
 	nng_mqtt_msg_set_publish_dup(pubmsg, dup);
 	nng_mqtt_msg_set_publish_qos(pubmsg, qos);
