@@ -38,6 +38,7 @@ main()
 
 	// check recv msg
 	assert(read(outfp, buf, buf_size) != -1);
+	printf("what we got:%s", buf);
 	assert(strncmp(buf, "message", 7) == 0);
 
 	kill(pid_sub, SIGKILL);

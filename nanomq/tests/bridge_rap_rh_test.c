@@ -19,12 +19,12 @@ main()
 	char *cmd_resub = "curl -i --location "
 	            "'http://localhost:8081/api/v4/bridges/sub/emqx' "
 	            "--basic -u admin_test:pw_test -d '{\"data\": "
-	            "{\"subscription\": [{\"remote_topic\":\"cmd/topic1\",\"local_topic\":\"cmd_lo/topic1\",\"qos\": 1, \"retain_handling\":1}]}'";
+	            "{\"subscription\": [{\"remote_topic\":\"cmd/topic1/ci\",\"local_topic\":\"cmd_lo/topic1\",\"qos\": 1, \"retain_handling\":1}]}'";
 
-	char *cmd_pub_emqx_rap0 = "mosquitto_pub -h broker.emqx.io -p 1883 -t recv/topic1 -m message-to-nmq-rap0 -V mqttv5 -q 2 -r -x 90";
-	char *cmd_pub_emqx_rh0 = "mosquitto_pub -h broker.emqx.io -p 1883 -t recv/topic2 -m message-to-nmq-rh0 -V mqttv5 -q 2 -r -x 90";
-	char *cmd_pub_emqx_rh1 = "mosquitto_pub -h broker.emqx.io -p 1883 -t cmd/topic1 -m message-to-nmq-rh1 -V mqttv5 -q 2 -r -x 90";
-	char *cmd_pub_emqx_rh2 = "mosquitto_pub -h broker.emqx.io -p 1883 -t cmd/topic2 -m message-to-nmq-hrh2 -V mqttv5 -q 2 -r -x 90";
+	char *cmd_pub_emqx_rap0 = "mosquitto_pub -h broker.emqx.io -p 1883 -t recv/topic1/ci -m message-to-nmq-rap0 -V mqttv5 -q 2 -r -x 90";
+	char *cmd_pub_emqx_rh0 = "mosquitto_pub -h broker.emqx.io -p 1883 -t recv/topic2/ci -m message-to-nmq-rh0 -V mqttv5 -q 2 -r -x 90";
+	char *cmd_pub_emqx_rh1 = "mosquitto_pub -h broker.emqx.io -p 1883 -t cmd/topic1/ci -m message-to-nmq-rh1 -V mqttv5 -q 2 -r -x 90";
+	char *cmd_pub_emqx_rh2 = "mosquitto_pub -h broker.emqx.io -p 1883 -t cmd/topic2/ci -m message-to-nmq-hrh2 -V mqttv5 -q 2 -r -x 90";
 
 	nng_thread *nmq;
 	pid_t       pid_sub_nmq_rap0;
