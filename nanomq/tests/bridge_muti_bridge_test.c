@@ -15,10 +15,10 @@ main()
 	char *cmd_sub[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", "1881", "-t", "nmqtest_sub", "-V", "mqttv5", NULL};
 	char *cmd_pub= "mosquitto_pub -h 127.0.0.1 -p 1881 -t nmqtest_lo -m message-to-aws -V mqttv5 -r";
 
-	char *cmd_sub_emqx[] = {"mosquitto_sub", "-h", "broker.emqx.io", "-p", "1883", "-t", "fwd1/test", "-V", "mqttv5", "-q", "2", NULL};
+	char *cmd_sub_emqx[] = {"mosquitto_sub", "-h", "broker.emqx.io", "-p", "1883", "-t", "fwd1/test/ci", "-V", "mqttv5", "-q", "2", NULL};
 	char *cmd_sub_nmq[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", "1881", "-t", "recv_lo/topic1", "-V", "mqttv5", "-q", "2", NULL};
-	char *cmd_pub_nmq = "mosquitto_pub -h 127.0.0.1 -p 1881 -t forward1/test -m message-to-emqx -V mqttv5 -q 2 -r";
-	char *cmd_pub_emqx = "mosquitto_pub -h broker.emqx.io -p 1883 -t recv/topic1 -m message-to-nmq -V mqttv5 -q 2 -r";
+	char *cmd_pub_nmq = "mosquitto_pub -h 127.0.0.1 -p 1881 -t forward1/test/ci -m message-to-emqx -V mqttv5 -q 2 -r";
+	char *cmd_pub_emqx = "mosquitto_pub -h broker.emqx.io -p 1883 -t recv/topic1/ci -m message-to-nmq -V mqttv5 -q 2 -r";
 
 	nng_thread *nmq;
 	pid_t       pid_sub;
