@@ -246,6 +246,8 @@ webhook_client_disconnect(nng_socket *sock, conf_web_hook *hook_conf,
 	return rv;
 }
 
+// uint64_t g_index = 0;
+
 inline int
 hook_entry(nano_work *work, uint8_t reason)
 {
@@ -269,6 +271,9 @@ hook_entry(nano_work *work, uint8_t reason)
 		ptrdiff_t offset = (ptrdiff_t)(nng_msg_payload_ptr(work->msg) - body_ptr);
 		nng_msg_set_payload_ptr(msg, (uint8_t *)nng_msg_body(msg) + offset);
 		nng_time ts = nng_timestamp();
+		// nng_mtx_lock(hook_conf->ex_mtx);
+		// nng_time ts = g_index ++;
+		// nng_mtx_unlock(hook_conf->ex_mtx);
 		nng_msg_set_timestamp(msg, ts);
 
 		for (size_t i = 0; i < ex_conf->count; i++) {
@@ -278,7 +283,7 @@ hook_entry(nano_work *work, uint8_t reason)
 				if (work->ctx.id > work->config->parallel)
 					log_error("parallel %d idx %d", work->config->parallel);	// shall be a bug if triggered
 
-				nng_aio  *aio = hook_conf->saios[work->ctx.id-1];
+				nng_aio *aio = hook_conf->saios[work->ctx.id-1];
 				nng_aio_wait(aio);
 
 				nng_msg_clone(msg);

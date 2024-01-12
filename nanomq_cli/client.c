@@ -1540,7 +1540,7 @@ create_client(nng_socket *sock, struct work **works, size_t id, size_t nwork,
 	if (opts->enable_ssl) {
 		if ((rv = init_dialer_tls(dialer, opts->cacert, opts->cert,
 		         opts->key, opts->keypass)) != 0) {
-			fatal("init_dialer_tls", rv);
+			nng_fatal("init_dialer_tls", rv);
 		}
 	}
 #endif
