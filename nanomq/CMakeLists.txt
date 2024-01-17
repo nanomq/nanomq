@@ -54,6 +54,14 @@ set(SOURCES
     apps/broker.c
 )
 
+if(NNG_ENABLE_PLUGIN)
+    if (NOT WIN32 AND NOT CYGWIN)
+        set(SOURCES ${SOURCES} plugin/plugin.c)
+    else ()
+        message(FATAL_ERROR "Plugin is not supported on Windows now")
+    endif ()
+endif(NNG_ENABLE_PLUGIN)
+
 include_directories(${FOUNDATION_INCLUDE_DIR})
 
 if(BUILD_STATIC_LIB)
