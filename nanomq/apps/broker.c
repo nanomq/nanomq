@@ -46,6 +46,10 @@
 #include "include/cmd_proc.h"
 #include "include/process.h"
 #include "include/nanomq.h"
+
+#if defined(SUPP_PLUGIN)
+	#include "include/plugin.h"
+#endif
 // #if defined(SUPP_RULE_ENGINE)
 // 	#include <foundationdb/fdb_c.h>
 // 	#include <foundationdb/fdb_c_options.g.h>
@@ -1159,6 +1163,15 @@ broker(conf *nanomq_conf)
 		log_error("Not support for App lib\n");
 #endif
 	}
+
+#if defined(SUPP_PLUGIN)
+	for (i = 0; i < nanomq_conf->plugin.path_sz; i++) {
+		rv = plugin_register(nanomq_conf->plugin.libs[i]->path);
+		if (rv != 0) {
+			log_error("plugin_register error:%s : %d", nanomq_conf->plugin.libs[i]->path, rv);
+		}
+	}
+#endif
 	printf("NanoMQ Broker is started successfully!\n");
 
 #if defined(ENABLE_NANOMQ_TESTS)
