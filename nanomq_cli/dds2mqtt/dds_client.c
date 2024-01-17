@@ -337,6 +337,8 @@ dds_data_available(dds_entity_t rd, void *arg)
 		pthread_mutex_lock(&cli->mtx);
 		nftp_vec_append(handleq, (void *) hd);
 		pthread_mutex_unlock(&cli->mtx);
+	} else {
+		free(topic);
 	}
 }
 
