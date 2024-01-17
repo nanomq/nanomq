@@ -207,6 +207,11 @@ if(ENABLE_PARQUET)
   add_definitions(-DSUPP_PARQUET)
 endif()
 
+if(ENABLE_PLUGIN)
+  set(NNG_ENABLE_PLUGIN ON)
+  add_definitions(-DSUPP_PLUGIN)
+endif()
+
 if(NNG_ENABLE_QUIC)
   set(BUILD_QUIC_CLI ON)
   add_definitions(-DSUPP_QUIC)
