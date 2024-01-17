@@ -336,8 +336,6 @@ mqtt_loop(void *arg)
 	dds_cli       *ddscli = cli->ddscli;
 
 	dds_gateway_conf *conf = cli->config;
-	dds_handler_set  *dds_handlers =
-		dds_get_handler(ddscli->config->forward.dds2mqtt[0]->struct_name);
 
 	while (cli->running) {
 		// If handle queue is not empty. Handle it first.
@@ -389,15 +387,19 @@ mqtt_loop(void *arg)
 		case HANDLE_TO_MQTT:
 			// Translate DDS msg to MQTT format
 			ddsmsg = hd->data;
-			// dds_to_mqtt_type_convert(ddsmsg, &mqttmsg);
-			cJSON *json = dds_handlers->dds2mqtt(ddsmsg);
-			dds_handlers->free(ddsmsg, DDS_FREE_ALL);
-			mqttmsg.payload = cJSON_PrintUnformatted(json);
-			mqttmsg.len     = strlen(mqttmsg.payload);
-			cJSON_Delete(json);
 
+			dds_handler_set *dds_handler;
 			dds_gateway_topic *dt = find_mqtt_topic(conf, hd->topic);
+
 			if (dt) {
+				dds_handler = dds_get_handler(dt->struct_name);
+				cJSON *json = dds_handler->dds2mqtt(ddsmsg);
+				dds_handler->free(ddsmsg, DDS_FREE_ALL);
+
+				mqttmsg.payload = cJSON_PrintUnformatted(json);
+				mqttmsg.len     = strlen(mqttmsg.payload);
+				cJSON_Delete(json);
+
 				mqtt_publish(cli, dt->to, 0,
 				    (uint8_t *)mqttmsg.payload, mqttmsg.len);
 				nng_free(mqttmsg.payload, mqttmsg.len);

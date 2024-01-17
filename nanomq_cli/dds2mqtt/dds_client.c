@@ -303,9 +303,24 @@ dds_data_available(dds_entity_t rd, void *arg)
 
 	nftp_vec *handleq = cli->handleq;
 
-	dds_handler_set *dds_reader_handles =
-	    dds_get_handler(cli->config->forward.dds2mqtt[0]->struct_name);
-	samples[0] = dds_reader_handles->alloc();
+	char *topic = NULL;
+	int   clidx = 0;
+	for (size_t i=0; i<cli->nsubrdclis; ++i) {
+		if (rd == cli->subrdclis[i]->scli) {
+			topic = strdup(cli->subrdclis[i]->ddsrecv_topic);
+			clidx = i;
+			break;
+		}
+	}
+
+	if (topic == NULL) {
+		log_dds("no topic found for dds reader: %d", rd);
+		return;
+	}
+
+	// dds_handler_set *dds_reader_handles = dds_get_handler(cli->config->forward.dds2mqtt[0]->struct_name);
+	// samples[0] = dds_reader_handles->alloc();
+	samples[0] = cli->subrdclis[clidx]->handles->alloc();
 
 	rc = dds_take(rd, samples, infos, MAX_SAMPLES, MAX_SAMPLES);
 	if (rc < 0)
@@ -313,20 +328,7 @@ dds_data_available(dds_entity_t rd, void *arg)
 
 	if ((rc > 0) && (infos[0].valid_data)) {
 		log_dds("[DDS] Subscriber received struct '%s', counter %d",
-		    dds_reader_handles->desc->m_typename, ++recv_cnt);
-
-		char *topic = NULL;
-		for (size_t i=0; i<cli->nsubrdclis; ++i) {
-			if (rd == cli->subrdclis[i]->scli) {
-				topic = strdup(cli->subrdclis[i]->ddsrecv_topic);
-				break;
-			}
-		}
-
-		if (topic == NULL) {
-			log_dds("no topic found for dds reader: %d", rd);
-			return;
-		}
+		    cli->subrdclis[clidx]->handles->desc->m_typename, ++recv_cnt);
 
 		/* Make a handle */
 		hd = mk_handle(HANDLE_TO_MQTT, samples[0], 0, topic);
