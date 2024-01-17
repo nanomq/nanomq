@@ -338,6 +338,7 @@ dds_data_available(dds_entity_t rd, void *arg)
 		nftp_vec_append(handleq, (void *) hd);
 		pthread_mutex_unlock(&cli->mtx);
 	} else {
+		cli->subrdclis[clidx]->handles->free(samples[0], DDS_FREE_ALL);
 		free(topic);
 	}
 }
