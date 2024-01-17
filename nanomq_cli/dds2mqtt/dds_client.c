@@ -175,8 +175,9 @@ dds_subcli_send(dds_subcli *scli, char *payload)
 	rc = dds_write(scli->scli, samples[0]);
 	if (rc != DDS_RETCODE_OK)
 		DDS_FATAL("dds_write: %s\n", dds_strretcode(-rc));
-	log_dds("[DDS] Publisher sent struct '%s', counter %d",
-		scli->handles->desc->m_typename, ++sent_cnt);
+	log_dds("[DDS] Pub struct %s, topic %s, cnt %d",
+		scli->handles->desc->m_typename,
+		scli->ddssend_topic, ++sent_cnt);
 	/* Free the data location. */
 	scli->handles->free(samples[0], DDS_FREE_ALL);
 }
@@ -327,8 +328,9 @@ dds_data_available(dds_entity_t rd, void *arg)
 		DDS_FATAL("dds_take: %s\n", dds_strretcode(-rc));
 
 	if ((rc > 0) && (infos[0].valid_data)) {
-		log_dds("[DDS] Subscriber received struct '%s', counter %d",
-		    cli->subrdclis[clidx]->handles->desc->m_typename, ++recv_cnt);
+		log_dds("[DDS] Sub recv struct %s, topic %s, cnt%d",
+		    cli->subrdclis[clidx]->handles->desc->m_typename,
+			cli->subrdclis[clidx]->ddsrecv_topic, ++recv_cnt);
 
 		/* Make a handle */
 		hd = mk_handle(HANDLE_TO_MQTT, samples[0], 0, topic);
@@ -598,7 +600,7 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 			pthread_mutex_lock(&mqttcli->mtx);
 			nftp_vec_append(mqttcli->handleq, hd);
 			pthread_mutex_unlock(&mqttcli->mtx);
-			log_dds("[DDS] Forward msg to mqtt, counter %d", ++forward2mqtt_cnt);
+			log_dds("[DDS] Forward msg to mqtt, cnt %d", ++forward2mqtt_cnt);
 			break;
 		default:
 			log_dds("Unsupported handle type.\n");

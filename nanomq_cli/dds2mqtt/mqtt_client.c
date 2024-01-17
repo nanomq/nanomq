@@ -240,7 +240,6 @@ client_publish(nng_socket sock, const char *topic, uint8_t *payload,
 		log_dds("%s", print);
 	}
 
-	log_dds("[MQTT] Sent to '%s', counter %d", topic, ++sent_cnt);
 	if ((rv = nng_sendmsg(sock, pubmsg, NNG_FLAG_NONBLOCK)) != 0) {
 		log_dds("nng_sendmsg: %s\n", nng_strerror(rv));
 	}
@@ -400,6 +399,8 @@ mqtt_loop(void *arg)
 				mqttmsg.len     = strlen(mqttmsg.payload);
 				cJSON_Delete(json);
 
+				log_dds("[MQTT] Sent topic %s, struct %s, cnt%d", dt->to,
+					dt->struct_name, ++sent_cnt);
 				mqtt_publish(cli, dt->to, 0,
 				    (uint8_t *)mqttmsg.payload, mqttmsg.len);
 				nng_free(mqttmsg.payload, mqttmsg.len);
