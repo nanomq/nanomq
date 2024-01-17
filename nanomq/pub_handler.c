@@ -29,6 +29,10 @@
 #include "nng/supplemental/sqlite/sqlite3.h"
 #include "nng/supplemental/nanolib/log.h"
 
+#if defined(SUPP_PLUGIN)
+	#include "include/plugin.h"
+#endif
+
 #define ENABLE_RETAIN 1
 #define SUPPORT_MQTT5_0 1
 
@@ -1386,12 +1390,49 @@ encode_pub_message(
 
 #if SUPPORT_MQTT5_0
 		if (MQTT_PROTOCOL_VERSION_v5 == proto) {
-			if (encode_properties(dest_msg,
-			        work->pub_packet->var_header.publish
-			            .properties,
-			        CMD_PUBLISH) != 0) {
+#if defined(SUPP_PLUGIN)
+			char *uproperty[2];
+			uproperty[0] = NULL;
+			uproperty[1] = NULL;
+
+			plugin_hook_call(HOOK_USER_PROPERTY, uproperty);
+
+			if (uproperty[0] != NULL && uproperty[1] != NULL) {
+				property *user_property =
+				    mqtt_property_set_value_strpair(USER_PROPERTY,
+				        uproperty[0], strlen(uproperty[0]),
+				        uproperty[1], strlen(uproperty[1]),
+				        false);
+
+				if (work->pub_packet->var_header.publish
+				        .properties == NULL) {
+					work->pub_packet->var_header.publish
+					    .properties = property_alloc();
+				}
+
+				property_append(work->pub_packet->var_header
+							.publish.properties, user_property);
+			}
+
+#endif
+			int rv;
+			rv = encode_properties(dest_msg,
+			    work->pub_packet->var_header.publish.properties,
+				CMD_PUBLISH);
+#if defined(SUPP_PLUGIN)
+			/* clean up user property */
+			if (uproperty[0] != NULL) {
+				free(uproperty[0]);
+			}
+			if (uproperty[1] != NULL) {
+				free(uproperty[1]);
+			}
+#endif
+
+			if (rv != 0) {
 				return false;
 			}
+
 			// rv = encode_properties(dest_msg, NULL);
 		}
 #endif
