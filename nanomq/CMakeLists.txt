@@ -55,11 +55,7 @@ set(SOURCES
 )
 
 if(NNG_ENABLE_PLUGIN)
-    if (NOT WIN32 AND NOT CYGWIN)
-        set(SOURCES ${SOURCES} plugin/plugin.c)
-    else ()
-        message(FATAL_ERROR "Plugin is not supported on Windows now")
-    endif ()
+  set(SOURCES ${SOURCES} plugin/plugin.c)
 endif(NNG_ENABLE_PLUGIN)
 
 include_directories(${FOUNDATION_INCLUDE_DIR})
