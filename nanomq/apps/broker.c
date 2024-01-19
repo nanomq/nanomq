@@ -97,7 +97,7 @@ void sig_handler(int signum)
 	if (signum == SIGINT || signum == SIGABRT || signum == SIGSEGV) {
 		exit(EXIT_FAILURE);
 	}
-	if (signum == SIGILL)
+	if (signum == SIGILL || signum == SIGTERM)
 		exit(EXIT_SUCCESS);
 }
 #endif
