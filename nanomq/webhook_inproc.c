@@ -448,12 +448,42 @@ hook_work_cb(void *arg)
 			goto skip;
 		}
 
-		cJSON *skeyjo = cJSON_GetObjectItem(root, "start_key");
-		char *skeystr = NULL;
-		uint64_t start_key;
-		if (skeyjo)
+
+		cJSON *rgjo;
+		cJSON *rgsjo = cJSON_GetObjectItem(root, "ranges");
+		if (!rgsjo) {
+			log_warn("No ranges field found in json msg");
+			nng_msg_free(msg);
+			cJSON_Delete(root);
+			goto skip;
+		}
+
+		nng_aio *aio;
+		nng_aio_alloc(&aio, NULL, NULL);
+
+		cJSON_ArrayForEach(rgjo, rgsjo) {
+			char    *skeystr = NULL;
+			char    *ekeystr = NULL;
+			uint64_t start_key;
+			uint64_t end_key;
+
+			cJSON *skeyjo = cJSON_GetObjectItem(rgjo, "start_key");
+			cJSON *ekeyjo = cJSON_GetObjectItem(root, "end_key");
+			if (!cJSON_IsNumber(skeyjo) || !cJSON_IsNumber(ekeyjo)) {
+				log_warn("No start/end key field found in json msg");
+				nng_msg_free(msg);
+				cJSON_Delete(root);
+				goto skip;
+			}
 			skeystr = skeyjo->valuestring;
-		if (skeystr) {
+			ekeystr = ekeyjo->valuestring;
+			if (!skeystr || !ekeystr) {
+				log_warn("Invalid start/end key field found in json msg");
+				nng_msg_free(msg);
+				cJSON_Delete(root);
+				goto skip;
+			}
+
 			rv = sscanf(skeystr, "%" SCNu64, &start_key);
 			if (rv == 0) {
 				log_error("error in read start_key to number %s", skeystr);
@@ -461,19 +491,6 @@ hook_work_cb(void *arg)
 				cJSON_Delete(root);
 				goto skip;
 			}
-		} else {
-			log_warn("No start_key field found in json msg");
-			nng_msg_free(msg);
-			cJSON_Delete(root);
-			goto skip;
-		}
-
-		cJSON *ekeyjo = cJSON_GetObjectItem(root, "end_key");
-		char *ekeystr = NULL;
-		uint64_t end_key = 0;
-		if (ekeyjo)
-			ekeystr = ekeyjo->valuestring;
-		if (ekeystr) {
 			rv = sscanf(ekeystr, "%" SCNu64, &end_key);
 			if (rv == 0) {
 				log_error("error in read end_key to number %s", ekeystr);
@@ -481,85 +498,98 @@ hook_work_cb(void *arg)
 				cJSON_Delete(root);
 				goto skip;
 			}
-		}
-		log_info("start_key %lld end_key %lld", start_key, end_key);
 
-		nng_msg *m;
-		nng_msg_alloc(&m, 0);
-		if (!m) {
-			log_error("Error in alloc memory");
-			nng_msg_free(msg);
-			cJSON_Delete(root);
-			goto skip;
-		}
+			nng_msg *m;
+			nng_msg_alloc(&m, 0);
+			if (!m) {
+				log_error("Error in alloc memory");
+				nng_msg_free(msg);
+				cJSON_Delete(root);
+				goto skip;
+			}
 
-		nng_time *tss = NULL;
-		// When end key exists. Fuzzing search.
-		if (ekeystr) {
-			tss = nng_alloc(sizeof(nng_time) * 3);
-			tss[0] = start_key;
-			tss[1] = end_key;
-			tss[2] = 0;
-			nng_msg_set_proto_data(m, NULL, (void *)tss);
-		} else {
-			// Not exists. then normal search
-			nng_msg_set_timestamp(m, start_key);
-		}
+			nng_time *tss = NULL;
+			// When end key exists. Fuzzing search.
+			if (end_key > start_key) {
+				tss = nng_alloc(sizeof(nng_time) * 3);
+				tss[0] = start_key;
+				tss[1] = end_key;
+				tss[2] = 0;
+				nng_msg_set_proto_data(m, NULL, (void *)tss);
+			} else if (end_key == start_key) {
+				// normal search
+				nng_msg_set_timestamp(m, start_key);
+			} else {
+				// Invalid json
+				log_error("SKip. start key is greater than end key. It's not allowed");
+				nng_msg_free(msg);
+			}
 
-		nng_aio_set_msg(aio, m);
-		// search msgs from MQ
-		nng_recv_aio(*ex_sock, aio);
+			log_info("start_key %lld end_key %lld", start_key, end_key);
 
-		nng_aio_wait(aio);
-		if (nng_aio_result(aio) != 0)
-			log_warn("error in taking msgs from exchange");
-		nng_msg_free(m);
-		if (ekeystr)
-			nng_free(tss, 0);
+			nng_aio_set_msg(aio, m);
+			// search msgs from MQ
+			nng_recv_aio(*ex_sock, aio);
 
-		nng_msg **msgs_res = (nng_msg **)nng_aio_get_msg(aio);
-		uint32_t  msgs_len = (uintptr_t)nng_aio_get_prov_data(aio);
+			nng_aio_wait(aio);
+			if (nng_aio_result(aio) != 0)
+				log_warn("error in taking msgs from exchange");
+			nng_msg_free(m);
+			if (end_key > start_key)
+				nng_free(tss, 0);
 
-		// Get msgs and send to localhost:1883 to active handler
-		if (msgs_len > 0 && msgs_res != NULL) {
-			log_info("Publishing %ld msgs took from exchange...", msgs_len);
+			nng_msg **msgs_res = (nng_msg **)nng_aio_get_msg(aio);
+			uint32_t  msgs_len = (uintptr_t)nng_aio_get_prov_data(aio);
 
-			// TODO NEED Clone before took from exchange instead of here
-			for (int i=0; i<msgs_len; ++i)
-				nng_msg_clone(msgs_res[i]);
+			// Get msgs and send to localhost:port to active handler
+			if (msgs_len > 0 && msgs_res != NULL) {
+				log_info("Publishing %ld msgs took from exchange...", msgs_len);
 
-			send_mqtt_msg_cat(work->mqtt_sock, "$file/upload/md5/xxxx", msgs_res, msgs_len);
+				// TODO NEED Clone before took from exchange instead of here
+				for (int i=0; i<msgs_len; ++i)
+					nng_msg_clone(msgs_res[i]);
 
-			for (int i=0; i<msgs_len; ++i)
-				nng_msg_free(msgs_res[i]);
-			nng_free(msgs_res, sizeof(nng_msg *) * msgs_len);
-		}
+				send_mqtt_msg_cat(work->mqtt_sock, "$file/upload/md5/xxxx", msgs_res, msgs_len);
+
+				for (int i=0; i<msgs_len; ++i)
+					nng_msg_free(msgs_res[i]);
+				nng_free(msgs_res, sizeof(nng_msg *) * msgs_len);
+			}
 #ifdef SUPP_PARQUET
-		// Get file names and send to localhost to active handler
-		const char **fnames = NULL;
-		uint32_t sz = 0;
-		if (ekeystr) {
-			// fuzzing search
-			fnames = parquet_find_span(start_key, end_key, &sz);
-		} else {
-			// normal search
-			const char *fname = parquet_find(start_key);
-			if (fname) {
-				sz = 1;
-				fname = malloc(sizeof(char *) * sz);
-				fnames[0] = fname;
+			// Get file names and send to localhost to active handler
+			const char **fnames = NULL;
+			uint32_t sz = 0;
+			if (end_key > start_key) {
+				// fuzzing search
+				uint64_t mid_key = (end_key + start_key) / 2;
+				uint64_t offset = mid_key - start_key + 1;
+				fnames = parquet_find_span(mid_key, offset, &sz);
+			} else if (end_key == start_key) {
+				// normal search
+				const char *fname = parquet_find(start_key);
+				if (fname) {
+					sz = 1;
+					fname = malloc(sizeof(char *) * sz);
+					fnames[0] = fname;
+				}
+			} else {
+				// Invalid json
+				log_error("SKip. start key is greater than end key. It's not allowed");
 			}
-		}
-		if (fnames) {
-			if (sz > 0) {
-				log_info("Ask parquet and found.");
-				send_mqtt_msg_file(work->mqtt_sock, "file_transfer", fnames, sz);
+			if (fnames) {
+				if (sz > 0) {
+					log_info("Ask parquet and found.");
+					send_mqtt_msg_file(work->mqtt_sock, "file_transfer", fnames, sz);
+				}
+				for (int i=0; i<(int)sz; ++i)
+					nng_free((void *)fnames[i], 0);
+				nng_free(fnames, sz);
 			}
-			for (int i=0; i<(int)sz; ++i)
-				nng_free((void *)fnames[i], 0);
-			nng_free(fnames, sz);
-		}
 #endif
+		}
+		// TODO Deduplicate
+
+		nng_aio_free(aio);
 
 		cJSON_Delete(root);
 		root = NULL;
