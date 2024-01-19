@@ -608,17 +608,16 @@ hybrid_cb(void *arg)
 		NANO_NNG_FATAL("nng_cv_alloc mem error", rv);
 		return;
 	}
-	uint32_t aio_cnt = bridge_arg->conf->parallel + node->parallel * 2;
+	// uint32_t aio_cnt = bridge_arg->conf->parallel + node->parallel;
 	// alloc an AIO for each ctx bridging use only
-	node->bridge_aio = nng_alloc(aio_cnt * sizeof(nng_aio *));
+	node->bridge_aio = nng_alloc(bridge_arg->conf->total_ctx * sizeof(nng_aio *));
 
-	for (uint32_t num = 0; num < aio_cnt; num++) {
+	for (uint32_t num = 0; num < bridge_arg->conf->total_ctx; num++) {
 		if ((rv = nng_aio_alloc(&node->bridge_aio[num], NULL, node)) !=
 		    0) {
 			NANO_NNG_FATAL("bridge_aio nng_aio_alloc", rv);
 		}
 	}
-	log_debug("parallel %d aios", aio_cnt);
 
 	char addr_back[160] = {'\0'};
 	if (0 != gen_fallback_url(node->address, addr_back)) {
@@ -1173,20 +1172,19 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	}
 
 	// alloc an AIO for each ctx bridging use only
-	node->bridge_aio = nng_alloc(
-	    (config->parallel + node->parallel * 2) * sizeof(nng_aio *));
+	node->bridge_aio = nng_alloc(config->total_ctx * sizeof(nng_aio *));
 
 	node->sock = (void *) sock;
 	node->bridge_arg = (void *) bridge_arg;
 
-	for (uint32_t num = 0; num < (config->parallel + node->parallel * 2);
-	     num++) {
+	uint32_t num;
+	for ( num = 0; num < config->total_ctx; num++ ) {
 		if ((rv = nng_aio_alloc(
 		         &node->bridge_aio[num], bridge_send_cb, node)) != 0) {
 			NANO_NNG_FATAL("bridge_aio nng_aio_alloc", rv);
 		}
-		log_debug("parallel %d", num);
 	}
+	log_debug("parallel %d", num);
 	return 0;
 }
 
