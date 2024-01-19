@@ -10,6 +10,7 @@
 
 #include "dds_client.h"
 #include "dds/dds.h"
+#include "dds/version.h"
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/io.h"
 #include "dds/ddsrt/heap.h"
@@ -34,6 +35,8 @@
 
 /* An array of one message (aka sample in dds terms) will be used. */
 #define MAX_SAMPLES 1
+
+#define DDS_PROXY_DDSVERSION_USING "0.10.4"
 
 static int recv_cnt = 0;
 static int sent_cnt = 0;
@@ -76,6 +79,8 @@ help(void)
 
 	printf("<config path> must be set: \n");
 	printf("\t--conf <path>     Specify dds proxy configuration file.\n");
+
+	printf("\nBased on CycloneDDS V%s\n", DDS_PROXY_DDSVERSION_USING);
 }
 
 static int
@@ -626,9 +631,20 @@ const char *usage = " nanomq_cli dds { sub | pub | proxy } [--help] \n\n"
                     " \t* pub   \n"
                     " \t* proxy ";
 
+static inline void
+check_dds_version()
+{
+	if (0 != strcmp(DDS_VERSION, DDS_PROXY_DDSVERSION_USING)) {
+		log_dds("WARN DDS Version unmatched. DDSProxy is based on CycloneDDS V%s.",
+			DDS_PROXY_DDSVERSION_USING);
+	}
+}
+
 int
 dds_proxy_start(int argc, char **argv)
 {
+	check_dds_version();
+
 	if (argc < 3)
 		goto help;
 
