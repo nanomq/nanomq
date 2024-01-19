@@ -969,23 +969,12 @@ broker(conf *nanomq_conf)
 		log_debug("Hook service started");
 	}
 
-	// bridging client
+	// caculate total ctx first
 	if (nanomq_conf->bridge_mode) {
 		for (size_t t = 0; t < nanomq_conf->bridge.count; t++) {
 			conf_bridge_node *node = nanomq_conf->bridge.nodes[t];
 			if (node->enable) {
 				nanomq_conf->total_ctx += node->parallel;
-				node->sock = (nng_socket *) nng_alloc(
-				    sizeof(nng_socket));
-#if defined(SUPP_QUIC)
-				if (node->hybrid) {
-					hybrid_bridge_client(node->sock, nanomq_conf, node);
-				} else {
-					bridge_client(node->sock, nanomq_conf, node);
-				}
-#else
-				bridge_client(node->sock, nanomq_conf, node);
-#endif
 			}
 		}
 
@@ -999,6 +988,27 @@ broker(conf *nanomq_conf)
 			}
 		}
 #endif
+		log_trace("total ctx num: %ld", nanomq_conf->total_ctx);
+	}
+
+	// init bridging client
+	if (nanomq_conf->bridge_mode) {
+		for (size_t t = 0; t < nanomq_conf->bridge.count; t++) {
+			conf_bridge_node *node = nanomq_conf->bridge.nodes[t];
+			if (node->enable) {
+				node->sock = (nng_socket *) nng_alloc(
+				    sizeof(nng_socket));
+#if defined(SUPP_QUIC)
+				if (node->hybrid) {
+					hybrid_bridge_client(node->sock, nanomq_conf, node);
+				} else {
+					bridge_client(node->sock, nanomq_conf, node);
+				}
+#else
+				bridge_client(node->sock, nanomq_conf, node);
+#endif
+			}
+		}
 		log_debug("bridge init finished");
 	}
 	// MQTT Broker service
