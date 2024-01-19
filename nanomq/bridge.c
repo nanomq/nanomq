@@ -1089,24 +1089,28 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	nng_duration duration = (nng_duration) node->backoff_max * 1000;
 	nng_dialer_set(dialer, NNG_OPT_MQTT_RECONNECT_BACKOFF_MAX, &duration, sizeof(nng_duration));
 
-	// set bridge tcp option
-	bool nodelay = node->tcp.nodelay == 1 ? true : false;
-	bool keepalive = node->tcp.keepalive == 1 ? true : false;
-	nng_dialer_set(dialer, NNG_OPT_TCP_NODELAY, &nodelay, sizeof(bool));
-	nng_dialer_set(dialer, NNG_OPT_TCP_KEEPALIVE, &keepalive, sizeof(bool));
-	if (node->tcp.keepalive == 1) {
-		nng_dialer_set(dialer, NNG_OPT_TCP_QUICKACK,
-		    &(node->tcp.quickack), sizeof(int));
-		nng_dialer_set(dialer, NNG_OPT_TCP_KEEPIDLE,
-		    &(node->tcp.keepidle), sizeof(int));
-		nng_dialer_set(dialer, NNG_OPT_TCP_KEEPINTVL,
-		    &(node->tcp.keepintvl), sizeof(int));
-		nng_dialer_set(dialer, NNG_OPT_TCP_KEEPCNT,
-		    &(node->tcp.keepcnt), sizeof(int));
-		nng_dialer_set(dialer, NNG_OPT_TCP_SENDTIMEO,
-		    &(node->tcp.sendtimeo), sizeof(int));
-		nng_dialer_set(dialer, NNG_OPT_TCP_RECVTIMEO,
-		    &(node->tcp.recvtimeo), sizeof(int));
+	if (node->tcp.enable) {
+		// set bridge dialer tcp options
+		bool nodelay   = node->tcp.nodelay == 1 ? true : false;
+		bool keepalive = node->tcp.keepalive == 1 ? true : false;
+		nng_dialer_set(
+		    dialer, NNG_OPT_TCP_NODELAY, &nodelay, sizeof(bool));
+		nng_dialer_set(
+		    dialer, NNG_OPT_TCP_KEEPALIVE, &keepalive, sizeof(bool));
+		if (node->tcp.keepalive == 1) {
+			nng_dialer_set(dialer, NNG_OPT_TCP_QUICKACK,
+			    &(node->tcp.quickack), sizeof(int));
+			nng_dialer_set(dialer, NNG_OPT_TCP_KEEPIDLE,
+			    &(node->tcp.keepidle), sizeof(int));
+			nng_dialer_set(dialer, NNG_OPT_TCP_KEEPINTVL,
+			    &(node->tcp.keepintvl), sizeof(int));
+			nng_dialer_set(dialer, NNG_OPT_TCP_KEEPCNT,
+			    &(node->tcp.keepcnt), sizeof(int));
+			nng_dialer_set(dialer, NNG_OPT_TCP_SENDTIMEO,
+			    &(node->tcp.sendtimeo), sizeof(int));
+			nng_dialer_set(dialer, NNG_OPT_TCP_RECVTIMEO,
+			    &(node->tcp.recvtimeo), sizeof(int));
+		}
 	}
 
 #ifdef NNG_SUPP_TLS
