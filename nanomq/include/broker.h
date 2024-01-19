@@ -33,12 +33,9 @@ struct work {
 		END,  // Clear state and cache before disconnect
 		CLOSE // sending disconnect packet and err code
 	} state;
-	// 0x00 mqtt_broker
-	// 0x01 mqtt_bridge
-	uint8_t proto;
-	// MQTT version cache
-	uint8_t     proto_ver;
-	uint8_t     flag; // flag for webhook & rule_engine
+	uint8_t     proto;		  // logic proto
+	uint8_t     proto_ver;   // MQTT version cache
+	uint8_t     flag;        // flag for webhook & rule_engine
 	nng_aio *   aio;
 	nng_msg *   msg;
 	nng_msg **  msg_ret;
