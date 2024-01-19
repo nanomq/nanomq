@@ -861,7 +861,7 @@ broker(conf *nanomq_conf)
 	nng_socket *bridge_sock;
 	nng_pipe   pipe_id;
 	// add the num of other proto
-	uint64_t num_ctx = nanomq_conf->parallel;
+	nanomq_conf->total_ctx = nanomq_conf->parallel;
 
 
 #if defined(SUPP_RULE_ENGINE)
@@ -943,7 +943,7 @@ broker(conf *nanomq_conf)
 		}
 		// set 4 ctx for HTTP as default
 		if (nanomq_conf->http_server.enable) {
-			num_ctx += HTTP_CTX_NUM;
+			nanomq_conf->total_ctx += HTTP_CTX_NUM;
 		}
 	}
 	log_debug("HTTP init finished");
@@ -974,7 +974,7 @@ broker(conf *nanomq_conf)
 		for (size_t t = 0; t < nanomq_conf->bridge.count; t++) {
 			conf_bridge_node *node = nanomq_conf->bridge.nodes[t];
 			if (node->enable) {
-				num_ctx += node->parallel;
+				nanomq_conf->total_ctx += node->parallel;
 				node->sock = (nng_socket *) nng_alloc(
 				    sizeof(nng_socket));
 #if defined(SUPP_QUIC)
@@ -995,14 +995,14 @@ broker(conf *nanomq_conf)
 			conf_bridge_node *node =
 			    nanomq_conf->aws_bridge.nodes[c];
 			if (node->enable) {
-				num_ctx += node->parallel;
+				nanomq_conf->total_ctx += node->parallel;
 			}
 		}
 #endif
 		log_debug("bridge init finished");
 	}
 	// MQTT Broker service
-	struct work **works = nng_zalloc(num_ctx * sizeof(struct work *));
+	struct work **works = nng_zalloc(nanomq_conf->total_ctx * sizeof(struct work *));
 	// create broker ctx
 	for (i = 0; i < nanomq_conf->parallel; i++) {
 		works[i] = proto_work_init(sock, inproc_sock, sock,
@@ -1060,9 +1060,9 @@ broker(conf *nanomq_conf)
 
 	// Init exchange part in hook
 	if (nanomq_conf->exchange.count > 0) {
-		hook_exchange_init(nanomq_conf, num_ctx);
+		hook_exchange_init(nanomq_conf, nanomq_conf->total_ctx);
 		// create exchange senders in hook
-		hook_exchange_sender_init(nanomq_conf, works, num_ctx);
+		hook_exchange_sender_init(nanomq_conf, works, nanomq_conf->total_ctx);
 		// TODO expose this
 		char url_zzz[128] = "tcp://127.0.0.1:10000";
 		nng_socket *mq_sock = nanomq_conf->exchange.nodes[0]->sock;
@@ -1123,7 +1123,7 @@ broker(conf *nanomq_conf)
 		}
 	}
 
-	for (i = 0; i < num_ctx; i++) {
+	for (i = 0; i < nanomq_conf->total_ctx; i++) {
 		server_cb(works[i]); // this starts them going (INIT state)
 	}
 
@@ -1240,12 +1240,12 @@ broker(conf *nanomq_conf)
 			// nng_free(
 			//     conf->bridge.nodes, sizeof(conf_bridge_node **));
 
-			for (size_t i = 0; i < num_ctx; i++) {
+			for (size_t i = 0; i < nanomq_conf->total_ctx; i++) {
 				nng_free(works[i]->pipe_ct,
 				    sizeof(struct pipe_content));
 				nng_free(works[i], sizeof(struct work));
 			}
-			nng_free(works, num_ctx * sizeof(struct work *));
+			nng_free(works, nanomq_conf->total_ctx * sizeof(struct work *));
 			break;
 		}
 		nng_msleep(6000);
@@ -1619,7 +1619,7 @@ broker_parse_opts(int argc, char **argv, conf *config)
 int
 broker_start(int argc, char **argv)
 {
-	int i, url, temp, rc, num_ctx = 0;
+	int i, url, temp, rc;
 	int pid = 0;
 
 	conf *nanomq_conf;
