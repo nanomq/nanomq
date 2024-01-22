@@ -200,7 +200,7 @@ send_msg(conf_web_hook *conf, nng_msg *msg)
 	nng_aio_wait(aio);
 
 	if ((rv = nng_aio_result(aio)) != 0) {
-		log_error("Connect failed: %s", nng_strerror(rv));
+		log_error("Webhook connect failed: %s", nng_strerror(rv));
 		nng_aio_finish_sync(aio, rv);
 		goto out;
 	}
@@ -732,9 +732,23 @@ hook_cb(void *arg)
 		log_error("nng_mqtt_client_open %d", rv);
 		return;
 	}
+
+	if (conf->enable != true) {
+		log_error("listener is not turned on. Can't connect to local mqtt broker.");
+		return;
+	}
+	char *port_str;
+	if ((port_str = strrchr(conf->url, ':')) != NULL)
+		port_str += 1;
+	if (!port_str)
+		port_str = "1883";
+	char url_str[32];
+	sprintf(url_str, "mqtt-tcp://127.0.0.1:%s", port_str);
+	log_info("File trans client will connect to %s", url_str);
+
 	nng_dialer dialer;
 	// need to expose url
-	if ((rv = nng_dialer_create(&dialer, mqtt_sock, "mqtt-tcp://127.0.0.1:1883"))) {
+	if ((rv = nng_dialer_create(&dialer, mqtt_sock, url_str))) {
 		log_error("nng_dialer_create failed %d", rv);
 		return;
 	}
