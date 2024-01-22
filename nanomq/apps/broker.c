@@ -1195,7 +1195,7 @@ broker(conf *nanomq_conf)
 	bool is_testing = false;
 #endif
 
-#if (defined DEBUG) && (!defined ASAN)
+#if (defined DEBUG)  && (!defined ASAN)
 #if !(defined NANO_PLATFORM_WINDOWS)
 	struct sigaction  act;
 	i = 0;
@@ -1238,7 +1238,7 @@ broker(conf *nanomq_conf)
 			}
 			for (size_t t = 0; t < conf->bridge.count; t++) {
 				conf_bridge_node *node = conf->bridge.nodes[t];
-				size_t aio_count = (conf->parallel + node->parallel * 2);
+				size_t aio_count = conf->total_ctx;
 				if (node->enable) {
 					for (size_t i = 0; i < aio_count; i++) {
 						nng_aio_finish_error(node->bridge_aio[i], 0);
