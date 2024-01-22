@@ -19,6 +19,7 @@
 #include "nng/protocol/pipeline0/pull.h"
 #include "nng/protocol/pipeline0/push.h"
 #include "nng/supplemental/http/http.h"
+#include "nng/supplemental/nanolib/cvector.h"
 #include "nng/supplemental/nanolib/cJSON.h"
 #include "nng/supplemental/nanolib/conf.h"
 #include "nng/supplemental/nanolib/log.h"
@@ -461,6 +462,8 @@ hook_work_cb(void *arg)
 		nng_aio *aio;
 		nng_aio_alloc(&aio, NULL, NULL);
 
+		char **sent_files = NULL;
+
 		cJSON_ArrayForEach(rgjo, rgsjo) {
 			char    *skeystr = NULL;
 			char    *ekeystr = NULL;
@@ -509,7 +512,7 @@ hook_work_cb(void *arg)
 			}
 
 			nng_time *tss = NULL;
-			// When end key exists. Fuzzing search.
+			// When end key > start key. Fuzzing search.
 			if (end_key > start_key) {
 				tss = nng_alloc(sizeof(nng_time) * 3);
 				tss[0] = start_key;
@@ -579,6 +582,20 @@ hook_work_cb(void *arg)
 			if (fnames) {
 				if (sz > 0) {
 					log_info("Ask parquet and found.");
+					for (int i=0; i<sz; i++) {
+						int exist = 0;
+						for (int j=0; j<cvector_size(sent_files); j++) {
+							if (0 == strcmp(sent_files[j], fnames[i])) {
+								exist = 1;
+								log_debug("Deduplicate %s.", fnames[i]);
+								break;
+							}
+						}
+						if (exist == 0) {
+							char *fname = strdup(fnames[i]);
+							cvector_push_back(sent_files, fname);
+						}
+					}
 					send_mqtt_msg_file(work->mqtt_sock, "file_transfer", fnames, sz);
 				}
 				for (int i=0; i<(int)sz; ++i)
@@ -587,7 +604,10 @@ hook_work_cb(void *arg)
 			}
 #endif
 		}
-		// TODO Deduplicate
+
+		int sent_files_sz = cvector_size(sent_files);
+		for (int i=sent_files_sz-1; i>=0; --i)
+			free(sent_files[i]);
 
 		nng_aio_free(aio);
 
