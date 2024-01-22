@@ -566,21 +566,27 @@ hook_work_cb(void *arg)
 			if (fnames) {
 				if (sz > 0) {
 					log_info("Ask parquet and found.");
+					const char **fnames_new = NULL;
 					for (int i=0; i<sz; i++) {
 						int exist = 0;
 						for (int j=0; j<cvector_size(sent_files); j++) {
 							if (0 == strcmp(sent_files[j], fnames[i])) {
 								exist = 1;
-								log_debug("Deduplicate %s.", fnames[i]);
+								log_info("Deduplicate %s.", fnames[i]);
 								break;
 							}
 						}
 						if (exist == 0) {
 							char *fname = strdup(fnames[i]);
+							cvector_push_back(fnames_new, fname);
 							cvector_push_back(sent_files, fname);
 						}
 					}
-					send_mqtt_msg_file(work->mqtt_sock, "file_transfer", fnames, sz);
+					if (fnames_new) {
+						send_mqtt_msg_file(work->mqtt_sock, "file_transfer",
+							fnames_new, cvector_size(fnames_new));
+						cvector_free(fnames_new);
+					}
 				}
 				for (int i=0; i<(int)sz; ++i)
 					nng_free((void *)fnames[i], 0);
@@ -592,6 +598,8 @@ hook_work_cb(void *arg)
 		int sent_files_sz = cvector_size(sent_files);
 		for (int i=sent_files_sz-1; i>=0; --i)
 			free(sent_files[i]);
+		if (sent_files_sz > 0)
+			cvector_free(sent_files);
 
 skip:
 		nng_aio_free(aio);
