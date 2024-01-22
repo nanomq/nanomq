@@ -377,14 +377,18 @@ hook_work_cb(void *arg)
 		msg       = work->msg;
 		work->msg = NULL;
 
-		nng_aio *aio;
-		nng_aio_alloc(&aio, NULL, NULL);
-
 		if (exconf->count == 0) {
 			log_error("Exchange is not enabled");
 			nng_msg_free(msg);
-			goto skip;
+
+			// Start next recv
+			work->state = HOOK_RECV;
+			nng_recv_aio(work->sock, work->aio);
+			break;
 		}
+
+		nng_aio *aio;
+		nng_aio_alloc(&aio, NULL, NULL);
 
 		// TODO match exchange with IPC msg (by MQ name)
 		nng_socket *ex_sock = exconf->nodes[0]->sock;
@@ -399,8 +403,6 @@ hook_work_cb(void *arg)
 		if (cmdstr) {
 			if (0 == strcmp(cmdstr, "write")) {
 				log_warn("Write cmd is not supported");
-				nng_msg_free(msg);
-				cJSON_Delete(root);
 				goto skip;
 			} else if (0 == strcmp(cmdstr, "search")) {
 				log_debug("Search is triggered");
@@ -440,8 +442,6 @@ hook_work_cb(void *arg)
 				goto skip;
 			} else {
 				log_warn("Invalid cmd");
-				nng_msg_free(msg);
-				cJSON_Delete(root);
 				goto skip;
 			}
 		} else {
@@ -454,13 +454,8 @@ hook_work_cb(void *arg)
 		cJSON *rgsjo = cJSON_GetObjectItem(root, "ranges");
 		if (!rgsjo) {
 			log_warn("No ranges field found in json msg");
-			nng_msg_free(msg);
-			cJSON_Delete(root);
 			goto skip;
 		}
-
-		nng_aio *aio;
-		nng_aio_alloc(&aio, NULL, NULL);
 
 		char **sent_files = NULL;
 
@@ -471,34 +466,26 @@ hook_work_cb(void *arg)
 			uint64_t end_key;
 
 			cJSON *skeyjo = cJSON_GetObjectItem(rgjo, "start_key");
-			cJSON *ekeyjo = cJSON_GetObjectItem(root, "end_key");
-			if (!cJSON_IsNumber(skeyjo) || !cJSON_IsNumber(ekeyjo)) {
+			cJSON *ekeyjo = cJSON_GetObjectItem(rgjo, "end_key");
+			if (!cJSON_IsString(skeyjo) || !cJSON_IsString(ekeyjo)) {
 				log_warn("No start/end key field found in json msg");
-				nng_msg_free(msg);
-				cJSON_Delete(root);
 				goto skip;
 			}
 			skeystr = skeyjo->valuestring;
 			ekeystr = ekeyjo->valuestring;
 			if (!skeystr || !ekeystr) {
 				log_warn("Invalid start/end key field found in json msg");
-				nng_msg_free(msg);
-				cJSON_Delete(root);
 				goto skip;
 			}
 
 			rv = sscanf(skeystr, "%" SCNu64, &start_key);
 			if (rv == 0) {
 				log_error("error in read start_key to number %s", skeystr);
-				nng_msg_free(msg);
-				cJSON_Delete(root);
 				goto skip;
 			}
 			rv = sscanf(ekeystr, "%" SCNu64, &end_key);
 			if (rv == 0) {
 				log_error("error in read end_key to number %s", ekeystr);
-				nng_msg_free(msg);
-				cJSON_Delete(root);
 				goto skip;
 			}
 
@@ -506,8 +493,6 @@ hook_work_cb(void *arg)
 			nng_msg_alloc(&m, 0);
 			if (!m) {
 				log_error("Error in alloc memory");
-				nng_msg_free(msg);
-				cJSON_Delete(root);
 				goto skip;
 			}
 
@@ -524,8 +509,7 @@ hook_work_cb(void *arg)
 				nng_msg_set_timestamp(m, start_key);
 			} else {
 				// Invalid json
-				log_error("SKip. start key is greater than end key. It's not allowed");
-				nng_msg_free(msg);
+				log_warn("SKip. start key is greater than end key. It's not allowed");
 			}
 
 			log_info("start_key %lld end_key %lld", start_key, end_key);
@@ -577,7 +561,7 @@ hook_work_cb(void *arg)
 				}
 			} else {
 				// Invalid json
-				log_error("SKip. start key is greater than end key. It's not allowed");
+				log_warn("SKip. start key is greater than end key. It's not allowed");
 			}
 			if (fnames) {
 				if (sz > 0) {
@@ -609,13 +593,12 @@ hook_work_cb(void *arg)
 		for (int i=sent_files_sz-1; i>=0; --i)
 			free(sent_files[i]);
 
+skip:
 		nng_aio_free(aio);
 
 		cJSON_Delete(root);
 		root = NULL;
 		nng_msg_free(msg);
-skip:
-		nng_aio_free(aio);
 		// Start next recv
 		work->state = HOOK_RECV;
 		nng_recv_aio(work->sock, work->aio);
