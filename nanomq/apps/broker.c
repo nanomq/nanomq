@@ -9,6 +9,8 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <signal.h>
+#include <errno.h>
 
 #include "nng/mqtt/mqtt_client.h"
 #include "nng/exchange/exchange_client.h"
@@ -66,9 +68,16 @@
 // be set in the thousands, each context consumes a couple of KB.) Recommend to
 // set as the same as your CPU cores.
 
+#if (defined DEBUG) && (defined ASAN)
+int keepRunning = 1;
+void
+intHandler(int dummy)
+{
+	keepRunning = 0;
+	fprintf(stderr, "\nBroker exit(0).\n");
+}
+#else
 #if !defined(NANO_PLATFORM_WINDOWS)
-#include <signal.h>
-#include <errno.h>
 static const int all_signals[] = {
 #ifdef SIGHUP
 	SIGHUP,
@@ -101,6 +110,8 @@ void sig_handler(int signum)
 		exit(EXIT_SUCCESS);
 }
 #endif
+#endif
+
 
 
 enum options {
@@ -183,10 +194,6 @@ static nng_optspec cmd_opts[] = {
 // The server keeps a list of work items, sorted by expiration time,
 // so that we can use this to set the timeout to the correct value for
 // use in poll.
-
-#if (defined DEBUG) && (defined ASAN)
-int keepRunning = 1;
-#endif
 
 static inline bool
 bridge_handler(nano_work *work)
@@ -1211,6 +1218,8 @@ broker(conf *nanomq_conf)
 		}
 	} while (all_signals[i++] != SIGTERM);
 #endif
+#else
+	signal(SIGINT, intHandler);
 #endif
 
 #if (defined DEBUG) && (defined ASAN)
