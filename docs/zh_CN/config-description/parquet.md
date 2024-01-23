@@ -23,6 +23,8 @@ exchange_client.mq1 {
 			name = "ringbus",
 			# # max length of ring buffer (msg count)
 			cap = 1000
+			# # 2: RB_FULL_RETURN: When the ringbus is full, the data in the ringbus is taken out and returned to the aio
+			fullOp = 2
 		}
 	}
 }
@@ -72,8 +74,9 @@ exchange_client
 - exchange_client.\<name>：交换机客户端名称, 当需要启动多个交换机时，可以通过指定多个不同的名字来启动。
 - `exchange.topic`：MQTT 主题用于过滤消息并保存到队列。
 - `exchange.name`: 交换机名称。
-- `exchange.ringbus.name`: ring buffer 名称。
-- `exchange.ringbus.cap`: ring buffer 的容量。
+- `exchange.ringbus.name`: ring bus 名称。
+- `exchange.ringbus.cap`: ring bus 的容量。
+- `exchange.ringbus.fullOp`: ring bus 满时需要做的动作。
 
 parquet。
 - `parquet.compress`: 选择对应的压缩算法，取值：`uncompressed | snappy | gzip | brotli | zstd | lz4` 默认是 `uncompressed`。
