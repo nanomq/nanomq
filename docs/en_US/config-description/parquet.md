@@ -24,6 +24,8 @@ exchange_client.mq1 {
 			name = "ringbus",
 			# # max length of ring buffer (msg count)
 			cap = 1000
+			# # 2: RB_FULL_RETURN: When the ringbus is full, the data in the ringbus is taken out and returned to the aio
+			fullOp = 2
 		}
 	}
 }
@@ -31,8 +33,7 @@ exchange_client.mq1 {
 # #====================================================================
 # # Parquet configuration (Apply to Exchange/Messaging_Queue)
 # #====================================================================
-parquet {
-	# # Parquet compress type.
+parquet { # # Parquet compress type.
 	# #
 	# # Value: uncompressed | snappy | gzip | brotli | zstd | lz4
 	compress = uncompressed
@@ -68,13 +69,14 @@ parquet {
 }
 ```
 
-## **配置项**
+## **Configuration Items**
 exchange_client
 - exchange_client.\<name>: Exchange client, When multiple exchange_clients need to be started, they can be launched by specifying multiple different names for each exchange.
 - `exchange.topic`: MQTT Topic for filtering messages and saving to queue.
 - `exchange.name`: Exchange name.
-- `exchange.ringbus.name`: ring buffer name.
-- `exchange.ringbus.cap`: ring buffer capacity.
+- `exchange.ringbus.name`: ring bus name.
+- `exchange.ringbus.cap`: ring bus capacity.
+- `exchange.ringbus.fullOp`: the operation when ringbus is full.
 
 parquet
 - `parquet.compress`: Compress algorithm. value: `uncompressed | snappy | gzip | brotli | zstd | lz4` default is: `uncompressed`.
