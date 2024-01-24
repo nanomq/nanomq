@@ -5,15 +5,15 @@ int
 main()
 {
 	/* subs are configured as followed:
-	recv/topic1: rap 0
-	recv/topic2: rap 1, rh 0
-	cmd/topic1: rap 1, rh 1
-	cmd/topic2: rap 1, rh 2
+	recv/topic1/ci: rap 0
+	recv/topic2/ci: rap 1, rh 0
+	cmd/topic1/ci: rap 1, rh 1
+	cmd/topic2/ci: rap 1, rh 2
 	*/
-	char *cmd_sub_nmq_rap0[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", "1881", "-t", "recv_lo/topic1", "-V", "mqttv5", "-q", "2", "-i", "id-nmq-test", NULL};
-	char *cmd_sub_nmq_rh0[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", "1881", "-t", "recv_lo/topic2", "-V", "mqttv5", "-q", "2", "-i", "id-nmq-test", NULL};
-	char *cmd_sub_nmq_rh1[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", "1881", "-t", "cmd_lo/topic1", "-V", "mqttv5", "-q", "2", "-i", "id-nmq-test", NULL};
-	char *cmd_sub_nmq_rh2[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", "1881", "-t", "cmd_lo/topic2", "-V", "mqttv5", "-q", "2", "-i", "id-nmq-test", NULL};
+	char *cmd_sub_nmq_rap0[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", "1881", "-t", "recv_lo/topic1", "-V", "mqttv5", "-q", "2", NULL};
+	char *cmd_sub_nmq_rh0[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", "1881", "-t", "recv_lo/topic2", "-V", "mqttv5", "-q", "2", NULL};
+	char *cmd_sub_nmq_rh1[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", "1881", "-t", "cmd_lo/topic1", "-V", "mqttv5", "-q", "2", NULL};
+	char *cmd_sub_nmq_rh2[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", "1881", "-t", "cmd_lo/topic2", "-V", "mqttv5", "-q", "2", NULL};
 
 	// bridge client resub can not parse rh, so we can not test rh1 for now.
 	char *cmd_resub = "curl -i --location "
