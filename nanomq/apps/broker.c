@@ -1202,7 +1202,9 @@ broker(conf *nanomq_conf)
 	bool is_testing = false;
 #endif
 
-#if (defined DEBUG)  && (!defined ASAN)
+#if (defined DEBUG)  && (defined ASAN)
+	signal(SIGINT, intHandler);
+#else
 #if !(defined NANO_PLATFORM_WINDOWS)
 	struct sigaction  act;
 	i = 0;
@@ -1218,8 +1220,6 @@ broker(conf *nanomq_conf)
 		}
 	} while (all_signals[i++] != SIGTERM);
 #endif
-#else
-	signal(SIGINT, intHandler);
 #endif
 
 #if (defined DEBUG) && (defined ASAN)
