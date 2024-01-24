@@ -250,8 +250,8 @@ static inline uint64_t
 gen_hash_nearby_key(char *clientid, char *topic, uint32_t pid)
 {
 	uint64_t res = 0;
-	char buf[10]; // should be enough put a u32
-	sprintf(buf, "%ld", pid);
+	char buf[11]; // should be enough put a u32
+	sprintf(buf, "%d", pid);
 
 	char buf2[100]; // should be enough put the clienid and topic and pid
 	sprintf(buf2, "%s%s%s", clientid, topic, buf);
