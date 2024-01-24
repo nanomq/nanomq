@@ -1082,9 +1082,9 @@ broker(conf *nanomq_conf)
 
 	// Init exchange part in hook
 	if (nanomq_conf->exchange.count > 0) {
-		hook_exchange_init(nanomq_conf, nanomq_conf->total_ctx);
+		hook_exchange_init(nanomq_conf, num_work);
 		// create exchange senders in hook
-		hook_exchange_sender_init(nanomq_conf, works, nanomq_conf->total_ctx);
+		hook_exchange_sender_init(nanomq_conf, works, num_work);
 		// TODO expose this
 		char url_zzz[128] = "tcp://127.0.0.1:10000";
 		nng_socket *mq_sock = nanomq_conf->exchange.nodes[0]->sock;
