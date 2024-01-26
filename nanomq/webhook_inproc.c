@@ -157,10 +157,7 @@ send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uin
 	    pubmsg, (uint8_t *) buf, strlen(buf));
 	nng_mqtt_msg_set_publish_topic(pubmsg, topic);
 
-	if (strlen(buf) > 20)
-		log_info("Publishing to '%s' '%.*s...'", topic, 20, buf);
-	else
-		log_info("Publishing to '%s' '%s'", topic, buf);
+	log_info("Publishing to '%s' '%s'", topic, buf);
 
 	if ((rv = nng_sendmsg(*sock, pubmsg, NNG_FLAG_ALLOC)) != 0) {
 		log_error("nng_sendmsg", rv);
