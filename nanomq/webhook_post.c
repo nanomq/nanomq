@@ -263,7 +263,7 @@ gen_hash_nearby_key(char *clientid, char *topic, uint32_t pid)
 	return res;
 }
 
-static uint32_t g_inc_id = 0;
+// static uint32_t g_inc_id = 0;
 
 inline int
 hook_entry(nano_work *work, uint8_t reason)
@@ -291,6 +291,7 @@ hook_entry(nano_work *work, uint8_t reason)
 		ptrdiff_t offset = (ptrdiff_t)(nng_msg_payload_ptr(work->msg) - body_ptr);
 		nng_msg_set_payload_ptr(msg, (uint8_t *)nng_msg_body(msg) + offset);
 
+		/*
 		// cparam has cloned at outside of hook_entry
 		char *clientid = (char *)conn_param_get_clientid(work->cparam);
 		if (clientid == NULL)
@@ -303,6 +304,8 @@ hook_entry(nano_work *work, uint8_t reason)
 		nng_mtx_unlock(hook_conf->ex_mtx);
 
 		nng_time ts = (nng_time)gen_hash_nearby_key(clientid, topic, pid);
+		*/
+		nng_time ts = nng_timestamp();
 		nng_msg_set_timestamp(msg, ts);
 
 		for (size_t i = 0; i < ex_conf->count; i++) {
