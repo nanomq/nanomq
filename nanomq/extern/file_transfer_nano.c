@@ -45,7 +45,6 @@
 
 #define DEBUG                   1
 #define MAX_DELAY_7_DAYS        (1000 * 60 * 60 * 24 * 7)
-#define TOPIC_LEN               1024
 #define FT_SUB_TOPIC            "file_transfer"
 //
 // Publish a message to the given topic and with the given QoS.
@@ -80,18 +79,21 @@ client_publish(nng_socket sock, const char *topic, uint8_t *payload, uint32_t pa
 static inline int parse_input(cJSON *cjson_objs,
 							  cJSON **cjson_filepaths,
 							  cJSON **cjson_filenames,
-							  cJSON **cjson_type,
+							  cJSON **cjson_topics,
 							  cJSON **cjson_delete)
 {
 	*cjson_filepaths = cJSON_GetObjectItem(cjson_objs, "files");
 	*cjson_filenames = cJSON_GetObjectItem(cjson_objs, "filenames");
+	*cjson_topics = cJSON_GetObjectItem(cjson_objs, "topics");
 	*cjson_delete = cJSON_GetObjectItem(cjson_objs, "delete");
-	*cjson_type = cJSON_GetObjectItem(cjson_objs, "type");
 	if (*cjson_filepaths == NULL ||
 		*cjson_filenames == NULL ||
-		*cjson_type == NULL ||
+		*cjson_topics == NULL ||
+		*cjson_delete == NULL ||
 		cJSON_GetArraySize(*cjson_filepaths) == 0 ||
-		cJSON_GetArraySize(*cjson_filepaths) != cJSON_GetArraySize(*cjson_filenames)) {
+		cJSON_GetArraySize(*cjson_filepaths) != cJSON_GetArraySize(*cjson_filenames) ||
+		cJSON_GetArraySize(*cjson_filepaths) != cJSON_GetArraySize(*cjson_delete) ||
+		cJSON_GetArraySize(*cjson_filepaths) != cJSON_GetArraySize(*cjson_topics)){
 		return -1;
 	} 
 
@@ -133,13 +135,10 @@ static int do_flock(FILE *fp, int op)
 	return rc;
 }
 
-static int publish_file(nng_socket *sock, FILE *fp, char *file_name, char *md5, char *type)
+static int publish_file(nng_socket *sock, FILE *fp, char *file_name, char *topic)
 {
 	char *payload;
-	char topic[TOPIC_LEN];
 	int rc = 0;
-
-	memset(topic, 0, TOPIC_LEN);
 
 	fseek(fp, 0L, SEEK_END);
 	long file_size = ftell(fp);
@@ -156,7 +155,6 @@ static int publish_file(nng_socket *sock, FILE *fp, char *file_name, char *md5, 
 		return -1;
 	}
 
-	rc = sprintf(topic, "$file/upload/%s/%s/%s", type, md5, file_name);
 	if (DEBUG) {
 		log_info("Publishing file to topic %s\n", topic);
 	}
@@ -200,12 +198,11 @@ int CalcFileMD5(char *file_name, char *md5_sum)
 int send_file(nng_socket *sock,
 			  char *file_path,
 			  char *file_name,
-			  char *type)
+			  char *topic)
 {
 	FILE *fp;
 	int rc = 0;
 	bool isLock = true;
-	char md5[MD5_LEN + 1];
 
 	fp = fopen(file_path, "rb");
 	if (fp == NULL) {
@@ -219,19 +216,7 @@ int send_file(nng_socket *sock,
 		log_warn("Failed to lock file. Still send file without a file lock...\n");
 	}
 
-	if (!CalcFileMD5(file_path, md5)) {
-		rc = do_flock(fp, LOCK_UN);
-		if (rc != 0) {
-			isLock = false;
-			log_warn("Failed to unlock file\n");
-		}
-		fclose(fp);
-
-		log_error("md5sum Error occured!");
-
-		return -1;
-	}
-	rc = publish_file(sock, fp, file_name, md5, type);
+	rc = publish_file(sock, fp, file_name, topic);
 	if (rc) {
 		fclose(fp);
 		return -1;
@@ -336,10 +321,11 @@ static int process_msg(nng_socket *sock, nng_msg *msg, bool verbose)
 			int result;
 			cJSON *cjson_filepaths;
 			cJSON *cjson_filenames;
+			cJSON *cjson_topics;
 			cJSON *cjson_delete;
 			cJSON *cjson_type;
 			result = parse_input(cjson_objs, &cjson_filepaths,
-								 &cjson_filenames, &cjson_type, &cjson_delete);
+								 &cjson_filenames, &cjson_topics, &cjson_delete);
 			if (result) {
 				log_warn("INPUT JSON INVALID!\n");
 				nng_msg_free(msg);
@@ -350,22 +336,23 @@ static int process_msg(nng_socket *sock, nng_msg *msg, bool verbose)
 				for (int i = 0; i < fileCount; i++) {
 					cJSON *pathEle = cJSON_GetArrayItem(cjson_filepaths, i);
 					cJSON *nameEle = cJSON_GetArrayItem(cjson_filenames, i);
-					log_info("Sending file: filepath: %s filename: %s type: %s\n",
+					cJSON *topicEle = cJSON_GetArrayItem(cjson_topics, i);
+					cJSON *deleteEle = cJSON_GetArrayItem(cjson_delete, i);
+					log_info("Sending file: filepath: %s filename: %s\n",
 												pathEle->valuestring,
-												nameEle->valuestring,
-												cjson_type->valuestring);
+												nameEle->valuestring);
 					// Send file
-					result = send_file(sock, pathEle->valuestring, nameEle->valuestring, cjson_type->valuestring);
+					result = send_file(sock, pathEle->valuestring, nameEle->valuestring, topicEle->valuestring);
 					log_info("Send file file_name: %s %s\n", nameEle->valuestring,
 										!result ? "success" : "fail");
 					/* fail */
 					if (result) {
 						break;
 					} else {
-						if (cjson_delete != NULL && cjson_delete->valueint >= 0) {
-							if (cjson_delete->valueint == 0) {
+						if (deleteEle != NULL && deleteEle->valueint >= 0) {
+							if (deleteEle->valueint == 0) {
 								int ret;
-								ret = nng_file_delete(pathEle->valuestring);
+								ret = nng_file_delete(deleteEle->valuestring);
 								log_info("Delete imediately: file:%s result: %d\n", pathEle->valuestring, ret);
 							} else {
 								nng_aio *aio;
@@ -378,7 +365,7 @@ static int process_msg(nng_socket *sock, nng_msg *msg, bool verbose)
 								strcpy(filename, pathEle->valuestring);
 
 								/* Delete after 7 days at the latest */
-								int delay = cjson_delete->valueint * 1000;
+								int delay = deleteEle->valueint * 1000;
 								if (delay > MAX_DELAY_7_DAYS) {
 									delay = MAX_DELAY_7_DAYS;
 								}
