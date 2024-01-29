@@ -1,12 +1,12 @@
 // #include "core/nng_impl.h"
+#include "nanomq_test.h"
 #include "nng/nng.h"
-#include "nng/supplemental/nanolib/parquet.h"
 #include "nng/supplemental/nanolib/cvector.h"
+#include "nng/supplemental/nanolib/parquet.h"
 #include "string.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "nanomq_test.h"
 
 // #include <nuts.h>
 
@@ -20,25 +20,19 @@
 #define DATASIZE 10
 #define NUM_KEYS 5
 #define STRING_LENGTH 12
-static uint64_t keys_test[NUM_KEYS][DATASIZE] = { 
-	{ 10, 21, 32, 43, 54, 65, 76, 87, 98, 109 },
+static uint64_t keys_test[NUM_KEYS][DATASIZE] = { { 10, 21, 32, 43, 54, 65, 76,
+	                                              87, 98, 109 },
 	{ 110, 121, 132, 143, 154, 165, 176, 187, 198, 1109 },
 	{ 220, 222, 232, 243, 254, 265, 276, 287, 298, 2209 },
 	{ 330, 333, 333, 343, 354, 365, 376, 387, 398, 3309 },
-	{ 440, 444, 444, 444, 454, 465, 476, 487, 498, 4409 } 
-};
+	{ 440, 444, 444, 444, 454, 465, 476, 487, 498, 4409 } };
 
-static uint64_t find_keys_test[NUM_KEYS] = {
-	10, 110, 220, 330, 440
-};
+static uint64_t find_keys_test[NUM_KEYS] = { 10, 110, 220, 330, 440 };
 
-static char *filenames[NUM_KEYS] = {
-	"/tmp/parquet/ly-10~109.parquet",
-	"/tmp/parquet/ly-110~1109.parquet",
-	"/tmp/parquet/ly-220~2209.parquet",
+static char *filenames[NUM_KEYS] = { "/tmp/parquet/ly-10~109.parquet",
+	"/tmp/parquet/ly-110~1109.parquet", "/tmp/parquet/ly-220~2209.parquet",
 	"/tmp/parquet/ly-330~3309.parquet",
-	"/tmp/parquet/ly-440~4409.parquet"
-};
+	"/tmp/parquet/ly-440~4409.parquet" };
 
 typedef struct {
 	nng_aio *aio;
@@ -94,10 +88,11 @@ data_array_allocate(uint32_t **dsize, uint32_t size)
 	}
 	*dsize = dsize_alloc;
 
-	return (uint8_t**) darray;
+	return (uint8_t **) darray;
 }
 
-void works_free(work **works)
+void
+works_free(work **works)
 {
 	for (size_t i = 0; i < cvector_size(works); i++) {
 		nng_aio_free(works[i]->aio);
@@ -111,17 +106,18 @@ aio_test_cb(void *arg)
 {
 	work	        *w           = (work *) arg;
 	nng_aio             *aio         = w->aio;
-    static int test_index = 0;
+	static int           test_index  = 0;
 	parquet_file_ranges *file_ranges = nng_aio_get_output(aio, 1);
-	char **data_array = nng_aio_get_prov_data(aio);
-	uint32_t             *len         = (uint32_t *) nng_aio_get_msg(aio);
+	char	       **data_array  = nng_aio_get_prov_data(aio);
+	uint32_t            *len         = (uint32_t *) nng_aio_get_msg(aio);
 
 	for (uint32_t i = 0; i < *len; i++) {
-		if (data_array[i]) nng_strfree(data_array[i]);
+		if (data_array[i])
+			nng_strfree(data_array[i]);
 	}
 	free(len);
 
-    check(file_ranges->size == 1, "file_ranges size error");
+	check(file_ranges->size == 1, "file_ranges size error");
 
 	for (int i = 0; i < file_ranges->size; i++) {
 		parquet_file_range *range = file_ranges->range[i];
@@ -133,13 +129,11 @@ aio_test_cb(void *arg)
 		    "Filename error: %s != %s", range->filename,
 		    filenames[test_index]);
 	}
-    test_index++;
-    return;
+	test_index++;
+	return;
 error:
-    abort();
+	abort();
 }
-
-
 
 work *
 parquet_write_batch_async_test1(void)
@@ -218,7 +212,7 @@ parquet_write_batch_async_test4(void)
 	    keys, (uint8_t **) darray, dsize, DATASIZE, w->aio, darray);
 
 	parquet_write_batch_async(elem);
-	
+
 	return w;
 }
 
@@ -247,17 +241,17 @@ conf_parquet *
 conf_parquet_init()
 {
 
-	conf_parquet *conf     = ALLOC_STRUCT(conf);
-	conf->dir              = strdup("/tmp/parquet");
-	conf->file_name_prefix = strdup("ly");
-	conf->comp_type        = UNCOMPRESSED;
-	conf->file_count       = 5;
-	conf->file_index       = 0;
-	conf->file_size        = 4000;
+	conf_parquet *conf      = ALLOC_STRUCT(conf);
+	conf->dir               = strdup("/tmp/parquet");
+	conf->file_name_prefix  = strdup("ly");
+	conf->comp_type         = UNCOMPRESSED;
+	conf->file_count        = 5;
+	conf->file_index        = 0;
+	conf->file_size         = 4000;
 	conf->encryption.enable = true;
-	conf->encryption.key = "0123456789012345";
-	conf->encryption.key_id ="kf";
-	conf->encryption.type = AES_GCM_V1;
+	conf->encryption.key    = "0123456789012345";
+	conf->encryption.key_id = "kf";
+	conf->encryption.type   = AES_GCM_V1;
 	return conf;
 }
 
@@ -273,7 +267,6 @@ conf_parquet_free(conf_parquet *conf)
 	return;
 }
 
-
 void
 parquet_write_batch_async_test(void)
 {
@@ -285,28 +278,28 @@ parquet_write_batch_async_test(void)
 	cvector_push_back(works, parquet_write_batch_async_test5());
 
 	nng_msleep(100);
-    works_free(works);
+	works_free(works);
 }
 
-void parquet_find_span_test()
+void
+parquet_find_span_test()
 {
 
-	char * value = (char*) parquet_find(4000);
+	char *value = (char *) parquet_find(4000);
 	check_mem(value);
-    check_str(value, filenames[4]);
+	check_str(value, filenames[4]);
 	nng_strfree(value);
 
-
 	// Test normal case
-	uint32_t size = 0;
-	char **array = (char**) parquet_find_span(0, 4000, &size);
+	uint32_t size  = 0;
+	char   **array = (char **) parquet_find_span(0, 4000, &size);
 	check_mem(array);
 	for (uint32_t i = 0; i < size; i++) {
-	    if (array[i]) {
-	        check_mem(array[i]);
+		if (array[i]) {
+			check_mem(array[i]);
 			check_str(array[i], filenames[i]);
-	        nng_strfree(array[i]);
-	    }
+			nng_strfree(array[i]);
+		}
 	}
 	check(size == 5, "find span size error");
 	nng_free(array, size);
@@ -319,61 +312,65 @@ void parquet_find_span_test()
 	array = (char **) parquet_find_span(5000, 8000, &size);
 	check(size == 0, "find span size error");
 	for (uint32_t i = 0; i < size; i++) {
-	    if (array[i]) {
+		if (array[i]) {
 			puts(array[i]);
-	        check_mem(array[i]);
+			check_mem(array[i]);
 			check_str(array[i], filenames[i]);
-	        nng_strfree(array[i]);
-	    }
+			nng_strfree(array[i]);
+		}
 	}
 
 	nng_free(array, size);
 
-    return;
+	return;
 
 error:
-    abort();
-
+	abort();
 }
 
-void parquet_find_data_packet_test()
+void
+parquet_find_data_packet_test()
 {
-	parquet_data_packet* pack = parquet_find_data_packet(NULL, "/tmp/parquet/ly-110~1109.parquet", 1109);
+	parquet_data_packet *pack = parquet_find_data_packet(
+	    NULL, "/tmp/parquet/ly-110~1109.parquet", 1109);
 	check_mem(pack);
 	check(pack->size == strlen("hello world9"), "size error");
 	check_nstr(pack->data, "hello world9", pack->size);
 
-	parquet_data_packet** packs = parquet_find_data_packets(NULL, filenames, find_keys_test, NUM_KEYS);
+	parquet_data_packet **packs = parquet_find_data_packets(
+	    NULL, filenames, find_keys_test, NUM_KEYS);
 	check_mem(packs);
 	for (int i = 0; i < NUM_KEYS; i++) {
 		if (packs[i]) {
-			check(pack->size == strlen("hello world0"), "size error");
-			check_nstr(packs[i]->data, "hello world0", packs[i]->size);
-            FREE_STRUCT(packs[i]->data);
-            FREE_STRUCT(packs[i]);
+			check(pack->size == strlen("hello world0"),
+			    "size error");
+			check_nstr(
+			    packs[i]->data, "hello world0", packs[i]->size);
+			FREE_STRUCT(packs[i]->data);
+			FREE_STRUCT(packs[i]);
 		}
 	}
 	free(packs);
 
-
-    return;
+	return;
 
 error:
-    abort();
+	abort();
 }
 
-int main(int argc, char **argv)
+int
+main(int argc, char **argv)
 {
 
 	conf_parquet *conf = conf_parquet_init();
 
 	parquet_write_launcher(conf);
-    puts("parquet write batch async");
-    parquet_write_batch_async_test();
-    puts("parquet_find_span_test");
-    parquet_find_span_test();
-    puts("parquet_find_data_packet_test");
+	puts("parquet write batch async");
+	parquet_write_batch_async_test();
+	puts("parquet_find_span_test");
+	parquet_find_span_test();
+	puts("parquet_find_data_packet_test");
 	parquet_find_data_packet_test();
 
-    return 0;
+	return 0;
 }
