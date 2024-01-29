@@ -242,3 +242,48 @@ parquet_write_batch_async_test5(void)
 
 	return w;
 }
+
+conf_parquet *
+conf_parquet_init()
+{
+
+	conf_parquet *conf     = ALLOC_STRUCT(conf);
+	conf->dir              = strdup("/tmp/parquet");
+	conf->file_name_prefix = strdup("ly");
+	conf->comp_type        = UNCOMPRESSED;
+	conf->file_count       = 2;
+	conf->file_index       = 0;
+	conf->file_size        = 4000;
+	conf->encryption.enable = true;
+	conf->encryption.key = "0123456789012345";
+	conf->encryption.key_id ="kf";
+	conf->encryption.type = AES_GCM_V1;
+	return conf;
+}
+
+void
+conf_parquet_free(conf_parquet *conf)
+{
+	if (conf) {
+		nng_strfree(conf->dir);
+		nng_strfree(conf->file_name_prefix);
+		nng_free(conf, sizeof(conf_parquet));
+	}
+
+	return;
+}
+
+
+void
+parquet_write_batch_async_test(void)
+{
+	work **works = NULL;
+	cvector_push_back(works, parquet_write_batch_async_test1());
+	cvector_push_back(works, parquet_write_batch_async_test2());
+	cvector_push_back(works, parquet_write_batch_async_test3());
+	cvector_push_back(works, parquet_write_batch_async_test4());
+	cvector_push_back(works, parquet_write_batch_async_test5());
+
+	nng_msleep(100);
+    works_free(works);
+}
