@@ -335,3 +335,45 @@ error:
     abort();
 
 }
+
+void parquet_find_data_packet_test()
+{
+	parquet_data_packet* pack = parquet_find_data_packet(NULL, "/tmp/parquet/ly-110~1109.parquet", 1109);
+	check_mem(pack);
+	check(pack->size == strlen("hello world9"), "size error");
+	check_nstr(pack->data, "hello world9", pack->size);
+
+	parquet_data_packet** packs = parquet_find_data_packets(NULL, filenames, find_keys_test, NUM_KEYS);
+	check_mem(packs);
+	for (int i = 0; i < NUM_KEYS; i++) {
+		if (packs[i]) {
+			check(pack->size == strlen("hello world0"), "size error");
+			check_nstr(packs[i]->data, "hello world0", packs[i]->size);
+            FREE_STRUCT(packs[i]->data);
+            FREE_STRUCT(packs[i]);
+		}
+	}
+	free(packs);
+
+
+    return;
+
+error:
+    abort();
+}
+
+int main(int argc, char **argv)
+{
+
+	conf_parquet *conf = conf_parquet_init();
+
+	parquet_write_launcher(conf);
+    puts("parquet write batch async");
+    parquet_write_batch_async_test();
+    puts("parquet_find_span_test");
+    parquet_find_span_test();
+    puts("parquet_find_data_packet_test");
+	parquet_find_data_packet_test();
+
+    return 0;
+}
