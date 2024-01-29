@@ -140,3 +140,105 @@ error:
 }
 
 
+
+work *
+parquet_write_batch_async_test1(void)
+{
+	uint32_t *dsize;
+	uint64_t *keys   = keys_allocate(keys_test[0], DATASIZE);
+	uint8_t **darray = data_array_allocate(&dsize, DATASIZE);
+
+	work *w  = ALLOC_STRUCT(w);
+	int   rv = 0;
+	if ((rv = nng_aio_alloc(&w->aio, aio_test_cb, w)) != 0) {
+		printf("nng_aio_alloc failed\n");
+	}
+
+	parquet_object *elem = parquet_object_alloc(
+	    keys, (uint8_t **) darray, dsize, DATASIZE, w->aio, darray);
+
+	parquet_write_batch_async(elem);
+	return w;
+}
+
+work *
+parquet_write_batch_async_test2(void)
+{
+	uint32_t *dsize;
+	uint64_t *keys   = keys_allocate(keys_test[1], DATASIZE);
+	uint8_t **darray = data_array_allocate(&dsize, DATASIZE);
+
+	work *w  = ALLOC_STRUCT(w);
+	int   rv = 0;
+	if ((rv = nng_aio_alloc(&w->aio, aio_test_cb, w)) != 0) {
+		printf("nng_aio_alloc failed\n");
+	}
+
+	parquet_object *elem = parquet_object_alloc(
+	    keys, (uint8_t **) darray, dsize, DATASIZE, w->aio, darray);
+
+	parquet_write_batch_async(elem);
+	return w;
+}
+
+work *
+parquet_write_batch_async_test3(void)
+{
+	uint32_t *dsize;
+	uint64_t *keys   = keys_allocate(keys_test[2], DATASIZE);
+	uint8_t **darray = data_array_allocate(&dsize, DATASIZE);
+
+	work *w  = ALLOC_STRUCT(w);
+	int   rv = 0;
+	if ((rv = nng_aio_alloc(&w->aio, aio_test_cb, w)) != 0) {
+		printf("nng_aio_alloc failed\n");
+	}
+
+	parquet_object *elem = parquet_object_alloc(
+	    keys, (uint8_t **) darray, dsize, DATASIZE, w->aio, darray);
+
+	parquet_write_batch_async(elem);
+	return w;
+}
+
+work *
+parquet_write_batch_async_test4(void)
+{
+	uint32_t *dsize;
+	uint64_t *keys   = keys_allocate(keys_test[3], DATASIZE);
+	uint8_t **darray = data_array_allocate(&dsize, DATASIZE);
+
+	work *w  = ALLOC_STRUCT(w);
+	int   rv = 0;
+	if ((rv = nng_aio_alloc(&w->aio, aio_test_cb, w)) != 0) {
+		printf("nng_aio_alloc failed\n");
+	}
+
+	parquet_object *elem = parquet_object_alloc(
+	    keys, (uint8_t **) darray, dsize, DATASIZE, w->aio, darray);
+
+	parquet_write_batch_async(elem);
+	
+	return w;
+}
+
+work *
+parquet_write_batch_async_test5(void)
+{
+	uint32_t *dsize;
+	uint64_t *keys   = keys_allocate(keys_test[4], DATASIZE);
+	uint8_t **darray = data_array_allocate(&dsize, DATASIZE);
+
+	work *w  = ALLOC_STRUCT(w);
+	int   rv = 0;
+	if ((rv = nng_aio_alloc(&w->aio, aio_test_cb, w)) != 0) {
+		printf("nng_aio_alloc failed\n");
+	}
+
+	parquet_object *elem = parquet_object_alloc(
+	    keys, (uint8_t **) darray, dsize, DATASIZE, w->aio, darray);
+
+	parquet_write_batch_async(elem);
+
+	return w;
+}
