@@ -175,8 +175,10 @@ static int publish_file(nng_socket *sock, FILE *fp, char *file_name, char *topic
 #define PATH_LEN 256
 #define MD5_LEN 32
 
-int CalcMD5(char *binary, char *tmp_fname, char *md5_sum)
+int CalcMD5(char *binary, char *tmp_fname, char **md5res)
 {
+	*md5res = NULL;
+
 	#define MD5SUM_CMD_FMT "md5sum %." STR(PATH_LEN) "s 2>/dev/null"
 	char cmd[PATH_LEN + sizeof (MD5SUM_CMD_FMT)];
 	sprintf(cmd, MD5SUM_CMD_FMT, tmp_fname);
@@ -184,6 +186,9 @@ int CalcMD5(char *binary, char *tmp_fname, char *md5_sum)
 
 	FILE *p = popen(cmd, "r");
 	if (p == NULL) return 0;
+
+	char *md5_sum = nng_alloc(sizeof(char) * (MD5_LEN + 1));
+	*md5res = md5_sum;
 
 	int i, ch;
 	for (i = 0; i < MD5_LEN && isxdigit(ch = fgetc(p)); i++) {
