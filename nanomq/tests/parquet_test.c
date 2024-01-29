@@ -251,7 +251,7 @@ conf_parquet_init()
 	conf->dir              = strdup("/tmp/parquet");
 	conf->file_name_prefix = strdup("ly");
 	conf->comp_type        = UNCOMPRESSED;
-	conf->file_count       = 2;
+	conf->file_count       = 5;
 	conf->file_index       = 0;
 	conf->file_size        = 4000;
 	conf->encryption.enable = true;
@@ -286,4 +286,52 @@ parquet_write_batch_async_test(void)
 
 	nng_msleep(100);
     works_free(works);
+}
+
+void parquet_find_span_test()
+{
+
+	char * value = (char*) parquet_find(4000);
+	check_mem(value);
+    check_str(value, filenames[4]);
+	nng_strfree(value);
+
+
+	// Test normal case
+	uint32_t size = 0;
+	char **array = (char**) parquet_find_span(0, 4000, &size);
+	check_mem(array);
+	for (uint32_t i = 0; i < size; i++) {
+	    if (array[i]) {
+	        check_mem(array[i]);
+			check_str(array[i], filenames[i]);
+	        nng_strfree(array[i]);
+	    }
+	}
+	check(size == 5, "find span size error");
+	nng_free(array, size);
+
+	// Test illegal case
+	array = (char **) parquet_find_span(4000, 100, &size);
+	check(array == NULL, "find span error");
+	check(size == 0, "find span size error");
+
+	array = (char **) parquet_find_span(5000, 8000, &size);
+	check(size == 0, "find span size error");
+	for (uint32_t i = 0; i < size; i++) {
+	    if (array[i]) {
+			puts(array[i]);
+	        check_mem(array[i]);
+			check_str(array[i], filenames[i]);
+	        nng_strfree(array[i]);
+	    }
+	}
+
+	nng_free(array, size);
+
+    return;
+
+error:
+    abort();
+
 }
