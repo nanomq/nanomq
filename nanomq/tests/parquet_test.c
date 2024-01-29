@@ -105,3 +105,38 @@ void works_free(work **works)
 	}
 	cvector_free(works);
 }
+
+void
+aio_test_cb(void *arg)
+{
+	work	        *w           = (work *) arg;
+	nng_aio             *aio         = w->aio;
+    static int test_index = 0;
+	parquet_file_ranges *file_ranges = nng_aio_get_output(aio, 1);
+	char **data_array = nng_aio_get_prov_data(aio);
+	uint32_t             *len         = (uint32_t *) nng_aio_get_msg(aio);
+
+	for (uint32_t i = 0; i < *len; i++) {
+		if (data_array[i]) nng_strfree(data_array[i]);
+	}
+	free(len);
+
+    check(file_ranges->size == 1, "file_ranges size error");
+
+	for (int i = 0; i < file_ranges->size; i++) {
+		parquet_file_range *range = file_ranges->range[i];
+		check_mem(range);
+		check(range->start_idx == 0, "Start Index error");
+		check(range->end_idx == 9, "End Index error");
+		check(nng_strcasecmp(range->filename, filenames[test_index]) ==
+		        0,
+		    "Filename error: %s != %s", range->filename,
+		    filenames[test_index]);
+	}
+    test_index++;
+    return;
+error:
+    abort();
+}
+
+
