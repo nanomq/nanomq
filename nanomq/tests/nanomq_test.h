@@ -29,6 +29,9 @@
 
 #define check_mem(A) check((A), "Memory error.")
 
+#define check_str(s1, s2) check((0 == strcmp(s1, s2)), "%s != %s", s1, s2)
+#define check_nstr(s1, s2, n) check((0 == strncmp(s1, s2, n)), "%s != %s", s1, s2)
+
 #define check_debug(A, M, ...) if(!(A)) { debug(M, ##__VA_ARGS__);\
     errno=0; goto error; }
 
