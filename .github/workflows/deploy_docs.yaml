@@ -14,7 +14,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'emqx'
+    if: github.repository_owner == 'nanomq'
     steps:
     - name: clone docs
       uses: actions/checkout@main
