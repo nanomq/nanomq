@@ -449,6 +449,17 @@ hook_work_cb(void *arg)
 			goto skip;
 		}
 
+		cJSON *ruleidjo = cJSON_GetObjectItem(root,"ruleid");
+		if (!cJSON_IsString(ruleidjo)) {
+			log_warn("No ruleid field found in json msg");
+			goto skip;
+		}
+		char *ruleidstr = ruleidjo->valuestring;
+		if (!ruleidstr) {
+			log_warn("Error in parsing json ruleid");
+			goto skip;
+		}
+		log_info("cmd %s ruleid %s", cmdstr, ruleidstr);
 
 		cJSON *rgjo;
 		cJSON *rgsjo = cJSON_GetObjectItem(root, "ranges");
