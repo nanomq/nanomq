@@ -55,3 +55,44 @@ keys_allocate(uint64_t keys[], uint32_t size)
 	}
 	return keys_alloc;
 }
+
+uint8_t **
+data_array_allocate(uint32_t **dsize, uint32_t size)
+{
+	uint32_t  i           = 0;
+	uint32_t *dsize_alloc = malloc(size * sizeof(uint32_t));
+	while (i < size) {
+		dsize_alloc[i] = STRING_LENGTH;
+		i++;
+	}
+
+	char **darray = malloc(size * sizeof(char *));
+
+	if (darray == NULL) {
+		printf("Memory allocation failed. Exiting...\n");
+		return NULL;
+	}
+
+	for (uint32_t i = 0; i < size; i++) {
+		darray[i] = malloc((STRING_LENGTH + 1) * sizeof(char));
+
+		if (darray[i] == NULL) {
+			printf("Memory allocation failed for element %d. "
+			       "Exiting...\n",
+			    i);
+
+			// Free previously allocated memory before exiting
+			for (uint32_t j = 0; j < i; j++) {
+				free(darray[j]);
+			}
+			free(darray);
+
+			return NULL;
+		}
+
+		sprintf(darray[i], "hello world%d", i);
+	}
+	*dsize = dsize_alloc;
+
+	return (uint8_t**) darray;
+}
