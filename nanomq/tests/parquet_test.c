@@ -96,3 +96,12 @@ data_array_allocate(uint32_t **dsize, uint32_t size)
 
 	return (uint8_t**) darray;
 }
+
+void works_free(work **works)
+{
+	for (size_t i = 0; i < cvector_size(works); i++) {
+		nng_aio_free(works[i]->aio);
+		nng_free(works[i], sizeof(work));
+	}
+	cvector_free(works);
+}
