@@ -544,10 +544,10 @@ hook_work_cb(void *arg)
 
 		char **sent_files = NULL;
 
+		cJSON *resjo = NULL;
 #ifdef SUPP_PARQUET
 		// result json only valid when parquet is enabled
-		cJSON *resjo = cJSON_CreateObject();
-		cJSON *resruleid_obj = cJSON_CreateString(ruleidstr);
+		resjo = cJSON_CreateObject();
 		if (cJSON_AddStringToObject(resjo, "ruleid", ruleidstr) == NULL) {
 			log_warn("Failed to add ruleid to result json");
 			goto skip;
@@ -678,23 +678,24 @@ hook_work_cb(void *arg)
 			if (fnames) {
 				if (sz > 0) {
 					log_info("Ask parquet and found.");
+					// Preqare range result
+					cJSON *resrgjo = cJSON_CreateObject();
+					if (resrgjo == NULL) {
+						log_error("Error in create range json for result");
+						continue;
+					}
+					cJSON_AddItemToArray(resrgsjo, resrgjo);
+					cJSON *resskeyjo = cJSON_CreateString(skeystr);
+					cJSON *resekeyjo = cJSON_CreateString(ekeystr);
+					if (resskeyjo == NULL || resekeyjo == NULL) {
+						log_error("Error in create start/end key json for result");
+						continue;
+					}
+					cJSON_AddItemToObject(resrgjo, "start_key", resskeyjo);
+					cJSON_AddItemToObject(resrgjo, "end_key", resekeyjo);
+
 					const char **fnames_new = NULL;
 					for (int i=0; i<sz; i++) {
-						// Preqare range result
-						cJSON *resrgjo = cJSON_CreateObject();
-						if (resrgjo == NULL) {
-							log_error("Error in create range json for result");
-							continue;
-						}
-						cJSON_AddItemToArray(resrgsjo, resrgjo);
-						cJSON *resskeyjo = cJSON_CreateString(skeystr);
-						cJSON *resekeyjo = cJSON_CreateString(ekeystr);
-						if (resskeyjo == NULL || resekeyjo == NULL) {
-							log_error("Error in create start/end key json for result");
-							continue;
-						}
-						cJSON_AddItemToObject(resrgjo, "start_key", resskeyjo);
-						cJSON_AddItemToObject(resrgjo, "end_key", resekeyjo);
 						// Deduplicate
 						int exist = 0;
 						for (int j=0; j<cvector_size(sent_files); j++) {
@@ -732,6 +733,8 @@ hook_work_cb(void *arg)
 			cvector_free(sent_files);
 
 skip:
+		if (resjo)
+			cJSON_Delete(resjo);
 		nng_aio_free(aio);
 
 		cJSON_Delete(root);
