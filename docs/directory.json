@@ -203,7 +203,7 @@
       "children": [
         {
           "title": "retain消息持久化",
-          "path": "tutorial/tutorial"
+          "path": "tutorial/retain-msg-persistence"
         }
       ]
     },

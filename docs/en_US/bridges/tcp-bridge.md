@@ -141,7 +141,11 @@ $ nanomq start --old_conf nanomq.conf
 
 ::::
 
-Tips: If you enabled SQLite feature, NanoMQ will automatically flush cached messages into disk when network is disconnected. NanoMQ will resend cached messages once bridging connection is restored. But each cached message will be resent in a certain interval to avoid bandwidth exhaustion.
+::: tip
+
+If you enabled SQLite feature, NanoMQ will automatically flush cached messages into disk when network is disconnected. NanoMQ will resend cached messages once bridging connection is restored. But each cached message will be resent in a certain interval to avoid bandwidth exhaustion.
+
+:::
 
 ## Test the Bridge
 
