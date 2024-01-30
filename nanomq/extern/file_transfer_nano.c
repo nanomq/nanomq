@@ -175,6 +175,26 @@ static int publish_file(nng_socket *sock, FILE *fp, char *file_name, char *topic
 #define PATH_LEN 256
 #define MD5_LEN 32
 
+int CalcFileMD5(char *file_name, char *md5_sum)
+{
+	#define MD5SUM_CMD_FMT "md5sum %." STR(PATH_LEN) "s 2>/dev/null"
+	char cmd[PATH_LEN + sizeof (MD5SUM_CMD_FMT)];
+	sprintf(cmd, MD5SUM_CMD_FMT, file_name);
+	#undef MD5SUM_CMD_FMT
+
+	FILE *p = popen(cmd, "r");
+	if (p == NULL) return 0;
+
+	int i, ch;
+	for (i = 0; i < MD5_LEN && isxdigit(ch = fgetc(p)); i++) {
+		*md5_sum++ = ch;
+	}
+
+	*md5_sum = '\0';
+	pclose(p);
+	return i == MD5_LEN;
+}
+
 int CalcMD5n(char *binary, size_t len, char *tmpfpath, char **md5res)
 {
 	*md5res = NULL;
@@ -210,31 +230,12 @@ int CalcMD5n(char *binary, size_t len, char *tmpfpath, char **md5res)
 	char *md5_sum = nng_alloc(sizeof(char) * (MD5_LEN + 1));
 	if (1 != CalcFileMD5(tmpfpath, md5_sum)) {
 		log_warn("Failed to calculate md5sum of %s", tmpfpath);
-		nng_free(md5_sum);
+		nng_free(md5_sum, 0);
 		return -1;
 	}
 
 	*md5res = md5_sum;
-}
-
-int CalcFileMD5(char *file_name, char *md5_sum)
-{
-	#define MD5SUM_CMD_FMT "md5sum %." STR(PATH_LEN) "s 2>/dev/null"
-	char cmd[PATH_LEN + sizeof (MD5SUM_CMD_FMT)];
-	sprintf(cmd, MD5SUM_CMD_FMT, file_name);
-	#undef MD5SUM_CMD_FMT
-
-	FILE *p = popen(cmd, "r");
-	if (p == NULL) return 0;
-
-	int i, ch;
-	for (i = 0; i < MD5_LEN && isxdigit(ch = fgetc(p)); i++) {
-		*md5_sum++ = ch;
-	}
-
-	*md5_sum = '\0';
-	pclose(p);
-	return i == MD5_LEN;
+	return 0;
 }
 
 int send_file(nng_socket *sock,
