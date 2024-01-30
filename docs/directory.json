@@ -75,6 +75,10 @@
         {
           "title": "网关",
           "path": "config-description/gateway"
+        },
+        {
+          "title": "插件系统",
+          "path": "config-description/plugin"
         }
       ]
     },
@@ -283,6 +287,10 @@
         },
         {
           "title": "Gateway",
+          "path": "config-description/gateway"
+        },
+        {
+          "title": "Plugin-System",
           "path": "config-description/gateway"
         }
       ]
