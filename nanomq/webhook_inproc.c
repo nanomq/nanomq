@@ -49,6 +49,7 @@ struct hook_work {
 	uint32_t       id;
 	bool           busy;
 	conf_exchange *exchange;
+	conf_parquet  *parquet;
 	nng_socket    *mqtt_sock;
 };
 
@@ -289,6 +290,7 @@ hook_work_cb(void *arg)
 	int               rv;
 	char *            body;
 	conf_exchange *   exconf = work->exchange;
+	conf_parquet *    parquetconf = work->parquet;
 	nng_msg *         msg;
 	cJSON *           root;
 
@@ -559,7 +561,8 @@ trigger_tcp_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 }
 
 static struct hook_work *
-alloc_work(nng_socket sock, conf_web_hook *conf, conf_exchange *exconf)
+alloc_work(nng_socket sock, conf_web_hook *conf, conf_exchange *exconf,
+        conf_parquet *parquetconf)
 {
 	struct hook_work *w;
 	int               rv;
@@ -585,6 +588,7 @@ alloc_work(nng_socket sock, conf_web_hook *conf, conf_exchange *exconf)
 	w->state    = HOOK_INIT;
 	w->busy     = false;
 	w->exchange = exconf;
+	w->parquet  = parquetconf;
 	return (w);
 }
 
@@ -637,7 +641,7 @@ hook_cb(void *arg)
 	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
 
 	for (i = 0; i < works_num; i++) {
-		works[i] = alloc_work(sock, &conf->web_hook, &conf->exchange);
+		works[i] = alloc_work(sock, &conf->web_hook, &conf->exchange, &conf->parquet);
 		works[i]->id = i;
 		works[i]->mqtt_sock = &mqtt_sock;
 	}
