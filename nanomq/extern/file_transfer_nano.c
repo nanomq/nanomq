@@ -90,12 +90,16 @@ static inline int parse_input(cJSON *cjson_objs,
 							  cJSON **cjson_filepaths,
 							  cJSON **cjson_filenames,
 							  cJSON **cjson_topics,
-							  cJSON **cjson_delete)
+							  cJSON **cjson_delete,
+							  cJSON **cjson_request_id,
+							  cJSON **cjson_echo_id)
 {
 	*cjson_filepaths = cJSON_GetObjectItem(cjson_objs, "files");
 	*cjson_filenames = cJSON_GetObjectItem(cjson_objs, "filenames");
 	*cjson_topics = cJSON_GetObjectItem(cjson_objs, "topics");
 	*cjson_delete = cJSON_GetObjectItem(cjson_objs, "delete");
+	*cjson_request_id = cJSON_GetObjectItem(cjson_objs, "request-id");
+	*cjson_echo_id = cJSON_GetObjectItem(cjson_objs, "echo-id");
 	if (*cjson_filepaths == NULL ||
 		*cjson_filenames == NULL ||
 		*cjson_topics == NULL ||
@@ -103,9 +107,20 @@ static inline int parse_input(cJSON *cjson_objs,
 		cJSON_GetArraySize(*cjson_filepaths) == 0 ||
 		cJSON_GetArraySize(*cjson_filepaths) != cJSON_GetArraySize(*cjson_filenames) ||
 		cJSON_GetArraySize(*cjson_filepaths) != cJSON_GetArraySize(*cjson_delete) ||
-		cJSON_GetArraySize(*cjson_filepaths) != cJSON_GetArraySize(*cjson_topics)){
+		cJSON_GetArraySize(*cjson_filepaths) != cJSON_GetArraySize(*cjson_topics)) {
 		return -1;
 	} 
+
+	if ((*cjson_echo_id == NULL && *cjson_request_id != NULL) ||
+		(*cjson_echo_id != NULL && *cjson_request_id == NULL)) {
+		return -1;
+	}
+
+	if (*cjson_echo_id != NULL && *cjson_echo_id != NULL) {
+		if (cJSON_GetArraySize(*cjson_request_id) != cJSON_GetArraySize(*cjson_filepaths)) {
+			return -1;
+		}
+	}
 
 	return 0;
 }
