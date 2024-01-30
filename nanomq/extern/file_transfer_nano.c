@@ -417,6 +417,44 @@ static int publish_send_result(nng_socket *sock,
 	return 0;
 }
 
+static inline void messages_requests_append(char *messages, int result,
+										   char *requests, char *requestid,
+										   int needComma)
+{
+	if (messages != NULL) {
+		char tmp[32];
+		memset(tmp, 0, 32);
+		sprintf(tmp, "%d", result);
+
+		/* messages + '\"' + "tmp" + '\"' + ']' */
+		if (strlen(messages) + 1 + strlen(tmp) + 1 + 1 >= BUF_SIZE) {
+			log_warn("messages is too long\n");
+		} else {
+			messages[strlen(messages)] = '\"';
+			strcat(messages, tmp);
+			messages[strlen(messages)] = '\"';
+			if (needComma) {
+				messages[strlen(messages)] = ',';
+			}
+		}
+	}
+
+	if (requests != NULL) {
+		if (strlen(requests) + 1 + strlen(requestid) + 1 + 1 >= BUF_SIZE) {
+			log_warn("requests is too long\n");
+		} else {
+			requests[strlen(requests)] = '\"';
+			strcat(requests, requestid);
+			requests[strlen(requests)] = '\"';
+			if (needComma) {
+				requests[strlen(requests)] = ',';
+			}
+		}
+	}
+
+	return;
+}
+
 static int process_msg(nng_socket *sock, nng_msg *msg, bool verbose)
 {
 		uint32_t topic_len = 0;
