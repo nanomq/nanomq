@@ -79,15 +79,13 @@ This configuration enables NanoMQ to establish an MQTT over TCP bridge connectio
 
 - bridges.mqtt.\<name>: Specifies the name of the bridge. 
 - `server`: Specifies the MQTT server address for the bridge. Example: 
-  - mqtt-tcp://127.0.0.1:1883 for MQTT over TCP bridge
-  - tls+mqtt-tcp://127.0.0.1:8883 for MQTT over TCP bridge with SSL eneabled
-  - mqtt-quic://54.75.171.11:14567 for MQTT over QUIC bridge
+  - `mqtt-tcp://127.0.0.1:1883` for MQTT over TCP bridge
+  - `tls+mqtt-tcp://127.0.0.1:8883` for MQTT over TCP bridge with SSL eneabled
+  - `mqtt-quic://54.75.171.11:14567` for MQTT over QUIC bridge
 
 - `proto_ver`: Specifies the MQTT protocol version to use. Options:
   - `5` for MQTT v5
-
   - `4` for MQTT v3.1.1
-
   - `3` for MQTT v3.1
 - `clientid`: Specifies the client ID for the bridge.
 - `keepalive`: Specifies the ping interval for the bridge.
@@ -114,7 +112,7 @@ This configuration enables NanoMQ to establish an MQTT over TCP bridge connectio
 
 ### **MQTT 5** 
 
- if MQTT v5 is to be used (`proto_ver = 5`), the following configuration items are also supported:
+If MQTT v5 is used (`proto_ver = 5`), the following configuration items are also supported:
 
 **Connection related:**
 
@@ -259,9 +257,9 @@ bridges.mqtt.cache {
 
 ### **Configuration Items**
 
-- `disk_cache_size`: Specifies the maximum number of messages that can be cached in the MQTT bridges. A value of 0 indicates no limit.
+- `disk_cache_size`: Specifies the maximum number of messages that can be cached in the MQTT bridges. A value of 0 indicates cache for messages is ineffecitve.
 - `mounted_file_path`: Specifies the file path where the cache file for the MQTT bridges is mounted.
-- `flush_mem_threshold`: Specifies the threshold for flushing messages to the cache file. When the number of messages reaches this threshold, they are flushed to the cache file.
+- `flush_mem_threshold`: Specifies the threshold for flushing messages to the cache file. When the number of messages reaches this threshold, they will be flushed to the cache file.
 - `resend_interval`: Specifies the interval, in milliseconds, for resending the messages after a failure is recovered. This is not related to the trigger for the resend operation. Only takes effect in bridging.
 
 ::: tip
