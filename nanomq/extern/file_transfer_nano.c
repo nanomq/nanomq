@@ -172,12 +172,12 @@ static int publish_file(nng_socket *sock, FILE *fp, char *file_name, char *topic
 	payload = (char *)nng_alloc(file_size);
 	if (payload == NULL) {
 		log_warn("Failed to allocate memory for file payload\n");
-		return -1;
+		return ALLOC_ERROR;
 	}
 	rc = fread(payload, 1, file_size, fp);
 	if (rc <= 0) {
 		log_warn("Failed to read file\n");
-		return -1;
+		return FREAD_ERROR;
 	}
 
 	if (DEBUG) {
@@ -187,7 +187,7 @@ static int publish_file(nng_socket *sock, FILE *fp, char *file_name, char *topic
 	rc = client_publish(*sock, topic, (uint8_t *)payload, (uint32_t)file_size, 1, true);
 	if (rc != 0) {
 		log_warn("Failed to publish message, return code %d\n", rc);
-		return -1;
+		return rc;
 	}
 	nng_free(payload, file_size);
 
@@ -274,7 +274,7 @@ int send_file(nng_socket *sock,
 	fp = fopen(file_path, "rb");
 	if (fp == NULL) {
 		log_warn("Failed to open file %s\n", file_path);
-		return -1;
+		return FILE_NOT_EXIST;
 	}
 
 	rc = do_flock(fp, LOCK_SH);
@@ -286,7 +286,7 @@ int send_file(nng_socket *sock,
 	rc = publish_file(sock, fp, file_name, topic);
 	if (rc) {
 		fclose(fp);
-		return -1;
+		return rc;
 	}
 
 	if (isLock) {
