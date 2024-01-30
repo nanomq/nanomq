@@ -475,21 +475,48 @@ static int process_msg(nng_socket *sock, nng_msg *msg, bool verbose)
 			cJSON *cjson_filenames;
 			cJSON *cjson_topics;
 			cJSON *cjson_delete;
-			cJSON *cjson_type;
+			cJSON *cjson_request_id;
+			cJSON *cjson_echo_id;
 			result = parse_input(cjson_objs, &cjson_filepaths,
-								 &cjson_filenames, &cjson_topics, &cjson_delete);
+								 &cjson_filenames, &cjson_topics,
+								 &cjson_delete, &cjson_request_id, &cjson_echo_id);
 			if (result) {
 				log_warn("INPUT JSON INVALID!\n");
+				if (cjson_echo_id != NULL) {
+					char messages[BUF_SIZE];
+					memset(messages, 0, BUF_SIZE);
+					messages[0] = '[';
+
+					messages_requests_append(messages, INPUT_ERROR,
+											 NULL, cjson_echo_id->valuestring, 0);
+					messages[strlen(messages)] = ']';
+
+					publish_send_result(sock, NULL, messages, cjson_echo_id->valuestring, 0);
+				}
 				nng_msg_free(msg);
 				return -1;
 			} else {
 				int fileCount = cJSON_GetArraySize(cjson_filepaths);
 				result = 0;
+				char messages[BUF_SIZE];
+				char requests[BUF_SIZE];
+				int echo_success = 1;
+
+				memset(messages, 0, BUF_SIZE);
+				memset(requests, 0, BUF_SIZE);
+
+				messages[0] = '[';
+				requests[0] = '[';
+
 				for (int i = 0; i < fileCount; i++) {
 					cJSON *pathEle = cJSON_GetArrayItem(cjson_filepaths, i);
 					cJSON *nameEle = cJSON_GetArrayItem(cjson_filenames, i);
 					cJSON *topicEle = cJSON_GetArrayItem(cjson_topics, i);
 					cJSON *deleteEle = cJSON_GetArrayItem(cjson_delete, i);
+					cJSON *requestEle = NULL;
+					if(cjson_echo_id != NULL) {
+						requestEle = cJSON_GetArrayItem(cjson_request_id, i);
+					}
 					log_info("Sending file: filepath: %s filename: %s\n",
 												pathEle->valuestring,
 												nameEle->valuestring);
@@ -499,7 +526,13 @@ static int process_msg(nng_socket *sock, nng_msg *msg, bool verbose)
 										!result ? "success" : "fail");
 					/* fail */
 					if (result) {
-						break;
+						if (cjson_echo_id != NULL) {
+							messages_requests_append(messages, result,
+													 requests, requestEle->valuestring,
+													 i != fileCount - 1 ? 1 : 0);
+						}
+						echo_success = 0;
+						continue;
 					} else {
 						if (deleteEle != NULL && deleteEle->valueint >= 0) {
 							if (deleteEle->valueint == 0) {
@@ -512,6 +545,12 @@ static int process_msg(nng_socket *sock, nng_msg *msg, bool verbose)
 								filename = nng_alloc(strlen(pathEle->valuestring) + 1);
 								if (filename == NULL) {
 									log_warn("Alloc filename failed continue...\n");
+
+									if (cjson_echo_id != NULL) {
+										messages_requests_append(messages, ALLOC_ERROR,
+																 requests, requestEle->valuestring,
+																 i != fileCount - 1 ? 1 : 0);
+									}
 									continue;
 								}
 								strcpy(filename, pathEle->valuestring);
@@ -531,7 +570,18 @@ static int process_msg(nng_socket *sock, nng_msg *msg, bool verbose)
 						} else {
 							log_info("Send file finished will not delete: %s\n", pathEle->valuestring);
 						}
+						if (cjson_echo_id != NULL) {
+							messages_requests_append(messages, 0,
+													 requests, requestEle->valuestring,
+													 i != fileCount - 1 ? 1 : 0);
+						}
 					}
+				}
+				if (cjson_echo_id != NULL) {
+					messages[strlen(messages)] = ']';
+					requests[strlen(requests)] = ']';
+					publish_send_result(sock, requests, messages,
+										cjson_echo_id->valuestring, echo_success);
 				}
 			}
 			cJSON_Delete(cjson_objs);
