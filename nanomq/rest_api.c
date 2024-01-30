@@ -18,6 +18,7 @@
 #include "nng/supplemental/nanolib/base64.h"
 #include "nng/supplemental/nanolib/cJSON.h"
 #include "nng/supplemental/nanolib/file.h"
+#include "nng/supplemental/nanolib/hocon.h"
 
 #include "include/rest_api.h"
 #include "include/bridge.h"
@@ -306,6 +307,12 @@ static endpoints api_ep[] = {
 	    .descr  = "set broker configuration",
 	},
 	{
+	    .path   = "/config_update",
+	    .name   = "update_configuration_file",
+	    .method = "POST",
+	    .descr  = "update configuration file",
+	},
+	{
 	    .path   = "/ctrl/:action",
 	    .name   = "ctrl_broker",
 	    .method = "POST",
@@ -358,6 +365,7 @@ static http_msg post_ctrl(http_msg *msg, const char *type);
 static http_msg show_reload_config(http_msg *msg);
 static http_msg post_reload_config(http_msg *msg);
 static http_msg get_config(http_msg *msg, const char *type);
+static http_msg update_config(http_msg *msg);
 static http_msg post_config(http_msg *msg, const char *type);
 static http_msg post_mqtt_msg(
     http_msg *msg, nng_socket *sock, handle_mqtt_msg_cb cb);
@@ -865,6 +873,10 @@ process_request(http_msg *msg, conf_http_server *config, nng_socket *sock)
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "configuration") == 0) {
 			ret = post_config(msg, NULL);
+		} else if (uri_ct->sub_count == 2 &&
+		    uri_ct->sub_tree[1]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "config_update") == 0) {
+			ret = update_config(msg);
 		} else if (uri_ct->sub_count == 3 &&
 		    uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "configuration") == 0) {
@@ -2555,6 +2567,40 @@ post_reload_config(http_msg *msg)
 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
 	char *dest = cJSON_PrintUnformatted(res_obj);
 
+	put_http_msg(
+	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
+
+	cJSON_free(dest);
+	cJSON_Delete(res_obj);
+	cJSON_Delete(req);
+	return res;
+}
+
+
+static http_msg
+update_config(http_msg *msg)
+{
+	http_msg res = { .status = NNG_HTTP_STATUS_OK };
+	conf * config    = get_global_conf();
+	cJSON *req = hocon_parse_str(msg->data, msg->data_len);
+	if (!cJSON_IsObject(req)) {
+		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
+		    PARAMS_HOCON_FORMAT_ILLEGAL);
+	}
+
+	log_info("Writting new config to %s", config->conf_file);
+	log_debug("%.*s", msg->data_len, msg->data);
+
+	cJSON *res_obj = cJSON_CreateObject();
+	int rc = nng_file_put(config->conf_file, msg->data, msg->data_len);
+	if (0 != rc) {
+		cJSON_AddNumberToObject(res_obj, "code", WRITE_CONFIG_FAILED);
+		log_error("Error writing config to %s, error code: %s", config->conf_file, rc);
+	} else {
+		cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+	}
+
+	char *dest = cJSON_PrintUnformatted(res_obj);
 	put_http_msg(
 	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
 
