@@ -139,6 +139,38 @@ get_file_bname(char *fpath)
 }
 
 static int
+send_mqtt_msg_result(nng_socket *sock, char *ruleid, cJSON *resjo)
+{
+	int rv;
+	char *buf = cJSON_PrintUnformatted(resjo);
+
+	char *topic = nng_alloc(sizeof(char) * (strlen(ruleid) + 40));
+	sprintf(topic, "$file/upload/parquetfile/%s/result", ruleid);
+
+	// create a PUBLISH message
+	nng_msg *pubmsg;
+	nng_mqtt_msg_alloc(&pubmsg, 0);
+	nng_mqtt_msg_set_packet_type(pubmsg, NNG_MQTT_PUBLISH);
+	nng_mqtt_msg_set_publish_dup(pubmsg, 0);
+	nng_mqtt_msg_set_publish_qos(pubmsg, 0);
+	nng_mqtt_msg_set_publish_retain(pubmsg, 0);
+	nng_mqtt_msg_set_publish_payload(
+	    pubmsg, (uint8_t *) buf, strlen(buf));
+	nng_mqtt_msg_set_publish_topic(pubmsg, topic);
+
+	log_info("Publish result to '%s' '%s'", topic, buf);
+
+	if ((rv = nng_sendmsg(*sock, pubmsg, NNG_FLAG_ALLOC)) != 0) {
+		log_error("nng_sendmsg", rv);
+		return rv;
+	}
+
+	nng_free(topic, 0);
+	free(buf);
+	return 0;
+}
+
+static int
 send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uint32_t len, char * ruleid)
 {
 	int rv;
@@ -185,7 +217,6 @@ send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uin
 
 	cJSON_Delete(obj);
 	for (int i=0; i<len; ++i) {
-		free((void *)filenames[i]);
 		free((void *)topics[i]);
 	}
 	free(filenames);
@@ -513,6 +544,22 @@ hook_work_cb(void *arg)
 
 		char **sent_files = NULL;
 
+#ifdef SUPP_PARQUET
+		// result json only valid when parquet is enabled
+		cJSON *resjo = cJSON_CreateObject();
+		cJSON *resruleid_obj = cJSON_CreateString(ruleidstr);
+		if (cJSON_AddStringToObject(resjo, "ruleid", ruleidstr) == NULL) {
+			log_warn("Failed to add ruleid to result json");
+			goto skip;
+		}
+
+		cJSON *resrgsjo = cJSON_AddArrayToObject(resjo, "ranges");
+		if (resrgsjo == NULL) {
+			log_warn("Failed to add ranges to result json");
+			goto skip;
+		}
+#endif
+
 		cJSON_ArrayForEach(rgjo, rgsjo) {
 			char    *skeystr = NULL;
 			char    *ekeystr = NULL;
@@ -633,6 +680,22 @@ hook_work_cb(void *arg)
 					log_info("Ask parquet and found.");
 					const char **fnames_new = NULL;
 					for (int i=0; i<sz; i++) {
+						// Preqare range result
+						cJSON *resrgjo = cJSON_CreateObject();
+						if (resrgjo == NULL) {
+							log_error("Error in create range json for result");
+							continue;
+						}
+						cJSON_AddItemToArray(resrgsjo, resrgjo);
+						cJSON *resskeyjo = cJSON_CreateString(skeystr);
+						cJSON *resekeyjo = cJSON_CreateString(ekeystr);
+						if (resskeyjo == NULL || resekeyjo == NULL) {
+							log_error("Error in create start/end key json for result");
+							continue;
+						}
+						cJSON_AddItemToObject(resrgjo, "start_key", resskeyjo);
+						cJSON_AddItemToObject(resrgjo, "end_key", resekeyjo);
+						// Deduplicate
 						int exist = 0;
 						for (int j=0; j<cvector_size(sent_files); j++) {
 							if (0 == strcmp(sent_files[j], fnames[i])) {
@@ -659,6 +722,8 @@ hook_work_cb(void *arg)
 			}
 #endif
 		}
+
+		send_mqtt_msg_result(work->mqtt_sock, ruleidstr, resjo);
 
 		int sent_files_sz = cvector_size(sent_files);
 		for (int i=sent_files_sz-1; i>=0; --i)
