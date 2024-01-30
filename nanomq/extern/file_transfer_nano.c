@@ -43,6 +43,8 @@
 #include "nng/supplemental/nanolib/log.h"
 #include "nng/supplemental/nanolib/cJSON.h"
 
+#include "file_transfer.h"
+
 #define DEBUG                   1
 #define MAX_DELAY_7_DAYS        (1000 * 60 * 60 * 24 * 7)
 #define FT_SUB_TOPIC            "file_transfer"
@@ -173,7 +175,6 @@ static int publish_file(nng_socket *sock, FILE *fp, char *file_name, char *topic
 #define STR(name) STR_VALUE(name)
 
 #define PATH_LEN 256
-#define MD5_LEN 32
 
 int CalcFileMD5(char *file_name, char *md5_sum)
 {
