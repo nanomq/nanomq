@@ -175,29 +175,46 @@ static int publish_file(nng_socket *sock, FILE *fp, char *file_name, char *topic
 #define PATH_LEN 256
 #define MD5_LEN 32
 
-int CalcMD5(char *binary, char *tmp_fname, char **md5res)
+int CalcMD5n(char *binary, size_t len, char *tmpfpath, char **md5res)
 {
 	*md5res = NULL;
 
-	#define MD5SUM_CMD_FMT "md5sum %." STR(PATH_LEN) "s 2>/dev/null"
-	char cmd[PATH_LEN + sizeof (MD5SUM_CMD_FMT)];
-	sprintf(cmd, MD5SUM_CMD_FMT, tmp_fname);
-	#undef MD5SUM_CMD_FMT
-
-	FILE *p = popen(cmd, "r");
-	if (p == NULL) return 0;
-
-	char *md5_sum = nng_alloc(sizeof(char) * (MD5_LEN + 1));
-	*md5res = md5_sum;
-
-	int i, ch;
-	for (i = 0; i < MD5_LEN && isxdigit(ch = fgetc(p)); i++) {
-		*md5_sum++ = ch;
+	FILE *fp = fopen(tmpfpath, "w+");
+	if (fp == NULL) {
+		log_warn("Failed to open file %s", tmpfpath);
+		return -1;
 	}
 
-	*md5_sum = '\0';
-	pclose(p);
-	return i == MD5_LEN;
+	int rc = do_flock(fp, LOCK_SH);
+	if (rc != 0) {
+		log_warn("Failed to lock file %s", tmpfpath);
+		fclose(fp);
+		return -1;
+	}
+
+	size_t res = fwrite(binary, 1, len, fp);
+	if (res != len) {
+		log_warn("Failed to write to file %s", tmpfpath);
+		fclose(fp);
+		return -2;
+	}
+
+	rc = do_flock(fp, LOCK_UN);
+	if (rc != 0) {
+		log_warn("Failed to unlock file %s", tmpfpath);
+		fclose(fp);
+		return -1;
+	}
+	fclose(fp);
+
+	char *md5_sum = nng_alloc(sizeof(char) * (MD5_LEN + 1));
+	if (1 != CalcFileMD5(tmpfpath, md5_sum)) {
+		log_warn("Failed to calculate md5sum of %s", tmpfpath);
+		nng_free(md5_sum);
+		return -1;
+	}
+
+	*md5res = md5_sum;
 }
 
 int CalcFileMD5(char *file_name, char *md5_sum)
