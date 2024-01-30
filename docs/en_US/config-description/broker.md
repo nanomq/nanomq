@@ -24,7 +24,7 @@ system {
 
 ## Cache 
 
-NanoMQ uses SQLite to cache MQTT data bridge and persist messages.
+NanoMQ uses SQLite to cache MQTT data bridge. Enable cache for NanoMQ can achieve persistence of `retain` message.
 
 ### Example Configuration
 

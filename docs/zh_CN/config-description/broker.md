@@ -24,7 +24,7 @@ system {
 
 ## 缓存 
 
-NanoMQ 使用 SQLite 实现 MQTT 数据桥的缓存，以实现消息的持久化。
+NanoMQ 使用 SQLite 实现 MQTT 数据桥的缓存。开启NanoMQ的缓存，可以实现`retain`消息的持久化。
 
 ### 配置示例
 
