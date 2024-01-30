@@ -193,6 +193,17 @@
       "path": "test-report"
     },
     {
+      "title": "教程",
+      "path": "tutorial/tutorial",
+      "collapsed": true,
+      "children": [
+        {
+          "title": "retain消息持久化",
+          "path": "tutorial/tutorial"
+        }
+      ]
+    },
+    {
       "title": "拓展阅读",
       "path": "config-description/more-config",
       "collapsed": true,
@@ -400,6 +411,17 @@
     {
       "title": "Test Report",
       "path": "test-report"
+    },
+    {
+      "title": "Tutorial",
+      "path": "tutorial/tutorial",
+      "collapsed": true,
+      "children": [
+        {
+          "title": "retain message persistence",
+          "path": "tutorial/retain-msg-persistence"
+        }
+      ]
     },
     {
       "title": "Appendix",

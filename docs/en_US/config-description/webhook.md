@@ -1,6 +1,6 @@
 # WebHook
 
-WebHook in NanoMQ allows the broker to send HTTP requests to specified endpoints when certain events occur. These events include client connections, message publications, session terminations, and more. This feature lets you integrate NanoMQ with other services and build complex event-driven architectures.
+WebHook in NanoMQ allows the broker to send HTTP requests to specified endpoints when certain events occur. These events include client connections, message publications, session terminations, and more. This feature let you integrate NanoMQ with other services and build complex event-driven architectures.
 
 ## **Example Configuration**
 
