@@ -626,6 +626,8 @@ void start_listening(nng_socket *sock)
 			if (rv) {
 				log_warn("something wrong occured when process msg\n");
 			}
+		} else {
+			nng_msg_free(msg);
 		}
 	}
 
