@@ -1196,6 +1196,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 	cvector_free(shared_cli_list);
 
 #if ENABLE_RETAIN
+	// Exclude DISCONNECT_EV msg?
 	handle_pub_retain(work, topic);
 #endif
 	return result;
@@ -1226,7 +1227,6 @@ static void inline handle_pub_retain_dbtree(const nano_work *work, char *topic)
 
 		if (work->pub_packet->payload.len > 0) {
 			nng_msg_clone(work->msg);
-
 			property *prop  = NULL;
 			// reserve property info
 			nng_mqtt_msg_proto_data_alloc(work->msg);
@@ -1722,9 +1722,18 @@ check_msg_exp(nng_msg *msg, property *prop)
 		// change to nng msg get
 		nng_time       rtime = nng_msg_get_timestamp(msg);
 		nng_time       ntime = nng_clock();
-		property_data *data =
-		    property_get_value(prop, MESSAGE_EXPIRY_INTERVAL);
+		property_data *data  = property_get_value(prop, MESSAGE_EXPIRY_INTERVAL);
+#if defined(NNG_SUPP_SQLITE)
+		if (!data) {
+			nng_mqttv5_msg_decode(msg);
+			property *pub_prop = (void *)nng_mqtt_msg_get_publish_property(msg);
+			data = property_get_value(pub_prop, MESSAGE_EXPIRY_INTERVAL);
+		}
+#endif
 		if (data && ntime > rtime + data->p_value.u32 * 1000) {
+#if defined(NNG_SUPP_SQLITE)
+			nng_msg_free(msg);
+#endif
 			return false;
 		} else if (data) {
 			// TODO replace exp interval with new value without
