@@ -27,6 +27,7 @@
 #include "nng/supplemental/util/platform.h"
 
 #include "nng/mqtt/mqtt_client.h"
+#include "file_transfer.h"
 
 #ifdef SUPP_PARQUET
 #include "nng/supplemental/nanolib/parquet.h"
@@ -138,12 +139,24 @@ get_file_bname(char *fpath)
 }
 
 static int
-send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uint32_t len)
+send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uint32_t len, char * ruleid)
 {
 	int rv;
 	const char ** filenames = malloc(sizeof(char *) * len);
+	char tbuf[MD5_LEN + strlen(ruleid) + 65];
+	const char **topics = malloc(sizeof(char *) * len);
+	int  *delete = malloc(sizeof(int) * len);
 	for (int i=0; i<len; ++i) {
+		char md5sum[MD5_LEN+1];
+		if (1 != CalcFileMD5((char *)fpaths[i], md5sum)) {
+			log_error("error in getting md5sum(%s)", fpaths[i]);
+			continue;
+		}
 		filenames[i] = get_file_bname((char *)fpaths[i]);
+		sprintf(tbuf, "$file/upload/parquetfile/%s/%s/%s",
+			ruleid, md5sum, filenames[i]);
+		topics[i] = strdup(tbuf);
+		delete[i] = -1;
 	}
 
 	// Create a json as payload to trigger file transport
@@ -157,13 +170,27 @@ send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uin
 	if (!filenames_obj)
 		return -1;
 	cJSON_AddItemToObject(obj, "filenames", filenames_obj);
-	cJSON * delete_obj = cJSON_AddNumberToObject(obj, "delete", -1);
+
+	cJSON *topics_obj = cJSON_CreateStringArray(topics, len);
+	if (!topics_obj)
+		return -1;
+	cJSON_AddItemToObject(obj, "topics", topics_obj);
+
+	cJSON * delete_obj = cJSON_CreateIntArray(delete, len);
+	if (!delete_obj)
+		return -1;
+	cJSON_AddItemToObject(obj, "delete", delete_obj);
 
 	char *buf = cJSON_PrintUnformatted(obj);
+
 	cJSON_Delete(obj);
-	for (int i=0; i<len; ++i)
-		filenames[i];
+	for (int i=0; i<len; ++i) {
+		free((void *)filenames[i]);
+		free((void *)topics[i]);
+	}
 	free(filenames);
+	free(topics);
+	free(delete);
 
 	// create a PUBLISH message
 	nng_msg *pubmsg;
@@ -622,7 +649,7 @@ hook_work_cb(void *arg)
 					}
 					if (fnames_new) {
 						send_mqtt_msg_file(work->mqtt_sock, "file_transfer",
-							fnames_new, cvector_size(fnames_new));
+							fnames_new, cvector_size(fnames_new), ruleidstr);
 						cvector_free(fnames_new);
 					}
 				}
