@@ -259,10 +259,8 @@ sub_ctx_handle(nano_work *work)
 				tn->reason_code = NMQ_AUTH_SUB_ERROR;
 				if (work->config->acl_deny_action ==
 				    ACL_DISCONNECT) {
-					log_warn(
-					    "acl deny, disconnect client");
-					// TODO disconnect client or return
-					// error code
+					log_warn("acl deny, disconnect client");
+					// TODO disconnect client or return error code
 					goto next;
 				} else if (work->config->acl_deny_action ==
 				    ACL_IGNORE) {
