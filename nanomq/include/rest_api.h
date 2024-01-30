@@ -73,6 +73,8 @@ enum result_code {
 	OLD_PASSWORD_IS_WRONG          = 114,
 	ILLEGAL_SUBJECT                = 115,
 	TOKEN_EXPIRED                  = 116,
+	PARAMS_HOCON_FORMAT_ILLEGAL    = 117,
+	WRITE_CONFIG_FAILED            = 118,
 };
 
 typedef struct http_msg {
