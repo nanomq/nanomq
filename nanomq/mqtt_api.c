@@ -198,10 +198,10 @@ static int
 log_file_init(conf_log *log)
 {
 	if (log->dir != NULL && !nng_file_is_dir(log->dir)) {
-		log_fatal("%s is not a directory, make sure it's "
-		          "created before starting nanomq",
-		    log->dir);
-		return NNG_EINVAL;
+		if (nano_dir_create(log->dir) != 0){
+			log_fatal("NanoMQ cannot touch path %s ", log->dir);
+			return NNG_EINVAL;
+		}
 	}
 	log->dir   = log->dir == NULL ? nng_strdup("./") : log->dir;
 	log->file  = log->file == NULL ? nng_strdup("nanomq.log") : log->file;
