@@ -79,14 +79,14 @@ bridges.mqtt.emqx1 = {
 
 - bridges.mqtt.\<name>：桥接名称。
 - `server`：桥接目标 Broker 的地址 URL。示例：
-  - MQTT over TCP 桥接：mqtt-tcp://127.0.0.1:1883
-  - 经 SSL 加密的 MQTT over TCP 桥接：tls+mqtt-tcp://127.0.0.1:8883
-  - MQTT over QUIC 桥接：mqtt-quic://54.75.171.11:14567
+  - MQTT over TCP 桥接：`mqtt-tcp://127.0.0.1:1883`
+  - 经 SSL 加密的 MQTT over TCP 桥接：`tls+mqtt-tcp://127.0.0.1:8883`
+  - MQTT over QUIC 桥接：`mqtt-quic://quic-server:14567`- MQTT over TCP 桥接：`mqtt-tcp://127.0.0.1:1883`
+  - 经 SSL 加密的 MQTT over TCP 桥接：`tls+mqtt-tcp://127.0.0.1:8883`
+  - MQTT over QUIC 桥接：`mqtt-quic://54.75.171.11:14567`
 - `proto_ver`：指定 MQTT 协议版本：可选值：
   - `5`：MQTT v5
-
   - `4`：MQTT v3.1.1
-
   - `3`： MQTT v3.1
 - `clientid`：桥接客户端 ID，默认 NULL 为自动生成随机 ID。
 - `keepalive`：保活间隔时间。
@@ -106,7 +106,7 @@ bridges.mqtt.emqx1 = {
 
 ### **MQTT 5** 
 
-如何选择使用 MQTT 5.0 协议（`proto_ver = 5`），NanoMQ 还支持以下配置项：
+如果选择使用 MQTT 5.0 协议（`proto_ver = 5`），NanoMQ 还支持以下配置项：
 
 **连接相关：**
 
@@ -258,7 +258,7 @@ bridges.mqtt.cache {
 
 ### **配置项**
 
-- `disk_cache_size`：指定 MQTT 桥接中可以缓存的消息的最大数量。0 表示没有限制。 
+- `disk_cache_size`：指定 MQTT 桥接中可以缓存的消息的最大数量。0 表示不生效。
 - `mounted_file_path`：指定 MQTT 桥接缓存文件的挂载路径。
 - `flush_mem_threshold`：指定刷新消息到缓存文件的阈值。当消息数量达到阈值时，就会被刷新到缓存文件中。
 - `resend_interval`：指定在故障恢复后消息的重发间隔，单位：毫秒。注意：该配置项与是否触发消息重发无关。
