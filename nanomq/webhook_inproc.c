@@ -34,6 +34,8 @@
 
 #define NANO_LMQ_INIT_CAP 16
 
+#define HOOK_TMPFNAME ".nanomq-exchange-msgs-formd5"
+
 // The server keeps a list of work items, sorted by expiration time,
 // so that we can use this to set the timeout to the correct value for
 // use in poll.
@@ -60,7 +62,7 @@ static nng_atomic_int *hook_search_limit     = NULL;
 static nng_aio        *hook_search_reset_aio = NULL;
 
 static int
-send_mqtt_msg_cat(nng_socket *sock, const char *topic, nng_msg **msgs, uint32_t len)
+send_mqtt_msg_cat(nng_socket *sock, char *tmpfpath, nng_msg **msgs, uint32_t len)
 {
 	int rv;
 	nng_msg *pubmsg;
@@ -84,6 +86,13 @@ send_mqtt_msg_cat(nng_socket *sock, const char *topic, nng_msg **msgs, uint32_t 
 		pos += diff;
 	}
 
+	char *topic;
+	if (0 != CalcMD5n(buf, pos, tmpfpath, &topic)) {
+		nng_msg_free(pubmsg);
+		nng_free(buf, pos);
+		return -1;
+	}
+
 	nng_mqtt_msg_alloc(&pubmsg, 0);
 	nng_mqtt_msg_set_packet_type(pubmsg, NNG_MQTT_PUBLISH);
 	nng_mqtt_msg_set_publish_qos(pubmsg, 1);
@@ -95,6 +104,7 @@ send_mqtt_msg_cat(nng_socket *sock, const char *topic, nng_msg **msgs, uint32_t 
 		log_error("nng_sendmsg", rv);
 	}
 	nng_free(buf, pos);
+	nng_free(topic, 0);
 	return rv;
 }
 
@@ -547,7 +557,13 @@ hook_work_cb(void *arg)
 				for (int i=0; i<msgs_len; ++i)
 					nng_msg_clone(msgs_res[i]);
 
-				send_mqtt_msg_cat(work->mqtt_sock, "$file/upload/md5/xxxx", msgs_res, msgs_len);
+				size_t dirlen = strlen(parquetconf->dir) + strlen(HOOK_TMPFNAME) + 2;
+				char * tmpfpath = malloc(sizeof(char) * dirlen);
+				if (parquetconf->dir[strlen(parquetconf->dir)-1] == '/')
+					sprintf(tmpfpath, "%s%s", parquetconf->dir, HOOK_TMPFNAME);
+				else
+					sprintf(tmpfpath, "%s/%s", parquetconf->dir, HOOK_TMPFNAME);
+				send_mqtt_msg_cat(work->mqtt_sock, tmpfpath, msgs_res, msgs_len);
 
 				for (int i=0; i<msgs_len; ++i)
 					nng_msg_free(msgs_res[i]);
