@@ -369,6 +369,53 @@ client_connect(nng_socket *sock, const char *url)
 	return (0);
 }
 
+static int publish_send_result(nng_socket *sock,
+							   char *requestid,
+							   char *messages,
+							   char *echoid,
+							   int success)
+{
+	int rc;
+	char payload[BUF_SIZE * 3];
+	char topic[TOPIC_LEN];
+
+	memset(topic, 0, TOPIC_LEN);
+	memset(payload, 0, BUF_SIZE * 3);
+
+	rc = snprintf(
+			payload,
+			BUF_SIZE * 3,
+			"{"
+			"\"request-id\": %s,"
+			"\"message\": %s,"
+			"\"result\": \"%s\","
+			"\"echo-id\": \"%s\""
+			"}",
+			requestid == NULL ? "" : requestid,
+			messages == NULL ? "" : messages,
+			success ? "success" : "fail",
+			echoid);
+	if (rc < 0 || rc >= BUF_SIZE) {
+		log_warn("Failed to create payload for initial message\n");
+		return -1;
+	}
+
+	// Create topic of the form file_transfer/result for result message
+	strcpy(topic, FT_RESULT_TOPIC);
+	// Publish result message
+	if (DEBUG) {
+		log_info("Publishing result message to topic %s\n", topic);
+		log_info("Payload:\n%s\n", payload);
+	}
+
+	rc = client_publish(*sock, topic, payload, strlen(payload), 1, true);
+	if (rc != 0) {
+		log_warn("Failed to publish result message, return code %d\n", rc);
+		return -1;
+	}
+
+	return 0;
+}
 
 static int process_msg(nng_socket *sock, nng_msg *msg, bool verbose)
 {
