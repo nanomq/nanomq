@@ -81,8 +81,6 @@ bridges.mqtt.emqx1 = {
 - `server`：桥接目标 Broker 的地址 URL。示例：
   - MQTT over TCP 桥接：`mqtt-tcp://127.0.0.1:1883`
   - 经 SSL 加密的 MQTT over TCP 桥接：`tls+mqtt-tcp://127.0.0.1:8883`
-  - MQTT over QUIC 桥接：`mqtt-quic://quic-server:14567`- MQTT over TCP 桥接：`mqtt-tcp://127.0.0.1:1883`
-  - 经 SSL 加密的 MQTT over TCP 桥接：`tls+mqtt-tcp://127.0.0.1:8883`
   - MQTT over QUIC 桥接：`mqtt-quic://54.75.171.11:14567`
 - `proto_ver`：指定 MQTT 协议版本：可选值：
   - `5`：MQTT v5
