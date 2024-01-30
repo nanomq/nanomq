@@ -48,6 +48,14 @@
 #define DEBUG                   1
 #define MAX_DELAY_7_DAYS        (1000 * 60 * 60 * 24 * 7)
 #define FT_SUB_TOPIC            "file_transfer"
+#define FT_RESULT_TOPIC         "file_transfer/result"
+#define BUF_SIZE                10 * 1024
+#define TOPIC_LEN               1024
+#define INPUT_ERROR             0x1000
+#define FILE_NOT_EXIST          0x1001
+#define ALLOC_ERROR             0x1002
+#define FREAD_ERROR             0x1003
+
 //
 // Publish a message to the given topic and with the given QoS.
 int
