@@ -62,7 +62,8 @@ static nng_atomic_int *hook_search_limit     = NULL;
 static nng_aio        *hook_search_reset_aio = NULL;
 
 static int
-send_mqtt_msg_cat(nng_socket *sock, char *tmpfpath, nng_msg **msgs, uint32_t len)
+send_mqtt_msg_cat(nng_socket *sock, char *tmpfpath, nng_msg **msgs, uint32_t len,
+		char *ruleid, uint64_t start_key, uint64_t end_key)
 {
 	int rv;
 	nng_msg *pubmsg;
@@ -86,12 +87,16 @@ send_mqtt_msg_cat(nng_socket *sock, char *tmpfpath, nng_msg **msgs, uint32_t len
 		pos += diff;
 	}
 
-	char *topic;
-	if (0 != CalcMD5n(buf, pos, tmpfpath, &topic)) {
+	char *md5sum;
+	if (0 != CalcMD5n(buf, pos, tmpfpath, &md5sum)) {
 		nng_msg_free(pubmsg);
 		nng_free(buf, pos);
 		return -1;
 	}
+	char *topic = malloc(sizeof(char) *(strlen(md5sum) + 128));
+	sprintf(topic, "$file/upload/MQ/%s/%s/%s-%lld-%lld",
+		ruleid, md5sum, "VIN", start_key, end_key);
+	log_info("The %ld msgs will go to topic %s", len, topic);
 
 	nng_mqtt_msg_alloc(&pubmsg, 0);
 	nng_mqtt_msg_set_packet_type(pubmsg, NNG_MQTT_PUBLISH);
@@ -105,6 +110,7 @@ send_mqtt_msg_cat(nng_socket *sock, char *tmpfpath, nng_msg **msgs, uint32_t len
 	}
 	nng_free(buf, pos);
 	nng_free(topic, 0);
+	nng_free(md5sum, 0);
 	return rv;
 }
 
@@ -551,23 +557,30 @@ hook_work_cb(void *arg)
 
 			// Get msgs and send to localhost:port to active handler
 			if (msgs_len > 0 && msgs_res != NULL) {
-				log_info("Publishing %ld msgs took from exchange...", msgs_len);
-
 				// TODO NEED Clone before took from exchange instead of here
 				for (int i=0; i<msgs_len; ++i)
 					nng_msg_clone(msgs_res[i]);
 
 				size_t dirlen = strlen(parquetconf->dir) + strlen(HOOK_TMPFNAME) + 2;
 				char * tmpfpath = malloc(sizeof(char) * dirlen);
-				if (parquetconf->dir[strlen(parquetconf->dir)-1] == '/')
-					sprintf(tmpfpath, "%s%s", parquetconf->dir, HOOK_TMPFNAME);
-				else
-					sprintf(tmpfpath, "%s/%s", parquetconf->dir, HOOK_TMPFNAME);
-				send_mqtt_msg_cat(work->mqtt_sock, tmpfpath, msgs_res, msgs_len);
+				if (parquetconf->enable == false || parquetconf->dir == NULL) {
+					sprintf(tmpfpath, "/tmp/%s", HOOK_TMPFNAME);
+				} else {
+					if (parquetconf->dir[strlen(parquetconf->dir)-1] == '/')
+						sprintf(tmpfpath, "%s%s", parquetconf->dir, HOOK_TMPFNAME);
+					else
+						sprintf(tmpfpath, "%s/%s", parquetconf->dir, HOOK_TMPFNAME);
+				}
+
+				log_info("Publish %ld msgs from exchange (%s)", msgs_len, tmpfpath);
+
+				send_mqtt_msg_cat(work->mqtt_sock, tmpfpath, msgs_res, msgs_len,
+					ruleidstr, start_key, end_key);
 
 				for (int i=0; i<msgs_len; ++i)
 					nng_msg_free(msgs_res[i]);
 				nng_free(msgs_res, sizeof(nng_msg *) * msgs_len);
+				nng_free(tmpfpath, 0);
 			}
 #ifdef SUPP_PARQUET
 			// Get file names and send to localhost to active handler
