@@ -1,6 +1,6 @@
 # WebHook
 
-NanoMQ 提供了可拓展到事件驱动型 WebHook 接口，用户可通过规则配置 WebHook 的触发事件或消息主题。Webhook 的配置文件位于 `etc/nanomq.conf`。NanoMQ 提供了两个版本的配置文件，您可根据需要及部署版本选择：
+NanoMQ 提供了可拓展的事件驱动型 WebHook 接口，用户可通过规则配置 WebHook 的触发事件或消息主题。Webhook 的配置文件位于 `etc/nanomq.conf`。NanoMQ 提供了两个版本的配置文件，您可根据需要及部署版本选择：
 
 - [HOCON（推荐）](../config-description/webhook.md)：NanoMQ 0.14 版本及以上
 
@@ -16,7 +16,7 @@ webhook {
     ......
 }
 ```
-**📢 注意** 对于 0.14 ~ 0.18 版本，还需通过 `webhook.enable = true` 选项启用相关功能，如下所示。具体可参考 [配置 - v0.14](../config-description/v014.md)
+**注意** 对于 0.14 ~ 0.18 版本，还需通过 `webhook.enable = true` 选项启用相关功能。具体可参考 [配置 - v0.14](../config-description/v014.md)
 
 ### 规则语法
 
@@ -29,12 +29,14 @@ Webhook 支持两个配置参数：
 
 ```bash
 ## 格式示例
-webhook.events = [
-    ## 此处可以添加多条规则
-    {
-        <Rule>
-    }
-]
+webhook {
+	## 此处可以添加多条规则
+	event = [
+    	{
+        	<Rule>
+    	}
+	]
+}
 ```
 
 **示例**
@@ -42,26 +44,33 @@ webhook.events = [
 我们希望将 `a/b/c` 和 `foo/#` 主题下的消息转发到 Web 服务器上，其配置应该为：
 
 ```bash
-webhook.events = [
-	{ 
-		event = "on_message_publish"
-		topic = "a/b/c"
-	}
-	{
-		event = "on_message_publish"
-		topic = "foo/#"
-	}
-]
+webhook {
+	url = "http://127.0.0.1:80"
+	headers.content-type = "application/json"
+	body.encoding = plain
+	pool_size = 32
+	
+	event = [
+		{ 
+			event = "on_message_publish"
+			topic = "a/b/c"
+		}
+		{
+			event = "on_message_publish"
+			topic = "foo/#"
+		}
+	]
+}
 ```
 
 ### 触发事件
 
-Naono目前支持三类触发事件：
+NanoMQ目前支持三类触发事件：
 
 | 名称                   | 说明         | 执行时机                     |
 | ---------------------- | ------------ | ---------------------------- |
 | on_client_connack      | 下发连接应答 | 服务端准备下发连接应答报文时 |
-| on_client_disconnected | 连接断开     | 客户端连接层在准备关闭时     |
+| on_client_disconnected | 连接断开     | 客户端连接在准备关闭时     |
 | on_message_publish     | 消息发布     | 服务端在发布（路由）消息前   |
 
 ### 事件参数
@@ -104,7 +113,7 @@ Body: <JSON>    # Body 为 JSON 格式字符串
 | action         | string  | 事件名称 固定为："message_publish"           |
 | from_client_id | string  | 发布端 ClientId                              |
 | from_username  | string  | 发布端 Username ，不存在时该值为 "undefined" |
-| topic          | string  | 取消订阅的主题                               |
+| topic          | string  | 订阅的主题                               |
 | qos            | enum    | QoS 等级，可取 0、1、2                       |
 | retain         | bool    | 是否为保留消息                               |
 | payload        | string  | 消息 Payload                                 |
@@ -115,20 +124,22 @@ Body: <JSON>    # Body 为 JSON 格式字符串
 配置示例：
 
 ```bash
-webhook.events = [
+webhook {
 	url = "http://127.0.0.1:80"
 	headers.content-type = "application/json"
 	body.encoding = plain
 	pool_size = 32
-
-	{ 
-		event = "on_message_publish"
-		topic = "a/b/c"
-	}
-	{
-		event = "on_client_connack"
-	}
-]
+	
+	event = [
+		{ 
+			event = "on_message_publish"
+			topic = "a/b/c"
+		}
+		{
+			event = "on_client_connack"
+		}
+	]
+}
 ```
 
 其中，
@@ -173,7 +184,7 @@ web.hook.rule.message.publish.1={"action": "on_message_publish", "topic": "a/b/c
 web.hook.rule.message.publish.2={"action": "on_message_publish", "topic": "foo/#"}
 ```
 
-这样 WebHook 仅会转发与 a/b/c 和 foo/# 主题匹配的消息，例如 foo/bar 等。
+这样 WebHook 仅会转发与 `a/b/c` 和 `foo/#` 主题匹配的消息，例如 `foo/bar` 等。
 
 ### 触发事件
 
@@ -182,7 +193,7 @@ web.hook.rule.message.publish.2={"action": "on_message_publish", "topic": "foo/#
 | 名称                | 说明         | 执行时机                     |
 | ------------------- | ------------ | ---------------------------- |
 | client.connack      | 下发连接应答 | 服务端准备下发连接应答报文时 |
-| client.disconnected | 连接断开     | 客户端连接层在准备关闭时     |
+| client.disconnected | 连接断开     | 客户端连接在准备关闭时     |
 | message.publish     | 消息发布     | 服务端在发布（路由）消息前   |
 
 ### 事件参数
@@ -225,7 +236,7 @@ Body: <JSON>    # Body 为 JSON 格式字符串
 | action         | string  | 事件名称 固定为："message_publish"          |
 | from_client_id | string  | 发布端 ClientId                             |
 | from_username  | string  | 发布端 Username，不存在时该值为 "undefined" |
-| topic          | string  | 取消订阅的主题                              |
+| topic          | string  | 订阅的主题                              |
 | qos            | enum    | QoS 等级，可取 0 1 2                        |
 | retain         | bool    | 是否为 Retain 消息                          |
 | payload        | string  | 消息 Payload                                |

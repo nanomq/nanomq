@@ -1,8 +1,8 @@
 # Configure with WebHook
 
-NanoMQ is equipped with an event-driven WebHook interface, this section introduces how to enable the WebHook interface, relevant configuration items, and how WebHook is triggered by topics or events.
+NanoMQ is furnished with an event-driven WebHook interface. This section provides an introduction to enabling the WebHook feature, outlines relevant configuration items, and elucidates how WebHook is triggered by specific topics or events.
 
-The webhook configuration file is located in `etc/nanomq.conf`, NanoMQ offers 2 formats of configuration files:
+The webhook configuration file is located in `etc/nanomq.conf`. NanoMQ offers 2 formats of configuration files:
 
 - [HOCON (recommended, supported since v0.14 or above)](../config-description/webhook.md)
 - [Key-Value format](../config-description/v013.md)
@@ -16,31 +16,33 @@ webhook {
     ......
 }
 ```
-**📢 Attention:** for NanoMQ 0-14 ~ 0.18 users, you also need to activate this feature with the `webhook.enable = true` configuration item. For details, see [Configuration v0.14](../config-description/v014.md)
+**Attention:** for NanoMQ 0-14 ~ 0.18 users, you also need to activate this feature with `webhook.enable = true`. For details, see [Configuration v0.14](../config-description/v014.md)
 
-Starting from NanoMQ version 0.18, the `enable` option has been removed. Therefore, to enable the `webhook` configuration, simply add this module to the configuration file as shown above.
+Since NanoMQ version 0.18, the `enable` option has been removed. To enable `webhook` configuration, simply add this module to the configuration file as shown above.
 
 ### Rule Syntax
 
 NanoMQ provides the following configuration keys for WebHook:
 
-- `event`: string, taking a fixed value
-- `topic`: a string, functioning like a topic filter, the messaging forwarding action will only be triggered if the message topic matches the one specified in the rule. 
+- `event`: string, taking a fixed value.
+- `topic`: a string, functioning like a topic filter, the messaging forwarding action is triggered only if the message topic matches the one specified in the rule. 
 
 **Syntax**
 
 ```bash
-webhook.events = [
-    ## Multi rules can be added here.
-    {
-        <Rule>
-    }
-]
+webhook {
+	## Multi rules can be added here.
+	event = [
+    	{
+        	<Rule>
+    	}
+	]
+}
 ```
 
 **Example**
 
-For example, you want to forward messages matching the topics of `a/b/c` and `foo/#` to the web server, and the configuration should be:
+For example, you want to forward messages matching the topics of `a/b/c` and `foo/#` to the web server, the configuration should be:
 
 ```bash
 webhook.events = [
@@ -62,12 +64,12 @@ WebHook can be triggered by the following events:
 | Name                   | Description                  | **Execution timing**                               |
 | ---------------------- | ---------------------------- | -------------------------------------------------- |
 | on_client_connack      | Issue connection acknowledge | When the server is ready to send connack packet    |
-| on_client_disconnected | disconnected                 | When the client connection layer is about to close |
+| on_client_disconnected | disconnected                 | When the client connection is about to close |
 | on_message_publish     | message published            | Before the broker publishes (routes) the message   |
 
 ### Event Parameters
 
-When an event occurs, the NanoMQ WebHook interface will package that event into an HTTP request. This request is then sent to a web server, the location of which is determined by a pre-configured URL. 
+When an event occurs, NanoMQ WebHook will package an HTTP request based on this event. The request is then sent to a pre-configured web server. 
 
 The request format is:
 
@@ -78,7 +80,7 @@ Method: POST    # Fixed as POST method
 Body: <JSON>    # Body is a JSON format string
 ```
 
-The `body` for different events may differ. The following tables list the body parameters supported in each type of event:
+The `body` for different events may differ. The content of the `body` in each type of event are as following:
 
 **on_client_connack**
 
@@ -107,7 +109,7 @@ The `body` for different events may differ. The following tables list the body p
 | action         | string  | Event name<br/>Value: "message_publish", cannot be modified  |
 | from_client_id | string  | Publisher's Client ID                                        |
 | from_username  | string  | Publisher's Username, when there is no username, will use "undefined" |
-| topic          | string  | Unsubscribed topic                                           |
+| topic          | string  | Topic                                                        |
 | qos            | enum    | QoS level, and the optional value is `0` `1` `2`             |
 | retain         | bool    | Whether it is a Retain message                               |
 | payload        | string  | Message Payload                                              |
@@ -138,8 +140,6 @@ webhook.events = [
 	}
 ]
 ```
-
-where,
 
 `event`: WebHook triggered event, string, supported events include:
 
@@ -195,7 +195,7 @@ The following events are currently supported:
 
 ### Event Parameters
 
-When the event is triggered, Webhook will group each event into an HTTP request and send it to the web server configured by url according to the configuration. The request format is:
+When the event is triggered, Webhook will group each event into an HTTP request and send it to the pre-configured web server. The request format:
 
 ```bash
 URL: <url>      # From the url field in the configuration
@@ -204,7 +204,7 @@ Method: POST    # Fixed as POST method
 Body: <JSON>    # Body is a JSON format string
 ```
 
-The `body` for different events may differ. The following tables list the body parameters supported in each type of event:
+The `body` for different events may differ. The content of the `body` in each type of event are as following:
 
 **client.connack**
 
@@ -233,7 +233,7 @@ The `body` for different events may differ. The following tables list the body p
 | action         | string  | Event name<br/>Value: "message_publish", cannot be modified  |
 | from_client_id | string  | Publisher's Client ID                                        |
 | from_username  | string  | Publisher's Username, when there is no username, will use "undefined" |
-| topic          | string  | Unsubscribed topic                                           |
+| topic          | string  | Topic                                           |
 | qos            | enum    | QoS level, and the optional value is `0` `1` `2`             |
 | retain         | bool    | Whether it is a Retain message                               |
 | payload        | string  | Message Payload                                              |
