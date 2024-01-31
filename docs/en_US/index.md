@@ -21,6 +21,7 @@ Fully MQTT 5.0 Compliant: Fully support MQTT 5.0/3.1.1, Compatible with all stan
 [**Integrability**](./api/introduction.md): Reduce the cost of integrating edge computing applications with event-driven WebHooks. Easy to maintain with EdgeOps friendly HTTP APIs.
 
 [**Multi-Language Protocol**](./gateway/introduction.md): Support multiple protocols such as ZeroMQ/nanomsg/NNG/WebSocket. Enabling flexible and diverse routing topology on edge with. Secure your IoT connections with TLS/SSL.
+[**MQTT STREAM**](./mqtt-stream/introduction.md): MQTT messages for the same topic can be viewed as a data stream, and this data stream can be stored and queried. For some poor network environment, it provides a solution for the integrity and reliability of data.
 
 ## Why NanoMQ
 
