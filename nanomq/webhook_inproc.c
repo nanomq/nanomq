@@ -220,6 +220,7 @@ send_msg(conf_web_hook *conf, nng_msg *msg)
 	nng_http_conn_write_req(conn, req, aio);
 	nng_aio_set_timeout(aio, 1000);
 	nng_aio_wait(aio);
+	log_debug("webhook post result %d", nng_aio_result(aio));
 
 	if ((rv = nng_aio_result(aio)) != 0) {
 		log_error("Write req failed: %s", nng_strerror(rv));

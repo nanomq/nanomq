@@ -302,7 +302,7 @@
         },
         {
           "title": "Plugin-System",
-          "path": "config-description/gateway"
+          "path": "config-description/plugin"
         }
       ]
     },
