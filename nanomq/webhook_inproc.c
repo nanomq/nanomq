@@ -96,7 +96,7 @@ send_mqtt_msg_cat(nng_socket *sock, char *tmpfpath, nng_msg **msgs, uint32_t len
 	}
 	char *topic = malloc(sizeof(char) *(strlen(md5sum) + 128));
 	sprintf(topic, "$file/upload/MQ/%s/%s/%s-%lld-%lld",
-		ruleid, md5sum, "VIN", start_key, end_key);
+		ruleid, md5sum, conf_get_vin(), start_key, end_key);
 	log_info("The %ld msgs will go to topic %s", len, topic);
 
 	nng_mqtt_msg_alloc(&pubmsg, 0);
