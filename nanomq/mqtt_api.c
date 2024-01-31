@@ -198,7 +198,7 @@ static int
 log_file_init(conf_log *log)
 {
 	if (log->dir != NULL && !nng_file_is_dir(log->dir)) {
-		if (nano_dir_create(log->dir) != 0){
+		if (nng_make_parent_dirs(log->dir) != 0){
 			log_fatal("NanoMQ cannot touch path %s ", log->dir);
 			return NNG_EINVAL;
 		}
