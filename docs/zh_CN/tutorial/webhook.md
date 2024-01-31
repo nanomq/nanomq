@@ -61,6 +61,13 @@ header: content-type: [application/json]
 Received: {"ts":1706703724960,"topic":"nmq/pub","retain":true,"qos":1,"action":"message_publish","from_username":"wbhk_test","from_client_id":"wbhk_clientid","payload":"Hello World!"}
 ```
 
+::: tip
+
+`topic` 选项也支持通配符。 例如，设置 `topic = 'nmq/#'`, 那么 `nmq/pub1` 以及 `nmq/pub2` 都可以触发webhook。
+
+:::
+
+
 **on_client_disconnected**
 
 我们把对NanoMQ的连接断开，HTTP 服务器会收到：

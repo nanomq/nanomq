@@ -61,6 +61,12 @@ header: content-type: [application/json]
 Received: {"ts":1706703724960,"topic":"nmq/pub","retain":true,"qos":1,"action":"message_publish","from_username":"wbhk_test","from_client_id":"wbhk_clientid","payload":"Hello World!"}
 ```
 
+::: tip
+
+Wildcard is supported in `topic`. So you can set `topic = 'nmq/#'`, then topics like `nmq/pub1` or `nmq/pub2` can both trriger webhook.
+
+:::
+
 **on_client_disconnected**
 
 We disconnect from NanoMQ, HTTP server will receieve:
