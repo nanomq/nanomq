@@ -62,9 +62,98 @@ static nng_thread     *hook_thr;
 static nng_atomic_int *hook_search_limit     = NULL;
 static nng_aio        *hook_search_reset_aio = NULL;
 
+#ifdef SUPP_PARQUET
+
+#include <openssl/evp.h>
+#include <openssl/err.h>
+
+static const char aes_gcm_aad[] =
+{0x4d, 0x23, 0xc3, 0xce, 0xc3, 0x34, 0xb4, 0x9b, 0xdb, 0x37, 0x0c, 0x43,
+ 0x7f, 0xec, 0x78, 0xde};
+static const int  aes_gcm_aad_sz = 16;
+static const char aes_gcm_iv[] =
+{0x99, 0xaa, 0x3e, 0x68, 0xed, 0x81, 0x73, 0xa0, 0xee, 0xd0, 0x66, 0x84};
+
+static char *
+aes_gcm_encrypt(char *plain, int plainsz, char *key, char **tagp, int *cipher_lenp)
+{
+	const EVP_CIPHER *cipher_handle;
+	switch (strlen(key) * 8) {
+	case 128:
+		cipher_handle = EVP_aes_128_gcm();
+		break;
+	case 192:
+		cipher_handle = EVP_aes_192_gcm();
+		break;
+	case 256:
+		cipher_handle = EVP_aes_256_gcm();
+		break;
+	default:
+		log_error("Unsupported aes key length");
+		return NULL;
+	}
+
+	int res = 0;
+	char *buf = malloc(sizeof(char) * (plainsz+32));
+	int cipher_len, len;
+
+	EVP_CIPHER_CTX *ctx;
+	if ((ctx = EVP_CIPHER_CTX_new()) == NULL) {
+		res = -1;
+		log_error("aes error ctx new");
+		goto err;
+	}
+	if ((res = EVP_EncryptInit_ex(ctx, cipher_handle, NULL, NULL, NULL)) != 1) {
+		log_error("aes error encryption init ex1");
+		goto err;
+	}
+	if ((res = EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN,
+					sizeof(aes_gcm_iv), NULL)) != 1) {
+		log_error("aes error ctx ctrl");
+		goto err;
+	}
+	if ((res = EVP_EncryptInit_ex(ctx, NULL, NULL, key, aes_gcm_iv)) != 1) {
+		log_error("aes error encryption init ex2");
+		goto err;
+	}
+	if ((res = EVP_EncryptUpdate(ctx, NULL, &len, aes_gcm_aad, aes_gcm_aad_sz)) != 1) {
+		log_error("aes error encryption update1");
+		goto err;
+	}
+	if ((res = EVP_EncryptUpdate(ctx, buf, &len, plain, plainsz)) != 1) {
+		log_error("aes error encryption update2");
+		goto err;
+	}
+	cipher_len = len;
+	if ((res = EVP_EncryptFinal_ex(ctx, buf + cipher_len, &len)) != 1) {
+		log_error("aes error encryption final");
+		goto err;
+	}
+	cipher_len += len;
+
+	char *tag = malloc(sizeof(char) * 16);
+	if((res = EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, 16, tag)) != 1) {
+		log_error("aes error ctx ctrl");
+		goto err;
+	}
+	*tagp = tag;
+
+	EVP_CIPHER_CTX_free(ctx);
+	*cipher_lenp = cipher_len;
+	return buf;
+err:
+	log_error("AES GCM error code %d", res);
+
+    EVP_CIPHER_CTX_free(ctx);
+
+    return NULL;
+}
+
+#endif
+
 static int
 send_mqtt_msg_cat(nng_socket *sock, char *tmpfpath, nng_msg **msgs, uint32_t len,
-		char *ruleid, uint64_t start_key, uint64_t end_key)
+		char *ruleid, uint64_t start_key, uint64_t end_key, char *key)
 {
 	int rv;
 	nng_msg *pubmsg;
@@ -88,10 +177,23 @@ send_mqtt_msg_cat(nng_socket *sock, char *tmpfpath, nng_msg **msgs, uint32_t len
 		pos += diff;
 	}
 
-	char *md5sum;
-	if (0 != CalcMD5n(buf, pos, tmpfpath, &md5sum)) {
+	char *cipher = NULL;
+	int   cipher_len;
+	char *tag; // I donot know
+	cipher = aes_gcm_encrypt(buf, pos, key, &tag, &cipher_len);
+	if (cipher == NULL) {
+		log_error("error in aes gcm encryption");
 		nng_msg_free(pubmsg);
 		nng_free(buf, pos);
+		return -1;
+	}
+
+	char *md5sum;
+	if (0 != CalcMD5n(cipher, cipher_len, tmpfpath, &md5sum)) {
+		nng_msg_free(pubmsg);
+		nng_free(buf, pos);
+		nng_free(cipher, cipher_len);
+		nng_free(tag, 0);
 		return -1;
 	}
 	char *topic = malloc(sizeof(char) *(strlen(md5sum) + 128));
@@ -103,15 +205,17 @@ send_mqtt_msg_cat(nng_socket *sock, char *tmpfpath, nng_msg **msgs, uint32_t len
 	nng_mqtt_msg_set_packet_type(pubmsg, NNG_MQTT_PUBLISH);
 	nng_mqtt_msg_set_publish_qos(pubmsg, 1);
 	nng_mqtt_msg_set_publish_retain(pubmsg, 0);
-	nng_mqtt_msg_set_publish_payload(pubmsg, (uint8_t *) buf, pos);
+	nng_mqtt_msg_set_publish_payload(pubmsg, (uint8_t *) cipher, cipher_len);
 	nng_mqtt_msg_set_publish_topic(pubmsg, topic);
 
 	if ((rv = nng_sendmsg(*sock, pubmsg, NNG_FLAG_ALLOC)) != 0) {
 		log_error("nng_sendmsg", rv);
 	}
+	nng_free(cipher, cipher_len);
 	nng_free(buf, pos);
 	nng_free(topic, 0);
 	nng_free(md5sum, 0);
+	nng_free(tag, 0);
 	return rv;
 }
 
@@ -649,8 +753,12 @@ hook_work_cb(void *arg)
 
 				log_info("Publish %ld msgs from exchange (%s)", msgs_len, tmpfpath);
 
-				send_mqtt_msg_cat(work->mqtt_sock, tmpfpath, msgs_res, msgs_len,
-					ruleidstr, start_key, end_key);
+				if (parquetconf->enable == true && parquetconf->encryption.enable == true)
+					send_mqtt_msg_cat(work->mqtt_sock, tmpfpath, msgs_res, msgs_len,
+						ruleidstr, start_key, end_key,
+						parquetconf->encryption.key);
+				else
+					log_warn("result will send only if parquet encryption is enabled");
 
 				for (int i=0; i<msgs_len; ++i)
 					nng_msg_free(msgs_res[i]);
