@@ -1,6 +1,6 @@
 # WebHook
 
-NanoMQ 提供了可拓展的事件驱动型 WebHook 功能，用户可通过规则配置 WebHook 的触发事件或消息主题。借助 WebHook，可以轻松将 NanoMQ 与其他服务集成，构建复杂的事件驱动架构。
+NanoMQ 提供了可拓展的事件驱动型 WebHook 功能，用户可通过规则配置 WebHook 的触发事件或消息主题。借助 WebHook，您可以轻松将 NanoMQ 与其他服务集成，构建复杂的事件驱动架构。
 
 ## **配置示例**
 
