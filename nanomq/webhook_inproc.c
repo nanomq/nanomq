@@ -461,6 +461,8 @@ hook_work_cb(void *arg)
 			break;
 		}
 
+		cJSON *resjo = NULL;
+
 		nng_aio *aio;
 		nng_aio_alloc(&aio, NULL, NULL);
 
@@ -544,7 +546,6 @@ hook_work_cb(void *arg)
 
 		char **sent_files = NULL;
 
-		cJSON *resjo = NULL;
 #ifdef SUPP_PARQUET
 		// result json only valid when parquet is enabled
 		resjo = cJSON_CreateObject();
