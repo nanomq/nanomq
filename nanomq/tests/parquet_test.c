@@ -135,6 +135,37 @@ error:
 	abort();
 }
 
+void
+aio_test_write_tmp_cb(void *arg)
+{
+	work	        *w           = (work *) arg;
+	nng_aio             *aio         = w->aio;
+	static int           test_index  = 0;
+	parquet_file_ranges *file_ranges = nng_aio_get_output(aio, 1);
+	char	       **data_array  = nng_aio_get_prov_data(aio);
+	uint32_t            *len         = (uint32_t *) nng_aio_get_msg(aio);
+
+	for (uint32_t i = 0; i < *len; i++) {
+		if (data_array[i])
+			nng_strfree(data_array[i]);
+	}
+	free(len);
+
+	check(file_ranges->size == 1, "file_ranges size error");
+
+	for (int i = 0; i < file_ranges->size; i++) {
+		parquet_file_range *range = file_ranges->range[i];
+		check_mem(range);
+		check(range->start_idx == 0, "Start Index error");
+		check(range->end_idx == 9, "End Index error");
+		log_test("Filename: %s", range->filename);
+	}
+	test_index++;
+	return;
+error:
+	abort();
+}
+
 work *
 parquet_write_batch_async_test1(void)
 {
@@ -237,6 +268,48 @@ parquet_write_batch_async_test5(void)
 	return w;
 }
 
+work *
+parquet_write_batch_tmp_async_test1(void)
+{
+	uint32_t *dsize;
+	uint64_t *keys   = keys_allocate(keys_test[0], DATASIZE);
+	uint8_t **darray = data_array_allocate(&dsize, DATASIZE);
+
+	work *w  = ALLOC_STRUCT(w);
+	int   rv = 0;
+	if ((rv = nng_aio_alloc(&w->aio, aio_test_write_tmp_cb, w)) != 0) {
+		printf("nng_aio_alloc failed\n");
+	}
+
+	parquet_object *elem = parquet_object_alloc(
+	    keys, (uint8_t **) darray, dsize, DATASIZE, w->aio, darray);
+
+	parquet_write_batch_tmp_async(elem);
+
+	return w;
+}
+
+work *
+parquet_write_batch_tmp_async_test2(void)
+{
+	uint32_t *dsize;
+	uint64_t *keys   = keys_allocate(keys_test[1], DATASIZE);
+	uint8_t **darray = data_array_allocate(&dsize, DATASIZE);
+
+	work *w  = ALLOC_STRUCT(w);
+	int   rv = 0;
+	if ((rv = nng_aio_alloc(&w->aio, aio_test_write_tmp_cb, w)) != 0) {
+		printf("nng_aio_alloc failed\n");
+	}
+
+	parquet_object *elem = parquet_object_alloc(
+	    keys, (uint8_t **) darray, dsize, DATASIZE, w->aio, darray);
+
+	parquet_write_batch_tmp_async(elem);
+
+	return w;
+}
+
 conf_parquet *
 conf_parquet_init()
 {
@@ -276,6 +349,17 @@ parquet_write_batch_async_test(void)
 	cvector_push_back(works, parquet_write_batch_async_test3());
 	cvector_push_back(works, parquet_write_batch_async_test4());
 	cvector_push_back(works, parquet_write_batch_async_test5());
+
+	nng_msleep(100);
+	works_free(works);
+}
+
+void
+parquet_write_batch_async_tmp_test(void)
+{
+	work **works = NULL;
+	cvector_push_back(works, parquet_write_batch_tmp_async_test1());
+	cvector_push_back(works, parquet_write_batch_tmp_async_test2());
 
 	nng_msleep(100);
 	works_free(works);
@@ -358,6 +442,8 @@ error:
 	abort();
 }
 
+
+
 int
 main(int argc, char **argv)
 {
@@ -367,6 +453,8 @@ main(int argc, char **argv)
 	parquet_write_launcher(conf);
 	puts("parquet write batch async");
 	parquet_write_batch_async_test();
+	puts("parquet write batch tmp async");
+	parquet_write_batch_async_tmp_test();
 	puts("parquet_find_span_test");
 	parquet_find_span_test();
 	puts("parquet_find_data_packet_test");
