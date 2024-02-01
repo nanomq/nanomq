@@ -77,6 +77,10 @@
           "path": "config-description/gateway"
         },
         {
+          "title": "MQTT 消息队列",
+          "path": "config-description/parquet"
+        },
+        {
           "title": "插件系统",
           "path": "config-description/plugin"
         }
@@ -318,6 +322,10 @@
         {
           "title": "Gateway",
           "path": "config-description/gateway"
+        },
+        {
+          "title": "MQTT Messaging Queue",
+          "path": "config-description/parquet"
         },
         {
           "title": "Plugin-System",
