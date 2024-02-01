@@ -10,11 +10,11 @@
 [![codecov](https://codecov.io/gh/emqx/nanomq/branch/master/graph/badge.svg?token=24E9Q3C0M0)](https://codecov.io/gh/emqx/nanomq)
 [![License](https://img.shields.io/github/license/emqx/nanomq.svg?logoColor=silver&logo=open-source-initiative&label=&color=blue)](https://github.com/emqx/nanomq/blob/master/LICENSE.txt)
 
-NanoMQ MQTT Broker (NanoMQ) is a lightweight and blazing-fast MQTT Broker for the IoT Edge platform. 
+NanoMQ MQTT Broker (NanoMQ) is an ALl-round Edge Messaging platfor, include a lightweight and blazing-fast MQTT Broker for the IoT/IIoT and Messaging Bus for SDV.
 
-NanoMQ bases on NNG's asynchronous I/O threading model, with an extension of MQTT support in the protocol layer and reworked transport layer, plus an enhanced asynchronous IO mechanism maximizing the overall capacity.
+NanoMQ' Actor system is an extension of NNG's internal asynchronous I/O, plus an enhanced message passing and scheduling system to maximize the overall capacity. Fine tunned towards the embedded environment and mission-critial scenarios.
 
-NanoMQ fully supports MQTT V3.1.1 and MQTT V5.0.
+NanoMQ fully supports MQTT V3.1.1/3.1 and MQTT V5.0.
 
 For more information, please visit [NanoMQ homepage](https://nanomq.io/).
 
@@ -48,7 +48,6 @@ nanomq start
 ## or run nanomq with a specified configuration file
 nanomq start --conf <config_file>
 ```
-
 
 
 ## Build From Source
