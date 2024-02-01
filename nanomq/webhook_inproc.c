@@ -75,7 +75,7 @@ static const char aes_gcm_iv[] =
 {0x99, 0xaa, 0x3e, 0x68, 0xed, 0x81, 0x73, 0xa0, 0xee, 0xd0, 0x66, 0x84};
 
 char* aes_gcm_decrypt(char *ciphertext, int ciphertext_len,
-		char *key, char **tagp, int *plaintext_lenp)
+		char *key, char *tag, int *plaintext_lenp)
 {
 	const EVP_CIPHER *cipher_handle;
 	switch (strlen(key) * 8) {
@@ -132,6 +132,8 @@ char* aes_gcm_decrypt(char *ciphertext, int ciphertext_len,
 		return NULL;
 	}
 
+	char *plaintext = malloc(sizeof(char) * (ciphertext_len+32));
+	memset(plaintext, '\0', ciphertext_len + 32);
     /*
      * Provide the message to be decrypted, and obtain the plaintext output.
      * EVP_DecryptUpdate can be called multiple times if necessary
@@ -142,13 +144,11 @@ char* aes_gcm_decrypt(char *ciphertext, int ciphertext_len,
 	}
     plaintext_len = len;
 
-	char *tag = malloc(sizeof(char) * 16);
     /* Set expected tag value. Works in OpenSSL 1.0.1d and later */
     if(!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, 16, tag)) {
 		log_error("error in ctx ctrl2");
 		return NULL;
 	}
-	*tagp = tag;
 
     /*
      * Finalise the decryption. A positive return value indicates success,
