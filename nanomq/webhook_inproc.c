@@ -93,7 +93,10 @@ char* aes_gcm_decrypt(char *ciphertext, int ciphertext_len,
 		return NULL;
 	}
 
-	char *plaintext = malloc(sizeof(char) * (ciphertext_len+32));
+	// skip tag part
+	ciphertext += 32;
+	ciphertext_len -= 32;
+
     EVP_CIPHER_CTX *ctx;
     int len;
     int plaintext_len;
@@ -191,7 +194,7 @@ aes_gcm_encrypt(char *plain, int plainsz, char *key, char **tagp, int *cipher_le
 	}
 
 	int res = 0;
-	char *buf = malloc(sizeof(char) * (plainsz+32));
+	char *buf = malloc(sizeof(char) * (plainsz+40));
 	int cipher_len, len;
 
 	EVP_CIPHER_CTX *ctx;
@@ -217,26 +220,28 @@ aes_gcm_encrypt(char *plain, int plainsz, char *key, char **tagp, int *cipher_le
 		log_error("aes error encryption update1");
 		goto err;
 	}
-	if ((res = EVP_EncryptUpdate(ctx, buf, &len, plain, plainsz)) != 1) {
+	if ((res = EVP_EncryptUpdate(ctx, buf + 32, &len, plain, plainsz)) != 1) {
 		log_error("aes error encryption update2");
 		goto err;
 	}
 	cipher_len = len;
-	if ((res = EVP_EncryptFinal_ex(ctx, buf + cipher_len, &len)) != 1) {
+	if ((res = EVP_EncryptFinal_ex(ctx, buf + 32 + cipher_len, &len)) != 1) {
 		log_error("aes error encryption final");
 		goto err;
 	}
 	cipher_len += len;
 
-	char *tag = malloc(sizeof(char) * 16);
+	char *tag = malloc(sizeof(char) * 32);
+	memset(tag, '\0', 32);
 	if((res = EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, 16, tag)) != 1) {
 		log_error("aes error ctx ctrl");
 		goto err;
 	}
 	*tagp = tag;
+	memcpy(buf, tag, 32);
 
 	EVP_CIPHER_CTX_free(ctx);
-	*cipher_lenp = cipher_len;
+	*cipher_lenp = (cipher_len + 32);
 
 	return buf;
 err:
@@ -285,17 +290,27 @@ send_mqtt_msg_cat(nng_socket *sock, char *tmpfpath, nng_msg **msgs, uint32_t len
 		nng_free(buf, pos);
 		return -1;
 	}
-	log_info("encryption result: %s (%d)", cipher, cipher_len);
 
+	/* debug
+	printf("tag + cipher len: %d\n", cipher_len);
+	for (int i=0;i<cipher_len; ++i) {
+		printf("%02x", cipher[i]&0xff);
+	}
+	printf("\n");
+
+	log_info("encryption result: %s (%d)", cipher, cipher_len);
+	log_info("encryption tag: %s (%d)", tag, strlen(tag));
 	int   plain_len;
-	char *plain = aes_gcm_decrypt(cipher, cipher_len, key, &tag, &plain_len);
+	char *plain = aes_gcm_decrypt(cipher, cipher_len, key, tag, &plain_len);
 	if (plain == NULL) {
 		log_error("error in aes gcm encryption");
 		nng_msg_free(pubmsg);
 		nng_free(buf, pos);
 		return -1;
 	}
+	log_info("decryption result: (%d)", plain_len);
 	log_info("decryption result: %s (%d)", plain, plain_len);
+	*/
 
 	char *md5sum;
 	if (0 != CalcMD5n(cipher, cipher_len, tmpfpath, &md5sum)) {
