@@ -10,9 +10,9 @@
 [![codecov](https://codecov.io/gh/emqx/nanomq/branch/master/graph/badge.svg?token=24E9Q3C0M0)](https://codecov.io/gh/emqx/nanomq)
 [![License](https://img.shields.io/github/license/emqx/nanomq.svg?logoColor=silver&logo=open-source-initiative&label=&color=blue)](https://github.com/emqx/nanomq/blob/master/LICENSE.txt)
 
-NanoMQ MQTT Broker (NanoMQ) is an ALl-round Edge Messaging platfor, include a lightweight and blazing-fast MQTT Broker for the IoT/IIoT and Messaging Bus for SDV.
+NanoMQ MQTT Broker (NanoMQ) is an all-around Edge Messaging Platform that includes a blazing-fast MQTT Broker for the IoT/IIoT and a lightweight Messaging Bus for SDV.
 
-NanoMQ' Actor system is an extension of NNG's internal asynchronous I/O, plus an enhanced message passing and scheduling system to maximize the overall capacity. Fine tunned towards the embedded environment and mission-critial scenarios.
+NanoMQ's embedded Actor architecture extends NNG's internal asynchronous I/O, plus an enhanced message passing and scheduling system to maximize the overall capacity. Fine-tuned towards the embedded environment and mission-critical scenarios.
 
 NanoMQ fully supports MQTT V3.1.1/3.1 and MQTT V5.0.
 
@@ -21,7 +21,7 @@ For more information, please visit [NanoMQ homepage](https://nanomq.io/).
 ## Features
 
 - Cost-effective on an embedded platform;
-- Fully base on native POSIX. High Compatibility;
+- Fully based on native POSIX. High Compatibility;
 - Pure C implementation. High portability;
 - Fully asynchronous I/O and multi-threading;
 - Good support for SMP;
@@ -39,7 +39,7 @@ docker run -d --name nanomq -p 1883:1883 -p 8083:8083 -p 8883:8883 emqx/nanomq:l
 
 ### More installation options
 
-If you prefer to install and manage NanoMQ yourself, you can download the lastest version from [nanomq.io/downloads](https://nanomq.io/downloads).
+If you prefer to install and manage NanoMQ yourself, you can download the latest version from [nanomq.io/downloads](https://nanomq.io/downloads).
 
 #### Run NanoMQ:
 
@@ -52,11 +52,11 @@ nanomq start --conf <config_file>
 
 ## Build From Source
 
-NanoMQ dedicates to delivering a simple but powerful Messaging Hub on various edge platforms.
+NanoMQ is dedicated to delivering a simple but powerful Messaging Hub on various edge platforms.
 
 With this being said, NanoMQ can run on different architectures such like x86_64 and ARM with minor migration efforts.
 
-To build NanoMQ, requires a C99 compatible compiler and [CMake](http://www.cmake.org/) (version 3.13 or newer). 
+Building NanoMQ requires a C99-compatible compiler and [CMake](http://www.cmake.org/) (version 3.13 or newer). 
 
 - It is recommended to compile with `Ninja`:
 
@@ -113,7 +113,7 @@ There are some configuration options specified using CMake defines in addition t
   - [MQTT Version 3.1.1](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html)
   - [MQTT Version 5.0](https://docs.oasis-open.org/mqtt/mqtt/v5.0/cs02/mqtt-v5.0-cs02.html)
   - [MQTT SN](http://mqtt.org/new/wp-content/uploads/2009/06/MQTT-SN_spec_v1.2.pdf)
-  - *Unsupport features of MQTT 5.0*
+  - *Unsupported features of MQTT 5.0*
     - Auth https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901217
     - Server Redirection https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901255
 
@@ -152,8 +152,8 @@ The [Github Discussions](https://github.com/emqx/nanomq/discussions) provides a 
 
 You could join us on [Slack](https://slack-invite.emqx.io/). We now share a workspace with the entire EMQ X team. After joining, find your channel! 
 
-- `#nanomq`: is a channel for general usage, where for asking question or sharing using experience; 
-- `#nanomq-dev`: is a channel for MQTT lover and developer, your great thoughts are what we love to hear;
+- `#nanomq`: is a channel for general usage, where for asking questions or sharing using experience; 
+- `#nanomq-dev`: is a channel for MQTT lovers and developers, your great thoughts are what we love to hear;
 - `#nanomq-nng`: is a channel for guys who are interested in NNG, one of our fabulous dependencies.
 
 
