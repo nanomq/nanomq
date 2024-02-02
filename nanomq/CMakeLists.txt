@@ -109,6 +109,11 @@ if(ENABLE_AWS_BRIDGE)
 
 endif(ENABLE_AWS_BRIDGE)
 
+if(ENABLE_FILETRANSFER)
+  find_package(OpenSSL REQUIRED)
+  target_link_libraries(nanomq OpenSSL::Crypto)
+endif(ENABLE_FILETRANSFER)
+
 if(ENABLE_JWT)
   target_link_libraries(nanomq l8w8jwt)
 endif(ENABLE_JWT)
