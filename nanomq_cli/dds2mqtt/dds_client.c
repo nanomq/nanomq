@@ -343,6 +343,7 @@ dds_data_available(dds_entity_t rd, void *arg)
 		/* Put msg to handleq */
 		pthread_mutex_lock(&cli->mtx);
 		nftp_vec_append(handleq, (void *) hd);
+		pthread_cond_signal(&cli->cv);
 		pthread_mutex_unlock(&cli->mtx);
 	} else {
 		cli->subrdclis[clidx]->handles->free(samples[0], DDS_FREE_ALL);
@@ -443,6 +444,7 @@ dds_client_init(dds_cli *cli, dds_gateway_conf *config)
 
 	nftp_vec_alloc(&cli->handleq);
 	pthread_mutex_init(&cli->mtx, NULL);
+	pthread_cond_init(&cli->cv, NULL);
 	cli->config = config;
 
 	return 0;
@@ -565,6 +567,8 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 		 */
 
 		pthread_mutex_lock(&cli->mtx);
+		while (nftp_vec_len(handleq) == 0)
+			pthread_cond_wait(&cli->cv, &cli->mtx);
 		if (nftp_vec_len(handleq))
 			nftp_vec_pop(handleq, (void **) &hd, NFTP_HEAD);
 		pthread_mutex_unlock(&cli->mtx);
@@ -572,8 +576,6 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 		if (hd)
 			goto work;
 
-		/* Polling sleep. */
-		nng_msleep(100);
 		continue;
 
 	work:
@@ -621,6 +623,7 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 
 	nftp_vec_free(cli->handleq);
 	pthread_mutex_destroy(&cli->mtx);
+	pthread_cond_destroy(&cli->cv);
 
 	return EXIT_SUCCESS;
 }
