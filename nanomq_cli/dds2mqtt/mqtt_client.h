@@ -35,6 +35,7 @@ struct mqtt_cli {
 
 	nftp_vec       *handleq;
 	pthread_mutex_t mtx;
+	pthread_cond_t  cv;
 
 	// dds client
 	void *ddscli;
