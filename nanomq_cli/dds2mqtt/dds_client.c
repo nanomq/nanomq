@@ -573,7 +573,7 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 			goto work;
 
 		/* Polling sleep. */
-		dds_sleepfor(DDS_MSECS(20));
+		nng_msleep(100);
 		continue;
 
 	work:
