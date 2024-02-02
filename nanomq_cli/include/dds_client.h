@@ -41,6 +41,7 @@ struct dds_cli {
 
 	nftp_vec *      handleq;
 	pthread_mutex_t mtx;
+	pthread_cond_t  cv;
 
 	dds_gateway_conf *config;
 };
