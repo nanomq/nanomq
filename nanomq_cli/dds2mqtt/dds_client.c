@@ -558,7 +558,7 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 	while (true) {
 		// If handle queue is not empty. Handle it first.
 		// Or we need to receive msgs from DDS in a NONBLOCK way and
-		// put it to the handle queue. Sleep when handle queue is
+		// put it to the handle queue. Wait when handle queue is
 		// empty.
 		hd = NULL;
 

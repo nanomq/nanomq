@@ -379,6 +379,7 @@ mqtt_loop(void *arg)
 			// Put to DDSClient's handle queue
 			pthread_mutex_lock(&ddscli->mtx);
 			nftp_vec_append(ddscli->handleq, (void *) hd);
+			pthread_cond_signal(&ddscli->cv);
 			pthread_mutex_unlock(&ddscli->mtx);
 
 			log_dds("[MQTT] forward msg to dds, counter %d", ++forward2dds_cnt);
