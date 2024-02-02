@@ -558,7 +558,7 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 	while (true) {
 		// If handle queue is not empty. Handle it first.
 		// Or we need to receive msgs from DDS in a NONBLOCK way and
-		// put it to the handle queue. Wait when handle queue is
+		// put it to the handle queue. Wait cv when handle queue is
 		// empty.
 		hd = NULL;
 
@@ -606,7 +606,9 @@ dds_client(dds_cli *cli, mqtt_cli *mqttcli)
 			// Put to MQTTClient's handle queue
 			pthread_mutex_lock(&mqttcli->mtx);
 			nftp_vec_append(mqttcli->handleq, hd);
+			pthread_cond_signal(&mqttcli->cv);
 			pthread_mutex_unlock(&mqttcli->mtx);
+
 			log_dds("[DDS] Forward msg to mqtt, cnt %d", ++forward2mqtt_cnt);
 			break;
 		default:
