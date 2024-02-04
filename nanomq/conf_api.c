@@ -28,6 +28,8 @@ get_reload_config(conf *config)
 	    data, "keepalive_backoff", (double) config->backoff);
 	cJSON_AddBoolToObject(
 	    data, "allow_anonymous", config->allow_anonymous);
+	cJSON_AddBoolToObject(
+	    data, "enable_mqtt_stream", config->parquet.enable);
 	return data;
 }
 
@@ -418,6 +420,7 @@ set_reload_config(cJSON *json, conf *config)
 	int      msq_len;
 	uint32_t qos_duration;
 	float    backoff;
+	bool     enable_mqtt_stream;
 
 	cJSON *item;
 	int    rv;
@@ -459,6 +462,10 @@ set_reload_config(cJSON *json, conf *config)
 	getNumberValue(json, item, "keepalive_backoff", backoff, rv);
 	if (rv == 0) {
 		update_var(config->backoff, backoff);
+	}
+	getBoolValue(json, item, "enable_mqtt_stream", enable_mqtt_stream, rv);
+	if (rv == 0) {
+		update_var(config->parquet.enable, enable_mqtt_stream);
 	}
 }
 
