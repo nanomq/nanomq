@@ -2,6 +2,9 @@
 #include "include/mqtt_api.h"
 #include "include/nanomq.h"
 
+#include "nng/protocol/pipeline0/push.h"
+#include "include/webhook_inproc.h"
+
 static cJSON *get_auth_http_req_config(conf_auth_http_req *req);
 
 #define update_string(var, value) \
@@ -465,7 +468,39 @@ set_reload_config(cJSON *json, conf *config)
 	}
 	getBoolValue(json, item, "enable_mqtt_stream", enable_mqtt_stream, rv);
 	if (rv == 0) {
+		bool enable_mqtt_stream_before = config->parquet.enable;
+		// Update first. Is error happened in follow codes. revert.
 		update_var(config->parquet.enable, enable_mqtt_stream);
+
+		if (enable_mqtt_stream_before == true && enable_mqtt_stream == false) {
+			// TODO send a msg to trigger MQ clean
+			nng_socket hook_sock;
+			if (0 != nng_push0_open(&hook_sock)) {
+				log_error("error in update enable mqtt stream, hook open");
+				update_var(config->parquet.enable, enable_mqtt_stream_before);
+				return;
+			}
+			if (0 != nng_dial(hook_sock, HOOK_IPC_URL, NULL, 0)) {
+				log_error("error in update enable mqtt stream, hook dial");
+				update_var(config->parquet.enable, enable_mqtt_stream_before);
+				return;
+			}
+			cJSON *obj = cJSON_CreateObject();
+			cJSON_AddStringToObject(obj, "id", EXTERNAL2NANO_IPC);
+			cJSON_AddStringToObject(obj, "cmd", "stop");
+			char *json = cJSON_PrintUnformatted(obj);
+			int rc = nng_send(hook_sock, json, strlen(json), NNG_FLAG_ALLOC);
+			if (rc != 0) {
+				log_error("error in update enable mqtt stream, hook sending");
+				update_var(config->parquet.enable, enable_mqtt_stream_before);
+				free(json);
+				cJSON_Delete(obj);
+				return;
+			}
+			log_info("cmd for update enable mqtt stream was sent");
+			cJSON_Delete(obj);
+			nng_close(hook_sock);
+		}
 	}
 }
 
