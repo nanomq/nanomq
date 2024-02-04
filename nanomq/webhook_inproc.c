@@ -383,6 +383,40 @@ hook_work_cb(void *arg)
 				goto skip;
 			} else if (0 == strcmp(cmdstr, "search")) {
 				log_debug("Search is triggered");
+			} else if (0 == strcmp(cmdstr, "stop")) {
+				log_info("Stop is triggered");
+				nng_msg *m;
+				nng_msg_alloc(&m, 0);
+				if (!m) {
+					log_error("Error in alloc memory");
+					goto skip;
+				}
+
+				nng_time *tss = NULL;
+				tss = nng_alloc(sizeof(nng_time) * 3);
+				tss[0] = 0;
+				tss[1] = 9223372036854775807; // big enough
+				tss[2] = 1;
+				nng_msg_set_proto_data(m, NULL, (void *)tss);
+				nng_aio_set_msg(aio, m);
+				// Do clean on MQ
+				nng_recv_aio(*ex_sock, aio);
+				nng_aio_wait(aio);
+				if (nng_aio_result(aio) != 0)
+					log_warn("error in clean msgs on exchange");
+				nng_msg_free(m);
+				nng_free(tss, 0);
+
+				nng_msg **msgs_res = (nng_msg **)nng_aio_get_msg(aio);
+				uint32_t  msgs_len = (uintptr_t)nng_aio_get_prov_data(aio);
+				log_info("free %d msgs", msgs_len);
+				if (msgs_len > 0 && msgs_res != NULL) {
+					for (int i=0; i<msgs_len; ++i)
+						nng_msg_free(msgs_res[i]);
+				}
+				nng_free(msgs_res, sizeof(nng_msg *) * msgs_len);
+	
+				goto skip;
 			} else {
 				log_warn("Invalid cmd");
 				nng_msg_free(msg);
