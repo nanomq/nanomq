@@ -338,7 +338,7 @@ inproc_server(void *arg)
 {
 	conf_http_server * rest_conf = arg;
 	nng_socket         sock;
-	nng_socket         req_sock;
+	nng_socket         client_sock;
 	struct rest_work **works =
 	    nng_zalloc(rest_conf->parallel * sizeof(struct rest_work *));
 
@@ -347,11 +347,11 @@ inproc_server(void *arg)
 		NANO_NNG_FATAL("nng_rep0_open", rv);
 	}
 
-	if ((rv = nng_req0_open(&req_sock)) != 0) {
+	if ((rv = nng_req0_open(&client_sock)) != 0) {
 		NANO_NNG_FATAL("nng_rep0_open", rv);
 	}
 
-	if ((rv = nng_dial(req_sock, INPROC_SERVER_URL, NULL,
+	if ((rv = nng_dial(client_sock, INPROC_SERVER_URL, NULL,
 	         NNG_FLAG_NONBLOCK)) != 0) {
 		NANO_NNG_FATAL("nng_dial " INPROC_SERVER_URL, rv);
 	}
@@ -359,7 +359,7 @@ inproc_server(void *arg)
 	for (size_t i = 0; i < rest_conf->parallel; i++) {
 		works[i] = alloc_work(sock, rest_conf);
 
-		works[i]->client_sock = &req_sock;
+		works[i]->client_sock = &client_sock;
 	}
 
 	if ((rv = nng_listen(sock, INPROC_URL, NULL, 0)) != 0) {
