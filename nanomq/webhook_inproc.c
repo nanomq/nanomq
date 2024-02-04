@@ -424,8 +424,8 @@ hook_work_cb(void *arg)
 				goto skip;
 			}
 		} else {
-			// TODO Stop? Or Ignore
 			log_warn("No cmd field found in json msg");
+			goto skip;
 		}
 
 		cJSON *skeyjo = cJSON_GetObjectItem(root, "start_key");
