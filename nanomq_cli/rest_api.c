@@ -453,6 +453,8 @@ exit:
 	return res;
 }
 
+// TODO FIXME Same function name with the function in nanomq/rest_api.c
+// Both of them are extern...
 http_msg
 process_request(http_msg *msg, proxy_info *proxy)
 {
