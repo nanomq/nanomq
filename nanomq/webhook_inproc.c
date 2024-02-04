@@ -32,7 +32,6 @@
 #endif
 
 #define NANO_LMQ_INIT_CAP 16
-#define EXTERNAL2NANO_IPC "EX2NANO"
 
 // The server keeps a list of work items, sorted by expiration time,
 // so that we can use this to set the timeout to the correct value for
