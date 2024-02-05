@@ -965,9 +965,11 @@ broker(conf *nanomq_conf)
 			continue;
 		}
 		node->sock = (nng_socket *) nng_alloc(sizeof(nng_socket));
+		// exchange sock is an embedded Req/Rep sock for MQTT Stream
 		if ((rv = nng_exchange_client_open(node->sock)) != 0) {
 			log_error("nng_exchange_client_open failed %d", rv);
 		} else {
+			// nng_socket_set_ms(*node->sock, NNG_OPT_RECVMAXSZ, 0xFFFFFFFFu);
 			nng_socket_set_ptr(*node->sock, NNG_OPT_EXCHANGE_BIND, (void *)node);
 		}
 		log_debug("exchange %d init finished!\n", i);
@@ -1088,9 +1090,11 @@ broker(conf *nanomq_conf)
 		// TODO expose this
 		char url_zzz[128] = "tcp://127.0.0.1:10000";
 		nng_socket *mq_sock = nanomq_conf->exchange.nodes[0]->sock;
-		if ((rv = nano_listen(*mq_sock, url_zzz, NULL, 0, nanomq_conf)) != 0) {
+		nng_listener *mq_listener;
+		if ((rv = nano_listen(*mq_sock, url_zzz, mq_listener, 0, nanomq_conf)) != 0) {
 			NANO_NNG_FATAL("broker nng_listen", rv);
 		}
+		nng_listener_set_size(*mq_listener, NNG_OPT_RECVMAXSZ, 0xFFFFFFFFu);
 	}
 
 	if (nanomq_conf->enable) {
