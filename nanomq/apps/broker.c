@@ -1087,14 +1087,13 @@ broker(conf *nanomq_conf)
 		hook_exchange_init(nanomq_conf, num_work);
 		// create exchange senders in hook
 		hook_exchange_sender_init(nanomq_conf, works, num_work);
-		// TODO expose this
-		char url_zzz[128] = "tcp://127.0.0.1:10000";
+		// TODO support multiple MQ coexisitence
 		nng_socket *mq_sock = nanomq_conf->exchange.nodes[0]->sock;
-		nng_listener *mq_listener;
-		if ((rv = nano_listen(*mq_sock, url_zzz, mq_listener, 0, nanomq_conf)) != 0) {
+		nng_listener mq_listener;
+		if ((rv = nano_listen(*mq_sock, nanomq_conf->exchange.exchange_url, &mq_listener, 0, nanomq_conf)) != 0) {
 			NANO_NNG_FATAL("broker nng_listen", rv);
 		}
-		nng_listener_set_size(*mq_listener, NNG_OPT_RECVMAXSZ, 0xFFFFFFFFu);
+		nng_listener_set_size(mq_listener, NNG_OPT_RECVMAXSZ, 0xFFFFFFFFu);
 	}
 
 	if (nanomq_conf->enable) {
