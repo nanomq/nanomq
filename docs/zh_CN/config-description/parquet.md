@@ -22,7 +22,7 @@ exchange_client.mq1 {
 			# # ring buffer name
 			name = "ringbus",
 			# # max length of ring buffer (msg count)
-			cap = 1000
+			cap = 1000,
 			# # 2: RB_FULL_RETURN: When the ringbus is full, the data in the ringbus is taken out and returned to the aio
 			fullOp = 2
 		}

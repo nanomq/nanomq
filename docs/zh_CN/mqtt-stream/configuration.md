@@ -16,7 +16,7 @@ exchange_client.mq1 {
 			# # ring buffer name
 			name = "ringbus",
 			# # max length of ring buffer (msg count)
-			cap = 1000
+			cap = 1000,
 			fullOp = 3
 		}
 	}
@@ -71,7 +71,7 @@ exchange_client.mq1 {
 			# # ring buffer name
 			name = "ringbus",
 			# # max length of ring buffer (msg count)
-			cap = 10000
+			cap = 10000,
 			fullOp = 3
 		}
 	}
