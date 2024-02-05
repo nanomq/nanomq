@@ -25,21 +25,21 @@ auth {
   http_auth = {
     auth_req {
       url = "http://127.0.0.1:80/mqtt/auth"
-      method = post
+      method = "POST"
       headers.content-type = "application/x-www-form-urlencoded"
       params = {clientid = "%c", username = "%u", password = "%P"}
     }
 
     super_req {
       url = "http://127.0.0.1:80/mqtt/superuser"
-      method = "post"
+      method = "POST"
       headers.content-type = "application/x-www-form-urlencoded"
       params = {clientid = "%c", username = "%u", password = "%P"}
     }
 
     acl_req {
       url = "http://127.0.0.1:8991/mqtt/acl"
-      method = "post"
+      method = "POST"
       headers.content-type = "application/x-www-form-urlencoded"
       params = {clientid = "%c", username = "%u", access = "%A", ipaddr = "%a", topic = "%t", mountpoint = "%m"}
     }
@@ -64,7 +64,7 @@ Users wishing to use the KV configuration format can refer to the following stru
 auth.http.enable=<Your Value>
 
 auth.http.auth_req.url="http://127.0.0.1:80/mqtt/auth"
-auth.http.auth_req.method="post"
+auth.http.auth_req.method="POST"
 auth.http.auth_req.headers.<Any>=<Your Value>
 
 auth.http.auth_req.params.clientid="%c"
@@ -72,7 +72,7 @@ auth.http.auth_req.params.username="%u"
 auth.http.auth_req.params.password="%p"
 
 auth.http.super_req.url="http://127.0.0.1:80/mqtt/superuser"
-auth.http.super_req.method="post"
+auth.http.super_req.method="POST"
 auth.http.super_req.headers.<Any>=<Your Value>
 
 auth.http.super_req.params.clientid="%c"
@@ -80,7 +80,7 @@ auth.http.super_req.params.username="%u"
 auth.http.super_req.params.password="%p"
 
 auth.http.acl_req.url="http://127.0.0.1:8991/mqtt/acl"
-auth.http.acl_req.method="post"
+auth.http.acl_req.method="POST"
 auth.http.acl_req.headers.<Any>=<Your Value>
 
 auth.http.acl_req.params.clientid="%c"

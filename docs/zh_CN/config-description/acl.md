@@ -91,21 +91,21 @@ ACL 规则的匹配遵循自顶向下的顺序。当一个规则匹配到当前�
 http_auth = {
 	auth_req {
 		url = "http://127.0.0.1:80/mqtt/auth"                       # Auth 请求的 HTTP URL API 路径
-		method = post                                               # Auth 请求的 HTTP 请求方法
+		method = "POST"                                               # Auth 请求的 HTTP 请求方法
 		headers.content-type = "application/x-www-form-urlencoded"  # Auth 请求的 HTTP 请求头			
 		params = {clientid = "%c", username = "%u", password = "%P"} # 请求体的构造参数
 	}
 	
 	super_req {
 		url = "http://127.0.0.1:80/mqtt/superuser"                   # SuperUser 请求的 HTTP URL API 路径
-		method = "post"                                              # SuperUser 请求的 HTTP 请求方法
+		method = "POST"                                              # SuperUser 请求的 HTTP 请求方法
 		headers.content-type = "application/x-www-form-urlencoded"   # SuperUser 请求的 HTTP 请求头
 		params = {clientid = "%c", username = "%u", password = "%P"} # 请求体的构造参数
 	}
 	
 	acl_req {
 		url = "http://127.0.0.1:8991/mqtt/acl"                       # ACL 请求的 HTTP URL API 路径
-		method = "post"                                              # ACL 请求的 HTTP 请求方法
+		method = "POST"                                              # ACL 请求的 HTTP 请求方法
 		headers.content-type = "application/x-www-form-urlencoded"   # ACL 请求的 HTTP 请求头
 		params = {clientid = "%c", username = "%u", access = "%A", ipaddr = "%a", topic = "%t", mountpoint = "%m"} # 请求体的构造参数
 	}
@@ -125,7 +125,7 @@ http_auth = {
 
 - `url`：认证请求的目标 URL。 例如：http://127.0.0.1:80/mqtt/auth
 
-- `method`：认证请求的请求方法，可选值：`POST` , `GET`；缺省值：`post`
+- `method`：认证请求的请求方法，可选值：`POST` , `GET`；缺省值：`POST`
 
 - `headers.<Any>`：指定 HTTP 请求头部中的数据。\<Any> 是可以被 任意\<Key> 替换来指定 HTTP 请求头部中的字段名，此配置项的值为相应的字段值。\<Key> 可以是标准的 HTTP 请求头部字段，也可以自定义的字段，可以配置多个不同的请求头部字段。如以下两个示例：
 
