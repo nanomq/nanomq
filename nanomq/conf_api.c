@@ -500,6 +500,8 @@ set_reload_config(cJSON *json, conf *config)
 			log_info("cmd for update enable mqtt stream was sent");
 			cJSON_Delete(obj);
 			nng_close(hook_sock);
+		} else if (enable_mqtt_stream_before == false && enable_mqtt_stream == true) {
+			log_info("Parquet & MQ service restarted");
 		}
 	}
 }
