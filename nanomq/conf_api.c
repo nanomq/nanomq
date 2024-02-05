@@ -476,6 +476,7 @@ set_reload_config(cJSON *json, conf *config)
 
 		if (enable_mqtt_stream_before == true && enable_mqtt_stream == false) {
 			if (hook_sock == NULL) {
+				hook_sock = nng_alloc(sizeof(nng_socket));
 				if (0 != nng_push0_open(hook_sock)) {
 					log_error("error in update enable mqtt stream, hook open");
 					update_var(config->parquet.enable, enable_mqtt_stream_before);
