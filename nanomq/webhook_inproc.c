@@ -409,7 +409,7 @@ hook_work_cb(void *arg)
 
 				nng_msg **msgs_res = (nng_msg **)nng_aio_get_msg(aio);
 				uint32_t  msgs_len = (uintptr_t)nng_aio_get_prov_data(aio);
-				log_info("free %d msgs", msgs_len);
+				log_info("Parquet & MQ Service stopped and free %d msgs", msgs_len);
 				if (msgs_len > 0 && msgs_res != NULL) {
 					for (int i=0; i<msgs_len; ++i)
 						nng_msg_free(msgs_res[i]);

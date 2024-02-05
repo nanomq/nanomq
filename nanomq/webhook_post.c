@@ -274,10 +274,12 @@ hook_entry(nano_work *work, uint8_t reason)
 	conn_param    *cparam    = work->cparam;
 	nng_socket    *sock      = &work->hook_sock;
 	nng_socket    *ex_sock;
+	conf_parquet  *parquetconf = &work->config->parquet;
 
 	// process MQ msg first, only pub msg is valid
 	// discard online/offline event msg?
-	if (ex_conf->count > 0 && (work->flag == CMD_PUBLISH)
+	if (ex_conf->count > 0 && parquetconf->enable == true
+		&& (work->flag == CMD_PUBLISH)
 		&& nng_msg_get_type(work->msg) == CMD_PUBLISH) {
 		// dup msg for now, TODO or reuse it?
 		nng_msg *msg;
@@ -404,7 +406,7 @@ flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio)
 	}
 
 	if (len2 > 0)
-		log_warn("flush to parquet %lld...", keys[0]);
+		log_warn("flush to parquet (%d) %lld...%lld", len2, keys[0], keys[len2-1]);
 	// write to disk
 	parquet_object *parquet_obj;
 	parquet_obj = parquet_object_alloc(keys, (uint8_t **)datas,
