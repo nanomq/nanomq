@@ -359,6 +359,9 @@ hook_work_cb(void *arg)
 		msg       = work->msg;
 		work->msg = NULL;
 
+		nng_aio *aio;
+		nng_aio_alloc(&aio, NULL, NULL);
+
 		if (exconf->count == 0) {
 			log_error("Exchange is not enabled");
 			nng_msg_free(msg);
@@ -485,8 +488,6 @@ hook_work_cb(void *arg)
 			nng_msg_set_timestamp(m, start_key);
 		}
 
-		nng_aio *aio;
-		nng_aio_alloc(&aio, NULL, NULL);
 		nng_aio_set_msg(aio, m);
 		// search msgs from MQ
 		nng_recv_aio(*ex_sock, aio);
@@ -500,7 +501,6 @@ hook_work_cb(void *arg)
 
 		nng_msg **msgs_res = (nng_msg **)nng_aio_get_msg(aio);
 		uint32_t  msgs_len = (uintptr_t)nng_aio_get_prov_data(aio);
-		nng_aio_free(aio);
 
 		// Get msgs and send to localhost:1883 to active handler
 		if (msgs_len > 0 && msgs_res != NULL) {
@@ -547,6 +547,7 @@ hook_work_cb(void *arg)
 		root = NULL;
 		nng_msg_free(msg);
 skip:
+		nng_aio_free(aio);
 		// Start next recv
 		work->state = HOOK_RECV;
 		nng_recv_aio(work->sock, work->aio);
