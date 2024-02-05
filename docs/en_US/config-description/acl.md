@@ -81,21 +81,21 @@ This section outlines the configuration for HTTP authentication, which allows th
 http_auth = {
 	auth_req {
 		url = "http://127.0.0.1:80/mqtt/auth"                       # HTTP URL API path for Auth Request
-		method = post                                               # HTTP Request Method for Auth Request
+		method = "POST"                                               # HTTP Request Method for Auth Request
 		headers.content-type = "application/x-www-form-urlencoded"  # HTTP Request Headers for Auth Request
 		params = {clientid = "%c", username = "%u", password = "%P"} # Parameters to construct request body
 	}
 	
 	super_req {
 		url = "http://127.0.0.1:80/mqtt/superuser"                   # HTTP URL API path for SuperUser Request
-		method = "post"                                              # HTTP Request Method for SuperUser Request
+		method = "POST"                                              # HTTP Request Method for SuperUser Request
 		headers.content-type = "application/x-www-form-urlencoded"   # HTTP Request Headers for SuperUser Request
 		params = {clientid = "%c", username = "%u", password = "%P"} # Parameters to construct request body
 	}
 	
 	acl_req {
 		url = "http://127.0.0.1:8991/mqtt/acl"                       # HTTP URL API path for ACL Request
-		method = "post"                                              # HTTP Request Method for ACL Request
+		method = "POST"                                              # HTTP Request Method for ACL Request
 		headers.content-type = "application/x-www-form-urlencoded"   # HTTP Request Headers for ACL Request
 		params = {clientid = "%c", username = "%u", access = "%A", ipaddr = "%a", topic = "%t", mountpoint = "%m"} # Parameters used to construct the request body
 	}
@@ -115,7 +115,7 @@ http_auth = {
 
 - `url`: Specifies the HTTP URL API path for the corresponding request. Example: http://127.0.0.1:80/mqtt/auth
 
-- `method`: Specifies the HTTP request method for the corresponding request. This could be either `post` or `get`. Default: `post`
+- `method`: Specifies the HTTP request method for the corresponding request. This could be either `POST` or `GET`. Default: `POST`
 
 - `headers.<Any>`: Specify the data in the HTTP request header. \<Key> Specify the field name in the HTTP request header, and the value of this configuration item is the corresponding field value. \<Key> can be the standard HTTP request header field. User can also customize the field to configure multiple different request header fields. Example as follows:
 
@@ -149,7 +149,7 @@ The `super_req` configuration refers to the Superuser, who has the privilege to 
 
 - `url`: For example, http://127.0.0.1:80/mqtt/superuser
 
-- `method`：Specifies the HTTP request method for the corresponding request. This could be either `post` or `get`. Default: `post`
+- `method`：Specifies the HTTP request method for the corresponding request. This could be either `POST` or `GET`. Default: `POST`
 
 - `headers.<Any>`: Specify the data in the HTTP request header. \<Key> Specify the field name in the HTTP request header, and the value of this configuration item is the corresponding field value. \<Key> can be the standard HTTP request header field. User can also customize the field to configure multiple different request header fields. Example as follows:
 
@@ -169,7 +169,7 @@ The `super_req` configuration refers to the Superuser, who has the privilege to 
 
 - `url`: Specifies the HTTP URL API path for the corresponding request.
 
-- `method`: Specifies the HTTP request method for the corresponding request. This could be either `post` or `get`. Default: `post`
+- `method`: Specifies the HTTP request method for the corresponding request. This could be either `POST` or `GET`. Default: `POST`
 
 - `headers.<Any>`: Specify the data in the HTTP request header. \<Key> Specify the field name in the HTTP request header, and the value of this configuration item is the corresponding field value. \<Key> can be the standard HTTP request header field. User can also customize the field to configure multiple different request header fields. Example as follows:
 
