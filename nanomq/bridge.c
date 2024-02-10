@@ -70,6 +70,53 @@ apply_sqlite_config(
 #endif
 }
 
+static void
+nano_set_quic_config(nng_socket *sock, conf_bridge_node *node, nng_dialer *dialer)
+{
+	if (0 != nng_socket_set_ptr(*sock, NNG_OPT_MQTT_BRIDGE_CONF, node)) {
+		log_warn("Error in updating bridge config to socket");
+	}
+	nng_dialer_set_bool(*dialer, NNG_OPT_QUIC_ENABLE_0RTT, node->quic_0rtt);
+	nng_dialer_set_bool(*dialer, NNG_OPT_QUIC_ENABLE_MULTISTREAM, node->multi_stream);
+	nng_dialer_set_uint64(*dialer, NNG_OPT_QUIC_IDLE_TIMEOUT, node->qidle_timeout);
+	nng_dialer_set_uint64(*dialer, NNG_OPT_QUIC_CONNECT_TIMEOUT, node->qconnect_timeout);
+	nng_dialer_set_int(*dialer, NNG_OPT_QUIC_DISCONNECT_TIMEOUT, node->qdiscon_timeout);
+	nng_dialer_set_int(*dialer, NNG_OPT_QUIC_KEEPALIVE, node->qkeepalive);
+	nng_dialer_set_int(*dialer, NNG_OPT_QUIC_SEND_IDLE_TIMEOUT, node->qsend_idle_timeout);
+	nng_dialer_set_int(*dialer, NNG_OPT_QUIC_INITIAL_RTT_MS, node->qinitial_rtt_ms);
+	nng_dialer_set_int(*dialer, NNG_OPT_QUIC_MAX_ACK_DELAY_MS, node->qmax_ack_delay_ms);
+
+	// NNG_OPT_QUIC_PRIORITY
+	// TLS section
+	if (!node->tls.enable)
+		return;
+	if (0 !=
+	    nng_dialer_set_string(
+	        *dialer, NNG_OPT_QUIC_TLS_KEY_PATH, node->tls.keyfile)) {
+		log_warn("Error in updating NNG_OPT_QUIC_TLS_KEY_PATH");
+	}
+	if (0 !=
+	    nng_dialer_set_string(
+	        *dialer, NNG_OPT_QUIC_TLS_CACERT_PATH, node->tls.certfile)) {
+		log_warn("Error in updating NNG_OPT_QUIC_TLS_CACERT_PATH");
+	}
+	if (0 !=
+	    nng_dialer_set_string(*dialer, NNG_OPT_QUIC_TLS_KEY_PASSWORD,
+	        node->tls.key_password)) {
+		log_warn("Error in updating NNG_OPT_QUIC_TLS_KEY_PASSWORD");
+	}
+	if (0 !=
+	    nng_dialer_set_string(
+	        *dialer, NNG_OPT_QUIC_TLS_CA_PATH, node->tls.cafile)) {
+		log_warn("Error in updating NNG_OPT_QUIC_TLS_CA_PATH");
+	}
+	if (0 !=
+	    nng_dialer_set_bool(*dialer, NNG_OPT_QUIC_TLS_VERIFY_PEER,
+	        node->tls.verify_peer)) {
+		log_warn("Error in updating NNG_OPT_QUIC_TLS_VERIFY_PEER");
+	}
+}
+
 nng_msg *
 create_connect_msg(conf_bridge_node *node)
 {
@@ -563,6 +610,7 @@ hybrid_quic_client(bridge_param *bridge_arg)
 	// TCP bridge does not support hot update of connmsg
 	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
 	nng_socket_set_ptr(*new, NNG_OPT_MQTT_CONNMSG, connmsg);
+	nano_set_quic_config(new, node, &dialer);
 	nng_mqtt_set_connect_cb(*new, hybrid_quic_connect_cb, bridge_arg);
 	nng_mqtt_set_disconnect_cb(*new, hybrid_quic_disconnect_cb, bridge_arg);
 
@@ -841,6 +889,7 @@ bridge_quic_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 	if (0 != nng_socket_set_ptr(*sock, NNG_OPT_MQTT_CONNMSG, connmsg)) {
 		log_warn("Error in updating connmsg");
 	}
+	nano_set_quic_config(sock, node, &dialer);
 	nng_mqtt_set_connect_cb(*sock, bridge_quic_connect_cb, bridge_arg);
 	nng_mqtt_set_disconnect_cb(*sock, bridge_quic_disconnect_cb, bridge_arg);
 	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
@@ -894,6 +943,7 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 	if (0 != nng_socket_set_ptr(*sock, NNG_OPT_MQTT_CONNMSG, connmsg)) {
 		log_warn("Error in updating connmsg");
 	}
+	nano_set_quic_config(sock, node, &dialer);
 	nng_mqtt_set_connect_cb(*sock, bridge_quic_connect_cb, bridge_arg);
 	nng_mqtt_set_disconnect_cb(*sock, bridge_quic_disconnect_cb, bridge_arg);
 
