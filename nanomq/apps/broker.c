@@ -720,7 +720,7 @@ server_cb(void *arg)
 					    .properties = property_pub_by_will(
 					    will_property);
 					work->pub_packet->var_header.publish
-					    .prop_len = get_properties_len(
+					    .prop_len = get_mqtt_properties_len(
 					    work->pub_packet->var_header
 					        .publish.properties);
 				} else {
