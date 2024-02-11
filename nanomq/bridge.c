@@ -930,7 +930,7 @@ bridge_tcp_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 		return rv;
 	}
 	// set backoff param to 24s
-	nng_duration duration = node->backoff_max * 1000;
+	nng_duration duration = 10 * 1000;
 	nng_dialer_set(dialer, NNG_OPT_MQTT_RECONNECT_BACKOFF_MAX, &duration, sizeof(nng_duration));
 
 
@@ -1019,7 +1019,7 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 		return rv;
 	}
 	// set backoff param to 24s
-	nng_duration duration = node->backoff_max * 1000;
+	nng_duration duration = 10 * 1000;
 	nng_dialer_set(dialer, NNG_OPT_MQTT_RECONNECT_BACKOFF_MAX, &duration, sizeof(nng_duration));
 	// nng_dialer_set_int(dialer, NNG_OPT_TCP_KEEPALIVE, 30);
 	nng_dialer_set_bool(dialer, NNG_OPT_TCP_KEEPALIVE, true);
