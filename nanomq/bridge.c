@@ -69,7 +69,7 @@ apply_sqlite_config(
 	return (0);
 #endif
 }
-
+#if defined(SUPP_QUIC)
 static void
 nano_set_quic_config(nng_socket *sock, conf_bridge_node *node, nng_dialer *dialer)
 {
@@ -116,6 +116,7 @@ nano_set_quic_config(nng_socket *sock, conf_bridge_node *node, nng_dialer *diale
 		log_warn("Error in updating NNG_OPT_QUIC_TLS_VERIFY_PEER");
 	}
 }
+#endif
 
 nng_msg *
 create_connect_msg(conf_bridge_node *node)
