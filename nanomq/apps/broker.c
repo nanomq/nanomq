@@ -1090,7 +1090,10 @@ broker(conf *nanomq_conf)
 		// TODO support multiple MQ coexisitence
 		nng_socket *mq_sock = nanomq_conf->exchange.nodes[0]->sock;
 		nng_listener mq_listener;
-		if ((rv = nano_listen(*mq_sock, nanomq_conf->exchange.exchange_url, &mq_listener, 0, nanomq_conf)) != 0) {
+		if (nanomq_conf->exchange.exchange_url == NULL ||
+			strlen(nanomq_conf->exchange.exchange_url) == 0) {
+			log_error("Exchange url is not set");
+		} else if ((rv = nano_listen(*mq_sock, nanomq_conf->exchange.exchange_url, &mq_listener, 0, nanomq_conf)) != 0) {
 			NANO_NNG_FATAL("broker nng_listen", rv);
 		}
 		nng_listener_set_size(mq_listener, NNG_OPT_RECVMAXSZ, 0xFFFFFFFFu);
