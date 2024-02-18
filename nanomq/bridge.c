@@ -667,6 +667,7 @@ quic_ack_cb(void *arg)
 	nng_msg *     msg   = nng_aio_get_msg(aio);
 	if (msg == NULL || (result = nng_aio_result(aio)) != 0) {
 		log_debug("no msg wating!");
+		nng_recv_aio(*sock, aio);
 		return;
 	}
 	if (nng_msg_get_type(msg) == CMD_CONNACK) {
@@ -679,8 +680,13 @@ quic_ack_cb(void *arg)
 		// nng_pipe_get_ptr(p, NNG_OPT_MQTT_CONNECT_PROPERTY, &prop);
 		log_info("Quic bridge client connected! RC [%d]", reason);
 
-		if (reason != 0 || param->config->sub_count <= 0)
+		if (reason != 0 || param->config->sub_count <= 0) {
+			nng_msg_free(msg);
+			nng_aio_set_msg(aio, NULL);
+			// To clean the cached msg if any
+			nng_recv_aio(*sock, aio);
 			return;
+		}
 		/* MQTT SUBSCRIBE */
 		if (param->config->multi_stream) {
 			for (size_t i = 0; i < param->config->sub_count; i++) {
