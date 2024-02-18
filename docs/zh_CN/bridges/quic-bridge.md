@@ -65,7 +65,7 @@ $ make -j1
 bridges.mqtt.name {
 	## TCP URL 格式:  mqtt-tcp://host:port
 	## TLS URL 格式:  tls+mqtt-tcp://host:port
-	## QUIC URL 格式: mqtt-quic://host:port
+	## QUIC/QUIC+TLS URL 格式: mqtt-quic://host:port
 	server = "mqtt-quic://your_server_address:port"
 	proto_ver = 4
 	username = emqx
@@ -84,6 +84,13 @@ bridges.mqtt.name {
 			qos = 2
 		}
 	]
+    ## 如果通过 TLS 桥接将下面的代码取消注释
+    ## ssl {
+    ##		 keyfile = "/etc/certs/key.pem"
+    ##		 certfile = "/etc/certs/cert.pem"
+    ##		 cacertfile = "/etc/certs/cacert.pem"
+    ## }
+
 	quic_keepalive = 120s
 	quic_idle_timeout = 120s
 	quic_discon_timeout = 20s
