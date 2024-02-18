@@ -64,7 +64,7 @@ Users wishing to use the HOCON configuration format can refer to the following s
 bridges.mqtt.name {
 	## TCP URL format:  mqtt-tcp://host:port
 	## TLS URL format:  tls+mqtt-tcp://host:port
-	## QUIC/QUIC+TLS URL format: mqtt-quic://host:port
+	## QUIC URL format: mqtt-quic://host:port
 	server = "mqtt-quic://remote.broker.address"
 	proto_ver = 4
 	username = emqx
@@ -83,9 +83,9 @@ bridges.mqtt.name {
 	]
     ## Uncomment if you need TLS
     ## ssl {
-    ## 	keyfile = "/etc/certs/key.pem"
-    ## 	certfile = "/etc/certs/cert.pem"
-    ## 	cacertfile = "/etc/certs/cacert.pem"
+    ##     keyfile = "/etc/certs/key.pem"
+    ##     certfile = "/etc/certs/cert.pem"
+    ##     cacertfile = "/etc/certs/cacert.pem"
     ## }
 	quic_keepalive = 120s
 	quic_idle_timeout = 120s
