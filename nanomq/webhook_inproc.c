@@ -479,9 +479,10 @@ hook_work_cb(void *arg)
 		nng_time *tss = NULL;
 		// When end key exists. Fuzzing search.
 		if (ekeystr) {
-			tss = nng_alloc(sizeof(nng_time) * 2);
+			tss = nng_alloc(sizeof(nng_time) * 3);
 			tss[0] = start_key;
 			tss[1] = end_key;
+			tss[2] = 0;
 			nng_msg_set_proto_data(m, NULL, (void *)tss);
 		} else {
 			// Not exists. then normal search
