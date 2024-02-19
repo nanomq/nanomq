@@ -618,8 +618,8 @@ hook_search_reset(void *arg)
 {
 	(void)arg;
 	// reset limit
-	nng_atomic_set(hook_search_limit, 1);
-	nng_duration dura = 2000;
+	nng_atomic_set(hook_search_limit, 5 * 1);
+	nng_duration dura = 5 * 1000; // Avoid wake frequently
 	nng_sleep_aio(dura, hook_search_reset_aio);
 }
 
