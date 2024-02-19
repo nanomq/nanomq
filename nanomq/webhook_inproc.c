@@ -318,19 +318,34 @@ hook_work_cb(void *arg)
 		// TODO Not efficent
 		// Only parse msg when exchange is enabled
 		root = cJSON_Parse(body);
+		if (!root) {
+			// not a json
+			nng_msg_free(msg);
+			work->state = HOOK_RECV;
+			nng_recv_aio(work->sock, work->aio);
+			break;
+		}
 		cJSON *idjo = cJSON_GetObjectItem(root, "id");
 		if (!idjo) {
 			cJSON_Delete(root);
 			root = NULL;
 		}
-		if (root) {
+		if (root && idjo) {
 			char *idstr = NULL;
-			if (idjo)
-				idstr = idjo->valuestring;
+			idstr = idjo->valuestring;
 			if (idstr) {
 				if (strcmp(idstr, EXTERNAL2NANO_IPC) == 0) {
 					cJSON_Delete(root);
 					root = NULL;
+					int l = nng_atomic_dec_nv(hook_search_limit);
+					if (l < 0) {
+						log_warn("Hook searching too frequently");
+						// Ignore, start next recv
+						nng_msg_free(msg);
+						work->state = HOOK_RECV;
+						nng_recv_aio(work->sock, work->aio);
+						break;
+					}
 					work->state = HOOK_WAIT;
 					nng_aio_finish(work->aio, 0);
 					break;
