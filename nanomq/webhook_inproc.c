@@ -54,7 +54,9 @@ struct hook_work {
 
 static void hook_work_cb(void *arg);
 
-static nng_thread *hook_thr;
+static nng_thread     *hook_thr;
+static nng_atomic_int *hook_search_limit     = NULL;
+static nng_aio        *hook_search_reset_aio = NULL;
 
 static int
 send_mqtt_msg_cat(nng_socket *sock, const char *topic, nng_msg **msgs, uint32_t len)
@@ -596,6 +598,16 @@ trigger_tcp_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	log_info("trigger connected! RC [%d]", reason);
 }
 
+static void
+hook_search_reset(void *arg)
+{
+	(void)arg;
+	// reset limit
+	nng_atomic_set(hook_search_limit, 1);
+	nng_duration dura = 2000;
+	nng_sleep_aio(dura, hook_search_reset_aio);
+}
+
 static struct hook_work *
 alloc_work(nng_socket sock, conf_web_hook *conf, conf_exchange *exconf,
         conf_parquet *parquetconf)
@@ -687,6 +699,17 @@ hook_cb(void *arg)
 		return;
 	}
 
+	if (hook_search_limit == NULL)
+		nng_atomic_alloc(&hook_search_limit);
+
+	if (0 != (rv = nng_aio_alloc(
+			&hook_search_reset_aio, hook_search_reset, NULL))) {
+		log_error("hook hook_search reset aio init failed %d", rv);
+		return;
+	}
+	nng_aio_finish(hook_search_reset_aio, 0); // Start
+	log_info("hook hook_search reset aio started");
+
 	for (i = 0; i < works_num; i++) {
 		// shares taskq threads with broker
 		hook_work_cb(works[i]);
@@ -695,6 +718,12 @@ hook_cb(void *arg)
 	for (;;) {
 		nng_msleep(3600000); // neither pause() nor sleep() portable
 	}
+
+	if (hook_search_limit)
+		nng_atomic_free(hook_search_limit);
+	hook_search_limit = NULL;
+	nng_aio_stop(hook_search_reset_aio);
+	nng_aio_free(hook_search_reset_aio);
 
 	for (i = 0; i < works_num; i++) {
 		nng_free(works[i], sizeof(struct hook_work));
