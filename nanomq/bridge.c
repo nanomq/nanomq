@@ -277,6 +277,10 @@ send_callback(nng_mqtt_client *client, nng_msg *msg, void *obj)
 		nng_msg_free(msg);
 	} else if(type == CMD_CONNECT) {
 		log_debug("send bridge connect msg complete");
+	} else if(type == CMD_SUBSCRIBE) {
+		log_debug("send bridge sub msg complete");
+	} else if(type == CMD_UNSUBSCRIBE) {
+		log_debug("send bridge unsub msg complete");
 	}
 	// nng_mqtt_client_free(client, true);
 }
