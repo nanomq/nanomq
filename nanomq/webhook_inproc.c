@@ -613,13 +613,16 @@ trigger_tcp_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	log_info("trigger connected! RC [%d]", reason);
 }
 
+#define HOOK_SEARCH_RESET_DURATION 5
 static void
 hook_search_reset(void *arg)
 {
 	conf_parquet *parquetconf = arg;
 	// reset limit
-	nng_atomic_set(hook_search_limit, 5 * parquetconf->limit_frequency);
-	nng_duration dura = 5 * 1000; // Avoid wake frequently
+	nng_atomic_set(hook_search_limit,
+	    HOOK_SEARCH_RESET_DURATION * parquetconf->limit_frequency);
+	// Avoid wake frequently
+	nng_duration dura = HOOK_SEARCH_RESET_DURATION  * 1000;
 	nng_sleep_aio(dura, hook_search_reset_aio);
 }
 
@@ -734,6 +737,7 @@ hook_cb(void *arg)
 		nng_msleep(3600000); // neither pause() nor sleep() portable
 	}
 
+	// Free hook search reset aio and limit atomic
 	if (hook_search_limit)
 		nng_atomic_free(hook_search_limit);
 	hook_search_limit = NULL;
