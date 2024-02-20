@@ -616,9 +616,9 @@ trigger_tcp_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 static void
 hook_search_reset(void *arg)
 {
-	(void)arg;
+	conf_parquet *parquetconf = arg;
 	// reset limit
-	nng_atomic_set(hook_search_limit, 5 * 1);
+	nng_atomic_set(hook_search_limit, 5 * parquetconf->limit_frequency);
 	nng_duration dura = 5 * 1000; // Avoid wake frequently
 	nng_sleep_aio(dura, hook_search_reset_aio);
 }
@@ -717,8 +717,8 @@ hook_cb(void *arg)
 	if (hook_search_limit == NULL)
 		nng_atomic_alloc(&hook_search_limit);
 
-	if (0 != (rv = nng_aio_alloc(
-			&hook_search_reset_aio, hook_search_reset, NULL))) {
+	if (0 != (rv = nng_aio_alloc(&hook_search_reset_aio,
+			hook_search_reset, &conf->parquet))) {
 		log_error("hook hook_search reset aio init failed %d", rv);
 		return;
 	}
