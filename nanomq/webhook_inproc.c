@@ -723,7 +723,7 @@ hook_work_cb(void *arg)
 				tss = nng_alloc(sizeof(nng_time) * 3);
 				tss[0] = 0;
 				tss[1] = 9223372036854775807; // big enough
-				tss[2] = 1;
+				tss[2] = 1; // It's a clean flag
 				nng_msg_set_proto_data(m, NULL, (void *)tss);
 				nng_aio_set_msg(aio, m);
 				// Do clean on MQ
@@ -832,7 +832,7 @@ hook_work_cb(void *arg)
 				tss = nng_alloc(sizeof(nng_time) * 3);
 				tss[0] = start_key;
 				tss[1] = end_key;
-				tss[2] = 0;
+				tss[2] = 0; // No operation flag
 				nng_msg_set_proto_data(m, NULL, (void *)tss);
 			} else if (end_key == start_key) {
 				// normal search
