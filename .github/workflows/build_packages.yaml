@@ -130,7 +130,7 @@ jobs:
         pkg_name="nanomq-$(git describe --abbrev=0 --tags)-linux-${arch}${{ matrix.build_type }}.${{ matrix.package_type }}"
 
         make_flags="-DCMAKE_C_COMPILER=${{ matrix.arch[1] }} -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }} -DNNG_ENABLE_TLS=ON"
-       
+
         if [ "${{ matrix.build_type }}" == "-sqlite" ] || [ "${{ matrix.build_type }}" == "-full" ]; then
           make_flags+=" -DNNG_ENABLE_SQLITE=ON "
         fi
@@ -218,9 +218,25 @@ jobs:
         aws configure set default.region us-west-2
         aws s3 cp --recursive build/_packages s3://packages.emqx/nanomq/$(git describe --abbrev=0 --tags)
 
-  build_docker:
-    needs: [build_packages]
+  build_docker_prepare:
     runs-on: ubuntu-20.04
+    outputs:
+      host: ${{ steps.host.outputs.host }}
+    steps:
+      - id: host
+        run: |
+          set -e -x -u
+          if ${{ github.event_name == 'release' }}; then
+            echo "host=ubuntu-latest-m" >> $GITHUB_OUTPUT
+          else
+            echo "host=ubuntu-latest" >> $GITHUB_OUTPUT
+          fi
+
+  build_docker:
+    needs:
+      - build_docker_prepare
+      - build_packages
+    runs-on: ${{ needs.build_docker_prepare.outputs.host }}
 
     strategy:
       fail-fast: false
@@ -284,21 +300,21 @@ jobs:
   publish_packages:
     needs: [build_packages, build_docker]
     runs-on: ubuntu-20.04
+    if: github.event_name == 'release'
+
     steps:
     - name: update nanomq.io
-      if: github.event_name == 'release'
       run: |
         set -e -x -u
         curl -w %{http_code} \
-             --insecure \
-             -H "Content-Type: application/json" \
-             -H "token: ${{ secrets.EMQX_IO_TOKEN }}" \
-             -X POST \
-             -d "{\"repo\":\"nanomq/nanomq\", \"tag\": \"${{ github.ref_name }}\" }" \
-             ${{ secrets.EMQX_IO_RELEASE_API }}
+          --insecure \
+          -H "Content-Type: application/json" \
+          -H "token: ${{ secrets.EMQX_IO_TOKEN }}" \
+          -X POST \
+          -d "{\"repo\":\"nanomq/nanomq\", \"tag\": \"${{ github.ref_name }}\" }" \
+          ${{ secrets.EMQX_IO_RELEASE_API }}
 
     - uses: Swilder-M/push-packages@master
-      if: github.event_name == 'release'
       env:
         GIT_TOKEN: ${{ github.token }}
         PACKAGECLOUD_TOKEN: ${{ secrets.PACKAGECLOUD_TOKEN }}
