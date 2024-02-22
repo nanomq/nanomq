@@ -45,7 +45,7 @@ static property *will_property(conf_bridge_conn_will_properties *will_prop);
 
 static nng_thread *hybrid_thr;
 
-static int execone = 1;
+static int execone = 0;
 
 static int
 apply_sqlite_config(
@@ -607,7 +607,7 @@ hybrid_quic_client(bridge_param *bridge_arg)
 	nng_msg *connmsg   = create_connect_msg(node);
 	bridge_arg->connmsg = connmsg;
 
-	execone = 1;
+	execone = 0;
 
 	node->sock         = (void *) new;
 	bridge_arg->sock   = new;
@@ -786,7 +786,7 @@ bridge_quic_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	char         *addr;
 	uint16_t      port;
 
-	if (execone == 0) {
+	if (execone > 0) {
 		return;
 	}
 
@@ -825,7 +825,7 @@ bridge_quic_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 			    client, topic_qos, 1, properties);
 			nng_mqtt_topic_qos_array_free(topic_qos, 1);
 		}
-		execone = 0;
+		execone ++;
 	}
 
 	if (addr)
@@ -850,6 +850,8 @@ bridge_quic_disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	//  conn_param_free(cparam);
 	// nng_msg_free(bridge_arg->connmsg);
 	// bridge_arg->connmsg = NULL;
+
+	execone --;
 }
 
 static int
@@ -885,7 +887,7 @@ bridge_quic_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 	nng_msg *connmsg = create_connect_msg(node);
 	bridge_arg->connmsg = connmsg;
 
-	execone = 1;
+	execone = 0;
 
 	// TCP bridge does not support hot update of connmsg
 	if (0 != nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg)) {
