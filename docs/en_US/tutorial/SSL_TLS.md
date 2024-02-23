@@ -53,6 +53,59 @@ Two-way authentication requires certificates from both the server and the client
 - **One-way Authentication**: Only the server needs to prove its identity to the client. The client achieves this by verifying the server's certificate issued by a trusted Certificate Authority. This is the most common scenario, such as when accessing an HTTPS website via a browser.
 - **Two-way Authentication**: Both server and client must mutually verify each other's identity. This means that in addition to the server providing a certificate for the client to verify, the client must also provide a certificate for the server to verify. This method is typically used in scenarios requiring a high level of security, such as internal networks and financial transactions.
 
+## Generating Server and Client Certificates with OpenSSL
+
+### 1. Generate a Self-Signed CA Certificate
+- Generate a Private Key
+``` shell
+# Run the following command to generate an RSA private key:
+openssl genrsa -out ca.key 2048
+```
+
+- Generate a Self-Signed CA Certificate
+``` shell
+# Use the following command to generate a self-signed CA certificate:
+openssl req -x509 -new -nodes -key ca.key -sha256 -days 3650 -out ca.pem
+```
+During the certificate generation process, OpenSSL will prompt you to enter the certificate's subject information, such as Country, State/Province, City, Organization, Organizational Unit, Common Name (the name of the CA), and Email Address. Enter the relevant information as prompted.
+
+### 2. Generate a Server Certificate
+- Generate the Server's Private Key
+``` shell
+# First, generate an RSA private key for the server:
+openssl genrsa -out server.key 2048
+```
+
+- Create a Certificate Signing Request for the Server
+``` shell
+# Use the server's private key to create a CSR:
+openssl req -new -key ./server.key -out server.csr
+```
+
+- Issue a Server Certificate using the Self-Signed CA Certificate
+``` shell
+# Now, use the CA certificate and private key generated in the first step to issue a server certificate:
+openssl x509 -req -in ./server.csr -CA ca.pem -CAkey ca.key -CAcreateserial -out server.pem -days 3650 -sha256
+```
+
+### 3. Generate a Client Certificate
+The process of generating a client certificate is similar to generating a server certificate:
+- Generate the Client's Private Key
+``` shell
+# First, generate an RSA private key for the client:
+openssl genrsa -out client-key.pem 2048
+```
+
+- Create a Certificate Signing Request for the Client
+``` shell
+openssl req -new -key client-key.pem -out client.csr
+```
+
+- Issue a Client Certificate using the Self-Signed CA Certificate
+``` shell
+openssl x509 -req -days 3650 -in client.csr -CA ca.pem -CAkey ca.key -CAcreateserial -out client.pem
+```
+
 ## NanoMQ's Two-way Authentication Bridge
 
 NanoMQ provides configuration options for two-way authentication to bridge to a remote server. The required steps are simple, only requiring the addition of certificates in the configuration file's bridge section, as shown in the example below:

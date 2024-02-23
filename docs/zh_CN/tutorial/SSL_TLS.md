@@ -53,6 +53,61 @@ SSL/TLS单向认证是最常见的认证方式，主要用于客户端验证服�
 - **单向认证**：只有服务器需要向客户端证明其身份。客户端通过验证服务器提供的证书（由可信的证书颁发机构签发）来实现这一点。这是最常见的使用场景，例如，当你通过浏览器访问一个HTTPS网站时。
 - **双向认证**：服务器和客户端都必须互相验证对方的身份。这意味着除了服务器需要提供证书给客户端验证外，客户端也必须提供证书给服务器进行验证。这种方式通常用在需要高安全级别的场景中，如内部网络、金融交易等。
 
+## 使用openssl生成服务端和客户端证书
+
+### 1. 生成自签名CA证书
+- 生成私钥
+``` shell
+# 运行以下命令生成RSA私钥：
+openssl genrsa -out ca.key 2048
+```
+
+- 生成自签名的CA证书
+``` shell
+# 使用以下命令生成自签名的CA证书：
+openssl req -x509 -new -nodes -key ca.key -sha256 -days 3650 -out ca.pem
+```
+在生成证书的过程中，openssl会提示你输入证书的主题信息，如国家（Country）、省份（State）、城市（Locality）、组织（Organization）、组织单位（Organizational Unit）、常用名称（Common Name，即CA的名字）和电子邮件地址。根据提示输入相应信息即可。
+
+
+### 2. 生成服务端证书
+- 生成服务器的私钥
+``` shell
+# 首先，为服务器生成一个RSA私钥
+openssl genrsa -out server.key 2048
+```
+
+- 创建服务器的证书签名请求
+``` shell
+# 使用服务器的私钥创建一个CSR
+openssl req -new -key ./server.key -out server.csr
+```
+
+- 使用自签名的CA证书签发服务器证书
+``` shell
+# 现在，使用第一步中生成的CA证书和私钥来签发服务器证书。
+openssl x509 -req -in ./server.csr -CA ca.pem -CAkey ca.key -CAcreateserial -out server.pem -days 3650 -sha256
+```
+
+### 3. 生成客户端证书
+生成客户端证书的过程与生成服务器证书类似：
+
+- 生成客户端的私钥
+``` shell
+# 首先，为客户端生成一个RSA私钥：
+openssl genrsa -out client-key.pem 2048
+```
+
+- 创建客户端的证书签名请求
+``` shell
+openssl req -new -key client-key.pem -out client.csr
+```
+
+- 使用自签名的CA证书签发客户端证书
+``` shell
+openssl x509 -req -days 3650 -in client.csr -CA ca.pem -CAkey ca.key -CAcreateserial -out client.pem
+```
+
 ## NanoMQ通过SSL/TLS双向认证桥接
 
 NanoMQ提供了双向认证的配置选项桥接到远端服务器。所需步骤也很简单，仅需要在配置文件中的桥接字段中新增证书即可，以下是示例：
