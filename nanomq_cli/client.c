@@ -1328,7 +1328,7 @@ client_cb(void *arg)
 				work->state = SEND_WAIT;
 				nng_sleep_aio(work->opts->interval, work->aio);
 			} else {
-				nng_closeall();
+				nng_fini();
 				exit(1);
 			}
 		}
