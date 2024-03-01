@@ -31,6 +31,10 @@
 #include "nng/supplemental/nanolib/parquet.h"
 #endif
 
+#ifdef SUPP_BLF
+#include "nng/supplemental/nanolib/blf.h"
+#endif
+
 #define NANO_LMQ_INIT_CAP 16
 
 // The server keeps a list of work items, sorted by expiration time,
@@ -97,7 +101,7 @@ send_mqtt_msg_cat(nng_socket *sock, const char *topic, nng_msg **msgs, uint32_t 
 	return rv;
 }
 
-#ifdef SUPP_PARQUET
+#if defined(SUPP_BLF) || defined(SUPP_PARQUET)
 
 static char *
 get_file_bname(char *fpath)
@@ -605,28 +609,55 @@ hook_work_cb(void *arg)
 		}
 #ifdef SUPP_PARQUET
 		// Get file names and send to localhost to active handler
-		const char **fnames = NULL;
-		uint32_t sz = 0;
+		const char **parquet_fnames = NULL;
+		uint32_t parquet_sz = 0;
 		if (ekeystr) {
 			// fuzzing search
-			fnames = parquet_find_span(start_key, end_key, &sz);
+			parquet_fnames = parquet_find_span(start_key, end_key, &parquet_sz);
 		} else {
 			// normal search
-			const char *fname = parquet_find(start_key);
-			if (fname) {
-				sz = 1;
-				fname = malloc(sizeof(char *) * sz);
-				fnames[0] = fname;
+			const char *parquet_fname = parquet_find(start_key);
+			if (parquet_fname) {
+				parquet_sz = 1;
+				parquet_fname = malloc(sizeof(char *) * parquet_sz);
+				parquet_fnames[0] = parquet_fname;
 			}
 		}
-		if (fnames) {
-			if (sz > 0) {
+		if (parquet_fnames) {
+			if (parquet_sz > 0) {
 				log_info("Ask parquet and found.");
-				send_mqtt_msg_file(work->mqtt_sock, "file_transfer", fnames, sz);
+				send_mqtt_msg_file(work->mqtt_sock, "file_transfer", parquet_fnames, parquet_sz);
 			}
-			for (int i=0; i<(int)sz; ++i)
-				nng_free((void *)fnames[i], 0);
-			nng_free(fnames, sz);
+			for (int i=0; i<(int)parquet_sz; ++i)
+				nng_free((void *)parquet_fnames[i], 0);
+			nng_free(parquet_fnames, parquet_sz);
+		}
+
+#endif
+#if defined (SUPP_BLF)
+		// Get file names and send to localhost to active handler
+		const char **blf_fnames = NULL;
+		uint32_t blf_sz = 0;
+		if (ekeystr) {
+			// fuzzing search
+			blf_fnames = blf_find_span(start_key, end_key, &blf_sz);
+		} else {
+			// normal search
+			const char *blf_fname = blf_find(start_key);
+			if (blf_fname) {
+				blf_sz = 1;
+				blf_fname = malloc(sizeof(char *) * blf_sz);
+				blf_fnames[0] = blf_fname;
+			}
+		}
+		if (blf_fnames) {
+			if (blf_sz > 0) {
+				log_info("Ask parquet and found.");
+				send_mqtt_msg_file(work->mqtt_sock, "file_transfer", blf_fnames, blf_sz);
+			}
+			for (int i=0; i<(int)blf_sz; ++i)
+				nng_free((void *)blf_fnames[i], 0);
+			nng_free(blf_fnames, blf_sz);
 		}
 #endif
 
