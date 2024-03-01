@@ -106,35 +106,36 @@ send_mqtt_msg_cat(nng_socket *sock, const char *topic, nng_msg **msgs, uint32_t 
 static char *
 get_file_bname(char *fpath)
 {
-        char * bname;
+	char *bname;
 #ifdef _WIN32
-        if ((bname = malloc(strlen(fpath)+16)) == NULL) return NULL;
-        char ext[16];
-        _splitpath_s(fpath,
-                NULL, 0,    // Don't need drive
-                NULL, 0,    // Don't need directory
-                bname, strlen(fpath) + 15,  // just the filename
-                ext  , 15);
-        strncpy(bname+strlen(bname), ext, 15);
+	if ((bname = malloc(strlen(fpath) + 16)) == NULL)
+		return NULL;
+	char ext[16];
+	_splitpath_s(fpath, NULL, 0,   // Don't need drive
+	    NULL, 0,                   // Don't need directory
+	    bname, strlen(fpath) + 15, // just the filename
+	    ext, 15);
+	strncpy(bname + strlen(bname), ext, 15);
 #else
-		#include <libgen.h>
-        // strcpy(bname, basename(fpath));
-        bname = basename(fpath);
+#include <libgen.h>
+	// strcpy(bname, basename(fpath));
+	bname = basename(fpath);
 #endif
-        return bname;
+	return bname;
 }
 
 static int
-send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uint32_t len)
+send_mqtt_msg_file(
+    nng_socket *sock, const char *topic, const char **fpaths, uint32_t len)
 {
-	int rv;
-	const char ** filenames = malloc(sizeof(char *) * len);
-	for (int i=0; i<len; ++i) {
-		filenames[i] = get_file_bname((char *)fpaths[i]);
+	int          rv;
+	const char **filenames = malloc(sizeof(char *) * len);
+	for (int i = 0; i < len; ++i) {
+		filenames[i] = get_file_bname((char *) fpaths[i]);
 	}
 
 	// Create a json as payload to trigger file transport
-	cJSON *obj = cJSON_CreateObject();
+	cJSON *obj       = cJSON_CreateObject();
 	cJSON *files_obj = cJSON_CreateStringArray(fpaths, len);
 	cJSON_AddItemToObject(obj, "files", files_obj);
 	if (!files_obj)
@@ -144,11 +145,11 @@ send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uin
 	if (!filenames_obj)
 		return -1;
 	cJSON_AddItemToObject(obj, "filenames", filenames_obj);
-	cJSON * delete_obj = cJSON_AddNumberToObject(obj, "delete", -1);
+	cJSON *delete_obj = cJSON_AddNumberToObject(obj, "delete", -1);
 
 	char *buf = cJSON_PrintUnformatted(obj);
 	cJSON_Delete(obj);
-	for (int i=0; i<len; ++i)
+	for (int i = 0; i < len; ++i)
 		filenames[i];
 	free(filenames);
 
@@ -159,8 +160,7 @@ send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uin
 	nng_mqtt_msg_set_publish_dup(pubmsg, 0);
 	nng_mqtt_msg_set_publish_qos(pubmsg, 0);
 	nng_mqtt_msg_set_publish_retain(pubmsg, 0);
-	nng_mqtt_msg_set_publish_payload(
-	    pubmsg, (uint8_t *) buf, strlen(buf));
+	nng_mqtt_msg_set_publish_payload(pubmsg, (uint8_t *) buf, strlen(buf));
 	nng_mqtt_msg_set_publish_topic(pubmsg, topic);
 
 	log_info("Publishing to '%s' '%s'", topic, buf);
@@ -179,11 +179,11 @@ static void
 send_msg(conf_web_hook *conf, nng_msg *msg)
 {
 	nng_http_client *client = NULL;
-	nng_http_conn *  conn   = NULL;
-	nng_url *        url    = NULL;
-	nng_aio *        aio    = NULL;
-	nng_http_req *   req    = NULL;
-	nng_http_res *   res    = NULL;
+	nng_http_conn   *conn   = NULL;
+	nng_url         *url    = NULL;
+	nng_aio         *aio    = NULL;
+	nng_http_req    *req    = NULL;
+	nng_http_res    *res    = NULL;
 	int              rv;
 
 	if (((rv = nng_url_parse(&url, conf->url)) != 0) ||

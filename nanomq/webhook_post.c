@@ -453,33 +453,35 @@ flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio)
 		len2 ++;
 	}
 
-#if defined (SUPP_PARQUET) || defined(SUPP_BLF)
- #ifdef SUPP_PARQUET
- 	if (false == nng_aio_begin(aio)) {
- 		log_error("nng aio begin failed");
- 		return NNG_EBUSY;
- 	}
- 
- 	if (len2 > 0)
- 		log_warn("flush to parquet (%d) %lld...%lld", len2, keys[0], keys[len2-1]);
- 	// write to disk
- 	parquet_object *parquet_obj;
- 	parquet_obj = parquet_object_alloc(keys, (uint8_t **)datas,
- 		lens, len2, aio, (void *)smsg);
- 	parquet_write_batch_async(parquet_obj);
- #endif
-#if defined (SUPP_BLF)
+#if defined(SUPP_PARQUET) || defined(SUPP_BLF)
+#ifdef SUPP_PARQUET
 	if (false == nng_aio_begin(aio)) {
 		log_error("nng aio begin failed");
 		return NNG_EBUSY;
 	}
 
 	if (len2 > 0)
-		log_warn("flush to blf (%d) %lld...%lld", len2, keys[0], keys[len2-1]);
+		log_warn("flush to parquet (%d) %lld...%lld", len2, keys[0],
+		    keys[len2 - 1]);
+	// write to disk
+	parquet_object *parquet_obj;
+	parquet_obj = parquet_object_alloc(
+	    keys, (uint8_t **) datas, lens, len2, aio, (void *) smsg);
+	parquet_write_batch_async(parquet_obj);
+#endif
+#if defined(SUPP_BLF)
+	if (false == nng_aio_begin(aio)) {
+		log_error("nng aio begin failed");
+		return NNG_EBUSY;
+	}
+
+	if (len2 > 0)
+		log_warn("flush to blf (%d) %lld...%lld", len2, keys[0],
+		    keys[len2 - 1]);
 	// write to disk
 	blf_object *blf_obj;
-	blf_obj = blf_object_alloc(keys, (uint8_t **)datas,
-		lens, len2, aio, (void *)smsg);
+	blf_obj = blf_object_alloc(
+	    keys, (uint8_t **) datas, lens, len2, aio, (void *) smsg);
 	blf_write_batch_async(blf_obj);
 
 #endif
@@ -533,22 +535,24 @@ send_exchange_cb(void *arg)
 
 	// Flush to disk. Call Parquet
 	if (parquet_conf->enable || blf_conf->enable) {
-	    if (parquet_conf->enable) {
-	    	nng_mtx_lock(hook_conf->ex_mtx);
-	    	rv = flush_smsg_to_disk(msgs_del, msgs_len, NULL, hook_conf->ex_aio);
-	    	if (rv != 0)
-	    		log_error("flush error %d", rv);
-	    	nng_mtx_unlock(hook_conf->ex_mtx);
-	    }
-        if (blf_conf->enable) {
-	    	nng_mtx_lock(hook_conf->ex_mtx);
-	    	rv = flush_smsg_to_disk(msgs_del, msgs_len, NULL, hook_conf->ex_aio);
-	    	if (rv != 0)
-	    		log_error("flush error %d", rv);
-	    	nng_mtx_unlock(hook_conf->ex_mtx);
-	    }
-    } else {
-		for (int i=0; i<msgs_len; ++i)
+		if (parquet_conf->enable) {
+			nng_mtx_lock(hook_conf->ex_mtx);
+			rv = flush_smsg_to_disk(
+			    msgs_del, msgs_len, NULL, hook_conf->ex_aio);
+			if (rv != 0)
+				log_error("flush error %d", rv);
+			nng_mtx_unlock(hook_conf->ex_mtx);
+		}
+		if (blf_conf->enable) {
+			nng_mtx_lock(hook_conf->ex_mtx);
+			rv = flush_smsg_to_disk(
+			    msgs_del, msgs_len, NULL, hook_conf->ex_aio);
+			if (rv != 0)
+				log_error("flush error %d", rv);
+			nng_mtx_unlock(hook_conf->ex_mtx);
+		}
+	} else {
+		for (int i = 0; i < msgs_len; ++i)
 			if (msgs_del[i]) {
 				nng_msg_free(msgs_del[i]);
 			}
