@@ -453,20 +453,36 @@ flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio)
 		len2 ++;
 	}
 
-#ifdef SUPP_PARQUET
+#if defined (SUPP_PARQUET) || defined(SUPP_BLF)
+ #ifdef SUPP_PARQUET
+ 	if (false == nng_aio_begin(aio)) {
+ 		log_error("nng aio begin failed");
+ 		return NNG_EBUSY;
+ 	}
+ 
+ 	if (len2 > 0)
+ 		log_warn("flush to parquet (%d) %lld...%lld", len2, keys[0], keys[len2-1]);
+ 	// write to disk
+ 	parquet_object *parquet_obj;
+ 	parquet_obj = parquet_object_alloc(keys, (uint8_t **)datas,
+ 		lens, len2, aio, (void *)smsg);
+ 	parquet_write_batch_async(parquet_obj);
+ #endif
+#if defined (SUPP_BLF)
 	if (false == nng_aio_begin(aio)) {
 		log_error("nng aio begin failed");
 		return NNG_EBUSY;
 	}
 
 	if (len2 > 0)
-		log_warn("flush to parquet (%d) %lld...%lld", len2, keys[0], keys[len2-1]);
+		log_warn("flush to blf (%d) %lld...%lld", len2, keys[0], keys[len2-1]);
 	// write to disk
-	parquet_object *parquet_obj;
-	parquet_obj = parquet_object_alloc(keys, (uint8_t **)datas,
+	blf_object *blf_obj;
+	blf_obj = blf_object_alloc(keys, (uint8_t **)datas,
 		lens, len2, aio, (void *)smsg);
-	parquet_write_batch_async(parquet_obj);
-#else
+	blf_write_batch_async(blf_obj);
+
+#endif
 	nng_free(keys, len);
 	nng_free(datas, len);
 	nng_free(lens, len);
