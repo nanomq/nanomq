@@ -416,7 +416,7 @@ hook_work_cb(void *arg)
 				tss = nng_alloc(sizeof(nng_time) * 3);
 				tss[0] = 0;
 				tss[1] = 9223372036854775807; // big enough
-				tss[2] = 1;
+				tss[2] = 1;					  //clean and return msgs
 				nng_msg_set_proto_data(m, NULL, (void *)tss);
 				nng_aio_set_msg(aio, m);
 				// Do clean on MQ
@@ -436,6 +436,75 @@ hook_work_cb(void *arg)
 				}
 				nng_free(msgs_res, sizeof(nng_msg *) * msgs_len);
 	
+				goto skip;
+			} else if (0 == strcmp(cmdstr, "stopMQ")){
+				log_info("StopMQ is triggered: msgs will be cleaned when MQ is FULL");
+				nng_msg *m;
+				nng_msg_alloc(&m, 0);
+				if (!m) {
+					log_error("Error in alloc memory");
+					goto skip;
+				}
+				nng_time *tss = NULL;
+				tss = nng_alloc(sizeof(nng_time) * 3);
+				if (!tss) {
+					log_error("Error in alloc memory");
+					goto skip;
+				}
+				tss[0] = 0;
+				/* RB_FULL_DROP */
+				tss[1] = 1;
+				/*
+				 * change MQ fullOp to Drop, msgs will be
+				 * cleaned when MQ is FULL instead of return
+				 * to webhook
+				 */
+				tss[2] = 2;
+
+				nng_msg_set_proto_data(m, NULL, (void *)tss);
+				nng_aio_set_msg(aio, m);
+				// Do clean on MQ
+				nng_recv_aio(*ex_sock, aio);
+				nng_aio_wait(aio);
+				if (nng_aio_result(aio) != 0)
+					log_warn("error when stopMQ");
+				nng_msg_free(m);
+				nng_free(tss, 0);
+
+				goto skip;
+			} else if (0 == strcmp(cmdstr, "startMQ")) {
+				log_info("StartMQ is triggered: msgs will be returned to webhook when MQ is FULL");
+				nng_msg *m;
+				nng_msg_alloc(&m, 0);
+				if (!m) {
+					log_error("Error in alloc memory");
+					goto skip;
+				}
+				nng_time *tss = NULL;
+				tss = nng_alloc(sizeof(nng_time) * 3);
+				if (!tss) {
+					log_error("Error in alloc memory");
+					goto skip;
+				}
+
+				tss[0] = 0;
+				/* RB_FULL_RETURN */
+				tss[1] = 2;
+				/*
+				 * change MQ fullOp to RETURN, msgs will be
+				 * return to webhook when MQ is FULL
+				 */
+				tss[2] = 2;
+
+				nng_msg_set_proto_data(m, NULL, (void *)tss);
+				nng_aio_set_msg(aio, m);
+				nng_recv_aio(*ex_sock, aio);
+				nng_aio_wait(aio);
+				if (nng_aio_result(aio) != 0)
+					log_warn("error when startMQ");
+				nng_msg_free(m);
+				nng_free(tss, 0);
+
 				goto skip;
 			} else {
 				log_warn("Invalid cmd");
