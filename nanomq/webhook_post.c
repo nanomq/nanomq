@@ -506,6 +506,7 @@ send_exchange_cb(void *arg)
 	conf *nanomq_conf = w->config;
 	conf_web_hook *hook_conf = &nanomq_conf->web_hook;
 	conf_parquet  *parquet_conf = &nanomq_conf->parquet;
+	conf_blf  *blf_conf = &nanomq_conf->blf;
 
 	nng_aio *aio = hook_conf->saios[w->ctx.id-1];
 
@@ -531,13 +532,22 @@ send_exchange_cb(void *arg)
 		msgs_len = *msgs_lenp;
 
 	// Flush to disk. Call Parquet
-	if (parquet_conf->enable) {
-		nng_mtx_lock(hook_conf->ex_mtx);
-		rv = flush_smsg_to_disk(msgs_del, msgs_len, NULL, hook_conf->ex_aio);
-		if (rv != 0)
-			log_error("flush error %d", rv);
-		nng_mtx_unlock(hook_conf->ex_mtx);
-	} else {
+	if (parquet_conf->enable || blf_conf->enable) {
+	    if (parquet_conf->enable) {
+	    	nng_mtx_lock(hook_conf->ex_mtx);
+	    	rv = flush_smsg_to_disk(msgs_del, msgs_len, NULL, hook_conf->ex_aio);
+	    	if (rv != 0)
+	    		log_error("flush error %d", rv);
+	    	nng_mtx_unlock(hook_conf->ex_mtx);
+	    }
+        if (blf_conf->enable) {
+	    	nng_mtx_lock(hook_conf->ex_mtx);
+	    	rv = flush_smsg_to_disk(msgs_del, msgs_len, NULL, hook_conf->ex_aio);
+	    	if (rv != 0)
+	    		log_error("flush error %d", rv);
+	    	nng_mtx_unlock(hook_conf->ex_mtx);
+	    }
+    } else {
 		for (int i=0; i<msgs_len; ++i)
 			if (msgs_del[i]) {
 				nng_msg_free(msgs_del[i]);
@@ -600,16 +610,29 @@ hook_exchange_sender_init(conf *nanomq_conf, struct work **works, uint64_t num_c
 {
 	conf_web_hook *hook_conf = &nanomq_conf->web_hook;
 	conf_parquet *parquet_conf = &nanomq_conf->parquet;
+	conf_blf *blf_conf = &nanomq_conf->blf;
 
-	for (int i=0; i<num_ctx; ++i) {
-		nng_aio_alloc(&hook_conf->saios[i], send_exchange_cb, works[i]);
+	for (int i = 0; i < num_ctx; ++i) {
+		nng_aio_alloc(
+		    &hook_conf->saios[i], send_exchange_cb, works[i]);
 	}
 
-	if (!parquet_conf->enable)
+	if (!parquet_conf->enable && !blf_conf->enable)
 		return -1;
 
 #ifdef SUPP_PARQUET
-	parquet_write_launcher(parquet_conf);
+	if (parquet_conf->enable) {
+
+		log_info("parquet_write_launcher");
+		parquet_write_launcher(parquet_conf);
+	}
+#endif
+
+#ifdef SUPP_BLF
+	if (blf_conf->enable) {
+		log_info("blf_write_launcher");
+		blf_write_launcher(blf_conf);
+	}
 #endif
 
 	return 0;
