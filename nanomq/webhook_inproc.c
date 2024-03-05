@@ -256,7 +256,7 @@ err:
 
 static int
 send_mqtt_msg_cat(nng_socket *sock, char *tmpfpath, nng_msg **msgs, uint32_t len,
-		char *ruleid, uint64_t start_key, uint64_t end_key, char *key)
+		char *ruleid, uint64_t start_key, uint64_t end_key, char *key, bool encryption_enable)
 {
 	int rv;
 	nng_msg *pubmsg;
@@ -280,15 +280,22 @@ send_mqtt_msg_cat(nng_socket *sock, char *tmpfpath, nng_msg **msgs, uint32_t len
 		pos += diff;
 	}
 
-	char *cipher = NULL;
-	int   cipher_len;
-	char *tag; // I donot know
-	cipher = aes_gcm_encrypt(buf, pos, key, &tag, &cipher_len);
-	if (cipher == NULL) {
-		log_error("error in aes gcm encryption");
-		nng_msg_free(pubmsg);
+	if (encryption_enable == true) {
+		char *cipher = NULL;
+		int   cipher_len;
+		char *tag; // I donot know
+		cipher = aes_gcm_encrypt(buf, pos, key, &tag, &cipher_len);
+		if (cipher == NULL) {
+			log_error("error in aes gcm encryption");
+			nng_free(buf, pos);
+			nng_free(tag, 0);
+			return -1;
+		}
 		nng_free(buf, pos);
-		return -1;
+		nng_free(tag, 0);
+
+		buf = cipher;
+		pos = cipher_len;
 	}
 
 	/* debug
@@ -313,11 +320,9 @@ send_mqtt_msg_cat(nng_socket *sock, char *tmpfpath, nng_msg **msgs, uint32_t len
 	*/
 
 	char *md5sum;
-	if (0 != CalcMD5n(cipher, cipher_len, tmpfpath, &md5sum)) {
+	if (0 != CalcMD5n(buf, pos, tmpfpath, &md5sum)) {
 		nng_msg_free(pubmsg);
 		nng_free(buf, pos);
-		nng_free(cipher, cipher_len);
-		nng_free(tag, 0);
 		return -1;
 	}
 	char *topic = malloc(sizeof(char) *(strlen(md5sum) + 128));
@@ -329,17 +334,15 @@ send_mqtt_msg_cat(nng_socket *sock, char *tmpfpath, nng_msg **msgs, uint32_t len
 	nng_mqtt_msg_set_packet_type(pubmsg, NNG_MQTT_PUBLISH);
 	nng_mqtt_msg_set_publish_qos(pubmsg, 1);
 	nng_mqtt_msg_set_publish_retain(pubmsg, 0);
-	nng_mqtt_msg_set_publish_payload(pubmsg, (uint8_t *) cipher, cipher_len);
+	nng_mqtt_msg_set_publish_payload(pubmsg, (uint8_t *) buf, pos);
 	nng_mqtt_msg_set_publish_topic(pubmsg, topic);
 
 	if ((rv = nng_sendmsg(*sock, pubmsg, NNG_FLAG_ALLOC)) != 0) {
 		log_error("nng_sendmsg", rv);
 	}
-	nng_free(cipher, cipher_len);
 	nng_free(buf, pos);
 	nng_free(topic, 0);
 	nng_free(md5sum, 0);
-	nng_free(tag, 0);
 	return rv;
 }
 
@@ -877,12 +880,9 @@ hook_work_cb(void *arg)
 
 				log_info("Publish %ld msgs from exchange (%s)", msgs_len, tmpfpath);
 
-				if (parquetconf->enable == true && parquetconf->encryption.enable == true)
-					send_mqtt_msg_cat(work->mqtt_sock, tmpfpath, msgs_res, msgs_len,
-						ruleidstr, start_key, end_key,
-						parquetconf->encryption.key);
-				else
-					log_warn("result will send only if parquet encryption is enabled");
+				send_mqtt_msg_cat(work->mqtt_sock, tmpfpath, msgs_res, msgs_len,
+					ruleidstr, start_key, end_key,
+					exconf->encryption->key, exconf->encryption->enable);
 
 				for (int i=0; i<msgs_len; ++i)
 					nng_msg_free(msgs_res[i]);
