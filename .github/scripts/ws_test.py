@@ -54,7 +54,7 @@ class Test(object):
 
         # test sub
         while qos >= 0:
-            self._mqttc = mqtt.Client(callback_api_version=CallbackAPIVersion.VERSION2, transport=self._tran, protocol=self._prot)   
+            self._mqttc = mqtt.Client(callback_api_version=CallbackAPIVersion.VERSION1, transport=self._tran, protocol=self._prot)   
             # self._mqttc.on_connect = on_connect
             self._mqttc.on_message = on_message
             self._mqttc.on_publish = on_publish
@@ -81,7 +81,7 @@ class Test(object):
 
         # test unsub
         while qos >= 0:
-            self._mqttc = mqtt.Client(transport=self._tran, protocol=self._prot)   
+            self._mqttc = mqtt.Client(callback_api_version=CallbackAPIVersion.VERSION1, transport=self._tran, protocol=self._prot)   
             # self._mqttc.on_connect = on_connect
             self._mqttc.on_message = on_message
             self._mqttc.on_publish = on_publish
