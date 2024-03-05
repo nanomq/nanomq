@@ -53,7 +53,6 @@ struct hook_work {
 	bool           busy;
 	conf_exchange *exchange;
 	conf_parquet  *parquet;
-	nng_socket    *mqtt_sock;
 };
 
 static void hook_work_cb(void *arg);
@@ -601,7 +600,7 @@ hook_work_cb(void *arg)
 			for (int i=0; i<msgs_len; ++i)
 				nng_msg_clone(msgs_res[i]);
 
-			send_mqtt_msg_cat(work->mqtt_sock, "$file/upload/md5/xxxx", msgs_res, msgs_len);
+			// send_mqtt_msg_cat(work->mqtt_sock, "$file/upload/md5/xxxx", msgs_res, msgs_len);
 
 			for (int i=0; i<msgs_len; ++i)
 				nng_msg_free(msgs_res[i]);
@@ -626,7 +625,7 @@ hook_work_cb(void *arg)
 		if (parquet_fnames) {
 			if (parquet_sz > 0) {
 				log_info("Ask parquet and found.");
-				send_mqtt_msg_file(work->mqtt_sock, "file_transfer", parquet_fnames, parquet_sz);
+				// send_mqtt_msg_file(work->mqtt_sock, "file_transfer", parquet_fnames, parquet_sz);
 			}
 			for (int i=0; i<(int)parquet_sz; ++i)
 				nng_free((void *)parquet_fnames[i], 0);
@@ -764,7 +763,6 @@ hook_cb(void *arg)
 {
 	conf              *conf = arg;
 	nng_socket         sock;
-	nng_socket         mqtt_sock;
 	size_t             works_num = 0;
 	int                rv;
 	size_t             i;
@@ -785,31 +783,9 @@ hook_cb(void *arg)
 		return;
 	}
 
-	/* Create a mqtt sock */
-	rv = nng_mqtt_client_open(&mqtt_sock);
-	if (rv != 0) {
-		log_error("nng_mqtt_client_open %d", rv);
-		return;
-	}
-	nng_dialer dialer;
-	// need to expose url
-	if ((rv = nng_dialer_create(&dialer, mqtt_sock, "mqtt-tcp://127.0.0.1:1883"))) {
-		log_error("nng_dialer_create failed %d", rv);
-		return;
-	}
-	nng_msg *connmsg = create_connect_msg();
-	if (0 != nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg)) {
-		log_warn("Error in updating connmsg");
-	}
-	nng_mqtt_set_connect_cb(mqtt_sock, trigger_tcp_connect_cb, NULL);
-	nng_mqtt_set_disconnect_cb(mqtt_sock, trigger_tcp_disconnect_cb, NULL);
-
-	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
-
 	for (i = 0; i < works_num; i++) {
 		works[i] = alloc_work(sock, &conf->web_hook, &conf->exchange, &conf->parquet);
 		works[i]->id = i;
-		works[i]->mqtt_sock = &mqtt_sock;
 	}
 	// NanoMQ core thread talks to others via INPROC
 	if ((rv = nng_listen(sock, HOOK_IPC_URL, NULL, 0)) != 0) {
