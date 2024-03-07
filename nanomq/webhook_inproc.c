@@ -410,7 +410,7 @@ send_mqtt_msg_result(nng_socket *sock, char *ruleid, cJSON *resjo)
 	return 0;
 }
 
-static inline int get_md5_str(char *str, char *md5sum) {
+static inline int get_md5_str(const char *str, char *md5sum) {
 	char* start = strchr(str, '_');
 	char* end = strchr(start, '-');
 
@@ -627,6 +627,17 @@ thread_cb(void *arg)
 			nng_msleep(10);
 		}
 	}
+}
+
+#define RANDOM_STRING_LENGTH 10
+static inline void generate_random_string(char *str, size_t length) {
+    const char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    for (size_t i = 0; i < length; ++i) {
+        int index = rand() % (sizeof(charset) - 1);
+        str[i] = charset[index];
+    }
+    str[length] = '\0';
+	return;
 }
 
 static void
