@@ -419,13 +419,20 @@ send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uin
 		filenames[pos++] = get_file_bname((char *)fpaths[i]);
 		sprintf(tbuf, "$file/upload/parquetfile/%s/%s/%s",
 			ruleid, md5sum, filenames[pos-1]);
-		topics[i] = strdup(tbuf);
-		delete[i] = -1;
+		topics[pos-1] = strdup(tbuf);
+		delete[pos-1] = -1;
+	}
+
+	if (pos == 0) {
+		free(filenames);
+		free(topics);
+		free(delete);
+		return -1;
 	}
 
 	// Create a json as payload to trigger file transport
 	cJSON *obj = cJSON_CreateObject();
-	cJSON *files_obj = cJSON_CreateStringArray(fpaths, len);
+	cJSON *files_obj = cJSON_CreateStringArray(fpaths, pos);
 	cJSON_AddItemToObject(obj, "files", files_obj);
 	if (!files_obj)
 		return -1;
@@ -435,12 +442,12 @@ send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uin
 		return -1;
 	cJSON_AddItemToObject(obj, "filenames", filenames_obj);
 
-	cJSON *topics_obj = cJSON_CreateStringArray(topics, len);
+	cJSON *topics_obj = cJSON_CreateStringArray(topics, pos);
 	if (!topics_obj)
 		return -1;
 	cJSON_AddItemToObject(obj, "topics", topics_obj);
 
-	cJSON * delete_obj = cJSON_CreateIntArray(delete, len);
+	cJSON * delete_obj = cJSON_CreateIntArray(delete, pos);
 	if (!delete_obj)
 		return -1;
 	cJSON_AddItemToObject(obj, "delete", delete_obj);
@@ -448,7 +455,7 @@ send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uin
 	char *buf = cJSON_PrintUnformatted(obj);
 
 	cJSON_Delete(obj);
-	for (int i=0; i<len; ++i) {
+	for (int i=0; i<pos; ++i) {
 		free((void *)topics[i]);
 	}
 	free(filenames);
