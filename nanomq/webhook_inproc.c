@@ -24,10 +24,10 @@
 #include "nng/supplemental/nanolib/conf.h"
 #include "nng/supplemental/nanolib/log.h"
 #include "nng/supplemental/nanolib/utils.h"
+#include "nng/supplemental/nanolib/md5.h"
 #include "nng/supplemental/util/platform.h"
 
 #include "nng/mqtt/mqtt_client.h"
-#include "file_transfer.h"
 
 #ifdef SUPP_PARQUET
 #include "nng/supplemental/nanolib/parquet.h"
@@ -319,12 +319,10 @@ send_mqtt_msg_cat(nng_socket *sock, char *tmpfpath, nng_msg **msgs, uint32_t len
 	log_info("decryption result: %s (%d)", plain, plain_len);
 	*/
 
-	char *md5sum;
-	if (0 != CalcMD5n(buf, pos, tmpfpath, &md5sum)) {
-		nng_msg_free(pubmsg);
-		nng_free(buf, pos);
-		return -1;
-	}
+
+	char md5sum[32 + 1];
+	(void)Compute_string_md5(buf, pos, md5sum);
+
 	char *topic = malloc(sizeof(char) *(strlen(md5sum) + 128));
 	sprintf(topic, "$file/upload/MQ/%s/%s/%s-%lld-%lld",
 		ruleid, md5sum, conf_get_vin(), start_key, end_key);
@@ -351,7 +349,6 @@ send_mqtt_msg_cat(nng_socket *sock, char *tmpfpath, nng_msg **msgs, uint32_t len
 
 	nng_free(buf, pos);
 	nng_free(topic, 0);
-	nng_free(md5sum, 0);
 	return rv;
 }
 
@@ -419,7 +416,7 @@ static inline int get_md5_str(const char *str, char *md5sum) {
 	}
 
 	size_t len = end - start - 1;
-	if (len != MD5_LEN) {
+	if (len != 32) {
 		return -1;
 	}
 
@@ -434,17 +431,18 @@ send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uin
 {
 	int rv;
 	const char ** filenames = malloc(sizeof(char *) * len);
-	char tbuf[MD5_LEN + strlen(ruleid) + 65];
+	char tbuf[32 + strlen(ruleid) + 65 + 30];
 	const char **topics = malloc(sizeof(char *) * len);
 	int  *delete = malloc(sizeof(int) * len);
 	int   pos = 0;
 	for (int i=0; i<len; ++i) {
-		char md5sum[MD5_LEN+1];
+		char md5sum[32 + 1];
 		rv = get_md5_str(fpaths[i], md5sum);
 		if (rv != 0) {
 			log_error("error in getting md5sum(%s)", fpaths[i]);
 			continue;
 		}
+
 		filenames[pos++] = get_file_bname((char *)fpaths[i]);
 		sprintf(tbuf, "$file/upload/parquetfile/%s/%s/%s",
 			ruleid, md5sum, filenames[pos-1]);
