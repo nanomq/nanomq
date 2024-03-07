@@ -410,6 +410,25 @@ send_mqtt_msg_result(nng_socket *sock, char *ruleid, cJSON *resjo)
 	return 0;
 }
 
+static inline int get_md5_str(char *str, char *md5sum) {
+	char* start = strchr(str, '_');
+	char* end = strchr(start, '-');
+
+	if (start == NULL || end == NULL || end <= start) {
+		return -1;
+	}
+
+	size_t len = end - start - 1;
+	if (len != MD5_LEN) {
+		return -1;
+	}
+
+	strncpy(md5sum, start + 1, len);
+	md5sum[len] = '\0';
+
+	return 0;
+}
+
 static int
 send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uint32_t len, char * ruleid)
 {
