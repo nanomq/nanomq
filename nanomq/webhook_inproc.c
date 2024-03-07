@@ -440,7 +440,8 @@ send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uin
 	int   pos = 0;
 	for (int i=0; i<len; ++i) {
 		char md5sum[MD5_LEN+1];
-		if (1 != CalcFileMD5((char *)fpaths[i], md5sum)) {
+		rv = get_md5_str(fpaths[i], md5sum);
+		if (rv != 0) {
 			log_error("error in getting md5sum(%s)", fpaths[i]);
 			continue;
 		}
