@@ -337,9 +337,18 @@ send_mqtt_msg_cat(nng_socket *sock, char *tmpfpath, nng_msg **msgs, uint32_t len
 	nng_mqtt_msg_set_publish_payload(pubmsg, (uint8_t *) buf, pos);
 	nng_mqtt_msg_set_publish_topic(pubmsg, topic);
 
-	if ((rv = nng_sendmsg(*sock, pubmsg, NNG_FLAG_ALLOC)) != 0) {
+	nng_aio *aio;
+	nng_aio_alloc(&aio, NULL, NULL);
+	nng_aio_set_msg(aio, pubmsg);
+	nng_aio_set_timeout(aio, 3000);
+	nng_send_aio(*sock, aio);
+	nng_aio_wait(aio);
+	rv = nng_aio_result(aio);
+	if (rv != 0) {
 		log_error("nng_sendmsg", rv);
 	}
+	nng_aio_free(aio);
+
 	nng_free(buf, pos);
 	nng_free(topic, 0);
 	nng_free(md5sum, 0);
