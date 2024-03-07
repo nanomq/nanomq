@@ -409,15 +409,16 @@ send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uin
 	char tbuf[MD5_LEN + strlen(ruleid) + 65];
 	const char **topics = malloc(sizeof(char *) * len);
 	int  *delete = malloc(sizeof(int) * len);
+	int   pos = 0;
 	for (int i=0; i<len; ++i) {
 		char md5sum[MD5_LEN+1];
 		if (1 != CalcFileMD5((char *)fpaths[i], md5sum)) {
 			log_error("error in getting md5sum(%s)", fpaths[i]);
 			continue;
 		}
-		filenames[i] = get_file_bname((char *)fpaths[i]);
+		filenames[pos++] = get_file_bname((char *)fpaths[i]);
 		sprintf(tbuf, "$file/upload/parquetfile/%s/%s/%s",
-			ruleid, md5sum, filenames[i]);
+			ruleid, md5sum, filenames[pos-1]);
 		topics[i] = strdup(tbuf);
 		delete[i] = -1;
 	}
@@ -429,7 +430,7 @@ send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uin
 	if (!files_obj)
 		return -1;
 
-	cJSON *filenames_obj = cJSON_CreateStringArray(filenames, len);
+	cJSON *filenames_obj = cJSON_CreateStringArray(filenames, pos);
 	if (!filenames_obj)
 		return -1;
 	cJSON_AddItemToObject(obj, "filenames", filenames_obj);
