@@ -916,8 +916,11 @@ hook_work_cb(void *arg)
 				for (int i=0; i<msgs_len; ++i)
 					nng_msg_clone(msgs_res[i]);
 
-				size_t dirlen = strlen(parquetconf->dir) + strlen(HOOK_TMPFNAME) + 2;
+				size_t dirlen = ((parquetconf->enable == false || parquetconf->dir == NULL) ?
+								strlen("/tmp/") : strlen(parquetconf->dir)) +
+								strlen(HOOK_TMPFNAME) + RANDOM_STRING_LENGTH + 2;
 				char * tmpfpath = malloc(sizeof(char) * dirlen);
+				memset(tmpfpath, '\0', dirlen);
 				if (parquetconf->enable == false || parquetconf->dir == NULL) {
 					sprintf(tmpfpath, "/tmp/%s", HOOK_TMPFNAME);
 				} else {
@@ -926,6 +929,7 @@ hook_work_cb(void *arg)
 					else
 						sprintf(tmpfpath, "%s/%s", parquetconf->dir, HOOK_TMPFNAME);
 				}
+				generate_random_string(tmpfpath + strlen(tmpfpath), RANDOM_STRING_LENGTH);
 
 				log_info("Publish %ld msgs from exchange (%s)", msgs_len, tmpfpath);
 
@@ -936,6 +940,12 @@ hook_work_cb(void *arg)
 				for (int i=0; i<msgs_len; ++i)
 					nng_msg_free(msgs_res[i]);
 				nng_free(msgs_res, sizeof(nng_msg *) * msgs_len);
+
+				rv = remove(tmpfpath);
+				if (rv != 0) {
+					log_error("Error in remove tmp file %s errno: %d", tmpfpath, errno);
+				}
+
 				nng_free(tmpfpath, 0);
 			}
 #ifdef SUPP_PARQUET
