@@ -35,8 +35,6 @@
 
 #define NANO_LMQ_INIT_CAP 16
 
-#define HOOK_TMPFNAME ".nanomq-exchange-msgs-formd5"
-
 // The server keeps a list of work items, sorted by expiration time,
 // so that we can use this to set the timeout to the correct value for
 // use in poll.
@@ -255,7 +253,7 @@ err:
 #endif
 
 static int
-send_mqtt_msg_cat(nng_socket *sock, char *tmpfpath, nng_msg **msgs, uint32_t len,
+send_mqtt_msg_cat(nng_socket *sock, nng_msg **msgs, uint32_t len,
 		char *ruleid, uint64_t start_key, uint64_t end_key, char *key, bool encryption_enable)
 {
 	int rv;
@@ -627,17 +625,6 @@ thread_cb(void *arg)
 	}
 }
 
-#define RANDOM_STRING_LENGTH 10
-static inline void generate_random_string(char *str, size_t length) {
-    const char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    for (size_t i = 0; i < length; ++i) {
-        int index = rand() % (sizeof(charset) - 1);
-        str[i] = charset[index];
-    }
-    str[length] = '\0';
-	return;
-}
-
 static void
 hook_work_cb(void *arg)
 {
@@ -914,37 +901,13 @@ hook_work_cb(void *arg)
 				for (int i=0; i<msgs_len; ++i)
 					nng_msg_clone(msgs_res[i]);
 
-				size_t dirlen = ((parquetconf->enable == false || parquetconf->dir == NULL) ?
-								strlen("/tmp/") : strlen(parquetconf->dir)) +
-								strlen(HOOK_TMPFNAME) + RANDOM_STRING_LENGTH + 2;
-				char * tmpfpath = malloc(sizeof(char) * dirlen);
-				memset(tmpfpath, '\0', dirlen);
-				if (parquetconf->enable == false || parquetconf->dir == NULL) {
-					sprintf(tmpfpath, "/tmp/%s", HOOK_TMPFNAME);
-				} else {
-					if (parquetconf->dir[strlen(parquetconf->dir)-1] == '/')
-						sprintf(tmpfpath, "%s%s", parquetconf->dir, HOOK_TMPFNAME);
-					else
-						sprintf(tmpfpath, "%s/%s", parquetconf->dir, HOOK_TMPFNAME);
-				}
-				generate_random_string(tmpfpath + strlen(tmpfpath), RANDOM_STRING_LENGTH);
-
-				log_info("Publish %ld msgs from exchange (%s)", msgs_len, tmpfpath);
-
-				send_mqtt_msg_cat(work->mqtt_sock, tmpfpath, msgs_res, msgs_len,
+				send_mqtt_msg_cat(work->mqtt_sock, msgs_res, msgs_len,
 					ruleidstr, start_key, end_key,
 					exconf->encryption->key, exconf->encryption->enable);
 
 				for (int i=0; i<msgs_len; ++i)
 					nng_msg_free(msgs_res[i]);
 				nng_free(msgs_res, sizeof(nng_msg *) * msgs_len);
-
-				rv = remove(tmpfpath);
-				if (rv != 0) {
-					log_error("Error in remove tmp file %s errno: %d", tmpfpath, errno);
-				}
-
-				nng_free(tmpfpath, 0);
 			}
 #ifdef SUPP_PARQUET
 			// Get file names and send to localhost to active handler
