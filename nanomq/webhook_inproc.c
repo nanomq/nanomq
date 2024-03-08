@@ -318,7 +318,7 @@ send_mqtt_msg_cat(nng_socket *sock, nng_msg **msgs, uint32_t len,
 	*/
 
 
-	char md5sum[32 + 1];
+	char md5sum[MD5_LEN + 1];
 	(void)ComputeStringMD5(buf, pos, md5sum);
 
 	char *topic = malloc(sizeof(char) *(strlen(md5sum) + 128));
@@ -414,7 +414,7 @@ static inline int get_md5_str(const char *str, char *md5sum) {
 	}
 
 	size_t len = end - start - 1;
-	if (len != 32) {
+	if (len != MD5_LEN) {
 		return -1;
 	}
 
@@ -429,12 +429,12 @@ send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uin
 {
 	int rv;
 	const char ** filenames = malloc(sizeof(char *) * len);
-	char tbuf[32 + strlen(ruleid) + 65 + 30];
+	char tbuf[MD5_LEN + strlen(ruleid) + 65 + 30];
 	const char **topics = malloc(sizeof(char *) * len);
 	int  *delete = malloc(sizeof(int) * len);
 	int   pos = 0;
 	for (int i=0; i<len; ++i) {
-		char md5sum[32 + 1];
+		char md5sum[MD5_LEN + 1];
 		rv = get_md5_str(fpaths[i], md5sum);
 		if (rv != 0) {
 			log_error("error in getting md5sum(%s)", fpaths[i]);
