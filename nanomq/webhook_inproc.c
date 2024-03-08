@@ -319,7 +319,7 @@ send_mqtt_msg_cat(nng_socket *sock, nng_msg **msgs, uint32_t len,
 
 
 	char md5sum[32 + 1];
-	(void)Compute_string_md5(buf, pos, md5sum);
+	(void)ComputeStringMD5(buf, pos, md5sum);
 
 	char *topic = malloc(sizeof(char) *(strlen(md5sum) + 128));
 	sprintf(topic, "$file/upload/MQ/%s/%s/%s-%lld-%lld",
