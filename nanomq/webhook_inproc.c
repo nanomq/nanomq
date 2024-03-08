@@ -504,7 +504,6 @@ send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uin
 		log_error("nng_sendmsg", rv);
 	}
 	free(buf);
-	log_info("finish sent cat");
 
 	return rv;
 }
@@ -967,28 +966,23 @@ hook_work_cb(void *arg)
 					if (fnames_new) {
 						send_mqtt_msg_file(work->mqtt_sock, "file_transfer",
 							fnames_new, cvector_size(fnames_new), ruleidstr);
-						log_info("fnames_new %p", fnames_new);
 						cvector_free(fnames_new);
 					}
 				}
 				for (int i=0; i<(int)sz; ++i)
-					log_info("fnames[i] %p", fnames[i]);
 					if (fnames[i]) {
 						nng_free((void *)fnames[i], 0);
 					}
-				log_info("fnames %p", fnames);
 				nng_free(fnames, sz);
 			}
 #endif
 		}
 
-		log_info("res ... %p %p", ruleidstr, resjo);
 		send_mqtt_msg_result(work->mqtt_sock, ruleidstr, resjo);
 
 		int sent_files_sz = cvector_size(sent_files);
 		for (int i=sent_files_sz-1; i>=0; --i)
 			if (sent_files[i]) {
-				log_info("sentfiles... %p", sent_files[i]);
 				free(sent_files[i]);
 			}
 		if (sent_files_sz > 0)
