@@ -621,20 +621,17 @@ hook_exchange_sender_init(conf *nanomq_conf, struct work **works, uint64_t num_c
 		    &hook_conf->saios[i], send_exchange_cb, works[i]);
 	}
 
-	if (!parquet_conf->enable && !blf_conf->enable)
-		return -1;
-
 #ifdef SUPP_PARQUET
 	if (parquet_conf->enable) {
 
-		log_info("parquet_write_launcher");
+		log_info("init parquet_write_launcher");
 		parquet_write_launcher(parquet_conf);
 	}
 #endif
 
 #ifdef SUPP_BLF
 	if (blf_conf->enable) {
-		log_info("blf_write_launcher");
+		log_info("init blf_write_launcher");
 		blf_write_launcher(blf_conf);
 	}
 #endif
