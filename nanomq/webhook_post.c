@@ -538,9 +538,6 @@ hook_exchange_sender_init(conf *nanomq_conf, struct work **works, uint64_t num_c
 		nng_aio_alloc(&hook_conf->saios[i], send_exchange_cb, works[i]);
 	}
 
-	if (!parquet_conf->enable)
-		return -1;
-
 #ifdef SUPP_PARQUET
 	parquet_write_launcher(parquet_conf);
 #endif
