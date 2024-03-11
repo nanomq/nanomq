@@ -1748,6 +1748,7 @@ broker_start(int argc, char **argv)
 	}
 #endif
 #if defined(ENABLE_LOG)
+	printf("read conf path %s!!!!\n", nanomq_conf->conf_file);
 	if ((rc = log_init(&nanomq_conf->log)) != 0) {
 		NANO_NNG_FATAL("log_init", rc);
 	}
