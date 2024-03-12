@@ -424,12 +424,14 @@ static inline int get_md5_str(const char *str, char *md5sum) {
 	return 0;
 }
 
+#define TBUF_MAX 1024
+
 static int
 send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uint32_t len, char * ruleid)
 {
 	int rv;
 	const char ** filenames = malloc(sizeof(char *) * len);
-	char tbuf[MD5_LEN + strlen(ruleid) + 65 + 30];
+	char tbuf[TBUF_MAX];
 	const char **topics = malloc(sizeof(char *) * len);
 	int  *delete = malloc(sizeof(int) * len);
 	int   pos = 0;
@@ -442,6 +444,14 @@ send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uin
 		}
 
 		filenames[pos++] = get_file_bname((char *)fpaths[i]);
+		if (strlen(ruleid) + strlen(md5sum) + strlen(filenames[pos-1]) + strlen("$file/upload/parquetfile///" + 1) > TBUF_MAX) {
+			log_error("error in getting topic ruleid(%s) md5sum(%s) filename(%s), topic is too long(max: 1024)", ruleid, md5sum, filenames[pos-1]);
+			pos--;
+			if (filenames[pos] != NULL) {
+				free(filenames[pos]);
+			}
+			continue;
+		}
 		sprintf(tbuf, "$file/upload/parquetfile/%s/%s/%s",
 			ruleid, md5sum, filenames[pos-1]);
 		topics[pos-1] = strdup(tbuf);
