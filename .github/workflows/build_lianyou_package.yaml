@@ -1,0 +1,52 @@
+name: Build lianyou package
+
+concurrency:
+  group: build-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - xinyi/ci1
+  pull_request:
+  release:
+    types:
+    - published
+
+jobs:
+  build_lianyou_packages:
+    runs-on: ubuntu-18.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+        - [arm64, aarch64-linux-gnu-gcc, aarch64-linux-gnu-g++, aarch64-linux-gnu, /usr/aarch64-linux-gnu]
+    steps:
+    - name: install toolchains
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y g++-aarch64-linux-gnu gcc-aarch64-linux-gnu
+        sudo apt-get install -y cmake ninja-build
+        sudo apt-get install pkg-config
+
+    - name: install boost
+      run: |
+        set -eu
+        wget https://boostorg.jfrog.io/artifactory/main/release/1.66.0/source/boost_1_66_0.7z
+        sudo apt-get install p7zip-full
+        sudo apt-get install python3-dev
+        sudo apt-get install python-dev
+        7z x boost_1_66_0.7z
+        cd boost_1_66_0/
+        ./bootstrap.sh
+        ./b2 link=shared runtime-link=shared --with=all -j 8
+        rm -rf bin.v2/ stage/
+        ./b2 clean
+        ./bootstrap.sh --prefix=/usr/lib/aarch64-linux-gnu
+
+        sed 's/using gcc ;/using gcc : : /usr/bin/aarch64-linux-gnu-gcc ;/g' project-config.jam
+
+        ./b2 link=shared runtime-link=shared --with=all -j 32
+        ./bjam
+        ./bjam install
