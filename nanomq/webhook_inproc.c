@@ -41,6 +41,7 @@
 struct hook_work {
 	enum { HOOK_INIT, HOOK_RECV, HOOK_WAIT, HOOK_SEND } state;
 	nng_aio *      aio;
+	nng_aio *      send_aio;
 	nng_msg *      msg;
 	nng_thread *   thread;
 	nng_mtx *      mtx;
@@ -254,7 +255,7 @@ err:
 
 static int
 send_mqtt_msg_cat(nng_socket *sock, nng_msg **msgs, uint32_t len,
-		char *ruleid, uint64_t start_key, uint64_t end_key, char *key, bool encryption_enable)
+		char *ruleid, uint64_t start_key, uint64_t end_key, char *key, bool encryption_enable, nng_aio *saio)
 {
 	int rv;
 	nng_msg *pubmsg;
@@ -333,18 +334,12 @@ send_mqtt_msg_cat(nng_socket *sock, nng_msg **msgs, uint32_t len,
 	nng_mqtt_msg_set_publish_payload(pubmsg, (uint8_t *) buf, pos);
 	nng_mqtt_msg_set_publish_topic(pubmsg, topic);
 
-	nng_aio *aio;
-	nng_aio_alloc(&aio, NULL, NULL);
-	nng_aio_set_msg(aio, pubmsg);
-	nng_aio_set_timeout(aio, 3000);
-	nng_send_aio(*sock, aio);
-	nng_aio_wait(aio);
-	rv = nng_aio_result(aio);
-	if (rv != 0) {
-		log_error("nng_sendmsg", rv);
+	if (!nng_aio_busy(saio)) {
+		nng_aio_set_msg(saio, pubmsg);
+		nng_send_aio(*sock, saio);
+	} else {
+		log_warn("aio busy, MQ msg lost!");
 	}
-	nng_aio_free(aio);
-
 	nng_free(buf, pos);
 	nng_free(topic, 0);
 	return rv;
@@ -444,7 +439,7 @@ send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uin
 		}
 
 		filenames[pos++] = get_file_bname((char *)fpaths[i]);
-		if (strlen(ruleid) + strlen(md5sum) + strlen(filenames[pos-1]) + strlen("$file/upload/parquetfile///" + 1) > TBUF_MAX) {
+		if (strlen(ruleid) + strlen(md5sum) + strlen(filenames[pos-1]) + strlen("$file/upload/parquetfile///") + 1 > TBUF_MAX) {
 			log_error("error in getting topic ruleid(%s) md5sum(%s) filename(%s), topic is too long(max: 1024)", ruleid, md5sum, filenames[pos-1]);
 			pos--;
 			if (filenames[pos] != NULL) {
@@ -912,7 +907,7 @@ hook_work_cb(void *arg)
 
 				send_mqtt_msg_cat(work->mqtt_sock, msgs_res, msgs_len,
 					ruleidstr, start_key, end_key,
-					exconf->encryption->key, exconf->encryption->enable);
+					exconf->encryption->key, exconf->encryption->enable, work->send_aio);
 
 				for (int i=0; i<msgs_len; ++i)
 					nng_msg_free(msgs_res[i]);
@@ -1077,6 +1072,9 @@ alloc_work(nng_socket sock, conf_web_hook *conf, conf_exchange *exconf,
 		NANO_NNG_FATAL("nng_alloc", NNG_ENOMEM);
 	}
 	if ((rv = nng_aio_alloc(&w->aio, hook_work_cb, w)) != 0) {
+		NANO_NNG_FATAL("nng_aio_alloc", rv);
+	}
+	if ((rv = nng_aio_alloc(&w->send_aio, NULL, NULL)) != 0) {
 		NANO_NNG_FATAL("nng_aio_alloc", rv);
 	}
 	if ((rv = nng_mtx_alloc(&w->mtx)) != 0) {
