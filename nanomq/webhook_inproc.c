@@ -254,6 +254,91 @@ err:
 #endif
 
 static int
+send_mqtt_msg_cat_with_split(nng_socket *sock, nng_msg **msgs, uint32_t len,
+		char *ruleid, uint64_t start_key, uint64_t end_key, char *key, bool encryption_enable,
+		nng_aio *saio, uint32_t split_len)
+{
+	int rv;
+	nng_msg *pubmsg;
+	uint32_t sz = 0;
+
+	if (split_len == 0 || len == 0) {
+		log_warn("Split len is 0 or len is 0");
+		return -1;
+	}
+	int j = len / split_len + 1;
+	for (uint32_t z = 0; z < j; z++) { // j times send
+		sz = 0;
+		int minlen = split_len > (len - z * split_len) ? (len - z * split_len) : split_len;
+		for (int i = z * split_len; i < z * split_len + minlen; ++i) {
+			uint32_t diff;
+			diff = nng_msg_len(msgs[i]) -
+				((uintptr_t)nng_msg_payload_ptr(msgs[i]) - (uintptr_t) nng_msg_body(msgs[i]));
+			sz += diff;
+		}
+
+		char *buf = nng_alloc(sizeof(char) * (sz+minlen+8));
+		int   pos = 0;
+		for (int i = z * split_len; i < z * split_len + minlen; ++i) {
+			uint32_t diff;
+			diff = nng_msg_len(msgs[i]) -
+				((uintptr_t)nng_msg_payload_ptr(msgs[i]) - (uintptr_t) nng_msg_body(msgs[i]));
+			if (sz+minlen+8 >= pos + diff) {
+				memcpy(buf + pos, nng_msg_payload_ptr(msgs[i]), diff);
+				memcpy(buf + pos + 1, "\n", 1);
+			} else
+				log_error("buffer overflow! bufsz %d len %d", sz+minlen+8, pos+diff);
+			pos += (diff + 1);
+		}
+
+		if (encryption_enable == true) {
+			char *cipher = NULL;
+			int   cipher_len;
+			char *tag; // Now I know
+			cipher = aes_gcm_encrypt(buf, pos, key, &tag, &cipher_len);
+			if (cipher == NULL) {
+				log_error("error in aes gcm encryption");
+				nng_free(buf, pos);
+				nng_free(tag, 0);
+				return -1;
+			}
+			nng_free(buf, pos);
+			nng_free(tag, 0);
+
+			buf = cipher;
+			pos = cipher_len;
+		}
+
+		char md5sum[MD5_LEN + 1];
+		(void)ComputeStringMD5(buf, pos, md5sum);
+
+		char *topic = malloc(sizeof(char) *(strlen(md5sum) + 128));
+		sprintf(topic, "$file/upload/MQ/%s/%s/%s-%lld-%lld",
+			ruleid, md5sum, conf_get_vin(), start_key, end_key);
+		log_info("The %ld msgs (sz%d) for ts(%lld-%lld)(%d) will go to topic %s", minlen, pos,
+			start_key, end_key, z, topic);
+
+		nng_mqtt_msg_alloc(&pubmsg, 0);
+		nng_mqtt_msg_set_packet_type(pubmsg, NNG_MQTT_PUBLISH);
+		nng_mqtt_msg_set_publish_qos(pubmsg, 0);
+		nng_mqtt_msg_set_publish_retain(pubmsg, 0);
+		nng_mqtt_msg_set_publish_payload(pubmsg, (uint8_t *) buf, pos);
+		nng_mqtt_msg_set_publish_topic(pubmsg, topic);
+
+		if (!nng_aio_busy(saio)) {
+			nng_aio_set_msg(saio, pubmsg);
+			nng_send_aio(*sock, saio);
+		} else {
+			log_warn("aio busy, MQ msg lost!");
+		}
+		nng_free(buf, pos);
+		nng_free(topic, 0);
+	}
+
+	return rv;
+}
+
+static int
 send_mqtt_msg_cat(nng_socket *sock, nng_msg **msgs, uint32_t len,
 		char *ruleid, uint64_t start_key, uint64_t end_key, char *key, bool encryption_enable, nng_aio *saio)
 {
@@ -329,7 +414,7 @@ send_mqtt_msg_cat(nng_socket *sock, nng_msg **msgs, uint32_t len,
 
 	nng_mqtt_msg_alloc(&pubmsg, 0);
 	nng_mqtt_msg_set_packet_type(pubmsg, NNG_MQTT_PUBLISH);
-	nng_mqtt_msg_set_publish_qos(pubmsg, 1);
+	nng_mqtt_msg_set_publish_qos(pubmsg, 0);
 	nng_mqtt_msg_set_publish_retain(pubmsg, 0);
 	nng_mqtt_msg_set_publish_payload(pubmsg, (uint8_t *) buf, pos);
 	nng_mqtt_msg_set_publish_topic(pubmsg, topic);
@@ -905,9 +990,10 @@ hook_work_cb(void *arg)
 				for (int i=0; i<msgs_len; ++i)
 					nng_msg_clone(msgs_res[i]);
 
-				send_mqtt_msg_cat(work->mqtt_sock, msgs_res, msgs_len,
+				send_mqtt_msg_cat_with_split(work->mqtt_sock, msgs_res, msgs_len,
 					ruleidstr, start_key, end_key,
-					exconf->encryption->key, exconf->encryption->enable, work->send_aio);
+					exconf->encryption->key, exconf->encryption->enable,
+					work->send_aio, 800); // TODO hardcode
 
 				for (int i=0; i<msgs_len; ++i)
 					nng_msg_free(msgs_res[i]);
