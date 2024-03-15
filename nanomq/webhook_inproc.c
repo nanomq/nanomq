@@ -289,7 +289,7 @@ send_mqtt_msg_cat_with_split(nng_socket *sock, nng_msg **msgs, uint32_t len,
 				memcpy(buf + pos, nng_msg_payload_ptr(msgs[i]),
 				    diff);
 				pos += diff;
-				memcpy(buf + pos + 1, "\n", 1);
+				memcpy(buf + pos, "\n", 1);
 				pos += 1;
 			} else
 				log_error("buffer overflow! bufsz %d len %d",
