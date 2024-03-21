@@ -1431,11 +1431,15 @@ bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 #endif
 
 	nng_msg    *dismsg;
-	nng_socket *tsock;
-	nng_socket *new = (nng_socket *) nng_alloc(sizeof(nng_socket));
-
 	if ((dismsg = create_disconnect_msg()) == NULL)
 		return -1;
+
+	nng_socket *tsock;
+	nng_socket *new = (nng_socket *) nng_alloc(sizeof(nng_socket));
+	if (new == NULL) {
+		nng_msg_free(dismsg);
+		return -1;
+	}
 
 	bridge_param    *bridge_arg = (bridge_param *) node->bridge_arg;
 	nng_mqtt_client *client     = bridge_arg->client;
@@ -1465,6 +1469,7 @@ bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 	} else {
 		log_error("Unsupported bridge protocol.\n");
 		nng_mtx_unlock(reload_lock);
+		nng_free(new, sizeof(nng_socket));
 		return -1;
 	}
 	if (0 == strncmp(node->address, tcp_scheme, strlen(tcp_scheme)) ||
