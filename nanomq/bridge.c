@@ -500,11 +500,13 @@ hybrid_tcp_client(bridge_param *bridge_arg)
 
 	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 		if ((rv = nng_mqttv5_client_open(new)) != 0) {
+			nng_free(new, sizeof(nng_socket));
 			log_error("Initializing mqttv5 client failed %d", rv);
 			return rv;
 		}
 	} else {
 		if ((rv = nng_mqtt_client_open(new)) != 0) {
+			nng_free(new, sizeof(nng_socket));
 			log_error("Initializing mqtt client failed %d", rv);
 			return rv;
 		}
@@ -513,6 +515,7 @@ hybrid_tcp_client(bridge_param *bridge_arg)
 	apply_sqlite_config(new, node, "mqtt_client.db");
 
 	if ((rv = nng_dialer_create(&dialer, *new, node->address))) {
+		nng_free(new, sizeof(nng_socket));
 		log_error("nng_dialer_create %d", rv);
 		return rv;
 	}
@@ -521,6 +524,7 @@ hybrid_tcp_client(bridge_param *bridge_arg)
 	if (node->tls.enable) {
 		if ((rv = init_dialer_tls(dialer, node->tls.ca, node->tls.cert,
 		         node->tls.key, node->tls.key_password)) != 0) {
+			nng_free(new, sizeof(nng_socket));
 			log_error("init_dialer_tls %d", rv);
 			return rv;
 		}
