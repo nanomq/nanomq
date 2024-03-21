@@ -485,6 +485,7 @@ flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio)
 	blf_write_batch_async(blf_obj);
 
 #endif
+#else
 	nng_free(keys, len);
 	nng_free(datas, len);
 	nng_free(lens, len);
