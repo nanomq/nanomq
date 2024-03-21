@@ -278,7 +278,7 @@ hook_entry(nano_work *work, uint8_t reason)
 	nng_socket    *sock      = &work->hook_sock;
 	nng_socket    *ex_sock;
 	conf_parquet  *parquetconf = &work->config->parquet;
-	conf_parquet  *blfconf     = &work->config->blf;
+	conf_blf      *blfconf     = &work->config->blf;
 
 	// process MQ msg first, only pub msg is valid
 	// discard online/offline event msg?
