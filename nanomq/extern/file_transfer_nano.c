@@ -469,7 +469,7 @@ static int process_msg(nng_socket *sock, nng_msg *msg, bool verbose)
 						if (deleteEle != NULL && deleteEle->valueint >= 0) {
 							if (deleteEle->valueint == 0) {
 								int ret;
-								ret = nng_file_delete(deleteEle->valuestring);
+								ret = nng_file_delete(pathEle->valuestring);
 								log_info("Delete imediately: file:%s result: %d\n", pathEle->valuestring, ret);
 							} else {
 								nng_aio *aio;
