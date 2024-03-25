@@ -8,14 +8,16 @@ on:
   push:
     branches:
       - lianyou-master
+      - xinyi/ci3
   pull_request:
+    branches:
       - lianyou-master
   release:
     types:
     - published
 
 jobs:
-  build and upload:
+  build_and_upload:
     runs-on: ubuntu-latest
 
     strategy:
