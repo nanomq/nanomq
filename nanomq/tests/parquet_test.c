@@ -3,7 +3,7 @@
 #include "nng/nng.h"
 #include "nng/supplemental/nanolib/cvector.h"
 #include "nng/supplemental/nanolib/parquet.h"
-#include "string.h"
+#include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -310,11 +310,41 @@ parquet_write_batch_tmp_async_test2(void)
 	return w;
 }
 
+void
+clear_folder(const char *folderPath)
+{
+	DIR *dir = opendir(folderPath);
+	if (dir == NULL) {
+		fprintf(stderr, "Failed to open directory: %s\n", folderPath);
+		return;
+	}
+
+	struct dirent *entry;
+	while ((entry = readdir(dir)) != NULL) {
+		if (strcmp(entry->d_name, ".") == 0 ||
+		    strcmp(entry->d_name, "..") == 0) {
+			continue;
+		}
+
+		char filePath[512];
+		snprintf(filePath, sizeof(filePath), "%s/%s", folderPath,
+		    entry->d_name);
+
+		if (remove(filePath) != 0) {
+			fprintf(stderr,
+			    "Failed to remove file/directory: %s\n", filePath);
+		}
+	}
+
+	closedir(dir);
+}
+
 conf_parquet *
 conf_parquet_init()
 {
 
 	conf_parquet *conf      = ALLOC_STRUCT(conf);
+	conf->enable            = true;
 	conf->dir               = strdup("/tmp/parquet");
 	conf->file_name_prefix  = strdup("ly");
 	conf->comp_type         = UNCOMPRESSED;
@@ -325,6 +355,8 @@ conf_parquet_init()
 	conf->encryption.key    = "0123456789012345";
 	conf->encryption.key_id = "kf";
 	conf->encryption.type   = AES_GCM_V1;
+	clear_folder(conf->dir);
+
 	return conf;
 }
 
@@ -442,8 +474,6 @@ error:
 	abort();
 }
 
-
-
 int
 main(int argc, char **argv)
 {
@@ -451,13 +481,13 @@ main(int argc, char **argv)
 	conf_parquet *conf = conf_parquet_init();
 
 	parquet_write_launcher(conf);
-	puts("parquet write batch async");
+	puts("parquet write batch async passed!");
 	parquet_write_batch_async_test();
-	puts("parquet write batch tmp async");
+	puts("parquet write batch tmp async passed!");
 	parquet_write_batch_async_tmp_test();
-	puts("parquet_find_span_test");
+	puts("parquet_find_span_test passed!");
 	parquet_find_span_test();
-	puts("parquet_find_data_packet_test");
+	puts("parquet_find_data_packet_test passed!");
 	parquet_find_data_packet_test();
 
 	return 0;
