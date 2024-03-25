@@ -739,11 +739,13 @@ hybrid_cb(void *arg)
 int
 hybrid_bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 {
-	bridge_param *bridge_arg;
+	bridge_param *bridge_arg = NULL;
 	if ((bridge_arg = nng_alloc(sizeof(bridge_param))) == NULL) {
 		log_error("memory error in allocating bridge client");
 		return NNG_ENOMEM;
 	}
+	bridge_arg->exec_mtx = NULL;
+	bridge_arg->exec_cv  = NULL;
 
 	bridge_arg->config = node;
 	bridge_arg->sock   = sock;
@@ -755,18 +757,18 @@ hybrid_bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	int rv = nng_mtx_alloc(&bridge_arg->exec_mtx);
 	if (rv != 0) {
 		NANO_NNG_FATAL("nng_mtx_alloc", rv);
-		return rv;
+		goto error;
 	}
 	rv = nng_cv_alloc(&bridge_arg->exec_cv, bridge_arg->exec_mtx);
 	if (rv != 0) {
 		NANO_NNG_FATAL("nng_cv_alloc", rv);
-		return rv;
+		goto error;
 	}
 
 	rv = nng_thread_create(&hybrid_thr, hybrid_cb, (void *)bridge_arg);
 	if (rv != 0) {
 		NANO_NNG_FATAL("nng_thread_create", rv);
-		return rv;
+		goto error;
 	}
 
 	nng_mtx_lock(bridge_arg->exec_mtx);
@@ -774,6 +776,17 @@ hybrid_bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	nng_mtx_unlock(bridge_arg->exec_mtx);
 	nng_cv_free(bridge_arg->exec_cv);
 	bridge_arg->exec_cv = NULL;
+
+error:
+	if(bridge_arg->exec_cv != NULL) {
+		nng_cv_free(bridge_arg->exec_cv);
+	}
+	if(bridge_arg->exec_mtx != NULL) {
+		nng_mtx_free(bridge_arg->exec_mtx);
+	}
+	if(bridge_arg != NULL) {
+		nng_free(bridge_arg, sizeof(bridge_param));
+	}
 
 	return rv;
 }
