@@ -1,0 +1,35 @@
+name: Build lianyou package
+
+concurrency:
+  group: build-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - lianyou-master
+  pull_request:
+      - lianyou-master
+  release:
+    types:
+    - published
+
+jobs:
+  build and upload:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+        with:
+          name: lianyou-master
+      - run: |
+          git submodule update --init --recursive
+          cd nng && git checkout moi_master_1228
+      - run: docker build -t nanomq_with_parquet -f deploy/lianyou-deploy/Dockerfile .
+      - run: |
+          docker run -d -e DEBUG=1 --name nanomq nanomq_with_parquet --log_level debug
+          docker cp nanomq:/opt/NanoMQ_Mirror/build/nanomq/nanomq package/nanomq
+          docker cp nanomq:/opt/NanoMQ_Mirror/build-debug/nanomq/nanomq package/nanomq-debug
