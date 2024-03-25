@@ -8,7 +8,6 @@ on:
   push:
     branches:
       - lianyou-master
-      - xinyi/ci3
   pull_request:
     branches:
       - lianyou-master
@@ -24,7 +23,7 @@ jobs:
       fail-fast: false
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           name: lianyou-master
       - run: |
@@ -33,11 +32,14 @@ jobs:
       - run: docker build -t nanomq_with_parquet -f deploy/lianyou-deploy/Dockerfile .
       - run: |
           mkdir packages
-          docker run -d -e DEBUG=1 --name nanomq nanomq_with_parquet
-          docker cp nanomq:/opt/NanoMQ_mirror/build/nanomq/nanomq packages/nanomq
-          docker cp nanomq:/opt/NanoMQ_mirror/build-debug/nanomq/nanomq packages/nanomq-debug
+          git log -1 >> packages/readme.txt
+          cd nng && git log -1 >> ../packages/readme.txt && cd -
+          id=$(docker create nanomq_with_parquet)
+          docker cp $id:/opt/NanoMQ_mirror/build/nanomq/nanomq packages/nanomq
+          docker cp $id:/opt/NanoMQ_mirror/build-debug/nanomq/nanomq packages/nanomq-debug
+          docker rm -v $id
       - uses: actions/upload-artifact@v4
         with:
           name: packages
-          path: "packages/*"
+          path: packages/
           retention-days: 7
