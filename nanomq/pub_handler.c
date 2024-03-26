@@ -17,6 +17,7 @@
 #include "include/nanomq.h"
 #include "nng/nng.h"
 #include "nng/mqtt/packet.h"
+#include "nng/supplemental/nanolib/hash_table.h"
 #include "nng/supplemental/nanolib/mqtt_db.h"
 #include "nng/supplemental/nanolib/cJSON.h"
 #include "include/nanomq_rule.h"
@@ -1102,6 +1103,22 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 
 	topic        = work->pub_packet->var_header.publish.topic_name.body;
 	uint32_t len = work->pub_packet->var_header.publish.topic_name.len;
+
+	if (work->config->auth_http.enable) {
+		struct topic_queue *tq = topic_queue_init(topic, len);
+		if (tq == NULL) {
+			log_error("topic_queue_init failed!");
+		} else {
+			int rv = nmq_auth_http_sub_pub(work->cparam, false, tq, &work->config->auth_http);
+			if (rv != 0) {
+				log_error("Auth failed! publish packet!");
+				topic_queue_release(tq);
+				return NOT_AUTHORIZED;
+			}
+		}
+
+		topic_queue_release(tq);
+	}
 
 	// deal with topic alias
 	if (proto == MQTT_PROTOCOL_VERSION_v5) {
