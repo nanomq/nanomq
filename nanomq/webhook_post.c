@@ -438,8 +438,15 @@ flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio)
 	keys = nng_alloc(sizeof(uint64_t)* len);
 	datas = nng_alloc(sizeof(void *) * len);
 	lens = nng_alloc(sizeof(uint32_t) * len);
-	if (!datas || !keys || !lens)
+	if (!datas || !keys || !lens) {
+		if (keys)
+			nng_free(keys, sizeof(uint64_t) * len);
+		if (datas)
+			nng_free(datas, sizeof(void *) * len);
+		if (len)
+			nng_free(lens, sizeof(uint32_t) * len);
 		return NNG_ENOMEM;
+	}
 
 	int len2 = 0;
 	for (int i=0; i<(int)len; ++i) {
