@@ -711,7 +711,7 @@ hook_cb(void *arg)
 	rv = nng_pull0_open(&sock);
 	if (rv != 0) {
 		log_error("nng_pull0_open %d", rv);
-		return;
+		goto out;
 	}
 
 	for (i = 0; i < works_num; i++) {
@@ -721,7 +721,7 @@ hook_cb(void *arg)
 	// NanoMQ core thread talks to others via INPROC
 	if ((rv = nng_listen(sock, HOOK_IPC_URL, NULL, 0)) != 0) {
 		log_error("hook nng_listen %d", rv);
-		return;
+		goto out;
 	}
 
 	if (hook_search_limit == NULL)
@@ -730,7 +730,7 @@ hook_cb(void *arg)
 	if (0 != (rv = nng_aio_alloc(&hook_search_reset_aio,
 			hook_search_reset, &conf->parquet))) {
 		log_error("hook hook_search reset aio init failed %d", rv);
-		return;
+		goto out;
 	}
 	nng_aio_finish(hook_search_reset_aio, 0); // Start
 	log_info("hook hook_search reset aio started");
@@ -744,6 +744,7 @@ hook_cb(void *arg)
 		nng_msleep(3600000); // neither pause() nor sleep() portable
 	}
 
+out:
 	// Free hook search reset aio and limit atomic
 	if (hook_search_limit)
 		nng_atomic_free(hook_search_limit);
