@@ -92,7 +92,6 @@ handle_recv(const char *msg, size_t msg_len, conf *config, char **err_msg)
 	return 0;
 
 err:
-	conf_fini(new_conf);
 	cJSON_Delete(obj);
 	return -1;
 }
