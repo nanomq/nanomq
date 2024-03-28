@@ -711,7 +711,8 @@ hook_cb(void *arg)
 	rv = nng_pull0_open(&sock);
 	if (rv != 0) {
 		log_error("nng_pull0_open %d", rv);
-		goto out;
+		nng_free(works, works_num * sizeof(struct hook_work *));
+		return;
 	}
 
 	for (i = 0; i < works_num; i++) {
