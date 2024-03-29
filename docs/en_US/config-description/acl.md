@@ -40,8 +40,8 @@ Write the username and password in this format `username:password` and save it t
 Example:
 
 ```hcl
-admin: public    # Username and password for the admin user
-client: public   # Username and password for a client user
+"admin": "public"    # Username and password for the admin user
+"client": "public"   # Username and password for a client user
 ```
 
 ## nanomq_acl.conf
