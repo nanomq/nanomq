@@ -46,8 +46,8 @@ password = {include "/etc/nanomq_pwd.conf"}
 **示例**：
 
 ```hcl
-admin:public    # 管理员的用户名和密码
-client:public   # 客户端的用户名和密码
+"admin":"public"    # 管理员的用户名和密码
+"client":"public"   # 客户端的用户名和密码
 ```
 
 ## nanomq_acl.conf
