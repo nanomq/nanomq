@@ -354,30 +354,6 @@ server_cb(void *arg)
 			smsg = work->msg;
 			work->msg_ret = NULL;
 
-			if (work->config->auth_http.enable) {
-				topic_queue *tq = NULL;
-				rv = nmq_subtopic_decode(smsg, work->proto_ver, &tq);
-				if (rv <= 0 || tq == NULL) {
-					log_error("Sub topic decode failed!");
-					work->code = rv;
-					work->state = CLOSE;
-					nng_aio_finish(work->aio, 0);
-					break;
-				}
-
-				rv = nmq_auth_http_sub_pub(work->cparam, true, tq, &work->config->auth_http);
-				if (rv != 0) {
-					log_error("Auth failed! subscribe packet!");
-					topic_queue_release(tq);
-					conn_param_free(work->cparam);
-					work->code = rv;
-					work->state = CLOSE;
-					nng_aio_finish(work->aio, 0);
-					break;
-				}
-				topic_queue_release(tq);
-			}
-
 			if ((work->sub_pkt = nng_alloc(
 			         sizeof(packet_subscribe))) == NULL)
 				log_error("nng_alloc");
