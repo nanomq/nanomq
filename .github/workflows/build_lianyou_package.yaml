@@ -30,6 +30,7 @@ jobs:
           git submodule update --init --recursive
           cd nng && git checkout moi_master_1228
       - run: docker build -t nanomq_with_parquet -f deploy/lianyou-deploy/Dockerfile .
+      - run: docker build -t nanomq_with_parquet_arm64 -f deploy/lianyou-deploy/Dockerfile-arm64 .
       - run: |
           mkdir packages
           git log -1 >> packages/readme.txt
@@ -38,6 +39,12 @@ jobs:
           docker cp $id:/opt/NanoMQ_mirror/build/nanomq/nanomq packages/nanomq
           docker cp $id:/opt/NanoMQ_mirror/build-debug/nanomq/nanomq packages/nanomq-debug
           docker rm -v $id
+
+          id=$(docker create nanomq_with_parquet_arm64)
+          docker cp $id:/opt/NanoMQ_mirror/build/nanomq/nanomq packages/nanomq-arm64
+          docker cp $id:/opt/NanoMQ_mirror/build-debug/nanomq/nanomq packages/nanomq-arm64-debug
+          docker rm -v $id
+
       - uses: actions/upload-artifact@v4
         with:
           name: packages
