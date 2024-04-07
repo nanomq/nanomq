@@ -8,16 +8,27 @@ on:
   push:
     branches:
       - lianyou-master
+        # - xinyi/ci3
+    tags:
+      - '*'
   pull_request:
     branches:
       - lianyou-master
+      - xinyi/ci3
   release:
     types:
-    - published
+      - published
+    branches:
+      - lianyou-master
+        # - xinyi/ci3
 
 jobs:
   build_and_upload:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      repository-projects: write
 
     strategy:
       fail-fast: false
@@ -50,3 +61,13 @@ jobs:
           name: packages
           path: packages/
           retention-days: 7
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          prerelease: ${{ steps.prerelease.outputs.prerelease }}
+          generate_release_notes: true
+          token: ${{ github.token }}
+          name: NanoMQ ${{ github.ref_name }} Released
+          files: packages/nanomq*
