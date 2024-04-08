@@ -277,23 +277,21 @@ send_mqtt_msg_cat_with_split(nng_socket *sock, nng_msg **msgs, uint32_t len,
 			sz += diff;
 		}
 
-		char *buf = nng_alloc(sizeof(char) * (sz + minlen + 8));
-		memset(buf, 0, sizeof(char) * (sz + minlen + 8));
+		char *buf = nng_alloc(sizeof(char) * (sz + 8));
+		memset(buf, 0, sizeof(char) * (sz + 8));
 		int pos = 0;
 		for (int i = z * split_len; i < z * split_len + minlen; ++i) {
 			uint32_t diff;
 			diff = nng_msg_len(msgs[i]) -
 			    ((uintptr_t) nng_msg_payload_ptr(msgs[i]) -
 			        (uintptr_t) nng_msg_body(msgs[i]));
-			if (sz + minlen + 8 >= pos + diff) {
+			if (sz + 8 >= pos + diff) {
 				memcpy(buf + pos, nng_msg_payload_ptr(msgs[i]),
 				    diff);
 				pos += diff;
-				memcpy(buf + pos, "\n", 1);
-				pos += 1;
 			} else
 				log_error("buffer overflow! bufsz %d len %d",
-				    sz + minlen + 8, pos + diff);
+				    sz + 8, pos + diff);
 		}
 
 		if (encryption_enable == true) {
