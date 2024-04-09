@@ -8,19 +8,14 @@ on:
   push:
     branches:
       - lianyou-master
-        # - xinyi/ci3
     tags:
       - '*'
   pull_request:
     branches:
       - lianyou-master
-      - xinyi/ci3
   release:
     types:
       - published
-    branches:
-      - lianyou-master
-        # - xinyi/ci3
 
 jobs:
   build_and_upload:
@@ -44,16 +39,17 @@ jobs:
       - run: docker build -t nanomq_with_parquet_arm64 -f deploy/lianyou-deploy/Dockerfile-arm64 .
       - run: |
           mkdir packages
+          pkgversion="$(git describe --abbrev=0 --tags | tr '-' '_')"
           git log -1 >> packages/readme.txt
           cd nng && git log -1 >> ../packages/readme.txt && cd -
           id=$(docker create nanomq_with_parquet)
-          docker cp $id:/opt/NanoMQ_mirror/build/nanomq/nanomq packages/nanomq
-          docker cp $id:/opt/NanoMQ_mirror/build-debug/nanomq/nanomq packages/nanomq-debug
+          docker cp $id:/opt/NanoMQ_mirror/build/nanomq/nanomq packages/nanomq-${pkgversion}-linux-amd64
+          docker cp $id:/opt/NanoMQ_mirror/build-debug/nanomq/nanomq packages/nanomq-${pkgversion}-linux-amd64-debug
           docker rm -v $id
 
           id=$(docker create nanomq_with_parquet_arm64)
-          docker cp $id:/opt/NanoMQ_mirror/build/nanomq/nanomq packages/nanomq-arm64
-          docker cp $id:/opt/NanoMQ_mirror/build-debug/nanomq/nanomq packages/nanomq-arm64-debug
+          docker cp $id:/opt/NanoMQ_mirror/build/nanomq/nanomq packages/nanomq-${pkgversion}-linux-arm64
+          docker cp $id:/opt/NanoMQ_mirror/build-debug/nanomq/nanomq packages/nanomq-${pkgversion}-arm64-linux-debug
           docker rm -v $id
 
       - uses: actions/upload-artifact@v4
@@ -70,4 +66,4 @@ jobs:
           generate_release_notes: true
           token: ${{ github.token }}
           name: NanoMQ ${{ github.ref_name }} Released
-          files: packages/nanomq*
+          files: packages/*
