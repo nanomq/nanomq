@@ -30,8 +30,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-        with:
-          name: lianyou-master
+          # with:
+          #   name: lianyou-master
       - run: |
           git submodule update --init --recursive
           cd nng && git checkout moi_master_1228
@@ -45,17 +45,21 @@ jobs:
           id=$(docker create nanomq_with_parquet)
           docker cp $id:/opt/NanoMQ_mirror/build/nanomq/nanomq packages/nanomq-${pkgversion}-linux-amd64
           docker cp $id:/opt/NanoMQ_mirror/build-debug/nanomq/nanomq packages/nanomq-${pkgversion}-linux-amd64-debug
+          tar -zcvf packages/nanomq-${pkgversion}-linux-amd64.tar.gz packages/nanomq-${pkgversion}-linux-amd64
+          tar -zcvf packages/nanomq-${pkgversion}-linux-amd64-debug.tar.gz packages/nanomq-${pkgversion}-linux-amd64-debug
           docker rm -v $id
 
           id=$(docker create nanomq_with_parquet_arm64)
           docker cp $id:/opt/NanoMQ_mirror/build/nanomq/nanomq packages/nanomq-${pkgversion}-linux-arm64
-          docker cp $id:/opt/NanoMQ_mirror/build-debug/nanomq/nanomq packages/nanomq-${pkgversion}-arm64-linux-debug
+          docker cp $id:/opt/NanoMQ_mirror/build-debug/nanomq/nanomq packages/nanomq-${pkgversion}-linux-arm64-debug
+          tar -zcvf packages/nanomq-${pkgversion}-linux-arm64.tar.gz packages/nanomq-${pkgversion}-linux-arm64
+          tar -zcvf packages/nanomq-${pkgversion}-linux-arm64-debug.tar.gz packages/nanomq-${pkgversion}-linux-arm64-debug
           docker rm -v $id
 
       - uses: actions/upload-artifact@v4
         with:
           name: packages
-          path: packages/
+          path: packages/*.tar.gz
           retention-days: 7
 
       - name: Create Release
@@ -66,4 +70,4 @@ jobs:
           generate_release_notes: true
           token: ${{ github.token }}
           name: NanoMQ ${{ github.ref_name }} Released
-          files: packages/*
+          files: packages/*.tar.gz
