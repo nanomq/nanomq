@@ -1,7 +1,7 @@
 name: Build lianyou package
 
 concurrency:
-  group: build-${{ github.event_name }}-${{ github.ref }}
+  group: build-lianyou-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 on:
