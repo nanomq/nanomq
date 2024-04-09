@@ -294,6 +294,7 @@ send_mqtt_msg_cat_with_split(nng_socket *sock, nng_msg **msgs, uint32_t len,
 				    sz + 8, pos + diff);
 		}
 
+#ifdef SUPP_PARQUET
 		if (encryption_enable == true) {
 			char *cipher = NULL;
 			int   cipher_len;
@@ -311,6 +312,7 @@ send_mqtt_msg_cat_with_split(nng_socket *sock, nng_msg **msgs, uint32_t len,
 			buf = cipher;
 			pos = cipher_len;
 		}
+#endif
 
 		char md5sum[MD5_LEN + 1];
 		(void)ComputeStringMD5(buf, pos, md5sum);
@@ -367,6 +369,7 @@ send_mqtt_msg_cat(nng_socket *sock, nng_msg **msgs, uint32_t len,
 		pos += diff;
 	}
 
+#ifdef SUPP_PARQUET
 	if (encryption_enable == true) {
 		char *cipher = NULL;
 		int   cipher_len;
@@ -384,6 +387,7 @@ send_mqtt_msg_cat(nng_socket *sock, nng_msg **msgs, uint32_t len,
 		buf = cipher;
 		pos = cipher_len;
 	}
+#endif
 
 	/* debug
 	printf("tag + cipher len: %d\n", cipher_len);
@@ -1072,7 +1076,9 @@ hook_work_cb(void *arg)
 #endif
 		}
 
+#ifdef SUPP_PARQUET
 		send_mqtt_msg_result(work->mqtt_sock, ruleidstr, resjo);
+#endif
 
 		int sent_files_sz = cvector_size(sent_files);
 		for (int i=sent_files_sz-1; i>=0; --i)
