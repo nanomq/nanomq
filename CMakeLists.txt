@@ -231,6 +231,7 @@ if(NNG_ENABLE_QUIC)
 endif()
 
 if(ENABLE_ICEORYX)
+  set(BUILD_ICEORYX_CLI ON)
   set(NNG_ENABLE_ICEORYX ON)
   add_definitions(-DSUPP_ICEORYX)
 endif(ENABLE_ICEORYX)
