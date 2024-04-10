@@ -91,7 +91,7 @@ There are some configuration options specified using CMake defines in addition t
 - `-DBUILD_NFTP=ON`: to build `nanomq_cli` with nftp client
 - `-DBUILD_DDS_PROXY=ON`: to build `nanomq_cli` with dds client ( proxy / sub / pub )
 - `-DBUILD_BENCH=ON`: to build  `nanomq_cli` mqtt bench
-- ` -DENABLE_JWT=ON`: to build  JWT dependency for http server
+- `-DENABLE_JWT=ON`: to build  JWT dependency for http server
 - `-DNNG_ENABLE_SQLITE=ON`: to build nanomq with sqlite support
 - `-DBUILD_STATIC_LIB=ON`: to build nanomq as a static library
 - `-DBUILD_SHARED_LIBS=ON`: to build nanomq as a shared library
