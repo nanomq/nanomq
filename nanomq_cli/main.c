@@ -79,7 +79,7 @@ static client_app apps[] = {
 
 #if defined(SUPP_ICEORYX)
 	{
-	    .name = "iceoryx_cli",
+	    .name = "iceoryx",
 	    .func = iceoryx_start,
 	},
 #endif
