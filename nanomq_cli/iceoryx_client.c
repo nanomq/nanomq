@@ -73,13 +73,13 @@ iceoryx_puber(const char *pubername, const char *service, const char *instance,
 int
 iceoryx_start(int argc, char **argv)
 {
-	if (0 == strcmp(argv[1], "sub")) {
+	if (0 == strcmp(argv[2], "sub")) {
 		iceoryx_suber(
 			"test-nanomq-iceoryx-suber",
 			"test-iceoryx-service",
 			"test-iceoryx-instance",
 			"test-iceoryx-topic");
-	} else if (0 == strcmp(argv[1], "pub")) {
+	} else if (0 == strcmp(argv[2], "pub")) {
 		iceoryx_puber(
 			"test-nanomq-iceoryx-puber",
 			"test-iceoryx-service",
