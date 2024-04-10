@@ -27,6 +27,6 @@
 | MQTT over TCP桥接   | ✅  |                       |
 | HTTP APIs          |  ✅  |                      |
 | 规则引擎             |  ✅ |   目前只支持repub      |
-| webhook            |  ❌  |                      |
+| webhook            |  ✅  |                      |
 | CLI客户端工具        |  ✅  |                      |
 | Bench 基准测试工具   |  ❌  |                      |
