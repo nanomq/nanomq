@@ -2,7 +2,7 @@
 
 本节介绍如何使用配置文件配置多协议网关，包括 ZMQ 网关、SOME/IP 网关和 DDS 网关。
 
-启用网关陪之前，应首先通过源代码方式编译构建 NanoMQ，具体参考如下页面：
+启用网关配置之前，应首先通过源代码方式编译构建 NanoMQ，具体参考如下页面：
 
 - [ZMQ 网关](../gateway/zmq-gateway.md)
 - [SOME/IP 网关](../gateway/someip-gateway.md)
