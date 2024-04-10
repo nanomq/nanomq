@@ -1,5 +1,5 @@
 //
-// Copyright 2023 NanoMQ Team, Inc. <jaylin@emqx.io>
+// Copyright 2024 NanoMQ Team, Inc. <jaylin@emqx.io>
 //
 // This software is supplied under the terms of the MIT License, a
 // copy of which should be located in the distribution where this
@@ -34,7 +34,7 @@ static int init_dialer_tls(nng_dialer d, const char *cacert, const char *cert,
     const char *key, const char *pass);
 #endif
 
-static nng_msg    *conn_msg;
+static nng_msg *conn_msg;
 static void loadfile(const char *path, void **datap, size_t *lenp);
 
 #define ASSERT_NULL(p, fmt, ...)           \

@@ -69,10 +69,18 @@ static client_app apps[] = {
 	    .func = rules_start,
 	},
 #endif
+
 #if defined(SUPP_NFTP)
 	{
 	    .name = "nftp",
 	    .func = nftp_start,
+	},
+#endif
+
+#if defined(SUPP_ICEORYX)
+	{
+	    .name = "iceoryx_cli",
+	    .func = iceoryx_start,
 	},
 #endif
 };
