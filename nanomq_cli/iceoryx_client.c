@@ -41,6 +41,8 @@ iceoryx_suber(const char *subername, const char *service, const char *instance,
 	msg = nng_aio_get_msg(aio);
 	printf("Address of msg received [%p]\n", nng_msg_body(msg));
 	nng_msg_free(msg);
+	nng_aio_free(aio);
+	nng_free(suber, 0);
 }
 
 void
@@ -64,6 +66,8 @@ iceoryx_puber(const char *pubername, const char *service, const char *instance,
 	nng_aio_wait(aio);
 
 	printf("Address of msg sent [%p]\n", nng_msg_body(msg));
+	nng_aio_free(aio);
+	nng_free(puber, 0);
 }
 
 int
