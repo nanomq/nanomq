@@ -11,4 +11,10 @@
 
 #include "nng/nng.h"
 
+int
+iceoryx_start(int argc, char **argv)
+{
+	return 0;
+}
+
 #endif
