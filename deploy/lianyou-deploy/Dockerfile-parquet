@@ -6,11 +6,24 @@ RUN apt-get update && \
     apt-get install -y flex && \
     apt-get install -y bison && \
     apt-get install -y libboost-system-dev && \
-    apt-get install -y libboost-all-dev && \
-    apt-get install -y libssl-dev &&\
-    apt-get install -y openssl
+    apt-get install -y libboost-all-dev
 
+# 下载 Python-3.6
+WORKDIR /opt
+COPY ./Python-3.6.3.tgz .
+RUN tar xf Python-3.6.3.tgz && \
+    rm Python-3.6.3.tgz
 
+# 下载 mbedtls 源代码
+COPY ./mbedtls.tar.gz .
+RUN tar xf mbedtls.tar.gz&& \
+    rm mbedtls.tar.gz
+
+# 下载 openssl 源代码
+WORKDIR /opt
+COPY ./openssl-1.1.1k.tar.gz .
+RUN tar xf openssl-1.1.1k.tar.gz && \
+    rm openssl-1.1.1k.tar.gz
 
 # 下载 thrift 源代码
 WORKDIR /opt
@@ -25,6 +38,24 @@ COPY ./arrow ./arrow
 WORKDIR /opt
 COPY ./cmake ./cmake
 ENV PATH=$PATH:/opt/cmake/bin/
+
+# 编译 Openssl
+WORKDIR /opt/openssl-1.1.1k
+RUN  ./Configure linux-x86_64 -fPIC no-shared &&\
+     make -j32 &&\
+     make install
+
+# 编译 Python3.6
+WORKDIR /opt/Python-3.6.3
+RUN ./configure && make -j 32 && make install
+RUN pip3.6 install jsonschema
+RUN pip3.6 install jinja2
+
+# 编译 mbedtls
+WORKDIR /opt/mbedtls
+RUN mkdir build && cd build &&\
+    cmake -DENABLE_TESTING=OFF .. &&\
+    make -j32 &&  make install
 
 # 编译 thrift
 WORKDIR /opt/thrift/build
