@@ -74,7 +74,7 @@ RUN ./bootstrap.sh --prefix=/usr/lib/aarch64-linux-gnu && \
 # 编译 Openssl
 WORKDIR /opt/openssl-1.1.1k
 RUN  export CROSS_COMPILE=aarch64-linux-gnu- && \
-     ./Configure linux-aarch64 shared --cross-compile-prefix=${CROSS_COMPILE} && \
+     ./Configure linux-aarch64 -fPIC no-shared --cross-compile-prefix=${CROSS_COMPILE} && \
      make CC=${CROSS_COMPILE}gcc RANLIB=${CROSS_COMPILE}ranlib && \
      make install CC=${CROSS_COMPILE}gcc RANLIB=${CROSS_COMPILE}ranlib DESTDIR=/usr/lib/aarch64-linux-gnu
 
