@@ -43,17 +43,19 @@ jobs:
           git log -1 >> packages/readme.txt
           cd nng && git log -1 >> ../packages/readme.txt && cd -
           id=$(docker create nanomq_with_parquet)
-          docker cp $id:/opt/NanoMQ_mirror/build/nanomq/nanomq packages/nanomq-${pkgversion}-linux-amd64
-          docker cp $id:/opt/NanoMQ_mirror/build-debug/nanomq/nanomq packages/nanomq-${pkgversion}-linux-amd64-debug
-          tar -zcvf packages/nanomq-${pkgversion}-linux-amd64.tar.gz packages/nanomq-${pkgversion}-linux-amd64
-          tar -zcvf packages/nanomq-${pkgversion}-linux-amd64-debug.tar.gz packages/nanomq-${pkgversion}-linux-amd64-debug
+          docker cp $id:/opt/NanoMQ_mirror/build/nanomq/nanomq packages/nanomq
+          docker cp $id:/opt/NanoMQ_mirror/build-debug/nanomq/nanomq packages/nanomq-debug
+          tar -zcvf packages/nanomq-${pkgversion}-linux-amd64.tar.gz packages/nanomq etc/nanomq.conf
+          tar -zcvf packages/nanomq-${pkgversion}-linux-amd64-debug.tar.gz packages/nanomq-debug etc/nanomq.conf
+          rm packages/nanomq packages/nanomq-debug
           docker rm -v $id
 
           id=$(docker create nanomq_with_parquet_arm64)
-          docker cp $id:/opt/NanoMQ_mirror/build/nanomq/nanomq packages/nanomq-${pkgversion}-linux-arm64
-          docker cp $id:/opt/NanoMQ_mirror/build-debug/nanomq/nanomq packages/nanomq-${pkgversion}-linux-arm64-debug
-          tar -zcvf packages/nanomq-${pkgversion}-linux-arm64.tar.gz packages/nanomq-${pkgversion}-linux-arm64
-          tar -zcvf packages/nanomq-${pkgversion}-linux-arm64-debug.tar.gz packages/nanomq-${pkgversion}-linux-arm64-debug
+          docker cp $id:/opt/NanoMQ_mirror/build/nanomq/nanomq packages/nanomq
+          docker cp $id:/opt/NanoMQ_mirror/build-debug/nanomq/nanomq packages/nanomq-debug
+          tar -zcvf packages/nanomq-${pkgversion}-linux-arm64.tar.gz packages/nanomq etc/nanomq.conf
+          tar -zcvf packages/nanomq-${pkgversion}-linux-arm64-debug.tar.gz packages/nanomq-debug etc/nanomq.conf
+          rm packages/nanomq packages/nanomq-debug
           docker rm -v $id
 
       - uses: actions/upload-artifact@v4
