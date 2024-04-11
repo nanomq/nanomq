@@ -1303,8 +1303,7 @@ client_cb(void *arg)
 			    payload_len, (char *) payload);
 		}
 
-		nng_msg_header_clear(msg);
-		nng_msg_clear(msg);
+		nng_msg_free(msg);
 
 		work->state = RECV;
 		nng_ctx_recv(work->ctx, work->aio);
