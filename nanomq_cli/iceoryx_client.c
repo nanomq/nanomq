@@ -16,9 +16,11 @@
 #include <string.h>
 
 static void
-helper()
+helper(char **argv)
 {
-	printf("aaa");
+	printf("Usage: %s sub \n", argv[0]);
+	printf("       %s pub \n", argv[0]);
+	printf("Release date. 20240411.\n");
 }
 
 void
@@ -62,6 +64,7 @@ iceoryx_puber(const char *pubername, const char *service, const char *instance,
 
 	nng_aio_alloc(&aio, NULL, NULL);
 	nng_aio_set_prov_data(aio, puber);
+	nng_aio_set_msg(aio, msg);
 	nng_send_aio(sock, aio);
 	nng_aio_wait(aio);
 
@@ -73,6 +76,10 @@ iceoryx_puber(const char *pubername, const char *service, const char *instance,
 int
 iceoryx_start(int argc, char **argv)
 {
+	if (argc < 3) {
+		helper(argv);
+		return 0;
+	}
 	if (0 == strcmp(argv[2], "sub")) {
 		iceoryx_suber(
 			"test-nanomq-iceoryx-suber",
@@ -86,7 +93,7 @@ iceoryx_start(int argc, char **argv)
 			"test-iceoryx-instance",
 			"test-iceoryx-topic", "AAAAAAAAAAAAAAAAAAA");
 	} else {
-		helper();
+		helper(argv);
 	}
 	return 0;
 }
