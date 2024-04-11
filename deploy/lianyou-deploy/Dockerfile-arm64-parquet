@@ -3,8 +3,9 @@ FROM ubuntu:18.04
 # 安装基本工具和依赖
 RUN apt-get update && \
     apt-get install -y build-essential curl && \
-    apt install -y flex && \
-    apt install -y bison 
+    apt-get install -y flex && \
+    apt-get install -y bison &&\
+    apt-get install -y libssl-dev zlib1g-dev libbz2-dev
 
 # 安装 ARM64 交叉编译工具链
 RUN apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
@@ -15,21 +16,53 @@ COPY ./boost.tar.gz .
 RUN tar xf boost.tar.gz && \
     rm boost.tar.gz
 
+# 下载 Python-3.6
+WORKDIR /opt
+COPY ./Python-3.6.3.tgz .
+RUN tar xf Python-3.6.3.tgz && \
+    rm Python-3.6.3.tgz
+
 # 下载 openssl 源代码
+WORKDIR /opt
 COPY ./openssl-1.1.1k.tar.gz .
 RUN tar xf openssl-1.1.1k.tar.gz && \
     rm openssl-1.1.1k.tar.gz
 
+# 下载 mbedtls 源代码
+WORKDIR /opt
+COPY ./mbedtls.tar.gz .
+RUN tar xf mbedtls.tar.gz&& \
+    rm mbedtls.tar.gz
+
+# 编译 Python3.6
+WORKDIR /opt/Python-3.6.3
+RUN ./configure && make && make install
+RUN pip3.6 install jsonschema
+RUN pip3.6 install jinja2
+
 
 # 下载 thrift 源代码
+WORKDIR /opt
 COPY ./thrift ./thrift
 
 # 下载 parquet 源代码
+WORKDIR /opt
 COPY ./arrow ./arrow
 
 # 下载 cmake
+WORKDIR /opt
 COPY ./cmake ./cmake
 ENV PATH=$PATH:/opt/cmake/bin/
+
+# 编译 mbedtls
+WORKDIR /opt/mbedtls
+RUN mkdir build && cd build &&\
+    cmake -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
+        -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
+        -DENABLE_TESTING=OFF \
+        -DCMAKE_FIND_ROOT_PATH=/usr/lib/aarch64-linux-gnu/\
+        -DCMAKE_INSTALL_PREFIX=/usr/lib/aarch64-linux-gnu/ .. &&\
+        make -j32 &&  make install
 
 # 编译 Boost
 WORKDIR /opt/boost_1_66_0
@@ -86,5 +119,4 @@ RUN mkdir build && cd build &&\
         -DARROW_USE_OPENSSL=ON \
         -DPARQUET_REQUIRE_ENCRYPTION=ON\
         .. && make -j32 && make install
-
 
