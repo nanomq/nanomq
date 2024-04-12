@@ -41,7 +41,7 @@ iceoryx_suber(const char *subername, const char *service, const char *instance,
 	nng_aio_wait(aio);
 
 	msg = nng_aio_get_msg(aio);
-	printf("Address of msg received [%p]\n", nng_msg_body(msg));
+	printf("Address of msg received [%p]\n", nng_msg_payload_ptr(msg));
 	nng_msg_free(msg);
 	nng_aio_free(aio);
 	nng_free(suber, 0);
@@ -61,6 +61,7 @@ iceoryx_puber(const char *pubername, const char *service, const char *instance,
 
 	nng_msg_alloc(&msg, 0);
 	nng_msg_append(msg, txt, strlen(txt));
+	nng_msg_clone(msg); // For print the address of payload
 
 	nng_aio_alloc(&aio, NULL, NULL);
 	nng_aio_set_prov_data(aio, puber);
@@ -68,7 +69,8 @@ iceoryx_puber(const char *pubername, const char *service, const char *instance,
 	nng_send_aio(sock, aio);
 	nng_aio_wait(aio);
 
-	printf("Address of msg sent [%p]\n", nng_msg_body(msg));
+	printf("Address of msg sent [%p]\n", nng_msg_payload_ptr(msg));
+	nng_msg_free(msg); // Pair to the clone before
 	nng_aio_free(aio);
 	nng_free(puber, 0);
 }
