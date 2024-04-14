@@ -6,6 +6,8 @@ main()
 {
 	int rv = 0;
 
+	char *cmd       = "/bin/mosquitto_sub";
+
 	char *cmd_pub =
 	    "mosquitto_pub -h 127.0.0.1 -p 8883 -t topic1 -m message -q 2 "
 	    "--cafile ../../../etc/certs/cacert.pem --insecure";
@@ -31,7 +33,7 @@ main()
 		"--cafile", "../../../etc/certs/cacert.pem", "--insecure",
 		NULL };
 
-	pid_sub = popen_sub_with_cmd(&outfp, arg);
+	pid_sub = popen_sub_with_cmd(&outfp, arg, cmd);
 	nng_msleep(50); // pub should be slightly behind sub
 	// pipe to pub
 	p_pub   = popen(cmd_pub, "r");
