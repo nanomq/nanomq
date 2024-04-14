@@ -507,7 +507,7 @@ get_test_conf(conf_type type)
 }
 
 pid_t
-popen_sub_with_cmd(int *outfp, char *arg[], char *cmd)
+popen_with_cmd(int *outfp, char *arg[], char *cmd)
 {
 	int   fd_pipe[2];
 	pid_t pid;

@@ -808,8 +808,8 @@ main()
 	assert(conf != NULL);
 	nng_thread_create(&nmq, (void *) broker_start_with_conf, (void *) conf);
 	nng_msleep(100);  // wait a while for broker to init
-	pid_sub = popen_sub_with_cmd(&outfp, cmd1, cmd);
-	pid_sub2 = popen_sub_with_cmd(&outfp2, cmd2, cmd);
+	pid_sub = popen_with_cmd(&outfp, cmd1, cmd);
+	pid_sub2 = popen_with_cmd(&outfp2, cmd2, cmd);
 	nng_msleep(500); // wait a while after sub
 
 	// TODO: there is a potential connection refuse case & although they

@@ -25,7 +25,7 @@ main()
 	assert(conf != NULL);
 	nng_thread_create(&nmq, (void *) broker_start_with_conf, (void *) conf);
 	nng_msleep(1000); // wait a while before sub
-	pid_sub = popen_sub_with_cmd(&outfp, cmd_sub, cmd);
+	pid_sub = popen_with_cmd(&outfp, cmd_sub, cmd);
 	nng_msleep(2000);
 	p_pub = popen(cmd_pub, "r");
 	// check recv msg
