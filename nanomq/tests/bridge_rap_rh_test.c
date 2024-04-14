@@ -10,6 +10,8 @@ main()
 	cmd/topic1/ci: rap 1, rh 1
 	cmd/topic2/ci: rap 1, rh 2
 	*/
+	char *cmd       = "/bin/mosquitto_sub";
+
 	char *cmd_sub_nmq_rap0[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", "1881", "-t", "recv_lo/topic1", "-V", "mqttv5", "-q", "2", NULL};
 	char *cmd_sub_nmq_rh0[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", "1881", "-t", "recv_lo/topic2", "-V", "mqttv5", "-q", "2", NULL};
 	char *cmd_sub_nmq_rh1[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", "1881", "-t", "cmd_lo/topic1", "-V", "mqttv5", "-q", "2", NULL};
@@ -62,9 +64,9 @@ main()
 	assert(conf != NULL);
 	nng_thread_create(&nmq, (void *) broker_start_with_conf, (void *) conf);
 	nng_msleep(50); // wait a while before sub
-	pid_sub_nmq_rap0 = popen_sub_with_cmd(&outfp_nmq_rap0, cmd_sub_nmq_rap0);
-	pid_sub_nmq_rh0 = popen_sub_with_cmd(&outfp_nmq_rh0, cmd_sub_nmq_rh0);
-	pid_sub_nmq_rh1 = popen_sub_with_cmd(&outfp_nmq_rh1, cmd_sub_nmq_rh1);
+	pid_sub_nmq_rap0 = popen_sub_with_cmd(&outfp_nmq_rap0, cmd_sub_nmq_rap0, cmd);
+	pid_sub_nmq_rh0 = popen_sub_with_cmd(&outfp_nmq_rh0, cmd_sub_nmq_rh0, cmd);
+	pid_sub_nmq_rh1 = popen_sub_with_cmd(&outfp_nmq_rh1, cmd_sub_nmq_rh1, cmd);
 	// TODO: better check the retain flag
 	assert(read(outfp_nmq_rap0, buf_rap0, buf_size) > 0);
 	printf("rap0 got the msg: %s\n", buf_rap0);
@@ -82,8 +84,8 @@ main()
 	// resub to trigger rh1. 
 	// popen(cmd_resub, "r"); // rest api for bridge client to resub is not available now.
 	// nng_msleep(1000);
-	pid_sub_nmq_rh1_re = popen_sub_with_cmd_nonblock(&outfp_nmq_rh1, cmd_sub_nmq_rh1);
-	pid_sub_nmq_rh2 = popen_sub_with_cmd_nonblock(&outfp_nmq_rh2, cmd_sub_nmq_rh2);
+	pid_sub_nmq_rh1_re = popen_sub_with_cmd_nonblock(&outfp_nmq_rh1, cmd_sub_nmq_rh1, cmd);
+	pid_sub_nmq_rh2 = popen_sub_with_cmd_nonblock(&outfp_nmq_rh2, cmd_sub_nmq_rh2, cmd);
 	// consider the msg is not been recvieved after 2s.
 	nng_msleep(2000);
 	int rh1_buf = read(outfp_nmq_rh1, buf_rh1, buf_size);
