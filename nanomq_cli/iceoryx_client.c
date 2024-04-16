@@ -31,8 +31,8 @@ inthandler(int signal)
 static void
 helper(char **argv)
 {
-	printf("Usage: %s sub \n", argv[0]);
-	printf("       %s pub \n", argv[0]);
+	printf("Usage: %s sub <subername> <service> <instance> <topic>\n", argv[0]);
+	printf("       %s pub <pubername> <service> <instance> <topic> <msg>\n", argv[0]);
 	printf("       %s benchsub \n", argv[0]);
 	printf("       %s benchpub \n", argv[0]);
 	printf("Release date. 20240411.\n");
@@ -56,7 +56,7 @@ iceoryx_suber(const char *subername, const char *service, const char *instance,
 	nng_aio_wait(aio);
 
 	msg = nng_aio_get_msg(aio);
-	printf("Address of msg received [%p]\n", nng_msg_payload_ptr(msg));
+	printf("Get payload [%s]\n", nng_msg_payload_ptr(msg));
 
 	nng_msg_iceoryx_free(msg, suber);
 	nng_aio_free(aio);
@@ -76,8 +76,8 @@ iceoryx_puber(const char *pubername, const char *service, const char *instance,
 	nng_iceoryx_pub(&sock, pubername, service, instance, event, &puber);
 
 	nng_msg_iceoryx_alloc(&msg, puber, strlen(txt));
-	printf("Address of msg sent [%p]\n", nng_msg_payload_ptr(msg));
-	nng_msg_append(msg, txt, strlen(txt));
+	nng_msg_iceoryx_append(msg, txt, strlen(txt));
+	printf("Put payload [%s]\n", nng_msg_payload_ptr(msg));
 
 	nng_aio_alloc(&aio, NULL, NULL);
 	nng_aio_set_prov_data(aio, puber);
@@ -193,17 +193,17 @@ iceoryx_start(int argc, char **argv)
 		return 0;
 	}
 	if (0 == strcmp(argv[2], "sub")) {
-		iceoryx_suber(
-			"test-nanomq-iceoryx-suber",
-			"test-iceoryx-service",
-			"test-iceoryx-instance",
-			"test-iceoryx-topic");
+		if (argc != 7) {
+			helper(argv);
+			return 0;
+		}
+		iceoryx_suber(argv[3], argv[4], argv[5], argv[6]);
 	} else if (0 == strcmp(argv[2], "pub")) {
-		iceoryx_puber(
-			"test-nanomq-iceoryx-puber",
-			"test-iceoryx-service",
-			"test-iceoryx-instance",
-			"test-iceoryx-topic", "AAAAAAAAAAAAAAAAAAA");
+		if (argc != 8) {
+			helper(argv);
+			return 0;
+		}
+		iceoryx_puber(argv[3], argv[4], argv[5], argv[6], argv[7]);
 	} else if (0 == strcmp(argv[2], "benchsub")) {
 		iceoryx_bench_suber(
 			"test-iceoryx-service",
