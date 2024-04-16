@@ -17,14 +17,14 @@
 #include <signal.h>
 #include <stdlib.h>
 
-static int bench_round = 100000;
-static int bench_input = 0;
+static int bench_round_max = 100000;
+static int bench_round_cnt = 0;
 
 void
 inthandler(int signal)
 {
 	(void) signal;
-	printf("received msg counter %d\n", bench_input);
+	printf("echo round counter %d\n", bench_round_cnt);
 	exit(0);
 }
 
@@ -129,13 +129,14 @@ iceoryx_bench_suber(const char *service, const char *instance,
 		nng_aio_set_msg(saio, smsg);
 		nng_send_aio(sock, saio);
 		nng_aio_wait(saio);
-		bench_input ++;
+		bench_round_cnt ++;
 	}
 
 	nng_aio_free(saio);
 	nng_free(puber, 0);
 	nng_aio_free(raio);
-	nng_free(suber, 0);}
+	nng_free(suber, 0);
+}
 
 void
 iceoryx_bench_puber(const char *service, const char *instance,
@@ -163,7 +164,7 @@ iceoryx_bench_puber(const char *service, const char *instance,
 	nng_aio_alloc(&raio, NULL, NULL);
 	nng_iceoryx_sub(&sock, recvername, service, instance, eventrecv, &suber);
 
-	for (int i=0; i<bench_round; ++i) {
+	for (int i=0; i<bench_round_max; ++i) {
 		nng_msg_iceoryx_alloc(&smsg, puber, strlen(txt));
 		nng_msg_iceoryx_append(smsg, txt, strlen(txt));
 		nng_aio_set_prov_data(saio, puber);
@@ -176,7 +177,7 @@ iceoryx_bench_puber(const char *service, const char *instance,
 		nng_aio_wait(raio);
 		rmsg = nng_aio_get_msg(raio);
 		nng_msg_iceoryx_free(rmsg, suber);
-		bench_input ++;
+		bench_round_cnt ++;
 	}
 
 	nng_aio_free(saio);
