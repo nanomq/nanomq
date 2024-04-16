@@ -1104,7 +1104,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 	topic        = work->pub_packet->var_header.publish.topic_name.body;
 	uint32_t len = work->pub_packet->var_header.publish.topic_name.len;
 
-	if (work->config->auth_http.enable) {
+	if (work->config != NULL && work->config->auth_http.enable) {
 		struct topic_queue *tq = topic_queue_init(topic, len);
 		if (tq == NULL) {
 			log_error("topic_queue_init failed!");
