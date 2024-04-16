@@ -121,10 +121,10 @@ iceoryx_bench_suber(const char *service, const char *instance,
 		nng_recv_aio(sock, raio);
 		nng_aio_wait(raio);
 		rmsg = nng_aio_get_msg(raio);
-		nng_msg_free(rmsg);
+		nng_msg_iceoryx_free(rmsg, suber);
 
-		nng_msg_alloc(&smsg, 0);
-		nng_msg_append(smsg, txt, strlen(txt));
+		nng_msg_iceoryx_alloc(&smsg, puber, strlen(txt));
+		nng_msg_iceoryx_append(smsg, txt, strlen(txt));
 		nng_aio_set_prov_data(saio, puber);
 		nng_aio_set_msg(saio, smsg);
 		nng_send_aio(sock, saio);
@@ -135,7 +135,7 @@ iceoryx_bench_suber(const char *service, const char *instance,
 	nng_aio_free(saio);
 	nng_free(puber, 0);
 	nng_aio_free(raio);
-	nng_free(puber, 0);}
+	nng_free(suber, 0);}
 
 void
 iceoryx_bench_puber(const char *service, const char *instance,
@@ -164,8 +164,8 @@ iceoryx_bench_puber(const char *service, const char *instance,
 	nng_iceoryx_sub(&sock, recvername, service, instance, eventrecv, &suber);
 
 	for (int i=0; i<bench_round; ++i) {
-		nng_msg_alloc(&smsg, 0);
-		nng_msg_append(smsg, txt, strlen(txt));
+		nng_msg_iceoryx_alloc(&smsg, puber, strlen(txt));
+		nng_msg_iceoryx_append(smsg, txt, strlen(txt));
 		nng_aio_set_prov_data(saio, puber);
 		nng_aio_set_msg(saio, smsg);
 		nng_send_aio(sock, saio);
@@ -175,14 +175,14 @@ iceoryx_bench_puber(const char *service, const char *instance,
 		nng_recv_aio(sock, raio);
 		nng_aio_wait(raio);
 		rmsg = nng_aio_get_msg(raio);
-		nng_msg_free(rmsg);
+		nng_msg_iceoryx_free(rmsg, suber);
 		bench_input ++;
 	}
 
 	nng_aio_free(saio);
 	nng_free(puber, 0);
 	nng_aio_free(raio);
-	nng_free(puber, 0);
+	nng_free(suber, 0);
 }
 
 int
