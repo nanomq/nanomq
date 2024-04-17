@@ -90,7 +90,7 @@ if __name__=='__main__':
     print("rest api test start")
     if False == rest_api_test():
         nanomq.terminate()
-        print("mqtt v311 test failed")
+        print("rest api test failed")
         print_nanomq_log()
         raise AssertionError
     print("rest api test end")
@@ -99,6 +99,6 @@ if __name__=='__main__':
     vul_test()
     print("vul_test test end")
 
-    time.sleep(2)
+    time.sleep(3)
 
     nanomq.terminate()
