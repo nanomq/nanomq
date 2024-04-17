@@ -160,8 +160,8 @@ docker run -d -p 1883:1883 -e NANOMQ_CONF_PATH="/usr/local/etc/nanomq.conf" \
 
 | 配置项                  | 类型    | 描述                                                         |
 | ----------------------- | ------- | ------------------------------------------------------------ |
-| system.num_taskq_thread | Integer | 使用的 taskq 线程数，推荐设为 CPU 核数。                     |
-| system.max_taskq_thread | Integer | 可使用的最大 taskq 线程数，推荐设为 CPU 核数。               |
+| system.num_taskq_thread | Long    | 使用的 taskq 线程数，推荐设为 CPU 核数。                     |
+| system.max_taskq_thread | Long    | 可使用的最大 taskq 线程数，推荐设为 CPU 核数。               |
 | system.parallel         | Long    | 并行处理数，推荐设为 CPU 核数的两倍。                        |
 | mqtt.session.msq_len    | Integer | 用于重发消息的 Inflight 窗口/队列长度。如内存允许，推荐设为最大值：65535。 |
 
