@@ -117,7 +117,7 @@ iceoryx_bench_suber(const char *service, const char *instance,
 	nng_aio_alloc(&saio, NULL, NULL);
 	nng_iceoryx_pub(&sock, sendername, service, instance, eventsend, &puber);
 
-	for (;;) {
+	for (;bench_round_cnt < bench_round_max;) {
 		nng_aio_set_prov_data(raio, suber);
 		nng_recv_aio(sock, raio);
 		nng_aio_wait(raio);
@@ -137,6 +137,7 @@ iceoryx_bench_suber(const char *service, const char *instance,
 	nng_free(puber, 0);
 	nng_aio_free(raio);
 	nng_free(suber, 0);
+	nng_close(sock);
 }
 
 void
@@ -185,6 +186,7 @@ iceoryx_bench_puber(const char *service, const char *instance,
 	nng_free(puber, 0);
 	nng_aio_free(raio);
 	nng_free(suber, 0);
+	nng_close(sock);
 }
 
 int
