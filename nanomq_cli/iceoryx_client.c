@@ -61,6 +61,7 @@ iceoryx_suber(const char *subername, const char *service, const char *instance,
 	nng_msg_iceoryx_free(msg, suber);
 	nng_aio_free(aio);
 	nng_free(suber, 0);
+	nng_close(sock);
 }
 
 void
@@ -87,6 +88,7 @@ iceoryx_puber(const char *pubername, const char *service, const char *instance,
 
 	nng_aio_free(aio);
 	nng_free(puber, 0);
+	nng_close(sock);
 }
 
 void
