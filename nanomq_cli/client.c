@@ -496,7 +496,7 @@ help(enum client_type type)
 		console("  -l, --stdin-line                 Send messages "
 		        "read from stdin, splitting separate lines into "
 		        "separate messages.[default: false]\n");
-		console("  -i, --interval <ms>              Interval of "
+		console("  -I, --interval <ms>              Interval of "
 		        "publishing "
 		        "message (ms) [default: 10]\n");
 	} else {
