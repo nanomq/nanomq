@@ -27,39 +27,36 @@
 int
 decode_sub_msg(nano_work *work)
 {
-	size_t bpos = 0; // pos in msg_body
-	size_t ppos = 0; // pos in payload
-	uint8_t *payload_ptr = NULL;
+	uint8_t *variable_ptr, *payload_ptr;
+	int      vpos          = 0; // pos in variable
+	int      bpos          = 0; // pos in payload
+	size_t   len_of_varint = 0, len_of_property = 0, len_of_properties = 0;
+	int      len_of_str = 0, len_of_topic = 0;
+	uint8_t  property_id;
 
-	topic_node *tn = NULL;
-	topic_node *newtn = NULL;
+	topic_node *       tn, *_tn;
 
-	size_t remaining_len = 0;
-	packet_subscribe *sub_pkt = NULL;
+	nng_msg *     msg           = work->msg;
+	size_t        remaining_len = nng_msg_remaining_len(msg);
+	const uint8_t proto_ver     = work->proto_ver;
 
-	if (work->msg == NULL || work->sub_pkt == NULL) {
-		return PROTOCOL_ERROR;
-	}
+	// handle variable header
+	variable_ptr = nng_msg_body(msg);
 
-	remaining_len = nng_msg_remaining_len(work->msg);
-
-	sub_pkt = work->sub_pkt;
+	packet_subscribe *sub_pkt = work->sub_pkt;
 	sub_pkt->node = NULL;
-	sub_pkt->prop_len = 0;
-	sub_pkt->properties = NULL;
-	NNI_GET16((uint8_t *)(nng_msg_body(work->msg)), sub_pkt->packet_id);
-	if (sub_pkt->packet_id == 0) {
+	NNI_GET16(variable_ptr + vpos, sub_pkt->packet_id);
+	if (sub_pkt->packet_id == 0)
 		return PROTOCOL_ERROR; // packetid should be non-zero
-	}
 	// TODO packetid should be checked if it's unused
-	bpos += 2;
+	vpos += 2;
 
+	sub_pkt->properties = NULL;
+	sub_pkt->prop_len   = 0;
 	// Only Mqtt_v5 include property.
-	if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
-		sub_pkt->properties = decode_properties(work->msg,
-												(uint32_t *)&bpos,
-												&sub_pkt->prop_len,
-												true);
+	if (MQTT_PROTOCOL_VERSION_v5 == proto_ver) {
+		sub_pkt->properties =
+		    decode_properties(msg, (uint32_t *)&vpos, &sub_pkt->prop_len, true);
 		if (check_properties(sub_pkt->properties) != SUCCESS) {
 			return PROTOCOL_ERROR;
 		}
@@ -68,80 +65,61 @@ decode_sub_msg(nano_work *work)
 	log_debug("remainLen: [%ld] packetid : [%d]", remaining_len,
 	    sub_pkt->packet_id);
 	// handle payload
-	payload_ptr = nng_msg_payload_ptr(work->msg);
-	if (payload_ptr == NULL) {
-		log_error("payload_ptr is NULL");
-		return PROTOCOL_ERROR;
-	}
+	payload_ptr = nng_msg_payload_ptr(msg);
 
-	tn = nng_zalloc(sizeof(topic_node));
-	if (tn == NULL) {
+	if ((tn = nng_zalloc(sizeof(topic_node))) == NULL) {
 		log_error("nng_zalloc");
 		return NNG_ENOMEM;
 	}
-	sub_pkt->node = tn;
+	tn->next = NULL;
+	sub_pkt->node      = tn;
 
 	while (1) {
-		tn->next = NULL;
-		tn->topic.len = 0;
-		tn->reason_code = GRANTED_QOS_2; // default
+		_tn      = tn;
+
+		tn->reason_code  = GRANTED_QOS_2; // default
 
 		// TODO Decoding topic has potential buffer overflow
-		tn->topic.body = (char *)copyn_utf8_str(payload_ptr,
-		    (uint32_t *)&ppos, &tn->topic.len, remaining_len);
-		if (tn->topic.body == NULL) {
-			log_error("tn->topic.body is NULL");
-		} else {
-			log_info("topic: [%s] len: [%d] pid [%d]",
-					tn->topic.body, tn->topic.len, sub_pkt->packet_id);
-		}
+		tn->topic.body = (char *) copyn_utf8_str(payload_ptr,
+		    (uint32_t *) &bpos, &len_of_topic, remaining_len);
+		tn->topic.len  = len_of_topic;
+		log_info("topic: [%s] len: [%d] pid [%d]", tn->topic.body, len_of_topic, sub_pkt->packet_id);
+		len_of_topic = 0;
 
 		if (tn->topic.len < 1 || tn->topic.body == NULL) {
 			log_error("NOT utf8-encoded string OR null string.");
 			tn->reason_code = UNSPECIFIED_ERROR;
-			if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
+			if (MQTT_PROTOCOL_VERSION_v5 == proto_ver)
 				tn->reason_code = TOPIC_FILTER_INVALID;
-			}
-			ppos += 1; // ignore option
-			if (ppos < remaining_len - bpos) {
-				newtn = nng_zalloc(sizeof(topic_node));
-				if (newtn == NULL) {
-					log_error("nng_zalloc");
-					return NNG_ENOMEM;
-				}
-				tn->next  = newtn;
-				tn = newtn;
-				continue;
-			} else {
-				break;
-			}
+			bpos += 1; // ignore option
+			goto next;
 		}
 
 		tn->rap = 1; // Default Setting
-		memcpy(tn, payload_ptr + ppos, 1);
+		memcpy(tn, payload_ptr + bpos, 1);
 		if (tn->retain_handling > 2) {
 			log_error("error in retain_handling");
 			tn->reason_code = UNSPECIFIED_ERROR;
 			return PROTOCOL_ERROR;
 		}
-		ppos++;
+		bpos ++;
 
 		// Setting no_local on shared subscription is invalid
-		if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5 &&
+		if (MQTT_VERSION_V5 == proto_ver &&
 		    strncmp(tn->topic.body, "$share/", strlen("$share/")) == 0 &&
 		    tn->no_local == 1) {
 			tn->reason_code = UNSPECIFIED_ERROR;
 			return PROTOCOL_ERROR;
 		}
 
-		if (ppos < remaining_len - bpos) {
-			newtn = nng_zalloc(sizeof(topic_node));
-			if (newtn == NULL) {
+next:
+		if (bpos < (int) (remaining_len - vpos)) {
+			if (NULL == (tn = nng_zalloc(sizeof(topic_node)))) {
 				log_error("nng_zalloc");
 				return NNG_ENOMEM;
 			}
-			tn->next  = newtn;
-			tn = newtn;
+			tn->next = NULL;
+			_tn->next  = tn;
 		} else {
 			break;
 		}
@@ -207,6 +185,7 @@ encode_suback_msg(nng_msg *msg, nano_work *work)
 			return PROTOCOL_ERROR;
 		}
 		tn = tn->next;
+		log_debug("reason_code: [%x]", reason_code);
 	}
 
 	// If NOT find any reason codes
@@ -247,57 +226,23 @@ encode_suback_msg(nng_msg *msg, nano_work *work)
 int
 sub_ctx_handle(nano_work *work)
 {
-	int topic_len = 0;
-	int topic_exist = 0;
-	char *topic_str = NULL;
-	bool auth_http_reject = false;
-	topic_node *tn = NULL;
-
 	if (!work->sub_pkt || !work->sub_pkt->node) {
 		return -1;
 	}
+	topic_node *tn = work->sub_pkt->node;
+
+	char *topic_str = NULL;
+	int   topic_len = 0, topic_exist = 0;
 
 	if (work->sub_pkt->packet_id == 0) {
 		return -2;
-	}
-
-	tn = work->sub_pkt->node;
-	if (work->config->auth_http.enable) {
-		topic_queue *tq = NULL;
-		tn = work->sub_pkt->node;
-		tq = init_topic_queue_with_topic_node(tn);
-		if (tq == NULL) {
-			log_error("topic_queue is NULL");
-		} else {
-			int rv = nmq_auth_http_sub_pub(work->cparam, true, tq, &work->config->auth_http);
-			if (rv != 0) {
-				log_error("Auth failed! subscribe packet!");
-				/*
-				 * Currently, we support bulk upload of topics,
-				 * but there is only one return code, so we don't
-				 * know which topic failed to authenticate, and
-				 * the topics uploaded together should be set to NMQ_AUTH_SUB_ERROR
-				 */
-				auth_http_reject = true;
-				tn = work->sub_pkt->node;
-				while (tn != NULL) {
-					tn->reason_code = NMQ_AUTH_SUB_ERROR;
-					log_warn("topic: [%s] HTTP AUTH fail, set SUBACK reason_code: [%d]", tn->topic.body, tn->reason_code);
-					tn = tn->next;
-				}
-			} else {
-				log_info("Auth success! subscribe packet!");
-			}
-			topic_queue_release(tq);
-		}
 	}
 
 #ifdef STATISTICS
 	// TODO
 #endif
 	nng_msg **retain = work->msg_ret;
-	tn = work->sub_pkt->node;
-	while (tn != NULL && auth_http_reject == false) {
+	while (tn) {
 		topic_len = tn->topic.len;
 		topic_str = tn->topic.body;
 		log_debug("topicLen: [%d] body: [%s]", topic_len, topic_str);
@@ -347,11 +292,17 @@ sub_ctx_handle(nano_work *work)
 #if defined(NNG_SUPP_SQLITE)
 		if (work->config->sqlite.enable && work->sqlite_db != NULL) {
 			if (rh == 0 || (rh == 1 && !topic_exist)) {
-				nng_msg **msg_vec = nng_mqtt_qos_db_find_retain(work->sqlite_db, topic_str);
+				nng_msg **msg_vec =
+				    nng_mqtt_qos_db_find_retain(
+				        work->sqlite_db, topic_str);
+
 				if (msg_vec != NULL) {
-					for (size_t i = 0; i < cvector_size(msg_vec); i++) {
+					for (size_t i = 0;
+					     i < cvector_size(msg_vec); i++) {
 						if (msg_vec[i] != NULL) {
-							cvector_push_back(work->msg_ret, msg_vec[i]);
+							cvector_push_back(
+							    work->msg_ret,
+							    msg_vec[i]);
 						}
 					}
 					cvector_free(msg_vec);
@@ -360,17 +311,15 @@ sub_ctx_handle(nano_work *work)
 			goto next;
 		}
 #endif
-		if (rh == 0 || (rh == 1 && !topic_exist)) {
+		if (rh == 0 || (rh == 1 && !topic_exist))
 			retain = dbtree_find_retain(work->db_ret, topic_str);
-		}
 		work->msg_ret = (work->msg_ret == NULL) ? retain : work->msg_ret;
+
 		for (size_t i = 0; retain != NULL &&
-				i < cvector_size(retain) &&
-				work->msg_ret != retain;
-				i++) {
-			if (!retain[i]) {
+		     i < cvector_size(retain) && work->msg_ret != retain;
+		     i++) {
+			if (!retain[i])
 				continue;
-			}
 			cvector_push_back(work->msg_ret, retain[i]);
 		}
 		if (retain != work->msg_ret) {
@@ -378,9 +327,9 @@ sub_ctx_handle(nano_work *work)
 			retain = NULL;
 		}
 		
-		if (!work->msg_ret) {
+
+		if (!work->msg_ret)
 			goto next;
-		}
 
 	next:
 		tn = tn->next;
