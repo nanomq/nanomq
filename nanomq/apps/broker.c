@@ -112,8 +112,6 @@ void sig_handler(int signum)
 #endif
 #endif
 
-
-
 enum options {
 	OPT_HELP = 1,
 	OPT_HOCONFILE = 2, /* Do not change this value, it is used beyond this file. */
@@ -369,9 +367,7 @@ server_cb(void *arg)
 			if (work->code != SUCCESS) {
 				if (work->msg_ret)
 					for (size_t i = 0; i < cvector_size(work->msg_ret); i++)
-					{
 						nng_msg_free(work->msg_ret[i]);
-					}
 					cvector_free(work->msg_ret);
 				if (work->sub_pkt)
 					sub_pkt_free(work->sub_pkt);
@@ -392,8 +388,7 @@ server_cb(void *arg)
 			work->msg = NULL;
 			if (work->msg_ret) {
 				log_debug("retain msg [%p] size [%ld] \n",
-				    work->msg_ret,
-				    cvector_size(work->msg_ret));
+				    work->msg_ret, cvector_size(work->msg_ret));
 				for (int i = 0;
 				     i < cvector_size(work->msg_ret) &&
 				     check_msg_exp(work->msg_ret[i],
@@ -793,7 +788,7 @@ alloc_work(nng_socket sock)
 }
 
 nano_work *
-proto_work_init(nng_socket sock,nng_socket inproc_sock, nng_socket bridge_sock, uint8_t proto,
+proto_work_init(nng_socket sock, nng_socket extrasock, uint8_t proto,
     dbtree *db_tree, dbtree *db_tree_ret, conf *config)
 {
 	int        rv;
@@ -813,18 +808,16 @@ proto_work_init(nng_socket sock,nng_socket inproc_sock, nng_socket bridge_sock, 
 
 	// only create ctx for extra ctx that are required to receive msg
 	if (config->http_server.enable && proto == PROTO_HTTP_SERVER) {
-		if ((rv = nng_ctx_open(&w->extra_ctx, inproc_sock)) != 0) {
+		if ((rv = nng_ctx_open(&w->extra_ctx, extrasock)) != 0) {
 			NANO_NNG_FATAL("nng_ctx_open", rv);
 		}
 	} else if (config->bridge_mode) {
 		if (proto == PROTO_MQTT_BRIDGE) {
-			if ((rv = nng_ctx_open(&w->extra_ctx, bridge_sock)) !=
-			    0) {
+			if ((rv = nng_ctx_open(&w->extra_ctx, extrasock)) != 0) {
 				NANO_NNG_FATAL("nng_ctx_open", rv);
 			}
 		} else if (proto == PROTO_AWS_BRIDGE) {
-			if ((rv = nng_ctx_open(&w->extra_ctx, inproc_sock)) !=
-			    0) {
+			if ((rv = nng_ctx_open(&w->extra_ctx, extrasock)) != 0) {
 				NANO_NNG_FATAL("nng_ctx_open", rv);
 			}
 		}
@@ -1029,7 +1022,7 @@ broker(conf *nanomq_conf)
 	struct work **works = nng_zalloc(num_work * sizeof(struct work *));
 	// create broker ctx
 	for (i = 0; i < nanomq_conf->parallel; i++) {
-		works[i] = proto_work_init(sock, inproc_sock, sock,
+		works[i] = proto_work_init(sock, inproc_sock,
 		    PROTO_MQTT_BROKER, db, db_ret, nanomq_conf);
 	}
 
@@ -1046,9 +1039,8 @@ broker(conf *nanomq_conf)
 				for (i = tmp; i < (tmp + node->parallel);
 				     i++) {
 					works[i] = proto_work_init(sock,
-					    inproc_sock, *bridge_sock,
-					    PROTO_MQTT_BRIDGE, db, db_ret,
-					    nanomq_conf);
+					    *bridge_sock, PROTO_MQTT_BRIDGE,
+					    db, db_ret, nanomq_conf);
 				}
 				tmp += node->parallel;
 			}
@@ -1063,8 +1055,7 @@ broker(conf *nanomq_conf)
 				     i++) {
 					works[i] =
 					    proto_work_init(sock, inproc_sock,
-					        sock, PROTO_AWS_BRIDGE, db,
-					        db_ret, nanomq_conf);
+					        PROTO_AWS_BRIDGE, db, db_ret, nanomq_conf);
 				}
 				tmp += node->parallel;
 				aws_bridge_client(node);
@@ -1077,7 +1068,7 @@ broker(conf *nanomq_conf)
 	if (nanomq_conf->http_server.enable) {
 		log_debug("NanoMQ context initialization");
 		for (i = tmp; i < tmp + HTTP_CTX_NUM; i++) {
-			works[i] = proto_work_init(sock, inproc_sock, sock,
+			works[i] = proto_work_init(sock, inproc_sock,
 			    PROTO_HTTP_SERVER, db, db_ret, nanomq_conf);
 		}
 	}
