@@ -820,6 +820,12 @@ proto_work_init(nng_socket sock, nng_socket extrasock, uint8_t proto,
 			if ((rv = nng_ctx_open(&w->extra_ctx, extrasock)) != 0) {
 				NANO_NNG_FATAL("nng_ctx_open", rv);
 			}
+#if defined(SUPP_ICEORYX)
+		} else if (proto == PROTO_ICEORYX_BRIDGE) {
+			if ((rv = nng_ctx_open(&w->extra_ctx, extrasock)) != 0) {
+				NANO_NNG_FATAL("nng_ctx_open", rv);
+			}
+#endif
 		}
 	}
 
