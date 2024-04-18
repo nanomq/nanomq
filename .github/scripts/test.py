@@ -99,6 +99,6 @@ if __name__=='__main__':
     vul_test()
     print("vul_test test end")
 
-    time.sleep(3)
+    time.sleep(2)
 
     nanomq.terminate()
