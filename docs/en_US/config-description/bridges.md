@@ -60,6 +60,7 @@ bridges.mqtt.emqx1 = {
       remote_topic = "cmd/topic1"
       local_topic = "topic3"
       qos = 1
+      retain = 2                          # flag to override retain flag
     },
     {
       remote_topic = "cmd/topic2"
@@ -92,19 +93,21 @@ This configuration enables NanoMQ to establish an MQTT over TCP bridge connectio
 - `clean_start`: Specifies the clean start flag for the bridge. **Note**: Some IoT platforms require this to be set to `false`.
 - `username`: Specifies the username for the bridge.
 - `password`: Specifies the password for the bridge.
-- `forwards`: This is an array of topics that need to be forwarded to the remote MQTT server, including
-  - `remote_topic`: Topics refection topic, will change the topic in publish msg. Just leave `remote_topic=""` to preserve the original topic in msg   
-  - `local_topic`: Topics that need to be forwarded to the remote MQTT server.
-
 - `ssl`: Contains settings for SSL/TLS security:
   - `key_password`: Specifies the password for the client's private key file, if it's password-protected.
   - `keyfile`: Specifies the path to the client's private key file.
   - `certfile`: Specifies the path to the client's certificate file.
   - `cacertfile`: Specifies the path to the server's root CA certificate file. This certificate is used to identify the AWS IoT server.
+- `forwards`: This is an array of topics that need to be forwarded to the remote MQTT server, including
+  - `remote_topic`: Topics refection topic, will change the topic in publish msg. Just leave `remote_topic=""` to preserve the original topic in msg   
+  - `local_topic`: Topics that need to be forwarded to the remote MQTT server.
 - `subscription`: This is an array of topic objects that need to be subscribed from the remote MQTT server. Each object defines a topic and the QoS level for the subscription. Including
   - `remote_topic`: The topic filter used to subscribe to the remote broker.
   - `local_topic`: This is for Topic reflection, if you want the vanila way, then just leave `local_topic=""` to preserve the original topic in msg from remote broker.
   - `qos`: Define the QoS in the subscribe packet. This is a must. 
+  - `retain`: a flag to override retain flag.
+  - `retain_as_published`: an optional item for MQTTv5 feature, Retain As Published.
+  - `retain_handling`: an optional item for MQTTv5 feature, Retain Handling.
 
 - `max_parallel_processes`: Specifies the maximum number of parallel processes for handling outstanding requests.
 - `max_send_queue_len`: Specifies the maximum number of messages that can be queued for sending.
