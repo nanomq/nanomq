@@ -30,12 +30,12 @@ Webhook 支持两个配置参数：
 ```bash
 ## 格式示例
 webhook {
-	## 此处可以添加多条规则
-	event = [
-    	{
-        	<Rule>
-    	}
-	]
+    ## 此处可以添加多条规则
+    events = [
+        {
+            <Rule>
+        }
+    ]
 }
 ```
 
@@ -45,21 +45,21 @@ webhook {
 
 ```bash
 webhook {
-	url = "http://127.0.0.1:80"
-	headers.content-type = "application/json"
-	body.encoding = plain
-	pool_size = 32
-	
-	event = [
-		{ 
-			event = "on_message_publish"
-			topic = "a/b/c"
-		}
-		{
-			event = "on_message_publish"
-			topic = "foo/#"
-		}
-	]
+    url = "http://127.0.0.1:80"
+    headers.content-type = "application/json"
+    body.encoding = plain
+    pool_size = 32
+
+    events = [
+        {
+            event = "on_message_publish"
+            topic = "a/b/c"
+        }
+        {
+            event = "on_message_publish"
+            topic = "foo/#"
+        }
+    ]
 }
 ```
 
@@ -125,20 +125,20 @@ Body: <JSON>    # Body 为 JSON 格式字符串
 
 ```bash
 webhook {
-	url = "http://127.0.0.1:80"
-	headers.content-type = "application/json"
-	body.encoding = plain
-	pool_size = 32
-	
-	event = [
-		{ 
-			event = "on_message_publish"
-			topic = "a/b/c"
-		}
-		{
-			event = "on_client_connack"
-		}
-	]
+    url = "http://127.0.0.1:80"
+    headers.content-type = "application/json"
+    body.encoding = plain
+    pool_size = 32
+
+    events = [
+        {
+            event = "on_message_publish"
+            topic = "a/b/c"
+        }
+        {
+            event = "on_client_connack"
+        }
+    ]
 }
 ```
 
