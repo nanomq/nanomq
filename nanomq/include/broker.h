@@ -57,6 +57,11 @@ struct work {
 	packet_unsubscribe *      unsub_pkt;
 
 	void *sqlite_db;
+
+#if defined(SUPP_ICEORYX)
+	void *iceoryx_suber;
+	void *iceoryx_puber;
+#endif
 };
 
 struct client_ctx {

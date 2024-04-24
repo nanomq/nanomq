@@ -296,7 +296,7 @@ server_cb(void *arg)
 #if defined(SUPP_ICEORYX)
 		} else if (work->proto == PROTO_ICEORYX_BRIDGE) {
 			log_debug("INIT ^^^^^^^^ iceoryx ctx [%d] ^^^^^^^^ \n", work->extra_ctx.id);
-			nng_aio_set_prov_data(work->aio, suber);
+			nng_aio_set_prov_data(work->aio, work->iceoryx_suber);
 			nng_ctx_recv(work->extra_ctx, work->aio);
 #endif
 		} else {
@@ -353,8 +353,11 @@ server_cb(void *arg)
 			// alloc conn_param every single time
 #if defined(SUPP_ICEORYX)
 		} else if (work->proto == PROTO_ICEORYX_BRIDGE) {
+			nng_msg *icemsg = msg;
 			log_debug("%s", (char *)nng_msg_payload_ptr(msg));
-			// nng_msg_iceryx_free(msg, suber);
+			// TODO convert iceoryx msg to nng mqtt msg
+			//msg = decode_pub_message();
+			nng_msg_iceryx_free(icemsg, work->iceoryx_suber);
 #endif
 		}
 		work->msg       = msg;
@@ -655,7 +658,7 @@ server_cb(void *arg)
 				nng_msg_iceoryx_append(icemsg,
 				    nng_msg_body(work->msg), nng_msg_len(work->msg));
 				nng_aio_alloc(&aio, NULL, NULL);
-				nng_aio_set_prov_data(aio, puber);
+				nng_aio_set_prov_data(aio, work->iceoryx_puber);
 				nng_aio_set_msg(aio, icemsg);
 				nng_send_aio(sock, aio);
 				nng_aio_wait(aio);
@@ -838,8 +841,10 @@ proto_work_init(nng_socket sock, nng_socket extrasock, uint8_t proto,
 	w->config = config;
 	w->code   = SUCCESS;
 
-	w->sqlite_db = NULL;
+	w->iceoryx_suber = NULL;
+	w->iceoryx_puber = NULL;
 
+	w->sqlite_db = NULL;
 #if defined(NNG_SUPP_SQLITE)
 	nng_socket_get_ptr(sock, NMQ_OPT_MQTT_QOS_DB, &w->sqlite_db);
 #endif
@@ -1144,6 +1149,8 @@ broker(conf *nanomq_conf)
 	for (i = tmp; i < tmp + HTTP_CTX_NUM; i++) {
 		works[i] = proto_work_init(sock, iceoryx_sock,
 		    PROTO_ICEORYX_BRIDGE, db, db_ret, nanomq_conf);
+		works[i]->iceoryx_suber = suber;
+		works[i]->iceoryx_puber = puber;
 	}
 #endif
 
