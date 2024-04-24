@@ -351,6 +351,11 @@ server_cb(void *arg)
 			msg = decode_msg;
 			nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 			// alloc conn_param every single time
+#if defined(SUPP_ICEORYX)
+		} else if (work->proto == PROTO_ICEORYX_BRIDGE) {
+			log_debug("%s", (char *)nng_msg_payload_ptr(msg));
+			// nng_msg_iceryx_free(msg, suber);
+#endif
 		}
 		work->msg       = msg;
 		work->pid       = nng_msg_get_pipe(work->msg);
@@ -588,7 +593,12 @@ server_cb(void *arg)
 #if defined(SUPP_RULE_ENGINE)
 			rule_opt = work->config->rule_eng.option;
 #endif
-			if (hook_conf->enable || exge_conf->count > 0 || rule_opt != RULE_ENG_OFF) {
+			uint8_t iceoryx_opt = 0;
+#if defined(SUPP_ICEORYX)
+			iceoryx_opt = 1;
+#endif
+			if (hook_conf->enable || exge_conf->count > 0 || 
+			        rule_opt != RULE_ENG_OFF || iceoryx_opt == 1) {
 				work->state = SEND;
 				nng_aio_finish(work->aio, 0);
 				break;
