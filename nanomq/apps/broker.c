@@ -645,6 +645,24 @@ server_cb(void *arg)
 			rule_engine_insert_sql(work);
 		}
 #endif
+#if defined(SUPP_ICEORYX)
+		if (work->flag == CMD_PUBLISH && work->msg != NULL) {
+			nng_msg *icemsg;
+			size_t   icelen = nng_msg_len(work->msg) + nng_msg_header_len(work->msg);
+			if (nng_msg_iceoryx_alloc(&icemsg, icelen) == 0) {
+				nng_msg_iceoryx_append(icemsg,
+				    nng_msg_header(work->msg), nng_msg_header_len(work->msg));
+				nng_msg_iceoryx_append(icemsg,
+				    nng_msg_body(work->msg), nng_msg_len(work->msg));
+				nng_aio_alloc(&aio, NULL, NULL);
+				nng_aio_set_prov_data(aio, puber);
+				nng_aio_set_msg(aio, icemsg);
+				nng_send_aio(sock, aio);
+				nng_aio_wait(aio);
+				nng_aio_free(aio);
+			}
+		}
+#endif
 		// external hook here
 		hook_entry(work, 0);
 
