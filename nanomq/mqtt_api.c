@@ -370,5 +370,35 @@ nano_iceoryx_send_nng_msg(nng_iceoryx_puber *puber, nng_msg *msg, nng_ctx *extra
 	return rv;
 }
 
+int
+nano_iceoryx_recv_nng_msg(nng_iceoryx_suber *suber, nng_msg *icemsg, nng_msg **msgp)
+{
+	int      rv;
+	nng_msg *msg;
+	size_t   icehdrlen;
+	size_t   icebodylen;
+	uint8_t *icebuf;
+
+	rv = nng_msg_alloc(&msg, 0);
+	if (rv != 0)
+		return rv;
+
+	icebuf = nng_msg_payload_ptr(icemsg);
+	// decode header
+	icehdrlen = *(uint8_t *)icebuf;
+	rv = nng_msg_header_append(msg, icebuf + 1, icehdrlen);
+	if (rv != 0)
+		return rv;
+
+	// decode body
+	NNI_GET32(icebuf + 1 + icehdrlen, icebodylen);
+	rv = nng_msg_append(msg, icebuf + 1 + icehdrlen + 4, icebodylen);
+	if (rv != 0)
+		return rv;
+
+	*msgp = msg;
+	return 0;
+}
+
 #endif
 

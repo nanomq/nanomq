@@ -30,6 +30,8 @@ extern uint16_t nano_pipe_get_local_port6(nng_pipe p);
 #include "nng/iceoryx_shm/iceoryx_shm.h"
 extern int nano_iceoryx_send_nng_msg(
     nng_iceoryx_puber *puber, nng_msg *msg, nng_ctx *extra_ctx);
+extern int nano_iceoryx_recv_nng_msg(
+    nng_iceoryx_suber *suber, nng_msg *icemsg, nng_msg **msg);
 #endif
 
 #endif // MQTT_API_H
