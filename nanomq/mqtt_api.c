@@ -330,3 +330,45 @@ nano_pipe_get_local_port6(nng_pipe p)
 	return htons(addr.s_in6.sa_port);
 }
 
+#if defined(SUPP_ICEORYX)
+
+#include "nng/iceoryx_shm/iceoryx_shm.h"
+
+int
+nano_iceoryx_send_nng_msg(nng_iceoryx_puber *puber, nng_msg *msg, nng_ctx *extra_ctx)
+{
+	int      rv;
+	nng_msg *icemsg;
+	size_t   icehdrlen = nng_msg_header_len(msg);
+	size_t   icelen = nng_msg_len(msg);
+	uint8_t  icehdrbuf[1];
+	uint8_t  icebuf[4];
+
+	rv = nng_msg_iceoryx_alloc(&icemsg, puber, (int)(icehdrlen + icelen + 5));
+	if (rv != 0)
+		return rv;
+
+	// append header
+	icehdrbuf[0] = (uint8_t)icehdrlen;
+	nng_msg_iceoryx_append(icemsg, icehdrbuf, 1);
+	nng_msg_iceoryx_append(icemsg, nng_msg_header(msg), icehdrlen);
+
+	// append body
+	NNI_PUT32(icebuf, icelen);
+	nng_msg_iceoryx_append(icemsg, icebuf, 4);
+	nng_msg_iceoryx_append(icemsg, nng_msg_body(msg), icelen);
+
+	nng_aio *aio;
+	nng_aio_alloc(&aio, NULL, NULL);
+	nng_aio_set_prov_data(aio, puber);
+	nng_aio_set_msg(aio, icemsg);
+	nng_ctx_send(*extra_ctx, aio);
+	nng_aio_wait(aio);
+	rv = nng_aio_result(aio);
+	nng_aio_free(aio);
+
+	return rv;
+}
+
+#endif
+
