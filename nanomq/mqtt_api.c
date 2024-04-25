@@ -381,7 +381,9 @@ nano_iceoryx_recv_nng_msg(nng_iceoryx_suber *suber, nng_msg *icemsg, nng_msg **m
 	size_t   icebodylen;
 	uint8_t *icebuf;
 
-	rv = nng_msg_alloc(&msg, 0);
+	log_debug("iceoryx recving msg");
+
+	rv = nng_mqtt_msg_alloc(&msg, 0);
 	if (rv != 0)
 		return rv;
 
@@ -397,6 +399,11 @@ nano_iceoryx_recv_nng_msg(nng_iceoryx_suber *suber, nng_msg *icemsg, nng_msg **m
 	rv = nng_msg_append(msg, icebuf + 1 + icehdrlen + 4, icebodylen);
 	if (rv != 0)
 		return rv;
+
+	// Create a cparam ...
+	conn_param *cparam = create_cparam("atestclientid", MQTT_PROTOCOL_VERSION_v311);
+	nng_mqtt_msg_decode(msg);
+	nng_msg_set_conn_param(msg, cparam);
 
 	*msgp = msg;
 	return 0;
