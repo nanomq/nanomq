@@ -650,21 +650,9 @@ server_cb(void *arg)
 #endif
 #if defined(SUPP_ICEORYX)
 		if (work->flag == CMD_PUBLISH && work->msg != NULL) {
-			nng_msg *icemsg;
-			size_t   icelen = nng_msg_len(work->msg) + nng_msg_header_len(work->msg);
-			if (nng_msg_iceoryx_alloc(&icemsg,
-			        work->iceoryx_puber, (int)icelen) == 0) {
-				nng_msg_iceoryx_append(icemsg,
-				    nng_msg_header(work->msg), nng_msg_header_len(work->msg));
-				nng_msg_iceoryx_append(icemsg,
-				    nng_msg_body(work->msg), nng_msg_len(work->msg));
-				nng_aio *aio;
-				nng_aio_alloc(&aio, NULL, NULL);
-				nng_aio_set_prov_data(aio, work->iceoryx_puber);
-				nng_aio_set_msg(aio, icemsg);
-				nng_ctx_send(work->extra_ctx, aio);
-				nng_aio_wait(aio);
-				nng_aio_free(aio);
+			if (0 != (rv = nano_iceoryx_send_nng_msg(
+			        work->iceoryx_puber, work->msg, &work->extra_ctx))) {
+				log_error("Failed to send iceoryx %d", rv);
 			}
 		}
 #endif
