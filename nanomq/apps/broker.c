@@ -692,6 +692,11 @@ server_cb(void *arg)
 		work->flag  = 0;
 		if (work->proto == PROTO_MQTT_BROKER) {
 			nng_ctx_recv(work->ctx, work->aio);
+#if defined(SUPP_ICEORYX)
+		} else if (work->proto == PROTO_ICEORYX_BRIDGE) {
+			nng_aio_set_prov_data(work->aio, work->iceoryx_suber);
+			nng_ctx_recv(work->extra_ctx, work->aio);
+#endif
 		} else{
 			nng_ctx_recv(work->extra_ctx, work->aio);
 		}
