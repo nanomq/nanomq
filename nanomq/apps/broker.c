@@ -1127,6 +1127,7 @@ broker(conf *nanomq_conf)
 			works[i] = proto_work_init(sock, inproc_sock,
 			    PROTO_HTTP_SERVER, db, db_ret, nanomq_conf);
 		}
+		tmp += HTTP_CTX_NUM;
 	}
 
 #if defined(SUPP_ICEORYX)
@@ -1153,6 +1154,7 @@ broker(conf *nanomq_conf)
 		works[i]->iceoryx_suber = suber;
 		works[i]->iceoryx_puber = puber;
 	}
+	tmp += HTTP_CTX_NUM;
 #endif
 
 	// Init exchange part in hook
