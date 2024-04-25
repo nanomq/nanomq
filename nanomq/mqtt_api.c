@@ -344,6 +344,7 @@ nano_iceoryx_send_nng_msg(nng_iceoryx_puber *puber, nng_msg *msg, nng_ctx *extra
 	uint8_t  icehdrbuf[1];
 	uint8_t  icebuf[4];
 
+	log_debug("iceoryx send a msg sz %d", icehdrlen + icelen + 5);
 	rv = nng_msg_iceoryx_alloc(&icemsg, puber, (int)(icehdrlen + icelen + 5));
 	if (rv != 0)
 		return rv;
@@ -363,6 +364,7 @@ nano_iceoryx_send_nng_msg(nng_iceoryx_puber *puber, nng_msg *msg, nng_ctx *extra
 	nng_aio_set_prov_data(aio, puber);
 	nng_aio_set_msg(aio, icemsg);
 	nng_ctx_send(*extra_ctx, aio);
+	log_debug("iceoryx sending and wait");
 	nng_aio_wait(aio);
 	rv = nng_aio_result(aio);
 	nng_aio_free(aio);
