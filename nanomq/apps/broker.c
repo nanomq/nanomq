@@ -660,7 +660,8 @@ server_cb(void *arg)
 		}
 #endif
 #if defined(SUPP_ICEORYX)
-		if (work->flag == CMD_PUBLISH && work->msg != NULL) {
+		if (work->proto == PROTO_ICEORYX_BRIDGE && work->flag == CMD_PUBLISH
+		        && work->msg != NULL) {
 			if (0 != (rv = nano_iceoryx_send_nng_msg(
 			        work->iceoryx_puber, work->msg, &work->extra_ctx))) {
 				log_error("Failed to send iceoryx %d", rv);
