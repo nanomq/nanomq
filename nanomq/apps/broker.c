@@ -354,9 +354,17 @@ server_cb(void *arg)
 #if defined(SUPP_ICEORYX)
 		} else if (work->proto == PROTO_ICEORYX_BRIDGE) {
 			nng_msg *icemsg = msg;
+			nng_msg *decode_msg = NULL;
 			log_debug("%s", (char *)nng_msg_payload_ptr(msg));
-			// TODO convert iceoryx msg to nng mqtt msg
-			//msg = decode_pub_message();
+			// convert iceoryx msg to nng mqtt msg
+			rv = nano_iceoryx_recv_nng_msg(work->iceoryx_suber, icemsg, &decode_msg);
+			if (rv != 0) {
+				conn_param_free(nng_msg_get_conn_param(icemsg));
+				work->state = RECV;
+				nng_ctx_recv(work->extra_ctx, work->aio);
+				break;
+			}
+			msg = decode_msg;
 			nng_msg_iceoryx_free(icemsg, work->iceoryx_suber);
 #endif
 		}
