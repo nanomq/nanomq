@@ -189,6 +189,21 @@ iceoryx_bench_puber(const char *service, const char *instance,
 	nng_close(sock);
 }
 
+void
+iceoryx_pubmqtt(char **argv)
+{
+	char *pld = argv[7];
+	char buf1[3] = {0x02, 0x30, 0x0a}; // Inner header 1B, MQTT Fixed header 2B
+	char buf2[14] = {0x00, 0x00, 0x00, 0x0a, 0x00, 0x05, 0x74, 0x6f, 0x70, 0x69, 0x63, 0x74, 0x74, 0x74}; // Inner header 4B, MQTT utf8 string topic 7B, 3B Payload
+	// copy pld
+	memcpy(buf2+11, pld, 3);
+
+	char bufall[17];
+	memcpy(bufall, buf1, 3);
+	memcpy(bufall + 3, buf2, 14);
+	iceoryx_puber(argv[3], argv[4], argv[5], argv[6], bufall, 17);
+}
+
 int
 iceoryx_start(int argc, char **argv)
 {
@@ -222,6 +237,18 @@ iceoryx_start(int argc, char **argv)
 			"test-iceoryx-topicsend",
 			"test-iceoryx-topicrecv",
 			"AAAAAAAAAAAAAAAAAAA");
+	} else if (0 == strcmp(argv[2], "pubmqtt")) {
+		if (argc != 8) {
+			helper(argv);
+			return 0;
+		}
+		iceoryx_pubmqtt(argv);
+	} else if (0 == strcmp(argv[2], "submqtt")) {
+		if (argc != 8) {
+			helper(argv);
+			return 0;
+		}
+		iceoryx_submqtt(argv);
 	} else {
 		helper(argv);
 	}
