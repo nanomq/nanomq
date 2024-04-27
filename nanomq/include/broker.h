@@ -61,6 +61,7 @@ struct work {
 #if defined(SUPP_ICEORYX)
 	void *iceoryx_suber;
 	void *iceoryx_puber;
+	nng_socket iceoryx_sock;
 #endif
 };
 

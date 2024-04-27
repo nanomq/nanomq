@@ -665,7 +665,7 @@ server_cb(void *arg)
 		        work->pub_packet->var_header.publish.topic_name.body,
 		        work->pub_packet->var_header.publish.topic_name.len)) {
 			if (0 != (rv = nano_iceoryx_send_nng_msg(
-			        work->iceoryx_puber, work->msg, &work->extra_ctx))) {
+			        work->iceoryx_puber, work->msg, &work->iceoryx_sock))) {
 				log_error("Failed to send iceoryx %d", rv);
 			}
 		}
@@ -1143,7 +1143,7 @@ broker(conf *nanomq_conf)
 	const char *iceoryx_service = "NanoMQ-Service";
 	const char *iceoryx_instance = "NanoMQ-Instance";
 	const char *iceoryx_event_sub = "topic";
-	const char *iceoryx_event_pub = "fwd/topic";
+	const char *iceoryx_event_pub = "fwd/ice";
 	nng_iceoryx_open(&iceoryx_sock, "NanoMQ-Iceoryx");
 
 	nng_iceoryx_suber *suber;
@@ -1233,6 +1233,15 @@ broker(conf *nanomq_conf)
 			NANO_NNG_FATAL("nng_listen " INPROC_SERVER_URL, rv);
 		}
 	}
+
+#if defined(SUPP_ICEORYX)
+	for (i = 0; i < num_work; i++) {
+		works[i]->iceoryx_suber = suber;
+		works[i]->iceoryx_puber = puber;
+		works[i]->iceoryx_sock.data  = iceoryx_sock.data;
+		works[i]->iceoryx_sock.id    = iceoryx_sock.id;
+	}
+#endif
 
 	for (i = 0; i < num_work; i++) {
 		server_cb(works[i]); // this starts them going (INIT state)
