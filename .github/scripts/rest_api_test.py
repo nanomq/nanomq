@@ -1,5 +1,6 @@
 import requests
 import json
+from time import sleep
 from collections import namedtuple
 
 base_url = "http://127.0.0.1:8081/api/v4"
@@ -11,6 +12,7 @@ def test_get_api():
 
     for p in paths:
         print("testing Get API: " + base_url + p)
+        sleep(0.5)
         response = requests.get(base_url + p, auth=('admin', 'public'), headers={'Connection':'close'})
 
         if response.status_code != 200:
