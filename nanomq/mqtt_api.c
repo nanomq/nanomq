@@ -334,6 +334,19 @@ nano_pipe_get_local_port6(nng_pipe p)
 
 #include "nng/iceoryx_shm/iceoryx_shm.h"
 
+bool
+nano_iceoryx_topic_filter(char *icetopic, char *topic, uint32_t topicsz)
+{
+	if (topicsz == 0 || topic == NULL) {
+		return false;
+	}
+	int icetopicsz = strlen(icetopic);
+	if (icetopicsz != topicsz) {
+		return false;
+	}
+	return (0 == strncmp(icetopic, topic, topicsz));
+}
+
 int
 nano_iceoryx_send_nng_msg(nng_iceoryx_puber *puber, nng_msg *msg, nng_socket *sock)
 {

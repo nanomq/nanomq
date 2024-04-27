@@ -1159,8 +1159,8 @@ broker(conf *nanomq_conf)
 	for (i = tmp; i < tmp + HTTP_CTX_NUM; i++) {
 		works[i] = proto_work_init(sock, iceoryx_sock,
 		    PROTO_ICEORYX_BRIDGE, db, db_ret, nanomq_conf);
-		works[i]->iceoryx_suber = suber;
-		works[i]->iceoryx_puber = puber;
+		//works[i]->iceoryx_suber = suber;
+		//works[i]->iceoryx_puber = puber;
 	}
 	tmp += HTTP_CTX_NUM;
 #endif
