@@ -335,7 +335,7 @@ nano_pipe_get_local_port6(nng_pipe p)
 #include "nng/iceoryx_shm/iceoryx_shm.h"
 
 int
-nano_iceoryx_send_nng_msg(nng_iceoryx_puber *puber, nng_msg *msg, nng_ctx *extra_ctx)
+nano_iceoryx_send_nng_msg(nng_iceoryx_puber *puber, nng_msg *msg, nng_socket *sock)
 {
 	int      rv;
 	nng_msg *icemsg;
@@ -363,7 +363,7 @@ nano_iceoryx_send_nng_msg(nng_iceoryx_puber *puber, nng_msg *msg, nng_ctx *extra
 	nng_aio_alloc(&aio, NULL, NULL);
 	nng_aio_set_prov_data(aio, puber);
 	nng_aio_set_msg(aio, icemsg);
-	nng_ctx_send(*extra_ctx, aio);
+	nng_send_aio(*sock, aio);
 	log_debug("iceoryx sending and wait");
 	nng_aio_wait(aio);
 	rv = nng_aio_result(aio);
