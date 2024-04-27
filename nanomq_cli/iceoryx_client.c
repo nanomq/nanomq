@@ -66,7 +66,7 @@ iceoryx_suber(const char *subername, const char *service, const char *instance,
 
 void
 iceoryx_puber(const char *pubername, const char *service, const char *instance,
-		const char *event, const char *txt)
+		const char *event, const char *txt, size_t sz)
 {
 	nng_aio *aio;
 	nng_msg *msg;
@@ -76,8 +76,8 @@ iceoryx_puber(const char *pubername, const char *service, const char *instance,
 	nng_iceoryx_open(&sock, "Hello-NanoMQ");
 	nng_iceoryx_pub(&sock, pubername, service, instance, event, &puber);
 
-	nng_msg_iceoryx_alloc(&msg, puber, strlen(txt));
-	nng_msg_iceoryx_append(msg, txt, strlen(txt));
+	nng_msg_iceoryx_alloc(&msg, puber, sz);
+	nng_msg_iceoryx_append(msg, txt, sz);
 	printf("Put payload [%s]\n", nng_msg_payload_ptr(msg));
 
 	nng_aio_alloc(&aio, NULL, NULL);
@@ -207,7 +207,7 @@ iceoryx_start(int argc, char **argv)
 			helper(argv);
 			return 0;
 		}
-		iceoryx_puber(argv[3], argv[4], argv[5], argv[6], argv[7]);
+		iceoryx_puber(argv[3], argv[4], argv[5], argv[6], argv[7], strlen(argv[7]));
 	} else if (0 == strcmp(argv[2], "benchsub")) {
 		iceoryx_bench_suber(
 			"test-iceoryx-service",
