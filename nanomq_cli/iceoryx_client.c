@@ -190,6 +190,66 @@ iceoryx_bench_puber(const char *service, const char *instance,
 }
 
 void
+iceoryx_submqtt(const char *subername, const char *service, const char *instance,
+		const char *event)
+{
+	nng_aio *aio;
+	nng_msg *msg;
+	nng_socket sock;
+	nng_iceoryx_suber *suber;
+
+	nng_iceoryx_open(&sock, "Hello-Iceoryx");
+	nng_iceoryx_sub(&sock, subername, service, instance, event, &suber);
+
+	nng_aio_alloc(&aio, NULL, NULL);
+	nng_aio_set_prov_data(aio, suber);
+	nng_recv_aio(sock, aio);
+	nng_aio_wait(aio);
+
+	msg = nng_aio_get_msg(aio);
+
+	char *pld = nng_msg_payload_ptr(msg);
+	nng_msg *msg2;
+	nng_msg_alloc(&msg2, 0);
+	// Decode iceoryx msg
+	uint8_t buf1[1];
+	memcpy(buf1, pld, 1);
+	printf("iceoryx msg len1: %d\n", buf1[0]);
+	nng_msg_header_append(msg2, pld, buf1[0]);
+	uint32_t buf2;
+	{
+		char *ptr = pld + 1 + buf1[0];
+		buf2 = (((uint32_t)((uint8_t)(ptr)[0])) << 24u) +
+		       (((uint32_t)((uint8_t)(ptr)[1])) << 16u) +
+		       (((uint32_t)((uint8_t)(ptr)[2])) << 8u) +
+		       (((uint32_t)(uint8_t)(ptr)[3]));
+	}
+	printf("iceoryx msg len2: %d\n", buf2);
+	nng_msg_append(msg2, pld + 1 + buf1[0] + 4, buf2);
+
+	uint16_t topicsz;
+	{
+		char *ptr = nng_msg_body(msg2);
+		topicsz = (((uint32_t)((uint8_t)(ptr)[0])) << 8u) +
+		          (((uint32_t)(uint8_t)(ptr)[1]));
+		printf("mqtt topic: %.*s\n", topicsz, ptr + 2);
+	}
+
+	uint16_t pldsz = nng_msg_len(msg2) - 2 - topicsz;
+	{
+		char *ptr = nng_msg_body(msg2);
+		ptr = ptr + 2 + topicsz;
+		printf("mqtt topic %.*s\n", pldsz, ptr);
+	}
+
+	nng_msg_free(msg2);
+	nng_msg_iceoryx_free(msg, suber);
+	nng_aio_free(aio);
+	nng_free(suber, 0);
+	nng_close(sock);
+}
+
+void
 iceoryx_pubmqtt(char **argv)
 {
 	char *pld = argv[7];
@@ -248,7 +308,7 @@ iceoryx_start(int argc, char **argv)
 			helper(argv);
 			return 0;
 		}
-		iceoryx_submqtt(argv);
+		iceoryx_submqtt(argv[3], argv[4], argv[5], argv[6]);
 	} else {
 		helper(argv);
 	}
