@@ -87,6 +87,7 @@ if __name__=='__main__':
         raise AssertionError
     print("fuzzy test end")
 
+    time.sleep(1)
     print("rest api test start")
     if False == rest_api_test():
         nanomq.terminate()
