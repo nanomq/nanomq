@@ -210,7 +210,7 @@ def test_topic_alias():
         print("Topic alias test passed!")
         return True
     else:
-        print("Sub client did not receive message * 10, only" + cnt.value + "received")
+        print("Sub client did not receive message * 10, only", cnt.value, "received")
         print(s_cmd)
         print(p_cmd)
         print("Topic alias test failed!")
