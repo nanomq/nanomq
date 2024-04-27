@@ -304,7 +304,7 @@ iceoryx_start(int argc, char **argv)
 		}
 		iceoryx_pubmqtt(argv);
 	} else if (0 == strcmp(argv[2], "submqtt")) {
-		if (argc != 8) {
+		if (argc != 7) {
 			helper(argv);
 			return 0;
 		}
