@@ -11,7 +11,7 @@ def test_get_api():
 
     for p in paths:
         print("testing Get API: " + base_url + p)
-        response = requests.get(base_url + p, auth=('admin', 'public'))
+        response = requests.get(base_url + p, auth=('admin', 'public'), headers={'Connection':'close'})
 
         if response.status_code != 200:
             print("test get api failed: " + p)
@@ -48,7 +48,7 @@ def test_post_api():
     for item in param_list:
         print("testing Post API: " + base_url + item.path)
         response = requests.post(
-            base_url + item.path, json.dumps(item.payload), auth=('admin', 'public'))
+            base_url + item.path, json.dumps(item.payload), auth=('admin', 'public'), headers={'Connection':'close'})
         if response.status_code != 200:
             print("test Post api failed: " + item.path)
             return False
