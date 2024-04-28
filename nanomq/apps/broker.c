@@ -355,7 +355,7 @@ server_cb(void *arg)
 		} else if (work->proto == PROTO_ICEORYX_BRIDGE) {
 			nng_msg *icemsg = msg;
 			nng_msg *decode_msg = NULL;
-			log_debug("pld:%s", (char *)nng_msg_payload_ptr(msg));
+			//log_debug("pld:%s", (char *)nng_msg_payload_ptr(msg));
 			// convert iceoryx msg to nng mqtt msg
 			rv = nano_iceoryx_recv_nng_msg(work->iceoryx_suber, icemsg, &decode_msg);
 			if (rv != 0) {
