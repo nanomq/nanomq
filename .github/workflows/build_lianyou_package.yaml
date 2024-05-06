@@ -8,14 +8,15 @@ on:
   push:
     branches-ignore:
       - sdv_master
+      - xinyi/sdv
     tags:
       - '*'
   pull_request:
     branches:
       - lianyou-master
-  release:
-    types:
-      - published
+  # release:
+  #   types:
+  #     - published
 
 jobs:
   build_and_upload:

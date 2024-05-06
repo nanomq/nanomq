@@ -43,30 +43,24 @@ jobs:
           git log -1 >> readme.txt
           cd nng && git log -1 >> ../readme.txt && cd -
           id=$(docker create nanomq_with_parquet)
-          docker cp $id:/opt/NanoMQ_mirror/build/nanomq/nanomq packages/nanomq
-          docker cp $id:/opt/NanoMQ_mirror/build-debug/nanomq/nanomq packages/nanomq-debug
-          cp readme.txt packages/nanomq
-          cp readme.txt packages/nanomq-debug
-          cp etc/nanomq.conf packages/nanomq/etc
-          cp etc/nanomq.conf packages/nanomq-debug/etc
-          tar -zcvf packages/nanomq-${pkgversion}-linux-amd64.tar.gz packages/nanomq/*
-          tar -zcvf packages/nanomq-${pkgversion}-linux-amd64-debug.tar.gz packages/nanomq-debug/*
-          rm -rf packages/nanomq packages/nanomq-debug
+          docker cp $id:/opt/NanoMQ_mirror/build/nanomq/nanomq ./packages/nanomq/
+          docker cp $id:/opt/NanoMQ_mirror/build-debug/nanomq/nanomq ./packages/nanomq-debug/
+          cp readme.txt ./packages/nanomq/
+          cp readme.txt ./packages/nanomq-debug/
+          cp etc/nanomq.conf ./packages/nanomq/etc
+          cp etc/nanomq.conf ./packages/nanomq-debug/etc
+          cd ./packages
+          tar -zcvf ./nanomq-${pkgversion}-linux-amd64.tar.gz ./nanomq
+          tar -zcvf ./nanomq-${pkgversion}-linux-amd64-debug.tar.gz ./nanomq-debug
+          rm -rf ./nanomq/nanomq ./nanomq-debug/nanomq
           docker rm -v $id
 
-          mkdir -p packages/nanomq/parquet packages/nanomq-debug/parquet
-          mkdir -p packages/nanomq/etc packages/nanomq-debug/etc
-          mkdir -p packages/nanomq/log packages/nanomq-debug/log
           id=$(docker create nanomq_with_parquet_arm64)
-          docker cp $id:/opt/NanoMQ_mirror/build/nanomq/nanomq packages/nanomq
-          docker cp $id:/opt/NanoMQ_mirror/build-debug/nanomq/nanomq packages/nanomq-debug
-          cp readme.txt packages/nanomq
-          cp readme.txt packages/nanomq-debug
-          cp etc/nanomq.conf packages/nanomq/etc
-          cp etc/nanomq.conf packages/nanomq-debug/etc
-          tar -zcvf packages/nanomq-${pkgversion}-linux-arm64.tar.gz packages/nanomq/*
-          tar -zcvf packages/nanomq-${pkgversion}-linux-arm64-debug.tar.gz packages/nanomq-debug/*
-          rm -rf packages/nanomq packages/nanomq-debug
+          docker cp $id:/opt/NanoMQ_mirror/build/nanomq/nanomq ./nanomq/
+          docker cp $id:/opt/NanoMQ_mirror/build-debug/nanomq/nanomq ./nanomq-debug/
+          tar -zcvf ./nanomq-${pkgversion}-linux-arm64.tar.gz ./nanomq/
+          tar -zcvf ./nanomq-${pkgversion}-linux-arm64-debug.tar.gz ./nanomq-debug/
+          rm -rf ./nanomq ./nanomq-debug
           docker rm -v $id
 
       - uses: actions/upload-artifact@v4
