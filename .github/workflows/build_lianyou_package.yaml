@@ -8,6 +8,8 @@ on:
   push:
     branches:
       - lianyou-master
+    branches-ignore:
+      - sdv_master
     tags:
       - '*'
   pull_request:

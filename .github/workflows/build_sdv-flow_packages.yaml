@@ -6,6 +6,8 @@ concurrency:
 
 on:
   push:
+    branches-ignore:
+      - lianyou-master
     tags:
       - '*'
   pull_request:
