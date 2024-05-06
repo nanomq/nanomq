@@ -850,8 +850,10 @@ proto_work_init(nng_socket sock, nng_socket extrasock, uint8_t proto,
 	w->config = config;
 	w->code   = SUCCESS;
 
+#if defined(SUPP_ICEORYX)
 	w->iceoryx_suber = NULL;
 	w->iceoryx_puber = NULL;
+#endif
 
 	w->sqlite_db = NULL;
 #if defined(NNG_SUPP_SQLITE)
