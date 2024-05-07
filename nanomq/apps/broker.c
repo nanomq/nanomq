@@ -31,6 +31,8 @@
 #include "nng/supplemental/nanolib/mqtt_db.h"
 #include "nng/supplemental/nanolib/log.h"
 #include "nng/supplemental/nanolib/utils.h"
+#include "nng/supplemental/nanolib/env.h"
+#include "nng/protocol/reqrep0/req.h"
 
 #include "include/acl_handler.h"
 #include "include/bridge.h"
@@ -190,6 +192,43 @@ static nng_optspec cmd_opts[] = {
 	{ .o_name = "log_file", .o_val = OPT_LOG_FILE, .o_arg = true },
 	{ .o_name = NULL, .o_val = 0 },
 };
+
+const char *VIN_CODE_URL = "tcp://127.0.0.1:40899";
+const char *GETVIN       = "getvin";
+
+static char *
+nano_vin_client(const char *url)
+{
+	nng_socket sock;
+	nng_dialer dialer;
+	int        rv;
+	size_t     sz;
+	char *     buf = NULL;
+	int        sleep = 0;
+
+
+	if ((rv = nng_req0_open(&sock)) != 0) {
+		NANO_NNG_FATAL("nng_socket", rv);
+	}
+
+	if ((rv = nng_dialer_create(&dialer, sock, url)) != 0) {
+		NANO_NNG_FATAL("nng_dialer_create", rv);
+	}
+
+	nng_socket_set_ms(sock, NNG_OPT_REQ_RESENDTIME, 1000);
+	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
+
+	if ((rv = nng_send(sock, GETVIN, strlen(GETVIN), 0)) != 0) {
+		NANO_NNG_FATAL("nng_send", rv);
+	}
+	if ((rv = nng_recv(sock, &buf, &sz, NNG_FLAG_ALLOC)) != 0) {
+		NANO_NNG_FATAL("nng_recv", rv);
+	}
+
+	printf("NanoMQ RUN WITH VIN CODE: %s\n", buf);
+	nng_close(sock);
+	return buf;
+}
 
 // The server keeps a list of work items, sorted by expiration time,
 // so that we can use this to set the timeout to the correct value for
@@ -1688,8 +1727,19 @@ broker_start(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
+	char *vin = read_env_vin();
+	if (NULL == vin) {
+		fprintf(stderr, "Waiting for VIN CODE.....");
+		vin = nano_vin_client(VIN_CODE_URL);
+		if (NULL == vin) {
+			fprintf(stderr, "Fail get vin code!");
+			exit(EXIT_FAILURE);
+		}
+	}
+
 	// Priority: config < environment variables < command opts
 	conf_init(nanomq_conf);
+	nanomq_conf->vin = vin;
 
 	rc = file_path_parse(argc, argv, &nanomq_conf->conf_file);
 
