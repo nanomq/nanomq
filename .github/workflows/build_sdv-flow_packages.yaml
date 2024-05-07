@@ -16,6 +16,9 @@ on:
   release:
     types:
       - published
+    branches:
+      - sdv_master
+
 
 jobs:
   build_and_upload:

@@ -14,9 +14,11 @@ on:
   pull_request:
     branches:
       - lianyou-master
-  # release:
-  #   types:
-  #     - published
+  release:
+    types:
+      - published
+    branches:
+      - lianyou-master
 
 jobs:
   build_and_upload:
