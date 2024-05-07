@@ -360,7 +360,6 @@ server_cb(void *arg)
 			rv = nano_iceoryx_recv_nng_msg(work->iceoryx_suber, icemsg, &decode_msg);
 			if (rv != 0) {
 				log_error("Failed to decode iceoryx msg %d", rv);
-				//conn_param_free(nng_msg_get_conn_param(icemsg));
 				work->state = RECV;
 				nng_aio_set_prov_data(work->aio, work->iceoryx_suber);
 				nng_ctx_recv(work->extra_ctx, work->aio);
@@ -1161,8 +1160,6 @@ broker(conf *nanomq_conf)
 	for (i = tmp; i < tmp + HTTP_CTX_NUM; i++) {
 		works[i] = proto_work_init(sock, iceoryx_sock,
 		    PROTO_ICEORYX_BRIDGE, db, db_ret, nanomq_conf);
-		//works[i]->iceoryx_suber = suber;
-		//works[i]->iceoryx_puber = puber;
 	}
 	tmp += HTTP_CTX_NUM;
 #endif
