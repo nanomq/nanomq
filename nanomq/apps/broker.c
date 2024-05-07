@@ -661,7 +661,7 @@ server_cb(void *arg)
 #endif
 #if defined(SUPP_ICEORYX)
 		if (work->flag == CMD_PUBLISH && work->msg != NULL &&
-		        true == nano_iceoryx_topic_filter("fwd/ice",
+		        true == nano_iceoryx_topic_filter("ice/fwd",
 		        work->pub_packet->var_header.publish.topic_name.body,
 		        work->pub_packet->var_header.publish.topic_name.len)) {
 			if (0 != (rv = nano_iceoryx_send_nng_msg(
@@ -1145,7 +1145,7 @@ broker(conf *nanomq_conf)
 	const char *iceoryx_service = "NanoMQ-Service";
 	const char *iceoryx_instance = "NanoMQ-Instance";
 	const char *iceoryx_event_sub = "topic";
-	const char *iceoryx_event_pub = "fwd/ice";
+	const char *iceoryx_event_pub = "ice/fwd";
 	nng_iceoryx_open(&iceoryx_sock, "NanoMQ-Iceoryx");
 
 	nng_iceoryx_suber *suber;

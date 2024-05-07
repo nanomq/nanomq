@@ -7,6 +7,16 @@
 // found online at https://opensource.org/licenses/MIT.
 //
 
+// An example for communicating iceoryx client with nanomq.
+//
+// MQTT client -> NanoMQ -> iceoryx client.
+// nanomq_cli pub -t ice/fwd -m aaa
+// nanomq_cli iceoryx submqtt ss NanoMQ-Service NanoMQ-Instance ice/fwd
+//
+// iceoryx client -> NanoMQ -> MQTT client.
+// nanomq_cli iceoryx pubmqtt pp NanoMQ-Service NanoMQ-Instance topic acc
+// nanomq_cli sub -t topic
+
 #if defined(SUPP_ICEORYX)
 
 #include "nng/nng.h"
