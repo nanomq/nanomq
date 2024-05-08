@@ -44,18 +44,30 @@ connect_cb(void *rmsg, void *arg)
 
 	rv = nng_mqtt_msg_get_connack_return_code(msg);
 	printf("Connected cb, rv %d.\n", rv);
+	nng_msg_free(msg);
+
+	nng_aio *aio = arg;
+	nng_aio_finish(aio, rv);
+}
+
+int
+disconnect_cb(void *rmsg, void *arg)
+{
+	int rv = 0;
+	printf("Disconnected reason.");
 
 	nng_aio *aio = arg;
 	nng_aio_finish(aio, rv);
 }
 
 void
-con_dis_self()
+con_dis_self(int id)
 {
 	int rv;
 	nng_dialer dialer;
 	nng_socket sock;
 	nng_msg   *connmsg;
+	char       buf[64];
 
 	rv = nng_mqtt_quic_client_open(&sock);
 	assert(rv == 0);
@@ -63,18 +75,24 @@ con_dis_self()
 	rv = nng_dialer_create(&dialer, sock, TEST_MQTT_QUIC_URL);
 	assert(rv == 0);
 
-	connmsg = connect_msg(4, "nanomq-quic-smoke-test-clientid");
+	sprintf(buf, "nanomq-quic-smoke-test-clientid-%d", id);
+	connmsg = connect_msg(4, buf);
 	assert(connmsg != NULL);
 	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
 
 	rv = nng_dialer_start(dialer, NNG_FLAG_ALLOC);
-	assert(rv != 0);
+	assert(rv == 0);
 
 	nng_aio *aio_connected;
 	nng_aio_alloc(&aio_connected, NULL, NULL);
 	assert(aio_connected != NULL);
-
 	rv = nng_mqtt_quic_set_connect_cb(&sock, connect_cb, (void *)aio_connected);
+	assert(rv == 0);
+
+	nng_aio *aio_disconnected;
+	nng_aio_alloc(&aio_disconnected, NULL, NULL);
+	assert(aio_disconnected != NULL);
+	rv = nng_mqtt_quic_set_disconnect_cb(&sock, disconnect_cb, (void *)aio_disconnected);
 	assert(rv == 0);
 
 	// Wait for connected
@@ -82,14 +100,27 @@ con_dis_self()
 	rv = nng_aio_result(aio_connected);
 	assert(rv == 0);
 
+	// Wait for disconnected
+	nng_aio_wait(aio_disconnected);
+	rv = nng_aio_result(aio_disconnected);
+	assert(rv == 0);
+
 	// Disconnect actively
+	conn_param *cparam = nng_msg_get_conn_param(connmsg);
 	nng_close(sock);
+	conn_param_free(cparam);
 	nng_aio_free(aio_connected);
+	nng_aio_free(aio_disconnected);
+	printf("...done.\n");
 }
 
 int
 main()
 {
-	con_dis_self();
+	for (int i=0; i<100; ++i) {
+		printf("No.%d. ", i);
+		con_dis_self(i);
+		nng_msleep(100);
+	}
 	return 0;
 }
