@@ -61,7 +61,7 @@ disconnect_cb(void *rmsg, void *arg)
 }
 
 void
-con_dis_self(int id)
+con_dis_self(int id, int ver)
 {
 	int rv;
 	nng_dialer dialer;
@@ -69,27 +69,41 @@ con_dis_self(int id)
 	nng_msg   *connmsg;
 	char       buf[64];
 
-	rv = nng_mqtt_quic_client_open(&sock);
+	if (ver == 4)
+		rv = nng_mqtt_quic_client_open(&sock);
+	else if (ver == 5)
+		rv = nng_mqttv5_quic_client_open(&sock);
+	else {
+		printf("Unsupported version.\n");
+		return;
+	}
+
 	assert(rv == 0);
 
 	rv = nng_dialer_create(&dialer, sock, TEST_MQTT_QUIC_URL);
 	assert(rv == 0);
 
 	sprintf(buf, "nanomq-quic-smoke-test-clientid-%d", id);
-	connmsg = connect_msg(4, buf);
+	connmsg = connect_msg(ver, buf);
 	assert(connmsg != NULL);
 	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
 
 	nng_aio *aio_connected;
 	nng_aio_alloc(&aio_connected, NULL, NULL);
 	assert(aio_connected != NULL);
-	rv = nng_mqtt_quic_set_connect_cb(&sock, connect_cb, (void *)aio_connected);
+	if (ver == 4)
+		rv = nng_mqtt_quic_set_connect_cb(&sock, connect_cb, (void *)aio_connected);
+	else if (ver == 5)
+		rv = nng_mqttv5_quic_set_connect_cb(&sock, connect_cb, (void *)aio_connected);
 	assert(rv == 0);
 
 	nng_aio *aio_disconnected;
 	nng_aio_alloc(&aio_disconnected, NULL, NULL);
 	assert(aio_disconnected != NULL);
-	rv = nng_mqtt_quic_set_disconnect_cb(&sock, disconnect_cb, (void *)aio_disconnected);
+	if (ver == 4)
+		rv = nng_mqtt_quic_set_disconnect_cb(&sock, disconnect_cb, (void *)aio_disconnected);
+	else if (ver == 5)
+		rv = nng_mqttv5_quic_set_disconnect_cb(&sock, disconnect_cb, (void *)aio_disconnected);
 	assert(rv == 0);
 
 	rv = nng_dialer_start(dialer, NNG_FLAG_ALLOC);
