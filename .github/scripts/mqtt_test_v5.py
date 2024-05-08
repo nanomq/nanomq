@@ -192,7 +192,7 @@ def test_topic_alias():
     pid = Value('i', 0)
     process1 = Process(target=cnt_message, args=(sub_cmd, cnt, pid, "message"))
     process1.start()
-    time.sleep(2)
+    time.sleep(1)
     process2 = subprocess.Popen(pub_cmd,
                                stdout=subprocess.PIPE,
                                universal_newlines=True)
@@ -204,7 +204,6 @@ def test_topic_alias():
         time.sleep(1)
         times += 1
     
-    time.sleep(2)
     process1.terminate()
     os.kill(pid.value, signal.SIGKILL)
     if cnt.value == 10:
