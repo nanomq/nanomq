@@ -80,9 +80,6 @@ con_dis_self(int id)
 	assert(connmsg != NULL);
 	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
 
-	rv = nng_dialer_start(dialer, NNG_FLAG_ALLOC);
-	assert(rv == 0);
-
 	nng_aio *aio_connected;
 	nng_aio_alloc(&aio_connected, NULL, NULL);
 	assert(aio_connected != NULL);
@@ -93,6 +90,9 @@ con_dis_self(int id)
 	nng_aio_alloc(&aio_disconnected, NULL, NULL);
 	assert(aio_disconnected != NULL);
 	rv = nng_mqtt_quic_set_disconnect_cb(&sock, disconnect_cb, (void *)aio_disconnected);
+	assert(rv == 0);
+
+	rv = nng_dialer_start(dialer, NNG_FLAG_ALLOC);
 	assert(rv == 0);
 
 	// Wait for connected
