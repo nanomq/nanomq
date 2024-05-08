@@ -1513,6 +1513,8 @@ create_client(nng_socket *sock, struct work **works, size_t id, size_t nwork,
 			nng_mqtt_quic_set_connect_cb(sock, quic_connect_cb, param);
 			nng_mqtt_quic_set_disconnect_cb(sock, quic_disconnect_cb, param);
 		}
+#else
+		console("Enable NNG_ENABLE_QUIC=ON in cmake first");
 #endif
 	} else {
 		rv = param->opts->version == MQTT_PROTOCOL_VERSION_v5
