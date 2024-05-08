@@ -1,5 +1,3 @@
-import subprocess
-import shlex
 import requests
 import json
 from collections import namedtuple
@@ -7,7 +5,7 @@ from collections import namedtuple
 base_url = "http://127.0.0.1:8081/api/v4"
 
 def test_get_api():
-    #  not all endpoint is tested
+    #  not all endpoint is tested, CI for 'topic-tree' need more test.
     paths = ["", "/nodes", "/brokers", "/clients",
              "/subscriptions", "/reload", "/configuration"]
 
@@ -57,4 +55,4 @@ def test_post_api():
     return True
 
 def rest_api_test():
-    return test_get_api() and test_post_api() 
+    return test_get_api() and test_post_api()
