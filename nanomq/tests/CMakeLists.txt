@@ -20,3 +20,7 @@ nanomq_test(properties_test)
 if(ENABLE_PARQUET)
     nanomq_test(parquet_test)
 endif()
+if(NNG_ENABLE_QUIC)
+    nanomq_test(quic_smoke_test)
+endif()
+
