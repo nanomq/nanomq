@@ -23,6 +23,8 @@
 
 #define TEST_MQTT_QUIC_URL "mqtt-quic://us.432121.xyz:14567"
 
+#define TEST_ROUND_COUNTER 100
+
 nng_msg *
 connect_msg(uint8_t ver, char *client_id)
 {
@@ -131,10 +133,14 @@ con_dis_self(int id, int ver)
 int
 main()
 {
-	for (int i=0; i<100; ++i) {
-		printf("No.%d. ", i);
-		con_dis_self(i);
-		nng_msleep(100);
+	for (int i=0; i<TEST_ROUND_COUNTER; ++i) {
+		printf("%s v4 (%d): ", "con_dis_self", i);
+		con_dis_self(i, 4); // mqttv4
 	}
+	for (int i=0; i<TEST_ROUND_COUNTER; ++i) {
+		printf("%s v5 (%d): ", "con_dis_self", i);
+		con_dis_self(i, 5); // mqttv5
+	}
+
 	return 0;
 }
