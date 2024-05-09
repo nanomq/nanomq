@@ -60,7 +60,6 @@ publish_large_msg()
 	return msg;
 }
 
-
 nng_msg *
 subscribe_msg()
 {
@@ -336,14 +335,24 @@ echo_loop(int id, int ver)
 	assert(rv == 0);
 
 	// Start to subscribe
+	nng_aio *aio_ack;
+	nng_aio_alloc(&aio_ack, NULL, NULL);
+	assert(aio_ack != NULL);
+
 	nng_msg *submsg = subscribe_msg();
 	assert(submsg != NULL);
-	assert(0 == nng_sendmsg(sock, submsg, NNG_FLAG_ALLOC));
+	nng_aio_set_msg(aio_ack, submsg);
+	nng_send_aio(sock, aio_ack);
+	nng_aio_wait(aio_ack);
+	assert(0 == nng_aio_result(aio_ack));
 
 	for (int i=0; i<100; ++i) {
 		nng_msg *smsg = publish_msg();
 		assert(smsg != NULL);
-		assert(0 == nng_sendmsg(sock, smsg, NNG_FLAG_ALLOC));
+		nng_aio_set_msg(aio_ack, smsg);
+		nng_send_aio(sock, aio_ack);
+		nng_aio_wait(aio_ack);
+		assert(0 == nng_aio_result(aio_ack));
 
 		nng_msg *rmsg = NULL;
 		assert(0 == nng_recvmsg(sock, &rmsg, NNG_FLAG_ALLOC));
