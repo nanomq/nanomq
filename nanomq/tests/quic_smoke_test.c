@@ -16,6 +16,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <assert.h>
 
 #include <nng/mqtt/mqtt_quic_client.h>
@@ -40,6 +41,25 @@ publish_msg()
 		TEST_MQTT_QUIC_PAYLOAD, strlen(TEST_MQTT_QUIC_PAYLOAD));
 	return msg;
 }
+
+nng_msg *
+publish_large_msg()
+{
+	int   len = 1024*1024; // 1MB
+	char *buf = malloc(sizeof(char) * len);
+	memset(buf, 'a', len);
+
+	nng_msg *msg;
+	nng_mqtt_msg_alloc(&msg, 0);
+	nng_mqtt_msg_set_packet_type(msg, NNG_MQTT_PUBLISH);
+	nng_mqtt_msg_set_publish_topic(msg, TEST_MQTT_QUIC_TOPIC);
+	nng_mqtt_msg_set_publish_qos(msg, 1);
+	nng_mqtt_msg_set_publish_payload(msg, buf, len);
+
+	free(buf);
+	return msg;
+}
+
 
 nng_msg *
 subscribe_msg()
