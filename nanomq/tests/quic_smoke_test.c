@@ -20,10 +20,21 @@
 
 #include <nng/mqtt/mqtt_quic_client.h>
 #include <nng/mqtt/mqtt_client.h>
+#include <nng/supplemental/nanolib/log.h>
 
 #define TEST_MQTT_QUIC_URL "mqtt-quic://us.432121.xyz:14567"
 
 #define TEST_ROUND_COUNTER 100
+
+nng_msg *
+disconnect_msg()
+{
+	nng_msg *msg;
+	nng_mqtt_msg_alloc(&msg, 0);
+	nng_mqtt_msg_set_packet_type(msg, NNG_MQTT_DISCONNECT);
+	nng_mqtt_msg_set_disconnect_reason_code(msg, UNSPECIFIED_ERROR);
+	return msg;
+}
 
 nng_msg *
 connect_msg(uint8_t ver, char *client_id)
@@ -147,7 +158,7 @@ main()
 	log_init(&log);
 	*/
 
-	for (int i=0; i<100; ++i) {
+	for (int i=0; i<TEST_ROUND_COUNTER; ++i) {
 		printf("%s v4 (%d): ", "con_dis_self", i);
 		con_dis_self(i, 4); // mqttv4
 	}
