@@ -5,9 +5,9 @@ from collections import namedtuple
 base_url = "http://127.0.0.1:8081/api/v4"
 
 def test_get_api():
-    #  not all endpoint is tested, CI for 'topic-tree' need more test.
+    #  not all endpoint is tested.
     paths = ["", "/nodes", "/brokers", "/clients",
-             "/subscriptions", "/reload", "/configuration"]
+             "/subscriptions", "/topic-tree", "/reload", "/configuration"]
 
     for p in paths:
         print("testing Get API: " + base_url + p)

@@ -76,7 +76,7 @@ def on_log(client, userdata, level, buf):
     print("log: ",buf)
 
 def func(proto, cmd, topic, prop=None):
-    mqttc = mqtt.Client(callback_api_version=CallbackAPIVersion.VERSION1, transport='websockets', protocol=proto)   
+    mqttc = mqtt.Client(callback_api_version=CallbackAPIVersion.VERSION1, client_id="wsv5_test", transport='websockets', protocol=proto)   
     mqttc.on_log = on_log
     if cmd == "sub":
         mqttc._client_id = "whoami/sub"
