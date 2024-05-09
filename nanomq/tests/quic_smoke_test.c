@@ -45,7 +45,7 @@ connect_cb(void *rmsg, void *arg)
 	nng_msg *msg = rmsg;
 
 	rv = nng_mqtt_msg_get_connack_return_code(msg);
-	printf("Connected cb, rv %d.\n", rv);
+	printf("Connected cb, rv %d.", rv);
 	nng_msg_free(msg);
 
 	nng_aio *aio = arg;
@@ -85,7 +85,7 @@ con_dis_self(int id, int ver)
 	rv = nng_dialer_create(&dialer, sock, TEST_MQTT_QUIC_URL);
 	assert(rv == 0);
 
-	sprintf(buf, "nanomq-quic-smoke-test-clientid-%d", id);
+	sprintf(buf, "nanomq-quic-smoke-test-%d", id);
 	connmsg = connect_msg(ver, buf);
 	assert(connmsg != NULL);
 	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
@@ -108,22 +108,28 @@ con_dis_self(int id, int ver)
 		rv = nng_mqttv5_quic_set_disconnect_cb(&sock, disconnect_cb, (void *)aio_disconnected);
 	assert(rv == 0);
 
+	assert(true == nng_aio_begin(aio_connected));
+	assert(true == nng_aio_begin(aio_disconnected));
+
 	rv = nng_dialer_start(dialer, NNG_FLAG_ALLOC);
 	assert(rv == 0);
 
+	printf("waiting for connected.");
 	// Wait for connected
 	nng_aio_wait(aio_connected);
 	rv = nng_aio_result(aio_connected);
 	assert(rv == 0);
 
+	// Disconnect actively
+	conn_param *cparam = nng_msg_get_conn_param(connmsg);
+	nng_close(sock);
+
+	printf("waiting for disconnected.");
 	// Wait for disconnected
 	nng_aio_wait(aio_disconnected);
 	rv = nng_aio_result(aio_disconnected);
 	assert(rv == 0);
 
-	// Disconnect actively
-	conn_param *cparam = nng_msg_get_conn_param(connmsg);
-	nng_close(sock);
 	conn_param_free(cparam);
 	nng_aio_free(aio_connected);
 	nng_aio_free(aio_disconnected);
@@ -133,7 +139,15 @@ con_dis_self(int id, int ver)
 int
 main()
 {
-	for (int i=0; i<TEST_ROUND_COUNTER; ++i) {
+	/*
+	// Debug with log enabled
+	conf_log log;
+	log.level = NNG_LOG_DEBUG;
+	log.type = LOG_TO_CONSOLE;
+	log_init(&log);
+	*/
+
+	for (int i=0; i<100; ++i) {
 		printf("%s v4 (%d): ", "con_dis_self", i);
 		con_dis_self(i, 4); // mqttv4
 	}
