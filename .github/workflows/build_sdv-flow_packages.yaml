@@ -43,8 +43,8 @@ jobs:
           mkdir -p packages/nanomq/etc packages/nanomq-debug/etc
           mkdir -p packages/nanomq/log packages/nanomq-debug/log
           pkgversion="$(git describe --abbrev=0 --tags | tr '-' '_')"
-          git log -1 >> readme.txt
-          cd nng && git log -1 >> ../readme.txt && cd -
+          git log --format=%H -1 >> readme.txt
+          cd nng && git log --format=%H -1 >> ../readme.txt && cd -
           id=$(docker create nanomq_with_parquet)
           docker cp $id:/opt/NanoMQ_mirror/build/nanomq/nanomq ./packages/nanomq/
           docker cp $id:/opt/NanoMQ_mirror/build-debug/nanomq/nanomq ./packages/nanomq-debug/
