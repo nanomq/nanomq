@@ -255,6 +255,96 @@ con_dis_peer(int id, int ver)
 	printf("...done.\n");
 }
 
+void
+echo_loop(int id, int ver)
+{
+	int rv;
+	nng_dialer dialer;
+	nng_socket sock;
+	nng_msg   *connmsg;
+	char       buf[64];
+
+	if (ver == 4)
+		rv = nng_mqtt_quic_client_open(&sock);
+	else if (ver == 5)
+		rv = nng_mqttv5_quic_client_open(&sock);
+	else {
+		printf("Unsupported version.\n");
+		return;
+	}
+
+	assert(rv == 0);
+
+	rv = nng_dialer_create(&dialer, sock, TEST_MQTT_QUIC_URL);
+	assert(rv == 0);
+
+	sprintf(buf, "nanomq-quic-smoke-test3-%d", id);
+	connmsg = connect_msg(ver, buf);
+	assert(connmsg != NULL);
+	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
+
+	nng_aio *aio_connected;
+	nng_aio_alloc(&aio_connected, NULL, NULL);
+	assert(aio_connected != NULL);
+	if (ver == 4)
+		rv = nng_mqtt_quic_set_connect_cb(&sock, connect_cb, (void *)aio_connected);
+	else if (ver == 5)
+		rv = nng_mqttv5_quic_set_connect_cb(&sock, connect_cb, (void *)aio_connected);
+	assert(rv == 0);
+
+	nng_aio *aio_disconnected;
+	nng_aio_alloc(&aio_disconnected, NULL, NULL);
+	assert(aio_disconnected != NULL);
+	if (ver == 4)
+		rv = nng_mqtt_quic_set_disconnect_cb(&sock, disconnect_cb, (void *)aio_disconnected);
+	else if (ver == 5)
+		rv = nng_mqttv5_quic_set_disconnect_cb(&sock, disconnect_cb, (void *)aio_disconnected);
+	assert(rv == 0);
+
+	assert(true == nng_aio_begin(aio_connected));
+	assert(true == nng_aio_begin(aio_disconnected));
+
+	rv = nng_dialer_start(dialer, NNG_FLAG_ALLOC);
+	assert(rv == 0);
+
+	printf("waiting for connected.");
+	// Wait for connected
+	nng_aio_wait(aio_connected);
+	rv = nng_aio_result(aio_connected);
+	assert(rv == 0);
+
+	// Start to subscribe
+	nng_msg *submsg = subscribe_msg();
+	assert(submsg != NULL);
+	assert(0 == nng_sendmsg(sock, submsg, NNG_FLAG_ALLOC));
+
+	for (int i=0; i<100; ++i) {
+		nng_msg *smsg = publish_msg();
+		assert(smsg != NULL);
+		assert(0 == nng_sendmsg(sock, smsg, NNG_FLAG_ALLOC));
+
+		nng_msg *rmsg = NULL;
+		assert(0 == nng_recvmsg(sock, &rmsg, NNG_FLAG_ALLOC));
+		assert(rmsg != NULL);
+		nng_msg_free(rmsg);
+	}
+
+	// Close connection actively
+	conn_param *cparam = nng_msg_get_conn_param(connmsg);
+	nng_close(sock);
+
+	printf("waiting for disconnected.");
+	// Wait for disconnected
+	nng_aio_wait(aio_disconnected);
+	rv = nng_aio_result(aio_disconnected);
+	assert(rv == 0);
+
+	conn_param_free(cparam);
+	nng_aio_free(aio_connected);
+	nng_aio_free(aio_disconnected);
+	printf("...done.\n");
+}
+
 int
 main()
 {
@@ -284,6 +374,14 @@ main()
 		con_dis_peer(i, 5); // mqttv5
 	}
 
+	for (int i=0; i<TEST_ROUND_COUNTER; ++i) {
+		printf("%s v4 (%d): ", "echo_loop", i);
+		echo_loop(i, 4); // mqttv4
+	}
+	for (int i=0; i<TEST_ROUND_COUNTER; ++i) {
+		printf("%s v5 (%d): ", "echo_loop", i);
+		echo_loop(i, 5); // mqttv5
+	}
 
 	return 0;
 }
