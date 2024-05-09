@@ -25,6 +25,7 @@
 #define TEST_MQTT_QUIC_URL "mqtt-quic://us.432121.xyz:14567"
 
 #define TEST_ROUND_COUNTER 100
+#define TEST_MQTT_QUIC_TOPIC "nanomq/quic/test"
 
 nng_msg *
 publish_msg()
@@ -72,7 +73,7 @@ connect_msg(uint8_t ver, char *client_id)
 	nng_mqtt_msg_alloc(&msg, 0);
 	nng_mqtt_msg_set_packet_type(msg, NNG_MQTT_CONNECT);
 	nng_mqtt_msg_set_connect_proto_version(msg, ver);
-	nng_mqtt_msg_set_connect_keep_alive(msg, 60);
+	nng_mqtt_msg_set_connect_keep_alive(msg, 10);
 	nng_mqtt_msg_set_connect_clean_session(msg, true);
 	nng_mqtt_msg_set_connect_client_id(msg, client_id);
 	return msg;
