@@ -27,6 +27,35 @@
 #define TEST_ROUND_COUNTER 100
 
 nng_msg *
+publish_msg()
+{
+	nng_msg *msg;
+	nng_mqtt_msg_alloc(&msg, 0);
+	nng_mqtt_msg_set_packet_type(msg, NNG_MQTT_PUBLISH);
+	nng_mqtt_msg_set_publish_topic(msg, TEST_MQTT_QUIC_TOPIC);
+	nng_mqtt_msg_set_publish_qos(msg, 1);
+	nng_mqtt_msg_set_publish_payload(msg, "aaa", 3);
+	return msg;
+}
+
+nng_msg *
+subscribe_msg()
+{
+	nng_msg *msg;
+	nng_mqtt_msg_alloc(&msg, 0);
+	nng_mqtt_msg_set_packet_type(msg, NNG_MQTT_SUBSCRIBE);
+
+	uint8_t qos; int cnt = 1; uint8_t nolocal;
+	nng_mqtt_topic_qos *tq = nng_mqtt_topic_qos_array_create(cnt);
+	assert(tq != NULL);
+	nng_mqtt_topic_qos_array_set(tq, 0, TEST_MQTT_QUIC_TOPIC, qos=1, nolocal=0, 0, 0);
+	nng_mqtt_msg_set_subscribe_topics(msg, tq, cnt);
+	nng_mqtt_topic_qos_array_free(tq, cnt);
+
+	return msg;
+}
+
+nng_msg *
 disconnect_msg()
 {
 	nng_msg *msg;
