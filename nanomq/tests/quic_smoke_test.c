@@ -22,10 +22,11 @@
 #include <nng/mqtt/mqtt_client.h>
 #include <nng/supplemental/nanolib/log.h>
 
-#define TEST_MQTT_QUIC_URL "mqtt-quic://us.432121.xyz:14567"
+#define TEST_MQTT_QUIC_URL "mqtt-quic://127.0.0.1:14567"
+#define TEST_MQTT_QUIC_TOPIC "nanomq/quic/test"
+#define TEST_MQTT_QUIC_PAYLOAD "aaa"
 
 #define TEST_ROUND_COUNTER 100
-#define TEST_MQTT_QUIC_TOPIC "nanomq/quic/test"
 
 nng_msg *
 publish_msg()
@@ -35,7 +36,8 @@ publish_msg()
 	nng_mqtt_msg_set_packet_type(msg, NNG_MQTT_PUBLISH);
 	nng_mqtt_msg_set_publish_topic(msg, TEST_MQTT_QUIC_TOPIC);
 	nng_mqtt_msg_set_publish_qos(msg, 1);
-	nng_mqtt_msg_set_publish_payload(msg, "aaa", 3);
+	nng_mqtt_msg_set_publish_payload(msg,
+		TEST_MQTT_QUIC_PAYLOAD, strlen(TEST_MQTT_QUIC_PAYLOAD));
 	return msg;
 }
 
