@@ -345,6 +345,9 @@ echo_loop(int id, int ver, nng_msg *(*pubmsg)())
 	nng_send_aio(sock, aio_ack);
 	nng_aio_wait(aio_ack);
 	assert(0 == nng_aio_result(aio_ack));
+	nng_msg *ackmsg = nng_aio_get_msg(aio_ack);
+	assert(ackmsg != NULL);
+	nng_msg_free(ackmsg);
 
 	for (int i=0; i<10; ++i) {
 		printf("Echo round %d...\n", i);
@@ -374,6 +377,7 @@ echo_loop(int id, int ver, nng_msg *(*pubmsg)())
 	assert(rv == 0);
 
 	conn_param_free(cparam);
+	nng_aio_free(aio_ack);
 	nng_aio_free(aio_connected);
 	nng_aio_free(aio_disconnected);
 	printf("...done.\n");
