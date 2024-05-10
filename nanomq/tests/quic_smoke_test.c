@@ -45,7 +45,7 @@ publish_msg()
 nng_msg *
 publish_large_msg()
 {
-	int   len = 1024*1024; // 1MB
+	int   len = 1024*1023; // slight less than 1MB
 	char *buf = malloc(sizeof(char) * len);
 	memset(buf, 'a', len);
 
