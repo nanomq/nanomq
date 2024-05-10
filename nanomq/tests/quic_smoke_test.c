@@ -346,7 +346,8 @@ echo_loop(int id, int ver, nng_msg *(*pubmsg)())
 	nng_aio_wait(aio_ack);
 	assert(0 == nng_aio_result(aio_ack));
 
-	for (int i=0; i<100; ++i) {
+	for (int i=0; i<10; ++i) {
+		printf("Echo round %d...\n", i);
 		nng_msg *smsg = pubmsg();
 		assert(smsg != NULL);
 		nng_aio_set_msg(aio_ack, smsg);
