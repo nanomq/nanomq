@@ -413,7 +413,16 @@ main()
 	}
 	for (int i=0; i<TEST_ROUND_COUNTER; ++i) {
 		printf("%s v5 (%d): ", "echo_loop", i);
-		echo_loop(i, 5); // mqttv5
+		echo_loop(i, 5, publish_msg); // mqttv5
+	}
+
+	for (int i=0; i<TEST_ROUND_COUNTER; ++i) {
+		printf("%s v4 (%d): ", "echo_large_loop", i);
+		echo_loop(i, 4, publish_large_msg); // mqttv4
+	}
+	for (int i=0; i<TEST_ROUND_COUNTER; ++i) {
+		printf("%s v5 (%d): ", "echo_large_loop", i);
+		echo_loop(i, 5, publish_large_msg); // mqttv5
 	}
 
 	return 0;
