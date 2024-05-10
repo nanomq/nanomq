@@ -277,7 +277,7 @@ con_dis_peer(int id, int ver)
 }
 
 void
-echo_loop(int id, int ver)
+echo_loop(int id, int ver, nng_msg *(*pubmsg)())
 {
 	int rv;
 	nng_dialer dialer;
@@ -347,15 +347,17 @@ echo_loop(int id, int ver)
 	assert(0 == nng_aio_result(aio_ack));
 
 	for (int i=0; i<100; ++i) {
-		nng_msg *smsg = publish_msg();
+		nng_msg *smsg = pubmsg();
 		assert(smsg != NULL);
 		nng_aio_set_msg(aio_ack, smsg);
 		nng_send_aio(sock, aio_ack);
 		nng_aio_wait(aio_ack);
-		assert(0 == nng_aio_result(aio_ack));
+		rv = nng_aio_result(aio_ack);
+		assert(0 == rv);
 
 		nng_msg *rmsg = NULL;
-		assert(0 == nng_recvmsg(sock, &rmsg, NNG_FLAG_ALLOC));
+		rv = nng_recvmsg(sock, &rmsg, NNG_FLAG_ALLOC);
+		assert(0 == rv);
 		assert(rmsg != NULL);
 		nng_msg_free(rmsg);
 	}
@@ -407,7 +409,7 @@ main()
 
 	for (int i=0; i<TEST_ROUND_COUNTER; ++i) {
 		printf("%s v4 (%d): ", "echo_loop", i);
-		echo_loop(i, 4); // mqttv4
+		echo_loop(i, 4, publish_msg); // mqttv4
 	}
 	for (int i=0; i<TEST_ROUND_COUNTER; ++i) {
 		printf("%s v5 (%d): ", "echo_loop", i);
