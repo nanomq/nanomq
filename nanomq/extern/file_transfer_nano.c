@@ -570,16 +570,10 @@ void start_listening(nng_socket *sock)
 int file_transfer(int argc, char *argv[]) {
 	int rc;
 	nng_socket sock;
-	char *host = "127.0.0.1";
-	int port = 1883;
 
-	if (DEBUG) {
-		log_info("host: %s\n", host);
-		log_info("port: %d\n", port);
-	}
 	// Construct address string from host and port
 	char address[2048];
-	rc = snprintf(address, 2048, "mqtt-tcp://%s:%d", host, port);
+	rc = snprintf(address, 2048, "mqtt%s", *argv+strlen("nmq"));
 	if (rc < 0 || rc >= 2048) {
 		log_warn("Failed to construct address string\n");
 		log_warn("Something wrong occurred. File transfer thread exiting...\n");
@@ -589,7 +583,7 @@ int file_transfer(int argc, char *argv[]) {
 	client_connect(&sock, address);
 
 	if (DEBUG) {
-		log_info("Connected to MQTT Broker!\n");
+		log_info("Connected to MQTT Broker: %s!\n", address);
 	}
 	
 	(void) start_listening(&sock);

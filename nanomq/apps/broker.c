@@ -904,7 +904,7 @@ get_broker_db(void)
 #ifdef ENABLE_FILETRANSFER
 void *fileTransfer_cli(void *extra)
 {
-	(void)file_transfer(0, NULL);
+	(void)file_transfer(1, &extra);
 	return NULL;
 }
 #endif
@@ -1255,7 +1255,7 @@ broker(conf *nanomq_conf)
 
 #ifdef ENABLE_FILETRANSFER
 	pthread_t fileTransfer;
-	pthread_create(&fileTransfer, NULL, fileTransfer_cli, NULL);
+	pthread_create(&fileTransfer, NULL, fileTransfer_cli, nanomq_conf->url);
 #endif
 
 	/* rhack: end */
