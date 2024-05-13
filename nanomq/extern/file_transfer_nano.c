@@ -548,7 +548,8 @@ void start_listening(nng_socket *sock)
 	while (true) {
 		nng_msg *msg;
 		if ((rv = nng_recvmsg(*sock, &msg, 0)) != 0) {
-			fatal("nng_recvmsg", rv);
+			log_error("nng_recvmsg: %d", rv);
+			nng_msg_free(msg);
 			continue;
 		}
 
