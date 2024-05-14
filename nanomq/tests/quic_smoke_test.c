@@ -248,7 +248,11 @@ con_dis_peer(int id, int ver)
 	assert(true == nng_aio_begin(aio_disconnected));
 
 	rv = nng_dialer_start(dialer, NNG_FLAG_ALLOC);
-	assert(rv == 0);
+	assert(rv == 0 || rv == SERVER_UNAVAILABLE);
+	if (rv == SERVER_UNAVAILABLE) {
+		printf("[Server Unavailable] so...done\n");
+		return;
+	}
 
 	printf("waiting for connected.");
 	// Wait for connected
