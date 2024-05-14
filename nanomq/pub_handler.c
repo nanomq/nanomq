@@ -1251,7 +1251,11 @@ static void inline handle_pub_retain_dbtree(const nano_work *work, char *topic)
 			    work->pub_packet->var_header.publish.properties !=
 			        NULL) {
 				if (work->proto == PROTO_MQTT_BROKER) {
-					nng_mqttv5_msg_decode(work->msg);
+					if (nng_mqttv5_msg_decode(work->msg) != 0) {
+						log_warn("decode retain msg failed, drop msg");
+						nng_msg_free(work->msg);
+						return;
+					}
 				}
 			}
 			ret = dbtree_insert_retain(work->db_ret, topic, work->msg);
@@ -1259,7 +1263,6 @@ static void inline handle_pub_retain_dbtree(const nano_work *work, char *topic)
 			log_debug("delete retain message");
 			ret = dbtree_delete_retain(work->db_ret, topic);
 		}
-
 
 		if (ret != NULL) {
 			nng_msg_free(ret);
