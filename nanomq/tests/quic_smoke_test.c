@@ -353,6 +353,8 @@ echo_loop(int id, int ver, nng_msg *(*pubmsg)())
 	assert(ackmsg != NULL);
 	nng_msg_free(ackmsg);
 
+	conn_param *cparam = nng_msg_get_conn_param(connmsg);
+
 	for (int i=0; i<10; ++i) {
 		printf("Echo round %d...\n", i);
 		nng_msg *smsg = pubmsg();
@@ -365,13 +367,18 @@ echo_loop(int id, int ver, nng_msg *(*pubmsg)())
 
 		nng_msg *rmsg = NULL;
 		rv = nng_recvmsg(sock, &rmsg, NNG_FLAG_ALLOC);
+
+		uint8_t type = nng_mqtt_msg_get_packet_type(rmsg);
+		// For the compatibility of nanomq bridge. Free conn_param
+		if (NNG_MQTT_PUBLISH == type)
+			conn_param_free(cparam);
+
 		assert(0 == rv);
 		assert(rmsg != NULL);
 		nng_msg_free(rmsg);
 	}
 
 	// Close connection actively
-	conn_param *cparam = nng_msg_get_conn_param(connmsg);
 	nng_close(sock);
 
 	printf("waiting for disconnected.");
