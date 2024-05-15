@@ -60,7 +60,7 @@ decode_sub_msg(nano_work *work)
 												(uint32_t *)&bpos,
 												&sub_pkt->prop_len,
 												true);
-		if (check_properties(sub_pkt->properties) != SUCCESS) {
+		if (check_properties(sub_pkt->properties, work->msg) != SUCCESS) {
 			return PROTOCOL_ERROR;
 		}
 	}
