@@ -48,7 +48,7 @@ decode_unsub_msg(nano_work *work)
 	if (MQTT_PROTOCOL_VERSION_v5 == proto_ver) {
 		unsub_pkt->properties =
 		    decode_properties(msg, &vpos, &unsub_pkt->prop_len, false);
-		if (check_properties(unsub_pkt->properties) != SUCCESS) {
+		if (check_properties(unsub_pkt->properties, msg) != SUCCESS) {
 			return PROTOCOL_ERROR;
 		}
 	}
@@ -69,7 +69,7 @@ decode_unsub_msg(nano_work *work)
 	while (1) {
 		_tn = tn;
 
-		len_of_topic = get_utf8_str(&tn->topic.body, payload_ptr, &bpos);
+		len_of_topic = get_utf8_str(&tn->topic.body, payload_ptr, &bpos, -1);
 		if (len_of_topic != -1) {
 			tn->topic.len = len_of_topic;
 		} else {

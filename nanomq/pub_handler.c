@@ -1633,7 +1633,7 @@ decode_pub_message(nano_work *work, uint8_t proto)
 			if (pub_packet->var_header.publish.properties) {
 				if (check_properties(
 				        pub_packet->var_header.publish
-				            .properties) != 0) {
+				            .properties, msg) != 0) {
 					// check if subid exist in publish msg from client
 				    // property_get_value(pub_packet->var_header
 				    //                        .publish.properties,
@@ -1683,7 +1683,7 @@ decode_pub_message(nano_work *work, uint8_t proto)
 			        &pub_packet->var_header.pub_arrc.prop_len,
 			        false);
 			if (check_properties(
-			        pub_packet->var_header.pub_arrc.properties) !=
+			        pub_packet->var_header.pub_arrc.properties, msg) !=
 			    SUCCESS) {
 				return PROTOCOL_ERROR;
 			}
