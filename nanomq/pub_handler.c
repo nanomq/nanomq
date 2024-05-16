@@ -247,8 +247,8 @@ payload_filter(pub_packet_struct *pp, rule *info)
 			}
 			break;
 		case cJSON_Object:;
-			cJSON *filter = cJSON_Parse(payload->filter);
-			if (!payload->is_store && filter && !cJSON_Compare(jp, filter, true)) {
+			cJSON *filter_obj = cJSON_Parse(payload->filter);
+			if (!payload->is_store && filter_obj && !cJSON_Compare(jp, filter_obj, true)) {
 				filter = false;
 			} else {
 				// if (payload->value)
