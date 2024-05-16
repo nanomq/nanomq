@@ -64,7 +64,15 @@ uri_parse_tree(const char *path, size_t *count)
 		str += strlen(REST_URI_ROOT);
 		while (NULL != (ret = strchr(str, '/'))) {
 			num++;
-			root      = realloc(root, sizeof(tree *) * num);
+			tree **new_root = NULL;
+			new_root = realloc(root, sizeof(tree *) * num);
+			if (new_root == NULL) {
+				if (root != NULL) {
+					free(root);
+				}
+				return NULL;
+			}
+			root = new_root;
 			len       = ret - str + 1;
 			tree *sub = nng_zalloc(sizeof(tree));
 			sub->node = nng_zalloc(len);
@@ -76,7 +84,15 @@ uri_parse_tree(const char *path, size_t *count)
 		if (num > 0) {
 			if (strlen(str) > 0) {
 				num++;
-				root = realloc(root, sizeof(char *) * num);
+				tree **new_root = NULL;
+				new_root = realloc(root, sizeof(tree *) * num);
+				if (new_root == NULL) {
+					if (root != NULL) {
+						free(root);
+					}
+					return NULL;
+				}
+				root = new_root;
 				tree *sub     = nng_zalloc(sizeof(tree));
 				sub->node     = nng_strdup(str);
 				sub->end      = true;
@@ -119,7 +135,15 @@ uri_param_parse(const char *path, size_t *count)
 
 	while (NULL != (ret = strchr(str, '&'))) {
 		num++;
-		kv_str          = realloc(kv_str, sizeof(char *) * num);
+		char **new_kv_str = NULL;
+		new_kv_str = realloc(kv_str, sizeof(char *) * num);
+		if (new_kv_str == NULL) {
+			if (kv_str != NULL) {
+				free(kv_str);
+			}
+			return NULL;
+		}
+		kv_str          = new_kv_str;
 		len             = ret - str + 1;
 		kv_str[num - 1] = nng_zalloc(len);
 		memcpy(kv_str[num - 1], str, len - 1);
@@ -127,7 +151,15 @@ uri_param_parse(const char *path, size_t *count)
 	}
 	if (num > 0) {
 		num++;
-		kv_str          = realloc(kv_str, sizeof(char *) * num);
+		char **new_kv_str = NULL;
+		new_kv_str = realloc(kv_str, sizeof(char *) * num);
+		if (new_kv_str == NULL) {
+			if (kv_str != NULL) {
+				free(kv_str);
+			}
+			return NULL;
+		}
+		kv_str          = new_kv_str;
 		kv_str[num - 1] = nng_strdup(str);
 	} else {
 		return NULL;
