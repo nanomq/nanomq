@@ -16,11 +16,11 @@ system {
 ### Configuration Item
 
 - `num_taskq_thread`: Specifies the number of task queue threads to use. 
-  - Acceptable range: 1 - 255. If the value is set to 0, the system automatically determines the number of threads.
+  - Acceptable range: uint32, Recommend 1 - Core * 2. If the value is set to 0, the system automatically determines the number of threads.
 - `max_taskq_thread`: Specifies the maximum number of task queue threads to use.
-  - Acceptable range: 1 - 255. If the value is set to 0, the system automatically determines the maximum number of threads.
+  - Acceptable range: uint32, Recommend 1 - Core * 2. If the value is set to 0, the system automatically determines the maximum number of threads.
 - `parallel`: Specifies the maximum number of outstanding requests that the system can handle at once.
-  - Acceptable range: 1 - 255. If the value is set to 0, the system automatically determines the number of parallel tasks.
+  - Acceptable range: uint32, Recommend Core * 4. No upper limit, however, too much parallel context actually hurt performance. If the value is set to 0, the system automatically determines the number of parallel tasks.
 
 ## Cache 
 

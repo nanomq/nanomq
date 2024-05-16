@@ -15,6 +15,7 @@
 #define PROTO_MQTT_BRIDGE 0x01
 #define PROTO_AWS_BRIDGE 0x02
 #define PROTO_HTTP_SERVER 0x03
+#define PROTO_ICEORYX_BRIDGE 0x04
 
 #define STATISTICS
 
@@ -56,6 +57,12 @@ struct work {
 	packet_unsubscribe *      unsub_pkt;
 
 	void *sqlite_db;
+
+#if defined(SUPP_ICEORYX)
+	void *iceoryx_suber;
+	void *iceoryx_puber;
+	nng_socket iceoryx_sock;
+#endif
 };
 
 struct client_ctx {

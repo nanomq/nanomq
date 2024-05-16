@@ -16,6 +16,11 @@ jobs:
         sudo apt-get install -y libmbedtls-dev ninja-build pip python3-pip mosquitto-clients pkg-config libmysqlclient-dev sqlite3
         pip install Jinja2 paho-mqtt
 
+    - name: Install MQTTX_cli
+      run: |
+        curl -LO https://www.emqx.com/en/downloads/MQTTX/v1.9.10/mqttx-cli-linux-arm64
+        sudo install ./mqttx-cli-linux-arm64 /usr/local/bin/mqttx_cli
+
     - name: Install AWS SDK
       run: |
           wget https://github.com/aws/aws-iot-device-sdk-embedded-C/releases/download/202108.00/aws-iot-device-sdk-embedded-C-202108.00.zip

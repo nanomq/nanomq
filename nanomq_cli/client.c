@@ -1,5 +1,5 @@
 //
-// Copyright 2023 NanoMQ Team, Inc. <jaylin@emqx.io>
+// Copyright 2024 NanoMQ Team, Inc. <jaylin@emqx.io>
 //
 // This software is supplied under the terms of the MIT License, a
 // copy of which should be located in the distribution where this
@@ -34,7 +34,7 @@ static int init_dialer_tls(nng_dialer d, const char *cacert, const char *cert,
     const char *key, const char *pass);
 #endif
 
-static nng_msg    *conn_msg;
+static nng_msg *conn_msg;
 static void loadfile(const char *path, void **datap, size_t *lenp);
 
 #define ASSERT_NULL(p, fmt, ...)           \
@@ -496,7 +496,7 @@ help(enum client_type type)
 		console("  -l, --stdin-line                 Send messages "
 		        "read from stdin, splitting separate lines into "
 		        "separate messages.[default: false]\n");
-		console("  -i, --interval <ms>              Interval of "
+		console("  -I, --interval <ms>              Interval of "
 		        "publishing "
 		        "message (ms) [default: 10]\n");
 	} else {
@@ -1303,8 +1303,7 @@ client_cb(void *arg)
 			    payload_len, (char *) payload);
 		}
 
-		nng_msg_header_clear(msg);
-		nng_msg_clear(msg);
+		nng_msg_free(msg);
 
 		work->state = RECV;
 		nng_ctx_recv(work->ctx, work->aio);
@@ -1328,7 +1327,7 @@ client_cb(void *arg)
 				work->state = SEND_WAIT;
 				nng_sleep_aio(work->opts->interval, work->aio);
 			} else {
-				nng_closeall();
+				nng_fini();
 				exit(1);
 			}
 		}
@@ -1432,7 +1431,7 @@ connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 				    topics_qos, i, tp->val, param->opts->qos, 1, 0, 0);
 			}
 			nng_mqtt_subscribe(*param->sock, topics_qos,
-			    param->opts->topic_count,
+			    (uint32_t)param->opts->topic_count,
 			    param->opts->sub_properties);
 			nng_mqtt_topic_qos_array_free(
 			    topics_qos, param->opts->topic_count);
@@ -1474,7 +1473,7 @@ quic_connect_cb(void *rmsg, void *arg)
 				    topics_qos, i, tp->val, param->opts->qos, 1, 0, 0);
 			}
 			nng_mqtt_subscribe(*param->sock, topics_qos,
-			    param->opts->topic_count,
+			    (uint32_t)param->opts->topic_count,
 			    param->opts->sub_properties);
 			nng_mqtt_topic_qos_array_free(
 			    topics_qos, param->opts->topic_count);
@@ -1514,6 +1513,8 @@ create_client(nng_socket *sock, struct work **works, size_t id, size_t nwork,
 			nng_mqtt_quic_set_connect_cb(sock, quic_connect_cb, param);
 			nng_mqtt_quic_set_disconnect_cb(sock, quic_disconnect_cb, param);
 		}
+#else
+		console("Enable NNG_ENABLE_QUIC=ON in cmake first");
 #endif
 	} else {
 		rv = param->opts->version == MQTT_PROTOCOL_VERSION_v5

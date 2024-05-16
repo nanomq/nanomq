@@ -18,10 +18,17 @@ jobs:
       - run: git submodule update --init --recursive
 
       - name: Configure
-        run: cmake -B build
+        run: cmake -B build 
+          make_flags+= " -DNNG_ENABLE_SQLITE=ON "
+          make_flags+= " -DNNG_ENABLE_RULE_ENGINE=ON "
+          make_flags+= " -DNNG_ENABLE_JWT=ON "
+          make_flags+= " -DNNG_ENABLE_ZMQ_GATEWAY=ON "
+          make_flags+= " -DNNG_ENABLE_BENCH=ON "
+
+          echo "make_flags=${make_flags}" >>GITHUB_OUTPUT
 
       - name: Build
-        run: cmake --build build --config Release --target install 
+        run: cmake ${{ steps.configure.make_flags }} --build build --config Release --target install 
 
       - name: Package
         if: github.event_name == 'release'

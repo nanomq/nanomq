@@ -57,7 +57,6 @@ if (CMAKE_INSTALL_RPATH)
   set_target_properties(nanomq_cli PROPERTIES LINK_FLAGS "-Wl,-rpath,${CMAKE_INSTALL_RPATH}")
 endif()
 
-
 if(BUILD_DDS_PROXY)
   target_link_libraries(nanomq_cli ${IDL_LIB_NAME} CycloneDDS::ddsc)
   target_link_libraries(nanomq_cli OpenSSL::SSL OpenSSL::Crypto)
@@ -74,6 +73,15 @@ if(BUILD_ZMQ_GATEWAY)
   target_link_libraries(nanomq_cli stdc++)
 endif(BUILD_ZMQ_GATEWAY)
 
+if(BUILD_ICEORYX_CLI)
+  find_package(iceoryx_binding_c REQUIRED)
+  find_package(iceoryx_platform REQUIRED)
+  find_package(iceoryx_posh CONFIG REQUIRED)
+  find_package(iceoryx_hoofs CONFIG REQUIRED)
+
+  target_link_libraries(nanomq_cli iceoryx_binding_c::iceoryx_binding_c)
+endif(BUILD_ICEORYX_CLI)
+
 if(BUILD_VSOMEIP_GATEWAY)
   find_package (vsomeip3 REQUIRED)
   find_package(Boost 1.55 COMPONENTS system thread log REQUIRED)
@@ -81,15 +89,11 @@ if(BUILD_VSOMEIP_GATEWAY)
       ${Boost_INCLUDE_DIR}
       ${VSOMEIP_INCLUDE_DIRS}
   )
-
-
   target_link_libraries(nanomq_cli vsomeip3 ${Boost_LIBRARIES})
 endif(BUILD_VSOMEIP_GATEWAY)
 
 add_dependencies(nanomq_cli nng)
 
-
 install(TARGETS nanomq_cli RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
                                    COMPONENT Tools)
-
 

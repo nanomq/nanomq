@@ -177,6 +177,7 @@ sub_cb(void *arg)
 		}
 		nng_atomic_inc(statistics.recv_cnt);
 		msg         = nng_aio_get_msg(work->aio);
+		nng_msg_free(msg);
 		work->state = RECV;
 		nng_ctx_recv(work->ctx, work->aio);
 		break;

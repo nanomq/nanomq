@@ -332,3 +332,97 @@ nano_pipe_get_local_port6(nng_pipe p)
 	return htons(addr.s_in6.sa_port);
 }
 
+#if defined(SUPP_ICEORYX)
+
+#include "nng/iceoryx_shm/iceoryx_shm.h"
+
+bool
+nano_iceoryx_topic_filter(char *icetopic, char *topic, uint32_t topicsz)
+{
+	if (topicsz == 0 || topic == NULL) {
+		return false;
+	}
+	int icetopicsz = strlen(icetopic);
+	if (icetopicsz != topicsz) {
+		return false;
+	}
+	return (0 == strncmp(icetopic, topic, topicsz));
+}
+
+int
+nano_iceoryx_send_nng_msg(nng_iceoryx_puber *puber, nng_msg *msg, nng_socket *sock)
+{
+	int      rv;
+	nng_msg *icemsg;
+	size_t   icehdrlen = nng_msg_header_len(msg);
+	size_t   icelen = nng_msg_len(msg);
+	uint8_t  icehdrbuf[1];
+	uint8_t  icebuf[4];
+
+	log_debug("iceoryx send a msg sz %d", icehdrlen + icelen + 5);
+	rv = nng_msg_iceoryx_alloc(&icemsg, puber, (int)(icehdrlen + icelen + 5));
+	if (rv != 0)
+		return rv;
+
+	// append header
+	icehdrbuf[0] = (uint8_t)icehdrlen;
+	nng_msg_iceoryx_append(icemsg, icehdrbuf, 1);
+	nng_msg_iceoryx_append(icemsg, nng_msg_header(msg), icehdrlen);
+
+	// append body
+	NNI_PUT32(icebuf, icelen);
+	nng_msg_iceoryx_append(icemsg, icebuf, 4);
+	nng_msg_iceoryx_append(icemsg, nng_msg_body(msg), icelen);
+
+	nng_aio *aio;
+	nng_aio_alloc(&aio, NULL, NULL);
+	nng_aio_set_prov_data(aio, puber);
+	nng_aio_set_msg(aio, icemsg);
+	nng_send_aio(*sock, aio);
+	log_debug("iceoryx sending and wait");
+	nng_aio_wait(aio);
+	rv = nng_aio_result(aio);
+	nng_aio_free(aio);
+
+	return rv;
+}
+
+int
+nano_iceoryx_recv_nng_msg(nng_iceoryx_suber *suber, nng_msg *icemsg, nng_msg **msgp)
+{
+	int      rv;
+	nng_msg *msg;
+	size_t   icehdrlen;
+	size_t   icebodylen;
+	uint8_t *icebuf;
+
+	log_debug("iceoryx recving msg");
+
+	rv = nng_mqtt_msg_alloc(&msg, 0);
+	if (rv != 0)
+		return rv;
+
+	icebuf = nng_msg_payload_ptr(icemsg);
+	// decode header
+	icehdrlen = *(uint8_t *)icebuf;
+	rv = nng_msg_header_append(msg, icebuf + 1, icehdrlen);
+	if (rv != 0)
+		return rv;
+
+	// decode body
+	NNI_GET32(icebuf + 1 + icehdrlen, icebodylen);
+	rv = nng_msg_append(msg, icebuf + 1 + icehdrlen + 4, icebodylen);
+	if (rv != 0)
+		return rv;
+
+	// Create a cparam ...
+	conn_param *cparam = create_cparam("atestclientid", MQTT_PROTOCOL_VERSION_v311);
+	nng_mqtt_msg_decode(msg);
+	nng_msg_set_conn_param(msg, cparam);
+
+	*msgp = msg;
+	return 0;
+}
+
+#endif
+

@@ -305,7 +305,7 @@ intarg(const char *val, int maxv)
 int
 nng_client_parse_opts(int argc, char **argv, nng_proxy_opts *nng_opts)
 {
-	int    idx = 1;
+	int    idx = 2;
 	char * arg;
 	int    val;
 	int    rv;

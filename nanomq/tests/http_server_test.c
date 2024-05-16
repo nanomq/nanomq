@@ -789,12 +789,14 @@ test_misuse_of_method()
 int
 main()
 {
-	char *cmd[] = { "mosquitto_sub", "-h", "127.0.0.1", "-p", "1881", "-t",
-		"topic-test", "-u", "user-test", "-i", "clientid-test",
+	char *cmd = "/bin/mosquitto_sub";
+
+	char *cmd1[] = { "mosquitto_sub", "-h", "127.0.0.1", "-p", "1881",
+		"-t", "topic-test", "-u", "user-test", "-i", "clientid-test",
 		NULL };
-	char *cmd2[] = { "mosquitto_sub", "-h", "127.0.0.1", "-p", "1881", "-t",
-		"topic-test2", "-u", "user-test2", "-i", "clientid-test2",
-		NULL };
+	char *cmd2[] = { "mosquitto_sub", "-h", "127.0.0.1", "-p", "1881",
+		"-t", "topic-test2", "-u", "user-test2", "-i",
+		"clientid-test2", NULL };
 	nng_thread *nmq;
 	conf       *conf;
 	pid_t       pid_sub;
@@ -806,8 +808,8 @@ main()
 	assert(conf != NULL);
 	nng_thread_create(&nmq, (void *) broker_start_with_conf, (void *) conf);
 	nng_msleep(100);  // wait a while for broker to init
-	pid_sub = popen_sub_with_cmd(&outfp, cmd);
-	pid_sub2 = popen_sub_with_cmd(&outfp2, cmd2);
+	pid_sub = popen_with_cmd(&outfp, cmd1, cmd);
+	pid_sub2 = popen_with_cmd(&outfp2, cmd2, cmd);
 	nng_msleep(500); // wait a while after sub
 
 	// TODO: there is a potential connection refuse case & although they

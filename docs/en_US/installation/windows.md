@@ -21,13 +21,13 @@ This page takes v0.18.2 as an example, if you'd like to work with the other vers
 |        Features         | Support |                 Note                 |
 | ----------------------- | ------- | ------------------------------------ |
 | MQTT Broker             | ✅      | MQTT ver3.1 3.1.1 5.0 are supported  |
-| TLS/SSL                 | ✅      | lib mbedtls is required             |
+| TLS/SSL                 | ✅      | lib mbedtls is required              |
 | WebSocket               | ✅      |                                      |
 | QUIC                    | ❌      |                                      |
 | MQTT over TCP Bridging  | ✅      |                                      |
 | HTTP APIs               | ✅      |                                      |
 | Rule engine             | ✅      | only repub is supported              |
-| Webhook                 | ❌      |                                      |
+| Webhook                 | ✅      |                                      |
 | CLI client tool         | ✅      |                                      |
 | Bench basic test tool   | ❌      |                                      |
   

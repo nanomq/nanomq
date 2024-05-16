@@ -507,7 +507,7 @@ get_test_conf(conf_type type)
 }
 
 pid_t
-popen_sub_with_cmd(int *outfp, char *arg[])
+popen_with_cmd(int *outfp, char *arg[], char *cmd)
 {
 	int   fd_pipe[2];
 	pid_t pid;
@@ -523,7 +523,7 @@ popen_sub_with_cmd(int *outfp, char *arg[])
 		// child only need to write
 		close(fd_pipe[STDIN_FILENO]);
 		dup2(fd_pipe[STDOUT_FILENO], STDOUT_FILENO);
-		execv("/bin/mosquitto_sub", arg);
+		execv(cmd, arg);
 		exit(1);
 	} else {
 		// parent only need to read
@@ -533,8 +533,9 @@ popen_sub_with_cmd(int *outfp, char *arg[])
 
 	return pid;
 }
+
 pid_t
-popen_sub_with_cmd_nonblock(int *outfp, char *arg[])
+popen_sub_with_cmd_nonblock(int *outfp, char *arg[], char *cmd)
 {
 	int   fd_pipe[2];
 	pid_t pid;
@@ -550,7 +551,7 @@ popen_sub_with_cmd_nonblock(int *outfp, char *arg[])
 		// child only need to write
 		close(fd_pipe[STDIN_FILENO]);
 		dup2(fd_pipe[STDOUT_FILENO], STDOUT_FILENO);
-		execv("/bin/mosquitto_sub", arg);
+		execv(cmd, arg);
 		exit(1);
 	} else {
 		// parent only need to read

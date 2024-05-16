@@ -33,6 +33,10 @@
 #include "nng/supplemental/nanolib/parquet.h"
 #endif
 
+#ifdef SUPP_BLF
+#include "nng/supplemental/nanolib/blf.h"
+#endif
+
 #define NANO_LMQ_INIT_CAP 16
 
 // The server keeps a list of work items, sorted by expiration time,
@@ -52,7 +56,6 @@ struct hook_work {
 	bool           busy;
 	conf_exchange *exchange;
 	conf_parquet  *parquet;
-	nng_socket    *mqtt_sock;
 };
 
 static void hook_work_cb(void *arg);
@@ -437,27 +440,27 @@ send_mqtt_msg_cat(nng_socket *sock, nng_msg **msgs, uint32_t len,
 	return rv;
 }
 
-#ifdef SUPP_PARQUET
+#if defined(SUPP_BLF) || defined(SUPP_PARQUET)
 
 static char *
 get_file_bname(char *fpath)
 {
-        char * bname;
+	char *bname;
 #ifdef _WIN32
-        if ((bname = malloc(strlen(fpath)+16)) == NULL) return NULL;
-        char ext[16];
-        _splitpath_s(fpath,
-                NULL, 0,    // Don't need drive
-                NULL, 0,    // Don't need directory
-                bname, strlen(fpath) + 15,  // just the filename
-                ext  , 15);
-        strncpy(bname+strlen(bname), ext, 15);
+	if ((bname = malloc(strlen(fpath) + 16)) == NULL)
+		return NULL;
+	char ext[16];
+	_splitpath_s(fpath, NULL, 0,   // Don't need drive
+	    NULL, 0,                   // Don't need directory
+	    bname, strlen(fpath) + 15, // just the filename
+	    ext, 15);
+	strncpy(bname + strlen(bname), ext, 15);
 #else
-		#include <libgen.h>
-        // strcpy(bname, basename(fpath));
-        bname = basename(fpath);
+#include <libgen.h>
+	// strcpy(bname, basename(fpath));
+	bname = basename(fpath);
 #endif
-        return bname;
+	return bname;
 }
 
 static int
@@ -591,8 +594,7 @@ send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uin
 	nng_mqtt_msg_set_publish_dup(pubmsg, 0);
 	nng_mqtt_msg_set_publish_qos(pubmsg, 0);
 	nng_mqtt_msg_set_publish_retain(pubmsg, 0);
-	nng_mqtt_msg_set_publish_payload(
-	    pubmsg, (uint8_t *) buf, strlen(buf));
+	nng_mqtt_msg_set_publish_payload(pubmsg, (uint8_t *) buf, strlen(buf));
 	nng_mqtt_msg_set_publish_topic(pubmsg, topic);
 
 	log_info("Publishing to '%s' '%s'", topic, buf);
@@ -611,11 +613,11 @@ static void
 send_msg(conf_web_hook *conf, nng_msg *msg)
 {
 	nng_http_client *client = NULL;
-	nng_http_conn *  conn   = NULL;
-	nng_url *        url    = NULL;
-	nng_aio *        aio    = NULL;
-	nng_http_req *   req    = NULL;
-	nng_http_res *   res    = NULL;
+	nng_http_conn   *conn   = NULL;
+	nng_url         *url    = NULL;
+	nng_aio         *aio    = NULL;
+	nng_http_req    *req    = NULL;
+	nng_http_res    *res    = NULL;
 	int              rv;
 
 	if (((rv = nng_url_parse(&url, conf->url)) != 0) ||
@@ -1197,7 +1199,6 @@ hook_cb(void *arg)
 {
 	conf              *conf = arg;
 	nng_socket         sock;
-	nng_socket         mqtt_sock;
 	size_t             works_num = 0;
 	int                rv;
 	size_t             i;
@@ -1215,6 +1216,7 @@ hook_cb(void *arg)
 	rv = nng_pull0_open(&sock);
 	if (rv != 0) {
 		log_error("nng_pull0_open %d", rv);
+		nng_free(works, works_num * sizeof(struct hook_work *));
 		return;
 	}
 
@@ -1256,12 +1258,11 @@ hook_cb(void *arg)
 	for (i = 0; i < works_num; i++) {
 		works[i] = alloc_work(sock, &conf->web_hook, &conf->exchange, &conf->parquet);
 		works[i]->id = i;
-		works[i]->mqtt_sock = &mqtt_sock;
 	}
 	// NanoMQ core thread talks to others via INPROC
 	if ((rv = nng_listen(sock, HOOK_IPC_URL, NULL, 0)) != 0) {
 		log_error("hook nng_listen %d", rv);
-		return;
+		goto out;
 	}
 
 	if (hook_search_limit == NULL)
@@ -1270,7 +1271,7 @@ hook_cb(void *arg)
 	if (0 != (rv = nng_aio_alloc(&hook_search_reset_aio,
 			hook_search_reset, &conf->parquet))) {
 		log_error("hook hook_search reset aio init failed %d", rv);
-		return;
+		goto out;
 	}
 	nng_aio_finish(hook_search_reset_aio, 0); // Start
 	log_info("hook hook_search reset aio started");
@@ -1284,6 +1285,7 @@ hook_cb(void *arg)
 		nng_msleep(3600000); // neither pause() nor sleep() portable
 	}
 
+out:
 	// Free hook search reset aio and limit atomic
 	if (hook_search_limit)
 		nng_atomic_free(hook_search_limit);
