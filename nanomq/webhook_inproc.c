@@ -258,7 +258,6 @@ send_mqtt_msg_cat_with_split(nng_socket *sock, nng_msg **msgs, uint32_t len,
 		char *ruleid, uint64_t start_key, uint64_t end_key, char *key, bool encryption_enable,
 		nng_aio *saio, uint32_t split_len)
 {
-	int rv;
 	nng_msg *pubmsg;
 	uint32_t sz = 0;
 
@@ -340,7 +339,7 @@ send_mqtt_msg_cat_with_split(nng_socket *sock, nng_msg **msgs, uint32_t len,
 		nng_free(topic, 0);
 	}
 
-	return rv;
+	return 0;
 }
 
 static int
