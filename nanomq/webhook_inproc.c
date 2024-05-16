@@ -56,6 +56,7 @@ struct hook_work {
 	bool           busy;
 	conf_exchange *exchange;
 	conf_parquet  *parquet;
+	nng_socket    *mqtt_sock;
 };
 
 static void hook_work_cb(void *arg);
