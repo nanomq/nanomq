@@ -266,7 +266,7 @@ gen_hash_nearby_key(char *clientid, char *topic, uint32_t pid)
 	return res;
 }
 
-// static uint32_t g_inc_id = 0;
+static uint32_t g_inc_id = 0;
 
 inline int
 hook_entry(nano_work *work, uint8_t reason)
