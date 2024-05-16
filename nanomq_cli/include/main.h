@@ -10,5 +10,6 @@
 #include "rule_ctrl.h"
 #include "dds_client.h"
 #include "nftp_client.h"
+#include "iceoryx_client.h"
 
 #endif // NANOMQ_CLI_MAIN_H

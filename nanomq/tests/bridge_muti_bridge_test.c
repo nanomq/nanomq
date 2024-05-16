@@ -12,6 +12,8 @@
 int
 main()
 {
+	char *cmd = "/bin/mosquitto_sub";
+
 	char *cmd_sub[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", "1881", "-t", "nmqtest_sub", "-V", "mqttv5", NULL};
 	char *cmd_pub= "mosquitto_pub -h 127.0.0.1 -p 1881 -t nmqtest_lo -m message-to-aws -V mqttv5 -r";
 
@@ -45,9 +47,9 @@ main()
 	assert(conf != NULL);
 	nng_thread_create(&nmq, (void *) broker_start_with_conf, (void *) conf);
 	nng_msleep(1000); // wait a while before sub
-	pid_sub = popen_sub_with_cmd(&outfp, cmd_sub);
-	pid_sub_nmq = popen_sub_with_cmd(&outfp_nmq, cmd_sub_nmq);
-	pid_sub_emqx = popen_sub_with_cmd(&outfp_emqx, cmd_sub_emqx);
+	pid_sub = popen_with_cmd(&outfp, cmd_sub, cmd);
+	pid_sub_nmq = popen_with_cmd(&outfp_nmq, cmd_sub_nmq, cmd);
+	pid_sub_emqx = popen_with_cmd(&outfp_emqx, cmd_sub_emqx, cmd);
 	nng_msleep(2000);
 	p_pub = popen(cmd_pub, "r");
 	p_pub_emqx = popen(cmd_pub_emqx, "r");

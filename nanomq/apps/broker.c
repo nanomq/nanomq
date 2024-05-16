@@ -51,6 +51,10 @@
 #include "include/process.h"
 #include "include/nanomq.h"
 
+#if defined(SUPP_ICEORYX)
+	#include "nng/iceoryx_shm/iceoryx_shm.h"
+#endif
+
 #if defined(SUPP_PLUGIN)
 	#include "include/plugin.h"
 #endif
@@ -113,8 +117,6 @@ void sig_handler(int signum)
 }
 #endif
 #endif
-
-
 
 enum options {
 	OPT_HELP = 1,
@@ -330,6 +332,12 @@ server_cb(void *arg)
 		if (work->proto == PROTO_MQTT_BROKER) {
 			log_debug("INIT ^^^^^^^^ ctx [%d] ^^^^^^^^ \n", work->ctx.id);
 			nng_ctx_recv(work->ctx, work->aio);
+#if defined(SUPP_ICEORYX)
+		} else if (work->proto == PROTO_ICEORYX_BRIDGE) {
+			log_debug("INIT ^^^^^^^^ iceoryx ctx [%d] ^^^^^^^^ \n", work->extra_ctx.id);
+			nng_aio_set_prov_data(work->aio, work->iceoryx_suber);
+			nng_ctx_recv(work->extra_ctx, work->aio);
+#endif
 		} else {
 			log_debug("INIT ^^^^^^^^ extra ctx [%d] ^^^^^^^^ \n", work->extra_ctx.id);
 			nng_ctx_recv(work->extra_ctx, work->aio);
@@ -386,6 +394,24 @@ server_cb(void *arg)
 			msg = decode_msg;
 			nng_msg_set_cmd_type(msg, CMD_PUBLISH);
 			// alloc conn_param every single time
+#if defined(SUPP_ICEORYX)
+		} else if (work->proto == PROTO_ICEORYX_BRIDGE) {
+			nng_msg *icemsg = msg;
+			nng_msg *decode_msg = NULL;
+			//log_debug("pld:%s", (char *)nng_msg_payload_ptr(msg));
+			// convert iceoryx msg to nng mqtt msg
+			rv = nano_iceoryx_recv_nng_msg(work->iceoryx_suber, icemsg, &decode_msg);
+			if (rv != 0) {
+				log_error("Failed to decode iceoryx msg %d", rv);
+				work->state = RECV;
+				nng_aio_set_prov_data(work->aio, work->iceoryx_suber);
+				nng_ctx_recv(work->extra_ctx, work->aio);
+				break;
+			}
+			msg = decode_msg;
+			nng_msg_set_cmd_type(msg, CMD_PUBLISH);
+			nng_msg_iceoryx_free(icemsg, work->iceoryx_suber);
+#endif
 		}
 		work->msg       = msg;
 		work->pid       = nng_msg_get_pipe(work->msg);
@@ -412,9 +438,7 @@ server_cb(void *arg)
 			if (work->code != SUCCESS) {
 				if (work->msg_ret)
 					for (size_t i = 0; i < cvector_size(work->msg_ret); i++)
-					{
 						nng_msg_free(work->msg_ret[i]);
-					}
 					cvector_free(work->msg_ret);
 				if (work->sub_pkt)
 					sub_pkt_free(work->sub_pkt);
@@ -435,8 +459,7 @@ server_cb(void *arg)
 			work->msg = NULL;
 			if (work->msg_ret) {
 				log_debug("retain msg [%p] size [%ld] \n",
-				    work->msg_ret,
-				    cvector_size(work->msg_ret));
+				    work->msg_ret, cvector_size(work->msg_ret));
 				for (int i = 0;
 				     i < cvector_size(work->msg_ret) &&
 				     check_msg_exp(work->msg_ret[i],
@@ -626,7 +649,12 @@ server_cb(void *arg)
 #if defined(SUPP_RULE_ENGINE)
 			rule_opt = work->config->rule_eng.option;
 #endif
-			if (hook_conf->enable || exge_conf->count > 0 || rule_opt != RULE_ENG_OFF) {
+			uint8_t iceoryx_opt = 0;
+#if defined(SUPP_ICEORYX)
+			iceoryx_opt = 1;
+#endif
+			if (hook_conf->enable || exge_conf->count > 0 || 
+			        rule_opt != RULE_ENG_OFF || iceoryx_opt == 1) {
 				work->state = SEND;
 				nng_aio_finish(work->aio, 0);
 				break;
@@ -673,6 +701,17 @@ server_cb(void *arg)
 			rule_engine_insert_sql(work);
 		}
 #endif
+#if defined(SUPP_ICEORYX)
+		if (work->flag == CMD_PUBLISH && work->msg != NULL &&
+		        true == nano_iceoryx_topic_filter("ice/fwd",
+		        work->pub_packet->var_header.publish.topic_name.body,
+		        work->pub_packet->var_header.publish.topic_name.len)) {
+			if (0 != (rv = nano_iceoryx_send_nng_msg(
+			        work->iceoryx_puber, work->msg, &work->iceoryx_sock))) {
+				log_error("Failed to send iceoryx %d", rv);
+			}
+		}
+#endif
 		// external hook here
 		hook_entry(work, 0);
 
@@ -698,6 +737,11 @@ server_cb(void *arg)
 		work->flag  = 0;
 		if (work->proto == PROTO_MQTT_BROKER) {
 			nng_ctx_recv(work->ctx, work->aio);
+#if defined(SUPP_ICEORYX)
+		} else if (work->proto == PROTO_ICEORYX_BRIDGE) {
+			nng_aio_set_prov_data(work->aio, work->iceoryx_suber);
+			nng_ctx_recv(work->extra_ctx, work->aio);
+#endif
 		} else{
 			nng_ctx_recv(work->extra_ctx, work->aio);
 		}
@@ -836,7 +880,7 @@ alloc_work(nng_socket sock)
 }
 
 nano_work *
-proto_work_init(nng_socket sock,nng_socket inproc_sock, nng_socket bridge_sock, uint8_t proto,
+proto_work_init(nng_socket sock, nng_socket extrasock, uint8_t proto,
     dbtree *db_tree, dbtree *db_tree_ret, conf *config)
 {
 	int        rv;
@@ -848,26 +892,34 @@ proto_work_init(nng_socket sock,nng_socket inproc_sock, nng_socket bridge_sock, 
 	w->config = config;
 	w->code   = SUCCESS;
 
-	w->sqlite_db = NULL;
+#if defined(SUPP_ICEORYX)
+	w->iceoryx_suber = NULL;
+	w->iceoryx_puber = NULL;
+#endif
 
+	w->sqlite_db = NULL;
 #if defined(NNG_SUPP_SQLITE)
 	nng_socket_get_ptr(sock, NMQ_OPT_MQTT_QOS_DB, &w->sqlite_db);
 #endif
 
 	// only create ctx for extra ctx that are required to receive msg
 	if (config->http_server.enable && proto == PROTO_HTTP_SERVER) {
-		if ((rv = nng_ctx_open(&w->extra_ctx, inproc_sock)) != 0) {
+		if ((rv = nng_ctx_open(&w->extra_ctx, extrasock)) != 0) {
 			NANO_NNG_FATAL("nng_ctx_open", rv);
 		}
+#if defined(SUPP_ICEORYX)
+	} else if (proto == PROTO_ICEORYX_BRIDGE) {
+			if ((rv = nng_ctx_open(&w->extra_ctx, extrasock)) != 0) {
+				NANO_NNG_FATAL("nng_ctx_open", rv);
+			}
+#endif
 	} else if (config->bridge_mode) {
 		if (proto == PROTO_MQTT_BRIDGE) {
-			if ((rv = nng_ctx_open(&w->extra_ctx, bridge_sock)) !=
-			    0) {
+			if ((rv = nng_ctx_open(&w->extra_ctx, extrasock)) != 0) {
 				NANO_NNG_FATAL("nng_ctx_open", rv);
 			}
 		} else if (proto == PROTO_AWS_BRIDGE) {
-			if ((rv = nng_ctx_open(&w->extra_ctx, inproc_sock)) !=
-			    0) {
+			if ((rv = nng_ctx_open(&w->extra_ctx, extrasock)) != 0) {
 				NANO_NNG_FATAL("nng_ctx_open", rv);
 			}
 		}
@@ -1007,6 +1059,12 @@ broker(conf *nanomq_conf)
 	}
 	log_debug("HTTP init finished");
 
+#if defined(SUPP_ICEORYX)
+	// This is for iceoryx
+	nanomq_conf->total_ctx += HTTP_CTX_NUM;
+	num_work += HTTP_CTX_NUM;
+#endif
+
 	// Exchange service
 	for (int i = 0; i < nanomq_conf->exchange.count; i++) {
 		conf_exchange_node *node = nanomq_conf->exchange.nodes[i];
@@ -1079,7 +1137,7 @@ broker(conf *nanomq_conf)
 	struct work **works = nng_zalloc(num_work * sizeof(struct work *));
 	// create broker ctx
 	for (i = 0; i < nanomq_conf->parallel; i++) {
-		works[i] = proto_work_init(sock, inproc_sock, sock,
+		works[i] = proto_work_init(sock, inproc_sock,
 		    PROTO_MQTT_BROKER, db, db_ret, nanomq_conf);
 	}
 
@@ -1096,9 +1154,8 @@ broker(conf *nanomq_conf)
 				for (i = tmp; i < (tmp + node->parallel);
 				     i++) {
 					works[i] = proto_work_init(sock,
-					    inproc_sock, *bridge_sock,
-					    PROTO_MQTT_BRIDGE, db, db_ret,
-					    nanomq_conf);
+					    *bridge_sock, PROTO_MQTT_BRIDGE,
+					    db, db_ret, nanomq_conf);
 				}
 				tmp += node->parallel;
 			}
@@ -1113,8 +1170,7 @@ broker(conf *nanomq_conf)
 				     i++) {
 					works[i] =
 					    proto_work_init(sock, inproc_sock,
-					        sock, PROTO_AWS_BRIDGE, db,
-					        db_ret, nanomq_conf);
+					        PROTO_AWS_BRIDGE, db, db_ret, nanomq_conf);
 				}
 				tmp += node->parallel;
 				aws_bridge_client(node);
@@ -1125,12 +1181,38 @@ broker(conf *nanomq_conf)
 
 	// create http server ctx
 	if (nanomq_conf->http_server.enable) {
-		log_debug("NanoMQ context initialization");
+		log_debug("http context init");
 		for (i = tmp; i < tmp + HTTP_CTX_NUM; i++) {
-			works[i] = proto_work_init(sock, inproc_sock, sock,
+			works[i] = proto_work_init(sock, inproc_sock,
 			    PROTO_HTTP_SERVER, db, db_ret, nanomq_conf);
 		}
+		tmp += HTTP_CTX_NUM;
 	}
+
+#if defined(SUPP_ICEORYX)
+	nng_socket iceoryx_sock;
+	const char *iceoryx_service = "NanoMQ-Service";
+	const char *iceoryx_instance = "NanoMQ-Instance";
+	const char *iceoryx_event_sub = "topic";
+	const char *iceoryx_event_pub = "ice/fwd";
+	nng_iceoryx_open(&iceoryx_sock, "NanoMQ-Iceoryx");
+
+	nng_iceoryx_suber *suber;
+	nng_iceoryx_sub(&iceoryx_sock, "NanoMQ-Iceoryx-Suber",
+		iceoryx_service, iceoryx_instance, iceoryx_event_sub, &suber);
+
+	nng_iceoryx_puber *puber;
+	nng_iceoryx_pub(&iceoryx_sock, "NanoMQ-Iceoryx-Puber",
+		iceoryx_service, iceoryx_instance, iceoryx_event_pub, &puber);
+
+	// create iceoryx ctx
+	log_debug("iceoryx context init");
+	for (i = tmp; i < tmp + HTTP_CTX_NUM; i++) {
+		works[i] = proto_work_init(sock, iceoryx_sock,
+		    PROTO_ICEORYX_BRIDGE, db, db_ret, nanomq_conf);
+	}
+	tmp += HTTP_CTX_NUM;
+#endif
 
 	// Init exchange part in hook
 	if (nanomq_conf->exchange.count > 0) {
@@ -1200,6 +1282,15 @@ broker(conf *nanomq_conf)
 			NANO_NNG_FATAL("nng_listen " INPROC_SERVER_URL, rv);
 		}
 	}
+
+#if defined(SUPP_ICEORYX)
+	for (i = 0; i < num_work; i++) {
+		works[i]->iceoryx_suber = suber;
+		works[i]->iceoryx_puber = puber;
+		works[i]->iceoryx_sock.data  = iceoryx_sock.data;
+		works[i]->iceoryx_sock.id    = iceoryx_sock.id;
+	}
+#endif
 
 	for (i = 0; i < num_work; i++) {
 		server_cb(works[i]); // this starts them going (INIT state)
@@ -1742,6 +1833,10 @@ broker_start(int argc, char **argv)
 	nanomq_conf->vin = vin;
 
 	rc = file_path_parse(argc, argv, &nanomq_conf->conf_file);
+	if (nanomq_conf->conf_file == NULL) {
+		nanomq_conf->conf_file = CONF_PATH_NAME;
+		printf("Config file is not specified, use default config file: %s\n", nanomq_conf->conf_file);
+	}
 
 	if (!rc) {
 		conf_fini(nanomq_conf);

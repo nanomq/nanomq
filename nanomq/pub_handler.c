@@ -17,6 +17,7 @@
 #include "include/nanomq.h"
 #include "nng/nng.h"
 #include "nng/mqtt/packet.h"
+#include "nng/supplemental/nanolib/hash_table.h"
 #include "nng/supplemental/nanolib/mqtt_db.h"
 #include "nng/supplemental/nanolib/cJSON.h"
 #include "include/nanomq_rule.h"
@@ -1103,6 +1104,22 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 	topic        = work->pub_packet->var_header.publish.topic_name.body;
 	uint32_t len = work->pub_packet->var_header.publish.topic_name.len;
 
+	if (work->config != NULL && work->config->auth_http.enable) {
+		struct topic_queue *tq = topic_queue_init(topic, len);
+		if (tq == NULL) {
+			log_error("topic_queue_init failed!");
+		} else {
+			int rv = nmq_auth_http_sub_pub(work->cparam, false, tq, &work->config->auth_http);
+			if (rv != 0) {
+				log_error("Auth failed! publish packet!");
+				topic_queue_release(tq);
+				return NOT_AUTHORIZED;
+			}
+		}
+
+		topic_queue_release(tq);
+	}
+
 	// deal with topic alias
 	if (proto == MQTT_PROTOCOL_VERSION_v5) {
 		property_data *pdata = property_get_value(
@@ -1234,7 +1251,11 @@ static void inline handle_pub_retain_dbtree(const nano_work *work, char *topic)
 			    work->pub_packet->var_header.publish.properties !=
 			        NULL) {
 				if (work->proto == PROTO_MQTT_BROKER) {
-					nng_mqttv5_msg_decode(work->msg);
+					if (nng_mqttv5_msg_decode(work->msg) != 0) {
+						log_warn("decode retain msg failed, drop msg");
+						nng_msg_free(work->msg);
+						return;
+					}
 				}
 			}
 			ret = dbtree_insert_retain(work->db_ret, topic, work->msg);
@@ -1242,7 +1263,6 @@ static void inline handle_pub_retain_dbtree(const nano_work *work, char *topic)
 			log_debug("delete retain message");
 			ret = dbtree_delete_retain(work->db_ret, topic);
 		}
-
 
 		if (ret != NULL) {
 			nng_msg_free(ret);
@@ -1613,7 +1633,7 @@ decode_pub_message(nano_work *work, uint8_t proto)
 			if (pub_packet->var_header.publish.properties) {
 				if (check_properties(
 				        pub_packet->var_header.publish
-				            .properties) != 0) {
+				            .properties, msg) != 0) {
 					// check if subid exist in publish msg from client
 				    // property_get_value(pub_packet->var_header
 				    //                        .publish.properties,
@@ -1663,7 +1683,7 @@ decode_pub_message(nano_work *work, uint8_t proto)
 			        &pub_packet->var_header.pub_arrc.prop_len,
 			        false);
 			if (check_properties(
-			        pub_packet->var_header.pub_arrc.properties) !=
+			        pub_packet->var_header.pub_arrc.properties, msg) !=
 			    SUCCESS) {
 				return PROTOCOL_ERROR;
 			}

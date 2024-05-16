@@ -26,4 +26,13 @@ extern uint8_t *nano_pipe_get_local_address6(nng_pipe p);
 extern uint16_t nano_pipe_get_local_port(nng_pipe p);
 extern uint16_t nano_pipe_get_local_port6(nng_pipe p);
 
+#if defined(SUPP_ICEORYX)
+#include "nng/iceoryx_shm/iceoryx_shm.h"
+extern int nano_iceoryx_send_nng_msg(
+    nng_iceoryx_puber *puber, nng_msg *msg, nng_socket *sock);
+extern int nano_iceoryx_recv_nng_msg(
+    nng_iceoryx_suber *suber, nng_msg *icemsg, nng_msg **msg);
+extern bool nano_iceoryx_topic_filter(char *icetopic, char *topic, uint32_t topicsz);
+#endif
+
 #endif // MQTT_API_H

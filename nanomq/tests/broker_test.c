@@ -6,6 +6,7 @@ main()
 {
 	int rv = 0;
 
+	char *cmd = "/bin/mosquitto_sub";
 	// char *cmd_sub = "mosquitto_sub -h 127.0.0.1 -p 1883 -t topic1 -t topic2 -U topic2 -q 2";
 	char *cmd_pub = "mosquitto_pub -h 127.0.0.1 -p 1883 -t topic1 -m message -q 2";
 
@@ -28,7 +29,7 @@ main()
 	char *arg[] = { "mosquitto_sub", "-t", "topic1", "-t", "topic2", "-U",
 		"topic2", "-h", "127.0.0.1", "-p", "1883", "-q", "2", NULL };
 
-	pid_sub = popen_sub_with_cmd(&outfp, arg);
+	pid_sub = popen_with_cmd(&outfp, arg, cmd);
 	nng_msleep(50); // pub should be slightly behind sub
 	// pipe to pub
 	p_pub   = popen(cmd_pub, "r");

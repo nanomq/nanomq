@@ -67,7 +67,7 @@ main()
 		// "u-up-v",
 		NULL };
 
-	pid_sub = popen_sub_with_cmd(&outfp, arg);
+	pid_sub = popen_with_cmd(&outfp, arg, "/bin/mosquitto_sub");
 	nng_msleep(50); // pub should be slightly behind sub
 
 	// pipe to pub

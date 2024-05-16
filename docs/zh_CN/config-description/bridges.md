@@ -60,6 +60,7 @@ bridges.mqtt.emqx1 = {
       remote_topic = "cmd/topic1"
       local_topic = "topic3"
       qos = 1
+      retain = 2                          # 重载标志位
     },
     {
       remote_topic = "cmd/topic2"
@@ -91,13 +92,16 @@ bridges.mqtt.emqx1 = {
 - `clean_start`：清除会话。注意：有些 IoT 平台会要求该项设为 `false`。
 - `username`：登录用户名。
 - `password`：登录密码。
-- `forwards`：转发到远端 MQTT 服务器的主题数组，应包括消息主题（`remote_topic`）、（`local_topic`）和 QoS （`qos`）。
 - `ssl`：SSL/TLS 相关配置项：
   - `key_password`：TLS 私钥密码。
   - `keyfile`：TLS 私钥数据。
   - `certfile`：TLS Cert 证书数据。
   - `cacertfile`：TLS CA 证书数据。
-- `subscription`：需要从远程 MQTT 服务器订阅的主题对象数组，每个数组内将定义消息主题和 QoS 等级。
+- `forwards`：转发到远端 MQTT 服务器的主题数组，应包括消息主题（`remote_topic`）、（`local_topic`）和 QoS （`qos`）。
+- `subscription`：需要从远程 MQTT 服务器订阅的主题对象数组，除`forwards`中各项外，还包括以下几项：。
+  - `retain`：重载标志位。
+  - `retain_as_publish`：MQTTV5可选特性，Retain As Published。
+  - `retain_handling`：MQTTV5可选特性，Retain Handling。
 - `max_parallel_processes`：接客户端并发数。
 - `max_send_queue_len`：最大发送队列长度。
 - `max_recv_queue_len`：最大接收队列长度。

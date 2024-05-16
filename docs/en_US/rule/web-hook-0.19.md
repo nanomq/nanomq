@@ -31,12 +31,12 @@ NanoMQ provides the following configuration keys for WebHook:
 
 ```bash
 webhook {
-	## Multi rules can be added here.
-	event = [
-    	{
-        	<Rule>
-    	}
-	]
+    ## Multi rules can be added here.
+    events = [
+        {
+            <Rule>
+        }
+    ]
 }
 ```
 
@@ -45,16 +45,23 @@ webhook {
 For example, you want to forward messages matching the topics of `a/b/c` and `foo/#` to the web server, the configuration should be:
 
 ```bash
-webhook.events = [
-	{ 
-		event = "on_message_publish"
-		topic = "a/b/c"
-	}
-	{
-		event = "on_message_publish"
-		topic = "foo/#"
-	}
-]
+webhook {
+    url = "http://127.0.0.1:80"
+    headers.content-type = "application/json"
+    body.encoding = plain
+    pool_size = 32
+
+    events = [
+        {
+            event = "on_message_publish"
+            topic = "a/b/c"
+        }
+        {
+            event = "on_message_publish"
+            topic = "foo/#"
+        }
+    ]
+}
 ```
 
 ### WebHook Trigger Events
@@ -125,20 +132,22 @@ NanoMQ supports defining multiple trigger rules through the configuration file. 
 The sample configuration is as follows:
 
 ```bash
-webhook.events = [
-	url = "http://127.0.0.1:80"
-	headers.content-type = "application/json"
-	body.encoding = plain
-	pool_size = 32
+webhook {
+    url = "http://127.0.0.1:80"
+    headers.content-type = "application/json"
+    body.encoding = plain
+    pool_size = 32
 
-	{ 
-		event = "on_message_publish"
-		topic = "a/b/c"
-	}
-	{
-		event = "on_client_connack"
-	}
-]
+    events = [
+        {
+            event = "on_message_publish"
+            topic = "a/b/c"
+        }
+        {
+            event = "on_client_connack"
+        }
+    ]
+}
 ```
 
 `event`: WebHook triggered event, string, supported events include:

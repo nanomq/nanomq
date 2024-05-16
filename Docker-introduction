@@ -94,9 +94,9 @@ Recommend to use Environment variables to config NanoMQ
 | ------------------------------------------------------------ |     ------------------------------------------------------------ | ------------------------------------------------------------ |
 |NANOMQ_BROKER_URL |String | 'nmq-tcp://host:port', 'tls+nmq-tcp://host:port'|
 |NANOMQ_DAEMON |Boolean | Set nanomq as daemon (default: false).|
-|NANOMQ_NUM_TASKQ_THREAD | Integer | Number of taskq threads used, `num` greater than 0 and less than 256.|
-|NANOMQ_MAX_TASKQ_THREAD | Integer | Maximum number of taskq threads used, `num` greater than 0 and less than 256.|
-|NANOMQ_PARALLEL | Long | Number of parallel.|
+|NANOMQ_NUM_TASKQ_THREAD | Unsigned Integar 32 (Long) | Number of taskq threads used, `num` greater than 0 and less than 256.|
+|NANOMQ_MAX_TASKQ_THREAD | Unsigned Integar 32 (Long) | Maximum number of taskq threads used, `num` greater than 0 and less than 256.|
+|NANOMQ_PARALLEL | Unsigned Integar 32 (Long) | Number of parallel.|
 |NANOMQ_PROPERTY_SIZE | Integer | Max size for a MQTT user property.|
 |NANOMQ_MSQ_LEN | Integer | Queue length for resending messages.|
 |NANOMQ_QOS_DURATION | Integer |  The interval of the qos timer.|
@@ -151,7 +151,7 @@ In order to achieve the best performance on your platform, recommend to change f
 
 Name                               | Type          | Description
 ---------------------------------- | ------------- | ----------------------------------------------------------------------------------------------
-system.num_taskq_thread            | Integer       | Number of taskq threads used. (equal to your CPU cores)
-system.max_taskq_thread            | Integer       | Maximum number of taskq threads used. (equal to your CPU cores)
+system.num_taskq_thread            | Unsigned Integar 32 (Long)       | Number of taskq threads used. (equal to your CPU cores)
+system.max_taskq_thread            | Unsigned Integar 32 (Long)       | Maximum number of taskq threads used. (equal to your CPU cores)
 system.parallel                    | Long          | Number of parallel. (equal to your CPU cores * 2)
 mqtt.session.msq_len               | Integer       | Inflight window/Queue length for resending messages. (Recommend to set as max number: 65535, depending on your memory limitation)

@@ -164,9 +164,9 @@ To achieve better performance, you can adjust the following configurations in th
 
 | Configuration Item      | Type    | Description                                                  |
 | ----------------------- | ------- | ------------------------------------------------------------ |
-| system.num_taskq_thread | Integer | Number of task queue threads used, recommended to match the number of CPU cores. |
-| system.max_taskq_thread | Integer | Maximum number of task queue threads that can be used, recommended to match the number of CPU cores. |
-| system.parallel         | Long    | Number of parallel processing tasks, recommended to match the number of CPU cores. |
+| system.num_taskq_thread | Unsigned Integar 32 (Long) | Number of task queue threads used, recommended to match the number of CPU cores. |
+| system.max_taskq_thread | Unsigned Integar 32 (Long) | Maximum number of task queue threads that can be used, recommended to match the number of CPU cores. |
+| system.parallel         | Unsigned Integar 32 (Long) | Number of parallel processing tasks, recommended to match the number of CPU cores. |
 | mqtt.session.msq_len    | Integer | Length of the Inflight window/queue for resending messages. It's recommended (depending on the memory) to set it to the maximum value: 65535. |
 
 **Example**
