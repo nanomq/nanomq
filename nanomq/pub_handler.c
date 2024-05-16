@@ -656,7 +656,7 @@ compose_sql_clause(rule *info, char *key, char *value, bool is_need_set, int j, 
 	pub_packet_struct *pp = work->pub_packet;
 	conn_param        *cp = work->cparam;
 	char *ret = NULL;
-
+	char tmp[800];
 
 	if (info->flag[j]) {
 		switch (j) {
@@ -666,7 +666,9 @@ compose_sql_clause(rule *info, char *key, char *value, bool is_need_set, int j, 
 			} else {
 				strcat(key, "Qos");
 			}
-			sprintf(value, "%s%d", value, pp->fixed_header.qos);
+			memset(tmp, 0, 800);
+			sprintf(tmp, "%s%d", value, pp->fixed_header.qos);
+			strcpy(value, tmp);
 			break;
 		case RULE_ID:
 			if (info->as[j]) {
@@ -674,7 +676,9 @@ compose_sql_clause(rule *info, char *key, char *value, bool is_need_set, int j, 
 			} else {
 				strcat(key, "Id");
 			}
-			sprintf(value, "%s\'%d\'", value, pp->var_header.publish.packet_id);
+			memset(tmp, 0, 800);
+			sprintf(tmp, "%s%d", value, pp->var_header.publish.packet_id);
+			strcpy(value, tmp);
 			break;
 		case RULE_TOPIC:;
 			char *topic = pp->var_header.publish.topic_name.body;
@@ -683,7 +687,9 @@ compose_sql_clause(rule *info, char *key, char *value, bool is_need_set, int j, 
 			} else {
 				strcat(key, "Topic");
 			}
-			sprintf(value, "%s\'%s\'", value, topic);
+			memset(tmp, 0, 800);
+			sprintf(tmp, "%s\'%s\'", value, topic);
+			strcpy(value, tmp);
 			break;
 		case RULE_CLIENTID:;
 			char *cid = (char *) conn_param_get_clientid(cp);
@@ -692,7 +698,9 @@ compose_sql_clause(rule *info, char *key, char *value, bool is_need_set, int j, 
 			} else {
 				strcat(key, "Clientid");
 			}
-			sprintf(value, "%s\'%s\'", value, cid);
+			memset(tmp, 0, 800);
+			sprintf(tmp, "%s\'%s\'", value, cid);
+			strcpy(value, tmp);
 			break;
 		case RULE_USERNAME:;
 			char *username = (char *) conn_param_get_username(cp);
@@ -701,7 +709,9 @@ compose_sql_clause(rule *info, char *key, char *value, bool is_need_set, int j, 
 			} else {
 				strcat(key, "Username");
 			}
-			sprintf(value, "%s\'%s\'", value, username);
+			memset(tmp, 0, 800);
+			sprintf(tmp, "%s\'%s\'", value, username);
+			strcpy(value, tmp);
 			break;
 		case RULE_PASSWORD:;
 			char *password = (char *) conn_param_get_password(cp);
@@ -710,7 +720,9 @@ compose_sql_clause(rule *info, char *key, char *value, bool is_need_set, int j, 
 			} else {
 				strcat(key, "Password");
 			}
-			sprintf(value, "%s\'%s\'", value, password);
+			memset(tmp, 0, 800);
+			sprintf(tmp, "%s\'%s\'", value, password);
+			strcpy(value, tmp);
 			break;
 		case RULE_TIMESTAMP:
 			if (info->as[j]) {
@@ -719,7 +731,9 @@ compose_sql_clause(rule *info, char *key, char *value, bool is_need_set, int j, 
 				strcat(key, "Timestamp");
 			}
 
-			sprintf(value, "%s%lu", value, (unsigned long) time(NULL));
+			memset(tmp, 0, 800);
+			sprintf(tmp, "%s%lu", value, (unsigned long) time(NULL));
+			strcpy(value, tmp);
 			break;
 		case RULE_PAYLOAD_ALL:;
 			char *payload = pp->payload.data;
@@ -730,7 +744,9 @@ compose_sql_clause(rule *info, char *key, char *value, bool is_need_set, int j, 
 				strcat(key, "Payload");
 			}
 
-			sprintf(value, "%s\'%s\'", value, payload);
+			memset(tmp, 0, 800);
+			sprintf(tmp, "%s\'%s\'", value, payload);
+			strcpy(value, tmp);
 			break;
 
 		case RULE_PAYLOAD_FIELD:;
@@ -755,9 +771,13 @@ compose_sql_clause(rule *info, char *key, char *value, bool is_need_set, int j, 
 								strcat(key, info->payload[pi]->pas);
 								strcat(key, ", ");
 								if (strlen(value) > strlen("VALUES (")) {
-									sprintf(value, "%s, %ld", value, (long) info->payload[pi]->value);
+									memset(tmp, 0, 800);
+									sprintf(tmp, "%s, %ld", value, (long) info->payload[pi]->value);
+									strcpy(value, tmp);
 								} else {
-									sprintf(value, "%s %ld", value, (long) info->payload[pi]->value);
+									memset(tmp, 0, 800);
+									sprintf(tmp, "%s %ld", value, (long) info->payload[pi]->value);
+									strcpy(value, tmp);
 								}
 							break;
 						case cJSON_String:
@@ -772,9 +792,13 @@ compose_sql_clause(rule *info, char *key, char *value, bool is_need_set, int j, 
 								strcat(key, info->payload[pi]->pas);
 								strcat(key, ", ");
 								if (strlen(value) > strlen("VALUES (")) {
-									sprintf(value, "%s, \'%s\'", value, (char*) info->payload[pi]->value);
+									memset(tmp, 0, 800);
+									sprintf(tmp, "%s, \'%s\'", value, (char*) info->payload[pi]->value);
+									strcpy(value, tmp);
 								} else {
-									sprintf(value, "%s \'%s\'", value, (char*) info->payload[pi]->value);
+									memset(tmp, 0, 800);
+									sprintf(tmp, "%s \'%s\'", value, (char*) info->payload[pi]->value);
+									strcpy(value, tmp);
 								}
 							}
 							break;
@@ -789,13 +813,17 @@ compose_sql_clause(rule *info, char *key, char *value, bool is_need_set, int j, 
 								}
 								strcat(key, info->payload[pi]->pas);
 								strcat(key, ", ");
-								char *tmp = cJSON_PrintUnformatted((cJSON*) info->payload[pi]->value);
+								char *cjson_obj = cJSON_PrintUnformatted((cJSON*) info->payload[pi]->value);
 								if (strlen(value) > strlen("VALUES (")) {
-									sprintf(value, "%s, \'%s\'", value, tmp);
+									memset(tmp, 0, 800);
+									sprintf(tmp, "%s, \'%s\'", value, cjson_obj);
+									strcpy(value, tmp);
 								} else {
-									sprintf(value, "%s \'%s\'", value, tmp);
+									memset(tmp, 0, 800);
+									sprintf(tmp, "%s \'%s\'", value, cjson_obj);
+									strcpy(value, tmp);
 								}
-								cJSON_free(tmp);
+								cJSON_free(cjson_obj);
 							}
 							break;
 						default:
