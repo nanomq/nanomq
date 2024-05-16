@@ -42,7 +42,7 @@ jobs:
           mkdir -p packages/nanomq/parquet packages/nanomq-debug/parquet
           mkdir -p packages/nanomq/etc packages/nanomq-debug/etc
           mkdir -p packages/nanomq/log packages/nanomq-debug/log
-          pkgversion="$(git describe --abbrev=0 --tags | tr '-' '_')"
+          pkgversion="$(git describe --abbrev=0 --tags)"
           git log --format=%H -1 >> readme.txt
           cd nng && git log --format=%H -1 >> ../readme.txt && cd -
           id=$(docker create nanomq_with_parquet)
