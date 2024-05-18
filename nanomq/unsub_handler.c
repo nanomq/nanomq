@@ -69,7 +69,7 @@ decode_unsub_msg(nano_work *work)
 	while (1) {
 		_tn = tn;
 
-		len_of_topic = get_utf8_str(&tn->topic.body, payload_ptr, &bpos, -1);
+		len_of_topic = get_utf8_str(&tn->topic.body, payload_ptr, &bpos, nng_msg_len(msg));
 		if (len_of_topic != -1) {
 			tn->topic.len = len_of_topic;
 		} else {
