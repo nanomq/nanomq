@@ -37,9 +37,6 @@ main()
 		0x05, 0x25, 0x4D, 0x51, 0x54, 0x54 };
 	payload_ptr     = topic;
 	nng_msg_set_payload_ptr(msg, payload_ptr);
-	// set remaining_len.
-	remaining_len = nng_msg_len(msg);
-	nng_msg_set_remaining_len(msg, remaining_len);
 	// set work->msg.
 	work->msg = msg;
 	// alloc unsub_pkt.
@@ -48,7 +45,8 @@ main()
 	/* test for function decode_unsub_msg() */
 	uint8_t packet_id[2] = { 0x00, 0x05 };
 	nng_msg_append(work->msg, packet_id, 2);
-	remaining_len = 12;
+	nng_msg_append(work->msg, topic, 14);
+	remaining_len = 16;
 	nng_msg_set_remaining_len(work->msg, remaining_len);
 
 	rv = decode_unsub_msg(work);
