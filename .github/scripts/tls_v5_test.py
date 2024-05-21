@@ -217,7 +217,7 @@ def test_topic_alias():
         time.sleep(1)
         times += 1
         
-    time.sleep(2)
+    time.sleep(5)
     process1.terminate()
     os.kill(pid.value, signal.SIGKILL)
     if cnt.value == 10:
