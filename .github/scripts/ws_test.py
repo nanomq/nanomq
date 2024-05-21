@@ -8,8 +8,10 @@ g_recv_times = 0
 g_pub_times = 1
 g_connected = 0
 
+log = ""
+
 def on_log(client, userdata, level, buf):
-    print("log: ",buf)
+    log =  log + buf + '\n'
 
 def on_message(self, obj, msg):
     assert msg.topic == str(msg.payload, 'utf-8')
@@ -74,7 +76,9 @@ class Test(object):
             self._mqttc.disconnect()
             qos -= 1
 
-        assert g_send_times * (_qos + 1) == g_recv_times
+        if(g_send_times * (_qos + 1) != g_recv_times):
+            print(log)
+            assert(g_send_times * (_qos + 1) == g_recv_times)
 
         g_recv_times = 0
         qos = _qos
@@ -101,7 +105,10 @@ class Test(object):
             self._mqttc.loop_stop()
             self._mqttc.disconnect()
             qos -= 1
-        assert 0 == g_recv_times
+
+        if(g_recv_times != 0):
+            print(log)
+            assert(0 == g_recv_times)
 
 def ws_test():
     t1 = Test()
@@ -114,8 +121,7 @@ def ws_test():
     t1.assert_test(3, 2, "+/a/+", "test/a/b")
     t1.assert_test(3, 2, "+/a/b", "test/a/b")
     t1.assert_test(3, 2, "test/#", "test/a/b")
-    
-    
+     
     t1 = Test()
     t1.init(prot=MQTTv5)
     t1.assert_test(3, 1, "test/a/b", "test/a/b")
