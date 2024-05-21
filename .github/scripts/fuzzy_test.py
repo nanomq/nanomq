@@ -2,7 +2,7 @@ import time
 import socket
 import os
 
-data_path = ".github/scripts/fuzzy_test.txt"
+data_path = ".github/scripts/vul_dataset/fuzzy_test.txt"
 addr = '127.0.0.1'
 port = 1883
 
