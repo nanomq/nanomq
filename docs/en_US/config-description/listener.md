@@ -21,7 +21,7 @@ listeners.tcp.tcp_listener_1 = {
 ### **Example Configuration**
 
 ```hcl
-listeners.ssl.<listener-name> = {
+listeners.ssl {
   bind = "0.0.0.0:8883"              # Bind to all network interfaces on port 8883
   # key_password = <yourpass>        # String with the password to decrypt private keyfile
   keyfile = "/etc/certs/key.pem"     # Key file path
@@ -51,7 +51,7 @@ listeners.ssl.<listener-name> = {
 ### **Example Configuration**
 
 ```hcl
-listeners.ws.<listener-name> = {
+listeners.ws {
   bind = "0.0.0.0:8083/mqtt"			# Bind to all network interfaces on port 8083
 }
 ```
@@ -65,7 +65,7 @@ listeners.ws.<listener-name> = {
 ### **Example Configuration**
 
 ```hcl
-listeners.wss.<listener-name> = {
+listeners.wss {
   bind = "0.0.0.0:8084"           	# Bind to all network interfaces on port 8084
 }
 ```
@@ -83,5 +83,17 @@ The secure WebSocket listener utilizes the same `keyfile`, `certfile`, and `cace
 - `cacertfile`
 
 :::
+
+## Upcoming Features
+
+**TLS**
+
+NanoMQ will support multi-listeners in upcoming releases. 
+
+```hcl
+listeners.tcp.tcp_listener_1 = {
+  bind = "0.0.0.0:1883"     # The listener binds to all network interfaces on port 1883
+}
+```
 
 <!--@jaylin can we add multiple listeners, if yes, it's good if we could give some examples.-->
