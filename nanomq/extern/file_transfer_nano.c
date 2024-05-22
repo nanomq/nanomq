@@ -323,8 +323,8 @@ static int publish_send_result(nng_socket *sock,
 			"\"result\": \"%s\","
 			"\"echo-id\": \"%s\""
 			"}",
-			requestid == NULL ? "" : requestid,
-			messages == NULL ? "" : messages,
+			requestid == NULL ? "[\"\"]" : requestid,
+			messages == NULL ? "[\"\"]" : messages,
 			success ? "success" : "fail",
 			echoid);
 	if (rc < 0 || rc >= BUF_SIZE) {
