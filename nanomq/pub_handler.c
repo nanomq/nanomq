@@ -1275,17 +1275,24 @@ static void inline handle_pub_retain_dbtree(const nano_work *work, char *topic)
 			property *prop  = NULL;
 			// reserve property info
 			nng_mqtt_msg_proto_data_alloc(work->msg);
-			if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5 &&
-			    work->pub_packet->var_header.publish.properties !=
-			        NULL) {
-				if (work->proto == PROTO_MQTT_BROKER) {
-					if (nng_mqttv5_msg_decode(work->msg) != 0) {
-						log_warn("decode retain msg failed, drop msg");
-						nng_msg_free(work->msg);
-						return;
-					}
+			if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
+				if (nng_mqttv5_msg_decode(work->msg) != 0) {
+					log_warn("decode retain msg "
+								"failed, drop msg");
+					nng_msg_free(work->msg);
+					return;
+				}
+			} else if (work->proto_ver == MQTT_PROTOCOL_VERSION_v311 ||
+					   work->proto_ver == MQTT_PROTOCOL_VERSION_v31) {
+				if (nng_mqtt_msg_decode(work->msg) != 0) {
+					log_warn("decode retain msg failed, "
+					         "drop msg");
+					nng_msg_free(work->msg);
+					return;
 				}
 			}
+			uint32_t tlen;
+			const char *topic2 = nng_mqtt_msg_get_publish_topic(work->msg, &tlen);
 			ret = dbtree_insert_retain(work->db_ret, topic, work->msg);
 		} else {
 			log_debug("delete retain message");
