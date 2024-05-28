@@ -370,6 +370,7 @@ server_cb(void *arg)
 			nng_msg_iceoryx_free(icemsg, work->iceoryx_suber);
 #endif
 		}
+		// processing what we got now
 		work->msg       = msg;
 		work->pid       = nng_msg_get_pipe(work->msg);
 		work->cparam    = nng_msg_get_conn_param(work->msg);
