@@ -1291,8 +1291,6 @@ static void inline handle_pub_retain_dbtree(const nano_work *work, char *topic)
 					return;
 				}
 			}
-			uint32_t tlen;
-			const char *topic2 = nng_mqtt_msg_get_publish_topic(work->msg, &tlen);
 			ret = dbtree_insert_retain(work->db_ret, topic, work->msg);
 		} else {
 			log_debug("delete retain message");
