@@ -216,7 +216,6 @@ bridge_handler(nano_work *work)
 		    : nng_mqtt_msg_encode(smsg);
 	}
 	nng_msg_free(smsg);
-
 	return rv;
 }
 
