@@ -667,10 +667,11 @@ quic_ack_cb(void *arg)
 	nng_msg *     msg   = nng_aio_get_msg(aio);
 	if (msg == NULL || (result = nng_aio_result(aio)) != 0) {
 		log_debug("no msg wating!");
-		nng_recv_aio(*sock, aio);
+		// nng_recv_aio(*sock, aio);
 		return;
 	}
 	if (nng_msg_get_type(msg) == CMD_CONNACK) {
+		conn_param *cp = nng_msg_get_conn_param(msg);
 		nng_mqtt_client *client = param->client;
 		int              reason = 0;
 		// get connect reason
@@ -699,7 +700,7 @@ quic_ack_cb(void *arg)
 				        ->retain_as_published,
 				    param->config->sub_list[i]
 				        ->retain_handling);
-				log_info("Bridge client subscribed topic %s "
+				log_info("Bridge client want to subscribed topic %s "
 				         "(qos %d rap %d rh %d).",
 				    param->config->sub_list[i]->topic,
 				    param->config->sub_list[i]->qos,
@@ -730,7 +731,7 @@ quic_ack_cb(void *arg)
 				        ->retain_as_published,
 				    param->config->sub_list[i]
 				        ->retain_handling);
-				log_info("Bridge client subscribed topic %s "
+				log_info("Bridge client want to subscribe topic %s "
 				         "(qos %d rap %d rh %d).",
 				    param->config->sub_list[i]->topic,
 				    param->config->sub_list[i]->qos,
