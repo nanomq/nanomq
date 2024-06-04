@@ -307,7 +307,7 @@ server_cb(void *arg)
 	case RECV:
 		log_debug("RECV  ^^^^ ctx%d ^^^^\n", work->ctx.id);
 		msg = nng_aio_get_msg(work->aio);
-		if ((rv = nng_aio_result(work->aio)) != 0) {
+		if ((rv = nng_aio_result(work->aio)) != 0 || msg == NULL) {
 			log_error("RECV nng aio result error: %d or NULL msg received", rv);
 			work->state = RECV;
 			if (work->proto == PROTO_MQTT_BROKER) {
