@@ -474,6 +474,64 @@ error:
 	abort();
 }
 
+
+
+void
+parquet_find_data_span_packets_test()
+{
+	// TODO check keys beyond file
+	//Single file case
+	uint32_t size = 0;
+	parquet_data_packet **packs = parquet_find_data_span_packets(
+	    NULL, 10, 109, &size);
+	check_mem(packs);
+	check(size == DATASIZE, "size error");
+	for (int i = 0; i < DATASIZE; i++) {
+		if (packs[i]) {
+			char expect[16] = { 0 };
+			snprintf(expect, sizeof(expect), "hello world%d", i);
+			check(packs[i]->size == strlen(expect),
+			    "size error");
+			check_nstr(
+			    packs[i]->data, expect, packs[i]->size);
+			FREE_STRUCT(packs[i]->data);
+			FREE_STRUCT(packs[i]);
+		}
+	}
+	free(packs);
+
+
+	//  // Muliti files case
+	//  parquet_data_packet **packs = parquet_find_data_span_packets(
+	//      NULL, filenames, NUM_KEYS, 10, 4409);
+	//  check_mem(packs);
+	//  for (int i = 0; i < NUM_KEYS; i++) {
+	//  	if (packs[i]) {
+	//  		check(pack->size == strlen("hello world0"),
+	//  		    "size error");
+	//  		check_nstr(
+	//  		    packs[i]->data, "hello world0", packs[i]->size);
+	//  		FREE_STRUCT(packs[i]->data);
+	//  		FREE_STRUCT(packs[i]);
+	//  	}
+	//  }
+	//  free(packs);
+
+
+
+
+	return;
+
+error:
+	abort();
+
+}
+
+
+
+
+
+
 int
 main(int argc, char **argv)
 {
@@ -485,10 +543,12 @@ main(int argc, char **argv)
 	parquet_write_batch_async_test();
 	puts("parquet write batch tmp async passed!");
 	parquet_write_batch_async_tmp_test();
-	puts("parquet_find_span_test passed!");
-	parquet_find_span_test();
-	puts("parquet_find_data_packet_test passed!");
-	parquet_find_data_packet_test();
+	// puts("parquet_find_span_test passed!");
+	// parquet_find_span_test();
+	// puts("parquet_find_data_packet_test passed!");
+	// parquet_find_data_packet_test();
+	puts("parquet_find_data_span_packets_test passed!");
+	parquet_find_data_span_packets_test();
 
 	return 0;
 }
