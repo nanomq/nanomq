@@ -1248,7 +1248,7 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	bridge_arg->sock   = sock;
 	bridge_arg->conf   = config;
 	if (node->address == NULL) {
-		log_error("invalid bridging config!");
+		log_error("invalid bridging config! node address is null!");
 		nng_free(bridge_arg, sizeof(bridge_param));
 		return -1;
 	}
