@@ -30,7 +30,7 @@ static void         set_char(char *out, unsigned int *index, char c);
 static unsigned int base62_encode(
     const unsigned char *in, unsigned int inlen, char *out);
 
-static int flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio);
+static int flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio, char *topic);
 
 #define BASE62_ENCODE_OUT_SIZE(s) ((unsigned int) ((((s) * 8) / 6) + 2))
 
@@ -420,10 +420,10 @@ done:
 
 
 static int
-flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio)
+flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio, char *topic)
 {
-	nng_msg * msg;
-	void    **datas;
+	nng_msg  * msg;
+	void     **datas;
 	uint64_t *keys;
 	uint32_t *lens;
 
@@ -477,6 +477,7 @@ flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio)
 	parquet_object *parquet_obj;
 	parquet_obj = parquet_object_alloc(
 	    keys, (uint8_t **) datas, lens, len2, aio, (void *) smsg);
+	parquet_obj->topic = topic;
 	parquet_write_batch_async(parquet_obj);
 #endif
 #if defined(SUPP_BLF)
@@ -544,12 +545,15 @@ send_exchange_cb(void *arg)
 	if (msgs_lenp)
 		msgs_len = *msgs_lenp;
 
+	char *topic = NULL;
+	topic = nng_msg_get_conn_param(msg);
+
 	// Flush to disk. Call Parquet
 	if (parquet_conf->enable || blf_conf->enable) {
 		if (parquet_conf->enable) {
 			nng_mtx_lock(hook_conf->ex_mtx);
 			rv = flush_smsg_to_disk(
-			    msgs_del, msgs_len, NULL, hook_conf->ex_aio);
+			    msgs_del, msgs_len, NULL, hook_conf->ex_aio, topic);
 			if (rv != 0)
 				log_error("flush error %d", rv);
 			nng_mtx_unlock(hook_conf->ex_mtx);
@@ -557,7 +561,7 @@ send_exchange_cb(void *arg)
 		if (blf_conf->enable) {
 			nng_mtx_lock(hook_conf->ex_mtx);
 			rv = flush_smsg_to_disk(
-			    msgs_del, msgs_len, NULL, hook_conf->ex_aio);
+			    msgs_del, msgs_len, NULL, hook_conf->ex_aio, topic);
 			if (rv != 0)
 				log_error("flush error %d", rv);
 			nng_mtx_unlock(hook_conf->ex_mtx);
