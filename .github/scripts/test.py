@@ -34,6 +34,7 @@ if __name__=='__main__':
     nanomq = shlex.split(nanomq_cmd)
     nanomq = subprocess.Popen(nanomq, 
                            stdout=subprocess.PIPE,
+                           env=dict(os.environ, NANOMQ_VIN="abc"),
                            universal_newlines=True)
                            
 
