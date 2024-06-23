@@ -242,6 +242,9 @@ log_init(conf_log *log)
 		log_add_syslog("nng-nanomq", log->level, NULL);
 	}
 #endif
+	if (0 != (log->type & LOG_TO_UDS)) {
+		log_add_uds(log->uds_addr, "nng-nanomq", log->level, NULL);
+	}
 
 	return 0;
 }
@@ -258,6 +261,10 @@ log_fini(conf_log *log)
 		closelog();
 	}
 #endif
+	if (0 != (log->type & LOG_TO_UDS)) {
+		closelog();
+	}
+
 	log_clear_callback();
 
 	return 0;
