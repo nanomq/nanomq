@@ -227,7 +227,7 @@ nano_vin_client(const char *url)
 		NANO_NNG_FATAL("nng_recv", rv);
 	}
 
-	printf("NanoMQ RUN WITH VIN CODE: %s\n", buf);
+	printf("NanoMQ RUN WITH VIN CODE: %.*s\n", sz, buf);
 	nng_close(sock);
 	return buf;
 }
