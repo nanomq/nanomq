@@ -207,11 +207,16 @@ bridge_handler(nano_work *work)
 	for (size_t t = 0; t < work->config->bridge.count; t++) {
 		conf_bridge_node *node = work->config->bridge.nodes[t];
 		nng_mtx_lock(node->mtx);
+		char *publish_topic =
+			work->pub_packet->var_header.publish.topic_name.body;
 		if (node->enable) {
 			for (size_t i = 0; i < node->forwards_count; i++) {
+				if (strlen(publish_topic) > strlen("$SYS") &&
+					strncmp(publish_topic, "$SYS", strlen("$SYS")) == 0) {
+					continue;
+				}
 				if (topic_filter(node->forwards_list[i]->local_topic,
-				        work->pub_packet->var_header.publish
-				            .topic_name.body)) {
+							publish_topic)) {
 					work->state = SEND;
 
 					nng_msg *bridge_msg = NULL;
@@ -220,12 +225,8 @@ bridge_handler(nano_work *work)
 						mqtt_property_dup(
 						    &props, work->pub_packet->var_header.publish.properties);
 					}
-					char *publish_topic;
 					// No change if remote topic == ""
-					if (node->forwards_list[i]->remote_topic_len == 0) {
-						publish_topic = work->pub_packet->
-							var_header.publish.topic_name.body;
-					} else {
+					if (node->forwards_list[i]->remote_topic_len != 0) {
 						publish_topic = node->forwards_list[i]->remote_topic;
 					}
 					uint8_t retain;
