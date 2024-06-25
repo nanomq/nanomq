@@ -155,6 +155,8 @@ intHandler(int dummy)
 }
 #endif
 
+#define SYS_TOPIC "$SYS/brokers/"
+
 static inline bool
 bridge_handler(nano_work *work)
 {
@@ -162,7 +164,8 @@ bridge_handler(nano_work *work)
 	bool      rv    = false;
 	property *props = NULL;
 	uint32_t  index = work->ctx.id - 1;
-
+	if (strncmp(SYS_TOPIC,work->pub_packet->var_header.publish.topic_name.body, 13) == 0)
+		return 0;
 	if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 		mqtt_property_dup(
 		    &props, work->pub_packet->var_header.publish.properties);
