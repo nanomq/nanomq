@@ -423,15 +423,24 @@ server_cb(void *arg)
 				     i < cvector_size(work->msg_ret) &&
 				     check_msg_exp(work->msg_ret[i],
 				         nng_mqtt_msg_get_publish_property(
-				             work->msg_ret[i]));
-				     i++) {
+				             work->msg_ret[i])); i++) {
 					nng_msg *m = work->msg_ret[i];
 					nng_msg_clone(m);
 					work->msg = m;
+					handle_pub(work, work->pipe_ct, work->proto_ver, false);
+
+					if (encode_pub_message(work->msg, work, PUBLISH)) {
 					nng_aio_set_msg(work->aio, work->msg);
 					nng_aio_set_prov_data(work->aio, &work->pid.id);
 					nng_ctx_send(work->ctx, work->aio);
+					}
+
 					nng_msg_free(m);
+					free_pub_packet(work->pub_packet);
+					work->pub_packet = NULL;
+					cvector_free(work->pipe_ct->msg_infos);
+					work->pipe_ct->msg_infos = NULL;
+					init_pipe_content(work->pipe_ct);
 				}
 				cvector_free(work->msg_ret);
 			}
