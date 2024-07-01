@@ -1184,8 +1184,11 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 		log_error("Topic is NULL");
 		return TOPIC_FILTER_INVALID;
 	}
-
-	if (work->proto == PROTO_MQTT_BRIDGE) {
+	bool bridged = false;
+	void *proto_data = nng_msg_get_proto_data(work->msg);
+	if (proto_data != NULL)
+		bridged = nng_mqtt_msg_get_bridge_bool(work->msg);
+	if (work->proto == PROTO_MQTT_BRIDGE || bridged) {
 		bridge_handle_topic_reflection(work, &work->config->bridge);
 	}
 
@@ -1274,11 +1277,11 @@ static void inline handle_pub_retain_dbtree(const nano_work *work, char *topic)
 			nng_msg_clone(work->msg);
 			property *prop  = NULL;
 			// reserve property info
-			nng_mqtt_msg_proto_data_alloc(work->msg);
+			if (nng_msg_get_proto_data(work->msg) == NULL)
+				nng_mqtt_msg_proto_data_alloc(work->msg);
 			if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 				if (nng_mqttv5_msg_decode(work->msg) != 0) {
-					log_warn("decode retain msg "
-								"failed, drop msg");
+					log_warn("decode retain msg failed, drop msg");
 					nng_msg_free(work->msg);
 					return;
 				}
