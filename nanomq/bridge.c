@@ -196,6 +196,7 @@ bridge_handle_topic_sub_reflection(nano_work *work, conf_bridge_node *node)
 					log_error("bridge: alloc local_topic failed");
 					return;
 				}
+				nng_mqtt_msg_set_bridge_bool(work->msg, true);
 
 				/* release old topic area */
 				nng_strfree(topic);
@@ -207,7 +208,6 @@ bridge_handle_topic_sub_reflection(nano_work *work, conf_bridge_node *node)
 				    sub_topic->retain == NO_RETAIN
 				    ? work->pub_packet->fixed_header.retain
 				    : sub_topic->retain;
-
 				return;
 			}
 		}
