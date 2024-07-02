@@ -425,22 +425,39 @@ server_cb(void *arg)
 				         nng_mqtt_msg_get_publish_property(
 				             work->msg_ret[i])); i++) {
 					nng_msg *m = work->msg_ret[i];
-					nng_msg_clone(m);
 					work->msg = m;
-					handle_pub(work, work->pipe_ct, work->proto_ver, false);
-
-					if (encode_pub_message(work->msg, work, PUBLISH)) {
-					nng_aio_set_msg(work->aio, work->msg);
-					nng_aio_set_prov_data(work->aio, &work->pid.id);
-					nng_ctx_send(work->ctx, work->aio);
+					work->pub_packet =
+					    (struct pub_packet_struct *)
+					        nng_zalloc(sizeof(
+					            struct pub_packet_struct));
+					if (SUCCESS ==
+					    decode_pub_message(work, work->proto_ver)) {
+						bool  bridged = false;
+						void *proto_data =
+						    nng_msg_get_proto_data(work->msg);
+						if (proto_data != NULL)
+							bridged =
+							    nng_mqtt_msg_get_bridge_bool(work->msg);
+						if (bridged) {
+							bridge_handle_topic_reflection(
+							    work, &work->config->bridge);
+						}
+						// dont modify original retain msg;
+						nng_msg *rmsg;
+						nng_msg_alloc(&rmsg, 0);
+						if (encode_pub_message(rmsg, work, PUBLISH)) {
+							nng_aio_set_msg(work->aio, rmsg);
+							nng_aio_set_prov_data(work->aio, &work->pid.id);
+							nng_ctx_send(work->ctx, work->aio);
+						}
+						free_pub_packet(work->pub_packet);
+						work->pub_packet = NULL;
+						cvector_free(work->pipe_ct->msg_infos);
+						work->pipe_ct->msg_infos = NULL;
+						init_pipe_content(work->pipe_ct);
 					}
-
+					// free the ref due to dbtree_find_retain
 					nng_msg_free(m);
-					free_pub_packet(work->pub_packet);
-					work->pub_packet = NULL;
-					cvector_free(work->pipe_ct->msg_infos);
-					work->pipe_ct->msg_infos = NULL;
-					init_pipe_content(work->pipe_ct);
 				}
 				cvector_free(work->msg_ret);
 			}

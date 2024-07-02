@@ -1094,10 +1094,16 @@ rule_engine_insert_sql(nano_work *work)
 
 
 #endif
+/**
+ * 
+	only deal with locale publishing
+	client - broker - client + bridge - broker - client
+	broker - bridge is not included
+	@is_event indicates this is not a common pub msg
+	it is either a SYS or retain msg
+ * 
+ */
 
-// only deal with locale publishing
-// client - broker - client + bridge - broker - client
-// broker - bridge is not included
 reason_code
 handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
     bool is_event)
@@ -1184,11 +1190,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 		log_error("Topic is NULL");
 		return TOPIC_FILTER_INVALID;
 	}
-	bool bridged = false;
-	void *proto_data = nng_msg_get_proto_data(work->msg);
-	if (proto_data != NULL)
-		bridged = nng_mqtt_msg_get_bridge_bool(work->msg);
-	if (work->proto == PROTO_MQTT_BRIDGE || bridged) {
+	if (work->proto == PROTO_MQTT_BRIDGE) {
 		bridge_handle_topic_reflection(work, &work->config->bridge);
 	}
 
@@ -1268,15 +1270,19 @@ static void inline handle_pub_retain_sqlite(const nano_work *work, char *topic)
 
 #endif
 
-static void inline handle_pub_retain_dbtree(const nano_work *work, char *topic)
+static void inline handle_pub_retain(const nano_work *work, char *topic)
 {
+#if defined(NNG_SUPP_SQLITE)
+	if (work->config != NULL && work->config->sqlite.enable &&
+	    work->sqlite_db) {
+		handle_pub_retain_sqlite(work, topic);
+		return;
+	}
+#endif
 	nng_msg *ret = NULL;
 	if (work->pub_packet->fixed_header.retain) {
-
 		if (work->pub_packet->payload.len > 0) {
 			nng_msg_clone(work->msg);
-			property *prop  = NULL;
-			// reserve property info
 			if (nng_msg_get_proto_data(work->msg) == NULL)
 				nng_mqtt_msg_proto_data_alloc(work->msg);
 			if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
@@ -1305,19 +1311,6 @@ static void inline handle_pub_retain_dbtree(const nano_work *work, char *topic)
 		}
 	}
 }
-
-static void inline handle_pub_retain(const nano_work *work, char *topic)
-{
-#if defined(NNG_SUPP_SQLITE)
-	if (work->config != NULL && work->config->sqlite.enable &&
-	    work->sqlite_db) {
-		handle_pub_retain_sqlite(work, topic);
-		return;
-	}
-#endif
-	handle_pub_retain_dbtree(work, topic);
-}
-
 #endif
 
 
