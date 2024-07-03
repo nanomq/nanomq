@@ -445,6 +445,11 @@ server_cb(void *arg)
 						// dont modify original retain msg;
 						nng_msg *rmsg;
 						nng_msg_alloc(&rmsg, 0);
+						if (work->proto_ver == MQTT_VERSION_V5) {
+							nng_msg_set_cmd_type(rmsg,CMD_PUBLISH_V5);
+						} else {
+							nng_msg_set_cmd_type(rmsg, CMD_PUBLISH);
+						}
 						if (encode_pub_message(rmsg, work, PUBLISH)) {
 							nng_aio_set_msg(work->aio, rmsg);
 							nng_aio_set_prov_data(work->aio, &work->pid.id);
@@ -498,7 +503,7 @@ server_cb(void *arg)
 			break;
 		} else if (work->flag == CMD_PUBLISH) {
 			// Set V4/V5 flag for publish msg
-			if (work->proto_ver == 5) {
+			if (work->proto_ver == MQTT_VERSION_V5) {
 				nng_msg_set_cmd_type(msg, CMD_PUBLISH_V5);
 			} else {
 				nng_msg_set_cmd_type(msg, CMD_PUBLISH);
