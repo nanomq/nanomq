@@ -246,11 +246,16 @@ bridge_handler(nano_work *work)
 	for (size_t t = 0; t < work->config->bridge.count; t++) {
 		conf_bridge_node *node = work->config->bridge.nodes[t];
 		nng_mtx_lock(node->mtx);
+		char *publish_topic =
+			work->pub_packet->var_header.publish.topic_name.body;
 		if (node->enable) {
 			for (size_t i = 0; i < node->forwards_count; i++) {
+				if (strlen(publish_topic) > strlen("$SYS") &&
+					strncmp(publish_topic, "$SYS", strlen("$SYS")) == 0) {
+					continue;
+				}
 				if (topic_filter(node->forwards_list[i]->local_topic,
-				        work->pub_packet->var_header.publish
-				            .topic_name.body)) {
+							publish_topic)) {
 					work->state = SEND;
 
 					nng_msg *bridge_msg = NULL;
@@ -259,12 +264,8 @@ bridge_handler(nano_work *work)
 						mqtt_property_dup(
 						    &props, work->pub_packet->var_header.publish.properties);
 					}
-					char *publish_topic;
 					// No change if remote topic == ""
-					if (node->forwards_list[i]->remote_topic_len == 0) {
-						publish_topic = work->pub_packet->
-							var_header.publish.topic_name.body;
-					} else {
+					if (node->forwards_list[i]->remote_topic_len != 0) {
 						publish_topic = node->forwards_list[i]->remote_topic;
 					}
 					uint8_t retain;
@@ -346,7 +347,7 @@ server_cb(void *arg)
 	case RECV:
 		log_debug("RECV  ^^^^ ctx%d ^^^^\n", work->ctx.id);
 		msg = nng_aio_get_msg(work->aio);
-		if ((rv = nng_aio_result(work->aio)) != 0) {
+		if ((rv = nng_aio_result(work->aio)) != 0 || msg == NULL) {
 			log_error("RECV nng aio result error: %d or NULL msg received", rv);
 			work->state = RECV;
 			if (work->proto == PROTO_MQTT_BROKER) {
@@ -413,6 +414,7 @@ server_cb(void *arg)
 			nng_msg_iceoryx_free(icemsg, work->iceoryx_suber);
 #endif
 		}
+		// processing what we got now
 		work->msg       = msg;
 		work->pid       = nng_msg_get_pipe(work->msg);
 		work->cparam    = nng_msg_get_conn_param(work->msg);
@@ -464,14 +466,45 @@ server_cb(void *arg)
 				     i < cvector_size(work->msg_ret) &&
 				     check_msg_exp(work->msg_ret[i],
 				         nng_mqtt_msg_get_publish_property(
-				             work->msg_ret[i]));
-				     i++) {
+				             work->msg_ret[i])); i++) {
 					nng_msg *m = work->msg_ret[i];
-					nng_msg_clone(m);
 					work->msg = m;
-					nng_aio_set_msg(work->aio, work->msg);
-					nng_aio_set_prov_data(work->aio, &work->pid.id);
-					nng_ctx_send(work->ctx, work->aio);
+					work->pub_packet =
+					    (struct pub_packet_struct *)
+					        nng_zalloc(sizeof(
+					            struct pub_packet_struct));
+					if (SUCCESS ==
+					    decode_pub_message(work, work->proto_ver)) {
+						bool  bridged = false;
+						void *proto_data =
+						    nng_msg_get_proto_data(work->msg);
+						if (proto_data != NULL)
+							bridged =
+							    nng_mqtt_msg_get_bridge_bool(work->msg);
+						if (bridged) {
+							bridge_handle_topic_reflection(
+							    work, &work->config->bridge);
+						}
+						// dont modify original retain msg;
+						nng_msg *rmsg;
+						nng_msg_alloc(&rmsg, 0);
+						if (work->proto_ver == MQTT_VERSION_V5) {
+							nng_msg_set_cmd_type(rmsg,CMD_PUBLISH_V5);
+						} else {
+							nng_msg_set_cmd_type(rmsg, CMD_PUBLISH);
+						}
+						if (encode_pub_message(rmsg, work, PUBLISH)) {
+							nng_aio_set_msg(work->aio, rmsg);
+							nng_aio_set_prov_data(work->aio, &work->pid.id);
+							nng_ctx_send(work->ctx, work->aio);
+						}
+						free_pub_packet(work->pub_packet);
+						work->pub_packet = NULL;
+						cvector_free(work->pipe_ct->msg_infos);
+						work->pipe_ct->msg_infos = NULL;
+						init_pipe_content(work->pipe_ct);
+					}
+					// free the ref due to dbtree_find_retain
 					nng_msg_free(m);
 				}
 				cvector_free(work->msg_ret);
@@ -513,7 +546,7 @@ server_cb(void *arg)
 			break;
 		} else if (work->flag == CMD_PUBLISH) {
 			// Set V4/V5 flag for publish msg
-			if (work->proto_ver == 5) {
+			if (work->proto_ver == MQTT_VERSION_V5) {
 				nng_msg_set_cmd_type(msg, CMD_PUBLISH_V5);
 			} else {
 				nng_msg_set_cmd_type(msg, CMD_PUBLISH);
