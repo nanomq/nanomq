@@ -1389,7 +1389,7 @@ append_bytes_with_type(
  */
 bool
 encode_pub_message(
-    nng_msg *dest_msg, const nano_work *work, mqtt_control_packet_types cmd)
+    nng_msg *dest_msg, nano_work *work, mqtt_control_packet_types cmd)
 {
 	uint8_t  tmp[4]     = { 0 };
 	uint32_t arr_len    = 0;
@@ -1443,11 +1443,9 @@ encode_pub_message(
 			char *uproperty[2];
 			uproperty[0] = NULL;
 			uproperty[1] = NULL;
-
 			plugin_hook_call(HOOK_USER_PROPERTY, uproperty);
-
 			if (uproperty[0] != NULL && uproperty[1] != NULL) {
-				property *user_property =
+				work->user_property =
 				    mqtt_property_set_value_strpair(USER_PROPERTY,
 				        uproperty[0], strlen(uproperty[0]),
 				        uproperty[1], strlen(uproperty[1]),
@@ -1460,7 +1458,7 @@ encode_pub_message(
 				}
 
 				property_append(work->pub_packet->var_header
-							.publish.properties, user_property);
+							.publish.properties, work->user_property);
 			}
 
 #endif
@@ -1468,15 +1466,6 @@ encode_pub_message(
 			rv = encode_properties(dest_msg,
 			    work->pub_packet->var_header.publish.properties,
 				CMD_PUBLISH);
-#if defined(SUPP_PLUGIN)
-			/* clean up user property */
-			if (uproperty[0] != NULL) {
-				free(uproperty[0]);
-			}
-			if (uproperty[1] != NULL) {
-				free(uproperty[1]);
-			}
-#endif
 
 			if (rv != 0) {
 				return false;

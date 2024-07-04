@@ -57,7 +57,7 @@ struct pipe_content {
 };
 
 bool encode_pub_message(
-    nng_msg *dest_msg, const nano_work *work, mqtt_control_packet_types cmd);
+    nng_msg *dest_msg, nano_work *work, mqtt_control_packet_types cmd);
 reason_code decode_pub_message(nano_work *work, uint8_t proto);
 void free_pub_packet(struct pub_packet_struct *pub_packet);
 void free_msg_infos(mqtt_msg_info *msg_infos);
