@@ -602,6 +602,9 @@ server_cb(void *arg)
 	case WAIT:
 		// do not access to cparam
 		log_debug("WAIT ^^^^ ctx%d ^^^^", work->ctx.id);
+#if defined(SUPP_PLUGIN)
+		work->user_property = NULL;
+#endif
 		if (nng_msg_get_type(work->msg) == CMD_PUBLISH) {
 			if ((rv = nng_aio_result(work->aio)) != 0) {
 				log_error("WAIT nng aio result error: %d", rv);
@@ -632,6 +635,16 @@ server_cb(void *arg)
 				aws_bridge_forward(work);
 #endif
 			}
+#if defined(SUPP_PLUGIN)
+			/* after bridge_handler which will dup user property */
+			if (work->user_property != NULL) {
+				property_remove(work->pub_packet->var_header
+							.publish.properties, work->user_property->id);
+				if (work->pub_packet->var_header.publish.properties != NULL) {
+					property_free(work->pub_packet->var_header.publish.properties);
+				}
+			}
+#endif
 			//check webhook & rule engine
 			conf_web_hook *hook_conf = &(work->config->web_hook);
 			conf_exchange *exge_conf = &(work->config->exchange);
