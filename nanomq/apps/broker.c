@@ -308,7 +308,7 @@ server_cb(void *arg)
 	case RECV:
 		log_debug("RECV  ^^^^ ctx%d ^^^^\n", work->ctx.id);
 		msg = nng_aio_get_msg(work->aio);
-		if ((rv = nng_aio_result(work->aio)) != 0 || msg == NULL) {
+		if ((rv = nng_aio_result(work->aio)) != 0) {
 			log_error("RECV nng aio result error: %d or NULL msg received", rv);
 			work->state = RECV;
 			if (work->proto == PROTO_MQTT_BROKER) {
@@ -1202,16 +1202,17 @@ broker(conf *nanomq_conf)
 		hook_exchange_init(nanomq_conf, num_work);
 		// create exchange senders in hook
 		hook_exchange_sender_init(nanomq_conf, works, num_work);
-		// TODO support multiple MQ coexisitence
-		nng_socket *mq_sock = nanomq_conf->exchange.nodes[0]->sock;
-		nng_listener mq_listener;
-		if (nanomq_conf->exchange.exchange_url == NULL ||
-			strlen(nanomq_conf->exchange.exchange_url) == 0) {
-			log_error("Exchange url is not set");
-		} else if ((rv = nano_listen(*mq_sock, nanomq_conf->exchange.exchange_url, &mq_listener, 0, nanomq_conf)) != 0) {
-			NANO_NNG_FATAL("broker nng_listen", rv);
+		for (i = 0; i < nanomq_conf->exchange.count; i++) {
+			nng_socket *mq_sock = nanomq_conf->exchange.nodes[i]->sock;
+			nng_listener mq_listener;
+			if (nanomq_conf->exchange.nodes[i]->exchange_url == NULL ||
+				strlen(nanomq_conf->exchange.nodes[i]->exchange_url) == 0) {
+				log_error("Exchange url is not set");
+			} else if ((rv = nano_listen(*mq_sock, nanomq_conf->exchange.nodes[i]->exchange_url, &mq_listener, 0, nanomq_conf)) != 0) {
+				NANO_NNG_FATAL("broker nng_listen", rv);
+			}
+			nng_listener_set_size(mq_listener, NNG_OPT_RECVMAXSZ, 0xFFFFFFFFu);
 		}
-		nng_listener_set_size(mq_listener, NNG_OPT_RECVMAXSZ, 0xFFFFFFFFu);
 	}
 
 	if (nanomq_conf->enable) {
