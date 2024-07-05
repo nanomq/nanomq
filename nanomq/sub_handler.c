@@ -200,7 +200,7 @@ encode_suback_msg(nng_msg *msg, nano_work *work)
 	// handle payload
 	tn = sub_pkt->node;
 	while (tn) {
-		reason_code = tn->reason_code == 2 ? tn->qos : tn->reason_code;
+		reason_code = tn->reason_code == GRANTED_QOS_2 ? tn->qos : tn->reason_code;
 		// MQTT_v3: 0x00-qos0  0x01-qos1  0x02-qos2  0x80-fail
 		if ((rv = nng_msg_append(msg, &reason_code, 1)) != 0) {
 			log_error("nng_msg_append [%d]", rv);
