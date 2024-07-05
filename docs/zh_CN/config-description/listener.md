@@ -7,7 +7,7 @@ NanoMQ 支持四种监听器类型：TCP 监听器，SSL 监听器，WebSocket �
 ### **配置示例**
 
 ```hcl
-listeners.tcp.tcp_listener_1 = {
+listeners.tcp {
   bind = "0.0.0.0:1883"     # 绑定 1883 端口
 }
 ```
@@ -21,7 +21,7 @@ listeners.tcp.tcp_listener_1 = {
 ### **配置示例**
 
 ```hcl
-listeners.ssl.<listener-name> = {
+listeners.ssl {
   bind = "0.0.0.0:8883"                # 绑定 8883 端口
   # key_password = <yourpass>          # 解密私钥文件所需的密码字符串
   keyfile = "/etc/certs/key.pem"       # 密钥文件路径
@@ -51,7 +51,7 @@ listeners.ssl.<listener-name> = {
 ### **配置示例**
 
 ```hcl
-listeners.ws.<listener-name> = {
+listeners.ws {
   bind = "0.0.0.0:8083/mqtt"			# 绑定 8083 端口
 }
 ```
@@ -65,7 +65,7 @@ listeners.ws.<listener-name> = {
 ### **配置示例**
 
 ```hcl
-listeners.wss.<listener-name> = {
+listeners.wss {
   bind = "0.0.0.0:8084"           	# 绑定 8084 端口
 }
 ```
@@ -83,6 +83,18 @@ Secure WebSocket 监听器与 SSL 监听器共用 `keyfile`、`certfile` 和 `ca
 - `cacertfile`
 
 :::
+
+## 功能预告
+
+**TLS**
+
+接下来的版本中NanoMQ将会支持多监听器的配置。
+
+```hcl
+listeners.tcp.tcp_listener_1 = {
+  bind = "0.0.0.0:1883"     # 绑定 1883 端口
+}
+```
 
 <!--@jaylin can we add multiple listeners, if yes, it's good if we could give some examples.-->
 

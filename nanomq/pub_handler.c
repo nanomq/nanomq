@@ -1094,10 +1094,16 @@ rule_engine_insert_sql(nano_work *work)
 
 
 #endif
+/**
+ * 
+	only deal with locale publishing
+	client - broker - client + bridge - broker - client
+	broker - bridge is not included
+	@is_event indicates this is not a common pub msg
+	it is either a SYS or retain msg
+ * 
+ */
 
-// only deal with locale publishing
-// client - broker - client + bridge - broker - client
-// broker - bridge is not included
 reason_code
 handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
     bool is_event)
@@ -1184,7 +1190,6 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 		log_error("Topic is NULL");
 		return TOPIC_FILTER_INVALID;
 	}
-
 	if (work->proto == PROTO_MQTT_BRIDGE) {
 		bridge_handle_topic_reflection(work, &work->config->bridge);
 	}
@@ -1265,25 +1270,34 @@ static void inline handle_pub_retain_sqlite(const nano_work *work, char *topic)
 
 #endif
 
-static void inline handle_pub_retain_dbtree(const nano_work *work, char *topic)
+static void inline handle_pub_retain(const nano_work *work, char *topic)
 {
+#if defined(NNG_SUPP_SQLITE)
+	if (work->config != NULL && work->config->sqlite.enable &&
+	    work->sqlite_db) {
+		handle_pub_retain_sqlite(work, topic);
+		return;
+	}
+#endif
 	nng_msg *ret = NULL;
 	if (work->pub_packet->fixed_header.retain) {
-
 		if (work->pub_packet->payload.len > 0) {
 			nng_msg_clone(work->msg);
-			property *prop  = NULL;
-			// reserve property info
-			nng_mqtt_msg_proto_data_alloc(work->msg);
-			if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5 &&
-			    work->pub_packet->var_header.publish.properties !=
-			        NULL) {
-				if (work->proto == PROTO_MQTT_BROKER) {
-					if (nng_mqttv5_msg_decode(work->msg) != 0) {
-						log_warn("decode retain msg failed, drop msg");
-						nng_msg_free(work->msg);
-						return;
-					}
+			if (nng_msg_get_proto_data(work->msg) == NULL)
+				nng_mqtt_msg_proto_data_alloc(work->msg);
+			if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
+				if (nng_mqttv5_msg_decode(work->msg) != 0) {
+					log_warn("decode retain msg failed, drop msg");
+					nng_msg_free(work->msg);
+					return;
+				}
+			} else if (work->proto_ver == MQTT_PROTOCOL_VERSION_v311 ||
+					   work->proto_ver == MQTT_PROTOCOL_VERSION_v31) {
+				if (nng_mqtt_msg_decode(work->msg) != 0) {
+					log_warn("decode retain msg failed, "
+					         "drop msg");
+					nng_msg_free(work->msg);
+					return;
 				}
 			}
 			ret = dbtree_insert_retain(work->db_ret, topic, work->msg);
@@ -1297,19 +1311,6 @@ static void inline handle_pub_retain_dbtree(const nano_work *work, char *topic)
 		}
 	}
 }
-
-static void inline handle_pub_retain(const nano_work *work, char *topic)
-{
-#if defined(NNG_SUPP_SQLITE)
-	if (work->config != NULL && work->config->sqlite.enable &&
-	    work->sqlite_db) {
-		handle_pub_retain_sqlite(work, topic);
-		return;
-	}
-#endif
-	handle_pub_retain_dbtree(work, topic);
-}
-
 #endif
 
 
