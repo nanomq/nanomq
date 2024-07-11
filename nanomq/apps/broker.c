@@ -419,6 +419,8 @@ server_cb(void *arg)
 			if (work->msg_ret) {
 				log_debug("retain msg [%p] size [%ld] \n",
 				    work->msg_ret, cvector_size(work->msg_ret));
+				nng_msg *rmsg;
+				nng_msg_alloc(&rmsg, 0);
 				for (int i = 0;
 				     i < cvector_size(work->msg_ret) &&
 				     check_msg_exp(work->msg_ret[i],
@@ -433,8 +435,7 @@ server_cb(void *arg)
 					if (SUCCESS ==
 					    decode_pub_message(work, work->proto_ver)) {
 						bool  bridged = false;
-						void *proto_data =
-						    nng_msg_get_proto_data(work->msg);
+						void *proto_data = nng_msg_get_proto_data(work->msg);
 						if (proto_data != NULL)
 							bridged =
 							    nng_mqtt_msg_get_bridge_bool(work->msg);
@@ -443,14 +444,15 @@ server_cb(void *arg)
 							    work, &work->config->bridge);
 						}
 						// dont modify original retain msg;
-						nng_msg *rmsg;
-						nng_msg_alloc(&rmsg, 0);
+						nng_msg_clone(rmsg);
+						nng_msg_set_proto_data(rmsg, NULL, proto_data);
 						if (work->proto_ver == MQTT_VERSION_V5) {
 							nng_msg_set_cmd_type(rmsg,CMD_PUBLISH_V5);
 						} else {
 							nng_msg_set_cmd_type(rmsg, CMD_PUBLISH);
 						}
 						if (encode_pub_message(rmsg, work, PUBLISH)) {
+							nng_mqtt_msg_set_sub_retain_bool(rmsg, true);
 							nng_aio_set_msg(work->aio, rmsg);
 							nng_aio_set_prov_data(work->aio, &work->pid.id);
 							nng_ctx_send(work->ctx, work->aio);
@@ -464,6 +466,7 @@ server_cb(void *arg)
 					// free the ref due to dbtree_find_retain
 					nng_msg_free(m);
 				}
+				nng_msg_free(rmsg);
 				cvector_free(work->msg_ret);
 			}
 			nng_msg_set_cmd_type(smsg, CMD_SUBACK);
@@ -513,7 +516,6 @@ server_cb(void *arg)
 			if (work->proto == PROTO_HTTP_SERVER ||
 			    work->proto == PROTO_AWS_BRIDGE) {
 				nng_msg *rep_msg;
-				// TODO carry code with msg
 				nng_msg_alloc(&rep_msg, 0);
 				nng_aio_set_msg(work->aio, rep_msg);
 				if (work->code == SUCCESS)
@@ -614,7 +616,7 @@ server_cb(void *arg)
 			cvector(mqtt_msg_info) msg_infos;
 			msg_infos = work->pipe_ct->msg_infos;
 
-			log_trace("total pipes: %ld", cvector_size(msg_infos));
+			log_trace("total subscribed pipes: %ld", cvector_size(msg_infos));
 			if (cvector_size(msg_infos))
 				if (encode_pub_message(smsg, work, PUBLISH))
 					for (int i = 0; i < cvector_size(msg_infos) && rv== 0; ++i) {
