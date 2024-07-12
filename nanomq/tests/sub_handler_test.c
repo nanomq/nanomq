@@ -42,7 +42,7 @@ main()
 	payload_ptr  = NULL;
 	variable_ptr = NULL;
 	// topic for test:$MQTT.
-	uint8_t topic[] = { 0x00, 0x05/* topic length */, 0x24, 0x4D, 0x51, 0x54, 0x54/* topic body*/, 0x01/* topic option*/,
+	uint8_t topic[] = { 0x00, 0x05/* topic length */, 0x24, 0x4D, 0x51, 0x54, 0x54/* topic body*/, 0x00/* topic option*/,
 	 0x00, 0x05, 0x25, 0x4D, 0x51, 0x54, 0x54, 0x00 };
 	payload_ptr       = topic;
 	nng_msg_set_payload_ptr(msg, payload_ptr);
@@ -91,7 +91,7 @@ main()
 	assert(pkt_id == 5);
 
 	NNI_GET16(variable_ptr + 2, reason_code);
-	assert(reason_code == GRANTED_QOS_1);
+	assert(reason_code == GRANTED_QOS_0);
 
 	fix_ptr = nng_msg_header(ack_msg);
 	assert(*(uint8_t *) fix_ptr == CMD_SUBACK);
