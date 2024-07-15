@@ -41,6 +41,7 @@ option (NOLOG "Disable log" OFF)
 option (ENABLE_ACL "Enable ACL" ON)
 option (NANOMQ_TESTS "Enable nanomq unit tests" OFF)
 option (BUILD_WITH_STATIC_LIBS "build with static libs" OFF)
+option (BUILD_STATIC "build static" OFF)
 
 set (NNG_PROTO_MQTT_BROKER  ON)
 set (NNG_TRANSPORT_MQTT_BROKER_TCP ON)
