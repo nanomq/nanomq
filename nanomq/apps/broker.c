@@ -230,18 +230,25 @@ bridge_handler(nano_work *work)
 						publish_topic = node->forwards_list[i]->remote_topic;
 					}
 					uint8_t retain;
+					uint8_t qos;
 					retain =
 					    node->forwards_list[i]->retain ==
 					        NO_RETAIN
 					    ? work->pub_packet->fixed_header
 					          .retain
 					    : node->forwards_list[i]->retain;
+					qos    =
+					    node->forwards_list[i]->retain ==
+					        NO_QOS
+					    ? work->pub_packet->fixed_header
+					          .qos
+					    : node->forwards_list[i]->qos;
 					bridge_msg = bridge_publish_msg(
 					    publish_topic,
 					    work->pub_packet->payload.data,
 					    work->pub_packet->payload.len,
 					    work->pub_packet->fixed_header.dup,
-					    work->pub_packet->fixed_header.qos,
+					    qos,
 					    retain,
 					    props);
 
