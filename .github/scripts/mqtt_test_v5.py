@@ -356,7 +356,7 @@ def test_retain_as_publish():
                                universal_newlines=True)
     cnt = Value('i', 0)
     pid1 = Value('i', 0)
-    process2 = Process(target=cnt_substr, args=(sub_common_cmd, cnt, pid1, " r0,"))
+    process2 = Process(target=cnt_substr, args=(sub_common_cmd, cnt, pid1, " r1,"))
     process2.start()
 
     cnt1 = Value('i', 0)
