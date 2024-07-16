@@ -63,7 +63,7 @@ main()
 	conf = get_test_conf(BRIDGE_CONF);
 	assert(conf != NULL);
 	nng_thread_create(&nmq, (void *) broker_start_with_conf, (void *) conf);
-	nng_msleep(50); // wait a while before sub
+	nng_msleep(500); // wait a while before sub
 	pid_sub_nmq_rap0 = popen_with_cmd(&outfp_nmq_rap0, cmd_sub_nmq_rap0, cmd);
 	pid_sub_nmq_rh0 = popen_with_cmd(&outfp_nmq_rh0, cmd_sub_nmq_rh0, cmd);
 	pid_sub_nmq_rh1 = popen_with_cmd(&outfp_nmq_rh1, cmd_sub_nmq_rh1, cmd);
