@@ -19,6 +19,7 @@
 #include "nng/supplemental/nanolib/cJSON.h"
 #include "nng/supplemental/nanolib/file.h"
 #include "nng/supplemental/nanolib/hocon.h"
+#include "nng/supplemental/nanolib/parquet.h"
 
 #include "include/rest_api.h"
 #include "include/bridge.h"
@@ -330,6 +331,13 @@ static endpoints api_ep[] = {
 	    .method = "GET",
 	    .descr  = "Returns all prometheus data",
 	},
+	{
+	    .path   = "/can_span",
+	    .name   = "can_data_span",
+	    .method = "GET",
+	    .descr  = "Return can data span",
+	},
+
 };
 
 static tree **      uri_parse_tree(const char *path, size_t *count);
@@ -348,6 +356,8 @@ static http_msg get_nodes(http_msg *msg, nng_socket *broker_sock);
 static http_msg get_clients(http_msg *msg, kv **params, size_t param_num,
     const char *client_id, const char *username, nng_socket *broker_sock);
 static http_msg get_prometheus(http_msg *msg, kv **params, size_t param_num,
+    const char *client_id, const char *username, nng_socket *broker_sock);
+static http_msg get_can_data_span(http_msg *msg, kv **params, size_t param_num,
     const char *client_id, const char *username, nng_socket *broker_sock);
 static http_msg get_metrics(http_msg *msg, kv **params, size_t param_num,
     const char *client_id, const char *username, nng_socket *broker_sock);
@@ -803,6 +813,7 @@ process_request(http_msg *msg, conf_http_server *config, nng_socket *sock)
 	}
 
 	uri_ct = uri_parse(msg->uri);
+
 	if (nng_strcasecmp(msg->method, "GET") == 0) {
 		if (uri_ct->sub_count == 0) {
 			ret = get_endpoints(msg);
@@ -814,6 +825,11 @@ process_request(http_msg *msg, conf_http_server *config, nng_socket *sock)
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "nodes") == 0) {
 			ret = get_nodes(msg, config->broker_sock);
+		} else if (uri_ct->sub_count == 2 &&
+		    uri_ct->sub_tree[1]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "can_data_span") == 0) {
+			ret = get_can_data_span(msg, uri_ct->params,
+			    uri_ct->params_count, NULL, NULL, config->broker_sock);
 		} else if (uri_ct->sub_count == 2 &&
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "prometheus") == 0) {
@@ -1487,6 +1503,38 @@ update_process_info(client_stats *s)
 	return 0;
 }
 #endif
+
+static http_msg
+get_can_data_span(http_msg *msg, kv **params, size_t param_num,
+    const char *client_id, const char *username, nng_socket *broker_sock)
+{
+	http_msg  res       = { .status = NNG_HTTP_STATUS_OK };
+	cJSON    *res_obj   = cJSON_CreateObject();
+	uint64_t *data_span = NULL;
+#ifdef SUPP_PARQUET
+	data_span = parquet_get_key_span();
+#else
+	log_error("Parquet is't compiled!");
+#endif
+	if (NULL == data_span) {
+		cJSON_AddNumberToObject(res_obj, "code", PLUGIN_IS_CLOSED);
+	} else {
+		cJSON *data = cJSON_CreateObject();
+		cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+		cJSON_AddNumberToObject(data, "begin", data_span[0]);
+		cJSON_AddNumberToObject(data, "end", data_span[1]);
+		cJSON_AddItemToObject(res_obj, "data", data);
+	}
+
+	char *dest = cJSON_PrintUnformatted(res_obj);
+	put_http_msg(
+	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
+
+	cJSON_free(dest);
+	cJSON_Delete(res_obj);
+
+	return res;
+}
 
 static http_msg
 get_prometheus(http_msg *msg, kv **params, size_t param_num,
