@@ -41,25 +41,24 @@ handle_recv(const char *msg, size_t msg_len, conf *config, char **err_msg)
 	getStringValue(obj, item, "cmd", cmd, rv);
 
 	if (rv != 0 || nng_strcasecmp(cmd, "reload") != 0) {
-		*err_msg = nng_strdup("Invalid command");
-
+		*err_msg = nng_strdup("reload failed, invalid command");
 		goto err;
 	}
 	getStringValue(obj, item, "conf_file", conf_file, rv);
 
 	if (rv != 0 && config->conf_file == NULL) {
-		*err_msg = nng_strdup("conf_file is not specified");
+		*err_msg = nng_strdup("reload failed, conf_file is not specified");
 		goto err;
 	}
 
 	if (conf_file != NULL && nano_file_exists(conf_file) == false) {
-		*err_msg = nng_strdup("conf_file does not exist");
+		*err_msg = nng_strdup("reload failed, conf_file does not exist");
 		goto err;
 	}
 
 	conf *new_conf = nng_alloc(sizeof(conf));
 	if (new_conf == NULL) {
-		*err_msg = nng_strdup("alloc memory failed");
+		*err_msg = nng_strdup("reload failed, alloc memory failed");
 		goto err;
 	}
 
@@ -78,6 +77,7 @@ handle_recv(const char *msg, size_t msg_len, conf *config, char **err_msg)
 		conf_parse(new_conf);
 		break;
 	default:
+		*err_msg = nng_strdup("reload failed, wrong conf type");
 		goto err;
 	}
 
@@ -119,9 +119,11 @@ cmd_server_cb(void *arg)
 
 		if (handle_recv(cmd, nng_msg_len(msg), work->config, &resp) ==
 		    0) {
-			resp = nng_strdup("reload succeed");
+			resp = nng_strdup("reload succeed!");
 		} else {
-			resp = nng_strdup("reload failed!");
+			if (resp == NULL) {
+				resp = nng_strdup("reload failed!");
+			}
 		}
 
 		nng_msg_clear(msg);
