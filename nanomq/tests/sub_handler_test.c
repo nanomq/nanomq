@@ -91,7 +91,7 @@ main()
 	assert(pkt_id == 5);
 
 	NNI_GET16(variable_ptr + 2, reason_code);
-	assert(reason_code == GRANTED_QOS_2);
+	assert(reason_code == GRANTED_QOS_0);
 
 	fix_ptr = nng_msg_header(ack_msg);
 	assert(*(uint8_t *) fix_ptr == CMD_SUBACK);

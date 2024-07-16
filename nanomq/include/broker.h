@@ -58,6 +58,10 @@ struct work {
 
 	void *sqlite_db;
 
+
+#if defined(SUPP_PLUGIN)
+	property *user_property;
+#endif
 #if defined(SUPP_ICEORYX)
 	void *iceoryx_suber;
 	void *iceoryx_puber;

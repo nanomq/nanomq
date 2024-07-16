@@ -121,7 +121,7 @@ decode_sub_msg(nano_work *work)
 		memcpy(tn, payload_ptr + ppos, 1);
 		if (tn->retain_handling > 2) {
 			log_error("error in retain_handling");
-			tn->reason_code = UNSPECIFIED_ERROR;
+			tn->reason_code = PROTOCOL_ERROR;
 			return PROTOCOL_ERROR;
 		}
 		ppos++;
@@ -130,7 +130,7 @@ decode_sub_msg(nano_work *work)
 		if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5 &&
 		    strncmp(tn->topic.body, "$share/", strlen("$share/")) == 0 &&
 		    tn->no_local == 1) {
-			tn->reason_code = UNSPECIFIED_ERROR;
+			tn->reason_code = PAYLOAD_FORMAT_INVALID;
 			return PROTOCOL_ERROR;
 		}
 
@@ -200,7 +200,7 @@ encode_suback_msg(nng_msg *msg, nano_work *work)
 	// handle payload
 	tn = sub_pkt->node;
 	while (tn) {
-		reason_code = tn->reason_code;
+		reason_code = tn->reason_code == GRANTED_QOS_2 ? tn->qos : tn->reason_code;
 		// MQTT_v3: 0x00-qos0  0x01-qos1  0x02-qos2  0x80-fail
 		if ((rv = nng_msg_append(msg, &reason_code, 1)) != 0) {
 			log_error("nng_msg_append [%d]", rv);

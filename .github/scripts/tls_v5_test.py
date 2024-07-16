@@ -372,7 +372,7 @@ def test_retain_as_publish():
     time.sleep(0.05)
     cnt = Value('i', 0)
     pid1 = Value('i', 0)
-    process2 = Process(target=cnt_substr, args=(sub_common_cmd, cnt, pid1, " r0,"))
+    process2 = Process(target=cnt_substr, args=(sub_common_cmd, cnt, pid1, " r1,"))
     process2.start()
     time.sleep(0.05)
 
