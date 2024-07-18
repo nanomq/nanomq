@@ -1112,7 +1112,6 @@ broker(conf *nanomq_conf)
 	nanomq_conf->total_ctx += HTTP_CTX_NUM;
 	num_work += HTTP_CTX_NUM;
 #endif
-
 	// Exchange service
 	for (int i = 0; i < nanomq_conf->exchange.count; i++) {
 		conf_exchange_node *node = nanomq_conf->exchange.nodes[i];
@@ -1120,8 +1119,12 @@ broker(conf *nanomq_conf)
 			log_error("Wrong exchange %d configuration!", i);
 			continue;
 		}
-		node->sock = (nng_socket *) nng_alloc(sizeof(nng_socket));
 		// exchange sock is an embedded Req/Rep sock for MQTT Stream
+		node->sock = (nng_socket *) nng_alloc(sizeof(nng_socket));
+		// rep0_sock is hidden inside of exchange_sock
+		nng_socket *rep0_sock = (nng_socket *) nng_alloc(sizeof(nng_socket));
+		nng_rep0_open(rep0_sock);
+		node->sock->data = rep0_sock;
 		if ((rv = nng_exchange_client_open(node->sock)) != 0) {
 			log_error("nng_exchange_client_open failed %d", rv);
 		} else {
@@ -1129,6 +1132,15 @@ broker(conf *nanomq_conf)
 			nng_socket_set_ptr(*node->sock, NNG_OPT_EXCHANGE_BIND, (void *)node);
 		}
 		log_debug("exchange %d init finished!\n", i);
+
+		nng_listener mq_listener;
+		if (nanomq_conf->exchange.nodes[i]->exchange_url == NULL ||
+			strlen(nanomq_conf->exchange.nodes[i]->exchange_url) == 0) {
+			log_error("Exchange url is not set");
+		} else if ((rv = nano_listen(*rep0_sock, nanomq_conf->exchange.nodes[i]->exchange_url, &mq_listener, 0, nanomq_conf)) != 0) {
+			NANO_NNG_FATAL("broker nng_listen", rv);
+		}
+		nng_listener_set_size(mq_listener, NNG_OPT_RECVMAXSZ, 0xFFFFFFFFu);
 	}
 	// Hook service
 	if (nanomq_conf->web_hook.enable || nanomq_conf->exchange.count > 0) {
@@ -1267,17 +1279,6 @@ broker(conf *nanomq_conf)
 		hook_exchange_init(nanomq_conf, num_work);
 		// create exchange senders in hook
 		hook_exchange_sender_init(nanomq_conf, works, num_work);
-		for (i = 0; i < nanomq_conf->exchange.count; i++) {
-			nng_socket *mq_sock = nanomq_conf->exchange.nodes[i]->sock;
-			nng_listener mq_listener;
-			if (nanomq_conf->exchange.nodes[i]->exchange_url == NULL ||
-				strlen(nanomq_conf->exchange.nodes[i]->exchange_url) == 0) {
-				log_error("Exchange url is not set");
-			} else if ((rv = nano_listen(*mq_sock, nanomq_conf->exchange.nodes[i]->exchange_url, &mq_listener, 0, nanomq_conf)) != 0) {
-				NANO_NNG_FATAL("broker nng_listen", rv);
-			}
-			nng_listener_set_size(mq_listener, NNG_OPT_RECVMAXSZ, 0xFFFFFFFFu);
-		}
 	}
 
 	if (nanomq_conf->enable) {
@@ -1868,6 +1869,7 @@ broker_start(int argc, char **argv)
 	}
 
 	char *vin = read_env_vin();
+	// vin = "zzzzzzzzzzzzzzz";
 	if (NULL == vin) {
 		fprintf(stderr, "Waiting for VIN CODE.....");
 		vin = nano_vin_client(VIN_CODE_URL);
