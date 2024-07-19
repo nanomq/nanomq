@@ -34,6 +34,8 @@ rules = [
 ]
 ```
 
+其中，topic项中可以将`${clientid}`，`${username}`作为占位符使用。当客户端ID为`nmq_c`的客户端触发检查时，`t/${clientid}`将精确匹配`t/nmq_c`主题。
+
 ### 在配置文件中引用
 
 ```bash
