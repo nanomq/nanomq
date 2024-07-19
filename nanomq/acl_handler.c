@@ -6,6 +6,7 @@
 // only clientid and username are supported now.
 #define placeholder_clientid "${clientid}"
 #define placeholder_username "${username}"
+char *placeholders[] = {"${clientid}", "${username}"};
 
 static bool
 match_rule_content_str(acl_rule_ct *ct, const char *cmp_str)
@@ -23,56 +24,58 @@ match_rule_content_str(acl_rule_ct *ct, const char *cmp_str)
 static bool
 check_placeholder(const char *origin)
 {
-	if(origin == NULL) {
+	if (origin == NULL) {
 		return false;
 	}
-	if(strstr(origin, placeholder_clientid) != NULL) {
-		return true;
+
+	for (size_t i = 0;
+	     i < sizeof(placeholders) / sizeof(placeholders[0]); i++) {
+		if (strstr(origin, placeholders[i]) != NULL) {
+			return true;
+		}
 	}
-	if(strstr(origin, placeholder_username) != NULL) {
-		return true;
-	}
+
 	return false;
 }
 
 static char * 
 replace_placeholder(char *origin, const char *placeholder, const char *replacement)
 {
-	size_t originLen = strlen(origin);
-    size_t placeholderLen = strlen(placeholder);
-    size_t replacementLen = strlen(replacement);
-    size_t resultLen = originLen;
+	size_t originLen      = strlen(origin);
+	size_t placeholderLen = strlen(placeholder);
+	size_t replacementLen = strlen(replacement);
+	size_t resultLen      = originLen;
 
-    const char *p = origin;
-    while ((p = strstr(p, placeholder)) != NULL) {
-        resultLen += replacementLen - placeholderLen;
-        p += placeholderLen;
-    }
+	const char *p = origin;
+	while ((p = strstr(p, placeholder)) != NULL) {
+		resultLen += replacementLen - placeholderLen;
+		p += placeholderLen;
+	}
 
-    char *result = (char *)malloc(resultLen + 1);
-    if (result == NULL) {
-        log_error("ACL topic placeholder Memory allocation failed\n");
-    }
+	char *result = (char *) malloc(resultLen + 1);
+	if (result == NULL) {
+		log_error("ACL topic placeholder Memory allocation failed\n");
+	}
 
-    char *currentPos = result;
-    p = origin;
-    char *nextPlaceholder;
-    while ((nextPlaceholder = strstr(p, placeholder)) != NULL) {
-        size_t segmentLen = nextPlaceholder - p;
-        strncpy(currentPos, p, segmentLen);
-        currentPos += segmentLen;
+	char *currentPos = result;
+	p                = origin;
+	char *nextPlaceholder;
+	while ((nextPlaceholder = strstr(p, placeholder)) != NULL) {
+		size_t segmentLen = nextPlaceholder - p;
+		strncpy(currentPos, p, segmentLen);
+		currentPos += segmentLen;
 
-        strcpy(currentPos, replacement);
-        currentPos += replacementLen;
+		strcpy(currentPos, replacement);
+		currentPos += replacementLen;
 
-        p = nextPlaceholder + placeholderLen;
-    }
+		p = nextPlaceholder + placeholderLen;
+	}
 
-    strcpy(currentPos, p);
+	strcpy(currentPos, p);
 
-    origin = result;
+	origin = result;
 
-    return result;
+	return result;
 }
 
 static char *
@@ -86,10 +89,8 @@ replace_topic(char *origin, conn_param *param)
 		    (const char *) conn_param_get_clientid(param));
 	}
 	if (conn_param_get_username(param) != NULL) {
-		if(result != NULL)
-		{
+		if (result != NULL)
 			nng_strfree(result);
-		}
 		result = replace_placeholder(topic, placeholder_username,
 	    (const char *) conn_param_get_username(param));
 	}
