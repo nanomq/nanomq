@@ -76,19 +76,20 @@ replace_placeholder(char *origin, const char *placeholder, const char *replaceme
 }
 
 static char *
-replace_topic(const char *origin, conn_param *param)
+replace_topic(char *origin, conn_param *param)
 {
 	char *topic  = origin;
 	char *result = NULL;
+
 	if (conn_param_get_clientid(param) != NULL) {
 		result = replace_placeholder(topic, placeholder_clientid,
 		    (const char *) conn_param_get_clientid(param));
 	}
-
-	if(result != NULL){
-		nng_strfree(result);
-	}
 	if (conn_param_get_username(param) != NULL) {
+		if(result != NULL)
+		{
+			nng_strfree(result);
+		}
 		result = replace_placeholder(topic, placeholder_username,
 	    (const char *) conn_param_get_username(param));
 	}
@@ -235,6 +236,7 @@ auth_acl(conf *config, acl_action_type act_type, conn_param *param,
 		if (rule->topic_count > 0) {
 			char **topic_array = rule->topics;
 			bool   found       = false;
+			char  *rule_topic  = NULL;
 			for (size_t j = 0;
 			     j < rule->topic_count && found != true; j++) {
 				if (topic_filter(rule->topics[j], topic)) {
@@ -242,15 +244,15 @@ auth_acl(conf *config, acl_action_type act_type, conn_param *param,
 					break;
 				}
 				if (check_placeholder(rule->topics[j])) {
-					char *rule_topic = replace_topic(
+					rule_topic = replace_topic(
 					    rule->topics[j], param);
-					if (topic_filter(rule_topic, topic) == 0) {
-						nng_strfree(rule_topic);
+					if (topic_filter(rule_topic, topic)) {
 						found = true;
 						break;
 					}
 				}
 			}
+			nng_strfree(rule_topic);
 			if (found == false) {
 				match = false;
 				continue;
