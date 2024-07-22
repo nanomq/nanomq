@@ -400,6 +400,7 @@ server_cb(void *arg)
 				work->code = rv;
 				log_error("sub_handler: [%d]", rv);
 			}
+			bridge_handler()
 
 			// TODO not all codes needs to close the pipe
 			if (work->code != SUCCESS) {
@@ -644,17 +645,17 @@ server_cb(void *arg)
 #if defined(SUPP_AWS_BRIDGE)
 				aws_bridge_forward(work);
 #endif
-			}
 #if defined(SUPP_PLUGIN)
-			/* after bridge_handler which will dup user property */
-			if (work->user_property != NULL) {
-				property_remove(work->pub_packet->var_header
-							.publish.properties, work->user_property->id);
-				if (work->pub_packet->var_header.publish.properties != NULL) {
-					property_free(work->pub_packet->var_header.publish.properties);
+				/* after bridge_handler which will dup user property */
+				if (work->user_property != NULL) {
+					property_remove(work->pub_packet->var_header
+								.publish.properties, work->user_property->id);
+					if (work->pub_packet->var_header.publish.properties != NULL) {
+						property_free(work->pub_packet->var_header.publish.properties);
+					}
 				}
-			}
 #endif
+			}
 			//check webhook & rule engine
 			conf_web_hook *hook_conf = &(work->config->web_hook);
 			conf_exchange *exge_conf = &(work->config->exchange);
