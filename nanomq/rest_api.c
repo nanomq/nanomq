@@ -1216,8 +1216,10 @@ get_client_cb(void *key, void *value, void *json_obj)
 
 	uint16_t      keep_alive  = conn_param_get_keepalive(cp);
 	const uint8_t proto_ver   = conn_param_get_protover(cp);
-	const char *  proto_name  = (const char *) conn_param_get_pro_name(cp);
+	const char   *proto_name  = (const char *) conn_param_get_pro_name(cp);
 	const bool    clean_start = conn_param_get_clean_start(cp);
+	const char   *will_topic  = conn_param_get_will_topic(cp);
+	const char   *will_msg = conn_param_get_will_msg(cp);
 
 	cJSON *data_info_elem;
 	data_info_elem = cJSON_CreateObject();
@@ -1232,6 +1234,12 @@ get_client_cb(void *key, void *value, void *json_obj)
 	cJSON_AddBoolToObject(data_info_elem, "clean_start", clean_start);
 	cJSON_AddStringToObject(data_info_elem, "proto_name", proto_name);
 	cJSON_AddNumberToObject(data_info_elem, "proto_ver", proto_ver);
+	if(will_topic != NULL) {
+		cJSON_AddStringToObject(data_info_elem, "will_topic", will_topic);
+	}
+	if(will_msg != NULL) {
+		cJSON_AddStringToObject(data_info_elem, "will_msg", will_msg);
+	}
 	// #ifdef STATISTICS
 	// 		cJSON_AddNumberToObject(data_info_elem, "recv_msg",
 	// 		    ctxt->recv_cnt != NULL ?
