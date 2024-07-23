@@ -1255,9 +1255,12 @@ broker(conf *nanomq_conf)
 	}
 
 	if (nanomq_conf->enable) {
-		// TODO: Multiple listener
-		if ((rv = nano_listen(sock, nanomq_conf->url, NULL, 0, nanomq_conf)) != 0) {
-			NANO_NNG_FATAL("broker nng_listen", rv);
+		for (i = 0; i < nanomq_conf->tcp_list.count; i++) {
+			if ((rv = nano_listen(sock,
+			         nanomq_conf->tcp_list.nodes[i]->url, NULL, 0,
+			         nanomq_conf)) != 0) {
+				NANO_NNG_FATAL("broker nng_listen", rv);
+			}
 		}
 	}
 
@@ -1858,11 +1861,12 @@ broker_start(int argc, char **argv)
 		fprintf(stderr, "Cannot parse command line arguments, quit\n");
 		exit(EXIT_FAILURE);
 	}
-	if (nanomq_conf->enable) {
-		nanomq_conf->url = nanomq_conf->url != NULL
-		    ? nanomq_conf->url
-		    : nng_strdup(CONF_TCP_URL_DEFAULT);
-	}
+	// conf for multi-listener is differ.
+	// if (nanomq_conf->enable) {
+	// 	nanomq_conf->url = nanomq_conf->url != NULL
+	// 	    ? nanomq_conf->url
+	// 	    : nng_strdup(CONF_TCP_URL_DEFAULT);
+	// }
 
 	if (nanomq_conf->tls.enable) {
 		nanomq_conf->tls.url = nanomq_conf->tls.url != NULL
