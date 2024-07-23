@@ -1255,9 +1255,11 @@ broker(conf *nanomq_conf)
 	}
 
 	if (nanomq_conf->enable) {
-		if ((rv = nano_listen(
-		         sock, nanomq_conf->url, NULL, 0, nanomq_conf)) != 0) {
-			NANO_NNG_FATAL("broker nng_listen", rv);
+		if (nanomq_conf->url) {
+			if ((rv = nano_listen(sock, nanomq_conf->url, NULL, 0,
+			         nanomq_conf)) != 0) {
+				NANO_NNG_FATAL("broker nng_listen", rv);
+			}
 		}
 
 		for (i = 0; i < nanomq_conf->tcp_list.count; i++) {
@@ -1885,9 +1887,11 @@ broker_start(int argc, char **argv)
 	}
 
 	if (nanomq_conf->enable) {
-		nanomq_conf->url = nanomq_conf->url != NULL
-		    ? nanomq_conf->url
-		    : nng_strdup(CONF_TCP_URL_DEFAULT);
+		if (nanomq_conf->tcp_list.count == 0) {
+			nanomq_conf->url = nanomq_conf->url != NULL
+			    ? nanomq_conf->url
+			    : nng_strdup(CONF_TCP_URL_DEFAULT);
+		}
 	}
 
 	if (nanomq_conf->tls.enable) {
@@ -1966,9 +1970,11 @@ broker_start_with_conf(void *nmq_conf)
 	}
 
 	if (nanomq_conf->enable) {
-		nanomq_conf->url = nanomq_conf->url != NULL
-		    ? nanomq_conf->url
-		    : nng_strdup(CONF_TCP_URL_DEFAULT);
+		if (nanomq_conf->tcp_list.count == 0) {
+			nanomq_conf->url = nanomq_conf->url != NULL
+			    ? nanomq_conf->url
+			    : nng_strdup(CONF_TCP_URL_DEFAULT);
+		}
 	}
 
 	if (nanomq_conf->tls.enable) {
