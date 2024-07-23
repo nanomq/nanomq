@@ -1235,6 +1235,7 @@ bridge_send_cb(void *arg)
 	log_debug("bridge to %s msg sent", node->address);
 }
 
+// let bridge client sub to topics according to config file
 int
 bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 {
@@ -1511,4 +1512,38 @@ bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 	nng_mtx_unlock(reload_lock);
 
 	return 0;
+}
+
+// for transparent bridging only, deal with sub/unsub
+bool
+bridge_sub_handler(nano_work *work)
+{
+	nng_mqtt_topic_qos *topic_qos;
+	topic_node *tnode = work->sub_pkt->node;
+
+	if (work->flag != CMD_SUBSCRIBE && work->flag != CMD_UNSUBSCRIBE)
+		return false;
+
+	while (tnode != NULL) {
+		topic_qos = nng_mqtt_topic_qos_array_create(1);
+		// keep no_local to 1, we dont want looping msg
+		nng_mqtt_topic_qos_array_set(topic_qos, 0,
+			tnode->topic.body, tnode->qos, 1,
+			tnode->rap, tnode->retain_handling);
+		for (size_t t = 0; t < work->config->bridge.count; t++) {
+			conf_bridge_node *node = work->config->bridge.nodes[t];
+			bridge_param *param = node->bridge_arg;
+
+			if (!node->enable)// check transparent enabler
+				continue;
+			// nng_mtx_lock(node->mtx);
+			// TODO enhance performance, reuse same Subscribe msg
+			nng_mqtt_subscribe_async(param->client, topic_qos, 1, NULL);
+			nng_mqtt_topic_qos_array_free(topic_qos, 1);
+			// nng_mtx_unlock(node->mtx);
+		}
+		tnode = tnode->next;
+	}
+
+	return true;
 }

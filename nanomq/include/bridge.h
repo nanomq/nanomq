@@ -23,6 +23,7 @@ typedef struct {
 } bridge_param;
 
 extern bool topic_filter(const char *origin, const char *input);
+extern bool bridge_sub_handler(nano_work *work);
 extern int  bridge_client(
      nng_socket *sock, conf *config, conf_bridge_node *bridge_conf);
 extern int hybrid_bridge_client(

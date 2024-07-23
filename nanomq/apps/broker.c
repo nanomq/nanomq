@@ -209,87 +209,67 @@ bridge_handler(nano_work *work)
 		if (!node->enable)
 			continue;
 		nng_mtx_lock(node->mtx);
-		if (work->flag == CMD_SUBSCRIBE) {
-			bridge_param *param = node->bridge_arg;
-			nng_mqtt_topic_qos *topic_qos;
-			topic_node *node = work->sub_pkt->node;
-			while (node != NULL) {
-				topic_qos = nng_mqtt_topic_qos_array_create(1);
-				nng_mqtt_topic_qos_array_set(topic_qos, 0,
-					node->topic.body, node->qos, 1,
-					node->rap, node->retain_handling);
-				nng_mqtt_subscribe_async(param->client, topic_qos, 1, NULL);
-				node = node->next;
-			}
-		} else {
 		char *publish_topic =
 			work->pub_packet->var_header.publish.topic_name.body;
-		if (node->enable) {
-			for (size_t i = 0; i < node->forwards_count; i++) {
-				if (strlen(publish_topic) > strlen("$SYS") &&
-					strncmp(publish_topic, "$SYS", strlen("$SYS")) == 0) {
-					continue;
-				}
-				if (topic_filter(node->forwards_list[i]->local_topic,
-							publish_topic)) {
-					work->state = SEND;
-
-					nng_msg *bridge_msg = NULL;
-					if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5 &&
-						node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
-						mqtt_property_dup(
-						    &props, work->pub_packet->var_header.publish.properties);
-					}
-					// No change if remote topic == ""
-					if (node->forwards_list[i]->remote_topic_len != 0) {
-						publish_topic = node->forwards_list[i]->remote_topic;
-					}
-					uint8_t retain;
-					uint8_t qos;
-					retain =
-					    node->forwards_list[i]->retain == NO_RETAIN
-					    ? work->pub_packet->fixed_header
-					          .retain
-					    : node->forwards_list[i]->retain;
-					qos    =
-					    node->forwards_list[i]->retain == NO_QOS
-					    ? work->pub_packet->fixed_header
-					          .qos
-					    : node->forwards_list[i]->qos;
-					bridge_msg = bridge_publish_msg(
-					    publish_topic,
-					    work->pub_packet->payload.data,
-					    work->pub_packet->payload.len,
-					    work->pub_packet->fixed_header.dup,
-					    qos,
-					    retain,
-					    props);
-
-					node->proto_ver == MQTT_PROTOCOL_VERSION_v5
-					    ? nng_mqttv5_msg_encode(bridge_msg)
-					    : nng_mqtt_msg_encode(bridge_msg);
-
-					nng_socket *socket = node->sock;
-
-					// what if send qos msg failed?
-					// nanosdk deal with fail send
-					// and close the pipe
-					if (nng_aio_busy(
-					        node->bridge_aio[index])) {
-						nng_msg_free(bridge_msg);
-						log_info(
-						    "bridging to %s aio busy! "
-						    "msg lost! Ctx: %d",
-						    node->address, work->ctx.id);
-					} else {
-						nng_aio_set_timeout(node->bridge_aio[index], 3000);
-						nng_aio_set_msg(node->bridge_aio[index], bridge_msg);
-						nng_send_aio(*socket, node->bridge_aio[index]);
-					}
-					rv = true;
-				}
+		for (size_t i = 0; i < node->forwards_count; i++) {
+			if (strlen(publish_topic) > strlen("$SYS") &&
+				strncmp(publish_topic, "$SYS", strlen("$SYS")) == 0) {
+				continue;
 			}
-		}
+			if (topic_filter(node->forwards_list[i]->local_topic,
+						publish_topic)) {
+				work->state = SEND;
+
+				nng_msg *bridge_msg = NULL;
+				if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5 &&
+					node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
+					mqtt_property_dup(
+						&props, work->pub_packet->var_header.publish.properties);
+				}
+				// No change if remote topic == ""
+				if (node->forwards_list[i]->remote_topic_len != 0) {
+					publish_topic = node->forwards_list[i]->remote_topic;
+				}
+				uint8_t retain;
+				uint8_t qos;
+				retain = node->forwards_list[i]->retain == NO_RETAIN
+					? work->pub_packet->fixed_header.retain
+					: node->forwards_list[i]->retain;
+				qos    = node->forwards_list[i]->retain == NO_QOS
+					? work->pub_packet->fixed_header.qos
+					: node->forwards_list[i]->qos;
+				bridge_msg = bridge_publish_msg(
+					publish_topic,
+					work->pub_packet->payload.data,
+					work->pub_packet->payload.len,
+					work->pub_packet->fixed_header.dup,
+					qos,
+					retain,
+					props);
+
+				node->proto_ver == MQTT_PROTOCOL_VERSION_v5
+					? nng_mqttv5_msg_encode(bridge_msg)
+					: nng_mqtt_msg_encode(bridge_msg);
+
+				nng_socket *socket = node->sock;
+
+				// what if send qos msg failed?
+				// nanosdk deal with fail send
+				// and close the pipe
+				if (nng_aio_busy(
+						node->bridge_aio[index])) {
+					nng_msg_free(bridge_msg);
+					log_info(
+						"bridging to %s aio busy! "
+						"msg lost! Ctx: %d",
+						node->address, work->ctx.id);
+				} else {
+					nng_aio_set_timeout(node->bridge_aio[index], 3000);
+					nng_aio_set_msg(node->bridge_aio[index], bridge_msg);
+					nng_send_aio(*socket, node->bridge_aio[index]);
+				}
+				rv = true;
+			}
 		}
 		nng_mtx_unlock(node->mtx);
 	}
@@ -414,7 +394,7 @@ server_cb(void *arg)
 				work->code = rv;
 				log_error("sub_handler: [%d]", rv);
 			}
-			bridge_handler(work);
+			bridge_sub_handler(work);
 
 			// TODO not all codes needs to close the pipe
 			if (work->code != SUCCESS) {
