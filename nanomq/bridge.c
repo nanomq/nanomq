@@ -672,8 +672,7 @@ hybrid_cb(void *arg)
 	node->bridge_aio = nng_alloc(bridge_arg->conf->total_ctx * sizeof(nng_aio *));
 
 	for (uint32_t num = 0; num < bridge_arg->conf->total_ctx; num++) {
-		if ((rv = nng_aio_alloc(&node->bridge_aio[num], NULL, node)) !=
-		    0) {
+		if ((rv = nng_aio_alloc(&node->bridge_aio[num], NULL, node)) != 0) {
 			NANO_NNG_FATAL("bridge_aio nng_aio_alloc", rv);
 		}
 	}
@@ -1227,15 +1226,12 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 
 /**
  * independent callback API for bridging aio
+ * only deal with PUB msg
  */
 void
 bridge_send_cb(void *arg)
 {
-	int rv;
-	nng_msg *msg = NULL;
-	nng_aio *aio;
 	conf_bridge_node *node = arg;
-
 	log_debug("bridge to %s msg sent", node->address);
 }
 
@@ -1285,6 +1281,7 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 		if ((rv = nng_aio_alloc(
 		         &node->bridge_aio[num], bridge_send_cb, node)) != 0) {
 			NANO_NNG_FATAL("bridge_aio nng_aio_alloc", rv);
+		} else {
 		}
 	}
 	log_debug("parallel %d", num);

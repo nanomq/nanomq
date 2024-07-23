@@ -206,7 +206,22 @@ bridge_handler(nano_work *work)
 
 	for (size_t t = 0; t < work->config->bridge.count; t++) {
 		conf_bridge_node *node = work->config->bridge.nodes[t];
+		if (!node->enable)
+			continue;
 		nng_mtx_lock(node->mtx);
+		if (work->flag == CMD_SUBSCRIBE) {
+			bridge_param *param = node->bridge_arg;
+			nng_mqtt_topic_qos *topic_qos;
+			topic_node *node = work->sub_pkt->node;
+			while (node != NULL) {
+				topic_qos = nng_mqtt_topic_qos_array_create(1);
+				nng_mqtt_topic_qos_array_set(topic_qos, 0,
+					node->topic.body, node->qos, 1,
+					node->rap, node->retain_handling);
+				nng_mqtt_subscribe_async(param->client, topic_qos, 1, NULL);
+				node = node->next;
+			}
+		} else {
 		char *publish_topic =
 			work->pub_packet->var_header.publish.topic_name.body;
 		if (node->enable) {
@@ -232,14 +247,12 @@ bridge_handler(nano_work *work)
 					uint8_t retain;
 					uint8_t qos;
 					retain =
-					    node->forwards_list[i]->retain ==
-					        NO_RETAIN
+					    node->forwards_list[i]->retain == NO_RETAIN
 					    ? work->pub_packet->fixed_header
 					          .retain
 					    : node->forwards_list[i]->retain;
 					qos    =
-					    node->forwards_list[i]->qos ==
-					        NO_QOS
+					    node->forwards_list[i]->retain == NO_QOS
 					    ? work->pub_packet->fixed_header
 					          .qos
 					    : node->forwards_list[i]->qos;
@@ -276,6 +289,7 @@ bridge_handler(nano_work *work)
 					rv = true;
 				}
 			}
+		}
 		}
 		nng_mtx_unlock(node->mtx);
 	}
@@ -400,7 +414,7 @@ server_cb(void *arg)
 				work->code = rv;
 				log_error("sub_handler: [%d]", rv);
 			}
-			bridge_handler()
+			bridge_handler(work);
 
 			// TODO not all codes needs to close the pipe
 			if (work->code != SUCCESS) {
