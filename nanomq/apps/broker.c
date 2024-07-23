@@ -1895,9 +1895,11 @@ broker_start(int argc, char **argv)
 	}
 
 	if (nanomq_conf->tls.enable) {
-		nanomq_conf->tls.url = nanomq_conf->tls.url != NULL
-		    ? nanomq_conf->tls.url
-		    : nng_strdup(CONF_TLS_URL_DEFAULT);
+		if (nanomq_conf->tls_list.count == 0) {
+			nanomq_conf->tls.url = nanomq_conf->tls.url != NULL
+			    ? nanomq_conf->tls.url
+			    : nng_strdup(CONF_TLS_URL_DEFAULT);
+		}
 	}
 
 	if (nanomq_conf->websocket.enable) {
@@ -1978,9 +1980,11 @@ broker_start_with_conf(void *nmq_conf)
 	}
 
 	if (nanomq_conf->tls.enable) {
-		nanomq_conf->tls.url = nanomq_conf->tls.url != NULL
-		    ? nanomq_conf->tls.url
-		    : nng_strdup(CONF_TLS_URL_DEFAULT);
+		if (nanomq_conf->tls_list.count == 0) {
+			nanomq_conf->tls.url = nanomq_conf->tls.url != NULL
+			    ? nanomq_conf->tls.url
+			    : nng_strdup(CONF_TLS_URL_DEFAULT);
+		}
 	}
 
 	if (nanomq_conf->websocket.enable) {
