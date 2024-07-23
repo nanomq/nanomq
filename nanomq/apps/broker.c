@@ -1279,19 +1279,7 @@ broker(conf *nanomq_conf)
 		}
 	}
 
-	if (nanomq_conf->tls.enable) {
-		nng_listener tls_listener;
-		if ((rv = nng_listener_create(
-		         &tls_listener, sock, nanomq_conf->tls.url)) != 0) {
-			NANO_NNG_FATAL("nng_listener_create tls", rv);
-		}
-		nng_listener_set(
-		    tls_listener, NANO_CONF, nanomq_conf, sizeof(nanomq_conf));
-		init_listener_tls(tls_listener, &nanomq_conf->tls);
-		if ((rv = nng_listener_start(tls_listener, 0)) != 0) {
-			NANO_NNG_FATAL("nng_listener_start tls", rv);
-		}
-
+	if (nanomq_conf->tls_list.count > 0) {
 		for (i = 0; i < nanomq_conf->tls_list.count; i++) {
 			nng_listener tls_listener;
 
@@ -1304,6 +1292,22 @@ broker(conf *nanomq_conf)
 
 			init_listener_tls(
 			    tls_listener, nanomq_conf->tls_list.nodes[i]);
+			if ((rv = nng_listener_start(tls_listener, 0)) != 0) {
+				NANO_NNG_FATAL("nng_listener_start tls", rv);
+			}
+		}
+	}
+
+	if (nanomq_conf->tls.enable) {
+		if (nanomq_conf->tls.url) {
+			nng_listener tls_listener;
+			if ((rv = nng_listener_create(&tls_listener, sock,
+			         nanomq_conf->tls.url)) != 0) {
+				NANO_NNG_FATAL("nng_listener_create tls", rv);
+			}
+			nng_listener_set(tls_listener, NANO_CONF, nanomq_conf,
+			    sizeof(nanomq_conf));
+			init_listener_tls(tls_listener, &nanomq_conf->tls);
 			if ((rv = nng_listener_start(tls_listener, 0)) != 0) {
 				NANO_NNG_FATAL("nng_listener_start tls", rv);
 			}
