@@ -1255,6 +1255,11 @@ broker(conf *nanomq_conf)
 	}
 
 	if (nanomq_conf->enable) {
+		if ((rv = nano_listen(
+		         sock, nanomq_conf->url, NULL, 0, nanomq_conf)) != 0) {
+			NANO_NNG_FATAL("broker nng_listen", rv);
+		}
+
 		for (i = 0; i < nanomq_conf->tcp_list.count; i++) {
 			if ((rv = nano_listen(sock,
 			         nanomq_conf->tcp_list.nodes[i]->url, NULL, 0,
@@ -1273,6 +1278,18 @@ broker(conf *nanomq_conf)
 	}
 
 	if (nanomq_conf->tls.enable) {
+		nng_listener tls_listener;
+		if ((rv = nng_listener_create(
+		         &tls_listener, sock, nanomq_conf->tls.url)) != 0) {
+			NANO_NNG_FATAL("nng_listener_create tls", rv);
+		}
+		nng_listener_set(
+		    tls_listener, NANO_CONF, nanomq_conf, sizeof(nanomq_conf));
+		init_listener_tls(tls_listener, &nanomq_conf->tls);
+		if ((rv = nng_listener_start(tls_listener, 0)) != 0) {
+			NANO_NNG_FATAL("nng_listener_start tls", rv);
+		}
+
 		for (i = 0; i < nanomq_conf->tls_list.count; i++) {
 			nng_listener tls_listener;
 
@@ -1866,7 +1883,7 @@ broker_start(int argc, char **argv)
 		fprintf(stderr, "Cannot parse command line arguments, quit\n");
 		exit(EXIT_FAILURE);
 	}
-	
+
 	if (nanomq_conf->enable) {
 		nanomq_conf->url = nanomq_conf->url != NULL
 		    ? nanomq_conf->url
