@@ -492,6 +492,8 @@ server_cb(void *arg)
 			    (rv = unsub_ctx_handle(work)) != 0) {
 				log_error("unsub_handler [%d]", rv);
 			}
+			// proxy unsub action to bridge
+			bridge_sub_handler(work);
 
 			if (0 != (rv = encode_unsuback_msg(smsg, work)))
 				log_error("in unsuback [%d]", rv);
