@@ -67,11 +67,12 @@ class Test(object):
             # while g_connected == 0:
             #     continue
             self._mqttc.subscribe(sub, qos)
+            time.sleep(2)
             self._mqttc.publish(pub, pub, 0)
             self._mqttc.publish(pub, pub, 1)
             self._mqttc.publish(pub, pub, 2)
             g_connected = 0
-            time.sleep(1)
+            time.sleep(2)
             self._mqttc.loop_stop()
             self._mqttc.disconnect()
             qos -= 1
