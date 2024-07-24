@@ -238,7 +238,7 @@ bridge_handler(nano_work *work)
 					          .retain
 					    : node->forwards_list[i]->retain;
 					qos    =
-					    node->forwards_list[i]->retain ==
+					    node->forwards_list[i]->qos ==
 					        NO_QOS
 					    ? work->pub_packet->fixed_header
 					          .qos
@@ -324,6 +324,7 @@ server_cb(void *arg)
 				nng_ctx_recv(work->ctx, work->aio);
 				break;
 			} else {
+				log_error("bridging disconnected!!!!!!!!!!");
 				// check notify msg of bridge
 				if (rv != NNG_ECONNSHUT || msg == NULL) {
 					nng_ctx_recv(work->extra_ctx, work->aio);
