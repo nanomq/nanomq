@@ -13,8 +13,10 @@
 #include "nng/supplemental/util/platform.h"
 #include "nng/supplemental/nanolib/base64.h"
 #include "nng/supplemental/nanolib/cJSON.h"
+#include "nng/supplemental/nanolib/canstream.h"
 #include "nng/protocol/mqtt/mqtt_parser.h"
 #include "nng/supplemental/nanolib/log.h"
+#include "nng/exchange/exchange.h"
 
 #ifdef SUPP_PARQUET
 #include "nng/supplemental/nanolib/parquet.h"
@@ -30,7 +32,7 @@ static void         set_char(char *out, unsigned int *index, char c);
 static unsigned int base62_encode(
     const unsigned char *in, unsigned int inlen, char *out);
 
-static int flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio, char *topic);
+static int flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio, char *topic, uint8_t streamType);
 
 #define BASE62_ENCODE_OUT_SIZE(s) ((unsigned int) ((((s) * 8) / 6) + 2))
 
@@ -418,9 +420,8 @@ done:
 	return rv;
 }
 
-
 static int
-flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio, char *topic)
+flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio, char *topic, uint8_t streamType)
 {
 	nng_msg  * msg;
 	void     **datas;
@@ -428,7 +429,7 @@ flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio, char 
 	uint32_t *lens;
 
 	if (nng_aio_busy(aio)) {
-		for (int i=0; i<len; ++i) {
+		for (int i = 0; i < len; ++i) {
 			if (smsg[i] == NULL)
 				continue;
 			nng_msg_free(smsg[i]);
@@ -437,76 +438,93 @@ flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio, char 
 		log_warn("flush aio is busy");
 		return NNG_EBUSY;
 	}
+	if (streamType == STREAM_CANMSG) {
+		struct canStream *canmsg = parseCanStream(smsg, len);
+		if (canmsg == NULL) {
+			log_error("parse canmsg failed");
+			for (int i = 0; i < len; ++i) {
+				if (smsg[i] == NULL)
+					continue;
+				nng_msg_free(smsg[i]);
+			}
+			nng_free(smsg, len);
+			return NNG_ENOMEM;
+		}
+		/* call parquet */
+		freeCanStream(canmsg);
+	} else if (streamType == STREAM_RAW) {
+		keys = nng_alloc(sizeof(uint64_t)* len);
+		datas = nng_alloc(sizeof(void *) * len);
+		lens = nng_alloc(sizeof(uint32_t) * len);
+		if (!datas || !keys || !lens) {
+			if (keys)
+				nng_free(keys, sizeof(uint64_t) * len);
+			if (datas)
+				nng_free(datas, sizeof(void *) * len);
+			if (len)
+				nng_free(lens, sizeof(uint32_t) * len);
+			return NNG_ENOMEM;
+		}
 
-	keys = nng_alloc(sizeof(uint64_t)* len);
-	datas = nng_alloc(sizeof(void *) * len);
-	lens = nng_alloc(sizeof(uint32_t) * len);
-	if (!datas || !keys || !lens) {
-		if (keys)
-			nng_free(keys, sizeof(uint64_t) * len);
-		if (datas)
-			nng_free(datas, sizeof(void *) * len);
-		if (len)
-			nng_free(lens, sizeof(uint32_t) * len);
-		return NNG_ENOMEM;
-	}
-
-	int len2 = 0;
-	for (int i=0; i<(int)len; ++i) {
-		msg = smsg[i];
-		if (msg == NULL)
-			continue;
-		datas[len2] = nng_msg_payload_ptr(msg);
-		lens[len2] = nng_msg_len(msg) -
-		        (nng_msg_payload_ptr(msg) - (uint8_t *)nng_msg_body(msg));
-		keys[len2] = nng_msg_get_timestamp(msg);
-		len2 ++;
-	}
+		int len2 = 0;
+		for (int i=0; i<(int)len; ++i) {
+			msg = smsg[i];
+			if (msg == NULL)
+				continue;
+			datas[len2] = nng_msg_payload_ptr(msg);
+			lens[len2] = nng_msg_len(msg) -
+			        (nng_msg_payload_ptr(msg) - (uint8_t *)nng_msg_body(msg));
+			keys[len2] = nng_msg_get_timestamp(msg);
+			len2 ++;
+		}
 
 #if defined(SUPP_PARQUET) || defined(SUPP_BLF)
 #ifdef SUPP_PARQUET
-	if (false == nng_aio_begin(aio)) {
-		log_error("nng aio begin failed");
-		return NNG_EBUSY;
-	}
+		if (false == nng_aio_begin(aio)) {
+			log_error("nng aio begin failed");
+			return NNG_EBUSY;
+		}
 
-	if (len2 > 0)
-		log_warn("flush to parquet (%d) %lld...%lld", len2, keys[0],
-		    keys[len2 - 1]);
-	// write to disk
-	parquet_object *parquet_obj;
-	parquet_obj = parquet_object_alloc(
-	    keys, (uint8_t **) datas, lens, len2, aio, (void *) smsg);
-	parquet_obj->topic = topic;
-	parquet_write_batch_async(parquet_obj);
+		if (len2 > 0)
+			log_warn("flush to parquet (%d) %lld...%lld", len2, keys[0],
+			    keys[len2 - 1]);
+		// write to disk
+		parquet_object *parquet_obj;
+		parquet_obj = parquet_object_alloc(
+		    keys, (uint8_t **) datas, lens, len2, aio, (void *) smsg);
+		parquet_obj->topic = topic;
+		parquet_write_batch_async(parquet_obj);
 #endif
 #if defined(SUPP_BLF)
-	if (false == nng_aio_begin(aio)) {
-		log_error("nng aio begin failed");
-		return NNG_EBUSY;
-	}
+		if (false == nng_aio_begin(aio)) {
+			log_error("nng aio begin failed");
+			return NNG_EBUSY;
+		}
 
-	if (len2 > 0)
-		log_warn("flush to blf (%d) %lld...%lld", len2, keys[0],
-		    keys[len2 - 1]);
-	// write to disk
-	blf_object *blf_obj;
-	blf_obj = blf_object_alloc(
-	    keys, (uint8_t **) datas, lens, len2, aio, (void *) smsg);
-	blf_write_batch_async(blf_obj);
+		if (len2 > 0)
+			log_warn("flush to blf (%d) %lld...%lld", len2, keys[0],
+			    keys[len2 - 1]);
+		// write to disk
+		blf_object *blf_obj;
+		blf_obj = blf_object_alloc(
+		    keys, (uint8_t **) datas, lens, len2, aio, (void *) smsg);
+		blf_write_batch_async(blf_obj);
 
 #endif
 #else
-	nng_free(keys, len);
-	nng_free(datas, len);
-	nng_free(lens, len);
-	for (int i=0; i<len; ++i) {
-		if (smsg[i] == NULL)
-			continue;
-		nng_msg_free(smsg[i]);
-	}
-	nng_free(smsg, len);
+		nng_free(keys, len);
+		nng_free(datas, len);
+		nng_free(lens, len);
+		for (int i = 0; i < len; ++i) {
+			if (smsg[i] == NULL)
+				continue;
+			nng_msg_free(smsg[i]);
+		}
+		nng_free(smsg, len);
 #endif
+	} else {
+		log_error("Unknown stream type %d", streamType);
+	}
 
 	return 0;
 }
@@ -548,12 +566,14 @@ send_exchange_cb(void *arg)
 	char *topic = NULL;
 	topic = nng_msg_get_conn_param(msg);
 
+	uint8_t streamType = nng_msg_get_cmd_type(msg);
+
 	// Flush to disk. Call Parquet
 	if (parquet_conf->enable || blf_conf->enable) {
 		if (parquet_conf->enable) {
 			nng_mtx_lock(hook_conf->ex_mtx);
 			rv = flush_smsg_to_disk(
-			    msgs_del, msgs_len, NULL, hook_conf->ex_aio, topic);
+			    msgs_del, msgs_len, NULL, hook_conf->ex_aio, topic, streamType);
 			if (rv != 0)
 				log_error("flush error %d", rv);
 			nng_mtx_unlock(hook_conf->ex_mtx);
@@ -561,7 +581,7 @@ send_exchange_cb(void *arg)
 		if (blf_conf->enable) {
 			nng_mtx_lock(hook_conf->ex_mtx);
 			rv = flush_smsg_to_disk(
-			    msgs_del, msgs_len, NULL, hook_conf->ex_aio, topic);
+			    msgs_del, msgs_len, NULL, hook_conf->ex_aio, topic, streamType);
 			if (rv != 0)
 				log_error("flush error %d", rv);
 			nng_mtx_unlock(hook_conf->ex_mtx);
