@@ -203,12 +203,12 @@ bridge_pub_handler(nano_work *work)
 	int      rv    = 0;
 	property *props = NULL;
 	uint32_t  index = work->ctx.id - 1;
+	mqtt_string *topic;
+	topic = nng_zalloc(sizeof(*topic));
 
 	for (size_t t = 0; t < work->config->bridge.count; t++) {
 		conf_bridge_node *node = work->config->bridge.nodes[t];
 		nng_mtx_lock(node->mtx);
-		mqtt_string *topic;
-		topic = nng_zalloc(sizeof(*topic));
 		if (node->enable) {
 			for (size_t i = 0; i < node->forwards_count; i++) {
 				rv = 0;
@@ -296,9 +296,9 @@ bridge_pub_handler(nano_work *work)
 				}
 			}
 		}
-		nng_free(topic, sizeof(topic));
 		nng_mtx_unlock(node->mtx);
 	}
+	nng_free(topic, sizeof(topic));
 	return;
 }
 
@@ -353,11 +353,11 @@ server_cb(void *arg)
 		}
 
 		if (work->proto == PROTO_MQTT_BRIDGE) {
-			uint8_t type;
-			type = nng_msg_get_type(msg);
+			uint8_t type = nng_msg_get_type(msg);
 			if (type == CMD_CONNACK) {
 				log_info("bridge client is connected!");
-			} else if (type != CMD_PUBLISH) {
+			} else if (type == CMD_PUBLISH) {
+			} else {
 				// only accept publish/CONNACK/DISCONNECT
 				// msg from upstream
 				work->state = RECV;
