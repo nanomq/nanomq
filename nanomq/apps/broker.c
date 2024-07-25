@@ -197,26 +197,29 @@ static nng_optspec cmd_opts[] = {
 // so that we can use this to set the timeout to the correct value for
 // use in poll.
 
-static inline bool
-bridge_handler(nano_work *work)
+static inline void
+bridge_pub_handler(nano_work *work)
 {
-	bool      rv    = false;
+	int      rv    = 0;
 	property *props = NULL;
 	uint32_t  index = work->ctx.id - 1;
 
 	for (size_t t = 0; t < work->config->bridge.count; t++) {
 		conf_bridge_node *node = work->config->bridge.nodes[t];
 		nng_mtx_lock(node->mtx);
-		char *publish_topic =
-			work->pub_packet->var_header.publish.topic_name.body;
+		mqtt_string *topic;
+		topic = nng_zalloc(sizeof(*topic));
 		if (node->enable) {
 			for (size_t i = 0; i < node->forwards_count; i++) {
-				if (strlen(publish_topic) > strlen("$SYS") &&
-					strncmp(publish_topic, "$SYS", strlen("$SYS")) == 0) {
+				rv = 0;
+				topic->body = work->pub_packet->var_header.publish.topic_name.body;
+				topic->len  = work->pub_packet->var_header.publish.topic_name.len;
+				if (strlen(topic->body) > strlen("$SYS") &&	// not here!!!
+					strncmp(topic->body, "$SYS", strlen("$SYS")) == 0) {
 					continue;
 				}
 				if (topic_filter(node->forwards_list[i]->local_topic,
-							publish_topic)) {
+							(const char *)topic->body)) {
 					work->state = SEND;
 
 					nng_msg *bridge_msg = NULL;
@@ -227,30 +230,46 @@ bridge_handler(nano_work *work)
 					}
 					// No change if remote topic == ""
 					if (node->forwards_list[i]->remote_topic_len != 0) {
-						publish_topic = node->forwards_list[i]->remote_topic;
+						topic->body = node->forwards_list[i]->remote_topic;
+						topic->len = node->forwards_list[i]->remote_topic_len;
+					}
+					if (node->forwards_list[i]->prefix != NULL) {
+						topic->body =
+							nng_strnins(topic->body, node->forwards_list[i]->prefix,
+										topic->len, node->forwards_list[i]->prefix_len);
+						topic->len = strlen(topic->body);
+						rv = NNG_STAT_STRING;	//mark it for free
+					}
+					if (node->forwards_list[i]->suffix != NULL) {
+						char *tmp = topic->body;
+						topic->body =
+							nng_strncat(topic->body, node->forwards_list[i]->suffix,
+										topic->len, node->forwards_list[i]->suffix_len);
+						topic->len = strlen(topic->body);
+						if (rv == NNG_STAT_STRING)
+							nng_free(tmp, strlen(tmp));
+						else
+							rv = NNG_STAT_STRING;	//mark it for free
 					}
 					uint8_t retain;
 					uint8_t qos;
 					retain =
-					    node->forwards_list[i]->retain ==
-					        NO_RETAIN
-					    ? work->pub_packet->fixed_header
-					          .retain
+					    node->forwards_list[i]->retain == NO_RETAIN
+					    ? work->pub_packet->fixed_header.retain
 					    : node->forwards_list[i]->retain;
 					qos    =
-					    node->forwards_list[i]->qos ==
-					        NO_QOS
-					    ? work->pub_packet->fixed_header
-					          .qos
+					    node->forwards_list[i]->qos == NO_QOS
+					    ? work->pub_packet->fixed_header.qos
 					    : node->forwards_list[i]->qos;
 					bridge_msg = bridge_publish_msg(
-					    publish_topic,
+					    topic->body,
 					    work->pub_packet->payload.data,
 					    work->pub_packet->payload.len,
 					    work->pub_packet->fixed_header.dup,
-					    qos,
-					    retain,
-					    props);
+					    qos, retain, props);
+					if (rv == NNG_STAT_STRING) {
+						nng_free(topic->body,strlen(topic->body));
+					}
 
 					node->proto_ver == MQTT_PROTOCOL_VERSION_v5
 					    ? nng_mqttv5_msg_encode(bridge_msg)
@@ -273,14 +292,14 @@ bridge_handler(nano_work *work)
 						nng_aio_set_msg(node->bridge_aio[index], bridge_msg);
 						nng_send_aio(*socket, node->bridge_aio[index]);
 					}
-					rv = true;
+					rv = SUCCESS;
 				}
 			}
 		}
+		nng_free(topic, sizeof(topic));
 		nng_mtx_unlock(node->mtx);
 	}
-
-	return rv;
+	return;
 }
 
 void
@@ -324,7 +343,6 @@ server_cb(void *arg)
 				nng_ctx_recv(work->ctx, work->aio);
 				break;
 			} else {
-				log_error("bridging disconnected!!!!!!!!!!");
 				// check notify msg of bridge
 				if (rv != NNG_ECONNSHUT || msg == NULL) {
 					nng_ctx_recv(work->extra_ctx, work->aio);
@@ -640,7 +658,7 @@ server_cb(void *arg)
 
 			// bridge logic first
 			if (work->config->bridge_mode) {
-				bridge_handler(work);
+				bridge_pub_handler(work);
 #if defined(SUPP_AWS_BRIDGE)
 				aws_bridge_forward(work);
 #endif
