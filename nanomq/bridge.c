@@ -176,54 +176,87 @@ create_disconnect_msg()
 
 	return msg;
 }
-
+// TODO move to RECV state of PROTO_BRIDGE, however we need to modify original msg
+// duplicate msg
 static inline void
 bridge_handle_topic_sub_reflection(nano_work *work, conf_bridge_node *node)
 {
+	int rv = 0;
+	mqtt_string *topic;
+	topic = nng_zalloc(sizeof(*topic));
 	for (size_t i = 0; i < node->sub_count; i++) {
-		char *topic = work->pub_packet->var_header.publish.topic_name.body;
-		int len = work->pub_packet->var_header.publish.topic_name.len;
-		if (topic != NULL && node->sub_list[i]->remote_topic != NULL) {
-			if (topic_filter(node->sub_list[i]->remote_topic, topic)) {
+		rv = 0;
+		topic->body = work->pub_packet->var_header.publish.topic_name.body;
+		topic->len  = work->pub_packet->var_header.publish.topic_name.len;
+		if (topic->body != NULL && node->sub_list[i]->remote_topic != NULL) {
+			// Reminder: We ignore the overlaping matches. only the very first one prevail
+			// There is no way to know msg comes from which topic if we use overlaped wildcard
+			// unless limit this to MQTT v5 sub id.
+			if (topic_filter(node->sub_list[i]->remote_topic, topic->body)) {
 				topics *sub_topic = node->sub_list[i];
 
-				// No change and send to local if local topic == ""
+				// No local topic change and keep it as it is if local topic == ""
 				if (sub_topic->local_topic_len == 0) {
-					return;
+					goto fix;
 				}
-				char *local_topic = nng_strdup(sub_topic->local_topic);
-				if (local_topic == NULL) {
+				topic->body = nng_strdup(sub_topic->local_topic);
+				rv = NNG_STAT_STRING;
+				if (topic->body == NULL) {
 					log_error("bridge: alloc local_topic failed");
+					nng_free(topic, sizeof(topic));
 					return;
 				}
+fix:
 				nng_mqtt_msg_set_bridge_bool(work->msg, true);
-
-				/* release old topic area */
-				nng_strfree(topic);
-
-				work->pub_packet->var_header.publish.topic_name.body = local_topic;
-				work->pub_packet->var_header.publish.topic_name.len = sub_topic->local_topic_len;
-
+				/* check prefix/suffix */
+				if (node->sub_list[i]->prefix != NULL) {
+					char *tmp = topic->body;
+					topic->body =
+						nng_strnins(topic->body, node->sub_list[i]->prefix,
+									topic->len, node->sub_list[i]->prefix_len);
+					topic->len = strlen(topic->body);
+					if (rv == NNG_STAT_STRING)
+						nng_free(tmp, strlen(tmp));
+					rv = NNG_STAT_STRING;	//mark it for free
+				}
+				if (node->sub_list[i]->suffix != NULL) {
+					char *tmp = topic->body;
+					topic->body =
+						nng_strncat(topic->body, node->sub_list[i]->suffix,
+									topic->len, node->sub_list[i]->suffix_len);
+					topic->len = strlen(topic->body);
+					if (rv == NNG_STAT_STRING)
+						nng_free(tmp, strlen(tmp));
+					rv = NNG_STAT_STRING;	//mark it for free
+				}
 				work->pub_packet->fixed_header.retain =
 				    sub_topic->retain == NO_RETAIN
 				    ? work->pub_packet->fixed_header.retain
 				    : sub_topic->retain;
+				/* release old topic area */
+				nng_strfree(work->pub_packet->var_header.publish.topic_name.body);
+				work->pub_packet->var_header.publish.topic_name.body = topic->body;
+				work->pub_packet->var_header.publish.topic_name.len = topic->len;
+				nng_free(topic, sizeof(topic));
 				return;
 			}
 		}
 	}
+	nng_free(topic, sizeof(topic));
 	return;
 }
 
 void
 bridge_handle_topic_reflection(nano_work *work, conf_bridge *bridge)
 {
-	for (size_t i = 0; i < bridge->count; i++) {
-		conf_bridge_node *node = bridge->nodes[i];
-		if (node->enable) {
-			bridge_handle_topic_sub_reflection(work, node);
+	// for saving CPU
+	if (work->proto == PROTO_MQTT_BRIDGE)
+		for (size_t i = 0; i < bridge->count; i++) {
+			conf_bridge_node *node = bridge->nodes[i];
+			if (node->enable) {
+				bridge_handle_topic_sub_reflection(work, node);
+			}
 		}
-	}
 
 	return;
 }
