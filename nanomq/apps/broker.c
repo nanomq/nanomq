@@ -204,8 +204,13 @@ bridge_pub_handler(nano_work *work)
 	property *props = NULL;
 	uint32_t  index = work->ctx.id - 1;
 	mqtt_string *topic;
-	topic = nng_zalloc(sizeof(*topic));
 
+	// Or we just exclude all topic with $?
+	if ((work->pub_packet->var_header.publish.topic_name.len > strlen("$SYS")) &&
+		strncmp(work->pub_packet->var_header.publish.topic_name.body, "$SYS", strlen("$SYS")) == 0) {
+		return;
+	}
+	topic = nng_zalloc(sizeof(*topic));
 	for (size_t t = 0; t < work->config->bridge.count; t++) {
 		conf_bridge_node *node = work->config->bridge.nodes[t];
 		nng_mtx_lock(node->mtx);
@@ -214,10 +219,6 @@ bridge_pub_handler(nano_work *work)
 				rv = 0;
 				topic->body = work->pub_packet->var_header.publish.topic_name.body;
 				topic->len  = work->pub_packet->var_header.publish.topic_name.len;
-				if (strlen(topic->body) > strlen("$SYS") &&	// not here!!!
-					strncmp(topic->body, "$SYS", strlen("$SYS")) == 0) {
-					continue;
-				}
 				if (topic_filter(node->forwards_list[i]->local_topic,
 							(const char *)topic->body)) {
 					work->state = SEND;
