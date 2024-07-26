@@ -14,6 +14,11 @@
 #include <mysql.h>
 #endif
 
+#if defined(SUPP_POSTGRESQL)
+#include <libpq-fe.h>
+#endif
+
+
 #include "include/nanomq.h"
 #include "nng/nng.h"
 #include "nng/mqtt/packet.h"
@@ -767,6 +772,8 @@ compose_sql_clause(rule *info, char *key, char *value, bool is_need_set, int j, 
 										snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s INT;\n", info->sqlite_table, info->payload[pi]->pas);
 									  } else if (RULE_FORWORD_MYSQL == info->forword_type) {
 										snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s INT;\n", info->mysql->table, info->payload[pi]->pas);
+									  } else if (RULE_FORWORD_POSTGRESQL == info->forword_type) {
+										snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s INT;\n", info->postgresql->table, info->payload[pi]->pas);
 									  }
 								}
 								strcat(key, info->payload[pi]->pas);
@@ -788,6 +795,8 @@ compose_sql_clause(rule *info, char *key, char *value, bool is_need_set, int j, 
 										snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s TEXT;\n", info->sqlite_table, info->payload[pi]->pas);
 									  } else if (RULE_FORWORD_MYSQL == info->forword_type) {
 										snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s TEXT;\n", info->mysql->table, info->payload[pi]->pas);
+									  } else if (RULE_FORWORD_POSTGRESQL == info->forword_type) {
+										snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s TEXT;\n", info->postgresql->table, info->payload[pi]->pas);
 									  }
 								}
 								strcat(key, info->payload[pi]->pas);
@@ -810,7 +819,9 @@ compose_sql_clause(rule *info, char *key, char *value, bool is_need_set, int j, 
 										snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s TEXT;\n", info->sqlite_table, info->payload[pi]->pas);
 									  } else if (RULE_FORWORD_MYSQL == info->forword_type) {
 										snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s TEXT;\n", info->mysql->table, info->payload[pi]->pas);
-									  }
+									  } else if (RULE_FORWORD_POSTGRESQL == info->forword_type) {
+										snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s TEXT;\n", info->postgresql->table, info->payload[pi]->pas);
+								      }
 								}
 								strcat(key, info->payload[pi]->pas);
 								strcat(key, ", ");
@@ -868,6 +879,8 @@ rule_engine_insert_sql(nano_work *work)
 	bool is_need_set = false;
 	static bool is_first_time_mysql = true;
 	bool is_need_set_mysql = false;
+	static bool is_first_time_postgresql = true;
+	bool is_need_set_postgresql = false;
 
 	nng_mtx *rule_mutex = work->config->rule_eng.rule_mutex;
 
@@ -1084,6 +1097,110 @@ rule_engine_insert_sql(nano_work *work)
   					mysql_close(rules[i].mysql->conn);
   					exit(1);
   				}
+			}
+#endif
+
+
+#if defined(SUPP_POSTGRESQL)
+			if (RULE_ENG_PDB & work->config->rule_eng.option && RULE_FORWORD_POSTGRESQL == rules[i].forword_type) {
+
+				if (work->pgconn == NULL) {
+					rule_postgresql *postgresql = rules[i].postgresql;
+					char conninfo[256] = { 0 };
+					snprintf(conninfo , 128, "dbname=postgres user=%s password=%s host=%s port=5432", postgresql->username,postgresql->password, postgresql->host);
+					PGconn *conn = PQconnectdb(conninfo);
+
+ 					if (PQstatus(conn) != CONNECTION_OK) {
+						log_error("Postgresql error %s", PQerrorMessage(conn));
+						PQfinish(conn);
+						exit(1);
+					}
+					work->pgconn = conn;
+				}
+
+				char sql_clause[1024] = "INSERT INTO ";
+				char key[128]         = { 0 };
+				snprintf(key, 128, "%s (", rules[i].postgresql->table);
+				char value[800]       = "VALUES (";
+				for (size_t j = 0; j < 9; j++) {
+
+					nng_mtx_lock(rule_mutex);
+
+					if (true == is_first_time_postgresql) {
+						is_need_set_postgresql   = true;
+					}
+					char *ret =
+					    compose_sql_clause(&rules[i],
+					        key, value, is_need_set_postgresql, j, work);
+
+					if (ret && is_need_set_postgresql) {
+						is_need_set_postgresql = false;
+						log_debug("ret - %s", ret);
+
+						char *p   = ret;
+						char *p_b = ret;
+
+						while (NULL != p) {
+							char *p = strchr(p_b, '\n');
+							if (NULL != p) {
+								*p = '\0';
+
+								log_debug("p_b %s", p_b);
+								PGresult *res = PQexec(rules[i].postgresql->conn, p_b);
+
+								if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+									log_debug("p_b Postgresql error %s\n", PQerrorMessage(rules[i].postgresql->conn));
+									fprintf(stderr, "%s\n", PQerrorMessage(rules[i].postgresql->conn));
+  								}
+
+								PQclear(res);
+								p_b = ++p;
+
+							} else {
+								break;
+							}
+						}
+
+						free(ret);
+						ret = NULL;
+					}
+
+					if (true == is_first_time_postgresql) {
+						is_first_time_postgresql = false;
+					}
+
+					nng_mtx_unlock(rule_mutex);
+				}
+
+
+
+				/* log_debug("%s", key); */
+				/* log_debug("%s", value); */
+
+				char *p = strrchr(key, ',');
+				*p      = ')';
+				p       = strrchr(value, ',');
+				*p      = ')';
+				strcat(sql_clause, key);
+				strcat(sql_clause, value);
+				strcat(sql_clause, ";");
+
+				log_debug("%s", sql_clause);
+
+				PGresult *res = PQexec(work->pgconn, sql_clause);
+			    log_debug("Postgresql res: %d\n", PQresultStatus(res));
+
+  				if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+				    log_debug("Postgresql error %s\n", PQerrorMessage(work->pgconn));
+  					fprintf(stderr, "Postgresql error %s\n", PQerrorMessage(work->pgconn));
+                    PQclear(res);
+  					PQfinish(work->pgconn);
+  					exit(1);
+  				}
+
+				PQclear(res);
+
+
 			}
 #endif
 		}

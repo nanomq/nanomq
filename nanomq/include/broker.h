@@ -59,7 +59,9 @@ struct work {
 	packet_unsubscribe *      unsub_pkt;
 
 	void *sqlite_db;
-
+#if defined(SUPP_POSTGRESQL)
+	void *pgconn;
+#endif
 
 #if defined(SUPP_PLUGIN)
 	property *user_property;
