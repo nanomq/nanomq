@@ -24,6 +24,7 @@ static char *key_arr[] = {
 	"Payload",
 };
 
+
 static char *type_arr[] = {
 	" INT",
 	" INT",
@@ -34,7 +35,6 @@ static char *type_arr[] = {
 	" INT",
 	" TEXT",
 };
-
 
 int
 nano_client_publish(nng_socket *sock, const char *topic, uint8_t *payload,
@@ -194,6 +194,82 @@ nanomq_client_sqlite(conf_rule *cr, bool init_last)
 
 #endif
 
+#if defined(SUPP_POSTGRESQL)
+#include <libpq-fe.h>
+
+static int pg_finish_with_error(PGconn *conn, rule *rules, int index)
+{
+	log_error("%s", PQerrorMessage(conn));
+	PQfinish(conn);
+	rule *r = &rules[index];
+	rule_postgresql_free(r->postgresql);
+	rule_free(r);
+	cvector_erase(rules, index);
+	return -1;
+}
+
+int
+nanomq_client_postgresql(conf_rule *cr, bool init_last)
+{
+	int      rc = 0;
+
+	char postgresql_table[1024];
+	for (int i = 0; i < cvector_size(cr->rules); i++) {
+		if (init_last && i != cvector_size(cr->rules) - 1) {
+			continue;
+		}
+		if (RULE_FORWORD_POSTGRESQL == cr->rules[i].forword_type) {
+			int  index      = 0;
+			char table[256] = { 0 };
+
+			snprintf(table, 128,
+			    "CREATE TABLE IF NOT EXISTS %s("
+			    "idx SERIAL PRIMARY KEY",
+			    cr->rules[i].postgresql->table);
+			char *err_msg = NULL;
+			bool  first   = true;
+
+			for (; index < 8; index++) {
+				if (!cr->rules[i].flag[index])
+					continue;
+
+				strcat(table, ", ");
+				strcat(table,
+				    cr->rules[i].as[index]
+				        ? cr->rules[i].as[index]
+				        : key_arr[index]);
+				strcat(table, type_arr[index]);
+			}
+			strcat(table, ");");
+
+			rule_postgresql *postgresql = cr->rules[i].postgresql;
+
+			char conninfo[256] = { 0 };
+			snprintf(conninfo , 128, "dbname=postgres user=%s password=%s host=%s port=5432", postgresql->username,postgresql->password, postgresql->host);
+			PGconn *conn = PQconnectdb(conninfo);
+
+			if (PQstatus(conn) != CONNECTION_OK) {
+				rc = pg_finish_with_error(conn, cr->rules, i--);
+				continue;
+			}
+
+			postgresql->conn = conn;
+			PGresult *res = PQexec(conn, table);
+			PQclear(res);
+
+			if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+				rc = pg_finish_with_error(conn, cr->rules, i--);
+				continue;
+			}
+
+
+		}
+	}
+
+	return rc;
+}
+
+#endif
 
 #if defined(SUPP_MYSQL)
 #include <mysql.h>
