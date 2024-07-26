@@ -1704,6 +1704,67 @@ post_rules_sqlite(conf_rule *cr, cJSON *jso_params, char *rawsql)
 }
 #endif
 
+#if defined(SUPP_POSTGRESQL) && defined(SUPP_RULE_ENGINE)
+static int
+post_rules_postgresql(conf_rule *cr, cJSON *jso_params, char *rawsql)
+{
+	cJSON *jso_param = NULL;
+	rule_postgresql *postgresql = rule_postgresql_init();
+	cJSON_ArrayForEach(jso_param, jso_params)
+	{
+		if (jso_param) {
+			if (!nng_strcasecmp(jso_param->string, "table")) {
+				postgresql->table =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "table: %s\n", jso_param->valuestring);
+			} else if (!nng_strcasecmp(
+			               jso_param->string, "username")) {
+				postgresql->username =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "username: %s\n", jso_param->valuestring);
+			} else if (!nng_strcasecmp(
+			               jso_param->string, "password")) {
+				postgresql->password =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "password: %s\n", jso_param->valuestring);
+			} else if (!nng_strcasecmp(
+			               jso_param->string, "host")) {
+				postgresql->host =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "host: %s\n", jso_param->valuestring);
+			} else {
+				rule_postgresql_free(postgresql);
+				log_error("Unsupport key word!");
+				return REQ_PARAM_ERROR;
+			}
+		}
+	}
+
+	if (false == rule_postgresql_check(postgresql)) {
+		rule_postgresql_free(postgresql);
+		return MISSING_KEY_REQUEST_PARAMES;
+	}
+
+	rule_sql_parse(cr, rawsql);
+	cr->rules[cvector_size(cr->rules) - 1].forword_type =
+	    RULE_FORWORD_POSTGRESQL;
+	cr->rules[cvector_size(cr->rules) - 1].postgresql   = postgresql;
+	cr->rules[cvector_size(cr->rules) - 1].raw_sql = nng_strdup(rawsql);
+	cr->rules[cvector_size(cr->rules) - 1].enabled = true;
+	cr->rules[cvector_size(cr->rules) - 1].rule_id =
+	    rule_generate_rule_id();
+	if (-1 == nanomq_client_postgresql(cr, true)) {
+		return REQ_PARAM_ERROR;
+	}
+
+	cr->option |= RULE_ENG_PDB;
+	return SUCCEED;
+}
+#endif
 
 #if defined(SUPP_MYSQL) && defined(SUPP_RULE_ENGINE)
 static int
@@ -1905,6 +1966,13 @@ post_rules(http_msg *msg)
 					goto error;
 			}
 #endif
+#if defined(SUPP_POSTGRESQL)
+		} else if (!strcasecmp(name, "postgresql")) {
+			if ((rc = post_rules_postgresql(cr, jso_params, rawsql)) !=
+			    SUCCEED) {
+					goto error;
+			}
+#endif
 		} else {
 			log_error("Unsupport forword type !");
 			rc = PLUGIN_IS_CLOSED;
@@ -2078,6 +2146,59 @@ put_rules_mysql_parse(cJSON *jso_params, rule_mysql *mysql)
 	return SUCCEED;
 }
 
+
+static int
+put_rules_postgresql_parse(cJSON *jso_params, rule_postgresql *postgresql)
+{
+	cJSON *jso_param = NULL;
+	cJSON_ArrayForEach(jso_param, jso_params)
+	{
+		if (jso_param) {
+			if (!nng_strcasecmp(jso_param->string, "table")) {
+				if (postgresql->table) {
+					nng_strfree(postgresql->table);
+				}
+				postgresql->table =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "table: %s\n", jso_param->valuestring);
+			} else if (!nng_strcasecmp(
+			               jso_param->string, "username")) {
+				if (postgresql->username) {
+					nng_strfree(postgresql->username);
+				}
+				postgresql->username =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "username: %s\n", jso_param->valuestring);
+			} else if (!nng_strcasecmp(
+			               jso_param->string, "password")) {
+				if (postgresql->password) {
+					nng_strfree(postgresql->password);
+				}
+				postgresql->password =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "password: %s\n", jso_param->valuestring);
+			} else if (!nng_strcasecmp(
+			               jso_param->string, "host")) {
+				if (postgresql->host) {
+					nng_strfree(postgresql->host);
+				}
+				postgresql->host =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "host: %s\n", jso_param->valuestring);
+			} else {
+				log_error("Unsupport key word!");
+				return REQ_PARAM_ERROR;
+			}
+		}
+	}
+
+	return SUCCEED;
+}
+
 static int
 put_rules_update_action(cJSON *jso_actions, rule *new_rule, conf_rule *cr)
 {
@@ -2123,6 +2244,18 @@ put_rules_update_action(cJSON *jso_actions, rule *new_rule, conf_rule *cr)
 				rule_mysql_free(mysql);
 				return rc;
 			}
+		} else if (!strcasecmp(name, "postgresql")) {
+			if (new_rule->forword_type != RULE_FORWORD_POSTGRESQL) {
+				log_error("Unsupport change from other type to postgresql");
+				return REQ_PARAM_ERROR;
+			}
+			rule_postgresql *postgresql = new_rule->postgresql;
+			rc = put_rules_postgresql_parse(jso_params, postgresql);
+			if (rc != SUCCEED) {
+				rule_postgresql_free(postgresql);
+				return rc;
+			}
+
 		} else {
 			log_debug("Unsupport forword type !");
 			return REQ_PARAM_ERROR;
@@ -2192,6 +2325,9 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 			break;
 		case RULE_FORWORD_MYSQL:
 			new_rule->mysql = cr->rules[i].mysql;
+			break;
+		case RULE_FORWORD_POSTGRESQL:
+			new_rule->postgresql = cr->rules[i].postgresql;
 			break;
 		case RULE_FORWORD_SQLITE:
 			new_rule->sqlite_table = cr->rules[i].sqlite_table;
@@ -2299,6 +2435,9 @@ delete_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 				case RULE_FORWORD_MYSQL:
 					rule_mysql_free(re->mysql);
 					break;
+				case RULE_FORWORD_POSTGRESQL:
+					rule_postgresql_free(re->postgresql);
+					break;
 				case RULE_FORWORD_REPUB:
 					rule_repub_free(re->repub);
 					break;
@@ -2356,6 +2495,9 @@ get_rules_helper(cJSON *data, rule *r)
 		break;
 	case RULE_FORWORD_MYSQL:
 		forword_type = "mysql";
+		break;
+	case RULE_FORWORD_POSTGRESQL:
+		forword_type = "postgresql";
 		break;
 	default:
 		break;
