@@ -7,6 +7,90 @@ Bridging is a way to connect multiple MQTT brokers. Unlike swarms, topic trees, 
 
 This section introduces MQTT over TCP bridge, MQTT over QUIC bridge, and AWS IoT Core Bridge. 
 
+
+### [Uplink QoS overwritten]
+
+```bash
+bridges.mqtt.name {
+......
+	forwards = [
+		{
+			remote_topic = "fwd/topic1"
+			local_topic = "topic1"
+			qos = 1
+		}
+	]
+}
+```
+
+By adding the "QoS" parameter to the forward node in the configuration, you can specify the QoS level of the uploaded Publish message. Matching this rule will overwrite the QoS of the original message.
+
+### [桥接主题覆盖和动态匹配前后缀]
+
+为了能够更灵活的定义边缘主题，建立云边一体化的统一数据空间（UNS），NanoMQ 提供了桥接主题覆盖和前后缀功能。用户可以在 Forward 和 Subscription 的多个 node 中增加前后缀信息来修改上下行消息的桥接主题，便于复杂网络拓扑下的主题管理，避免不同边缘设备之间的主题冲突。
+To define edge topics more flexibly and establish a cloud-edge integrated unified data space (UNS), NanoMQ provides bridging topic overwritten and prefix/suffix functions. Users can add prefix/suffix information to multiple nodes of Forward and Subscription to modify the bridging topics of uplink and downlink messages, which facilitates topic management under complex network topologies and avoids topic conflicts between different edge devices.
+
+Taking Forward node as an example：
+
+```bash
+bridges.mqtt.emqx {
+......
+	forwards = [
+		{
+			remote_topic = "fwd/topic1"
+			local_topic = "topic1"
+			qos = 2
+      suffix = "/forward/rule1"
+      prefix = "emqx/"
+		}
+		{
+			remote_topic = ""
+			local_topic = "#"
+			qos = 2
+      suffix = "/forward/rule2"
+      prefix = "nanomq/"
+		}
+	]
+}
+```
+
+Each forwarding node that matches will be executed individually. For example, there is a local message sent to topic: "topic1", this message matches two upstream bridging rules at the same time.
+The first rule will firstly overwrite the original topic according to the configured remote_topic, and then add the prefix and suffix as well, so the remote bridge target will receive the message in the topic: "emqx/fwd/topic1/forward/rule1". 
+In the second rule, because remote_topic is left blank, the original topic is retained and the prefix and suffix are added, so the remote bridge target will receive the message in the topic: "nanomq/topic1/forward/rule2".
+
+For downstream subscription messages, the prefix, prefix, and topic override functions take effect after the message is received. The local client will receive the message with the prefix and suffix modified and the topic overwritten.
+However, due to the limitations of the MQTT protocol, if you subscribe to multiple repeating topics or overlapping topics (wildcards), the message's prefix and topic override will only take effect on the first rule.
+
+```bash
+bridges.mqtt.name {
+......
+	subscription = [
+		{
+			remote_topic = "cmd/topic1"
+			local_topic = "topic3"
+			qos = 1
+      suffix = "/sub/rule1"
+      prefix = "emqx/"
+		},
+		{
+			remote_topic = "cmd/#"
+			local_topic = ""
+			qos = 2
+      suffix = "/forward/rule2"
+      prefix = "nanomq/"
+		}
+	]
+......
+}
+```
+
+例如按上文的配置方式，收到来自远端的桥接目标的 “cmd/topic1” 主题的消息后，会总是命中第一条规则，将在本地的 “emqx/topic3/sub/rule1” 主题投递两次该条消息。而第二条规则将无法命中，因为每条消息都是各自独立的，且无法根据 Publish 消息的内容和桥接订阅规则相匹配。
+所以请尽量不要配置互相重叠的桥接订阅主题。、
+
+For example, according to the configuration method above, after receiving a message from the "cmd/topic1" topic of the remote bridge target, the first rule will always be hit, and will deliver msg to "emqx/topic3/sub/rule1" twice. 
+The second rule will fail to hit because each message is independent and we cannot match the bridge subscription rule based on the content of the Publish message.
+Please try not to configure overlapping bridge subscription topics. 
+
 ## [MQTT over TCP Bridging](./tcp-bridge.md)
 
 This section provides an in-depth guide to configuring MQTT over TCP bridging, explaining the primary configuration parameters and demonstrating a typical `nanomq.conf` file setup. It also introduces how to run NanoMQ with a specified configuration file and test bridging to ensure its successful implementation.
@@ -14,6 +98,40 @@ This section provides an in-depth guide to configuring MQTT over TCP bridging, e
 ## [MQTT over QUIC Bridging](./quic-bridge.md)
 
 In cases where integration with MQTT over TCP bridging is hard to implement, NanoMQ has innovatively introduced a new protocol, MQTT over QUIC. QUIC, initially developed by Google, was later adopted as a worldwide standard by the Internet Engineering Task Force (IETF). With MQTT over QUIC bridging, you can take full advantage of the QUIC protocol's benefits in IoT scenarios. 
+
+### [QUIC QoS 优先传输]
+
+When using QUIC bridging, you can enable the priority of QoS 1/2 messages relative to QoS 0 messages through the following configuration.
+
+```bash
+bridges.mqtt.emqx {
+......
+	# # qos_priority: send QoS 1/2 msg in high priority
+	# # QoS 0 messages remain the same
+	# # Value: true/false
+	# # Default: true
+	quic_qos_priority = true
+......
+}
+```
+Based on the characteristics of QUIC, NanoMQ implements priority transmission of QoS messages under network congestion. When the buffer queue is congested due to weak network or limited bandwidth, QoS 1/2 messages will be transmitted with higher priority. Help users save more valuable bandwidth for more important data.
+
+### [QUIC/TCP 混合桥接自适应切换]
+
+```bash
+bridges.mqtt.emqx {
+......
+	# # Hybrid bridging: enable or disable the hybrid bridging mode
+	# # Recommend to enable it when you want to take advantage of QUIC
+	# # but not sure if the public network supports QUIC.
+	# # Value: True/False
+	# # Default: False
+	hybrid_bridging = false
+......
+}
+```
+In order to allow users to use the MQTT over QUIC function with more easily, adaptive hybrid switching of QUIC/TCP bridging has been specially produced. When the QUIC connection fails, it will automatically switch back to traditional TCP bridging (port 1883 is used by default).
+
 
 ## [AWS IoT Core Bridging](./aws-iot-core-bridge.md)
 
