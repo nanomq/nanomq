@@ -56,6 +56,7 @@ bridges.mqtt.emqx {
 
 对于下行的订阅消息，前后缀和主题覆盖功能在收到消息后生效。本地客户端将收到经过前后缀修改和主题覆写后的消息。
 但由于 MQTT 协议的局限性，若订阅可多个重复主题或重叠主题（通配符），消息的前后缀和主题覆写将只对第一个规则生效。
+
 ```bash
 bridges.mqtt.name {
 ......
@@ -78,8 +79,9 @@ bridges.mqtt.name {
 ......
 }
 ```
-例如按上文的配置方式，收到来自远端的桥接目标的 “cmd/topic1” 主题的消息后，会总是命中第一条规则，本地客户端将在 “emqx/topic3/sub/rule1” 收到两次该条消息。所以请广大用户尽量不要配置互相重叠的桥接订阅主题。
 
+例如按上文的配置方式，收到来自远端的桥接目标的 “cmd/topic1” 主题的消息后，会总是命中第一条规则，将在本地的 “emqx/topic3/sub/rule1” 主题投递两次该条消息。而第二条规则将无法命中，因为每条消息都是各自独立的，且无法根据 Publish 消息的内容和桥接订阅规则相匹配。
+所以请尽量不要配置互相重叠的桥接订阅主题。、
 
 ## [MQTT over TCP 桥接](./tcp-bridge.md)
 本节将介绍 MQTT over TCP 数据桥接相关的配置参数，并将包含一个典型的 `nanomq.conf` 文件配置。本节还将介绍如何通过指定的配置文件运行 NanoMQ 以及如何对桥接进行测试。
@@ -88,10 +90,37 @@ bridges.mqtt.name {
 针对较难集成 MQTT over TCP 数据桥接的场景，NanoMQ 创新性地引入了 MQTT over QUIC 数据桥接。QUIC 最初由 Google 开发，后来被互联网工程任务组（IETF）采纳为全球标准。它是一种新的传输协议，提供更快的连接建立速度。通过 MQTT over QUIC 数据桥接，我们可以充分发挥 QUIC 协议在 IoT 场景中的优势。
 
 ### [QUIC QoS 优先传输]
+
+当使用 QUIC 桥接时，可以通过如下配置开启 QoS 1/2 消息相对于 QoS 0 消息的优先。
+
+```bash
+bridges.mqtt.emqx {
+......
+	# # qos_priority: send QoS 1/2 msg in high priority
+	# # QoS 0 messages remain the same
+	# # Value: true/false
+	# # Default: true
+	quic_qos_priority = true
+......
+}
+```
 NanoMQ 根据 QUIC 的特性，实现了在网络拥塞状态下的 QoS 消息优先传输，当缓冲队列因为弱网或带宽有限而拥塞的话，QoS 1/2的消息将得到更优先的传输。帮助用户将更宝贵的带宽留给更重要的数据。
 
 ### [QUIC/TCP 混合桥接自适应切换]
 
+```bash
+bridges.mqtt.emqx {
+......
+	# # Hybrid bridging: enable or disable the hybrid bridging mode
+	# # Recommend to enable it when you want to take advantage of QUIC
+	# # but not sure if the public network supports QUIC.
+	# # Value: True/False
+	# # Default: False
+	hybrid_bridging = false
+......
+}
+```
+为了让用户更放心的使用 MQTT over QUIC 功能，特地制作了 QUIC/TCP 桥接的自适应混合切换。当 QUIC 连接不成功的时候，将会自动切换回传统的 TCP 桥接（默认使用 1883 端口）。
 
 ## [AWS IoT Core 桥接](./aws-iot-core-bridge.md)
 
