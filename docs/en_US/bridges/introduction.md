@@ -7,6 +7,9 @@ Bridging is a way to connect multiple MQTT brokers. Unlike swarms, topic trees, 
 
 This section introduces MQTT over TCP bridge, MQTT over QUIC bridge, and AWS IoT Core Bridge. 
 
+## [Adavanced bridging features]
+NanoMQ's bridging function is designed to provide an edge-cloud databus that can act as a local data proxy gateway to complete seamless data synchronization. Based on long-term feedback from open-source and commercial users, NanoMQ’s advanced data-bridging capabilities have the following:
+
 
 ### [Uplink QoS overwrite]
 
