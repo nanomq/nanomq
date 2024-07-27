@@ -49,10 +49,12 @@ bridges.mqtt.emqx1 = {
     {
       remote_topic = "fwd/topic1"
       local_topic = "topic1"
+      suffix = "/emqx"
     },
     {
       remote_topic = "fwd/topic2"
       local_topic = "topic2"
+      prefix = "emqx/"
     }
   ]     
   subscription = [                        # Topics that need to be subscribed from the remote MQTT server
@@ -61,6 +63,7 @@ bridges.mqtt.emqx1 = {
       local_topic = "topic3"
       qos = 1
       retain = 2                          # flag to override retain flag
+      suffix = "/emqx"
     },
     {
       remote_topic = "cmd/topic2"
@@ -101,13 +104,18 @@ This configuration enables NanoMQ to establish an MQTT over TCP bridge connectio
 - `forwards`: This is an array of topics that need to be forwarded to the remote MQTT server, including
   - `remote_topic`: Topics refection topic, will change the topic in publish msg. Just leave `remote_topic=""` to preserve the original topic in msg   
   - `local_topic`: Topics that need to be forwarded to the remote MQTT server.
-- `subscription`: This is an array of topic objects that need to be subscribed from the remote MQTT server. Each object defines a topic and the QoS level for the subscription. Including
+  - `qos`: overwrite original QoS level of Publish msg, this is optional.
+  - `suffix`: A suffix string will be added to the remote topic(add to the original topic if you leave remote_topic as null)
+  - `prefix`: A prefix string will be added to the remote topic(add to the original topic if you leave remote_topic as null)
+- `subscription`: This is an array of topic objects that need to be subscribed from the remote MQTT server. Each object defines a topic and the QoS level for the subscription(!Be aware that only the first rule takes effect if you configure multiple overlapping rules). Including
   - `remote_topic`: The topic filter used to subscribe to the remote broker.
   - `local_topic`: This is for Topic reflection, if you want the vanila way, then just leave `local_topic=""` to preserve the original topic in msg from remote broker.
   - `qos`: Define the QoS in the subscribe packet. This is a must. 
   - `retain`: a flag to override retain flag.
-  - `retain_as_published`: an optional item for MQTTv5 feature, Retain As Published.
+  - `retain_as_published`: an optional item for the MQTTv5 feature, Retain As Published.
   - `retain_handling`: an optional item for MQTTv5 feature, Retain Handling.
+  - `suffix`: A suffix string will be added to the local topic(add to the original topic if you leave local_topic as null)
+  - `prefix`: A prefix string will be added to the local topic(add to the original topic if you leave local_topic as null)
 
 - `max_parallel_processes`: Specifies the maximum number of parallel processes for handling outstanding requests.
 - `max_send_queue_len`: Specifies the maximum number of messages that can be queued for sending.
@@ -187,9 +195,11 @@ bridges.mqtt.emqx1 = {
       qos = 1
     },
     {
-      remote_topic = "fwd/topic2"
+      remote_topic = ""
       local_topic = "topic2"
       qos = 2
+      prefix = "emqx/"
+      suffix = "/nanomq"
     }
   ]     
   subscription = [                        # Topics that need to be subscribed from the remote MQTT server
@@ -260,7 +270,7 @@ bridges.mqtt.cache {
 
 ### **Configuration Items**
 
-- `disk_cache_size`: Specifies the maximum number of messages that can be cached in the MQTT bridges. A value of 0 indicates cache for messages is ineffecitve.
+- `disk_cache_size`: Specifies the maximum number of messages that can be cached in the MQTT bridges. A value of 0 indicates that the cache for messages is inefficient.
 - `mounted_file_path`: Specifies the file path where the cache file for the MQTT bridges is mounted.
 - `flush_mem_threshold`: Specifies the threshold for flushing messages to the cache file. When the number of messages reaches this threshold, they will be flushed to the cache file.
 - `resend_interval`: Specifies the interval, in milliseconds, for resending the messages after a failure is recovered. This is not related to the trigger for the resend operation. Only takes effect in bridging.
