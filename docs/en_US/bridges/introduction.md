@@ -7,11 +7,11 @@ Bridging is a way to connect multiple MQTT brokers. Unlike swarms, topic trees, 
 
 This section introduces MQTT over TCP bridge, MQTT over QUIC bridge, and AWS IoT Core Bridge. 
 
-## [Adavanced bridging features]
+## Adavanced bridging features
 NanoMQ's bridging function is designed to provide an edge-cloud databus that can act as a local data proxy gateway to complete seamless data synchronization. Based on long-term feedback from open-source and commercial users, NanoMQ’s advanced data-bridging capabilities have the following:
 
 
-### [Uplink QoS overwrite]
+### Uplink QoS overwrite
 
 ```bash
 bridges.mqtt.name {
@@ -28,7 +28,7 @@ bridges.mqtt.name {
 
 By adding the "QoS" parameter to the forward node in the configuration, you can specify the QoS level of the uploaded Publish message. Matching this rule will overwrite the QoS of the original message.
 
-### [Topic overwrite & Suffix/Prefix]
+### Topic overwrite & Suffix/Prefix
 
 To define edge topics more flexibly and establish a cloud-edge integrated unified data space (UNS), NanoMQ provides bridging topic overwritten and prefix/suffix functions. Users can add prefix/suffix information to multiple nodes of Forward and Subscription to modify the bridging topics of uplink and downlink messages, which facilitates topic management under complex network topologies and avoids topic conflicts between different edge devices.
 
@@ -98,7 +98,7 @@ This section provides an in-depth guide to configuring MQTT over TCP bridging, e
 
 In cases where integration with MQTT over TCP bridging is hard to implement, NanoMQ has innovatively introduced a new protocol, MQTT over QUIC. QUIC, initially developed by Google, was later adopted as a worldwide standard by the Internet Engineering Task Force (IETF). With MQTT over QUIC bridging, you can take full advantage of the QUIC protocol's benefits in IoT scenarios. 
 
-### [QUIC QoS Priority]
+### QUIC QoS Priority
 
 When using QUIC bridging, you can enable the priority of QoS 1/2 messages relative to QoS 0 messages through the following configuration.
 
@@ -115,7 +115,7 @@ bridges.mqtt.emqx {
 ```
 Based on the characteristics of QUIC, NanoMQ implements priority transmission of QoS messages under network congestion. When the buffer queue is congested due to weak network or limited bandwidth, QoS 1/2 messages will be transmitted with higher priority. Help users save more valuable bandwidth for more important data.
 
-### [QUIC/TCP hybrid bridging]
+### QUIC/TCP hybrid bridging
 
 ```bash
 bridges.mqtt.emqx {
