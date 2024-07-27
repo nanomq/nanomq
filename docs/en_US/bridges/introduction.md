@@ -30,7 +30,6 @@ By adding the "QoS" parameter to the forward node in the configuration, you can 
 
 ### [Topic overwrite & Suffix/Prefix]
 
-为了能够更灵活的定义边缘主题，建立云边一体化的统一数据空间（UNS），NanoMQ 提供了桥接主题覆盖和前后缀功能。用户可以在 Forward 和 Subscription 的多个 node 中增加前后缀信息来修改上下行消息的桥接主题，便于复杂网络拓扑下的主题管理，避免不同边缘设备之间的主题冲突。
 To define edge topics more flexibly and establish a cloud-edge integrated unified data space (UNS), NanoMQ provides bridging topic overwritten and prefix/suffix functions. Users can add prefix/suffix information to multiple nodes of Forward and Subscription to modify the bridging topics of uplink and downlink messages, which facilitates topic management under complex network topologies and avoids topic conflicts between different edge devices.
 
 Taking Forward node as an example：
