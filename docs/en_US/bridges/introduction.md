@@ -8,7 +8,7 @@ Bridging is a way to connect multiple MQTT brokers. Unlike swarms, topic trees, 
 This section introduces MQTT over TCP bridge, MQTT over QUIC bridge, and AWS IoT Core Bridge. 
 
 
-### [Uplink QoS overwritten]
+### [Uplink QoS overwrite]
 
 ```bash
 bridges.mqtt.name {
@@ -25,7 +25,7 @@ bridges.mqtt.name {
 
 By adding the "QoS" parameter to the forward node in the configuration, you can specify the QoS level of the uploaded Publish message. Matching this rule will overwrite the QoS of the original message.
 
-### [桥接主题覆盖和动态匹配前后缀]
+### [Topic overwrite & Suffix/Prefix]
 
 为了能够更灵活的定义边缘主题，建立云边一体化的统一数据空间（UNS），NanoMQ 提供了桥接主题覆盖和前后缀功能。用户可以在 Forward 和 Subscription 的多个 node 中增加前后缀信息来修改上下行消息的桥接主题，便于复杂网络拓扑下的主题管理，避免不同边缘设备之间的主题冲突。
 To define edge topics more flexibly and establish a cloud-edge integrated unified data space (UNS), NanoMQ provides bridging topic overwritten and prefix/suffix functions. Users can add prefix/suffix information to multiple nodes of Forward and Subscription to modify the bridging topics of uplink and downlink messages, which facilitates topic management under complex network topologies and avoids topic conflicts between different edge devices.
@@ -84,9 +84,6 @@ bridges.mqtt.name {
 }
 ```
 
-例如按上文的配置方式，收到来自远端的桥接目标的 “cmd/topic1” 主题的消息后，会总是命中第一条规则，将在本地的 “emqx/topic3/sub/rule1” 主题投递两次该条消息。而第二条规则将无法命中，因为每条消息都是各自独立的，且无法根据 Publish 消息的内容和桥接订阅规则相匹配。
-所以请尽量不要配置互相重叠的桥接订阅主题。、
-
 For example, according to the configuration method above, after receiving a message from the "cmd/topic1" topic of the remote bridge target, the first rule will always be hit, and will deliver msg to "emqx/topic3/sub/rule1" twice. 
 The second rule will fail to hit because each message is independent and we cannot match the bridge subscription rule based on the content of the Publish message.
 Please try not to configure overlapping bridge subscription topics. 
@@ -99,7 +96,7 @@ This section provides an in-depth guide to configuring MQTT over TCP bridging, e
 
 In cases where integration with MQTT over TCP bridging is hard to implement, NanoMQ has innovatively introduced a new protocol, MQTT over QUIC. QUIC, initially developed by Google, was later adopted as a worldwide standard by the Internet Engineering Task Force (IETF). With MQTT over QUIC bridging, you can take full advantage of the QUIC protocol's benefits in IoT scenarios. 
 
-### [QUIC QoS 优先传输]
+### [QUIC QoS Priority]
 
 When using QUIC bridging, you can enable the priority of QoS 1/2 messages relative to QoS 0 messages through the following configuration.
 
@@ -116,7 +113,7 @@ bridges.mqtt.emqx {
 ```
 Based on the characteristics of QUIC, NanoMQ implements priority transmission of QoS messages under network congestion. When the buffer queue is congested due to weak network or limited bandwidth, QoS 1/2 messages will be transmitted with higher priority. Help users save more valuable bandwidth for more important data.
 
-### [QUIC/TCP 混合桥接自适应切换]
+### [QUIC/TCP hybrid bridging]
 
 ```bash
 bridges.mqtt.emqx {
@@ -135,4 +132,4 @@ In order to allow users to use the MQTT over QUIC function with more easily, ada
 
 ## [AWS IoT Core Bridging](./aws-iot-core-bridge.md)
 
-[AWS IoT Core](https://docs.aws.amazon.com/zh_cn/iot/latest/developerguide/protocols.html) is one of the widely used public cloud IoT services in Europe and the United States.  However, because it is not fully aligned with the standard MQTT protocol and does not support QoS 2 messages, standard MQTT SDKs are not seamlessly compatible. AWS IoT Core bridging is now built into NanoMQ to help users address compatibility issues. 
+[AWS IoT Core](https://docs.aws.amazon.com/zh_cn/iot/latest/developerguide/protocols.html) is one of the widely used public cloud IoT services in Europe and the United States.  However, because it is not fully aligned with the standard MQTT protocol and does not support QoS 2 messages, standard MQTT SDKs are not seamlessly compatible. AWS IoT Core bridging is now built into NanoMQ to help users address compatibility issues. AWS IoT Core Data Bridge is not compatible with other special/advanced bridging features and only provides a bidirectional data channel for standard MQTT.
