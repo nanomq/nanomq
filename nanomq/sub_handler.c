@@ -135,7 +135,7 @@ decode_sub_msg(nano_work *work)
 			if (strchr(tn->topic.body, '+') != NULL ||
 				strchr(tn->topic.body, '#') != NULL ||
 				strstr(tn->topic.body, "//") != NULL||
-				tn->topic.len <= strlen("$share/a")) {
+				tn->topic.len <= 8 ) {	// This "/" character MUST be followed by a Topic Filter.
 				tn->reason_code = PAYLOAD_FORMAT_INVALID;
 				return PROTOCOL_ERROR;
 			}
