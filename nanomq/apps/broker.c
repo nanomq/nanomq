@@ -446,17 +446,14 @@ server_cb(void *arg)
 			if (work->msg_ret) {
 				log_debug("retain msg [%p] size [%ld] \n",
 				    work->msg_ret, cvector_size(work->msg_ret));
-				for (int i = 0;
-				     i < cvector_size(work->msg_ret) &&
+				for (int i = 0; i < cvector_size(work->msg_ret) &&
 				     check_msg_exp(work->msg_ret[i],
 				         nng_mqtt_msg_get_publish_property(
 				             work->msg_ret[i])); i++) {
 					nng_msg *m = work->msg_ret[i];
 					work->msg = m;
-					work->pub_packet =
-					    (struct pub_packet_struct *)
-					        nng_zalloc(sizeof(
-					            struct pub_packet_struct));
+					work->pub_packet = (struct pub_packet_struct *) nng_zalloc(
+										sizeof(struct pub_packet_struct));
 					if (SUCCESS == decode_pub_message(work, work->proto_ver)) {
 						bool  bridged = false;
 						void *proto_data = nng_msg_get_proto_data(work->msg);
@@ -481,13 +478,15 @@ server_cb(void *arg)
 							nng_aio_set_msg(work->aio, rmsg);
 							nng_aio_set_prov_data(work->aio, &work->pid.id);
 							nng_ctx_send(work->ctx, work->aio);
-						}
-						free_pub_packet(work->pub_packet);
-						work->pub_packet = NULL;
-						cvector_free(work->pipe_ct->msg_infos);
-						work->pipe_ct->msg_infos = NULL;
-						init_pipe_content(work->pipe_ct);
+						} else
+							log_warn("encode retain msg failed!");
+					} else {
+						log_warn("decode retain msg failed!");
 					}
+					free_pub_packet(work->pub_packet);
+					work->pub_packet = NULL;
+					cvector_free(work->pipe_ct->msg_infos);
+					work->pipe_ct->msg_infos = NULL;
 					// free the ref due to dbtree_find_retain
 					nng_msg_free(m);
 				}
