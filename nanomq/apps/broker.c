@@ -1288,7 +1288,7 @@ broker(conf *nanomq_conf)
 				NANO_NNG_FATAL("nng_listener_create tls", rv);
 			}
 			nng_listener_set(tls_listener, NANO_CONF, nanomq_conf,
-			    sizeof(nanomq_conf));
+			    sizeof(conf));
 
 			init_listener_tls(
 			    tls_listener, nanomq_conf->tls_list.nodes[i]);
@@ -1306,7 +1306,7 @@ broker(conf *nanomq_conf)
 				NANO_NNG_FATAL("nng_listener_create tls", rv);
 			}
 			nng_listener_set(tls_listener, NANO_CONF, nanomq_conf,
-			    sizeof(nanomq_conf));
+			    sizeof(conf));
 			init_listener_tls(tls_listener, &nanomq_conf->tls);
 			if ((rv = nng_listener_start(tls_listener, 0)) != 0) {
 				NANO_NNG_FATAL("nng_listener_start tls", rv);
