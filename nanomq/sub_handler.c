@@ -126,14 +126,20 @@ decode_sub_msg(nano_work *work)
 		}
 		ppos++;
 
-		// Setting no_local on shared subscription is invalid
-		if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5 &&
-		    strncmp(tn->topic.body, "$share/", strlen("$share/")) == 0 &&
-		    tn->no_local == 1) {
-			tn->reason_code = PAYLOAD_FORMAT_INVALID;
-			return PROTOCOL_ERROR;
+		if (strncmp(tn->topic.body, "$share/", strlen("$share/")) == 0) {
+			// Setting no_local on shared subscription is invalid
+			if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5 && tn->no_local == 1) {
+				tn->reason_code = PAYLOAD_FORMAT_INVALID;
+				return PROTOCOL_ERROR;
+			}
+			if (strchr(tn->topic.body, '+') != NULL ||
+				strchr(tn->topic.body, '#') != NULL ||
+				strstr(tn->topic.body, "//") != NULL||
+				tn->topic.len <= 8 ) {	// This "/" character MUST be followed by a Topic Filter.
+				tn->reason_code = PAYLOAD_FORMAT_INVALID;
+				return PROTOCOL_ERROR;
+			}
 		}
-
 		if (ppos < remaining_len - bpos) {
 			newtn = nng_zalloc(sizeof(topic_node));
 			if (newtn == NULL) {
