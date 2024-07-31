@@ -500,12 +500,12 @@ server_cb(void *arg)
 							nng_aio_set_prov_data(work->aio, &work->pid.id);
 							nng_ctx_send(work->ctx, work->aio);
 						}
-						free_pub_packet(work->pub_packet);
-						work->pub_packet = NULL;
-						cvector_free(work->pipe_ct->msg_infos);
-						work->pipe_ct->msg_infos = NULL;
-						init_pipe_content(work->pipe_ct);
 					}
+					free_pub_packet(work->pub_packet);
+					work->pub_packet = NULL;
+					cvector_free(work->pipe_ct->msg_infos);
+					work->pipe_ct->msg_infos = NULL;
+					init_pipe_content(work->pipe_ct);
 					// free the ref due to dbtree_find_retain
 					nng_msg_free(m);
 				}
