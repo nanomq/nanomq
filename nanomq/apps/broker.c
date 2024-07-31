@@ -581,20 +581,21 @@ server_cb(void *arg)
 			hook_entry(work, reason_code);
 			// Set V4/V5 flag for publish notify msg
 			nng_msg_set_cmd_type(smsg, CMD_PUBLISH);
-			work->flag = CMD_PUBLISH;
 			nng_msg_free(work->msg);
 			work->msg = smsg;
 			handle_pub(work, work->pipe_ct,
 			    MQTT_PROTOCOL_VERSION_v311, true);
+			// set flag after hanlde_pub to avoid bridging logic
+			work->flag = CMD_PUBLISH;
 			// remember to free conn_param in WAIT 
 			// due to clone in protocol layer
 		} else if (work->flag == CMD_DISCONNECT_EV) {
 			// Now v4 as default/send V5 notify msg?
 			hook_entry(work, 0);
 			nng_msg_set_cmd_type(msg, CMD_PUBLISH);
-			work->flag = CMD_PUBLISH;
 			handle_pub(work, work->pipe_ct,
 			    MQTT_PROTOCOL_VERSION_v311, true);
+			work->flag = CMD_PUBLISH;
 			// TODO set reason code
 			// uint8_t *payload = nng_msg_payload_ptr(work->msg);
 			// uint8_t reason_code = *(payload+16);
