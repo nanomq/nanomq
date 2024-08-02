@@ -504,6 +504,38 @@ error:
 	abort();
 }
 
+void
+parquet_find_file_range_test()
+{
+	parquet_filename_range **file_ranges = parquet_find_file_range(10, 4409, "canudp");
+	parquet_filename_range **file_ranges_for_free = file_ranges;
+	check_mem(file_ranges);
+	while (*file_ranges)
+	{
+		uint32_t size = 0;
+		parquet_data_packet **packs = parquet_find_data_span_packets_specify_file(NULL, *file_ranges, &size);
+		for (uint32_t i = 0; i < size; i++) {
+			parquet_data_packet* pack = packs[i];
+			char expect[32] = { 0 };
+			sprintf(expect, "hello world%d", i);
+			check(pack->size == strlen(expect), "size error");
+		 	check_nstr(pack->data, expect, pack->size);
+	 		FREE_STRUCT(packs[i]->data);
+	 		FREE_STRUCT(packs[i]);
+		}
+		FREE_STRUCT(packs);
+		nng_strfree((char*)(*file_ranges)->filename);
+		FREE_STRUCT(*file_ranges);
+		file_ranges++;
+	}
+	FREE_STRUCT(file_ranges_for_free);
+	return;
+
+error:
+	abort();
+}
+
+
 int
 main(int argc, char **argv)
 {
@@ -511,14 +543,16 @@ main(int argc, char **argv)
 	conf_parquet *conf = conf_parquet_init();
 
 	parquet_write_launcher(conf);
-	puts("parquet write batch async passed!");
 	parquet_write_batch_async_test();
-	puts("parquet write batch tmp async passed!");
+	puts("parquet write batch async passed!");
 	parquet_write_batch_async_tmp_test();
-	puts("parquet_find_span_test passed!");
+	puts("parquet write batch tmp async passed!");
 	parquet_find_span_test();
-	puts("parquet_find_data_packet_test passed!");
+	puts("parquet_find_span_test passed!");
 	parquet_find_data_packet_test();
+	puts("parquet_find_data_packet_test passed!");
+	parquet_find_file_range_test();
+	puts("parquet_find_file_range_test passed!");
 
 	return 0;
 }
