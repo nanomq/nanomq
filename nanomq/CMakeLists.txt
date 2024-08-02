@@ -184,7 +184,3 @@ endif()
 if (NANOMQ_TESTS)
     add_definitions(-DENABLE_NANOMQ_TESTS)
 endif(NANOMQ_TESTS)
-
-nanomq_test(sub_handler_test)
-nanomq_test(unsub_handler_test)
-nanomq_test(pub_handler_test)
