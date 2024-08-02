@@ -156,6 +156,7 @@ aio_test_cb(void *arg)
 	test_index++;
 	return;
 error:
+	puts("parquet write batch async failed!");
 	abort();
 }
 
@@ -187,6 +188,7 @@ aio_test_write_tmp_cb(void *arg)
 	test_index++;
 	return;
 error:
+	puts("parquet write batch tmp async failed!");
 	abort();
 }
 
@@ -469,6 +471,7 @@ parquet_find_span_test()
 	return;
 
 error:
+	puts("parquet_find_span_test failed!");
 	abort();
 }
 
@@ -501,6 +504,7 @@ parquet_find_data_packet_test()
 	return;
 
 error:
+	puts("parquet_find_data_packet_test failed!");
 	abort();
 }
 
@@ -532,7 +536,21 @@ parquet_find_file_range_test()
 	return;
 
 error:
+	puts("parquet_find_file_range_test failed!");
 	abort();
+}
+
+void
+parquet_get_key_span_test()
+{
+	uint64_t *data_span = NULL;
+	data_span = parquet_get_key_span();
+	check(data_span[0] == 10, "start key error");
+	check(data_span[1] == 4409, "end key error");
+	return;
+error:
+	puts("parquet_get_key_span_test failed!");
+    abort();
 }
 
 
@@ -553,6 +571,8 @@ main(int argc, char **argv)
 	puts("parquet_find_data_packet_test passed!");
 	parquet_find_file_range_test();
 	puts("parquet_find_file_range_test passed!");
+	parquet_get_key_span_test();
+	puts("parquet_get_key_span_test passed!");
 
 	return 0;
 }
