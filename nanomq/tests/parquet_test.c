@@ -3,6 +3,7 @@
 #include "nng/nng.h"
 #include "nng/supplemental/nanolib/cvector.h"
 #include "nng/supplemental/nanolib/parquet.h"
+#include "nng/supplemental/nanolib/md5.h"
 #include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,19 +21,24 @@
 #define DATASIZE 10
 #define NUM_KEYS 5
 #define STRING_LENGTH 12
-static uint64_t keys_test[NUM_KEYS][DATASIZE] = { { 10, 21, 32, 43, 54, 65, 76,
-	                                              87, 98, 109 },
+static uint64_t keys_test[NUM_KEYS][DATASIZE] = { 
+	{ 10, 21, 32, 43, 54, 65, 76,87, 98, 109 },
 	{ 110, 121, 132, 143, 154, 165, 176, 187, 198, 1109 },
 	{ 220, 222, 232, 243, 254, 265, 276, 287, 298, 2209 },
 	{ 330, 333, 333, 343, 354, 365, 376, 387, 398, 3309 },
-	{ 440, 444, 444, 444, 454, 465, 476, 487, 498, 4409 } };
+	{ 440, 444, 444, 444, 454, 465, 476, 487, 498, 4409 } 
+};
 
 static uint64_t find_keys_test[NUM_KEYS] = { 10, 110, 220, 330, 440 };
+static char topic[] = "canudp";
+static char prefix[] = "/tmp/parquet/ly_canudp";
 
-static char *filenames[NUM_KEYS] = { "/tmp/parquet/ly-10~109.parquet",
-	"/tmp/parquet/ly-110~1109.parquet", "/tmp/parquet/ly-220~2209.parquet",
-	"/tmp/parquet/ly-330~3309.parquet",
-	"/tmp/parquet/ly-440~4409.parquet" };
+static char *filenames[NUM_KEYS] = { 
+	"10~109.parquet", "110~1109.parquet",
+	"220~2209.parquet", "330~3309.parquet", 
+	"440~4409.parquet" };
+
+static char *full_filenames[NUM_KEYS] = { 0 };
 
 typedef struct {
 	nng_aio *aio;
@@ -100,6 +106,24 @@ works_free(work **works)
 	}
 	cvector_free(works);
 }
+void
+check_name(char *result, char *expect_suffix)
+{
+	char md5_buffer[MD5_LEN + 1];
+	int  ret = ComputeFileMD5(result, md5_buffer);
+	if (ret != 0) {
+		log_error("Failed to calculate md5sum");
+		goto error;
+	}
+	char filename[128] = { 0 };
+	snprintf(filename, 128, "%s_%s-%s", prefix, md5_buffer, expect_suffix);
+
+	check(nng_strcasecmp(result, filename) == 0,
+	    "Filename error: %s != %s", result, filename);
+	return;
+error:
+	abort();
+}
 
 void
 aio_test_cb(void *arg)
@@ -124,10 +148,10 @@ aio_test_cb(void *arg)
 		check_mem(range);
 		check(range->start_idx == 0, "Start Index error");
 		check(range->end_idx == 9, "End Index error");
-		check(nng_strcasecmp(range->filename, filenames[test_index]) ==
-		        0,
-		    "Filename error: %s != %s", range->filename,
-		    filenames[test_index]);
+		check_name(range->filename, filenames[test_index]);
+		// Copy for below test.
+		full_filenames[test_index] = nng_strdup(range->filename);
+
 	}
 	test_index++;
 	return;
@@ -181,6 +205,7 @@ parquet_write_batch_async_test1(void)
 
 	parquet_object *elem = parquet_object_alloc(
 	    keys, (uint8_t **) darray, dsize, DATASIZE, w->aio, darray);
+	elem->topic = topic;
 
 	parquet_write_batch_async(elem);
 	return w;
@@ -201,6 +226,7 @@ parquet_write_batch_async_test2(void)
 
 	parquet_object *elem = parquet_object_alloc(
 	    keys, (uint8_t **) darray, dsize, DATASIZE, w->aio, darray);
+	elem->topic = topic;
 
 	parquet_write_batch_async(elem);
 	return w;
@@ -222,6 +248,7 @@ parquet_write_batch_async_test3(void)
 	parquet_object *elem = parquet_object_alloc(
 	    keys, (uint8_t **) darray, dsize, DATASIZE, w->aio, darray);
 
+	elem->topic = topic;
 	parquet_write_batch_async(elem);
 	return w;
 }
@@ -241,6 +268,7 @@ parquet_write_batch_async_test4(void)
 
 	parquet_object *elem = parquet_object_alloc(
 	    keys, (uint8_t **) darray, dsize, DATASIZE, w->aio, darray);
+	elem->topic = topic;
 
 	parquet_write_batch_async(elem);
 
@@ -262,6 +290,7 @@ parquet_write_batch_async_test5(void)
 
 	parquet_object *elem = parquet_object_alloc(
 	    keys, (uint8_t **) darray, dsize, DATASIZE, w->aio, darray);
+	elem->topic = topic;
 
 	parquet_write_batch_async(elem);
 
@@ -403,7 +432,7 @@ parquet_find_span_test()
 
 	char *value = (char *) parquet_find(4000);
 	check_mem(value);
-	check_str(value, filenames[4]);
+	check_name(value, filenames[4]);
 	nng_strfree(value);
 
 	// Test normal case
@@ -413,7 +442,7 @@ parquet_find_span_test()
 	for (uint32_t i = 0; i < size; i++) {
 		if (array[i]) {
 			check_mem(array[i]);
-			check_str(array[i], filenames[i]);
+			check_name(array[i], filenames[i]);
 			nng_strfree(array[i]);
 		}
 	}
@@ -429,7 +458,6 @@ parquet_find_span_test()
 	check(size == 0, "find span size error");
 	for (uint32_t i = 0; i < size; i++) {
 		if (array[i]) {
-			puts(array[i]);
 			check_mem(array[i]);
 			check_str(array[i], filenames[i]);
 			nng_strfree(array[i]);
@@ -448,17 +476,19 @@ void
 parquet_find_data_packet_test()
 {
 	parquet_data_packet *pack = parquet_find_data_packet(
-	    NULL, "/tmp/parquet/ly-110~1109.parquet", 1109);
+	    NULL, full_filenames[1], 1109);
 	check_mem(pack);
 	check(pack->size == strlen("hello world9"), "size error");
 	check_nstr(pack->data, "hello world9", pack->size);
+	FREE_STRUCT(pack->data);
+	FREE_STRUCT(pack);
 
 	parquet_data_packet **packs = parquet_find_data_packets(
-	    NULL, filenames, find_keys_test, NUM_KEYS);
+	    NULL, full_filenames, find_keys_test, NUM_KEYS);
 	check_mem(packs);
 	for (int i = 0; i < NUM_KEYS; i++) {
 		if (packs[i]) {
-			check(pack->size == strlen("hello world0"),
+			check(packs[i]->size == strlen("hello world0"),
 			    "size error");
 			check_nstr(
 			    packs[i]->data, "hello world0", packs[i]->size);
