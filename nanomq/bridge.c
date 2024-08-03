@@ -200,6 +200,7 @@ bridge_handle_topic_sub_reflection(nano_work *work, conf_bridge_node *node)
 					goto fix;
 				}
 				topic->body = nng_strdup(sub_topic->local_topic);
+				topic->len = strlen(topic->body);
 				rv = NNG_STAT_STRING;
 				if (topic->body == NULL) {
 					log_error("bridge: alloc local_topic failed");
