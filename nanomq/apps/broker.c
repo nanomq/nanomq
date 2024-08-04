@@ -1255,9 +1255,19 @@ broker(conf *nanomq_conf)
 	}
 
 	if (nanomq_conf->enable) {
-		// TODO: Multiple listener
-		if ((rv = nano_listen(sock, nanomq_conf->url, NULL, 0, nanomq_conf)) != 0) {
-			NANO_NNG_FATAL("broker nng_listen", rv);
+		if (nanomq_conf->url) {
+			if ((rv = nano_listen(sock, nanomq_conf->url, NULL, 0,
+			         nanomq_conf)) != 0) {
+				NANO_NNG_FATAL("broker nng_listen", rv);
+			}
+		}
+
+		for (i = 0; i < nanomq_conf->tcp_list.count; i++) {
+			if ((rv = nano_listen(sock,
+			         nanomq_conf->tcp_list.nodes[i]->url, NULL, 0,
+			         nanomq_conf)) != 0) {
+				NANO_NNG_FATAL("broker nng_listen", rv);
+			}
 		}
 	}
 
@@ -1269,20 +1279,41 @@ broker(conf *nanomq_conf)
 		}
 	}
 
+	if (nanomq_conf->tls_list.count > 0) {
+		for (i = 0; i < nanomq_conf->tls_list.count; i++) {
+			nng_listener tls_listener;
+
+			if ((rv = nng_listener_create(&tls_listener, sock,
+			         nanomq_conf->tls_list.nodes[i]->url)) != 0) {
+				NANO_NNG_FATAL("nng_listener_create tls", rv);
+			}
+			nng_listener_set(tls_listener, NANO_CONF, nanomq_conf,
+			    sizeof(conf));
+
+			init_listener_tls(
+			    tls_listener, nanomq_conf->tls_list.nodes[i]);
+			if ((rv = nng_listener_start(tls_listener, 0)) != 0) {
+				NANO_NNG_FATAL("nng_listener_start tls", rv);
+			}
+		}
+	}
+
 	if (nanomq_conf->tls.enable) {
-		nng_listener tls_listener;
-
-		if ((rv = nng_listener_create(
-		         &tls_listener, sock, nanomq_conf->tls.url)) != 0) {
-			NANO_NNG_FATAL("nng_listener_create tls", rv);
+		if (nanomq_conf->tls.url) {
+			nng_listener tls_listener;
+			if ((rv = nng_listener_create(&tls_listener, sock,
+			         nanomq_conf->tls.url)) != 0) {
+				NANO_NNG_FATAL("nng_listener_create tls", rv);
+			}
+			nng_listener_set(tls_listener, NANO_CONF, nanomq_conf,
+			    sizeof(conf));
+			init_listener_tls(tls_listener, &nanomq_conf->tls);
+			if ((rv = nng_listener_start(tls_listener, 0)) != 0) {
+				NANO_NNG_FATAL("nng_listener_start tls", rv);
+			}
 		}
-		nng_listener_set(
-		    tls_listener, NANO_CONF, nanomq_conf, sizeof(nanomq_conf));
 
-		init_listener_tls(tls_listener, &nanomq_conf->tls);
-		if ((rv = nng_listener_start(tls_listener, 0)) != 0) {
-			NANO_NNG_FATAL("nng_listener_start tls", rv);
-		}
+		// TODO: multi for websocket
 		if (nanomq_conf->websocket.enable) {
 			nng_listener wss_listener;
 			if ((rv = nng_listener_create(&wss_listener, sock,
@@ -1858,16 +1889,21 @@ broker_start(int argc, char **argv)
 		fprintf(stderr, "Cannot parse command line arguments, quit\n");
 		exit(EXIT_FAILURE);
 	}
+
 	if (nanomq_conf->enable) {
-		nanomq_conf->url = nanomq_conf->url != NULL
-		    ? nanomq_conf->url
-		    : nng_strdup(CONF_TCP_URL_DEFAULT);
+		if (nanomq_conf->tcp_list.count == 0) {
+			nanomq_conf->url = nanomq_conf->url != NULL
+			    ? nanomq_conf->url
+			    : nng_strdup(CONF_TCP_URL_DEFAULT);
+		}
 	}
 
 	if (nanomq_conf->tls.enable) {
-		nanomq_conf->tls.url = nanomq_conf->tls.url != NULL
-		    ? nanomq_conf->tls.url
-		    : nng_strdup(CONF_TLS_URL_DEFAULT);
+		if (nanomq_conf->tls_list.count == 0) {
+			nanomq_conf->tls.url = nanomq_conf->tls.url != NULL
+			    ? nanomq_conf->tls.url
+			    : nng_strdup(CONF_TLS_URL_DEFAULT);
+		}
 	}
 
 	if (nanomq_conf->websocket.enable) {
@@ -1940,15 +1976,19 @@ broker_start_with_conf(void *nmq_conf)
 	}
 
 	if (nanomq_conf->enable) {
-		nanomq_conf->url = nanomq_conf->url != NULL
-		    ? nanomq_conf->url
-		    : nng_strdup(CONF_TCP_URL_DEFAULT);
+		if (nanomq_conf->tcp_list.count == 0) {
+			nanomq_conf->url = nanomq_conf->url != NULL
+			    ? nanomq_conf->url
+			    : nng_strdup(CONF_TCP_URL_DEFAULT);
+		}
 	}
 
 	if (nanomq_conf->tls.enable) {
-		nanomq_conf->tls.url = nanomq_conf->tls.url != NULL
-		    ? nanomq_conf->tls.url
-		    : nng_strdup(CONF_TLS_URL_DEFAULT);
+		if (nanomq_conf->tls_list.count == 0) {
+			nanomq_conf->tls.url = nanomq_conf->tls.url != NULL
+			    ? nanomq_conf->tls.url
+			    : nng_strdup(CONF_TLS_URL_DEFAULT);
+		}
 	}
 
 	if (nanomq_conf->websocket.enable) {

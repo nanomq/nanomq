@@ -7,10 +7,19 @@ The Listener configuration allows you to specify settings for different types of
 ### **Example Configuration**
 
 ```hcl
-listeners.tcp.tcp_listener_1 = {
+listeners.tcp {
   bind = "0.0.0.0:1883"     # The listener binds to all network interfaces on port 1883
 }
+
+listeners.tcp.listener_1 {
+  bind = "0.0.0.0:1884"     # The listener binds to all network interfaces on port 1884
+}
+
+listeners.tcp.listener_2 {
+  bind = "0.0.0.0:1885"     # The listener binds to all network interfaces on port 1885
+}
 ```
+NanoMQ support multi-listeners now. 
 
 ### **Configuration Items**
 
@@ -83,17 +92,3 @@ The secure WebSocket listener utilizes the same `keyfile`, `certfile`, and `cace
 - `cacertfile`
 
 :::
-
-## Upcoming Features
-
-**TLS**
-
-NanoMQ will support multi-listeners in upcoming releases. 
-
-```hcl
-listeners.tcp.tcp_listener_1 = {
-  bind = "0.0.0.0:1883"     # The listener binds to all network interfaces on port 1883
-}
-```
-
-<!--@jaylin can we add multiple listeners, if yes, it's good if we could give some examples.-->
