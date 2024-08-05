@@ -101,6 +101,7 @@ decode_sub_msg(nano_work *work)
 			tn->reason_code = UNSPECIFIED_ERROR;
 			if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 				tn->reason_code = TOPIC_FILTER_INVALID;
+				return PROTOCOL_ERROR;
 			}
 			ppos += 1; // ignore option
 			if (ppos < remaining_len - bpos) {
