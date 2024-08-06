@@ -719,8 +719,11 @@ hook_cb(void *arg)
 		works[i] = alloc_work(sock, &conf->web_hook, &conf->exchange, &conf->parquet);
 		works[i]->id = i;
 	}
+
+	char *hook_ipc_url =
+	    conf->hook_ipc_url == NULL ? HOOK_IPC_URL : conf->hook_ipc_url;
 	// NanoMQ core thread talks to others via INPROC
-	if ((rv = nng_listen(sock, HOOK_IPC_URL, NULL, 0)) != 0) {
+	if ((rv = nng_listen(sock, hook_ipc_url, NULL, 0)) != 0) {
 		log_error("hook nng_listen %d", rv);
 		goto out;
 	}

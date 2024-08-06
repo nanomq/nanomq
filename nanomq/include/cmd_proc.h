@@ -14,7 +14,7 @@ typedef struct cmd_work cmd_work;
 
 extern void      cmd_server_cb(void *arg);
 extern cmd_work *alloc_cmd_work(nng_socket sock, conf *config);
-extern void      start_cmd_client(const char *cmd);
+extern void      start_cmd_client(const char *cmd, const char *url);
 extern char *    encode_client_cmd(const char *conf_file, int type);
 
 #endif // NANOMQ_CMD_PROC_H
