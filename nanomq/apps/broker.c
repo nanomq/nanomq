@@ -2068,7 +2068,10 @@ broker_reload(int argc, char **argv)
 	conf_parse_ver2(nanomq_conf);
 	char *msg = encode_client_cmd(nanomq_conf->conf_file, rc);
 
-	start_cmd_client(msg, nanomq_conf->cmd_ipc_url);
+	char *cmd_ipc_url = nanomq_conf->hook_ipc_url == NULL
+	    ? CMD_IPC_URL
+	    : nanomq_conf->cmd_ipc_url;
+	start_cmd_client(msg, cmd_ipc_url);
 
 	if (msg) {
 		nng_strfree(msg);
@@ -2133,9 +2136,13 @@ broker_reload(int argc, char **argv)
 	}
 
 	conf_parse_ver2(nanomq_conf);
-	char *msg = encode_client_cmd(nanomq_conf->conf_file, rc);
 
-	start_cmd_client(msg, nanomq_conf->cmd_ipc_url);
+	char *msg = encode_client_cmd(nanomq_conf->conf_file, rc);
+	char *cmd_ipc_url = nanomq_conf->hook_ipc_url == NULL
+	    ? CMD_IPC_URL
+	    : nanomq_conf->cmd_ipc_url;
+
+	start_cmd_client(msg, cmd_ipc_url);
 
 	if (msg) {
 		nng_strfree(msg);
