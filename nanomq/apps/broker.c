@@ -958,7 +958,11 @@ proto_work_init(nng_socket sock, nng_socket extrasock, uint8_t proto,
 		if ((rv = nng_push0_open(&w->hook_sock)) != 0) {
 			NANO_NNG_FATAL("nng_socket", rv);
 		}
-		if ((rv = nng_dial(w->hook_sock, HOOK_IPC_URL, NULL, 0)) != 0) {
+		char *hook_ipc_url = config->hook_ipc_url == NULL
+		    ? HOOK_IPC_URL
+		    : config->hook_ipc_url;
+		if ((rv = nng_dial(w->hook_sock, hook_ipc_url, NULL, 0)) !=
+		    0) {
 			NANO_NNG_FATAL("hook nng_dial", rv);
 		}
 	}
@@ -1545,9 +1549,12 @@ status_check(int *pid)
 #else
 	char  *data = NULL;
 	size_t size = 0;
-
+	char *pid_path = read_env_pid_file();
+	if (pid_path == NULL) {
+		pid_path = PID_PATH_NAME;
+	}
 	int rc;
-	if ((rc = nng_file_get(PID_PATH_NAME, (void *) &data, &size)) != 0) {
+	if ((rc = nng_file_get(pid_path, (void *) &data, &size)) != 0) {
 		nng_free(data, size);
 		log_warn(".pid file not found or unreadable\n");
 		return 1;
@@ -1567,7 +1574,7 @@ status_check(int *pid)
 				return 0;
 			}
 		}
-		if (!nng_file_delete(PID_PATH_NAME)) {
+		if (!nng_file_delete(pid_path)) {
 			log_info(".pid file is removed");
 			return 1;
 		}
@@ -1586,7 +1593,12 @@ store_pid()
 	snprintf(pid_c, 10, "%d", nng_getpid());
 	log_info("%s", pid_c);
 
-	status = nng_file_put(PID_PATH_NAME, pid_c, sizeof(pid_c));
+	char *pid_path = read_env_pid_file();
+	if (pid_path == NULL) {
+		pid_path = PID_PATH_NAME;
+	}
+
+	status = nng_file_put(pid_path, pid_c, sizeof(pid_c));
 	return status;
 }
 
