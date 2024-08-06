@@ -2086,23 +2086,39 @@ broker_reload(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	char *file_path = NULL;
-	int   rc        = file_path_parse(argc, argv, &file_path);
+	conf *nanomq_conf;
+
+	if ((nanomq_conf = nng_zalloc(sizeof(conf))) == NULL) {
+		fprintf(stderr,
+		    "Cannot allocate storge for configuration, quit\n");
+		exit(EXIT_FAILURE);
+	}
+
+	conf_init(nanomq_conf);
+
+	int rc = file_path_parse(argc, argv, &nanomq_conf->conf_file);
 	if (!rc) {
 		fprintf(stderr, "Cannot parse command line arguments, quit\n");
 		exit(EXIT_FAILURE);
 	}
 
-	char *msg = encode_client_cmd(file_path, rc);
+	if (nanomq_conf->conf_file == NULL) {
+		nanomq_conf->conf_file = CONF_PATH_NAME;
+		printf("Config file is not specified, use default config "
+		       "file: %s\n",
+		    nanomq_conf->conf_file);
+	}
 
-	start_cmd_client(msg);
+	conf_parse_ver2(nanomq_conf);
+	char *msg = encode_client_cmd(nanomq_conf->conf_file, rc);
+
+	start_cmd_client(msg, nanomq_conf->cmd_ipc_url);
 
 	if (msg) {
 		nng_strfree(msg);
 	}
-	if (file_path) {
-		nng_strfree(file_path);
-	}
+
+	conf_fini(nanomq_conf);
 
 	return 0;
 }
@@ -2137,20 +2153,39 @@ broker_restart(int argc, char **argv)
 int
 broker_reload(int argc, char **argv)
 {
-	char *file_path = NULL;
-	int   rc        = file_path_parse(argc, argv, &file_path);
+	conf *nanomq_conf;
+
+	if ((nanomq_conf = nng_zalloc(sizeof(conf))) == NULL) {
+		fprintf(stderr,
+		    "Cannot allocate storge for configuration, quit\n");
+		exit(EXIT_FAILURE);
+	}
+
+	conf_init(nanomq_conf);
+
+	int rc = file_path_parse(argc, argv, &nanomq_conf->conf_file);
 	if (!rc) {
 		fprintf(stderr, "Cannot parse command line arguments, quit\n");
 		exit(EXIT_FAILURE);
 	}
 
-	char *msg = encode_client_cmd(file_path, rc);
+	if (nanomq_conf->conf_file == NULL) {
+		nanomq_conf->conf_file = CONF_PATH_NAME;
+		printf("Config file is not specified, use default config "
+		       "file: %s\n",
+		    nanomq_conf->conf_file);
+	}
 
-	start_cmd_client(msg);
+	conf_parse_ver2(nanomq_conf);
+	char *msg = encode_client_cmd(nanomq_conf->conf_file, rc);
+
+	start_cmd_client(msg, nanomq_conf->cmd_ipc_url);
 
 	if (msg) {
 		nng_strfree(msg);
 	}
+
+	conf_fini(nanomq_conf);
 
 	return 0;
 }
