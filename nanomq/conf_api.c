@@ -474,17 +474,28 @@ set_reload_config(cJSON *json, conf *config)
 		// Update first. Is error happened in follow codes. revert.
 		update_var(config->parquet.enable, enable_mqtt_stream);
 
-		if (enable_mqtt_stream_before == true && enable_mqtt_stream == false) {
+		if (enable_mqtt_stream_before == true &&
+		    enable_mqtt_stream == false) {
 			if (hook_sock == NULL) {
 				hook_sock = nng_alloc(sizeof(nng_socket));
 				if (0 != nng_push0_open(hook_sock)) {
-					log_error("error in update enable mqtt stream, hook open");
-					update_var(config->parquet.enable, enable_mqtt_stream_before);
+					log_error("error in update enable "
+					          "mqtt stream, hook open");
+					update_var(config->parquet.enable,
+					    enable_mqtt_stream_before);
 					return;
 				}
-				if (0 != nng_dial(*hook_sock, HOOK_IPC_URL, NULL, 0)) {
-					log_error("error in update enable mqtt stream, hook dial");
-					update_var(config->parquet.enable, enable_mqtt_stream_before);
+				char *hook_ipc_url =
+				    config->hook_ipc_url == NULL
+				    ? HOOK_IPC_URL
+				    : config->hook_ipc_url;
+				if (0 !=
+				    nng_dial(
+				        *hook_sock, hook_ipc_url, NULL, 0)) {
+					log_error("error in update enable "
+					          "mqtt stream, hook dial");
+					update_var(config->parquet.enable,
+					    enable_mqtt_stream_before);
 					return;
 				}
 			}
@@ -493,17 +504,21 @@ set_reload_config(cJSON *json, conf *config)
 			cJSON_AddStringToObject(obj, "id", EXTERNAL2NANO_IPC);
 			cJSON_AddStringToObject(obj, "cmd", "stop");
 			char *json = cJSON_PrintUnformatted(obj);
-			int rc = nng_send(*hook_sock, json, strlen(json), NNG_FLAG_ALLOC);
+			int   rc   = nng_send(
+                            *hook_sock, json, strlen(json), NNG_FLAG_ALLOC);
 			if (rc != 0) {
-				log_error("error in update enable mqtt stream, hook sending");
-				update_var(config->parquet.enable, enable_mqtt_stream_before);
+				log_error("error in update enable mqtt "
+				          "stream, hook sending");
+				update_var(config->parquet.enable,
+				    enable_mqtt_stream_before);
 				free(json);
 				cJSON_Delete(obj);
 				return;
 			}
 			log_info("cmd for update enable mqtt stream was sent");
 			cJSON_Delete(obj);
-		} else if (enable_mqtt_stream_before == false && enable_mqtt_stream == true) {
+		} else if (enable_mqtt_stream_before == false &&
+		    enable_mqtt_stream == true) {
 			log_info("Parquet & MQ service restarted");
 		}
 	}

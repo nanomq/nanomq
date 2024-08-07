@@ -958,7 +958,11 @@ proto_work_init(nng_socket sock, nng_socket extrasock, uint8_t proto,
 		if ((rv = nng_push0_open(&w->hook_sock)) != 0) {
 			NANO_NNG_FATAL("nng_socket", rv);
 		}
-		if ((rv = nng_dial(w->hook_sock, HOOK_IPC_URL, NULL, 0)) != 0) {
+		char *hook_ipc_url = config->hook_ipc_url == NULL
+		    ? HOOK_IPC_URL
+		    : config->hook_ipc_url;
+		if ((rv = nng_dial(w->hook_sock, hook_ipc_url, NULL, 0)) !=
+		    0) {
 			NANO_NNG_FATAL("hook nng_dial", rv);
 		}
 	}
@@ -1341,9 +1345,15 @@ broker(conf *nanomq_conf)
 			cmd_works[i] = alloc_cmd_work(cmd_sock, nanomq_conf);
 		}
 
-		if (nano_file_exists(IPC_URL_PATH))
-			nng_file_delete(IPC_URL_PATH);
-		if ((rv = nng_listen(cmd_sock, CMD_IPC_URL, NULL, 0)) != 0) {
+		char *cmd_ipc_url = nanomq_conf->hook_ipc_url == NULL
+		    ? CMD_IPC_URL
+		    : nanomq_conf->cmd_ipc_url;
+		char *ipc_path = strstr(cmd_ipc_url, "ipc://") + strlen("ipc://");
+
+		if (nano_file_exists(ipc_path))
+			nng_file_delete(ipc_path);
+
+		if ((rv = nng_listen(cmd_sock, cmd_ipc_url, NULL, 0)) != 0) {
 			NANO_NNG_FATAL("nng_listen ipc", rv);
 		}
 
@@ -1545,13 +1555,18 @@ status_check(int *pid)
 #else
 	char  *data = NULL;
 	size_t size = 0;
-
+	char *pid_path = read_env_pid_file();
+	if (pid_path == NULL) {
+		pid_path = nng_strdup(PID_PATH_NAME);
+	}
 	int rc;
-	if ((rc = nng_file_get(PID_PATH_NAME, (void *) &data, &size)) != 0) {
+	if ((rc = nng_file_get(pid_path, (void *) &data, &size)) != 0) {
+		nng_strfree(pid_path);
 		nng_free(data, size);
 		log_warn(".pid file not found or unreadable\n");
 		return 1;
 	} else {
+		nng_strfree(pid_path);
 		if ((data) != NULL) {
 			if (sscanf(data, "%u", pid) < 1) {
 				log_error("read pid from file error!");
@@ -1567,7 +1582,7 @@ status_check(int *pid)
 				return 0;
 			}
 		}
-		if (!nng_file_delete(PID_PATH_NAME)) {
+		if (!nng_file_delete(pid_path)) {
 			log_info(".pid file is removed");
 			return 1;
 		}
@@ -1586,7 +1601,13 @@ store_pid()
 	snprintf(pid_c, 10, "%d", nng_getpid());
 	log_info("%s", pid_c);
 
-	status = nng_file_put(PID_PATH_NAME, pid_c, sizeof(pid_c));
+	char *pid_path = read_env_pid_file();
+	if (pid_path == NULL) {
+		pid_path = nng_strdup(PID_PATH_NAME);
+	}
+
+	status = nng_file_put(pid_path, pid_c, sizeof(pid_c));
+	nng_strfree(pid_path);
 	return status;
 }
 
@@ -2030,23 +2051,42 @@ broker_reload(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	char *file_path = NULL;
-	int   rc        = file_path_parse(argc, argv, &file_path);
+	conf *nanomq_conf;
+
+	if ((nanomq_conf = nng_zalloc(sizeof(conf))) == NULL) {
+		fprintf(stderr,
+		    "Cannot allocate storge for configuration, quit\n");
+		exit(EXIT_FAILURE);
+	}
+
+	conf_init(nanomq_conf);
+
+	int rc = file_path_parse(argc, argv, &nanomq_conf->conf_file);
 	if (!rc) {
 		fprintf(stderr, "Cannot parse command line arguments, quit\n");
 		exit(EXIT_FAILURE);
 	}
 
-	char *msg = encode_client_cmd(file_path, rc);
+	if (nanomq_conf->conf_file == NULL) {
+		nanomq_conf->conf_file = CONF_PATH_NAME;
+		printf("Config file is not specified, use default config "
+		       "file: %s\n",
+		    nanomq_conf->conf_file);
+	}
 
-	start_cmd_client(msg);
+	conf_parse_ver2(nanomq_conf);
+	char *msg = encode_client_cmd(nanomq_conf->conf_file, rc);
+
+	char *cmd_ipc_url = nanomq_conf->hook_ipc_url == NULL
+	    ? CMD_IPC_URL
+	    : nanomq_conf->cmd_ipc_url;
+	start_cmd_client(msg, cmd_ipc_url);
 
 	if (msg) {
 		nng_strfree(msg);
 	}
-	if (file_path) {
-		nng_strfree(file_path);
-	}
+
+	conf_fini(nanomq_conf);
 
 	return 0;
 }
@@ -2081,20 +2121,43 @@ broker_restart(int argc, char **argv)
 int
 broker_reload(int argc, char **argv)
 {
-	char *file_path = NULL;
-	int   rc        = file_path_parse(argc, argv, &file_path);
+	conf *nanomq_conf;
+
+	if ((nanomq_conf = nng_zalloc(sizeof(conf))) == NULL) {
+		fprintf(stderr,
+		    "Cannot allocate storge for configuration, quit\n");
+		exit(EXIT_FAILURE);
+	}
+
+	conf_init(nanomq_conf);
+
+	int rc = file_path_parse(argc, argv, &nanomq_conf->conf_file);
 	if (!rc) {
 		fprintf(stderr, "Cannot parse command line arguments, quit\n");
 		exit(EXIT_FAILURE);
 	}
 
-	char *msg = encode_client_cmd(file_path, rc);
+	if (nanomq_conf->conf_file == NULL) {
+		nanomq_conf->conf_file = CONF_PATH_NAME;
+		printf("Config file is not specified, use default config "
+		       "file: %s\n",
+		    nanomq_conf->conf_file);
+	}
 
-	start_cmd_client(msg);
+	conf_parse_ver2(nanomq_conf);
+
+	char *msg = encode_client_cmd(nanomq_conf->conf_file, rc);
+	char *cmd_ipc_url = nanomq_conf->hook_ipc_url == NULL
+	    ? CMD_IPC_URL
+	    : nanomq_conf->cmd_ipc_url;
+
+	start_cmd_client(msg, cmd_ipc_url);
 
 	if (msg) {
 		nng_strfree(msg);
 	}
+
+	conf_fini(nanomq_conf);
 
 	return 0;
 }

@@ -220,14 +220,13 @@ start_cmd_server(conf *config)
 #endif
 
 static void
-client(const char *cmd)
+client(const char *cmd, const char *url)
 {
 	nng_socket  sock;
 	nng_dialer  dialer;
 	int         rv;
 	char *      buf = NULL;
 	size_t      sz  = 0;
-	const char *url = CMD_IPC_URL;
 
 	if ((rv = nng_req0_open(&sock)) != 0) {
 		NANO_NNG_FATAL("nng_req0_open", rv);
@@ -270,7 +269,7 @@ encode_client_cmd(const char *conf_file, int type)
 }
 
 void
-start_cmd_client(const char *cmd)
+start_cmd_client(const char *cmd, const char *url)
 {
-	client(cmd);
+	client(cmd, url);
 }
