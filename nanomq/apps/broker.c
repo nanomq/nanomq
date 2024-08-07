@@ -1411,7 +1411,7 @@ broker(conf *nanomq_conf)
 
 	/* rhack: end */
 
-	log_error("NanoMQ Broker is started successfully!\n");
+	log_info("NanoMQ Broker is started successfully!\n");
 
 #if defined(ENABLE_NANOMQ_TESTS)
 	bool is_testing = true;
