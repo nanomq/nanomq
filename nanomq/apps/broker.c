@@ -1594,7 +1594,7 @@ status_check(int *pid)
 	size_t size = 0;
 	char *pid_path = read_env_pid_file();
 	if (pid_path == NULL) {
-		pid_path = PID_PATH_NAME;
+		pid_path = nng_strdup(PID_PATH_NAME);
 	}
 	int rc;
 	if ((rc = nng_file_get(pid_path, (void *) &data, &size)) != 0) {
@@ -1640,7 +1640,7 @@ store_pid()
 
 	char *pid_path = read_env_pid_file();
 	if (pid_path == NULL) {
-		pid_path = PID_PATH_NAME;
+		pid_path = nng_strdup(PID_PATH_NAME);
 	}
 
 	status = nng_file_put(pid_path, pid_c, sizeof(pid_c));
