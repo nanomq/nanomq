@@ -1380,9 +1380,15 @@ broker(conf *nanomq_conf)
 			cmd_works[i] = alloc_cmd_work(cmd_sock, nanomq_conf);
 		}
 
-		if (nano_file_exists(IPC_URL_PATH))
-			nng_file_delete(IPC_URL_PATH);
-		if ((rv = nng_listen(cmd_sock, CMD_IPC_URL, NULL, 0)) != 0) {
+		char *cmd_ipc_url = nanomq_conf->hook_ipc_url == NULL
+		    ? CMD_IPC_URL
+		    : nanomq_conf->cmd_ipc_url;
+		char *ipc_path = strstr(cmd_ipc_url, "ipc://") + strlen("ipc://");
+
+		if (nano_file_exists(ipc_path))
+			nng_file_delete(ipc_path);
+
+		if ((rv = nng_listen(cmd_sock, cmd_ipc_url, NULL, 0)) != 0) {
 			NANO_NNG_FATAL("nng_listen ipc", rv);
 		}
 
@@ -1590,10 +1596,12 @@ status_check(int *pid)
 	}
 	int rc;
 	if ((rc = nng_file_get(pid_path, (void *) &data, &size)) != 0) {
+		nng_strfree(pid_path);
 		nng_free(data, size);
 		log_warn(".pid file not found or unreadable\n");
 		return 1;
 	} else {
+		nng_strfree(pid_path);
 		if ((data) != NULL) {
 			if (sscanf(data, "%u", pid) < 1) {
 				log_error("read pid from file error!");
@@ -1634,6 +1642,7 @@ store_pid()
 	}
 
 	status = nng_file_put(pid_path, pid_c, sizeof(pid_c));
+	nng_strfree(pid_path);
 	return status;
 }
 
