@@ -570,6 +570,12 @@ hybrid_tcp_client(bridge_param *bridge_arg)
 	nng_msg *connmsg   = create_connect_msg(node);
 	bridge_arg->connmsg = connmsg;
 
+	nng_socket *tsock  = bridge_arg->sock;
+	if (tsock) {
+		nng_sock_replace(*tsock, *new);
+		nng_close(*tsock);
+		nng_free(tsock, sizeof(nng_socket));
+	}
 	node->sock         = (void *) new;
 	bridge_arg->sock   = new;
 
@@ -583,8 +589,10 @@ hybrid_tcp_client(bridge_param *bridge_arg)
 	nng_mqtt_set_connect_cb(*new, hybrid_tcp_connect_cb, bridge_arg);
 	nng_mqtt_set_disconnect_cb(*new, hybrid_tcp_disconnect_cb, bridge_arg);
 
-	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
-
+	if (0 != (rv = nng_dialer_start(dialer, NNG_FLAG_ALLOC))) {
+		log_error("nng dialer start failed %d", rv);
+		return rv;
+	}
 	return 0;
 }
 
@@ -647,6 +655,12 @@ hybrid_quic_client(bridge_param *bridge_arg)
 
 	execone = 0;
 
+	nng_socket *tsock  = bridge_arg->sock;
+	if (tsock) {
+		nng_sock_replace(*tsock, *new);
+		nng_close(*tsock);
+		nng_free(tsock, sizeof(nng_socket));
+	}
 	node->sock         = (void *) new;
 	bridge_arg->sock   = new;
 
@@ -657,11 +671,13 @@ hybrid_quic_client(bridge_param *bridge_arg)
 	nng_mqtt_set_connect_cb(*new, hybrid_quic_connect_cb, bridge_arg);
 	nng_mqtt_set_disconnect_cb(*new, hybrid_quic_disconnect_cb, bridge_arg);
 
-	rv = nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
-	if (rv != 0)
+	rv = nng_dialer_start(dialer, NNG_FLAG_ALLOC);
+	if (rv != 0) {
 		log_error("nng dialer start failed %d", rv);
+		return rv;
+	}
 
-	return rv;
+	return 0;
 }
 #endif
 
@@ -711,39 +727,26 @@ hybrid_cb(void *arg)
 			NANO_NNG_FATAL("bridge_aio nng_aio_alloc", rv);
 		}
 	}
-
-	char addr_back[160] = {'\0'};
-	if (0 != gen_fallback_url(node->address, addr_back)) {
-		log_warn("Can't generate backup address for current hybrid bridge");
-		strcpy(addr_back, node->address);
-	}
-	char * addrs[] = {node->address, addr_back};
-	int idx = -1;
+	char **addrs = node->hybrid_servers;
+	int    addrslen = cvector_size(node->hybrid_servers);
+	int    idx = -1;
 	for (;;) {
 		// Get next bridge node
 		nng_socket *tsock = bridge_arg->sock;
-		idx = (idx + 1) % 2;
+		idx = (idx + 1) % addrslen;
 		node->address = addrs[idx];
-		log_warn("!! Bridge has switched to %s", node->address);
+		log_warn("!! Bridge has switched to [%d]%s", idx, node->address);
 
 		if (0 == strncmp(node->address, tcp_scheme, strlen(tcp_scheme)) ||
 		    0 == strncmp(node->address, tls_scheme, strlen(tls_scheme))) {
-			hybrid_tcp_client(bridge_arg);
-			nng_socket *nsock = bridge_arg->sock;
-			if (tsock != nsock) {
-				nng_sock_replace(*tsock, *nsock);
-				nng_close(*tsock);
-				nng_free(tsock, sizeof(nng_socket));
+			if (0 != hybrid_tcp_client(bridge_arg)) {
+				continue;
 			}
 #if defined(SUPP_QUIC)
 		} else if (0 ==
 		    strncmp(node->address, quic_scheme, strlen(quic_scheme))) {
-			hybrid_quic_client(bridge_arg);
-			nng_socket *nsock = bridge_arg->sock;
-			if (tsock != nsock) {
-				nng_sock_replace(*tsock, *nsock);
-				nng_close(*tsock);
-				nng_free(tsock, sizeof(nng_socket));
+			if (0 != hybrid_quic_client(bridge_arg)) {
+				continue;
 			}
 #endif
 		} else {
@@ -812,6 +815,7 @@ hybrid_bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	nng_mtx_unlock(bridge_arg->exec_mtx);
 	nng_cv_free(bridge_arg->exec_cv);
 	bridge_arg->exec_cv = NULL;
+	return 0;
 
 error:
 	if(bridge_arg->exec_cv != NULL) {
