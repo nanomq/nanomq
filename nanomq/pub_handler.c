@@ -1398,7 +1398,8 @@ encode_pub_message(
 	uint32_t buf;
 
 	log_debug("start encode message");
-
+	if (dest_msg == NULL)
+		return false;
 	nng_msg_clear(dest_msg);
 	nng_msg_header_clear(dest_msg);
 	if (nng_msg_cmd_type(dest_msg) == CMD_PUBLISH_V5) {
