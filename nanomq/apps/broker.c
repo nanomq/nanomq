@@ -466,14 +466,17 @@ server_cb(void *arg)
 							    work, &work->config->bridge);
 						}
 						// dont modify original retain msg;
-						nng_msg *rmsg;
-						nng_msg_alloc(&rmsg, 0);
-						nng_msg_set_proto_data(rmsg, NULL, proto_data);
-						if (work->proto_ver == MQTT_VERSION_V5) {
-							nng_msg_set_cmd_type(rmsg,CMD_PUBLISH_V5);
+						nng_msg *rmsg = NULL;
+						if (nng_msg_dup(&rmsg, work->msg) != 0) {
+							log_error("System Failure while duplicating retain msg");
 						} else {
-							nng_msg_set_cmd_type(rmsg, CMD_PUBLISH);
+							if (work->proto_ver == MQTT_VERSION_V5) {
+								nng_msg_set_cmd_type(rmsg,CMD_PUBLISH_V5);
+							} else {
+								nng_msg_set_cmd_type(rmsg, CMD_PUBLISH);
+							}
 						}
+						// nng_msg_set_proto_data(rmsg, NULL, proto_data);
 						if (encode_pub_message(rmsg, work, PUBLISH)) {
 							nng_mqtt_msg_set_sub_retain_bool(rmsg, true);
 							nng_aio_set_msg(work->aio, rmsg);
