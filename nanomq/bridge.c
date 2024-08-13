@@ -251,14 +251,17 @@ void
 bridge_handle_topic_reflection(nano_work *work, conf_bridge *bridge)
 {
 	// for saving CPU
-	if (work->flag == CMD_PUBLISH)
-		for (size_t i = 0; i < bridge->count; i++) {
-			conf_bridge_node *node = bridge->nodes[i];
-			if (node->enable) {
-				bridge_handle_topic_sub_reflection(work, node);
+	if (work->flag == CMD_PUBLISH) {
+		if (work->node != NULL)
+			bridge_handle_topic_sub_reflection(work, work->node);
+		else
+			for (size_t i = 0; i < bridge->count; i++) {
+				conf_bridge_node *node = bridge->nodes[i];
+				if (node->enable) {
+					bridge_handle_topic_sub_reflection(work, node);
+				}
 			}
-		}
-
+	}
 	return;
 }
 

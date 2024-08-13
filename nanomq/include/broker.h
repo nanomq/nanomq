@@ -46,7 +46,9 @@ struct work {
 	dbtree *    db;
 	dbtree *    db_ret;
 	conf *      config;
-	reason_code code; // MQTT reason code
+
+	conf_bridge_node *node;	// only works for bridge ctx
+	reason_code 	  code; // MQTT reason code
 
 	nng_socket hook_sock;
 

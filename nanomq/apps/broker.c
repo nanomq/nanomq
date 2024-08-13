@@ -1181,11 +1181,11 @@ broker(conf *nanomq_conf)
 			conf_bridge_node *node = nanomq_conf->bridge.nodes[t];
 			if (node->enable) {
 				bridge_sock = node->sock;
-				for (i = tmp; i < (tmp + node->parallel);
-				     i++) {
+				for (i = tmp; i < (tmp + node->parallel); i++) {
 					works[i] = proto_work_init(sock,
 					    *bridge_sock, PROTO_MQTT_BRIDGE,
 					    db, db_ret, nanomq_conf);
+					works[i]->node = node;
 				}
 				tmp += node->parallel;
 			}
