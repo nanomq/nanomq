@@ -221,7 +221,8 @@ bridges.mqtt.emqx1 = {
 - `quic_send_idle_timeout`：传输层重置拥塞控制算法的等待超时时间，缺省为 60 秒。
 - `quic_initial_rtt_ms`：初始 RTT 估计时间，单位：ms，缺省为 800 ms。
 - `quic_max_ack_delay_ms`：发送 ACK 之前接收数据后等待时长，缺省为 100 ms。
-- `hybrid_bridging`：确认是否开启混合桥接模式，在不确定是否支持 QUIC 桥接时，建议开启；缺省为 `false`。
+- `hybrid_bridging`：确认是否开启混合桥接模式；缺省为 `false`。
+- `hybrid_servers`：确认混合桥接URLs；缺省为 `[]`。
 - `quic_multi_stream`：确认是否开始多流传输，本功能目前正在进一步验证中，不建议开启。缺省为 `false`。
 - `quic_qos_priority`：确认高优先级发送 QOS 1 或 2 的消息，QoS 0 消息的优先级不变。缺省为 `true`。
  - `quic_0rtt`：确认是否开启 0RTT QUIC 协议特性，用于快速重新建立连接。缺省为 `true`。

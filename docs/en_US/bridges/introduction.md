@@ -121,15 +121,20 @@ Based on the characteristics of QUIC, NanoMQ implements priority transmission of
 bridges.mqtt.emqx {
 ......
 	# # Hybrid bridging: enable or disable the hybrid bridging mode
-	# # Recommend to enable it when you want to take advantage of QUIC
-	# # but not sure if the public network supports QUIC.
 	# # Value: True/False
 	# # Default: False
-	hybrid_bridging = false
+	hybrid_bridging = true
+
+	# # Hybrid servers
+	# # When hybrid mode is enabled and the connection to server is
+	# # disconnected. Bridge will switch to hybrid_servers in roundrobin.
+	# # Value: Array
+	# # Default: []
+	hybrid_servers = ["mqtt-quic://127.1:14567", "mqtt-tcp://127.1:1883"]
 ......
 }
 ```
-In order to allow users to use the MQTT over QUIC function with more easily, adaptive hybrid switching of QUIC/TCP bridging has been specially produced. When the QUIC connection fails, it will automatically switch back to traditional TCP bridging (port 1883 is used by default).
+In order to allow users to use the MQTT over QUIC function with more easily, adaptive hybrid switching of QUIC/TCP bridging has been specially produced. When the QUIC connection fails, it will automatically switch back to traditional TCP bridging.
 
 
 ## [AWS IoT Core Bridging](./aws-iot-core-bridge.md)
