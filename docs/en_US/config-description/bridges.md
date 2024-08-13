@@ -232,7 +232,8 @@ This part will focus on the MQTT over QUIC bridge-related configuration items, f
 - `quic_send_idle_timeout`:  Resets the congestion control after being idle for a specified amount of time. The default is 60 seconds.
 - `quic_initial_rtt_ms`: Specifies the initial estimate for the round-trip time (RTT) in milliseconds. The default is 800 milliseconds.
 - `quic_max_ack_delay_ms`: Specifies the maximum amount of time to wait after receiving data before sending an ACK. The default is 100 milliseconds.
-- `hybrid_bridging`: Specifies whether to enable the hybrid bridging mode. This should be enabled if you want to use QUIC but aren't sure if the public network supports it. The default is `false`.
+- `hybrid_bridging`: Specifies whether to enable the hybrid bridging mode. The default is `false`.
+- `hybrid_servers`: Specifies hybrid servers. The default is `[]`.
 - `quic_multi_stream`: Specifies whether to enable the multi-stream bridging mode. This is a work-in-progress feature and should not be enabled. The default is `false`.
 - `quic_qos_priority`: This sends QoS 1/2 messages with high priority, while QoS 0 messages remain the same. The default is `true`.
  - `quic_0rtt`: Specifies whether to enable the 0RTT feature of QUIC, which allows connections to be re-established quickly. The default is `true`.

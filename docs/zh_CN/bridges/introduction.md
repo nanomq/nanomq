@@ -112,15 +112,20 @@ NanoMQ 根据 QUIC 的特性，实现了在网络拥塞状态下的 QoS 消息�
 bridges.mqtt.emqx {
 ......
 	# # Hybrid bridging: enable or disable the hybrid bridging mode
-	# # Recommend to enable it when you want to take advantage of QUIC
-	# # but not sure if the public network supports QUIC.
 	# # Value: True/False
 	# # Default: False
-	hybrid_bridging = false
+	hybrid_bridging = true
+
+	# # Hybrid servers
+	# # When hybrid mode is enabled and the connection to server is
+	# # disconnected. Bridge will switch to hybrid_servers in roundrobin.
+	# # Value: Array
+	# # Default: []
+	hybrid_servers = ["mqtt-quic://127.1:14567", "mqtt-tcp://127.1:1883"]
 ......
 }
 ```
-为了让用户更放心的使用 MQTT over QUIC 功能，特地制作了 QUIC/TCP 桥接的自适应混合切换。当 QUIC 连接不成功的时候，将会自动切换回传统的 TCP 桥接（默认使用 1883 端口）。
+为了让用户更放心的使用 MQTT over QUIC 功能，特地制作了 QUIC/TCP 桥接的自适应混合切换。当 QUIC 连接不成功的时候，支持自动切换回传统的 TCP 桥接。
 
 ## [AWS IoT Core 桥接](./aws-iot-core-bridge.md)
 
