@@ -1123,7 +1123,7 @@ broker(conf *nanomq_conf)
 			log_error("Wrong exchange %d configuration!", i);
 			continue;
 		}
-		// exchange sock is an embedded Req/Rep sock for MQTT Stream
+		// exchange sock is an embedded pair0 sock for MQTT Stream
 		node->sock = (nng_socket *) nng_alloc(sizeof(nng_socket));
 		// pair0_sock is hidden inside of exchange_sock
 		nng_socket *pair0_sock = (nng_socket *) nng_alloc(sizeof(nng_socket));
@@ -1132,8 +1132,8 @@ broker(conf *nanomq_conf)
 		if ((rv = nng_exchange_client_open(node->sock)) != 0) {
 			log_error("nng_exchange_client_open failed %d", rv);
 		} else {
-			// nng_socket_set_ms(*node->sock, NNG_OPT_RECVMAXSZ, 0xFFFFFFFFu);
 			nng_socket_set_ptr(*node->sock, NNG_OPT_EXCHANGE_BIND, (void *)node);
+			nng_socket_set_ptr(*node->sock, NNG_OPT_EXCHANGE_START_LIMIT_TIMER, (void *)node);
 		}
 		log_debug("exchange %d init finished!\n", i);
 
