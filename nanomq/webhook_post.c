@@ -25,6 +25,8 @@
 #include "nng/supplemental/nanolib/blf.h"
 #endif
 
+#include "nng/exchange/stream/stream.h"
+
 static bool event_filter(conf_web_hook *hook_conf, webhook_event event);
 static bool event_filter_with_topic(
     conf_web_hook *hook_conf, webhook_event event, const char *topic);
@@ -438,6 +440,15 @@ flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio, char 
 		log_warn("flush aio is busy");
 		return NNG_EBUSY;
 	}
+
+	log_error("flush_smsg_to_disk");
+	void *encoded_data = NULL;
+	uint32_t outlen = 0;
+
+//	encoded_data = stream_encode(streamType, smsg, len, &outlen);
+	/* WIP: fix it */
+//	parquet_write(encoded_data);
+
 	if (streamType == STREAM_CANMSG) {
 		struct canStream *canmsg = parseCanStream(smsg, len);
 		if (canmsg == NULL) {

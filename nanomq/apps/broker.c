@@ -14,6 +14,7 @@
 
 #include "nng/mqtt/mqtt_client.h"
 #include "nng/exchange/exchange_client.h"
+#include "nng/exchange/stream/stream.h"
 #include "nng/protocol/mqtt/nmq_mqtt.h"
 #include "nng/protocol/pipeline0/pull.h"
 #include "nng/protocol/pipeline0/push.h"
@@ -1392,6 +1393,8 @@ broker(conf *nanomq_conf)
 		log_error("Not support for App lib\n");
 #endif
 	}
+
+	stream_sys_init();
 
 #if defined(SUPP_PLUGIN)
 	for (i = 0; i < nanomq_conf->plugin.path_sz; i++) {
