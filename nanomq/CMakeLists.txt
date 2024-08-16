@@ -30,6 +30,7 @@ endif(ENABLE_JWT)
 
 add_subdirectory(apps)
 add_subdirectory(tests)
+add_subdirectory(plugin)
 
 # set(PARALLEL 128 CACHE STRING "Parallelism (min 4, max 1000)")
 
