@@ -423,12 +423,17 @@ done:
 }
 
 static int
-flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio, char *topic, uint8_t streamType)
+flush_smsg_to_disk(nng_msg **smsg,
+				   size_t len,
+				   void *handle,
+				   nng_aio *aio,
+				   char *topic,
+				   uint8_t streamType)
 {
-	nng_msg  * msg;
-	void     **datas;
-	uint64_t *keys;
-	uint32_t *lens;
+	nng_msg  *msg = NULL;
+	void     **datas = NULL;
+	uint64_t *keys = NULL;
+	uint32_t *lens = NULL;
 
 	if (nng_aio_busy(aio)) {
 		for (int i = 0; i < len; ++i) {
@@ -462,18 +467,22 @@ flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio, char 
 			return NNG_ENOMEM;
 		}
 		/* call parquet */
+//		keys datas lens;
 		freeCanStream(canmsg);
 	} else if (streamType == STREAM_RAW) {
-		keys = nng_alloc(sizeof(uint64_t)* len);
+		keys = nng_alloc(sizeof(uint64_t) * len);
 		datas = nng_alloc(sizeof(void *) * len);
 		lens = nng_alloc(sizeof(uint32_t) * len);
 		if (!datas || !keys || !lens) {
-			if (keys)
+			if (keys) {
 				nng_free(keys, sizeof(uint64_t) * len);
-			if (datas)
+			}
+			if (datas) {
 				nng_free(datas, sizeof(void *) * len);
-			if (len)
+			}
+			if (len) {
 				nng_free(lens, sizeof(uint32_t) * len);
+			}
 			return NNG_ENOMEM;
 		}
 
@@ -540,74 +549,100 @@ flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio, char 
 	return 0;
 }
 
+static int inline get_flush_params(nng_aio *aio,
+								   nng_msg *msg,
+								   nng_msg ***pmsgs_del,
+								   int **pmsgs_lenp,
+								   char **ptopic,
+								   uint8_t *pstreamType)
+{
+	uint8_t streamType = 0;
+	char *topic = NULL;
+	int *msgs_len = NULL;
+	nng_msg **msgs_del = NULL;
+
+	msgs_del = nng_aio_get_prov_data(aio);
+	msgs_len = (int *)nng_msg_get_proto_data(msg);
+	topic = nng_msg_get_conn_param(msg);
+	streamType = nng_msg_get_cmd_type(msg);
+
+	if (msgs_len == NULL || msgs_del == NULL || topic == NULL) {
+		if (msgs_del != NULL) {
+			if (msgs_len != NULL) {
+				for (int i = 0; i < *msgs_len; ++i) {
+					if (msgs_del[i]) {
+						nng_msg_free(msgs_del[i]);
+					}
+				}
+			}
+			nng_free(msgs_del, sizeof(nng_msg *));
+		}
+		if (msgs_len != NULL) {
+			nng_free(msgs_len, sizeof(int));
+		}
+		if (topic != NULL) {
+			nng_free(topic, strlen(topic) + 1);
+		}
+		return NNG_EINVAL;
+	}
+
+	*ptopic = topic;
+	*pmsgs_del = msgs_del;
+	*pmsgs_lenp = msgs_len;
+	*pstreamType = streamType;
+
+	return 0;
+}
+
 static void
 send_exchange_cb(void *arg)
 {
+	char *topic = NULL;
+	int *msgs_lenp = NULL;
+	uint8_t streamType = 0;
+	nng_msg *msg = NULL;
+	nng_msg **msgs_del = NULL;
+
 	struct work *w = arg;
 	int          rv;
 
-	conf *nanomq_conf = w->config;
-	conf_web_hook *hook_conf = &nanomq_conf->web_hook;
-	conf_parquet  *parquet_conf = &nanomq_conf->parquet;
-	conf_blf  *blf_conf = &nanomq_conf->blf;
+	conf_web_hook *hook_conf = &w->config->web_hook;
 
 	nng_aio *aio = hook_conf->saios[w->ctx.id-1];
-
 	if ((rv = nng_aio_result(aio)) != 0) {
 		log_error("error %d in send to exchange", rv);
 		return;
 	}
 
-	nng_msg *msg = nng_aio_get_msg(aio);
-	if (!msg)
-		return;
-
-	nng_msg **msgs_del = nng_aio_get_prov_data(aio);
-	nng_aio_set_prov_data(aio, NULL);
-	if (!msgs_del) {
-		nng_msg_free(msg);
+	msg = nng_aio_get_msg(aio);
+	if (msg == NULL) {
 		return;
 	}
 
-	int *msgs_lenp = (int *)nng_msg_get_proto_data(msg);
-	int  msgs_len;
-	if (msgs_lenp)
-		msgs_len = *msgs_lenp;
+	rv = get_flush_params(aio, msg, &msgs_del, &msgs_lenp, &topic, &streamType);
+	if (rv != 0) {
+		log_error("get_flush_params error %d", rv);
+		return;
+	}
 
-	char *topic = NULL;
-	topic = nng_msg_get_conn_param(msg);
-
-	uint8_t streamType = nng_msg_get_cmd_type(msg);
-
-	// Flush to disk. Call Parquet
-	if (parquet_conf->enable || blf_conf->enable) {
-		if (parquet_conf->enable) {
-			nng_mtx_lock(hook_conf->ex_mtx);
-			rv = flush_smsg_to_disk(
-			    msgs_del, msgs_len, NULL, hook_conf->ex_aio, topic, streamType);
-			if (rv != 0)
-				log_error("flush error %d", rv);
-			nng_mtx_unlock(hook_conf->ex_mtx);
+	// Flush to disk.
+	if (w->config->parquet.enable || w->config->blf.enable) {
+		nng_mtx_lock(hook_conf->ex_mtx);
+		rv = flush_smsg_to_disk(msgs_del, *msgs_lenp, NULL, hook_conf->ex_aio, topic, streamType);
+		if (rv != 0) {
+			log_error("flush error %d", rv);
 		}
-		if (blf_conf->enable) {
-			nng_mtx_lock(hook_conf->ex_mtx);
-			rv = flush_smsg_to_disk(
-			    msgs_del, msgs_len, NULL, hook_conf->ex_aio, topic, streamType);
-			if (rv != 0)
-				log_error("flush error %d", rv);
-			nng_mtx_unlock(hook_conf->ex_mtx);
-		}
+		nng_mtx_unlock(hook_conf->ex_mtx);
 	} else {
-		for (int i = 0; i < msgs_len; ++i)
+		for (int i = 0; i < *msgs_lenp; ++i)
 			if (msgs_del[i]) {
 				nng_msg_free(msgs_del[i]);
 			}
-		nng_free(msgs_del, msgs_len);
+		nng_free(msgs_del, *msgs_lenp);
 	}
 
 	nng_msg_free(msg);
-	if (msgs_lenp)
-		nng_free(msgs_lenp, sizeof(int));
+	nng_free(msgs_lenp, sizeof(int));
 }
 
 // Better to be done in sync
@@ -630,10 +665,12 @@ send_parquet_cb(void *arg)
 		return;
 	}
 
-	for (int i=0; i<*msgs_lenp; ++i)
+	for (int i = 0; i< *msgs_lenp; ++i) {
 		if (msgs_del[i]) {
 			nng_msg_free(msgs_del[i]);
 		}
+	}
+
 	nng_free(msgs_del, *msgs_lenp);
 	nng_free(msgs_lenp, sizeof(uint32_t));
 
