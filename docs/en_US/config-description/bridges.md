@@ -254,18 +254,23 @@ NanoMQ provides the functionality to configure multiple data bridges by utilizin
 ## First bridge client
 bridges.mqtt.emqx1 {
   ......
+  resend_interval = 5000    # Resend interval (ms)
+  resend_wait = 3000
+  cancel_timeout  = 10000
 }
 
 ## Second bridge client
 bridges.mqtt.emqx2 {
   ......
+  resend_interval = 5000    # Resend interval (ms)
+  resend_wait = 3000
+  cancel_timeout  = 10000
 }
 
 bridges.mqtt.cache {
     disk_cache_size = 102400   # Max message limitation for caching
     mounted_file_path="/tmp/"  # Mounted file path 
     flush_mem_threshold = 100  # The threshold of flushing messages to flash
-    resend_interval     = 3000 # The interval of resending cached SQLite msg
 }
 ```
 
@@ -274,9 +279,40 @@ bridges.mqtt.cache {
 - `disk_cache_size`: Specifies the maximum number of messages that can be cached in the MQTT bridges. A value of 0 indicates that the cache for messages is inefficient.
 - `mounted_file_path`: Specifies the file path where the cache file for the MQTT bridges is mounted.
 - `flush_mem_threshold`: Specifies the threshold for flushing messages to the cache file. When the number of messages reaches this threshold, they will be flushed to the cache file.
-- `resend_interval`: Specifies the interval, in milliseconds, for resending the messages after a failure is recovered. This is not related to the trigger for the resend operation. Only takes effect in bridging.
+- `resend_interval`: Specifies the interval, in milliseconds, for resending the messages interval. Only takes effect in bridging. This is a timer per bridging connection, also in charge of sending PINGREQ, resending msg cached in SQLite and healthy checking. Please set it with cautious.
+  -  default: 5000 ms. 
+- `resend_wait`: Specifies the wait time, in milliseconds, for start resending this messages after certain period aftet it was published. Only takes effect in bridging.
+  -  default: 3000 ms. 
+- `cancel_timeout`: Specifies the max wait time before canceling QoS ACK action, in milliseconds. Only takes effect in bridging. Once the action is canceled, there is no more retrying of this msg. So, you can call it max retrying time window.
+  -  default: 8000 ms. 
 
 ::: tip
+
+The canceling of a QoS msg doesn't actually means the msg is lost; just means it stopped waiting for the ACK of this msg from the remote broker. Before 0.22.4, there is no such feature, you will only see `bridging to xxxxx aio busy! msg lost! Ctx: xx`, once you hit a busy aio. and the aio will be occupied forever if remote broker fail to deliver the ACK eternally. Hence, `cancel_timeout` is added, Which means the maximum wait time for acknowledgment of each QoS msg . 
+
+If you want a guaranteed retry logic of QoS msg in bridging. You can reference to the following configurations:
+
+```hcl
+## First bridge client
+bridges.mqtt.emqx1 {
+  ......
+  keepalive = 30s           # Taking 30s keepalive as context
+	max_send_queue_len = 512  # Give inflight window enought space for caching msg
+	max_recv_queue_len = 512  # Give inflight window enought space for caching msg
+  resend_interval = 5000    # Resend interval (ms), it will retry QoS every 5s 
+                            # if there is no other action blocking.
+                            # retry time shall be at least 1/2 or 1/4 of keepalive
+  resend_wait = 3000  # resend_wait is the waiting time for resending the messages
+                      # after it is publiushed. Please set it longer than 
+                      # keepalive if you dont want duplicated QoS msg.
+  cancel_timeout  = 10000 	# set a max timeout time before canceling the ack   
+                            # action. Basically, this is also the time window you # spare to each QoS msg. 
+                            # (cancel_timeout - resend_wait) / resend_wait > 1 : retry at least once.
+}
+```
+
+To explain further, also gives a hints about how to finely tuned it:
+QoS msg will go into the inflight window (max_send_queue_len) first if you are dealing with a busy network, then silently wait for its time to come. During waiting, It will be dropped only if the inflight window is full and new QoS msg keep comming. Once it exceeds the max wait time of QoS Ack, it will be excluded from a hashmap (QoS awaiting queue) which is different from inflight window. but it only means client will not try to resend it anymore.
 
 NanoMQ uses SQLite to deliver the cache feature, for details on the configuration, see [SQLite](broker.md#cache)
 
