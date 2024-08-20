@@ -289,7 +289,8 @@ bridge_pub_handler(nano_work *work)
 						    "msg lost! Ctx: %d",
 						    node->address, work->ctx.id);
 					} else {
-						nng_aio_set_timeout(node->bridge_aio[index], 3000);
+						nng_aio_set_timeout(node->bridge_aio[index],
+											node->cancel_timeout);
 						nng_aio_set_msg(node->bridge_aio[index], bridge_msg);
 						// switch to nng_ctx_send!
 						nng_send_aio(*socket, node->bridge_aio[index]);
