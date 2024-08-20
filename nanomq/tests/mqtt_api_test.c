@@ -19,7 +19,7 @@ get_conf_log()
 	assert(log != NULL);
 	log->level = NNG_LOG_WARN;
 	log->file  = NULL;
-	log->dir   = NULL;
+	log->dir   = "/tmp/";
 	log->type  = LOG_TO_CONSOLE | LOG_TO_FILE | LOG_TO_SYSLOG;
 	log->fp    = NULL;
 
@@ -34,7 +34,6 @@ get_conf_log()
 static void
 free_conf_log(conf_log *log)
 {
-	nng_strfree(log->dir);
 	nng_strfree(log->file);
 	nng_strfree(log->abs_path);
 	nng_free(log, sizeof(conf_log));
