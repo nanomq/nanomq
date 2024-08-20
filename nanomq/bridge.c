@@ -1145,6 +1145,10 @@ bridge_tcp_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	if (0 != nng_socket_set_ptr(*sock, NNG_OPT_MQTT_CONNMSG, connmsg)) {
 		log_warn("Error in updating connmsg");
 	}
+	nng_duration retry = node->resend_interval;
+	nng_socket_set_ms(*sock, NNG_OPT_MQTT_RETRY_INTERVAL, retry);
+	nng_time retry_wait = node->resend_wait;
+	nng_socket_set_uint64(*sock, NNG_OPT_MQTT_RETRY_WAIT_TIME, retry_wait);
 	nng_mqtt_set_connect_cb(*sock, NULL, NULL);
 	nng_mqtt_set_disconnect_cb(*sock, bridge_tcp_disconnect_cb, bridge_arg);
 	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
@@ -1245,9 +1249,11 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 #endif
 
 	bridge_arg->client = nng_mqtt_client_alloc(*sock, &send_callback, true);
-	// set retry interval as 10s
-	nng_duration retry = node->sqlite->resend_interval;
+	// set retry interval
+	nng_duration retry = node->resend_interval;
 	nng_socket_set_ms(*sock, NNG_OPT_MQTT_RETRY_INTERVAL, retry);
+	nng_time retry_wait = node->resend_wait;
+	nng_socket_set_uint64(*sock, NNG_OPT_MQTT_RETRY_WAIT_TIME, retry_wait);
 	// create a CONNECT message
 	nng_msg *connmsg = create_connect_msg(node);
 	bridge_arg->connmsg = connmsg;
