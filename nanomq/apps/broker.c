@@ -907,8 +907,8 @@ alloc_work(nng_socket sock)
 	w->pipe_ct = nng_alloc(sizeof(struct pipe_content));
 	init_pipe_content(w->pipe_ct);
 	w->pub_packet = NULL;
-
-	w->state = INIT;
+	w->node       = NULL;
+	w->state      = INIT;
 	return (w);
 }
 
