@@ -64,17 +64,19 @@ parquet_data_packet_array_generate(uint32_t col_len, uint32_t row_len)
 	    (parquet_data_packet ***) malloc(
 	        col_len * sizeof(parquet_data_packet **));
 	while (c < col_len) {
-		packet_matrix[c++] = (parquet_data_packet **) malloc(
+		packet_matrix[c] = (parquet_data_packet **) malloc(
 		    row_len * sizeof(parquet_data_packet *));
 		while (r < row_len) {
-			packet_matrix[c][r++] = (parquet_data_packet *) malloc(
+			packet_matrix[c][r] = (parquet_data_packet *) malloc(
 			    sizeof(parquet_data_packet));
 			char data[STRING_LENGTH] = { 0 };
 			snprintf(data, STRING_LENGTH, "hello world_%u_%u", c, r);
-			packet_matrix[c][r]->size = STRING_LENGTH;
+			packet_matrix[c][r]->size = strlen(data);
 			packet_matrix[c][r]->data = strdup(data);
+			r++;
 		}
 		r = 0;
+		c++;
 	}
 
 	return packet_matrix;
@@ -157,14 +159,7 @@ aio_test_cb(void *arg)
 	nng_aio             *aio         = w->aio;
 	static int           test_index  = 0;
 	parquet_file_ranges *file_ranges = nng_aio_get_output(aio, 1);
-	char	       **data_array  = nng_aio_get_prov_data(aio);
-	uint32_t            *len         = (uint32_t *) nng_aio_get_msg(aio);
-
-	for (uint32_t i = 0; i < *len; i++) {
-		if (data_array[i])
-			nng_strfree(data_array[i]);
-	}
-	free(len);
+	// char	       **data_array  = nng_aio_get_prov_data(aio);
 
 	check(file_ranges->size == 1, "file_ranges size error");
 
@@ -224,7 +219,11 @@ parquet_write_batch_async_test1(void)
 	parquet_data_packet ***matrix =
 	    parquet_data_packet_array_generate(1, DATASIZE);
 
-	parquet_data *data = parquet_data_alloc(schema, matrix, ts, 1, DATASIZE);
+	char **schema_l = malloc(sizeof(char*)*2);
+	schema_l[0] = strdup("ts");
+	schema_l[1] = strdup("data");
+
+	parquet_data *data = parquet_data_alloc(schema_l, matrix, ts, 2, DATASIZE);
 
 	work *w  = ALLOC_STRUCT(w);
 	int   rv = 0;
@@ -600,6 +599,8 @@ main(int argc, char **argv)
 	// puts("parquet_find_file_range_test passed!");
 	// parquet_get_key_span_test();
 	// puts("parquet_get_key_span_test passed!");
+
+	sleep(100000);
 
 	return 0;
 }
