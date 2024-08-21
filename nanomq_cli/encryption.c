@@ -1,7 +1,5 @@
 #include "encryption.h"
 
-#define HASHLEN 32
-
 static print_help(void)
 {
 	printf("./nanomq_cli encrypt <content>\n");
