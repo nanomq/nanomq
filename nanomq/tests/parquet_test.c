@@ -314,71 +314,33 @@ parquet_write_batch_async_test3(void)
 	return w;
 }
 
-// work *
-// parquet_write_batch_async_test4(void)
-// {
-// 	uint32_t *dsize;
-// 	uint64_t *keys   = keys_allocate(keys_test[3], DATASIZE);
-// 	uint8_t **darray = data_array_allocate(&dsize, DATASIZE);
-// 
-// 	work *w  = ALLOC_STRUCT(w);
-// 	int   rv = 0;
-// 	if ((rv = nng_aio_alloc(&w->aio, aio_test_cb, w)) != 0) {
-// 		printf("nng_aio_alloc failed\n");
-// 	}
-// 
-// 	parquet_object *elem = parquet_object_alloc(
-// 	    keys, (uint8_t **) darray, dsize, DATASIZE, w->aio, darray);
-// 	elem->topic = topic;
-// 
-// 	parquet_write_batch_async(elem);
-// 
-// 	return w;
-// }
-// 
-// work *
-// parquet_write_batch_async_test5(void)
-// {
-// 	uint32_t *dsize;
-// 	uint64_t *keys   = keys_allocate(keys_test[4], DATASIZE);
-// 	uint8_t **darray = data_array_allocate(&dsize, DATASIZE);
-// 
-// 	work *w  = ALLOC_STRUCT(w);
-// 	int   rv = 0;
-// 	if ((rv = nng_aio_alloc(&w->aio, aio_test_cb, w)) != 0) {
-// 		printf("nng_aio_alloc failed\n");
-// 	}
-// 
-// 	parquet_object *elem = parquet_object_alloc(
-// 	    keys, (uint8_t **) darray, dsize, DATASIZE, w->aio, darray);
-// 	elem->topic = topic;
-// 
-// 	parquet_write_batch_async(elem);
-// 
-// 	return w;
-// }
-// 
-// work *
-// parquet_write_batch_tmp_async_test1(void)
-// {
-// 	uint32_t *dsize;
-// 	uint64_t *keys   = keys_allocate(keys_test[0], DATASIZE);
-// 	uint8_t **darray = data_array_allocate(&dsize, DATASIZE);
-// 
-// 	work *w  = ALLOC_STRUCT(w);
-// 	int   rv = 0;
-// 	if ((rv = nng_aio_alloc(&w->aio, aio_test_write_tmp_cb, w)) != 0) {
-// 		printf("nng_aio_alloc failed\n");
-// 	}
-// 
-// 	parquet_object *elem = parquet_object_alloc(
-// 	    keys, (uint8_t **) darray, dsize, DATASIZE, w->aio, darray);
-// 
-// 	parquet_write_batch_tmp_async(elem);
-// 
-// 	return w;
-// }
-// 
+work *
+parquet_write_batch_tmp_async_test1(void)
+{
+	uint64_t              *ts = keys_allocate(keys_test[0], DATASIZE);
+	parquet_data_packet ***matrix =
+	    parquet_data_packet_array_generate(1, DATASIZE, false);
+
+	char **schema_l = malloc(sizeof(char*)*2);
+	schema_l[0] = strdup("ts");
+	schema_l[1] = strdup("data");
+
+	parquet_data *data = parquet_data_alloc(schema_l, matrix, ts, 1, DATASIZE);
+
+	work *w  = ALLOC_STRUCT(w);
+	int   rv = 0;
+	if ((rv = nng_aio_alloc(&w->aio, aio_test_write_tmp_cb, w)) != 0) {
+		printf("nng_aio_alloc failed\n");
+	}
+
+	parquet_object *elem =
+	    parquet_object_alloc(data, WRITE_TEMP_RAW, w->aio, NULL, topic);
+
+	parquet_write_batch_tmp_async(elem);
+
+	return w;
+}
+
 // work *
 // parquet_write_batch_tmp_async_test2(void)
 // {
@@ -470,22 +432,21 @@ parquet_write_batch_async_test(void)
 	cvector_push_back(works, parquet_write_batch_async_test2());
 	cvector_push_back(works, parquet_write_batch_async_test3());
 	// cvector_push_back(works, parquet_write_batch_async_test4());
-	// cvector_push_back(works, parquet_write_batch_async_test5());
 
 	nng_msleep(100);
 	works_free(works);
 }
 
-// void
-// parquet_write_batch_async_tmp_test(void)
-// {
-// 	work **works = NULL;
-// 	cvector_push_back(works, parquet_write_batch_tmp_async_test1());
-// 	cvector_push_back(works, parquet_write_batch_tmp_async_test2());
-// 
-// 	nng_msleep(100);
-// 	works_free(works);
-// }
+void
+parquet_write_batch_async_tmp_test(void)
+{
+	work **works = NULL;
+	cvector_push_back(works, parquet_write_batch_tmp_async_test1());
+	cvector_push_back(works, parquet_write_batch_tmp_async_test2());
+
+	nng_msleep(100);
+	works_free(works);
+}
 
 void
 parquet_find_span_test()
@@ -622,8 +583,8 @@ main(int argc, char **argv)
 	parquet_write_launcher(conf);
 	parquet_write_batch_async_test();
 	puts("parquet write batch async passed!");
-	// parquet_write_batch_async_tmp_test();
-	// puts("parquet write batch tmp async passed!");
+	parquet_write_batch_async_tmp_test();
+	puts("parquet write batch tmp async passed!");
 	// parquet_find_span_test();
 	// puts("parquet_find_span_test passed!");
 	// parquet_find_data_packet_test();
