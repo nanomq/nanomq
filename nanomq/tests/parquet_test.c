@@ -56,7 +56,7 @@ keys_allocate(uint64_t keys[], uint32_t size)
 }
 
 parquet_data_packet ***
-parquet_data_packet_array_generate(uint32_t col_len, uint32_t row_len)
+parquet_data_packet_array_generate(uint32_t col_len, uint32_t row_len, bool generate_null)
 {
 	uint32_t               c = 0;
 	uint32_t               r = 0;
@@ -67,12 +67,18 @@ parquet_data_packet_array_generate(uint32_t col_len, uint32_t row_len)
 		packet_matrix[c] = (parquet_data_packet **) malloc(
 		    row_len * sizeof(parquet_data_packet *));
 		while (r < row_len) {
-			packet_matrix[c][r] = (parquet_data_packet *) malloc(
-			    sizeof(parquet_data_packet));
-			char data[STRING_LENGTH] = { 0 };
-			snprintf(data, STRING_LENGTH, "hello world_%u_%u", c, r);
-			packet_matrix[c][r]->size = strlen(data);
-			packet_matrix[c][r]->data = strdup(data);
+			if (generate_null && (r*c % 3) == 1) {
+				packet_matrix[c][r] = NULL;
+			} else {
+				packet_matrix[c][r] =
+				    (parquet_data_packet *) malloc(
+				        sizeof(parquet_data_packet));
+				char data[STRING_LENGTH] = { 0 };
+				snprintf(data, STRING_LENGTH,
+				    "hello world_%u_%u", c, r);
+				packet_matrix[c][r]->size = strlen(data);
+				packet_matrix[c][r]->data = strdup(data);
+			}
 			r++;
 		}
 		r = 0;
@@ -217,13 +223,13 @@ parquet_write_batch_async_test1(void)
 {
 	uint64_t              *ts = keys_allocate(keys_test[0], DATASIZE);
 	parquet_data_packet ***matrix =
-	    parquet_data_packet_array_generate(1, DATASIZE);
+	    parquet_data_packet_array_generate(1, DATASIZE, false);
 
 	char **schema_l = malloc(sizeof(char*)*2);
 	schema_l[0] = strdup("ts");
 	schema_l[1] = strdup("data");
 
-	parquet_data *data = parquet_data_alloc(schema_l, matrix, ts, 2, DATASIZE);
+	parquet_data *data = parquet_data_alloc(schema_l, matrix, ts, 1, DATASIZE);
 
 	work *w  = ALLOC_STRUCT(w);
 	int   rv = 0;
@@ -241,24 +247,24 @@ parquet_write_batch_async_test1(void)
 work *
 parquet_write_batch_async_test2(void)
 {
-
 	uint64_t              *ts = keys_allocate(keys_test[1], DATASIZE);
 	parquet_data_packet ***matrix =
-	    parquet_data_packet_array_generate(DATASIZE, DATASIZE);
+	    parquet_data_packet_array_generate(DATASIZE, DATASIZE, false);
 
-	char **schema_l = malloc(sizeof(char*)*2);
-	schema_l[0] = strdup("ts");
-	schema_l[1] = strdup("data123123");
-	schema_l[2] = strdup("data+23434");
-	schema_l[3] = strdup("data_123444");
-	schema_l[4] = strdup("data+222222");
-	schema_l[5] = strdup("data+4444444444444");
-	schema_l[6] = strdup("data+11111234");
-	schema_l[7] = strdup("data+11111111");
-	schema_l[8] = strdup("data+22222222");
-	schema_l[9] = strdup("dataaaaaaaaaaaa");
+	char **schema_l = malloc(sizeof(char *) * DATASIZE);
+	schema_l[0]     = strdup("ts");
+	schema_l[1]     = strdup("data123123");
+	schema_l[2]     = strdup("data+23434");
+	schema_l[3]     = strdup("data_123444");
+	schema_l[4]     = strdup("data+222222");
+	schema_l[5]     = strdup("data+4444444444444");
+	schema_l[6]     = strdup("data+11111234");
+	schema_l[7]     = strdup("data+11111111");
+	schema_l[8]     = strdup("data+22222222");
+	schema_l[9]     = strdup("dataaaaaaaaaaaa");
 
-	parquet_data *data = parquet_data_alloc(schema_l, matrix, ts, DATASIZE, DATASIZE);
+	parquet_data *data =
+	    parquet_data_alloc(schema_l, matrix, ts, DATASIZE - 1, DATASIZE);
 
 	work *w  = ALLOC_STRUCT(w);
 	int   rv = 0;
@@ -271,31 +277,43 @@ parquet_write_batch_async_test2(void)
 
 	parquet_write_batch_async(elem);
 	return w;
-
-
 }
 
-// work *
-// parquet_write_batch_async_test3(void)
-// {
-// 	uint32_t *dsize;
-// 	uint64_t *keys   = keys_allocate(keys_test[2], DATASIZE);
-// 	uint8_t **darray = data_array_allocate(&dsize, DATASIZE);
-// 
-// 	work *w  = ALLOC_STRUCT(w);
-// 	int   rv = 0;
-// 	if ((rv = nng_aio_alloc(&w->aio, aio_test_cb, w)) != 0) {
-// 		printf("nng_aio_alloc failed\n");
-// 	}
-// 
-// 	parquet_object *elem = parquet_object_alloc(
-// 	    keys, (uint8_t **) darray, dsize, DATASIZE, w->aio, darray);
-// 
-// 	elem->topic = topic;
-// 	parquet_write_batch_async(elem);
-// 	return w;
-// }
-// 
+work *
+parquet_write_batch_async_test3(void)
+{
+	uint64_t              *ts = keys_allocate(keys_test[2], DATASIZE);
+	parquet_data_packet ***matrix =
+	    parquet_data_packet_array_generate(DATASIZE, DATASIZE, true);
+
+	char **schema_l = malloc(sizeof(char *) * DATASIZE);
+	schema_l[0]     = strdup("ts");
+	schema_l[1]     = strdup("data123123");
+	schema_l[2]     = strdup("data+23434");
+	schema_l[3]     = strdup("data_123444");
+	schema_l[4]     = strdup("data+222222");
+	schema_l[5]     = strdup("data+4444444444444");
+	schema_l[6]     = strdup("data+11111234");
+	schema_l[7]     = strdup("data+11111111");
+	schema_l[8]     = strdup("data+22222222");
+	schema_l[9]     = strdup("dataaaaaaaaaaaa");
+
+	parquet_data *data =
+	    parquet_data_alloc(schema_l, matrix, ts, DATASIZE - 1, DATASIZE);
+
+	work *w  = ALLOC_STRUCT(w);
+	int   rv = 0;
+	if ((rv = nng_aio_alloc(&w->aio, aio_test_cb, w)) != 0) {
+		printf("nng_aio_alloc failed\n");
+	}
+
+	parquet_object *elem =
+	    parquet_object_alloc(data, WRITE_RAW, w->aio, NULL, topic);
+
+	parquet_write_batch_async(elem);
+	return w;
+}
+
 // work *
 // parquet_write_batch_async_test4(void)
 // {
@@ -450,7 +468,7 @@ parquet_write_batch_async_test(void)
 	work **works = NULL;
 	cvector_push_back(works, parquet_write_batch_async_test1());
 	cvector_push_back(works, parquet_write_batch_async_test2());
-	// cvector_push_back(works, parquet_write_batch_async_test3());
+	cvector_push_back(works, parquet_write_batch_async_test3());
 	// cvector_push_back(works, parquet_write_batch_async_test4());
 	// cvector_push_back(works, parquet_write_batch_async_test5());
 
