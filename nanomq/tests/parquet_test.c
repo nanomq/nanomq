@@ -59,49 +59,6 @@ keys_allocate(uint64_t keys[], uint32_t size)
 	return keys_alloc;
 }
 
-// parquet_data_packet ***
-// parquet_data_packet_array_generate(uint32_t col_len, uint32_t row_len, bool generate_null, char **data)
-// {
-// 	uint32_t               c = 0;
-// 	uint32_t               r = 0;
-// 	static 
-// 
-// 
-// 	parquet_data_packet ***packet_matrix =
-// 	    (parquet_data_packet ***) malloc(
-// 	        col_len * sizeof(parquet_data_packet **));
-// 	while (c < col_len) {
-// 		packet_matrix[c] = (parquet_data_packet **) malloc(
-// 		    row_len * sizeof(parquet_data_packet *));
-// 		while (r < row_len) {
-// 			if (generate_null && (r*c % 3) == 1) {
-// 				packet_matrix[c][r] = NULL;
-// 			} else {
-// 				packet_matrix[c][r] =
-// 				    (parquet_data_packet *) malloc(
-// 				        sizeof(parquet_data_packet));
-// 				char data[STRING_LENGTH] = { 0 };
-// 				snprintf(data, STRING_LENGTH,
-// 				    "hello world_%u_%u", c, r);
-// 				// packet_matrix[c][r]->size = strlen(data);
-// 				// packet_matrix[c][r]->data = strdup(data);
-// 
-//                 packet_matrix[c][r]->size = strlen(data);
-//                 packet_matrix[c][r]->data = static_memory;
-// 
-//                 // 将数据复制到预分配的静态内存中
-//                 memcpy(static_memory, data, strlen(data));
-//                 static_memory += STRING_LENGTH;
-// 
-// 			}
-// 			r++;
-// 		}
-// 		r = 0;
-// 		c++;
-// 	}
-// 
-// 	return packet_matrix;
-// }
 
 parquet_data_packet ***
 parquet_data_packet_array_generate(uint32_t col_len, uint32_t row_len, bool generate_null, char **memory)
@@ -501,14 +458,14 @@ void
 parquet_find_span_test()
 {
 
-	char *value = (char *) parquet_find(3000);
+	char *value = (char *) parquet_find(2000);
 	check_mem(value);
-	check_name(value, filenames[4]);
+	check_name(value, filenames[2]);
 	nng_strfree(value);
 
 	// Test normal case
 	uint32_t size  = 0;
-	char   **array = (char **) parquet_find_span(0, 4000, &size);
+	char   **array = (char **) parquet_find_span(0, 2000, &size);
 	check_mem(array);
 	for (uint32_t i = 0; i < size; i++) {
 		if (array[i]) {
@@ -517,7 +474,7 @@ parquet_find_span_test()
 			nng_strfree(array[i]);
 		}
 	}
-	check(size == 5, "find span size error");
+	check(size == 3, "find span size error");
 	nng_free(array, size);
 
 	// Test illegal case
@@ -550,15 +507,15 @@ parquet_find_data_packet_test()
 	parquet_data_packet *pack = parquet_find_data_packet(
 	    NULL, full_filenames[1], 1109);
 	check_mem(pack);
-	check(pack->size == strlen("hello world9"), "size error");
-	check_nstr(pack->data, "hello world9", pack->size);
+	check(pack->size == strlen("hello world_0_9"), "size error");
+	check_nstr(pack->data, "hello world_0_9", pack->size);
 	FREE_STRUCT(pack->data);
 	FREE_STRUCT(pack);
 
 	parquet_data_packet **packs = parquet_find_data_packets(
-	    NULL, full_filenames, find_keys_test, NUM_KEYS);
+	    NULL, full_filenames, find_keys_test, 3);
 	check_mem(packs);
-	for (int i = 0; i < NUM_KEYS; i++) {
+	for (int i = 0; i < 3; i++) {
 		if (packs[i]) {
 			check(packs[i]->size == strlen("hello world0"),
 			    "size error");
@@ -580,28 +537,47 @@ error:
 void
 parquet_get_data_packets_in_range_test()
 {
+	// Test all data
 	parquet_filename_range range = {
 		.keys     = { 10, 4409 },
 		.filename = NULL,
 	};
 	uint32_t           size = 0;
-	parquet_data_ret **rets =
-	    parquet_get_data_packets_in_range_by_column(&range, "canudp", NULL, 0, &size);
+	parquet_data_ret **rets = parquet_get_data_packets_in_range_by_column(
+	    &range, "canudp", NULL, 0, &size);
 	check_mem(rets);
 	for (uint32_t i = 0; i < size; i++) {
 		parquet_data_ret *ret = rets[i];
-		// if (ret) {
-		// 	for (uint32_t c = 0; c < ret->col_len; c++) {
-		// 		printf("%s\t", ret->schema[c]);
-		// 		for (uint32_t r = 0; r < ret->row_len; r++) {
-		// 			printf("%.*s\t",
-		// 			    ret->payload_arr[c][r]->size,
-		// 			    ret->payload_arr[c][r]->data);
-		// 		}
-		// 	}
-		// 	puts("");
-		// }
+		if (ret) {
+			for (uint32_t c = 0; c < ret->col_len; c++) {
+				printf("%s\t", ret->schema[c]);
+				FREE_STRUCT(ret->schema[c]);
+				for (uint32_t r = 0; r < ret->row_len; r++) {
+					parquet_data_packet *pack =
+					    ret->payload_arr[c][r];
+					printf("%lu ", ret->ts[r]);
+					if (pack) {
+						printf(
+						    "%.*s\t", pack->size, pack->data);
+						FREE_STRUCT(pack->data);
+						FREE_STRUCT(pack);
+					} else {
+						printf("NULL\t");
+
+					}
+				}
+				puts("");
+				FREE_STRUCT(ret->payload_arr[c]);
+
+			}
+			puts("");
+			FREE_STRUCT(ret->schema);
+			FREE_STRUCT(ret->ts);
+			FREE_STRUCT(ret->payload_arr);
+			FREE_STRUCT(ret);
+		}
 	}
+	FREE_STRUCT(rets);
 	return;
 
 error:
@@ -612,6 +588,7 @@ error:
 void
 parquet_get_data_packets_in_range_by_column_test()
 {
+	// test specify schema
 	parquet_filename_range range = {
 		.keys     = { 10, 4409 },
 		.filename = NULL,
@@ -630,15 +607,37 @@ parquet_get_data_packets_in_range_by_column_test()
 		if (ret) {
 			for (uint32_t c = 0; c < ret->col_len; c++) {
 				printf("%s\t", ret->schema[c]);
+				FREE_STRUCT(ret->schema[c]);
 				for (uint32_t r = 0; r < ret->row_len; r++) {
-					printf("%.*s\t",
-					    ret->payload_arr[c][r]->size,
-					    ret->payload_arr[c][r]->data);
+					parquet_data_packet *pack =
+					    ret->payload_arr[c][r];
+					printf("%lu ", ret->ts[r]);
+					if (pack) {
+						printf(
+						    "%.*s\t", pack->size, pack->data);
+						FREE_STRUCT(pack->data);
+						FREE_STRUCT(pack);
+					} else {
+						printf("NULL\t");
+					}
 				}
+				puts("");
+				FREE_STRUCT(ret->payload_arr[c]);
+
 			}
 			puts("");
+			FREE_STRUCT(ret->schema);
+			FREE_STRUCT(ret->ts);
+			FREE_STRUCT(ret->payload_arr);
+			FREE_STRUCT(ret);
 		}
 	}
+	FREE_STRUCT(rets);
+	FREE_STRUCT(schema_l[0]);
+	FREE_STRUCT(schema_l[1]);
+	FREE_STRUCT(schema_l[2]);
+	FREE_STRUCT(schema_l);
+
 	return;
 
 error:
@@ -669,33 +668,40 @@ parquet_get_file_range_test()
 			parquet_data_ret *ret = rets[i];
 			if (ret) {
 				for (uint32_t c = 0; c < ret->col_len; c++) {
-					printf("%u %u %u %s\t", size, ret->col_len, ret->row_len, ret->schema[c]);
+					printf("%s\t", ret->schema[c]);
+					FREE_STRUCT(ret->schema[c]);
 					for (uint32_t r = 0; r < ret->row_len; r++) {
-						if (ret->payload_arr[c][r]) {
-							printf("%.*s\t",
-							    ret->payload_arr[c][r]->size,
-							    ret->payload_arr[c][r]->data);
+						parquet_data_packet *pack =
+						    ret->payload_arr[c][r];
+						printf("%lu ", ret->ts[r]);
+						if (pack) {
+							printf(
+							    "%.*s\t", pack->size, pack->data);
+							FREE_STRUCT(pack->data);
+							FREE_STRUCT(pack);
 						} else {
 							printf("NULL\t");
+
 						}
 					}
+					FREE_STRUCT(ret->payload_arr[c]);
+					puts("");
+
 				}
 				puts("");
+				FREE_STRUCT(ret->schema);
+				FREE_STRUCT(ret->ts);
+				FREE_STRUCT(ret->payload_arr);
+				FREE_STRUCT(ret);
 			}
 		}
+		FREE_STRUCT(rets);
+		FREE_STRUCT(schema_l[0]);
+		FREE_STRUCT(schema_l[1]);
+		FREE_STRUCT(schema_l[2]);
+		FREE_STRUCT(schema_l);
 
 
-
-		//for (uint32_t i = 0; i < size; i++) {
-		//	parquet_data_packet *pack       = packs[i];
-		//	// char                 expect[32] = { 0 };
-		//	// sprintf(expect, "hello world%d", i);
-		//	// check(pack->size == strlen(expect), "size error");
-		//	// check_nstr(pack->data, expect, pack->size);
-		//	FREE_STRUCT(packs[i]->data);
-		//	FREE_STRUCT(packs[i]);
-		//}
-		//FREE_STRUCT(packs);
 		nng_strfree((char *) (*file_ranges)->filename);
 		FREE_STRUCT(*file_ranges);
 		file_ranges++;
@@ -707,20 +713,20 @@ error:
 	puts("parquet_find_file_range_test failed!");
 	abort();
 }
-// 
-// void
-// parquet_get_key_span_test()
-// {
-// 	uint64_t *data_span = NULL;
-// 	data_span = parquet_get_key_span();
-// 	check(data_span[0] == 10, "start key error");
-// 	check(data_span[1] == 4409, "end key error");
-// 	return;
-// error:
-// 	puts("parquet_get_key_span_test failed!");
-//     abort();
-// }
-// 
+
+void
+parquet_get_key_span_test()
+{
+	uint64_t *data_span = NULL;
+	data_span = parquet_get_key_span();
+	check(data_span[0] == 10, "start key error");
+	check(data_span[1] == 2209, "end key error");
+	return;
+error:
+	puts("parquet_get_key_span_test failed!");
+    abort();
+}
+
 
 int
 main(int argc, char **argv)
@@ -734,21 +740,19 @@ main(int argc, char **argv)
 	puts("parquet write batch async passed!");
 	parquet_write_batch_async_tmp_test();
 	puts("parquet write batch tmp async passed!");
-	// parquet_get_data_packets_in_range_test();
-	// puts("parquet get data packets in range test passed!");
-	// parquet_get_data_packets_in_range_by_column_test();
-	// puts("parquet get data packets in range by column test passed!");
+	parquet_get_data_packets_in_range_test();
+	puts("parquet get data packets in range test passed!");
+	parquet_get_data_packets_in_range_by_column_test();
+	puts("parquet get data packets in range by column test passed!");
 
 	// parquet_find_span_test();
 	// puts("parquet_find_span_test passed!");
 	// parquet_find_data_packet_test();
 	// puts("parquet_find_data_packet_test passed!");
-	// parquet_get_file_range_test();
-	// puts("parquet_get_file_range_test passed!");
-	// parquet_get_key_span_test();
-	// puts("parquet_get_key_span_test passed!");
-
-	// sleep(100000);
+	parquet_get_file_range_test();
+	puts("parquet_get_file_range_test passed!");
+	parquet_get_key_span_test();
+	puts("parquet_get_key_span_test passed!");
 
 	return 0;
 }
