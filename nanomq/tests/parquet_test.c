@@ -33,6 +33,10 @@ static uint64_t find_keys_test[NUM_KEYS] = { 10, 110, 220, 330, 440 };
 static char     topic[]                  = "canudp";
 static char     prefix[]                 = "/tmp/parquet/ly_canudp";
 static char    *schema[]                 = { "ts", "data" };
+static int      global_data_index        = 0;
+static char    *global_data[128];
+static int      total_data_size = 10240;
+static char    *static_memory   = NULL;
 
 static char *filenames[NUM_KEYS] = { "10~109.parquet", "110~1109.parquet",
 	"220~2209.parquet", "330~3309.parquet", "440~4409.parquet" };
@@ -55,38 +59,111 @@ keys_allocate(uint64_t keys[], uint32_t size)
 	return keys_alloc;
 }
 
-parquet_data_packet ***
-parquet_data_packet_array_generate(uint32_t col_len, uint32_t row_len, bool generate_null)
-{
-	uint32_t               c = 0;
-	uint32_t               r = 0;
-	parquet_data_packet ***packet_matrix =
-	    (parquet_data_packet ***) malloc(
-	        col_len * sizeof(parquet_data_packet **));
-	while (c < col_len) {
-		packet_matrix[c] = (parquet_data_packet **) malloc(
-		    row_len * sizeof(parquet_data_packet *));
-		while (r < row_len) {
-			if (generate_null && (r*c % 3) == 1) {
-				packet_matrix[c][r] = NULL;
-			} else {
-				packet_matrix[c][r] =
-				    (parquet_data_packet *) malloc(
-				        sizeof(parquet_data_packet));
-				char data[STRING_LENGTH] = { 0 };
-				snprintf(data, STRING_LENGTH,
-				    "hello world_%u_%u", c, r);
-				packet_matrix[c][r]->size = strlen(data);
-				packet_matrix[c][r]->data = strdup(data);
-			}
-			r++;
-		}
-		r = 0;
-		c++;
-	}
+// parquet_data_packet ***
+// parquet_data_packet_array_generate(uint32_t col_len, uint32_t row_len, bool generate_null, char **data)
+// {
+// 	uint32_t               c = 0;
+// 	uint32_t               r = 0;
+// 	static 
+// 
+// 
+// 	parquet_data_packet ***packet_matrix =
+// 	    (parquet_data_packet ***) malloc(
+// 	        col_len * sizeof(parquet_data_packet **));
+// 	while (c < col_len) {
+// 		packet_matrix[c] = (parquet_data_packet **) malloc(
+// 		    row_len * sizeof(parquet_data_packet *));
+// 		while (r < row_len) {
+// 			if (generate_null && (r*c % 3) == 1) {
+// 				packet_matrix[c][r] = NULL;
+// 			} else {
+// 				packet_matrix[c][r] =
+// 				    (parquet_data_packet *) malloc(
+// 				        sizeof(parquet_data_packet));
+// 				char data[STRING_LENGTH] = { 0 };
+// 				snprintf(data, STRING_LENGTH,
+// 				    "hello world_%u_%u", c, r);
+// 				// packet_matrix[c][r]->size = strlen(data);
+// 				// packet_matrix[c][r]->data = strdup(data);
+// 
+//                 packet_matrix[c][r]->size = strlen(data);
+//                 packet_matrix[c][r]->data = static_memory;
+// 
+//                 // 将数据复制到预分配的静态内存中
+//                 memcpy(static_memory, data, strlen(data));
+//                 static_memory += STRING_LENGTH;
+// 
+// 			}
+// 			r++;
+// 		}
+// 		r = 0;
+// 		c++;
+// 	}
+// 
+// 	return packet_matrix;
+// }
 
-	return packet_matrix;
+parquet_data_packet ***
+parquet_data_packet_array_generate(uint32_t col_len, uint32_t row_len, bool generate_null, char **memory)
+{
+    uint32_t c = 0;
+    uint32_t r = 0;
+
+    // 计算总的内存需求
+    size_t total_data_size = 0;
+    for (c = 0; c < col_len; c++) {
+        for (r = 0; r < row_len; r++) {
+            if (!(generate_null && (r * c % 3) == 1)) {
+                total_data_size += STRING_LENGTH;
+            }
+        }
+    }
+
+    // 将静态内存的分配放到函数内部
+    char *static_memory = (char *)malloc(total_data_size);
+    if (!static_memory) {
+        log_error("Memory allocation failed for static_memory");
+        return NULL;
+    }
+
+    // 重新初始化 c 和 r
+    c = 0;
+    r = 0;
+    char *current_memory_ptr = static_memory;
+
+    parquet_data_packet ***packet_matrix =
+        (parquet_data_packet ***)malloc(col_len * sizeof(parquet_data_packet **));
+    while (c < col_len) {
+        packet_matrix[c] = (parquet_data_packet **)malloc(row_len * sizeof(parquet_data_packet *));
+        while (r < row_len) {
+            if (generate_null && (r * c % 3) == 1) {
+                packet_matrix[c][r] = NULL;
+            } else {
+                packet_matrix[c][r] = (parquet_data_packet *)malloc(sizeof(parquet_data_packet));
+                char data[STRING_LENGTH] = {0};
+                snprintf(data, STRING_LENGTH, "hello world_%u_%u", c, r);
+                packet_matrix[c][r]->size = strlen(data);
+                packet_matrix[c][r]->data = current_memory_ptr;
+
+                // 将数据复制到预分配的静态内存中
+                memcpy(current_memory_ptr, data, strlen(data));
+                current_memory_ptr += STRING_LENGTH;
+            }
+            r++;
+        }
+        r = 0;
+        c++;
+    }
+
+    // 记得在最后释放静态内存
+    // free(static_memory);
+	*memory = static_memory;
+
+    return packet_matrix;
 }
+
+
+
 
 uint8_t **
 data_array_allocate(uint32_t **dsize, uint32_t size)
@@ -165,7 +242,8 @@ aio_test_cb(void *arg)
 	nng_aio             *aio         = w->aio;
 	static int           test_index  = 0;
 	parquet_file_ranges *file_ranges = nng_aio_get_output(aio, 1);
-	// char	       **data_array  = nng_aio_get_prov_data(aio);
+	char	       *memory  = nng_aio_get_prov_data(aio);
+	free(memory);
 
 	check(file_ranges->size == 1, "file_ranges size error");
 
@@ -216,8 +294,9 @@ work *
 parquet_write_batch_async_test1(void)
 {
 	uint64_t              *ts = keys_allocate(keys_test[0], DATASIZE);
+	char                  *memory = NULL;
 	parquet_data_packet ***matrix =
-	    parquet_data_packet_array_generate(1, DATASIZE, false);
+	    parquet_data_packet_array_generate(1, DATASIZE, false, &memory);
 
 	char **schema_l = malloc(sizeof(char*)*2);
 	schema_l[0] = strdup("ts");
@@ -232,7 +311,7 @@ parquet_write_batch_async_test1(void)
 	}
 
 	parquet_object *elem =
-	    parquet_object_alloc(data, WRITE_RAW, w->aio, NULL, topic);
+	    parquet_object_alloc(data, WRITE_RAW, w->aio, memory, topic);
 
 	parquet_write_batch_async(elem);
 	return w;
@@ -242,8 +321,9 @@ work *
 parquet_write_batch_async_test2(void)
 {
 	uint64_t              *ts = keys_allocate(keys_test[1], DATASIZE);
+	char                  *memory = NULL;
 	parquet_data_packet ***matrix =
-	    parquet_data_packet_array_generate(DATASIZE-1, DATASIZE, false);
+	    parquet_data_packet_array_generate(DATASIZE-1, DATASIZE, false, &memory);
 
 	char **schema_l = malloc(sizeof(char *) * DATASIZE);
 	schema_l[0]     = strdup("ts");
@@ -267,7 +347,7 @@ parquet_write_batch_async_test2(void)
 	}
 
 	parquet_object *elem =
-	    parquet_object_alloc(data, WRITE_RAW, w->aio, NULL, topic);
+	    parquet_object_alloc(data, WRITE_RAW, w->aio, memory, topic);
 
 	parquet_write_batch_async(elem);
 	return w;
@@ -277,8 +357,9 @@ work *
 parquet_write_batch_async_test3(void)
 {
 	uint64_t              *ts = keys_allocate(keys_test[2], DATASIZE);
+	char                  *memory = NULL;
 	parquet_data_packet ***matrix =
-	    parquet_data_packet_array_generate(DATASIZE-1, DATASIZE, true);
+	    parquet_data_packet_array_generate(DATASIZE-1, DATASIZE, true, &memory);
 
 	char **schema_l = malloc(sizeof(char *) * DATASIZE);
 	schema_l[0]     = strdup("ts");
@@ -302,7 +383,7 @@ parquet_write_batch_async_test3(void)
 	}
 
 	parquet_object *elem =
-	    parquet_object_alloc(data, WRITE_RAW, w->aio, NULL, topic);
+	    parquet_object_alloc(data, WRITE_RAW, w->aio, memory, topic);
 
 	parquet_write_batch_async(elem);
 	return w;
@@ -312,8 +393,11 @@ work *
 parquet_write_batch_tmp_async_test1(void)
 {
 	uint64_t              *ts = keys_allocate(keys_test[0], DATASIZE);
+
+	char                  *memory = NULL;
+
 	parquet_data_packet ***matrix =
-	    parquet_data_packet_array_generate(1, DATASIZE, false);
+	    parquet_data_packet_array_generate(1, DATASIZE, false, &memory);
 
 	char **schema_l = malloc(sizeof(char*)*2);
 	schema_l[0] = strdup("ts");
@@ -339,8 +423,9 @@ work *
 parquet_write_batch_tmp_async_test2(void)
 {
 	uint64_t              *ts = keys_allocate(keys_test[1], DATASIZE);
+	char                  *memory = NULL;
 	parquet_data_packet ***matrix =
-	    parquet_data_packet_array_generate(DATASIZE, DATASIZE, false);
+	    parquet_data_packet_array_generate(DATASIZE, DATASIZE, false, &memory);
 
 	char **schema_l = malloc(sizeof(char *) * DATASIZE);
 	schema_l[0]     = strdup("ts");
@@ -546,7 +631,44 @@ parquet_get_data_packets_in_range_test()
 	};
 	uint32_t           size = 0;
 	parquet_data_ret **rets =
-	    parquet_get_data_packets_in_range(&range, "canudp", &size);
+	    parquet_get_data_packets_in_range_by_column(&range, "canudp", NULL, 0, &size);
+	check_mem(rets);
+	for (uint32_t i = 0; i < size; i++) {
+		parquet_data_ret *ret = rets[i];
+		// if (ret) {
+		// 	for (uint32_t c = 0; c < ret->col_len; c++) {
+		// 		printf("%s\t", ret->schema[c]);
+		// 		for (uint32_t r = 0; r < ret->row_len; r++) {
+		// 			printf("%.*s\t",
+		// 			    ret->payload_arr[c][r]->size,
+		// 			    ret->payload_arr[c][r]->data);
+		// 		}
+		// 	}
+		// 	puts("");
+		// }
+	}
+	return;
+
+error:
+	puts("parquet_get_data_packets_in_range_test failed!");
+	abort();
+}
+
+void
+parquet_get_data_packets_in_range_by_column_test()
+{
+	parquet_filename_range range = {
+		.keys     = { 10, 4409 },
+		.filename = NULL,
+	};
+	uint32_t           size = 0;
+	const char **schema_l = malloc(sizeof(char *) * DATASIZE);
+	schema_l[0]     = strdup("data");
+	schema_l[1]     = strdup("data123123");
+	schema_l[2]     = strdup("data+23434");
+
+	parquet_data_ret **rets =
+	    parquet_get_data_packets_in_range_by_column(&range, "canudp", schema_l, 3, &size);
 	check_mem(rets);
 	for (uint32_t i = 0; i < size; i++) {
 		parquet_data_ret *ret = rets[i];
@@ -569,37 +691,67 @@ error:
 	abort();
 }
 
-// void
-// parquet_find_file_range_test()
-// {
-// 	parquet_filename_range **file_ranges = parquet_find_file_range(10, 4409, "canudp");
-// 	parquet_filename_range **file_ranges_for_free = file_ranges;
-// 	check_mem(file_ranges);
-// 	while (*file_ranges)
-// 	{
-// 		uint32_t size = 0;
-// 		parquet_data_packet **packs = parquet_find_data_span_packets_specify_file(NULL, *file_ranges, &size);
-// 		for (uint32_t i = 0; i < size; i++) {
-// 			parquet_data_packet* pack = packs[i];
-// 			char expect[32] = { 0 };
-// 			sprintf(expect, "hello world%d", i);
-// 			check(pack->size == strlen(expect), "size error");
-// 		 	check_nstr(pack->data, expect, pack->size);
-// 	 		FREE_STRUCT(packs[i]->data);
-// 	 		FREE_STRUCT(packs[i]);
-// 		}
-// 		FREE_STRUCT(packs);
-// 		nng_strfree((char*)(*file_ranges)->filename);
-// 		FREE_STRUCT(*file_ranges);
-// 		file_ranges++;
-// 	}
-// 	FREE_STRUCT(file_ranges_for_free);
-// 	return;
-// 
-// error:
-// 	puts("parquet_find_file_range_test failed!");
-// 	abort();
-// }
+
+
+void
+parquet_get_file_range_test()
+{
+	parquet_filename_range **file_ranges = parquet_get_file_ranges(10, 4409, "canudp");
+	parquet_filename_range **file_ranges_for_free = file_ranges;
+	check_mem(file_ranges);
+	while (*file_ranges)
+	{
+		uint32_t           size = 0;
+		const char **schema_l = malloc(sizeof(char *) * DATASIZE);
+		schema_l[0]     = strdup("data");
+		schema_l[1]     = strdup("data123123");
+		schema_l[2]     = strdup("data+23434");
+
+		parquet_data_ret **rets = parquet_get_data_packets_in_range_by_column(*file_ranges, "canudp", schema_l, 3, &size);
+
+		check_mem(rets);
+		for (uint32_t i = 0; i < size; i++) {
+			parquet_data_ret *ret = rets[i];
+			if (ret) {
+				for (uint32_t c = 0; c < ret->col_len; c++) {
+					printf("%u %u %u %s\t", size, ret->col_len, ret->row_len, ret->schema[c]);
+					for (uint32_t r = 0; r < ret->row_len; r++) {
+						if (ret->payload_arr[c][r]) {
+							printf("%.*s\t",
+							    ret->payload_arr[c][r]->size,
+							    ret->payload_arr[c][r]->data);
+						} else {
+							printf("NULL\t");
+						}
+					}
+				}
+				puts("");
+			}
+		}
+
+
+
+		//for (uint32_t i = 0; i < size; i++) {
+		//	parquet_data_packet *pack       = packs[i];
+		//	// char                 expect[32] = { 0 };
+		//	// sprintf(expect, "hello world%d", i);
+		//	// check(pack->size == strlen(expect), "size error");
+		//	// check_nstr(pack->data, expect, pack->size);
+		//	FREE_STRUCT(packs[i]->data);
+		//	FREE_STRUCT(packs[i]);
+		//}
+		//FREE_STRUCT(packs);
+		nng_strfree((char *) (*file_ranges)->filename);
+		FREE_STRUCT(*file_ranges);
+		file_ranges++;
+	}
+	FREE_STRUCT(file_ranges_for_free);
+	return;
+
+error:
+	puts("parquet_find_file_range_test failed!");
+	abort();
+}
 // 
 // void
 // parquet_get_key_span_test()
@@ -620,21 +772,24 @@ main(int argc, char **argv)
 {
 
 	conf_parquet *conf = conf_parquet_init();
+	static_memory   = (char *) malloc(total_data_size);
 
 	parquet_write_launcher(conf);
 	parquet_write_batch_async_test();
 	puts("parquet write batch async passed!");
-	parquet_write_batch_async_tmp_test();
-	puts("parquet write batch tmp async passed!");
-	parquet_get_data_packets_in_range_test();
-	puts("parquet get data packets in range test passed!");
+	// parquet_write_batch_async_tmp_test();
+	// puts("parquet write batch tmp async passed!");
+	// parquet_get_data_packets_in_range_test();
+	// puts("parquet get data packets in range test passed!");
+	// parquet_get_data_packets_in_range_by_column_test();
+	// puts("parquet get data packets in range by column test passed!");
 
 	// parquet_find_span_test();
 	// puts("parquet_find_span_test passed!");
 	// parquet_find_data_packet_test();
 	// puts("parquet_find_data_packet_test passed!");
-	// parquet_find_file_range_test();
-	// puts("parquet_find_file_range_test passed!");
+	// parquet_get_file_range_test();
+	// puts("parquet_get_file_range_test passed!");
 	// parquet_get_key_span_test();
 	// puts("parquet_get_key_span_test passed!");
 
