@@ -156,56 +156,10 @@ parquet_data_packet_array_generate(uint32_t col_len, uint32_t row_len, bool gene
     }
 
     // 记得在最后释放静态内存
-    // free(static_memory);
 	*memory = static_memory;
 
     return packet_matrix;
 }
-
-
-
-
-uint8_t **
-data_array_allocate(uint32_t **dsize, uint32_t size)
-{
-	uint32_t  i           = 0;
-	uint32_t *dsize_alloc = malloc(size * sizeof(uint32_t));
-	while (i < size) {
-		dsize_alloc[i] = STRING_LENGTH;
-		i++;
-	}
-
-	char **darray = malloc(size * sizeof(char *));
-
-	if (darray == NULL) {
-		printf("Memory allocation failed. Exiting...\n");
-		return NULL;
-	}
-
-	for (uint32_t i = 0; i < size; i++) {
-		darray[i] = malloc((STRING_LENGTH + 1) * sizeof(char));
-
-		if (darray[i] == NULL) {
-			printf("Memory allocation failed for element %d. "
-			       "Exiting...\n",
-			    i);
-
-			// Free previously allocated memory before exiting
-			for (uint32_t j = 0; j < i; j++) {
-				free(darray[j]);
-			}
-			free(darray);
-
-			return NULL;
-		}
-
-		sprintf(darray[i], "hello world%d", i);
-	}
-	*dsize = dsize_alloc;
-
-	return (uint8_t **) darray;
-}
-
 
 void
 works_free(work **works)
@@ -271,7 +225,8 @@ aio_test_write_tmp_cb(void *arg)
 	nng_aio             *aio         = w->aio;
 	static int           test_index  = 0;
 	parquet_file_ranges *file_ranges = nng_aio_get_output(aio, 1);
-	// char	       **data_array  = nng_aio_get_prov_data(aio);
+	char	       *memory  = nng_aio_get_prov_data(aio);
+	free(memory);
 
 
 	check(file_ranges->size == 1, "file_ranges size error");
@@ -412,7 +367,7 @@ parquet_write_batch_tmp_async_test1(void)
 	}
 
 	parquet_object *elem =
-	    parquet_object_alloc(data, WRITE_TEMP_RAW, w->aio, NULL, topic);
+	    parquet_object_alloc(data, WRITE_TEMP_RAW, w->aio, memory, topic);
 
 	parquet_write_batch_tmp_async(elem);
 
@@ -425,7 +380,7 @@ parquet_write_batch_tmp_async_test2(void)
 	uint64_t              *ts = keys_allocate(keys_test[1], DATASIZE);
 	char                  *memory = NULL;
 	parquet_data_packet ***matrix =
-	    parquet_data_packet_array_generate(DATASIZE, DATASIZE, false, &memory);
+	    parquet_data_packet_array_generate(DATASIZE-1, DATASIZE, false, &memory);
 
 	char **schema_l = malloc(sizeof(char *) * DATASIZE);
 	schema_l[0]     = strdup("ts");
@@ -449,7 +404,7 @@ parquet_write_batch_tmp_async_test2(void)
 	}
 
 	parquet_object *elem =
-	    parquet_object_alloc(data, WRITE_TEMP_RAW, w->aio, NULL, topic);
+	    parquet_object_alloc(data, WRITE_TEMP_RAW, w->aio, memory, topic);
 
 	parquet_write_batch_tmp_async(elem);
 
@@ -777,8 +732,8 @@ main(int argc, char **argv)
 	parquet_write_launcher(conf);
 	parquet_write_batch_async_test();
 	puts("parquet write batch async passed!");
-	// parquet_write_batch_async_tmp_test();
-	// puts("parquet write batch tmp async passed!");
+	parquet_write_batch_async_tmp_test();
+	puts("parquet write batch tmp async passed!");
 	// parquet_get_data_packets_in_range_test();
 	// puts("parquet get data packets in range test passed!");
 	// parquet_get_data_packets_in_range_by_column_test();
