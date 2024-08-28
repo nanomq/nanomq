@@ -34,7 +34,7 @@ static void         set_char(char *out, unsigned int *index, char c);
 static unsigned int base62_encode(
     const unsigned char *in, unsigned int inlen, char *out);
 
-static int flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio, char *topic, uint8_t streamType);
+static int flush_smsg_to_disk(nng_msg **smsg, size_t len, nng_aio *aio, char *topic, uint8_t streamType);
 
 #define BASE62_ENCODE_OUT_SIZE(s) ((unsigned int) ((((s) * 8) / 6) + 2))
 
@@ -422,129 +422,144 @@ done:
 	return rv;
 }
 
+struct cb_data {
+	nng_msg **smsg;
+	size_t len;
+	struct stream_data_in *sdata;
+};
+
+static struct stream_data_in *stream_data_in_init(size_t len, nng_msg **smsg)
+{
+	struct stream_data_in *sdata = nng_alloc(sizeof(struct stream_data_in));
+	if (sdata == NULL) {
+		return NULL;
+	}
+
+	sdata->datas = nng_alloc(sizeof(void *) * len);
+	if (sdata->datas == NULL) {
+		nng_free(sdata, sizeof(struct stream_data_in));
+		return NULL;
+	}
+
+	sdata->keys = nng_alloc(sizeof(uint64_t) * len);
+	if (sdata->keys == NULL) {
+		nng_free(sdata->datas, sizeof(void *) * len);
+		nng_free(sdata, sizeof(struct stream_data_in));
+		return NULL;
+	}
+
+	sdata->lens = nng_alloc(sizeof(uint32_t) * len);
+	if (sdata->lens == NULL) {
+		nng_free(sdata->datas, sizeof(void *) * len);
+		nng_free(sdata->keys, sizeof(uint64_t) * len);
+		nng_free(sdata, sizeof(struct stream_data_in));
+		return NULL;
+	}
+
+	size_t len2 = 0;
+	for (size_t i = 0; i < len; i++) {
+		if (smsg[i] == NULL) {
+			continue;
+		}
+		sdata->datas[len2] = nng_msg_payload_ptr(smsg[i]);
+		sdata->lens[len2] = nng_msg_len(smsg[i]) - (nng_msg_payload_ptr(smsg[i]) - (uint8_t *)nng_msg_body(smsg[i]));
+		sdata->keys[len2] = nng_msg_get_timestamp(smsg[i]);
+		len2++;
+	}
+
+	sdata->len = len2;
+
+	return sdata;
+}
+
+static struct cb_data *cb_data_init(nng_msg **smsg, size_t len)
+{
+	struct cb_data *cb_data = nng_alloc(sizeof(struct cb_data));
+	if (cb_data == NULL) {
+		return NULL;
+	}
+
+	cb_data->smsg = smsg;
+	cb_data->len = len;
+	cb_data->sdata = stream_data_in_init(len, smsg);
+	if (cb_data->sdata == NULL) {
+		nng_free(cb_data, sizeof(struct cb_data));
+		return NULL;
+	}
+
+	return cb_data;
+}
+
+static void smsg_free(nng_msg **smsg, size_t len)
+{
+	for (size_t i = 0; i < len; i++) {
+		if (smsg[i] != NULL) {
+			nng_msg_free(smsg[i]);
+		}
+	}
+
+	nng_free(smsg, len);
+
+	return;
+}
+
+static void cb_data_free(struct cb_data *cb_data)
+{
+	if (cb_data == NULL) {
+		return;
+	}
+
+	if (cb_data->sdata != NULL) {
+		stream_data_in_free(cb_data->sdata);
+	}
+
+	smsg_free(cb_data->smsg, cb_data->len);
+
+	nng_free(cb_data, sizeof(struct cb_data));
+
+	return;
+}
+
 static int
 flush_smsg_to_disk(nng_msg **smsg,
 				   size_t len,
-				   void *handle,
 				   nng_aio *aio,
 				   char *topic,
 				   uint8_t streamType)
 {
-	nng_msg  *msg = NULL;
-	void     **datas = NULL;
-	uint64_t *keys = NULL;
-	uint32_t *lens = NULL;
+	struct cb_data *cb_data = NULL;
+	void *encoded_stream_data = NULL;
 
 	if (nng_aio_busy(aio)) {
-		for (int i = 0; i < len; ++i) {
-			if (smsg[i] == NULL)
-				continue;
-			nng_msg_free(smsg[i]);
-		}
-		nng_free(smsg, len);
+		smsg_free(smsg, len);
 		log_warn("flush aio is busy");
 		return NNG_EBUSY;
 	}
 
-	log_error("flush_smsg_to_disk");
-	void *encoded_data = NULL;
-	uint32_t outlen = 0;
-
-//	encoded_data = stream_encode(streamType, smsg, len, &outlen);
-	/* WIP: fix it */
-//	parquet_write(encoded_data);
-
-	if (streamType == STREAM_CANMSG) {
-		struct canStream *canmsg = parseCanStream(smsg, len);
-		if (canmsg == NULL) {
-			log_error("parse canmsg failed");
-			for (int i = 0; i < len; ++i) {
-				if (smsg[i] == NULL)
-					continue;
-				nng_msg_free(smsg[i]);
-			}
-			nng_free(smsg, len);
-			return NNG_ENOMEM;
-		}
-		/* call parquet */
-//		keys datas lens;
-		freeCanStream(canmsg);
-	} else if (streamType == STREAM_RAW) {
-		keys = nng_alloc(sizeof(uint64_t) * len);
-		datas = nng_alloc(sizeof(void *) * len);
-		lens = nng_alloc(sizeof(uint32_t) * len);
-		if (!datas || !keys || !lens) {
-			if (keys) {
-				nng_free(keys, sizeof(uint64_t) * len);
-			}
-			if (datas) {
-				nng_free(datas, sizeof(void *) * len);
-			}
-			if (len) {
-				nng_free(lens, sizeof(uint32_t) * len);
-			}
-			return NNG_ENOMEM;
-		}
-
-		int len2 = 0;
-		for (int i=0; i<(int)len; ++i) {
-			msg = smsg[i];
-			if (msg == NULL)
-				continue;
-			datas[len2] = nng_msg_payload_ptr(msg);
-			lens[len2] = nng_msg_len(msg) -
-			        (nng_msg_payload_ptr(msg) - (uint8_t *)nng_msg_body(msg));
-			keys[len2] = nng_msg_get_timestamp(msg);
-			len2 ++;
-		}
-
-#if defined(SUPP_PARQUET) || defined(SUPP_BLF)
-#ifdef SUPP_PARQUET
-		if (false == nng_aio_begin(aio)) {
-			log_error("nng aio begin failed");
-			return NNG_EBUSY;
-		}
-
-		if (len2 > 0)
-			log_warn("flush to parquet (%d) %lld...%lld", len2, keys[0],
-			    keys[len2 - 1]);
-		// write to disk
-		parquet_object *parquet_obj;
-		parquet_obj = parquet_object_alloc(
-		    keys, (uint8_t **) datas, lens, len2, aio, (void *) smsg);
-		parquet_obj->topic = topic;
-		parquet_write_batch_async(parquet_obj);
-#endif
-#if defined(SUPP_BLF)
-		if (false == nng_aio_begin(aio)) {
-			log_error("nng aio begin failed");
-			return NNG_EBUSY;
-		}
-
-		if (len2 > 0)
-			log_warn("flush to blf (%d) %lld...%lld", len2, keys[0],
-			    keys[len2 - 1]);
-		// write to disk
-		blf_object *blf_obj;
-		blf_obj = blf_object_alloc(
-		    keys, (uint8_t **) datas, lens, len2, aio, (void *) smsg);
-		blf_write_batch_async(blf_obj);
-
-#endif
-#else
-		nng_free(keys, len);
-		nng_free(datas, len);
-		nng_free(lens, len);
-		for (int i = 0; i < len; ++i) {
-			if (smsg[i] == NULL)
-				continue;
-			nng_msg_free(smsg[i]);
-		}
-		nng_free(smsg, len);
-#endif
-	} else {
-		log_error("Unknown stream type %d", streamType);
+	cb_data = cb_data_init(smsg, len);
+	if (cb_data == NULL) {
+		smsg_free(smsg, len);
+		log_error("cb_data_init failed");
+		return NNG_ENOMEM;
 	}
+
+
+	encoded_stream_data = stream_encode(streamType, cb_data->sdata);
+	if (encoded_stream_data == NULL) {
+		log_error("encode encoded_stream_data failed");
+		cb_data_free(cb_data);
+		return NNG_EINVAL;
+	}
+
+	parquet_object *parquet_obj = NULL;
+	parquet_obj = parquet_object_alloc(encoded_stream_data, WRITE_RAW, aio, (void *)cb_data, topic);
+	if (parquet_obj == NULL) {
+		log_error("parquet_object_alloc failed");
+		cb_data_free(cb_data);
+		return NNG_ENOMEM;
+	}
+
+	parquet_write_batch_async(parquet_obj);
 
 	return 0;
 }
@@ -570,7 +585,7 @@ static int inline get_flush_params(nng_aio *aio,
 		if (msgs_del != NULL) {
 			if (msgs_len != NULL) {
 				for (int i = 0; i < *msgs_len; ++i) {
-					if (msgs_del[i]) {
+					if (msgs_del[i] != NULL) {
 						nng_msg_free(msgs_del[i]);
 					}
 				}
@@ -628,7 +643,7 @@ send_exchange_cb(void *arg)
 	// Flush to disk.
 	if (w->config->parquet.enable || w->config->blf.enable) {
 		nng_mtx_lock(hook_conf->ex_mtx);
-		rv = flush_smsg_to_disk(msgs_del, *msgs_lenp, NULL, hook_conf->ex_aio, topic, streamType);
+		rv = flush_smsg_to_disk(msgs_del, *msgs_lenp, hook_conf->ex_aio, topic, streamType);
 		if (rv != 0) {
 			log_error("flush error %d", rv);
 		}
@@ -652,32 +667,20 @@ send_parquet_cb(void *arg)
 	conf_web_hook *hook_conf = arg;
 	nng_aio *aio = hook_conf->ex_aio;
 
-	nng_msg **msgs_del = nng_aio_get_prov_data(aio);
-	uint32_t *msgs_lenp = (uint32_t *)nng_aio_get_msg(aio);
-
-	if (msgs_lenp == NULL || *msgs_lenp == 0) {
-		log_warn("Failed to free parquet msgs lenp");
+	struct cb_data *cb_data = (struct cb_data *)nng_aio_get_prov_data(aio);
+	if (cb_data == NULL) {
+		log_error("cb_data is NULL");
 		return;
 	}
 
-	if (msgs_del == NULL) {
-		log_warn("Failed to free parquet msgs del");
-		return;
-	}
-
-	for (int i = 0; i< *msgs_lenp; ++i) {
-		if (msgs_del[i]) {
-			nng_msg_free(msgs_del[i]);
-		}
-	}
-
-	nng_free(msgs_del, *msgs_lenp);
-	nng_free(msgs_lenp, sizeof(uint32_t));
+	cb_data_free(cb_data);
 
 	if (nng_aio_result(aio) != 0) {
 		log_warn("Write data to parquet failed");
 		return;
 	}
+
+	return;
 }
 
 int
