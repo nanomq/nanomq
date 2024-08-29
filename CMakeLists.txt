@@ -33,6 +33,7 @@ option (ENABLE_JWT "Enable jwt library" OFF)
 option (ENABLE_RULE_ENGINE "Enable rule engine" OFF)
 option (ENABLE_MYSQL "Enable MYSQL" OFF)
 option (ENABLE_POSTGRESQL "Enable POSTGRESQL" OFF)
+option (ENABLE_TIMESCALEDB "Enable TIMESCALEDB" OFF)
 option (ENABLE_AWS_BRIDGE "Enable aws bridge" OFF)
 option (ENABLE_SYSLOG "Enable syslog" ON)
 option (ENABLE_PARQUET "Enable parquet" OFF)
@@ -368,6 +369,9 @@ if (ENABLE_POSTGRESQL)
   add_definitions(-DSUPP_POSTGRESQL)
 endif (ENABLE_POSTGRESQL)
 
+if (ENABLE_TIMESCALEDB)
+  add_definitions(-DSUPP_TIMESCALEDB)
+endif (ENABLE_TIMESCALEDB)
 
 
 add_subdirectory(nng)
