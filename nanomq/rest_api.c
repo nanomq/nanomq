@@ -1704,6 +1704,68 @@ post_rules_sqlite(conf_rule *cr, cJSON *jso_params, char *rawsql)
 }
 #endif
 
+#if defined(SUPP_TIMESCALEDB) && defined(SUPP_RULE_ENGINE)
+static int
+post_rules_timescaledb(conf_rule *cr, cJSON *jso_params, char *rawsql)
+{
+	cJSON *jso_param = NULL;
+	rule_timescaledb *timescaledb = rule_timescaledb_init();
+	cJSON_ArrayForEach(jso_param, jso_params)
+	{
+		if (jso_param) {
+			if (!nng_strcasecmp(jso_param->string, "table")) {
+				timescaledb->table =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "table: %s\n", jso_param->valuestring);
+			} else if (!nng_strcasecmp(
+			               jso_param->string, "username")) {
+				timescaledb->username =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "username: %s\n", jso_param->valuestring);
+			} else if (!nng_strcasecmp(
+			               jso_param->string, "password")) {
+				timescaledb->password =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "password: %s\n", jso_param->valuestring);
+			} else if (!nng_strcasecmp(
+			               jso_param->string, "host")) {
+				timescaledb->host =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "host: %s\n", jso_param->valuestring);
+			} else {
+				rule_timescaledb_free(timescaledb);
+				log_error("Unsupport key word!");
+				return REQ_PARAM_ERROR;
+			}
+		}
+	}
+
+	if (false == rule_timescaledb_check(timescaledb)) {
+		rule_timescaledb_free(timescaledb);
+		return MISSING_KEY_REQUEST_PARAMES;
+	}
+
+	rule_sql_parse(cr, rawsql);
+	cr->rules[cvector_size(cr->rules) - 1].forword_type =
+	    RULE_FORWORD_TIMESCALEDB;
+	cr->rules[cvector_size(cr->rules) - 1].timescaledb   = timescaledb;
+	cr->rules[cvector_size(cr->rules) - 1].raw_sql = nng_strdup(rawsql);
+	cr->rules[cvector_size(cr->rules) - 1].enabled = true;
+	cr->rules[cvector_size(cr->rules) - 1].rule_id =
+	    rule_generate_rule_id();
+	if (-1 == nanomq_client_timescaledb(cr, true)) {
+		return REQ_PARAM_ERROR;
+	}
+
+	cr->option |= RULE_ENG_TDB;
+	return SUCCEED;
+}
+#endif
+
 #if defined(SUPP_POSTGRESQL) && defined(SUPP_RULE_ENGINE)
 static int
 post_rules_postgresql(conf_rule *cr, cJSON *jso_params, char *rawsql)
@@ -1973,6 +2035,13 @@ post_rules(http_msg *msg)
 					goto error;
 			}
 #endif
+#if defined(SUPP_TIMESCALEDB)
+		} else if (!strcasecmp(name, "timescaledb")) {
+			if ((rc = post_rules_timescaledb(cr, jso_params, rawsql)) !=
+			    SUCCEED) {
+					goto error;
+			}
+#endif
 		} else {
 			log_error("Unsupport forword type !");
 			rc = PLUGIN_IS_CLOSED;
@@ -2200,6 +2269,58 @@ put_rules_postgresql_parse(cJSON *jso_params, rule_postgresql *postgresql)
 }
 
 static int
+put_rules_timescaledb_parse(cJSON *jso_params, rule_timescaledb *timescaledb)
+{
+	cJSON *jso_param = NULL;
+	cJSON_ArrayForEach(jso_param, jso_params)
+	{
+		if (jso_param) {
+			if (!nng_strcasecmp(jso_param->string, "table")) {
+				if (timescaledb->table) {
+					nng_strfree(timescaledb->table);
+				}
+				timescaledb->table =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "table: %s\n", jso_param->valuestring);
+			} else if (!nng_strcasecmp(
+			               jso_param->string, "username")) {
+				if (timescaledb->username) {
+					nng_strfree(timescaledb->username);
+				}
+				timescaledb->username =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "username: %s\n", jso_param->valuestring);
+			} else if (!nng_strcasecmp(
+			               jso_param->string, "password")) {
+				if (timescaledb->password) {
+					nng_strfree(timescaledb->password);
+				}
+				timescaledb->password =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "password: %s\n", jso_param->valuestring);
+			} else if (!nng_strcasecmp(
+			               jso_param->string, "host")) {
+				if (timescaledb->host) {
+					nng_strfree(timescaledb->host);
+				}
+				timescaledb->host =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "host: %s\n", jso_param->valuestring);
+			} else {
+				log_error("Unsupport key word!");
+				return REQ_PARAM_ERROR;
+			}
+		}
+	}
+
+	return SUCCEED;
+}
+
+static int
 put_rules_update_action(cJSON *jso_actions, rule *new_rule, conf_rule *cr)
 {
 	cJSON *jso_action = NULL;
@@ -2255,7 +2376,17 @@ put_rules_update_action(cJSON *jso_actions, rule *new_rule, conf_rule *cr)
 				rule_postgresql_free(postgresql);
 				return rc;
 			}
-
+		} else if (!strcasecmp(name, "timescaledb")) {
+			if (new_rule->forword_type != RULE_FORWORD_TIMESCALEDB) {
+				log_error("Unsupport change from other type to timescaledb");
+				return REQ_PARAM_ERROR;
+			}
+			rule_timescaledb *timescaledb = new_rule->timescaledb;
+			rc = put_rules_timescaledb_parse(jso_params, timescaledb);
+			if (rc != SUCCEED) {
+				rule_timescaledb_free(timescaledb);
+				return rc;
+			}
 		} else {
 			log_debug("Unsupport forword type !");
 			return REQ_PARAM_ERROR;
@@ -2328,6 +2459,9 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 			break;
 		case RULE_FORWORD_POSTGRESQL:
 			new_rule->postgresql = cr->rules[i].postgresql;
+			break;
+		case RULE_FORWORD_TIMESCALEDB:
+			new_rule->timescaledb = cr->rules[i].timescaledb;
 			break;
 		case RULE_FORWORD_SQLITE:
 			new_rule->sqlite_table = cr->rules[i].sqlite_table;
@@ -2438,6 +2572,9 @@ delete_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 				case RULE_FORWORD_POSTGRESQL:
 					rule_postgresql_free(re->postgresql);
 					break;
+				case RULE_FORWORD_TIMESCALEDB:
+					rule_timescaledb_free(re->timescaledb);
+					break;
 				case RULE_FORWORD_REPUB:
 					rule_repub_free(re->repub);
 					break;
@@ -2498,6 +2635,9 @@ get_rules_helper(cJSON *data, rule *r)
 		break;
 	case RULE_FORWORD_POSTGRESQL:
 		forword_type = "postgresql";
+		break;
+	case RULE_FORWORD_TIMESCALEDB:
+		forword_type = "timescaledb";
 		break;
 	default:
 		break;

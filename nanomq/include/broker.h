@@ -62,6 +62,9 @@ struct work {
 #if defined(SUPP_POSTGRESQL)
 	void *pgconn;
 #endif
+#if defined(SUPP_TIMESCALEDB)
+	void *tsconn;
+#endif
 
 #if defined(SUPP_PLUGIN)
 	property *user_property;

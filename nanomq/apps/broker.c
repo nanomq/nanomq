@@ -937,6 +937,11 @@ proto_work_init(nng_socket sock, nng_socket extrasock, uint8_t proto,
 	w->pgconn = NULL;
 #endif
 
+#if defined(SUPP_TIMESCALEDB)
+	w->tsconn = NULL;
+#endif
+
+
 #if defined(NNG_SUPP_SQLITE)
 	nng_socket_get_ptr(sock, NMQ_OPT_MQTT_QOS_DB, &w->sqlite_db);
 #endif
@@ -1028,6 +1033,12 @@ broker(conf *nanomq_conf)
 #if defined(SUPP_POSTGRESQL)
 	if (cr->option & RULE_ENG_PDB) {
 		nanomq_client_postgresql(cr, false);
+	}
+#endif
+
+#if defined(SUPP_TIMESCALEDB)
+	if (cr->option & RULE_ENG_TDB) {
+		nanomq_client_timescaledb(cr, false);
 	}
 #endif
 
