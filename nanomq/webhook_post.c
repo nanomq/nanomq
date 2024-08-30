@@ -34,7 +34,9 @@ static void         set_char(char *out, unsigned int *index, char c);
 static unsigned int base62_encode(
     const unsigned char *in, unsigned int inlen, char *out);
 
+#ifdef SUPP_PARQUET
 static int flush_smsg_to_disk(nng_msg **smsg, size_t len, nng_aio *aio, char *topic, uint8_t streamType);
+#endif
 
 #define BASE62_ENCODE_OUT_SIZE(s) ((unsigned int) ((((s) * 8) / 6) + 2))
 
@@ -520,6 +522,7 @@ static void cb_data_free(struct cb_data *cb_data)
 	return;
 }
 
+#ifdef SUPP_PARQUET
 static int
 flush_smsg_to_disk(nng_msg **smsg,
 				   size_t len,
@@ -563,6 +566,7 @@ flush_smsg_to_disk(nng_msg **smsg,
 
 	return 0;
 }
+#endif
 
 static int inline get_flush_params(nng_aio *aio,
 								   nng_msg *msg,
@@ -634,6 +638,11 @@ send_exchange_cb(void *arg)
 		return;
 	}
 
+#ifndef SUPP_PARQUET
+	log_error("ENABLE_PARQUET is not defined flush to disk failed");
+	return;
+#endif
+
 	rv = get_flush_params(aio, msg, &msgs_del, &msgs_lenp, &topic, &streamType);
 	if (rv != 0) {
 		log_error("get_flush_params error %d", rv);
@@ -643,10 +652,12 @@ send_exchange_cb(void *arg)
 	// Flush to disk.
 	if (w->config->parquet.enable || w->config->blf.enable) {
 		nng_mtx_lock(hook_conf->ex_mtx);
+#ifdef SUPP_PARQUET
 		rv = flush_smsg_to_disk(msgs_del, *msgs_lenp, hook_conf->ex_aio, topic, streamType);
 		if (rv != 0) {
 			log_error("flush error %d", rv);
 		}
+#endif
 		nng_mtx_unlock(hook_conf->ex_mtx);
 	} else {
 		for (int i = 0; i < *msgs_lenp; ++i)

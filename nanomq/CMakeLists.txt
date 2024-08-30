@@ -30,7 +30,7 @@ endif(ENABLE_JWT)
 
 add_subdirectory(apps)
 add_subdirectory(tests)
-add_subdirectory(plugin)
+#add_subdirectory(plugin)
 
 # set(PARALLEL 128 CACHE STRING "Parallelism (min 4, max 1000)")
 
@@ -52,6 +52,7 @@ set(SOURCES
     acl_handler.c
     mqtt_api.c
     nanomq.c
+    plugin_spi_stream.c
     apps/broker.c
 )
 

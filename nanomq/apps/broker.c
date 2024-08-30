@@ -51,6 +51,7 @@
 #include "include/cmd_proc.h"
 #include "include/process.h"
 #include "include/nanomq.h"
+#include "include/plugin_spi_stream.h"
 
 #if defined(SUPP_ICEORYX)
 	#include "nng/iceoryx_shm/iceoryx_shm.h"
@@ -1395,6 +1396,8 @@ broker(conf *nanomq_conf)
 	}
 
 	stream_sys_init();
+	/* We'll load spi_stream statically for now */
+	spi_plugin_init();
 
 #if defined(SUPP_PLUGIN)
 	for (i = 0; i < nanomq_conf->plugin.path_sz; i++) {
