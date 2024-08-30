@@ -47,7 +47,7 @@ static inline uint8_t msg_get_len(void *msg)
 {
 	uint8_t len = 0;
 
-	memcpy_bigendian(&len, msg + 3, 1);
+	memcpy_bigendian(&len, (uint8_t *)msg + 3, 1);
 	len = len & 0x7f;
 
 	return len;
@@ -57,7 +57,7 @@ static inline uint16_t msg_get_packet_type_id(void *msg)
 {
 	uint16_t packet_type_id = 0;
 
-	memcpy_bigendian(&packet_type_id, msg + 1, 2);
+	memcpy_bigendian(&packet_type_id, (uint8_t *)msg + 1, 2);
 
 	return packet_type_id;
 }
@@ -108,11 +108,11 @@ static inline bool spi_payload_valid(void *payload)
 static void get_schema(void *data, uint32_t len, nng_id_map *spi_schema_map, uint32_t *pschema_map_len)
 {
 	int ret = 0;
-	void *payload = NULL;
+	uint8_t *payload = NULL;
 	int payload_len = 0;
 
 	/* | header(6) | msg1 | ... | msgn |*/
-	payload = data + 6;
+	payload = (uint8_t *)data + 6;
 	payload_len = len - 6;
 	while (payload_len > 0) {
 		if (payload_len < 4) {
@@ -254,10 +254,10 @@ static void spiStream_free(struct stream_data_out *output_stream)
 
 static int spi_msg_parse(parquet_data_packet ***data, void *spi_msg, uint32_t spi_msg_len, nng_id_map *spi_schema_index_map, uint32_t row_index)
 {
-	void *msg = NULL;
+	uint8_t *msg = NULL;
 	int msg_len = 0;
 
-	msg = spi_msg + 10;
+	msg = (uint8_t *)spi_msg + 10;
 	msg_len = spi_msg_len - 10;
 
 	while (msg_len > 0) {
@@ -287,7 +287,7 @@ static int spi_msg_parse(parquet_data_packet ***data, void *spi_msg, uint32_t sp
 			return -1;
 		}
 		data[offset][row_index]->size = len;
-		data[offset][row_index]->data = SPI_MSG_PAYLOAD(msg);
+		data[offset][row_index]->data = SPI_MSG_PAYLOAD((uint8_t *)msg);
 		msg += len + 4;
 		msg_len -= len + 4;
 	}
@@ -435,7 +435,13 @@ static struct stream_decoded_data *spi_stream_decode(struct parquet_data_ret *pa
 	decoded_data->data = NULL;
 	decoded_data->len = 0;
 
-	uint32_t row_len[parquet_data->row_len];
+	uint32_t *row_len = NULL;
+	row_len = nng_alloc(sizeof(uint32_t) * parquet_data->row_len);
+	if (row_len == NULL) {
+		nng_free(decoded_data, sizeof(struct stream_decoded_data));
+		return NULL;
+	}
+
 	for (uint32_t i = 0; i < parquet_data->row_len; i++) {
 		row_len[i] = 0;
 		for (uint32_t j = 0; j < parquet_data->col_len; j++) {
@@ -452,11 +458,14 @@ static struct stream_decoded_data *spi_stream_decode(struct parquet_data_ret *pa
 
 	if (decoded_data->len == 0) {
 		nng_free(decoded_data, sizeof(struct stream_decoded_data));
+		nng_free(row_len, sizeof(uint32_t) * parquet_data->row_len);
 		return NULL;
 	}
 
 	decoded_data->data = nng_alloc(decoded_data->len);
 	if (decoded_data->data == NULL) {
+		nng_free(decoded_data, sizeof(struct stream_decoded_data));
+		nng_free(row_len, sizeof(uint32_t) * parquet_data->row_len);
 		return NULL;
 	}
 
@@ -465,9 +474,9 @@ static struct stream_decoded_data *spi_stream_decode(struct parquet_data_ret *pa
 		if (row_len[i] == 0) {
 			continue;
 		}
-		memcpy_bigendian(decoded_data->data + decoded_data_index, &parquet_data->ts[i], 8);
+		memcpy_bigendian((uint8_t *)decoded_data->data + decoded_data_index, &parquet_data->ts[i], 8);
 		decoded_data_index += 8;
-		memcpy_bigendian(decoded_data->data + decoded_data_index, &row_len[i], 2);
+		memcpy_bigendian((uint8_t *)decoded_data->data + decoded_data_index, &row_len[i], 2);
 		decoded_data_index += 2;
 		for (uint32_t j = 0; j < parquet_data->col_len; j++) {
 			if (parquet_data->payload_arr[j][i] == NULL) {
@@ -478,21 +487,22 @@ static struct stream_decoded_data *spi_stream_decode(struct parquet_data_ret *pa
 			}
 			/* for header */
 			uint8_t header = 0x55;
-			memcpy_bigendian(decoded_data->data + decoded_data_index, &header, 1);
+			memcpy_bigendian((uint8_t *)decoded_data->data + decoded_data_index, &header, 1);
 			decoded_data_index += 1;
 			/* type+id */
 			uint16_t packet_type_id = 0;
 			packet_type_id = hexstringToUInt16(parquet_data->schema[j]);
-			memcpy_bigendian(decoded_data->data + decoded_data_index, &packet_type_id, 2);
+			memcpy_bigendian((uint8_t *)decoded_data->data + decoded_data_index, &packet_type_id, 2);
 			decoded_data_index += 2;
 			/* update+len */
-			memcpy_bigendian(decoded_data->data + decoded_data_index, &parquet_data->payload_arr[j][i]->size, 1);
+			memcpy_bigendian((uint8_t *)decoded_data->data + decoded_data_index, &parquet_data->payload_arr[j][i]->size, 1);
 			decoded_data_index += 1;
 
-			memcpy_bigendian(decoded_data->data + decoded_data_index, parquet_data->payload_arr[j][i]->data, parquet_data->payload_arr[j][i]->size);
+			memcpy_bigendian((uint8_t *)decoded_data->data + decoded_data_index, parquet_data->payload_arr[j][i]->data, parquet_data->payload_arr[j][i]->size);
 			decoded_data_index += parquet_data->payload_arr[j][i]->size;
 		}
 	}
+	nng_free(row_len, sizeof(uint32_t) * parquet_data->row_len);
 
 	return decoded_data;
 }
