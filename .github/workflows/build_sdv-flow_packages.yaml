@@ -42,17 +42,17 @@ jobs:
 
       - name: Build Docker Images
         run: |
-          docker build -t nanomq_with_parquet -f deploy/lianyou-deploy/Dockerfile .
+          docker build -t nanomq_with_parquet_amd64 -f deploy/lianyou-deploy/Dockerfile .
           docker build -t nanomq_with_parquet_arm64 -f deploy/lianyou-deploy/Dockerfile-arm64 .
 
       - name: Package Artifacts
         run: |
-          mkdir -p packages/nanomq/{parquet,etc,log} packages/nanomq-debug/{parquet,etc,log}
           pkgversion="$(git describe --abbrev=1 --tags)"
           git log --format=%H -1 > readme.txt
           cd nng && git log --format=%H -1 >> ../readme.txt && cd -
           
           for arch in amd64 arm64; do
+            mkdir -p packages/nanomq/{parquet,etc,log} packages/nanomq-debug/{parquet,etc,log}
             id=$(docker create nanomq_with_parquet${arch:+_$arch})
             docker cp $id:/opt/NanoMQ_mirror/build/nanomq/nanomq ./packages/nanomq/
             docker cp $id:/opt/NanoMQ_mirror/build-debug/nanomq/nanomq ./packages/nanomq-debug/
@@ -64,8 +64,8 @@ jobs:
             cd ./packages
             tar -zcvf ./nanomq-${pkgversion}-linux-${arch}-sdv.tar.gz ./nanomq
             tar -zcvf ./nanomq-${pkgversion}-linux-${arch}-debug-sdv.tar.gz ./nanomq-debug
-            cp ../etc/nanomq_geely.conf ./nanomq/etc
-            cp ../etc/nanomq_geely.conf ./nanomq-debug/etc
+            cp ../etc/nanomq_geely.conf ./nanomq/etc/nanomq.conf
+            cp ../etc/nanomq_geely.conf ./nanomq-debug/etc/nanomq.conf
             tar -zcvf ./nanomq-${pkgversion}-linux-${arch}-geely.tar.gz ./nanomq
             tar -zcvf ./nanomq-${pkgversion}-linux-${arch}-debug-geely.tar.gz ./nanomq-debug
 
