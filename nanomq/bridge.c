@@ -176,55 +176,92 @@ create_disconnect_msg()
 
 	return msg;
 }
-
+// TODO move to RECV state of PROTO_BRIDGE, however we need to modify original msg
+// duplicate msg
 static inline void
 bridge_handle_topic_sub_reflection(nano_work *work, conf_bridge_node *node)
 {
+	int rv = 0;
+	mqtt_string *topic;
+	topic = nng_zalloc(sizeof(*topic));
 	for (size_t i = 0; i < node->sub_count; i++) {
-		char *topic = work->pub_packet->var_header.publish.topic_name.body;
-		int len = work->pub_packet->var_header.publish.topic_name.len;
-		if (topic != NULL && node->sub_list[i]->remote_topic != NULL) {
-			if (topic_filter(node->sub_list[i]->remote_topic, topic)) {
+		rv = 0;
+		topic->body = work->pub_packet->var_header.publish.topic_name.body;
+		topic->len  = work->pub_packet->var_header.publish.topic_name.len;
+		if (topic->body != NULL && node->sub_list[i]->remote_topic != NULL) {
+			// Reminder: We ignore the overlaping matches. only the very first one prevail
+			// There is no way to know msg comes from which topic if we use overlaped wildcard
+			// unless limit this to MQTT v5 sub id.
+			if (topic_filter(node->sub_list[i]->remote_topic, topic->body)) {
 				topics *sub_topic = node->sub_list[i];
 
-				// No change and send to local if local topic == ""
+				// No local topic change and keep it as it is if local topic == ""
 				if (sub_topic->local_topic_len == 0) {
-					return;
+					goto fix;
 				}
-				char *local_topic = nng_strdup(sub_topic->local_topic);
-				if (local_topic == NULL) {
+				topic->body = nng_strdup(sub_topic->local_topic);
+				topic->len = strlen(topic->body);
+				rv = NNG_STAT_STRING;
+				if (topic->body == NULL) {
 					log_error("bridge: alloc local_topic failed");
+					nng_free(topic, sizeof(topic));
 					return;
 				}
+fix:
 				nng_mqtt_msg_set_bridge_bool(work->msg, true);
-
-				/* release old topic area */
-				nng_strfree(topic);
-
-				work->pub_packet->var_header.publish.topic_name.body = local_topic;
-				work->pub_packet->var_header.publish.topic_name.len = sub_topic->local_topic_len;
-
+				/* check prefix/suffix */
+				if (node->sub_list[i]->prefix != NULL) {
+					char *tmp = topic->body;
+					topic->body =
+						nng_strnins(topic->body, node->sub_list[i]->prefix,
+									topic->len, node->sub_list[i]->prefix_len);
+					topic->len = strlen(topic->body);
+					if (rv == NNG_STAT_STRING)
+						nng_free(tmp, strlen(tmp));
+					rv = NNG_STAT_STRING;	//mark it for free
+				}
+				if (node->sub_list[i]->suffix != NULL) {
+					char *tmp = topic->body;
+					topic->body =
+						nng_strncat(topic->body, node->sub_list[i]->suffix,
+									topic->len, node->sub_list[i]->suffix_len);
+					topic->len = strlen(topic->body);
+					if (rv == NNG_STAT_STRING)
+						nng_free(tmp, strlen(tmp));
+					rv = NNG_STAT_STRING;	//mark it for free
+				}
 				work->pub_packet->fixed_header.retain =
 				    sub_topic->retain == NO_RETAIN
 				    ? work->pub_packet->fixed_header.retain
 				    : sub_topic->retain;
+				/* release old topic area */
+				nng_strfree(work->pub_packet->var_header.publish.topic_name.body);
+				work->pub_packet->var_header.publish.topic_name.body = topic->body;
+				work->pub_packet->var_header.publish.topic_name.len = topic->len;
+				nng_free(topic, sizeof(topic));
 				return;
 			}
 		}
 	}
+	nng_free(topic, sizeof(topic));
 	return;
 }
 
 void
 bridge_handle_topic_reflection(nano_work *work, conf_bridge *bridge)
 {
-	for (size_t i = 0; i < bridge->count; i++) {
-		conf_bridge_node *node = bridge->nodes[i];
-		if (node->enable) {
-			bridge_handle_topic_sub_reflection(work, node);
-		}
+	// for saving CPU
+	if (work->flag == CMD_PUBLISH) {
+		if (work->node != NULL)
+			bridge_handle_topic_sub_reflection(work, work->node);
+		else
+			for (size_t i = 0; i < bridge->count; i++) {
+				conf_bridge_node *node = bridge->nodes[i];
+				if (node->enable) {
+					bridge_handle_topic_sub_reflection(work, node);
+				}
+			}
 	}
-
 	return;
 }
 
@@ -536,6 +573,12 @@ hybrid_tcp_client(bridge_param *bridge_arg)
 	nng_msg *connmsg   = create_connect_msg(node);
 	bridge_arg->connmsg = connmsg;
 
+	nng_socket *tsock  = bridge_arg->sock;
+	if (tsock) {
+		nng_sock_replace(*tsock, *new);
+		nng_close(*tsock);
+		nng_free(tsock, sizeof(nng_socket));
+	}
 	node->sock         = (void *) new;
 	bridge_arg->sock   = new;
 
@@ -549,8 +592,10 @@ hybrid_tcp_client(bridge_param *bridge_arg)
 	nng_mqtt_set_connect_cb(*new, hybrid_tcp_connect_cb, bridge_arg);
 	nng_mqtt_set_disconnect_cb(*new, hybrid_tcp_disconnect_cb, bridge_arg);
 
-	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
-
+	if (0 != (rv = nng_dialer_start(dialer, NNG_FLAG_ALLOC))) {
+		log_error("nng dialer start failed %d", rv);
+		return rv;
+	}
 	return 0;
 }
 
@@ -613,6 +658,12 @@ hybrid_quic_client(bridge_param *bridge_arg)
 
 	execone = 0;
 
+	nng_socket *tsock  = bridge_arg->sock;
+	if (tsock) {
+		nng_sock_replace(*tsock, *new);
+		nng_close(*tsock);
+		nng_free(tsock, sizeof(nng_socket));
+	}
 	node->sock         = (void *) new;
 	bridge_arg->sock   = new;
 
@@ -623,11 +674,13 @@ hybrid_quic_client(bridge_param *bridge_arg)
 	nng_mqtt_set_connect_cb(*new, hybrid_quic_connect_cb, bridge_arg);
 	nng_mqtt_set_disconnect_cb(*new, hybrid_quic_disconnect_cb, bridge_arg);
 
-	rv = nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
-	if (rv != 0)
+	rv = nng_dialer_start(dialer, NNG_FLAG_ALLOC);
+	if (rv != 0) {
 		log_error("nng dialer start failed %d", rv);
+		return rv;
+	}
 
-	return rv;
+	return 0;
 }
 #endif
 
@@ -677,39 +730,27 @@ hybrid_cb(void *arg)
 			NANO_NNG_FATAL("bridge_aio nng_aio_alloc", rv);
 		}
 	}
-
-	char addr_back[160] = {'\0'};
-	if (0 != gen_fallback_url(node->address, addr_back)) {
-		log_warn("Can't generate backup address for current hybrid bridge");
-		strcpy(addr_back, node->address);
-	}
-	char * addrs[] = {node->address, addr_back};
-	int idx = -1;
+	char **addrs = node->hybrid_servers;
+	cvector_insert(addrs, 0, strdup(node->address));
+	int    addrslen = cvector_size(node->hybrid_servers);
+	int    idx = -1;
 	for (;;) {
 		// Get next bridge node
 		nng_socket *tsock = bridge_arg->sock;
-		idx = (idx + 1) % 2;
+		idx = (idx + 1) % addrslen;
 		node->address = addrs[idx];
-		log_warn("!! Bridge has switched to %s", node->address);
+		log_warn("!! Bridge has switched to [%d]%s", idx, node->address);
 
 		if (0 == strncmp(node->address, tcp_scheme, strlen(tcp_scheme)) ||
 		    0 == strncmp(node->address, tls_scheme, strlen(tls_scheme))) {
-			hybrid_tcp_client(bridge_arg);
-			nng_socket *nsock = bridge_arg->sock;
-			if (tsock != nsock) {
-				nng_sock_replace(*tsock, *nsock);
-				nng_close(*tsock);
-				nng_free(tsock, sizeof(nng_socket));
+			if (0 != hybrid_tcp_client(bridge_arg)) {
+				continue;
 			}
 #if defined(SUPP_QUIC)
 		} else if (0 ==
 		    strncmp(node->address, quic_scheme, strlen(quic_scheme))) {
-			hybrid_quic_client(bridge_arg);
-			nng_socket *nsock = bridge_arg->sock;
-			if (tsock != nsock) {
-				nng_sock_replace(*tsock, *nsock);
-				nng_close(*tsock);
-				nng_free(tsock, sizeof(nng_socket));
+			if (0 != hybrid_quic_client(bridge_arg)) {
+				continue;
 			}
 #endif
 		} else {
@@ -778,6 +819,7 @@ hybrid_bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	nng_mtx_unlock(bridge_arg->exec_mtx);
 	nng_cv_free(bridge_arg->exec_cv);
 	bridge_arg->exec_cv = NULL;
+	return 0;
 
 error:
 	if(bridge_arg->exec_cv != NULL) {
@@ -1103,6 +1145,10 @@ bridge_tcp_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	if (0 != nng_socket_set_ptr(*sock, NNG_OPT_MQTT_CONNMSG, connmsg)) {
 		log_warn("Error in updating connmsg");
 	}
+	nng_duration retry = node->resend_interval;
+	nng_socket_set_ms(*sock, NNG_OPT_MQTT_RETRY_INTERVAL, retry);
+	nng_time retry_wait = node->resend_wait;
+	nng_socket_set_uint64(*sock, NNG_OPT_MQTT_RETRY_WAIT_TIME, retry_wait);
 	nng_mqtt_set_connect_cb(*sock, NULL, NULL);
 	nng_mqtt_set_disconnect_cb(*sock, bridge_tcp_disconnect_cb, bridge_arg);
 	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
@@ -1203,9 +1249,11 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 #endif
 
 	bridge_arg->client = nng_mqtt_client_alloc(*sock, &send_callback, true);
-	// set retry interval as 10s
-	nng_duration retry = node->sqlite->resend_interval;
+	// set retry interval
+	nng_duration retry = node->resend_interval;
 	nng_socket_set_ms(*sock, NNG_OPT_MQTT_RETRY_INTERVAL, retry);
+	nng_time retry_wait = node->resend_wait;
+	nng_socket_set_uint64(*sock, NNG_OPT_MQTT_RETRY_WAIT_TIME, retry_wait);
 	// create a CONNECT message
 	nng_msg *connmsg = create_connect_msg(node);
 	bridge_arg->connmsg = connmsg;

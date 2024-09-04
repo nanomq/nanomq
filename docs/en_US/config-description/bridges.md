@@ -49,10 +49,12 @@ bridges.mqtt.emqx1 = {
     {
       remote_topic = "fwd/topic1"
       local_topic = "topic1"
+      suffix = "/emqx"
     },
     {
       remote_topic = "fwd/topic2"
       local_topic = "topic2"
+      prefix = "emqx/"
     }
   ]     
   subscription = [                        # Topics that need to be subscribed from the remote MQTT server
@@ -61,6 +63,7 @@ bridges.mqtt.emqx1 = {
       local_topic = "topic3"
       qos = 1
       retain = 2                          # flag to override retain flag
+      suffix = "/emqx"
     },
     {
       remote_topic = "cmd/topic2"
@@ -101,13 +104,18 @@ This configuration enables NanoMQ to establish an MQTT over TCP bridge connectio
 - `forwards`: This is an array of topics that need to be forwarded to the remote MQTT server, including
   - `remote_topic`: Topics refection topic, will change the topic in publish msg. Just leave `remote_topic=""` to preserve the original topic in msg   
   - `local_topic`: Topics that need to be forwarded to the remote MQTT server.
-- `subscription`: This is an array of topic objects that need to be subscribed from the remote MQTT server. Each object defines a topic and the QoS level for the subscription. Including
+  - `qos`: overwrite original QoS level of Publish msg, this is optional.
+  - `suffix`: A suffix string will be added to the remote topic(add to the original topic if you leave remote_topic as null)
+  - `prefix`: A prefix string will be added to the remote topic(add to the original topic if you leave remote_topic as null)
+- `subscription`: This is an array of topic objects that need to be subscribed from the remote MQTT server. Each object defines a topic and the QoS level for the subscription(!Be aware that only the first rule takes effect if you configure multiple overlapping rules). Including
   - `remote_topic`: The topic filter used to subscribe to the remote broker.
   - `local_topic`: This is for Topic reflection, if you want the vanila way, then just leave `local_topic=""` to preserve the original topic in msg from remote broker.
   - `qos`: Define the QoS in the subscribe packet. This is a must. 
   - `retain`: a flag to override retain flag.
-  - `retain_as_published`: an optional item for MQTTv5 feature, Retain As Published.
+  - `retain_as_published`: an optional item for the MQTTv5 feature, Retain As Published.
   - `retain_handling`: an optional item for MQTTv5 feature, Retain Handling.
+  - `suffix`: A suffix string will be added to the local topic(add to the original topic if you leave local_topic as null)
+  - `prefix`: A prefix string will be added to the local topic(add to the original topic if you leave local_topic as null)
 
 - `max_parallel_processes`: Specifies the maximum number of parallel processes for handling outstanding requests.
 - `max_send_queue_len`: Specifies the maximum number of messages that can be queued for sending.
@@ -187,9 +195,11 @@ bridges.mqtt.emqx1 = {
       qos = 1
     },
     {
-      remote_topic = "fwd/topic2"
+      remote_topic = ""
       local_topic = "topic2"
       qos = 2
+      prefix = "emqx/"
+      suffix = "/nanomq"
     }
   ]     
   subscription = [                        # Topics that need to be subscribed from the remote MQTT server
@@ -222,7 +232,8 @@ This part will focus on the MQTT over QUIC bridge-related configuration items, f
 - `quic_send_idle_timeout`:  Resets the congestion control after being idle for a specified amount of time. The default is 60 seconds.
 - `quic_initial_rtt_ms`: Specifies the initial estimate for the round-trip time (RTT) in milliseconds. The default is 800 milliseconds.
 - `quic_max_ack_delay_ms`: Specifies the maximum amount of time to wait after receiving data before sending an ACK. The default is 100 milliseconds.
-- `hybrid_bridging`: Specifies whether to enable the hybrid bridging mode. This should be enabled if you want to use QUIC but aren't sure if the public network supports it. The default is `false`.
+- `hybrid_bridging`: Specifies whether to enable the hybrid bridging mode. The default is `false`.
+- `hybrid_servers`: Specifies hybrid servers. The default is `[]`.
 - `quic_multi_stream`: Specifies whether to enable the multi-stream bridging mode. This is a work-in-progress feature and should not be enabled. The default is `false`.
 - `quic_qos_priority`: This sends QoS 1/2 messages with high priority, while QoS 0 messages remain the same. The default is `true`.
  - `quic_0rtt`: Specifies whether to enable the 0RTT feature of QUIC, which allows connections to be re-established quickly. The default is `true`.
@@ -243,29 +254,65 @@ NanoMQ provides the functionality to configure multiple data bridges by utilizin
 ## First bridge client
 bridges.mqtt.emqx1 {
   ......
+  resend_interval = 5000    # Resend interval (ms)
+  resend_wait = 3000
+  cancel_timeout  = 10000
 }
 
 ## Second bridge client
 bridges.mqtt.emqx2 {
   ......
+  resend_interval = 5000    # Resend interval (ms)
+  resend_wait = 3000
+  cancel_timeout  = 10000
 }
 
 bridges.mqtt.cache {
     disk_cache_size = 102400   # Max message limitation for caching
     mounted_file_path="/tmp/"  # Mounted file path 
     flush_mem_threshold = 100  # The threshold of flushing messages to flash
-    resend_interval     = 3000 # The interval of resending cached SQLite msg
 }
 ```
 
 ### **Configuration Items**
 
-- `disk_cache_size`: Specifies the maximum number of messages that can be cached in the MQTT bridges. A value of 0 indicates cache for messages is ineffecitve.
+- `disk_cache_size`: Specifies the maximum number of messages that can be cached in the MQTT bridges. A value of 0 indicates that the cache for messages is inefficient.
 - `mounted_file_path`: Specifies the file path where the cache file for the MQTT bridges is mounted.
 - `flush_mem_threshold`: Specifies the threshold for flushing messages to the cache file. When the number of messages reaches this threshold, they will be flushed to the cache file.
-- `resend_interval`: Specifies the interval, in milliseconds, for resending the messages after a failure is recovered. This is not related to the trigger for the resend operation. Only takes effect in bridging.
+- `resend_interval`: Specifies the interval, in milliseconds, for resending the messages interval. Only takes effect in bridging. This is a timer per bridging connection, also in charge of sending PINGREQ, resending msg cached in SQLite and healthy checking. Please set it with cautious.
+  -  default: 5000 ms. 
+- `resend_wait`: Specifies the wait time, in milliseconds, for start resending this messages after certain period aftet it was published. Only takes effect in bridging.
+  -  default: 3000 ms. 
+- `cancel_timeout`: Specifies the max wait time before canceling QoS ACK action, in milliseconds. Only takes effect in bridging. Once the action is canceled, there is no more retrying of this msg. So, you can call it max retrying time window.
+  -  default: 8000 ms. 
 
 ::: tip
+
+The canceling of a QoS msg doesn't actually means the msg is lost; just means it stopped waiting for the ACK of this msg from the remote broker. Before 0.22.4, there is no such feature, you will only see `bridging to xxxxx aio busy! msg lost! Ctx: xx`, once you hit a busy aio. and the aio will be occupied forever if remote broker fail to deliver the ACK eternally. Hence, `cancel_timeout` is added, Which means the maximum wait time for acknowledgment of each QoS msg . 
+
+If you want a guaranteed retry logic of QoS msg in bridging. You can reference to the following configurations:
+
+```hcl
+## First bridge client
+bridges.mqtt.emqx1 {
+  ......
+  keepalive = 30s           # Taking 30s keepalive as context
+	max_send_queue_len = 512  # Give inflight window enought space for caching msg
+	max_recv_queue_len = 512  # Give inflight window enought space for caching msg
+  resend_interval = 5000    # Resend interval (ms), it will retry QoS every 5s 
+                            # if there is no other action blocking.
+                            # retry time shall be at least 1/2 or 1/4 of keepalive
+  resend_wait = 3000  # resend_wait is the waiting time for resending the messages
+                      # after it is publiushed. Please set it longer than 
+                      # keepalive if you dont want duplicated QoS msg.
+  cancel_timeout  = 10000 	# set a max timeout time before canceling the ack   
+                            # action. Basically, this is also the time window you # spare to each QoS msg. 
+                            # (cancel_timeout - resend_wait) / resend_wait > 1 : retry at least once.
+}
+```
+
+To explain further, also gives a hints about how to finely tuned it:
+QoS msg will go into the inflight window (max_send_queue_len) first if you are dealing with a busy network, then silently wait for its time to come. During waiting, It will be dropped only if the inflight window is full and new QoS msg keep comming. Once it exceeds the max wait time of QoS Ack, it will be excluded from a hashmap (QoS awaiting queue) which is different from inflight window. but it only means client will not try to resend it anymore.
 
 NanoMQ uses SQLite to deliver the cache feature, for details on the configuration, see [SQLite](broker.md#cache)
 

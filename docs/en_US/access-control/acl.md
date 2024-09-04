@@ -33,6 +33,8 @@ rules = [
 ]
 ```
 
+`${clientid}` and `${username}` can be used as placeholders in the `topic` item. When a client with ID as `nmq_c` triggers the authorization check, `t/${clientid}` matches the topic `t/nmq_c` precisely.
+
 ## Configure in KV format
 
 Users wishing to use the KV configuration format can refer to the following structure and write their configurations into the `nanomq_old.conf` file. The relevant settings will take effect after NanoMQ is restarted. 

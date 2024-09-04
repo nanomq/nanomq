@@ -9,6 +9,7 @@
 #ifdef NANO_PLATFORM_WINDOWS
 #include <winsock.h>
 #else
+#include <unistd.h>
 #include <arpa/inet.h>
 #endif
 
@@ -204,6 +205,12 @@ log_file_init(conf_log *log)
 			return NNG_EINVAL;
 		}
 	}
+#ifndef NANO_PLATFORM_WINDOWS
+	if (nng_access(log->dir, W_OK) < 0) {
+        log_fatal("Write %s failed, please check path\n", log->dir);
+        return NNG_EINVAL;
+    }
+#endif
 	log->dir   = log->dir == NULL ? nng_strdup("./") : log->dir;
 	log->file  = log->file == NULL ? nng_strdup("nanomq.log") : log->file;
 	char *path = nano_concat_path(log->dir, log->file);

@@ -13,6 +13,8 @@
 /*
  * How to compile:
  * gcc -I../ -fPIC -shared plugin_user_property.c -o plugin_user_property.so
+ * or
+ * gcc -I.. -I../../nng/include -fPIC -shared plugin_user_property.c -o plugin_user_property.so
  */
 
 int cb(void *data)
