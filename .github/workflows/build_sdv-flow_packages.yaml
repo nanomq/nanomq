@@ -66,8 +66,8 @@ jobs:
             tar -zcvf ./nanomq-${pkgversion}-linux-${arch}-debug-sdv.tar.gz ./nanomq-debug
             cp ../etc/nanomq_geely.conf ./nanomq/etc/nanomq.conf
             cp ../etc/nanomq_geely.conf ./nanomq-debug/etc/nanomq.conf
-            tar -zcvf ./nanomq-${pkgversion}-linux-${arch}-geely.tar.gz ./nanomq
-            tar -zcvf ./nanomq-${pkgversion}-linux-${arch}-debug-geely.tar.gz ./nanomq-debug
+            tar -zcvf ./nanomq-${pkgversion}-linux-${arch}-gee.tar.gz ./nanomq
+            tar -zcvf ./nanomq-${pkgversion}-linux-${arch}-debug-gee.tar.gz ./nanomq-debug
 
             rm -rf ./nanomq ./nanomq-debug
             docker rm -v $id
