@@ -238,26 +238,30 @@ nano_vin_client(const char *url)
 // so that we can use this to set the timeout to the correct value for
 // use in poll.
 
-static inline bool
-bridge_handler(nano_work *work)
+static inline void
+bridge_pub_handler(nano_work *work)
 {
-	bool      rv    = false;
+	int      rv    = 0;
 	property *props = NULL;
 	uint32_t  index = work->ctx.id - 1;
+	mqtt_string *topic;
 
+	// Or we just exclude all topic with $?
+	if ((work->pub_packet->var_header.publish.topic_name.len > strlen("$SYS")) &&
+		strncmp(work->pub_packet->var_header.publish.topic_name.body, "$SYS", strlen("$SYS")) == 0) {
+		return;
+	}
+	topic = nng_zalloc(sizeof(*topic));
 	for (size_t t = 0; t < work->config->bridge.count; t++) {
 		conf_bridge_node *node = work->config->bridge.nodes[t];
 		nng_mtx_lock(node->mtx);
-		char *publish_topic =
-			work->pub_packet->var_header.publish.topic_name.body;
 		if (node->enable) {
 			for (size_t i = 0; i < node->forwards_count; i++) {
-				if (strlen(publish_topic) > strlen("$SYS") &&
-					strncmp(publish_topic, "$SYS", strlen("$SYS")) == 0) {
-					continue;
-				}
+				rv = 0;
+				topic->body = work->pub_packet->var_header.publish.topic_name.body;
+				topic->len  = work->pub_packet->var_header.publish.topic_name.len;
 				if (topic_filter(node->forwards_list[i]->local_topic,
-							publish_topic)) {
+							(const char *)topic->body)) {
 					work->state = SEND;
 
 					nng_msg *bridge_msg = NULL;
@@ -268,23 +272,46 @@ bridge_handler(nano_work *work)
 					}
 					// No change if remote topic == ""
 					if (node->forwards_list[i]->remote_topic_len != 0) {
-						publish_topic = node->forwards_list[i]->remote_topic;
+						topic->body = node->forwards_list[i]->remote_topic;
+						topic->len = node->forwards_list[i]->remote_topic_len;
+					}
+					if (node->forwards_list[i]->prefix != NULL) {
+						topic->body =
+							nng_strnins(topic->body, node->forwards_list[i]->prefix,
+										topic->len, node->forwards_list[i]->prefix_len);
+						topic->len = strlen(topic->body);
+						rv = NNG_STAT_STRING;	//mark it for free
+					}
+					if (node->forwards_list[i]->suffix != NULL) {
+						char *tmp = topic->body;
+						topic->body =
+							nng_strncat(topic->body, node->forwards_list[i]->suffix,
+										topic->len, node->forwards_list[i]->suffix_len);
+						topic->len = strlen(topic->body);
+						if (rv == NNG_STAT_STRING)
+							nng_free(tmp, strlen(tmp));
+						else
+							rv = NNG_STAT_STRING;	//mark it for free
 					}
 					uint8_t retain;
+					uint8_t qos;
 					retain =
-					    node->forwards_list[i]->retain ==
-					        NO_RETAIN
-					    ? work->pub_packet->fixed_header
-					          .retain
+					    node->forwards_list[i]->retain == NO_RETAIN
+					    ? work->pub_packet->fixed_header.retain
 					    : node->forwards_list[i]->retain;
+					qos    =
+					    node->forwards_list[i]->qos == NO_QOS
+					    ? work->pub_packet->fixed_header.qos
+					    : node->forwards_list[i]->qos;
 					bridge_msg = bridge_publish_msg(
-					    publish_topic,
+					    topic->body,
 					    work->pub_packet->payload.data,
 					    work->pub_packet->payload.len,
 					    work->pub_packet->fixed_header.dup,
-					    work->pub_packet->fixed_header.qos,
-					    retain,
-					    props);
+					    qos, retain, props);
+					if (rv == NNG_STAT_STRING) {
+						nng_free(topic->body,strlen(topic->body));
+					}
 
 					node->proto_ver == MQTT_PROTOCOL_VERSION_v5
 					    ? nng_mqttv5_msg_encode(bridge_msg)
@@ -303,18 +330,20 @@ bridge_handler(nano_work *work)
 						    "msg lost! Ctx: %d",
 						    node->address, work->ctx.id);
 					} else {
-						nng_aio_set_timeout(node->bridge_aio[index], 3000);
+						nng_aio_set_timeout(node->bridge_aio[index],
+											node->cancel_timeout);
 						nng_aio_set_msg(node->bridge_aio[index], bridge_msg);
+						// switch to nng_ctx_send!
 						nng_send_aio(*socket, node->bridge_aio[index]);
 					}
-					rv = true;
+					rv = SUCCESS;
 				}
 			}
 		}
 		nng_mtx_unlock(node->mtx);
 	}
-
-	return rv;
+	nng_free(topic, sizeof(topic));
+	return;
 }
 
 void
@@ -350,7 +379,7 @@ server_cb(void *arg)
 		log_debug("RECV  ^^^^ ctx%d ^^^^\n", work->ctx.id);
 		msg = nng_aio_get_msg(work->aio);
 		if ((rv = nng_aio_result(work->aio)) != 0) {
-			log_error("RECV nng aio result error: %d or NULL msg received", rv);
+			log_info("RECV aio result: %d", rv);
 			work->state = RECV;
 			if (work->proto == PROTO_MQTT_BROKER) {
 				if (msg != NULL)
@@ -372,11 +401,11 @@ server_cb(void *arg)
 		}
 
 		if (work->proto == PROTO_MQTT_BRIDGE) {
-			uint8_t type;
-			type = nng_msg_get_type(msg);
+			uint8_t type = nng_msg_get_type(msg);
 			if (type == CMD_CONNACK) {
 				log_info("bridge client is connected!");
-			} else if (type != CMD_PUBLISH) {
+			} else if (type == CMD_PUBLISH) {
+			} else {
 				// only accept publish/CONNACK/DISCONNECT
 				// msg from upstream
 				work->state = RECV;
@@ -464,21 +493,15 @@ server_cb(void *arg)
 			if (work->msg_ret) {
 				log_debug("retain msg [%p] size [%ld] \n",
 				    work->msg_ret, cvector_size(work->msg_ret));
-				nng_msg *rmsg;
-				nng_msg_alloc(&rmsg, 0);
-				for (int i = 0;
-				     i < cvector_size(work->msg_ret) &&
+				for (int i = 0; i < cvector_size(work->msg_ret) &&
 				     check_msg_exp(work->msg_ret[i],
 				         nng_mqtt_msg_get_publish_property(
 				             work->msg_ret[i])); i++) {
 					nng_msg *m = work->msg_ret[i];
 					work->msg = m;
-					work->pub_packet =
-					    (struct pub_packet_struct *)
-					        nng_zalloc(sizeof(
-					            struct pub_packet_struct));
-					if (SUCCESS ==
-					    decode_pub_message(work, work->proto_ver)) {
+					work->pub_packet = (struct pub_packet_struct *) nng_zalloc(
+										sizeof(struct pub_packet_struct));
+					if (SUCCESS == decode_pub_message(work, work->proto_ver)) {
 						bool  bridged = false;
 						void *proto_data = nng_msg_get_proto_data(work->msg);
 						if (proto_data != NULL)
@@ -489,29 +512,34 @@ server_cb(void *arg)
 							    work, &work->config->bridge);
 						}
 						// dont modify original retain msg;
-						nng_msg_clone(rmsg);
-						nng_msg_set_proto_data(rmsg, NULL, proto_data);
-						if (work->proto_ver == MQTT_VERSION_V5) {
-							nng_msg_set_cmd_type(rmsg,CMD_PUBLISH_V5);
+						nng_msg *rmsg = NULL;
+						if (nng_msg_dup(&rmsg, work->msg) != 0) {
+							log_error("System Failure while duplicating retain msg");
 						} else {
-							nng_msg_set_cmd_type(rmsg, CMD_PUBLISH);
+							if (work->proto_ver == MQTT_VERSION_V5) {
+								nng_msg_set_cmd_type(rmsg,CMD_PUBLISH_V5);
+							} else {
+								nng_msg_set_cmd_type(rmsg, CMD_PUBLISH);
+							}
 						}
+						// nng_msg_set_proto_data(rmsg, NULL, proto_data);
 						if (encode_pub_message(rmsg, work, PUBLISH)) {
 							nng_mqtt_msg_set_sub_retain_bool(rmsg, true);
 							nng_aio_set_msg(work->aio, rmsg);
 							nng_aio_set_prov_data(work->aio, &work->pid.id);
 							nng_ctx_send(work->ctx, work->aio);
-						}
+						} else
+							log_warn("encode retain msg failed!");
+					} else {
+						log_warn("decode retain msg failed!");
 					}
 					free_pub_packet(work->pub_packet);
 					work->pub_packet = NULL;
 					cvector_free(work->pipe_ct->msg_infos);
 					work->pipe_ct->msg_infos = NULL;
-					init_pipe_content(work->pipe_ct);
 					// free the ref due to dbtree_find_retain
 					nng_msg_free(m);
 				}
-				nng_msg_free(rmsg);
 				cvector_free(work->msg_ret);
 			}
 			nng_msg_set_cmd_type(smsg, CMD_SUBACK);
@@ -603,20 +631,21 @@ server_cb(void *arg)
 			hook_entry(work, reason_code);
 			// Set V4/V5 flag for publish notify msg
 			nng_msg_set_cmd_type(smsg, CMD_PUBLISH);
-			work->flag = CMD_PUBLISH;
 			nng_msg_free(work->msg);
 			work->msg = smsg;
 			handle_pub(work, work->pipe_ct,
 			    MQTT_PROTOCOL_VERSION_v311, true);
+			// set flag after hanlde_pub to avoid bridging logic
+			work->flag = CMD_PUBLISH;
 			// remember to free conn_param in WAIT 
 			// due to clone in protocol layer
 		} else if (work->flag == CMD_DISCONNECT_EV) {
 			// Now v4 as default/send V5 notify msg?
 			hook_entry(work, 0);
 			nng_msg_set_cmd_type(msg, CMD_PUBLISH);
-			work->flag = CMD_PUBLISH;
 			handle_pub(work, work->pipe_ct,
 			    MQTT_PROTOCOL_VERSION_v311, true);
+			work->flag = CMD_PUBLISH;
 			// TODO set reason code
 			// uint8_t *payload = nng_msg_payload_ptr(work->msg);
 			// uint8_t reason_code = *(payload+16);
@@ -677,7 +706,7 @@ server_cb(void *arg)
 
 			// bridge logic first
 			if (work->config->bridge_mode) {
-				bridge_handler(work);
+				bridge_pub_handler(work);
 #if defined(SUPP_AWS_BRIDGE)
 				aws_bridge_forward(work);
 #endif
@@ -892,7 +921,7 @@ server_cb(void *arg)
 		nng_aio_set_prov_data(work->aio, &work->pid.id);
 		// clone for sending connect event notification
 		nng_aio_set_msg(work->aio, work->msg);
-		nng_ctx_send(work->ctx, work->aio); // send connack
+		nng_ctx_send(work->ctx, work->aio);
 
 		// clear reason code
 		work->code = SUCCESS;
@@ -924,8 +953,8 @@ alloc_work(nng_socket sock)
 	w->pipe_ct = nng_alloc(sizeof(struct pipe_content));
 	init_pipe_content(w->pipe_ct);
 	w->pub_packet = NULL;
-
-	w->state = INIT;
+	w->node       = NULL;
+	w->state      = INIT;
 	return (w);
 }
 
@@ -1217,11 +1246,11 @@ broker(conf *nanomq_conf)
 			conf_bridge_node *node = nanomq_conf->bridge.nodes[t];
 			if (node->enable) {
 				bridge_sock = node->sock;
-				for (i = tmp; i < (tmp + node->parallel);
-				     i++) {
+				for (i = tmp; i < (tmp + node->parallel); i++) {
 					works[i] = proto_work_init(sock,
 					    *bridge_sock, PROTO_MQTT_BRIDGE,
 					    db, db_ret, nanomq_conf);
+					works[i]->node = node;
 				}
 				tmp += node->parallel;
 			}
@@ -1288,9 +1317,19 @@ broker(conf *nanomq_conf)
 	}
 
 	if (nanomq_conf->enable) {
-		// TODO: Multiple listener
-		if ((rv = nano_listen(sock, nanomq_conf->url, NULL, 0, nanomq_conf)) != 0) {
-			NANO_NNG_FATAL("broker nng_listen", rv);
+		if (nanomq_conf->url) {
+			if ((rv = nano_listen(sock, nanomq_conf->url, NULL, 0,
+			         nanomq_conf)) != 0) {
+				NANO_NNG_FATAL("broker nng_listen", rv);
+			}
+		}
+
+		for (i = 0; i < nanomq_conf->tcp_list.count; i++) {
+			if ((rv = nano_listen(sock,
+			         nanomq_conf->tcp_list.nodes[i]->url, NULL, 0,
+			         nanomq_conf)) != 0) {
+				NANO_NNG_FATAL("broker nng_listen", rv);
+			}
 		}
 	}
 
@@ -1302,20 +1341,41 @@ broker(conf *nanomq_conf)
 		}
 	}
 
+	if (nanomq_conf->tls_list.count > 0) {
+		for (i = 0; i < nanomq_conf->tls_list.count; i++) {
+			nng_listener tls_listener;
+
+			if ((rv = nng_listener_create(&tls_listener, sock,
+			         nanomq_conf->tls_list.nodes[i]->url)) != 0) {
+				NANO_NNG_FATAL("nng_listener_create tls", rv);
+			}
+			nng_listener_set(tls_listener, NANO_CONF, nanomq_conf,
+			    sizeof(conf));
+
+			init_listener_tls(
+			    tls_listener, nanomq_conf->tls_list.nodes[i]);
+			if ((rv = nng_listener_start(tls_listener, 0)) != 0) {
+				NANO_NNG_FATAL("nng_listener_start tls", rv);
+			}
+		}
+	}
+
 	if (nanomq_conf->tls.enable) {
-		nng_listener tls_listener;
-
-		if ((rv = nng_listener_create(
-		         &tls_listener, sock, nanomq_conf->tls.url)) != 0) {
-			NANO_NNG_FATAL("nng_listener_create tls", rv);
+		if (nanomq_conf->tls.url) {
+			nng_listener tls_listener;
+			if ((rv = nng_listener_create(&tls_listener, sock,
+			         nanomq_conf->tls.url)) != 0) {
+				NANO_NNG_FATAL("nng_listener_create tls", rv);
+			}
+			nng_listener_set(tls_listener, NANO_CONF, nanomq_conf,
+			    sizeof(conf));
+			init_listener_tls(tls_listener, &nanomq_conf->tls);
+			if ((rv = nng_listener_start(tls_listener, 0)) != 0) {
+				NANO_NNG_FATAL("nng_listener_start tls", rv);
+			}
 		}
-		nng_listener_set(
-		    tls_listener, NANO_CONF, nanomq_conf, sizeof(nanomq_conf));
 
-		init_listener_tls(tls_listener, &nanomq_conf->tls);
-		if ((rv = nng_listener_start(tls_listener, 0)) != 0) {
-			NANO_NNG_FATAL("nng_listener_start tls", rv);
-		}
+		// TODO: multi for websocket
 		if (nanomq_conf->websocket.enable) {
 			nng_listener wss_listener;
 			if ((rv = nng_listener_create(&wss_listener, sock,
@@ -1934,16 +1994,21 @@ broker_start(int argc, char **argv)
 		fprintf(stderr, "Cannot parse command line arguments, quit\n");
 		exit(EXIT_FAILURE);
 	}
+
 	if (nanomq_conf->enable) {
-		nanomq_conf->url = nanomq_conf->url != NULL
-		    ? nanomq_conf->url
-		    : nng_strdup(CONF_TCP_URL_DEFAULT);
+		if (nanomq_conf->tcp_list.count == 0) {
+			nanomq_conf->url = nanomq_conf->url != NULL
+			    ? nanomq_conf->url
+			    : nng_strdup(CONF_TCP_URL_DEFAULT);
+		}
 	}
 
 	if (nanomq_conf->tls.enable) {
-		nanomq_conf->tls.url = nanomq_conf->tls.url != NULL
-		    ? nanomq_conf->tls.url
-		    : nng_strdup(CONF_TLS_URL_DEFAULT);
+		if (nanomq_conf->tls_list.count == 0) {
+			nanomq_conf->tls.url = nanomq_conf->tls.url != NULL
+			    ? nanomq_conf->tls.url
+			    : nng_strdup(CONF_TLS_URL_DEFAULT);
+		}
 	}
 
 	if (nanomq_conf->websocket.enable) {
@@ -2017,15 +2082,19 @@ broker_start_with_conf(void *nmq_conf)
 	}
 
 	if (nanomq_conf->enable) {
-		nanomq_conf->url = nanomq_conf->url != NULL
-		    ? nanomq_conf->url
-		    : nng_strdup(CONF_TCP_URL_DEFAULT);
+		if (nanomq_conf->tcp_list.count == 0) {
+			nanomq_conf->url = nanomq_conf->url != NULL
+			    ? nanomq_conf->url
+			    : nng_strdup(CONF_TCP_URL_DEFAULT);
+		}
 	}
 
 	if (nanomq_conf->tls.enable) {
-		nanomq_conf->tls.url = nanomq_conf->tls.url != NULL
-		    ? nanomq_conf->tls.url
-		    : nng_strdup(CONF_TLS_URL_DEFAULT);
+		if (nanomq_conf->tls_list.count == 0) {
+			nanomq_conf->tls.url = nanomq_conf->tls.url != NULL
+			    ? nanomq_conf->tls.url
+			    : nng_strdup(CONF_TLS_URL_DEFAULT);
+		}
 	}
 
 	if (nanomq_conf->websocket.enable) {

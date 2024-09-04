@@ -3,6 +3,11 @@
 #include "nng/protocol/mqtt/mqtt_parser.h"
 #include "nng/supplemental/nanolib/log.h"
 
+// only clientid and username are supported now.
+#define placeholder_clientid "${clientid}"
+#define placeholder_username "${username}"
+char *placeholders[] = {"${clientid}", "${username}"};
+
 static bool
 match_rule_content_str(acl_rule_ct *ct, const char *cmp_str)
 {
@@ -14,6 +19,83 @@ match_rule_content_str(acl_rule_ct *ct, const char *cmp_str)
 		match = true;
 	}
 	return match;
+}
+
+static bool
+check_placeholder(const char *origin)
+{
+	if (origin == NULL) {
+		return false;
+	}
+
+	for (size_t i = 0;
+	     i < sizeof(placeholders) / sizeof(placeholders[0]); i++) {
+		if (strstr(origin, placeholders[i]) != NULL) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+static char * 
+replace_placeholder(char *origin, const char *placeholder, const char *replacement)
+{
+	size_t originLen      = strlen(origin);
+	size_t placeholderLen = strlen(placeholder);
+	size_t replacementLen = strlen(replacement);
+	size_t resultLen      = originLen;
+
+	const char *p = origin;
+	while ((p = strstr(p, placeholder)) != NULL) {
+		resultLen += replacementLen - placeholderLen;
+		p += placeholderLen;
+	}
+
+	char *result = (char *) malloc(resultLen + 1);
+	if (result == NULL) {
+		log_error("ACL topic placeholder Memory allocation failed\n");
+	}
+
+	char *currentPos = result;
+	p                = origin;
+	char *nextPlaceholder;
+	while ((nextPlaceholder = strstr(p, placeholder)) != NULL) {
+		size_t segmentLen = nextPlaceholder - p;
+		strncpy(currentPos, p, segmentLen);
+		currentPos += segmentLen;
+
+		strcpy(currentPos, replacement);
+		currentPos += replacementLen;
+
+		p = nextPlaceholder + placeholderLen;
+	}
+
+	strcpy(currentPos, p);
+
+	origin = result;
+
+	return result;
+}
+
+static char *
+replace_topic(char *origin, conn_param *param)
+{
+	char *topic  = origin;
+	char *result = NULL;
+
+	if (conn_param_get_clientid(param) != NULL) {
+		result = replace_placeholder(topic, placeholder_clientid,
+		    (const char *) conn_param_get_clientid(param));
+	}
+	if (conn_param_get_username(param) != NULL) {
+		if (result != NULL)
+			nng_strfree(result);
+		result = replace_placeholder(topic, placeholder_username,
+	    (const char *) conn_param_get_username(param));
+	}
+	
+	return result;
 }
 
 bool
@@ -155,13 +237,23 @@ auth_acl(conf *config, acl_action_type act_type, conn_param *param,
 		if (rule->topic_count > 0) {
 			char **topic_array = rule->topics;
 			bool   found       = false;
+			char  *rule_topic  = NULL;
 			for (size_t j = 0;
 			     j < rule->topic_count && found != true; j++) {
 				if (topic_filter(rule->topics[j], topic)) {
 					found = true;
 					break;
 				}
+				if (check_placeholder(rule->topics[j])) {
+					rule_topic = replace_topic(
+					    rule->topics[j], param);
+					if (topic_filter(rule_topic, topic)) {
+						found = true;
+						break;
+					}
+				}
 			}
+			nng_strfree(rule_topic);
 			if (found == false) {
 				match = false;
 				continue;

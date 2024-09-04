@@ -1398,7 +1398,8 @@ encode_pub_message(
 	uint32_t buf;
 
 	log_debug("start encode message");
-
+	if (dest_msg == NULL)
+		return false;
 	nng_msg_clear(dest_msg);
 	nng_msg_header_clear(dest_msg);
 	if (nng_msg_cmd_type(dest_msg) == CMD_PUBLISH_V5) {
@@ -1639,12 +1640,12 @@ decode_pub_message(nano_work *work, uint8_t proto)
 		used_pos = pos;
 
 		if (MQTT_PROTOCOL_VERSION_v5 == proto) {
-			if (work->proto == PROTO_MQTT_BRIDGE)
-				is_copy = true;
+			// we copy property each time to avoid memcpy_param_overlap
+			// although it reduce overall performance
 			pub_packet->var_header.publish.properties =
 			    decode_properties(msg, &pos,
 			        &pub_packet->var_header.publish.prop_len,
-			        is_copy);
+			        true);
 			log_debug("property len: %d",
 			    pub_packet->var_header.publish.prop_len);
 

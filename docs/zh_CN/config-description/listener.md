@@ -10,7 +10,16 @@ NanoMQ 支持四种监听器类型：TCP 监听器，SSL 监听器，WebSocket �
 listeners.tcp {
   bind = "0.0.0.0:1883"     # 绑定 1883 端口
 }
+
+listeners.tcp.listener_1 {
+  bind = "0.0.0.0:1884"     # 绑定 1884 端口
+}
+
+listeners.tcp.listener_2 {
+  bind = "0.0.0.0:1885"     # 绑定 1885 端口
+}
 ```
+NanoMQ 现已支持多监听器。 
 
 ### **配置项**
 
@@ -83,18 +92,3 @@ Secure WebSocket 监听器与 SSL 监听器共用 `keyfile`、`certfile` 和 `ca
 - `cacertfile`
 
 :::
-
-## 功能预告
-
-**TLS**
-
-接下来的版本中NanoMQ将会支持多监听器的配置。
-
-```hcl
-listeners.tcp.tcp_listener_1 = {
-  bind = "0.0.0.0:1883"     # 绑定 1883 端口
-}
-```
-
-<!--@jaylin can we add multiple listeners, if yes, it's good if we could give some examples.-->
-
