@@ -131,12 +131,21 @@ decode_sub_msg(nano_work *work)
 			// Setting no_local on shared subscription is invalid
 			if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5 && tn->no_local == 1) {
 				tn->reason_code = PAYLOAD_FORMAT_INVALID;
+				log_warn("No local is conflict with shared subscription!");
 				return PROTOCOL_ERROR;
 			}
-			if (strchr(tn->topic.body, '+') != NULL ||
-				strchr(tn->topic.body, '#') != NULL ||
-				strstr(tn->topic.body, "//") != NULL||
+			if (strstr(tn->topic.body, "//") != NULL ||
 				tn->topic.len <= 8 ) {	// This "/" character MUST be followed by a Topic Filter.
+				tn->reason_code = PAYLOAD_FORMAT_INVALID;
+				log_warn("Invalid share topic in subscription!");
+				return PROTOCOL_ERROR;
+			}
+			char *name_end  = strchr(tn->topic.body+7, '/');
+			log_info("Sub to share name %.*s", name_end - (tn->topic.body + 7), (tn->topic.body+7));
+			char *mark1 = strchr(tn->topic.body + 7, '#');
+			char *mark2 = strchr(tn->topic.body + 7, '+');
+			if ((mark1 != NULL && name_end > mark1) || (mark2 != NULL && name_end > mark2)) {
+				log_warn("Invalid share name in subscription!");
 				tn->reason_code = PAYLOAD_FORMAT_INVALID;
 				return PROTOCOL_ERROR;
 			}
