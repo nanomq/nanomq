@@ -37,42 +37,47 @@ jobs:
         # By default, actions/checkout performs a shallow clone, which might not include all tags.
         with:
           fetch-depth: 0 # Fetch all history including tags
-      - run: |
-          git submodule update --init --recursive
-          # cd nng && git checkout sdv_master
-      - run: docker build -t nanomq_with_parquet -f deploy/lianyou-deploy/Dockerfile .
-      - run: docker build -t nanomq_with_parquet_arm64 -f deploy/lianyou-deploy/Dockerfile-arm64 .
-      - run: |
-          mkdir -p packages/nanomq/parquet packages/nanomq-debug/parquet
-          mkdir -p packages/nanomq/etc packages/nanomq-debug/etc
-          mkdir -p packages/nanomq/log packages/nanomq-debug/log
+      - name: Initialize Submodules
+        run: git submodule update --init --recursive
+
+      - name: Build Docker Images
+        run: |
+          docker build -t nanomq_with_parquet -f deploy/lianyou-deploy/Dockerfile .
+          docker build -t nanomq_with_parquet_arm64 -f deploy/lianyou-deploy/Dockerfile-arm64 .
+
+      - name: Package Artifacts
+        run: |
+          mkdir -p packages/nanomq/{parquet,etc,log} packages/nanomq-debug/{parquet,etc,log}
           pkgversion="$(git describe --abbrev=1 --tags)"
-          git log --format=%H -1 >> readme.txt
+          git log --format=%H -1 > readme.txt
           cd nng && git log --format=%H -1 >> ../readme.txt && cd -
-          id=$(docker create nanomq_with_parquet)
-          docker cp $id:/opt/NanoMQ_mirror/build/nanomq/nanomq ./packages/nanomq/
-          docker cp $id:/opt/NanoMQ_mirror/build-debug/nanomq/nanomq ./packages/nanomq-debug/
-          cp readme.txt ./packages/nanomq/
-          cp readme.txt ./packages/nanomq-debug/
-          cp etc/nanomq.conf ./packages/nanomq/etc
-          cp etc/nanomq.conf ./packages/nanomq-debug/etc
-          cd ./packages
-          tar -zcvf ./nanomq-${pkgversion}-linux-amd64.tar.gz ./nanomq
-          tar -zcvf ./nanomq-${pkgversion}-linux-amd64-debug.tar.gz ./nanomq-debug
-          rm -rf ./nanomq/nanomq ./nanomq-debug/nanomq
-          docker rm -v $id
+          
+          for arch in amd64 arm64; do
+            id=$(docker create nanomq_with_parquet${arch:+_$arch})
+            docker cp $id:/opt/NanoMQ_mirror/build/nanomq/nanomq ./packages/nanomq/
+            docker cp $id:/opt/NanoMQ_mirror/build-debug/nanomq/nanomq ./packages/nanomq-debug/
+            cp readme.txt ./packages/nanomq/
+            cp readme.txt ./packages/nanomq-debug/
+            cp etc/nanomq.conf ./packages/nanomq/etc
+            cp etc/nanomq.conf ./packages/nanomq-debug/etc
+            
+            cd ./packages
+            tar -zcvf ./nanomq-${pkgversion}-linux-${arch}-sdv.tar.gz ./nanomq
+            tar -zcvf ./nanomq-${pkgversion}-linux-${arch}-debug-sdv.tar.gz ./nanomq-debug
+            cp ../etc/nanomq_geely.conf ./nanomq/etc
+            cp ../etc/nanomq_geely.conf ./nanomq-debug/etc
+            tar -zcvf ./nanomq-${pkgversion}-linux-${arch}-geely.tar.gz ./nanomq
+            tar -zcvf ./nanomq-${pkgversion}-linux-${arch}-debug-geely.tar.gz ./nanomq-debug
 
-          id=$(docker create nanomq_with_parquet_arm64)
-          docker cp $id:/opt/NanoMQ_mirror/build/nanomq/nanomq ./nanomq/
-          docker cp $id:/opt/NanoMQ_mirror/build-debug/nanomq/nanomq ./nanomq-debug/
-          tar -zcvf ./nanomq-${pkgversion}-linux-arm64.tar.gz ./nanomq/
-          tar -zcvf ./nanomq-${pkgversion}-linux-arm64-debug.tar.gz ./nanomq-debug/
-          rm -rf ./nanomq ./nanomq-debug
-          docker rm -v $id
+            rm -rf ./nanomq ./nanomq-debug
+            docker rm -v $id
+            cd -
+          done
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
         with:
-          name: packages
+          name: NanoMQ Packages
           path: packages/*.tar.gz
           retention-days: 7
 
