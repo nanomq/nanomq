@@ -1,31 +1,4 @@
-FROM xuesengxinyi/parquet-cross-compile:ubuntu18.04
-
-# 重新编译 parquet
-WORKDIR /opt/arrow/cpp
-RUN mkdir build_new && cd build_new &&\
-        cmake -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
-        -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
-        -DARROW_PARQUET=ON  \
-        -DARROW_CPU_FLAG=aarch64\
-        -DCMAKE_FIND_ROOT_PATH=/usr/lib/aarch64-linux-gnu/ \
-        -DARROW_BUILD_SHARED=OFF\
-        -DARROW_BUILD_STATIC=ON \
-        -DCMAKE_INSTALL_PREFIX=/usr/lib/aarch64-linux-gnu\
-        -DARROW_WITH_BROTLI=ON \
-        -DARROW_WITH_BZ2=ON \
-        -DARROW_WITH_LZ4=ON \
-        -DARROW_WITH_SNAPPY=ON \
-        -DARROW_WITH_ZLIB=ON \
-        -DARROW_JEMALLOC=OFF\
-        -DARROW_WITH_ZSTD=ON \
-        -DARROW_USE_OPENSSL=ON \
-        -DPARQUET_REQUIRE_ENCRYPTION=ON\
-        -DARROW_THRIFT_USE_SHARED=OFF \
-        -DARROW_OPENSSL_USE_SHARED=OFF \
-        -DARROW_BZ2_USE_SHARED=OFF \
-        -DARROW_LZ4_USE_SHARED=OFF \
-        -DARROW_ZSTD_USE_SHARED=OFF \
-        .. && make -j8 && make install
+FROM xuesengxinyi/parquet-cross-compile-static:ubuntu18.04
 
 
 # COPY NanoMQ_mirror 源代码
