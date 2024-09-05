@@ -1182,6 +1182,12 @@ broker(conf *nanomq_conf)
 		start_hook_service(nanomq_conf);
 		log_debug("Hook service started");
 	}
+	// HTTP Server
+	if (nanomq_conf->http_server.enable) {
+		nanomq_conf->http_server.broker_sock = &sock;
+		start_rest_server(nanomq_conf);
+	}
+
 
 	// caculate total ctx first
 	if (nanomq_conf->bridge_mode) {
@@ -1410,11 +1416,6 @@ broker(conf *nanomq_conf)
 
 	for (i = 0; i < num_work; i++) {
 		server_cb(works[i]); // this starts them going (INIT state)
-	}
-
-	if (nanomq_conf->http_server.enable) {
-		nanomq_conf->http_server.broker_sock = &sock;
-		start_rest_server(nanomq_conf);
 	}
 
 	// ipc server for receiving commands from reload command
