@@ -201,9 +201,9 @@ jobs:
         sudo mv _packages/nanomq-${pkgversion}-1.${{ steps.prepare.outputs.arch }}.rpm _packages/${{ steps.prepare.outputs.pkg_name }}
         cd _packages; echo $(sha256sum ${{ steps.prepare.outputs.pkg_name }} | awk '{print $1}') > ${{ steps.prepare.outputs.pkg_name }}.sha256
 
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       with:
-        name: packages
+        name: ${{ steps.prepare.outputs.pkg_name }} 
         path: "build/_packages/*"
         retention-days: 7
     - uses: Rory-Z/upload-release-asset@v1
@@ -236,9 +236,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - uses: actions/download-artifact@v4.1.7
-      with:
-        name: packages
+    - uses: actions/download-artifact@v4
     - run: git submodule update --init --recursive
     - run: docker build -t emqx/nanomq:$(git describe --tags --always)${{ matrix.suffix }} -f deploy/docker/Dockerfile${{ matrix.suffix }} .
     - run: docker run -d -e DEBUG=1 --name nanomq $(docker images emqx/nanomq -q | head -1) --log_level debug
