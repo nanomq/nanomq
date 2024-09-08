@@ -37,7 +37,7 @@ jobs:
       - uses: actions/upload-artifact@v3
         if: github.event_name == 'release'
         with:
-          name: packages
+          name: nanomq-${{ github.event.release.tag_name }}-windows-x86_64.zip
           path: "install/*.zip"
 
       - uses: svenstaro/upload-release-action@v2
