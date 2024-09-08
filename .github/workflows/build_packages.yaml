@@ -272,9 +272,9 @@ jobs:
       with:
         images: emqx/nanomq
         flavor: |
-          latest=auto
           suffix=${{ matrix.suffix }}
         tags: |
+          type=raw,value=latest,enable=${{ github.event_name == 'release' }}
           type=ref,event=branch
           type=ref,event=pr
           type=ref,event=tag
