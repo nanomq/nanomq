@@ -243,7 +243,7 @@ bridge_pub_handler(nano_work *work)
 {
 	int      rv    = 0;
 	property *props = NULL;
-	uint32_t  index = work->ctx.id - 1;
+	uint32_t  index = work->ctx.id - 1 - work->config->http_server.parallel;
 	mqtt_string *topic;
 
 	// Or we just exclude all topic with $?
@@ -1240,6 +1240,7 @@ broker(conf *nanomq_conf)
 	for (i = 0; i < nanomq_conf->parallel; i++) {
 		works[i] = proto_work_init(sock, inproc_sock,
 		    PROTO_MQTT_BROKER, db, db_ret, nanomq_conf);
+			log_debug("broker id %d type %d ctx %d", i, works[i]->proto, works[i]->ctx.id);
 	}
 
 	// create bridge ctx
@@ -1257,6 +1258,7 @@ broker(conf *nanomq_conf)
 					    *bridge_sock, PROTO_MQTT_BRIDGE,
 					    db, db_ret, nanomq_conf);
 					works[i]->node = node;
+					log_debug("bridge id %d type %d ctx %d", i, works[i]->proto, works[i]->ctx.id);
 				}
 				tmp += node->parallel;
 			}

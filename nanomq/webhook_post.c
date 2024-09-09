@@ -322,10 +322,10 @@ hook_entry(nano_work *work, uint8_t reason)
 			if (topic_filter(ex_conf->nodes[i]->topic,
 			        work->pub_packet->var_header.publish.topic_name.body)) {
 
-				if (work->ctx.id > work->config->parallel)
-					log_error("parallel %d idx %d", work->config->parallel);	// shall be a bug if triggered
+				if (work->proto != PROTO_MQTT_BROKER)
+					log_error("Ctx %d type %d", work->ctx.id, work->proto);	// shall be a bug if triggered
 
-				nng_aio *aio = hook_conf->saios[work->ctx.id-1];
+				nng_aio *aio = hook_conf->saios[work->ctx.id-1];	// 4
 				nng_aio_wait(aio);
 
 				nng_msg_clone(msg);
@@ -627,7 +627,7 @@ send_exchange_cb(void *arg)
 
 	conf_web_hook *hook_conf = &w->config->web_hook;
 
-	nng_aio *aio = hook_conf->saios[w->ctx.id-1];
+	nng_aio *aio = hook_conf->saios[w->ctx.id- 1 - w->config->http_server.parallel];		// 6
 	if ((rv = nng_aio_result(aio)) != 0) {
 		log_error("error %d in send to exchange", rv);
 		return;
@@ -720,7 +720,6 @@ hook_exchange_sender_init(conf *nanomq_conf, struct work **works, uint64_t num_c
 
 #ifdef SUPP_PARQUET
 	if (parquet_conf->enable) {
-
 		log_info("init parquet_write_launcher");
 		parquet_write_launcher(parquet_conf);
 	}
