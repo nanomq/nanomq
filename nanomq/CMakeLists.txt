@@ -114,8 +114,12 @@ if (CMAKE_INSTALL_RPATH)
 endif()
 
 
+if(BUILD_WITH_STATIC_LIBS)
+  target_link_libraries(nanomq nng -static)
+else()
+  target_link_libraries(nanomq nng)
+endif()
 
-target_link_libraries(nanomq nng)
 
 target_compile_definitions(nanomq PRIVATE -DPARALLEL=${PARALLEL})
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
