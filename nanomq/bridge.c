@@ -239,8 +239,8 @@ fix:
 					nng_strfree(work->pub_packet->var_header.publish.topic_name.body);
 					work->pub_packet->var_header.publish.topic_name.body = topic->body;
 					work->pub_packet->var_header.publish.topic_name.len = topic->len;
-					nng_free(topic, sizeof(topic));
 				}
+				nng_free(topic, sizeof(topic));
 				return;
 			}
 		}
