@@ -40,6 +40,11 @@ static int flush_smsg_to_disk(nng_msg **smsg, size_t len, nng_aio *aio, char *to
 
 #define BASE62_ENCODE_OUT_SIZE(s) ((unsigned int) ((((s) * 8) / 6) + 2))
 
+struct work_cb_arg {
+	nng_aio *aio;
+	struct work *w;
+};
+
 static bool
 event_filter(conf_web_hook *hook_conf, webhook_event event)
 {
@@ -339,7 +344,6 @@ hook_entry(nano_work *work, uint8_t reason)
 		nng_msg_free(msg); // Cloned for each exchange before
 	}
 
-
 	if (ex_conf->count > 0 && blfconf->enable == true
 		&& (work->flag == CMD_PUBLISH)
 		&& nng_msg_get_type(work->msg) == CMD_PUBLISH) {
@@ -616,18 +620,22 @@ static int inline get_flush_params(nng_aio *aio,
 static void
 send_exchange_cb(void *arg)
 {
+	int rv;
 	char *topic = NULL;
+	struct work *w = NULL;
 	int *msgs_lenp = NULL;
-	uint8_t streamType = 0;
+	nng_aio *aio = NULL;
 	nng_msg *msg = NULL;
 	nng_msg **msgs_del = NULL;
+	struct work_cb_arg *w_cb_arg = NULL;
+	uint8_t streamType = 0;
+	conf_web_hook *hook_conf = NULL;
 
-	struct work *w = arg;
-	int          rv;
+	w_cb_arg = arg;
+	w = w_cb_arg->w;
+	hook_conf = &w->config->web_hook;
 
-	conf_web_hook *hook_conf = &w->config->web_hook;
-
-	nng_aio *aio = hook_conf->saios[w->ctx.id- 1 - w->config->http_server.parallel];		// 6
+	aio = w_cb_arg->aio;
 	if ((rv = nng_aio_result(aio)) != 0) {
 		log_error("error %d in send to exchange", rv);
 		return;
@@ -640,12 +648,14 @@ send_exchange_cb(void *arg)
 
 #ifndef SUPP_PARQUET
 	log_error("ENABLE_PARQUET is not defined flush to disk failed");
+	nng_msg_free(msg);
 	return;
 #endif
 
 	rv = get_flush_params(aio, msg, &msgs_del, &msgs_lenp, &topic, &streamType);
 	if (rv != 0) {
 		log_error("get_flush_params error %d", rv);
+		nng_msg_free(msg);
 		return;
 	}
 
@@ -669,6 +679,7 @@ send_exchange_cb(void *arg)
 
 	nng_msg_free(msg);
 	nng_free(msgs_lenp, sizeof(int));
+	return;
 }
 
 // Better to be done in sync
@@ -714,8 +725,17 @@ hook_exchange_sender_init(conf *nanomq_conf, struct work **works, uint64_t num_c
 	conf_blf *blf_conf = &nanomq_conf->blf;
 
 	for (int i = 0; i < num_ctx; ++i) {
+		struct work_cb_arg *w_cb_arg = NULL;
+		w_cb_arg = nng_alloc(sizeof(struct work_cb_arg));
+		if (w_cb_arg == NULL) {
+			log_error("nng_alloc failed");
+			return NNG_ENOMEM;
+		}
+
 		nng_aio_alloc(
-		    &hook_conf->saios[i], send_exchange_cb, works[i]);
+		    &hook_conf->saios[i], send_exchange_cb, w_cb_arg);
+		w_cb_arg->aio = hook_conf->saios[i];
+		w_cb_arg->w = works[i];
 	}
 
 #ifdef SUPP_PARQUET
