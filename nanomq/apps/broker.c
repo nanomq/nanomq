@@ -424,10 +424,11 @@ server_cb(void *arg)
 
 			// TODO not all codes needs to close the pipe
 			if (work->code != SUCCESS) {
-				if (work->msg_ret)
+				if (work->msg_ret) {
 					for (size_t i = 0; i < cvector_size(work->msg_ret); i++)
 						nng_msg_free(work->msg_ret[i]);
 					cvector_free(work->msg_ret);
+				}
 				if (work->sub_pkt)
 					sub_pkt_free(work->sub_pkt);
 				// free conn_param due to clone in protocol layer
