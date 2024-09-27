@@ -647,7 +647,7 @@ server_cb(void *arg)
 
 			log_trace("total subscribed pipes: %ld", cvector_size(msg_infos));
 			if (cvector_size(msg_infos))
-				if (encode_pub_message(smsg, work, PUBLISH))
+				if (encode_pub_message(smsg, work, PUBLISH)) {
 					for (int i = 0; i < cvector_size(msg_infos) && rv== 0; ++i) {
 						msg_info = &msg_infos[i];
 						nng_msg_clone(smsg);
@@ -657,6 +657,7 @@ server_cb(void *arg)
 						nng_aio_set_msg(work->aio, work->msg);
 						nng_ctx_send(work->ctx, work->aio);
 					}
+				}
 			work->msg = smsg;
 
 			// bridge logic first

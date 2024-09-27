@@ -1473,6 +1473,10 @@ encode_pub_message(
 			}
 
 			// rv = encode_properties(dest_msg, NULL);
+			if (nng_msg_get_proto_data(dest_msg) == NULL) {
+				nng_mqtt_msg_proto_data_alloc(dest_msg);
+			}
+			nng_mqttv5_msg_decode(dest_msg);
 		}
 #endif
 
@@ -1536,10 +1540,6 @@ encode_pub_message(
 			    pub_response.var_header.pub_arrc.reason_code;
 			nng_msg_append(dest_msg, (uint8_t *) &reason_code,
 			    sizeof(reason_code));
-
-#if SUPPORT_MQTT5_0
-			if (MQTT_PROTOCOL_VERSION_v5 == proto) { }
-#endif
 		}
 		break;
 	default:
