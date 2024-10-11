@@ -455,44 +455,44 @@ server_cb(void *arg)
 				             work->msg_ret[i])); i++) {
 					nng_msg *m = work->msg_ret[i];
 					work->msg = m;
-					work->pub_packet = (struct pub_packet_struct *) nng_zalloc(
-										sizeof(struct pub_packet_struct));
-					if (SUCCESS == decode_pub_message(work, work->proto_ver)) {
-						bool  bridged = false;
-						void *proto_data = nng_msg_get_proto_data(work->msg);
-						if (proto_data != NULL)
-							bridged =
-							    nng_mqtt_msg_get_bridge_bool(work->msg);
-						if (bridged) {
-							bridge_handle_topic_reflection(
-							    work, &work->config->bridge);
-						}
-						// dont modify original retain msg;
-						nng_msg *rmsg = NULL;
-						if (nng_msg_dup(&rmsg, work->msg) != 0) {
-							log_error("System Failure while duplicating retain msg");
-						} else {
-							if (work->proto_ver == MQTT_VERSION_V5) {
-								nng_msg_set_cmd_type(rmsg,CMD_PUBLISH_V5);
-							} else {
-								nng_msg_set_cmd_type(rmsg, CMD_PUBLISH);
-							}
-						}
-						// nng_msg_set_proto_data(rmsg, NULL, proto_data);
-						if (encode_pub_message(rmsg, work, PUBLISH)) {
-							nng_mqtt_msg_set_sub_retain_bool(rmsg, true);
-							nng_aio_set_msg(work->aio, rmsg);
+					// work->pub_packet = (struct pub_packet_struct *) nng_zalloc(
+					// 					sizeof(struct pub_packet_struct));
+					// if (SUCCESS == decode_pub_message(work, work->proto_ver)) {
+					// 	bool  bridged = false;
+					// 	void *proto_data = nng_msg_get_proto_data(work->msg);
+					// 	if (proto_data != NULL)
+					// 		bridged =
+					// 		    nng_mqtt_msg_get_bridge_bool(work->msg);
+					// 	if (bridged) {
+					// 		bridge_handle_topic_reflection(
+					// 		    work, &work->config->bridge);
+					// 	}
+					// 	// dont modify original retain msg;
+					// 	nng_msg *rmsg = NULL;
+					// 	if (nng_msg_dup(&rmsg, work->msg) != 0) {
+					// 		log_error("System Failure while duplicating retain msg");
+					// 	} else {
+					// 		if (work->proto_ver == MQTT_VERSION_V5) {
+					// 			nng_msg_set_cmd_type(rmsg,CMD_PUBLISH_V5);
+					// 		} else {
+					// 			nng_msg_set_cmd_type(rmsg, CMD_PUBLISH);
+					// 		}
+					// 	}
+					// 	// nng_msg_set_proto_data(rmsg, NULL, proto_data);
+					// 	if (encode_pub_message(rmsg, work, PUBLISH)) {
+					//	  nng_mqtt_msg_set_sub_retain_bool(rmsg, true);
+							nng_aio_set_msg(work->aio, work->msg);
 							nng_aio_set_prov_data(work->aio, &work->pid.id);
 							nng_ctx_send(work->ctx, work->aio);
-						} else
-							log_warn("encode retain msg failed!");
-					} else {
-						log_warn("decode retain msg failed!");
-					}
-					free_pub_packet(work->pub_packet);
-					work->pub_packet = NULL;
-					cvector_free(work->pipe_ct->msg_infos);
-					work->pipe_ct->msg_infos = NULL;
+					// 	} else
+					// 		log_warn("encode retain msg failed!");
+					// } else {
+					// 	log_warn("decode retain msg failed!");
+					// }
+					// free_pub_packet(work->pub_packet);
+					// work->pub_packet = NULL;
+					// cvector_free(work->pipe_ct->msg_infos);
+					// work->pipe_ct->msg_infos = NULL;
 					// free the ref due to dbtree_find_retain
 					nng_msg_free(m);
 				}
