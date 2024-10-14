@@ -213,7 +213,7 @@ bridge_pub_handler(nano_work *work)
 	topic = nng_zalloc(sizeof(*topic));
 	for (size_t t = 0; t < work->config->bridge.count; t++) {
 		conf_bridge_node *node = work->config->bridge.nodes[t];
-		nng_mtx_lock(node->mtx);
+		nng_mtx_lock(node->mtx);		//TODO bridge performance
 		if (node->enable) {
 			for (size_t i = 0; i < node->forwards_count; i++) {
 				rv = 0;
@@ -457,12 +457,15 @@ server_cb(void *arg)
 					work->msg = m;
 					work->pub_packet = (struct pub_packet_struct *) nng_zalloc(
 										sizeof(struct pub_packet_struct));
-					if (SUCCESS == decode_pub_message(work, work->proto_ver)) {
+					void *proto_data = NULL;
+					uint8_t ver = nng_mqtt_msg_get_connect_proto_version(work->msg);
+					if (SUCCESS == decode_pub_message(work, ver)) {
 						bool  bridged = false;
-						void *proto_data = nng_msg_get_proto_data(work->msg);
+						proto_data = nng_msg_get_proto_data(work->msg);
+						// TODO replace bridge bool with sub retain bool
+						// bridged = nng_mqtt_msg_get_sub_retain_bool(work->msg, true);
 						if (proto_data != NULL)
-							bridged =
-							    nng_mqtt_msg_get_bridge_bool(work->msg);
+							bridged = nng_mqtt_msg_get_bridge_bool(work->msg);
 						if (bridged) {
 							bridge_handle_topic_reflection(
 							    work, &work->config->bridge);

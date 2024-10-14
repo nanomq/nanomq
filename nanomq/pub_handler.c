@@ -1418,7 +1418,6 @@ encode_pub_message(
 	case PUBLISH:
 		/*fixed header*/
 		work->pub_packet->fixed_header.packet_type = cmd;
-		// work->pub_packet->fixed_header.dup = dup;
 		append_res = nng_msg_header_append(
 		    dest_msg, (uint8_t *) &work->pub_packet->fixed_header, 1);
 
@@ -1480,9 +1479,9 @@ encode_pub_message(
 
 			// rv = encode_properties(dest_msg, NULL);
 			if (nng_msg_get_proto_data(dest_msg) == NULL) {
+				// decoded in handle_pub_retain. Protocol layer gonna take use of property
 				nng_mqtt_msg_proto_data_alloc(dest_msg);
 			}
-			nng_mqttv5_msg_decode(dest_msg);	//???
 		}
 #endif
 

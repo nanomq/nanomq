@@ -209,6 +209,8 @@ bridge_handle_topic_sub_reflection(nano_work *work, conf_bridge_node *node)
 				}
 fix:
 				nng_mqtt_msg_set_bridge_bool(work->msg, true);
+				// TODO replace bridge bool with sub retain bool
+				// nng_mqtt_msg_set_sub_retain_bool(work->msg, true);
 				/* check prefix/suffix */
 				if (node->sub_list[i]->prefix != NULL) {
 					char *tmp = topic->body;
