@@ -246,10 +246,31 @@ disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 static void
 connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {
+	int rv;
 	int reason;
 	// get connect reason
 	nng_pipe_get_int(p, NNG_OPT_MQTT_CONNECT_REASON, &reason);
 	log_info("%s: connected! RC [%d] \n", __FUNCTION__, reason);
+	nng_socket *sock = arg;
+
+	// create a SUBSCRIBE message
+	nng_mqtt_topic_qos subscriptions[] = {
+		{
+		    .qos   = 1,
+		    .topic = {
+				.buf    = (uint8_t *)FT_SUB_TOPIC,
+		        .length = strlen(FT_SUB_TOPIC),
+			},
+			.nolocal         = 1,
+			.rap             = 1,
+			.retain_handling = 0,
+		},
+	};
+
+	rv = nng_mqtt_subscribe(*sock, subscriptions, 1, NULL);
+	log_info("resub result: %d\n", rv);
+
+	return;
 }
 
 //
