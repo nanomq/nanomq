@@ -83,6 +83,10 @@ static client_app apps[] = {
 	    .func = iceoryx_start,
 	},
 #endif
+	{
+		.name = "encrypt",
+		.func = encrypt_start,
+	}
 };
 
 static void
