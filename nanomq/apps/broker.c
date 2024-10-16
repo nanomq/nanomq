@@ -1147,6 +1147,7 @@ broker(conf *nanomq_conf)
 	nanomq_conf->total_ctx += HTTP_CTX_NUM;
 	num_work += HTTP_CTX_NUM;
 #endif
+	stream_sys_init();
 	// Exchange service
 	for (int i = 0; i < nanomq_conf->exchange.count; i++) {
 		conf_exchange_node *node = nanomq_conf->exchange.nodes[i];
@@ -1458,7 +1459,6 @@ broker(conf *nanomq_conf)
 #endif
 	}
 
-	stream_sys_init();
 	/* We'll load spi_stream statically for now */
 	spi_plugin_init();
 
