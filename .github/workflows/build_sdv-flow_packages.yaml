@@ -42,6 +42,7 @@ jobs:
 
       - name: Build Docker Images
         run: |
+          ./deploy/lianyou-deploy/build_nanomq_ndk.sh
           docker build -t nanomq_with_parquet_amd64 -f deploy/lianyou-deploy/Dockerfile .
           docker build -t nanomq_with_parquet_arm64 -f deploy/lianyou-deploy/Dockerfile-arm64 .
 
@@ -73,6 +74,19 @@ jobs:
             docker rm -v $id
             cd -
           done
+
+          # package android
+          mkdir -p packages/nanomq_android_arm64/{parquet,etc,log,lib}
+          cp readme.txt ./packages/nanomq_android_arm64/
+          cp etc/nanomq.conf ./packages/nanomq_android_arm64/etc
+          cp build_android/nanomq/nanomq ./packages/nanomq_android_arm64/
+          cp build_android/lib/* ./packages/nanomq_android_arm64/lib
+          cd ./packages
+          tar -zcvf ./nanomq-${pkgversion}-linux-android-arm64-sdv.tar.gz ./nanomq_android_arm64
+          cp ../etc/nanomq_geely.conf ./nanomq_android_arm64/etc/nanomq.conf
+          tar -zcvf ./nanomq-${pkgversion}-linux-nanomq-android-arm64-gee.tar.gz ./nanomq
+          rm -rf ./nanomq_android_arm64
+
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4

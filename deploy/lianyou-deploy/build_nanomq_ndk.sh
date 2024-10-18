@@ -12,6 +12,7 @@ export PATH=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH
 
 
 wget ${NDK_URL} -O ${NDK_DIR}.tar.gz
+tar -zxvf ${NDK_DIR}.tar.gz -C /tmp
 
 
 echo "Start clean build_android"
@@ -29,6 +30,7 @@ cmake -DANDROID_PLATFORM=android-30 \
     -DNNG_ENABLE_QUIC=ON \
     -DENABLE_FILETRANSFER=ON \
     ..
+    # -DNNG_ENABLE_TLS=ON \
 
 echo "Start make"
 make -j1
@@ -37,5 +39,5 @@ make -j1
 echo "Build done" 
 
 mkdir lib
-cp $NDK_DIR/toolchains/llvm/prebuilt/linux-x86_64/sysroot/lib/* lib
-cp ./src/supplemental/quic/msquic/msquic/bin/Release/libmsquic.so lib
+cp $NDK_DIR/toolchains/llvm/prebuilt/linux-x86_64/sysroot/lib/*.so lib
+cp ./nng/src/supplemental/quic/msquic/msquic/bin/Release/libmsquic.so lib
