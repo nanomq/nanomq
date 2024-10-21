@@ -84,7 +84,6 @@ jobs:
           cd ./packages
           tar -zcvf ./nanomq-${pkgversion}-linux-android-arm64-sdv.tar.gz ./nanomq_android_arm64
           cp ../etc/nanomq_geely.conf ./nanomq_android_arm64/etc/nanomq.conf
-          tar -zcvf ./nanomq-${pkgversion}-linux-nanomq-android-arm64-gee.tar.gz ./nanomq
           rm -rf ./nanomq_android_arm64
 
 
