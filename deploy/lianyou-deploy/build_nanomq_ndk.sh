@@ -29,8 +29,8 @@ cmake -DANDROID_PLATFORM=android-30 \
     -DANDROID_STL=c++_shared \
     -DNNG_ENABLE_QUIC=ON \
     -DENABLE_FILETRANSFER=ON \
+    -DNNG_ENABLE_TLS=ON \
     ..
-    # -DNNG_ENABLE_TLS=ON \
 
 echo "Start make"
 make -j1
