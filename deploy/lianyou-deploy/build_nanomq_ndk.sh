@@ -29,6 +29,7 @@ cmake -DANDROID_PLATFORM=android-30 \
     -DANDROID_STL=c++_shared \
     -DNNG_ENABLE_QUIC=ON \
     -DENABLE_FILETRANSFER=ON \
+    -DENABLE_PARQUET_SHARED=ON \
     -DNNG_ENABLE_TLS=ON \
     ..
 
