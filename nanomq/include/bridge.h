@@ -20,6 +20,7 @@ typedef struct {
 	nng_cv           *switch_cv;
 	nng_mtx          *exec_mtx;
 	nng_cv           *exec_cv;
+	nng_duration     cancel_timeout;
 } bridge_param;
 
 extern bool topic_filter(const char *origin, const char *input);
