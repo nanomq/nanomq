@@ -886,6 +886,7 @@ bridge_quic_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 				properties = sub_property(
 				    param->config->sub_properties);
 			}
+			nng_aio_set_timeout(client->send_aio, param->cancel_timeout);
 			nng_mqtt_subscribe_async(
 			    client, topic_qos, 1, properties);
 			nng_mqtt_topic_qos_array_free(topic_qos, 1);
@@ -946,7 +947,8 @@ bridge_quic_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 	nng_duration duration = (nng_duration) node->backoff_max * 1000;
 	nng_dialer_set(dialer, NNG_OPT_MQTT_RECONNECT_BACKOFF_MAX, &duration, sizeof(nng_duration));
 
-	bridge_arg->client->sock = *sock;
+	bridge_arg->client->sock   = *sock;
+	bridge_arg->cancel_timeout = node->cancel_timeout;
 
 	// create a CONNECT message
 	nng_msg *connmsg = create_connect_msg(node);
@@ -1005,6 +1007,7 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 		nng_socket_set_bool(*sock, NNG_OPT_QUIC_ENABLE_MULTISTREAM, true);
 	}
 	bridge_arg->client = nng_mqtt_client_alloc(*sock, &send_callback, true);
+	bridge_arg->cancel_timeout = node->cancel_timeout;
 
 	// create a CONNECT message
 	nng_msg *connmsg = create_connect_msg(node);
@@ -1067,6 +1070,7 @@ bridge_tcp_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 			properties =
 			    sub_property(param->config->sub_properties);
 		}
+		nng_aio_set_timeout(client->send_aio, param->cancel_timeout);
 		nng_mqtt_subscribe_async(
 		    client, topic_qos, param->config->sub_count, properties);
 		nng_mqtt_topic_qos_array_free(
@@ -1136,7 +1140,8 @@ bridge_tcp_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	}
 #endif
 
-	bridge_arg->client->sock = *sock;
+	bridge_arg->client->sock   = *sock;
+	bridge_arg->cancel_timeout = node->cancel_timeout;
 
 	// create a CONNECT message
 	nng_msg *connmsg = create_connect_msg(node);
@@ -1182,6 +1187,7 @@ bridge_tcp_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 			properties =
 			    sub_property(bridge_arg->config->sub_properties);
 		}
+		nng_aio_set_timeout(client->send_aio, node->cancel_timeout);
 		nng_mqtt_subscribe_async(client, topic_qos,
 		    bridge_arg->config->sub_count, properties);
 		nng_mqtt_topic_qos_array_free(
