@@ -65,6 +65,7 @@ if (ENABLE_FILETRANSFER)
     include_directories(${CMAKE_SOURCE_DIR}/nanomq/extern/include)
     set(SOURCES ${SOURCES}
         extern/file_transfer_nano.c
+        extern/aes_gcm.c
     )
 endif()
 
