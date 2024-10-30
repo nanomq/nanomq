@@ -46,7 +46,7 @@
 #include "file_transfer.h"
 
 #include "aes_gcm.h"
-static char *key_tmp = "a0958ba0214d6fa62cc469b1a7da737c";
+static char *key_tmp = "a0958ba0214d6fa6";
 
 #define DEBUG                   1
 #define MAX_DELAY_7_DAYS        (1000 * 60 * 60 * 24 * 7)
@@ -81,7 +81,6 @@ client_publish(nng_socket sock, const char *topic, uint8_t *payload, uint32_t pa
 
 	nng_mqtt_msg_set_publish_property(pubmsg, plist);
 
-	log_info("Publishing to '%s' ...\n", topic);
 	if ((rv = nng_sendmsg(sock, pubmsg, 0)) != 0) {
 		log_error("nng_sendmsg", rv);
 	}
