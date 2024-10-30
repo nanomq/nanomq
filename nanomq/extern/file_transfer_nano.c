@@ -45,6 +45,9 @@
 
 #include "file_transfer.h"
 
+#include "aes_gcm.h"
+static char *key_tmp = "a0958ba0214d6fa62cc469b1a7da737c";
+
 #define DEBUG                   1
 #define MAX_DELAY_7_DAYS        (1000 * 60 * 60 * 24 * 7)
 #define FT_SUB_TOPIC            "file_transfer"
