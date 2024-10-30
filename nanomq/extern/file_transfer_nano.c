@@ -163,36 +163,54 @@ static int do_flock(FILE *fp, int op)
 	return rc;
 }
 
-static int publish_file(nng_socket *sock, FILE *fp, char *file_name, char *topic)
+static int publish_file(nng_socket *sock, FILE *fp, char *file_name,
+                        char *topic, bool is_encrypt, char *key)
 {
 	char *payload;
-	int rc = 0;
+	int   payload_len;
+	int   rc = 0;
 
 	fseek(fp, 0L, SEEK_END);
 	long file_size = ftell(fp);
 	rewind(fp);
 
-	payload = (char *)nng_alloc(file_size);
-	if (payload == NULL) {
-		log_warn("Failed to allocate memory for file payload\n");
+	char *file_bin = (char *)nng_alloc(file_size);
+	if (file_bin == NULL) {
+		log_warn("Failed to allocate memory for file content");
 		return ALLOC_ERROR;
 	}
-	rc = fread(payload, 1, file_size, fp);
+	rc = fread(file_bin, 1, file_size, fp);
 	if (rc <= 0) {
-		log_warn("Failed to read file\n");
+		log_warn("Failed to read file");
 		return FREAD_ERROR;
 	}
 
 	if (DEBUG) {
-		log_info("Publishing file to topic %s\n", topic);
+		log_info("Publishing file to topic %s", topic);
 	}
 
-	rc = client_publish(*sock, topic, (uint8_t *)payload, (uint32_t)file_size, 1, true);
+	if (is_encrypt) {
+		char *tag;
+		char *payload = aes_gcm_encrypt(file_bin, file_size, key, &tag, &payload_len);
+		if (payload == NULL) {
+			log_error("Failed to encrypt the file, send origin payload");
+			payload = file_bin;
+			payload_len = file_size;
+		} else {
+			nng_free(tag, 0);
+			nng_free(file_bin, file_size);
+		}
+	} else {
+		payload = file_bin;
+		payload_len = file_size;
+	}
+
+	rc = client_publish(*sock, topic, (uint8_t *)payload, (uint32_t)payload_len, 1, true);
 	if (rc != 0) {
-		log_warn("Failed to publish message, return code %d\n", rc);
+		log_warn("Failed to publish message, return code %d", rc);
 		return rc;
 	}
-	nng_free(payload, file_size);
+	nng_free(payload, payload_len);
 
 	return 0;
 }
@@ -200,7 +218,9 @@ static int publish_file(nng_socket *sock, FILE *fp, char *file_name, char *topic
 int send_file(nng_socket *sock,
 			  char *file_path,
 			  char *file_name,
-			  char *topic)
+			  char *topic,
+			  bool is_encrypt,
+			  char *key)
 {
 	FILE *fp;
 	int rc = 0;
@@ -218,7 +238,7 @@ int send_file(nng_socket *sock,
 		log_warn("Failed to lock file. Still send file without a file lock...\n");
 	}
 
-	rc = publish_file(sock, fp, file_name, topic);
+	rc = publish_file(sock, fp, file_name, topic, is_encrypt, key);
 	if (rc) {
 		fclose(fp);
 		return rc;
@@ -285,11 +305,11 @@ client_connect(nng_socket *sock, const char *url)
 	int        rv;
 
 	if ((rv = nng_mqttv5_client_open(sock)) != 0) {
-		fatal("nng_socket", rv);
+		log_error("nng_socket %d", rv);
 	}
 
 	if ((rv = nng_dialer_create(&dialer, *sock, url)) != 0) {
-		fatal("nng_dialer_create", rv);
+		log_error("nng_dialer_create %d", rv);
 	}
 
 	// create a CONNECT message
@@ -452,11 +472,13 @@ static int process_msg(nng_socket *sock, nng_msg *msg, bool verbose)
 			nng_msg_free(msg);
 			return -1;
 		} else {
-			int fileCount = cJSON_GetArraySize(cjson_filepaths);
-			result = 0;
+			bool is_encrypt = true;
+			int  fileCount = cJSON_GetArraySize(cjson_filepaths);
 			char messages[BUF_SIZE];
 			char requests[BUF_SIZE];
-			int echo_success = 1;
+			int  echo_success = 1;
+
+			result = 0;
 
 			memset(messages, 0, BUF_SIZE);
 			memset(requests, 0, BUF_SIZE);
@@ -477,7 +499,8 @@ static int process_msg(nng_socket *sock, nng_msg *msg, bool verbose)
 											pathEle->valuestring,
 											nameEle->valuestring);
 				// Send file
-				result = send_file(sock, pathEle->valuestring, nameEle->valuestring, topicEle->valuestring);
+				result = send_file(sock, pathEle->valuestring, nameEle->valuestring,
+						topicEle->valuestring, is_encrypt, key_tmp);
 				log_info("Send file file_name: %s %s\n", nameEle->valuestring,
 									!result ? "success" : "fail");
 				/* fail */
