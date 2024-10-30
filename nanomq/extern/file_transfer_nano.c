@@ -190,7 +190,7 @@ static int publish_file(nng_socket *sock, FILE *fp, char *file_name,
 
 	if (is_encrypt) {
 		char *tag;
-		char *payload = aes_gcm_encrypt(file_bin, file_size, key, &tag, &payload_len);
+		payload = aes_gcm_encrypt(file_bin, file_size, key, &tag, &payload_len);
 		if (payload == NULL) {
 			log_error("Failed to encrypt the file, send origin payload");
 			payload = file_bin;
@@ -494,13 +494,13 @@ static int process_msg(nng_socket *sock, nng_msg *msg, bool verbose)
 				if(cjson_echo_id != NULL) {
 					requestEle = cJSON_GetArrayItem(cjson_request_id, i);
 				}
-				log_info("Sending file: filepath: %s filename: %s\n",
+				log_info("Sending file: filepath: %s filename: %s",
 											pathEle->valuestring,
 											nameEle->valuestring);
 				// Send file
 				result = send_file(sock, pathEle->valuestring, nameEle->valuestring,
 						topicEle->valuestring, is_encrypt, key_tmp);
-				log_info("Send file file_name: %s %s\n", nameEle->valuestring,
+				log_info("Send file file_name: %s %s", nameEle->valuestring,
 									!result ? "success" : "fail");
 				/* fail */
 				if (result) {
@@ -541,12 +541,12 @@ static int process_msg(nng_socket *sock, nng_msg *msg, bool verbose)
 							/* WARNING: when to free aio? */
 							nng_aio_alloc(&aio, delete_delay_cb, filename);
 							nng_sleep_aio(delay, aio);
-							log_warn("Send file finished: Will delete %s in %d milliseconds\n",
+							log_warn("Send file finished: Will delete %s in %d milliseconds",
 																			pathEle->valuestring,
 																			delay);
 						}
 					} else {
-						log_info("Send file finished will not delete: %s\n", pathEle->valuestring);
+						log_info("Send file finished will not delete: %s", pathEle->valuestring);
 					}
 					if (cjson_echo_id != NULL) {
 						messages_requests_append(messages, 0,
