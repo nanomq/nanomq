@@ -1615,7 +1615,7 @@ bridge_sub_handler(nano_work *work)
 			// TODO carry the property as well
 			if (work->flag  == CMD_SUBSCRIBE)
 				nng_mqtt_subscribe_async(param->client, subscriptions, 1, NULL);
-			else
+			else if (work->flag  == CMD_UNSUBSCRIBE)
 				nng_mqtt_unsubscribe_async(param->client, topic, 1, NULL);
 		}
 		tnode = tnode->next;
