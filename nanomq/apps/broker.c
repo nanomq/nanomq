@@ -1165,7 +1165,8 @@ broker(conf *nanomq_conf)
 			log_error("nng_exchange_client_open failed %d", rv);
 		} else {
 			nng_socket_set_ptr(*node->sock, NNG_OPT_EXCHANGE_BIND, (void *)node);
-			nng_socket_set_ptr(*node->sock, NNG_OPT_EXCHANGE_START_LIMIT_TIMER, (void *)node);
+			/* TODO: Support multiple stream */
+//			nng_socket_set_ptr(*node->sock, NNG_OPT_EXCHANGE_START_LIMIT_TIMER, (void *)node);
 		}
 		log_debug("exchange %d init finished!\n", i);
 
