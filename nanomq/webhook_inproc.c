@@ -305,7 +305,7 @@ send_mqtt_msg_result(nng_socket *sock, char *ruleid, cJSON *resjo)
 }
 
 static inline int get_md5_str(const char *str, char *md5sum) {
-	char* start = strchr(str, '_');
+	char* start = strchr(str, '_'); start = strchr(start+1, '_');
 	char* end = strchr(start, '-');
 
 	if (start == NULL || end == NULL || end <= start) {
