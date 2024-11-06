@@ -652,6 +652,8 @@ hook_work_cb(void *arg)
 			if (0 == strcmp(cmdstr, "write")) {
 				log_warn("Write cmd is not supported");
 				goto skip;
+			} else if (0 == strcmp(cmdstr, "search")) {
+				log_debug("Search is triggered");
 			} else if (0 == strcmp(cmdstr, "stop")) {
 				log_info("Stop is triggered");
 				nng_msg *m;
@@ -695,10 +697,211 @@ hook_work_cb(void *arg)
 			goto skip;
 		}
 
-skip:
-		if (resjo) {
-			cJSON_Delete(resjo);
+		cJSON *ruleidjo = cJSON_GetObjectItem(root,"ruleid");
+		if (!cJSON_IsString(ruleidjo)) {
+			log_warn("No ruleid field found in json msg");
+			goto skip;
 		}
+		char *ruleidstr = ruleidjo->valuestring;
+		if (!ruleidstr) {
+			log_warn("Error in parsing json ruleid");
+			goto skip;
+		}
+		log_info("cmd %s ruleid %s", cmdstr, ruleidstr);
+
+		cJSON *rgjo;
+		cJSON *rgsjo = cJSON_GetObjectItem(root, "ranges");
+		if (!rgsjo) {
+			log_warn("No ranges field found in json msg");
+			goto skip;
+		}
+
+		char **sent_files = NULL;
+
+#ifdef SUPP_PARQUET
+		// result json only valid when parquet is enabled
+		resjo = cJSON_CreateObject();
+		if (cJSON_AddStringToObject(resjo, "ruleid", ruleidstr) == NULL) {
+			log_warn("Failed to add ruleid to result json");
+			goto skip;
+		}
+
+		cJSON *resrgsjo = cJSON_AddArrayToObject(resjo, "ranges");
+		if (resrgsjo == NULL) {
+			log_warn("Failed to add ranges to result json");
+			goto skip;
+		}
+#endif
+
+		cJSON_ArrayForEach(rgjo, rgsjo) {
+			char    *skeystr = NULL;
+			char    *ekeystr = NULL;
+			uint64_t start_key;
+			uint64_t end_key;
+
+			cJSON *skeyjo = cJSON_GetObjectItem(rgjo, "start_key");
+			cJSON *ekeyjo = cJSON_GetObjectItem(rgjo, "end_key");
+			if (!cJSON_IsString(skeyjo) || !cJSON_IsString(ekeyjo)) {
+				log_warn("No start/end key field found in json msg");
+				goto skip;
+			}
+			skeystr = skeyjo->valuestring;
+			ekeystr = ekeyjo->valuestring;
+			if (!skeystr || !ekeystr) {
+				log_warn("Invalid start/end key field found in json msg");
+				goto skip;
+			}
+
+			rv = sscanf(skeystr, "%" SCNu64, &start_key);
+			if (rv == 0) {
+				log_error("error in read start_key to number %s", skeystr);
+				goto skip;
+			}
+			rv = sscanf(ekeystr, "%" SCNu64, &end_key);
+			if (rv == 0) {
+				log_error("error in read end_key to number %s", ekeystr);
+				goto skip;
+			}
+
+			nng_msg *m;
+			nng_msg_alloc(&m, 0);
+			if (!m) {
+				log_error("Error in alloc memory");
+				goto skip;
+			}
+
+			nng_time *tss = NULL;
+			// When end key > start key. Fuzzing search.
+			if (end_key > start_key) {
+				tss = nng_alloc(sizeof(nng_time) * 3);
+				tss[0] = start_key;
+				tss[1] = end_key;
+				tss[2] = 0; // No operation flag
+				nng_msg_set_proto_data(m, NULL, (void *)tss);
+			} else if (end_key == start_key) {
+				// normal search
+				nng_msg_set_timestamp(m, start_key);
+			} else {
+				// Invalid json
+				log_warn("SKip. start key is greater than end key. It's not allowed");
+			}
+
+			log_info("start_key %lld end_key %lld", start_key, end_key);
+
+			nng_aio_set_msg(aio, m);
+			// search msgs from MQ
+			nng_recv_aio(*ex_sock, aio);
+
+			nng_aio_wait(aio);
+			if (nng_aio_result(aio) != 0)
+				log_warn("error in taking msgs from exchange");
+			nng_msg_free(m);
+			if (end_key > start_key)
+				nng_free(tss, 0);
+
+			nng_msg **msgs_res = (nng_msg **)nng_aio_get_msg(aio);
+			uint32_t  msgs_len = (uintptr_t)nng_aio_get_prov_data(aio);
+
+			// Get msgs and send to localhost:port to active handler
+			if (msgs_len > 0 && msgs_res != NULL) {
+				// TODO NEED Clone before took from exchange instead of here
+				for (int i=0; i<msgs_len; ++i)
+					nng_msg_clone(msgs_res[i]);
+
+				send_mqtt_msg_cat_with_split(work->mqtt_sock, msgs_res, msgs_len,
+					ruleidstr, start_key, end_key,
+					exconf->encryption->key, exconf->encryption->enable,
+					work->send_aio, 800); // TODO hardcode
+
+				for (int i=0; i<msgs_len; ++i)
+					nng_msg_free(msgs_res[i]);
+				nng_free(msgs_res, sizeof(nng_msg *) * msgs_len);
+			}
+#ifdef SUPP_PARQUET
+			// Get file names and send to localhost to active handler
+			const char **fnames = NULL;
+			uint32_t sz = 0;
+			if (end_key > start_key) {
+				// fuzzing search
+				fnames = parquet_find_span(start_key, end_key, &sz);
+			} else if (end_key == start_key) {
+				// normal search
+				const char *fname = parquet_find(start_key);
+				if (fname) {
+					sz = 1;
+					fname = malloc(sizeof(char *) * sz);
+					fnames[0] = fname;
+				}
+			} else {
+				// Invalid json
+				log_warn("SKip. start key is greater than end key. It's not allowed");
+			}
+			if (fnames) {
+				if (sz > 0) {
+					log_info("Ask parquet and found.");
+					// Preqare range result
+					cJSON *resrgjo = cJSON_CreateObject();
+					if (resrgjo == NULL) {
+						log_error("Error in create range json for result");
+						continue;
+					}
+					cJSON_AddItemToArray(resrgsjo, resrgjo);
+					cJSON *resskeyjo = cJSON_CreateString(skeystr);
+					cJSON *resekeyjo = cJSON_CreateString(ekeystr);
+					if (resskeyjo == NULL || resekeyjo == NULL) {
+						log_error("Error in create start/end key json for result");
+						continue;
+					}
+					cJSON_AddItemToObject(resrgjo, "start_key", resskeyjo);
+					cJSON_AddItemToObject(resrgjo, "end_key", resekeyjo);
+
+					const char **fnames_new = NULL;
+					for (int i=0; i<sz; i++) {
+						// Deduplicate
+						int exist = 0;
+						for (int j=0; j<cvector_size(sent_files); j++) {
+							if (0 == strcmp(sent_files[j], fnames[i])) {
+								exist = 1;
+								log_info("Deduplicate %s.", fnames[i]);
+								break;
+							}
+						}
+						if (exist == 0) {
+							char *fname = strdup(fnames[i]);
+							cvector_push_back(fnames_new, fname);
+							cvector_push_back(sent_files, fname);
+						}
+					}
+					if (fnames_new) {
+						send_mqtt_msg_file(work->mqtt_sock, "file_transfer",
+							fnames_new, cvector_size(fnames_new), ruleidstr);
+						cvector_free(fnames_new);
+					}
+				}
+				for (int i=0; i<(int)sz; ++i)
+					if (fnames[i]) {
+						nng_free((void *)fnames[i], 0);
+					}
+				nng_free(fnames, sz);
+			}
+#endif
+		}
+
+#ifdef SUPP_PARQUET
+		send_mqtt_msg_result(work->mqtt_sock, ruleidstr, resjo);
+#endif
+
+		int sent_files_sz = cvector_size(sent_files);
+		for (int i=sent_files_sz-1; i>=0; --i)
+			if (sent_files[i]) {
+				free(sent_files[i]);
+			}
+		if (sent_files_sz > 0)
+			cvector_free(sent_files);
+
+skip:
+		if (resjo)
+			cJSON_Delete(resjo);
 		nng_aio_free(aio);
 
 		cJSON_Delete(root);
@@ -845,11 +1048,11 @@ hook_cb(void *arg)
 		port_str += 1;
 	if (!port_str)
 		port_str = "1883";
-	nng_dialer dialer;
 	char url_str[32];
 	sprintf(url_str, "mqtt-tcp://127.0.0.1:%s", port_str);
 	log_info("File trans client will connect to %s", url_str);
 
+	nng_dialer dialer;
 	// need to expose url
 	if ((rv = nng_dialer_create(&dialer, mqtt_sock, url_str))) {
 		log_error("nng_dialer_create failed %d", rv);
