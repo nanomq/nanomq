@@ -639,7 +639,10 @@ hook_work_cb(void *arg)
 		nng_aio_alloc(&aio, NULL, NULL);
 
 		// TODO match exchange with IPC msg (by MQ name)
-		nng_socket *ex_sock = exconf->nodes[0]->sock;
+		nng_socket *ex_sock; // = exconf->nodes[1]->sock;
+		for (int i=0; i<exconf->count; ++i)
+			if (0 == strcmp(exconf->nodes[i]->name, "exchange_no2"))
+				ex_sock = exconf->nodes[i]->sock;
 
 		body = (char *) nng_msg_body(msg);
 
