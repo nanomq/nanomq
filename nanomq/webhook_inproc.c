@@ -837,10 +837,10 @@ hook_work_cb(void *arg)
 			uint32_t sz = 0;
 			if (end_key > start_key) {
 				// fuzzing search
-				fnames = parquet_find_span(start_key, end_key, &sz);
+				fnames = parquet_find_span(streamid, start_key, end_key, &sz);
 			} else if (end_key == start_key) {
 				// normal search
-				const char *fname = parquet_find(start_key);
+				const char *fname = parquet_find(streamid, start_key);
 				if (fname) {
 					sz = 1;
 					fname = malloc(sizeof(char *) * sz);
