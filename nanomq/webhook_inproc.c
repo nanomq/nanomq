@@ -638,15 +638,20 @@ hook_work_cb(void *arg)
 		nng_aio *aio;
 		nng_aio_alloc(&aio, NULL, NULL);
 
-		// TODO match exchange with IPC msg (by MQ name)
-		nng_socket *ex_sock; // = exconf->nodes[1]->sock;
-		for (int i=0; i<exconf->count; ++i)
-			if (0 == strcmp(exconf->nodes[i]->name, "exchange_no2"))
-				ex_sock = exconf->nodes[i]->sock;
-
 		body = (char *) nng_msg_body(msg);
-
 		root = cJSON_Parse(body);
+
+		nng_socket *ex_sock = exconf->nodes[0]->sock; // default
+		cJSON *streamjo = cJSON_GetObjectItem(root, "stream");
+		if (streamjo && streamjo->valuestring) {
+			for (int i=0; i<exconf->count; ++i) {
+				if (0 == strcmp(exconf->nodes[i]->name, streamjo->valuestring)) {
+					ex_sock = exconf->nodes[i]->sock;
+					break;
+				}
+			}
+		}
+
 		cJSON *cmdjo = cJSON_GetObjectItem(root,"cmd");
 		char *cmdstr = NULL;
 		if (cmdjo)
