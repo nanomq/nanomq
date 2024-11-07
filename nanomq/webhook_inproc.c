@@ -641,15 +641,21 @@ hook_work_cb(void *arg)
 		body = (char *) nng_msg_body(msg);
 		root = cJSON_Parse(body);
 
-		nng_socket *ex_sock = exconf->nodes[0]->sock; // default
+		char       *streamid = NULL;
+		nng_socket *ex_sock  = NULL;
 		cJSON *streamjo = cJSON_GetObjectItem(root, "stream");
 		if (streamjo && streamjo->valuestring) {
+			streamid = streamjo->valuestring;
 			for (int i=0; i<exconf->count; ++i) {
 				if (0 == strcmp(exconf->nodes[i]->name, streamjo->valuestring)) {
 					ex_sock = exconf->nodes[i]->sock;
 					break;
 				}
 			}
+		}
+		if (!ex_sock || !streamid) {
+			log_warn("Invalid streamid");
+			goto skip;
 		}
 
 		cJSON *cmdjo = cJSON_GetObjectItem(root,"cmd");
