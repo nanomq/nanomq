@@ -705,7 +705,9 @@ server_cb(void *arg)
 			work->msg = smsg;
 
 			// bridge logic first
-			if (work->config->bridge_mode) {
+			if (work->config->bridge_mode ||
+				topic_filter("ecp/edgeagent/heartbeat",
+					work->pub_packet->var_header.publish.topic_name.body)) {
 				bridge_pub_handler(work);
 #if defined(SUPP_AWS_BRIDGE)
 				aws_bridge_forward(work);
