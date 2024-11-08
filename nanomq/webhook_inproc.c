@@ -68,7 +68,7 @@ static nng_aio        *hook_search_reset_aio = NULL;
 
 static int
 send_mqtt_msg_cat_with_split(nng_socket *sock, nng_msg **msgs, uint32_t len,
-		char *ruleid, uint64_t start_key, uint64_t end_key, char *key, bool encryption_enable,
+		char *prefix, uint64_t start_key, uint64_t end_key, char *key, bool encryption_enable,
 		nng_aio *saio, uint32_t split_len)
 {
 	nng_msg *pubmsg;
@@ -129,9 +129,9 @@ send_mqtt_msg_cat_with_split(nng_socket *sock, nng_msg **msgs, uint32_t len,
 		char md5sum[MD5_LEN + 1];
 		(void)ComputeStringMD5(buf, pos, md5sum);
 
-		char *topic = malloc(sizeof(char) *(strlen(md5sum) + 128));
-		sprintf(topic, "$file/upload/MQ/%s/%s/%s-%lld-%lld",
-			ruleid, md5sum, conf_get_vin(), start_key, end_key);
+		char *topic = malloc(sizeof(char) *(strlen(prefix) + strlen(md5sum) + 32));
+		sprintf(topic, "%smq/%s/%lld-%lld",
+			prefix, md5sum, start_key, end_key);
 		log_info("The %ld msgs (sz%d) for ts(%lld-%lld)(%d) will go to topic %s", minlen, pos,
 			start_key, end_key, z, topic);
 
@@ -157,7 +157,7 @@ send_mqtt_msg_cat_with_split(nng_socket *sock, nng_msg **msgs, uint32_t len,
 
 static int
 send_mqtt_msg_cat(nng_socket *sock, nng_msg **msgs, uint32_t len,
-		char *ruleid, uint64_t start_key, uint64_t end_key, char *key, bool encryption_enable, nng_aio *saio)
+		char *prefix, uint64_t start_key, uint64_t end_key, char *key, bool encryption_enable, nng_aio *saio)
 {
 	int rv;
 	nng_msg *pubmsg;
@@ -222,13 +222,8 @@ send_mqtt_msg_cat(nng_socket *sock, nng_msg **msgs, uint32_t len,
 	log_info("decryption result: %s (%d)", plain, plain_len);
 	*/
 
-
-	char md5sum[MD5_LEN + 1];
-	(void)ComputeStringMD5(buf, pos, md5sum);
-
-	char *topic = malloc(sizeof(char) *(strlen(md5sum) + 128));
-	sprintf(topic, "$file/upload/MQ/%s/%s/%s-%lld-%lld",
-		ruleid, md5sum, conf_get_vin(), start_key, end_key);
+	char *topic = malloc(sizeof(char) *(strlen(prefix) + 128));
+	sprintf(topic, "%smq/%lld-%lld", prefix, start_key, end_key);
 	log_info("The %ld msgs will go to topic %s", len, topic);
 
 	nng_mqtt_msg_alloc(&pubmsg, 0);
@@ -273,13 +268,13 @@ get_file_bname(char *fpath)
 }
 
 static int
-send_mqtt_msg_result(nng_socket *sock, char *ruleid, cJSON *resjo)
+send_mqtt_msg_result(nng_socket *sock, char *prefix, cJSON *resjo)
 {
 	int rv;
 	char *buf = cJSON_PrintUnformatted(resjo);
 
-	char *topic = nng_alloc(sizeof(char) * (strlen(ruleid) + 40));
-	sprintf(topic, "$file/upload/parquetfile/%s/result", ruleid);
+	char *topic = nng_alloc(sizeof(char) * (strlen(prefix) + 10));
+	sprintf(topic, "%sresult", prefix);
 
 	// create a PUBLISH message
 	nng_msg *pubmsg;
@@ -326,33 +321,25 @@ static inline int get_md5_str(const char *str, char *md5sum) {
 #define TBUF_MAX 1024
 
 static int
-send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uint32_t len, char * ruleid)
+send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uint32_t len, char * prefix)
 {
 	int rv;
-	const char ** filenames = malloc(sizeof(char *) * len);
+	char ** filenames = malloc(sizeof(char *) * len);
 	char tbuf[TBUF_MAX];
 	const char **topics = malloc(sizeof(char *) * len);
 	int  *delete = malloc(sizeof(int) * len);
 	int   pos = 0;
 	for (int i=0; i<len; ++i) {
-		char md5sum[MD5_LEN + 1];
-		rv = get_md5_str(fpaths[i], md5sum);
-		if (rv != 0) {
-			log_error("error in getting md5sum(%s)", fpaths[i]);
-			continue;
-		}
-
 		filenames[pos++] = get_file_bname((char *)fpaths[i]);
-		if (strlen(ruleid) + strlen(md5sum) + strlen(filenames[pos-1]) + strlen("$file/upload/parquetfile///") + 1 > TBUF_MAX) {
-			log_error("error in getting topic ruleid(%s) md5sum(%s) filename(%s), topic is too long(max: 1024)", ruleid, md5sum, filenames[pos-1]);
+		if (strlen(prefix) + strlen(filenames[pos-1]) + 2 > TBUF_MAX) {
+			log_error("error in getting topic prefix%s filename(%s), topic is too long(max: 1024)", prefix, filenames[pos-1]);
 			pos--;
 			if (filenames[pos] != NULL) {
 				free(filenames[pos]);
 			}
 			continue;
 		}
-		sprintf(tbuf, "$file/upload/parquetfile/%s/%s/%s",
-			ruleid, md5sum, filenames[pos-1]);
+		sprintf(tbuf, "%s%s", prefix, filenames[pos-1]);
 		topics[pos-1] = strdup(tbuf);
 		delete[pos-1] = -1;
 	}
@@ -371,7 +358,7 @@ send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uin
 	if (!files_obj)
 		return -1;
 
-	cJSON *filenames_obj = cJSON_CreateStringArray(filenames, pos);
+	cJSON *filenames_obj = cJSON_CreateStringArray((const char**)filenames, pos);
 	if (!filenames_obj)
 		return -1;
 	cJSON_AddItemToObject(obj, "filenames", filenames_obj);
@@ -657,6 +644,12 @@ hook_work_cb(void *arg)
 			log_warn("Invalid streamid");
 			goto skip;
 		}
+		cJSON *prefixjo = cJSON_GetObjectItem(root, "topic_prefix");
+		if (!prefixjo || !prefixjo->valuestring) {
+			log_warn("Invalid topic_prefix");
+			goto skip;
+		}
+		char *prefix = prefixjo->valuestring;
 
 		cJSON *cmdjo = cJSON_GetObjectItem(root,"cmd");
 		char *cmdstr = NULL;
@@ -711,18 +704,6 @@ hook_work_cb(void *arg)
 			goto skip;
 		}
 
-		cJSON *ruleidjo = cJSON_GetObjectItem(root,"ruleid");
-		if (!cJSON_IsString(ruleidjo)) {
-			log_warn("No ruleid field found in json msg");
-			goto skip;
-		}
-		char *ruleidstr = ruleidjo->valuestring;
-		if (!ruleidstr) {
-			log_warn("Error in parsing json ruleid");
-			goto skip;
-		}
-		log_info("cmd %s ruleid %s", cmdstr, ruleidstr);
-
 		cJSON *rgjo;
 		cJSON *rgsjo = cJSON_GetObjectItem(root, "ranges");
 		if (!rgsjo) {
@@ -735,11 +716,6 @@ hook_work_cb(void *arg)
 #ifdef SUPP_PARQUET
 		// result json only valid when parquet is enabled
 		resjo = cJSON_CreateObject();
-		if (cJSON_AddStringToObject(resjo, "ruleid", ruleidstr) == NULL) {
-			log_warn("Failed to add ruleid to result json");
-			goto skip;
-		}
-
 		cJSON *resrgsjo = cJSON_AddArrayToObject(resjo, "ranges");
 		if (resrgsjo == NULL) {
 			log_warn("Failed to add ranges to result json");
@@ -823,7 +799,7 @@ hook_work_cb(void *arg)
 					nng_msg_clone(msgs_res[i]);
 
 				send_mqtt_msg_cat_with_split(work->mqtt_sock, msgs_res, msgs_len,
-					ruleidstr, start_key, end_key,
+					prefix, start_key, end_key,
 					exconf->encryption->key, exconf->encryption->enable,
 					work->send_aio, 800); // TODO hardcode
 
@@ -888,7 +864,7 @@ hook_work_cb(void *arg)
 					}
 					if (fnames_new) {
 						send_mqtt_msg_file(work->mqtt_sock, "file_transfer",
-							fnames_new, cvector_size(fnames_new), ruleidstr);
+							fnames_new, cvector_size(fnames_new), prefix);
 						cvector_free(fnames_new);
 					}
 				}
@@ -902,7 +878,7 @@ hook_work_cb(void *arg)
 		}
 
 #ifdef SUPP_PARQUET
-		send_mqtt_msg_result(work->mqtt_sock, ruleidstr, resjo);
+		send_mqtt_msg_result(work->mqtt_sock, prefix, resjo);
 #endif
 
 		int sent_files_sz = cvector_size(sent_files);
