@@ -1079,8 +1079,8 @@ hook_cb(void *arg)
 		log_error("hook hook_search reset aio init failed %d", rv);
 		return;
 	}
-	nng_aio_finish(hook_search_reset_aio, 0); // Start
-	log_info("hook hook_search reset aio started");
+	// nng_aio_finish(hook_search_reset_aio, 0); // Start
+	// log_info("hook hook_search reset aio started");
 
 	for (i = 0; i < works_num; i++) {
 		// shares taskq threads with broker
