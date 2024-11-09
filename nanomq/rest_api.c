@@ -827,7 +827,7 @@ process_request(http_msg *msg, conf_http_server *config, nng_socket *sock)
 			ret = get_nodes(msg, config->broker_sock);
 		} else if (uri_ct->sub_count == 2 &&
 		    uri_ct->sub_tree[1]->end &&
-		    strcmp(uri_ct->sub_tree[1]->node, "can_data_span") == 0) {
+		    strcmp(uri_ct->sub_tree[1]->node, "data_span") == 0) {
 			ret = get_can_data_span(msg, uri_ct->params,
 			    uri_ct->params_count, NULL, NULL, config->broker_sock);
 		} else if (uri_ct->sub_count == 2 &&
@@ -1519,25 +1519,33 @@ get_can_data_span(http_msg *msg, kv **params, size_t param_num,
 	http_msg  res       = { .status = NNG_HTTP_STATUS_OK };
 	cJSON    *res_obj   = cJSON_CreateObject();
 	uint64_t *data_span = NULL;
+
+	char *   topicl[] = {"canudp", "signal", "battcell", "batttsnsr"};
+	uint32_t topiclsz = 4;
 #ifdef SUPP_PARQUET
-	data_span = parquet_get_key_span();
+	data_span = parquet_get_key_span((const char **)topicl, topiclsz);
 #else
 	log_error("Parquet is't compiled!");
 #endif
 	if (NULL == data_span) {
 		cJSON_AddNumberToObject(res_obj, "code", PLUGIN_IS_CLOSED);
 	} else {
-		cJSON *data = cJSON_CreateObject();
 		cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
-		cJSON_AddNumberToObject(data, "begin", data_span[0]);
-		cJSON_AddNumberToObject(data, "end", data_span[1]);
-		cJSON_AddItemToObject(res_obj, "data", data);
+		cJSON *datajo = cJSON_CreateObject();
+		for (int i=0; i<topiclsz; ++i) {
+			cJSON *topicjo = cJSON_CreateObject();
+			cJSON_AddNumberToObject(topicjo, "begin", data_span[2*i]);
+			cJSON_AddNumberToObject(topicjo, "end", data_span[2*i+1]);
+			cJSON_AddItemToObject(datajo, topicl[i], topicjo);
+		}
+		cJSON_AddItemToObject(res_obj, "data", datajo);
 	}
 
 	char *dest = cJSON_PrintUnformatted(res_obj);
 	put_http_msg(
 	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
 
+	nng_free(data_span, sizeof(data_span));
 	cJSON_free(dest);
 	cJSON_Delete(res_obj);
 
