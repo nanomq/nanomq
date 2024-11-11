@@ -1530,12 +1530,15 @@ get_can_data_span(http_msg *msg, kv **params, size_t param_num,
 	if (NULL == data_span) {
 		cJSON_AddNumberToObject(res_obj, "code", PLUGIN_IS_CLOSED);
 	} else {
+		char topickey[16];
 		cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
 		cJSON *datajo = cJSON_CreateObject();
 		for (int i=0; i<topiclsz; ++i) {
 			cJSON *topicjo = cJSON_CreateObject();
-			cJSON_AddNumberToObject(topicjo, "begin", data_span[2*i]);
-			cJSON_AddNumberToObject(topicjo, "end", data_span[2*i+1]);
+			sprintf(topickey, "%ld", data_span[2*i]);
+			cJSON_AddStringToObject(topicjo, "start", topickey);
+			sprintf(topickey, "%ld", data_span[2*i+1]);
+			cJSON_AddStringToObject(topicjo, "end", topickey);
 			cJSON_AddItemToObject(datajo, topicl[i], topicjo);
 		}
 		cJSON_AddItemToObject(res_obj, "data", datajo);
