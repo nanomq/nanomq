@@ -419,7 +419,7 @@ void
 set_reload_config(cJSON *json, conf *config)
 {
 	int      property_size;
-	bool     allow_anonymous;
+	bool     allow_anonymous, bridge_mode;
 	uint32_t max_packet_size;
 	uint32_t client_max_packet_size;
 	int      msq_len;
@@ -445,6 +445,10 @@ set_reload_config(cJSON *json, conf *config)
 	getBoolValue(json, item, "allow_anonymous", allow_anonymous, rv);
 	if (rv == 0) {
 		update_var(config->allow_anonymous, allow_anonymous);
+	}
+	getBoolValue(json, item, "bridge_mode", bridge_mode, rv);
+	if (rv == 0) {
+		update_var(config->bridge_mode, bridge_mode);
 	}
 	getNumberValue(json, item, "max_packet_size", max_packet_size, rv);
 	if (rv == 0) {
