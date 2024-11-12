@@ -1520,7 +1520,7 @@ get_can_data_span(http_msg *msg, kv **params, size_t param_num,
 	cJSON    *res_obj   = cJSON_CreateObject();
 	uint64_t *data_span = NULL;
 
-	char *   topicl[] = {"canudp", "signal", "battcell", "batttsnsr"};
+	char *   topicl[] = {"canspi", "signal", "battcell", "batttsnsr"};
 	uint32_t topiclsz = 4;
 #ifdef SUPP_PARQUET
 	data_span = parquet_get_key_span((const char **)topicl, topiclsz);
