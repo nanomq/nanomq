@@ -199,6 +199,7 @@ static nng_optspec cmd_opts[] = {
 
 const char *VIN_CODE_URL = "tcp://127.0.0.1:40899";
 const char *GETVIN       = "getvin";
+static char *VIN_TOPIC = NULL;
 
 static char *
 nano_vin_client(const char *url)
@@ -707,6 +708,8 @@ server_cb(void *arg)
 			// bridge logic first
 			if (work->config->bridge_mode ||
 				topic_filter("ecp/edgeagent/heartbeat",
+					work->pub_packet->var_header.publish.topic_name.body) ||
+				topic_filter(VIN_TOPIC,
 					work->pub_packet->var_header.publish.topic_name.body)) {
 				bridge_pub_handler(work);
 #if defined(SUPP_AWS_BRIDGE)
@@ -1962,7 +1965,7 @@ broker_start(int argc, char **argv)
 	}
 
 	char *vin = read_env_vin();
-	// vin = "zzzzzzzzzzzzzzz";
+	// vin = "123456";
 	if (NULL == vin) {
 		fprintf(stderr, "Waiting for VIN CODE.....");
 		vin = nano_vin_client(VIN_CODE_URL);
@@ -1970,6 +1973,13 @@ broker_start(int argc, char **argv)
 			fprintf(stderr, "Fail get vin code!");
 			exit(EXIT_FAILURE);
 		}
+	}
+	if (NULL != vin) {
+		VIN_TOPIC = nng_zalloc(sizeof(char) * 1024);
+		memcpy(VIN_TOPIC, "ecp/", 4);
+		strncat(VIN_TOPIC, vin, strlen(vin));
+		strncat(VIN_TOPIC, "/#", 2);
+		printf("Read VIN %s ECP topic %s\n", vin, VIN_TOPIC);
 	}
 
 	// Priority: config < environment variables < command opts
