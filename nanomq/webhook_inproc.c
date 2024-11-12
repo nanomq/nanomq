@@ -571,6 +571,7 @@ hook_work_cb(void *arg)
 				if (strcmp(idstr, EXTERNAL2NANO_IPC) == 0) {
 					cJSON_Delete(root);
 					root = NULL;
+					/* jaylin ask to do that. no check no limit.
 					int l = nng_atomic_dec_nv(hook_search_limit);
 					if (l < 0) {
 						log_warn("Hook searching too frequently");
@@ -580,6 +581,7 @@ hook_work_cb(void *arg)
 						nng_recv_aio(work->sock, work->aio);
 						break;
 					}
+					*/
 					work->state = HOOK_WAIT;
 					nng_aio_finish(work->aio, 0);
 					break;
