@@ -1059,13 +1059,6 @@ get_broker_db(void)
 {
 	return db;
 }
-#ifdef ENABLE_FILETRANSFER
-void *fileTransfer_cli(void *extra)
-{
-	(void)file_transfer(1, &extra);
-	return NULL;
-}
-#endif
 
 int
 broker(conf *nanomq_conf)
@@ -1494,15 +1487,6 @@ broker(conf *nanomq_conf)
 		}
 	}
 #endif
-
-	/* rhack: The nanomq_cli thread for sub file transfer topic*/
-
-#ifdef ENABLE_FILETRANSFER
-	pthread_t fileTransfer;
-	pthread_create(&fileTransfer, NULL, fileTransfer_cli, nanomq_conf->url);
-#endif
-
-	/* rhack: end */
 
 	log_info("NanoMQ Broker is started successfully!\n");
 
