@@ -252,7 +252,6 @@ bridge_pub_handler(nano_work *work)
 		strncmp(work->pub_packet->var_header.publish.topic_name.body, "$SYS", strlen("$SYS")) == 0) {
 		return;
 	}
-	log_warn("using ctx %d", work->ctx.id);
 	topic = nng_zalloc(sizeof(*topic));
 	for (size_t t = 0; t < work->config->bridge.count; t++) {
 		conf_bridge_node *node = work->config->bridge.nodes[t];
