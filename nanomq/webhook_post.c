@@ -279,6 +279,61 @@ gen_hash_nearby_key(char *clientid, char *topic, uint32_t pid)
 
 static uint32_t g_inc_id = 0;
 
+static conf *tmp_root_conf = NULL;
+int
+hook_last_flush()
+{
+	if (!tmp_root_conf)
+		return -1;
+	int            rv;
+	nng_socket    *ex_sock;
+	conf_exchange *exconf = &tmp_root_conf->exchange;
+	if (exconf->count == 0) {
+		return -2;
+	}
+
+	nng_aio *aio;
+	nng_aio_alloc(&aio, NULL, NULL);
+	for (int i=0; i<exconf->count; ++i) {
+		ex_sock = exconf->nodes[i]->sock;
+		if (!ex_sock) {
+			log_error("exchange(%s) socket is null.", exconf->nodes[i]->name);
+			continue;
+		}
+
+		nng_msg *m;
+		nng_msg_alloc(&m, 0);
+		if (!m) {
+			log_error("Error in alloc memory");
+			continue;
+		}
+
+		nng_time *tss = NULL;
+		tss = nng_alloc(sizeof(nng_time) * 3);
+		tss[0] = 0;
+		tss[1] = 9223372036854775807; // big enough
+		tss[2] = 1; // It's a clean flag
+		nng_msg_set_proto_data(m, NULL, (void *)tss);
+		nng_aio_set_msg(aio, m);
+		// Do clean on MQ
+		nng_recv_aio(*ex_sock, aio);
+		nng_aio_wait(aio);
+		if ((rv = nng_aio_result(aio)) != 0)
+			log_warn("error%d in clean msgs on exchange(%s)", rv, exconf->nodes[i]->name);
+		nng_msg_free(m);
+		nng_free(tss, 0);
+
+		nng_msg **msgs_res = (nng_msg **)nng_aio_get_msg(aio);
+		uint32_t  msgs_len = (uintptr_t)nng_aio_get_prov_data(aio);
+		log_info("Exchange(%s) stopped and get %d msgs", exconf->nodes[i]->name, msgs_len);
+		if (msgs_len > 0 && msgs_res != NULL) {
+			for (int i=0; i<msgs_len; ++i)
+				nng_msg_free(msgs_res[i]);
+		}
+		nng_free(msgs_res, sizeof(nng_msg *) * msgs_len);
+	}
+}
+
 inline int
 hook_entry(nano_work *work, uint8_t reason)
 {
@@ -290,6 +345,11 @@ hook_entry(nano_work *work, uint8_t reason)
 	nng_socket    *ex_sock;
 	conf_parquet  *parquetconf = &work->config->parquet;
 	conf_blf      *blfconf     = &work->config->blf;
+
+	// Just for hook_last_flush. Plz don't use it in other cases.
+	// Not Thread safe...
+	if (!tmp_root_conf)
+		tmp_root_conf = work->config;
 
 	// process MQ msg first, only pub msg is valid
 	// discard online/offline event msg?
