@@ -616,6 +616,11 @@ flush_smsg_to_disk(nng_msg **smsg,
 		log_warn("flush aio is busy");
 		return NNG_EBUSY;
 	}
+	if (nng_aio_begin(aio) == false) {
+		smsg_free(smsg, len);
+		log_warn("flush aio begin failed");
+		return NNG_EBUSY;
+	}
 
 	cb_data = cb_data_init(smsg, len);
 	if (cb_data == NULL) {
