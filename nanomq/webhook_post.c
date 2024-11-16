@@ -294,6 +294,8 @@ hook_last_flush()
 
 	nng_aio *aio;
 	nng_aio_alloc(&aio, NULL, NULL);
+	nng_aio *faio;
+	nng_aio_alloc(&faio, NULL, NULL);
 	for (int i=0; i<exconf->count; ++i) {
 		ex_sock = exconf->nodes[i]->sock;
 		if (!ex_sock) {
@@ -312,26 +314,38 @@ hook_last_flush()
 		tss = nng_alloc(sizeof(nng_time) * 3);
 		tss[0] = 0;
 		tss[1] = 9223372036854775807; // big enough
-		tss[2] = 1; // It's a clean flag
+		tss[2] = 1; // It's a clean and return flag
 		nng_msg_set_proto_data(m, NULL, (void *)tss);
 		nng_aio_set_msg(aio, m);
-		// Do clean on MQ
+		// Do clean on MQ and get all returns msgs
 		nng_recv_aio(*ex_sock, aio);
 		nng_aio_wait(aio);
 		if ((rv = nng_aio_result(aio)) != 0)
-			log_warn("error%d in clean msgs on exchange(%s)", rv, exconf->nodes[i]->name);
+			log_warn("error%d in clean and get msgs in exchange(%s)", rv, exconf->nodes[i]->name);
 		nng_msg_free(m);
 		nng_free(tss, 0);
 
 		nng_msg **msgs_res = (nng_msg **)nng_aio_get_msg(aio);
 		uint32_t  msgs_len = (uintptr_t)nng_aio_get_prov_data(aio);
 		log_info("Exchange(%s) stopped and get %d msgs", exconf->nodes[i]->name, msgs_len);
-		if (msgs_len > 0 && msgs_res != NULL) {
-			for (int i=0; i<msgs_len; ++i)
-				nng_msg_free(msgs_res[i]);
+		if (msgs_len == 0 || msgs_res == NULL) {
+			continue;
 		}
-		nng_free(msgs_res, sizeof(nng_msg *) * msgs_len);
+		rv = flush_smsg_to_disk(msgs_res, msgs_len, faio,
+			exconf->nodes[i]->topic, exconf->nodes[i]->streamType);
+		if (rv != 0) {
+			log_error("error%d in put msgs in exchange(%s) to queue of parquet", rv, exconf->nodes[i]->name);
+			continue;
+		}
+		nng_aio_wait(faio);
+		if ((rv = nng_aio_result(faio)) != 0) {
+			log_warn("error%d in flush msgs in exchange(%s) to parquet", rv, exconf->nodes[i]->name);
+			continue;
+		}
+		log_info("flush msgs in exchange(%s) to parquet done!", exconf->nodes[i]->name);
 	}
+	nng_aio_free(aio);
+	nng_aio_free(faio);
 }
 
 inline int
