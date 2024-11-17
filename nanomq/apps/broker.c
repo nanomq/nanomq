@@ -323,13 +323,17 @@ bridge_pub_handler(nano_work *work)
 					// what if send qos msg failed?
 					// nanosdk deal with fail send
 					// and close the pipe
-					if (nng_aio_busy(
-					        node->bridge_aio[index])) {
-						nng_msg_free(bridge_msg);
-						log_warn(
-						    "bridging to %s aio busy! "
-						    "msg lost! Ctx: %d",
-						    node->address, work->ctx.id);
+					if (nng_aio_busy(node->bridge_aio[index])) {
+						if (nng_lmq_full(node->ctx_msgs) || qos == 0) {
+							nng_msg_free(bridge_msg);
+							log_warn(
+								"bridging to %s aio busy! "
+								"msg lost! Ctx: %d",
+								node->address, work->ctx.id);
+						} else {
+							// pass index of aio via timestamp;
+							nng_lmq_put(node->ctx_msgs, bridge_msg);
+						}
 					} else {
 						nng_aio_set_timeout(node->bridge_aio[index],
 											node->cancel_timeout);
@@ -1016,8 +1020,7 @@ proto_work_init(nng_socket sock, nng_socket extrasock, uint8_t proto,
 		char *hook_ipc_url = config->hook_ipc_url == NULL
 		    ? HOOK_IPC_URL
 		    : config->hook_ipc_url;
-		if ((rv = nng_dial(w->hook_sock, hook_ipc_url, NULL, 0)) !=
-		    0) {
+		if ((rv = nng_dial(w->hook_sock, hook_ipc_url, NULL, 0)) != 0) {
 			NANO_NNG_FATAL("hook nng_dial", rv);
 		}
 	}
