@@ -120,7 +120,7 @@ void sig_handler(int signum)
 		log_info("Writing all datas to Parquet before exit...");
 		int rv = hook_last_flush();
 		if (rv != 0) {
-			log_info("Error in writing datas to Parquet %d", rv);
+			log_error("Error in writing datas to Parquet %d", rv);
 			exit(EXIT_FAILURE);
 		}
 		exit(EXIT_SUCCESS);

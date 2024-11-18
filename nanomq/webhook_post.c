@@ -327,7 +327,7 @@ hook_last_flush()
 
 		nng_msg **msgs_res = (nng_msg **)nng_aio_get_msg(aio);
 		uint32_t  msgs_len = (uintptr_t)nng_aio_get_prov_data(aio);
-		log_info("Exchange(%s) stopped and get %d msgs", exconf->nodes[i]->name, msgs_len);
+		log_warn("Exchange(%s) stopped and get %d msgs", exconf->nodes[i]->name, msgs_len);
 		if (msgs_len == 0 || msgs_res == NULL) {
 			continue;
 		}
@@ -342,7 +342,7 @@ hook_last_flush()
 			log_warn("error%d in flush msgs in exchange(%s) to parquet", rv, exconf->nodes[i]->name);
 			continue;
 		}
-		log_info("flush msgs in exchange(%s) to parquet done!", exconf->nodes[i]->name);
+		log_warn("flush msgs in exchange(%s) to parquet done!", exconf->nodes[i]->name);
 	}
 	nng_aio_free(aio);
 	nng_aio_free(faio);
