@@ -70,7 +70,6 @@ client_publish(nng_socket sock, const char *topic, uint8_t *payload, uint32_t pa
 	nng_msg *pubmsg;
 	nng_mqtt_msg_alloc(&pubmsg, 0);
 	nng_mqtt_msg_set_packet_type(pubmsg, NNG_MQTT_PUBLISH);
-	nng_mqtt_msg_set_publish_dup(pubmsg, 0);
 	nng_mqtt_msg_set_publish_qos(pubmsg, qos);
 	nng_mqtt_msg_set_publish_retain(pubmsg, 0);
 	nng_mqtt_msg_set_publish_payload(
@@ -94,12 +93,14 @@ static inline int parse_input(cJSON *cjson_objs,
 							  cJSON **cjson_topics,
 							  cJSON **cjson_delete,
 							  cJSON **cjson_request_id,
-							  cJSON **cjson_echo_id)
+							  cJSON **cjson_echo_id,
+							  cJSON **cjson_qos)
 {
 	*cjson_filepaths = cJSON_GetObjectItem(cjson_objs, "files");
 	*cjson_filenames = cJSON_GetObjectItem(cjson_objs, "filenames");
 	*cjson_topics = cJSON_GetObjectItem(cjson_objs, "topics");
 	*cjson_delete = cJSON_GetObjectItem(cjson_objs, "delete");
+	*cjson_qos = cJSON_GetObjectItem(cjson_objs, "qos");
 	*cjson_request_id = cJSON_GetObjectItem(cjson_objs, "request-id");
 	*cjson_echo_id = cJSON_GetObjectItem(cjson_objs, "echo-id");
 	if (*cjson_filepaths == NULL ||
@@ -111,7 +112,7 @@ static inline int parse_input(cJSON *cjson_objs,
 		cJSON_GetArraySize(*cjson_filepaths) != cJSON_GetArraySize(*cjson_delete) ||
 		cJSON_GetArraySize(*cjson_filepaths) != cJSON_GetArraySize(*cjson_topics)) {
 		return -1;
-	} 
+	}
 
 	if ((*cjson_echo_id == NULL && *cjson_request_id != NULL) ||
 		(*cjson_echo_id != NULL && *cjson_request_id == NULL)) {
@@ -163,7 +164,7 @@ static int do_flock(FILE *fp, int op)
 }
 
 static int publish_file(nng_socket *sock, FILE *fp, char *file_name,
-                        char *topic, bool is_encrypt, char *key)
+                        char *topic, bool is_encrypt, char *key, uint8_t qos)
 {
 	char *payload;
 	int   payload_len;
@@ -204,7 +205,7 @@ static int publish_file(nng_socket *sock, FILE *fp, char *file_name,
 		payload_len = file_size;
 	}
 
-	rc = client_publish(*sock, topic, (uint8_t *)payload, (uint32_t)payload_len, 1, true);
+	rc = client_publish(*sock, topic, (uint8_t *)payload, (uint32_t)payload_len, qos, true);
 	if (rc != 0) {
 		log_warn("Failed to publish message, return code %d", rc);
 		return rc;
@@ -219,7 +220,7 @@ int send_file(nng_socket *sock,
 			  char *file_name,
 			  char *topic,
 			  bool is_encrypt,
-			  char *key)
+			  char *key, uint8_t qos)
 {
 	FILE *fp;
 	int rc = 0;
@@ -242,7 +243,7 @@ int send_file(nng_socket *sock,
 		log_warn("Failed to lock file. Still send file without a file lock...\n");
 	}
 
-	rc = publish_file(sock, fp, file_name, topic, is_encrypt, key);
+	rc = publish_file(sock, fp, file_name, topic, is_encrypt, key, qos);
 	if (rc) {
 		fclose(fp);
 		return rc;
@@ -267,7 +268,7 @@ disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	int reason = 0;
 	// get disconnect reason
 	nng_pipe_get_int(p, NNG_OPT_MQTT_DISCONNECT_REASON, &reason);
-	log_warn("%s: disconnected! RC [%d] \n", __FUNCTION__, reason);
+	log_warn("%s: file transfer client disconnected! RC [%d] \n", __FUNCTION__, reason);
 }
 
 static void
@@ -324,6 +325,7 @@ client_connect(nng_socket *sock, const char *url)
 	nng_mqtt_msg_set_connect_proto_version(connmsg, 5);
 	nng_mqtt_msg_set_connect_keep_alive(connmsg, 600);
 	nng_mqtt_msg_set_connect_clean_session(connmsg, true);
+	nng_mqtt_msg_set_connect_client_id(connmsg, "file-transfer-client");
 
 	property * p = mqtt_property_alloc();
 	nng_mqtt_msg_set_connect_property(connmsg, p);
@@ -457,9 +459,11 @@ static int process_msg(nng_socket *sock, nng_msg *msg, bool verbose)
 	cJSON *cjson_delete;
 	cJSON *cjson_request_id;
 	cJSON *cjson_echo_id;
+	cJSON *cjson_qos;
 	result = parse_input(cjson_objs, &cjson_filepaths,
 						 &cjson_filenames, &cjson_topics,
-						 &cjson_delete, &cjson_request_id, &cjson_echo_id);
+						 &cjson_delete, &cjson_request_id,
+						 &cjson_echo_id, &cjson_qos);
 	if (result) {
 		log_warn("INPUT JSON INVALID!\n");
 		if (cjson_echo_id != NULL) {
@@ -473,6 +477,7 @@ static int process_msg(nng_socket *sock, nng_msg *msg, bool verbose)
 
 			publish_send_result(sock, NULL, messages, cjson_echo_id->valuestring, 0);
 		}
+		cJSON_Delete(cjson_objs);
 		nng_msg_free(msg);
 		return -1;
 	} else {
@@ -503,8 +508,16 @@ static int process_msg(nng_socket *sock, nng_msg *msg, bool verbose)
 										pathEle->valuestring,
 										nameEle->valuestring);
 			// Send file
+			uint8_t qos = 1;
+			if (cjson_qos != NULL) {
+				cJSON *qosEle = cJSON_GetArrayItem(cjson_qos, i);
+				qos = qosEle->valueint;
+				log_warn("read qos %d", qos);
+				if (qos < 0 || qos > 2)
+					qos = 1;
+			}
 			result = send_file(sock, pathEle->valuestring, nameEle->valuestring,
-					topicEle->valuestring, is_encrypt, key_tmp);
+					topicEle->valuestring, is_encrypt, key_tmp, qos);
 			log_info("Send file file_name: %s %s", nameEle->valuestring,
 								!result ? "success" : "fail");
 			/* fail */
