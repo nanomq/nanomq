@@ -279,6 +279,9 @@ gen_hash_nearby_key(char *clientid, char *topic, uint32_t pid)
 
 static uint32_t g_inc_id = 0;
 
+
+
+#ifdef SUPP_PARQUET
 static conf *tmp_root_conf = NULL;
 int
 hook_last_flush()
@@ -347,6 +350,7 @@ hook_last_flush()
 	nng_aio_free(aio);
 	nng_aio_free(faio);
 }
+#endif
 
 inline int
 hook_entry(nano_work *work, uint8_t reason)
@@ -360,11 +364,12 @@ hook_entry(nano_work *work, uint8_t reason)
 	conf_parquet  *parquetconf = &work->config->parquet;
 	conf_blf      *blfconf     = &work->config->blf;
 
+#ifdef SUPP_PARQUET
 	// Just for hook_last_flush. Plz don't use it in other cases.
-	// Not Thread safe...
+	// Not Thread safe... will be eliminated in master branch
 	if (!tmp_root_conf)
 		tmp_root_conf = work->config;
-
+#endif
 	// process MQ msg first, only pub msg is valid
 	// discard online/offline event msg?
 	if (ex_conf->count > 0 && parquetconf->enable == true

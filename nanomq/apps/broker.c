@@ -116,6 +116,7 @@ void sig_handler(int signum)
 	}
 	if (signum == SIGILL || signum == SIGTERM)
 		exit(EXIT_SUCCESS);
+#ifdef SUPP_PARQUET
 	if (signum == SIGTRAP) {
 		log_info("Writing all datas to Parquet before exit...");
 		int rv = hook_last_flush();
@@ -125,6 +126,7 @@ void sig_handler(int signum)
 		}
 		exit(EXIT_SUCCESS);
 	}
+#endif
 }
 #endif
 #endif
