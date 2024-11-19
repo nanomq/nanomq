@@ -709,9 +709,11 @@ server_cb(void *arg)
 					}
 			work->msg = smsg;
 
-			// bridge logic first
+			// Customized bridge logic first
 			if (work->config->bridge_mode ||
 				topic_filter("ecp/edgeagent/heartbeat",
+					work->pub_packet->var_header.publish.topic_name.body) ||
+				topic_filter("ecp/edgeagent/register/request",
 					work->pub_packet->var_header.publish.topic_name.body) ||
 				topic_filter(VIN_TOPIC,
 					work->pub_packet->var_header.publish.topic_name.body)) {
@@ -1681,10 +1683,10 @@ status_check(int *pid)
 		log_warn(".pid file not found or unreadable\n");
 		return 1;
 	} else {
-		nng_strfree(pid_path);
 		if ((data) != NULL) {
 			if (sscanf(data, "%u", pid) < 1) {
 				log_error("read pid from file error!");
+				nng_strfree(pid_path);
 				return 1;
 			}
 			log_info("pid read, [%u]", *pid);
@@ -1694,11 +1696,13 @@ status_check(int *pid)
 				log_info("there is a running NanoMQ instance "
 				          ": pid [%u]",
 				    *pid);
+				nng_strfree(pid_path);
 				return 0;
 			}
 		}
 		if (!nng_file_delete(pid_path)) {
 			log_info(".pid file is removed");
+			nng_strfree(pid_path);
 			return 1;
 		}
 		log_error("unexpected error");
