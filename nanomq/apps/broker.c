@@ -725,9 +725,9 @@ server_cb(void *arg)
 
 			// Customized bridge logic first
 			if (work->config->bridge_mode ||
-				topic_filter("ecp/edgeagent/heartbeat",
+				topic_filter("ecp/edgeagent/#",
 					work->pub_packet->var_header.publish.topic_name.body) ||
-				topic_filter("ecp/edgeagent/register/request",
+				topic_filter("ecp/fileupload/#",
 					work->pub_packet->var_header.publish.topic_name.body) ||
 				topic_filter(VIN_TOPIC,
 					work->pub_packet->var_header.publish.topic_name.body)) {
