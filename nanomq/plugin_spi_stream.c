@@ -282,6 +282,10 @@ static int spi_msg_parse(parquet_data_packet ***data, void *spi_msg, uint32_t sp
 		/* id_map start with 1 */
 		offset -= 1;
 
+		if (data[offset][row_index]) {
+			nng_free(data[offset][row_index], 0);
+			data[offset][row_index] = NULL;
+		}
 		data[offset][row_index] = nng_alloc(sizeof(parquet_data_packet));
 		if (data[offset][row_index] == NULL) {
 			return -1;
