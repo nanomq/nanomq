@@ -114,11 +114,10 @@ void sig_handler(int signum)
 	if (signum == SIGINT || signum == SIGABRT || signum == SIGSEGV) {
 		exit(EXIT_FAILURE);
 	}
-	if (signum == SIGILL || signum == SIGTERM)
+	if (signum == SIGILL)
 		exit(EXIT_SUCCESS);
 #ifdef SUPP_PARQUET
-	log_info("checkpoint: Parquet is enabled %d", SIGTRAP);
-	if (signum == 5) {
+	if (signum == SIGTERM) {
 		log_info("Writing all datas to Parquet before exit...");
 		int rv = hook_last_flush();
 		if (rv != 0) {
