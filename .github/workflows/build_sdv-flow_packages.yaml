@@ -75,15 +75,16 @@ jobs:
             cd -
           done
 
-          # package android
+          # package geely android
           mkdir -p packages/nanomq_android_arm64/{parquet,etc,log,lib}
           cp readme.txt ./packages/nanomq_android_arm64/
           cp etc/nanomq.conf ./packages/nanomq_android_arm64/etc
           cp build_android/nanomq/nanomq ./packages/nanomq_android_arm64/
+          rm build_android/lib/libcrypto.so build_android/lib/libssl.so
           cp build_android/lib/* ./packages/nanomq_android_arm64/lib
           cd ./packages
           tar -zcvf ./nanomq-${pkgversion}-android-arm64-sdv.tar.gz ./nanomq_android_arm64
-          cp ../etc/nanomq_geely.conf ./nanomq_android_arm64/etc/nanomq.conf
+          cp ../etc/nanomq_geely_android.conf ./nanomq_android_arm64/etc/nanomq.conf
           tar -zcvf ./nanomq-${pkgversion}-android-arm64-gee.tar.gz ./nanomq_android_arm64
           rm -rf ./nanomq_android_arm64
 
