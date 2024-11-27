@@ -268,7 +268,7 @@ bridge_pub_handler(nano_work *work)
 	topic = nng_zalloc(sizeof(*topic));
 	for (size_t t = 0; t < work->config->bridge.count; t++) {
 		conf_bridge_node *node = work->config->bridge.nodes[t];
-		nng_mtx_lock(node->mtx);
+		nng_mtx_lock(node->mtx);		//TODO bridge performance
 		if (node->enable) {
 			for (size_t i = 0; i < node->forwards_count; i++) {
 				rv = 0;
@@ -484,13 +484,15 @@ server_cb(void *arg)
 				work->code = rv;
 				log_error("sub_handler: [%d]", rv);
 			}
+			bridge_sub_handler(work);
 
 			// TODO not all codes needs to close the pipe
 			if (work->code != SUCCESS) {
-				if (work->msg_ret)
+				if (work->msg_ret) {
 					for (size_t i = 0; i < cvector_size(work->msg_ret); i++)
 						nng_msg_free(work->msg_ret[i]);
 					cvector_free(work->msg_ret);
+				}
 				if (work->sub_pkt)
 					sub_pkt_free(work->sub_pkt);
 				// free conn_param due to clone in protocol layer
@@ -519,12 +521,15 @@ server_cb(void *arg)
 					work->msg = m;
 					work->pub_packet = (struct pub_packet_struct *) nng_zalloc(
 										sizeof(struct pub_packet_struct));
-					if (SUCCESS == decode_pub_message(work, work->proto_ver)) {
+					void *proto_data = NULL;
+					uint8_t ver = nng_mqtt_msg_get_connect_proto_version(work->msg);
+					if (SUCCESS == decode_pub_message(work, ver)) {
 						bool  bridged = false;
-						void *proto_data = nng_msg_get_proto_data(work->msg);
+						proto_data = nng_msg_get_proto_data(work->msg);
+						// TODO replace bridge bool with sub retain bool
+						// bridged = nng_mqtt_msg_get_sub_retain_bool(work->msg, true);
 						if (proto_data != NULL)
-							bridged =
-							    nng_mqtt_msg_get_bridge_bool(work->msg);
+							bridged = nng_mqtt_msg_get_bridge_bool(work->msg);
 						if (bridged) {
 							bridge_handle_topic_reflection(
 							    work, &work->config->bridge);
@@ -580,6 +585,8 @@ server_cb(void *arg)
 			    (rv = unsub_ctx_handle(work)) != 0) {
 				log_error("unsub_handler [%d]", rv);
 			}
+			// proxy unsub action to bridge
+			bridge_sub_handler(work);
 
 			if (0 != (rv = encode_unsuback_msg(smsg, work)))
 				log_error("in unsuback [%d]", rv);
@@ -710,7 +717,7 @@ server_cb(void *arg)
 
 			log_trace("total subscribed pipes: %ld", cvector_size(msg_infos));
 			if (cvector_size(msg_infos))
-				if (encode_pub_message(smsg, work, PUBLISH))
+				if (encode_pub_message(smsg, work, PUBLISH)) {
 					for (int i = 0; i < cvector_size(msg_infos) && rv== 0; ++i) {
 						msg_info = &msg_infos[i];
 						nng_msg_clone(smsg);
@@ -720,6 +727,7 @@ server_cb(void *arg)
 						nng_aio_set_msg(work->aio, work->msg);
 						nng_ctx_send(work->ctx, work->aio);
 					}
+				}
 			work->msg = smsg;
 
 			// Customized bridge logic first
@@ -734,17 +742,17 @@ server_cb(void *arg)
 #if defined(SUPP_AWS_BRIDGE)
 				aws_bridge_forward(work);
 #endif
-			}
 #if defined(SUPP_PLUGIN)
-			/* after bridge_handler which will dup user property */
-			if (work->user_property != NULL) {
-				property_remove(work->pub_packet->var_header
-							.publish.properties, work->user_property->id);
-				if (work->pub_packet->var_header.publish.properties != NULL) {
-					property_free(work->pub_packet->var_header.publish.properties);
+				/* after bridge_handler which will dup user property */
+				if (work->user_property != NULL) {
+					property_remove(work->pub_packet->var_header
+								.publish.properties, work->user_property->id);
+					if (work->pub_packet->var_header.publish.properties != NULL) {
+						property_free(work->pub_packet->var_header.publish.properties);
+					}
 				}
-			}
 #endif
+			}
 			//check webhook & rule engine
 			conf_web_hook *hook_conf = &(work->config->web_hook);
 			conf_exchange *exge_conf = &(work->config->exchange);

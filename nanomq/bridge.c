@@ -209,6 +209,8 @@ bridge_handle_topic_sub_reflection(nano_work *work, conf_bridge_node *node)
 				}
 fix:
 				nng_mqtt_msg_set_bridge_bool(work->msg, true);
+				// TODO replace bridge bool with sub retain bool
+				// nng_mqtt_msg_set_sub_retain_bool(work->msg, true);
 				/* check prefix/suffix */
 				if (node->sub_list[i]->prefix != NULL) {
 					char *tmp = topic->body;
@@ -294,18 +296,14 @@ bridge_publish_msg(const char *topic, uint8_t *payload, uint32_t len, bool dup,
 static void
 send_callback(nng_mqtt_client *client, nng_msg *msg, void *obj)
 {
-	nng_aio *        aio    = client->send_aio;
+	nng_aio *aio = client->send_aio;
+	uint32_t count;
+	uint8_t *code;
+	uint8_t  type;
 
-	if (nng_aio_result(aio) != 0) {
+	if (nng_aio_result(aio) != 0 || msg == NULL) {
 		return;
 	}
-
-	uint32_t         count;
-	uint8_t *        code;
-	uint8_t          type;
-
-	if (msg == NULL || nng_aio_result(aio) != 0)
-		return;
 	type = nng_msg_get_type(msg);
 	if (type == CMD_SUBACK) {
 		code = nng_mqtt_msg_get_suback_return_codes(msg, &count);
@@ -320,8 +318,14 @@ send_callback(nng_mqtt_client *client, nng_msg *msg, void *obj)
 		log_debug("send bridge sub msg complete");
 	} else if(type == CMD_UNSUBSCRIBE) {
 		log_debug("send bridge unsub msg complete");
+	} else if(type == CMD_UNSUBACK) {
+		code = nng_mqtt_msg_get_unsuback_return_codes(msg, &count);
+		log_info("bridge: unsubscribe aio result %d", nng_aio_result(aio));
+		for (int i=0; i<count; ++i) {
+			log_info("bridge: unsuback code %d ", *(code + i));
+		}
+		nng_msg_free(msg);
 	}
-	// nng_mqtt_client_free(client, true);
 }
 
 #ifdef NNG_SUPP_TLS
@@ -727,8 +731,7 @@ hybrid_cb(void *arg)
 	node->bridge_aio = nng_alloc(bridge_arg->conf->total_ctx * sizeof(nng_aio *));
 
 	for (uint32_t num = 0; num < bridge_arg->conf->total_ctx; num++) {
-		if ((rv = nng_aio_alloc(&node->bridge_aio[num], NULL, node)) !=
-		    0) {
+		if ((rv = nng_aio_alloc(&node->bridge_aio[num], NULL, node)) != 0) {
 			NANO_NNG_FATAL("bridge_aio nng_aio_alloc", rv);
 		}
 	}
@@ -884,6 +887,7 @@ bridge_quic_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 				properties = sub_property(
 				    param->config->sub_properties);
 			}
+			nng_aio_set_timeout(client->send_aio, param->cancel_timeout);
 			nng_mqtt_subscribe_async(
 			    client, topic_qos, 1, properties);
 			nng_mqtt_topic_qos_array_free(topic_qos, 1);
@@ -944,7 +948,8 @@ bridge_quic_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 	nng_duration duration = (nng_duration) node->backoff_max * 1000;
 	nng_dialer_set(dialer, NNG_OPT_MQTT_RECONNECT_BACKOFF_MAX, &duration, sizeof(nng_duration));
 
-	bridge_arg->client->sock = *sock;
+	bridge_arg->client->sock   = *sock;
+	bridge_arg->cancel_timeout = node->cancel_timeout;
 
 	// create a CONNECT message
 	nng_msg *connmsg = create_connect_msg(node);
@@ -1003,6 +1008,7 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 		nng_socket_set_bool(*sock, NNG_OPT_QUIC_ENABLE_MULTISTREAM, true);
 	}
 	bridge_arg->client = nng_mqtt_client_alloc(*sock, &send_callback, true);
+	bridge_arg->cancel_timeout = node->cancel_timeout;
 
 	// create a CONNECT message
 	nng_msg *connmsg = create_connect_msg(node);
@@ -1019,7 +1025,7 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 	nng_mqtt_set_connect_cb(*sock, bridge_quic_connect_cb, bridge_arg);
 	nng_mqtt_set_disconnect_cb(*sock, bridge_quic_disconnect_cb, bridge_arg);
 
-	rv = nng_dialer_start(dialer, NNG_FLAG_ALLOC);
+	rv = nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
 	if (rv != 0)
 		log_error("nng dialer start failed %d", rv);
 
@@ -1065,6 +1071,7 @@ bridge_tcp_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 			properties =
 			    sub_property(param->config->sub_properties);
 		}
+		nng_aio_set_timeout(client->send_aio, param->cancel_timeout);
 		nng_mqtt_subscribe_async(
 		    client, topic_qos, param->config->sub_count, properties);
 		nng_mqtt_topic_qos_array_free(
@@ -1134,7 +1141,8 @@ bridge_tcp_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	}
 #endif
 
-	bridge_arg->client->sock = *sock;
+	bridge_arg->client->sock   = *sock;
+	bridge_arg->cancel_timeout = node->cancel_timeout;
 
 	// create a CONNECT message
 	nng_msg *connmsg = create_connect_msg(node);
@@ -1180,6 +1188,7 @@ bridge_tcp_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 			properties =
 			    sub_property(bridge_arg->config->sub_properties);
 		}
+		nng_aio_set_timeout(client->send_aio, node->cancel_timeout);
 		nng_mqtt_subscribe_async(client, topic_qos,
 		    bridge_arg->config->sub_count, properties);
 		nng_mqtt_topic_qos_array_free(
@@ -1280,6 +1289,7 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 
 /**
  * independent callback API for bridging aio
+ * only deal with PUB msg
  */
 void
 bridge_send_cb(void *arg)
@@ -1290,6 +1300,7 @@ bridge_send_cb(void *arg)
 	conf_bridge_node *node = arg;
 	nng_mtx          *mtx  = node->mtx;
 	nng_socket       *socket;
+
 	log_debug("bridge to %s msg sent", node->address);
 	nng_mtx_lock(mtx);
 	socket = node->sock;
@@ -1328,6 +1339,7 @@ bridge_resend_cb(void *arg)
 	nng_mtx_unlock(mtx);
 }
 
+// let bridge client sub to topics according to config file
 int
 bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 {
@@ -1377,6 +1389,7 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 		if ((rv = nng_aio_alloc(
 		         &node->bridge_aio[num], bridge_send_cb, node)) != 0) {
 			NANO_NNG_FATAL("bridge_aio nng_aio_alloc", rv);
+		} else {
 		}
 	}
 	log_debug("parallel %d", num);
@@ -1606,4 +1619,54 @@ bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 	nng_mtx_unlock(reload_lock);
 
 	return 0;
+}
+
+// for transparent bridging only, deal with sub/unsub
+bool
+bridge_sub_handler(nano_work *work)
+{
+	nng_mqtt_topic_qos *topic_qos;
+	topic_node 		   *tnode;
+
+	if (work->flag  == CMD_SUBSCRIBE) {
+		tnode = work->sub_pkt->node;
+	} else if (work->flag == CMD_UNSUBSCRIBE) {
+		tnode = work->unsub_pkt->node;
+	} else {
+		return false;
+	}
+
+	while (tnode != NULL) {
+		// keep no_local to 1, we dont want looping msg
+		nng_mqtt_topic topic[] = {
+			{
+			    .buf    = (uint8_t *) tnode->topic.body,
+			    .length = tnode->topic.len,
+			},
+		};
+		nng_mqtt_topic_qos subscriptions[] = {
+			{ .qos               = tnode->qos,
+			    .rap             = tnode->rap,
+			    .nolocal         = 1,
+			    .retain_handling = tnode->retain_handling
+			},
+		};
+		subscriptions->topic = topic[0];
+
+		for (size_t t = 0; t < work->config->bridge.count; t++) {
+			conf_bridge_node *node = work->config->bridge.nodes[t];
+			bridge_param *param = node->bridge_arg;
+			if (!node->enable || !node->transparent)// check transparent enabler
+				continue;
+			// TODO enhance performance, reuse same Subscribe msg
+			// TODO carry the property as well
+			if (work->flag  == CMD_SUBSCRIBE)
+				nng_mqtt_subscribe_async(param->client, subscriptions, 1, NULL);
+			else if (work->flag  == CMD_UNSUBSCRIBE)
+				nng_mqtt_unsubscribe_async(param->client, topic, 1, NULL);
+		}
+		tnode = tnode->next;
+	}
+
+	return true;
 }
