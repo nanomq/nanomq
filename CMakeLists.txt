@@ -41,7 +41,6 @@ option (ENABLE_ICEORYX "Enable iceoryx" OFF)
 option (NOLOG "Disable log" OFF)
 option (ENABLE_ACL "Enable ACL" ON)
 option (NANOMQ_TESTS "Enable nanomq unit tests" OFF)
-option (BUILD_WITH_STATIC_LIBS "build with static libs" OFF)
 option (BUILD_STATIC "build static" OFF)
 
 set (NNG_PROTO_MQTT_BROKER  ON)
@@ -371,7 +370,7 @@ add_subdirectory(nanomq)
 
 add_dependencies(nanomq nng)
 
-if (ENABLE_JWT) 
+if (ENABLE_JWT)
   add_dependencies(nanomq l8w8jwt)
 endif (ENABLE_JWT)
 
