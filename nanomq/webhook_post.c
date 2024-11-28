@@ -352,6 +352,9 @@ hook_last_flush()
 }
 #endif
 
+static nng_mtx *ts_mtx;
+static nng_time ts_last;
+
 inline int
 hook_entry(nano_work *work, uint8_t reason)
 {
@@ -399,7 +402,21 @@ hook_entry(nano_work *work, uint8_t reason)
 
 		nng_time ts = (nng_time)gen_hash_nearby_key(clientid, topic, pid);
 		*/
+
 		nng_time ts = nng_timestamp();
+		if (ts_mtx != NULL) {
+			nng_mtx_lock(ts_mtx);
+			if (ts <= ts_last) {
+				if (ts_last - ts > 1000) {
+					log_warn("Timestamp lag over 1s");
+					// do nothing so that exchange will refuse this msg
+				} else {
+					ts = ts_last + 1;
+				}
+			}
+			ts_last = ts;
+			nng_mtx_unlock(ts_mtx);
+		}
 		nng_msg_set_timestamp(msg, ts);
 
 		for (size_t i = 0; i < ex_conf->count; i++) {
@@ -797,6 +814,11 @@ hook_exchange_init(conf *nanomq_conf, uint64_t num_ctx)
 	nng_mtx_alloc(&hook_conf->ex_mtx);
 	nng_aio_alloc(&hook_conf->ex_aio, send_parquet_cb, hook_conf);
 	hook_conf->saios = nng_alloc(sizeof(nng_aio *) * num_ctx);
+
+	if (0 != nng_mtx_alloc(&ts_mtx)) {
+		log_error("Failed to alloc ts mtx");
+	}
+	ts_last = 0;
 
 	return 0;
 }
