@@ -19,6 +19,7 @@
 #include "nng/protocol/pipeline0/pull.h"
 #include "nng/protocol/pipeline0/push.h"
 #include "nng/protocol/reqrep0/rep.h"
+#include "nng/protocol/pair0/pair.h"
 #include "nng/protocol/mqtt/mqtt_parser.h"
 #include "nng/protocol/mqtt/nmq_mqtt.h"
 #include "nng/supplemental/tls/tls.h"
@@ -236,7 +237,7 @@ nano_vin_client(const char *url)
 	nng_socket_set_ms(sock, NNG_OPT_REQ_RESENDTIME, 1000);
 	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
 
-	if ((rv = nng_send(sock, GETVIN, strlen(GETVIN), 0)) != 0) {
+	if ((rv = nng_send(sock, (void *)GETVIN, strlen(GETVIN), 0)) != 0) {
 		NANO_NNG_FATAL("nng_send", rv);
 	}
 	if ((rv = nng_recv(sock, &buf, &sz, NNG_FLAG_ALLOC)) != 0) {
