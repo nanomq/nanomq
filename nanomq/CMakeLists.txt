@@ -114,7 +114,7 @@ if (CMAKE_INSTALL_RPATH)
 endif()
 
 
-if(BUILD_WITH_STATIC_LIBS)
+if(BUILD_STATIC)
   target_link_libraries(nanomq nng -static)
 else()
   target_link_libraries(nanomq nng)
