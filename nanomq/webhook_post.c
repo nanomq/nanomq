@@ -409,7 +409,7 @@ hook_entry(nano_work *work, uint8_t reason)
 			if (ts <= ts_last) {
 				if (ts_last - ts > 1000) {
 					log_warn("Timestamp lag over 1s");
-					// do nothing so that exchange will refuse this msg
+					// do nothing and exchange will handle this msg properly
 				} else {
 					ts = ts_last + 1;
 				}

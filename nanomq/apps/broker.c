@@ -119,16 +119,17 @@ void sig_handler(int signum)
 		exit(EXIT_SUCCESS);
 #ifdef SUPP_PARQUET
 	if (signum == SIGTERM) {
-		log_info("Writing all datas to Parquet before exit...");
+		log_warn("SIGTERM Writing ringbufs to Parquet before exit...");
 		int rv = hook_last_flush();
 		if (rv != 0) {
 			log_error("Error in writing datas to Parquet %d", rv);
 			exit(EXIT_FAILURE);
 		}
+		log_warn("SIGTERM Writing ringbufs done and exit.");
 		exit(EXIT_SUCCESS);
 	}
 #else
-	log_info("checkpoint: Parquet is NOT enabled %d", SIGTRAP);
+	log_warn("checkpoint: Parquet is NOT enabled %d", SIGTERM);
 #endif
 }
 #endif
