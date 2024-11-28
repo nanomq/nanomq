@@ -1294,8 +1294,49 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 void
 bridge_send_cb(void *arg)
 {
+	int rv;
+	nng_msg *msg = NULL;
+	nng_aio          *aio;
 	conf_bridge_node *node = arg;
+	nng_mtx          *mtx  = node->mtx;
+	nng_socket       *socket;
+
 	log_debug("bridge to %s msg sent", node->address);
+	nng_mtx_lock(mtx);
+	socket = node->sock;
+	if (!node->busy)
+		if (nng_lmq_get(node->ctx_msgs, &msg) == 0) {
+			log_debug("resending cached msg from broker ctx");
+			nng_aio_set_msg(node->resend_aio, msg);
+			nng_aio_set_timeout(node->resend_aio, node->cancel_timeout);
+			nng_send_aio(*socket, node->resend_aio);
+			node->busy = true;
+		}
+	nng_mtx_unlock(mtx);
+}
+
+void
+bridge_resend_cb(void *arg)
+{
+	int rv;
+	nng_msg *msg = NULL;
+	nng_aio          *aio;
+	conf_bridge_node *node = arg;
+	nng_mtx          *mtx  = node->mtx;
+	nng_socket       *socket;
+	nng_mtx_lock(mtx);
+	socket = node->sock;
+	node->busy = false;
+	if (nng_lmq_get(node->ctx_msgs, &msg) == 0) {
+		log_debug("resending cached msg at resend cb");
+		nng_aio_set_msg(node->resend_aio, msg);
+		nng_aio_set_timeout(node->resend_aio, node->cancel_timeout);
+		nng_send_aio(*socket, node->resend_aio);
+		node->busy = true;
+	} else {
+		node->busy = false;
+	}
+	nng_mtx_unlock(mtx);
 }
 
 // let bridge client sub to topics according to config file
@@ -1336,7 +1377,10 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 
 	// alloc an AIO for each ctx bridging use only
 	node->bridge_aio = nng_alloc(config->total_ctx * sizeof(nng_aio *));
-
+	if ((rv = nng_aio_alloc(
+		         &node->resend_aio, bridge_resend_cb, node)) != 0) {
+			NANO_NNG_FATAL("bridge_aio nng_aio_alloc", rv);
+	}
 	node->sock = (void *) sock;
 	node->bridge_arg = (void *) bridge_arg;
 
