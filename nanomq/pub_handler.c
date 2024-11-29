@@ -1279,35 +1279,41 @@ static void inline handle_pub_retain(const nano_work *work, char *topic)
 		return;
 	}
 #endif
-	nng_msg *ret = NULL;
+	nng_msg *old_ret = NULL, *ret;
 	if (work->pub_packet->fixed_header.retain) {
 		if (work->pub_packet->payload.len > 0) {
-			nng_msg_clone(work->msg);
-			if (nng_msg_get_proto_data(work->msg) == NULL)
-				nng_mqtt_msg_proto_data_alloc(work->msg);
+			if (nng_msg_dup(&ret, work->msg) != 0) {
+				log_error("Mem error");
+				return;
+			}
+			if (nng_msg_get_proto_data(ret) == NULL)
+				nng_mqtt_msg_proto_data_alloc(ret);
 			if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
-				if (nng_mqttv5_msg_decode(work->msg) != 0) {
+				if (nng_mqttv5_msg_decode(ret) != 0) {
 					log_warn("decode retain msg failed, drop msg");
-					nng_msg_free(work->msg);
+					nng_msg_free(ret);
 					return;
 				}
 			} else if (work->proto_ver == MQTT_PROTOCOL_VERSION_v311 ||
 					   work->proto_ver == MQTT_PROTOCOL_VERSION_v31) {
-				if (nng_mqtt_msg_decode(work->msg) != 0) {
+				if (nng_mqtt_msg_decode(ret) != 0) {
 					log_warn("decode retain msg failed, "
 					         "drop msg");
-					nng_msg_free(work->msg);
+					nng_msg_free(ret);
 					return;
 				}
 			}
-			ret = dbtree_insert_retain(work->db_ret, topic, work->msg);
+			nng_mqtt_msg_set_connect_proto_version(ret, work->proto_ver);
+			// Dont set Sub retain, which is preserved for differing bridging retain msg
+			old_ret = dbtree_insert_retain(work->db_ret, topic, ret);
 		} else {
 			log_debug("delete retain message");
-			ret = dbtree_delete_retain(work->db_ret, topic);
+			old_ret = dbtree_delete_retain(work->db_ret, topic);
 		}
 
-		if (ret != NULL) {
-			nng_msg_free(ret);
+		if (old_ret != NULL) {
+			log_debug("Overwrite retain message!");
+			nng_msg_free(old_ret);
 		}
 	}
 }
@@ -1412,7 +1418,6 @@ encode_pub_message(
 	case PUBLISH:
 		/*fixed header*/
 		work->pub_packet->fixed_header.packet_type = cmd;
-		// work->pub_packet->fixed_header.dup = dup;
 		append_res = nng_msg_header_append(
 		    dest_msg, (uint8_t *) &work->pub_packet->fixed_header, 1);
 
@@ -1473,6 +1478,10 @@ encode_pub_message(
 			}
 
 			// rv = encode_properties(dest_msg, NULL);
+			if (nng_msg_get_proto_data(dest_msg) == NULL) {
+				// decoded in handle_pub_retain. Protocol layer gonna take use of property
+				nng_mqtt_msg_proto_data_alloc(dest_msg);
+			}
 		}
 #endif
 
@@ -1536,10 +1545,6 @@ encode_pub_message(
 			    pub_response.var_header.pub_arrc.reason_code;
 			nng_msg_append(dest_msg, (uint8_t *) &reason_code,
 			    sizeof(reason_code));
-
-#if SUPPORT_MQTT5_0
-			if (MQTT_PROTOCOL_VERSION_v5 == proto) { }
-#endif
 		}
 		break;
 	default:
