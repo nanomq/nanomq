@@ -72,6 +72,7 @@ After compiling, an executable file `idl-serial-code-gen` will be generated.
    ```bash
    $ git clone https://github.com/emqx/nanomq.git
    $ cd nanomq
+   $ git submodule update --init --recursive
    $ mkdir build && cd build
    $ cmake -G Ninja -DIDL_FILE_PATH={IDL_PATH} -DCMAKE_PREFIX_PATH={DDS_LIBRARY_PATH} -DBUILD_DDS_PROXY=ON ..
    $ ninja
