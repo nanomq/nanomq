@@ -78,7 +78,7 @@ client_publish(nng_socket sock, const char *topic, uint8_t *payload,
 	nng_mqtt_msg_set_publish_topic(pubmsg, topic);
 
 	if ((rv = nng_sendmsg(sock, pubmsg, NNG_FLAG_NONBLOCK)) != 0) {
-		LOG_ERR << "nng_sendmsg" << rv;
+		LOG_ERR << "nng_sendmsg " << rv;
 	}
 
 	return rv;
@@ -284,7 +284,7 @@ connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 
 	// Send subscribe message
 	int rv = 0;
-	rv     = nng_sendmsg(sock, msg, NNG_FLAG_NONBLOCK);
+	rv     = nng_sendmsg(sock, msg, NNG_FLAG_ALLOC);
 	if (rv != 0) {
 		LOG_ERR << "nng_sendmsg" << rv;
 	}
