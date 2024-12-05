@@ -35,6 +35,8 @@ get_reload_config(conf *config)
 	    data, "allow_anonymous", config->allow_anonymous);
 	cJSON_AddBoolToObject(
 	    data, "enable_mqtt_stream", config->parquet.enable);
+	cJSON_AddBoolToObject(
+	    data, "bridge_mode", config->bridge_mode);
 	return data;
 }
 
