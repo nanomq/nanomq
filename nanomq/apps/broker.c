@@ -1613,13 +1613,18 @@ status_check(int *pid)
 		log_warn(".pid file not found or unreadable\n");
 		return 1;
 	} else {
+		if (!nng_file_delete(pid_path)) {
+			log_info(".pid file is removed");
+			nng_strfree(pid_path);
+			return 1;
+		}
 		nng_strfree(pid_path);
 		if ((data) != NULL) {
 			if (sscanf(data, "%u", pid) < 1) {
 				log_error("read pid from file error!");
 				return 1;
 			}
-			log_info("pid read, [%u]", *pid);
+			log_info("old pid read, [%u]", *pid);
 			nng_free(data, size);
 
 			if ((kill(*pid, 0)) == 0) {
@@ -1628,10 +1633,6 @@ status_check(int *pid)
 				    *pid);
 				return 0;
 			}
-		}
-		if (!nng_file_delete(pid_path)) {
-			log_info(".pid file is removed");
-			return 1;
 		}
 		log_error("unexpected error");
 		return -1;
