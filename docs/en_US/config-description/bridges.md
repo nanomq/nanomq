@@ -118,7 +118,7 @@ This configuration enables NanoMQ to establish an MQTT over TCP bridge connectio
   - `prefix`: A prefix string will be added to the local topic(add to the original topic if you leave local_topic as null)
 
 - `max_parallel_processes`: Specifies the maximum number of parallel processes for handling outstanding requests.
-- `max_send_queue_len`: Specifies the maximum number of messages that can be queued for sending.
+- `max_send_queue_len`: Specifies the maximum number of messages that can be queued for sending. Since 0.23.1, It also takes effect while TCP connection is explicitly closed, which gurantees no msg lost till cache queue is full.
 - `max_recv_queue_len`: Specifies the maximum number of messages that can be queued for processing. 
 
 ### **MQTT 5** 
