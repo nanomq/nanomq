@@ -166,6 +166,7 @@ get_http_config(conf_http_server *http)
 	cJSON *http_obj = cJSON_CreateObject();
 	cJSON_AddBoolToObject(http_obj, "enable", http->enable);
 	cJSON_AddNumberToObject(http_obj, "port", http->port);
+	cJSON_AddStringOrNullToObject(http_obj, "addr", http->ip_addr);
 	cJSON_AddStringOrNullToObject(http_obj, "username", http->username);
 	cJSON_AddStringOrNullToObject(http_obj, "password", http->password);
 	cJSON_AddStringToObject(

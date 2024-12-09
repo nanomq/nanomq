@@ -19,7 +19,7 @@
 #include <string.h>
 
 #define REST_URI_ROOT "/api/v4"
-#define REST_HOST "http://0.0.0.0:%u"
+#define REST_HOST "http://%s:%u"
 #define REST_URL REST_HOST REST_URI_ROOT
 
 #define getNumberValue(obj, item, key, value, rv)           \
