@@ -242,13 +242,13 @@ rest_handle(nng_aio *aio)
 }
 
 void
-rest_start(uint16_t port)
+rest_start(uint16_t port, char *addr)
 {
-	nng_http_server * server;
+	char              rest_addr[128];
+	nng_http_server  *server;
 	nng_http_handler *handler;
 	nng_http_handler *handler_file;
-	char              rest_addr[128];
-	nng_url *         url;
+	nng_url          *url;
 	int               rv;
 
 	if ((rv = nng_mtx_alloc(&job_lock)) != 0) {
@@ -258,7 +258,7 @@ rest_start(uint16_t port)
 
 	// Set up some strings, etc.  We use the port number
 	// from the argument list.
-	snprintf(rest_addr, sizeof(rest_addr), REST_URL, port);
+	snprintf(rest_addr, sizeof(rest_addr), REST_URL, addr, port);
 	if ((rv = nng_url_parse(&url, rest_addr)) != 0) {
 		log_error("nng_url_parse %s failed ", rest_addr);
 		return;
@@ -509,11 +509,14 @@ start_rest_server(conf *conf)
 
 	uint16_t port = conf->http_server.port ? conf->http_server.port
 	                                       : HTTP_DEFAULT_PORT;
-	log_info(REST_URL, port);
 	set_global_conf(conf);
 	set_http_server_conf(&conf->http_server);
-	boot_time = nng_clock();
-	rest_start(port);
+	char *addr = conf->http_server.ip_addr != NULL
+	    ? conf->http_server.ip_addr
+	    : HTTP_DEFAULT_ADDR;
+	boot_time  = nng_clock();
+	log_info(REST_URL, addr, port);
+	rest_start(port, addr);
 
 	return rv;
 }
