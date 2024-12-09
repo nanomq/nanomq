@@ -1614,8 +1614,10 @@ status_check(int *pid)
 		return 1;
 	} else {
 		if (!nng_file_delete(pid_path)) {
-			log_info(".pid file is removed");
+			printf("old NanoMQ .pid file is removed\n");
 			nng_strfree(pid_path);
+			if (data)
+				nng_free(data, size);
 			return 1;
 		}
 		nng_strfree(pid_path);
