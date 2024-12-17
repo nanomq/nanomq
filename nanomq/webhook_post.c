@@ -827,7 +827,7 @@ int
 hook_exchange_sender_init(conf *nanomq_conf, struct work **works, uint64_t num_ctx)
 {
 	conf_web_hook *hook_conf = &nanomq_conf->web_hook;
-	conf_parquet *parquet_conf = &nanomq_conf->parquet;
+	conf_exchange *exchange_conf = &nanomq_conf->exchange;
 	conf_blf *blf_conf = &nanomq_conf->blf;
 
 	for (int i = 0; i < num_ctx; ++i) {
@@ -845,10 +845,8 @@ hook_exchange_sender_init(conf *nanomq_conf, struct work **works, uint64_t num_c
 	}
 
 #ifdef SUPP_PARQUET
-	if (parquet_conf->enable) {
-		log_info("init parquet_write_launcher");
-		parquet_write_launcher(parquet_conf);
-	}
+	log_info("init parquet_write_launcher");
+	parquet_write_launcher(exchange_conf);
 #endif
 
 #ifdef SUPP_BLF
