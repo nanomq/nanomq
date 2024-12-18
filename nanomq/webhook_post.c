@@ -349,6 +349,7 @@ hook_last_flush()
 	}
 	nng_aio_free(aio);
 	nng_aio_free(faio);
+	return 0;
 }
 #endif
 
