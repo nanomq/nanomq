@@ -33,7 +33,10 @@ jobs:
       fail-fast: false
       matrix:
         architecture: [amd64, arm64]
-        platform: [linux, android]
+        platform: [linux]
+        include:
+        - architecture: arm64
+          platform: android
 
     steps:
       - name: Checkout Repository
@@ -80,7 +83,6 @@ jobs:
 
           rm -rf ./nanomq ./nanomq-debug
           docker rm -v $id
-          cd -
 
       - name: Package Artifacts (Android)
         if: matrix.platform == 'android' && matrix.architecture == 'arm64'
