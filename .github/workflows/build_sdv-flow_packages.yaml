@@ -107,7 +107,7 @@ jobs:
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: NanoMQ Packages
+          name: NanoMQ-${{ matrix.platform }}-${{ matrix.architecture }}
           path: packages/*.tar.gz
           retention-days: 7
 
