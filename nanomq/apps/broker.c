@@ -1613,14 +1613,6 @@ status_check(int *pid)
 		log_warn(".pid file not found or unreadable\n");
 		return 1;
 	} else {
-		if (!nng_file_delete(pid_path)) {
-			printf("old NanoMQ .pid file is removed\n");
-			nng_strfree(pid_path);
-			if (data)
-				nng_free(data, size);
-			return 1;
-		}
-		nng_strfree(pid_path);
 		if ((data) != NULL) {
 			if (sscanf(data, "%u", pid) < 1) {
 				log_error("read pid from file error!");
@@ -1636,6 +1628,12 @@ status_check(int *pid)
 				return 0;
 			}
 		}
+		if (!nng_file_delete(pid_path)) {
+			printf("old NanoMQ .pid file is removed\n");
+			nng_strfree(pid_path);
+			return 1;
+		}
+		nng_strfree(pid_path);
 		log_error("unexpected error");
 		return -1;
 	}
