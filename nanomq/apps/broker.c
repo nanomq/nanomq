@@ -339,15 +339,24 @@ bridge_pub_handler(nano_work *work)
 					// nanosdk deal with fail send
 					// and close the pipe
 					if (nng_aio_busy(node->bridge_aio[index])) {
-						if (nng_lmq_full(node->ctx_msgs) || qos == 0) {
+						if (qos == 0) {
 							nng_msg_free(bridge_msg);
 							log_warn(
 								"bridging to %s aio busy! "
-								"msg lost! Ctx: %d",
+								"msg lost! Ctx: %d drop qos 0 msg",
 								node->address, work->ctx.id);
 						} else {
 							// pass index of aio via timestamp;
-							nng_lmq_put(node->ctx_msgs, bridge_msg);
+							if (nng_lmq_full(node->ctx_msgs)) {
+								log_warn("Cached Message in ctx_msgs is lost!");
+								nng_msg *tmsg;
+								(void) nng_lmq_get(node->ctx_msgs, &tmsg);
+								nng_msg_free(tmsg);
+							}
+							if (nng_lmq_put(node->ctx_msgs, bridge_msg) != 0) {
+								log_warn("Msg lost! put msg to ctx_msgs failed!");
+								nng_msg_free(bridge_msg);
+							}
 						}
 					} else {
 						nng_aio_set_timeout(node->bridge_aio[index],
