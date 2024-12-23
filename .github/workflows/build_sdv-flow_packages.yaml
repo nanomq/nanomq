@@ -31,68 +31,83 @@ jobs:
 
     strategy:
       fail-fast: false
+      matrix:
+        architecture: [amd64, arm64]
+        platform: [linux]
+        include:
+        - architecture: arm64
+          platform: android
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-        # By default, actions/checkout performs a shallow clone, which might not include all tags.
         with:
           fetch-depth: 0 # Fetch all history including tags
+
       - name: Initialize Submodules
         run: git submodule update --init --recursive
 
-      - name: Build Docker Images
+      - name: Build linux
+        if: matrix.platform == 'linux'
+        run: |
+          docker build -t nanomq_with_parquet_${{ matrix.architecture }} -f deploy/lianyou-deploy/Dockerfile${{ matrix.architecture == 'arm64' && '-arm64' || '' }} .
+
+      - name: Build android
+        if: matrix.platform == 'android' && matrix.architecture == 'arm64'
         run: |
           ./deploy/lianyou-deploy/build_nanomq_ndk.sh
-          docker build -t nanomq_with_parquet_amd64 -f deploy/lianyou-deploy/Dockerfile .
-          docker build -t nanomq_with_parquet_arm64 -f deploy/lianyou-deploy/Dockerfile-arm64 .
-
-      - name: Package Artifacts
+      
+      - name: Package Artifacts (Linux)
+        if: matrix.platform == 'linux'
         run: |
           pkgversion="$(git describe --abbrev=1 --tags)"
           git log --format=%H -1 > readme.txt
           cd nng && git log --format=%H -1 >> ../readme.txt && cd -
-          
-          for arch in amd64 arm64; do
-            mkdir -p packages/nanomq/{parquet,etc,log} packages/nanomq-debug/{parquet,etc,log}
-            id=$(docker create nanomq_with_parquet${arch:+_$arch})
-            docker cp $id:/opt/NanoMQ_mirror/build/nanomq/nanomq ./packages/nanomq/
-            docker cp $id:/opt/NanoMQ_mirror/build-debug/nanomq/nanomq ./packages/nanomq-debug/
-            cp readme.txt ./packages/nanomq/
-            cp readme.txt ./packages/nanomq-debug/
-            cp etc/nanomq.conf ./packages/nanomq/etc
-            cp etc/nanomq.conf ./packages/nanomq-debug/etc
-            
-            cd ./packages
-            tar -zcvf ./nanomq-${pkgversion}-linux-${arch}-sdv.tar.gz ./nanomq
-            tar -zcvf ./nanomq-${pkgversion}-linux-${arch}-debug-sdv.tar.gz ./nanomq-debug
-            cp ../etc/nanomq_geely.conf ./nanomq/etc/nanomq.conf
-            cp ../etc/nanomq_geely.conf ./nanomq-debug/etc/nanomq.conf
-            tar -zcvf ./nanomq-${pkgversion}-linux-${arch}-gee.tar.gz ./nanomq
-            tar -zcvf ./nanomq-${pkgversion}-linux-${arch}-debug-gee.tar.gz ./nanomq-debug
 
-            rm -rf ./nanomq ./nanomq-debug
-            docker rm -v $id
-            cd -
-          done
+          mkdir -p packages/nanomq/{parquet,etc,log} packages/nanomq-debug/{parquet,etc,log}
+          id=$(docker create nanomq_with_parquet_${{ matrix.architecture }})
+          docker cp $id:/opt/NanoMQ_mirror/build/nanomq/nanomq ./packages/nanomq/
+          docker cp $id:/opt/NanoMQ_mirror/build-debug/nanomq/nanomq ./packages/nanomq-debug/
+          cp readme.txt ./packages/nanomq/
+          cp readme.txt ./packages/nanomq-debug/
+          cp etc/nanomq.conf ./packages/nanomq/etc
+          cp etc/nanomq.conf ./packages/nanomq-debug/etc
 
-          # package geely android
-          mkdir -p packages/nanomq_android_arm64/{parquet,etc,log,lib}
-          cp readme.txt ./packages/nanomq_android_arm64/
-          cp etc/nanomq.conf ./packages/nanomq_android_arm64/etc
-          cp build_android/nanomq/nanomq ./packages/nanomq_android_arm64/
-          rm build_android/lib/libcrypto.so build_android/lib/libssl.so
-          cp build_android/lib/* ./packages/nanomq_android_arm64/lib
           cd ./packages
-          tar -zcvf ./nanomq-${pkgversion}-android-arm64-sdv.tar.gz ./nanomq_android_arm64
-          cp ../etc/nanomq_geely_android.conf ./nanomq_android_arm64/etc/nanomq.conf
-          tar -zcvf ./nanomq-${pkgversion}-android-arm64-gee.tar.gz ./nanomq_android_arm64
-          rm -rf ./nanomq_android_arm64
+          tar -zcvf ./nanomq-${pkgversion}-linux-${{ matrix.architecture }}-sdv.tar.gz ./nanomq
+          tar -zcvf ./nanomq-${pkgversion}-linux-${{ matrix.architecture }}-debug-sdv.tar.gz ./nanomq-debug
+          cp ../etc/nanomq_geely.conf ./nanomq/etc/nanomq.conf
+          cp ../etc/nanomq_geely.conf ./nanomq-debug/etc/nanomq.conf
+          tar -zcvf ./nanomq-${pkgversion}-linux-${{ matrix.architecture }}-gee.tar.gz ./nanomq
+          tar -zcvf ./nanomq-${pkgversion}-linux-${{ matrix.architecture }}-debug-gee.tar.gz ./nanomq-debug
+
+          rm -rf ./nanomq ./nanomq-debug
+          docker rm -v $id
+
+      - name: Package Artifacts (Android)
+        if: matrix.platform == 'android' && matrix.architecture == 'arm64'
+        run: |
+          pkgversion="$(git describe --abbrev=1 --tags)"
+          git log --format=%H -1 > readme.txt
+
+          mkdir -p packages/nanomq_android_${{ matrix.architecture }}/{parquet,etc,log,lib}
+          cp readme.txt ./packages/nanomq_android_${{ matrix.architecture }}/
+          cp etc/nanomq.conf ./packages/nanomq_android_${{ matrix.architecture }}/etc
+          cp build_android/nanomq/nanomq ./packages/nanomq_android_${{ matrix.architecture }}/
+          rm build_android/lib/libcrypto.so build_android/lib/libssl.so
+          cp build_android/lib/* ./packages/nanomq_android_${{ matrix.architecture }}/lib
+
+          cd ./packages
+          tar -zcvf ./nanomq-${pkgversion}-android-${{ matrix.architecture }}-sdv.tar.gz ./nanomq_android_${{ matrix.architecture }}
+          cp ../etc/nanomq_geely_android.conf ./nanomq_android_${{ matrix.architecture }}/etc/nanomq.conf
+          tar -zcvf ./nanomq-${pkgversion}-android-${{ matrix.architecture }}-gee.tar.gz ./nanomq_android_${{ matrix.architecture }}
+          rm -rf ./nanomq_android_${{ matrix.architecture }}
 
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: NanoMQ Packages
+          name: NanoMQ-${{ matrix.platform }}-${{ matrix.architecture }}
           path: packages/*.tar.gz
           retention-days: 7
 
