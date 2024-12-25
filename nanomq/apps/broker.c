@@ -415,8 +415,7 @@ server_cb(void *arg)
 			smsg = work->msg;
 			work->msg_ret = NULL;
 
-			if ((work->sub_pkt = nng_alloc(
-			         sizeof(packet_subscribe))) == NULL)
+			if ((work->sub_pkt = nng_alloc(sizeof(packet_subscribe))) == NULL)
 				log_error("nng_alloc");
 			memset(work->sub_pkt, '\0', sizeof(packet_subscribe));
 
@@ -425,7 +424,6 @@ server_cb(void *arg)
 				work->code = rv;
 				log_error("sub_handler: [%d]", rv);
 			}
-			bridge_sub_handler(work);
 
 			// TODO not all codes needs to close the pipe
 			if (work->code != SUCCESS) {
@@ -443,6 +441,7 @@ server_cb(void *arg)
 				nng_aio_finish(work->aio, 0);
 				break;
 			}
+			bridge_sub_handler(work);
 
 			// TODO Error handling
 			if (0 != (rv = encode_suback_msg(smsg, work)))
