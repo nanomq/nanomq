@@ -17,6 +17,8 @@ set(CMAKE_MODULE_PATH
   "${CMAKE_CURRENT_LIST_DIR}/cmake"
 )
 
+add_compile_definitions(NANOMQ_TLS_VENDOR="GEELY_DHU")
+
 include(NanoMQHelpers)
 
 option (BUILD_NANOMQ_CLI "Build nanomq CLI" OFF)
