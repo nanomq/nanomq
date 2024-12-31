@@ -778,13 +778,13 @@ basic_authorize(http_msg *msg)
 }
 
 http_msg
-process_request(http_msg *msg, conf_http_server *config, nng_socket *sock)
+process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 {
 	http_msg         ret    = { 0 };
 	uint16_t         status = NNG_HTTP_STATUS_OK;
 	enum result_code code   = SUCCEED;
 	uri_content *    uri_ct = NULL;
-	switch (config->auth_type) {
+	switch (hconfig->auth_type) {
 	case BASIC:
 		if ((code = basic_authorize(msg)) != SUCCEED) {
 			status = NNG_HTTP_STATUS_UNAUTHORIZED;
@@ -813,35 +813,35 @@ process_request(http_msg *msg, conf_http_server *config, nng_socket *sock)
 		} else if (uri_ct->sub_count == 2 &&
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "nodes") == 0) {
-			ret = get_nodes(msg, config->broker_sock);
+			ret = get_nodes(msg, hconfig->broker_sock);
 		} else if (uri_ct->sub_count == 2 &&
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "prometheus") == 0) {
 			ret = get_prometheus(msg, uri_ct->params,
-			    uri_ct->params_count, NULL, NULL, config->broker_sock);
+			    uri_ct->params_count, NULL, NULL, hconfig->broker_sock);
 		} else if (uri_ct->sub_count == 2 &&
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "metrics") == 0) {
 			ret = get_metrics(msg, uri_ct->params,
-			    uri_ct->params_count, NULL, NULL, config->broker_sock);
+			    uri_ct->params_count, NULL, NULL, hconfig->broker_sock);
 		} else if (uri_ct->sub_count == 2 &&
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "clients") == 0) {
 			ret = get_clients(msg, uri_ct->params,
-			    uri_ct->params_count, NULL, NULL, config->broker_sock);
+			    uri_ct->params_count, NULL, NULL, hconfig->broker_sock);
 		} else if (uri_ct->sub_count == 3 &&
 		    uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "clients") == 0) {
 			ret = get_clients(msg, uri_ct->params,
 			    uri_ct->params_count, uri_ct->sub_tree[2]->node,
-			    NULL, config->broker_sock);
+			    NULL, hconfig->broker_sock);
 		} else if (uri_ct->sub_count == 4 &&
 		    uri_ct->sub_tree[3]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "clients") == 0 &&
 		    strcmp(uri_ct->sub_tree[2]->node, "username") == 0) {
 			ret = get_clients(msg, uri_ct->params,
 			    uri_ct->params_count, NULL,
-			    uri_ct->sub_tree[3]->node, config->broker_sock);
+			    uri_ct->sub_tree[3]->node, hconfig->broker_sock);
 		} else if (uri_ct->sub_count == 2 &&
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "subscriptions") == 0) {
@@ -1547,6 +1547,67 @@ get_metrics(http_msg *msg, kv **params, size_t param_num,
 #if NANO_PLATFORM_LINUX
 	update_process_info(&stats);
 #endif
+
+	conf       *config = get_global_conf();
+	nng_socket *socket = NULL;
+	nng_stat   *nng_stats;
+	nng_stats_get(&nng_stats);
+	for (size_t t = 0; t < config->bridge.count; t++) {
+		conf_bridge_node *node = config->bridge.nodes[t];
+		if (node->enable) {
+			socket = node->sock;
+			nng_stat *st1;
+			nng_stat *st2;
+			st1 = nng_stat_find_socket(nng_stats, *socket);
+			uint64_t pipe;
+			int      rv2 = nng_socket_get_uint64(
+                            *socket, NNG_OPT_MQTT_CLIENT_PIPEID, &pipe);
+			// if (rv2 == 0) {
+			// 	st2 = nng_stat_find_pipe(nng_stats, pipe);
+			// 	nng_stats_dump(st2);
+			// }
+			nng_stats_dump(st1);
+			nng_stat *child = NULL;
+
+			cJSON *bridge_info = cJSON_CreateObject();
+			child              = nng_stat_find(st1, "name");
+			log_info("%s", nng_stat_desc(child));
+			log_info("%s", nng_stat_string(child));
+			if (child) {
+				cJSON_AddStringToObject(bridge_info,
+				    nng_stat_desc(child),
+				    nng_stat_string(child));
+			}
+			child = nng_stat_find(st1, "tx_msgs");
+			if (child) {
+				log_info("%s", nng_stat_desc(child));
+				cJSON_AddNumberToObject(bridge_info,
+				    nng_stat_desc(child),
+				    nng_stat_value(child));
+			}
+			child = nng_stat_find(st1, "rx_msgs");
+			if (child) {
+				cJSON_AddNumberToObject(bridge_info,
+				    nng_stat_desc(child),
+				    nng_stat_value(child));
+			}
+			child = nng_stat_find(st1, "tx_bytes");
+			if (child) {
+				cJSON_AddNumberToObject(bridge_info,
+				    nng_stat_desc(child),
+				    nng_stat_value(child));
+			}
+			child = nng_stat_find(st1, "rx_bytes");
+			if (child) {
+				cJSON_AddNumberToObject(bridge_info,
+				    nng_stat_desc(child),
+				    nng_stat_value(child));
+			}
+			// cJSON_AddNumberToObject(subscribe, "qos", tq->qos);
+			cJSON_AddItemToArray(metrics, bridge_info);
+		}
+	}
+	nng_stats_free(nng_stats);
 	char cpu[16] = { 0 };
 	char mem[64] = { 0 };
 	snprintf(cpu, 16, "%.2f%%", stats.cpu_percent);
