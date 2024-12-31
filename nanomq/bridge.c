@@ -1217,11 +1217,14 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	}
 
 	apply_sqlite_config(sock, node, "mqtt_client.db");
+	int res = nng_socket_set_string(*sock, NNG_OPT_SOCKNAME, node->name);
 
 	if ((rv = nng_dialer_create(&dialer, *sock, node->address))) {
 		log_error("nng_dialer_create failed %d", rv);
 		return rv;
 	}
+	node->dialer = &dialer;
+
 	nng_duration duration = (nng_duration) node->backoff_max * 1000;
 	nng_dialer_set(dialer, NNG_OPT_MQTT_RECONNECT_BACKOFF_MAX, &duration, sizeof(nng_duration));
 

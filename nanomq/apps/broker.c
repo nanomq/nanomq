@@ -279,9 +279,9 @@ bridge_pub_handler(nano_work *work)
 					nng_socket *socket = node->sock;
 
 					// what if send qos msg failed?
-					// nanosdk deal with fail send
-					// and close the pipe
+					// nanosdk deal with fail send and close the pipe
 					if (nng_aio_busy(node->bridge_aio[index])) {
+						// still drop msg while reconnecting
 						if (nng_lmq_full(node->ctx_msgs) || qos == 0) {
 							nng_msg_free(bridge_msg);
 							log_warn(
@@ -1019,7 +1019,6 @@ broker(conf *nanomq_conf)
 	uint64_t   num_work;
 	nng_socket sock;
 	nng_socket *bridge_sock;
-	nng_pipe   pipe_id;
 	// add the num of other proto
 	nanomq_conf->total_ctx = nanomq_conf->parallel;		// match with num of aio
 	num_work = nanomq_conf->parallel;					// match with num of works
