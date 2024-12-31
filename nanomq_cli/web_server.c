@@ -369,7 +369,7 @@ inproc_cb(void *arg)
 
 		msg               = nng_aio_get_msg(work->aio);
 		http_msg *http_ct = (http_msg *) nng_msg_body(msg);
-		http_msg  res     = process_request(http_ct, work->proxy);
+		http_msg  res     = process_request_cli(http_ct, work->proxy);
 
 		// response to client
 		nng_msg_alloc(&work->msg, sizeof(http_msg));
