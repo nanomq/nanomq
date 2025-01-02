@@ -1566,21 +1566,16 @@ get_metrics(http_msg *msg, kv **params, size_t param_num,
 			// 	st2 = nng_stat_find_pipe(nng_stats, pipe);
 			// 	nng_stats_dump(st2);
 			// }
-			nng_stats_dump(st1);
 			nng_stat *child = NULL;
-
 			cJSON *bridge_info = cJSON_CreateObject();
 			child              = nng_stat_find(st1, "name");
-			log_info("%s", nng_stat_desc(child));
-			log_info("%s", nng_stat_string(child));
 			if (child) {
 				cJSON_AddStringToObject(bridge_info,
-				    nng_stat_desc(child),
+				    "bridge name",
 				    nng_stat_string(child));
 			}
 			child = nng_stat_find(st1, "tx_msgs");
 			if (child) {
-				log_info("%s", nng_stat_desc(child));
 				cJSON_AddNumberToObject(bridge_info,
 				    nng_stat_desc(child),
 				    nng_stat_value(child));
@@ -1603,7 +1598,24 @@ get_metrics(http_msg *msg, kv **params, size_t param_num,
 				    nng_stat_desc(child),
 				    nng_stat_value(child));
 			}
-			// cJSON_AddNumberToObject(subscribe, "qos", tq->qos);
+			child = nng_stat_find(st1, "mqtt_client_reconnect");
+			if (child) {
+				cJSON_AddNumberToObject(bridge_info,
+				    nng_stat_desc(child),
+				    nng_stat_value(child));
+			}
+			child = nng_stat_find(st1, "mqtt_msg_send_drop");
+			if (child) {
+				cJSON_AddNumberToObject(bridge_info,
+				    nng_stat_desc(child),
+				    nng_stat_value(child));
+			}
+			child = nng_stat_find(st1, "mqtt_msg_recv_drop");
+			if (child) {
+				cJSON_AddNumberToObject(bridge_info,
+				    nng_stat_desc(child),
+				    nng_stat_value(child));
+			}
 			cJSON_AddItemToArray(metrics, bridge_info);
 		}
 	}
