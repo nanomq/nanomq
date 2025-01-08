@@ -1154,11 +1154,9 @@ broker(conf *nanomq_conf)
 	if (nanomq_conf->bridge_mode) {
 		for (size_t t = 0; t < nanomq_conf->bridge.count; t++) {
 			conf_bridge_node *node = nanomq_conf->bridge.nodes[t];
-			if (node->enable) {
-				// each bridge ctx is init with a broker ctx
-				nanomq_conf->total_ctx += node->parallel * 2;
-				num_work += node->parallel;
-			}
+			// each bridge ctx is init with a broker ctx
+			nanomq_conf->total_ctx += node->parallel * 2;
+			num_work += node->parallel;
 		}
 
 #if defined(SUPP_AWS_BRIDGE)
@@ -1166,10 +1164,8 @@ broker(conf *nanomq_conf)
 			log_debug("AWS bridgging service initialization");
 			conf_bridge_node *node =
 			    nanomq_conf->aws_bridge.nodes[c];
-			if (node->enable) {
-				nanomq_conf->total_ctx += node->parallel * 2;
-				num_work += node->parallel;
-			}
+			nanomq_conf->total_ctx += node->parallel * 2;
+			num_work += node->parallel;
 		}
 #endif
 		log_trace("total ctx num: %ld", nanomq_conf->total_ctx);
@@ -1179,19 +1175,17 @@ broker(conf *nanomq_conf)
 	if (nanomq_conf->bridge_mode) {
 		for (size_t t = 0; t < nanomq_conf->bridge.count; t++) {
 			conf_bridge_node *node = nanomq_conf->bridge.nodes[t];
-			if (node->enable) {
-				node->sock = (nng_socket *) nng_alloc(
-				    sizeof(nng_socket));
+			node->sock = (nng_socket *) nng_alloc(
+				sizeof(nng_socket));
 #if defined(SUPP_QUIC)
-				if (node->hybrid) {
-					hybrid_bridge_client(node->sock, nanomq_conf, node);
-				} else {
-					bridge_client(node->sock, nanomq_conf, node);
-				}
-#else
+			if (node->hybrid) {
+				hybrid_bridge_client(node->sock, nanomq_conf, node);
+			} else {
 				bridge_client(node->sock, nanomq_conf, node);
-#endif
 			}
+#else
+			bridge_client(node->sock, nanomq_conf, node);
+#endif
 		}
 		log_debug("bridge init finished");
 	}
@@ -1211,32 +1205,26 @@ broker(conf *nanomq_conf)
 		// iterates all bridge targets
 		for (size_t t = 0; t < nanomq_conf->bridge.count; t++) {
 			conf_bridge_node *node = nanomq_conf->bridge.nodes[t];
-			if (node->enable) {
-				bridge_sock = node->sock;
-				for (i = tmp; i < (tmp + node->parallel); i++) {
-					works[i] = proto_work_init(sock,
-					    *bridge_sock, PROTO_MQTT_BRIDGE,
-					    db, db_ret, nanomq_conf);
-					works[i]->node = node;
-				}
-				tmp += node->parallel;
+			bridge_sock = node->sock;
+			for (i = tmp; i < (tmp + node->parallel); i++) {
+				works[i] = proto_work_init(sock,
+					*bridge_sock, PROTO_MQTT_BRIDGE,
+					db, db_ret, nanomq_conf);
+				works[i]->node = node;
 			}
+			tmp += node->parallel;
 		}
 
 #if defined(SUPP_AWS_BRIDGE)
 		for (size_t t = 0; t < nanomq_conf->aws_bridge.count; t++) {
-			conf_bridge_node *node =
-			    nanomq_conf->aws_bridge.nodes[t];
-			if (node->enable) {
-				for (i = tmp; i < (tmp + node->parallel);
-				     i++) {
-					works[i] =
-					    proto_work_init(sock, inproc_sock,
-					        PROTO_AWS_BRIDGE, db, db_ret, nanomq_conf);
-				}
-				tmp += node->parallel;
-				aws_bridge_client(node);
+			conf_bridge_node *node = nanomq_conf->aws_bridge.nodes[t];
+			for (i = tmp; i < (tmp + node->parallel); i++) {
+				works[i] =
+					proto_work_init(sock, inproc_sock,
+						PROTO_AWS_BRIDGE, db, db_ret, nanomq_conf);
 			}
+			tmp += node->parallel;
+			aws_bridge_client(node);
 		}
 #endif
 	}
@@ -1495,14 +1483,12 @@ broker(conf *nanomq_conf)
 			for (size_t t = 0; t < conf->bridge.count; t++) {
 				conf_bridge_node *node = conf->bridge.nodes[t];
 				size_t aio_count = conf->total_ctx;
-				if (node->enable) {
-					for (size_t i = 0; i < aio_count; i++) {
-						nng_aio_finish_error(node->bridge_aio[i], 0);
-						nng_aio_abort(node->bridge_aio[i], NNG_ECLOSED);
-						nng_aio_free(node->bridge_aio[i]);
-					}
-					nng_free(node->bridge_aio, aio_count * sizeof(nng_aio *));
+				for (size_t i = 0; i < aio_count; i++) {
+					nng_aio_finish_error(node->bridge_aio[i], 0);
+					nng_aio_abort(node->bridge_aio[i], NNG_ECLOSED);
+					nng_aio_free(node->bridge_aio[i]);
 				}
+				nng_free(node->bridge_aio, aio_count * sizeof(nng_aio *));
 				// free(node->name);
 				// free(node->address);
 				// free(node->clientid);
