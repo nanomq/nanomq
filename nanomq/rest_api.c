@@ -181,6 +181,12 @@ static endpoints api_ep[] = {
 		.descr = "Edit a bridge client",
 	},
 	{
+		.path = "/bridges/switch/:bridge_name",
+		.name = "put_mqtt_bridge_switch",
+		.method = "POST",
+		.descr = "trun on or off a bridge channel",
+	},
+	{
 		.path = "/bridges/:bridge_name",
 		.name = "delete_mqtt_bridge",
 		.method = "DELETE",
@@ -373,6 +379,7 @@ static http_msg post_mqtt_msg_batch(
     http_msg *msg, nng_socket *sock, handle_mqtt_msg_cb cb);
 static http_msg get_mqtt_bridge(http_msg *msg, const char *name);
 static http_msg put_mqtt_bridge(http_msg *msg, const char *name);
+static http_msg put_mqtt_bridge_switch(http_msg *msg, const char *name);
 static http_msg post_mqtt_bridge_sub(http_msg *msg, const char *name);
 static http_msg post_mqtt_bridge_unsub(http_msg *msg, const char *name);
 
@@ -941,6 +948,11 @@ process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 		    strcmp(uri_ct->sub_tree[2]->node, "publish_batch") == 0) {
 			ret =
 			    post_mqtt_msg_batch(msg, sock, handle_publish_msg);
+		} else if (uri_ct->sub_count == 4 &&
+		    uri_ct->sub_tree[3]->end &&
+			strcmp(uri_ct->sub_tree[2]->node, "switch") == 0 &&
+		    strcmp(uri_ct->sub_tree[1]->node, "bridges") == 0) {
+			ret = put_mqtt_bridge_switch(msg, uri_ct->sub_tree[3]->node);
 		}
 
 		/* else if (uri_ct->sub_count == 3 &&
@@ -3721,6 +3733,7 @@ get_mqtt_bridge(http_msg *msg, const char *name)
 	return res;
 }
 
+
 static http_msg
 put_mqtt_bridge(http_msg *msg, const char *name)
 {
@@ -3753,11 +3766,12 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 		node->parallel = parallel;
 		nng_mtx_unlock(node->mtx);
 
-		found = true;
 		// restart bridge client, parameters: config, node, node->sock
 		if (0 != bridge_reload(node->sock, config, node)) {
 			// Error might happened in reload bridge
-			found = false;
+			log_warn("bridge reload failed!");
+		} else {
+			found = true;
 		}
 		break;
 	}
@@ -3778,6 +3792,70 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 		cJSON_Delete(req);
 		return error_response(
 		    msg, NNG_HTTP_STATUS_NOT_FOUND, REQ_PARAM_ERROR);
+	}
+}
+
+static http_msg
+put_mqtt_bridge_switch(http_msg *msg, const char *name)
+{
+	http_msg res = { .status = NNG_HTTP_STATUS_OK };
+
+	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
+
+	if (!cJSON_IsObject(req)) {
+		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
+		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
+	}
+	int  		 rv;
+	bool         found = false;
+	bool         bridge_switch;
+	cJSON       *conf_data = cJSON_GetObjectItem(req, "data");
+	cJSON       *item;
+	conf        *config = get_global_conf();
+	conf_bridge *bridge = &config->bridge;
+	for (size_t i = 0; i < bridge->count; i++) {
+		conf_bridge_node *node = bridge->nodes[i];
+		if (name != NULL && strcmp(node->name, name) != 0) {
+			continue;
+		}
+		getBoolValue(
+		    conf_data, item, "bridge_switch", bridge_switch, rv);
+		if (rv == 0) {
+			found = true;
+			nng_dialer *dialer = node->dialer;
+			if (node->enable == false && bridge_switch == true) {
+				nng_dialer_set_bool(*dialer, NNG_OPT_BRIDGE_SET_EP_CLOSED, false);
+				if (nng_dialer_start(*dialer, NNG_FLAG_NONBLOCK) != 0) {
+					log_warn("turn on bridge %s failed!", name);
+					found = false;
+				}
+			} else if (node->enable == true && bridge_switch == false) {
+				nng_dialer_set_bool(*dialer, NNG_OPT_BRIDGE_SET_EP_CLOSED, true);
+				if (nng_dialer_off(*dialer) != 0) {
+					log_warn("turn off bridge %s failed!", name);
+					found = false;
+				}
+			}
+			node->enable = bridge_switch;
+		}
+	}
+
+	if (found) {
+		cJSON *res_obj = cJSON_CreateObject();
+		cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+		char *dest = cJSON_PrintUnformatted(res_obj);
+
+		put_http_msg(&res, "application/json", NULL, NULL, NULL, dest,
+		    strlen(dest));
+
+		cJSON_free(dest);
+		cJSON_Delete(res_obj);
+		cJSON_Delete(req);
+		return res;
+	} else {
+		cJSON_Delete(req);
+		return error_response(
+		    msg, NNG_HTTP_STATUS_NOT_FOUND, CLIENT_IS_OFFLINE);
 	}
 }
 
