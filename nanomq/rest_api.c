@@ -182,6 +182,12 @@ static endpoints api_ep[] = {
 		.descr = "Edit a bridge client",
 	},
 	{
+		.path = "/bridges/switch/:bridge_name",
+		.name = "put_mqtt_bridge_switch",
+		.method = "POST",
+		.descr = "trun on or off a bridge channel",
+	},
+	{
 		.path = "/bridges/:bridge_name",
 		.name = "delete_mqtt_bridge",
 		.method = "DELETE",
@@ -383,6 +389,7 @@ static http_msg post_mqtt_msg_batch(
     http_msg *msg, nng_socket *sock, handle_mqtt_msg_cb cb);
 static http_msg get_mqtt_bridge(http_msg *msg, const char *name);
 static http_msg put_mqtt_bridge(http_msg *msg, const char *name);
+static http_msg put_mqtt_bridge_switch(http_msg *msg, const char *name);
 static http_msg post_mqtt_bridge_sub(http_msg *msg, const char *name);
 static http_msg post_mqtt_bridge_unsub(http_msg *msg, const char *name);
 
@@ -788,13 +795,13 @@ basic_authorize(http_msg *msg)
 }
 
 http_msg
-process_request(http_msg *msg, conf_http_server *config, nng_socket *sock)
+process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 {
 	http_msg         ret    = { 0 };
 	uint16_t         status = NNG_HTTP_STATUS_OK;
 	enum result_code code   = SUCCEED;
 	uri_content *    uri_ct = NULL;
-	switch (config->auth_type) {
+	switch (hconfig->auth_type) {
 	case BASIC:
 		if ((code = basic_authorize(msg)) != SUCCEED) {
 			status = NNG_HTTP_STATUS_UNAUTHORIZED;
@@ -824,7 +831,7 @@ process_request(http_msg *msg, conf_http_server *config, nng_socket *sock)
 		} else if (uri_ct->sub_count == 2 &&
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "nodes") == 0) {
-			ret = get_nodes(msg, config->broker_sock);
+			ret = get_nodes(msg, hconfig->broker_sock);
 		} else if (uri_ct->sub_count == 2 &&
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "data_span") == 0) {
@@ -834,30 +841,30 @@ process_request(http_msg *msg, conf_http_server *config, nng_socket *sock)
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "prometheus") == 0) {
 			ret = get_prometheus(msg, uri_ct->params,
-			    uri_ct->params_count, NULL, NULL, config->broker_sock);
+			    uri_ct->params_count, NULL, NULL, hconfig->broker_sock);
 		} else if (uri_ct->sub_count == 2 &&
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "metrics") == 0) {
 			ret = get_metrics(msg, uri_ct->params,
-			    uri_ct->params_count, NULL, NULL, config->broker_sock);
+			    uri_ct->params_count, NULL, NULL, hconfig->broker_sock);
 		} else if (uri_ct->sub_count == 2 &&
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "clients") == 0) {
 			ret = get_clients(msg, uri_ct->params,
-			    uri_ct->params_count, NULL, NULL, config->broker_sock);
+			    uri_ct->params_count, NULL, NULL, hconfig->broker_sock);
 		} else if (uri_ct->sub_count == 3 &&
 		    uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "clients") == 0) {
 			ret = get_clients(msg, uri_ct->params,
 			    uri_ct->params_count, uri_ct->sub_tree[2]->node,
-			    NULL, config->broker_sock);
+			    NULL, hconfig->broker_sock);
 		} else if (uri_ct->sub_count == 4 &&
 		    uri_ct->sub_tree[3]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "clients") == 0 &&
 		    strcmp(uri_ct->sub_tree[2]->node, "username") == 0) {
 			ret = get_clients(msg, uri_ct->params,
 			    uri_ct->params_count, NULL,
-			    uri_ct->sub_tree[3]->node, config->broker_sock);
+			    uri_ct->sub_tree[3]->node, hconfig->broker_sock);
 		} else if (uri_ct->sub_count == 2 &&
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "subscriptions") == 0) {
@@ -957,6 +964,11 @@ process_request(http_msg *msg, conf_http_server *config, nng_socket *sock)
 		    strcmp(uri_ct->sub_tree[2]->node, "publish_batch") == 0) {
 			ret =
 			    post_mqtt_msg_batch(msg, sock, handle_publish_msg);
+		} else if (uri_ct->sub_count == 4 &&
+		    uri_ct->sub_tree[3]->end &&
+			strcmp(uri_ct->sub_tree[2]->node, "switch") == 0 &&
+		    strcmp(uri_ct->sub_tree[1]->node, "bridges") == 0) {
+			ret = put_mqtt_bridge_switch(msg, uri_ct->sub_tree[3]->node);
 		}
 
 		/* else if (uri_ct->sub_count == 3 &&
@@ -1606,6 +1618,79 @@ get_metrics(http_msg *msg, kv **params, size_t param_num,
 #if NANO_PLATFORM_LINUX
 	update_process_info(&stats);
 #endif
+
+	conf       *config = get_global_conf();
+	nng_socket *socket = NULL;
+	nng_stat   *nng_stats;
+	nng_stats_get(&nng_stats);
+	for (size_t t = 0; t < config->bridge.count; t++) {
+		conf_bridge_node *node = config->bridge.nodes[t];
+		if (node->enable) {
+			socket = node->sock;
+			nng_stat *st1;
+			nng_stat *st2;
+			st1 = nng_stat_find_socket(nng_stats, *socket);
+			uint64_t pipe;
+			int      rv2 = nng_socket_get_uint64(
+                            *socket, NNG_OPT_MQTT_CLIENT_PIPEID, &pipe);
+			// if (rv2 == 0) {
+			// 	st2 = nng_stat_find_pipe(nng_stats, pipe);
+			// 	nng_stats_dump(st2);
+			// }
+			nng_stat *child = NULL;
+			cJSON *bridge_info = cJSON_CreateObject();
+			child              = nng_stat_find(st1, "name");
+			if (child) {
+				cJSON_AddStringToObject(bridge_info,
+				    "bridge name",
+				    nng_stat_string(child));
+			}
+			child = nng_stat_find(st1, "tx_msgs");
+			if (child) {
+				cJSON_AddNumberToObject(bridge_info,
+				    nng_stat_desc(child),
+				    nng_stat_value(child));
+			}
+			child = nng_stat_find(st1, "rx_msgs");
+			if (child) {
+				cJSON_AddNumberToObject(bridge_info,
+				    nng_stat_desc(child),
+				    nng_stat_value(child));
+			}
+			child = nng_stat_find(st1, "tx_bytes");
+			if (child) {
+				cJSON_AddNumberToObject(bridge_info,
+				    nng_stat_desc(child),
+				    nng_stat_value(child));
+			}
+			child = nng_stat_find(st1, "rx_bytes");
+			if (child) {
+				cJSON_AddNumberToObject(bridge_info,
+				    nng_stat_desc(child),
+				    nng_stat_value(child));
+			}
+			child = nng_stat_find(st1, "mqtt_client_reconnect");
+			if (child) {
+				cJSON_AddNumberToObject(bridge_info,
+				    nng_stat_desc(child),
+				    nng_stat_value(child));
+			}
+			child = nng_stat_find(st1, "mqtt_msg_send_drop");
+			if (child) {
+				cJSON_AddNumberToObject(bridge_info,
+				    nng_stat_desc(child),
+				    nng_stat_value(child));
+			}
+			child = nng_stat_find(st1, "mqtt_msg_recv_drop");
+			if (child) {
+				cJSON_AddNumberToObject(bridge_info,
+				    nng_stat_desc(child),
+				    nng_stat_value(child));
+			}
+			cJSON_AddItemToArray(metrics, bridge_info);
+		}
+	}
+	nng_stats_free(nng_stats);
 	char cpu[16] = { 0 };
 	char mem[64] = { 0 };
 	snprintf(cpu, 16, "%.2f%%", stats.cpu_percent);
@@ -1763,6 +1848,129 @@ post_rules_sqlite(conf_rule *cr, cJSON *jso_params, char *rawsql)
 }
 #endif
 
+#if defined(SUPP_TIMESCALEDB) && defined(SUPP_RULE_ENGINE)
+static int
+post_rules_timescaledb(conf_rule *cr, cJSON *jso_params, char *rawsql)
+{
+	cJSON *jso_param = NULL;
+	rule_timescaledb *timescaledb = rule_timescaledb_init();
+	cJSON_ArrayForEach(jso_param, jso_params)
+	{
+		if (jso_param) {
+			if (!nng_strcasecmp(jso_param->string, "table")) {
+				timescaledb->table =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "table: %s\n", jso_param->valuestring);
+			} else if (!nng_strcasecmp(
+			               jso_param->string, "username")) {
+				timescaledb->username =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "username: %s\n", jso_param->valuestring);
+			} else if (!nng_strcasecmp(
+			               jso_param->string, "password")) {
+				timescaledb->password =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "password: %s\n", jso_param->valuestring);
+			} else if (!nng_strcasecmp(
+			               jso_param->string, "host")) {
+				timescaledb->host =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "host: %s\n", jso_param->valuestring);
+			} else {
+				rule_timescaledb_free(timescaledb);
+				log_error("Unsupport key word!");
+				return REQ_PARAM_ERROR;
+			}
+		}
+	}
+
+	if (false == rule_timescaledb_check(timescaledb)) {
+		rule_timescaledb_free(timescaledb);
+		return MISSING_KEY_REQUEST_PARAMES;
+	}
+
+	rule_sql_parse(cr, rawsql);
+	cr->rules[cvector_size(cr->rules) - 1].forword_type =
+	    RULE_FORWORD_TIMESCALEDB;
+	cr->rules[cvector_size(cr->rules) - 1].timescaledb   = timescaledb;
+	cr->rules[cvector_size(cr->rules) - 1].raw_sql = nng_strdup(rawsql);
+	cr->rules[cvector_size(cr->rules) - 1].enabled = true;
+	cr->rules[cvector_size(cr->rules) - 1].rule_id =
+	    rule_generate_rule_id();
+	if (-1 == nanomq_client_timescaledb(cr, true)) {
+		return REQ_PARAM_ERROR;
+	}
+
+	cr->option |= RULE_ENG_TDB;
+	return SUCCEED;
+}
+#endif
+
+#if defined(SUPP_POSTGRESQL) && defined(SUPP_RULE_ENGINE)
+static int
+post_rules_postgresql(conf_rule *cr, cJSON *jso_params, char *rawsql)
+{
+	cJSON *jso_param = NULL;
+	rule_postgresql *postgresql = rule_postgresql_init();
+	cJSON_ArrayForEach(jso_param, jso_params)
+	{
+		if (jso_param) {
+			if (!nng_strcasecmp(jso_param->string, "table")) {
+				postgresql->table =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "table: %s\n", jso_param->valuestring);
+			} else if (!nng_strcasecmp(
+			               jso_param->string, "username")) {
+				postgresql->username =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "username: %s\n", jso_param->valuestring);
+			} else if (!nng_strcasecmp(
+			               jso_param->string, "password")) {
+				postgresql->password =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "password: %s\n", jso_param->valuestring);
+			} else if (!nng_strcasecmp(
+			               jso_param->string, "host")) {
+				postgresql->host =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "host: %s\n", jso_param->valuestring);
+			} else {
+				rule_postgresql_free(postgresql);
+				log_error("Unsupport key word!");
+				return REQ_PARAM_ERROR;
+			}
+		}
+	}
+
+	if (false == rule_postgresql_check(postgresql)) {
+		rule_postgresql_free(postgresql);
+		return MISSING_KEY_REQUEST_PARAMES;
+	}
+
+	rule_sql_parse(cr, rawsql);
+	cr->rules[cvector_size(cr->rules) - 1].forword_type =
+	    RULE_FORWORD_POSTGRESQL;
+	cr->rules[cvector_size(cr->rules) - 1].postgresql   = postgresql;
+	cr->rules[cvector_size(cr->rules) - 1].raw_sql = nng_strdup(rawsql);
+	cr->rules[cvector_size(cr->rules) - 1].enabled = true;
+	cr->rules[cvector_size(cr->rules) - 1].rule_id =
+	    rule_generate_rule_id();
+	if (-1 == nanomq_client_postgresql(cr, true)) {
+		return REQ_PARAM_ERROR;
+	}
+
+	cr->option |= RULE_ENG_PDB;
+	return SUCCEED;
+}
+#endif
 
 #if defined(SUPP_MYSQL) && defined(SUPP_RULE_ENGINE)
 static int
@@ -1964,6 +2172,20 @@ post_rules(http_msg *msg)
 					goto error;
 			}
 #endif
+#if defined(SUPP_POSTGRESQL)
+		} else if (!strcasecmp(name, "postgresql")) {
+			if ((rc = post_rules_postgresql(cr, jso_params, rawsql)) !=
+			    SUCCEED) {
+					goto error;
+			}
+#endif
+#if defined(SUPP_TIMESCALEDB)
+		} else if (!strcasecmp(name, "timescaledb")) {
+			if ((rc = post_rules_timescaledb(cr, jso_params, rawsql)) !=
+			    SUCCEED) {
+					goto error;
+			}
+#endif
 		} else {
 			log_error("Unsupport forword type !");
 			rc = PLUGIN_IS_CLOSED;
@@ -2137,6 +2359,111 @@ put_rules_mysql_parse(cJSON *jso_params, rule_mysql *mysql)
 	return SUCCEED;
 }
 
+
+static int
+put_rules_postgresql_parse(cJSON *jso_params, rule_postgresql *postgresql)
+{
+	cJSON *jso_param = NULL;
+	cJSON_ArrayForEach(jso_param, jso_params)
+	{
+		if (jso_param) {
+			if (!nng_strcasecmp(jso_param->string, "table")) {
+				if (postgresql->table) {
+					nng_strfree(postgresql->table);
+				}
+				postgresql->table =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "table: %s\n", jso_param->valuestring);
+			} else if (!nng_strcasecmp(
+			               jso_param->string, "username")) {
+				if (postgresql->username) {
+					nng_strfree(postgresql->username);
+				}
+				postgresql->username =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "username: %s\n", jso_param->valuestring);
+			} else if (!nng_strcasecmp(
+			               jso_param->string, "password")) {
+				if (postgresql->password) {
+					nng_strfree(postgresql->password);
+				}
+				postgresql->password =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "password: %s\n", jso_param->valuestring);
+			} else if (!nng_strcasecmp(
+			               jso_param->string, "host")) {
+				if (postgresql->host) {
+					nng_strfree(postgresql->host);
+				}
+				postgresql->host =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "host: %s\n", jso_param->valuestring);
+			} else {
+				log_error("Unsupport key word!");
+				return REQ_PARAM_ERROR;
+			}
+		}
+	}
+
+	return SUCCEED;
+}
+
+static int
+put_rules_timescaledb_parse(cJSON *jso_params, rule_timescaledb *timescaledb)
+{
+	cJSON *jso_param = NULL;
+	cJSON_ArrayForEach(jso_param, jso_params)
+	{
+		if (jso_param) {
+			if (!nng_strcasecmp(jso_param->string, "table")) {
+				if (timescaledb->table) {
+					nng_strfree(timescaledb->table);
+				}
+				timescaledb->table =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "table: %s\n", jso_param->valuestring);
+			} else if (!nng_strcasecmp(
+			               jso_param->string, "username")) {
+				if (timescaledb->username) {
+					nng_strfree(timescaledb->username);
+				}
+				timescaledb->username =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "username: %s\n", jso_param->valuestring);
+			} else if (!nng_strcasecmp(
+			               jso_param->string, "password")) {
+				if (timescaledb->password) {
+					nng_strfree(timescaledb->password);
+				}
+				timescaledb->password =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "password: %s\n", jso_param->valuestring);
+			} else if (!nng_strcasecmp(
+			               jso_param->string, "host")) {
+				if (timescaledb->host) {
+					nng_strfree(timescaledb->host);
+				}
+				timescaledb->host =
+				    nng_strdup(jso_param->valuestring);
+				log_debug(
+				    "host: %s\n", jso_param->valuestring);
+			} else {
+				log_error("Unsupport key word!");
+				return REQ_PARAM_ERROR;
+			}
+		}
+	}
+
+	return SUCCEED;
+}
+
 static int
 put_rules_update_action(cJSON *jso_actions, rule *new_rule, conf_rule *cr)
 {
@@ -2180,6 +2507,28 @@ put_rules_update_action(cJSON *jso_actions, rule *new_rule, conf_rule *cr)
 			rc = put_rules_mysql_parse(jso_params, mysql);
 			if (rc != SUCCEED) {
 				rule_mysql_free(mysql);
+				return rc;
+			}
+		} else if (!strcasecmp(name, "postgresql")) {
+			if (new_rule->forword_type != RULE_FORWORD_POSTGRESQL) {
+				log_error("Unsupport change from other type to postgresql");
+				return REQ_PARAM_ERROR;
+			}
+			rule_postgresql *postgresql = new_rule->postgresql;
+			rc = put_rules_postgresql_parse(jso_params, postgresql);
+			if (rc != SUCCEED) {
+				rule_postgresql_free(postgresql);
+				return rc;
+			}
+		} else if (!strcasecmp(name, "timescaledb")) {
+			if (new_rule->forword_type != RULE_FORWORD_TIMESCALEDB) {
+				log_error("Unsupport change from other type to timescaledb");
+				return REQ_PARAM_ERROR;
+			}
+			rule_timescaledb *timescaledb = new_rule->timescaledb;
+			rc = put_rules_timescaledb_parse(jso_params, timescaledb);
+			if (rc != SUCCEED) {
+				rule_timescaledb_free(timescaledb);
 				return rc;
 			}
 		} else {
@@ -2251,6 +2600,12 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 			break;
 		case RULE_FORWORD_MYSQL:
 			new_rule->mysql = cr->rules[i].mysql;
+			break;
+		case RULE_FORWORD_POSTGRESQL:
+			new_rule->postgresql = cr->rules[i].postgresql;
+			break;
+		case RULE_FORWORD_TIMESCALEDB:
+			new_rule->timescaledb = cr->rules[i].timescaledb;
 			break;
 		case RULE_FORWORD_SQLITE:
 			new_rule->sqlite_table = cr->rules[i].sqlite_table;
@@ -2358,6 +2713,12 @@ delete_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 				case RULE_FORWORD_MYSQL:
 					rule_mysql_free(re->mysql);
 					break;
+				case RULE_FORWORD_POSTGRESQL:
+					rule_postgresql_free(re->postgresql);
+					break;
+				case RULE_FORWORD_TIMESCALEDB:
+					rule_timescaledb_free(re->timescaledb);
+					break;
 				case RULE_FORWORD_REPUB:
 					rule_repub_free(re->repub);
 					break;
@@ -2415,6 +2776,12 @@ get_rules_helper(cJSON *data, rule *r)
 		break;
 	case RULE_FORWORD_MYSQL:
 		forword_type = "mysql";
+		break;
+	case RULE_FORWORD_POSTGRESQL:
+		forword_type = "postgresql";
+		break;
+	case RULE_FORWORD_TIMESCALEDB:
+		forword_type = "timescaledb";
 		break;
 	default:
 		break;
@@ -3425,6 +3792,7 @@ get_mqtt_bridge(http_msg *msg, const char *name)
 	return res;
 }
 
+
 static http_msg
 put_mqtt_bridge(http_msg *msg, const char *name)
 {
@@ -3457,11 +3825,12 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 		node->parallel = parallel;
 		nng_mtx_unlock(node->mtx);
 
-		found = true;
 		// restart bridge client, parameters: config, node, node->sock
 		if (0 != bridge_reload(node->sock, config, node)) {
 			// Error might happened in reload bridge
-			found = false;
+			log_warn("bridge reload failed!");
+		} else {
+			found = true;
 		}
 		break;
 	}
@@ -3482,6 +3851,70 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 		cJSON_Delete(req);
 		return error_response(
 		    msg, NNG_HTTP_STATUS_NOT_FOUND, REQ_PARAM_ERROR);
+	}
+}
+
+static http_msg
+put_mqtt_bridge_switch(http_msg *msg, const char *name)
+{
+	http_msg res = { .status = NNG_HTTP_STATUS_OK };
+
+	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
+
+	if (!cJSON_IsObject(req)) {
+		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
+		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
+	}
+	int  		 rv;
+	bool         found = false;
+	bool         bridge_switch;
+	cJSON       *conf_data = cJSON_GetObjectItem(req, "data");
+	cJSON       *item;
+	conf        *config = get_global_conf();
+	conf_bridge *bridge = &config->bridge;
+	for (size_t i = 0; i < bridge->count; i++) {
+		conf_bridge_node *node = bridge->nodes[i];
+		if (name != NULL && strcmp(node->name, name) != 0) {
+			continue;
+		}
+		getBoolValue(
+		    conf_data, item, "bridge_switch", bridge_switch, rv);
+		if (rv == 0) {
+			found = true;
+			nng_dialer *dialer = node->dialer;
+			if (node->enable == false && bridge_switch == true) {
+				nng_dialer_set_bool(*dialer, NNG_OPT_BRIDGE_SET_EP_CLOSED, false);
+				if (nng_dialer_start(*dialer, NNG_FLAG_NONBLOCK) != 0) {
+					log_warn("turn on bridge %s failed!", name);
+					found = false;
+				}
+			} else if (node->enable == true && bridge_switch == false) {
+				nng_dialer_set_bool(*dialer, NNG_OPT_BRIDGE_SET_EP_CLOSED, true);
+				if (nng_dialer_off(*dialer) != 0) {
+					log_warn("turn off bridge %s failed!", name);
+					found = false;
+				}
+			}
+			node->enable = bridge_switch;
+		}
+	}
+
+	if (found) {
+		cJSON *res_obj = cJSON_CreateObject();
+		cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+		char *dest = cJSON_PrintUnformatted(res_obj);
+
+		put_http_msg(&res, "application/json", NULL, NULL, NULL, dest,
+		    strlen(dest));
+
+		cJSON_free(dest);
+		cJSON_Delete(res_obj);
+		cJSON_Delete(req);
+		return res;
+	} else {
+		cJSON_Delete(req);
+		return error_response(
+		    msg, NNG_HTTP_STATUS_NOT_FOUND, CLIENT_IS_OFFLINE);
 	}
 }
 

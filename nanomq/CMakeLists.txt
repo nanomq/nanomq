@@ -97,6 +97,30 @@ if(ENABLE_MYSQL)
 
 endif(ENABLE_MYSQL)
 
+if(ENABLE_POSTGRESQL)
+
+  find_package(PostgreSQL REQUIRED)
+
+  # Link to the PostgreSQL C library
+  target_link_libraries(nanomq ${PostgreSQL_LIBRARIES})
+
+  # Include the PostgreSQL C library headers
+  target_include_directories(nanomq PUBLIC ${PostgreSQL_INCLUDE_DIRS})
+
+endif(ENABLE_POSTGRESQL)
+
+if(ENABLE_TIMESCALEDB)
+
+  find_package(PostgreSQL REQUIRED)
+
+  # Link to the PostgreSQL C library
+  target_link_libraries(nanomq ${PostgreSQL_LIBRARIES})
+
+  # Include the PostgreSQL C library headers
+  target_include_directories(nanomq PUBLIC ${PostgreSQL_INCLUDE_DIRS})
+
+endif(ENABLE_TIMESCALEDB)
+
 if(ENABLE_AWS_BRIDGE)
   target_link_libraries(nanomq
       aws_iot_mqtt
@@ -130,7 +154,7 @@ if (CMAKE_INSTALL_RPATH)
 endif()
 
 if(BUILD_STATIC)
-    target_link_libraries(nanomq nng -static)
+  target_link_libraries(nanomq nng -static)
 else()
     target_link_libraries(nanomq nng)
 endif()

@@ -21,6 +21,7 @@
 #define HTTP_DEFAULT_USER "admin"
 #define HTTP_DEFAULT_PASSWORD "public"
 #define HTTP_DEFAULT_PORT 8081
+#define HTTP_DEFAULT_ADDR "0.0.0.0"
 
 extern int  start_rest_server(conf *conf);
 extern void stop_rest_server(void);

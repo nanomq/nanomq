@@ -166,6 +166,7 @@ get_http_config(conf_http_server *http)
 	cJSON *http_obj = cJSON_CreateObject();
 	cJSON_AddBoolToObject(http_obj, "enable", http->enable);
 	cJSON_AddNumberToObject(http_obj, "port", http->port);
+	cJSON_AddStringOrNullToObject(http_obj, "addr", http->ip_addr);
 	cJSON_AddStringOrNullToObject(http_obj, "username", http->username);
 	cJSON_AddStringOrNullToObject(http_obj, "password", http->password);
 	cJSON_AddStringToObject(
@@ -428,6 +429,7 @@ set_reload_config(cJSON *json, conf *config)
 	uint32_t qos_duration;
 	float    backoff;
 	bool     enable_mqtt_stream;
+	bool     bridge_mode;
 
 	cJSON *item;
 	int    rv;

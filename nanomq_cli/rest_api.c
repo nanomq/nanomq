@@ -488,7 +488,7 @@ exit:
 // TODO FIXME Same function name with the function in nanomq/rest_api.c
 // Both of them are extern...
 http_msg
-process_request(http_msg *msg, proxy_info *proxy)
+process_request_cli(http_msg *msg, proxy_info *proxy)
 {
 	http_msg         ret    = { 0 };
 	uint16_t         status = NNG_HTTP_STATUS_OK;

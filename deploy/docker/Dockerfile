@@ -25,4 +25,4 @@ EXPOSE 1883
 
 ENTRYPOINT ["/usr/bin/docker-entrypoint.sh"]
 
-CMD ["--url", "nmq-tcp://0.0.0.0:1883"]
+CMD ["--conf", "/etc/nanomq.conf"]

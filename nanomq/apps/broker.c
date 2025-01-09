@@ -485,8 +485,7 @@ server_cb(void *arg)
 			smsg = work->msg;
 			work->msg_ret = NULL;
 
-			if ((work->sub_pkt = nng_alloc(
-			         sizeof(packet_subscribe))) == NULL)
+			if ((work->sub_pkt = nng_alloc(sizeof(packet_subscribe))) == NULL)
 				log_error("nng_alloc");
 			memset(work->sub_pkt, '\0', sizeof(packet_subscribe));
 
@@ -495,7 +494,6 @@ server_cb(void *arg)
 				work->code = rv;
 				log_error("sub_handler: [%d]", rv);
 			}
-			bridge_sub_handler(work);
 
 			// TODO not all codes needs to close the pipe
 			if (work->code != SUCCESS) {
@@ -513,6 +511,7 @@ server_cb(void *arg)
 				nng_aio_finish(work->aio, 0);
 				break;
 			}
+			bridge_sub_handler(work);
 
 			// TODO Error handling
 			if (0 != (rv = encode_suback_msg(smsg, work)))
@@ -1020,6 +1019,16 @@ proto_work_init(nng_socket sock, nng_socket extrasock, uint8_t proto,
 #endif
 
 	w->sqlite_db = NULL;
+
+#if defined(SUPP_POSTGRESQL)
+	w->pgconn = NULL;
+#endif
+
+#if defined(SUPP_TIMESCALEDB)
+	w->tsconn = NULL;
+#endif
+
+
 #if defined(NNG_SUPP_SQLITE)
 	nng_socket_get_ptr(sock, NMQ_OPT_MQTT_QOS_DB, &w->sqlite_db);
 #endif
@@ -1029,21 +1038,22 @@ proto_work_init(nng_socket sock, nng_socket extrasock, uint8_t proto,
 		if ((rv = nng_ctx_open(&w->extra_ctx, extrasock)) != 0) {
 			NANO_NNG_FATAL("nng_ctx_open", rv);
 		}
+	}
 #if defined(SUPP_ICEORYX)
-	} else if (proto == PROTO_ICEORYX_BRIDGE) {
+	if (proto == PROTO_ICEORYX_BRIDGE) {
 			if ((rv = nng_ctx_open(&w->extra_ctx, extrasock)) != 0) {
 				NANO_NNG_FATAL("nng_ctx_open", rv);
 			}
+
+	}
 #endif
-	} else if (config->bridge_mode) {
-		if (proto == PROTO_MQTT_BRIDGE) {
-			if ((rv = nng_ctx_open(&w->extra_ctx, extrasock)) != 0) {
-				NANO_NNG_FATAL("nng_ctx_open", rv);
-			}
-		} else if (proto == PROTO_AWS_BRIDGE) {
-			if ((rv = nng_ctx_open(&w->extra_ctx, extrasock)) != 0) {
-				NANO_NNG_FATAL("nng_ctx_open", rv);
-			}
+	if (proto == PROTO_MQTT_BRIDGE) {
+		if ((rv = nng_ctx_open(&w->extra_ctx, extrasock)) != 0) {
+			NANO_NNG_FATAL("nng_ctx_open", rv);
+		}
+	} else if (proto == PROTO_AWS_BRIDGE) {
+		if ((rv = nng_ctx_open(&w->extra_ctx, extrasock)) != 0) {
+			NANO_NNG_FATAL("nng_ctx_open", rv);
 		}
 	}
 
@@ -1086,7 +1096,6 @@ broker(conf *nanomq_conf)
 	uint64_t   num_work;
 	nng_socket sock;
 	nng_socket *bridge_sock;
-	nng_pipe   pipe_id;
 	// add the num of other proto
 	nanomq_conf->total_ctx = nanomq_conf->parallel;		// match with num of aio
 	num_work = nanomq_conf->parallel;					// match with num of works
@@ -1104,6 +1113,18 @@ broker(conf *nanomq_conf)
 #if defined(SUPP_MYSQL)
 	if (cr->option & RULE_ENG_MDB) {
 		nanomq_client_mysql(cr, false);
+	}
+#endif
+
+#if defined(SUPP_POSTGRESQL)
+	if (cr->option & RULE_ENG_PDB) {
+		nanomq_client_postgresql(cr, false);
+	}
+#endif
+
+#if defined(SUPP_TIMESCALEDB)
+	if (cr->option & RULE_ENG_TDB) {
+		nanomq_client_timescaledb(cr, false);
 	}
 #endif
 
@@ -1230,11 +1251,9 @@ broker(conf *nanomq_conf)
 	if (nanomq_conf->bridge_mode) {
 		for (size_t t = 0; t < nanomq_conf->bridge.count; t++) {
 			conf_bridge_node *node = nanomq_conf->bridge.nodes[t];
-			if (node->enable) {
-				// each bridge ctx is init with a broker ctx
-				nanomq_conf->total_ctx += node->parallel * 2;
-				num_work += node->parallel;
-			}
+			// each bridge ctx is init with a broker ctx
+			nanomq_conf->total_ctx += node->parallel * 2;
+			num_work += node->parallel;
 		}
 
 #if defined(SUPP_AWS_BRIDGE)
@@ -1242,10 +1261,8 @@ broker(conf *nanomq_conf)
 			log_debug("AWS bridgging service initialization");
 			conf_bridge_node *node =
 			    nanomq_conf->aws_bridge.nodes[c];
-			if (node->enable) {
-				nanomq_conf->total_ctx += node->parallel * 2;
-				num_work += node->parallel;
-			}
+			nanomq_conf->total_ctx += node->parallel * 2;
+			num_work += node->parallel;
 		}
 #endif
 		log_trace("total ctx num: %ld", nanomq_conf->total_ctx);
@@ -1255,19 +1272,17 @@ broker(conf *nanomq_conf)
 	if (nanomq_conf->bridge_mode) {
 		for (size_t t = 0; t < nanomq_conf->bridge.count; t++) {
 			conf_bridge_node *node = nanomq_conf->bridge.nodes[t];
-			if (node->enable) {
-				node->sock = (nng_socket *) nng_alloc(
-				    sizeof(nng_socket));
+			node->sock = (nng_socket *) nng_alloc(
+				sizeof(nng_socket));
 #if defined(SUPP_QUIC)
-				if (node->hybrid) {
-					hybrid_bridge_client(node->sock, nanomq_conf, node);
-				} else {
-					bridge_client(node->sock, nanomq_conf, node);
-				}
-#else
+			if (node->hybrid) {
+				hybrid_bridge_client(node->sock, nanomq_conf, node);
+			} else {
 				bridge_client(node->sock, nanomq_conf, node);
-#endif
 			}
+#else
+			bridge_client(node->sock, nanomq_conf, node);
+#endif
 		}
 		log_debug("bridge init finished");
 	}
@@ -1288,33 +1303,26 @@ broker(conf *nanomq_conf)
 		// iterates all bridge targets
 		for (size_t t = 0; t < nanomq_conf->bridge.count; t++) {
 			conf_bridge_node *node = nanomq_conf->bridge.nodes[t];
-			if (node->enable) {
-				bridge_sock = node->sock;
-				for (i = tmp; i < (tmp + node->parallel); i++) {
-					works[i] = proto_work_init(sock,
-					    *bridge_sock, PROTO_MQTT_BRIDGE,
-					    db, db_ret, nanomq_conf);
-					works[i]->node = node;
-					log_debug("bridge id %d type %d ctx %d", i, works[i]->proto, works[i]->ctx.id);
-				}
-				tmp += node->parallel;
+			bridge_sock = node->sock;
+			for (i = tmp; i < (tmp + node->parallel); i++) {
+				works[i] = proto_work_init(sock,
+					*bridge_sock, PROTO_MQTT_BRIDGE,
+					db, db_ret, nanomq_conf);
+				works[i]->node = node;
 			}
+			tmp += node->parallel;
 		}
 
 #if defined(SUPP_AWS_BRIDGE)
 		for (size_t t = 0; t < nanomq_conf->aws_bridge.count; t++) {
-			conf_bridge_node *node =
-			    nanomq_conf->aws_bridge.nodes[t];
-			if (node->enable) {
-				for (i = tmp; i < (tmp + node->parallel);
-				     i++) {
-					works[i] =
-					    proto_work_init(sock, inproc_sock,
-					        PROTO_AWS_BRIDGE, db, db_ret, nanomq_conf);
-				}
-				tmp += node->parallel;
-				aws_bridge_client(node);
+			conf_bridge_node *node = nanomq_conf->aws_bridge.nodes[t];
+			for (i = tmp; i < (tmp + node->parallel); i++) {
+				works[i] =
+					proto_work_init(sock, inproc_sock,
+						PROTO_AWS_BRIDGE, db, db_ret, nanomq_conf);
 			}
+			tmp += node->parallel;
+			aws_bridge_client(node);
 		}
 #endif
 	}
@@ -1561,14 +1569,12 @@ broker(conf *nanomq_conf)
 			for (size_t t = 0; t < conf->bridge.count; t++) {
 				conf_bridge_node *node = conf->bridge.nodes[t];
 				size_t aio_count = conf->total_ctx;
-				if (node->enable) {
-					for (size_t i = 0; i < aio_count; i++) {
-						nng_aio_finish_error(node->bridge_aio[i], 0);
-						nng_aio_abort(node->bridge_aio[i], NNG_ECLOSED);
-						nng_aio_free(node->bridge_aio[i]);
-					}
-					nng_free(node->bridge_aio, aio_count * sizeof(nng_aio *));
+				for (size_t i = 0; i < aio_count; i++) {
+					nng_aio_finish_error(node->bridge_aio[i], 0);
+					nng_aio_abort(node->bridge_aio[i], NNG_ECLOSED);
+					nng_aio_free(node->bridge_aio[i]);
 				}
+				nng_free(node->bridge_aio, aio_count * sizeof(nng_aio *));
 				// free(node->name);
 				// free(node->address);
 				// free(node->clientid);
@@ -1705,7 +1711,7 @@ status_check(int *pid)
 				nng_strfree(pid_path);
 				return 1;
 			}
-			log_info("pid read, [%u]", *pid);
+			log_info("old pid read, [%u]", *pid);
 			nng_free(data, size);
 
 			if ((kill(*pid, 0)) == 0) {
@@ -1721,6 +1727,7 @@ status_check(int *pid)
 			nng_strfree(pid_path);
 			return 1;
 		}
+		nng_strfree(pid_path);
 		log_error("unexpected error");
 		return -1;
 	}
