@@ -536,7 +536,7 @@ static int
 hybrid_tcp_client(bridge_param *bridge_arg)
 {
 	int           rv;
-	nng_dialer    dialer;
+	nng_dialer    *dialer = (nng_dialer *) nng_alloc(sizeof(nng_dialer));
 
 	nng_socket *new = (nng_socket *) nng_alloc(sizeof(nng_socket));
 	conf_bridge_node *node = bridge_arg->config;
@@ -558,15 +558,16 @@ hybrid_tcp_client(bridge_param *bridge_arg)
 	apply_sqlite_config(new, node, "mqtt_client.db");
 	nng_socket_set_string(*new, NNG_OPT_SOCKNAME, node->name);
 
-	if ((rv = nng_dialer_create(&dialer, *new, node->address))) {
+	if ((rv = nng_dialer_create(dialer, *new, node->address))) {
 		nng_free(new, sizeof(nng_socket));
 		log_error("nng_dialer_create %d", rv);
 		return rv;
 	}
+	node->dialer = dialer;
 
 #ifdef NNG_SUPP_TLS
 	if (node->tls.enable) {
-		if ((rv = init_dialer_tls(dialer, node->tls.ca, node->tls.cert,
+		if ((rv = init_dialer_tls(*dialer, node->tls.ca, node->tls.cert,
 		         node->tls.key, node->tls.key_password)) != 0) {
 			nng_free(new, sizeof(nng_socket));
 			log_error("init_dialer_tls %d", rv);
@@ -590,7 +591,7 @@ hybrid_tcp_client(bridge_param *bridge_arg)
 	bridge_arg->sock   = new;
 
 	// TCP bridge does not support hot update of connmsg
-	if (0 != nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg)) {
+	if (0 != nng_dialer_set_ptr(*dialer, NNG_OPT_MQTT_CONNMSG, connmsg)) {
 		log_warn("Error in updating connmsg");
 	}
 	if (0 != nng_socket_set_ptr(*new, NNG_OPT_MQTT_CONNMSG, connmsg)) {
@@ -599,7 +600,7 @@ hybrid_tcp_client(bridge_param *bridge_arg)
 	nng_mqtt_set_connect_cb(*new, hybrid_tcp_connect_cb, bridge_arg);
 	nng_mqtt_set_disconnect_cb(*new, hybrid_tcp_disconnect_cb, bridge_arg);
 
-	if (0 != (rv = nng_dialer_start(dialer, NNG_FLAG_ALLOC))) {
+	if (0 != (rv = nng_dialer_start(*dialer, NNG_FLAG_ALLOC))) {
 		log_error("nng dialer start failed %d", rv);
 		return rv;
 	}
@@ -631,7 +632,7 @@ static int
 hybrid_quic_client(bridge_param *bridge_arg)
 {
 	int           rv;
-	nng_dialer    dialer;
+	nng_dialer    *dialer = (nng_dialer *) nng_alloc(sizeof(nng_dialer));
 	log_info("Quic hybrid service start.");
 
 	// always alloc a new sock pointer in hybrid mode
@@ -654,10 +655,11 @@ hybrid_quic_client(bridge_param *bridge_arg)
 	apply_sqlite_config(new, node, "mqtt_quic_client.db");
 	nng_socket_set_string(*new, NNG_OPT_SOCKNAME, node->name);
 
-	if ((rv = nng_dialer_create(&dialer, *new, node->address))) {
+	if ((rv = nng_dialer_create(dialer, *new, node->address))) {
 		log_error("dialer create failed %d", rv);
 		return rv;
 	}
+	node->dialer = dialer;
 
 	bridge_arg->client = nng_mqtt_client_alloc(*new, &send_callback, true);
 
@@ -676,18 +678,19 @@ hybrid_quic_client(bridge_param *bridge_arg)
 	bridge_arg->sock   = new;
 
 	// TCP bridge does not support hot update of connmsg
-	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
+	nng_dialer_set_ptr(*dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
 	nng_socket_set_ptr(*new, NNG_OPT_MQTT_CONNMSG, connmsg);
-	nano_set_quic_config(new, node, &dialer);
+	nano_set_quic_config(new, node, dialer);
 	nng_mqtt_set_connect_cb(*new, hybrid_quic_connect_cb, bridge_arg);
 	nng_mqtt_set_disconnect_cb(*new, hybrid_quic_disconnect_cb, bridge_arg);
 
-	rv = nng_dialer_start(dialer, NNG_FLAG_ALLOC);
-	if (rv != 0) {
-		log_error("nng dialer start failed %d", rv);
-		return rv;
+	if (node->enable) {
+		rv = nng_dialer_start(*dialer, NNG_FLAG_ALLOC);
+		if (rv != 0) {
+			log_error("nng dialer start failed %d", rv);
+			return rv;
+		}
 	}
-
 	return 0;
 }
 #endif
@@ -927,7 +930,7 @@ static int
 bridge_quic_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge_param *bridge_arg)
 {
 	int           rv;
-	nng_dialer    dialer;
+	nng_dialer    *dialer = (nng_dialer *) nng_alloc(sizeof(nng_dialer));
 
 	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 		if ((rv = nng_mqttv5_quic_client_open(sock)) != 0) {
@@ -943,12 +946,14 @@ bridge_quic_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 
 	apply_sqlite_config(sock, node, "mqtt_quic_client.db");
 
-	if ((rv = nng_dialer_create(&dialer, *sock, node->address))) {
+	if ((rv = nng_dialer_create(dialer, *sock, node->address))) {
 		log_error("nng_dialer_create failed %d", rv);
 		return rv;
 	}
+	node->dialer = dialer;
+
 	nng_duration duration = (nng_duration) node->backoff_max * 1000;
-	nng_dialer_set(dialer, NNG_OPT_MQTT_RECONNECT_BACKOFF_MAX, &duration, sizeof(nng_duration));
+	nng_dialer_set(*dialer, NNG_OPT_MQTT_RECONNECT_BACKOFF_MAX, &duration, sizeof(nng_duration));
 
 	bridge_arg->client->sock   = *sock;
 	bridge_arg->cancel_timeout = node->cancel_timeout;
@@ -960,19 +965,20 @@ bridge_quic_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 	execone = 0;
 
 	// TCP bridge does not support hot update of connmsg
-	if (0 != nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg)) {
+	if (0 != nng_dialer_set_ptr(*dialer, NNG_OPT_MQTT_CONNMSG, connmsg)) {
 		log_warn("Error in updating connmsg");
 	}
 	if (0 != nng_socket_set_ptr(*sock, NNG_OPT_MQTT_CONNMSG, connmsg)) {
 		log_warn("Error in updating connmsg");
 	}
-	nano_set_quic_config(sock, node, &dialer);
+	nano_set_quic_config(sock, node, dialer);
 	nng_mqtt_set_connect_cb(*sock, bridge_quic_connect_cb, bridge_arg);
 	nng_mqtt_set_disconnect_cb(*sock, bridge_quic_disconnect_cb, bridge_arg);
-	rv = nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
-	if (rv != 0)
-		log_error("nng dialer start failed %d", rv);
-
+	if (node->enable) {
+		rv = nng_dialer_start(*dialer, NNG_FLAG_NONBLOCK);
+		if (rv != 0)
+			log_error("nng dialer start failed %d", rv);
+	}
 	return 0;
 }
 
@@ -980,7 +986,7 @@ static int
 bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge_param *bridge_arg)
 {
 	int           rv;
-	nng_dialer    dialer;
+	nng_dialer    *dialer = (nng_dialer *) nng_alloc(sizeof(nng_dialer));
 	log_debug("Quic bridge service start.\n");
 
 	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
@@ -998,16 +1004,18 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 	apply_sqlite_config(sock, node, "mqtt_quic_client.db");
 	nng_socket_set_string(*sock, NNG_OPT_SOCKNAME, node->name);
 
-	if ((rv = nng_dialer_create(&dialer, *sock, node->address))) {
+	if ((rv = nng_dialer_create(dialer, *sock, node->address))) {
 		log_error("nng_dialer_create failed %d", rv);
 		return rv;
 	}
+	node->dialer = dialer;
+
 	nng_duration duration = (nng_duration) node->backoff_max * 1000;
-	nng_dialer_set(dialer, NNG_OPT_MQTT_RECONNECT_BACKOFF_MAX, &duration, sizeof(nng_duration));
-	nng_dialer_set_bool(dialer, NNG_OPT_QUIC_ENABLE_0RTT, true);
+	nng_dialer_set(*dialer, NNG_OPT_MQTT_RECONNECT_BACKOFF_MAX, &duration, sizeof(nng_duration));
+	nng_dialer_set_bool(*dialer, NNG_OPT_QUIC_ENABLE_0RTT, true);
 	if (node->multi_stream) {
 		//better remove the option from dialer
-		nng_dialer_set_bool(dialer, NNG_OPT_QUIC_ENABLE_MULTISTREAM, true);
+		nng_dialer_set_bool(*dialer, NNG_OPT_QUIC_ENABLE_MULTISTREAM, true);
 		nng_socket_set_bool(*sock, NNG_OPT_QUIC_ENABLE_MULTISTREAM, true);
 	}
 	bridge_arg->client = nng_mqtt_client_alloc(*sock, &send_callback, true);
@@ -1018,20 +1026,20 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 	bridge_arg->connmsg = connmsg;
 
 	// QUIC bridge does not support hot update of connmsg as well
-	if (0 != nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg)) {
+	if (0 != nng_dialer_set_ptr(*dialer, NNG_OPT_MQTT_CONNMSG, connmsg)) {
 		log_warn("Error in updating connmsg");
 	}
 	if (0 != nng_socket_set_ptr(*sock, NNG_OPT_MQTT_CONNMSG, connmsg)) {
 		log_warn("Error in updating connmsg");
 	}
-	nano_set_quic_config(sock, node, &dialer);
+	nano_set_quic_config(sock, node, dialer);
 	nng_mqtt_set_connect_cb(*sock, bridge_quic_connect_cb, bridge_arg);
 	nng_mqtt_set_disconnect_cb(*sock, bridge_quic_disconnect_cb, bridge_arg);
-
-	rv = nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
-	if (rv != 0)
-		log_error("nng dialer start failed %d", rv);
-
+	if (node->enable) {
+		rv = nng_dialer_start(*dialer, NNG_FLAG_NONBLOCK);
+		if (rv != 0)
+			log_error("nng dialer start failed %d", rv);
+	}
 	return rv;
 }
 #endif
@@ -1110,7 +1118,7 @@ static int
 bridge_tcp_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge_param *bridge_arg)
 {
 	int           rv;
-	nng_dialer    dialer;
+	nng_dialer    *dialer = (nng_dialer *) nng_alloc(sizeof(nng_dialer));
 
 	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 		if ((rv = nng_mqttv5_client_open(sock)) != 0) {
@@ -1126,17 +1134,19 @@ bridge_tcp_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 
 	apply_sqlite_config(sock, node, "mqtt_client.db");
 
-	if ((rv = nng_dialer_create(&dialer, *sock, node->address))) {
+	if ((rv = nng_dialer_create(dialer, *sock, node->address))) {
 		log_error("nng_dialer_create failed %d", rv);
 		return rv;
 	}
+	node->dialer = dialer;
+
 	nng_duration duration = (nng_duration) node->backoff_max * 1000;
-	nng_dialer_set(dialer, NNG_OPT_MQTT_RECONNECT_BACKOFF_MAX, &duration, sizeof(nng_duration));
+	nng_dialer_set(*dialer, NNG_OPT_MQTT_RECONNECT_BACKOFF_MAX, &duration, sizeof(nng_duration));
 
 
 #ifdef NNG_SUPP_TLS
 	if (node->tls.enable) {
-		if ((rv = init_dialer_tls(dialer, node->tls.ca, node->tls.cert,
+		if ((rv = init_dialer_tls(*dialer, node->tls.ca, node->tls.cert,
 		         node->tls.key, node->tls.key_password)) != 0) {
 			log_error("init_dialer_tls failed %d", rv);
 			return rv;
@@ -1152,7 +1162,7 @@ bridge_tcp_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	bridge_arg->connmsg = connmsg;
 
 	// TCP bridge does not support hot update of connmsg
-	if (0 != nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg)) {
+	if (0 != nng_dialer_set_ptr(*dialer, NNG_OPT_MQTT_CONNMSG, connmsg)) {
 		log_warn("Error in updating connmsg");
 	}
 	if (0 != nng_socket_set_ptr(*sock, NNG_OPT_MQTT_CONNMSG, connmsg)) {
@@ -1164,7 +1174,9 @@ bridge_tcp_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	nng_socket_set_uint64(*sock, NNG_OPT_MQTT_RETRY_WAIT_TIME, retry_wait);
 	nng_mqtt_set_connect_cb(*sock, NULL, NULL);
 	nng_mqtt_set_disconnect_cb(*sock, bridge_tcp_disconnect_cb, bridge_arg);
-	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
+	if (node->enable) {
+		nng_dialer_start(*dialer, NNG_FLAG_NONBLOCK);
+	}
 
 	if (bridge_arg->config->sub_count > 0) {
 		nng_mqtt_topic_qos *topic_qos =
@@ -1205,7 +1217,7 @@ static int
 bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge_param *bridge_arg)
 {
 	int           rv;
-	nng_dialer    dialer;
+	nng_dialer    *dialer = (nng_dialer *) nng_alloc(sizeof(nng_dialer));
 
 	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 		if ((rv = nng_mqttv5_client_open(sock)) != 0) {
@@ -1222,42 +1234,42 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	apply_sqlite_config(sock, node, "mqtt_client.db");
 	nng_socket_set_string(*sock, NNG_OPT_SOCKNAME, node->name);
 
-	if ((rv = nng_dialer_create(&dialer, *sock, node->address))) {
+	if ((rv = nng_dialer_create(dialer, *sock, node->address))) {
 		log_error("nng_dialer_create failed %d", rv);
 		return rv;
 	}
-	node->dialer = &dialer;
+	node->dialer = dialer;
 
 	nng_duration duration = (nng_duration) node->backoff_max * 1000;
-	nng_dialer_set(dialer, NNG_OPT_MQTT_RECONNECT_BACKOFF_MAX, &duration, sizeof(nng_duration));
+	nng_dialer_set(*dialer, NNG_OPT_MQTT_RECONNECT_BACKOFF_MAX, &duration, sizeof(nng_duration));
 
 	if (node->tcp.enable) {
 		// set bridge dialer tcp options
 		bool nodelay   = node->tcp.nodelay == 1 ? true : false;
 		bool keepalive = node->tcp.keepalive == 1 ? true : false;
 		nng_dialer_set(
-		    dialer, NNG_OPT_TCP_NODELAY, &nodelay, sizeof(bool));
+		    *dialer, NNG_OPT_TCP_NODELAY, &nodelay, sizeof(bool));
 		nng_dialer_set(
-		    dialer, NNG_OPT_TCP_KEEPALIVE, &keepalive, sizeof(bool));
+		    *dialer, NNG_OPT_TCP_KEEPALIVE, &keepalive, sizeof(bool));
 		if (node->tcp.keepalive == 1) {
-			nng_dialer_set(dialer, NNG_OPT_TCP_QUICKACK,
+			nng_dialer_set(*dialer, NNG_OPT_TCP_QUICKACK,
 			    &(node->tcp.quickack), sizeof(int));
-			nng_dialer_set(dialer, NNG_OPT_TCP_KEEPIDLE,
+			nng_dialer_set(*dialer, NNG_OPT_TCP_KEEPIDLE,
 			    &(node->tcp.keepidle), sizeof(int));
-			nng_dialer_set(dialer, NNG_OPT_TCP_KEEPINTVL,
+			nng_dialer_set(*dialer, NNG_OPT_TCP_KEEPINTVL,
 			    &(node->tcp.keepintvl), sizeof(int));
-			nng_dialer_set(dialer, NNG_OPT_TCP_KEEPCNT,
+			nng_dialer_set(*dialer, NNG_OPT_TCP_KEEPCNT,
 			    &(node->tcp.keepcnt), sizeof(int));
-			nng_dialer_set(dialer, NNG_OPT_TCP_SENDTIMEO,
+			nng_dialer_set(*dialer, NNG_OPT_TCP_SENDTIMEO,
 			    &(node->tcp.sendtimeo), sizeof(int));
-			nng_dialer_set(dialer, NNG_OPT_TCP_RECVTIMEO,
+			nng_dialer_set(*dialer, NNG_OPT_TCP_RECVTIMEO,
 			    &(node->tcp.recvtimeo), sizeof(int));
 		}
 	}
 
 #ifdef NNG_SUPP_TLS
 	if (node->tls.enable) {
-		if ((rv = init_dialer_tls(dialer, node->tls.ca, node->tls.cert,
+		if ((rv = init_dialer_tls(*dialer, node->tls.ca, node->tls.cert,
 		         node->tls.key, node->tls.key_password)) != 0) {
 			log_error("init_dialer_tls failed %d", rv);
 			return rv;
@@ -1276,7 +1288,7 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	bridge_arg->connmsg = connmsg;
 
 	// TCP bridge does not support hot update of connmsg
-	if (0 != nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, connmsg)) {
+	if (0 != nng_dialer_set_ptr(*dialer, NNG_OPT_MQTT_CONNMSG, connmsg)) {
 		log_warn("Error in updating connmsg");
 	}
 	if (0 != nng_socket_set_ptr(*sock, NNG_OPT_MQTT_CONNMSG, connmsg)) {
@@ -1287,8 +1299,8 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	}
 	nng_mqtt_set_connect_cb(*sock, bridge_tcp_connect_cb, bridge_arg);
 	nng_mqtt_set_disconnect_cb(*sock, bridge_tcp_disconnect_cb, bridge_arg);
-
-	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
+	if (node->enable)
+		nng_dialer_start(*dialer, NNG_FLAG_NONBLOCK);
 
 	return 0;
 }
