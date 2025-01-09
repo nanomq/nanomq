@@ -3825,6 +3825,7 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 		node->parallel = parallel;
 		nng_mtx_unlock(node->mtx);
 
+		log_info("Bridge Reload with %.*s", msg->data_len, msg->data);
 		// restart bridge client, parameters: config, node, node->sock
 		if (0 != bridge_reload(node->sock, config, node)) {
 			// Error might happened in reload bridge
