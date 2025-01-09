@@ -836,7 +836,7 @@ process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "data_span") == 0) {
 			ret = get_can_data_span(msg, uri_ct->params,
-			    uri_ct->params_count, NULL, NULL, config->broker_sock);
+			    uri_ct->params_count, NULL, NULL, hconfig->broker_sock);
 		} else if (uri_ct->sub_count == 2 &&
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "prometheus") == 0) {
