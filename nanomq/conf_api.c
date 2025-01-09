@@ -429,6 +429,7 @@ set_reload_config(cJSON *json, conf *config)
 	uint32_t qos_duration;
 	float    backoff;
 	bool     enable_mqtt_stream;
+	bool     bridge_mode;
 
 	cJSON *item;
 	int    rv;
