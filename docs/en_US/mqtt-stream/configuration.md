@@ -1,6 +1,8 @@
 # Enable the MQTT STREAM through the configuration file
 In this section, we will describe how to enable MQTT streams by configuring the nanomq.conf configuration file.
 
+Since 0.23.0, The MQTT stream of NanoMQ is a value add-on feature for commercial customer. Please contact us if you need a light-weight Messaging queue data persistence.
+
 ## Configuration
 Here is a simple example MQTT STREAM configuration.
 ```

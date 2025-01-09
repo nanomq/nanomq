@@ -24,6 +24,19 @@ static char *key_arr[] = {
 	"Payload",
 };
 
+#if defined(SUPP_TIMESCALEDB)
+static char *ts_type_arr[] = {
+	" INT",
+	" INT",
+	" TEXT",
+	" TEXT",
+	" TEXT",
+	" TEXT",
+	" TIMESTAMPTZ NOT NULL",
+	" TEXT",
+};
+#endif
+
 static char *type_arr[] = {
 	" INT",
 	" INT",
@@ -34,7 +47,6 @@ static char *type_arr[] = {
 	" INT",
 	" TEXT",
 };
-
 
 int
 nano_client_publish(nng_socket *sock, const char *topic, uint8_t *payload,
@@ -194,6 +206,177 @@ nanomq_client_sqlite(conf_rule *cr, bool init_last)
 
 #endif
 
+
+#if defined(SUPP_POSTGRESQL) || defined(SUPP_TIMESCALEDB)
+#include <libpq-fe.h>
+#endif
+
+#if defined(SUPP_TIMESCALEDB)
+
+static int ts_finish_with_error(PGconn *conn, rule *rules, int index)
+{
+	log_error("timescaledb %s", PQerrorMessage(conn));
+	PQfinish(conn);
+	rule *r = &rules[index];
+	rule_timescaledb_free(r->timescaledb);
+	rule_free(r);
+	cvector_erase(rules, index);
+	return -1;
+}
+
+int
+nanomq_client_timescaledb(conf_rule *cr, bool init_last)
+{
+	int      rc = 0;
+
+	char timescaledb_table[1024];
+	for (int i = 0; i < cvector_size(cr->rules); i++) {
+		if (init_last && i != cvector_size(cr->rules) - 1) {
+			continue;
+		}
+		if (RULE_FORWORD_TIMESCALEDB == cr->rules[i].forword_type) {
+			int  index      = 0;
+			char table[256] = { 0 };
+
+			snprintf(table, 128,
+			    "CREATE TABLE IF NOT EXISTS %s("
+			    "idx BIGSERIAL",
+			    cr->rules[i].timescaledb->table);
+
+			char *err_msg = NULL;
+			bool  first   = true;
+
+			for (; index < 8; index++) {
+				if (!cr->rules[i].flag[index])
+					continue;
+
+				strcat(table, ", ");
+				strcat(table,
+				    cr->rules[i].as[index]
+				        ? cr->rules[i].as[index]
+				        : key_arr[index]);
+				strcat(table, ts_type_arr[index]);
+			}
+			strcat(table, ");");
+
+			rule_timescaledb *timescaledb = cr->rules[i].timescaledb;
+
+			char conninfo[256] = { 0 };
+			snprintf(conninfo , 128, "dbname=postgres user=%s password=%s host=%s port=5432", timescaledb->username, timescaledb->password, timescaledb->host);
+			PGconn *conn = PQconnectdb(conninfo);
+
+			if (PQstatus(conn) != CONNECTION_OK) {
+				rc = ts_finish_with_error(conn, cr->rules, i--);
+				continue;
+			}
+
+			timescaledb->conn = conn;
+			PGresult *res = PQexec(conn, table);
+
+			if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+				rc = ts_finish_with_error(conn, cr->rules, i--);
+				continue;
+			}
+
+			PQclear(res);
+
+			char hypertable[256] = {0};
+			snprintf(hypertable, 128,
+			    "SELECT create_hypertable('%s', 'timestamp', if_not_exists => TRUE);",
+			    cr->rules[i].timescaledb->table);
+
+			res = PQexec(conn, hypertable);
+			if (PQresultStatus(res) != PGRES_TUPLES_OK) {
+				rc = ts_finish_with_error(conn, cr->rules, i--);
+				continue;
+			}
+
+			PQclear(res);
+
+		}
+	}
+
+	return rc;
+}
+
+#endif
+
+#if defined(SUPP_POSTGRESQL)
+
+static int pg_finish_with_error(PGconn *conn, rule *rules, int index)
+{
+	log_error("Postgresql %s", PQerrorMessage(conn));
+	PQfinish(conn);
+	rule *r = &rules[index];
+	rule_postgresql_free(r->postgresql);
+	rule_free(r);
+	cvector_erase(rules, index);
+	return -1;
+}
+
+int
+nanomq_client_postgresql(conf_rule *cr, bool init_last)
+{
+	int      rc = 0;
+
+	char postgresql_table[1024];
+	for (int i = 0; i < cvector_size(cr->rules); i++) {
+		if (init_last && i != cvector_size(cr->rules) - 1) {
+			continue;
+		}
+		if (RULE_FORWORD_POSTGRESQL == cr->rules[i].forword_type) {
+			int  index      = 0;
+			char table[256] = { 0 };
+
+			snprintf(table, 128,
+			    "CREATE TABLE IF NOT EXISTS %s("
+			    "idx SERIAL PRIMARY KEY",
+			    cr->rules[i].postgresql->table);
+
+			char *err_msg = NULL;
+			bool  first   = true;
+
+			for (; index < 8; index++) {
+				if (!cr->rules[i].flag[index])
+					continue;
+
+				strcat(table, ", ");
+				strcat(table,
+				    cr->rules[i].as[index]
+				        ? cr->rules[i].as[index]
+				        : key_arr[index]);
+				strcat(table, type_arr[index]);
+			}
+			strcat(table, ");");
+
+			rule_postgresql *postgresql = cr->rules[i].postgresql;
+
+			char conninfo[256] = { 0 };
+			snprintf(conninfo , 128, "dbname=postgres user=%s password=%s host=%s port=5432", postgresql->username,postgresql->password, postgresql->host);
+			PGconn *conn = PQconnectdb(conninfo);
+
+			if (PQstatus(conn) != CONNECTION_OK) {
+				rc = pg_finish_with_error(conn, cr->rules, i--);
+				continue;
+			}
+
+			postgresql->conn = conn;
+			PGresult *res = PQexec(conn, table);
+			PQclear(res);
+
+			if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+				rc = pg_finish_with_error(conn, cr->rules, i--);
+				continue;
+			}
+
+
+		}
+	}
+
+	return rc;
+}
+
+#endif
 
 #if defined(SUPP_MYSQL)
 #include <mysql.h>
