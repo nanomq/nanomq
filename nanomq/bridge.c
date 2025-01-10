@@ -684,13 +684,12 @@ hybrid_quic_client(bridge_param *bridge_arg)
 	nng_mqtt_set_connect_cb(*new, hybrid_quic_connect_cb, bridge_arg);
 	nng_mqtt_set_disconnect_cb(*new, hybrid_quic_disconnect_cb, bridge_arg);
 
-	if (node->enable) {
-		rv = nng_dialer_start(*dialer, NNG_FLAG_ALLOC);
-		if (rv != 0) {
-			log_error("nng dialer start failed %d", rv);
-			return rv;
-		}
+	rv = nng_dialer_start(*dialer, NNG_FLAG_ALLOC);
+	if (rv != 0) {
+		log_error("nng dialer start failed %d", rv);
+		return rv;
 	}
+
 	return 0;
 }
 #endif
@@ -974,11 +973,11 @@ bridge_quic_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 	nano_set_quic_config(sock, node, dialer);
 	nng_mqtt_set_connect_cb(*sock, bridge_quic_connect_cb, bridge_arg);
 	nng_mqtt_set_disconnect_cb(*sock, bridge_quic_disconnect_cb, bridge_arg);
-	if (node->enable) {
-		rv = nng_dialer_start(*dialer, NNG_FLAG_NONBLOCK);
-		if (rv != 0)
-			log_error("nng dialer start failed %d", rv);
-	}
+
+	rv = nng_dialer_start(*dialer, NNG_FLAG_NONBLOCK);
+	if (rv != 0)
+		log_error("nng dialer start failed %d", rv);
+
 	return 0;
 }
 
@@ -1035,11 +1034,11 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 	nano_set_quic_config(sock, node, dialer);
 	nng_mqtt_set_connect_cb(*sock, bridge_quic_connect_cb, bridge_arg);
 	nng_mqtt_set_disconnect_cb(*sock, bridge_quic_disconnect_cb, bridge_arg);
-	if (node->enable) {
-		rv = nng_dialer_start(*dialer, NNG_FLAG_NONBLOCK);
-		if (rv != 0)
-			log_error("nng dialer start failed %d", rv);
-	}
+
+	rv = nng_dialer_start(*dialer, NNG_FLAG_NONBLOCK);
+	if (rv != 0)
+		log_error("nng dialer start failed %d", rv);
+
 	return rv;
 }
 #endif
@@ -1174,9 +1173,9 @@ bridge_tcp_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	nng_socket_set_uint64(*sock, NNG_OPT_MQTT_RETRY_WAIT_TIME, retry_wait);
 	nng_mqtt_set_connect_cb(*sock, NULL, NULL);
 	nng_mqtt_set_disconnect_cb(*sock, bridge_tcp_disconnect_cb, bridge_arg);
-	if (node->enable) {
-		nng_dialer_start(*dialer, NNG_FLAG_NONBLOCK);
-	}
+	rv = nng_dialer_start(*dialer, NNG_FLAG_NONBLOCK);
+	if (rv != 0)
+		log_warn("nng_dialer_start %d %s", rv, node->clientid);
 
 	if (bridge_arg->config->sub_count > 0) {
 		nng_mqtt_topic_qos *topic_qos =
@@ -1299,8 +1298,12 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	}
 	nng_mqtt_set_connect_cb(*sock, bridge_tcp_connect_cb, bridge_arg);
 	nng_mqtt_set_disconnect_cb(*sock, bridge_tcp_disconnect_cb, bridge_arg);
-	if (node->enable)
-		nng_dialer_start(*dialer, NNG_FLAG_NONBLOCK);
+
+	rv = nng_dialer_start(*dialer, NNG_FLAG_NONBLOCK);
+	if (rv != 0) {
+		log_error("nng dialer start failed %d", rv);
+		return rv;
+	}
 
 	return 0;
 }
