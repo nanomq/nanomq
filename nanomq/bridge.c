@@ -1572,14 +1572,9 @@ bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 	}
 #endif
 
-	nng_msg    *dismsg;
-	if ((dismsg = create_disconnect_msg()) == NULL)
-		return -1;
-
 	nng_socket *tsock;
 	nng_socket *new = (nng_socket *) nng_alloc(sizeof(nng_socket));
 	if (new == NULL) {
-		nng_msg_free(dismsg);
 		return -1;
 	}
 
@@ -1590,10 +1585,6 @@ bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 
 	// no point to wait for ACK from last aio send of previous socket.
 	nng_aio_finish_error(client->send_aio, NNG_ECANCELED);
-
-	// Wait for the disconnect msg be sent
-	nng_sendmsg(*sock, dismsg, NNG_FLAG_ALLOC);
-	log_info("bridge sent disconnect to broker");
 
 	nng_mtx_lock(reload_lock);
 	node->enable = false;
