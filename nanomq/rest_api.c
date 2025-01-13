@@ -3885,7 +3885,7 @@ put_mqtt_bridge_switch(http_msg *msg, const char *name)
 			nng_dialer *dialer = node->dialer;
 			if (node->enable == false && bridge_switch == true) {
 				nng_dialer_set_bool(*dialer, NNG_OPT_BRIDGE_SET_EP_CLOSED, false);
-				if (nng_dialer_start(*dialer, NNG_FLAG_NONBLOCK) != 0) {
+				if (nng_dialer_start(*dialer, NNG_FLAG_ALLOC) != 0) {
 					log_warn("turn on bridge %s failed!", name);
 					found = false;
 				}
