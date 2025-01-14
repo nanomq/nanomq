@@ -3903,7 +3903,9 @@ put_mqtt_bridge_switch(http_msg *msg, const char *name)
 			}
 		}
 	}
-
+	// NNG_ENOENT dialer not found\
+	// NNG_ENOMEM no mem
+	// NNG_ESTATE
 	if (found && rv == 0) {
 		cJSON *res_obj = cJSON_CreateObject();
 		cJSON_AddNumberToObject(res_obj, "code", SUCCEED);

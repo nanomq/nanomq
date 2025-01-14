@@ -741,13 +741,7 @@ server_cb(void *arg)
 			work->msg = smsg;
 
 			// Customized bridge logic first
-			if (work->config->bridge_mode ||
-				topic_filter("ecp/edgeagent/#",
-					work->pub_packet->var_header.publish.topic_name.body) ||
-				topic_filter("ecp/fileupload/#",
-					work->pub_packet->var_header.publish.topic_name.body) ||
-				topic_filter(VIN_TOPIC,
-					work->pub_packet->var_header.publish.topic_name.body)) {
+			if (work->config->bridge_mode) {
 				bridge_pub_handler(work);
 #if defined(SUPP_AWS_BRIDGE)
 				aws_bridge_forward(work);
