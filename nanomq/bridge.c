@@ -587,8 +587,9 @@ hybrid_tcp_client(bridge_param *bridge_arg)
 		nng_close(*tsock);
 		nng_free(tsock, sizeof(nng_socket));
 	}
-	node->sock         = (void *) new;
-	bridge_arg->sock   = new;
+	node->sock                 = (void *) new;
+	bridge_arg->sock           = new;
+	bridge_arg->cancel_timeout = node->cancel_timeout;
 
 	// TCP bridge does not support hot update of connmsg
 	if (0 != nng_dialer_set_ptr(*dialer, NNG_OPT_MQTT_CONNMSG, connmsg)) {
@@ -676,8 +677,9 @@ hybrid_quic_client(bridge_param *bridge_arg)
 		nng_close(*tsock);
 		nng_free(tsock, sizeof(nng_socket));
 	}
-	node->sock         = (void *) new;
-	bridge_arg->sock   = new;
+	node->sock                 = (void *) new;
+	bridge_arg->sock           = new;
+	bridge_arg->cancel_timeout = node->cancel_timeout;
 
 	// TCP bridge does not support hot update of connmsg
 	nng_dialer_set_ptr(*dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
@@ -962,9 +964,9 @@ bridge_quic_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 	bridge_arg->cancel_timeout = node->cancel_timeout;
 
 	// create a CONNECT message
-	nng_msg *connmsg = create_connect_msg(node);
-	bridge_arg->connmsg = connmsg;
-
+	nng_msg *connmsg           = create_connect_msg(node);
+	bridge_arg->connmsg        = connmsg;
+	bridge_arg->cancel_timeout = node->cancel_timeout;
 	execone = 0;
 
 	// TCP bridge does not support hot update of connmsg
@@ -1027,8 +1029,9 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 	bridge_arg->cancel_timeout = node->cancel_timeout;
 
 	// create a CONNECT message
-	nng_msg *connmsg = create_connect_msg(node);
-	bridge_arg->connmsg = connmsg;
+	nng_msg *connmsg           = create_connect_msg(node);
+	bridge_arg->connmsg        = connmsg;
+	bridge_arg->cancel_timeout = node->cancel_timeout;
 
 	// QUIC bridge does not support hot update of connmsg as well
 	if (0 != nng_dialer_set_ptr(*dialer, NNG_OPT_MQTT_CONNMSG, connmsg)) {
@@ -1165,9 +1168,9 @@ bridge_tcp_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	bridge_arg->cancel_timeout = node->cancel_timeout;
 
 	// create a CONNECT message
-	nng_msg *connmsg = create_connect_msg(node);
-	bridge_arg->connmsg = connmsg;
-
+	nng_msg *connmsg           = create_connect_msg(node);
+	bridge_arg->connmsg        = connmsg;
+	bridge_arg->cancel_timeout = node->cancel_timeout;
 	// TCP bridge does not support hot update of connmsg
 	if (0 != nng_dialer_set_ptr(*dialer, NNG_OPT_MQTT_CONNMSG, connmsg)) {
 		log_warn("Error in updating connmsg");
@@ -1296,6 +1299,7 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	// create a CONNECT message
 	nng_msg *connmsg = create_connect_msg(node);
 	bridge_arg->connmsg = connmsg;
+	bridge_arg->cancel_timeout = node->cancel_timeout;
 
 	// TCP bridge does not support hot update of connmsg
 	if (0 != nng_dialer_set_ptr(*dialer, NNG_OPT_MQTT_CONNMSG, connmsg)) {
