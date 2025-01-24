@@ -83,6 +83,13 @@ static client_app apps[] = {
 	    .func = iceoryx_start,
 	},
 #endif
+
+#if defined(ENABLE_FILETRANSFER)
+	{
+	    .name = "file_transfer",
+	    .func = file_transfer,
+	},
+#endif
 };
 
 static void
@@ -102,7 +109,7 @@ print_avail_apps(void)
 		printf("   * %s\n", apps[i].name);
 	}
 	printf("\n");
-	printf("Copyright 2022 EMQ Edge Computing Team\n");
+	printf("Copyright 2025 EMQ Edge Computing Team\n");
 	printf("\n");
 }
 
