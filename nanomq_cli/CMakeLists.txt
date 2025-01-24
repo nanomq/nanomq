@@ -45,6 +45,14 @@ if(BUILD_DDS_PROXY)
   file(GLOB CLI_SOURCE ${CLI_SOURCE} "dds2mqtt/*.c")
 endif(BUILD_DDS_PROXY)
 
+if (ENABLE_FILETRANSFER)
+    ADD_DEFINITIONS(-DENABLE_FILETRANSFER)
+    include_directories(${CMAKE_SOURCE_DIR}/nanomq/extern/include)
+	set(CLI_SOURCE ${CLI_SOURCE}
+		${CMAKE_SOURCE_DIR}/nanomq/extern/file_transfer_nano.c
+		${CMAKE_SOURCE_DIR}/nanomq/extern/aes_gcm.c)
+endif()
+
 add_executable(nanomq_cli ${CLI_SOURCE})
 
 if(BUILD_NFTP)
