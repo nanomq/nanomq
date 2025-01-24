@@ -6,5 +6,6 @@
 int CalcFileMD5(char *file_name, char *md5_sum);
 int CalcMD5n(char *binary, size_t len, char *tmpfpath, char **md5res);
 
+int file_transfer(int argc, char **argv);
 
 #endif

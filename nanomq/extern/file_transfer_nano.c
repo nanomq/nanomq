@@ -28,7 +28,6 @@
  * https://github.com/emqx/MQTT-Client-Examples/pull/112#discussion_r1253421492
  */
 
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -44,8 +43,8 @@
 #include "nng/supplemental/nanolib/cJSON.h"
 
 #include "file_transfer.h"
-
 #include "aes_gcm.h"
+
 static char *key_tmp = "a0958ba0214d6fa6";
 
 #define DEBUG                   1
@@ -62,7 +61,7 @@ static char *key_tmp = "a0958ba0214d6fa6";
 //
 // Publish a message to the given topic and with the given QoS.
 int
-client_publish(nng_socket sock, const char *topic, uint8_t *payload, uint32_t payload_len, uint8_t qos, bool verbose)
+ft_client_publish(nng_socket sock, const char *topic, uint8_t *payload, uint32_t payload_len, uint8_t qos, bool verbose)
 {
 	int rv;
 
@@ -185,10 +184,6 @@ static int publish_file(nng_socket *sock, FILE *fp, char *file_name,
 		return FREAD_ERROR;
 	}
 
-	if (DEBUG) {
-		log_info("Publishing file to topic %s", topic);
-	}
-
 	if (is_encrypt) {
 		char *tag;
 		payload = aes_gcm_encrypt(file_bin, file_size, key, &tag, &payload_len);
@@ -205,7 +200,7 @@ static int publish_file(nng_socket *sock, FILE *fp, char *file_name,
 		payload_len = file_size;
 	}
 
-	rc = client_publish(*sock, topic, (uint8_t *)payload, (uint32_t)payload_len, qos, true);
+	rc = ft_client_publish(*sock, topic, (uint8_t *)payload, (uint32_t)payload_len, qos, true);
 	if (rc != 0) {
 		log_warn("Failed to publish message, return code %d", rc);
 		return rc;
@@ -279,7 +274,7 @@ connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	// get connect reason
 	nng_pipe_get_int(p, NNG_OPT_MQTT_CONNECT_REASON, &reason);
 	log_info("%s: connected! RC [%d] \n", __FUNCTION__, reason);
-	nng_socket *sock = arg;
+	nng_socket *sock = (nng_socket *)arg;
 
 	// create a SUBSCRIBE message
 	nng_mqtt_topic_qos subscriptions[] = {
@@ -287,7 +282,7 @@ connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 		    .qos   = 1,
 		    .topic = {
 				.buf    = (uint8_t *)FT_SUB_TOPIC,
-		        .length = strlen(FT_SUB_TOPIC),
+		        .length = (uint32_t)strlen(FT_SUB_TOPIC),
 			},
 			.nolocal         = 1,
 			.rap             = 1,
@@ -303,8 +298,8 @@ connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 
 //
 // Connect to the given address.
-int
-client_connect(nng_socket *sock, const char *url)
+static int
+ft_client_connect(nng_socket *sock, const char *url)
 {
 	nng_dialer dialer;
 	int        rv;
@@ -323,11 +318,14 @@ client_connect(nng_socket *sock, const char *url)
 	nng_mqtt_msg_alloc(&connmsg, 0);
 	nng_mqtt_msg_set_packet_type(connmsg, NNG_MQTT_CONNECT);
 	nng_mqtt_msg_set_connect_proto_version(connmsg, 5);
-	nng_mqtt_msg_set_connect_keep_alive(connmsg, 600);
+	nng_mqtt_msg_set_connect_keep_alive(connmsg, 30);
 	nng_mqtt_msg_set_connect_clean_session(connmsg, true);
 	nng_mqtt_msg_set_connect_client_id(connmsg, "file-transfer-client");
 
 	property * p = mqtt_property_alloc();
+	property *maxsz_prop = mqtt_property_set_value_u32(
+			MAXIMUM_PACKET_SIZE, 255*1024*1024);
+	mqtt_property_append(p, maxsz_prop);
 	nng_mqtt_msg_set_connect_property(connmsg, p);
 	property *will_prop = mqtt_property_alloc();
 	nng_mqtt_msg_set_connect_will_property(connmsg, will_prop);
@@ -390,7 +388,7 @@ static int publish_send_result(nng_socket *sock,
 		log_info("Payload:\n%s\n", payload);
 	}
 
-	rc = client_publish(*sock, topic, payload, strlen(payload), 1, true);
+	rc = ft_client_publish(*sock, topic, payload, strlen(payload), 1, true);
 	if (rc != 0) {
 		log_warn("Failed to publish result message, return code %d\n", rc);
 		return -1;
@@ -479,7 +477,7 @@ static int process_msg(nng_socket *sock, nng_msg *msg, bool verbose)
 		}
 		cJSON_Delete(cjson_objs);
 		nng_msg_free(msg);
-		return -1;
+		return -2;
 	} else {
 		bool is_encrypt = true;
 		int  fileCount = cJSON_GetArraySize(cjson_filepaths);
@@ -586,8 +584,7 @@ static int process_msg(nng_socket *sock, nng_msg *msg, bool verbose)
 	return 0;
 }
 
-
-void start_listening(nng_socket *sock)
+static void start_listening(nng_socket *sock)
 {
 	int rv;
 
@@ -596,7 +593,7 @@ void start_listening(nng_socket *sock)
 		    .qos   = 1,
 		    .topic = { 
 				.buf    = (uint8_t *)FT_SUB_TOPIC,
-		        .length = strlen(FT_SUB_TOPIC), 
+		        .length = (uint32_t)strlen(FT_SUB_TOPIC), 
 			},
 			.nolocal         = 1,
 			.rap             = 1,
@@ -630,26 +627,23 @@ void start_listening(nng_socket *sock)
 	return;
 }
 
-int file_transfer(int argc, char *argv[]) {
+int file_transfer(int argc, char **argv) {
 	int rc;
 	nng_socket sock;
 
+	if (argc != 3) {
+		printf("example: ./nanomq_cli file_transfer mqtt-tcp://127.0.0.1:1883\n");
+		return 0;
+	}
+	log_set_level(3);
+	log_add_console(3, NULL);
+
 	// Construct address string from host and port
-	char address[2048];
-	rc = snprintf(address, 2048, "mqtt%s", *argv+strlen("nmq"));
-	if (rc < 0 || rc >= 2048) {
-		log_warn("Failed to construct address string\n");
-		log_warn("Something wrong occurred. File transfer thread exiting...\n");
-		return -1;
-	}
+	char *address = argv[2];
+	ft_client_connect(&sock, address);
+	log_info("Connected to MQTT Broker: %s!\n", address);
 
-	client_connect(&sock, address);
-
-	if (DEBUG) {
-		log_info("Connected to MQTT Broker: %s!\n", address);
-	}
-	
-	(void) start_listening(&sock);
+	start_listening(&sock);
 
 	return -1;
 }
