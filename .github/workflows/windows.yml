@@ -37,7 +37,7 @@ jobs:
           Compress-Archive -Path install/* -DestinationPath $pkg_name
           mv $pkg_name ./install/ 
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: github.event_name == 'release'
         with:
           name: nanomq-${{ github.event.release.tag_name }}-windows-x86_64.zip
