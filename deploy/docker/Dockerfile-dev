@@ -1,4 +1,4 @@
-FROM gcc:11 as builder
+FROM gcc:11 AS builder
 
 COPY . /nanomq
 
@@ -50,5 +50,3 @@ RUN apt update && DEBIAN_FRONTEND=noninteractive apt install -y --no-install-rec
 EXPOSE 1883 8883 8081
 
 ENTRYPOINT ["/usr/bin/docker-entrypoint.sh"]
-
-CMD ["--conf", "/etc/nanomq.conf"]
