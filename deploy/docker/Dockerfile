@@ -1,4 +1,4 @@
-FROM alpine:3.16 as builder
+FROM alpine:3.16 AS builder
 
 COPY . /nanomq
 
@@ -24,5 +24,3 @@ RUN ln -s /usr/local/nanomq/nanomq /usr/bin/nanomq && \
 EXPOSE 1883
 
 ENTRYPOINT ["/usr/bin/docker-entrypoint.sh"]
-
-CMD ["--conf", "/etc/nanomq.conf"]

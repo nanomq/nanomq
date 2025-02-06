@@ -13,5 +13,3 @@ RUN apt-get update \
 EXPOSE 1883 8883 8081
 
 ENTRYPOINT ["/usr/bin/docker-entrypoint.sh"]
-
-CMD ["--conf", "/etc/nanomq.conf"]
