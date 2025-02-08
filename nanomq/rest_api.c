@@ -56,7 +56,8 @@
 #endif
 
 typedef int (handle_mqtt_msg_cb) (cJSON *, nng_socket *);
-#define METRICS_DATA_SIZE 2048
+#define BROKER_DATA_SIZE 2048
+#define BRIDGE_DATA_SIZE 1024
 
 typedef struct {
 	char *key;
@@ -1218,6 +1219,18 @@ typedef struct {
 	float    cpu_percent;
 } client_stats;
 
+typedef struct {
+	const char *name;
+	uint32_t    reconnections;
+	uint32_t    message_received;
+	uint32_t    message_sent;
+	uint32_t    uplink_message_dropped;
+	uint32_t    downlink_message_dropped;
+	uint64_t    bytes_sent;
+	uint64_t    bytes_received;
+} bridge_stats;
+
+
 static void
 get_client_cb(void *key, void *value, void *json_obj)
 {
@@ -1345,6 +1358,44 @@ get_clients(http_msg *msg, kv **params, size_t param_num,
 	return res;
 }
 
+
+static void
+compose_bridge_metrics(char *ret, bridge_stats *s)
+{
+	const char *name = s->name;
+	char fmt[] = "# TYPE bridge_%s_reconnections counter"
+	             "\n# HELP bridge_%s_reconnections counter"
+	             "\nbridge_%s_reconnections %d"
+	             "\n# TYPE bridge_%s_uplink_messages_dropped counter"
+	             "\n# HELP bridge_%s_uplink_messages_dropped"
+	             "\nbridge_%s_uplink_messages_dropped %d"
+	             "\n# TYPE bridge_%s_downlink_messages_dropped counter"
+	             "\n# HELP bridge_%s_downlink_messages_dropped"
+	             "\nbridge_%s_downlink_messages_dropped %d"
+	             "\n# TYPE bridge_%s_messages_received counter"
+	             "\n# HELP bridge_%s_messages_received"
+	             "\nbridge_%s_messages_received %d"
+	             "\n# TYPE bridge_%s_messages_sent counter"
+	             "\n# HELP bridge_%s_messages_sent"
+	             "\nbridge_%s_messages_sent %d"
+	             "\n# TYPE bridge_%s_bytes_sent counter"
+	             "\n# HELP bridge_%s_bytes_sent (b)"
+	             "\nbridge_%s_bytes_sent %ld"
+	             "\n# TYPE bridge_%s_bytes_received counter"
+	             "\n# HELP bridge_%s_bytes_received (b)"
+	             "\nbridge_%s_bytes_received %d\n";
+
+	snprintf(ret, BRIDGE_DATA_SIZE, fmt,
+		name, name, name, s->reconnections,
+		name, name, name, s->uplink_message_dropped,
+		name, name, name, s->downlink_message_dropped,
+		name, name, name, s->message_sent,
+		name, name, name, s->message_received,
+		name, name, name, s->bytes_sent,
+		name, name, name, s->bytes_received
+	);
+}
+
 static void
 compose_metrics(char *ret, client_stats *ms, client_stats *s)
 {
@@ -1394,11 +1445,10 @@ compose_metrics(char *ret, client_stats *ms, client_stats *s)
 	             "\n# HELP nanomq_cpu_usage_max (%%)"
 	             "\nnanomq_cpu_usage_max %.2f\n";
 
-	snprintf(ret, METRICS_DATA_SIZE, fmt, s->connections, ms->connections,
-	    s->sessions, ms->sessions, s->topics, ms->topics, s->subscribers,
-	    ms->subscribers, s->message_received, s->message_sent,
-	    s->message_dropped, s->memory, ms->memory, s->cpu_percent,
-	    ms->cpu_percent);
+	snprintf(ret, BROKER_DATA_SIZE, fmt, s->connections, ms->connections,
+		s->sessions, ms->sessions, s->topics, ms->topics, s->subscribers,
+	    ms->subscribers, s->message_received, s->message_sent, s->message_dropped,
+		s->memory, ms->memory, s->cpu_percent, ms->cpu_percent);
 }
 
 #define max_stats(s, ms, field) ms->field > s->field ? ms->field : s->field
@@ -1576,6 +1626,10 @@ get_prometheus(http_msg *msg, kv **params, size_t param_num,
 	client_stats stats = { 0 };
 	static client_stats max_stats = { 0 };
 	nng_id_map *pipe_id_map;
+	conf       *config = get_global_conf();
+	int data_size = BROKER_DATA_SIZE + config->bridge.count*BRIDGE_DATA_SIZE;
+
+	char dest[data_size];
 
 	if (nng_socket_get_ptr(*broker_sock, NMQ_OPT_MQTT_PIPES,
 	        (void **) &pipe_id_map) != 0) {
@@ -1595,9 +1649,69 @@ get_prometheus(http_msg *msg, kv **params, size_t param_num,
 	update_process_info(&stats);
 #endif
 
-	char dest[METRICS_DATA_SIZE] = { 0 };
+
+	memset(dest, 0, data_size);
 	update_max_stats(&max_stats, &stats);
 	compose_metrics(dest, &max_stats, &stats);
+	nng_socket *socket = NULL;
+	nng_stat   *nng_stats;
+	nng_stats_get(&nng_stats);
+	for (size_t t = 0; t < config->bridge.count; t++) {
+		conf_bridge_node *node = config->bridge.nodes[t];
+		if (node->enable) {
+			socket = node->sock;
+			nng_stat *st1;
+			nng_stat *st2;
+			bridge_stats bs = { 0 };
+			st1 = nng_stat_find_socket(nng_stats, *socket);
+			uint64_t pipe;
+			int      rv2 = nng_socket_get_uint64(
+                            *socket, NNG_OPT_MQTT_CLIENT_PIPEID, &pipe);
+			nng_stat *child = NULL;
+			child              = nng_stat_find(st1, "name");
+			if (child) {
+				bs.name = nng_stat_string(child);
+			}
+			child = nng_stat_find(st1, "tx_msgs");
+			if (child) {
+				bs.message_sent = nng_stat_value(child);
+			}
+			child = nng_stat_find(st1, "rx_msgs");
+			if (child) {
+				bs.message_received = nng_stat_value(child);
+			}
+			child = nng_stat_find(st1, "tx_bytes");
+			if (child) {
+				bs.bytes_sent = nng_stat_value(child);
+			}
+			child = nng_stat_find(st1, "rx_bytes");
+			if (child) {
+				bs.bytes_received = nng_stat_value(child);
+			}
+			child = nng_stat_find(st1, "mqtt_client_reconnect");
+			if (child) {
+				bs.reconnections = nng_stat_value(child);
+			}
+			child = nng_stat_find(st1, "mqtt_msg_send_drop");
+			if (child) {
+				bs.uplink_message_dropped = nng_stat_value(child);
+			}
+			child = nng_stat_find(st1, "mqtt_msg_recv_drop");
+			if (child) {
+				bs.downlink_message_dropped = nng_stat_value(child);
+			}
+
+			char bridge_metric_ret[BRIDGE_DATA_SIZE] = { 0 };
+			compose_bridge_metrics(bridge_metric_ret, &bs);
+
+			size_t len = strlen(dest);
+			if (len < data_size) {
+				snprintf(dest + len, data_size - len, "%s", bridge_metric_ret);
+			}			
+
+		}
+	}
+	nng_stats_free(nng_stats);
 
 out:
 	put_http_msg(&res, "text/plain", NULL, NULL, NULL, dest, strlen(dest));
