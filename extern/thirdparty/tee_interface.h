@@ -1,11 +1,11 @@
-#ifndef _TEE_INTERFACE_H_
-#define _TEE_INTERFACE_H_
+#ifndef TEE_INTERFACE_H
+#define TEE_INTERFACE_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <vector>
+#include <string>
+#include <cstdint>
+#include <iostream>
 
-//#include <iostream>
 //#include "teeInterfacePrivatekeyMethod.h"
 void teeGetKeyAndIv(char* buffer);
 std::string teeGetTeeRootCert();
@@ -15,8 +15,4 @@ std::string teeGetTeeX509CertPrivateKeyPasswd();
 std::vector<uint8_t> teeGetTeeP12Cert();
 std::string teeGetTeeP12CertPasswd();
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif // _TEE_INTERFACE_H_
+#endif // TEE_INTERFACE_H
