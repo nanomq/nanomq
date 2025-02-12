@@ -31,6 +31,8 @@ cmake -DANDROID_PLATFORM=android-30 \
     -DENABLE_FILETRANSFER=ON \
     -DENABLE_PARQUET_SHARED=ON \
     -DNNG_ENABLE_TLS=ON \
+    -DNNG_TLS_ENGINE=open \
+    -DTLS_EXTERN_PRIVATE_KEY=ON \
     ..
 
 echo "Start make"
@@ -42,6 +44,7 @@ echo "Build done"
 mkdir lib
 cp $NDK_DIR/toolchains/llvm/prebuilt/linux-x86_64/sysroot/lib/*.so lib
 cp ./nng/src/supplemental/quic/msquic/msquic/bin/Release/libmsquic.so lib
+cp ../extern/thirdparty/* lib
 
 echo "Clear Ndk"
 rm -rf $NDK_DIR ${NDK_DIR}.tar.gz
