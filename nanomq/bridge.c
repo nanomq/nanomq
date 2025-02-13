@@ -335,19 +335,25 @@ init_dialer_tls(nng_dialer d, const char *cacert, const char *cert,
 {
 	nng_tls_config *cfg;
 	int             rv;
+	log_info("--start");
 
 	if ((rv = nng_tls_config_alloc(&cfg, NNG_TLS_MODE_CLIENT)) != 0) {
+		log_info("--end1");
 		return (rv);
 	}
 
+	log_info("--cert %p key %p", cert, key);
 	if (cert != NULL && key != NULL) {
 		if ((rv = nng_tls_config_own_cert(cfg, cert, key, pass)) !=
 		    0) {
+		log_info("--end2");
 			goto out;
 		}
 	}
+	log_info("--cacert %p", cacert);
 	if (cacert != NULL) {
 		if ((rv = nng_tls_config_ca_chain(cfg, cacert, NULL)) != 0) {
+		log_info("--end3");
 			goto out;
 		}
 	}
@@ -356,6 +362,7 @@ init_dialer_tls(nng_dialer d, const char *cacert, const char *cert,
 
 out:
 	nng_tls_config_free(cfg);
+	log_info("--end");
 	return (rv);
 }
 
@@ -1231,6 +1238,7 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 {
 	int           rv;
 	nng_dialer    *dialer = (nng_dialer *) nng_alloc(sizeof(nng_dialer));
+	log_info("--start");
 
 	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 		if ((rv = nng_mqttv5_client_open(sock)) != 0) {
@@ -1279,9 +1287,11 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 			    &(node->tcp.recvtimeo), sizeof(int));
 		}
 	}
+	log_info("--supp_tls?");
 
 #ifdef NNG_SUPP_TLS
 	if (node->tls.enable) {
+	log_info("--init_dialer_tls");
 		if ((rv = init_dialer_tls(*dialer, node->tls.ca, node->tls.cert,
 		         node->tls.key, node->tls.key_password)) != 0) {
 			log_error("init_dialer_tls failed %d", rv);
@@ -1382,6 +1392,7 @@ int
 bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 {
 	int rv;
+	log_info("--start");
 
 	bridge_param *bridge_arg;
 	bridge_arg = (bridge_param *) nng_alloc(sizeof(bridge_param));
@@ -1403,6 +1414,7 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 
 	if (0 == strncmp(node->address, tcp_scheme, strlen(tcp_scheme)) ||
 	    0 == strncmp(node->address, tls_scheme, strlen(tls_scheme))) {
+	log_info("--bridge start");
 		bridge_tcp_client(sock, config, node, bridge_arg);
 #if defined(SUPP_QUIC)
 	} else if (0 == strncmp(node->address, quic_scheme, strlen(quic_scheme))) {
@@ -1430,6 +1442,7 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 		} else {
 		}
 	}
+	log_info("--end");
 	log_debug("parallel %d", num);
 	return 0;
 }
