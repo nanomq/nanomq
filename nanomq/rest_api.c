@@ -963,8 +963,7 @@ process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 		    uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "mqtt") == 0 &&
 		    strcmp(uri_ct->sub_tree[2]->node, "publish_batch") == 0) {
-			ret =
-			    post_mqtt_msg_batch(msg, sock, handle_publish_msg);
+			ret = post_mqtt_msg_batch(msg, sock, handle_publish_msg);
 		} else if (uri_ct->sub_count == 4 &&
 		    uri_ct->sub_tree[3]->end &&
 			strcmp(uri_ct->sub_tree[2]->node, "switch") == 0 &&
@@ -3602,6 +3601,7 @@ static int
 handle_publish_msg(cJSON *pub_obj, nng_socket *sock)
 {
 	cJSON *item;
+	char   tmpid[]= "NanoMQ-HTTP-Client";
 	int    rv;
 	char * topic          = NULL;
 	char **topics         = NULL;
@@ -3636,7 +3636,8 @@ handle_publish_msg(cJSON *pub_obj, nng_socket *sock)
 	char *clientid;
 	getStringValue(pub_obj, item, "clientid", clientid, rv);
 	if (rv != 0) {
-		goto out;
+		// use default clientid
+		clientid = tmpid;
 	}
 	// payload
 	char *payload;
