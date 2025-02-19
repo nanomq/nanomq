@@ -1044,6 +1044,7 @@ rule_engine_insert_sql(nano_work *work)
 				if (rc != SQLITE_OK) {
 					fprintf(stderr, "SQL error: %s\n",
 					    err_msg);
+					log_error("SQL error: %s", err_msg);
 					sqlite3_free(err_msg);
 					sqlite3_close(sdb);
 

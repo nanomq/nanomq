@@ -847,7 +847,7 @@ nng_alloc_work(nng_socket sock, nng_socket psock, nng_proxy_opts *nng_opts, uint
 		if ((rv = nng_ctx_open(&w->proxy_ctx, psock)) != 0) {
 			nng_fatal("nng_ctx_open", rv);
 		}
-		nng_ctx_set(w->proxy_ctx, NNG_OPT_SUB_SUBSCRIBE, "", 0);
+		nng_sub0_ctx_subscribe(w->proxy_ctx, "", 0);	//?
 		break;
 	case PUB0:
 		w->nsocket = psock;
@@ -992,11 +992,10 @@ nng_proxy_client(int argc, char **argv, enum nng_proto type)
 		if (rv != 0)
 			fatal("unable to listen to %s %s!\n", proxy_opts->nng_url, nng_strerror(rv));
 		if ((rv == 0) && (proxy_opts->verbose)) {
-			char   ustr[256];
-			size_t sz;
-			sz = sizeof(ustr);
-			if (nng_listener_get(l, NNG_OPT_URL, ustr, &sz) == 0) {
+			char   *ustr;
+			if (nng_listener_get_string(l, NNG_OPT_URL, &ustr) == 0) {
 				printf("Listening at: %s\n", ustr);
+				nng_strfree(ustr);
 			}
 		}
 		break;

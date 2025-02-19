@@ -1567,17 +1567,13 @@ get_metrics(http_msg *msg, kv **params, size_t param_num,
 		conf_bridge_node *node = config->bridge.nodes[t];
 		if (node->enable) {
 			socket = node->sock;
-			nng_stat *st1;
-			nng_stat *st2;
+			const nng_stat *st1;
+			const nng_stat *st2;
 			st1 = nng_stat_find_socket(nng_stats, *socket);
 			uint64_t pipe;
 			int      rv2 = nng_socket_get_uint64(
                             *socket, NNG_OPT_MQTT_CLIENT_PIPEID, &pipe);
-			// if (rv2 == 0) {
-			// 	st2 = nng_stat_find_pipe(nng_stats, pipe);
-			// 	nng_stats_dump(st2);
-			// }
-			nng_stat *child = NULL;
+			const nng_stat *child = NULL;
 			cJSON *bridge_info = cJSON_CreateObject();
 			child              = nng_stat_find(st1, "name");
 			if (child) {

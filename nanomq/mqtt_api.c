@@ -43,7 +43,7 @@ nano_listen(nng_socket sid, const char *addr, nng_listener *lp, int flags,
 	nng_listener l;
 
 	nng_listener_create(&l, sid, addr);
-	nng_listener_set(l, NANO_CONF, config, sizeof(conf));
+	nng_listener_set_ptr(l, NANO_CONF, config);
 	if ((rv = nng_listener_start(l, 0)) != 0) {
 		nng_listener_close(l);
 		return (rv);

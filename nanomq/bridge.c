@@ -958,7 +958,7 @@ bridge_quic_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 	node->dialer = dialer;
 
 	nng_duration duration = (nng_duration) node->backoff_max * 1000;
-	nng_dialer_set(*dialer, NNG_OPT_MQTT_RECONNECT_BACKOFF_MAX, &duration, sizeof(nng_duration));
+	nng_dialer_set_ms(*dialer, NNG_OPT_MQTT_RECONNECT_BACKOFF_MAX, duration);
 
 	bridge_arg->client->sock   = *sock;
 	bridge_arg->cancel_timeout = node->cancel_timeout;
@@ -1018,7 +1018,7 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 	node->dialer = dialer;
 
 	nng_duration duration = (nng_duration) node->backoff_max * 1000;
-	nng_dialer_set(*dialer, NNG_OPT_MQTT_RECONNECT_BACKOFF_MAX, &duration, sizeof(nng_duration));
+	nng_dialer_set_ms(*dialer, NNG_OPT_MQTT_RECONNECT_BACKOFF_MAX, duration);
 	nng_dialer_set_bool(*dialer, NNG_OPT_QUIC_ENABLE_0RTT, true);
 	if (node->multi_stream) {
 		//better remove the option from dialer
@@ -1151,8 +1151,7 @@ bridge_tcp_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	node->dialer = dialer;
 
 	nng_duration duration = (nng_duration) node->backoff_max * 1000;
-	nng_dialer_set(*dialer, NNG_OPT_MQTT_RECONNECT_BACKOFF_MAX, &duration, sizeof(nng_duration));
-
+	nng_dialer_set_ms(*dialer, NNG_OPT_MQTT_RECONNECT_BACKOFF_MAX, duration);
 
 #ifdef NNG_SUPP_TLS
 	if (node->tls.enable) {
@@ -1254,29 +1253,27 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	node->dialer = dialer;
 
 	nng_duration duration = (nng_duration) node->backoff_max * 1000;
-	nng_dialer_set(*dialer, NNG_OPT_MQTT_RECONNECT_BACKOFF_MAX, &duration, sizeof(nng_duration));
+	nng_dialer_set_ms(*dialer, NNG_OPT_MQTT_RECONNECT_BACKOFF_MAX, duration);
 
 	if (node->tcp.enable) {
 		// set bridge dialer tcp options
 		bool nodelay   = node->tcp.nodelay == 1 ? true : false;
 		bool keepalive = node->tcp.keepalive == 1 ? true : false;
-		nng_dialer_set(
-		    *dialer, NNG_OPT_TCP_NODELAY, &nodelay, sizeof(bool));
-		nng_dialer_set(
-		    *dialer, NNG_OPT_TCP_KEEPALIVE, &keepalive, sizeof(bool));
+		nng_dialer_set_bool(*dialer, NNG_OPT_TCP_NODELAY, nodelay);
+		nng_dialer_set_bool(*dialer, NNG_OPT_TCP_KEEPALIVE, &keepalive);
 		if (node->tcp.keepalive == 1) {
-			nng_dialer_set(*dialer, NNG_OPT_TCP_QUICKACK,
-			    &(node->tcp.quickack), sizeof(int));
-			nng_dialer_set(*dialer, NNG_OPT_TCP_KEEPIDLE,
-			    &(node->tcp.keepidle), sizeof(int));
-			nng_dialer_set(*dialer, NNG_OPT_TCP_KEEPINTVL,
-			    &(node->tcp.keepintvl), sizeof(int));
-			nng_dialer_set(*dialer, NNG_OPT_TCP_KEEPCNT,
-			    &(node->tcp.keepcnt), sizeof(int));
-			nng_dialer_set(*dialer, NNG_OPT_TCP_SENDTIMEO,
-			    &(node->tcp.sendtimeo), sizeof(int));
-			nng_dialer_set(*dialer, NNG_OPT_TCP_RECVTIMEO,
-			    &(node->tcp.recvtimeo), sizeof(int));
+			nng_dialer_set_int(
+			    *dialer, NNG_OPT_TCP_QUICKACK, node->tcp.quickack);
+			nng_dialer_set_int(
+			    *dialer, NNG_OPT_TCP_KEEPIDLE, node->tcp.keepidle);
+			nng_dialer_set_int(*dialer, NNG_OPT_TCP_KEEPINTVL,
+			    node->tcp.keepintvl);
+			nng_dialer_set_int(
+			    *dialer, NNG_OPT_TCP_KEEPCNT, node->tcp.keepcnt);
+			nng_dialer_set_int(*dialer, NNG_OPT_TCP_SENDTIMEO,
+			    node->tcp.sendtimeo);
+			nng_dialer_set_int(*dialer, NNG_OPT_TCP_RECVTIMEO,
+			    node->tcp.recvtimeo);
 		}
 	}
 
