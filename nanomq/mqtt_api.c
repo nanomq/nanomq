@@ -96,7 +96,7 @@ init_listener_tls(nng_listener l, conf_tls *tls)
 		}
 	}
 
-	rv = nng_listener_set_ptr(l, NNG_OPT_TLS_CONFIG, cfg);
+	rv = nng_listener_set_tls(l, cfg);
 
 out:
 	nng_tls_config_free(cfg);

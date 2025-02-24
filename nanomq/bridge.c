@@ -352,7 +352,7 @@ init_dialer_tls(nng_dialer d, const char *cacert, const char *cert,
 		}
 	}
 
-	rv = nng_dialer_set_ptr(d, NNG_OPT_TLS_CONFIG, cfg);
+	rv = nng_dialer_set_tls(d, cfg);
 
 out:
 	nng_tls_config_free(cfg);
@@ -1260,7 +1260,7 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 		bool nodelay   = node->tcp.nodelay == 1 ? true : false;
 		bool keepalive = node->tcp.keepalive == 1 ? true : false;
 		nng_dialer_set_bool(*dialer, NNG_OPT_TCP_NODELAY, nodelay);
-		nng_dialer_set_bool(*dialer, NNG_OPT_TCP_KEEPALIVE, &keepalive);
+		nng_dialer_set_bool(*dialer, NNG_OPT_TCP_KEEPALIVE, keepalive);
 		if (node->tcp.keepalive == 1) {
 			nng_dialer_set_int(
 			    *dialer, NNG_OPT_TCP_QUICKACK, node->tcp.quickack);
