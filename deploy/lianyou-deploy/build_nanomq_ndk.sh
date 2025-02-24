@@ -33,8 +33,6 @@ cmake -DANDROID_PLATFORM=android-30 \
     -DNNG_ENABLE_TLS=ON \
     -DNNG_TLS_ENGINE=open \
     -DTLS_EXTERN_PRIVATE_KEY=ON \
-    -DDEBUG=ON \
-    -DASAN=ON \
     ..
 
 echo "Start make"
