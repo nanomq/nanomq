@@ -46,7 +46,6 @@ echo "Build done"
 mkdir lib
 cp $NDK_DIR/toolchains/llvm/prebuilt/linux-x86_64/sysroot/lib/*.so lib
 cp ./nng/src/supplemental/quic/msquic/msquic/bin/Release/libmsquic.so lib
-cp ../extern/thirdparty/* lib
 
 echo "Clear Ndk"
 rm -rf $NDK_DIR ${NDK_DIR}.tar.gz
