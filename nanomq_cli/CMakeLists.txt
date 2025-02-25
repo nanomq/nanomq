@@ -48,9 +48,9 @@ endif(BUILD_DDS_PROXY)
 if (ENABLE_FILETRANSFER)
     ADD_DEFINITIONS(-DENABLE_FILETRANSFER)
     include_directories(${CMAKE_SOURCE_DIR}/nanomq/extern/include)
-	set(CLI_SOURCE ${CLI_SOURCE}
-		${CMAKE_SOURCE_DIR}/nanomq/extern/file_transfer_nano.c
-		${CMAKE_SOURCE_DIR}/nanomq/extern/aes_gcm.c)
+    set(CLI_SOURCE ${CLI_SOURCE}
+        ${CMAKE_SOURCE_DIR}/nanomq/extern/file_transfer_nano.c
+        ${CMAKE_SOURCE_DIR}/nanomq/extern/aes_gcm.c)
 endif()
 
 add_executable(nanomq_cli ${CLI_SOURCE})
@@ -99,6 +99,11 @@ if(BUILD_VSOMEIP_GATEWAY)
   )
   target_link_libraries(nanomq_cli vsomeip3 ${Boost_LIBRARIES})
 endif(BUILD_VSOMEIP_GATEWAY)
+
+if (ENABLE_FILETRANSFER)
+  find_package(OpenSSL REQUIRED)
+  target_link_libraries(nanomq_cli OpenSSL::Crypto)
+endif()
 
 add_dependencies(nanomq_cli nng)
 
