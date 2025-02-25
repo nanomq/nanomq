@@ -556,7 +556,6 @@ hybrid_tcp_client(bridge_param *bridge_arg)
 	}
 
 	apply_sqlite_config(new, node, "mqtt_client.db");
-	nng_socket_set_string(*new, NNG_OPT_SOCKNAME, node->name);
 
 	if ((rv = nng_dialer_create(dialer, *new, node->address))) {
 		nng_free(new, sizeof(nng_socket));
@@ -656,7 +655,6 @@ hybrid_quic_client(bridge_param *bridge_arg)
 	}
 
 	apply_sqlite_config(new, node, "mqtt_quic_client.db");
-	nng_socket_set_string(*new, NNG_OPT_SOCKNAME, node->name);
 
 	if ((rv = nng_dialer_create(dialer, *new, node->address))) {
 		log_error("dialer create failed %d", rv);
@@ -1009,7 +1007,6 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 	}
 
 	apply_sqlite_config(sock, node, "mqtt_quic_client.db");
-	nng_socket_set_string(*sock, NNG_OPT_SOCKNAME, node->name);
 
 	if ((rv = nng_dialer_create(dialer, *sock, node->address))) {
 		log_error("nng_dialer_create failed %d", rv);
@@ -1244,7 +1241,6 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	}
 
 	apply_sqlite_config(sock, node, "mqtt_client.db");
-	nng_socket_set_string(*sock, NNG_OPT_SOCKNAME, node->name);
 
 	if ((rv = nng_dialer_create(dialer, *sock, node->address))) {
 		log_error("nng_dialer_create failed %d", rv);
