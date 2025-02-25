@@ -408,7 +408,7 @@ main()
 	/*
 	// Debug with log enabled
 	conf_log log;
-	log.level = NNG_LOG_DEBUG;
+	log.level = NANO_LOG_DEBUG;
 	log.type = LOG_TO_CONSOLE;
 	log_init(&log);
 	*/

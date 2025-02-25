@@ -315,7 +315,7 @@ test_rest_start(uint16_t port)
 
 	// Allocate the handler - we use a dynamic handler for REST
 	// using the function "rest_handle" declared above.
-	rv = nng_http_handler_alloc(&handler, url->u_path, rest_handle);
+	rv = nng_http_handler_alloc(&handler, nng_url_path(url), rest_handle);
 	if (rv != 0) {
 		nng_fatal("nng_http_handler_alloc", rv);
 	}

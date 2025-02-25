@@ -17,7 +17,7 @@ get_conf_log()
 	conf_log *log;
 	log = nng_zalloc(sizeof(conf_log));
 	assert(log != NULL);
-	log->level = NNG_LOG_WARN;
+	log->level = NANO_LOG_WARN;
 	log->file  = NULL;
 	log->dir   = "/tmp/";
 	log->type  = LOG_TO_CONSOLE | LOG_TO_FILE | LOG_TO_SYSLOG;
