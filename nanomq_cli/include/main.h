@@ -11,6 +11,9 @@
 #include "dds_client.h"
 #include "nftp_client.h"
 #include "iceoryx_client.h"
+
+#if defined(ENABLE_FILETRANSFER)
 #include "file_transfer.h"
+#endif
 
 #endif // NANOMQ_CLI_MAIN_H
