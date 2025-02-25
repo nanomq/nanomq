@@ -971,9 +971,6 @@ bridge_quic_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 	if (0 != nng_dialer_set_ptr(*dialer, NNG_OPT_MQTT_CONNMSG, connmsg)) {
 		log_warn("Error in updating connmsg");
 	}
-	if (0 != nng_socket_set_ptr(*sock, NNG_OPT_MQTT_CONNMSG, connmsg)) {
-		log_warn("Error in updating connmsg");
-	}
 	nano_set_quic_config(sock, node, dialer);
 	nng_mqtt_set_connect_cb(*sock, bridge_quic_connect_cb, bridge_arg);
 	nng_mqtt_set_disconnect_cb(*sock, bridge_quic_disconnect_cb, bridge_arg);
@@ -1032,9 +1029,6 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 
 	// QUIC bridge does not support hot update of connmsg as well
 	if (0 != nng_dialer_set_ptr(*dialer, NNG_OPT_MQTT_CONNMSG, connmsg)) {
-		log_warn("Error in updating connmsg");
-	}
-	if (0 != nng_socket_set_ptr(*sock, NNG_OPT_MQTT_CONNMSG, connmsg)) {
 		log_warn("Error in updating connmsg");
 	}
 	nano_set_quic_config(sock, node, dialer);
@@ -1171,9 +1165,6 @@ bridge_tcp_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	if (0 != nng_dialer_set_ptr(*dialer, NNG_OPT_MQTT_CONNMSG, connmsg)) {
 		log_warn("Error in updating connmsg");
 	}
-	if (0 != nng_socket_set_ptr(*sock, NNG_OPT_MQTT_CONNMSG, connmsg)) {
-		log_warn("Error in updating connmsg");
-	}
 	nng_duration retry = node->resend_interval;
 	nng_socket_set_ms(*sock, NNG_OPT_MQTT_RETRY_INTERVAL, retry);
 	nng_time retry_wait = node->resend_wait;
@@ -1297,12 +1288,6 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	// TCP bridge does not support hot update of connmsg
 	if (0 != nng_dialer_set_ptr(*dialer, NNG_OPT_MQTT_CONNMSG, connmsg)) {
 		log_warn("Error in updating connmsg");
-	}
-	if (0 != nng_socket_set_ptr(*sock, NNG_OPT_MQTT_CONNMSG, connmsg)) {
-		log_warn("Error in updating connmsg");
-	}
-	if (0 != nng_socket_set_ptr(*sock, NNG_OPT_MQTT_BRIDGE_CONF, node)) {
-		log_warn("Error in updating bridge config to socket");
 	}
 	nng_mqtt_set_connect_cb(*sock, bridge_tcp_connect_cb, bridge_arg);
 	nng_mqtt_set_disconnect_cb(*sock, bridge_tcp_disconnect_cb, bridge_arg);

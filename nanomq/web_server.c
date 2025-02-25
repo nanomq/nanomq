@@ -282,7 +282,7 @@ rest_start(uint16_t port, char *addr)
 
 	// Allocate the handler - we use a dynamic handler for REST
 	// using the function "rest_handle" declared above.
-	rv = nng_http_handler_alloc(&handler, url->u_path, rest_handle);
+	rv = nng_http_handler_alloc(&handler, nng_url_path(url), rest_handle);
 	if (rv != 0) {
 		NANO_NNG_FATAL("nng_http_handler_alloc", rv);
 	}
