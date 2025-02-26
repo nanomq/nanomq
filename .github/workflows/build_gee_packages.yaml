@@ -1,0 +1,155 @@
+name: Build gee package
+
+concurrency:
+  group: build-sdv-flow-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches-ignore:
+      - lianyou-master
+      - uisee-master
+    tags:
+      - '*'
+  pull_request:
+    branches:
+      - sdv_master
+  release:
+    types:
+      - published
+    branches:
+      - sdv_master
+
+
+jobs:
+  build_and_upload:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      repository-projects: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        architecture: [amd64, arm64]
+        platform: [linux]
+        include:
+        - architecture: arm64
+          platform: android
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history including tags
+
+      - name: Initialize Submodules
+        run: git submodule update --init --recursive
+
+      - name: Build linux
+        if: matrix.platform == 'linux'
+        run: |
+          docker build -t nanomq_with_parquet_${{ matrix.architecture }} -f deploy/lianyou-deploy/Dockerfile${{ matrix.architecture == 'arm64' && '-arm64' || '' }} .
+
+      - name: Build android
+        if: matrix.platform == 'android' && matrix.architecture == 'arm64'
+        run: |
+          ./deploy/lianyou-deploy/build_nanomq_ndk_gee.sh
+      
+      - name: Package Artifacts (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          pkgversion="$(git describe --abbrev=1 --tags)"
+          git log --format=%H -1 > readme.txt
+          cd nng && git log --format=%H -1 >> ../readme.txt && cd -
+
+          mkdir -p packages/nanomq/{parquet,etc,log} packages/nanomq-debug/{parquet,etc,log}
+          id=$(docker create nanomq_with_parquet_${{ matrix.architecture }})
+          docker cp $id:/opt/NanoMQ_mirror/build/nanomq/nanomq ./packages/nanomq/
+          docker cp $id:/opt/NanoMQ_mirror/build-debug/nanomq/nanomq ./packages/nanomq-debug/
+          cp readme.txt ./packages/nanomq/
+          cp readme.txt ./packages/nanomq-debug/
+
+          cd ./packages
+
+          config_versions=(
+            "gee_8295c_90"
+            "gee_8295c_92" 
+            "gee_e04c_E4"
+            "gee_e04g_all"
+          )
+
+          for version in "${config_versions[@]}"; do
+  
+            config_file="nanomq_${version}.conf"
+            cp "../etc/${config_file}" ./nanomq/etc/nanomq.conf
+            cp "../etc/${config_file}" ./nanomq-debug/etc/nanomq.conf
+
+            base_name="nanomq-${pkgversion}-linux-${{ matrix.architecture }}"
+  
+            tar -zcvf "${base_name}-${version}.tar.gz" ./nanomq
+            tar -zcvf "${base_name}-debug-${version}.tar.gz" ./nanomq-debug
+
+          done
+          rm -rf ./nanomq ./nanomq-debug
+          docker rm -v $id
+
+      - name: Package Artifacts (Android)
+        if: matrix.platform == 'android' && matrix.architecture == 'arm64'
+        run: |
+          pkgversion="$(git describe --abbrev=1 --tags)"
+          git log --format=%H -1 > readme.txt
+
+          mkdir -p packages/nanomq_android_${{ matrix.architecture }}/{parquet,etc,log,lib}
+          cp readme.txt ./packages/nanomq_android_${{ matrix.architecture }}/
+          cp etc/nanomq.conf ./packages/nanomq_android_${{ matrix.architecture }}/etc
+          cp build_android/nanomq/nanomq ./packages/nanomq_android_${{ matrix.architecture }}/
+          rm build_android/lib/libcrypto.so build_android/lib/libssl.so
+          cp build_android/lib/* ./packages/nanomq_android_${{ matrix.architecture }}/lib
+
+          cd ./packages
+
+          config_versions=(
+            "gee_8295c_90"
+            "gee_8295c_92" 
+            "gee_e04c_E4"
+            "gee_e04g_all"
+          )
+
+          for version in "${config_versions[@]}"; do
+  
+            config_file="nanomq_${version}_android.conf"
+            target_dir="./packages/nanomq_android_${{ matrix.architecture }}"
+
+            if [[ "${version}" == "gee_8295c_90" ]]; then
+              cp ../build_android_90/nanomq/nanomq "${target_dir}/"
+            else
+                cp ../build_android/nanomq/nanomq "${target_dir}/"
+            fi
+
+            cp ../etc/${config_file} ./nanomq_android_${{ matrix.architecture }}/etc/nanomq.conf
+
+            base_name="nanomq-${pkgversion}-android-${{ matrix.architecture }}"
+            tar -zcvf "${base_name}-${version}.tar.gz" ./nanomq_android_${{ matrix.architecture }}
+
+          done
+          rm -rf ./nanomq_android_${{ matrix.architecture }}
+
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: NanoMQ-${{ matrix.platform }}-${{ matrix.architecture }}
+          path: packages/*.tar.gz
+          retention-days: 7
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          prerelease: ${{ steps.prerelease.outputs.prerelease }}
+          generate_release_notes: true
+          token: ${{ github.token }}
+          name: NanoMQ ${{ github.ref_name }} Released
+          files: packages/*.tar.gz
