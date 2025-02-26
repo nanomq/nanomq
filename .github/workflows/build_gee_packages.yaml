@@ -132,6 +132,7 @@ jobs:
 
             base_name="nanomq-${pkgversion}-android-${{ matrix.architecture }}"
             tar -zcvf "${base_name}-${version}.tar.gz" ./${target_dir}
+            tar -zcvf "${base_name}-${version}-debug-mini.tar.gz.x ./${target_dir}/nanomq
 
           done
           rm -rf ./nanomq_android_${{ matrix.architecture }}
@@ -143,6 +144,13 @@ jobs:
           name: NanoMQ-${{ matrix.platform }}-${{ matrix.architecture }}
           path: packages/*.tar.gz
           retention-days: 7
+
+      - name: Upload Artifacts Debug Mini
+        uses: actions/upload-artifact@v4
+        with:
+          name: NanoMQ-${{ matrix.platform }}-${{ matrix.architecture }}-Debug-Mini
+          path: packages/*.tar.gz.x
+          retention-days: 1
 
       - name: Create Release
         uses: softprops/action-gh-release@v2

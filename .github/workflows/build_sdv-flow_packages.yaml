@@ -111,7 +111,7 @@ jobs:
       - name: Upload Artifacts Debug Mini
         uses: actions/upload-artifact@v4
         with:
-          name: NanoMQ-Debug-${{ matrix.platform }}-${{ matrix.architecture }}
+          name: NanoMQ-${{ matrix.platform }}-${{ matrix.architecture }}-Debug-Mini
           path: packages/*.tar.gz.x
           retention-days: 1
 
