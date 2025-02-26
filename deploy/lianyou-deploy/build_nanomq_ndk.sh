@@ -4,7 +4,7 @@
 INSTALL_DIR=${1:-"/tmp"}
 NDK_VERSION="android-ndk-r23c"
 NDK_DIR="${INSTALL_DIR}/${NDK_VERSION}"
-NDK_URL="https://assets.emqx.com/data/ndk/android-ndk-r23c.tar.gz"
+NDK_URL="https://assets.emqx.com/data/ndk/android-ndk-r23c-sdv.tar.gz"
 
 export ANDROID_NDK=$NDK_DIR
 export ANDROID_NDK_HOME=$NDK_DIR
