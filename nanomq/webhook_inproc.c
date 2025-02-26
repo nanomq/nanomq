@@ -514,7 +514,7 @@ thread_cb(void *arg)
 					nng_mtx_unlock(w->mtx);
 				}
 			}
-			nng_msleep(10);
+			nng_msleep(500);
 		}
 	}
 }
@@ -1009,7 +1009,7 @@ hook_cb(void *arg)
 	size_t             i;
 
 	if (conf->exchange.count > 0) {
-		works_num += 8 * conf->exchange.count;
+		works_num += conf->exchange.count;
 	}
 	if (conf->web_hook.enable) {
 		works_num += conf->web_hook.pool_size;
