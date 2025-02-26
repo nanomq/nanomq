@@ -1,7 +1,7 @@
 name: Build gee package
 
 concurrency:
-  group: build-sdv-flow-${{ github.event_name }}-${{ github.ref }}
+  group: build-sdv-gee-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 on:
@@ -120,18 +120,18 @@ jobs:
           for version in "${config_versions[@]}"; do
   
             config_file="nanomq_${version}_android.conf"
-            target_dir="./packages/nanomq_android_${{ matrix.architecture }}"
+            target_dir="nanomq_android_${{ matrix.architecture }}"
 
             if [[ "${version}" == "gee_8295c_90" ]]; then
               cp ../build_android_90/nanomq/nanomq "${target_dir}/"
             else
-                cp ../build_android/nanomq/nanomq "${target_dir}/"
+              cp ../build_android/nanomq/nanomq "${target_dir}/"
             fi
 
-            cp ../etc/${config_file} ./nanomq_android_${{ matrix.architecture }}/etc/nanomq.conf
+            cp ../etc/${config_file} ./${target_dir}/etc/nanomq.conf
 
             base_name="nanomq-${pkgversion}-android-${{ matrix.architecture }}"
-            tar -zcvf "${base_name}-${version}.tar.gz" ./nanomq_android_${{ matrix.architecture }}
+            tar -zcvf "${base_name}-${version}.tar.gz" ./${target_dir}
 
           done
           rm -rf ./nanomq_android_${{ matrix.architecture }}

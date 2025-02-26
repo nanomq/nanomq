@@ -77,26 +77,6 @@ jobs:
           tar -zcvf ./nanomq-${pkgversion}-linux-${{ matrix.architecture }}-sdv.tar.gz ./nanomq
           tar -zcvf ./nanomq-${pkgversion}-linux-${{ matrix.architecture }}-debug-sdv.tar.gz ./nanomq-debug
 
-          config_versions=(
-            "gee_8295c_90"
-            "gee_8295c_92" 
-            "gee_e04c_E4"
-            "gee_e04g_all"
-          )
-
-          for version in "${config_versions[@]}"; do
-  
-            config_file="nanomq_${version}.conf"
-  
-            cp "../etc/${config_file}" ./nanomq/etc/nanomq.conf
-            cp "../etc/${config_file}" ./nanomq-debug/etc/nanomq.conf
-
-            base_name="nanomq-${pkgversion}-linux-${{ matrix.architecture }}"
-  
-            tar -zcvf "${base_name}-${version}.tar.gz" ./nanomq
-            tar -zcvf "${base_name}-debug-${version}.tar.gz" ./nanomq-debug
-
-          done
 
           rm -rf ./nanomq ./nanomq-debug
           docker rm -v $id
@@ -116,28 +96,6 @@ jobs:
 
           cd ./packages
           tar -zcvf ./nanomq-${pkgversion}-android-${{ matrix.architecture }}-sdv.tar.gz ./nanomq_android_${{ matrix.architecture }}
-
-          config_versions=(
-            "gee_8295c_90"
-            "gee_8295c_92" 
-            "gee_e04c_E4"
-            "gee_e04g_all"
-          )
-
-          for version in "${config_versions[@]}"; do
-  
-            config_file="nanomq_${version}_android.conf"
-
-            cp ../etc/${config_file} ./nanomq_android_${{ matrix.architecture }}/etc/nanomq.conf
-
-            base_name="nanomq-${pkgversion}-android-${{ matrix.architecture }}"
-            tar -zcvf "${base_name}-${version}.tar.gz" ./nanomq_android_${{ matrix.architecture }}
-
-          done
-
-
-          cp ../etc/nanomq_geely_android.conf ./nanomq_android_${{ matrix.architecture }}/etc/nanomq.conf
-          tar -zcvf ./nanomq-${pkgversion}-android-${{ matrix.architecture }}-gee.tar.gz ./nanomq_android_${{ matrix.architecture }}
 
           rm -rf ./nanomq_android_${{ matrix.architecture }}
 
