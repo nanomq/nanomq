@@ -417,16 +417,9 @@ send_msg(hook_work *w, nng_msg *msg)
 {
 	conf_web_hook   *conf   = w->conf;
 	nng_http_conn   *conn   = NULL;
-	nng_url         *url    = NULL;
 	nng_aio         *aio    = w->http_aio;
-	nng_http_req    *req    = NULL;
-	nng_http_res    *res    = NULL;
 	int              rv;
 
-	if ((rv = nng_http_client_alloc(&w->client, w->url)) != 0) {
-		log_error("init failed: %s\n", nng_strerror(rv));
-		goto out;
-	}
 	nng_mtx_lock(w->mtx);
 	if (msg == NULL) {
 		rv = nng_lmq_get(w->lmq, &msg);
@@ -445,12 +438,16 @@ send_msg(hook_work *w, nng_msg *msg)
 				NANO_NNG_FATAL("nng_lmq_resize mem error", rv);
 			}
 		}
-		nng_msg_clone(w->msg);
-		if (nng_lmq_put(w->lmq, w->msg) != 0) {
+		nng_msg_clone(msg);
+		if (nng_lmq_put(w->lmq, msg) != 0) {
 			log_info("HTTP Request droppped");
-			nng_msg_free(w->msg);
+			nng_msg_free(msg);
 		}
 	} else {
+		if ((rv = nng_http_client_alloc(&w->client, w->url)) != 0) {
+			log_error("init failed: %s\n", nng_strerror(rv));
+			goto out;
+		}
 		// Start connection process...
 		nng_aio_set_timeout(aio, 1000);
 		nng_aio_set_msg(aio, msg);
@@ -459,15 +456,6 @@ send_msg(hook_work *w, nng_msg *msg)
 
 out:
 	nng_mtx_unlock(w->mtx);
-	if (url) {
-		nng_url_free(url);
-	}
-	if (req) {
-		nng_http_req_free(req);
-	}
-	if (res) {
-		nng_http_res_free(res);
-	}
 }
 
 // an independent thread of each work obj for sending HTTP msg
@@ -482,56 +470,54 @@ http_aio_cb(void *arg)
 	int               rv;
 	uint8_t type;
 
-	// nng_mtx_lock(work->mtx);
+	nng_mtx_lock(work->mtx);
 	msg = nng_aio_get_msg(aio);
 	if(nng_aio_result(work->http_aio) != 0)
 		log_warn("HTTP aio result error : %s", nng_strerror(rv));
 
 	if (msg != NULL) {
+		work->msg = msg;
 		type = nng_msg_cmd_type(msg);
-		nng_aio_set_msg(work->http_aio, NULL);
 		if (type != CMD_DISCONNECT && nng_aio_result(aio) == 0) {
-			log_info("HTTP connect finished");
-		if ((rv = nng_http_req_alloc(&work->req, work->url)) != 0) {
+			log_info("HTTP connect finished, now start request");
+			if ((rv = nng_http_req_alloc(&work->req, work->url)) != 0) {
+				nng_mtx_unlock(work->mtx);
+				return;
+			}
+			// Get the connection, at the 0th output.
+			work->conn = nng_aio_get_output(aio, 0);
+
+			// Request is already set up with URL, and for GET via
+			// HTTP/1.1. The Host: header is already set up too.
+			// set_data(req, conf_req, params);
+			// Send the request, and wait for that to finish.
+			for (size_t i = 0; i < conf->header_count; i++) {
+				nng_http_req_add_header(work->req, conf->headers[i]->key,
+					conf->headers[i]->value);
+			}
+
+			nng_http_req_set_method(work->req, "POST");
+			nng_http_req_set_data(
+				work->req, nng_msg_body(msg), nng_msg_len(msg));
+			nng_msg_set_cmd_type(msg, CMD_DISCONNECT);
+			nng_aio_set_timeout(aio, 1000);
+			nng_http_conn_write_req(work->conn, work->req, aio);
+			nng_mtx_unlock(work->mtx);
 			return;
-		}
-		nng_mtx_lock(work->mtx);
-		// Get the connection, at the 0th output.
-		work->conn = nng_aio_get_output(aio, 0);
-
-		// Request is already set up with URL, and for GET via
-		// HTTP/1.1. The Host: header is already set up too.
-		// set_data(req, conf_req, params);
-		// Send the request, and wait for that to finish.
-		for (size_t i = 0; i < conf->header_count; i++) {
-			nng_http_req_add_header(work->req, conf->headers[i]->key,
-				conf->headers[i]->value);
-		}
-
-		nng_http_req_set_method(work->req, "POST");
-		nng_http_req_set_data(
-			work->req, nng_msg_body(msg), nng_msg_len(msg));
-		// nng_aio_set_msg(aio, NULL);
-		nng_msg_set_cmd_type(msg, CMD_DISCONNECT);
-		nng_aio_set_timeout(aio, 1000);
-		nng_http_conn_write_req(work->conn, work->req, aio);
-		nng_mtx_unlock(work->mtx);
-		return;
 		} else if (type == CMD_DISCONNECT) {
 			nng_msg_free(msg);
+			nng_aio_set_msg(work->http_aio, NULL);
+			nng_mtx_unlock(work->mtx);
 			nng_http_client_free(work->client);
 			nng_http_conn_close(work->conn);
 			nng_http_req_free(work->req);
 			log_info("HTTP Request successed");
 		}
 	} else {
-		log_info("last HTTP Request is finished");
+		log_info("NULL MSG !!!! last HTTP Request is finished");
+		nng_mtx_unlock(work->mtx);
 	}
-	
 
-	if (nng_aio_result(work->http_aio) != 0) {
-		log_info("HTTP Connect/Request failed");
-	}
 	if (!nng_lmq_empty(lmq)) {
 		// send webhook http requests
 		if ((rv = nng_http_client_alloc(&work->client, work->url)) != 0) {
@@ -541,7 +527,7 @@ http_aio_cb(void *arg)
 		nng_mtx_lock(work->mtx);
 		work->msg = nng_lmq_get(lmq, &work->msg);
 		nng_aio_set_timeout(work->http_aio, 1000);
-		nng_aio_set_msg(work->http_aio, msg);
+		nng_aio_set_msg(work->http_aio, work->msg);
 		nng_http_client_connect(work->client, work->http_aio);
 		nng_mtx_unlock(work->mtx);
 	} else {
