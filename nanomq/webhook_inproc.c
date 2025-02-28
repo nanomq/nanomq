@@ -43,10 +43,13 @@
 // The server keeps a list of work items, sorted by expiration time,
 // so that we can use this to set the timeout to the correct value for
 // use in poll.
+
+typedef struct hook_work hook_work;
 struct hook_work {
 	enum { HOOK_INIT, HOOK_RECV, HOOK_WAIT, HOOK_SEND } state;
 	nng_aio *      aio;
 	nng_aio *      send_aio;
+	nng_aio *      http_aio;
 	nng_msg *      msg;
 	nng_thread *   thread;
 	nng_mtx *      mtx;
@@ -58,6 +61,10 @@ struct hook_work {
 	conf_exchange *exchange;
 	conf_parquet  *parquet;
 	nng_socket    *mqtt_sock;
+	nng_http_req    *req;
+	nng_http_client *client;
+	nng_http_conn   *conn;
+	nng_url      *url;
 };
 
 static void hook_work_cb(void *arg);
@@ -111,7 +118,7 @@ send_mqtt_msg_cat_with_split(nng_socket *sock, nng_msg **msgs, uint32_t len,
 			char *cipher = NULL;
 			int   cipher_len;
 			char *tag; // Now I know
-			cipher = aes_gcm_encrypt(buf, pos, key, &tag, &cipher_len);
+			// cipher = aes_gcm_encrypt(buf, pos, key, &tag, &cipher_len);
 			if (cipher == NULL) {
 				log_error("error in aes gcm encryption");
 				nng_free(buf, pos);
@@ -186,7 +193,7 @@ send_mqtt_msg_cat(nng_socket *sock, nng_msg **msgs, uint32_t len,
 		char *cipher = NULL;
 		int   cipher_len;
 		char *tag; // I donot know
-		cipher = aes_gcm_encrypt(buf, pos, key, &tag, &cipher_len);
+		// cipher = aes_gcm_encrypt(buf, pos, key, &tag, &cipher_len);
 		if (cipher == NULL) {
 			log_error("error in aes gcm encryption");
 			nng_free(buf, pos);
@@ -406,72 +413,53 @@ send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uin
 #endif
 
 static void
-send_msg(conf_web_hook *conf, nng_msg *msg)
+send_msg(hook_work *w, nng_msg *msg)
 {
-	nng_http_client *client = NULL;
+	conf_web_hook   *conf   = w->conf;
 	nng_http_conn   *conn   = NULL;
 	nng_url         *url    = NULL;
-	nng_aio         *aio    = NULL;
+	nng_aio         *aio    = w->http_aio;
 	nng_http_req    *req    = NULL;
 	nng_http_res    *res    = NULL;
 	int              rv;
 
-	if (((rv = nng_url_parse(&url, conf->url)) != 0) ||
-	    ((rv = nng_http_client_alloc(&client, url)) != 0) ||
-	    ((rv = nng_http_req_alloc(&req, url)) != 0) ||
-	    ((rv = nng_http_res_alloc(&res)) != 0) ||
-	    ((rv = nng_aio_alloc(&aio, NULL, NULL)) != 0)) {
+	if ((rv = nng_http_client_alloc(&w->client, w->url)) != 0) {
 		log_error("init failed: %s\n", nng_strerror(rv));
 		goto out;
 	}
-
-	// Start connection process...
-	nng_aio_set_timeout(aio, 1000);
-	nng_http_client_connect(client, aio);
-
-	// Wait for it to finish.
-	nng_aio_wait(aio);
-
-	if ((rv = nng_aio_result(aio)) != 0) {
-		log_error("Webhook connect failed: %s", nng_strerror(rv));
-		nng_aio_finish_sync(aio, rv);
-		goto out;
+	nng_mtx_lock(w->mtx);
+	if (msg == NULL) {
+		rv = nng_lmq_get(w->lmq, &msg);
+		if (0 != rv) {
+			nng_mtx_unlock(w->mtx);
+			log_error("Webhook get msg from lmq failed: %s", nng_strerror(rv));
+			goto out;
+		}
 	}
-
-	// Get the connection, at the 0th output.
-	conn = nng_aio_get_output(aio, 0);
-
-	// Request is already set up with URL, and for GET via HTTP/1.1.
-	// The Host: header is already set up too.
-	// set_data(req, conf_req, params);
-	// Send the request, and wait for that to finish.
-	for (size_t i = 0; i < conf->header_count; i++) {
-		nng_http_req_add_header(
-		    req, conf->headers[i]->key, conf->headers[i]->value);
-	}
-
-	nng_http_req_set_method(req, "POST");
-	nng_http_req_set_data(req, nng_msg_body(msg), nng_msg_len(msg));
-	nng_http_conn_write_req(conn, req, aio);
-	nng_aio_set_timeout(aio, 1000);
-	nng_aio_wait(aio);
-	log_debug("webhook post result %d", nng_aio_result(aio));
-
-	if ((rv = nng_aio_result(aio)) != 0) {
-		log_error("Write req failed: %s", nng_strerror(rv));
-		nng_aio_finish_sync(aio, rv);
-		goto out;
+	if (nng_aio_busy(aio)) {
+		if (nng_lmq_full(w->lmq)) {
+			size_t lmq_cap = nng_lmq_cap(w->lmq);
+			if ((rv = nng_lmq_resize(
+			         w->lmq, lmq_cap + (lmq_cap / 2))) != 0) {
+				NANO_NNG_FATAL("nng_lmq_resize mem error", rv);
+			}
+		}
+		nng_msg_clone(w->msg);
+		if (nng_lmq_put(w->lmq, w->msg) != 0) {
+			log_info("HTTP Request droppped");
+			nng_msg_free(w->msg);
+		}
+	} else {
+		// Start connection process...
+		nng_aio_set_timeout(aio, 1000);
+		nng_aio_set_msg(aio, msg);
+		nng_http_client_connect(w->client, aio);
 	}
 
 out:
+	nng_mtx_unlock(w->mtx);
 	if (url) {
 		nng_url_free(url);
-	}
-	if (conn) {
-		nng_http_conn_close(conn);
-	}
-	if (client) {
-		nng_http_client_free(client);
 	}
 	if (req) {
 		nng_http_req_free(req);
@@ -479,44 +467,80 @@ out:
 	if (res) {
 		nng_http_res_free(res);
 	}
-	if (aio) {
-		nng_aio_free(aio);
-	}
 }
 
 // an independent thread of each work obj for sending HTTP msg
 static void
-thread_cb(void *arg)
+http_aio_cb(void *arg)
 {
-	struct hook_work *w   = arg;
-	nng_lmq *         lmq = w->lmq;
-	nng_msg *         msg = NULL;
+	struct hook_work *work = arg;
+	conf_web_hook    *conf = work->conf;
+	nng_lmq          *lmq  = work->lmq;
+	nng_msg          *msg  = NULL;
+	nng_aio          *aio  = work->http_aio;
 	int               rv;
+	uint8_t type;
 
-	while (true) {
-		if (!nng_lmq_empty(lmq)) {
-			nng_mtx_lock(w->mtx);
-			rv = nng_lmq_get(lmq, &msg);
-			nng_mtx_unlock(w->mtx);
-			if (0 != rv)
-				continue;
-			// send webhook http requests
-			send_msg(w->conf, msg);
-			nng_msg_free(msg);
-		} else {
-			// try to reduce lmq cap
-			size_t lmq_len = nng_lmq_len(w->lmq);
-			if (lmq_len > (NANO_LMQ_INIT_CAP * 2)) {
-				size_t lmq_cap = nng_lmq_cap(w->lmq);
-				if (lmq_cap > (lmq_len * 2)) {
-					nng_mtx_lock(w->mtx);
-					nng_lmq_resize(w->lmq, lmq_cap / 2);
-					nng_mtx_unlock(w->mtx);
-				}
+	// nng_mtx_lock(work->mtx);
+	msg = nng_aio_get_msg(aio);
+	if (msg != NULL) {
+		type = nng_msg_cmd_type(msg);
+	}
+	if (type != CMD_DISCONNECT && nng_aio_result(aio) == 0) {
+		log_info("HTTP connect finished");
+	if ((rv = nng_http_req_alloc(&work->req, work->url)) != 0) {
+		return;
+	}
+		nng_mtx_lock(work->mtx);
+		// Get the connection, at the 0th output.
+		work->conn = nng_aio_get_output(aio, 0);
+
+		// Request is already set up with URL, and for GET via
+		// HTTP/1.1. The Host: header is already set up too.
+		// set_data(req, conf_req, params);
+		// Send the request, and wait for that to finish.
+		for (size_t i = 0; i < conf->header_count; i++) {
+			nng_http_req_add_header(work->req, conf->headers[i]->key,
+			    conf->headers[i]->value);
+		}
+
+		nng_http_req_set_method(work->req, "POST");
+		nng_http_req_set_data(
+		    work->req, nng_msg_body(msg), nng_msg_len(msg));
+		// nng_aio_set_msg(aio, NULL);
+		nng_msg_set_cmd_type(msg, CMD_DISCONNECT);
+		nng_aio_set_timeout(aio, 1000);
+		nng_http_conn_write_req(work->conn, work->req, aio);
+		nng_mtx_unlock(work->mtx);
+		return;
+	}
+	if (type == CMD_DISCONNECT && nng_aio_result(work->http_aio) == 0) {
+		nng_msg_free(msg);
+		nng_http_client_free(work->client);
+		nng_http_conn_close(work->conn);
+		nng_http_req_free(work->req);
+		log_info("HTTP Request successed");
+	}
+	if (nng_aio_result(work->http_aio) != 0) {
+		log_info("HTTP Connect/Request failed");
+	}
+	if (!nng_lmq_empty(lmq)) {
+		// send webhook http requests
+		send_msg(work, NULL);
+		nng_msg_free(msg);
+	} else {
+		size_t lmq_len = nng_lmq_len(work->lmq);
+		// try to reduce lmq cap
+		if (lmq_len > (NANO_LMQ_INIT_CAP * 2)) {
+			nng_mtx_lock(work->mtx);
+			size_t lmq_cap = nng_lmq_cap(work->lmq);
+			if (lmq_cap > (lmq_len * 2)) {
+				nng_lmq_resize(work->lmq, lmq_cap / 2);
 			}
-			nng_msleep(500);
+			nng_mtx_unlock(work->mtx);
 		}
 	}
+	// nng_mtx_unlock(work->mtx);
 }
 
 static void
@@ -590,18 +614,8 @@ hook_work_cb(void *arg)
 			cJSON_Delete(root);
 			root = NULL;
 		}
-
+		send_msg(work, msg);
 		// TODO If it's a msg to webhook???
-		nng_mtx_lock(work->mtx);
-		if (nng_lmq_full(work->lmq)) {
-			size_t lmq_cap = nng_lmq_cap(work->lmq);
-			if ((rv = nng_lmq_resize(
-			         work->lmq, lmq_cap + (lmq_cap / 2))) != 0) {
-				NANO_NNG_FATAL("nng_lmq_resize mem error", rv);
-			}
-		}
-		nng_lmq_put(work->lmq, work->msg);
-		nng_mtx_unlock(work->mtx);
 		work->msg   = NULL;
 		work->state = HOOK_RECV;
 		nng_recv_aio(work->sock, work->aio);
@@ -981,9 +995,15 @@ alloc_work(nng_socket sock, conf_web_hook *conf, conf_exchange *exconf,
 	if ((rv = nng_lmq_alloc(&w->lmq, NANO_LMQ_INIT_CAP) != 0)) {
 		NANO_NNG_FATAL("nng_lmq_alloc", rv);
 	}
-	if ((rv = nng_thread_create(&w->thread, thread_cb, w)) != 0) {
-		NANO_NNG_FATAL("nng_thread_create", rv);
+	if ((rv = nng_aio_alloc(&w->http_aio, http_aio_cb, w)) != 0) {
+		NANO_NNG_FATAL("nng_aio_alloc", rv);
 	}
+	if ((rv = nng_url_parse(&w->url, conf->url)) != 0) {
+		NANO_NNG_FATAL("nng_http_alloc", rv);
+	}
+	// if ((rv = nng_thread_create(&w->thread, , w)) != 0) {
+	// 	NANO_NNG_FATAL("nng_thread_create", rv);
+	// }
 
 	w->conf     = conf;
 	w->sock     = sock;
