@@ -427,7 +427,7 @@ send_msg(hook_work *w, nng_msg *msg)
 		if (0 != rv) {
 			nng_mtx_unlock(w->mtx);
 			log_error("Webhook get msg from lmq failed: %s", nng_strerror(rv));
-			goto out;
+			return;
 		}
 	}
 	if (nng_aio_busy(aio)) {
@@ -438,7 +438,7 @@ send_msg(hook_work *w, nng_msg *msg)
 				NANO_NNG_FATAL("nng_lmq_resize mem error", rv);
 			}
 		}
-		nng_msg_clone(msg);
+		// nng_msg_clone(msg);
 		if (nng_lmq_put(w->lmq, msg) != 0) {
 			log_info("HTTP Request droppped");
 			nng_msg_free(msg);
@@ -451,7 +451,9 @@ send_msg(hook_work *w, nng_msg *msg)
 		// Start connection process...
 		nng_aio_set_timeout(aio, 1000);
 		nng_aio_set_msg(aio, msg);
+		nng_mtx_unlock(w->mtx);
 		nng_http_client_connect(w->client, aio);
+		return;
 	}
 
 out:
@@ -470,13 +472,31 @@ http_aio_cb(void *arg)
 	int               rv;
 	uint8_t type;
 
+	if((rv = nng_aio_result(work->http_aio)) != 0) {
+		log_warn("HTTP aio result error : %s", nng_strerror(rv));
+		msg = nng_aio_get_msg(work->http_aio);
+		if (msg != NULL) {
+			type = nng_msg_cmd_type(msg);
+			nng_msg_free(msg);
+			if (work->client)
+				nng_http_client_free(work->client);
+			if (type == CMD_DISCONNECT) {
+			nng_aio_set_msg(work->http_aio, NULL);
+			if (work->conn)
+				nng_http_conn_close(work->conn);
+			if (work->req)
+				nng_http_req_free(work->req);
+			log_info("HTTP Request successed");
+			}
+		}
+		return;
+	}
 	nng_mtx_lock(work->mtx);
 	msg = nng_aio_get_msg(aio);
-	if(nng_aio_result(work->http_aio) != 0)
-		log_warn("HTTP aio result error : %s", nng_strerror(rv));
+
 
 	if (msg != NULL) {
-		work->msg = msg;
+		// work->msg = msg;
 		type = nng_msg_cmd_type(msg);
 		if (type != CMD_DISCONNECT && nng_aio_result(aio) == 0) {
 			log_info("HTTP connect finished, now start request");
@@ -501,16 +521,19 @@ http_aio_cb(void *arg)
 				work->req, nng_msg_body(msg), nng_msg_len(msg));
 			nng_msg_set_cmd_type(msg, CMD_DISCONNECT);
 			nng_aio_set_timeout(aio, 1000);
-			nng_http_conn_write_req(work->conn, work->req, aio);
 			nng_mtx_unlock(work->mtx);
+			nng_http_conn_write_req(work->conn, work->req, aio);
 			return;
 		} else if (type == CMD_DISCONNECT) {
 			nng_msg_free(msg);
 			nng_aio_set_msg(work->http_aio, NULL);
 			nng_mtx_unlock(work->mtx);
 			nng_http_client_free(work->client);
+			work->client = NULL;
 			nng_http_conn_close(work->conn);
+			work->conn = NULL;
 			nng_http_req_free(work->req);
+			work->req = NULL;
 			log_info("HTTP Request successed");
 		}
 	} else {
@@ -525,11 +548,11 @@ http_aio_cb(void *arg)
 			return;
 		}
 		nng_mtx_lock(work->mtx);
-		work->msg = nng_lmq_get(lmq, &work->msg);
+		nng_lmq_get(lmq, &msg);
 		nng_aio_set_timeout(work->http_aio, 1000);
-		nng_aio_set_msg(work->http_aio, work->msg);
-		nng_http_client_connect(work->client, work->http_aio);
+		nng_aio_set_msg(work->http_aio, msg);
 		nng_mtx_unlock(work->mtx);
+		nng_http_client_connect(work->client, work->http_aio);
 	} else {
 		size_t lmq_len = nng_lmq_len(work->lmq);
 		// try to reduce lmq cap
@@ -996,11 +1019,13 @@ alloc_work(nng_socket sock, conf_web_hook *conf, conf_exchange *exconf,
 	if ((rv = nng_lmq_alloc(&w->lmq, NANO_LMQ_INIT_CAP) != 0)) {
 		NANO_NNG_FATAL("nng_lmq_alloc", rv);
 	}
-	if ((rv = nng_aio_alloc(&w->http_aio, http_aio_cb, w)) != 0) {
-		NANO_NNG_FATAL("nng_aio_alloc", rv);
-	}
-	if ((rv = nng_url_parse(&w->url, conf->url)) != 0) {
-		NANO_NNG_FATAL("nng_http_alloc", rv);
+	if (conf->enable) {
+		if ((rv = nng_aio_alloc(&w->http_aio, http_aio_cb, w)) != 0) {
+			NANO_NNG_FATAL("nng_aio_alloc", rv);
+		}
+		if ((rv = nng_url_parse(&w->url, conf->url)) != 0) {
+			NANO_NNG_FATAL("nng_http_alloc", rv);
+		}
 	}
 	// if ((rv = nng_thread_create(&w->thread, , w)) != 0) {
 	// 	NANO_NNG_FATAL("nng_thread_create", rv);
