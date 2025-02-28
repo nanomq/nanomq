@@ -430,6 +430,7 @@ send_msg(hook_work *w, nng_msg *msg)
 	nng_mtx_lock(w->mtx);
 	if (msg == NULL) {
 		rv = nng_lmq_get(w->lmq, &msg);
+		log_info("webhook agent gets msg from lmq to send");
 		if (0 != rv) {
 			nng_mtx_unlock(w->mtx);
 			log_error("Webhook get msg from lmq failed: %s", nng_strerror(rv));
@@ -483,14 +484,17 @@ http_aio_cb(void *arg)
 
 	// nng_mtx_lock(work->mtx);
 	msg = nng_aio_get_msg(aio);
+	if(nng_aio_result(work->http_aio) != 0)
+		log_warn("HTTP aio result error : %s", nng_strerror(rv));
+
 	if (msg != NULL) {
 		type = nng_msg_cmd_type(msg);
-	}
-	if (type != CMD_DISCONNECT && nng_aio_result(aio) == 0) {
-		log_info("HTTP connect finished");
-	if ((rv = nng_http_req_alloc(&work->req, work->url)) != 0) {
-		return;
-	}
+		nng_aio_set_msg(work->http_aio, NULL);
+		if (type != CMD_DISCONNECT && nng_aio_result(aio) == 0) {
+			log_info("HTTP connect finished");
+		if ((rv = nng_http_req_alloc(&work->req, work->url)) != 0) {
+			return;
+		}
 		nng_mtx_lock(work->mtx);
 		// Get the connection, at the 0th output.
 		work->conn = nng_aio_get_output(aio, 0);
@@ -501,33 +505,45 @@ http_aio_cb(void *arg)
 		// Send the request, and wait for that to finish.
 		for (size_t i = 0; i < conf->header_count; i++) {
 			nng_http_req_add_header(work->req, conf->headers[i]->key,
-			    conf->headers[i]->value);
+				conf->headers[i]->value);
 		}
 
 		nng_http_req_set_method(work->req, "POST");
 		nng_http_req_set_data(
-		    work->req, nng_msg_body(msg), nng_msg_len(msg));
+			work->req, nng_msg_body(msg), nng_msg_len(msg));
 		// nng_aio_set_msg(aio, NULL);
 		nng_msg_set_cmd_type(msg, CMD_DISCONNECT);
 		nng_aio_set_timeout(aio, 1000);
 		nng_http_conn_write_req(work->conn, work->req, aio);
 		nng_mtx_unlock(work->mtx);
 		return;
+		} else if (type == CMD_DISCONNECT) {
+			nng_msg_free(msg);
+			nng_http_client_free(work->client);
+			nng_http_conn_close(work->conn);
+			nng_http_req_free(work->req);
+			log_info("HTTP Request successed");
+		}
+	} else {
+		log_info("last HTTP Request is finished");
 	}
-	if (type == CMD_DISCONNECT && nng_aio_result(work->http_aio) == 0) {
-		nng_msg_free(msg);
-		nng_http_client_free(work->client);
-		nng_http_conn_close(work->conn);
-		nng_http_req_free(work->req);
-		log_info("HTTP Request successed");
-	}
+	
+
 	if (nng_aio_result(work->http_aio) != 0) {
 		log_info("HTTP Connect/Request failed");
 	}
 	if (!nng_lmq_empty(lmq)) {
 		// send webhook http requests
-		send_msg(work, NULL);
-		nng_msg_free(msg);
+		if ((rv = nng_http_client_alloc(&work->client, work->url)) != 0) {
+			log_error("init failed: %s\n", nng_strerror(rv));
+			return;
+		}
+		nng_mtx_lock(work->mtx);
+		work->msg = nng_lmq_get(lmq, &work->msg);
+		nng_aio_set_timeout(work->http_aio, 1000);
+		nng_aio_set_msg(work->http_aio, msg);
+		nng_http_client_connect(work->client, work->http_aio);
+		nng_mtx_unlock(work->mtx);
 	} else {
 		size_t lmq_len = nng_lmq_len(work->lmq);
 		// try to reduce lmq cap
@@ -540,7 +556,6 @@ http_aio_cb(void *arg)
 			nng_mtx_unlock(work->mtx);
 		}
 	}
-	// nng_mtx_unlock(work->mtx);
 }
 
 static void
