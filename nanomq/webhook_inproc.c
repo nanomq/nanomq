@@ -43,26 +43,24 @@
 typedef struct hook_work hook_work;
 struct hook_work {
 	enum { HOOK_INIT, HOOK_RECV, HOOK_WAIT, HOOK_SEND } state;
-	nng_aio *      aio;
-	nng_aio *      send_aio;
-	nng_aio *      http_aio;
-	nng_msg *      msg;
-	nng_thread *   thread;
-	nng_mtx *      mtx;
-	nng_lmq *      lmq;
-	nng_socket     sock;
-	conf_web_hook *conf;
-	uint32_t       id;
-	bool           busy;
-	conf_exchange *exchange;
-	conf_parquet  *parquet;
-	nng_socket    *mqtt_sock;
+	nng_aio         *aio;
+	nng_aio         *http_aio;
+	nng_msg         *msg;
+	nng_thread      *thread;
+	nng_mtx         *mtx;
+	nng_lmq         *lmq;
+	nng_socket       sock;
+	conf_web_hook   *conf;
+	uint32_t         id;
+	bool             busy;
+	conf_exchange   *exchange;
+	conf_parquet    *parquet;
+	nng_socket      *mqtt_sock;
 	nng_http_req    *req;
 	nng_http_client *client;
 	nng_http_conn   *conn;
-	nng_url      *url;
+	nng_url         *url;
 };
-
 
 static void hook_work_cb(void *arg);
 
@@ -253,13 +251,12 @@ http_aio_cb(void *arg)
 			nng_msg_free(msg);
 			if (work->client)
 				nng_http_client_free(work->client);
-			if (type == CMD_DISCONNECT) {
-			nng_aio_set_msg(work->http_aio, NULL);
-			if (work->conn)
-				nng_http_conn_close(work->conn);
-			if (work->req)
-				nng_http_req_free(work->req);
-			log_trace("HTTP Request successed");
+			if (type == CMD_HTTPREQ) {
+				nng_aio_set_msg(work->http_aio, NULL);
+				if (work->conn)
+					nng_http_conn_close(work->conn);
+				if (work->req)
+					nng_http_req_free(work->req);
 			}
 		}
 		return;
@@ -271,7 +268,7 @@ http_aio_cb(void *arg)
 	if (msg != NULL) {
 		// work->msg = msg;
 		type = nng_msg_cmd_type(msg);
-		if (type != CMD_DISCONNECT && nng_aio_result(aio) == 0) {
+		if (type != CMD_HTTPREQ && nng_aio_result(aio) == 0) {
 			log_trace("HTTP connect finished, now start request");
 			if ((rv = nng_http_req_alloc(&work->req, work->url)) != 0) {
 				nng_mtx_unlock(work->mtx);
@@ -292,12 +289,12 @@ http_aio_cb(void *arg)
 			nng_http_req_set_method(work->req, "POST");
 			nng_http_req_set_data(
 				work->req, nng_msg_body(msg), nng_msg_len(msg));
-			nng_msg_set_cmd_type(msg, CMD_DISCONNECT);
+			nng_msg_set_cmd_type(msg, CMD_HTTPREQ);
 			nng_aio_set_timeout(aio, 1000);
 			nng_http_conn_write_req(work->conn, work->req, aio);
 			nng_mtx_unlock(work->mtx);
 			return;
-		} else if (type == CMD_DISCONNECT) {
+		} else if (type == CMD_HTTPREQ) {
 			nng_msg_free(msg);
 			nng_aio_set_msg(work->http_aio, NULL);
 			nng_mtx_unlock(work->mtx);
@@ -709,9 +706,6 @@ alloc_work(nng_socket sock, conf_web_hook *conf, conf_exchange *exconf,
 		NANO_NNG_FATAL("nng_alloc", NNG_ENOMEM);
 	}
 	if ((rv = nng_aio_alloc(&w->aio, hook_work_cb, w)) != 0) {
-		NANO_NNG_FATAL("nng_aio_alloc", rv);
-	}
-	if ((rv = nng_aio_alloc(&w->send_aio, NULL, NULL)) != 0) {
 		NANO_NNG_FATAL("nng_aio_alloc", rv);
 	}
 	if ((rv = nng_mtx_alloc(&w->mtx)) != 0) {
