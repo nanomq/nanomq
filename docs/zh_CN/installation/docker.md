@@ -125,7 +125,8 @@ NanoMQ 也支持通过环境变量自定义配置，支持的环境变量列表�
 | NANOMQ_QOS_DURATION             | Integer  | QoS 消息定时间隔时间                                         |
 | NANOMQ_ALLOW_ANONYMOUS          | Boolean  | 允许匿名登录（默认：True）                                   |
 | NANOMQ_WEBSOCKET_ENABLE         | Boolean  | 启动 WebSocket 监听（默认：True）                            |
-| NANOMQ_WEBSOCKET_URL            | String   | `nmq-ws://host:port/path` <br />`nmq-wss://host:port/path`   |
+| NANOMQ_WEBSOCKET_URL            | String   | `nmq-ws://host:port/path` 								  |
+| NANOMQ_WEBSOCKET_TLS_URL        | String   | `nmq-wss://host:port/path` 							   |
 | NANOMQ_HTTP_SERVER_ENABLE       | Boolean  | 启动 HTTP 服务监听（默认：False）                            |
 | NANOMQ_HTTP_SERVER_PORT         | Integer  | HTTP 服务端监听端口（默认：8081）                            |
 | NANOMQ_HTTP_SERVER_USERNAME     | String   | 访问 HTTP 服务的用户名                                       |
