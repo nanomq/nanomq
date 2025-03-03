@@ -71,6 +71,13 @@ rules = [
 
 Each rule is processed in order, and processing stops at the first match. If no rules match, the action specified by the `no_match` configuration item is applied.
 
+**Tips:**
+
+*   `@` can be used to match *any* topics without bothering by wildcards. For examples:
+	By specifying `{"permit": "deny", "username": "#", "action": "subscribe", "topics": ["$SYS/#", "@#", "@client/+/msg"]}`, it will only deny subscription to topic `#` and
+	`client/+/msg"`, not `client/123/msg` and any other topics although they are also
+	matched in terms of wildcard rules.
+
 ## HTTP Authentication
 
 This section outlines the configuration for HTTP authentication, which allows the MQTT broker to authenticate clients using HTTP requests. It includes settings for authentication requests (`auth_req`), superuser requests (`super_req`), and Access Control List requests (`acl_req`).
