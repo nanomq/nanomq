@@ -40,9 +40,12 @@
 // The server keeps a list of work items, sorted by expiration time,
 // so that we can use this to set the timeout to the correct value for
 // use in poll.
+typedef struct hook_work hook_work;
 struct hook_work {
 	enum { HOOK_INIT, HOOK_RECV, HOOK_WAIT, HOOK_SEND } state;
 	nng_aio *      aio;
+	nng_aio *      send_aio;
+	nng_aio *      http_aio;
 	nng_msg *      msg;
 	nng_thread *   thread;
 	nng_mtx *      mtx;
@@ -53,7 +56,13 @@ struct hook_work {
 	bool           busy;
 	conf_exchange *exchange;
 	conf_parquet  *parquet;
+	nng_socket    *mqtt_sock;
+	nng_http_req    *req;
+	nng_http_client *client;
+	nng_http_conn   *conn;
+	nng_url      *url;
 };
+
 
 static void hook_work_cb(void *arg);
 
@@ -175,82 +184,51 @@ send_mqtt_msg_file(
 #endif
 
 static void
-send_msg(conf_web_hook *conf, nng_msg *msg)
+send_msg(hook_work *w, nng_msg *msg)
 {
-	nng_http_client *client = NULL;
+	conf_web_hook   *conf   = w->conf;
 	nng_http_conn   *conn   = NULL;
-	nng_url         *url    = NULL;
-	nng_aio         *aio    = NULL;
-	nng_http_req    *req    = NULL;
-	nng_http_res    *res    = NULL;
+	nng_aio         *aio    = w->http_aio;
 	int              rv;
 
-	if (((rv = nng_url_parse(&url, conf->url)) != 0) ||
-	    ((rv = nng_http_client_alloc(&client, url)) != 0) ||
-	    ((rv = nng_http_req_alloc(&req, url)) != 0) ||
-	    ((rv = nng_http_res_alloc(&res)) != 0) ||
-	    ((rv = nng_aio_alloc(&aio, NULL, NULL)) != 0)) {
-		log_error("init failed: %s\n", nng_strerror(rv));
-		goto out;
+	nng_mtx_lock(w->mtx);
+	if (msg == NULL) {
+		rv = nng_lmq_get(w->lmq, &msg);
+		log_debug("webhook agent gets msg from lmq to send");
+		if (0 != rv) {
+			nng_mtx_unlock(w->mtx);
+			log_error("Webhook get msg from lmq failed: %s", nng_strerror(rv));
+			return;
+		}
 	}
-
-	// Start connection process...
-	nng_aio_set_timeout(aio, 1000);
-	nng_http_client_connect(client, aio);
-
-	// Wait for it to finish.
-	nng_aio_wait(aio);
-
-	if ((rv = nng_aio_result(aio)) != 0) {
-		log_error("Connect failed: %s", nng_strerror(rv));
-		nng_aio_finish_sync(aio, rv);
-		goto out;
-	}
-
-	// Get the connection, at the 0th output.
-	conn = nng_aio_get_output(aio, 0);
-
-	// Request is already set up with URL, and for GET via HTTP/1.1.
-	// The Host: header is already set up too.
-	// set_data(req, conf_req, params);
-	// Send the request, and wait for that to finish.
-	for (size_t i = 0; i < conf->header_count; i++) {
-		nng_http_req_add_header(
-		    req, conf->headers[i]->key, conf->headers[i]->value);
-	}
-
-	nng_http_req_set_method(req, "POST");
-	nng_http_req_set_data(req, nng_msg_body(msg), nng_msg_len(msg));
-	nng_http_conn_write_req(conn, req, aio);
-	nng_aio_set_timeout(aio, 1000);
-	nng_aio_wait(aio);
-	log_debug("webhook post result %d", nng_aio_result(aio));
-
-	if ((rv = nng_aio_result(aio)) != 0) {
-		log_error("Write req failed: %s", nng_strerror(rv));
-		nng_aio_finish_sync(aio, rv);
-		goto out;
+	if (nng_aio_busy(aio)) {
+		if (nng_lmq_full(w->lmq)) {
+			size_t lmq_cap = nng_lmq_cap(w->lmq);
+			if ((rv = nng_lmq_resize(
+			         w->lmq, lmq_cap + (lmq_cap / 2))) != 0) {
+				NANO_NNG_FATAL("nng_lmq_resize mem error", rv);
+			}
+		}
+		// nng_msg_clone(msg);
+		if (nng_lmq_put(w->lmq, msg) != 0) {
+			log_info("HTTP Request droppped");
+			nng_msg_free(msg);
+		}
+	} else {
+		if ((rv = nng_http_client_alloc(&w->client, w->url)) != 0) {
+			log_error("init failed: %s\n", nng_strerror(rv));
+			goto out;
+		}
+		// Start connection process...
+		nng_aio_set_timeout(aio, 1000);
+		nng_aio_set_msg(aio, msg);
+		nng_mtx_unlock(w->mtx);
+		nng_http_client_connect(w->client, aio);
+		return;
 	}
 
 out:
-	if (url) {
-		nng_url_free(url);
-	}
-	if (conn) {
-		nng_http_conn_close(conn);
-	}
-	if (client) {
-		nng_http_client_free(client);
-	}
-	if (req) {
-		nng_http_req_free(req);
-	}
-	if (res) {
-		nng_http_res_free(res);
-	}
-	if (aio) {
-		nng_aio_free(aio);
-	}
+	nng_mtx_unlock(w->mtx);
 }
 
 // an independent thread of each work obj for sending HTTP msg
