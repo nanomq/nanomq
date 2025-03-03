@@ -423,7 +423,7 @@ send_msg(hook_work *w, nng_msg *msg)
 	nng_mtx_lock(w->mtx);
 	if (msg == NULL) {
 		rv = nng_lmq_get(w->lmq, &msg);
-		log_info("webhook agent gets msg from lmq to send");
+		log_debug("webhook agent gets msg from lmq to send");
 		if (0 != rv) {
 			nng_mtx_unlock(w->mtx);
 			log_error("Webhook get msg from lmq failed: %s", nng_strerror(rv));
@@ -486,7 +486,7 @@ http_aio_cb(void *arg)
 				nng_http_conn_close(work->conn);
 			if (work->req)
 				nng_http_req_free(work->req);
-			log_info("HTTP Request successed");
+			log_trace("HTTP Request successed");
 			}
 		}
 		return;
@@ -499,7 +499,7 @@ http_aio_cb(void *arg)
 		// work->msg = msg;
 		type = nng_msg_cmd_type(msg);
 		if (type != CMD_DISCONNECT && nng_aio_result(aio) == 0) {
-			log_info("HTTP connect finished, now start request");
+			log_trace("HTTP connect finished, now start request");
 			if ((rv = nng_http_req_alloc(&work->req, work->url)) != 0) {
 				nng_mtx_unlock(work->mtx);
 				return;
@@ -521,8 +521,8 @@ http_aio_cb(void *arg)
 				work->req, nng_msg_body(msg), nng_msg_len(msg));
 			nng_msg_set_cmd_type(msg, CMD_DISCONNECT);
 			nng_aio_set_timeout(aio, 1000);
-			nng_mtx_unlock(work->mtx);
 			nng_http_conn_write_req(work->conn, work->req, aio);
+			nng_mtx_unlock(work->mtx);
 			return;
 		} else if (type == CMD_DISCONNECT) {
 			nng_msg_free(msg);
@@ -534,10 +534,10 @@ http_aio_cb(void *arg)
 			work->conn = NULL;
 			nng_http_req_free(work->req);
 			work->req = NULL;
-			log_info("HTTP Request successed");
+			log_trace("HTTP Request successed");
 		}
 	} else {
-		log_info("NULL MSG !!!! last HTTP Request is finished");
+		log_info("NULL msg from webhook aio !!!!");
 		nng_mtx_unlock(work->mtx);
 	}
 
@@ -551,8 +551,8 @@ http_aio_cb(void *arg)
 		nng_lmq_get(lmq, &msg);
 		nng_aio_set_timeout(work->http_aio, 1000);
 		nng_aio_set_msg(work->http_aio, msg);
-		nng_mtx_unlock(work->mtx);
 		nng_http_client_connect(work->client, work->http_aio);
+		nng_mtx_unlock(work->mtx);
 	} else {
 		size_t lmq_len = nng_lmq_len(work->lmq);
 		// try to reduce lmq cap
