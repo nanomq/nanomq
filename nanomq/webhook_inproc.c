@@ -232,39 +232,114 @@ out:
 }
 
 // an independent thread of each work obj for sending HTTP msg
-static void
-thread_cb(void *arg)
-{
-	struct hook_work *w   = arg;
-	nng_lmq *         lmq = w->lmq;
-	nng_msg *         msg = NULL;
-	int               rv;
 
-	while (true) {
-		if (!nng_lmq_empty(lmq)) {
-			nng_mtx_lock(w->mtx);
-			rv = nng_lmq_get(lmq, &msg);
-			nng_mtx_unlock(w->mtx);
-			if (0 != rv)
-				continue;
-			// send webhook http requests
-			send_msg(w->conf, msg);
+// an independent thread of each work obj for sending HTTP msg
+static void
+http_aio_cb(void *arg)
+{
+	struct hook_work *work = arg;
+	conf_web_hook    *conf = work->conf;
+	nng_lmq          *lmq  = work->lmq;
+	nng_msg          *msg  = NULL;
+	nng_aio          *aio  = work->http_aio;
+	int               rv;
+	uint8_t type;
+
+	if((rv = nng_aio_result(work->http_aio)) != 0) {
+		log_warn("HTTP aio result error : %s", nng_strerror(rv));
+		msg = nng_aio_get_msg(work->http_aio);
+		if (msg != NULL) {
+			type = nng_msg_cmd_type(msg);
 			nng_msg_free(msg);
-		} else {
-			// try to reduce lmq cap
-			size_t lmq_len = nng_lmq_len(w->lmq);
-			if (lmq_len > (NANO_LMQ_INIT_CAP * 2)) {
-				size_t lmq_cap = nng_lmq_cap(w->lmq);
-				if (lmq_cap > (lmq_len * 2)) {
-					nng_mtx_lock(w->mtx);
-					nng_lmq_resize(w->lmq, lmq_cap / 2);
-					nng_mtx_unlock(w->mtx);
-				}
+			if (work->client)
+				nng_http_client_free(work->client);
+			if (type == CMD_DISCONNECT) {
+			nng_aio_set_msg(work->http_aio, NULL);
+			if (work->conn)
+				nng_http_conn_close(work->conn);
+			if (work->req)
+				nng_http_req_free(work->req);
+			log_trace("HTTP Request successed");
 			}
-			nng_msleep(10);
+		}
+		return;
+	}
+	nng_mtx_lock(work->mtx);
+	msg = nng_aio_get_msg(aio);
+
+
+	if (msg != NULL) {
+		// work->msg = msg;
+		type = nng_msg_cmd_type(msg);
+		if (type != CMD_DISCONNECT && nng_aio_result(aio) == 0) {
+			log_trace("HTTP connect finished, now start request");
+			if ((rv = nng_http_req_alloc(&work->req, work->url)) != 0) {
+				nng_mtx_unlock(work->mtx);
+				return;
+			}
+			// Get the connection, at the 0th output.
+			work->conn = nng_aio_get_output(aio, 0);
+
+			// Request is already set up with URL, and for GET via
+			// HTTP/1.1. The Host: header is already set up too.
+			// set_data(req, conf_req, params);
+			// Send the request, and wait for that to finish.
+			for (size_t i = 0; i < conf->header_count; i++) {
+				nng_http_req_add_header(work->req, conf->headers[i]->key,
+					conf->headers[i]->value);
+			}
+
+			nng_http_req_set_method(work->req, "POST");
+			nng_http_req_set_data(
+				work->req, nng_msg_body(msg), nng_msg_len(msg));
+			nng_msg_set_cmd_type(msg, CMD_DISCONNECT);
+			nng_aio_set_timeout(aio, 1000);
+			nng_http_conn_write_req(work->conn, work->req, aio);
+			nng_mtx_unlock(work->mtx);
+			return;
+		} else if (type == CMD_DISCONNECT) {
+			nng_msg_free(msg);
+			nng_aio_set_msg(work->http_aio, NULL);
+			nng_mtx_unlock(work->mtx);
+			nng_http_client_free(work->client);
+			work->client = NULL;
+			nng_http_conn_close(work->conn);
+			work->conn = NULL;
+			nng_http_req_free(work->req);
+			work->req = NULL;
+			log_trace("HTTP Request successed");
+		}
+	} else {
+		log_info("NULL msg from webhook aio !!!!");
+		nng_mtx_unlock(work->mtx);
+	}
+
+	if (!nng_lmq_empty(lmq)) {
+		// send webhook http requests
+		if ((rv = nng_http_client_alloc(&work->client, work->url)) != 0) {
+			log_error("init failed: %s\n", nng_strerror(rv));
+			return;
+		}
+		nng_mtx_lock(work->mtx);
+		nng_lmq_get(lmq, &msg);
+		nng_aio_set_timeout(work->http_aio, 1000);
+		nng_aio_set_msg(work->http_aio, msg);
+		nng_http_client_connect(work->client, work->http_aio);
+		nng_mtx_unlock(work->mtx);
+	} else {
+		size_t lmq_len = nng_lmq_len(work->lmq);
+		// try to reduce lmq cap
+		if (lmq_len > (NANO_LMQ_INIT_CAP * 2)) {
+			nng_mtx_lock(work->mtx);
+			size_t lmq_cap = nng_lmq_cap(work->lmq);
+			if (lmq_cap > (lmq_len * 2)) {
+				nng_lmq_resize(work->lmq, lmq_cap / 2);
+			}
+			nng_mtx_unlock(work->mtx);
 		}
 	}
 }
+
 
 static void
 hook_work_cb(void *arg)
