@@ -129,7 +129,8 @@ NanoMQ also supports custom configurations through environment variables. Here i
 | NANOMQ_QOS_DURATION             | Integer   | QoS message interval                                         |
 | NANOMQ_ALLOW_ANONYMOUS          | Boolean   | Allow anonymous login (default: True)                        |
 | NANOMQ_WEBSOCKET_ENABLE         | Boolean   | Enable WebSocket listening (default: True)                   |
-| NANOMQ_WEBSOCKET_URL            | String    | `nmq-ws://host:port/path` <br /><br />`nmq-wss://host:port/path` |
+| NANOMQ_WEBSOCKET_URL            | String    | `nmq-ws://host:port/path`  |
+| NANOMQ_WEBSOCKET_TLS_URL        | String    | `nmq-wss://host:port/path` |
 | NANOMQ_HTTP_SERVER_ENABLE       | Boolean   | Enable HTTP server listening (default: False)                |
 | NANOMQ_HTTP_SERVER_PORT         | Integer   | HTTP server listening port (default: 8081)                   |
 | NANOMQ_HTTP_SERVER_USERNAME     | String    | Username to access HTTP service                              |
