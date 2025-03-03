@@ -405,11 +405,12 @@ get_dflt_conf()
 	nanomq_conf->msq_len                = 32;
 	nanomq_conf->qos_duration           = 2;
 
-	nanomq_conf->sqlite.enable      = false;
-	nanomq_conf->tls.enable         = false;
-	nanomq_conf->websocket.enable   = false;
-	nanomq_conf->http_server.enable = false;
-	nanomq_conf->web_hook.enable    = false;
+	nanomq_conf->sqlite.enable        = false;
+	nanomq_conf->tls.enable           = false;
+	nanomq_conf->websocket.enable     = false;
+	nanomq_conf->websocket.tls_enable = false;
+	nanomq_conf->http_server.enable   = false;
+	nanomq_conf->web_hook.enable      = false;
 	return nanomq_conf;
 }
 
