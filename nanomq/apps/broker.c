@@ -1342,7 +1342,7 @@ broker(conf *nanomq_conf)
 		}
 
 		// TODO: multi for websocket
-		if (nanomq_conf->websocket.enable) {
+		if (nanomq_conf->websocket.tls_enable) {
 			nng_listener wss_listener;
 			if ((rv = nng_listener_create(&wss_listener, sock,
 			         nanomq_conf->websocket.tls_url)) != 0) {
@@ -1692,11 +1692,12 @@ predicate_url(conf *config, char *url)
 			FREE_NONULL(config->websocket.tls_url);
 			config->tls.enable        = true;
 			config->websocket.tls_url = nng_strdup(url);
+			config->websocket.tls_enable = true;
 		} else {
 			FREE_NONULL(config->websocket.url);
 			config->websocket.url = nng_strdup(url);
+			config->websocket.enable = true;
 		}
-		config->websocket.enable = true;
 	}
 }
 // Return config file type
@@ -1954,13 +1955,12 @@ broker_start(int argc, char **argv)
 		nanomq_conf->websocket.url = nanomq_conf->websocket.url != NULL
 		    ? nanomq_conf->websocket.url
 		    : nng_strdup(CONF_WS_URL_DEFAULT);
-
-		if (nanomq_conf->tls.enable) {
-			nanomq_conf->websocket.tls_url =
-			    nanomq_conf->websocket.tls_url != NULL
-			    ? nanomq_conf->websocket.tls_url
-			    : nng_strdup(CONF_WSS_URL_DEFAULT);
-		}
+	}
+	if (nanomq_conf->tls.enable && nanomq_conf->websocket.tls_enable) {
+		nanomq_conf->websocket.tls_url =
+			nanomq_conf->websocket.tls_url != NULL
+			? nanomq_conf->websocket.tls_url
+			: nng_strdup(CONF_WSS_URL_DEFAULT);
 	}
 	// Active daemonize
 #ifdef NANO_PLATFORM_WINDOWS
