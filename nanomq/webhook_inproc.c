@@ -28,9 +28,9 @@
 #include "nng/supplemental/util/platform.h"
 
 #include "nng/mqtt/mqtt_client.h"
-
-#ifdef SUPP_PARQUET
 #include "extern/include/aes_gcm.h"
+#ifdef SUPP_PARQUET
+
 #include "nng/supplemental/nanolib/parquet.h"
 #endif
 
@@ -118,7 +118,7 @@ send_mqtt_msg_cat_with_split(nng_socket *sock, nng_msg **msgs, uint32_t len,
 			char *cipher = NULL;
 			int   cipher_len;
 			char *tag; // Now I know
-			// cipher = aes_gcm_encrypt(buf, pos, key, &tag, &cipher_len);
+			cipher = aes_gcm_encrypt(buf, pos, key, &tag, &cipher_len);
 			if (cipher == NULL) {
 				log_error("error in aes gcm encryption");
 				nng_free(buf, pos);
@@ -193,7 +193,7 @@ send_mqtt_msg_cat(nng_socket *sock, nng_msg **msgs, uint32_t len,
 		char *cipher = NULL;
 		int   cipher_len;
 		char *tag; // I donot know
-		// cipher = aes_gcm_encrypt(buf, pos, key, &tag, &cipher_len);
+		cipher = aes_gcm_encrypt(buf, pos, key, &tag, &cipher_len);
 		if (cipher == NULL) {
 			log_error("error in aes gcm encryption");
 			nng_free(buf, pos);
