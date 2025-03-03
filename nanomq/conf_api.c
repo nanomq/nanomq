@@ -154,6 +154,7 @@ get_websocket_config(conf_websocket *ws)
 {
 	cJSON *ws_obj = cJSON_CreateObject();
 	cJSON_AddBoolToObject(ws_obj, "enable", ws->enable);
+	cJSON_AddBoolToObject(ws_obj, "tls_enable", ws->tls_enable);
 	cJSON_AddStringOrNullToObject(ws_obj, "url", ws->url);
 	cJSON_AddStringOrNullToObject(ws_obj, "tls_url", ws->tls_url);
 
@@ -801,23 +802,24 @@ set_websocket_config(cJSON *json, const char *conf_path, conf_websocket *ws)
 {
 	int    rv;
 	cJSON *item;
-	bool   ws_enable;
+	bool   ws_enable, wss_enable;
 	char * ws_url;
 	char * ws_tls_url;
 
 	getBoolValue(json, item, "enable", ws_enable, rv);
 	if (rv == 0) {
-		// conf_update_bool(conf_path, "websocket.enable", ws_enable);
 		update_var(ws->enable, ws_enable);
 	}
 	getStringValue(json, item, "url", ws_url, rv);
 	if (rv == 0) {
-		// conf_update(conf_path, "websocket.url", ws_url);
 		update_string(ws->url, ws_url);
+	}
+	getBoolValue(json, item, "tls_enable", wss_enable, rv);
+	if (rv == 0) {
+		update_var(ws->tls_enable, wss_enable);
 	}
 	getStringValue(json, item, "tls_url", ws_tls_url, rv);
 	if (rv == 0) {
-		// conf_update(conf_path, "websocket.tls_url", ws_tls_url);
 		update_string(ws->tls_url, ws_tls_url);
 	}
 }
