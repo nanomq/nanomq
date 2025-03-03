@@ -409,6 +409,7 @@ struct work {
 	nng_ctx      ctx;
 	client_opts *opts;
 	size_t       msg_count;
+	nng_socket  *sock;
 };
 
 #if defined(SUPP_QUIC)
@@ -1327,7 +1328,8 @@ client_cb(void *arg)
 				work->state = SEND_WAIT;
 				nng_sleep_aio(work->opts->interval, work->aio);
 			} else {
-				nng_fini();
+				nng_socket_close(*work->sock);
+				nng_closeall();
 				exit(1);
 			}
 		}
@@ -1529,6 +1531,7 @@ create_client(nng_socket *sock, struct work **works, size_t id, size_t nwork,
 
 	for (size_t i = 0; i < opts->parallel; i++) {
 		works[i] = alloc_work(*sock, opts);
+		works[i]->sock = sock;
 	}
 
 	conn_msg = connect_msg(opts);
@@ -1645,6 +1648,7 @@ client(int argc, char **argv, enum client_type type)
 	for (size_t j = 0; j < opts->clients; j++) {
 		nng_free(param[j], sizeof(struct connect_param));
 		nng_free(socket[j], sizeof(nng_socket));
+		console("cleaning all clients!\n");
 
 		for (size_t k = 0; k < opts->parallel; k++) {
 			nng_aio_free(works[j][k]->aio);
