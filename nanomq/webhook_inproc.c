@@ -711,14 +711,22 @@ alloc_work(nng_socket sock, conf_web_hook *conf, conf_exchange *exconf,
 	if ((rv = nng_aio_alloc(&w->aio, hook_work_cb, w)) != 0) {
 		NANO_NNG_FATAL("nng_aio_alloc", rv);
 	}
+	if ((rv = nng_aio_alloc(&w->send_aio, NULL, NULL)) != 0) {
+		NANO_NNG_FATAL("nng_aio_alloc", rv);
+	}
 	if ((rv = nng_mtx_alloc(&w->mtx)) != 0) {
 		NANO_NNG_FATAL("nng_mtx_alloc", rv);
 	}
 	if ((rv = nng_lmq_alloc(&w->lmq, NANO_LMQ_INIT_CAP) != 0)) {
 		NANO_NNG_FATAL("nng_lmq_alloc", rv);
 	}
-	if ((rv = nng_thread_create(&w->thread, thread_cb, w)) != 0) {
-		NANO_NNG_FATAL("nng_thread_create", rv);
+	if (conf->enable) {
+		if ((rv = nng_aio_alloc(&w->http_aio, http_aio_cb, w)) != 0) {
+			NANO_NNG_FATAL("nng_aio_alloc", rv);
+		}
+		if ((rv = nng_url_parse(&w->url, conf->url)) != 0) {
+			NANO_NNG_FATAL("nng_http_alloc", rv);
+		}
 	}
 
 	w->conf     = conf;
@@ -741,7 +749,7 @@ hook_cb(void *arg)
 	size_t             i;
 
 	if (conf->exchange.count > 0) {
-		works_num += 8 * conf->exchange.count;
+		works_num += conf->exchange.count;
 	}
 	if (conf->web_hook.enable) {
 		works_num += conf->web_hook.pool_size;
