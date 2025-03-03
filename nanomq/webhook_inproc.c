@@ -410,18 +410,7 @@ hook_work_cb(void *arg)
 			cJSON_Delete(root);
 			root = NULL;
 		}
-
-		// TODO If it's a msg to webhook???
-		nng_mtx_lock(work->mtx);
-		if (nng_lmq_full(work->lmq)) {
-			size_t lmq_cap = nng_lmq_cap(work->lmq);
-			if ((rv = nng_lmq_resize(
-			         work->lmq, lmq_cap + (lmq_cap / 2))) != 0) {
-				NANO_NNG_FATAL("nng_lmq_resize mem error", rv);
-			}
-		}
-		nng_lmq_put(work->lmq, work->msg);
-		nng_mtx_unlock(work->mtx);
+		send_msg(work, msg);
 		work->msg   = NULL;
 		work->state = HOOK_RECV;
 		nng_recv_aio(work->sock, work->aio);
