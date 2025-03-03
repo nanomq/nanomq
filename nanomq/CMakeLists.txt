@@ -60,14 +60,22 @@ if(NNG_ENABLE_PLUGIN)
   set(SOURCES ${SOURCES} plugin/plugin.c)
 endif(NNG_ENABLE_PLUGIN)
 
+if(NNG_ENABLE_PARQUET)
+    include_directories(${CMAKE_SOURCE_DIR}/nanomq/extern/include)
+    set(SOURCES ${SOURCES}
+        extern/aes_gcm.c
+    )
+endif()
+
 if (ENABLE_FILETRANSFER)
     ADD_DEFINITIONS(-DENABLE_FILETRANSFER)
     include_directories(${CMAKE_SOURCE_DIR}/nanomq/extern/include)
     set(SOURCES ${SOURCES}
         extern/file_transfer_nano.c
-        extern/aes_gcm.c
     )
 endif()
+
+
 
 include_directories(${FOUNDATION_INCLUDE_DIR})
 
