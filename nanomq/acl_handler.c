@@ -238,12 +238,19 @@ auth_acl(conf *config, acl_action_type act_type, conn_param *param,
 			char **topic_array = rule->topics;
 			bool   found       = false;
 			char  *rule_topic  = NULL;
-			for (size_t j = 0;
-			     j < rule->topic_count && found != true; j++) {
-				if (topic_filter(rule->topics[j], topic)) {
+			for (size_t j = 0; j < rule->topic_count && found != true; j++) {
+				if (strncmp(rule->topics[j], "@", 1) == 0 && strlen(rule->topics[j]) > 1) {
+					log_debug("@ is taking effect: %s %d",
+							  rule->topics[j] + 1, strlen(rule->topics[j]));
+					if (strcmp(rule->topics[j] + 1, topic) == 0) {
+						found = true;
+						break;
+					}
+				} else if (topic_filter(rule->topics[j], topic)) {
 					found = true;
 					break;
 				}
+
 				if (check_placeholder(rule->topics[j])) {
 					rule_topic = replace_topic(
 					    rule->topics[j], param);
