@@ -120,14 +120,9 @@ jobs:
 
             if [[ "${version}" == "gee_8295c_90" ]]; then
               cp ../build_android_90/nanomq/nanomq "${target_dir}/"
-              echo "${version}"
               rm -f ${target_dir}/lib/libmbed*.so ${target_dir}/lib/libcsmw*.so
-              echo "${version}"
-              ls ${target_dir}/lib/
             else
               cp ../build_android/nanomq/nanomq "${target_dir}/"
-              echo "${version}"
-              ls ${target_dir}/lib/
             fi
 
             cp ../etc/${config_file} ./${target_dir}/etc/nanomq.conf
