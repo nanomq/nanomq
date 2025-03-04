@@ -1460,7 +1460,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 					return BANNED;
 				}
 			} else {
-				log_info("acl allow");
+				log_debug("acl allow");
 			}
 		}
 	}
