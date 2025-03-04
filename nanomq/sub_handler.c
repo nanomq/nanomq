@@ -339,7 +339,7 @@ sub_ctx_handle(nano_work *work)
 					goto next;
 				}
 			} else {
-				log_info("acl allow");
+				log_debug("acl allow");
 			}
 		}
 #endif
