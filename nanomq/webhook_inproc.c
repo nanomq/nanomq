@@ -26,11 +26,9 @@
 #include "nng/supplemental/nanolib/utils.h"
 #include "nng/supplemental/nanolib/md5.h"
 #include "nng/supplemental/util/platform.h"
-
 #include "nng/mqtt/mqtt_client.h"
-#include "extern/include/aes_gcm.h"
 #ifdef SUPP_PARQUET
-
+#include "extern/include/aes_gcm.h"
 #include "nng/supplemental/nanolib/parquet.h"
 #endif
 
