@@ -75,6 +75,7 @@ jobs:
 
           config_versions=(
             "gee_e04c_E4"
+            "gee_e02c_E7"
             "gee_e04g_all"
           )
 
@@ -110,6 +111,7 @@ jobs:
 
           config_versions=(
             "gee_e04c_E4"
+            "gee_e02c_E7"
             "gee_e04g_all"
           )
 
