@@ -11,10 +11,13 @@ _main() {
 		rm -f /tmp/nanomq/nanomq.pid
 	fi
 
-	if [ "${1#-}" != "$1" ]; then
+	if [ "$#" -eq 0 ];then
+		set -- nanomq start
+	elif [ "${1#-}" != "$1" ]; then
 		set -- nanomq start "$@"
 	fi
-    exec "$@"
+
+  exec "$@"
 }
 
 _main "$@"
