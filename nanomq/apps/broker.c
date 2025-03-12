@@ -2004,7 +2004,7 @@ broker_start(int argc, char **argv)
 	}
 
 	char *vin = read_env_vin();
-	vin = "123456";
+	// vin = "123456";
 	if (NULL == vin) {
 		fprintf(stderr, "Waiting for VIN CODE.....");
 		vin = nano_vin_client(VIN_CODE_URL);
