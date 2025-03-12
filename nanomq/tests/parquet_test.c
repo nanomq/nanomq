@@ -47,8 +47,13 @@ static char    *global_data[128];
 static int      total_data_size = 10240;
 static char    *static_memory   = NULL;
 
-static char *filenames[NUM_KEYS] = { "10~109.parquet", "110~1109.parquet",
-	"220~2209.parquet", "330~3309.parquet", "440~4409.parquet" };
+static char *filenames[NUM_KEYS] = { 
+	"10~109", 
+	"110~1109",
+	"220~2209", 
+	"330~3309", 
+	"440~4409" 
+};
 
 static char *full_filenames[NUM_KEYS] = { 0 };
 
@@ -151,7 +156,7 @@ check_name(char *result, char *expect_suffix)
 		goto error;
 	}
 	char filename[128] = { 0 };
-	snprintf(filename, 128, "%s_%s-%s", prefix, md5_buffer, expect_suffix);
+	snprintf(filename, 128, "%s-%s_%s.parquet", prefix, expect_suffix, md5_buffer);
 
 	check(nng_strcasecmp(result, filename) == 0,
 	    "Filename error: %s != %s", result, filename);
