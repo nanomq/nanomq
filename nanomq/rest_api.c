@@ -1225,6 +1225,7 @@ typedef struct {
 	uint32_t    message_sent;
 	uint32_t    uplink_message_dropped;
 	uint32_t    downlink_message_dropped;
+	uint64_t    bytes_cached;
 	uint64_t    bytes_sent;
 	uint64_t    bytes_received;
 } bridge_stats;
@@ -1699,7 +1700,10 @@ get_prometheus(http_msg *msg, kv **params, size_t param_num,
 			if (child) {
 				bs.downlink_message_dropped = nng_stat_value(child);
 			}
-
+			child = nng_stat_find(st1, "mqtt_msg_bytes_cached");
+			if (child) {
+				bs.bytes_cached = nng_stat_value(child);
+			}
 			char bridge_metric_ret[BRIDGE_DATA_SIZE] = { 0 };
 			compose_bridge_metrics(bridge_metric_ret, &bs);
 
@@ -1795,6 +1799,12 @@ get_metrics(http_msg *msg, kv **params, size_t param_num,
 				    nng_stat_value(child));
 			}
 			child = nng_stat_find(st1, "mqtt_msg_recv_drop");
+			if (child) {
+				cJSON_AddNumberToObject(bridge_info,
+				    nng_stat_desc(child),
+				    nng_stat_value(child));
+			}
+			child = nng_stat_find(st1, "mqtt_msg_bytes_cached");
 			if (child) {
 				cJSON_AddNumberToObject(bridge_info,
 				    nng_stat_desc(child),
