@@ -426,8 +426,8 @@ hook_entry(nano_work *work, uint8_t reason)
 
 				if (work->proto != PROTO_MQTT_BROKER)
 					log_error("Ctx %d type %d", work->ctx.id, work->proto);	// shall be a bug if triggered
-
-				nng_aio *aio = hook_conf->saios[work->ctx.id- 1 - work->config->http_server.parallel];		// 6
+				// Need to deduct brige extra ctx.
+				nng_aio *aio = hook_conf->saios[work->ctx.id - 1];
 				nng_aio_wait(aio);
 
 				nng_msg_clone(msg);
@@ -475,7 +475,7 @@ hook_entry(nano_work *work, uint8_t reason)
 				if (work->ctx.id > work->config->parallel)
 					log_error("parallel %d idx %d", work->config->parallel);	// shall be a bug if triggered
 
-				nng_aio *aio = hook_conf->saios[work->ctx.id-1];
+				nng_aio *aio = hook_conf->saios[work->ctx.id - 1];
 				nng_aio_wait(aio);
 
 				nng_msg_clone(msg);
