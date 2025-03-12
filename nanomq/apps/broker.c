@@ -391,7 +391,7 @@ server_cb(void *arg)
 		// log_debug("INIT ^^^^^^^^ ctx [%d] ^^^^^^^^ \n", work->ctx.id);
 		work->state = RECV;
 		if (work->proto == PROTO_MQTT_BROKER) {
-			log_debug("INIT ^^^^^^^^ ctx [%d] ^^^^^^^^ \n", work->ctx.id);
+			log_debug("INIT ^^^^^^^^ broker ctx [%d] ^^^^^^^^ \n", work->ctx.id);
 			nng_ctx_recv(work->ctx, work->aio);
 #if defined(SUPP_ICEORYX)
 		} else if (work->proto == PROTO_ICEORYX_BRIDGE) {
@@ -1234,12 +1234,6 @@ broker(conf *nanomq_conf)
 		start_hook_service(nanomq_conf);
 		log_debug("Hook service started");
 	}
-	// HTTP Server
-	if (nanomq_conf->http_server.enable) {
-		nanomq_conf->http_server.broker_sock = &sock;
-		start_rest_server(nanomq_conf);
-	}
-
 
 	// caculate total ctx first
 	if (nanomq_conf->bridge_mode) {
@@ -1286,7 +1280,7 @@ broker(conf *nanomq_conf)
 	for (i = 0; i < nanomq_conf->parallel; i++) {
 		works[i] = proto_work_init(sock, inproc_sock,
 		    PROTO_MQTT_BROKER, db, db_ret, nanomq_conf);
-			log_debug("broker id %d type %d ctx %d", i, works[i]->proto, works[i]->ctx.id);
+			log_trace("broker id %d type %d ctx %d", i, works[i]->proto, works[i]->ctx.id);
 	}
 
 	// create bridge ctx
@@ -1321,6 +1315,34 @@ broker(conf *nanomq_conf)
 #endif
 	}
 
+	// Init exchange part in hook
+	if (nanomq_conf->exchange.count > 0) {
+		// We pass num of work here to keep aio index matched.
+		// Because local ctx of bridge work never gonna be used.
+		hook_exchange_init(nanomq_conf, num_work);
+		// create exchange senders in hook
+		// the number of exchange aio = broker ctx + bridge extra ctx + other input ctx in future.
+		hook_exchange_sender_init(nanomq_conf, works, num_work);
+	}
+
+	if (nanomq_conf->enable) {
+		if (nanomq_conf->url) {
+			if ((rv = nano_listen(sock, nanomq_conf->url, NULL, 0,
+			         nanomq_conf)) != 0) {
+				NANO_NNG_FATAL("broker nng_listen", rv);
+			}
+		}
+
+		for (i = 0; i < nanomq_conf->tcp_list.count; i++) {
+			if ((rv = nano_listen(sock,
+			         nanomq_conf->tcp_list.nodes[i]->url, NULL, 0,
+			         nanomq_conf)) != 0) {
+				NANO_NNG_FATAL("broker nng_listen", rv);
+			}
+		}
+	}
+
+	// HTTP & other ctx must be alloced after exchange!
 	// create http server ctx
 	if (nanomq_conf->http_server.enable) {
 		log_debug("http context init");
@@ -1355,31 +1377,6 @@ broker(conf *nanomq_conf)
 	}
 	tmp += HTTP_CTX_NUM;
 #endif
-
-	// Init exchange part in hook
-	if (nanomq_conf->exchange.count > 0) {
-		hook_exchange_init(nanomq_conf, num_work);
-		// create exchange senders in hook
-		hook_exchange_sender_init(nanomq_conf, works, num_work);
-	}
-
-	if (nanomq_conf->enable) {
-		if (nanomq_conf->url) {
-			if ((rv = nano_listen(sock, nanomq_conf->url, NULL, 0,
-			         nanomq_conf)) != 0) {
-				NANO_NNG_FATAL("broker nng_listen", rv);
-			}
-		}
-
-		for (i = 0; i < nanomq_conf->tcp_list.count; i++) {
-			if ((rv = nano_listen(sock,
-			         nanomq_conf->tcp_list.nodes[i]->url, NULL, 0,
-			         nanomq_conf)) != 0) {
-				NANO_NNG_FATAL("broker nng_listen", rv);
-			}
-		}
-	}
-
 	// read from command line & config file
 	if (nanomq_conf->websocket.enable) {
 		if ((rv = nano_listen(
@@ -1454,6 +1451,23 @@ broker(conf *nanomq_conf)
 		works[i]->iceoryx_sock.id    = iceoryx_sock.id;
 	}
 #endif
+
+	// HTTP Server
+	if (nanomq_conf->http_server.enable) {
+		nanomq_conf->http_server.broker_sock = &sock;
+		start_rest_server(nanomq_conf);
+	}
+
+	// in order to make bridge online msg availiable in HTTP
+	// we shall postpone bridge dialer start after http
+	for (size_t t = 0; t < nanomq_conf->bridge.count; t++) {
+		conf_bridge_node *node = nanomq_conf->bridge.nodes[t];
+		if (node->enable) {
+			if (nng_dialer_start(*node->dialer, NNG_FLAG_NONBLOCK) != 0) {
+				log_error("nng dialer start failed %d", rv);
+			}
+		}
+	}
 
 	for (i = 0; i < num_work; i++) {
 		server_cb(works[i]); // this starts them going (INIT state)
@@ -1990,7 +2004,7 @@ broker_start(int argc, char **argv)
 	}
 
 	char *vin = read_env_vin();
-	// vin = "123456";
+	vin = "123456";
 	if (NULL == vin) {
 		fprintf(stderr, "Waiting for VIN CODE.....");
 		vin = nano_vin_client(VIN_CODE_URL);
