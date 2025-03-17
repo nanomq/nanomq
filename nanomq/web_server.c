@@ -242,7 +242,7 @@ rest_handle(nng_aio *aio)
 }
 
 void
-rest_start(uint16_t port, char *addr)
+rest_start(uint16_t port, char *addr, conf *conf)
 {
 	char              rest_addr[128];
 	nng_http_server  *server;
@@ -300,8 +300,8 @@ rest_start(uint16_t port, char *addr)
 	// the data yourself with another HTTP read transaction by disabling
 	// this, but that's a lot of work, especially if you want to handle
 	// chunked transfers.
-	if ((rv = nng_http_handler_collect_body(handler, true, 1024 * 128)) !=
-	    0) {
+	if ((rv = nng_http_handler_collect_body(handler, true,
+		 conf->http_server.max_body)) != 0) {
 		NANO_NNG_FATAL("nng_http_handler_collect_body", rv);
 	}
 
@@ -516,7 +516,7 @@ start_rest_server(conf *conf)
 	    : HTTP_DEFAULT_ADDR;
 	boot_time  = nng_clock();
 	log_info(REST_URL, addr, port);
-	rest_start(port, addr);
+	rest_start(port, addr, conf);
 
 	return rv;
 }
