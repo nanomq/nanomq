@@ -1,7 +1,7 @@
 name: Build gee(E04) package
 
 concurrency:
-  group: build-sdv-gee(E04~E02)-${{ github.event_name }}-${{ github.ref }}
+  group: build-sdv-gee-e04-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 on:
@@ -75,7 +75,6 @@ jobs:
 
           config_versions=(
             "gee_e04c_E4"
-            "gee_e02c_E7"
             "gee_e04g_all"
           )
 
@@ -111,7 +110,6 @@ jobs:
 
           config_versions=(
             "gee_e04c_E4"
-            "gee_e02c_E7"
             "gee_e04g_all"
           )
 
