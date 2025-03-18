@@ -26,7 +26,6 @@ cmake -DANDROID_PLATFORM=android-28 \
     -DANDROID_ABI=arm64-v8a \
     -DCMAKE_TOOLCHAIN_FILE=$NDK_DIR/build/cmake/android.toolchain.cmake \
     -DENABLE_PARQUET=ON \
-    -DANDROID_STL=c++_shared \
     -DNNG_ENABLE_QUIC=OFF \
     -DENABLE_FILETRANSFER=ON \
     -DENABLE_PARQUET_SHARED=ON \
