@@ -532,7 +532,8 @@ server_cb(void *arg)
 					work->pub_packet = (struct pub_packet_struct *) nng_zalloc(
 										sizeof(struct pub_packet_struct));
 					void *proto_data = NULL;
-					uint8_t ver = nng_mqtt_msg_get_connect_proto_version(work->msg);
+					uint8_t ver = nng_mqtt_msg_get_publish_proto_version(work->msg);
+					// ver = ver == 0 ? work->proto_ver : ver;
 					if (SUCCESS == decode_pub_message(work, ver)) {
 						bool  bridged = false;
 						proto_data = nng_msg_get_proto_data(work->msg);

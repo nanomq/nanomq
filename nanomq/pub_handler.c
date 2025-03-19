@@ -2010,7 +2010,6 @@ check_msg_exp(nng_msg *msg, property *prop)
 		property_data *data  = property_get_value(prop, MESSAGE_EXPIRY_INTERVAL);
 #if defined(NNG_SUPP_SQLITE)
 		if (!data) {
-			nng_mqttv5_msg_decode(msg);	// not needed!!!
 			property *pub_prop = (void *)nng_mqtt_msg_get_publish_property(msg);
 			data = property_get_value(pub_prop, MESSAGE_EXPIRY_INTERVAL);
 		}
