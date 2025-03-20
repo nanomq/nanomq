@@ -10,6 +10,7 @@ http_server = {
   limit_conn = 32           # NanoMQ 可以处理的最大未完成请求数
   username = "admin"        # 用户名
   password = "public"       # 密码
+  max_body = 65535          # 最大 HTTP Body
   auth_type = "jwt# 认证类型
   jwt = {
     public.keyfile = "/etc/certs/jwt/jwtRS256.key.pub"   # JWT公钥文件路径
@@ -23,6 +24,7 @@ http_server = {
 - `limit_conn`：服务器一次可以处理的最大未完成请求数量。值范围：1 ~  infinity。
 - `username`：与 HTTP 服务器进行身份验证所需的用户名。
 - `password`：与 HTTP 服务器进行身份验证所需的密码。
+- `max_body`：HTTP 服务器一次可以处理的最大 HTTP body.
 - `auth_type`：HTTP 服务器使用的认证类型：
   - "basic"
   - "jwt"：如使用 `"jwt"`，请确保已启用 JWT 功能 （ `-DENABLE_JWT=ON`），具体步骤，见[源码编译安装](../installation/build-options.md)。

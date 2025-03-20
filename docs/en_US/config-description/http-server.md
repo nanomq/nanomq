@@ -11,6 +11,7 @@ http_server = {
   limit_conn = 32           # Maximum number of outstanding requests NanoMQ can handle
   username = "admin"        # Username
   password = "public"       # Password
+  max_body = 65535          # Max size of HTTP body server can accept
   auth_type = "jwt"         # Authentication type, "basic" or "jwt"
   jwt = {
     public.keyfile = "/etc/certs/jwt/jwtRS256.key.pub"   # Path to the JWT public key file, used if auth_type is "jwt"
@@ -25,6 +26,7 @@ http_server = {
 - `limit_conn`: Specifies the maximum number of outstanding requests that the server can handle at once. Value range: 1 ~ infinity.
 - `username`: Specifies the username required for authentication with the HTTP server.
 - `password`: Specifies the password required for authentication with the HTTP server.
+- `max_body`: Specifies the max size of HTTP body allowed by the HTTP server (Bytes).
 - `auth_type`: Specifies the type of authentication used by the HTTP server. Values:
   - "basic"
   - "jwt": If "jwt" is to be used, make sure JWT dependencies have been built with the `-DENABLE_JWT=ON` option. For details, see [Build from Source Code](../installation/build-options.md)
