@@ -1459,6 +1459,12 @@ broker(conf *nanomq_conf)
 		start_rest_server(nanomq_conf);
 	}
 
+	for (i = 0; i < num_work; i++) {
+		server_cb(works[i]); // this starts them going (INIT state)
+	}
+
+    nng_msleep(500);    
+
 	// in order to make bridge online msg availiable in HTTP
 	// we shall postpone bridge dialer start after http
 	for (size_t t = 0; t < nanomq_conf->bridge.count; t++) {
@@ -1468,10 +1474,6 @@ broker(conf *nanomq_conf)
 				log_error("nng dialer start failed %d", rv);
 			}
 		}
-	}
-
-	for (i = 0; i < num_work; i++) {
-		server_cb(works[i]); // this starts them going (INIT state)
 	}
 
 	// ipc server for receiving commands from reload command
