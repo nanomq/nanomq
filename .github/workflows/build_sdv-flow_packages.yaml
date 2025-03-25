@@ -68,6 +68,8 @@ jobs:
           id=$(docker create nanomq_with_parquet_${{ matrix.architecture }})
           docker cp $id:/opt/NanoMQ_mirror/build/nanomq/nanomq ./packages/nanomq/
           docker cp $id:/opt/NanoMQ_mirror/build-debug/nanomq/nanomq ./packages/nanomq-debug/
+          docker cp $id:/opt/NanoMQ_mirror/build/nanomq_cli/nanomq_cli ./packages/nanomq/
+          docker cp $id:/opt/NanoMQ_mirror/build-debug/nanomq_cli/nanomq_cli ./packages/nanomq-debug/
           cp readme.txt ./packages/nanomq/
           cp readme.txt ./packages/nanomq-debug/
           cp etc/nanomq.conf ./packages/nanomq/etc
@@ -91,6 +93,7 @@ jobs:
           cp readme.txt ./packages/nanomq_android_${{ matrix.architecture }}/
           cp etc/nanomq.conf ./packages/nanomq_android_${{ matrix.architecture }}/etc
           cp build_android/nanomq/nanomq ./packages/nanomq_android_${{ matrix.architecture }}/
+          cp build_android/nanomq_cli/nanomq_cli ./packages/nanomq_android_${{ matrix.architecture }}/
           rm build_android/lib/libcrypto.so build_android/lib/libssl.so
           cp build_android/lib/* ./packages/nanomq_android_${{ matrix.architecture }}/lib
 
