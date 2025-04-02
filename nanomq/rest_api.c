@@ -3918,6 +3918,60 @@ get_mqtt_bridge(http_msg *msg, const char *name)
 }
 
 
+void
+nano_dialer_reload_tls(conf_bridge_node *node, nng_dialer *dialer)
+{
+	int             rv;
+	nng_tls_config *cfg;
+	conf_tls       *tls = &node->tls;
+
+	nng_free(tls->key, sizeof(tls->key));
+	if (NULL == tls->keyfile ||
+	    0 == file_load_data(tls->keyfile, (void **) &tls->key)) {
+		log_error("Read keyfile %s failed!", tls->keyfile);
+	}
+	nng_free(tls->cert, sizeof(tls->cert));
+	if (NULL == tls->certfile ||
+	    0 == file_load_data(tls->certfile, (void **) &tls->cert)) {
+		log_error("Read certfile %s failed!", tls->certfile);
+	}
+	nng_free(tls->ca, sizeof(tls->ca));
+	if (NULL == tls->cafile ||
+	    0 == file_load_data(tls->cafile, (void **) &tls->ca)) {
+		log_error("Read cacertfile %s failed!", tls->cafile);
+	}
+	if (dialer != NULL) {
+		if ((rv = nng_dialer_get_ptr(
+		         *dialer, NNG_OPT_TLS_CONFIG, (void **) &cfg)) != 0) {
+			log_error("get bridge dialer failed! %d", rv);
+		}
+	}
+
+	nng_tls_config_free(cfg);
+	if ((rv = nng_tls_config_alloc(&cfg, NNG_TLS_MODE_CLIENT)) != 0) {
+		log_error("alloc tls config failed!");
+		return;
+	}
+
+	if (node->tls.cert != NULL && node->tls.key != NULL) {
+		if ((rv = nng_tls_config_own_cert(cfg, node->tls.cert,
+		         node->tls.key, node->tls.key_password)) != 0) {
+			log_error("restart tls config failed!");
+		}
+	}
+	if (node->tls.ca != NULL) {
+		if ((rv = nng_tls_config_ca_chain(cfg, node->tls.ca, NULL)) !=
+		    0) {
+			log_error("restart tls config failed!");
+		}
+	}
+
+	if (dialer != NULL) {
+		rv = nng_dialer_set_ptr(*dialer, NNG_OPT_TLS_CONFIG, cfg);
+	}
+	nng_tls_config_free(cfg);
+}
+
 static http_msg
 put_mqtt_bridge(http_msg *msg, const char *name)
 {
@@ -4011,6 +4065,9 @@ put_mqtt_bridge_switch(http_msg *msg, const char *name)
 			nng_dialer *dialer = node->dialer;
 			if (bridge_switch == true) {
 				nng_dialer_set_bool(*dialer, NNG_OPT_BRIDGE_SET_EP_CLOSED, false);
+				if (node->tls.enable) {
+					nano_dialer_reload_tls(node, dialer);
+				}
 				if ((rv = nng_dialer_start(*dialer, NNG_FLAG_NONBLOCK)) != 0) {
 					log_warn("turn on bridge %s failed! %d", name, rv);
 				} else {
@@ -4028,7 +4085,7 @@ put_mqtt_bridge_switch(http_msg *msg, const char *name)
 			}
 		}
 	}
-	// NNG_ENOENT dialer not found\
+	// NNG_ENOENT dialer not found
 	// NNG_ENOMEM no mem
 	// NNG_ESTATE
 	if (found && rv == 0) {
