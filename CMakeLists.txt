@@ -5,7 +5,7 @@
 # found online at https://opensource.org/licenses/MIT.
 # not finished yet #
 
-# cmake_minimum_required (VERSION 2.8.12)
+cmake_minimum_required (VERSION 3.5)
 SET(CMAKE_C_STANDARD 99)
 
 project(nanomq-nng)
