@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0)
+# cmake_minimum_required(VERSION 3.0)
 project(plugin_spi_stream)
 
 set(SOURCE_FILE plugin_spi_stream.c)
