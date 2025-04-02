@@ -1459,6 +1459,17 @@ broker(conf *nanomq_conf)
 		start_rest_server(nanomq_conf);
 	}
 
+	// in order to make bridge online msg availiable in HTTP
+	// we shall postpone bridge dialer start after http
+	for (size_t t = 0; t < nanomq_conf->bridge.count; t++) {
+		conf_bridge_node *node = nanomq_conf->bridge.nodes[t];
+		if (node->enable) {
+			if (nng_dialer_start(*node->dialer, NNG_FLAG_NONBLOCK) != 0) {
+				log_error("nng dialer start failed %d", rv);
+			}
+		}
+	}
+
 	for (i = 0; i < num_work; i++) {
 		server_cb(works[i]); // this starts them going (INIT state)
 	}
@@ -2007,7 +2018,7 @@ broker_start(int argc, char **argv)
 	}
 
 	char *vin = read_env_vin();
-	// vin = "123456";
+	vin = "123456";
 	if (NULL == vin) {
 		fprintf(stderr, "Waiting for VIN CODE.....");
 		vin = nano_vin_client(VIN_CODE_URL);
