@@ -74,7 +74,7 @@ jobs:
           cd ./packages
 
           config_versions=(
-            "gee_e02c_E7"
+            "gee_e02c_all"
           )
 
           for version in "${config_versions[@]}"; do
@@ -108,7 +108,7 @@ jobs:
           cd ./packages
 
           config_versions=(
-            "gee_e02c_E7"
+            "gee_e02c_all"
           )
 
           for version in "${config_versions[@]}"; do
