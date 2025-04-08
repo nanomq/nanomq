@@ -437,6 +437,7 @@ send_msg(hook_work *w, nng_msg *msg)
 			}
 		}
 		// nng_msg_clone(msg);
+		log_info("WebHook msg cached!");
 		if (nng_lmq_put(w->lmq, msg) != 0) {
 			log_info("HTTP Request droppped");
 			nng_msg_free(msg);
@@ -450,6 +451,7 @@ send_msg(hook_work *w, nng_msg *msg)
 		nng_aio_set_timeout(aio, 1000);
 		nng_aio_set_msg(aio, msg);
 		nng_mtx_unlock(w->mtx);
+		log_info("Start WebHook HTTP Request connection");
 		nng_http_client_connect(w->client, aio);
 		return;
 	}
@@ -479,13 +481,13 @@ http_aio_cb(void *arg)
 			if (work->client)
 				nng_http_client_free(work->client);
 			if (type == CMD_DISCONNECT) {
-			nng_aio_set_msg(work->http_aio, NULL);
-			if (work->conn)
-				nng_http_conn_close(work->conn);
-			if (work->req)
-				nng_http_req_free(work->req);
-			log_trace("HTTP Request successed");
+				nng_aio_set_msg(work->http_aio, NULL);
+				if (work->conn)
+					nng_http_conn_close(work->conn);
+				if (work->req)
+					nng_http_req_free(work->req);
 			}
+			log_info("failed HTTP request is cleaned!");
 		}
 		return;
 	}
@@ -497,7 +499,7 @@ http_aio_cb(void *arg)
 		// work->msg = msg;
 		type = nng_msg_cmd_type(msg);
 		if (type != CMD_DISCONNECT && nng_aio_result(aio) == 0) {
-			log_trace("HTTP connect finished, now start request");
+			log_info("HTTP connect finished, now start request");
 			if ((rv = nng_http_req_alloc(&work->req, work->url)) != 0) {
 				nng_mtx_unlock(work->mtx);
 				return;
@@ -532,10 +534,10 @@ http_aio_cb(void *arg)
 			work->conn = NULL;
 			nng_http_req_free(work->req);
 			work->req = NULL;
-			log_trace("HTTP Request successed");
+			log_info("HTTP Request successed");
 		}
 	} else {
-		log_info("NULL msg from webhook aio !!!!");
+		log_error("NULL msg from webhook aio !!!!");
 		nng_mtx_unlock(work->mtx);
 	}
 
