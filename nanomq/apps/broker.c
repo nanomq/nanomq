@@ -1463,14 +1463,14 @@ broker(conf *nanomq_conf)
 		server_cb(works[i]); // this starts them going (INIT state)
 	}
 
-    nng_msleep(3000);
+	nng_msleep(6000);
 
 	// in order to make bridge online msg availiable in HTTP
 	// we shall postpone bridge dialer start after http
 	for (size_t t = 0; t < nanomq_conf->bridge.count; t++) {
 		conf_bridge_node *node = nanomq_conf->bridge.nodes[t];
 		if (node->enable) {
-			if (nng_dialer_start(*node->dialer, NNG_FLAG_NONBLOCK) != 0) {
+			if ((rv = nng_dialer_start(*node->dialer, NNG_FLAG_NONBLOCK)) != 0) {
 				log_error("nng dialer start failed %d", rv);
 			}
 		}
