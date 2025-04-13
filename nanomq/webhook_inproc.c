@@ -472,26 +472,35 @@ http_aio_cb(void *arg)
 	int               rv;
 	uint8_t type;
 
+	nng_mtx_lock(work->mtx);
 	if((rv = nng_aio_result(work->http_aio)) != 0) {
 		log_warn("HTTP aio result error : %s", nng_strerror(rv));
 		msg = nng_aio_get_msg(work->http_aio);
 		if (msg != NULL) {
 			type = nng_msg_cmd_type(msg);
 			nng_msg_free(msg);
-			if (work->client)
+			if (work->client) {
 				nng_http_client_free(work->client);
+				work->client = NULL;
+			}
 			if (type == CMD_DISCONNECT) {
 				nng_aio_set_msg(work->http_aio, NULL);
-				if (work->conn)
+				if (work->conn) {
 					nng_http_conn_close(work->conn);
-				if (work->req)
+					work->conn = NULL;
+				}
+				if (work->req) {
 					nng_http_req_free(work->req);
+					work->req = NULL;
+				}
 			}
 			log_info("failed HTTP request is cleaned!");
+
 		}
+		nng_mtx_unlock(work->mtx);
 		return;
 	}
-	nng_mtx_lock(work->mtx);
+	// nng_mtx_lock(work->mtx);
 	msg = nng_aio_get_msg(aio);
 
 
