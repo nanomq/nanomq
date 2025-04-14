@@ -8,7 +8,8 @@ In NanoMQ, the WebHook feature enables the broker to send HTTP requests to desig
 webhook = {
   url = "http://127.0.0.1:80"        # URL where webhooks will send HTTP requests to
   headers.content-type = "application/json" # HTTP header specifying request content type
-  body.encoding = "plain"            # Encoding format of the payload field in cancel_timeout = 5000              # HTTP max timeout duration (ms)
+  body.encoding = "plain"            # Encoding format of the payload field in 
+  cancel_timeout = 5000              # HTTP max timeout duration (ms)
   pool_size = 32                     # Connection process pool size
   events = [
     {
