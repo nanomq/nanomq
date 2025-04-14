@@ -1463,7 +1463,7 @@ broker(conf *nanomq_conf)
 		server_cb(works[i]); // this starts them going (INIT state)
 	}
 
-	nng_msleep(8000);
+	nng_msleep(6000);
 
 	// in order to make bridge online msg availiable in HTTP
 	// we shall postpone bridge dialer start after http
@@ -1526,7 +1526,7 @@ broker(conf *nanomq_conf)
 	}
 #endif
 
-	log_info("NanoMQ Broker is started successfully!\n");
+	log_warn("NanoMQ Broker is started successfully!\n");
 
 #if defined(ENABLE_NANOMQ_TESTS)
 	bool is_testing = true;
