@@ -7,6 +7,7 @@
 ```hcl
 http_server = {
   port = 8081               # HTTP 服务器端口
+  ip_addr = "0.0.0.0"       # HTTP 服务器 Address
   limit_conn = 32           # NanoMQ 可以处理的最大未完成请求数
   username = "admin"        # 用户名
   password = "public"       # 密码

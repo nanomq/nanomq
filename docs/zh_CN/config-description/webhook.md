@@ -10,6 +10,7 @@ webhook = {
   headers.content-type = "application/json" # HTTP请求头的内容类型
   body.encoding = "plain"            # Payload 编码方式
   pool_size = 32                     # 连接池大小
+  cancel_timeout = 5000              # HTTP 连接最大过期时间
   events = [
     {
       event = "on_message_publish"   # 事件类型
@@ -26,6 +27,7 @@ webhook = {
 
 - `url`： Webhook 要发送 HTTP 请求的地址。该地址必须是可以正确处理 HTTP 请求的端点。
 - `headers.content-type`: HTTP请求头的内容类型，如，"application/json"，表示 HTTP 请求的 Payload 将被格式化为 JSON 对象。
+- `cancel_timeout`: HTTP请求最大过期时间 (ms)
 - `body.encoding`：HTTP 请求中 Payload 字段的编码格式。此字段仅对 `on_message_publish` 和 `on_message_delivered` 事件有效。有效值：`plain`、`base64` 或 `base62`。
 - `pool_size`：连接进程池的大小，即 WebHook 可以与 `url` 指定的端点维持的并发连接数量。默认值：32。
 - `events`：事件对象的数组，每个对象指定一个将触发 WebHook 的事件：

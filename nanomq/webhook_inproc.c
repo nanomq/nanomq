@@ -254,7 +254,7 @@ http_aio_cb(void *arg)
 				nng_http_client_free(work->client);
 				work->client = NULL;
 			}
-			if (type == CMD_DISCONNECT) {
+			if (type == CMD_HTTPREQ) {
 				nng_aio_set_msg(work->http_aio, NULL);
 				if (work->conn) {
 					nng_http_conn_close(work->conn);
@@ -299,7 +299,7 @@ http_aio_cb(void *arg)
 			nng_http_req_set_method(work->req, "POST");
 			nng_http_req_set_data(
 				work->req, nng_msg_body(msg), nng_msg_len(msg));
-			nng_msg_set_cmd_type(msg, CMD_DISCONNECT);
+			nng_msg_set_cmd_type(msg, CMD_HTTPREQ);
 			nng_aio_set_timeout(aio, conf->cancel_time);
 			nng_http_conn_write_req(work->conn, work->req, aio);
 			nng_mtx_unlock(work->mtx);
