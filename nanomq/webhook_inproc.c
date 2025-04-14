@@ -448,7 +448,7 @@ send_msg(hook_work *w, nng_msg *msg)
 			goto out;
 		}
 		// Start connection process...
-		nng_aio_set_timeout(aio, 1000);
+		nng_aio_set_timeout(aio, conf->cancel_time);
 		nng_aio_set_msg(aio, msg);
 		nng_mtx_unlock(w->mtx);
 		log_info("Start WebHook HTTP Request connection");
@@ -529,7 +529,7 @@ http_aio_cb(void *arg)
 			nng_http_req_set_data(
 				work->req, nng_msg_body(msg), nng_msg_len(msg));
 			nng_msg_set_cmd_type(msg, CMD_DISCONNECT);
-			nng_aio_set_timeout(aio, 1000);
+			nng_aio_set_timeout(aio, conf->cancel_time);
 			nng_http_conn_write_req(work->conn, work->req, aio);
 			nng_mtx_unlock(work->mtx);
 			return;
@@ -558,7 +558,7 @@ http_aio_cb(void *arg)
 		}
 		nng_mtx_lock(work->mtx);
 		nng_lmq_get(lmq, &msg);
-		nng_aio_set_timeout(work->http_aio, 1000);
+		nng_aio_set_timeout(work->http_aio, conf->cancel_time);
 		nng_aio_set_msg(work->http_aio, msg);
 		nng_http_client_connect(work->client, work->http_aio);
 		nng_mtx_unlock(work->mtx);
