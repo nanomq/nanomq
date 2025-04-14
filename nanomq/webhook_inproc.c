@@ -265,13 +265,10 @@ http_aio_cb(void *arg)
 					work->req = NULL;
 				}
 			}
-			log_info("failed HTTP request is cleaned!");
-
 		}
 		nng_mtx_unlock(work->mtx);
 		return;
 	}
-	// nng_mtx_lock(work->mtx);
 	msg = nng_aio_get_msg(aio);
 
 
