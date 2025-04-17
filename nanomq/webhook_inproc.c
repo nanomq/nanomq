@@ -243,7 +243,6 @@ http_aio_cb(void *arg)
 	int               rv;
 	uint8_t type;
 
-	nng_mtx_lock(work->mtx);
 	if((rv = nng_aio_result(work->http_aio)) != 0) {
 		log_warn("HTTP aio result error : %s", nng_strerror(rv));
 		msg = nng_aio_get_msg(work->http_aio);
@@ -266,9 +265,9 @@ http_aio_cb(void *arg)
 				}
 			}
 		}
-		nng_mtx_unlock(work->mtx);
 		return;
 	}
+	nng_mtx_lock(work->mtx);
 	msg = nng_aio_get_msg(aio);
 
 
