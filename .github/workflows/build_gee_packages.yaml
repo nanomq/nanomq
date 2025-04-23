@@ -102,9 +102,9 @@ jobs:
           mkdir -p packages/nanomq_android_${{ matrix.architecture }}/{parquet,etc,log,lib}
           cp readme.txt ./packages/nanomq_android_${{ matrix.architecture }}/
           cp etc/nanomq.conf ./packages/nanomq_android_${{ matrix.architecture }}/etc
-          cp build_android/nanomq/nanomq ./packages/nanomq_android_${{ matrix.architecture }}/
-          rm build_android/lib/libcrypto.so build_android/lib/libssl.so
-          cp build_android/lib/* ./packages/nanomq_android_${{ matrix.architecture }}/lib
+          cp build_android_90/nanomq/nanomq ./packages/nanomq_android_${{ matrix.architecture }}/
+          rm build_android_90/lib/libcrypto.so build_android_90/lib/libssl.so
+          cp build_android_90/lib/* ./packages/nanomq_android_${{ matrix.architecture }}/lib
 
           cd ./packages
 
@@ -118,7 +118,6 @@ jobs:
             config_file="nanomq_${version}_android.conf"
             target_dir="nanomq_android_${{ matrix.architecture }}"
 
-            cp ../build_android_90/nanomq/nanomq "${target_dir}/"
             rm -f ${target_dir}/lib/libmbed*.so ${target_dir}/lib/libcsmw*.so
 
             cp ../etc/${config_file} ./${target_dir}/etc/nanomq.conf
