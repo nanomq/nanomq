@@ -78,6 +78,7 @@ jobs:
             "gee_e04c_87"
             "gee_e04c_91"
             "gee_e04g_all"
+            "gee_e04g_E7"
           )
 
           for version in "${config_versions[@]}"; do
@@ -115,6 +116,7 @@ jobs:
             "gee_e04c_87"
             "gee_e04c_91"
             "gee_e04g_all"
+            "gee_e04g_E7"
           )
 
           for version in "${config_versions[@]}"; do
