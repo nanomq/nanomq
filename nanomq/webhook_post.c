@@ -193,6 +193,14 @@ webhook_msg_publish(nng_socket *sock, conf_web_hook *hook_conf,
 	char *json = cJSON_PrintUnformatted(obj);
 
 	int rv = nng_send(*sock, json, strlen(json), NNG_FLAG_NONBLOCK);
+	if (rv != 0)
+		log_error("nng_send failed %d %s", rv, nng_strerror(rv));
+	nng_msg *rmsg;
+	rv = nng_recvmsg(*sock, &rmsg, NNG_FLAG_ALLOC);
+	if (rv != 0)
+		log_error("nng_recvmsg failed %d %s", rv, nng_strerror(rv));
+	log_info("recv: %.*s", nng_msg_len(rmsg), (char *)nng_msg_body(rmsg));
+	nng_msg_free(rmsg);
 
 	nng_strfree(json);
 	cJSON_Delete(obj);
@@ -224,6 +232,14 @@ webhook_client_connack(nng_socket *sock, conf_web_hook *hook_conf,
 	char *json = cJSON_PrintUnformatted(obj);
 
 	int rv = nng_send(*sock, json, strlen(json), NNG_FLAG_NONBLOCK);
+	if (rv != 0)
+		log_error("nng_send failed %d %s", rv, nng_strerror(rv));
+	nng_msg *rmsg;
+	rv = nng_recvmsg(*sock, &rmsg, NNG_FLAG_ALLOC);
+	if (rv != 0)
+		log_error("nng_recvmsg failed %d %s", rv, nng_strerror(rv));
+	log_info("recv: %.*s", nng_msg_len(rmsg), (char *)nng_msg_body(rmsg));
+	nng_msg_free(rmsg);
 
 	nng_strfree(json);
 	cJSON_Delete(obj);
@@ -253,6 +269,14 @@ webhook_client_disconnect(nng_socket *sock, conf_web_hook *hook_conf,
 	char *json = cJSON_PrintUnformatted(obj);
 
 	int rv = nng_send(*sock, json, strlen(json), NNG_FLAG_NONBLOCK);
+	if (rv != 0)
+		log_error("nng_send failed %d %s", rv, nng_strerror(rv));
+	nng_msg *rmsg;
+	rv = nng_recvmsg(*sock, &rmsg, NNG_FLAG_ALLOC);
+	if (rv != 0)
+		log_error("nng_recvmsg failed %d %s", rv, nng_strerror(rv));
+	log_info("recv: %.*s", nng_msg_len(rmsg), (char *)nng_msg_body(rmsg));
+	nng_msg_free(rmsg);
 
 	nng_strfree(json);
 	cJSON_Delete(obj);
