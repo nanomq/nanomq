@@ -16,8 +16,8 @@
 #include "include/webhook_inproc.h"
 #include "nanomq.h"
 #include "nng/nng.h"
+#include "nng/protocol/reqrep0/rep.h"
 #include "nng/protocol/pipeline0/pull.h"
-#include "nng/protocol/pipeline0/push.h"
 #include "nng/supplemental/http/http.h"
 #include "nng/supplemental/nanolib/cvector.h"
 #include "nng/supplemental/nanolib/cJSON.h"
@@ -1073,9 +1073,9 @@ hook_cb(void *arg)
 	    nng_zalloc(works_num * sizeof(struct hook_work *));
 
 	/* Create the socket. */
-	rv = nng_pull0_open(&sock);
+	rv = nng_rep0_open(&sock);
 	if (rv != 0) {
-		log_error("nng_pull0_open %d", rv);
+		log_error("nng_rep0_open %d", rv);
 		return;
 	}
 
