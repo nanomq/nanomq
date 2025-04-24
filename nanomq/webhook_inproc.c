@@ -411,8 +411,50 @@ send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uin
 
 #endif
 
+static const char *reply_status[] =
+{
+	"{\"res\":\"SuccessToExchange\"}",
+	"{\"res\":\"SuccessToWebhook\"}",
+	"{\"res\":\"InvalidJson\"}",
+	"{\"res\":\"UnknownErrno\"}",
+	NULL
+};
+
+// Reply in block
 static void
-send_msg(hook_work *w, nng_msg *msg)
+send_msg_rep(nng_ctx ctx, int code)
+{
+	nng_aio *aio;
+	nng_msg *msg;
+	if (code > sizeof(reply_status)) {
+		code = 3;
+	}
+	const char *rep = reply_status[code];
+
+	int rv = nng_aio_alloc(&aio, NULL, NULL);
+	if (rv != 0) {
+		log_error("alloc aio error%d", rv);
+		return;
+	}
+	rv = nng_msg_alloc(&msg, 0);
+	if (rv != 0) {
+		log_error("alloc msg error%d", rv);
+		return;
+	}
+
+	nng_msg_append(msg, rep, strlen(rep));
+	nng_aio_set_msg(aio, msg);
+	nng_ctx_send(ctx, aio);
+	nng_aio_wait(aio);
+
+	if ((rv = nng_aio_result(aio)) != 0) {
+		log_error("send rep msg error%d %s", rv, nng_strerror(rv));
+	}
+	nng_aio_free(aio);
+}
+
+static void
+send_msg_webhook(hook_work *w, nng_msg *msg)
 {
 	conf_web_hook   *conf   = w->conf;
 	nng_http_conn   *conn   = NULL;
