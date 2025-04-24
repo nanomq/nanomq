@@ -4104,17 +4104,17 @@ put_mqtt_bridge_switch(http_msg *msg, const char *name)
 		cJSON_Delete(req);
 		log_warn("change %s bridge state failed!", name);
 		return error_response(
-		    msg, NNG_HTTP_STATUS_BAD_REQUEST, REQ_PARAM_ERROR);
-	} else if (rv != 0){
+		    msg, NNG_HTTP_STATUS_ALREADY_REPORTED, REQ_PARAM_ERROR);
+	} else if (!found) {
+		cJSON_Delete(req);
+		log_warn("no such bridge: %s!", name);
+		return error_response(
+		    msg, NNG_HTTP_STATUS_FORBIDDEN, ILLEGAL_SUBJECT);
+	} else if (rv != 0) {
 		cJSON_Delete(req);
 		log_warn("change %s bridge is failed!", name);
 		return error_response(
 		    msg, NNG_HTTP_STATUS_INTERNAL_SERVER_ERROR, rv);
-	} else if (!found) {
-		cJSON_Delete(req);
-		log_warn("no such %s bridge is found!", name);
-		return error_response(
-		    msg, NNG_HTTP_STATUS_NO_CONTENT, REQ_PARAM_ERROR);
 	}
 }
 
