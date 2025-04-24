@@ -46,6 +46,7 @@ typedef struct hook_work hook_work;
 struct hook_work {
 	enum { HOOK_INIT, HOOK_RECV, HOOK_WAIT, HOOK_SEND } state;
 	nng_aio *      aio;
+	nng_ctx        ctx;
 	nng_aio *      send_aio;
 	nng_aio *      http_aio;
 	nng_msg *      msg;
@@ -591,11 +592,12 @@ hook_work_cb(void *arg)
 	case HOOK_INIT:
 		work->state = HOOK_RECV;
 		// get MQTT msg from broker via inproc aio
-		nng_recv_aio(work->sock, work->aio);
+		nng_ctx_recv(work->ctx, work->aio);
 		break;
 
 	case HOOK_RECV:
 		if ((rv = nng_aio_result(work->aio)) != 0) {
+			log_error("nng_aio_result: %d %s", rv, nng_strerror(rv));
 			NANO_NNG_FATAL("nng_recv_aio", rv);
 		}
 
@@ -612,8 +614,9 @@ hook_work_cb(void *arg)
 		if (!root) {
 			// not a json
 			nng_msg_free(msg);
+			send_msg_rep(work->ctx, 2);
 			work->state = HOOK_RECV;
-			nng_recv_aio(work->sock, work->aio);
+			nng_ctx_recv(work->ctx, work->aio);
 			break;
 		}
 		cJSON *idjo = cJSON_GetObjectItem(root, "id");
@@ -639,6 +642,7 @@ hook_work_cb(void *arg)
 						break;
 					}
 					*/
+					send_msg_rep(work->ctx, 0);
 					work->state = HOOK_WAIT;
 					nng_aio_finish(work->aio, 0);
 					break;
@@ -647,11 +651,12 @@ hook_work_cb(void *arg)
 			cJSON_Delete(root);
 			root = NULL;
 		}
-		send_msg(work, msg);
+		send_msg_rep(work->ctx, 1);
+		send_msg_webhook(work, msg);
 		// TODO If it's a msg to webhook???
 		work->msg   = NULL;
 		work->state = HOOK_RECV;
-		nng_recv_aio(work->sock, work->aio);
+		nng_ctx_recv(work->ctx, work->aio);
 		break;
 	case HOOK_WAIT:
 		// Search on MQ and Parquet
@@ -665,7 +670,7 @@ hook_work_cb(void *arg)
 
 			// Start next recv
 			work->state = HOOK_RECV;
-			nng_recv_aio(work->sock, work->aio);
+			nng_ctx_recv(work->ctx, work->aio);
 			break;
 		}
 
@@ -948,7 +953,7 @@ skip:
 		nng_msg_free(msg);
 		// Start next recv
 		work->state = HOOK_RECV;
-		nng_recv_aio(work->sock, work->aio);
+		nng_ctx_recv(work->ctx, work->aio);
 		break;
 	default:
 		NANO_NNG_FATAL("bad state!", NNG_ESTATE);
@@ -1018,6 +1023,9 @@ alloc_work(nng_socket sock, conf_web_hook *conf, conf_exchange *exconf,
 	}
 	if ((rv = nng_aio_alloc(&w->aio, hook_work_cb, w)) != 0) {
 		NANO_NNG_FATAL("nng_aio_alloc", rv);
+	}
+	if ((rv = nng_ctx_open(&w->ctx, sock)) != 0) {
+		NANO_NNG_FATAL("nng_ctx_alloc", rv);
 	}
 	if ((rv = nng_aio_alloc(&w->send_aio, NULL, NULL)) != 0) {
 		NANO_NNG_FATAL("nng_aio_alloc", rv);
