@@ -461,6 +461,8 @@ send_msg_webhook(hook_work *w, nng_msg *msg)
 	nng_aio         *aio    = w->http_aio;
 	int              rv;
 
+	// TODO Maybe there is a bug here.
+	// Why did I think there is a bug? No enough connack notifications.
 	nng_mtx_lock(w->mtx);
 	if (msg == NULL) {
 		rv = nng_lmq_get(w->lmq, &msg);
