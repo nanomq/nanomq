@@ -42,6 +42,7 @@ static int flush_smsg_to_disk(nng_msg **smsg, size_t len, nng_aio *aio, char *to
 
 struct work_cb_arg {
 	nng_aio *aio;
+	nng_aio *raio;
 	struct work *w;
 };
 
@@ -839,6 +840,7 @@ hook_exchange_init(conf *nanomq_conf, uint64_t num_ctx)
 	nng_mtx_alloc(&hook_conf->ex_mtx);
 	nng_aio_alloc(&hook_conf->ex_aio, send_parquet_cb, hook_conf);
 	hook_conf->saios = nng_alloc(sizeof(nng_aio *) * num_ctx);
+	hook_conf->raios = nng_alloc(sizeof(nng_aio *) * num_ctx);
 
 	if (0 != nng_mtx_alloc(&ts_mtx)) {
 		log_error("Failed to alloc ts mtx");
@@ -865,7 +867,10 @@ hook_exchange_sender_init(conf *nanomq_conf, struct work **works, uint64_t num_c
 
 		nng_aio_alloc(
 		    &hook_conf->saios[i], send_exchange_cb, w_cb_arg);
+		nng_aio_alloc(
+		    &hook_conf->raios[i], send_webhook_cb, w_cb_arg);
 		w_cb_arg->aio = hook_conf->saios[i];
+		w_cb_arg->raio = hook_conf->raios[i];
 		w_cb_arg->w = works[i];
 	}
 

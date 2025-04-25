@@ -1281,7 +1281,7 @@ broker(conf *nanomq_conf)
 	for (i = 0; i < nanomq_conf->parallel; i++) {
 		works[i] = proto_work_init(sock, inproc_sock,
 		    PROTO_MQTT_BROKER, db, db_ret, nanomq_conf);
-			log_trace("broker id %d type %d ctx %d", i, works[i]->proto, works[i]->ctx.id);
+		log_trace("broker id %d type %d ctx %d", i, works[i]->proto, works[i]->ctx.id);
 	}
 
 	// create bridge ctx
