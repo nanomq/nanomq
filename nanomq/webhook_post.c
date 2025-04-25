@@ -131,7 +131,8 @@ base62_encode(const unsigned char *in, unsigned int inlen, char *out)
 
 int
 webhook_msg_publish(nng_socket *sock, conf_web_hook *hook_conf,
-    pub_packet_struct *pub_packet, const char *username, const char *client_id)
+    pub_packet_struct *pub_packet, const char *username,
+	const char *client_id, nano_work *w)
 {
 	if (!hook_conf->enable ||
 	    !event_filter_with_topic(hook_conf, MESSAGE_PUBLISH,
@@ -196,12 +197,7 @@ webhook_msg_publish(nng_socket *sock, conf_web_hook *hook_conf,
 	int rv = nng_send(*sock, json, strlen(json), NNG_FLAG_NONBLOCK);
 	if (rv != 0)
 		log_error("nng_send failed %d %s", rv, nng_strerror(rv));
-	nng_msg *rmsg;
-	rv = nng_recvmsg(*sock, &rmsg, NNG_FLAG_ALLOC);
-	if (rv != 0)
-		log_error("nng_recvmsg failed %d %s", rv, nng_strerror(rv));
-	log_info("recv: %.*s", nng_msg_len(rmsg), (char *)nng_msg_body(rmsg));
-	nng_msg_free(rmsg);
+	nng_recv_aio(*sock, w->config->web_hook.raios[w->ctx.id - 1]);
 
 	nng_strfree(json);
 	cJSON_Delete(obj);
@@ -209,10 +205,27 @@ webhook_msg_publish(nng_socket *sock, conf_web_hook *hook_conf,
 	return rv;
 }
 
+static void
+send_webhook_cb(void *arg)
+{
+	int rv;
+	struct work_cb_arg *w = arg;
+	nng_aio *aio = w->raio;
+	if ((rv = nng_aio_result(aio)) != 0) {
+		log_error("send_webhook_cb aio result %d", rv);
+		return;
+	}
+	nng_msg *msg = nng_aio_get_msg(aio);
+	if (msg) {
+		log_info("webhook recv:%.*s", nng_msg_len(msg), nng_msg_body(msg));
+		nng_msg_free(msg);
+	}
+}
+
 int
 webhook_client_connack(nng_socket *sock, conf_web_hook *hook_conf,
     uint8_t proto_ver, uint16_t keepalive, uint8_t reason,
-    const char *username, const char *client_id)
+    const char *username, const char *client_id, nano_work *w)
 {
 	if (!hook_conf->enable || !event_filter(hook_conf, CLIENT_CONNACK)) {
 		return -1;
@@ -235,12 +248,8 @@ webhook_client_connack(nng_socket *sock, conf_web_hook *hook_conf,
 	int rv = nng_send(*sock, json, strlen(json), NNG_FLAG_NONBLOCK);
 	if (rv != 0)
 		log_error("nng_send failed %d %s", rv, nng_strerror(rv));
-	nng_msg *rmsg;
-	rv = nng_recvmsg(*sock, &rmsg, NNG_FLAG_ALLOC);
-	if (rv != 0)
-		log_error("nng_recvmsg failed %d %s", rv, nng_strerror(rv));
-	log_info("recv: %.*s", nng_msg_len(rmsg), (char *)nng_msg_body(rmsg));
-	nng_msg_free(rmsg);
+	log_info("ctx%d", w->ctx.id);
+	nng_recv_aio(*sock, w->config->web_hook.raios[w->ctx.id - 1]);
 
 	nng_strfree(json);
 	cJSON_Delete(obj);
@@ -251,7 +260,7 @@ webhook_client_connack(nng_socket *sock, conf_web_hook *hook_conf,
 int
 webhook_client_disconnect(nng_socket *sock, conf_web_hook *hook_conf,
     uint8_t proto_ver, uint16_t keepalive, uint8_t reason,
-    const char *username, const char *client_id)
+    const char *username, const char *client_id, nano_work *w)
 {
 	if (!hook_conf->enable ||
 	    !event_filter(hook_conf, CLIENT_DISCONNECTED)) {
@@ -272,12 +281,7 @@ webhook_client_disconnect(nng_socket *sock, conf_web_hook *hook_conf,
 	int rv = nng_send(*sock, json, strlen(json), NNG_FLAG_NONBLOCK);
 	if (rv != 0)
 		log_error("nng_send failed %d %s", rv, nng_strerror(rv));
-	nng_msg *rmsg;
-	rv = nng_recvmsg(*sock, &rmsg, NNG_FLAG_ALLOC);
-	if (rv != 0)
-		log_error("nng_recvmsg failed %d %s", rv, nng_strerror(rv));
-	log_info("recv: %.*s", nng_msg_len(rmsg), (char *)nng_msg_body(rmsg));
-	nng_msg_free(rmsg);
+	nng_recv_aio(*sock, w->config->web_hook.raios[w->ctx.id - 1]);
 
 	nng_strfree(json);
 	cJSON_Delete(obj);
@@ -523,19 +527,19 @@ hook_entry(nano_work *work, uint8_t reason)
 		    conn_param_get_protover(cparam),
 		    conn_param_get_keepalive(cparam), reason,
 		    (const char*)conn_param_get_username(cparam),
-		    (const char*)conn_param_get_clientid(cparam));
+		    (const char*)conn_param_get_clientid(cparam), work);
 		break;
 	case CMD_PUBLISH:
 		rv = webhook_msg_publish(sock, hook_conf, work->pub_packet,
 		    (const char*)conn_param_get_username(cparam),
-		    (const char*)conn_param_get_clientid(cparam));
+		    (const char*)conn_param_get_clientid(cparam), work);
 		break;
 	case CMD_DISCONNECT_EV:
 		rv = webhook_client_disconnect(sock, hook_conf,
 		    conn_param_get_protover(cparam),
 		    conn_param_get_keepalive(cparam), reason,
 		    (const char*)conn_param_get_username(cparam),
-		    (const char*)conn_param_get_clientid(cparam));
+		    (const char*)conn_param_get_clientid(cparam), work);
 	case CMD_SUBSCRIBE:
 		break;
 	case CMD_UNSUBSCRIBE:
