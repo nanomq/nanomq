@@ -41,6 +41,7 @@ static int flush_smsg_to_disk(nng_msg **smsg, size_t len, nng_aio *aio, char *to
 #define BASE62_ENCODE_OUT_SIZE(s) ((unsigned int) ((((s) * 8) / 6) + 2))
 
 struct work_cb_arg {
+	uint32_t id;
 	nng_aio *aio;
 	nng_aio *raio;
 	struct work *w;
@@ -194,6 +195,7 @@ webhook_msg_publish(nng_socket *sock, conf_web_hook *hook_conf,
 
 	char *json = cJSON_PrintUnformatted(obj);
 
+	log_info("webhook ctx %d id %s", w->ctx.id - 1, client_id);
 	int rv = nng_send(*sock, json, strlen(json), NNG_FLAG_NONBLOCK);
 	if (rv != 0)
 		log_error("nng_send failed %d %s", rv, nng_strerror(rv));
@@ -217,7 +219,8 @@ send_webhook_cb(void *arg)
 	}
 	nng_msg *msg = nng_aio_get_msg(aio);
 	if (msg) {
-		log_info("webhook recv:%.*s", nng_msg_len(msg), nng_msg_body(msg));
+		log_info("webhook ctx %d recv:%.*s",
+			w->id, nng_msg_len(msg), nng_msg_body(msg));
 		nng_msg_free(msg);
 	}
 }
@@ -245,10 +248,10 @@ webhook_client_connack(nng_socket *sock, conf_web_hook *hook_conf,
 
 	char *json = cJSON_PrintUnformatted(obj);
 
+	log_info("webhook ctx %d id %s", w->ctx.id - 1, client_id);
 	int rv = nng_send(*sock, json, strlen(json), NNG_FLAG_NONBLOCK);
 	if (rv != 0)
 		log_error("nng_send failed %d %s", rv, nng_strerror(rv));
-	log_info("ctx%d", w->ctx.id);
 	nng_recv_aio(*sock, w->config->web_hook.raios[w->ctx.id - 1]);
 
 	nng_strfree(json);
@@ -278,6 +281,7 @@ webhook_client_disconnect(nng_socket *sock, conf_web_hook *hook_conf,
 
 	char *json = cJSON_PrintUnformatted(obj);
 
+	log_info("webhook ctx %d id %s", w->ctx.id - 1, client_id);
 	int rv = nng_send(*sock, json, strlen(json), NNG_FLAG_NONBLOCK);
 	if (rv != 0)
 		log_error("nng_send failed %d %s", rv, nng_strerror(rv));
@@ -873,6 +877,7 @@ hook_exchange_sender_init(conf *nanomq_conf, struct work **works, uint64_t num_c
 		    &hook_conf->saios[i], send_exchange_cb, w_cb_arg);
 		nng_aio_alloc(
 		    &hook_conf->raios[i], send_webhook_cb, w_cb_arg);
+		w_cb_arg->id = i;
 		w_cb_arg->aio = hook_conf->saios[i];
 		w_cb_arg->raio = hook_conf->raios[i];
 		w_cb_arg->w = works[i];
