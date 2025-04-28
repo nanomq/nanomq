@@ -1056,8 +1056,8 @@ hook_search_reset(void *arg)
 }
 
 static struct hook_work *
-alloc_work(nng_socket sock, conf_web_hook *conf, conf_exchange *exconf,
-        conf_parquet *parquetconf)
+alloc_work(int id, nng_socket sock, conf_web_hook *conf, conf_exchange *exchangeconf,
+		conf_parquet *parquetconf, nng_socket *mqtt_sock, int proto)
 {
 	struct hook_work *w;
 	int               rv;
@@ -1065,11 +1065,14 @@ alloc_work(nng_socket sock, conf_web_hook *conf, conf_exchange *exconf,
 	if ((w = nng_alloc(sizeof(*w))) == NULL) {
 		NANO_NNG_FATAL("nng_alloc", NNG_ENOMEM);
 	}
+	w->id = id;
 	if ((rv = nng_aio_alloc(&w->aio, hook_work_cb, w)) != 0) {
 		NANO_NNG_FATAL("nng_aio_alloc", rv);
 	}
-	if ((rv = nng_ctx_open(&w->ctx, sock)) != 0) {
-		NANO_NNG_FATAL("nng_ctx_alloc", rv);
+	if (proto == HOOK_PROTO_EXCHANGE) {
+		if ((rv = nng_ctx_open(&w->ctx, sock)) != 0) {
+			NANO_NNG_FATAL("nng_ctx_alloc", rv);
+		}
 	}
 	if ((rv = nng_aio_alloc(&w->send_aio, NULL, NULL)) != 0) {
 		NANO_NNG_FATAL("nng_aio_alloc", rv);
@@ -1088,46 +1091,52 @@ alloc_work(nng_socket sock, conf_web_hook *conf, conf_exchange *exconf,
 			NANO_NNG_FATAL("nng_http_alloc", rv);
 		}
 	}
-	// if ((rv = nng_thread_create(&w->thread, , w)) != 0) {
-	// 	NANO_NNG_FATAL("nng_thread_create", rv);
-	// }
 
+	w->proto    = proto;
+	w->exchange = exchangeconf;
+	w->parquet  = parquetconf;
+	w->mqtt_sock= mqtt_sock;
 	w->conf     = conf;
 	w->sock     = sock;
 	w->state    = HOOK_INIT;
 	w->busy     = false;
-	w->exchange = exconf;
-	w->parquet  = parquetconf;
 	return (w);
 }
 
-
-
-// The server runs forever.
 // The server runs forever.
 static void
 hook_cb(void *arg)
 {
 	conf              *conf = arg;
-	nng_socket         sock;
+	nng_socket         pullsock;
+	nng_socket         repsock;
 	nng_socket         mqtt_sock;
 	size_t             works_num = 0;
 	int                rv;
 	size_t             i;
+	size_t             exchange_ctxs = conf->exchange.count;
+	size_t             webhook_ctxs = conf->web_hook.pool_size;
 
 	if (conf->exchange.count > 0) {
-		works_num += conf->exchange.count;
+		works_num += exchange_ctxs;
 	}
 	if (conf->web_hook.enable) {
-		works_num += conf->web_hook.pool_size;
+		works_num += webhook_ctxs;
 	}
 	struct hook_work **works =
 	    nng_zalloc(works_num * sizeof(struct hook_work *));
 
-	/* Create the socket. */
-	rv = nng_rep0_open(&sock);
+	/* Create the socket for exchange */
+	rv = nng_rep0_open(&repsock);
 	if (rv != 0) {
 		log_error("nng_rep0_open %d", rv);
+		return;
+	}
+
+	/* Create the socket for webhook */
+	rv = nng_pull0_open(&pullsock);
+	if (rv != 0) {
+		log_error("nng_pull0_open %d", rv);
 		return;
 	}
 
@@ -1166,17 +1175,27 @@ hook_cb(void *arg)
 
 	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
 
-	for (i = 0; i < works_num; i++) {
-		works[i] = alloc_work(sock, &conf->web_hook, &conf->exchange, &conf->parquet);
-		works[i]->id = i;
-		works[i]->mqtt_sock = &mqtt_sock;
-	}
+	int works_idx = 0;
+	for (;works_idx < exchange_ctxs; works_idx++)
+		works[works_idx] = alloc_work(works_idx, repsock, &conf->web_hook,
+				&conf->exchange, &conf->parquet, &mqtt_sock, HOOK_PROTO_EXCHANGE);
+	for (;works_idx < webhook_ctxs; works_idx++)
+		works[works_idx] = alloc_work(works_idx, pullsock, &conf->web_hook,
+				&conf->exchange, &conf->parquet, &mqtt_sock, HOOK_PROTO_WEBHOOK);
 
 	char *hook_ipc_url =
 	    conf->hook_ipc_url == NULL ? HOOK_IPC_URL : conf->hook_ipc_url;
+	char *exchange_ipc_url =
+	    conf->exchange_ipc_url == NULL ? EXCHANGE_IPC_URL : conf->exchange_ipc_url;
+
 	// NanoMQ core thread talks to others via INPROC
-	if ((rv = nng_listen(sock, hook_ipc_url, NULL, 0)) != 0) {
-		log_error("hook nng_listen %d", rv);
+	if ((rv = nng_listen(pullsock, hook_ipc_url, NULL, 0)) != 0) {
+		log_error("hook ipc nng_listen %d", rv);
+		return;
+	}
+	// Reply sock will be expose to public IPC calling
+	if ((rv = nng_listen(repsock, exchange_ipc_url, NULL, 0)) != 0) {
+		log_error("hook exchange nng_listen %d", rv);
 		return;
 	}
 

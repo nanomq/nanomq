@@ -5,6 +5,7 @@
 #include "nng/nng.h"
 
 #define HOOK_IPC_URL "ipc:///tmp/nanomq_hook.ipc"
+#define EXCHANGE_IPC_URL "ipc:///tmp/nanomq_exchange.ipc"
 #define EXTERNAL2NANO_IPC "EX2NANO"
 
 extern int start_hook_service(conf *conf);
