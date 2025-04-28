@@ -567,6 +567,7 @@ hybrid_tcp_client(bridge_param *bridge_arg)
 
 #ifdef NNG_SUPP_TLS
 	if (node->tls.enable) {
+		nng_dialer_set_ptr(*dialer, NNG_OPT_MQTT_TLS_BRIDGE_CONF, node);
 		if ((rv = init_dialer_tls(*dialer, node->tls.ca, node->tls.cert,
 		         node->tls.key, node->tls.key_password)) != 0) {
 			nng_free(new, sizeof(nng_socket));
@@ -1124,6 +1125,7 @@ bridge_tcp_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	}
 
 	apply_sqlite_config(sock, node, "mqtt_client.db");
+	nng_socket_set_string(*sock, NNG_OPT_SOCKNAME, node->name);
 
 	if ((rv = nng_dialer_create(dialer, *sock, node->address))) {
 		log_error("nng_dialer_create failed %d", rv);
@@ -1133,17 +1135,6 @@ bridge_tcp_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 
 	nng_duration duration = (nng_duration) node->backoff_max * 1000;
 	nng_dialer_set(*dialer, NNG_OPT_MQTT_RECONNECT_BACKOFF_MAX, &duration, sizeof(nng_duration));
-
-
-#ifdef NNG_SUPP_TLS
-	if (node->tls.enable) {
-		if ((rv = init_dialer_tls(*dialer, node->tls.ca, node->tls.cert,
-		         node->tls.key, node->tls.key_password)) != 0) {
-			log_error("init_dialer_tls failed %d", rv);
-			return rv;
-		}
-	}
-#endif
 
 	bridge_arg->client->sock   = *sock;
 	bridge_arg->cancel_timeout = node->cancel_timeout;
@@ -1163,8 +1154,8 @@ bridge_tcp_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	nng_socket_set_ms(*sock, NNG_OPT_MQTT_RETRY_INTERVAL, retry);
 	nng_time retry_wait = node->resend_wait;
 	nng_socket_set_uint64(*sock, NNG_OPT_MQTT_RETRY_WAIT_TIME, retry_wait);
-	nng_mqtt_set_connect_cb(*sock, NULL, NULL);
 	nng_mqtt_set_disconnect_cb(*sock, bridge_tcp_disconnect_cb, bridge_arg);
+	nng_mqtt_set_connect_cb(*sock, bridge_tcp_connect_cb, bridge_arg);
 
 	if (node->enable) {
 		rv = nng_dialer_start(*dialer, NNG_FLAG_NONBLOCK);
@@ -1172,37 +1163,47 @@ bridge_tcp_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 			log_warn("nng_dialer_start %d %s", rv, node->clientid);
 	}
 
-	if (bridge_arg->config->sub_count > 0) {
-		nng_mqtt_topic_qos *topic_qos =
-		    nng_mqtt_topic_qos_array_create(
-		        bridge_arg->config->sub_count);
-		for (size_t i = 0; i < bridge_arg->config->sub_count; i++) {
-			nng_mqtt_topic_qos_array_set(topic_qos, i,
-			    bridge_arg->config->sub_list[i]->remote_topic,
-			    bridge_arg->config->sub_list[i]->qos, 1,
-			    bridge_arg->config->sub_list[i]->retain_as_published,
-			    bridge_arg->config->sub_list[i]->retain_handling);
-			log_info("Bridge client subscribed topic %s (qos %d rap %d rh %d).",
-			    bridge_arg->config->sub_list[i]->remote_topic,
-			    bridge_arg->config->sub_list[i]->qos,
-				bridge_arg->config->sub_list[i]->retain_as_published,
-				bridge_arg->config->sub_list[i]->retain_handling);
-		}
-		nng_mqtt_client *client = bridge_arg->client;
+	// if (bridge_arg->config->sub_count > 0) {
+	// 	nng_mqtt_topic_qos *topic_qos =
+	// 	    nng_mqtt_topic_qos_array_create(
+	// 	        bridge_arg->config->sub_count);
+	// 	for (size_t i = 0; i < bridge_arg->config->sub_count; i++) {
+	// 		nng_mqtt_topic_qos_array_set(topic_qos, i,
+	// 		    bridge_arg->config->sub_list[i]->remote_topic,
+	// 		    bridge_arg->config->sub_list[i]->qos, 1,
+	// 		    bridge_arg->config->sub_list[i]->retain_as_published,
+	// 		    bridge_arg->config->sub_list[i]->retain_handling);
+	// 		log_info("Bridge client subscribed topic %s (qos %d rap %d rh %d).",
+	// 		    bridge_arg->config->sub_list[i]->remote_topic,
+	// 		    bridge_arg->config->sub_list[i]->qos,
+	// 			bridge_arg->config->sub_list[i]->retain_as_published,
+	// 			bridge_arg->config->sub_list[i]->retain_handling);
+	// 	}
+	// 	nng_mqtt_client *client = bridge_arg->client;
 
-		// Property
-		property *properties = NULL;
-		if (bridge_arg->config->proto_ver ==
-		    MQTT_PROTOCOL_VERSION_v5) {
-			properties =
-			    sub_property(bridge_arg->config->sub_properties);
+	// 	// Property
+	// 	property *properties = NULL;
+	// 	if (bridge_arg->config->proto_ver ==
+	// 	    MQTT_PROTOCOL_VERSION_v5) {
+	// 		properties =
+	// 		    sub_property(bridge_arg->config->sub_properties);
+	// 	}
+	// 	nng_aio_set_timeout(client->send_aio, node->cancel_timeout);
+	// 	nng_mqtt_subscribe_async(client, topic_qos,
+	// 	    bridge_arg->config->sub_count, properties);
+	// 	nng_mqtt_topic_qos_array_free(
+	// 	    topic_qos, bridge_arg->config->sub_count);
+	// }
+#ifdef NNG_SUPP_TLS
+	if (node->tls.enable) {
+		nng_dialer_set_ptr(*dialer, NNG_OPT_MQTT_TLS_BRIDGE_CONF, node);
+		if ((rv = init_dialer_tls(*dialer, node->tls.ca, node->tls.cert,
+		         node->tls.key, node->tls.key_password)) != 0) {
+			log_error("init_dialer_tls failed %d", rv);
+			return rv;
 		}
-		nng_aio_set_timeout(client->send_aio, node->cancel_timeout);
-		nng_mqtt_subscribe_async(client, topic_qos,
-		    bridge_arg->config->sub_count, properties);
-		nng_mqtt_topic_qos_array_free(
-		    topic_qos, bridge_arg->config->sub_count);
 	}
+#endif
 	return 0;
 }
 
