@@ -1083,8 +1083,8 @@ hook_search_reset(void *arg)
 }
 
 static struct hook_work *
-alloc_work(int id, nng_socket sock, conf_web_hook *conf, conf_exchange *exchangeconf,
-		conf_parquet *parquetconf, nng_socket *mqtt_sock, int proto)
+alloc_work(int id, nng_socket sock, conf_web_hook *conf, conf_exchange *exconf,
+	conf_parquet *parquetconf, nng_socket *mqtt_sock, int proto)
 {
 	struct hook_work *w;
 	int               rv;
@@ -1120,7 +1120,7 @@ alloc_work(int id, nng_socket sock, conf_web_hook *conf, conf_exchange *exchange
 	}
 
 	w->proto    = proto;
-	w->exchange = exchangeconf;
+	w->exchange = exconf;
 	w->parquet  = parquetconf;
 	w->mqtt_sock= mqtt_sock;
 	w->conf     = conf;
@@ -1203,12 +1203,17 @@ hook_cb(void *arg)
 	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
 
 	int works_idx = 0;
-	for (;works_idx < exchange_ctxs; works_idx++)
+	log_info("exchange ctxs %d webhook ctxs %d", exchange_ctxs, webhook_ctxs);
+	for (int i=0; i < exchange_ctxs; i++) {
 		works[works_idx] = alloc_work(works_idx, repsock, &conf->web_hook,
 				&conf->exchange, &conf->parquet, &mqtt_sock, HOOK_PROTO_EXCHANGE);
-	for (;works_idx < webhook_ctxs; works_idx++)
+		works_idx++;
+	}
+	for (int i=0;i < webhook_ctxs; i++) {
 		works[works_idx] = alloc_work(works_idx, pullsock, &conf->web_hook,
 				&conf->exchange, &conf->parquet, &mqtt_sock, HOOK_PROTO_WEBHOOK);
+		works_idx++;
+	}
 
 	char *hook_ipc_url =
 	    conf->hook_ipc_url == NULL ? HOOK_IPC_URL : conf->hook_ipc_url;
