@@ -3975,6 +3975,7 @@ nano_dialer_reload_tls(conf_bridge_node *node, nng_dialer *dialer)
 static http_msg
 put_mqtt_bridge(http_msg *msg, const char *name)
 {
+	int rv;
 	http_msg res = { .status = NNG_HTTP_STATUS_OK };
 
 	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
@@ -3990,27 +3991,35 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 	conf_bridge *bridge = &config->bridge;
 	for (size_t i = 0; i < bridge->count; i++) {
 		conf_bridge_node *node     = bridge->nodes[i];
+		bool              tenable  = node->enable;
 		size_t            parallel = node->parallel;
 		if (name != NULL && strcmp(node->name, name) != 0) {
 			continue;
 		}
-		if (node->enable != true) {
-			continue;
-		}
 
 		nng_mtx_lock(node->mtx);
-		conf_bridge_node_destroy(node);
+		conf_bridge_node_destroy(node);	// TODO potential dead lock here!!
 		conf_bridge_node_parse(node, &bridge->sqlite, node_obj);
 		node->parallel = parallel;
 		nng_mtx_unlock(node->mtx);
 
 		log_info("Bridge Reload with %.*s", msg->data_len, msg->data);
+		bridge->nodes[i] = node;
 		// restart bridge client, parameters: config, node, node->sock
-		if (0 != bridge_reload(node->sock, config, node)) {
+		if ((rv = bridge_reload(node->sock, config, node)) != 0) {
 			// Error might happened in reload bridge
 			log_warn("bridge reload failed!");
 		} else {
 			found = true;
+			if (node->enable == true) {
+				log_info("enabled bridge %s by reload!", node->name);
+				nng_dialer_set_bool(*node->dialer, NNG_OPT_BRIDGE_SET_EP_CLOSED, false);
+				if ((rv = nng_dialer_start(*node->dialer, NNG_FLAG_NONBLOCK)) != 0) {
+					log_warn("turn on bridge %s failed! %d", name, rv);
+				} else {
+					log_warn("successfully turn on bridge %s", name);
+				}
+			}
 		}
 		break;
 	}
@@ -4027,6 +4036,10 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 		cJSON_Delete(res_obj);
 		cJSON_Delete(req);
 		return res;
+	} else if (rv != 0) {
+		cJSON_Delete(req);
+		return error_response(
+		    msg, NNG_HTTP_STATUS_FORBIDDEN, REQ_PARAM_ERROR);
 	} else {
 		cJSON_Delete(req);
 		return error_response(
