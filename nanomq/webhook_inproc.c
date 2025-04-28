@@ -42,10 +42,20 @@
 // so that we can use this to set the timeout to the correct value for
 // use in poll.
 
+#define HOOK_PROTO_WEBHOOK   1
+#define HOOK_PROTO_EXCHANGE  2
+
 typedef struct hook_work hook_work;
 struct hook_work {
-	enum { HOOK_INIT, HOOK_RECV, HOOK_WAIT, HOOK_SEND } state;
+	enum {
+		HOOK_INIT,
+		HOOK_RECV_WEBHOOK,
+		HOOK_RECV_EXCHANGE,
+		HOOK_WAIT_EXCHANGE,
+		HOOK_SEND
+	} state;
 	nng_aio *      aio;
+	int            proto;
 	nng_ctx        ctx;
 	nng_aio *      send_aio;
 	nng_aio *      http_aio;
@@ -634,18 +644,37 @@ hook_work_cb(void *arg)
 
 	switch (work->state) {
 	case HOOK_INIT:
-		work->state = HOOK_RECV;
-		// get MQTT msg from broker via inproc aio
-		nng_ctx_recv(work->ctx, work->aio);
+		// get msg from hook_entry via inproc aio or from external exchange ipc
+		if (work->proto == HOOK_PROTO_EXCHANGE) {
+			work->state = HOOK_RECV_EXCHANGE;
+			nng_ctx_recv(work->ctx, work->aio);
+		} else if (work->proto == HOOK_PROTO_WEBHOOK) {
+			work->state = HOOK_RECV_WEBHOOK;
+			nng_recv_aio(work->sock, work->aio);
+		} else {
+			log_error("unknown hook proto: %d, Should never happened", work->proto);
+		}
 		break;
+	case HOOK_RECV_WEBHOOK:
+		if ((rv = nng_aio_result(work->aio)) != 0) {
+			log_error("nng_aio_result: %d %s", rv, nng_strerror(rv));
+			NANO_NNG_FATAL("nng_recv_aio", rv);
+		}
+		work->msg = nng_aio_get_msg(work->aio);
+		msg = work->msg;
+		body = (char *) nng_msg_body(msg);
 
-	case HOOK_RECV:
+		send_msg_webhook(work, msg);
+		work->msg   = NULL;
+		work->state = HOOK_RECV_WEBHOOK;
+		nng_recv_aio(work->sock, work->aio);
+
+	case HOOK_RECV_EXCHANGE:
 		if ((rv = nng_aio_result(work->aio)) != 0) {
 			log_error("nng_aio_result: %d %s", rv, nng_strerror(rv));
 			NANO_NNG_FATAL("nng_recv_aio", rv);
 		}
 
-		// differ msg of webhook and MQ (cmd) by prefix of body
 		work->msg = nng_aio_get_msg(work->aio);
 
 		msg = work->msg;
@@ -659,7 +688,7 @@ hook_work_cb(void *arg)
 			// not a json
 			nng_msg_free(msg);
 			send_msg_rep(work->ctx, 2);
-			work->state = HOOK_RECV;
+			work->state = HOOK_RECV_EXCHANGE;
 			nng_ctx_recv(work->ctx, work->aio);
 			break;
 		}
@@ -681,13 +710,13 @@ hook_work_cb(void *arg)
 						log_warn("Hook searching too frequently");
 						// Ignore, start next recv
 						nng_msg_free(msg);
-						work->state = HOOK_RECV;
+						work->state = HOOK_RECV_WEBHOOK;
 						nng_recv_aio(work->sock, work->aio);
 						break;
 					}
 					*/
 					send_msg_rep(work->ctx, 0);
-					work->state = HOOK_WAIT;
+					work->state = HOOK_WAIT_EXCHANGE;
 					nng_aio_finish(work->aio, 0);
 					break;
 				}
@@ -696,13 +725,11 @@ hook_work_cb(void *arg)
 			root = NULL;
 		}
 		send_msg_rep(work->ctx, 1);
-		send_msg_webhook(work, msg);
-		// TODO If it's a msg to webhook???
 		work->msg   = NULL;
-		work->state = HOOK_RECV;
+		work->state = HOOK_RECV_EXCHANGE;
 		nng_ctx_recv(work->ctx, work->aio);
 		break;
-	case HOOK_WAIT:
+	case HOOK_WAIT_EXCHANGE:
 		// Search on MQ and Parquet
 		work->msg = nng_aio_get_msg(work->aio);
 		msg       = work->msg;
@@ -713,7 +740,7 @@ hook_work_cb(void *arg)
 			nng_msg_free(msg);
 
 			// Start next recv
-			work->state = HOOK_RECV;
+			work->state = HOOK_RECV_EXCHANGE;
 			nng_ctx_recv(work->ctx, work->aio);
 			break;
 		}
@@ -996,7 +1023,7 @@ skip:
 		root = NULL;
 		nng_msg_free(msg);
 		// Start next recv
-		work->state = HOOK_RECV;
+		work->state = HOOK_RECV_EXCHANGE;
 		nng_ctx_recv(work->ctx, work->aio);
 		break;
 	default:
