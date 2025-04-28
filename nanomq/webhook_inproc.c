@@ -668,6 +668,7 @@ hook_work_cb(void *arg)
 		work->msg   = NULL;
 		work->state = HOOK_RECV_WEBHOOK;
 		nng_recv_aio(work->sock, work->aio);
+		break;
 
 	case HOOK_RECV_EXCHANGE:
 		if ((rv = nng_aio_result(work->aio)) != 0) {
