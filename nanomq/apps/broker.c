@@ -1053,7 +1053,7 @@ proto_work_init(nng_socket sock, nng_socket extrasock, uint8_t proto,
 	}
 
 	if(config->web_hook.enable || config->exchange.count > 0) {
-		if ((rv = nng_req0_open(&w->hook_sock)) != 0) {
+		if ((rv = nng_push0_open(&w->hook_sock)) != 0) {
 			NANO_NNG_FATAL("nng_socket", rv);
 		}
 		char *hook_ipc_url = config->hook_ipc_url == NULL
