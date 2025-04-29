@@ -76,6 +76,7 @@ jobs:
           config_versions=(
             "gee_8295c_90"
             "gee_8295c_92" 
+            "gee_8155c_all"
           )
 
           for version in "${config_versions[@]}"; do
@@ -111,6 +112,7 @@ jobs:
           config_versions=(
             "gee_8295c_92" 
             "gee_8295c_90"
+            "gee_8155c_all"
           )
 
           for version in "${config_versions[@]}"; do
