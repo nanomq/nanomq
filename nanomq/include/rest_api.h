@@ -93,6 +93,8 @@ typedef struct http_msg {
 	bool     encrypt_data;
 } http_msg;
 
+static nng_mtx *restapi_lk; // No other option for bride reload
+
 extern void     put_http_msg(http_msg *msg, const char *content_type,
         const char *method, const char *uri, const char *token, const char *data,
         size_t data_sz);
