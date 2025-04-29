@@ -510,6 +510,7 @@ start_rest_server(conf *conf)
 	uint16_t port = conf->http_server.port ? conf->http_server.port
 	                                       : HTTP_DEFAULT_PORT;
 	set_global_conf(conf);
+	nng_mtx_alloc(&restapi_lk);
 	set_http_server_conf(&conf->http_server);
 	char *addr = conf->http_server.ip_addr != NULL
 	    ? conf->http_server.ip_addr
@@ -525,4 +526,5 @@ void
 stop_rest_server(void)
 {
 	nng_thread_destroy(inproc_thr);
+	nng_mtx_free(&restapi_lk);
 }
