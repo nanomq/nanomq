@@ -1048,6 +1048,7 @@ bridge_tcp_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	// get property for MQTT V5
 	// property *prop;
 	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_CONNECT_PROPERTY, &prop);
+	// TODO: Potential Data race with bridge reload
 	log_info("Bridge [%s] connected! RC [%d]", param->config->address, reason);
 
 	/* MQTT SUBSCRIBE */
@@ -1149,15 +1150,18 @@ bridge_tcp_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	if (0 != nng_socket_set_ptr(*sock, NNG_OPT_MQTT_CONNMSG, connmsg)) {
 		log_warn("Error in updating connmsg");
 	}
+	if (0 != nng_socket_set_ptr(*sock, NNG_OPT_MQTT_BRIDGE_CONF, node)) {
+		log_warn("Error in updating bridge config to socket");
+	}
 
 	nng_mqtt_set_connect_cb(*sock, bridge_tcp_connect_cb, bridge_arg);
 	nng_mqtt_set_disconnect_cb(*sock, bridge_tcp_disconnect_cb, bridge_arg);
 
-	if (node->enable) {
-		rv = nng_dialer_start(*dialer, NNG_FLAG_NONBLOCK);
-		if (rv != 0)
-			log_warn("nng_dialer_start %d %s", rv, node->clientid);
-	}
+	// if (node->enable) {
+	// 	rv = nng_dialer_start(*dialer, NNG_FLAG_NONBLOCK);
+	// 	if (rv != 0)
+	// 		log_warn("nng_dialer_start %d %s", rv, node->clientid);
+	// }
 
 #ifdef NNG_SUPP_TLS
 	if (node->tls.enable) {
@@ -1247,6 +1251,9 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	if (0 != nng_socket_set_ptr(*sock, NNG_OPT_MQTT_CONNMSG, connmsg)) {
 		log_warn("Error in updating connmsg");
 	}
+	if (0 != nng_socket_set_ptr(*sock, NNG_OPT_MQTT_BRIDGE_CONF, node)) {
+		log_warn("Error in updating bridge config to socket");
+	}
 
 	nng_mqtt_set_connect_cb(*sock, bridge_tcp_connect_cb, bridge_arg);
 	nng_mqtt_set_disconnect_cb(*sock, bridge_tcp_disconnect_cb, bridge_arg);
@@ -1280,17 +1287,17 @@ bridge_send_cb(void *arg)
 	nng_socket       *socket;
 
 	log_debug("bridge to %s msg sent", node->address);
-	nng_mtx_lock(mtx);
-	socket = node->sock;
-	if (!node->busy)
-		if (nng_lmq_get(node->ctx_msgs, &msg) == 0) {
-			log_debug("resending cached msg from broker ctx");
-			nng_aio_set_msg(node->resend_aio, msg);
-			nng_aio_set_timeout(node->resend_aio, node->cancel_timeout);
-			nng_send_aio(*socket, node->resend_aio);
-			node->busy = true;
-		}
-	nng_mtx_unlock(mtx);
+	// nng_mtx_lock(mtx);
+	// socket = node->sock;
+	// if (!node->busy)
+	// 	if (nng_lmq_get(node->ctx_msgs, &msg) == 0) {
+	// 		log_debug("resending cached msg from broker ctx");
+	// 		nng_aio_set_msg(node->resend_aio, msg);
+	// 		nng_aio_set_timeout(node->resend_aio, node->cancel_timeout);
+	// 		nng_send_aio(*socket, node->resend_aio);
+	// 		node->busy = true;
+	// 	}
+	// nng_mtx_unlock(mtx);
 }
 
 void
@@ -1302,16 +1309,21 @@ bridge_resend_cb(void *arg)
 	conf_bridge_node *node = arg;
 	nng_mtx          *mtx  = node->mtx;
 	nng_socket       *socket;
+	if (nng_aio_result(node->resend_aio) == NNG_ECLOSED) {
+		log_warn("We shall stop resending while disconnected!");
+		node->busy = false;
+		return;
+	}
 	nng_mtx_lock(mtx);
 	socket = node->sock;
-	node->busy = false;
 	if (nng_lmq_get(node->ctx_msgs, &msg) == 0) {
-		log_debug("resending cached msg at resend cb");
+		log_info("resending cached msg; %d max", nng_lmq_cap(node->ctx_msgs));
 		nng_aio_set_msg(node->resend_aio, msg);
 		nng_aio_set_timeout(node->resend_aio, node->cancel_timeout);
 		nng_send_aio(*socket, node->resend_aio);
 		node->busy = true;
 	} else {
+		log_info("resending of ctx_msgs is finished!");
 		node->busy = false;
 	}
 	nng_mtx_unlock(mtx);
