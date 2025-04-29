@@ -3989,7 +3989,7 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 
 	bool         found  = false;
 	conf_bridge *bridge = &config->bridge;
-	nng_mtx_lock(restapi_lk);
+	nng_mtx_lock(config->restapi_lk);
 	for (size_t i = 0; i < bridge->count; i++) {
 		conf_bridge_node *node     = bridge->nodes[i];
 		bool              tenable  = node->enable;
@@ -4028,7 +4028,7 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 		}
 		break;
 	}
-	nng_mtx_unlock(restapi_lk);
+	nng_mtx_unlock(config->restapi_lk);
 
 	if (found) {
 		cJSON *res_obj = cJSON_CreateObject();
