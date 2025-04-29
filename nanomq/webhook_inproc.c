@@ -421,13 +421,18 @@ send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uin
 
 #endif
 
-static const char *reply_status[] =
+enum hook_reason_codes
 {
-	"{\"res\":\"SuccessToExchange\"}",
-	"{\"res\":\"SuccessToWebhook\"}",
-	"{\"res\":\"InvalidJson\"}",
-	"{\"res\":\"UnknownErrno\"}",
-	NULL
+	HOOK_ERR_OK,
+	HOOK_ERR_NONE,
+	HOOK_ERR_JSON,
+	HOOK_ERR_JSON_ID,
+	HOOK_ERR_EXCHANGE_DISABLED,
+	HOOK_ERR_INVALID_STREAM,
+	HOOK_ERR_INVALID_TOPIC,
+	HOOK_ERR_INVALID_CMD,
+	HOOK_ERR_INVALID_RANGE,
+	HOOK_ERR_UNKNOWN,
 };
 
 // Reply in block
@@ -436,10 +441,8 @@ send_msg_rep(nng_ctx ctx, int code)
 {
 	nng_aio *aio;
 	nng_msg *msg;
-	if (code > sizeof(reply_status)) {
-		code = 3;
-	}
-	const char *rep = reply_status[code];
+	char rep[16];
+	sprintf(rep, "{\"res\":\"%d\"}", code);
 
 	int rv = nng_aio_alloc(&aio, NULL, NULL);
 	if (rv != 0) {
@@ -688,7 +691,7 @@ hook_work_cb(void *arg)
 		if (!root) {
 			// not a json
 			nng_msg_free(msg);
-			send_msg_rep(work->ctx, 2);
+			send_msg_rep(work->ctx, HOOK_ERR_JSON);
 			work->state = HOOK_RECV_EXCHANGE;
 			nng_ctx_recv(work->ctx, work->aio);
 			break;
@@ -716,7 +719,6 @@ hook_work_cb(void *arg)
 						break;
 					}
 					*/
-					send_msg_rep(work->ctx, 0);
 					work->state = HOOK_WAIT_EXCHANGE;
 					nng_aio_finish(work->aio, 0);
 					break;
@@ -725,7 +727,7 @@ hook_work_cb(void *arg)
 			cJSON_Delete(root);
 			root = NULL;
 		}
-		send_msg_rep(work->ctx, 1);
+		send_msg_rep(work->ctx, HOOK_ERR_JSON_ID);
 		work->msg   = NULL;
 		work->state = HOOK_RECV_EXCHANGE;
 		nng_ctx_recv(work->ctx, work->aio);
@@ -739,6 +741,7 @@ hook_work_cb(void *arg)
 		if (exconf->count == 0) {
 			log_error("Exchange is not enabled");
 			nng_msg_free(msg);
+			send_msg_rep(work->ctx, HOOK_ERR_EXCHANGE_DISABLED);
 
 			// Start next recv
 			work->state = HOOK_RECV_EXCHANGE;
@@ -768,11 +771,13 @@ hook_work_cb(void *arg)
 		}
 		if (!ex_sock || !streamid) {
 			log_warn("Invalid streamid");
+			send_msg_rep(work->ctx, HOOK_ERR_INVALID_STREAM);
 			goto skip;
 		}
 		cJSON *prefixjo = cJSON_GetObjectItem(root, "topic_prefix");
 		if (!prefixjo || !prefixjo->valuestring) {
 			log_warn("Invalid topic_prefix");
+			send_msg_rep(work->ctx, HOOK_ERR_INVALID_TOPIC);
 			goto skip;
 		}
 		char *prefix = prefixjo->valuestring;
@@ -783,6 +788,7 @@ hook_work_cb(void *arg)
 			cmdstr = cmdjo->valuestring;
 		if (cmdstr) {
 			if (0 == strcmp(cmdstr, "write")) {
+				send_msg_rep(work->ctx, HOOK_ERR_INVALID_CMD);
 				log_warn("Write cmd is not supported");
 				goto skip;
 			} else if (0 == strcmp(cmdstr, "search")) {
@@ -792,6 +798,7 @@ hook_work_cb(void *arg)
 				nng_msg *m;
 				nng_msg_alloc(&m, 0);
 				if (!m) {
+					send_msg_rep(work->ctx, HOOK_ERR_UNKNOWN);
 					log_error("Error in alloc memory");
 					goto skip;
 				}
@@ -820,12 +827,15 @@ hook_work_cb(void *arg)
 				}
 				nng_free(msgs_res, sizeof(nng_msg *) * msgs_len);
 	
+				send_msg_rep(work->ctx, HOOK_ERR_OK);
 				goto skip;
 			} else {
+				send_msg_rep(work->ctx, HOOK_ERR_INVALID_CMD);
 				log_warn("Invalid cmd");
 				goto skip;
 			}
 		} else {
+			send_msg_rep(work->ctx, HOOK_ERR_INVALID_CMD);
 			log_warn("No cmd field found in json msg");
 			goto skip;
 		}
@@ -833,6 +843,7 @@ hook_work_cb(void *arg)
 		cJSON *rgjo;
 		cJSON *rgsjo = cJSON_GetObjectItem(root, "ranges");
 		if (!rgsjo) {
+			send_msg_rep(work->ctx, HOOK_ERR_INVALID_RANGE);
 			log_warn("No ranges field found in json msg");
 			goto skip;
 		}
@@ -844,6 +855,7 @@ hook_work_cb(void *arg)
 		resjo = cJSON_CreateObject();
 		cJSON *resrgsjo = cJSON_AddArrayToObject(resjo, "ranges");
 		if (resrgsjo == NULL) {
+			send_msg_rep(work->ctx, HOOK_ERR_UNKNOWN);
 			log_warn("Failed to add ranges to result json");
 			goto skip;
 		}
@@ -858,23 +870,27 @@ hook_work_cb(void *arg)
 			cJSON *skeyjo = cJSON_GetObjectItem(rgjo, "start_key");
 			cJSON *ekeyjo = cJSON_GetObjectItem(rgjo, "end_key");
 			if (!cJSON_IsString(skeyjo) || !cJSON_IsString(ekeyjo)) {
+				send_msg_rep(work->ctx, HOOK_ERR_INVALID_RANGE);
 				log_warn("No start/end key field found in json msg");
 				goto skip;
 			}
 			skeystr = skeyjo->valuestring;
 			ekeystr = ekeyjo->valuestring;
 			if (!skeystr || !ekeystr) {
+				send_msg_rep(work->ctx, HOOK_ERR_INVALID_RANGE);
 				log_warn("Invalid start/end key field found in json msg");
 				goto skip;
 			}
 
 			rv = sscanf(skeystr, "%" SCNu64, &start_key);
 			if (rv == 0) {
+				send_msg_rep(work->ctx, HOOK_ERR_INVALID_RANGE);
 				log_error("error in read start_key to number %s", skeystr);
 				goto skip;
 			}
 			rv = sscanf(ekeystr, "%" SCNu64, &end_key);
 			if (rv == 0) {
+				send_msg_rep(work->ctx, HOOK_ERR_INVALID_RANGE);
 				log_error("error in read end_key to number %s", ekeystr);
 				goto skip;
 			}
@@ -882,6 +898,7 @@ hook_work_cb(void *arg)
 			nng_msg *m;
 			nng_msg_alloc(&m, 0);
 			if (!m) {
+				send_msg_rep(work->ctx, HOOK_ERR_UNKNOWN);
 				log_error("Error in alloc memory");
 				goto skip;
 			}
@@ -1014,6 +1031,12 @@ hook_work_cb(void *arg)
 			}
 		if (sent_files_sz > 0)
 			cvector_free(sent_files);
+
+		if (sent_files_sz > 0) {
+			send_msg_rep(work->ctx, HOOK_ERR_OK);
+		} else {
+			send_msg_rep(work->ctx, HOOK_ERR_NONE);
+		}
 
 skip:
 		if (resjo)
