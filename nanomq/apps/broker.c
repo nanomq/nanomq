@@ -270,8 +270,8 @@ bridge_pub_handler(nano_work *work)
 	topic = nng_zalloc(sizeof(*topic));
 	for (size_t t = 0; t < work->config->bridge.count; t++) {
 		conf_bridge_node *node = work->config->bridge.nodes[t];
-		nng_mtx_lock(node->mtx);		//TODO bridge performance
-		if (node->enable) {
+		if (node->enable) {	// nng_atomic_get_bool for potential data racing
+			nng_mtx_lock(node->mtx);		//TODO bridge performance
 			for (size_t i = 0; i < node->forwards_count; i++) {
 				rv = 0;
 				topic->body = work->pub_packet->var_header.publish.topic_name.body;
@@ -345,7 +345,7 @@ bridge_pub_handler(nano_work *work)
 								"bridging to %s aio busy! "
 								"msg lost! Ctx: %d drop qos 0 msg",
 								node->address, work->ctx.id);
-						} else {
+						} else if (node->ctx_msgs != NULL) {
 							// pass index of aio via timestamp;
 							if (nng_lmq_full(node->ctx_msgs)) {
 								log_warn("Cached Message in ctx_msgs is lost!");
@@ -368,8 +368,8 @@ bridge_pub_handler(nano_work *work)
 					rv = SUCCESS;
 				}
 			}
+			nng_mtx_unlock(node->mtx);
 		}
-		nng_mtx_unlock(node->mtx);
 	}
 	nng_free(topic, sizeof(topic));
 	return;
@@ -1463,7 +1463,7 @@ broker(conf *nanomq_conf)
 		server_cb(works[i]); // this starts them going (INIT state)
 	}
 
-	nng_msleep(6000);
+	// need to move dialer start to the very front! otherwise uaf
 
 	// in order to make bridge online msg availiable in HTTP
 	// we shall postpone bridge dialer start after http
@@ -2007,7 +2007,9 @@ broker_start(int argc, char **argv)
 	}
 
 	char *vin = read_env_vin();
-	// vin = "123456";
+	char vin_tmp [17];
+	snprintf(vin_tmp, 17, "nano-%08x", nng_random());
+	vin = vin_tmp;
 	if (NULL == vin) {
 		fprintf(stderr, "Waiting for VIN CODE.....");
 		vin = nano_vin_client(VIN_CODE_URL);
