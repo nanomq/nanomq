@@ -423,7 +423,7 @@ send_mqtt_msg_file(nng_socket *sock, const char *topic, const char **fpaths, uin
 
 enum hook_reason_codes
 {
-	HOOK_ERR_OK,
+	HOOK_ERR_OK = 0,
 	HOOK_ERR_NONE,
 	HOOK_ERR_JSON,
 	HOOK_ERR_JSON_ID,
@@ -457,6 +457,7 @@ send_msg_rep(nng_ctx ctx, int code)
 
 	nng_msg_append(msg, rep, strlen(rep));
 	nng_aio_set_msg(aio, msg);
+	nng_aio_set_timeout(aio, 1000); // 1000ms
 	nng_ctx_send(ctx, aio);
 	nng_aio_wait(aio);
 
