@@ -416,7 +416,7 @@ hook_entry(nano_work *work, uint8_t reason)
 			nng_mtx_lock(ts_mtx);
 			if (ts <= ts_last) {
 				if (ts_last - ts > 1000) {
-					log_warn("Timestamp lag over 1s");
+					// log_debug("Timestamp lag over 1s");
 					// do nothing and exchange will handle this msg properly
 				} else {
 					ts = ts_last + 1;

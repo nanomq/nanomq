@@ -3993,9 +3993,13 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 		conf_bridge_node *node     = bridge->nodes[i];
 		bool              tenable  = node->enable;
 		size_t            parallel = node->parallel;
+
 		if (name != NULL && strcmp(node->name, name) != 0) {
 			continue;
 		}
+		node->enable = false;
+		nng_dialer_off(*node->dialer);
+		// nng_msleep(100);
 
 		nng_mtx_lock(node->mtx);
 		conf_bridge_node_destroy(node);	// TODO potential dead lock here!!
@@ -4021,6 +4025,7 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 				}
 			}
 		}
+
 		break;
 	}
 
@@ -4043,7 +4048,7 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 	} else {
 		cJSON_Delete(req);
 		return error_response(
-		    msg, NNG_HTTP_STATUS_NOT_FOUND, REQ_PARAM_ERROR);
+		    msg, NNG_HTTP_STATUS_NOT_FOUND, ILLEGAL_SUBJECT);
 	}
 }
 
