@@ -3755,7 +3755,6 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 	nng_mtx_lock(config->restapi_lk);
 	for (size_t i = 0; i < bridge->count; i++) {
 		conf_bridge_node *node     = bridge->nodes[i];
-		bool              tenable  = node->enable;
 		size_t            parallel = node->parallel;
 
 		if (name != NULL && strcmp(node->name, name) != 0) {
