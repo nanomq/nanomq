@@ -1084,23 +1084,10 @@ bridge_tcp_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	if (param->config->sub_count == 0) {
 		log_info("No subscriptions were set.");
 	}
-	// start ctx_msgs resending
-	int               rv;
-	nng_msg          *msg = NULL;
-	nng_aio          *aio;
-	nng_socket       *socket;
+	// Kick off ctx_msgs resending
 	conf_bridge_node *node = param->config;
-	nng_mtx_lock(node->mtx);
-	socket = node->sock;
-	if (!node->busy)
-		if (nng_lmq_get(node->ctx_msgs, &msg) == 0) {
-			log_debug("resending cached msg from broker ctx");
-			nng_aio_set_msg(node->resend_aio, msg);
-			nng_aio_set_timeout(node->resend_aio, node->cancel_timeout);
-			nng_send_aio(*socket, node->resend_aio);
-			node->busy = true;
-		}
-	nng_mtx_unlock(node->mtx);
+	if (!nng_aio_busy(node->resend_aio))
+		nng_aio_finish(node->resend_aio, 0);
 }
 
 // Disconnect message callback function
