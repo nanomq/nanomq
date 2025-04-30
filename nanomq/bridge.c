@@ -1541,7 +1541,8 @@ bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 	sock                        = tsock;
 
 	// no point to wait for ACK from last aio send of previous socket.
-	nng_aio_finish_error(client->send_aio, NNG_ECANCELED);
+	if (!nng_aio_busy(client->send_aio))
+		nng_aio_finish_error(client->send_aio, NNG_ECANCELED);
 
 	nng_mtx_lock(reload_lock);
 	bool _enable = node->enable;
