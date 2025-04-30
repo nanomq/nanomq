@@ -528,5 +528,5 @@ stop_rest_server(void)
 	conf *config;
 	nng_thread_destroy(inproc_thr);
 	config = get_global_conf();
-	nng_mtx_free(&config->restapi_lk);
+	nng_mtx_free(config->restapi_lk);
 }
