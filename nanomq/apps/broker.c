@@ -214,7 +214,6 @@ static nng_optspec cmd_opts[] = {
 
 const char *VIN_CODE_URL = "tcp://127.0.0.1:40899";
 const char *GETVIN       = "getvin";
-static char *VIN_TOPIC = NULL;
 
 static char *
 nano_vin_client(const char *url)
@@ -2010,21 +2009,15 @@ broker_start(int argc, char **argv)
 	char vin_tmp [17];
 	snprintf(vin_tmp, 17, "nano-%08x", nng_random());
 	vin = vin_tmp;
-	if (NULL == vin) {
-		fprintf(stderr, "Waiting for VIN CODE.....");
-		vin = nano_vin_client(VIN_CODE_URL);
-		if (NULL == vin) {
-			fprintf(stderr, "Fail get vin code!");
-			exit(EXIT_FAILURE);
-		}
-	}
-	if (NULL != vin) {
-		VIN_TOPIC = nng_zalloc(sizeof(char) * 1024);
-		memcpy(VIN_TOPIC, "ecp/", 4);
-		strncat(VIN_TOPIC, vin, strlen(vin));
-		strncat(VIN_TOPIC, "/#", 2);
-		printf("Read VIN %s ECP topic %s\n", vin, VIN_TOPIC);
-	}
+	log_warn("Default VIN is %s", vin);
+	// if (NULL == vin) {
+	// 	fprintf(stderr, "Waiting for VIN CODE.....");
+	// 	vin = nano_vin_client(VIN_CODE_URL);
+	// 	if (NULL == vin) {
+	// 		fprintf(stderr, "Fail get vin code!");
+	// 		exit(EXIT_FAILURE);
+	// 	}
+	// }
 
 	// Priority: config < environment variables < command opts
 	conf_init(nanomq_conf);
