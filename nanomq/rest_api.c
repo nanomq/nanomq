@@ -4006,15 +4006,15 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 		conf_bridge_node_destroy(node);	// TODO potential dead lock here!!
 		conf_bridge_node_parse(node, &bridge->sqlite, node_obj);
 		node->parallel = parallel;
-		nng_mtx_unlock(node->mtx);
-
 		log_info("Bridge Reload with %.*s", msg->data_len, msg->data);
 		bridge->nodes[i] = node;
 		// restart bridge client, parameters: config, node, node->sock
 		if ((rv = bridge_reload(node->sock, config, node)) != 0) {
 			// Error might happened in reload bridge
 			log_warn("bridge reload failed!");
+			nng_mtx_unlock(node->mtx);
 		} else {
+			nng_mtx_unlock(node->mtx);
 			found = true;
 			if (node->enable == true) {
 				log_info("enabled bridge %s by reload!", node->name);
