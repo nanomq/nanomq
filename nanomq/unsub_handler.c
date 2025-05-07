@@ -175,7 +175,6 @@ unsub_ctx_handle(nano_work *work)
 
 	client_id = (char *) conn_param_get_clientid(
 	    (conn_param *) nng_msg_get_conn_param(work->msg));
-	uint32_t clientid_key = DJBHashn(client_id, strlen(client_id));
 
 	// delete ctx_unsub in treeDB
 	while (tn) {
