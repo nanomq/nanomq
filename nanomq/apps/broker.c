@@ -1421,8 +1421,18 @@ broker(conf *nanomq_conf)
 		start_rest_server(nanomq_conf);
 	}
 
+	// insert topic node for preset session feature
+	for (size_t y = 0; y < nanomq_conf->pre_sessions.count; y++) {
+		conf_session_node *node = nanomq_conf->pre_sessions.nodes[y];
+		uint32_t hashn = DJBHashn(node->clientid, strlen(node->clientid));
+		for (size_t x = 0; x < node->sub_count; x++) {
+			dbtree_insert_client(db, node->sub_list[x]->remote_topic, hashn);
+			dbhash_insert_topic(hashn, node->sub_list[x]->remote_topic, 2);
+		}
+	}
+
 	for (i = 0; i < num_work; i++) {
-		server_cb(works[i]); // this starts them going (INIT state)
+		server_cb(works[i]);
 	}
 
 	// need to move dialer start to the very front! otherwise uaf
