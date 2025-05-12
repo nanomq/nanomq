@@ -1375,8 +1375,17 @@ broker(conf *nanomq_conf)
 	}
 #endif
 
+	// insert topic node for preset session feature
+	for (size_t y = 0; y < nanomq_conf->pre_sessions.count; y++) {
+		conf_session_node *node = nanomq_conf->pre_sessions.nodes[y];
+		for (size_t x = 0; x < node->sub_count; x++) {
+			dbtree_insert_client(db, node->sub_list[x]->remote_topic, node->idhash);
+			dbhash_insert_topic(node->idhash, node->sub_list[x]->remote_topic, 2);
+		}
+	}
+
 	for (i = 0; i < num_work; i++) {
-		server_cb(works[i]); // this starts them going (INIT state)
+		server_cb(works[i]);
 	}
 
 	if (nanomq_conf->http_server.enable) {
