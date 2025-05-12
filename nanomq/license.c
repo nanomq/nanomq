@@ -66,7 +66,7 @@ lic_init(const char *path)
 	char  *data;
 	size_t sz;
 	if (0 != (rv = nng_file_get(lic_path, (void **)&data, &sz))) {
-		log_error("license(%s) read failed %d", lic_path, rv);
+		log_error("license(%s) read failed %d(%s)", lic_path, rv, nng_strerror(rv));
 		return -1;
 	}
 	log_info("license(%s) sz%d", lic_path, sz);
@@ -106,7 +106,7 @@ lic_update(size_t addon)
 	char  *data;
 	size_t sz;
 	if (0 != (rv = nng_file_get(lic_path, (void **)&data, &sz))) {
-		log_error("license(%s) read failed rv%d", lic_path, rv);
+		log_error("license(%s) read failed rv%d(%s)", lic_path, rv, nng_strerror(rv));
 		return -1;
 	}
 	if (data == NULL || sz == 0) {
@@ -124,13 +124,8 @@ lic_update(size_t addon)
 	cur += addon;
 
 #if defined(DEBUG)
-	log_info("license updated %ld/%ld", cur, total);
+	log_debug("license updated %ld/%ld %ld-%ld", cur, total, nstart, nend);
 #endif
-
-	if (cur > total || nstart > nend) {
-		log_error("license(%s) expires", lic_path);
-		return -2;
-	}
 
 	// WRITE license
 	char  *cipher = nng_alloc(sz + 2);
@@ -142,10 +137,16 @@ lic_update(size_t addon)
 	}
 	if (0 != (rv = nng_file_put(lic_path, cipher, cipher_sz))) {
 		nng_free(cipher, sz + 2);
-		log_error("license(%s) write failed rv%d", lic_path, rv);
+		log_error("license(%s) write failed rv%d(%s)", lic_path, rv, nng_strerror(rv));
 		return -3;
 	}
 	nng_free(cipher, sz + 2);
+
+	if (cur > total || nstart > nend) {
+		log_error("license(%s) expires", lic_path);
+		return -2;
+	}
+
 	return 0;
 }
 
