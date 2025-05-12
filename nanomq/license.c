@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "aes_gcm.h"
 #include "include/license.h"
@@ -7,17 +8,49 @@
 #include "nng/nng.h"
 
 static char *lic_path = NULL;
+static char *lic_key = "202505121520dcba";
 
 static int
-lic_dec(char *data, size_t sz, uint64_t *total, uint64_t *cur,
-		uint64_t *nstart, uint64_t *nend)
+lic_dec(char *data, size_t sz,
+		uint64_t *total, uint64_t *cur, uint64_t *nstart, uint64_t *nend)
 {
+	char *out = NULL;
+	int   out_sz;
+	char *tag = data;
+	char *cipher = data + 32;
+	if (NULL == (out = aes_gcm_decrypt(cipher, sz-32, lic_key, tag, &out_sz))) {
+		log_error("license dec failed");
+		return -1;
+	}
+	uint64_t d1, d2, d3, d4;
+	int num = sscanf(out, "%ld,%ld,%ld,%ld", d1, d2, d3, d4);
+	if (num != 4) {
+		log_error("license content is malformed rv%d", num);
+		return -2;
+	}
+	*total = d1;
+	*cur = d2;
+	*nstart = d3;
+	*nend = d4;
+	return 0;
 }
 
 static int
-lic_enc(uint64_t &total, uint64_t &cur, uint64_t &nstart, uint64_t &nend,
+lic_enc(uint64_t total, uint64_t cur, uint64_t nstart, uint64_t nend,
 		char *cipher, size_t *sz)
 {
+	char  buf[64];
+	char *tag;
+	int   out_sz;
+	char *out = NULL;
+	sprintf(buf, "%d,%d,%d,%d", total, cur, nstart, nend);
+	if (NULL == (out = aes_gcm_encrypt(buf, strlen(buf), lic_key, &tag, &cipher_sz))) {
+		log_error("license enc failed");
+		return -1;
+	}
+	memcpy(cipher, out, (size_t)out_sz);
+	nng_free(out, out_sz);
+	return 0;
 }
 
 int
