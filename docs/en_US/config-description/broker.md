@@ -49,3 +49,40 @@ sqlite {
   -  default: 100.
 - `resend_interval`: (Currently not implemented) Specifies the interval, in milliseconds, for resending the messages after a failure is recovered. This is unrelated to the trigger for the resend operation. Note:  **Only work for the NanoMQ broker to resend cached messages to local client, not for bridging connections**.
   -  default: 5000. 
+
+## Preset Sessions
+
+With preset sessions, You can publish messages to a void client, that is not connected yet. QoS messages will be cached just like session keeping
+However, the new coming client still need to subscribe to the target topics by itself.
+
+### Example Configuration
+
+```hcl
+preset.session.1 {
+	clientid = "example"
+	topic = [
+		{
+			qos = 2
+			remote_topic = "msg1/#"
+		},
+		{
+			qos = 1
+			remote_topic = "msg2/#"
+		}
+	]
+}
+preset.session.2 {
+    ......
+}
+```
+
+Each section is a preset session of a non-connected client, specifying the subscribed topics, QoS, and client ID. Once the (real) client is connected, the preset session will be taken over, all the following works are governed by MQTT persist session then.
+
+### Configuration Items
+
+- `clientid`：the client ID of preset session.
+  - must to have, UTF-8 String.
+- `remote_topic`：Subscribed topic of preset session client.
+  - As same as normal topics, QoS messages went into these topics will be cached.
+- `qos`：Corresponding QOS of subscription
+  - must be 1 or 2.
