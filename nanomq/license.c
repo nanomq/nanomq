@@ -44,13 +44,15 @@ lic_enc(uint64_t total, uint64_t cur, uint64_t nstart, uint64_t nend,
 	char *tag;
 	int   out_sz;
 	char *out = NULL;
-	sprintf(buf, "%d,%d,%d,%d", total, cur, nstart, nend);
+	sprintf(buf, "%d,%d,%d,%d\n", total, cur, nstart, nend);
 	if (NULL == (out = aes_gcm_encrypt(buf, strlen(buf), lic_key, &tag, &out_sz))) {
 		log_error("license enc failed");
 		return -1;
 	}
 	memcpy(cipher, out, (size_t)out_sz);
 	nng_free(out, out_sz);
+	nng_free(tag, 0);
+	*sz = out_sz;
 	return 0;
 }
 
