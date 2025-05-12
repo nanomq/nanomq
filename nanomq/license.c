@@ -67,8 +67,9 @@ lic_init(const char *path)
 		log_error("license(%s) read failed %d", lic_path, rv);
 		return -1;
 	}
-	if (data == NULL || sz == 0) {
-		log_error("license(%s) empty", lic_path);
+	log_info("license(%s) sz%d", lic_path, sz);
+	if (data == NULL || sz == 0 || sz > 128 || sz < 36) {
+		log_error("license(%s) empty or file has a invalid sz%d", lic_path, sz);
 		return -1;
 	}
 	uint64_t nstart = 0, nend = 0, cur = 0, total = 0;
@@ -81,6 +82,12 @@ lic_init(const char *path)
 	if (cur > total || nstart > nend) {
 		log_error("license(%s) expires", lic_path);
 		return -2;
+	} else {
+#if defined(DEBUG)
+		log_info("license is active %ld/%ld", cur, total);
+#else
+		log_info("license is active");
+#endif
 	}
 	return 0;
 }
@@ -113,6 +120,10 @@ lic_update(size_t addon)
 	nng_free(data, 0);
 
 	cur += addon;
+
+#if defined(DEBUG)
+	log_info("license updated %ld/%ld", cur, total);
+#endif
 
 	if (cur > total || nstart > nend) {
 		log_error("license(%s) expires", lic_path);
