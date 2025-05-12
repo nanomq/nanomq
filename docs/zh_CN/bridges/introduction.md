@@ -10,6 +10,24 @@
 ## [特殊桥接功能]
 NanoMQ的桥接功能旨在提供云边数据总线，能够扮演本地数据代理网关角色来完成无缝数据同步。根据开源和商业用户的长期反馈，NanoMQ 的数据桥接功能具有以下
 
+### [透明桥接]
+
+```bash
+bridges.mqtt.name {
+......
+	# # The transparent proxy flag of the bridging client
+	# #
+	# # Value: boolean
+	# # Default: false
+	# #
+	# # NOTE: This option gonna proxy Sub/UnSub action
+	# # of all local client to this bridging connection as well 
+	transparent = true
+}
+```
+
+在NanoMQ中，透明桥接指的是这样一个功能：本地（连接到NanoMQ的）MQTT客户端的订阅主题被桥接模块识别，并自动与远程 MQTT Broker 同步（将订阅/取消订阅数据包转发到远程 MQTT Broker）。这确保了远程 Broker 了解本地客户端所订阅的主题，从而实现从远程代理到边缘客户端的无缝消息转发，而无需手动配置主题，因此使得更容易管理分散的 NanoMQ实例之间的分布式主题。
+
 ### [上行 QoS 覆盖]
 ```bash
 bridges.mqtt.name {

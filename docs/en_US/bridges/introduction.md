@@ -10,6 +10,22 @@ This section introduces MQTT over TCP bridge, MQTT over QUIC bridge, and AWS IoT
 ## Adavanced bridging features
 NanoMQ's bridging function is designed to provide an edge-cloud databus that can act as a local data proxy gateway to complete seamless data synchronization. Based on long-term feedback from open-source and commercial users, NanoMQ’s advanced data-bridging capabilities have the following:
 
+### Transparent bridging
+
+```bash
+bridges.mqtt.name {
+......
+	# # The transparent proxy flag of the bridging client
+	# #
+	# # Value: boolean
+	# # Default: false
+	# #
+	# # NOTE: This option gonna proxy Sub/UnSub action
+	# # of all local client to this bridging connection as well 
+	transparent = true
+}
+```
+In NanoMQ, transparent bridging refers to the feature where subscription topics from local MQTT clients (connected to the NanoMQ edge broker) are awared by bridging module and automatically synchronized with a remote MQTT broker (forwarding Subscribe/Unsubscribe packets to remote broker). This ensures that the remote broker is aware of the topics that local clients are subscribed to, enabling seamless message forwarding from the remote broker to the edge clients without manual topic configuration, therefore make it easier to manage distributed topics across dispersed instances of NanoMQ.
 
 ### Uplink QoS overwrite
 
