@@ -27,6 +27,9 @@ include_directories(${CMAKE_SOURCE_DIR}/nng/include/nng)
 if(ENABLE_JWT)
   include_directories(${CMAKE_SOURCE_DIR}/extern/l8w8jwt/include)
 endif(ENABLE_JWT)
+if(ENABLE_LICENSE)
+  include_directories(${CMAKE_SOURCE_DIR}/extern/include)
+endif(ENABLE_LICENSE)
 
 add_subdirectory(apps)
 add_subdirectory(tests)
@@ -56,26 +59,24 @@ set(SOURCES
     apps/broker.c
 )
 
+if(ENABLE_LICENSE)
+  set(SOURCES ${SOURCES} license.c extern/aes_gcm.c)
+endif(ENABLE_LICENSE)
+
 if(NNG_ENABLE_PLUGIN)
   set(SOURCES ${SOURCES} plugin/plugin.c)
 endif(NNG_ENABLE_PLUGIN)
 
 if(NNG_ENABLE_PARQUET)
-    include_directories(${CMAKE_SOURCE_DIR}/nanomq/extern/include)
-    set(SOURCES ${SOURCES}
-        extern/aes_gcm.c
-    )
+  include_directories(${CMAKE_SOURCE_DIR}/nanomq/extern/include)
+  set(SOURCES ${SOURCES} extern/aes_gcm.c)
 endif()
 
-if (ENABLE_FILETRANSFER)
-    ADD_DEFINITIONS(-DENABLE_FILETRANSFER)
-    include_directories(${CMAKE_SOURCE_DIR}/nanomq/extern/include)
-    set(SOURCES ${SOURCES}
-        extern/file_transfer_nano.c
-    )
-endif()
-
-
+if(ENABLE_FILETRANSFER)
+  ADD_DEFINITIONS(-DENABLE_FILETRANSFER)
+  include_directories(${CMAKE_SOURCE_DIR}/nanomq/extern/include)
+  set(SOURCES ${SOURCES} extern/file_transfer_nano.c)
+endif(ENABLE_FILETRANSFER)
 
 include_directories(${FOUNDATION_INCLUDE_DIR})
 
