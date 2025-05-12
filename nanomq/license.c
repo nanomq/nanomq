@@ -17,13 +17,12 @@ lic_dec(char *data, size_t sz,
 	char *out = NULL;
 	int   out_sz;
 	char *tag = data;
-	char *cipher = data + 32;
-	if (NULL == (out = aes_gcm_decrypt(cipher, sz-32, lic_key, tag, &out_sz))) {
+	if (NULL == (out = aes_gcm_decrypt(data, sz, lic_key, tag, &out_sz))) {
 		log_error("license dec failed");
 		return -1;
 	}
 	uint64_t d1, d2, d3, d4;
-	int num = sscanf(out, "%ld,%ld,%ld,%ld", d1, d2, d3, d4);
+	int num = sscanf(out, "%d,%d,%d,%d", &d1, &d2, &d3, &d4);
 	if (num != 4) {
 		log_error("license content is malformed rv%d", num);
 		return -2;
