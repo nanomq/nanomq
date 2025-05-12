@@ -24,9 +24,11 @@ lic_dec(char *data, size_t sz,
 	uint64_t d1, d2, d3, d4;
 	int num = sscanf(out, "%d,%d,%d,%d", &d1, &d2, &d3, &d4);
 	if (num != 4) {
+		nng_free(out, 0);
 		log_error("license content is malformed rv%d", num);
 		return -2;
 	}
+	nng_free(out, 0);
 	*total = d1;
 	*cur = d2;
 	*nstart = d3;
@@ -71,9 +73,11 @@ lic_init(const char *path)
 	}
 	uint64_t nstart = 0, nend = 0, cur = 0, total = 0;
 	if (0 != lic_dec(data, sz, &total, &cur, &nstart, &nend)) {
+		nng_free(data, 0);
 		log_error("license(%s) is malformed", lic_path);
 		return -1;
 	}
+	nng_free(data, 0);
 	if (cur > total || nstart > nend) {
 		log_error("license(%s) expires", lic_path);
 		return -2;
@@ -102,9 +106,11 @@ lic_update(size_t addon)
 	}
 	uint64_t nstart = 0, nend = 0, cur = 0, total = 0;
 	if (0 != (rv = lic_dec(data, sz, &total, &cur, &nstart, &nend))) {
+		nng_free(data, 0);
 		log_error("license(%s) decode failed rv%d", lic_path, rv);
 		return -1;
 	}
+	nng_free(data, 0);
 
 	cur += addon;
 
@@ -126,6 +132,7 @@ lic_update(size_t addon)
 		log_error("license(%s) write failed rv%d", lic_path, rv);
 		return -3;
 	}
+	nng_free(cipher, sz + 2);
 	return 0;
 }
 
