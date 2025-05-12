@@ -7,7 +7,7 @@
 #include "nng/supplemental/nanolib/log.h"
 #include "nng/nng.h"
 
-static char *lic_path = NULL;
+static const char *lic_path = NULL;
 static char *lic_key = "202505121520dcba";
 
 static int
@@ -44,7 +44,7 @@ lic_enc(uint64_t total, uint64_t cur, uint64_t nstart, uint64_t nend,
 	int   out_sz;
 	char *out = NULL;
 	sprintf(buf, "%d,%d,%d,%d", total, cur, nstart, nend);
-	if (NULL == (out = aes_gcm_encrypt(buf, strlen(buf), lic_key, &tag, &cipher_sz))) {
+	if (NULL == (out = aes_gcm_encrypt(buf, strlen(buf), lic_key, &tag, &out_sz))) {
 		log_error("license enc failed");
 		return -1;
 	}
@@ -62,7 +62,7 @@ lic_init(const char *path)
 	int    rv;
 	char  *data;
 	size_t sz;
-	if (0 != (rv = nng_file_get(lic_path, &data, &sz))) {
+	if (0 != (rv = nng_file_get(lic_path, (void **)&data, &sz))) {
 		log_error("license(%s) read failed %d", lic_path, rv);
 		return -1;
 	}
@@ -93,7 +93,7 @@ lic_update(size_t addon)
 	int    rv;
 	char  *data;
 	size_t sz;
-	if (0 != (rv = nng_file_get(lic_path, &data, &sz))) {
+	if (0 != (rv = nng_file_get(lic_path, (void **)&data, &sz))) {
 		log_error("license(%s) read failed rv%d", lic_path, rv);
 		return -1;
 	}
