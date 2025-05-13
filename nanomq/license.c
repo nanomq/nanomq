@@ -12,7 +12,7 @@ static char *lic_key = "202505121520dcba";
 
 static int
 lic_dec(char *data, size_t sz,
-		uint64_t *total, uint64_t *cur, uint64_t *nstart, uint64_t *nend)
+		uint32_t *total, uint32_t *cur, uint32_t *nstart, uint32_t *nend)
 {
 	char *out = NULL;
 	int   out_sz;
@@ -21,30 +21,26 @@ lic_dec(char *data, size_t sz,
 		log_error("license dec failed");
 		return -1;
 	}
-	uint64_t d1, d2, d3, d4;
-	int num = sscanf(out, "%d,%d,%d,%d", &d1, &d2, &d3, &d4);
+	uint32_t d1, d2, d3, d4;
+	int num = sscanf(out, "%u,%u,%u,%u", total, cur, nstart, nend);
 	if (num != 4) {
 		nng_free(out, 0);
 		log_error("license content is malformed rv%d", num);
 		return -2;
 	}
 	nng_free(out, 0);
-	*total = d1;
-	*cur = d2;
-	*nstart = d3;
-	*nend = d4;
 	return 0;
 }
 
 static int
-lic_enc(uint64_t total, uint64_t cur, uint64_t nstart, uint64_t nend,
+lic_enc(uint32_t total, uint32_t cur, uint32_t nstart, uint32_t nend,
 		char *cipher, size_t *sz)
 {
 	char  buf[64];
 	char *tag;
 	int   out_sz;
 	char *out = NULL;
-	sprintf(buf, "%d,%d,%d,%d\n", total, cur, nstart, nend);
+	sprintf(buf, "%u,%u,%u,%u\n", total, cur, nstart, nend);
 	if (NULL == (out = aes_gcm_encrypt(buf, strlen(buf), lic_key, &tag, &out_sz))) {
 		log_error("license enc failed");
 		return -1;
@@ -69,12 +65,11 @@ lic_init(const char *path)
 		log_error("license(%s) read failed %d(%s)", lic_path, rv, nng_strerror(rv));
 		return -1;
 	}
-	log_info("license(%s) sz%d", lic_path, sz);
 	if (data == NULL || sz == 0 || sz > 128 || sz < 36) {
-		log_error("license(%s) empty or file has a invalid sz%d", lic_path, sz);
+		log_error("license(%s) empty or file has a invalid sz%ld", lic_path, sz);
 		return -1;
 	}
-	uint64_t nstart = 0, nend = 0, cur = 0, total = 0;
+	uint32_t nstart = 0, nend = 0, cur = 0, total = 0;
 	if (0 != lic_dec(data, sz, &total, &cur, &nstart, &nend)) {
 		nng_free(data, 0);
 		log_error("license(%s) is malformed", lic_path);
@@ -82,7 +77,7 @@ lic_init(const char *path)
 	}
 	nng_free(data, 0);
 	if (cur > total || nstart > nend) {
-		log_error("license(%s) expires", lic_path);
+		log_error("license(%s) is expired", lic_path);
 		return -2;
 	} else {
 #if defined(DEBUG)
@@ -95,7 +90,7 @@ lic_init(const char *path)
 }
 
 int
-lic_update(size_t addon)
+lic_update(uint32_t addon)
 {
 	if (lic_path == NULL) {
 		log_error("license not exists");
@@ -113,7 +108,7 @@ lic_update(size_t addon)
 		log_error("license(%s) empty", lic_path);
 		return -1;
 	}
-	uint64_t nstart = 0, nend = 0, cur = 0, total = 0;
+	uint32_t nstart = 0, nend = 0, cur = 0, total = 0;
 	if (0 != (rv = lic_dec(data, sz, &total, &cur, &nstart, &nend))) {
 		nng_free(data, 0);
 		log_error("license(%s) decode failed rv%d", lic_path, rv);
@@ -143,7 +138,7 @@ lic_update(size_t addon)
 	nng_free(cipher, sz + 2);
 
 	if (cur > total || nstart > nend) {
-		log_error("license(%s) expires", lic_path);
+		log_error("license(%s) is expired", lic_path);
 		return -2;
 	}
 
