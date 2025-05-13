@@ -37,6 +37,7 @@
 #include "nng/protocol/reqrep0/req.h"
 #include "nng/supplemental/util/platform.h"
 
+#include "include/license.h"
 #include "include/acl_handler.h"
 #include "include/bridge.h"
 #include "include/nanomq_rule.h"
@@ -1583,12 +1584,23 @@ broker(conf *nanomq_conf)
 			break;
 		}
 		nng_msleep(6000);
+#if defined(SUPP_LICENSE)
+		if (0 != (rv = lic_update(6))) {
+			printf("license error rv%d\n", rv);
+			exit(0);
+		}
+#endif
 	}
 #else
 	if (is_testing == false) {
 		for (;;) {
-			nng_msleep(
-			    3600000); // neither pause() nor sleep() portable
+			nng_msleep(60000); // neither pause() nor sleep() portable
+#if defined(SUPP_LICENSE)
+			if (0 != (rv = lic_update(60))) {
+				printf("license error rv%d\n", rv);
+				exit(0);
+			}
+#endif
 		}
 	}
 #endif
@@ -2068,6 +2080,17 @@ broker_start(int argc, char **argv)
 		NANO_NNG_FATAL("log_init", rc);
 	}
 #endif
+
+#ifdef SUPP_LICENSE
+	if (!nanomq_conf->license_file) {
+		fprintf(stderr, "No license file, quit\n");
+		exit(EXIT_FAILURE);
+	}
+	if (0 != lic_init(nanomq_conf->license_file)) {
+		exit(EXIT_FAILURE);
+	}
+#endif
+
 	print_conf(nanomq_conf);
 
 #if !defined(BUILD_APP_LIB)
