@@ -33,8 +33,10 @@
 *.su
 .idea/
 .vscode/
+.cache/
 build/
 cmake-build-debug/
+compile_commands.json
 
 .DS_Store
 
