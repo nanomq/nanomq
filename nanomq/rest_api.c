@@ -20,6 +20,7 @@
 #include "nng/supplemental/nanolib/file.h"
 #include "nng/supplemental/nanolib/hocon.h"
 #include "nng/supplemental/nanolib/parquet.h"
+#include "nng/supplemental/nanolib/retains.h"
 
 #include "include/rest_api.h"
 #include "include/bridge.h"
@@ -367,6 +368,8 @@ static http_msg get_prometheus(http_msg *msg, kv **params, size_t param_num,
 static http_msg get_can_data_span(http_msg *msg, kv **params, size_t param_num,
     const char *client_id, const char *username, nng_socket *broker_sock);
 static http_msg get_metrics(http_msg *msg, kv **params, size_t param_num,
+    const char *client_id, const char *username, nng_socket *broker_sock);
+static http_msg get_retains(http_msg *msg, kv **params, size_t param_num,
     const char *client_id, const char *username, nng_socket *broker_sock);
 static http_msg get_subscriptions(
     http_msg *msg, kv **params, size_t param_num, const char *client_id);
@@ -848,6 +851,12 @@ process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 		    strcmp(uri_ct->sub_tree[1]->node, "metrics") == 0) {
 			ret = get_metrics(msg, uri_ct->params,
 			    uri_ct->params_count, NULL, NULL, hconfig->broker_sock);
+		} else if (uri_ct->sub_count == 2 &&
+		    uri_ct->sub_tree[1]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "retains") == 0) {
+			ret = get_retains(msg, uri_ct->params,
+			    uri_ct->params_count, NULL, NULL, hconfig->broker_sock);
+
 		} else if (uri_ct->sub_count == 2 &&
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "clients") == 0) {
@@ -1718,6 +1727,26 @@ get_prometheus(http_msg *msg, kv **params, size_t param_num,
 
 out:
 	put_http_msg(&res, "text/plain", NULL, NULL, NULL, dest, strlen(dest));
+
+	return res;
+}
+
+static http_msg
+get_retains(http_msg *msg, kv **params, size_t param_num,
+    const char *client_id, const char *username, nng_socket *broker_sock)
+{
+	http_msg res     = { .status = NNG_HTTP_STATUS_OK };
+
+	conf       *config = get_global_conf();
+	nng_socket *socket = NULL;
+
+	char *dest = retains_json_all_items(config->retains_db);
+	if (dest == NULL) {
+		dest = strdup("{\"retains\":[]}");
+	}
+	put_http_msg(&res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
+
+	nng_free(dest, 0);
 
 	return res;
 }
