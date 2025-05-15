@@ -124,6 +124,15 @@ jobs:
 
             cp ../etc/${config_file} ./${target_dir}/etc/nanomq.conf
 
+            // TODO 修复
+            if ${version} == "8155c_all" do
+              cp build_android_8155/nanomq/nanomq ./packages/nanomq_android_${{ matrix.architecture }}/
+            done
+
+            if [[ "${version}" == "gee_8155c_all" ]]; then
+              cp "build_android_8155/nanomq/nanomq" "./packages/nanomq_android_${{ matrix.architecture }}/"
+            fi
+
             base_name="nanomq-${pkgversion}-android-${{ matrix.architecture }}"
             tar -zcvf "${base_name}-${version}.tar.gz" "${target_dir}"
             tar -zcvf "${base_name}-${version}-debug-mini.tar.gz.x" "${target_dir}/nanomq"
