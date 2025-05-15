@@ -15,8 +15,8 @@ wget ${NDK_URL} -O ${NDK_DIR}.tar.gz
 tar -zxvf ${NDK_DIR}.tar.gz -C /tmp
 
 echo "Start clean build_android_90"
-rm -rf build_android_90
-mkdir build_android_90
+rm -rf build_android_90 build_android_8155
+mkdir build_android_90 build_android_8155
 cd build_android_90
 
 echo "Start build for Android(90)"
@@ -30,15 +30,45 @@ cmake -DANDROID_PLATFORM=android-30 \
     -DNNG_ENABLE_TLS=ON \
     -DNNG_TLS_ENGINE=open \
     -DTLS_EXTERN_PRIVATE_KEY=ON \
+    -DTLS_EXTERN_PRIVATE_KEY_8155=OFF \
     ..
 
 echo "Start make"
 make -j2
 
-
+mkdir lib
+cp $NDK_DIR/toolchains/llvm/prebuilt/linux-x86_64/sysroot/lib/*.so lib
+cd -
 echo "Build done" 
+#################################################################
+
+echo "Start build for Android(8155)"
+
+cd build_android_8155
+
+cmake -DANDROID_PLATFORM=android-30 \
+    -DANDROID_ABI=arm64-v8a \
+    -DCMAKE_TOOLCHAIN_FILE=$NDK_DIR/build/cmake/android.toolchain.cmake \
+    -DENABLE_PARQUET=ON \
+    -DENABLE_FILETRANSFER=ON \
+    -DENABLE_PARQUET_SHARED=ON \
+    -DNNG_ENABLE_TLS=ON \
+    -DNNG_TLS_ENGINE=open \
+    -DTLS_EXTERN_PRIVATE_KEY=ON \
+    -DTLS_EXTERN_PRIVATE_KEY_8155=ON \
+    ..
+
+echo "Start make"
+make -j2
 
 mkdir lib
 cp $NDK_DIR/toolchains/llvm/prebuilt/linux-x86_64/sysroot/lib/*.so lib
+
+echo "Build done" 
+
+
+
+
+
 echo "Clear Ndk"
 rm -rf $NDK_DIR ${NDK_DIR}.tar.gz
