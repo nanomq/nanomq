@@ -130,6 +130,12 @@ static endpoints api_ep[] = {
 	    .descr  = "A list of subscriptions of a client",
 	},
 	{
+	    .path   = "/retains",
+	    .name   = "list all retain messages",
+	    .method = "GET",
+	    .descr  = "A list of retain messages",
+	},
+	{
 	    .path   = "/rules/",
 	    .name   = "list_rules",
 	    .method = "GET",
