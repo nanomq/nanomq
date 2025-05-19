@@ -1741,19 +1741,79 @@ out:
 	return res;
 }
 
+static char *bin2hex(const uint8_t *s, uint32_t len)
+{
+	char *hex = nng_alloc(sizeof(char) * 2 * len + 1);
+	for (uint32_t i=0; i<len; ++i) {
+		sprintf(hex + 2*i, "%02x", s[i]);
+	}
+	hex[2*len] = '\0';
+	return hex;
+}
+
+static void *
+get_retain_info_cb(nng_msg *retain)
+{
+	nng_msg_clone(retain);
+	return (void *) retain;
+}
+
 static http_msg
 get_retains(http_msg *msg, kv **params, size_t param_num,
     const char *client_id, const char *username, nng_socket *broker_sock)
 {
 	http_msg res     = { .status = NNG_HTTP_STATUS_OK };
+	cJSON *res_obj   = NULL;
+	cJSON *data_info = NULL;
+	res_obj          = cJSON_CreateObject();
+	data_info        = cJSON_CreateArray();
+	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+	cJSON_AddItemToObject(res_obj, "data", data_info);
 
 	conf       *config = get_global_conf();
 	nng_socket *socket = NULL;
 
+	dbtree        *db_ret = get_broker_retain_db();
+	dbtree_info ***vn =
+	    (dbtree_info ***) dbtree_get_retain_tree(db_ret, get_retain_info_cb);
+	for (int i = 0; i < cvector_size(vn); i++) {
+		cJSON *elem = cJSON_CreateObject();
+		cJSON_AddItemToArray(data_info, elem);
+		for (int j = 0; j < cvector_size(vn[i]); j++) {
+			cJSON_AddStringToObject(
+			    elem, "topic", vn[i][j]->topic);
+			nng_free(vn[i][j]->topic, strlen(vn[i][j]->topic));
+			if (cvector_size(vn[i][j]->clients) != 1) {
+				log_error("each topic should only have one retain msg %d",
+						cvector_size(vn[i][j]->clients));
+			}
+			nng_msg * retain = (nng_msg *)vn[i][j]->clients[0];
+			cvector_free(vn[i][j]->clients);
+			uint8_t qos = nng_mqtt_msg_get_publish_qos(retain);
+			cJSON_AddNumberToObject(elem, "qos", qos);
+			uint32_t pldsz;
+			char *pld = nng_mqtt_msg_get_publish_payload(retain, &pldsz);
+			if (pldsz != 0 && pld) {
+				char *hex = bin2hex(pld, pldsz);
+				cJSON_AddStringToObject(elem, "hexpld", hex);
+				nng_free(hex, 0);
+			}
+
+			nng_free(vn[i][j], sizeof(dbtree_info));
+		}
+		cvector_free(vn[i]);
+	}
+	cvector_free(vn);
+	char *dest = cJSON_PrintUnformatted(res_obj);
+
+
+
+	/*
 	char *dest = retains_json_all_items(config->retains_db);
 	if (dest == NULL) {
 		dest = strdup("{\"retains\":[]}");
 	}
+	*/
 	put_http_msg(&res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
 
 	nng_free(dest, 0);
