@@ -1780,13 +1780,16 @@ get_retains(http_msg *msg, kv **params, size_t param_num,
 		cJSON *elem = cJSON_CreateObject();
 		cJSON_AddItemToArray(data_info, elem);
 		for (int j = 0; j < cvector_size(vn[i]); j++) {
-			cJSON_AddStringToObject(
-			    elem, "topic", vn[i][j]->topic);
-			nng_free(vn[i][j]->topic, strlen(vn[i][j]->topic));
-			if (cvector_size(vn[i][j]->clients) != 1) {
+			if (cvector_size(vn[i][j]->clients) == 0) {
+				continue;
+			} else if (cvector_size(vn[i][j]->clients) != 1) {
 				log_error("each topic should only have one retain msg %d",
 						cvector_size(vn[i][j]->clients));
 			}
+
+			cJSON_AddStringToObject(
+			    elem, "topic", vn[i][j]->topic);
+			nng_free(vn[i][j]->topic, strlen(vn[i][j]->topic));
 			nng_msg * retain = (nng_msg *)vn[i][j]->clients[0];
 			cvector_free(vn[i][j]->clients);
 			uint8_t qos = nng_mqtt_msg_get_publish_qos(retain);
