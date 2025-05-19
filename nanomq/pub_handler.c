@@ -35,7 +35,6 @@
 #include "nng/supplemental/util/platform.h"
 #include "nng/supplemental/sqlite/sqlite3.h"
 #include "nng/supplemental/nanolib/log.h"
-#include "nng/supplemental/nanolib/retains.h"
 
 #if defined(SUPP_PLUGIN)
 	#include "include/plugin.h"

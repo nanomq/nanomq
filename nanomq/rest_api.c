@@ -20,7 +20,6 @@
 #include "nng/supplemental/nanolib/file.h"
 #include "nng/supplemental/nanolib/hocon.h"
 #include "nng/supplemental/nanolib/parquet.h"
-#include "nng/supplemental/nanolib/retains.h"
 
 #include "include/rest_api.h"
 #include "include/bridge.h"
