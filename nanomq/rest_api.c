@@ -1783,16 +1783,24 @@ get_retains(http_msg *msg, kv **params, size_t param_num,
 			if (cvector_size(vn[i][j]->clients) == 0) {
 				nng_free(vn[i][j], sizeof(dbtree_info));
 				continue;
-			} else if (cvector_size(vn[i][j]->clients) != 1) {
+			} else if (cvector_size(vn[i][j]->clients) != 3) {
 				log_error("each topic should only have one retain msg %d",
 						cvector_size(vn[i][j]->clients));
 			}
 			cnt ++;
 
 			nng_msg * retain = (nng_msg *)vn[i][j]->clients[0];
+			char * cid       = (char *)vn[i][j]->clients[1];
+			char * ts        = (char *)vn[i][j]->clients[2];
 			cvector_free(vn[i][j]->clients);
+			cJSON_AddStringToObject(elem, "clientid", cid);
+			cJSON_AddStringToObject(elem, "ts", ts);
+			nng_free(cid, 0);
+			nng_free(ts, 0);
+
 			uint8_t qos = nng_mqtt_msg_get_publish_qos(retain);
 			cJSON_AddNumberToObject(elem, "qos", qos);
+
 			uint32_t topicsz;
 			const char * topic = nng_mqtt_msg_get_publish_topic(retain, &topicsz);
 			if (topicsz != 0 && topic) {
@@ -1800,6 +1808,7 @@ get_retains(http_msg *msg, kv **params, size_t param_num,
 				cJSON_AddStringToObject(elem, "topic", pubtopic);
 				free(pubtopic);
 			}
+
 			uint32_t pldsz;
 			char *pld = nng_mqtt_msg_get_publish_payload(retain, &pldsz);
 			if (pldsz != 0 && pld) {
@@ -1808,6 +1817,7 @@ get_retains(http_msg *msg, kv **params, size_t param_num,
 				nng_free(hex, 0);
 			}
 
+			nng_msg_free(retain); // Cloned at get_retain_info_cb
 			nng_free(vn[i][j], sizeof(dbtree_info));
 		}
 		if (cnt > 0)
