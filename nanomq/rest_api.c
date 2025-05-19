@@ -1778,14 +1778,16 @@ get_retains(http_msg *msg, kv **params, size_t param_num,
 	    (dbtree_info ***) dbtree_get_retain_tree(db_ret, get_retain_info_cb);
 	for (int i = 0; i < cvector_size(vn); i++) {
 		cJSON *elem = cJSON_CreateObject();
-		cJSON_AddItemToArray(data_info, elem);
+		int cnt = 0;
 		for (int j = 0; j < cvector_size(vn[i]); j++) {
 			if (cvector_size(vn[i][j]->clients) == 0) {
+				nng_free(vn[i][j], sizeof(dbtree_info));
 				continue;
 			} else if (cvector_size(vn[i][j]->clients) != 1) {
 				log_error("each topic should only have one retain msg %d",
 						cvector_size(vn[i][j]->clients));
 			}
+			cnt ++;
 
 			nng_msg * retain = (nng_msg *)vn[i][j]->clients[0];
 			cvector_free(vn[i][j]->clients);
@@ -1808,12 +1810,15 @@ get_retains(http_msg *msg, kv **params, size_t param_num,
 
 			nng_free(vn[i][j], sizeof(dbtree_info));
 		}
+		if (cnt > 0)
+			cJSON_AddItemToArray(data_info, elem);
+		else
+			cJSON_free(elem);
 		cvector_free(vn[i]);
 	}
 	cvector_free(vn);
 	char *dest = cJSON_PrintUnformatted(res_obj);
-
-
+	cJSON_Delete(res_obj);
 
 	/*
 	char *dest = retains_json_all_items(config->retains_db);
