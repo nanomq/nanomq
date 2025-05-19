@@ -1787,13 +1787,17 @@ get_retains(http_msg *msg, kv **params, size_t param_num,
 						cvector_size(vn[i][j]->clients));
 			}
 
-			cJSON_AddStringToObject(
-			    elem, "topic", vn[i][j]->topic);
-			nng_free(vn[i][j]->topic, strlen(vn[i][j]->topic));
 			nng_msg * retain = (nng_msg *)vn[i][j]->clients[0];
 			cvector_free(vn[i][j]->clients);
 			uint8_t qos = nng_mqtt_msg_get_publish_qos(retain);
 			cJSON_AddNumberToObject(elem, "qos", qos);
+			uint32_t topicsz;
+			const char * topic = nng_mqtt_msg_get_publish_topic(retain, &topicsz);
+			if (topicsz != 0 && topic) {
+				char *pubtopic = strndup(topic, topicsz);
+				cJSON_AddStringToObject(elem, "topic", pubtopic);
+				free(pubtopic);
+			}
 			uint32_t pldsz;
 			char *pld = nng_mqtt_msg_get_publish_payload(retain, &pldsz);
 			if (pldsz != 0 && pld) {
