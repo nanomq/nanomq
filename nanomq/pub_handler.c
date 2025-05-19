@@ -1548,17 +1548,13 @@ static void inline handle_pub_retain(const nano_work *work, char *topic)
 			}
 			nng_mqtt_msg_set_publish_proto_version(ret, work->proto_ver);
 			// Dont set Sub retain, which is preserved for differing bridging retain msg
-			old_ret = dbtree_insert_retain(work->db_ret, topic, ret);
-			if (old_ret != NULL) {
-				retains_db_add_item(work->config->retains_db, topic,
-						conn_param_get_clientid(work->cparam), ret);
-			}
+			char tsbuf[32]; sprintf(tsbuf, "%ld", nng_timestamp());
+			char *ts  = strdup(tsbuf);
+			char *cid = strdup(conn_param_get_clientid(work->cparam));
+			old_ret = dbtree_insert_retain(work->db_ret, topic, ret, cid, ts);
 		} else {
 			log_debug("delete retain message");
 			old_ret = dbtree_delete_retain(work->db_ret, topic);
-			if (old_ret != NULL) {
-				retains_db_rm_item(work->config->retains_db, topic);
-			}
 		}
 
 		if (old_ret != NULL) {
