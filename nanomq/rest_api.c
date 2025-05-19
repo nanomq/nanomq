@@ -1829,14 +1829,7 @@ get_retains(http_msg *msg, kv **params, size_t param_num,
 	char *dest = cJSON_PrintUnformatted(res_obj);
 	cJSON_Delete(res_obj);
 
-	/*
-	char *dest = retains_json_all_items(config->retains_db);
-	if (dest == NULL) {
-		dest = strdup("{\"retains\":[]}");
-	}
-	*/
 	put_http_msg(&res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
-
 	nng_free(dest, 0);
 
 	return res;
