@@ -1053,6 +1053,12 @@ get_broker_db(void)
 	return db;
 }
 
+dbtree *
+get_broker_retain_db(void)
+{
+	return db_ret;
+}
+
 int
 broker(conf *nanomq_conf)
 {
