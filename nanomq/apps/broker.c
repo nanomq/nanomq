@@ -396,9 +396,9 @@ server_cb(void *arg)
 			if (type == CMD_CONNACK) {
 				log_info("bridge client is connected!");
 			} else if (type == CMD_PUBLISH) {
+				// Deal with local topic here
 			} else {
-				// only accept publish/CONNACK/DISCONNECT
-				// msg from upstream
+				// only accept publish/CONNACK/DISCONNECT msg from upstream
 				work->state = RECV;
 				nng_msg_free(msg);
 				nng_ctx_recv(work->extra_ctx, work->aio);

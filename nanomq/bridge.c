@@ -196,18 +196,16 @@ bridge_handle_topic_sub_reflection(nano_work *work, conf_bridge_node *node)
 				topics *sub_topic = node->sub_list[i];
 
 				// No local topic change and keep it as it is if local topic == ""
-				if (sub_topic->local_topic_len == 0) {
-					goto fix;
+				if (sub_topic->local_topic_len != 0) {
+					topic->body = nng_strdup(sub_topic->local_topic);
+					topic->len = strlen(topic->body);
+					rv = NNG_STAT_STRING;
+					if (topic->body == NULL) {
+						log_error("bridge: alloc local_topic failed");
+						nng_free(topic, sizeof(topic));
+						return;
+					}
 				}
-				topic->body = nng_strdup(sub_topic->local_topic);
-				topic->len = strlen(topic->body);
-				rv = NNG_STAT_STRING;
-				if (topic->body == NULL) {
-					log_error("bridge: alloc local_topic failed");
-					nng_free(topic, sizeof(topic));
-					return;
-				}
-fix:
 				nng_mqtt_msg_set_bridge_bool(work->msg, true);
 				// TODO replace bridge bool with sub retain bool
 				// nng_mqtt_msg_set_sub_retain_bool(work->msg, true);
@@ -1086,8 +1084,10 @@ bridge_tcp_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	}
 	// Kick off ctx_msgs resending
 	conf_bridge_node *node = param->config;
-	if (!nng_aio_busy(node->resend_aio))
+	if (!nng_aio_busy(node->resend_aio)) {
+		log_info("kick off resending!");
 		nng_aio_finish(node->resend_aio, 0);
+	}
 }
 
 // Disconnect message callback function
