@@ -1524,6 +1524,7 @@ static void inline handle_pub_retain(const nano_work *work, char *topic)
 	nng_msg *old_ret = NULL, *ret;
 	if (work->pub_packet->fixed_header.retain) {
 		if (work->pub_packet->payload.len > 0) {
+			// Bridging retain msg with prefix/suffix?
 			if (nng_msg_dup(&ret, work->msg) != 0) {
 				log_error("Mem error");
 				return;
