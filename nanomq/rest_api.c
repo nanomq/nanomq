@@ -1769,8 +1769,8 @@ get_retains(http_msg *msg, kv **params, size_t param_num,
 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
 	cJSON_AddItemToObject(res_obj, "data", data_info);
 #ifdef NNG_SUPP_SQLITE
-	goto exit;
-#endif
+	log_warn("get_retain API is disabled while SQLite enabled");
+#else
 	conf       *config = get_global_conf();
 	nng_socket *socket = NULL;
 
@@ -1826,7 +1826,7 @@ get_retains(http_msg *msg, kv **params, size_t param_num,
 		cvector_free(vn[i]);
 	}
 	cvector_free(vn);
-exit:
+#endif
 	char *dest = cJSON_PrintUnformatted(res_obj);
 	cJSON_Delete(res_obj);
 
