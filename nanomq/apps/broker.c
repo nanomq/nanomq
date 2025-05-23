@@ -35,6 +35,7 @@
 #include "nng/supplemental/nanolib/utils.h"
 #include "nng/supplemental/nanolib/env.h"
 #include "nng/protocol/reqrep0/req.h"
+#include "nng/supplemental/util/platform.h"
 
 #include "include/acl_handler.h"
 #include "include/bridge.h"
@@ -76,6 +77,8 @@
 // descriptors if you set this too high. (If not for that limit, this could
 // be set in the thousands, each context consumes a couple of KB.) Recommend to
 // set as the same as your CPU cores.
+
+static nng_atomic_bool *is_first_sigterm;
 
 #if (defined DEBUG) && (defined ASAN)
 int keepRunning = 1;
@@ -119,6 +122,10 @@ void sig_handler(int signum)
 		exit(EXIT_SUCCESS);
 #ifdef SUPP_PARQUET
 	if (signum == SIGTERM) {
+		if (false == nng_atomic_swap_bool(is_first_sigterm, false)) {
+			log_warn("SIGTERM was processed, ignore");
+			return; // Not the first time
+		}
 		log_warn("SIGTERM Writing ringbufs to Parquet before exit...");
 		int rv = hook_last_flush();
 		if (rv != 0) {
@@ -1962,6 +1969,8 @@ broker_start(int argc, char **argv)
 	int i, url, temp, rc;
 	int pid = 0;
 
+	nng_atomic_alloc_bool(&is_first_sigterm);
+	nng_atomic_set_bool(is_first_sigterm, true);
 	conf *nanomq_conf;
 
 	if (!status_check(&pid)) {
