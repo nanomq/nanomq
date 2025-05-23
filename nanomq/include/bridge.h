@@ -30,6 +30,7 @@ extern int  bridge_client(
 extern int hybrid_bridge_client(
     nng_socket *sock, conf *config, conf_bridge_node *node);
 extern void bridge_handle_topic_reflection(nano_work *work, conf_bridge *bridge);
+extern void bridge_downward_msg_coding(nano_work *work);
 extern nng_msg *bridge_publish_msg(const char *topic, uint8_t *payload,
     uint32_t len, bool dup, uint8_t qos, bool retain, property *props);
 
