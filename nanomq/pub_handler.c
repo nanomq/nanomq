@@ -1362,14 +1362,16 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 	}
 	nng_atomic_inc64(g_msg.msg_in);
 #endif
+	// do not decode twice for bridge ctx!
+	if (work->proto != PROTO_MQTT_BRIDGE || is_event) {
+		work->pub_packet = (struct pub_packet_struct *) nng_zalloc(
+		    sizeof(struct pub_packet_struct));
 
-	work->pub_packet = (struct pub_packet_struct *) nng_zalloc(
-	    sizeof(struct pub_packet_struct));
-
-	result = decode_pub_message(work, proto);
-	if (SUCCESS != result) {
-		log_warn("decode message failed.");
-		return result;
+		result = decode_pub_message(work, proto);
+		if (SUCCESS != result) {
+			log_warn("decode message failed.");
+			return result;
+		}
 	}
 
 	if (PUBLISH != work->pub_packet->fixed_header.packet_type) {
@@ -1430,9 +1432,6 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 	if (topic == NULL) {
 		log_error("Topic is NULL");
 		return TOPIC_FILTER_INVALID;
-	}
-	if (work->proto == PROTO_MQTT_BRIDGE) {
-		bridge_handle_topic_reflection(work, &work->config->bridge);
 	}
 
 #if defined(SUPP_AWS_BRIDGE)
