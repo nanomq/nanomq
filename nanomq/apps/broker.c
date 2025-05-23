@@ -123,7 +123,7 @@ void sig_handler(int signum)
 #ifdef SUPP_PARQUET
 	if (signum == SIGTERM) {
 		if (false == nng_atomic_swap_bool(is_first_sigterm, false)) {
-			log_warn("SIGTERM was processed, ignore");
+			log_warn("SIGTERM is being processed, ignore");
 			return; // Not the first time
 		}
 		log_warn("SIGTERM Writing ringbufs to Parquet before exit...");
