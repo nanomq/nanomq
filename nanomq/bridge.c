@@ -4,6 +4,7 @@
 #include "nng/protocol/mqtt/mqtt.h"
 #include "nng/supplemental/nanolib/log.h"
 #include "nng/supplemental/util/platform.h"
+#include "nng/supplemental/nanolib/topics.h"
 #include "nng/supplemental/nanolib/utils.h"
 #include "nng/protocol/mqtt/mqtt_parser.h"
 
@@ -176,6 +177,110 @@ create_disconnect_msg()
 
 	return msg;
 }
+// only deal with PUBLISH msg.
+void
+bridge_downward_msg_coding(nano_work *work)
+{
+	int rv = 0;
+	reason_code result          = SUCCESS;
+	conf_bridge_node *node = work->node;
+	mqtt_string *topic;
+	work->pub_packet = (struct pub_packet_struct *) nng_zalloc(
+	    sizeof(struct pub_packet_struct));
+	work->pid       = nng_msg_get_pipe(work->msg);
+	work->cparam    = nng_msg_get_conn_param(work->msg);
+	work->proto_ver = conn_param_get_protover(work->cparam);
+	work->flag      = nng_msg_cmd_type(work->msg);
+
+	result = decode_pub_message(work, work->proto_ver);
+	if (SUCCESS != result) {
+		log_warn("decode message failed.");
+		return;
+	}
+	topic = nng_zalloc(sizeof(*topic));
+	if (topic == NULL || node == NULL) {
+		log_error("");
+		return;
+	}
+	topic->body = work->pub_packet->var_header.publish.topic_name.body;
+	topic->len  = work->pub_packet->var_header.publish.topic_name.len;
+	if (topic->body == NULL) {
+		log_warn("NULL topic found! Topic alias or decoding error!");
+		nng_free(topic, sizeof(topic));
+		return;
+	}
+	for (size_t i = 0; i < node->sub_count; i++) {
+		if (node->sub_list[i]->remote_topic == NULL) {
+			continue;
+		}
+		if (topic_filter(node->sub_list[i]->remote_topic, topic->body)) {
+			topics *sub_topic = node->sub_list[i];
+			if (sub_topic->local_topic_len != 0) {
+				char *new_topic = generate_repub_topic(
+				    sub_topic, topic->body);
+				if (new_topic == NULL) {
+					log_warn("Process local_topic failed! Stay with original.");
+				} else {
+					topic->body = new_topic;
+					topic->len  = strlen(new_topic);
+					rv = NNG_STAT_STRING; //mark it for free
+				}
+			}
+			// TODO remove it
+			nng_mqtt_msg_set_bridge_bool(work->msg, true);
+			/* check prefix/suffix */
+			if (sub_topic->prefix != NULL) {
+				char *tmp = topic->body;
+				topic->body =
+					nng_strnins(topic->body, sub_topic->prefix,
+								topic->len, sub_topic->prefix_len);
+				topic->len = strlen(topic->body);
+				if (rv == NNG_STAT_STRING)
+					nng_free(tmp, strlen(tmp));
+				rv = NNG_STAT_STRING;	//mark it for free
+			}
+			if (node->sub_list[i]->suffix != NULL) {
+				char *tmp = topic->body;
+				topic->body =
+					nng_strncat(topic->body, sub_topic->suffix,
+								topic->len, sub_topic->suffix_len);
+				topic->len = strlen(topic->body);
+				if (rv == NNG_STAT_STRING)
+					nng_free(tmp, strlen(tmp));
+				rv = NNG_STAT_STRING;	//mark it for free
+			}
+			work->pub_packet->fixed_header.retain =
+			    sub_topic->retain == NO_RETAIN
+			    ? work->pub_packet->fixed_header.retain
+			    : sub_topic->retain;
+			/* release old topic area */
+			if (rv != 0) {
+				uint32_t plen;
+				uint8_t *payload;
+				nng_strfree(work->pub_packet->var_header.publish.topic_name.body);
+				work->pub_packet->var_header.publish.topic_name.body = topic->body;
+				work->pub_packet->var_header.publish.topic_name.len = topic->len;
+				// due to is_copied design, have to copy publish payload as well
+				payload = nng_mqtt_msg_get_publish_payload(work->msg, &plen);
+				// encode msg to replace the old one.
+				nng_mqtt_msg_set_publish_topic(work->msg, topic->body);
+				nng_mqtt_msg_set_publish_topic_len(work->msg, topic->len);
+				nng_mqtt_msg_set_publish_payload(work->msg, payload, plen);
+				if (work->proto_ver == MQTT_VERSION_V311)
+					nng_mqtt_msg_encode(work->msg);
+				else if (work->proto_ver == MQTT_VERSION_V5)
+					nng_mqttv5_msg_encode(work->msg);
+				nng_msg_set_remaining_len(work->msg, nng_msg_len(work->msg));
+			}
+
+
+			nng_free(topic, sizeof(topic));
+			return;
+		}
+	}
+	nng_free(topic, sizeof(topic));
+}
+
 // TODO move to RECV state of PROTO_BRIDGE, however we need to modify original msg
 // duplicate msg
 static inline void
