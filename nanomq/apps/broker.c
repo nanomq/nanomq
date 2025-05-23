@@ -355,7 +355,7 @@ server_cb(void *arg)
 					nng_ctx_recv(work->extra_ctx, work->aio);
 					break;
 				}
-				log_info("bridge connection closed with reason %d\n", rv);
+				log_info("bridge aio closed with reason %d\n", rv);
 			}
 		}
 
@@ -364,6 +364,13 @@ server_cb(void *arg)
 			if (type == CMD_CONNACK) {
 				log_info("bridge client is connected!");
 			} else if (type == CMD_PUBLISH) {
+				if (rv == 0) {
+					// only re-coding normal bridigng msg
+					work->msg       = msg;
+					bridge_downward_msg_coding(work);
+				} else {
+					// exclude disconnet event msg
+				}
 			} else {
 				// only accept publish/CONNACK/DISCONNECT
 				// msg from upstream
@@ -467,13 +474,11 @@ server_cb(void *arg)
 					if (SUCCESS == decode_pub_message(work, ver)) {
 						bool  bridged = false;
 						proto_data = nng_msg_get_proto_data(work->msg);
-						// TODO replace bridge bool with sub retain bool
-						// bridged = nng_mqtt_msg_get_sub_retain_bool(work->msg, true);
+						// we simply change the msg itself
 						if (proto_data != NULL)
 							bridged = nng_mqtt_msg_get_bridge_bool(work->msg);
 						if (bridged) {
-							bridge_handle_topic_reflection(
-							    work, &work->config->bridge);
+							bridge_handle_topic_reflection(work, &work->config->bridge);
 						}
 						// dont modify original retain msg;
 						nng_msg *rmsg = NULL;
@@ -629,8 +634,6 @@ server_cb(void *arg)
 					conn_param_free(work->cparam);
 				} else {
 					// set to END to send will msg
-					// TBD: relay last will msg for
-					// bridging client?
 					work->state = END;
 					// leave cp for will msg
 					nng_aio_finish(work->aio, 0);
