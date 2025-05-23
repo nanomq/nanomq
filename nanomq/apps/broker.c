@@ -513,12 +513,6 @@ server_cb(void *arg)
 						bool  bridged = false;
 						proto_data = nng_msg_get_proto_data(work->msg);
 						// we simply change the msg itself
-						if (proto_data != NULL)
-							bridged = nng_mqtt_msg_get_bridge_bool(work->msg);
-						if (bridged) {
-							bridge_handle_topic_reflection(work, &work->config->bridge);
-						}
-						// dont modify original retain msg;
 						nng_msg *rmsg = NULL;
 						if (nng_msg_dup(&rmsg, work->msg) != 0) {
 							log_error("System Failure while duplicating retain msg");
@@ -529,7 +523,6 @@ server_cb(void *arg)
 								nng_msg_set_cmd_type(rmsg, CMD_PUBLISH);
 							}
 						}
-						// nng_msg_set_proto_data(rmsg, NULL, proto_data);
 						if (encode_pub_message(rmsg, work, PUBLISH)) {
 							nng_mqtt_msg_set_sub_retain_bool(rmsg, true);
 							nng_aio_set_msg(work->aio, rmsg);

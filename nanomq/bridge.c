@@ -177,7 +177,8 @@ create_disconnect_msg()
 
 	return msg;
 }
-// only deal with PUBLISH msg.
+
+// only deal with PUBLISH msg from bridging channel.
 void
 bridge_downward_msg_coding(nano_work *work)
 {
@@ -226,8 +227,6 @@ bridge_downward_msg_coding(nano_work *work)
 					rv = NNG_STAT_STRING; //mark it for free
 				}
 			}
-			// TODO remove it
-			nng_mqtt_msg_set_bridge_bool(work->msg, true);
 			/* check prefix/suffix */
 			if (sub_topic->prefix != NULL) {
 				char *tmp = topic->body;
@@ -272,8 +271,6 @@ bridge_downward_msg_coding(nano_work *work)
 					nng_mqttv5_msg_encode(work->msg);
 				nng_msg_set_remaining_len(work->msg, nng_msg_len(work->msg));
 			}
-
-
 			nng_free(topic, sizeof(topic));
 			return;
 		}
@@ -311,7 +308,6 @@ bridge_handle_topic_sub_reflection(nano_work *work, conf_bridge_node *node)
 						return;
 					}
 				}
-				nng_mqtt_msg_set_bridge_bool(work->msg, true);
 				// TODO replace bridge bool with sub retain bool
 				// nng_mqtt_msg_set_sub_retain_bool(work->msg, true);
 				/* check prefix/suffix */
