@@ -1870,8 +1870,7 @@ decode_pub_message(nano_work *work, uint8_t proto)
 			}
 		}
 
-		// TODO if topic_len = 0 && mqtt_version = 5.0, search topic
-		// alias from nano_db
+		// TODO if topic_len = 0 && mqtt_version = 5.0, search topic alias from nano_db
 
 		log_debug("topic: [%.*s], len: [%d], qos: %d",
 		    pub_packet->var_header.publish.topic_name.len,
