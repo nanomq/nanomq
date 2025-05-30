@@ -20,6 +20,7 @@ extern int webhook_client_disconnect(nng_socket *sock,
 
 #ifdef SUPP_PARQUET
 extern int hook_last_flush();
+extern int flush_smsg_to_disk(nng_msg **smsg, size_t len, nng_aio *aio, char *topic, uint8_t streamType);
 #endif
 
 #endif

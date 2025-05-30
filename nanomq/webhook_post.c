@@ -34,10 +34,6 @@ static void         set_char(char *out, unsigned int *index, char c);
 static unsigned int base62_encode(
     const unsigned char *in, unsigned int inlen, char *out);
 
-#ifdef SUPP_PARQUET
-static int flush_smsg_to_disk(nng_msg **smsg, size_t len, nng_aio *aio, char *topic, uint8_t streamType);
-#endif
-
 #define BASE62_ENCODE_OUT_SIZE(s) ((unsigned int) ((((s) * 8) / 6) + 2))
 
 struct work_cb_arg {
@@ -631,7 +627,7 @@ static void cb_data_free(struct cb_data *cb_data)
 }
 
 #ifdef SUPP_PARQUET
-static int
+int
 flush_smsg_to_disk(nng_msg **smsg,
 				   size_t len,
 				   nng_aio *aio,
