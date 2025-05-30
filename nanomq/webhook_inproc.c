@@ -13,6 +13,7 @@
 #include <time.h>
 #include <inttypes.h>
 
+#include "include/webhook_post.h"
 #include "include/webhook_inproc.h"
 #include "nanomq.h"
 #include "nng/nng.h"
@@ -754,11 +755,14 @@ hook_work_cb(void *arg)
 
 		nng_aio *aio;
 		nng_aio_alloc(&aio, NULL, NULL);
+		nng_aio *faio;
+		nng_aio_alloc(&faio, NULL, NULL);
 
 		body = (char *) nng_msg_body(msg);
 		root = cJSON_Parse(body);
 
 		char       *streamid = NULL;
+		uint8_t     streamtype;
 		nng_socket *ex_sock  = NULL;
 		cJSON *streamjo = cJSON_GetObjectItem(root, "stream");
 		if (streamjo && streamjo->valuestring) {
@@ -766,6 +770,7 @@ hook_work_cb(void *arg)
 			for (int i=0; i<exconf->count; ++i) {
 				if (0 == strcmp(exconf->nodes[i]->name, streamjo->valuestring)) {
 					ex_sock = exconf->nodes[i]->sock;
+					streamtype = exconf->nodes[i]->streamType;
 					break;
 				}
 			}
@@ -788,14 +793,14 @@ hook_work_cb(void *arg)
 		if (cmdjo)
 			cmdstr = cmdjo->valuestring;
 		if (cmdstr) {
-			if (0 == strcmp(cmdstr, "write")) {
+			if (0 == strcmp(cmdstr, "stop")) {
 				send_msg_rep(work->ctx, HOOK_ERR_INVALID_CMD);
-				log_warn("Write cmd is not supported");
+				log_warn("Stop cmd is not supported");
 				goto skip;
 			} else if (0 == strcmp(cmdstr, "search")) {
 				log_debug("Search is triggered");
-			} else if (0 == strcmp(cmdstr, "stop")) {
-				log_info("Stop is triggered");
+			} else if (0 == strcmp(cmdstr, "write")) {
+				log_info("Write is triggered");
 				nng_msg *m;
 				nng_msg_alloc(&m, 0);
 				if (!m) {
@@ -811,24 +816,43 @@ hook_work_cb(void *arg)
 				tss[2] = 1; // It's a clean flag
 				nng_msg_set_proto_data(m, NULL, (void *)tss);
 				nng_aio_set_msg(aio, m);
-				// Do clean on MQ
+				// Do clean on MQ and write msgs to parquet
 				nng_recv_aio(*ex_sock, aio);
 				nng_aio_wait(aio);
-				if (nng_aio_result(aio) != 0)
-					log_warn("error in clean msgs on exchange");
+				if ((rv = nng_aio_result(aio)) != 0)
+					log_warn("error%d in getting msgs from exchange(%s)", rv, streamid);
 				nng_msg_free(m);
 				nng_free(tss, 0);
 
 				nng_msg **msgs_res = (nng_msg **)nng_aio_get_msg(aio);
 				uint32_t  msgs_len = (uintptr_t)nng_aio_get_prov_data(aio);
-				log_info("Parquet & MQ Service stopped and free %d msgs", msgs_len);
+				log_info("Clean exchange(%s) and get %d msgs", streamid, msgs_len);
 				if (msgs_len > 0 && msgs_res != NULL) {
+					rv = flush_smsg_to_disk(msgs_res, msgs_len, faio,
+						streamid, streamtype);
+					if (rv != 0) {
+						log_error("error%d in put msgs in exchange(%s) to parquet",
+								rv, streamid);
+					} else {
+						nng_aio_wait(faio);
+						if ((rv = nng_aio_result(faio)) != 0) {
+							log_warn("error%d in flush msgs in exchange(%s) to parquet",
+									rv, streamid);
+						}
+					}
 					for (int i=0; i<msgs_len; ++i)
 						nng_msg_free(msgs_res[i]);
+					if (rv != 0) {
+						nng_free(msgs_res, sizeof(nng_msg *) * msgs_len);
+						send_msg_rep(work->ctx, HOOK_ERR_UNKNOWN);
+						goto skip;
+					}
+					log_warn("flush msgs in exchange(%s) to parquet done!", streamid);
+					send_msg_rep(work->ctx, HOOK_ERR_OK);
+				} else {
+					send_msg_rep(work->ctx, HOOK_ERR_NONE);
 				}
 				nng_free(msgs_res, sizeof(nng_msg *) * msgs_len);
-	
-				send_msg_rep(work->ctx, HOOK_ERR_OK);
 				goto skip;
 			} else {
 				send_msg_rep(work->ctx, HOOK_ERR_INVALID_CMD);
@@ -1043,6 +1067,7 @@ skip:
 		if (resjo)
 			cJSON_Delete(resjo);
 		nng_aio_free(aio);
+		nng_aio_free(faio);
 
 		cJSON_Delete(root);
 		root = NULL;
