@@ -75,8 +75,11 @@ Each rule is processed in order, and processing stops at the first match. If no 
 
 *   `@` can be used to match *any* topics without bothering by wildcards. For examples:
 	By specifying `{"permit": "deny", "username": "#", "action": "subscribe", "topics": ["$SYS/#", "@#", "@client/+/msg"]}`, it will only deny subscription to topic `#` and
-	`client/+/msg"`, not `client/123/msg` and any other topics although they are also
-	matched in terms of wildcard rules.
+	`client/+/msg"`, not `client/123/msg` and any other topics although they are also matched in terms of wildcard rules.
+
+*   `${clientid}` and `${username}` can be used as placeholder for configuring ACL topic without knowing the username and clientid of client ahead. They can work with `@` symbol together since 0.23.8. For examples:
+	By specifying `{"permit": "deny", "username": "#", "action": "subscribe", "topics": ["@${clientid}/${username}/#"]}`, it will replace the topic with client's ID and username each time, which forbids all client subscribe to the corresponding topic that consists of its own ID, username and `#`. (Client with ID `ab` and username `cd` is denied to subscribe to topic `ab/cd/#`).
+	
 
 ## HTTP Authentication
 

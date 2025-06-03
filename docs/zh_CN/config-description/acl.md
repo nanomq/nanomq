@@ -87,6 +87,8 @@ ACL 规则的匹配遵循自顶向下的顺序。当一个规则匹配到当前�
 	通过指定 `{"permit": "deny", "username": "#", "action": "subscribe", "topics": ["$SYS/#", "@#", "@client/+/msg"]}`，只会拒绝订阅主题 `#` 和
 	`client/+/msg"`，而不是 `client/123/msg` 和任何其他主题，尽管它们也是
 	根据通配符规则是匹配。
+*   `${clientid}` 和 `${username}` 可以作为配置 ACL 主题的占位符，而无需提前知道客户端的用户名和 clientid。从 0.23.8 开始，它们可以和 '@' 符号同时使用。例如：
+	通过指定 `{"permit": "deny", "username": "#", "action": "subscribe", "topics": ["@${clientid}/${username}/#"]}`，每次都会用客户端的 ID 和用户名替换主题内容，这禁止所有客户端订阅对应的包含其自己的ID、用户名和`#`的主题。（ID 为 `ab` 且用户名为 `cd` 的客户端被拒绝订阅主题 `ab/cd/#`）。
 
 ## HTTP 身份验证
 
