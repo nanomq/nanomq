@@ -40,6 +40,7 @@ struct cb_data {
 };
 
 static void cb_data_free(struct cb_data *cb_data);
+static int flush_smsg_to_disk(nng_msg **smsg, size_t len, nng_aio *aio, char *topic, uint8_t streamType);
 
 static bool event_filter(conf_web_hook *hook_conf, webhook_event event);
 static bool event_filter_with_topic(
@@ -290,7 +291,83 @@ gen_hash_nearby_key(char *clientid, char *topic, uint32_t pid)
 
 static uint32_t g_inc_id = 0;
 
+int
+hook_sync_flush(nng_socket *ex_sock, char *streamid, uint8_t streamtype)
+{
+	nng_msg *m;
+	nng_msg_alloc(&m, 0);
+	nng_aio *aio;
+	nng_aio_alloc(&aio, NULL, NULL);
+	nng_aio *faio;
+	nng_aio_alloc(&faio, NULL, NULL);
+	if (!m || !aio || !faio) {
+		log_error("Error in alloc memory");
+		return -1;
+	}
 
+	int       rv;
+	int       rc  = 0;
+	nng_time *tss = NULL;
+	tss = nng_alloc(sizeof(nng_time) * 3);
+	tss[0] = 0;
+	tss[1] = 9223372036854775807; // big enough
+	tss[2] = 1; // It's a clean flag
+	nng_msg_set_proto_data(m, NULL, (void *)tss);
+	nng_aio_set_msg(aio, m);
+
+	// Do clean on MQ and get the returned msgs
+	nng_recv_aio(*ex_sock, aio);
+	nng_aio_wait(aio);
+	if ((rc = nng_aio_result(aio)) != 0) {
+		log_warn("error%d in getting msgs from exchange(%s)", rc, streamid);
+		rc = -2;
+		goto done;
+	}
+
+	nng_msg **msgs_res = (nng_msg **)nng_aio_get_msg(aio);
+	uint32_t  msgs_len = (uintptr_t)nng_aio_get_prov_data(aio);
+	log_info("Clean exchange(%s) and get %dmsgs type%d", streamid, msgs_len, streamtype);
+
+	if (msgs_len > 0 && msgs_res != NULL) {
+		rv = flush_smsg_to_disk(msgs_res, msgs_len, faio, streamid, streamtype);
+		if (rv != 0) {
+			log_error("error%d in put msgs in exchange(%s) to parquet", rv, streamid);
+		} else {
+			nng_aio_wait(faio);
+
+			if ((rv = nng_aio_result(faio)) != 0) {
+				log_warn("error%d in flush msgs in exchange(%s) to parquet",
+						rv, streamid);
+			}
+		}
+
+		struct cb_data *cb_data = (struct cb_data *)nng_aio_get_prov_data(faio);
+		if (cb_data == NULL) {
+			log_error("cb_data is NULL");
+		} else {
+			cb_data_free(cb_data);
+		}
+
+		for (int i=0; i<msgs_len; ++i)
+			nng_msg_free(msgs_res[i]);
+		nng_free(msgs_res, sizeof(nng_msg *) * msgs_len);
+		if (rv != 0) {
+			rc = -1;
+			goto done;
+		}
+		log_warn("flush %dmsgs in exchange(%s) to parquet done!", msgs_len, streamid);
+	} else {
+		rc = -2;
+		goto done;
+	}
+
+done:
+	nng_aio_free(faio);
+	nng_aio_free(aio);
+	nng_msg_free(m);
+	nng_free(tss, 0);
+	return rc;
+}
 
 #ifdef SUPP_PARQUET
 static conf *tmp_root_conf = NULL;
