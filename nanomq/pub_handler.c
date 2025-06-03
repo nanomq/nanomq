@@ -1745,8 +1745,6 @@ encode_pub_message(
 		if (proto == MQTT_VERSION_V5)
 			// Do not delete! msg expiry checker need this!
 			nng_mqttv5_msg_decode(dest_msg);
-		nng_msg_set_remaining_len(
-		    dest_msg, work->pub_packet->fixed_header.remain_len);
 		log_debug("header len [%ld] remain len [%d]\n",
 		    nng_msg_header_len(dest_msg),
 		    work->pub_packet->fixed_header.remain_len);
@@ -1819,11 +1817,12 @@ decode_pub_message(nano_work *work, uint8_t proto)
 	uint8_t *msg_body = nng_msg_body(msg);
 	size_t   msg_len  = nng_msg_len(msg);
 
-	// print_hex("", msg_body, msg_len);
-
 	pub_packet->fixed_header =
 	    *(struct fixed_header *) nng_msg_header(msg);
-	pub_packet->fixed_header.remain_len = nng_msg_remaining_len(msg);
+	pub_packet->fixed_header.remain_len = nng_msg_len(msg);
+	mqtt_get_remaining_length(nng_msg_header(msg), nng_msg_header_len(msg),
+		&pub_packet->fixed_header.remain_len, &used_pos);
+	used_pos = 0;
 
 	log_debug(
 	    "cmd: %d, retain: %d, qos: %d, dup: %d, remaining length: %d",
@@ -1832,7 +1831,7 @@ decode_pub_message(nano_work *work, uint8_t proto)
 	    pub_packet->fixed_header.dup, pub_packet->fixed_header.remain_len);
 
 	if (pub_packet->fixed_header.remain_len > msg_len) {
-		log_error("remainlen > msg_len");
+		log_error("decode remainlen > msg_len");
 		return PROTOCOL_ERROR;
 	}
 
