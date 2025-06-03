@@ -47,8 +47,6 @@ main()
 	nng_msg_append(work->msg, packet_id, 2);
 	nng_msg_append(work->msg, topic, 14);
 	remaining_len = 16;
-	nng_msg_set_remaining_len(work->msg, remaining_len);
-
 	rv = decode_unsub_msg(work);
 	assert(rv == 0);
 

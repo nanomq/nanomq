@@ -269,7 +269,6 @@ bridge_downward_msg_coding(nano_work *work)
 					nng_mqtt_msg_encode(work->msg);
 				else if (work->proto_ver == MQTT_VERSION_V5)
 					nng_mqttv5_msg_encode(work->msg);
-				nng_msg_set_remaining_len(work->msg, nng_msg_len(work->msg));
 			}
 			nng_free(topic, sizeof(topic));
 			return;

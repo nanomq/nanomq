@@ -29,7 +29,7 @@ decode_unsub_msg(nano_work *work)
 
 	packet_unsubscribe *unsub_pkt     = work->unsub_pkt;
 	nng_msg *           msg           = work->msg;
-	size_t              remaining_len = nng_msg_remaining_len(msg);
+	size_t              remaining_len = nng_msg_len(msg);
 
 	uint8_t property_id;
 	topic_node *       tn, *_tn;
