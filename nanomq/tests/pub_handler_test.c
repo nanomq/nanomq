@@ -45,7 +45,6 @@ test_handler_pub()
 	nng_msg_append(msg, topic, topic_len);
 	nng_msg_append(msg, pkt_id, 2);
 	nng_msg_append(msg, data, data_len);
-	nng_msg_set_remaining_len(msg, remaining_len);
 	nng_msg_header_append(msg, fix_hd, sizeof(*fix_hd));
 	
 	rc = handle_pub(work, work->pipe_ct, work->proto_ver, true);
@@ -111,26 +110,25 @@ main()
 	nng_msg_append(msg, topic, topic_len);
 	nng_msg_append(msg, pkt_id, 2);
 	nng_msg_append(msg, data, data_len);
-	nng_msg_set_remaining_len(msg, remaining_len);
 	nng_msg_header_append(msg, fix_hd, sizeof(*fix_hd));
 
 	// init tpcError_msg->body
 	nng_msg_append(tpcError_msg, topic_false, topic_len);
 	// nng_msg_append(tpcError_msg, pkt_id, 2);
 	nng_msg_append(tpcError_msg, data, data_len);
-	nng_msg_set_remaining_len(tpcError_msg, 11);
 	nng_msg_header_append(tpcError_msg, fix_hd, sizeof(*fix_hd));
 
 
 	/* test for decode_pub_message */
 	// TODO test for MQTTv5
 	// test for remaining_len > msg_len
+	uint8_t *header = nng_msg_header(work->msg);
+	*(header + 1) = 24;
 	rv_rc = decode_pub_message(work, MQTT_PROTOCOL_VERSION_v311);
 	assert(rv_rc == PROTOCOL_ERROR);
 
 	// test for commom case.
-	remaining_len = 13;
-	nng_msg_set_remaining_len(msg, remaining_len);
+	*(header + 1) = 13;
 	rv_rc = decode_pub_message(work, MQTT_PROTOCOL_VERSION_v311);
 	assert(rv_rc == SUCCESS);
 	// check work->pub_packet
