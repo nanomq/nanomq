@@ -98,7 +98,20 @@ bridges.mqtt.emqx1 = {
   - `certfile`：TLS Cert 证书数据。
   - `cacertfile`：TLS CA 证书数据。
 - `forwards`：转发到远端 MQTT 服务器的主题数组，应包括消息主题（`remote_topic`）、（`local_topic`）和 QoS （`qos`）。
-- `subscription`：需要从远程 MQTT 服务器订阅的主题对象数组，除`forwards`中各项外，还包括以下几项：。
+  - `suffix`：将为远程主题添加后缀字符串（如果 remote_topic 为空，则添加到原始主题）
+  - `prefix`：将为远程主题添加前缀字符串（如果 remote_topic 为空，则添加到原始主题）
+- `subscription`：这是一个需要从远程 MQTT 服务器订阅的主题对象数组。每个对象定义一个主题及其对应的 QoS 级别（请注意，如果配置了多个重叠规则，则只有第一个规则生效）。除`forwards`中各项外，还包括以下几项：
+  - `remote_topic`：用于订阅远程代理的主题过滤器。
+  - `local_topic`：用于主题反射，如果您想要使用原始方式，只需保留 `local_topic=""` 即可，以便在远程代理发送的消息中保留原始主题。
+    ::: tip
+  
+`subscription`部分的`local_topic` 与`forwards`部分的工作方式不同。为了简化管理本地和远程主题关系（社区中经常提及的功能），自 0.23.7 版本起，引入了主题重新映射功能，该功能允许使用通配符删除或替换主题的部分内容。具体来说，通配符在此处充当字符串搜索锚点，以便用户保留匹配的部分。
+例如：
+`remote_topic = "+/nanomq/#"`
+`local_topic = "#"`
+如果下发消息来自主题`cmd/nanomq/hello/world`，则您将收到一条主题为`hello/world`的消息。
+
+  :::
   - `retain`：重载标志位。
   - `retain_as_publish`：MQTTV5可选特性，Retain As Published。
   - `retain_handling`：MQTTV5可选特性，Retain Handling。
