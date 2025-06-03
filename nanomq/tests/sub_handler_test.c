@@ -48,7 +48,6 @@ main()
 	nng_msg_set_payload_ptr(msg, payload_ptr);
 	// set remaining_len.
 	remaining_len = nng_msg_len(msg);
-	nng_msg_set_remaining_len(msg, remaining_len);
 	// set work->msg.
 	work->msg = msg;
 	// alloc sub_pkt.
@@ -63,8 +62,8 @@ main()
 	// set packet_id: 0x05.
 	uint8_t packet_id[2] = { 0x00, 0x05 };
 	nng_msg_append(work->msg, packet_id, 2);
+	nng_msg_append(msg, topic, 16);
 	remaining_len = 12;
-	nng_msg_set_remaining_len(work->msg, remaining_len);
 
 	rv = decode_sub_msg(work);
 	assert(rv == 0);
