@@ -778,13 +778,6 @@ hook_work_cb(void *arg)
 			send_msg_rep(work->ctx, HOOK_ERR_INVALID_STREAM);
 			goto skip;
 		}
-		cJSON *prefixjo = cJSON_GetObjectItem(root, "topic_prefix");
-		if (!prefixjo || !prefixjo->valuestring) {
-			log_warn("Invalid topic_prefix");
-			send_msg_rep(work->ctx, HOOK_ERR_INVALID_TOPIC);
-			goto skip;
-		}
-		char *prefix = prefixjo->valuestring;
 
 		cJSON *cmdjo = cJSON_GetObjectItem(root,"cmd");
 		char *cmdstr = NULL;
@@ -826,6 +819,14 @@ hook_work_cb(void *arg)
 			log_warn("No cmd field found in json msg");
 			goto skip;
 		}
+
+		cJSON *prefixjo = cJSON_GetObjectItem(root, "topic_prefix");
+		if (!prefixjo || !prefixjo->valuestring) {
+			log_warn("Invalid topic_prefix");
+			send_msg_rep(work->ctx, HOOK_ERR_INVALID_TOPIC);
+			goto skip;
+		}
+		char *prefix = prefixjo->valuestring;
 
 		cJSON *rgjo;
 		cJSON *rgsjo = cJSON_GetObjectItem(root, "ranges");
