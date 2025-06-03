@@ -110,6 +110,17 @@ This configuration enables NanoMQ to establish an MQTT over TCP bridge connectio
 - `subscription`: This is an array of topic objects that need to be subscribed from the remote MQTT server. Each object defines a topic and the QoS level for the subscription(!Be aware that only the first rule takes effect if you configure multiple overlapping rules). Including
   - `remote_topic`: The topic filter used to subscribe to the remote broker.
   - `local_topic`: This is for Topic reflection, if you want the vanila way, then just leave `local_topic=""` to preserve the original topic in msg from remote broker.
+
+  ::: tip
+  
+  `local_topic` of `subscription` section works differently from `forwards` part. In order to ease the work of managing local & remote topic relationship (frequently asked feature from community), since 0.23.7, the topic remapping feature is introduced, which includes the ability to strip or replace parts of the topic with the help of wildcards. Specifically, the wildcard acts as the string searching anchor here for users to preserve the matching parts.
+  For example:
+    `remote_topic = "+/nanomq/#"`
+    `local_topic = "#"`
+    And downward message is from topic `cmd/nanomq/hello/world`, then you get a message with topic `hello/world` locally.
+
+  :::
+
   - `qos`: Define the QoS in the subscribe packet. This is a must. 
   - `retain`: a flag to override retain flag.
   - `retain_as_published`: an optional item for the MQTTv5 feature, Retain As Published.
