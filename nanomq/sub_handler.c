@@ -41,7 +41,7 @@ decode_sub_msg(nano_work *work)
 		return PROTOCOL_ERROR;
 	}
 
-	remaining_len = nng_msg_remaining_len(work->msg);
+	remaining_len = nng_msg_len(work->msg);
 
 	sub_pkt = work->sub_pkt;
 	sub_pkt->node = NULL;
