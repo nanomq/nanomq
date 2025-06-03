@@ -348,9 +348,6 @@ hook_sync_flush(nng_socket *ex_sock, char *streamid, uint8_t streamtype)
 			cb_data_free(cb_data);
 		}
 
-		for (int i=0; i<msgs_len; ++i)
-			nng_msg_free(msgs_res[i]);
-		nng_free(msgs_res, sizeof(nng_msg *) * msgs_len);
 		if (rv != 0) {
 			rc = -1;
 			goto done;
@@ -660,7 +657,7 @@ static void cb_data_free(struct cb_data *cb_data)
 		stream_data_in_free(cb_data->sdata);
 	}
 
-	// smsg_free(cb_data->smsg, cb_data->len);
+	smsg_free(cb_data->smsg, cb_data->len);
 
 	nng_free(cb_data, sizeof(struct cb_data));
 
