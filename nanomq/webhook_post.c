@@ -27,6 +27,20 @@
 
 #include "nng/exchange/stream/stream.h"
 
+struct work_cb_arg {
+	uint32_t id;
+	nng_aio *aio;
+	struct work *w;
+};
+
+struct cb_data {
+	nng_msg **smsg;
+	size_t len;
+	struct stream_data_in *sdata;
+};
+
+static void cb_data_free(struct cb_data *cb_data);
+
 static bool event_filter(conf_web_hook *hook_conf, webhook_event event);
 static bool event_filter_with_topic(
     conf_web_hook *hook_conf, webhook_event event, const char *topic);
@@ -35,12 +49,6 @@ static unsigned int base62_encode(
     const unsigned char *in, unsigned int inlen, char *out);
 
 #define BASE62_ENCODE_OUT_SIZE(s) ((unsigned int) ((((s) * 8) / 6) + 2))
-
-struct work_cb_arg {
-	uint32_t id;
-	nng_aio *aio;
-	struct work *w;
-};
 
 static bool
 event_filter(conf_web_hook *hook_conf, webhook_event event)
@@ -344,6 +352,14 @@ hook_last_flush()
 			continue;
 		}
 		nng_aio_wait(faio);
+
+		struct cb_data *cb_data = (struct cb_data *)nng_aio_get_prov_data(faio);
+		if (cb_data == NULL) {
+			log_error("cb_data is NULL");
+			continue;
+		}
+		cb_data_free(cb_data);
+
 		if ((rv = nng_aio_result(faio)) != 0) {
 			log_warn("error%d in flush msgs in exchange(%s) to parquet", rv, exconf->nodes[i]->name);
 			continue;
@@ -528,12 +544,6 @@ done:
 	return rv;
 }
 
-struct cb_data {
-	nng_msg **smsg;
-	size_t len;
-	struct stream_data_in *sdata;
-};
-
 static struct stream_data_in *stream_data_in_init(size_t len, nng_msg **smsg)
 {
 	struct stream_data_in *sdata = nng_alloc(sizeof(struct stream_data_in));
@@ -654,7 +664,6 @@ flush_smsg_to_disk(nng_msg **smsg,
 		log_error("cb_data_init failed");
 		return NNG_ENOMEM;
 	}
-
 
 	encoded_stream_data = stream_encode(streamType, cb_data->sdata);
 	if (encoded_stream_data == NULL) {
