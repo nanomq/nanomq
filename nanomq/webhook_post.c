@@ -393,55 +393,9 @@ hook_last_flush()
 			log_error("exchange(%s) socket is null.", exconf->nodes[i]->name);
 			continue;
 		}
-
-		nng_msg *m;
-		nng_msg_alloc(&m, 0);
-		if (!m) {
-			log_error("Error in alloc memory");
-			continue;
-		}
-
-		nng_time *tss = NULL;
-		tss = nng_alloc(sizeof(nng_time) * 3);
-		tss[0] = 0;
-		tss[1] = 9223372036854775807; // big enough
-		tss[2] = 1; // It's a clean and return flag
-		nng_msg_set_proto_data(m, NULL, (void *)tss);
-		nng_aio_set_msg(aio, m);
-		// Do clean on MQ and get all returns msgs
-		nng_recv_aio(*ex_sock, aio);
-		nng_aio_wait(aio);
-		if ((rv = nng_aio_result(aio)) != 0)
-			log_warn("error%d in clean and get msgs in exchange(%s)", rv, exconf->nodes[i]->name);
-		nng_msg_free(m);
-		nng_free(tss, 0);
-
-		nng_msg **msgs_res = (nng_msg **)nng_aio_get_msg(aio);
-		uint32_t  msgs_len = (uintptr_t)nng_aio_get_prov_data(aio);
-		log_warn("Exchange(%s) stopped and get %d msgs", exconf->nodes[i]->name, msgs_len);
-		if (msgs_len == 0 || msgs_res == NULL) {
-			continue;
-		}
-		rv = flush_smsg_to_disk(msgs_res, msgs_len, faio,
-			exconf->nodes[i]->topic, exconf->nodes[i]->streamType);
-		if (rv != 0) {
-			log_error("error%d in put msgs in exchange(%s) to queue of parquet", rv, exconf->nodes[i]->name);
-			continue;
-		}
-		nng_aio_wait(faio);
-
-		struct cb_data *cb_data = (struct cb_data *)nng_aio_get_prov_data(faio);
-		if (cb_data == NULL) {
-			log_error("cb_data is NULL");
-			continue;
-		}
-		cb_data_free(cb_data);
-
-		if ((rv = nng_aio_result(faio)) != 0) {
-			log_warn("error%d in flush msgs in exchange(%s) to parquet", rv, exconf->nodes[i]->name);
-			continue;
-		}
-		log_warn("flush msgs in exchange(%s) to parquet done!", exconf->nodes[i]->name);
+		char *  streamid   = exconf->nodes[i]->topic;
+		uint8_t streamtype = exconf->nodes[i]->streamType;
+		hook_sync_flush(ex_sock, streamid, streamtype);
 	}
 	nng_aio_free(aio);
 	nng_aio_free(faio);
@@ -706,7 +660,7 @@ static void cb_data_free(struct cb_data *cb_data)
 		stream_data_in_free(cb_data->sdata);
 	}
 
-	smsg_free(cb_data->smsg, cb_data->len);
+	// smsg_free(cb_data->smsg, cb_data->len);
 
 	nng_free(cb_data, sizeof(struct cb_data));
 
