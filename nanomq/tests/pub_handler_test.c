@@ -20,9 +20,7 @@ test_handler_pub()
 	nng_msg *msg;
 	nng_msg_alloc(&msg,0);
 	work->msg                    = msg;
-	struct fixed_header *fix_hd  = nng_alloc(sizeof(*fix_hd));
-	fix_hd->qos                  = 1;
-	fix_hd->packet_type          = PUBLISH;
+	uint8_t fix_header[] = {0x30, 0x0D};
 	// test data
 	uint32_t remaining_len      = 13;
 	uint32_t topic_len          = 7;
@@ -45,12 +43,11 @@ test_handler_pub()
 	nng_msg_append(msg, topic, topic_len);
 	nng_msg_append(msg, pkt_id, 2);
 	nng_msg_append(msg, data, data_len);
-	nng_msg_header_append(msg, fix_hd, sizeof(*fix_hd));
+	nng_msg_header_append(msg, fix_header, 2);
 	
 	rc = handle_pub(work, work->pipe_ct, work->proto_ver, true);
 	assert(rc == 0);
 
-	nng_free(fix_hd, sizeof(*fix_hd));
 	free_pub_packet(work->pub_packet);
 	dbhash_destroy_pipe_table();
 	dbtree_destory(work->db);
