@@ -40,7 +40,6 @@ struct cb_data {
 };
 
 static void cb_data_free(struct cb_data *cb_data);
-static int flush_smsg_to_disk(nng_msg **smsg, size_t len, nng_aio *aio, char *topic, uint8_t streamType);
 
 static bool event_filter(conf_web_hook *hook_conf, webhook_event event);
 static bool event_filter_with_topic(
@@ -48,6 +47,10 @@ static bool event_filter_with_topic(
 static void         set_char(char *out, unsigned int *index, char c);
 static unsigned int base62_encode(
     const unsigned char *in, unsigned int inlen, char *out);
+
+#ifdef SUPP_PARQUET
+static int flush_smsg_to_disk(nng_msg **smsg, size_t len, nng_aio *aio, char *topic, uint8_t streamType);
+#endif
 
 #define BASE62_ENCODE_OUT_SIZE(s) ((unsigned int) ((((s) * 8) / 6) + 2))
 
@@ -291,6 +294,7 @@ gen_hash_nearby_key(char *clientid, char *topic, uint32_t pid)
 
 static uint32_t g_inc_id = 0;
 
+#ifdef SUPP_PARQUET
 int
 hook_sync_flush(nng_socket *ex_sock, char *streamid, uint8_t streamtype)
 {
@@ -366,7 +370,6 @@ done:
 	return rc;
 }
 
-#ifdef SUPP_PARQUET
 static conf *tmp_root_conf = NULL;
 int
 hook_last_flush()
@@ -665,7 +668,7 @@ static void cb_data_free(struct cb_data *cb_data)
 }
 
 #ifdef SUPP_PARQUET
-int
+static int
 flush_smsg_to_disk(nng_msg **smsg,
 				   size_t len,
 				   nng_aio *aio,

@@ -798,6 +798,7 @@ hook_work_cb(void *arg)
 			} else if (0 == strcmp(cmdstr, "search")) {
 				log_debug("Search is triggered");
 			} else if (0 == strcmp(cmdstr, "write")) {
+#ifdef SUPP_PARQUET
 				log_info("Write is triggered");
 				int rc = hook_sync_flush(ex_sock, streamid, streamtype);
 				switch (rc) {
@@ -810,6 +811,10 @@ hook_work_cb(void *arg)
 					default:
 						send_msg_rep(work->ctx, HOOK_ERR_UNKNOWN); break;
 				}
+#else
+				log_warn("Please compile NanoMQ with NNG_ENANBLE_PARQUET");
+				send_msg_rep(work->ctx, HOOK_ERR_EXCHANGE_DISABLED);
+#endif
 				goto skip;
 			} else {
 				send_msg_rep(work->ctx, HOOK_ERR_INVALID_CMD);
