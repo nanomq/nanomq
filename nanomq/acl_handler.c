@@ -236,15 +236,17 @@ auth_acl(conf *config, acl_action_type act_type, conn_param *param,
 						rule_topic + 1, strlen(rule_topic));
 					if (strcmp(rule_topic + 1, topic) == 0) {
 						found = true;
-						break;
 					}
 				} else if (topic_filter(rule_topic, topic)) {
 					found = true;
-					break;
 				}
+				if (free) {
+					nng_strfree(rule_topic);
+					free = false;
+				}
+				if (found)
+					break;
 			}
-			if (free)
-				nng_strfree(rule_topic);
 			if (found == false) {
 				match = false;
 				continue;
