@@ -13,7 +13,7 @@ on:
 
 jobs:
   build_packages:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-20.04
 
     strategy:
       fail-fast: false
@@ -219,7 +219,7 @@ jobs:
         aws s3 cp --recursive build/_packages s3://packages.emqx/nanomq/$(git describe --abbrev=0 --tags)
 
   build_docker_prepare:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-20.04
     outputs:
       host: ${{ steps.host.outputs.host }}
     steps:
@@ -297,7 +297,7 @@ jobs:
 
   publish_packages:
     needs: [build_packages, build_docker]
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-20.04
     if: github.event_name == 'release'
 
     steps:
