@@ -1918,7 +1918,7 @@ broker_start(int argc, char **argv)
 
 	rc = file_path_parse(argc, argv, &nanomq_conf->conf_file);
 	if (nanomq_conf->conf_file == NULL) {
-		nanomq_conf->conf_file = CONF_PATH_NAME;
+		nanomq_conf->conf_file = strdup(CONF_PATH_NAME);
 		printf("Config file is not specified, use default config file: %s\n", nanomq_conf->conf_file);
 	}
 
