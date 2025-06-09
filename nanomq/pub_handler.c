@@ -1810,6 +1810,7 @@ decode_pub_message(nano_work *work, uint8_t proto)
 	uint32_t used_pos = 0;
 	uint32_t len, len_of_varint;
 	bool     is_copy = false;
+	uint8_t  remain_used_pos = 0;
 
 	nng_msg                  *msg        = work->msg;
 	struct pub_packet_struct *pub_packet = work->pub_packet;
@@ -1820,7 +1821,7 @@ decode_pub_message(nano_work *work, uint8_t proto)
 	pub_packet->fixed_header =
 	    *(struct fixed_header *) nng_msg_header(msg);
 	mqtt_get_remaining_length(nng_msg_header(msg), nng_msg_header_len(msg),
-		&pub_packet->fixed_header.remain_len, &used_pos);
+		&pub_packet->fixed_header.remain_len, &remain_used_pos);
 
 	log_debug(
 	    "cmd: %d, retain: %d, qos: %d, dup: %d, remaining length: %d",
@@ -1828,8 +1829,8 @@ decode_pub_message(nano_work *work, uint8_t proto)
 	    pub_packet->fixed_header.retain, pub_packet->fixed_header.qos,
 	    pub_packet->fixed_header.dup, pub_packet->fixed_header.remain_len);
 
-	if (pub_packet->fixed_header.remain_len > msg_len || used_pos > 4) {
-		log_error("decode remainlen > msg_len");
+	if (pub_packet->fixed_header.remain_len > msg_len || remain_used_pos > 4) {
+		log_error("decode remainlen > msg_len remain_used_pos%d", remain_used_pos);
 		return PROTOCOL_ERROR;
 	}
 	used_pos = 0;
