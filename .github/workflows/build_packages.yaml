@@ -206,14 +206,20 @@ jobs:
         name: ${{ steps.prepare.outputs.pkg_name }} 
         path: "build/_packages/*"
         retention-days: 7
-    - uses: Rory-Z/upload-release-asset@v1
+
+    - name: Get Release Files
+      if: github.event_name == 'release'
+      id: get_release_files
+      run: |
+        files=$(find build/_packages -maxdepth 1 -type f -name "nanomq*")
+        echo "files=$files" >> $GITHUB_OUTPUT
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
       if: github.event_name == 'release'
       with:
-        owner: ${{ github.repository_owner }}
-        repo: nanomq
-        token: ${{ github.token }}
-        path: "build/_packages/nanomq*"
-        ref: ${{ github.ref }}
+        files: ${{ steps.get_release_files.outputs.files }}
+
     - name: upload to aws s3
       if: github.event_name == 'release'
       run: |

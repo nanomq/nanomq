@@ -17,8 +17,6 @@ on:
   release:
     types:
       - published
-    branches:
-      - sdv_master
 
 
 jobs:
@@ -141,12 +139,15 @@ jobs:
           path: packages/*.tar.gz.x
           retention-days: 1
 
+      - name: Get Release Files
+        if: github.event_name == 'release'
+        id: get_release_files
+        run: |
+          files=$(find packages -maxdepth 1 -type f -name "*.tar.gz")
+          echo "files=$files" >> $GITHUB_OUTPUT
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
+        if: github.event_name == 'release'
         with:
-          prerelease: ${{ steps.prerelease.outputs.prerelease }}
-          generate_release_notes: true
-          token: ${{ github.token }}
-          name: NanoMQ ${{ github.ref_name }} Released
-          files: packages/*.tar.gz
+          files: ${{ steps.get_release_files.outputs.files }}
