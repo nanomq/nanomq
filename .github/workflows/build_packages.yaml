@@ -207,18 +207,11 @@ jobs:
         path: "build/_packages/*"
         retention-days: 7
 
-    - name: Get Release Files
-      id: get_release_files
-      run: |
-        echo "files<<EOF" >> $GITHUB_OUTPUT
-        echo "$(find build/_packages -maxdepth 1 -type f -name "nanomq*")" >> $GITHUB_OUTPUT
-        echo "EOF" >> $GITHUB_OUTPUT
-
-    - name: Create Release
-      uses: softprops/action-gh-release@v2
+    - name: Update Release Artifacts
+      uses: softprops/action-gh-release@v2.2.2
       if: github.event_name == 'release'
       with:
-        files: ${{ steps.get_release_files.outputs.files }}
+        files: build/_packages/nanomq*
 
     - name: upload to aws s3
       if: github.event_name == 'release'
