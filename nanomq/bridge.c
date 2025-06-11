@@ -1634,7 +1634,7 @@ bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 	nng_socket *tsock;
 	nng_socket *new = (nng_socket *) nng_alloc(sizeof(nng_socket));
 	if (new == NULL) {
-		return -1;
+		return -4;
 	}
 
 	bridge_param    *bridge_arg = (bridge_param *) node->bridge_arg;
@@ -1664,7 +1664,7 @@ bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 		log_error("Unsupported bridge protocol.\n");
 		nng_mtx_unlock(reload_lock);
 		nng_free(new, sizeof(nng_socket));
-		return -1;
+		return -2;
 	}
 	if (0 == strncmp(node->address, tcp_scheme, strlen(tcp_scheme)) ||
 	    0 == strncmp(node->address, tls_scheme, strlen(tls_scheme))) {
@@ -1680,6 +1680,7 @@ bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 #endif
 	} else {
 		log_error("Unsupported bridge protocol.\n");
+		return -2;
 	}
 	// Update the sock in client due to it's a constant rather than pointer
 	bridge_arg->client->sock = *new;

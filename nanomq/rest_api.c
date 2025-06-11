@@ -4089,7 +4089,7 @@ nano_dialer_reload_tls(conf_bridge_node *node, nng_dialer *dialer)
 static http_msg
 put_mqtt_bridge(http_msg *msg, const char *name)
 {
-	int rv;
+	int rv = 0;
 	http_msg res = { .status = NNG_HTTP_STATUS_OK };
 
 	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
@@ -4144,7 +4144,7 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 	}
 	nng_mtx_unlock(config->restapi_lk);
 
-	if (found) {
+	if (found && rv == 0) {
 		cJSON *res_obj = cJSON_CreateObject();
 		cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
 		char *dest = cJSON_PrintUnformatted(res_obj);
@@ -4156,10 +4156,14 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 		cJSON_Delete(res_obj);
 		cJSON_Delete(req);
 		return res;
-	} else if (rv != 0) {
+	} else if (rv == -1 || rv == -2) {
 		cJSON_Delete(req);
 		return error_response(
 		    msg, NNG_HTTP_STATUS_FORBIDDEN, REQ_PARAM_ERROR);
+	} else if (rv != 0) {
+		cJSON_Delete(req);
+		return error_response(
+		    msg, NNG_HTTP_STATUS_FORBIDDEN, UNKNOWN_MISTAKE);
 	} else {
 		cJSON_Delete(req);
 		return error_response(
