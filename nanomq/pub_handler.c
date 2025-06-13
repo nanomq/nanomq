@@ -1522,20 +1522,19 @@ static void inline handle_pub_retain(const nano_work *work, char *topic)
 	nng_msg *old_ret = NULL, *ret;
 	if (work->pub_packet->fixed_header.retain) {
 		if (work->pub_packet->payload.len > 0) {
-			if (nng_msg_dup(&ret, work->msg) != 0) {
-				log_error("Mem error");
-				return;
-			}
+			nng_msg *ret;
+			nng_msg_alloc(&ret, 0);
 			if (nng_msg_get_proto_data(ret) == NULL)
 				nng_mqtt_msg_proto_data_alloc(ret);
+			nng_msg_set_timestamp(ret, nng_clock());
 			if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
-				if (nng_mqttv5_msg_decode(ret) != 0) {
-					log_warn("decode retain msg failed, drop msg");
-					nng_msg_free(ret);
-					return;
-				}
+				nng_msg_set_cmd_type(ret, CMD_PUBLISH_V5);
+				encode_pub_message(ret, work, PUBLISH);
+				// Already decoded in encode_pub_message
 			} else if (work->proto_ver == MQTT_PROTOCOL_VERSION_v311 ||
 					   work->proto_ver == MQTT_PROTOCOL_VERSION_v31) {
+				nng_msg_set_cmd_type(ret, CMD_PUBLISH);
+				encode_pub_message(ret, work, PUBLISH);
 				if (nng_mqtt_msg_decode(ret) != 0) {
 					log_warn("decode retain msg failed, "
 					         "drop msg");
@@ -1627,7 +1626,7 @@ append_bytes_with_type(
 }
 
 /**
- * @brief encode dest_msg with work.
+ * @brief encode dest_msg with work. Decode msg too if is V5
  * @param dest_msg nng_msg
  * @param work nano_work
  * @param cmd mqtt_control_packet_types
@@ -1840,10 +1839,10 @@ decode_pub_message(nano_work *work, uint8_t proto)
 		// topic length
 		pub_packet->var_header.publish.topic_name.body =
 		    (char *) copyn_utf8_str(msg_body, &pos, (int *) &len, msg_len);
-		if (len >= 0)
+		if (len >= 0) {
 			// topic could be NULL here (topic alias)
 			pub_packet->var_header.publish.topic_name.len = len;
-		else {
+		} else {
 			log_warn("Invalid msg: Protocol error!");
 			return PROTOCOL_ERROR;
 		}
