@@ -1380,7 +1380,7 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 		nng_dialer_set(
 		    *dialer, NNG_OPT_TCP_KEEPALIVE, &keepalive, sizeof(bool));
 		nng_dialer_set_string(
-		    *dialer, NNG_OPT_TCP_BINDTODEVICE, node->tcp.interface);
+		    *dialer, NNG_OPT_TCP_BINDTODEVICE, node->tcp.bind_interface);
 		if (node->tcp.keepalive == 1) {
 			nng_dialer_set(*dialer, NNG_OPT_TCP_QUICKACK,
 			    &(node->tcp.quickack), sizeof(int));
