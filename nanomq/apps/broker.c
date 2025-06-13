@@ -1,5 +1,5 @@
 //
-// Copyright 2023 NanoMQ Team, Inc. <jaylin@emqx.io>
+// Copyright 2025 NanoMQ Team, Inc. <jaylin@emqx.io>
 //
 // This software is supplied under the terms of the MIT License, a
 // copy of which should be located in the distribution where this
@@ -468,12 +468,9 @@ server_cb(void *arg)
 					work->msg = m;
 					work->pub_packet = (struct pub_packet_struct *) nng_zalloc(
 										sizeof(struct pub_packet_struct));
-					void *proto_data = NULL;
 					uint8_t ver = nng_mqtt_msg_get_publish_proto_version(work->msg);
 					// ver = ver == 0 ? work->proto_ver : ver;
 					if (SUCCESS == decode_pub_message(work, ver)) {
-						bool  bridged = false;
-						proto_data = nng_msg_get_proto_data(work->msg);
 						// we simply change the msg itself
 						nng_msg *rmsg = NULL;
 						if (nng_msg_dup(&rmsg, work->msg) != 0) {
