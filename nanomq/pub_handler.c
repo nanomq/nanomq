@@ -1522,7 +1522,6 @@ static void inline handle_pub_retain(const nano_work *work, char *topic)
 	nng_msg *old_ret = NULL, *ret;
 	if (work->pub_packet->fixed_header.retain) {
 		if (work->pub_packet->payload.len > 0) {
-			nng_msg *ret;
 			nng_msg_alloc(&ret, 0);
 			if (nng_msg_get_proto_data(ret) == NULL)
 				nng_mqtt_msg_proto_data_alloc(ret);
