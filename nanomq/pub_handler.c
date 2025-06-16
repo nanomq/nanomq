@@ -86,7 +86,7 @@ static void  print_hex(
      const char *prefix, const unsigned char *src, int src_len);
 static uint32_t append_bytes_with_type(
     nng_msg *msg, uint8_t type, uint8_t *content, uint32_t len);
-static void inline handle_pub_retain(const nano_work *work, char *topic);
+static void inline handle_pub_retain(nano_work *work, char *topic);
 
 void
 init_pipe_content(struct pipe_content *pipe_ct)
@@ -1510,7 +1510,7 @@ static void inline handle_pub_retain_sqlite(const nano_work *work, char *topic)
 
 #endif
 
-static void inline handle_pub_retain(const nano_work *work, char *topic)
+static void inline handle_pub_retain(nano_work *work, char *topic)
 {
 #if defined(NNG_SUPP_SQLITE)
 	if (work->config != NULL && work->config->sqlite.enable &&

@@ -1265,7 +1265,7 @@ bridge_tcp_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 
 	nng_duration duration = (nng_duration) node->backoff_max * 1000;
 	nng_dialer_set(*dialer, NNG_OPT_MQTT_RECONNECT_BACKOFF_MAX, &duration, sizeof(nng_duration));
-
+	// Set TCP option again
 
 #ifdef NNG_SUPP_TLS
 	if (node->tls.enable) {
@@ -1377,7 +1377,8 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 		    *dialer, NNG_OPT_TCP_NODELAY, &nodelay, sizeof(bool));
 		nng_dialer_set(
 		    *dialer, NNG_OPT_TCP_KEEPALIVE, &keepalive, sizeof(bool));
-		nng_dialer_set_string(
+		if (node->tcp.bind_interface != NULL)
+			nng_dialer_set_string(
 		    *dialer, NNG_OPT_TCP_BINDTODEVICE, node->tcp.bind_interface);
 		if (node->tcp.keepalive == 1) {
 			nng_dialer_set(*dialer, NNG_OPT_TCP_QUICKACK,
