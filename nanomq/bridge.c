@@ -280,10 +280,8 @@ bridge_downward_msg_coding(nano_work *work)
 				    work->msg, payload, plen);
 				if (work->proto_ver == MQTT_VERSION_V311) {
 					nng_mqtt_msg_encode(work->msg);
-					// nng_mqtt_msg_decode(work->msg);
 				} else if (work->proto_ver == MQTT_VERSION_V5) {
 					nng_mqttv5_msg_encode(work->msg);
-					// nng_mqttv5_msg_decode(work->msg);
 				}
 				nng_mqtt_msg_free_publish_buf(work->msg);
 			}
