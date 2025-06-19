@@ -18,7 +18,6 @@
 #include "nng/supplemental/nanolib/base64.h"
 #include "nng/supplemental/nanolib/cJSON.h"
 #include "nng/supplemental/nanolib/file.h"
-#include "nng/supplemental/nanolib/hocon.h"
 
 #include "include/rest_api.h"
 #include "include/bridge.h"
@@ -2988,7 +2987,7 @@ update_config(http_msg *msg)
 {
 	http_msg res = { .status = NNG_HTTP_STATUS_OK };
 	conf * config    = get_global_conf();
-	cJSON *req = hocon_parse_str(msg->data, msg->data_len);
+	cJSON *req = (cJSON *)nng_hocon_parse_str(msg->data, msg->data_len);
 	if (!cJSON_IsObject(req)) {
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    PARAMS_HOCON_FORMAT_ILLEGAL);
