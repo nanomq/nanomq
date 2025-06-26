@@ -264,6 +264,7 @@ NanoMQ provides the functionality to configure multiple data bridges by utilizin
 ```hcl
 ## First bridge client
 bridges.mqtt.emqx1 {
+  retry_qos_0 = true
   ......
   resend_interval = 5000    # Resend interval (ms)
   resend_wait = 3000
@@ -272,6 +273,7 @@ bridges.mqtt.emqx1 {
 
 ## Second bridge client
 bridges.mqtt.emqx2 {
+  retry_qos_0 = false
   ......
   resend_interval = 5000    # Resend interval (ms)
   resend_wait = 3000
@@ -287,6 +289,7 @@ bridges.mqtt.cache {
 
 ### **Configuration Items**
 
+- `retry_qos_0`: Specifies the maximum level of QoS that can be cached in the MQTT bridges. Set to `false` will disable QoS 0 message cache, Which reserve disk space for MQTT QoS 1/2. This is helpful when prioritization is required.
 - `disk_cache_size`: Specifies the maximum number of messages that can be cached in the MQTT bridges. A value of 0 indicates that the cache for messages is inefficient.
 - `mounted_file_path`: Specifies the file path where the cache file for the MQTT bridges is mounted.
 - `flush_mem_threshold`: Specifies the threshold for flushing messages to the cache file. When the number of messages reaches this threshold, they will be flushed to the cache file.
