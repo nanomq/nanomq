@@ -71,6 +71,17 @@ bridges.mqtt.emqx1 = {
       qos = 2
     }
   ]
+  tcp = {
+    bind_interface = wlan0
+    nodelay = false
+    quickack = true
+    keepalive = true
+    keepidle = 60000
+    keepintvl = 30000
+    keepcnt = 1000
+    sendtimeo = 3000
+    recvtimeo = 8000
+  }
   max_parallel_processes = 2              # Maximum number of parallel processes for handling outstanding requests
   max_send_queue_len = 32                 # Maximum number of message send queue length
   max_recv_queue_len = 128                # Maximum number of message receive queue length
@@ -127,6 +138,13 @@ This configuration enables NanoMQ to establish an MQTT over TCP bridge connectio
   - `retain_handling`: an optional item for MQTTv5 feature, Retain Handling.
   - `suffix`: A suffix string will be added to the local topic(add to the original topic if you leave local_topic as null)
   - `prefix`: A prefix string will be added to the local topic(add to the original topic if you leave local_topic as null)
+
+  ::: tip
+
+  `tcp` section allows fine tuning of TCP options, which are equals to socket options in POSIX standard. (https://www.man7.org/linux/man-pages/man7/tcp.7.html)
+  the `nodelay` option is slight different, despite its original meaning. It also serves as the switch of a fail interface binding action. `true` keeps retrying. `false` ignore fales, skip this time.
+
+  :::
 
 - `max_parallel_processes`: Specifies the maximum number of parallel processes for handling outstanding requests.
 - `max_send_queue_len`: Specifies the maximum number of messages that can be queued for sending. Since 0.23.1, It also takes effect while TCP connection is explicitly closed, which gurantees no msg lost till cache queue is full.
