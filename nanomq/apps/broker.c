@@ -598,7 +598,7 @@ server_cb(void *arg)
 			    MQTT_PROTOCOL_VERSION_v311, true);
 			// set flag after hanlde_pub to avoid bridging logic
 			work->flag = CMD_PUBLISH;
-			// remember to free conn_param in WAIT 
+			// remember to free conn_param in WAIT
 			// due to clone in protocol layer
 		} else if (work->flag == CMD_DISCONNECT_EV) {
 			// Now v4 as default/send V5 notify msg?
@@ -692,7 +692,7 @@ server_cb(void *arg)
 #if defined(SUPP_ICEORYX)
 			iceoryx_opt = 1;
 #endif
-			if (hook_conf->enable || exge_conf->count > 0 || 
+			if (hook_conf->enable || exge_conf->count > 0 ||
 			        rule_opt != RULE_ENG_OFF || iceoryx_opt == 1) {
 				work->state = SEND;
 				nng_aio_finish(work->aio, 0);
@@ -1486,7 +1486,7 @@ broker(conf *nanomq_conf)
 			conf *conf = works[0]->config;
 			if(is_testing == true && (conf->bridge.count > 0 || conf->aws_bridge.count > 0)) {
 				// bridge might need more time to response to the resquest
-				nng_msleep(8 * 1000); 
+				nng_msleep(8 * 1000);
 			}
 			for (size_t t = 0; t < conf->bridge.count; t++) {
 				conf_bridge_node *node = conf->bridge.nodes[t];
@@ -2083,7 +2083,7 @@ broker_start_with_conf(void *nmq_conf)
 
 	// TODO: more check for arg nanomq_conf?
 	rc = broker(nanomq_conf);
-	
+
 	broker_start_rc = rc == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 	return NULL;
 }
