@@ -63,6 +63,8 @@ apply_sqlite_config(
 	nng_mqtt_set_sqlite_conf(opt, config);
 	// init sqlite db
 	nng_mqtt_sqlite_db_init(opt, db_name);
+	// Whether flush qos 0 msg to disk for retrying
+	nng_socket_set_bool(*sock, NNG_OPT_MQTT_RETRY_QOS_0, config->retry_qos_0);
 
 	// set sqlite option pointer to socket
 	return nng_socket_set_ptr(*sock, NNG_OPT_MQTT_SQLITE, opt);
