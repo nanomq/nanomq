@@ -111,6 +111,7 @@ bridges.mqtt.emqx1 = {
   `local_topic = "#"`
   如果下发消息来自主题`cmd/nanomq/hello/world`，则您将收到一条主题为`hello/world`的消息。
   :::
+
   - `retain`：重载标志位。
   - `retain_as_publish`：MQTTV5可选特性，Retain As Published。
   - `retain_handling`：MQTTV5可选特性，Retain Handling。
@@ -254,11 +255,13 @@ MQTT over QUIC  桥接暂不支持 SSL 相关配置。
 ```hcl
 ## 第一个桥接客户端
 bridges.mqtt.emqx1 {
+  retry_qos_0 = false
   ......
 }
 
 ## 第二个桥接客户端
 bridges.mqtt.emqx2 {
+  retry_qos_0 = true
   ......
 }
 
@@ -273,6 +276,7 @@ bridges.mqtt.cache {
 
 ### **配置项**
 
+- `retry_qos_0`：指定 MQTT 桥接中可以缓存的消息的QoS。False 表示不缓存 QoS 0。
 - `disk_cache_size`：指定 MQTT 桥接中可以缓存的消息的最大数量。0 表示不生效。
 - `mounted_file_path`：指定 MQTT 桥接缓存文件的挂载路径。
 - `flush_mem_threshold`：指定刷新消息到缓存文件的阈值。当消息数量达到阈值时，就会被刷新到缓存文件中。
