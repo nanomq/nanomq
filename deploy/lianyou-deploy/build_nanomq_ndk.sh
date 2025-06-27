@@ -34,7 +34,7 @@ cmake -DANDROID_PLATFORM=android-30 \
     ..
 
 echo "Start make"
-make -j1
+make -j8
 
 
 echo "Build done" 

@@ -34,7 +34,7 @@ cmake -DANDROID_PLATFORM=android-30 \
     ..
 
 echo "Start make"
-make -j2
+make -j8
 
 mkdir lib
 cp $NDK_DIR/toolchains/llvm/prebuilt/linux-x86_64/sysroot/lib/*.so lib
@@ -59,7 +59,7 @@ cmake -DANDROID_PLATFORM=android-30 \
     ..
 
 echo "Start make"
-make -j2
+make -j8
 
 mkdir lib
 cp $NDK_DIR/toolchains/llvm/prebuilt/linux-x86_64/sysroot/lib/*.so lib
