@@ -149,6 +149,6 @@ jobs:
 
       - name: Update Release Artifacts
         uses: softprops/action-gh-release@v2.2.2
-        if: github.event_name == 'release'
+        if: startsWith(github.ref, 'refs/tags/')
         with:
           files: packages/*.tar.gz
