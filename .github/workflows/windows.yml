@@ -27,6 +27,18 @@ jobs:
       - name: Build
         run: cmake ${{ steps.configure.make_flags }} --build build --config Release --target install 
 
+      - name: Package-Debug
+        run: |
+          $pkg_debug_name="nanomq-debug-windows-x86_64.zip"
+          Compress-Archive -Path install/* -DestinationPath $pkg_debug_name
+          mv $pkg_debug_name ./install/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nanomq-debug-windows-x86_64.zip
+          path: "install/*.zip"
+          retention-days: 7
+
       - name: Package
         if: github.event_name == 'release'
         run: |
