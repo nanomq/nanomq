@@ -43,7 +43,7 @@ jobs:
           fetch-depth: 0 # Fetch all history including tags
 
       - name: Initialize Submodules
-        run: git submodule update --init --recursive
+        run: git submodule update --init nng
 
       - name: Build linux
         if: matrix.platform == 'linux'
