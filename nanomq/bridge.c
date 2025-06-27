@@ -829,6 +829,10 @@ hybrid_cb(void *arg)
 	bridge_param *bridge_arg = arg;
 	conf_bridge_node *node = bridge_arg->config;
 
+	if (node->hybrid_servers == NULL) {
+		log_error("Wrong hybrid server setting, abort!");
+		return;
+	}
 	int rv = nng_mtx_alloc(&bridge_arg->switch_mtx);
 	if (rv != 0) {
 		NANO_NNG_FATAL("nng_mtx_alloc mem error", rv);
