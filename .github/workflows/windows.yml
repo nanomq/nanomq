@@ -16,15 +16,9 @@ jobs:
 
       - name: Configure
         run: cmake -B build -DNNG_ENABLE_SQLITE=ON -DENABLE_RULE_ENGINE=ON -DENABLE_JWT=ON -DBUILD_BENCH=ON
-          make_flags+= " -DNNG_ENABLE_SQLITE=ON "
-          make_flags+= " -DENABLE_RULE_ENGINE=ON "
-          make_flags+= " -DENABLE_JWT=ON "
-          make_flags+= " -DBUILD_BENCH=ON "
-
-          echo "make_flags=${make_flags}" >>GITHUB_OUTPUT
 
       - name: Build
-        run: cmake ${{ steps.configure.make_flags }} --build build --config Release --target install
+        run: cmake --build build --config Release --target install
 
       - name: Package-Debug
         run: |
