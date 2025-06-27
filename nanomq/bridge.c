@@ -651,7 +651,7 @@ static int
 hybrid_tcp_client(bridge_param *bridge_arg)
 {
 	int           rv;
-	nng_dialer    *dialer;
+	nng_dialer    *dialer = (nng_dialer *) nng_zalloc(sizeof(*dialer));;
 
 	nng_socket *new = (nng_socket *) nng_alloc(sizeof(nng_socket));
 	conf_bridge_node *node = bridge_arg->config;
@@ -750,7 +750,7 @@ static int
 hybrid_quic_client(bridge_param *bridge_arg)
 {
 	int           rv;
-	nng_dialer    *dialer;
+	nng_dialer    *dialer = (nng_dialer *) nng_zalloc(sizeof(*dialer));;
 	log_info("Quic hybrid service start.");
 
 	// always alloc a new sock pointer in hybrid mode
@@ -1050,7 +1050,7 @@ static int
 bridge_quic_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge_param *bridge_arg)
 {
 	int           rv;
-	nng_dialer    *dialer;
+	nng_dialer    *dialer = (nng_dialer *) nng_zalloc(sizeof(*dialer));;
 
 	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 		if ((rv = nng_mqttv5_quic_client_open(sock)) != 0) {
@@ -1108,7 +1108,7 @@ static int
 bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge_param *bridge_arg)
 {
 	int           rv;
-	nng_dialer    *dialer;
+	nng_dialer    *dialer = (nng_dialer *) nng_zalloc(sizeof(*dialer));;
 	log_debug("Quic bridge service start.\n");
 
 	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
@@ -1243,7 +1243,7 @@ static int
 bridge_tcp_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge_param *bridge_arg)
 {
 	int           rv;
-	nng_dialer    *dialer;
+	nng_dialer    *dialer = (nng_dialer *) nng_zalloc(sizeof(*dialer));;
 
 	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 		if ((rv = nng_mqttv5_client_open(sock)) != 0) {
@@ -1372,7 +1372,7 @@ static int
 bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge_param *bridge_arg)
 {
 	int           rv;
-	nng_dialer    *dialer;
+	nng_dialer    *dialer = (nng_dialer *) nng_zalloc(sizeof(*dialer));
 
 	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 		if ((rv = nng_mqttv5_client_open(sock)) != 0) {
