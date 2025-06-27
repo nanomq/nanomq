@@ -1523,8 +1523,7 @@ static void inline handle_pub_retain(nano_work *work, char *topic)
 	if (work->pub_packet->fixed_header.retain) {
 		if (work->pub_packet->payload.len > 0) {
 			nng_msg_alloc(&ret, 0);
-			if (nng_msg_get_proto_data(ret) == NULL)
-				nng_mqtt_msg_proto_data_alloc(ret);
+			nng_mqtt_msg_proto_data_alloc(ret);
 			nng_msg_set_timestamp(ret, nng_clock());
 			if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 				nng_msg_set_cmd_type(ret, CMD_PUBLISH_V5);

@@ -866,7 +866,7 @@ hybrid_cb(void *arg)
 	}
 	char **addrs = node->hybrid_servers;
 	cvector_insert(addrs, 0, strdup(node->address));
-	int    addrslen = cvector_size(node->hybrid_servers);
+	int    addrslen = cvector_size(addrs);
 	int    idx = -1;
 	for (;;) {
 		// Get next bridge node
