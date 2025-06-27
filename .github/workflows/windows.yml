@@ -15,17 +15,22 @@ jobs:
       - run: git submodule update --init --recursive
 
       - name: Configure
-        run: cmake -B build 
-          make_flags+= " -DNNG_ENABLE_SQLITE=ON "
-          make_flags+= " -DNNG_ENABLE_RULE_ENGINE=ON "
-          make_flags+= " -DNNG_ENABLE_JWT=ON "
-          make_flags+= " -DNNG_ENABLE_ZMQ_GATEWAY=ON "
-          make_flags+= " -DNNG_ENABLE_BENCH=ON "
-
-          echo "make_flags=${make_flags}" >>GITHUB_OUTPUT
+        run: cmake -B build -DNNG_ENABLE_SQLITE=ON -DENABLE_RULE_ENGINE=ON -DENABLE_JWT=ON -DBUILD_BENCH=ON
 
       - name: Build
-        run: cmake ${{ steps.configure.make_flags }} --build build --config Release --target install 
+        run: cmake --build build --config Release --target install
+
+      - name: Package-Debug
+        run: |
+          $pkg_debug_name="nanomq-debug-windows-x86_64.zip"
+          Compress-Archive -Path install/* -DestinationPath $pkg_debug_name
+          mv $pkg_debug_name ./install/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nanomq-debug-windows-x86_64.zip
+          path: "install/*.zip"
+          retention-days: 7
 
       - name: Package
         if: github.event_name == 'release'
