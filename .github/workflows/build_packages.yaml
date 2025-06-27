@@ -10,9 +10,14 @@ on:
       - master
       - moi_0_18_1
   pull_request:
+    branches:
+      - master
+
   release:
     types:
-    - published
+      - published
+    branches:
+      - master
 
 jobs:
   build_packages:

@@ -23,7 +23,8 @@ jobs:
         pip install paho-mqtt
 
     - uses: actions/checkout@v3
-      run: git submodule update --init nng
+    - run: git submodule update --init nng
+
     - name: build
       run: |
         set -eu
