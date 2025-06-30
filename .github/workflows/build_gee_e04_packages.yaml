@@ -147,8 +147,13 @@ jobs:
           path: packages/*.tar.gz.x
           retention-days: 1
 
-      - name: Update NanoMQ-${{ matrix.platform }}-${{ matrix.architecture }} release Artifacts
+      - name: Upload Artifacts to Release
         uses: softprops/action-gh-release@v2.2.2
         if: startsWith(github.ref, 'refs/tags/')
         with:
+          name: "NanoMQ Release ${{ github.ref_name }}"
+          tag_name: ${{ github.ref_name }}
           files: packages/*.tar.gz
+          draft: false
+          prerelease: false
+          overwrite: true
