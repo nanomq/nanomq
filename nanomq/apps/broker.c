@@ -37,7 +37,6 @@
 #include "nng/protocol/reqrep0/req.h"
 #include "nng/supplemental/util/platform.h"
 
-#include "include/license.h"
 #include "include/acl_handler.h"
 #include "include/bridge.h"
 #include "include/nanomq_rule.h"
@@ -55,6 +54,11 @@
 #include "include/process.h"
 #include "include/nanomq.h"
 #include "include/plugin_spi_stream.h"
+
+#if defined(SUPP_LICENSE)
+#include "include/license.h"
+static int license_tick = 0;
+#endif
 
 #if defined(SUPP_ICEORYX)
 	#include "nng/iceoryx_shm/iceoryx_shm.h"
@@ -1583,22 +1587,28 @@ broker(conf *nanomq_conf)
 			nng_free(works, num_work * sizeof(struct work *));
 			break;
 		}
-		nng_msleep(60000);
+		nng_msleep(6000);
 #if defined(SUPP_LICENSE)
-		if (0 != (rv = lic_update(1))) { // 1 minutes
-			printf("license error rv%d\n", rv);
-			exit(0);
+		license_tick += 6;
+		if ((license_tick %= 60) == 0) {
+			if (0 != (rv = lic_update(1))) { // 1 minutes
+				printf("license error rv%d\n", rv);
+				exit(0);
+			}
 		}
 #endif
 	}
 #else
 	if (is_testing == false) {
 		for (;;) {
-			nng_msleep(300000); // neither pause() nor sleep() portable
+			nng_msleep(60000); // neither pause() nor sleep() portable
 #if defined(SUPP_LICENSE)
-			if (0 != (rv = lic_update(5))) { // 5 minutes
-				printf("license error rv%d\n", rv);
-				exit(0);
+			license_tick += 60;
+			if ((license_tick %= 600) == 0) {
+				if (0 != (rv = lic_update(10))) { // 10 minutes
+					printf("license error rv%d\n", rv);
+					exit(0);
+				}
 			}
 #endif
 		}
