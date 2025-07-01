@@ -26,7 +26,8 @@ lic_dec(char *data, size_t sz,
 	}
 	log_info("(%d)%s", out_sz, out);
 	// valid minutes,used minutes,start time,trial/official,name,email,dc,limit connections
-	int num = sscanf(out, "%u,%u,%s,%s,%s,%s,%s,%u", vm, um, st, mode, name, email, dc, lc);
+	//int num = sscanf(out, "%u,%u,%s,%s,%s,%s,%s,%u", vm, um, st, mode, name, email, dc, lc);
+	int num = sscanf(out, "%u,%u,%[^,],%[^,],%[^,],%[^,],%[^,],%u", vm, um, st, mode, name, email, dc, lc);
 	if (num != 8) {
 		nng_free(out, 0);
 		log_error("license content is malformed rv%d", num);
