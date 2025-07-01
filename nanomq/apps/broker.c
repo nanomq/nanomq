@@ -1583,9 +1583,9 @@ broker(conf *nanomq_conf)
 			nng_free(works, num_work * sizeof(struct work *));
 			break;
 		}
-		nng_msleep(6000);
+		nng_msleep(60000);
 #if defined(SUPP_LICENSE)
-		if (0 != (rv = lic_update(6))) {
+		if (0 != (rv = lic_update(1))) { // 1 minutes
 			printf("license error rv%d\n", rv);
 			exit(0);
 		}
@@ -1594,9 +1594,9 @@ broker(conf *nanomq_conf)
 #else
 	if (is_testing == false) {
 		for (;;) {
-			nng_msleep(60000); // neither pause() nor sleep() portable
+			nng_msleep(300000); // neither pause() nor sleep() portable
 #if defined(SUPP_LICENSE)
-			if (0 != (rv = lic_update(60))) {
+			if (0 != (rv = lic_update(5))) { // 5 minutes
 				printf("license error rv%d\n", rv);
 				exit(0);
 			}

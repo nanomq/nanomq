@@ -24,7 +24,7 @@ lic_dec(char *data, size_t sz,
 		log_error("license dec failed");
 		return -1;
 	}
-	log_info("(%d)%s", out_sz, out);
+	//log_info("(%d)%s", out_sz, out);
 	// valid minutes,used minutes,start time,trial/official,name,email,dc,limit connections
 	//int num = sscanf(out, "%u,%u,%s,%s,%s,%s,%s,%u", vm, um, st, mode, name, email, dc, lc);
 	int num = sscanf(out, "%u,%u,%[^,],%[^,],%[^,],%[^,],%[^,],%u", vm, um, st, mode, name, email, dc, lc);
@@ -132,7 +132,7 @@ lic_update(uint32_t addon)
 	um += addon;
 
 #if defined(DEBUG)
-	log_info("license updated %ld/%ld st:%s mode:%s %s-%s-%s lc:%d",
+	log_debug("license updated %ld/%ld st:%s mode:%s %s-%s-%s lc:%d",
 			um, vm, st, mode, name, email, dc, lc);
 #endif
 
