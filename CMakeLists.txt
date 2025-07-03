@@ -47,6 +47,7 @@ option (ENABLE_ACL "Enable ACL" ON)
 option (NANOMQ_TESTS "Enable nanomq unit tests" OFF)
 option (BUILD_STATIC "build with static libs" OFF)
 option (ENABLE_LICENSE_DK "NanoMQ with license DK" OFF)
+option (ENABLE_LICENSE_STD "NanoMQ with license STD" OFF)
 
 set (NNG_PROTO_MQTT_BROKER  ON)
 set (NNG_TRANSPORT_MQTT_BROKER_TCP ON)
@@ -202,6 +203,10 @@ endif()
 
 if(ENABLE_LICENSE_DK)
   add_definitions(-DSUPP_LICENSE_DK)
+endif()
+
+if(ENABLE_LICENSE_STD)
+  add_definitions(-DSUPP_LICENSE_STD)
 endif()
 
 if(BUILD_CLIENT)

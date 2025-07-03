@@ -62,6 +62,9 @@ set(SOURCES
 if(ENABLE_LICENSE_DK)
   set(SOURCES ${SOURCES} license_dk.c extern/aes_gcm.c)
 endif(ENABLE_LICENSE_DK)
+if(ENABLE_LICENSE_STD)
+  set(SOURCES ${SOURCES} license_std.c)
+endif(ENABLE_LICENSE_STD)
 
 if(NNG_ENABLE_PLUGIN)
   set(SOURCES ${SOURCES} plugin/plugin.c)
