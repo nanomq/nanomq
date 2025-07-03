@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-int lic_init(const char *path);
-int lic_update(uint32_t addon);
+int lic_dk_init(const char *path);
+int lic_dk_update(uint32_t addon);
 
 #endif

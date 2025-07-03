@@ -3,7 +3,7 @@
 #include <stdio.h>
 
 #include "aes_gcm.h"
-#include "include/license.h"
+#include "include/license_dk.h"
 #include "nng/supplemental/nanolib/log.h"
 #include "nng/nng.h"
 
@@ -58,7 +58,7 @@ lic_enc(uint32_t vm, uint32_t um, char *st, char *ltype,
 	return 0;
 }
 
-int
+static int
 lic_init(const char *path)
 {
 	if (lic_path == NULL) {
@@ -101,7 +101,7 @@ lic_init(const char *path)
 	return 0;
 }
 
-int
+static int
 lic_update(uint32_t addon)
 {
 	if (lic_path == NULL) {
@@ -160,3 +160,14 @@ lic_update(uint32_t addon)
 	return 0;
 }
 
+int
+lic_dk_init(const char *path)
+{
+	lic_init(path);
+}
+
+int
+lic_dk_update(uint32_t addon)
+{
+	lic_update(addon);
+}

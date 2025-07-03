@@ -27,9 +27,9 @@ include_directories(${CMAKE_SOURCE_DIR}/nng/include/nng)
 if(ENABLE_JWT)
   include_directories(${CMAKE_SOURCE_DIR}/extern/l8w8jwt/include)
 endif(ENABLE_JWT)
-if(ENABLE_LICENSE)
-  include_directories(${CMAKE_SOURCE_DIR}/extern/include)
-endif(ENABLE_LICENSE)
+if(ENABLE_LICENSE_DK)
+  include_directories(${CMAKE_SOURCE_DIR}/nanomq/extern/include)
+endif(ENABLE_LICENSE_DK)
 
 add_subdirectory(apps)
 add_subdirectory(tests)
@@ -59,9 +59,9 @@ set(SOURCES
     apps/broker.c
 )
 
-if(ENABLE_LICENSE)
-  set(SOURCES ${SOURCES} license.c extern/aes_gcm.c)
-endif(ENABLE_LICENSE)
+if(ENABLE_LICENSE_DK)
+  set(SOURCES ${SOURCES} license_dk.c extern/aes_gcm.c)
+endif(ENABLE_LICENSE_DK)
 
 if(NNG_ENABLE_PLUGIN)
   set(SOURCES ${SOURCES} plugin/plugin.c)

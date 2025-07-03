@@ -55,8 +55,8 @@
 #include "include/nanomq.h"
 #include "include/plugin_spi_stream.h"
 
-#if defined(SUPP_LICENSE)
-#include "include/license.h"
+#if defined(SUPP_LICENSE_DK)
+#include "include/license_dk.h"
 static int license_tick = 0;
 #endif
 
@@ -1588,11 +1588,11 @@ broker(conf *nanomq_conf)
 			break;
 		}
 		nng_msleep(6000);
-#if defined(SUPP_LICENSE)
+#if defined(SUPP_LICENSE_DK)
 		license_tick += 6;
 		if ((license_tick %= 60) == 0) {
-			if (0 != (rv = lic_update(1))) { // 1 minutes
-				printf("license error rv%d\n", rv);
+			if (0 != (rv = lic_dk_update(1))) { // 1 minutes
+				printf("license dk error rv%d\n", rv);
 				exit(0);
 			}
 		}
@@ -1602,11 +1602,11 @@ broker(conf *nanomq_conf)
 	if (is_testing == false) {
 		for (;;) {
 			nng_msleep(60000); // neither pause() nor sleep() portable
-#if defined(SUPP_LICENSE)
+#if defined(SUPP_LICENSE_DK)
 			license_tick += 60;
 			if ((license_tick %= 600) == 0) {
-				if (0 != (rv = lic_update(10))) { // 10 minutes
-					printf("license error rv%d\n", rv);
+				if (0 != (rv = lic_dk_update(10))) { // 10 minutes
+					printf("license dk error rv%d\n", rv);
 					exit(0);
 				}
 			}
@@ -2091,12 +2091,12 @@ broker_start(int argc, char **argv)
 	}
 #endif
 
-#ifdef SUPP_LICENSE
+#ifdef SUPP_LICENSE_DK
 	if (!nanomq_conf->license_file) {
 		fprintf(stderr, "No license file, quit\n");
 		exit(EXIT_FAILURE);
 	}
-	if (0 != lic_init(nanomq_conf->license_file)) {
+	if (0 != lic_dk_init(nanomq_conf->license_file)) {
 		exit(EXIT_FAILURE);
 	}
 #endif
