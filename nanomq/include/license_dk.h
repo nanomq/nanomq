@@ -1,5 +1,5 @@
-#ifndef NANOMQ_LICENSE_H
-#define NANOMQ_LICENSE_H
+#ifndef NANOMQ_LICENSE_DK_H
+#define NANOMQ_LICENSE_DK_H
 
 #include <stdint.h>
 
