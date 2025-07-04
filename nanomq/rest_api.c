@@ -1,5 +1,5 @@
 //
-// Copyright 2020 NanoMQ Team, Inc. <jaylin@emqx.io>
+// Copyright 2025 NanoMQ Team, Inc. <jaylin@emqx.io>
 //
 // This software is supplied under the terms of the MIT License, a
 // copy of which should be located in the distribution where this
@@ -314,6 +314,12 @@ static endpoints api_ep[] = {
 	    .descr  = "show broker aws_bridge configuration",
 	},
 	{
+	    .path   = "/get_file",
+	    .name   = "get file content from path",
+	    .method = "GET",
+	    .descr  = "To get config file content",
+	},
+	{
 	    .path   = "/configuration/",
 	    .name   = "set_broker_configuration",
 	    .method = "POST",
@@ -395,12 +401,14 @@ static http_msg post_mqtt_msg(
     http_msg *msg, nng_socket *sock, handle_mqtt_msg_cb cb);
 static http_msg post_mqtt_msg_batch(
     http_msg *msg, nng_socket *sock, handle_mqtt_msg_cb cb);
+
+static http_msg write_file(http_msg *msg);
+static http_msg get_file_content(http_msg *msg);
 static http_msg get_mqtt_bridge(http_msg *msg, const char *name);
 static http_msg put_mqtt_bridge(http_msg *msg, const char *name);
 static http_msg put_mqtt_bridge_switch(http_msg *msg, const char *name);
 static http_msg post_mqtt_bridge_sub(http_msg *msg, const char *name);
 static http_msg post_mqtt_bridge_unsub(http_msg *msg, const char *name);
-
 static int properties_parse(property **properties, cJSON *json);
 static int handle_publish_msg(cJSON *pub_obj, nng_socket *sock);
 static int handle_subscribe_msg(cJSON *sub_obj, nng_socket *sock);
@@ -925,6 +933,10 @@ process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 		    uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "bridges") == 0) {
 			ret = get_mqtt_bridge(msg, uri_ct->sub_tree[2]->node);
+		} else if (uri_ct->sub_count == 2 &&
+		    uri_ct->sub_tree[1]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "get_file") == 0) {
+			ret = get_file_content(msg);
 		} else {
 			status = NNG_HTTP_STATUS_NOT_FOUND;
 			code   = UNKNOWN_MISTAKE;
@@ -946,6 +958,10 @@ process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "config_update") == 0) {
 			ret = update_config(msg);
+		} else if (uri_ct->sub_count == 2 &&
+		    uri_ct->sub_tree[1]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "write_file") == 0) {
+			ret = write_file(msg);
 		} else if (uri_ct->sub_count == 3 &&
 		    uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "configuration") == 0) {
@@ -962,8 +978,7 @@ process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 		}  else if (uri_ct->sub_count == 4 &&
 		    uri_ct->sub_tree[3]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "bridges") == 0 &&
-			strcmp(uri_ct->sub_tree[2]->node, "sub") == 0
-			) {
+			strcmp(uri_ct->sub_tree[2]->node, "sub") == 0) {
 			ret = post_mqtt_bridge_sub(
 			    msg, uri_ct->sub_tree[3]->node);
 		} else if (uri_ct->sub_count == 4 &&
@@ -3277,8 +3292,62 @@ post_reload_config(http_msg *msg)
 	cJSON_Delete(req);
 	return res;
 }
+// Update sub config file, create one if it is not exist
+static http_msg
+write_file(http_msg *msg)
+{
+	int  		 rv;
+	char *path = NULL, *data;
+	http_msg res = { .status = NNG_HTTP_STATUS_OK };
+	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
 
+	if (!cJSON_IsObject(req)) {
+		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
+		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
+	}
+	conf * config    = get_global_conf();
+	cJSON *conf_data = cJSON_GetObjectItem(req, "data");
+	cJSON *item;
+	getStringValue(conf_data, item, "path", path, rv);
 
+	if (path == NULL) {
+		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
+		    REQ_PARAM_ERROR);
+	}
+	if (!nano_file_exists(path)) {
+		log_warn("Create new file %s! ", path);
+	}
+
+	getStringValue(conf_data, item, "content", data, rv);
+	log_info("config content len %d", strlen(data));
+
+	// cJSON *hocon = (cJSON *)nng_hocon_parse_str(data, );
+	// if (!cJSON_IsObject(req)) {
+	// 	return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
+	// 	    PARAMS_HOCON_FORMAT_ILLEGAL);
+	// }
+
+	log_info("Writting to file %s", path);
+
+	cJSON *res_obj = cJSON_CreateObject();
+	int rc = nng_file_put(path, data, strlen(data));
+	if (0 != rc) {
+		cJSON_AddNumberToObject(res_obj, "code", WRITE_CONFIG_FAILED);
+		log_error("Error writing config to %s, error code: %s", config->conf_file, rc);
+	} else {
+		cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+	}
+
+	char *dest = cJSON_PrintUnformatted(res_obj);
+	put_http_msg(
+	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
+
+	cJSON_free(dest);
+	cJSON_Delete(res_obj);
+	cJSON_Delete(req);
+	return res;
+}
+//Update core config file.
 static http_msg
 update_config(http_msg *msg)
 {
@@ -4003,6 +4072,50 @@ out:
 	}
 	return error_response(
 	    msg, NNG_HTTP_STATUS_BAD_REQUEST, REQ_PARAMS_JSON_FORMAT_ILLEGAL);
+}
+
+// Used for get config file
+static http_msg
+get_file_content(http_msg *msg)
+{
+	int  		 rv;
+	char *path = NULL, *data;
+	http_msg res = { .status = NNG_HTTP_STATUS_OK };
+	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
+
+	if (!cJSON_IsObject(req)) {
+		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
+		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
+	}
+
+	cJSON *conf_data = cJSON_GetObjectItem(req, "data");
+	cJSON *item;
+	getStringValue(conf_data, item, "path", path, rv);
+
+	if (path == NULL) {
+		conf * config = get_global_conf();
+		path = config->conf_file;
+	} 
+	if (!nano_file_exists(path)) {
+		return error_response(
+	    	msg, NNG_HTTP_STATUS_GONE, REQ_PARAM_ERROR);
+	}
+	cJSON *file_json = cJSON_CreateObject();
+	file_load_data(path, (void **)&data);
+	cJSON_AddStringOrNullToObject(file_json, "path", path);
+	cJSON_AddStringOrNullToObject(file_json, "content", data);
+
+	cJSON *res_obj = cJSON_CreateObject();
+	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+	cJSON_AddItemToObject(res_obj, "data", file_json);
+
+	char *dest = cJSON_PrintUnformatted(res_obj);
+
+	put_http_msg(
+	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
+	cJSON_free(dest);
+	cJSON_Delete(res_obj);
+	return res;
 }
 
 static http_msg
