@@ -175,6 +175,7 @@ enum options {
 	OPT_LOG_STDOUT,
 	OPT_LOG_FILE,
 	OPT_LOG_SYSLOG,
+	OPT_LICENSE,
 };
 
 static nng_optspec cmd_opts[] = {
@@ -225,6 +226,7 @@ static nng_optspec cmd_opts[] = {
 	{ .o_name = "log_stdout", .o_val = OPT_LOG_STDOUT, .o_arg = true },
 	{ .o_name = "log_syslog", .o_val = OPT_LOG_SYSLOG, .o_arg = true },
 	{ .o_name = "log_file", .o_val = OPT_LOG_FILE, .o_arg = true },
+	{ .o_name = "license", .o_val = OPT_LICENSE, .o_arg = true },
 	{ .o_name = NULL, .o_val = 0 },
 };
 
@@ -1805,6 +1807,56 @@ predicate_url(conf *config, char *url)
 		}
 	}
 }
+
+int
+license_path_parse(int argc, char **argv, char **file_path)
+{
+	int   idx = 2;
+	char *arg;
+	int   val;
+	int   rv;
+
+	while ((rv = nng_opts_parse(argc, argv, cmd_opts, &val, &arg, &idx)) ==
+	    0) {
+		switch (val) {
+		case OPT_HELP:
+			print_usage();
+			exit(0);
+			break;
+		case OPT_LICENSE:
+			*file_path = nng_strdup(arg);
+			return val;
+		default:
+			break;
+		}
+	}
+
+	switch (rv) {
+	case NNG_EINVAL:
+		fprintf(stderr,
+		    "Option %s is invalid.\nTry 'nanomq --help' for "
+		    "more information.\n",
+		    argv[idx]);
+		break;
+	case NNG_EAMBIGUOUS:
+		fprintf(stderr,
+		    "Option %s is ambiguous (specify in full).\nTry 'nanomq "
+		    "broker --help' for more information.\n",
+		    argv[idx]);
+		break;
+	case NNG_ENOARG:
+		fprintf(stderr,
+		    "Option %s requires argument.\nTry 'nanomq --help' "
+		    "for more information.\n",
+		    argv[idx]);
+		break;
+	default:
+		break;
+	}
+
+	return rv == -1;
+}
+
 // Return config file type
 int
 file_path_parse(int argc, char **argv, char **file_path)
@@ -2024,6 +2076,26 @@ broker_start(int argc, char **argv)
 	conf_init(nanomq_conf);
 	nanomq_conf->vin = vin;
 
+#if defined(SUPP_LICENSE_DK) || defined(SUPP_LICENSE_STD)
+	char *license_file = NULL;
+	rc = license_path_parse(argc, argv, &license_file);
+	if (!license_file) {
+		fprintf(stderr, "No license file or read failed, %d, quit\n", rc);
+		exit(EXIT_FAILURE);
+	} else if (rc != 0) {
+		fprintf(stderr, "Read license result code, %d\n", rc);
+	}
+	fprintf(stderr, "license file: %s\n", license_file);
+#ifdef SUPP_LICENSE_DK
+	if (0 != (rc = lic_dk_init(license_file))) {
+#else
+	if (0 != (rc = lic_std_init(license_file))) {
+#endif
+		fprintf(stderr, "license error %d, quit\n", rc);
+		exit(EXIT_FAILURE);
+	}
+#endif
+
 	rc = file_path_parse(argc, argv, &nanomq_conf->conf_file);
 	if (nanomq_conf->conf_file == NULL) {
 		nanomq_conf->conf_file = CONF_PATH_NAME;
@@ -2092,22 +2164,6 @@ broker_start(int argc, char **argv)
 	printf("read conf path %s!!!!\n", nanomq_conf->conf_file);
 	if ((rc = log_init(&nanomq_conf->log)) != 0) {
 		NANO_NNG_FATAL("log_init", rc);
-	}
-#endif
-
-#if defined(SUPP_LICENSE_DK) || defined(SUPP_LICENSE_STD)
-	int rv;
-	if (!nanomq_conf->license_file) {
-		fprintf(stderr, "No license file, quit\n");
-		exit(EXIT_FAILURE);
-	}
-#ifdef SUPP_LICENSE_DK
-	if (0 != (rv = lic_dk_init(nanomq_conf->license_file))) {
-#else
-	if (0 != (rv = lic_std_init(nanomq_conf->license_file))) {
-#endif
-		fprintf(stderr, "license error %d, quit\n", rv);
-		exit(EXIT_FAILURE);
 	}
 #endif
 
