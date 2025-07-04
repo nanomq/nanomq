@@ -60,6 +60,10 @@
 static int license_tick = 0;
 #endif
 
+#if defined(SUPP_LICENSE_STD)
+#include "include/license_std.h"
+#endif
+
 #if defined(SUPP_ICEORYX)
 	#include "nng/iceoryx_shm/iceoryx_shm.h"
 #endif
@@ -1450,7 +1454,7 @@ broker(conf *nanomq_conf)
 
 	// need to move dialer start to the very front! otherwise uaf
 
-	// in order to make bridge online msg availiable in HTTP
+	// in order to make bridge online msg available in HTTP
 	// we shall postpone bridge dialer start after http
 	for (size_t t = 0; t < nanomq_conf->bridge.count; t++) {
 		conf_bridge_node *node = nanomq_conf->bridge.nodes[t];
@@ -2091,12 +2095,18 @@ broker_start(int argc, char **argv)
 	}
 #endif
 
-#ifdef SUPP_LICENSE_DK
+#if defined(SUPP_LICENSE_DK) || defined(SUPP_LICENSE_STD)
+	int rv;
 	if (!nanomq_conf->license_file) {
 		fprintf(stderr, "No license file, quit\n");
 		exit(EXIT_FAILURE);
 	}
-	if (0 != lic_dk_init(nanomq_conf->license_file)) {
+#ifdef SUPP_LICENSE_DK
+	if (0 != (rv = lic_dk_init(nanomq_conf->license_file))) {
+#else
+	if (0 != (rv = lic_std_init(nanomq_conf->license_file))) {
+#endif
+		fprintf(stderr, "license error %d, quit\n", rv);
 		exit(EXIT_FAILURE);
 	}
 #endif
