@@ -222,6 +222,12 @@ static endpoints api_ep[] = {
 	    .descr  = "Batch unsubscribes topics",
 	},
 	{
+	    .path   = "/write_file",
+	    .name   = "overwrite config file",
+	    .method = "POST",
+	    .descr  = "wirte content to specific file path",
+	},
+	{
 	    .path   = "/topic-tree/",
 	    .name   = "list_topic-tree",
 	    .method = "GET",
@@ -3024,11 +3030,11 @@ write_file(http_msg *msg)
 	getStringValue(conf_data, item, "content", data, rv);
 	log_info("config content len %d", strlen(data));
 
-	// cJSON *hocon = (cJSON *)nng_hocon_parse_str(data, );
-	// if (!cJSON_IsObject(req)) {
-	// 	return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
-	// 	    PARAMS_HOCON_FORMAT_ILLEGAL);
-	// }
+	cJSON *hocon = (cJSON *)nng_hocon_parse_str(data, strlen(data));
+	if (!cJSON_IsObject(hocon)) {
+		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
+		    PARAMS_HOCON_FORMAT_ILLEGAL);
+	}
 
 	log_info("Writting to file %s", path);
 
@@ -3798,10 +3804,10 @@ get_file_content(http_msg *msg)
 	if (path == NULL) {
 		conf * config = get_global_conf();
 		path = config->conf_file;
-	} 
+	}
 	if (!nano_file_exists(path)) {
 		return error_response(
-	    	msg, NNG_HTTP_STATUS_GONE, REQ_PARAM_ERROR);
+		    msg, NNG_HTTP_STATUS_GONE, REQ_PARAM_ERROR);
 	}
 	cJSON *file_json = cJSON_CreateObject();
 	file_load_data(path, (void **)&data);
