@@ -22,6 +22,23 @@ static const uint32_t mon_yday[2][12] = {
     { 0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335 },
 };
 
+static const char root_pubk[] =
+"-----BEGIN PUBLIC KEY-----\n\
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyJgH+BvEJIStYvyw1keQ\n\
+/ixVPJ4GGjlP7lTKnZL3mqZyPXQUEaLnRmcQ3/ra8xYQPcfMReynqmrYmT45/eD2\n\
+tK7rdXTzYfOWoU0cXNQMaQS7be1bLF4QrAEbJhEsgkjX9rP30mrzZCjRRnkQtWmi\n\
+4DNBU4qOl6Ee9aAS5aY+L7DW646J47Tyc7gAA4sdZw04KGBXnSyXzyBvPaf+QByO\n\
+rOXUxBcxehHN/Ox41/duYFXSR40U6lyp49NYJ6yEUVWSp4oxsrkcgqyegNKXdW1D\n\
+8oqJXzxalbh/RB8YYlX+Ae377gEBlLefPFdSEYDRN/ajs3UIeqde6i20lVyDPIjE\n\
+cQIDAQAB\n\
+-----END PUBLIC KEY-----";
+
+static const char root_pubk_debug[] =
+"-----BEGIN PUBLIC KEY-----\n\
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEE3bWmTSFCUSb6fIHVJK2Wj51Y3Us\n\
+rDDMt2tZMToi1Xf3zQJ583b5tKRNHMTdD16Wc/xrEEZf9MLmHZptOwrx0A==\n\
+-----END PUBLIC KEY-----";
+
 struct lic_std {
 	int  vd;     // valid days // unavailable in STD mode
 	int  lc;     // limit connections
@@ -300,36 +317,40 @@ parse_lic_file(const char *fname, const char *pubk, lic_std *lic)
 static int
 lic_validate(lic_std *lic, uint64_t now)
 {
-    if (lic->st == 0 || lic->et == 0 || lic->lc == 0) {
+	if (lic->st == 0 || lic->et == 0 || lic->lc == 0) {
 		log_error("License init failed");
 		return NNG_EINVAL;
-    }
+	}
 
-    if (now < lic->st || now > lic->et) {
+	if (now < lic->st || now > lic->et) {
 		log_warn("License expired");
-        return NNG_ETIMEDOUT;
-    }
+		return NNG_ETIMEDOUT;
+	}
 
 	// TODO mismatch
-    return 0;
+	return 0;
 }
 
 int
 lic_std_init(const char *path)
 {
-	int           rv = 0;
-	const char *pubk = NULL;
+	int         rv = 0;
+	int         fsz;
+	const char *pubk = root_pubk;
 	g_lic = nng_alloc(sizeof(struct lic_std));
 	rv = parse_lic_file(path, pubk, g_lic);
 	if (rv != 0)
 		log_error("failed to parse license %s, rv%d", path, rv);
+	else
+		rv = lic_std_update(0);
+
 	return rv;
 }
 
 int
 lic_std_update(uint32_t addon)
 {
-	(void)addon;
-    nng_time now = nng_timestamp() / 1000; // second
-    return lic_validate(g_lic, now);
+	(void) addon;
+	nng_time now = nng_timestamp() / 1000; // second
+	return lic_validate(g_lic, now);
 }
