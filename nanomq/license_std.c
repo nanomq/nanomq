@@ -23,7 +23,7 @@ static const uint32_t mon_yday[2][12] = {
 };
 
 struct lic_std {
-	int  vd;     // valid days
+	int  vd;     // valid days // unavailable in STD mode
 	int  lc;     // limit connections
 	uint64_t st; // start time
 	uint64_t et; // end time
@@ -32,7 +32,7 @@ struct lic_std {
 	char ltype[9];
 	char name[129];
 	char email[129];
-	char dc[129];
+	char dc[129]; // deployment code // unavailable in STD mode
 };
 
 static lic_std *g_lic = NULL;
@@ -102,7 +102,7 @@ parse_lic(X509 *cert, const char *pubk, lic_std *lic)
 	ASN1_STRING         *str;
 	ASN1_TIME           *not_before, *not_after;
 	X509_EXTENSION      *ext;
-	char                 buf[100];
+	char                 buf[128];
 	const unsigned char *value;
 	int                  i;
 	int                  rv = 0;
@@ -211,37 +211,45 @@ final:
 	return rv;
 }
 
-static int
-parse_lic_file(const char *fname, const char *pubk, lic_std *lic)
+static char *
+readfile(const char *fname, int *sz)
 {
-	int   rv      = 0;
-	BIO  *certbio = NULL;
-	X509 *cert    = NULL;
+	FILE *fp;
+	char  ch;
 
-	struct stat statbuf;
+	fp = fopen(fname, "r");
 
-	if (-1 == stat(fname, &statbuf)) {
-		return NNG_EINVAL;
+	if (NULL == fp) {
+		log_error("file can't be opened \n");
+		return NULL;
 	}
 
-	if (NULL == (certbio = BIO_new(BIO_s_file()))) {
-		return NNG_ENOMEM;
-	}
-	if (0 >= BIO_puts(certbio, fname)) {
-		BIO_free_all(certbio);
-		return NNG_EINVAL;
-	}
-	if (!(cert = PEM_read_bio_X509(certbio, NULL, NULL, NULL))) {
-		log_warn("failed to load certificate%s into memory", fname);
-		BIO_free_all(certbio);
-		return NNG_EINVAL;
+	// Get file length
+	fseek(fp, 0, SEEK_END);
+	int cap = ftell(fp);
+	fseek(fp, 0, SEEK_SET);
+
+	int   pos = 0;
+	char *str = malloc(sizeof(char) * cap + 1);
+	memset(str, 0, cap + 1);
+	if (str == NULL) {
+		log_error("No more memory");
+		fclose(fp);
+		return NULL;
 	}
 
-	rv = parse_lic(cert, pubk, lic);
+	pos = fread(str, 1, cap, fp);
+	if (pos != cap) {
+		log_error("Failed to read file");
+		free(str);
+		fclose(fp);
+		return NULL;
+	}
 
-	X509_free(cert);
-	BIO_free_all(certbio);
-	return rv;
+	fclose(fp);
+
+	*sz = pos;
+	return str;
 }
 
 static int
@@ -268,6 +276,24 @@ parse_lic_str(const char *data, const char *pubk, lic_std *lic)
 
 	X509_free(cert);
 	BIO_free_all(certbio);
+	return rv;
+}
+
+static int
+parse_lic_file(const char *fname, const char *pubk, lic_std *lic)
+{
+	int   rv = 0;
+	char *fbuf;
+	int   fsz;
+
+	if ((fbuf = readfile(fname, &fsz)) == NULL) {
+		log_warn("failed to readfile %s", fname);
+		return NNG_EINVAL;
+	}
+
+	rv = parse_lic_str(fbuf, pubk, lic);
+
+	free(fbuf);
 	return rv;
 }
 
