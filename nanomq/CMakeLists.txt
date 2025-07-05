@@ -22,10 +22,10 @@ endif(DEBUG AND TSAN)
 aux_source_directory(. DIRSRCS)
 
 include_directories(./)
-include_directories(${CMAKE_SOURCE_DIR}/nanomq/include)
-include_directories(${CMAKE_SOURCE_DIR}/nng/include/nng)
+include_directories(${PROJECT_SOURCE_DIR}/include)
+include_directories(${PROJECT_SOURCE_DIR}/../nng/include/nng)
 if(ENABLE_JWT)
-  include_directories(${CMAKE_SOURCE_DIR}/extern/l8w8jwt/include)
+  include_directories(${PROJECT_SOURCE_DIR}/../extern/l8w8jwt/include)
 endif(ENABLE_JWT)
 
 add_subdirectory(apps)
