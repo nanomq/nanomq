@@ -730,7 +730,7 @@ server_cb(void *arg)
 #if defined(SUPP_ICEORYX)
 			iceoryx_opt = 1;
 #endif
-			if (hook_conf->enable || exge_conf->count > 0 || 
+			if (hook_conf->enable || exge_conf->count > 0 ||
 			        rule_opt != RULE_ENG_OFF || iceoryx_opt == 1) {
 				work->state = SEND;
 				nng_aio_finish(work->aio, 0);
@@ -1197,12 +1197,11 @@ broker(conf *nanomq_conf)
 		}
 		nng_listener_set_size(mq_listener, NNG_OPT_RECVMAXSZ, 0xFFFFFFFFu);
 	}
-	// Hook service
+	// have to init Hook CTX before broker CTX due to dial action in broker ctx.
 	if (nanomq_conf->web_hook.enable || nanomq_conf->exchange.count > 0) {
 		start_hook_service(nanomq_conf);
 		log_debug("Hook service started");
 	}
-
 	// caculate total ctx first
 	if (nanomq_conf->bridge_mode) {
 		for (size_t t = 0; t < nanomq_conf->bridge.count; t++) {
@@ -1242,9 +1241,9 @@ broker(conf *nanomq_conf)
 		}
 		log_debug("bridge init finished");
 	}
-	// CTX for MQTT Broker service
+	// Always init input CTX first!
 	struct work **works = nng_zalloc(num_work * sizeof(struct work *));
-	// create broker ctx
+	// create MQTT Broker ctx
 	for (i = 0; i < nanomq_conf->parallel; i++) {
 		works[i] = proto_work_init(sock, inproc_sock,
 		    PROTO_MQTT_BROKER, db, db_ret, nanomq_conf);
@@ -1253,7 +1252,7 @@ broker(conf *nanomq_conf)
 
 	// create bridge ctx
 	// only create ctx when there is sub topics
-	size_t tmp = nanomq_conf->parallel;
+	size_t tmp = nanomq_conf->parallel;	// tmp marks works index
 	if (nanomq_conf->bridge_mode) {
 		log_debug("MQTT bridging service initialization");
 		// iterates all bridge targets
@@ -1283,44 +1282,6 @@ broker(conf *nanomq_conf)
 #endif
 	}
 
-	// Init exchange part in hook
-	if (nanomq_conf->exchange.count > 0) {
-		// We pass num of work here to keep aio index matched.
-		// Because local ctx of bridge work never gonna be used.
-		hook_exchange_init(nanomq_conf, num_work);
-		// create exchange senders in hook
-		// the number of exchange aio = broker ctx + bridge extra ctx + other input ctx in future.
-		hook_exchange_sender_init(nanomq_conf, works, num_work);
-	}
-
-	if (nanomq_conf->enable) {
-		if (nanomq_conf->url) {
-			if ((rv = nano_listen(sock, nanomq_conf->url, NULL, 0,
-			         nanomq_conf)) != 0) {
-				NANO_NNG_FATAL("broker nng_listen", rv);
-			}
-		}
-
-		for (i = 0; i < nanomq_conf->tcp_list.count; i++) {
-			if ((rv = nano_listen(sock,
-			         nanomq_conf->tcp_list.nodes[i]->url, NULL, 0,
-			         nanomq_conf)) != 0) {
-				NANO_NNG_FATAL("broker nng_listen", rv);
-			}
-		}
-	}
-
-	// HTTP & other ctx must be alloced after exchange!
-	// create http server ctx
-	if (nanomq_conf->http_server.enable) {
-		log_debug("http context init");
-		for (i = tmp; i < tmp + HTTP_CTX_NUM; i++) {
-			works[i] = proto_work_init(sock, inproc_sock,
-			    PROTO_HTTP_SERVER, db, db_ret, nanomq_conf);
-		}
-		tmp += HTTP_CTX_NUM;
-	}
-
 #if defined(SUPP_ICEORYX)
 	nng_socket iceoryx_sock;
 	const char *iceoryx_service = "NanoMQ-Service";
@@ -1345,6 +1306,47 @@ broker(conf *nanomq_conf)
 	}
 	tmp += HTTP_CTX_NUM;
 #endif
+
+	// create http server ctx
+	if (nanomq_conf->http_server.enable) {
+		log_debug("http context init");
+		for (i = tmp; i < tmp + HTTP_CTX_NUM; i++) {
+			works[i] = proto_work_init(sock, inproc_sock,
+			    PROTO_HTTP_SERVER, db, db_ret, nanomq_conf);
+		}
+		tmp += HTTP_CTX_NUM;
+		if (num_work != tmp)
+			log_error("Please check Context init Sequence!");
+	}
+
+	// Init exchange part in hook, all input CTX must be inited now.
+	if (nanomq_conf->exchange.count > 0) {
+		// We pass num of work here to keep aio index matched.
+		// Because local ctx of bridge work never gonna be used.
+		hook_exchange_init(nanomq_conf, num_work);
+		// create exchange senders in hook
+		// number of exchange aio = broker ctx + bridge extra ctx + HTTP Rep CTX + iceoryx CTX
+		// and other input ctx in the future.
+		hook_exchange_sender_init(nanomq_conf, works, num_work);
+	}
+
+	if (nanomq_conf->enable) {
+		if (nanomq_conf->url) {
+			if ((rv = nano_listen(sock, nanomq_conf->url, NULL, 0,
+			         nanomq_conf)) != 0) {
+				NANO_NNG_FATAL("broker nng_listen", rv);
+			}
+		}
+
+		for (i = 0; i < nanomq_conf->tcp_list.count; i++) {
+			if ((rv = nano_listen(sock,
+			         nanomq_conf->tcp_list.nodes[i]->url, NULL, 0,
+			         nanomq_conf)) != 0) {
+				NANO_NNG_FATAL("broker nng_listen", rv);
+			}
+		}
+	}
+
 	// read from command line & config file
 	if (nanomq_conf->websocket.enable) {
 		if ((rv = nano_listen(

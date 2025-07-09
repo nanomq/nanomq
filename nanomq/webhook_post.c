@@ -469,15 +469,15 @@ hook_entry(nano_work *work, uint8_t reason)
 			nng_mtx_unlock(ts_mtx);
 		}
 		nng_msg_set_timestamp(msg, ts);
-
+		size_t hook_ctx = work->config->web_hook.pool_size;
 		for (size_t i = 0; i < ex_conf->count; i++) {
 			if (topic_filter(ex_conf->nodes[i]->topic,
 			        work->pub_packet->var_header.publish.topic_name.body)) {
 
 				if (work->proto != PROTO_MQTT_BROKER)
 					log_error("Ctx %d type %d", work->ctx.id, work->proto);	// shall be a bug if triggered
-				// Need to deduct brige extra ctx.
-				nng_aio *aio = hook_conf->saios[work->ctx.id - 1];
+				// Need to deduct Hook CTX, because it was init before broker CTX
+				nng_aio *aio = hook_conf->saios[work->ctx.id - 1 - hook_ctx];
 				nng_aio_wait(aio);
 
 				nng_msg_clone(msg);
@@ -881,12 +881,16 @@ hook_exchange_sender_init(conf *nanomq_conf, struct work **works, uint64_t num_c
 			log_error("nng_alloc failed");
 			return NNG_ENOMEM;
 		}
-
+		// saios is a array maping of works aio
 		nng_aio_alloc(
 		    &hook_conf->saios[i], send_exchange_cb, w_cb_arg);
 		w_cb_arg->id = i;
 		w_cb_arg->aio = hook_conf->saios[i];
 		w_cb_arg->w = works[i];
+		log_info("work  %d %p", i, works[i]);
+		struct work *twork = works[i];
+		if (twork!= NULL)
+			log_info("type %d %d",twork->proto, twork->ctx.id);
 	}
 
 #ifdef SUPP_PARQUET
