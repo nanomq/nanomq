@@ -228,7 +228,7 @@ bridge_pub_handler(nano_work *work)
 {
 	int      rv    = 0;
 	property *props = NULL;
-	uint32_t  index = work->ctx.id - 1;
+	uint32_t  index = work->work_id;
 	mqtt_string *topic;
 
 	// Or we just exclude all topic with $?
