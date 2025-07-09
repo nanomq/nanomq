@@ -30,7 +30,7 @@
 struct work_cb_arg {
 	uint32_t id;
 	nng_aio *aio;
-	struct work *w;
+	conf    *config;
 };
 
 struct cb_data {
@@ -474,10 +474,9 @@ hook_entry(nano_work *work, uint8_t reason)
 			if (topic_filter(ex_conf->nodes[i]->topic,
 			        work->pub_packet->var_header.publish.topic_name.body)) {
 
-				if (work->proto != PROTO_MQTT_BROKER)
-					log_error("Ctx %d type %d", work->ctx.id, work->proto);	// shall be a bug if triggered
+				// msg from bridge or HTTP is also allowed here
 				// Need to deduct Hook CTX, because it was init before broker CTX
-				nng_aio *aio = hook_conf->saios[work->ctx.id - 1 - hook_ctx];
+				nng_aio *aio = hook_conf->saios[work->work_id];
 				nng_aio_wait(aio);
 
 				nng_msg_clone(msg);
@@ -767,18 +766,18 @@ send_exchange_cb(void *arg)
 {
 	int rv;
 	char *topic = NULL;
-	struct work *w = NULL;
 	int *msgs_lenp = NULL;
 	nng_aio *aio = NULL;
 	nng_msg *msg = NULL;
 	nng_msg **msgs_del = NULL;
 	struct work_cb_arg *w_cb_arg = NULL;
 	uint8_t streamType = 0;
+	conf  *config;
 	conf_web_hook *hook_conf = NULL;
 
 	w_cb_arg = arg;
-	w = w_cb_arg->w;
-	hook_conf = &w->config->web_hook;
+	config = w_cb_arg->config;
+	hook_conf = &config->web_hook;
 
 	aio = w_cb_arg->aio;
 	if ((rv = nng_aio_result(aio)) != 0) {
@@ -805,7 +804,7 @@ send_exchange_cb(void *arg)
 	}
 
 	// Flush to disk.
-	if (w->config->parquet.enable || w->config->blf.enable) {
+	if (config->parquet.enable || config->blf.enable) {
 		nng_mtx_lock(hook_conf->ex_mtx);
 #ifdef SUPP_PARQUET
 		rv = flush_smsg_to_disk(msgs_del, *msgs_lenp, hook_conf->ex_aio, topic, streamType);
@@ -881,16 +880,12 @@ hook_exchange_sender_init(conf *nanomq_conf, struct work **works, uint64_t num_c
 			log_error("nng_alloc failed");
 			return NNG_ENOMEM;
 		}
-		// saios is a array maping of works aio
+
 		nng_aio_alloc(
 		    &hook_conf->saios[i], send_exchange_cb, w_cb_arg);
 		w_cb_arg->id = i;
 		w_cb_arg->aio = hook_conf->saios[i];
-		w_cb_arg->w = works[i];
-		log_info("work  %d %p", i, works[i]);
-		struct work *twork = works[i];
-		if (twork!= NULL)
-			log_info("type %d %d",twork->proto, twork->ctx.id);
+		w_cb_arg->config = nanomq_conf;
 	}
 
 #ifdef SUPP_PARQUET
