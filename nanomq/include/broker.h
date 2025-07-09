@@ -34,6 +34,7 @@ struct work {
 		END,  // Clear state and cache before disconnect
 		CLOSE // sending disconnect packet and err code
 	} state;
+	size_t      work_id;	  // index of num of works, to find correct work from global.
 	uint8_t     proto;		  // logic proto
 	uint8_t     proto_ver;   // MQTT version cache
 	uint8_t     flag;        // flag for webhook & rule_engine
@@ -41,7 +42,7 @@ struct work {
 	nng_msg *   msg;
 	nng_msg **  msg_ret;
 	nng_ctx     ctx;        // ctx for mqtt broker
-	nng_ctx     extra_ctx; //  ctx for bridging/http post
+	nng_ctx     extra_ctx; //  ctx for bridging/http post/any other protocol
 	nng_pipe    pid;
 	dbtree *    db;
 	dbtree *    db_ret;

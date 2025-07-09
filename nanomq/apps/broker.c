@@ -1054,14 +1054,13 @@ get_broker_retain_db(void)
 int
 broker(conf *nanomq_conf)
 {
-	int        rv, i;
-	uint64_t   num_work;
-	nng_socket sock;
+	int         rv, i;
+	size_t      num_work;
+	nng_socket  sock;
 	nng_socket *bridge_sock;
 	// add the num of other proto
-	nanomq_conf->total_ctx = nanomq_conf->parallel;		// match with num of aio
-	num_work = nanomq_conf->parallel;					// match with num of works
-
+	nanomq_conf->total_ctx = nanomq_conf->parallel;      // match with num of broker ctx
+	num_work = nanomq_conf->parallel; 					 // match with num of works
 
 #if defined(SUPP_RULE_ENGINE)
 	conf_rule *cr = &nanomq_conf->rule_eng;
@@ -1183,8 +1182,6 @@ broker(conf *nanomq_conf)
 			log_error("nng_exchange_client_open failed %d", rv);
 		} else {
 			nng_socket_set_ptr(*node->sock, NNG_OPT_EXCHANGE_BIND, (void *)node);
-			/* TODO: Support multiple stream */
-//			nng_socket_set_ptr(*node->sock, NNG_OPT_EXCHANGE_START_LIMIT_TIMER, (void *)node);
 		}
 		log_debug("exchange %d init finished!\n", i);
 
@@ -1243,15 +1240,16 @@ broker(conf *nanomq_conf)
 	}
 	// Always init input CTX first!
 	struct work **works = nng_zalloc(num_work * sizeof(struct work *));
-	// create MQTT Broker ctx
+	// create MQTT Broker ctx first
 	for (i = 0; i < nanomq_conf->parallel; i++) {
 		works[i] = proto_work_init(sock, inproc_sock,
 		    PROTO_MQTT_BROKER, db, db_ret, nanomq_conf);
+		works[i]->work_id = i;	//assign id to work
 		log_trace("broker id %d type %d ctx %d", i, works[i]->proto, works[i]->ctx.id);
 	}
 
-	// create bridge ctx
-	// only create ctx when there is sub topics
+	// create bridge ctx secondly
+	// only create ctx when there is sub topics?
 	size_t tmp = nanomq_conf->parallel;	// tmp marks works index
 	if (nanomq_conf->bridge_mode) {
 		log_debug("MQTT bridging service initialization");
@@ -1264,6 +1262,7 @@ broker(conf *nanomq_conf)
 					*bridge_sock, PROTO_MQTT_BRIDGE,
 					db, db_ret, nanomq_conf);
 				works[i]->node = node;
+				works[i]->work_id = i;
 			}
 			tmp += node->parallel;
 		}
@@ -1275,6 +1274,7 @@ broker(conf *nanomq_conf)
 				works[i] =
 					proto_work_init(sock, inproc_sock,
 						PROTO_AWS_BRIDGE, db, db_ret, nanomq_conf);
+				works[i]->work_id = i;
 			}
 			tmp += node->parallel;
 			aws_bridge_client(node);
@@ -1303,6 +1303,7 @@ broker(conf *nanomq_conf)
 	for (i = tmp; i < tmp + HTTP_CTX_NUM; i++) {
 		works[i] = proto_work_init(sock, iceoryx_sock,
 		    PROTO_ICEORYX_BRIDGE, db, db_ret, nanomq_conf);
+		works[i]->work_id = i;
 	}
 	tmp += HTTP_CTX_NUM;
 #endif
@@ -1313,6 +1314,7 @@ broker(conf *nanomq_conf)
 		for (i = tmp; i < tmp + HTTP_CTX_NUM; i++) {
 			works[i] = proto_work_init(sock, inproc_sock,
 			    PROTO_HTTP_SERVER, db, db_ret, nanomq_conf);
+			works[i]->work_id = i;
 		}
 		tmp += HTTP_CTX_NUM;
 		if (num_work != tmp)
