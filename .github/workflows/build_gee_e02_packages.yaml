@@ -73,6 +73,7 @@ jobs:
 
           config_versions=(
             "gee_e02c_all"
+            "gee_e02c_p658"
           )
 
           for version in "${config_versions[@]}"; do
@@ -107,6 +108,7 @@ jobs:
 
           config_versions=(
             "gee_e02c_all"
+            "gee_e02c_p658"
           )
 
           for version in "${config_versions[@]}"; do
