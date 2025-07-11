@@ -1223,16 +1223,6 @@ broker(conf *nanomq_conf)
 #endif
 	}
 
-	// create http server ctx
-	if (nanomq_conf->http_server.enable) {
-		log_debug("http context init");
-		for (i = tmp; i < tmp + HTTP_CTX_NUM; i++) {
-			works[i] = proto_work_init(sock, inproc_sock,
-			    PROTO_HTTP_SERVER, db, db_ret, nanomq_conf);
-		}
-		tmp += HTTP_CTX_NUM;
-	}
-
 #if defined(SUPP_ICEORYX)
 	nng_socket iceoryx_sock;
 	const char *iceoryx_service = "NanoMQ-Service";
@@ -1258,7 +1248,17 @@ broker(conf *nanomq_conf)
 	tmp += HTTP_CTX_NUM;
 #endif
 
-	// Init exchange part in hook
+	// create http server ctx
+	if (nanomq_conf->http_server.enable) {
+		log_debug("http context init");
+		for (i = tmp; i < tmp + HTTP_CTX_NUM; i++) {
+			works[i] = proto_work_init(sock, inproc_sock,
+			    PROTO_HTTP_SERVER, db, db_ret, nanomq_conf);
+		}
+		tmp += HTTP_CTX_NUM;
+	}
+#ifdef SUPP_PARQUET
+	// Init exchange part in hook, all input CTX must be inited now.
 	if (nanomq_conf->exchange.count > 0) {
 		hook_exchange_init(nanomq_conf, num_work);
 		// create exchange senders in hook
@@ -1275,7 +1275,7 @@ broker(conf *nanomq_conf)
 			nng_listener_set_size(mq_listener, NNG_OPT_RECVMAXSZ, 0xFFFFFFFFu);
 		}
 	}
-
+#endif
 	if (nanomq_conf->enable) {
 		if (nanomq_conf->url) {
 			if ((rv = nano_listen(sock, nanomq_conf->url, NULL, 0,
