@@ -280,6 +280,7 @@ hook_entry(nano_work *work, uint8_t reason)
 	conf_parquet  *parquetconf = &work->config->parquet;
 	conf_blf      *blfconf     = &work->config->blf;
 
+#ifdef SUPP_PARQUET
 	// process MQ msg first, only pub msg is valid
 	// discard online/offline event msg?
 	if (ex_conf->count > 0 && parquetconf->enable == true
@@ -329,56 +330,8 @@ hook_entry(nano_work *work, uint8_t reason)
 		}
 		nng_msg_free(msg); // Cloned for each exchange before
 	}
-
-
-	if (ex_conf->count > 0 && blfconf->enable == true
-		&& (work->flag == CMD_PUBLISH)
-		&& nng_msg_get_type(work->msg) == CMD_PUBLISH) {
-		// dup msg for now, TODO or reuse it?
-		nng_msg *msg;
-		nng_msg_alloc(&msg, 0);
-		nng_msg_header_append(msg, nng_msg_header(work->msg), nng_msg_header_len(work->msg));
-		nng_msg_append(msg, nng_msg_body(work->msg), nng_msg_len(work->msg));
-
-		uint8_t *body_ptr = nng_msg_body(work->msg);
-		ptrdiff_t offset = (ptrdiff_t)(nng_msg_payload_ptr(work->msg) - body_ptr);
-		nng_msg_set_payload_ptr(msg, (uint8_t *)nng_msg_body(msg) + offset);
-
-		// cparam has cloned at outside of hook_entry
-		char *clientid = (char *)conn_param_get_clientid(work->cparam);
-		if (clientid == NULL)
-			goto done;
-		char *topic = work->pub_packet->var_header.publish.topic_name.body;
-		if (topic == NULL)
-			goto done;
-		nng_mtx_lock(hook_conf->ex_mtx);
-		uint32_t pid = g_inc_id ++;
-		nng_mtx_unlock(hook_conf->ex_mtx);
-
-		nng_time ts = (nng_time)gen_hash_nearby_key(clientid, topic, pid);
-		nng_msg_set_timestamp(msg, ts);
-
-		for (size_t i = 0; i < ex_conf->count; i++) {
-			if (topic_filter(ex_conf->nodes[i]->topic,
-			        work->pub_packet->var_header.publish.topic_name.body)) {
-
-				if (work->ctx.id > work->config->parallel)
-					log_error("parallel %d idx %d", work->config->parallel);	// shall be a bug if triggered
-
-				nng_aio *aio = hook_conf->saios[work->ctx.id-1];
-				nng_aio_wait(aio);
-
-				nng_msg_clone(msg);
-				nng_aio_set_msg(aio, msg);
-
-				ex_sock = ex_conf->nodes[i]->sock;
-				nng_send_aio(*ex_sock, aio);
-				break;
-			}
-		}
-		nng_msg_free(msg); // Cloned for each exchange before
-	}
-
+#endif
+	//BLF & Parquet is discarded, only serve in commercial ver
 
 	if (!hook_conf->enable)
 		return 0;
