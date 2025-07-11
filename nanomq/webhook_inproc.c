@@ -27,7 +27,7 @@
 
 #include "nng/mqtt/mqtt_client.h"
 
-#ifdef SUPP_PARQUET
+#if defined(SUPP_PARQUET)
 #include "nng/supplemental/nanolib/parquet.h"
 #endif
 

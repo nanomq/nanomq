@@ -202,7 +202,7 @@ bridge_pub_handler(nano_work *work)
 {
 	int      rv    = 0;
 	property *props = NULL;
-	uint32_t  index = work->ctx.id - 1;
+	uint32_t  index = work->work_id;
 	mqtt_string *topic;
 
 	// Or we just exclude all topic with $?
@@ -1189,6 +1189,7 @@ broker(conf *nanomq_conf)
 	for (i = 0; i < nanomq_conf->parallel; i++) {
 		works[i] = proto_work_init(sock, inproc_sock,
 		    PROTO_MQTT_BROKER, db, db_ret, nanomq_conf);
+		works[i]->work_id = i;  //assign id to work
 	}
 
 	// create bridge ctx
@@ -1205,6 +1206,7 @@ broker(conf *nanomq_conf)
 					*bridge_sock, PROTO_MQTT_BRIDGE,
 					db, db_ret, nanomq_conf);
 				works[i]->node = node;
+				works[i]->work_id = i;  //assign id to work
 			}
 			tmp += node->parallel;
 		}
@@ -1216,21 +1218,12 @@ broker(conf *nanomq_conf)
 				works[i] =
 					proto_work_init(sock, inproc_sock,
 						PROTO_AWS_BRIDGE, db, db_ret, nanomq_conf);
+				works[i]->work_id = i;  //assign id to work
 			}
 			tmp += node->parallel;
 			aws_bridge_client(node);
 		}
 #endif
-	}
-
-	// create http server ctx
-	if (nanomq_conf->http_server.enable) {
-		log_debug("http context init");
-		for (i = tmp; i < tmp + HTTP_CTX_NUM; i++) {
-			works[i] = proto_work_init(sock, inproc_sock,
-			    PROTO_HTTP_SERVER, db, db_ret, nanomq_conf);
-		}
-		tmp += HTTP_CTX_NUM;
 	}
 
 #if defined(SUPP_ICEORYX)
@@ -1254,11 +1247,23 @@ broker(conf *nanomq_conf)
 	for (i = tmp; i < tmp + HTTP_CTX_NUM; i++) {
 		works[i] = proto_work_init(sock, iceoryx_sock,
 		    PROTO_ICEORYX_BRIDGE, db, db_ret, nanomq_conf);
+		works[i]->work_id = i;  //assign id to work
 	}
 	tmp += HTTP_CTX_NUM;
 #endif
 
-	// Init exchange part in hook
+	// create http server ctx
+	if (nanomq_conf->http_server.enable) {
+		log_debug("http context init");
+		for (i = tmp; i < tmp + HTTP_CTX_NUM; i++) {
+			works[i] = proto_work_init(sock, inproc_sock,
+			    PROTO_HTTP_SERVER, db, db_ret, nanomq_conf);
+			works[i]->work_id = i;  //assign id to work
+		}
+		tmp += HTTP_CTX_NUM;
+	}
+#if defined(SUPP_PARQUET)
+	// Init exchange part in hook, all input CTX must be inited now.
 	if (nanomq_conf->exchange.count > 0) {
 		hook_exchange_init(nanomq_conf, num_work);
 		// create exchange senders in hook
@@ -1275,7 +1280,7 @@ broker(conf *nanomq_conf)
 			nng_listener_set_size(mq_listener, NNG_OPT_RECVMAXSZ, 0xFFFFFFFFu);
 		}
 	}
-
+#endif
 	if (nanomq_conf->enable) {
 		if (nanomq_conf->url) {
 			if ((rv = nano_listen(sock, nanomq_conf->url, NULL, 0,

@@ -450,16 +450,6 @@ alloc_work(nng_socket sock, conf_http_server *conf)
 	return (w);
 }
 
-// static void
-// log_lock(bool lock, void *udata)
-// {
-// 	nng_mtx *LOCK = (nng_mtx *) (udata);
-// 	if (lock)
-// 		nng_mtx_lock(LOCK);
-// 	else
-// 		nng_mtx_unlock(LOCK);
-// }
-
 void
 set_global_conf(conf *config)
 {
