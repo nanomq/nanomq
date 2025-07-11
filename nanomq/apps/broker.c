@@ -1262,7 +1262,7 @@ broker(conf *nanomq_conf)
 		}
 		tmp += HTTP_CTX_NUM;
 	}
-#ifdef SUPP_PARQUET
+#if defined(SUPP_PARQUET)
 	// Init exchange part in hook, all input CTX must be inited now.
 	if (nanomq_conf->exchange.count > 0) {
 		hook_exchange_init(nanomq_conf, num_work);
