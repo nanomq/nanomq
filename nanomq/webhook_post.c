@@ -280,7 +280,7 @@ hook_entry(nano_work *work, uint8_t reason)
 	conf_parquet  *parquetconf = &work->config->parquet;
 	conf_blf      *blfconf     = &work->config->blf;
 
-#ifdef SUPP_PARQUET
+#if defined(SUPP_PARQUET)
 	// process MQ msg first, only pub msg is valid
 	// discard online/offline event msg?
 	if (ex_conf->count > 0 && parquetconf->enable == true
