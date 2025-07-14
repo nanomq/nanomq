@@ -108,12 +108,15 @@ split_lic_str(const char *data, const char **lic_args, const char **lic_sign)
 static int
 parse_lic_str(const char *data, const char *pubk, lic_std *lic)
 {
-	int   rv      = 0;
+	int  rv  = 0;
+	BIO* bio = BIO_new_mem_buf(pubk, (int)sizeof(pubk));
+	const EVP_PKEY* pkey = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL);
 
 	const char * lic_args_b64 = NULL;
 	const char * lic_sign_b64 = NULL;
 	if (0 != (rv = split_lic_str(data, &lic_args_b64, &lic_sign_b64))) {
 		log_warn("invalid lic format");
+		BIO_free(bio);
 		return rv;
 	}
 
@@ -122,20 +125,35 @@ parse_lic_str(const char *data, const char *pubk, lic_std *lic)
 	const int lic_args_sz;
 	const int lic_sign_sz;
 	if (!lic_args || !lic_sign) {
+		BIO_free(bio);
+		nng_free(lic_args_b64, 0);
+		nng_free(lic_sign_b64, 0);
 		return NNG_ENOMEM;
 	}
 
 	if ((lic_args_sz = base64_decode(lic_args, strlen(lic_args_b64), lic_args)) <= 0) {
 		log_warn("invalid lic content");
-		return NNG_EINVAL;
+		rv = NNG_EINVAL;
 	}
 	if ((lic_sign_sz = base64_decode(lic_sign, strlen(lic_sign_b64), lic_sign)) <= 0) {
 		log_warn("invalid lic content");
-		return NNG_EINVAL;
+		rv = NNG_EINVAL;
 	}
-	log_info("args: [%s] sign: [%.*s]", lic_args, lic_sign_sz, lic_sign);
 
-	return lic_verify(lic, lic_sign_sz, lic_sign, pubk);
+	if (rv == 0) {
+		log_info("args: [%s] sign: [%.*s]", lic_args, lic_sign_sz, lic_sign);
+		rv = lic_verify(lic, lic_sign_sz, lic_sign, pkey);
+	}
+
+	if (lic_args_b64)
+		nng_free(lic_args_b64, 0);
+	if (lic_sign_b64)
+		nng_free(lic_sign_b64, 0);
+	if (lic_args)
+		nng_free(lic_args, 0);
+	if (lic_sign)
+		nng_free(lic_sign, 0);
+	return rv;
 }
 
 static int
