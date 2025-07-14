@@ -39,6 +39,8 @@ static lic_std    *g_lic          = NULL;
 static const char *signature_name = "SHA256";
 
 // from kernel
+static const char base64_table[65] =
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 static int
 base64_decode(const char *src, int srclen, uint8_t *dst)
 {
@@ -113,7 +115,7 @@ readfile(const char *fname, int *sz)
 }
 
 static int
-split_lic_str(const char *data, const char **lic_args, const char **lic_sign)
+split_lic_str(const char *data, char **lic_args, char **lic_sign)
 {
 	int split_idx = 0;
 	for (split_idx = 0; split_idx<strlen(data); ++split_idx)
@@ -131,20 +133,20 @@ parse_lic_str(const char *data, const char *pubk, lic_std *lic)
 {
 	int  rv  = 0;
 	BIO* bio = BIO_new_mem_buf(pubk, (int)sizeof(pubk));
-	const EVP_PKEY* pkey = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL);
+	EVP_PKEY* pkey = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL);
 
-	const char * lic_args_b64 = NULL;
-	const char * lic_sign_b64 = NULL;
+	char * lic_args_b64 = NULL;
+	char * lic_sign_b64 = NULL;
 	if (0 != (rv = split_lic_str(data, &lic_args_b64, &lic_sign_b64))) {
 		log_warn("invalid lic format");
 		BIO_free(bio);
 		return rv;
 	}
 
-	const char * lic_args = nng_alloc(sizeof(char) * strlen(lic_args_b64));
-	const char * lic_sign = nng_alloc(sizeof(char) * strlen(lic_sign_b64));
-	const int lic_args_sz;
-	const int lic_sign_sz;
+	char * lic_args = nng_alloc(sizeof(char) * strlen(lic_args_b64));
+	char * lic_sign = nng_alloc(sizeof(char) * strlen(lic_sign_b64));
+	int lic_args_sz;
+	int lic_sign_sz;
 	if (!lic_args || !lic_sign) {
 		BIO_free(bio);
 		nng_free(lic_args_b64, 0);
@@ -167,7 +169,7 @@ parse_lic_str(const char *data, const char *pubk, lic_std *lic)
 		lic->sign    = strdup(lic_sign);
 		lic->sign_sz = lic_sign_sz;
 		log_info("args: [%s] sign: [%.*s]", lic_args, lic_sign_sz, lic_sign);
-		rv = lic_verify(lic, lic_args, lic_sign_sz, lic_sign, pkey);
+		rv = lic_verify_sign(lic, pkey);
 	}
 
 	if (lic_args_b64)
@@ -205,7 +207,7 @@ lic_std_init(const char *path)
 	int         rv = 0;
 	const char *pubk = root_pubk;
 	g_lic = nng_alloc(sizeof(struct lic_std));
-	rv = parse_lic_file(path);
+	rv = parse_lic_file(path, pubk, g_lic);
 	if (rv != 0)
 		log_error("failed to parse license %s, rv%d", path, rv);
 	else
