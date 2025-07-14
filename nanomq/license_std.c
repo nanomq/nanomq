@@ -17,6 +17,27 @@
 #include <openssl/x509.h>
 #include <openssl/x509_vfy.h>
 
+struct lic_std {
+	int  vd;     // valid days // unavailable in STD mode
+	int  lc;     // limit connections
+	uint64_t st; // start time
+	uint64_t et; // end time
+	char st_str[128];
+	char et_str[128];
+	char ltype[9];
+	char name[129];
+	char email[129];
+	char dc[129]; // deployment code // unavailable in STD mode
+
+	int   args_sz;
+	char *args;
+	int   sign_sz;
+	char *sign;
+};
+
+static lic_std    *g_lic          = NULL;
+static const char *signature_name = "SHA256";
+
 // from kernel
 static int
 base64_decode(const char *src, int srclen, uint8_t *dst)
@@ -141,8 +162,12 @@ parse_lic_str(const char *data, const char *pubk, lic_std *lic)
 	}
 
 	if (rv == 0) {
+		lic->args    = strdup(lic_args);
+		lic->args_sz = lic_args_sz;
+		lic->sign    = strdup(lic_sign);
+		lic->sign_sz = lic_sign_sz;
 		log_info("args: [%s] sign: [%.*s]", lic_args, lic_sign_sz, lic_sign);
-		rv = lic_verify(lic, lic_sign_sz, lic_sign, pkey);
+		rv = lic_verify(lic, lic_args, lic_sign_sz, lic_sign, pkey);
 	}
 
 	if (lic_args_b64)
