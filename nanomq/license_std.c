@@ -17,6 +17,8 @@
 #include <openssl/x509.h>
 #include <openssl/x509_vfy.h>
 
+static const char *g_lic_path;
+
 struct lic_std {
 	int  vd;     // valid days // unavailable in STD mode
 	int  lc;     // limit connections
@@ -35,8 +37,13 @@ struct lic_std {
 	char *sign;
 };
 
-static lic_std    *g_lic          = NULL;
-static const char *signature_name = "SHA256";
+static lic_std *g_lic = NULL;
+
+static char root_pubk[] =
+"-----BEGIN PUBLIC KEY-----\n\
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEE3bWmTSFCUSb6fIHVJK2Wj51Y3Us\n\
+rDDMt2tZMToi1Xf3zQJ583b5tKRNHMTdD16Wc/xrEEZf9MLmHZptOwrx0A==\n\
+-----END PUBLIC KEY-----";
 
 // from kernel
 static const char base64_table[65] =
@@ -82,7 +89,7 @@ readfile(const char *fname, int *sz)
 	fp = fopen(fname, "r");
 
 	if (NULL == fp) {
-		log_error("file can't be opened \n");
+		printf("file can't be opened %s\n", fname);
 		return NULL;
 	}
 
@@ -95,14 +102,14 @@ readfile(const char *fname, int *sz)
 	char *str = malloc(sizeof(char) * cap + 1);
 	memset(str, 0, cap + 1);
 	if (str == NULL) {
-		log_error("No more memory");
+		printf("No more memory\n");
 		fclose(fp);
 		return NULL;
 	}
 
 	pos = fread(str, 1, cap, fp);
 	if (pos != cap) {
-		log_error("Failed to read file");
+		printf("Failed to read file\n");
 		free(str);
 		fclose(fp);
 		return NULL;
@@ -124,7 +131,7 @@ split_lic_str(const char *data, char **lic_args, char **lic_sign)
 	if (split_idx <= 0 || split_idx >= strlen(data))
 		return NNG_EINVAL;
 	*lic_args = strndup(data + 0, split_idx);
-	*lic_sign = strdup(data + split_idx + 1);
+	*lic_sign = strndup(data + split_idx + 1, strlen(data + split_idx + 1) - 1);
 	return 0;
 }
 
@@ -138,7 +145,7 @@ parse_lic_str(const char *data, const char *pubk, lic_std *lic)
 	char * lic_args_b64 = NULL;
 	char * lic_sign_b64 = NULL;
 	if (0 != (rv = split_lic_str(data, &lic_args_b64, &lic_sign_b64))) {
-		log_warn("invalid lic format");
+		printf("invalid lic format\n");
 		BIO_free(bio);
 		return rv;
 	}
@@ -168,7 +175,7 @@ parse_lic_str(const char *data, const char *pubk, lic_std *lic)
 		lic->args_sz = lic_args_sz;
 		lic->sign    = strdup(lic_sign);
 		lic->sign_sz = lic_sign_sz;
-		log_info("args: [%s] sign: [%.*s]", lic_args, lic_sign_sz, lic_sign);
+		printf("args: [%s] sign: [%.*s]\n", lic_args, lic_sign_sz, lic_sign);
 		rv = lic_verify_sign(lic, pkey);
 	}
 
@@ -191,7 +198,7 @@ parse_lic_file(const char *fname, const char *pubk, lic_std *lic)
 	int   fsz;
 
 	if ((fbuf = readfile(fname, &fsz)) == NULL) {
-		log_warn("failed to readfile %s", fname);
+		printf("failed to readfile %s\n", fname);
 		return NNG_EINVAL;
 	}
 
@@ -206,10 +213,11 @@ lic_std_init(const char *path)
 {
 	int         rv = 0;
 	const char *pubk = root_pubk;
+	g_lic_path = path;
 	g_lic = nng_alloc(sizeof(struct lic_std));
 	rv = parse_lic_file(path, pubk, g_lic);
 	if (rv != 0)
-		log_error("failed to parse license %s, rv%d", path, rv);
+		printf("failed to parse license %s, rv%d\n", path, rv);
 	else
 		rv = lic_std_update(0);
 
