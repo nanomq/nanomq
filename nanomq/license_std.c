@@ -139,7 +139,7 @@ static int
 parse_lic_str(const char *data, const char *pubk, lic_std *lic)
 {
 	int  rv  = 0;
-	BIO* bio = BIO_new_mem_buf(pubk, (int)sizeof(pubk));
+	BIO* bio = BIO_new_mem_buf(pubk, strlen(pubk));
 	EVP_PKEY* pkey = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL);
 
 	char * lic_args_b64 = NULL;
@@ -152,6 +152,8 @@ parse_lic_str(const char *data, const char *pubk, lic_std *lic)
 
 	char * lic_args = nng_alloc(sizeof(char) * strlen(lic_args_b64));
 	char * lic_sign = nng_alloc(sizeof(char) * strlen(lic_sign_b64));
+	memset(lic_args, 0, strlen(lic_args_b64));
+	memset(lic_sign, 0, strlen(lic_sign_b64));
 	int lic_args_sz;
 	int lic_sign_sz;
 	if (!lic_args || !lic_sign) {
