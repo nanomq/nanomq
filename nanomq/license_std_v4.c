@@ -335,7 +335,6 @@ int
 lic_std_init(const char *path)
 {
 	int         rv = 0;
-	int         fsz;
 	const char *pubk = root_pubk;
 	g_lic = nng_alloc(sizeof(struct lic_std));
 	rv = parse_lic_file(path, pubk, g_lic);
