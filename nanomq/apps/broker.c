@@ -58,9 +58,7 @@
 #if defined(SUPP_LICENSE_DK)
 #include "include/license_dk.h"
 static int license_tick = 0;
-#endif
-
-#if defined(SUPP_LICENSE_STD)
+#elif defined(SUPP_LICENSE_STD)
 #include "include/license_std.h"
 #endif
 
@@ -1602,6 +1600,11 @@ broker(conf *nanomq_conf)
 				exit(0);
 			}
 		}
+#elif defined(SUPP_LICENSE_STD)
+		if (0 != (rv = lic_std_update(60))) { // 1 minutes
+			printf("license std error rv%d\n", rv);
+			exit(0);
+		}
 #endif
 	}
 #else
@@ -1615,6 +1618,11 @@ broker(conf *nanomq_conf)
 					printf("license dk error rv%d\n", rv);
 					exit(0);
 				}
+			}
+#elif defined(SUPP_LICENSE_STD)
+			if (0 != (rv = lic_std_update(600))) { // 10 minutes
+				printf("license std error rv%d\n", rv);
+				exit(0);
 			}
 #endif
 		}
