@@ -136,6 +136,39 @@ split_lic_str(const char *data, char **lic_args, char **lic_sign)
 }
 
 static int
+lic_verify_sign(struct lic_std *lic, EVP_PKEY *pkey)
+{
+	int         rv      = 0;
+	EVP_MD_CTX *context = NULL;
+
+	if ((context = EVP_MD_CTX_new()) == NULL) {
+		rv = NNG_ENOMEM;
+		goto end;
+	}
+	if (!EVP_DigestVerifyInit(context, NULL, EVP_sha256(), NULL, pkey)) {
+		printf("EVP_DigestVerifyInit failed.\n");
+		rv = NNG_ECRYPTO;
+		goto end;
+	}
+	if (!EVP_DigestVerifyUpdate(context, lic->args, lic->args_sz)) {
+		printf("EVP_DigestVerifyUpdate failed.\n");
+		rv = NNG_ECRYPTO;
+		goto end;
+	}
+	if (EVP_DigestVerifyFinal(context, lic->sign, lic->sign_sz) <=
+	    0) {
+		printf("EVP_DigestVerifyFinal failed.\n");
+		rv = NNG_ECRYPTO;
+		goto end;
+	}
+
+end:
+	if (context)
+		EVP_MD_CTX_free(context);
+	return rv;
+}
+
+static int
 parse_lic_str(const char *data, const char *pubk, lic_std *lic)
 {
 	int  rv  = 0;
