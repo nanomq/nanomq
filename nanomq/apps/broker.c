@@ -1601,7 +1601,7 @@ broker(conf *nanomq_conf)
 			}
 		}
 #elif defined(SUPP_LICENSE_STD)
-		if (0 != (rv = lic_std_update(60))) { // 1 minutes
+		if (0 != (rv = lic_std_update(6))) {
 			printf("license std error rv%d\n", rv);
 			exit(0);
 		}
@@ -1620,7 +1620,7 @@ broker(conf *nanomq_conf)
 				}
 			}
 #elif defined(SUPP_LICENSE_STD)
-			if (0 != (rv = lic_std_update(600))) { // 10 minutes
+			if (0 != (rv = lic_std_update(60))) {
 				printf("license std error rv%d\n", rv);
 				exit(0);
 			}

@@ -17,8 +17,6 @@
 #include <openssl/x509.h>
 #include <openssl/x509_vfy.h>
 
-static const char *g_lic_path;
-
 struct lic_std {
 	int  vd;     // valid days // unavailable in STD mode
 	int  lc;     // limit connections
@@ -37,7 +35,9 @@ struct lic_std {
 	char *sign;
 };
 
-static lic_std *g_lic = NULL;
+static const char *g_lic_path = NULL;
+static lic_std    *g_lic      = NULL;
+static uint64_t    g_uptime   = 0;
 
 static char root_pubk[] =
 "-----BEGIN PUBLIC KEY-----\n\
@@ -204,8 +204,8 @@ split_lic_args(const char *lic_args, int lic_args_sz, struct lic_std *lic)
 	strcpy(lic->st_str, args[6]);
 	// TODO convert st_str to st
 	lic->st = date2ts(atoi(lic->st_str));
-	int vdays = atoi(args[7]);
-	lic->et = lic->st + vdays*24*60*60;
+	lic->vd = atoi(args[7]);
+	lic->et = lic->st + lic->vd*24*60*60;
 	lic->lc = atoi(args[8]);
 	printf("ltype:%s name:%s email:%s dc:%s st:%lld et:%lld lc:%d\n",
 			lic->ltype, lic->name, lic->email, lic->dc, lic->st, lic->et, lic->lc);
@@ -350,6 +350,16 @@ lic_std_init(const char *path)
 int
 lic_std_update(uint32_t addon)
 {
-	(void) addon;
+	g_uptime += addon;
+	uint64_t now = nng_timestamp();
+	log_debug("LICENSE INFO [%ld/%ld]", now/1000 - g_lic->st, g_lic->vd*24*60*60);
+	if (now > g_lic->et * 1000) {
+		log_error("LICENSE EXPIRED! %ld//%ld", now/1000, g_lic->et);
+		return NNG_ETIMEDOUT;
+	}
+	if (g_uptime > g_lic->vd*24*60*60) {
+		log_error("LICENSE EXPIRED! %ld/%ld", g_uptime, g_lic->vd*24*60*60);
+		return NNG_ETIMEDOUT;
+	}
 	return 0;
 }
