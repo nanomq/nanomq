@@ -1594,7 +1594,7 @@ broker(conf *nanomq_conf)
 		nng_msleep(6000);
 #if defined(SUPP_LICENSE_DK)
 		license_tick += 6;
-		if ((license_tick %= 60) == 0) {
+		if ((license_tick %= 60) == 0) { // for less flush
 			if (0 != (rv = lic_dk_update(1))) { // 1 minutes
 				printf("license dk error rv%d\n", rv);
 				exit(0);
@@ -1613,7 +1613,7 @@ broker(conf *nanomq_conf)
 			nng_msleep(60000); // neither pause() nor sleep() portable
 #if defined(SUPP_LICENSE_DK)
 			license_tick += 60;
-			if ((license_tick %= 600) == 0) {
+			if ((license_tick %= 600) == 0) { // for less flush
 				if (0 != (rv = lic_dk_update(10))) { // 10 minutes
 					printf("license dk error rv%d\n", rv);
 					exit(0);

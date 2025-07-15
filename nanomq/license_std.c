@@ -39,10 +39,16 @@ static const char *g_lic_path = NULL;
 static lic_std    *g_lic      = NULL;
 static uint64_t    g_uptime   = 0;
 
-static char root_pubk[] =
+static char root_pubk_debug[] =
 "-----BEGIN PUBLIC KEY-----\n\
 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEE3bWmTSFCUSb6fIHVJK2Wj51Y3Us\n\
 rDDMt2tZMToi1Xf3zQJ583b5tKRNHMTdD16Wc/xrEEZf9MLmHZptOwrx0A==\n\
+-----END PUBLIC KEY-----";
+
+static char root_pubk[] =
+"-----BEGIN PUBLIC KEY-----\n\
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbtkdos3TZmSv+D7+X5pc0yfcjum2\n\
+Q1DK6PCWkiQihjvjJjKFzdYzcWOgC6f4Ou3mgGAUSjdQYYnFKZ/9f5ax4g==\n\
 -----END PUBLIC KEY-----";
 
 // from kernel
@@ -194,6 +200,8 @@ split_lic_args(const char *lic_args, int lic_args_sz, struct lic_std *lic)
 		strcpy(lic->ltype, "trial");break;
 	case '1':
 		strcpy(lic->ltype, "official");break;
+	case '2':
+		strcpy(lic->ltype, "comunity");break;
 	default:
 		return NNG_EINVAL;
 	}
@@ -202,7 +210,6 @@ split_lic_args(const char *lic_args, int lic_args_sz, struct lic_std *lic)
 	strcpy(lic->email, args[4]);
 	strcpy(lic->dc, args[5]);
 	strcpy(lic->st_str, args[6]);
-	// TODO convert st_str to st
 	lic->st = date2ts(atoi(lic->st_str));
 	lic->vd = atoi(args[7]);
 	lic->et = lic->st + lic->vd*24*60*60;
@@ -352,7 +359,8 @@ lic_std_update(uint32_t addon)
 {
 	g_uptime += addon;
 	uint64_t now = nng_timestamp();
-	log_debug("LICENSE INFO [%ld/%ld]", now/1000 - g_lic->st, g_lic->vd*24*60*60);
+	log_debug("LICENSE INFO [%ld/%ld][%ld//%ld]",
+			now/1000, g_lic->et, g_uptime, g_lic->vd*24*60*60);
 	if (now > g_lic->et * 1000) {
 		log_error("LICENSE EXPIRED! %ld//%ld", now/1000, g_lic->et);
 		return NNG_ETIMEDOUT;
