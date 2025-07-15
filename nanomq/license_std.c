@@ -136,6 +136,65 @@ split_lic_str(const char *data, char **lic_args, char **lic_sign)
 }
 
 static int
+split_lic_args(const char *lic_args, int lic_args_sz, struct lic_std *lic)
+{
+	char *start = (char *)lic_args;
+	int   cnt = 0;
+	int   args_idx = 0;
+	char *args[9];
+	int   max_args = 9;
+	for (int i=0; i<max_args; ++i) args[i] = NULL;
+	for (int i=0; i<lic_args_sz; ++i) {
+		if (lic_args[i] == '\n') {
+			if (args_idx < max_args)
+				args[args_idx++] = strndup(start, cnt);
+			else
+				return -1;
+			start += (cnt + 1);
+			cnt = 0;
+		} else {
+			cnt ++;
+		}
+	}
+	if (args_idx != max_args) {
+		printf("wrong argu number%d\n", args_idx);
+		return -1;
+	}
+	if (0 != strcmp(args[0], "220111")) {
+		printf("wrong vercode %s\n", args[0]);
+		return -2;
+	}
+	if (1 != strlen(args[1])) {
+		printf("wrong ltype %s\n", args[1]);
+		return -2;
+	}
+	switch (args[1][0]) {
+	case '0':
+		strcpy(lic->ltype, "trial");break;
+	case '1':
+		strcpy(lic->ltype, "official");break;
+	default:
+		return NNG_EINVAL;
+	}
+	// ignore ctype
+	strcpy(lic->name, args[3]);
+	strcpy(lic->email, args[4]);
+	strcpy(lic->dc, args[5]);
+	strcpy(lic->st_str, args[6]);
+	// TODO convert st_str to st
+	lic->st = 0;
+	int vdays = atoi(args[7]);
+	lic->et = lic->st + vdays*24*60*60;
+	lic->lc = atoi(args[8]);
+	printf("ltype:%s name:%s email:%s dc:%s st:%lld et:%lld lc:%d\n",
+			lic->ltype, lic->name, lic->email, lic->dc, lic->st, lic->et, lic->lc);
+	for (int i=0; i<max_args; ++i)
+		if (args[i] != NULL)
+			free(args[i];
+	return 0;
+}
+
+static int
 lic_verify_sign(struct lic_std *lic, EVP_PKEY *pkey)
 {
 	int         rv      = 0;
@@ -255,10 +314,14 @@ lic_std_init(const char *path)
 	g_lic_path = path;
 	g_lic = nng_alloc(sizeof(struct lic_std));
 	rv = parse_lic_file(path, pubk, g_lic);
-	if (rv != 0)
+	if (rv != 0) {
 		printf("failed to parse license %s, rv%d\n", path, rv);
-	else
+	} else {
+		if (0 != split_lic_args(g_lic->args, g_lic->args_sz, g_lic)) {
+			printf("failed to parse license in\n", path);
+		}
 		rv = lic_std_update(0);
+	}
 
 	return rv;
 }
