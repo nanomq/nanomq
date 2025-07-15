@@ -121,6 +121,27 @@ readfile(const char *fname, int *sz)
 	return str;
 }
 
+static uint64_t
+date2ts(int yyyymmdd)
+{
+	int year  = yyyymmdd / 10000;
+	int month = (yyyymmdd / 100) % 100;
+	int day   = yyyymmdd % 100;
+
+	struct tm t = { 0 };
+	t.tm_year   = year - 1900; // tm_year is years since 1900
+	t.tm_mon    = month - 1;   // tm_mon is months since January [0–11]
+	t.tm_mday   = day;
+	t.tm_hour   = 0;
+	t.tm_min    = 0;
+	t.tm_sec    = 0;
+
+	// Convert to timestamp (seconds since Unix epoch)
+	time_t timestamp = mktime(&t);
+
+	return (uint64_t) timestamp;
+}
+
 static int
 split_lic_str(const char *data, char **lic_args, char **lic_sign)
 {
@@ -182,7 +203,7 @@ split_lic_args(const char *lic_args, int lic_args_sz, struct lic_std *lic)
 	strcpy(lic->dc, args[5]);
 	strcpy(lic->st_str, args[6]);
 	// TODO convert st_str to st
-	lic->st = 0;
+	lic->st = date2ts(atoi(lic->st_str));
 	int vdays = atoi(args[7]);
 	lic->et = lic->st + vdays*24*60*60;
 	lic->lc = atoi(args[8]);
@@ -190,7 +211,7 @@ split_lic_args(const char *lic_args, int lic_args_sz, struct lic_std *lic)
 			lic->ltype, lic->name, lic->email, lic->dc, lic->st, lic->et, lic->lc);
 	for (int i=0; i<max_args; ++i)
 		if (args[i] != NULL)
-			free(args[i];
+			free(args[i]);
 	return 0;
 }
 
