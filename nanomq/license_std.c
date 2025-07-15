@@ -198,7 +198,6 @@ parse_lic_str(const char *data, const char *pubk, lic_std *lic)
 		return NNG_ENOMEM;
 	}
 
-	printf("b64: args: [%s] sign: [%s]\n", lic_args_b64, lic_sign_b64);
 	if ((lic_args_sz = base64_decode(lic_args_b64, strlen(lic_args_b64), lic_args)) <= 0) {
 		printf("invalid lic args content\n");
 		rv = NNG_EINVAL;
@@ -221,9 +220,9 @@ parse_lic_str(const char *data, const char *pubk, lic_std *lic)
 		nng_free(lic_args_b64, 0);
 	if (lic_sign_b64)
 		nng_free(lic_sign_b64, 0);
-	if (!rv && lic_args)
+	if (rv && lic_args)
 		nng_free(lic_args, 0);
-	if (!rv && lic_sign)
+	if (rv && lic_sign)
 		nng_free(lic_sign, 0);
 	BIO_free(bio);
 	EVP_PKEY_free(pkey);
@@ -268,4 +267,5 @@ int
 lic_std_update(uint32_t addon)
 {
 	(void) addon;
+	return 0;
 }
