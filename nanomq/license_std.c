@@ -214,7 +214,7 @@ split_lic_args(const char *lic_args, int lic_args_sz, struct lic_std *lic)
 	lic->vd = atoi(args[7]);
 	lic->et = lic->st + lic->vd*24*60*60;
 	lic->lc = atoi(args[8]);
-	printf("ltype:%s name:%s email:%s dc:%s st:%lld et:%lld lc:%d\n",
+	printf("license type:%s name:%s email:%s dc:%s valid:%lld-%lld lc:%d\n",
 			lic->ltype, lic->name, lic->email, lic->dc, lic->st, lic->et, lic->lc);
 	for (int i=0; i<max_args; ++i)
 		if (args[i] != NULL)
@@ -299,7 +299,7 @@ parse_lic_str(const char *data, const char *pubk, lic_std *lic)
 		lic->args_sz = lic_args_sz;
 		lic->sign    = lic_sign;
 		lic->sign_sz = lic_sign_sz;
-		printf("args: [%s] sign: [%.*s]\n", lic_args, lic_sign_sz, lic_sign);
+		// printf("args: [%s] sign: [%.*s]\n", lic_args, lic_sign_sz, lic_sign);
 		rv = lic_verify_sign(lic, pkey);
 	}
 
