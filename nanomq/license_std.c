@@ -347,8 +347,10 @@ lic_std_init(const char *path)
 	} else {
 		if (0 != split_lic_args(g_lic->args, g_lic->args_sz, g_lic)) {
 			printf("failed to parse license in\n", path);
+			rv = NNG_EINVAL;
+		} else {
+			rv = lic_std_update(0);
 		}
-		rv = lic_std_update(0);
 	}
 
 	return rv;
