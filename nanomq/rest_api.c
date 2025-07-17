@@ -692,6 +692,7 @@ destory_http_msg(http_msg *msg)
 	if (msg->uri_len > 0) {
 		nng_strfree(msg->uri);
 		msg->uri_len = 0;
+		msg->uri = NULL;
 	}
 }
 
@@ -886,7 +887,8 @@ process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 	default:
 		break;
 	}
-
+	if (msg->uri == NULL)	//Probably due to HTTP resend
+		goto exit;
 	uri_ct = uri_parse(msg->uri);
 
 	if (nng_strcasecmp(msg->method, "GET") == 0) {
@@ -949,7 +951,6 @@ process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 		    strcmp(uri_ct->sub_tree[1]->node, "subscriptions") == 0) {
 			ret = get_subscriptions(msg, uri_ct->params,
 			    uri_ct->params_count, uri_ct->sub_tree[2]->node);
-
 		} else if (uri_ct->sub_count == 2 &&
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "rules") == 0) {
@@ -960,7 +961,6 @@ process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 		    strcmp(uri_ct->sub_tree[1]->node, "rules") == 0) {
 			ret = get_rules(msg, uri_ct->params,
 			    uri_ct->params_count, uri_ct->sub_tree[2]->node);
-
 		} else if (uri_ct->sub_count == 2 &&
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "topic-tree") == 0) {
@@ -985,6 +985,21 @@ process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 		    uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "bridges") == 0) {
 			ret = get_mqtt_bridge(msg, uri_ct->sub_tree[2]->node);
+		} else if (uri_ct->sub_count == 2 &&
+		    uri_ct->sub_tree[1]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "get_file") == 0) {
+			size_t count = 0;
+			while (count < uri_ct->params_count) {
+				if (strcmp(uri_ct->params[count]->key, "path") == 0) {
+					size_t path_len = strlen(uri_ct->params[count]->value);
+					char *path = URLDecoding(uri_ct->params[count]->value, path_len);
+					log_debug("decoded path: %s", path);
+					ret = get_file_content(msg, path);
+					nng_free(path, path_len);
+					break;
+				}
+				count ++;
+			}
 		} else if (uri_ct->sub_count == 3 &&
 		    uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "get_file") == 0) {
