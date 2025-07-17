@@ -33,6 +33,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <math.h>
 
 #ifdef SUPP_JWT
 #include "l8w8jwt/decode.h"
@@ -390,7 +391,7 @@ static http_msg post_mqtt_msg_batch(
     http_msg *msg, nng_socket *sock, handle_mqtt_msg_cb cb);
 
 static http_msg write_file(http_msg *msg);
-static http_msg get_file_content(http_msg *msg);
+static http_msg get_file_content(http_msg *msg, char *path);
 static http_msg get_mqtt_bridge(http_msg *msg, const char *name);
 static http_msg put_mqtt_bridge(http_msg *msg, const char *name);
 static http_msg put_mqtt_bridge_switch(http_msg *msg, const char *name);
@@ -797,6 +798,51 @@ basic_authorize(http_msg *msg)
 	return result;
 }
 
+static
+int HexadecimalToDecimal(char* hex, int len)
+{
+	int hexLength = len;
+	double dec = 0;
+
+	for (int i = 0; i < hexLength; ++i)
+	{
+		char b = hex[i];
+
+		if (b >= 48 && b <= 57)
+			b -= 48;
+		else if (b >= 65 && b <= 70)
+			b -= 55;
+
+		dec += b * pow(16, ((hexLength - i) - 1));
+	}
+
+	return (int)dec;
+}
+
+static
+char* URLDecoding(char* data, unsigned int count) {
+	char* result = nng_zalloc(count);
+	int j = 0;
+
+	for (int i = 0; i < count; ++i, ++j)
+	{
+		if (data[i] == '%')
+		{
+			char h[] = { data[i + 1], data[i + 2] };
+			result[j] = (char)HexadecimalToDecimal(h, 2);
+			i += 2;
+		}
+		else
+		{
+			result[j] = data[i];
+		}
+	}
+
+	result[j] = '\0';
+
+	return result;
+}
+
 http_msg
 process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 {
@@ -908,10 +954,14 @@ process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 		    uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "bridges") == 0) {
 			ret = get_mqtt_bridge(msg, uri_ct->sub_tree[2]->node);
-		} else if (uri_ct->sub_count == 2 &&
-		    uri_ct->sub_tree[1]->end &&
+		} else if (uri_ct->sub_count == 3 &&
+		    uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "get_file") == 0) {
-			ret = get_file_content(msg);
+			size_t path_len = strlen(uri_ct->sub_tree[2]->node);
+			char *path = URLDecoding(uri_ct->sub_tree[2]->node, path_len);
+			log_debug("decoded path: %s", path);
+			ret = get_file_content(msg, path);
+			nng_free(path, path_len);
 		} else {
 			status = NNG_HTTP_STATUS_NOT_FOUND;
 			code   = UNKNOWN_MISTAKE;
@@ -3785,23 +3835,24 @@ out:
 
 // Used for get config file
 static http_msg
-get_file_content(http_msg *msg)
+get_file_content(http_msg *msg, char *path)
 {
 	int  		 rv;
-	char *path = NULL, *data;
+	char *file_path = path, *data;
 	http_msg res = { .status = NNG_HTTP_STATUS_OK };
-	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
-
-	if (!cJSON_IsObject(req)) {
-		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
-		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
-	}
-
-	cJSON *conf_data = cJSON_GetObjectItem(req, "data");
-	cJSON *item;
-	getStringValue(conf_data, item, "path", path, rv);
 
 	if (path == NULL) {
+		cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
+		if (!cJSON_IsObject(req)) {
+			return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
+			    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
+		}
+		cJSON *conf_data = cJSON_GetObjectItem(req, "data");
+		cJSON *item;
+		getStringValue(conf_data, item, "path", file_path, rv);
+		cJSON_Delete(req);
+	}
+	if (file_path == NULL) {
 		conf * config = get_global_conf();
 		path = config->conf_file;
 	}
@@ -3824,6 +3875,7 @@ get_file_content(http_msg *msg)
 	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
 	cJSON_free(dest);
 	cJSON_Delete(res_obj);
+	nng_free(data, strlen(data));
 	return res;
 }
 
