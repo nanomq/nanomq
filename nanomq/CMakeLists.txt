@@ -137,8 +137,10 @@ if (CMAKE_INSTALL_RPATH)
   message("Dynamic link rpath: ${CMAKE_INSTALL_RPATH}")
 endif()
 
-if (NNG_ENABLE_HTTP)
-  target_link_libraries(nanomq nng m)
+if (NOT WIN32)
+  if (NNG_ENABLE_HTTP)
+    target_link_libraries(nanomq nng m)
+  endif()
 endif()
 
 if(BUILD_STATIC)
