@@ -161,6 +161,13 @@ if (CMAKE_INSTALL_RPATH)
   message("Dynamic link rpath: ${CMAKE_INSTALL_RPATH}")
 endif()
 
+<<<<<<< HEAD
+=======
+if (NNG_ENABLE_HTTP)
+  target_link_libraries(nanomq nng m)
+endif()
+
+>>>>>>> 352593aa (* FIX [CMakeList] new URL decoding func need explicit linking of libmath)
 if(BUILD_STATIC)
   target_link_libraries(nanomq nng -static)
 else()
