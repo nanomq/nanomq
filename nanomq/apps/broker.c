@@ -616,8 +616,7 @@ server_cb(void *arg)
 			}
 			// bridge's will msg only valid at remote
 			if (work->proto != PROTO_MQTT_BRIDGE) {
-				if (conn_param_get_will_flag(work->cparam) ==
-				        0 ||
+				if (conn_param_get_will_flag(work->cparam) == 0 ||
 				    !conn_param_get_will_topic(work->cparam) ||
 				    !conn_param_get_will_msg(work->cparam)) {
 					// no will msg - free the cp
