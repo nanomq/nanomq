@@ -46,6 +46,8 @@ option (NOLOG "Disable log" OFF)
 option (ENABLE_ACL "Enable ACL" ON)
 option (NANOMQ_TESTS "Enable nanomq unit tests" OFF)
 option (BUILD_STATIC "build with static libs" OFF)
+option (ENABLE_LICENSE_DK "NanoMQ with license DK" OFF)
+option (ENABLE_LICENSE_STD "NanoMQ with license STD" OFF)
 
 set (NNG_PROTO_MQTT_BROKER  ON)
 set (NNG_TRANSPORT_MQTT_BROKER_TCP ON)
@@ -197,6 +199,14 @@ endif(BUILD_NANO_LIB)
 
 if(BUILD_STATIC_LIB OR BUILD_SHARED_LIBS)
   add_definitions(-DSUPP_NANO_LIB)
+endif()
+
+if(ENABLE_LICENSE_DK)
+  add_definitions(-DSUPP_LICENSE_DK)
+endif()
+
+if(ENABLE_LICENSE_STD)
+  add_definitions(-DSUPP_LICENSE_STD)
 endif()
 
 if(BUILD_CLIENT)
