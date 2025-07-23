@@ -1918,6 +1918,8 @@ broker_start(int argc, char **argv)
 	conf_init(nanomq_conf);
 	// Get execute path.
 #if defined(NANO_PLATFORM_LINUX)
+	printf("argv0 %s\n", argv[0]);
+	memset(nanomq_conf->exec_path, 0, 512);
     if (realpath(argv[0], nanomq_conf->exec_path) == NULL) {
 		fprintf(stderr, "Cannot get exec path!\n");
 	}
