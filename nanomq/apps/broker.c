@@ -1924,6 +1924,10 @@ broker_start(int argc, char **argv)
 		fprintf(stderr, "Cannot get exec path!\n");
 	}
 	printf("path :%s\n", nanomq_conf->exec_path);
+	char path2[512];
+	memset(path2, 0, 512);
+    ssize_t len = readlink("/proc/self/exe", path2, sizeof(path2) - 1);
+	printf("path2 :%s\n", path2);
 #elif defined(NANO_PLATFORM_WINDOWS)
 #endif
 	rc = file_path_parse(argc, argv, &nanomq_conf->conf_file);
