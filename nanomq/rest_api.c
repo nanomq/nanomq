@@ -3854,6 +3854,7 @@ get_file_content(http_msg *msg, char *path)
 {
 	int  		 rv;
 	char *file_path = path, *data;
+
 	http_msg res = { .status = NNG_HTTP_STATUS_OK };
 
 	if (path == NULL) {

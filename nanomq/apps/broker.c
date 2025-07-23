@@ -1916,10 +1916,25 @@ broker_start(int argc, char **argv)
 
 	// Priority: config < environment variables < command opts
 	conf_init(nanomq_conf);
-
+	// Get execute path.
+#if defined(NANO_PLATFORM_LINUX)
+    if (realpath(argv[0], nanomq_conf->exec_path) == NULL) {
+		fprintf(stderr, "Cannot get exec path!\n");
+	}
+	printf("path :%s\n", nanomq_conf->exec_path);
+#elif defined(NANO_PLATFORM_WINDOWS)
+#endif
 	rc = file_path_parse(argc, argv, &nanomq_conf->conf_file);
 	if (nanomq_conf->conf_file == NULL) {
-		nanomq_conf->conf_file = strdup(CONF_PATH_NAME);
+		char dir[1024], default_path[1024];
+		memset(dir, 0, 1024);
+		memset(default_path, 0, 1024);
+		nano_getcwd(dir, sizeof(dir));
+		printf("dir is %s\n", dir);
+		// nanomq_conf->conf_file = strdup(CONF_PATH_NAME);
+		memcpy(default_path, nanomq_conf->exec_path, strlen(nanomq_conf->exec_path));
+		strncat(default_path, CONF_PATH_NAME, 12);
+		nanomq_conf->conf_file = strdup(default_path);
 		printf("Config file is not specified, use default config file: %s\n", nanomq_conf->conf_file);
 	}
 
