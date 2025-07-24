@@ -1,0 +1,98 @@
+name: Build EE package
+
+concurrency:
+  group: build-ee-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - lianyou-master
+      - uisee-master
+    tags:
+      - '*'
+  pull_request:
+    branches:
+      - master
+      - sdv_master
+  release:
+    types:
+      - published
+
+jobs:
+  build_and_upload:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      repository-projects: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        architecture: [amd64, arm64]
+        platform: [linux]
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history including tags
+
+      - name: Initialize Submodules
+        run: git submodule update --init nng
+
+      - name: Build linux
+        if: matrix.platform == 'linux'
+        run: |
+          docker build -t nanomq_with_parquet_${{ matrix.architecture }} -f deploy/lianyou-deploy/Dockerfile${{ matrix.architecture == 'arm64' && '-arm64' || '' }} .
+      
+      - name: Package Artifacts (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          pkgversion="$(git describe --abbrev=1 --tags)"
+          git log --format=%H -1 > readme.txt
+          cd nng && git log --format=%H -1 >> ../readme.txt && cd -
+
+          mkdir -p packages/nanomq/{parquet,etc,log} packages/nanomq-debug/{parquet,etc,log}
+          id=$(docker create nanomq_with_parquet_${{ matrix.architecture }})
+          docker cp $id:/opt/NanoMQ_mirror/build/nanomq/nanomq ./packages/nanomq/
+          docker cp $id:/opt/NanoMQ_mirror/build-debug/nanomq/nanomq ./packages/nanomq-debug/
+          docker cp $id:/opt/NanoMQ_mirror/build/nanomq_cli/nanomq_cli ./packages/nanomq/
+          docker cp $id:/opt/NanoMQ_mirror/build-debug/nanomq_cli/nanomq_cli ./packages/nanomq-debug/
+          cp readme.txt ./packages/nanomq/
+          cp readme.txt ./packages/nanomq-debug/
+          cp etc/nanomq.conf ./packages/nanomq/etc
+          cp etc/nanomq.conf ./packages/nanomq-debug/etc
+
+          cd ./packages
+          tar -zcvf ./nanomq-${pkgversion}-linux-${{ matrix.architecture }}-ee.tar.gz ./nanomq
+          tar -zcvf ./nanomq-${pkgversion}-linux-${{ matrix.architecture }}-debug-ee.tar.gz ./nanomq-debug
+
+          rm -rf ./nanomq ./nanomq-debug
+          docker rm -v $id
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: NanoMQ-${{ matrix.platform }}-${{ matrix.architecture }}
+          path: packages/*.tar.gz
+          retention-days: 7
+
+      - name: Upload Artifacts Debug Mini
+        uses: actions/upload-artifact@v4
+        with:
+          name: NanoMQ-${{ matrix.platform }}-${{ matrix.architecture }}-Debug-Mini
+          path: packages/*.tar.gz.x
+          retention-days: 1
+
+      - name: Upload Artifacts to Release
+        uses: softprops/action-gh-release@v2.2.2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          name: "NanoMQ Release ${{ github.ref_name }}"
+          tag_name: ${{ github.ref_name }}
+          files: packages/*.tar.gz
+          draft: false
+          prerelease: false
+          overwrite: true
