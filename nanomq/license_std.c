@@ -38,6 +38,7 @@ struct lic_std {
 static const char *g_lic_path = NULL;
 static lic_std    *g_lic      = NULL;
 static uint64_t    g_uptime   = 0;
+static nng_mtx    *g_lic_mtx  = NULL;
 
 static char root_pubk_debug[] =
 "-----BEGIN PUBLIC KEY-----\n\
@@ -353,6 +354,10 @@ lic_std_init(const char *path)
 	const char *pubk = root_pubk;
 	g_lic_path = path;
 	g_lic = nng_alloc(sizeof(struct lic_std));
+	if (0 != (rv = nng_mtx_alloc(&g_lic_mtx))) {
+		printf("failed to alloc mtx for license rv%d\n", rv);
+		return rv;
+	}
 	rv = parse_lic_file(path, pubk, g_lic);
 	if (rv != 0) {
 		printf("failed to parse license %s, rv%d\n", path, rv);
@@ -373,16 +378,22 @@ lic_std_update(uint32_t addon)
 {
 	g_uptime += addon;
 	uint64_t now = nng_timestamp();
+
+	nng_mtx_lock(g_lic_mtx);
+
 	log_debug("LICENSE INFO [%ld/%ld][%ld//%ld]",
 			now/1000, g_lic->et, g_uptime, g_lic->vd*24*60*60);
 	if (now > g_lic->et * 1000) {
 		log_error("LICENSE EXPIRED! %ld//%ld", now/1000, g_lic->et);
+		nng_mtx_unlock(g_lic_mtx);
 		return NNG_ETIMEDOUT;
 	}
 	if (g_uptime > g_lic->vd*24*60*60) {
 		log_error("LICENSE EXPIRED! %ld/%ld", g_uptime, g_lic->vd*24*60*60);
+		nng_mtx_unlock(g_lic_mtx);
 		return NNG_ETIMEDOUT;
 	}
+	nng_mtx_unlock(g_lic_mtx);
 	return 0;
 }
 
@@ -391,20 +402,27 @@ lic_std_renew(const char *path)
 {
 	int         rv = 0;
 	const char *pubk = root_pubk;
-	g_lic_path = path;
 	struct lic_std *lic = nng_alloc(sizeof(struct lic_std));
 	rv = parse_lic_file(path, pubk, lic);
 	if (rv != 0) {
 		printf("failed to parse new license %s, rv%d\n", path, rv);
+		lic_std_free(lic);
 	} else {
 		if (0 != split_lic_args(lic->args, lic->args_sz, lic)) {
-			printf("failed to parse new license in\n", path);
+			printf("failed to parse new license in %s\n", path);
+			lic_std_free(lic);
 			rv = NNG_EINVAL;
 		} else {
-			// TODO Lock
-			lic_std_free(g_lic);
-			g_lic = lic;
-			rv = lic_std_update(0);
+			if ((rv = lic_std_update(0)) == 0) {
+				// Update g lic when valid
+				nng_mtx_lock(g_lic_mtx);
+				lic_std_free(g_lic);
+				g_lic = lic;
+				g_lic_path = path;
+				nng_mtx_unlock(g_lic_mtx);
+			} else {
+				lic_std_free(lic);
+			}
 		}
 	}
 	return rv;
