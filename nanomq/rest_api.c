@@ -990,7 +990,12 @@ process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 		    strcmp(uri_ct->sub_tree[1]->node, "get_file") == 0) {
 			size_t count = 0;
 			while (count < uri_ct->params_count) {
-				if (strcmp(uri_ct->params[count]->key, "path") == 0) {
+				if (strcmp(uri_ct->params[count]->key, "default") == 0) {
+					if (strcmp(uri_ct->params[count]->value, "true") == 0) {
+						ret = get_file_content(msg, NULL);
+						break;
+					}
+				} else if (strncmp(uri_ct->params[count]->key, "path", 4) == 0) {
 					size_t path_len = strlen(uri_ct->params[count]->value);
 					char *path = URLDecoding(uri_ct->params[count]->value, path_len);
 					log_debug("decoded path: %s", path);
@@ -1000,14 +1005,6 @@ process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 				}
 				count ++;
 			}
-		} else if (uri_ct->sub_count == 3 &&
-		    uri_ct->sub_tree[2]->end &&
-		    strcmp(uri_ct->sub_tree[1]->node, "get_file") == 0) {
-			size_t path_len = strlen(uri_ct->sub_tree[2]->node);
-			char *path = URLDecoding(uri_ct->sub_tree[2]->node, path_len);
-			log_debug("decoded path: %s", path);
-			ret = get_file_content(msg, path);
-			nng_free(path, path_len);
 		} else {
 			status = NNG_HTTP_STATUS_NOT_FOUND;
 			code   = UNKNOWN_MISTAKE;
@@ -4150,21 +4147,11 @@ static http_msg
 get_file_content(http_msg *msg, char *path)
 {
 	int  		 rv;
-	char *file_path = path, *data;
+	char 		*data;
+
 	http_msg res = { .status = NNG_HTTP_STATUS_OK };
 
 	if (path == NULL) {
-		cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
-		if (!cJSON_IsObject(req)) {
-			return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
-			    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
-		}
-		cJSON *conf_data = cJSON_GetObjectItem(req, "data");
-		cJSON *item;
-		getStringValue(conf_data, item, "path", file_path, rv);
-		cJSON_Delete(req);
-	}
-	if (file_path == NULL) {
 		conf * config = get_global_conf();
 		path = config->conf_file;
 	}
