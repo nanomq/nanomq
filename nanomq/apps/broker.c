@@ -72,6 +72,10 @@
 // be set in the thousands, each context consumes a couple of KB.) Recommend to
 // set as the same as your CPU cores.
 
+#if defined(NANO_PLATFORM_LINUX)
+#include <unistd.h>
+#endif
+
 #if (defined DEBUG) && (defined ASAN)
 int keepRunning = 1;
 void
@@ -1916,10 +1920,23 @@ broker_start(int argc, char **argv)
 
 	// Priority: config < environment variables < command opts
 	conf_init(nanomq_conf);
-
+	// Get execute path.
+#if defined(NANO_PLATFORM_LINUX)
+    // if (realpath(argv[0], nanomq_conf->exec_path) == NULL) {
+	ssize_t path_len = readlink("/proc/self/exe", nanomq_conf->exec_path,
+	    sizeof(nanomq_conf->exec_path) - 1);
+	if (path_len <= 0) {
+		fprintf(stderr, "Cannot get exec path!\n");
+	}
+	printf("path :%s\n", nanomq_conf->exec_path);
+#elif defined(NANO_PLATFORM_WINDOWS)
+#endif
 	rc = file_path_parse(argc, argv, &nanomq_conf->conf_file);
 	if (nanomq_conf->conf_file == NULL) {
-		nanomq_conf->conf_file = strdup(CONF_PATH_NAME);
+		char conf_path[512] = {'\0'};
+		memcpy(conf_path, nanomq_conf->exec_path, strlen(nanomq_conf->exec_path) - 7);
+		strncat(conf_path, CONF_NAME, strlen(CONF_NAME));
+		nanomq_conf->conf_file = strdup(conf_path);
 		printf("Config file is not specified, use default config file: %s\n", nanomq_conf->conf_file);
 	}
 
