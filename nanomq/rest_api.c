@@ -30,6 +30,10 @@
 #include "include/version.h"
 #include "include/mqtt_api.h"
 
+#if defined(SUPP_LICENSE_STD)
+#include "include/license_std.h"
+#endif
+
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -362,6 +366,18 @@ static endpoints api_ep[] = {
 	    .method = "GET",
 	    .descr  = "Return can data span",
 	},
+	{
+	    .path   = "/license/update",
+	    .name   = "update_license",
+	    .method = "POST",
+	    .descr  = "Update license",
+	},
+	{
+	    .path   = "/license/info",
+	    .name   = "get_license_info",
+	    .method = "GET",
+	    .descr  = "Return license information",
+	},
 
 };
 
@@ -388,6 +404,7 @@ static http_msg get_metrics(http_msg *msg, kv **params, size_t param_num,
     const char *client_id, const char *username, nng_socket *broker_sock);
 static http_msg get_retains(http_msg *msg, kv **params, size_t param_num,
     const char *client_id, const char *username, nng_socket *broker_sock);
+static http_msg get_license_info(http_msg *msg);
 static http_msg get_subscriptions(
     http_msg *msg, kv **params, size_t param_num, const char *client_id);
 static http_msg  get_rules(
@@ -922,6 +939,11 @@ process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 		    strcmp(uri_ct->sub_tree[1]->node, "retains") == 0) {
 			ret = get_retains(msg, uri_ct->params,
 			    uri_ct->params_count, NULL, NULL, hconfig->broker_sock);
+		} else if (uri_ct->sub_count == 3 &&
+		    uri_ct->sub_tree[2]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "license") == 0 &&
+			strcmp(uri_ct->sub_tree[2]->node, "info")) {
+			ret = get_license_info(msg);
 
 		} else if (uri_ct->sub_count == 2 &&
 		    uri_ct->sub_tree[1]->end &&
@@ -1843,6 +1865,7 @@ static http_msg
 get_retains(http_msg *msg, kv **params, size_t param_num,
     const char *client_id, const char *username, nng_socket *broker_sock)
 {
+	(void)msg;
 	http_msg res     = { .status = NNG_HTTP_STATUS_OK };
 	cJSON *res_obj   = NULL;
 	cJSON *data_info = NULL;
@@ -2101,6 +2124,29 @@ get_subscriptions(
 
  	cJSON_free(dest);
  	cJSON_Delete(res_obj);
+	return res;
+}
+
+static http_msg
+get_license_info(http_msg *msg)
+{
+	(void) msg;
+	http_msg res = { .status = NNG_HTTP_STATUS_OK };
+	char *dest = NULL;
+#if defined(SUPP_LICENSE_STD)
+	if (0 != lic_std_info(&dest)) {
+		log_error("license not found");
+		res.status = NNG_HTTP_STATUS_NOT_FOUND;
+		dest = nng_strdup("{}");
+	}
+#else
+	dest = nng_strdup("{}");
+	log_error("license is disabled");
+	res.status = NNG_HTTP_STATUS_NOT_FOUND;
+#endif
+	put_http_msg(&res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
+
+	cJSON_free(dest);
 	return res;
 }
 
