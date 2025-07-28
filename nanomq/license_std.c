@@ -128,6 +128,14 @@ readfile(const char *fname, int *sz)
 	return str;
 }
 
+static void
+ts2date(uint64_t ts, char *date)
+{
+	struct tm *tm_info;
+	tm_info = localtime(&ts);
+	strftime(date, 128, "%Y%m%d", tm_info);
+}
+
 static uint64_t
 date2ts(int yyyymmdd)
 {
@@ -214,6 +222,7 @@ split_lic_args(const char *lic_args, int lic_args_sz, struct lic_std *lic)
 	lic->st = date2ts(atoi(lic->st_str));
 	lic->vd = atoi(args[7]);
 	lic->et = lic->st + lic->vd*24*60*60;
+	ts2date(lic->et, lic->et_str);
 	lic->lc = atoi(args[8]);
 	printf("license type:%s name:%s email:%s dc:%s valid:%lld-%lld lc:%d\n",
 			lic->ltype, lic->name, lic->email, lic->dc, lic->st, lic->et, lic->lc);
@@ -426,4 +435,22 @@ lic_std_renew(const char *path)
 		}
 	}
 	return rv;
+}
+
+int
+lic_std_info(char **info)
+{
+	nng_mtx_lock(g_lic_mtx);
+	if (g_lic == NULL) {
+		nng_mtx_unlock(g_lic_mtx);
+		*info = NULL;
+		return NNG_ECLOSED;
+	}
+	char *buf = nng_alloc(sizeof(char) * (5*128+8+120)); // name email st et dc + ltype + spaces
+	sprintf(buf, "{\"name\":\"%s\", \"email\":\"%s\", \"start\":\"%lld\", \"end\":\"%lld\", \"dc\":\"%s\", \"type\":\"%s\"}",
+		g_lic->name, g_lic->email, g_lic->st, g_lic->et, g_lic->dc, g_lic->ltype);
+
+	*info = buf;
+	nng_mtx_unlock(g_lic_mtx);
+	return 0;
 }
