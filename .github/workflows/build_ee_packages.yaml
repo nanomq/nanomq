@@ -1,98 +1,285 @@
-name: Build EE package
+name: Build packages
 
 concurrency:
-  group: build-ee-${{ github.event_name }}-${{ github.ref }}
+  group: build-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 on:
   push:
-    branches:
-      - lianyou-master
-      - uisee-master
-    tags:
-      - '*'
   pull_request:
     branches:
       - master
-      - sdv_master
+
   release:
     types:
       - published
+    branches:
+      - master
 
 jobs:
-  build_and_upload:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-      repository-projects: write
+  build_packages:
+    runs-on: ["self-hosted","ephemeral","linux","x64"]
 
     strategy:
       fail-fast: false
       matrix:
-        architecture: [amd64, arm64]
-        platform: [linux]
+        arch:
+        - [amd64, gcc, g++, x86_64-linux-gnu, /usr/local]
+        - [arm64, aarch64-linux-gnu-gcc, aarch64-linux-gnu-g++, aarch64-linux-gnu, /usr/aarch64-linux-gnu]
+        - [mips, mips-linux-gnu-gcc, mips-linux-gnu-g++, mips-linux-gnu, /usr/mips-linux-gnu]
+        - [riscv64, riscv64-linux-gnu-gcc, riscv64-linux-gnu-g++, riscv64-linux-gnu, /usr/riscv64-linux-gnu]
+        - [armhf, arm-linux-gnueabihf-gcc, arm-linux-gnueabihf-g++, arm-linux-gnueabihf, /usr/arm-linux-gnueabihf]
+        - [armel, arm-linux-gnueabi-gcc, arm-linux-gnueabi-g++, arm-linux-gnueabi, /usr/arm-linux-gnueabi]
+        package_type:
+        - tar.gz
+        - rpm
+        - deb
+        build_type:
+        - ""
+        - "-sqlite"
+        - "-msquic"
+        - "-full"
+        exclude:
+        - arch: [mips, mips-linux-gnu-gcc, mips-linux-gnu-g++]
+          build_type: "-msquic"
+        - arch: [riscv64, riscv64-linux-gnu-gcc, riscv64-linux-gnu-g++]
+          build_type: "-msquic"
+        - arch: [armel, arm-linux-gnueabi-gcc, arm-linux-gnueabi-g++]
+          build_type: "-msquic"
+        - arch: [mips, mips-linux-gnu-gcc, mips-linux-gnu-g++]
+          build_type: "-full"
+        - arch: [riscv64, riscv64-linux-gnu-gcc, riscv64-linux-gnu-g++]
+          build_type: "-full"
+        - arch: [armel, arm-linux-gnueabi-gcc, arm-linux-gnueabi-g++]
+          build_type: "-full"
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # Fetch all history including tags
+    - name: install toolchains
+      run: |
+        sudo apt update
+        sudo chmod 755 /usr/local/bin
+        sudo apt install -y g++-aarch64-linux-gnu gcc-aarch64-linux-gnu
+        sudo apt install -y g++-mips-linux-gnu gcc-mips-linux-gnu
+        sudo apt install -y g++-riscv64-linux-gnu gcc-riscv64-linux-gnu
+        sudo apt install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
+        sudo apt install -y gcc-arm-linux-gnueabi g++-arm-linux-gnueabi
+        sudo apt install -y cmake ninja-build rpm checkinstall
+        sudo sed -i 's/Version: ${VERSION}-${RELEASE}/Version: ${VERSION}/g' $(which checkinstall)
+        sudo sed -i 's/-${RELEASE}_${ARCHITECTURE}/_${ARCHITECTURE}/g' $(which checkinstall)
+        sudo apt install -y pip
+        pip install Jinja2
+        sudo apt-get install pkg-config
 
-      - name: Initialize Submodules
-        run: git submodule update --init nng
+    - name: install mbed-tls
+      run: |
+        set -eu
+        git clone https://github.com/Mbed-TLS/mbedtls.git && cd mbedtls &&  git checkout tags/v3.3.0
+        mkdir build && cd build
+        cmake -DCMAKE_C_COMPILER=${{ matrix.arch[1] }} -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }} -DENABLE_TESTING=OFF ..
+        cmake --build .
+        sudo make install
+        cd ../ && rm -rf ./build
+        cd ../
 
-      - name: Build linux
-        if: matrix.platform == 'linux'
-        run: |
-          docker build -t nanomq_with_parquet_${{ matrix.architecture }} -f deploy/lianyou-deploy/Dockerfile${{ matrix.architecture == 'arm64' && '-arm64' || '' }} .
-      
-      - name: Package Artifacts (Linux)
-        if: matrix.platform == 'linux'
-        run: |
-          pkgversion="$(git describe --abbrev=1 --tags)"
-          git log --format=%H -1 > readme.txt
-          cd nng && git log --format=%H -1 >> ../readme.txt && cd -
+    - name: install uuid
+      if: matrix.arch[0] != 'riscv64' &&  matrix.arch[0] != 'x86_64'  &&  matrix.arch[0] != 'amd64'
+      run: |
+        set -eu
+        wget https://sourceforge.net/projects/libuuid/files/libuuid-1.0.3.tar.gz/download -O libuuid-1.0.3.tar.gz
+        tar zxf libuuid-1.0.3.tar.gz
+        cd  libuuid-1.0.3
+        mkdir build
+        cd build
+        ../configure --prefix=${{ matrix.arch[4] }} --host=${{ matrix.arch[3] }}
+        sudo make install
+        cd ../ && sudo rm -rf ./build
+        cd ../
 
-          mkdir -p packages/nanomq/{parquet,etc,log} packages/nanomq-debug/{parquet,etc,log}
-          id=$(docker create nanomq_with_parquet_${{ matrix.architecture }})
-          docker cp $id:/opt/NanoMQ_mirror/build/nanomq/nanomq ./packages/nanomq/
-          docker cp $id:/opt/NanoMQ_mirror/build-debug/nanomq/nanomq ./packages/nanomq-debug/
-          docker cp $id:/opt/NanoMQ_mirror/build/nanomq_cli/nanomq_cli ./packages/nanomq/
-          docker cp $id:/opt/NanoMQ_mirror/build-debug/nanomq_cli/nanomq_cli ./packages/nanomq-debug/
-          cp readme.txt ./packages/nanomq/
-          cp readme.txt ./packages/nanomq-debug/
-          cp etc/nanomq.conf ./packages/nanomq/etc
-          cp etc/nanomq.conf ./packages/nanomq-debug/etc
+    - name: install zeromq
+      if: matrix.arch[0] != 'riscv64'
+      run: |
+        wget https://github.com/zeromq/libzmq/releases/download/v4.3.4/zeromq-4.3.4.tar.gz
+        tar zxf zeromq-4.3.4.tar.gz
+        cd zeromq-4.3.4
+        mkdir build
+        cd build
+        cmake -DBUILD_SHARED=OFF      \
+        -DCMAKE_C_COMPILER=${{ matrix.arch[1] }}    \
+        -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }}   \
+        -DCMAKE_INSTALL_PREFIX=${{ matrix.arch[4] }}   \
+        -DCMAKE_STAGING_PREFIX=${{ matrix.arch[4] }}   \
+        -DCMAKE_PREFIX_PATH=${{ matrix.arch[4] }} \
+        -DZMQ_BUILD_TESTS=OFF      \
+        -DENABLE_CPACK=OFF      \
+        -DWITH_DOC=OFF     \
+        -DCMAKE_BUILD_TYPE=Release     \
+        -DCMAKE_CROSSCOMPILING=ON \
+        -DWITH_LIBBSD=OFF ..
+        sudo make install
+        cd ../
+        rm -rf ./build
+        cd ../
 
-          cd ./packages
-          tar -zcvf ./nanomq-${pkgversion}-linux-${{ matrix.architecture }}-ee.tar.gz ./nanomq
-          tar -zcvf ./nanomq-${pkgversion}-linux-${{ matrix.architecture }}-debug-ee.tar.gz ./nanomq-debug
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - run: git submodule update --init --recursive
 
-          rm -rf ./nanomq ./nanomq-debug
-          docker rm -v $id
+    - name: prepare
+      id: prepare
+      run: |
+        arch="${{ matrix.arch[0] }}"
+        if [ "$arch" == "amd64" ] && [ "${{ matrix.package_type }}" == "rpm" ]; then
+          arch="x86_64"
+        fi
 
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: NanoMQ-${{ matrix.platform }}-${{ matrix.architecture }}
-          path: packages/*.tar.gz
-          retention-days: 7
+        pkg_name="nanomq-$(git describe --abbrev=0 --tags)-linux-${arch}${{ matrix.build_type }}.${{ matrix.package_type }}"
 
-      - name: Upload Artifacts Debug Mini
-        uses: actions/upload-artifact@v4
-        with:
-          name: NanoMQ-${{ matrix.platform }}-${{ matrix.architecture }}-Debug-Mini
-          path: packages/*.tar.gz.x
-          retention-days: 1
+        make_flags="-DCMAKE_C_COMPILER=${{ matrix.arch[1] }} -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }} -DNNG_ENABLE_TLS=ON"
 
-      - name: Upload Artifacts to Release
-        uses: softprops/action-gh-release@v2.2.2
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          name: "NanoMQ Release ${{ github.ref_name }}"
-          tag_name: ${{ github.ref_name }}
-          files: packages/*.tar.gz
-          draft: false
-          prerelease: false
-          overwrite: true
+        if [ "${{ matrix.build_type }}" == "-sqlite" ] || [ "${{ matrix.build_type }}" == "-full" ]; then
+          make_flags+=" -DNNG_ENABLE_SQLITE=ON "
+        fi
+
+        if [ "${{ matrix.build_type }}" == "-msquic" ] || [ "${{ matrix.build_type }}" == "-full" ]; then
+          make_flags+=" -DNNG_ENABLE_QUIC=ON "
+          make_flags+=" -DNNG_ENABLE_SQLITE=ON "
+          make_flags+=" -DQUIC_BUILD_SHARED=OFF "
+          if [ "$arch" != "x86_64" ] && [ "$arch" != "amd64" ]; then
+            make_flags+=" -DONEBRANCH=1 "
+            make_flags+=" -DCMAKE_CROSSCOMPILING=ON "
+            make_flags+=" -DCMAKE_PREFIX_PATH=${{ matrix.arch[4] }} "
+            if [ "$arch" == "arm64" ]; then
+              make_flags+=" -DCMAKE_TARGET_ARCHITECTURE=arm64 "
+              make_flags+=" -DGNU_MACHINE=aarch64-linux-gnu "
+              make_flags+=" toolchains $PWD/nng/extern/msquic/cmake/toolchains/aarch64-linux.cmake "
+            elif [ "$arch" == "armhf" ]; then
+              make_flags+=" -DCMAKE_TARGET_ARCHITECTURE=arm "
+              make_flags+=" toolchains $PWD/nng/extern/msquic/cmake/toolchains/arm-linux.cmake "
+              make_flags+=" -DGNU_MACHINE=arm-linux-gnueabihf "
+            fi
+          fi
+        fi
+
+        if [ "${{ matrix.build_type }}" == "-full" ]; then
+          make_flags+=" -DENABLE_RULE_ENGINE=ON "
+          make_flags+=" -DENABLE_JWT=ON "
+          make_flags+=" -DBUILD_ZMQ_GATEWAY=ON "
+          make_flags+=" -DBUILD_BENCH=ON "
+        fi
+
+        echo "arch=${arch}" >> $GITHUB_OUTPUT
+        echo "pkg_name=${pkg_name}" >> $GITHUB_OUTPUT
+        echo "make_flags=${make_flags}" >> $GITHUB_OUTPUT
+
+    - name: build
+      run: |
+        set -eu
+
+        mkdir -p build
+        cd build
+        cmake ${{ steps.prepare.outputs.make_flags }} ..
+        make
+        sudo make install
+
+    - name: build tarball
+      if: matrix.package_type == 'tar.gz'
+      run: |
+        set -eu
+        cd build
+        mkdir -p _packages
+        mkdir -p _nanomq_${{ steps.prepare.outputs.arch }}
+        cp nanomq/nanomq _nanomq_${{ steps.prepare.outputs.arch }}/
+        cp ../etc/nanomq.conf _nanomq_${{ steps.prepare.outputs.arch }}/
+        tar -czvf _nanomq_${{ steps.prepare.outputs.arch }}.tar.gz _nanomq_${{ steps.prepare.outputs.arch }}
+        mv _nanomq_${{ steps.prepare.outputs.arch }}.tar.gz _packages/${{ steps.prepare.outputs.pkg_name }}
+
+    - name: build deb
+      if: matrix.package_type == 'deb'
+      run: |
+        set -eu
+        cd build
+        mkdir -p _packages
+        sudo checkinstall --backup=no --install=no --type=debian --arch=${{ steps.prepare.outputs.arch }} --pkgname=nanomq --pkgversion=$(git describe --abbrev=0 --tags) --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
+        sudo mv _packages/nanomq_$(git describe --abbrev=0 --tags)_${{ steps.prepare.outputs.arch }}.deb _packages/${{ steps.prepare.outputs.pkg_name }}
+        cd _packages; echo $(sha256sum ${{ steps.prepare.outputs.pkg_name }} | awk '{print $1}') > ${{ steps.prepare.outputs.pkg_name }}.sha256
+    - name: build rpm
+      if: matrix.package_type == 'rpm'
+      run: |
+        set -eu
+        cd build
+        mkdir -p _packages
+        sudo mkdir -p /root/rpmbuild/SOURCES
+        sudo mkdir -p /root/rpmbuild/BUILD
+        sudo mkdir -p /root/rpmbuild/BUILDROOT
+        pkgversion="$(git describe --abbrev=0 --tags | tr '-' '_')"
+        sudo checkinstall --backup=no --install=no --type=rpm --arch=${{ steps.prepare.outputs.arch }} --pkgname=nanomq --pkgversion=${pkgversion} --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
+        sudo mv _packages/nanomq-${pkgversion}-1.${{ steps.prepare.outputs.arch }}.rpm _packages/${{ steps.prepare.outputs.pkg_name }}
+        cd _packages; echo $(sha256sum ${{ steps.prepare.outputs.pkg_name }} | awk '{print $1}') > ${{ steps.prepare.outputs.pkg_name }}.sha256
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.prepare.outputs.pkg_name }}
+        path: "build/_packages/*"
+        retention-days: 7
+
+  build_docker:
+    needs: [build_packages]
+    runs-on: ["self-hosted","ephemeral","linux","x64"]
+
+    strategy:
+      fail-fast: false
+      matrix:
+        suffix:
+        - ""
+        - "-slim"
+        - "-full"
+
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/download-artifact@v4
+    - run: git submodule update --init --recursive
+    - run: docker build -t emqx/nanomq:$(git describe --tags --always)${{ matrix.suffix }} -f deploy/docker/Dockerfile${{ matrix.suffix }} .
+    - run: docker run -d -e DEBUG=1 --name nanomq $(docker images emqx/nanomq -q | head -1) --log_level debug
+    - name: test docker
+      run: |
+        set -e -x -u
+        sudo apt update && sudo apt install -y mosquitto-clients
+        ip_address=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' nanomq)
+        sleep 5
+        mosquitto_pub -h $ip_address -t 'topic/A' -m 'test'
+    - if: failure()
+      run: docker ps -a
+    - if: failure()
+      run: docker inspect nanomq
+    - if: failure()
+      run: docker logs nanomq
+    - uses: docker/setup-qemu-action@v2
+    - uses: docker/setup-buildx-action@v2
+    - uses: docker/metadata-action@v4
+      id: meta
+      with:
+        images: emqx/nanomq
+        flavor: |
+          latest=auto
+          suffix=${{ matrix.suffix }},onlatest=true
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=ref,event=tag
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+    - uses: docker/login-action@v2
+      if: github.event_name == 'release'
+      with:
+        username: ${{ secrets.DOCKER_HUB_USER }}
+        password: ${{ secrets.DOCKER_HUB_TOKEN }}
+    - uses: docker/build-push-action@v3
+      if: github.event_name == 'release'
+      with:
+        platforms: linux/amd64,linux/arm64,linux/arm/v7
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        file: deploy/docker/Dockerfile${{ matrix.suffix }}
+        context: .
