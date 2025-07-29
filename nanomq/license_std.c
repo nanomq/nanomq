@@ -317,10 +317,14 @@ parse_lic_str(const char *data, const char *pubk, lic_std *lic)
 		nng_free(lic_args_b64, 0);
 	if (lic_sign_b64)
 		nng_free(lic_sign_b64, 0);
-	if (rv && lic_args)
+	if (rv && lic_args) {
 		nng_free(lic_args, 0);
-	if (rv && lic_sign)
+		lic->args = NULL;
+	}
+	if (rv && lic_sign) {
 		nng_free(lic_sign, 0);
+		lic->sign = NULL;
+	}
 	BIO_free(bio);
 	EVP_PKEY_free(pkey);
 	return rv;
@@ -414,11 +418,11 @@ lic_std_renew(const char *data)
 	struct lic_std *lic = nng_alloc(sizeof(struct lic_std));
 	rv = parse_lic_str(data, pubk, lic);
 	if (rv != 0) {
-		printf("failed to parse new license %s, rv%d\n", data, rv);
+		log_error("failed to parse new license %s, rv%d\n", data, rv);
 		lic_std_free(lic);
 	} else {
 		if (0 != split_lic_args(lic->args, lic->args_sz, lic)) {
-			printf("failed to parse new license %s\n", data);
+			log_error("failed to parse new license %s\n", data);
 			lic_std_free(lic);
 			rv = NNG_EINVAL;
 		} else {
