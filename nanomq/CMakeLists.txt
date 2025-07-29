@@ -229,3 +229,127 @@ endif()
 if (NANOMQ_TESTS)
     add_definitions(-DENABLE_NANOMQ_TESTS)
 endif(NANOMQ_TESTS)
+
+# Download and extract dashboard
+if (ENABLE_DASHBOARD)
+    message("-- Setting up dashboard --")
+    
+    # Set default dashboard version if not provided
+    if(NOT DEFINED DASHBOARD_VERSION OR "${DASHBOARD_VERSION}" STREQUAL "")
+        set(DASHBOARD_VERSION "0.0.1-alpha.1")
+    endif()
+    
+    # Set repository and asset name
+    set(DASHBOARD_REPO "emqx/edge-dashboard")
+    set(DASHBOARD_ASSET_NAME "edge-dashboard.zip")
+    
+    set(FRONTEND_ZIP "${CMAKE_BINARY_DIR}/nanomq/${DASHBOARD_ASSET_NAME}")
+    set(FRONTEND_EXTRACT_DIR "${CMAKE_BINARY_DIR}/nanomq")
+    
+    # Download the frontend package
+    if(NOT EXISTS ${FRONTEND_ZIP})
+        message(STATUS "Getting dashboard release info for version ${DASHBOARD_VERSION}")
+        
+        # Check if GitHub token is provided for private repository access
+        if(NOT DEFINED GITHUB_TOKEN OR "${GITHUB_TOKEN}" STREQUAL "")
+            message(WARNING "GitHub token is required for private repository access")
+            message(STATUS "Please provide GitHub token:")
+            message(STATUS "  cmake .. -DENABLE_DASHBOARD=ON -DGITHUB_TOKEN=<your_personal_access_token> -DDASHBOARD_VERSION=${DASHBOARD_VERSION}")
+            set(ENABLE_DASHBOARD OFF)
+        else()
+            # Get release information from GitHub API
+            set(API_URL "https://api.github.com/repos/${DASHBOARD_REPO}/releases/tags/${DASHBOARD_VERSION}")
+            set(RELEASE_INFO_FILE "${CMAKE_BINARY_DIR}/release_info.json")
+            
+            message(STATUS "Fetching release info from GitHub API...")
+            execute_process(
+                COMMAND curl -s -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3+json" "${API_URL}"
+                OUTPUT_FILE "${RELEASE_INFO_FILE}"
+                RESULT_VARIABLE API_RESULT
+                ERROR_QUIET
+            )
+            
+            if(API_RESULT EQUAL 0 AND EXISTS "${RELEASE_INFO_FILE}")
+                # Find the asset URL by matching the specific GitHub API URL pattern
+                # Build the grep pattern with proper variable substitution (handle possible spaces after colon)
+                set(GREP_PATTERN "\"url\":[[:space:]]*\"https://api.github.com/repos/${DASHBOARD_REPO}/releases/assets/[0-9]*\"")
+
+                execute_process(
+                    COMMAND grep -o "${GREP_PATTERN}" "${RELEASE_INFO_FILE}"
+                    COMMAND sed "s/.*\"url\":[[:space:]]*\"\\([^\"]*\\)\".*/\\1/"
+                    OUTPUT_VARIABLE DOWNLOAD_URL
+                    OUTPUT_STRIP_TRAILING_WHITESPACE
+                    RESULT_VARIABLE GREP_RESULT
+                )
+                
+                if(GREP_RESULT EQUAL 0 AND NOT "${DOWNLOAD_URL}" STREQUAL "")
+                    message(STATUS "Found asset URL: ${DOWNLOAD_URL}")
+                    
+                    # Download the asset using the GitHub API URL with proper Accept header
+                    file(DOWNLOAD "${DOWNLOAD_URL}" "${FRONTEND_ZIP}"
+                         HTTPHEADER "Authorization: token ${GITHUB_TOKEN}"
+                         HTTPHEADER "Accept: application/octet-stream"
+                         SHOW_PROGRESS
+                         STATUS DOWNLOAD_STATUS
+                         TIMEOUT 300)
+                    
+                    list(GET DOWNLOAD_STATUS 0 DOWNLOAD_ERROR)
+                    if(DOWNLOAD_ERROR)
+                        message(WARNING "Failed to download dashboard: ${DOWNLOAD_STATUS}")
+                        set(ENABLE_DASHBOARD OFF)
+                        if(EXISTS ${FRONTEND_ZIP})
+                            file(REMOVE ${FRONTEND_ZIP})
+                        endif()
+                    else()
+                        message(STATUS "Dashboard downloaded successfully")
+                    endif()
+                else()
+                    message(WARNING "Could not find download URL for ${DASHBOARD_ASSET_NAME}")
+                    message(STATUS "Available assets in release ${DASHBOARD_VERSION}:")
+                    execute_process(
+                        COMMAND grep -o "\"name\":\"[^\"]*\\.zip\"" "${RELEASE_INFO_FILE}"
+                        COMMAND sed "s/.*\"name\":\"\\([^\"]*\\)\".*/  - \\1/"
+                        OUTPUT_VARIABLE AVAILABLE_ASSETS
+                    )
+                    message(STATUS "${AVAILABLE_ASSETS}")
+                    set(ENABLE_DASHBOARD OFF)
+                endif()
+                
+                # Clean up temporary file
+                file(REMOVE "${RELEASE_INFO_FILE}")
+            else()
+                message(WARNING "Failed to fetch release information from GitHub API")
+                message(STATUS "Please check:")
+                message(STATUS "  - GitHub token has correct permissions")
+                message(STATUS "  - Repository ${DASHBOARD_REPO} is accessible")
+                message(STATUS "  - Version ${DASHBOARD_VERSION} exists")
+                set(ENABLE_DASHBOARD OFF)
+            endif()
+        endif()
+    endif()
+    
+    # Extract the frontend package
+    if(EXISTS ${FRONTEND_ZIP} AND NOT EXISTS ${FRONTEND_EXTRACT_DIR}/dist)
+        message(STATUS "Extracting frontend dashboard to ${FRONTEND_EXTRACT_DIR}")
+        file(ARCHIVE_EXTRACT INPUT ${FRONTEND_ZIP} DESTINATION ${FRONTEND_EXTRACT_DIR})
+        message(STATUS "Dashboard extracted successfully")
+        
+        # Remove the zip file after successful extraction
+        file(REMOVE ${FRONTEND_ZIP})
+        message(STATUS "Removed dashboard zip file")
+    endif()
+    
+    # Install frontend files to the same directory as nanomq binary
+    set(FRONTEND_DIST_DIR "${FRONTEND_EXTRACT_DIR}/dist")
+    if(EXISTS ${FRONTEND_DIST_DIR})
+        file(GLOB_RECURSE FRONTEND_FILES "${FRONTEND_DIST_DIR}/*")
+        if(FRONTEND_FILES)
+            if (NOT WIN32 AND NOT CYGWIN)
+                install(DIRECTORY ${FRONTEND_DIST_DIR}/ DESTINATION ${CMAKE_INSTALL_PREFIX}/bin/dist)
+            else()
+                install(DIRECTORY ${FRONTEND_DIST_DIR}/ DESTINATION bin/dist)
+            endif()
+            message(STATUS "Frontend dashboard will be installed to bin/dist directory")
+        endif()
+    endif()
+endif()
