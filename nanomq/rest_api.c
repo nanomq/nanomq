@@ -433,6 +433,7 @@ static http_msg put_mqtt_bridge(http_msg *msg, const char *name);
 static http_msg put_mqtt_bridge_switch(http_msg *msg, const char *name);
 static http_msg post_mqtt_bridge_sub(http_msg *msg, const char *name);
 static http_msg post_mqtt_bridge_unsub(http_msg *msg, const char *name);
+static http_msg post_license_update(http_msg *msg);
 static int properties_parse(property **properties, cJSON *json);
 static int handle_publish_msg(cJSON *pub_obj, nng_socket *sock);
 static int handle_subscribe_msg(cJSON *sub_obj, nng_socket *sock);
@@ -1087,6 +1088,11 @@ process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 			strcmp(uri_ct->sub_tree[2]->node, "switch") == 0 &&
 		    strcmp(uri_ct->sub_tree[1]->node, "bridges") == 0) {
 			ret = put_mqtt_bridge_switch(msg, uri_ct->sub_tree[3]->node);
+		} else if (uri_ct->sub_count == 3 &&
+		    uri_ct->sub_tree[2]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "license") == 0 &&
+		    strcmp(uri_ct->sub_tree[2]->node, "update") == 0) {
+			ret = post_license_update(msg);
 		}
 
 		/* else if (uri_ct->sub_count == 3 &&
@@ -2136,8 +2142,7 @@ get_license_info(http_msg *msg)
 #if defined(SUPP_LICENSE_STD)
 	if (0 != lic_std_info(&dest)) {
 		log_error("license not found");
-		res.status = NNG_HTTP_STATUS_NOT_FOUND;
-		dest = nng_strdup("{}");
+		dest = nng_strdup("{\"code\":102}");
 	}
 #else
 	dest = nng_strdup("{}");
@@ -4191,6 +4196,46 @@ out:
 	}
 	return error_response(
 	    msg, NNG_HTTP_STATUS_BAD_REQUEST, REQ_PARAMS_JSON_FORMAT_ILLEGAL);
+}
+
+static http_msg
+post_license_update(http_msg *msg)
+{
+	http_msg res = { .status = NNG_HTTP_STATUS_OK };
+	int rv;
+	char dest[128];
+	char *lic_path;
+
+#if defined(SUPP_LICENSE_STD)
+	if (msg->data_len != strlen(msg->data)) {
+		log_error("http request's length of body is invalid %s", msg->data);
+		res.status = NNG_HTTP_STATUS_BAD_REQUEST;
+		return res;
+	}
+	if ((rv = lic_std_renew(msg->data)) != 0) {
+		log_error("renew failed %d", rv);
+		sprintf(dest, "{\"code\":%d}", rv);
+		put_http_msg(&res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
+		return res;
+	}
+	if ((lic_path = lic_std_path()) != NULL) {
+		if ((rv = nng_file_put(lic_path, msg->data, msg->data_len)) == 0) {
+			sprintf(dest, "{\"code\":0}");
+		} else {
+			log_error("failed to write to lic %d", rv);
+			sprintf(dest, "{\"code\":%d}", rv);
+		}
+	} else {
+		log_error("failed to get lic path");
+		sprintf(dest, "{\"code\":%d}", NNG_EINVAL);
+	}
+#else
+	log_error("license is disabled");
+	res.status = NNG_HTTP_STATUS_NOT_FOUND;
+	return res;
+#endif
+	put_http_msg(&res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
+	return res;
 }
 
 // Used for get config file
