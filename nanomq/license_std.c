@@ -446,7 +446,7 @@ lic_std_info(char **info)
 		return NNG_ECLOSED;
 	}
 	char *buf = nng_alloc(sizeof(char) * (5*128+8+120)); // name email st et dc + ltype + spaces
-	sprintf(buf, "{\"name\":\"%s\", \"email\":\"%s\", \"start\":\"%lld\", \"end\":\"%lld\", \"dc\":\"%s\", \"type\":\"%s\"}",
+	sprintf(buf, "{\"name\":\"%s\",\"email\":\"%s\",\"start\":\"%lld\",\"end\":\"%lld\",\"dc\":\"%s\",\"type\":\"%s\"}",
 		g_lic->name, g_lic->email, g_lic->st, g_lic->et, g_lic->dc, g_lic->ltype);
 
 	*info = buf;

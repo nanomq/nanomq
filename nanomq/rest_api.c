@@ -943,7 +943,7 @@ process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 		} else if (uri_ct->sub_count == 3 &&
 		    uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "license") == 0 &&
-			strcmp(uri_ct->sub_tree[2]->node, "info")) {
+			strcmp(uri_ct->sub_tree[2]->node, "info") == 0) {
 			ret = get_license_info(msg);
 
 		} else if (uri_ct->sub_count == 2 &&
@@ -4205,26 +4205,31 @@ post_license_update(http_msg *msg)
 	int rv;
 	char dest[128];
 	char *lic_path;
+	char *body;
 
 #if defined(SUPP_LICENSE_STD)
-	if (msg->data_len != strlen(msg->data)) {
-		log_error("http request's length of body is invalid %s", msg->data);
+	if (msg->data_len == 0) {
+		log_error("http request's length of body is invalid %d", msg->data_len);
 		res.status = NNG_HTTP_STATUS_BAD_REQUEST;
 		return res;
 	}
-	if ((rv = lic_std_renew(msg->data)) != 0) {
+	body = strndup(msg->data, msg->data_len);
+	if ((rv = lic_std_renew(body)) != 0) {
 		log_error("renew failed %d", rv);
 		sprintf(dest, "{\"code\":%d}", rv);
+		nng_free(body, 0);
 		put_http_msg(&res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
 		return res;
 	}
 	if ((lic_path = lic_std_path()) != NULL) {
 		if ((rv = nng_file_put(lic_path, msg->data, msg->data_len)) == 0) {
+			log_info("lic is updated %s", body);
 			sprintf(dest, "{\"code\":0}");
 		} else {
 			log_error("failed to write to lic %d", rv);
 			sprintf(dest, "{\"code\":%d}", rv);
 		}
+		nng_free(lic_path, 0);
 	} else {
 		log_error("failed to get lic path");
 		sprintf(dest, "{\"code\":%d}", NNG_EINVAL);
@@ -4234,6 +4239,7 @@ post_license_update(http_msg *msg)
 	res.status = NNG_HTTP_STATUS_NOT_FOUND;
 	return res;
 #endif
+	nng_free(body, 0);
 	put_http_msg(&res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
 	return res;
 }
