@@ -453,3 +453,9 @@ lic_std_info(char **info)
 	nng_mtx_unlock(g_lic_mtx);
 	return 0;
 }
+
+char *
+lic_std_path()
+{
+	return (g_lic_path == NULL) ? NULL : strdup(g_lic_path);
+}
