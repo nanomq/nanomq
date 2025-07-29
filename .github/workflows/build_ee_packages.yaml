@@ -1,4 +1,4 @@
-name: Build packages
+name: Build EE packages
 
 concurrency:
   group: build-${{ github.event_name }}-${{ github.ref }}
