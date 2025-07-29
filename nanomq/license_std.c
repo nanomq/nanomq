@@ -407,18 +407,18 @@ lic_std_update(uint32_t addon)
 }
 
 int
-lic_std_renew(const char *path)
+lic_std_renew(const char *data)
 {
 	int         rv = 0;
 	const char *pubk = root_pubk;
 	struct lic_std *lic = nng_alloc(sizeof(struct lic_std));
-	rv = parse_lic_file(path, pubk, lic);
+	rv = parse_lic_str(data, pubk, lic);
 	if (rv != 0) {
-		printf("failed to parse new license %s, rv%d\n", path, rv);
+		printf("failed to parse new license %s, rv%d\n", data, rv);
 		lic_std_free(lic);
 	} else {
 		if (0 != split_lic_args(lic->args, lic->args_sz, lic)) {
-			printf("failed to parse new license in %s\n", path);
+			printf("failed to parse new license %s\n", data);
 			lic_std_free(lic);
 			rv = NNG_EINVAL;
 		} else {
@@ -427,7 +427,6 @@ lic_std_renew(const char *path)
 				nng_mtx_lock(g_lic_mtx);
 				lic_std_free(g_lic);
 				g_lic = lic;
-				g_lic_path = path;
 				nng_mtx_unlock(g_lic_mtx);
 			} else {
 				lic_std_free(lic);
