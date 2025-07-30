@@ -4214,7 +4214,12 @@ parse_formdata_file(char *data, int len, int *retlen)
 	}
 	if (split_sz <= 0 || split[0] != '-')
 		return NULL;
+	log_debug("split sz:%d %s", split_sz, split);
 	char *pos = memmem(data, len, pattern, strlen(pattern));
+	if (pos == NULL) {
+		log_error("failed to found file in formdata [%.*s]", len, data);
+		return NULL;
+	}
 	pos += strlen(pattern);
 	char *split_pos = memmem(pos, len - (pos-data), split, split_sz);
 	int file_sz = split_pos - pos - 2;
@@ -4249,8 +4254,10 @@ post_license_update(http_msg *msg)
 	int body_len = 0;
 	body = parse_formdata_file(msg->data, msg->data_len, &body_len);
 	if (body == NULL || body_len == 0) {
-		log_error("http request's is not formdata %d", body_len);
+		log_error("http request's is not formdata %d or invalid license file", body_len);
 		res.status = NNG_HTTP_STATUS_BAD_REQUEST;
+		sprintf(dest, "{\"code\":%d}", NNG_EINVAL);
+		put_http_msg(&res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
 		return res;
 	}
 	if ((rv = lic_std_renew(body)) != 0) {
