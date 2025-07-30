@@ -152,8 +152,11 @@ if(ENABLE_FILETRANSFER)
 endif(ENABLE_FILETRANSFER)
 
 if(ENABLE_LICENSE_STD)
-  find_package(OpenSSL REQUIRED)
-  target_link_libraries(nanomq OpenSSL::Crypto)
+  if(NNG_ENABLE_QUIC)
+  else()
+    find_package(OpenSSL REQUIRED)
+    target_link_libraries(nanomq OpenSSL::Crypto)
+  endif(NNG_ENABLE_QUIC)
 endif(ENABLE_LICENSE_STD)
 
 if(ENABLE_JWT)
