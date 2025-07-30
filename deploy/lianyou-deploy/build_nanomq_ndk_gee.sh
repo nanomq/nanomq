@@ -14,6 +14,22 @@ export PATH=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH
 wget ${NDK_URL} -O ${NDK_DIR}.tar.gz
 tar -zxvf ${NDK_DIR}.tar.gz -C /tmp
 
+
+git clone git@github.com:Mbed-TLS/mbedtls.git
+cd mbedtls && mkdir build_android && cd build_android
+git checkout v3.6.2 && git submodule update --init --recursive 
+
+cmake -DANDROID_PLATFORM=android-30 \
+    -DANDROID_ABI=arm64-v8a \
+    -DCMAKE_SYSTEM_NAME=Android\
+    -DCMAKE_INSTALL_PREFIX=$NDK_DIR/toolchains/llvm/prebuilt/linux-x86_64/sysroot/ \
+    -DCMAKE_C_COMPILER_TARGET="aarch64-none-linux-android30" \
+    -DCMAKE_TOOLCHAIN_FILE=$NDK_DIR/build/cmake/android.toolchain.cmake \
+    -DENABLE_TESTING=OFF \
+    -DUSE_SHARED_MBEDTLS_LIBRARY=On \
+    ..
+make && make install
+
 echo "Start clean build_android_90"
 rm -rf build_android_90 build_android_8155
 mkdir build_android_90 build_android_8155
