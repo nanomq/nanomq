@@ -4198,6 +4198,37 @@ out:
 	    msg, NNG_HTTP_STATUS_BAD_REQUEST, REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 }
 
+char *
+parse_formdata_file(char *data, int len, int *retlen)
+{
+	char *pattern = "Content-Type: application/octet-stream\r\n\r\n";
+	//log_info("pattern sz:%d", strlen(pattern));
+	char split[80] = {0}; // boundary  RFC 1341 (MIME) max 70 bytes
+	int split_sz = 0;
+	for (int i=0; i<len-1; ++i) {
+		if (data[i] == '\r' && data[i+1] == '\n') {
+			memcpy(split, data, i);
+			split_sz = i;
+			break;
+		}
+	}
+	if (split_sz <= 0 || split[0] != '-')
+		return NULL;
+	char *pos = memmem(data, len, pattern, strlen(pattern));
+	pos += strlen(pattern);
+	char *split_pos = memmem(pos, len - (pos-data), split, split_sz);
+	int file_sz = split_pos - pos - 2;
+	char *file = nng_alloc(sizeof(char) * file_sz + 1);
+	memcpy(file, pos, file_sz);
+	if (file[file_sz-1] == '\n') {
+		file[file_sz-1] = '\0';
+	} else
+		file[file_sz] = '\0';
+	log_info("license (%d)[%.*s]\n", file_sz, file_sz, file);
+	*retlen = file_sz;
+	return file;
+}
+
 static http_msg
 post_license_update(http_msg *msg)
 {
@@ -4206,6 +4237,7 @@ post_license_update(http_msg *msg)
 	char dest[128];
 	char *lic_path;
 	char *body;
+	//log_info("http request(%d)[%.*s]\n", msg->data_len, msg->data_len, msg->data);
 
 #if defined(SUPP_LICENSE_STD)
 	if (msg->data_len == 0) {
@@ -4213,7 +4245,14 @@ post_license_update(http_msg *msg)
 		res.status = NNG_HTTP_STATUS_BAD_REQUEST;
 		return res;
 	}
-	body = strndup(msg->data, msg->data_len);
+	//body = strndup(msg->data, msg->data_len);
+	int body_len = 0;
+	body = parse_formdata_file(msg->data, msg->data_len, &body_len);
+	if (body == NULL || body_len == 0) {
+		log_error("http request's is not formdata %d", body_len);
+		res.status = NNG_HTTP_STATUS_BAD_REQUEST;
+		return res;
+	}
 	if ((rv = lic_std_renew(body)) != 0) {
 		log_error("renew failed %d", rv);
 		sprintf(dest, "{\"code\":%d}", rv);
@@ -4222,7 +4261,7 @@ post_license_update(http_msg *msg)
 		return res;
 	}
 	if ((lic_path = lic_std_path()) != NULL) {
-		if ((rv = nng_file_put(lic_path, msg->data, msg->data_len)) == 0) {
+		if ((rv = nng_file_put(lic_path, body, body_len)) == 0) {
 			log_info("lic is updated %s", body);
 			sprintf(dest, "{\"code\":0}");
 		} else {
