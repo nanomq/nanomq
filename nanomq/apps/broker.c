@@ -2060,7 +2060,7 @@ broker_start(int argc, char **argv)
 	if (license_file == NULL) {
 		memcpy(nanomq_conf->lic_path, nanomq_conf->exec_path,
 				strlen(nanomq_conf->exec_path) - 7); // only want folder
-		strncat(nanomq_conf->lic_path, LICENSE_NAME, strlen(LICENSE_NAME));
+		strcat(nanomq_conf->lic_path, LICENSE_NAME);
 		printf("License file is not specified, use default License file: %s\n",
 			nanomq_conf->lic_path);
 	} else {
@@ -2086,7 +2086,6 @@ broker_start(int argc, char **argv)
 	// get config file path from cli first.
 	rc = file_path_parse(argc, argv, &nanomq_conf->conf_file);
 	if (!rc) {
-		conf_fini(nanomq_conf);
 		fprintf(stderr, "Cannot parse command line arguments, quit\n");
 		exit(EXIT_FAILURE);
 	} else if (rc == OPT_CONFFILE) {
@@ -2099,7 +2098,7 @@ broker_start(int argc, char **argv)
 	if (nanomq_conf->conf_file == NULL && strlen(nanomq_conf->exec_path) > 7) {
 		char conf_path[512] = {'\0'};
 		memcpy(conf_path, nanomq_conf->exec_path, strlen(nanomq_conf->exec_path) - 7); // only want folder
-		strncat(conf_path, CONF_NAME, strlen(CONF_NAME));
+		strcat(conf_path, CONF_NAME);
 		nanomq_conf->conf_file = strdup(conf_path);
 		printf("Config file is not specified, use default config file: %s\n", nanomq_conf->conf_file);
 		conf_parse_ver2(nanomq_conf);

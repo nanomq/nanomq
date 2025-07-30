@@ -62,7 +62,10 @@ set(SOURCES
 if(ENABLE_LICENSE_DK)
   set(SOURCES ${SOURCES} license_dk.c extern/aes_gcm.c)
 endif(ENABLE_LICENSE_DK)
+
 if(ENABLE_LICENSE_STD)
+  find_package(OpenSSL REQUIRED)
+  nng_link_libraries(OpenSSL::SSL OpenSSL::Crypto)
   set(SOURCES ${SOURCES} license_std.c)
 endif(ENABLE_LICENSE_STD)
 
