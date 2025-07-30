@@ -2137,6 +2137,7 @@ broker_start(int argc, char **argv)
 		strncat(conf_path, CONF_NAME, strlen(CONF_NAME));
 		nanomq_conf->conf_file = strdup(conf_path);
 		printf("Config file is not specified, use default config file: %s\n", nanomq_conf->conf_file);
+		conf_parse_ver2(nanomq_conf);
 	} else {
 		fprintf(stderr, "Abort finding default config path");
 	}
@@ -2189,7 +2190,6 @@ broker_start(int argc, char **argv)
 	}
 #endif
 #if defined(ENABLE_LOG)
-	printf("read conf path %s!!!!\n", nanomq_conf->conf_file);
 	if ((rc = log_init(&nanomq_conf->log)) != 0) {
 		NANO_NNG_FATAL("log_init", rc);
 	}
