@@ -305,7 +305,15 @@ rest_start(uint16_t port, char *addr, conf *conf)
 		NANO_NNG_FATAL("nng_http_handler_collect_body", rv);
 	}
 
-	rv = nng_http_handler_alloc_directory(&handler_file, "", "./dist");
+	if (strlen(conf->exec_path) > 0) {
+		char http_folder[512] = {'\0'};
+		memcpy(http_folder, conf->exec_path,
+				strlen(conf->exec_path) - 7); // only want folder
+		strcat(http_folder, "/dist");
+		log_warn("Http Server folder set to %s", http_folder);
+		rv = nng_http_handler_alloc_directory(&handler_file, "", http_folder);
+	} else
+		rv = nng_http_handler_alloc_directory(&handler_file, "", "./dist");
 	if (rv != 0) {
 		NANO_NNG_FATAL("nng_http_handler_alloc_file", rv);
 	}
