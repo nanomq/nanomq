@@ -1819,56 +1819,7 @@ predicate_url(conf *config, char *url)
 	}
 }
 
-int
-license_path_parse(int argc, char **argv, char **file_path)
-{
-	int   idx = 2;
-	char *arg;
-	int   val;
-	int   rv;
-
-	while ((rv = nng_opts_parse(argc, argv, cmd_opts, &val, &arg, &idx)) ==
-	    0) {
-		switch (val) {
-		case OPT_HELP:
-			print_usage();
-			exit(0);
-			break;
-		case OPT_LICENSE:
-			*file_path = nng_strdup(arg);
-			return val;
-		default:
-			break;
-		}
-	}
-
-	switch (rv) {
-	case NNG_EINVAL:
-		fprintf(stderr,
-		    "Option %s is invalid.\nTry 'nanomq --help' for "
-		    "more information.\n",
-		    argv[idx]);
-		break;
-	case NNG_EAMBIGUOUS:
-		fprintf(stderr,
-		    "Option %s is ambiguous (specify in full).\nTry 'nanomq "
-		    "broker --help' for more information.\n",
-		    argv[idx]);
-		break;
-	case NNG_ENOARG:
-		fprintf(stderr,
-		    "Option %s requires argument.\nTry 'nanomq --help' "
-		    "for more information.\n",
-		    argv[idx]);
-		break;
-	default:
-		break;
-	}
-
-	return rv == -1;
-}
-
-// Return config file type
+// Return config/license file type
 int
 file_path_parse(int argc, char **argv, char **file_path)
 {
@@ -1877,8 +1828,7 @@ file_path_parse(int argc, char **argv, char **file_path)
 	int   val;
 	int   rv;
 
-	while ((rv = nng_opts_parse(argc, argv, cmd_opts, &val, &arg, &idx)) ==
-	    0) {
+	while ((rv = nng_opts_parse(argc, argv, cmd_opts, &val, &arg, &idx)) == 0) {
 		switch (val) {
 		case OPT_HELP:
 			print_usage();
@@ -1886,6 +1836,10 @@ file_path_parse(int argc, char **argv, char **file_path)
 			break;
 		case OPT_HOCONFILE:
 		case OPT_CONFFILE:
+			FREE_NONULL(*file_path);
+			*file_path = nng_strdup(arg);
+			return val;
+		case OPT_LICENSE:
 			FREE_NONULL(*file_path);
 			*file_path = nng_strdup(arg);
 			return val;
@@ -2081,43 +2035,54 @@ broker_start(int argc, char **argv)
 	char vin_tmp [17];
 	snprintf(vin_tmp, 17, "nano-%08x", nng_random());
 	vin = vin_tmp;
-	log_warn("Default VIN is %s", vin);
+	log_warn("Default bridging Clientid is %s", vin);
 
-	// Priority: config < environment variables < command opts
+	// Priority: config file < environment variables < command line opts
 	conf_init(nanomq_conf);
 	nanomq_conf->vin = vin;
-
-#if defined(SUPP_LICENSE_DK) || defined(SUPP_LICENSE_STD)
-	char *license_file = NULL;
-	rc = license_path_parse(argc, argv, &license_file);
-	if (!license_file) {
-		fprintf(stderr, "No license file or read failed, %d, quit\n", rc);
-		exit(EXIT_FAILURE);
-	} else if (rc != 0) {
-		fprintf(stderr, "Read license result code, %d\n", rc);
-	}
-	fprintf(stderr, "license file: %s\n", license_file);
-#ifdef SUPP_LICENSE_DK
-	if (0 != (rc = lic_dk_init(license_file))) {
-#else
-	if (0 != (rc = lic_std_init(license_file))) {
-#endif
-		fprintf(stderr, "license error %d, quit\n", rc);
-		exit(EXIT_FAILURE);
-	}
-#endif
 
 	// Get execute path.
 #if defined(NANO_PLATFORM_LINUX)
     // if (realpath(argv[0], nanomq_conf->exec_path) == NULL) {
 	ssize_t path_len = readlink("/proc/self/exe", nanomq_conf->exec_path,
 	    sizeof(nanomq_conf->exec_path) - 1);
-	if (path_len <= 0) {
+	if (path_len <= 0 || path_len >= 512) {
 		fprintf(stderr, "Cannot get exec path! default Config read/write & License Update is not working\n");
 	}
 	printf("path :%s\n", nanomq_conf->exec_path);
 #elif defined(NANO_PLATFORM_WINDOWS)
 #endif
+
+#if defined(SUPP_LICENSE_DK) || defined(SUPP_LICENSE_STD)
+	// default license path need exec path
+	char *license_file = NULL;
+	rc = file_path_parse(argc, argv, &license_file);
+	if (license_file == NULL) {
+		memcpy(nanomq_conf->lic_path, nanomq_conf->exec_path,
+				strlen(nanomq_conf->exec_path) - 7); // only want folder
+		strncat(nanomq_conf->lic_path, LICENSE_NAME, strlen(LICENSE_NAME));
+		printf("License file is not specified, use default License file: %s\n",
+			nanomq_conf->lic_path);
+	} else {
+		memcpy(nanomq_conf->lic_path, license_file, strlen(license_file));
+	}
+	if (!nanomq_conf->lic_path) {
+		fprintf(stderr, "No license file or read failed, %d, quit\n", rc);
+		exit(EXIT_FAILURE);
+	} else if (rc != 0) {
+		fprintf(stderr, "Read license result code, %d\n", rc);
+	}
+	fprintf(stderr, "license file: %s\n", nanomq_conf->lic_path);
+#ifdef SUPP_LICENSE_DK
+	if (0 != (rc = lic_dk_init(nanomq_conf->lic_path))) {
+#else
+	if (0 != (rc = lic_std_init(nanomq_conf->lic_path))) {
+#endif
+		fprintf(stderr, "license error %d, quit\n", rc);
+		exit(EXIT_FAILURE);
+	}
+#endif
+
 	// get config file path from cli first.
 	rc = file_path_parse(argc, argv, &nanomq_conf->conf_file);
 	if (!rc) {
