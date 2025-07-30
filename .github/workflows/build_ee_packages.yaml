@@ -63,7 +63,7 @@ jobs:
         sudo apt install -y g++-riscv64-linux-gnu gcc-riscv64-linux-gnu
         sudo apt install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
         sudo apt install -y gcc-arm-linux-gnueabi g++-arm-linux-gnueabi
-        sudo apt install -y cmake ninja-build rpm checkinstall
+        sudo apt install -y cmake ninja-build rpm checkinstall libc6-dev
         sudo sed -i 's/Version: ${VERSION}-${RELEASE}/Version: ${VERSION}/g' $(which checkinstall)
         sudo sed -i 's/-${RELEASE}_${ARCHITECTURE}/_${ARCHITECTURE}/g' $(which checkinstall)
         sudo apt install -y pip
