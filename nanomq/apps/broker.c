@@ -2131,7 +2131,7 @@ broker_start(int argc, char **argv)
 		conf_parse_ver2(nanomq_conf);
 	}
 
-	if (nanomq_conf->conf_file == NULL && strlen(nanomq_conf->exec_path) > 0) {
+	if (nanomq_conf->conf_file == NULL && strlen(nanomq_conf->exec_path) > 7) {
 		char conf_path[512] = {'\0'};
 		memcpy(conf_path, nanomq_conf->exec_path, strlen(nanomq_conf->exec_path) - 7); // only want folder
 		strncat(conf_path, CONF_NAME, strlen(CONF_NAME));
