@@ -151,6 +151,11 @@ if(ENABLE_FILETRANSFER)
   target_link_libraries(nanomq OpenSSL::Crypto)
 endif(ENABLE_FILETRANSFER)
 
+if(ENABLE_LICENSE_STD)
+  find_package(OpenSSL REQUIRED)
+  target_link_libraries(nanomq OpenSSL::Crypto)
+endif(ENABLE_LICENSE_STD)
+
 if(ENABLE_JWT)
   target_link_libraries(nanomq l8w8jwt)
 endif(ENABLE_JWT)
