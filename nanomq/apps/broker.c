@@ -2113,20 +2113,13 @@ broker_start(int argc, char **argv)
 	ssize_t path_len = readlink("/proc/self/exe", nanomq_conf->exec_path,
 	    sizeof(nanomq_conf->exec_path) - 1);
 	if (path_len <= 0) {
-		fprintf(stderr, "Cannot get exec path!\n");
+		fprintf(stderr, "Cannot get exec path! default Config read/write & License Update is not working\n");
 	}
 	printf("path :%s\n", nanomq_conf->exec_path);
 #elif defined(NANO_PLATFORM_WINDOWS)
 #endif
+	// get config file path from cli first.
 	rc = file_path_parse(argc, argv, &nanomq_conf->conf_file);
-	if (nanomq_conf->conf_file == NULL) {
-		char conf_path[512] = {'\0'};
-		memcpy(conf_path, nanomq_conf->exec_path, strlen(nanomq_conf->exec_path) - 7); // only want folder
-		strncat(conf_path, CONF_NAME, strlen(CONF_NAME));
-		nanomq_conf->conf_file = strdup(conf_path);
-		printf("Config file is not specified, use default config file: %s\n", nanomq_conf->conf_file);
-	}
-
 	if (!rc) {
 		conf_fini(nanomq_conf);
 		fprintf(stderr, "Cannot parse command line arguments, quit\n");
@@ -2136,6 +2129,16 @@ broker_start(int argc, char **argv)
 	} else {
 		// HOCON as default
 		conf_parse_ver2(nanomq_conf);
+	}
+
+	if (nanomq_conf->conf_file == NULL && strlen(nanomq_conf->exec_path) > 0) {
+		char conf_path[512] = {'\0'};
+		memcpy(conf_path, nanomq_conf->exec_path, strlen(nanomq_conf->exec_path) - 7); // only want folder
+		strncat(conf_path, CONF_NAME, strlen(CONF_NAME));
+		nanomq_conf->conf_file = strdup(conf_path);
+		printf("Config file is not specified, use default config file: %s\n", nanomq_conf->conf_file);
+	} else {
+		fprintf(stderr, "Abort finding default config path");
 	}
 
 	read_env_conf(nanomq_conf);
