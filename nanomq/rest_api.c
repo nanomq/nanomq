@@ -3379,8 +3379,13 @@ write_file(http_msg *msg)
 	getStringValue(conf_data, item, "path", path, rv);
 
 	if (path == NULL) {
-		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
-		    REQ_PARAM_ERROR);
+		if (config->conf_file == NULL)
+			return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
+		    	REQ_PARAM_ERROR);
+		else {
+			path = config->conf_file;
+			log_warn("UPdate default config file %s", path);
+		}
 	}
 	if (!nano_file_exists(path)) {
 		log_warn("Create new file %s! ", path);
@@ -4246,8 +4251,7 @@ nano_dialer_reload_tls(conf_bridge_node *node, nng_dialer *dialer)
 		}
 	}
 	if (node->tls.ca != NULL) {
-		if ((rv = nng_tls_config_ca_chain(cfg, node->tls.ca, NULL)) !=
-		    0) {
+		if ((rv = nng_tls_config_ca_chain(cfg, node->tls.ca, NULL)) != 0) {
 			log_error("restart tls config failed!");
 		}
 	}
