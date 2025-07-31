@@ -6,7 +6,9 @@
 // file was obtained (LICENSE.txt).  A copy of the license may also be
 // found online at https://opensource.org/licenses/MIT.
 //
-
+#if NANO_PLATFORM_LINUX
+#define _GNU_SOURCE
+#endif
 #include "nng/nng.h"
 #include "nng/mqtt/mqtt_client.h"
 #include "nng/protocol/mqtt/mqtt_parser.h"
@@ -36,7 +38,6 @@
 
 #include <stdint.h>
 #include <stdio.h>
-#include <string.h>
 #include <time.h>
 #include <math.h>
 
@@ -54,6 +55,7 @@
 #endif
 
 #if NANO_PLATFORM_LINUX
+#include <string.h>
 #include <unistd.h>
 #include <sys/time.h>
 #include <sys/resource.h>
