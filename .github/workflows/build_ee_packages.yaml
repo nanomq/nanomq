@@ -59,7 +59,7 @@ jobs:
         sudo apt update
         sudo chmod 755 /usr/local/bin
         sudo apt install -y g++-aarch64-linux-gnu gcc-aarch64-linux-gnu
-        sudo apt install -y g++-mips-linux-gnu gcc-mips-linux-gnu libc6-dev-mipsn32-cross
+        sudo apt install -y g++-mips-linux-gnu gcc-mips-linux-gnu
         sudo apt install -y g++-riscv64-linux-gnu gcc-riscv64-linux-gnu
         sudo apt install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
         sudo apt install -y gcc-arm-linux-gnueabi g++-arm-linux-gnueabi
@@ -80,9 +80,15 @@ jobs:
         set -eu
         wget https://github.com/openssl/openssl/archive/refs/tags/OpenSSL_1_1_1k.tar.gz -O openssl.tar.gz
         tar -xzf openssl.tar.gz && cd openssl-OpenSSL_1_1_1k && mkdir build && cd build
-        ../Configure linux-${{ matrix.arch[5] }} --prefix=${{ matrix.arch[4] }} --cross-compile-prefix=${{ matrix.arch[3] }}-
+
+        openssl_make_flags="linux-${{ matrix.arch[5] }} --prefix=${{ matrix.arch[4] }}"
+        if [ "${{ matrix.arch[0] }}" != "amd64" ]; then
+          openssl_make_flags+=" --cross-compile-prefix=${{ matrix.arch[3] }}-"
+        fi
+        ../Configure ${openssl_make_flags}
+
         make CC=${{ matrix.arch[1] }} RANLIB=${{ matrix.arch[3] }}-ranlib -j2
-        sudo make install CC=${{ matrix.arch[1] }} RANLIB=${{ matrix.arch[3] }}-ranlib
+        sudo make install_sw CC=${{ matrix.arch[1] }} RANLIB=${{ matrix.arch[3] }}-ranlib
         cd ../../
 
     - name: install mbed-tls
@@ -153,9 +159,7 @@ jobs:
         make_flags="-DCMAKE_C_COMPILER=${{ matrix.arch[1] }} -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }} -DNNG_ENABLE_TLS=ON"
         make_flags+=" -DENABLE_LICENSE_STD=ON "
 
-        env_flags=""
         if [ "${{ matrix.build_type }}" != "-msquic" ] && [ "${{ matrix.build_type }}" != "-full" ]; then
-          env_flags+="OPENSSL_ROOT_DIR=\"${{ matrix.arch[4] }}\" "
           make_flags+=" -DOPENSSL_ROOT_DIR=\"${{ matrix.arch[4] }}\" "
         fi
 
@@ -193,7 +197,6 @@ jobs:
         echo "arch=${arch}" >> $GITHUB_OUTPUT
         echo "pkg_name=${pkg_name}" >> $GITHUB_OUTPUT
         echo "make_flags=${make_flags}" >> $GITHUB_OUTPUT
-        echo "env_flags=${env_flags}" >> $GITHUB_OUTPUT
 
     - name: build
       run: |
@@ -201,7 +204,6 @@ jobs:
 
         mkdir -p build
         cd build
-        export ${{ steps.prepare.outputs.env_flags }}
         cmake ${{ steps.prepare.outputs.make_flags }} ..
         make
         sudo make install
