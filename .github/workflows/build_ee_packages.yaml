@@ -83,14 +83,16 @@ jobs:
         wget https://github.com/openssl/openssl/archive/refs/tags/OpenSSL_1_1_1k.tar.gz -O openssl.tar.gz
         tar -xzf openssl.tar.gz && cd openssl-OpenSSL_1_1_1k && mkdir build && cd build
 
-        openssl_make_flags="linux-${{ matrix.arch[5] }} --prefix=${{ matrix.arch[4] }}"
+        openssl_config_flags="linux-${{ matrix.arch[5] }} --prefix=${{ matrix.arch[4] }}"
+        openssl_make_flags="CC=${{ matrix.arch[1] }}"
         if [ "${{ matrix.arch[0] }}" != "amd64" ]; then
-          openssl_make_flags+=" --cross-compile-prefix=${{ matrix.arch[3] }}-"
+          openssl_config_flags+=" --cross-compile-prefix=${{ matrix.arch[3] }}-"
+          openssl_make_flags+=" RANLIB=${{ matrix.arch[3] }}-ranlib"
         fi
-        ../Configure ${openssl_make_flags}
 
-        make CC=${{ matrix.arch[1] }} RANLIB=${{ matrix.arch[3] }}-ranlib -j2
-        sudo make install_sw CC=${{ matrix.arch[1] }} RANLIB=${{ matrix.arch[3] }}-ranlib
+        ../Configure $openssl_config_flags
+        make $openssl_make_flags -j2
+        sudo make install_sw $openssl_make_flags
         cd ../../
 
     - name: install mbed-tls
