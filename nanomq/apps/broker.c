@@ -1202,7 +1202,7 @@ broker(conf *nanomq_conf)
 			strlen(nanomq_conf->exchange.nodes[i]->exchange_url) == 0) {
 			log_error("Exchange url is not set");
 		} else if ((rv = nano_listen(*pair0_sock, nanomq_conf->exchange.nodes[i]->exchange_url, &mq_listener, 0, nanomq_conf)) != 0) {
-			NANO_NNG_FATAL("broker nng_listen", rv);
+			NANO_NNG_FATAL("exchange nng_listen", rv);
 		}
 		nng_listener_set_size(mq_listener, NNG_OPT_RECVMAXSZ, 0xFFFFFFFFu);
 	}
@@ -1819,9 +1819,9 @@ predicate_url(conf *config, char *url)
 	}
 }
 
-// Return config/license file type
+// Return config/license file type & parse data as well
 int
-file_path_parse(int argc, char **argv, char **file_path)
+file_path_parse(int argc, char **argv, conf *conf)
 {
 	int   idx = 2;
 	char *arg;
@@ -1835,14 +1835,19 @@ file_path_parse(int argc, char **argv, char **file_path)
 			exit(0);
 			break;
 		case OPT_HOCONFILE:
+			FREE_NONULL(conf->conf_file);
+			conf->conf_file = nng_strdup(arg);
+			conf_parse_ver2(conf);
+			break;
 		case OPT_CONFFILE:
-			FREE_NONULL(*file_path);
-			*file_path = nng_strdup(arg);
-			return val;
+			FREE_NONULL(conf->conf_file);
+			conf->conf_file = nng_strdup(arg);
+			conf_parse(conf);
+			break;
 		case OPT_LICENSE:
-			FREE_NONULL(*file_path);
-			*file_path = nng_strdup(arg);
-			return val;
+			FREE_NONULL(conf->license_path);
+			conf->license_path = nng_strdup(arg);
+			break;
 		default:
 			break;
 		}
@@ -2047,7 +2052,7 @@ broker_start(int argc, char **argv)
 	ssize_t path_len = readlink("/proc/self/exe", nanomq_conf->exec_path,
 	    sizeof(nanomq_conf->exec_path) - 1);
 	if (path_len <= 0 || path_len >= 512) {
-		fprintf(stderr, "Cannot get exec path! default Config read/write & License Update is not working\n");
+		fprintf(stderr, "Cannot get exec path or too long! default Config read/write & License Update is not working\n");
 	}
 	printf("path :%s\n", nanomq_conf->exec_path);
 #elif defined(NANO_PLATFORM_WINDOWS)
@@ -2055,45 +2060,40 @@ broker_start(int argc, char **argv)
 
 #if defined(SUPP_LICENSE_DK) || defined(SUPP_LICENSE_STD)
 	// default license path need exec path
-	char *license_file = NULL;
-	rc = file_path_parse(argc, argv, &license_file);
-	if (license_file == NULL) {
-		memcpy(nanomq_conf->lic_path, nanomq_conf->exec_path,
-				strlen(nanomq_conf->exec_path) - 7); // only want folder
-		strcat(nanomq_conf->lic_path, LICENSE_NAME);
-		printf("License file is not specified, use default License file: %s\n",
-			nanomq_conf->lic_path);
+	rc = file_path_parse(argc, argv, nanomq_conf);
+	// get config file path from cli first.
+	if (rc < 0) {
+		fprintf(stderr, "Cannot parse command line arguments, quit\n");
+		exit(EXIT_FAILURE);
 	} else {
-		memcpy(nanomq_conf->lic_path, license_file, strlen(license_file));
+		printf("Using Config file path: %s\n", nanomq_conf->conf_file);
 	}
-	if (!nanomq_conf->lic_path) {
+
+	if (nanomq_conf->license_path == NULL) {
+		char path_buf[512] = {'\0'};
+		memcpy(path_buf, nanomq_conf->exec_path,
+				strlen(nanomq_conf->exec_path) - 7); // only want folder
+		strcat(path_buf, LICENSE_NAME);
+		nanomq_conf->license_path = strdup(path_buf);
+		printf("License file is not specified, use default License file: %s\n",
+			nanomq_conf->license_path);
+	}
+	if (!nanomq_conf->license_path) {
 		fprintf(stderr, "No license file or read failed, %d, quit\n", rc);
 		exit(EXIT_FAILURE);
-	} else if (rc != 0) {
+	} else if (rc < 0) {
 		fprintf(stderr, "Read license result code, %d\n", rc);
 	}
-	fprintf(stderr, "license file: %s\n", nanomq_conf->lic_path);
+	fprintf(stderr, "license file: %s\n", nanomq_conf->license_path);
 #ifdef SUPP_LICENSE_DK
-	if (0 != (rc = lic_dk_init(nanomq_conf->lic_path))) {
+	if (0 != (rc = lic_dk_init(nanomq_conf->license_path))) {
 #else
-	if (0 != (rc = lic_std_init(nanomq_conf->lic_path))) {
+	if (0 != (rc = lic_std_init(nanomq_conf->license_path))) {
 #endif
 		fprintf(stderr, "license error %d, quit\n", rc);
 		exit(EXIT_FAILURE);
 	}
 #endif
-
-	// get config file path from cli first.
-	rc = file_path_parse(argc, argv, &nanomq_conf->conf_file);
-	if (!rc) {
-		fprintf(stderr, "Cannot parse command line arguments, quit\n");
-		exit(EXIT_FAILURE);
-	} else if (rc == OPT_CONFFILE) {
-		conf_parse(nanomq_conf);
-	} else {
-		// HOCON as default
-		conf_parse_ver2(nanomq_conf);
-	}
 
 	if (nanomq_conf->conf_file == NULL && strlen(nanomq_conf->exec_path) > 7) {
 		char conf_path[512] = {'\0'};
@@ -2304,7 +2304,7 @@ broker_reload(int argc, char **argv)
 
 	conf_init(nanomq_conf);
 
-	int rc = file_path_parse(argc, argv, &nanomq_conf->conf_file);
+	int rc = file_path_parse(argc, argv, nanomq_conf);
 	if (!rc) {
 		fprintf(stderr, "Cannot parse command line arguments, quit\n");
 		exit(EXIT_FAILURE);
@@ -2317,7 +2317,6 @@ broker_reload(int argc, char **argv)
 		    nanomq_conf->conf_file);
 	}
 
-	conf_parse_ver2(nanomq_conf);
 	char *msg = encode_client_cmd(nanomq_conf->conf_file, rc);
 
 	char *cmd_ipc_url = nanomq_conf->hook_ipc_url == NULL
@@ -2374,7 +2373,7 @@ broker_reload(int argc, char **argv)
 
 	conf_init(nanomq_conf);
 
-	int rc = file_path_parse(argc, argv, &nanomq_conf->conf_file);
+	int rc = file_path_parse(argc, argv, nanomq_conf);
 	if (!rc) {
 		fprintf(stderr, "Cannot parse command line arguments, quit\n");
 		exit(EXIT_FAILURE);
@@ -2386,8 +2385,6 @@ broker_reload(int argc, char **argv)
 		       "file: %s\n",
 		    nanomq_conf->conf_file);
 	}
-
-	conf_parse_ver2(nanomq_conf);
 
 	char *msg = encode_client_cmd(nanomq_conf->conf_file, rc);
 	char *cmd_ipc_url = nanomq_conf->hook_ipc_url == NULL
