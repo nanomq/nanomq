@@ -82,7 +82,7 @@ jobs:
         tar -xzf openssl.tar.gz && cd openssl-OpenSSL_1_1_1k && mkdir build && cd build
         ../Configure linux-${{ matrix.arch[5] }} --prefix=${{ matrix.arch[4] }} --cross-compile-prefix=${{ matrix.arch[3] }}-
         make CC=${{ matrix.arch[1] }} RANLIB=${{ matrix.arch[3] }}-ranlib -j2
-        sudo make install CC=${{ matrix.arch[1] }} RANLIB=${{ matrix.arch[3] }}-ranlib DESTDIR=${{ matrix.arch[4] }}
+        sudo make install CC=${{ matrix.arch[1] }} RANLIB=${{ matrix.arch[3] }}-ranlib
         cd ../../
 
     - name: install mbed-tls
