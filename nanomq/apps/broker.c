@@ -1844,10 +1844,12 @@ file_path_parse(int argc, char **argv, conf *conf)
 			conf->conf_file = nng_strdup(arg);
 			conf_parse(conf);
 			break;
+#if defined(SUPP_LICENSE_DK) || defined(SUPP_LICENSE_STD)
 		case OPT_LICENSE:
 			FREE_NONULL(conf->license_path);
 			conf->license_path = nng_strdup(arg);
 			break;
+#endif
 		default:
 			break;
 		}
