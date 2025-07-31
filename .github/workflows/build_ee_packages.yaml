@@ -59,7 +59,7 @@ jobs:
         sudo apt update
         sudo chmod 755 /usr/local/bin
         sudo apt install -y g++-aarch64-linux-gnu gcc-aarch64-linux-gnu
-        sudo apt install -y g++-mips-linux-gnu gcc-mips-linux-gnu libc6-dev-mipsn32-cross
+        sudo apt install -y g++-mips-linux-gnu gcc-mips-linux-gnu
         sudo apt install -y g++-riscv64-linux-gnu gcc-riscv64-linux-gnu
         sudo apt install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
         sudo apt install -y gcc-arm-linux-gnueabi g++-arm-linux-gnueabi
@@ -146,6 +146,7 @@ jobs:
         pkg_name="nanomq-$(git describe --abbrev=0 --tags)-linux-${arch}${{ matrix.build_type }}.${{ matrix.package_type }}"
 
         make_flags="-DCMAKE_C_COMPILER=${{ matrix.arch[1] }} -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }} -DNNG_ENABLE_TLS=ON"
+        make_flags+=" -DENABLE_LICENSE_STD=ON "
 
         if [ "${{ matrix.build_type }}" == "-sqlite" ] || [ "${{ matrix.build_type }}" == "-full" ]; then
           make_flags+=" -DNNG_ENABLE_SQLITE=ON "
