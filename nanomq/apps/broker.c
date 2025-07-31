@@ -2057,9 +2057,7 @@ broker_start(int argc, char **argv)
 	printf("path :%s\n", nanomq_conf->exec_path);
 #elif defined(NANO_PLATFORM_WINDOWS)
 #endif
-
-#if defined(SUPP_LICENSE_DK) || defined(SUPP_LICENSE_STD)
-	// default license path need exec path
+	// Only call it once! Due to duplicate risk of exchange
 	rc = file_path_parse(argc, argv, nanomq_conf);
 	// get config file path from cli first.
 	if (rc < 0) {
@@ -2068,7 +2066,8 @@ broker_start(int argc, char **argv)
 	} else {
 		printf("Using Config file path: %s\n", nanomq_conf->conf_file);
 	}
-
+#if defined(SUPP_LICENSE_DK) || defined(SUPP_LICENSE_STD)
+	// default license path need exec path
 	if (nanomq_conf->license_path == NULL) {
 		char path_buf[512] = {'\0'};
 		memcpy(path_buf, nanomq_conf->exec_path,
