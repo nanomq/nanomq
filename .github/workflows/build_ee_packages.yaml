@@ -152,6 +152,9 @@ jobs:
 
         make_flags="-DCMAKE_C_COMPILER=${{ matrix.arch[1] }} -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }} -DNNG_ENABLE_TLS=ON"
         make_flags+=" -DENABLE_LICENSE_STD=ON "
+        if [ "${{ matrix.build_type }}" == "-sqlite" ]; then
+          make_flags+=" -DOPENSSL_ROOT_DIR=${{ matrix.arch[4] }} "
+        fi
 
         if [ "${{ matrix.build_type }}" == "-sqlite" ] || [ "${{ matrix.build_type }}" == "-full" ]; then
           make_flags+=" -DNNG_ENABLE_SQLITE=ON "
