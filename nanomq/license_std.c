@@ -167,7 +167,15 @@ split_lic_str(const char *data, char **lic_args, char **lic_sign)
 	if (split_idx <= 0 || split_idx >= strlen(data))
 		return NNG_EINVAL;
 	*lic_args = strndup(data + 0, split_idx);
-	*lic_sign = strndup(data + split_idx + 1, strlen(data + split_idx + 1) - 1);
+	*lic_sign = strndup(data + split_idx + 1, strlen(data + split_idx + 1));
+	char *sign = *lic_sign;
+	for (int i=strlen(sign)-1; i>0; --i) {
+		if (sign[i] == '\n' || sign[i] == '\r') {
+			sign[i] = '\0';
+		} else {
+			break;
+		}
+	}
 	return 0;
 }
 
