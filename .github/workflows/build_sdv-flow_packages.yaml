@@ -9,6 +9,7 @@ on:
     branches-ignore:
       - lianyou-master
       - uisee-master
+      - master
     tags:
       - '*'
   pull_request:
