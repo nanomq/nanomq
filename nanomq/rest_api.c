@@ -4223,7 +4223,7 @@ parse_formdata_file(char *data, int len, int *retlen)
 		return NULL;
 	}
 	pos += strlen(pattern);
-	char *split_pos = memmem(pos, len - (pos-data), split, split_sz);
+	char *split_pos = memmem(pos, len - (pos-data) - 1, split, split_sz);
 	if (split_pos == NULL) {
 		log_error("failed to found end of file content [%.*s]", len, data);
 		return NULL;
