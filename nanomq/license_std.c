@@ -395,6 +395,25 @@ lic_std_init(const char *path)
 }
 
 int
+lic_std_try_update(uint32_t addon, lic_std *lic)
+{
+	g_uptime += addon;
+	uint64_t now = nng_timestamp();
+
+	log_info("LICENSE INFO [%ld/%ld][%ld//%ld]",
+			now/1000, lic->et, g_uptime, lic->vd*24*60*60);
+	if (now > lic->et * 1000) {
+		log_error("LICENSE EXPIRED! %ld//%ld", now/1000, lic->et);
+		return NNG_ETIMEDOUT;
+	}
+	if (g_uptime > lic->vd*24*60*60) {
+		log_error("LICENSE EXPIRED! %ld/%ld", g_uptime, lic->vd*24*60*60);
+		return NNG_ETIMEDOUT;
+	}
+	return 0;
+}
+
+int
 lic_std_update(uint32_t addon)
 {
 	g_uptime += addon;
@@ -434,7 +453,7 @@ lic_std_renew(const char *data)
 			lic_std_free(lic);
 			rv = NNG_EINVAL;
 		} else {
-			if ((rv = lic_std_update(0)) == 0) {
+			if ((rv = lic_std_try_update(0, lic)) == 0) {
 				// Update g lic when valid
 				nng_mtx_lock(g_lic_mtx);
 				lic_std_free(g_lic);
