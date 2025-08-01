@@ -1389,7 +1389,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 		} else {
 			int rv = nmq_auth_http_sub_pub(work->cparam, false, tq, &work->config->auth_http);
 			if (rv != 0) {
-				log_error("Auth failed! publish packet!");
+				log_error("Auth failed! stop publishing packet!");
 				topic_queue_release(tq);
 				return NOT_AUTHORIZED;
 			}

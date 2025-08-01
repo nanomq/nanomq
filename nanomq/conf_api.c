@@ -364,7 +364,7 @@ get_bridge_config(conf_bridge *bridge, const char *node_name)
 		cJSON *           node_obj = cJSON_CreateObject();
 		cJSON_AddStringOrNullToObject(node_obj, "name", node->name);
 		cJSON_AddBoolToObject(node_obj, "enable", node->enable);
-		cJSON_AddNumberToObject(node_obj, "parallel", node->parallel);
+		cJSON_AddNumberToObject(node_obj, "max_parallel_processes", node->parallel);
 
 		cJSON *connector = get_bridge_connector(node);
 

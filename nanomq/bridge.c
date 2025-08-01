@@ -1308,12 +1308,6 @@ bridge_tcp_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	nng_mqtt_set_connect_cb(*sock, bridge_tcp_connect_cb, bridge_arg);
 	nng_mqtt_set_disconnect_cb(*sock, bridge_tcp_disconnect_cb, bridge_arg);
 
-	// if (node->enable) {
-	// 	rv = nng_dialer_start(*dialer, NNG_FLAG_NONBLOCK);
-	// 	if (rv != 0)
-	// 		log_warn("nng_dialer_start %d %s", rv, node->clientid);
-	// }
-
 #ifdef NNG_SUPP_TLS
 	if (node->tls.enable) {
 		nng_dialer_set_ptr(*dialer, NNG_OPT_MQTT_TLS_BRIDGE_CONF, node);
