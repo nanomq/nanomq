@@ -153,7 +153,7 @@ jobs:
     - name: prepare
       id: prepare
       env:
-        DASHBOARD_FETCH_TOKEN: ${{ secrets.EE_CI_DASHBOARD_FETCH_TOKEN }}
+        FETCH_TOKEN: ${{ secrets.EE_CI_DASHBOARD_FETCH_TOKEN }}
       run: |
         arch="${{ matrix.arch[0] }}"
         if [ "$arch" == "amd64" ] && [ "${{ matrix.package_type }}" == "rpm" ]; then
@@ -164,7 +164,7 @@ jobs:
         dashboard_ver="0.0.1-beta.2"
 
         make_flags="-DCMAKE_C_COMPILER=${{ matrix.arch[1] }} -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }} -DNNG_ENABLE_TLS=ON"
-        make_flags+=" -DENABLE_LICENSE_STD=ON -DENABLE_DASHBOARD=ON -DGITHUB_TOKEN=$DASHBOARD_FETCH_TOKEN -DDASHBOARD_VERSION=$dashboard_ver"
+        make_flags+=" -DENABLE_LICENSE_STD=ON -DENABLE_DASHBOARD=ON -DGITHUB_TOKEN=${FETCH_TOKEN} -DDASHBOARD_VERSION=$dashboard_ver"
 
         if [ "${{ matrix.build_type }}" != "-msquic" ] && [ "${{ matrix.build_type }}" != "-full" ]; then
           make_flags+=" -DOPENSSL_ROOT_DIR=\"${{ matrix.arch[4] }}\" "
