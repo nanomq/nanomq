@@ -24,13 +24,13 @@ get_reload_config(conf *config)
 
 	cJSON_AddNumberToObject(data, "property_size", config->property_size);
 	cJSON_AddNumberToObject(
-	    data, "max_packet_size", config->max_packet_size / 1024);
+	    data, "max_packet_size", config->max_packet_size);
 	cJSON_AddNumberToObject(data, "client_max_packet_size",
-	    config->client_max_packet_size / 1024);
-	cJSON_AddNumberToObject(data, "msq_len", config->msq_len);
-	cJSON_AddNumberToObject(data, "qos_duration", config->qos_duration);
+	    config->client_max_packet_size);
+	cJSON_AddNumberToObject(data, "max_mqueue_len", config->msq_len);
+	cJSON_AddNumberToObject(data, "retry_interval", config->qos_duration);
 	cJSON_AddNumberToObject(
-	    data, "keepalive_backoff", (double) config->backoff);
+	    data, "keepalive_multiplier", (double) config->backoff);
 	cJSON_AddBoolToObject(
 	    data, "allow_anonymous", config->allow_anonymous);
 	cJSON_AddBoolToObject(
@@ -438,14 +438,6 @@ set_reload_config(cJSON *json, conf *config)
 	if (rv == 0) {
 		update_var(config->property_size, property_size);
 	}
-	getNumberValue(json, item, "msq_len", msq_len, rv);
-	if (rv == 0) {
-		update_var(config->msq_len, msq_len);
-	}
-	getNumberValue(json, item, "qos_duration", qos_duration, rv);
-	if (rv == 0) {
-		update_var(config->qos_duration, qos_duration);
-	}
 	getBoolValue(json, item, "allow_anonymous", allow_anonymous, rv);
 	if (rv == 0) {
 		update_var(config->allow_anonymous, allow_anonymous);
@@ -464,15 +456,15 @@ set_reload_config(cJSON *json, conf *config)
 		update_var(config->client_max_packet_size,
 		    client_max_packet_size * 1024);
 	}
-	getNumberValue(json, item, "msq_len", msq_len, rv);
+	getNumberValue(json, item, "max_mqueue_len", msq_len, rv);
 	if (rv == 0) {
 		update_var(config->msq_len, msq_len);
 	}
-	getNumberValue(json, item, "qos_duration", qos_duration, rv);
+	getNumberValue(json, item, "retry_interval", qos_duration, rv);
 	if (rv == 0) {
 		update_var(config->qos_duration, qos_duration);
 	}
-	getNumberValue(json, item, "keepalive_backoff", backoff, rv);
+	getNumberValue(json, item, "keepalive_multiplier", backoff, rv);
 	if (rv == 0) {
 		update_var(config->backoff, backoff);
 	}
