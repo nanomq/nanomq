@@ -99,6 +99,12 @@ static endpoints api_ep[] = {
 	    .descr  = "A list of brokers in the cluster",
 	},
 	{
+	    .path   = "/brokers/connections",
+	    .name   = "get_active_connections_number",
+	    .method = "GET",
+	    .descr  = "Get number of active connections in all brokers",
+	},
+	{
 	    .path   = "/nodes/",
 	    .name   = "list_nodes",
 	    .method = "GET",
@@ -395,6 +401,7 @@ static http_msg error_response(
 
 static http_msg get_endpoints(http_msg *msg);
 static http_msg get_brokers(http_msg *msg);
+static http_msg get_brokers_connections(http_msg *msg);
 static http_msg get_nodes(http_msg *msg, nng_socket *broker_sock);
 static http_msg get_clients(http_msg *msg, kv **params, size_t param_num,
     const char *client_id, const char *username, nng_socket *broker_sock);
@@ -918,6 +925,11 @@ process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "brokers") == 0) {
 			ret = get_brokers(msg);
+		} else if (uri_ct->sub_count == 3 &&
+		    uri_ct->sub_tree[2]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "brokers") == 0 &&
+			strcmp(uri_ct->sub_tree[2]->node, "connections") == 0) {
+			ret = get_brokers_connections(msg);
 		} else if (uri_ct->sub_count == 2 &&
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "nodes") == 0) {
@@ -1273,6 +1285,20 @@ get_brokers(http_msg *msg)
 	cJSON_free(json);
 	cJSON_Delete(res_obj);
 
+	return res;
+}
+
+static http_msg
+get_brokers_connections(http_msg *msg)
+{
+	http_msg res    = { .status = NNG_HTTP_STATUS_OK };
+	conf   * config = get_global_conf();
+
+	char json[128];
+	sprintf(json, "{\"tls_connections\":%d, \"tcp_connections\":%d}",
+		config->lic_status.tls_connections, config->lic_status.tcp_connections);
+	put_http_msg(
+	    &res, "application/json", NULL, NULL, NULL, json, strlen(json));
 	return res;
 }
 
