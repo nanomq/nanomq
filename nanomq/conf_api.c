@@ -72,14 +72,18 @@ get_tls_config(conf_tls *tls, bool is_server)
 {
 	cJSON *tls_obj = cJSON_CreateObject();
 	cJSON_AddBoolToObject(tls_obj, "enable", tls->enable);
-	cJSON_AddStringOrNullToObject(tls_obj, "url", tls->url);
 	cJSON_AddStringOrNullToObject(
 	    tls_obj, "key_password", tls->key_password);
-	cJSON_AddStringOrNullToObject(tls_obj, "key", tls->key);
-	cJSON_AddStringOrNullToObject(tls_obj, "cert", tls->cert);
-	cJSON_AddStringOrNullToObject(tls_obj, "cacert", tls->ca);
-	cJSON_AddBoolToObject(tls_obj, "verify_peer", tls->verify_peer);
-	cJSON_AddBoolToObject(tls_obj, "fail_if_no_peer_cert", tls->set_fail);
+	cJSON_AddStringOrNullToObject(tls_obj, "keyfile", tls->keyfile);
+	cJSON_AddStringOrNullToObject(tls_obj, "certfile", tls->certfile);
+	cJSON_AddStringOrNullToObject(tls_obj, "cacertfile", tls->cafile);
+	// cJSON_AddBoolToObject(tls_obj, "cert_encrypted", tls->cert_encrypted);
+	if (is_server) {
+		cJSON_AddStringOrNullToObject(tls_obj, "url", tls->url);
+		cJSON_AddBoolToObject(tls_obj, "verify_peer", tls->verify_peer);
+		cJSON_AddBoolToObject(tls_obj, "fail_if_no_peer_cert", tls->set_fail);
+	}
+
 	return tls_obj;
 }
 
