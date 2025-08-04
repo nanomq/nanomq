@@ -1556,7 +1556,7 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 #endif
 	} else {
 		nng_free(bridge_arg, sizeof(bridge_param));
-		log_error("Unsupported bridge protocol.\n");
+		log_error("Unsupported bridge protocol.");
 	}
 
 	// alloc an AIO for each ctx bridging use only
