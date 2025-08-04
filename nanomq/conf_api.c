@@ -448,13 +448,13 @@ set_reload_config(cJSON *json, conf *config)
 	}
 	getNumberValue(json, item, "max_packet_size", max_packet_size, rv);
 	if (rv == 0) {
-		update_var(config->max_packet_size, max_packet_size * 1024);
+		update_var(config->max_packet_size, max_packet_size);
 	}
 	getNumberValue(
 	    json, item, "client_max_packet_size", client_max_packet_size, rv);
 	if (rv == 0) {
 		update_var(config->client_max_packet_size,
-		    client_max_packet_size * 1024);
+		    client_max_packet_size);
 	}
 	getNumberValue(json, item, "max_mqueue_len", msq_len, rv);
 	if (rv == 0) {
