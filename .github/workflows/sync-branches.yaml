@@ -1,0 +1,24 @@
+name: Sync branches
+
+on:
+  push:
+    branches:
+      - master
+      - sdv_master
+      - ci/**
+
+jobs:
+  sync-branches:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout master branch
+        uses: actions/checkout@v4
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: ${{ github.ref_name == 'master' && 'sdv_master' || 'master' }}
+          title: '[Automated] Sync branches'
