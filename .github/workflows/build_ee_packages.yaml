@@ -28,7 +28,7 @@ jobs:
         arch:
         - [amd64, gcc, g++, x86_64-linux-gnu, /usr/local, x86_64]
         - [arm64, aarch64-linux-gnu-gcc, aarch64-linux-gnu-g++, aarch64-linux-gnu, /usr/aarch64-linux-gnu, aarch64]
-        - [mips, mips-linux-gnu-gcc, mips-linux-gnu-g++, mips-linux-gnu, /usr/mips-linux-gnu, mips64]
+        # - [mips, mips-linux-gnu-gcc, mips-linux-gnu-g++, mips-linux-gnu, /usr/mips-linux-gnu, mips64]
         - [riscv64, riscv64-linux-gnu-gcc, riscv64-linux-gnu-g++, riscv64-linux-gnu, /usr/riscv64-linux-gnu, generic64]
         - [armhf, arm-linux-gnueabihf-gcc, arm-linux-gnueabihf-g++, arm-linux-gnueabihf, /usr/arm-linux-gnueabihf, armv4]
         - [armel, arm-linux-gnueabi-gcc, arm-linux-gnueabi-g++, arm-linux-gnueabi, /usr/arm-linux-gnueabi, armv4]
