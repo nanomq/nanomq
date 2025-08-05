@@ -64,8 +64,18 @@ if(ENABLE_LICENSE_DK)
 endif(ENABLE_LICENSE_DK)
 
 if(ENABLE_LICENSE_STD)
-  find_package(OpenSSL REQUIRED)
-  nng_link_libraries(OpenSSL::SSL OpenSSL::Crypto)
+  if(OPENSSL_ROOT_DIR)
+    set(OPENSSL_INCLUDE_DIR ${OPENSSL_ROOT_DIR}/include)
+    set(OPENSSL_LIB_DIR ${OPENSSL_ROOT_DIR}/lib)
+    nng_link_libraries(
+      ${OPENSSL_LIB_DIR}/libssl.a
+      ${OPENSSL_LIB_DIR}/libcrypto.a
+	)
+    include_directories(${OPENSSL_INCLUDE_DIR})
+  else()
+    find_package(OpenSSL REQUIRED)
+    nng_link_libraries(OpenSSL::SSL OpenSSL::Crypto)
+  endif(OPENSSL_ROOT_DIR)
   set(SOURCES ${SOURCES} license_std.c)
 endif(ENABLE_LICENSE_STD)
 
@@ -147,16 +157,25 @@ if(ENABLE_AWS_BRIDGE)
 endif(ENABLE_AWS_BRIDGE)
 
 if(ENABLE_FILETRANSFER)
-  find_package(OpenSSL REQUIRED)
+  find_package(OpenSSL REQUIRED) #TODO
   target_link_libraries(nanomq OpenSSL::Crypto)
 endif(ENABLE_FILETRANSFER)
 
 if(ENABLE_LICENSE_STD)
   if(NNG_ENABLE_QUIC)
   else()
-    set(OPENSSL_ROOT_DIR ${OPENSSL_ROOT_DIR})
-    find_package(OpenSSL REQUIRED)
-    target_link_libraries(nanomq OpenSSL::Crypto)
+    if(OPENSSL_ROOT_DIR)
+      set(OPENSSL_INCLUDE_DIR ${OPENSSL_ROOT_DIR}/include)
+      set(OPENSSL_LIB_DIR ${OPENSSL_ROOT_DIR}/lib)
+      target_link_libraries(nanomq
+        ${OPENSSL_LIB_DIR}/libssl.a
+        ${OPENSSL_LIB_DIR}/libcrypto.a
+      )
+      target_include_directories(nanomq PUBLIC ${OPENSSL_INCLUDE_DIR})
+    else()
+      find_package(OpenSSL REQUIRED)
+      nng_link_libraries(OpenSSL::SSL OpenSSL::Crypto)
+    endif(OPENSSL_ROOT_DIR)
   endif(NNG_ENABLE_QUIC)
 endif(ENABLE_LICENSE_STD)
 

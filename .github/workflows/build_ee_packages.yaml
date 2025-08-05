@@ -159,7 +159,7 @@ jobs:
         fi
 
         pkg_name="nanomq-$(git describe --abbrev=0 --tags)-linux-${arch}${{ matrix.build_type }}.${{ matrix.package_type }}"
-        dashboard_ver="0.0.1"
+        dashboard_ver="0.0.2"
 
         make_flags="-DCMAKE_C_COMPILER=${{ matrix.arch[1] }} -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }} -DNNG_ENABLE_TLS=ON"
         make_flags+=" -DENABLE_LICENSE_STD=ON -DENABLE_DASHBOARD=ON -DDASHBOARD_VERSION=$dashboard_ver"
