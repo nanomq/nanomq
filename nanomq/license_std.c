@@ -384,7 +384,7 @@ lic_std_init(const char *path)
 		printf("failed to parse license %s, rv%d\n", path, rv);
 	} else {
 		if (0 != split_lic_args(g_lic->args, g_lic->args_sz, g_lic)) {
-			printf("failed to parse license in\n", path);
+			printf("failed to parse license in %s\n", path);
 			rv = NNG_EINVAL;
 		} else {
 			rv = lic_std_update(0);
@@ -392,6 +392,16 @@ lic_std_init(const char *path)
 	}
 
 	return rv;
+}
+
+int
+lic_std_lc()
+{
+	int lc = 0;
+	nng_mtx_lock(g_lic_mtx);
+	lc = g_lic->lc;
+	nng_mtx_unlock(g_lic_mtx);
+	return lc;
 }
 
 int
