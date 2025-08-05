@@ -52,7 +52,7 @@
 #include "include/webhook_inproc.h"
 #include "include/cmd_proc.h"
 #include "include/process.h"
-#include "include/nanomq.h"
+#include "include/version.h"
 #include "include/plugin_spi_stream.h"
 
 #if defined(SUPP_LICENSE_DK)
@@ -1203,6 +1203,9 @@ broker(conf *nanomq_conf)
 			log_error("Exchange url is not set");
 		} else if ((rv = nano_listen(*pair0_sock, nanomq_conf->exchange.nodes[i]->exchange_url, &mq_listener, 0, nanomq_conf)) != 0) {
 			NANO_NNG_FATAL("exchange nng_listen", rv);
+		} else {
+			log_warn("Exchange server & MQTT Stream %s start on %s",
+					nanomq_conf->exchange.nodes[i]->name, nanomq_conf->exchange.nodes[i]->exchange_url);
 		}
 		nng_listener_set_size(mq_listener, NNG_OPT_RECVMAXSZ, 0xFFFFFFFFu);
 	}
@@ -1349,6 +1352,9 @@ broker(conf *nanomq_conf)
 			if ((rv = nano_listen(sock, nanomq_conf->url, NULL, 0,
 			         nanomq_conf)) != 0) {
 				NANO_NNG_FATAL("broker nng_listen", rv);
+			} else {
+				log_warn("EMQX Edge (ver %d.%d.%d) Serving MQTT TCP on %s",
+					NANO_VER_MAJOR, NANO_VER_MINOR, NANO_VER_PATCH, nanomq_conf->url);
 			}
 		}
 
@@ -1357,6 +1363,10 @@ broker(conf *nanomq_conf)
 			         nanomq_conf->tcp_list.nodes[i]->url, NULL, 0,
 			         nanomq_conf)) != 0) {
 				NANO_NNG_FATAL("broker nng_listen", rv);
+			} else {
+				log_warn("EMQX Edge (ver %d.%d.%d) Serving MQTT TCP on %s",
+					NANO_VER_MAJOR, NANO_VER_MINOR, NANO_VER_PATCH,
+					nanomq_conf->tcp_list.nodes[i]->url);
 			}
 		}
 	}
@@ -1366,6 +1376,9 @@ broker(conf *nanomq_conf)
 		if ((rv = nano_listen(
 		         sock, nanomq_conf->websocket.url, NULL, 0, nanomq_conf)) != 0) {
 			NANO_NNG_FATAL("nng_listen ws", rv);
+		} else {
+			log_warn("EMQX Edge (ver %d.%d.%d) Serving MQTT over WebSocket on %s",
+					NANO_VER_MAJOR, NANO_VER_MINOR, NANO_VER_PATCH, nanomq_conf->websocket.url);
 		}
 	}
 
@@ -1384,6 +1397,9 @@ broker(conf *nanomq_conf)
 			    tls_listener, nanomq_conf->tls_list.nodes[i]);
 			if ((rv = nng_listener_start(tls_listener, 0)) != 0) {
 				NANO_NNG_FATAL("nng_listener_start tls", rv);
+			} else {
+				log_warn("EMQX Edge (ver %d.%d.%d) Serving MQTT TLS on %s",
+					NANO_VER_MAJOR, NANO_VER_MINOR, NANO_VER_PATCH, nanomq_conf->tls_list.nodes[i]->url);
 			}
 		}
 	}
@@ -1400,6 +1416,9 @@ broker(conf *nanomq_conf)
 			init_listener_tls(tls_listener, &nanomq_conf->tls);
 			if ((rv = nng_listener_start(tls_listener, 0)) != 0) {
 				NANO_NNG_FATAL("nng_listener_start tls", rv);
+			} else {
+				log_warn("EMQX Edge (ver %d.%d.%d) Serving MQTT TLS on %s",
+					NANO_VER_MAJOR, NANO_VER_MINOR, NANO_VER_PATCH, nanomq_conf->tls.url);
 			}
 		}
 
@@ -1416,6 +1435,9 @@ broker(conf *nanomq_conf)
 			init_listener_tls(wss_listener, &nanomq_conf->tls);
 			if ((rv = nng_listener_start(wss_listener, 0)) != 0) {
 				NANO_NNG_FATAL("nng_listener_start wss", rv);
+			} else {
+				log_warn("EMQX Edge (ver %d.%d.%d) Serving MQTT over WebSocket TLS on %s",
+					NANO_VER_MAJOR, NANO_VER_MINOR, NANO_VER_PATCH, nanomq_conf->websocket.tls_url);
 			}
 		}
 	}
@@ -1439,7 +1461,13 @@ broker(conf *nanomq_conf)
 	// HTTP Server
 	if (nanomq_conf->http_server.enable) {
 		nanomq_conf->http_server.broker_sock = &sock;
-		start_rest_server(nanomq_conf);
+		if (start_rest_server(nanomq_conf) == 0) {
+			log_warn("EMQX Edge (ver %d.%d.%d) Serving HTTP Server on %s:%d",
+					NANO_VER_MAJOR, NANO_VER_MINOR, NANO_VER_PATCH,
+					nanomq_conf->http_server.ip_addr, nanomq_conf->http_server.port);
+		} else {
+			log_error("Start rest server failed!");
+		}
 	}
 
 	// insert topic node for preset session feature
