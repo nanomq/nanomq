@@ -1295,8 +1295,8 @@ get_brokers_connections(http_msg *msg)
 	conf   * config = get_global_conf();
 
 	char json[128];
-	sprintf(json, "{\"tls_connections\":%d, \"tcp_connections\":%d}",
-		config->lic_status.tls_connections, config->lic_status.tcp_connections);
+	sprintf(json, "{\"connections\":%d}",
+		 nng_atomic_get(config->lc));
 	put_http_msg(
 	    &res, "application/json", NULL, NULL, NULL, json, strlen(json));
 	return res;
