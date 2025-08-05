@@ -19,7 +19,7 @@ on:
       - master
 
 jobs:
-  build_packages:
+  all:
     runs-on: ubuntu-22.04
 
     strategy:
@@ -158,7 +158,7 @@ jobs:
           arch="x86_64"
         fi
 
-        pkg_name="nanomq-$(git describe --abbrev=0 --tags)-linux-${arch}${{ matrix.build_type }}.${{ matrix.package_type }}"
+        pkg_name="nanomq-ee-$(git describe --abbrev=0 --tags)-linux-${arch}${{ matrix.build_type }}.${{ matrix.package_type }}"
         dashboard_ver="0.0.2"
 
         make_flags="-DCMAKE_C_COMPILER=${{ matrix.arch[1] }} -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }} -DNNG_ENABLE_TLS=ON"
