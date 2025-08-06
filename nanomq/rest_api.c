@@ -1295,8 +1295,12 @@ get_brokers_connections(http_msg *msg)
 	conf   * config = get_global_conf();
 
 	char json[128];
+#if defined(SUPP_LICENSE_DK) || defined(SUPP_LICENSE_STD)
 	sprintf(json, "{\"connections\":%d}",
 		 nng_atomic_get(config->lc));
+#else
+	sprintf(json, "{\"connections\":%d}", 0);
+#endif
 	put_http_msg(
 	    &res, "application/json", NULL, NULL, NULL, json, strlen(json));
 	return res;
