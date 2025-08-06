@@ -15,8 +15,6 @@ on:
   pull_request:
     branches:
       - sdv_master
-    branches-ignore:
-      - master
   release:
     types:
       - published
