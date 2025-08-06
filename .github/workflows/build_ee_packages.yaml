@@ -158,8 +158,11 @@ jobs:
           arch="x86_64"
         fi
 
-        pkg_name="nanomq-ee-$(git describe --abbrev=0 --tags)-linux-${arch}${{ matrix.build_type }}.${{ matrix.package_type }}"
-        dashboard_ver="0.0.2"
+        dashboard_ver="0.0.3"
+        pkg_name="nanomq-ee-$(git describe --abbrev=0 --tags)-linux-${arch}${{ matrix.build_type }}"
+        if [ "${{ matrix.package_type }}" != "zip" ]; then
+            pkg_name+=".${{ matrix.package_type }}"
+        fi
 
         make_flags="-DCMAKE_C_COMPILER=${{ matrix.arch[1] }} -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }} -DNNG_ENABLE_TLS=ON"
         make_flags+=" -DENABLE_LICENSE_STD=ON -DENABLE_DASHBOARD=ON -DDASHBOARD_VERSION=$dashboard_ver"
@@ -226,8 +229,7 @@ jobs:
         cp -r nanomq/dist _nanomq_${{ steps.prepare.outputs.arch }}/
         cp ../etc/nanomq_ee.conf _nanomq_${{ steps.prepare.outputs.arch }}/nanomq.conf
         cp ../etc/trial-env.lic _nanomq_${{ steps.prepare.outputs.arch }}/nanomq.lic
-        zip -r _nanomq_${{ steps.prepare.outputs.arch }}.zip _nanomq_${{ steps.prepare.outputs.arch }}
-        mv _nanomq_${{ steps.prepare.outputs.arch }}.zip _packages/${{ steps.prepare.outputs.pkg_name }}
+        mv _nanomq_${{ steps.prepare.outputs.arch }} _packages/${{ steps.prepare.outputs.pkg_name }}
 
     - name: build deb
       if: matrix.package_type == 'deb'
