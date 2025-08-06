@@ -4389,7 +4389,7 @@ void
 nano_dialer_reload_tls(conf_bridge_node *node, nng_dialer *dialer)
 {
 	int             rv;
-	nng_tls_config *cfg;
+	nng_tls_config *cfg = NULL;
 	conf_tls       *tls = &node->tls;
 
 	nng_free(tls->key, sizeof(tls->key));
@@ -4414,7 +4414,8 @@ nano_dialer_reload_tls(conf_bridge_node *node, nng_dialer *dialer)
 		}
 	}
 
-	nng_tls_config_free(cfg);
+	if (cfg != NULL)
+		nng_tls_config_free(cfg);
 	if ((rv = nng_tls_config_alloc(&cfg, NNG_TLS_MODE_CLIENT)) != 0) {
 		log_error("alloc tls config failed!");
 		return;
