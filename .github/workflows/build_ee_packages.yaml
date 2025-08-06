@@ -33,7 +33,7 @@ jobs:
         - [armhf, arm-linux-gnueabihf-gcc, arm-linux-gnueabihf-g++, arm-linux-gnueabihf, /usr/arm-linux-gnueabihf, armv4]
         - [armel, arm-linux-gnueabi-gcc, arm-linux-gnueabi-g++, arm-linux-gnueabi, /usr/arm-linux-gnueabi, armv4]
         package_type:
-        - tar.gz
+        - zip
         - rpm
         - deb
         build_type:
@@ -215,8 +215,8 @@ jobs:
         make
         sudo make install
 
-    - name: build tarball
-      if: matrix.package_type == 'tar.gz'
+    - name: build zip
+      if: matrix.package_type == 'zip'
       run: |
         set -eu
         cd build
@@ -226,8 +226,8 @@ jobs:
         cp -r nanomq/dist _nanomq_${{ steps.prepare.outputs.arch }}/
         cp ../etc/nanomq_ee.conf _nanomq_${{ steps.prepare.outputs.arch }}/nanomq.conf
         cp ../etc/trial-env.lic _nanomq_${{ steps.prepare.outputs.arch }}/nanomq.lic
-        tar -czvf _nanomq_${{ steps.prepare.outputs.arch }}.tar.gz _nanomq_${{ steps.prepare.outputs.arch }}
-        mv _nanomq_${{ steps.prepare.outputs.arch }}.tar.gz _packages/${{ steps.prepare.outputs.pkg_name }}
+        zip -r _nanomq_${{ steps.prepare.outputs.arch }}.zip _nanomq_${{ steps.prepare.outputs.arch }}
+        mv _nanomq_${{ steps.prepare.outputs.arch }}.zip _packages/${{ steps.prepare.outputs.pkg_name }}
 
     - name: build deb
       if: matrix.package_type == 'deb'
