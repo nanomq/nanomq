@@ -3439,7 +3439,7 @@ post_reload_config(http_msg *msg)
 	cJSON_Delete(req);
 	return res;
 }
-// Update sub config file, create one if it is not exist
+// Update sub config file, create one if it is not exist. Partially Duplicated with update config
 static http_msg
 write_file(http_msg *msg)
 {
@@ -3458,10 +3458,11 @@ write_file(http_msg *msg)
 	getStringValue(conf_data, item, "path", path, rv);
 
 	if (path == NULL) {
-		if (config->conf_file == NULL)
+		if (config->conf_file == NULL) {
+			cJSON_Delete(req);
 			return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    	REQ_PARAM_ERROR);
-		else {
+		} else {
 			path = config->conf_file;
 			log_warn("UPdate default config file %s", path);
 		}
@@ -3475,6 +3476,7 @@ write_file(http_msg *msg)
 
 	cJSON *hocon = (cJSON *)nng_hocon_parse_str(data, strlen(data));
 	if (!cJSON_IsObject(hocon)) {
+		cJSON_Delete(req);
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    PARAMS_HOCON_FORMAT_ILLEGAL);
 	}
@@ -3483,6 +3485,17 @@ write_file(http_msg *msg)
 
 	cJSON *res_obj = cJSON_CreateObject();
 	int rc = nng_file_put(path, data, strlen(data));
+
+	// nng_hocon_parse_str cause memleak in nng_hocon_parse_file
+	// cJSON *jso2 = nng_hocon_parse_file(path);
+	// if (!cJSON_IsObject(jso2)) {
+	// 	cJSON_Delete(res_obj);
+	// 	cJSON_Delete(req);
+	// 	return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
+	// 	    PARAMS_HOCON_FORMAT_ILLEGAL);
+	// }
+	// cJSON_Delete(jso2);
+
 	if (0 != rc) {
 		cJSON_AddNumberToObject(res_obj, "code", WRITE_CONFIG_FAILED);
 		log_error("Error writing config to %s, error code: %s", config->conf_file, rc);
@@ -3497,6 +3510,7 @@ write_file(http_msg *msg)
 	cJSON_free(dest);
 	cJSON_Delete(res_obj);
 	cJSON_Delete(req);
+	cJSON_Delete(hocon);
 	return res;
 }
 //Update core config file.
