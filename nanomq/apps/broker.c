@@ -2126,7 +2126,6 @@ broker_start(int argc, char **argv)
 		fprintf(stderr, "license error %d, quit\n", rc);
 		exit(EXIT_FAILURE);
 	} else {
-		// nng_atomic_set(nanomq_conf->lc, lic_std_lc());	// not really needed
 		printf("Max %d connection is allowed for EMQX Edge\n", lic_std_lc());
 	}
 #endif
