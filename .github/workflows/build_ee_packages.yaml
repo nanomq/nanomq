@@ -225,7 +225,7 @@ jobs:
         cp nanomq/nanomq _nanomq_${{ steps.prepare.outputs.arch }}/
         cp -r nanomq/dist _nanomq_${{ steps.prepare.outputs.arch }}/
         cp ../etc/nanomq_ee.conf _nanomq_${{ steps.prepare.outputs.arch }}/nanomq.conf
-        cp ../etc/trial-env.lic _nanomq_${{ steps.prepare.outputs.arch }}/
+        cp ../etc/trial-env.lic _nanomq_${{ steps.prepare.outputs.arch }}/nanomq.lic
         tar -czvf _nanomq_${{ steps.prepare.outputs.arch }}.tar.gz _nanomq_${{ steps.prepare.outputs.arch }}
         mv _nanomq_${{ steps.prepare.outputs.arch }}.tar.gz _packages/${{ steps.prepare.outputs.pkg_name }}
 
