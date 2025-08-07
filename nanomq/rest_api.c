@@ -1721,6 +1721,7 @@ get_metrics(http_msg *msg, kv **params, size_t param_num,
 	cJSON_AddItemToObject(res_obj, "metrics", metrics);
 	cJSON_AddStringToObject(res_obj, "cpuinfo", cpu);
 	cJSON_AddStringToObject(res_obj, "memory", mem);
+	cJSON_AddNumberToObject(res_obj, "connections", nng_atomic_get(config->lc));
 
 	// cJSON *meta = cJSON_CreateObject();
 	// cJSON_AddItemToObject(res_obj, "meta", meta);
