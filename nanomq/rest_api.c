@@ -3933,8 +3933,8 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 			continue;
 		}
 		node->enable = false;
-		nng_dialer_off(*node->dialer);
-		// nng_msleep(100);
+		if (node->dialer != NULL)
+			nng_dialer_off(*node->dialer);
 
 		nng_mtx_lock(node->mtx);
 		conf_bridge_node_destroy(node);	// TODO potential dead lock here!!
