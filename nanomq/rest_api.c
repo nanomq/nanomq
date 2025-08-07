@@ -3082,6 +3082,7 @@ write_file(http_msg *msg)
 	getStringValue(conf_data, item, "path", path, rv);
 
 	if (path == NULL) {
+		cJSON_Delete(req);
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    REQ_PARAM_ERROR);
 	}
@@ -3094,6 +3095,7 @@ write_file(http_msg *msg)
 
 	cJSON *hocon = (cJSON *)nng_hocon_parse_str(data, strlen(data));
 	if (!cJSON_IsObject(hocon)) {
+		cJSON_Delete(req);
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    PARAMS_HOCON_FORMAT_ILLEGAL);
 	}
@@ -3116,6 +3118,7 @@ write_file(http_msg *msg)
 	cJSON_free(dest);
 	cJSON_Delete(res_obj);
 	cJSON_Delete(req);
+	cJSON_Delete(hocon);
 	return res;
 }
 //Update core config file.
