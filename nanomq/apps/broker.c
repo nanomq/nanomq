@@ -47,7 +47,7 @@
 #include "include/webhook_inproc.h"
 #include "include/cmd_proc.h"
 #include "include/process.h"
-#include "include/nanomq.h"
+#include "include/version.h"
 
 #if defined(SUPP_ICEORYX)
 	#include "nng/iceoryx_shm/iceoryx_shm.h"
@@ -1391,7 +1391,13 @@ broker(conf *nanomq_conf)
 
 	if (nanomq_conf->http_server.enable) {
 		nanomq_conf->http_server.broker_sock = &sock;
-		start_rest_server(nanomq_conf);
+		if (start_rest_server(nanomq_conf) == 0) {
+			log_warn("NanoMQ (ver %d.%d.%d) Serving HTTP Server on http://%s:%d",
+					NANO_VER_MAJOR, NANO_VER_MINOR, NANO_VER_PATCH,
+					nanomq_conf->http_server.ip_addr, nanomq_conf->http_server.port);
+		} else {
+			log_error("Start rest server failed!");
+		}
 	}
 
 	// ipc server for receiving commands from reload command
