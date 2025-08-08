@@ -8,10 +8,11 @@ on:
   push:
     branches:
       - master
+    tags:
+      - 'edge-*'
   pull_request:
     branches:
       - master
-
   release:
     types:
       - published
