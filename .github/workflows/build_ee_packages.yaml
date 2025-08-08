@@ -228,6 +228,7 @@ jobs:
         echo "## How to start nanomq\n\n./nanomq start" > start.md
         cd build
         mkdir -p _packages
+        mkdir -p _packages_release
         mkdir -p _nanomq_${{ steps.prepare.outputs.arch }}
         mkdir -p _nanomq_${{ steps.prepare.outputs.arch }}/etc
         mkdir -p _nanomq_${{ steps.prepare.outputs.arch }}/etc/certs
@@ -238,7 +239,10 @@ jobs:
         cp ../etc/certs/*.pem _nanomq_${{ steps.prepare.outputs.arch }}/etc/certs/
         cp ../start.md _nanomq_${{ steps.prepare.outputs.arch }}/
         cp ../commits.txt _nanomq_${{ steps.prepare.outputs.arch }}/
-        mv _nanomq_${{ steps.prepare.outputs.arch }} _packages/${{ steps.prepare.outputs.pkg_name }}
+        mv _nanomq_${{ steps.prepare.outputs.arch }} ${{ steps.prepare.outputs.pkg_name }}
+        zip -r ${{ steps.prepare.outputs.pkg_name }}.zip ${{ steps.prepare.outputs.pkg_name }}
+        mv ${{ steps.prepare.outputs.pkg_name }}.zip _packages_release/
+        mv ${{ steps.prepare.outputs.pkg_name }} _packages/
 
     - name: build deb
       if: matrix.package_type == 'deb'
@@ -268,3 +272,14 @@ jobs:
         name: ${{ steps.prepare.outputs.pkg_name }}
         path: "build/_packages/*"
         retention-days: 7
+
+    - name: Upload Artifacts to Release
+      uses: softprops/action-gh-release@v2.2.2
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        name: "NanoMQ Release ${{ github.ref_name }}"
+        tag_name: ${{ github.ref_name }}
+        files: build/_packages_release/*.zip
+        draft: false
+        prerelease: false
+        overwrite: true
