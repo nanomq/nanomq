@@ -24,7 +24,7 @@ main()
 	conf = get_test_conf(ALL_FEATURE_CONF);
 	assert(conf != NULL);
 	nng_thread_create(&nmq, (void *) broker_start_with_conf, (void *) conf);
-	nng_msleep(50); // wait a while before sub
+	nng_msleep(5000); // wait a while before sub
 
 	// pipe to sub
 	char *arg[] = { "mosquitto_sub", "-t", "topic1", "-t", "topic2", "-U",
@@ -33,12 +33,12 @@ main()
 		NULL };
 
 	pid_sub = popen_with_cmd(&outfp, arg, cmd);
-	nng_msleep(5000); // pub should be slightly behind sub
+	nng_msleep(200); // pub should be slightly behind sub
 	// pipe to pub
 	p_pub   = popen(cmd_pub, "r");
 
 	// check recv msg
-	nng_msleep(1000);
+	nng_msleep(100);
 	assert(read(outfp, buf, buf_size) != -1);
 	printf("what we got:%s", buf);
 	assert(strncmp(buf, "message", 7) == 0);
