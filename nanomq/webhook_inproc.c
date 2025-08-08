@@ -652,20 +652,6 @@ skip:
 	}
 }
 
-static nng_msg *
-create_connect_msg()
-{
-	// create a CONNECT message
-	/* CONNECT */
-	nng_msg *connmsg;
-	nng_mqtt_msg_alloc(&connmsg, 0);
-	nng_mqtt_msg_set_packet_type(connmsg, NNG_MQTT_CONNECT);
-	nng_mqtt_msg_set_connect_proto_version(connmsg, 4);
-	nng_mqtt_msg_set_connect_client_id(connmsg, "hook-trigger");
-	nng_mqtt_msg_encode(connmsg);
-	return connmsg;
-}
-
 static void
 trigger_tcp_disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {

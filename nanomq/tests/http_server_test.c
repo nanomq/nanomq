@@ -480,11 +480,15 @@ test_post_rules_unsupported()
 static bool
 test_post_rules()
 {
+	nng_msleep(1000);
 	assert(test_post_rules_repub());
+	nng_msleep(1000);
 	assert(test_post_rules_sqlite());
+	nng_msleep(1000);
 	// mysql connect to local mysql sever will fail in ci
 	// assert(test_post_rules_mysql());
 	assert(test_post_rules_unsupported());
+	nng_msleep(1000);
 	return true;
 }
 
@@ -565,6 +569,7 @@ test_put_rule_mysql()
 static bool
 test_put_rule()
 {
+	nng_msleep(2000);
 	assert(test_put_rule_repub());
 	assert(test_put_rule_sqlite());
 	// assert(test_put_rule_mysql());
@@ -885,6 +890,7 @@ main()
 	// // tested now.
 	// assert(test_restart());
 	// assert(test_stop());
+	nng_msleep(2000);
 	kill(pid_sub, SIGKILL);
 	kill(pid_sub2, SIGKILL);
 
