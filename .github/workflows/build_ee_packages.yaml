@@ -223,13 +223,21 @@ jobs:
       if: matrix.package_type == 'zip'
       run: |
         set -eu
+        git log --format=%H -1 > commits.txt
+        cd nng && git log --format=%H -1 >> ../commits.txt && cd -
+        echo "## How to start nanomq\n\n./nanomq start" > start.md
         cd build
         mkdir -p _packages
         mkdir -p _nanomq_${{ steps.prepare.outputs.arch }}
+        mkdir -p _nanomq_${{ steps.prepare.outputs.arch }}/etc
+        mkdir -p _nanomq_${{ steps.prepare.outputs.arch }}/etc/certs
         cp nanomq/nanomq _nanomq_${{ steps.prepare.outputs.arch }}/
         cp -r nanomq/dist _nanomq_${{ steps.prepare.outputs.arch }}/
         cp ../etc/nanomq_ee.conf _nanomq_${{ steps.prepare.outputs.arch }}/nanomq.conf
         cp ../etc/trial-env.lic _nanomq_${{ steps.prepare.outputs.arch }}/nanomq.lic
+        cp ../etc/certs/*.pem _nanomq_${{ steps.prepare.outputs.arch }}/etc/certs/
+        cp ../start.md _nanomq_${{ steps.prepare.outputs.arch }}/
+        cp ../commits.txt _nanomq_${{ steps.prepare.outputs.arch }}/
         mv _nanomq_${{ steps.prepare.outputs.arch }} _packages/${{ steps.prepare.outputs.pkg_name }}
 
     - name: build deb
