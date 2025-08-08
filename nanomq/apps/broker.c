@@ -1911,12 +1911,13 @@ broker_start(int argc, char **argv)
 
 	conf *nanomq_conf;
 
-	if (!status_check(&pid)) {
-		fprintf(stderr,
-		    "One NanoMQ instance is still running, a new instance "
-		    "won't be started until the other one is stopped.\n");
-		exit(EXIT_FAILURE);
-	}
+	// commented out due to issue #2809
+	// if (!status_check(&pid)) {
+	// 	fprintf(stderr,
+	// 	    "One NanoMQ instance is still running, a new instance "
+	// 	    "won't be started until the other one is stopped.\n");
+	// 	exit(EXIT_FAILURE);
+	// }
 
 	if ((nanomq_conf = nng_zalloc(sizeof(conf))) == NULL) {
 		fprintf(stderr,
