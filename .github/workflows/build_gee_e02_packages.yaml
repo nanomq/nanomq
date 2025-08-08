@@ -58,7 +58,7 @@ jobs:
       - name: Package Artifacts (Linux)
         if: matrix.platform == 'linux'
         run: |
-          pkgversion="$(git describe --abbrev=1 --tags)"
+          pkgversion="$(git describe --abbrev=1 --tags --match *sdv*)"
           git log --format=%H -1 > readme.txt
           cd nng && git log --format=%H -1 >> ../readme.txt && cd -
 
@@ -95,7 +95,7 @@ jobs:
       - name: Package Artifacts (Android)
         if: matrix.platform == 'android' && matrix.architecture == 'arm64'
         run: |
-          pkgversion="$(git describe --abbrev=1 --tags)"
+          pkgversion="$(git describe --abbrev=1 --tags --match *sdv*)"
           git log --format=%H -1 > readme.txt
 
           mkdir -p packages/nanomq_android_${{ matrix.architecture }}/{parquet,etc,log,lib}
