@@ -33,12 +33,12 @@ main()
 		NULL };
 
 	pid_sub = popen_with_cmd(&outfp, arg, cmd);
-	nng_msleep(1000); // pub should be slightly behind sub
+	nng_msleep(5000); // pub should be slightly behind sub
 	// pipe to pub
 	p_pub   = popen(cmd_pub, "r");
 
 	// check recv msg
-	nng_msleep(5000);
+	nng_msleep(1000);
 	assert(read(outfp, buf, buf_size) != -1);
 	printf("what we got:%s", buf);
 	assert(strncmp(buf, "message", 7) == 0);
