@@ -243,6 +243,7 @@ jobs:
         zip -r ${{ steps.prepare.outputs.pkg_name }}.zip ${{ steps.prepare.outputs.pkg_name }}
         mv ${{ steps.prepare.outputs.pkg_name }}.zip _packages_release/
         mv ${{ steps.prepare.outputs.pkg_name }} _packages/
+        cd _packages_release; echo $(sha256sum ${{ steps.prepare.outputs.pkg_name }}.zip | awk '{print $1}') > ${{ steps.prepare.outputs.pkg_name }}.zip.sha256; cd -
 
     - name: build deb
       if: matrix.package_type == 'deb'
@@ -279,7 +280,9 @@ jobs:
       with:
         name: "NanoMQ Release ${{ github.ref_name }}"
         tag_name: ${{ github.ref_name }}
-        files: build/_packages_release/*.zip
+        files: |
+          build/_packages_release/*.zip
+          build/_packages_release/*.sha256
         draft: false
         prerelease: false
         overwrite: true
