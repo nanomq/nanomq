@@ -217,6 +217,7 @@ webhook_client_connack(nng_socket *sock, conf_web_hook *hook_conf,
     const char *username, const char *client_id)
 {
 	if (!hook_conf->enable || !event_filter(hook_conf, CLIENT_CONNACK)) {
+		log_info("event is filterd out!");
 		return -1;
 	}
 
@@ -539,8 +540,10 @@ hook_entry(nano_work *work, uint8_t reason)
 	}
 
 
-	if (!hook_conf->enable)
+	if (!hook_conf->enable) {
+		log_info("webhook is disabled!");
 		return 0;
+	}
 	switch (work->flag) {
 	case CMD_CONNACK:
 		rv = webhook_client_connack(sock, hook_conf,

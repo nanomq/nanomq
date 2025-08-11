@@ -479,6 +479,7 @@ send_msg_webhook(hook_work *w, nng_msg *msg)
 	// TODO Maybe there is a bug here.
 	// Why did I think there is a bug? No enough connack notifications.
 	nng_mtx_lock(w->mtx);
+
 	if (msg == NULL) {
 		rv = nng_lmq_get(w->lmq, &msg);
 		log_debug("webhook agent gets msg from lmq to send");
@@ -499,7 +500,7 @@ send_msg_webhook(hook_work *w, nng_msg *msg)
 		// nng_msg_clone(msg);
 		log_info("WebHook msg cached!");
 		if (nng_lmq_put(w->lmq, msg) != 0) {
-			log_info("HTTP Request droppped");
+			log_info("WebHook HTTP Request droppped");
 			nng_msg_free(msg);
 		}
 	} else {
@@ -668,7 +669,6 @@ hook_work_cb(void *arg)
 		work->msg = nng_aio_get_msg(work->aio);
 		msg = work->msg;
 		body = (char *) nng_msg_body(msg);
-
 		send_msg_webhook(work, msg);
 		work->msg   = NULL;
 		work->state = HOOK_RECV_WEBHOOK;
@@ -1234,13 +1234,17 @@ hook_cb(void *arg)
 
 	// NanoMQ core thread talks to others via INPROC
 	if ((rv = nng_listen(pullsock, hook_ipc_url, NULL, 0)) != 0) {
-		log_error("hook ipc nng_listen %d", rv);
-		return;
+		log_error("hook ipc nng_listen %d %s", rv, nng_strerror(rv));
+		exit(EXIT_FAILURE);
+	} else {
+		log_info("Successfully start hook_ipc listener on %s", hook_ipc_url);
 	}
 	// Reply sock will be expose to public IPC calling
 	if ((rv = nng_listen(repsock, exchange_ipc_url, NULL, 0)) != 0) {
-		log_error("hook exchange nng_listen %d", rv);
-		return;
+		log_error("hook exchange nng_listen %d %s", rv, nng_strerror(rv));
+		exit(EXIT_FAILURE);
+	} else {
+		log_info("Successfully start exchange listener on %s", exchange_ipc_url);
 	}
 
 	if (hook_search_limit == NULL)
