@@ -225,7 +225,7 @@ jobs:
         set -eu
         git log --format=%H -1 > commits.txt
         cd nng && git log --format=%H -1 >> ../commits.txt && cd -
-        echo -e "## How to start nanomq\n\n```./nanomq start```" > start.md
+        echo -e "## How to start nanomq\n\n./nanomq start" > start.md
         cd build
         mkdir -p _packages
         mkdir -p _packages_release
