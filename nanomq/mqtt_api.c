@@ -198,7 +198,7 @@ static nng_mtx *log_file_mtx = NULL;
 static int
 log_file_init(conf_log *log)
 {
-	printf("read log path: %s\n", log->dir);
+	printf("log: init log path: %s\n", log->dir);
 	if (log->dir != NULL && !nng_file_is_dir(log->dir)) {
 		if (nng_make_parent_dirs(log->dir) != 0){
 			log_fatal("NanoMQ cannot touch path %s ", log->dir);
@@ -214,7 +214,7 @@ log_file_init(conf_log *log)
 	log->dir   = log->dir == NULL ? nng_strdup("./") : log->dir;
 	log->file  = log->file == NULL ? nng_strdup("nanomq.log") : log->file;
 	char *path = nano_concat_path(log->dir, log->file);
-	printf("final log path: %s\n", path);
+	printf("log: full log path: %s\n", path);
 	log->fp    = fopen(path, "a");
 	if (log->fp == NULL) {
 		log_fatal("open log file '%s' failed", path);

@@ -96,7 +96,7 @@ readfile(const char *fname, int *sz)
 	fp = fopen(fname, "r");
 
 	if (NULL == fp) {
-		printf("file can't be opened %s\n", fname);
+		printf("lic: file can't be opened %s\n", fname);
 		return NULL;
 	}
 
@@ -109,14 +109,14 @@ readfile(const char *fname, int *sz)
 	char *str = malloc(sizeof(char) * cap + 1);
 	memset(str, 0, cap + 1);
 	if (str == NULL) {
-		printf("No more memory\n");
+		printf("lic: No more memory\n");
 		fclose(fp);
 		return NULL;
 	}
 
 	pos = fread(str, 1, cap, fp);
 	if (pos != cap) {
-		printf("Failed to read file\n");
+		printf("lic: Failed to read file\n");
 		free(str);
 		fclose(fp);
 		return NULL;
@@ -201,15 +201,15 @@ split_lic_args(const char *lic_args, int lic_args_sz, struct lic_std *lic)
 		}
 	}
 	if (args_idx != max_args) {
-		printf("wrong argu number%d\n", args_idx);
+		printf("lic: wrong argu number%d\n", args_idx);
 		return -1;
 	}
 	if (0 != strcmp(args[0], "220111")) {
-		printf("wrong vercode %s\n", args[0]);
+		printf("lic: wrong vercode %s\n", args[0]);
 		return -2;
 	}
 	if (1 != strlen(args[1])) {
-		printf("wrong ltype %s\n", args[1]);
+		printf("lic: wrong ltype %s\n", args[1]);
 		return -2;
 	}
 	switch (args[1][0]) {
@@ -232,7 +232,7 @@ split_lic_args(const char *lic_args, int lic_args_sz, struct lic_std *lic)
 	lic->et = lic->st + lic->vd*24*60*60;
 	ts2date(lic->et, lic->et_str);
 	lic->lc = atoi(args[8]);
-	printf("license type:%s name:%s email:%s dc:%s valid:%lld-%lld lc:%d\n",
+	printf("lic: license type:%s name:%s email:%s dc:%s valid:%lld-%lld lc:%d\n",
 			lic->ltype, lic->name, lic->email, lic->dc, lic->st, lic->et, lic->lc);
 	for (int i=0; i<max_args; ++i)
 		if (args[i] != NULL)
@@ -251,18 +251,18 @@ lic_verify_sign(struct lic_std *lic, EVP_PKEY *pkey)
 		goto end;
 	}
 	if (!EVP_DigestVerifyInit(context, NULL, EVP_sha256(), NULL, pkey)) {
-		printf("EVP_DigestVerifyInit failed.\n");
+		printf("lic: EVP_DigestVerifyInit failed.\n");
 		rv = NNG_ECRYPTO;
 		goto end;
 	}
 	if (!EVP_DigestVerifyUpdate(context, lic->args, lic->args_sz)) {
-		printf("EVP_DigestVerifyUpdate failed.\n");
+		printf("lic: EVP_DigestVerifyUpdate failed.\n");
 		rv = NNG_ECRYPTO;
 		goto end;
 	}
 	if (EVP_DigestVerifyFinal(context, lic->sign, lic->sign_sz) <=
 	    0) {
-		printf("EVP_DigestVerifyFinal failed.\n");
+		printf("lic: EVP_DigestVerifyFinal failed.\n");
 		rv = NNG_ECRYPTO;
 		goto end;
 	}
@@ -283,7 +283,7 @@ parse_lic_str(const char *data, const char *pubk, lic_std *lic)
 	char * lic_args_b64 = NULL;
 	char * lic_sign_b64 = NULL;
 	if (0 != (rv = split_lic_str(data, &lic_args_b64, &lic_sign_b64))) {
-		printf("invalid lic format\n");
+		printf("lic: invalid lic format\n");
 		BIO_free(bio);
 		EVP_PKEY_free(pkey);
 		return rv;
@@ -304,11 +304,11 @@ parse_lic_str(const char *data, const char *pubk, lic_std *lic)
 	}
 
 	if ((lic_args_sz = base64_decode(lic_args_b64, strlen(lic_args_b64), lic_args)) <= 0) {
-		printf("invalid lic args content\n");
+		printf("lic: invalid lic args content\n");
 		rv = NNG_EINVAL;
 	}
 	if ((lic_sign_sz = base64_decode(lic_sign_b64, strlen(lic_sign_b64), lic_sign)) <= 0) {
-		printf("invalid lic sign content\n");
+		printf("lic: invalid lic sign content\n");
 		rv = NNG_EINVAL;
 	}
 
@@ -346,7 +346,7 @@ parse_lic_file(const char *fname, const char *pubk, lic_std *lic)
 	int   fsz;
 
 	if ((fbuf = readfile(fname, &fsz)) == NULL) {
-		printf("failed to readfile %s\n", fname);
+		printf("lic: failed to readfile %s\n", fname);
 		return NNG_EINVAL;
 	}
 
@@ -376,15 +376,15 @@ lic_std_init(const char *path)
 	g_lic_path = path;
 	g_lic = nng_alloc(sizeof(struct lic_std));
 	if (0 != (rv = nng_mtx_alloc(&g_lic_mtx))) {
-		printf("failed to alloc mtx for license rv%d\n", rv);
+		printf("lic: failed to alloc mtx for license rv%d\n", rv);
 		return rv;
 	}
 	rv = parse_lic_file(path, pubk, g_lic);
 	if (rv != 0) {
-		printf("failed to parse license %s, rv%d\n", path, rv);
+		printf("lic: failed to parse license %s, rv%d\n", path, rv);
 	} else {
 		if (0 != split_lic_args(g_lic->args, g_lic->args_sz, g_lic)) {
-			printf("failed to parse license in %s\n", path);
+			printf("lic: failed to parse license in %s\n", path);
 			rv = NNG_EINVAL;
 		} else {
 			rv = lic_std_update(0);

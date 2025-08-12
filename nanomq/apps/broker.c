@@ -1631,13 +1631,13 @@ broker(conf *nanomq_conf)
 		license_tick += 6;
 		if ((license_tick %= 60) == 0) { // for less flush
 			if (0 != (rv = lic_dk_update(1))) { // 1 minutes
-				printf("license dk error rv%d\n", rv);
+				printf("lic: license dk error rv%d\n", rv);
 				exit(0);
 			}
 		}
 #elif defined(SUPP_LICENSE_STD)
 		if (0 != (rv = lic_std_update(6))) {
-			printf("license std error rv%d\n", rv);
+			printf("lic: license std error rv%d\n", rv);
 			exit(0);
 		}
 #endif
@@ -1650,13 +1650,13 @@ broker(conf *nanomq_conf)
 			license_tick += 60;
 			if ((license_tick %= 600) == 0) { // for less flush
 				if (0 != (rv = lic_dk_update(10))) { // 10 minutes
-					printf("license dk error rv%d\n", rv);
+					printf("lic: license dk error rv%d\n", rv);
 					exit(0);
 				}
 			}
 #elif defined(SUPP_LICENSE_STD)
 			if (0 != (rv = lic_std_update(60))) {
-				printf("license std error rv%d\n", rv);
+				printf("lic: license std error rv%d\n", rv);
 				exit(0);
 			}
 #endif
@@ -2088,17 +2088,17 @@ broker_start(int argc, char **argv)
 	if (path_len <= 0 || path_len >= 512) {
 		fprintf(stderr, "Cannot get exec path or too long! default Config read/write & License Update is not working\n");
 	}
-	printf("path :%s\n", nanomq_conf->exec_path);
+	printf("cmd: Current path of NanoMQ: %s\n", nanomq_conf->exec_path);
 #elif defined(NANO_PLATFORM_WINDOWS)
 #endif
 	// Only call it once! Due to duplicate risk of exchange
 	rc = file_path_parse(argc, argv, nanomq_conf);
 	// get config file path from cli first.
 	if (rc < 0) {
-		fprintf(stderr, "Cannot parse command line arguments, quit\n");
+		fprintf(stderr, "cmd: Cannot parse command line arguments, quit\n");
 		exit(EXIT_FAILURE);
 	} else {
-		printf("Using Config file path: %s\n", nanomq_conf->conf_file);
+		printf("cmd: Config file path set by command line: %s\n", nanomq_conf->conf_file);
 	}
 #if defined(SUPP_LICENSE_DK) || defined(SUPP_LICENSE_STD)
 	// default license path need exec path
@@ -2108,25 +2108,25 @@ broker_start(int argc, char **argv)
 				strlen(nanomq_conf->exec_path) - 7); // only want folder
 		strcat(path_buf, LICENSE_NAME);
 		nanomq_conf->license_path = strdup(path_buf);
-		printf("License file is not specified, use default License file: %s\n",
+		printf("lic: License file is not specified, use default License file: %s\n",
 			nanomq_conf->license_path);
 	}
 	if (!nanomq_conf->license_path) {
-		fprintf(stderr, "No license file or read failed, %d, quit\n", rc);
+		fprintf(stderr, "lic: No license file or read failed, %d, quit\n", rc);
 		exit(EXIT_FAILURE);
 	} else if (rc < 0) {
-		fprintf(stderr, "Read license result code, %d\n", rc);
+		fprintf(stderr, "lic: Read license result code, %d\n", rc);
 	}
-	fprintf(stderr, "license file: %s\n", nanomq_conf->license_path);
+	fprintf(stderr, "lic: license file: %s\n", nanomq_conf->license_path);
 #ifdef SUPP_LICENSE_DK
 	if (0 != (rc = lic_dk_init(nanomq_conf->license_path))) {
 #else
 	if (0 != (rc = lic_std_init(nanomq_conf->license_path))) {
 #endif
-		fprintf(stderr, "license error %d, quit\n", rc);
+		fprintf(stderr, "lic: license error %d, quit\n", rc);
 		exit(EXIT_FAILURE);
 	} else {
-		printf("Max %d connection is allowed for EMQX Edge\n", lic_std_lc());
+		fprintf(stderr, "lic: Max %d connection is allowed for EMQX Edge\n", lic_std_lc());
 	}
 #endif
 
@@ -2135,17 +2135,17 @@ broker_start(int argc, char **argv)
 		memcpy(conf_path, nanomq_conf->exec_path, strlen(nanomq_conf->exec_path) - 7); // only want folder
 		strcat(conf_path, CONF_NAME);
 		nanomq_conf->conf_file = strdup(conf_path);
-		printf("Config file is not specified, use default config file: %s\n", nanomq_conf->conf_file);
+		printf("cmd: Config file is not specified, use default config file: %s\n", nanomq_conf->conf_file);
 		conf_parse_ver2(nanomq_conf);
 	} else {
-		fprintf(stderr, "Abort finding default config path");
+		fprintf(stderr, "cmd: Abort finding default config path\n");
 	}
 
 	read_env_conf(nanomq_conf);
 
 	if (!broker_parse_opts(argc, argv, nanomq_conf)) {
 		conf_fini(nanomq_conf);
-		fprintf(stderr, "Cannot parse command line arguments, quit\n");
+		fprintf(stderr, "cmd: Cannot parse command line arguments, quit\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -2378,9 +2378,9 @@ broker_restart(int argc, char **argv)
 		while (!status_check(&pid)) {
 			kill(pid, SIGKILL);
 		}
-		fprintf(stderr, "Previous NanoMQ instance stopped.\n");
+		fprintf(stderr, "cmd: Previous NanoMQ instance stopped.\n");
 	} else {
-		fprintf(stderr, "There is no running NanoMQ instance.\n");
+		fprintf(stderr, "cmd: There is no running NanoMQ instance.\n");
 	}
 
 	return broker_start(argc, argv);
