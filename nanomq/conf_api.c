@@ -372,20 +372,36 @@ get_bridge_config(conf_bridge *bridge, const char *node_name)
 
 		cJSON *pub_infos = cJSON_CreateArray();
 		for (size_t j = 0; j < node->forwards_count; j++) {
-			cJSON * pub_obj = cJSON_CreateObject();
+			cJSON  *pub_obj = cJSON_CreateObject();
 			topics *pub     = node->forwards_list[j];
+			if (pub->prefix) {
+				cJSON_AddStringToObject(
+				    pub_obj, "prefix", pub->prefix);
+			}
+			if (pub->suffix) {
+				cJSON_AddStringToObject(
+				    pub_obj, "suffix", pub->suffix);
+			}
 			cJSON_AddStringOrNullToObject(
-				pub_obj, "remote_topic", pub->remote_topic);
+			    pub_obj, "remote_topic", pub->remote_topic);
 			cJSON_AddStringOrNullToObject(
-				pub_obj, "local_topic", pub->local_topic);
+			    pub_obj, "local_topic", pub->local_topic);
 			cJSON_AddItemToArray(pub_infos, pub_obj);
 		}
 		cJSON_AddItemToObject(node_obj, "forwards", pub_infos);
 
 		cJSON *sub_infos = cJSON_CreateArray();
 		for (size_t j = 0; j < node->sub_count; j++) {
-			cJSON * sub_obj = cJSON_CreateObject();
+			cJSON  *sub_obj = cJSON_CreateObject();
 			topics *sub     = node->sub_list[j];
+			if (sub->prefix) {
+				cJSON_AddStringToObject(
+				    sub_obj, "prefix", sub->prefix);
+			}
+			if (sub->suffix) {
+				cJSON_AddStringToObject(
+				    sub_obj, "suffix", sub->suffix);
+			}
 			cJSON_AddStringOrNullToObject(
 			    sub_obj, "remote_topic", sub->remote_topic);
 			cJSON_AddStringOrNullToObject(
