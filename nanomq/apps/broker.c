@@ -33,7 +33,7 @@
 #include "nng/supplemental/nanolib/mqtt_db.h"
 #include "nng/supplemental/nanolib/log.h"
 #include "nng/supplemental/nanolib/utils.h"
-#include "nng/supplemental/nanolib/env.h"
+#include "nng/supplemental/nanolib/topics.h"
 #include "nng/protocol/reqrep0/req.h"
 #include "nng/supplemental/util/platform.h"
 
@@ -257,6 +257,7 @@ bridge_pub_handler(nano_work *work)
 				rv = 0;
 				topic->body = work->pub_packet->var_header.publish.topic_name.body;
 				topic->len  = work->pub_packet->var_header.publish.topic_name.len;
+				log_debug("local topic %s topic %s", node->forwards_list[i]->local_topic, topic->body);
 				if (topic_filter(node->forwards_list[i]->local_topic,
 							(const char *)topic->body)) {
 					work->state = SEND;
@@ -267,17 +268,19 @@ bridge_pub_handler(nano_work *work)
 						mqtt_property_dup(
 						    &props, work->pub_packet->var_header.publish.properties);
 					}
-					// No change if remote topic == ""
-					if (node->forwards_list[i]->remote_topic_len != 0) {
-						topic->body = node->forwards_list[i]->remote_topic;
-						topic->len = node->forwards_list[i]->remote_topic_len;
-					}
+					char *new_topic = generate_repub_topic(
+					    node->forwards_list[i],
+					    topic->body, false);
+					topic->body = new_topic;
+					topic->len  = strlen(new_topic);
+					rv = NNG_STAT_STRING;
 					if (node->forwards_list[i]->prefix != NULL) {
 						topic->body =
 							nng_strnins(topic->body, node->forwards_list[i]->prefix,
 										topic->len, node->forwards_list[i]->prefix_len);
 						topic->len = strlen(topic->body);
 						rv = NNG_STAT_STRING;	//mark it for free
+						nng_free(new_topic, strlen(new_topic));
 					}
 					if (node->forwards_list[i]->suffix != NULL) {
 						char *tmp = topic->body;
@@ -292,12 +295,10 @@ bridge_pub_handler(nano_work *work)
 					}
 					uint8_t retain;
 					uint8_t qos;
-					retain =
-					    node->forwards_list[i]->retain == NO_RETAIN
+					retain = node->forwards_list[i]->retain == NO_RETAIN
 					    ? work->pub_packet->fixed_header.retain
 					    : node->forwards_list[i]->retain;
-					qos    =
-					    node->forwards_list[i]->qos == NO_QOS
+					qos = node->forwards_list[i]->qos == NO_QOS
 					    ? work->pub_packet->fixed_header.qos
 					    : node->forwards_list[i]->qos;
 					bridge_msg = bridge_publish_msg(
@@ -389,7 +390,7 @@ server_cb(void *arg)
 		log_debug("RECV  ^^^^ ctx%d ^^^^\n", work->ctx.id);
 		msg = nng_aio_get_msg(work->aio);
 		if ((rv = nng_aio_result(work->aio)) != 0) {
-			log_info("RECV aio result: %d", rv);
+			log_debug("RECV aio result: %d", rv);
 			work->state = RECV;
 			if (work->proto == PROTO_MQTT_BROKER) {
 				if (msg != NULL)
@@ -413,7 +414,7 @@ server_cb(void *arg)
 		if (work->proto == PROTO_MQTT_BRIDGE) {
 			uint8_t type = nng_msg_get_type(msg);
 			if (type == CMD_CONNACK) {
-				log_info("bridge client is connected!");
+				log_debug("bridge client is connected!");
 			} else if (type == CMD_PUBLISH) {
 				if (rv == 0) {
 					// only re-coding normal bridigng msg
@@ -421,6 +422,7 @@ server_cb(void *arg)
 					bridge_downward_msg_coding(work);
 				} else {
 					// exclude disconnet event msg
+					log_debug("bridge client is disconnected!");
 				}
 			} else {
 				// only accept publish/CONNACK/DISCONNECT msg from upstream
@@ -1773,11 +1775,11 @@ status_check(int *pid)
 				nng_strfree(pid_path);
 				return 1;
 			}
-			log_info("old pid read, [%u]", *pid);
+			log_debug("old pid read, [%u]", *pid);
 			nng_free(data, size);
 
 			if ((kill(*pid, 0)) == 0) {
-				log_info("there is a running NanoMQ instance "
+				log_warn("there is a running NanoMQ instance "
 				          ": pid [%u]",
 				    *pid);
 				nng_strfree(pid_path);

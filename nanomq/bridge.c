@@ -224,7 +224,7 @@ bridge_downward_msg_coding(nano_work *work)
 			topics *sub_topic = node->sub_list[i];
 			if (sub_topic->local_topic_len != 0) {
 				char *new_topic = generate_repub_topic(
-				    sub_topic, topic->body);
+				    sub_topic, topic->body, true);
 				if (new_topic == NULL) {
 					log_warn("Process local_topic failed! "
 					         "Stay with original.");
