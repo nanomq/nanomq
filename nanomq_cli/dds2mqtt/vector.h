@@ -57,7 +57,11 @@ int nftp_vec_cat(nftp_vec *, nftp_vec *);
 size_t nftp_vec_cap(nftp_vec *);
 size_t nftp_vec_len(nftp_vec *);
 
+#ifdef _WIN32
+#define __FILENAME__ (strrchr(__FILE__, '\\') ? strrchr(__FILE__, '\\') + 1 : __FILE__)
+#else
 #define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
+#endif
 
 static char buf[64];
 static inline char *
