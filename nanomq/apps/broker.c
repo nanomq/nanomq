@@ -1945,6 +1945,7 @@ broker_start(int argc, char **argv)
 #endif
 
 	rc = file_path_parse(argc, argv, &nanomq_conf->conf_file);
+	read_env_conf(nanomq_conf);
 	if (nanomq_conf->conf_file == NULL && strlen(nanomq_conf->exec_path) > 7) {
 		char conf_path[512] = {'\0'};
 		memcpy(conf_path, nanomq_conf->exec_path, strlen(nanomq_conf->exec_path) - 7); // only want folder
@@ -1965,8 +1966,6 @@ broker_start(int argc, char **argv)
 		// HOCON as default
 		conf_parse_ver2(nanomq_conf);
 	}
-
-	read_env_conf(nanomq_conf);
 
 	if (!broker_parse_opts(argc, argv, nanomq_conf)) {
 		conf_fini(nanomq_conf);
