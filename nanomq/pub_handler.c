@@ -1434,13 +1434,6 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 		return TOPIC_FILTER_INVALID;
 	}
 
-#if defined(SUPP_AWS_BRIDGE)
-	if (work->proto == PROTO_AWS_BRIDGE) {
-		bridge_handle_topic_reflection(
-		    work, &work->config->aws_bridge);
-	}
-#endif
-
 	topic = work->pub_packet->var_header.publish.topic_name.body;
 
 #ifdef ACL_SUPP
