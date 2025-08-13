@@ -1951,7 +1951,7 @@ broker_start(int argc, char **argv)
 		memcpy(conf_path, nanomq_conf->exec_path, strlen(nanomq_conf->exec_path) - 7); // only want folder
 		strcat(conf_path, CONF_NAME);
 		nanomq_conf->conf_file = strdup(conf_path);
-		printf("Config file is not specified, use default config file: %s\n", nanomq_conf->conf_file);
+		printf("Config file is not specified, using default config file: %s\n", nanomq_conf->conf_file);
 	} else {
 		fprintf(stderr, "Abort finding default config path\n");
 	}
