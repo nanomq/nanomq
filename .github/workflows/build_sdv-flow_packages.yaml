@@ -70,8 +70,8 @@ jobs:
           docker cp $id:/opt/NanoMQ_mirror/build-debug/nanomq_cli/nanomq_cli ./packages/nanomq-debug/
           cp readme.txt ./packages/nanomq/
           cp readme.txt ./packages/nanomq-debug/
-          cp etc/nanomq_sdv.conf ./packages/nanomq/etc
-          cp etc/nanomq_sdv.conf ./packages/nanomq-debug/etc
+          cp etc/nanomq_sdv.conf ./packages/nanomq/etc/nanomq.conf
+          cp etc/nanomq_sdv.conf ./packages/nanomq-debug/etc/nanomq.conf
 
           cd ./packages
           tar -zcvf ./nanomq-${pkgversion}-linux-${{ matrix.architecture }}-sdv.tar.gz ./nanomq
@@ -89,7 +89,7 @@ jobs:
 
           mkdir -p packages/nanomq_android_${{ matrix.architecture }}/{parquet,etc,log,lib}
           cp readme.txt ./packages/nanomq_android_${{ matrix.architecture }}/
-          cp etc/nanomq_sdv_android.conf ./packages/nanomq_android_${{ matrix.architecture }}/etc
+          cp etc/nanomq_sdv_android.conf ./packages/nanomq_android_${{ matrix.architecture }}/etc/nanomq.conf
           cp build_android/nanomq/nanomq ./packages/nanomq_android_${{ matrix.architecture }}/
           cp build_android/nanomq_cli/nanomq_cli ./packages/nanomq_android_${{ matrix.architecture }}/
           rm build_android/lib/libcrypto.so build_android/lib/libssl.so
