@@ -1944,8 +1944,9 @@ broker_start(int argc, char **argv)
 #elif defined(NANO_PLATFORM_WINDOWS)
 #endif
 
-	rc = file_path_parse(argc, argv, &nanomq_conf->conf_file);
 	read_env_conf(nanomq_conf);
+	rc = file_path_parse(argc, argv, &nanomq_conf->conf_file);
+
 	if (nanomq_conf->conf_file == NULL && strlen(nanomq_conf->exec_path) > 7) {
 		char conf_path[512] = {'\0'};
 		memcpy(conf_path, nanomq_conf->exec_path, strlen(nanomq_conf->exec_path) - 7); // only want folder
