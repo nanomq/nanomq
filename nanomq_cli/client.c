@@ -1258,8 +1258,8 @@ client_cb(void *arg)
 		switch (work->opts->type) {
 		case PUB:
 			work->msg = publish_msg(work->opts);
-			nng_msg_dup(&msg, work->msg);
-			nng_aio_set_msg(work->aio, msg);
+			nng_msg_clone(work->msg);
+			nng_aio_set_msg(work->aio, work->msg);
 			msg         = NULL;
 			work->state = SEND;
 			nng_ctx_send(work->ctx, work->aio);
@@ -1322,9 +1322,9 @@ client_cb(void *arg)
 		} else {
 			work->msg_count--;
 			if (work->msg_count > 0) {
-				nng_msg_dup(&msg, work->msg);
-				nng_aio_set_msg(work->aio, msg);
-				msg         = NULL;
+				nng_msg_clone(work->msg);
+				nng_aio_set_msg(work->aio, work->msg);
+				// nng_ctx_send(work->ctx, work->aio);
 				work->state = SEND_WAIT;
 				nng_sleep_aio(work->opts->interval, work->aio);
 			} else {
