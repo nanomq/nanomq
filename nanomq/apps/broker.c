@@ -268,19 +268,24 @@ bridge_pub_handler(nano_work *work)
 						mqtt_property_dup(
 						    &props, work->pub_packet->var_header.publish.properties);
 					}
-					char *new_topic = generate_repub_topic(
-					    node->forwards_list[i],
-					    topic->body, false);
-					topic->body = new_topic;
-					topic->len  = strlen(new_topic);
-					rv = NNG_STAT_STRING;
+					if (node->forwards_list[i]->remote_topic_len != 0) {
+						char *new_topic = generate_repub_topic(
+						    node->forwards_list[i],
+						    topic->body, false);
+						topic->body = new_topic;
+						topic->len  = strlen(new_topic);
+						rv = NNG_STAT_STRING;
+					}
 					if (node->forwards_list[i]->prefix != NULL) {
 						topic->body =
 							nng_strnins(topic->body, node->forwards_list[i]->prefix,
 										topic->len, node->forwards_list[i]->prefix_len);
 						topic->len = strlen(topic->body);
-						rv = NNG_STAT_STRING;	//mark it for free
-						nng_free(new_topic, strlen(new_topic));
+						if (rv == NNG_STAT_STRING)
+							nng_free(topic->body, topic->len);
+						else
+							rv = NNG_STAT_STRING;	//mark it for free
+						
 					}
 					if (node->forwards_list[i]->suffix != NULL) {
 						char *tmp = topic->body;
