@@ -3286,6 +3286,11 @@ post_config(http_msg *msg, const char *type)
 
 	if (cJSON_IsObject(conf_data)) {
 		if (type != NULL) {
+			cJSON *item;
+			// shared by all sub feature section
+			int  rv     = -1;
+			bool enable = true;
+			getBoolValue(conf_data, item, "enable", enable, rv);
 			if (strcmp(type, "basic") == 0) {
 				cJSON *basic =
 				    cJSON_GetObjectItem(conf_data, "basic");
@@ -3304,6 +3309,8 @@ post_config(http_msg *msg, const char *type)
 				cJSON *auth =
 				    cJSON_GetObjectItem(conf_data, "auth");
 				if (cJSON_IsArray(auth)) {
+					if (rv == 0)
+						config->auths.enable = enable;
 					set_auth_config(auth,
 					    config->conf_file, &config->auths);
 				}
