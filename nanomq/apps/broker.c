@@ -517,8 +517,10 @@ server_cb(void *arg)
 				nng_msg_clone(work->msg);
 				nng_aio_set_msg(work->aio, work->msg);
 				nng_ctx_send(work->ctx, work->aio);
+				smsg = nano_msg_notify(work->cparam, reason_code, 0, true);
+			} else {
+				smsg = nano_msg_notify(work->cparam, reason_code, 1, true);
 			}
-			smsg = nano_msg_notify_connect(work->cparam, reason_code);
 			hook_entry(work, reason_code);
 			// Set V4/V5 flag for publish notify msg
 			nng_msg_set_cmd_type(smsg, CMD_PUBLISH);
@@ -760,7 +762,7 @@ server_cb(void *arg)
 			         (mqtt_string *) conn_param_get_will_topic(
 			             work->cparam),
 			         conn_param_get_protover(work->cparam),
-			         nng_clock())) != NULL) {
+			         nng_clock(), NULL)) != NULL) {
 				work->msg = msg;
 				work->flag = CMD_PUBLISH;
 				// Set V4/V5 flag for publish msg
