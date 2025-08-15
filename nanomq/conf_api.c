@@ -865,41 +865,39 @@ set_sqlite_config(cJSON *json, const char *conf_path, conf_sqlite *sqlite,
 	}
 }
 
+// We choose the easy way to reuse reload_auth_config() API
 void
 set_auth_config(cJSON *json, const char *conf_path, conf_auth *auth)
 {
-	int sz = cJSON_GetArraySize(json);
-
+	conf_auth *new_auth = nng_zalloc(sizeof(conf_auth));
 	size_t user_count = auth->count;
 	cJSON *item;
 	int    rv;
 
-	for (size_t i = 0; i < sz; i++) {
+	new_auth->count     = cJSON_GetArraySize(json);
+	for (size_t i = 0; i < new_auth->count; i++) {
 		cJSON *kv = cJSON_GetArrayItem(json, i);
 		char * username = NULL, *password = NULL;
-		getStringValue(kv, item, "login", username, rv);
+		getStringValue(kv, item, "username", username, rv);
 		getStringValue(kv, item, "password", password, rv);
 
 		if (username && password) {
-			// char key2[10] = { 0 };
-			// snprintf(key2, sizeof(key2), "%zu", i + 1);
-			// conf_update2(
-			//     conf_path, "auth.", key2, ".login", username);
-			// conf_update2(
-			//     conf_path, "auth.", key2, ".password",
-			//     password);
-
-			if (user_count <= i) {
-				auth->count++;
-				auth->usernames = realloc(auth->usernames,
-				    (auth->count) * sizeof(char *));
-				auth->passwords = realloc(auth->passwords,
-				    (auth->count) * sizeof(char *));
-			}
-			update_string(auth->usernames[i], username);
-			update_string(auth->passwords[i], password);
+			cvector_push_back(
+			    new_auth->usernames, nng_strdup(username));
+			cvector_push_back(
+			    new_auth->passwords, nng_strdup(password));
+		} else {
+			log_warn("Invalid username/password pair in HTTP Data");
 		}
 	}
+	reload_auth_config(auth, new_auth);
+	for (size_t i = 0; i < new_auth->count; i++) {
+		free(new_auth->usernames[i]);
+		free(new_auth->passwords[i]);
+	}
+	cvector_free(new_auth->usernames);
+	cvector_free(new_auth->passwords);
+	nng_free(new_auth, sizeof(conf_auth));
 }
 
 static size_t
@@ -1159,11 +1157,10 @@ reload_sqlite_config(conf_sqlite *cur_conf, conf_sqlite *new_conf)
 void
 reload_auth_config(conf_auth *cur_conf, conf_auth *new_conf)
 {
+	nng_mtx_lock(cur_conf->mtx);
 	for (size_t i = 0; i < cur_conf->count; i++) {
 		free(cur_conf->usernames[i]);
 		free(cur_conf->passwords[i]);
-		cur_conf->usernames[i] = NULL;
-		cur_conf->passwords[i] = NULL;
 	}
 	cvector_free(cur_conf->usernames);
 	cvector_free(cur_conf->passwords);
@@ -1172,14 +1169,17 @@ reload_auth_config(conf_auth *cur_conf, conf_auth *new_conf)
 
 	cur_conf->count = new_conf->count;
 	if (new_conf->count == 0) {
+		nng_mtx_unlock(cur_conf->mtx);
 		return;
 	}
-	cur_conf->usernames = nng_zalloc(sizeof(char *) * cur_conf->count);
-	cur_conf->passwords = nng_zalloc(sizeof(char *) * cur_conf->count);
 	for (size_t i = 0; i < new_conf->count; i++) {
-		cur_conf->usernames[i] = nng_strdup(new_conf->usernames[i]);
-		cur_conf->passwords[i] = nng_strdup(new_conf->passwords[i]);
+		cvector_push_back(
+			    cur_conf->usernames, nng_strdup(new_conf->usernames[i]));
+		cvector_push_back(
+			    cur_conf->passwords, nng_strdup(new_conf->passwords[i]));
 	}
+	cur_conf->count = new_conf->count;
+	nng_mtx_unlock(cur_conf->mtx);
 }
 
 void
