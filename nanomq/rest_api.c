@@ -33,6 +33,7 @@
 #include "include/mqtt_api.h"
 
 #if defined(SUPP_LICENSE_STD)
+#include "aes_gcm.h"
 #include "include/license_std.h"
 #endif
 
@@ -386,6 +387,12 @@ static endpoints api_ep[] = {
 	    .method = "GET",
 	    .descr  = "Return license information",
 	},
+	{
+	    .path   = "/tools/aes_enc",
+	    .name   = "post_tools_aes_enc",
+	    .method = "POST",
+	    .descr  = "Return aes encrypted data",
+	},
 
 };
 
@@ -434,6 +441,7 @@ static http_msg post_mqtt_msg(
     http_msg *msg, nng_socket *sock, handle_mqtt_msg_cb cb);
 static http_msg post_mqtt_msg_batch(
     http_msg *msg, nng_socket *sock, handle_mqtt_msg_cb cb);
+static http_msg post_tools_aes_enc(http_msg *msg);
 
 static http_msg write_file(http_msg *msg);
 static http_msg get_file_content(http_msg *msg, char *path);
@@ -1107,6 +1115,11 @@ process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 		    strcmp(uri_ct->sub_tree[1]->node, "license") == 0 &&
 		    strcmp(uri_ct->sub_tree[2]->node, "update") == 0) {
 			ret = post_license_update(msg);
+		} else if (uri_ct->sub_count == 3 &&
+		    uri_ct->sub_tree[2]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "tools") == 0 &&
+			strcmp(uri_ct->sub_tree[2]->node, "aes_enc") == 0) {
+			ret = post_tools_aes_enc(msg);
 		}
 
 		/* else if (uri_ct->sub_count == 3 &&
@@ -4361,6 +4374,66 @@ post_license_update(http_msg *msg)
 	put_http_msg(&res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
 	return res;
 }
+
+static http_msg
+post_tools_aes_enc(http_msg *msg)
+{
+	(void) msg;
+	http_msg res = { .status = NNG_HTTP_STATUS_OK };
+	char *dest = NULL;
+#if defined(SUPP_LICENSE_STD)
+	int    rv = 0;
+	char  *plain;
+	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
+	cJSON *data;
+	getStringValue(req, data, "data", plain, rv);
+	if (rv != 0) {
+		log_error("Parameter data can not be found in request json");
+		cJSON_Delete(req);
+		return error_response(
+		    msg, NNG_HTTP_STATUS_GONE, REQ_PARAM_ERROR);
+	}
+	if (plain) {
+		char *tag = NULL;
+		int   len = 0;
+		// TODO Get aes key from somewhere
+		char *cipher = aes_gcm_encrypt(plain,
+				strlen(plain), "todoaeskeyaeskey", &tag, &len);
+		if (cipher == NULL || len == 0) {
+			log_error("aes enc failed");
+			cJSON_Delete(req);
+			return error_response(
+					msg, NNG_HTTP_STATUS_GONE, REQ_PARAM_ERROR);
+		} else {
+			char *cipher_b64 = nng_alloc(len * 2);
+			size_t cipher_b64_sz = base64_encode((uint8_t *)cipher, len, cipher_b64);
+			if (cipher_b64_sz <= 0) {
+				log_error("base64 encode failed");
+				cJSON_Delete(req);
+				nng_free(cipher_b64, 0);
+				return error_response(
+						msg, NNG_HTTP_STATUS_GONE, REQ_PARAM_ERROR);
+			} else {
+				dest = malloc(cipher_b64_sz + 32);
+				sprintf(dest, "{\"data\":\"%s\"}", cipher_b64);
+			}
+			nng_free(cipher_b64, 0);
+			nng_free(cipher, 0);
+			nng_free(tag, 0);
+		}
+	}
+#else
+	dest = nng_strdup("{}");
+	log_error("aes enc tool unavailable because license is disabled");
+	res.status = NNG_HTTP_STATUS_NOT_FOUND;
+#endif
+	put_http_msg(&res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
+
+	cJSON_Delete(req);
+	cJSON_free(dest);
+	return res;
+}
+
 
 // Used for get config file
 static http_msg
