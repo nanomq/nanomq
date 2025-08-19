@@ -2076,6 +2076,8 @@ broker_start(int argc, char **argv)
 	}
 #endif
 
+	conf_parse_cipher(nanomq_conf, "nanomqAESKey4Four4AuthPassCipher");
+
 	print_conf(nanomq_conf);
 
 #if !defined(BUILD_APP_LIB)
