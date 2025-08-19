@@ -4398,7 +4398,7 @@ post_tools_aes_enc(http_msg *msg)
 		int   len = 0;
 		// TODO Get aes key from somewhere
 		char *cipher = aes_gcm_encrypt(plain,
-				strlen(plain), "todoaeskeyaeskey", &tag, &len);
+				strlen(plain), "nanomqAESKey4Four4AuthPassCipher", &tag, &len);
 		if (cipher == NULL || len == 0) {
 			log_error("aes enc failed");
 			cJSON_Delete(req);
