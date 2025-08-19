@@ -1742,10 +1742,20 @@ get_can_data_span(http_msg *msg, kv **params, size_t param_num,
 	cJSON    *res_obj   = cJSON_CreateObject();
 	uint64_t *data_span = NULL;
 
-	char *   topicl[] = {"canspi", "signal", "battcell", "batttsnsr"};
-	uint32_t topiclsz = 4;
+	conf *conf = get_global_conf();
+	conf_exchange *ex_conf = &conf->exchange;
+	if (ex_conf->count <= 0) {
+		return error_response(msg, NNG_HTTP_STATUS_NO_CONTENT,
+		    CONTENT_NOT_AVAILIABLE);
+	}
+	char **topicl = nng_zalloc(sizeof(char*) * ex_conf->count);
+	for (size_t i = 0; i < ex_conf->count; i++) {
+		topicl[i] = nng_strdup(ex_conf->nodes[i]->topic);
+		log_info("got topic %s", topicl[i]);
+	}
+
 #ifdef SUPP_PARQUET
-	data_span = parquet_get_key_span((const char **)topicl, topiclsz);
+	data_span = parquet_get_key_span((const char **)topicl, ex_conf->count);
 #else
 	log_error("Parquet is't compiled!");
 #endif
@@ -1755,7 +1765,7 @@ get_can_data_span(http_msg *msg, kv **params, size_t param_num,
 		char topickey[16];
 		cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
 		cJSON *datajo = cJSON_CreateObject();
-		for (int i=0; i<topiclsz; ++i) {
+		for (int i=0; i<ex_conf->count; ++i) {
 			cJSON *topicjo = cJSON_CreateObject();
 			sprintf(topickey, "%ld", data_span[2*i]);
 			cJSON_AddStringToObject(topicjo, "start", topickey);
@@ -1770,6 +1780,10 @@ get_can_data_span(http_msg *msg, kv **params, size_t param_num,
 	put_http_msg(
 	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
 
+	for (size_t i = 0; i < ex_conf->count; i++) {
+		nng_free(topicl[i], strlen(topicl[i]));
+	}
+	nng_free(topicl, sizeof(char*) * ex_conf->count);
 	nng_free(data_span, sizeof(data_span));
 	cJSON_free(dest);
 	cJSON_Delete(res_obj);
