@@ -95,12 +95,6 @@ bridge.mqtt.emqx.max_recv_queue_len=128
 
 ::::
 
-::: tip
-
-Using `mqtt-tcp` as the URL prefix signifies the use of TCP as the transport layer for MQTT.
-
-:::
-
 **Key Configuration Items**
 
 - Remote broker address: `bridges.mqtt.name.server`
@@ -116,6 +110,129 @@ include "path/to/nanomq_bridge.conf"
 ```
 
 To view more log data during runtime, you can set the log level `log.level` in the configuration file.
+
+:::: tabs type:card
+
+::: tab Pick transport with URL settings
+
+NanoMQ has decoupled protocol & transport layering design.
+Using `mqtt-tcp` or `mqtt-quic` as the URL prefix to signify the use of TCP or QUIC as the transport layer for MQTT.
+All suppirted URL prefix are as follows
+```
+	mqtt-tcp://127.0.0.1:xxxx
+	tls+mqtt-tcp://127.0.0.1:xxxx
+	mqtt-quic://127.0.0.1:xxxx
+```
+:::
+
+::: tab Topic Mapping/Remapping
+
+It allows you to dynamically transform topics when forwarding/subscriping messages between local and remote brokers, such as stripping prefixes, replacing parts of the topic hierarchy, or preserving specific segments. This is particularly useful for managing topic relationships in bridged setups, ensuring messages are routed correctly without manual reconfiguration.
+By setting `remote_topic` & `local_topic`  bidirectional Topic mapping feature 
+
+Topic remapping uses MQTT wildcards (`+` for single-level matching and `#` for multi-level matching) as patterns to match and manipulate incoming topics from a remote broker. These wildcards act as anchors to identify which parts of the topic to keep, strip, or replace when mapping to original topic.
+
+**`+`**: Matches exactly one level in the topic hierarchy (e.g., a single word or segment).
+**`#`**: Matches zero or more levels but must be at the end of the topic filter.(only valid at the end of topic)
+
+Take subscription as example:
+When a message arrives from a remote topic that matches the configured `remote_topic` pattern, NanoMQ remaps it to the `local_topic` by substituting the matched parts.
+If the remote topic is `system/nanomq/start` and the configuration uses wildcards to strip `system/nanomq`, adding prefix `cmd/` and suffix `remote`, the local topic becomes `cmd/start/remote`. Example config in HOCON-format config (typically `nanomq.conf`) under the bridges section is:
+```
+bridges.mqtt.mybridge {
+  ...
+  subscription = [
+    {
+      remote_topic = "+/nanomq/#"  # Matches topics starting with any single level, followed by "/nanomq/", and any remaining 
+      local_topic = "#"            # Remaps by preserving only the parts after the matched substring
+	  prefix = "cmd"
+	  suffix = "remote"
+    }
+  ]
+}
+```
+
+Suffix/Preffix take effects after wildcards filtering.
+Same syntax applies to forwarding as well, which helps managing bridging topic in a flexible way to build an UNS (Unified Namespace) across edge and cloud.
+:::
+
+::: tab Transparent bridging
+
+Enable transparent bridging by setting `transparent = true` in config
+
+```
+bridges.mqtt.mybridge {
+  ...
+  transparent = true
+}
+```
+
+The transparent bridging will convey all subscribe/unsubscribe packet from all local client to the remote bridging target. Which provides a simple way to use bridging without specify the bridging topic before starting service.
+:::
+
+::: tab Hybrid bridging
+
+Hybrid bridging allows user to set a list of remote bridging servers in the config. Then it will trying the series of bridging targets one by one at each time of reconnect.
+
+```
+bridges.mqtt.mybridge {
+  ...
+  hybrid_bridging = true
+  hybrid_servers = ["mqtt-quic://127.0.0.1:14567", "mqtt-tcp://127.0.0.1:1883", "tls+mqtt-tcp://127.0.0.1:1883", "mqtt-tcp://127.0.0.1:1884"]
+}
+```
+By mix bridging target URL candidates with different transport, the auto fallback from QUIC to TCP/TLS is also feasible.
+
+:::
+
+::: tab Interface binding
+
+At enterprise level applicaiton, it is common to assign traffic to different networking interface. By setting `bind_interface` in `nanomq.conf`, users could specifiy where the bridging traffic goes and managing bandwidth easily.
+
+```
+bridges.mqtt.mybridge {
+  ...
+	tcp {
+	# # allows fine tuning of TCP options.
+	# Interface binding: only send packet to specific interface
+	 	bind_interface = wlan0
+
+	# # nodelay: equals to `nodelay` from POSIX standard
+	#	     but also serves as the switch of a fail interface binding action
+	#	     `true` keeps retrying. `false` ignore fales, skip this time.
+		nodelay = false
+	}
+}
+```
+
+The `no_delay` option defines the behaviour of binding failure. Remeber to set to `true` if there is strict rules on interface binding, so that it will not fall back to default routes of system.
+:::
+
+::: tab Upwards bridging message cache
+
+Poor networking condition is common in real production scenario, which cause message retransmision and traffic congestion, eventually message lost and disconnection. Tunning of bridging cache config allows user to control the behaviour of bridging channel in different perspectives such as caching limits and abort timeout.
+
+```
+bridges.mqtt.emqx1 {
+  ......
+  keepalive = 30s           # Taking 30s keepalive as context
+  max_send_queue_len = 512  # Give inflight window enought space for caching msg
+  resend_interval = 5000    # Resend interval (ms), it will retry QoS every 5s 
+                            # if there is no other action blocking.
+                            # retry time shall be at least 1/2 or 1/4 of keepalive
+  resend_wait = 3000  # resend_wait is the waiting time for resending the messages
+                      # after it is publiushed. Please set it longer than 
+                      # keepalive if you dont want duplicated QoS msg.
+  cancel_timeout  = 10000 	# set a max timeout time before canceling the ack   
+                            # action. Basically, this is also the time window you # spare to each QoS msg. 
+                            # (cancel_timeout - resend_wait) / resend_wait > 1 : retry at least once.
+}
+```
+
+For more detailed config, please refer to `config-description` section.
+:::
+
+::::
 
 ## Start NanoMQ
 
