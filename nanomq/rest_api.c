@@ -4422,6 +4422,7 @@ post_tools_aes_enc(http_msg *msg)
 			nng_free(tag, 0);
 		}
 	}
+	cJSON_Delete(req);
 #else
 	dest = nng_strdup("{}");
 	log_error("aes enc tool unavailable because license is disabled");
@@ -4429,8 +4430,7 @@ post_tools_aes_enc(http_msg *msg)
 #endif
 	put_http_msg(&res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
 
-	cJSON_Delete(req);
-	cJSON_free(dest);
+	nng_free(dest, 0);
 	return res;
 }
 
