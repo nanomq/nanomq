@@ -794,10 +794,14 @@ void
 parquet_get_key_span_test()
 {
 	uint64_t *data_span = NULL;
-	data_span           = parquet_get_key_span(topic_array, 2);
+	uint64_t *sums      = NULL;
+	check(true == parquet_get_key_span(topic_array, 2, data_span, sums),
+	    "malloc failed");
 	check(data_span[0] == 10, "start key error");
 	check(data_span[1] == 2209, "end key error");
-	free(data_span);
+	check(sums[0] > 0, "sums error!");
+	check(sums[1] > 0, "sums error!");
+	parquet_free_key_span(data_span, sums, 2);
 	return;
 error:
 	puts("parquet_get_key_span_test failed!");
