@@ -160,7 +160,8 @@ jobs:
         fi
 
         dashboard_ver="0.0.3"
-        pkg_name="emqx-$(git describe --abbrev=0 --tags --match edge-*)-linux-${arch}"
+        edge_tag_name="$(git describe --abbrev=0 --tags --match edge-*)"
+        pkg_name="emqx--linux-${arch}"
         if [ "${{ matrix.package_type }}" != "zip" ]; then
             pkg_name+=".${{ matrix.package_type }}"
         fi
@@ -205,6 +206,7 @@ jobs:
 
         echo "arch=${arch}" >> $GITHUB_OUTPUT
         echo "pkg_name=${pkg_name}" >> $GITHUB_OUTPUT
+        echo "edge_tag_name=${edge_tag_name}" >> $GITHUB_OUTPUT
         echo "make_flags=${make_flags}" >> $GITHUB_OUTPUT
 
     - name: build
@@ -283,6 +285,8 @@ jobs:
         files: |
           build/_packages_release/*.zip
           build/_packages_release/*.sha256
+        body_path: changelogs/${{ steps.prepare.outputs.edge_tag_name }}.md
+        body: "${{ github.ref_name }} has been released!"
         draft: false
         prerelease: false
         overwrite: true
