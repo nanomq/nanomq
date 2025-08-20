@@ -1754,6 +1754,7 @@ get_can_data_span(http_msg *msg, kv **params, size_t param_num,
 	http_msg  res       = { .status = NNG_HTTP_STATUS_OK };
 	cJSON    *res_obj   = cJSON_CreateObject();
 	uint64_t *data_span = NULL;
+	uint64_t *sums      = NULL;
 
 	conf *conf = get_global_conf();
 	conf_exchange *ex_conf = &conf->exchange;
@@ -1768,7 +1769,7 @@ get_can_data_span(http_msg *msg, kv **params, size_t param_num,
 	}
 
 #ifdef SUPP_PARQUET
-	data_span = parquet_get_key_span((const char **)topicl, ex_conf->count);
+	parquet_get_key_span((const char**)topicl, ex_conf->count, &data_span, &sums)
 #else
 	log_error("Parquet is't compiled!");
 #endif
@@ -1784,9 +1785,12 @@ get_can_data_span(http_msg *msg, kv **params, size_t param_num,
 			cJSON_AddStringToObject(topicjo, "start", topickey);
 			sprintf(topickey, "%ld", data_span[2*i+1]);
 			cJSON_AddStringToObject(topicjo, "end", topickey);
+			uint64_t sum = sums[i]/1024;
+			cJSON_AddNumberToObject(topicjo, "space", sum);
 			cJSON_AddItemToObject(datajo, topicl[i], topicjo);
 		}
 		cJSON_AddItemToObject(res_obj, "data", datajo);
+		parquet_free_key_span(data_span, sums, ex_conf->count);
 	}
 
 	char *dest = cJSON_PrintUnformatted(res_obj);
@@ -1797,7 +1801,6 @@ get_can_data_span(http_msg *msg, kv **params, size_t param_num,
 		nng_free(topicl[i], strlen(topicl[i]));
 	}
 	nng_free(topicl, sizeof(char*) * ex_conf->count);
-	nng_free(data_span, sizeof(data_span));
 	cJSON_free(dest);
 	cJSON_Delete(res_obj);
 
