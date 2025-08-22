@@ -1769,7 +1769,7 @@ get_can_data_span(http_msg *msg, kv **params, size_t param_num,
 	}
 
 #ifdef SUPP_PARQUET
-	parquet_get_key_span((const char**)topicl, ex_conf->count, &data_span, &sums)
+	parquet_get_key_span((const char**)topicl, ex_conf->count, &data_span, &sums);
 #else
 	log_error("Parquet is't compiled!");
 #endif
