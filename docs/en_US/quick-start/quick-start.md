@@ -199,6 +199,23 @@ offline message:
 Topic: $SYS/brokers/disconnected
 Message: {"username":"hello","ts":1691225608391,"reason_code":"8b","client_id":"nanomq-8a2a5c2e","IPv4":"127.0.0.1"}
 ```
+
+Start from 0.24.1 ver, Online/Offline event message is redirected to one merged topic
+
+Online message:
+```bash
+Topic: $SYS/brokers/client_status/${clientid}
+Message: {"status":"online", "username":"hello", "ts":1691225605933,"proto_name":"MQTT","keepalive":60,"return_code":"0","proto_ver":4,"client_id":"nanomq-8a2a5c2e","clean_start":1, "IPv4":"127.0.0.1"}
+```
+
+Offline message:
+```bash
+Topic: $SYS/brokers/client_status/${clientid}
+Message: {"status":"offline", "username":"hello","ts":1691225608391,"reason_code":"8b","client_id":"nanomq-8a2a5c2e","IPv4":"127.0.0.1"}
+```
+
+And the retain flag is added to bridging connect/disconnect event message, so that you can get the updated bridging connection status by subscription.
+
 ### Test bridging
 
 This section will continue using the MQTTX client tool to test the MQTT data bridge you created.You will create 2 clients for connecting NanoMQ and the MQTT bridge and verify the messaging services between NanoMQ and the MQTT bridge. 
