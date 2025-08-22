@@ -1790,7 +1790,9 @@ get_can_data_span(http_msg *msg, kv **params, size_t param_num,
 			cJSON_AddItemToObject(datajo, topicl[i], topicjo);
 		}
 		cJSON_AddItemToObject(res_obj, "data", datajo);
+#ifdef SUPP_PARQUET
 		parquet_free_key_span(data_span, sums, ex_conf->count);
+#endif
 	}
 
 	char *dest = cJSON_PrintUnformatted(res_obj);
