@@ -14,8 +14,7 @@ static const char aes_gcm_iv[] =
 {0x99, 0xaa, 0x3e, 0x68, 0xed, 0x81, 0x73, 0xa0, 0xee, 0xd0, 0x66, 0x84};
 
 char*
-aes_gcm_decrypt(char *ciphertext, int ciphertext_len,
-		char *key, char *tag, int *plaintext_lenp)
+aes_gcm_decrypt(char *cipher, int cipher_len, char *key, int *plain_lenp)
 {
 	const EVP_CIPHER *cipher_handle;
 	switch (strlen(key) * 8) {
@@ -33,87 +32,97 @@ aes_gcm_decrypt(char *ciphertext, int ciphertext_len,
 		return NULL;
 	}
 
+	if (cipher_len <= 32) {
+		log_error("cipher text sz%d is invalid (too short)", cipher_len);
+		return NULL;
+	}
+
+	char tag[32];
+	memcpy(tag, cipher, 32);
 	// skip tag part
-	ciphertext += 32;
-	ciphertext_len -= 32;
+	cipher += 32;
+	cipher_len -= 32;
 
 	EVP_CIPHER_CTX *ctx;
-	int len;
-	int plaintext_len;
-	int ret;
+	int   len;
+	int   plain_len;
+	char *plain = NULL;
+	int   res;
 
 	/* Create and initialise the context */
-	if(!(ctx = EVP_CIPHER_CTX_new())) {
+	if((ctx = EVP_CIPHER_CTX_new()) == NULL) {
+		res = -1;
 		log_error("error in new ctx");
-		return NULL;
+		goto out;
 	}
 
 	/* Initialise the decryption operation. */
-	if(!EVP_DecryptInit_ex(ctx, cipher_handle, NULL, NULL, NULL)) {
+	if((res = EVP_DecryptInit_ex(ctx, cipher_handle, NULL, NULL, NULL)) != 1) {
 		log_error("error in init ctx");
-		return NULL;
+		goto out;
 	}
 
 	/* Set IV length. Not necessary if this is 12 bytes (96 bits) */
-	if(!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, sizeof(aes_gcm_iv), NULL)) {
+	if((res = EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, sizeof(aes_gcm_iv), NULL)) != 1) {
 		log_error("error in ctx ctrl");
-		return NULL;
+		goto out;
 	}
 
 	/* Initialise key and IV */
-	if(!EVP_DecryptInit_ex(ctx, NULL, NULL, key, aes_gcm_iv)) {
+	if((res = EVP_DecryptInit_ex(ctx, NULL, NULL, key, aes_gcm_iv)) != 1) {
 		log_error("error in decrypted init");
-		return NULL;
+		goto out;
 	}
 
 	/* Provide any AAD data. This can be called zero or more times as required */
-	if(!EVP_DecryptUpdate(ctx, NULL, &len, aes_gcm_aad, aes_gcm_aad_sz)) {
+	if((res = EVP_DecryptUpdate(ctx, NULL, &len, aes_gcm_aad, aes_gcm_aad_sz)) != 1) {
 		log_error("error in decrypted update1");
-		return NULL;
+		goto out;
 	}
 
-	char *plaintext = malloc(sizeof(char) * (ciphertext_len+32));
-	memset(plaintext, '\0', ciphertext_len + 32);
+	plain = malloc(sizeof(char) * (cipher_len+32));
+	memset(plain, '\0', cipher_len + 32);
     /*
-     * Provide the message to be decrypted, and obtain the plaintext output.
+     * Provide the message to be decrypted, and obtain the plain output.
      * EVP_DecryptUpdate can be called multiple times if necessary
      */
-	if(!EVP_DecryptUpdate(ctx, plaintext, &len, ciphertext, ciphertext_len)) {
+	if((res = EVP_DecryptUpdate(ctx, plain, &len, cipher, cipher_len)) != 1) {
 		log_error("error in decrypted update1");
-		return NULL;
+		goto out;
 	}
-	plaintext_len = len;
+	plain_len = len;
 
 	/* Set expected tag value. Works in OpenSSL 1.0.1d and later */
-	if(!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, 16, tag)) {
+	if((res = EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, 16, tag)) != 1) {
 		log_error("error in ctx ctrl2");
-		return NULL;
+		goto out;
 	}
 
 	/*
 	 * Finalise the decryption. A positive return value indicates success,
-	 * anything else is a failure - the plaintext is not trustworthy.
+	 * anything else is a failure - the plain is not trustworthy.
 	 */
-	ret = EVP_DecryptFinal_ex(ctx, plaintext + len, &len);
-
+	res = EVP_DecryptFinal_ex(ctx, plain + len, &len);
+out:
 	/* Clean up */
-	EVP_CIPHER_CTX_free(ctx);
+	if (ctx)
+		EVP_CIPHER_CTX_free(ctx);
 
-	if(ret > 0) {
+	if(res > 0) {
 		/* Success */
-		plaintext_len += len;
-		*plaintext_lenp = plaintext_len;
-		return plaintext;
-	} else {
-		/* Verify failed */
-		log_error("error in decryption %d", ret);
-		free(plaintext);
-		return NULL;
+		plain_len += len;
+		*plain_lenp = plain_len;
+		return plain;
 	}
+	/* Verify failed */
+	log_error("AES GCM error code decryption %d", res);
+	if (plain)
+		free(plain);
+	return NULL;
 }
 
 char *
-aes_gcm_encrypt(char *plain, int plainsz, char *key, char **tagp, int *cipher_lenp)
+aes_gcm_encrypt(char *plain, int plainsz, char *key, int *cipher_lenp)
 {
 	const EVP_CIPHER *cipher_handle;
 	switch (strlen(key) * 8) {
@@ -139,54 +148,54 @@ aes_gcm_encrypt(char *plain, int plainsz, char *key, char **tagp, int *cipher_le
 	if ((ctx = EVP_CIPHER_CTX_new()) == NULL) {
 		res = -1;
 		log_error("aes error ctx new");
-		goto err;
+		goto out;
 	}
 	if ((res = EVP_EncryptInit_ex(ctx, cipher_handle, NULL, NULL, NULL)) != 1) {
 		log_error("aes error encryption init ex1");
-		goto err;
+		goto out;
 	}
 	if ((res = EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN,
 					sizeof(aes_gcm_iv), NULL)) != 1) {
 		log_error("aes error ctx ctrl");
-		goto err;
+		goto out;
 	}
 	if ((res = EVP_EncryptInit_ex(ctx, NULL, NULL, key, aes_gcm_iv)) != 1) {
 		log_error("aes error encryption init ex2");
-		goto err;
+		goto out;
 	}
 	if ((res = EVP_EncryptUpdate(ctx, NULL, &len, aes_gcm_aad, aes_gcm_aad_sz)) != 1) {
 		log_error("aes error encryption update1");
-		goto err;
+		goto out;
 	}
 	if ((res = EVP_EncryptUpdate(ctx, buf + 32, &len, plain, plainsz)) != 1) {
 		log_error("aes error encryption update2");
-		goto err;
+		goto out;
 	}
 	cipher_len = len;
 	if ((res = EVP_EncryptFinal_ex(ctx, buf + 32 + cipher_len, &len)) != 1) {
 		log_error("aes error encryption final");
-		goto err;
+		goto out;
 	}
 	cipher_len += len;
 
-	char *tag = malloc(sizeof(char) * 32);
-	memset(tag, '\0', 32);
+	char tag[32] = {0};
 	if((res = EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, 16, tag)) != 1) {
 		log_error("aes error ctx ctrl");
-		goto err;
+		goto out;
 	}
-	*tagp = tag;
 	memcpy(buf, tag, 32);
 
-	EVP_CIPHER_CTX_free(ctx);
-	*cipher_lenp = (cipher_len + 32);
+out:
+	if (ctx)
+		EVP_CIPHER_CTX_free(ctx);
 
-	return buf;
-err:
+	if (res > 0) {
+		*cipher_lenp = (cipher_len + 32);
+		return buf;
+	}
 	log_error("AES GCM error code %d", res);
-
-    EVP_CIPHER_CTX_free(ctx);
-
+	if (buf)
+		free(buf);
     return NULL;
 }
 
