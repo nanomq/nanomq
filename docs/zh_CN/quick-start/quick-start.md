@@ -196,6 +196,22 @@ Topic: $SYS/brokers/disconnected
 Message: {"username":"hello","ts":1691225608391,"reason_code":"8b","client_id":"nanomq-8a2a5c2e","IPv4":"127.0.0.1"}
 ```
 
+从0.24.1版本开始，在线/离线事件消息将被重定向到一个合并的话题。
+
+上线消息：
+```bash
+Topic: $SYS/brokers/client_status/${clientid}
+Message: {"status":"online", "username":"hello", "ts":1691225605933,"proto_name":"MQTT","keepalive":60,"return_code":"0","proto_ver":4,"client_id":"nanomq-8a2a5c2e","clean_start":1, "IPv4":"127.0.0.1"}
+```
+
+下线消息：
+```bash
+Topic: $SYS/brokers/client_status/${clientid}
+Message: {"status":"offline", "username":"hello","ts":1691225608391,"reason_code":"8b","client_id":"nanomq-8a2a5c2e","IPv4":"127.0.0.1"}
+```
+
+并且添加了保留标志到桥接连接/断开事件消息中，以便您可以通过订阅获取更新的桥接连接状态。
+
 ### 测试桥接
 
 本节将继续使用 MQTTX 客户端工具来测试新建的 MQTT 数据桥接，我们将新建 2 个连接，分别连接到 NanoMQ 和 MQTT 数据桥接，用于验证 NanoMQ 和数据桥接的消息收发服务。
