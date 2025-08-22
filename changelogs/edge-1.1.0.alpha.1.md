@@ -6,5 +6,6 @@ Release Date: 2025-08-20
 - Update authorization REST APIs and accessing IP Address is supported.
 - Replace passwords in authentication with base64d encrypted passwords.
 - Update online/offline notification messages.
+- Refactor AES module.
 
 ### Fixes
