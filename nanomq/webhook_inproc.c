@@ -127,16 +127,13 @@ send_mqtt_msg_cat_with_split(nng_socket *sock, nng_msg **msgs, uint32_t len,
 		if (encryption_enable == true) {
 			char *cipher = NULL;
 			int   cipher_len;
-			char *tag; // Now I know
-			cipher = aes_gcm_encrypt(buf, pos, key, &tag, &cipher_len);
+			cipher = aes_gcm_encrypt(buf, pos, key, &cipher_len);
 			if (cipher == NULL) {
 				log_error("error in aes gcm encryption");
 				nng_free(buf, pos);
-				nng_free(tag, 0);
 				return -1;
 			}
 			nng_free(buf, pos);
-			nng_free(tag, 0);
 
 			buf = cipher;
 			pos = cipher_len;
@@ -202,16 +199,13 @@ send_mqtt_msg_cat(nng_socket *sock, nng_msg **msgs, uint32_t len,
 	if (encryption_enable == true) {
 		char *cipher = NULL;
 		int   cipher_len;
-		char *tag; // I donot know
-		cipher = aes_gcm_encrypt(buf, pos, key, &tag, &cipher_len);
+		cipher = aes_gcm_encrypt(buf, pos, key, &cipher_len);
 		if (cipher == NULL) {
 			log_error("error in aes gcm encryption");
 			nng_free(buf, pos);
-			nng_free(tag, 0);
 			return -1;
 		}
 		nng_free(buf, pos);
-		nng_free(tag, 0);
 
 		buf = cipher;
 		pos = cipher_len;

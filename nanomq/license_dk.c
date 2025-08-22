@@ -19,8 +19,7 @@ lic_dec(char *data, size_t sz,
 {
 	char *out = NULL;
 	int   out_sz;
-	char *tag = data;
-	if (NULL == (out = aes_gcm_decrypt(data, sz, lic_key, tag, &out_sz))) {
+	if (NULL == (out = aes_gcm_decrypt(data, sz, lic_key, &out_sz))) {
 		log_error("license dec failed");
 		return -1;
 	}
@@ -43,17 +42,15 @@ lic_enc(uint32_t vm, uint32_t um, char *st, char *ltype,
 		char *cipher, size_t *sz)
 {
 	char  buf[MAX_LIC_BUF_LEN];
-	char *tag;
 	int   out_sz;
 	char *out = NULL;
 	sprintf(buf, "%u,%u,%s,%s,%s,%s,%s,%u\n", vm, um, st, ltype, name, email, dc, lc);
-	if (NULL == (out = aes_gcm_encrypt(buf, strlen(buf), lic_key, &tag, &out_sz))) {
+	if (NULL == (out = aes_gcm_encrypt(buf, strlen(buf), lic_key, &out_sz))) {
 		log_error("license enc failed");
 		return -1;
 	}
 	memcpy(cipher, out, (size_t)out_sz);
 	nng_free(out, out_sz);
-	nng_free(tag, 0);
 	*sz = out_sz;
 	return 0;
 }

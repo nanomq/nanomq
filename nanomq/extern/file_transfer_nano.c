@@ -185,14 +185,12 @@ static int publish_file(nng_socket *sock, FILE *fp, char *file_name,
 	}
 
 	if (is_encrypt) {
-		char *tag;
-		payload = aes_gcm_encrypt(file_bin, file_size, key, &tag, &payload_len);
+		payload = aes_gcm_encrypt(file_bin, file_size, key, &payload_len);
 		if (payload == NULL) {
 			log_error("Failed to encrypt the file, send origin payload");
 			payload = file_bin;
 			payload_len = file_size;
 		} else {
-			nng_free(tag, 0);
 			nng_free(file_bin, file_size);
 		}
 	} else {

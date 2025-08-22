@@ -4397,11 +4397,10 @@ post_tools_aes_enc(http_msg *msg)
 		    msg, NNG_HTTP_STATUS_GONE, REQ_PARAM_ERROR);
 	}
 	if (plain) {
-		char *tag = NULL;
 		int   len = 0;
 		// TODO Get aes key from somewhere
 		char *cipher = aes_gcm_encrypt(plain,
-				strlen(plain), "nanomqAESKey4Four4AuthPassCipher", &tag, &len);
+				strlen(plain), "nanomqAESKey4Four4AuthPassCipher", &len);
 		if (cipher == NULL || len == 0) {
 			log_error("aes enc failed");
 			cJSON_Delete(req);
@@ -4422,7 +4421,6 @@ post_tools_aes_enc(http_msg *msg)
 			}
 			nng_free(cipher_b64, 0);
 			nng_free(cipher, 0);
-			nng_free(tag, 0);
 		}
 	}
 	cJSON_Delete(req);
