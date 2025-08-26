@@ -4467,10 +4467,14 @@ post_get_logs_latest(http_msg *msg)
 				logs_ct[i] = '\0';
 				cJSON *slice = cJSON_CreateStringReference((const char *)start_pos);
 				if (!slice) {
-					log_error("failed to add slice(%s) to cjson", start_pos);
+					log_error("failed to create slice(%s)", start_pos);
 					continue;
 				}
 				int jsonrv = cJSON_AddItemToArray(array, slice);
+				if (jsonrv == 0) {
+					log_error("failed to add slice to cjson");
+					continue;
+				}
 				start_pos = logs_ct + i + 1;
 				slice_lines = 0;
 				slice_sz ++;
@@ -4480,7 +4484,23 @@ post_get_logs_latest(http_msg *msg)
 			}
 		}
 	}
+	if (slice_lines > 0) {
+		logs_ct[logs_ct_sz-1] = '\0';
+		cJSON *slice = cJSON_CreateStringReference((const char *)start_pos);
+		if (!slice) {
+			log_error("failed to add slice(%s) to cjson", start_pos);
+		} else {
+			int jsonrv = cJSON_AddItemToArray(array, slice);
+			if (jsonrv == 0) {
+				log_error("failed to add slice to cjson");
+			}
+		}
+	}
 	int jsonrv = cJSON_AddItemToObject(res_obj, "data", array);
+	if (jsonrv == 0) {
+		log_error("failed to add array to cjson");
+	}
+
 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
 
 	char *dest = cJSON_PrintUnformatted(res_obj);
