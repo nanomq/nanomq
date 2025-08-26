@@ -14,7 +14,7 @@ For more information about NanoMQ official Docker image, see [Docker Hub - nanom
 
 ## Experience the NanoMQ Services
 
-Now the NanoMQ is started with Docker, exposing ports1883, 8083, and 8883 for MQTT traffic, MQTT over WebSockets, and MQTT over SSL/TLS for secure communication respectively. This section guides you through how to use the MQTTX client tool to experience the messaging services. 
+Now the NanoMQ is started with Docker, exposing ports 1883, 8083, and 8883 for MQTT traffic, MQTT over WebSockets, and MQTT over SSL/TLS for secure communication respectively. This section guides you through how to use the MQTTX client tool to experience the messaging services.
 
 ### Setup the MQTTX Client
 
