@@ -75,7 +75,7 @@ enum result_code {
 	TOKEN_EXPIRED                  = 116,
 	PARAMS_HOCON_FORMAT_ILLEGAL    = 117,
 	WRITE_CONFIG_FAILED            = 118,
-	CONTENT_NOT_AVAILIABLE         = 119,
+	CONTENT_NOT_AVAILABLE          = 119,
 };
 
 typedef struct http_msg {
