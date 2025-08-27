@@ -452,6 +452,7 @@ static http_msg post_mqtt_bridge_sub(http_msg *msg, const char *name);
 static http_msg post_mqtt_bridge_unsub(http_msg *msg, const char *name);
 static http_msg post_license_update(http_msg *msg);
 static http_msg post_get_logs_latest(http_msg *msg);
+static http_msg post_get_logs_full(http_msg *msg);
 static int properties_parse(property **properties, cJSON *json);
 static int handle_publish_msg(cJSON *pub_obj, nng_socket *sock);
 static int handle_subscribe_msg(cJSON *sub_obj, nng_socket *sock);
@@ -1121,6 +1122,11 @@ process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 		    strcmp(uri_ct->sub_tree[1]->node, "logs") == 0 &&
 		    strcmp(uri_ct->sub_tree[2]->node, "latest") == 0) {
 			ret = post_get_logs_latest(msg);
+		} else if (uri_ct->sub_count == 3 &&
+		    uri_ct->sub_tree[2]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "logs") == 0 &&
+		    strcmp(uri_ct->sub_tree[2]->node, "full") == 0) {
+			ret = post_get_logs_full(msg);
 		} else if (uri_ct->sub_count == 3 &&
 		    uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "tools") == 0 &&
@@ -1908,8 +1914,7 @@ get_prometheus(http_msg *msg, kv **params, size_t param_num,
 			size_t len = strlen(dest);
 			if (len < data_size) {
 				snprintf(dest + len, data_size - len, "%s", bridge_metric_ret);
-			}			
-
+			}
 		}
 	}
 	nng_stats_free(nng_stats);
@@ -2135,12 +2140,12 @@ get_subscriptions(
     http_msg *msg, kv **params, size_t param_num, const char *client_id)
 {
 	http_msg res = { 0 };
- 	res.status   = NNG_HTTP_STATUS_OK;
+	res.status   = NNG_HTTP_STATUS_OK;
 
- 	cJSON *res_obj   = NULL;
- 	cJSON *data_info = NULL;
- 	data_info        = cJSON_CreateArray();
- 	res_obj          = cJSON_CreateObject();
+	cJSON *res_obj   = NULL;
+	cJSON *data_info = NULL;
+	data_info        = cJSON_CreateArray();
+	res_obj          = cJSON_CreateObject();
 
  	dbtree *          db   = get_broker_db();
  	dbhash_ptpair_t **pt   = dbhash_get_ptpair_all();
@@ -4514,6 +4519,84 @@ post_get_logs_latest(http_msg *msg)
 	}
 	put_http_msg(&res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
 	cJSON_free(dest);
+	return res;
+}
+
+static http_msg
+post_get_logs_full(http_msg *msg)
+{
+	http_msg res = { .status = NNG_HTTP_STATUS_OK };
+	int rv;
+	char *type = NULL;
+	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
+	if (!req) {
+		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
+		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
+	}
+	cJSON *data;
+	getStringValue(req, data, "type", type, rv);
+	if (rv != 0) {
+		cJSON_Delete(req);
+		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
+		    REQ_PARAM_ERROR);
+	}
+	if (strcmp(type, "tar") != 0) {
+		cJSON_Delete(req);
+		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
+		    REQ_PARAM_ERROR);
+	}
+
+	// get direct
+	char *logs_dir = NULL;
+	char *logs_file = NULL;
+	conf *config = get_global_conf();
+	if (config && config->log.dir && config->log.file) {
+		logs_dir = config->log.dir;
+		logs_file = config->log.file;
+	} else {
+		log_warn("configuration or log.dir or log.file unavailable");
+		cJSON_Delete(req);
+		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
+		    CONTENT_NOT_AVAILABLE);
+	}
+
+	// exec tar and get content of tarball
+	char logs_tar_cmd[1024];
+	sprintf(logs_tar_cmd, "(cd %s && tar -czf edge-logs.tar.gz %s*)", logs_dir, logs_file);
+	log_warn("type:%s log dir:%s file:%s cmd:%s", type, logs_dir, logs_file, logs_tar_cmd);
+
+	int ret = system(logs_tar_cmd);
+	// TODO windows...
+	char  logs_tar_path[512];
+	char *logs_tar_ct;
+	size_t logs_tar_ct_sz;
+#if NANO_PLATFORM_WINDOWS
+	if (logs_dir[strlen(logs_dir)] != '\\') {
+		sprintf(logs_tar_path, "%s\\%s", logs_dir, "edge-logs.tar.gz");
+	} else {
+		sprintf(logs_tar_path, "%s%s", logs_dir, "edge-logs.tar.gz");
+	}
+#else
+	if (logs_dir[strlen(logs_dir)] != '/') {
+		sprintf(logs_tar_path, "%s/%s", logs_dir, "edge-logs.tar.gz");
+	} else {
+		sprintf(logs_tar_path, "%s%s", logs_dir, "edge-logs.tar.gz");
+	}
+#endif
+
+	rv = nng_file_get(logs_tar_path, (void **)&logs_tar_ct, &logs_tar_ct_sz);
+	if (rv != 0) {
+		log_warn("failed to read log tarball %s", logs_tar_path);
+		cJSON_Delete(req);
+		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
+		    UNKNOWN_MISTAKE);
+	}
+
+	// construct result
+	put_http_msg(&res, "application/gzip", NULL, NULL, NULL, logs_tar_ct, logs_tar_ct_sz);
+
+	cJSON_Delete(req);
+	nng_free(logs_tar_ct, logs_tar_ct_sz);
 	return res;
 }
 
