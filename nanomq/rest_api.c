@@ -4396,34 +4396,22 @@ get_logs_latest(http_msg *msg, kv **params, size_t param_num)
 {
 	http_msg res = { .status = NNG_HTTP_STATUS_OK };
 	int rv;
-	int lines = 0, pages = 0;
-	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
-	if (!req) {
-		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
-		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
+	int lines = 0, page = 0, totallines = 0;
+	for (int i=0; i<param_num; ++i) {
+		if (0 == strcmp(params[i]->key, "lines")) {
+			lines = atoi(params[i]->value);
+		} else if (0 == strcmp(params[i]->key, "page")) {
+			page = atoi(params[i]->value);
+		}
 	}
-	cJSON *data;
-	getNumberValue(req, data, "lines", lines, rv);
-	if (rv != 0) {
-		cJSON_Delete(req);
-		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
-		    REQ_PARAM_ERROR);
-	}
-	getNumberValue(req, data, "pages", pages, rv);
-	if (rv != 0) {
-		cJSON_Delete(req);
-		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
-		    REQ_PARAM_ERROR);
-	}
-	if (pages < 1 || pages > 500 || lines < 1 || lines > 256) {
-		cJSON_Delete(req);
+	if (page < 0 || lines < 1 || lines > 256) {
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    REQ_PARAM_ERROR);
 	}
 
 	// read file
-	char logs_path[512];
-	conf * config = get_global_conf();
+	char  logs_path[512];
+	conf *config = get_global_conf();
 	if (config && config->log.dir) {
 		char *dir = config->log.dir;
 		char *fname = config->log.file;
@@ -4444,74 +4432,52 @@ get_logs_latest(http_msg *msg, kv **params, size_t param_num)
 #endif
 	} else {
 		log_warn("configuration or log.dir unavailable");
-		cJSON_Delete(req);
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    CONTENT_NOT_AVAILABLE);
 	}
-	log_warn("lines:%d pages:%d log path %s", lines, pages, logs_path);
+	log_warn("lines:%d page:%d log path %s", lines, page, logs_path);
 
 	char *logs_ct;
 	size_t logs_ct_sz;
 	rv = nng_file_get(logs_path, (void **)&logs_ct, &logs_ct_sz);
 	if (rv != 0) {
 		log_warn("failed to read log file %s", logs_path);
-		cJSON_Delete(req);
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    UNKNOWN_MISTAKE);
 	}
 	// construct result
 	cJSON *res_obj = cJSON_CreateObject();
-	cJSON *array = cJSON_CreateArray();
 	char *start_pos = logs_ct;
 	int slice_sz = 0;
 	int slice_lines = 0;
 	for (int i=0; i<(int)logs_ct_sz; ++i) {
 		if (logs_ct[i] == '\n') {
 			slice_lines ++;
-			if (slice_lines == lines) {
-				logs_ct[i] = '\0';
-				cJSON *slice = cJSON_CreateStringReference((const char *)start_pos);
-				if (!slice) {
-					log_error("failed to create slice(%s)", start_pos);
-					continue;
-				}
-				int jsonrv = cJSON_AddItemToArray(array, slice);
-				if (jsonrv == 0) {
-					log_error("failed to add slice to cjson");
-					continue;
+			if (slice_lines == lines || i == logs_ct_sz-1) {
+				slice_sz ++;
+				if (slice_sz == page + 1) {
+					logs_ct[i] = '\0';
+					cJSON *slice = cJSON_CreateStringReference((const char *)start_pos);
+					if (!slice) {
+						log_error("failed to create slice(%s)", start_pos);
+						break;
+					}
+					cJSON_AddItemToObject(res_obj, "contents", slice);
+					// break;
 				}
 				start_pos = logs_ct + i + 1;
 				slice_lines = 0;
-				slice_sz ++;
-				if (slice_sz == pages) {
-					break;
-				}
 			}
+			totallines ++;
 		}
-	}
-	if (slice_lines > 0) {
-		logs_ct[logs_ct_sz-1] = '\0';
-		cJSON *slice = cJSON_CreateStringReference((const char *)start_pos);
-		if (!slice) {
-			log_error("failed to add slice(%s) to cjson", start_pos);
-		} else {
-			int jsonrv = cJSON_AddItemToArray(array, slice);
-			if (jsonrv == 0) {
-				log_error("failed to add slice to cjson");
-			}
-		}
-	}
-	int jsonrv = cJSON_AddItemToObject(res_obj, "data", array);
-	if (jsonrv == 0) {
-		log_error("failed to add array to cjson");
 	}
 
 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+	cJSON_AddNumberToObject(res_obj, "totallines", totallines);
 
 	char *dest = cJSON_PrintUnformatted(res_obj);
 
 	cJSON_Delete(res_obj);
-	cJSON_Delete(req);
 	nng_free(logs_ct, 0);
 	if (!dest) {
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
