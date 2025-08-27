@@ -451,8 +451,8 @@ static http_msg put_mqtt_bridge_switch(http_msg *msg, const char *name);
 static http_msg post_mqtt_bridge_sub(http_msg *msg, const char *name);
 static http_msg post_mqtt_bridge_unsub(http_msg *msg, const char *name);
 static http_msg post_license_update(http_msg *msg);
-static http_msg post_get_logs_latest(http_msg *msg);
-static http_msg post_get_logs_full(http_msg *msg);
+static http_msg get_logs_latest(http_msg *msg, kv **params, size_t param_num);
+static http_msg get_logs_full(http_msg *msg, kv **params, size_t param_num);
 static int properties_parse(property **properties, cJSON *json);
 static int handle_publish_msg(cJSON *pub_obj, nng_socket *sock);
 static int handle_subscribe_msg(cJSON *sub_obj, nng_socket *sock);
@@ -969,6 +969,16 @@ process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 		    strcmp(uri_ct->sub_tree[1]->node, "license") == 0 &&
 			strcmp(uri_ct->sub_tree[2]->node, "info") == 0) {
 			ret = get_license_info(msg);
+		} else if (uri_ct->sub_count == 3 &&
+		    uri_ct->sub_tree[2]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "logs") == 0 &&
+		    strcmp(uri_ct->sub_tree[2]->node, "latest") == 0) {
+			ret = get_logs_latest(msg, uri_ct->params, uri_ct->params_count);
+		} else if (uri_ct->sub_count == 3 &&
+		    uri_ct->sub_tree[2]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "logs") == 0 &&
+		    strcmp(uri_ct->sub_tree[2]->node, "full") == 0) {
+			ret = get_logs_full(msg, uri_ct->params, uri_ct->params_count);
 
 		} else if (uri_ct->sub_count == 2 &&
 		    uri_ct->sub_tree[1]->end &&
@@ -1117,16 +1127,6 @@ process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 		    strcmp(uri_ct->sub_tree[1]->node, "license") == 0 &&
 		    strcmp(uri_ct->sub_tree[2]->node, "update") == 0) {
 			ret = post_license_update(msg);
-		} else if (uri_ct->sub_count == 3 &&
-		    uri_ct->sub_tree[2]->end &&
-		    strcmp(uri_ct->sub_tree[1]->node, "logs") == 0 &&
-		    strcmp(uri_ct->sub_tree[2]->node, "latest") == 0) {
-			ret = post_get_logs_latest(msg);
-		} else if (uri_ct->sub_count == 3 &&
-		    uri_ct->sub_tree[2]->end &&
-		    strcmp(uri_ct->sub_tree[1]->node, "logs") == 0 &&
-		    strcmp(uri_ct->sub_tree[2]->node, "full") == 0) {
-			ret = post_get_logs_full(msg);
 		} else if (uri_ct->sub_count == 3 &&
 		    uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "tools") == 0 &&
@@ -4392,7 +4392,7 @@ post_license_update(http_msg *msg)
 }
 
 static http_msg
-post_get_logs_latest(http_msg *msg)
+get_logs_latest(http_msg *msg, kv **params, size_t param_num)
 {
 	http_msg res = { .status = NNG_HTTP_STATUS_OK };
 	int rv;
@@ -4523,7 +4523,7 @@ post_get_logs_latest(http_msg *msg)
 }
 
 static http_msg
-post_get_logs_full(http_msg *msg)
+get_logs_full(http_msg *msg, kv **params, size_t param_num)
 {
 	http_msg res = { .status = NNG_HTTP_STATUS_OK };
 	int rv;
