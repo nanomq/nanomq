@@ -569,7 +569,7 @@ uri_param_parse(const char *path, size_t *count)
 		memcpy(kv_str[num - 1], str, len - 1);
 		str = ret + 1;
 	}
-	if (num > 0) {
+	if (num > 0 || strchr(str, '=')) {
 		num++;
 		char **new_kv_str;
 		new_kv_str = realloc(kv_str, sizeof(char *) * num);
