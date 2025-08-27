@@ -4494,20 +4494,13 @@ get_logs_full(http_msg *msg, kv **params, size_t param_num)
 	http_msg res = { .status = NNG_HTTP_STATUS_OK };
 	int rv;
 	char *type = NULL;
-	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
-	if (!req) {
-		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
-		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
+	for (int i=0; i<param_num; ++i) {
+		if (0 == strcmp(params[i]->key, "type")) {
+			type = params[i]->value;
+		}
 	}
-	cJSON *data;
-	getStringValue(req, data, "type", type, rv);
-	if (rv != 0) {
-		cJSON_Delete(req);
-		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
-		    REQ_PARAM_ERROR);
-	}
-	if (strcmp(type, "tar") != 0) {
-		cJSON_Delete(req);
+
+	if (type == NULL || strcmp(type, "tar") != 0) {
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    REQ_PARAM_ERROR);
 	}
@@ -4521,7 +4514,6 @@ get_logs_full(http_msg *msg, kv **params, size_t param_num)
 		logs_file = config->log.file;
 	} else {
 		log_warn("configuration or log.dir or log.file unavailable");
-		cJSON_Delete(req);
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    CONTENT_NOT_AVAILABLE);
 	}
@@ -4553,7 +4545,6 @@ get_logs_full(http_msg *msg, kv **params, size_t param_num)
 	rv = nng_file_get(logs_tar_path, (void **)&logs_tar_ct, &logs_tar_ct_sz);
 	if (rv != 0) {
 		log_warn("failed to read log tarball %s", logs_tar_path);
-		cJSON_Delete(req);
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    UNKNOWN_MISTAKE);
 	}
@@ -4561,7 +4552,6 @@ get_logs_full(http_msg *msg, kv **params, size_t param_num)
 	// construct result
 	put_http_msg(&res, "application/gzip", NULL, NULL, NULL, logs_tar_ct, logs_tar_ct_sz);
 
-	cJSON_Delete(req);
 	nng_free(logs_tar_ct, logs_tar_ct_sz);
 	return res;
 }
