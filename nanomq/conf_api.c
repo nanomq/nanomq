@@ -212,6 +212,15 @@ get_user_properties(conf_user_property **up, size_t count)
 	}
 }
 
+static void
+add_time_field(cJSON *obj, const char *key, uint64_t second)
+{
+	char time[100] = { 0 };
+	snprintf(time, 100, "%zus", second);
+	//FIXME It's more reasonable to use 'ms' .
+	cJSON_AddStringToObject(obj, key, time);
+}
+
 cJSON *
 get_bridge_connector(conf_bridge_node *node)
 {
@@ -223,7 +232,7 @@ get_bridge_connector(conf_bridge_node *node)
 	cJSON_AddBoolToObject(connector, "clean_start", node->clean_start);
 	cJSON_AddStringOrNullToObject(connector, "username", node->username);
 	cJSON_AddStringOrNullToObject(connector, "password", node->password);
-	cJSON_AddNumberToObject(connector, "keepalive", node->keepalive);
+	add_time_field(connector, "keepalive", (uint64_t)node->keepalive);
 
 	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 		if (node->conn_properties != NULL) {
@@ -316,15 +325,6 @@ get_bridge_sub_properties(conf_bridge_node *node)
 		return sub_prop_obj;
 	}
 	return NULL;
-}
-
-static void
-add_time_field(cJSON *obj, const char *key, uint64_t second)
-{
-	char time[100] = { 0 };
-	snprintf(time, 100, "%zus", second);
-	//FIXME It's more reasonable to use 'ms' .
-	cJSON_AddStringToObject(obj, key, time);
 }
 
 static void
