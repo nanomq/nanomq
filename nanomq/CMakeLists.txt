@@ -29,7 +29,7 @@ if(ENABLE_JWT)
 endif(ENABLE_JWT)
 if(ENABLE_LICENSE_DK OR ENABLE_LICENSE_STD)
   include_directories(${CMAKE_SOURCE_DIR}/nanomq/extern/include)
-endif(ENABLE_LICENSE_DK)
+endif()
 
 add_subdirectory(apps)
 add_subdirectory(tests)
