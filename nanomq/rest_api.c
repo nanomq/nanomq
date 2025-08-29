@@ -21,6 +21,7 @@
 #include "nng/supplemental/nanolib/cJSON.h"
 #include "nng/supplemental/nanolib/file.h"
 #include "nng/supplemental/nanolib/parquet.h"
+#include "nng/supplemental/nanolib/cmd.h"
 
 #include "include/rest_api.h"
 #include "include/bridge.h"
@@ -4523,8 +4524,17 @@ get_logs_full(http_msg *msg, kv **params, size_t param_num)
 	sprintf(logs_tar_cmd, "(cd %s && tar -czf edge-logs.tar.gz %s*)", logs_dir, logs_file);
 	log_warn("type:%s log dir:%s file:%s cmd:%s", type, logs_dir, logs_file, logs_tar_cmd);
 
-	int ret = system(logs_tar_cmd);
-	// TODO windows...
+#if NANO_PLATFORM_WINDOWS
+	log_warn("get_logs_full is unavailable on windows");
+	return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
+	    CONTENT_NOT_AVAILABLE);
+#else
+	if ((rv = nano_cmd_run(logs_tar_cmd)) != 0) {
+		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
+			CONTENT_NOT_AVAILABLE);
+	}
+#endif
+
 	char  logs_tar_path[512];
 	char *logs_tar_ct;
 	size_t logs_tar_ct_sz;
