@@ -920,10 +920,18 @@ bridge_quic_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 			nng_mqtt_topic_qos_array_free(topic_qos, 1);
 		}
 		execone ++;
+	} else {
+		log_info("No subscriptions were set.");
 	}
 
 	if (addr)
 		free(addr);
+	// Kick off ctx_msgs resending
+	conf_bridge_node *node = param->config;
+	if (!nng_aio_busy(node->resend_aio)) {
+		log_info("kick off resending!");
+		nng_aio_finish(node->resend_aio, 0);
+	}
 }
 
 // Disconnect message callback function
@@ -1356,7 +1364,7 @@ bridge_resend_cb(void *arg)
 	nng_mtx_lock(mtx);
 	socket = node->sock;
 	if (nng_lmq_get(node->ctx_msgs, &msg) == 0) {
-		log_info("resending cached msg; %d max", nng_lmq_cap(node->ctx_msgs));
+		log_info("resending cached msg; %d max", nng_lmq_len(node->ctx_msgs));
 		nng_aio_set_msg(node->resend_aio, msg);
 		nng_aio_set_timeout(node->resend_aio, node->cancel_timeout);
 		nng_send_aio(*socket, node->resend_aio);
