@@ -4436,7 +4436,7 @@ get_logs_latest(http_msg *msg, kv **params, size_t param_num)
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    CONTENT_NOT_AVAILABLE);
 	}
-	log_warn("lines:%d page:%d log path %s", lines, page, logs_path);
+	log_info("lines:%d page:%d log path %s", lines, page, logs_path);
 
 	char *logs_ct;
 	size_t logs_ct_sz;
@@ -4522,7 +4522,7 @@ get_logs_full(http_msg *msg, kv **params, size_t param_num)
 	// exec tar and get content of tarball
 	char logs_tar_cmd[1024];
 	sprintf(logs_tar_cmd, "(cd %s && tar -czf edge-logs.tar.gz %s*)", logs_dir, logs_file);
-	log_warn("type:%s log dir:%s file:%s cmd:%s", type, logs_dir, logs_file, logs_tar_cmd);
+	log_info("type:%s logdir:%s file:%s cmd:%s", type, logs_dir, logs_file, logs_tar_cmd);
 
 #if NANO_PLATFORM_WINDOWS
 	log_warn("get_logs_full is unavailable on windows");
