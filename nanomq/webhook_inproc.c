@@ -920,6 +920,7 @@ hook_work_cb(void *arg)
 			// Get msgs and send to localhost:port to active handler
 			if (msgs_len > 0 && msgs_res != NULL) {
 				// TODO NEED Clone before took from exchange instead of here
+#ifdef SUPP_PARQUET
 				for (int i=0; i<msgs_len; ++i)
 					nng_msg_clone(msgs_res[i]);
 
@@ -930,6 +931,7 @@ hook_work_cb(void *arg)
 
 				for (int i=0; i<msgs_len; ++i)
 					nng_msg_free(msgs_res[i]);
+#endif
 				nng_free(msgs_res, sizeof(nng_msg *) * msgs_len);
 			}
 #ifdef SUPP_PARQUET
@@ -1206,7 +1208,11 @@ hook_cb(void *arg)
 	nng_mqtt_set_connect_cb(mqtt_sock, trigger_tcp_connect_cb, NULL);
 	nng_mqtt_set_disconnect_cb(mqtt_sock, trigger_tcp_disconnect_cb, NULL);
 
+#ifdef SUPP_PARQUET
+	// this inner mqtt client would keep reconnecting when allow anomyous = false
+	// so stop start dialer when parquet is not enabled.
 	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
+#endif
 
 	int works_idx = 0;
 	log_info("exchange ctxs %d webhook ctxs %d", exchange_ctxs, webhook_ctxs);
