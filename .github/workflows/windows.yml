@@ -35,11 +35,10 @@ jobs:
 
       - name: Configure
         run: |
-          dashboard_ver="0.0.3"
           make_flags+= " -DENABLE_LICENSE_STD=ON "
           make_flags+= " -DOPENSSL_ROOT_DIR=C:/OpenSSL "
           make_flags+= " -DENABLE_DASHBOARD=ON "
-          make_flags+= " -DDASHBOARD_VERSION=$dashboard_ver "
+          make_flags+= " -DDASHBOARD_VERSION=0.0.3 "
           make_flags+= " -DNNG_ENABLE_SQLITE=ON "
           make_flags+= " -DNNG_ENABLE_RULE_ENGINE=ON "
           make_flags+= " -DNNG_ENABLE_JWT=ON "
