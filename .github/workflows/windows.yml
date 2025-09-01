@@ -1,4 +1,4 @@
-name: Build Windows Package
+name: Build EE Windows Package
 
 on:
   push:
@@ -33,25 +33,12 @@ jobs:
           echo "C:\OpenSSL\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           openssl version
 
-      - name: Configure
-        run: |
-          make_flags+= " -DENABLE_LICENSE_STD=ON "
-          make_flags+= " -DOPENSSL_ROOT_DIR=C:/OpenSSL "
-          make_flags+= " -DENABLE_DASHBOARD=ON "
-          make_flags+= " -DDASHBOARD_VERSION=0.0.3 "
-          make_flags+= " -DNNG_ENABLE_SQLITE=ON "
-          make_flags+= " -DNNG_ENABLE_RULE_ENGINE=ON "
-          make_flags+= " -DNNG_ENABLE_JWT=ON "
-          make_flags+= " -DNNG_ENABLE_BENCH=ON "
-          make_flags+= " -DNNG_ENABLE_ZMQ_GATEWAY=ON "
-          cmake -B build
-
-          echo "make_flags=${make_flags}" >>GITHUB_OUTPUT
-
       - name: Build
         env:
           FETCH_TOKEN: ${{ secrets.EE_CI_DASHBOARD_FETCH_TOKEN }}
-        run: cmake ${{ steps.configure.make_flags }} -DGITHUB_TOKEN="${FETCH_TOKEN}" --build build --config Release --target install
+        run: |
+          cmake -B build
+          cmake -DENABLE_LICENSE_STD=ON -DOPENSSL_ROOT_DIR=C:/OpenSSL -DENABLE_DASHBOARD=ON -DDASHBOARD_VERSION=0.0.3 -DNNG_ENABLE_SQLITE=ON -DNNG_ENABLE_RULE_ENGINE=ON -DNNG_ENABLE_JWT=ON -DNNG_ENABLE_BENCH=ON -DNNG_ENABLE_ZMQ_GATEWAY=ON -DGITHUB_TOKEN="${FETCH_TOKEN}" --build build --config Release --target install
 
       - name: Package
         if: github.event_name == 'release'
