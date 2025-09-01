@@ -34,7 +34,7 @@ jobs:
           openssl version
 
       - name: Configure
-        run: cmake -B build
+        run: |
           dashboard_ver="0.0.3"
           make_flags+= " -DENABLE_LICENSE_STD=ON "
           make_flags+= " -DOPENSSL_ROOT_DIR=C:/OpenSSL "
@@ -44,7 +44,8 @@ jobs:
           make_flags+= " -DNNG_ENABLE_RULE_ENGINE=ON "
           make_flags+= " -DNNG_ENABLE_JWT=ON "
           make_flags+= " -DNNG_ENABLE_BENCH=ON "
-#          make_flags+= " -DNNG_ENABLE_ZMQ_GATEWAY=ON "
+          make_flags+= " -DNNG_ENABLE_ZMQ_GATEWAY=ON "
+          cmake -B build
 
           echo "make_flags=${make_flags}" >>GITHUB_OUTPUT
 
@@ -75,33 +76,3 @@ jobs:
           tag: ${{ github.ref }}
           overwrite: true
           file_glob: true
-
-      - name: upload to aws s3
-        if: github.event_name == 'release'
-        run: |
-          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws configure set default.region us-west-2
-          aws s3 cp install/ s3://packages.emqx/nanomq/$(git describe --abbrev=0 --tags)/ --recursive --exclude "*" --include "nanomq*.zip"
-
-      - name: update nanomq.io
-        if: github.event_name == 'release'
-        run: |
-          try {
-            $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
-            $headers.Add("token", "${{ secrets.EMQX_IO_TOKEN }}")
-            $headers.Add("Content-Type", "application/json")
-            $body = "{`"repo`": `"nanomq/nanomq`", `"tag`": `"${{ github.ref_name }}`"}"
-            $response = Invoke-WebRequest ${{ secrets.EMQX_IO_RELEASE_API }} -Method 'POST' -Headers $headers -Body $body
-            if ($response.StatusCode -eq 200) {
-              Write-Host "HTTP status code: $($response.StatusCode)"
-              Write-Host "Success"
-            } else {
-              Write-Host "HTTP status code: $($response.StatusCode)"
-              Write-Host "Response: $($response.Content)"
-              exit 1
-            }
-          } catch {
-            Write-Host "An error occurred: $($_.Exception.Message)"
-            exit 1
-          }
