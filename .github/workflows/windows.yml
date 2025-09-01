@@ -1,4 +1,4 @@
-name: Build packages for Windows
+name: Build Windows Package
 
 on:
   push:
@@ -17,7 +17,7 @@ on:
       - master
 
 jobs:
-  build_windows_packages:
+  build_and_upload:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v3
@@ -25,7 +25,7 @@ jobs:
 
       - name: Download OpenSSL 1.1.1k
         run: |
-          Invoke-WebRequest -Uri https://slproweb.com/download/Win64OpenSSL-1_1_1k.exe -OutFile openssl-installer.exe
+          Invoke-WebRequest -Uri https://slproweb.com/download/Win64OpenSSL-3_1_8.exe -OutFile openssl-installer.exe
           Start-Process -Wait -FilePath .\openssl-installer.exe -ArgumentList "/silent","/verysilent","/sp-","/suppressmsgboxes","/dir=C:\OpenSSL"
 
       - name: Add OpenSSL to PATH
