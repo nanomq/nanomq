@@ -66,6 +66,8 @@ replace_topic(const char *origin, conn_param *param)
 	char *topic = origin;
 	char *out_topic  = NULL;
 
+	if (origin == NULL)
+		return NULL;
 	if (conn_param_get_clientid(param) != NULL &&
 	    strstr(topic, placeholder_clientid) != NULL) {
 		out_topic = replace_placeholder(topic, placeholder_clientid,
@@ -229,6 +231,8 @@ auth_acl(conf *config, acl_action_type act_type, conn_param *param,
 			char  *rule_topic  = NULL;
 			for (size_t j = 0; j < rule->topic_count && found != true; j++) {
 				rule_topic = replace_topic(rule->topics[j], param);
+				if (rule_topic == NULL)
+					break;
 				if (rule_topic != rule->topics[j])
 					free = true;
 				if (strncmp(rule_topic, "@", 1) == 0 && strlen(rule_topic) > 1) {
