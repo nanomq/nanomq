@@ -37,8 +37,9 @@ jobs:
         env:
           FETCH_TOKEN: ${{ secrets.EE_CI_DASHBOARD_FETCH_TOKEN }}
         run: |
-          cmake -B build
-          cmake -DENABLE_LICENSE_STD=ON -DOPENSSL_ROOT_DIR=C:/OpenSSL -DENABLE_DASHBOARD=ON -DDASHBOARD_VERSION=0.0.3 -DNNG_ENABLE_SQLITE=ON -DNNG_ENABLE_RULE_ENGINE=ON -DNNG_ENABLE_JWT=ON -DNNG_ENABLE_BENCH=ON -DNNG_ENABLE_ZMQ_GATEWAY=ON -DGITHUB_TOKEN="${FETCH_TOKEN}" --build build --config Release --target install
+          mkdir -p build
+          cd build
+          cmake -DENABLE_LICENSE_STD=ON -DOPENSSL_ROOT_DIR="C:/OpenSSL" -DENABLE_DASHBOARD=ON -DDASHBOARD_VERSION="0.0.3" -DNNG_ENABLE_SQLITE=ON -DNNG_ENABLE_RULE_ENGINE=ON -DNNG_ENABLE_JWT=ON -DNNG_ENABLE_BENCH=ON -DNNG_ENABLE_ZMQ_GATEWAY=ON -DGITHUB_TOKEN="${env:FETCH_TOKEN}" ..
 
       - name: Package
         if: github.event_name == 'release'
