@@ -43,7 +43,9 @@ jobs:
           echo "make_flags=${make_flags}" >>GITHUB_OUTPUT
 
       - name: Build
-        run: cmake ${{ steps.configure.make_flags }} --build build --config Release --target install 
+        env:
+          FETCH_TOKEN: ${{ secrets.EE_CI_DASHBOARD_FETCH_TOKEN }}
+        run: cmake ${{ steps.configure.make_flags }} -DGITHUB_TOKEN="${FETCH_TOKEN}" --build build --config Release --target install
 
       - name: Package
         if: github.event_name == 'release'
