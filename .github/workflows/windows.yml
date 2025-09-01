@@ -13,18 +13,32 @@ on:
 jobs:
   build_windows_packages:
     runs-on: windows-latest
-    if: false
     steps:
       - uses: actions/checkout@v3
       - run: git submodule update --init --recursive
 
+      - name: Download OpenSSL 1.1.1k
+        run: |
+          Invoke-WebRequest -Uri https://slproweb.com/download/Win64OpenSSL-1_1_1k.exe -OutFile openssl-installer.exe
+          Start-Process -Wait -FilePath .\openssl-installer.exe -ArgumentList "/silent","/verysilent","/sp-","/suppressmsgboxes","/dir=C:\OpenSSL"
+
+      - name: Add OpenSSL to PATH
+        run: |
+          echo "C:\OpenSSL\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          openssl version
+
       - name: Configure
-        run: cmake -B build 
+        run: cmake -B build
+          dashboard_ver="0.0.3"
+          make_flags+= " -DENABLE_LICENSE_STD=ON "
+          make_flags+= " -DOPENSSL_ROOT_DIR=C:/OpenSSL "
+          make_flags+= " -DENABLE_DASHBOARD=ON "
+          make_flags+= " -DDASHBOARD_VERSION=$dashboard_ver "
           make_flags+= " -DNNG_ENABLE_SQLITE=ON "
           make_flags+= " -DNNG_ENABLE_RULE_ENGINE=ON "
           make_flags+= " -DNNG_ENABLE_JWT=ON "
-          make_flags+= " -DNNG_ENABLE_ZMQ_GATEWAY=ON "
           make_flags+= " -DNNG_ENABLE_BENCH=ON "
+#          make_flags+= " -DNNG_ENABLE_ZMQ_GATEWAY=ON "
 
           echo "make_flags=${make_flags}" >>GITHUB_OUTPUT
 
