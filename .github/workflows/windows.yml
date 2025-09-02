@@ -47,8 +47,11 @@ jobs:
         run: |
           $pkg_name="nanomq-${{ github.event.release.tag_name }}-windows-x86_64.zip"
           ls ./
+          ls etc/
           ls install/
-          Compress-Archive -Path install/* -DestinationPath $pkg_name
+          mv etc/nanomq_ee.conf nanomq.conf
+          mv etc/trial-env.lic nanomq.lic
+          Compress-Archive -Path install/bin/*,nanomq.conf,nanomq.lic,etc/certs -DestinationPath $pkg_name
           mv $pkg_name ./install/
 
       - name: Upload Package
