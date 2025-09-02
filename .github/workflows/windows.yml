@@ -17,13 +17,13 @@ on:
       - master
 
 jobs:
-  build_and_upload:
+  all:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v3
       - run: git submodule update --init --recursive
 
-      - name: Download OpenSSL 1.1.1k
+      - name: Download OpenSSL
         run: |
           Invoke-WebRequest -Uri https://slproweb.com/download/Win64OpenSSL-3_1_8.exe -OutFile openssl-installer.exe
           Start-Process -Wait -FilePath .\openssl-installer.exe -ArgumentList "/silent","/verysilent","/sp-","/suppressmsgboxes","/dir=C:\OpenSSL"
@@ -32,6 +32,9 @@ jobs:
         run: |
           echo "C:\OpenSSL\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           openssl version
+          ls C:\OpenSSL\lib
+          ls C:\OpenSSL\lib\VC\x64
+          ls C:\OpenSSL\lib\VC\x64\MT
 
       - name: Build
         env:
@@ -41,14 +44,13 @@ jobs:
           cmake --build build --config Release --target install
 
       - name: Package
-        if: github.event_name == 'release'
         run: |
           $pkg_name="nanomq-${{ github.event.release.tag_name }}-windows-x86_64.zip"
           Compress-Archive -Path install/* -DestinationPath $pkg_name
           mv $pkg_name ./install/ 
 
-      - uses: actions/upload-artifact@v4
-        if: github.event_name == 'release'
+      - name: Package
+        uses: actions/upload-artifact@v4
         with:
           name: nanomq-${{ github.event.release.tag_name }}-windows-x86_64.zip
           path: "install/*.zip"
