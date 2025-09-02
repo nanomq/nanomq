@@ -57,7 +57,7 @@ jobs:
       - name: Upload Package
         uses: actions/upload-artifact@v4
         with:
-          name: nanomq-${{ github.event.release.tag_name }}-windows-x86_64.zip
+          name: nanomq-${{ github.event.release.tag_name }}-windows-x86_64
           path: "install/*.zip"
           retention-days: 7
 
