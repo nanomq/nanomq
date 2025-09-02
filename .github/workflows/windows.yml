@@ -46,10 +46,12 @@ jobs:
       - name: Package
         run: |
           $pkg_name="nanomq-${{ github.event.release.tag_name }}-windows-x86_64.zip"
+          ls ./
+          ls install/
           Compress-Archive -Path install/* -DestinationPath $pkg_name
-          mv $pkg_name ./install/ 
+          mv $pkg_name ./install/
 
-      - name: Package
+      - name: Upload Package
         uses: actions/upload-artifact@v4
         with:
           name: nanomq-${{ github.event.release.tag_name }}-windows-x86_64.zip
