@@ -1366,6 +1366,8 @@ bridge_resend_cb(void *arg)
 	if (nng_lmq_get(node->ctx_msgs, &msg) == 0) {
 		log_info("resending cached msg; %d max", nng_lmq_len(node->ctx_msgs));
 		nng_aio_set_msg(node->resend_aio, msg);
+		nng_socket_set_uint64(
+		    *socket, NNG_OPT_MQTT_BRIDGE_CACHE_BYTE, nng_msg_len(msg));
 		nng_aio_set_timeout(node->resend_aio, node->cancel_timeout);
 		nng_send_aio(*socket, node->resend_aio);
 		node->busy = true;
