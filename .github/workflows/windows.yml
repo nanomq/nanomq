@@ -45,20 +45,21 @@ jobs:
 
       - name: Package
         run: |
-          $pkg_name="nanomq-${{ github.event.release.tag_name }}-windows-x86_64.zip"
           ls ./
           ls etc/
           ls install/
-          mv etc/nanomq_ee.conf nanomq.conf
-          mv etc/trial-env.lic nanomq.lic
-          Compress-Archive -Path install/bin/*,nanomq.conf,nanomq.lic,etc/certs -DestinationPath $pkg_name
-          mv $pkg_name ./install/
+          mkdir _packages_release
+          mkdir _packages_release/etc
+          mv etc/nanomq_ee.conf _packages_release/nanomq.conf
+          mv etc/trial-env.lic _packages_release/nanomq.lic
+          mv install/bin/* _packages_release/
+          mv etc/certs _packages_release/etc/
 
       - name: Upload Package
         uses: actions/upload-artifact@v4
         with:
           name: nanomq-${{ github.event.release.tag_name }}-windows-x86_64
-          path: "install/*.zip"
+          path: _packages_release/*.zip
           retention-days: 7
 
       - uses: svenstaro/upload-release-action@v2
