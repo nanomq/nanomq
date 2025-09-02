@@ -116,7 +116,7 @@ readfile(const char *fname, int *sz)
 
 	pos = fread(str, 1, cap, fp);
 	if (pos != cap) {
-		printf("lic: Failed to read file\n");
+		printf("lic: Failed to read file %d/%d\n", pos, cap);
 		free(str);
 		fclose(fp);
 		return NULL;
