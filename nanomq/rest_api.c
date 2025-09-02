@@ -42,6 +42,7 @@
 #include <stdio.h>
 #include <time.h>
 #include <math.h>
+#include <string.h>
 
 #ifdef SUPP_JWT
 #include "l8w8jwt/decode.h"
@@ -57,7 +58,6 @@
 #endif
 
 #if NANO_PLATFORM_LINUX
-#include <string.h>
 #include <unistd.h>
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -4295,6 +4295,29 @@ out:
 	return error_response(
 	    msg, NNG_HTTP_STATUS_BAD_REQUEST, REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 }
+
+#if NANO_PLATFORM_WINDOWS
+// windows version memmem
+static void *
+memmem(const void *haystack, size_t haystack_len, const void *needle,
+    size_t needle_len)
+{
+	if (needle_len == 0)
+		return (void *) haystack;
+	if (haystack_len < needle_len)
+		return NULL;
+
+	const unsigned char *h = (const unsigned char *) haystack;
+	const unsigned char *n = (const unsigned char *) needle;
+
+	for (size_t i = 0; i <= haystack_len - needle_len; ++i) {
+		if (memcmp(h + i, n, needle_len) == 0) {
+			return (void *) (h + i);
+		}
+	}
+	return NULL;
+}
+#endif
 
 char *
 parse_formdata_file(char *data, int len, int *retlen)

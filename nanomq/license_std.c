@@ -166,8 +166,8 @@ split_lic_str(const char *data, char **lic_args, char **lic_sign)
 			break;
 	if (split_idx <= 0 || split_idx >= strlen(data))
 		return NNG_EINVAL;
-	*lic_args = strndup(data + 0, split_idx);
-	*lic_sign = strndup(data + split_idx + 1, strlen(data + split_idx + 1));
+	*lic_args = nng_strndup(data + 0, split_idx);
+	*lic_sign = nng_strndup(data + split_idx + 1, strlen(data + split_idx + 1));
 	char *sign = *lic_sign;
 	for (int i=strlen(sign)-1; i>0; --i) {
 		if (sign[i] == '\n' || sign[i] == '\r') {
@@ -191,7 +191,7 @@ split_lic_args(const char *lic_args, int lic_args_sz, struct lic_std *lic)
 	for (int i=0; i<lic_args_sz; ++i) {
 		if (lic_args[i] == '\n') {
 			if (args_idx < max_args)
-				args[args_idx++] = strndup(start, cnt);
+				args[args_idx++] = nng_strndup(start, cnt);
 			else
 				return -1;
 			start += (cnt + 1);
@@ -498,5 +498,5 @@ lic_std_info(char **info)
 char *
 lic_std_path()
 {
-	return (g_lic_path == NULL) ? NULL : strdup(g_lic_path);
+	return (g_lic_path == NULL) ? NULL : nng_strdup(g_lic_path);
 }

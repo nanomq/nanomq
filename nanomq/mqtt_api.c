@@ -268,9 +268,12 @@ log_fini(conf_log *log)
 		closelog();
 	}
 #endif
+
+#if NANO_PLATFORM_LINUX
 	if (0 != (log->type & LOG_TO_UDS)) {
 		closelog();
 	}
+#endif
 
 	log_clear_callback();
 
