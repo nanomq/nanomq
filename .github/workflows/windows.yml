@@ -59,7 +59,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: nanomq-${{ github.event.release.tag_name }}-windows-x86_64
-          path: _packages_release/*.zip
+          path: _packages_release/*
           retention-days: 7
 
       - uses: svenstaro/upload-release-action@v2

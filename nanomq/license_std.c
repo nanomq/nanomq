@@ -116,10 +116,14 @@ readfile(const char *fname, int *sz)
 
 	pos = fread(str, 1, cap, fp);
 	if (pos != cap) {
+#if NANO_PLATFORM_POSIX
 		printf("lic: Failed to read file %d/%d\n", pos, cap);
 		free(str);
 		fclose(fp);
 		return NULL;
+#else
+		printf("lic: read License file in win %d/%d\n", pos, cap);
+#endif
 	}
 
 	fclose(fp);
