@@ -1834,7 +1834,7 @@ get_prometheus(http_msg *msg, kv **params, size_t param_num,
 	conf       *config = get_global_conf();
 	int data_size = BROKER_DATA_SIZE + config->bridge.count*BRIDGE_DATA_SIZE;
 
-	char dest[data_size];
+	char *dest = nng_alloc(sizeof(char) * data_size);
 
 	if (nng_socket_get_ptr(*broker_sock, NMQ_OPT_MQTT_PIPES,
 	        (void **) &pipe_id_map) != 0) {
@@ -1922,6 +1922,7 @@ get_prometheus(http_msg *msg, kv **params, size_t param_num,
 
 out:
 	put_http_msg(&res, "text/plain", NULL, NULL, NULL, dest, strlen(dest));
+	nng_free(dest, data_size);
 
 	return res;
 }
