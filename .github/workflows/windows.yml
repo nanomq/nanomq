@@ -35,13 +35,13 @@ jobs:
 
       - name: Install mbedtls
         run: |
-          curl -o mbedtls-3.6.2.tar.bz2 https://github.com/Mbed-TLS/mbedtls/releases/download/mbedtls-3.6.2/mbedtls-3.6.2.tar.bz2
+          git clone https://github.com/Mbed-TLS/mbedtls.git
           ls .
-          tar -xvjf mbedtls-3.6.2.tar.bz2
+          cd mbedtls
           ls .
-          ls mbedtls-3.6.2/
-          cd mbedtls-3.6.2/
           ls scripts/
+          git checkout v3.6.2
+          git submodule update --init --recursive
           scripts/make_generated_files.bat
           cmake -S . -B build
           cmake --build build --config Release
