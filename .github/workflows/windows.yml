@@ -25,6 +25,23 @@ jobs:
         with:
           fetch-depth: 0 # Fetch all history including tags
 
+      - name: Install basic toolchains
+        run: |
+          choco install perl --no-progress
+          choco install python --no-progress
+
+      - name: Install mbedtls
+        run: |
+          Invoke-WebRequest -Uri https://github.com/Mbed-TLS/mbedtls/releases/download/mbedtls-3.6.2/mbedtls-3.6.2.tar.bz2 -OutFile mbedtls-3.6.2.tar.bz2
+          tar -xvjf mbedtls-3.6.2.tar.bz2
+          ls .
+          ls mbedtls-3.6.2/
+          cd mbedtls-3.6.2/
+          ls scripts/
+          scripts/make_generated_files.bat
+          cmake -S . -B build
+          cmake --build build --config Release
+
       - name: Initialize Submodules
         run: git submodule update --init nng
 
