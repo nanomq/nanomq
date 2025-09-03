@@ -36,15 +36,13 @@ jobs:
       - name: Install mbedtls
         run: |
           git clone https://github.com/Mbed-TLS/mbedtls.git
-          ls .
           cd mbedtls
-          ls .
-          ls scripts/
           git checkout v3.6.2
           git submodule update --init --recursive
           scripts/make_generated_files.bat
           cmake -S . -B build
           cmake --build build --config Release
+          cmake --install build --prefix "C:/mbedtls" --config Release
 
       - name: Download OpenSSL
         run: |
@@ -63,7 +61,7 @@ jobs:
         env:
           FETCH_TOKEN: ${{ secrets.EE_CI_DASHBOARD_FETCH_TOKEN }}
         run: |
-          cmake -B build -DENABLE_LICENSE_STD=ON -DOPENSSL_ROOT_DIR="C:/OpenSSL" -DENABLE_DASHBOARD=ON -DDASHBOARD_VERSION="0.0.4-beta.2" -DNNG_ENABLE_SQLITE=ON -DNNG_ENABLE_RULE_ENGINE=ON -DNNG_ENABLE_JWT=ON -DNNG_ENABLE_BENCH=ON -DNNG_ENABLE_ZMQ_GATEWAY=ON -DGITHUB_TOKEN="${env:FETCH_TOKEN}"
+          cmake -B build -DENABLE_LICENSE_STD=ON -DOPENSSL_ROOT_DIR="C:/OpenSSL" -DMBEDTLS_ROOT="C:/mbedtls" -DENABLE_DASHBOARD=ON -DDASHBOARD_VERSION="0.0.4-beta.2" -DNNG_ENABLE_TLS=ON -DNNG_ENABLE_SQLITE=ON -DNNG_ENABLE_RULE_ENGINE=ON -DNNG_ENABLE_JWT=ON -DNNG_ENABLE_BENCH=ON -DNNG_ENABLE_ZMQ_GATEWAY=ON -DGITHUB_TOKEN="${env:FETCH_TOKEN}"
           cmake --build build --config Release --target install
 
       - name: Package
