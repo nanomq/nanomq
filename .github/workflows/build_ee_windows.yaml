@@ -26,7 +26,7 @@ jobs:
           fetch-depth: 0 # Fetch all history including tags
 
       - name: Initialize Submodules
-        run: git submodule update --init nng
+        run: git submodule update --init nng extern/l8w8jwt
 
       - name: Install basic toolchains
         run: |
