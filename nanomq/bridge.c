@@ -1366,8 +1366,9 @@ bridge_resend_cb(void *arg)
 	if (nng_lmq_get(node->ctx_msgs, &msg) == 0) {
 		log_info("resending cached msg; %d max", nng_lmq_len(node->ctx_msgs));
 		nng_aio_set_msg(node->resend_aio, msg);
-		nng_socket_set_uint64(
-		    *socket, NNG_OPT_MQTT_BRIDGE_CACHE_BYTE, nng_msg_len(msg));
+		int len = -(int)nng_msg_len(msg);
+		nng_socket_set_int(
+		    *socket, NNG_OPT_MQTT_BRIDGE_CACHE_BYTE, len);
 		nng_aio_set_timeout(node->resend_aio, node->cancel_timeout);
 		nng_send_aio(*socket, node->resend_aio);
 		node->busy = true;
@@ -1811,6 +1812,10 @@ bridge_pub_handler(nano_work *work)
 							if (nng_lmq_put(node->ctx_msgs, bridge_msg) != 0) {
 								log_warn("Msg lost! put msg to ctx_msgs failed!");
 								nng_msg_free(bridge_msg);
+							} else {
+								nng_socket_set_int(
+								    *socket, NNG_OPT_MQTT_BRIDGE_CACHE_BYTE,
+									nng_msg_len(bridge_msg));
 							}
 						}
 					} else {
