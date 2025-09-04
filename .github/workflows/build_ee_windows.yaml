@@ -60,25 +60,14 @@ jobs:
       - name: prepare
         shell: bash
         run: |
-          dashboard_ver="0.0.4-beta.2"
           edge_tag_name="$(git describe --abbrev=0 --tags --match edge-*)"
-          make_flags+=" -DENABLE_LICENSE_STD=ON "
-          make_flags+=" -DOPENSSL_ROOT_DIR=\"C:/OpenSSL\" "
-          make_flags+=" -DMBEDTLS_ROOT=\"C:/mbedtls\" "
-          make_flags+=" -DENABLE_DASHBOARD=ON -DDASHBOARD_VERSION=$dashboard_ver "
-          make_flags+=" -DNNG_ENABLE_TLS=ON "
-          make_flags+=" -DNNG_ENABLE_SQLITE=ON "
-          make_flags+=" -DENABLE_RULE_ENGINE=ON "
-          make_flags+=" -DENABLE_BENCH=ON "
-
           echo "edge_tag_name=${edge_tag_name}" >> $GITHUB_ENV
-          echo "make_flags=${make_flags}" >> $GITHUB_ENV
 
       - name: Build
         env:
           FETCH_TOKEN: ${{ secrets.EE_CI_DASHBOARD_FETCH_TOKEN }}
         run: |
-          cmake -B build $env:make_flags -DGITHUB_TOKEN="${env:FETCH_TOKEN}"
+          cmake -B build -DENABLE_DASHBOARD=ON -DDASHBOARD_VERSION="0.0.4-beta.2" -DENABLE_LICENSE_STD=ON -DOPENSSL_ROOT_DIR="C:/OpenSSL" -DMBEDTLS_ROOT="C:/mbedtls" -DNNG_ENABLE_TLS=ON -DNNG_ENABLE_SQLITE=ON -DENABLE_RULE_ENGINE=ON -DENABLE_BENCH=ON -DGITHUB_TOKEN="${env:FETCH_TOKEN}"
           cmake --build build --config Release --target install
 
       - name: Package
@@ -95,7 +84,7 @@ jobs:
       - name: Upload Package
         uses: actions/upload-artifact@v4
         with:
-          name: emqx-$env:edge_tag_name-windows-x86_64
+          name: emqx-${{ env.edge_tag_name }}-windows-x86_64
           path: _packages_release/*
           retention-days: 7
 
