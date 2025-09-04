@@ -1992,7 +1992,7 @@ get_retains(http_msg *msg, kv **params, size_t param_num,
 			const char *topic =
 			    nng_mqtt_msg_get_publish_topic(retain, &topicsz);
 			if (topicsz != 0 && topic) {
-				char *pubtopic = strndup(topic, topicsz);
+				char *pubtopic = nng_strndup(topic, topicsz);
 				cJSON_AddStringToObject(
 				    elem, "topic", pubtopic);
 				free(pubtopic);
