@@ -2605,7 +2605,7 @@ post_rules(http_msg *msg)
 			}
 
 #if defined(NNG_SUPP_SQLITE)
-		} else if (!strcasecmp(name, "sqlite")) {
+		} else if (!nng_strcasecmp(name, "sqlite")) {
 			if ((rc = post_rules_sqlite(cr, jso_params, rawsql)) !=
 			    SUCCEED) {
 				goto error;
@@ -2613,21 +2613,21 @@ post_rules(http_msg *msg)
 #endif
 
 #if defined(SUPP_MYSQL)
-		} else if (!strcasecmp(name, "mysql")) {
+		} else if (!nng_strcasecmp(name, "mysql")) {
 			if ((rc = post_rules_mysql(cr, jso_params, rawsql)) !=
 			    SUCCEED) {
 					goto error;
 			}
 #endif
 #if defined(SUPP_POSTGRESQL)
-		} else if (!strcasecmp(name, "postgresql")) {
+		} else if (!nng_strcasecmp(name, "postgresql")) {
 			if ((rc = post_rules_postgresql(cr, jso_params, rawsql)) !=
 			    SUCCEED) {
 					goto error;
 			}
 #endif
 #if defined(SUPP_TIMESCALEDB)
-		} else if (!strcasecmp(name, "timescaledb")) {
+		} else if (!nng_strcasecmp(name, "timescaledb")) {
 			if ((rc = post_rules_timescaledb(cr, jso_params, rawsql)) !=
 			    SUCCEED) {
 					goto error;
@@ -2934,7 +2934,7 @@ put_rules_update_action(cJSON *jso_actions, rule *new_rule, conf_rule *cr)
 				rule_repub_free(repub);
 				return rc;
 			}
-		} else if (!strcasecmp(name, "sqlite")) {
+		} else if (!nng_strcasecmp(name, "sqlite")) {
 			if (new_rule->forword_type != RULE_FORWORD_SQLITE) {
 				log_error("Unsupport change from other type to sqlite");
 				return REQ_PARAM_ERROR;
@@ -2945,7 +2945,7 @@ put_rules_update_action(cJSON *jso_actions, rule *new_rule, conf_rule *cr)
 			if (rc != SUCCEED) {
 				return rc;
 			}
-		} else if (!strcasecmp(name, "mysql")) {
+		} else if (!nng_strcasecmp(name, "mysql")) {
 			if (new_rule->forword_type != RULE_FORWORD_MYSQL) {
 				log_error("Unsupport change from other type to mysql");
 				return REQ_PARAM_ERROR;
@@ -2956,7 +2956,7 @@ put_rules_update_action(cJSON *jso_actions, rule *new_rule, conf_rule *cr)
 				rule_mysql_free(mysql);
 				return rc;
 			}
-		} else if (!strcasecmp(name, "postgresql")) {
+		} else if (!nng_strcasecmp(name, "postgresql")) {
 			if (new_rule->forword_type != RULE_FORWORD_POSTGRESQL) {
 				log_error("Unsupport change from other type to postgresql");
 				return REQ_PARAM_ERROR;
@@ -2967,7 +2967,7 @@ put_rules_update_action(cJSON *jso_actions, rule *new_rule, conf_rule *cr)
 				rule_postgresql_free(postgresql);
 				return rc;
 			}
-		} else if (!strcasecmp(name, "timescaledb")) {
+		} else if (!nng_strcasecmp(name, "timescaledb")) {
 			if (new_rule->forword_type != RULE_FORWORD_TIMESCALEDB) {
 				log_error("Unsupport change from other type to timescaledb");
 				return REQ_PARAM_ERROR;
