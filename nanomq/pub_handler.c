@@ -110,7 +110,7 @@ foreach_client(
 	mqtt_msg_info  msg_info_buf = { 0 };
 
 	cvector(mqtt_msg_info) msg_infos = pipe_ct->msg_infos;
-	cvector_grow(msg_infos, ctx_list_len);
+	cvector_grow(msg_infos, ctx_list_len + cvector_size(msg_infos));
 
 	for (int i = 0; i < ctx_list_len; i++) {
 		pids = cli_ctx_list[i];
