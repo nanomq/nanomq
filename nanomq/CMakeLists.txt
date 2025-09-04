@@ -68,17 +68,17 @@ if(ENABLE_LICENSE_STD)
   if(OPENSSL_ROOT_DIR)
     set(OPENSSL_INCLUDE_DIR ${OPENSSL_ROOT_DIR}/include)
     set(OPENSSL_LIB_DIR ${OPENSSL_ROOT_DIR}/lib)
-    if (NNG_PLATFORM_POSIX)
+    if (NANO_PLATFORM_POSIX)
       nng_link_libraries(
         ${OPENSSL_LIB_DIR}/libssl.a
         ${OPENSSL_LIB_DIR}/libcrypto.a
-	  )
+      )
     else()
       nng_link_libraries(
         ${OPENSSL_LIB_DIR}/VC/x64/MT/libssl_static.lib
         ${OPENSSL_LIB_DIR}/VC/x64/MT/libcrypto_static.lib
-	  )
-    endif(NNG_PLATFORM_POSIX)
+    )
+    endif(NANO_PLATFORM_POSIX)
     include_directories(${OPENSSL_INCLUDE_DIR})
   else()
     find_package(OpenSSL REQUIRED)
@@ -175,7 +175,7 @@ if(ENABLE_LICENSE_STD)
     if(OPENSSL_ROOT_DIR)
       set(OPENSSL_INCLUDE_DIR ${OPENSSL_ROOT_DIR}/include)
       set(OPENSSL_LIB_DIR ${OPENSSL_ROOT_DIR}/lib)
-      if (NNG_PLATFORM_POSIX)
+      if (NANO_PLATFORM_POSIX)
         nng_link_libraries(
           ${OPENSSL_LIB_DIR}/libssl.a
           ${OPENSSL_LIB_DIR}/libcrypto.a
@@ -185,7 +185,7 @@ if(ENABLE_LICENSE_STD)
           ${OPENSSL_LIB_DIR}/VC/x64/MT/libssl_static.lib
           ${OPENSSL_LIB_DIR}/VC/x64/MT/libcrypto_static.lib
         )
-      endif(NNG_PLATFORM_POSIX)
+      endif(NANO_PLATFORM_POSIX)
       target_include_directories(nanomq PUBLIC ${OPENSSL_INCLUDE_DIR})
     else()
       find_package(OpenSSL REQUIRED)
