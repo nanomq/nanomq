@@ -159,7 +159,7 @@ jobs:
           arch="x86_64"
         fi
 
-        dashboard_ver="0.0.4-beta.1"
+        dashboard_ver="0.0.4-beta.2"
         edge_tag_name="$(git describe --abbrev=0 --tags --match edge-*)"
         pkg_name="emqx-$(git describe --abbrev=0 --tags --match edge-*)-linux-${arch}"
         if [ "${{ matrix.package_type }}" != "zip" ]; then
