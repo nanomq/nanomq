@@ -98,9 +98,9 @@ jobs:
           name: "NanoMQ Release ${{ github.ref_name }}"
           tag_name: ${{ github.ref_name }}
           files: |
-            _packages_release\*.zip
-            _packages_release\*.sha256
-          body_path: changelogs\${{ env.edge_tag_name }}.md
+            _packages_release/*.zip
+            _packages_release/*.sha256
+          body_path: changelogs/${{ env.edge_tag_name }}.md
           body: "${{ github.ref_name }} has been released!"
           draft: false
           prerelease: false
