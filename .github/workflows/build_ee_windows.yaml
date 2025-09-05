@@ -26,7 +26,7 @@ jobs:
           fetch-depth: 0 # Fetch all history including tags
 
       - name: Initialize Submodules
-        run: git submodule update --init nng extern/l8w8jwt
+        run: git submodule update --init --recursive
 
       - name: Install basic toolchains
         run: |
@@ -67,7 +67,7 @@ jobs:
         env:
           FETCH_TOKEN: ${{ secrets.EE_CI_DASHBOARD_FETCH_TOKEN }}
         run: |
-          cmake -B build -DENABLE_DASHBOARD=ON -DDASHBOARD_VERSION="0.0.4-beta.2" -DENABLE_LICENSE_STD=ON -DOPENSSL_ROOT_DIR="C:/OpenSSL" -DMBEDTLS_ROOT="C:/mbedtls" -DNNG_ENABLE_TLS=ON -DNNG_ENABLE_SQLITE=ON -DENABLE_RULE_ENGINE=ON -DENABLE_BENCH=ON -DGITHUB_TOKEN="${env:FETCH_TOKEN}"
+          cmake -B build -DENABLE_DASHBOARD=ON -DDASHBOARD_VERSION="0.0.4-beta.2" -DENABLE_LICENSE_STD=ON -DOPENSSL_ROOT_DIR="C:/OpenSSL" -DMBEDTLS_ROOT="C:/mbedtls" -DNNG_ENABLE_TLS=ON -DENABLE_JWT=ON -DNNG_ENABLE_SQLITE=ON -DENABLE_RULE_ENGINE=ON -DENABLE_BENCH=ON -DGITHUB_TOKEN="${env:FETCH_TOKEN}"
           cmake --build build --config Release --target install
 
       - name: Package
@@ -87,6 +87,7 @@ jobs:
           Compress-Archive -Path _packages/* -DestinationPath $zipPath
           $hash = Get-FileHash -Algorithm SHA256 -Path $zipPath
           "$($hash.Hash)" | Out-File -FilePath $shaPath -Encoding ascii
+          ls _packages_release
 
       - name: Upload Package
         uses: actions/upload-artifact@v4
