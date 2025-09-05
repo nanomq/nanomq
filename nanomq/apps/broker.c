@@ -1973,9 +1973,14 @@ broker_start(int argc, char **argv)
 	}
 	printf("cmd: Current path of NanoMQ: %s\n", nanomq_conf->exec_path);
 #elif defined(NANO_PLATFORM_WINDOWS)
-	GetModuleFileNameW(NULL, nanomq_conf->exec_path, 512 - 1);
+	char wpath[512];
+	int wrv = GetModuleFileNameW(NULL, wpath, 512 - 1);
+	if (wrv > 0) {
+		strcpy(nanomq_conf->exec_path, wpath);
+		for (int i=0; i<wrv; ++i) printf("%x ", wpath[i]);
+	}
 	strcpy(nanomq_conf->exec_fname, "nanomq.exe");
-	printf("cmd: Current path of NanoMQ: %s\n", nanomq_conf->exec_path);
+	printf("cmd: Current path of NanoMQ: %s rv%d\n", nanomq_conf->exec_path, wrv);
 #else
 	printf("cmd: Current path of NanoMQ: Unsupported Platform\n");
 #endif
