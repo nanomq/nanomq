@@ -197,21 +197,6 @@
       ]
     },
     {
-      "title": "MQTT Stream",
-      "path": "mqtt-stream/introduction",
-      "collapsed": true,
-      "children": [
-        {
-          "title": "通过配置文件开启MQTT STREAM",
-          "path": "mqtt-stream/configuration"
-        },
-        {
-          "title": "通过consumer对持久化的数据进行查询",
-          "path": "mqtt-stream/consumer"
-        }
-      ]
-    },
-    {
       "title": "测试报告",
       "path": "test-report"
     },
