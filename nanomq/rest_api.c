@@ -4544,6 +4544,12 @@ get_logs_full(http_msg *msg, kv **params, size_t param_num)
 	}
 
 	// exec tar and get content of tarball
+	if (strlen(logs_dir) + strlen(logs_file) + 40 > 1024
+			|| strlen(logs_dir) > 512 || strlen(logs_file) > 512) {
+		log_warn("path and filename of logs files are too long. length of each should less than 512");
+		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST, UNKNOWN_MISTAKE);
+	}
+
 	char logs_tar_cmd[1024];
 	sprintf(logs_tar_cmd, "(cd %s && tar -czf edge-logs.tar.gz %s*)", logs_dir, logs_file);
 	log_info("type:%s logdir:%s file:%s cmd:%s", type, logs_dir, logs_file, logs_tar_cmd);
