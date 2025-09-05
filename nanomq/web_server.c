@@ -308,7 +308,7 @@ rest_start(uint16_t port, char *addr, conf *conf)
 	if (strlen(conf->exec_path) > 0) {
 		char http_folder[512] = {'\0'};
 		memcpy(http_folder, conf->exec_path,
-				strlen(conf->exec_path) - 7); // only want folder
+				strlen(conf->exec_path) - strlen(conf->exec_fname) - 1); // only want folder
 		strcat(http_folder, "/dist");
 		log_warn("Http Server folder set to %s", http_folder);
 		rv = nng_http_handler_alloc_directory(&handler_file, "", http_folder);

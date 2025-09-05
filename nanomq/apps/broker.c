@@ -1967,12 +1967,14 @@ broker_start(int argc, char **argv)
     // if (realpath(argv[0], nanomq_conf->exec_path) == NULL) {
 	ssize_t path_len = readlink("/proc/self/exe", nanomq_conf->exec_path,
 	    sizeof(nanomq_conf->exec_path) - 1);
+	strcpy(nanomq_conf->exec_fname, "nanomq");
 	if (path_len <= 0 || path_len >= 512) {
 		fprintf(stderr, "Cannot get exec path or too long! default Config read/write & License Update is not working\n");
 	}
 	printf("cmd: Current path of NanoMQ: %s\n", nanomq_conf->exec_path);
 #elif defined(NANO_PLATFORM_WINDOWS)
-	GetModuleFileNameW(NULL, nanomq_conf->exec_path, sizeof(nanomq_conf->exec_path) - 1);
+	GetModuleFileNameW(NULL, nanomq_conf->exec_path, 512 - 1);
+	strcpy(nanomq_conf->exec_fname, "nanomq.exe");
 	printf("cmd: Current path of NanoMQ: %s\n", nanomq_conf->exec_path);
 #else
 	printf("cmd: Current path of NanoMQ: Unsupported Platform\n");
@@ -1991,7 +1993,8 @@ broker_start(int argc, char **argv)
 	if (nanomq_conf->license_path == NULL) {
 		char path_buf[512] = {'\0'};
 		memcpy(path_buf, nanomq_conf->exec_path,
-				strlen(nanomq_conf->exec_path) - 7); // only want folder
+				strlen(nanomq_conf->exec_path) -
+				strlen(nanomq_conf->exec_fname) - 1); // only want folder
 		strcat(path_buf, LICENSE_NAME);
 		nanomq_conf->license_path = strdup(path_buf);
 		printf("lic: License file is not specified, use default License file: %s\n",
@@ -2016,9 +2019,12 @@ broker_start(int argc, char **argv)
 	}
 #endif
 
-	if (nanomq_conf->conf_file == NULL && strlen(nanomq_conf->exec_path) > 7) {
+	if (nanomq_conf->conf_file == NULL &&
+			strlen(nanomq_conf->exec_path) > strlen(nanomq_conf->exec_fname)) {
 		char conf_path[512] = {'\0'};
-		memcpy(conf_path, nanomq_conf->exec_path, strlen(nanomq_conf->exec_path) - 7); // only want folder
+		memcpy(conf_path, nanomq_conf->exec_path,
+				strlen(nanomq_conf->exec_path) -
+				strlen(nanomq_conf->exec_fname) - 1); // only want folder
 		strcat(conf_path, CONF_NAME);
 		nanomq_conf->conf_file = strdup(conf_path);
 		printf("cmd: Config file is not specified, use default config file: %s\n", nanomq_conf->conf_file);
