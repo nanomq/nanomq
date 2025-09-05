@@ -82,7 +82,11 @@ jobs:
           mv etc/certs _packages/etc/
 
           mkdir _packages_release
-          Compress-Archive -Path _packages/* -DestinationPath _packages_release/emqx-${{ env.edge_tag_name }}-windows-x86_64.zip
+          $zipPath = "_packages_release/emqx-${{ env.edge_tag_name }}-windows-x86_64.zip"
+          $shaPath = "$zipPath.sha256"
+          Compress-Archive -Path _packages/* -DestinationPath $zipPath
+          $hash = Get-FileHash -Algorithm SHA256 -Path $zipPath
+          "$($hash.Hash)" | Out-File -FilePath $shaPath -Encoding ascii
 
       - name: Upload Package
         uses: actions/upload-artifact@v4
