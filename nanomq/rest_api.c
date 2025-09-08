@@ -4466,7 +4466,7 @@ get_logs_latest(http_msg *msg, kv **params, size_t param_num)
 	size_t logs_ct_sz;
 	rv = nng_file_get(logs_path, (void **)&logs_ct, &logs_ct_sz);
 	if (rv != 0) {
-		log_warn("failed to read log file %s", logs_path);
+		log_warn("failed to read log file %s rv%d", logs_path, rv);
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    UNKNOWN_MISTAKE);
 	}

@@ -77,6 +77,8 @@ jobs:
           mkdir _packages
           mkdir _packages/etc
           mkdir _packages/tmp
+          "nanomq for windows" | Out-File -FilePath "_packages/tmp/a.txt" -Encoding ascii
+          "## How to start nanomq? ./nanomq start" | Out-File -FilePath "_packages/start.md" -Encoding ascii
           mv etc/nanomq_ee_win.conf _packages/nanomq.conf
           mv etc/trial-env.lic _packages/nanomq.lic
           mv install/bin/* _packages/
