@@ -1975,9 +1975,17 @@ broker_start(int argc, char **argv)
 #elif defined(NANO_PLATFORM_WINDOWS)
 	char wpath[512];
 	int wrv = GetModuleFileNameW(NULL, wpath, 512 - 1);
-	if (wrv > 0) {
-		strcpy(nanomq_conf->exec_path, wpath);
-		for (int i=0; i<wrv; ++i) printf("%x ", wpath[i]);
+	if (wrv > 0 && wrv % 2 == 0) {
+		// convert wide char to char
+		if (-1 == wcstombs(nanomq_conf->exec_path, wpath, wrv)) {
+			printf("cmd: Failed to convert exec path wchar to char\n");
+			for (int i=0; i<wrv; ++i)
+				printf("%x,", wpath[i]);
+			exit(EXIT_FAILURE);
+		}
+	} else {
+		printf("cmd: Failed to get current path of NanoMQ rv%d\n", wrv);
+		exit(EXIT_FAILURE);
 	}
 	strcpy(nanomq_conf->exec_fname, "nanomq.exe");
 	printf("cmd: Current path of NanoMQ: %s rv%d\n", nanomq_conf->exec_path, wrv);
