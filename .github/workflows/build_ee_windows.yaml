@@ -76,7 +76,8 @@ jobs:
           ls install/
           mkdir _packages
           mkdir _packages/etc
-          mv etc/nanomq_ee.conf _packages/nanomq.conf
+          mkdir _packages/tmp
+          mv etc/nanomq_ee_win.conf _packages/nanomq.conf
           mv etc/trial-env.lic _packages/nanomq.lic
           mv install/bin/* _packages/
           mv etc/certs _packages/etc/
