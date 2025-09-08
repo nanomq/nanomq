@@ -4444,7 +4444,7 @@ get_logs_latest(http_msg *msg, kv **params, size_t param_num)
 			fname = (char *)"nanomq.log";
 #if NANO_PLATFORM_WINDOWS
 		if (dir[strlen(dir)] != '\\') {
-			sprintf(logs_path, "%s\\%s", dir, config->log.file);
+			sprintf(logs_path, "%s/%s", dir, config->log.file);
 		} else {
 			sprintf(logs_path, "%s%s", dir, config->log.file);
 		}
@@ -4570,7 +4570,7 @@ get_logs_full(http_msg *msg, kv **params, size_t param_num)
 	size_t logs_tar_ct_sz;
 #if NANO_PLATFORM_WINDOWS
 	if (logs_dir[strlen(logs_dir)] != '\\') {
-		sprintf(logs_tar_path, "%s\\%s", logs_dir, "edge-logs.tar.gz");
+		sprintf(logs_tar_path, "%s/%s", logs_dir, "edge-logs.tar.gz");
 	} else {
 		sprintf(logs_tar_path, "%s%s", logs_dir, "edge-logs.tar.gz");
 	}
