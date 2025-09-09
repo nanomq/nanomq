@@ -528,41 +528,39 @@ http_aio_cb(void *arg)
 	uint8_t type;
 
 	nng_mtx_lock(work->mtx);
-	if((rv = nng_aio_result(work->http_aio)) != 0) {
+	if((rv = nng_aio_result(aio)) != 0) {
 		log_warn("HTTP aio result error : %s", nng_strerror(rv));
 		msg = nng_aio_get_msg(work->http_aio);
 		if (msg != NULL) {
 			type = nng_msg_cmd_type(msg);
 			nng_msg_free(msg);
-			if (work->client) {
-				nng_http_client_free(work->client);
-				work->client = NULL;
-			}
-			if (type == CMD_DISCONNECT) {
-				nng_aio_set_msg(work->http_aio, NULL);
-				if (work->conn) {
-					nng_http_conn_close(work->conn);
-					work->conn = NULL;
-				}
-				if (work->req) {
-					nng_http_req_free(work->req);
-					work->req = NULL;
-				}
-			}
+			nng_aio_set_msg(work->http_aio, NULL);
 			log_info("failed HTTP request is cleaned!");
-
+		}
+		if (work->conn) {
+			nng_http_conn_close(work->conn);
+			work->conn = NULL;
+		}
+		if (work->req) {
+			nng_http_req_free(work->req);
+			work->req = NULL;
+		}
+		if (work->client) {
+			nng_http_client_free(work->client);
+			work->client = NULL;
 		}
 		nng_mtx_unlock(work->mtx);
+		// TODO check lmq here.
 		return;
 	}
 	// nng_mtx_lock(work->mtx);
 	msg = nng_aio_get_msg(aio);
-
+	nng_aio_set_msg(aio, NULL);
 
 	if (msg != NULL) {
 		// work->msg = msg;
 		type = nng_msg_cmd_type(msg);
-		if (type != CMD_DISCONNECT && nng_aio_result(aio) == 0) {
+		if (type != CMD_DISCONNECT) {
 			log_info("HTTP connect finished, now start request");
 			if ((rv = nng_http_req_alloc(&work->req, work->url)) != 0) {
 				nng_mtx_unlock(work->mtx);
@@ -585,6 +583,7 @@ http_aio_cb(void *arg)
 				work->req, nng_msg_body(msg), nng_msg_len(msg));
 			nng_msg_set_cmd_type(msg, CMD_DISCONNECT);
 			nng_aio_set_timeout(aio, conf->cancel_timeout);
+			nng_aio_set_msg(aio, msg);
 			nng_http_conn_write_req(work->conn, work->req, aio);
 			nng_mtx_unlock(work->mtx);
 			return;
@@ -592,12 +591,12 @@ http_aio_cb(void *arg)
 			nng_msg_free(msg);
 			nng_aio_set_msg(work->http_aio, NULL);
 			nng_mtx_unlock(work->mtx);
-			nng_http_client_free(work->client);
-			work->client = NULL;
 			nng_http_conn_close(work->conn);
 			work->conn = NULL;
 			nng_http_req_free(work->req);
 			work->req = NULL;
+			nng_http_client_free(work->client);
+			work->client = NULL;
 			log_info("HTTP Request successed");
 		}
 	} else {
@@ -662,7 +661,8 @@ hook_work_cb(void *arg)
 		}
 		work->msg = nng_aio_get_msg(work->aio);
 		msg = work->msg;
-		body = (char *) nng_msg_body(msg);
+		// set a random CMD not DISCONNECT
+		nng_msg_set_cmd_type(msg, CMD_AUTH_V5);
 		send_msg_webhook(work, msg);
 		work->msg   = NULL;
 		work->state = HOOK_RECV_WEBHOOK;
@@ -1127,14 +1127,18 @@ alloc_work(int id, nng_socket sock, conf_web_hook *conf, conf_exchange *exconf,
 		}
 	}
 
-	w->proto    = proto;
-	w->exchange = exconf;
-	w->parquet  = parquetconf;
-	w->mqtt_sock= mqtt_sock;
-	w->conf     = conf;
-	w->sock     = sock;
-	w->state    = HOOK_INIT;
-	w->busy     = false;
+	w->proto     = proto;
+	w->exchange  = exconf;
+	w->parquet   = parquetconf;
+	w->mqtt_sock = mqtt_sock;
+	w->conf      = conf;
+	w->sock      = sock;
+	w->state     = HOOK_INIT;
+	w->busy      = false;
+	w->conn      = NULL;
+	w->req       = NULL;
+	w->client    = NULL;
+
 	return (w);
 }
 
@@ -1221,11 +1225,13 @@ hook_cb(void *arg)
 				&conf->exchange, &conf->parquet, &mqtt_sock, HOOK_PROTO_EXCHANGE);
 		works_idx++;
 	}
-	for (int i=0;i < webhook_ctxs; i++) {
-		works[works_idx] = alloc_work(works_idx, pullsock, &conf->web_hook,
-				&conf->exchange, &conf->parquet, &mqtt_sock, HOOK_PROTO_WEBHOOK);
-		works_idx++;
-	}
+	if (conf->web_hook.enable)
+		for (int i = 0; i < webhook_ctxs; i++) {
+			works[works_idx] = alloc_work(works_idx, pullsock,
+			    &conf->web_hook, &conf->exchange, &conf->parquet,
+			    &mqtt_sock, HOOK_PROTO_WEBHOOK);
+			works_idx++;
+		}
 
 	char *hook_ipc_url =
 	    conf->hook_ipc_url == NULL ? HOOK_IPC_URL : conf->hook_ipc_url;
