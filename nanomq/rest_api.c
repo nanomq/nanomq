@@ -50,6 +50,8 @@
 #endif
 
 #if NANO_PLATFORM_WINDOWS
+#include <stdio.h>
+#include <share.h>
 #define nano_localtime(t, pTm) localtime_s(pTm, t)
 #define nano_strtok strtok_s
 #else
@@ -4444,7 +4446,7 @@ get_logs_latest(http_msg *msg, kv **params, size_t param_num)
 			fname = (char *)"nanomq.log";
 #if NANO_PLATFORM_WINDOWS
 		if (dir[strlen(dir)] != '\\') {
-			sprintf(logs_path, "%s/%s", dir, config->log.file);
+			sprintf(logs_path, "%s\\%s", dir, config->log.file);
 		} else {
 			sprintf(logs_path, "%s%s", dir, config->log.file);
 		}
@@ -4464,7 +4466,36 @@ get_logs_latest(http_msg *msg, kv **params, size_t param_num)
 
 	char *logs_ct;
 	size_t logs_ct_sz;
+
+#ifdef NANO_PLATFORM_WINDOWS
+	FILE *fp = _fsopen(logs_path, "r", _SH_DENYNO);
+	if (NULL == fp) {
+		fseek(fp, 0, SEEK_END);
+		int cap = ftell(fp);
+		fseek(fp, 0, SEEK_SET);
+
+		int   pos = 0;
+		char *str = malloc(sizeof(char) * cap + 1);
+		memset(str, 0, cap + 1);
+		if (str == NULL || cap == 0) {
+			rv = NNG_ENOMEM;
+		} else {
+			pos = fread(str, 1, cap, fp);
+			if (pos == 0) {
+				rv = NNG_EINVAL;
+			}
+			logs_ct_sz = pos;
+			logs_ct = str;
+		}
+		fclose(fp);
+	} else {
+		log_warn("failed to read log file %s", logs_path);
+		rv = NNG_EEXIST;
+	}
+#else
 	rv = nng_file_get(logs_path, (void **)&logs_ct, &logs_ct_sz);
+#endif
+
 	if (rv != 0) {
 		log_warn("failed to read log file %s rv%d", logs_path, rv);
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
