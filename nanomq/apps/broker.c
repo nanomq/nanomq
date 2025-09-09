@@ -1954,7 +1954,7 @@ broker_start(int argc, char **argv)
 
 	char *vin = read_env_vin();
 	char vin_tmp [17];
-	snprintf(vin_tmp, 17, "nano-%08x", nng_random());
+	snprintf(vin_tmp, 17, "nanomq-%08x", nng_random());
 	vin = vin_tmp;
 	log_warn("Default bridging Clientid is %s", vin);
 
