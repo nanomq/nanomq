@@ -7,6 +7,7 @@
 // found online at https://opensource.org/licenses/MIT.
 //
 #ifdef NANO_PLATFORM_WINDOWS
+#include <share.h>
 #include <winsock.h>
 #else
 #include <unistd.h>
@@ -215,7 +216,11 @@ log_file_init(conf_log *log)
 	log->file  = log->file == NULL ? nng_strdup("nanomq.log") : log->file;
 	char *path = nano_concat_path(log->dir, log->file);
 	printf("log: full log path: %s\n", path);
+#ifdef NANO_PLATFORM_WINDOWS
+	log->fp    = _fsopen(path, "a", _SH_DENYNO);
+#else
 	log->fp    = fopen(path, "a");
+#endif
 	if (log->fp == NULL) {
 		log_fatal("open log file '%s' failed", path);
 		nng_strfree(path);
