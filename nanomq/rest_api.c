@@ -4446,7 +4446,7 @@ get_logs_latest(http_msg *msg, kv **params, size_t param_num)
 			fname = (char *)"nanomq.log";
 #if NANO_PLATFORM_WINDOWS
 		if (dir[strlen(dir)] != '\\') {
-			sprintf(logs_path, "%s\\%s", dir, config->log.file);
+			sprintf(logs_path, "%s/%s", dir, config->log.file);
 		} else {
 			sprintf(logs_path, "%s%s", dir, config->log.file);
 		}
@@ -4469,7 +4469,7 @@ get_logs_latest(http_msg *msg, kv **params, size_t param_num)
 
 #ifdef NANO_PLATFORM_WINDOWS
 	FILE *fp = _fsopen(logs_path, "r", _SH_DENYNO);
-	if (NULL == fp) {
+	if (NULL != fp) {
 		fseek(fp, 0, SEEK_END);
 		int cap = ftell(fp);
 		fseek(fp, 0, SEEK_SET);
@@ -4489,7 +4489,8 @@ get_logs_latest(http_msg *msg, kv **params, size_t param_num)
 		}
 		fclose(fp);
 	} else {
-		log_warn("failed to read log file %s", logs_path);
+		int werrno = GetLastError();
+		log_warn("failed to read log file %s lasterror%d", logs_path, werrno);
 		rv = NNG_EEXIST;
 	}
 #else
