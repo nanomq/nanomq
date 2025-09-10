@@ -541,7 +541,7 @@ hook_entry(nano_work *work, uint8_t reason)
 
 
 	if (!hook_conf->enable) {
-		log_info("webhook is disabled!");
+		log_debug("webhook is disabled!");
 		return 0;
 	}
 	switch (work->flag) {

@@ -121,6 +121,50 @@ nano_set_quic_config(nng_socket *sock, conf_bridge_node *node, nng_dialer *diale
 }
 #endif
 
+/**
+ * independent callback API for bridging aio
+ *
+ */
+
+void
+bridge_resend_cb(void *arg)
+{
+	int rv;
+	nng_msg *msg = NULL;
+	nng_aio          *aio;
+	conf_bridge_node *node = arg;
+	nng_mtx          *mtx  = node->mtx;
+	nng_socket       *socket;
+	if (nng_aio_result(node->resend_aio) == NNG_ECLOSED) {
+		log_warn("We shall stop resending while disconnected!");
+		node->busy = false;
+		return;
+	}
+	nng_mtx_lock(mtx);
+	socket = node->sock;
+	if (nng_lmq_get(node->ctx_msgs, &msg) == 0) {
+		log_info("resending cached msg; %d max", nng_lmq_len(node->ctx_msgs));
+		nng_aio_set_msg(node->resend_aio, msg);
+		int len = -(int)nng_msg_len(msg);
+		nng_socket_set_int(
+		    *socket, NNG_OPT_MQTT_BRIDGE_CACHE_BYTE, len);
+		nng_aio_set_timeout(node->resend_aio, node->cancel_timeout);
+		nng_send_aio(*socket, node->resend_aio);
+		node->busy = true;
+	} else {
+		log_info("resending of ctx_msgs is finished!");
+		node->busy = false;
+	}
+	nng_mtx_unlock(mtx);
+}
+// reserve for bridge_aio
+void
+bridge_send_cb(void *arg)
+{
+	// shall we check lmq each time?
+	bridge_resend_cb(arg);
+}
+
 nng_msg *
 create_connect_msg(conf_bridge_node *node)
 {
@@ -755,13 +799,17 @@ hybrid_cb(void *arg)
 	}
 	// uint32_t aio_cnt = bridge_arg->conf->parallel + node->parallel;
 	// alloc an AIO for each ctx bridging use only
+	if ((rv = nng_aio_alloc(
+		         &node->resend_aio, bridge_resend_cb, node)) != 0) {
+			NANO_NNG_FATAL("bridge_aio nng_aio_alloc", rv);
+	}
 	node->bridge_aio = nng_alloc(bridge_arg->conf->total_ctx * sizeof(nng_aio *));
-
 	for (uint32_t num = 0; num < bridge_arg->conf->total_ctx; num++) {
 		if ((rv = nng_aio_alloc(&node->bridge_aio[num], NULL, node)) != 0) {
 			NANO_NNG_FATAL("bridge_aio nng_aio_alloc", rv);
 		}
 	}
+
 	char **addrs = node->hybrid_servers;
 	cvector_insert(addrs, 0, strdup(node->address));
 	int    addrslen = cvector_size(addrs);
@@ -1336,47 +1384,6 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 #endif
 
 	return 0;
-}
-
-/**
- * independent callback API for bridging aio
- *
- */
-void
-bridge_send_cb(void *arg)
-{
-}
-
-void
-bridge_resend_cb(void *arg)
-{
-	int rv;
-	nng_msg *msg = NULL;
-	nng_aio          *aio;
-	conf_bridge_node *node = arg;
-	nng_mtx          *mtx  = node->mtx;
-	nng_socket       *socket;
-	if (nng_aio_result(node->resend_aio) == NNG_ECLOSED) {
-		log_warn("We shall stop resending while disconnected!");
-		node->busy = false;
-		return;
-	}
-	nng_mtx_lock(mtx);
-	socket = node->sock;
-	if (nng_lmq_get(node->ctx_msgs, &msg) == 0) {
-		log_info("resending cached msg; %d max", nng_lmq_len(node->ctx_msgs));
-		nng_aio_set_msg(node->resend_aio, msg);
-		int len = -(int)nng_msg_len(msg);
-		nng_socket_set_int(
-		    *socket, NNG_OPT_MQTT_BRIDGE_CACHE_BYTE, len);
-		nng_aio_set_timeout(node->resend_aio, node->cancel_timeout);
-		nng_send_aio(*socket, node->resend_aio);
-		node->busy = true;
-	} else {
-		log_info("resending of ctx_msgs is finished!");
-		node->busy = false;
-	}
-	nng_mtx_unlock(mtx);
 }
 
 // let bridge client sub to topics according to config file
