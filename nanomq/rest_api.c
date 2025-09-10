@@ -3513,7 +3513,7 @@ write_file(http_msg *msg)
 		    	REQ_PARAM_ERROR);
 		} else {
 			path = config->conf_file;
-			log_warn("UPdate default config file %s", path);
+			log_warn("Update default config file %s", path);
 		}
 	}
 	if (!nano_file_exists(path)) {
