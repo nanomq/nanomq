@@ -249,33 +249,31 @@ http_aio_cb(void *arg)
 		msg = nng_aio_get_msg(work->http_aio);
 		if (msg != NULL) {
 			type = nng_msg_cmd_type(msg);
+			nng_aio_set_msg(work->http_aio, NULL);
 			nng_msg_free(msg);
-			if (work->client) {
-				nng_http_client_free(work->client);
-				work->client = NULL;
-			}
-			if (type == CMD_HTTPREQ) {
-				nng_aio_set_msg(work->http_aio, NULL);
-				if (work->conn) {
-					nng_http_conn_close(work->conn);
-					work->conn = NULL;
-				}
-				if (work->req) {
-					nng_http_req_free(work->req);
-					work->req = NULL;
-				}
-			}
+		}
+		if (work->conn) {
+			nng_http_conn_close(work->conn);
+			work->conn = NULL;
+		}
+		if (work->req) {
+			nng_http_req_free(work->req);
+			work->req = NULL;
+		}
+		if (work->client) {
+			nng_http_client_free(work->client);
+			work->client = NULL;
 		}
 		nng_mtx_unlock(work->mtx);
 		return;
 	}
 	msg = nng_aio_get_msg(aio);
-
+	nng_aio_set_msg(aio, NULL);
 
 	if (msg != NULL) {
 		// work->msg = msg;
 		type = nng_msg_cmd_type(msg);
-		if (type != CMD_HTTPREQ && nng_aio_result(aio) == 0) {
+		if (type != CMD_HTTPREQ) {
 			log_trace("HTTP connect finished, now start request");
 			if ((rv = nng_http_req_alloc(&work->req, work->url)) != 0) {
 				nng_mtx_unlock(work->mtx);
@@ -298,6 +296,7 @@ http_aio_cb(void *arg)
 				work->req, nng_msg_body(msg), nng_msg_len(msg));
 			nng_msg_set_cmd_type(msg, CMD_HTTPREQ);
 			nng_aio_set_timeout(aio, conf->cancel_timeout);
+			nng_aio_set_msg(aio, msg);
 			nng_http_conn_write_req(work->conn, work->req, aio);
 			nng_mtx_unlock(work->mtx);
 			return;
@@ -305,12 +304,12 @@ http_aio_cb(void *arg)
 			nng_msg_free(msg);
 			nng_aio_set_msg(work->http_aio, NULL);
 			nng_mtx_unlock(work->mtx);
-			nng_http_client_free(work->client);
-			work->client = NULL;
 			nng_http_conn_close(work->conn);
 			work->conn = NULL;
 			nng_http_req_free(work->req);
 			work->req = NULL;
+			nng_http_client_free(work->client);
+			work->client = NULL;
 			log_trace("HTTP Request successed");
 		}
 	} else {
@@ -722,6 +721,10 @@ alloc_work(nng_socket sock, conf_web_hook *conf, conf_exchange *exconf,
 	w->busy     = false;
 	w->exchange = exconf;
 	w->parquet  = parquetconf;
+	w->conn     = NULL;
+	w->req      = NULL;
+	w->client   = NULL;
+
 	return (w);
 }
 
