@@ -36,6 +36,8 @@ decode_sub_msg(nano_work *work)
 
 	size_t remaining_len = 0;
 	packet_subscribe *sub_pkt = NULL;
+	conn_param *cp = work->cparam;
+	const char *clientid = (cp != NULL) ? conn_param_get_clientid(cp) : NULL;
 
 	if (work->msg == NULL || work->sub_pkt == NULL) {
 		return PROTOCOL_ERROR;
@@ -92,8 +94,8 @@ decode_sub_msg(nano_work *work)
 		if (tn->topic.body == NULL) {
 			log_error("tn->topic.body is NULL");
 		} else {
-			log_info("topic: [%s] len: [%d] pid [%d]",
-					tn->topic.body, tn->topic.len, sub_pkt->packet_id);
+			log_info("cid: [%s] topic: [%s] len: [%d] pid [%d]",
+				clientid, tn->topic.body, tn->topic.len, sub_pkt->packet_id);
 		}
 
 		if (tn->topic.len < 1 || tn->topic.body == NULL) {
@@ -126,6 +128,8 @@ decode_sub_msg(nano_work *work)
 			return PROTOCOL_ERROR;
 		}
 		ppos++;
+		log_info("topic: [%s] qos: [%d] nl: [%d] rap: [%d] rh: [%d]",
+			tn->topic.body, tn->qos, tn->no_local, tn->rap, tn->retain_handling);
 
 		if (strncmp(tn->topic.body, "$share/", strlen("$share/")) == 0) {
 			// Setting no_local on shared subscription is invalid
