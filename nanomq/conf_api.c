@@ -386,7 +386,7 @@ get_bridge_config(conf_bridge *bridge, const char *node_name)
 			    pub_obj, "remote_topic", pub->remote_topic);
 			cJSON_AddStringOrNullToObject(
 			    pub_obj, "local_topic", pub->local_topic);
-			if (pub->qos < 3 && pub->qos >= 0)
+			if (pub->qos < 3)
 				cJSON_AddNumberToObject(
 				    pub_obj, "qos", pub->qos);
 			cJSON_AddItemToArray(pub_infos, pub_obj);
