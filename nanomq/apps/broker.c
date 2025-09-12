@@ -1530,15 +1530,15 @@ broker(conf *nanomq_conf)
 
 #endif
 #if defined(SUPP_LICENSE_DK)
-		license_tick += 6;
-		if ((license_tick %= 60) == 0) { // for less flush
+		license_tick += 8;
+		if ((license_tick %= 80) == 0) { // for less flush
 			if (0 != (rv = lic_dk_update(1))) { // 1 minutes
 				printf("lic: license dk error rv%d\n", rv);
 				exit(0);
 			}
 		}
 #elif defined(SUPP_LICENSE_STD)
-		if (0 != (rv = lic_std_update(6))) {
+		if (0 != (rv = lic_std_update(8))) {
 			printf("lic: license std error rv%d\n", rv);
 			exit(0);
 		}
