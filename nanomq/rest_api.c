@@ -4464,7 +4464,7 @@ get_logs_latest(http_msg *msg, kv **params, size_t param_num)
 	}
 	log_info("lines:%d page:%d log path %s", lines, page, logs_path);
 
-	char *logs_ct;
+	char *logs_ct = NULL;
 	size_t logs_ct_sz;
 
 #ifdef NANO_PLATFORM_WINDOWS
@@ -4474,18 +4474,24 @@ get_logs_latest(http_msg *msg, kv **params, size_t param_num)
 		int cap = ftell(fp);
 		fseek(fp, 0, SEEK_SET);
 
-		int   pos = 0;
-		char *str = malloc(sizeof(char) * cap + 1);
-		memset(str, 0, cap + 1);
-		if (str == NULL || cap == 0) {
-			rv = NNG_ENOMEM;
+		if (cap < 0) {
+			int werrno = GetLastError();
+			log_warn("failed to read offset of %s lasterror%d", logs_path, werrno);
+			rv = NNG_EEXIST;
 		} else {
-			pos = fread(str, 1, cap, fp);
-			if (pos == 0) {
-				rv = NNG_EINVAL;
+			int   pos = 0;
+			char *str = malloc(sizeof(char) * cap + 1);
+			if (str == NULL || cap == 0) {
+				rv = NNG_ENOMEM;
+			} else {
+				memset(str, 0, cap + 1);
+				pos = fread(str, 1, cap, fp);
+				if (pos == 0) {
+					rv = NNG_EINVAL;
+				}
+				logs_ct_sz = pos;
+				logs_ct = str;
 			}
-			logs_ct_sz = pos;
-			logs_ct = str;
 		}
 		fclose(fp);
 	} else {
@@ -4499,6 +4505,8 @@ get_logs_latest(http_msg *msg, kv **params, size_t param_num)
 
 	if (rv != 0) {
 		log_warn("failed to read log file %s rv%d", logs_path, rv);
+		if (logs_ct)
+			free(logs_ct);
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    UNKNOWN_MISTAKE);
 	}
