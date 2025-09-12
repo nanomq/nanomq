@@ -37,7 +37,7 @@ decode_sub_msg(nano_work *work)
 	size_t remaining_len = 0;
 	packet_subscribe *sub_pkt = NULL;
 	conn_param *cp = work->cparam;
-	const char *clientid = (cp != NULL) ? conn_param_get_clientid(cp) : "NULL";
+	const char *clientid = (cp != NULL) ? conn_param_get_clientid(cp) : (const uint8_t *)"NULL";
 
 	if (work->msg == NULL || work->sub_pkt == NULL) {
 		return PROTOCOL_ERROR;
