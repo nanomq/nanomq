@@ -77,7 +77,9 @@ static int license_tick = 0;
 	#include "include/aws_bridge.h"
 #endif
 #if defined(NANO_PLATFORM_LINUX)
+#include <sys/resource.h>
 #include <unistd.h>
+#include <fcntl.h>
 #endif
 // Parallel is the maximum number of outstanding requests we can handle.
 // This is *NOT* the number of threads in use, but instead represents
@@ -1508,7 +1510,25 @@ broker(conf *nanomq_conf)
 			nng_free(works, num_work * sizeof(struct work *));
 			break;
 		}
-		nng_msleep(6000);
+		nng_msleep(8000);
+#if defined(NANO_PLATFORM_LINUX)
+		int    count  = 0;
+		struct rlimit rl;
+		if (getrlimit(RLIMIT_NOFILE, &rl) == -1) {
+			log_warn("getrlimit failed");
+		} else {
+			rlim_t max_fd = rl.rlim_cur; // Soft limit
+			for (rlim_t fd = 0; fd < max_fd; fd++) {
+				if (fcntl(fd, F_GETFD) != -1) {
+					count++;
+				}
+				// else if (errno == EBADF && fd > 10) { break; }
+			}
+		}
+		log_warn("EMQX Edge is Running %d Message Input %d Message Output %d Message Drop %d",
+				  count, nanomq_get_message_in(), nanomq_get_message_out(), nanomq_get_message_drop());
+
+#endif
 #if defined(SUPP_LICENSE_DK)
 		license_tick += 6;
 		if ((license_tick %= 60) == 0) { // for less flush
@@ -1525,9 +1545,10 @@ broker(conf *nanomq_conf)
 #endif
 	}
 #else
+
 	if (is_testing == false) {
 		for (;;) {
-			nng_msleep(60000); // neither pause() nor sleep() portable
+			nng_msleep(6000); // neither pause() nor sleep() portable
 #if defined(SUPP_LICENSE_DK)
 			license_tick += 60;
 			if ((license_tick %= 600) == 0) { // for less flush
