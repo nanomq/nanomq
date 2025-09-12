@@ -4474,14 +4474,14 @@ get_logs_latest(http_msg *msg, kv **params, size_t param_num)
 		int cap = ftell(fp);
 		fseek(fp, 0, SEEK_SET);
 
-		if (cap < 0) {
+		if (cap <= 0) {
 			int werrno = GetLastError();
 			log_warn("failed to read offset of %s lasterror%d", logs_path, werrno);
 			rv = NNG_EEXIST;
 		} else {
 			int   pos = 0;
 			char *str = malloc(sizeof(char) * cap + 1);
-			if (str == NULL || cap == 0) {
+			if (str == NULL) {
 				rv = NNG_ENOMEM;
 			} else {
 				memset(str, 0, cap + 1);
