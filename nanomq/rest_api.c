@@ -50,6 +50,8 @@
 #endif
 
 #if NANO_PLATFORM_WINDOWS
+#include <windows.h>
+#include <psapi.h>
 #include <stdio.h>
 #include <share.h>
 #define nano_localtime(t, pTm) localtime_s(pTm, t)
