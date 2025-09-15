@@ -1710,10 +1710,10 @@ get_cpu_time()
 	return ret;
 }
 
-#if NANO_PLATFORM_LINUX
 static long
 update_process_info(client_stats *s)
 {
+#if NANO_PLATFORM_LINUX
 	static long last_cpu_time  = 0;
 	static long last_proc_time = 0;
 
@@ -1758,9 +1758,60 @@ update_process_info(client_stats *s)
 	last_proc_time = proc_time;
 	last_cpu_time  = cpu_time;
 
+#elif NANO_PLATFORM_WINDOWS
+	HANDLE handle = GetCurrentProcess();
+
+	// --- Memory usage ---
+	PROCESS_MEMORY_COUNTERS pmc;
+	if (GetProcessMemoryInfo(handle, &pmc, sizeof(pmc))) {
+		// Working set size is close to RES memory in linux
+		s->memory = pmc.WorkingSetSize / 1024;
+		log_warn("Memory Usage (WorkingSetSize): %zu KB", pmc.WorkingSetSize / 1024);
+		log_warn("Peak Working Set Size: %zu KB", pmc.PeakWorkingSetSize / 1024);
+		log_warn("Private Bytes: %zu KB", pmc.PagefileUsage / 1024);
+	} else {
+		log_warn("GetProcessMemoryInfo failed.");
+		return -1;
+	}
+
+	// --- CPU usage ---
+	FILETIME ftCreation, ftExit, ftKernel1, ftUser1, ftKernel2, ftUser2, ftDummy;
+	ULARGE_INTEGER k1, u1, k2, u2;
+	SYSTEM_INFO sysInfo;
+	GetSystemInfo(&sysInfo);
+
+	// First sample
+	if (!GetProcessTimes(handle, &ftCreation, &ftExit, &ftKernel1, &ftUser1))
+		return -1;
+	k1.LowPart = ftKernel1.dwLowDateTime;
+	k1.HighPart = ftKernel1.dwHighDateTime;
+	u1.LowPart = ftUser1.dwLowDateTime;
+	u1.HighPart = ftUser1.dwHighDateTime;
+
+	int interval_ms = 100; // 100ms
+	Sleep(interval_ms);
+
+	// Second sample
+	if (!GetProcessTimes(handle, &ftDummy, &ftDummy, &ftKernel2, &ftUser2))
+        return -1;
+	k2.LowPart = ftKernel2.dwLowDateTime;
+	k2.HighPart = ftKernel2.dwHighDateTime;
+	u2.LowPart = ftUser2.dwLowDateTime;
+	u2.HighPart = ftUser2.dwHighDateTime;
+
+	// Calculate deltas (100-ns units)
+	unsigned long long deltaTime = (k2.QuadPart - k1.QuadPart) + (u2.QuadPart - u1.QuadPart);
+	double deltaSec = (double)deltaTime / 10000000.0;  // convert to seconds
+	double elapsedSec = (double)interval_ms / 1000.0;
+
+    // Normalize by number of CPUs
+    s->cpu_percent = 100.0 * deltaSec / (elapsedSec * sysInfo.dwNumberOfProcessors);
+#else
+	log_warn("Unsupported platform to get process info");
+#endif
+
 	return 0;
 }
-#endif
 
 static http_msg
 get_can_data_span(http_msg *msg, kv **params, size_t param_num,
@@ -1852,10 +1903,7 @@ get_prometheus(http_msg *msg, kv **params, size_t param_num,
 	stats.message_dropped  = nanomq_get_message_drop();
 #endif
 
-#if NANO_PLATFORM_LINUX
 	update_process_info(&stats);
-#endif
-
 
 	memset(dest, 0, data_size);
 	update_max_stats(&max_stats, &stats);
@@ -2036,9 +2084,7 @@ get_metrics(http_msg *msg, kv **params, size_t param_num,
 
 	client_stats stats = { 0 };
 
-#if NANO_PLATFORM_LINUX
 	update_process_info(&stats);
-#endif
 
 	conf       *config = get_global_conf();
 	nng_socket *socket = NULL;
