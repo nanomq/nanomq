@@ -215,6 +215,8 @@ if (NOT WIN32)
   if (NNG_ENABLE_HTTP)
     target_link_libraries(nanomq nng m)
   endif()
+else ()
+  nng_link_libraries(psapi)
 endif()
 
 if(BUILD_STATIC)
