@@ -1790,7 +1790,9 @@ update_process_info(client_stats *s)
 	u1.LowPart = ftUser1.dwLowDateTime;
 	u1.HighPart = ftUser1.dwHighDateTime;
 
-	int interval_ms = 10; // 10ms
+	// The timer resolution of Windows is 1s/64. To answer quickly
+	// and accurately. So we take 200ms to samples.
+	int interval_ms = 200;
 	Sleep(interval_ms);
 
 	// Second sample
