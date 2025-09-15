@@ -1767,10 +1767,10 @@ update_process_info(client_stats *s)
 	PROCESS_MEMORY_COUNTERS pmc;
 	if (GetProcessMemoryInfo(handle, &pmc, sizeof(pmc))) {
 		// Working set size is close to RES memory in linux
-		s->memory = pmc.WorkingSetSize / 1024;
+		s->memory = pmc.WorkingSetSize;
 		log_warn("Memory Usage (WorkingSetSize): %zu KB", pmc.WorkingSetSize / 1024);
-		log_warn("Peak Working Set Size: %zu KB", pmc.PeakWorkingSetSize / 1024);
-		log_warn("Private Bytes: %zu KB", pmc.PagefileUsage / 1024);
+		log_debug("Peak Working Set Size: %zu KB", pmc.PeakWorkingSetSize / 1024);
+		log_debug("Private Bytes: %zu KB", pmc.PagefileUsage / 1024);
 	} else {
 		log_warn("GetProcessMemoryInfo failed.");
 		return -1;
@@ -1790,7 +1790,7 @@ update_process_info(client_stats *s)
 	u1.LowPart = ftUser1.dwLowDateTime;
 	u1.HighPart = ftUser1.dwHighDateTime;
 
-	int interval_ms = 100; // 100ms
+	int interval_ms = 10; // 10ms
 	Sleep(interval_ms);
 
 	// Second sample
@@ -1806,8 +1806,9 @@ update_process_info(client_stats *s)
 	double deltaSec = (double)deltaTime / 10000000.0;  // convert to seconds
 	double elapsedSec = (double)interval_ms / 1000.0;
 
-    // Normalize by number of CPUs
-    s->cpu_percent = 100.0 * deltaSec / (elapsedSec * sysInfo.dwNumberOfProcessors);
+	// Normalize by number of CPUs
+	s->cpu_percent = 100.0 * deltaSec / (elapsedSec * sysInfo.dwNumberOfProcessors);
+	log_warn("NanoMQ cpu usage: %.2f %\n", s->cpu_percent);
 #else
 	log_warn("Unsupported platform to get process info");
 #endif
