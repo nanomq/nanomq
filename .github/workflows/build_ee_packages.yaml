@@ -57,6 +57,14 @@ jobs:
           build_type: "-full"
 
     steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Initialize Submodules
+      run: git submodule update --init --recursive
+
     - name: install toolchains
       run: |
         sudo apt update
@@ -145,11 +153,6 @@ jobs:
         cd ../
         rm -rf ./build
         cd ../
-
-    - uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
-    - run: git submodule update --init --recursive
 
     - name: prepare
       id: prepare
