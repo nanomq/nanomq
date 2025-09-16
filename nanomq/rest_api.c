@@ -1804,6 +1804,7 @@ update_process_info(client_stats *s)
 	}
 
 	// --- CPU usage ---
+	// refer. https://stackoverflow.com/questions/63166/how-to-determine-cpu-and-memory-consumption-from-inside-a-process
 	if (win_get_cpu_is_init == 0) {
 		win_get_cpu_is_init = 1;
 		win_get_cpu_init();
