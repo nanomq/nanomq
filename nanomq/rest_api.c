@@ -1712,6 +1712,27 @@ get_cpu_time()
 	return ret;
 }
 
+#if NANO_PLATFORM_WINDOWS
+static ULARGE_INTEGER lastCPU, lastSysCPU, lastUserCPU;
+static win_get_cpu_is_init = 0;
+
+static void win_get_cpu_init() {
+    SYSTEM_INFO sysInfo;
+    FILETIME ftime, fsys, fuser;
+
+    GetSystemInfo(&sysInfo);
+    int numProcessors = sysInfo.dwNumberOfProcessors;
+
+    GetSystemTimeAsFileTime(&ftime);
+    memcpy(&lastCPU, &ftime, sizeof(FILETIME));
+
+    HANDLE self = GetCurrentProcess();
+    GetProcessTimes(self, &ftime, &ftime, &fsys, &fuser);
+    memcpy(&lastSysCPU, &fsys, sizeof(FILETIME));
+    memcpy(&lastUserCPU, &fuser, sizeof(FILETIME));
+}
+#endif
+
 static long
 update_process_info(client_stats *s)
 {
@@ -1777,39 +1798,34 @@ update_process_info(client_stats *s)
 	}
 
 	// --- CPU usage ---
-	FILETIME ftCreation, ftExit, ftKernel1, ftUser1, ftKernel2, ftUser2, ftDummy;
-	ULARGE_INTEGER k1, u1, k2, u2;
-	SYSTEM_INFO sysInfo;
-	GetSystemInfo(&sysInfo);
+	if (win_get_cpu_init == 0) {
+		win_get_cpu_init = 1;
+		log_warn("First time, just init. It will return right value at second times.");
+		return 0;
+	}
 
-	// First sample
-	if (!GetProcessTimes(handle, &ftCreation, &ftExit, &ftKernel1, &ftUser1))
-		return -1;
-	k1.LowPart = ftKernel1.dwLowDateTime;
-	k1.HighPart = ftKernel1.dwHighDateTime;
-	u1.LowPart = ftUser1.dwLowDateTime;
-	u1.HighPart = ftUser1.dwHighDateTime;
+	FILETIME       ftime, fsys, fuser;
+	ULARGE_INTEGER now, sys, user;
+	double         percent;
+	HANDLE         self          = GetCurrentProcess();
+	int            numProcessors = sysInfo.dwNumberOfProcessors;
 
-	// The timer resolution of Windows is 1s/64. To answer quickly
-	// and accurately. So we take 200ms to samples.
-	int interval_ms = 200;
-	Sleep(interval_ms);
+	GetSystemTimeAsFileTime(&ftime);
+	memcpy(&now, &ftime, sizeof(FILETIME));
 
-	// Second sample
-	if (!GetProcessTimes(handle, &ftDummy, &ftDummy, &ftKernel2, &ftUser2))
-        return -1;
-	k2.LowPart = ftKernel2.dwLowDateTime;
-	k2.HighPart = ftKernel2.dwHighDateTime;
-	u2.LowPart = ftUser2.dwLowDateTime;
-	u2.HighPart = ftUser2.dwHighDateTime;
-
-	// Calculate deltas (100-ns units)
-	unsigned long long deltaTime = (k2.QuadPart - k1.QuadPart) + (u2.QuadPart - u1.QuadPart);
-	double deltaSec = (double)deltaTime / 10000000.0;  // convert to seconds
-	double elapsedSec = (double)interval_ms / 1000.0;
+	GetProcessTimes(self, &ftime, &ftime, &fsys, &fuser);
+	memcpy(&sys, &fsys, sizeof(FILETIME));
+	memcpy(&user, &fuser, sizeof(FILETIME));
+	percent = (sys.QuadPart - lastSysCPU.QuadPart) +
+	    (user.QuadPart - lastUserCPU.QuadPart);
+	percent /= (now.QuadPart - lastCPU.QuadPart);
+	percent /= numProcessors;
+	lastCPU     = now;
+	lastUserCPU = user;
+	lastSysCPU  = sys;
 
 	// Normalize by number of CPUs
-	s->cpu_percent = 100.0 * deltaSec / (elapsedSec * sysInfo.dwNumberOfProcessors);
+	s->cpu_percent = 100.0 * percent;
 	log_warn("NanoMQ cpu usage: %.2f %\n", s->cpu_percent);
 #else
 	log_warn("Unsupported platform to get process info");
