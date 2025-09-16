@@ -1713,23 +1713,24 @@ get_cpu_time()
 }
 
 #if NANO_PLATFORM_WINDOWS
-static ULARGE_INTEGER lastCPU, lastSysCPU, lastUserCPU;
-static win_get_cpu_is_init = 0;
+static ULARGE_INTEGER win_lastCPU, win_lastSysCPU, win_lastUserCPU;
+static int win_get_cpu_is_init = 0;
+static int win_num_processors = 8;
 
 static void win_get_cpu_init() {
     SYSTEM_INFO sysInfo;
     FILETIME ftime, fsys, fuser;
 
     GetSystemInfo(&sysInfo);
-    int numProcessors = sysInfo.dwNumberOfProcessors;
+    win_num_processors = sysInfo.dwNumberOfProcessors;
 
     GetSystemTimeAsFileTime(&ftime);
-    memcpy(&lastCPU, &ftime, sizeof(FILETIME));
+    memcpy(&win_lastCPU, &ftime, sizeof(FILETIME));
 
     HANDLE self = GetCurrentProcess();
     GetProcessTimes(self, &ftime, &ftime, &fsys, &fuser);
-    memcpy(&lastSysCPU, &fsys, sizeof(FILETIME));
-    memcpy(&lastUserCPU, &fuser, sizeof(FILETIME));
+    memcpy(&win_lastSysCPU, &fsys, sizeof(FILETIME));
+    memcpy(&win_lastUserCPU, &fuser, sizeof(FILETIME));
 }
 #endif
 
@@ -1798,8 +1799,8 @@ update_process_info(client_stats *s)
 	}
 
 	// --- CPU usage ---
-	if (win_get_cpu_init == 0) {
-		win_get_cpu_init = 1;
+	if (win_get_cpu_is_init == 0) {
+		win_get_cpu_is_init = 1;
 		log_warn("First time, just init. It will return right value at second times.");
 		return 0;
 	}
@@ -1807,8 +1808,7 @@ update_process_info(client_stats *s)
 	FILETIME       ftime, fsys, fuser;
 	ULARGE_INTEGER now, sys, user;
 	double         percent;
-	HANDLE         self          = GetCurrentProcess();
-	int            numProcessors = sysInfo.dwNumberOfProcessors;
+	HANDLE         self = GetCurrentProcess();
 
 	GetSystemTimeAsFileTime(&ftime);
 	memcpy(&now, &ftime, sizeof(FILETIME));
@@ -1816,17 +1816,18 @@ update_process_info(client_stats *s)
 	GetProcessTimes(self, &ftime, &ftime, &fsys, &fuser);
 	memcpy(&sys, &fsys, sizeof(FILETIME));
 	memcpy(&user, &fuser, sizeof(FILETIME));
-	percent = (sys.QuadPart - lastSysCPU.QuadPart) +
-	    (user.QuadPart - lastUserCPU.QuadPart);
-	percent /= (now.QuadPart - lastCPU.QuadPart);
-	percent /= numProcessors;
-	lastCPU     = now;
-	lastUserCPU = user;
-	lastSysCPU  = sys;
+	percent = (sys.QuadPart - win_lastSysCPU.QuadPart) +
+	    (user.QuadPart - win_lastUserCPU.QuadPart);
+	log_warn("percent: %f %\n", percent);
+	percent /= (now.QuadPart - win_lastCPU.QuadPart);
+	percent /= win_num_processors;
+	win_lastCPU     = now;
+	win_lastUserCPU = user;
+	win_lastSysCPU  = sys;
 
 	// Normalize by number of CPUs
 	s->cpu_percent = 100.0 * percent;
-	log_warn("NanoMQ cpu usage: %.2f %\n", s->cpu_percent);
+	log_warn("NanoMQ cpu (%dcores) usage: %.2f %\n", win_num_processors, s->cpu_percent);
 #else
 	log_warn("Unsupported platform to get process info");
 #endif
