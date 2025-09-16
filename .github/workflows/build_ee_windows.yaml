@@ -24,6 +24,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0 # Fetch all history including tags
+          submodules: recursive
+          lfs: false
 
       - name: Initialize Submodules
         run: git submodule update --init --recursive
