@@ -1716,6 +1716,7 @@ get_cpu_time()
 static ULARGE_INTEGER win_lastCPU, win_lastSysCPU, win_lastUserCPU;
 static int win_get_cpu_is_init = 0;
 static int win_num_processors = 8;
+static HANDLE win_nanomq_handle;
 
 static void win_get_cpu_init() {
     SYSTEM_INFO sysInfo;
@@ -1723,12 +1724,16 @@ static void win_get_cpu_init() {
 
     GetSystemInfo(&sysInfo);
     win_num_processors = sysInfo.dwNumberOfProcessors;
+	if (win_num_processors <= 0 || win_num_processors > 256) {
+		log_warn("Failed to get processors. Use 8 as default. Cpu usage might be wrong");
+		win_num_processors = 8;
+	}
 
     GetSystemTimeAsFileTime(&ftime);
     memcpy(&win_lastCPU, &ftime, sizeof(FILETIME));
 
-    HANDLE self = GetCurrentProcess();
-    GetProcessTimes(self, &ftime, &ftime, &fsys, &fuser);
+    win_nanomq_handle = GetCurrentProcess();
+    GetProcessTimes(win_nanomq_handle, &ftime, &ftime, &fsys, &fuser);
     memcpy(&win_lastSysCPU, &fsys, sizeof(FILETIME));
     memcpy(&win_lastUserCPU, &fuser, sizeof(FILETIME));
 }
@@ -1790,7 +1795,7 @@ update_process_info(client_stats *s)
 	if (GetProcessMemoryInfo(handle, &pmc, sizeof(pmc))) {
 		// Working set size is close to RES memory in linux
 		s->memory = pmc.WorkingSetSize;
-		log_warn("Memory Usage (WorkingSetSize): %zu KB", pmc.WorkingSetSize / 1024);
+		log_debug("Memory Usage (WorkingSetSize): %zu KB", pmc.WorkingSetSize / 1024);
 		log_debug("Peak Working Set Size: %zu KB", pmc.PeakWorkingSetSize / 1024);
 		log_debug("Private Bytes: %zu KB", pmc.PagefileUsage / 1024);
 	} else {
@@ -1801,24 +1806,23 @@ update_process_info(client_stats *s)
 	// --- CPU usage ---
 	if (win_get_cpu_is_init == 0) {
 		win_get_cpu_is_init = 1;
-		log_warn("First time, just init. It will return right value at second times.");
+		win_get_cpu_init();
+		// First time, just init. It will return right value at second times.
 		return 0;
 	}
 
 	FILETIME       ftime, fsys, fuser;
 	ULARGE_INTEGER now, sys, user;
 	double         percent;
-	HANDLE         self = GetCurrentProcess();
 
 	GetSystemTimeAsFileTime(&ftime);
 	memcpy(&now, &ftime, sizeof(FILETIME));
 
-	GetProcessTimes(self, &ftime, &ftime, &fsys, &fuser);
+	GetProcessTimes(win_nanomq_handle, &ftime, &ftime, &fsys, &fuser);
 	memcpy(&sys, &fsys, sizeof(FILETIME));
 	memcpy(&user, &fuser, sizeof(FILETIME));
 	percent = (sys.QuadPart - win_lastSysCPU.QuadPart) +
 	    (user.QuadPart - win_lastUserCPU.QuadPart);
-	log_warn("percent: %f %\n", percent);
 	percent /= (now.QuadPart - win_lastCPU.QuadPart);
 	percent /= win_num_processors;
 	win_lastCPU     = now;
@@ -1827,7 +1831,7 @@ update_process_info(client_stats *s)
 
 	// Normalize by number of CPUs
 	s->cpu_percent = 100.0 * percent;
-	log_warn("NanoMQ cpu (%dcores) usage: %.2f %\n", win_num_processors, s->cpu_percent);
+	log_debug("NanoMQ cpu (%dcores) usage: %.2f %\n", win_num_processors, s->cpu_percent);
 #else
 	log_warn("Unsupported platform to get process info");
 #endif
