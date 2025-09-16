@@ -3420,7 +3420,7 @@ post_config(http_msg *msg, const char *type)
 static int
 send_publish(nng_socket *sock, const char *clientid, char *payload,
     char **topics, size_t topic_count, uint8_t qos, uint8_t retain,
-    bool encode_base64, property *props)
+    bool encode_base64, bool decode_base64, property *props)
 {
 	int rv = 0;
 	for (size_t i = 0; i < topic_count; i++) {
@@ -3442,6 +3442,18 @@ send_publish(nng_socket *sock, const char *clientid, char *payload,
 				    pub_msg, NULL, 0);
 			}
 			nng_strfree(encode_data);
+		} else if(decode_base64){
+			char * decode_data = nng_zalloc(payload_len);
+			size_t len         = base64_decode(
+							(uint8_t *) payload, payload_len, decode_data);
+			if (len > 0) {
+				nng_mqtt_msg_set_publish_payload(
+				    pub_msg, (uint8_t *) decode_data, len);
+			} else {
+				nng_mqtt_msg_set_publish_payload(
+				    pub_msg, NULL, 0);
+			}
+			nng_strfree(decode_data);
 		} else {
 			nng_mqtt_msg_set_publish_payload(
 			    pub_msg, (uint8_t *) payload, payload_len);
@@ -3627,6 +3639,13 @@ handle_publish_msg(cJSON *pub_obj, nng_socket *sock)
 		encoding = "plain";
 	}
 
+	// decoding
+	char *decoding;
+	getStringValue(pub_obj, item, "decoding", decoding, rv);
+	if (rv != 0) {
+		decoding = "plain";
+	}
+
 	// qos
 	uint8_t qos = 0;
 	getNumberValue(pub_obj, item, "qos", qos, rv);
@@ -3647,7 +3666,7 @@ handle_publish_msg(cJSON *pub_obj, nng_socket *sock)
 	}
 
 	rv = send_publish(sock, clientid, payload, topics, topic_count, qos,
-	    retain, strcmp(encoding, "base64") == 0, props);
+	    retain, strcmp(encoding, "base64") == 0, strcmp(decoding, "base64") == 0, props);
 	if (topics) {
 		free(topics);
 	}
