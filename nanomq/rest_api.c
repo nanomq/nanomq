@@ -33,8 +33,11 @@
 #include "include/version.h"
 #include "include/mqtt_api.h"
 
-#if defined(SUPP_LICENSE_STD)
+#if defined(SUPP_LICENSE_STD) || defined(SUPP_PARQUET)
 #include "aes_gcm.h"
+#endif
+
+#if defined(SUPP_LICENSE_STD)
 #include "include/license_std.h"
 #endif
 
@@ -4715,7 +4718,7 @@ post_tools_aes_enc(http_msg *msg)
 	(void) msg;
 	http_msg res = { .status = NNG_HTTP_STATUS_OK };
 	char *dest = NULL;
-#if defined(SUPP_LICENSE_STD)
+#if defined(SUPP_LICENSE_STD) || defined(SUPP_PARQUET)
 	int    rv = 0;
 	char  *plain;
 	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
@@ -4756,7 +4759,7 @@ post_tools_aes_enc(http_msg *msg)
 	cJSON_Delete(req);
 #else
 	dest = nng_strdup("{}");
-	log_error("aes enc tool unavailable because license is disabled");
+	log_error("aes enc tool unavailable. compile with it first");
 	res.status = NNG_HTTP_STATUS_NOT_FOUND;
 #endif
 	put_http_msg(&res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
@@ -4860,7 +4863,9 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 		nng_mtx_lock(node->mtx);
 		conf_bridge_node_destroy(node);	// TODO potential dead lock here!!
 		conf_bridge_node_parse(node, &bridge->sqlite, node_obj);
+#if defined(SUPP_LICENSE_STD) || defined(SUPP_PARQUET)
 		conf_bridge_node_parse_cipher_password(node, NANO_AES_KEY_BRIDGE);
+#endif
 		node->parallel = parallel;
 		log_info("Bridge Reload with %.*s", msg->data_len, msg->data);
 		bridge->nodes[i] = node;
