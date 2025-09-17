@@ -1973,15 +1973,8 @@ broker_start(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	char *vin = read_env_vin();
-	char vin_tmp [17];
-	snprintf(vin_tmp, 17, "nanomq-%08x", nng_random());
-	vin = vin_tmp;
-	log_warn("Default bridging Clientid is %s", vin);
-
 	// Priority: config file < environment variables < command line opts
 	conf_init(nanomq_conf);
-	nanomq_conf->vin = vin;
 
 	// Get execute path.
 #if defined(NANO_PLATFORM_LINUX)
@@ -2129,6 +2122,13 @@ broker_start(int argc, char **argv)
 		log_error("create \"nanomq.pid\" file failed");
 	}
 #endif
+
+	char *vin = read_env_vin();
+	char vin_tmp [17];
+	snprintf(vin_tmp, 17, "nanomq-%08x", nng_random());
+	vin = vin_tmp;
+	log_warn("Default bridging Clientid is %s", vin);
+	nanomq_conf->vin = vin;
 
 	rc = broker(nanomq_conf);
 
