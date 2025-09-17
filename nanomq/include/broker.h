@@ -1,6 +1,9 @@
 #ifndef NANOMQ_BROKER_H
 #define NANOMQ_BROKER_H
 
+#define NANO_AES_KEY_BRIDGE "nanomqAESKey4Four4AuthPassCipher"
+#define NANO_AES_KEY_COFFEE "givemeacoffeeplz"
+
 #define HTTP_CTX_NUM 4
 
 #include "nng/supplemental/nanolib/conf.h"

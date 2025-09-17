@@ -2113,7 +2113,7 @@ broker_start(int argc, char **argv)
 	}
 #endif
 
-	conf_parse_cipher(nanomq_conf, "nanomqAESKey4Four4AuthPassCipher", "givemeacoffeeplz");
+	conf_parse_cipher(nanomq_conf, NANO_AES_KEY_BRIDGE, NANO_AES_KEY_COFFEE);
 
 	print_conf(nanomq_conf);
 
