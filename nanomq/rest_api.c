@@ -3442,8 +3442,9 @@ send_publish(nng_socket *sock, const char *clientid, char *payload,
 				    pub_msg, NULL, 0);
 			}
 			nng_strfree(encode_data);
-		} else if(decode_base64){
-			char * decode_data = nng_zalloc(payload_len);
+		} else if (decode_base64){
+			size_t out_size = BASE64_DECODE_OUT_SIZE(payload_len);
+			char * decode_data = nng_zalloc(out_size);
 			size_t len         = base64_decode(
 							(uint8_t *) payload, payload_len, decode_data);
 			if (len > 0) {
