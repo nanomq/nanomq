@@ -4860,7 +4860,7 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 		nng_mtx_lock(node->mtx);
 		conf_bridge_node_destroy(node);	// TODO potential dead lock here!!
 		conf_bridge_node_parse(node, &bridge->sqlite, node_obj);
-		conf_bridge_parse_cipher(bridge, NANO_AES_KEY_BRIDGE, NANO_AES_KEY_COFFEE);
+		conf_bridge_node_parse_cipher_password(node, NANO_AES_KEY_BRIDGE);
 		node->parallel = parallel;
 		log_info("Bridge Reload with %.*s", msg->data_len, msg->data);
 		bridge->nodes[i] = node;
