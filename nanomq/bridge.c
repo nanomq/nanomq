@@ -1814,11 +1814,10 @@ bridge_pub_handler(nano_work *work)
 							if (nng_lmq_full(node->ctx_msgs)) {
 								log_warn("Cached Message in ctx_msgs is lost!");
 								nng_msg *tmsg;
-								(void) nng_lmq_get(node->ctx_msgs, &tmsg);
-								nng_msg_free(tmsg);
-								nng_socket_set_int(
-								    *socket, NNG_OPT_MQTT_BRIDGE_CACHE_BYTE,
-									-nng_msg_len(tmsg));
+								if (nng_lmq_get(node->ctx_msgs, &tmsg) == 0) {
+									nng_socket_set_int(*socket, NNG_OPT_MQTT_BRIDGE_CACHE_BYTE, -nng_msg_len(tmsg));
+									nng_msg_free(tmsg);
+								}
 							}
 							if (nng_lmq_put(node->ctx_msgs, bridge_msg) != 0) {
 								log_warn("Msg lost! put msg to ctx_msgs failed!");
