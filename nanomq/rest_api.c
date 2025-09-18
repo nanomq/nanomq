@@ -4504,7 +4504,7 @@ static http_msg
 get_logs_latest(http_msg *msg, kv **params, size_t param_num)
 {
 	http_msg res = { .status = NNG_HTTP_STATUS_OK };
-	int rv;
+	int rv = 0;
 	int lines = 0, page = 0, totallines = 0;
 	for (int i=0; i<param_num; ++i) {
 		if (0 == strcmp(params[i]->key, "lines")) {
