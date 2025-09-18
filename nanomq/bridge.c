@@ -1754,12 +1754,13 @@ bridge_pub_handler(nano_work *work)
 						rv = NNG_STAT_STRING;
 					}
 					if (node->forwards_list[i]->prefix != NULL) {
+						char *tmp = topic->body;
 						topic->body =
 							nng_strnins(topic->body, node->forwards_list[i]->prefix,
 										topic->len, node->forwards_list[i]->prefix_len);
 						topic->len = strlen(topic->body);
 						if (rv == NNG_STAT_STRING)
-							nng_free(topic->body, topic->len);
+							nng_free(tmp, strlen(tmp));
 						else
 							rv = NNG_STAT_STRING;	//mark it for free
 					}
