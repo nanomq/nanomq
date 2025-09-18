@@ -2184,6 +2184,12 @@ get_metrics(http_msg *msg, kv **params, size_t param_num,
 				    nng_stat_desc(child),
 				    nng_stat_value(child));
 			}
+			child = nng_stat_find(st1, "mqtt_msg_sqlite_cached");
+			if (child) {
+				cJSON_AddNumberToObject(bridge_info,
+				    nng_stat_desc(child),
+				    nng_stat_value(child));
+			}
 			child = nng_stat_find(st1, "mqtt_msg_bytes_cached");
 			if (child) {
 				cJSON_AddNumberToObject(bridge_info,
