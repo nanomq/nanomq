@@ -55,9 +55,9 @@
 #include "include/version.h"
 #include "include/plugin_spi_stream.h"
 
+static int license_tick = 0;
 #if defined(SUPP_LICENSE_DK)
 #include "include/license_dk.h"
-static int license_tick = 0;
 #elif defined(SUPP_LICENSE_STD)
 #include "include/license_std.h"
 #endif
@@ -924,6 +924,27 @@ proto_work_init(nng_socket sock, nng_socket extrasock, uint8_t proto,
 	return w;
 }
 
+static int
+get_fd_counter()
+{
+	int    count  = 0;
+#if defined(NANO_PLATFORM_LINUX)
+	struct rlimit rl;
+	if (getrlimit(RLIMIT_NOFILE, &rl) == -1) {
+		log_warn("getrlimit failed");
+	} else {
+		rlim_t max_fd = rl.rlim_cur; // Soft limit
+		for (rlim_t fd = 0; fd < max_fd; fd++) {
+			if (fcntl(fd, F_GETFD) != -1) {
+				count++;
+			}
+			// else if (errno == EBADF && fd > 10) { break; }
+		}
+	}
+#endif
+	return count;
+}
+
 static dbtree           *db        = NULL;
 static dbtree           *db_ret    = NULL;
 // TODO For HTTP SUB/UNSUB usage
@@ -1510,47 +1531,39 @@ broker(conf *nanomq_conf)
 			nng_free(works, num_work * sizeof(struct work *));
 			break;
 		}
-		nng_msleep(80000);
-#if defined(NANO_PLATFORM_LINUX)
-		int    count  = 0;
-		struct rlimit rl;
-		if (getrlimit(RLIMIT_NOFILE, &rl) == -1) {
-			log_warn("getrlimit failed");
-		} else {
-			rlim_t max_fd = rl.rlim_cur; // Soft limit
-			for (rlim_t fd = 0; fd < max_fd; fd++) {
-				if (fcntl(fd, F_GETFD) != -1) {
-					count++;
-				}
-				// else if (errno == EBADF && fd > 10) { break; }
-			}
-		}
-		log_info("EMQX Edge is Running %d Message Input %d Message Output %d Message Drop %d",
-				  count, nanomq_get_message_in(), nanomq_get_message_out(), nanomq_get_message_drop());
+		nng_msleep(6000);
+		license_tick += 6;
+		if ((license_tick %= 120) == 0)
+			log_info("EMQX Edge is Running %d Message Input %d Message Output %d Message Drop %d",
+			  get_fd_counter(), nanomq_get_message_in(), nanomq_get_message_out(), nanomq_get_message_drop());
 
-#endif
 #if defined(SUPP_LICENSE_DK)
-		license_tick += 80;
-		if ((license_tick %= 800) == 0) { // for less flush
-			if (0 != (rv = lic_dk_update(1))) { // 1 minutes
+		if ((license_tick %= 120) == 0) { // for less flush
+			if (0 != (rv = lic_dk_update(2))) { // 2 minutes
 				printf("lic: license dk error rv%d\n", rv);
 				exit(0);
 			}
 		}
 #elif defined(SUPP_LICENSE_STD)
-		if (0 != (rv = lic_std_update(80))) {
-			printf("lic: license std error rv%d\n", rv);
-			exit(0);
+		if ((license_tick %= 120) == 0) {
+			if (0 != (rv = lic_std_update(120))) {
+				printf("lic: license std error rv%d\n", rv);
+				exit(0);
+			}
 		}
 #endif
 	}
-#else
+#else // Release Mode
 
 	if (is_testing == false) {
 		for (;;) {
-			nng_msleep(6000); // neither pause() nor sleep() portable
-#if defined(SUPP_LICENSE_DK)
+			nng_msleep(60000); // neither pause() nor sleep() portable
 			license_tick += 60;
+
+			if ((license_tick %= 120) == 0)
+				log_info("EMQX Edge is Running %d Message Input %d Message Output %d Message Drop %d",
+				  get_fd_counter(), nanomq_get_message_in(), nanomq_get_message_out(), nanomq_get_message_drop());
+#if defined(SUPP_LICENSE_DK)
 			if ((license_tick %= 600) == 0) { // for less flush
 				if (0 != (rv = lic_dk_update(10))) { // 10 minutes
 					printf("lic: license dk error rv%d\n", rv);
@@ -1558,9 +1571,11 @@ broker(conf *nanomq_conf)
 				}
 			}
 #elif defined(SUPP_LICENSE_STD)
-			if (0 != (rv = lic_std_update(60))) {
-				printf("lic: license std error rv%d\n", rv);
-				exit(0);
+			if ((license_tick %= 600) == 0) {
+				if (0 != (rv = lic_std_update(600))) {
+					printf("lic: license std error rv%d\n", rv);
+					exit(0);
+				}
 			}
 #endif
 		}
