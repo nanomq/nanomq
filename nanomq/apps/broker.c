@@ -2004,7 +2004,7 @@ broker_start(int argc, char **argv)
 #elif defined(NANO_PLATFORM_WINDOWS)
 	char wpath[512];
 	int wrv = GetModuleFileNameW(NULL, wpath, 512 - 1);
-	if (wrv > 0 && wrv % 2 == 0) {
+	if (wrv > 0) {
 		// convert wide char to char
 		if (-1 == wcstombs(nanomq_conf->exec_path, wpath, wrv)) {
 			printf("cmd: Failed to convert exec path wchar to char\n");
