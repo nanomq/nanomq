@@ -402,6 +402,7 @@ static int
 init_dialer_tls(nng_dialer d, const char *cacert, const char *cert,
     const char *key, const char *pass)
 {
+	const nng_url  *url;
 	nng_tls_config *cfg;
 	int             rv;
 
@@ -410,8 +411,7 @@ init_dialer_tls(nng_dialer d, const char *cacert, const char *cert,
 	}
 
 	if (cert != NULL && key != NULL) {
-		if ((rv = nng_tls_config_own_cert(cfg, cert, key, pass)) !=
-		    0) {
+		if ((rv = nng_tls_config_own_cert(cfg, cert, key, pass)) != 0) {
 			goto out;
 		}
 	}
@@ -420,7 +420,8 @@ init_dialer_tls(nng_dialer d, const char *cacert, const char *cert,
 			goto out;
 		}
 	}
-
+	nng_dialer_get_url(d, &url);
+	nng_tls_config_server_name(cfg, url->u_hostname);
 	rv = nng_dialer_set_ptr(d, NNG_OPT_TLS_CONFIG, cfg);
 
 out:
