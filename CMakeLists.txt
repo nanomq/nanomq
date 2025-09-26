@@ -43,6 +43,7 @@ option (ENABLE_PARQUET_SHARED "Enable parquet shared build" OFF)
 option (ENABLE_BLF "Enable BLF" OFF)
 option (ENABLE_ICEORYX "Enable iceoryx" OFF)
 option (NOLOG "Disable log" OFF)
+option (NOLOG_LINE "Disable line in logs" OFF)
 option (ENABLE_ACL "Enable ACL" ON)
 option (NANOMQ_TESTS "Enable nanomq unit tests" OFF)
 option (BUILD_STATIC "build with static libs" OFF)
@@ -167,11 +168,13 @@ endif()
 
 if (NOT NOLOG)
   add_definitions(-DENABLE_LOG)
-
   if (ENABLE_SYSLOG)
     add_definitions(-DSUPP_SYSLOG)
   endif ()
+endif ()
 
+if (NOT NOLOG_LINE)
+  add_definitions(-DENABLE_LOG_LINE)
 endif ()
 
 message("-- NanoMQ versions --")
