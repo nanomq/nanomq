@@ -12,7 +12,14 @@
 FROM ubuntu:18.04
 
 RUN apt-get update && \
-    apt-get install -y build-essential cmake pkg-config
+    apt-get install -y build-essential pkg-config
+
+WORKDIR /usr
+COPY ./cmake-3.29.0-linux-x86_64.tar.gz .
+RUN tar xzf cmake-3.29.0-linux-x86_64.tar.gz
+
+WORKDIR /usr/cmake-3.29.0-linux-x86_64
+ENV PATH=$PATH:/usr/cmake-3.29.0-linux-x86_64/bin/
 
 WORKDIR /opt
 COPY ./OpenSSL_1_1_1k.tar.gz ./mbedtls-3.6.4.tar.bz2 ./zeromq-4.3.4.tar.gz .
