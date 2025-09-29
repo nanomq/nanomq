@@ -17,6 +17,7 @@ RUN apt-get update && \
 WORKDIR /usr
 COPY ./cmake-3.29.0-linux-x86_64.tar.gz .
 RUN tar xzf cmake-3.29.0-linux-x86_64.tar.gz
+RUN rm /usr/cmake-3.29.0-linux-x86_64.tar.gz
 
 WORKDIR /usr/cmake-3.29.0-linux-x86_64
 ENV PATH=$PATH:/usr/cmake-3.29.0-linux-x86_64/bin/
