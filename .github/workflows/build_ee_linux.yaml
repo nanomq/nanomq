@@ -1,7 +1,7 @@
 name: Build EE Linux
 
 concurrency:
-  group: build-${{ github.event_name }}-${{ github.ref }}
+  group: build-ee-linux-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 on:
@@ -41,27 +41,29 @@ jobs:
       run: git submodule update --init --recursive
 
     - name: Build
-      id: build
-      secrets: |
-        "fetch_token=${{ secrets.EE_CI_DASHBOARD_FETCH_TOKEN }}"
+      env:
+        FETCH_TOKEN: ${{ secrets.EE_CI_DASHBOARD_FETCH_TOKEN }}
       run: |
-        docker build --build-arg DASHBOARD_VER=0.0.4 -t edge-${{ matrix.arch }} -f deploy/ee-deploy/${{ matrix.arch }}.Dockerfile .
+        docker build --build-arg DASHBOARD_VER=0.0.4 --secret id=fetch_token,env="${FETCH_TOKEN}" -t edge-${{ matrix.arch }} -f deploy/ee-deploy/${{ matrix.arch }}-linux.Dockerfile .
 
     - name: Zip
+      id: zip
       run: |
-        arch="${{ matrix.arch[0] }}"
+        arch="${{ matrix.arch }}"
         edge_tag_name="$(git describe --abbrev=0 --tags --match edge-*)"
         pkg_name="emqx-${edge_tag_name}-linux-${arch}"
         git log --format=%H -1 > commits.txt
         cd nng && git log --format=%H -1 >> ../commits.txt && cd -
         echo -e "## How to start nanomq\n\n./nanomq start" > start.md
         mkdir -p _packages/etc/certs
+        mkdir -p _packages/dist
         mkdir -p _packages_release
         id=$(docker create edge-${{ matrix.arch }})
         docker cp $id:/opt/NanoMQ_mirror/build/nanomq/nanomq _packages/
+        docker cp $id:/opt/NanoMQ_mirror/build/nanomq/dist _packages/dist
         docker cp $id:/opt/NanoMQ_mirror/etc/nanomq_ee.conf _packages/nanomq.conf
         docker cp $id:/opt/NanoMQ_mirror/etc/trial-env.lic _packages/nanomq.lic
-        docker cp $id:/opt/NanoMQ_mirror/etc/*.pem _packages/etc/certs/
+        docker cp $id:/opt/NanoMQ_mirror/etc/certs/ _packages/etc/certs/
         cp commits.txt _packages/
         zip -r ${pkg_name}.zip _packages
         mv ${pkg_name}.zip _packages_release
@@ -71,7 +73,7 @@ jobs:
 
     - uses: actions/upload-artifact@v4
       with:
-        name: ${{ steps.build.outputs.pkg_name }}
+        name: ${{ steps.zip.outputs.pkg_name }}
         path: "_packages/*"
         retention-days: 7
 
@@ -84,7 +86,7 @@ jobs:
         files: |
           _packages_release/*.zip
           _packages_release/*.sha256
-        body_path: changelogs/${{ steps.build.outputs.edge_tag_name }}.md
+        body_path: changelogs/${{ steps.zip.outputs.edge_tag_name }}.md
         body: "${{ github.ref_name }} has been released!"
         draft: false
         prerelease: false
