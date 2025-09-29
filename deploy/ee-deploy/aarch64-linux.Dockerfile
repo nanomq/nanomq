@@ -1,7 +1,9 @@
-FROM edge-aarch64-linux-env-basic:1.0.0
+FROM wangha666/edge-aarch64-linux-env-basic:1.0.0
+ARG DASHBOARD_VER
+RUN --mount=type=secret,id=fetch_token,env=FETCH_TOKEN
 
 WORKDIR /opt
-COPY ./NanoMQ_mirror/ ./NanoMQ_mirror/
+COPY ../.. ./NanoMQ_mirror/
 
 WORKDIR /opt/NanoMQ_mirror
 RUN mkdir build && cd build && cmake \
@@ -16,7 +18,7 @@ RUN mkdir build && cd build && cmake \
     -DENABLE_LICENSE_STD=ON \
     -DBUILD_BENCH=ON \
     -DOPENSSL_ROOT_DIR=/usr/aarch64-linux-gnu \
-    #-DENABLE_DASHBOARD=ON -DDASHBOARD_VERSION=0.0.4 \
+    -DENABLE_DASHBOARD=ON -DDASHBOARD_VERSION=$DASHBOARD_VER -DGITHUB_TOKEN=$FETCH_TOKEN \
     -DNNG_ENABLE_QUIC=ON -DQUIC_BUILD_SHARED=OFF \
     -DENABLE_JWT=ON -DGEN_FILES=OFF -DNNG_ENABLE_SQLITE=ON \
     -DENABLE_RULE_ENGINE=ON -DBUILD_ZMQ_GATEWAY=ON \
