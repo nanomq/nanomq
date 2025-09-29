@@ -1,0 +1,92 @@
+name: Build EE Linux
+
+concurrency:
+  group: build-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - 'edge-*'
+  pull_request:
+    branches:
+      - master
+  release:
+    types:
+      - published
+    branches:
+      - master
+
+jobs:
+  all:
+    runs-on: ubuntu-22.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, aarch64]
+        platform: [linux]
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        submodules: recursive
+        lfs: false
+
+    - name: Initialize Submodules
+      run: git submodule update --init --recursive
+
+    - name: Build
+      id: build
+      secrets: |
+        "fetch_token=${{ secrets.EE_CI_DASHBOARD_FETCH_TOKEN }}"
+      run: |
+        docker build --build-arg DASHBOARD_VER=0.0.4 -t edge-${{ matrix.arch }} -f deploy/ee-deploy/${{ matrix.arch }}.Dockerfile .
+
+    - name: Zip
+      run: |
+        arch="${{ matrix.arch[0] }}"
+        edge_tag_name="$(git describe --abbrev=0 --tags --match edge-*)"
+        pkg_name="emqx-${edge_tag_name}-linux-${arch}"
+        git log --format=%H -1 > commits.txt
+        cd nng && git log --format=%H -1 >> ../commits.txt && cd -
+        echo -e "## How to start nanomq\n\n./nanomq start" > start.md
+        mkdir -p _packages/etc/certs
+        mkdir -p _packages_release
+        id=$(docker create edge-${{ matrix.arch }})
+        docker cp $id:/opt/NanoMQ_mirror/build/nanomq/nanomq _packages/
+        docker cp $id:/opt/NanoMQ_mirror/etc/nanomq_ee.conf _packages/nanomq.conf
+        docker cp $id:/opt/NanoMQ_mirror/etc/trial-env.lic _packages/nanomq.lic
+        docker cp $id:/opt/NanoMQ_mirror/etc/*.pem _packages/etc/certs/
+        cp commits.txt _packages/
+        zip -r ${pkg_name}.zip _packages
+        mv ${pkg_name}.zip _packages_release
+        cd _packages_release; echo $(sha256sum ${pkg_name}.zip | awk '{print $1}') > ${pkg_name}.zip.sha256; cd -
+        echo "pkg_name=${pkg_name}" >> $GITHUB_OUTPUT
+        echo "edge_tag_name=${edge_tag_name}" >> $GITHUB_OUTPUT
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.build.outputs.pkg_name }}
+        path: "_packages/*"
+        retention-days: 7
+
+    - name: Upload Artifacts to Release
+      uses: softprops/action-gh-release@v2.2.2
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        name: "NanoMQ Release ${{ github.ref_name }}"
+        tag_name: ${{ github.ref_name }}
+        files: |
+          _packages_release/*.zip
+          _packages_release/*.sha256
+        body_path: changelogs/${{ steps.build.outputs.edge_tag_name }}.md
+        body: "${{ github.ref_name }} has been released!"
+        draft: false
+        prerelease: false
+        overwrite: true
+
