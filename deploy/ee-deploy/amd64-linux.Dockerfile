@@ -1,12 +1,15 @@
+# syntax=docker/dockerfile:1
 FROM wangha666/edge-amd64-linux-env-basic:1.0.0
 ARG DASHBOARD_VER
-RUN --mount=type=secret,id=fetch_token,env=FETCH_TOKEN
 
 WORKDIR /opt
 COPY ../.. ./NanoMQ_mirror/
 
 WORKDIR /opt/NanoMQ_mirror
-RUN mkdir build && cd build && cmake \
+RUN mkdir build
+
+WORKDIR /opt/NanoMQ_mirror/build
+RUN --mount=type=secret,id=fetch_token,env=FETCH_TOKEN cmake \
      -DENABLE_LICENSE_STD=ON -DBUILD_BENCH=ON \
      #-DOPENSSL_ROOT_DIR=/usr/local \
      -DENABLE_DASHBOARD=ON -DDASHBOARD_VERSION=$DASHBOARD_VER -DGITHUB_TOKEN=$FETCH_TOKEN \

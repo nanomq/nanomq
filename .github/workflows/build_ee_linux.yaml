@@ -44,7 +44,7 @@ jobs:
       env:
         FETCH_TOKEN: ${{ secrets.EE_CI_DASHBOARD_FETCH_TOKEN }}
       run: |
-        docker build --build-arg DASHBOARD_VER=0.0.4 --secret id=fetch_token,env="${FETCH_TOKEN}" -t edge-${{ matrix.arch }} -f deploy/ee-deploy/${{ matrix.arch }}-linux.Dockerfile .
+        docker build --build-arg DASHBOARD_VER=0.0.4 --secret id=fetch_token,env=$FETCH_TOKEN -t edge-${{ matrix.arch }} -f deploy/ee-deploy/${{ matrix.arch }}-linux.Dockerfile .
 
     - name: Zip
       id: zip
