@@ -41,10 +41,14 @@ jobs:
       run: git submodule update --init --recursive
 
     - name: Build
-      env:
+      env: 
         FETCH_TOKEN: ${{ secrets.EE_CI_DASHBOARD_FETCH_TOKEN }}
       run: |
-        docker build --build-arg DASHBOARD_VER=0.0.4 --secret id=fetch_token,env=$FETCH_TOKEN -t edge-${{ matrix.arch }} -f deploy/ee-deploy/${{ matrix.arch }}-linux.Dockerfile .
+        dashboard_ver="0.0.4"
+        mkdir -p build && cd build
+        cmake -DENABLE_DASHBOARD=ON -DDASHBOARD_VERSION=$dashboard_ver -DGITHUB_TOKEN="${FETCH_TOKEN}" ..
+        cd ..
+        docker build --build-arg DASHBOARD_VER=$dashboard_ver -t edge-${{ matrix.arch }} -f deploy/ee-deploy/${{ matrix.arch }}-linux.Dockerfile .
 
     - name: Zip
       id: zip
