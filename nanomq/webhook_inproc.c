@@ -42,7 +42,7 @@
 // use in poll.
 typedef struct hook_work hook_work;
 struct hook_work {
-	enum { HOOK_INIT, HOOK_RECV, HOOK_WAIT, HOOK_SEND } state;
+	enum { HOOK_INIT, HOOK_RECV, HOOK_WAIT, HOOK_SEND, HOOK_READ_RESPONSE } state;
 	nng_aio         *aio;
 	nng_aio         *http_aio;
 	nng_msg         *msg;
@@ -230,8 +230,6 @@ out:
 }
 
 // an independent thread of each work obj for sending HTTP msg
-
-// an independent thread of each work obj for sending HTTP msg
 static void
 http_aio_cb(void *arg)
 {
@@ -271,21 +269,17 @@ http_aio_cb(void *arg)
 	nng_aio_set_msg(aio, NULL);
 
 	if (msg != NULL) {
-		// work->msg = msg;
 		type = nng_msg_cmd_type(msg);
-		if (type != CMD_HTTPREQ) {
-			log_trace("HTTP connect finished, now start request");
+		
+		if (type != CMD_HTTPREQ && type != CMD_HTTPRES) {
+			// First callback - connection established
+			log_trace("HTTP Connected, sending request");
 			if ((rv = nng_http_req_alloc(&work->req, work->url)) != 0) {
 				nng_mtx_unlock(work->mtx);
 				return;
 			}
-			// Get the connection, at the 0th output.
 			work->conn = nng_aio_get_output(aio, 0);
 
-			// Request is already set up with URL, and for GET via
-			// HTTP/1.1. The Host: header is already set up too.
-			// set_data(req, conf_req, params);
-			// Send the request, and wait for that to finish.
 			for (size_t i = 0; i < conf->header_count; i++) {
 				nng_http_req_add_header(work->req, conf->headers[i]->key,
 					conf->headers[i]->value);
@@ -300,7 +294,49 @@ http_aio_cb(void *arg)
 			nng_http_conn_write_req(work->conn, work->req, aio);
 			nng_mtx_unlock(work->mtx);
 			return;
+			
 		} else if (type == CMD_HTTPREQ) {
+			// Second callback - request sent, now read response
+			log_trace("HTTP Request sent, reading response");
+			
+			nng_http_res *res;
+			if ((rv = nng_http_res_alloc(&res)) != 0) {
+				log_error("Failed to allocate response: %s", nng_strerror(rv));
+				nng_msg_free(msg);
+				nng_aio_set_msg(work->http_aio, NULL);
+				nng_mtx_unlock(work->mtx);
+				nng_http_conn_close(work->conn);
+				work->conn = NULL;
+				nng_http_req_free(work->req);
+				work->req = NULL;
+				nng_http_client_free(work->client);
+				work->client = NULL;
+				return;
+			}
+			
+			// Mark message to indicate we're reading response
+			nng_msg_set_cmd_type(msg, CMD_HTTPRES);
+			nng_aio_set_msg(aio, msg);
+			nng_aio_set_timeout(aio, conf->cancel_timeout);
+			
+			// Store response object for cleanup later
+			nng_aio_set_output(aio, 1, res);
+			
+			// Read the response
+			nng_http_conn_read_res(work->conn, res, aio);
+			nng_mtx_unlock(work->mtx);
+			return;
+			
+		} else if (type == CMD_HTTPRES) {
+			// Third callback - response received, now cleanup
+			nng_http_res *res = nng_aio_get_output(aio, 1);
+			
+			if (res) {
+				int status = nng_http_res_get_status(res);
+				log_trace("HTTP Response received: %d", status);
+				nng_http_res_free(res);
+			}
+			
 			nng_msg_free(msg);
 			nng_aio_set_msg(work->http_aio, NULL);
 			nng_mtx_unlock(work->mtx);
@@ -310,7 +346,7 @@ http_aio_cb(void *arg)
 			work->req = NULL;
 			nng_http_client_free(work->client);
 			work->client = NULL;
-			log_trace("HTTP Request successed");
+			log_trace("HTTP Request succeed");
 		}
 	} else {
 		log_info("NULL msg from webhook aio !!!!");
@@ -318,7 +354,7 @@ http_aio_cb(void *arg)
 	}
 
 	if (!nng_lmq_empty(lmq)) {
-		// send webhook http requests
+		// send next webhook http request
 		if ((rv = nng_http_client_alloc(&work->client, work->url)) != 0) {
 			log_error("init failed: %s\n", nng_strerror(rv));
 			return;
@@ -342,7 +378,6 @@ http_aio_cb(void *arg)
 		}
 	}
 }
-
 
 static void
 hook_work_cb(void *arg)
