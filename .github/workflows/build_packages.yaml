@@ -295,6 +295,29 @@ jobs:
         file: deploy/docker/Dockerfile${{ matrix.suffix }}
         context: .
 
+  build_archive:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - run: git submodule update --init --recursive
+
+      - name: Create git archive
+        run: |
+          git ls-files --recurse-submodules | tar caf source-with-submodules.tar.gz -T-
+
+      - name: Upload release asset
+        uses: Rory-Z/upload-release-asset@v1
+        if: github.event_name == 'release'
+        with:
+          owner: ${{ github.repository_owner }}
+          repo: nanomq
+          token: ${{ github.token }}
+          path: "source-with-submodules.tar.gz"
+          ref: ${{ github.ref }}
+
+
   publish_packages:
     needs: [build_packages, build_docker]
     runs-on: ubuntu-22.04
