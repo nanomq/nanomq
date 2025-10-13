@@ -83,7 +83,7 @@ parquet
 - `parquet.encryption`: Encryption option.
 - `parquet.encryption.key_id`: Key retrieval metadata.
 - `parquet.encryption.key`: Encryption key, key must be either 16, 24 or 32 bytes.
-- `parquet.encryption.key`: Encryption algorithm. If not called, files will be encrypted with AES_GCM_V1 (default). value :`AES_GCM_CTR_V1 | AES_GCM_V1` .
+- `parquet.encryption.type`: Encryption algorithm. If not called, files will be encrypted with AES_GCM_V1 (default). value :`AES_GCM_CTR_V1 | AES_GCM_V1` .
 - `parquet.dir`: The folder where Parquet files are stored.
 - `parquet.file_name_prefix`: The prefix used for naming Parquet files.
 - `parquet.file_count`: The maximum number of Parquet files allowed.
