@@ -295,6 +295,14 @@ jobs:
         draft: false
         prerelease: false
         overwrite: true
+    - name: upload to aws s3
+      if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/')
+      run: |
+        aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws configure set default.region us-west-2
+        pkgversion="$(git describe --abbrev=0 --tags --match 'edge-*' | sed 's/^edge-//')"
+        aws s3 cp --recursive build/_packages_release s3://packages.emqx/nanomq-edge/$pkgversion
 
   build-windows-packages:
     runs-on: windows-latest
@@ -394,6 +402,15 @@ jobs:
           draft: false
           prerelease: false
           overwrite: true
+
+      - name: upload to aws s3
+        if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/')
+        run: |
+          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws configure set default.region us-west-2
+          pkgversion="$(git describe --abbrev=0 --tags --match 'edge-*' | sed 's/^edge-//')"
+          aws s3 cp --recursive _packages_release s3://packages.emqx/nanomq-edge/$pkgversion
 
   publish_packages:
     needs: [build-linux-packages, build-windows-packages]
