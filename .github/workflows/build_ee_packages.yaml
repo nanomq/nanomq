@@ -20,7 +20,7 @@ on:
       - master
 
 jobs:
-  all:
+  build-linux-packages:
     runs-on: ubuntu-22.04
 
     strategy:
@@ -295,3 +295,118 @@ jobs:
         draft: false
         prerelease: false
         overwrite: true
+
+  build-windows-packages:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history including tags
+          submodules: recursive
+          lfs: false
+
+      - name: Initialize Submodules
+        run: git submodule update --init --recursive
+
+      - name: Install basic toolchains
+        run: |
+          choco install strawberryperl --no-progress
+          choco install python --no-progress
+
+      - name: Install mbedtls
+        run: |
+          git clone https://github.com/Mbed-TLS/mbedtls.git
+          cd mbedtls
+          git checkout v3.6.2
+          git submodule update --init --recursive
+          scripts/make_generated_files.bat
+          cmake -S . -B build
+          cmake --build build --config Release
+          cmake --install build --prefix "C:/mbedtls" --config Release
+
+      - name: Download OpenSSL
+        run: |
+          Invoke-WebRequest -Uri https://slproweb.com/download/Win64OpenSSL-3_1_8.exe -OutFile openssl-installer.exe
+          Start-Process -Wait -FilePath .\openssl-installer.exe -ArgumentList "/silent","/verysilent","/sp-","/suppressmsgboxes","/dir=C:\OpenSSL"
+
+      - name: Add OpenSSL to PATH
+        run: |
+          echo "C:\OpenSSL\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          openssl version
+          ls C:\OpenSSL\lib
+          ls C:\OpenSSL\lib\VC\x64
+          ls C:\OpenSSL\lib\VC\x64\MT
+
+      - name: prepare
+        shell: bash
+        run: |
+          edge_tag_name="$(git describe --abbrev=0 --tags --match edge-*)"
+          echo "edge_tag_name=${edge_tag_name}" >> $GITHUB_ENV
+
+      - name: Build
+        env:
+          FETCH_TOKEN: ${{ secrets.EE_CI_DASHBOARD_FETCH_TOKEN }}
+        run: |
+          cmake -B build -DENABLE_DASHBOARD=ON -DDASHBOARD_VERSION="0.0.4" -DENABLE_LICENSE_STD=ON -DOPENSSL_ROOT_DIR="C:/OpenSSL" -DMBEDTLS_ROOT="C:/mbedtls" -DNNG_ENABLE_TLS=ON -DENABLE_JWT=ON -DNNG_ENABLE_SQLITE=ON -DENABLE_RULE_ENGINE=ON -DENABLE_BENCH=ON -DGITHUB_TOKEN="${env:FETCH_TOKEN}"
+          cmake --build build --config Release --target install
+
+      - name: Package
+        run: |
+          ls etc/
+          ls install/
+          mkdir _packages
+          mkdir _packages/etc
+          mkdir _packages/tmp
+          "nanomq for windows" | Out-File -FilePath "_packages/tmp/a.txt" -Encoding ascii
+          "## How to start nanomq? ./nanomq start" | Out-File -FilePath "_packages/start.md" -Encoding ascii
+          mv etc/nanomq_ee_win.conf _packages/nanomq.conf
+          mv etc/trial-env.lic _packages/nanomq.lic
+          mv install/bin/* _packages/
+          mv etc/certs _packages/etc/
+
+          mkdir _packages_release
+          $zipPath = "_packages_release/emqx-${{ env.edge_tag_name }}-windows-x86_64.zip"
+          $shaPath = "$zipPath.sha256"
+          Compress-Archive -Path _packages/* -DestinationPath $zipPath
+          $hash = Get-FileHash -Algorithm SHA256 -Path $zipPath
+          "$($hash.Hash)" | Out-File -FilePath $shaPath -Encoding ascii
+          ls _packages_release
+
+      - name: Upload Package
+        uses: actions/upload-artifact@v4
+        with:
+          name: emqx-${{ env.edge_tag_name }}-windows-x86_64
+          path: _packages/*
+          retention-days: 7
+
+      - name: Upload Artifacts to Release
+        uses: softprops/action-gh-release@v2.2.2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          name: "NanoMQ Release ${{ github.ref_name }}"
+          tag_name: ${{ github.ref_name }}
+          files: |
+            _packages_release/*.zip
+            _packages_release/*.sha256
+          body_path: changelogs/${{ env.edge_tag_name }}.md
+          body: "${{ github.ref_name }} has been released!"
+          draft: false
+          prerelease: false
+          overwrite: true
+
+  publish_packages:
+    needs: [build-linux-packages, build-windows-packages]
+    runs-on: ubuntu-latest
+    steps:
+    - name: update website
+      if: startsWith(github.ref, 'refs/tags/')
+      run: |
+        set -e -x -u
+        curl -w %{http_code} \
+          --insecure \
+          -H "Content-Type: application/json" \
+          -H "token: ${{ secrets.EMQX_IO_TOKEN }}" \
+          -X POST \
+          -d "{\"repo\":\"emqx/NanoMQ_mirror\", \"tag\": \"${{ github.ref_name }}\" }" \
+          ${{ secrets.EMQX_IO_RELEASE_API }}

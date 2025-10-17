@@ -12,6 +12,7 @@ on:
       - master
     tags:
       - '*'
+      - '!edge-*'
   pull_request:
     branches:
       - sdv_master
