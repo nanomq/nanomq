@@ -4,7 +4,7 @@
 # (LICENSE.txt).  A copy of the license may also be found online at
 # https://opensource.org/licenses/MIT.
 
-# cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 2.8.12...3.10)
 
 project(nanomq)
 SET(CMAKE_C_STANDARD 99)
