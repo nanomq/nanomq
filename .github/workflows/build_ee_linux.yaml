@@ -59,15 +59,14 @@ jobs:
         git log --format=%H -1 > commits.txt
         cd nng && git log --format=%H -1 >> ../commits.txt && cd -
         echo -e "## How to start nanomq\n\n./nanomq start" > start.md
-        mkdir -p _packages/etc/certs
-        mkdir -p _packages/dist
+        mkdir -p _packages/etc
         mkdir -p _packages_release
         id=$(docker create edge-${{ matrix.arch }})
         docker cp $id:/opt/NanoMQ_mirror/build/nanomq/nanomq _packages/
-        docker cp $id:/opt/NanoMQ_mirror/build/nanomq/dist _packages/dist
+        docker cp $id:/opt/NanoMQ_mirror/build/nanomq/dist _packages/
         docker cp $id:/opt/NanoMQ_mirror/etc/nanomq_ee.conf _packages/nanomq.conf
         docker cp $id:/opt/NanoMQ_mirror/etc/trial-env.lic _packages/nanomq.lic
-        docker cp $id:/opt/NanoMQ_mirror/etc/certs/ _packages/etc/certs/
+        docker cp $id:/opt/NanoMQ_mirror/etc/certs/ _packages/etc/
         cp commits.txt _packages/
         zip -r ${pkg_name}.zip _packages
         mv ${pkg_name}.zip _packages_release
