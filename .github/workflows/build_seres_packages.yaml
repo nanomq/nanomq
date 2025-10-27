@@ -105,7 +105,6 @@ jobs:
           cp etc/nanomq.conf ./packages/nanomq_android_${{ matrix.architecture }}/etc
           cp build_android/nanomq/nanomq ./packages/nanomq_android_${{ matrix.architecture }}/
           cp build_android/nanomq_cli/nanomq_cli ./packages/nanomq_android_${{ matrix.architecture }}/
-          rm build_android/lib/libcrypto.so build_android/lib/libssl.so
           cp build_android/lib/* ./packages/nanomq_android_${{ matrix.architecture }}/lib
 
           cd ./packages
