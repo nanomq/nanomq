@@ -44,7 +44,7 @@ jobs:
       env: 
         FETCH_TOKEN: ${{ secrets.EE_CI_DASHBOARD_FETCH_TOKEN }}
       run: |
-        dashboard_ver="0.0.4"
+        dashboard_ver="0.0.5-beta.1"
         mkdir -p build && cd build
         cmake -DENABLE_DASHBOARD=ON -DDASHBOARD_VERSION=$dashboard_ver -DGITHUB_TOKEN="${FETCH_TOKEN}" ..
         cd ..
