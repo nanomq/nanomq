@@ -583,11 +583,10 @@ http_aio_cb(void *arg)
 			nng_http_conn_write_req(work->conn, work->req, aio);
 			nng_mtx_unlock(work->mtx);
 			return;
-			
 		} else if (type == CMD_DISCONNECT) {
 			// Second callback - request sent, now read response
 			log_trace("HTTP Request sent, reading response");
-			
+
 			nng_http_res *res;
 			if ((rv = nng_http_res_alloc(&res)) != 0) {
 				log_error("Failed to allocate response: %s", nng_strerror(rv));
@@ -602,20 +601,20 @@ http_aio_cb(void *arg)
 				work->client = NULL;
 				return;
 			}
-			
+
 			// Mark message to indicate we're reading response
 			nng_msg_set_cmd_type(msg, CMD_HTTPRES);
 			nng_aio_set_msg(aio, msg);
 			nng_aio_set_timeout(aio, conf->cancel_timeout);
-			
+
 			// Store response object for cleanup later
 			nng_aio_set_output(aio, 1, res);
-			
+
 			// Read the response
 			nng_http_conn_read_res(work->conn, res, aio);
 			nng_mtx_unlock(work->mtx);
 			return;
-			
+
 		} else if (type == CMD_HTTPRES) {
 			// Third callback - response received, now cleanup
 			nng_http_res *res = nng_aio_get_output(aio, 1);
@@ -625,7 +624,7 @@ http_aio_cb(void *arg)
 				log_trace("HTTP Response received: %d", status);
 				nng_http_res_free(res);
 			}
-			
+
 			nng_msg_free(msg);
 			nng_aio_set_msg(work->http_aio, NULL);
 			nng_mtx_unlock(work->mtx);
