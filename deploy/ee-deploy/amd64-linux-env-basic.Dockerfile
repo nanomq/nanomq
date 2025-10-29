@@ -12,37 +12,39 @@
 FROM ubuntu:18.04
 
 RUN apt-get update && \
-    apt-get install -y build-essential pkg-config
+    apt-get install -y build-essential pkg-config && \
+	apt-get autoremove -y && \
+	rm -rf /var/lib/apt/lists/*
 
 WORKDIR /usr
 COPY ./cmake-3.29.0-linux-x86_64.tar.gz .
-RUN tar xzf cmake-3.29.0-linux-x86_64.tar.gz
-RUN rm /usr/cmake-3.29.0-linux-x86_64.tar.gz
+RUN tar xzf cmake-3.29.0-linux-x86_64.tar.gz && \
+    rm /usr/cmake-3.29.0-linux-x86_64.tar.gz
 
 WORKDIR /usr/cmake-3.29.0-linux-x86_64
 ENV PATH=$PATH:/usr/cmake-3.29.0-linux-x86_64/bin/
 
 WORKDIR /opt
 COPY ./OpenSSL_1_1_1k.tar.gz ./mbedtls-3.6.4.tar.bz2 ./zeromq-4.3.4.tar.gz .
-RUN tar xzf OpenSSL_1_1_1k.tar.gz
-RUN tar xjf mbedtls-3.6.4.tar.bz2
-RUN tar xzf zeromq-4.3.4.tar.gz
 
-WORKDIR /opt/openssl-OpenSSL_1_1_1k
-RUN ./Configure linux-x86_64 --prefix=/usr/local/ -fPIC && \
-    make -j8 && make install_sw
+WORKDIR /opt
+RUN tar xzf OpenSSL_1_1_1k.tar.gz && cd openssl-OpenSSL_1_1_1k && \
+    ./Configure linux-x86_64 --prefix=/usr/local/ -fPIC && \
+    make -j8 && make install_sw && \
+	cd /opt && rm -rf openssl-OpenSSL_1_1_1k
 
-WORKDIR /opt/mbedtls-3.6.4
-RUN mkdir build && cd build && \
+WORKDIR /opt
+RUN tar xjf mbedtls-3.6.4.tar.bz2 && cd mbedtls-3.6.4 && \
+    mkdir build && cd build && \
     cmake -DENABLE_TESTING=OFF -DCMAKE_INSTALL_PREFIX=/usr/local/ .. && \
-    make -j8 && make install
+    make -j8 && make install && \
+	cd /opt && rm -rf mbedtls-3.6.4
 
-WORKDIR /opt/zeromq-4.3.4
-RUN mkdir build && cd build && \
+WORKDIR /opt
+RUN tar xzf zeromq-4.3.4.tar.gz && cd zeromq-4.3.4 && \
+    mkdir build && cd build && \
     cmake -DBUILD_SHARED=OFF -DCMAKE_INSTALL_PREFIX=/usr/local/ -DZMQ_BUILD_TESTS=OFF \
       -DENABLE_CPACK=OFF -DWITH_DOC=OFF -DCMAKE_BUILD_TYPE=Release \
       -DCMAKE_CROSSCOMPILING=OFF -DWITH_LIBBSD=OFF .. && \
-    make -j8 && make install
-
-WORKDIR /opt
-RUN rm -rf /opt/*
+    make -j8 && make install && \
+    rm -rf zeromq-4.3.4
