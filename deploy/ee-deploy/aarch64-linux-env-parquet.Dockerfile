@@ -19,7 +19,7 @@ WORKDIR /opt
 RUN 7za x boost_1_78_0.7z && cd boost_1_78_0 && \
     ./bootstrap.sh --prefix=/usr/aarch64-linux-gnu && \
     sed 's|using gcc ;|using gcc : : /usr/bin/aarch64-linux-gnu-gcc ;|g' project-config.jam && \
-    ./b2 target-os=linux --prefix=/usr/local/ -j8 install && \
+    ./b2 target-os=linux -j8 install && \
 	cd /opt && rm -rf boost_1_78_0
 
 WORKDIR /opt
@@ -27,6 +27,8 @@ RUN tar -xzf ./thrift.tar.gz && cd thrift && \
     mkdir -p build && cd build && \
     cmake -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
           -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
+          -DCMAKE_FIND_ROOT_PATH=/usr/aarch64-linux-gnu \
+          -DCMAKE_INSTALL_PREFIX=/usr/aarch64-linux-gnu \
           -DBUILD_CPP=ON \
           -DBUILD_COMPILER=ON \
           -DBUILD_TESTING=OFF \
@@ -38,9 +40,8 @@ RUN tar -xzf ./thrift.tar.gz && cd thrift && \
           -DBUILD_PYTHON=OFF \
           -DBUILD_HASKELL=OFF \
           -DWITH_QT5=OFF \
+          -DOPENSSL_ROOT_DIR="/usr/aarch64-linux-gnu" \
           -DWITH_OPENSSL=ON \
-          -DCMAKE_FIND_ROOT_PATH=/usr/lib/aarch64-linux-gnu \
-          -DCMAKE_INSTALL_PREFIX=/usr/lib/aarch64-linux-gnu\
           .. && make -j8 && make install && \
 	cd /opt && rm -rf thrift
 
@@ -49,8 +50,9 @@ RUN tar -xzf ./arrow.tar.gz && cd arrow/cpp && \
     mkdir -p build && cd build && \
     cmake -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
           -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
-          -DCMAKE_FIND_ROOT_PATH=/usr/lib/aarch64-linux-gnu/ \
-          -DCMAKE_INSTALL_PREFIX=/usr/lib/aarch64-linux-gnu\
+          -DCMAKE_FIND_ROOT_PATH=/usr/aarch64-linux-gnu \
+          -DCMAKE_INSTALL_PREFIX=/usr/aarch64-linux-gnu \
+          -DARROW_CPU_FLAG=aarch64 \
           -DARROW_PARQUET=ON \
           -DARROW_BUILD_SHARED=OFF \
           -DARROW_WITH_BROTLI=ON \
@@ -63,4 +65,4 @@ RUN tar -xzf ./arrow.tar.gz && cd arrow/cpp && \
           -DARROW_USE_OPENSSL=ON \
           -DPARQUET_REQUIRE_ENCRYPTION=ON \
           .. && make -j8 && make install && \
-	cd /opt && rm -rf arrow
+    cd /opt && rm -rf arrow
