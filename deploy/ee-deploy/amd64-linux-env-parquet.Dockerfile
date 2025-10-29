@@ -5,7 +5,7 @@
 # *   REQUIRES thrift
 # *   REQUIRES zstd
 
-FROM wangha666/edge-amd64-linux-env-basic:1.0.0
+FROM wangha666/edge-amd64-linux-env-basic:1.1.0
 
 RUN apt-get update && \
     apt-get install -y p7zip-full flex bison && \
