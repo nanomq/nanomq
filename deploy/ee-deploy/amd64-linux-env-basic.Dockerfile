@@ -47,4 +47,4 @@ RUN tar xzf zeromq-4.3.4.tar.gz && cd zeromq-4.3.4 && \
       -DENABLE_CPACK=OFF -DWITH_DOC=OFF -DCMAKE_BUILD_TYPE=Release \
       -DCMAKE_CROSSCOMPILING=OFF -DWITH_LIBBSD=OFF .. && \
     make -j8 && make install && \
-    rm -rf zeromq-4.3.4
+    cd /opt && rm -rf zeromq-4.3.4
