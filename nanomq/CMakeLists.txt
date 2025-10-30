@@ -56,6 +56,7 @@ set(SOURCES
     mqtt_api.c
     nanomq.c
     plugin_spi_stream.c
+    plugin_canp_stream.c
     apps/broker.c
 )
 

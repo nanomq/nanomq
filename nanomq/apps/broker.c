@@ -54,6 +54,7 @@
 #include "include/process.h"
 #include "include/version.h"
 #include "include/plugin_spi_stream.h"
+#include "include/plugin_canp_stream.h"
 
 static int license_tick = 0;
 #if defined(SUPP_LICENSE_DK)
@@ -1445,6 +1446,7 @@ broker(conf *nanomq_conf)
 
 	/* We'll load spi_stream statically for now */
 	spi_plugin_init();
+	canp_plugin_init();
 
 #if defined(SUPP_PLUGIN)
 	for (i = 0; i < nanomq_conf->plugin.path_sz; i++) {
