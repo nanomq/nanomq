@@ -41,6 +41,7 @@ jobs:
       run: git submodule update --init --recursive
 
     - name: Build
+      id: build
       env:
         FETCH_TOKEN: ${{ secrets.EE_CI_DASHBOARD_FETCH_TOKEN }}
       run: |
@@ -49,6 +50,7 @@ jobs:
         cmake -DENABLE_DASHBOARD=ON -DDASHBOARD_VERSION=$dashboard_ver -DGITHUB_TOKEN="${FETCH_TOKEN}" ..
         cd ..
         docker build --build-arg DASHBOARD_VER=$dashboard_ver -t edge-${{ matrix.arch }} -f deploy/ee-deploy/${{ matrix.arch }}-linux.Dockerfile .
+        echo "dashboard_ver=${dashboard_ver}" >> $GITHUB_OUTPUT
 
     - name: Zip
       id: zip
@@ -58,11 +60,13 @@ jobs:
         pkg_name="emqx-${edge_tag_name}-linux-${arch}"
         git log --format=%H -1 > commits.txt
         cd nng && git log --format=%H -1 >> ../commits.txt && cd -
+        echo "dashboard_ver=${{ steps.build.outputs.dashboard_ver }}" >> commits.txt
         echo -e "## How to start nanomq\n\n./nanomq start" > start.md
         mkdir -p _packages/etc
         mkdir -p _packages_release
         id=$(docker create edge-${{ matrix.arch }})
         docker cp $id:/opt/NanoMQ_mirror/build/nanomq/nanomq _packages/
+        docker cp $id:/opt/NanoMQ_mirror/build/nanomq_cli/nanomq_cli _packages/
         docker cp $id:/opt/NanoMQ_mirror/build/nanomq/dist _packages/
         docker cp $id:/opt/NanoMQ_mirror/etc/nanomq_ee.conf _packages/nanomq.conf
         docker cp $id:/opt/NanoMQ_mirror/etc/trial-env.lic _packages/nanomq.lic
