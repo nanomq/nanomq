@@ -22,7 +22,7 @@
 #ifdef NNG_SUPP_TLS
 #include "nng/supplemental/tls/tls.h"
 static int init_dialer_tls(nng_dialer d, const char *cacert, const char *cert,
-    const char *key, const char *pass);
+    const char *key, const char *pass, const char *sni);
 #endif
 
 static const char *quic_scheme = "mqtt-quic";
@@ -400,7 +400,7 @@ send_callback(nng_mqtt_client *client, nng_msg *msg, void *obj)
 #ifdef NNG_SUPP_TLS
 static int
 init_dialer_tls(nng_dialer d, const char *cacert, const char *cert,
-    const char *key, const char *pass)
+    const char *key, const char *pass, const char *sni)
 {
 	const nng_url  *url;
 	nng_tls_config *cfg;
@@ -420,8 +420,9 @@ init_dialer_tls(nng_dialer d, const char *cacert, const char *cert,
 			goto out;
 		}
 	}
-	nng_dialer_get_url(d, &url);
-	nng_tls_config_server_name(cfg, url->u_hostname);
+	if (sni != NULL) {
+		nng_tls_config_server_name(cfg, sni);
+	}
 	rv = nng_dialer_set_ptr(d, NNG_OPT_TLS_CONFIG, cfg);
 
 out:
@@ -639,7 +640,7 @@ hybrid_tcp_client(bridge_param *bridge_arg)
 	if (node->tls.enable) {
 		nng_dialer_set_ptr(*dialer, NNG_OPT_MQTT_TLS_BRIDGE_CONF, node);
 		if ((rv = init_dialer_tls(*dialer, node->tls.ca, node->tls.cert,
-		         node->tls.key, node->tls.key_password)) != 0) {
+		         node->tls.key, node->tls.key_password, node->tls.sni)) != 0) {
 			nng_free(new, sizeof(nng_socket));
 			log_error("init_dialer_tls %d", rv);
 			return rv;
@@ -1279,7 +1280,7 @@ bridge_tcp_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	if (node->tls.enable) {
 		nng_dialer_set_ptr(*dialer, NNG_OPT_MQTT_TLS_BRIDGE_CONF, node);
 		if ((rv = init_dialer_tls(*dialer, node->tls.ca, node->tls.cert,
-		         node->tls.key, node->tls.key_password)) != 0) {
+		         node->tls.key, node->tls.key_password, node->tls.sni)) != 0) {
 			log_error("init_dialer_tls failed %d", rv);
 			return rv;
 		}
@@ -1377,7 +1378,7 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	if (node->tls.enable) {
 		nng_dialer_set_ptr(*dialer, NNG_OPT_MQTT_TLS_BRIDGE_CONF, node);
 		if ((rv = init_dialer_tls(*dialer, node->tls.ca, node->tls.cert,
-		         node->tls.key, node->tls.key_password)) != 0) {
+		         node->tls.key, node->tls.key_password, node->tls.sni)) != 0) {
 			log_error("init_dialer_tls failed %d", rv);
 			return rv;
 		}
