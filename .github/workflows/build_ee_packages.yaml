@@ -68,7 +68,8 @@ jobs:
         docker cp $id:/opt/NanoMQ_mirror/etc/trial-env.lic _packages/nanomq.lic
         docker cp $id:/opt/NanoMQ_mirror/etc/certs/ _packages/etc/
         cp commits.txt _packages/
-        zip -r ${pkg_name}.zip _packages
+        cp -r _packages ${pkg_name}
+        zip -r ${pkg_name}.zip ${pkg_name}
         mv ${pkg_name}.zip _packages_release
         cd _packages_release; echo $(sha256sum ${pkg_name}.zip | awk '{print $1}') > ${pkg_name}.zip.sha256; cd -
         echo "pkg_name=${pkg_name}" >> $GITHUB_OUTPUT
