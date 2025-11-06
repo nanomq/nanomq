@@ -1,14 +1,15 @@
 FROM ubuntu:latest
+ARG PKG_NAME
 
 RUN apt-get update && apt-get install -y unzip && rm -rf /var/lib/apt/lists/*
 
-COPY emqx-edge-1.1.0-linux-amd64.zip /tmp/emqx-edge-1.1.0-linux-amd64.zip
-RUN mkdir -p /opt && unzip /tmp/emqx-edge-1.1.0-linux-amd64.zip -d /opt/
-RUN chmod +x /opt/emqx-edge-1.1.0-linux-amd64/nanomq
+COPY $PKG_NAME.zip /tmp/$PKG_NAME.zip
+RUN mkdir -p /opt && unzip /tmp/$PKG_NAME.zip -d /opt/
+RUN chmod +x /opt/$PKG_NAME/nanomq
 
-WORKDIR /opt/emqx-edge-1.1.0-linux-amd64
+WORKDIR /opt/$PKG_NAME
 
-COPY docker-entrypoint.sh /usr/local/bin/
+COPY deploy/ee-docker/docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

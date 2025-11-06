@@ -70,7 +70,7 @@ jobs:
         cp commits.txt _packages/
         cp -r _packages ${pkg_name}
         zip -r ${pkg_name}.zip ${pkg_name}
-        mv ${pkg_name}.zip _packages_release
+        cp ${pkg_name}.zip _packages_release
         cd _packages_release; echo $(sha256sum ${pkg_name}.zip | awk '{print $1}') > ${pkg_name}.zip.sha256; cd -
         echo "pkg_name=${pkg_name}" >> $GITHUB_OUTPUT
         echo "edge_tag_name=${edge_tag_name}" >> $GITHUB_OUTPUT
@@ -110,7 +110,7 @@ jobs:
       run: |
         set -e -x -u
         pkgversion="$(git describe --abbrev=0 --tags --match 'edge-*' | sed 's/^edge-//')"
-        docker build -t emqx/emqx-edge:${pkgversion} -f deploy/ee-docker/Dockerfile .
+        docker build --build-arg PKG_NAME=${{ steps.zip.outputs.pkg_name }} -t emqx/emqx-edge:${pkgversion} -f deploy/ee-docker/Dockerfile .
         echo "pkgversion=${pkgversion}" >> $GITHUB_OUTPUT
     - uses: docker/setup-buildx-action@v2
     - uses: docker/metadata-action@v4
