@@ -21,7 +21,7 @@ RUN mkdir build && cd build && cmake \
      -DBUILD_STATIC=OFF \
      -DNNG_ENABLE_TLS=ON \
      -DENABLE_FILETRANSFER=ON \
-     -DNNG_TESTS=OFF .. && make -j8 && make install
+     -DNNG_TESTS=OFF .. && make -j8 && strip --strip-unneeded nanomq/nanomq && make install
 
 RUN mkdir build-debug && cd build-debug && cmake \
     -DENABLE_PARQUET=ON  \
@@ -29,4 +29,4 @@ RUN mkdir build-debug && cd build-debug && cmake \
     -DNNG_ENABLE_TLS=ON \
     -DENABLE_FILETRANSFER=ON \
     -DDEBUG=ON \
-    -DNNG_TESTS=OFF .. && make -j8 && make install
+    -DNNG_TESTS=OFF .. && make -j8 && strip --strip-unneeded nanomq/nanomq && make install
