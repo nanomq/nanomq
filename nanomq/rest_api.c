@@ -4701,13 +4701,17 @@ get_logs_full(http_msg *msg, kv **params, size_t param_num)
 	char full_log_names[512];
 	char full_log_tar_path[512];
 	if (logs_dir[strlen(logs_dir)] != '\\') {
-		sprintf(full_log_names, "%s/%s.*", logs_dir, logs_file);
+		sprintf(full_log_names, "%s/%s*", logs_dir, logs_file);
 		sprintf(full_log_tar_path, "%s/edge-logs.zip", logs_dir);
 	} else {
-		sprintf(full_log_names, "%s%s.*", logs_dir, logs_file);
+		sprintf(full_log_names, "%s%s*", logs_dir, logs_file);
 		sprintf(full_log_tar_path, "%sedge-logs.zip", logs_dir);
 	}
-	sprintf(logs_tar_cmd, "powershell -Command \"Compress-Archive -Force -Path '%s' -DestinationPath '%s'\"", full_log_names, full_log_tar_path);
+	sprintf(logs_tar_cmd,
+			"powershell -Command \"Copy-Item -Path '%s' -Force -PassThru |"
+			"Get-ChildItem |"
+			"Compress-Archive -Force -DestinationPath '%s'\"",
+			full_log_names, full_log_tar_path);
 #else
 	sprintf(logs_tar_cmd, "(cd %s && tar -czf edge-logs.tar.gz %s*)", logs_dir, logs_file);
 #endif
