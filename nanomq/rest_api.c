@@ -4686,8 +4686,7 @@ get_logs_full(http_msg *msg, kv **params, size_t param_num)
 		logs_file = config->log.file;
 	} else {
 		log_warn("configuration or log.dir or log.file unavailable");
-		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
-		    CONTENT_NOT_AVAILABLE);
+		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST, UNKNOWN_MISTAKE);
 	}
 
 	// exec tar and get content of tarball
@@ -4716,7 +4715,7 @@ get_logs_full(http_msg *msg, kv **params, size_t param_num)
 
 	if ((rv = nano_cmd_run(logs_tar_cmd)) != 0) {
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
-			CONTENT_NOT_AVAILABLE);
+			UNKNOWN_MISTAKE);
 	}
 
 	char  logs_tar_path[512];
@@ -4736,7 +4735,7 @@ get_logs_full(http_msg *msg, kv **params, size_t param_num)
 	if (rv != 0) {
 		log_warn("failed to read log tarball %s", logs_tar_path);
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
-		    UNKNOWN_MISTAKE);
+		    CONTENT_NOT_AVAILABLE);
 	}
 
 	// construct result
