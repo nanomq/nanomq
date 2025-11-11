@@ -4698,29 +4698,32 @@ get_logs_full(http_msg *msg, kv **params, size_t param_num)
 	}
 
 	char logs_tar_cmd[1024];
+#if NANO_PLATFORM_WINDOWS
+	char full_log_names[512];
+	char full_log_tar_path[512];
+	if (logs_dir[strlen(logs_dir)] != '\\') {
+		sprintf(full_log_names, "%s/%s*", logs_dir, logs_file);
+		sprintf(full_log_tar_path, "%s/edge-logs.zip");
+	} else {
+		sprintf(full_log_names, "%s%s*", logs_dir, logs_file);
+		sprintf(full_log_tar_path, "%sedge-logs.zip");
+	}
+	sprintf(logs_tar_cmd, "powershell -Command \"Compress-Archive -Force -Path '%s' -DestinationPath '%s'\"", full_log_names, full_log_tar_path);
+#else
 	sprintf(logs_tar_cmd, "(cd %s && tar -czf edge-logs.tar.gz %s*)", logs_dir, logs_file);
+#endif
 	log_info("type:%s logdir:%s file:%s cmd:%s", type, logs_dir, logs_file, logs_tar_cmd);
 
-#if NANO_PLATFORM_WINDOWS
-	log_warn("get_logs_full is unavailable on windows");
-	return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
-	    CONTENT_NOT_AVAILABLE);
-#else
 	if ((rv = nano_cmd_run(logs_tar_cmd)) != 0) {
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 			CONTENT_NOT_AVAILABLE);
 	}
-#endif
 
 	char  logs_tar_path[512];
 	char *logs_tar_ct;
 	size_t logs_tar_ct_sz;
 #if NANO_PLATFORM_WINDOWS
-	if (logs_dir[strlen(logs_dir)] != '\\') {
-		sprintf(logs_tar_path, "%s/%s", logs_dir, "edge-logs.tar.gz");
-	} else {
-		sprintf(logs_tar_path, "%s%s", logs_dir, "edge-logs.tar.gz");
-	}
+	memcpy(logs_tar_path, full_log_tar_path, sizeof(logs_tar_path));
 #else
 	if (logs_dir[strlen(logs_dir)] != '/') {
 		sprintf(logs_tar_path, "%s/%s", logs_dir, "edge-logs.tar.gz");
