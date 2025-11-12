@@ -461,6 +461,7 @@ static http_msg post_mqtt_bridge_unsub(http_msg *msg, const char *name);
 static http_msg post_license_update(http_msg *msg);
 static http_msg get_logs_latest(http_msg *msg, kv **params, size_t param_num);
 static http_msg get_logs_full(http_msg *msg, kv **params, size_t param_num);
+static http_msg get_platform_infos(http_msg *msg);
 static int properties_parse(property **properties, cJSON *json);
 static int handle_publish_msg(cJSON *pub_obj, nng_socket *sock);
 static int handle_subscribe_msg(cJSON *sub_obj, nng_socket *sock);
@@ -987,6 +988,10 @@ process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 		    strcmp(uri_ct->sub_tree[1]->node, "logs") == 0 &&
 		    strcmp(uri_ct->sub_tree[2]->node, "full") == 0) {
 			ret = get_logs_full(msg, uri_ct->params, uri_ct->params_count);
+		} else if (uri_ct->sub_count == 2 &&
+		    uri_ct->sub_tree[1]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "platform_infos") == 0) {
+			ret = get_platform_infos(msg);
 
 		} else if (uri_ct->sub_count == 2 &&
 		    uri_ct->sub_tree[1]->end &&
@@ -4672,7 +4677,7 @@ get_logs_full(http_msg *msg, kv **params, size_t param_num)
 		}
 	}
 
-	if (type == NULL || strcmp(type, "tar") != 0) {
+	if (type == NULL) {
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    REQ_PARAM_ERROR);
 	}
@@ -4746,6 +4751,27 @@ get_logs_full(http_msg *msg, kv **params, size_t param_num)
 	put_http_msg(&res, "application/gzip", NULL, NULL, NULL, logs_tar_ct, logs_tar_ct_sz);
 
 	nng_free(logs_tar_ct, logs_tar_ct_sz);
+	return res;
+}
+
+static http_msg
+get_platform_infos(http_msg *msg)
+{
+	http_msg res = { .status = NNG_HTTP_STATUS_OK };
+
+	cJSON *res_obj = cJSON_CreateObject();
+	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+#if NANO_PLATFORM_WINDOWS
+	cJSON_AddStringToObject(res_obj, "logsfiletype", "zip");
+#else
+	cJSON_AddStringToObject(res_obj, "logsfiletype", "tar");
+#endif
+	char *dest = cJSON_PrintUnformatted(res_obj);
+
+	put_http_msg(&res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
+	cJSON_free(dest);
+
+	cJSON_Delete(res_obj);
 	return res;
 }
 
