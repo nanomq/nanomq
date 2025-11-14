@@ -24,6 +24,7 @@ main()
 	work->state     = INIT;
 	work->db        = NULL;
 	work->db_ret    = NULL;
+	work->cparam    = NULL;
 	work->proto     = PROTO_MQTT_BROKER;
 	work->proto_ver = MQTT_PROTOCOL_VERSION_v311;
 	work->config    = nanomq_conf;
