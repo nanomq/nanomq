@@ -1533,9 +1533,11 @@ broker(conf *nanomq_conf)
 		}
 		nng_msleep(6000);
 		license_tick += 6;
+#if defined(STATISTICS)
 		if ((license_tick %= 120) == 0)
 			log_info("EMQX Edge is Running %d Message Input %d Message Output %d Message Drop %d",
 			  get_fd_counter(), nanomq_get_message_in(), nanomq_get_message_out(), nanomq_get_message_drop());
+#endif
 
 #if defined(SUPP_LICENSE_DK)
 		if ((license_tick %= 120) == 0) { // for less flush
@@ -1560,9 +1562,11 @@ broker(conf *nanomq_conf)
 			nng_msleep(60000); // neither pause() nor sleep() portable
 			license_tick += 60;
 
+#if defined(STATISTICS)
 			if ((license_tick %= 120) == 0)
 				log_info("EMQX Edge is Running %d Message Input %d Message Output %d Message Drop %d",
 				  get_fd_counter(), nanomq_get_message_in(), nanomq_get_message_out(), nanomq_get_message_drop());
+#endif
 #if defined(SUPP_LICENSE_DK)
 			if ((license_tick %= 600) == 0) { // for less flush
 				if (0 != (rv = lic_dk_update(10))) { // 10 minutes
