@@ -6,11 +6,11 @@ main()
 {
 	char *cmd = "/bin/mosquitto_sub";
 
-	char *cmd_sub_emqx[] = {"mosquitto_sub", "-h", "us.432121.xyz", "-p", "8883", "-t", "fwd1/test/ci", "-V", "mqttv5", "-q", "2", "--cafile", "../../../etc/certs/cacert.pem", "--insecure", NULL};
+	char *cmd_sub_emqx[] = {"mosquitto_sub", "-h", "broker.emqx.io", "-p", "8883", "-t", "fwd1/test/ci", "-V", "mqttv5", "-q", "2", "--cafile", "../../../etc/certs/cacert.pem", "--insecure", NULL};
 	char *cmd_sub_nmq[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", "8883", "-t", "recv_lo/topic1", "-V", "mqttv5", "-q", "2", "--cafile", "../../../etc/certs/cacert.pem", "--insecure", NULL};
 
 	char *cmd_pub_nmq = "mosquitto_pub -h 127.0.0.1 -p 8883 -t forward1/test/ci -m message-to-emqx -V mqttv5 -q 2 --cafile ../../../etc/certs/cacert.pem --insecure";
-	char *cmd_pub_emqx = "mosquitto_pub -h us.432121.xyz -p 8883 -t recv/topic1/ci -m message-to-nmq -V mqttv5 -q 2 --cafile ../../../etc/certs/cacert.pem --insecure";
+	char *cmd_pub_emqx = "mosquitto_pub -h broker.emqx.io -p 8883 -t recv/topic1/ci -m message-to-nmq -V mqttv5 -q 2 --cafile ../../../etc/certs/cacert.pem --insecure";
 
 	nng_thread *nmq;
 	pid_t       pid_sub_nmq;
