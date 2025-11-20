@@ -95,13 +95,14 @@ decode_sub_msg(nano_work *work)
 			log_info("topic: [%s] len: [%d] pid [%d]",
 					tn->topic.body, tn->topic.len, sub_pkt->packet_id);
 		}
-
 		if (tn->topic.len < 1 || tn->topic.body == NULL) {
 			log_error("NOT utf8-encoded string OR null string.");
-			tn->reason_code = UNSPECIFIED_ERROR;
 			if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
-				tn->reason_code = TOPIC_FILTER_INVALID;
+				tn->reason_code = MALFORMED_PACKET;
 				return PROTOCOL_ERROR;
+			} else {
+				tn->reason_code = UNSPECIFIED_ERROR;
+				return UNSPECIFIED_ERROR;
 			}
 			ppos += 1; // ignore option
 			if (ppos < remaining_len - bpos) {
