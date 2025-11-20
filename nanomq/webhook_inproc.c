@@ -330,7 +330,7 @@ http_aio_cb(void *arg)
 		} else if (type == CMD_HTTPRES) {
 			// Third callback - response received, now cleanup
 			nng_http_res *res = nng_aio_get_output(aio, 1);
-			
+
 			if (res) {
 				int status = nng_http_res_get_status(res);
 				log_trace("HTTP Response received: %d", status);
