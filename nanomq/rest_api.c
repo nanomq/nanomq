@@ -2135,10 +2135,10 @@ get_metrics(http_msg *msg, kv **params, size_t param_num,
 			uint64_t pipe;
 			int      rv2 = nng_socket_get_uint64(
                             *socket, NNG_OPT_MQTT_CLIENT_PIPEID, &pipe);
-			if (rv2 == 0) {
-				st2 = nng_stat_find_pipe(nng_stats, pipe);
-				nng_stats_dump(st2);
-			}
+			// if (rv2 == 0) {
+			// 	st2 = nng_stat_find_pipe(nng_stats, pipe);
+			// 	nng_stats_dump(st2);
+			// }
 			bool br = false;
 			nng_socket_get_bool(
 			    *socket, NNG_OPT_MQTT_CLIENT_CONNECT_BOOL, &br);
