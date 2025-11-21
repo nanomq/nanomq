@@ -141,7 +141,7 @@ jobs:
       with:
         platforms: linux/arm64
         push: true
-        tags: emqx/emqx-edge:${{ steps.build_image.outputs.pkgversion }}
+        tags: emqx/emqx-edge:${{ steps.build_image.outputs.pkgversion }}-arm64
         labels: ${{ steps.meta.outputs.labels }}
         file: deploy/ee-docker/Dockerfile
         build-args: PKG_NAME=${{ steps.zip.outputs.pkg_name }}
