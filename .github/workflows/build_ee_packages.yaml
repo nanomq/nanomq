@@ -136,6 +136,16 @@ jobs:
         file: deploy/ee-docker/Dockerfile
         build-args: PKG_NAME=${{ steps.zip.outputs.pkg_name }}
         context: .
+    - uses: docker/build-push-action@v4
+      if: matrix.arch == 'aarch64' && startsWith(github.ref, 'refs/tags/')
+      with:
+        platforms: linux/arm64
+        push: true
+        tags: emqx/emqx-edge:${{ steps.build_image.outputs.pkgversion }}
+        labels: ${{ steps.meta.outputs.labels }}
+        file: deploy/ee-docker/Dockerfile
+        build-args: PKG_NAME=${{ steps.zip.outputs.pkg_name }}
+        context: .
 
   build-windows-packages:
     runs-on: windows-latest
