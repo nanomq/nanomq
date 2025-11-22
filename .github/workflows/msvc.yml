@@ -35,6 +35,23 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+        # Fetch submodules at the commit recorded in the superproject (reproducible)
+        submodules: recursive
+        # Use full history if you want to update submodules to remote later in the workflow
+        fetch-depth: 0
+
+      - name: Update only nanonng submodule to latest remote
+        run: |
+          git submodule sync --recursive
+          git submodule update --init path/to/nanonng
+          pushd path/to/nanonng
+          git fetch --prune
+          # checkout a branch if desired, e.g. main
+          git checkout main || true
+          git pull origin main || true
+          popd
+        shell: pwsh
 
       - name: Configure CMake
         run: cmake -B ${{ env.build }}
