@@ -114,7 +114,7 @@ jobs:
         rm -rf ./build
         cd ../
         
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
       with:
         fetch-depth: 0
     - run: git submodule update --init --recursive
@@ -198,11 +198,11 @@ jobs:
         sudo mv _packages/nanomq-${pkgversion}-1.${{ steps.prepare.outputs.arch }}.rpm _packages/${{ steps.prepare.outputs.pkg_name }}
         cd _packages; echo $(sha256sum ${{ steps.prepare.outputs.pkg_name }} | awk '{print $1}') > ${{ steps.prepare.outputs.pkg_name }}.sha256
 
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
       with:
         name: ${{ steps.prepare.outputs.pkg_name }} 
         path: "build/_packages/*"
-    - uses: Rory-Z/upload-release-asset@v1
+    - uses: Rory-Z/upload-release-asset@5f36ae0c882e60ff721ac376ea0f234f89e3c78e # v1
       if: github.event_name == 'release'
       with:
         owner: ${{ github.repository_owner }}
@@ -247,8 +247,8 @@ jobs:
         - "-full"
 
     steps:
-    - uses: actions/checkout@v3
-    - uses: actions/download-artifact@v4
+    - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+    - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
     - run: git submodule update --init --recursive
     - run: docker build -t emqx/nanomq:$(git describe --tags --always)${{ matrix.suffix }} -f deploy/docker/Dockerfile${{ matrix.suffix }} .
     - run: docker run -d -e DEBUG=1 --name nanomq $(docker images emqx/nanomq -q | head -1) --log_level debug
@@ -265,9 +265,9 @@ jobs:
       run: docker inspect nanomq
     - if: failure()
       run: docker logs nanomq
-    - uses: docker/setup-qemu-action@v2
-    - uses: docker/setup-buildx-action@v2
-    - uses: docker/metadata-action@v4
+    - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
+    - uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+    - uses: docker/metadata-action@318604b99e75e41977312d83839a89be02ca4893 # v5.9.0
       id: meta
       with:
         images: emqx/nanomq
@@ -280,12 +280,12 @@ jobs:
           type=ref,event=tag
           type=semver,pattern={{version}}
           type=semver,pattern={{major}}.{{minor}}
-    - uses: docker/login-action@v2
+    - uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
       if: github.event_name == 'release'
       with:
         username: ${{ secrets.DOCKER_HUB_USER }}
         password: ${{ secrets.DOCKER_HUB_TOKEN }}
-    - uses: docker/build-push-action@v3
+    - uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
       if: github.event_name == 'release'
       with:
         platforms: linux/amd64,linux/arm64,linux/arm/v7
@@ -298,7 +298,7 @@ jobs:
   build_archive:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
         with:
           fetch-depth: 0
       - run: git submodule update --init --recursive
@@ -308,7 +308,7 @@ jobs:
           git ls-files --recurse-submodules | tar caf source-with-submodules.tar.gz -T-
 
       - name: Upload release asset
-        uses: Rory-Z/upload-release-asset@v1
+        uses: Rory-Z/upload-release-asset@5f36ae0c882e60ff721ac376ea0f234f89e3c78e # v1
         if: github.event_name == 'release'
         with:
           owner: ${{ github.repository_owner }}

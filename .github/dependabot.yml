@@ -1,0 +1,67 @@
+version: 2
+updates:
+#  - package-ecosystem: cargo
+#    directories:
+#      - nng/extern/msquic
+#      - nng/extern/msquic/submodules/openssl*/pyca-cryptography/src/rust
+#    schedule:
+#      interval: weekly
+#  - package-ecosystem: devcontainers
+#    directories:
+#      - nng/extern/msquic/.devcontainer
+#      - nng/extern/msquic/.devcontainer/developer
+#    schedule:
+#      interval: weekly
+  - package-ecosystem: docker
+    directories:
+      - deploy/docker
+#      - nng/extern/msquic/.devcontainer/developer
+#      - nng/extern/msquic/.docker/ubuntu-20.04
+#      - nng/extern/msquic/.docker/ubuntu-22.04
+#      - nng/extern/msquic/.docker/windows
+#      - nng/extern/msquic/scripts
+    schedule:
+      interval: weekly
+#  - package-ecosystem: dotnet-sdk
+#    directory: nng/extern/msquic/submodules/clog
+#    schedule:
+#      interval: weekly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    allow:
+      - dependency-name: "github/codeql-action"
+        versions: [ ">=4.0.0" ] # stay on "v4" tag (and "v5" in the future)
+  - package-ecosystem: gitsubmodule
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: gomod
+    directory: nng/etc/pubrefman
+    schedule:
+      interval: weekly
+#  - package-ecosystem: nuget
+#    directories:
+#      - nng/extern/msquic/scripts/generatevpackpat
+#      - nng/extern/msquic/src/bin/winkernel
+#      - nng/extern/msquic/src/cs/lib
+#      - nng/extern/msquic/src/cs/tool
+#      - nng/extern/msquic/src/plugins/trace/dll
+#      - nng/extern/msquic/src/plugins/trace/exe
+#      - nng/extern/msquic/submodules/clog/src/clog
+#      - nng/extern/msquic/submodules/clog/src/clog2text/clog2text_lttng
+#      - nng/extern/msquic/submodules/clog/src/clog2text/clog2text_windows
+#      - nng/extern/msquic/submodules/clog/src/clogutils
+#      - nng/extern/msquic/submodules/clog/src/converters/syslog2clog
+#      - nng/extern/msquic/submodules/clog/src/decoderTest
+#      - nng/extern/msquic/submodules/xdp-for-windows/src/xdp
+#      - nng/extern/msquic/submodules/xdp-for-windows/src/xdpetwplugin
+#      - nng/extern/msquic/submodules/xdp-for-windows/src/xdpinstaller
+#    schedule:
+#      interval: weekly
+#  - package-ecosystem: pip
+#    directories:
+#      - nng/extern/msquic/submodules/openssl*/**
+#    schedule:
+#      interval: weekly
