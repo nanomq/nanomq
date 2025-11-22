@@ -11,7 +11,7 @@ jobs:
   build_windows_packages:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
       - run: git submodule update --init --recursive
 
       - name: Configure
@@ -26,7 +26,7 @@ jobs:
           Compress-Archive -Path install/* -DestinationPath $pkg_debug_name
           mv $pkg_debug_name ./install/
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: nanomq-debug-windows-x86_64.zip
           path: "install/*.zip"
@@ -39,13 +39,13 @@ jobs:
           Compress-Archive -Path install/* -DestinationPath $pkg_name
           mv $pkg_name ./install/ 
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         if: github.event_name == 'release'
         with:
           name: nanomq-${{ github.event.release.tag_name }}-windows-x86_64.zip
           path: "install/*.zip"
 
-      - uses: svenstaro/upload-release-action@v2
+      - uses: svenstaro/upload-release-action@6b7fa9f267e90b50a19fef07b3596790bb941741 # 2.11.3
         if: github.event_name == 'release'
         with:
           repo_token: ${{ github.token }}
