@@ -31,8 +31,8 @@ updates:
     schedule:
       interval: weekly
     allow:
-      - dependency-name: "github/codeql-action"
-        versions: [ ">=4.0.0" ] # stay on "v4" tag (and "v5" in the future)
+      - dependency-name: "*"
+      - dependency-type: "all"
   - package-ecosystem: gitsubmodule
     directory: /
     schedule:
