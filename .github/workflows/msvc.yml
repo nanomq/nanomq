@@ -34,12 +34,14 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        uses: actions/checkout@v4
+          with:
+          submodules: 'recursive'
 
       - name: Update only nanonng submodule to latest remote
         run: |
           git submodule sync --recursive
-          git submodule update --init path/to/nanonng
+          git submodule update --init nng
           pushd path/to/nanonng
           git fetch --prune
           # checkout a branch if desired, e.g. main
