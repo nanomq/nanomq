@@ -35,7 +35,7 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-          with:
+        with:
           submodules: 'recursive'
 
       - name: Update only nanonng submodule to latest remote
