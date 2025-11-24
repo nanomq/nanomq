@@ -53,9 +53,7 @@ jobs:
         shell: pwsh
 
       - name: Configure CMake for Code Analysis
-        run: |
-          cmake -B build -S . -A x64 \
-            -DCMAKE_CXX_FLAGS="/analyze:max_allowed_rule_set_run=DesktopPreferred.Set"
+        run: cmake -B build -S . -A x64 -DCMAKE_C_FLAGS="/analyze:max_allowed_rule_set_run=DesktopPreferred.Set" -DCMAKE_CXX_FLAGS="/analyze:max_allowed_rule_set_run=DesktopPreferred.Set"
 
 
       - name: Build Project and Run Analysis
