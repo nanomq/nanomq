@@ -63,7 +63,6 @@ jobs:
       - name: Run Tests
         working-directory: build
         run: |
-          cd Release
           ctest --output-on-failure
         shell: bash
 
