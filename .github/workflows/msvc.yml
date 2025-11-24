@@ -50,11 +50,11 @@ jobs:
         shell: pwsh
 
       - name: Configure CMake
-        run: cmake -B ${{ env.build }}
+        run: cmake -B build -S . -A x64
 
-      # Build is not required unless generated source files are used
-      # - name: Build CMake
-      #   run: cmake --build ${{ env.build }}
+
+      - name: Build Project
+        run: cmake --build build --config Release
 
       - name: Initialize MSVC Code Analysis
         uses: microsoft/msvc-code-analysis-action@24c285ab36952c9e9182f4b78dfafbac38a7e5ee # v0.1.1
