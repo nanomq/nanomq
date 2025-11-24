@@ -32,7 +32,7 @@ RUN cmake -DENABLE_JWT=ON \
     -DBUILD_BENCH=ON .. \
     && make
 
-FROM debian:11-slim
+FROM debian:13-slim
 
 WORKDIR /usr/local/nanomq
 
