@@ -1116,7 +1116,7 @@ trigger_tcp_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	// get property for MQTT V5
 	// property *prop;
 	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_CONNECT_PROPERTY, &prop);
-	log_info("trigger connected! RC [%d]", reason);
+	log_info("hook-trigger connected! RC [%d]", reason);
 }
 
 #define HOOK_SEARCH_RESET_DURATION 5
@@ -1239,7 +1239,7 @@ hook_cb(void *arg)
 		port_str = "1883";
 	char url_str[32];
 	sprintf(url_str, "mqtt-tcp://127.0.0.1:%s", port_str);
-	log_info("File trans client will connect to %s", url_str);
+	log_info("File trans client (hook-trigger) will connect to %s", url_str);
 
 	nng_dialer dialer;
 	// need to expose url
@@ -1254,9 +1254,9 @@ hook_cb(void *arg)
 	nng_mqtt_set_connect_cb(mqtt_sock, trigger_tcp_connect_cb, NULL);
 	nng_mqtt_set_disconnect_cb(mqtt_sock, trigger_tcp_disconnect_cb, NULL);
 
-#ifdef SUPP_PARQUET
+#if defined(SUPP_PARQUET) && !defined(SUPP_LICENSE_STD)
 	// this inner mqtt client would keep reconnecting when allow anomyous = false
-	// so stop start dialer when parquet is not enabled.
+	// so stop start dialer when it's a emqx-edge instance.
 	nng_dialer_start(dialer, NNG_FLAG_NONBLOCK);
 #endif
 
