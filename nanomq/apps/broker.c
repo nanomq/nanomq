@@ -487,8 +487,6 @@ server_cb(void *arg)
 				smsg = nano_msg_notify(work->cparam, reason_code, 1, true);
 			}
 			hook_entry(work, reason_code);
-			// Set V4/V5 flag for publish notify msg
-			nng_msg_set_cmd_type(smsg, CMD_PUBLISH);
 			nng_msg_free(work->msg);
 			work->msg = smsg;
 			handle_pub(work, work->pipe_ct,
