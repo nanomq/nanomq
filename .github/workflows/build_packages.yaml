@@ -251,7 +251,7 @@ jobs:
     - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
     - run: git submodule update --init --recursive
     - run: docker build -t emqx/nanomq:$(git describe --tags --always)${{ matrix.suffix }} -f deploy/docker/Dockerfile${{ matrix.suffix }} .
-    - run: docker run -d -e DEBUG=1 --name nanomq $(docker images emqx/nanomq -q | head -1) --log_level debug
+    - run: docker run -d --network bridge -e DEBUG=1 --name nanomq $(docker images emqx/nanomq -q | head -1) --log_level debug
     - name: test docker
       run: |
         set -e -x -u
