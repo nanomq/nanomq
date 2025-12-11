@@ -7,13 +7,16 @@ RUN apt update && DEBIAN_FRONTEND=noninteractive apt install -y --no-install-rec
 WORKDIR /nanomq/build
 
 RUN cmake -DNNG_ENABLE_TLS=ON -DNNG_ENABLE_SQLITE=ON .. && make
+RUN mkdir /deps && \
+    cp /usr/lib/x86_64-linux-gnu/libmbed* /deps/
 
-FROM debian:11-slim
+FROM debian:13-slim
 
 WORKDIR /usr/local/nanomq
 
 COPY --from=builder /nanomq/build/nanomq/nanomq /usr/local/nanomq/
 COPY --from=builder /nanomq/build/nanomq_cli/nanomq_cli /usr/local/nanomq/
+COPY --from=builder /deps/ /usr/lib/x86_64-linux-gnu/
 COPY etc/nanomq.conf /etc/nanomq.conf
 COPY deploy/docker/docker-entrypoint.sh /usr/bin/docker-entrypoint.sh
 
