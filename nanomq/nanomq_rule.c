@@ -146,13 +146,14 @@ nano_client(nng_socket *sock, repub_t *repub)
 int
 nanomq_client_sqlite(conf_rule *cr, bool init_last)
 {
-	sqlite3 *sdb;
-	int      rc = 0;
-	if (NULL == cr->rdb[0]) {
-		char *sqlite_path = cr->sqlite_db
-		    ? cr->sqlite_db
-		    : "/tmp/rule_engine.db";
-		rc                = sqlite3_open(sqlite_path, &sdb);
+	sqlite3 *sdb = NULL;
+	int      rc  = 0;
+
+	if (cr->rdb[0] == NULL) {
+		const char *sqlite_path =
+		    cr->sqlite_db ? cr->sqlite_db : "/tmp/rule_engine.db";
+
+		rc = sqlite3_open(sqlite_path, &sdb);
 		if (rc != SQLITE_OK) {
 			log_debug("Cannot open database: %s\n",
 			    sqlite3_errmsg(sdb));
@@ -162,47 +163,76 @@ nanomq_client_sqlite(conf_rule *cr, bool init_last)
 		cr->rdb[0] = (void *) sdb;
 	}
 
-	char sqlite_table[1024];
 	for (int i = 0; i < cvector_size(cr->rules); i++) {
 		if (init_last && i != cvector_size(cr->rules) - 1) {
 			continue;
 		}
-		if (RULE_FORWORD_SQLITE == cr->rules[i].forword_type) {
-			int  index      = 0;
-			char table[256] = { 0 };
 
-			snprintf(table, 128,
-			    "CREATE TABLE IF NOT EXISTS %s("
-			    "RowId INTEGER PRIMARY KEY AUTOINCREMENT",
-			    cr->rules[i].sqlite_table);
-			char *err_msg = NULL;
-			bool  first   = true;
+		if (RULE_FORWORD_SQLITE != cr->rules[i].forword_type) {
+			continue;
+		}
 
-			for (; index < 8; index++) {
-				if (!cr->rules[i].flag[index])
-					continue;
+		char   table[256];
+		char  *p    = table;
+		size_t left = sizeof(table);
 
-				strcat(table, ", ");
-				strcat(table,
-				    cr->rules[i].as[index]
-				        ? cr->rules[i].as[index]
-				        : key_arr[index]);
-				strcat(table, type_arr[index]);
+		int n = snprintf(
+		    p,
+		    left,
+		    "CREATE TABLE IF NOT EXISTS %s("
+		    "RowId INTEGER PRIMARY KEY AUTOINCREMENT",
+		    cr->rules[i].sqlite_table);
+
+		if (n < 0 || (size_t)n >= left) {
+			log_error("SQL buffer overflow (table name too long)\n");
+			return 1;
+		}
+
+		p += n;
+		left -= (size_t)n;
+
+		for (int index = 0; index < 8; index++) {
+			if (!cr->rules[i].flag[index]) {
+				continue;
 			}
-			strcat(table, ");");
-			// puts(table);
-			rc = sqlite3_exec(cr->rdb[0], table, 0, 0, &err_msg);
-			if (rc != SQLITE_OK) {
-				log_error("SQL error: %s\n", err_msg);
-				sqlite3_free(err_msg);
-				sqlite3_close(sdb);
+
+			n = snprintf(
+			    p,
+			    left,
+			    ", %s%s",
+			    cr->rules[i].as[index]
+			        ? cr->rules[i].as[index]
+			        : key_arr[index],
+			    type_arr[index]);
+
+			if (n < 0 || (size_t)n >= left) {
+				log_error("SQL buffer overflow (column too long)\n");
 				return 1;
 			}
+
+			p += n;
+			left -= (size_t)n;
+		}
+
+		if (left < 3) {
+			log_error("SQL buffer overflow (finalize)\n");
+			return 1;
+		}
+
+		strcpy(p, ");");
+
+		char *err_msg = NULL;
+		rc = sqlite3_exec(cr->rdb[0], table, NULL, NULL, &err_msg);
+		if (rc != SQLITE_OK) {
+			log_error("SQL error: %s\n", err_msg);
+			sqlite3_free(err_msg);
+			return 1;
 		}
 	}
 
 	return 0;
 }
+
 
 #endif
 
