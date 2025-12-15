@@ -219,7 +219,11 @@ nanomq_client_sqlite(conf_rule *cr, bool init_last)
 			return 1;
 		}
 
-		strcpy(p, ");");
+		int n_final = snprintf(p, left, ");");
+		if (n_final < 0 || (size_t)n_final >= left) {
+			log_error("SQL buffer overflow (finalize write)\n");
+			return 1;
+		}
 
 		char *err_msg = NULL;
 		rc = sqlite3_exec(cr->rdb[0], table, NULL, NULL, &err_msg);
