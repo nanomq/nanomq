@@ -1,4 +1,4 @@
-FROM alpine:3.22 AS builder
+FROM alpine:3.23 AS builder
 
 COPY . /nanomq
 
@@ -8,7 +8,7 @@ WORKDIR /nanomq/build
 
 RUN cmake .. && make
 
-FROM alpine:3.22
+FROM alpine:3.23
 
 COPY --from=builder /nanomq/build/nanomq/nanomq /usr/local/nanomq/
 COPY --from=builder /nanomq/build/nanomq_cli/nanomq_cli /usr/local/nanomq/
