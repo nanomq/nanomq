@@ -135,7 +135,7 @@ jobs:
       with:
         platforms: linux/amd64
         push: true
-        tags: emqx/emqx-edge:${{ steps.build_image.outputs.pkgversion }}
+        tags: emqx/emqx-edge:${{ steps.build_image.outputs.pkgversion }}-amd64
         labels: ${{ steps.meta.outputs.labels }}
         file: deploy/ee-docker/Dockerfile
         build-args: PKG_NAME=${{ steps.zip.outputs.pkg_name }}
@@ -274,3 +274,21 @@ jobs:
           -X POST \
           -d "{\"repo\":\"emqx/NanoMQ_mirror\", \"tag\": \"${{ github.ref_name }}\" }" \
           ${{ secrets.EMQX_IO_RELEASE_API }}
+
+  manifest-images:
+    needs: [build-linux-packages]
+    runs-on: ubuntu-latest
+    steps:
+    - uses: docker/login-action@v2
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        username: ${{ secrets.DOCKER_HUB_USER }}
+        password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+    - name: Manifest Docker Images
+      if: startsWith(github.ref, 'refs/tags/')
+      run: |
+        set -e -x -u
+        pkgversion="$(git describe --abbrev=0 --tags --match 'edge-*' | sed 's/^edge-//')"
+        docker manifest create emqx/emqx-edge:${pkgversion} --amend emqx/emqx-edge:${pkgversion}-amd64 --amend emqx/emqx-edge:${pkgversion}-arm64
+        docker manifest push emqx/emqx-edge:${pkgversion}
