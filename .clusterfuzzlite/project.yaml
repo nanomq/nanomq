@@ -1,0 +1,8 @@
+homepage: "https://github.com/nanomq/nanomq"
+language: c++
+primary_contact: "maintainer@nanomq.io"
+sanitizers:
+  - address
+  - undefined
+fuzzing_engines:
+  - libfuzzer
