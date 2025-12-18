@@ -136,7 +136,7 @@ bridge_resend_cb(void *arg)
 	nng_mtx          *mtx  = node->mtx;
 	nng_socket       *socket;
 	if (nng_aio_result(node->resend_aio) == NNG_ECLOSED) {
-		log_warn("We shall stop resending while disconnected!");
+		log_warn("Stop resending while disconnected!");
 		node->busy = false;
 		return;
 	}
@@ -157,12 +157,33 @@ bridge_resend_cb(void *arg)
 	}
 	nng_mtx_unlock(mtx);
 }
+
 // reserve for bridge_aio
 void
 bridge_send_cb(void *arg)
 {
-	// shall we check lmq each time?
-	bridge_resend_cb(arg);
+	int rv;
+	nng_msg *msg = NULL;
+	nng_aio          *aio;
+	conf_bridge_node *node = arg;
+	nng_mtx          *mtx  = node->mtx;
+	nng_socket       *socket;
+
+	log_debug("bridge to %s msg has been sent", node->address);
+	nng_mtx_lock(mtx);
+	socket = node->sock;
+	if (!node->busy)
+		if (nng_lmq_get(node->ctx_msgs, &msg) == 0) {
+			log_info("resending cached msg; %d max", nng_lmq_len(node->ctx_msgs));
+			nng_aio_set_msg(node->resend_aio, msg);
+			nng_aio_set_timeout(node->resend_aio, node->cancel_timeout);
+			int len = -(int)nng_msg_len(msg);
+			nng_socket_set_int(
+				*socket, NNG_OPT_MQTT_BRIDGE_CACHE_BYTE, len);
+			nng_send_aio(*socket, node->resend_aio);
+			node->busy = true;
+		}
+	nng_mtx_unlock(mtx);
 }
 
 nng_msg *
@@ -807,7 +828,7 @@ hybrid_cb(void *arg)
 	}
 	node->bridge_aio = nng_alloc(bridge_arg->conf->total_ctx * sizeof(nng_aio *));
 	for (uint32_t num = 0; num < bridge_arg->conf->total_ctx; num++) {
-		if ((rv = nng_aio_alloc(&node->bridge_aio[num], NULL, node)) != 0) {
+		if ((rv = nng_aio_alloc(&node->bridge_aio[num], bridge_send_cb, node)) != 0) {
 			NANO_NNG_FATAL("bridge_aio nng_aio_alloc", rv);
 		}
 	}
