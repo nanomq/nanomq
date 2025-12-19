@@ -3,6 +3,7 @@ Release Date: 2025-12-19
 
 ### Enhancements
 - ACL Cache mechanism is supported.
+- Optimizated the process of message resend and check logic of MQTT bridge.
 
 ### Fixes
 - Update the path of configuration file in docker image.
