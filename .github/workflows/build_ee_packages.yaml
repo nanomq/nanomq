@@ -130,26 +130,16 @@ jobs:
       with:
         username: ${{ secrets.DOCKER_HUB_USER }}
         password: ${{ secrets.DOCKER_HUB_TOKEN }}
-    - uses: docker/build-push-action@v4
+    - name: Build Docker Image amd64
       if: matrix.arch == 'amd64' && startsWith(github.ref, 'refs/tags/')
-      with:
-        platforms: linux/amd64
-        push: true
-        tags: emqx/emqx-edge:${{ steps.build_image.outputs.pkgversion }}-amd64
-        labels: ${{ steps.meta.outputs.labels }}
-        file: deploy/ee-docker/Dockerfile
-        build-args: PKG_NAME=${{ steps.zip.outputs.pkg_name }}
-        context: .
-    - uses: docker/build-push-action@v4
+      run: |
+        docker build --build-arg PKG_NAME=${{ steps.zip.outputs.pkg_name }} -t emqx/emqx-edge:${{ steps.build_image.outputs.pkgversion }}-amd64 -f deploy/ee-docker/Dockerfile --platform linux/amd64 .
+        docker push emqx/emqx-edge:${{ steps.build_image.outputs.pkgversion }}-amd64
+    - name: Build Docker Image arm64
       if: matrix.arch == 'aarch64' && startsWith(github.ref, 'refs/tags/')
-      with:
-        platforms: linux/arm64
-        push: true
-        tags: emqx/emqx-edge:${{ steps.build_image.outputs.pkgversion }}-arm64
-        labels: ${{ steps.meta.outputs.labels }}
-        file: deploy/ee-docker/Dockerfile
-        build-args: PKG_NAME=${{ steps.zip.outputs.pkg_name }}
-        context: .
+      run: |
+        docker build --build-arg PKG_NAME=${{ steps.zip.outputs.pkg_name }} -t emqx/emqx-edge:${{ steps.build_image.outputs.pkgversion }}-arm64 -f deploy/ee-docker/Dockerfile --platform linux/arm64
+        docker push emqx/emqx-edge:${{ steps.build_image.outputs.pkgversion }}-arm64
 
   build-windows-packages:
     runs-on: windows-latest
@@ -292,7 +282,5 @@ jobs:
       run: |
         set -e -x -u
         pkgversion="$(git describe --abbrev=0 --tags --match 'edge-*' | sed 's/^edge-//')"
-        docker pull emqx/emqx-edge:${pkgversion}-amd64
-        docker pull emqx/emqx-edge:${pkgversion}-arm64
         docker manifest create emqx/emqx-edge:${pkgversion} --amend emqx/emqx-edge:${pkgversion}-amd64 --amend emqx/emqx-edge:${pkgversion}-arm64
         docker manifest push emqx/emqx-edge:${pkgversion}
