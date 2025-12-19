@@ -166,8 +166,7 @@ jobs:
 
       - name: Install basic toolchains
         run: |
-          choco install strawberryperl --no-progress
-          choco install python --no-progress
+          python --version
 
       - name: Install mbedtls
         run: |
