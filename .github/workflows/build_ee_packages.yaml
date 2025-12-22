@@ -110,7 +110,6 @@ jobs:
         aws s3 cp --recursive _packages_release s3://packages.emqx/nanomq-edge/$pkgversion
 
     - name: Build Docker Image
-      if: startsWith(github.ref, 'refs/tags/')
       id: build_image
       run: |
         set -e -x -u
@@ -132,13 +131,11 @@ jobs:
     - name: Build Docker Image amd64
       if: matrix.arch == 'amd64'
       run: |
-        docker buildx build --build-arg PKG_NAME=${{ steps.zip.outputs.pkg_name }} -t emqx/emqx-edge:${{ steps.build_image.outputs.pkgversion }}-amd64 -f deploy/ee-docker/Dockerfile .
-        docker push --platform linux/amd64 emqx/emqx-edge:${{ steps.build_image.outputs.pkgversion }}-amd64
+        docker buildx build --build-arg PKG_NAME=${{ steps.zip.outputs.pkg_name }} -t emqx/emqx-edge:${{ steps.build_image.outputs.pkgversion }}-amd64 -f deploy/ee-docker/Dockerfile --push .
     - name: Build Docker Image arm64
       if: matrix.arch == 'aarch64'
       run: |
-        docker buildx build --build-arg PKG_NAME=${{ steps.zip.outputs.pkg_name }} -t emqx/emqx-edge:${{ steps.build_image.outputs.pkgversion }}-arm64 -f deploy/ee-docker/Dockerfile .
-        docker push --platform linux/arm64 emqx/emqx-edge:${{ steps.build_image.outputs.pkgversion }}-arm64
+        docker buildx build --build-arg PKG_NAME=${{ steps.zip.outputs.pkg_name }} -t emqx/emqx-edge:${{ steps.build_image.outputs.pkgversion }}-arm64 -f deploy/ee-docker/Dockerfile --push .
 
   build-windows-packages:
     runs-on: windows-latest
