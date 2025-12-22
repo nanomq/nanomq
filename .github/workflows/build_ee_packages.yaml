@@ -132,12 +132,12 @@ jobs:
     - name: Build Docker Image amd64
       if: matrix.arch == 'amd64'
       run: |
-        docker build --build-arg PKG_NAME=${{ steps.zip.outputs.pkg_name }} -t emqx/emqx-edge:${{ steps.build_image.outputs.pkgversion }}-amd64 -f deploy/ee-docker/Dockerfile .
+        docker buildx build --build-arg PKG_NAME=${{ steps.zip.outputs.pkg_name }} -t emqx/emqx-edge:${{ steps.build_image.outputs.pkgversion }}-amd64 -f deploy/ee-docker/Dockerfile .
         docker push --platform linux/amd64 emqx/emqx-edge:${{ steps.build_image.outputs.pkgversion }}-amd64
     - name: Build Docker Image arm64
       if: matrix.arch == 'aarch64'
       run: |
-        docker build --build-arg PKG_NAME=${{ steps.zip.outputs.pkg_name }} -t emqx/emqx-edge:${{ steps.build_image.outputs.pkgversion }}-arm64 -f deploy/ee-docker/Dockerfile .
+        docker buildx build --build-arg PKG_NAME=${{ steps.zip.outputs.pkg_name }} -t emqx/emqx-edge:${{ steps.build_image.outputs.pkgversion }}-arm64 -f deploy/ee-docker/Dockerfile .
         docker push --platform linux/arm64 emqx/emqx-edge:${{ steps.build_image.outputs.pkgversion }}-arm64
 
   build-windows-packages:
