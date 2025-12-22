@@ -138,7 +138,7 @@ jobs:
     - name: Build Docker Image arm64
       if: matrix.arch == 'aarch64' && startsWith(github.ref, 'refs/tags/')
       run: |
-        docker build --build-arg PKG_NAME=${{ steps.zip.outputs.pkg_name }} -t emqx/emqx-edge:${{ steps.build_image.outputs.pkgversion }}-arm64 -f deploy/ee-docker/Dockerfile --platform linux/arm64
+        docker build --build-arg PKG_NAME=${{ steps.zip.outputs.pkg_name }} -t emqx/emqx-edge:${{ steps.build_image.outputs.pkgversion }}-arm64 -f deploy/ee-docker/Dockerfile --platform linux/arm64 .
         docker push emqx/emqx-edge:${{ steps.build_image.outputs.pkgversion }}-arm64
 
   build-windows-packages:
