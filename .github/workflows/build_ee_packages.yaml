@@ -276,5 +276,10 @@ jobs:
       run: |
         set -e -x -u
         pkgversion="$(git describe --abbrev=0 --tags --match 'edge-*' | sed 's/^edge-//')"
-        docker manifest create emqx/emqx-edge:${pkgversion} --amend emqx/emqx-edge:${pkgversion}-amd64 --amend emqx/emqx-edge:${pkgversion}-arm64
+        pkgversion="1.2.1.alpha.3"
+        docker pull emqx/emqx-edge:${pkgversion}-amd64
+        docker pull emqx/emqx-edge:${pkgversion}-arm64
+        amd_digest="$(docker inspect emqx/emqx-edge:${pkgversion}-amd64 --format='{{index .RepoDigests 0}}')"
+        arm_digest="$(docker inspect emqx/emqx-edge:${pkgversion}-arm64 --format='{{index .RepoDigests 0}}')"
+        docker manifest create emqx/emqx-edge:${pkgversion} ${amd_digest} ${arm_digest}
         docker manifest push emqx/emqx-edge:${pkgversion}
