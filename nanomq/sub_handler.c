@@ -141,7 +141,12 @@ decode_sub_msg(nano_work *work)
 				log_warn("Invalid share topic in subscription!");
 				return PROTOCOL_ERROR;
 			}
-			char *name_end  = strchr(tn->topic.body+7, '/');
+			char *name_end  = strchr(tn->topic.body + 7, '/');
+			if (name_end == NULL) {
+				log_warn("Invalid share name in subscription!");
+				tn->reason_code = MALFORMED_PACKET;
+				return PROTOCOL_ERROR;
+			}
 			log_info("Sub to share name %.*s", name_end - (tn->topic.body + 7), (tn->topic.body+7));
 			char *mark1 = strchr(tn->topic.body + 7, '#');
 			char *mark2 = strchr(tn->topic.body + 7, '+');
@@ -150,6 +155,7 @@ decode_sub_msg(nano_work *work)
 				tn->reason_code = PAYLOAD_FORMAT_INVALID;
 				return PROTOCOL_ERROR;
 			}
+
 		}
 		if (ppos < remaining_len - bpos) {
 			newtn = nng_zalloc(sizeof(topic_node));
