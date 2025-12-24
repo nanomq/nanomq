@@ -279,6 +279,7 @@ sub_ctx_handle(nano_work *work)
 	}
 
 	tn = work->sub_pkt->node;
+#ifdef ACL_SUPP
 	if (work->config->auth_http.enable) {
 		topic_queue *tq = NULL;
 		tn = work->sub_pkt->node;
@@ -308,6 +309,7 @@ sub_ctx_handle(nano_work *work)
 			topic_queue_release(tq);
 		}
 	}
+#endif
 
 #ifdef STATISTICS
 	// TODO

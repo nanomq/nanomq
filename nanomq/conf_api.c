@@ -137,6 +137,7 @@ get_auth_http_config(conf_auth_http *auth_http)
 	cJSON_AddNumberToObject(
 	    auth_obj, "connect_timeout", auth_http->connect_timeout);
 	cJSON_AddNumberToObject(auth_obj, "pool_size", auth_http->pool_size);
+	cJSON_AddNumberToObject(auth_obj, "cache_ttl", auth_http->cache_ttl);
 
 	cJSON *auth_req  = get_auth_http_req_config(&auth_http->auth_req);
 	cJSON *acl_req   = get_auth_http_req_config(&auth_http->acl_req);
@@ -1104,6 +1105,7 @@ set_auth_http_config(cJSON *json, const char *conf_path, conf_auth_http *auth)
 	bool     enable;
 	uint64_t timeout;
 	uint64_t connect_timeout;
+	uint64_t cache_ttl;
 	uint64_t pool_size;
 
 	cJSON *item;
@@ -1135,6 +1137,13 @@ set_auth_http_config(cJSON *json, const char *conf_path, conf_auth_http *auth)
 		// conf_update_u64(conf_path, "auth.http.pool_size",
 		// pool_size);
 		update_var(auth->pool_size, pool_size);
+	}
+
+	getNumberValue(json, item, "cache_ttl", cache_ttl, rv);
+	if (rv == 0) {
+		// conf_update_u64(conf_path, "auth.http.cache_ttl",
+		// cache_ttl);
+		update_var(auth->cache_ttl, cache_ttl);
 	}
 
 	if (cJSON_HasObjectItem(json, "auth_req")) {
