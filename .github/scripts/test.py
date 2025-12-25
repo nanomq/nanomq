@@ -15,6 +15,7 @@ from ws_v5_test import ws_v5_test
 from fuzzy_test import fuzzy_test
 from rest_api_test import rest_api_test
 from vulnerability_test import vul_test
+from attack import attack_test
 
 nanomq_log_path = "/tmp/nanomq_test.log" 
 nanomq_cmd = "nanomq start --url tls+nmq-tcp://0.0.0.0:8883 --http --cacert etc/certs/cacert.pem --cert etc/certs/cert.pem --key etc/certs/key.pem --qos_duration 1 --log_level debug  --log_stdout false --log_file /tmp/nanomq_test.log"
@@ -27,6 +28,7 @@ def print_nanomq_log():
 
 
 if __name__=='__main__':
+
 
     if exists(nanomq_log_path):
         os.remove(nanomq_log_path)
@@ -46,6 +48,10 @@ if __name__=='__main__':
         print_nanomq_log()
         raise AssertionError
     print("mqtt v311 test end")
+
+    print("attack test start")
+    attack_test()
+    print("attack test end")
 
     print("mqtt v5 test start")
     if False == mqtt_v5_test():
