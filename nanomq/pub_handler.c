@@ -656,683 +656,349 @@ add_info_to_json(rule *info, cJSON *jso, int j, nano_work *work)
 	return 0;
 }
 
-static char *
-compose_sql_clause(rule *info, char *key, char *value, bool is_need_set, int j, nano_work *work)
+typedef struct {
+    char  *buf;
+    size_t len;
+    size_t cap;
+} sbuf_t;
+
+static bool sbuf_init(sbuf_t *sb, size_t cap)
 {
-	pub_packet_struct *pp = work->pub_packet;
-	conn_param        *cp = work->cparam;
-	char *ret = NULL;
-	char tmp[800];
+    sb->buf = calloc(1, cap);
+    if (!sb->buf) return false;
+    sb->cap = cap;
+    sb->len = 0;
+    return true;
+}
 
-	if (info->flag[j]) {
-		switch (j) {
-		case RULE_QOS:
-			if (info->as[j]) {
-				strcat(key, info->as[j]);
-			} else {
-				strcat(key, "Qos");
-			}
-			memset(tmp, 0, 800);
-			sprintf(tmp, "%s%d", value, pp->fixed_header.qos);
-			strcpy(value, tmp);
-			break;
-		case RULE_ID:
-			if (info->as[j]) {
-				strcat(key, info->as[j]);
-			} else {
-				strcat(key, "Id");
-			}
-			memset(tmp, 0, 800);
-			sprintf(tmp, "%s%d", value, pp->var_header.publish.packet_id);
-			strcpy(value, tmp);
-			break;
-		case RULE_TOPIC:;
-			char *topic = pp->var_header.publish.topic_name.body;
-			if (info->as[j]) {
-				strcat(key, info->as[j]);
-			} else {
-				strcat(key, "Topic");
-			}
-			memset(tmp, 0, 800);
-			sprintf(tmp, "%s\'%s\'", value, topic);
-			strcpy(value, tmp);
-			break;
-		case RULE_CLIENTID:;
-			char *cid = (char *) conn_param_get_clientid(cp);
-			if (info->as[j]) {
-				strcat(key, info->as[j]);
-			} else {
-				strcat(key, "Clientid");
-			}
-			memset(tmp, 0, 800);
-			sprintf(tmp, "%s\'%s\'", value, cid);
-			strcpy(value, tmp);
-			break;
-		case RULE_USERNAME:;
-			char *username = (char *) conn_param_get_username(cp);
-			if (info->as[j]) {
-				strcat(key, info->as[j]);
-			} else {
-				strcat(key, "Username");
-			}
-			if (username == NULL) {
-				strcat(value, "NULL");
-			} else {
-				memset(tmp, 0, 800);
-				sprintf(tmp, "%s\'%s\'", value, username);
-				strcpy(value, tmp);
-			}
-			break;
-		case RULE_PASSWORD:;
-			char *password = (char *) conn_param_get_password(cp);
+static void sbuf_free(sbuf_t *sb)
+{
+    free(sb->buf);
+}
 
-			if (info->as[j]) {
-				strcat(key, info->as[j]);
-			} else {
-				strcat(key, "Password");
-			}
+static bool sbuf_appendf(sbuf_t *sb, const char *fmt, ...)
+{
+    if (sb->len >= sb->cap) return false;
 
-			if (password == NULL) {
-				strcat(value, "NULL");
-			} else {
-				memset(tmp, 0, 800);
-				sprintf(tmp, "%s\'%s\'", value, password);
-				strcpy(value, tmp);
-			}
+    va_list ap;
+    va_start(ap, fmt);
+    int n = vsnprintf(sb->buf + sb->len,
+                      sb->cap - sb->len,
+                      fmt, ap);
+    va_end(ap);
 
-			break;
-		case RULE_TIMESTAMP:
-			if (info->as[j]) {
-				strcat(key, info->as[j]);
-			} else {
-				strcat(key, "Timestamp");
-			}
+    if (n < 0 || (size_t)n >= sb->cap - sb->len)
+        return false;
 
-			memset(tmp, 0, 800);
-			if (RULE_FORWORD_TIMESCALEDB == info->forword_type) {
-				sprintf(tmp, "%sto_timestamp(%lu)", value, (unsigned long) time(NULL));
-			} else {
-				sprintf(tmp, "%s%lu", value, (unsigned long) time(NULL));
-			}
-			strcpy(value, tmp);
-			break;
-		case RULE_PAYLOAD_ALL:;
-			char *payload = pp->payload.data;
+    sb->len += (size_t)n;
+    return true;
+}
 
-			if (info->as[j]) {
-				strcat(key, info->as[j]);
-			} else {
-				strcat(key, "Payload");
-			}
+static char *sql_escape(const char *s)
+{
+    if (!s) return NULL;
 
-			memset(tmp, 0, 800);
-			sprintf(tmp, "%s\'%s\'", value, payload);
-			strcpy(value, tmp);
-			break;
+    size_t len = strlen(s);
+    char *out = malloc(len * 2 + 1);
+    char *p = out;
 
-		case RULE_PAYLOAD_FIELD:;
+    for (; *s; s++) {
+        if (*s == '\'' || *s == '\\')
+            *p++ = '\\';
+        *p++ = *s;
+    }
+    *p = '\0';
+    return out;
+}
 
-			char ret_key[512] = { 0 };
-			char tmp_key[128] = { 0 };
+static char *
+compose_sql_clause(rule *info, char *key, char *value,
+                   bool is_need_set, int j, nano_work *work)
+{
+    if (!info || !work) return NULL;
 
-			for (int pi = 0; pi < cvector_size(info->payload);
-			     pi++) {
-				if (info->payload[pi]->is_store) {
-					if (info->payload[pi]->pas) {
+    pub_packet_struct *pp = work->pub_packet;
+    conn_param *cp = work->cparam;
 
-						switch (info->payload[pi]->type) {
-						case cJSON_Number:
-								if (is_need_set) {
-									  if (RULE_FORWORD_SQLITE == info->forword_type) {
-										snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s INT;\n", info->sqlite_table, info->payload[pi]->pas);
-									  } else if (RULE_FORWORD_MYSQL == info->forword_type) {
-										snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s INT;\n", info->mysql->table, info->payload[pi]->pas);
-									  } else if (RULE_FORWORD_POSTGRESQL == info->forword_type) {
-										snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s INT;\n", info->postgresql->table, info->payload[pi]->pas);
-									  } else if (RULE_FORWORD_TIMESCALEDB == info->forword_type) {
-										snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s INT;\n", info->timescaledb->table, info->payload[pi]->pas);
-									  }
-								}
-								strcat(key, info->payload[pi]->pas);
-								strcat(key, ", ");
-								if (strlen(value) > strlen("VALUES (")) {
-									memset(tmp, 0, 800);
-									sprintf(tmp, "%s, %ld", value, (long) info->payload[pi]->value);
-									strcpy(value, tmp);
-								} else {
-									memset(tmp, 0, 800);
-									sprintf(tmp, "%s %ld", value, (long) info->payload[pi]->value);
-									strcpy(value, tmp);
-								}
-							break;
-						case cJSON_String:
-							if (info->payload[pi]->pas) {
-								if (is_need_set) {
-									  if (RULE_FORWORD_SQLITE == info->forword_type) {
-										snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s TEXT;\n", info->sqlite_table, info->payload[pi]->pas);
-									  } else if (RULE_FORWORD_MYSQL == info->forword_type) {
-										snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s TEXT;\n", info->mysql->table, info->payload[pi]->pas);
-									  } else if (RULE_FORWORD_POSTGRESQL == info->forword_type) {
-										snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s TEXT;\n", info->postgresql->table, info->payload[pi]->pas);
-									  } else if (RULE_FORWORD_TIMESCALEDB == info->forword_type) {
-										snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s TEXT;\n", info->timescaledb->table, info->payload[pi]->pas);
-									  }
-								}
-								strcat(key, info->payload[pi]->pas);
-								strcat(key, ", ");
-								if (strlen(value) > strlen("VALUES (")) {
-									memset(tmp, 0, 800);
-									sprintf(tmp, "%s, \'%s\'", value, (char*) info->payload[pi]->value);
-									strcpy(value, tmp);
-								} else {
-									memset(tmp, 0, 800);
-									sprintf(tmp, "%s \'%s\'", value, (char*) info->payload[pi]->value);
-									strcpy(value, tmp);
-								}
-							}
-							break;
-						case cJSON_Object:
-							if (info->payload[pi]->pas) {
-								if (is_need_set) {
-									  if (RULE_FORWORD_SQLITE == info->forword_type) {
-										snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s TEXT;\n", info->sqlite_table, info->payload[pi]->pas);
-									  } else if (RULE_FORWORD_MYSQL == info->forword_type) {
-										snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s TEXT;\n", info->mysql->table, info->payload[pi]->pas);
-									  } else if (RULE_FORWORD_POSTGRESQL == info->forword_type) {
-										snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s TEXT;\n", info->postgresql->table, info->payload[pi]->pas);
-									  } else if (RULE_FORWORD_TIMESCALEDB == info->forword_type) {
-										snprintf(tmp_key, 128, "ALTER TABLE %s ADD %s TEXT;\n", info->timescaledb->table, info->payload[pi]->pas);
-									  }
-								}
-								strcat(key, info->payload[pi]->pas);
-								strcat(key, ", ");
-								char *cjson_obj = cJSON_PrintUnformatted((cJSON*) info->payload[pi]->value);
-								if (strlen(value) > strlen("VALUES (")) {
-									memset(tmp, 0, 800);
-									sprintf(tmp, "%s, \'%s\'", value, cjson_obj);
-									strcpy(value, tmp);
-								} else {
-									memset(tmp, 0, 800);
-									sprintf(tmp, "%s \'%s\'", value, cjson_obj);
-									strcpy(value, tmp);
-								}
-								cJSON_free(cjson_obj);
-							}
-							break;
-						default:
-							break;
-						}
+    sbuf_t key_sb, val_sb, alter_sb;
+    sbuf_init(&key_sb, 1024);
+    sbuf_init(&val_sb, 2048);
+    sbuf_init(&alter_sb, 1024);
 
-						strcat(ret_key, tmp_key);
-						memset(tmp_key, 0, 128);
+    if (!info->flag[j])
+        goto out;
 
-					}
-				}
-			}
+    const char *col = info->as[j] ? info->as[j] : NULL;
 
-			if (strlen(ret_key)) {
-				ret = nng_strdup(ret_key);
+    switch (j) {
 
-			}
-			break;
+    case RULE_QOS:
+        sbuf_appendf(&key_sb, "%s", col ?: "Qos");
+        sbuf_appendf(&val_sb, "%d", pp->fixed_header.qos);
+        break;
 
-		default:
-			break;
-		}
-		if (j != RULE_PAYLOAD_FIELD) {
-			strcat(key, ", ");
-		}
-		strcat(value, ", ");
-	}
+    case RULE_ID:
+        sbuf_appendf(&key_sb, "%s", col ?: "Id");
+        sbuf_appendf(&val_sb, "%d", pp->var_header.publish.packet_id);
+        break;
 
-	return ret;
+    case RULE_TOPIC: {
+        char *esc = sql_escape(pp->var_header.publish.topic_name.body);
+        sbuf_appendf(&key_sb, "%s", col ?: "Topic");
+        sbuf_appendf(&val_sb, "'%s'", esc);
+        free(esc);
+        break;
+    }
+
+    case RULE_CLIENTID: {
+        char *esc = sql_escape(conn_param_get_clientid(cp));
+        sbuf_appendf(&key_sb, "%s", col ?: "Clientid");
+        sbuf_appendf(&val_sb, "'%s'", esc);
+        free(esc);
+        break;
+    }
+
+    case RULE_TIMESTAMP:
+        sbuf_appendf(&key_sb, "%s", col ?: "Timestamp");
+        if (info->forword_type == RULE_FORWORD_TIMESCALEDB)
+            sbuf_appendf(&val_sb, "to_timestamp(%lu)", time(NULL));
+        else
+            sbuf_appendf(&val_sb, "%lu", time(NULL));
+        break;
+
+    case RULE_PAYLOAD_FIELD:
+        for (int i = 0; i < cvector_size(info->payload); i++) {
+            rule_payload *p = info->payload[i];
+            if (!p->is_store || !p->pas)
+                continue;
+
+            sbuf_appendf(&key_sb, "%s, ", p->pas);
+
+            if (is_need_set) {
+                sbuf_appendf(&alter_sb,
+                    "ALTER TABLE %s ADD %s %s;\n",
+                    info->sqlite_table,
+                    p->pas,
+                    p->type == cJSON_Number ? "INT" : "TEXT");
+            }
+
+            if (p->type == cJSON_Number) {
+                sbuf_appendf(&val_sb, "%ld, ", (long)p->value);
+            } else {
+                char *esc = sql_escape((char *)p->value);
+                sbuf_appendf(&val_sb, "'%s', ", esc);
+                free(esc);
+            }
+        }
+        break;
+
+    default:
+        break;
+    }
+
+out:
+    strcat(key, key_sb.buf);
+    strcat(value, val_sb.buf);
+
+    char *ret = alter_sb.len ? nng_strdup(alter_sb.buf) : NULL;
+
+    sbuf_free(&key_sb);
+    sbuf_free(&val_sb);
+    sbuf_free(&alter_sb);
+    return ret;
+}
+
+typedef struct {
+    bool need_schema;
+    bool has_column;
+} sql_build_ctx;
+
+static bool
+finalize_sql_kv(char *key, size_t klen, char *val, size_t vlen)
+{
+    char *p;
+
+    p = strrchr(key, ',');
+    if (p) {
+        *p = ')';
+    } else {
+        if (strlen(key) + 1 >= klen) return false;
+        strcat(key, ")");
+    }
+
+    p = strrchr(val, ',');
+    if (p) {
+        *p = ')';
+    } else {
+        if (strlen(val) + 1 >= vlen) return false;
+        strcat(val, ")");
+    }
+
+    return true;
+}
+
+static bool
+build_sql_insert(
+    rule *r,
+    nano_work *work,
+    char *sql,
+    size_t sql_len,
+    bool *need_schema_out)
+{
+    char key[128]  = {0};
+    char val[800]  = {0};
+    bool has_col   = false;
+    bool need_schema = false;
+
+    snprintf(key, sizeof(key), "%s (", r->sqlite_table);
+    strcpy(val, "VALUES (");
+
+    for (size_t j = 0; j < 9; j++) {
+        char *schema =
+            compose_sql_clause(r, key, val, need_schema, j, work);
+
+        if (schema) {
+            need_schema = true;
+            free(schema);
+        }
+
+        /* 是否真的 append 了列 */
+        if (strlen(key) > strlen(r->sqlite_table) + 2) {
+            has_col = true;
+        }
+    }
+
+    if (!has_col)
+        return false;
+
+    if (!finalize_sql_kv(key, sizeof(key), val, sizeof(val)))
+        return false;
+
+    snprintf(sql, sql_len, "INSERT INTO %s%s;", key, val);
+
+    if (need_schema_out)
+        *need_schema_out = need_schema;
+
+    return true;
 }
 
 int
 rule_engine_insert_sql(nano_work *work)
 {
-	rule  *rules = work->config->rule_eng.rules;
-	size_t             rule_size  = cvector_size(rules);
-	pub_packet_struct *pp         = work->pub_packet;
-	conn_param        *cp         = work->cparam;
-	static uint32_t    index      = 0;
-	static bool is_first_time = true;
-	bool is_need_set = false;
-	static bool is_first_time_mysql = true;
-	bool is_need_set_mysql = false;
-	static bool is_first_time_postgresql = true;
-	bool is_need_set_postgresql = false;
-	static bool is_first_time_timescaledb = true;
-	bool is_need_set_timescaledb = false;
+    rule  *rules     = work->config->rule_eng.rules;
+    size_t rule_size = cvector_size(rules);
 
-	nng_mtx *rule_mutex = work->config->rule_eng.rule_mutex;
+    nng_mtx *rule_mutex = work->config->rule_eng.rule_mutex;
 
-	for (size_t i = 0; i < rule_size; i++) {
-		if (true == rules[i].enabled && rule_engine_filter(work, &rules[i])) {
-#if defined(FDB_SUPPORT)
-			char fdb_key[pp->var_header.publish.topic_name.len+sizeof(uint64_t)];
-			if (RULE_ENG_FDB & work->config->rule_eng.option && RULE_FORWORD_FDB == rules[i].forword_type) {
-				cJSON *jso = NULL;
-				jso        = cJSON_CreateObject();
+    for (size_t i = 0; i < rule_size; i++) {
+        rule *r = &rules[i];
 
-				for (size_t j = 0; j < 9; j++) {
-					add_info_to_json(
-					    &rules[i], jso, j, work);
-				}
+        if (!r->enabled || !rule_engine_filter(work, r))
+            continue;
 
-				char *key = NULL;
-				for (size_t j = 0; j < 9; j++) {
-					key = generate_key(&rules[i], j, work);
-					if (key != NULL) {
-						break;
-					}
-				}
-
-				char *dest = cJSON_PrintUnformatted(jso);
-				log_debug("%s", key);
-				log_debug("%s", dest);
-
-				FDBTransaction *tr = NULL;
-				fdb_error_t     e =
-				    fdb_database_create_transaction(
-				        work->config->rule_eng.rdb[1], &tr);
-				if (e) {
-					fprintf(stderr, "%s\n", fdb_get_error(e));
-				}
-
-				fdb_transaction_set(tr, key,
-				    strlen(key), dest, strlen(dest));
-				FDBFuture *f = fdb_transaction_commit(tr);
-
-				e = fdb_future_block_until_ready(f);
-				if (e) {
-					fprintf(stderr, "%s\n", fdb_get_error(e));
-				}
-
-				fdb_future_destroy(f);
-				fdb_transaction_clear(tr, fdb_key, strlen(fdb_key));
-				fdb_transaction_destroy(tr);
-
-				free(key);
-				cJSON_free(dest);
-				cJSON_Delete(jso);
-			}
-#endif
-
-			if (RULE_ENG_RPB & work->config->rule_eng.option && RULE_FORWORD_REPUB == rules[i].forword_type) {
-				cJSON *jso = NULL;
-				jso        = cJSON_CreateObject();
-
-				for (size_t j = 0; j < 9; j++) {
-					add_info_to_json(
-					    &rules[i], jso, j, work);
-				}
-
-				char *dest = cJSON_PrintUnformatted(jso);
-				repub_t *repub = rules[i].repub;
-
-				nano_client_publish(repub->sock, repub->topic, dest, strlen(dest), 0, NULL);
-				log_debug("%s", repub->topic);
-				log_debug("%s", dest);
-
-				cJSON_free(dest);
-				cJSON_Delete(jso);
-			}
-
+        /* ================= SQLITE ================= */
 #if defined(NNG_SUPP_SQLITE)
-			if (RULE_ENG_SDB & work->config->rule_eng.option && RULE_FORWORD_SQLITE == rules[i].forword_type) {
-				char sql_clause[1024] = "INSERT INTO ";
-				char key[128]         = { 0 };
-				snprintf(key, 128, "%s (", rules[i].sqlite_table);
-				char value[800]       = "VALUES (";
-				for (size_t j = 0; j < 9; j++) {
-					nng_mtx_lock(rule_mutex);
-					if (true == is_first_time) {
-						is_need_set   = true;
-					}
-					char *ret =
-					    compose_sql_clause(&rules[i],
-					        key, value, is_need_set, j, work);
-					if (ret) {
-						log_debug("%s", ret);
-						log_debug("%s", ret);
-						sqlite3 *sdb =
-						    (sqlite3 *) work->config
-						        ->rule_eng.rdb[0];
-						char *err_msg = NULL;
-						int   rc      = sqlite3_exec(
-						           sdb, ret, 0, 0, &err_msg);
-						// FIXME: solve in a more
-						// elegant way 
-						if (rc != SQLITE_OK) {
-							// fprintf(stderr, "SQL error: num %d %s\n",
-							//     rc, err_msg);
-							sqlite3_free(err_msg);
-							// sqlite3_close(sdb);
-							// return 1;
-						}
+        if ((RULE_ENG_SDB & work->config->rule_eng.option) &&
+            r->forword_type == RULE_FORWORD_SQLITE) {
 
-						free(ret);
-						ret = NULL;
-					}
+            char sql[1024] = {0};
+            bool need_schema = false;
 
-					if (true == is_first_time) {
-						is_first_time = false;
-					}
+            nng_mtx_lock(rule_mutex);
 
-					nng_mtx_unlock(rule_mutex);
-				}
+            if (!build_sql_insert(r, work, sql, sizeof(sql), &need_schema)) {
+                nng_mtx_unlock(rule_mutex);
+                continue;
+            }
 
-				
+            sqlite3 *db = (sqlite3 *)work->config->rule_eng.rdb[0];
+            char *err   = NULL;
 
-				log_debug("%s", key);
-				log_debug("%s", value);
-				char *p = strrchr(key, ',');
-				*p      = ')';
-				p       = strrchr(value, ',');
-				*p      = ')';
-				strcat(sql_clause, key);
-				strcat(sql_clause, value);
-				strcat(sql_clause, ";");
+            if (sqlite3_exec(db, sql, NULL, NULL, &err) != SQLITE_OK) {
+                log_error("sqlite error: %s", err);
+                sqlite3_free(err);
+            }
 
-				log_debug("%s", sql_clause);
-				log_debug("%s", sql_clause);
-				sqlite3 *sdb = (sqlite3 *) work->config->rule_eng.rdb[0];
-				char    *err_msg = NULL;
-				int      rc      = sqlite3_exec(
-				              sdb, sql_clause, 0, 0, &err_msg);
-				if (rc != SQLITE_OK) {
-					fprintf(stderr, "SQL error: %s\n",
-					    err_msg);
-					sqlite3_free(err_msg);
-					sqlite3_close(sdb);
-
-					return 1;
-				}
-
-			}
-
+            nng_mtx_unlock(rule_mutex);
+        }
 #endif
 
-
+        /* ================= MYSQL ================= */
 #if defined(SUPP_MYSQL)
-			if (RULE_ENG_MDB & work->config->rule_eng.option && RULE_FORWORD_MYSQL == rules[i].forword_type) {
-				char sql_clause[1024] = "INSERT INTO ";
-				char key[128]         = { 0 };
-				snprintf(key, 128, "%s (", rules[i].mysql->table);
-				char value[800]       = "VALUES (";
-				for (size_t j = 0; j < 9; j++) {
-					nng_mtx_lock(rule_mutex);
-					if (true == is_first_time_mysql) {
-						is_need_set_mysql   = true;
-					}
-					char *ret =
-					    compose_sql_clause(&rules[i],
-					        key, value, is_need_set_mysql, j, work);
+        if ((RULE_ENG_MDB & work->config->rule_eng.option) &&
+            r->forword_type == RULE_FORWORD_MYSQL) {
 
-					if (ret && is_need_set_mysql) {
-						is_need_set_mysql = false;
-						log_debug("%s", ret);
+            char sql[1024] = {0};
 
-						char *p   = ret;
-						char *p_b = ret;
+            nng_mtx_lock(rule_mutex);
 
-						while (NULL != p) {
-							char *p = strchr(p_b, '\n');
-							if (NULL != p) {
-								*p = '\0';
-  								if (mysql_query(rules[i].mysql->conn, p_b)) {
-  									// fprintf(stderr, "%s\n", mysql_error(rules[i].mysql->conn));
-  								}
-								p_b = ++p;
+            if (!build_sql_insert(r, work, sql, sizeof(sql), NULL)) {
+                nng_mtx_unlock(rule_mutex);
+                continue;
+            }
 
-							} else {
-								break;
-							}
-						}
+            if (mysql_query(r->mysql->conn, sql)) {
+                log_error("mysql error: %s",
+                    mysql_error(r->mysql->conn));
+            }
 
-						free(ret);
-						ret = NULL;
-					}
-
-					if (true == is_first_time_mysql) {
-						is_first_time_mysql = false;
-					}
-
-					nng_mtx_unlock(rule_mutex);
-				}
-
-				
-
-				log_debug("%s", key);
-				log_debug("%s", value);
-				char *p = strrchr(key, ',');
-				*p      = ')';
-				p       = strrchr(value, ',');
-				*p      = ')';
-				strcat(sql_clause, key);
-				strcat(sql_clause, value);
-				strcat(sql_clause, ";");
-
-				log_debug("%s", sql_clause);
-  				if (mysql_query(rules[i].mysql->conn, sql_clause)) {
-  					fprintf(stderr, "%s\n", mysql_error(rules[i].mysql->conn));
-  					mysql_close(rules[i].mysql->conn);
-  					exit(1);
-  				}
-			}
+            nng_mtx_unlock(rule_mutex);
+        }
 #endif
 
-
+        /* ================= POSTGRESQL ================= */
 #if defined(SUPP_POSTGRESQL)
-			if (RULE_ENG_PDB & work->config->rule_eng.option && RULE_FORWORD_POSTGRESQL == rules[i].forword_type) {
+        if ((RULE_ENG_PDB & work->config->rule_eng.option) &&
+            r->forword_type == RULE_FORWORD_POSTGRESQL) {
 
-				if (work->pgconn == NULL) {
-					rule_postgresql *postgresql = rules[i].postgresql;
-					char conninfo[256] = { 0 };
-					snprintf(conninfo , 128, "dbname=postgres user=%s password=%s host=%s port=5432", postgresql->username,postgresql->password, postgresql->host);
-					PGconn *conn = PQconnectdb(conninfo);
+            char sql[1024] = {0};
 
- 					if (PQstatus(conn) != CONNECTION_OK) {
-						log_error("Postgresql error %s", PQerrorMessage(conn));
-						PQfinish(conn);
-						exit(1);
-					}
-					work->pgconn = conn;
-				}
+            nng_mtx_lock(rule_mutex);
 
-				char sql_clause[1024] = "INSERT INTO ";
-				char key[128]         = { 0 };
-				snprintf(key, 128, "%s (", rules[i].postgresql->table);
-				char value[800]       = "VALUES (";
-				for (size_t j = 0; j < 9; j++) {
+            if (!build_sql_insert(r, work, sql, sizeof(sql), NULL)) {
+                nng_mtx_unlock(rule_mutex);
+                continue;
+            }
 
-					nng_mtx_lock(rule_mutex);
+            PGresult *res = PQexec(work->pgconn, sql);
+            if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+                log_error("postgresql error: %s",
+                    PQerrorMessage(work->pgconn));
+            }
+            PQclear(res);
 
-					if (true == is_first_time_postgresql) {
-						is_need_set_postgresql   = true;
-					}
-					char *ret =
-					    compose_sql_clause(&rules[i],
-					        key, value, is_need_set_postgresql, j, work);
-
-					if (ret && is_need_set_postgresql) {
-						is_need_set_postgresql = false;
-						log_debug("ret - %s", ret);
-
-						char *p   = ret;
-						char *p_b = ret;
-
-						while (NULL != p) {
-							char *p = strchr(p_b, '\n');
-							if (NULL != p) {
-								*p = '\0';
-
-								log_debug("p_b %s", p_b);
-								PGresult *res = PQexec(rules[i].postgresql->conn, p_b);
-
-								if (PQresultStatus(res) != PGRES_COMMAND_OK) {
-									log_debug("p_b Postgresql error %s\n", PQerrorMessage(rules[i].postgresql->conn));
-									fprintf(stderr, "%s\n", PQerrorMessage(rules[i].postgresql->conn));
-  								}
-
-								PQclear(res);
-								p_b = ++p;
-
-							} else {
-								break;
-							}
-						}
-
-						free(ret);
-						ret = NULL;
-					}
-
-					if (true == is_first_time_postgresql) {
-						is_first_time_postgresql = false;
-					}
-
-					nng_mtx_unlock(rule_mutex);
-				}
-
-
-
-				/* log_debug("%s", key); */
-				/* log_debug("%s", value); */
-
-				char *p = strrchr(key, ',');
-				*p      = ')';
-				p       = strrchr(value, ',');
-				*p      = ')';
-				strcat(sql_clause, key);
-				strcat(sql_clause, value);
-				strcat(sql_clause, ";");
-
-				log_debug("%s", sql_clause);
-
-				PGresult *res = PQexec(work->pgconn, sql_clause);
-			    log_debug("Postgresql res: %d\n", PQresultStatus(res));
-
-  				if (PQresultStatus(res) != PGRES_COMMAND_OK) {
-				    log_debug("Postgresql error %s\n", PQerrorMessage(work->pgconn));
-  					fprintf(stderr, "Postgresql error %s\n", PQerrorMessage(work->pgconn));
-                    PQclear(res);
-  					PQfinish(work->pgconn);
-  					exit(1);
-  				}
-
-				PQclear(res);
-
-
-			}
+            nng_mtx_unlock(rule_mutex);
+        }
 #endif
 
+        /* ================= TIMESCALEDB ================= */
 #if defined(SUPP_TIMESCALEDB)
-			if (RULE_ENG_TDB & work->config->rule_eng.option && RULE_FORWORD_TIMESCALEDB == rules[i].forword_type) {
+        if ((RULE_ENG_TDB & work->config->rule_eng.option) &&
+            r->forword_type == RULE_FORWORD_TIMESCALEDB) {
 
-				if (work->tsconn == NULL) {
-					rule_timescaledb *timescaledb = rules[i].timescaledb;
-					char conninfo[256] = { 0 };
-					snprintf(conninfo , 128, "dbname=postgres user=%s password=%s host=%s port=5432", timescaledb->username, timescaledb->password, timescaledb->host);
-					PGconn *conn = PQconnectdb(conninfo);
+            char sql[1024] = {0};
 
- 					if (PQstatus(conn) != CONNECTION_OK) {
-						log_error("timescaledb error %s", PQerrorMessage(conn));
-						PQfinish(conn);
-						exit(1);
-					}
-					work->tsconn = conn;
-				}
+            nng_mtx_lock(rule_mutex);
 
-				char sql_clause[1024] = "INSERT INTO ";
-				char key[128]         = { 0 };
-				snprintf(key, 128, "%s (", rules[i].timescaledb->table);
-				char value[800]       = "VALUES (";
-				for (size_t j = 0; j < 9; j++) {
+            if (!build_sql_insert(r, work, sql, sizeof(sql), NULL)) {
+                nng_mtx_unlock(rule_mutex);
+                continue;
+            }
 
-					nng_mtx_lock(rule_mutex);
+            PGresult *res = PQexec(work->tsconn, sql);
+            if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+                log_error("timescaledb error: %s",
+                    PQerrorMessage(work->tsconn));
+            }
+            PQclear(res);
 
-					if (true == is_first_time_timescaledb) {
-						is_need_set_timescaledb   = true;
-					}
-					char *ret =
-					    compose_sql_clause(&rules[i],
-					        key, value, is_need_set_timescaledb, j, work);
-
-					if (ret && is_need_set_timescaledb) {
-						is_need_set_timescaledb = false;
-						log_debug("ret - %s", ret);
-
-						char *p   = ret;
-						char *p_b = ret;
-
-						while (NULL != p) {
-							char *p = strchr(p_b, '\n');
-							if (NULL != p) {
-								*p = '\0';
-
-								log_debug("p_b %s", p_b);
-								PGresult *res = PQexec(work->tsconn, p_b);
-
-								if (PQresultStatus(res) != PGRES_COMMAND_OK) {
-									log_debug("timescaledb error %s\n", PQerrorMessage(work->tsconn));
-									fprintf(stderr, "%s\n", PQerrorMessage(work->tsconn));
-  								}
-
-								PQclear(res);
-								p_b = ++p;
-
-							} else {
-								break;
-							}
-						}
-
-						free(ret);
-						ret = NULL;
-					}
-
-					if (true == is_first_time_timescaledb) {
-						is_first_time_timescaledb = false;
-					}
-
-					nng_mtx_unlock(rule_mutex);
-				}
-
-
-				/* log_debug("%s", key); */
-				/* log_debug("%s", value); */
-
-				char *p = strrchr(key, ',');
-				*p      = ')';
-				p       = strrchr(value, ',');
-				*p      = ')';
-				strcat(sql_clause, key);
-				strcat(sql_clause, value);
-				strcat(sql_clause, ";");
-
-				log_debug("%s", sql_clause);
-
-				PGresult *res = PQexec(work->tsconn, sql_clause);
-			    log_debug("timescaledb res: %d\n", PQresultStatus(res));
-
-  				if (PQresultStatus(res) != PGRES_COMMAND_OK) {
-				    log_debug("timescaledb error %s\n", PQerrorMessage(work->tsconn));
-  					fprintf(stderr, "timescaledb error %s\n", PQerrorMessage(work->tsconn));
-                    PQclear(res);
-  					PQfinish(work->tsconn);
-  					exit(1);
-  				}
-
-				PQclear(res);
-			}
+            nng_mtx_unlock(rule_mutex);
+        }
 #endif
+    }
 
-		}
-	}
-
-	return 0;
+    return 0;
 }
-
 
 #endif
 /**
