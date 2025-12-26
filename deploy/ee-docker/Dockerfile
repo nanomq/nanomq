@@ -1,10 +1,11 @@
 FROM ubuntu:latest
-ARG PKG_NAME
+ARG TARGETARCH
 
 RUN apt-get update && apt-get install -y unzip && rm -rf /var/lib/apt/lists/*
 
-COPY $PKG_NAME.zip /tmp/$PKG_NAME.zip
-RUN mkdir -p /opt && unzip /tmp/$PKG_NAME.zip -d /opt/ && mv /opt/$PKG_NAME /opt/emqx-edge
+RUN mkdir -p /opt/emqx-edge
+COPY _packages_release/${TARGETARCH}/* /opt/emqx-edge/
+
 RUN chmod +x /opt/emqx-edge/nanomq
 
 WORKDIR /opt/emqx-edge

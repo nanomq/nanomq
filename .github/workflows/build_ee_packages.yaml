@@ -83,7 +83,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: ${{ steps.zip.outputs.pkg_name }}
-        path: "_packages/*"
+        path: _packages_release/${{ steps.zip.outputs.pkg_name }}.zip
         retention-days: 7
 
     - name: Upload Artifacts to Release
@@ -108,34 +108,6 @@ jobs:
         aws configure set default.region us-west-2
         pkgversion="$(git describe --abbrev=0 --tags --match 'edge-*' | sed 's/^edge-//')"
         aws s3 cp --recursive _packages_release s3://packages.emqx/nanomq-edge/$pkgversion
-
-    - name: Build Docker Image
-      id: build_image
-      run: |
-        set -e -x -u
-        pkgversion="$(git describe --abbrev=0 --tags --match 'edge-*' | sed 's/^edge-//')"
-        docker build --build-arg PKG_NAME=${{ steps.zip.outputs.pkg_name }} -t emqx/emqx-edge:${pkgversion} -f deploy/ee-docker/Dockerfile .
-        echo "pkgversion=${pkgversion}" >> $GITHUB_OUTPUT
-    - uses: docker/setup-buildx-action@v2
-    - uses: docker/metadata-action@v4
-      id: meta
-      with:
-        images: emqx/emqx-edge
-        flavor: |
-          latest=auto
-          onlatest=true
-    - uses: docker/login-action@v2
-      with:
-        username: ${{ secrets.DOCKER_HUB_USER }}
-        password: ${{ secrets.DOCKER_HUB_TOKEN }}
-    - name: Build Docker Image amd64
-      if: matrix.arch == 'amd64'
-      run: |
-        docker buildx build --build-arg PKG_NAME=${{ steps.zip.outputs.pkg_name }} -t emqx/emqx-edge:${{ steps.build_image.outputs.pkgversion }}-amd64 -f deploy/ee-docker/Dockerfile --push .
-    - name: Build Docker Image arm64
-      if: matrix.arch == 'aarch64'
-      run: |
-        docker buildx build --build-arg PKG_NAME=${{ steps.zip.outputs.pkg_name }} -t emqx/emqx-edge:${{ steps.build_image.outputs.pkgversion }}-arm64 -f deploy/ee-docker/Dockerfile --push .
 
   build-windows-packages:
     runs-on: windows-latest
@@ -272,14 +244,42 @@ jobs:
         username: ${{ secrets.DOCKER_HUB_USER }}
         password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
-    - name: Manifest Docker Images
+    - name: Download Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: _packages_release
+        pattern: emqx-*
+        merge-multiple: true
+
+    - run: ls -R _packages_release
+
+    - name: Prepare Docker Images Envs
+      id: docker_envs
       run: |
         set -e -x -u
         pkgversion="$(git describe --abbrev=0 --tags --match 'edge-*' | sed 's/^edge-//')"
         pkgversion="1.2.1.alpha.3"
-        docker pull emqx/emqx-edge:${pkgversion}-amd64
-        docker pull emqx/emqx-edge:${pkgversion}-arm64
-        amd_digest="$(docker inspect emqx/emqx-edge:${pkgversion}-amd64 --format='{{index .RepoDigests 0}}')"
-        arm_digest="$(docker inspect emqx/emqx-edge:${pkgversion}-arm64 --format='{{index .RepoDigests 0}}')"
-        docker manifest create emqx/emqx-edge:${pkgversion} ${amd_digest} ${arm_digest}
-        docker manifest push emqx/emqx-edge:${pkgversion}
+        pkg_name_arm="emqx-edge-${pkgversion}-linux-aarch64"
+        pkg_name_amd="emqx-edge-${pkgversion}-linux-amd64"
+        unzip _packages_release/${pkg_name_arm}.zip -d _packages_release/
+        unzip _packages_release/${pkg_name_amd}.zip -d _packages_release/
+        mv _packages_release/${pkg_name_arm} _packages_release/arm64
+        mv _packages_release/${pkg_name_amd} _packages_release/amd64
+        echo "pkgversion=${pkgversion}" >> $GITHUB_OUTPUT
+        echo "pkg_name_arm=${pkg_name_arm}" >> $GITHUB_OUTPUT
+        echo "pkg_name_amd=${pkg_name_amd}" >> $GITHUB_OUTPUT
+
+    - run: ls -R _packages_release
+
+    - uses: docker/setup-qemu-action@v3
+    - uses: docker/setup-buildx-action@v3
+    - uses: docker/build-push-action@v4
+      with:
+        platforms: linux/amd64, linux/arm64
+        push: true
+        tags: emqx/emqx-edge:${{ steps.docker_envs.outputs.pkgversion }}
+        file: deploy/ee-docker/Dockerfile
+        build-args: |
+          PKG_NAME_ARM=${{ steps.docker_envs.outputs.pkg_name_arm }}
+          PKG_NAME_AMD=${{ steps.docker_envs.outputs.pkg_name_amd }}
+        context: .
