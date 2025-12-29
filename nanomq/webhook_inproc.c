@@ -805,8 +805,13 @@ hook_work_cb(void *arg)
 			}
 		}
 		if (!ex_sock || !streamid) {
-			log_warn("Invalid streamid");
-			send_msg_rep(work->ctx, HOOK_ERR_INVALID_STREAM);
+			if (!streamid) {
+				log_warn("Invalid streamid in json");
+				send_msg_rep(work->ctx, HOOK_ERR_JSON);
+			} else {
+				log_warn("Invalid streamid, %s not found", streamid);
+				send_msg_rep(work->ctx, HOOK_ERR_INVALID_STREAM);
+			}
 			goto skip;
 		}
 
