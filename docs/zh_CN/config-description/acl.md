@@ -10,11 +10,6 @@ auth {
 	no_match = allow       # 没有 ACL 规则匹配情况下的默认操作
 	deny_action = ignore   # ACL 检查拒绝情况下的默认操作
 
-	cache = {
-		max_size = 32        # 客户端可以缓存的最大 ACL 条目数量
-		ttl = 1m             # ACL 规则缓存有效时间
-	}
-	
 	password = {include "/etc/nanomq_pwd.conf"} # 密码存储文件路径
 	acl = {include "/etc/nanomq_acl.conf"}       # ACL 配置文件路径
 }
@@ -27,9 +22,6 @@ auth {
 - `deny_action`：可选值，指定当拒绝访问发生时，应该如何对待这个客户端的 MQTT 连接。 
   - `ignore` （缺省值）: 操作会被丢弃，例如，对于发布动作，消息会被丢弃；对于订阅操作，订阅请求会被拒绝。
   - `disconnect`：断开当前客户端连接。
-- `cache`: 可选值，ACL 缓存的配置。
-  - `max_size`：规定每个客户端允许缓存的 ACL 规则数量。当超过上限时，老的记录将会被删掉；缺省值：32
-  - `ttl`：规定 ACL 规则缓存有效时间；缺省值：1m。
 
 您可通过单独的配置文件配置用户名/密码（`nanomq_pwd.conf`）或访问规则（`nanomq_acl.conf`），并通过 `include` 语法在主配置文件 `nanomq.conf` 中引用：
 
@@ -125,6 +117,7 @@ http_auth = {
 	timeout = 5s                                                   # 请求超时时间
 	connect_timeout = 5s                                           # 连接超时时间
 	pool_size = 32                                                 # 连接进程池大小
+	cache_ttl = 30s                                                # ACL 规则缓存有效时间
 }
 ```
 
@@ -215,7 +208,9 @@ http_auth = {
 
 `connect_timeout`： HTTP 请求的连接超时时间。`0s` 表示永不超时。
 
-`pool_size`：连接进程池大小
+`pool_size`：连接进程池大小。
+
+`cache_ttl`：ACL 规则缓存有效时间。当 `cache_ttl` 大于 `0s` 时生效，当 ACL HTTP 请求验证成功后，会产生对应的 Cache ，在缓存有效时间内，有着相同权限、用户名、密码、ClientID、IP地址参数的 ACL HTTP 验证将直接通过。(Cache Hit)
 
 ## 功能预告
 
