@@ -10,13 +10,8 @@ auth {
 	no_match = allow       # Default action if no ACL rules match
 	deny_action = ignore   # Action to take if an ACL check rejects an operation
 
-	cache = {
-		max_size = 32        # Maximum number of ACL entries to cache for a client
-		ttl = 1m             # Time after which an ACL cache entry will be deleted
-	}
-	
 	password = {include "/etc/nanomq_pwd.conf"} # Path to the password configuration file
-	acl = {include "/etc/nanomq_acl.conf"}       # Path to the ACL configuration file
+	acl = {include "/etc/nanomq_acl.conf"}      # Path to the ACL configuration file
 }
 ```
 
@@ -27,9 +22,6 @@ auth {
 - `deny_action`: Specifies the action to take if an ACL check rejects an operation. Default: `ignore`; supported options are 
   - `ignore`: do nothing
   - `disconnect`: disconnect the client
-- `cache` (optional): Contains settings related to the ACL cache:
-  - `max_size`: Specifies the maximum number of ACL entries that can be cached for a client. Older records are evicted from the cache when the specified number is exceeded. Default: 32
-  - `ttl`: Specifies the time after which an ACL cache entry will be deleted. Default: 1m
 
 ACL can use separate configuration files (specified by the `include` method). And below are the explanation of each configuration file.
 
@@ -116,6 +108,7 @@ http_auth = {
 	timeout = 5s                                                   # Time-out time for the request
 	connect_timeout = 5s                                           # Connection time-out time
 	pool_size = 32                                                 # Connection process pool size
+	cache_ttl = 30s                                                # Time after an ACL cache entry will be deleted
 }
 ```
 
@@ -209,6 +202,8 @@ The `super_req` configuration refers to the Superuser, who has the privilege to 
 `connect_timeout`: Specifies the connection time-out duration, which is the maximum time the client will wait while trying to establish a connection with the server.`0s` means never timeout.
 
 `pool_size`: Specifies the size of the connection process pool, which is the maximum number of concurrent connections that can be established.
+
+`cache_ttl`: Time after which an ACL cache entry will be deleted. ACL Cache mechanism is enabled when `cache_ttl` is large than `0s`. An ACL Cache will be created when a HTTP authentication request is successful. All the subsequent HTTP authentication requests with same `access`, `username`, `password`, `clientid`, `ip address` will also be successful when the ACL Cache exists. (Cache Hit)
 
 ## Upcoming Features
 
