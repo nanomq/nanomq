@@ -662,36 +662,72 @@ typedef struct {
     size_t cap;
 } sbuf_t;
 
-static bool sbuf_init(sbuf_t *sb, size_t cap)
+
+static void
+sbuf_init(sbuf_t *sb, size_t cap)
 {
-    sb->buf = calloc(1, cap);
-    if (!sb->buf) return false;
-    sb->cap = cap;
+    sb->cap = cap ? cap : 256;
     sb->len = 0;
-    return true;
+    sb->buf = nng_alloc(sb->cap);
+    sb->buf[0] = '\0';
 }
 
-static void sbuf_free(sbuf_t *sb)
+static void
+sbuf_free(sbuf_t *sb)
 {
-    free(sb->buf);
+    if (sb->buf) {
+        nng_free(sb->buf, sb->cap);
+    }
 }
 
-static bool sbuf_appendf(sbuf_t *sb, const char *fmt, ...)
+static void
+sbuf_ensure(sbuf_t *sb, size_t extra)
 {
-    if (sb->len >= sb->cap) return false;
+    if (sb->len + extra + 1 <= sb->cap)
+        return;
 
+    size_t newcap = sb->cap * 2;
+    while (newcap < sb->len + extra + 1)
+        newcap *= 2;
+
+    char *nbuf = nng_alloc(newcap);
+    memcpy(nbuf, sb->buf, sb->len + 1);
+    nng_free(sb->buf, sb->cap);
+
+    sb->buf = nbuf;
+    sb->cap = newcap;
+}
+
+static void
+sbuf_append(sbuf_t *sb, const char *s)
+{
+    size_t n = strlen(s);
+    sbuf_ensure(sb, n);
+    memcpy(sb->buf + sb->len, s, n + 1);
+    sb->len += n;
+}
+
+static void
+sbuf_appendf(sbuf_t *sb, const char *fmt, ...)
+{
     va_list ap;
     va_start(ap, fmt);
-    int n = vsnprintf(sb->buf + sb->len,
-                      sb->cap - sb->len,
-                      fmt, ap);
+    char tmp[512];
+    int n = vsnprintf(tmp, sizeof(tmp), fmt, ap);
     va_end(ap);
 
-    if (n < 0 || (size_t)n >= sb->cap - sb->len)
-        return false;
+    if (n <= 0) return;
 
-    sb->len += (size_t)n;
-    return true;
+    if ((size_t)n >= sizeof(tmp)) {
+        char *dyn = nng_alloc(n + 1);
+        va_start(ap, fmt);
+        vsnprintf(dyn, n + 1, fmt, ap);
+        va_end(ap);
+        sbuf_append(sb, dyn);
+        nng_free(dyn, n + 1);
+    } else {
+        sbuf_append(sb, tmp);
+    }
 }
 
 static char *sql_escape(const char *s)
@@ -728,6 +764,7 @@ compose_sql_clause(rule *info, char *key, char *value,
                    bool is_need_set, int j, nano_work *work)
 {
     if (!info || !work || !info->flag[j])
+		// log_error("%p %p %d", info, work, info->flag[j]);
         return NULL;
 
     pub_packet_struct *pp = work->pub_packet;
@@ -742,7 +779,7 @@ compose_sql_clause(rule *info, char *key, char *value,
     switch (j) {
 
     case RULE_QOS:;
-		const char *qos_key = col ?: "Qos";
+		const char *qos_key = (col != NULL) ? col : "Qos";;
     	sbuf_init(&key_sb, strlen(qos_key)+8);
     	sbuf_init(&val_sb,  8);
         sbuf_appendf(&key_sb, "%s, ", qos_key);
@@ -750,7 +787,7 @@ compose_sql_clause(rule *info, char *key, char *value,
         break;
 
     case RULE_ID:
-		const char *id_key = col ?: "Id";
+		const char *id_key = (col != NULL) ? col : "Id";
     	sbuf_init(&key_sb, strlen(id_key)+8);
     	sbuf_init(&val_sb, 16);
         sbuf_appendf(&key_sb, "%s, ", id_key);
@@ -758,7 +795,7 @@ compose_sql_clause(rule *info, char *key, char *value,
         break;
 
     case RULE_TOPIC: {
-		const char *topic_key = col ?: "Topic";
+		const char *topic_key = (col != NULL) ? col : "Topic";
         char *esc = sql_escape(pp->var_header.publish.topic_name.body);
     	sbuf_init(&key_sb, strlen(topic_key)+8);
     	sbuf_init(&val_sb, strlen(esc)+8);
@@ -769,7 +806,7 @@ compose_sql_clause(rule *info, char *key, char *value,
     }
 
     case RULE_CLIENTID: {
-		const char *cli_id_key = col ?: "Clientid";
+		const char *cli_id_key = (col != NULL) ? col : "Clientid";
         char *esc = sql_escape(conn_param_get_clientid(cp));
     	sbuf_init(&key_sb, strlen(cli_id_key)+8);
     	sbuf_init(&val_sb, strlen(esc)+8);
@@ -780,7 +817,7 @@ compose_sql_clause(rule *info, char *key, char *value,
     }
 
     case RULE_USERNAME: {
-		const char *user_key = col ?: "Username";
+		const char *user_key = (col != NULL) ? col : "Username";
         const char *u = conn_param_get_username(cp);
     	sbuf_init(&key_sb, strlen(user_key)+8);
     	sbuf_init(&val_sb, 256);
@@ -793,7 +830,7 @@ compose_sql_clause(rule *info, char *key, char *value,
     }
 
     case RULE_PASSWORD: {
-		const char *pwd_key = col ?: "Password";
+		const char *pwd_key = (col != NULL) ? col : "Password";
         const char *p = conn_param_get_password(cp);
     	sbuf_init(&key_sb,   strlen(pwd_key)+8);
     	sbuf_init(&val_sb,  256);
@@ -806,7 +843,7 @@ compose_sql_clause(rule *info, char *key, char *value,
     }
 
     case RULE_TIMESTAMP:
-		const char *ts_key = col ?: "Timestamp";
+		const char *ts_key = (col != NULL) ? col : "Timestamp";
 	    sbuf_init(&key_sb,   strlen(ts_key)+8);
     	sbuf_init(&val_sb,  32);
         sbuf_appendf(&key_sb, "%s, ", ts_key);
@@ -817,7 +854,7 @@ compose_sql_clause(rule *info, char *key, char *value,
         break;
 
     case RULE_PAYLOAD_ALL: {
-		const char *payload_key = col ?: "Payload";
+		const char *payload_key = (col != NULL) ? col : "Payload";
         char *esc = sql_escape(pp->payload.data);
     	sbuf_init(&key_sb, strlen(payload_key)+8);
     	sbuf_init(&val_sb, strlen(esc)+8);
@@ -882,25 +919,232 @@ compose_sql_clause(rule *info, char *key, char *value,
     return ret;
 }
 
+static bool
+sqlite_column_exists(sqlite3 *db, const char *table, const char *col)
+{
+    sqlite3_stmt *stmt;
+    char sql[256];
+
+    snprintf(sql, sizeof(sql),
+        "PRAGMA table_info(%s);", table);
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+        return false;
+
+    bool found = false;
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        const char *name =
+            (const char *)sqlite3_column_text(stmt, 1);
+        if (name && strcmp(name, col) == 0) {
+            found = true;
+            break;
+        }
+    }
+
+    sqlite3_finalize(stmt);
+    return found;
+}
+
+static char *
+compose_sql_clause_new(rule *info, sbuf_t *key, sbuf_t *value,
+                   bool is_need_set, int j, nano_work *work)
+{
+    if (!info || !work || !info->flag[j])
+        return NULL;
+
+	log_debug("%s", key->buf);
+	log_debug("%s", value->buf);
+    pub_packet_struct *pp = work->pub_packet;
+    conn_param *cp        = work->cparam;
+
+    sbuf_t key_sb, val_sb, alter_sb;
+    sbuf_init(&alter_sb, 512);
+
+    const char *col = info->as[j];
+    const char *tbl = rule_table_name(info);
+
+    switch (j) {
+
+    case RULE_QOS:;
+		const char *qos_key = (col != NULL) ? col : "Qos";;
+    	sbuf_init(&key_sb, strlen(qos_key)+8);
+    	sbuf_init(&val_sb,  8);
+        sbuf_appendf(&key_sb, "%s, ", qos_key);
+        sbuf_appendf(&val_sb, "%d, ", pp->fixed_header.qos);
+        break;
+
+    case RULE_ID:
+		const char *id_key = (col != NULL) ? col : "Id";
+    	sbuf_init(&key_sb, strlen(id_key)+8);
+    	sbuf_init(&val_sb, 16);
+        sbuf_appendf(&key_sb, "%s, ", id_key);
+        sbuf_appendf(&val_sb, "%d, ", pp->var_header.publish.packet_id);
+        break;
+
+    case RULE_TOPIC: {
+		const char *topic_key = (col != NULL) ? col : "Topic";
+        char *esc = sql_escape(pp->var_header.publish.topic_name.body);
+    	sbuf_init(&key_sb, strlen(topic_key)+8);
+    	sbuf_init(&val_sb, strlen(esc)+8);
+        sbuf_appendf(&key_sb, "%s, ", topic_key);
+        sbuf_appendf(&val_sb, "'%s', ", esc);
+        free(esc);
+        break;
+    }
+
+    case RULE_CLIENTID: {
+		const char *cli_id_key = (col != NULL) ? col : "Clientid";
+        char *esc = sql_escape(conn_param_get_clientid(cp));
+    	sbuf_init(&key_sb, strlen(cli_id_key)+8);
+    	sbuf_init(&val_sb, strlen(esc)+8);
+        sbuf_appendf(&key_sb, "%s, ", cli_id_key);
+        sbuf_appendf(&val_sb, "'%s', ", esc);
+        free(esc);
+        break;
+    }
+
+    case RULE_USERNAME: {
+		const char *user_key = (col != NULL) ? col : "Username";
+        const char *u = conn_param_get_username(cp);
+    	sbuf_init(&key_sb, strlen(user_key)+8);
+    	sbuf_init(&val_sb, 256);
+        sbuf_appendf(&key_sb, "%s, ", user_key);
+        if (u)
+            sbuf_appendf(&val_sb, "'%s', ", sql_escape(u));
+        else
+            sbuf_appendf(&val_sb, "NULL, ");
+        break;
+    }
+
+    case RULE_PASSWORD: {
+		const char *pwd_key = (col != NULL) ? col : "Password";
+        const char *p = conn_param_get_password(cp);
+    	sbuf_init(&key_sb,   strlen(pwd_key)+8);
+    	sbuf_init(&val_sb,  256);
+        sbuf_appendf(&key_sb, "%s, ", pwd_key);
+        if (p)
+            sbuf_appendf(&val_sb, "'%s', ", sql_escape(p));
+        else
+            sbuf_appendf(&val_sb, "NULL, ");
+        break;
+    }
+
+    case RULE_TIMESTAMP:
+		const char *ts_key = (col != NULL) ? col : "Timestamp";
+	    sbuf_init(&key_sb,   strlen(ts_key)+8);
+    	sbuf_init(&val_sb,  32);
+        sbuf_appendf(&key_sb, "%s, ", ts_key);
+        if (info->forword_type == RULE_FORWORD_TIMESCALEDB)
+            sbuf_appendf(&val_sb, "to_timestamp(%lu), ", time(NULL));
+        else
+            sbuf_appendf(&val_sb, "%lu, ", time(NULL));
+        break;
+
+    case RULE_PAYLOAD_ALL: {
+		const char *payload_key = (col != NULL) ? col : "Payload";
+        char *esc = sql_escape(pp->payload.data);
+    	sbuf_init(&key_sb, strlen(payload_key)+8);
+    	sbuf_init(&val_sb, strlen(esc)+8);
+        sbuf_appendf(&key_sb, "%s, ", payload_key);
+        sbuf_appendf(&val_sb, "'%s', ", esc);
+        free(esc);
+        break;
+    }
+
+    case RULE_PAYLOAD_FIELD:
+		sbuf_init(&key_sb,   512);
+    	sbuf_init(&val_sb, strlen(pp->payload.data)*2);
+
+        for (int i = 0; i < cvector_size(info->payload); i++) {
+            rule_payload *p = info->payload[i];
+            if (!p->is_store || !p->pas)
+                continue;
+
+            sbuf_appendf(&key_sb, "%s, ", p->pas);
+
+
+
+
+			sqlite3 *sdb =
+			    (sqlite3 *) work->config
+			        ->rule_eng.rdb[0];
+            if (is_need_set && tbl && !sqlite_column_exists(sdb, tbl, p->pas)) {
+                sbuf_appendf(&alter_sb,
+                    "ALTER TABLE %s ADD %s %s;\n",
+                    tbl,
+                    p->pas,
+                    p->type == cJSON_Number ? "INT" : "TEXT");
+            }
+
+            if (p->type == cJSON_Number) {
+                sbuf_appendf(&val_sb, "%ld, ", (long)p->value);
+            } else if (p->type == cJSON_String) {
+                char *esc = sql_escape((char *)p->value);
+                sbuf_appendf(&val_sb, "'%s', ", esc);
+                free(esc);
+				free(p->value);
+            } else if (p->type == cJSON_Object) {
+                char *json = cJSON_PrintUnformatted((cJSON *)p->value);
+                char *esc  = sql_escape(json);
+                sbuf_appendf(&val_sb, "'%s', ", esc);
+                free(json);
+                free(esc);
+				cJSON_Delete((cJSON*) p->value);
+            } else {
+				sbuf_appendf(&val_sb, "NULL, ");
+			}
+			p->type = cJSON_NULL; // reset type
+
+        }
+        break;
+
+    default:
+        break;
+    }
+
+    // strcat(key, key_sb.buf);
+    // strcat(value, val_sb.buf);
+
+	sbuf_append(key, key_sb.buf);
+	sbuf_append(value, val_sb.buf);
+	log_debug("%s", key_sb.buf);
+	log_debug("%s", val_sb.buf);
+	log_debug("%s", key->buf);
+	log_debug("%s", value->buf);
+
+
+    char *ret = alter_sb.len ? nng_strdup(alter_sb.buf) : NULL;
+
+    sbuf_free(&key_sb);
+    sbuf_free(&val_sb);
+    sbuf_free(&alter_sb);
+    return ret;
+}
+
 static int 
 rule_engine_insert_sqlite(rule *rules, nng_mtx *rule_mutex, size_t i, nano_work *work,
-	bool is_first_time, bool is_need_set)
+	bool *is_first_time, bool *is_need_set)
 {
-	char sql_clause[10240] = "INSERT INTO ";
-	char key[128]         = { 0 };
-	snprintf(key, 128, "%s (", rules[i].sqlite_table);
-	char value[8000]       = "VALUES (";
+	sbuf_t key, value, sql_clause;
+    sbuf_init(&key,   256);
+    sbuf_init(&value, 512);
+    sbuf_init(&sql_clause, 1024);
+	sbuf_appendf(&key, "%s (", rules[i].sqlite_table);
+    sbuf_append(&value, "VALUES (");
+	sbuf_appendf(&sql_clause, "INSERT INTO ");
+
 	for (size_t j = 0; j < 9; j++) {
 		nng_mtx_lock(rule_mutex);
-		if (true == is_first_time) {
-			is_need_set   = true;
+		if (true == *is_first_time) {
+			*is_need_set   = true;
 		}
 		char *ret =
-		    compose_sql_clause(&rules[i],
-		        key, value, is_need_set, j, work);
+		    compose_sql_clause_new(&rules[i],
+		        &key, &value, *is_need_set, j, work);
+
 		if (ret) {
-			log_error("%s", ret);
-			log_error("%s", ret);
+			log_debug("%s", ret);
+			log_debug("%s", ret);
 			sqlite3 *sdb =
 			    (sqlite3 *) work->config
 			        ->rule_eng.rdb[0];
@@ -910,7 +1154,7 @@ rule_engine_insert_sqlite(rule *rules, nng_mtx *rule_mutex, size_t i, nano_work 
 			// FIXME: solve in a more
 			// elegant way 
 			if (rc != SQLITE_OK) {
-				fprintf(stderr, "SQL error: num %d %s\n",
+				log_error("SQL error: num %d %s\n",
 				    rc, err_msg);
 				sqlite3_free(err_msg);
 				// sqlite3_close(sdb);
@@ -921,41 +1165,46 @@ rule_engine_insert_sqlite(rule *rules, nng_mtx *rule_mutex, size_t i, nano_work 
 			ret = NULL;
 		}
 
-		if (true == is_first_time) {
-			is_first_time = false;
+		if (true == *is_first_time) {
+			*is_first_time = false;
 		}
 
 		nng_mtx_unlock(rule_mutex);
 	}
 
+	log_debug("%s", key.buf);
+	log_debug("%s", value.buf);
+
+	char *p = strrchr(key.buf, ',');
+    if (!p) return 0;
+    *p = ')';
 	
-	log_error("%s", key);
-	log_error("%s", value);
+    p = strrchr(value.buf, ',');
+    if (!p) return 0;
+    *p = ')';
 
-	char *p = strrchr(key, ',');
-	*p      = ')';
-	p       = strrchr(value, ',');
-	*p      = ')';
-	log_error("%s", key);
-	log_error("%s", value);
-	strcat(sql_clause, key);
-	strcat(sql_clause, value);
-	strcat(sql_clause, ";");
+	log_debug("%s", key.buf);
+	log_debug("%s", value.buf);
+	sbuf_append(&sql_clause, key.buf);
+	sbuf_append(&sql_clause, value.buf);
+	sbuf_append(&sql_clause, ";");
+	sbuf_free(&key);
+	sbuf_free(&value);
 
-	log_error("%s", sql_clause);
-	log_error("%s", sql_clause);
 	sqlite3 *sdb = (sqlite3 *) work->config->rule_eng.rdb[0];
 	char    *err_msg = NULL;
 	int      rc      = sqlite3_exec(
-	              sdb, sql_clause, 0, 0, &err_msg);
+	              sdb, sql_clause.buf, 0, 0, &err_msg);
+	sbuf_free(&sql_clause);
 	if (rc != SQLITE_OK) {
-		fprintf(stderr, "SQL error: %s\n",
+		log_error("SQL error: %s\n",
 		    err_msg);
 		sqlite3_free(err_msg);
 		sqlite3_close(sdb);
 
 		return 1;
 	}
+	return 0;
 }
 
 int
@@ -1051,84 +1300,11 @@ rule_engine_insert_sql(nano_work *work)
 
 #if defined(NNG_SUPP_SQLITE)
 			if (RULE_ENG_SDB & work->config->rule_eng.option && RULE_FORWORD_SQLITE == rules[i].forword_type) {
-				rule_engine_insert_sqlite(&rules[i], work->config->rule_eng.rule_mutex, i, work,
-					&is_first_time, is_need_set);
-
-				// char sql_clause[10240] = "INSERT INTO ";
-				// char key[128]         = { 0 };
-				// snprintf(key, 128, "%s (", rules[i].sqlite_table);
-				// char value[8000]       = "VALUES (";
-				// for (size_t j = 0; j < 9; j++) {
-				// 	nng_mtx_lock(rule_mutex);
-				// 	if (true == is_first_time) {
-				// 		is_need_set   = true;
-				// 	}
-				// 	char *ret =
-				// 	    compose_sql_clause(&rules[i],
-				// 	        key, value, is_need_set, j, work);
-				// 	if (ret) {
-				// 		log_error("%s", ret);
-				// 		log_error("%s", ret);
-				// 		sqlite3 *sdb =
-				// 		    (sqlite3 *) work->config
-				// 		        ->rule_eng.rdb[0];
-				// 		char *err_msg = NULL;
-				// 		int   rc      = sqlite3_exec(
-				// 		           sdb, ret, 0, 0, &err_msg);
-				// 		// FIXME: solve in a more
-				// 		// elegant way 
-				// 		if (rc != SQLITE_OK) {
-				// 			fprintf(stderr, "SQL error: num %d %s\n",
-				// 			    rc, err_msg);
-				// 			sqlite3_free(err_msg);
-				// 			// sqlite3_close(sdb);
-				// 			// return 1;
-				// 		}
-
-				// 		free(ret);
-				// 		ret = NULL;
-				// 	}
-
-				// 	if (true == is_first_time) {
-				// 		is_first_time = false;
-				// 	}
-
-				// 	nng_mtx_unlock(rule_mutex);
-				// }
-
-				
-				// log_error("%s", key);
-				// log_error("%s", value);
-
-				// char *p = strrchr(key, ',');
-				// *p      = ')';
-				// p       = strrchr(value, ',');
-				// *p      = ')';
-				// log_error("%s", key);
-				// log_error("%s", value);
-				// strcat(sql_clause, key);
-				// strcat(sql_clause, value);
-				// strcat(sql_clause, ";");
-
-				// log_error("%s", sql_clause);
-				// log_error("%s", sql_clause);
-				// sqlite3 *sdb = (sqlite3 *) work->config->rule_eng.rdb[0];
-				// char    *err_msg = NULL;
-				// int      rc      = sqlite3_exec(
-				//               sdb, sql_clause, 0, 0, &err_msg);
-				// if (rc != SQLITE_OK) {
-				// 	fprintf(stderr, "SQL error: %s\n",
-				// 	    err_msg);
-				// 	sqlite3_free(err_msg);
-				// 	sqlite3_close(sdb);
-
-				// 	return 1;
-				// }
-
+				if (rule_engine_insert_sqlite(&rules[i], work->config->rule_eng.rule_mutex, i, work, &is_first_time, &is_need_set)) {
+					return 1;
+				}
 			}
-
 #endif
-
 
 #if defined(SUPP_MYSQL)
 			if (RULE_ENG_MDB & work->config->rule_eng.option && RULE_FORWORD_MYSQL == rules[i].forword_type) {
