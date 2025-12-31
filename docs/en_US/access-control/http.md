@@ -47,6 +47,7 @@ auth {
     timeout = 5s
     connect_timeout = 5s
     pool_size = 32
+    cache_ttl = 30s
   }
   ...
 }
