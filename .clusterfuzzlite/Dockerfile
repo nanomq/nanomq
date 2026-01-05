@@ -1,17 +1,11 @@
 FROM gcr.io/oss-fuzz-base/base-builder
 
-ENV FUZZING_LANGUAGE=c++
-RUN apt-get update && apt-get install -y \
-    cmake \
-    ninja-build \
-    libssl-dev \
-    libsqlite3-dev \
-    && rm -rf /var/lib/apt/lists/*
+# NanoMQ 源码
+COPY . $SRC/nanomq
+WORKDIR $SRC/nanomq
 
-WORKDIR /src
+RUN cp .clusterfuzzlite/build.sh /src/build.sh
+RUN chmod +x /src/build.sh
 
-# Copy whole repo
-COPY . .
-
-# Build fuzzers
-RUN compile
+# 执行 clusterfuzzlite 的 build.sh
+# RUN bash .clusterfuzzlite/build.sh
