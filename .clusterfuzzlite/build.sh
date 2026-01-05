@@ -23,13 +23,9 @@ cd build
 cmake .. \
   -DCMAKE_C_COMPILER=$CC \
   -DCMAKE_CXX_COMPILER=$CXX \
-  -DENABLE_TLS=OFF \
-  -DENABLE_SQLITE=ON \
-  -DENABLE_JWT=OFF \
-  -DENABLE_HTTP=ON \
-  -DBUILD_SHARED_LIBS=OFF \
-  -DBUILD_NANOMQ=OFF \
-  -DBUILD_TESTING=OFF
+  -DBUILD_STATIC_LIB=ON \
+  -DENABLE_RULE_ENGINE=ON \
+  -DNANOMQ_TESTS=OFF
 
 make -j$(nproc)
 
@@ -41,9 +37,7 @@ cd ..
 
 FUZZ_DIR=fuzz
 LIBS=(
-  build/nng/libnng.a
   build/nanomq/libnanomq.a
-  -lsqlite3
 )
 
 for src in $FUZZ_DIR/fuzz_*.c; do
@@ -56,6 +50,7 @@ for src in $FUZZ_DIR/fuzz_*.c; do
       -Iinclude \
       -Inng/include \
       -Inanomq \
+      -Inanomq/include \
       -o $OUT/$target
 done
 

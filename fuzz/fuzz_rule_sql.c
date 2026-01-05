@@ -12,7 +12,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     buf[size] = '\0';
 
     // 只 fuzz 解析，不启动 broker
-    rule_sql_parse(buf);
+    rule_sql_parse(NULL, buf);
 
     return 0;
 }
