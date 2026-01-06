@@ -38,6 +38,7 @@ cd ..
 FUZZ_DIR=fuzz
 LIBS=(
   build/nanomq/libnanomq.a
+  build/nng/libnng.a
 )
 
 for src in $FUZZ_DIR/fuzz_*.c; do
@@ -47,6 +48,7 @@ for src in $FUZZ_DIR/fuzz_*.c; do
     $CC \
       $src \
       ${LIBS[@]} \
+      -fsanitize=fuzzer,address \
       -Iinclude \
       -Inng/include \
       -Inanomq \
