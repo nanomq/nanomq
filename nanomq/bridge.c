@@ -172,9 +172,9 @@ bridge_send_cb(void *arg)
 	log_debug("bridge to %s msg has been sent", node->address);
 	nng_mtx_lock(mtx);
 	socket = node->sock;
-	if (!node->busy)
+	if (!node->busy) {
 		if (nng_lmq_get(node->ctx_msgs, &msg) == 0) {
-			log_info("resending cached msg; %d max", nng_lmq_len(node->ctx_msgs));
+			log_info("start resending cached msg; %d max", nng_lmq_len(node->ctx_msgs));
 			nng_aio_set_msg(node->resend_aio, msg);
 			nng_aio_set_timeout(node->resend_aio, node->cancel_timeout);
 			int len = -(int)nng_msg_len(msg);
@@ -183,6 +183,9 @@ bridge_send_cb(void *arg)
 			nng_send_aio(*socket, node->resend_aio);
 			node->busy = true;
 		}
+	} else {
+		log_debug("resend aio is still busy");
+	}
 	nng_mtx_unlock(mtx);
 }
 
@@ -1457,7 +1460,7 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	uint32_t num;
 	for ( num = 0; num < config->total_ctx; num++ ) {
 		if ((rv = nng_aio_alloc(
-		         &node->bridge_aio[num], NULL, node)) != 0) {
+		         &node->bridge_aio[num], bridge_send_cb, node)) != 0) {
 			NANO_NNG_FATAL("bridge_aio nng_aio_alloc", rv);
 		} else {
 		}
