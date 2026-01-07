@@ -89,6 +89,41 @@ rest_recycle_job(rest_job *job)
 	nng_mtx_unlock(job_lock);
 }
 
+static void
+nmq_acl_cache_reset_cb(void *k, void *v, void *arg)
+{
+	conf_auth_http *conf = arg;
+	uint64_t key = *(uint64_t *)k;
+	nng_id_remove(conf->acl_cache_map, key);
+}
+
+static void
+nmq_acl_cache_reset_timer_cb(void *arg)
+{
+	conf_auth_http *conf = arg;
+	nng_mtx_lock(conf->acl_cache_mtx);
+	if (nng_id_count(conf->acl_cache_map) > 0) {
+		nng_id_map_foreach2(conf->acl_cache_map, nmq_acl_cache_reset_cb, arg);
+	}
+	nng_mtx_unlock(conf->acl_cache_mtx);
+
+	nng_sleep_aio(conf->cache_ttl * 1000, conf->acl_cache_reset_aio);
+}
+
+static int
+nmq_acl_cache_init(conf_auth_http *conf)
+{
+	int rv = 0;
+	rv = nng_id_map_alloc(&conf->acl_cache_map, 0, 0xffff, false);
+	if (rv != 0)
+		return rv;
+	rv = nng_aio_alloc(&conf->acl_cache_reset_aio, nmq_acl_cache_reset_timer_cb, conf);
+	if (rv != 0)
+		return rv;
+	nng_sleep_aio(conf->cache_ttl * 1000, conf->acl_cache_reset_aio);
+	return rv;
+}
+
 static rest_job *
 rest_get_job(void)
 {
@@ -509,6 +544,17 @@ start_rest_server(conf *conf)
 	log_info(REST_URL, addr, port);
 	rest_start(port, addr, conf);
 
+	// Init ACL Cache hash map
+	conf_auth_http *auth_http = &conf->auth_http;
+	nng_mtx_lock(auth_http->acl_cache_mtx);
+	if (!auth_http->acl_cache_map && auth_http->cache_ttl > 0) {
+		int rv = nmq_acl_cache_init(auth_http);
+		log_info("ACL Cache was started, interval %ds, rv%d", auth_http->cache_ttl, rv);
+		if (rv != 0) {
+			log_error("ACL Cache init failed");
+		}
+	}
+	nng_mtx_unlock(auth_http->acl_cache_mtx);
 	return rv;
 }
 
