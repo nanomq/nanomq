@@ -118,8 +118,11 @@ nmq_acl_cache_init(conf_auth_http *conf)
 	if (rv != 0)
 		return rv;
 	rv = nng_aio_alloc(&conf->acl_cache_reset_aio, nmq_acl_cache_reset_timer_cb, conf);
-	if (rv != 0)
+	if (rv != 0) {
+		nng_id_map_free(conf->acl_cache_map);
+		conf->acl_cache_map = NULL;
 		return rv;
+	}
 	nng_sleep_aio(conf->cache_ttl * 1000, conf->acl_cache_reset_aio);
 	return rv;
 }
@@ -548,9 +551,9 @@ start_rest_server(conf *conf)
 	conf_auth_http *auth_http = &conf->auth_http;
 	nng_mtx_lock(auth_http->acl_cache_mtx);
 	if (!auth_http->acl_cache_map && auth_http->cache_ttl > 0) {
-		int rv = nmq_acl_cache_init(auth_http);
-		log_info("ACL Cache was started, interval %ds, rv%d", auth_http->cache_ttl, rv);
-		if (rv != 0) {
+		int acl_rv = nmq_acl_cache_init(auth_http);
+		log_info("ACL Cache was started, interval %ds, rv%d", auth_http->cache_ttl, acl_rv);
+		if (acl_rv != 0) {
 			log_error("ACL Cache init failed");
 		}
 	}
