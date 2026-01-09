@@ -25,6 +25,7 @@ cmake .. \
   -DCMAKE_CXX_COMPILER=$CXX \
   -DBUILD_STATIC_LIB=ON \
   -DENABLE_RULE_ENGINE=ON \
+  -DENABLE_ACL=ON \
   -DNANOMQ_TESTS=OFF
 
 make -j$(nproc)
@@ -41,6 +42,14 @@ LIBS=(
   build/nng/libnng.a
 )
 
+INCLUDES=(
+  -Inanomq
+  -Inanomq/include
+  -Inng/include
+  -Inng/src/core
+  -Inng/src/supplemental
+)
+
 for src in $FUZZ_DIR/fuzz_*.c; do
     target=$(basename "$src" .c)
     echo "Building fuzz target: $target"
@@ -49,10 +58,7 @@ for src in $FUZZ_DIR/fuzz_*.c; do
       $src \
       ${LIBS[@]} \
       -fsanitize=fuzzer,address \
-      -Iinclude \
-      -Inng/include \
-      -Inanomq \
-      -Inanomq/include \
+      ${INCLUDES[@]} \
       -o $OUT/$target
 done
 
