@@ -62,7 +62,7 @@ apply_sqlite_config(
 		NANO_NNG_FATAL("Initializing SQLite with nng_mqtt_alloc_sqlite_opt", rv);
 	}
 
-	nng_mqtt_set_sqlite_conf(opt, config);
+	nng_mqtt_set_sqlite_conf(opt, config, config->name);
 	// init sqlite db
 	nng_mqtt_sqlite_db_init(opt, db_name);
 
@@ -137,7 +137,6 @@ bridge_resend_cb(void *arg)
 	nng_socket       *socket;
 	if (nng_aio_result(node->resend_aio) == NNG_ECLOSED) {
 		log_warn("Stop resending while disconnected!");
-		node->busy = false;
 		return;
 	}
 	nng_mtx_lock(mtx);
