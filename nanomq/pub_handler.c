@@ -1538,7 +1538,8 @@ static void inline handle_pub_retain(nano_work *work, char *topic)
 			// Dont set Sub retain, which is preserved for differing bridging retain msg
 			char tsbuf[32]; sprintf(tsbuf, "%ld", nng_timestamp());
 			char *ts  = strdup(tsbuf);
-			char *cid = strdup(conn_param_get_clientid(work->cparam));
+			char *cid = nng_strndup(conn_param_get_clientid(work->cparam),
+									conn_param_get_clientid_len(work->cparam));
 			old_ret = dbtree_insert_retain(work->db_ret, topic, ret, cid, ts);
 		} else {
 			log_debug("delete retain message");
