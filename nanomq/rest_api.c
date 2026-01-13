@@ -1291,9 +1291,9 @@ get_client_cb(void *key, void *value, void *json_obj)
 	nng_pipe       pipe    = { .id = pipe_id };
 	bool           status  = nng_pipe_status(pipe);
 	conn_param    *cp      = nng_pipe_cparam(pipe);
-	const uint8_t *cid     = conn_param_get_clientid(cp);
+	const char    *cid     = conn_param_get_clientid(cp);
 	if (info->client_id != NULL) {
-		if (strcmp(info->client_id, (const char *) cid) != 0) {
+		if (strcmp(info->client_id, cid) != 0) {
 			conn_param_free(cp);
 			return;
 		}
@@ -1352,7 +1352,7 @@ get_metric_cb(void *key, void *value, void *stats)
 	bool           status  = nng_pipe_status(pipe);
 
 	conn_param    *cp      = nng_pipe_cparam(pipe);
-	const uint8_t *cid     = conn_param_get_clientid(cp);
+	const char    *cid     = conn_param_get_clientid(cp);
 	if (!status) s->connections++;
 
 	conn_param_free(cp);
@@ -2883,7 +2883,7 @@ get_client_info_cb(uint32_t pid)
 
 	nng_pipe       pipe     = { .id = pid };
 	conn_param    *cp       = nng_pipe_cparam(pipe);
-	const uint8_t *clientid = conn_param_get_clientid(cp);
+	const char    *clientid = conn_param_get_clientid(cp);
 	conn_param_free(cp);
 	return (void *) clientid;
 }
