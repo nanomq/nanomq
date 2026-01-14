@@ -62,7 +62,7 @@ apply_sqlite_config(
 		NANO_NNG_FATAL("Initializing SQLite with nng_mqtt_alloc_sqlite_opt", rv);
 	}
 
-	nng_mqtt_set_sqlite_conf(opt, config, config->name);
+	nng_mqtt_set_sqlite_conf(opt, config, config->name, config->proto_ver, config->sqlite);
 	// init sqlite db
 	nng_mqtt_sqlite_db_init(opt, db_name);
 
