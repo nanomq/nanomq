@@ -197,6 +197,17 @@
       ]
     },
     {
+      "title": "QUIC相关",
+      "path": "quic/introduction",
+      "collapsed": true,
+      "children": [
+        {
+          "title": "MQTT over QUIC 产品说明",
+          "path": "quic/quic-doc"
+        }
+      ]
+    },
+    {
       "title": "测试报告",
       "path": "test-report"
     },
@@ -429,6 +440,17 @@
         {
           "title": "HTTP-API (v1)",
           "path": "api/v1"
+        }
+      ]
+    },
+    {
+      "title": "QUIC",
+      "path": "quic/introduction",
+      "collapsed": true,
+      "children": [
+        {
+          "title": "MQTT over QUIC – Product Overview",
+          "path": "quic/quic-doc"
         }
       ]
     },
