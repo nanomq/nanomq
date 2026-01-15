@@ -458,7 +458,7 @@ static http_msg put_mqtt_bridge(http_msg *msg, const char *name);
 static http_msg put_mqtt_bridge_switch(http_msg *msg, const char *name);
 static http_msg post_mqtt_bridge_sub(http_msg *msg, const char *name);
 static http_msg post_mqtt_bridge_unsub(http_msg *msg, const char *name);
-static http_msg post_license_update(http_msg *msg);
+static http_msg post_license_update(http_msg *msg, nng_socket *broker_sock);
 static http_msg get_logs_latest(http_msg *msg, kv **params, size_t param_num);
 static http_msg get_logs_full(http_msg *msg, kv **params, size_t param_num);
 static http_msg get_platform_infos(http_msg *msg);
@@ -1139,7 +1139,7 @@ process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 		    uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "license") == 0 &&
 		    strcmp(uri_ct->sub_tree[2]->node, "update") == 0) {
-			ret = post_license_update(msg);
+			ret = post_license_update(msg, hconfig->broker_sock);
 		} else if (uri_ct->sub_count == 3 &&
 		    uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "tools") == 0 &&
@@ -4475,7 +4475,7 @@ parse_formdata_file(char *data, int len, int *retlen)
 }
 
 static http_msg
-post_license_update(http_msg *msg)
+post_license_update(http_msg *msg, nng_socket *broker_sock)
 {
 	http_msg res = { .status = NNG_HTTP_STATUS_OK };
 	int rv;
@@ -4483,6 +4483,11 @@ post_license_update(http_msg *msg)
 	char *lic_path;
 	char *body;
 	//log_info("http request(%d)[%.*s]\n", msg->data_len, msg->data_len, msg->data);
+	if (!broker_sock) {
+		log_error("Failed to access Broker socket");
+		res.status = NNG_HTTP_STATUS_BAD_REQUEST;
+		return res;
+	}
 
 #if defined(SUPP_LICENSE_STD)
 	if (msg->data_len == 0) {
@@ -4507,6 +4512,7 @@ post_license_update(http_msg *msg)
 		put_http_msg(&res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
 		return res;
 	}
+	nng_socket_set_bool(*broker_sock, NMQ_OPT_LIC_VALID, lic_std_valid());
 	if ((lic_path = lic_std_path()) != NULL) {
 		if ((rv = nng_file_put(lic_path, body, body_len)) == 0) {
 			log_info("lic is updated %s", body);

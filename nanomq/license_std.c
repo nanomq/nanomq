@@ -28,6 +28,7 @@ struct lic_std {
 	char name[129];
 	char email[129];
 	char dc[129]; // deployment code // unavailable in STD mode
+	bool valid;
 
 	int   args_sz;
 	char *args;
@@ -235,6 +236,7 @@ split_lic_args(const char *lic_args, int lic_args_sz, struct lic_std *lic)
 	lic->vd = atoi(args[7]);
 	lic->et = lic->st + lic->vd*24*60*60;
 	ts2date(lic->et, lic->et_str);
+	lic->valid = true;
 	lic->lc = atoi(args[8]);
 	printf("lic: license type:%s name:%s email:%s dc:%s valid:%lld-%lld lc:%d\n",
 			lic->ltype, lic->name, lic->email, lic->dc, lic->st, lic->et, lic->lc);
@@ -408,7 +410,17 @@ lic_std_lc()
 	return lc;
 }
 
-int
+bool
+lic_std_valid()
+{
+	bool valid = true;
+	nng_mtx_lock(g_lic_mtx);
+	valid = g_lic->valid;
+	nng_mtx_unlock(g_lic_mtx);
+	return valid;
+}
+
+static int
 lic_std_try_update(uint32_t addon, lic_std *lic)
 {
 	g_uptime += addon;
@@ -418,10 +430,12 @@ lic_std_try_update(uint32_t addon, lic_std *lic)
 			now/1000, lic->et, g_uptime, lic->vd*24*60*60);
 	if (now > lic->et * 1000) {
 		log_error("LICENSE EXPIRED! %ld//%ld", now/1000, lic->et);
+		lic->valid = false;
 		return NNG_ETIMEDOUT;
 	}
 	if (g_uptime > lic->vd*24*60*60) {
 		log_error("LICENSE EXPIRED! %ld/%ld", g_uptime, lic->vd*24*60*60);
+		lic->valid = false;
 		return NNG_ETIMEDOUT;
 	}
 	return 0;
@@ -439,11 +453,13 @@ lic_std_update(uint32_t addon)
 			now/1000, g_lic->et, g_uptime, g_lic->vd*24*60*60);
 	if (now > g_lic->et * 1000) {
 		log_error("LICENSE EXPIRED! %ld//%ld", now/1000, g_lic->et);
+		g_lic->valid = false;
 		nng_mtx_unlock(g_lic_mtx);
 		return NNG_ETIMEDOUT;
 	}
 	if (g_uptime > g_lic->vd*24*60*60) {
 		log_error("LICENSE EXPIRED! %ld/%ld", g_uptime, g_lic->vd*24*60*60);
+		g_lic->valid = false;
 		nng_mtx_unlock(g_lic_mtx);
 		return NNG_ETIMEDOUT;
 	}
@@ -491,8 +507,8 @@ lic_std_info(char **info)
 		return NNG_ECLOSED;
 	}
 	char *buf = nng_alloc(sizeof(char) * (5*128+8+4+120)); // name email st et dc + ltype + lc + spaces
-	sprintf(buf, "{\"name\":\"%s\",\"email\":\"%s\",\"start\":\"%lld\",\"end\":\"%lld\",\"dc\":\"%s\",\"type\":\"%s\", \"lc\":\"%d\"}",
-		g_lic->name, g_lic->email, g_lic->st, g_lic->et, g_lic->dc, g_lic->ltype, g_lic->lc);
+	sprintf(buf, "{\"name\":\"%s\",\"email\":\"%s\",\"start\":\"%lld\",\"end\":\"%lld\",\"dc\":\"%s\",\"type\":\"%s\", \"lc\":\"%d\", \"valid\":\"%d\"}",
+		g_lic->name, g_lic->email, g_lic->st, g_lic->et, g_lic->dc, g_lic->ltype, g_lic->lc, g_lic->valid);
 
 	*info = buf;
 	nng_mtx_unlock(g_lic_mtx);

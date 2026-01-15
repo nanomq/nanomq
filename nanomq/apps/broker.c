@@ -1550,7 +1550,7 @@ broker(conf *nanomq_conf)
 		if ((license_tick %= 120) == 0) {
 			if (0 != (rv = lic_std_update(120))) {
 				printf("lic: license std error rv%d\n", rv);
-				exit(0);
+				nng_socket_set_bool(sock, NMQ_OPT_LIC_VALID, lic_std_valid());
 			}
 		}
 #endif
@@ -1578,7 +1578,7 @@ broker(conf *nanomq_conf)
 			if ((license_tick %= 600) == 0) {
 				if (0 != (rv = lic_std_update(600))) {
 					printf("lic: license std error rv%d\n", rv);
-					exit(0);
+					nng_socket_set_bool(sock, NMQ_OPT_LIC_VALID, lic_std_valid());
 				}
 			}
 #endif
