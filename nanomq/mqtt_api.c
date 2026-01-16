@@ -10,7 +10,6 @@
 #include <winsock.h>
 #else
 #include <unistd.h>
-#include <arpa/inet.h>
 #endif
 
 #include "mqtt_api.h"
@@ -309,32 +308,6 @@ nano_pipe_get_local_address6(nng_pipe p)
 	memcpy(res, arr, 16);
 
 	return res;
-}
-
-uint16_t
-nano_pipe_get_local_port(nng_pipe p)
-{
-	int           rv;
-	nng_sockaddr  addr;
-
-	rv = nng_pipe_get_addr(p, NNG_OPT_LOCADDR, &addr);
-	if (rv != 0)
-		return 0;
-
-	return htons(addr.s_in.sa_port);
-}
-
-uint16_t
-nano_pipe_get_local_port6(nng_pipe p)
-{
-	int           rv;
-	nng_sockaddr  addr;
-
-	rv = nng_pipe_get_addr(p, NNG_OPT_LOCADDR, &addr);
-	if (rv != 0)
-		return 0;
-
-	return htons(addr.s_in6.sa_port);
 }
 
 #if defined(SUPP_ICEORYX)
