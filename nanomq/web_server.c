@@ -23,7 +23,6 @@
 #include "include/rest_api.h"
 #include "include/mqtt_api.h"
 #include "include/web_server.h"
-// #include "utils/log.h"
 
 typedef enum {
 	SEND_REQ, // Sending REQ request
@@ -89,7 +88,7 @@ rest_recycle_job(rest_job *job)
 	nng_mtx_unlock(job_lock);
 }
 
-static void
+void
 nmq_acl_cache_reset_cb(void *k, void *v, void *arg)
 {
 	conf_auth_http *conf = arg;
@@ -97,7 +96,7 @@ nmq_acl_cache_reset_cb(void *k, void *v, void *arg)
 	nng_id_remove(conf->acl_cache_map, key);
 }
 
-static void
+void
 nmq_acl_cache_reset_timer_cb(void *arg)
 {
 	conf_auth_http *conf = arg;
@@ -110,7 +109,7 @@ nmq_acl_cache_reset_timer_cb(void *arg)
 	nng_sleep_aio(conf->cache_ttl * 1000, conf->acl_cache_reset_aio);
 }
 
-static int
+int
 nmq_acl_cache_init(conf_auth_http *conf)
 {
 	int rv = 0;
@@ -127,7 +126,7 @@ nmq_acl_cache_init(conf_auth_http *conf)
 	return rv;
 }
 
-static int
+static void
 nmq_acl_cache_finit(conf_auth_http *conf)
 {
 	if (nng_id_count(conf->acl_cache_map) > 0) {
