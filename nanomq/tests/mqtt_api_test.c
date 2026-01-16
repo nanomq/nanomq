@@ -9,6 +9,7 @@
 
 #include "include/mqtt_api.h"
 #include "nng/supplemental/nanolib/log.h"
+#include "nng/supplemental/nanolib/utils.h"
 #include "tests_api.h"
 
 static conf_log *

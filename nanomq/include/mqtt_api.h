@@ -23,8 +23,6 @@ extern int log_fini(conf_log *log);
 
 extern char *nano_pipe_get_local_address(nng_pipe p);
 extern uint8_t *nano_pipe_get_local_address6(nng_pipe p);
-extern uint16_t nano_pipe_get_local_port(nng_pipe p);
-extern uint16_t nano_pipe_get_local_port6(nng_pipe p);
 
 #if defined(SUPP_ICEORYX)
 #include "nng/iceoryx_shm/iceoryx_shm.h"
