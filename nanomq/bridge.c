@@ -17,6 +17,7 @@
 
 #ifdef SUPP_QUIC
 #include "nng/mqtt/mqtt_quic_client.h"
+#include "nng/supplemental/nanolib/utils.h"
 #endif
 
 #ifdef NNG_SUPP_TLS
