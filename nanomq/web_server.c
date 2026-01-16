@@ -127,6 +127,17 @@ nmq_acl_cache_init(conf_auth_http *conf)
 	return rv;
 }
 
+static int
+nmq_acl_cache_finit(conf_auth_http *conf)
+{
+	if (nng_id_count(conf->acl_cache_map) > 0) {
+		nng_id_map_foreach2(conf->acl_cache_map, nmq_acl_cache_reset_cb, conf);
+	}
+	nng_id_map_free(conf->acl_cache_map);
+	nng_aio_stop(conf->acl_cache_reset_aio);
+	nng_aio_free(conf->acl_cache_reset_aio);
+}
+
 static rest_job *
 rest_get_job(void)
 {
@@ -567,5 +578,6 @@ stop_rest_server(void)
 	conf *config;
 	nng_thread_destroy(inproc_thr);
 	config = get_global_conf();
+	nmq_acl_cache_finit(&config->auth_http);
 	nng_mtx_free(config->restapi_lk);
 }
