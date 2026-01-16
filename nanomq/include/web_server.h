@@ -33,4 +33,11 @@ extern void     set_global_conf(conf *config);
 extern conf *   get_global_conf(void);
 extern char *   get_jwt_key(void);
 extern nng_time get_boot_time(void);
+
+void nmq_acl_cache_reset_cb(void *k, void *v, void *arg);
+
+void nmq_acl_cache_reset_timer_cb(void *arg);
+
+int nmq_acl_cache_init(conf_auth_http *conf);
+
 #endif
