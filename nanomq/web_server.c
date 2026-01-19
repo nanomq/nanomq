@@ -129,11 +129,14 @@ nmq_acl_cache_init(conf_auth_http *conf)
 static void
 nmq_acl_cache_finit(conf_auth_http *conf)
 {
+	nng_aio_stop(conf->acl_cache_reset_aio);
+	nng_mtx_lock(conf->acl_cache_mtx);
 	if (nng_id_count(conf->acl_cache_map) > 0) {
 		nng_id_map_foreach2(conf->acl_cache_map, nmq_acl_cache_reset_cb, conf);
 	}
+	nng_mtx_unlock(conf->acl_cache_mtx);
 	nng_id_map_free(conf->acl_cache_map);
-	nng_aio_stop(conf->acl_cache_reset_aio);
+
 	nng_aio_free(conf->acl_cache_reset_aio);
 }
 
