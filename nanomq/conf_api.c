@@ -214,11 +214,10 @@ get_user_properties(conf_user_property **up, size_t count)
 }
 
 static void
-add_time_field(cJSON *obj, const char *key, uint64_t second)
+add_time_field(cJSON *obj, const char *key, uint64_t n, const char *unit)
 {
 	char time[100] = { 0 };
-	snprintf(time, 100, "%zus", second);
-	//FIXME It's more reasonable to use 'ms' .
+	snprintf(time, 100, "%zu%s", n, unit);
 	cJSON_AddStringToObject(obj, key, time);
 }
 
@@ -233,7 +232,7 @@ get_bridge_connector(conf_bridge_node *node)
 	cJSON_AddBoolToObject(connector, "clean_start", node->clean_start);
 	cJSON_AddStringOrNullToObject(connector, "username", node->username);
 	cJSON_AddStringOrNullToObject(connector, "password", node->password);
-	add_time_field(connector, "keepalive", (uint64_t)node->keepalive);
+	add_time_field(connector, "keepalive", (uint64_t)node->keepalive, "s");
 
 	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 		if (node->conn_properties != NULL) {
@@ -332,20 +331,20 @@ static void
 add_bridge_quic(cJSON *obj, conf_bridge_node *node)
 {
 #if defined(SUPP_QUIC)
-	add_time_field(obj, "quic_keepalive", node->qkeepalive);
+	add_time_field(obj, "quic_keepalive", node->qkeepalive, "s");
 	
 	add_time_field(
-	    obj, "quic_idle_timeout", (uint64_t)node->qidle_timeout);
+	    obj, "quic_idle_timeout", (uint64_t)node->qidle_timeout, "s");
 	add_time_field(
-	    obj, "quic_discon_timeout", (uint64_t)node->qdiscon_timeout);
+	    obj, "quic_discon_timeout", (uint64_t)node->qdiscon_timeout, "s");
 	// add_time_field(
 	//     obj, "quic_handshake_timeout", node->quic_handshake_timeout);
 	add_time_field(
-	    obj, "quic_send_idle_timeout", (uint64_t)node->qsend_idle_timeout);
+	    obj, "quic_send_idle_timeout", (uint64_t)node->qsend_idle_timeout, "s");
 	add_time_field(
-	    obj, "quic_initial_rtt_ms", (uint64_t)node->qinitial_rtt_ms);
+	    obj, "quic_initial_rtt_ms", (uint64_t)node->qinitial_rtt_ms, "ms");
 	add_time_field(
-	    obj, "quic_max_ack_delay_ms", (uint64_t)node->qmax_ack_delay_ms);
+	    obj, "quic_max_ack_delay_ms", (uint64_t)node->qmax_ack_delay_ms, "ms");
 	cJSON_AddBoolToObject(obj, "quic_multi_stream", node->multi_stream);
 	cJSON_AddBoolToObject(obj, "hybrid_bridging", node->hybrid);
 	cJSON_AddBoolToObject(obj, "quic_qos_priority", node->qos_first);
@@ -480,6 +479,7 @@ set_reload_config(cJSON *json, conf *config)
 		bool enable_mqtt_stream_before = config->parquet.enable;
 		// Update first. Is error happened in follow codes. revert.
 		update_var(config->parquet.enable, enable_mqtt_stream);
+		log_info("Parquet & MQ service %d", enable_mqtt_stream);
 
 		if (enable_mqtt_stream_before == true &&
 		    enable_mqtt_stream == false) {
