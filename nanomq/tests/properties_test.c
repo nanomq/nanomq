@@ -28,7 +28,7 @@ main()
 	                " -D PUBLISH content-type ct"
 	                " -D PUBLISH correlation-data 010101"
 	                " -D PUBLISH message-expiry-interval 32"
-	                " -D PUBLISH payload-format-indicator 8"
+	                " -D PUBLISH payload-format-indicator 1"
 	                " -D PUBLISH response-topic response-t"
 	                " -D PUBLISH topic-alias 16"
 	                " -D PUBLISH user-property p-up-n p-up-v"
@@ -37,7 +37,7 @@ main()
 	                " -D WILL content-type ct-tp"
 	                " -D WILL correlation-data 0100101"
 	                " -D WILL message-expiry-interval 32"
-	                " -D WILL payload-format-indicator 8"
+	                " -D WILL payload-format-indicator 1"
 	                " -D WILL response-topic resp-tp"
 	                " -D WILL user-property w-up-n w-up-v"
 	                " -D WILL will-delay-interval 32";
@@ -70,8 +70,8 @@ main()
 	pid_sub = popen_with_cmd(&outfp, arg, "/bin/mosquitto_sub");
 	nng_msleep(1000); // pub should be slightly behind sub
 
-	// pipe to pub
-	p_pub   = popen(cmd_pub, "r");
+	// pipe to pub (normal case)
+	p_pub = popen(cmd_pub, "r");
 
 	// check recv msg
 	nng_msleep(2000);
