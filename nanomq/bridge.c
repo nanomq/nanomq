@@ -1048,6 +1048,7 @@ bridge_quic_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 	}
 
 	apply_sqlite_config(sock, node, "mqtt_quic_client.db");
+	nng_socket_set_string(*sock, NNG_OPT_SOCKNAME, node->name);
 
 	if ((rv = nng_dialer_create(dialer, *sock, node->address))) {
 		log_error("nng_dialer_create failed %d", rv);
