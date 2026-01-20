@@ -720,7 +720,7 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 			port            = port == NULL ? "8883" : port;
 			break;
 		case OPT_QUIC:
-			opt->enable_ssl = true;
+			opt->enable_ssl = false;
 			proto           = "mqtt-quic";
 			port            = port == NULL ? "14567" : port;
 			break;
@@ -786,7 +786,6 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 	port = port == NULL ? "1883" : port;
 	snprintf(addr, 128, "%s://%s:%s", proto, host, port);
 	opt->url = nng_strdup(addr);
-
 
 	switch (opt->type) {
 	case PUB:
@@ -1343,7 +1342,6 @@ client_cb(void *arg)
 				nng_sleep_aio(work->opts->interval, work->aio);
 			} else {
 				nng_socket_close(*work->sock);
-				nng_closeall();
 				exit(1);
 			}
 		}
