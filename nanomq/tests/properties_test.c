@@ -72,6 +72,7 @@ main()
 
 	// pipe to pub (normal case)
 	p_pub = popen(cmd_pub, "r");
+	assert(p_pub != NULL);
 
 	// check recv msg
 	nng_msleep(2000);
