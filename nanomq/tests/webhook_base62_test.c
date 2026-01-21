@@ -7,7 +7,7 @@ static int cnt = 0;
 static nng_mtx *cnt_mtx = NULL;
 
 #define TEST_PAYLOAD "messagei+/"
-#define EXPECTED_ENCODED "bWVzc2FnZWkrLw" 
+#define EXPECTED_ENCODED "2a7oZkl5ty6sG7"
 
 // --- Helper: HTTP Server Callback ---
 static void

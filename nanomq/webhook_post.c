@@ -105,7 +105,6 @@ base62_encode(const unsigned char *in, unsigned int inlen, char *out)
     // if you prefer the Inverted style, but this is the most common.
     const char *alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
-	printf("Base62 Encoding Input Length: %u\n", inlen);
     if (inlen == 0 || out == NULL) {
         return 0;
     }
