@@ -1276,6 +1276,7 @@ broker(conf *nanomq_conf)
 #if defined(SUPP_LICENSE_DK) || defined(SUPP_LICENSE_STD)
 		nng_socket_set_uint64(sock, NMQ_OPT_MAX_CLIENTS,
 			lic_std_lc());
+		nng_socket_set_bool(sock, NMQ_OPT_LIC_VALID, lic_std_valid());
 #endif
 	}
 
