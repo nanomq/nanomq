@@ -27,12 +27,16 @@ static bool event_filter(conf_web_hook *hook_conf, webhook_event event);
 static bool event_filter_with_topic(
     conf_web_hook *hook_conf, webhook_event event, const char *topic);
 static void         set_char(char *out, unsigned int *index, char c);
-static unsigned int base62_encode(
+static unsigned int base64_no_padding_encode(
     const unsigned char *in, unsigned int inlen, char *out);
 
 static int flush_smsg_to_disk(nng_msg **smsg, size_t len, void *handle, nng_aio *aio, char *topic);
 
-#define BASE62_ENCODE_OUT_SIZE(s) ((unsigned int) ((((s) * 8) / 6) + 2))
+#define BASE64_NO_PADDING_ENCODE_OUT_SIZE(s) ((unsigned int) ((((s) * 8) / 6) + 2))
+
+// Base62 expansion factor: log2(256) / log2(62) ≈ 1.343
+// We use 1.35 to be safe, plus margin for null terminator.
+#define BASE62_ENCODE_OUT_SIZE(s) ((unsigned int) (((s) * 135) / 100) + 4)
 
 static bool
 event_filter(conf_web_hook *hook_conf, webhook_event event)
@@ -92,8 +96,80 @@ set_char(char *out, unsigned int *index, char c)
 	*index = idx;
 }
 
+
 static unsigned int
 base62_encode(const unsigned char *in, unsigned int inlen, char *out)
+{
+    // Standard GMP-style alphabet (0-9, A-Z, a-z)
+    // You can swap this string to "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+    // if you prefer the Inverted style, but this is the most common.
+    const char *alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+
+	printf("Base62 Encoding Input Length: %u\n", inlen);
+    if (inlen == 0 || out == NULL) {
+        return 0;
+    }
+
+    // 1. Count leading zeros (to preserve them in encoding if desired,
+    // similar to Base58. If purely numerical, you can skip this).
+    // For general payloads, preserving leading zeros is usually safer.
+    unsigned int zeros = 0;
+    while (zeros < inlen && in[zeros] == 0) {
+        zeros++;
+    }
+
+    // 2. Create a mutable copy of the input for division
+    // We allocate on heap because stack size might be limited for large payloads
+    unsigned char *tmp = nng_alloc(inlen);
+    if (tmp == NULL) {
+        return 0;
+    }
+    memcpy(tmp, in, inlen);
+
+    unsigned int out_idx = 0;
+    unsigned int start_idx = zeros;
+
+    // 3. Perform Repeated Division by 62
+    while (start_idx < inlen) {
+        unsigned int remainder = 0;
+
+        // Divide the "Big Integer" represented by tmp by 62
+        for (unsigned int i = start_idx; i < inlen; i++) {
+            unsigned int dividend = (remainder << 8) | tmp[i];
+            tmp[i] = (unsigned char)(dividend / 62);
+            remainder = dividend % 62;
+        }
+
+        // The remainder is the next Base62 digit (Least Significant first)
+        out[out_idx++] = alphabet[remainder];
+
+        // Update start_idx to skip newly created leading zeros in tmp
+        while (start_idx < inlen && tmp[start_idx] == 0) {
+            start_idx++;
+        }
+    }
+
+    // 4. Add preserved leading zeros (mapped to the first char of alphabet '0')
+    // This is optional but recommended for binary data restoration.
+    for (unsigned int i = 0; i < zeros; i++) {
+        out[out_idx++] = alphabet[0];
+    }
+
+    // 5. Reverse the string (We generated LSD first)
+    for (unsigned int i = 0; i < out_idx / 2; i++) {
+        char t = out[i];
+        out[i] = out[out_idx - 1 - i];
+        out[out_idx - 1 - i] = t;
+    }
+
+    out[out_idx] = '\0'; // Null terminate
+
+    nng_free(tmp, inlen);
+    return out_idx;
+}
+
+static unsigned int
+base64_no_padding_encode(const unsigned char *in, unsigned int inlen, char *out)
 {
 	unsigned int i;
 	unsigned int j;
@@ -162,10 +238,10 @@ webhook_msg_publish(nng_socket *sock, conf_web_hook *hook_conf,
 		}
 		nng_strfree(encode);
 		break;
-	case base62:
-		out_size = BASE62_ENCODE_OUT_SIZE(pub_packet->payload.len);
+	case base64_no_padding:
+		out_size = BASE64_NO_PADDING_ENCODE_OUT_SIZE(pub_packet->payload.len);
 		encode   = nng_zalloc(out_size);
-		len      = base62_encode(
+		len      = base64_no_padding_encode(
 		         pub_packet->payload.data, pub_packet->payload.len, encode);
 		if (len > 0) {
 			cJSON_AddStringToObject(obj, "payload", encode);
@@ -174,6 +250,24 @@ webhook_msg_publish(nng_socket *sock, conf_web_hook *hook_conf,
 		}
 		nng_strfree(encode);
 		break;
+	case base62:
+        // Use the new mathematical macro
+        out_size = BASE62_ENCODE_OUT_SIZE(pub_packet->payload.len);
+        encode   = nng_zalloc(out_size);
+        len = base62_encode(
+                 pub_packet->payload.data, pub_packet->payload.len, encode);
+        if (len > 0) {
+            cJSON_AddStringToObject(obj, "payload", encode);
+        } else {
+            // Handle empty payload or alloc failure
+            if (pub_packet->payload.len == 0) {
+                 cJSON_AddStringToObject(obj, "payload", "");
+            } else {
+                 cJSON_AddNullToObject(obj, "payload");
+            }
+        }
+        nng_strfree(encode);
+        break;
 
 	default:
 		break;
