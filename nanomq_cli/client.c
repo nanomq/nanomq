@@ -1223,6 +1223,7 @@ init_dialer_quic(nng_dialer dialer, const char *cafile, const char *certfile,
 		fatal("Error in updating NNG_OPT_QUIC_TLS_VERIFY_PEER %d", verify_peer);
 		return NNG_EINVAL;
 	}
+	return 0;
 }
 #endif
 
