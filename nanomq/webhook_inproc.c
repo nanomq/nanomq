@@ -385,6 +385,7 @@ hook_work_cb(void *arg)
 	struct hook_work *work = arg;
 	int               rv;
 	char *            body;
+	size_t            body_len;
 	conf_exchange *   exconf = work->exchange;
 	conf_parquet *    parquetconf = work->parquet;
 	nng_msg *         msg;
@@ -407,11 +408,12 @@ hook_work_cb(void *arg)
 
 		msg = work->msg;
 		body = (char *) nng_msg_body(msg);
+		body_len = nng_msg_len(msg);
 
 		root = NULL;
 		// TODO Not efficent
 		// Only parse msg when exchange is enabled
-		root = cJSON_Parse(body);
+		root = cJSON_ParseWithLength(body, body_len);
 		if (!root) {
 			// not a json
 			nng_msg_free(msg);
@@ -472,8 +474,14 @@ hook_work_cb(void *arg)
 		nng_socket *ex_sock = exconf->nodes[0]->sock;
 
 		body = (char *) nng_msg_body(msg);
+		body_len = nng_msg_len(msg);
 
-		root = cJSON_Parse(body);
+		root = cJSON_ParseWithLength(body, body_len);
+		if (!root) {
+			log_warn("Invalid json msg");
+			nng_msg_free(msg);
+			goto skip;
+		}
 		cJSON *cmdjo = cJSON_GetObjectItem(root,"cmd");
 		char *cmdstr = NULL;
 		if (cmdjo)
@@ -492,6 +500,8 @@ hook_work_cb(void *arg)
 				nng_msg_alloc(&m, 0);
 				if (!m) {
 					log_error("Error in alloc memory");
+					nng_msg_free(msg);
+					cJSON_Delete(root);
 					goto skip;
 				}
 
@@ -518,7 +528,9 @@ hook_work_cb(void *arg)
 						nng_msg_free(msgs_res[i]);
 				}
 				nng_free(msgs_res, sizeof(nng_msg *) * msgs_len);
-	
+
+				nng_msg_free(msg);
+				cJSON_Delete(root);
 				goto skip;
 			} else {
 				log_warn("Invalid cmd");
@@ -528,6 +540,8 @@ hook_work_cb(void *arg)
 			}
 		} else {
 			log_warn("No cmd field found in json msg");
+			nng_msg_free(msg);
+			cJSON_Delete(root);
 			goto skip;
 		}
 
