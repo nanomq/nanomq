@@ -1,9 +1,12 @@
 [submodule "nanonng"]
 	path = nng
 	url = https://github.com/nanomq/NanoNNG.git
+	shallow = true
 [submodule "extern/l8w8jwt"]
 	path = extern/l8w8jwt
 	url = https://github.com/GlitchedPolygons/l8w8jwt.git
+	shallow = true
 [submodule "nanomq_cli/nftp-codec"]
 	path = nanomq_cli/nftp-codec
 	url = https://github.com/nanomq/nftp-codec/
+	shallow = true

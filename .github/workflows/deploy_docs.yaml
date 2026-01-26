@@ -1,6 +1,6 @@
 name: Deploy Docs
 
-concurrency: 
+concurrency:
   group: ${{ github.ref }}
   cancel-in-progress: true
 
@@ -19,27 +19,28 @@ jobs:
     - name: clone docs
       uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       with:
-        fetch-depth: 0
+        fetch-depth: 1
         path: docs-files
 
     - name: clone frontend
       uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       with:
+        fetch-depth: 1
         repository: 'emqx/emqx-io-docs-frontend'
         ref: next
         token: ${{ secrets.CI_GIT_TOKEN }}
         path: frontend
 
     - name: use python
-      uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
       with:
-        python-version: 3.8
-  
+        python-version: '3.10'
+
     - name: use node.js
       uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
       with:
         node-version-file: 'frontend/.nvmrc'
-  
+
     - name: use pnpm
       uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
       with:
