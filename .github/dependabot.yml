@@ -22,7 +22,11 @@ updates:
 #      - nng/extern/msquic/scripts
     schedule:
       interval: weekly
-#  - package-ecosystem: dotnet-sdk
+    cooldown: # applies only to version-updates (not security-updates)
+      default-days: 7
+      semver-minor: 14 # wait 14 days before applying minor updates
+      semver-major: 28
+  #  - package-ecosystem: dotnet-sdk
 #    directory: nng/extern/msquic/submodules/clog
 #    schedule:
 #      interval: weekly
@@ -30,17 +34,20 @@ updates:
     directory: /
     schedule:
       interval: weekly
-    allow:
-      - dependency-name: "*"
-      - dependency-type: "all"
+    cooldown:
+      default-days: 7
+      semver-minor-days: 14
+      semver-major-days: 28
   - package-ecosystem: gitsubmodule
     directory: /
     schedule:
       interval: weekly
-  - package-ecosystem: gomod
-    directory: nng/etc/pubrefman
-    schedule:
-      interval: weekly
+    cooldown:
+      default-days: 7
+#  - package-ecosystem: gomod
+#    directory: nng/etc/pubrefman
+#    schedule:
+#      interval: weekly
 #  - package-ecosystem: nuget
 #    directories:
 #      - nng/extern/msquic/scripts/generatevpackpat

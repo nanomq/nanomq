@@ -9,40 +9,60 @@ on:
 
 jobs:
   build_windows_packages:
-    runs-on: windows-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            arch: x86_64
+          - os: windows-11-arm
+            arch: arm64
+
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-      - run: git submodule update --init --recursive
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 1
+          submodules: false # Disable auto-submodule handling to allow shallow fetching
+
+      - name: Initialize submodules
+        run: |
+          git submodule update --init --recursive --depth 1
 
       - name: Configure
-        run: cmake -B build -DNNG_ENABLE_SQLITE=ON -DENABLE_RULE_ENGINE=ON -DENABLE_JWT=ON -DBUILD_BENCH=ON
+        run: |
+          $extra_flags = ""
+          if ("${{ matrix.arch }}" -eq "arm64") {
+            $extra_flags = "-A ARM64"
+          }
+          cmake -B build -DNNG_ENABLE_SQLITE=ON -DENABLE_RULE_ENGINE=ON -DENABLE_JWT=ON -DBUILD_BENCH=ON $extra_flags
 
       - name: Build
         run: cmake --build build --config Release --target install
 
       - name: Package-Debug
         run: |
-          $pkg_debug_name="nanomq-debug-windows-x86_64.zip"
+          $pkg_debug_name = "nanomq-debug-windows-${{ matrix.arch }}.zip"
           Compress-Archive -Path install/* -DestinationPath $pkg_debug_name
-          mv $pkg_debug_name ./install/
+          Move-Item -Path $pkg_debug_name -Destination ./install/
 
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: nanomq-debug-windows-x86_64.zip
+          name: nanomq-debug-windows-${{ matrix.arch }}.zip
           path: "install/*.zip"
           retention-days: 7
 
       - name: Package
         if: github.event_name == 'release'
         run: |
-          $pkg_name="nanomq-${{ github.event.release.tag_name }}-windows-x86_64.zip"
+          $pkg_name="nanomq-${{ github.event.release.tag_name }}-windows-${{ matrix.arch }}.zip"
           Compress-Archive -Path install/* -DestinationPath $pkg_name
-          mv $pkg_name ./install/ 
+          Move-Item -Path $pkg_name -Destination ./install/
 
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: github.event_name == 'release'
         with:
-          name: nanomq-${{ github.event.release.tag_name }}-windows-x86_64.zip
+          name: nanomq-${{ github.event.release.tag_name }}-windows-${{ matrix.arch }}.zip
           path: "install/*.zip"
 
       - uses: svenstaro/upload-release-action@6b7fa9f267e90b50a19fef07b3596790bb941741 # 2.11.3
