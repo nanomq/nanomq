@@ -94,25 +94,29 @@ nano_set_quic_config(nng_socket *sock, conf_bridge_node *node, nng_dialer *diale
 	// TLS section
 	if (!node->tls.enable)
 		return;
-	if (0 !=
-	    nng_dialer_set_string(
-	        *dialer, NNG_OPT_QUIC_TLS_KEY_PATH, node->tls.keyfile)) {
-		log_warn("Error in updating NNG_OPT_QUIC_TLS_KEY_PATH");
+	if (node->tls.keyfile && strlen(node->tls.keyfile) > 0) {
+		if (0 != nng_dialer_set_string(
+		        *dialer, NNG_OPT_QUIC_TLS_KEY_PATH, node->tls.keyfile)) {
+			log_warn("Error in updating NNG_OPT_QUIC_TLS_KEY_PATH");
+		}
 	}
-	if (0 !=
-	    nng_dialer_set_string(
-	        *dialer, NNG_OPT_QUIC_TLS_CACERT_PATH, node->tls.certfile)) {
-		log_warn("Error in updating NNG_OPT_QUIC_TLS_CACERT_PATH");
+	if (node->tls.certfile && strlen(node->tls.certfile) > 0) {
+		if (0 != nng_dialer_set_string(
+		        *dialer, NNG_OPT_QUIC_TLS_CACERT_PATH, node->tls.certfile)) {
+			log_warn("Error in updating NNG_OPT_QUIC_TLS_CACERT_PATH");
+		}
 	}
-	if (0 !=
-	    nng_dialer_set_string(*dialer, NNG_OPT_QUIC_TLS_KEY_PASSWORD,
-	        node->tls.key_password)) {
-		log_warn("Error in updating NNG_OPT_QUIC_TLS_KEY_PASSWORD");
+	if (node->tls.key_password && strlen(node->tls.key_password) > 0) {
+		if (0 != nng_dialer_set_string(*dialer, NNG_OPT_QUIC_TLS_KEY_PASSWORD,
+		        node->tls.key_password)) {
+			log_warn("Error in updating NNG_OPT_QUIC_TLS_KEY_PASSWORD");
+		}
 	}
-	if (0 !=
-	    nng_dialer_set_string(
-	        *dialer, NNG_OPT_QUIC_TLS_CA_PATH, node->tls.cafile)) {
-		log_warn("Error in updating NNG_OPT_QUIC_TLS_CA_PATH");
+	if (node->tls.cafile && strlen(node->tls.cafile) > 0) {
+		if (0 != nng_dialer_set_string(
+		        *dialer, NNG_OPT_QUIC_TLS_CA_PATH, node->tls.cafile)) {
+			log_warn("Error in updating NNG_OPT_QUIC_TLS_CA_PATH");
+		}
 	}
 	if (0 !=
 	    nng_dialer_set_bool(*dialer, NNG_OPT_QUIC_TLS_VERIFY_PEER,
