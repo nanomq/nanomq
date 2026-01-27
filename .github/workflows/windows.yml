@@ -44,12 +44,11 @@ jobs:
         run: |
           $pkg_debug_name = "nanomq-debug-windows-${{ matrix.arch }}.zip"
           Compress-Archive -Path install/* -DestinationPath $pkg_debug_name
-          Move-Item -Path $pkg_debug_name -Destination ./install/
 
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: nanomq-debug-windows-${{ matrix.arch }}.zip
-          path: "install/*.zip"
+          path: ${{ format('nanomq-debug-windows-{0}.zip', matrix.arch) }}
           retention-days: 7
 
       - name: Package
@@ -82,8 +81,12 @@ jobs:
           aws configure set default.region us-west-2
           aws s3 cp install/ s3://packages.emqx/nanomq/$(git describe --abbrev=0 --tags)/ --recursive --exclude "*" --include "nanomq-*-${{ matrix.arch }}.zip"
 
+  notify-homepage:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    needs: [build_windows_packages] # wait for builds to finish
+    steps:
       - name: update nanomq.io
-        if: github.event_name == 'release'
         run: |
           try {
             $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
