@@ -26,8 +26,13 @@ jobs:
           submodules: false # Disable auto-submodule handling to allow shallow fetching
 
       - name: Initialize submodules (shallow)
+        run: git submodule update --init --recursive --depth 1
+
+      - name: Upgrade outdated cmake requirements < 3.5
         run: |
-          git submodule update --init --recursive --depth 1
+          bash -c "
+            find . -name 'CMakeLists.txt' -exec sed -i.bak -E '/cmake_minimum_required(/s/VERSION \([0-2]\.[0-9]*\|3\.[0-4]\))/VERSION 3.5)/' {} +
+          "
 
       - name: Configure
         run: |
