@@ -31,7 +31,7 @@ jobs:
       - name: Upgrade outdated cmake requirements < 3.5
         run: |
           bash -c "
-            find . -name 'CMakeLists.txt' -exec sed -i.bak -E '/cmake_minimum_required(/s/VERSION \([0-2]\.[0-9]*\|3\.[0-4]\))/VERSION 3.5)/' {} +
+            find . -name 'CMakeLists.txt' -exec sed -i.bak -E '/cmake_minimum_required\(/s/VERSION ([0-2]\.[0-9]+|3\.[0-4])\)/VERSION 3.5)/g' {} +
           "
 
       - name: Configure
@@ -67,7 +67,7 @@ jobs:
         if: github.event_name == 'release'
         with:
           name: nanomq-${{ github.event.release.tag_name }}-windows-${{ matrix.arch }}.zip
-          path: "install/*.zip"
+          path: install/nanomq-${{ github.event.release.tag_name }}-windows-${{ matrix.arch }}.zip
 
       - uses: svenstaro/upload-release-action@6b7fa9f267e90b50a19fef07b3596790bb941741 # 2.11.3
         if: github.event_name == 'release'
@@ -100,7 +100,7 @@ jobs:
             $headers.Add("Content-Type", "application/json")
             $body = "{`"repo`": `"nanomq/nanomq`", `"tag`": `"${{ github.ref_name }}`"}"
             $response = Invoke-WebRequest ${{ secrets.EMQX_IO_RELEASE_API }} -Method 'POST' -Headers $headers -Body $body
-            if ($response.StatusCode -eq 200) {
+            if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 300) {
               Write-Host "HTTP status code: $($response.StatusCode)"
               Write-Host "Success"
             } else {
