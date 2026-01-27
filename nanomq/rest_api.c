@@ -533,25 +533,48 @@ uri_param_parse(const char *path, size_t *count)
 	size_t param_count = 0;
 
 	for (size_t i = 0; i < num; i++) {
-		char *key   = nng_zalloc(strlen(kv_str[i]));
-		char *value = nng_zalloc(strlen(kv_str[i]));
-		if (2 == sscanf(kv_str[i], "%[^=]=%s", key, value)) {
-			params[i]        = nng_zalloc(sizeof(kv));
-			params[i]->key   = key;
-			params[i]->value = value;
-			param_count++;
-		} else {
-			if (key) {
-				free(key);
-			}
-			if (value) {
-				free(value);
-			}
+		char *eq = strchr(kv_str[i], '=');
+		if (eq == NULL || eq == kv_str[i] || *(eq + 1) == '\0') {
+			free(kv_str[i]);
+			kv_str[i] = NULL;
+			continue;
 		}
+
+		size_t key_len   = (size_t) (eq - kv_str[i]);
+		size_t value_len = strlen(eq + 1);
+
+		char *key   = nng_zalloc(key_len + 1);
+		char *value = nng_zalloc(value_len + 1);
+		if (key == NULL || value == NULL) {
+			if (key)
+				free(key);
+			if (value)
+				free(value);
+			free(kv_str[i]);
+			kv_str[i] = NULL;
+			continue;
+		}
+
+		memcpy(key, kv_str[i], key_len);
+		key[key_len] = '\0';
+		memcpy(value, eq + 1, value_len);
+		value[value_len] = '\0';
+
+		params[param_count]        = nng_zalloc(sizeof(kv));
+		params[param_count]->key   = key;
+		params[param_count]->value = value;
+		param_count++;
+
 		free(kv_str[i]);
 		kv_str[i] = NULL;
 	}
 	free(kv_str);
+
+	if (param_count == 0) {
+		free(params);
+		*count = 0;
+		return NULL;
+	}
 
 	*count = param_count;
 	return params;
