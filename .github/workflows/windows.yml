@@ -79,7 +79,7 @@ jobs:
           aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws configure set default.region us-west-2
-          aws s3 cp install/ s3://packages.emqx/nanomq/$(git describe --abbrev=0 --tags)/ --recursive --exclude "*" --include "nanomq-*-${{ matrix.arch }}.zip"
+          aws s3 cp install/ s3://packages.emqx/nanomq/${{ github.event.release.tag_name }}/ --recursive --exclude "*" --include "nanomq-*-${{ matrix.arch }}.zip"
 
   notify-homepage:
     runs-on: ubuntu-latest
@@ -87,6 +87,7 @@ jobs:
     needs: [build_windows_packages] # wait for builds to finish
     steps:
       - name: update nanomq.io
+        shell: pwsh
         run: |
           try {
             $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
