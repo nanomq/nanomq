@@ -18,6 +18,7 @@ jobs:
         sudo apt install -y cmake ninja-build rpm pip python3-pip mosquitto-clients netcat
         pip install Jinja2
         pip install paho-mqtt
+        pip install websockets
 
     - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
     - run: git submodule update --init --recursive
