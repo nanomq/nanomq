@@ -38,9 +38,9 @@ jobs:
         uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7 # v5.0.2
         with:
           path: build
-          key: ${{ runner.os }}-cmake-build-${{ hashFiles('CMakeLists.txt', '**/CMakeLists.txt') }}
+          key: ${{ runner.os }}-${{ matrix.arch }}-cmake-build-${{ hashFiles('CMakeLists.txt', '**/CMakeLists.txt') }}
           restore-keys: |
-            ${{ runner.os }}-cmake-build-
+            ${{ runner.os }}-${{ matrix.arch }}-cmake-build-
 
       - name: Configure
         run: |
