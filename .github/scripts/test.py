@@ -4,6 +4,7 @@ import os
 import subprocess
 import shlex
 import time
+import asyncio
 from os.path import exists
 
 from mqtt_test import mqtt_test
@@ -17,6 +18,7 @@ from rest_api_test import rest_api_test
 from vulnerability_test import vul_test
 from attack import attack_test
 from webhook_test import run_mqtt_fuzzer
+from repro_ws_oob_poc import websocket
 
 nanomq_log_path = "/tmp/nanomq_test.log" 
 nanomq_cmd = "nanomq start --conf ./.github/scripts/nanomq.conf --url tls+nmq-tcp://0.0.0.0:8883 --http --cacert etc/certs/cacert.pem --cert etc/certs/cert.pem --key etc/certs/key.pem --qos_duration 1 --log_level debug  --log_stdout false --log_file /tmp/nanomq_test.log"
@@ -42,6 +44,7 @@ if __name__=='__main__':
 
     time.sleep(2)
 
+
     print("mqtt v311 test start")
     if False == mqtt_test():
         nanomq.terminate()
@@ -49,6 +52,10 @@ if __name__=='__main__':
         print_nanomq_log()
         raise AssertionError
     print("mqtt v311 test end")
+
+    print("websocket test start")
+    asyncio.run(websocket())
+    print("websocket test end")
 
     print("attack test start")
     attack_test()
