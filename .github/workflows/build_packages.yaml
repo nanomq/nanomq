@@ -119,7 +119,11 @@ jobs:
     - name: Get latest tag
       id: latest
       run: |
-        LATEST_TAG="$(curl -s "https://api.github.com/repos/nanomq/nanomq/tags?per_page=1" | jq -r '.[0].name')"
+        if [ "${{ github.event_name }}" == "release" ]; then
+          LATEST_TAG="${{ github.ref_name }}"
+        else
+          LATEST_TAG="$(curl -s "https://api.github.com/repos/nanomq/nanomq/tags?per_page=1" | jq -r '.[0].name')"
+        fi
         echo "LATEST_TAG: $LATEST_TAG"
         echo "tag=$LATEST_TAG" >> "$GITHUB_OUTPUT"
 
