@@ -560,7 +560,26 @@ uri_param_parse(const char *path, size_t *count)
 		memcpy(value, eq + 1, value_len);
 		value[value_len] = '\0';
 
-		params[param_count]        = nng_zalloc(sizeof(kv));
+		params[param_count] = nng_zalloc(sizeof(kv));
+		if (params[param_count] == NULL) {
+			/* Free current key/value and kv_str[i] */
+			free(key);
+			free(value);
+			free(kv_str[i]);
+			kv_str[i] = NULL;
+
+			/* Free all previously allocated params */
+			for (size_t j = 0; j < param_count; j++) {
+				if (params[j] != NULL) {
+					free(params[j]->key);
+					free(params[j]->value);
+					free(params[j]);
+					params[j] = NULL;
+				}
+			}
+			param_count = 0;
+			break;
+		}
 		params[param_count]->key   = key;
 		params[param_count]->value = value;
 		param_count++;
