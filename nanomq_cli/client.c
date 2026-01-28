@@ -1345,7 +1345,7 @@ client_cb(void *arg)
 		uint32_t    topic_len;
 		const char *recv_topic =
 		    nng_mqtt_msg_get_publish_topic(msg, &topic_len);
-		uint8_t *buf = nng_zalloc(2 * payload_len + 1);
+		uint8_t *buf = nng_zalloc(2 * payload_len + 2);
 		// char buf[10240] = {'\0'};
 		if (topic_len > 0) {
 			console("%.*s: %.*s\n", topic_len, recv_topic,
@@ -1361,6 +1361,7 @@ client_cb(void *arg)
 				pos += ret;
 			}
 			buf[pos++] = '\n';
+			buf[pos++] = '\0';
 			console("HEX : %s", buf);
 		}
 		nng_free(buf, 2 * payload_len + 1);
