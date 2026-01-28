@@ -13,7 +13,8 @@ on:
 
 jobs:
   build_packages:
-    runs-on: ubuntu-22.04
+    if: github.repository == 'nanomq/nanomq' # Only run in upstream repo, not in forks
+    runs-on: ubuntu-24.04
 
     strategy:
       fail-fast: false
@@ -67,7 +68,7 @@ jobs:
     - name: install mbed-tls
       run: |
         set -eu
-        git clone https://github.com/Mbed-TLS/mbedtls.git && cd mbedtls &&  git checkout tags/v3.3.0
+        git clone --depth 1 --branch v3.5.2 https://github.com/Mbed-TLS/mbedtls.git && cd mbedtls
         mkdir build && cd build
         cmake -DCMAKE_C_COMPILER=${{ matrix.arch[1] }} -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }} -DENABLE_TESTING=OFF ..
         cmake --build .
@@ -79,8 +80,7 @@ jobs:
       if: matrix.arch[0] != 'riscv64' &&  matrix.arch[0] != 'x86_64'  &&  matrix.arch[0] != 'amd64'
       run: |
         set -eu
-        wget https://sourceforge.net/projects/libuuid/files/libuuid-1.0.3.tar.gz/download -O libuuid-1.0.3.tar.gz 
-        tar zxf libuuid-1.0.3.tar.gz 
+        wget -O- https://sourceforge.net/projects/libuuid/files/libuuid-1.0.3.tar.gz/download | tar xzf -
         cd  libuuid-1.0.3 
         mkdir build 
         cd build  
@@ -92,9 +92,8 @@ jobs:
     - name: install zeromq
       if: matrix.arch[0] != 'riscv64'
       run: |
-        wget https://github.com/zeromq/libzmq/releases/download/v4.3.4/zeromq-4.3.4.tar.gz 
-        tar zxf zeromq-4.3.4.tar.gz 
-        cd zeromq-4.3.4 
+        wget -O- https://github.com/zeromq/libzmq/releases/download/v4.3.5/zeromq-4.3.5.tar.gz | tar xzf -
+        cd zeromq-4.3.5
         mkdir build 
         cd build 
         cmake -DBUILD_SHARED=OFF      \
@@ -113,11 +112,16 @@ jobs:
         cd ../
         rm -rf ./build
         cd ../
-        
+
     - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-      with:
-        fetch-depth: 0
-    - run: git submodule update --init --recursive
+    - run: git submodule update --init --recursive --depth 1
+
+    - name: Get latest tag
+      id: latest
+      run: |
+        LATEST_TAG="$(curl -s "https://api.github.com/repos/nanomq/nanomq/tags?per_page=1" | jq -r '.[0].name')"
+        echo "LATEST_TAG: $LATEST_TAG"
+        echo "tag=$LATEST_TAG" >> "$GITHUB_OUTPUT"
 
     - name: prepare
       id: prepare
@@ -127,7 +131,7 @@ jobs:
           arch="x86_64"
         fi
 
-        pkg_name="nanomq-$(git describe --abbrev=0 --tags)-linux-${arch}${{ matrix.build_type }}.${{ matrix.package_type }}"
+        pkg_name="nanomq-${{ steps.latest.outputs.tag }}-linux-${arch}${{ matrix.build_type }}.${{ matrix.package_type }}"
 
         make_flags="-DCMAKE_C_COMPILER=${{ matrix.arch[1] }} -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }} -DNNG_ENABLE_TLS=ON"
 
@@ -181,8 +185,8 @@ jobs:
         set -eu
         cd build
         mkdir -p _packages
-        sudo checkinstall --backup=no --install=no --type=debian --arch=${{ steps.prepare.outputs.arch }} --pkgname=nanomq --pkgversion=$(git describe --abbrev=0 --tags) --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
-        sudo mv _packages/nanomq_$(git describe --abbrev=0 --tags)_${{ steps.prepare.outputs.arch }}.deb _packages/${{ steps.prepare.outputs.pkg_name }}
+        sudo checkinstall --backup=no --install=no --type=debian --arch=${{ steps.prepare.outputs.arch }} --pkgname=nanomq --pkgversion=${{ steps.latest.outputs.tag }} --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
+        sudo mv _packages/nanomq_${{ steps.latest.outputs.tag }}_${{ steps.prepare.outputs.arch }}.deb _packages/${{ steps.prepare.outputs.pkg_name }}
         cd _packages; echo $(sha256sum ${{ steps.prepare.outputs.pkg_name }} | awk '{print $1}') > ${{ steps.prepare.outputs.pkg_name }}.sha256
     - name: build rpm
       if: matrix.package_type == 'rpm'
@@ -193,14 +197,14 @@ jobs:
         sudo mkdir -p /root/rpmbuild/SOURCES
         sudo mkdir -p /root/rpmbuild/BUILD
         sudo mkdir -p /root/rpmbuild/BUILDROOT
-        pkgversion="$(git describe --abbrev=0 --tags | tr '-' '_')"
+        pkgversion="$(echo ${{ steps.latest.outputs.tag }} | tr '-' '_')"
         sudo checkinstall --backup=no --install=no --type=rpm --arch=${{ steps.prepare.outputs.arch }} --pkgname=nanomq --pkgversion=${pkgversion} --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
         sudo mv _packages/nanomq-${pkgversion}-1.${{ steps.prepare.outputs.arch }}.rpm _packages/${{ steps.prepare.outputs.pkg_name }}
         cd _packages; echo $(sha256sum ${{ steps.prepare.outputs.pkg_name }} | awk '{print $1}') > ${{ steps.prepare.outputs.pkg_name }}.sha256
 
     - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
       with:
-        name: ${{ steps.prepare.outputs.pkg_name }} 
+        name: ${{ steps.prepare.outputs.pkg_name }}
         path: "build/_packages/*"
     - uses: Rory-Z/upload-release-asset@5f36ae0c882e60ff721ac376ea0f234f89e3c78e # v1
       if: github.event_name == 'release'
@@ -216,10 +220,11 @@ jobs:
         aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws configure set default.region us-west-2
-        aws s3 cp --recursive build/_packages s3://packages.emqx/nanomq/$(git describe --abbrev=0 --tags)
+        aws s3 cp --recursive build/_packages s3://packages.emqx/nanomq/${{ steps.latest.outputs.tag }}
 
   build_docker_prepare:
-    runs-on: ubuntu-22.04
+    if: github.repository == 'nanomq/nanomq' # Only run in upstream repo, not in forks
+    runs-on: ubuntu-24.04
     outputs:
       host: ${{ steps.host.outputs.host }}
     steps:
@@ -249,7 +254,7 @@ jobs:
     steps:
     - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
     - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
-    - run: git submodule update --init --recursive
+    - run: git submodule update --init --recursive --depth 1
     - run: docker build -t emqx/nanomq:$(git describe --tags --always)${{ matrix.suffix }} -f deploy/docker/Dockerfile${{ matrix.suffix }} .
     - run: docker run -d -e DEBUG=1 --name nanomq $(docker images emqx/nanomq -q | head -1) --log_level debug
     - name: test docker
@@ -296,7 +301,8 @@ jobs:
         context: .
 
   build_archive:
-    runs-on: ubuntu-22.04
+    if: github.repository == 'nanomq/nanomq' # Only run in upstream repo, not in forks
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
@@ -320,7 +326,7 @@ jobs:
 
   publish_packages:
     needs: [build_packages, build_docker]
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     if: github.event_name == 'release'
 
     steps:
