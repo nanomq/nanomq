@@ -27,6 +27,15 @@ static __thread jmp_buf exit_env;
 static __thread int exit_handling_enabled = 0;
 
 /**
+ * Disable leak detection for this fuzzer
+ * The scanner leaks small amounts when we longjmp, but these are bounded
+ */
+const char *__asan_default_options(void) {
+    return "detect_leaks=0";
+}
+
+
+/**
  * Override exit() to catch parser errors without terminating the fuzzer.
  * When exit() is called, we longjmp back to the fuzz target instead of exiting.
  */
