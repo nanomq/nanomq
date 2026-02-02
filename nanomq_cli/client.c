@@ -78,11 +78,14 @@ struct client_opts {
 	bool             enable_ssl;
 	char *           cacert;
 	size_t           cacert_len;
+	char *           cafile;
 	char *           cert;
 	size_t           cert_len;
+	char *           certfile;
 	char *           key;
 	size_t           key_len;
 	char *           keypass;
+	char *           keyfile;
 	property *       conn_properties;
 	property *       sub_properties;
 	property *       pub_properties;
@@ -720,7 +723,7 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 			port            = port == NULL ? "8883" : port;
 			break;
 		case OPT_QUIC:
-			opt->enable_ssl = true;
+			opt->enable_ssl = false;
 			proto           = "mqtt-quic";
 			port            = port == NULL ? "14567" : port;
 			break;
@@ -730,17 +733,20 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 			    "specified only once.");
 			loadfile(
 			    arg, (void **) &opt->cacert, &opt->cacert_len);
+			opt->cacert = strdup(arg);
 			break;
 		case OPT_CERTFILE:
 			ASSERT_NULL(opt->cert,
 			    "Cert (--cert) may be specified "
 			    "only once.");
 			loadfile(arg, (void **) &opt->cert, &opt->cert_len);
+			opt->certfile = strdup(arg);
 			break;
 		case OPT_KEYFILE:
 			ASSERT_NULL(opt->key,
 			    "Key (--key) may be specified only once.");
 			loadfile(arg, (void **) &opt->key, &opt->key_len);
+			opt->keyfile = strdup(arg);
 			break;
 		case OPT_KEYPASS:
 			ASSERT_NULL(opt->keypass,
@@ -781,12 +787,10 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 		break;
 	}
 
-
 	char addr[128] = { 0 };
 	port = port == NULL ? "1883" : port;
 	snprintf(addr, 128, "%s://%s:%s", proto, host, port);
 	opt->url = nng_strdup(addr);
-
 
 	switch (opt->type) {
 	case PUB:
@@ -1180,6 +1184,47 @@ loadfile(const char *path, void **datap, size_t *lenp)
 	*lenp             = total_read;
 }
 
+#ifdef SUPP_QUIC
+static int
+init_dialer_quic(nng_dialer dialer, const char *cafile, const char *certfile,
+    const char *keyfile, const char *pass, bool verify_peer)
+{
+	if (keyfile) {
+		if (0 != nng_dialer_set_string(
+				dialer, NNG_OPT_QUIC_TLS_KEY_PATH, keyfile)) {
+			fatal("Error in updating NNG_OPT_QUIC_TLS_KEY_PATH %s", keyfile);
+			return NNG_EINVAL;
+		}
+	}
+	if (certfile) {
+		if (0 != nng_dialer_set_string(
+		        dialer, NNG_OPT_QUIC_TLS_CACERT_PATH, certfile)) {
+			fatal("Error in updating NNG_OPT_QUIC_TLS_CACERT_PATH %s", certfile);
+			return NNG_EINVAL;
+		}
+	}
+	if (pass) {
+		if (0 != nng_dialer_set_string(
+				dialer, NNG_OPT_QUIC_TLS_KEY_PASSWORD, pass)) {
+			fatal("Error in updating NNG_OPT_QUIC_TLS_KEY_PASSWORD");
+			return NNG_EINVAL;
+		}
+	}
+	if (cafile) {
+		if (0 != nng_dialer_set_string(
+		        dialer, NNG_OPT_QUIC_TLS_CA_PATH, cafile)) {
+			fatal("Error in updating NNG_OPT_QUIC_TLS_CA_PATH %s", cafile);
+			return NNG_EINVAL;
+		}
+	}
+	if (0 != nng_dialer_set_bool(
+			dialer, NNG_OPT_QUIC_TLS_VERIFY_PEER, verify_peer)) {
+		fatal("Error in updating NNG_OPT_QUIC_TLS_VERIFY_PEER %d", verify_peer);
+		return NNG_EINVAL;
+	}
+}
+#endif
+
 #ifdef NNG_SUPP_TLS
 static int
 init_dialer_tls(nng_dialer d, const char *cacert, const char *cert,
@@ -1343,7 +1388,6 @@ client_cb(void *arg)
 				nng_sleep_aio(work->opts->interval, work->aio);
 			} else {
 				nng_socket_close(*work->sock);
-				nng_closeall();
 				exit(1);
 			}
 		}
@@ -1562,8 +1606,25 @@ create_client(nng_socket *sock, struct work **works, size_t id, size_t nwork,
 		}
 	}
 #endif
+#ifdef SUPP_QUIC
+	if (isquic) {
+		if ((rv = init_dialer_quic(dialer, opts->cafile, opts->certfile,
+		        opts->keyfile, opts->keypass, false)) != 0) {
+			nng_fatal("init_dialer_quic", rv);
+		}
+		nng_dialer_set_int(dialer, NNG_OPT_QUIC_KEEPALIVE, 120);
+		nng_dialer_set_uint64(dialer, NNG_OPT_QUIC_IDLE_TIMEOUT, 120);
+		nng_dialer_set_uint64(dialer, NNG_OPT_QUIC_CONNECT_TIMEOUT, 20);
+		nng_dialer_set_int(dialer, NNG_OPT_QUIC_DISCONNECT_TIMEOUT, 20);
+	}
+#endif
 
-	nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, conn_msg);
+	if (0 != nng_dialer_set_ptr(dialer, NNG_OPT_MQTT_CONNMSG, conn_msg)) {
+		fatal("Error in updating connmsg");
+	}
+	if (0 != nng_socket_set_ptr(*sock, NNG_OPT_MQTT_CONNMSG, conn_msg)) {
+		fatal("Error in updating connmsg");
+	}
 	// nng_dialer_set_bool(dialer, NNG_OPT_QUIC_ENABLE_0RTT, true);
 	// by set NNG_OPT_MQTT_CONNMSG for socket, it enables online/offline msg
 	// nng_socket_set_ptr(*sock, NNG_OPT_MQTT_CONNMSG, conn_msg);
