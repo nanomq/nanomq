@@ -316,11 +316,10 @@ get_bridge_sub_properties(conf_bridge_node *node)
 }
 
 static void
-add_time_field(cJSON *obj, const char *key, uint64_t second)
+add_time_field(cJSON *obj, const char *key, uint64_t n, const char *unit)
 {
 	char time[100] = { 0 };
-	snprintf(time, 100, "%zus", second);
-	//FIXME It's more reasonable to use 'ms' .
+	snprintf(time, 100, "%zu%s", n, unit);
 	cJSON_AddStringToObject(obj, key, time);
 }
 
@@ -328,20 +327,20 @@ static void
 add_bridge_quic(cJSON *obj, conf_bridge_node *node)
 {
 #if defined(SUPP_QUIC)
-	add_time_field(obj, "quic_keepalive", node->qkeepalive);
+	add_time_field(obj, "quic_keepalive", node->qkeepalive, "s");
 	
 	add_time_field(
-	    obj, "quic_idle_timeout", (uint64_t)node->qidle_timeout);
+	    obj, "quic_idle_timeout", (uint64_t)node->qidle_timeout, "s");
 	add_time_field(
-	    obj, "quic_discon_timeout", (uint64_t)node->qdiscon_timeout);
+	    obj, "quic_discon_timeout", (uint64_t)node->qdiscon_timeout, "s");
 	// add_time_field(
-	//     obj, "quic_handshake_timeout", node->quic_handshake_timeout);
+	//     obj, "quic_handshake_timeout", node->quic_handshake_timeout, "s");
 	add_time_field(
-	    obj, "quic_send_idle_timeout", (uint64_t)node->qsend_idle_timeout);
+	    obj, "quic_send_idle_timeout", (uint64_t)node->qsend_idle_timeout, "s");
 	add_time_field(
-	    obj, "quic_initial_rtt_ms", (uint64_t)node->qinitial_rtt_ms);
+	    obj, "quic_initial_rtt_ms", (uint64_t)node->qinitial_rtt_ms, "ms");
 	add_time_field(
-	    obj, "quic_max_ack_delay_ms", (uint64_t)node->qmax_ack_delay_ms);
+	    obj, "quic_max_ack_delay_ms", (uint64_t)node->qmax_ack_delay_ms, "ms");
 	cJSON_AddBoolToObject(obj, "quic_multi_stream", node->multi_stream);
 	cJSON_AddBoolToObject(obj, "hybrid_bridging", node->hybrid);
 	cJSON_AddBoolToObject(obj, "quic_qos_priority", node->qos_first);
