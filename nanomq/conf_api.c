@@ -333,8 +333,8 @@ add_bridge_quic(cJSON *obj, conf_bridge_node *node)
 	    obj, "quic_idle_timeout", (uint64_t)node->qidle_timeout, "s");
 	add_time_field(
 	    obj, "quic_discon_timeout", (uint64_t)node->qdiscon_timeout, "s");
-	// add_time_field(
-	//     obj, "quic_handshake_timeout", node->quic_handshake_timeout, "s");
+	add_time_field(
+	    obj, "quic_handshake_timeout", node->qconnect_timeout, "s");
 	add_time_field(
 	    obj, "quic_send_idle_timeout", (uint64_t)node->qsend_idle_timeout, "s");
 	add_time_field(
