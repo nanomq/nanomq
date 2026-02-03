@@ -733,7 +733,7 @@ client_parse_opts(int argc, char **argv, client_opts *opt)
 			    "specified only once.");
 			loadfile(
 			    arg, (void **) &opt->cacert, &opt->cacert_len);
-			opt->cacert = strdup(arg);
+			opt->cafile = strdup(arg);
 			break;
 		case OPT_CERTFILE:
 			ASSERT_NULL(opt->cert,
