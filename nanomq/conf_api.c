@@ -2,6 +2,7 @@
 #include "include/mqtt_api.h"
 #include "include/nanomq.h"
 
+#include "nng/protocol/mqtt/mqtt_parser.h"
 #include "nng/protocol/pipeline0/push.h"
 #include "include/webhook_inproc.h"
 
@@ -319,7 +320,7 @@ static void
 add_time_field(cJSON *obj, const char *key, uint64_t n, const char *unit)
 {
 	char time[100] = { 0 };
-	snprintf(time, 100, "%zu%s", n, unit);
+	snprintf(time, 100, "%" PRIu64 "%s", n, unit);
 	cJSON_AddStringToObject(obj, key, time);
 }
 
