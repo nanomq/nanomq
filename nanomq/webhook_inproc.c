@@ -673,6 +673,7 @@ hook_work_cb(void *arg)
 	struct hook_work *work = arg;
 	int               rv;
 	char *            body;
+	size_t            body_len;
 	conf_exchange *   exconf = work->exchange;
 	conf_parquet *    parquetconf = work->parquet;
 	nng_msg *         msg;
@@ -716,11 +717,12 @@ hook_work_cb(void *arg)
 
 		msg = work->msg;
 		body = (char *) nng_msg_body(msg);
+		body_len = nng_msg_len(msg);
 
 		root = NULL;
 		// TODO Not efficent
 		// Only parse msg when exchange is enabled
-		root = cJSON_Parse(body);
+		root = cJSON_ParseWithLength(body, body_len);
 		if (!root) {
 			// not a json
 			nng_msg_free(msg);
@@ -788,8 +790,14 @@ hook_work_cb(void *arg)
 		nng_aio_alloc(&aio, NULL, NULL);
 
 		body = (char *) nng_msg_body(msg);
-		root = cJSON_Parse(body);
+		body_len = nng_msg_len(msg);
 
+		root = cJSON_ParseWithLength(body, body_len);
+		if (!root) {
+			log_warn("Invalid json msg");
+			nng_msg_free(msg);
+			goto skip;
+		}
 		char       *streamid = NULL;
 		uint8_t     streamtype;
 		nng_socket *ex_sock  = NULL;
@@ -853,6 +861,8 @@ hook_work_cb(void *arg)
 		} else {
 			send_msg_rep(work->ctx, HOOK_ERR_INVALID_CMD);
 			log_warn("No cmd field found in json msg");
+			nng_msg_free(msg);
+			cJSON_Delete(root);
 			goto skip;
 		}
 
@@ -924,6 +934,8 @@ hook_work_cb(void *arg)
 			if (!m) {
 				send_msg_rep(work->ctx, HOOK_ERR_UNKNOWN);
 				log_error("Error in alloc memory");
+				nng_msg_free(msg);
+				cJSON_Delete(root);
 				goto skip;
 			}
 
