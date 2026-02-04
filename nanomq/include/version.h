@@ -1,4 +1,4 @@
 #define NANO_VER_MAJOR 1
-#define NANO_VER_MINOR 3
-#define NANO_VER_PATCH 3
-#define NANO_VER_ID_SHORT "18"
+#define NANO_VER_MINOR 4
+#define NANO_VER_PATCH 0
+#define NANO_VER_ID_SHORT "1"
