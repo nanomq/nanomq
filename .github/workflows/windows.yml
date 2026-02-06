@@ -48,7 +48,7 @@ jobs:
           if ("${{ matrix.arch }}" -eq "arm64") {
             $extra_flags = "-A ARM64"
           }
-          cmake -B build -DNNG_ENABLE_SQLITE=ON -DENABLE_RULE_ENGINE=ON -DENABLE_JWT=ON -DBUILD_BENCH=ON $extra_flags
+          cmake -B build -DNNG_ENABLE_SQLITE=ON -DENABLE_RULE_ENGINE=ON -DENABLE_JWT=ON -DBUILD_BENCH=ON -DCMAKE_INSTALL_PREFIX=install $extra_flags
 
       - name: Build
         run: cmake --build build --config Release --target install
