@@ -30,7 +30,7 @@ cmake .. \
   -DENABLE_ACL=ON \
   -DNANOMQ_TESTS=OFF \
   -DNNG_TESTS=OFF \
-  -DENABLE_JWT=ON \
+  -DENABLE_JWT=OFF \
   -DNNG_ENABLE_PARQUET=ON
 
 make -j$(nproc)
