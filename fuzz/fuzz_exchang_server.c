@@ -18,6 +18,7 @@
 #include <string.h>
 
 #include "nng/nng.h"
+#include "nng/protocol/reqrep0/rep.h"
 #include "core/nng_impl.h"
 #include "nng/exchange/exchange_client.h"
 #include "nng/exchange/exchange.h"

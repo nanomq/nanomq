@@ -7,6 +7,7 @@
 
 export CC=${CC:-clang}
 export CXX=${CXX:-clang++}
+export CXXFLAGS="$CXXFLAGS -stdlib=libstdc++"
 
 # OSS-Fuzz 自动注入：
 # -fsanitize=fuzzer,address,undefined
@@ -45,11 +46,6 @@ FUZZ_DIR=fuzz
 LIBS=(
   build/nanomq/libnanomq.a
   build/nng/libnng.a
-  build/extern/l8w8jwt/libl8w8jwt.a
-  build/extern/l8w8jwt/mbedtls/library/libmbedtls.a
-  build/extern/l8w8jwt/mbedtls/library/libmbedx509.a
-  build/extern/l8w8jwt/mbedtls/library/libmbedcrypto.a
-  build/nanomq_cli/nftp-codec/libnftp-codec-static.a
 )
 
 INCLUDES=(
@@ -71,13 +67,22 @@ for src in $FUZZ_DIR/fuzz_*.c; do
     target=$(basename "$src" .c)
     echo "Building fuzz target: $target"
 
-    $CC \
-      $src \
-      ${LIBS[@]} \
+    $CC $CFLAGS \
+      -c $src \
       -fsanitize=fuzzer,address \
       ${INCLUDES[@]} \
+      -o $target.o
+
+    $CXX $CXXFLAGS \
+      $target.o \
+      ${LIBS[@]} \
+      -fsanitize=fuzzer,address \
       $EXTRA_LIBS \
+      -stdlib=libstdc++ \
+      -Wl,-rpath,'$ORIGIN' \
       -o $OUT/$target
+
+    rm -f $target.o
 done
 
 ################################
@@ -94,5 +99,45 @@ for src in $FUZZ_DIR/fuzz_*.c; do
            2>/dev/null || true
     fi
 done
+
+# Copy shared libraries to output directory
+cp /usr/lib/x86_64-linux-gnu/libparquet.so* $OUT/
+cp /usr/lib/x86_64-linux-gnu/libarrow.so* $OUT/
+cp /usr/lib/x86_64-linux-gnu/libthrift* $OUT/
+cp /usr/lib/x86_64-linux-gnu/libssl.so* $OUT/
+cp /usr/lib/x86_64-linux-gnu/libcrypto.so* $OUT/
+cp /usr/lib/x86_64-linux-gnu/libre2.so* $OUT/
+
+copy_deps() {
+    local bin="$1"
+    if ! command -v ldd >/dev/null 2>&1; then
+        return 0
+    fi
+    ldd "$bin" 2>/dev/null | awk '($2=="=>"){print $3} ($1 ~ /^\//){print $1}' | while read -r dep; do
+        [ -f "$dep" ] || continue
+        local base
+        base="$(basename "$dep")"
+        case "$base" in
+            ld-linux*|libc.so*|libm.so*|libpthread.so*|librt.so*|libdl.so*|libgcc_s.so*|libstdc++.so*|libasan.so*|libubsan.so*|libtsan.so*|liblsan.so*|libclang_rt* )
+                continue
+                ;;
+        esac
+        cp -L "$dep" "$OUT/" 2>/dev/null || true
+    done
+}
+
+if command -v ldconfig >/dev/null 2>&1; then
+    ldconfig -p 2>/dev/null | awk '/libutf8proc\\.so/ {print $NF}' | while read -r lib; do
+        cp -L "$lib" "$OUT/" 2>/dev/null || true
+    done
+fi
+
+for f in "$OUT"/libarrow.so* "$OUT"/libparquet.so* "$OUT"/fuzz_*; do
+    [ -e "$f" ] || continue
+    copy_deps "$f"
+done
+
+# Patch RPATH for all shared libraries to find dependencies in $ORIGIN
+find $OUT -name "*.so*" -exec patchelf --set-rpath '$ORIGIN' {} \;
 
 echo "NanoMQ fuzz build done"

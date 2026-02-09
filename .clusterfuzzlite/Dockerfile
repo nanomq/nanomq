@@ -5,7 +5,7 @@ RUN apt-get update && apt-get install -y wget lsb-release pkg-config libssl-dev 
     && wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb \
     && apt-get install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb \
     && apt-get update \
-    && apt-get install -y -V libarrow-dev libparquet-dev
+    && apt-get install -y -V libarrow-dev libparquet-dev libmbedtls-dev patchelf
 
 # NanoMQ source
 COPY . $SRC/nanomq
