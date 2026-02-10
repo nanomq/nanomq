@@ -61,7 +61,14 @@ INCLUDES=(
 )
 
 # Link with C++ standard library and Arrow/Parquet
-EXTRA_LIBS="-lstdc++ $(pkg-config --libs arrow parquet) -lssl -lcrypto"
+ARROW_PARQUET_LIBS="$(pkg-config --libs arrow parquet)"
+ARROW_PARQUET_LIBS_STATIC="$(pkg-config --libs --static arrow parquet 2>/dev/null || true)"
+
+EXTRA_LIBS="-lstdc++ $ARROW_PARQUET_LIBS -lssl -lcrypto"
+STATIC_EXTRA_LIBS=""
+if [ "${NANOMQ_FUZZ_STATIC_DEPS:-0}" = "1" ] && [ -n "$ARROW_PARQUET_LIBS_STATIC" ]; then
+    STATIC_EXTRA_LIBS="-Wl,-Bstatic $ARROW_PARQUET_LIBS_STATIC -Wl,-Bdynamic -lstdc++ -lssl -lcrypto"
+fi
 
 for src in $FUZZ_DIR/fuzz_*.c; do
     target=$(basename "$src" .c)
@@ -73,14 +80,39 @@ for src in $FUZZ_DIR/fuzz_*.c; do
       ${INCLUDES[@]} \
       -o $target.o
 
-    $CXX $CXXFLAGS \
-      $target.o \
-      ${LIBS[@]} \
-      -fsanitize=fuzzer,address \
-      $EXTRA_LIBS \
-      -stdlib=libstdc++ \
-      -Wl,-rpath,'$ORIGIN' \
-      -o $OUT/$target
+    if [ -n "$STATIC_EXTRA_LIBS" ]; then
+        set +e
+        $CXX $CXXFLAGS \
+          $target.o \
+          ${LIBS[@]} \
+          -fsanitize=fuzzer,address \
+          $STATIC_EXTRA_LIBS \
+          -stdlib=libstdc++ \
+          -Wl,-rpath,'$ORIGIN' \
+          -o $OUT/$target
+        rc=$?
+        set -e
+        if [ $rc -ne 0 ]; then
+            echo "Static link failed for $target, falling back to dynamic deps."
+            $CXX $CXXFLAGS \
+              $target.o \
+              ${LIBS[@]} \
+              -fsanitize=fuzzer,address \
+              $EXTRA_LIBS \
+              -stdlib=libstdc++ \
+              -Wl,-rpath,'$ORIGIN' \
+              -o $OUT/$target
+        fi
+    else
+        $CXX $CXXFLAGS \
+          $target.o \
+          ${LIBS[@]} \
+          -fsanitize=fuzzer,address \
+          $EXTRA_LIBS \
+          -stdlib=libstdc++ \
+          -Wl,-rpath,'$ORIGIN' \
+          -o $OUT/$target
+    fi
 
     rm -f $target.o
 done
@@ -138,6 +170,8 @@ for f in "$OUT"/libarrow.so* "$OUT"/libparquet.so* "$OUT"/fuzz_*; do
 done
 
 # Patch RPATH for all shared libraries to find dependencies in $ORIGIN
-find $OUT -name "*.so*" -exec patchelf --set-rpath '$ORIGIN' {} \;
+if command -v patchelf >/dev/null 2>&1; then
+    find $OUT -name "*.so*" -exec patchelf --set-rpath '$ORIGIN' {} \;
+fi
 
 echo "NanoMQ fuzz build done"
