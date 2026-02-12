@@ -7,6 +7,9 @@
 
 export CC=${CC:-clang}
 export CXX=${CXX:-clang++}
+CXXFLAGS="${CXXFLAGS:-}"
+CXXFLAGS="${CXXFLAGS//-stdlib=libc++/}"
+CXXFLAGS="${CXXFLAGS//-stdlib=libstdc++/}"
 export CXXFLAGS="$CXXFLAGS -stdlib=libstdc++"
 
 # OSS-Fuzz 自动注入：
@@ -32,7 +35,7 @@ cmake .. \
   -DNANOMQ_TESTS=OFF \
   -DNNG_TESTS=OFF \
   -DENABLE_JWT=OFF \
-  -DNNG_ENABLE_PARQUET=ON
+  -DENABLE_PARQUET=ON
 
 make -j$(nproc)
 
@@ -87,7 +90,6 @@ for src in $FUZZ_DIR/fuzz_*.c; do
           ${LIBS[@]} \
           -fsanitize=fuzzer,address \
           $STATIC_EXTRA_LIBS \
-          -stdlib=libstdc++ \
           -Wl,-rpath,'$ORIGIN' \
           -o $OUT/$target
         rc=$?
@@ -99,7 +101,6 @@ for src in $FUZZ_DIR/fuzz_*.c; do
               ${LIBS[@]} \
               -fsanitize=fuzzer,address \
               $EXTRA_LIBS \
-              -stdlib=libstdc++ \
               -Wl,-rpath,'$ORIGIN' \
               -o $OUT/$target
         fi
@@ -109,7 +110,6 @@ for src in $FUZZ_DIR/fuzz_*.c; do
           ${LIBS[@]} \
           -fsanitize=fuzzer,address \
           $EXTRA_LIBS \
-          -stdlib=libstdc++ \
           -Wl,-rpath,'$ORIGIN' \
           -o $OUT/$target
     fi
