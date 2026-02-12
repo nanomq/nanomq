@@ -10,12 +10,10 @@
 #include "nng/supplemental/nanolib/hash_table.h"
 
 #include "include/rest_api.h"
-#include "include/nanomq.h"
 #include "include/web_server.h"
 
 static conf g_conf;
 static bool g_inited = false;
-static char *fake_argv[] = {"nanomq", "start", NULL};
 
 static size_t
 hex_encode(char *dst, size_t dst_cap, const uint8_t *src, size_t src_len)
@@ -59,14 +57,10 @@ ensure_inited(void)
 	g_conf.http_server.max_body = 1024 * 1024;
 	g_conf.http_server.auth_type = NONE_AUTH;
 
-	// Set up some dummy values for system stats to avoid crashes
-	// g_conf.system_log_file = NULL;
-
 	if (g_conf.restapi_lk == NULL) {
 		nng_mtx_alloc(&g_conf.restapi_lk);
 	}
 
-	store_cmd_args(2, fake_argv);
 	set_global_conf(&g_conf);
 	set_http_server_conf(&g_conf.http_server);
 	dbhash_init_pipe_table();
