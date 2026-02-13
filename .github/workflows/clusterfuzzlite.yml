@@ -52,6 +52,10 @@ jobs:
           - address
           # - undefined
     steps:
+      - name: Clean up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost || true
+          df -h
       - name: Build Fuzzers (${{ matrix.sanitizer }})
         id: build
         uses: google/clusterfuzzlite/actions/build_fuzzers@v1
@@ -104,6 +108,10 @@ jobs:
           - address
           # - undefined
     steps:
+      - name: Clean up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost || true
+          df -h
       - name: Build Fuzzers (${{ matrix.sanitizer }})
         id: build
         uses: google/clusterfuzzlite/actions/build_fuzzers@v1
@@ -153,6 +161,10 @@ jobs:
           # - undefined
           # - memory
     steps:
+      - name: Clean up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost || true
+          df -h
       - name: Build Fuzzers (${{ matrix.sanitizer }})
         id: build
         uses: google/clusterfuzzlite/actions/build_fuzzers@v1
@@ -195,6 +207,10 @@ jobs:
       group: ${{ github.workflow }}-prune
       cancel-in-progress: false
     steps:
+      - name: Clean up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost || true
+          df -h
       - name: Build Fuzzers
         id: build
         uses: google/clusterfuzzlite/actions/build_fuzzers@v1
@@ -227,6 +243,10 @@ jobs:
       group: ${{ github.workflow }}-coverage
       cancel-in-progress: true
     steps:
+      - name: Clean up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost || true
+          df -h
       - name: Build Fuzzers (Coverage)
         id: build
         uses: google/clusterfuzzlite/actions/build_fuzzers@v1

@@ -12,6 +12,9 @@ CXXFLAGS="${CXXFLAGS//-stdlib=libc++/}"
 CXXFLAGS="${CXXFLAGS//-stdlib=libstdc++/}"
 export CXXFLAGS="$CXXFLAGS -stdlib=libstdc++"
 
+export TMPDIR="${TMPDIR:-$PWD/build-tmp}"
+mkdir -p "$TMPDIR"
+
 # OSS-Fuzz 自动注入：
 # -fsanitize=fuzzer,address,undefined
 # -O1 -g
@@ -35,6 +38,26 @@ cmake .. \
   -DNANOMQ_TESTS=OFF \
   -DNNG_TESTS=OFF \
   -DENABLE_JWT=OFF \
+  -DENABLE_PARQUET=OFF
+
+make -j$(nproc)
+
+cd ..
+
+mkdir -p build_parquet
+cd build_parquet
+
+cmake .. \
+  -DCMAKE_C_COMPILER=$CC \
+  -DCMAKE_CXX_COMPILER=$CXX \
+  -DBUILD_STATIC_LIB=ON \
+  -DBUILD_CLIENT=OFF \
+  -DBUILD_NFTP=OFF \
+  -DENABLE_RULE_ENGINE=ON \
+  -DENABLE_ACL=ON \
+  -DNANOMQ_TESTS=OFF \
+  -DNNG_TESTS=OFF \
+  -DENABLE_JWT=OFF \
   -DENABLE_PARQUET=ON
 
 make -j$(nproc)
@@ -46,9 +69,13 @@ make -j$(nproc)
 cd ..
 
 FUZZ_DIR=fuzz
-LIBS=(
+LIBS_BASE=(
   build/nanomq/libnanomq.a
   build/nng/libnng.a
+)
+LIBS_PARQUET=(
+  build_parquet/nanomq/libnanomq.a
+  build_parquet/nng/libnng.a
 )
 
 INCLUDES=(
@@ -67,15 +94,25 @@ INCLUDES=(
 ARROW_PARQUET_LIBS="$(pkg-config --libs arrow parquet)"
 ARROW_PARQUET_LIBS_STATIC="$(pkg-config --libs --static arrow parquet 2>/dev/null || true)"
 
-EXTRA_LIBS="-lstdc++ $ARROW_PARQUET_LIBS -lssl -lcrypto"
+BASE_EXTRA_LIBS="-lstdc++ -lssl -lcrypto"
 STATIC_EXTRA_LIBS=""
 if [ "${NANOMQ_FUZZ_STATIC_DEPS:-0}" = "1" ] && [ -n "$ARROW_PARQUET_LIBS_STATIC" ]; then
     STATIC_EXTRA_LIBS="-Wl,-Bstatic $ARROW_PARQUET_LIBS_STATIC -Wl,-Bdynamic -lstdc++ -lssl -lcrypto"
 fi
 
+NEED_ARROW_PARQUET=0
+
 for src in $FUZZ_DIR/fuzz_*.c; do
     target=$(basename "$src" .c)
     echo "Building fuzz target: $target"
+
+    TARGET_EXTRA_LIBS="$BASE_EXTRA_LIBS"
+    TARGET_LIBS=("${LIBS_BASE[@]}")
+    if [[ "$target" == *parquet* ]]; then
+        TARGET_EXTRA_LIBS="-lstdc++ $ARROW_PARQUET_LIBS -lssl -lcrypto"
+        TARGET_LIBS=("${LIBS_PARQUET[@]}")
+        NEED_ARROW_PARQUET=1
+    fi
 
     $CC $CFLAGS \
       -c $src \
@@ -83,11 +120,11 @@ for src in $FUZZ_DIR/fuzz_*.c; do
       ${INCLUDES[@]} \
       -o $target.o
 
-    if [ -n "$STATIC_EXTRA_LIBS" ]; then
+    if [[ "$target" == *parquet* ]] && [ -n "$STATIC_EXTRA_LIBS" ]; then
         set +e
         $CXX $CXXFLAGS \
           $target.o \
-          ${LIBS[@]} \
+          ${TARGET_LIBS[@]} \
           -fsanitize=fuzzer,address \
           $STATIC_EXTRA_LIBS \
           -Wl,-rpath,'$ORIGIN' \
@@ -98,18 +135,18 @@ for src in $FUZZ_DIR/fuzz_*.c; do
             echo "Static link failed for $target, falling back to dynamic deps."
             $CXX $CXXFLAGS \
               $target.o \
-              ${LIBS[@]} \
+              ${TARGET_LIBS[@]} \
               -fsanitize=fuzzer,address \
-              $EXTRA_LIBS \
+              $TARGET_EXTRA_LIBS \
               -Wl,-rpath,'$ORIGIN' \
               -o $OUT/$target
         fi
     else
         $CXX $CXXFLAGS \
           $target.o \
-          ${LIBS[@]} \
+          ${TARGET_LIBS[@]} \
           -fsanitize=fuzzer,address \
-          $EXTRA_LIBS \
+          $TARGET_EXTRA_LIBS \
           -Wl,-rpath,'$ORIGIN' \
           -o $OUT/$target
     fi
@@ -133,9 +170,11 @@ for src in $FUZZ_DIR/fuzz_*.c; do
 done
 
 # Copy shared libraries to output directory
-cp /usr/lib/x86_64-linux-gnu/libparquet.so* $OUT/
-cp /usr/lib/x86_64-linux-gnu/libarrow.so* $OUT/
-cp /usr/lib/x86_64-linux-gnu/libthrift* $OUT/
+if [ "$NEED_ARROW_PARQUET" = "1" ]; then
+    cp /usr/lib/x86_64-linux-gnu/libparquet.so* $OUT/
+    cp /usr/lib/x86_64-linux-gnu/libarrow.so* $OUT/
+    cp /usr/lib/x86_64-linux-gnu/libthrift* $OUT/
+fi
 cp /usr/lib/x86_64-linux-gnu/libssl.so* $OUT/
 cp /usr/lib/x86_64-linux-gnu/libcrypto.so* $OUT/
 cp /usr/lib/x86_64-linux-gnu/libre2.so* $OUT/
