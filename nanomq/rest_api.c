@@ -927,6 +927,7 @@ int HexadecimalToDecimal(char* hex, int len)
 	return (int)dec;
 }
 
+<<<<<<< HEAD
 static char* 
 URLDecoding(const char *data) {
     if (data == NULL) {
@@ -937,6 +938,26 @@ URLDecoding(const char *data) {
     if (count == 0) {
         return nng_strdup("");
     }
+=======
+static
+char* URLDecoding(char* data, unsigned int count) {
+	char* result = nng_zalloc(count + 1);
+	int j = 0;
+
+	for (int i = 0; i < count; ++i, ++j)
+	{
+		if (data[i] == '%' && i + 2 < count)
+		{
+			char h[] = { data[i + 1], data[i + 2] };
+			result[j] = (char)HexadecimalToDecimal(h, 2);
+			i += 2;
+		}
+		else
+		{
+			result[j] = data[i];
+		}
+	}
+>>>>>>> b4c8fe93 (* FIX [rest_api] fixed memory leak.)
 
     // FIX 1: Allocate count + 1 to guarantee space for the null terminator.
     char* result = nng_zalloc(count + 1);
@@ -1916,16 +1937,15 @@ get_can_data_span(http_msg *msg, kv **params, size_t param_num,
     const char *client_id, const char *username, nng_socket *broker_sock)
 {
 	http_msg  res       = { .status = NNG_HTTP_STATUS_OK };
-	cJSON    *res_obj   = cJSON_CreateObject();
-	uint64_t *data_span = NULL;
-	uint64_t *sums      = NULL;
-
 	conf *conf = get_global_conf();
 	conf_exchange *ex_conf = &conf->exchange;
 	if (ex_conf->count <= 0) {
 		return error_response(msg, NNG_HTTP_STATUS_NO_CONTENT,
 		    CONTENT_NOT_AVAILABLE);
 	}
+	cJSON    *res_obj   = cJSON_CreateObject();
+	uint64_t *data_span = NULL;
+	uint64_t *sums      = NULL;
 	char **topicl = nng_zalloc(sizeof(char*) * ex_conf->count);
 	for (size_t i = 0; i < ex_conf->count; i++) {
 		topicl[i] = nng_strdup(ex_conf->nodes[i]->topic);
@@ -1964,7 +1984,7 @@ get_can_data_span(http_msg *msg, kv **params, size_t param_num,
 	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
 
 	for (size_t i = 0; i < ex_conf->count; i++) {
-		nng_free(topicl[i], strlen(topicl[i]));
+		nng_free(topicl[i], strlen(topicl[i]) + 1);
 	}
 	nng_free(topicl, sizeof(char*) * ex_conf->count);
 	cJSON_free(dest);
@@ -1986,6 +2006,9 @@ get_prometheus(http_msg *msg, kv **params, size_t param_num,
 	int data_size = BROKER_DATA_SIZE + config->bridge.count*BRIDGE_DATA_SIZE;
 
 	char *dest = nng_alloc(sizeof(char) * data_size);
+	if (dest == NULL) {
+		goto out;
+	}
 
 	if (nng_socket_get_ptr(*broker_sock, NMQ_OPT_MQTT_PIPES,
 	        (void **) &pipe_id_map) != 0) {
@@ -2068,9 +2091,12 @@ get_prometheus(http_msg *msg, kv **params, size_t param_num,
 	}
 	nng_stats_free(nng_stats);
 
-out:
-	put_http_msg(&res, "text/plain", NULL, NULL, NULL, dest, strlen(dest));
-	nng_free(dest, data_size);
+ out:
+	if (dest) {
+		dest[data_size - 1] = '\0';
+		put_http_msg(&res, "text/plain", NULL, NULL, NULL, dest, strlen(dest));
+		nng_free(dest, data_size);
+	}
 
 	return res;
 }
@@ -2733,6 +2759,7 @@ post_rules(http_msg *msg)
 	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
 
 	if (!cJSON_IsObject(req)) {
+		cJSON_Delete(req);
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 	}
@@ -3541,7 +3568,14 @@ ctrl_cb(void *arg)
 	char **argv   = get_cache_argv();
 	char * cmd    = NULL;
 
+#ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
 	nng_msleep(2000);
+#endif
+
+	if (argc < 2 || argv == NULL) {
+		nng_strfree(action);
+		return;
+	}
 
 	if (nng_strcasecmp(action, "stop") == 0) {
 		argv[1] = "stop";
@@ -3553,7 +3587,9 @@ ctrl_cb(void *arg)
 	nng_strfree(action);
 	if (cmd) {
 		log_info("run system cmd: '%s'", cmd);
+#ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
 		system(cmd);
+#endif
 		free(cmd);
 	}
 }
@@ -3570,7 +3606,11 @@ post_ctrl(http_msg *msg, const char *type)
 	    nng_strcasecmp(type, "restart") == 0) {
 #ifndef NANO_PLATFORM_WINDOWS
 		char *arg = nng_strdup(type);
+#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+		ctrl_cb(arg);
+#else
 		nng_thread_create(&thread, ctrl_cb, arg);
+#endif
 		res.status = NNG_HTTP_STATUS_OK;
 #else
 		res.status = NNG_HTTP_STATUS_NOT_ACCEPTABLE;
@@ -3626,6 +3666,7 @@ post_reload_config(http_msg *msg)
 	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
 
 	if (!cJSON_IsObject(req)) {
+		cJSON_Delete(req);
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 	}
@@ -3655,6 +3696,7 @@ write_file(http_msg *msg)
 	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
 
 	if (!cJSON_IsObject(req)) {
+		cJSON_Delete(req);
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 	}
@@ -3727,6 +3769,7 @@ update_config(http_msg *msg)
 	conf * config    = get_global_conf();
 	cJSON *req = (cJSON *)nng_hocon_parse_str(msg->data, msg->data_len);
 	if (!cJSON_IsObject(req)) {
+		cJSON_Delete(req);
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    PARAMS_HOCON_FORMAT_ILLEGAL);
 	}
@@ -3875,6 +3918,7 @@ post_config(http_msg *msg, const char *type)
 	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
 
 	if (!cJSON_IsObject(req)) {
+		cJSON_Delete(req);
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 	}
@@ -4407,6 +4451,7 @@ post_mqtt_msg(http_msg *msg, nng_socket *sock, handle_mqtt_msg_cb cb)
 	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
 
 	if (!cJSON_IsObject(req)) {
+		cJSON_Delete(req);
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 	}
@@ -4466,9 +4511,7 @@ post_mqtt_msg_batch(http_msg *msg, nng_socket *sock, handle_mqtt_msg_cb cb)
 	return res;
 
 out:
-	if (!cJSON_IsObject(req)) {
-		cJSON_Delete(req);
-	}
+	cJSON_Delete(req);
 	return error_response(
 	    msg, NNG_HTTP_STATUS_BAD_REQUEST, REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 }
@@ -4971,11 +5014,22 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
 
 	if (!cJSON_IsObject(req)) {
+		cJSON_Delete(req);
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 	}
 	cJSON *node_obj = cJSON_GetObjectItem(req, name);
 	conf * config   = get_global_conf();
+	if (config == NULL) {
+		cJSON_Delete(req);
+		log_error("Global config is NULL");
+		return error_response(msg, NNG_HTTP_STATUS_INTERNAL_SERVER_ERROR, UNKNOWN_MISTAKE);
+	}
+	if (config->restapi_lk == NULL) {
+		cJSON_Delete(req);
+		log_error("restapi_lk is NULL");
+		return error_response(msg, NNG_HTTP_STATUS_INTERNAL_SERVER_ERROR, UNKNOWN_MISTAKE);
+	}
 
 	bool         found  = false;
 	conf_bridge *bridge = &config->bridge;
@@ -5058,10 +5112,11 @@ put_mqtt_bridge_switch(http_msg *msg, const char *name)
 	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
 
 	if (!cJSON_IsObject(req)) {
+		cJSON_Delete(req);
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 	}
-	int  		 rv;
+	int  		 rv = 0;
 	bool         found = false;
 	bool         bridge_switch;
 	cJSON       *conf_data = cJSON_GetObjectItem(req, "data");
@@ -5123,7 +5178,7 @@ put_mqtt_bridge_switch(http_msg *msg, const char *name)
 		log_warn("no such bridge: %s!", name);
 		return error_response(
 		    msg, NNG_HTTP_STATUS_FORBIDDEN, ILLEGAL_SUBJECT);
-	} else if (rv != 0) {
+	} else {
 		cJSON_Delete(req);
 		log_warn("change %s bridge is failed!", name);
 		return error_response(
@@ -5401,9 +5456,7 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 	return res;
 
 out:
-	if (cJSON_IsObject(req)) {
-		cJSON_Delete(req);
-	}
+	cJSON_Delete(req);
 
 	return error_response(msg,
 	    status == NNG_HTTP_STATUS_NOT_FOUND ? status
@@ -5547,9 +5600,7 @@ post_mqtt_bridge_unsub(http_msg *msg, const char *name)
 	return res;
 
 out:
-	if (cJSON_IsObject(req)) {
-		cJSON_Delete(req);
-	}
+	cJSON_Delete(req);
 
 	return error_response(msg,
 	    status == NNG_HTTP_STATUS_NOT_FOUND ? status
