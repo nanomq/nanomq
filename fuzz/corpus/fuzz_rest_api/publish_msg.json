@@ -1,0 +1,1 @@
+{"topic": "test/topic", "qos": 1, "payload": "Hello World", "retain": false}

@@ -1,0 +1,83 @@
+Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+Compiler: /usr/bin/clang++ 
+Build flags: -O1;-fno-omit-frame-pointer;-gline-tables-only;-Wno-error=incompatible-function-pointer-types;-Wno-error=int-conversion;-Wno-error=deprecated-declarations;-Wno-error=implicit-function-declaration;-Wno-error=implicit-int;-Wno-error=unknown-warning-option;-Wno-error=vla-cxx-extension;-DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION;-fsanitize=address;-fsanitize-address-use-after-scope;-fsanitize=fuzzer-no-link;-stdlib=libc++
+Id flags:  
+
+The output was:
+1
+warning: unknown warning option '-Werror=vla-cxx-extension'; did you mean '-Werror=vla-extension'? [-Wunknown-warning-option]
+1 warning generated.
+/usr/bin/ld: cannot find -lc++: No such file or directory
+clang: error: linker command failed with exit code 1 (use -v to see invocation)
+
+
+Detecting CXX compiler ABI info failed to compile with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_ci/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_3bd2c/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_3bd2c.dir/build.make CMakeFiles/cmTC_3bd2c.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci/CMakeFiles/CMakeTmp'
+Building CXX object CMakeFiles/cmTC_3bd2c.dir/CMakeCXXCompilerABI.cpp.o
+/usr/bin/clang++   -O1 -fno-omit-frame-pointer -gline-tables-only -Wno-error=incompatible-function-pointer-types -Wno-error=int-conversion -Wno-error=deprecated-declarations -Wno-error=implicit-function-declaration -Wno-error=implicit-int -Wno-error=unknown-warning-option -Wno-error=vla-cxx-extension -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -stdlib=libc++    -v -MD -MT CMakeFiles/cmTC_3bd2c.dir/CMakeCXXCompilerABI.cpp.o -MF CMakeFiles/cmTC_3bd2c.dir/CMakeCXXCompilerABI.cpp.o.d -o CMakeFiles/cmTC_3bd2c.dir/CMakeCXXCompilerABI.cpp.o -c /usr/share/cmake-3.22/Modules/CMakeCXXCompilerABI.cpp
+Ubuntu clang version 14.0.0-1ubuntu1.1
+Target: x86_64-pc-linux-gnu
+Thread model: posix
+InstalledDir: /usr/bin
+Found candidate GCC installation: /usr/bin/../lib/gcc/x86_64-linux-gnu/11
+Selected GCC installation: /usr/bin/../lib/gcc/x86_64-linux-gnu/11
+Candidate multilib: .;@m64
+Selected multilib: .;@m64
+ (in-process)
+ "/usr/lib/llvm-14/bin/clang" -cc1 -triple x86_64-pc-linux-gnu -emit-obj --mrelax-relocations -disable-free -clear-ast-before-backend -disable-llvm-verifier -discard-value-names -main-file-name CMakeCXXCompilerABI.cpp -mrelocation-model pic -pic-level 2 -pic-is-pie -mframe-pointer=all -fmath-errno -ffp-contract=on -fno-rounding-math -mconstructor-aliases -funwind-tables=2 -target-cpu x86-64 -tune-cpu generic -mllvm -treat-scalable-fixed-error-as-warning -debug-info-kind=line-tables-only -dwarf-version=5 -debugger-tuning=gdb -v -fcoverage-compilation-dir=/home/xinyi/Workspace/NanoMQ_mirror/build_ci/CMakeFiles/CMakeTmp -resource-dir /usr/lib/llvm-14/lib/clang/14.0.0 -dependency-file CMakeFiles/cmTC_3bd2c.dir/CMakeCXXCompilerABI.cpp.o.d -MT CMakeFiles/cmTC_3bd2c.dir/CMakeCXXCompilerABI.cpp.o -sys-header-deps -D FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -internal-isystem /usr/lib/llvm-14/lib/clang/14.0.0/include -internal-isystem /usr/local/include -internal-isystem /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/include -internal-externc-isystem /usr/include/x86_64-linux-gnu -internal-externc-isystem /include -internal-externc-isystem /usr/include -O1 -Wno-error=incompatible-function-pointer-types -Wno-error=int-conversion -Wno-error=deprecated-declarations -Wno-error=implicit-function-declaration -Wno-error=implicit-int -Wno-error=unknown-warning-option -Wno-error=vla-cxx-extension -fdeprecated-macro -fdebug-compilation-dir=/home/xinyi/Workspace/NanoMQ_mirror/build_ci/CMakeFiles/CMakeTmp -ferror-limit 19 -fsanitize-coverage-type=1 -fsanitize-coverage-type=3 -fsanitize-coverage-indirect-calls -fsanitize-coverage-trace-cmp -fsanitize-coverage-inline-8bit-counters -fsanitize-coverage-pc-table -fsanitize-coverage-stack-depth -fsanitize=address,fuzzer-no-link -fsanitize-system-ignorelist=/usr/lib/llvm-14/lib/clang/14.0.0/share/asan_ignorelist.txt -fsanitize-address-use-after-scope -fno-assume-sane-operator-new -fno-builtin-bcmp -fno-builtin-memcmp -fno-builtin-strncmp -fno-builtin-strcmp -fno-builtin-strncasecmp -fno-builtin-strcasecmp -fno-builtin-strstr -fno-builtin-strcasestr -fno-builtin-memmem -fgnuc-version=4.2.1 -fcxx-exceptions -fexceptions -faddrsig -D__GCC_HAVE_DWARF2_CFI_ASM=1 -o CMakeFiles/cmTC_3bd2c.dir/CMakeCXXCompilerABI.cpp.o -x c++ /usr/share/cmake-3.22/Modules/CMakeCXXCompilerABI.cpp
+warning: unknown warning option '-Werror=vla-cxx-extension'; did you mean '-Werror=vla-extension'? [-Wunknown-warning-option]
+clang -cc1 version 14.0.0 based upon LLVM 14.0.0 default target x86_64-pc-linux-gnu
+ignoring nonexistent directory "/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/include"
+ignoring nonexistent directory "/include"
+#include "..." search starts here:
+#include <...> search starts here:
+ /usr/lib/llvm-14/lib/clang/14.0.0/include
+ /usr/local/include
+ /usr/include/x86_64-linux-gnu
+ /usr/include
+End of search list.
+1 warning generated.
+Linking CXX executable cmTC_3bd2c
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_3bd2c.dir/link.txt --verbose=1
+/usr/bin/clang++ -O1 -fno-omit-frame-pointer -gline-tables-only -Wno-error=incompatible-function-pointer-types -Wno-error=int-conversion -Wno-error=deprecated-declarations -Wno-error=implicit-function-declaration -Wno-error=implicit-int -Wno-error=unknown-warning-option -Wno-error=vla-cxx-extension -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -stdlib=libc++   -v CMakeFiles/cmTC_3bd2c.dir/CMakeCXXCompilerABI.cpp.o -o cmTC_3bd2c 
+Ubuntu clang version 14.0.0-1ubuntu1.1
+Target: x86_64-pc-linux-gnu
+Thread model: posix
+InstalledDir: /usr/bin
+Found candidate GCC installation: /usr/bin/../lib/gcc/x86_64-linux-gnu/11
+Selected GCC installation: /usr/bin/../lib/gcc/x86_64-linux-gnu/11
+Candidate multilib: .;@m64
+Selected multilib: .;@m64
+ "/usr/bin/ld" -pie -z relro --hash-style=gnu --build-id --eh-frame-hdr -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_3bd2c /lib/x86_64-linux-gnu/Scrt1.o /lib/x86_64-linux-gnu/crti.o /usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtbeginS.o -L/usr/bin/../lib/gcc/x86_64-linux-gnu/11 -L/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../lib64 -L/lib/x86_64-linux-gnu -L/lib/../lib64 -L/usr/lib/x86_64-linux-gnu -L/usr/lib/../lib64 -L/usr/lib/llvm-14/bin/../lib -L/lib -L/usr/lib --whole-archive /usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan_static-x86_64.a --no-whole-archive --whole-archive /usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan-x86_64.a --no-whole-archive --dynamic-list=/usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan-x86_64.a.syms --whole-archive /usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan_cxx-x86_64.a --no-whole-archive --dynamic-list=/usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan_cxx-x86_64.a.syms CMakeFiles/cmTC_3bd2c.dir/CMakeCXXCompilerABI.cpp.o -lc++ -lm --no-as-needed -lpthread -lrt -lm -ldl -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtendS.o /lib/x86_64-linux-gnu/crtn.o
+/usr/bin/ld: cannot find -lc++: No such file or directory
+clang: error: linker command failed with exit code 1 (use -v to see invocation)
+gmake[1]: *** [CMakeFiles/cmTC_3bd2c.dir/build.make:100: cmTC_3bd2c] Error 1
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci/CMakeFiles/CMakeTmp'
+gmake: *** [Makefile:127: cmTC_3bd2c/fast] Error 2
+
+
+
+
+Determining if the CXX compiler works failed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_ci/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_630f7/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_630f7.dir/build.make CMakeFiles/cmTC_630f7.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci/CMakeFiles/CMakeTmp'
+Building CXX object CMakeFiles/cmTC_630f7.dir/testCXXCompiler.cxx.o
+/usr/bin/clang++   -O1 -fno-omit-frame-pointer -gline-tables-only -Wno-error=incompatible-function-pointer-types -Wno-error=int-conversion -Wno-error=deprecated-declarations -Wno-error=implicit-function-declaration -Wno-error=implicit-int -Wno-error=unknown-warning-option -Wno-error=vla-cxx-extension -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -stdlib=libc++  -MD -MT CMakeFiles/cmTC_630f7.dir/testCXXCompiler.cxx.o -MF CMakeFiles/cmTC_630f7.dir/testCXXCompiler.cxx.o.d -o CMakeFiles/cmTC_630f7.dir/testCXXCompiler.cxx.o -c /home/xinyi/Workspace/NanoMQ_mirror/build_ci/CMakeFiles/CMakeTmp/testCXXCompiler.cxx
+warning: unknown warning option '-Werror=vla-cxx-extension'; did you mean '-Werror=vla-extension'? [-Wunknown-warning-option]
+1 warning generated.
+Linking CXX executable cmTC_630f7
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_630f7.dir/link.txt --verbose=1
+/usr/bin/clang++ -O1 -fno-omit-frame-pointer -gline-tables-only -Wno-error=incompatible-function-pointer-types -Wno-error=int-conversion -Wno-error=deprecated-declarations -Wno-error=implicit-function-declaration -Wno-error=implicit-int -Wno-error=unknown-warning-option -Wno-error=vla-cxx-extension -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -stdlib=libc++  CMakeFiles/cmTC_630f7.dir/testCXXCompiler.cxx.o -o cmTC_630f7 
+/usr/bin/ld: cannot find -lc++: No such file or directory
+clang: error: linker command failed with exit code 1 (use -v to see invocation)
+gmake[1]: *** [CMakeFiles/cmTC_630f7.dir/build.make:100: cmTC_630f7] Error 1
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci/CMakeFiles/CMakeTmp'
+gmake: *** [Makefile:127: cmTC_630f7/fast] Error 2
+
+
+

@@ -1,0 +1,3 @@
+# Hashes of file build rules.
+ca872ee8e3107d54ac4ae7184357e9dd nanomq/CMakeFiles/libnano
+ecc17680af7164e1c5b155c50966a97a nng/CMakeFiles/dist

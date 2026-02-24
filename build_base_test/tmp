@@ -1,0 +1,6 @@
+create /home/xinyi/Workspace/NanoMQ_mirror/build_base_test/libnanomq.a
+addlib /home/xinyi/Workspace/NanoMQ_mirror/build_base_test/nanomq/libnanomq.a
+addlib /home/xinyi/Workspace/NanoMQ_mirror/build_base_test/nng/libnng.a
+addlib /home/xinyi/Workspace/NanoMQ_mirror/build_base_test/nanomq/apps/libapps.a
+save
+end

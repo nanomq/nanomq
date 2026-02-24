@@ -1,0 +1,925 @@
+The system is: Linux - 6.8.0-87-generic - x86_64
+Compiling the C compiler identification source file "CMakeCCompilerId.c" succeeded.
+Compiler: /usr/bin/clang 
+Build flags: 
+Id flags:  
+
+The output was:
+0
+
+
+Compilation of the C compiler identification source "CMakeCCompilerId.c" produced "a.out"
+
+The C compiler identification is Clang, found in "/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/3.22.1/CompilerIdC/a.out"
+
+Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" succeeded.
+Compiler: /usr/bin/clang++ 
+Build flags: 
+Id flags:  
+
+The output was:
+0
+
+
+Compilation of the CXX compiler identification source "CMakeCXXCompilerId.cpp" produced "a.out"
+
+The CXX compiler identification is Clang, found in "/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/3.22.1/CompilerIdCXX/a.out"
+
+Detecting C compiler ABI info compiled with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_01ddf/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_01ddf.dir/build.make CMakeFiles/cmTC_01ddf.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_01ddf.dir/CMakeCCompilerABI.c.o
+/usr/bin/clang   -v -std=gnu99 -MD -MT CMakeFiles/cmTC_01ddf.dir/CMakeCCompilerABI.c.o -MF CMakeFiles/cmTC_01ddf.dir/CMakeCCompilerABI.c.o.d -o CMakeFiles/cmTC_01ddf.dir/CMakeCCompilerABI.c.o -c /usr/share/cmake-3.22/Modules/CMakeCCompilerABI.c
+Ubuntu clang version 14.0.0-1ubuntu1.1
+Target: x86_64-pc-linux-gnu
+Thread model: posix
+InstalledDir: /usr/bin
+Found candidate GCC installation: /usr/bin/../lib/gcc/x86_64-linux-gnu/11
+Selected GCC installation: /usr/bin/../lib/gcc/x86_64-linux-gnu/11
+Candidate multilib: .;@m64
+Selected multilib: .;@m64
+ (in-process)
+ "/usr/lib/llvm-14/bin/clang" -cc1 -triple x86_64-pc-linux-gnu -emit-obj -mrelax-all --mrelax-relocations -disable-free -clear-ast-before-backend -disable-llvm-verifier -discard-value-names -main-file-name CMakeCCompilerABI.c -mrelocation-model pic -pic-level 2 -pic-is-pie -mframe-pointer=all -fmath-errno -ffp-contract=on -fno-rounding-math -mconstructor-aliases -funwind-tables=2 -target-cpu x86-64 -tune-cpu generic -mllvm -treat-scalable-fixed-error-as-warning -debugger-tuning=gdb -v -fcoverage-compilation-dir=/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp -resource-dir /usr/lib/llvm-14/lib/clang/14.0.0 -dependency-file CMakeFiles/cmTC_01ddf.dir/CMakeCCompilerABI.c.o.d -MT CMakeFiles/cmTC_01ddf.dir/CMakeCCompilerABI.c.o -sys-header-deps -internal-isystem /usr/lib/llvm-14/lib/clang/14.0.0/include -internal-isystem /usr/local/include -internal-isystem /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/include -internal-externc-isystem /usr/include/x86_64-linux-gnu -internal-externc-isystem /include -internal-externc-isystem /usr/include -std=gnu99 -fdebug-compilation-dir=/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp -ferror-limit 19 -fgnuc-version=4.2.1 -faddrsig -D__GCC_HAVE_DWARF2_CFI_ASM=1 -o CMakeFiles/cmTC_01ddf.dir/CMakeCCompilerABI.c.o -x c /usr/share/cmake-3.22/Modules/CMakeCCompilerABI.c
+clang -cc1 version 14.0.0 based upon LLVM 14.0.0 default target x86_64-pc-linux-gnu
+ignoring nonexistent directory "/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/include"
+ignoring nonexistent directory "/include"
+#include "..." search starts here:
+#include <...> search starts here:
+ /usr/lib/llvm-14/lib/clang/14.0.0/include
+ /usr/local/include
+ /usr/include/x86_64-linux-gnu
+ /usr/include
+End of search list.
+Linking C executable cmTC_01ddf
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_01ddf.dir/link.txt --verbose=1
+/usr/bin/clang  -v CMakeFiles/cmTC_01ddf.dir/CMakeCCompilerABI.c.o -o cmTC_01ddf 
+Ubuntu clang version 14.0.0-1ubuntu1.1
+Target: x86_64-pc-linux-gnu
+Thread model: posix
+InstalledDir: /usr/bin
+Found candidate GCC installation: /usr/bin/../lib/gcc/x86_64-linux-gnu/11
+Selected GCC installation: /usr/bin/../lib/gcc/x86_64-linux-gnu/11
+Candidate multilib: .;@m64
+Selected multilib: .;@m64
+ "/usr/bin/ld" -pie -z relro --hash-style=gnu --build-id --eh-frame-hdr -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_01ddf /lib/x86_64-linux-gnu/Scrt1.o /lib/x86_64-linux-gnu/crti.o /usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtbeginS.o -L/usr/bin/../lib/gcc/x86_64-linux-gnu/11 -L/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../lib64 -L/lib/x86_64-linux-gnu -L/lib/../lib64 -L/usr/lib/x86_64-linux-gnu -L/usr/lib/../lib64 -L/usr/lib/llvm-14/bin/../lib -L/lib -L/usr/lib CMakeFiles/cmTC_01ddf.dir/CMakeCCompilerABI.c.o -lgcc --as-needed -lgcc_s --no-as-needed -lc -lgcc --as-needed -lgcc_s --no-as-needed /usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtendS.o /lib/x86_64-linux-gnu/crtn.o
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+
+
+
+Parsed C implicit include dir info from above output: rv=done
+  found start of include info
+  found start of implicit include info
+    add: [/usr/lib/llvm-14/lib/clang/14.0.0/include]
+    add: [/usr/local/include]
+    add: [/usr/include/x86_64-linux-gnu]
+    add: [/usr/include]
+  end of search list found
+  collapse include dir [/usr/lib/llvm-14/lib/clang/14.0.0/include] ==> [/usr/lib/llvm-14/lib/clang/14.0.0/include]
+  collapse include dir [/usr/local/include] ==> [/usr/local/include]
+  collapse include dir [/usr/include/x86_64-linux-gnu] ==> [/usr/include/x86_64-linux-gnu]
+  collapse include dir [/usr/include] ==> [/usr/include]
+  implicit include dirs: [/usr/lib/llvm-14/lib/clang/14.0.0/include;/usr/local/include;/usr/include/x86_64-linux-gnu;/usr/include]
+
+
+Parsed C implicit link information from above output:
+  link line regex: [^( *|.*[/\])(ld|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\]+-)?ld|collect2)[^/\]*( |$)]
+  ignore line: [Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp]
+  ignore line: []
+  ignore line: [Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_01ddf/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_01ddf.dir/build.make CMakeFiles/cmTC_01ddf.dir/build]
+  ignore line: [gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp']
+  ignore line: [Building C object CMakeFiles/cmTC_01ddf.dir/CMakeCCompilerABI.c.o]
+  ignore line: [/usr/bin/clang   -v -std=gnu99 -MD -MT CMakeFiles/cmTC_01ddf.dir/CMakeCCompilerABI.c.o -MF CMakeFiles/cmTC_01ddf.dir/CMakeCCompilerABI.c.o.d -o CMakeFiles/cmTC_01ddf.dir/CMakeCCompilerABI.c.o -c /usr/share/cmake-3.22/Modules/CMakeCCompilerABI.c]
+  ignore line: [Ubuntu clang version 14.0.0-1ubuntu1.1]
+  ignore line: [Target: x86_64-pc-linux-gnu]
+  ignore line: [Thread model: posix]
+  ignore line: [InstalledDir: /usr/bin]
+  ignore line: [Found candidate GCC installation: /usr/bin/../lib/gcc/x86_64-linux-gnu/11]
+  ignore line: [Selected GCC installation: /usr/bin/../lib/gcc/x86_64-linux-gnu/11]
+  ignore line: [Candidate multilib: .]
+  ignore line: [@m64]
+  ignore line: [Selected multilib: .]
+  ignore line: [@m64]
+  ignore line: [ (in-process)]
+  ignore line: [ "/usr/lib/llvm-14/bin/clang" -cc1 -triple x86_64-pc-linux-gnu -emit-obj -mrelax-all --mrelax-relocations -disable-free -clear-ast-before-backend -disable-llvm-verifier -discard-value-names -main-file-name CMakeCCompilerABI.c -mrelocation-model pic -pic-level 2 -pic-is-pie -mframe-pointer=all -fmath-errno -ffp-contract=on -fno-rounding-math -mconstructor-aliases -funwind-tables=2 -target-cpu x86-64 -tune-cpu generic -mllvm -treat-scalable-fixed-error-as-warning -debugger-tuning=gdb -v -fcoverage-compilation-dir=/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp -resource-dir /usr/lib/llvm-14/lib/clang/14.0.0 -dependency-file CMakeFiles/cmTC_01ddf.dir/CMakeCCompilerABI.c.o.d -MT CMakeFiles/cmTC_01ddf.dir/CMakeCCompilerABI.c.o -sys-header-deps -internal-isystem /usr/lib/llvm-14/lib/clang/14.0.0/include -internal-isystem /usr/local/include -internal-isystem /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/include -internal-externc-isystem /usr/include/x86_64-linux-gnu -internal-externc-isystem /include -internal-externc-isystem /usr/include -std=gnu99 -fdebug-compilation-dir=/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp -ferror-limit 19 -fgnuc-version=4.2.1 -faddrsig -D__GCC_HAVE_DWARF2_CFI_ASM=1 -o CMakeFiles/cmTC_01ddf.dir/CMakeCCompilerABI.c.o -x c /usr/share/cmake-3.22/Modules/CMakeCCompilerABI.c]
+  ignore line: [clang -cc1 version 14.0.0 based upon LLVM 14.0.0 default target x86_64-pc-linux-gnu]
+  ignore line: [ignoring nonexistent directory "/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/include"]
+  ignore line: [ignoring nonexistent directory "/include"]
+  ignore line: [#include "..." search starts here:]
+  ignore line: [#include <...> search starts here:]
+  ignore line: [ /usr/lib/llvm-14/lib/clang/14.0.0/include]
+  ignore line: [ /usr/local/include]
+  ignore line: [ /usr/include/x86_64-linux-gnu]
+  ignore line: [ /usr/include]
+  ignore line: [End of search list.]
+  ignore line: [Linking C executable cmTC_01ddf]
+  ignore line: [/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_01ddf.dir/link.txt --verbose=1]
+  ignore line: [/usr/bin/clang  -v CMakeFiles/cmTC_01ddf.dir/CMakeCCompilerABI.c.o -o cmTC_01ddf ]
+  ignore line: [Ubuntu clang version 14.0.0-1ubuntu1.1]
+  ignore line: [Target: x86_64-pc-linux-gnu]
+  ignore line: [Thread model: posix]
+  ignore line: [InstalledDir: /usr/bin]
+  ignore line: [Found candidate GCC installation: /usr/bin/../lib/gcc/x86_64-linux-gnu/11]
+  ignore line: [Selected GCC installation: /usr/bin/../lib/gcc/x86_64-linux-gnu/11]
+  ignore line: [Candidate multilib: .]
+  ignore line: [@m64]
+  ignore line: [Selected multilib: .]
+  ignore line: [@m64]
+  link line: [ "/usr/bin/ld" -pie -z relro --hash-style=gnu --build-id --eh-frame-hdr -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_01ddf /lib/x86_64-linux-gnu/Scrt1.o /lib/x86_64-linux-gnu/crti.o /usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtbeginS.o -L/usr/bin/../lib/gcc/x86_64-linux-gnu/11 -L/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../lib64 -L/lib/x86_64-linux-gnu -L/lib/../lib64 -L/usr/lib/x86_64-linux-gnu -L/usr/lib/../lib64 -L/usr/lib/llvm-14/bin/../lib -L/lib -L/usr/lib CMakeFiles/cmTC_01ddf.dir/CMakeCCompilerABI.c.o -lgcc --as-needed -lgcc_s --no-as-needed -lc -lgcc --as-needed -lgcc_s --no-as-needed /usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtendS.o /lib/x86_64-linux-gnu/crtn.o]
+    arg [/usr/bin/ld] ==> ignore
+    arg [-pie] ==> ignore
+    arg [-zrelro] ==> ignore
+    arg [--hash-style=gnu] ==> ignore
+    arg [--build-id] ==> ignore
+    arg [--eh-frame-hdr] ==> ignore
+    arg [-m] ==> ignore
+    arg [elf_x86_64] ==> ignore
+    arg [-dynamic-linker] ==> ignore
+    arg [/lib64/ld-linux-x86-64.so.2] ==> ignore
+    arg [-o] ==> ignore
+    arg [cmTC_01ddf] ==> ignore
+    arg [/lib/x86_64-linux-gnu/Scrt1.o] ==> obj [/lib/x86_64-linux-gnu/Scrt1.o]
+    arg [/lib/x86_64-linux-gnu/crti.o] ==> obj [/lib/x86_64-linux-gnu/crti.o]
+    arg [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtbeginS.o] ==> obj [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtbeginS.o]
+    arg [-L/usr/bin/../lib/gcc/x86_64-linux-gnu/11] ==> dir [/usr/bin/../lib/gcc/x86_64-linux-gnu/11]
+    arg [-L/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../lib64] ==> dir [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../lib64]
+    arg [-L/lib/x86_64-linux-gnu] ==> dir [/lib/x86_64-linux-gnu]
+    arg [-L/lib/../lib64] ==> dir [/lib/../lib64]
+    arg [-L/usr/lib/x86_64-linux-gnu] ==> dir [/usr/lib/x86_64-linux-gnu]
+    arg [-L/usr/lib/../lib64] ==> dir [/usr/lib/../lib64]
+    arg [-L/usr/lib/llvm-14/bin/../lib] ==> dir [/usr/lib/llvm-14/bin/../lib]
+    arg [-L/lib] ==> dir [/lib]
+    arg [-L/usr/lib] ==> dir [/usr/lib]
+    arg [CMakeFiles/cmTC_01ddf.dir/CMakeCCompilerABI.c.o] ==> ignore
+    arg [-lgcc] ==> lib [gcc]
+    arg [--as-needed] ==> ignore
+    arg [-lgcc_s] ==> lib [gcc_s]
+    arg [--no-as-needed] ==> ignore
+    arg [-lc] ==> lib [c]
+    arg [-lgcc] ==> lib [gcc]
+    arg [--as-needed] ==> ignore
+    arg [-lgcc_s] ==> lib [gcc_s]
+    arg [--no-as-needed] ==> ignore
+    arg [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtendS.o] ==> obj [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtendS.o]
+    arg [/lib/x86_64-linux-gnu/crtn.o] ==> obj [/lib/x86_64-linux-gnu/crtn.o]
+  collapse obj [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtbeginS.o] ==> [/usr/lib/gcc/x86_64-linux-gnu/11/crtbeginS.o]
+  collapse obj [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtendS.o] ==> [/usr/lib/gcc/x86_64-linux-gnu/11/crtendS.o]
+  collapse library dir [/usr/bin/../lib/gcc/x86_64-linux-gnu/11] ==> [/usr/lib/gcc/x86_64-linux-gnu/11]
+  collapse library dir [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../lib64] ==> [/usr/lib64]
+  collapse library dir [/lib/x86_64-linux-gnu] ==> [/lib/x86_64-linux-gnu]
+  collapse library dir [/lib/../lib64] ==> [/lib64]
+  collapse library dir [/usr/lib/x86_64-linux-gnu] ==> [/usr/lib/x86_64-linux-gnu]
+  collapse library dir [/usr/lib/../lib64] ==> [/usr/lib64]
+  collapse library dir [/usr/lib/llvm-14/bin/../lib] ==> [/usr/lib/llvm-14/lib]
+  collapse library dir [/lib] ==> [/lib]
+  collapse library dir [/usr/lib] ==> [/usr/lib]
+  implicit libs: [gcc;gcc_s;c;gcc;gcc_s]
+  implicit objs: [/lib/x86_64-linux-gnu/Scrt1.o;/lib/x86_64-linux-gnu/crti.o;/usr/lib/gcc/x86_64-linux-gnu/11/crtbeginS.o;/usr/lib/gcc/x86_64-linux-gnu/11/crtendS.o;/lib/x86_64-linux-gnu/crtn.o]
+  implicit dirs: [/usr/lib/gcc/x86_64-linux-gnu/11;/usr/lib64;/lib/x86_64-linux-gnu;/lib64;/usr/lib/x86_64-linux-gnu;/usr/lib/llvm-14/lib;/lib;/usr/lib]
+  implicit fwks: []
+
+
+Detecting CXX compiler ABI info compiled with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_3ca6f/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_3ca6f.dir/build.make CMakeFiles/cmTC_3ca6f.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+Building CXX object CMakeFiles/cmTC_3ca6f.dir/CMakeCXXCompilerABI.cpp.o
+/usr/bin/clang++   -v -MD -MT CMakeFiles/cmTC_3ca6f.dir/CMakeCXXCompilerABI.cpp.o -MF CMakeFiles/cmTC_3ca6f.dir/CMakeCXXCompilerABI.cpp.o.d -o CMakeFiles/cmTC_3ca6f.dir/CMakeCXXCompilerABI.cpp.o -c /usr/share/cmake-3.22/Modules/CMakeCXXCompilerABI.cpp
+Ubuntu clang version 14.0.0-1ubuntu1.1
+Target: x86_64-pc-linux-gnu
+Thread model: posix
+InstalledDir: /usr/bin
+Found candidate GCC installation: /usr/bin/../lib/gcc/x86_64-linux-gnu/11
+Selected GCC installation: /usr/bin/../lib/gcc/x86_64-linux-gnu/11
+Candidate multilib: .;@m64
+Selected multilib: .;@m64
+ (in-process)
+ "/usr/lib/llvm-14/bin/clang" -cc1 -triple x86_64-pc-linux-gnu -emit-obj -mrelax-all --mrelax-relocations -disable-free -clear-ast-before-backend -disable-llvm-verifier -discard-value-names -main-file-name CMakeCXXCompilerABI.cpp -mrelocation-model pic -pic-level 2 -pic-is-pie -mframe-pointer=all -fmath-errno -ffp-contract=on -fno-rounding-math -mconstructor-aliases -funwind-tables=2 -target-cpu x86-64 -tune-cpu generic -mllvm -treat-scalable-fixed-error-as-warning -debugger-tuning=gdb -v -fcoverage-compilation-dir=/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp -resource-dir /usr/lib/llvm-14/lib/clang/14.0.0 -dependency-file CMakeFiles/cmTC_3ca6f.dir/CMakeCXXCompilerABI.cpp.o.d -MT CMakeFiles/cmTC_3ca6f.dir/CMakeCXXCompilerABI.cpp.o -sys-header-deps -internal-isystem /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11 -internal-isystem /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/x86_64-linux-gnu/c++/11 -internal-isystem /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/backward -internal-isystem /usr/lib/llvm-14/lib/clang/14.0.0/include -internal-isystem /usr/local/include -internal-isystem /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/include -internal-externc-isystem /usr/include/x86_64-linux-gnu -internal-externc-isystem /include -internal-externc-isystem /usr/include -fdeprecated-macro -fdebug-compilation-dir=/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp -ferror-limit 19 -fgnuc-version=4.2.1 -fcxx-exceptions -fexceptions -faddrsig -D__GCC_HAVE_DWARF2_CFI_ASM=1 -o CMakeFiles/cmTC_3ca6f.dir/CMakeCXXCompilerABI.cpp.o -x c++ /usr/share/cmake-3.22/Modules/CMakeCXXCompilerABI.cpp
+clang -cc1 version 14.0.0 based upon LLVM 14.0.0 default target x86_64-pc-linux-gnu
+ignoring nonexistent directory "/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/include"
+ignoring nonexistent directory "/include"
+#include "..." search starts here:
+#include <...> search starts here:
+ /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11
+ /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/x86_64-linux-gnu/c++/11
+ /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/backward
+ /usr/lib/llvm-14/lib/clang/14.0.0/include
+ /usr/local/include
+ /usr/include/x86_64-linux-gnu
+ /usr/include
+End of search list.
+Linking CXX executable cmTC_3ca6f
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_3ca6f.dir/link.txt --verbose=1
+/usr/bin/clang++  -v CMakeFiles/cmTC_3ca6f.dir/CMakeCXXCompilerABI.cpp.o -o cmTC_3ca6f 
+Ubuntu clang version 14.0.0-1ubuntu1.1
+Target: x86_64-pc-linux-gnu
+Thread model: posix
+InstalledDir: /usr/bin
+Found candidate GCC installation: /usr/bin/../lib/gcc/x86_64-linux-gnu/11
+Selected GCC installation: /usr/bin/../lib/gcc/x86_64-linux-gnu/11
+Candidate multilib: .;@m64
+Selected multilib: .;@m64
+ "/usr/bin/ld" -pie -z relro --hash-style=gnu --build-id --eh-frame-hdr -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_3ca6f /lib/x86_64-linux-gnu/Scrt1.o /lib/x86_64-linux-gnu/crti.o /usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtbeginS.o -L/usr/bin/../lib/gcc/x86_64-linux-gnu/11 -L/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../lib64 -L/lib/x86_64-linux-gnu -L/lib/../lib64 -L/usr/lib/x86_64-linux-gnu -L/usr/lib/../lib64 -L/usr/lib/llvm-14/bin/../lib -L/lib -L/usr/lib CMakeFiles/cmTC_3ca6f.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtendS.o /lib/x86_64-linux-gnu/crtn.o
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+
+
+
+Parsed CXX implicit include dir info from above output: rv=done
+  found start of include info
+  found start of implicit include info
+    add: [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11]
+    add: [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/x86_64-linux-gnu/c++/11]
+    add: [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/backward]
+    add: [/usr/lib/llvm-14/lib/clang/14.0.0/include]
+    add: [/usr/local/include]
+    add: [/usr/include/x86_64-linux-gnu]
+    add: [/usr/include]
+  end of search list found
+  collapse include dir [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11] ==> [/usr/include/c++/11]
+  collapse include dir [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/x86_64-linux-gnu/c++/11] ==> [/usr/include/x86_64-linux-gnu/c++/11]
+  collapse include dir [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/backward] ==> [/usr/include/c++/11/backward]
+  collapse include dir [/usr/lib/llvm-14/lib/clang/14.0.0/include] ==> [/usr/lib/llvm-14/lib/clang/14.0.0/include]
+  collapse include dir [/usr/local/include] ==> [/usr/local/include]
+  collapse include dir [/usr/include/x86_64-linux-gnu] ==> [/usr/include/x86_64-linux-gnu]
+  collapse include dir [/usr/include] ==> [/usr/include]
+  implicit include dirs: [/usr/include/c++/11;/usr/include/x86_64-linux-gnu/c++/11;/usr/include/c++/11/backward;/usr/lib/llvm-14/lib/clang/14.0.0/include;/usr/local/include;/usr/include/x86_64-linux-gnu;/usr/include]
+
+
+Parsed CXX implicit link information from above output:
+  link line regex: [^( *|.*[/\])(ld|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\]+-)?ld|collect2)[^/\]*( |$)]
+  ignore line: [Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp]
+  ignore line: []
+  ignore line: [Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_3ca6f/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_3ca6f.dir/build.make CMakeFiles/cmTC_3ca6f.dir/build]
+  ignore line: [gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp']
+  ignore line: [Building CXX object CMakeFiles/cmTC_3ca6f.dir/CMakeCXXCompilerABI.cpp.o]
+  ignore line: [/usr/bin/clang++   -v -MD -MT CMakeFiles/cmTC_3ca6f.dir/CMakeCXXCompilerABI.cpp.o -MF CMakeFiles/cmTC_3ca6f.dir/CMakeCXXCompilerABI.cpp.o.d -o CMakeFiles/cmTC_3ca6f.dir/CMakeCXXCompilerABI.cpp.o -c /usr/share/cmake-3.22/Modules/CMakeCXXCompilerABI.cpp]
+  ignore line: [Ubuntu clang version 14.0.0-1ubuntu1.1]
+  ignore line: [Target: x86_64-pc-linux-gnu]
+  ignore line: [Thread model: posix]
+  ignore line: [InstalledDir: /usr/bin]
+  ignore line: [Found candidate GCC installation: /usr/bin/../lib/gcc/x86_64-linux-gnu/11]
+  ignore line: [Selected GCC installation: /usr/bin/../lib/gcc/x86_64-linux-gnu/11]
+  ignore line: [Candidate multilib: .]
+  ignore line: [@m64]
+  ignore line: [Selected multilib: .]
+  ignore line: [@m64]
+  ignore line: [ (in-process)]
+  ignore line: [ "/usr/lib/llvm-14/bin/clang" -cc1 -triple x86_64-pc-linux-gnu -emit-obj -mrelax-all --mrelax-relocations -disable-free -clear-ast-before-backend -disable-llvm-verifier -discard-value-names -main-file-name CMakeCXXCompilerABI.cpp -mrelocation-model pic -pic-level 2 -pic-is-pie -mframe-pointer=all -fmath-errno -ffp-contract=on -fno-rounding-math -mconstructor-aliases -funwind-tables=2 -target-cpu x86-64 -tune-cpu generic -mllvm -treat-scalable-fixed-error-as-warning -debugger-tuning=gdb -v -fcoverage-compilation-dir=/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp -resource-dir /usr/lib/llvm-14/lib/clang/14.0.0 -dependency-file CMakeFiles/cmTC_3ca6f.dir/CMakeCXXCompilerABI.cpp.o.d -MT CMakeFiles/cmTC_3ca6f.dir/CMakeCXXCompilerABI.cpp.o -sys-header-deps -internal-isystem /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11 -internal-isystem /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/x86_64-linux-gnu/c++/11 -internal-isystem /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/backward -internal-isystem /usr/lib/llvm-14/lib/clang/14.0.0/include -internal-isystem /usr/local/include -internal-isystem /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/include -internal-externc-isystem /usr/include/x86_64-linux-gnu -internal-externc-isystem /include -internal-externc-isystem /usr/include -fdeprecated-macro -fdebug-compilation-dir=/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp -ferror-limit 19 -fgnuc-version=4.2.1 -fcxx-exceptions -fexceptions -faddrsig -D__GCC_HAVE_DWARF2_CFI_ASM=1 -o CMakeFiles/cmTC_3ca6f.dir/CMakeCXXCompilerABI.cpp.o -x c++ /usr/share/cmake-3.22/Modules/CMakeCXXCompilerABI.cpp]
+  ignore line: [clang -cc1 version 14.0.0 based upon LLVM 14.0.0 default target x86_64-pc-linux-gnu]
+  ignore line: [ignoring nonexistent directory "/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/include"]
+  ignore line: [ignoring nonexistent directory "/include"]
+  ignore line: [#include "..." search starts here:]
+  ignore line: [#include <...> search starts here:]
+  ignore line: [ /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11]
+  ignore line: [ /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/x86_64-linux-gnu/c++/11]
+  ignore line: [ /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/backward]
+  ignore line: [ /usr/lib/llvm-14/lib/clang/14.0.0/include]
+  ignore line: [ /usr/local/include]
+  ignore line: [ /usr/include/x86_64-linux-gnu]
+  ignore line: [ /usr/include]
+  ignore line: [End of search list.]
+  ignore line: [Linking CXX executable cmTC_3ca6f]
+  ignore line: [/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_3ca6f.dir/link.txt --verbose=1]
+  ignore line: [/usr/bin/clang++  -v CMakeFiles/cmTC_3ca6f.dir/CMakeCXXCompilerABI.cpp.o -o cmTC_3ca6f ]
+  ignore line: [Ubuntu clang version 14.0.0-1ubuntu1.1]
+  ignore line: [Target: x86_64-pc-linux-gnu]
+  ignore line: [Thread model: posix]
+  ignore line: [InstalledDir: /usr/bin]
+  ignore line: [Found candidate GCC installation: /usr/bin/../lib/gcc/x86_64-linux-gnu/11]
+  ignore line: [Selected GCC installation: /usr/bin/../lib/gcc/x86_64-linux-gnu/11]
+  ignore line: [Candidate multilib: .]
+  ignore line: [@m64]
+  ignore line: [Selected multilib: .]
+  ignore line: [@m64]
+  link line: [ "/usr/bin/ld" -pie -z relro --hash-style=gnu --build-id --eh-frame-hdr -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_3ca6f /lib/x86_64-linux-gnu/Scrt1.o /lib/x86_64-linux-gnu/crti.o /usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtbeginS.o -L/usr/bin/../lib/gcc/x86_64-linux-gnu/11 -L/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../lib64 -L/lib/x86_64-linux-gnu -L/lib/../lib64 -L/usr/lib/x86_64-linux-gnu -L/usr/lib/../lib64 -L/usr/lib/llvm-14/bin/../lib -L/lib -L/usr/lib CMakeFiles/cmTC_3ca6f.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtendS.o /lib/x86_64-linux-gnu/crtn.o]
+    arg [/usr/bin/ld] ==> ignore
+    arg [-pie] ==> ignore
+    arg [-zrelro] ==> ignore
+    arg [--hash-style=gnu] ==> ignore
+    arg [--build-id] ==> ignore
+    arg [--eh-frame-hdr] ==> ignore
+    arg [-m] ==> ignore
+    arg [elf_x86_64] ==> ignore
+    arg [-dynamic-linker] ==> ignore
+    arg [/lib64/ld-linux-x86-64.so.2] ==> ignore
+    arg [-o] ==> ignore
+    arg [cmTC_3ca6f] ==> ignore
+    arg [/lib/x86_64-linux-gnu/Scrt1.o] ==> obj [/lib/x86_64-linux-gnu/Scrt1.o]
+    arg [/lib/x86_64-linux-gnu/crti.o] ==> obj [/lib/x86_64-linux-gnu/crti.o]
+    arg [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtbeginS.o] ==> obj [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtbeginS.o]
+    arg [-L/usr/bin/../lib/gcc/x86_64-linux-gnu/11] ==> dir [/usr/bin/../lib/gcc/x86_64-linux-gnu/11]
+    arg [-L/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../lib64] ==> dir [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../lib64]
+    arg [-L/lib/x86_64-linux-gnu] ==> dir [/lib/x86_64-linux-gnu]
+    arg [-L/lib/../lib64] ==> dir [/lib/../lib64]
+    arg [-L/usr/lib/x86_64-linux-gnu] ==> dir [/usr/lib/x86_64-linux-gnu]
+    arg [-L/usr/lib/../lib64] ==> dir [/usr/lib/../lib64]
+    arg [-L/usr/lib/llvm-14/bin/../lib] ==> dir [/usr/lib/llvm-14/bin/../lib]
+    arg [-L/lib] ==> dir [/lib]
+    arg [-L/usr/lib] ==> dir [/usr/lib]
+    arg [CMakeFiles/cmTC_3ca6f.dir/CMakeCXXCompilerABI.cpp.o] ==> ignore
+    arg [-lstdc++] ==> lib [stdc++]
+    arg [-lm] ==> lib [m]
+    arg [-lgcc_s] ==> lib [gcc_s]
+    arg [-lgcc] ==> lib [gcc]
+    arg [-lc] ==> lib [c]
+    arg [-lgcc_s] ==> lib [gcc_s]
+    arg [-lgcc] ==> lib [gcc]
+    arg [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtendS.o] ==> obj [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtendS.o]
+    arg [/lib/x86_64-linux-gnu/crtn.o] ==> obj [/lib/x86_64-linux-gnu/crtn.o]
+  collapse obj [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtbeginS.o] ==> [/usr/lib/gcc/x86_64-linux-gnu/11/crtbeginS.o]
+  collapse obj [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtendS.o] ==> [/usr/lib/gcc/x86_64-linux-gnu/11/crtendS.o]
+  collapse library dir [/usr/bin/../lib/gcc/x86_64-linux-gnu/11] ==> [/usr/lib/gcc/x86_64-linux-gnu/11]
+  collapse library dir [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../lib64] ==> [/usr/lib64]
+  collapse library dir [/lib/x86_64-linux-gnu] ==> [/lib/x86_64-linux-gnu]
+  collapse library dir [/lib/../lib64] ==> [/lib64]
+  collapse library dir [/usr/lib/x86_64-linux-gnu] ==> [/usr/lib/x86_64-linux-gnu]
+  collapse library dir [/usr/lib/../lib64] ==> [/usr/lib64]
+  collapse library dir [/usr/lib/llvm-14/bin/../lib] ==> [/usr/lib/llvm-14/lib]
+  collapse library dir [/lib] ==> [/lib]
+  collapse library dir [/usr/lib] ==> [/usr/lib]
+  implicit libs: [stdc++;m;gcc_s;gcc;c;gcc_s;gcc]
+  implicit objs: [/lib/x86_64-linux-gnu/Scrt1.o;/lib/x86_64-linux-gnu/crti.o;/usr/lib/gcc/x86_64-linux-gnu/11/crtbeginS.o;/usr/lib/gcc/x86_64-linux-gnu/11/crtendS.o;/lib/x86_64-linux-gnu/crtn.o]
+  implicit dirs: [/usr/lib/gcc/x86_64-linux-gnu/11;/usr/lib64;/lib/x86_64-linux-gnu;/lib64;/usr/lib/x86_64-linux-gnu;/usr/lib/llvm-14/lib;/lib;/usr/lib]
+  implicit fwks: []
+
+
+Performing C SOURCE FILE Test NANO_HIDDEN_VISIBILITY succeeded with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_2cc9a/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_2cc9a.dir/build.make CMakeFiles/cmTC_2cc9a.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_2cc9a.dir/src.c.o
+/usr/bin/clang -DNANO_HIDDEN_VISIBILITY  -fvisibility=hidden -std=gnu99 -MD -MT CMakeFiles/cmTC_2cc9a.dir/src.c.o -MF CMakeFiles/cmTC_2cc9a.dir/src.c.o.d -o CMakeFiles/cmTC_2cc9a.dir/src.c.o -c /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp/src.c
+Linking C executable cmTC_2cc9a
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_2cc9a.dir/link.txt --verbose=1
+/usr/bin/clang CMakeFiles/cmTC_2cc9a.dir/src.c.o -o cmTC_2cc9a 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+
+
+Source file was:
+int main(void) { return 0; }
+Performing C SOURCE FILE Test NNG_HIDDEN_VISIBILITY succeeded with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_229a1/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_229a1.dir/build.make CMakeFiles/cmTC_229a1.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_229a1.dir/src.c.o
+/usr/bin/clang -DNNG_HIDDEN_VISIBILITY  -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag      -fvisibility=hidden -std=gnu99 -MD -MT CMakeFiles/cmTC_229a1.dir/src.c.o -MF CMakeFiles/cmTC_229a1.dir/src.c.o.d -o CMakeFiles/cmTC_229a1.dir/src.c.o -c /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp/src.c
+Linking C executable cmTC_229a1
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_229a1.dir/link.txt --verbose=1
+/usr/bin/clang  -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    CMakeFiles/cmTC_229a1.dir/src.c.o -o cmTC_229a1 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+
+
+Source file was:
+int main(void) { return 0; }
+Determining if the strnlen exist passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_398e4/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_398e4.dir/build.make CMakeFiles/cmTC_398e4.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_398e4.dir/CheckSymbolExists.c.o
+/usr/bin/clang   -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    -std=gnu99 -MD -MT CMakeFiles/cmTC_398e4.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_398e4.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_398e4.dir/CheckSymbolExists.c.o -c /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_398e4
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_398e4.dir/link.txt --verbose=1
+/usr/bin/clang  -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    CMakeFiles/cmTC_398e4.dir/CheckSymbolExists.c.o -o cmTC_398e4 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+
+
+File /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <string.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef strnlen
+  return ((int*)(&strnlen))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the strcasecmp exist passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_f86da/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_f86da.dir/build.make CMakeFiles/cmTC_f86da.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_f86da.dir/CheckSymbolExists.c.o
+/usr/bin/clang   -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    -std=gnu99 -MD -MT CMakeFiles/cmTC_f86da.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_f86da.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_f86da.dir/CheckSymbolExists.c.o -c /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_f86da
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_f86da.dir/link.txt --verbose=1
+/usr/bin/clang  -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    CMakeFiles/cmTC_f86da.dir/CheckSymbolExists.c.o -o cmTC_f86da 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+
+
+File /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <string.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef strcasecmp
+  return ((int*)(&strcasecmp))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the strncasecmp exist passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_82aca/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_82aca.dir/build.make CMakeFiles/cmTC_82aca.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_82aca.dir/CheckSymbolExists.c.o
+/usr/bin/clang   -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    -std=gnu99 -MD -MT CMakeFiles/cmTC_82aca.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_82aca.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_82aca.dir/CheckSymbolExists.c.o -c /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_82aca
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_82aca.dir/link.txt --verbose=1
+/usr/bin/clang  -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    CMakeFiles/cmTC_82aca.dir/CheckSymbolExists.c.o -o cmTC_82aca 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+
+
+File /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <string.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef strncasecmp
+  return ((int*)(&strncasecmp))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the include file pthread.h exists passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_953d0/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_953d0.dir/build.make CMakeFiles/cmTC_953d0.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_953d0.dir/CheckIncludeFile.c.o
+/usr/bin/clang   -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    -std=gnu99 -MD -MT CMakeFiles/cmTC_953d0.dir/CheckIncludeFile.c.o -MF CMakeFiles/cmTC_953d0.dir/CheckIncludeFile.c.o.d -o CMakeFiles/cmTC_953d0.dir/CheckIncludeFile.c.o -c /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp/CheckIncludeFile.c
+Linking C executable cmTC_953d0
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_953d0.dir/link.txt --verbose=1
+/usr/bin/clang  -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    CMakeFiles/cmTC_953d0.dir/CheckIncludeFile.c.o -o cmTC_953d0 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+
+
+
+Performing C SOURCE FILE Test CMAKE_HAVE_LIBC_PTHREAD succeeded with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_70746/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_70746.dir/build.make CMakeFiles/cmTC_70746.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_70746.dir/src.c.o
+/usr/bin/clang -DCMAKE_HAVE_LIBC_PTHREAD  -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    -std=gnu99 -MD -MT CMakeFiles/cmTC_70746.dir/src.c.o -MF CMakeFiles/cmTC_70746.dir/src.c.o.d -o CMakeFiles/cmTC_70746.dir/src.c.o -c /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp/src.c
+Linking C executable cmTC_70746
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_70746.dir/link.txt --verbose=1
+/usr/bin/clang  -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    CMakeFiles/cmTC_70746.dir/src.c.o -o cmTC_70746 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+
+
+Source file was:
+#include <pthread.h>
+
+static void* test_func(void* data)
+{
+  return data;
+}
+
+int main(void)
+{
+  pthread_t thread;
+  pthread_create(&thread, NULL, test_func, NULL);
+  pthread_detach(thread);
+  pthread_cancel(thread);
+  pthread_join(thread, NULL);
+  pthread_atfork(NULL, NULL, NULL);
+  pthread_exit(NULL);
+
+  return 0;
+}
+
+Determining if the function lockf exists passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_5fcf0/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_5fcf0.dir/build.make CMakeFiles/cmTC_5fcf0.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_5fcf0.dir/CheckFunctionExists.c.o
+/usr/bin/clang   -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag   -DCHECK_FUNCTION_EXISTS=lockf -std=gnu99 -MD -MT CMakeFiles/cmTC_5fcf0.dir/CheckFunctionExists.c.o -MF CMakeFiles/cmTC_5fcf0.dir/CheckFunctionExists.c.o.d -o CMakeFiles/cmTC_5fcf0.dir/CheckFunctionExists.c.o -c /usr/share/cmake-3.22/Modules/CheckFunctionExists.c
+Linking C executable cmTC_5fcf0
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_5fcf0.dir/link.txt --verbose=1
+/usr/bin/clang  -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag   -DCHECK_FUNCTION_EXISTS=lockf CMakeFiles/cmTC_5fcf0.dir/CheckFunctionExists.c.o -o cmTC_5fcf0 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+
+
+
+Determining if the function flock exists passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_f0a99/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_f0a99.dir/build.make CMakeFiles/cmTC_f0a99.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_f0a99.dir/CheckFunctionExists.c.o
+/usr/bin/clang   -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag   -DCHECK_FUNCTION_EXISTS=flock -std=gnu99 -MD -MT CMakeFiles/cmTC_f0a99.dir/CheckFunctionExists.c.o -MF CMakeFiles/cmTC_f0a99.dir/CheckFunctionExists.c.o.d -o CMakeFiles/cmTC_f0a99.dir/CheckFunctionExists.c.o -c /usr/share/cmake-3.22/Modules/CheckFunctionExists.c
+Linking C executable cmTC_f0a99
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_f0a99.dir/link.txt --verbose=1
+/usr/bin/clang  -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag   -DCHECK_FUNCTION_EXISTS=flock CMakeFiles/cmTC_f0a99.dir/CheckFunctionExists.c.o -o cmTC_f0a99 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+
+
+
+Determining if the function getrandom exists passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_13a7c/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_13a7c.dir/build.make CMakeFiles/cmTC_13a7c.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_13a7c.dir/CheckFunctionExists.c.o
+/usr/bin/clang   -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag   -DCHECK_FUNCTION_EXISTS=getrandom -std=gnu99 -MD -MT CMakeFiles/cmTC_13a7c.dir/CheckFunctionExists.c.o -MF CMakeFiles/cmTC_13a7c.dir/CheckFunctionExists.c.o.d -o CMakeFiles/cmTC_13a7c.dir/CheckFunctionExists.c.o -c /usr/share/cmake-3.22/Modules/CheckFunctionExists.c
+Linking C executable cmTC_13a7c
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_13a7c.dir/link.txt --verbose=1
+/usr/bin/clang  -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag   -DCHECK_FUNCTION_EXISTS=getrandom CMakeFiles/cmTC_13a7c.dir/CheckFunctionExists.c.o -o cmTC_13a7c 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+
+
+
+Determining if the function clock_gettime exists passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_6678c/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_6678c.dir/build.make CMakeFiles/cmTC_6678c.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_6678c.dir/CheckFunctionExists.c.o
+/usr/bin/clang   -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag   -DCHECK_FUNCTION_EXISTS=clock_gettime -std=gnu99 -MD -MT CMakeFiles/cmTC_6678c.dir/CheckFunctionExists.c.o -MF CMakeFiles/cmTC_6678c.dir/CheckFunctionExists.c.o.d -o CMakeFiles/cmTC_6678c.dir/CheckFunctionExists.c.o -c /usr/share/cmake-3.22/Modules/CheckFunctionExists.c
+Linking C executable cmTC_6678c
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_6678c.dir/link.txt --verbose=1
+/usr/bin/clang  -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag   -DCHECK_FUNCTION_EXISTS=clock_gettime CMakeFiles/cmTC_6678c.dir/CheckFunctionExists.c.o -o cmTC_6678c 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+
+
+
+Determining if the function sem_wait exists in the pthread passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_652f0/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_652f0.dir/build.make CMakeFiles/cmTC_652f0.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_652f0.dir/CheckFunctionExists.c.o
+/usr/bin/clang   -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag   -DCHECK_FUNCTION_EXISTS=sem_wait -std=gnu99 -MD -MT CMakeFiles/cmTC_652f0.dir/CheckFunctionExists.c.o -MF CMakeFiles/cmTC_652f0.dir/CheckFunctionExists.c.o.d -o CMakeFiles/cmTC_652f0.dir/CheckFunctionExists.c.o -c /usr/share/cmake-3.22/Modules/CheckFunctionExists.c
+Linking C executable cmTC_652f0
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_652f0.dir/link.txt --verbose=1
+/usr/bin/clang  -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag   -DCHECK_FUNCTION_EXISTS=sem_wait CMakeFiles/cmTC_652f0.dir/CheckFunctionExists.c.o -o cmTC_652f0  -lpthread 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+
+
+
+Determining if the function pthread_atfork exists in the pthread passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_5d75d/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_5d75d.dir/build.make CMakeFiles/cmTC_5d75d.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_5d75d.dir/CheckFunctionExists.c.o
+/usr/bin/clang   -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag   -DCHECK_FUNCTION_EXISTS=pthread_atfork -std=gnu99 -MD -MT CMakeFiles/cmTC_5d75d.dir/CheckFunctionExists.c.o -MF CMakeFiles/cmTC_5d75d.dir/CheckFunctionExists.c.o.d -o CMakeFiles/cmTC_5d75d.dir/CheckFunctionExists.c.o -c /usr/share/cmake-3.22/Modules/CheckFunctionExists.c
+Linking C executable cmTC_5d75d
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_5d75d.dir/link.txt --verbose=1
+/usr/bin/clang  -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag   -DCHECK_FUNCTION_EXISTS=pthread_atfork CMakeFiles/cmTC_5d75d.dir/CheckFunctionExists.c.o -o cmTC_5d75d  -lpthread 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+
+
+
+Determining if the function pthread_setname_np exists in the pthread passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_39891/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_39891.dir/build.make CMakeFiles/cmTC_39891.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_39891.dir/CheckFunctionExists.c.o
+/usr/bin/clang   -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag   -DCHECK_FUNCTION_EXISTS=pthread_setname_np -std=gnu99 -MD -MT CMakeFiles/cmTC_39891.dir/CheckFunctionExists.c.o -MF CMakeFiles/cmTC_39891.dir/CheckFunctionExists.c.o.d -o CMakeFiles/cmTC_39891.dir/CheckFunctionExists.c.o -c /usr/share/cmake-3.22/Modules/CheckFunctionExists.c
+Linking C executable cmTC_39891
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_39891.dir/link.txt --verbose=1
+/usr/bin/clang  -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag   -DCHECK_FUNCTION_EXISTS=pthread_setname_np CMakeFiles/cmTC_39891.dir/CheckFunctionExists.c.o -o cmTC_39891  -lpthread 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+
+
+
+Determining if the function gethostbyname exists in the nsl passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_998d0/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_998d0.dir/build.make CMakeFiles/cmTC_998d0.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_998d0.dir/CheckFunctionExists.c.o
+/usr/bin/clang   -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag   -DCHECK_FUNCTION_EXISTS=gethostbyname -std=gnu99 -MD -MT CMakeFiles/cmTC_998d0.dir/CheckFunctionExists.c.o -MF CMakeFiles/cmTC_998d0.dir/CheckFunctionExists.c.o.d -o CMakeFiles/cmTC_998d0.dir/CheckFunctionExists.c.o -c /usr/share/cmake-3.22/Modules/CheckFunctionExists.c
+Linking C executable cmTC_998d0
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_998d0.dir/link.txt --verbose=1
+/usr/bin/clang  -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag   -DCHECK_FUNCTION_EXISTS=gethostbyname CMakeFiles/cmTC_998d0.dir/CheckFunctionExists.c.o -o cmTC_998d0  -lnsl 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+
+
+
+Determining if the function __atomic_load_1 exists in the atomic passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_6216b/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_6216b.dir/build.make CMakeFiles/cmTC_6216b.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_6216b.dir/CheckFunctionExists.c.o
+/usr/bin/clang   -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag   -DCHECK_FUNCTION_EXISTS=__atomic_load_1 -std=gnu99 -MD -MT CMakeFiles/cmTC_6216b.dir/CheckFunctionExists.c.o -MF CMakeFiles/cmTC_6216b.dir/CheckFunctionExists.c.o.d -o CMakeFiles/cmTC_6216b.dir/CheckFunctionExists.c.o -c /usr/share/cmake-3.22/Modules/CheckFunctionExists.c
+Linking C executable cmTC_6216b
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_6216b.dir/link.txt --verbose=1
+/usr/bin/clang  -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag   -DCHECK_FUNCTION_EXISTS=__atomic_load_1 CMakeFiles/cmTC_6216b.dir/CheckFunctionExists.c.o -o cmTC_6216b  -latomic 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+
+
+
+Determining if the AF_UNIX exist passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_0d550/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_0d550.dir/build.make CMakeFiles/cmTC_0d550.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_0d550.dir/CheckSymbolExists.c.o
+/usr/bin/clang   -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    -std=gnu99 -MD -MT CMakeFiles/cmTC_0d550.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_0d550.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_0d550.dir/CheckSymbolExists.c.o -c /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_0d550
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_0d550.dir/link.txt --verbose=1
+/usr/bin/clang  -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    CMakeFiles/cmTC_0d550.dir/CheckSymbolExists.c.o -o cmTC_0d550 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+
+
+File /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <sys/socket.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef AF_UNIX
+  return ((int*)(&AF_UNIX))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the backtrace_symbols_fd exist passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_c6d6a/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_c6d6a.dir/build.make CMakeFiles/cmTC_c6d6a.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_c6d6a.dir/CheckSymbolExists.c.o
+/usr/bin/clang   -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    -std=gnu99 -MD -MT CMakeFiles/cmTC_c6d6a.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_c6d6a.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_c6d6a.dir/CheckSymbolExists.c.o -c /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_c6d6a
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_c6d6a.dir/link.txt --verbose=1
+/usr/bin/clang  -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    CMakeFiles/cmTC_c6d6a.dir/CheckSymbolExists.c.o -o cmTC_c6d6a 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+
+
+File /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <execinfo.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef backtrace_symbols_fd
+  return ((int*)(&backtrace_symbols_fd))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Performing C SOURCE FILE Test NNG_HAVE_MSG_CONTROL succeeded with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_faa79/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_faa79.dir/build.make CMakeFiles/cmTC_faa79.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_faa79.dir/src.c.o
+/usr/bin/clang -DNNG_HAVE_MSG_CONTROL  -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    -std=gnu99 -MD -MT CMakeFiles/cmTC_faa79.dir/src.c.o -MF CMakeFiles/cmTC_faa79.dir/src.c.o.d -o CMakeFiles/cmTC_faa79.dir/src.c.o -c /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp/src.c
+Linking C executable cmTC_faa79
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_faa79.dir/link.txt --verbose=1
+/usr/bin/clang  -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    CMakeFiles/cmTC_faa79.dir/src.c.o -o cmTC_faa79 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+
+
+Source file was:
+
+#include <sys/socket.h>
+
+int main()
+{
+  (void)sizeof(((struct msghdr *)0)->msg_control);
+  return 0;
+}
+
+Determining if the eventfd exist passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_538b0/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_538b0.dir/build.make CMakeFiles/cmTC_538b0.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_538b0.dir/CheckSymbolExists.c.o
+/usr/bin/clang   -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    -std=gnu99 -MD -MT CMakeFiles/cmTC_538b0.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_538b0.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_538b0.dir/CheckSymbolExists.c.o -c /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_538b0
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_538b0.dir/link.txt --verbose=1
+/usr/bin/clang  -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    CMakeFiles/cmTC_538b0.dir/CheckSymbolExists.c.o -o cmTC_538b0 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+
+
+File /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <sys/eventfd.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef eventfd
+  return ((int*)(&eventfd))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the epoll_create exist passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_cf2d5/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_cf2d5.dir/build.make CMakeFiles/cmTC_cf2d5.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_cf2d5.dir/CheckSymbolExists.c.o
+/usr/bin/clang   -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    -std=gnu99 -MD -MT CMakeFiles/cmTC_cf2d5.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_cf2d5.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_cf2d5.dir/CheckSymbolExists.c.o -c /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_cf2d5
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_cf2d5.dir/link.txt --verbose=1
+/usr/bin/clang  -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    CMakeFiles/cmTC_cf2d5.dir/CheckSymbolExists.c.o -o cmTC_cf2d5 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+
+
+File /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <sys/epoll.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef epoll_create
+  return ((int*)(&epoll_create))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the epoll_create1 exist passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_f3ddb/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_f3ddb.dir/build.make CMakeFiles/cmTC_f3ddb.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_f3ddb.dir/CheckSymbolExists.c.o
+/usr/bin/clang   -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    -std=gnu99 -MD -MT CMakeFiles/cmTC_f3ddb.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_f3ddb.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_f3ddb.dir/CheckSymbolExists.c.o -c /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_f3ddb
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_f3ddb.dir/link.txt --verbose=1
+/usr/bin/clang  -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    CMakeFiles/cmTC_f3ddb.dir/CheckSymbolExists.c.o -o cmTC_f3ddb 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+
+
+File /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <sys/epoll.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef epoll_create1
+  return ((int*)(&epoll_create1))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the SO_PEERCRED exist passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_dedb8/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_dedb8.dir/build.make CMakeFiles/cmTC_dedb8.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_dedb8.dir/CheckSymbolExists.c.o
+/usr/bin/clang   -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    -std=gnu99 -MD -MT CMakeFiles/cmTC_dedb8.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_dedb8.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_dedb8.dir/CheckSymbolExists.c.o -c /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_dedb8
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_dedb8.dir/link.txt --verbose=1
+/usr/bin/clang  -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    CMakeFiles/cmTC_dedb8.dir/CheckSymbolExists.c.o -o cmTC_dedb8 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+
+
+File /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <sys/socket.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef SO_PEERCRED
+  return ((int*)(&SO_PEERCRED))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the atomic_flag_test_and_set exist passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_76a32/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_76a32.dir/build.make CMakeFiles/cmTC_76a32.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_76a32.dir/CheckSymbolExists.c.o
+/usr/bin/clang   -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    -std=gnu99 -MD -MT CMakeFiles/cmTC_76a32.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_76a32.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_76a32.dir/CheckSymbolExists.c.o -c /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_76a32
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_76a32.dir/link.txt --verbose=1
+/usr/bin/clang  -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    CMakeFiles/cmTC_76a32.dir/CheckSymbolExists.c.o -o cmTC_76a32 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+
+
+File /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <stdatomic.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef atomic_flag_test_and_set
+  return ((int*)(&atomic_flag_test_and_set))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the socketpair exist passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_3f209/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_3f209.dir/build.make CMakeFiles/cmTC_3f209.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_3f209.dir/CheckSymbolExists.c.o
+/usr/bin/clang   -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    -std=gnu99 -MD -MT CMakeFiles/cmTC_3f209.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_3f209.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_3f209.dir/CheckSymbolExists.c.o -c /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_3f209
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_3f209.dir/link.txt --verbose=1
+/usr/bin/clang  -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    CMakeFiles/cmTC_3f209.dir/CheckSymbolExists.c.o -o cmTC_3f209 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+
+
+File /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <sys/socket.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef socketpair
+  return ((int*)(&socketpair))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the AF_INET6 exist passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_0e484/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_0e484.dir/build.make CMakeFiles/cmTC_0e484.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_0e484.dir/CheckSymbolExists.c.o
+/usr/bin/clang   -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    -std=gnu99 -MD -MT CMakeFiles/cmTC_0e484.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_0e484.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_0e484.dir/CheckSymbolExists.c.o -c /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_0e484
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_0e484.dir/link.txt --verbose=1
+/usr/bin/clang  -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    CMakeFiles/cmTC_0e484.dir/CheckSymbolExists.c.o -o cmTC_0e484 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+
+
+File /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <netinet/in.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef AF_INET6
+  return ((int*)(&AF_INET6))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the BZ2_bzCompressInit exist passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_c1d91/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_c1d91.dir/build.make CMakeFiles/cmTC_c1d91.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_c1d91.dir/CheckSymbolExists.c.o
+/usr/bin/clang   -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    -std=gnu99 -MD -MT CMakeFiles/cmTC_c1d91.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_c1d91.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_c1d91.dir/CheckSymbolExists.c.o -c /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_c1d91
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_c1d91.dir/link.txt --verbose=1
+/usr/bin/clang  -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    CMakeFiles/cmTC_c1d91.dir/CheckSymbolExists.c.o -o cmTC_c1d91  /usr/lib/x86_64-linux-gnu/libbz2.so 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp'
+
+
+File /home/xinyi/Workspace/NanoMQ_mirror/build_ci_small/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <bzlib.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef BZ2_bzCompressInit
+  return ((int*)(&BZ2_bzCompressInit))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}

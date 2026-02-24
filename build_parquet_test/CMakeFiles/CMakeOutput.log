@@ -1,0 +1,958 @@
+The system is: Linux - 6.8.0-87-generic - x86_64
+Compiling the C compiler identification source file "CMakeCCompilerId.c" succeeded.
+Compiler: /usr/bin/clang 
+Build flags: -O1;-fno-omit-frame-pointer;-gline-tables-only;-DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION;-fsanitize=address;-fsanitize-address-use-after-scope;-fsanitize=fuzzer-no-link
+Id flags:  
+
+The output was:
+0
+
+
+Compilation of the C compiler identification source "CMakeCCompilerId.c" produced "a.out"
+
+The C compiler identification is Clang, found in "/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/3.22.1/CompilerIdC/a.out"
+
+Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" succeeded.
+Compiler: /usr/bin/clang++ 
+Build flags: -O1;-fno-omit-frame-pointer;-gline-tables-only;-DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION;-fsanitize=address;-fsanitize-address-use-after-scope;-fsanitize=fuzzer-no-link;-stdlib=libstdc++
+Id flags:  
+
+The output was:
+0
+
+
+Compilation of the CXX compiler identification source "CMakeCXXCompilerId.cpp" produced "a.out"
+
+The CXX compiler identification is Clang, found in "/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/3.22.1/CompilerIdCXX/a.out"
+
+Detecting C compiler ABI info compiled with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_35064/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_35064.dir/build.make CMakeFiles/cmTC_35064.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_35064.dir/CMakeCCompilerABI.c.o
+/usr/bin/clang   -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link    -v -std=gnu99 -MD -MT CMakeFiles/cmTC_35064.dir/CMakeCCompilerABI.c.o -MF CMakeFiles/cmTC_35064.dir/CMakeCCompilerABI.c.o.d -o CMakeFiles/cmTC_35064.dir/CMakeCCompilerABI.c.o -c /usr/share/cmake-3.22/Modules/CMakeCCompilerABI.c
+Ubuntu clang version 14.0.0-1ubuntu1.1
+Target: x86_64-pc-linux-gnu
+Thread model: posix
+InstalledDir: /usr/bin
+Found candidate GCC installation: /usr/bin/../lib/gcc/x86_64-linux-gnu/11
+Selected GCC installation: /usr/bin/../lib/gcc/x86_64-linux-gnu/11
+Candidate multilib: .;@m64
+Selected multilib: .;@m64
+ (in-process)
+ "/usr/lib/llvm-14/bin/clang" -cc1 -triple x86_64-pc-linux-gnu -emit-obj --mrelax-relocations -disable-free -clear-ast-before-backend -disable-llvm-verifier -discard-value-names -main-file-name CMakeCCompilerABI.c -mrelocation-model pic -pic-level 2 -pic-is-pie -mframe-pointer=all -fmath-errno -ffp-contract=on -fno-rounding-math -mconstructor-aliases -funwind-tables=2 -target-cpu x86-64 -tune-cpu generic -mllvm -treat-scalable-fixed-error-as-warning -debug-info-kind=line-tables-only -dwarf-version=5 -debugger-tuning=gdb -v -fcoverage-compilation-dir=/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp -resource-dir /usr/lib/llvm-14/lib/clang/14.0.0 -dependency-file CMakeFiles/cmTC_35064.dir/CMakeCCompilerABI.c.o.d -MT CMakeFiles/cmTC_35064.dir/CMakeCCompilerABI.c.o -sys-header-deps -D FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -internal-isystem /usr/lib/llvm-14/lib/clang/14.0.0/include -internal-isystem /usr/local/include -internal-isystem /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/include -internal-externc-isystem /usr/include/x86_64-linux-gnu -internal-externc-isystem /include -internal-externc-isystem /usr/include -O1 -std=gnu99 -fdebug-compilation-dir=/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp -ferror-limit 19 -fsanitize-coverage-type=1 -fsanitize-coverage-type=3 -fsanitize-coverage-indirect-calls -fsanitize-coverage-trace-cmp -fsanitize-coverage-inline-8bit-counters -fsanitize-coverage-pc-table -fsanitize-coverage-stack-depth -fsanitize=address,fuzzer-no-link -fsanitize-system-ignorelist=/usr/lib/llvm-14/lib/clang/14.0.0/share/asan_ignorelist.txt -fsanitize-address-use-after-scope -fno-assume-sane-operator-new -fno-builtin-bcmp -fno-builtin-memcmp -fno-builtin-strncmp -fno-builtin-strcmp -fno-builtin-strncasecmp -fno-builtin-strcasecmp -fno-builtin-strstr -fno-builtin-strcasestr -fno-builtin-memmem -fgnuc-version=4.2.1 -faddrsig -D__GCC_HAVE_DWARF2_CFI_ASM=1 -o CMakeFiles/cmTC_35064.dir/CMakeCCompilerABI.c.o -x c /usr/share/cmake-3.22/Modules/CMakeCCompilerABI.c
+clang -cc1 version 14.0.0 based upon LLVM 14.0.0 default target x86_64-pc-linux-gnu
+ignoring nonexistent directory "/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/include"
+ignoring nonexistent directory "/include"
+#include "..." search starts here:
+#include <...> search starts here:
+ /usr/lib/llvm-14/lib/clang/14.0.0/include
+ /usr/local/include
+ /usr/include/x86_64-linux-gnu
+ /usr/include
+End of search list.
+Linking C executable cmTC_35064
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_35064.dir/link.txt --verbose=1
+/usr/bin/clang -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link   -v CMakeFiles/cmTC_35064.dir/CMakeCCompilerABI.c.o -o cmTC_35064 
+Ubuntu clang version 14.0.0-1ubuntu1.1
+Target: x86_64-pc-linux-gnu
+Thread model: posix
+InstalledDir: /usr/bin
+Found candidate GCC installation: /usr/bin/../lib/gcc/x86_64-linux-gnu/11
+Selected GCC installation: /usr/bin/../lib/gcc/x86_64-linux-gnu/11
+Candidate multilib: .;@m64
+Selected multilib: .;@m64
+ "/usr/bin/ld" -pie -z relro --hash-style=gnu --build-id --eh-frame-hdr -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_35064 /lib/x86_64-linux-gnu/Scrt1.o /lib/x86_64-linux-gnu/crti.o /usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtbeginS.o -L/usr/bin/../lib/gcc/x86_64-linux-gnu/11 -L/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../lib64 -L/lib/x86_64-linux-gnu -L/lib/../lib64 -L/usr/lib/x86_64-linux-gnu -L/usr/lib/../lib64 -L/usr/lib/llvm-14/bin/../lib -L/lib -L/usr/lib --whole-archive /usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan_static-x86_64.a --no-whole-archive --whole-archive /usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan-x86_64.a --no-whole-archive --dynamic-list=/usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan-x86_64.a.syms CMakeFiles/cmTC_35064.dir/CMakeCCompilerABI.c.o --no-as-needed -lpthread -lrt -lm -ldl -lgcc --as-needed -lgcc_s --no-as-needed -lc -lgcc --as-needed -lgcc_s --no-as-needed /usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtendS.o /lib/x86_64-linux-gnu/crtn.o
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+
+
+
+Parsed C implicit include dir info from above output: rv=done
+  found start of include info
+  found start of implicit include info
+    add: [/usr/lib/llvm-14/lib/clang/14.0.0/include]
+    add: [/usr/local/include]
+    add: [/usr/include/x86_64-linux-gnu]
+    add: [/usr/include]
+  end of search list found
+  collapse include dir [/usr/lib/llvm-14/lib/clang/14.0.0/include] ==> [/usr/lib/llvm-14/lib/clang/14.0.0/include]
+  collapse include dir [/usr/local/include] ==> [/usr/local/include]
+  collapse include dir [/usr/include/x86_64-linux-gnu] ==> [/usr/include/x86_64-linux-gnu]
+  collapse include dir [/usr/include] ==> [/usr/include]
+  implicit include dirs: [/usr/lib/llvm-14/lib/clang/14.0.0/include;/usr/local/include;/usr/include/x86_64-linux-gnu;/usr/include]
+
+
+Parsed C implicit link information from above output:
+  link line regex: [^( *|.*[/\])(ld|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\]+-)?ld|collect2)[^/\]*( |$)]
+  ignore line: [Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp]
+  ignore line: []
+  ignore line: [Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_35064/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_35064.dir/build.make CMakeFiles/cmTC_35064.dir/build]
+  ignore line: [gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp']
+  ignore line: [Building C object CMakeFiles/cmTC_35064.dir/CMakeCCompilerABI.c.o]
+  ignore line: [/usr/bin/clang   -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link    -v -std=gnu99 -MD -MT CMakeFiles/cmTC_35064.dir/CMakeCCompilerABI.c.o -MF CMakeFiles/cmTC_35064.dir/CMakeCCompilerABI.c.o.d -o CMakeFiles/cmTC_35064.dir/CMakeCCompilerABI.c.o -c /usr/share/cmake-3.22/Modules/CMakeCCompilerABI.c]
+  ignore line: [Ubuntu clang version 14.0.0-1ubuntu1.1]
+  ignore line: [Target: x86_64-pc-linux-gnu]
+  ignore line: [Thread model: posix]
+  ignore line: [InstalledDir: /usr/bin]
+  ignore line: [Found candidate GCC installation: /usr/bin/../lib/gcc/x86_64-linux-gnu/11]
+  ignore line: [Selected GCC installation: /usr/bin/../lib/gcc/x86_64-linux-gnu/11]
+  ignore line: [Candidate multilib: .]
+  ignore line: [@m64]
+  ignore line: [Selected multilib: .]
+  ignore line: [@m64]
+  ignore line: [ (in-process)]
+  ignore line: [ "/usr/lib/llvm-14/bin/clang" -cc1 -triple x86_64-pc-linux-gnu -emit-obj --mrelax-relocations -disable-free -clear-ast-before-backend -disable-llvm-verifier -discard-value-names -main-file-name CMakeCCompilerABI.c -mrelocation-model pic -pic-level 2 -pic-is-pie -mframe-pointer=all -fmath-errno -ffp-contract=on -fno-rounding-math -mconstructor-aliases -funwind-tables=2 -target-cpu x86-64 -tune-cpu generic -mllvm -treat-scalable-fixed-error-as-warning -debug-info-kind=line-tables-only -dwarf-version=5 -debugger-tuning=gdb -v -fcoverage-compilation-dir=/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp -resource-dir /usr/lib/llvm-14/lib/clang/14.0.0 -dependency-file CMakeFiles/cmTC_35064.dir/CMakeCCompilerABI.c.o.d -MT CMakeFiles/cmTC_35064.dir/CMakeCCompilerABI.c.o -sys-header-deps -D FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -internal-isystem /usr/lib/llvm-14/lib/clang/14.0.0/include -internal-isystem /usr/local/include -internal-isystem /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/include -internal-externc-isystem /usr/include/x86_64-linux-gnu -internal-externc-isystem /include -internal-externc-isystem /usr/include -O1 -std=gnu99 -fdebug-compilation-dir=/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp -ferror-limit 19 -fsanitize-coverage-type=1 -fsanitize-coverage-type=3 -fsanitize-coverage-indirect-calls -fsanitize-coverage-trace-cmp -fsanitize-coverage-inline-8bit-counters -fsanitize-coverage-pc-table -fsanitize-coverage-stack-depth -fsanitize=address fuzzer-no-link -fsanitize-system-ignorelist=/usr/lib/llvm-14/lib/clang/14.0.0/share/asan_ignorelist.txt -fsanitize-address-use-after-scope -fno-assume-sane-operator-new -fno-builtin-bcmp -fno-builtin-memcmp -fno-builtin-strncmp -fno-builtin-strcmp -fno-builtin-strncasecmp -fno-builtin-strcasecmp -fno-builtin-strstr -fno-builtin-strcasestr -fno-builtin-memmem -fgnuc-version=4.2.1 -faddrsig -D__GCC_HAVE_DWARF2_CFI_ASM=1 -o CMakeFiles/cmTC_35064.dir/CMakeCCompilerABI.c.o -x c /usr/share/cmake-3.22/Modules/CMakeCCompilerABI.c]
+  ignore line: [clang -cc1 version 14.0.0 based upon LLVM 14.0.0 default target x86_64-pc-linux-gnu]
+  ignore line: [ignoring nonexistent directory "/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/include"]
+  ignore line: [ignoring nonexistent directory "/include"]
+  ignore line: [#include "..." search starts here:]
+  ignore line: [#include <...> search starts here:]
+  ignore line: [ /usr/lib/llvm-14/lib/clang/14.0.0/include]
+  ignore line: [ /usr/local/include]
+  ignore line: [ /usr/include/x86_64-linux-gnu]
+  ignore line: [ /usr/include]
+  ignore line: [End of search list.]
+  ignore line: [Linking C executable cmTC_35064]
+  ignore line: [/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_35064.dir/link.txt --verbose=1]
+  ignore line: [/usr/bin/clang -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link   -v CMakeFiles/cmTC_35064.dir/CMakeCCompilerABI.c.o -o cmTC_35064 ]
+  ignore line: [Ubuntu clang version 14.0.0-1ubuntu1.1]
+  ignore line: [Target: x86_64-pc-linux-gnu]
+  ignore line: [Thread model: posix]
+  ignore line: [InstalledDir: /usr/bin]
+  ignore line: [Found candidate GCC installation: /usr/bin/../lib/gcc/x86_64-linux-gnu/11]
+  ignore line: [Selected GCC installation: /usr/bin/../lib/gcc/x86_64-linux-gnu/11]
+  ignore line: [Candidate multilib: .]
+  ignore line: [@m64]
+  ignore line: [Selected multilib: .]
+  ignore line: [@m64]
+  link line: [ "/usr/bin/ld" -pie -z relro --hash-style=gnu --build-id --eh-frame-hdr -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_35064 /lib/x86_64-linux-gnu/Scrt1.o /lib/x86_64-linux-gnu/crti.o /usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtbeginS.o -L/usr/bin/../lib/gcc/x86_64-linux-gnu/11 -L/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../lib64 -L/lib/x86_64-linux-gnu -L/lib/../lib64 -L/usr/lib/x86_64-linux-gnu -L/usr/lib/../lib64 -L/usr/lib/llvm-14/bin/../lib -L/lib -L/usr/lib --whole-archive /usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan_static-x86_64.a --no-whole-archive --whole-archive /usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan-x86_64.a --no-whole-archive --dynamic-list=/usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan-x86_64.a.syms CMakeFiles/cmTC_35064.dir/CMakeCCompilerABI.c.o --no-as-needed -lpthread -lrt -lm -ldl -lgcc --as-needed -lgcc_s --no-as-needed -lc -lgcc --as-needed -lgcc_s --no-as-needed /usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtendS.o /lib/x86_64-linux-gnu/crtn.o]
+    arg [/usr/bin/ld] ==> ignore
+    arg [-pie] ==> ignore
+    arg [-zrelro] ==> ignore
+    arg [--hash-style=gnu] ==> ignore
+    arg [--build-id] ==> ignore
+    arg [--eh-frame-hdr] ==> ignore
+    arg [-m] ==> ignore
+    arg [elf_x86_64] ==> ignore
+    arg [-dynamic-linker] ==> ignore
+    arg [/lib64/ld-linux-x86-64.so.2] ==> ignore
+    arg [-o] ==> ignore
+    arg [cmTC_35064] ==> ignore
+    arg [/lib/x86_64-linux-gnu/Scrt1.o] ==> obj [/lib/x86_64-linux-gnu/Scrt1.o]
+    arg [/lib/x86_64-linux-gnu/crti.o] ==> obj [/lib/x86_64-linux-gnu/crti.o]
+    arg [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtbeginS.o] ==> obj [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtbeginS.o]
+    arg [-L/usr/bin/../lib/gcc/x86_64-linux-gnu/11] ==> dir [/usr/bin/../lib/gcc/x86_64-linux-gnu/11]
+    arg [-L/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../lib64] ==> dir [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../lib64]
+    arg [-L/lib/x86_64-linux-gnu] ==> dir [/lib/x86_64-linux-gnu]
+    arg [-L/lib/../lib64] ==> dir [/lib/../lib64]
+    arg [-L/usr/lib/x86_64-linux-gnu] ==> dir [/usr/lib/x86_64-linux-gnu]
+    arg [-L/usr/lib/../lib64] ==> dir [/usr/lib/../lib64]
+    arg [-L/usr/lib/llvm-14/bin/../lib] ==> dir [/usr/lib/llvm-14/bin/../lib]
+    arg [-L/lib] ==> dir [/lib]
+    arg [-L/usr/lib] ==> dir [/usr/lib]
+    arg [--whole-archive] ==> ignore
+    arg [/usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan_static-x86_64.a] ==> lib [/usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan_static-x86_64.a]
+    arg [--no-whole-archive] ==> ignore
+    arg [--whole-archive] ==> ignore
+    arg [/usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan-x86_64.a] ==> lib [/usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan-x86_64.a]
+    arg [--no-whole-archive] ==> ignore
+    arg [--dynamic-list=/usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan-x86_64.a.syms] ==> ignore
+    arg [CMakeFiles/cmTC_35064.dir/CMakeCCompilerABI.c.o] ==> ignore
+    arg [--no-as-needed] ==> ignore
+    arg [-lpthread] ==> lib [pthread]
+    arg [-lrt] ==> lib [rt]
+    arg [-lm] ==> lib [m]
+    arg [-ldl] ==> lib [dl]
+    arg [-lgcc] ==> lib [gcc]
+    arg [--as-needed] ==> ignore
+    arg [-lgcc_s] ==> lib [gcc_s]
+    arg [--no-as-needed] ==> ignore
+    arg [-lc] ==> lib [c]
+    arg [-lgcc] ==> lib [gcc]
+    arg [--as-needed] ==> ignore
+    arg [-lgcc_s] ==> lib [gcc_s]
+    arg [--no-as-needed] ==> ignore
+    arg [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtendS.o] ==> obj [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtendS.o]
+    arg [/lib/x86_64-linux-gnu/crtn.o] ==> obj [/lib/x86_64-linux-gnu/crtn.o]
+  remove lib [/usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan_static-x86_64.a]
+  remove lib [/usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan-x86_64.a]
+  collapse obj [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtbeginS.o] ==> [/usr/lib/gcc/x86_64-linux-gnu/11/crtbeginS.o]
+  collapse obj [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtendS.o] ==> [/usr/lib/gcc/x86_64-linux-gnu/11/crtendS.o]
+  collapse library dir [/usr/bin/../lib/gcc/x86_64-linux-gnu/11] ==> [/usr/lib/gcc/x86_64-linux-gnu/11]
+  collapse library dir [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../lib64] ==> [/usr/lib64]
+  collapse library dir [/lib/x86_64-linux-gnu] ==> [/lib/x86_64-linux-gnu]
+  collapse library dir [/lib/../lib64] ==> [/lib64]
+  collapse library dir [/usr/lib/x86_64-linux-gnu] ==> [/usr/lib/x86_64-linux-gnu]
+  collapse library dir [/usr/lib/../lib64] ==> [/usr/lib64]
+  collapse library dir [/usr/lib/llvm-14/bin/../lib] ==> [/usr/lib/llvm-14/lib]
+  collapse library dir [/lib] ==> [/lib]
+  collapse library dir [/usr/lib] ==> [/usr/lib]
+  implicit libs: [pthread;rt;m;dl;gcc;gcc_s;c;gcc;gcc_s]
+  implicit objs: [/lib/x86_64-linux-gnu/Scrt1.o;/lib/x86_64-linux-gnu/crti.o;/usr/lib/gcc/x86_64-linux-gnu/11/crtbeginS.o;/usr/lib/gcc/x86_64-linux-gnu/11/crtendS.o;/lib/x86_64-linux-gnu/crtn.o]
+  implicit dirs: [/usr/lib/gcc/x86_64-linux-gnu/11;/usr/lib64;/lib/x86_64-linux-gnu;/lib64;/usr/lib/x86_64-linux-gnu;/usr/lib/llvm-14/lib;/lib;/usr/lib]
+  implicit fwks: []
+
+
+Detecting CXX compiler ABI info compiled with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_e78da/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_e78da.dir/build.make CMakeFiles/cmTC_e78da.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+Building CXX object CMakeFiles/cmTC_e78da.dir/CMakeCXXCompilerABI.cpp.o
+/usr/bin/clang++   -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -stdlib=libstdc++    -v -MD -MT CMakeFiles/cmTC_e78da.dir/CMakeCXXCompilerABI.cpp.o -MF CMakeFiles/cmTC_e78da.dir/CMakeCXXCompilerABI.cpp.o.d -o CMakeFiles/cmTC_e78da.dir/CMakeCXXCompilerABI.cpp.o -c /usr/share/cmake-3.22/Modules/CMakeCXXCompilerABI.cpp
+Ubuntu clang version 14.0.0-1ubuntu1.1
+Target: x86_64-pc-linux-gnu
+Thread model: posix
+InstalledDir: /usr/bin
+Found candidate GCC installation: /usr/bin/../lib/gcc/x86_64-linux-gnu/11
+Selected GCC installation: /usr/bin/../lib/gcc/x86_64-linux-gnu/11
+Candidate multilib: .;@m64
+Selected multilib: .;@m64
+ (in-process)
+ "/usr/lib/llvm-14/bin/clang" -cc1 -triple x86_64-pc-linux-gnu -emit-obj --mrelax-relocations -disable-free -clear-ast-before-backend -disable-llvm-verifier -discard-value-names -main-file-name CMakeCXXCompilerABI.cpp -mrelocation-model pic -pic-level 2 -pic-is-pie -mframe-pointer=all -fmath-errno -ffp-contract=on -fno-rounding-math -mconstructor-aliases -funwind-tables=2 -target-cpu x86-64 -tune-cpu generic -mllvm -treat-scalable-fixed-error-as-warning -debug-info-kind=line-tables-only -dwarf-version=5 -debugger-tuning=gdb -v -fcoverage-compilation-dir=/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp -resource-dir /usr/lib/llvm-14/lib/clang/14.0.0 -dependency-file CMakeFiles/cmTC_e78da.dir/CMakeCXXCompilerABI.cpp.o.d -MT CMakeFiles/cmTC_e78da.dir/CMakeCXXCompilerABI.cpp.o -sys-header-deps -D FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -internal-isystem /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11 -internal-isystem /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/x86_64-linux-gnu/c++/11 -internal-isystem /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/backward -internal-isystem /usr/lib/llvm-14/lib/clang/14.0.0/include -internal-isystem /usr/local/include -internal-isystem /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/include -internal-externc-isystem /usr/include/x86_64-linux-gnu -internal-externc-isystem /include -internal-externc-isystem /usr/include -O1 -fdeprecated-macro -fdebug-compilation-dir=/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp -ferror-limit 19 -fsanitize-coverage-type=1 -fsanitize-coverage-type=3 -fsanitize-coverage-indirect-calls -fsanitize-coverage-trace-cmp -fsanitize-coverage-inline-8bit-counters -fsanitize-coverage-pc-table -fsanitize-coverage-stack-depth -fsanitize=address,fuzzer-no-link -fsanitize-system-ignorelist=/usr/lib/llvm-14/lib/clang/14.0.0/share/asan_ignorelist.txt -fsanitize-address-use-after-scope -fno-assume-sane-operator-new -fno-builtin-bcmp -fno-builtin-memcmp -fno-builtin-strncmp -fno-builtin-strcmp -fno-builtin-strncasecmp -fno-builtin-strcasecmp -fno-builtin-strstr -fno-builtin-strcasestr -fno-builtin-memmem -fgnuc-version=4.2.1 -fcxx-exceptions -fexceptions -faddrsig -D__GCC_HAVE_DWARF2_CFI_ASM=1 -o CMakeFiles/cmTC_e78da.dir/CMakeCXXCompilerABI.cpp.o -x c++ /usr/share/cmake-3.22/Modules/CMakeCXXCompilerABI.cpp
+clang -cc1 version 14.0.0 based upon LLVM 14.0.0 default target x86_64-pc-linux-gnu
+ignoring nonexistent directory "/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/include"
+ignoring nonexistent directory "/include"
+#include "..." search starts here:
+#include <...> search starts here:
+ /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11
+ /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/x86_64-linux-gnu/c++/11
+ /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/backward
+ /usr/lib/llvm-14/lib/clang/14.0.0/include
+ /usr/local/include
+ /usr/include/x86_64-linux-gnu
+ /usr/include
+End of search list.
+Linking CXX executable cmTC_e78da
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_e78da.dir/link.txt --verbose=1
+/usr/bin/clang++ -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -stdlib=libstdc++   -v CMakeFiles/cmTC_e78da.dir/CMakeCXXCompilerABI.cpp.o -o cmTC_e78da 
+Ubuntu clang version 14.0.0-1ubuntu1.1
+Target: x86_64-pc-linux-gnu
+Thread model: posix
+InstalledDir: /usr/bin
+Found candidate GCC installation: /usr/bin/../lib/gcc/x86_64-linux-gnu/11
+Selected GCC installation: /usr/bin/../lib/gcc/x86_64-linux-gnu/11
+Candidate multilib: .;@m64
+Selected multilib: .;@m64
+ "/usr/bin/ld" -pie -z relro --hash-style=gnu --build-id --eh-frame-hdr -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_e78da /lib/x86_64-linux-gnu/Scrt1.o /lib/x86_64-linux-gnu/crti.o /usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtbeginS.o -L/usr/bin/../lib/gcc/x86_64-linux-gnu/11 -L/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../lib64 -L/lib/x86_64-linux-gnu -L/lib/../lib64 -L/usr/lib/x86_64-linux-gnu -L/usr/lib/../lib64 -L/usr/lib/llvm-14/bin/../lib -L/lib -L/usr/lib --whole-archive /usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan_static-x86_64.a --no-whole-archive --whole-archive /usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan-x86_64.a --no-whole-archive --dynamic-list=/usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan-x86_64.a.syms --whole-archive /usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan_cxx-x86_64.a --no-whole-archive --dynamic-list=/usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan_cxx-x86_64.a.syms CMakeFiles/cmTC_e78da.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm --no-as-needed -lpthread -lrt -lm -ldl -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtendS.o /lib/x86_64-linux-gnu/crtn.o
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+
+
+
+Parsed CXX implicit include dir info from above output: rv=done
+  found start of include info
+  found start of implicit include info
+    add: [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11]
+    add: [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/x86_64-linux-gnu/c++/11]
+    add: [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/backward]
+    add: [/usr/lib/llvm-14/lib/clang/14.0.0/include]
+    add: [/usr/local/include]
+    add: [/usr/include/x86_64-linux-gnu]
+    add: [/usr/include]
+  end of search list found
+  collapse include dir [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11] ==> [/usr/include/c++/11]
+  collapse include dir [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/x86_64-linux-gnu/c++/11] ==> [/usr/include/x86_64-linux-gnu/c++/11]
+  collapse include dir [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/backward] ==> [/usr/include/c++/11/backward]
+  collapse include dir [/usr/lib/llvm-14/lib/clang/14.0.0/include] ==> [/usr/lib/llvm-14/lib/clang/14.0.0/include]
+  collapse include dir [/usr/local/include] ==> [/usr/local/include]
+  collapse include dir [/usr/include/x86_64-linux-gnu] ==> [/usr/include/x86_64-linux-gnu]
+  collapse include dir [/usr/include] ==> [/usr/include]
+  implicit include dirs: [/usr/include/c++/11;/usr/include/x86_64-linux-gnu/c++/11;/usr/include/c++/11/backward;/usr/lib/llvm-14/lib/clang/14.0.0/include;/usr/local/include;/usr/include/x86_64-linux-gnu;/usr/include]
+
+
+Parsed CXX implicit link information from above output:
+  link line regex: [^( *|.*[/\])(ld|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\]+-)?ld|collect2)[^/\]*( |$)]
+  ignore line: [Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp]
+  ignore line: []
+  ignore line: [Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_e78da/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_e78da.dir/build.make CMakeFiles/cmTC_e78da.dir/build]
+  ignore line: [gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp']
+  ignore line: [Building CXX object CMakeFiles/cmTC_e78da.dir/CMakeCXXCompilerABI.cpp.o]
+  ignore line: [/usr/bin/clang++   -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -stdlib=libstdc++    -v -MD -MT CMakeFiles/cmTC_e78da.dir/CMakeCXXCompilerABI.cpp.o -MF CMakeFiles/cmTC_e78da.dir/CMakeCXXCompilerABI.cpp.o.d -o CMakeFiles/cmTC_e78da.dir/CMakeCXXCompilerABI.cpp.o -c /usr/share/cmake-3.22/Modules/CMakeCXXCompilerABI.cpp]
+  ignore line: [Ubuntu clang version 14.0.0-1ubuntu1.1]
+  ignore line: [Target: x86_64-pc-linux-gnu]
+  ignore line: [Thread model: posix]
+  ignore line: [InstalledDir: /usr/bin]
+  ignore line: [Found candidate GCC installation: /usr/bin/../lib/gcc/x86_64-linux-gnu/11]
+  ignore line: [Selected GCC installation: /usr/bin/../lib/gcc/x86_64-linux-gnu/11]
+  ignore line: [Candidate multilib: .]
+  ignore line: [@m64]
+  ignore line: [Selected multilib: .]
+  ignore line: [@m64]
+  ignore line: [ (in-process)]
+  ignore line: [ "/usr/lib/llvm-14/bin/clang" -cc1 -triple x86_64-pc-linux-gnu -emit-obj --mrelax-relocations -disable-free -clear-ast-before-backend -disable-llvm-verifier -discard-value-names -main-file-name CMakeCXXCompilerABI.cpp -mrelocation-model pic -pic-level 2 -pic-is-pie -mframe-pointer=all -fmath-errno -ffp-contract=on -fno-rounding-math -mconstructor-aliases -funwind-tables=2 -target-cpu x86-64 -tune-cpu generic -mllvm -treat-scalable-fixed-error-as-warning -debug-info-kind=line-tables-only -dwarf-version=5 -debugger-tuning=gdb -v -fcoverage-compilation-dir=/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp -resource-dir /usr/lib/llvm-14/lib/clang/14.0.0 -dependency-file CMakeFiles/cmTC_e78da.dir/CMakeCXXCompilerABI.cpp.o.d -MT CMakeFiles/cmTC_e78da.dir/CMakeCXXCompilerABI.cpp.o -sys-header-deps -D FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -internal-isystem /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11 -internal-isystem /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/x86_64-linux-gnu/c++/11 -internal-isystem /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/backward -internal-isystem /usr/lib/llvm-14/lib/clang/14.0.0/include -internal-isystem /usr/local/include -internal-isystem /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/include -internal-externc-isystem /usr/include/x86_64-linux-gnu -internal-externc-isystem /include -internal-externc-isystem /usr/include -O1 -fdeprecated-macro -fdebug-compilation-dir=/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp -ferror-limit 19 -fsanitize-coverage-type=1 -fsanitize-coverage-type=3 -fsanitize-coverage-indirect-calls -fsanitize-coverage-trace-cmp -fsanitize-coverage-inline-8bit-counters -fsanitize-coverage-pc-table -fsanitize-coverage-stack-depth -fsanitize=address fuzzer-no-link -fsanitize-system-ignorelist=/usr/lib/llvm-14/lib/clang/14.0.0/share/asan_ignorelist.txt -fsanitize-address-use-after-scope -fno-assume-sane-operator-new -fno-builtin-bcmp -fno-builtin-memcmp -fno-builtin-strncmp -fno-builtin-strcmp -fno-builtin-strncasecmp -fno-builtin-strcasecmp -fno-builtin-strstr -fno-builtin-strcasestr -fno-builtin-memmem -fgnuc-version=4.2.1 -fcxx-exceptions -fexceptions -faddrsig -D__GCC_HAVE_DWARF2_CFI_ASM=1 -o CMakeFiles/cmTC_e78da.dir/CMakeCXXCompilerABI.cpp.o -x c++ /usr/share/cmake-3.22/Modules/CMakeCXXCompilerABI.cpp]
+  ignore line: [clang -cc1 version 14.0.0 based upon LLVM 14.0.0 default target x86_64-pc-linux-gnu]
+  ignore line: [ignoring nonexistent directory "/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/include"]
+  ignore line: [ignoring nonexistent directory "/include"]
+  ignore line: [#include "..." search starts here:]
+  ignore line: [#include <...> search starts here:]
+  ignore line: [ /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11]
+  ignore line: [ /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/x86_64-linux-gnu/c++/11]
+  ignore line: [ /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/backward]
+  ignore line: [ /usr/lib/llvm-14/lib/clang/14.0.0/include]
+  ignore line: [ /usr/local/include]
+  ignore line: [ /usr/include/x86_64-linux-gnu]
+  ignore line: [ /usr/include]
+  ignore line: [End of search list.]
+  ignore line: [Linking CXX executable cmTC_e78da]
+  ignore line: [/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_e78da.dir/link.txt --verbose=1]
+  ignore line: [/usr/bin/clang++ -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -stdlib=libstdc++   -v CMakeFiles/cmTC_e78da.dir/CMakeCXXCompilerABI.cpp.o -o cmTC_e78da ]
+  ignore line: [Ubuntu clang version 14.0.0-1ubuntu1.1]
+  ignore line: [Target: x86_64-pc-linux-gnu]
+  ignore line: [Thread model: posix]
+  ignore line: [InstalledDir: /usr/bin]
+  ignore line: [Found candidate GCC installation: /usr/bin/../lib/gcc/x86_64-linux-gnu/11]
+  ignore line: [Selected GCC installation: /usr/bin/../lib/gcc/x86_64-linux-gnu/11]
+  ignore line: [Candidate multilib: .]
+  ignore line: [@m64]
+  ignore line: [Selected multilib: .]
+  ignore line: [@m64]
+  link line: [ "/usr/bin/ld" -pie -z relro --hash-style=gnu --build-id --eh-frame-hdr -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_e78da /lib/x86_64-linux-gnu/Scrt1.o /lib/x86_64-linux-gnu/crti.o /usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtbeginS.o -L/usr/bin/../lib/gcc/x86_64-linux-gnu/11 -L/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../lib64 -L/lib/x86_64-linux-gnu -L/lib/../lib64 -L/usr/lib/x86_64-linux-gnu -L/usr/lib/../lib64 -L/usr/lib/llvm-14/bin/../lib -L/lib -L/usr/lib --whole-archive /usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan_static-x86_64.a --no-whole-archive --whole-archive /usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan-x86_64.a --no-whole-archive --dynamic-list=/usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan-x86_64.a.syms --whole-archive /usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan_cxx-x86_64.a --no-whole-archive --dynamic-list=/usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan_cxx-x86_64.a.syms CMakeFiles/cmTC_e78da.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm --no-as-needed -lpthread -lrt -lm -ldl -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtendS.o /lib/x86_64-linux-gnu/crtn.o]
+    arg [/usr/bin/ld] ==> ignore
+    arg [-pie] ==> ignore
+    arg [-zrelro] ==> ignore
+    arg [--hash-style=gnu] ==> ignore
+    arg [--build-id] ==> ignore
+    arg [--eh-frame-hdr] ==> ignore
+    arg [-m] ==> ignore
+    arg [elf_x86_64] ==> ignore
+    arg [-dynamic-linker] ==> ignore
+    arg [/lib64/ld-linux-x86-64.so.2] ==> ignore
+    arg [-o] ==> ignore
+    arg [cmTC_e78da] ==> ignore
+    arg [/lib/x86_64-linux-gnu/Scrt1.o] ==> obj [/lib/x86_64-linux-gnu/Scrt1.o]
+    arg [/lib/x86_64-linux-gnu/crti.o] ==> obj [/lib/x86_64-linux-gnu/crti.o]
+    arg [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtbeginS.o] ==> obj [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtbeginS.o]
+    arg [-L/usr/bin/../lib/gcc/x86_64-linux-gnu/11] ==> dir [/usr/bin/../lib/gcc/x86_64-linux-gnu/11]
+    arg [-L/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../lib64] ==> dir [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../lib64]
+    arg [-L/lib/x86_64-linux-gnu] ==> dir [/lib/x86_64-linux-gnu]
+    arg [-L/lib/../lib64] ==> dir [/lib/../lib64]
+    arg [-L/usr/lib/x86_64-linux-gnu] ==> dir [/usr/lib/x86_64-linux-gnu]
+    arg [-L/usr/lib/../lib64] ==> dir [/usr/lib/../lib64]
+    arg [-L/usr/lib/llvm-14/bin/../lib] ==> dir [/usr/lib/llvm-14/bin/../lib]
+    arg [-L/lib] ==> dir [/lib]
+    arg [-L/usr/lib] ==> dir [/usr/lib]
+    arg [--whole-archive] ==> ignore
+    arg [/usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan_static-x86_64.a] ==> lib [/usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan_static-x86_64.a]
+    arg [--no-whole-archive] ==> ignore
+    arg [--whole-archive] ==> ignore
+    arg [/usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan-x86_64.a] ==> lib [/usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan-x86_64.a]
+    arg [--no-whole-archive] ==> ignore
+    arg [--dynamic-list=/usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan-x86_64.a.syms] ==> ignore
+    arg [--whole-archive] ==> ignore
+    arg [/usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan_cxx-x86_64.a] ==> lib [/usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan_cxx-x86_64.a]
+    arg [--no-whole-archive] ==> ignore
+    arg [--dynamic-list=/usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan_cxx-x86_64.a.syms] ==> ignore
+    arg [CMakeFiles/cmTC_e78da.dir/CMakeCXXCompilerABI.cpp.o] ==> ignore
+    arg [-lstdc++] ==> lib [stdc++]
+    arg [-lm] ==> lib [m]
+    arg [--no-as-needed] ==> ignore
+    arg [-lpthread] ==> lib [pthread]
+    arg [-lrt] ==> lib [rt]
+    arg [-lm] ==> lib [m]
+    arg [-ldl] ==> lib [dl]
+    arg [-lgcc_s] ==> lib [gcc_s]
+    arg [-lgcc] ==> lib [gcc]
+    arg [-lc] ==> lib [c]
+    arg [-lgcc_s] ==> lib [gcc_s]
+    arg [-lgcc] ==> lib [gcc]
+    arg [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtendS.o] ==> obj [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtendS.o]
+    arg [/lib/x86_64-linux-gnu/crtn.o] ==> obj [/lib/x86_64-linux-gnu/crtn.o]
+  remove lib [/usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan_static-x86_64.a]
+  remove lib [/usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan-x86_64.a]
+  remove lib [/usr/lib/llvm-14/lib/clang/14.0.0/lib/linux/libclang_rt.asan_cxx-x86_64.a]
+  collapse obj [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtbeginS.o] ==> [/usr/lib/gcc/x86_64-linux-gnu/11/crtbeginS.o]
+  collapse obj [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtendS.o] ==> [/usr/lib/gcc/x86_64-linux-gnu/11/crtendS.o]
+  collapse library dir [/usr/bin/../lib/gcc/x86_64-linux-gnu/11] ==> [/usr/lib/gcc/x86_64-linux-gnu/11]
+  collapse library dir [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../lib64] ==> [/usr/lib64]
+  collapse library dir [/lib/x86_64-linux-gnu] ==> [/lib/x86_64-linux-gnu]
+  collapse library dir [/lib/../lib64] ==> [/lib64]
+  collapse library dir [/usr/lib/x86_64-linux-gnu] ==> [/usr/lib/x86_64-linux-gnu]
+  collapse library dir [/usr/lib/../lib64] ==> [/usr/lib64]
+  collapse library dir [/usr/lib/llvm-14/bin/../lib] ==> [/usr/lib/llvm-14/lib]
+  collapse library dir [/lib] ==> [/lib]
+  collapse library dir [/usr/lib] ==> [/usr/lib]
+  implicit libs: [stdc++;m;pthread;rt;m;dl;gcc_s;gcc;c;gcc_s;gcc]
+  implicit objs: [/lib/x86_64-linux-gnu/Scrt1.o;/lib/x86_64-linux-gnu/crti.o;/usr/lib/gcc/x86_64-linux-gnu/11/crtbeginS.o;/usr/lib/gcc/x86_64-linux-gnu/11/crtendS.o;/lib/x86_64-linux-gnu/crtn.o]
+  implicit dirs: [/usr/lib/gcc/x86_64-linux-gnu/11;/usr/lib64;/lib/x86_64-linux-gnu;/lib64;/usr/lib/x86_64-linux-gnu;/usr/lib/llvm-14/lib;/lib;/usr/lib]
+  implicit fwks: []
+
+
+Performing C SOURCE FILE Test NANO_HIDDEN_VISIBILITY succeeded with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_75eb7/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_75eb7.dir/build.make CMakeFiles/cmTC_75eb7.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_75eb7.dir/src.c.o
+/usr/bin/clang -DNANO_HIDDEN_VISIBILITY  -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link    -fvisibility=hidden -std=gnu99 -MD -MT CMakeFiles/cmTC_75eb7.dir/src.c.o -MF CMakeFiles/cmTC_75eb7.dir/src.c.o.d -o CMakeFiles/cmTC_75eb7.dir/src.c.o -c /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp/src.c
+Linking C executable cmTC_75eb7
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_75eb7.dir/link.txt --verbose=1
+/usr/bin/clang -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link  CMakeFiles/cmTC_75eb7.dir/src.c.o -o cmTC_75eb7 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+
+
+Source file was:
+int main(void) { return 0; }
+Performing C SOURCE FILE Test NNG_HIDDEN_VISIBILITY succeeded with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_f0fa3/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_f0fa3.dir/build.make CMakeFiles/cmTC_f0fa3.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_f0fa3.dir/src.c.o
+/usr/bin/clang -DNNG_HIDDEN_VISIBILITY  -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag      -fvisibility=hidden -std=gnu99 -MD -MT CMakeFiles/cmTC_f0fa3.dir/src.c.o -MF CMakeFiles/cmTC_f0fa3.dir/src.c.o.d -o CMakeFiles/cmTC_f0fa3.dir/src.c.o -c /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp/src.c
+Linking C executable cmTC_f0fa3
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_f0fa3.dir/link.txt --verbose=1
+/usr/bin/clang -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    CMakeFiles/cmTC_f0fa3.dir/src.c.o -o cmTC_f0fa3 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+
+
+Source file was:
+int main(void) { return 0; }
+Determining if the strnlen exist passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_aa9d0/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_aa9d0.dir/build.make CMakeFiles/cmTC_aa9d0.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_aa9d0.dir/CheckSymbolExists.c.o
+/usr/bin/clang   -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    -std=gnu99 -MD -MT CMakeFiles/cmTC_aa9d0.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_aa9d0.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_aa9d0.dir/CheckSymbolExists.c.o -c /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_aa9d0
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_aa9d0.dir/link.txt --verbose=1
+/usr/bin/clang -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    CMakeFiles/cmTC_aa9d0.dir/CheckSymbolExists.c.o -o cmTC_aa9d0 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+
+
+File /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <string.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef strnlen
+  return ((int*)(&strnlen))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the strcasecmp exist passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_dd154/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_dd154.dir/build.make CMakeFiles/cmTC_dd154.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_dd154.dir/CheckSymbolExists.c.o
+/usr/bin/clang   -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    -std=gnu99 -MD -MT CMakeFiles/cmTC_dd154.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_dd154.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_dd154.dir/CheckSymbolExists.c.o -c /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_dd154
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_dd154.dir/link.txt --verbose=1
+/usr/bin/clang -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    CMakeFiles/cmTC_dd154.dir/CheckSymbolExists.c.o -o cmTC_dd154 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+
+
+File /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <string.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef strcasecmp
+  return ((int*)(&strcasecmp))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the strncasecmp exist passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_2f800/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_2f800.dir/build.make CMakeFiles/cmTC_2f800.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_2f800.dir/CheckSymbolExists.c.o
+/usr/bin/clang   -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    -std=gnu99 -MD -MT CMakeFiles/cmTC_2f800.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_2f800.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_2f800.dir/CheckSymbolExists.c.o -c /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_2f800
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_2f800.dir/link.txt --verbose=1
+/usr/bin/clang -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    CMakeFiles/cmTC_2f800.dir/CheckSymbolExists.c.o -o cmTC_2f800 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+
+
+File /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <string.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef strncasecmp
+  return ((int*)(&strncasecmp))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the include file pthread.h exists passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_3a761/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_3a761.dir/build.make CMakeFiles/cmTC_3a761.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_3a761.dir/CheckIncludeFile.c.o
+/usr/bin/clang   -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    -std=gnu99 -MD -MT CMakeFiles/cmTC_3a761.dir/CheckIncludeFile.c.o -MF CMakeFiles/cmTC_3a761.dir/CheckIncludeFile.c.o.d -o CMakeFiles/cmTC_3a761.dir/CheckIncludeFile.c.o -c /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp/CheckIncludeFile.c
+Linking C executable cmTC_3a761
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_3a761.dir/link.txt --verbose=1
+/usr/bin/clang -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    CMakeFiles/cmTC_3a761.dir/CheckIncludeFile.c.o -o cmTC_3a761 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+
+
+
+Performing C SOURCE FILE Test CMAKE_HAVE_LIBC_PTHREAD succeeded with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_dee31/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_dee31.dir/build.make CMakeFiles/cmTC_dee31.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_dee31.dir/src.c.o
+/usr/bin/clang -DCMAKE_HAVE_LIBC_PTHREAD  -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    -std=gnu99 -MD -MT CMakeFiles/cmTC_dee31.dir/src.c.o -MF CMakeFiles/cmTC_dee31.dir/src.c.o.d -o CMakeFiles/cmTC_dee31.dir/src.c.o -c /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp/src.c
+Linking C executable cmTC_dee31
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_dee31.dir/link.txt --verbose=1
+/usr/bin/clang -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    CMakeFiles/cmTC_dee31.dir/src.c.o -o cmTC_dee31 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+
+
+Source file was:
+#include <pthread.h>
+
+static void* test_func(void* data)
+{
+  return data;
+}
+
+int main(void)
+{
+  pthread_t thread;
+  pthread_create(&thread, NULL, test_func, NULL);
+  pthread_detach(thread);
+  pthread_cancel(thread);
+  pthread_join(thread, NULL);
+  pthread_atfork(NULL, NULL, NULL);
+  pthread_exit(NULL);
+
+  return 0;
+}
+
+Determining if the function lockf exists passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_bff71/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_bff71.dir/build.make CMakeFiles/cmTC_bff71.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_bff71.dir/CheckFunctionExists.c.o
+/usr/bin/clang   -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag   -DCHECK_FUNCTION_EXISTS=lockf -std=gnu99 -MD -MT CMakeFiles/cmTC_bff71.dir/CheckFunctionExists.c.o -MF CMakeFiles/cmTC_bff71.dir/CheckFunctionExists.c.o.d -o CMakeFiles/cmTC_bff71.dir/CheckFunctionExists.c.o -c /usr/share/cmake-3.22/Modules/CheckFunctionExists.c
+Linking C executable cmTC_bff71
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_bff71.dir/link.txt --verbose=1
+/usr/bin/clang -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag   -DCHECK_FUNCTION_EXISTS=lockf CMakeFiles/cmTC_bff71.dir/CheckFunctionExists.c.o -o cmTC_bff71 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+
+
+
+Determining if the function flock exists passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_03590/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_03590.dir/build.make CMakeFiles/cmTC_03590.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_03590.dir/CheckFunctionExists.c.o
+/usr/bin/clang   -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag   -DCHECK_FUNCTION_EXISTS=flock -std=gnu99 -MD -MT CMakeFiles/cmTC_03590.dir/CheckFunctionExists.c.o -MF CMakeFiles/cmTC_03590.dir/CheckFunctionExists.c.o.d -o CMakeFiles/cmTC_03590.dir/CheckFunctionExists.c.o -c /usr/share/cmake-3.22/Modules/CheckFunctionExists.c
+Linking C executable cmTC_03590
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_03590.dir/link.txt --verbose=1
+/usr/bin/clang -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag   -DCHECK_FUNCTION_EXISTS=flock CMakeFiles/cmTC_03590.dir/CheckFunctionExists.c.o -o cmTC_03590 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+
+
+
+Determining if the function getrandom exists passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_3a095/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_3a095.dir/build.make CMakeFiles/cmTC_3a095.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_3a095.dir/CheckFunctionExists.c.o
+/usr/bin/clang   -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag   -DCHECK_FUNCTION_EXISTS=getrandom -std=gnu99 -MD -MT CMakeFiles/cmTC_3a095.dir/CheckFunctionExists.c.o -MF CMakeFiles/cmTC_3a095.dir/CheckFunctionExists.c.o.d -o CMakeFiles/cmTC_3a095.dir/CheckFunctionExists.c.o -c /usr/share/cmake-3.22/Modules/CheckFunctionExists.c
+Linking C executable cmTC_3a095
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_3a095.dir/link.txt --verbose=1
+/usr/bin/clang -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag   -DCHECK_FUNCTION_EXISTS=getrandom CMakeFiles/cmTC_3a095.dir/CheckFunctionExists.c.o -o cmTC_3a095 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+
+
+
+Determining if the function clock_gettime exists passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_2a71e/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_2a71e.dir/build.make CMakeFiles/cmTC_2a71e.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_2a71e.dir/CheckFunctionExists.c.o
+/usr/bin/clang   -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag   -DCHECK_FUNCTION_EXISTS=clock_gettime -std=gnu99 -MD -MT CMakeFiles/cmTC_2a71e.dir/CheckFunctionExists.c.o -MF CMakeFiles/cmTC_2a71e.dir/CheckFunctionExists.c.o.d -o CMakeFiles/cmTC_2a71e.dir/CheckFunctionExists.c.o -c /usr/share/cmake-3.22/Modules/CheckFunctionExists.c
+Linking C executable cmTC_2a71e
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_2a71e.dir/link.txt --verbose=1
+/usr/bin/clang -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag   -DCHECK_FUNCTION_EXISTS=clock_gettime CMakeFiles/cmTC_2a71e.dir/CheckFunctionExists.c.o -o cmTC_2a71e 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+
+
+
+Determining if the function sem_wait exists in the pthread passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_9b77e/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_9b77e.dir/build.make CMakeFiles/cmTC_9b77e.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_9b77e.dir/CheckFunctionExists.c.o
+/usr/bin/clang   -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag   -DCHECK_FUNCTION_EXISTS=sem_wait -std=gnu99 -MD -MT CMakeFiles/cmTC_9b77e.dir/CheckFunctionExists.c.o -MF CMakeFiles/cmTC_9b77e.dir/CheckFunctionExists.c.o.d -o CMakeFiles/cmTC_9b77e.dir/CheckFunctionExists.c.o -c /usr/share/cmake-3.22/Modules/CheckFunctionExists.c
+Linking C executable cmTC_9b77e
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_9b77e.dir/link.txt --verbose=1
+/usr/bin/clang -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag   -DCHECK_FUNCTION_EXISTS=sem_wait CMakeFiles/cmTC_9b77e.dir/CheckFunctionExists.c.o -o cmTC_9b77e  -lpthread 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+
+
+
+Determining if the function pthread_atfork exists in the pthread passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_5d9fe/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_5d9fe.dir/build.make CMakeFiles/cmTC_5d9fe.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_5d9fe.dir/CheckFunctionExists.c.o
+/usr/bin/clang   -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag   -DCHECK_FUNCTION_EXISTS=pthread_atfork -std=gnu99 -MD -MT CMakeFiles/cmTC_5d9fe.dir/CheckFunctionExists.c.o -MF CMakeFiles/cmTC_5d9fe.dir/CheckFunctionExists.c.o.d -o CMakeFiles/cmTC_5d9fe.dir/CheckFunctionExists.c.o -c /usr/share/cmake-3.22/Modules/CheckFunctionExists.c
+Linking C executable cmTC_5d9fe
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_5d9fe.dir/link.txt --verbose=1
+/usr/bin/clang -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag   -DCHECK_FUNCTION_EXISTS=pthread_atfork CMakeFiles/cmTC_5d9fe.dir/CheckFunctionExists.c.o -o cmTC_5d9fe  -lpthread 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+
+
+
+Determining if the function pthread_setname_np exists in the pthread passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_8ce67/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_8ce67.dir/build.make CMakeFiles/cmTC_8ce67.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_8ce67.dir/CheckFunctionExists.c.o
+/usr/bin/clang   -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag   -DCHECK_FUNCTION_EXISTS=pthread_setname_np -std=gnu99 -MD -MT CMakeFiles/cmTC_8ce67.dir/CheckFunctionExists.c.o -MF CMakeFiles/cmTC_8ce67.dir/CheckFunctionExists.c.o.d -o CMakeFiles/cmTC_8ce67.dir/CheckFunctionExists.c.o -c /usr/share/cmake-3.22/Modules/CheckFunctionExists.c
+Linking C executable cmTC_8ce67
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_8ce67.dir/link.txt --verbose=1
+/usr/bin/clang -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag   -DCHECK_FUNCTION_EXISTS=pthread_setname_np CMakeFiles/cmTC_8ce67.dir/CheckFunctionExists.c.o -o cmTC_8ce67  -lpthread 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+
+
+
+Determining if the function gethostbyname exists in the nsl passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_8efce/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_8efce.dir/build.make CMakeFiles/cmTC_8efce.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_8efce.dir/CheckFunctionExists.c.o
+/usr/bin/clang   -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag   -DCHECK_FUNCTION_EXISTS=gethostbyname -std=gnu99 -MD -MT CMakeFiles/cmTC_8efce.dir/CheckFunctionExists.c.o -MF CMakeFiles/cmTC_8efce.dir/CheckFunctionExists.c.o.d -o CMakeFiles/cmTC_8efce.dir/CheckFunctionExists.c.o -c /usr/share/cmake-3.22/Modules/CheckFunctionExists.c
+Linking C executable cmTC_8efce
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_8efce.dir/link.txt --verbose=1
+/usr/bin/clang -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag   -DCHECK_FUNCTION_EXISTS=gethostbyname CMakeFiles/cmTC_8efce.dir/CheckFunctionExists.c.o -o cmTC_8efce  -lnsl 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+
+
+
+Determining if the function __atomic_load_1 exists in the atomic passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_5f9ca/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_5f9ca.dir/build.make CMakeFiles/cmTC_5f9ca.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_5f9ca.dir/CheckFunctionExists.c.o
+/usr/bin/clang   -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag   -DCHECK_FUNCTION_EXISTS=__atomic_load_1 -std=gnu99 -MD -MT CMakeFiles/cmTC_5f9ca.dir/CheckFunctionExists.c.o -MF CMakeFiles/cmTC_5f9ca.dir/CheckFunctionExists.c.o.d -o CMakeFiles/cmTC_5f9ca.dir/CheckFunctionExists.c.o -c /usr/share/cmake-3.22/Modules/CheckFunctionExists.c
+Linking C executable cmTC_5f9ca
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_5f9ca.dir/link.txt --verbose=1
+/usr/bin/clang -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag   -DCHECK_FUNCTION_EXISTS=__atomic_load_1 CMakeFiles/cmTC_5f9ca.dir/CheckFunctionExists.c.o -o cmTC_5f9ca  -latomic 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+
+
+
+Determining if the AF_UNIX exist passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_819e7/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_819e7.dir/build.make CMakeFiles/cmTC_819e7.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_819e7.dir/CheckSymbolExists.c.o
+/usr/bin/clang   -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    -std=gnu99 -MD -MT CMakeFiles/cmTC_819e7.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_819e7.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_819e7.dir/CheckSymbolExists.c.o -c /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_819e7
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_819e7.dir/link.txt --verbose=1
+/usr/bin/clang -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    CMakeFiles/cmTC_819e7.dir/CheckSymbolExists.c.o -o cmTC_819e7 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+
+
+File /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <sys/socket.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef AF_UNIX
+  return ((int*)(&AF_UNIX))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the backtrace_symbols_fd exist passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_5227c/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_5227c.dir/build.make CMakeFiles/cmTC_5227c.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_5227c.dir/CheckSymbolExists.c.o
+/usr/bin/clang   -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    -std=gnu99 -MD -MT CMakeFiles/cmTC_5227c.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_5227c.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_5227c.dir/CheckSymbolExists.c.o -c /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_5227c
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_5227c.dir/link.txt --verbose=1
+/usr/bin/clang -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    CMakeFiles/cmTC_5227c.dir/CheckSymbolExists.c.o -o cmTC_5227c 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+
+
+File /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <execinfo.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef backtrace_symbols_fd
+  return ((int*)(&backtrace_symbols_fd))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Performing C SOURCE FILE Test NNG_HAVE_MSG_CONTROL succeeded with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_45d20/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_45d20.dir/build.make CMakeFiles/cmTC_45d20.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_45d20.dir/src.c.o
+/usr/bin/clang -DNNG_HAVE_MSG_CONTROL  -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    -std=gnu99 -MD -MT CMakeFiles/cmTC_45d20.dir/src.c.o -MF CMakeFiles/cmTC_45d20.dir/src.c.o.d -o CMakeFiles/cmTC_45d20.dir/src.c.o -c /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp/src.c
+Linking C executable cmTC_45d20
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_45d20.dir/link.txt --verbose=1
+/usr/bin/clang -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    CMakeFiles/cmTC_45d20.dir/src.c.o -o cmTC_45d20 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+
+
+Source file was:
+
+#include <sys/socket.h>
+
+int main()
+{
+  (void)sizeof(((struct msghdr *)0)->msg_control);
+  return 0;
+}
+
+Determining if the eventfd exist passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_9c17b/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_9c17b.dir/build.make CMakeFiles/cmTC_9c17b.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_9c17b.dir/CheckSymbolExists.c.o
+/usr/bin/clang   -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    -std=gnu99 -MD -MT CMakeFiles/cmTC_9c17b.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_9c17b.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_9c17b.dir/CheckSymbolExists.c.o -c /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_9c17b
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_9c17b.dir/link.txt --verbose=1
+/usr/bin/clang -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    CMakeFiles/cmTC_9c17b.dir/CheckSymbolExists.c.o -o cmTC_9c17b 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+
+
+File /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <sys/eventfd.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef eventfd
+  return ((int*)(&eventfd))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the epoll_create exist passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_7ee0e/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_7ee0e.dir/build.make CMakeFiles/cmTC_7ee0e.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_7ee0e.dir/CheckSymbolExists.c.o
+/usr/bin/clang   -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    -std=gnu99 -MD -MT CMakeFiles/cmTC_7ee0e.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_7ee0e.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_7ee0e.dir/CheckSymbolExists.c.o -c /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_7ee0e
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_7ee0e.dir/link.txt --verbose=1
+/usr/bin/clang -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    CMakeFiles/cmTC_7ee0e.dir/CheckSymbolExists.c.o -o cmTC_7ee0e 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+
+
+File /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <sys/epoll.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef epoll_create
+  return ((int*)(&epoll_create))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the epoll_create1 exist passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_4ae25/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_4ae25.dir/build.make CMakeFiles/cmTC_4ae25.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_4ae25.dir/CheckSymbolExists.c.o
+/usr/bin/clang   -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    -std=gnu99 -MD -MT CMakeFiles/cmTC_4ae25.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_4ae25.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_4ae25.dir/CheckSymbolExists.c.o -c /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_4ae25
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_4ae25.dir/link.txt --verbose=1
+/usr/bin/clang -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    CMakeFiles/cmTC_4ae25.dir/CheckSymbolExists.c.o -o cmTC_4ae25 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+
+
+File /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <sys/epoll.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef epoll_create1
+  return ((int*)(&epoll_create1))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the SO_PEERCRED exist passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_48cfb/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_48cfb.dir/build.make CMakeFiles/cmTC_48cfb.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_48cfb.dir/CheckSymbolExists.c.o
+/usr/bin/clang   -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    -std=gnu99 -MD -MT CMakeFiles/cmTC_48cfb.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_48cfb.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_48cfb.dir/CheckSymbolExists.c.o -c /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_48cfb
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_48cfb.dir/link.txt --verbose=1
+/usr/bin/clang -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    CMakeFiles/cmTC_48cfb.dir/CheckSymbolExists.c.o -o cmTC_48cfb 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+
+
+File /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <sys/socket.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef SO_PEERCRED
+  return ((int*)(&SO_PEERCRED))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the atomic_flag_test_and_set exist passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_ac4a2/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_ac4a2.dir/build.make CMakeFiles/cmTC_ac4a2.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_ac4a2.dir/CheckSymbolExists.c.o
+/usr/bin/clang   -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    -std=gnu99 -MD -MT CMakeFiles/cmTC_ac4a2.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_ac4a2.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_ac4a2.dir/CheckSymbolExists.c.o -c /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_ac4a2
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_ac4a2.dir/link.txt --verbose=1
+/usr/bin/clang -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    CMakeFiles/cmTC_ac4a2.dir/CheckSymbolExists.c.o -o cmTC_ac4a2 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+
+
+File /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <stdatomic.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef atomic_flag_test_and_set
+  return ((int*)(&atomic_flag_test_and_set))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the socketpair exist passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_d8aa3/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_d8aa3.dir/build.make CMakeFiles/cmTC_d8aa3.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_d8aa3.dir/CheckSymbolExists.c.o
+/usr/bin/clang   -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    -std=gnu99 -MD -MT CMakeFiles/cmTC_d8aa3.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_d8aa3.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_d8aa3.dir/CheckSymbolExists.c.o -c /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_d8aa3
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_d8aa3.dir/link.txt --verbose=1
+/usr/bin/clang -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    CMakeFiles/cmTC_d8aa3.dir/CheckSymbolExists.c.o -o cmTC_d8aa3 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+
+
+File /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <sys/socket.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef socketpair
+  return ((int*)(&socketpair))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the AF_INET6 exist passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_499e4/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_499e4.dir/build.make CMakeFiles/cmTC_499e4.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_499e4.dir/CheckSymbolExists.c.o
+/usr/bin/clang   -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    -std=gnu99 -MD -MT CMakeFiles/cmTC_499e4.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_499e4.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_499e4.dir/CheckSymbolExists.c.o -c /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_499e4
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_499e4.dir/link.txt --verbose=1
+/usr/bin/clang -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    CMakeFiles/cmTC_499e4.dir/CheckSymbolExists.c.o -o cmTC_499e4 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+
+
+File /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <netinet/in.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef AF_INET6
+  return ((int*)(&AF_INET6))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the BZ2_bzCompressInit exist passed with the following output:
+Change Dir: /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_a984d/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_a984d.dir/build.make CMakeFiles/cmTC_a984d.dir/build
+gmake[1]: Entering directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_a984d.dir/CheckSymbolExists.c.o
+/usr/bin/clang   -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    -std=gnu99 -MD -MT CMakeFiles/cmTC_a984d.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_a984d.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_a984d.dir/CheckSymbolExists.c.o -c /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_a984d
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_a984d.dir/link.txt --verbose=1
+/usr/bin/clang -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag    CMakeFiles/cmTC_a984d.dir/CheckSymbolExists.c.o -o cmTC_a984d  /usr/lib/x86_64-linux-gnu/libbz2.so 
+gmake[1]: Leaving directory '/home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp'
+
+
+File /home/xinyi/Workspace/NanoMQ_mirror/build_parquet_test/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <bzlib.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef BZ2_bzCompressInit
+  return ((int*)(&BZ2_bzCompressInit))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
