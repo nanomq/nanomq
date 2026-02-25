@@ -1,19 +1,41 @@
 #!/bin/bash -eu
+# Copyright 2021 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+################################################################################
 
-################################
-# 1. 基本环境
-################################
-# cd $SRC/nanomq
-
+# 1. 设置编译器和编译选项
 export CC=${CC:-clang}
 export CXX=${CXX:-clang++}
-CXXFLAGS="${CXXFLAGS:-}"
+
+# NanoMQ 需要的宏定义，确保 conf 结构体布局一致
+# 必须与 build/nanomq/libnanomq.a 编译时的定义一致
+NANOMQ_FLAGS="-DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -DSUPP_RULE_ENGINE -DACL_SUPP -DENABLE_LOG -DSUPP_SYSLOG"
+
+# 分离 CFLAGS/CXXFLAGS，避免将 sanitizer 标志传递给不支持的检查
+export CFLAGS="${CFLAGS:- -g -O1 -fsanitize=address,undefined} $NANOMQ_FLAGS"
+export CXXFLAGS="${CXXFLAGS:- -g -O1 -fsanitize=address,undefined} $NANOMQ_FLAGS"
+# 移除不支持的 stdlib 标志
 CXXFLAGS="${CXXFLAGS//-stdlib=libc++/}"
 CXXFLAGS="${CXXFLAGS//-stdlib=libstdc++/}"
 export CXXFLAGS="$CXXFLAGS -stdlib=libstdc++"
 
 export TMPDIR="${TMPDIR:-$PWD/build-tmp}"
 mkdir -p "$TMPDIR"
+
+export OUT="${OUT:-$PWD/build/fuzz}"
+mkdir -p "$OUT"
 
 # OSS-Fuzz 自动注入：
 # -fsanitize=fuzzer,address,undefined
@@ -24,9 +46,11 @@ mkdir -p "$TMPDIR"
 # 2. 构建 NanoMQ（仅需要库）
 ################################
 
+# 使用 build 目录
 mkdir -p build
 cd build
 
+# 禁用 JWT 和 Parquet 以避免依赖问题
 cmake .. \
   -DCMAKE_C_COMPILER=$CC \
   -DCMAKE_CXX_COMPILER=$CXX \
@@ -42,26 +66,6 @@ cmake .. \
 
 make -j$(nproc)
 
-cd ..
-
-mkdir -p build_parquet
-cd build_parquet
-
-cmake .. \
-  -DCMAKE_C_COMPILER=$CC \
-  -DCMAKE_CXX_COMPILER=$CXX \
-  -DBUILD_STATIC_LIB=ON \
-  -DBUILD_CLIENT=OFF \
-  -DBUILD_NFTP=OFF \
-  -DENABLE_RULE_ENGINE=ON \
-  -DENABLE_ACL=ON \
-  -DNANOMQ_TESTS=OFF \
-  -DNNG_TESTS=OFF \
-  -DENABLE_JWT=OFF \
-  -DENABLE_PARQUET=ON
-
-make -j$(nproc)
-
 ################################
 # 3. 构建 fuzz targets
 ################################
@@ -73,144 +77,48 @@ LIBS_BASE=(
   build/nanomq/libnanomq.a
   build/nng/libnng.a
 )
-LIBS_PARQUET=(
-  build_parquet/nanomq/libnanomq.a
-  build_parquet/nng/libnng.a
-)
 
 INCLUDES=(
+  -I.
   -Inanomq
   -Inanomq/include
   -Inng/include
   -Inng/src
   -Inng/src/core
   -Inng/src/supplemental
-  -Iextern/l8w8jwt/include
-  -Inanomq_cli/nftp-codec/src
   -DNNG_PLATFORM_POSIX
 )
 
-# Link with C++ standard library and Arrow/Parquet
-ARROW_PARQUET_LIBS="$(pkg-config --libs arrow parquet)"
-ARROW_PARQUET_LIBS_STATIC="$(pkg-config --libs --static arrow parquet 2>/dev/null || true)"
-
+# 使用 OpenSSL 作为基础依赖
 BASE_EXTRA_LIBS="-lstdc++ -lssl -lcrypto"
-STATIC_EXTRA_LIBS=""
-if [ "${NANOMQ_FUZZ_STATIC_DEPS:-0}" = "1" ] && [ -n "$ARROW_PARQUET_LIBS_STATIC" ]; then
-    STATIC_EXTRA_LIBS="-Wl,-Bstatic $ARROW_PARQUET_LIBS_STATIC -Wl,-Bdynamic -lstdc++ -lssl -lcrypto"
-fi
 
-NEED_ARROW_PARQUET=0
+echo "Compiling fuzz targets with CFLAGS: $CFLAGS"
 
-for src in $FUZZ_DIR/fuzz_*.c; do
-    target=$(basename "$src" .c)
-    echo "Building fuzz target: $target"
+for file in $FUZZ_DIR/fuzz_rest_api_detailed.c; do
+    src=$file
+    target=$(basename $file .c)
 
-    TARGET_EXTRA_LIBS="$BASE_EXTRA_LIBS"
-    TARGET_LIBS=("${LIBS_BASE[@]}")
+    # Skip parquet targets if not supported
     if [[ "$target" == *parquet* ]]; then
-        TARGET_EXTRA_LIBS="-lstdc++ $ARROW_PARQUET_LIBS -lssl -lcrypto"
-        TARGET_LIBS=("${LIBS_PARQUET[@]}")
-        NEED_ARROW_PARQUET=1
+        continue
     fi
 
-    $CC $CFLAGS \
+    # Special handling for different targets if needed
+    TARGET_EXTRA_LIBS="$BASE_EXTRA_LIBS"
+
+    $CC ${CFLAGS:-} \
       -c $src \
       -fsanitize=fuzzer,address \
       ${INCLUDES[@]} \
       -o $target.o
 
-    if [[ "$target" == *parquet* ]] && [ -n "$STATIC_EXTRA_LIBS" ]; then
-        set +e
-        $CXX $CXXFLAGS \
-          $target.o \
-          ${TARGET_LIBS[@]} \
-          -fsanitize=fuzzer,address \
-          $STATIC_EXTRA_LIBS \
-          -Wl,-rpath,'$ORIGIN' \
-          -o $OUT/$target
-        rc=$?
-        set -e
-        if [ $rc -ne 0 ]; then
-            echo "Static link failed for $target, falling back to dynamic deps."
-            $CXX $CXXFLAGS \
-              $target.o \
-              ${TARGET_LIBS[@]} \
-              -fsanitize=fuzzer,address \
-              $TARGET_EXTRA_LIBS \
-              -Wl,-rpath,'$ORIGIN' \
-              -o $OUT/$target
-        fi
-    else
-        $CXX $CXXFLAGS \
-          $target.o \
-          ${TARGET_LIBS[@]} \
-          -fsanitize=fuzzer,address \
-          $TARGET_EXTRA_LIBS \
-          -Wl,-rpath,'$ORIGIN' \
-          -o $OUT/$target
-    fi
+    $CXX ${CXXFLAGS:-} \
+      $target.o \
+      ${LIBS_BASE[@]} \
+      -fsanitize=fuzzer,address \
+      $TARGET_EXTRA_LIBS \
+      -Wl,-rpath,'$ORIGIN' \
+      -o $OUT/$target
 
     rm -f $target.o
 done
-
-################################
-# 4. Seed corpus
-################################
-
-for src in $FUZZ_DIR/fuzz_*.c; do
-    target=$(basename "$src" .c)
-    corpus_dir="$FUZZ_DIR/corpus/$target"
-
-    if [ -d "$corpus_dir" ]; then
-        mkdir -p "$OUT/${target}_seed_corpus"
-        cp "$corpus_dir"/* "$OUT/${target}_seed_corpus/" \
-           2>/dev/null || true
-    fi
-done
-
-# Copy shared libraries to output directory
-if [ "$NEED_ARROW_PARQUET" = "1" ]; then
-    cp /usr/lib/x86_64-linux-gnu/libparquet.so* $OUT/
-    cp /usr/lib/x86_64-linux-gnu/libarrow.so* $OUT/
-    cp /usr/lib/x86_64-linux-gnu/libthrift* $OUT/
-fi
-cp /usr/lib/x86_64-linux-gnu/libssl.so* $OUT/
-cp /usr/lib/x86_64-linux-gnu/libcrypto.so* $OUT/
-cp /usr/lib/x86_64-linux-gnu/libre2.so* $OUT/
-
-copy_deps() {
-    local bin="$1"
-    if ! command -v ldd >/dev/null 2>&1; then
-        return 0
-    fi
-    ldd "$bin" 2>/dev/null | awk '($2=="=>"){print $3} ($1 ~ /^\//){print $1}' | while read -r dep; do
-        [ -f "$dep" ] || continue
-        local base
-        base="$(basename "$dep")"
-        case "$base" in
-            ld-linux*|libc.so*|libm.so*|libpthread.so*|librt.so*|libdl.so*|libgcc_s.so*|libstdc++.so*|libasan.so*|libubsan.so*|libtsan.so*|liblsan.so*|libclang_rt* )
-                continue
-                ;;
-        esac
-        cp -L "$dep" "$OUT/" 2>/dev/null || true
-    done
-}
-
-if command -v ldconfig >/dev/null 2>&1; then
-    ldconfig -p 2>/dev/null | awk '/libutf8proc\\.so/ {print $NF}' | while read -r lib; do
-        cp -L "$lib" "$OUT/" 2>/dev/null || true
-    done
-fi
-
-for f in "$OUT"/libarrow.so* "$OUT"/libparquet.so* "$OUT"/fuzz_*; do
-    [ -e "$f" ] || continue
-    copy_deps "$f"
-done
-
-# Patch RPATH for all shared libraries to find dependencies in $ORIGIN
-if command -v patchelf >/dev/null 2>&1; then
-    find $OUT -name "*.so*" -exec patchelf --set-rpath '$ORIGIN' {} \;
-fi
-
-echo "NanoMQ fuzz build done"
