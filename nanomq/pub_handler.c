@@ -777,10 +777,18 @@ compose_sql_clause(rule *info, char *key, char *value,
     const char *col = info->as[j];
     const char *tbl = rule_table_name(info);
 
+	const char *qos_key     = (col != NULL) ? col : "Qos";;
+	const char *id_key      = (col != NULL) ? col : "Id";
+	const char *topic_key   = (col != NULL) ? col : "Topic";
+	const char *cli_id_key  = (col != NULL) ? col : "Clientid";
+	const char *user_key    = (col != NULL) ? col : "Username";
+	const char *pwd_key     = (col != NULL) ? col : "Password";
+	const char *ts_key      = (col != NULL) ? col : "Timestamp";
+	const char *payload_key = (col != NULL) ? col : "Payload";
+
     switch (j) {
 
     case RULE_QOS:;
-		const char *qos_key = (col != NULL) ? col : "Qos";;
     	sbuf_init(&key_sb, strlen(qos_key)+8);
     	sbuf_init(&val_sb,  8);
         sbuf_appendf(&key_sb, "%s, ", qos_key);
@@ -788,7 +796,6 @@ compose_sql_clause(rule *info, char *key, char *value,
         break;
 
     case RULE_ID:
-		const char *id_key = (col != NULL) ? col : "Id";
     	sbuf_init(&key_sb, strlen(id_key)+8);
     	sbuf_init(&val_sb, 16);
         sbuf_appendf(&key_sb, "%s, ", id_key);
@@ -796,7 +803,6 @@ compose_sql_clause(rule *info, char *key, char *value,
         break;
 
     case RULE_TOPIC: {
-		const char *topic_key = (col != NULL) ? col : "Topic";
         char *esc = sql_escape(pp->var_header.publish.topic_name.body);
     	sbuf_init(&key_sb, strlen(topic_key)+8);
     	sbuf_init(&val_sb, strlen(esc)+8);
@@ -807,7 +813,6 @@ compose_sql_clause(rule *info, char *key, char *value,
     }
 
     case RULE_CLIENTID: {
-		const char *cli_id_key = (col != NULL) ? col : "Clientid";
         char *esc = sql_escape(conn_param_get_clientid(cp));
     	sbuf_init(&key_sb, strlen(cli_id_key)+8);
     	sbuf_init(&val_sb, strlen(esc)+8);
@@ -818,7 +823,6 @@ compose_sql_clause(rule *info, char *key, char *value,
     }
 
     case RULE_USERNAME: {
-		const char *user_key = (col != NULL) ? col : "Username";
         const char *u = conn_param_get_username(cp);
     	sbuf_init(&key_sb, strlen(user_key)+8);
     	sbuf_init(&val_sb, 256);
@@ -831,7 +835,6 @@ compose_sql_clause(rule *info, char *key, char *value,
     }
 
     case RULE_PASSWORD: {
-		const char *pwd_key = (col != NULL) ? col : "Password";
         const char *p = conn_param_get_password(cp);
     	sbuf_init(&key_sb,   strlen(pwd_key)+8);
     	sbuf_init(&val_sb,  256);
@@ -844,7 +847,6 @@ compose_sql_clause(rule *info, char *key, char *value,
     }
 
     case RULE_TIMESTAMP:
-		const char *ts_key = (col != NULL) ? col : "Timestamp";
 	    sbuf_init(&key_sb,   strlen(ts_key)+8);
     	sbuf_init(&val_sb,  32);
         sbuf_appendf(&key_sb, "%s, ", ts_key);
@@ -855,7 +857,6 @@ compose_sql_clause(rule *info, char *key, char *value,
         break;
 
     case RULE_PAYLOAD_ALL: {
-		const char *payload_key = (col != NULL) ? col : "Payload";
         char *esc = sql_escape(pp->payload.data);
     	sbuf_init(&key_sb, strlen(payload_key)+8);
     	sbuf_init(&val_sb, strlen(esc)+8);
@@ -964,10 +965,18 @@ compose_sql_clause_new(rule *info, sbuf_t *key, sbuf_t *value,
     const char *col = info->as[j];
     const char *tbl = rule_table_name(info);
 
+	const char *qos_key     = (col != NULL) ? col : "Qos";;
+	const char *id_key      = (col != NULL) ? col : "Id";
+	const char *topic_key   = (col != NULL) ? col : "Topic";
+	const char *cli_id_key  = (col != NULL) ? col : "Clientid";
+	const char *user_key    = (col != NULL) ? col : "Username";
+	const char *pwd_key     = (col != NULL) ? col : "Password";
+	const char *ts_key      = (col != NULL) ? col : "Timestamp";
+	const char *payload_key = (col != NULL) ? col : "Payload";
+
     switch (j) {
 
     case RULE_QOS:;
-		const char *qos_key = (col != NULL) ? col : "Qos";;
     	sbuf_init(&key_sb, strlen(qos_key)+8);
     	sbuf_init(&val_sb,  8);
         sbuf_appendf(&key_sb, "%s, ", qos_key);
@@ -975,7 +984,6 @@ compose_sql_clause_new(rule *info, sbuf_t *key, sbuf_t *value,
         break;
 
     case RULE_ID:
-		const char *id_key = (col != NULL) ? col : "Id";
     	sbuf_init(&key_sb, strlen(id_key)+8);
     	sbuf_init(&val_sb, 16);
         sbuf_appendf(&key_sb, "%s, ", id_key);
@@ -983,7 +991,6 @@ compose_sql_clause_new(rule *info, sbuf_t *key, sbuf_t *value,
         break;
 
     case RULE_TOPIC: {
-		const char *topic_key = (col != NULL) ? col : "Topic";
         char *esc = sql_escape(pp->var_header.publish.topic_name.body);
     	sbuf_init(&key_sb, strlen(topic_key)+8);
     	sbuf_init(&val_sb, strlen(esc)+8);
@@ -994,7 +1001,6 @@ compose_sql_clause_new(rule *info, sbuf_t *key, sbuf_t *value,
     }
 
     case RULE_CLIENTID: {
-		const char *cli_id_key = (col != NULL) ? col : "Clientid";
         char *esc = sql_escape(conn_param_get_clientid(cp));
     	sbuf_init(&key_sb, strlen(cli_id_key)+8);
     	sbuf_init(&val_sb, strlen(esc)+8);
@@ -1005,7 +1011,6 @@ compose_sql_clause_new(rule *info, sbuf_t *key, sbuf_t *value,
     }
 
     case RULE_USERNAME: {
-		const char *user_key = (col != NULL) ? col : "Username";
         const char *u = conn_param_get_username(cp);
     	sbuf_init(&key_sb, strlen(user_key)+8);
     	sbuf_init(&val_sb, 256);
@@ -1018,7 +1023,6 @@ compose_sql_clause_new(rule *info, sbuf_t *key, sbuf_t *value,
     }
 
     case RULE_PASSWORD: {
-		const char *pwd_key = (col != NULL) ? col : "Password";
         const char *p = conn_param_get_password(cp);
     	sbuf_init(&key_sb,   strlen(pwd_key)+8);
     	sbuf_init(&val_sb,  256);
@@ -1031,7 +1035,6 @@ compose_sql_clause_new(rule *info, sbuf_t *key, sbuf_t *value,
     }
 
     case RULE_TIMESTAMP:
-		const char *ts_key = (col != NULL) ? col : "Timestamp";
 	    sbuf_init(&key_sb,   strlen(ts_key)+8);
     	sbuf_init(&val_sb,  32);
         sbuf_appendf(&key_sb, "%s, ", ts_key);
@@ -1042,7 +1045,6 @@ compose_sql_clause_new(rule *info, sbuf_t *key, sbuf_t *value,
         break;
 
     case RULE_PAYLOAD_ALL: {
-		const char *payload_key = (col != NULL) ? col : "Payload";
         char *esc = sql_escape(pp->payload.data);
     	sbuf_init(&key_sb, strlen(payload_key)+8);
     	sbuf_init(&val_sb, strlen(esc)+8);
