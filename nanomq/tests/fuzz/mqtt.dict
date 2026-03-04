@@ -1,0 +1,47 @@
+# MQTT dictionary for libFuzzer
+
+# protocol versions
+"v311"="\x04"
+"v50"="\x05"
+
+# packet Types
+"publish"="\x30"
+"puback"="\x40"
+"pubrec"="\x50"
+"pubrel"="\x62"
+"pubcomp"="\x70"
+
+# some common MQTT v5 property IDs
+"payload_format_indicator"="\x01"
+"message_expiry_interval"="\x02"
+"content_type"="\x03"
+"response_topic"="\x08"
+"correlation_data"="\x09"
+"subscription_identifier"="\x0b"
+"session_expiry_interval"="\x11"
+"assigned_client_identifier"="\x12"
+"server_keep_alive"="\x13"
+"authentication_method"="\x15"
+"authentication_data"="\x16"
+"request_problem_information"="\x17"
+"will_delay_interval"="\x18"
+"request_response_information"="\x19"
+"response_information"="\x1a"
+"server_reference"="\x1c"
+"reason_string"="\x1f"
+"receive_maximum"="\x21"
+"topic_alias_maximum"="\x22"
+"topic_alias"="\x23"
+"maximum_qos"="\x24"
+"retain_available"="\x25"
+"user_property"="\x26"
+"maximum_packet_size"="\x27"
+"wildcard_subscription_available"="\x28"
+"subscription_identifier_available"="\x29"
+"shared_subscription_available"="\x2a"
+
+# Common lengths and values shown by the fuzzer
+"len_1"="\x01\x00"
+"len_2"="\x02\x00"
+"empty_str"="\x00\x00"
+"max_varint"="\xff\xff\xff\x7f"
