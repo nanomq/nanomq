@@ -57,7 +57,7 @@ handle_recv(const char *msg, size_t msg_len, conf *config, char **err_msg)
 		goto err;
 	}
 
-	new_conf = nng_alloc(sizeof(conf));
+	new_conf = nng_zalloc(sizeof(conf));
 	if (new_conf == NULL) {
 		*err_msg = nng_strdup("reload failed, alloc memory failed!");
 		goto err;
@@ -70,6 +70,7 @@ handle_recv(const char *msg, size_t msg_len, conf *config, char **err_msg)
 
 	int conf_type = 2;
 	getNumberValue(obj, item, "conf_type", conf_type, rv);
+
 	switch (conf_type) {
 	case 2: /* OPT_HOCONFILE */
 		conf_parse_ver2(new_conf);
