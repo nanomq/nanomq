@@ -1793,12 +1793,12 @@ file_path_parse(int argc, char **argv, conf *conf)
 			FREE_NONULL(conf->conf_file);
 			conf->conf_file = nng_strdup(arg);
 			conf_parse_ver2(conf);
-			break;
+			return val;
 		case OPT_CONFFILE:
 			FREE_NONULL(conf->conf_file);
 			conf->conf_file = nng_strdup(arg);
 			conf_parse(conf);
-			break;
+			return val;
 #if defined(SUPP_LICENSE_DK) || defined(SUPP_LICENSE_STD)
 		case OPT_LICENSE:
 			FREE_NONULL(conf->license_path);
