@@ -340,12 +340,8 @@ hook_entry(nano_work *work, uint8_t reason)
 {
 	int            rv        = 0;
 	conf_web_hook *hook_conf = &work->config->web_hook;
-	conf_exchange *ex_conf   = &work->config->exchange;
 	conn_param    *cparam    = work->cparam;
 	nng_socket    *sock      = &work->hook_sock;
-	nng_socket    *ex_sock;
-	conf_parquet  *parquetconf = &work->config->parquet;
-	conf_blf      *blfconf     = &work->config->blf;
 
 	//BLF & Parquet is discarded, only serve in commercial ver
 	if (!hook_conf->enable)
