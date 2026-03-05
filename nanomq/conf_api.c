@@ -1132,9 +1132,6 @@ reload_sqlite_config(conf_sqlite *cur_conf, conf_sqlite *new_conf)
 void
 reload_auth_config(conf_auth *cur_conf, conf_auth *new_conf)
 {
-	if (cur_conf->mtx == NULL) {
-		nng_mtx_alloc(&cur_conf->mtx);
-	}
 	nng_mtx_lock(cur_conf->mtx);
 	for (size_t i = 0; i < cur_conf->count; i++) {
 		free(cur_conf->usernames[i]);
