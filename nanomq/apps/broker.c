@@ -1015,23 +1015,6 @@ broker(conf *nanomq_conf)
 	num_work += HTTP_CTX_NUM;
 #endif
 
-	// Exchange service
-	for (int i = 0; i < nanomq_conf->exchange.count; i++) {
-		conf_exchange_node *node = nanomq_conf->exchange.nodes[i];
-		if (node == NULL) {
-			log_error("Wrong exchange %d configuration!", i);
-			continue;
-		}
-		node->sock = (nng_socket *) nng_alloc(sizeof(nng_socket));
-		// exchange sock is an embedded Req/Rep sock for MQTT Stream
-		if ((rv = nng_exchange_client_open(node->sock)) != 0) {
-			log_error("nng_exchange_client_open failed %d", rv);
-		} else {
-			// nng_socket_set_ms(*node->sock, NNG_OPT_RECVMAXSZ, 0xFFFFFFFFu);
-			nng_socket_set_ptr(*node->sock, NNG_OPT_EXCHANGE_BIND, (void *)node);
-		}
-		log_debug("exchange %d init finished!\n", i);
-	}
 	// Hook service
 	if (nanomq_conf->web_hook.enable || nanomq_conf->exchange.count > 0) {
 		start_hook_service(nanomq_conf);

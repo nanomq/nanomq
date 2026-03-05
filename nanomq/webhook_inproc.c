@@ -289,8 +289,7 @@ hook_work_cb(void *arg)
 }
 
 static struct hook_work *
-alloc_work(nng_socket sock, conf_web_hook *conf, conf_exchange *exconf,
-        conf_parquet *parquetconf)
+alloc_work(nng_socket sock, conf_web_hook *conf)
 {
 	struct hook_work *w;
 	int               rv;
@@ -352,7 +351,7 @@ hook_cb(void *arg)
 	}
 
 	for (i = 0; i < works_num; i++) {
-		works[i] = alloc_work(sock, &conf->web_hook, &conf->exchange, &conf->parquet);
+		works[i] = alloc_work(sock, &conf->web_hook);
 		works[i]->id = i;
 	}
 
