@@ -1,5 +1,5 @@
 //
-// Copyright 2023 NanoMQ Team, Inc. <jaylin@emqx.io>
+// Copyright 2026 NanoMQ Team, Inc. <jaylin@emqx.io>
 //
 // This software is supplied under the terms of the MIT License, a
 // copy of which should be located in the distribution where this
@@ -11,7 +11,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <inttypes.h>
 
 #include "include/webhook_inproc.h"
 #include "nanomq.h"
@@ -19,21 +18,12 @@
 #include "nng/protocol/pipeline0/pull.h"
 #include "nng/protocol/pipeline0/push.h"
 #include "nng/supplemental/http/http.h"
-#include "nng/supplemental/nanolib/cJSON.h"
 #include "nng/supplemental/nanolib/conf.h"
 #include "nng/supplemental/nanolib/log.h"
 #include "nng/supplemental/nanolib/utils.h"
 #include "nng/supplemental/util/platform.h"
 
 #include "nng/mqtt/mqtt_client.h"
-
-#if defined(SUPP_PARQUET)
-#include "nng/supplemental/nanolib/parquet.h"
-#endif
-
-#ifdef SUPP_BLF
-#include "nng/supplemental/nanolib/blf.h"
-#endif
 
 #define NANO_LMQ_INIT_CAP 16
 
@@ -53,9 +43,6 @@ struct hook_work {
 	conf_web_hook   *conf;
 	uint32_t         id;
 	bool             busy;
-	conf_exchange   *exchange;
-	conf_parquet    *parquet;
-	nng_socket      *mqtt_sock;
 	nng_http_req    *req;
 	nng_http_client *client;
 	nng_http_conn   *conn;
@@ -65,121 +52,6 @@ struct hook_work {
 static void hook_work_cb(void *arg);
 
 static nng_thread     *hook_thr;
-static nng_atomic_int *hook_search_limit     = NULL;
-static nng_aio        *hook_search_reset_aio = NULL;
-
-static int
-send_mqtt_msg_cat(nng_socket *sock, const char *topic, nng_msg **msgs, uint32_t len)
-{
-	int rv;
-	nng_msg *pubmsg;
-	uint32_t sz = 0;
-	for (int i=0; i<len; ++i) {
-		uint32_t diff;
-		diff = nng_msg_len(msgs[i]) -
-			((uintptr_t)nng_msg_payload_ptr(msgs[i]) - (uintptr_t) nng_msg_body(msgs[i]));
-		sz += diff;
-	}
-	char *buf = nng_alloc(sizeof(char) * sz);
-	int   pos = 0;
-	for (int i=0; i<len; ++i) {
-		uint32_t diff;
-		diff = nng_msg_len(msgs[i]) -
-			((uintptr_t)nng_msg_payload_ptr(msgs[i]) - (uintptr_t) nng_msg_body(msgs[i]));
-		if (sz >= pos + diff)
-			memcpy(buf + pos, nng_msg_payload_ptr(msgs[i]), diff);
-		else
-			log_error("buffer overflow!");
-		pos += diff;
-	}
-
-	nng_mqtt_msg_alloc(&pubmsg, 0);
-	nng_mqtt_msg_set_packet_type(pubmsg, NNG_MQTT_PUBLISH);
-	nng_mqtt_msg_set_publish_qos(pubmsg, 1);
-	nng_mqtt_msg_set_publish_retain(pubmsg, 0);
-	nng_mqtt_msg_set_publish_payload(pubmsg, (uint8_t *) buf, pos);
-	nng_mqtt_msg_set_publish_topic(pubmsg, topic);
-
-	if ((rv = nng_sendmsg(*sock, pubmsg, NNG_FLAG_ALLOC)) != 0) {
-		log_error("nng_sendmsg", rv);
-	}
-	nng_free(buf, pos);
-	return rv;
-}
-
-#if defined(SUPP_BLF) || defined(SUPP_PARQUET)
-
-static char *
-get_file_bname(char *fpath)
-{
-	char *bname;
-#ifdef _WIN32
-	if ((bname = malloc(strlen(fpath) + 16)) == NULL)
-		return NULL;
-	char ext[16];
-	_splitpath_s(fpath, NULL, 0,   // Don't need drive
-	    NULL, 0,                   // Don't need directory
-	    bname, strlen(fpath) + 15, // just the filename
-	    ext, 15);
-	strncpy(bname + strlen(bname), ext, 15);
-#else
-#include <libgen.h>
-	// strcpy(bname, basename(fpath));
-	bname = basename(fpath);
-#endif
-	return bname;
-}
-
-static int
-send_mqtt_msg_file(
-    nng_socket *sock, const char *topic, const char **fpaths, uint32_t len)
-{
-	int          rv;
-	const char **filenames = malloc(sizeof(char *) * len);
-	for (int i = 0; i < len; ++i) {
-		filenames[i] = get_file_bname((char *) fpaths[i]);
-	}
-
-	// Create a json as payload to trigger file transport
-	cJSON *obj       = cJSON_CreateObject();
-	cJSON *files_obj = cJSON_CreateStringArray(fpaths, len);
-	cJSON_AddItemToObject(obj, "files", files_obj);
-	if (!files_obj)
-		return -1;
-
-	cJSON *filenames_obj = cJSON_CreateStringArray(filenames, len);
-	if (!filenames_obj)
-		return -1;
-	cJSON_AddItemToObject(obj, "filenames", filenames_obj);
-	cJSON *delete_obj = cJSON_AddNumberToObject(obj, "delete", -1);
-
-	char *buf = cJSON_PrintUnformatted(obj);
-	cJSON_Delete(obj);
-	for (int i = 0; i < len; ++i)
-		filenames[i];
-	free(filenames);
-
-	// create a PUBLISH message
-	nng_msg *pubmsg;
-	nng_mqtt_msg_alloc(&pubmsg, 0);
-	nng_mqtt_msg_set_packet_type(pubmsg, NNG_MQTT_PUBLISH);
-	nng_mqtt_msg_set_publish_dup(pubmsg, 0);
-	nng_mqtt_msg_set_publish_qos(pubmsg, 0);
-	nng_mqtt_msg_set_publish_retain(pubmsg, 0);
-	nng_mqtt_msg_set_publish_payload(pubmsg, (uint8_t *) buf, strlen(buf));
-	nng_mqtt_msg_set_publish_topic(pubmsg, topic);
-
-	log_info("Publishing to '%s' '%s'", topic, buf);
-
-	if ((rv = nng_sendmsg(*sock, pubmsg, NNG_FLAG_ALLOC)) != 0) {
-		log_error("nng_sendmsg", rv);
-	}
-	free(buf);
-
-	return rv;
-}
-
-#endif
 
 static void
 send_msg(hook_work *w, nng_msg *msg)
@@ -207,7 +79,6 @@ send_msg(hook_work *w, nng_msg *msg)
 				NANO_NNG_FATAL("nng_lmq_resize mem error", rv);
 			}
 		}
-		// nng_msg_clone(msg);
 		if (nng_lmq_put(w->lmq, msg) != 0) {
 			log_info("HTTP Request droppped");
 			nng_msg_free(msg);
@@ -386,8 +257,6 @@ hook_work_cb(void *arg)
 	int               rv;
 	char *            body;
 	size_t            body_len;
-	conf_exchange *   exconf = work->exchange;
-	conf_parquet *    parquetconf = work->parquet;
 	nng_msg *         msg;
 	cJSON *           root;
 
@@ -403,294 +272,13 @@ hook_work_cb(void *arg)
 			NANO_NNG_FATAL("nng_recv_aio", rv);
 		}
 
-		// differ msg of webhook and MQ (cmd) by prefix of body
 		work->msg = nng_aio_get_msg(work->aio);
 
-		msg = work->msg;
-		body = (char *) nng_msg_body(msg);
+		msg      = work->msg;
+		body     = (char *) nng_msg_body(msg);
 		body_len = nng_msg_len(msg);
-
-		root = NULL;
-		// TODO Not efficent
-		// Only parse msg when exchange is enabled
-		root = cJSON_ParseWithLength(body, body_len);
-		if (!root) {
-			// not a json
-			nng_msg_free(msg);
-			work->state = HOOK_RECV;
-			nng_recv_aio(work->sock, work->aio);
-			break;
-		}
-		cJSON *idjo = cJSON_GetObjectItem(root, "id");
-		if (!idjo) {
-			cJSON_Delete(root);
-			root = NULL;
-		}
-		if (root && idjo) {
-			char *idstr = NULL;
-			idstr = idjo->valuestring;
-			if (idstr) {
-				if (strcmp(idstr, EXTERNAL2NANO_IPC) == 0) {
-					cJSON_Delete(root);
-					root = NULL;
-					int l = nng_atomic_dec_nv(hook_search_limit);
-					if (l < 0) {
-						log_warn("Hook searching too frequently");
-						// Ignore, start next recv
-						nng_msg_free(msg);
-						work->state = HOOK_RECV;
-						nng_recv_aio(work->sock, work->aio);
-						break;
-					}
-					work->state = HOOK_WAIT;
-					nng_aio_finish(work->aio, 0);
-					break;
-				}
-			}
-			cJSON_Delete(root);
-			root = NULL;
-		}
 		send_msg(work, msg);
 		work->msg   = NULL;
-		work->state = HOOK_RECV;
-		nng_recv_aio(work->sock, work->aio);
-		break;
-	case HOOK_WAIT:
-		// Search on MQ and Parquet
-		work->msg = nng_aio_get_msg(work->aio);
-		msg       = work->msg;
-		work->msg = NULL;
-
-		nng_aio *aio;
-		nng_aio_alloc(&aio, NULL, NULL);
-
-		if (exconf->count == 0) {
-			log_error("Exchange is not enabled");
-			nng_msg_free(msg);
-			goto skip;
-		}
-
-		// TODO match exchange with IPC msg (by MQ name)
-		nng_socket *ex_sock = exconf->nodes[0]->sock;
-
-		body = (char *) nng_msg_body(msg);
-		body_len = nng_msg_len(msg);
-
-		root = cJSON_ParseWithLength(body, body_len);
-		if (!root) {
-			log_warn("Invalid json msg");
-			nng_msg_free(msg);
-			goto skip;
-		}
-		cJSON *cmdjo = cJSON_GetObjectItem(root,"cmd");
-		char *cmdstr = NULL;
-		if (cmdjo)
-			cmdstr = cmdjo->valuestring;
-		if (cmdstr) {
-			if (0 == strcmp(cmdstr, "write")) {
-				log_warn("Write cmd is not supported");
-				nng_msg_free(msg);
-				cJSON_Delete(root);
-				goto skip;
-			} else if (0 == strcmp(cmdstr, "search")) {
-				log_debug("Search is triggered");
-			} else if (0 == strcmp(cmdstr, "stop")) {
-				log_info("Stop is triggered");
-				nng_msg *m;
-				nng_msg_alloc(&m, 0);
-				if (!m) {
-					log_error("Error in alloc memory");
-					nng_msg_free(msg);
-					cJSON_Delete(root);
-					goto skip;
-				}
-
-				nng_time *tss = NULL;
-				tss = nng_alloc(sizeof(nng_time) * 3);
-				tss[0] = 0;
-				tss[1] = 9223372036854775807; // big enough
-				tss[2] = 1;
-				nng_msg_set_proto_data(m, NULL, (void *)tss);
-				nng_aio_set_msg(aio, m);
-				// Do clean on MQ
-				nng_recv_aio(*ex_sock, aio);
-				nng_aio_wait(aio);
-				if (nng_aio_result(aio) != 0)
-					log_warn("error in clean msgs on exchange");
-				nng_msg_free(m);
-				nng_free(tss, 0);
-
-				nng_msg **msgs_res = (nng_msg **)nng_aio_get_msg(aio);
-				uint32_t  msgs_len = (uintptr_t)nng_aio_get_prov_data(aio);
-				log_info("Parquet & MQ Service stopped and free %d msgs", msgs_len);
-				if (msgs_len > 0 && msgs_res != NULL) {
-					for (int i=0; i<msgs_len; ++i)
-						nng_msg_free(msgs_res[i]);
-				}
-				nng_free(msgs_res, sizeof(nng_msg *) * msgs_len);
-
-				nng_msg_free(msg);
-				cJSON_Delete(root);
-				goto skip;
-			} else {
-				log_warn("Invalid cmd");
-				nng_msg_free(msg);
-				cJSON_Delete(root);
-				goto skip;
-			}
-		} else {
-			log_warn("No cmd field found in json msg");
-			nng_msg_free(msg);
-			cJSON_Delete(root);
-			goto skip;
-		}
-
-		cJSON *skeyjo = cJSON_GetObjectItem(root, "start_key");
-		char *skeystr = NULL;
-		uint64_t start_key;
-		if (skeyjo)
-			skeystr = skeyjo->valuestring;
-		if (skeystr) {
-			rv = sscanf(skeystr, "%" SCNu64, &start_key);
-			if (rv == 0) {
-				log_error("error in read start_key to number %s", skeystr);
-				nng_msg_free(msg);
-				cJSON_Delete(root);
-				goto skip;
-			}
-		} else {
-			log_warn("No start_key field found in json msg");
-			nng_msg_free(msg);
-			cJSON_Delete(root);
-			goto skip;
-		}
-
-		cJSON *ekeyjo = cJSON_GetObjectItem(root, "end_key");
-		char *ekeystr = NULL;
-		uint64_t end_key = 0;
-		if (ekeyjo)
-			ekeystr = ekeyjo->valuestring;
-		if (ekeystr) {
-			rv = sscanf(ekeystr, "%" SCNu64, &end_key);
-			if (rv == 0) {
-				log_error("error in read end_key to number %s", ekeystr);
-				nng_msg_free(msg);
-				cJSON_Delete(root);
-				goto skip;
-			}
-		}
-		log_info("start_key %lld end_key %lld", start_key, end_key);
-
-		nng_msg *m;
-		nng_msg_alloc(&m, 0);
-		if (!m) {
-			log_error("Error in alloc memory");
-			nng_msg_free(msg);
-			cJSON_Delete(root);
-			goto skip;
-		}
-
-		nng_time *tss = NULL;
-		// When end key exists. Fuzzing search.
-		if (ekeystr) {
-			tss = nng_alloc(sizeof(nng_time) * 3);
-			tss[0] = start_key;
-			tss[1] = end_key;
-			tss[2] = 0;
-			nng_msg_set_proto_data(m, NULL, (void *)tss);
-		} else {
-			// Not exists. then normal search
-			nng_msg_set_timestamp(m, start_key);
-		}
-
-		nng_aio_set_msg(aio, m);
-		// search msgs from MQ
-		nng_recv_aio(*ex_sock, aio);
-
-		nng_aio_wait(aio);
-		if (nng_aio_result(aio) != 0)
-			log_warn("error in taking msgs from exchange");
-		nng_msg_free(m);
-		if (ekeystr)
-			nng_free(tss, 0);
-
-		nng_msg **msgs_res = (nng_msg **)nng_aio_get_msg(aio);
-		uint32_t  msgs_len = (uintptr_t)nng_aio_get_prov_data(aio);
-
-		// Get msgs and send to localhost:1883 to active handler
-		if (msgs_len > 0 && msgs_res != NULL) {
-			log_info("Publishing %ld msgs took from exchange...", msgs_len);
-
-			// TODO NEED Clone before took from exchange instead of here
-			for (int i=0; i<msgs_len; ++i)
-				nng_msg_clone(msgs_res[i]);
-
-			// send_mqtt_msg_cat(work->mqtt_sock, "$file/upload/md5/xxxx", msgs_res, msgs_len);
-
-			for (int i=0; i<msgs_len; ++i)
-				nng_msg_free(msgs_res[i]);
-			nng_free(msgs_res, sizeof(nng_msg *) * msgs_len);
-		}
-#ifdef SUPP_PARQUET
-		// Get file names and send to localhost to active handler
-		const char **parquet_fnames = NULL;
-		uint32_t parquet_sz = 0;
-		if (ekeystr) {
-			// fuzzing search
-			parquet_fnames = parquet_find_span(start_key, end_key, &parquet_sz);
-		} else {
-			// normal search
-			const char *parquet_fname = parquet_find(start_key);
-			if (parquet_fname) {
-				parquet_sz = 1;
-				parquet_fname = malloc(sizeof(char *) * parquet_sz);
-				parquet_fnames[0] = parquet_fname;
-			}
-		}
-		if (parquet_fnames) {
-			if (parquet_sz > 0) {
-				log_info("Ask parquet and found.");
-				// send_mqtt_msg_file(work->mqtt_sock, "file_transfer", parquet_fnames, parquet_sz);
-			}
-			for (int i=0; i<(int)parquet_sz; ++i)
-				nng_free((void *)parquet_fnames[i], 0);
-			nng_free(parquet_fnames, parquet_sz);
-		}
-
-#endif
-#if defined (SUPP_BLF)
-		// Get file names and send to localhost to active handler
-		const char **blf_fnames = NULL;
-		uint32_t blf_sz = 0;
-		if (ekeystr) {
-			// fuzzing search
-			blf_fnames = blf_find_span(start_key, end_key, &blf_sz);
-		} else {
-			// normal search
-			const char *blf_fname = blf_find(start_key);
-			if (blf_fname) {
-				blf_sz = 1;
-				blf_fname = malloc(sizeof(char *) * blf_sz);
-				blf_fnames[0] = blf_fname;
-			}
-		}
-		if (blf_fnames) {
-			if (blf_sz > 0) {
-				log_info("Ask parquet and found.");
-				send_mqtt_msg_file(work->mqtt_sock, "file_transfer", blf_fnames, blf_sz);
-			}
-			for (int i=0; i<(int)blf_sz; ++i)
-				nng_free((void *)blf_fnames[i], 0);
-			nng_free(blf_fnames, blf_sz);
-		}
-#endif
-
-		cJSON_Delete(root);
-		root = NULL;
-		nng_msg_free(msg);
-skip:
-		nng_aio_free(aio);
-		// Start next recv
 		work->state = HOOK_RECV;
 		nng_recv_aio(work->sock, work->aio);
 		break;
@@ -698,42 +286,6 @@ skip:
 		NANO_NNG_FATAL("bad state!", NNG_ESTATE);
 		break;
 	}
-}
-
-static void
-trigger_tcp_disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
-{
-	int reason = 0;
-	// get disconnect reason
-	nng_pipe_get_int(p, NNG_OPT_MQTT_DISCONNECT_REASON, &reason);
-	// property *prop;
-	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_DISCONNECT_PROPERTY, &prop);
-	log_warn("bridge client disconnected! RC [%d] \n", reason);
-}
-
-static void
-trigger_tcp_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
-{
-	int           reason = 0;
-	// get connect reason
-	nng_pipe_get_int(p, NNG_OPT_MQTT_CONNECT_REASON, &reason);
-	// get property for MQTT V5
-	// property *prop;
-	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_CONNECT_PROPERTY, &prop);
-	log_info("trigger connected! RC [%d]", reason);
-}
-
-#define HOOK_SEARCH_RESET_DURATION 5
-static void
-hook_search_reset(void *arg)
-{
-	conf_parquet *parquetconf = arg;
-	// reset limit
-	nng_atomic_set(hook_search_limit,
-	    HOOK_SEARCH_RESET_DURATION * parquetconf->limit_frequency);
-	// Avoid wake frequently
-	nng_duration dura = HOOK_SEARCH_RESET_DURATION  * 1000;
-	nng_sleep_aio(dura, hook_search_reset_aio);
 }
 
 static struct hook_work *
@@ -768,8 +320,6 @@ alloc_work(nng_socket sock, conf_web_hook *conf, conf_exchange *exconf,
 	w->sock     = sock;
 	w->state    = HOOK_INIT;
 	w->busy     = false;
-	w->exchange = exconf;
-	w->parquet  = parquetconf;
 	w->conn     = NULL;
 	w->req      = NULL;
 	w->client   = NULL;
@@ -787,9 +337,6 @@ hook_cb(void *arg)
 	int                rv;
 	size_t             i;
 
-	if (conf->exchange.count > 0) {
-		works_num += conf->exchange.count;
-	}
 	if (conf->web_hook.enable) {
 		works_num += conf->web_hook.pool_size;
 	}
@@ -817,17 +364,6 @@ hook_cb(void *arg)
 		goto out;
 	}
 
-	if (hook_search_limit == NULL)
-		nng_atomic_alloc(&hook_search_limit);
-
-	if (0 != (rv = nng_aio_alloc(&hook_search_reset_aio,
-			hook_search_reset, &conf->parquet))) {
-		log_error("hook hook_search reset aio init failed %d", rv);
-		goto out;
-	}
-	nng_aio_finish(hook_search_reset_aio, 0); // Start
-	log_info("hook hook_search reset aio started");
-
 	for (i = 0; i < works_num; i++) {
 		// shares taskq threads with broker
 		hook_work_cb(works[i]);
@@ -838,13 +374,6 @@ hook_cb(void *arg)
 	}
 
 out:
-	// Free hook search reset aio and limit atomic
-	if (hook_search_limit)
-		nng_atomic_free(hook_search_limit);
-	hook_search_limit = NULL;
-	nng_aio_stop(hook_search_reset_aio);
-	nng_aio_free(hook_search_reset_aio);
-
 	for (i = 0; i < works_num; i++) {
 		nng_free(works[i], sizeof(struct hook_work));
 	}
