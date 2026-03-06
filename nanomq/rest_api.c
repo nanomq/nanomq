@@ -863,26 +863,45 @@ int HexadecimalToDecimal(char* hex, int len)
 }
 
 static
-char* URLDecoding(char* data, unsigned int count) {
-	char* result = nng_zalloc(count);
-	int j = 0;
-
-	for (int i = 0; i < count; ++i, ++j)
-	{
-		if (data[i] == '%')
-		{
-			char h[] = { data[i + 1], data[i + 2] };
-			result[j] = (char)HexadecimalToDecimal(h, 2);
-			i += 2;
+char *
+URLDecoding(const char *data, size_t count)
+{
+	if (data == NULL) {
+		return NULL;
+	}
+	if (count == 0) {
+		char *empty = nng_zalloc(1);
+		if (empty != NULL) {
+			empty[0] = '\0';
 		}
-		else
-		{
-			result[j] = data[i];
-		}
+		return empty;
+	}
+	if (count + 1 < count) {
+		return NULL;
 	}
 
-	result[j] = '\0';
+	char *result = nng_zalloc(count + 1);
+	if (result == NULL) {
+		return NULL;
+	}
 
+	size_t i = 0;
+	size_t j = 0;
+	while (i < count) {
+		if (data[i] == '%' && (i + 2) < count) {
+			char h0 = data[i + 1];
+			char h1 = data[i + 2];
+			if (isxdigit((unsigned char) h0) &&
+			    isxdigit((unsigned char) h1)) {
+				char h[] = { h0, h1 };
+				result[j++] = (char) HexadecimalToDecimal(h, 2);
+				i += 3;
+				continue;
+			}
+		}
+		result[j++] = data[i++];
+	}
+	result[j] = '\0';
 	return result;
 }
 
@@ -1011,7 +1030,7 @@ process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 					char *path = URLDecoding(uri_ct->params[count]->value, path_len);
 					log_debug("decoded path: %s", path);
 					ret = get_file_content(msg, path);
-					nng_free(path, path_len);
+					nng_free(path, path_len + 1);
 					break;
 				}
 				count ++;
