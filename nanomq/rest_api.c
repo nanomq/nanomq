@@ -1032,7 +1032,7 @@ process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 					char *path = URLDecoding(uri_ct->params[count]->value);
 					log_debug("decoded path: %s", path);
 					ret = get_file_content(msg, path);
-					nng_free(path, path_len);
+					nng_free(path, path_len + 1);
 					break;
 				}
 				count ++;
