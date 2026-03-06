@@ -1,3 +1,13 @@
+#ifndef ENABLE_LOG
+#define ENABLE_LOG 1
+#endif
+#ifndef SUPP_RULE_ENGINE
+#define SUPP_RULE_ENGINE 1
+#endif
+#ifndef ACL_SUPP
+#define ACL_SUPP 1
+#endif
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -57,8 +67,9 @@ ensure_inited(void)
 	g_conf.http_server.max_body = 1024 * 1024;
 	g_conf.http_server.auth_type = NONE_AUTH;
 
-	if (g_conf.restapi_lk == NULL) {
-		nng_mtx_alloc(&g_conf.restapi_lk);
+	nng_mtx_alloc(&g_conf.restapi_lk);
+	if (g_conf.lc == NULL) {
+		nng_atomic_alloc(&g_conf.lc);
 	}
 
 	set_global_conf(&g_conf);
@@ -94,6 +105,11 @@ fuzz_rest_api_detailed_cleanup(void)
 	if (g_conf.restapi_lk != NULL) {
 		nng_mtx_free(g_conf.restapi_lk);
 		g_conf.restapi_lk = NULL;
+	}
+
+	if (g_conf.lc != NULL) {
+		nng_atomic_free(g_conf.lc);
+		g_conf.lc = NULL;
 	}
 }
 
