@@ -2194,6 +2194,7 @@ post_rules(http_msg *msg)
 	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
 
 	if (!cJSON_IsObject(req)) {
+		cJSON_Delete(req);
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 	}
@@ -3087,6 +3088,7 @@ post_reload_config(http_msg *msg)
 	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
 
 	if (!cJSON_IsObject(req)) {
+		cJSON_Delete(req);
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 	}
@@ -3116,6 +3118,7 @@ write_file(http_msg *msg)
 	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
 
 	if (!cJSON_IsObject(req)) {
+		cJSON_Delete(req);
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 	}
@@ -3320,6 +3323,7 @@ post_config(http_msg *msg, const char *type)
 	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
 
 	if (!cJSON_IsObject(req)) {
+		cJSON_Delete(req);
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 	}
@@ -3852,6 +3856,7 @@ post_mqtt_msg(http_msg *msg, nng_socket *sock, handle_mqtt_msg_cb cb)
 	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
 
 	if (!cJSON_IsObject(req)) {
+		cJSON_Delete(req);
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 	}
@@ -3911,9 +3916,7 @@ post_mqtt_msg_batch(http_msg *msg, nng_socket *sock, handle_mqtt_msg_cb cb)
 	return res;
 
 out:
-	if (!cJSON_IsObject(req)) {
-		cJSON_Delete(req);
-	}
+	cJSON_Delete(req);
 	return error_response(
 	    msg, NNG_HTTP_STATUS_BAD_REQUEST, REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 }
@@ -3989,6 +3992,7 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
 
 	if (!cJSON_IsObject(req)) {
+		cJSON_Delete(req);
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 	}
@@ -4068,6 +4072,7 @@ put_mqtt_bridge_switch(http_msg *msg, const char *name)
 	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
 
 	if (!cJSON_IsObject(req)) {
+		cJSON_Delete(req);
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 	}
@@ -4409,9 +4414,7 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 	return res;
 
 out:
-	if (cJSON_IsObject(req)) {
-		cJSON_Delete(req);
-	}
+	cJSON_Delete(req);
 
 	return error_response(msg,
 	    status == NNG_HTTP_STATUS_NOT_FOUND ? status
@@ -4555,9 +4558,7 @@ post_mqtt_bridge_unsub(http_msg *msg, const char *name)
 	return res;
 
 out:
-	if (cJSON_IsObject(req)) {
-		cJSON_Delete(req);
-	}
+	cJSON_Delete(req);
 
 	return error_response(msg,
 	    status == NNG_HTTP_STATUS_NOT_FOUND ? status
