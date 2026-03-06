@@ -17,6 +17,7 @@ export CXX=${CXX:-clang++}
 # 2. 构建 NanoMQ（仅需要库）
 ################################
 
+rm -rf build
 mkdir -p build
 cd build
 
@@ -26,7 +27,10 @@ cmake .. \
   -DBUILD_STATIC_LIB=ON \
   -DENABLE_RULE_ENGINE=ON \
   -DENABLE_ACL=ON \
-  -DNANOMQ_TESTS=OFF
+  -DENABLE_JWT=OFF \
+  -DBUILD_NFTP=OFF \
+  -DBUILD_NANOMQ_CLI=OFF \
+  -DNANOMQ_TESTS=OFF \
 
 make -j$(nproc)
 
@@ -40,12 +44,14 @@ FUZZ_DIR=fuzz
 LIBS=(
   build/nanomq/libnanomq.a
   build/nng/libnng.a
+  -lm
 )
 
 INCLUDES=(
   -Inanomq
   -Inanomq/include
   -Inng/include
+  -Inng/src
   -Inng/src/core
   -Inng/src/supplemental
 )
@@ -59,6 +65,8 @@ for src in $FUZZ_DIR/fuzz_*.c; do
       ${LIBS[@]} \
       -fsanitize=fuzzer,address \
       ${INCLUDES[@]} \
+      -DSUPP_RULE_ENGINE -DACL_SUPP \
+      -DNNG_PLATFORM_POSIX -DNNG_PLATFORM_LINUX \
       -o $OUT/$target
 done
 
