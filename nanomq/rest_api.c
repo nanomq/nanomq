@@ -1030,7 +1030,7 @@ process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 					char *path = URLDecoding(uri_ct->params[count]->value, path_len);
 					log_debug("decoded path: %s", path);
 					ret = get_file_content(msg, path);
-					nng_free(path, path_len + 1);
+					nng_free(path, path_len);
 					break;
 				}
 				count ++;
@@ -3022,6 +3022,11 @@ ctrl_cb(void *arg)
 	char **argv   = get_cache_argv();
 	char * cmd    = NULL;
 
+	if (argv == NULL) {
+		nng_strfree(action);
+		return;
+	}
+
 	nng_msleep(2000);
 
 	if (nng_strcasecmp(action, "stop") == 0) {
@@ -3050,9 +3055,20 @@ post_ctrl(http_msg *msg, const char *type)
 	if (nng_strcasecmp(type, "stop") == 0 ||
 	    nng_strcasecmp(type, "restart") == 0) {
 #ifndef NANO_PLATFORM_WINDOWS
-		char *arg = nng_strdup(type);
-		nng_thread_create(&thread, ctrl_cb, arg);
+#if defined(SUPP_NANO_LIB)
+		(void) thread;
 		res.status = NNG_HTTP_STATUS_OK;
+#else
+		char *arg = nng_strdup(type);
+		int   rv  = nng_thread_create(&thread, ctrl_cb, arg);
+		if (rv != 0) {
+			nng_strfree(arg);
+			res.status = NNG_HTTP_STATUS_INTERNAL_SERVER_ERROR;
+			code       = RPC_ERROR;
+		} else {
+			res.status = NNG_HTTP_STATUS_OK;
+		}
+#endif
 #else
 		res.status = NNG_HTTP_STATUS_NOT_ACCEPTABLE;
 		code       = RPC_ERROR;
