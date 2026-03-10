@@ -2,6 +2,7 @@
 #include <stddef.h>
 #include <string.h>
 #include "nng/nng.h"
+#include "nng/mqtt/mqtt_client.h"
 #include "nng/protocol/mqtt/mqtt_parser.h"
 #include "sub_handler.h"
 #include "broker.h"
@@ -18,6 +19,11 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     packet_subscribe subpkt = {0};
     work.sub_pkt = &subpkt;
     decode_sub_msg(&work);
+    if (work.sub_pkt->properties) {
+        mqtt_property_free(work.sub_pkt->properties);
+        work.sub_pkt->properties = NULL;
+        work.sub_pkt->prop_len = 0;
+    }
     topic_node *tn = work.sub_pkt->node;
     while (tn) {
         topic_node *next = tn->next;
