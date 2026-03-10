@@ -18,6 +18,7 @@
 #include "nng/supplemental/util/platform.h"
 #include "nng/supplemental/nanolib/log.h"
 #include "nng/supplemental/nanolib/utils.h"
+#include "nng/supplemental/tls/tls.h"
 
 #include "include/nanomq.h"
 #include "include/rest_api.h"
@@ -297,7 +298,7 @@ rest_handle(nng_aio *aio)
 	nng_ctx_send(job->ctx, job->aio);
 }
 
-void
+static void
 rest_start(uint16_t port, char *addr, conf *conf)
 {
 	char              rest_addr[128];
@@ -312,9 +313,11 @@ rest_start(uint16_t port, char *addr, conf *conf)
 	}
 	job_freelist = NULL;
 
+	char *schema = conf->http_server.tls.enable ? "https" : "http";
+
 	// Set up some strings, etc.  We use the port number
 	// from the argument list.
-	snprintf(rest_addr, sizeof(rest_addr), REST_URL, addr, port);
+	snprintf(rest_addr, sizeof(rest_addr), REST_URL, schema, addr, port);
 	if ((rv = nng_url_parse(&url, rest_addr)) != 0) {
 		log_error("nng_url_parse %s failed ", rest_addr);
 		return;
@@ -334,6 +337,24 @@ rest_start(uint16_t port, char *addr, conf *conf)
 	// if it doesn't already exist.
 	if ((rv = nng_http_server_hold(&server, url)) != 0) {
 		NANO_NNG_FATAL("nng_http_server_hold", rv);
+	}
+
+	// TODO set tls for http server
+	nng_tls_config *tls;
+	if ((rv = nng_tls_config_alloc(&tls, NNG_TLS_MODE_SERVER)) != 0) {
+		NANO_NNG_FATAL("nng_tls_config_alloc", rv);
+	}
+	const char *cacert = conf->http_server.tls.ca;
+	const char *cert = conf->http_server.tls.cert;
+	const char *key = conf->http_server.tls.key;
+	if ((rv = nng_tls_config_ca_chain(tls, cacert, NULL)) != 0) {
+		NANO_NNG_FATAL("nng_tls_config_ca_chain", rv);
+	}
+	if ((rv = nng_tls_config_own_cert(tls, cert, key, NULL)) != 0) {
+		NANO_NNG_FATAL("nng_tls_config_ca_chain", rv);
+	}
+	if ((rv = nng_http_server_set_tls(server, tls)) != 0) {
+		NANO_NNG_FATAL("nng_http_server_set_tls", rv);
 	}
 
 	// Allocate the handler - we use a dynamic handler for REST
@@ -561,6 +582,8 @@ start_rest_server(conf *conf)
 		NANO_NNG_FATAL("cannot start inproc server", rv);
 	}
 
+	char *schema = conf->http_server.tls.enable ? "https" : "http";
+
 	uint16_t port = conf->http_server.port ? conf->http_server.port
 	                                       : HTTP_DEFAULT_PORT;
 	set_global_conf(conf);
@@ -570,7 +593,7 @@ start_rest_server(conf *conf)
 	    ? conf->http_server.ip_addr
 	    : HTTP_DEFAULT_ADDR;
 	boot_time  = nng_clock();
-	log_info(REST_URL, addr, port);
+	log_info(REST_URL, schema, addr, port);
 	rest_start(port, addr, conf);
 
 	// Init ACL Cache hash map
