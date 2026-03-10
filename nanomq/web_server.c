@@ -355,7 +355,7 @@ rest_start(uint16_t port, char *addr, conf *conf)
 			NANO_NNG_FATAL("nng_tls_config_ca_chain", rv);
 		}
 		if (cert && key && (rv = nng_tls_config_own_cert(tls, cert, key, pass)) != 0) {
-			NANO_NNG_FATAL("nng_tls_config_ca_chain", rv);
+			NANO_NNG_FATAL("nng_tls_config_own_cert", rv);
 		}
 		if (verify_peer) {
 			if (set_fail)
