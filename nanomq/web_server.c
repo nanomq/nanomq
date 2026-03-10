@@ -340,32 +340,34 @@ rest_start(uint16_t port, char *addr, conf *conf)
 	}
 
 	// set tls for http server
-	nng_tls_config *tls;
-	if ((rv = nng_tls_config_alloc(&tls, NNG_TLS_MODE_SERVER)) != 0) {
-		NANO_NNG_FATAL("nng_tls_config_alloc", rv);
-	}
-	const char *cacert = conf->http_server.tls.ca;
-	const char *cert = conf->http_server.tls.cert;
-	const char *key = conf->http_server.tls.key;
-	const char *pass = conf->http_server.tls.key_password;
-	bool verify_peer = conf->http_server.tls.verify_peer;
-	bool set_fail = conf->http_server.tls.set_fail;
-	if (cacert && (rv = nng_tls_config_ca_chain(tls, cacert, NULL)) != 0) {
-		NANO_NNG_FATAL("nng_tls_config_ca_chain", rv);
-	}
-	if (cert && key && (rv = nng_tls_config_own_cert(tls, cert, key, pass)) != 0) {
-		NANO_NNG_FATAL("nng_tls_config_ca_chain", rv);
-	}
-	if (verify_peer) {
-		if (set_fail)
-			nng_tls_config_auth_mode(tls, NNG_TLS_AUTH_MODE_REQUIRED);
-		else
-			nng_tls_config_auth_mode(tls, NNG_TLS_AUTH_MODE_OPTIONAL);
-	} else {
-		nng_tls_config_auth_mode(tls, NNG_TLS_AUTH_MODE_NONE);
-	}
-	if ((rv = nng_http_server_set_tls(server, tls)) != 0) {
-		NANO_NNG_FATAL("nng_http_server_set_tls", rv);
+	if (conf->http_server.tls.enable) {
+		nng_tls_config *tls;
+		if ((rv = nng_tls_config_alloc(&tls, NNG_TLS_MODE_SERVER)) != 0) {
+			NANO_NNG_FATAL("nng_tls_config_alloc", rv);
+		}
+		const char *cacert = conf->http_server.tls.ca;
+		const char *cert = conf->http_server.tls.cert;
+		const char *key = conf->http_server.tls.key;
+		const char *pass = conf->http_server.tls.key_password;
+		bool verify_peer = conf->http_server.tls.verify_peer;
+		bool set_fail = conf->http_server.tls.set_fail;
+		if (cacert && (rv = nng_tls_config_ca_chain(tls, cacert, NULL)) != 0) {
+			NANO_NNG_FATAL("nng_tls_config_ca_chain", rv);
+		}
+		if (cert && key && (rv = nng_tls_config_own_cert(tls, cert, key, pass)) != 0) {
+			NANO_NNG_FATAL("nng_tls_config_ca_chain", rv);
+		}
+		if (verify_peer) {
+			if (set_fail)
+				nng_tls_config_auth_mode(tls, NNG_TLS_AUTH_MODE_REQUIRED);
+			else
+				nng_tls_config_auth_mode(tls, NNG_TLS_AUTH_MODE_OPTIONAL);
+		} else {
+			nng_tls_config_auth_mode(tls, NNG_TLS_AUTH_MODE_NONE);
+		}
+		if ((rv = nng_http_server_set_tls(server, tls)) != 0) {
+			NANO_NNG_FATAL("nng_http_server_set_tls", rv);
+		}
 	}
 
 	// Allocate the handler - we use a dynamic handler for REST
