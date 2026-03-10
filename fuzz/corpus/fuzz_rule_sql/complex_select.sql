@@ -1,0 +1,1 @@
+SELECT payload.temperature, payload.humidity FROM "sensors/#" WHERE payload.temperature > 25
