@@ -5,6 +5,7 @@
 #include "include/nanomq.h"
 #include "include/pub_handler.h"
 #include "nng/protocol/mqtt/mqtt.h"
+#include "nng/mqtt/mqtt_client.h"
 
 int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     if (size < 2) return 0;
@@ -58,6 +59,24 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     }
 
     decode_pub_message(work, proto_ver);
+
+    if (proto_ver == MQTT_PROTOCOL_VERSION_v5 && work->pub_packet) {
+        uint8_t pkt_type = work->pub_packet->fixed_header.packet_type;
+        if (pkt_type == PUBLISH) {
+            if (work->pub_packet->var_header.publish.properties) {
+                mqtt_property_free(work->pub_packet->var_header.publish.properties);
+                work->pub_packet->var_header.publish.properties = NULL;
+                work->pub_packet->var_header.publish.prop_len = 0;
+            }
+        } else if (pkt_type == PUBACK || pkt_type == PUBREC ||
+                   pkt_type == PUBREL || pkt_type == PUBCOMP) {
+            if (work->pub_packet->var_header.pub_arrc.properties) {
+                mqtt_property_free(work->pub_packet->var_header.pub_arrc.properties);
+                work->pub_packet->var_header.pub_arrc.properties = NULL;
+                work->pub_packet->var_header.pub_arrc.prop_len = 0;
+            }
+        }
+    }
 
     free_pub_packet(work->pub_packet);
     nng_free(work, sizeof(nano_work));
