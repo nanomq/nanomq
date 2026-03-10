@@ -303,7 +303,7 @@ alloc_work(nng_socket sock, conf_web_hook *conf)
 	if ((rv = nng_mtx_alloc(&w->mtx)) != 0) {
 		NANO_NNG_FATAL("nng_mtx_alloc", rv);
 	}
-	if ((rv = nng_lmq_alloc(&w->lmq, NANO_LMQ_INIT_CAP) != 0)) {
+	if ((rv = nng_lmq_alloc(&w->lmq, NANO_LMQ_INIT_CAP)) != 0) {
 		NANO_NNG_FATAL("nng_lmq_alloc", rv);
 	}
 	if (conf->enable) {

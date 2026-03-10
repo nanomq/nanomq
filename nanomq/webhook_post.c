@@ -365,6 +365,7 @@ hook_entry(nano_work *work, uint8_t reason)
 		    conn_param_get_keepalive(cparam), reason,
 		    (const char*)conn_param_get_username(cparam),
 		    (const char*)conn_param_get_clientid(cparam));
+		break;
 	case CMD_SUBSCRIBE:
 		break;
 	case CMD_UNSUBSCRIBE:
@@ -373,7 +374,6 @@ hook_entry(nano_work *work, uint8_t reason)
 		break;
 	}
 
-done:
 	// Do not let online event msg trigger webhook
 	work->flag = 0;
 	return rv;
