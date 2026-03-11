@@ -24,6 +24,9 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         nng_free(tn, sizeof(topic_node));
         tn = next;
     }
+    if (unsubpkt.prop_len > 0 && unsubpkt.properties) {
+        property_free(unsubpkt.properties);
+    }
     nng_msg_free(msg);
     return 0;
 }
