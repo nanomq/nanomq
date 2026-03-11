@@ -38,6 +38,9 @@ decode_unsub_msg(nano_work *work)
 
 	// handle varibale header
 	variable_ptr = nng_msg_body(msg);
+	if (remaining_len < 2) {
+		return PROTOCOL_ERROR;
+	}
 	NNI_GET16(variable_ptr, unsub_pkt->packet_id);
 	vpos += 2;
 
@@ -57,7 +60,11 @@ decode_unsub_msg(nano_work *work)
 	    unsub_pkt->packet_id);
 
 	// handle payload
-	payload_ptr = nng_msg_payload_ptr(msg);
+	if (vpos > remaining_len) {
+		return PROTOCOL_ERROR;
+	}
+	payload_ptr = variable_ptr + vpos;
+	nng_msg_set_payload_ptr(msg, payload_ptr);
 
 	if ((tn = nng_alloc(sizeof(topic_node))) == NULL) {
 		log_debug("nng_alloc");
@@ -69,7 +76,8 @@ decode_unsub_msg(nano_work *work)
 	while (1) {
 		_tn = tn;
 
-		len_of_topic = get_utf8_str(&tn->topic.body, payload_ptr, &bpos, nng_msg_len(msg));
+		len_of_topic = get_utf8_str(&tn->topic.body, payload_ptr, &bpos,
+		    nng_msg_len(msg) - vpos);
 		if (len_of_topic != -1) {
 			tn->topic.len = len_of_topic;
 		} else {
