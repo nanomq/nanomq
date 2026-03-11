@@ -795,7 +795,8 @@ compose_sql_clause(rule *info, char *key, char *value,
         sbuf_appendf(&val_sb, "%d, ", pp->fixed_header.qos);
         break;
 
-    case RULE_ID:
+    case RULE_ID:;
+		const char *id_key = (col != NULL) ? col : "Id";
     	sbuf_init(&key_sb, strlen(id_key)+8);
     	sbuf_init(&val_sb, 16);
         sbuf_appendf(&key_sb, "%s, ", id_key);
@@ -846,7 +847,8 @@ compose_sql_clause(rule *info, char *key, char *value,
         break;
     }
 
-    case RULE_TIMESTAMP:
+    case RULE_TIMESTAMP:;
+		const char *ts_key = (col != NULL) ? col : "Timestamp";
 	    sbuf_init(&key_sb,   strlen(ts_key)+8);
     	sbuf_init(&val_sb,  32);
         sbuf_appendf(&key_sb, "%s, ", ts_key);
@@ -983,7 +985,8 @@ compose_sql_clause_new(rule *info, sbuf_t *key, sbuf_t *value,
         sbuf_appendf(&val_sb, "%d, ", pp->fixed_header.qos);
         break;
 
-    case RULE_ID:
+    case RULE_ID:;
+		const char *id_key = (col != NULL) ? col : "Id";
     	sbuf_init(&key_sb, strlen(id_key)+8);
     	sbuf_init(&val_sb, 16);
         sbuf_appendf(&key_sb, "%s, ", id_key);
@@ -1034,7 +1037,8 @@ compose_sql_clause_new(rule *info, sbuf_t *key, sbuf_t *value,
         break;
     }
 
-    case RULE_TIMESTAMP:
+    case RULE_TIMESTAMP:;
+		const char *ts_key = (col != NULL) ? col : "Timestamp";
 	    sbuf_init(&key_sb,   strlen(ts_key)+8);
     	sbuf_init(&val_sb,  32);
         sbuf_appendf(&key_sb, "%s, ", ts_key);
