@@ -357,6 +357,10 @@ rest_start(uint16_t port, char *addr, conf *conf)
 		if (cert && key && (rv = nng_tls_config_own_cert(tls, cert, key, pass)) != 0) {
 			NANO_NNG_FATAL("nng_tls_config_own_cert", rv);
 		}
+		static const char *alpn_list[] = { "http/1.1", NULL };
+		if ((rv = nng_tls_config_option(tls, NNG_OPT_TLS_ALPN, alpn_list, 0)) != 0) {
+			NANO_NNG_FATAL("nng_tls_config_option NNG_OPT_TLS_ALPN", rv);
+		}
 		if (verify_peer) {
 			if (set_fail)
 				nng_tls_config_auth_mode(tls, NNG_TLS_AUTH_MODE_REQUIRED);
