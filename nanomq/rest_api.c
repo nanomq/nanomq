@@ -312,12 +312,12 @@ static endpoints api_ep[] = {
 	    .method = "GET",
 	    .descr  = "show broker aws_bridge configuration",
 	},
-	{
-	    .path   = "/get_file",
-	    .name   = "get file content from path",
-	    .method = "GET",
-	    .descr  = "To get config file content",
-	},
+	// {
+	//     .path   = "/get_file",
+	//     .name   = "get file content from path",
+	//     .method = "GET",
+	//     .descr  = "To get config file content",
+	// },
 	{
 	    .path   = "/configuration/",
 	    .name   = "set_broker_configuration",
@@ -862,28 +862,49 @@ int HexadecimalToDecimal(char* hex, int len)
 	return (int)dec;
 }
 
-static
-char* URLDecoding(char* data, unsigned int count) {
-	char* result = nng_zalloc(count);
-	int j = 0;
+static char* 
+URLDecoding(const char *data) {
+    if (data == NULL) {
+        return NULL;
+    }
 
-	for (int i = 0; i < count; ++i, ++j)
-	{
-		if (data[i] == '%')
-		{
-			char h[] = { data[i + 1], data[i + 2] };
-			result[j] = (char)HexadecimalToDecimal(h, 2);
-			i += 2;
-		}
-		else
-		{
-			result[j] = data[i];
-		}
-	}
+    size_t count = strlen(data);
+    if (count == 0) {
+        return nng_strdup("");
+    }
 
-	result[j] = '\0';
+    // FIX 1: Allocate count + 1 to guarantee space for the null terminator.
+    char* result = nng_zalloc(count + 1);
+    if (result == NULL) {
+        return NULL;
+    }
 
-	return result;
+    size_t i = 0;
+    size_t j = 0;
+    
+    while (i < count) {
+        if (data[i] == '%') {
+            // FIX 2: Ensure there are at least 2 characters left after the '%'
+            if (i + 2 < count) {
+                char hex[3] = {data[i + 1], data[i + 2], '\0'};
+                result[j++] = (char)strtol(hex, NULL, 16);
+                i += 3;
+            } else {
+                // Handle malformed URL: either copy raw or drop. 
+                // Copying raw prevents the OOB read.
+                result[j++] = data[i++];
+            }
+        } else if (data[i] == '+') {
+            result[j++] = ' ';
+            i++;
+        } else {
+            result[j++] = data[i++];
+        }
+    }
+    
+    // This is now strictly safe because we allocated count + 1.
+    result[j] = '\0'; 
+    return result;
 }
 
 http_msg
@@ -1008,7 +1029,7 @@ process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 					}
 				} else if (strncmp(uri_ct->params[count]->key, "path", 4) == 0) {
 					size_t path_len = strlen(uri_ct->params[count]->value);
-					char *path = URLDecoding(uri_ct->params[count]->value, path_len);
+					char *path = URLDecoding(uri_ct->params[count]->value);
 					log_debug("decoded path: %s", path);
 					ret = get_file_content(msg, path);
 					nng_free(path, path_len);
