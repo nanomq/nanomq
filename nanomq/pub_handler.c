@@ -786,7 +786,7 @@ compose_sql_clause(rule *info, char *key, char *value,
         sbuf_appendf(&val_sb, "%d, ", pp->fixed_header.qos);
         break;
 
-    case RULE_ID:
+    case RULE_ID:;
 		const char *id_key = (col != NULL) ? col : "Id";
     	sbuf_init(&key_sb, strlen(id_key)+8);
     	sbuf_init(&val_sb, 16);
@@ -842,7 +842,7 @@ compose_sql_clause(rule *info, char *key, char *value,
         break;
     }
 
-    case RULE_TIMESTAMP:
+    case RULE_TIMESTAMP:;
 		const char *ts_key = (col != NULL) ? col : "Timestamp";
 	    sbuf_init(&key_sb,   strlen(ts_key)+8);
     	sbuf_init(&val_sb,  32);
@@ -973,7 +973,7 @@ compose_sql_clause_new(rule *info, sbuf_t *key, sbuf_t *value,
         sbuf_appendf(&val_sb, "%d, ", pp->fixed_header.qos);
         break;
 
-    case RULE_ID:
+    case RULE_ID:;
 		const char *id_key = (col != NULL) ? col : "Id";
     	sbuf_init(&key_sb, strlen(id_key)+8);
     	sbuf_init(&val_sb, 16);
@@ -1029,7 +1029,7 @@ compose_sql_clause_new(rule *info, sbuf_t *key, sbuf_t *value,
         break;
     }
 
-    case RULE_TIMESTAMP:
+    case RULE_TIMESTAMP:;
 		const char *ts_key = (col != NULL) ? col : "Timestamp";
 	    sbuf_init(&key_sb,   strlen(ts_key)+8);
     	sbuf_init(&val_sb,  32);
@@ -2119,6 +2119,9 @@ decode_pub_message(nano_work *work, uint8_t proto)
 		    pub_packet->fixed_header.qos);
 
 		if (pub_packet->fixed_header.qos > 0) {
+			if (pos + 2 > msg_len) {
+				return PROTOCOL_ERROR;
+			}
 			NNI_GET16(msg_body + pos,
 			    pub_packet->var_header.publish.packet_id);
 			log_debug("identifier: [%d]",

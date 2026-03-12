@@ -863,26 +863,45 @@ int HexadecimalToDecimal(char* hex, int len)
 }
 
 static
-char* URLDecoding(char* data, unsigned int count) {
-	char* result = nng_zalloc(count);
-	int j = 0;
-
-	for (int i = 0; i < count; ++i, ++j)
-	{
-		if (data[i] == '%')
-		{
-			char h[] = { data[i + 1], data[i + 2] };
-			result[j] = (char)HexadecimalToDecimal(h, 2);
-			i += 2;
+char *
+URLDecoding(const char *data, size_t count)
+{
+	if (data == NULL) {
+		return NULL;
+	}
+	if (count == 0) {
+		char *empty = nng_zalloc(1);
+		if (empty != NULL) {
+			empty[0] = '\0';
 		}
-		else
-		{
-			result[j] = data[i];
-		}
+		return empty;
+	}
+	if (count + 1 < count) {
+		return NULL;
 	}
 
-	result[j] = '\0';
+	char *result = nng_zalloc(count + 1);
+	if (result == NULL) {
+		return NULL;
+	}
 
+	size_t i = 0;
+	size_t j = 0;
+	while (i < count) {
+		if (data[i] == '%' && (i + 2) < count) {
+			char h0 = data[i + 1];
+			char h1 = data[i + 2];
+			if (isxdigit((unsigned char) h0) &&
+			    isxdigit((unsigned char) h1)) {
+				char h[] = { h0, h1 };
+				result[j++] = (char) HexadecimalToDecimal(h, 2);
+				i += 3;
+				continue;
+			}
+		}
+		result[j++] = data[i++];
+	}
+	result[j] = '\0';
 	return result;
 }
 
@@ -2194,6 +2213,7 @@ post_rules(http_msg *msg)
 	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
 
 	if (!cJSON_IsObject(req)) {
+		cJSON_Delete(req);
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 	}
@@ -3002,6 +3022,11 @@ ctrl_cb(void *arg)
 	char **argv   = get_cache_argv();
 	char * cmd    = NULL;
 
+	if (argv == NULL) {
+		nng_strfree(action);
+		return;
+	}
+
 	nng_msleep(2000);
 
 	if (nng_strcasecmp(action, "stop") == 0) {
@@ -3030,9 +3055,20 @@ post_ctrl(http_msg *msg, const char *type)
 	if (nng_strcasecmp(type, "stop") == 0 ||
 	    nng_strcasecmp(type, "restart") == 0) {
 #ifndef NANO_PLATFORM_WINDOWS
-		char *arg = nng_strdup(type);
-		nng_thread_create(&thread, ctrl_cb, arg);
+#if defined(SUPP_NANO_LIB)
+		(void) thread;
 		res.status = NNG_HTTP_STATUS_OK;
+#else
+		char *arg = nng_strdup(type);
+		int   rv  = nng_thread_create(&thread, ctrl_cb, arg);
+		if (rv != 0) {
+			nng_strfree(arg);
+			res.status = NNG_HTTP_STATUS_INTERNAL_SERVER_ERROR;
+			code       = RPC_ERROR;
+		} else {
+			res.status = NNG_HTTP_STATUS_OK;
+		}
+#endif
 #else
 		res.status = NNG_HTTP_STATUS_NOT_ACCEPTABLE;
 		code       = RPC_ERROR;
@@ -3087,6 +3123,7 @@ post_reload_config(http_msg *msg)
 	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
 
 	if (!cJSON_IsObject(req)) {
+		cJSON_Delete(req);
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 	}
@@ -3116,6 +3153,7 @@ write_file(http_msg *msg)
 	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
 
 	if (!cJSON_IsObject(req)) {
+		cJSON_Delete(req);
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 	}
@@ -3320,6 +3358,7 @@ post_config(http_msg *msg, const char *type)
 	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
 
 	if (!cJSON_IsObject(req)) {
+		cJSON_Delete(req);
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 	}
@@ -3852,6 +3891,7 @@ post_mqtt_msg(http_msg *msg, nng_socket *sock, handle_mqtt_msg_cb cb)
 	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
 
 	if (!cJSON_IsObject(req)) {
+		cJSON_Delete(req);
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 	}
@@ -3911,9 +3951,7 @@ post_mqtt_msg_batch(http_msg *msg, nng_socket *sock, handle_mqtt_msg_cb cb)
 	return res;
 
 out:
-	if (!cJSON_IsObject(req)) {
-		cJSON_Delete(req);
-	}
+	cJSON_Delete(req);
 	return error_response(
 	    msg, NNG_HTTP_STATUS_BAD_REQUEST, REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 }
@@ -3989,6 +4027,7 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
 
 	if (!cJSON_IsObject(req)) {
+		cJSON_Delete(req);
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 	}
@@ -4068,6 +4107,7 @@ put_mqtt_bridge_switch(http_msg *msg, const char *name)
 	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
 
 	if (!cJSON_IsObject(req)) {
+		cJSON_Delete(req);
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 	}
@@ -4409,9 +4449,7 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 	return res;
 
 out:
-	if (cJSON_IsObject(req)) {
-		cJSON_Delete(req);
-	}
+	cJSON_Delete(req);
 
 	return error_response(msg,
 	    status == NNG_HTTP_STATUS_NOT_FOUND ? status
@@ -4555,9 +4593,7 @@ post_mqtt_bridge_unsub(http_msg *msg, const char *name)
 	return res;
 
 out:
-	if (cJSON_IsObject(req)) {
-		cJSON_Delete(req);
-	}
+	cJSON_Delete(req);
 
 	return error_response(msg,
 	    status == NNG_HTTP_STATUS_NOT_FOUND ? status
