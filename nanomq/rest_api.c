@@ -906,91 +906,56 @@ basic_authorize(http_msg *msg)
 	return result;
 }
 
-static
-int HexadecimalToDecimal(char* hex, int len)
+static int
+url_hex_val(char c)
 {
-	int hexLength = len;
-	double dec = 0;
-
-	for (int i = 0; i < hexLength; ++i)
-	{
-		char b = hex[i];
-
-		if (b >= 48 && b <= 57)
-			b -= 48;
-		else if (b >= 65 && b <= 70)
-			b -= 55;
-
-		dec += b * pow(16, ((hexLength - i) - 1));
+	if (c >= '0' && c <= '9') {
+		return c - '0';
 	}
-
-	return (int)dec;
+	if (c >= 'a' && c <= 'f') {
+		return c - 'a' + 10;
+	}
+	if (c >= 'A' && c <= 'F') {
+		return c - 'A' + 10;
+	}
+	return -1;
 }
 
-<<<<<<< HEAD
-static char* 
-URLDecoding(const char *data) {
-    if (data == NULL) {
-        return NULL;
-    }
+static char *
+URLDecoding(char *data, unsigned int count)
+{
+	if (data == NULL) {
+		return NULL;
+	}
 
-    size_t count = strlen(data);
-    if (count == 0) {
-        return nng_strdup("");
-    }
-=======
-static
-char* URLDecoding(char* data, unsigned int count) {
-	char* result = nng_zalloc(count + 1);
-	int j = 0;
+	char *result = nng_zalloc((size_t) count + 1);
+	if (result == NULL) {
+		return NULL;
+	}
 
-	for (int i = 0; i < count; ++i, ++j)
-	{
-		if (data[i] == '%' && i + 2 < count)
-		{
-			char h[] = { data[i + 1], data[i + 2] };
-			result[j] = (char)HexadecimalToDecimal(h, 2);
-			i += 2;
+	size_t i = 0;
+	size_t j = 0;
+	while (i < count) {
+		if (data[i] == '%' && (i + 2) < count) {
+			int hi = url_hex_val(data[i + 1]);
+			int lo = url_hex_val(data[i + 2]);
+			if (hi >= 0 && lo >= 0) {
+				result[j++] = (char) ((hi << 4) | lo);
+				i += 3;
+				continue;
+			}
 		}
-		else
-		{
-			result[j] = data[i];
+
+		if (data[i] == '+') {
+			result[j++] = ' ';
+			i++;
+		} else {
+			result[j++] = data[i++];
 		}
 	}
->>>>>>> b4c8fe93 (* FIX [rest_api] fixed memory leak.)
 
-    // FIX 1: Allocate count + 1 to guarantee space for the null terminator.
-    char* result = nng_zalloc(count + 1);
-    if (result == NULL) {
-        return NULL;
-    }
-
-    size_t i = 0;
-    size_t j = 0;
-    
-    while (i < count) {
-        if (data[i] == '%') {
-            // FIX 2: Ensure there are at least 2 characters left after the '%'
-            if (i + 2 < count) {
-                char hex[3] = {data[i + 1], data[i + 2], '\0'};
-                result[j++] = (char)strtol(hex, NULL, 16);
-                i += 3;
-            } else {
-                // Handle malformed URL: either copy raw or drop. 
-                // Copying raw prevents the OOB read.
-                result[j++] = data[i++];
-            }
-        } else if (data[i] == '+') {
-            result[j++] = ' ';
-            i++;
-        } else {
-            result[j++] = data[i++];
-        }
-    }
-    
-    // This is now strictly safe because we allocated count + 1.
-    result[j] = '\0'; 
-    return result;
+	result[j] = '\0';
+	return result;
 }
 
 http_msg
@@ -1151,10 +1116,15 @@ process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 					}
 				} else if (strncmp(uri_ct->params[count]->key, "path", 4) == 0) {
 					size_t path_len = strlen(uri_ct->params[count]->value);
-					char *path = URLDecoding(uri_ct->params[count]->value);
+					char *path = URLDecoding(uri_ct->params[count]->value, (unsigned int) path_len);
+					if (path == NULL) {
+						status = NNG_HTTP_STATUS_INTERNAL_SERVER_ERROR;
+						code   = UNKNOWN_MISTAKE;
+						goto exit;
+					}
 					log_debug("decoded path: %s", path);
 					ret = get_file_content(msg, path);
-					nng_free(path, path_len);
+					nng_free(path, path_len + 1);
 					break;
 				}
 				count ++;
