@@ -1782,6 +1782,7 @@ file_path_parse(int argc, char **argv, conf *conf)
 	char *arg;
 	int   val;
 	int   rv;
+	int   conf_type = OPT_HOCONFILE;
 
 	while ((rv = nng_opts_parse(argc, argv, cmd_opts, &val, &arg, &idx)) == 0) {
 		switch (val) {
@@ -1793,12 +1794,14 @@ file_path_parse(int argc, char **argv, conf *conf)
 			FREE_NONULL(conf->conf_file);
 			conf->conf_file = nng_strdup(arg);
 			conf_parse_ver2(conf);
-			return val;
+			conf_type = val;
+			break;
 		case OPT_CONFFILE:
 			FREE_NONULL(conf->conf_file);
 			conf->conf_file = nng_strdup(arg);
 			conf_parse(conf);
-			return val;
+			conf_type = val;
+			break;
 #if defined(SUPP_LICENSE_DK) || defined(SUPP_LICENSE_STD)
 		case OPT_LICENSE:
 			FREE_NONULL(conf->license_path);
@@ -1808,6 +1811,10 @@ file_path_parse(int argc, char **argv, conf *conf)
 		default:
 			break;
 		}
+	}
+
+	if (rv == -1) {
+		return conf_type;
 	}
 
 	switch (rv) {
