@@ -1,1 +1,0 @@
-{"rawsql": "SELECT * FROM \"test/#\"", "actions": [{"name": "repub", "params": {"topic": "republish/test"}}]}

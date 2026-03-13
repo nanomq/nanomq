@@ -1,1 +1,0 @@
-/usr/bin/clang -O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -Wall -Wextra -fno-omit-frame-pointer -Wno-microsoft-anon-tag   CMakeFiles/nngcat.dir/nngcat.c.o -o nngcat  -Wl,-rpath,:::::::::::::: ../../../libnng.a -lpthread -lnsl -latomic 

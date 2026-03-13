@@ -1,1 +1,0 @@
-SELECT qos, topic, clientid, username FROM "#"
