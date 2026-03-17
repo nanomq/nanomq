@@ -103,7 +103,7 @@ class Config:
     overlap_close_delay_ms: int = 8
     close_mode: str = "shutdown"
     churn_close_mode: str = "rst"
-    duration: int = 30
+    duration: int = 120
     log_level: str = "INFO"
 
 
@@ -258,7 +258,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=1883)
-    parser.add_argument("--duration", type=int, default=30)
+    parser.add_argument("--duration", type=int, default=120)
     parser.add_argument("--log-level", default="INFO")
     args = parser.parse_args()
     ok = run(Config(host=args.host, port=args.port, duration=args.duration, log_level=args.log_level))
