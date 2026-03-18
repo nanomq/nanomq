@@ -798,6 +798,7 @@ set_http_config(cJSON *json, const char *conf_path, conf_http_server *http)
 	}
 	for (int i=0; i<cvector_size(http->usernames); ++i)
 		nng_strfree(http->usernames[i]);
+	cvector_set_size(http->usernames, 0);
 	cJSON *usernames = cJSON_GetObjectItem(json, "usernames");
 	cJSON *username = NULL;
 	cJSON_ArrayForEach(username, usernames) {
@@ -805,6 +806,7 @@ set_http_config(cJSON *json, const char *conf_path, conf_http_server *http)
 	}
 	for (int i=0; i<cvector_size(http->passwords); ++i)
 		nng_strfree(http->passwords[i]);
+	cvector_set_size(http->passwords, 0);
 	cJSON *passwords = cJSON_GetObjectItem(json, "passwords");
 	cJSON *password = NULL;
 	cJSON_ArrayForEach(password, passwords) {
