@@ -178,13 +178,13 @@ get_http_config(conf_http_server *http)
 	cJSON_AddStringOrNullToObject(http_obj, "username", http->username);
 	cJSON_AddStringOrNullToObject(http_obj, "password", http->password);
 	cJSON *usernames = cJSON_CreateArray();
-	for (size_t i=0; i<cvector_size(http->usernames); ++i) {
+	for (size_t i = 0; i < cvector_size(http->usernames); ++i) {
 		cJSON *item = cJSON_CreateString(http->usernames[i]);
 		cJSON_AddItemToArray(usernames, item);
 	}
 	cJSON_AddItemToObject(http_obj, "usernames", usernames);
 	cJSON *passwords = cJSON_CreateArray();
-	for (size_t i=0; i<cvector_size(http->passwords); ++i) {
+	for (size_t i = 0; i < cvector_size(http->passwords); ++i) {
 		cJSON *item = cJSON_CreateString(http->passwords[i]);
 		cJSON_AddItemToArray(passwords, item);
 	}
@@ -796,16 +796,18 @@ set_http_config(cJSON *json, const char *conf_path, conf_http_server *http)
 		// http_password);
 		update_string(http->password, http_password);
 	}
-	for (int i=0; i<cvector_size(http->usernames); ++i)
+	for (size_t i = 0; i < cvector_size(http->usernames); ++i)
 		nng_strfree(http->usernames[i]);
 	cvector_set_size(http->usernames, 0);
 	cJSON *usernames = cJSON_GetObjectItem(json, "usernames");
-	cJSON *username = NULL;
-	cJSON_ArrayForEach(username, usernames) {
+	cJSON *username  = NULL;
+	cJSON_ArrayForEach(username, usernames)
+	{
 		if (cJSON_IsString(username))
-			cvector_push_back(http->usernames, nng_strdup(username->valuestring));
+			cvector_push_back(http->usernames,
+			    nng_strdup(username->valuestring));
 	}
-	for (int i=0; i<cvector_size(http->passwords); ++i)
+	for (size_t i = 0; i < cvector_size(http->passwords); ++i)
 		nng_strfree(http->passwords[i]);
 	cvector_set_size(http->passwords, 0);
 	cJSON *passwords = cJSON_GetObjectItem(json, "passwords");

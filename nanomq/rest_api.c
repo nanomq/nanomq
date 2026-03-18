@@ -875,12 +875,12 @@ basic_authorize(http_msg *msg)
 	}
 
 	size_t   token_len = strlen(msg->token);
-	uint8_t *token     = nng_alloc(token_len + 1);
+	uint8_t *token     = nng_zalloc(token_len + 1);
 	memcpy(token, msg->token, token_len);
 	token[token_len] = '\0';
 
 	size_t decode_len    = token_len * 6 / 8 + 1;
-	uint8_t *decode      = nng_alloc(decode_len);
+	uint8_t *decode      = nng_zalloc(decode_len);
 
 	// No more than 3 '=' placeholders in token
 	decode[decode_len - 1] = '\0';
@@ -895,7 +895,7 @@ basic_authorize(http_msg *msg)
 	// 1. First, check the single username and password
 	if (server->username != NULL && server->password != NULL) {
 		size_t auth_len = strlen(server->username) + strlen(server->password) + 2;
-		char *auth = nng_alloc(auth_len);
+		char *auth = nng_zalloc(auth_len);
 		snprintf(auth, auth_len, "%s:%s", server->username, server->password);
 
 		if (strcmp(auth, (const char *) decode) == 0) {
@@ -916,7 +916,7 @@ basic_authorize(http_msg *msg)
 			if (server->usernames[i] != NULL && server->passwords[i] != NULL) {
 				size_t auth_len = strlen(server->usernames[i])
 					+ strlen(server->passwords[i]) + 2;
-				char *auth = nng_alloc(auth_len);
+				char *auth = nng_zalloc(auth_len);
 				snprintf(auth, auth_len, "%s:%s",
 					server->usernames[i], server->passwords[i]);
 
@@ -1765,8 +1765,8 @@ get_topics_count()
 	    (dbtree_info ***) dbtree_get_tree(db, get_client_exist_cb);
 	size_t counter = 0;
 
-	for (int i = 0; i < cvector_size(vn); i++) {
-		for (int j = 0; j < cvector_size(vn[i]); j++) {
+	for (size_t i = 0; i < cvector_size(vn); i++) {
+		for (size_t j = 0; j < cvector_size(vn[i]); j++) {
 			nng_free(vn[i][j]->topic, strlen(vn[i][j]->topic));
 			if (vn[i][j]->clients) {
 				counter++;
@@ -2143,8 +2143,8 @@ get_retains(http_msg *msg, kv **params, size_t param_num,
 	dbtree        *db_ret = get_broker_retain_db();
 	dbtree_info ***vn =
 	    (dbtree_info ***) dbtree_get_retain_tree(db_ret, get_retain_info_cb);
-	for (int i = 0; i < cvector_size(vn); i++) {
-		for (int j = 0; j < cvector_size(vn[i]); j++) {
+	for (size_t i = 0; i < cvector_size(vn); i++) {
+		for (size_t j = 0; j < cvector_size(vn[i]); j++) {
 			if (cvector_size(vn[i][j]->clients) == 0) {
 				nng_free(vn[i][j], sizeof(dbtree_info));
 				continue;
@@ -3203,7 +3203,7 @@ put_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 	// 3, update actions: need to deal connection，update repub/table.
 
 	sscanf(rule_id, "rule:%u", &id);
-	int i = 0;
+	size_t i = 0;
 
 	// Get old rule;
 	for (; i < cvector_size(cr->rules); i++) {
@@ -3448,7 +3448,7 @@ get_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 
 	conf      *config = get_global_conf();
 	conf_rule *cr     = &config->rule_eng;
-	int        i      = 0;
+	size_t     i      = 0;
 	for (; i < cvector_size(cr->rules); i++) {
 		if (rule_id) {
 			if (cr->rules[i].rule_id == id) {
@@ -3516,10 +3516,10 @@ get_tree(http_msg *msg)
 	dbtree_info ***vn =
 	    (dbtree_info ***) dbtree_get_tree(db, get_client_info_cb);
 
-	for (int i = 0; i < cvector_size(vn); i++) {
+	for (size_t i = 0; i < cvector_size(vn); i++) {
 		cJSON *data_info_elem = cJSON_CreateArray();
 		cJSON_AddItemToArray(data_info, data_info_elem);
-		for (int j = 0; j < cvector_size(vn[i]); j++) {
+		for (size_t j = 0; j < cvector_size(vn[i]); j++) {
 			cJSON *elem = cJSON_CreateObject();
 			cJSON_AddItemToArray(data_info_elem, elem);
 			cJSON_AddStringToObject(
