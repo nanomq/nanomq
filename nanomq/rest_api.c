@@ -866,7 +866,8 @@ jwt_authorize(http_msg *msg)
 static enum result_code
 basic_authorize(http_msg *msg)
 {
-	enum result_code result = SUCCEED;
+	// Default to wrong credentials unless we prove otherwise
+	enum result_code result = WRONG_USERNAME_OR_PASSWORD;
 
 	if (msg->token_len <= 0 ||
 	    sscanf(msg->token, "Basic %s", msg->token) != 1) {
@@ -878,16 +879,9 @@ basic_authorize(http_msg *msg)
 	memcpy(token, msg->token, token_len);
 	token[token_len] = '\0';
 
-	// Authorize username:password
-	conf_http_server *server = get_http_server_conf();
-
-	size_t auth_len =
-	    strlen(server->username) + strlen(server->password) + 2;
-	char *auth = nng_alloc(auth_len);
-	snprintf(auth, auth_len, "%s:%s", server->username, server->password);
-
 	size_t decode_len    = token_len * 6 / 8 + 1;
 	uint8_t *decode      = nng_alloc(decode_len);
+
 	// No more than 3 '=' placeholders in token
 	decode[decode_len - 1] = '\0';
 	decode[decode_len - 2] = '\0';
@@ -895,13 +889,53 @@ basic_authorize(http_msg *msg)
 
 	base64_decode((const char *) token, token_len, decode);
 
-	if (strcmp(auth, (const char *) decode) != 0) {
-		result = WRONG_USERNAME_OR_PASSWORD;
+	conf_http_server *server = get_http_server_conf();
+	bool is_authorized = false;
+
+	// 1. First, check the single username and password
+	if (server->username != NULL && server->password != NULL) {
+		size_t auth_len = strlen(server->username) + strlen(server->password) + 2;
+		char *auth = nng_alloc(auth_len);
+		snprintf(auth, auth_len, "%s:%s", server->username, server->password);
+
+		if (strcmp(auth, (const char *) decode) == 0) {
+			is_authorized = true;
+		}
+		nng_free(auth, auth_len);
 	}
 
-	nng_free(auth, auth_len);
-	nng_free(decode, msg->token_len);
-	nng_free(token, token_len);
+	// 2. If not authorized yet, check the arrays
+	if (!is_authorized && server->usernames != NULL && server->passwords != NULL) {
+		size_t num_creds = cvector_size(server->usernames);
+		size_t num_pwds  = cvector_size(server->passwords);
+
+		// To be perfectly safe, we use the smaller size to avoid out-of-bounds access
+		size_t count = num_creds < num_pwds ? num_creds : num_pwds;
+
+		for (size_t i = 0; i < count; i++) {
+			if (server->usernames[i] != NULL && server->passwords[i] != NULL) {
+				size_t auth_len = strlen(server->usernames[i])
+					+ strlen(server->passwords[i]) + 2;
+				char *auth = nng_alloc(auth_len);
+				snprintf(auth, auth_len, "%s:%s",
+					server->usernames[i], server->passwords[i]);
+
+				if (strcmp(auth, (const char *) decode) == 0) {
+					is_authorized = true;
+					nng_free(auth, auth_len);
+					break; // Found a match, no need to keep checking!
+				}
+				nng_free(auth, auth_len);
+			}
+		}
+	}
+
+	if (is_authorized) {
+		result = SUCCEED;
+	}
+
+	nng_free(decode, decode_len);
+	nng_free(token, token_len + 1);
 
 	return result;
 }
