@@ -802,7 +802,8 @@ set_http_config(cJSON *json, const char *conf_path, conf_http_server *http)
 	cJSON *usernames = cJSON_GetObjectItem(json, "usernames");
 	cJSON *username = NULL;
 	cJSON_ArrayForEach(username, usernames) {
-		cvector_push_back(http->usernames, strdup(username->valuestring));
+		if (cJSON_IsString(username))
+			cvector_push_back(http->usernames, nng_strdup(username->valuestring));
 	}
 	for (int i=0; i<cvector_size(http->passwords); ++i)
 		nng_strfree(http->passwords[i]);
@@ -810,7 +811,8 @@ set_http_config(cJSON *json, const char *conf_path, conf_http_server *http)
 	cJSON *passwords = cJSON_GetObjectItem(json, "passwords");
 	cJSON *password = NULL;
 	cJSON_ArrayForEach(password, passwords) {
-		cvector_push_back(http->passwords, strdup(password->valuestring));
+		if (cJSON_IsString(password))
+			cvector_push_back(http->passwords, nng_strdup(password->valuestring));
 	}
 	getStringValue(json, item, "auth_type", auth_type, rv);
 	if (rv == 0) {
