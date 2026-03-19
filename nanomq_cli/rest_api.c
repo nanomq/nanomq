@@ -385,6 +385,8 @@ basic_authorize(http_msg *msg, conf_http_server *server)
 
 	bool is_authorized = false;
 
+	nng_mtx_lock(server->mtx);
+
 	// 1. First, check the single username and password
 	if (server->username != NULL && server->password != NULL) {
 		size_t auth_len = strlen(server->username) + strlen(server->password) + 2;
@@ -422,6 +424,7 @@ basic_authorize(http_msg *msg, conf_http_server *server)
 			}
 		}
 	}
+	nng_mtx_unlock(server->mtx);
 
 	if (is_authorized) {
 		result = SUCCEED;

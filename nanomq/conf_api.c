@@ -172,6 +172,9 @@ cJSON *
 get_http_config(conf_http_server *http)
 {
 	cJSON *http_obj = cJSON_CreateObject();
+
+	nng_mtx_lock(http->mtx);
+
 	cJSON_AddBoolToObject(http_obj, "enable", http->enable);
 	cJSON_AddNumberToObject(http_obj, "port", http->port);
 	cJSON_AddStringOrNullToObject(http_obj, "addr", http->ip_addr);
@@ -191,6 +194,8 @@ get_http_config(conf_http_server *http)
 	cJSON_AddItemToObject(http_obj, "passwords", passwords);
 	cJSON_AddStringToObject(
 	    http_obj, "auth_type", http->auth_type == JWT ? "jwt" : "basic");
+
+	nng_mtx_unlock(http->mtx);
 	return http_obj;
 }
 
@@ -773,6 +778,9 @@ set_http_config(cJSON *json, const char *conf_path, conf_http_server *http)
 	char *   http_username = NULL;
 	char *   http_password = NULL;
 	char *   auth_type     = NULL;
+
+	nng_mtx_lock(http->mtx);
+
 	getBoolValue(json, item, "enable", http_enable, rv);
 	if (rv == 0) {
 		// conf_update_bool(conf_path, "http_server.enable",
@@ -828,6 +836,7 @@ set_http_config(cJSON *json, const char *conf_path, conf_http_server *http)
 			update_var(http->auth_type, JWT);
 		}
 	}
+	nng_mtx_unlock(http->mtx);
 }
 
 void

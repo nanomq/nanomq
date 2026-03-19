@@ -805,6 +805,8 @@ jwt_authorize(http_msg *msg)
 	params.jwt        = msg->token;
 	params.jwt_length = strlen(msg->token);
 
+	nng_mtx_lock(server->mtx);
+
 	if (server->jwt.iss) {
 		params.validate_iss        = server->jwt.iss;
 		params.validate_iss_length = strlen(server->jwt.iss);
@@ -827,6 +829,8 @@ jwt_authorize(http_msg *msg)
 
 	int rv =
 	    l8w8jwt_decode(&params, &validation_result, &claim, &claim_count);
+
+	nng_mtx_unlock(server->mtx);
 
 	if (rv == L8W8JWT_SUCCESS && validation_result == L8W8JWT_VALID) {
 		struct l8w8jwt_claim *body_claim = l8w8jwt_get_claim(
@@ -892,6 +896,8 @@ basic_authorize(http_msg *msg)
 	conf_http_server *server = get_http_server_conf();
 	bool is_authorized = false;
 
+	nng_mtx_lock(server->mtx);
+
 	// 1. First, check the single username and password
 	if (server->username != NULL && server->password != NULL) {
 		size_t auth_len = strlen(server->username) + strlen(server->password) + 2;
@@ -929,6 +935,8 @@ basic_authorize(http_msg *msg)
 			}
 		}
 	}
+
+	nng_mtx_unlock(server->mtx);
 
 	if (is_authorized) {
 		result = SUCCEED;
