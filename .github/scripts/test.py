@@ -25,7 +25,7 @@ nanomq_log_path = "/tmp/nanomq_test.log"
 nanomq_cmd = "nanomq start --conf ./.github/scripts/nanomq.conf --url tls+nmq-tcp://0.0.0.0:8883 --http --cacert etc/certs/cacert.pem --cert etc/certs/cert.pem --key etc/certs/key.pem --qos_duration 1 --log_level debug  --log_stdout false --log_file /tmp/nanomq_test.log"
 
 def print_nanomq_log():
-    log_lines = open(nanomq_log_path, 'r')
+    log_lines = open(nanomq_log_path, 'r', encoding='utf-8', errors='replace')
     for line in log_lines:
         print(line)
     log_lines.close()
@@ -40,7 +40,9 @@ if __name__=='__main__':
     nanomq = shlex.split(nanomq_cmd)
     nanomq = subprocess.Popen(nanomq, 
                            stdout=subprocess.PIPE,
-                           universal_newlines=True)
+                           universal_newlines=True,
+                           encoding='utf-8',
+                           errors='replace')
                            
 
     time.sleep(2)

@@ -32,13 +32,15 @@ def build_malformed_publish(rem_len: int) -> bytes:
 
 
 async def websocket() -> None:
-    async with websockets.connect(
-        URL, subprotocols=["mqtt"], ping_interval=None
-    ) as ws:
-        await ws.send(build_connect())
-        await asyncio.sleep(0.05)
-        for i in range(2000):
-            await ws.send(build_malformed_publish(4096))
-            if i % 50 == 0:
-                await asyncio.sleep(0.01)
-
+    try:
+        async with websockets.connect(
+            URL, subprotocols=["mqtt"], ping_interval=None
+        ) as ws:
+            await ws.send(build_connect())
+            await asyncio.sleep(0.05)
+            for i in range(2000):
+                await ws.send(build_malformed_publish(4096))
+                if i % 50 == 0:
+                    await asyncio.sleep(0.01)
+    except websockets.exceptions.ConnectionClosed:
+        return
