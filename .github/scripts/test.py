@@ -19,6 +19,7 @@ from vulnerability_test import vul_test
 from attack import attack_test
 from webhook_test import run_mqtt_fuzzer
 from repro_ws_oob_poc import websocket
+from test_issue_2246 import issue_2246_test
 
 nanomq_log_path = "/tmp/nanomq_test.log" 
 nanomq_cmd = "nanomq start --conf ./.github/scripts/nanomq.conf --url tls+nmq-tcp://0.0.0.0:8883 --http --cacert etc/certs/cacert.pem --cert etc/certs/cert.pem --key etc/certs/key.pem --qos_duration 1 --log_level debug  --log_stdout false --log_file /tmp/nanomq_test.log"
@@ -116,6 +117,14 @@ if __name__=='__main__':
     print("vul_test test start")
     vul_test()
     print("vul_test test end")
+
+    print("issue_2246 test start")
+    if False == issue_2246_test():
+        nanomq.terminate()
+        print("issue_2246 test failed")
+        print_nanomq_log()
+        raise AssertionError
+    print("issue_2246 test end")
 
     time.sleep(3)
 
