@@ -10,6 +10,7 @@ from paho.mqtt.packettypes import PacketTypes
 
 BROKER_HOST = "127.0.0.1"
 BROKER_PORT = 1883
+MAX_PACKET_SIZE = 268435455
 
 TOPIC_ROOT = "loadtest"
 CLIENTID_X = "X"
@@ -74,6 +75,7 @@ def new_client(client_id: str) -> mqtt.Client:
 def connect_v5(client: mqtt.Client, logger: logging.Logger, clean_start: bool, session_expiry: int):
     props = Properties(PacketTypes.CONNECT)
     props.SessionExpiryInterval = session_expiry
+    props.MaximumPacketSize = MAX_PACKET_SIZE
     logger.info("CONNECT -> clean_start=%s, SessionExpiryInterval=%s", int(clean_start), session_expiry)
     client.connect(
         BROKER_HOST, BROKER_PORT, keepalive=30,
