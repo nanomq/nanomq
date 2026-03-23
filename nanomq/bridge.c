@@ -1791,11 +1791,11 @@ bridge_pub_handler(nano_work *work)
 				if (topic_filter(node->forwards_list[i]->local_topic, (const char *)topic->body)) {
 					bool skip = false;
 					for (size_t j = 0; j < node->forwards_list[i]->exclusions_count; j++) {
-						if (topic_filter(node->forwards_list[i]->exclusion_topics[j]->topic, (const char *) topic->body)) {
+						if (topic_filter(node->forwards_list[i]->exclusions_list[j]->topic, (const char *) topic->body)) {
 							log_debug(
 							    "topic %s is excluded by %s, skip it",
 							    (const char *) topic->body,
-							    node->forwards_list[i]->exclusion_topics[j]->topic);
+							    node->forwards_list[i]->exclusions_list[j]->topic);
 							skip = true;
 							break;
 						}

@@ -390,7 +390,7 @@ get_bridge_config(conf_bridge *bridge, const char *node_name)
 			cJSON *exclusion_infos = cJSON_CreateArray();
 			for (size_t k = 0; k < node->forwards_list[j]->exclusions_count; k++) {
 				cJSON *exclusion_obj = cJSON_CreateObject();
-				exclusions *exclusion =node->forwards_list[j]->exclusion_topics[k];
+				exclusions *exclusion =node->forwards_list[j]->exclusions_list[k];
 				cJSON_AddStringOrNullToObject(exclusion_obj, "topic", exclusion->topic);
 				cJSON_AddItemToArray(exclusion_infos, exclusion_obj);
 			}

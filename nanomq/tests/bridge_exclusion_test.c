@@ -1,3 +1,4 @@
+#include <poll.h>
 #include "include/broker.h"
 #include "tests_api.h"
 
@@ -45,22 +46,18 @@ main()
 	    popen_sub_with_cmd_nonblock(&outfp_emqx, cmd_sub_emqx, cmd);
 	pid_sub_emqx2 =
 	    popen_sub_with_cmd_nonblock(&outfp_emqx2, cmd_sub_emqx2, cmd);
-	nng_msleep(2000);
-	p_pub_nmq  = popen(cmd_pub_nmq, "r");
-	p_pub_nmq2 = popen(cmd_pub_nmq3, "r");
-	// Wait 2 seconds for any message to potentially arrive
-	nng_msleep(2000);
-	// check recv msg
-	assert(read(outfp_emqx, buf_emqx, buf_size) != -1);
-	printf("get the msg in emqx: %s\n", buf_emqx);
-	assert(strncmp(buf_emqx, "message-to-emqx", 15) == 0);
-	// check the exclusion topic is not received
-	int ret = read(outfp_emqx2, buf_emqx2, buf_size);
-	if (ret > 0) {
-		printf("ERROR: unexpected msg on excluded topic: %s\n",
-		    buf_emqx2);
-	}
-	assert(ret == -1);
+  nng_msleep(2000);  
+  p_pub_nmq  = popen(cmd_pub_nmq, "r");  
+  p_pub_nmq2 = popen(cmd_pub_nmq3, "r");  
+  struct pollfd allowed = { .fd = outfp_emqx, .events = POLLIN };  
+  assert(poll(&allowed, 1, 5000) == 1);  
+  int allowed_n = (int) read(outfp_emqx, buf_emqx, buf_size - 1);  
+  assert(allowed_n > 0);  
+  buf_emqx[allowed_n] = '\0';  
+  printf("get the msg in emqx: %s\n", buf_emqx);  
+  assert(strncmp(buf_emqx, "message-to-emqx", 15) == 0);  
+  struct pollfd excluded = { .fd = outfp_emqx2, .events = POLLIN };  
+  assert(poll(&excluded, 1, 1000) == 0);  
 
 	kill(pid_sub_emqx, SIGKILL);
 	kill(pid_sub_emqx2, SIGKILL);
