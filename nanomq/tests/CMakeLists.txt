@@ -24,3 +24,5 @@ if(NNG_ENABLE_QUIC)
     nanomq_test(quic_smoke_test)
 endif()
 
+add_subdirectory(fuzz)
+
