@@ -1402,18 +1402,29 @@ bridge_send_cb(void *arg)
 	conf_bridge_node *node = arg;
 	nng_mtx          *mtx  = node->mtx;
 	nng_socket       *socket;
+	nng_lmq *lmq = NULL;
 
 	log_debug("bridge to %s msg sent", node->address);
 	nng_mtx_lock(mtx);
 	socket = node->sock;
-	if (!node->busy)
-		if (nng_lmq_get(node->ctx_msgs, &msg) == 0) {
+	if (!node->busy) {
+		for (size_t i = 0; i < node->forwards_count; i++) {
+			topics *topic_map = node->forwards_list[i];
+			if (topic_map->topic_lmq != NULL && !nng_lmq_empty(topic_map->topic_lmq)) {
+				lmq = topic_map->topic_lmq;
+				break;
+			}
+		}
+		if (lmq == NULL)
+			lmq = node->ctx_msgs;
+		if (nng_lmq_get(lmq, &msg) == 0) {
 			log_debug("resending cached msg from broker ctx");
 			nng_aio_set_msg(node->resend_aio, msg);
 			nng_aio_set_timeout(node->resend_aio, node->cancel_timeout);
 			nng_send_aio(*socket, node->resend_aio);
 			node->busy = true;
 		}
+	}
 	nng_mtx_unlock(mtx);
 }
 
@@ -1421,6 +1432,7 @@ void
 bridge_resend_cb(void *arg)
 {
 	int rv;
+	nng_lmq *lmq = NULL;
 	nng_msg *msg = NULL;
 	nng_aio          *aio;
 	conf_bridge_node *node = arg;
@@ -1428,8 +1440,16 @@ bridge_resend_cb(void *arg)
 	nng_socket       *socket;
 	nng_mtx_lock(mtx);
 	socket = node->sock;
-	node->busy = false;
-	if (nng_lmq_get(node->ctx_msgs, &msg) == 0) {
+	for (size_t i = 0; i < node->forwards_count; i++) {
+			topics *topic_map = node->forwards_list[i];
+			if (topic_map->topic_lmq != NULL && !nng_lmq_empty(topic_map->topic_lmq)) {
+				lmq = topic_map->topic_lmq;
+				break;
+			}
+	}
+	if (lmq == NULL)
+		lmq = node->ctx_msgs;
+	if (nng_lmq_get(lmq, &msg) == 0) {
 		log_debug("resending cached msg at resend cb");
 		nng_aio_set_msg(node->resend_aio, msg);
 		nng_aio_set_timeout(node->resend_aio, node->cancel_timeout);
@@ -1764,130 +1784,138 @@ bridge_sub_handler(nano_work *work)
 
 	return true;
 }
-
 void
 bridge_pub_handler(nano_work *work)
 {
-	int      rv    = 0;
 	property *props = NULL;
 	uint32_t  index = work->work_id;
-	mqtt_string *topic;
 
-	// Or we just exclude all topic with $?
+	// Skip $SYS topics
 	if ((work->pub_packet->var_header.publish.topic_name.len > strlen("$SYS")) &&
-		strncmp(work->pub_packet->var_header.publish.topic_name.body, "$SYS", strlen("$SYS")) == 0) {
+	    strncmp(work->pub_packet->var_header.publish.topic_name.body, "$SYS", strlen("$SYS")) == 0) {
 		return;
 	}
-	topic = nng_zalloc(sizeof(*topic));
+
 	for (size_t t = 0; t < work->config->bridge.count; t++) {
+		nng_lmq *lmq = NULL;
 		conf_bridge_node *node = work->config->bridge.nodes[t];
-		if (node->enable) {	// nng_atomic_get_bool for potential data racing
-			nng_mtx_lock(node->mtx);		//TODO bridge performance
-			for (size_t i = 0; i < node->forwards_count; i++) {
-				rv = 0;
-				topic->body = work->pub_packet->var_header.publish.topic_name.body;
-				topic->len  = work->pub_packet->var_header.publish.topic_name.len;
-				log_debug("local topic %s topic %s", node->forwards_list[i]->local_topic, topic->body);
-				if (topic_filter(node->forwards_list[i]->local_topic,
-							(const char *)topic->body)) {
-					work->state = SEND;
-
-					nng_msg *bridge_msg = NULL;
-					if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5 &&
-						node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
-						mqtt_property_dup(
-						    &props, work->pub_packet->var_header.publish.properties);
-					}
-					if (node->forwards_list[i]->remote_topic_len != 0) {
-						char *new_topic = generate_repub_topic(
-						    node->forwards_list[i],
-						    topic->body, false);
-						topic->body = new_topic;
-						topic->len  = strlen(new_topic);
-						rv = NNG_STAT_STRING;
-					}
-					if (node->forwards_list[i]->prefix != NULL) {
-						char *tmp = topic->body;
-						topic->body =
-							nng_strnins(topic->body, node->forwards_list[i]->prefix,
-										topic->len, node->forwards_list[i]->prefix_len);
-						topic->len = strlen(topic->body);
-						if (rv == NNG_STAT_STRING)
-							nng_free(tmp, strlen(tmp));
-						else
-							rv = NNG_STAT_STRING;	//mark it for free
-					}
-					if (node->forwards_list[i]->suffix != NULL) {
-						char *tmp = topic->body;
-						topic->body =
-							nng_strncat(topic->body, node->forwards_list[i]->suffix,
-										topic->len, node->forwards_list[i]->suffix_len);
-						topic->len = strlen(topic->body);
-						if (rv == NNG_STAT_STRING)
-							nng_free(tmp, strlen(tmp));
-						else
-							rv = NNG_STAT_STRING;	//mark it for free
-					}
-					uint8_t retain;
-					uint8_t qos;
-					retain = node->forwards_list[i]->retain == NO_RETAIN
-					    ? work->pub_packet->fixed_header.retain
-					    : node->forwards_list[i]->retain;
-					qos = node->forwards_list[i]->qos == NO_QOS
-					    ? work->pub_packet->fixed_header.qos
-					    : node->forwards_list[i]->qos;
-					bridge_msg = bridge_publish_msg(
-					    topic->body,
-					    work->pub_packet->payload.data,
-					    work->pub_packet->payload.len,
-					    work->pub_packet->fixed_header.dup,
-					    qos, retain, props);
-					if (rv == NNG_STAT_STRING) {
-						nng_free(topic->body,strlen(topic->body));
-					}
-
-					node->proto_ver == MQTT_PROTOCOL_VERSION_v5
-					    ? nng_mqttv5_msg_encode(bridge_msg)
-					    : nng_mqtt_msg_encode(bridge_msg);
-
-					nng_socket *socket = node->sock;
-
-					// what if send qos msg failed?
-					// nanosdk deal with fail send
-					// and close the pipe
-					if (nng_aio_busy(node->bridge_aio[index])) {
-						if (qos == 0) {
-							nng_msg_free(bridge_msg);
-							log_warn(
-								"bridging to %s aio busy! "
-								"msg lost! Ctx: %d drop qos 0 msg",
-								node->address, work->ctx.id);
-						} else if (node->ctx_msgs != NULL) {
-							// pass index of aio via timestamp;
-							if (nng_lmq_full(node->ctx_msgs)) {
-								log_warn("Cached Message in ctx_msgs is lost!");
-								nng_msg *tmsg;
-								(void) nng_lmq_get(node->ctx_msgs, &tmsg);
-								nng_msg_free(tmsg);
-							}
-							if (nng_lmq_put(node->ctx_msgs, bridge_msg) != 0) {
-								log_warn("Msg lost! put msg to ctx_msgs failed!");
-								nng_msg_free(bridge_msg);
-							}
-						}
-					} else {
-						nng_aio_set_timeout(node->bridge_aio[index],
-											node->cancel_timeout);
-						nng_aio_set_msg(node->bridge_aio[index], bridge_msg);
-						// switch to nng_ctx_send!
-						nng_send_aio(*socket, node->bridge_aio[index]);
-					}
-					rv = SUCCESS;
-				}
-			}
-			nng_mtx_unlock(node->mtx);
+		if (!node->enable) {
+			continue;
 		}
+
+		nng_mtx_lock(node->mtx);
+
+		for (size_t i = 0; i < node->forwards_count; i++) {
+			topics *topic_map = node->forwards_list[i];
+
+			const char *local_topic = topic_map->local_topic;
+			mqtt_string *pub_topic = &work->pub_packet->var_header.publish.topic_name;
+
+			log_debug("Checking local_topic='%s' against pub_topic='%.*s'",
+			          local_topic, (int)pub_topic->len, pub_topic->body);
+
+			if (!topic_filter(local_topic, pub_topic->body)) {
+				continue;
+			}
+
+			work->state = SEND;
+
+			// Duplicate properties only if both sides use MQTT v5
+			property *node_props = NULL;
+			if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5 &&
+			    node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
+				mqtt_property_dup(&node_props, work->pub_packet->var_header.publish.properties);
+			}
+
+			char *remote_topic = NULL;
+
+			// Use remote_topic if explicitly set, otherwise use original topic
+			if (topic_map->remote_topic_len > 0 && topic_map->remote_topic != NULL) {
+				remote_topic = nng_strdup(topic_map->remote_topic);
+			} else {
+				remote_topic = nng_strndup(pub_topic->body, pub_topic->len);
+			}
+
+			size_t remote_len = strlen(remote_topic);
+
+			// Apply prefix
+			if (topic_map->prefix != NULL) {
+				char *tmp = remote_topic;
+				remote_topic = nng_strnins(remote_topic, topic_map->prefix,
+				                           remote_len, topic_map->prefix_len);
+				nng_free(tmp, remote_len);
+				remote_len += topic_map->prefix_len;
+			}
+
+			// Apply suffix
+			if (topic_map->suffix != NULL) {
+				char *tmp = remote_topic;
+				remote_topic = nng_strncat(remote_topic, topic_map->suffix,
+				                           remote_len, topic_map->suffix_len);
+				nng_free(tmp, strlen(tmp));
+			}
+
+			uint8_t retain = (topic_map->retain == NO_RETAIN)
+			                 ? work->pub_packet->fixed_header.retain
+			                 : topic_map->retain;
+			uint8_t qos    = (topic_map->qos == NO_QOS)
+			                 ? work->pub_packet->fixed_header.qos
+			                 : topic_map->qos;
+
+			nng_msg *bridge_msg = bridge_publish_msg(
+			    remote_topic,
+			    work->pub_packet->payload.data,
+			    work->pub_packet->payload.len,
+			    work->pub_packet->fixed_header.dup,
+			    qos, retain, node_props);
+
+			nng_free(remote_topic, strlen(remote_topic));
+
+			if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
+				nng_mqttv5_msg_encode(bridge_msg);
+			} else {
+				nng_mqtt_msg_encode(bridge_msg);
+			}
+
+			nng_socket *socket = node->sock;
+
+			// Handle async send
+			if (nng_aio_busy(node->bridge_aio[index])) {
+				if (qos == 0) {
+					nng_msg_free(bridge_msg);
+					bridge_msg = NULL;
+					log_warn("Bridging to %s aio busy! msg lost. Ctx: %d drop qos 0 msg",
+					         node->address, work->ctx.id);
+				}
+				if (topic_map->topic_lmq != NULL)
+					lmq = topic_map->topic_lmq;
+				else if (node->ctx_msgs != NULL)
+					lmq = node->ctx_msgs;
+				else {
+					nng_msg_free(bridge_msg);
+					bridge_msg = NULL;
+				}
+				if (lmq != NULL && bridge_msg != NULL) {
+					if (nng_lmq_full(lmq)) {
+						log_warn("Cached Message in send_queue is lost!");
+						nng_msg *tmsg;
+						(void)nng_lmq_get(lmq, &tmsg);
+						nng_msg_free(tmsg);
+					}
+					if (nng_lmq_put(lmq, bridge_msg) != 0) {
+						log_warn("Msg lost! put msg to ctx_msgs failed!");
+						nng_msg_free(bridge_msg);
+					}
+				}
+			} else {
+				nng_aio_set_timeout(node->bridge_aio[index], node->cancel_timeout);
+				nng_aio_set_msg(node->bridge_aio[index], bridge_msg);
+				nng_send_aio(*socket, node->bridge_aio[index]);
+			}
+		}
+
+		nng_mtx_unlock(node->mtx);
 	}
-	nng_free(topic, sizeof(topic));
+
 	return;
 }
