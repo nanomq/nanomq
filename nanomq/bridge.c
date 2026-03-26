@@ -1396,28 +1396,31 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 void
 bridge_send_cb(void *arg)
 {
-	int rv;
 	nng_msg *msg = NULL;
-	nng_aio          *aio;
 	conf_bridge_node *node = arg;
 	nng_mtx          *mtx  = node->mtx;
 	nng_socket       *socket;
-	nng_lmq *lmq = NULL;
 
 	log_debug("bridge to %s msg sent", node->address);
 	nng_mtx_lock(mtx);
 	socket = node->sock;
+
 	if (!node->busy) {
+		nng_lmq *selected_lmq = NULL;
 		for (size_t i = 0; i < node->forwards_count; i++) {
 			topics *topic_map = node->forwards_list[i];
 			if (topic_map->topic_lmq != NULL && !nng_lmq_empty(topic_map->topic_lmq)) {
-				lmq = topic_map->topic_lmq;
-				break;
+				// resend msg by config sequence
+				selected_lmq = topic_map->topic_lmq;
+				break; 
 			}
 		}
-		if (lmq == NULL)
-			lmq = node->ctx_msgs;
-		if (nng_lmq_get(lmq, &msg) == 0) {
+
+		if (selected_lmq == NULL && node->ctx_msgs != NULL && !nng_lmq_empty(node->ctx_msgs)) {
+			selected_lmq = node->ctx_msgs;
+		}
+
+		if (selected_lmq != NULL && nng_lmq_get(selected_lmq, &msg) == 0) {
 			log_debug("resending cached msg from broker ctx");
 			nng_aio_set_msg(node->resend_aio, msg);
 			nng_aio_set_timeout(node->resend_aio, node->cancel_timeout);
@@ -1431,25 +1434,27 @@ bridge_send_cb(void *arg)
 void
 bridge_resend_cb(void *arg)
 {
-	int rv;
-	nng_lmq *lmq = NULL;
 	nng_msg *msg = NULL;
-	nng_aio          *aio;
 	conf_bridge_node *node = arg;
 	nng_mtx          *mtx  = node->mtx;
 	nng_socket       *socket;
+
 	nng_mtx_lock(mtx);
 	socket = node->sock;
+	nng_lmq *selected_lmq = NULL;
 	for (size_t i = 0; i < node->forwards_count; i++) {
-			topics *topic_map = node->forwards_list[i];
-			if (topic_map->topic_lmq != NULL && !nng_lmq_empty(topic_map->topic_lmq)) {
-				lmq = topic_map->topic_lmq;
-				break;
-			}
+		topics *topic_map = node->forwards_list[i];
+		if (topic_map->topic_lmq != NULL && !nng_lmq_empty(topic_map->topic_lmq)) {
+			selected_lmq = topic_map->topic_lmq;
+			break;
+		}
 	}
-	if (lmq == NULL)
-		lmq = node->ctx_msgs;
-	if (nng_lmq_get(lmq, &msg) == 0) {
+
+	if (selected_lmq == NULL && node->ctx_msgs != NULL && !nng_lmq_empty(node->ctx_msgs)) {
+		selected_lmq = node->ctx_msgs;
+	}
+
+	if (selected_lmq != NULL && nng_lmq_get(selected_lmq, &msg) == 0) {
 		log_debug("resending cached msg at resend cb");
 		nng_aio_set_msg(node->resend_aio, msg);
 		nng_aio_set_timeout(node->resend_aio, node->cancel_timeout);
@@ -1797,8 +1802,8 @@ bridge_pub_handler(nano_work *work)
 	}
 
 	for (size_t t = 0; t < work->config->bridge.count; t++) {
-		nng_lmq *lmq = NULL;
 		conf_bridge_node *node = work->config->bridge.nodes[t];
+
 		if (!node->enable) {
 			continue;
 		}
@@ -1810,9 +1815,6 @@ bridge_pub_handler(nano_work *work)
 
 			const char *local_topic = topic_map->local_topic;
 			mqtt_string *pub_topic = &work->pub_packet->var_header.publish.topic_name;
-
-			log_debug("Checking local_topic='%s' against pub_topic='%.*s'",
-			          local_topic, (int)pub_topic->len, pub_topic->body);
 
 			if (!topic_filter(local_topic, pub_topic->body)) {
 				continue;
@@ -1862,6 +1864,7 @@ bridge_pub_handler(nano_work *work)
 			                 ? work->pub_packet->fixed_header.qos
 			                 : topic_map->qos;
 
+			// Create message (node_props ownership is taken here!)
 			nng_msg *bridge_msg = bridge_publish_msg(
 			    remote_topic,
 			    work->pub_packet->payload.data,
@@ -1879,23 +1882,18 @@ bridge_pub_handler(nano_work *work)
 
 			nng_socket *socket = node->sock;
 
-			// Handle async send
+			// Handle async send & Fine-grained queueing
 			if (nng_aio_busy(node->bridge_aio[index])) {
 				if (qos == 0) {
 					nng_msg_free(bridge_msg);
-					bridge_msg = NULL;
 					log_warn("Bridging to %s aio busy! msg lost. Ctx: %d drop qos 0 msg",
 					         node->address, work->ctx.id);
+					continue;
 				}
-				if (topic_map->topic_lmq != NULL)
-					lmq = topic_map->topic_lmq;
-				else if (node->ctx_msgs != NULL)
-					lmq = node->ctx_msgs;
-				else {
-					nng_msg_free(bridge_msg);
-					bridge_msg = NULL;
-				}
-				if (lmq != NULL && bridge_msg != NULL) {
+
+				// Prioritize topic-level queue, fallback to global queue
+				nng_lmq *lmq = topic_map->topic_lmq ? topic_map->topic_lmq : node->ctx_msgs;
+				if (lmq != NULL) {
 					if (nng_lmq_full(lmq)) {
 						log_warn("Cached Message in send_queue is lost!");
 						nng_msg *tmsg;
@@ -1906,6 +1904,8 @@ bridge_pub_handler(nano_work *work)
 						log_warn("Msg lost! put msg to ctx_msgs failed!");
 						nng_msg_free(bridge_msg);
 					}
+				} else {
+					nng_msg_free(bridge_msg); // No queue available
 				}
 			} else {
 				nng_aio_set_timeout(node->bridge_aio[index], node->cancel_timeout);
@@ -1916,6 +1916,5 @@ bridge_pub_handler(nano_work *work)
 
 		nng_mtx_unlock(node->mtx);
 	}
-
 	return;
 }
