@@ -388,8 +388,10 @@ get_bridge_config(conf_bridge *bridge, const char *node_name)
 			cJSON_AddStringOrNullToObject(
 			    pub_obj, "local_topic", pub->local_topic);
 			if (pub->qos < 3)
-				cJSON_AddNumberToObject(
-				    pub_obj, "qos", pub->qos);
+				cJSON_AddNumberToObject(pub_obj, "qos", pub->qos);
+			if (pub->topic_lmq != NULL && pub->max_send_queue_len > 0) {
+				cJSON_AddNumberToObject(pub_obj, "max_send_queue_len", pub->max_send_queue_len);
+			}
 			cJSON_AddItemToArray(pub_infos, pub_obj);
 		}
 		cJSON_AddItemToObject(node_obj, "forwards", pub_infos);
