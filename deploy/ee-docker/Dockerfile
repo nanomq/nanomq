@@ -6,7 +6,7 @@ RUN apt-get update && apt-get install -y unzip && rm -rf /var/lib/apt/lists/*
 RUN mkdir -p /opt/emqx-edge
 COPY _packages_release/${TARGETARCH}/. /opt/emqx-edge/
 
-RUN chmod +x /opt/emqx-edge/nanomq
+RUN chmod +x /opt/emqx-edge/emqx-edge
 
 WORKDIR /opt/emqx-edge
 

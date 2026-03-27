@@ -61,11 +61,11 @@ jobs:
         git log --format=%H -1 > commits.txt
         cd nng && git log --format=%H -1 >> ../commits.txt && cd -
         echo "dashboard_ver=${{ steps.build.outputs.dashboard_ver }}" >> commits.txt
-        echo -e "## How to start nanomq\n\n./nanomq start" > start.md
+        echo -e "## How to start emqx-edge\n\n./emqx-edge start" > start.md
         mkdir -p _packages/etc
         mkdir -p _packages_release
         id=$(docker create edge-${{ matrix.arch }})
-        docker cp $id:/opt/NanoMQ_mirror/build/nanomq/nanomq _packages/
+        docker cp $id:/opt/NanoMQ_mirror/build/nanomq/nanomq _packages/emqx-edge
         docker cp $id:/opt/NanoMQ_mirror/build/nanomq_cli/nanomq_cli _packages/
         docker cp $id:/opt/NanoMQ_mirror/build/nanomq/dist _packages/
         docker cp $id:/opt/NanoMQ_mirror/etc/nanomq_ee.conf _packages/nanomq.conf
@@ -170,11 +170,12 @@ jobs:
           mkdir _packages
           mkdir _packages/etc
           mkdir _packages/tmp
-          "nanomq for windows" | Out-File -FilePath "_packages/tmp/a.txt" -Encoding ascii
-          "## How to start nanomq? ./nanomq start" | Out-File -FilePath "_packages/start.md" -Encoding ascii
+          "emqx-edge for windows" | Out-File -FilePath "_packages/tmp/a.txt" -Encoding ascii
+          "## How to start emqx-edge? ./emqx-edge start" | Out-File -FilePath "_packages/start.md" -Encoding ascii
           mv etc/nanomq_ee_win.conf _packages/nanomq.conf
           mv etc/trial-env.lic _packages/nanomq.lic
-          mv install/bin/* _packages/
+          mv install/bin/nanomq.exe _packages/emqx-edge.exe
+          mv install/bin/nanomq_cli.exe _packages/
           mv etc/certs _packages/etc/
 
           mkdir _packages_release

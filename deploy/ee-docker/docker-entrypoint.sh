@@ -12,9 +12,9 @@ _main() {
 	fi
 
 	if [ "$#" -eq 0 ];then
-		set -- ./nanomq start
+		set -- ./emqx-edge start
 	elif [ "${1#-}" != "$1" ]; then
-		set -- ./nanomq start "$@"
+		set -- ./emqx-edge start "$@"
 	fi
 
 	exec "$@"
