@@ -2008,7 +2008,11 @@ broker_start(int argc, char **argv)
     // if (realpath(argv[0], nanomq_conf->exec_path) == NULL) {
 	ssize_t path_len = readlink("/proc/self/exe", nanomq_conf->exec_path,
 	    sizeof(nanomq_conf->exec_path) - 1);
+#if defined(SUPP_LICENSE_DK) || defined(SUPP_LICENSE_STD)
+	strcpy(nanomq_conf->exec_fname, "emqx-edge");
+#else
 	strcpy(nanomq_conf->exec_fname, "nanomq");
+#endif
 	if (path_len <= 0 || path_len >= 512) {
 		fprintf(stderr, "Cannot get exec path or too long! default Config read/write & License Update is not working\n");
 	}
@@ -2028,7 +2032,11 @@ broker_start(int argc, char **argv)
 		printf("cmd: Failed to get current path of NanoMQ rv%d\n", wrv);
 		exit(EXIT_FAILURE);
 	}
+#if defined(SUPP_LICENSE_DK) || defined(SUPP_LICENSE_STD)
+	strcpy(nanomq_conf->exec_fname, "emqx-edge.exe");
+#else
 	strcpy(nanomq_conf->exec_fname, "nanomq.exe");
+#endif
 	printf("cmd: Current path of NanoMQ: %s rv%d\n", nanomq_conf->exec_path, wrv);
 #else
 	printf("cmd: Current path of NanoMQ: Unsupported Platform\n");
