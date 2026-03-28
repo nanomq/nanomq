@@ -329,7 +329,7 @@ add_bridge_quic(cJSON *obj, conf_bridge_node *node)
 {
 #if defined(SUPP_QUIC)
 	add_time_field(obj, "quic_keepalive", node->qkeepalive, "s");
-	
+
 	add_time_field(
 	    obj, "quic_idle_timeout", (uint64_t)node->qidle_timeout, "s");
 	add_time_field(
@@ -353,7 +353,7 @@ cJSON *
 get_bridge_config(conf_bridge *bridge, const char *node_name)
 {
 	cJSON *bridge_obj        = cJSON_CreateObject();
-	
+
 	cJSON *bridge_node_obj = cJSON_CreateArray();
 	for (size_t i = 0; i < bridge->count; i++) {
 		if (node_name != NULL &&
@@ -387,6 +387,14 @@ get_bridge_config(conf_bridge *bridge, const char *node_name)
 			    pub_obj, "remote_topic", pub->remote_topic);
 			cJSON_AddStringOrNullToObject(
 			    pub_obj, "local_topic", pub->local_topic);
+			cJSON *exclusion_infos = cJSON_CreateArray();
+			for (size_t k = 0; k < node->forwards_list[j]->exclusions_count; k++) {
+				cJSON *exclusion_obj = cJSON_CreateObject();
+				exclusions *exclusion =node->forwards_list[j]->exclusions_list[k];
+				cJSON_AddStringOrNullToObject(exclusion_obj, "topic", exclusion->topic);
+				cJSON_AddItemToArray(exclusion_infos, exclusion_obj);
+			}
+			cJSON_AddItemToObject(pub_obj, "exclusions", exclusion_infos);
 			if (pub->qos < 3)
 				cJSON_AddNumberToObject(
 				    pub_obj, "qos", pub->qos);
@@ -1149,9 +1157,9 @@ reload_auth_config(conf_auth *cur_conf, conf_auth *new_conf)
 	}
 	for (size_t i = 0; i < new_conf->count; i++) {
 		cvector_push_back(
-			    cur_conf->usernames, nng_strdup(new_conf->usernames[i]));
+		    cur_conf->usernames, nng_strdup(new_conf->usernames[i]));
 		cvector_push_back(
-			    cur_conf->passwords, nng_strdup(new_conf->passwords[i]));
+		    cur_conf->passwords, nng_strdup(new_conf->passwords[i]));
 	}
 	cur_conf->count = new_conf->count;
 	nng_mtx_unlock(cur_conf->mtx);

@@ -1788,8 +1788,22 @@ bridge_pub_handler(nano_work *work)
 				topic->body = work->pub_packet->var_header.publish.topic_name.body;
 				topic->len  = work->pub_packet->var_header.publish.topic_name.len;
 				log_debug("local topic %s topic %s", node->forwards_list[i]->local_topic, topic->body);
-				if (topic_filter(node->forwards_list[i]->local_topic,
-							(const char *)topic->body)) {
+				if (topic_filter(node->forwards_list[i]->local_topic, (const char *)topic->body)) {
+					bool skip = false;
+					for (size_t j = 0; j < node->forwards_list[i]->exclusions_count; j++) {
+						if (topic_filter(node->forwards_list[i]->exclusions_list[j]->topic, (const char *) topic->body)) {
+							log_debug(
+							    "topic %s is excluded by %s, skip it",
+							    (const char *) topic->body,
+							    node->forwards_list[i]->exclusions_list[j]->topic);
+							skip = true;
+							break;
+						}
+					}
+					if (skip) {
+						continue;
+					}
+
 					work->state = SEND;
 
 					nng_msg *bridge_msg = NULL;
