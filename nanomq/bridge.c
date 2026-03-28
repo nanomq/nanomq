@@ -135,7 +135,12 @@ create_connect_msg(conf_bridge_node *node)
 	nng_mqtt_msg_alloc(&connmsg, 0);
 	nng_mqtt_msg_set_packet_type(connmsg, NNG_MQTT_CONNECT);
 	nng_mqtt_msg_set_connect_keep_alive(connmsg, node->keepalive);
-	nng_mqtt_msg_set_connect_proto_version(connmsg, node->proto_ver);
+	uint8_t proto_ver = node->proto_ver;
+	if (node->try_private) {
+		proto_ver |= 0x80; // set bridge bit for Mosquitto-compatible brokers
+	}
+
+	nng_mqtt_msg_set_connect_proto_version(connmsg, proto_ver);
 	nng_mqtt_msg_set_connect_clean_session(connmsg, node->clean_start);
 	if (node->clientid) {
 		nng_mqtt_msg_set_connect_client_id(connmsg, node->clientid);
