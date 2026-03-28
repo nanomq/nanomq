@@ -715,52 +715,52 @@ server_cb(void *arg)
 			init_pipe_content(work->pipe_ct);
 
 			// processing will msg
-			if (conn_param_get_will_flag(work->cparam) &&
-			    (msg = nano_pubmsg_composer(&msg,
-			         conn_param_get_will_retain(work->cparam),
-			         conn_param_get_will_qos(work->cparam),
-			         (mqtt_string *) conn_param_get_will_msg(
-			             work->cparam),
-			         (mqtt_string *) conn_param_get_will_topic(
-			             work->cparam),
-			         conn_param_get_protover(work->cparam),
-			         nng_clock(), NULL)) != NULL) {
-				work->msg = msg;
-				work->flag = CMD_PUBLISH;
-				// Set V4/V5 flag for publish msg
-				if (conn_param_get_protover(work->cparam) == 5) {
-					property *will_property =
-					    conn_param_get_will_property(
-					        work->cparam);
-					nng_msg_set_cmd_type(
-					    msg, CMD_PUBLISH_V5);
-					handle_pub(work, work->pipe_ct,
-					    MQTT_PROTOCOL_VERSION_v5, false);
-					work->pub_packet->var_header.publish
-					    .properties = property_pub_by_will(
-					    will_property);
-					work->pub_packet->var_header.publish
-					    .prop_len = get_mqtt_properties_len(
-					    work->pub_packet->var_header
-					        .publish.properties);
-				} else {
-					nng_msg_set_cmd_type(msg, CMD_PUBLISH);
-					handle_pub(work, work->pipe_ct,
-					    MQTT_PROTOCOL_VERSION_v311, false);
+			if (conn_param_get_will_flag(work->cparam)) {
+				uint8_t proto_ver =
+				    conn_param_get_protover(work->cparam);
+				uint8_t qos =
+				    conn_param_get_will_qos(work->cparam);
+				uint8_t retain =
+				    conn_param_get_will_retain(work->cparam);
+				mqtt_string *will_payload =
+				    (mqtt_string *) conn_param_get_will_msg(
+				        work->cparam);
+				mqtt_string *will_topic =
+				    (mqtt_string *) conn_param_get_will_topic(
+				        work->cparam);
+				property *prop =
+				    conn_param_get_will_property(work->cparam);
+
+				msg = nano_encode_publish_msg(proto_ver, qos,
+				    retain, false,
+				    (uint8_t *) will_payload->body,
+				    will_payload->len, prop, will_topic->body,
+				    NULL);
+
+				if (msg == NULL) {
+					goto free_will;
 				}
+
+				work->msg  = msg;
+				work->flag = CMD_PUBLISH;
+				handle_pub(
+				    work, work->pipe_ct, proto_ver, false);
 				work->state = WAIT;
 				nng_aio_finish(work->aio, 0);
 			} else {
-				// free Conn_param once more in case invalid last-will msg
+			free_will:
+				// free Conn_param once more in case invalid
+				// last-will msg
 				conn_param_free(work->cparam);
 				if (work->msg != NULL)
 					nng_msg_free(work->msg);
-				work->msg = NULL;
+				work->msg   = NULL;
 				work->state = RECV;
 				if (work->proto == PROTO_MQTT_BROKER) {
 					nng_ctx_recv(work->ctx, work->aio);
 				} else {
-					nng_ctx_recv(work->extra_ctx, work->aio);
+					nng_ctx_recv(
+					    work->extra_ctx, work->aio);
 				}
 			}
 		}
