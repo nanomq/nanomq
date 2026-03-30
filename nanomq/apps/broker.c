@@ -1592,8 +1592,12 @@ broker(conf *nanomq_conf)
 void
 print_usage(void)
 {
-	printf("Usage: nanomq { { start | restart [--url <url>] "
-	       "[--conf <path>] [-t, --tq_thread <num>]\n                     "
+#if defined(SUPP_LICENSE_DK) || defined(SUPP_LICENSE_STD)
+	printf("Usage: emqx-edge { { start | restart [--url <url>] ");
+#else
+	printf("Usage: nanomq { { start | restart [--url <url>] ");
+#endif
+	printf("[--conf <path>] [-t, --tq_thread <num>]\n                     "
 	       "[-T, -max_tq_thread <num>] [-n, --parallel <num>] \n          "
 	       "           "
 	       "[--old_conf <path>] [-D, --qos_duration <num>] [--http] "
@@ -2016,7 +2020,7 @@ broker_start(int argc, char **argv)
 	if (path_len <= 0 || path_len >= 512) {
 		fprintf(stderr, "Cannot get exec path or too long! default Config read/write & License Update is not working\n");
 	}
-	printf("cmd: Current path of NanoMQ: %s\n", nanomq_conf->exec_path);
+	printf("cmd: Current path of Binary: %s\n", nanomq_conf->exec_path);
 #elif defined(NANO_PLATFORM_WINDOWS)
 	char wpath[512];
 	int wrv = GetModuleFileNameW(NULL, wpath, 512 - 1);
@@ -2029,7 +2033,7 @@ broker_start(int argc, char **argv)
 			exit(EXIT_FAILURE);
 		}
 	} else {
-		printf("cmd: Failed to get current path of NanoMQ rv%d\n", wrv);
+		printf("cmd: Failed to get current path of Binary: rv%d\n", wrv);
 		exit(EXIT_FAILURE);
 	}
 #if defined(SUPP_LICENSE_DK) || defined(SUPP_LICENSE_STD)
@@ -2037,9 +2041,9 @@ broker_start(int argc, char **argv)
 #else
 	strcpy(nanomq_conf->exec_fname, "nanomq.exe");
 #endif
-	printf("cmd: Current path of NanoMQ: %s rv%d\n", nanomq_conf->exec_path, wrv);
+	printf("cmd: Current path of Binary: %s rv%d\n", nanomq_conf->exec_path, wrv);
 #else
-	printf("cmd: Current path of NanoMQ: Unsupported Platform\n");
+	printf("cmd: Current path of Binary: Unsupported Platform\n");
 #endif
 	// Only call it once! Due to duplicate risk of exchange
 	rc = file_path_parse(argc, argv, nanomq_conf);

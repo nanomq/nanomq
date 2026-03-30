@@ -67,7 +67,11 @@ print_version(void)
 static void
 print_help(void)
 {
+#if defined(SUPP_LICENSE_DK) || defined(SUPP_LICENSE_STD)
+	printf("\nUsage: emqx-edge { start | stop | restart | reload } [--help]\n");
+#else
 	printf("\nUsage: nanomq { start | stop | restart | reload } [--help]\n");
+#endif
 	print_version();
 }
 
