@@ -130,7 +130,6 @@ nano_set_quic_config(nng_socket *sock, conf_bridge_node *node, nng_dialer *diale
  * independent callback API for bridging aio
  *
  */
-
 void
 bridge_resend_cb(void *arg)
 {
@@ -162,23 +161,41 @@ bridge_resend_cb(void *arg)
 	nng_mtx_unlock(mtx);
 }
 
-// reserve for bridge_aio
+/**
+ * independent callback API for bridging aio
+ * only deal with PUB msg
+ */
 void
 bridge_send_cb(void *arg)
 {
-	int rv;
 	nng_msg *msg = NULL;
-	nng_aio          *aio;
 	conf_bridge_node *node = arg;
 	nng_mtx          *mtx  = node->mtx;
 	nng_socket       *socket;
 
-	log_debug("bridge to %s msg has been sent", node->address);
+	log_debug("bridge to %s msg sent", node->address);
 	nng_mtx_lock(mtx);
 	socket = node->sock;
+
 	if (!node->busy) {
-		if (nng_lmq_get(node->ctx_msgs, &msg) == 0) {
-			log_info("start resending cached msg; %d max", nng_lmq_len(node->ctx_msgs));
+		nng_lmq *selected_lmq = NULL;
+		for (size_t i = 0; i < node->forwards_count; i++) {
+			topics *topic_map = node->forwards_list[i];
+			if (topic_map->topic_lmq != NULL && !nng_lmq_empty(topic_map->topic_lmq)) {
+				// resend msg by config sequence
+				selected_lmq = topic_map->topic_lmq;
+				log_info("resend msg in lmq %p of topic %s! ", selected_lmq, topic_map->local_topic);
+				break;
+			}
+		}
+
+		if (selected_lmq == NULL && node->ctx_msgs != NULL && !nng_lmq_empty(node->ctx_msgs)) {
+			selected_lmq = node->ctx_msgs;
+		}
+
+		if (selected_lmq != NULL && nng_lmq_get(selected_lmq, &msg) == 0) {
+			log_info("resending cached msg in lmq(%p) max (%d) $",
+				selected_lmq, nng_lmq_len(selected_lmq));
 			nng_aio_set_msg(node->resend_aio, msg);
 			nng_aio_set_timeout(node->resend_aio, node->cancel_timeout);
 			int len = -(int)nng_msg_len(msg);
@@ -188,7 +205,7 @@ bridge_send_cb(void *arg)
 			node->busy = true;
 		}
 	} else {
-		log_debug("resend aio is still busy");
+		log_info("resend aio is still busy, resend is delayed");
 	}
 	nng_mtx_unlock(mtx);
 }
