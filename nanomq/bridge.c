@@ -133,10 +133,11 @@ nano_set_quic_config(nng_socket *sock, conf_bridge_node *node, nng_dialer *diale
 void
 bridge_resend_cb(void *arg)
 {
-	nng_msg *msg = NULL;
+	nng_msg          *msg  = NULL;
 	conf_bridge_node *node = arg;
 	nng_mtx          *mtx  = node->mtx;
 	nng_socket       *socket;
+	topics           *topic_map;
 
 	if (nng_aio_result(node->resend_aio) == NNG_ECLOSED) {
 		log_warn("Stop resending while disconnected!");
@@ -146,7 +147,7 @@ bridge_resend_cb(void *arg)
 	socket = node->sock;
 	nng_lmq *selected_lmq = NULL;
 	for (size_t i = 0; i < node->forwards_count; i++) {
-		topics *topic_map = node->forwards_list[i];
+		topic_map = node->forwards_list[i];
 		if (topic_map->topic_lmq != NULL && !nng_lmq_empty(topic_map->topic_lmq)) {
 			selected_lmq = topic_map->topic_lmq;
 			log_info("resend msg in lmq %p of topic %s!", selected_lmq, topic_map->local_topic);
@@ -166,6 +167,8 @@ bridge_resend_cb(void *arg)
 		nng_socket_set_int(
 		    *socket, NNG_OPT_MQTT_BRIDGE_CACHE_BYTE, len);
 		nng_aio_set_timeout(node->resend_aio, node->cancel_timeout);
+		nng_aio_set_input(node->resend_aio, 0, selected_lmq);
+		nng_aio_set_input(node->resend_aio, 1, topic_map->local_topic);
 		nng_send_aio(*socket, node->resend_aio);
 		node->busy = true;
 	} else {
@@ -182,19 +185,24 @@ bridge_resend_cb(void *arg)
 void
 bridge_send_cb(void *arg)
 {
-	nng_msg *msg = NULL;
+	nng_msg          *msg  = NULL;
 	conf_bridge_node *node = arg;
 	nng_mtx          *mtx  = node->mtx;
 	nng_socket       *socket;
+	topics           *topic_map;
 
 	log_debug("bridge to %s msg sent", node->address);
+	if (nng_aio_result(node->resend_aio) == NNG_ECLOSED) {
+		log_warn("Stop resending while disconnected!");
+		return;
+	}
 	nng_mtx_lock(mtx);
 	socket = node->sock;
 
 	if (!node->busy) {
 		nng_lmq *selected_lmq = NULL;
 		for (size_t i = 0; i < node->forwards_count; i++) {
-			topics *topic_map = node->forwards_list[i];
+			topic_map = node->forwards_list[i];
 			if (topic_map->topic_lmq != NULL && !nng_lmq_empty(topic_map->topic_lmq)) {
 				// resend msg by config sequence
 				selected_lmq = topic_map->topic_lmq;
@@ -215,6 +223,8 @@ bridge_send_cb(void *arg)
 			int len = -(int)nng_msg_len(msg);
 			nng_socket_set_int(
 				*socket, NNG_OPT_MQTT_BRIDGE_CACHE_BYTE, len);
+			nng_aio_set_input(node->resend_aio, 0, selected_lmq);
+			nng_aio_set_input(node->resend_aio, 1, topic_map->local_topic);
 			nng_send_aio(*socket, node->resend_aio);
 			node->busy = true;
 		}
@@ -988,6 +998,7 @@ bridge_quic_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	char         *addr;
 	uint16_t      port;
 
+	nng_atomic_set_bool(param->config->connected, true);
 	if (execone > 0) {
 		return;
 	}
@@ -1048,6 +1059,9 @@ static void
 bridge_quic_disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {
 	int reason = 0;
+	bridge_param *param  = arg;
+
+	nng_atomic_set_bool(param->config->connected, false);
 	// get connect reason
 	nng_pipe_get_int(p, NNG_OPT_MQTT_DISCONNECT_REASON, &reason);
 	// property *prop;
@@ -1190,6 +1204,8 @@ bridge_tcp_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	// Connected succeed
 	bridge_param *param  = arg;
 	int           reason = 0;
+
+	nng_atomic_set_bool(param->config->connected, true);
 	// get connect reason
 	nng_pipe_get_int(p, NNG_OPT_MQTT_CONNECT_REASON, &reason);
 	// get property for MQTT V5
@@ -1244,6 +1260,9 @@ static void
 bridge_tcp_disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {
 	int reason = 0;
+	bridge_param *param  = arg;
+
+	nng_atomic_set_bool(param->config->connected, false);
 	// get disconnect reason
 	nng_pipe_get_int(p, NNG_OPT_MQTT_DISCONNECT_REASON, &reason);
 	// property *prop;
@@ -1866,29 +1885,39 @@ bridge_pub_handler(nano_work *work)
 			}
 
 			nng_socket *socket = node->sock;
-
+			// Prioritize topic-level queue, fallback to global queue
+			nng_lmq *lmq = topic_map->topic_lmq ? topic_map->topic_lmq : node->ctx_msgs;
 			// Handle async send & Fine-grained queueing
 			if (nng_aio_busy(node->bridge_aio[index])) {
 				if (qos == 0) {
 					nng_msg_free(bridge_msg);
-					log_warn("Bridging to %s aio busy! msg lost. Ctx: %d drop qos 0 msg",
+					log_warn("%s Disconnected or Bridging aio busy! msg lost. Ctx: %d drop qos 0 msg",
 					         node->address, work->ctx.id);
 					continue;
 				}
 
-				// Prioritize topic-level queue, fallback to global queue
-				nng_lmq *lmq = topic_map->topic_lmq ? topic_map->topic_lmq : node->ctx_msgs;
 				log_info("put msg from topic %s to lmq %p", topic_map->local_topic, lmq);
+				// offline lmq msg cut in the line before the unacked QoS msg
 				if (lmq != NULL) {
 					if (nng_lmq_full(lmq)) {
 						log_warn("Cached Message in send_queue %p is lost!", lmq);
 						nng_msg *tmsg;
 						(void)nng_lmq_get(lmq, &tmsg);
 						nng_msg_free(tmsg);
+						int len = -(int)nng_msg_len(tmsg);
+						nng_socket_set_int(
+							*socket, NNG_OPT_MQTT_BRIDGE_CACHE_BYTE, len);
+						nng_socket_set_bool(
+							*socket, NNG_OPT_MQTT_BRIDGE_SEND_DROP, true);
 					}
 					if (nng_lmq_put(lmq, bridge_msg) != 0) {
 						log_warn("Msg lost! put msg to ctx_msgs failed!");
 						nng_msg_free(bridge_msg);
+					} else {
+						nng_socket_set_bool(
+							*socket, NNG_OPT_MQTT_BRIDGE_SEND_DROP, true);
+						nng_socket_set_int(
+							*socket, NNG_OPT_MQTT_BRIDGE_CACHE_BYTE, nng_msg_len(bridge_msg));
 					}
 				} else {
 					nng_msg_free(bridge_msg); // No queue available
@@ -1896,6 +1925,8 @@ bridge_pub_handler(nano_work *work)
 			} else {
 				nng_aio_set_timeout(node->bridge_aio[index], node->cancel_timeout);
 				nng_aio_set_msg(node->bridge_aio[index], bridge_msg);
+				nng_aio_set_input(node->bridge_aio[index], 0, lmq);
+				nng_aio_set_input(node->bridge_aio[index], 1, topic_map->local_topic);
 				nng_send_aio(*socket, node->bridge_aio[index]);
 			}
 		}
