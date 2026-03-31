@@ -998,7 +998,6 @@ bridge_quic_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	char         *addr;
 	uint16_t      port;
 
-	nng_atomic_set_bool(param->config->connected, true);
 	if (execone > 0) {
 		return;
 	}
@@ -1061,7 +1060,6 @@ bridge_quic_disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	int reason = 0;
 	bridge_param *param  = arg;
 
-	nng_atomic_set_bool(param->config->connected, false);
 	// get connect reason
 	nng_pipe_get_int(p, NNG_OPT_MQTT_DISCONNECT_REASON, &reason);
 	// property *prop;
@@ -1205,7 +1203,6 @@ bridge_tcp_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	bridge_param *param  = arg;
 	int           reason = 0;
 
-	nng_atomic_set_bool(param->config->connected, true);
 	// get connect reason
 	nng_pipe_get_int(p, NNG_OPT_MQTT_CONNECT_REASON, &reason);
 	// get property for MQTT V5
@@ -1261,8 +1258,7 @@ bridge_tcp_disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {
 	int reason = 0;
 	bridge_param *param  = arg;
-
-	nng_atomic_set_bool(param->config->connected, false);
+	// be aware life cycle of conf_bridge_node in dynamic reloading
 	// get disconnect reason
 	nng_pipe_get_int(p, NNG_OPT_MQTT_DISCONNECT_REASON, &reason);
 	// property *prop;
