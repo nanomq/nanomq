@@ -1784,6 +1784,7 @@ static void inline handle_pub_retain(nano_work *work, char *topic)
 					return;
 				}
 			}
+			nng_msg_set_pipe(ret, work->pid);
 			nng_mqtt_msg_set_publish_proto_version(ret, work->proto_ver);
 			// Dont set Sub retain, which is preserved for differing bridging retain msg
 			old_ret = dbtree_insert_retain(work->db_ret, topic, ret);
@@ -2065,7 +2066,8 @@ decode_pub_message(nano_work *work, uint8_t proto)
 		&pub_packet->fixed_header.remain_len, &remain_used_pos);
 
 	log_debug(
-	    "cmd: %d, retain: %d, qos: %d, dup: %d, remaining length: %d",
+	    "protover: %d, cmd: %d, retain: %d, qos: %d, dup: %d, remaining length: %d",
+	    proto,
 	    pub_packet->fixed_header.packet_type,
 	    pub_packet->fixed_header.retain, pub_packet->fixed_header.qos,
 	    pub_packet->fixed_header.dup, pub_packet->fixed_header.remain_len);

@@ -21,6 +21,7 @@ user_properties = [("filename","test.txt"),("count","1")]
 topic_alias = 10
 session_expiry_interval = 10
 recv_msg = ""
+max_packet_size = 268435455
 
 def on_message_topic_alias(self, obj, msg):
     print("Receive:" + msg.topic+" "+str(msg.qos)+" "+str(msg.payload))
@@ -101,11 +102,19 @@ def func(proto, cmd, topic, prop=None):
     mqttc.on_publish = on_publish
 
 
+    if proto == MQTTv5:
+        if prop is None:
+            prop = Properties(PacketTypes.CONNECT)
+        prop.MaximumPacketSize = max_packet_size
+
     if "session/expiry/interval" == topic and cmd == "sub":
         mqttc.connect("localhost", 8083, 60, properties=prop, clean_start=False)
         prop = None
     else:
-        mqttc.connect("localhost", 8083, 60)
+        if proto == MQTTv5:
+            mqttc.connect("localhost", 8083, 60, properties=prop)
+        else:
+            mqttc.connect("localhost", 8083, 60)
 
 
     global g_sub_times
@@ -164,6 +173,7 @@ def ws_topic_alias():
 def ws_session_expiry_interval():
     properties=Properties(PacketTypes.CONNECT)
     properties.SessionExpiryInterval=session_expiry_interval
+    properties.MaximumPacketSize=max_packet_size
     # sub with property session expiry interval and disconnect when sub success
     # pub within session expiry interval
     # sub within session expiry interval
