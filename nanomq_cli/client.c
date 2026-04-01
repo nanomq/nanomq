@@ -1571,6 +1571,7 @@ client_cb(void *arg)
 				work->state = SEND_WAIT;
 				nng_sleep_aio(work->opts->interval, work->aio);
 			} else {
+				nng_msleep(500);
 				nng_socket_close(*work->sock);
 				exit(1);
 			}
@@ -1705,7 +1706,7 @@ quic_connect_cb(void *rmsg, void *arg)
 	struct connect_param *param  = arg;
 	int                   reason = 0;
 
-	console("%s: %s connect\n", __FUNCTION__, param->opts->url);
+	console("%s: %s connected\n", __FUNCTION__, param->opts->url);
 
 	if (reason == 0) {
 		if (param->opts->type == SUB && param->opts->topic_count > 0) {
@@ -1726,7 +1727,6 @@ quic_connect_cb(void *rmsg, void *arg)
 			    topics_qos, param->opts->topic_count);
 		}
 	}
-
 
 	return 0;
 }

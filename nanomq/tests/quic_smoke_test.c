@@ -22,6 +22,7 @@
 #include <nng/mqtt/mqtt_quic_client.h>
 #include <nng/mqtt/mqtt_client.h>
 #include <nng/supplemental/nanolib/log.h>
+#include <nng/protocol/mqtt/mqtt_parser.h>
 
 #define TEST_MQTT_QUIC_URL "mqtt-quic://127.0.0.1:14567"
 #define TEST_MQTT_QUIC_TOPIC "nanomq/quic/test"
