@@ -715,7 +715,10 @@ server_cb(void *arg)
 			init_pipe_content(work->pipe_ct);
 
 			// processing will msg
-			if (conn_param_get_will_flag(work->cparam)) {
+			bool has_will = conn_param_get_will_flag(work->cparam);
+			msg           = NULL;
+
+			if (has_will) {
 				uint8_t proto_ver =
 				    conn_param_get_protover(work->cparam);
 				uint8_t qos =
@@ -736,19 +739,17 @@ server_cb(void *arg)
 				    (uint8_t *) will_payload->body,
 				    will_payload->len, prop, will_topic->body,
 				    NULL);
+			}
 
-				if (msg == NULL) {
-					goto free_will;
-				}
-
+			if (has_will && msg != NULL) {
 				work->msg  = msg;
 				work->flag = CMD_PUBLISH;
-				handle_pub(
-				    work, work->pipe_ct, proto_ver, false);
+				handle_pub(work, work->pipe_ct,
+				    conn_param_get_protover(work->cparam),
+				    false);
 				work->state = WAIT;
 				nng_aio_finish(work->aio, 0);
 			} else {
-			free_will:
 				// free Conn_param once more in case invalid
 				// last-will msg
 				conn_param_free(work->cparam);
