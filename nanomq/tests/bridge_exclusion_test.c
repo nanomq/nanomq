@@ -48,7 +48,9 @@ main()
 	    popen_sub_with_cmd_nonblock(&outfp_emqx2, cmd_sub_emqx2, cmd);
   nng_msleep(2000);  
   p_pub_nmq  = popen(cmd_pub_nmq, "r");  
+  assert(p_pub_nmq != NULL);
   p_pub_nmq2 = popen(cmd_pub_nmq3, "r");  
+  assert(p_pub_nmq2 != NULL);
   struct pollfd allowed = { .fd = outfp_emqx, .events = POLLIN };  
   assert(poll(&allowed, 1, 5000) == 1);  
   int allowed_n = (int) read(outfp_emqx, buf_emqx, buf_size - 1);  

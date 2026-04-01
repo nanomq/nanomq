@@ -387,20 +387,21 @@ get_bridge_config(conf_bridge *bridge, const char *node_name)
 			    pub_obj, "remote_topic", pub->remote_topic);
 			cJSON_AddStringOrNullToObject(
 			    pub_obj, "local_topic", pub->local_topic);
-			cJSON *exclusion_infos = cJSON_CreateArray();
-			for (size_t k = 0; k < node->forwards_list[j]->exclusions_count; k++) {
-				cJSON *exclusion_obj = cJSON_CreateObject();
-				exclusions *exclusion =node->forwards_list[j]->exclusions_list[k];
-				cJSON_AddStringOrNullToObject(exclusion_obj, "topic", exclusion->topic);
-				cJSON_AddItemToArray(exclusion_infos, exclusion_obj);
-			}
-			cJSON_AddItemToObject(pub_obj, "exclusions", exclusion_infos);
 			if (pub->qos < 3)
 				cJSON_AddNumberToObject(
 				    pub_obj, "qos", pub->qos);
 			cJSON_AddItemToArray(pub_infos, pub_obj);
 		}
 		cJSON_AddItemToObject(node_obj, "forwards", pub_infos);
+
+		cJSON *exclusion_infos = cJSON_CreateArray();
+		for (size_t j = 0; j < node->exclusions_count; j++) {
+			cJSON *exclusion_obj = cJSON_CreateObject();
+			exclusions *exclusion =node->exclusions_list[j];
+			cJSON_AddStringOrNullToObject(exclusion_obj, "topic", exclusion->topic);
+			cJSON_AddItemToArray(exclusion_infos, exclusion_obj);
+		}
+		cJSON_AddItemToObject(node_obj, "exclusions", exclusion_infos);
 
 		cJSON *sub_infos = cJSON_CreateArray();
 		for (size_t j = 0; j < node->sub_count; j++) {

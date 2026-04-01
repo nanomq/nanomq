@@ -1783,27 +1783,31 @@ bridge_pub_handler(nano_work *work)
 		conf_bridge_node *node = work->config->bridge.nodes[t];
 		if (node->enable) {	// nng_atomic_get_bool for potential data racing
 			nng_mtx_lock(node->mtx);		//TODO bridge performance
+
+			topic->body = work->pub_packet->var_header.publish.topic_name.body;
+			topic->len  = work->pub_packet->var_header.publish.topic_name.len;
+
+			bool skip = false;
+			for (size_t i = 0; i < node->exclusions_count; i++) {
+				if (topic_filter(node->exclusions_list[i]->topic, (const char *) topic->body)) {
+					log_debug(
+				    "topic %s is excluded by %s, skip it",
+				    (const char *) topic->body,
+				    node->exclusions_list[i]->topic);
+					skip = true;
+					break;
+				}
+			}
+
+			if (skip) {
+				nng_mtx_unlock(node->mtx);
+				continue;
+			}
+
 			for (size_t i = 0; i < node->forwards_count; i++) {
 				rv = 0;
-				topic->body = work->pub_packet->var_header.publish.topic_name.body;
-				topic->len  = work->pub_packet->var_header.publish.topic_name.len;
 				log_debug("local topic %s topic %s", node->forwards_list[i]->local_topic, topic->body);
 				if (topic_filter(node->forwards_list[i]->local_topic, (const char *)topic->body)) {
-					bool skip = false;
-					for (size_t j = 0; j < node->forwards_list[i]->exclusions_count; j++) {
-						if (topic_filter(node->forwards_list[i]->exclusions_list[j]->topic, (const char *) topic->body)) {
-							log_debug(
-							    "topic %s is excluded by %s, skip it",
-							    (const char *) topic->body,
-							    node->forwards_list[i]->exclusions_list[j]->topic);
-							skip = true;
-							break;
-						}
-					}
-					if (skip) {
-						continue;
-					}
-
 					work->state = SEND;
 
 					nng_msg *bridge_msg = NULL;
