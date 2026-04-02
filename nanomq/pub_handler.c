@@ -1654,29 +1654,29 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 		    work->pub_packet->var_header.publish.properties,
 		    TOPIC_ALIAS);
 		log_trace("len: %d, topic: %s", len, topic);
-		if (len > 0 && topic != NULL) {
-			if (pdata) {
+		if (pdata != NULL && pdata->p_value.u16 != 0) {
+			if (len > 0 && topic != NULL) {
 				dbhash_insert_atpair(
-				    work->pid.id, pdata->p_value.u16, topic);
-			}
-		} else {
-			if (pdata) {
+					work->pid.id, pdata->p_value.u16, topic);
+			} else {
 				const char *tp = dbhash_find_atpair(
-				    work->pid.id, pdata->p_value.u16);
+					work->pid.id, pdata->p_value.u16);
 				if (tp) {
 					topic = work->pub_packet->var_header
-					            .publish.topic_name.body =
-					    nng_strdup(tp);
+								.publish.topic_name.body =
+						nng_strdup(tp);
 					len = work->pub_packet->var_header
-					          .publish.topic_name.len =
-					    strlen(tp);
+								.publish.topic_name.len =
+						strlen(tp);
 				} else {
 					log_error("could not find "
-					          "topic by alias: %d",
-					    pdata->p_value.u16);
+								"topic by alias: %d",
+						pdata->p_value.u16);
 					return TOPIC_FILTER_INVALID;
 				}
 			}
+		} else {
+			log_warn("Invalid topic alias found!");
 		}
 	}
 
