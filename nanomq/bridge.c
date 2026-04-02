@@ -1909,9 +1909,9 @@ bridge_pub_handler(nano_work *work)
 					if (nng_lmq_put(lmq, bridge_msg) != 0) {
 						log_warn("Msg lost! put msg to ctx_msgs failed!");
 						nng_msg_free(bridge_msg);
-					} else {
 						nng_socket_set_bool(
 							*socket, NNG_OPT_MQTT_BRIDGE_SEND_DROP, true);
+					} else {
 						nng_socket_set_int(
 							*socket, NNG_OPT_MQTT_BRIDGE_CACHE_BYTE, nng_msg_len(bridge_msg));
 					}
