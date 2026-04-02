@@ -174,8 +174,8 @@ jobs:
           "## How to start emqx-edge? ./emqx-edge start" | Out-File -FilePath "_packages/start.md" -Encoding ascii
           mv etc/nanomq_ee_win.conf _packages/nanomq.conf
           mv etc/trial-env.lic _packages/nanomq.lic
-          mv install/bin/nanomq.exe _packages/emqx-edge.exe
-          mv install/bin/nanomq_cli.exe _packages/
+          mv install/bin/* _packages/
+          mv _packages/nanomq.exe _packages/emqx-edge.exe
           mv etc/certs _packages/etc/
 
           mkdir _packages_release
