@@ -509,6 +509,8 @@ server_cb(void *arg)
 			if (dbhash_check_id(work->pid.id)) {
 				destroy_sub_client(work->pid.id, work->db);
 			}
+			// delete topic alias
+			dbhash_del_atpair_queue(work->pid.id);
 			// bridge's will msg only valid at remote
 			if (work->proto != PROTO_MQTT_BRIDGE) {
 				if (conn_param_get_will_flag(work->cparam) == 0 ||
