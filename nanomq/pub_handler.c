@@ -2186,9 +2186,15 @@ decode_pub_message(nano_work *work, uint8_t proto)
 	case PUBREL:
 	case PUBCOMP:
 		// here could not be reached
+		if (msg_len < 2) {
+			return PROTOCOL_ERROR;
+		}
 		NNI_GET16(msg_body, pub_packet->var_header.pub_arrc.packet_id);
 		if (MQTT_PROTOCOL_VERSION_v5 == proto) {
 			pos += 2;
+			if (pos >= msg_len) {
+				return PROTOCOL_ERROR;
+			}
 			pub_packet->var_header.pub_arrc.reason_code =
 			    *(msg_body + pos);
 			pos++;
