@@ -1672,7 +1672,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 					log_error("could not find "
 								"topic by alias: %d",
 						pdata->p_value.u16);
-					return TOPIC_FILTER_INVALID;
+					return TOPIC_ALIAS_INVALID;
 				}
 			}
 		} else if (pdata != NULL && pdata->p_value.u16 == 0) {
