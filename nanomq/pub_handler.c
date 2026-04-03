@@ -1675,8 +1675,10 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 					return TOPIC_FILTER_INVALID;
 				}
 			}
-		} else {
+		} else if (pdata != NULL && pdata->p_value.u16 == 0) {
 			log_warn("Invalid topic alias found!");
+		} else {
+			log_debug("No topic alias found");
 		}
 	}
 
