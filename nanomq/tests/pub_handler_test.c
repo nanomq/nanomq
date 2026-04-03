@@ -145,10 +145,14 @@ main()
 	assert(rv_rc == PROTOCOL_ERROR);
 
 	// test for truncated QoS1 publish: topic present, packet ID missing
-	// body: topic only (no packet identifier), QoS=1 requires packet ID
+	// fix_hd->qos is already 1 (set above), so the decoder expects a
+	// 2-byte packet identifier after the topic. With only the topic in
+	// the body, decode_pub_message must return PROTOCOL_ERROR instead of
+	// reading past the end of the buffer (heap-buffer-overflow fix).
 	nng_msg_append(truncated_pub_msg, topic, topic_len);
 	nng_msg_header_append(truncated_pub_msg, fix_hd, sizeof(*fix_hd));
 	uint8_t *trunc_header = nng_msg_header(truncated_pub_msg);
+	// remaining length equals topic_len: no room for a packet identifier
 	*(trunc_header + 1)   = (uint8_t) topic_len;
 	work->msg             = truncated_pub_msg;
 	work->pub_packet      = truncated_pub_packet;
