@@ -1925,6 +1925,8 @@ bridge_pub_handler(nano_work *work)
 				nng_aio_set_input(node->bridge_aio[index], 1, topic_map->local_topic);
 				nng_send_aio(*socket, node->bridge_aio[index]);
 			}
+			// only send each msg once.
+			break;	
 		}
 
 		nng_mtx_unlock(node->mtx);
