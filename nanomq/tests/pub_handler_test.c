@@ -69,13 +69,16 @@ main()
 	work            = nng_alloc(sizeof(*work));
 	work->proto_ver = MQTT_PROTOCOL_VERSION_v311;
 
-	nng_msg *msg, *tpcError_msg;
+	nng_msg *msg, *tpcError_msg, *truncated_pub_msg;
 	nng_msg_alloc(&msg, 0);
 	nng_msg_alloc(&tpcError_msg, 0);
+	nng_msg_alloc(&truncated_pub_msg, 0);
 
-	struct pub_packet_struct *pub_packet, *tpcError_pub_packet;
-	pub_packet          = nng_zalloc(sizeof(*pub_packet));
-	tpcError_pub_packet = nng_zalloc(sizeof(*tpcError_pub_packet));
+	struct pub_packet_struct *pub_packet, *tpcError_pub_packet,
+	    *truncated_pub_packet;
+	pub_packet            = nng_zalloc(sizeof(*pub_packet));
+	tpcError_pub_packet   = nng_zalloc(sizeof(*tpcError_pub_packet));
+	truncated_pub_packet  = nng_zalloc(sizeof(*truncated_pub_packet));
 
 	work->msg        = msg;
 	work->pub_packet = pub_packet;
@@ -141,6 +144,17 @@ main()
 	rv_rc = decode_pub_message(work, MQTT_PROTOCOL_VERSION_v311);
 	assert(rv_rc == PROTOCOL_ERROR);
 
+	// test for truncated QoS1 publish: topic present, packet ID missing
+	// body: topic only (no packet identifier), QoS=1 requires packet ID
+	nng_msg_append(truncated_pub_msg, topic, topic_len);
+	nng_msg_header_append(truncated_pub_msg, fix_hd, sizeof(*fix_hd));
+	uint8_t *trunc_header = nng_msg_header(truncated_pub_msg);
+	*(trunc_header + 1)   = (uint8_t) topic_len;
+	work->msg             = truncated_pub_msg;
+	work->pub_packet      = truncated_pub_packet;
+	rv_rc = decode_pub_message(work, MQTT_PROTOCOL_VERSION_v311);
+	assert(rv_rc == PROTOCOL_ERROR);
+
 
 	/* test for encode_pub_message() */
 	// alloc dest_msg and init work
@@ -182,6 +196,7 @@ main()
 	/* test for free_pub_packet() */
 	free_pub_packet(pub_packet);
 	free_pub_packet(tpcError_pub_packet);
+	free_pub_packet(truncated_pub_packet);
 
 
 	/* test for init_pipe_content() */
@@ -197,6 +212,7 @@ main()
 	nng_msg_free(dest_msg);
 	nng_msg_free(msg);
 	nng_msg_free(tpcError_msg);
+	nng_msg_free(truncated_pub_msg);
 	nng_free(work, sizeof(*work));
 
 	test_handler_pub();

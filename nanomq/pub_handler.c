@@ -2121,6 +2121,11 @@ decode_pub_message(nano_work *work, uint8_t proto)
 		    pub_packet->fixed_header.qos);
 
 		if (pub_packet->fixed_header.qos > 0) {
+			if (pos + 2 > msg_len) {
+				log_warn("Invalid msg: truncated packet, "
+				    "missing packet identifier!");
+				return PROTOCOL_ERROR;
+			}
 			NNI_GET16(msg_body + pos,
 			    pub_packet->var_header.publish.packet_id);
 			log_debug("identifier: [%d]",
