@@ -7,6 +7,7 @@ COPY ../.. ./NanoMQ_mirror/
 WORKDIR /opt/NanoMQ_mirror
 RUN mkdir -p build
 RUN rm -rf build/CMakeFiles build/CMakeCache.txt
+RUN sed -i 's|^//[[:space:]]*#define MBEDTLS_USE_PSA_CRYPTO|#define MBEDTLS_USE_PSA_CRYPTO|' extern/l8w8jwt/lib/mbedtls/include/mbedtls/mbedtls_config.h
 
 WORKDIR /opt/NanoMQ_mirror/build
 RUN cmake \
