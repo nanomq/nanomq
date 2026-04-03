@@ -333,7 +333,14 @@ if (NNG_ENABLE_COVERAGE)
     SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${NNG_COVERAGE_C_FLAGS}")
 endif ()
 
-if (ENABLE_JWT) 
+if (ENABLE_JWT)
+  # mbedtls 3.x (bundled in l8w8jwt >= 2.5.0) sets DISABLE_PACKAGE_CONFIG_AND_INSTALL=ON
+  # when detected as a subproject, which prevents it from registering its export set.
+  # nng's install(EXPORT nng-target) then fails because its static-lib dependency on mbedtls
+  # is not in any export set. Setting MBEDTLS_AS_SUBPROJECT=OFF here causes mbedtls to
+  # register MbedTLSTargets, which satisfies CMake's requirement.
+  set(MBEDTLS_AS_SUBPROJECT OFF)
+  add_compile_options(-Wno-error=unterminated-string-initialization)
   add_subdirectory(extern/l8w8jwt)
   add_definitions(-DSUPP_JWT)
 endif (ENABLE_JWT)
