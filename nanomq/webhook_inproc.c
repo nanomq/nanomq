@@ -144,7 +144,7 @@ send_mqtt_msg_cat_with_split(nng_socket *sock, nng_msg **msgs, uint32_t len,
 		char md5sum[MD5_LEN + 1];
 		(void)ComputeStringMD5(buf, pos, md5sum);
 
-		char *topic = malloc(sizeof(char) *(strlen(prefix) + strlen(md5sum) + 32));
+		char *topic = nng_zalloc(sizeof(char) *(strlen(prefix) + strlen(md5sum) + 32));
 		sprintf(topic, "%smq/%s/%lld-%lld",
 			prefix, md5sum, start_key, end_key);
 		log_info("The %ld msgs (sz%d) for ts(%lld-%lld)(%d) will go to topic %s", minlen, pos,
@@ -162,6 +162,7 @@ send_mqtt_msg_cat_with_split(nng_socket *sock, nng_msg **msgs, uint32_t len,
 			nng_send_aio(*sock, saio);
 		} else {
 			log_warn("aio busy, MQ msg lost!");
+			nng_msg_free(pubmsg);
 		}
 		nng_free(buf, pos);
 		nng_free(topic, 0);
@@ -234,7 +235,7 @@ send_mqtt_msg_cat(nng_socket *sock, nng_msg **msgs, uint32_t len,
 	log_info("decryption result: %s (%d)", plain, plain_len);
 	*/
 
-	char *topic = malloc(sizeof(char) *(strlen(prefix) + 128));
+	char *topic = nng_zalloc(sizeof(char) *(strlen(prefix) + 128));
 	sprintf(topic, "%smq/%lld-%lld", prefix, start_key, end_key);
 	log_info("The %ld msgs will go to topic %s", len, topic);
 
@@ -250,6 +251,7 @@ send_mqtt_msg_cat(nng_socket *sock, nng_msg **msgs, uint32_t len,
 		nng_send_aio(*sock, saio);
 	} else {
 		log_warn("aio busy, MQ msg lost!");
+		nng_msg_free(pubmsg);
 	}
 	nng_free(buf, pos);
 	nng_free(topic, 0);
@@ -285,7 +287,7 @@ send_mqtt_msg_result(nng_socket *sock, char *prefix, cJSON *resjo)
 	int rv;
 	char *buf = cJSON_PrintUnformatted(resjo);
 
-	char *topic = nng_alloc(sizeof(char) * (strlen(prefix) + 10));
+	char *topic = nng_zalloc(sizeof(char) * (strlen(prefix) + 10));
 	sprintf(topic, "%sresult", prefix);
 
 	// create a PUBLISH message
@@ -1081,6 +1083,18 @@ skip:
 			cJSON_Delete(resjo);
 		nng_aio_free(aio);
 
+		if (sent_files != NULL) {
+            int sent_files_sz = cvector_size(sent_files);
+            for (int i = sent_files_sz - 1; i >= 0; --i) {
+                if (sent_files[i]) {
+                    free(sent_files[i]);
+                }
+            }
+            if (sent_files_sz > 0) {
+                cvector_free(sent_files);
+            }
+            sent_files = NULL;
+        }
 		cJSON_Delete(root);
 		root = NULL;
 		nng_msg_free(msg);
