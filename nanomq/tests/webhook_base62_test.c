@@ -241,6 +241,7 @@ main()
         free(conf->web_hook.rules);
     }
 	nng_mtx_free(conf->auth_http.acl_cache_mtx);
+    nng_mtx_free(conf->auths.mtx);
 	nng_atomic_free(conf->lc);
 	nng_strfree(conf->url);
     nng_free(conf, sizeof(struct conf));
