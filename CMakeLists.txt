@@ -346,10 +346,8 @@ if (ENABLE_JWT)
   # nng's install(EXPORT nng-target) then fails because its static-lib dependency on mbedtls
   # is not in any export set. Setting MBEDTLS_AS_SUBPROJECT=OFF here causes mbedtls to
   # register MbedTLSTargets, which satisfies CMake's requirement.
-  set(MBEDTLS_AS_SUBPROJECT OFF)
-  if(CMAKE_C_COMPILER_ID STREQUAL "GNU" AND CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL 11)
-    add_compile_options(-Werror=unterminated-string-initialization)
-  endif()
+  set(MBEDTLS_AS_SUBPROJECT OFF CACHE BOOL "Force mbedTLS export targets for JWT dependency" FORCE)
+  set(MBEDTLS_FATAL_WARNINGS OFF CACHE BOOL "Disable vendored mbedTLS fatal warnings" FORCE)
   add_subdirectory(extern/l8w8jwt)
   add_definitions(-DSUPP_JWT)
 endif (ENABLE_JWT)
