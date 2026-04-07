@@ -121,6 +121,12 @@ http_aio_cb(void *arg)
 			nng_aio_set_msg(work->http_aio, NULL);
 			nng_msg_free(msg);
 		}
+        // FIX: Extract and free the pending HTTP response to prevent memory leaks on error
+        nng_http_res *res = nng_aio_get_output(work->http_aio, 1);
+        if (res) {
+            nng_http_res_free(res);
+            nng_aio_set_output(work->http_aio, 1, NULL);
+       }
 		if (work->conn) {
 			nng_http_conn_close(work->conn);
 			work->conn = NULL;
