@@ -1000,7 +1000,7 @@ hook_work_cb(void *arg)
 				const char *fname = parquet_find(streamid, start_key);
 				if (fname) {
 					sz = 1;
-					fname = malloc(sizeof(char *) * sz);
+					fnames = nng_zalloc(sizeof(char *) * sz);
 					fnames[0] = fname;
 				}
 			} else {
