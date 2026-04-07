@@ -340,7 +340,7 @@ if (ENABLE_JWT)
   # is not in any export set. Setting MBEDTLS_AS_SUBPROJECT=OFF here causes mbedtls to
   # register MbedTLSTargets, which satisfies CMake's requirement.
   set(MBEDTLS_AS_SUBPROJECT OFF)
-  add_compile_options(-Wno-error=unterminated-string-initialization)
+  set(MBEDTLS_FATAL_WARNINGS OFF)
   add_subdirectory(extern/l8w8jwt)
   add_definitions(-DSUPP_JWT)
 endif (ENABLE_JWT)
