@@ -161,7 +161,7 @@ send_mqtt_msg_cat_with_split(nng_socket *sock, nng_msg **msgs, uint32_t len,
 			nng_aio_set_msg(saio, pubmsg);
 			nng_send_aio(*sock, saio);
 		} else {
-			log_warn("aio busy, MQ msg lost!");
+			log_warn("aio busy, exchange msg lost!");
 			nng_msg_free(pubmsg);
 		}
 		nng_free(buf, pos);
@@ -250,7 +250,7 @@ send_mqtt_msg_cat(nng_socket *sock, nng_msg **msgs, uint32_t len,
 		nng_aio_set_msg(saio, pubmsg);
 		nng_send_aio(*sock, saio);
 	} else {
-		log_warn("aio busy, MQ msg lost!");
+		log_warn("aio busy, exchange msg lost!");
 		nng_msg_free(pubmsg);
 	}
 	nng_free(buf, pos);
@@ -1089,18 +1089,6 @@ skip:
 			cJSON_Delete(resjo);
 		nng_aio_free(aio);
 
-		if (sent_files != NULL) {
-            int sent_files_sz = cvector_size(sent_files);
-            for (int i = sent_files_sz - 1; i >= 0; --i) {
-                if (sent_files[i]) {
-                    free(sent_files[i]);
-                }
-            }
-            if (sent_files_sz > 0) {
-                cvector_free(sent_files);
-            }
-            sent_files = NULL;
-        }
 		cJSON_Delete(root);
 		root = NULL;
 		nng_msg_free(msg);
