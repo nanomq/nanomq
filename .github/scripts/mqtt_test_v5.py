@@ -193,19 +193,21 @@ def test_topic_alias():
     process1 = Process(target=cnt_message, args=(sub_cmd, cnt, pid, "message"))
     process1.start()
     time.sleep(1)
-    process2 = subprocess.Popen(pub_cmd,
-                               stdout=subprocess.PIPE,
-                               universal_newlines=True)
-    time.sleep(5)
-    process2.terminate()
-    process2 = subprocess.Popen(pub_cmd,
-                               stdout=subprocess.PIPE,
-                               universal_newlines=True)
-    time.sleep(5)
-    process2.terminate()
-    process2 = subprocess.Popen(pub_cmd,
-                               stdout=subprocess.PIPE,
-                               universal_newlines=True)
+
+    for i in range(5):
+        result = subprocess.run(
+        pub_cmd,
+        stdout=subprocess.PIPE,
+        universal_newlines=True,
+        timeout=10,
+        )
+    if result.returncode != 0:
+        print("Topic alias publisher failed!")
+        print(result.stdout)
+        print(pub_cmd)
+    if i < 5:
+        time.sleep(5)
+
     times = 0
     while True:
         if cnt.value == 3 or times == 3:
