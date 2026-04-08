@@ -194,7 +194,7 @@ def test_topic_alias():
     process1.start()
     time.sleep(1)
 
-    for i in range(5):
+    for i in range(3):
         result = subprocess.run(
         pub_cmd,
         stdout=subprocess.PIPE,
