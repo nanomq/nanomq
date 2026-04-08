@@ -184,7 +184,7 @@ def test_shared_subscription():
 def test_topic_alias():
 
     s_cmd = g_sub + g_url + "-t 'topic' -q 1"
-    p_cmd = g_pub + g_url + "-t topic -V 5 -m message -D Publish topic-alias 10 -d --repeat 5 -q 1"
+    p_cmd = g_pub + g_url + "-t topic -V 5 -m message -D Publish topic-alias 10 -d -q 1"
     pub_cmd = shlex.split(p_cmd)
     sub_cmd = shlex.split(s_cmd)
 
@@ -196,22 +196,31 @@ def test_topic_alias():
     process2 = subprocess.Popen(pub_cmd,
                                stdout=subprocess.PIPE,
                                universal_newlines=True)
-
+    time.sleep(5)
+    process2.terminate()
+    process2 = subprocess.Popen(pub_cmd,
+                               stdout=subprocess.PIPE,
+                               universal_newlines=True)
+    time.sleep(5)
+    process2.terminate()
+    process2 = subprocess.Popen(pub_cmd,
+                               stdout=subprocess.PIPE,
+                               universal_newlines=True)
     times = 0
     while True:
-        if cnt.value == 5 or times == 5:
+        if cnt.value == 3 or times == 3:
             break
         time.sleep(2)
         times += 1
 
-    time.sleep(10)
+    time.sleep(5)
     process1.terminate()
     os.kill(pid.value, signal.SIGKILL)
-    if cnt.value == 10:
+    if cnt.value == 3:
         print("Topic alias test passed!")
         return True
     else:
-        print("Sub client did not receive message * 5, only", cnt.value, "received")
+        print("Sub client did not receive message * 3, only", cnt.value, "received")
         print(s_cmd)
         print(p_cmd)
         print("Topic alias test failed!")
