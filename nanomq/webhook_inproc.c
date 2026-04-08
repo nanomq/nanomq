@@ -809,6 +809,8 @@ hook_work_cb(void *arg)
 		char       *streamid = NULL;
 		uint8_t     streamtype;
 		nng_socket *ex_sock  = NULL;
+		bool        stream_isenc = false;
+		char *      stream_enckey = NULL;
 		cJSON *streamjo = cJSON_GetObjectItem(root, "stream");
 		if (streamjo && streamjo->valuestring) {
 			streamid = streamjo->valuestring;
@@ -816,6 +818,8 @@ hook_work_cb(void *arg)
 				if (0 == strcmp(exconf->nodes[i]->name, streamjo->valuestring)) {
 					ex_sock = exconf->nodes[i]->sock;
 					streamtype = exconf->nodes[i]->streamType;
+					stream_isenc = exconf->nodes[i]->encryption.enable;
+					stream_enckey = exconf->nodes[i]->encryption.key;
 					break;
 				}
 			}
@@ -987,8 +991,7 @@ hook_work_cb(void *arg)
 					nng_msg_clone(msgs_res[i]);
 
 				send_mqtt_msg_cat_with_split(work->mqtt_sock, msgs_res, msgs_len,
-					prefix, start_key, end_key,
-					exconf->encryption->key, exconf->encryption->enable,
+					prefix, start_key, end_key, stream_enckey, stream_isenc,
 					work->send_aio, 800); // TODO hardcode
 
 				for (int i=0; i<msgs_len; ++i)
