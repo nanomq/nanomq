@@ -345,7 +345,7 @@ jobs:
           -d "{\"repo\":\"nanomq/nanomq\", \"tag\": \"${{ github.ref_name }}\" }" \
           ${{ secrets.EMQX_IO_RELEASE_API }}
 
-    - uses: Swilder-M/push-packages@master
+    - uses: emqx/push-to-packagecloud@main
       env:
         GIT_TOKEN: ${{ github.token }}
         PACKAGECLOUD_TOKEN: ${{ secrets.PACKAGECLOUD_TOKEN }}
