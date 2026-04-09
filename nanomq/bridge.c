@@ -1899,8 +1899,8 @@ bridge_pub_handler(nano_work *work)
 						log_warn("Cached Message in send_queue %p is lost!", lmq);
 						nng_msg *tmsg;
 						(void)nng_lmq_get(lmq, &tmsg);
-						nng_msg_free(tmsg);
 						int len = -(int)nng_msg_len(tmsg);
+						nng_msg_free(tmsg);
 						nng_socket_set_int(
 							*socket, NNG_OPT_MQTT_BRIDGE_CACHE_BYTE, len);
 						nng_socket_set_bool(
