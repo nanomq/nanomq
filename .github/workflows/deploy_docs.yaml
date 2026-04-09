@@ -103,7 +103,7 @@ jobs:
         tccli cdn PurgePathCache --Paths '["https://nanomq.io/docs/", "https://nanomq-docs.emqx.net/"]' --FlushType delete
 
     - name: update search index
-      uses: Swilder-M/docsearch-scraper-simple@next
+      uses: emqx/docsearch-scraper@main
       env:
         APPLICATION_ID: ${{ secrets.ALGOLIA_APPLICATION_ID }}
         API_KEY: ${{ secrets.ALGOLIA_API_KEY }}
