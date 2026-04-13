@@ -61,6 +61,9 @@ decode_sub_msg(nano_work *work)
 												&sub_pkt->prop_len,
 												true);
 		if (check_properties(sub_pkt->properties, work->msg) != SUCCESS) {
+			property_free(sub_pkt->properties);
+			sub_pkt->properties = NULL;
+			sub_pkt->prop_len   = 0;
 			return PROTOCOL_ERROR;
 		}
 	}
@@ -71,12 +74,22 @@ decode_sub_msg(nano_work *work)
 	payload_ptr = nng_msg_payload_ptr(work->msg);
 	if (payload_ptr == NULL) {
 		log_error("payload_ptr is NULL");
+		if (sub_pkt->properties) {
+			property_free(sub_pkt->properties);
+			sub_pkt->properties = NULL;
+			sub_pkt->prop_len   = 0;
+		}
 		return PROTOCOL_ERROR;
 	}
 
 	tn = nng_zalloc(sizeof(topic_node));
 	if (tn == NULL) {
 		log_error("nng_zalloc");
+		if (sub_pkt->properties) {
+			property_free(sub_pkt->properties);
+			sub_pkt->properties = NULL;
+			sub_pkt->prop_len   = 0;
+		}
 		return NNG_ENOMEM;
 	}
 	sub_pkt->node = tn;

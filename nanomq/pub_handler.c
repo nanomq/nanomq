@@ -1840,6 +1840,10 @@ free_pub_packet(struct pub_packet_struct *pub_packet)
 				pub_packet->payload.len  = 0;
 				log_debug("free payload");
 			}
+		} else if (pub_packet->var_header.pub_arrc.prop_len > 0) {
+			property_free(pub_packet->var_header.pub_arrc.properties);
+			pub_packet->var_header.pub_arrc.prop_len = 0;
+			log_debug("free pub_arrc properties");
 		}
 
 		nng_free(pub_packet, sizeof(struct pub_packet_struct));
@@ -2154,6 +2158,9 @@ decode_pub_message(nano_work *work, uint8_t proto)
 				    // property_get_value(pub_packet->var_header
 				    //                        .publish.properties,
 				    //     SUBSCRIPTION_IDENTIFIER) != NULL
+					property_free(pub_packet->var_header.publish.properties);
+					pub_packet->var_header.publish.properties = NULL;
+					pub_packet->var_header.publish.prop_len   = 0;
 					return PROTOCOL_ERROR;
 				}
 			}
@@ -2162,6 +2169,11 @@ decode_pub_message(nano_work *work, uint8_t proto)
 		if (pos > msg_len) {
 			log_debug("buffer-overflow: pos = %u, msg_len = %lu",
 			    pos, msg_len);
+			if (pub_packet->var_header.publish.properties) {
+				property_free(pub_packet->var_header.publish.properties);
+				pub_packet->var_header.publish.properties = NULL;
+				pub_packet->var_header.publish.prop_len   = 0;
+			}
 			return PROTOCOL_ERROR;
 		}
 
@@ -2201,6 +2213,9 @@ decode_pub_message(nano_work *work, uint8_t proto)
 			if (check_properties(
 			        pub_packet->var_header.pub_arrc.properties, msg) !=
 			    SUCCESS) {
+				property_free(pub_packet->var_header.pub_arrc.properties);
+				pub_packet->var_header.pub_arrc.properties = NULL;
+				pub_packet->var_header.pub_arrc.prop_len   = 0;
 				return PROTOCOL_ERROR;
 			}
 		}
