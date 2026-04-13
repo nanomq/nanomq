@@ -49,6 +49,9 @@ decode_unsub_msg(nano_work *work)
 		unsub_pkt->properties =
 		    decode_properties(msg, &vpos, &unsub_pkt->prop_len, false);
 		if (check_properties(unsub_pkt->properties, msg) != SUCCESS) {
+			property_free(unsub_pkt->properties);
+			unsub_pkt->properties = NULL;
+			unsub_pkt->prop_len   = 0;
 			return PROTOCOL_ERROR;
 		}
 	}
@@ -61,6 +64,11 @@ decode_unsub_msg(nano_work *work)
 
 	if ((tn = nng_alloc(sizeof(topic_node))) == NULL) {
 		log_debug("nng_alloc");
+		if (unsub_pkt->properties) {
+			property_free(unsub_pkt->properties);
+			unsub_pkt->properties = NULL;
+			unsub_pkt->prop_len   = 0;
+		}
 		return NNG_ENOMEM;
 	}
 	unsub_pkt->node = tn;
@@ -75,6 +83,11 @@ decode_unsub_msg(nano_work *work)
 		} else {
 			tn->reason_code = UNSPECIFIED_ERROR;
 			log_debug("not utf-8 format string.");
+			if (unsub_pkt->properties) {
+				property_free(unsub_pkt->properties);
+				unsub_pkt->properties = NULL;
+				unsub_pkt->prop_len   = 0;
+			}
 			return PROTOCOL_ERROR;
 		}
 
@@ -83,6 +96,11 @@ decode_unsub_msg(nano_work *work)
 		if (bpos < remaining_len - vpos) {
 			if ((tn = nng_alloc(sizeof(topic_node))) == NULL) {
 				log_debug("nng_alloc");
+				if (unsub_pkt->properties) {
+					property_free(unsub_pkt->properties);
+					unsub_pkt->properties = NULL;
+					unsub_pkt->prop_len   = 0;
+				}
 				return NNG_ENOMEM;
 			}
 			tn->next  = NULL;
