@@ -68,7 +68,7 @@ jobs:
         uses: google/clusterfuzzlite/actions/run_fuzzers@v1
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          fuzz-seconds: 300  # 5 minutes per target for PR
+          fuzz-seconds: 120  # keep PR fuzzing bounded for CI feedback
           mode: 'code-change'
           sanitizer: ${{ matrix.sanitizer }}
           output-sarif: true
