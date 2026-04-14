@@ -10,6 +10,9 @@ rm -rf build
 mkdir -p build
 cd build
 
+SAVED_LDFLAGS="${LDFLAGS:-}"
+unset LDFLAGS
+
 cmake .. \
   -DCMAKE_C_COMPILER="$CC" \
   -DCMAKE_CXX_COMPILER="$CXX" \
@@ -24,6 +27,7 @@ cmake .. \
 make -j"$(nproc)"
 
 cd ..
+LDFLAGS="${SAVED_LDFLAGS}"
 
 FUZZ_DIR="fuzz"
 DICT_FILE="$FUZZ_DIR/dict/pub_decode_fuzzer.dict"
@@ -52,6 +56,8 @@ build_target() {
     "${INCLUDES[@]}" \
     -DSUPP_RULE_ENGINE \
     -DACL_SUPP \
+    -DNNG_PLATFORM_POSIX \
+    -DNNG_PLATFORM_LINUX \
     "${LIBS[@]}" \
     ${LIB_FUZZING_ENGINE:-} \
     ${LDFLAGS:-} \
