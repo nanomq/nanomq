@@ -1,10 +1,15 @@
-# NanoMQ Fuzzing
+# NanoMQ Fuzzing (Test Entry)
 
-This directory contains libFuzzer-based fuzzers for NanoMQ. These tools are designed to be integrated into [OSS-Fuzz](https://github.com/google/oss-fuzz).
+This directory keeps the CMake test entry for libFuzzer targets.
+Canonical fuzz assets are managed under the top-level `fuzz/` directory.
 
-## Building the Fuzzers
+## Canonical Paths
 
-To build the fuzzers, you must use a compiler with libFuzzer support (like Clang) and enable the `ENABLE_FUZZING` CMake option. It is highly recommended to enable AddressSanitizer (ASAN) to catch memory errors.
+- Target source: `fuzz/pub_decode_fuzzer.c`
+- Dictionary: `fuzz/dict/pub_decode_fuzzer.dict`
+- Seed corpus: `fuzz/corpus/pub_decode_fuzzer/`
+
+## Local Build
 
 ```bash
 mkdir build && cd build
@@ -16,23 +21,10 @@ cmake -DENABLE_FUZZING=ON \
 make pub_decode_fuzzer -j$(nproc)
 ```
 
-## Running the Fuzzers
-
-The fuzzer binaries are located in the `build/nanomq/tests/fuzz/` directory.
-
-### MQTT PUBLISH Decoder Fuzzer
-
-To run the PUBLISH decoder fuzzer with the provided dictionary and corpus, run the following from the root of the `build` directory:
+## Local Run
 
 ```bash
 ./nanomq/tests/fuzz/pub_decode_fuzzer \
-  -dict=../nanomq/tests/fuzz/mqtt.dict \
-  ../nanomq/tests/fuzz/corpus/
+  -dict=../fuzz/dict/pub_decode_fuzzer.dict \
+  ../fuzz/corpus/pub_decode_fuzzer/
 ```
-
-## Initial Findings (Reproducing Bugs)
-
-The following issues were identified during initial fuzzing and have been fixed in this PR:
-
-1. **Memory Leak**: Detected a leak in `free_pub_packet` where MQTT v5 properties for `PUBACK/REC/REL/COMP` packets were not correctly freed.
-2. **Heap Buffer Overflow**: Identified a heap-buffer-overflow in `decode_pub_message` (line 2132) when processing truncated packets with QoS > 0.
