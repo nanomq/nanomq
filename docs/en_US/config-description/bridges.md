@@ -43,6 +43,9 @@ bridges.mqtt.emqx1 = {
     keyfile = "/etc/certs/key.pem"        # SSL keyfile
     certfile = "/etc/certs/cert.pem"      # SSL cert file
     cacertfile = "/etc/certs/cacert.pem"  # SSL CA cert file
+    verify_peer = true                    # Enable SSL peer certificate verification
+
+    sni = "broker.emqx.io"                # SSL Server Name Indication
   }
   
   forwards = [                            # Topics that need to be forwarded to the remote MQTT server

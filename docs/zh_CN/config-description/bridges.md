@@ -43,6 +43,8 @@ bridges.mqtt.emqx1 = {
     keyfile = "/etc/certs/key.pem"        # SSL 密钥文件
     certfile = "/etc/certs/cert.pem"      # SSL 证书文件
     cacertfile = "/etc/certs/cacert.pem"  # SSL CA 证书文件
+    verify_peer = true                    # SSL 是否验证对端证书
+    sni = "broker.emqx.io"                # SSL 服务端域名
   }
   
   forwards = [                            # 要转发到远端 MQTT 服务器的主题
