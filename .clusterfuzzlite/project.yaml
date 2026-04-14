@@ -1,5 +1,5 @@
 homepage: "https://github.com/nanomq/nanomq"
-language: c++
+language: c
 primary_contact: "maintainer@nanomq.io"
 sanitizers:
   - address
