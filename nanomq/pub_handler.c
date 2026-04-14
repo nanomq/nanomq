@@ -1809,25 +1809,21 @@ free_pub_packet(struct pub_packet_struct *pub_packet)
 {
 	if (pub_packet != NULL) {
 		if (pub_packet->fixed_header.packet_type == PUBLISH) {
-			if (pub_packet->var_header.publish.topic_name.body !=
-			        NULL &&
-			    pub_packet->var_header.publish.topic_name.len >
-			        0) {
+			if (pub_packet->var_header.publish.topic_name.body != NULL) {
 				nng_free(pub_packet->var_header.publish
 				             .topic_name.body,
 				    pub_packet->var_header.publish.topic_name
-				            .len +
-				        1);
-				pub_packet->var_header.publish.topic_name
-				    .body = NULL;
-				pub_packet->var_header.publish.topic_name.len =
-				    0;
+				            .len + 1);
+				pub_packet->var_header.publish.topic_name.body =
+				    NULL;
+				pub_packet->var_header.publish.topic_name.len = 0;
 				log_debug("free topic");
 			}
 
-			if (pub_packet->var_header.publish.prop_len > 0) {
+			if (pub_packet->var_header.publish.properties != NULL) {
 				property_free(
 				    pub_packet->var_header.publish.properties);
+				pub_packet->var_header.publish.properties = NULL;
 				pub_packet->var_header.publish.prop_len = 0;
 				log_debug("free properties");
 			}
@@ -1839,6 +1835,16 @@ free_pub_packet(struct pub_packet_struct *pub_packet)
 				pub_packet->payload.data = NULL;
 				pub_packet->payload.len  = 0;
 				log_debug("free payload");
+			}
+		} else if (pub_packet->fixed_header.packet_type == PUBACK ||
+		           pub_packet->fixed_header.packet_type == PUBREC ||
+		           pub_packet->fixed_header.packet_type == PUBREL ||
+		           pub_packet->fixed_header.packet_type == PUBCOMP) {
+			if (pub_packet->var_header.pub_arrc.properties != NULL) {
+				property_free(pub_packet->var_header.pub_arrc.properties);
+				pub_packet->var_header.pub_arrc.properties = NULL;
+				pub_packet->var_header.pub_arrc.prop_len   = 0;
+				log_debug("free pub ack/rec/rel/comp properties");
 			}
 		}
 
