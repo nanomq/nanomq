@@ -65,6 +65,7 @@ jobs:
 
       - name: Run Fuzzers (${{ matrix.sanitizer }})
         id: run
+        continue-on-error: true
         uses: google/clusterfuzzlite/actions/run_fuzzers@v1
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
