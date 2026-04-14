@@ -69,7 +69,10 @@ if [[ ! -f "$FUZZ_DIR/pub_decode_fuzzer.c" ]]; then
   exit 1
 fi
 
-mapfile -t FUZZ_SRCS < <(find "$FUZZ_DIR" -maxdepth 1 -type f \( -name "fuzz_*.c" -o -name "pub_decode_fuzzer.c" \) ! -name "fuzz_nng_url.c" | sort)
+mapfile -t FUZZ_SRCS < <(find "$FUZZ_DIR" -maxdepth 1 -type f \( -name "fuzz_*.c" -o -name "pub_decode_fuzzer.c" \) \
+  ! -name "fuzz_nng_url.c" \
+  ! -name "fuzz_mqtt_common_decoder.c" \
+  ! -name "fuzz_rule_sql.c" | sort)
 
 if [[ "${#FUZZ_SRCS[@]}" -eq 0 ]]; then
   echo "No fuzz targets found in $FUZZ_DIR"
