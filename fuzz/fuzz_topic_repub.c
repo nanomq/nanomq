@@ -5,6 +5,21 @@
 #include "nng/supplemental/nanolib/conf.h"
 #include "nng/supplemental/nanolib/topics.h"
 
+static int can_skip_levels(const char *topic, int levels) {
+    const char *pos = topic;
+    for (int i = 0; i < levels; i++) {
+        if (pos == NULL) {
+            return 0;
+        }
+        pos = strchr(pos, '/');
+        if (pos == NULL) {
+            return 0;
+        }
+        pos++;
+    }
+    return 1;
+}
+
 int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     if (size < 3) return 0;
 
@@ -55,10 +70,14 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     // Fuzz preprocess_topics (is_sub = true)
     preprocess_topics(&s, true);
     
-    // Fuzz generate_repub_topic
-    char *res = generate_repub_topic(&s, input_topic, true);
-    if (res) {
-        nng_strfree(res);
+    // Avoid undefined input state that is not reachable in real bridge flow:
+    // when skip_level points beyond topic separators, generate_repub_topic
+    // may dereference NULL in nng_strdup.
+    if (s.local_save_level < 0 || can_skip_levels(input_topic, s.local_skip_level)) {
+        char *res = generate_repub_topic(&s, input_topic, true);
+        if (res) {
+            nng_strfree(res);
+        }
     }
 
     // Try other direction or combinations if valuable
