@@ -173,6 +173,11 @@ if(ENABLE_FILETRANSFER)
   target_link_libraries(nanomq OpenSSL::Crypto)
 endif(ENABLE_FILETRANSFER)
 
+if(NNG_ENABLE_PARQUET)
+  find_package(OpenSSL REQUIRED)
+  target_link_libraries(nanomq OpenSSL::Crypto)
+endif(NNG_ENABLE_PARQUET)
+
 if(ENABLE_LICENSE_STD)
   if(NNG_ENABLE_QUIC)
   else()

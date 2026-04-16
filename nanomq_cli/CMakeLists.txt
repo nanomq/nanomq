@@ -114,6 +114,11 @@ if (ENABLE_FILETRANSFER)
   target_link_libraries(nanomq_cli OpenSSL::Crypto)
 endif()
 
+if (NNG_ENABLE_PARQUET)
+  find_package(OpenSSL REQUIRED)
+  target_link_libraries(nanomq_cli OpenSSL::Crypto)
+endif()
+
 add_dependencies(nanomq_cli nng)
 
 install(TARGETS nanomq_cli RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
