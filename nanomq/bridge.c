@@ -165,9 +165,6 @@ create_connect_msg(conf_bridge_node *node)
 			nng_mqtt_msg_set_connect_will_property(
 			    connmsg, will_properties);
 		}
-		nng_mqttv5_msg_encode(connmsg);
-	} else {
-		nng_mqtt_msg_encode(connmsg);
 	}
 	return connmsg;
 }
