@@ -135,12 +135,7 @@ create_connect_msg(conf_bridge_node *node)
 	nng_mqtt_msg_alloc(&connmsg, 0);
 	nng_mqtt_msg_set_packet_type(connmsg, NNG_MQTT_CONNECT);
 	nng_mqtt_msg_set_connect_keep_alive(connmsg, node->keepalive);
-	uint8_t proto_ver = node->proto_ver;
-	if (node->try_private) {
-		proto_ver |= 0x80; // set bridge bit for Mosquitto-compatible brokers
-	}
-
-	nng_mqtt_msg_set_connect_proto_version(connmsg, proto_ver);
+	nng_mqtt_msg_set_connect_proto_version(connmsg, node->proto_ver);
 	nng_mqtt_msg_set_connect_clean_session(connmsg, node->clean_start);
 	if (node->clientid) {
 		nng_mqtt_msg_set_connect_client_id(connmsg, node->clientid);
@@ -614,7 +609,7 @@ hybrid_tcp_client(bridge_param *bridge_arg)
 
 	bridge_arg->client = nng_mqtt_client_alloc(*new, &send_callback, true);
 
-	nng_msg *connmsg   = create_connect_msg(node);
+	nng_msg *connmsg    = create_connect_msg(node);
 	bridge_arg->connmsg = connmsg;
 
 	nng_socket *tsock  = bridge_arg->sock;
@@ -633,6 +628,9 @@ hybrid_tcp_client(bridge_param *bridge_arg)
 	}
 	if (0 != nng_socket_set_ptr(*new, NNG_OPT_MQTT_CONNMSG, connmsg)) {
 		log_warn("Error in updating connmsg");
+	}
+	if (0 != nng_dialer_set_bool(*dialer, NNG_OPT_MQTT_NO_LOCAL_V4, node->no_local_v4)) {
+		log_warn("Error in updating MQTT Version");
 	}
 	nng_mqtt_set_connect_cb(*new, hybrid_tcp_connect_cb, bridge_arg);
 	nng_mqtt_set_disconnect_cb(*new, hybrid_tcp_disconnect_cb, bridge_arg);
@@ -720,6 +718,7 @@ hybrid_quic_client(bridge_param *bridge_arg)
 	// TCP bridge does not support hot update of connmsg
 	nng_dialer_set_ptr(*dialer, NNG_OPT_MQTT_CONNMSG, connmsg);
 	nng_socket_set_ptr(*new, NNG_OPT_MQTT_CONNMSG, connmsg);
+	nng_dialer_set_bool(*dialer, NNG_OPT_MQTT_NO_LOCAL_V4, node->no_local_v4);
 	nano_set_quic_config(new, node, dialer);
 	nng_mqtt_set_connect_cb(*new, hybrid_quic_connect_cb, bridge_arg);
 	nng_mqtt_set_disconnect_cb(*new, hybrid_quic_disconnect_cb, bridge_arg);
@@ -1017,6 +1016,9 @@ bridge_quic_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 	if (0 != nng_socket_set_ptr(*sock, NNG_OPT_MQTT_CONNMSG, connmsg)) {
 		log_warn("Error in updating connmsg");
 	}
+	if (0 != nng_dialer_set_bool(*dialer, NNG_OPT_MQTT_NO_LOCAL_V4, node->no_local_v4)) {
+		log_warn("Error in updating MQTT Version");
+	}
 	nano_set_quic_config(sock, node, dialer);
 	nng_mqtt_set_connect_cb(*sock, bridge_quic_connect_cb, bridge_arg);
 	nng_mqtt_set_disconnect_cb(*sock, bridge_quic_disconnect_cb, bridge_arg);
@@ -1077,6 +1079,9 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 	// QUIC bridge does not support hot update of connmsg as well
 	if (0 != nng_dialer_set_ptr(*dialer, NNG_OPT_MQTT_CONNMSG, connmsg)) {
 		log_warn("Error in updating connmsg");
+	}
+	if (0 != nng_dialer_set_bool(*dialer, NNG_OPT_MQTT_NO_LOCAL_V4, node->no_local_v4)) {
+		log_warn("Error in updating MQTT Version");
 	}
 	if (0 != nng_socket_set_ptr(*sock, NNG_OPT_MQTT_CONNMSG, connmsg)) {
 		log_warn("Error in updating connmsg");
@@ -1244,6 +1249,9 @@ bridge_tcp_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	if (0 != nng_dialer_set_ptr(*dialer, NNG_OPT_MQTT_CONNMSG, connmsg)) {
 		log_warn("Error in updating connmsg");
 	}
+	if (0 != nng_dialer_set_bool(*dialer, NNG_OPT_MQTT_NO_LOCAL_V4, node->no_local_v4)) {
+		log_warn("Error in updating MQTT Version");
+	}
 	if (0 != nng_socket_set_ptr(*sock, NNG_OPT_MQTT_CONNMSG, connmsg)) {
 		log_warn("Error in updating connmsg");
 	}
@@ -1376,6 +1384,9 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	// TCP bridge does not support hot update of connmsg
 	if (0 != nng_dialer_set_ptr(*dialer, NNG_OPT_MQTT_CONNMSG, connmsg)) {
 		log_warn("Error in updating connmsg");
+	}
+	if (0 != nng_dialer_set_bool(*dialer, NNG_OPT_MQTT_NO_LOCAL_V4, node->no_local_v4)) {
+		log_warn("Error in updating MQTT Version");
 	}
 	if (0 != nng_socket_set_ptr(*sock, NNG_OPT_MQTT_CONNMSG, connmsg)) {
 		log_warn("Error in updating connmsg");
