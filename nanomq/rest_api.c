@@ -46,6 +46,7 @@
 #include <time.h>
 #include <math.h>
 #include <string.h>
+#include <errno.h>
 
 #ifdef SUPP_JWT
 #include "l8w8jwt/decode.h"
@@ -396,6 +397,12 @@ static endpoints api_ep[] = {
 	    .descr  = "Return license information",
 	},
 	{
+	    .path   = "/mqtt_stream",
+	    .name   = "get_mqtt_stream",
+	    .method = "GET",
+	    .descr  = "Query parquet data by topic and timestamp range",
+	},
+	{
 	    .path   = "/tools/aes_enc",
 	    .name   = "post_tools_aes_enc",
 	    .method = "POST",
@@ -424,6 +431,8 @@ static http_msg get_prometheus(http_msg *msg, kv **params, size_t param_num,
     const char *client_id, const char *username, nng_socket *broker_sock);
 static http_msg get_can_data_span(http_msg *msg, kv **params, size_t param_num,
     const char *client_id, const char *username, nng_socket *broker_sock);
+static http_msg get_mqtt_stream(http_msg *msg, kv **params, size_t param_num,
+	const char *client_id, const char *username, nng_socket *broker_sock);
 static http_msg get_metrics(http_msg *msg, kv **params, size_t param_num,
     const char *client_id, const char *username, nng_socket *broker_sock);
 static http_msg get_retains(http_msg *msg, kv **params, size_t param_num,
@@ -1048,6 +1057,11 @@ process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "data_span") == 0) {
 			ret = get_can_data_span(msg, uri_ct->params,
+			    uri_ct->params_count, NULL, NULL, hconfig->broker_sock);
+		} else if (uri_ct->sub_count == 2 &&
+		    uri_ct->sub_tree[1]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "mqtt_stream") == 0) {
+			ret = get_mqtt_stream(msg, uri_ct->params,
 			    uri_ct->params_count, NULL, NULL, hconfig->broker_sock);
 		} else if (uri_ct->sub_count == 2 &&
 		    uri_ct->sub_tree[1]->end &&
@@ -2001,6 +2015,557 @@ get_can_data_span(http_msg *msg, kv **params, size_t param_num,
 	nng_free(topicl, sizeof(char*) * ex_conf->count);
 	cJSON_free(dest);
 	cJSON_Delete(res_obj);
+
+	return res;
+}
+
+/**
+ * Free one parquet_data_ret structure returned by parquet query APIs.
+ *
+ * @param parquet_data Pointer to one parquet_data_ret item.
+ */
+static void
+rest_parquet_data_ret_free(parquet_data_ret *parquet_data)
+{
+	// Free one parquet_data_ret object returned by parquet reader APIs.
+	// Internal buffers are allocated by parquet layer via malloc/strdup.
+	if (parquet_data == NULL) {
+		return;
+	}
+
+	if (parquet_data->payload_arr != NULL) {
+		for (uint32_t j = 0; j < parquet_data->col_len; j++) {
+			if (parquet_data->payload_arr[j] != NULL) {
+				for (uint32_t k = 0; k < parquet_data->row_len; k++) {
+					if (parquet_data->payload_arr[j][k] != NULL) {
+						if (parquet_data->payload_arr[j][k]->data != NULL &&
+						    parquet_data->payload_arr[j][k]->size > 0) {
+							free(parquet_data->payload_arr[j][k]->data);
+						}
+						free(parquet_data->payload_arr[j][k]);
+					}
+				}
+				free(parquet_data->payload_arr[j]);
+			}
+		}
+		free(parquet_data->payload_arr);
+	}
+
+	if (parquet_data->schema != NULL) {
+		for (uint32_t i = 0; i < parquet_data->col_len; i++) {
+			if (parquet_data->schema[i] != NULL) {
+				free(parquet_data->schema[i]);
+			}
+		}
+		free(parquet_data->schema);
+	}
+
+	if (parquet_data->ts != NULL) {
+		free(parquet_data->ts);
+	}
+
+	free(parquet_data);
+}
+
+/**
+ * Free parquet query result array and all nested parquet_data_ret entries.
+ *
+ * @param parquet_datas Result array returned by parquet query APIs.
+ * @param size Number of items in parquet_datas.
+ */
+static void
+rest_parquet_datas_ret_free(parquet_data_ret **parquet_datas, uint32_t size)
+{
+	// Free a parquet_data_ret array container and each element in it.
+	if (parquet_datas == NULL) {
+		return;
+	}
+
+	for (uint32_t i = 0; i < size; i++) {
+		rest_parquet_data_ret_free(parquet_datas[i]);
+	}
+
+	nng_free(parquet_datas, sizeof(parquet_data_ret *) * size);
+}
+
+/**
+ * Parse a decimal string into uint64.
+ *
+ * @param val Input decimal string.
+ * @param out Output value pointer.
+ * @return true if parsing succeeds, false otherwise.
+ */
+static bool
+rest_parse_uint64(const char *val, uint64_t *out)
+{
+	// Strict uint64 parser: only pure decimal digits are accepted.
+	char *end = NULL;
+	unsigned long long v;
+
+	if (val == NULL || out == NULL || val[0] == '\0') {
+		return false;
+	}
+
+	errno = 0;
+	v = strtoull(val, &end, 10);
+	if (errno != 0 || end == val || *end != '\0') {
+		return false;
+	}
+
+	*out = (uint64_t) v;
+	return true;
+}
+
+/**
+ * Check whether a topic exists in exchange configuration.
+ *
+ * @param topic Topic string to validate.
+ * @return true if topic exists in configured exchange nodes, false otherwise.
+ */
+static bool
+rest_topic_exists_in_exchange(const char *topic)
+{
+	// Validate requested topic against configured exchange topics.
+	conf *          cfg = get_global_conf();
+	conf_exchange * ex_cfg;
+
+	if (cfg == NULL || topic == NULL) {
+		return false;
+	}
+
+	ex_cfg = &cfg->exchange;
+	for (size_t i = 0; i < ex_cfg->count; i++) {
+		if (ex_cfg->nodes[i] != NULL && ex_cfg->nodes[i]->topic != NULL &&
+		    strcmp(ex_cfg->nodes[i]->topic, topic) == 0) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+/**
+ * Collect and normalize schema columns from query parameters.
+ *
+ * Supported input styles:
+ * - repeated key form: schema=a&schema=b
+ * - comma-separated form: schema=a,b
+ *
+ * @param params Query parameter array.
+ * @param param_num Number of query parameters.
+ * @param schema_out Output schema array (allocated in this function).
+ * @param schema_len_out Output schema array length.
+ * @return 0 on success, -1 on invalid input or allocation failure.
+ */
+static int
+rest_collect_schema_params(kv **params, size_t param_num, const char ***schema_out,
+	uint16_t *schema_len_out)
+{
+	// Parse repeated/combined schema query params into a flat column list.
+	// Example: schema=data,can_id  -> ["data", "can_id"].
+	size_t count = 0;
+
+	if (schema_out == NULL || schema_len_out == NULL) {
+		return -1;
+	}
+
+	for (size_t i = 0; i < param_num; i++) {
+		if (params[i] == NULL || params[i]->key == NULL ||
+		    params[i]->value == NULL || strcmp(params[i]->key, "schema") != 0) {
+			continue;
+		}
+
+		size_t raw_len = strlen(params[i]->value);
+		char * decoded = URLDecoding(params[i]->value, (unsigned int) raw_len);
+		if (decoded == NULL) {
+			return -1;
+		}
+
+		// First pass: count valid schema tokens for exact allocation size.
+		const char *start = decoded;
+		const char *p     = decoded;
+		while (true) {
+			if (*p == ',' || *p == '\0') {
+				const char *token_start = start;
+				const char *token_end   = p;
+
+				while (token_start < token_end && isspace((unsigned char) *token_start)) {
+					token_start++;
+				}
+				while (token_end > token_start && isspace((unsigned char) *(token_end - 1))) {
+					token_end--;
+				}
+
+				if (token_end > token_start) {
+					count++;
+				}
+
+				if (*p == '\0') {
+					break;
+				}
+				start = p + 1;
+			}
+			p++;
+		}
+
+		nng_free(decoded, raw_len + 1);
+	}
+
+	if (count == 0 || count > UINT16_MAX) {
+		return -1;
+	}
+
+	char **schema = nng_zalloc(sizeof(char *) * count);
+	if (schema == NULL) {
+		return -1;
+	}
+
+	size_t idx = 0;
+	for (size_t i = 0; i < param_num; i++) {
+		if (params[i] == NULL || params[i]->key == NULL ||
+		    params[i]->value == NULL || strcmp(params[i]->key, "schema") != 0) {
+			continue;
+		}
+
+		size_t raw_len = strlen(params[i]->value);
+		char * decoded = URLDecoding(params[i]->value, (unsigned int) raw_len);
+		if (decoded == NULL) {
+			for (size_t j = 0; j < idx; j++) {
+				nng_free(schema[j], strlen(schema[j]) + 1);
+			}
+			nng_free(schema, sizeof(char *) * count);
+			return -1;
+		}
+
+		// Second pass: copy normalized schema tokens into output array.
+		char *start = decoded;
+		char *p     = decoded;
+		while (true) {
+			if (*p == ',' || *p == '\0') {
+				char *token_start = start;
+				char *token_end   = p;
+
+				while (token_start < token_end && isspace((unsigned char) *token_start)) {
+					token_start++;
+				}
+				while (token_end > token_start && isspace((unsigned char) *(token_end - 1))) {
+					token_end--;
+				}
+
+				if (token_end > token_start && idx < count) {
+					size_t tlen = (size_t) (token_end - token_start);
+					schema[idx] = nng_zalloc(tlen + 1);
+					if (schema[idx] == NULL) {
+						nng_free(decoded, raw_len + 1);
+						for (size_t j = 0; j < idx; j++) {
+							nng_free(schema[j], strlen(schema[j]) + 1);
+						}
+						nng_free(schema, sizeof(char *) * count);
+						return -1;
+					}
+					memcpy(schema[idx], token_start, tlen);
+					schema[idx][tlen] = '\0';
+					idx++;
+				}
+
+				if (*p == '\0') {
+					break;
+				}
+				start = p + 1;
+			}
+			p++;
+		}
+
+		nng_free(decoded, raw_len + 1);
+	}
+
+	*schema_out     = (const char **) schema;
+	*schema_len_out = (uint16_t) idx;
+	return 0;
+}
+
+/**
+ * Query parquet by topic and timestamp range and convert to REST JSON rows.
+ *
+ * Output row format:
+ * {"ts": <timestamp_ms>, "data": <base64_string>}
+ *
+ * @param topic Exchange topic name.
+ * @param start_ts Start timestamp in milliseconds (inclusive).
+ * @param end_ts End timestamp in milliseconds (inclusive).
+ * @param schema Optional schema columns; NULL with schema_len=0 means all
+ *               non-ts columns.
+ * @param schema_len Number of schema columns.
+ * @param data_array Target cJSON array to append converted rows.
+ * @param count Output row count.
+ * @return 0 on success, -1 on internal error, -2 when parquet support is not
+ *         compiled in.
+ */
+static int
+rest_query_parquet_to_json(const char *topic, uint64_t start_ts, uint64_t end_ts,
+	const char **schema, uint16_t schema_len, cJSON *data_array, uint32_t *count)
+{
+	// Read parquet rows by time range and convert each row to
+	// {"ts": <ms>, "data": <base64 payload>}.
+	if (topic == NULL || data_array == NULL || count == NULL) {
+		return -1;
+	}
+
+#ifndef SUPP_PARQUET
+	(void) start_ts;
+	(void) end_ts;
+	(void) schema_len;
+	return -2;
+#else
+	parquet_filename_range range = {
+		.filename = NULL,
+		.keys     = { start_ts, end_ts },
+	};
+	uint32_t          file_count = 0;
+	parquet_data_ret **rets      = parquet_get_data_packets_in_range_by_column(
+	    &range, topic, schema, schema_len, &file_count);
+
+	if (rets == NULL || file_count == 0) {
+		*count = 0;
+		return 0;
+	}
+
+	for (uint32_t i = 0; i < file_count; i++) {
+		parquet_data_ret *ret = rets[i];
+		if (ret == NULL || ret->row_len == 0 || ret->col_len == 0 ||
+		    ret->ts == NULL || ret->payload_arr == NULL) {
+			continue;
+		}
+
+		for (uint32_t row = 0; row < ret->row_len; row++) {
+			// Concatenate selected columns for one row before base64 encoding.
+			size_t raw_len = 0;
+			for (uint32_t col = 0; col < ret->col_len; col++) {
+				if (ret->payload_arr[col] == NULL ||
+				    ret->payload_arr[col][row] == NULL ||
+				    ret->payload_arr[col][row]->data == NULL ||
+				    ret->payload_arr[col][row]->size == 0) {
+					continue;
+				}
+				raw_len += ret->payload_arr[col][row]->size;
+			}
+
+			if (raw_len == 0) {
+				continue;
+			}
+
+			uint8_t *raw = nng_alloc(raw_len);
+			if (raw == NULL) {
+				rest_parquet_datas_ret_free(rets, file_count);
+				return -1;
+			}
+
+			size_t offset = 0;
+			for (uint32_t col = 0; col < ret->col_len; col++) {
+				if (ret->payload_arr[col] == NULL ||
+				    ret->payload_arr[col][row] == NULL ||
+				    ret->payload_arr[col][row]->data == NULL ||
+				    ret->payload_arr[col][row]->size == 0) {
+					continue;
+				}
+
+				memcpy(raw + offset, ret->payload_arr[col][row]->data,
+				    ret->payload_arr[col][row]->size);
+				offset += ret->payload_arr[col][row]->size;
+			}
+
+			unsigned int b64_len = BASE64_ENCODE_OUT_SIZE(raw_len);
+			char *       b64     = nng_alloc(b64_len);
+			if (b64 == NULL) {
+				nng_free(raw, raw_len);
+				rest_parquet_datas_ret_free(rets, file_count);
+				return -1;
+			}
+
+			size_t enc_len = base64_encode(raw, (unsigned int) raw_len, b64);
+			nng_free(raw, raw_len);
+			if (enc_len == 0) {
+				nng_free(b64, b64_len);
+				rest_parquet_datas_ret_free(rets, file_count);
+				return -1;
+			}
+
+			cJSON *item = cJSON_CreateObject();
+			if (item == NULL) {
+				nng_free(b64, b64_len);
+				rest_parquet_datas_ret_free(rets, file_count);
+				return -1;
+			}
+			cJSON_AddNumberToObject(item, "ts", (double) ret->ts[row]);
+			cJSON_AddStringToObject(item, "data", b64);
+			cJSON_AddItemToArray(data_array, item);
+			(*count)++;
+
+			nng_free(b64, b64_len);
+		}
+	}
+
+	rest_parquet_datas_ret_free(rets, file_count);
+	return 0;
+#endif
+}
+
+/**
+ * Handle GET /api/v4/mqtt_stream.
+ *
+ * Required query params:
+ * - topic
+ * - start_ts
+ * - end_ts
+ *
+ * Optional query param:
+ * - schema
+ *
+ * @param msg HTTP request context.
+ * @param params Parsed query parameter array.
+ * @param param_num Number of query parameters.
+ * @param client_id Unused.
+ * @param username Unused.
+ * @param broker_sock Unused.
+ * @return HTTP response message.
+ */
+static http_msg
+get_mqtt_stream(http_msg *msg, kv **params, size_t param_num,
+	const char *client_id, const char *username, nng_socket *broker_sock)
+{
+	// REST handler for GET /api/v4/mqtt_stream.
+	// Required params: topic, start_ts, end_ts.
+	// Optional param:  schema (comma-separated columns).
+	http_msg   res = { .status = NNG_HTTP_STATUS_OK };
+	char *     topic = NULL;
+	char *     start_raw = NULL;
+	char *     end_raw = NULL;
+	uint64_t   start_ts = 0;
+	uint64_t   end_ts = 0;
+	const char **schema = NULL;
+	uint16_t   schema_len = 0;
+	int        rv;
+	cJSON *    root = NULL;
+	cJSON *    arr  = NULL;
+	char *     dest = NULL;
+	uint32_t   count = 0;
+
+	(void) client_id;
+	(void) username;
+	(void) broker_sock;
+
+	for (size_t i = 0; i < param_num; i++) {
+		if (params[i] == NULL || params[i]->key == NULL || params[i]->value == NULL) {
+			continue;
+		}
+
+		if (topic == NULL && strcmp(params[i]->key, "topic") == 0) {
+			size_t raw_len = strlen(params[i]->value);
+			topic = URLDecoding(params[i]->value, (unsigned int) raw_len);
+		} else if (start_raw == NULL && strcmp(params[i]->key, "start_ts") == 0) {
+			size_t raw_len = strlen(params[i]->value);
+			start_raw = URLDecoding(params[i]->value, (unsigned int) raw_len);
+		} else if (end_raw == NULL && strcmp(params[i]->key, "end_ts") == 0) {
+			size_t raw_len = strlen(params[i]->value);
+			end_raw = URLDecoding(params[i]->value, (unsigned int) raw_len);
+		}
+	}
+
+	if (topic == NULL || start_raw == NULL || end_raw == NULL) {
+		goto bad_req;
+	}
+
+	if (!rest_parse_uint64(start_raw, &start_ts) ||
+	    !rest_parse_uint64(end_raw, &end_ts) || start_ts > end_ts) {
+		goto bad_req;
+	}
+
+	if (!rest_topic_exists_in_exchange(topic)) {
+		goto bad_req;
+	}
+
+	// schema is optional; when absent, parquet layer falls back to all
+	// non-ts columns.
+	bool has_schema_param = false;
+	for (size_t i = 0; i < param_num; i++) {
+		if (params[i] != NULL && params[i]->key != NULL &&
+		    strcmp(params[i]->key, "schema") == 0) {
+			has_schema_param = true;
+			break;
+		}
+	}
+
+	if (has_schema_param) {
+		if (rest_collect_schema_params(params, param_num, &schema, &schema_len) != 0 ||
+		    schema_len == 0) {
+			goto bad_req;
+		}
+	}
+
+	root = cJSON_CreateObject();
+	arr  = cJSON_CreateArray();
+	if (root == NULL || arr == NULL) {
+		goto internal_err;
+	}
+
+	rv = rest_query_parquet_to_json(
+	    topic, start_ts, end_ts, schema, schema_len, arr, &count);
+	if (rv == -2) {
+		res = error_response(msg, NNG_HTTP_STATUS_NO_CONTENT,
+		    CONTENT_NOT_AVAILABLE);
+		goto out;
+	}
+	if (rv != 0) {
+		goto internal_err;
+	}
+
+	cJSON_AddNumberToObject(root, "count", (double) count);
+	cJSON_AddItemToObject(root, "dataArray", arr);
+	arr = NULL;
+
+	dest = cJSON_PrintUnformatted(root);
+	if (dest == NULL) {
+		goto internal_err;
+	}
+
+	put_http_msg(
+	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
+	goto out;
+
+bad_req:
+	res = error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
+	    REQ_PARAM_ERROR);
+	goto out;
+
+internal_err:
+	res = error_response(msg, NNG_HTTP_STATUS_INTERNAL_SERVER_ERROR,
+	    UNKNOWN_MISTAKE);
+
+out:
+	if (dest != NULL) {
+		cJSON_free(dest);
+	}
+	if (arr != NULL) {
+		cJSON_Delete(arr);
+	}
+	if (root != NULL) {
+		cJSON_Delete(root);
+	}
+	if (schema != NULL) {
+		for (uint16_t i = 0; i < schema_len; i++) {
+			nng_free((void *) schema[i], strlen(schema[i]) + 1);
+		}
+		nng_free((void *) schema, sizeof(char *) * schema_len);
+	}
+	if (topic != NULL) {
+		nng_free(topic, strlen(topic) + 1);
+	}
+	if (start_raw != NULL) {
+		nng_free(start_raw, strlen(start_raw) + 1);
+	}
+	if (end_raw != NULL) {
+		nng_free(end_raw, strlen(end_raw) + 1);
+	}
 
 	return res;
 }
