@@ -2284,6 +2284,7 @@ rest_query_parquet_to_json(const char *topic, uint64_t start_ts, uint64_t end_ts
 	(void) start_ts;
 	(void) end_ts;
 	(void) schema_len;
+	log_error("Parquet support is not enabled in this build");
 	return -2;
 #else
 	parquet_filename_range range = {
@@ -2336,13 +2337,14 @@ rest_query_parquet_to_json(const char *topic, uint64_t start_ts, uint64_t end_ts
 			}
 
 			if (raw_len > UINT_MAX) {
-				log_error("mqtt_stream row payload too large: %zu bytes", raw_len);
+				log_error("row payload too large: %zu bytes", raw_len);
 				rest_parquet_datas_ret_free(rets, file_count);
 				return -1;
 			}
 
 			uint8_t *raw = nng_alloc(raw_len);
 			if (raw == NULL) {
+				log_error("failed to allocate %zu bytes for row payload", raw_len);
 				rest_parquet_datas_ret_free(rets, file_count);
 				return -1;
 			}
@@ -2365,6 +2367,9 @@ rest_query_parquet_to_json(const char *topic, uint64_t start_ts, uint64_t end_ts
 			unsigned int b64_len     = BASE64_ENCODE_OUT_SIZE(raw_len_u32);
 			char *       b64     = nng_alloc(b64_len);
 			if (b64 == NULL) {
+				log_error("failed to allocate %u bytes for "
+				          "base64 encoding",
+				    b64_len);
 				nng_free(raw, raw_len);
 				rest_parquet_datas_ret_free(rets, file_count);
 				return -1;
@@ -2373,6 +2378,7 @@ rest_query_parquet_to_json(const char *topic, uint64_t start_ts, uint64_t end_ts
 			size_t enc_len = base64_encode(raw, raw_len_u32, b64);
 			nng_free(raw, raw_len);
 			if (enc_len == 0) {
+				log_error("base64 encoding failed for row payload");
 				nng_free(b64, b64_len);
 				rest_parquet_datas_ret_free(rets, file_count);
 				return -1;
@@ -2380,6 +2386,7 @@ rest_query_parquet_to_json(const char *topic, uint64_t start_ts, uint64_t end_ts
 
 			cJSON *item = cJSON_CreateObject();
 			if (item == NULL) {
+				log_error("failed to create cJSON object for row");
 				nng_free(b64, b64_len);
 				rest_parquet_datas_ret_free(rets, file_count);
 				return -1;
