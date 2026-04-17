@@ -47,6 +47,7 @@
 #include <math.h>
 #include <string.h>
 #include <errno.h>
+#include <limits.h>
 
 #ifdef SUPP_JWT
 #include "l8w8jwt/decode.h"
@@ -74,6 +75,7 @@
 typedef int (handle_mqtt_msg_cb) (cJSON *, nng_socket *);
 #define BROKER_DATA_SIZE 2048
 #define BRIDGE_DATA_SIZE 1024
+#define MQTT_STREAM_DEFAULT_LIMIT 10000ULL
 
 typedef struct {
 	char *key;
@@ -2162,8 +2164,8 @@ rest_collect_schema_params(kv **params, size_t param_num, const char ***schema_o
 	uint16_t *schema_len_out)
 {
 	// Parse repeated/combined schema query params into a flat column list.
-	// Example: schema=data,can_id  -> ["data", "can_id"].
-	size_t count = 0;
+	// Example: schema=data,can_id -> ["data", "can_id"].
+	char **schema_vec = NULL;
 
 	if (schema_out == NULL || schema_len_out == NULL) {
 		return -1;
@@ -2176,68 +2178,11 @@ rest_collect_schema_params(kv **params, size_t param_num, const char ***schema_o
 		}
 
 		size_t raw_len = strlen(params[i]->value);
-		char * decoded = URLDecoding(params[i]->value, (unsigned int) raw_len);
+		char *decoded  = URLDecoding(params[i]->value, (unsigned int) raw_len);
 		if (decoded == NULL) {
-			return -1;
+			goto err;
 		}
 
-		// First pass: count valid schema tokens for exact allocation size.
-		const char *start = decoded;
-		const char *p     = decoded;
-		while (true) {
-			if (*p == ',' || *p == '\0') {
-				const char *token_start = start;
-				const char *token_end   = p;
-
-				while (token_start < token_end && isspace((unsigned char) *token_start)) {
-					token_start++;
-				}
-				while (token_end > token_start && isspace((unsigned char) *(token_end - 1))) {
-					token_end--;
-				}
-
-				if (token_end > token_start) {
-					count++;
-				}
-
-				if (*p == '\0') {
-					break;
-				}
-				start = p + 1;
-			}
-			p++;
-		}
-
-		nng_free(decoded, raw_len + 1);
-	}
-
-	if (count == 0 || count > UINT16_MAX) {
-		return -1;
-	}
-
-	char **schema = nng_zalloc(sizeof(char *) * count);
-	if (schema == NULL) {
-		return -1;
-	}
-
-	size_t idx = 0;
-	for (size_t i = 0; i < param_num; i++) {
-		if (params[i] == NULL || params[i]->key == NULL ||
-		    params[i]->value == NULL || strcmp(params[i]->key, "schema") != 0) {
-			continue;
-		}
-
-		size_t raw_len = strlen(params[i]->value);
-		char * decoded = URLDecoding(params[i]->value, (unsigned int) raw_len);
-		if (decoded == NULL) {
-			for (size_t j = 0; j < idx; j++) {
-				nng_free(schema[j], strlen(schema[j]) + 1);
-			}
-			nng_free(schema, sizeof(char *) * count);
-			return -1;
-		}
-
-		// Second pass: copy normalized schema tokens into output array.
 		char *start = decoded;
 		char *p     = decoded;
 		while (true) {
@@ -2252,20 +2197,21 @@ rest_collect_schema_params(kv **params, size_t param_num, const char ***schema_o
 					token_end--;
 				}
 
-				if (token_end > token_start && idx < count) {
+				if (token_end > token_start) {
 					size_t tlen = (size_t) (token_end - token_start);
-					schema[idx] = nng_zalloc(tlen + 1);
-					if (schema[idx] == NULL) {
+					char * item = nng_zalloc(tlen + 1);
+					if (item == NULL) {
 						nng_free(decoded, raw_len + 1);
-						for (size_t j = 0; j < idx; j++) {
-							nng_free(schema[j], strlen(schema[j]) + 1);
-						}
-						nng_free(schema, sizeof(char *) * count);
-						return -1;
+						goto err;
 					}
-					memcpy(schema[idx], token_start, tlen);
-					schema[idx][tlen] = '\0';
-					idx++;
+					memcpy(item, token_start, tlen);
+					item[tlen] = '\0';
+					cvector_push_back(schema_vec, item);
+
+					if (cvector_size(schema_vec) > UINT16_MAX) {
+						nng_free(decoded, raw_len + 1);
+						goto err;
+					}
 				}
 
 				if (*p == '\0') {
@@ -2279,9 +2225,31 @@ rest_collect_schema_params(kv **params, size_t param_num, const char ***schema_o
 		nng_free(decoded, raw_len + 1);
 	}
 
+	if (cvector_size(schema_vec) == 0) {
+		goto err;
+	}
+
+	size_t count = cvector_size(schema_vec);
+	char **schema = nng_zalloc(sizeof(char *) * count);
+	if (schema == NULL) {
+		goto err;
+	}
+
+	for (size_t i = 0; i < count; i++) {
+		schema[i] = schema_vec[i];
+	}
+	cvector_free(schema_vec);
+
 	*schema_out     = (const char **) schema;
-	*schema_len_out = (uint16_t) idx;
+	*schema_len_out = (uint16_t) count;
 	return 0;
+
+err:
+	for (size_t i = 0; i < cvector_size(schema_vec); i++) {
+		nng_free(schema_vec[i], strlen(schema_vec[i]) + 1);
+	}
+	cvector_free(schema_vec);
+	return -1;
 }
 
 /**
@@ -2303,7 +2271,8 @@ rest_collect_schema_params(kv **params, size_t param_num, const char ***schema_o
  */
 static int
 rest_query_parquet_to_json(const char *topic, uint64_t start_ts, uint64_t end_ts,
-	const char **schema, uint16_t schema_len, cJSON *data_array, uint32_t *count)
+	const char **schema, uint16_t schema_len, uint64_t offset, uint64_t limit,
+	cJSON *data_array, uint32_t *count)
 {
 	// Read parquet rows by time range and convert each row to
 	// {"ts": <ms>, "data": <base64 payload>}.
@@ -2330,6 +2299,9 @@ rest_query_parquet_to_json(const char *topic, uint64_t start_ts, uint64_t end_ts
 		return 0;
 	}
 
+	uint64_t skipped = 0;
+	uint64_t emitted = 0;
+
 	for (uint32_t i = 0; i < file_count; i++) {
 		parquet_data_ret *ret = rets[i];
 		if (ret == NULL || ret->row_len == 0 || ret->col_len == 0 ||
@@ -2354,6 +2326,21 @@ rest_query_parquet_to_json(const char *topic, uint64_t start_ts, uint64_t end_ts
 				continue;
 			}
 
+			if (skipped < offset) {
+				skipped++;
+				continue;
+			}
+
+			if (limit > 0 && emitted >= limit) {
+				goto done;
+			}
+
+			if (raw_len > UINT_MAX) {
+				log_error("mqtt_stream row payload too large: %zu bytes", raw_len);
+				rest_parquet_datas_ret_free(rets, file_count);
+				return -1;
+			}
+
 			uint8_t *raw = nng_alloc(raw_len);
 			if (raw == NULL) {
 				rest_parquet_datas_ret_free(rets, file_count);
@@ -2374,7 +2361,8 @@ rest_query_parquet_to_json(const char *topic, uint64_t start_ts, uint64_t end_ts
 				offset += ret->payload_arr[col][row]->size;
 			}
 
-			unsigned int b64_len = BASE64_ENCODE_OUT_SIZE(raw_len);
+			unsigned int raw_len_u32 = (unsigned int) raw_len;
+			unsigned int b64_len     = BASE64_ENCODE_OUT_SIZE(raw_len_u32);
 			char *       b64     = nng_alloc(b64_len);
 			if (b64 == NULL) {
 				nng_free(raw, raw_len);
@@ -2382,7 +2370,7 @@ rest_query_parquet_to_json(const char *topic, uint64_t start_ts, uint64_t end_ts
 				return -1;
 			}
 
-			size_t enc_len = base64_encode(raw, (unsigned int) raw_len, b64);
+			size_t enc_len = base64_encode(raw, raw_len_u32, b64);
 			nng_free(raw, raw_len);
 			if (enc_len == 0) {
 				nng_free(b64, b64_len);
@@ -2400,11 +2388,13 @@ rest_query_parquet_to_json(const char *topic, uint64_t start_ts, uint64_t end_ts
 			cJSON_AddStringToObject(item, "data", b64);
 			cJSON_AddItemToArray(data_array, item);
 			(*count)++;
+			emitted++;
 
 			nng_free(b64, b64_len);
 		}
 	}
 
+	done:
 	rest_parquet_datas_ret_free(rets, file_count);
 	return 0;
 #endif
@@ -2420,6 +2410,8 @@ rest_query_parquet_to_json(const char *topic, uint64_t start_ts, uint64_t end_ts
  *
  * Optional query param:
  * - schema
+ * - limit
+ * - offset
  *
  * @param msg HTTP request context.
  * @param params Parsed query parameter array.
@@ -2440,8 +2432,12 @@ get_mqtt_stream(http_msg *msg, kv **params, size_t param_num,
 	char *     topic = NULL;
 	char *     start_raw = NULL;
 	char *     end_raw = NULL;
+	char *     limit_raw = NULL;
+	char *     offset_raw = NULL;
 	uint64_t   start_ts = 0;
 	uint64_t   end_ts = 0;
+	uint64_t   limit = 0;
+	uint64_t   offset = 0;
 	const char **schema = NULL;
 	uint16_t   schema_len = 0;
 	int        rv;
@@ -2468,6 +2464,12 @@ get_mqtt_stream(http_msg *msg, kv **params, size_t param_num,
 		} else if (end_raw == NULL && strcmp(params[i]->key, "end_ts") == 0) {
 			size_t raw_len = strlen(params[i]->value);
 			end_raw = URLDecoding(params[i]->value, (unsigned int) raw_len);
+		} else if (limit_raw == NULL && strcmp(params[i]->key, "limit") == 0) {
+			size_t raw_len = strlen(params[i]->value);
+			limit_raw = URLDecoding(params[i]->value, (unsigned int) raw_len);
+		} else if (offset_raw == NULL && strcmp(params[i]->key, "offset") == 0) {
+			size_t raw_len = strlen(params[i]->value);
+			offset_raw = URLDecoding(params[i]->value, (unsigned int) raw_len);
 		}
 	}
 
@@ -2481,6 +2483,19 @@ get_mqtt_stream(http_msg *msg, kv **params, size_t param_num,
 	}
 
 	if (!rest_topic_exists_in_exchange(topic)) {
+		goto bad_req;
+	}
+
+	if (limit_raw != NULL) {
+		if (!rest_parse_uint64(limit_raw, &limit) || limit == 0) {
+			goto bad_req;
+		}
+	} else {
+		// Apply a default protection limit when caller does not specify one.
+		limit = MQTT_STREAM_DEFAULT_LIMIT;
+	}
+
+	if (offset_raw != NULL && !rest_parse_uint64(offset_raw, &offset)) {
 		goto bad_req;
 	}
 
@@ -2509,7 +2524,7 @@ get_mqtt_stream(http_msg *msg, kv **params, size_t param_num,
 	}
 
 	rv = rest_query_parquet_to_json(
-	    topic, start_ts, end_ts, schema, schema_len, arr, &count);
+	    topic, start_ts, end_ts, schema, schema_len, offset, limit, arr, &count);
 	if (rv == -2) {
 		res = error_response(msg, NNG_HTTP_STATUS_NO_CONTENT,
 		    CONTENT_NOT_AVAILABLE);
@@ -2565,6 +2580,12 @@ out:
 	}
 	if (end_raw != NULL) {
 		nng_free(end_raw, strlen(end_raw) + 1);
+	}
+	if (limit_raw != NULL) {
+		nng_free(limit_raw, strlen(limit_raw) + 1);
+	}
+	if (offset_raw != NULL) {
+		nng_free(offset_raw, strlen(offset_raw) + 1);
 	}
 
 	return res;
