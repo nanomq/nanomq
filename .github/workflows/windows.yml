@@ -77,7 +77,7 @@ jobs:
           name: nanomq-${{ github.event.release.tag_name }}-windows-${{ matrix.arch }}.zip
           path: install/nanomq-${{ github.event.release.tag_name }}-windows-${{ matrix.arch }}.zip
 
-      - uses: svenstaro/upload-release-action@6b7fa9f267e90b50a19fef07b3596790bb941741 # 2.11.3
+      - uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9ca12de # 2.11.5
         if: github.event_name == 'release'
         with:
           repo_token: ${{ github.token }}
