@@ -115,8 +115,25 @@ if (ENABLE_FILETRANSFER)
 endif()
 
 if (NNG_ENABLE_PARQUET)
-  find_package(OpenSSL REQUIRED)
-  target_link_libraries(nanomq_cli OpenSSL::Crypto)
+  if(OPENSSL_ROOT_DIR)
+      set(OPENSSL_INCLUDE_DIR ${OPENSSL_ROOT_DIR}/include)
+      set(OPENSSL_LIB_DIR ${OPENSSL_ROOT_DIR}/lib)
+      if (NANO_PLATFORM_POSIX)
+        nng_link_libraries(
+          ${OPENSSL_LIB_DIR}/libssl.a
+          ${OPENSSL_LIB_DIR}/libcrypto.a
+        )
+      else()
+        nng_link_libraries(
+          ${OPENSSL_LIB_DIR}/VC/x64/MT/libssl_static.lib
+          ${OPENSSL_LIB_DIR}/VC/x64/MT/libcrypto_static.lib
+        )
+      endif(NANO_PLATFORM_POSIX)
+    target_include_directories(nanomq_cli PUBLIC ${OPENSSL_INCLUDE_DIR})
+  else()
+      find_package(OpenSSL REQUIRED)
+      nng_link_libraries(OpenSSL::SSL OpenSSL::Crypto)
+  endif(OPENSSL_ROOT_DIR)
 endif()
 
 add_dependencies(nanomq_cli nng)
