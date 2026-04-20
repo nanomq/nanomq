@@ -15,6 +15,15 @@
 #include "nng/nng.h"
 #include "nng/protocol/mqtt/mqtt.h"
 
+#define FREE_UNSUB_PROPERTIES(pkt)                  \
+    do {                                            \
+        if ((pkt)->properties != NULL) {            \
+            property_free((pkt)->properties);       \
+            (pkt)->properties = NULL;               \
+            (pkt)->prop_len   = 0;                  \
+        }                                           \
+    } while(0)
+
 int
 decode_unsub_msg(nano_work *work)
 {
@@ -52,9 +61,7 @@ decode_unsub_msg(nano_work *work)
 		unsub_pkt->properties =
 		    decode_properties(msg, &vpos, &unsub_pkt->prop_len, false);
 		if (check_properties(unsub_pkt->properties, msg) != SUCCESS) {
-			property_free(unsub_pkt->properties);
-			unsub_pkt->properties = NULL;
-			unsub_pkt->prop_len   = 0;
+			FREE_UNSUB_PROPERTIES(unsub_pkt);
 			return PROTOCOL_ERROR;
 		}
 	}
@@ -71,11 +78,7 @@ decode_unsub_msg(nano_work *work)
 
 	if ((tn = nng_alloc(sizeof(topic_node))) == NULL) {
 		log_debug("nng_alloc");
-		if (unsub_pkt->properties) {
-			property_free(unsub_pkt->properties);
-			unsub_pkt->properties = NULL;
-			unsub_pkt->prop_len   = 0;
-		}
+		FREE_UNSUB_PROPERTIES(unsub_pkt);
 		return NNG_ENOMEM;
 	}
 	unsub_pkt->node = tn;
@@ -91,24 +94,14 @@ decode_unsub_msg(nano_work *work)
 		} else {
 			tn->reason_code = UNSPECIFIED_ERROR;
 			log_debug("not utf-8 format string.");
-			if (unsub_pkt->properties) {
-				property_free(unsub_pkt->properties);
-				unsub_pkt->properties = NULL;
-				unsub_pkt->prop_len   = 0;
-			}
+			FREE_UNSUB_PROPERTIES(unsub_pkt);
 			return PROTOCOL_ERROR;
 		}
 
-		log_debug("bpos+vpos: [%d] remain_len: [%ld]", bpos + vpos,
-		    remaining_len);
+		log_debug("bpos+vpos: [%d] remain_len: [%ld]", bpos + vpos, remaining_len);
 		if (bpos < remaining_len - vpos) {
 			if ((tn = nng_alloc(sizeof(topic_node))) == NULL) {
-				log_debug("nng_alloc");
-				if (unsub_pkt->properties) {
-					property_free(unsub_pkt->properties);
-					unsub_pkt->properties = NULL;
-					unsub_pkt->prop_len   = 0;
-				}
+				FREE_UNSUB_PROPERTIES(unsub_pkt);
 				return NNG_ENOMEM;
 			}
 			tn->next  = NULL;
@@ -249,11 +242,7 @@ unsub_pkt_free(packet_unsubscribe *unsub_pkt)
 		return;
 	}
 
-	if (unsub_pkt->prop_len != 0) {
-		property_free(unsub_pkt->properties);
-		unsub_pkt->properties = NULL;
-		unsub_pkt->prop_len = 0;
-	}
+	FREE_UNSUB_PROPERTIES(unsub_pkt);
 
 	topic_node *tn = unsub_pkt->node;
 	topic_node *next_tn;
