@@ -90,9 +90,7 @@ decode_sub_msg(nano_work *work)
 	tn = nng_zalloc(sizeof(topic_node));
 	if (tn == NULL) {
 		log_error("nng_zalloc");
-		if (sub_pkt->properties) {
-			FREE_SUB_PROPERTIES(sub_pkt);
-		}
+		FREE_SUB_PROPERTIES(sub_pkt);
 		return NNG_ENOMEM;
 	}
 	sub_pkt->node = tn;
@@ -490,9 +488,7 @@ sub_pkt_free(packet_subscribe *sub_pkt)
 	}
 
 	// what if there are multiple UPs?
-	if (sub_pkt->prop_len > 0) {
-		FREE_SUB_PROPERTIES(sub_pkt);
-	}
+	FREE_SUB_PROPERTIES(sub_pkt);
 	nng_free(sub_pkt, sizeof(packet_subscribe));
 }
 
