@@ -482,7 +482,7 @@ uri_tree_free(uri_content *ct)
 			nng_strfree(sub->node);
 			nng_free(sub, sizeof(tree));
 		}
-		nng_free(node, ct->sub_count * sizeof(tree *));
+		free(node);
 		ct->sub_count = 0;
 	}
 }
@@ -609,7 +609,7 @@ uri_param_free(uri_content *ct)
 			nng_strfree(params[i]->value);
 			nng_free(params[i], sizeof(kv));
 		}
-		nng_free(params, ct->params_count * sizeof(kv *));
+		free(params);
 		ct->params_count = 0;
 	}
 }
