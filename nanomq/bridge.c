@@ -389,6 +389,9 @@ init_dialer_tls(nng_dialer d, const char *cacert, const char *cert,
 		if ((rv = nng_tls_config_server_name(cfg, sni)) != 0) {
 			goto out;
 		}
+	} else {
+		nng_dialer_get_url(d, &url);
+		nng_tls_config_server_name(cfg, url->u_hostname);
 	}
 	rv = nng_dialer_set_ptr(d, NNG_OPT_TLS_CONFIG, cfg);
 
@@ -1369,6 +1372,17 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 		}
 	}
 
+#ifdef NNG_SUPP_TLS
+	if (node->tls.enable) {
+		if ((rv = init_dialer_tls(*dialer, node->tls.ca,
+		         node->tls.cert, node->tls.key, node->tls.key_password,
+		         node->tls.sni, node->tls.verify_peer)) != 0) {
+			log_error("init_dialer_tls failed %d", rv);
+			return rv;
+		}
+	}
+#endif
+
 	bridge_arg->client = nng_mqtt_client_alloc(*sock, &send_callback, true);
 	// set retry interval
 	nng_duration retry = node->resend_interval;
@@ -1393,18 +1407,13 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	nng_mqtt_set_connect_cb(*sock, bridge_tcp_connect_cb, bridge_arg);
 	nng_mqtt_set_disconnect_cb(*sock, bridge_tcp_disconnect_cb, bridge_arg);
 
-#ifdef NNG_SUPP_TLS
-	if (node->tls.enable) {
-		rv = nng_dialer_start(*dialer, NNG_FLAG_NONBLOCK);
-		if ((rv = init_dialer_tls(*dialer, node->tls.ca,
-		         node->tls.cert, node->tls.key, node->tls.key_password,
-		         node->tls.sni, node->tls.verify_peer)) != 0) {
-			log_error("init_dialer_tls failed %d", rv);
+
+	if (node->enable) {
+		if (0 != (rv = nng_dialer_start(*dialer, NNG_FLAG_ALLOC))) {
+			log_error("nng dialer start failed %d", rv);
 			return rv;
 		}
 	}
-#endif
-
 	return 0;
 }
 
