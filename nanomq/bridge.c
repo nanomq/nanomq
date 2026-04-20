@@ -1415,6 +1415,7 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 			return rv;
 		}
 	}
+#endif
 
 	return 0;
 }
