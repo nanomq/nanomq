@@ -605,7 +605,6 @@ hybrid_tcp_client(bridge_param *bridge_arg)
 
 #ifdef NNG_SUPP_TLS
 	if (node->tls.enable) {
-		nng_dialer_set_ptr(*dialer, NNG_OPT_MQTT_TLS_BRIDGE_CONF, node);
 		if ((rv = init_dialer_tls(*dialer, node->tls.ca,
 		         node->tls.cert, node->tls.key, node->tls.key_password,
 		         node->tls.sni, node->tls.verify_peer)) != 0) {
@@ -1239,7 +1238,6 @@ bridge_tcp_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 
 #ifdef NNG_SUPP_TLS
 	if (node->tls.enable) {
-		nng_dialer_set_ptr(*dialer, NNG_OPT_MQTT_TLS_BRIDGE_CONF, node);
 		if ((rv = init_dialer_tls(*dialer, node->tls.ca,
 		         node->tls.cert, node->tls.key, node->tls.key_password,
 		         node->tls.sni, node->tls.verify_peer)) != 0) {
@@ -1371,16 +1369,6 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 		}
 	}
 
-#ifdef NNG_SUPP_TLS
-	if (node->tls.enable) {
-		if ((rv = init_dialer_tls(*dialer, node->tls.ca, node->tls.cert,
-		         node->tls.key, node->tls.key_password)) != 0) {
-			log_error("init_dialer_tls failed %d", rv);
-			return rv;
-		}
-	}
-#endif
-
 	bridge_arg->client = nng_mqtt_client_alloc(*sock, &send_callback, true);
 	// set retry interval
 	nng_duration retry = node->resend_interval;
@@ -1407,7 +1395,6 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 
 #ifdef NNG_SUPP_TLS
 	if (node->tls.enable) {
-		nng_dialer_set_ptr(*dialer, NNG_OPT_MQTT_TLS_BRIDGE_CONF, node);
 		if ((rv = init_dialer_tls(*dialer, node->tls.ca,
 		         node->tls.cert, node->tls.key, node->tls.key_password,
 		         node->tls.sni, node->tls.verify_peer)) != 0) {
