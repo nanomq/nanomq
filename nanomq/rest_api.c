@@ -1182,7 +1182,7 @@ process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 					}
 					log_debug("decoded path: %s", path);
 					ret = get_file_content(msg, path);
-					nng_free(path, path_len + 1);
+					nng_free(path, path_len);
 					break;
 				}
 				count ++;
@@ -4180,7 +4180,6 @@ mk_str(int n, char **str_arr, char *seperator)
 	}
 	return str;
 }
-
 #ifndef NANO_PLATFORM_WINDOWS
 static void
 ctrl_cb(void *arg)
@@ -4190,14 +4189,12 @@ ctrl_cb(void *arg)
 	char **argv   = get_cache_argv();
 	char * cmd    = NULL;
 
-#ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
-	nng_msleep(2000);
-#endif
-
-	if (argc < 2 || argv == NULL) {
+	if (argv == NULL) {
 		nng_strfree(action);
 		return;
 	}
+
+	nng_msleep(2000);
 
 	if (nng_strcasecmp(action, "stop") == 0) {
 		argv[1] = "stop";
@@ -4209,9 +4206,7 @@ ctrl_cb(void *arg)
 	nng_strfree(action);
 	if (cmd) {
 		log_info("run system cmd: '%s'", cmd);
-#ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
 		system(cmd);
-#endif
 		free(cmd);
 	}
 }
@@ -4227,13 +4222,20 @@ post_ctrl(http_msg *msg, const char *type)
 	if (nng_strcasecmp(type, "stop") == 0 ||
 	    nng_strcasecmp(type, "restart") == 0) {
 #ifndef NANO_PLATFORM_WINDOWS
-		char *arg = nng_strdup(type);
-#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
-		ctrl_cb(arg);
-#else
-		nng_thread_create(&thread, ctrl_cb, arg);
-#endif
+#if defined(SUPP_NANO_LIB)
+		(void) thread;
 		res.status = NNG_HTTP_STATUS_OK;
+#else
+		char *arg = nng_strdup(type);
+		int   rv  = nng_thread_create(&thread, ctrl_cb, arg);
+		if (rv != 0) {
+			nng_strfree(arg);
+			res.status = NNG_HTTP_STATUS_INTERNAL_SERVER_ERROR;
+			code       = RPC_ERROR;
+		} else {
+			res.status = NNG_HTTP_STATUS_OK;
+		}
+#endif
 #else
 		res.status = NNG_HTTP_STATUS_NOT_ACCEPTABLE;
 		code       = RPC_ERROR;
