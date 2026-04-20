@@ -558,7 +558,7 @@ uri_tree_free(uri_content *ct)
 			nng_strfree(sub->node);
 			nng_free(sub, sizeof(tree));
 		}
-		nng_free(node, ct->sub_count * sizeof(tree *));
+		free(node);
 		ct->sub_count = 0;
 	}
 }
@@ -685,7 +685,7 @@ uri_param_free(uri_content *ct)
 			nng_strfree(params[i]->value);
 			nng_free(params[i], sizeof(kv));
 		}
-		nng_free(params, ct->params_count * sizeof(kv *));
+		free(params);
 		ct->params_count = 0;
 	}
 }
@@ -2778,8 +2778,8 @@ get_retains(http_msg *msg, kv **params, size_t param_num,
 			cvector_free(vn[i][j]->clients);
 			cJSON_AddStringToObject(elem, "clientid", cid);
 			cJSON_AddStringToObject(elem, "ts", ts);
-			nng_free(cid, 0);
-			nng_free(ts, 0);
+			nng_strfree(cid);
+			nng_strfree(ts);
 
 			uint8_t qos = nng_mqtt_msg_get_publish_qos(retain);
 			cJSON_AddNumberToObject(elem, "qos", qos);
@@ -2800,7 +2800,7 @@ get_retains(http_msg *msg, kv **params, size_t param_num,
 			if (pldsz != 0 && pld) {
 				char *hex = bin2hex(pld, pldsz);
 				cJSON_AddStringToObject(elem, "hexpld", hex);
-				nng_free(hex, 0);
+				nng_free(hex, 2 * pldsz + 1);
 			}
 
 			nng_msg_free(retain); // Cloned at get_retain_info_cb
@@ -5560,8 +5560,11 @@ post_tools_aes_enc(http_msg *msg)
 	res.status = NNG_HTTP_STATUS_NOT_FOUND;
 #endif
 	put_http_msg(&res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
-
-	nng_free(dest, 0);
+#if defined(SUPP_LICENSE_STD) || defined(SUPP_PARQUET)
+	free(dest);
+#else
+	nng_strfree(dest);
+#endif
 	return res;
 }
 
