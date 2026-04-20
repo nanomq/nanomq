@@ -1395,6 +1395,7 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 
 #ifdef NNG_SUPP_TLS
 	if (node->tls.enable) {
+		rv = nng_dialer_start(*dialer, NNG_FLAG_NONBLOCK);
 		if ((rv = init_dialer_tls(*dialer, node->tls.ca,
 		         node->tls.cert, node->tls.key, node->tls.key_password,
 		         node->tls.sni, node->tls.verify_peer)) != 0) {
