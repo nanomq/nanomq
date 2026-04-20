@@ -19,6 +19,15 @@
 #include "include/sub_handler.h"
 #include "include/acl_handler.h"
 
+#define FREE_SUB_PROPERTIES(pkt)                  \
+    do {                                            \
+        if ((pkt)->properties != NULL) {            \
+            property_free((pkt)->properties);       \
+            (pkt)->properties = NULL;               \
+            (pkt)->prop_len   = 0;                  \
+        }                                           \
+    } while(0)
+
 /**
  * @brief decode msg in work->payload to create topic_nodes.
  * @param work nano_work
@@ -61,9 +70,7 @@ decode_sub_msg(nano_work *work)
 												&sub_pkt->prop_len,
 												true);
 		if (check_properties(sub_pkt->properties, work->msg) != SUCCESS) {
-			property_free(sub_pkt->properties);
-			sub_pkt->properties = NULL;
-			sub_pkt->prop_len   = 0;
+			FREE_SUB_PROPERTIES(sub_pkt);
 			return PROTOCOL_ERROR;
 		}
 	}
@@ -74,11 +81,7 @@ decode_sub_msg(nano_work *work)
 	payload_ptr = nng_msg_payload_ptr(work->msg);
 	if (payload_ptr == NULL) {
 		log_error("payload_ptr is NULL");
-		if (sub_pkt->properties) {
-			property_free(sub_pkt->properties);
-			sub_pkt->properties = NULL;
-			sub_pkt->prop_len   = 0;
-		}
+		FREE_SUB_PROPERTIES(sub_pkt);
 		return PROTOCOL_ERROR;
 	}
 
@@ -86,9 +89,7 @@ decode_sub_msg(nano_work *work)
 	if (tn == NULL) {
 		log_error("nng_zalloc");
 		if (sub_pkt->properties) {
-			property_free(sub_pkt->properties);
-			sub_pkt->properties = NULL;
-			sub_pkt->prop_len   = 0;
+			FREE_SUB_PROPERTIES(sub_pkt);
 		}
 		return NNG_ENOMEM;
 	}
@@ -486,8 +487,7 @@ sub_pkt_free(packet_subscribe *sub_pkt)
 
 	// what if there are multiple UPs?
 	if (sub_pkt->prop_len > 0) {
-		property_free(sub_pkt->properties);
-		sub_pkt->prop_len = 0;
+		FREE_SUB_PROPERTIES(sub_pkt);
 	}
 	nng_free(sub_pkt, sizeof(packet_subscribe));
 }

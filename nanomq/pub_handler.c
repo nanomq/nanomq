@@ -1836,7 +1836,7 @@ free_pub_packet(struct pub_packet_struct *pub_packet)
 				pub_packet->payload.len  = 0;
 				log_debug("free payload");
 			}
-		} else if (pub_packet->var_header.pub_arrc.prop_len > 0) {
+		} else if (pub_packet->var_header.pub_arrc.properties != NULL) {
 			property_free(pub_packet->var_header.pub_arrc.properties);
 			pub_packet->var_header.pub_arrc.properties = NULL;
 			pub_packet->var_header.pub_arrc.prop_len   = 0;
