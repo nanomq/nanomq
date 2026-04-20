@@ -1409,7 +1409,8 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 
 
 	if (node->enable) {
-		if (0 != (rv = nng_dialer_start(*dialer, NNG_FLAG_ALLOC))) {
+		rv = nng_dialer_start(*dialer, NNG_FLAG_NONBLOCK);
+		if (rv != 0) {
 			log_error("nng dialer start failed %d", rv);
 			return rv;
 		}
