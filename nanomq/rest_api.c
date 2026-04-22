@@ -1329,9 +1329,15 @@ get_nodes(http_msg *msg, nng_socket *broker_sock)
 }
 
 typedef struct {
-	cJSON *array;
-	char * client_id;
-	char * username;
+	cJSON  *array;
+	char   *client_id;
+	char   *username;
+	char   *conn_state;
+	bool    has_clean_start;
+	bool    clean_start;
+	char   *proto_name;
+	bool    has_proto_ver;
+	uint8_t proto_ver;
 } client_info;
 
 typedef struct {
@@ -1355,6 +1361,10 @@ get_client_cb(void *key, void *value, void *json_obj)
 	bool           status  = nng_pipe_status(pipe);
 	conn_param    *cp      = nng_pipe_cparam(pipe);
 	const char    *cid     = conn_param_get_clientid(cp);
+	if (cid == NULL) {
+		conn_param_free(cp);
+		return;
+	}
 	if (info->client_id != NULL) {
 		if (strcmp(info->client_id, cid) != 0) {
 			conn_param_free(cp);
@@ -1376,6 +1386,32 @@ get_client_cb(void *key, void *value, void *json_obj)
 	const bool    clean_start = conn_param_get_clean_start(cp);
 	const mqtt_string *will_topic = (const mqtt_string *) conn_param_get_will_topic(cp);
 	const mqtt_string *will_msg   = (const mqtt_string *) conn_param_get_will_msg(cp);
+
+	if (info->conn_state != NULL) {
+		const char *state = status ? "disconnected" : "connected";
+		if (strcmp(info->conn_state, state) != 0) {
+			conn_param_free(cp);
+			return;
+		}
+	}
+
+	if (info->has_clean_start && clean_start != info->clean_start) {
+		conn_param_free(cp);
+		return;
+	}
+
+	if (info->proto_name != NULL) {
+		if (proto_name == NULL ||
+		    strcmp(info->proto_name, proto_name) != 0) {
+			conn_param_free(cp);
+			return;
+		}
+	}
+
+	if (info->has_proto_ver && proto_ver != info->proto_ver) {
+		conn_param_free(cp);
+		return;
+	}
 
 	cJSON *data_info_elem;
 	data_info_elem = cJSON_CreateObject();
@@ -1443,12 +1479,68 @@ get_clients(http_msg *msg, kv **params, size_t param_num,
 		goto out;
 	}
 
-
 	client_info info = {
-		.array     = data_info,
-		.client_id = (char *) client_id,
-		.username  = (char *) username,
+		.array           = data_info,
+		.client_id       = (char *) client_id,
+		.username        = (char *) username,
+		.conn_state      = NULL,
+		.has_clean_start = false,
+		.clean_start     = false,
+		.proto_name      = NULL,
+		.has_proto_ver   = false,
+		.proto_ver       = 0,
 	};
+
+	for (size_t i = 0; i < param_num; i++) {
+		if (strcmp(params[i]->key, "clientid") == 0 ||
+		    strcmp(params[i]->key, "client_id") == 0) {
+			info.client_id = params[i]->value;
+		} else if (strcmp(params[i]->key, "username") == 0) {
+			info.username = params[i]->value;
+		} else if (strcmp(params[i]->key, "conn_state") == 0) {
+			if (nng_strcasecmp(params[i]->value, "connected") ==
+			    0) {
+				info.conn_state = "connected";
+			} else if (nng_strcasecmp(params[i]->value,
+			               "disconnected") == 0) {
+				info.conn_state = "disconnected";
+			} else {
+				return error_response(msg,
+				    NNG_HTTP_STATUS_BAD_REQUEST,
+				    REQ_PARAM_ERROR);
+			}
+		} else if (strcmp(params[i]->key, "clean_start") == 0) {
+			if (nng_strcasecmp(params[i]->value, "true") == 0) {
+				info.clean_start     = true;
+				info.has_clean_start = true;
+			} else if (nng_strcasecmp(params[i]->value, "false") ==
+			    0) {
+				info.clean_start     = false;
+				info.has_clean_start = true;
+			} else {
+				return error_response(msg,
+				    NNG_HTTP_STATUS_BAD_REQUEST,
+				    REQ_PARAM_ERROR);
+			}
+		} else if (strcmp(params[i]->key, "proto_name") == 0) {
+			info.proto_name = params[i]->value;
+		} else if (strcmp(params[i]->key, "proto_ver") == 0) {
+			char extra = '\0';
+			int  ver   = 0;
+			if (sscanf(params[i]->value, "%d%c", &ver, &extra) !=
+			        1 ||
+			    ver < 0 || ver > UINT8_MAX) {
+				return error_response(msg,
+				    NNG_HTTP_STATUS_BAD_REQUEST,
+				    REQ_PARAM_ERROR);
+			}
+			info.proto_ver     = (uint8_t) ver;
+			info.has_proto_ver = true;
+		} else {
+			return error_response(
+			    msg, NNG_HTTP_STATUS_BAD_REQUEST, REQ_PARAM_ERROR);
+		}
+	}
 
 	nng_id_map_foreach2(pipe_id_map, get_client_cb, &info);
 
