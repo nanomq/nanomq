@@ -25,6 +25,11 @@
 static conf g_conf;
 static bool g_inited = false;
 
+typedef struct {
+	const char *uri;
+	uint16_t    expected_status;
+} client_case;
+
 static size_t
 hex_encode(char *dst, size_t dst_cap, const uint8_t *src, size_t src_len)
 {
@@ -116,14 +121,15 @@ fuzz_rest_api_detailed_cleanup(void)
 static void
 run_clients_query_regression_cases(void)
 {
-	static const char *cases[] = {
-		"/api/v4/clients?proto_ver=0",
-		"/api/v4/clients?proto_ver=6",
-		"/api/v4/clients?clean_start=maybe",
-		"/api/v4/clients?foo=bar",
-		"/api/v4/clients?proto_ver=3",
-		"/api/v4/clients?proto_ver=4",
-		"/api/v4/clients?proto_ver=5",
+	static const client_case cases[] = {
+		{ "/api/v4/clients?proto_ver=0", NNG_HTTP_STATUS_BAD_REQUEST },
+		{ "/api/v4/clients?proto_ver=6", NNG_HTTP_STATUS_BAD_REQUEST },
+		{ "/api/v4/clients?clean_start=maybe",
+		    NNG_HTTP_STATUS_BAD_REQUEST },
+		{ "/api/v4/clients?foo=bar", NNG_HTTP_STATUS_BAD_REQUEST },
+		{ "/api/v4/clients?proto_ver=3", NNG_HTTP_STATUS_OK },
+		{ "/api/v4/clients?proto_ver=4", NNG_HTTP_STATUS_OK },
+		{ "/api/v4/clients?proto_ver=5", NNG_HTTP_STATUS_OK },
 	};
 
 	g_conf.http_server.auth_type = NONE_AUTH;
@@ -134,10 +140,13 @@ run_clients_query_regression_cases(void)
 
 	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
 		http_msg req = { 0 };
-		put_http_msg(
-		    &req, "application/json", "GET", cases[i], NULL, "", 0);
-
-		http_msg resp = process_request(&req, &g_conf.http_server, &sock);
+		put_http_msg(&req, "application/json", "GET", cases[i].uri,
+		    NULL, "", 0);
+		http_msg resp =
+		    process_request(&req, &g_conf.http_server, &sock);
+		if (resp.status != cases[i].expected_status) {
+			abort();
+		}
 		destory_http_msg(&resp);
 		destory_http_msg(&req);
 	}

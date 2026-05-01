@@ -1474,11 +1474,6 @@ get_clients(http_msg *msg, kv **params, size_t param_num,
 
 	nng_id_map *pipe_id_map;
 
-	if (nng_socket_get_ptr(*broker_sock, NMQ_OPT_MQTT_PIPES,
-	        (void **) &pipe_id_map) != 0) {
-		goto out;
-	}
-
 	client_info info = {
 		.array           = data_info,
 		.client_id       = (char *) client_id,
@@ -1536,6 +1531,11 @@ get_clients(http_msg *msg, kv **params, size_t param_num,
 		} else {
 			goto bad_request;
 		}
+	}
+
+	if (nng_socket_get_ptr(*broker_sock, NMQ_OPT_MQTT_PIPES,
+	        (void **) &pipe_id_map) != 0) {
+		goto out;
 	}
 
 	nng_id_map_foreach2(pipe_id_map, get_client_cb, &info);
