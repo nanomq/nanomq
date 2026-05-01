@@ -1505,9 +1505,7 @@ get_clients(http_msg *msg, kv **params, size_t param_num,
 			               "disconnected") == 0) {
 				info.conn_state = "disconnected";
 			} else {
-				return error_response(msg,
-				    NNG_HTTP_STATUS_BAD_REQUEST,
-				    REQ_PARAM_ERROR);
+				goto bad_request;
 			}
 		} else if (strcmp(params[i]->key, "clean_start") == 0) {
 			if (nng_strcasecmp(params[i]->value, "true") == 0) {
@@ -1518,9 +1516,7 @@ get_clients(http_msg *msg, kv **params, size_t param_num,
 				info.clean_start     = false;
 				info.has_clean_start = true;
 			} else {
-				return error_response(msg,
-				    NNG_HTTP_STATUS_BAD_REQUEST,
-				    REQ_PARAM_ERROR);
+				goto bad_request;
 			}
 		} else if (strcmp(params[i]->key, "proto_name") == 0) {
 			info.proto_name = params[i]->value;
@@ -1529,20 +1525,25 @@ get_clients(http_msg *msg, kv **params, size_t param_num,
 			int  ver   = 0;
 			if (sscanf(params[i]->value, "%d%c", &ver, &extra) !=
 			        1 ||
-			    ver < 0 || ver > UINT8_MAX) {
-				return error_response(msg,
-				    NNG_HTTP_STATUS_BAD_REQUEST,
-				    REQ_PARAM_ERROR);
+			    ver < 0 || ver > UINT8_MAX ||
+			    (ver != MQTT_PROTOCOL_VERSION_v31 &&
+			        ver != MQTT_PROTOCOL_VERSION_v311 &&
+			        ver != MQTT_PROTOCOL_VERSION_v5)) {
+				goto bad_request;
 			}
 			info.proto_ver     = (uint8_t) ver;
 			info.has_proto_ver = true;
 		} else {
-			return error_response(
-			    msg, NNG_HTTP_STATUS_BAD_REQUEST, REQ_PARAM_ERROR);
+			goto bad_request;
 		}
 	}
 
 	nng_id_map_foreach2(pipe_id_map, get_client_cb, &info);
+	goto out;
+
+bad_request:
+	cJSON_Delete(data_info);
+	return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST, REQ_PARAM_ERROR);
 
  out:
 

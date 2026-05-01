@@ -113,12 +113,43 @@ fuzz_rest_api_detailed_cleanup(void)
 	}
 }
 
+static void
+run_clients_query_regression_cases(void)
+{
+	static const char *cases[] = {
+		"/api/v4/clients?proto_ver=0",
+		"/api/v4/clients?proto_ver=6",
+		"/api/v4/clients?clean_start=maybe",
+		"/api/v4/clients?foo=bar",
+		"/api/v4/clients?proto_ver=3",
+		"/api/v4/clients?proto_ver=4",
+		"/api/v4/clients?proto_ver=5",
+	};
+
+	g_conf.http_server.auth_type = NONE_AUTH;
+	set_http_server_conf(&g_conf.http_server);
+
+	nng_socket sock = { 0 };
+	g_conf.http_server.broker_sock = &sock;
+
+	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+		http_msg req = { 0 };
+		put_http_msg(
+		    &req, "application/json", "GET", cases[i], NULL, "", 0);
+
+		http_msg resp = process_request(&req, &g_conf.http_server, &sock);
+		destory_http_msg(&resp);
+		destory_http_msg(&req);
+	}
+}
+
 int
 LLVMFuzzerInitialize(int *argc, char ***argv)
 {
 	(void) argc;
 	(void) argv;
 	ensure_inited();
+	run_clients_query_regression_cases();
 	atexit(fuzz_rest_api_detailed_cleanup);
 	return 0;
 }
@@ -168,6 +199,13 @@ static const char *uri_templates[] = {
 	"/logs/full",
 	"/platform_infos",
 	"/clients",
+	"/clients?proto_ver=0",
+	"/clients?proto_ver=6",
+	"/clients?clean_start=maybe",
+	"/clients?foo=bar",
+	"/clients?proto_ver=3",
+	"/clients?proto_ver=4",
+	"/clients?proto_ver=5",
 	"/clients/%s",
 	"/clients/username/%s",
 	"/subscriptions",
