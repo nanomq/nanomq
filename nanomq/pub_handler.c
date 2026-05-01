@@ -1650,11 +1650,23 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 #endif
 	// deal with topic alias
 	if (proto == MQTT_PROTOCOL_VERSION_v5) {
+		uint16_t alias_max_out = 0;
+		if (work->cparam != NULL) {
+			alias_max_out =
+				conn_param_get_topic_alias_max_out(work->cparam);
+		}
 		property_data *pdata = property_get_value(
 		    work->pub_packet->var_header.publish.properties,
 		    TOPIC_ALIAS);
 		log_trace("len: %d, topic: %s", len, topic);
 		if (pdata != NULL && pdata->p_value.u16 != 0) {
+			if (alias_max_out == 0 ||
+			    pdata->p_value.u16 > alias_max_out) {
+				log_warn("Topic alias %u is not negotiated "
+				         "for this connection",
+				    pdata->p_value.u16);
+				return TOPIC_ALIAS_INVALID;
+			}
 			if (len > 0 && topic != NULL) {
 				dbhash_insert_atpair(
 					work->pid.id, pdata->p_value.u16, topic);
@@ -1677,6 +1689,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 			}
 		} else if (pdata != NULL && pdata->p_value.u16 == 0) {
 			log_warn("Invalid topic alias found!");
+			return TOPIC_ALIAS_INVALID;
 		} else {
 			log_debug("No topic alias found");
 		}
