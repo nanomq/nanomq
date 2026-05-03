@@ -1654,31 +1654,48 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 		    work->pub_packet->var_header.publish.properties,
 		    TOPIC_ALIAS);
 		log_trace("len: %d, topic: %s", len, topic);
-		if (pdata != NULL && pdata->p_value.u16 != 0) {
+
+		if (pdata != NULL) {
+			uint16_t alias_val        = pdata->p_value.u16;
+			uint16_t server_max_alias = 0;
+
+			if (work->config != NULL) {
+				server_max_alias =
+				    work->config->max_topic_alias;
+			}
+
+			if (alias_val == 0 || alias_val > server_max_alias) {
+				log_error(
+				    "Invalid Topic Alias: %d (Server Max "
+				    "allowed: %d). "
+				    "Closing connection or rejecting publish.",
+				    alias_val, server_max_alias);
+				return TOPIC_ALIAS_INVALID;
+			}
+
 			if (len > 0 && topic != NULL) {
 				dbhash_insert_atpair(
-					work->pid.id, pdata->p_value.u16, topic);
+				    work->pid.id, alias_val, topic);
 			} else {
 				const char *tp = dbhash_find_atpair(
-					work->pid.id, pdata->p_value.u16);
+				    work->pid.id, alias_val);
 				if (tp) {
 					topic = work->pub_packet->var_header
-								.publish.topic_name.body =
-						nng_strdup(tp);
+					            .publish.topic_name.body =
+					    nng_strdup(tp);
 					len = work->pub_packet->var_header
-								.publish.topic_name.len =
-						strlen(tp);
+					          .publish.topic_name.len =
+					    strlen(tp);
 				} else {
-					log_error("could not find "
-								"topic by alias: %d",
-						pdata->p_value.u16);
+					log_error("could not find topic by "
+					          "alias: %d",
+					    alias_val);
 					return TOPIC_ALIAS_INVALID;
 				}
 			}
-		} else if (pdata != NULL && pdata->p_value.u16 == 0) {
-			log_warn("Invalid topic alias found!");
-		} else {
-			log_debug("No topic alias found");
+		} else if (len == 0) {
+			log_warn("No topic alias found & topic is NULL");
+			return PROTOCOL_ERROR;
 		}
 	}
 
