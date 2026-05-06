@@ -89,6 +89,7 @@ struct client_opts {
 	property *       conn_properties;
 	property *       sub_properties;
 	property *       pub_properties;
+	property *       will_properties;
 };
 
 typedef struct client_opts client_opts;
@@ -127,6 +128,12 @@ enum options {
 	OPT_WILL_QOS,
 	OPT_WILL_RETAIN,
 	OPT_WILL_TOPIC,
+	OPT_WILL_PAYLOAD_FORMAT_INDICATOR,
+	OPT_WILL_MESSAGE_EXPIRY_INTERVAL,
+	OPT_WILL_CONTENT_TYPE,
+	OPT_WILL_RESPONSE_TOPIC,
+	OPT_WILL_CORRELATION_DATA,
+	OPT_WILL_USER_PROPERTY,
 	OPT_QUIC,
 	OPT_SECURE,
 	OPT_CACERT,
@@ -226,6 +233,24 @@ static nng_optspec cmd_opts[] = {
 	{ .o_name = "will-qos", .o_val = OPT_WILL_QOS, .o_arg = true },
 	{ .o_name = "will-retain", .o_val = OPT_WILL_RETAIN },
 	{ .o_name = "will-topic", .o_val = OPT_WILL_TOPIC, .o_arg = true },
+	{ .o_name = "will_payload_format_indicator",
+	    .o_val = OPT_WILL_PAYLOAD_FORMAT_INDICATOR,
+	    .o_arg = true },
+	{ .o_name = "will_message_expiry_interval",
+	    .o_val = OPT_WILL_MESSAGE_EXPIRY_INTERVAL,
+	    .o_arg = true },
+	{ .o_name = "will_content_type",
+	    .o_val = OPT_WILL_CONTENT_TYPE,
+	    .o_arg = true },
+	{ .o_name = "will_response_topic",
+	    .o_val = OPT_WILL_RESPONSE_TOPIC,
+	    .o_arg = true },
+	{ .o_name = "will_correlation_data",
+	    .o_val = OPT_WILL_CORRELATION_DATA,
+	    .o_arg = true },
+	{ .o_name = "will_user_property",
+	    .o_val = OPT_WILL_USER_PROPERTY,
+	    .o_arg = true },
 	{ .o_name = "secure", .o_short = 's', .o_val = OPT_SECURE },
 	{ .o_name = "quic", .o_val = OPT_QUIC },
 	{ .o_name = "cafile", .o_val = OPT_CACERT, .o_arg = true },
@@ -402,6 +427,41 @@ static arg_usage properties_usage[] = {
 	    .type  = (PUB | SUB | CONN),
 	    .usage = "maximum_packet_size            The maximum packet size "
 	             "the client accepts from the server.",
+	},
+	{
+	    .type  = (PUB | SUB | CONN),
+	    .usage = "will_payload_format_indicator  The payload format "
+	             "indicator of the will message",
+	},
+	{
+	    .type  = (PUB | SUB | CONN),
+	    .usage = "will_message_expiry_interval   The lifetime of the "
+	             "will message in seconds",
+	},
+	{
+	    .type  = (PUB | SUB | CONN),
+	    .usage = "will_content_type              A description of the "
+	             "will message content",
+	},
+	{
+	    .type  = (PUB | SUB | CONN),
+	    .usage = "will_response_topic            The response topic "
+	             "for the will message",
+	},
+	{
+	    .type  = (PUB | SUB | CONN),
+	    .usage = "will_correlation_data          Correlation data "
+	             "for the will message",
+	},
+	{
+	    .type  = (PUB | SUB | CONN),
+	    .usage = "will_delay_interval            Delay (seconds) before "
+	             "publishing will message",
+	},
+	{
+	    .type  = (PUB | SUB | CONN),
+	    .usage = "will_user_property             User property for "
+	             "the will message (key=value)",
 	},
 };
 
@@ -873,6 +933,7 @@ properties_classify(property *properties, client_opts *opts)
 	switch (opts->type) {
 	case CONN:
 		opts->conn_properties = mqtt_property_alloc();
+		opts->will_properties = mqtt_property_alloc();
 		break;
 	case PUB:
 		opts->conn_properties = mqtt_property_alloc();
@@ -954,9 +1015,6 @@ properties_type_parse(int val)
 	case OPT_REQUEST_PROBLEM_INFORMATION:
 		prop_id = REQUEST_PROBLEM_INFORMATION;
 		break;
-	case OPT_WILL_DELAY_INTERVAL:
-		prop_id = WILL_DELAY_INTERVAL;
-		break;
 	case OPT_REQUEST_RESPONSE_INFORMATION:
 		prop_id = REQUEST_RESPONSE_INFORMATION;
 		break;
@@ -998,6 +1056,40 @@ properties_type_parse(int val)
 		break;
 	case OPT_SHARED_SUBSCRIPTION_AVAILABLE:
 		prop_id = SHARED_SUBSCRIPTION_AVAILABLE;
+		break;
+	default:
+		break;
+	}
+
+	return prop_id;
+}
+
+static properties_type
+will_properties_type_parse(int val)
+{
+	properties_type prop_id = 0;
+
+	switch (val) {
+	case OPT_WILL_PAYLOAD_FORMAT_INDICATOR:
+		prop_id = PAYLOAD_FORMAT_INDICATOR;
+		break;
+	case OPT_WILL_MESSAGE_EXPIRY_INTERVAL:
+		prop_id = MESSAGE_EXPIRY_INTERVAL;
+		break;
+	case OPT_WILL_CONTENT_TYPE:
+		prop_id = CONTENT_TYPE;
+		break;
+	case OPT_WILL_RESPONSE_TOPIC:
+		prop_id = RESPONSE_TOPIC;
+		break;
+	case OPT_WILL_CORRELATION_DATA:
+		prop_id = CORRELATION_DATA;
+		break;
+	case OPT_WILL_DELAY_INTERVAL:
+		prop_id = WILL_DELAY_INTERVAL;
+		break;
+	case OPT_WILL_USER_PROPERTY:
+		prop_id = USER_PROPERTY;
 		break;
 	default:
 		break;
@@ -1085,6 +1177,102 @@ properties_parse(int argc, char **argv, property *properties)
 			break;
 		}
 		mqtt_property_append(prop_list, prop_item);
+	}
+
+	switch (rv) {
+	case NNG_EINVAL:
+		fatal("Option %s is invalid.", argv[idx]);
+		break;
+	case NNG_EAMBIGUOUS:
+		fatal("Option %s is ambiguous (specify in full).", argv[idx]);
+		break;
+	case NNG_ENOARG:
+		fatal("Option %s requires argument.", argv[idx]);
+		break;
+	default:
+		break;
+	}
+
+	return rv;
+}
+
+static int
+will_properties_parse(int argc, char **argv, client_opts *opts)
+{
+	int   idx = 1;
+	char *arg;
+	int   val;
+	int   rv;
+
+	uint8_t  u8;
+	uint16_t u16;
+	uint32_t u32;
+	char *   str;
+	char *   value;
+	uint8_t *bin;
+	property *prop_item;
+
+	while ((rv = nng_opts_parse(
+	            argc - 1, argv + 1, cmd_opts, &val, &arg, &idx)) == 0) {
+		properties_type prop_id = will_properties_type_parse(val);
+		if (prop_id == 0)
+			continue;
+
+		if (opts->will_properties == NULL) {
+			opts->will_properties = mqtt_property_alloc();
+		}
+
+		property_type_enum type = mqtt_property_get_value_type(prop_id);
+		switch (type) {
+		case U8:
+			u8        = (uint8_t) long_arg(arg, 0, UINT8_MAX);
+			prop_item = mqtt_property_set_value_u8(prop_id, u8);
+			break;
+		case U16:
+			u16       = (uint16_t) long_arg(arg, 0, UINT16_MAX);
+			prop_item = mqtt_property_set_value_u16(prop_id, u16);
+			break;
+		case U32:
+			u32       = (uint32_t) long_arg(arg, 0, UINT32_MAX);
+			prop_item = mqtt_property_set_value_u32(prop_id, u32);
+			break;
+		case VARINT:
+			u32 = (uint32_t) long_arg(arg, 0, UINT32_MAX);
+			prop_item = mqtt_property_set_value_varint(prop_id, u32);
+			break;
+		case BINARY:
+			bin       = (uint8_t *) arg;
+			prop_item = mqtt_property_set_value_binary(
+			    prop_id, bin, strlen(arg), true);
+			break;
+		case STR:
+			str       = arg;
+			prop_item = mqtt_property_set_value_str(
+			    prop_id, str, strlen(str), true);
+			break;
+		case STR_PAIR:
+			str   = nng_zalloc(strlen(arg) + 1);
+			value = nng_zalloc(strlen(arg) + 1);
+			int ret = sscanf(arg, "%[^=]=%s", str, value);
+			if (ret != 2) {
+				nng_free(str, strlen(str) + 1);
+				nng_free(value, strlen(value) + 1);
+				fatal("Invalid string pair: '%s', "
+				      "Require "
+				      "format: 'key=value'", arg);
+			} else {
+				prop_item = mqtt_property_set_value_strpair(
+				    prop_id, str, strlen(str), value,
+				    strlen(value), true);
+				nng_free(str, strlen(str) + 1);
+				nng_free(value, strlen(value) + 1);
+			}
+			break;
+		default:
+			fatal("Unknown property: %s", argv[idx]);
+			break;
+		}
+		mqtt_property_append(opts->will_properties, prop_item);
 	}
 
 	switch (rv) {
@@ -1460,6 +1648,9 @@ connect_msg(client_opts *opt)
 	if (opt->will_retain) {
 		nng_mqtt_msg_set_connect_will_retain(msg, opt->will_retain);
 	}
+	if (opt->will_properties) {
+		nng_mqtt_msg_set_connect_will_property(msg, opt->will_properties);
+	}
 
 	return msg;
 }
@@ -1676,6 +1867,7 @@ client(int argc, char **argv, enum client_type type)
 		properties_parse(argc, argv, properties);
 		properties_classify(properties, opts);
 		mqtt_property_free(properties);
+		will_properties_parse(argc, argv, opts);
 	}
 
 	if (opts->interval == 0 && opts->total_msg_count > 0) {
@@ -1817,6 +2009,9 @@ free_opts(void)
 		}
 		if (opts->pub_properties) {
 			mqtt_property_free(opts->pub_properties);
+		}
+		if (opts->will_properties) {
+			mqtt_property_free(opts->will_properties);
 		}
 
 		free(opts);
