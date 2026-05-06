@@ -455,11 +455,6 @@ static arg_usage properties_usage[] = {
 	},
 	{
 	    .type  = (PUB | SUB | CONN),
-	    .usage = "will_delay_interval            Delay (seconds) before "
-	             "publishing will message",
-	},
-	{
-	    .type  = (PUB | SUB | CONN),
 	    .usage = "will_user_property             User property for "
 	             "the will message (key=value)",
 	},
@@ -933,7 +928,6 @@ properties_classify(property *properties, client_opts *opts)
 	switch (opts->type) {
 	case CONN:
 		opts->conn_properties = mqtt_property_alloc();
-		opts->will_properties = mqtt_property_alloc();
 		break;
 	case PUB:
 		opts->conn_properties = mqtt_property_alloc();
@@ -1648,7 +1642,7 @@ connect_msg(client_opts *opt)
 	if (opt->will_retain) {
 		nng_mqtt_msg_set_connect_will_retain(msg, opt->will_retain);
 	}
-	if (opt->will_properties) {
+	if (opt->will_topic && opt->will_properties) {
 		nng_mqtt_msg_set_connect_will_property(msg, opt->will_properties);
 	}
 
