@@ -1,4 +1,4 @@
-FROM gcc:15.2 AS builder
+FROM gcc:16.1 AS builder
 
 COPY . /nanomq
 
