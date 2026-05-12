@@ -153,9 +153,10 @@ bridges.nng.sub.t2 {
 
 - NanoMQ 在 `ipc:///tmp/nng_sub.ipc` 上监听 NNG `sub0` Socket。
 - 外部 NNG `pub0` 客户端连接到该地址后，可以向 NanoMQ 推送原始 NNG 消息。
-- 对于第一条未配置 `nng_delimiter` 的规则，NanoMQ 使用默认分隔符 `/`。当收到以 `test/123/` 为前缀的消息时，NanoMQ 会去掉此前缀，把剩余部分作为 MQTT payload，并发布到 `test/forward`。
-- 对于显式配置了 `nng_delimiter`（例如 `:`）的规则，NanoMQ 会按 `remote_topic:` 进行前缀匹配与截断后再发布 MQTT 消息。
-- 这一条规则中，发布到本地 MQTT Broker 的主题是 `test/forward`，不是 `test/123`。
+- Topic 提取规则取决于 `nng_delimiter` 配置：
+  - 当 `nng_delimiter = "/"` 时：NanoMQ 将提取的 topic 与配置的 `remote_topic` 进行匹配，匹配后的后缀部分作为 payload。对于 `remote_topic="test/123"` 和消息 `"test/123/hello world"`，提取的 topic 为 `"test/123"`，payload 为 `"hello world"`。
+  - 当 `nng_delimiter = ":"` 时：NanoMQ 从 `remote_topic` 前缀提取到分隔符。对于 `remote_topic="test/123"`、`nng_delimiter=":"` 和消息 `"test/123:hello nanomq"`，提取的 topic 为 `"test/123"`，payload 为 `"hello nanomq"`。
+- 这一条规则中，发布到本地 MQTT Broker 的主题是 `test/forward`（即 local_topic），不是 `test/123`。
 
 ### 测试流程
 

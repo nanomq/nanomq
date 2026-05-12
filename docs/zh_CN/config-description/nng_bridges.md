@@ -109,7 +109,9 @@ bridges.nng.sub.t2 {
 * `sub_url`：NanoMQ 在此地址上启动 NNG `sub0` Socket 并监听（listen），**外部 NNG pub 端主动连接**到该地址以推送消息。同样支持 TCP 和 IPC 传输，例如 `tcp://localhost:9901`、 `ipc:///tmp/nng_sub.ipc`或进程内线程间通信 `inproc://inproc_thr`。
 * `clientid`：用于本地 MQTT 代理中标识此桥接订阅者的 Client ID。
 * `subscription`：定义远端 NNG 主题前缀到本地 MQTT 主题的映射关系规则数组。来源于匹配 `remote_topic` 的 NNG 消息将发布至 `local_topic`。
-    * `remote_topic`：配置底层 NNG Socket 的主题过滤前缀。只有以 `"remote_topic + nng_delimiter"` 或该配置前缀开头的 NNG 消息字节流才会被接收，前缀之后的内容将被当作 MQTT 消息的主体 Payload 处理。
+    * `remote_topic`: 配置底层 NNG Socket 的主题过滤前缀。Topic 提取规则如下：
+      - 当 `nng_delimiter` 未设置或为 `/` 时：提取的 topic 与配置的 `remote_topic` 进行匹配，匹配成功后的后缀部分（超出前缀的部分）作为 payload。例：`remote_topic="nng/pub"`，`nng_delimiter="/"`，消息 `"nng/pub/123/hello"` → 提取的 topic=`"nng/pub"`，payload=`"123/hello"`。
+      - 当 `nng_delimiter` 设置为非 `/`（如 `":"`）时：提取的 topic 从 `remote_topic` 前缀延伸到分隔符位置，分隔符之后的部分作为 payload。例：`remote_topic="nng/pub"`，`nng_delimiter=":"` ，消息 `"nng/pub/123/1234:payload"` → 提取的 topic=`"nng/pub/123/1234"`，payload=`"payload"`。
     * `nng_delimiter`：匹配和拆分 NNG 入站消息时使用的分隔符。默认值为 `/`。
-  * `local_topic`：指定该过滤后的数据将被发布到 NanoMQ 的哪一个本地 MQTT 主题上。
+  * `local_topic`：指定该过滤后的数据将被发布到 NanoMQ 的哪一个本地 MQTT 主题上。若此字段未填写或为空字符串，`local_topic` 等同于 `remote_topic`。
   * `qos`：指定转换并发布为本地 MQTT 消息时所采用的 QoS 等级。可选值：`0` | `1` | `2`。
