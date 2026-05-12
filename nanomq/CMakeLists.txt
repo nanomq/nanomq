@@ -52,6 +52,7 @@ set(SOURCES
     mqtt_api.c
     nanomq.c
     apps/broker.c
+    apps/nng_bridge.c
 )
 
 if(NNG_ENABLE_PLUGIN)
