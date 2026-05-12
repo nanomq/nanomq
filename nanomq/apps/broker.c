@@ -38,6 +38,7 @@
 
 #include "include/acl_handler.h"
 #include "include/bridge.h"
+#include "include/nng_bridge.h"
 #include "include/nanomq_rule.h"
 #include "include/mqtt_api.h"
 #include "include/nanomq.h"
@@ -211,6 +212,7 @@ server_cb(void *arg)
 	nano_work     *work = arg;
 	nng_msg       *msg  = NULL;
 	nng_msg       *smsg = NULL;
+	nng_msg       *nmsg = NULL;
 	int            rv;
 
 	mqtt_msg_info *msg_info;
@@ -255,7 +257,6 @@ server_cb(void *arg)
 				log_info("bridge aio closed with reason %d\n", rv);
 			}
 		}
-
 		if (work->proto == PROTO_MQTT_BRIDGE) {
 			uint8_t type = nng_msg_get_type(msg);
 			if (type == CMD_CONNACK) {
@@ -319,14 +320,14 @@ server_cb(void *arg)
 				nng_ctx_recv(work->extra_ctx, work->aio);
 				break;
 			}
-			conn_param *cparam = NULL;
-			conn_param_alloc(&cparam);
-			conn_param_set_clientid(cparam, "nng_proxy_bridge");
-			conn_param_set_username(cparam, "nng_bridge");
-			conn_param_set_proto_ver(cparam, MQTT_PROTOCOL_VERSION_v311);
-			nng_msg_free(msg); // free original raw msg
+			if (nmsg != NULL) {
+				nng_msg_free(nmsg);
+				nmsg = NULL;
+			}
+			nmsg = msg; // preserve nng sub msg for proxy in WAIT
 			msg = mqtt_msg;
-			nng_msg_set_conn_param(msg, cparam);
+			conn_param_clone(work->cparam);
+			nng_msg_set_conn_param(msg, work->cparam);
 		}
 		// processing what we got now
 		work->msg       = msg;
@@ -464,6 +465,7 @@ server_cb(void *arg)
 			}
 			work->code = handle_pub(
 			    work, work->pipe_ct, work->proto_ver, false);
+
 			if (work->proto == PROTO_HTTP_SERVER ||
 			    work->proto == PROTO_AWS_BRIDGE) {
 				nng_msg *rep_msg;
@@ -616,27 +618,13 @@ server_cb(void *arg)
 #if defined(SUPP_ICEORYX)
 		iceoryx_opt = 1;
 #endif
-		// NNG PUB proxy
-		if (work->config->nng_proxy.enable &&
-			work->config->nng_proxy.pub_url != NULL) {
-				// topic filter, save bandwidth.
-			// convert mqtt msg to nng pub msg
-			// iterate all pub node
-			nng_msg *new_msg;
-			uint32_t plen = 0, tlen = 0;
-			nng_msg_alloc(&new_msg, 0);
-			char *payload = work->pub_packet->payload.data;
-			plen = work->pub_packet->payload.len;
-			char *topic = work->pub_packet->var_header.publish.topic_name.body;
-			tlen = work->pub_packet->var_header.publish.topic_name.len;
-			nng_msg_append(new_msg, topic, tlen);
-			nng_msg_append(new_msg, "/", 1);
-			nng_msg_append(new_msg, payload, plen);
-			// TODO pass nng sub msg directly
-			nng_aio_set_msg(work->aio, new_msg);
-			work->state = SEND;
-			nng_sock_send(work->config->nng_proxy.pub_sock, work->aio);
-			break;
+		// Doing NNG PUB
+		if (work->config->nng_proxy.pub_enable) {
+			nng_pub_handler(work, nmsg);
+			if (nmsg != NULL) {
+				nng_msg_free(nmsg);
+				nmsg = NULL;
+			}
 		}
 		if (hook_conf->enable || rule_opt != RULE_ENG_OFF || iceoryx_opt == 1) {
 			work->state = SEND;
@@ -709,7 +697,7 @@ server_cb(void *arg)
 			nng_aio_set_prov_data(work->aio, work->iceoryx_suber);
 			nng_ctx_recv(work->extra_ctx, work->aio);
 #endif
-		} else{
+		} else {
 			nng_ctx_recv(work->extra_ctx, work->aio);
 		}
 		break;
@@ -903,20 +891,6 @@ proto_work_init(nng_socket sock, nng_socket extrasock, uint8_t proto,
 		}
 	}
 
-	if (config->nng_proxy.enable && proto == PROTO_MQTT_BROKER) {
-	} else if (config->nng_proxy.enable && proto == PROTO_NNG_BRIDGE) {
-		// TODO one ctx for one url.
-		if ((rv = nng_ctx_open(
-		         &w->extra_ctx, config->nng_proxy.sub_sock)) != 0) {
-			NANO_NNG_FATAL("nng_ctx_open in nng_proxy sub", rv);
-		}
-		rv = nng_ctx_set(w->extra_ctx, NNG_OPT_SUB_SUBSCRIBE, "nng", 3);
-		if (rv != 0) {
-			fatal("Unable to subscribe to topic: %s",
-			    nng_strerror(rv));
-		}
-	}
-
 	if(config->web_hook.enable || config->exchange.count > 0) {
 		if ((rv = nng_push0_open(&w->hook_sock)) != 0) {
 			NANO_NNG_FATAL("nng_socket", rv);
@@ -1092,21 +1066,13 @@ broker(conf *nanomq_conf)
 	}
 
 	// add nng_proxy ctx
-	if (nanomq_conf->nng_proxy.enable) {
-		// TODO multiple nng_proxy conf
-		int rv = 0;
-		nng_socket *pub_sock = &nanomq_conf->nng_proxy.pub_sock;
-		nng_socket *sub_sock = &nanomq_conf->nng_proxy.sub_sock;
-		if ((rv = nng_pub0_open(pub_sock)) != 0) {
-			return rv;
+	if (nanomq_conf->nng_proxy.sub_enable) {
+		for (size_t t = 0; t < nanomq_conf->nng_proxy.sub_count; t++) {
+			// Only need ctx for SUB side. one node as one ctx.
+			num_work += 1;
+			// TODO: Sub ctx need to send msg to bridge, so * 2?
+			nanomq_conf->total_ctx += 2;
 		}
-		if ((rv = nng_sub0_open(sub_sock)) != 0) {
-			return rv;
-		}
-		// Only need ctx for SUB side. one node as one ctx.
-		num_work += 1;
-		// Sub ctx need to send msg to bridge, so * 2
-		nanomq_conf->total_ctx += 1;
 	}
 	// init bridging client
 	if (nanomq_conf->bridge_mode) {
@@ -1131,7 +1097,6 @@ broker(conf *nanomq_conf)
 	struct work **works = nng_zalloc(num_work * sizeof(struct work *));
 	// create broker ctx
 	for (i = 0; i < nanomq_conf->parallel; i++) {
-		// Extra ctx of broker ctx is for nng_proxy
 		works[i] = proto_work_init(sock, inproc_sock,
 		    PROTO_MQTT_BROKER, db, db_ret, nanomq_conf);
 		works[i]->work_id = i;  //assign id to work
@@ -1197,16 +1162,6 @@ broker(conf *nanomq_conf)
 	tmp += HTTP_CTX_NUM;
 #endif
 
-	// create nng_proxy sub ctx
-	if (nanomq_conf->nng_proxy.enable) {
-		log_debug("http context init");
-		works[i] =
-		    proto_work_init(sock, nanomq_conf->nng_proxy.sub_sock,
-		        PROTO_NNG_BRIDGE, db, db_ret, nanomq_conf);
-		works[i]->work_id = i; // assign id to work
-		tmp += 1;
-	}
-
 	// create http server ctx
 	if (nanomq_conf->http_server.enable) {
 		log_debug("http context init");
@@ -1216,6 +1171,27 @@ broker(conf *nanomq_conf)
 			works[i]->work_id = i;  //assign id to work
 		}
 		tmp += HTTP_CTX_NUM;
+	}
+	// create nng_proxy sub ctx
+	if (nanomq_conf->nng_proxy.sub_enable) {
+		size_t t = 0;
+		for (size_t i = tmp; i < tmp + nanomq_conf->nng_proxy.sub_count; i++) {
+			works[i]          = proto_work_init(sock,
+			    nanomq_conf->nng_proxy.snodes[t]->sub_sock,
+				PROTO_NNG_BRIDGE,
+			    db, db_ret, nanomq_conf);
+			works[i]->work_id = i; // assign id to work
+			nng_proxy_sub_init(nanomq_conf->nng_proxy.snodes[t], works[i]);
+			t ++;
+		}
+		tmp += nanomq_conf->nng_proxy.sub_count;
+	}
+	// init nng_proxy pub, but without ctx
+	if (nanomq_conf->nng_proxy.pub_enable) {
+		for (size_t i = 0; i < nanomq_conf->nng_proxy.pub_count; i++) {
+			nng_proxy_pub_init(nanomq_conf->nng_proxy.pnodes[i]);
+			// Is it necessary to init a conn_param for pub also?
+		}
 	}
 
 	if (nanomq_conf->enable) {
@@ -1298,18 +1274,6 @@ broker(conf *nanomq_conf)
 		if ((rv = nano_listen(inproc_sock, INPROC_SERVER_URL, NULL, 0,
 		         nanomq_conf)) != 0) {
 			NANO_NNG_FATAL("nng_listen " INPROC_SERVER_URL, rv);
-		}
-	}
-	if (nanomq_conf->nng_proxy.enable) {
-		if ((rv = nng_listen(nanomq_conf->nng_proxy.sub_sock,
-							 nanomq_conf->nng_proxy.sub_url,
-							 NULL, 0)) != 0) {
-			NANO_NNG_FATAL("nng_listen proxy url failed" , rv);
-		}
-		if ((rv = nng_listen(nanomq_conf->nng_proxy.pub_sock,
-							 nanomq_conf->nng_proxy.pub_url,
-							 NULL, 0)) != 0) {
-			NANO_NNG_FATAL("nng_listen proxy url failed" , rv);
 		}
 	}
 
