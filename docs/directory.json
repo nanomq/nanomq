@@ -53,6 +53,10 @@
           "path": "config-description/bridges"
         },
         {
+          "title": "NNG 消息桥接",
+          "path": "config-description/nng_bridges"
+        },
+        {
           "title": "WebHook",
           "path": "config-description/webhook"
         },
@@ -217,6 +221,10 @@
       "collapsed": true,
       "children": [
         {
+          "title": "NNG 消息桥接",
+          "path": "tutorial/nng-bridges"
+        },
+        {
           "title": "retain消息持久化",
           "path": "tutorial/retain-msg-persistence"
         },
@@ -290,6 +298,10 @@
         {
           "title": "MQTT Messaging",
           "path": "config-description/mqtt"
+        },
+        {
+          "title": "NNG Message Bridging",
+          "path": "config-description/nng_bridges"
         },
         {
           "title": "Listener",
@@ -478,6 +490,10 @@
       "path": "tutorial/tutorial",
       "collapsed": true,
       "children": [
+        {
+          "title": "NNG Message Bridging",
+          "path": "tutorial/nng-bridges"
+        },
         {
           "title": "retain message persistence",
           "path": "tutorial/retain-msg-persistence"
