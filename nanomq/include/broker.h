@@ -41,6 +41,7 @@ struct work {
 	uint8_t     flag;        // flag for webhook & rule_engine
 	nng_aio *   aio;
 	nng_msg *   msg;
+	nng_msg *   nmsg;		// forwarding nng sub msg direct to pub
 	nng_msg **  msg_ret;
 	nng_ctx     ctx;        // ctx for mqtt broker
 	nng_ctx     extra_ctx; //  ctx for bridging/http or any other input protocol

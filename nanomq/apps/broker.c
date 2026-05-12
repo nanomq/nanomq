@@ -212,7 +212,6 @@ server_cb(void *arg)
 	nano_work     *work = arg;
 	nng_msg       *msg  = NULL;
 	nng_msg       *smsg = NULL;
-	nng_msg       *nmsg = NULL;
 	int            rv;
 
 	mqtt_msg_info *msg_info;
@@ -320,11 +319,11 @@ server_cb(void *arg)
 				nng_ctx_recv(work->extra_ctx, work->aio);
 				break;
 			}
-			if (nmsg != NULL) {
-				nng_msg_free(nmsg);
-				nmsg = NULL;
+			if (work->nmsg != NULL) {
+				nng_msg_free(work->nmsg);
+				work->nmsg = NULL;
 			}
-			nmsg = msg; // preserve nng sub msg for proxy in WAIT
+			work->nmsg = msg; // preserve nng sub msg for proxy in WAIT
 			msg = mqtt_msg;
 			conn_param_clone(work->cparam);
 			nng_msg_set_conn_param(msg, work->cparam);
@@ -620,10 +619,10 @@ server_cb(void *arg)
 #endif
 		// Doing NNG PUB
 		if (work->config->nng_proxy.pub_enable) {
-			nng_pub_handler(work, nmsg);
-			if (nmsg != NULL) {
-				nng_msg_free(nmsg);
-				nmsg = NULL;
+			nng_pub_handler(work, work->nmsg);
+			if (work->nmsg != NULL) {
+				nng_msg_free(work->nmsg);
+				work->nmsg = NULL;
 			}
 		}
 		if (hook_conf->enable || rule_opt != RULE_ENG_OFF || iceoryx_opt == 1) {
@@ -831,6 +830,7 @@ alloc_work(nng_socket sock)
 	init_pipe_content(w->pipe_ct);
 	w->pub_packet = NULL;
 	w->node       = NULL;
+	w->nmsg       = NULL;
 	w->state      = INIT;
 	return (w);
 }
