@@ -1,9 +1,13 @@
-/**
- * Created by Alvin on 2020/7/25.
- */
-
-#ifndef NANOMQ_PUB_HANDLER_H
-#define NANOMQ_PUB_HANDLER_H
+//
+// Copyright 2024 NanoMQ Team, Inc. <jaylin@emqx.io>
+//
+// This software is supplied under the terms of the MIT License, a
+// copy of which should be located in the distribution where this
+// file was obtained (LICENSE.txt).  A copy of the license may also be
+// found online at https://opensource.org/licenses/MIT.
+//
+#ifndef NANOMQ_MQTT_PUB_HANDLER_H
+#define NANOMQ_MQTT_PUB_HANDLER_H
 
 #include "broker.h"
 #include <nng/mqtt/packet.h>
@@ -68,4 +72,4 @@ bool check_msg_exp(nng_msg *msg, property *prop);
 reason_code handle_pub(nano_work *work, struct pipe_content *pipe_ct,
     uint8_t proto, bool is_event);
 
-#endif // NNG_PUB_HANDLER_H
+#endif // NNG_MQTT_PUB_HANDLER_H
