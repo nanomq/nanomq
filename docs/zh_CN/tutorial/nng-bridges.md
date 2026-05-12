@@ -33,7 +33,7 @@
 
 ### 配置流程
 
-在当前 [etc/nanomq.conf](../../../etc/nanomq.conf) 中，`bridges.nng.pub.t1` 的配置如下：
+在当前 `etc/nanomq.conf` 中，`bridges.nng.pub.t1` 的配置如下：
 
 ```hcl
 # MQTT(local_topic) -> NanoMQ -> NNG(remote_topic)
@@ -119,7 +119,7 @@ nng/remote/hello
 
 ### 配置流程
 
-在当前 [etc/nanomq.conf](../../../etc/nanomq.conf) 中，`bridges.nng.sub.t2` 的配置如下：
+在当前 `etc/nanomq.conf` 中，`bridges.nng.sub.t2` 的配置如下：
 
 ```hcl
 # NNG(remote_topic) -> NanoMQ -> MQTT(local_topic)
