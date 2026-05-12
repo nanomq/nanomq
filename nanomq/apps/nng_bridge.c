@@ -127,6 +127,8 @@ nng_pub_handler(nano_work *work, nng_msg *nmsg)
 
 			    char  *tmp_topic = NULL;
 			    size_t tlen      = 0;
+			    const char *delimiter = "/";
+			    size_t      dlen      = 1;
 
 			    if (node->pub_list[i]->remote_topic_len > 0) {
 				    tmp_topic =
@@ -137,8 +139,13 @@ nng_pub_handler(nano_work *work, nng_msg *nmsg)
 				    tlen      = sub_topic->len;
 			    }
 
+			    if (node->pub_list[i]->nng_delimiter_len > 0) {
+				    delimiter = node->pub_list[i]->nng_delimiter;
+				    dlen      = node->pub_list[i]->nng_delimiter_len;
+			    }
+
 			    nng_msg_append(new_msg, tmp_topic, tlen);
-			    nng_msg_append(new_msg, "/", 1);
+			    nng_msg_append(new_msg, delimiter, dlen);
 			    nng_msg_append(new_msg, payload, plen);
 
 			    // nng_msg_clone(new_msg);
