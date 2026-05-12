@@ -715,6 +715,7 @@ server_cb(void *arg)
 			cvector_free(work->pipe_ct->msg_infos);
 			work->pipe_ct->msg_infos = NULL;
 			init_pipe_content(work->pipe_ct);
+			conn_param_free(work->cparam);
 
 			// processing will msg
 			bool has_will = conn_param_get_will_flag(work->cparam);
@@ -767,7 +768,6 @@ server_cb(void *arg)
 				}
 			}
 		}
-		conn_param_free(work->cparam);
 		break;
 	case CLOSE:
 		log_debug(" CLOSE ^^^^ ctx%d ^^^^", work->ctx.id);
