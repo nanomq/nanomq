@@ -33,7 +33,7 @@ The direction of `bridges.nng.pub` is: **MQTT -> NanoMQ -> NNG**.
 
 ### Configuration
 
-In the current [etc/nanomq.conf](../../../etc/nanomq.conf), `bridges.nng.pub.t1` is configured as follows:
+In the current `etc/nanomq.conf`, `bridges.nng.pub.t1` is configured as follows:
 
 ```hcl
 # MQTT(local_topic) -> NanoMQ -> NNG(remote_topic)
@@ -119,7 +119,7 @@ The direction of `bridges.nng.sub` is: **NNG -> NanoMQ -> MQTT**.
 
 ### Configuration
 
-In the current [etc/nanomq.conf](../../../etc/nanomq.conf), `bridges.nng.sub.t2` is configured as follows:
+In the current `etc/nanomq.conf`, `bridges.nng.sub.t2` is configured as follows:
 
 ```hcl
 # NNG(remote_topic) -> NanoMQ -> MQTT(local_topic)
