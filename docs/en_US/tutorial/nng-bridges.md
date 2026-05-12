@@ -38,23 +38,73 @@ In the current `etc/nanomq.conf`, `bridges.nng.pub.t1` is configured as follows:
 ```hcl
 # MQTT(local_topic) -> NanoMQ -> NNG(remote_topic)
 bridges.nng.pub.t1 {
+  # Enable or disable this bridge.
+  #
+  # Value: true | false
+  # Default: false
   enable = true
+
+  # NNG pub socket URL.
+  # The address of the NNG pub0 protocol server to publish to.
+  #
+  # Value: String
+  # Example: tcp://127.0.0.1:9900
+  #          ipc:///tmp/nng_pub.ipc
+  #          inproc://nng_pub_inproc (Use for Inter-process communication)
   pub_url = "ipc:///tmp/nng_pub.ipc"
+
+  # The ClientId of this NNG bridge publisher.
+  # Default random string.
+  #
+  # Value: String
   clientid = "nng_proxy"
 
+  # Topics that need to be forwarded to NNG.
+  # This defines mappings between local MQTT topics and remote NNG topics.
+  #
+  # Value: Array of objects
   forwards = [
     {
-      # MQTT topic filter
+      # Local MQTT topic filter to subscribe to.
+      # Messages matching this filter are forwarded.
+      # Supports MQTT wildcards (# and +).
+      #
+      # Value: String
       local_topic = "mqtt/local/#"
-      # NNG topic
+
+      # Remote NNG topic to publish to.
+      # NNG message format:
+      # "remote_topic + nng_delimiter + payload"
+      # If remote_topic is empty, it is treated as local_topic.
+      #
+      # Value: String
       remote_topic = "nng/remote"
-      # delimiter between remote_topic and payload in NNG message
+
+      # Delimiter between remote_topic and payload in NNG message.
+      # Default delimiter is "/".
+      # Example with ":" -> "remote_topic:payload".
+      #
+      # Value: String
       nng_delimiter = ":"
+
+      # QoS level for MQTT messages from local_topic.
+      # Value: 0 | 1 | 2
       qos = 1
     },
     {
+      # Local MQTT topic filter to subscribe to.
+      #
+      # Value: String
       local_topic = "mqtt/ekuiper"
+
+      # Remote NNG topic to publish to.
+      #
+      # Value: String
       remote_topic = "nng/ekuiper"
+
+      # Delimiter between remote_topic and payload in NNG message.
+      #
+      # Value: String
       nng_delimiter = ":"
     }
   ]
@@ -129,21 +179,81 @@ In the current `etc/nanomq.conf`, `bridges.nng.sub.t2` is configured as follows:
 ```hcl
 # NNG(remote_topic) -> NanoMQ -> MQTT(local_topic)
 bridges.nng.sub.t2 {
+  # Enable or disable this bridge.
+  #
+  # Value: true | false
+  # Default: false
   enable = true
+
+  # NNG sub socket URL.
+  # The address of the NNG sub0 protocol server to subscribe to.
+  #
+  # Value: String
+  # Example: tcp://127.0.0.1:9901
+  #          ipc:///tmp/nng_sub.ipc
+  #          inproc://nng_sub_inproc (Use for Inter-process communication)
   sub_url = "ipc:///tmp/nng_sub.ipc"
+
+  # The ClientId of this NNG bridge subscriber.
+  # Default random string.
+  #
+  # Value: String
   clientid = "nng_proxy_2"
+
+  # Subscription topics from remote NNG server.
+  # This defines mappings between remote NNG topics and local MQTT topics.
+  #
+  # Value: Array of objects
   subscription = [
     {
+      # Remote NNG topic to subscribe to.
+      # Topic extraction rules:
+      # 1) If nng_delimiter is not set or is "/":
+      #    extracted topic is matched against configured remote_topic,
+      #    and the matched suffix (the part after matched prefix)
+      #    becomes payload.
+      # 2) If nng_delimiter is set to non-"/" (e.g. ":"):
+      #    extracted topic extends from remote_topic prefix to delimiter,
+      #    and the part after delimiter becomes payload.
+      #
+      # Value: String
       remote_topic = "test/123"
+
+      # Local MQTT topic to publish to.
+      # If local_topic is empty, local_topic is treated as remote_topic.
+      #
+      # Value: String
       local_topic = "test/forward"
+
+      # Delimiter between remote_topic and payload in incoming NNG message.
+      # Default delimiter is "/".
+      #
+      # Value: String
       nng_delimiter = ":"
+
+      # QoS level for MQTT messages published to local_topic.
+      # Value: 0 | 1 | 2
       qos = 1
     },
     {
+      # Remote NNG topic to subscribe to.
+      #
+      # Value: String
       remote_topic = "ekuiper"
+
+      # Local MQTT topic to publish to.
+      #
+      # Value: String
       local_topic = "ekuiper/forward"
-      qos = 2
+
+      # Delimiter between remote_topic and payload in incoming NNG message.
+      #
+      # Value: String
       nng_delimiter = ":"
+
+      # QoS level for MQTT messages published to local_topic.
+      # Value: 0 | 1 | 2
+      qos = 2
     }
   ]
 }

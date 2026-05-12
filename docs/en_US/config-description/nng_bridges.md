@@ -16,27 +16,65 @@ The NNG Pub Bridge is responsible for forwarding MQTT messages from local topics
 
 ```hcl
 bridges.nng.pub.t1 {
-    # Enable or disable this bridge
+    # Enable or disable this bridge.
+    #
+    # Value: true | false
+    # Default: false
     enable = true
-    
-    # NNG pub socket URL
+
+    # NNG pub socket URL.
+    # The address of the NNG pub0 protocol server to publish to.
+    #
+    # Value: String
+    # Example: tcp://127.0.0.1:9900
+    #          ipc:///tmp/nng_pub.ipc
+    #          inproc://nng_pub_inproc (Use for Inter-process communication)
     pub_url = "tcp://localhost:9900"
-    
-    # The ClientId of this NNG bridge publisher
+
+    # The ClientId of this NNG bridge publisher.
+    # Default random string.
+    #
+    # Value: String
     clientid = "nng_proxy"
-    
-    # Topics that need to be forwarded to NNG
+
+    # Topics that need to be forwarded to NNG.
+    # This defines mappings between local MQTT topics and remote NNG topics.
+    #
+    # Value: Array of objects
     forwards = [
         {
+            # Local MQTT topic filter to subscribe to.
+            # Messages matching this filter are forwarded.
+            # Supports MQTT wildcards (# and +).
+            #
+            # Value: String
             local_topic = "nng/#"
+
+            # Remote NNG topic to publish to.
+            # NNG message format:
+            # "remote_topic + nng_delimiter + payload"
+            # If remote_topic is empty, it is treated as local_topic.
+            #
+            # Value: String
             remote_topic = "remote/nng"
+
+            # Delimiter between remote_topic and payload in NNG message.
+            # Default delimiter is "/".
+            # Example with ":" -> "remote_topic:payload".
+            #
+            # Value: String
             nng_delimiter = ":"
+
+            # QoS level for MQTT messages from local_topic.
+            # Value: 0 | 1 | 2
             qos = 1
         },
         {
             local_topic = "ekuiper/"
-            remote_topic = "remote/ekuiper"
-            nng_delimiter = ":"
+            # Example of fallback behavior:
+            # when remote_topic is empty, remote_topic = local_topic.
+            remote_topic = ""
+            nng_delimiter = "/"
         }
     ]
 }
@@ -67,21 +105,66 @@ The NNG Sub Bridge subscribes to topics on a remote NNG `sub0` socket and forwar
 
 ```hcl
 bridges.nng.sub.t2 {
-    # Enable or disable this bridge
+    # Enable or disable this bridge.
+    #
+    # Value: true | false
+    # Default: false
     enable = true
-    
-    # NNG sub socket URL
+
+    # NNG sub socket URL.
+    # The address of the NNG sub0 protocol server to subscribe to.
+    #
+    # Value: String
+    # Example: tcp://127.0.0.1:9901
+    #          ipc:///tmp/nng_sub.ipc
+    #          inproc://nng_sub_inproc (Use for Inter-process communication)
     sub_url = "tcp://localhost:9901"
-    
-    # The ClientId of this NNG bridge subscriber
+
+    # The ClientId of this NNG bridge subscriber.
+    # Default random string.
+    #
+    # Value: String
     clientid = "nng_proxy_2"
-    
-    # Subscription topics from remote NNG server
+
+    # Subscription topics from remote NNG server.
+    # This defines mappings between remote NNG topics and local MQTT topics.
+    #
+    # Value: Array of objects
     subscription = [
         {
+            # Remote NNG topic to subscribe to.
+            # Topic extraction rules:
+            # 1) If nng_delimiter is not set or is "/":
+            #    extracted topic is matched against configured remote_topic,
+            #    and the matched suffix (the part after matched prefix)
+            #    becomes payload.
+            #    Example: remote_topic="nng/pub", nng_delimiter="/",
+            #    msg="nng/pub/123/hello" -> extracted topic="nng/pub",
+            #    payload="123/hello".
+            # 2) If nng_delimiter is set to non-"/" (e.g. ":"):
+            #    extracted topic extends from remote_topic prefix to delimiter,
+            #    and the part after delimiter becomes payload.
+            #    Example: remote_topic="nng/pub", nng_delimiter=":",
+            #    msg="nng/pub/123/1234:payload" ->
+            #    extracted topic="nng/pub/123/1234", payload="payload".
+            #
+            # Value: String
             remote_topic = "nng"
+
+            # Delimiter between remote_topic and payload in incoming NNG message.
+            # Default delimiter is "/".
+            #
+            # Value: String
             nng_delimiter = "/"
+
+            # Local MQTT topic to publish to.
+            # If local_topic is empty, local_topic is treated as remote_topic.
+            #
+            # Value: String
             local_topic = "local/nng"
+
+            # QoS level for MQTT messages published to local_topic.
+            # Value: 0 | 1 | 2
             qos = 1
         },
         {
