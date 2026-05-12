@@ -619,6 +619,7 @@ server_cb(void *arg)
 		// NNG PUB proxy
 		if (work->config->nng_proxy.enable &&
 			work->config->nng_proxy.pub_url != NULL) {
+				// topic filter, save bandwidth.
 			// convert mqtt msg to nng pub msg
 			// iterate all pub node
 			nng_msg *new_msg;
@@ -628,16 +629,13 @@ server_cb(void *arg)
 			plen = work->pub_packet->payload.len;
 			char *topic = work->pub_packet->var_header.publish.topic_name.body;
 			tlen = work->pub_packet->var_header.publish.topic_name.len;
-			char *buff = nng_zalloc(tlen + plen + 1);
-			memcpy(buff, topic, tlen);
-			memcpy(buff + tlen, "/", 1);
-			memcpy(buff + tlen + 1, payload, plen);
+			nng_msg_append(new_msg, topic, tlen);
+			nng_msg_append(new_msg, "/", 1);
+			nng_msg_append(new_msg, payload, plen);
 			// TODO pass nng sub msg directly
-			nng_msg_append(new_msg, buff, tlen + plen + 1);
 			nng_aio_set_msg(work->aio, new_msg);
 			work->state = SEND;
 			nng_sock_send(work->config->nng_proxy.pub_sock, work->aio);
-			nng_free(buff, tlen + plen + 2);
 			break;
 		}
 		if (hook_conf->enable || rule_opt != RULE_ENG_OFF || iceoryx_opt == 1) {
