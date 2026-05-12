@@ -328,7 +328,9 @@ server_cb(void *arg)
 			// convert it to MQTT msg
 			mqtt_msg = nng_sub0_msg_adapter(msg, snode, "nng");
 			if (mqtt_msg == NULL) {
-				log_error("nng_mqtt_msg_alloc failed");
+				log_error(
+				    "Failed to convert nng msg to mqtt msg");
+				nng_msg_free(msg);
 				work->state = RECV;
 				nng_ctx_recv(work->extra_ctx, work->aio);
 				break;
