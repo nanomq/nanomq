@@ -558,96 +558,109 @@ server_cb(void *arg)
 #if defined(SUPP_PLUGIN)
 		work->user_property = NULL;
 #endif
-		if (nng_msg_get_type(work->msg) == CMD_PUBLISH) {
-			if ((rv = nng_aio_result(work->aio)) != 0) {
-				log_error("WAIT nng aio result error: %d", rv);
-				NANO_NNG_FATAL("WAIT nng_ctx_recv/send", rv);	// shall nerver reach here
-			}
-			smsg      = work->msg; // reuse the same msg
-			cvector(mqtt_msg_info) msg_infos;
-			msg_infos = work->pipe_ct->msg_infos;
-
-			log_trace("total subscribed pipes: %ld", cvector_size(msg_infos));
-			if (cvector_size(msg_infos))
-				if (encode_pub_message(smsg, work, PUBLISH)) {
-					for (int i = 0; i < cvector_size(msg_infos) && rv== 0; ++i) {
-						msg_info = &msg_infos[i];
-						nng_msg_clone(smsg);
-						work->pid.id = msg_info->pipe;
-						nng_aio_set_prov_data(work->aio, &work->pid.id);
-						work->msg = smsg;
-						nng_aio_set_msg(work->aio, work->msg);
-						nng_ctx_send(work->ctx, work->aio);
-					}
-				}
-			work->msg = smsg;
-
-			// bridge logic first
-			if (work->config->bridge_mode) {
-				bridge_pub_handler(work);
-#if defined(SUPP_AWS_BRIDGE)
-				aws_bridge_forward(work);
-#endif
-#if defined(SUPP_PLUGIN)
-				/* after bridge_handler which will dup user property */
-				if (work->user_property != NULL) {
-					property_remove(work->pub_packet->var_header
-								.publish.properties, work->user_property->id);
-					if (work->pub_packet->var_header.publish.properties != NULL) {
-						property_free(work->pub_packet->var_header.publish.properties);
-					}
-				}
-#endif
-			}
-			//check webhook & rule engine
-			conf_web_hook *hook_conf = &(work->config->web_hook);
-			uint8_t rule_opt = RULE_ENG_OFF;
-#if defined(SUPP_RULE_ENGINE)
-			rule_opt = work->config->rule_eng.option;
-#endif
-			uint8_t iceoryx_opt = 0;
-#if defined(SUPP_ICEORYX)
-			iceoryx_opt = 1;
-#endif
-
-			if (hook_conf->enable || rule_opt != RULE_ENG_OFF || iceoryx_opt == 1) {
-				work->state = SEND;
-				nng_aio_finish(work->aio, 0);
-				break;
-			}
-			// skip one IO switching
-			nng_msg_free(work->msg);
-			smsg = NULL;
-			work->msg = NULL;
-			// free conn_param due to clone in protocol layer
-			conn_param_free(work->cparam);
-			free_pub_packet(work->pub_packet);
-			work->pub_packet = NULL;
-			cvector_free(msg_infos);
-			work->pipe_ct->msg_infos = NULL;
-			init_pipe_content(work->pipe_ct);
-			work->state = RECV;
-			if (work->proto != PROTO_MQTT_BROKER) {
-				nng_ctx_recv(work->extra_ctx, work->aio);
-			} else {
-				nng_ctx_recv(work->ctx, work->aio);
-			}
-		} else if (nng_msg_cmd_type(work->msg) == CMD_PUBACK ||
-		    nng_msg_cmd_type(work->msg) == CMD_PUBREL ||
-		    nng_msg_cmd_type(work->msg) == CMD_PUBCOMP) {
-			nng_msg_free(work->msg);
-			work->msg   = NULL;
-			work->state = RECV;
-			nng_ctx_recv(work->ctx, work->aio);
-			break;
-		} else {
-			log_debug("broker has nothing to do");
+		if (nng_msg_get_type(work->msg) != CMD_PUBLISH) {
 			if (work->msg != NULL)
 				nng_msg_free(work->msg);
 			work->msg   = NULL;
 			work->state = RECV;
 			nng_ctx_recv(work->ctx, work->aio);
 			break;
+		}
+		if ((rv = nng_aio_result(work->aio)) != 0) {
+			log_error("WAIT nng aio result error: %d", rv);
+			NANO_NNG_FATAL("WAIT nng_ctx_recv/send", rv);	// shall nerver reach here
+		}
+		smsg      = work->msg; // reuse the same msg
+		cvector(mqtt_msg_info) msg_infos;
+		msg_infos = work->pipe_ct->msg_infos;
+
+		log_trace("total subscribed pipes: %ld", cvector_size(msg_infos));
+		if (encode_pub_message(smsg, work, PUBLISH))
+			if (cvector_size(msg_infos)) {
+				for (int i = 0; i < cvector_size(msg_infos) && rv== 0; ++i) {
+					msg_info = &msg_infos[i];
+					nng_msg_clone(smsg);
+					work->pid.id = msg_info->pipe;
+					nng_aio_set_prov_data(work->aio, &work->pid.id);
+					work->msg = smsg;
+					nng_aio_set_msg(work->aio, work->msg);
+					nng_ctx_send(work->ctx, work->aio);
+				}
+			}
+		work->msg = smsg;
+
+		// bridge logic first
+		if (work->config->bridge_mode) {
+			bridge_pub_handler(work);
+#if defined(SUPP_AWS_BRIDGE)
+			aws_bridge_forward(work);
+#endif
+#if defined(SUPP_PLUGIN)
+			/* after bridge_handler which will dup user property */
+			if (work->user_property != NULL) {
+				property_remove(work->pub_packet->var_header
+							.publish.properties, work->user_property->id);
+				if (work->pub_packet->var_header.publish.properties != NULL) {
+					property_free(work->pub_packet->var_header.publish.properties);
+				}
+			}
+#endif
+		}
+		//check webhook & rule engine
+		conf_web_hook *hook_conf = &(work->config->web_hook);
+		uint8_t rule_opt = RULE_ENG_OFF;
+#if defined(SUPP_RULE_ENGINE)
+		rule_opt = work->config->rule_eng.option;
+#endif
+		uint8_t iceoryx_opt = 0;
+#if defined(SUPP_ICEORYX)
+		iceoryx_opt = 1;
+#endif
+		// NNG PUB proxy
+		if (work->config->nng_proxy.enable &&
+			work->config->nng_proxy.pub_url != NULL) {
+			// convert mqtt msg to nng pub msg
+			// iterate all pub node
+			nng_msg *new_msg;
+			uint32_t plen = 0, tlen = 0;
+			nng_msg_alloc(&new_msg, 0);
+			char *payload = work->pub_packet->payload.data;
+			plen = work->pub_packet->payload.len;
+			char *topic = work->pub_packet->var_header.publish.topic_name.body;
+			tlen = work->pub_packet->var_header.publish.topic_name.len;
+			char *buff = nng_zalloc(tlen + plen + 1);
+			memcpy(buff, topic, tlen);
+			memcpy(buff + tlen, "/", 1);
+			memcpy(buff + tlen + 1, payload, plen);
+			// TODO pass nng sub msg directly
+			nng_msg_append(new_msg, buff, tlen + plen + 1);
+			nng_aio_set_msg(work->aio, new_msg);
+			work->state = SEND;
+			nng_sock_send(work->config->nng_proxy.pub_sock, work->aio);
+			nng_free(buff, tlen + plen + 2);
+			break;
+		}
+		if (hook_conf->enable || rule_opt != RULE_ENG_OFF || iceoryx_opt == 1) {
+			work->state = SEND;
+			nng_aio_finish(work->aio, 0);
+			break;
+		}
+		// skip one IO switching
+		nng_msg_free(work->msg);
+		smsg = NULL;
+		work->msg = NULL;
+		// free conn_param due to clone in protocol layer
+		conn_param_free(work->cparam);
+		free_pub_packet(work->pub_packet);
+		work->pub_packet = NULL;
+		cvector_free(msg_infos);
+		work->pipe_ct->msg_infos = NULL;
+		init_pipe_content(work->pipe_ct);
+		work->state = RECV;
+		if (work->proto != PROTO_MQTT_BROKER) {
+			nng_ctx_recv(work->extra_ctx, work->aio);
+		} else {
+			nng_ctx_recv(work->ctx, work->aio);
 		}
 		break;
 	case SEND:
