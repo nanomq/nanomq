@@ -148,6 +148,21 @@
       ]
     },
     {
+      "title": "MQTT Stream",
+      "path": "mqtt-stream/introduction",
+      "collapsed": true,
+      "children": [
+        {
+          "title": "通过配置项启用 MQTT STREAM",
+          "path": "mqtt-stream/configuration"
+        },
+        {
+          "title": "尝试使用消费者查询持久化数据",
+          "path": "mqtt-stream/consumer"
+        }
+      ]
+    },
+    {
       "title": "多协议网关",
       "path": "gateway/introduction",
       "collapsed": true,
