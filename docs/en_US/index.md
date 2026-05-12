@@ -14,6 +14,8 @@ Fully MQTT 5.0 Compliant: Fully support MQTT 5.0/3.1.1, Compatible with all stan
 
 [**MQTT Bridges supported**](./bridges/introduction.md): Bridging message from edge to multiple clouds. In-line connections to Global cloud services.
 
+[**NNG Bridging**](./config-description/nng_bridges.md): Supports bidirectional data bridging with `bridges.nng.pub` and `bridges.nng.sub`, connecting MQTT with NNG `pub/sub` message flows. See [Configuration](./config-description/nng_bridges.md) and [Tutorial](./tutorial/nng-bridges.md).
+
 [**Rule Engine**](./rule/introduction.md): Unlock the flexibility of data with a SQL-based rule engine. Integrates with eKuiper to bring stream processing to the edge.
 
 [**Message Persistence**](./rule/config-file.md#data-persistence-with-sqlite): Preserve your business-critical data with built-in data persistence, and resume uploading automatically when the connection is restored.
