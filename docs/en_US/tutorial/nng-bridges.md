@@ -48,11 +48,14 @@ bridges.nng.pub.t1 {
       local_topic = "mqtt/local/#"
       # NNG topic
       remote_topic = "nng/remote"
+      # delimiter between remote_topic and payload in NNG message
+      nng_delimiter = ":"
       qos = 1
     },
     {
       local_topic = "mqtt/ekuiper"
       remote_topic = "nng/ekuiper"
+      nng_delimiter = ":"
     }
   ]
 }
@@ -62,7 +65,8 @@ This configuration means:
 
 - NanoMQ listens on `ipc:///tmp/nng_pub.ipc` with an NNG `pub0` socket.
 - External NNG `sub0` clients connect to this address to receive forwarded messages.
-- When an MQTT client publishes to a topic matching `mqtt/local/#`, NanoMQ prepends the configured `remote_topic` to the original payload and sends the raw NNG message in `remote_topic/payload` format.
+- When an MQTT client publishes to a topic matching `mqtt/local/#`, NanoMQ prepends the configured `remote_topic` to the original payload and sends the raw NNG message in `remote_topic + nng_delimiter + payload` format (default delimiter is `/`).
+- If `remote_topic` is omitted or set to an empty string in a forwarding rule, NanoMQ treats `remote_topic` as `local_topic` for message construction.
 
 ### Test Procedure
 
@@ -99,7 +103,7 @@ This topic matches `local_topic = "mqtt/local/#"`, so it triggers the first forw
 The `nngcat` terminal receives the following raw message:
 
 ```text
-nng/remote/hello
+nng/remote:hello
 ```
 
 This shows the bridge behavior clearly:
@@ -107,7 +111,8 @@ This shows the bridge behavior clearly:
 - MQTT topic: `mqtt/local/123`
 - MQTT payload: `hello`
 - NNG prefix: `nng/remote`
-- Final raw message sent to the NNG peer: `nng/remote/hello`
+- Configured delimiter: `:`
+- Final raw message sent to the NNG peer: `nng/remote:hello`
 
 In other words, `bridges.nng.pub` does not forward the original MQTT topic `mqtt/local/123` to the NNG peer. The NNG peer sees a raw message composed of `remote_topic` and payload.
 
@@ -131,12 +136,14 @@ bridges.nng.sub.t2 {
     {
       remote_topic = "test/123"
       local_topic = "test/forward"
+      nng_delimiter = ":"
       qos = 1
     },
     {
       remote_topic = "ekuiper"
       local_topic = "ekuiper/forward"
       qos = 2
+      nng_delimiter = ":"
     }
   ]
 }
@@ -146,7 +153,8 @@ This configuration means:
 
 - NanoMQ listens on `ipc:///tmp/nng_sub.ipc` with an NNG `sub0` socket.
 - External NNG `pub0` clients connect to this address and push raw NNG messages into NanoMQ.
-- When NanoMQ receives a message prefixed with `test/123/`, it strips that prefix, treats the remaining part as the MQTT payload, and publishes it to `test/forward`.
+- For the first rule (without `nng_delimiter`), NanoMQ uses `/` by default. When NanoMQ receives a message prefixed with `test/123/`, it strips that prefix, treats the remaining part as the MQTT payload, and publishes it to `test/forward`.
+- For rules with `nng_delimiter` configured (for example `:`), NanoMQ matches and strips `remote_topic:` before publishing to MQTT.
 - For this rule, the MQTT topic used by local subscribers is `test/forward`, not `test/123`.
 
 ### Test Procedure
@@ -168,16 +176,16 @@ Note that this subscribes to the `local_topic`, not the `remote_topic`.
 In another terminal, run:
 
 ```bash
-./nng/src/tools/nngcat/nngcat --pub0 --dial ipc:///tmp/nng_sub.ipc --data "test/123/hello nanomq"
+./nng/src/tools/nngcat/nngcat --pub0 --dial ipc:///tmp/nng_sub.ipc --data "test/123:hello nanomq"
 ```
 
 Equivalent `macat` command:
 
 ```bash
-macat --pub --connect ipc:///tmp/nng_sub.ipc --data "test/123/hello nanomq"
+macat --pub --connect ipc:///tmp/nng_sub.ipc --data "test/123:hello nanomq"
 ```
 
-Because the message starts with the `test/123/` prefix, it matches the first subscription rule. NanoMQ strips the prefix and publishes only `hello nanomq` as the MQTT payload.
+Because the message starts with the `test/123:` prefix, it matches the first subscription rule. NanoMQ strips the prefix and publishes only `hello nanomq` as the MQTT payload.
 
 **3. Check the result**
 
@@ -190,7 +198,7 @@ HEX : 68656c6c6f206e616e6f6d71
 
 This confirms the bridge behavior:
 
-- Raw NNG message: `test/123/hello nanomq`
+- Raw NNG message: `test/123:hello nanomq`
 - Matched `remote_topic`: `test/123`
 - MQTT topic published by NanoMQ: `test/forward`
 - MQTT payload: `hello nanomq`
@@ -198,7 +206,7 @@ This confirms the bridge behavior:
 The key points for testing `bridges.nng.sub` are:
 
 - The MQTT subscriber must subscribe to `local_topic`.
-- The NNG publisher must send a message with the `remote_topic/` prefix, which NanoMQ strips during conversion.
+- The NNG publisher must send a message with the `remote_topic + nng_delimiter` prefix (default `remote_topic/`), which NanoMQ strips during conversion.
 
 ---
 
@@ -210,6 +218,6 @@ If your result does not match the behavior above, check the following items firs
 2. Confirm that the IPC endpoints for `pub_url` and `sub_url` are not occupied by another process.
 3. Confirm that `bridges.nng.pub.t1` and `bridges.nng.sub.t2` are both enabled.
 4. For `bridges.nng.pub`, confirm that the MQTT publish topic matches `mqtt/local/#`.
-5. For `bridges.nng.sub`, confirm that the NNG message starts with `test/123/` and that the MQTT subscriber is listening on `test/forward`.
+5. For `bridges.nng.sub`, confirm that the NNG message starts with `remote_topic + nng_delimiter` (default `/`) and that the MQTT subscriber is listening on the mapped `local_topic`.
 
 If you need more detail about field meanings and bridge data flow, refer back to [NNG Bridging](../config-description/nng_bridges.md).
