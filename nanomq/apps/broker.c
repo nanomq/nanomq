@@ -309,10 +309,24 @@ server_cb(void *arg)
 			nng_msg_iceoryx_free(icemsg, work->iceoryx_suber);
 #endif
 		} else if (work->proto == PROTO_NNG_BRIDGE) {
-			log_debug("receive msg from nng proxy %s", nng_msg_body(msg));
+			conf_nng_sub_node *snode = NULL;
+
+			if (work->nng_snode_idx >= 0 &&
+			    work->nng_snode_idx <
+			        work->config->nng_proxy.sub_count) {
+				snode = work->config->nng_proxy
+				            .snodes[work->nng_snode_idx];
+			}
+
+			log_debug("receive msg from nng proxy %s, work_id: "
+			          "%zu, snode_idx: %zu, snode_name: %s",
+			    nng_msg_body(msg), work->work_id,
+			    work->nng_snode_idx,
+			    snode != NULL ? snode->name : "unknown");
+
 			nng_msg *mqtt_msg;
 			// convert it to MQTT msg
-			mqtt_msg = nng_sub0_msg_adapter(msg, "nng");
+			mqtt_msg = nng_sub0_msg_adapter(msg, snode, "nng");
 			if (mqtt_msg == NULL) {
 				log_error("nng_mqtt_msg_alloc failed");
 				work->state = RECV;
@@ -832,6 +846,8 @@ alloc_work(nng_socket sock)
 	w->node       = NULL;
 	w->nmsg       = NULL;
 	w->state      = INIT;
+
+	w->nng_snode_idx = -1;
 	return (w);
 }
 
@@ -1181,6 +1197,7 @@ broker(conf *nanomq_conf)
 				PROTO_NNG_BRIDGE,
 			    db, db_ret, nanomq_conf);
 			works[i]->work_id = i; // assign id to work
+						works[i]->nng_snode_idx = t;
 			nng_proxy_sub_init(nanomq_conf->nng_proxy.snodes[t], works[i]);
 			t ++;
 		}

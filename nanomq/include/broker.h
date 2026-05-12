@@ -36,6 +36,7 @@ struct work {
 		CLOSE // sending disconnect packet and err code
 	} state;
 	size_t      work_id;      // index of num of works, to find correct work from global.
+	int         nng_snode_idx; // index in config->nng_proxy.snodes for PROTO_NNG_BRIDGE
 	uint8_t     proto;		  // logic proto
 	uint8_t     proto_ver;   // MQTT version cache
 	uint8_t     flag;        // flag for webhook & rule_engine
