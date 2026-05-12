@@ -23,27 +23,27 @@ typedef struct {
 	nng_duration     cancel_timeout;
 } bridge_param;
 
-extern bool topic_filter(const char *origin, const char *input);
-extern bool bridge_sub_handler(nano_work *work);
-extern void bridge_pub_handler(nano_work *work);
-extern int  bridge_client(
+NNG_DECL bool topic_filter(const char *origin, const char *input);
+NNG_DECL bool bridge_sub_handler(nano_work *work);
+NNG_DECL void bridge_pub_handler(nano_work *work);
+NNG_DECL int  bridge_client(
      nng_socket *sock, conf *config, conf_bridge_node *bridge_conf);
-extern int hybrid_bridge_client(
+NNG_DECL int hybrid_bridge_client(
     nng_socket *sock, conf *config, conf_bridge_node *node);
 
-extern void bridge_downward_msg_coding(nano_work *work);
-extern void bridge_upward_msg_coding(nano_work *work);
+NNG_DECL void bridge_downward_msg_coding(nano_work *work);
+NNG_DECL void bridge_upward_msg_coding(nano_work *work);
 
-extern nng_msg *bridge_publish_msg(const char *topic, uint8_t *payload,
+NNG_DECL nng_msg *bridge_publish_msg(const char *topic, uint8_t *payload,
     uint32_t len, bool dup, uint8_t qos, bool retain, property *props);
 
-extern nng_msg *create_connect_msg(conf_bridge_node *node);
+NNG_DECL nng_msg *create_connect_msg(conf_bridge_node *node);
 
-extern int  bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node);
+NNG_DECL int  bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node);
 
-extern int bridge_subscribe(nng_socket *sock, conf_bridge_node *node,
+NNG_DECL int bridge_subscribe(nng_socket *sock, conf_bridge_node *node,
     nng_mqtt_topic_qos *topic_qos, size_t sub_count, property *properties);
-extern int bridge_unsubscribe(nng_socket *sock, conf_bridge_node *node,
+NNG_DECL int bridge_unsubscribe(nng_socket *sock, conf_bridge_node *node,
     nng_mqtt_topic *topic, size_t unsub_count, property *properties);
 
 #endif // NANOMQ_BRIDGE_H

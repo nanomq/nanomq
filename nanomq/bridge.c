@@ -1882,8 +1882,7 @@ bridge_pub_handler(nano_work *work)
 					nng_socket *socket = node->sock;
 
 					// what if send qos msg failed?
-					// nanosdk deal with fail send
-					// and close the pipe
+					// nanosdk deal with fail send and close the pipe
 					if (nng_aio_busy(node->bridge_aio[index])) {
 						if (qos == 0) {
 							nng_msg_free(bridge_msg);
