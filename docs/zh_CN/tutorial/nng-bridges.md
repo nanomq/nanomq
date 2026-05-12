@@ -38,23 +38,73 @@
 ```hcl
 # MQTT(local_topic) -> NanoMQ -> NNG(remote_topic)
 bridges.nng.pub.t1 {
+  # # 是否启用此 NNG 桥接。
+  # #
+  # # Value: true | false
+  # # Default: false
   enable = true
+
+  # # NNG pub0 Socket URL。
+  # # NNG pub0 协议服务端地址。
+  # #
+  # # Value: String
+  # # Example: tcp://127.0.0.1:9900
+  # #          ipc:///tmp/nng_pub.ipc
+  # #          inproc://nng_pub_inproc (用于进程内通信)
   pub_url = "ipc:///tmp/nng_pub.ipc"
+
+  # # 桥接的本地 Client ID。
+  # # 默认随机字符串。
+  # #
+  # # Value: String
   clientid = "nng_proxy"
 
+  # # 需要转发到 NNG 端的主题映射数组。
+  # # 定义本地 MQTT 主题与远端 NNG 主题的映射关系。
+  # #
+  # # Value: Array of objects
   forwards = [
     {
-      # MQTT topic filter
+      # # 本地 MQTT 订阅主题过滤器。
+      # # 匹配该过滤器的消息将被转发。
+      # # 支持 MQTT 通配符（# 和 +）。
+      # #
+      # # Value: String
       local_topic = "mqtt/local/#"
-      # NNG topic
+
+      # # 转发至 NNG 时的前缀主题。
+      # # NNG 消息格式为：
+      # # "remote_topic + nng_delimiter + payload"。
+      # # 若 remote_topic 为空字符串，remote_topic 等同于 local_topic。
+      # #
+      # # Value: String
       remote_topic = "nng/remote"
-      # NNG 消息中 remote_topic 与 payload 的分隔符
+
+      # # NNG 消息中 remote_topic 与 payload 的分隔符。
+      # # 默认分隔符为 "/"。
+      # # 例如设置为 ":" 时格式为 "remote_topic:payload"。
+      # #
+      # # Value: String
       nng_delimiter = ":"
+
+      # # 本地订阅 local_topic 时使用的 QoS。
+      # # Value: 0 | 1 | 2
       qos = 1
     },
     {
+      # # 本地 MQTT 订阅主题过滤器。
+      # #
+      # # Value: String
       local_topic = "mqtt/ekuiper"
+
+      # # 转发至 NNG 时的前缀主题。
+      # #
+      # # Value: String
       remote_topic = "nng/ekuiper"
+
+      # # NNG 消息中 remote_topic 与 payload 的分隔符。
+      # #
+      # # Value: String
       nng_delimiter = ":"
     }
   ]
@@ -129,20 +179,77 @@ nng/remote:hello
 ```hcl
 # NNG(remote_topic) -> NanoMQ -> MQTT(local_topic)
 bridges.nng.sub.t2 {
+  # # 是否启用此 NNG 桥接。
+  # #
+  # # Value: true | false
+  # # Default: false
   enable = true
+
+  # # NNG sub0 Socket URL。
+  # # NNG sub0 协议服务端地址。
+  # #
+  # # Value: String
+  # # Example: tcp://127.0.0.1:9901
+  # #          ipc:///tmp/nng_sub.ipc
+  # #          inproc://nng_sub_inproc (用于进程内通信)
   sub_url = "ipc:///tmp/nng_sub.ipc"
+
+  # # 桥接的本地 Client ID。
+  # # 默认随机字符串。
+  # #
+  # # Value: String
   clientid = "nng_proxy_2"
+
+  # # 需要从 NNG 端接收的主题映射数组。
+  # # 定义远端 NNG 主题与本地 MQTT 主题的映射关系。
+  # #
+  # # Value: Array of objects
   subscription = [
     {
+      # # 远端 NNG 订阅主题前缀。
+      # # Topic 提取规则：
+      # # 1) nng_delimiter 未设置或为 "/" 时：
+      # #    提取的 topic 与 remote_topic 匹配，匹配后的后缀作为 payload。
+      # # 2) nng_delimiter 为非 "/"（例如 ":"）时：
+      # #    提取的 topic 从 remote_topic 前缀延伸到分隔符，分隔符后为 payload。
+      # #
+      # # Value: String
       remote_topic = "test/123"
+
+      # # 转换后发布到本地 Broker 的 MQTT 主题。
+      # # 若 local_topic 为空字符串，local_topic 等同于 remote_topic。
+      # #
+      # # Value: String
       local_topic = "test/forward"
+
+      # # 发布为 MQTT 消息时使用的 QoS。
+      # # Value: 0 | 1 | 2
       qos = 1
+
+      # # NNG 入站消息中 topic 与 payload 的分隔符。
+      # # 默认分隔符为 "/"。
+      # #
+      # # Value: String
       nng_delimiter = ":"
     },
     {
+      # # 远端 NNG 订阅主题前缀。
+      # #
+      # # Value: String
       remote_topic = "ekuiper"
+
+      # # 转换后发布到本地 Broker 的 MQTT 主题。
+      # #
+      # # Value: String
       local_topic = "ekuiper/forward"
+
+      # # 发布为 MQTT 消息时使用的 QoS。
+      # # Value: 0 | 1 | 2
       qos = 2
+
+      # # NNG 入站消息中 topic 与 payload 的分隔符。
+      # #
+      # # Value: String
       nng_delimiter = ":"
     }
   ]
