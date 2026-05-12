@@ -1085,8 +1085,8 @@ broker(conf *nanomq_conf)
 		for (size_t t = 0; t < nanomq_conf->nng_proxy.sub_count; t++) {
 			// Only need ctx for SUB side. one node as one ctx.
 			num_work += 1;
-			// TODO: Sub ctx need to send msg to bridge, so * 2?
-			nanomq_conf->total_ctx += 2;
+			// TODO: Sub ctx need to send msg to bridge
+			nanomq_conf->total_ctx += 1;
 		}
 	}
 	// init bridging client
