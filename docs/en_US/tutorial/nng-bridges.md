@@ -153,9 +153,10 @@ This configuration means:
 
 - NanoMQ listens on `ipc:///tmp/nng_sub.ipc` with an NNG `sub0` socket.
 - External NNG `pub0` clients connect to this address and push raw NNG messages into NanoMQ.
-- For the first rule (without `nng_delimiter`), NanoMQ uses `/` by default. When NanoMQ receives a message prefixed with `test/123/`, it strips that prefix, treats the remaining part as the MQTT payload, and publishes it to `test/forward`.
-- For rules with `nng_delimiter` configured (for example `:`), NanoMQ matches and strips `remote_topic:` before publishing to MQTT.
-- For this rule, the MQTT topic used by local subscribers is `test/forward`, not `test/123`.
+- Topic extraction depends on `nng_delimiter`:
+  - When `nng_delimiter = "/"`: NanoMQ matches the extracted topic against configured `remote_topic`, and the suffix after the match becomes payload. For `remote_topic="test/123"` and message `"test/123/hello world"`, extracted topic is `"test/123"` and payload is `"hello world"`.
+  - When `nng_delimiter = ":"`: NanoMQ extracts topic from the prefix to the delimiter. For `remote_topic="test/123"`, `nng_delimiter=":"` and message `"test/123:hello nanomq"`, extracted topic is `"test/123"` and payload is `"hello nanomq"`.
+- The MQTT topic used by local subscribers is `test/forward`, not `test/123` (the local_topic is where the message is published).
 
 ### Test Procedure
 

@@ -100,7 +100,9 @@ bridges.nng.sub.t2 {
 * `sub_url`: The address on which NanoMQ listens with its NNG `sub0` socket. **External NNG pub clients connect to this address** to push messages. Supports TCP and IPC transports, e.g., `tcp://localhost:9901`, `ipc:///tmp/nng_sub.ipc` or `inproc://inproc_thr`.
 * `clientid`: Identifier for this bridge subscriber within the local NanoMQ broker.
 * `subscription`: Array of mapping rules between remote NNG topics and local MQTT topics.
-    * `remote_topic`: The NNG topic prefix to subscribe to. The adapter uses prefix matching; if a message starts with `remote_topic + nng_delimiter`, the content after the prefix is treated as the payload.
+    * `remote_topic`: The NNG topic prefix to subscribe to. Topic extraction rules:
+      - If `nng_delimiter` is not set or is `/`: extracted topic is matched against configured `remote_topic`, and the matched suffix (the part after matched prefix) becomes payload. Example: `remote_topic="nng/pub"`, `nng_delimiter="/"`, message `"nng/pub/123/hello"` → extracted topic=`"nng/pub"`, payload=`"123/hello"`.
+      - If `nng_delimiter` is set to non-`/` (e.g. `":"`): extracted topic extends from `remote_topic` prefix to delimiter, and the part after delimiter becomes payload. Example: `remote_topic="nng/pub"`, `nng_delimiter=":"`, message `"nng/pub/123/1234:payload"` → extracted topic=`"nng/pub/123/1234"`, payload=`"payload"`.
     * `nng_delimiter`: Delimiter used when matching `remote_topic` and splitting payload from incoming NNG messages. Default: `/`.
-    * `local_topic`: The local MQTT topic to which the forwarded message will be published.
+    * `local_topic`: The local MQTT topic to which the forwarded message will be published. If `local_topic` is omitted or set to an empty string, it is treated as `remote_topic`.
     * `qos`: QoS level used when publishing the message to the local broker. Value: `0` | `1` | `2`.
