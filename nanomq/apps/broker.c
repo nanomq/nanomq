@@ -310,6 +310,22 @@ server_cb(void *arg)
 		} else if (work->proto == PROTO_NNG_BRIDGE) {
 			// convert it to MQTT msg
 			log_warn("receive msg from nng proxy %s", nng_msg_body(msg));
+			nng_msg *mqtt_msg;
+			mqtt_msg = nng_sub0_msg_adapter(msg, "nng");
+			if (mqtt_msg == NULL) {
+				log_error("nng_mqtt_msg_alloc failed");
+				work->state = RECV;
+				nng_ctx_recv(work->extra_ctx, work->aio);
+				break;
+			}
+			conn_param *cparam = NULL;
+			conn_param_alloc(&cparam);
+			conn_param_set_clientid(cparam, "nng_proxy_bridge");
+			conn_param_set_username(cparam, "nng_bridge");
+			conn_param_set_proto_ver(cparam, MQTT_PROTOCOL_VERSION_v311);
+			nng_msg_free(msg); // free original raw msg
+			msg = mqtt_msg;
+			nng_msg_set_conn_param(msg, cparam);
 		}
 		// processing what we got now
 		work->msg       = msg;
@@ -878,6 +894,7 @@ proto_work_init(nng_socket sock, nng_socket extrasock, uint8_t proto,
 
 	if (config->nng_proxy.enable && proto == PROTO_MQTT_BROKER) {
 	} else if (config->nng_proxy.enable && proto == PROTO_NNG_BRIDGE) {
+		// TODO one ctx for one url.
 		if ((rv = nng_ctx_open(
 		         &w->extra_ctx, config->nng_proxy.sub_sock)) != 0) {
 			NANO_NNG_FATAL("nng_ctx_open in nng_proxy sub", rv);
@@ -1063,6 +1080,23 @@ broker(conf *nanomq_conf)
 		log_trace("total ctx num: %ld", nanomq_conf->total_ctx);
 	}
 
+	// add nng_proxy ctx
+	if (nanomq_conf->nng_proxy.enable) {
+		// TODO multiple nng_proxy conf
+		int rv = 0;
+		nng_socket *pub_sock = &nanomq_conf->nng_proxy.pub_sock;
+		nng_socket *sub_sock = &nanomq_conf->nng_proxy.sub_sock;
+		if ((rv = nng_pub0_open(pub_sock)) != 0) {
+			return rv;
+		}
+		if ((rv = nng_sub0_open(sub_sock)) != 0) {
+			return rv;
+		}
+		// Only need ctx for SUB side. one node as one ctx.
+		num_work += 1;
+		// Sub ctx need to send msg to bridge, so * 2
+		nanomq_conf->total_ctx += 1;
+	}
 	// init bridging client
 	if (nanomq_conf->bridge_mode) {
 		for (size_t t = 0; t < nanomq_conf->bridge.count; t++) {
@@ -1082,33 +1116,6 @@ broker(conf *nanomq_conf)
 		log_debug("bridge init finished");
 	}
 
-	// add nng_proxy ctx
-	if (nanomq_conf->nng_proxy.enable) {
-		// TODO multiple nng_proxy conf
-		int rv = 0;
-		nng_socket *pub_sock = &nanomq_conf->nng_proxy.pub_sock;
-		nng_socket *sub_sock = &nanomq_conf->nng_proxy.sub_sock;
-		if ((rv = nng_pub0_open(pub_sock)) != 0) {
-			return rv;
-		}
-		if ((rv = nng_sub0_open(sub_sock)) != 0) {
-			return rv;
-		}
-		// 2 for sub 2 for pub
-		// Sub ctx need to send msg to bridge, so * 2
-		nanomq_conf->total_ctx += NNG_PROXY_CTX_NUM * 2;
-		num_work += NNG_PROXY_CTX_NUM;
-		// create a broker ctx along with pub ctx
-		// no extra bridge aio or work is needed
-		// num_work += NNG_PROXY_CTX_NUM;
-		// apply pub/sub settings here
-		rv = nng_socket_set(
-		    *sub_sock, NNG_OPT_SUB_SUBSCRIBE, "nng", 3);
-		if (rv != 0) {
-			fatal("Unable to subscribe to topic: %s",
-			    nng_strerror(rv));
-		}
-	}
 	// CTX for MQTT Broker service
 	struct work **works = nng_zalloc(num_work * sizeof(struct work *));
 	// create broker ctx
@@ -1182,13 +1189,11 @@ broker(conf *nanomq_conf)
 	// create nng_proxy sub ctx
 	if (nanomq_conf->nng_proxy.enable) {
 		log_debug("http context init");
-		for (i = tmp; i < tmp + NNG_PROXY_CTX_NUM; i++) {
-			works[i] = proto_work_init(sock,
-				nanomq_conf->nng_proxy.sub_sock,
-			    PROTO_NNG_BRIDGE, db, db_ret, nanomq_conf);
-			works[i]->work_id = i;  //assign id to work
-		}
-		tmp += NNG_PROXY_CTX_NUM;
+		works[i] =
+		    proto_work_init(sock, nanomq_conf->nng_proxy.sub_sock,
+		        PROTO_NNG_BRIDGE, db, db_ret, nanomq_conf);
+		works[i]->work_id = i; // assign id to work
+		tmp += 1;
 	}
 
 	// create http server ctx

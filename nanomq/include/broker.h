@@ -2,7 +2,6 @@
 #define NANOMQ_BROKER_H
 
 #define HTTP_CTX_NUM 4
-#define NNG_PROXY_CTX_NUM 2
 
 #include "nng/supplemental/nanolib/conf.h"
 #include "nng/supplemental/nanolib/nanolib.h"
