@@ -2,6 +2,7 @@
 #define NANOMQ_BROKER_H
 
 #define HTTP_CTX_NUM 4
+#define NNG_PROXY_CTX_NUM 2
 
 #include "nng/supplemental/nanolib/conf.h"
 #include "nng/supplemental/nanolib/nanolib.h"
@@ -16,6 +17,7 @@
 #define PROTO_AWS_BRIDGE 0x02
 #define PROTO_HTTP_SERVER 0x03
 #define PROTO_ICEORYX_BRIDGE 0x04
+#define PROTO_NNG_BRIDGE 0x05
 
 #define STATISTICS
 
