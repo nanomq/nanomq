@@ -87,8 +87,10 @@ nng_pub_handler(nano_work *work, nng_msg *nmsg)
 {
 	int      rv    = 0;
 	// Or we just exclude all topic with $?
-	if ((work->pub_packet->var_header.publish.topic_name.len > strlen("$SYS")) &&
-		strncmp(work->pub_packet->var_header.publish.topic_name.body, "$SYS", strlen("$SYS")) == 0) {
+	if ((work->pub_packet->var_header.publish.topic_name.len >=
+	        strlen("$SYS")) &&
+	    strncmp(work->pub_packet->var_header.publish.topic_name.body,
+	        "$SYS", strlen("$SYS")) == 0) {
 		return;
 	}
     mqtt_string *sub_topic = &work->pub_packet->var_header.publish.topic_name;
@@ -111,8 +113,14 @@ nng_pub_handler(nano_work *work, nng_msg *nmsg)
 		    if (work->proto == PROTO_NNG_BRIDGE) {
 			    // TODO pass nng sub msg directly
 			    nng_msg_clone(nmsg);
-			    nng_sendmsg(
+			    rv = nng_sendmsg(
 				node->pub_sock, nmsg, NNG_FLAG_NONBLOCK);
+			    if (rv != 0) {
+				    log_error(
+					"Failed to send nng message: %s(%d)",
+					nng_strerror(rv), rv);
+				    nng_msg_free(nmsg);
+			    }
 		    } else {
 			    nng_msg *new_msg;
 			    nng_msg_alloc(&new_msg, 0);
@@ -139,8 +147,14 @@ nng_pub_handler(nano_work *work, nng_msg *nmsg)
 			    // NNG sub wont block aio, so we can send them one
 			    // by one nng_sock_send(node->pub_sock,
 			    // node->send_aio);
-			    nng_sendmsg(
+			    rv = nng_sendmsg(
 				node->pub_sock, new_msg, NNG_FLAG_NONBLOCK);
+			    if (rv != 0) {
+				    log_error(
+					"Failed to send nng message: %s(%d)",
+					nng_strerror(rv), rv);
+				    nng_msg_free(new_msg);
+			    }
 		    }
 	    }
     }

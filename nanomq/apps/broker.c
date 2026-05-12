@@ -318,9 +318,9 @@ server_cb(void *arg)
 				            .snodes[work->nng_snode_idx];
 			}
 
-			log_debug("receive msg from nng proxy %s, work_id: "
-			          "%zu, snode_idx: %zu, snode_name: %s",
-			    nng_msg_body(msg), work->work_id,
+			log_debug("receive msg from nng proxy, len = %zu, work_id: "
+			          "%zu, snode_idx: %d, snode_name: %s",
+			    nng_msg_len(msg), work->work_id,
 			    work->nng_snode_idx,
 			    snode != NULL ? snode->name : "unknown");
 
@@ -748,7 +748,6 @@ server_cb(void *arg)
 			cvector_free(work->pipe_ct->msg_infos);
 			work->pipe_ct->msg_infos = NULL;
 			init_pipe_content(work->pipe_ct);
-			conn_param_free(work->cparam);
 
 			// processing will msg
 			bool has_will = conn_param_get_will_flag(work->cparam);
@@ -786,8 +785,6 @@ server_cb(void *arg)
 				work->state = WAIT;
 				nng_aio_finish(work->aio, 0);
 			} else {
-				// free Conn_param once more in case invalid
-				// last-will msg
 				conn_param_free(work->cparam);
 				if (work->msg != NULL)
 					nng_msg_free(work->msg);
