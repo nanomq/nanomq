@@ -237,6 +237,7 @@ server_cb(void *arg)
 	case RECV:
 		log_debug("RECV  ^^^^ ctx%d ^^^^\n", work->ctx.id);
 		msg = nng_aio_get_msg(work->aio);
+		nng_aio_set_msg(work->aio, NULL);
 		if ((rv = nng_aio_result(work->aio)) != 0) {
 			log_debug("RECV aio result: %d", rv);
 			work->state = RECV;
@@ -308,9 +309,9 @@ server_cb(void *arg)
 			nng_msg_iceoryx_free(icemsg, work->iceoryx_suber);
 #endif
 		} else if (work->proto == PROTO_NNG_BRIDGE) {
-			// convert it to MQTT msg
-			log_warn("receive msg from nng proxy %s", nng_msg_body(msg));
+			log_debug("receive msg from nng proxy %s", nng_msg_body(msg));
 			nng_msg *mqtt_msg;
+			// convert it to MQTT msg
 			mqtt_msg = nng_sub0_msg_adapter(msg, "nng");
 			if (mqtt_msg == NULL) {
 				log_error("nng_mqtt_msg_alloc failed");
@@ -600,7 +601,6 @@ server_cb(void *arg)
 			}
 			//check webhook & rule engine
 			conf_web_hook *hook_conf = &(work->config->web_hook);
-			conf_exchange *exge_conf = &(work->config->exchange);
 			uint8_t rule_opt = RULE_ENG_OFF;
 #if defined(SUPP_RULE_ENGINE)
 			rule_opt = work->config->rule_eng.option;
@@ -609,8 +609,8 @@ server_cb(void *arg)
 #if defined(SUPP_ICEORYX)
 			iceoryx_opt = 1;
 #endif
-			if (hook_conf->enable || exge_conf->count > 0 ||
-			        rule_opt != RULE_ENG_OFF || iceoryx_opt == 1) {
+
+			if (hook_conf->enable || rule_opt != RULE_ENG_OFF || iceoryx_opt == 1) {
 				work->state = SEND;
 				nng_aio_finish(work->aio, 0);
 				break;
@@ -653,7 +653,8 @@ server_cb(void *arg)
 	case SEND:
 		log_debug("SEND ^^^^ ctx%d ^^^^", work->ctx.id);
 #if defined(SUPP_RULE_ENGINE)
-		if (work->flag == CMD_PUBLISH && work->config->rule_eng.option != RULE_ENG_OFF) {
+		if (work->flag == CMD_PUBLISH &&
+		    work->config->rule_eng.option != RULE_ENG_OFF) {
 			rule_engine_insert_sql(work);
 		}
 #endif
@@ -670,7 +671,6 @@ server_cb(void *arg)
 #endif
 		// external hook here
 		hook_entry(work, 0);
-
 		if (NULL != work->msg) {
 			nng_msg_free(work->msg);
 			work->msg = NULL;
@@ -1292,6 +1292,11 @@ broker(conf *nanomq_conf)
 	if (nanomq_conf->nng_proxy.enable) {
 		if ((rv = nng_listen(nanomq_conf->nng_proxy.sub_sock,
 							 nanomq_conf->nng_proxy.sub_url,
+							 NULL, 0)) != 0) {
+			NANO_NNG_FATAL("nng_listen proxy url failed" , rv);
+		}
+		if ((rv = nng_listen(nanomq_conf->nng_proxy.pub_sock,
+							 nanomq_conf->nng_proxy.pub_url,
 							 NULL, 0)) != 0) {
 			NANO_NNG_FATAL("nng_listen proxy url failed" , rv);
 		}
