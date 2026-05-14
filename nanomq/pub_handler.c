@@ -35,6 +35,7 @@
 #include "nng/supplemental/util/platform.h"
 #include "nng/supplemental/sqlite/sqlite3.h"
 #include "nng/supplemental/nanolib/log.h"
+#include "include/stream_plugin_internal.h"
 
 #if defined(SUPP_PLUGIN)
 	#include "include/plugin.h"
@@ -1742,6 +1743,8 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 	// Exclude DISCONNECT_EV msg?
 	handle_pub_retain(work, topic);
 #endif
+	// Stream plugin side-channel (after publish pipeline).
+	stream_plugin_pub_dispatch_from_work(work);
 	return result;
 }
 

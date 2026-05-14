@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <errno.h>
+#include <inttypes.h>
 
 #include "nng/mqtt/mqtt_client.h"
 #include "nng/exchange/exchange_client.h"
@@ -53,6 +54,8 @@
 #include "include/cmd_proc.h"
 #include "include/process.h"
 #include "include/version.h"
+#include "include/stream_plugin_internal.h"
+#include "include/stream_inject.h"
 #include "include/plugin_spi_stream.h"
 #include "include/plugin_canp_stream.h"
 
@@ -129,10 +132,17 @@ void sig_handler(int signum)
 	log_error("signal signumber: %d received!\n", signum);
 
 	if (signum == SIGINT || signum == SIGABRT || signum == SIGSEGV) {
+#if defined(SUPP_PLUGIN)
+		stream_inject_stop();
+#endif
 		exit(EXIT_FAILURE);
 	}
-	if (signum == SIGILL)
+	if (signum == SIGILL) {
+#if defined(SUPP_PLUGIN)
+		stream_inject_stop();
+#endif
 		exit(EXIT_SUCCESS);
+	}
 #ifdef SUPP_PARQUET
 	if (signum == SIGTERM) {
 		if (false == nng_atomic_swap_bool(is_first_sigterm, false)) {
@@ -143,13 +153,24 @@ void sig_handler(int signum)
 		int rv = hook_last_flush();
 		if (rv != 0) {
 			log_error("Error in writing datas to Parquet %d", rv);
+#if defined(SUPP_PLUGIN)
+			stream_inject_stop();
+#endif
 			exit(EXIT_FAILURE);
 		}
 		log_warn("SIGTERM Writing ringbufs done and exit.");
+#if defined(SUPP_PLUGIN)
+		stream_inject_stop();
+#endif
 		exit(EXIT_SUCCESS);
 	}
 #else
 	log_warn("checkpoint: Parquet is NOT enabled %d", SIGTERM);
+#if defined(SUPP_PLUGIN)
+	if (signum == SIGTERM) {
+		stream_inject_stop();
+	}
+#endif
 #endif
 }
 #endif
@@ -685,6 +706,8 @@ server_cb(void *arg)
 			}
 		}
 #endif
+		// Stream plugin dispatch (independent side-channel)
+		stream_plugin_pub_dispatch_from_work(work);
 		// external hook here
 		hook_entry(work, 0);
 
@@ -1456,6 +1479,10 @@ broker(conf *nanomq_conf)
 			log_error("plugin_register error:%s : %d", nanomq_conf->plugin.libs[i]->path, rv);
 		}
 	}
+	// stream_plugin.spX (config-driven)
+	(void) stream_plugin_load_all(nanomq_conf);
+	(void) stream_inject_start(nanomq_conf, sock);
+	(void) stream_plugin_start_all(nanomq_conf);
 #endif
 
 	log_warn("NanoMQ Broker is started successfully!\n");
@@ -1531,6 +1558,9 @@ broker(conf *nanomq_conf)
 				    sizeof(struct pipe_content));
 				nng_free(works[i], sizeof(struct work));
 			}
+#if defined(SUPP_PLUGIN)
+			stream_inject_stop();
+#endif
 			nng_free(works, num_work * sizeof(struct work *));
 			break;
 		}
@@ -1540,6 +1570,17 @@ broker(conf *nanomq_conf)
 		if ((license_tick %= 120) == 0)
 			log_info("EMQX Edge is Running %d Message Input %d Message Output %d Message Drop %d",
 			  get_fd_counter(), nanomq_get_message_in(), nanomq_get_message_out(), nanomq_get_message_drop());
+#endif
+#if defined(SUPP_PLUGIN)
+		if ((license_tick % 60) == 0) {
+			stream_inject_stats s = { 0 };
+			stream_inject_get_stats(&s);
+			log_info("stream_inject stats: qlen=%" PRIu64 " enq=%" PRIu64
+			         " drop=%" PRIu64 " ok=%" PRIu64 " fail=%" PRIu64
+			         " send_fail=%" PRIu64,
+			    s.queue_len, s.enqueued, s.dropped, s.processed,
+			    s.failed, s.send_failed);
+		}
 #endif
 
 #if defined(SUPP_LICENSE_DK)
@@ -1569,6 +1610,17 @@ broker(conf *nanomq_conf)
 			if ((license_tick %= 120) == 0)
 				log_info("EMQX Edge is Running %d Message Input %d Message Output %d Message Drop %d",
 				  get_fd_counter(), nanomq_get_message_in(), nanomq_get_message_out(), nanomq_get_message_drop());
+#endif
+#if defined(SUPP_PLUGIN)
+			if ((license_tick % 300) == 0) {
+				stream_inject_stats s = { 0 };
+				stream_inject_get_stats(&s);
+				log_info("stream_inject stats: qlen=%" PRIu64 " enq=%" PRIu64
+				         " drop=%" PRIu64 " ok=%" PRIu64 " fail=%" PRIu64
+				         " send_fail=%" PRIu64,
+				    s.queue_len, s.enqueued, s.dropped, s.processed,
+				    s.failed, s.send_failed);
+			}
 #endif
 #if defined(SUPP_LICENSE_DK)
 			if ((license_tick %= 600) == 0) { // for less flush

@@ -54,6 +54,8 @@ set(SOURCES
     cmd_proc.c
     acl_handler.c
     mqtt_api.c
+    stream_plugin_runtime.c
+    stream_inject.c
     nanomq.c
     plugin_spi_stream.c
     plugin_canp_stream.c
@@ -115,6 +117,9 @@ elseif (BUILD_SHARED_LIBS)
   set_property(TARGET nanomq PROPERTY POSITION_INDEPENDENT_CODE 1)
 else()
   add_executable(nanomq ${SOURCES})
+  # Export broker symbols so dlopen()'d plugins can resolve nano_* APIs
+  # implemented inside the broker (A2 minimal shell path).
+  set_target_properties(nanomq PROPERTIES ENABLE_EXPORTS ON)
 endif()
 
 if(ENABLE_MYSQL)
