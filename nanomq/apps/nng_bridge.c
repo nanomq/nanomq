@@ -33,10 +33,10 @@ nng_proxy_sub_init(conf_nng_sub_node *node, nano_work *work)
     if ((rv = nng_sub0_open(sub_sock)) != 0) {
         return rv;
     }
-    conn_param_alloc(&node->client);
-    conn_param_set_clientid(node->client, node->clientid);
-    conn_param_set_username(node->client, "nngproxy_bridge");
-    conn_param_set_proto_ver(node->client, MQTT_PROTOCOL_VERSION_v311);
+    conn_param_alloc(&node->cparam);
+    conn_param_set_clientid(node->cparam, node->clientid);
+    conn_param_set_username(node->cparam, "nngproxy_bridge");
+    conn_param_set_proto_ver(node->cparam, MQTT_PROTOCOL_VERSION_v311);
 
     if ((rv = nng_ctx_open(
                 &work->extra_ctx, *sub_sock)) != 0) {
@@ -50,7 +50,7 @@ nng_proxy_sub_init(conf_nng_sub_node *node, nano_work *work)
         }
     }
     // bind virtual client with work
-	work->cparam = node->client;
+	work->cparam = node->cparam;
 	if ((rv = nng_listen(node->sub_sock, node->sub_url, NULL, 0)) != 0) {
 		NANO_NNG_FATAL("nng_listen proxy url failed", rv);
 	} else {
@@ -69,10 +69,10 @@ nng_proxy_pub_init(conf_nng_pub_node *node)
     if ((rv = nng_pub0_open(pub_sock)) != 0) {
         return rv;
     }
-    conn_param_alloc(&node->client);
-    conn_param_set_clientid(node->client, node->clientid);
-    conn_param_set_username(node->client, "nngproxy_bridge");
-    conn_param_set_proto_ver(node->client, MQTT_PROTOCOL_VERSION_v311);
+    conn_param_alloc(&node->cparam);
+    conn_param_set_clientid(node->cparam, node->clientid);
+    conn_param_set_username(node->cparam, "nngproxy_bridge");
+    conn_param_set_proto_ver(node->cparam, MQTT_PROTOCOL_VERSION_v311);
     if ((rv = nng_listen(node->pub_sock, node->pub_url, NULL, 0)) != 0) {
 	    NANO_NNG_FATAL("nng_listen proxy url failed", rv);
     } else {
