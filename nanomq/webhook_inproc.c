@@ -109,6 +109,7 @@ http_aio_cb(void *arg)
 	nng_lmq          *lmq  = work->lmq;
 	nng_msg          *msg  = NULL;
 	nng_aio          *aio  = work->http_aio;
+	nng_http_res     *res  = NULL;
 	int               rv;
 	uint8_t type;
 
@@ -121,12 +122,12 @@ http_aio_cb(void *arg)
 			nng_aio_set_msg(work->http_aio, NULL);
 			nng_msg_free(msg);
 		}
-        // FIX: Extract and free the pending HTTP response to prevent memory leaks on error
-        nng_http_res *res = nng_aio_get_output(work->http_aio, 1);
-        if (res) {
-            nng_http_res_free(res);
-            nng_aio_set_output(work->http_aio, 1, NULL);
-       }
+		// Always free pending HTTP response object on aio errors.
+		res = nng_aio_get_output(work->http_aio, 1);
+		if (res != NULL) {
+			nng_http_res_free(res);
+			nng_aio_set_output(work->http_aio, 1, NULL);
+		}
 		if (work->conn) {
 			nng_http_conn_close(work->conn);
 			work->conn = NULL;
@@ -148,14 +149,67 @@ http_aio_cb(void *arg)
 	if (msg != NULL) {
 		type = nng_msg_cmd_type(msg);
 		
-		if (type != CMD_HTTPREQ && type != CMD_HTTPRES) {
+		if (type == CMD_HTTPREQ) {
+			// Request body is sent successfully. For async webhook dispatch,
+			// treat this as completed and skip response parsing.
+			log_trace("HTTP Request sent");
+
+			nng_msg_free(msg);
+			nng_aio_set_msg(work->http_aio, NULL);
+			nng_http_conn_close(work->conn);
+			work->conn = NULL;
+			nng_http_req_free(work->req);
+			work->req = NULL;
+			nng_http_client_free(work->client);
+			work->client = NULL;
+			nng_mtx_unlock(work->mtx);
+			log_trace("HTTP Request succeed");
+			
+		} else if (type == CMD_HTTPRES) {
+			// In fire-and-forget mode we should not parse responses.
+			// Keep this as a defensive cleanup path if response read is reintroduced.
+			log_warn("Unexpected CMD_HTTPRES in fire-and-forget webhook path");
+			res = nng_aio_get_output(aio, 1);
+
+			if (res != NULL) {
+				nng_http_res_free(res);
+				nng_aio_set_output(aio, 1, NULL);
+			}
+
+			nng_msg_free(msg);
+			nng_aio_set_msg(work->http_aio, NULL);
+			nng_http_conn_close(work->conn);
+			work->conn = NULL;
+			nng_http_req_free(work->req);
+			work->req = NULL;
+			nng_http_client_free(work->client);
+			work->client = NULL;
+			nng_mtx_unlock(work->mtx);
+			log_trace("HTTP Request succeed");
+
+		} else {
 			// First callback - connection established
 			log_trace("HTTP Connected, sending request");
-			if ((rv = nng_http_req_alloc(&work->req, work->url)) != 0) {
+			work->conn = nng_aio_get_output(aio, 0);
+			if (work->conn == NULL) {
+				log_error("webhook: get conn from aio output failed");
+				nng_msg_free(msg);
+				nng_http_client_free(work->client);
+				work->client = NULL;
 				nng_mtx_unlock(work->mtx);
 				return;
 			}
-			work->conn = nng_aio_get_output(aio, 0);
+
+			if ((rv = nng_http_req_alloc(&work->req, work->url)) != 0) {
+				log_error("nng_http_req_alloc failed: %s", nng_strerror(rv));
+				nng_msg_free(msg);
+				nng_http_conn_close(work->conn);
+				work->conn = NULL;
+				nng_http_client_free(work->client);
+				work->client = NULL;
+				nng_mtx_unlock(work->mtx);
+				return;
+			}
 
 			for (size_t i = 0; i < conf->header_count; i++) {
 				nng_http_req_add_header(work->req, conf->headers[i]->key,
@@ -171,88 +225,46 @@ http_aio_cb(void *arg)
 			nng_http_conn_write_req(work->conn, work->req, aio);
 			nng_mtx_unlock(work->mtx);
 			return;
-			
-		} else if (type == CMD_HTTPREQ) {
-			// Second callback - request sent, now read response
-			log_trace("HTTP Request sent, reading response");
-			
-			nng_http_res *res;
-			if ((rv = nng_http_res_alloc(&res)) != 0) {
-				log_error("Failed to allocate response: %s", nng_strerror(rv));
-				nng_msg_free(msg);
-				nng_aio_set_msg(work->http_aio, NULL);
-				nng_mtx_unlock(work->mtx);
-				nng_http_conn_close(work->conn);
-				work->conn = NULL;
-				nng_http_req_free(work->req);
-				work->req = NULL;
-				nng_http_client_free(work->client);
-				work->client = NULL;
-				return;
-			}
-			
-			// Mark message to indicate we're reading response
-			nng_msg_set_cmd_type(msg, CMD_HTTPRES);
-			nng_aio_set_msg(aio, msg);
-			nng_aio_set_timeout(aio, conf->cancel_timeout);
-			
-			// Store response object for cleanup later
-			nng_aio_set_output(aio, 1, res);
-			
-			// Read the response
-			nng_http_conn_read_res(work->conn, res, aio);
-			nng_mtx_unlock(work->mtx);
-			return;
-			
-		} else if (type == CMD_HTTPRES) {
-			// Third callback - response received, now cleanup
-			nng_http_res *res = nng_aio_get_output(aio, 1);
-
-			if (res) {
-				int status = nng_http_res_get_status(res);
-				log_trace("HTTP Response received: %d", status);
-				nng_http_res_free(res);
-			}
-			
-			nng_msg_free(msg);
-			nng_aio_set_msg(work->http_aio, NULL);
-			nng_mtx_unlock(work->mtx);
-			nng_http_conn_close(work->conn);
-			work->conn = NULL;
-			nng_http_req_free(work->req);
-			work->req = NULL;
-			nng_http_client_free(work->client);
-			work->client = NULL;
-			log_trace("HTTP Request succeed");
 		}
 	} else {
+		// Guard against response-object leaks when aio succeeds but message is absent.
+		res = nng_aio_get_output(aio, 1);
+		if (res != NULL) {
+			nng_http_res_free(res);
+			nng_aio_set_output(aio, 1, NULL);
+		}
 		log_info("NULL msg from webhook aio !!!!");
 		nng_mtx_unlock(work->mtx);
 	}
 
+	nng_mtx_lock(work->mtx);
 	if (!nng_lmq_empty(lmq)) {
-		// send next webhook http request
-		if ((rv = nng_http_client_alloc(&work->client, work->url)) != 0) {
-			log_error("init failed: %s\n", nng_strerror(rv));
+		// Send next webhook HTTP request.
+		if ((rv = nng_lmq_get(lmq, &msg)) != 0) {
+			log_error("Webhook get msg from lmq failed: %s", nng_strerror(rv));
+			nng_mtx_unlock(work->mtx);
 			return;
 		}
-		nng_mtx_lock(work->mtx);
-		nng_lmq_get(lmq, &msg);
+		if ((rv = nng_http_client_alloc(&work->client, work->url)) != 0) {
+			log_error("init failed: %s\n", nng_strerror(rv));
+			nng_msg_free(msg);
+			nng_mtx_unlock(work->mtx);
+			return;
+		}
 		nng_aio_set_timeout(work->http_aio, conf->cancel_timeout);
 		nng_aio_set_msg(work->http_aio, msg);
-		nng_http_client_connect(work->client, work->http_aio);
 		nng_mtx_unlock(work->mtx);
+		nng_http_client_connect(work->client, work->http_aio);
 	} else {
 		size_t lmq_len = nng_lmq_len(work->lmq);
 		// try to reduce lmq cap
 		if (lmq_len > (NANO_LMQ_INIT_CAP * 2)) {
-			nng_mtx_lock(work->mtx);
 			size_t lmq_cap = nng_lmq_cap(work->lmq);
 			if (lmq_cap > (lmq_len * 2)) {
 				nng_lmq_resize(work->lmq, lmq_cap / 2);
 			}
-			nng_mtx_unlock(work->mtx);
 		}
+		nng_mtx_unlock(work->mtx);
 	}
 }
 
