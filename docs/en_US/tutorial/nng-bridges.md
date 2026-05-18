@@ -317,7 +317,7 @@ If your result does not match the behavior above, check the following items firs
 
 1. Confirm that NanoMQ was started with `etc/nanomq.conf`.
 2. Confirm that the IPC endpoints for `pub_url` and `sub_url` are not occupied by another process.
-3. Confirm that `bridges.nng.pub.t1` and `bridges.nng.sub.t2` are both enabled.
+3. Confirm that the `bridges.nng.pub.t1` and `bridges.nng.sub.t2` nodes exist and have valid `pub_url`/`sub_url` and rule items configured.
 4. For `bridges.nng.pub`, confirm that the MQTT publish topic matches `mqtt/local/#`.
 5. For `bridges.nng.sub`, confirm that the NNG message starts with `remote_topic + nng_delimiter` (default `/`) and that the MQTT subscriber is listening on the mapped `local_topic`.
 

@@ -314,7 +314,7 @@ HEX : 68656c6c6f206e616e6f6d71
 
 1. NanoMQ 是否确实使用 `etc/nanomq.conf` 启动。
 2. `pub_url` 和 `sub_url` 对应的 IPC 文件是否被其他进程占用。
-3. `bridges.nng.pub.t1` 和 `bridges.nng.sub.t2` 的 `enable` 是否为 `true`。
+3. `bridges.nng.pub.t1` 和 `bridges.nng.sub.t2` 节点是否存在，并且分别配置了有效的 `pub_url`/`sub_url` 及规则项。
 4. `bridges.nng.pub` 测试时，MQTT 发布主题是否匹配 `mqtt/local/#`。
 5. `bridges.nng.sub` 测试时，NNG 消息是否以前缀 `remote_topic + nng_delimiter`（默认 `/`）开头，以及 MQTT 订阅主题是否为映射后的 `local_topic`。
 
