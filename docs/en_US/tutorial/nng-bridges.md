@@ -38,11 +38,6 @@ In the current `etc/nanomq.conf`, `bridges.nng.pub.t1` is configured as follows:
 ```hcl
 # MQTT(local_topic) -> NanoMQ -> NNG(remote_topic)
 bridges.nng.pub.t1 {
-  # Enable or disable this bridge.
-  #
-  # Value: true | false
-  # Default: false
-  enable = true
 
   # NNG pub socket URL.
   # The address of the NNG pub0 protocol server to publish to.
@@ -179,11 +174,6 @@ In the current `etc/nanomq.conf`, `bridges.nng.sub.t2` is configured as follows:
 ```hcl
 # NNG(remote_topic) -> NanoMQ -> MQTT(local_topic)
 bridges.nng.sub.t2 {
-  # Enable or disable this bridge.
-  #
-  # Value: true | false
-  # Default: false
-  enable = true
 
   # NNG sub socket URL.
   # The address of the NNG sub0 protocol server to subscribe to.

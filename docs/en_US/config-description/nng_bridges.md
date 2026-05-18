@@ -16,11 +16,6 @@ The NNG Pub Bridge is responsible for forwarding MQTT messages from local topics
 
 ```hcl
 bridges.nng.pub.t1 {
-    # Enable or disable this bridge.
-    #
-    # Value: true | false
-    # Default: false
-    enable = true
 
     # NNG pub socket URL.
     # The address of the NNG pub0 protocol server to publish to.
@@ -83,7 +78,6 @@ bridges.nng.pub.t1 {
 ### **Parameters**
 
 * `bridges.nng.pub.<name>`: Defines an NNG Pub bridge instance, where `<name>` is a unique identifier (e.g., `t1`).
-* `enable`: Whether to enable this bridge. Value: `true` | `false`. Default: `false`.
 * `pub_url`: The address on which NanoMQ listens with its NNG `pub0` socket. **External NNG sub clients connect to this address** to receive messages. Supports various transports such as `tcp://127.0.0.1:9900`, `ipc:///tmp/nng_pub.ipc` or `inproc://inproc_thr`.
 * `clientid`: Identifier for this bridge publisher within the local NanoMQ broker.
 * `forwards`: Array of mapping rules between local MQTT topics and remote NNG topics.
@@ -105,11 +99,6 @@ The NNG Sub Bridge subscribes to topics on a remote NNG `sub0` socket and forwar
 
 ```hcl
 bridges.nng.sub.t2 {
-    # Enable or disable this bridge.
-    #
-    # Value: true | false
-    # Default: false
-    enable = true
 
     # NNG sub socket URL.
     # The address of the NNG sub0 protocol server to subscribe to.
@@ -179,7 +168,6 @@ bridges.nng.sub.t2 {
 ### **Parameters**
 
 * `bridges.nng.sub.<name>`: Defines an NNG Sub bridge instance, where `<name>` is a unique identifier (e.g., `t2`).
-* `enable`: Whether to enable this bridge. Value: `true` | `false`. Default: `false`.
 * `sub_url`: The address on which NanoMQ listens with its NNG `sub0` socket. **External NNG pub clients connect to this address** to push messages. Supports TCP and IPC transports, e.g., `tcp://localhost:9901`, `ipc:///tmp/nng_sub.ipc` or `inproc://inproc_thr`.
 * `clientid`: Identifier for this bridge subscriber within the local NanoMQ broker.
 * `subscription`: Array of mapping rules between remote NNG topics and local MQTT topics.
