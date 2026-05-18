@@ -38,11 +38,6 @@
 ```hcl
 # MQTT(local_topic) -> NanoMQ -> NNG(remote_topic)
 bridges.nng.pub.t1 {
-  # # 是否启用此 NNG 桥接。
-  # #
-  # # Value: true | false
-  # # Default: false
-  enable = true
 
   # # NNG pub0 Socket URL。
   # # NNG pub0 协议服务端地址。
@@ -179,11 +174,6 @@ nng/remote:hello
 ```hcl
 # NNG(remote_topic) -> NanoMQ -> MQTT(local_topic)
 bridges.nng.sub.t2 {
-  # # 是否启用此 NNG 桥接。
-  # #
-  # # Value: true | false
-  # # Default: false
-  enable = true
 
   # # NNG sub0 Socket URL。
   # # NNG sub0 协议服务端地址。
