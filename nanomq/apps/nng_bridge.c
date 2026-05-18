@@ -34,6 +34,7 @@ nng_proxy_sub_init(conf_nng_sub_node *node, nano_work *work)
         return rv;
     }
 	if ((rv = conn_param_alloc(&node->cparam)) != 0) {
+		nng_close(*sub_sock);
 		return rv;
 	}
     conn_param_set_clientid(node->cparam, node->clientid);
@@ -72,6 +73,7 @@ nng_proxy_pub_init(conf_nng_pub_node *node)
         return rv;
     }
 	if ((rv = conn_param_alloc(&node->cparam)) != 0) {
+		nng_close(*pub_sock);
 		return rv;
 	}
     conn_param_set_clientid(node->cparam, node->clientid);
@@ -90,7 +92,6 @@ void
 nng_pub_handler(nano_work *work, nng_msg *nmsg)
 {
 	int      rv    = 0;
-	// Or we just exclude all topic with $?
 	if ((work->pub_packet->var_header.publish.topic_name.len >=
 	        strlen("$SYS")) &&
 	    strncmp(work->pub_packet->var_header.publish.topic_name.body,
@@ -129,7 +130,12 @@ nng_pub_handler(nano_work *work, nng_msg *nmsg)
 			    }
 		    } else {
 			    nng_msg *new_msg;
-			    nng_msg_alloc(&new_msg, 0);
+			    if ((rv = nng_msg_alloc(&new_msg, 0)) != 0) {
+				    log_error(
+					"Failed to alloc nng message: %s(%d)",
+					nng_strerror(rv), rv);
+				    continue;
+			    }
 
 			    char  *tmp_topic = NULL;
 			    size_t tlen      = 0;
