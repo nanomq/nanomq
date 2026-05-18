@@ -324,10 +324,10 @@ server_cb(void *arg)
 			conf_nng_sub_node *snode = NULL;
 
 			if (work->nng_snode_idx >= 0 &&
-			    work->nng_snode_idx <
+			    (size_t) work->nng_snode_idx <
 			        work->config->nng_proxy.sub_count) {
 				snode = work->config->nng_proxy
-				            .snodes[work->nng_snode_idx];
+				            .snodes[(size_t) work->nng_snode_idx];
 			}
 
 			log_debug("receive msg from nng proxy, len = %zu, work_id: "
