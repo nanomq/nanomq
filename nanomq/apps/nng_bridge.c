@@ -33,7 +33,9 @@ nng_proxy_sub_init(conf_nng_sub_node *node, nano_work *work)
     if ((rv = nng_sub0_open(sub_sock)) != 0) {
         return rv;
     }
-    conn_param_alloc(&node->cparam);
+	if ((rv = conn_param_alloc(&node->cparam)) != 0) {
+		return rv;
+	}
     conn_param_set_clientid(node->cparam, node->clientid);
     conn_param_set_username(node->cparam, "nngproxy_bridge");
     conn_param_set_proto_ver(node->cparam, MQTT_PROTOCOL_VERSION_v311);
@@ -69,7 +71,9 @@ nng_proxy_pub_init(conf_nng_pub_node *node)
     if ((rv = nng_pub0_open(pub_sock)) != 0) {
         return rv;
     }
-    conn_param_alloc(&node->cparam);
+	if ((rv = conn_param_alloc(&node->cparam)) != 0) {
+		return rv;
+	}
     conn_param_set_clientid(node->cparam, node->clientid);
     conn_param_set_username(node->cparam, "nngproxy_bridge");
     conn_param_set_proto_ver(node->cparam, MQTT_PROTOCOL_VERSION_v311);
@@ -111,6 +115,8 @@ nng_pub_handler(nano_work *work, nng_msg *nmsg)
 			    (const char *) sub_topic->body))
 			    continue;
 		    if (work->proto == PROTO_NNG_BRIDGE) {
+			    if (nmsg == NULL)
+				    continue;
 			    // TODO pass nng sub msg directly
 			    nng_msg_clone(nmsg);
 			    rv = nng_sendmsg(
@@ -150,7 +156,6 @@ nng_pub_handler(nano_work *work, nng_msg *nmsg)
 
 			    // nng_msg_clone(new_msg);
 			    // nng_aio_set_msg(work->aio, new_msg);
-			    work->state = SEND;
 			    // NNG sub wont block aio, so we can send them one
 			    // by one nng_sock_send(node->pub_sock,
 			    // node->send_aio);

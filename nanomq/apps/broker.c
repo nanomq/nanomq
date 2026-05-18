@@ -597,7 +597,11 @@ server_cb(void *arg)
 			conn_param_free(work->cparam);
 			work->msg   = NULL;
 			work->state = RECV;
-			nng_ctx_recv(work->ctx, work->aio);
+			if (work->proto == PROTO_MQTT_BROKER) {
+				nng_ctx_recv(work->ctx, work->aio);
+			} else {
+				nng_ctx_recv(work->extra_ctx, work->aio);
+			}
 			break;
 		}
 		if ((rv = nng_aio_result(work->aio)) != 0) {
@@ -908,13 +912,14 @@ proto_work_init(nng_socket sock, nng_socket extrasock, uint8_t proto,
 		if ((rv = nng_ctx_open(&w->extra_ctx, extrasock)) != 0) {
 			NANO_NNG_FATAL("nng_ctx_open", rv);
 		}
+	}
 #if defined(SUPP_ICEORYX)
 	} else if (proto == PROTO_ICEORYX_BRIDGE) {
 			if ((rv = nng_ctx_open(&w->extra_ctx, extrasock)) != 0) {
 				NANO_NNG_FATAL("nng_ctx_open", rv);
 			}
 #endif
-	} else if (config->bridge_mode) {
+	else if (config->bridge_mode) {
 		if (proto == PROTO_MQTT_BRIDGE) {
 			if ((rv = nng_ctx_open(&w->extra_ctx, extrasock)) != 0) {
 				NANO_NNG_FATAL("nng_ctx_open", rv);
