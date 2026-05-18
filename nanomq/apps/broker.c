@@ -257,6 +257,17 @@ server_cb(void *arg)
 				log_info("bridge aio closed with reason %d\n", rv);
 			}
 		}
+
+		if (msg == NULL) {
+			log_error("RECV NULL MSG");
+			work->state = RECV;
+			if (work->proto == PROTO_MQTT_BROKER) {
+				nng_ctx_recv(work->ctx, work->aio);
+			} else {
+				nng_ctx_recv(work->extra_ctx, work->aio);
+			}
+			break;
+		}
 		if (work->proto == PROTO_MQTT_BRIDGE) {
 			uint8_t type = nng_msg_get_type(msg);
 			if (type == CMD_CONNACK) {
@@ -579,6 +590,11 @@ server_cb(void *arg)
 		if (nng_msg_get_type(work->msg) != CMD_PUBLISH) {
 			if (work->msg != NULL)
 				nng_msg_free(work->msg);
+			if (work->nmsg != NULL) {
+				nng_msg_free(work->nmsg);
+				work->nmsg = NULL;
+			}
+			conn_param_free(work->cparam);
 			work->msg   = NULL;
 			work->state = RECV;
 			nng_ctx_recv(work->ctx, work->aio);
@@ -593,8 +609,8 @@ server_cb(void *arg)
 		msg_infos = work->pipe_ct->msg_infos;
 
 		log_trace("total subscribed pipes: %ld", cvector_size(msg_infos));
-		if (encode_pub_message(smsg, work, PUBLISH))
-			if (cvector_size(msg_infos)) {
+		if (cvector_size(msg_infos))
+			if (encode_pub_message(smsg, work, PUBLISH)) {
 				for (int i = 0; i < cvector_size(msg_infos) && rv== 0; ++i) {
 					msg_info = &msg_infos[i];
 					nng_msg_clone(smsg);
@@ -626,6 +642,7 @@ server_cb(void *arg)
 		}
 		//check webhook & rule engine
 		conf_web_hook *hook_conf = &(work->config->web_hook);
+		conf_exchange *exge_conf = &(work->config->exchange);
 		uint8_t rule_opt = RULE_ENG_OFF;
 #if defined(SUPP_RULE_ENGINE)
 		rule_opt = work->config->rule_eng.option;
@@ -637,12 +654,13 @@ server_cb(void *arg)
 		// Doing NNG PUB
 		if (work->config->nng_proxy.pub_enable) {
 			nng_pub_handler(work, work->nmsg);
-			if (work->nmsg != NULL) {
-				nng_msg_free(work->nmsg);
-				work->nmsg = NULL;
-			}
 		}
-		if (hook_conf->enable || rule_opt != RULE_ENG_OFF || iceoryx_opt == 1) {
+		if (work->nmsg != NULL) {
+			nng_msg_free(work->nmsg);
+			work->nmsg = NULL;
+		}
+		if (hook_conf->enable || exge_conf->count > 0 ||
+		    rule_opt != RULE_ENG_OFF || iceoryx_opt == 1) {
 			work->state = SEND;
 			nng_aio_finish(work->aio, 0);
 			break;
