@@ -3718,8 +3718,15 @@ properties_parse(property **properties, cJSON *json)
 
 	char number_str[50] = {0};
 
+	if (!cJSON_IsArray(item) || !cJSON_IsObject(prop_obj)) {
+		log_warn("Invalid properties found!");
+		return -1;
+	}
 	cJSON_ArrayForEach(item, prop_obj)
 	{
+		if (item->string == NULL) {
+				continue;
+		}
 		if (cJSON_IsNumber(item)) {
 			if (item->valuedouble - item->valueint == 0) {
 				snprintf(number_str, 50, "%ld",
