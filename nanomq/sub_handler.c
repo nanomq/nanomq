@@ -92,21 +92,32 @@ decode_sub_msg(nano_work *work)
 		return NNG_ENOMEM;
 	}
 	sub_pkt->node = tn;
-
+	if (bpos > remaining_len) {
+		log_error("Malformed packet: Headers exceed total message length");
+		return PROTOCOL_ERROR;
+	}
+	size_t payload_len = remaining_len - bpos;
 	while (1) {
 		tn->next = NULL;
 		tn->topic.len = 0;
 		tn->reason_code = GRANTED_QOS_2; // default
 
-		// TODO Decoding topic has potential buffer overflow
+		if (ppos >= payload_len) {
+			break;
+		}
+
+		int limit = payload_len - ppos;
+
 		tn->topic.body = (char *)copyn_utf8_str(payload_ptr,
-		    (uint32_t *)&ppos, &tn->topic.len, remaining_len);
+		    (uint32_t *)&ppos, &tn->topic.len, limit);
+
 		if (tn->topic.body == NULL) {
 			log_error("tn->topic.body is NULL");
 		} else {
 			log_info("topic: [%s] len: [%d] pid [%d]",
-					tn->topic.body, tn->topic.len, sub_pkt->packet_id);
+				tn->topic.body, tn->topic.len, sub_pkt->packet_id);
 		}
+
 		if (tn->topic.len < 1 || tn->topic.body == NULL) {
 			log_error("NOT utf8-encoded string OR null string.");
 			if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
@@ -116,19 +127,12 @@ decode_sub_msg(nano_work *work)
 				tn->reason_code = UNSPECIFIED_ERROR;
 				return UNSPECIFIED_ERROR;
 			}
-			ppos += 1; // ignore option
-			if (ppos < remaining_len - bpos) {
-				newtn = nng_zalloc(sizeof(topic_node));
-				if (newtn == NULL) {
-					log_error("nng_zalloc");
-					return NNG_ENOMEM;
-				}
-				tn->next  = newtn;
-				tn = newtn;
-				continue;
-			} else {
-				break;
-			}
+		}
+
+		if (ppos >= payload_len) {
+			log_error("Missing QoS byte in Subscribe Payload");
+			tn->reason_code = MALFORMED_PACKET;
+			return PROTOCOL_ERROR;
 		}
 
 		tn->rap = 1; // Default Setting
@@ -147,18 +151,20 @@ decode_sub_msg(nano_work *work)
 				log_warn("No local is conflict with shared subscription!");
 				return PROTOCOL_ERROR;
 			}
-			if (strstr(tn->topic.body, "//") != NULL ||
-				tn->topic.len <= 8 ) {	// This "/" character MUST be followed by a Topic Filter.
+
+			if (tn->topic.len <= 8) {
 				tn->reason_code = PAYLOAD_FORMAT_INVALID;
 				log_warn("Invalid share topic in subscription!");
 				return PROTOCOL_ERROR;
 			}
-			char *name_end  = strchr(tn->topic.body + 7, '/');
-			if (name_end == NULL) {
-				log_warn("Invalid share name in subscription!");
+
+			char *name_end = strchr(tn->topic.body + 7, '/');
+			if (name_end == NULL || name_end == tn->topic.body + 7) {
+				log_warn("Invalid share name or missing filter in subscription!");
 				tn->reason_code = MALFORMED_PACKET;
 				return PROTOCOL_ERROR;
 			}
+
 			log_info("Sub to share name %.*s", name_end - (tn->topic.body + 7), (tn->topic.body+7));
 			char *mark1 = strchr(tn->topic.body + 7, '#');
 			char *mark2 = strchr(tn->topic.body + 7, '+');
