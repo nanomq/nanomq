@@ -3683,10 +3683,10 @@ properties_parse(property **properties, cJSON *json)
 			property_append(prop_list, sub_prop);
 	}
 
-	getNumberValue(json, item, "message_expiry_interval", word, rv);
+	getNumberValue(json, item, "message_expiry_interval", dword, rv);
 	if (rv == 0) {
 		sub_prop =
-		    property_set_value_u16(MESSAGE_EXPIRY_INTERVAL, word);
+		    property_set_value_u32(MESSAGE_EXPIRY_INTERVAL, dword);
 		if (sub_prop)
 			property_append(prop_list, sub_prop);
 	}
