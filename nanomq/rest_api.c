@@ -3662,118 +3662,139 @@ send_publish(nng_socket *sock, const char *clientid, char *payload,
 static int
 properties_parse(property **properties, cJSON *json)
 {
-    cJSON * item      = NULL;
-    int       rv        = 0;
-    uint8_t   byte      = 0;
-    uint16_t  word      = 0;
-    uint32_t  dword     = 0;
-    char * str       = NULL;
-    property *prop_list = property_alloc();
-    property *sub_prop  = NULL;
+	cJSON    *item      = NULL;
+	int       rv        = 0;
+	uint8_t   byte      = 0;
+	uint16_t  word      = 0;
+	uint32_t  dword     = 0;
+	char     *str       = NULL;
+	property *prop_list = property_alloc();
+	property *sub_prop  = NULL;
 
-    if (prop_list == NULL) {
-        return -1;
-    }
+	if (prop_list == NULL) {
+		return -1;
+	}
 
-    getNumberValue(json, item, "payload_format_indicator", byte, rv);
-    if (rv == 0) {
-        sub_prop = property_set_value_u8(PAYLOAD_FORMAT_INDICATOR, byte);
-        if (sub_prop) property_append(prop_list, sub_prop);
-    }
+	getNumberValue(json, item, "payload_format_indicator", byte, rv);
+	if (rv == 0) {
+		sub_prop =
+		    property_set_value_u8(PAYLOAD_FORMAT_INDICATOR, byte);
+		if (sub_prop)
+			property_append(prop_list, sub_prop);
+	}
 
-    getNumberValue(json, item, "message_expiry_interval", word, rv);
-    if (rv == 0) {
-        sub_prop = property_set_value_u16(MESSAGE_EXPIRY_INTERVAL, word);
-        if (sub_prop) property_append(prop_list, sub_prop);
-    }
+	getNumberValue(json, item, "message_expiry_interval", word, rv);
+	if (rv == 0) {
+		sub_prop =
+		    property_set_value_u16(MESSAGE_EXPIRY_INTERVAL, word);
+		if (sub_prop)
+			property_append(prop_list, sub_prop);
+	}
 
-    getStringValue(json, item, "response_topic", str, rv);
-    if (rv == 0 && str) {
-        sub_prop = property_set_value_str(RESPONSE_TOPIC, str, strlen(str), true);
-        if (sub_prop) property_append(prop_list, sub_prop);
-    }
+	getStringValue(json, item, "response_topic", str, rv);
+	if (rv == 0 && str) {
+		sub_prop = property_set_value_str(
+		    RESPONSE_TOPIC, str, strlen(str), true);
+		if (sub_prop)
+			property_append(prop_list, sub_prop);
+	}
 
-    getStringValue(json, item, "correlation_data", str, rv);
-    if (rv == 0 && str) {
-        sub_prop = property_set_value_binary(CORRELATION_DATA, (uint8_t *) str, strlen(str), true);
-        if (sub_prop) property_append(prop_list, sub_prop);
-    }
+	getStringValue(json, item, "correlation_data", str, rv);
+	if (rv == 0 && str) {
+		sub_prop = property_set_value_binary(
+		    CORRELATION_DATA, (uint8_t *) str, strlen(str), true);
+		if (sub_prop)
+			property_append(prop_list, sub_prop);
+	}
 
-    // Fixed trailing space in "subscription_identifier "
-    getNumberValue(json, item, "subscription_identifier", dword, rv);
-    if (rv == 0) {
-        sub_prop = property_set_value_varint(SUBSCRIPTION_IDENTIFIER, dword);
-        if (sub_prop) property_append(prop_list, sub_prop);
-    }
+	getNumberValue(json, item, "subscription_identifier", dword, rv);
+	if (rv == 0) {
+		sub_prop =
+		    property_set_value_varint(SUBSCRIPTION_IDENTIFIER, dword);
+		if (sub_prop)
+			property_append(prop_list, sub_prop);
+	}
 
-    getStringValue(json, item, "content_type", str, rv);
-    if (rv == 0 && str) {
-        // Fixed incorrect type (was CORRELATION_DATA)
-        sub_prop = property_set_value_str(CONTENT_TYPE, str, strlen(str), true);
-        if (sub_prop) property_append(prop_list, sub_prop);
-    }
+	getStringValue(json, item, "content_type", str, rv);
+	if (rv == 0 && str) {
+		sub_prop = property_set_value_str(
+		    CONTENT_TYPE, str, strlen(str), true);
+		if (sub_prop)
+			property_append(prop_list, sub_prop);
+	}
 
-    cJSON *prop_obj = cJSON_GetObjectItem(json, "user_properties");
-    
-    // Check if user_properties exists before validating it
-    if (prop_obj != NULL) {
-        if (!cJSON_IsObject(prop_obj)) {
-            log_warn("Invalid user_properties format! Expected a JSON Object.");
-            goto err; // Use goto to avoid leaking prop_list
-        }
+	cJSON *prop_obj = cJSON_GetObjectItem(json, "user_properties");
 
-        char number_str[64] = {0};
+	// Check if user_properties exists before validating it
+	if (prop_obj != NULL) {
+		if (!cJSON_IsObject(prop_obj)) {
+			log_warn("Invalid user_properties format! Expected a "
+			         "JSON Object.");
+			goto err; // Use goto to avoid leaking prop_list
+		}
 
-        cJSON_ArrayForEach(item, prop_obj) {
-            if (item->string == NULL) {
-                continue;
-            }
+		char number_str[64] = { 0 };
 
-            // Cache key length to avoid multiple redundant calculations
-            size_t key_len = strlen(item->string);
-            int val_len = 0;
+		cJSON_ArrayForEach(item, prop_obj)
+		{
+			if (item->string == NULL) {
+				continue;
+			}
 
-            if (cJSON_IsNumber(item)) {
-                if (item->valuedouble - item->valueint == 0) {
-                    val_len = snprintf(number_str, sizeof(number_str), "%ld", (long) item->valuedouble);
-                } else {
-                    val_len = snprintf(number_str, sizeof(number_str), "%f", item->valuedouble);
-                }
-                
-                sub_prop = property_set_value_strpair(USER_PROPERTY,
-                    item->string, key_len, number_str, val_len, true);
-                    
-            } else if (cJSON_IsBool(item)) {
-                // High-performance direct bool mapping, bypasses snprintf
-                const char *b_str = cJSON_IsTrue(item) ? "true" : "false";
-                val_len = cJSON_IsTrue(item) ? 4 : 5;
-                
-                sub_prop = property_set_value_strpair(USER_PROPERTY,
-                    item->string, key_len, (char *)b_str, val_len, true);
-                    
-            } else if (cJSON_IsString(item) && item->valuestring) {
-                val_len = strlen(item->valuestring);
-                sub_prop = property_set_value_strpair(USER_PROPERTY,
-                    item->string, key_len, item->valuestring, val_len, true);
-                    
-            } else {
-                continue;
-            }
+			// Cache key length to avoid multiple redundant calculations
+			size_t key_len = strlen(item->string);
+			int    val_len = 0;
 
-            if (sub_prop) {
-                property_append(prop_list, sub_prop);
-            }
-        }
-    }
+			if (cJSON_IsNumber(item)) {
+				if (item->valuedouble - item->valueint == 0) {
+					val_len = snprintf(number_str,
+					    sizeof(number_str), "%ld",
+					    (long) item->valuedouble);
+				} else {
+					val_len = snprintf(number_str,
+					    sizeof(number_str), "%f",
+					    item->valuedouble);
+				}
 
-    *properties = prop_list;
-    return 0;
+				sub_prop = property_set_value_strpair(
+				    USER_PROPERTY, item->string, key_len,
+				    number_str, val_len, true);
+
+			} else if (cJSON_IsBool(item)) {
+				// High-performance direct bool mapping,
+				// bypasses snprintf
+				const char *b_str =
+				    cJSON_IsTrue(item) ? "true" : "false";
+				val_len = cJSON_IsTrue(item) ? 4 : 5;
+
+				sub_prop = property_set_value_strpair(
+				    USER_PROPERTY, item->string, key_len,
+				    (char *) b_str, val_len, true);
+
+			} else if (cJSON_IsString(item) && item->valuestring) {
+				val_len  = strlen(item->valuestring);
+				sub_prop = property_set_value_strpair(
+				    USER_PROPERTY, item->string, key_len,
+				    item->valuestring, val_len, true);
+
+			} else {
+				continue;
+			}
+
+			if (sub_prop) {
+				property_append(prop_list, sub_prop);
+			}
+		}
+	}
+
+	*properties = prop_list;
+	return 0;
 
 err:
-    if (prop_list) {
-        property_free(prop_list);
-    }
-    return -1;
+	if (prop_list) {
+		property_free(prop_list);
+	}
+	return -1;
 }
 
 /**
