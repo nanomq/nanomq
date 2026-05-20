@@ -159,8 +159,8 @@ decode_sub_msg(nano_work *work)
 			}
 
 			char *name_end = strchr(tn->topic.body + 7, '/');
-			if (name_end == NULL || name_end == tn->topic.body + 7) {
-				log_warn("Invalid share name or missing filter in subscription!");
+			if (name_end == NULL || name_end == tn->topic.body + 7 || name_end[1] == '\0') {
+				log_warn("Invalid shared name or missing filter in sub topic!");
 				tn->reason_code = MALFORMED_PACKET;
 				return PROTOCOL_ERROR;
 			}
