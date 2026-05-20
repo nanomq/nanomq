@@ -807,45 +807,43 @@ basic_authorize(http_msg *msg)
 		return EMPTY_USERNAME_OR_PASSWORD;
 	}
 
-	char *b64_token = msg->token + 6;
+	char  *b64_token = msg->token + 6;
 	size_t token_len = strlen(b64_token);
 
 	if (token_len < 4) {
 		return WRONG_USERNAME_OR_PASSWORD;
 	}
 
-	uint8_t *token = nng_zalloc(token_len + 1);
+	size_t   token_alloc_len = token_len + 1;
+	uint8_t *token           = nng_zalloc(token_alloc_len);
 	if (token == NULL) {
 		return UNKNOWN_MISTAKE;
 	}
 	memcpy(token, b64_token, token_len);
-	token[token_len] = '\0';
 
-	// Authorize username:password
 	conf_http_server *server = get_http_server_conf();
 
 	size_t auth_len =
 	    strlen(server->username) + strlen(server->password) + 2;
-	char *auth = nng_zalloc(auth_len);
+	char *auth =
+	    nng_alloc(auth_len);
 	if (auth == NULL) {
-		nng_free(token, token_len + 1);
+		nng_free(token, token_alloc_len);
 		return UNKNOWN_MISTAKE;
 	}
 	snprintf(auth, auth_len, "%s:%s", server->username, server->password);
 
-	size_t decode_len    = token_len * 6 / 8 + 1;
-	uint8_t *decode      = nng_zalloc(decode_len);
+	size_t   decode_len = token_len * 6 / 8 + 1;
+	uint8_t *decode     = nng_zalloc(decode_len);
 	if (decode == NULL) {
 		nng_free(auth, auth_len);
-		nng_free(token, token_len + 1);
+		nng_free(token, token_alloc_len);
 		return UNKNOWN_MISTAKE;
 	}
 
-	decode[decode_len - 1] = '\0';
-	decode[decode_len - 2] = '\0';
-	decode[decode_len - 3] = '\0';
-
 	base64_decode((const char *) token, token_len, decode);
+
+	decode[decode_len - 1] = '\0';
 
 	if (strcmp(auth, (const char *) decode) != 0) {
 		result = WRONG_USERNAME_OR_PASSWORD;
@@ -853,7 +851,7 @@ basic_authorize(http_msg *msg)
 
 	nng_free(auth, auth_len);
 	nng_free(decode, decode_len);
-	nng_free(token, token_len + 1);
+	nng_free(token, token_alloc_len);
 
 	return result;
 }
