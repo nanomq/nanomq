@@ -803,14 +803,22 @@ basic_authorize(http_msg *msg)
 {
 	enum result_code result = SUCCEED;
 
-	if (msg->token_len <= 0 ||
-	    sscanf(msg->token, "Basic %s", msg->token) != 1) {
+	if (msg->token_len <= 6 || strncmp(msg->token, "Basic ", 6) != 0) {
 		return EMPTY_USERNAME_OR_PASSWORD;
 	}
 
-	size_t   token_len = strlen(msg->token);
-	uint8_t *token     = nng_alloc(token_len + 1);
-	memcpy(token, msg->token, token_len);
+	char *b64_token = msg->token + 6;
+	size_t token_len = strlen(b64_token);
+
+	if (token_len < 4) {
+		return WRONG_USERNAME_OR_PASSWORD;
+	}
+
+	uint8_t *token = nng_zalloc(token_len + 1);
+	if (token == NULL) {
+		return UNKNOWN_MISTAKE;
+	}
+	memcpy(token, b64_token, token_len);
 	token[token_len] = '\0';
 
 	// Authorize username:password
@@ -818,15 +826,20 @@ basic_authorize(http_msg *msg)
 
 	size_t auth_len =
 	    strlen(server->username) + strlen(server->password) + 2;
-	char *auth = nng_alloc(auth_len);
+	char *auth = nng_zalloc(auth_len);
+	if (auth == NULL) {
+		nng_free(token, token_len + 1);
+		return UNKNOWN_MISTAKE;
+	}
 	snprintf(auth, auth_len, "%s:%s", server->username, server->password);
 
 	size_t decode_len    = token_len * 6 / 8 + 1;
-	uint8_t *decode      = nng_alloc(decode_len);
-	// No more than 3 '=' placeholders in token
-	decode[decode_len - 1] = '\0';
-	decode[decode_len - 2] = '\0';
-	decode[decode_len - 3] = '\0';
+	uint8_t *decode      = nng_zalloc(decode_len);
+	if (decode == NULL) {
+		nng_free(auth, auth_len);
+		nng_free(token, token_len + 1);
+		return UNKNOWN_MISTAKE;
+	}
 
 	base64_decode((const char *) token, token_len, decode);
 
@@ -835,8 +848,8 @@ basic_authorize(http_msg *msg)
 	}
 
 	nng_free(auth, auth_len);
-	nng_free(decode, msg->token_len);
-	nng_free(token, token_len);
+	nng_free(decode, decode_len);
+	nng_free(token, token_len + 1);
 
 	return result;
 }
