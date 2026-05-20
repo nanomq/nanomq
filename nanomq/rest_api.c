@@ -3746,20 +3746,15 @@ properties_parse(property **properties, cJSON *json)
 			int    val_len = 0;
 
 			if (cJSON_IsNumber(item)) {
-				if (item->valuedouble - item->valueint == 0) {
-					val_len = snprintf(number_str,
-					    sizeof(number_str), "%ld",
-					    (long) item->valuedouble);
-				} else {
-					val_len = snprintf(number_str,
-					    sizeof(number_str), "%f",
-					    item->valuedouble);
+				val_len = snprintf(number_str, sizeof(number_str),
+				        "%.17g", item->valuedouble);
+				if (val_len < 0 ||
+				    (size_t) val_len >= sizeof(number_str)) {
+					goto err;
 				}
-
 				sub_prop = property_set_value_strpair(
 				    USER_PROPERTY, item->string, key_len,
 				    number_str, val_len, true);
-
 			} else if (cJSON_IsBool(item)) {
 				// High-performance direct bool mapping,
 				// bypasses snprintf
