@@ -841,6 +841,10 @@ basic_authorize(http_msg *msg)
 		return UNKNOWN_MISTAKE;
 	}
 
+	decode[decode_len - 1] = '\0';
+	decode[decode_len - 2] = '\0';
+	decode[decode_len - 3] = '\0';
+
 	base64_decode((const char *) token, token_len, decode);
 
 	if (strcmp(auth, (const char *) decode) != 0) {
