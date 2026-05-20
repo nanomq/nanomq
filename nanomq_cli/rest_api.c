@@ -361,38 +361,61 @@ destory_http_msg(http_msg *msg)
 static enum result_code
 basic_authorize(http_msg *msg, conf_http_server *config)
 {
-	enum result_code result = SUCCEED;
+    enum result_code result = SUCCEED;
 
-	if (msg->token_len <= 0 ||
-	    sscanf(msg->token, "Basic %s", msg->token) != 1) {
-		return EMPTY_USERNAME_OR_PASSWORD;
-	}
+    if (msg->token_len <= 0 ||
+        sscanf(msg->token, "Basic %s", msg->token) != 1) {
+        return EMPTY_USERNAME_OR_PASSWORD;
+    }
 
-	size_t   token_len = strlen(msg->token);
-	uint8_t *token     = nng_alloc(token_len + 1);
-	memcpy(token, msg->token, token_len);
-	token[token_len] = '\0';
+    size_t token_len = strlen(msg->token);
+    if (token_len == 0) {
+        return EMPTY_USERNAME_OR_PASSWORD;
+    }
 
-	// Authorize username:password
-	size_t auth_len =
-	    strlen(config->username) + strlen(config->password) + 2;
-	char *auth = nng_alloc(auth_len);
-	snprintf(auth, auth_len, "%s:%s", config->username, config->password);
+    size_t   token_alloc_len = token_len + 1;
+    uint8_t *token           = nng_alloc(token_alloc_len);
+    if (token == NULL) {
+        return UNKNOWN_MISTAKE;
+    }
+    memcpy(token, msg->token, token_len);
+    token[token_len] = '\0';
 
-	uint8_t *decode      = nng_alloc(auth_len);
-	decode[auth_len - 1] = '\0';
+    size_t auth_len = strlen(config->username) + strlen(config->password) + 2;
+    char *auth = nng_alloc(auth_len);
+    if (auth == NULL) {
+        nng_free(token, token_alloc_len);
+        return UNKNOWN_MISTAKE;
+    }
+    snprintf(auth, auth_len, "%s:%s", config->username, config->password);
 
-	base64_decode((const char *) token, token_len, decode);
+    size_t decode_len = (token_len * 6 / 8) + 1;
+    uint8_t *decode = nng_alloc(decode_len);
+    if (decode == NULL) {
+        nng_free(auth, auth_len);
+        nng_free(token, token_alloc_len);
+        return UNKNOWN_MISTAKE;
+    }
 
-	if (strncmp(auth, (const char *) decode, auth_len) != 0) {
-		result = WRONG_USERNAME_OR_PASSWORD;
-	}
+    if (decode_len >= 3) {
+        decode[decode_len - 1] = '\0';
+        decode[decode_len - 2] = '\0';
+        decode[decode_len - 3] = '\0';
+    } else {
+        decode[0] = '\0';
+    }
 
-	nng_free(auth, auth_len);
-	nng_free(decode, msg->token_len);
-	nng_free(token, token_len);
+    base64_decode((const char *) token, token_len, decode);
 
-	return result;
+    if (strcmp(auth, (const char *) decode) != 0) {
+        result = WRONG_USERNAME_OR_PASSWORD;
+    }
+
+    nng_free(auth, auth_len);
+    nng_free(decode, decode_len);
+    nng_free(token, token_alloc_len);
+
+    return result;
 }
 
 static http_msg
