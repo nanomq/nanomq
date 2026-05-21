@@ -12,6 +12,9 @@ LDLIBS ?= -lpthread
 
 all: $(OUT)
 
+verify: $(OUT)
+	./self_verify.sh
+
 $(OUT): skeleton.c
 	gcc $(CFLAGS) -shared \
 	  -I"$(NMQ_INCLUDE)" -I"$(SKILL_INCLUDE)" \
@@ -37,5 +40,5 @@ can_pipeline_sample.so: $(NMQ_PLUGIN)/can_pipeline_sample.c
 clean:
 	rm -f $(OUT) can_pipeline_sample.so
 
-.PHONY: all clean
+.PHONY: all verify clean
 

@@ -12,7 +12,7 @@
 
 ## 快速使用
 
-1) 在仓库根目录编译 NanoMQ（首次）：
+1. 在仓库根目录编译 NanoMQ（首次）：
 
 ```bash
 cd build
@@ -20,7 +20,7 @@ cmake .. -DENABLE_PLUGIN=ON
 make -j"$(nproc)" nanomq nanomq_cli
 ```
 
-2) 在本目录编译模板插件：
+1. 在本目录编译模板插件：
 
 ```bash
 make NMQ_INCLUDE=../../include
@@ -28,7 +28,19 @@ make NMQ_INCLUDE=../../include
 
 产物：`./my_stream_plugin.so`
 
-3) 写最小配置并加载插件：
+2.5) 一键自验证（推荐）：
+
+```bash
+make verify NMQ_INCLUDE=../../include
+```
+
+说明：
+
+- `verify` 会调用 `./self_verify.sh`
+- 自动流程：启动临时 NanoMQ -> 订阅输出 topic -> 发布输入消息 -> 校验输出与落盘 -> 返回退出码
+- 成功返回 `0`，失败返回非 `0`，适合 CI/脚本集成
+
+1. 写最小配置并加载插件：
 
 ```bash
 cat > /tmp/nmq-sp.conf <<'EOF'

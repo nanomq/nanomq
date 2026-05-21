@@ -6,6 +6,7 @@
 - 一条可执行编译命令（生成 `.so`）
 - 一段 `nanomq.conf` 片段
 - 一组最小验证命令
+- 一段可执行自验证脚本（自动测试并返回退出码）
 
 ---
 
@@ -80,6 +81,7 @@
 2) gcc 编译命令（必须含 -fPIC -shared，输出 my_stream_plugin.so）
 3) nanomq.conf 配置片段（stream_plugin + 需要时 stream_inject）
 4) 最小验证命令（nanomq_cli sub/pub + 落盘验证）
+5) 自验证脚本（bash），要求：自动启动 broker、发样例消息、校验输出 topic/落盘，并以退出码表示结果（0=通过，非0=失败）
 ```
 
 ---
@@ -109,6 +111,7 @@ gcc -O2 -Wall -Wextra -fPIC -shared \
 - 能加载：NanoMQ 启动日志看到插件加载成功
 - 能验证：订阅端可看到输出 topic 消息
 - 有落盘时：目标文件存在且有内容
+- 能自验证：脚本可一键执行并返回可机读退出码
 
 ---
 
@@ -116,4 +119,5 @@ gcc -O2 -Wall -Wextra -fPIC -shared \
 
 1) 先在 `nanomq/plugin/templates/skeleton.c` 上改业务逻辑（或让 AI 直接生成同结构源码）  
 2) 在 `nanomq/plugin/templates` 执行 `make NMQ_INCLUDE="$REPO/nanomq/include"`  
-3) 默认得到 `my_stream_plugin.so`，按 `quick-demo.md` 的配置方式加载验证
+3) 执行 `make verify NMQ_INCLUDE="$REPO/nanomq/include"` 进行自动自验证  
+4) 需要人工复核时，再按 `quick-demo.md` 的方式手工观察日志/消息
