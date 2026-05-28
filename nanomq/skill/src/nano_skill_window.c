@@ -54,6 +54,10 @@ nano_skill_window_push(nano_skill_window *w, uint64_t ts_ms, double v)
 	if (w == NULL) {
 		return;
 	}
+	// check window state first
+	if (w->has_samples && ts_ms >= w->first_ts + w->window_ms) {
+		w->ready = true;
+	}
 	if (w->ready) {
 		nano_skill_window_reset(w);
 	}
