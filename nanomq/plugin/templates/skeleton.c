@@ -54,12 +54,14 @@ on_msg(const nano_msg *m)
 	}
 
 	if (g_batch != NULL) {
-		char rec[160];
+		char rec[512];
 		int  n = snprintf(rec, sizeof(rec),
 		    "{\"ts\":%" PRIu64 ",\"topic\":\"%s\",\"len\":%u}",
 		    m->ts_ms, m->topic ? m->topic : "", (unsigned) m->payload_len);
-		if (n > 0) {
+		if (n > 0 && (size_t)n < sizeof(rec)) {
 			(void) nano_skill_batch_push(g_batch, rec, (uint32_t) n);
+		} else {
+			nano_log_warn("Plugin buffer truncated, dropped message on topic %s", m->topic);
 		}
 	}
 

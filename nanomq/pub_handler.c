@@ -1743,8 +1743,10 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 	// Exclude DISCONNECT_EV msg?
 	handle_pub_retain(work, topic);
 #endif
+#if defined(SUPP_PLUGIN)
 	// Stream plugin side-channel (after publish pipeline).
 	stream_plugin_pub_dispatch_from_work(work);
+#endif
 	return result;
 }
 

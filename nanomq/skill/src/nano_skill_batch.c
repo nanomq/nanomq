@@ -128,6 +128,13 @@ worker_main(void *arg)
 			flush_locked(b);
 			continue;
 		}
+		// flush first in case data lost
+		if (b->explicit_flush_pending || 
+		    (b->max_count > 0 && b->count >= b->max_count) || 
+		    (b->max_total_bytes > 0 && b->total_bytes >= b->max_total_bytes)) {
+			flush_locked(b);
+			continue;
+		}
 		if (b->flush_ms == 0) {
 			pthread_cond_wait(&b->cv, &b->mtx);
 			continue;
