@@ -254,9 +254,15 @@ sp_dispatch(sp_inst *inst, const nano_msg *m)
 	if (!q) return;
 
 	nng_mtx_lock(inst->q_mtx);
-	while (inst->q_len >= inst->q_cap && !inst->stopping &&
-	    inst->cfg->full_op == STREAM_PLUGIN_FULL_BLOCK) {
-		nng_cv_wait(inst->q_cv);
+
+	if (inst->q_len >= inst->q_cap) {
+        inst->dropped_full++;
+        if (inst->dropped_full % 1000 == 1) {
+            log_warn("stream_plugin[%s]: queue full, force dropping message to protect broker", inst->cfg->name);
+        }
+        nng_mtx_unlock(inst->q_mtx);
+        sp_qmsg_free(q);
+        return;
 	}
 
 	if (inst->stopping) {
