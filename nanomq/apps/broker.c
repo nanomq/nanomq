@@ -706,8 +706,6 @@ server_cb(void *arg)
 			}
 		}
 #endif
-		// Stream plugin dispatch (independent side-channel)
-		stream_plugin_pub_dispatch_from_work(work);
 		// external hook here
 		hook_entry(work, 0);
 
