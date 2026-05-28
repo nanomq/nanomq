@@ -203,7 +203,21 @@ inject_worker(void *arg)
 
 		// Mark as CMD_PUBLISH for consistency (handle_pub doesn't rely on it).
 		nng_msg_set_cmd_type(w.msg, CMD_PUBLISH);
-
+		if ((w.pub_packet = alloc_pub_packet()) == NULL) {
+			log_error("stream_inject: alloc_pub_packet failed");
+			nng_free(w.pipe_ct, sizeof(struct pipe_content));
+			nng_msg_free(w.msg);
+			inject_item_free(it);
+			continue;
+		}
+		if (decode_pub_message(&w, w.proto_ver) != 0) {
+			log_error("stream_inject: decode_pub_message failed");
+			free_pub_packet(w.pub_packet);
+			nng_free(w.pipe_ct, sizeof(struct pipe_content));
+			nng_msg_free(w.msg);
+			inject_item_free(it);
+			continue;
+		}
 		w.code = handle_pub(&w, w.pipe_ct, w.proto_ver, false);
 
 		if (w.code == SUCCESS && w.pipe_ct && w.pipe_ct->msg_infos) {
