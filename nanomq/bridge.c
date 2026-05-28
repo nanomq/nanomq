@@ -568,6 +568,7 @@ hybrid_tcp_disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	log_warn("bridge client disconnected! RC [%d] \n", reason);
 	bridge_param *bridge_arg = arg;
 
+	nng_atomic_set_bool(bridge_arg->config->connected, false);
 	nng_mtx_lock(bridge_arg->switch_mtx);
 	nng_cv_wake1(bridge_arg->switch_cv);
 	nng_mtx_unlock(bridge_arg->switch_mtx);
@@ -664,7 +665,7 @@ hybrid_quic_disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	nng_pipe_get_int(p, NNG_OPT_MQTT_DISCONNECT_REASON, &reason);
 	log_warn("quic bridge client disconnected! RC [%d] \n", reason);
 	bridge_param *bridge_arg = arg;
-
+	nng_atomic_set_bool(bridge_arg->config->connected, false);
 	nng_mtx_lock(bridge_arg->switch_mtx);
 	nng_cv_wake1(bridge_arg->switch_cv);
 	nng_mtx_unlock(bridge_arg->switch_mtx);
@@ -915,6 +916,7 @@ bridge_quic_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	if (execone > 0) {
 		return;
 	}
+	nng_atomic_set_bool(param->config->connected, true);
 
 	// get connect reason
 	nng_pipe_get_int(p, NNG_OPT_MQTT_CONNECT_REASON, &reason);
@@ -971,6 +973,7 @@ bridge_quic_disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	log_warn("bridge client disconnected! RC [%d] \n", reason);
 
 	bridge_param *bridge_arg = arg;
+	nng_atomic_set_bool(bridge_arg->config->connected, false);
 	// Free cparam kept
 	// void *cparam = nng_msg_get_conn_param(bridge_arg->connmsg);
 	// if (cparam != NULL)
@@ -1118,6 +1121,8 @@ bridge_tcp_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	// Connected succeed
 	bridge_param *param  = arg;
 	int           reason = 0;
+
+	nng_atomic_set_bool(param->config->connected, true);
 	// get connect reason
 	nng_pipe_get_int(p, NNG_OPT_MQTT_CONNECT_REASON, &reason);
 	// get property for MQTT V5
@@ -1172,6 +1177,7 @@ bridge_tcp_disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	log_warn("bridge client disconnected! RC [%d] \n", reason);
 
 	bridge_param *bridge_arg = arg;
+	nng_atomic_set_bool(bridge_arg->config->connected, false);
 	// Free cparam kept
 	// void *cparam = nng_msg_get_conn_param(bridge_arg->connmsg);
 	// if (cparam != NULL)
@@ -1431,7 +1437,7 @@ bridge_send_cb(void *arg)
 	conf_bridge_node *node = arg;
 	nng_mtx          *mtx  = node->mtx;
 	nng_socket       *socket;
-
+	// EAGAIN means msg cache failed
 	log_debug("bridge to %s msg sent", node->address);
 	nng_mtx_lock(mtx);
 	socket = node->sock;
@@ -1883,7 +1889,8 @@ bridge_pub_handler(nano_work *work)
 
 					// what if send qos msg failed?
 					// nanosdk deal with fail send and close the pipe
-					if (nng_aio_busy(node->bridge_aio[index])) {
+					if (nng_aio_busy(node->bridge_aio[index]) || 
+						!nng_atomic_get_bool(node->connected)) {
 						if (qos == 0) {
 							nng_msg_free(bridge_msg);
 							log_warn(
@@ -1901,6 +1908,8 @@ bridge_pub_handler(nano_work *work)
 							if (nng_lmq_put(node->ctx_msgs, bridge_msg) != 0) {
 								log_warn("Msg lost! put msg to ctx_msgs failed!");
 								nng_msg_free(bridge_msg);
+							} else {
+								log_info("msg cached!!");
 							}
 						}
 					} else {
