@@ -17,10 +17,13 @@ class WebhookHandler(BaseHTTPRequestHandler):
         _ = self.rfile.read(n) if n else b''
         WebhookHandler.last_len = n
         WebhookHandler.event.set()
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(b"OK")
-    
+        try:
+            self.send_response(200)
+            self.send_header('Content-type', 'text/plain')
+            self.end_headers()
+            self.wfile.write(b"OK")
+        except (BrokenPipeError, ConnectionResetError):
+            pass
     def log_message(self, format, *args):
         """Suppress default logging."""
         pass
