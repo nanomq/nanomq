@@ -44,12 +44,18 @@ jobs:
 
       - name: Configure
         run: |
-          $extra_flags = ""
-          if ("${{ matrix.arch }}" -eq "arm64") {
-            $extra_flags = "-A ARM64"
+          if (Test-Path build/CMakeCache.txt) {
+            Remove-Item build/CMakeCache.txt -Force
           }
-          cmake -B build -DNNG_ENABLE_SQLITE=ON -DENABLE_RULE_ENGINE=ON -DENABLE_JWT=ON -DBUILD_BENCH=ON -DCMAKE_INSTALL_PREFIX=install $extra_flags
+          if (Test-Path build/CMakeFiles) {
+            Remove-Item -Recurse -Force build/CMakeFiles
+          }
 
+          if ("${{ matrix.arch }}" -eq "arm64") {
+            cmake -B build -DNNG_ENABLE_SQLITE=ON -DENABLE_RULE_ENGINE=ON -DENABLE_JWT=ON -DBUILD_BENCH=ON -DCMAKE_INSTALL_PREFIX=install -A ARM64
+          } else {
+            cmake -B build -DNNG_ENABLE_SQLITE=ON -DENABLE_RULE_ENGINE=ON -DENABLE_JWT=ON -DBUILD_BENCH=ON -DCMAKE_INSTALL_PREFIX=install
+          }
       - name: Build
         run: cmake --build build --config Release --target install
 
