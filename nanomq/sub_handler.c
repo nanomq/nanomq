@@ -69,7 +69,8 @@ decode_sub_msg(nano_work *work)
 												(uint32_t *)&bpos,
 												&sub_pkt->prop_len,
 												true);
-		if (check_properties(sub_pkt->properties, work->msg) != SUCCESS) {
+		if (check_properties(sub_pkt->properties,
+		        nng_msg_get_cmd_type(work->msg)) != SUCCESS) {
 			FREE_SUB_PROPERTIES(sub_pkt);
 			return PROTOCOL_ERROR;
 		}

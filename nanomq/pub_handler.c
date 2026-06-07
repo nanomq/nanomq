@@ -2167,7 +2167,7 @@ decode_pub_message(nano_work *work, uint8_t proto)
 			if (pub_packet->var_header.publish.properties) {
 				if (check_properties(
 				        pub_packet->var_header.publish
-				            .properties, msg) != 0) {
+				            .properties, CMD_PUBLISH_V5) != 0) {
 					// check if subid exist in publish msg from client
 				    // property_get_value(pub_packet->var_header
 				    //                        .publish.properties,
@@ -2224,13 +2224,16 @@ decode_pub_message(nano_work *work, uint8_t proto)
 			    decode_properties(msg, &pos,
 			        &pub_packet->var_header.pub_arrc.prop_len,
 			        false);
-			if (check_properties(
-			        pub_packet->var_header.pub_arrc.properties, msg) !=
-			    SUCCESS) {
-				property_free(pub_packet->var_header.pub_arrc.properties);
-				pub_packet->var_header.pub_arrc.properties = NULL;
-				pub_packet->var_header.pub_arrc.prop_len   = 0;
-				return PROTOCOL_ERROR;
+			int rv;
+			if ((rv = check_properties(
+			         pub_packet->var_header.pub_arrc.properties,
+			         nng_msg_get_cmd_type(msg))) != SUCCESS) {
+				property_free(pub_packet->var_header.pub_arrc
+				        .properties);
+				pub_packet->var_header.pub_arrc.properties =
+				    NULL;
+				pub_packet->var_header.pub_arrc.prop_len = 0;
+				return rv;
 			}
 		}
 		break;

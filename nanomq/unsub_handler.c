@@ -60,7 +60,8 @@ decode_unsub_msg(nano_work *work)
 	if (MQTT_PROTOCOL_VERSION_v5 == proto_ver) {
 		unsub_pkt->properties =
 		    decode_properties(msg, &vpos, &unsub_pkt->prop_len, false);
-		if (check_properties(unsub_pkt->properties, msg) != SUCCESS) {
+		if (check_properties(unsub_pkt->properties,
+		        nng_msg_get_cmd_type(msg)) != SUCCESS) {
 			FREE_UNSUB_PROPERTIES(unsub_pkt);
 			return PROTOCOL_ERROR;
 		}
