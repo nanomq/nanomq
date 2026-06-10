@@ -60,9 +60,9 @@ typedef struct sp_inst {
 	uint32_t   q_tail;
 
 	// fail-open counters
-	uint64_t   total_calls;
-	uint64_t   total_errors;
-	uint64_t   dropped_full;
+	nng_atomic_u64 *total_calls;
+	nng_atomic_u64 *total_errors;
+	nng_atomic_u64 *dropped_full;
 	uint32_t   consec_errors;
 	bool       disabled;
 } sp_inst;
@@ -394,11 +394,11 @@ sp_worker(void *arg)
 
 		if (q && inst->on_msg) {
 			int rc = inst->on_msg(&q->m);
-			inst->total_calls++;
+			sp_atomic_inc(inst->total_calls);
 			if (rc == 0) {
 				inst->consec_errors = 0;
 			} else {
-				inst->total_errors++;
+				sp_atomic_inc(inst->total_errors);
 				inst->consec_errors++;
 				if (inst->consec_errors >= SP_FAIL_OPEN_CONSEC_THRESHOLD) {
 					inst->disabled = true;
@@ -483,11 +483,11 @@ sp_dispatch(sp_inst *inst, const nano_msg *m)
 	if (inst->disabled) return;
 	if (!inst->cfg || inst->cfg->mode != STREAM_PLUGIN_MODE_ASYNC) {
 		int rc = inst->on_msg(m);
-		inst->total_calls++;
+		sp_atomic_inc(inst->total_calls);
 		if (rc == 0) {
 			inst->consec_errors = 0;
 		} else {
-			inst->total_errors++;
+			sp_atomic_inc(inst->total_errors);
 			inst->consec_errors++;
 			if (inst->consec_errors >= SP_FAIL_OPEN_CONSEC_THRESHOLD) {
 				inst->disabled = true;
@@ -531,7 +531,7 @@ sp_dispatch(sp_inst *inst, const nano_msg *m)
 	if (inst->q_len >= inst->q_cap) {
 		// drop
 		nng_mtx_unlock(inst->q_mtx);
-		inst->dropped_full++;
+		sp_atomic_inc(inst->dropped_full);
 		sp_qmsg_free(q);
 		return;
 	}
@@ -621,10 +621,19 @@ load_one(conf_stream_plugin_node *node)
 	sp_inst *inst = nng_zalloc(sizeof(*inst));
 	if (inst == NULL) return -1;
 	inst->cfg = node;
+	nng_atomic_alloc64(&inst->total_calls);
+	nng_atomic_alloc64(&inst->total_errors);
+	nng_atomic_alloc64(&inst->dropped_full);
+	if (inst->total_calls) nng_atomic_set64(inst->total_calls, 0);
+	if (inst->total_errors) nng_atomic_set64(inst->total_errors, 0);
+	if (inst->dropped_full) nng_atomic_set64(inst->dropped_full, 0);
 
 	void *h = dlopen(node->path, RTLD_NOW | RTLD_LOCAL);
 	if (h == NULL) {
 		log_error("stream_plugin: dlopen(%s) failed: %s", node->path, dlerror());
+		if (inst->total_calls) nng_atomic_free64(inst->total_calls);
+		if (inst->total_errors) nng_atomic_free64(inst->total_errors);
+		if (inst->dropped_full) nng_atomic_free64(inst->dropped_full);
 		nng_free(inst, sizeof(*inst));
 		return -1;
 	}
@@ -634,6 +643,9 @@ load_one(conf_stream_plugin_node *node)
 	if (init_fn == NULL) {
 		log_error("stream_plugin: %s missing nano_plugin_init", node->path);
 		dlclose(h);
+		if (inst->total_calls) nng_atomic_free64(inst->total_calls);
+		if (inst->total_errors) nng_atomic_free64(inst->total_errors);
+		if (inst->dropped_full) nng_atomic_free64(inst->dropped_full);
 		nng_free(inst, sizeof(*inst));
 		return -1;
 	}
@@ -646,6 +658,9 @@ load_one(conf_stream_plugin_node *node)
 		log_error("stream_plugin: %s init failed rv=%d on_msg=%p",
 		    node->path, rv, (void *)inst->on_msg);
 		dlclose(h);
+		if (inst->total_calls) nng_atomic_free64(inst->total_calls);
+		if (inst->total_errors) nng_atomic_free64(inst->total_errors);
+		if (inst->dropped_full) nng_atomic_free64(inst->dropped_full);
 		nng_free(inst, sizeof(*inst));
 		return -1;
 	}
@@ -710,7 +725,8 @@ stream_plugin_stop_all(conf *cfg)
 		         " dropped_full=%" PRIu64 " route_drop=%" PRIu64
 		         " disabled=%s",
 		    n->name ? n->name : "unknown",
-		    inst->total_calls, inst->total_errors, inst->dropped_full,
+		    sp_atomic_get(inst->total_calls), sp_atomic_get(inst->total_errors),
+		    sp_atomic_get(inst->dropped_full), sp_atomic_get(sp_route_dropped),
 		    inst->disabled ? "true" : "false");
 	}
 #else
@@ -730,6 +746,9 @@ stream_plugin_unload_all(conf *cfg)
 		if (!inst) continue;
 		sp_async_stop(inst);
 		dlclose(inst->handle);
+		if (inst->total_calls) nng_atomic_free64(inst->total_calls);
+		if (inst->total_errors) nng_atomic_free64(inst->total_errors);
+		if (inst->dropped_full) nng_atomic_free64(inst->dropped_full);
 		nng_free(inst, sizeof(*inst));
 		n->runtime = NULL;
 		n->handle = NULL;
