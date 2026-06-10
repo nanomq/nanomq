@@ -149,7 +149,7 @@ worker_main(void *arg)
 
 		// timed wait
 		struct timespec ts;
-		clock_gettime(CLOCK_REALTIME, &ts);
+		clock_gettime(CLOCK_MONOTONIC, &ts);
 		uint64_t wait_ms = deadline - now;
 		uint64_t nsec = (uint64_t) ts.tv_nsec + (wait_ms % 1000ULL) * 1000000ULL;
 		ts.tv_sec += (time_t) (wait_ms / 1000ULL) + (time_t) (nsec / 1000000000ULL);
@@ -177,8 +177,30 @@ nano_skill_batch_open(uint32_t max_count, uint32_t max_total_bytes, uint32_t flu
 	b->max_total_bytes = max_total_bytes;
 	b->flush_ms        = flush_ms;
 
-	pthread_mutex_init(&b->mtx, NULL);
-	pthread_cond_init(&b->cv, NULL);
+	if (pthread_mutex_init(&b->mtx, NULL) != 0) {
+		free(b);
+		return NULL;
+	}
+
+	pthread_condattr_t cv_attr;
+	if (pthread_condattr_init(&cv_attr) != 0) {
+		pthread_mutex_destroy(&b->mtx);
+		free(b);
+		return NULL;
+	}
+	if (pthread_condattr_setclock(&cv_attr, CLOCK_MONOTONIC) != 0) {
+		pthread_condattr_destroy(&cv_attr);
+		pthread_mutex_destroy(&b->mtx);
+		free(b);
+		return NULL;
+	}
+	if (pthread_cond_init(&b->cv, &cv_attr) != 0) {
+		pthread_condattr_destroy(&cv_attr);
+		pthread_mutex_destroy(&b->mtx);
+		free(b);
+		return NULL;
+	}
+	pthread_condattr_destroy(&cv_attr);
 
 	if (pthread_create(&b->th, NULL, worker_main, b) != 0) {
 		pthread_cond_destroy(&b->cv);
