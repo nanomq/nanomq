@@ -2,7 +2,7 @@
 //
 // - Loads configured .so plugins via dlopen
 // - Provides nano_register_msg/start/stop + nano_log + nano_file_append
-// - Dispatches broker PUBLISH (topic-filtered) before webhook hook_entry
+// - Routes broker PUBLISH to a dedicated stream-plugin dispatch thread
 //
 // Plugin authors should compile algorithmic helpers (window/batch/dbc) into
 // their .so via nanomq/skill/.
@@ -15,6 +15,8 @@
 
 #include "nng/supplemental/nanolib/conf.h"
 #include "nng/mqtt/mqtt_client.h"
+#include "nng/protocol/pipeline0/pull.h"
+#include "nng/protocol/pipeline0/push.h"
 #include "nng/protocol/mqtt/mqtt_parser.h" // topic_filter
 #include "nng/supplemental/nanolib/log.h"
 #include "nng/supplemental/util/platform.h"
@@ -66,6 +68,38 @@ typedef struct sp_inst {
 } sp_inst;
 
 static __thread sp_inst *tls_loading_inst = NULL;
+static nng_thread       *sp_route_thr      = NULL;
+static nng_socket        sp_route_push     = NNG_SOCKET_INITIALIZER;
+static nng_socket        sp_route_pull     = NNG_SOCKET_INITIALIZER;
+static nng_atomic_bool  *sp_route_stopping = NULL;
+static nng_atomic_u64   *sp_route_dropped  = NULL;
+static const char       *SP_ROUTE_IPC_URL  = "inproc://nanomq_stream_plugin_route";
+
+static void sp_qmsg_free(sp_qmsg *q);
+
+static inline void
+sp_atomic_inc(nng_atomic_u64 *a)
+{
+	if (a) {
+		nng_atomic_inc64(a);
+	}
+}
+
+static inline uint64_t
+sp_atomic_get(nng_atomic_u64 *a)
+{
+	return a ? nng_atomic_get64(a) : 0;
+}
+
+static bool
+sp_route_read_field(const uint8_t *body, size_t len, size_t *off, void *out, size_t n)
+{
+	if (body == NULL || off == NULL || out == NULL) return false;
+	if (*off + n > len) return false;
+	memcpy(out, body + *off, n);
+	*off += n;
+	return true;
+}
 
 static void
 sp_qmsg_free(sp_qmsg *q)
@@ -75,6 +109,229 @@ sp_qmsg_free(sp_qmsg *q)
 	free(q->payload);
 	free(q->client_id);
 	free(q);
+}
+
+static void sp_dispatch_to_cfg(conf *cfg, const nano_msg *m);
+
+static void
+sp_route_worker(void *arg)
+{
+	(void) arg;
+	for (;;) {
+		nng_msg *msg = NULL;
+		int rv = nng_recvmsg(sp_route_pull, &msg, 0);
+		if (rv != 0) {
+			if (sp_route_stopping && nng_atomic_get_bool(sp_route_stopping)) {
+				break;
+			}
+			log_warn("stream_plugin: route recv failed: %d %s", rv, nng_strerror(rv));
+			continue;
+		}
+		if (msg == NULL) {
+			continue;
+		}
+
+		const uint8_t *body = nng_msg_body(msg);
+		size_t         len  = nng_msg_len(msg);
+		size_t         off  = 0;
+
+		uintptr_t cfg_ptr = 0;
+		uint64_t  ts      = 0;
+		uint32_t  plen    = 0;
+		uint8_t   qos     = 0;
+		uint8_t   retain  = 0;
+		uint16_t  tlen    = 0;
+		uint16_t  cid_len = 0;
+
+		if (!sp_route_read_field(body, len, &off, &cfg_ptr, sizeof(cfg_ptr)) ||
+		    !sp_route_read_field(body, len, &off, &ts, sizeof(ts)) ||
+		    !sp_route_read_field(body, len, &off, &plen, sizeof(plen)) ||
+		    !sp_route_read_field(body, len, &off, &qos, sizeof(qos)) ||
+		    !sp_route_read_field(body, len, &off, &retain, sizeof(retain)) ||
+		    !sp_route_read_field(body, len, &off, &tlen, sizeof(tlen)) ||
+		    !sp_route_read_field(body, len, &off, &cid_len, sizeof(cid_len))) {
+			nng_msg_free(msg);
+			continue;
+		}
+
+		if (off + (size_t) tlen + (size_t) plen + (size_t) cid_len > len) {
+			nng_msg_free(msg);
+			continue;
+		}
+
+		const uint8_t *topic_src = body + off;
+		off += tlen;
+		const void *payload = (const void *) (body + off);
+		off += plen;
+
+		char *topic = (char *) malloc((size_t) tlen + 1);
+		if (topic == NULL) {
+			nng_msg_free(msg);
+			continue;
+		}
+		if (tlen > 0) {
+			memcpy(topic, topic_src, tlen);
+		}
+		topic[tlen] = '\0';
+
+		char *cid = NULL;
+		if (cid_len > 0) {
+			cid = (char *) malloc((size_t) cid_len + 1);
+			if (cid == NULL) {
+				free(topic);
+				nng_msg_free(msg);
+				continue;
+			}
+			memcpy(cid, body + off, cid_len);
+			cid[cid_len] = '\0';
+		}
+
+		nano_msg m = {
+			.ts_ms = ts,
+			.topic = topic,
+			.payload = payload,
+			.payload_len = plen,
+			.qos = qos,
+			.retain = (retain != 0),
+			.client_id = cid,
+		};
+
+		sp_dispatch_to_cfg((conf *) cfg_ptr, &m);
+		free(topic);
+		free(cid);
+		nng_msg_free(msg);
+	}
+}
+
+static int
+sp_route_start(void)
+{
+	if (sp_route_thr != NULL) return 0;
+	int rv;
+	if (sp_route_stopping == NULL) {
+		nng_atomic_alloc_bool(&sp_route_stopping);
+	}
+	if (sp_route_stopping) {
+		nng_atomic_set_bool(sp_route_stopping, false);
+	}
+	if (sp_route_dropped == NULL) {
+		nng_atomic_alloc64(&sp_route_dropped);
+	}
+	if (sp_route_dropped) {
+		nng_atomic_set64(sp_route_dropped, 0);
+	}
+	if ((rv = nng_push0_open(&sp_route_push)) != 0) {
+		log_error("stream_plugin: route push open failed: %d %s", rv, nng_strerror(rv));
+		return -1;
+	}
+	if ((rv = nng_pull0_open(&sp_route_pull)) != 0) {
+		log_error("stream_plugin: route pull open failed: %d %s", rv, nng_strerror(rv));
+		nng_close(sp_route_push);
+		sp_route_push = NNG_SOCKET_INITIALIZER;
+		return -1;
+	}
+	if ((rv = nng_listen(sp_route_pull, SP_ROUTE_IPC_URL, NULL, 0)) != 0) {
+		log_error("stream_plugin: route listen failed: %d %s", rv, nng_strerror(rv));
+		nng_close(sp_route_pull);
+		nng_close(sp_route_push);
+		sp_route_pull = NNG_SOCKET_INITIALIZER;
+		sp_route_push = NNG_SOCKET_INITIALIZER;
+		return -1;
+	}
+	if ((rv = nng_dial(sp_route_push, SP_ROUTE_IPC_URL, NULL, 0)) != 0) {
+		log_error("stream_plugin: route dial failed: %d %s", rv, nng_strerror(rv));
+		nng_close(sp_route_pull);
+		nng_close(sp_route_push);
+		sp_route_pull = NNG_SOCKET_INITIALIZER;
+		sp_route_push = NNG_SOCKET_INITIALIZER;
+		return -1;
+	}
+	if ((rv = nng_thread_create(&sp_route_thr, sp_route_worker, NULL)) != 0) {
+		log_error("stream_plugin: route thread create failed: %d %s", rv, nng_strerror(rv));
+		nng_close(sp_route_pull);
+		nng_close(sp_route_push);
+		sp_route_pull = NNG_SOCKET_INITIALIZER;
+		sp_route_push = NNG_SOCKET_INITIALIZER;
+		return -1;
+	}
+	return 0;
+}
+
+static void
+sp_route_stop(void)
+{
+	if (sp_route_thr == NULL) return;
+	if (sp_route_stopping) {
+		nng_atomic_set_bool(sp_route_stopping, true);
+	}
+	nng_close(sp_route_push);
+	nng_close(sp_route_pull);
+	sp_route_push = NNG_SOCKET_INITIALIZER;
+	sp_route_pull = NNG_SOCKET_INITIALIZER;
+
+	nng_thread_destroy(sp_route_thr);
+	sp_route_thr = NULL;
+}
+
+static void
+sp_route_enqueue(conf *cfg, uint64_t ts, const char *topic, const void *payload,
+    uint32_t plen, uint8_t qos, bool retain, const char *client_id)
+{
+	if (cfg == NULL || topic == NULL) return;
+	if (sp_route_thr == NULL) return;
+
+	uint16_t tlen = (uint16_t) strlen(topic);
+	uint16_t clen = (uint16_t) ((client_id == NULL) ? 0 : strlen(client_id));
+	size_t header_sz = sizeof(uintptr_t) + sizeof(uint64_t) + sizeof(uint32_t) +
+	                   sizeof(uint8_t) + sizeof(uint8_t) + sizeof(uint16_t) +
+	                   sizeof(uint16_t);
+	size_t msg_sz = header_sz + (size_t) tlen + (size_t) plen + (size_t) clen;
+
+	nng_msg *msg = NULL;
+	if (nng_msg_alloc(&msg, 0) != 0) {
+		sp_atomic_inc(sp_route_dropped);
+		return;
+	}
+
+	uintptr_t cfg_ptr = (uintptr_t) cfg;
+	uint8_t retain_u8 = retain ? 1 : 0;
+	if (nng_msg_append(msg, &cfg_ptr, sizeof(cfg_ptr)) != 0 ||
+	    nng_msg_append(msg, &ts, sizeof(ts)) != 0 ||
+	    nng_msg_append(msg, &plen, sizeof(plen)) != 0 ||
+	    nng_msg_append(msg, &qos, sizeof(qos)) != 0 ||
+	    nng_msg_append(msg, &retain_u8, sizeof(retain_u8)) != 0 ||
+	    nng_msg_append(msg, &tlen, sizeof(tlen)) != 0 ||
+	    nng_msg_append(msg, &clen, sizeof(clen)) != 0 ||
+	    nng_msg_append(msg, topic, tlen) != 0) {
+		sp_atomic_inc(sp_route_dropped);
+		nng_msg_free(msg);
+		return;
+	}
+	if (plen > 0) {
+		if (nng_msg_append(msg, payload, plen) != 0) {
+			sp_atomic_inc(sp_route_dropped);
+			nng_msg_free(msg);
+			return;
+		}
+	}
+	if (clen > 0) {
+		if (nng_msg_append(msg, client_id, clen) != 0) {
+			sp_atomic_inc(sp_route_dropped);
+			nng_msg_free(msg);
+			return;
+		}
+	}
+	if (nng_msg_len(msg) != msg_sz) {
+		sp_atomic_inc(sp_route_dropped);
+		nng_msg_free(msg);
+		return;
+	}
+
+	int rv = nng_sendmsg(sp_route_push, msg, NNG_FLAG_NONBLOCK);
+	if (rv != 0) {
+		sp_atomic_inc(sp_route_dropped);
+		nng_msg_free(msg);
+	}
 }
 
 static sp_qmsg *
@@ -287,6 +544,21 @@ sp_dispatch(sp_inst *inst, const nano_msg *m)
 }
 
 static void
+sp_dispatch_to_cfg(conf *cfg, const nano_msg *m)
+{
+	if (cfg == NULL || m == NULL || m->topic == NULL) return;
+	if (cfg->stream_plugin.count == 0) return;
+
+	for (size_t i = 0; i < cfg->stream_plugin.count; i++) {
+		conf_stream_plugin_node *n = cfg->stream_plugin.nodes[i];
+		sp_inst *inst = n->runtime;
+		if (!inst) continue;
+		if (!topic_filter(n->topic, (char *) m->topic)) continue;
+		sp_dispatch(inst, m);
+	}
+}
+
+static void
 sdk_vlog(int level, const char *fmt, va_list ap)
 {
 	char buf[1024];
@@ -407,6 +679,9 @@ stream_plugin_start_all(conf *cfg)
 	return 0;
 #else
 	if (cfg == NULL) return 0;
+	if (sp_route_start() != 0) {
+		log_error("stream_plugin: route worker start failed");
+	}
 	for (size_t i = 0; i < cfg->stream_plugin.count; i++) {
 		conf_stream_plugin_node *n = cfg->stream_plugin.nodes[i];
 		sp_inst *inst = n->runtime;
@@ -423,6 +698,7 @@ stream_plugin_stop_all(conf *cfg)
 {
 #if defined(SUPP_PLUGIN)
 	if (cfg == NULL) return;
+	sp_route_stop();
 	for (size_t i = 0; i < cfg->stream_plugin.count; i++) {
 		conf_stream_plugin_node *n = cfg->stream_plugin.nodes[i];
 		sp_inst *inst = n->runtime;
@@ -431,7 +707,8 @@ stream_plugin_stop_all(conf *cfg)
 		sp_async_stop(inst);
 		if (inst->on_stop) inst->on_stop();
 		log_info("stream_plugin[%s]: calls=%" PRIu64 " errors=%" PRIu64
-		         " dropped_full=%" PRIu64 " disabled=%s",
+		         " dropped_full=%" PRIu64 " route_drop=%" PRIu64
+		         " disabled=%s",
 		    n->name ? n->name : "unknown",
 		    inst->total_calls, inst->total_errors, inst->dropped_full,
 		    inst->disabled ? "true" : "false");
@@ -446,6 +723,7 @@ stream_plugin_unload_all(conf *cfg)
 {
 #if defined(SUPP_PLUGIN)
 	if (cfg == NULL) return;
+	sp_route_stop();
 	for (size_t i = 0; i < cfg->stream_plugin.count; i++) {
 		conf_stream_plugin_node *n = cfg->stream_plugin.nodes[i];
 		sp_inst *inst = n->runtime;
@@ -455,6 +733,14 @@ stream_plugin_unload_all(conf *cfg)
 		nng_free(inst, sizeof(*inst));
 		n->runtime = NULL;
 		n->handle = NULL;
+	}
+	if (sp_route_dropped) {
+		nng_atomic_free64(sp_route_dropped);
+		sp_route_dropped = NULL;
+	}
+	if (sp_route_stopping) {
+		nng_atomic_free_bool(sp_route_stopping);
+		sp_route_stopping = NULL;
 	}
 #else
 	(void)cfg;
@@ -480,23 +766,9 @@ stream_plugin_pub_dispatch_from_work(nano_work *work)
 	uint8_t qos = work->pub_packet->fixed_header.qos;
 	bool retain = work->pub_packet->fixed_header.retain;
 
-	nano_msg m = {
-		.ts_ms = ts,
-		.topic = topic,
-		.payload = payload,
-		.payload_len = plen,
-		.qos = qos,
-		.retain = retain,
-		.client_id = cid,
-	};
-
-	for (size_t i = 0; i < cfg->stream_plugin.count; i++) {
-		conf_stream_plugin_node *n = cfg->stream_plugin.nodes[i];
-		sp_inst *inst = n->runtime;
-		if (!inst) continue;
-		if (!topic_filter(n->topic, (char *) topic)) continue;
-		sp_dispatch(inst, &m);
-	}
+	// Queue to dedicated route thread, avoid executing plugin callbacks
+	// on broker state machine thread.
+	sp_route_enqueue(cfg, ts, topic, payload, plen, qos, retain, cid);
 }
 
 #else // !SUPP_PLUGIN
