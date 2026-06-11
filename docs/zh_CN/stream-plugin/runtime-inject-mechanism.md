@@ -146,9 +146,10 @@ Broker 启动时（`apps/broker.c`）按如下顺序调用：
 - 队列满直接返回 `-EAGAIN` 并累计 dropped
 - 不阻塞调用线程（避免把反压传回插件调用路径）
 
-兼容说明：
+限制说明：
 
-- 旧配置里的 `stream_inject.full_op="block"` 会被降级为 `drop` 并打印 warning
+- `stream_inject.full_op` 仅支持 `drop`
+- 配置为 `block`（或其他值）会报错并按 `drop` 处理
 
 ---
 
