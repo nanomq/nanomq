@@ -124,7 +124,7 @@ Broker 启动时（`apps/broker.c`）按如下顺序调用：
 
 1. 参数校验（topic/qos/payload）
 2. 深拷贝为 `inject_item`
-3. 入注入队列（按 `stream_inject.full_op` 处理满队列）
+3. 入注入队列（满队列直接 drop）
 4. 返回给插件调用方（不等待真正下发）
 
 ### 3.3 worker 如何“重走发布流程”
@@ -141,15 +141,14 @@ Broker 启动时（`apps/broker.c`）按如下顺序调用：
 
 ### 3.4 注入队列满策略
 
-`stream_inject.full_op`：
+`stream_inject` 固定采用 `drop`：
 
-- `drop`：队列满直接返回 `-EAGAIN` 并累计 dropped
-- `block`：调用方等待可写
+- 队列满直接返回 `-EAGAIN` 并累计 dropped
+- 不阻塞调用线程（避免把反压传回插件调用路径）
 
-生产环境常见建议：
+兼容说明：
 
-- 对低延迟敏感：`drop`
-- 对不丢数据敏感且可接受反压：`block`
+- 旧配置里的 `stream_inject.full_op="block"` 会被降级为 `drop` 并打印 warning
 
 ---
 
@@ -236,7 +235,7 @@ else spX.mode = async
 end
 
 Plugin(spX) -> InjectRuntime: nano_mqtt_publish_async(metrics/..., ...)
-InjectRuntime -> InjectRuntime: 入 inject 队列（drop 或 block）
+InjectRuntime -> InjectRuntime: 入 inject 队列（drop）
 InjectRuntime --> Plugin(spX): 返回（入队即返回）
 
 InjectWorker -> BrokerPipeline: 出队后构造 nng_msg + nano_work
@@ -268,7 +267,7 @@ BrokerPipeline -> Subscribers: 投递回灌消息
 - `enable`：是否启用注入运行时（默认 true）
 - `queue_cap`：注入队列容量（默认 4096）
 - `worker_num`：注入 worker 数（默认 1）
-- `full_op`：注入队列满策略（默认 `drop`）
+- `full_op`：仅支持 `drop`（`block` 已弃用并自动降级）
 
 ---
 
