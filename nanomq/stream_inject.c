@@ -50,11 +50,6 @@ static uint32_t      g_len  = 0;
 static uint32_t      g_head = 0;
 static uint32_t      g_tail = 0;
 
-// A dedicated ctx/aio to send messages to specific pipes.
-static nng_ctx g_send_ctx = { 0 };
-static nng_aio *g_send_aio = NULL;
-static nng_mtx *g_send_mtx = NULL;
-
 // basic runtime stats
 static nng_atomic_u64 *g_stat_enqueued = NULL;
 static nng_atomic_u64 *g_stat_dropped = NULL;
@@ -122,6 +117,20 @@ static void
 inject_worker(void *arg)
 {
 	(void) arg;
+	nng_ctx worker_ctx = { 0 };
+	nng_aio *worker_aio = NULL;
+	if (nng_ctx_open(&worker_ctx, g_broker_sock) != 0 ||
+	    nng_aio_alloc(&worker_aio, NULL, NULL) != 0) {
+		log_error("stream_inject: worker init failed");
+		if (worker_aio) {
+			nng_aio_free(worker_aio);
+		}
+		if (worker_ctx.id != 0) {
+			nng_ctx_close(worker_ctx);
+		}
+		return;
+	}
+
 	for (;;) {
 		nng_mtx_lock(g_mtx);
 		while (g_len == 0 && !g_stopping) {
@@ -203,8 +212,10 @@ inject_worker(void *arg)
 
 		// Mark as CMD_PUBLISH for consistency (handle_pub doesn't rely on it).
 		nng_msg_set_cmd_type(w.msg, CMD_PUBLISH);
-		if ((w.pub_packet = alloc_pub_packet()) == NULL) {
-			log_error("stream_inject: alloc_pub_packet failed");
+		w.pub_packet = (struct pub_packet_struct *) nng_zalloc(
+		    sizeof(struct pub_packet_struct));
+		if (w.pub_packet == NULL) {
+			log_error("stream_inject: alloc pub_packet failed");
 			nng_free(w.pipe_ct, sizeof(struct pipe_content));
 			nng_msg_free(w.msg);
 			inject_item_free(it);
@@ -229,19 +240,17 @@ inject_worker(void *arg)
 					if (mi->pipe == 0) continue;
 					nng_msg_clone(smsg);
 					w.pid.id = mi->pipe;
-					nng_mtx_lock(g_send_mtx);
-					nng_aio_set_prov_data(g_send_aio, &w.pid.id);
-					nng_aio_set_msg(g_send_aio, smsg);
-					nng_ctx_send(g_send_ctx, g_send_aio);
-					nng_aio_wait(g_send_aio);
-					int rv = nng_aio_result(g_send_aio);
+					nng_aio_set_prov_data(worker_aio, &w.pid.id);
+					nng_aio_set_msg(worker_aio, smsg);
+					nng_ctx_send(worker_ctx, worker_aio);
+					nng_aio_wait(worker_aio);
+					int rv = nng_aio_result(worker_aio);
 					if (rv != 0) {
 						log_debug("stream_inject: send to pipe %u failed: %d", w.pid.id, rv);
-						nng_msg *fm = nng_aio_get_msg(g_send_aio);
+						nng_msg *fm = nng_aio_get_msg(worker_aio);
 						if (fm) nng_msg_free(fm);
 						stat_inc(g_stat_send_failed);
 					}
-					nng_mtx_unlock(g_send_mtx);
 				}
 			}
 			w.msg = smsg;
@@ -276,6 +285,13 @@ inject_worker(void *arg)
 		}
 		inject_item_free(it);
 	}
+
+	if (worker_aio) {
+		nng_aio_free(worker_aio);
+	}
+	if (worker_ctx.id != 0) {
+		nng_ctx_close(worker_ctx);
+	}
 }
 
 int
@@ -291,21 +307,11 @@ stream_inject_start(conf *cfg, nng_socket broker_sock)
 	g_cfg = cfg;
 	g_broker_sock = broker_sock;
 	g_cap = cfg->stream_inject.queue_cap ? cfg->stream_inject.queue_cap : 4096;
-	g_worker_num = cfg->stream_inject.worker_num ? cfg->stream_inject.worker_num : 1;
+	g_worker_num = 1;
+	if (cfg->stream_inject.worker_num > 1) {
+		log_warn("stream_inject: force worker_num=1 to keep send path simple");
+	}
 	g_full_op = cfg->stream_inject.full_op;
-
-	if (nng_ctx_open(&g_send_ctx, g_broker_sock) != 0) {
-		log_error("stream_inject: nng_ctx_open failed");
-		return -1;
-	}
-	if (nng_aio_alloc(&g_send_aio, NULL, NULL) != 0) {
-		log_error("stream_inject: nng_aio_alloc failed");
-		return -1;
-	}
-	if (nng_mtx_alloc(&g_send_mtx) != 0) {
-		log_error("stream_inject: nng_mtx_alloc(send) failed");
-		return -1;
-	}
 	g_ring = (inject_item **) calloc(g_cap, sizeof(inject_item *));
 	if (!g_ring) return -1;
 
@@ -369,18 +375,6 @@ stream_inject_stop(void)
 		g_mtx = NULL;
 	}
 	g_cfg = NULL;
-	if (g_send_aio) {
-		nng_aio_free(g_send_aio);
-		g_send_aio = NULL;
-	}
-	if (g_send_ctx.id != 0) {
-		nng_ctx_close(g_send_ctx);
-		memset(&g_send_ctx, 0, sizeof(g_send_ctx));
-	}
-	if (g_send_mtx) {
-		nng_mtx_free(g_send_mtx);
-		g_send_mtx = NULL;
-	}
 	log_info("stream_inject: stopped (enq=%" PRIu64 ", drop=%" PRIu64
 	         ", processed=%" PRIu64 ", failed=%" PRIu64 ", send_failed=%" PRIu64 ")",
 	    g_stat_enqueued ? nng_atomic_get64(g_stat_enqueued) : 0,
