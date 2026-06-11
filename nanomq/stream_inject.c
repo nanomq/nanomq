@@ -41,7 +41,6 @@ static uint32_t     g_worker_num = 0;
 static nng_mtx   *g_mtx      = NULL;
 static nng_cv    *g_cv       = NULL;
 static bool       g_stopping = false;
-static stream_plugin_full_op g_full_op = STREAM_PLUGIN_FULL_DROP;
 
 // queue
 static inject_item **g_ring = NULL;
@@ -311,7 +310,6 @@ stream_inject_start(conf *cfg, nng_socket broker_sock)
 	if (cfg->stream_inject.worker_num > 1) {
 		log_warn("stream_inject: force worker_num=1 to keep send path simple");
 	}
-	g_full_op = cfg->stream_inject.full_op;
 	g_ring = (inject_item **) calloc(g_cap, sizeof(inject_item *));
 	if (!g_ring) return -1;
 
@@ -338,8 +336,8 @@ stream_inject_start(conf *cfg, nng_socket broker_sock)
 			return -1;
 		}
 	}
-	log_info("stream_inject: started (cap=%u, workers=%u, full_op=%s)",
-	    g_cap, g_worker_num, g_full_op == STREAM_PLUGIN_FULL_BLOCK ? "block" : "drop");
+	log_info("stream_inject: started (cap=%u, workers=%u, full_op=drop)",
+	    g_cap, g_worker_num);
 	return 0;
 }
 
@@ -405,9 +403,6 @@ nano_mqtt_publish_async(const char *topic, const void *payload, uint32_t len,
 	if (!it) return -ENOMEM;
 
 	nng_mtx_lock(g_mtx);
-	while (!g_stopping && g_len >= g_cap && g_full_op == STREAM_PLUGIN_FULL_BLOCK) {
-		nng_cv_wait(g_cv);
-	}
 	if (g_len >= g_cap || g_stopping) {
 		nng_mtx_unlock(g_mtx);
 		inject_item_free(it);
