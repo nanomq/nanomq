@@ -113,9 +113,7 @@ static void
 sp_qmsg_free(sp_qmsg *q)
 {
 	if (!q) return;
-	free(q->topic);
-	free(q->payload);
-	free(q->client_id);
+	// One-allocation layout: struct + topic + payload + client_id.
 	free(q);
 }
 
@@ -346,20 +344,31 @@ static sp_qmsg *
 sp_qmsg_dup(uint64_t ts, const char *topic, const void *payload, uint32_t plen,
     uint8_t qos, bool retain, const char *client_id)
 {
-	sp_qmsg *q = (sp_qmsg *) calloc(1, sizeof(*q));
+	const char *src_topic = topic ? topic : "";
+	size_t tlen = strlen(src_topic);
+	size_t cid_len = client_id ? strlen(client_id) : 0;
+	size_t total = sizeof(sp_qmsg) + tlen + 1 + (size_t) plen + cid_len + 1;
+
+	sp_qmsg *q = (sp_qmsg *) calloc(1, total);
 	if (!q) return NULL;
 
-	q->topic = topic ? strdup(topic) : strdup("");
-	if (!q->topic) goto oom;
+	uint8_t *cursor = (uint8_t *) (q + 1);
+	q->topic = (char *) cursor;
+	memcpy(q->topic, src_topic, tlen);
+	q->topic[tlen] = '\0';
+	cursor += tlen + 1;
 
 	if (plen > 0) {
-		q->payload = (uint8_t *) malloc(plen);
-		if (!q->payload) goto oom;
+		q->payload = cursor;
 		memcpy(q->payload, payload, plen);
+		cursor += plen;
 	}
 
-	q->client_id = client_id ? strdup(client_id) : NULL;
-	if (client_id && !q->client_id) goto oom;
+	if (client_id) {
+		q->client_id = (char *) cursor;
+		memcpy(q->client_id, client_id, cid_len);
+		q->client_id[cid_len] = '\0';
+	}
 
 	q->m.ts_ms       = ts;
 	q->m.topic       = q->topic;
@@ -369,10 +378,6 @@ sp_qmsg_dup(uint64_t ts, const char *topic, const void *payload, uint32_t plen,
 	q->m.retain      = retain;
 	q->m.client_id   = q->client_id;
 	return q;
-
-oom:
-	sp_qmsg_free(q);
-	return NULL;
 }
 
 static void
