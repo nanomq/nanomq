@@ -91,6 +91,14 @@ sp_atomic_get(nng_atomic_u64 *a)
 	return a ? nng_atomic_get64(a) : 0;
 }
 
+static inline void
+sp_socket_reset(nng_socket *s)
+{
+	if (s) {
+		memset(s, 0, sizeof(*s));
+	}
+}
+
 static bool
 sp_route_read_field(const uint8_t *body, size_t len, size_t *off, void *out, size_t n)
 {
@@ -227,31 +235,31 @@ sp_route_start(void)
 	if ((rv = nng_pull0_open(&sp_route_pull)) != 0) {
 		log_error("stream_plugin: route pull open failed: %d %s", rv, nng_strerror(rv));
 		nng_close(sp_route_push);
-		sp_route_push = NNG_SOCKET_INITIALIZER;
+		sp_socket_reset(&sp_route_push);
 		return -1;
 	}
 	if ((rv = nng_listen(sp_route_pull, SP_ROUTE_IPC_URL, NULL, 0)) != 0) {
 		log_error("stream_plugin: route listen failed: %d %s", rv, nng_strerror(rv));
 		nng_close(sp_route_pull);
 		nng_close(sp_route_push);
-		sp_route_pull = NNG_SOCKET_INITIALIZER;
-		sp_route_push = NNG_SOCKET_INITIALIZER;
+		sp_socket_reset(&sp_route_pull);
+		sp_socket_reset(&sp_route_push);
 		return -1;
 	}
 	if ((rv = nng_dial(sp_route_push, SP_ROUTE_IPC_URL, NULL, 0)) != 0) {
 		log_error("stream_plugin: route dial failed: %d %s", rv, nng_strerror(rv));
 		nng_close(sp_route_pull);
 		nng_close(sp_route_push);
-		sp_route_pull = NNG_SOCKET_INITIALIZER;
-		sp_route_push = NNG_SOCKET_INITIALIZER;
+		sp_socket_reset(&sp_route_pull);
+		sp_socket_reset(&sp_route_push);
 		return -1;
 	}
 	if ((rv = nng_thread_create(&sp_route_thr, sp_route_worker, NULL)) != 0) {
 		log_error("stream_plugin: route thread create failed: %d %s", rv, nng_strerror(rv));
 		nng_close(sp_route_pull);
 		nng_close(sp_route_push);
-		sp_route_pull = NNG_SOCKET_INITIALIZER;
-		sp_route_push = NNG_SOCKET_INITIALIZER;
+		sp_socket_reset(&sp_route_pull);
+		sp_socket_reset(&sp_route_push);
 		return -1;
 	}
 	return 0;
@@ -266,8 +274,8 @@ sp_route_stop(void)
 	}
 	nng_close(sp_route_push);
 	nng_close(sp_route_pull);
-	sp_route_push = NNG_SOCKET_INITIALIZER;
-	sp_route_pull = NNG_SOCKET_INITIALIZER;
+	sp_socket_reset(&sp_route_push);
+	sp_socket_reset(&sp_route_pull);
 
 	nng_thread_destroy(sp_route_thr);
 	sp_route_thr = NULL;
