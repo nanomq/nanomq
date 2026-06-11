@@ -161,8 +161,29 @@ inject_worker(void *arg)
 		}
 		nng_msg_set_timestamp(msg, (nng_time) it->ts_ms);
 
-		const uint16_t tlen = (uint16_t) strlen(it->topic ? it->topic : "");
-		const uint32_t body_len = 2u + (uint32_t) tlen + (it->qos ? 2u : 0u) + it->payload_len;
+		const char  *topic        = it->topic ? it->topic : "";
+		const size_t topic_len    = strlen(topic);
+		const size_t body_len_sz =
+		    2u + topic_len + (it->qos ? 2u : 0u) + (size_t) it->payload_len;
+
+		if (topic_len > UINT16_MAX) {
+			log_error("stream inject publish dropped: topic length %zu exceeds MQTT limit %u",
+			    topic_len, (unsigned) UINT16_MAX);
+			nng_msg_free(msg);
+			inject_item_free(it);
+			continue;
+		}
+
+		if (body_len_sz > 268435455u) {
+			log_error("stream inject publish dropped: MQTT remaining length %zu exceeds protocol limit %u",
+			    body_len_sz, 268435455u);
+			nng_msg_free(msg);
+			inject_item_free(it);
+			continue;
+		}
+
+		const uint16_t tlen     = (uint16_t) topic_len;
+		const uint32_t body_len = (uint32_t) body_len_sz;
 
 		// fixed header first byte
 		uint8_t hdr0 = 0x30; // PUBLISH
