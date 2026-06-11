@@ -73,6 +73,13 @@ static nng_socket        sp_route_push     = NNG_SOCKET_INITIALIZER;
 static nng_socket        sp_route_pull     = NNG_SOCKET_INITIALIZER;
 static nng_atomic_bool  *sp_route_stopping = NULL;
 static nng_atomic_u64   *sp_route_dropped  = NULL;
+static nng_mtx          *sp_route_send_mtx = NULL;
+static nng_cv           *sp_route_send_cv  = NULL;
+static nng_aio          *sp_route_send_aio = NULL;
+static nng_lmq          *sp_route_send_lmq = NULL;
+static bool              sp_route_send_busy = false;
+static const size_t      SP_ROUTE_LMQ_INIT_CAP = 1024;
+static const size_t      SP_ROUTE_LMQ_MAX_CAP  = 10000;
 static const char       *SP_ROUTE_IPC_URL  = "inproc://nanomq_stream_plugin_route";
 
 static void sp_qmsg_free(sp_qmsg *q);
@@ -110,6 +117,43 @@ sp_route_read_field(const uint8_t *body, size_t len, size_t *off, void *out, siz
 }
 
 static void
+sp_route_send_aio_cb(void *arg)
+{
+	(void) arg;
+	if (sp_route_send_aio == NULL) return;
+
+	int rv = nng_aio_result(sp_route_send_aio);
+	if (rv != 0) {
+		sp_atomic_inc(sp_route_dropped);
+		nng_msg *m = nng_aio_get_msg(sp_route_send_aio);
+		if (m) {
+			nng_msg_free(m);
+		}
+	}
+
+	if (sp_route_send_mtx && sp_route_send_cv) {
+		nng_msg *next = NULL;
+		nng_mtx_lock(sp_route_send_mtx);
+		if (sp_route_send_lmq && !nng_lmq_empty(sp_route_send_lmq)) {
+			if (nng_lmq_get(sp_route_send_lmq, &next) == 0 && next != NULL) {
+				sp_route_send_busy = true;
+			} else {
+				sp_route_send_busy = false;
+			}
+		} else {
+			sp_route_send_busy = false;
+		}
+		nng_cv_wake1(sp_route_send_cv);
+		nng_mtx_unlock(sp_route_send_mtx);
+
+		if (next != NULL) {
+			nng_aio_set_msg(sp_route_send_aio, next);
+			nng_send_aio(sp_route_push, sp_route_send_aio);
+		}
+	}
+}
+
+static void
 sp_qmsg_free(sp_qmsg *q)
 {
 	if (!q) return;
@@ -118,6 +162,7 @@ sp_qmsg_free(sp_qmsg *q)
 }
 
 static void sp_dispatch_to_cfg(conf *cfg, const nano_msg *m);
+static void sp_route_send_ensure_stopped(void);
 
 static void
 sp_route_worker(void *arg)
@@ -226,6 +271,35 @@ sp_route_start(void)
 	if (sp_route_dropped) {
 		nng_atomic_set64(sp_route_dropped, 0);
 	}
+	if (sp_route_send_mtx == NULL) {
+		if (nng_mtx_alloc(&sp_route_send_mtx) != 0) {
+			log_error("stream_plugin: route send mtx alloc failed");
+			return -1;
+		}
+	}
+	if (sp_route_send_cv == NULL) {
+		if (nng_cv_alloc(&sp_route_send_cv, sp_route_send_mtx) != 0) {
+			log_error("stream_plugin: route send cv alloc failed");
+			return -1;
+		}
+	}
+	if (sp_route_send_aio == NULL) {
+		if (nng_aio_alloc(&sp_route_send_aio, sp_route_send_aio_cb, NULL) != 0) {
+			log_error("stream_plugin: route send aio alloc failed");
+			return -1;
+		}
+	}
+	if (sp_route_send_lmq == NULL) {
+		if (nng_lmq_alloc(&sp_route_send_lmq, SP_ROUTE_LMQ_INIT_CAP) != 0) {
+			log_error("stream_plugin: route send lmq alloc failed");
+			return -1;
+		}
+	}
+	if (sp_route_send_mtx) {
+		nng_mtx_lock(sp_route_send_mtx);
+		sp_route_send_busy = false;
+		nng_mtx_unlock(sp_route_send_mtx);
+	}
 	if ((rv = nng_push0_open(&sp_route_push)) != 0) {
 		log_error("stream_plugin: route push open failed: %d %s", rv, nng_strerror(rv));
 		return -1;
@@ -277,6 +351,8 @@ sp_route_stop(void)
 
 	nng_thread_destroy(sp_route_thr);
 	sp_route_thr = NULL;
+
+	sp_route_send_ensure_stopped();
 }
 
 static void
@@ -333,10 +409,83 @@ sp_route_enqueue(conf *cfg, uint64_t ts, const char *topic, const void *payload,
 		return;
 	}
 
-	int rv = nng_sendmsg(sp_route_push, msg, NNG_FLAG_NONBLOCK);
-	if (rv != 0) {
+	if (sp_route_send_mtx == NULL || sp_route_send_aio == NULL) {
 		sp_atomic_inc(sp_route_dropped);
 		nng_msg_free(msg);
+		return;
+	}
+
+	nng_mtx_lock(sp_route_send_mtx);
+	if (sp_route_send_busy || (sp_route_stopping && nng_atomic_get_bool(sp_route_stopping))) {
+		if (sp_route_send_lmq && nng_lmq_full(sp_route_send_lmq)) {
+			size_t cap = nng_lmq_cap(sp_route_send_lmq);
+			if (cap >= SP_ROUTE_LMQ_MAX_CAP) {
+				nng_mtx_unlock(sp_route_send_mtx);
+				sp_atomic_inc(sp_route_dropped);
+				nng_msg_free(msg);
+				return;
+			}
+			size_t new_cap = cap + (cap / 2);
+			if (new_cap < cap + 1) new_cap = cap + 1;
+			if (new_cap > SP_ROUTE_LMQ_MAX_CAP) new_cap = SP_ROUTE_LMQ_MAX_CAP;
+			if (nng_lmq_resize(sp_route_send_lmq, new_cap) != 0) {
+				nng_mtx_unlock(sp_route_send_mtx);
+				sp_atomic_inc(sp_route_dropped);
+				nng_msg_free(msg);
+				return;
+			}
+		}
+		if (sp_route_send_lmq && nng_lmq_put(sp_route_send_lmq, msg) == 0) {
+			nng_mtx_unlock(sp_route_send_mtx);
+			return;
+		}
+		nng_mtx_unlock(sp_route_send_mtx);
+		sp_atomic_inc(sp_route_dropped);
+		nng_msg_free(msg);
+		return;
+	}
+	sp_route_send_busy = true;
+	nng_aio_set_msg(sp_route_send_aio, msg);
+	nng_send_aio(sp_route_push, sp_route_send_aio);
+	nng_mtx_unlock(sp_route_send_mtx);
+}
+
+static void
+sp_route_send_resources_free(void)
+{
+	if (sp_route_send_cv) {
+		nng_cv_free(sp_route_send_cv);
+		sp_route_send_cv = NULL;
+	}
+	if (sp_route_send_mtx) {
+		nng_mtx_free(sp_route_send_mtx);
+		sp_route_send_mtx = NULL;
+	}
+	if (sp_route_send_aio) {
+		nng_aio_free(sp_route_send_aio);
+		sp_route_send_aio = NULL;
+	}
+	if (sp_route_send_lmq) {
+		nng_msg *m = NULL;
+		while (nng_lmq_get(sp_route_send_lmq, &m) == 0) {
+			if (m) nng_msg_free(m);
+			m = NULL;
+		}
+		nng_lmq_free(sp_route_send_lmq);
+		sp_route_send_lmq = NULL;
+	}
+	sp_route_send_busy = false;
+}
+
+static void
+sp_route_send_ensure_stopped(void)
+{
+	if (sp_route_send_mtx && sp_route_send_cv) {
+		nng_mtx_lock(sp_route_send_mtx);
+		while (sp_route_send_busy || (sp_route_send_lmq && !nng_lmq_empty(sp_route_send_lmq))) {
+			nng_cv_wait(sp_route_send_cv);
+		}
+		nng_mtx_unlock(sp_route_send_mtx);
 	}
 }
 
@@ -770,6 +919,8 @@ stream_plugin_unload_all(conf *cfg)
 		nng_atomic_free64(sp_route_dropped);
 		sp_route_dropped = NULL;
 	}
+	sp_route_send_ensure_stopped();
+	sp_route_send_resources_free();
 	if (sp_route_stopping) {
 		nng_atomic_free_bool(sp_route_stopping);
 		sp_route_stopping = NULL;
