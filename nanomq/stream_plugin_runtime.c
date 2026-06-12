@@ -936,7 +936,10 @@ stream_plugin_pub_dispatch_from_work(nano_work *work)
 	if (work == NULL || work->config == NULL || work->pub_packet == NULL) return;
 	conf *cfg = work->config;
 	if (cfg->stream_plugin.count == 0) return;
-
+	if (work->proto == PROTO_STREAM_INJECT) {
+		log_warn("plugin cannot listen to its own msg, avoid inf loop!");
+		return;
+	}
 	const char *topic = work->pub_packet->var_header.publish.topic_name.body;
 	if (topic == NULL) return;
 
