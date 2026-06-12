@@ -1918,64 +1918,76 @@ get_subscriptions(
  	data_info        = cJSON_CreateArray();
  	res_obj          = cJSON_CreateObject();
 
- 	dbtree *          db   = get_broker_db();
- 	dbhash_ptpair_t **pt   = dbhash_get_ptpair_all();
- 	size_t            size = cvector_size(pt);
- 	for (size_t i = 0; i < size; i++) {
- 		const char * cid     = NULL;
-		nng_pipe p = { .id = pt[i]->pipe };
-		conn_param *cp = nng_pipe_cparam(p);
+	dbtree           *db   = get_broker_db();
+	dbhash_ptpair_t **pt   = dbhash_get_ptpair_all();
+	size_t            size = cvector_size(pt);
+	for (size_t i = 0; i < size; i++) {
+		const char *cid = NULL;
+		nng_pipe    p   = { .id = pt[i]->pipe };
+		conn_param *cp  = nng_pipe_cparam(p);
 
- 		if (cp) {
- 			cid = (const char *) conn_param_get_clientid(
- 			    cp);
-			conn_param_free(cp);
+		if (cp) {
+			cid = (const char *) conn_param_get_clientid(cp);
 			if (client_id) {
-				if (strcmp(client_id, cid) != 0) {
- 					goto skip;
- 				}
+				if (cid == NULL ||
+				    strcmp(client_id, cid) != 0) {
+					conn_param_free(cp);
+					goto skip;
+				}
 			}
+		} else if (client_id) {
+			goto skip;
 		}
 
- 		// topic_queue *tn = pt[i]->topic;
-		topic_queue *tq = dbhash_copy_topic_queue(pt[i]->pipe);
+		// topic_queue *tn = pt[i]->topic;
+		topic_queue *tq        = dbhash_copy_topic_queue(pt[i]->pipe);
 		topic_queue *reap_node = tq;
- 		while (tq) {
- 			cJSON *subscribe = cJSON_CreateObject();
- 			if (cid) {
- 				cJSON_AddStringToObject(
- 				    subscribe, "clientid", cid);
- 			} else {
- 				cJSON_AddStringToObject(
- 				    subscribe, "clientid", "");
- 			}
- 			cJSON_AddStringToObject(
- 			    subscribe, "topic", tq->topic);
- 			cJSON_AddNumberToObject(subscribe, "qos", tq->qos);
- 			cJSON_AddItemToArray(data_info, subscribe);
- 			tq = tq->next;
-			nng_free(reap_node->topic, strlen(reap_node->topic));
+		while (tq) {
+			cJSON *subscribe = cJSON_CreateObject();
+			if (cid) {
+				cJSON_AddStringToObject(
+				    subscribe, "clientid", cid);
+			} else {
+				cJSON_AddStringToObject(
+				    subscribe, "clientid", "");
+			}
+			if (tq->topic) {
+				cJSON_AddStringToObject(
+				    subscribe, "topic", tq->topic);
+			} else {
+				cJSON_AddStringToObject(
+				    subscribe, "topic", "");
+			}
+			cJSON_AddNumberToObject(subscribe, "qos", tq->qos);
+			cJSON_AddItemToArray(data_info, subscribe);
+			tq = tq->next;
+			if (reap_node->topic != NULL) {
+				nng_strfree(reap_node->topic);
+			}
 			nng_free(reap_node, sizeof(topic_queue));
 			reap_node = tq;
- 		}
- 	skip:
- 		dbhash_ptpair_free(pt[i]);
- 	}
- 	cvector_free(pt);
+		}
+		if (cp) {
+			conn_param_free(cp);
+		}
+	skip:
+		dbhash_ptpair_free(pt[i]);
+	}
+	cvector_free(pt);
 
- 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
- 	// cJSON *meta = cJSON_CreateObject();
- 	// cJSON_AddItemToObject(res_obj, "meta", meta);
- 	// TODO add meta content: page, limit, count
- 	cJSON_AddItemToObject(res_obj, "data", data_info);
+	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+	// cJSON *meta = cJSON_CreateObject();
+	// cJSON_AddItemToObject(res_obj, "meta", meta);
+	// TODO add meta content: page, limit, count
+	cJSON_AddItemToObject(res_obj, "data", data_info);
 
- 	char *dest = cJSON_PrintUnformatted(res_obj);
+	char *dest = cJSON_PrintUnformatted(res_obj);
 
- 	put_http_msg(
- 	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
+	put_http_msg(
+	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
 
- 	cJSON_free(dest);
- 	cJSON_Delete(res_obj);
+	cJSON_free(dest);
+	cJSON_Delete(res_obj);
 	return res;
 }
 
@@ -3084,7 +3096,7 @@ get_tree(http_msg *msg)
 			cJSON_AddItemToArray(data_info_elem, elem);
 			cJSON_AddStringToObject(
 			    elem, "topic", vn[i][j]->topic);
-			nng_free(vn[i][j]->topic, strlen(vn[i][j]->topic));
+			nng_strfree(vn[i][j]->topic);
 			cJSON_AddNumberToObject(
 			    elem, "cld_cnt", vn[i][j]->cld_cnt);
 			cJSON *clients = cJSON_CreateStringArray(
