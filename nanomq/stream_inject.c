@@ -10,6 +10,7 @@
 #include "include/nano_sdk.h"
 #include "include/broker.h"
 #include "include/pub_handler.h"
+#include "include/webhook_post.h"
 
 #include "nng/mqtt/mqtt_client.h"
 #include "nng/protocol/mqtt/mqtt.h"
@@ -99,7 +100,7 @@ make_cparam(const char *clientid, uint8_t proto_ver)
 {
 	conn_param *cparam = NULL;
 	conn_param_alloc(&cparam);
-	conn_param_set_clientid(cparam, clientid);
+	conn_param_set_clientid(cparam, clientid ? clientid : "StreamPlugin");
 	conn_param_set_proto_ver(cparam, proto_ver);
 	return cparam;
 }
@@ -250,6 +251,7 @@ inject_worker(void *arg)
 			continue;
 		}
 		w.code = handle_pub(&w, w.pipe_ct, w.proto_ver, false);
+		hook_entry(&w, 0);
 
 		if (w.code == SUCCESS && w.pipe_ct && w.pipe_ct->msg_infos) {
 			nng_msg *smsg = w.msg; // reuse the same msg
