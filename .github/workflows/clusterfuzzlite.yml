@@ -83,7 +83,7 @@ jobs:
       # 上传 corpus 作为 artifact（可选，用于调试）
       - name: Upload Corpus
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: corpus-pr-${{ matrix.sanitizer }}
           path: build-out/corpus
@@ -131,7 +131,7 @@ jobs:
       # 上传 corpus
       - name: Upload Corpus
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: corpus-batch-${{ matrix.sanitizer }}
           path: build-out/corpus
@@ -180,7 +180,7 @@ jobs:
       # 上传发现的 crashes
       - name: Upload Crashes
         if: always() && steps.run.outcome == 'failure'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: crashes-${{ matrix.sanitizer }}
           path: build-out/artifacts
@@ -212,7 +212,7 @@ jobs:
 
       - name: Upload Pruned Corpus
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: corpus-pruned
           path: build-out/corpus
@@ -246,7 +246,7 @@ jobs:
       # 上传 coverage report 作为 artifact
       - name: Upload Coverage Report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cifuzz-coverage-latest
           path: build-out/report
