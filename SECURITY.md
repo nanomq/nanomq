@@ -16,11 +16,11 @@ Vulnerability Fix: All reported bugs, including security-relevant issues like bu
 Public Advisory: A GitHub Security Advisory (GHSA) will be published to document the issue and the fix.
 CVE Status: We will not request a CVE ID for vulnerabilities found in non-core components.
 
-Example: The Rule Engine
+Example: The Rule Engine, SQLite-related features
 
 **The NanoMQ Rule Engine is a historically community-maintained and non-production-ready module. While we acknowledge and fix security flaws found in the Rule Engine (as demonstrated by GHSA-c5gx-vc37-5h2f), these issues are classified as bugs in an obsoleted module and will not be granted a CVE to avoid sending a false signal to our production users and to keep our CVE record focused on our core offering.**
 
-DDS Proxy and NanoMQ commandline tool shares same policy as Rule Engine Module. But as an Open-Source project, we continously on supporting our free users, still accepting bugs report regarding non-core part, fix & release will be out when time permits.
+DDS Proxy and NanoMQ command-line tool share the same policy as Rule Engine Module. But as an Open-Source project, we continously on supporting our free users, still accepting bugs report regarding non-core parts. Fix & release will be out when time permits.
 
 
 Best,
