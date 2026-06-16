@@ -1918,7 +1918,6 @@ get_subscriptions(
  	data_info        = cJSON_CreateArray();
  	res_obj          = cJSON_CreateObject();
 
-	dbtree           *db   = get_broker_db();
 	dbhash_ptpair_t **pt   = dbhash_get_ptpair_all();
 	size_t            size = cvector_size(pt);
 	for (size_t i = 0; i < size; i++) {
