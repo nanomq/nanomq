@@ -69,42 +69,35 @@ replace_topic(const char *origin, conn_param *param)
 	if (origin == NULL)
 		return NULL;
 
-	// 1. 处理 ${clientid} 占位符
 	const char *clientid = (const char *) conn_param_get_clientid(param);
 	if (clientid != NULL && strstr(topic, placeholder_clientid) != NULL) {
-		
-		// [安全修复] 防御 Wildcard & 层级注入
 		if (strchr(clientid, '+') != NULL || 
 		    strchr(clientid, '#') != NULL || 
 		    strchr(clientid, '/') != NULL) {
 			log_warn("Security: Client ID [%s] contains wildcards (+, #) or separator (/). ACL substitution aborted.", clientid);
-			return NULL; // 返回 NULL 让外层的 auth_acl 直接判定不匹配
+			return NULL;
 		}
 
 		out_topic = replace_placeholder(topic, placeholder_clientid, clientid);
 		topic = out_topic;
 	}
 
-	// 2. 处理 ${username} 占位符
 	const char *username = (const char *) conn_param_get_username(param);
 	if (username != NULL && strstr(topic, placeholder_username) != NULL) {
-		
-		// [安全修复] 防御 Wildcard & 层级注入
-		if (strchr(username, '+') != NULL || 
-		    strchr(username, '#') != NULL || 
+		if (strchr(username, '+') != NULL ||
+		    strchr(username, '#') != NULL ||
 		    strchr(username, '/') != NULL) {
 			log_warn("Security: Username [%s] contains wildcards (+, #) or separator (/). ACL substitution aborted.", username);
-			// 注意：如果之前 clientid 已经替换过并分配了内存，需要在此处释放，防止内存泄漏
 			if (topic != origin) {
 				nng_strfree(topic);
 			}
-			return NULL; // 返回 NULL 让外层的 auth_acl 直接判定不匹配
+			return NULL;
 		}
 
 		out_topic = replace_placeholder(topic, placeholder_username, username);
-		
+
 		if (topic != origin) {
-			nng_strfree(topic); // 释放旧的 out_topic 内存
+			nng_strfree(topic);
 		}
 		topic = out_topic;
 	}
