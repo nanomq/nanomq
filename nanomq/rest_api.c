@@ -1358,11 +1358,11 @@ typedef struct {
 typedef struct {
 	uint32_t connections;
 	uint32_t sessions;
-	uint32_t topics;
-	uint32_t subscribers;
-	uint32_t message_received;
-	uint32_t message_sent;
-	uint32_t message_dropped;
+	uint64_t topics;
+	uint64_t subscribers;
+	uint64_t message_received;
+	uint64_t message_sent;
+	uint64_t message_dropped;
 	uint64_t memory;
 	float    cpu_percent;
 } client_stats;
@@ -1598,31 +1598,31 @@ compose_metrics(char *ret, client_stats *ms, client_stats *s)
 	             "\nnanomq_sessions_max %d"
 	             "\n# TYPE nanomq_topics_count gauge"
 	             "\n# HELP nanomq_topics_count"
-	             "\nnanomq_topics_count %d"
+	             "\nnanomq_topics_count %" PRIu64
 	             "\n# TYPE nanomq_topics_max gauge"
 	             "\n# HELP nanomq_topics_max"
-	             "\nnanomq_topics_max %d"
+	             "\nnanomq_topics_max %" PRIu64
 	             "\n# TYPE nanomq_subscribers_count gauge"
 	             "\n# HELP nanomq_subscribers_count"
 	             "\nnanomq_subscribers_count %d"
 	             "\n# TYPE nanomq_subscribers_max gauge"
 	             "\n# HELP nanomq_subscribers_max"
-	             "\nnanomq_subscribers_max %d"
+	             "\nnanomq_subscribers_max %" PRIu64
 	             "\n# TYPE nanomq_messages_received counter"
 	             "\n# HELP nanomq_messages_received"
-	             "\nnanomq_messages_received %d"
+	             "\nnanomq_messages_received %" PRIu64
 	             "\n# TYPE nanomq_messages_sent counter"
 	             "\n# HELP nanomq_messages_sent"
-	             "\nnanomq_messages_sent %d"
+	             "\nnanomq_messages_sent %" PRIu64
 	             "\n# TYPE nanomq_messages_dropped counter"
 	             "\n# HELP nanomq_messages_dropped"
-	             "\nnanomq_messages_dropped %d"
+	             "\nnanomq_messages_dropped %" PRIu64
 	             "\n# TYPE nanomq_memory_usage gauge"
 	             "\n# HELP nanomq_memory_usage (b)"
-	             "\nnanomq_memory_usage %ld"
+	             "\nnanomq_memory_usage %" PRIu64
 	             "\n# TYPE nanomq_memory_usage_max gauge"
 	             "\n# HELP nanomq_memory_usage_max (b)"
-	             "\nnanomq_memory_usage_max %ld"
+	             "\nnanomq_memory_usage_max %" PRIu64
 	             "\n# TYPE nanomq_cpu_usage gauge"
 	             "\n# HELP nanomq_cpu_usage (%%)"
 	             "\nnanomq_cpu_usage %.2f"
@@ -1654,9 +1654,8 @@ update_max_stats(client_stats *ms, client_stats *s)
 static void *
 get_client_exist_cb(uint32_t pid)
 {
-	return (void*) (long long) pid;
+	return (void*) (uintptr_t) pid;
 }
-
 static size_t
 get_topics_count()
 {
@@ -2901,10 +2900,10 @@ delete_rules(http_msg *msg, kv **params, size_t param_num, const char *rule_id)
 	http_msg res     = { 0 };
 	res.status       = NNG_HTTP_STATUS_OK;
 	cJSON   *res_obj = NULL;
-	uint32_t id      = 0;
 	res_obj          = cJSON_CreateObject();
 
 #if defined(SUPP_RULE_ENGINE)
+	uint32_t id      = 0;
 	if (rule_id) {
 		sscanf(rule_id, "rule:%d", &id);
 		conf      *config = get_global_conf();
@@ -3066,6 +3065,9 @@ get_client_info_cb(uint32_t pid)
 
 	nng_pipe       pipe     = { .id = pid };
 	conn_param    *cp       = nng_pipe_cparam(pipe);
+	if (cp == NULL) {
+		return NULL;
+	}
 	const char    *clientid = conn_param_get_clientid(cp);
 	conn_param_free(cp);
 	return (void *) clientid;
@@ -4267,7 +4269,7 @@ put_mqtt_bridge_switch(http_msg *msg, const char *name)
 		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
 		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 	}
-	int  		 rv;
+	int  		 rv = 0;
 	bool         found = false;
 	bool         bridge_switch;
 	cJSON       *conf_data = cJSON_GetObjectItem(req, "data");
@@ -4332,6 +4334,11 @@ put_mqtt_bridge_switch(http_msg *msg, const char *name)
 		log_warn("no such %s bridge is found!", name);
 		return error_response(
 		    msg, NNG_HTTP_STATUS_NO_CONTENT, REQ_PARAM_ERROR);
+	} else {
+		cJSON_Delete(req);
+		log_warn("default action triggered!");
+		return error_response(
+		    msg, NNG_HTTP_STATUS_BAD_REQUEST, ILLEGAL_SUBJECT);
 	}
 }
 
