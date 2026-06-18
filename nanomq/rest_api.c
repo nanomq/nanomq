@@ -31,6 +31,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <inttypes.h>
 #include <string.h>
 #include <time.h>
 #include <math.h>
@@ -1604,7 +1605,7 @@ compose_metrics(char *ret, client_stats *ms, client_stats *s)
 	             "\nnanomq_topics_max %" PRIu64
 	             "\n# TYPE nanomq_subscribers_count gauge"
 	             "\n# HELP nanomq_subscribers_count"
-	             "\nnanomq_subscribers_count %d"
+	             "\nnanomq_subscribers_count %" PRIu64
 	             "\n# TYPE nanomq_subscribers_max gauge"
 	             "\n# HELP nanomq_subscribers_max"
 	             "\nnanomq_subscribers_max %" PRIu64
@@ -3068,9 +3069,10 @@ get_client_info_cb(uint32_t pid)
 	if (cp == NULL) {
 		return NULL;
 	}
-	const char    *clientid = conn_param_get_clientid(cp);
+	const char *clientid = conn_param_get_clientid(cp);
+	char *clientid_copy  = clientid == NULL ? NULL : nng_strdup(clientid);
 	conn_param_free(cp);
-	return (void *) clientid;
+	return clientid_copy;
 }
 
 static http_msg
@@ -3103,6 +3105,9 @@ get_tree(http_msg *msg)
 			cJSON *clients = cJSON_CreateStringArray(
 			    (const char *const *) vn[i][j]->clients,
 			    cvector_size(vn[i][j]->clients));
+			for (int k = 0; k < cvector_size(vn[i][j]->clients); k++) {
+				nng_strfree((char *) vn[i][j]->clients[k]);
+			}
 			cvector_free(vn[i][j]->clients);
 			nng_free(vn[i][j], sizeof(dbtree_info));
 			cJSON_AddItemToObject(elem, "clientid", clients);
@@ -4276,33 +4281,35 @@ put_mqtt_bridge_switch(http_msg *msg, const char *name)
 	cJSON       *item;
 	conf        *config = get_global_conf();
 	conf_bridge *bridge = &config->bridge;
+	getBoolValue(conf_data, item, "bridge_switch", bridge_switch, rv);
+	if (rv != 0) {
+		cJSON_Delete(req);
+		return error_response(
+		    msg, NNG_HTTP_STATUS_BAD_REQUEST, REQ_PARAM_ERROR);
+	}
 	for (size_t i = 0; i < bridge->count; i++) {
 		conf_bridge_node *node = bridge->nodes[i];
 		if (name != NULL && strcmp(node->name, name) != 0) {
 			continue;
 		}
-		getBoolValue(
-		    conf_data, item, "bridge_switch", bridge_switch, rv);
-		if (rv == 0) {
-			found = true;
-			log_info("processing bridge switch %d for %s",bridge_switch, name);
-			nng_dialer *dialer = node->dialer;
-			if (bridge_switch == true) {
-				nng_dialer_set_bool(*dialer, NNG_OPT_BRIDGE_SET_EP_CLOSED, false);
-				if ((rv = nng_dialer_start(*dialer, NNG_FLAG_NONBLOCK)) != 0) {
-					log_warn("turn on bridge %s failed! %d", name, rv);
-				} else {
-					log_warn("successfully turn on bridge %s", name);
-					node->enable = bridge_switch;
-				}
-			} else if (bridge_switch == false) {
-				nng_dialer_set_bool(*dialer, NNG_OPT_BRIDGE_SET_EP_CLOSED, true);
-				if ((rv = nng_dialer_off(*dialer)) != 0) {
-					log_warn("turn off bridge %s failed! %d", name, rv);
-				} else {
-					log_warn("successfully turn off bridge %s", name);
-					node->enable = bridge_switch;
-				}
+		found = true;
+		log_info("processing bridge switch %d for %s",bridge_switch, name);
+		nng_dialer *dialer = node->dialer;
+		if (bridge_switch == true) {
+			nng_dialer_set_bool(*dialer, NNG_OPT_BRIDGE_SET_EP_CLOSED, false);
+			if ((rv = nng_dialer_start(*dialer, NNG_FLAG_NONBLOCK)) != 0) {
+				log_warn("turn on bridge %s failed! %d", name, rv);
+			} else {
+				log_warn("successfully turn on bridge %s", name);
+				node->enable = bridge_switch;
+			}
+		} else if (bridge_switch == false) {
+			nng_dialer_set_bool(*dialer, NNG_OPT_BRIDGE_SET_EP_CLOSED, true);
+			if ((rv = nng_dialer_off(*dialer)) != 0) {
+				log_warn("turn off bridge %s failed! %d", name, rv);
+			} else {
+				log_warn("successfully turn off bridge %s", name);
+				node->enable = bridge_switch;
 			}
 		}
 	}
