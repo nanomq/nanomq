@@ -123,7 +123,8 @@ encode_unsuback_msg(nng_msg *msg, nano_work *work)
 	uint8_t     varint[4];
 	uint8_t     reason_code, cmd, property_len = 0;
 	uint32_t    remaining_len;
-	int         len_of_varint, rv;
+	int         rv;
+	size_t      len_of_varint;
 	topic_node *tn;
 
 	packet_unsubscribe *unsub_pkt = work->unsub_pkt;
