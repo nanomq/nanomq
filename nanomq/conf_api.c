@@ -632,82 +632,35 @@ set_tls_config(
 
 	getBoolValue(json, item, "enable", tls_enable, rv);
 	if (rv == 0) {
-		// conf_update2_bool(
-		// conf_path, key_prefix, "", "tls.enable", tls_enable);
 		update_var(tls->enable, tls_enable);
 	}
 	getStringValue(json, item, "url", tls_url, rv);
 	if (rv == 0) {
-		// conf_update(conf_path, "tls.url", tls_url);
 		update_string(tls->url, tls_url);
 	}
 	getStringValue(json, item, "keypass", tls_keypass, rv);
 	if (rv == 0) {
-		// conf_update(conf_path, "tls.keypass", tls_keypass);
 		update_string(tls->key_password, tls_keypass);
 	}
 	getStringValue(json, item, "key", tls_key, rv);
 	if (rv == 0) {
-		// if (tls->keyfile == NULL) {
-		// 	memset(dir, 0, 1024);
-		// 	if (nano_getcwd(dir, sizeof(dir)) != NULL) {
-		// 		path_len =
-		// 		    strlen(dir) + strlen("/key.pem") + 1;
-		// 		tls->keyfile = nng_zalloc(path_len);
-		// 		strcat(tls->keyfile, dir);
-		// 		strcat(tls->keyfile, "/key.pem");
-		// 		conf_update(
-		// 		    conf_path, "tls.keyfile", tls->keyfile);
-		// 	}
-		// }
-		// file_write_string(tls->keyfile, tls_key);
 		update_string(tls->key, tls_key);
 	}
 	getStringValue(json, item, "cert", tls_cert, rv);
 	if (rv == 0) {
-		// if (tls->certfile == NULL) {
-		// 	memset(dir, 0, 1024);
-		// 	if (nano_getcwd(dir, sizeof(dir)) != NULL) {
-		// 		path_len =
-		// 		    strlen(dir) + strlen("/cert.pem") + 1;
-		// 		tls->certfile = nng_zalloc(path_len);
-		// 		strcat(tls->certfile, dir);
-		// 		strcat(tls->certfile, "/cert.pem");
-		// 		conf_update(
-		// 		    conf_path, "tls.certfile", tls->certfile);
-		// 	}
-		// }
-		// file_write_string(tls->certfile, tls_cert);
 		update_string(tls->cert, tls_cert);
 	}
 	getStringValue(json, item, "cacert", tls_cacert, rv);
 	if (rv == 0) {
-		// if (tls->cafile == NULL) {
-		// 	memset(dir, 0, 1024);
-		// 	if (nano_getcwd(dir, sizeof(dir)) != NULL) {
-		// 		path_len =
-		// 		    strlen(dir) + strlen("/cacert.pem") + 1;
-		// 		tls->cafile = nng_zalloc(path_len);
-		// 		strcat(tls->cafile, dir);
-		// 		strcat(tls->cafile, "/cacert.pem");
-		// 		conf_update(
-		// 		    conf_path, "tls.cacertfile", tls->cafile);
-		// 	}
-		// }
-		// file_write_string(tls->cafile, tls_cacert);
 		update_string(tls->ca, tls_cacert);
 	}
 	getBoolValue(json, item, "verify_peer", tls_verify_peer, rv);
 	if (rv == 0) {
-		// conf_update_bool(
-		//     conf_path, "tls.verify_peer", tls_verify_peer);
 		update_var(tls->verify_peer, tls_verify_peer);
 	}
 	getBoolValue(
 	    json, item, "fail_if_no_peer_cert", tls_fail_if_no_peer_cert, rv);
 	if (rv == 0) {
-		// conf_update_bool(conf_path, "tls.fail_if_no_peer_cert",
-		//     tls_fail_if_no_peer_cert);
 		update_var(tls->set_fail, tls_fail_if_no_peer_cert);
 	}
 }
