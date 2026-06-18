@@ -921,10 +921,10 @@ proto_work_init(nng_socket sock, nng_socket extrasock, uint8_t proto,
 	return w;
 }
 
-static dbtree           *db        = NULL;
-static dbtree           *db_ret    = NULL;
+static dbtree *db     = NULL;
+static dbtree *db_ret = NULL;
 // TODO For HTTP SUB/UNSUB usage
-static struct hashmap_s *cid_table = NULL;
+static struct hashmap_s *cid_table        = NULL;
 
 struct hashmap_s *
 get_hashmap(void)
@@ -1004,7 +1004,8 @@ broker(conf *nanomq_conf)
 		}
 	}
 #endif
-
+	// init hash seed first.
+	nanomq_init_hash_seed();
 	// init tree
 	dbtree_create(&db);
 	if (db == NULL) {
