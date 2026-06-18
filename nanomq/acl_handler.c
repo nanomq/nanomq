@@ -246,7 +246,7 @@ auth_acl(conf *config, acl_action_type act_type, conn_param *param,
 		if (rule->topic_count > 0) {
 			char **topic_array = rule->topics;
 			bool   found       = false;
-			bool   free        = false;
+			bool   free_flag        = false;
 			char  *rule_topic  = NULL;
 			for (size_t j = 0; j < rule->topic_count && found != true; j++) {
 				rule_topic = replace_topic(rule->topics[j], param);
@@ -255,7 +255,7 @@ auth_acl(conf *config, acl_action_type act_type, conn_param *param,
 					return false;
 				}
 				if (rule_topic != rule->topics[j])
-					free = true;
+					free_flag = true;
 				if (strncmp(rule_topic, "@", 1) == 0 && strlen(rule_topic) > 1) {
 					log_debug("@ is taking effect: %s %d",
 						rule_topic + 1, strlen(rule_topic));
@@ -265,9 +265,9 @@ auth_acl(conf *config, acl_action_type act_type, conn_param *param,
 				} else if (topic_filter(rule_topic, topic)) {
 					found = true;
 				}
-				if (free) {
-					nng_strfree(rule_topic);
-					free = false;
+				if (free_flag) {
+					free(rule_topic);
+					free_flag = false;
 				}
 				if (found)
 					break;
