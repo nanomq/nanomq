@@ -108,17 +108,11 @@ decode_sub_msg(nano_work *work)
 
 		int limit = payload_len - ppos;
 
-		tn->topic.body = (char *)copyn_utf8_str(payload_ptr,
-		    (uint32_t *)&ppos, &tn->topic.len, limit);
+		int temp_len   = 0;
+		tn->topic.body = (char *) copyn_utf8_str(
+		    payload_ptr, (uint32_t *) &ppos, &temp_len, limit);
 
-		if (tn->topic.body == NULL) {
-			log_error("tn->topic.body is NULL");
-		} else {
-			log_info("topic: [%s] len: [%d] pid [%d]",
-				tn->topic.body, tn->topic.len, sub_pkt->packet_id);
-		}
-
-		if (tn->topic.len < 1 || tn->topic.body == NULL) {
+		if (temp_len < 1 || tn->topic.body == NULL) {
 			log_error("NOT utf8-encoded string OR null string.");
 			if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 				tn->reason_code = MALFORMED_PACKET;
@@ -128,6 +122,7 @@ decode_sub_msg(nano_work *work)
 				return UNSPECIFIED_ERROR;
 			}
 		}
+		tn->topic.len = (size_t) temp_len;
 
 		if (ppos >= payload_len) {
 			log_error("Missing QoS byte in Subscribe Payload");

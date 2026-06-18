@@ -98,7 +98,7 @@ nng_pub_handler(nano_work *work, nng_msg *nmsg)
 
     uint32_t plen = 0;
 
-    char *payload = work->pub_packet->payload.data;
+    uint8_t *payload = work->pub_packet->payload.data;
     plen = work->pub_packet->payload.len;
 
     for (size_t t = 0; t < work->config->nng_proxy.pub_count; t++) {

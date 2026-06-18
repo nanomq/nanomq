@@ -89,7 +89,7 @@ replace_topic(const char *origin, conn_param *param)
 		    strchr(username, '/') != NULL) {
 			log_warn("Security: Username [%s] contains wildcards (+, #) or separator (/). ACL substitution aborted.", username);
 			if (topic != origin) {
-				nng_strfree(topic);
+				free(topic);
 			}
 			return NULL;
 		}
@@ -97,7 +97,7 @@ replace_topic(const char *origin, conn_param *param)
 		out_topic = replace_placeholder(topic, placeholder_username, username);
 
 		if (topic != origin) {
-			nng_strfree(topic);
+			free(topic);
 		}
 		topic = out_topic;
 	}
@@ -250,8 +250,10 @@ auth_acl(conf *config, acl_action_type act_type, conn_param *param,
 			char  *rule_topic  = NULL;
 			for (size_t j = 0; j < rule->topic_count && found != true; j++) {
 				rule_topic = replace_topic(rule->topics[j], param);
-				if (rule_topic == NULL)
-					break;
+				if (rule_topic == NULL) {
+					conn_param_free(param);
+					return false;
+				}
 				if (rule_topic != rule->topics[j])
 					free = true;
 				if (strncmp(rule_topic, "@", 1) == 0 && strlen(rule_topic) > 1) {
