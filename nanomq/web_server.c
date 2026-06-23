@@ -560,17 +560,7 @@ start_rest_server(conf *conf)
 	log_info(REST_URL, addr, port);
 	rest_start(port, addr, conf);
 
-	// Init ACL Cache hash map
-	conf_auth_http *auth_http = &conf->auth_http;
-	nng_mtx_lock(auth_http->acl_cache_mtx);
-	if (!auth_http->acl_cache_map && auth_http->cache_ttl > 0) {
-		int acl_rv = nmq_acl_cache_init(auth_http);
-		log_info("ACL Cache was started, interval %ds, rv%d", auth_http->cache_ttl, acl_rv);
-		if (acl_rv != 0) {
-			log_error("ACL Cache init failed");
-		}
-	}
-	nng_mtx_unlock(auth_http->acl_cache_mtx);
+
 	return rv;
 }
 
