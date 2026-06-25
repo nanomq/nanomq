@@ -122,7 +122,9 @@ auth_acl(conf *config, acl_action_type act_type, conn_param *param,
 	for (size_t i = 0; i < acl->rule_count; i++) {
 		acl_rule *      rule   = acl->rules[i];
 		acl_action_type action = rule->action;
-
+		// Reset accumulators for each rule iteration
+		match     = false;
+		sub_match = true;
 		if (action != ACL_ALL && action != act_type) {
 			continue;
 		}
