@@ -820,23 +820,6 @@ set_auth_config(cJSON *json, const char *conf_path, conf_auth *auth)
 	nng_free(new_auth, sizeof(conf_auth));
 }
 
-static size_t
-str_append(char **dest, const char *str)
-{
-	char *old_str = *dest == NULL ? "" : (*dest);
-	char *new_str =
-	    calloc(strlen(old_str) + strlen(str) + 1, sizeof(char));
-
-	strcat(new_str, old_str);
-	strcat(new_str, str == NULL ? "" : str);
-
-	if (*dest) {
-		free(*dest);
-	}
-	*dest = new_str;
-	return strlen(new_str);
-}
-
 static void
 set_auth_http_req(cJSON *json, const char *conf_path, conf_auth_http_req *req,
     const char *key_prefix)
