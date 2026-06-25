@@ -71,8 +71,8 @@ replace_topic(const char *origin, conn_param *param)
 
 	const char *clientid = (const char *) conn_param_get_clientid(param);
 	if (clientid != NULL && strstr(topic, placeholder_clientid) != NULL) {
-		if (strchr(clientid, '+') != NULL || 
-		    strchr(clientid, '#') != NULL || 
+		if (strchr(clientid, '+') != NULL ||
+		    strchr(clientid, '#') != NULL ||
 		    strchr(clientid, '/') != NULL) {
 			log_warn("Security: Client ID [%s] contains wildcards (+, #) or separator (/). ACL substitution aborted.", clientid);
 			return NULL;

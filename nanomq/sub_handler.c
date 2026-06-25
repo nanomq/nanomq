@@ -123,7 +123,41 @@ decode_sub_msg(nano_work *work)
 			}
 		}
 		tn->topic.len = (size_t) temp_len;
+		// Validate Sub topic
+		bool is_valid_filter = true;
+		for (uint32_t i = 0; i < tn->topic.len; i++) {
+			if (tn->topic.body[i] == '#') {
 
+				if (i != tn->topic.len - 1) {
+					is_valid_filter = false;
+					break;
+				}
+				if (i > 0 && tn->topic.body[i - 1] != '/') {
+					is_valid_filter = false;
+					break;
+				}
+			} else if (tn->topic.body[i] == '+') {
+				if (i > 0 && tn->topic.body[i - 1] != '/') {
+					is_valid_filter = false;
+					break;
+				}
+				if (i < tn->topic.len - 1 && tn->topic.body[i + 1] != '/') {
+					is_valid_filter = false;
+					break;
+				}
+			}
+		}
+
+		if (!is_valid_filter) {
+			log_error("Invalid wildcard usage in Topic Filter: [%s]", tn->topic.body);
+			if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
+				tn->reason_code = 0x8F; // 0x8F 是 MQTTv5 的 Topic Filter Invalid
+				return PROTOCOL_ERROR;
+			} else {
+				tn->reason_code = UNSPECIFIED_ERROR;
+				return PROTOCOL_ERROR;
+			}
+		}
 		if (ppos >= payload_len) {
 			log_error("Missing QoS byte in Subscribe Payload");
 			tn->reason_code = MALFORMED_PACKET;
