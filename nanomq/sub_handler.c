@@ -164,12 +164,48 @@ decode_sub_msg(nano_work *work)
 			return PROTOCOL_ERROR;
 		}
 
-		tn->rap = 1; // Default Setting
-		memcpy(tn, payload_ptr + ppos, 1);
-		if (tn->retain_handling > 2) {
-			log_error("error in retain_handling");
-			tn->reason_code = PROTOCOL_ERROR;
-			return PROTOCOL_ERROR;
+		uint8_t opt_byte = payload_ptr[ppos];
+		if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
+			uint8_t qos             = opt_byte & 0x03;        // Bit 0-1
+			uint8_t no_local        = (opt_byte >> 2) & 0x01; // Bit 2
+			uint8_t rap             = (opt_byte >> 3) & 0x01; // Bit 3
+			uint8_t retain_handling = (opt_byte >> 4) & 0x03; // Bit 4-5
+			uint8_t reserved        = (opt_byte >> 6) & 0x03; // Bit 6-7
+
+			if (reserved != 0) {
+				log_error("MQTT v5 SUBSCRIBE: Reserved bits must be 0");
+				tn->reason_code = MALFORMED_PACKET;
+				return PROTOCOL_ERROR;
+			}
+			if (qos == 3) {
+				log_error("MQTT v5 SUBSCRIBE: Maximum QoS cannot be 3");
+				tn->reason_code = MALFORMED_PACKET;
+				return PROTOCOL_ERROR;
+			}
+			if (retain_handling == 3) {
+				log_error("MQTT v5 SUBSCRIBE: Retain Handling cannot be 3");
+				tn->reason_code = PROTOCOL_ERROR;
+				return PROTOCOL_ERROR;
+			}
+
+			tn->qos             = qos;
+			tn->no_local        = no_local;
+			tn->rap             = rap;
+			tn->retain_handling = retain_handling;
+
+		} else {
+			uint8_t qos      = opt_byte & 0x03;        // Bit 0-1
+			uint8_t reserved = (opt_byte >> 2) & 0x3F; // Bit 2-7
+			if (reserved != 0 || qos == 3) {
+				log_error("MQTT v3.1.1 SUBSCRIBE: Invalid Requested QoS or Reserved bits");
+				tn->reason_code = UNSPECIFIED_ERROR;
+				return PROTOCOL_ERROR;
+			}
+
+			tn->qos             = qos;
+			tn->no_local        = 0;
+			tn->rap             = 0;
+			tn->retain_handling = 0;
 		}
 		ppos++;
 
