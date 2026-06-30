@@ -223,12 +223,12 @@ static endpoints api_ep[] = {
 	    .method = "POST",
 	    .descr  = "Batch unsubscribes topics",
 	},
-	{
-	    .path   = "/write_file",
-	    .name   = "overwrite config file",
-	    .method = "POST",
-	    .descr  = "wirte content to specific file path",
-	},
+	// {
+	//     .path   = "/write_file",
+	//     .name   = "overwrite config file",
+	//     .method = "POST",
+	//     .descr  = "wirte content to specific file path",
+	// },
 	{
 	    .path   = "/topic-tree/",
 	    .name   = "list_topic-tree",
@@ -1033,27 +1033,29 @@ process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 		    uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "bridges") == 0) {
 			ret = get_mqtt_bridge(msg, uri_ct->sub_tree[2]->node);
-		} else if (uri_ct->sub_count == 2 &&
-		    uri_ct->sub_tree[1]->end &&
-		    strcmp(uri_ct->sub_tree[1]->node, "get_file") == 0) {
-			size_t count = 0;
-			while (count < uri_ct->params_count) {
-				if (strcmp(uri_ct->params[count]->key, "default") == 0) {
-					if (strcmp(uri_ct->params[count]->value, "true") == 0) {
-						ret = get_file_content(msg, NULL);
-						break;
-					}
-				} else if (strncmp(uri_ct->params[count]->key, "path", 4) == 0) {
-					size_t path_len = strlen(uri_ct->params[count]->value);
-					char *path = URLDecoding(uri_ct->params[count]->value);
-					log_debug("decoded path: %s", path);
-					ret = get_file_content(msg, path);
-					nng_free(path, path_len);
-					break;
-				}
-				count ++;
-			}
-		} else {
+		}
+		// else if (uri_ct->sub_count == 2 &&
+		//     uri_ct->sub_tree[1]->end &&
+		//     strcmp(uri_ct->sub_tree[1]->node, "get_file") == 0) {
+		// 	size_t count = 0;
+		// 	while (count < uri_ct->params_count) {
+		// 		if (strcmp(uri_ct->params[count]->key, "default") == 0) {
+		// 			if (strcmp(uri_ct->params[count]->value, "true") == 0) {
+		// 				ret = get_file_content(msg, NULL);
+		// 				break;
+		// 			}
+		// 		} else if (strncmp(uri_ct->params[count]->key, "path", 4) == 0) {
+		// 			size_t path_len = strlen(uri_ct->params[count]->value);
+		// 			char *path = URLDecoding(uri_ct->params[count]->value);
+		// 			log_debug("decoded path: %s", path);
+		// 			ret = get_file_content(msg, path);
+		// 			nng_free(path, path_len);
+		// 			break;
+		// 		}
+		// 		count ++;
+		// 	}
+		// }
+		else {
 			status = NNG_HTTP_STATUS_NOT_FOUND;
 			code   = UNKNOWN_MISTAKE;
 			goto exit;
@@ -1074,11 +1076,13 @@ process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 		    uri_ct->sub_tree[1]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "config_update") == 0) {
 			ret = update_config(msg);
-		} else if (uri_ct->sub_count == 2 &&
-		    uri_ct->sub_tree[1]->end &&
-		    strcmp(uri_ct->sub_tree[1]->node, "write_file") == 0) {
-			ret = write_file(msg);
-		} else if (uri_ct->sub_count == 3 &&
+		}
+		// else if (uri_ct->sub_count == 2 &&
+		//     uri_ct->sub_tree[1]->end &&
+		//     strcmp(uri_ct->sub_tree[1]->node, "write_file") == 0) {
+		// 	ret = write_file(msg);
+		// }
+		else if (uri_ct->sub_count == 3 &&
 		    uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "configuration") == 0) {
 			ret = post_config(msg, uri_ct->sub_tree[2]->node);
