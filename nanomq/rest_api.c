@@ -4160,11 +4160,15 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 			found = true;
 			if (node->enable == true) {
 				log_info("enabled bridge %s by reload!", node->name);
-				nng_dialer_set_bool(*node->dialer, NNG_OPT_BRIDGE_SET_EP_CLOSED, false);
-				if ((rv = nng_dialer_start(*node->dialer, NNG_FLAG_NONBLOCK)) != 0) {
-					log_warn("turn on bridge %s failed! %d", name, rv);
+				if (node->dialer != NULL) {
+					nng_dialer_set_bool(*node->dialer, NNG_OPT_BRIDGE_SET_EP_CLOSED, false);
+					if ((rv = nng_dialer_start(*node->dialer, NNG_FLAG_NONBLOCK)) != 0) {
+						log_warn("turn on bridge %s failed! %d", name, rv);
+					} else {
+						log_warn("successfully turn on bridge %s", name);
+					}
 				} else {
-					log_warn("successfully turn on bridge %s", name);
+					log_error("bridge %s dialer is NULL after reload!", node->name);
 				}
 			}
 		}
