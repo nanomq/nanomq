@@ -2,11 +2,11 @@
 
 HTTP Authorization provides yet another method for authorization. NanoMQ sends an HTTP POST request in the format as configured to the target HTTP server to authorize MQTT clients, and relies on the return code of the HTTP POST for the result. It enables extensive authorization with an external HTTP service.
 
-Authorization is checked at two points: `auth_req` (and `super_req`) run on `CONNECT`, and `acl_req` runs on each `PUBLISH` and `SUBSCRIBE`.
+Authorization is checked at two points: `auth_req` runs on `CONNECT`; `super_req` and `acl_req` run on `PUBLISH` and `SUBSCRIBE`.
 
 ::: tip
 
-`acl_req` authorizes `PUBLISH` and `SUBSCRIBE` operations. NanoMQ calls the ACL endpoint per message, sending the requested `topic` (`%t`) and the `access` type (`%A`, where `1` = subscribe and `2` = publish), and enforces the returned decision.
+On each `PUBLISH` and `SUBSCRIBE`, `super_req` (if configured) is checked first — a success marks the client as a superuser and skips the ACL check — otherwise `acl_req` decides. The request carries the requested `topic` (`%t`, comma-separated if a `SUBSCRIBE` contains multiple topic filters) and the `access` type (`%A`, where `1` = subscribe and `2` = publish), and the returned decision is enforced. When `cache_ttl` is set, allowed results are cached and repeated checks skip the HTTP request until the cache expires.
 
 :::
 
