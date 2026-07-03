@@ -1,10 +1,10 @@
 # HTTP 认证
 
-NanoMQ 同时支持 HTTP 认证。HTTP 认证功能支持用户使用外部 HTTP 服务进行客户端行为的授权。当 NanoMQ 从 MQTT 客户端接收 `CONNECT` 数据包时，NanoMQ 将按照配置为目标 HTTP 服务器的格式发送 HTTP POST 请求，并依靠 HTTP POST 的返回码进行客户端授权决定是否允许其连接。
+NanoMQ 同时支持 HTTP 认证。HTTP 认证功能支持用户使用外部 HTTP 服务进行客户端行为的授权。NanoMQ 将按照配置向目标 HTTP 服务器发送 HTTP POST 请求，并依靠 HTTP POST 的返回码进行授权判定。授权在两个阶段进行：`auth_req`（及 `super_req`）在 `CONNECT` 时调用，`acl_req` 在每次 `PUBLISH` 和 `SUBSCRIBE` 时调用。
 
 ::: tip
 
-目前，HTTP Authorization 仅支持 `MQTT CONNECT`，将来将添加对 `PUBLISH` 和 `SUBSCRIB` 的支持。如果您急需进一步的支持，请在 Github 发布 Feature Request。
+`acl_req` 支持对 `PUBLISH` 和 `SUBSCRIBE` 操作进行授权。NanoMQ 会在每条消息时调用 ACL 端点，发送请求的主题（`%t`）与访问类型（`%A`，其中 `1` 表示订阅，`2` 表示发布），并执行返回的授权决定。`auth_req`/`super_req` 则在 `CONNECT` 时调用。
 
 :::
 
