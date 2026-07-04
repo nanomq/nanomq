@@ -132,7 +132,13 @@ def session_properties():
 def subscribe_then_disconnect(client_id, sub_filter, qos=1):
     client = make_client(client_id)
     subscribed = []
-    client.on_subscribe = lambda *a, **kw: subscribed.append(True)
+
+    def on_subscribe(cl, userdata, mid, reason_code_list, properties):
+        # a SUBACK reason code >= 128 is a rejected subscription; fail
+        # here with a clear message instead of a confusing 0/5 later
+        subscribed.append(all(not rc.is_failure for rc in reason_code_list))
+
+    client.on_subscribe = on_subscribe
     client.connect(HOST, PORT, keepalive=60, clean_start=False,
                    properties=session_properties())
     client.loop_start()
@@ -144,6 +150,9 @@ def subscribe_then_disconnect(client_id, sub_filter, qos=1):
     client.disconnect()
     if not subscribed:
         print("issue_2355: SUBACK not received for %s" % sub_filter)
+        return False
+    if not subscribed[0]:
+        print("issue_2355: subscription rejected for %s" % sub_filter)
         return False
     return True
 
