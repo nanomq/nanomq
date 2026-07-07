@@ -18,7 +18,7 @@
 #include "broker.h"
 #include "pub_handler.h"
 
-extern void nng_pub_handler(nano_work *, nng_msg *);
+extern void nng_pub_handler(nano_work *);
 extern int  nng_proxy_pub_init(conf_nng_pub_node *);
 extern int  nng_proxy_sub_init(conf_nng_sub_node *, nano_work *);
 
