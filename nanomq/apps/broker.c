@@ -347,6 +347,7 @@ server_cb(void *arg)
 				nng_ctx_recv(work->extra_ctx, work->aio);
 				break;
 			}
+			nng_msg_free(msg);
 			msg = mqtt_msg;
 			conn_param_clone(work->cparam);
 			nng_msg_set_conn_param(msg, work->cparam);
