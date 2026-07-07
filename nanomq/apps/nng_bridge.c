@@ -89,7 +89,7 @@ nng_proxy_pub_init(conf_nng_pub_node *node)
 }
 
 void
-nng_pub_handler(nano_work *work, nng_msg *nmsg)
+nng_pub_handler(nano_work *work)
 {
 	int      rv    = 0;
 	if ((work->pub_packet->var_header.publish.topic_name.len >=
@@ -115,20 +115,7 @@ nng_pub_handler(nano_work *work, nng_msg *nmsg)
 		    if (!topic_filter(node->pub_list[i]->local_topic,
 			    (const char *) sub_topic->body))
 			    continue;
-		    if (work->proto == PROTO_NNG_BRIDGE) {
-			    if (nmsg == NULL)
-				    continue;
-			    // TODO pass nng sub msg directly
-			    nng_msg_clone(nmsg);
-			    rv = nng_sendmsg(
-				node->pub_sock, nmsg, NNG_FLAG_NONBLOCK);
-			    if (rv != 0) {
-				    log_error(
-					"Failed to send nng message: %s(%d)",
-					nng_strerror(rv), rv);
-				    nng_msg_free(nmsg);
-			    }
-		    } else {
+		    {
 			    nng_msg *new_msg;
 			    if ((rv = nng_msg_alloc(&new_msg, 0)) != 0) {
 				    log_error(
@@ -160,11 +147,6 @@ nng_pub_handler(nano_work *work, nng_msg *nmsg)
 			    nng_msg_append(new_msg, delimiter, dlen);
 			    nng_msg_append(new_msg, payload, plen);
 
-			    // nng_msg_clone(new_msg);
-			    // nng_aio_set_msg(work->aio, new_msg);
-			    // NNG sub wont block aio, so we can send them one
-			    // by one nng_sock_send(node->pub_sock,
-			    // node->send_aio);
 			    rv = nng_sendmsg(
 				node->pub_sock, new_msg, NNG_FLAG_NONBLOCK);
 			    if (rv != 0) {
