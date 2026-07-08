@@ -555,7 +555,7 @@ server_cb(void *arg)
 				if (conn_param_get_will_flag(work->cparam) == 0 ||
 				    !conn_param_get_will_topic(work->cparam) ||
 				    !conn_param_get_will_msg(work->cparam)) {
-					// no will msg - free the cp
+					// no will msg - free the cp for notification clone
 					conn_param_free(work->cparam);
 				} else {
 					// set to END to send will msg
@@ -787,7 +787,6 @@ server_cb(void *arg)
 				work->state = WAIT;
 				nng_aio_finish(work->aio, 0);
 			} else {
-				conn_param_free(work->cparam);
 				if (work->msg != NULL)
 					nng_msg_free(work->msg);
 				work->msg   = NULL;
@@ -799,6 +798,8 @@ server_cb(void *arg)
 					    work->extra_ctx, work->aio);
 				}
 			}
+			// for notification clone & WAIT state
+			conn_param_free(work->cparam);
 		}
 		break;
 	case CLOSE:
