@@ -347,7 +347,11 @@ server_cb(void *arg)
 				nng_ctx_recv(work->extra_ctx, work->aio);
 				break;
 			}
-			nng_msg_free(msg);
+			if (work->nmsg != NULL) {
+				nng_msg_free(work->nmsg);
+				work->nmsg = NULL;
+			}
+			work->nmsg = msg; // preserve nng sub msg for proxy in WAIT
 			msg = mqtt_msg;
 			conn_param_clone(work->cparam);
 			nng_msg_set_conn_param(msg, work->cparam);
@@ -586,6 +590,10 @@ server_cb(void *arg)
 		if (nng_msg_get_type(work->msg) != CMD_PUBLISH) {
 			if (work->msg != NULL)
 				nng_msg_free(work->msg);
+			if (work->nmsg != NULL) {
+				nng_msg_free(work->nmsg);
+				work->nmsg = NULL;
+			}
 			conn_param_free(work->cparam);
 			work->msg   = NULL;
 			work->state = RECV;
@@ -650,6 +658,10 @@ server_cb(void *arg)
 		// Doing NNG PUB
 		if (work->config->nng_proxy.pub_enable) {
 			nng_pub_handler(work);
+		}
+		if (work->nmsg != NULL) {
+			nng_msg_free(work->nmsg);
+			work->nmsg = NULL;
 		}
 		if (hook_conf->enable || exge_conf->count > 0 ||
 		    rule_opt != RULE_ENG_OFF || iceoryx_opt == 1) {
