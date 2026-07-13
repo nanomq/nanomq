@@ -573,37 +573,35 @@ hybrid_tcp_disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	nng_cv_wake1(bridge_arg->switch_cv);
 	nng_mtx_unlock(bridge_arg->switch_mtx);
 }
-
 static int
 hybrid_tcp_client(bridge_param *bridge_arg)
 {
 	int           rv;
-	nng_dialer    *dialer = (nng_dialer *) nng_zalloc(sizeof(*dialer));;
+	nng_dialer    *dialer = (nng_dialer *) nng_zalloc(sizeof(*dialer));
 
 	nng_socket *new = (nng_socket *) nng_alloc(sizeof(nng_socket));
 	conf_bridge_node *node = bridge_arg->config;
+	bool sock_opened = false;
 
 	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 		if ((rv = nng_mqttv5_client_open(new)) != 0) {
-			nng_free(new, sizeof(nng_socket));
 			log_error("Initializing mqttv5 client failed %d", rv);
-			return rv;
+			goto error;
 		}
 	} else {
 		if ((rv = nng_mqtt_client_open(new)) != 0) {
-			nng_free(new, sizeof(nng_socket));
 			log_error("Initializing mqtt client failed %d", rv);
-			return rv;
+			goto error;
 		}
 	}
+	sock_opened = true;
 
 	apply_sqlite_config(new, node, "mqtt_client.db");
 	nng_socket_set_string(*new, NNG_OPT_SOCKNAME, node->name);
 
 	if ((rv = nng_dialer_create(dialer, *new, node->address))) {
-		nng_free(new, sizeof(nng_socket));
 		log_error("nng_dialer_create %d", rv);
-		return rv;
+		goto error;
 	}
 	node->dialer = dialer;
 
@@ -612,16 +610,15 @@ hybrid_tcp_client(bridge_param *bridge_arg)
 		if ((rv = init_dialer_tls(*dialer, node->tls.ca,
 		         node->tls.cert, node->tls.key, node->tls.key_password,
 		         node->tls.sni, node->tls.verify_peer)) != 0) {
-			nng_free(new, sizeof(nng_socket));
 			log_error("init_dialer_tls %d", rv);
-			return rv;
+			goto error;
 		}
 	}
 #endif
 
 	bridge_arg->client = nng_mqtt_client_alloc(*new, &send_callback, true);
 
-	nng_msg *connmsg    = create_connect_msg(node);
+	nng_msg *connmsg   = create_connect_msg(node);
 	bridge_arg->connmsg = connmsg;
 
 	nng_socket *tsock  = bridge_arg->sock;
@@ -633,7 +630,6 @@ hybrid_tcp_client(bridge_param *bridge_arg)
 	node->sock                 = (void *) new;
 	bridge_arg->sock           = new;
 	bridge_arg->cancel_timeout = node->cancel_timeout;
-
 	// TCP bridge does not support hot update of connmsg
 	if (0 != nng_dialer_set_ptr(*dialer, NNG_OPT_MQTT_CONNMSG, connmsg)) {
 		log_warn("Error in updating connmsg");
@@ -641,7 +637,8 @@ hybrid_tcp_client(bridge_param *bridge_arg)
 	if (0 != nng_socket_set_ptr(*new, NNG_OPT_MQTT_CONNMSG, connmsg)) {
 		log_warn("Error in updating connmsg");
 	}
-	if (0 != nng_dialer_set_bool(*dialer, NNG_OPT_MQTT_NO_LOCAL_V4, node->no_local_v4)) {
+	if (0 != nng_dialer_set_bool(
+	        *dialer, NNG_OPT_MQTT_NO_LOCAL_V4, node->no_local_v4)) {
 		log_warn("Error in updating MQTT Version");
 	}
 	nng_mqtt_set_connect_cb(*new, hybrid_tcp_connect_cb, bridge_arg);
@@ -654,6 +651,22 @@ hybrid_tcp_client(bridge_param *bridge_arg)
 		}
 	}
 	return 0;
+
+error:
+	if (node->dialer == dialer) {
+		nng_dialer_close(*dialer);
+		node->dialer = NULL;
+	}
+	if (dialer) {
+		nng_free(dialer, sizeof(*dialer));
+	}
+	if (new) {
+		if (sock_opened) {
+			nng_close(*new);
+		}
+		nng_free(new, sizeof(nng_socket));
+	}
+	return rv;
 }
 
 #if defined(SUPP_QUIC)
@@ -1191,26 +1204,28 @@ static int
 bridge_tcp_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge_param *bridge_arg)
 {
 	int           rv;
-	nng_dialer    *dialer = (nng_dialer *) nng_zalloc(sizeof(*dialer));;
+	nng_dialer    *dialer = (nng_dialer *) nng_zalloc(sizeof(*dialer));
+	bool          sock_opened = false;
 
 	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 		if ((rv = nng_mqttv5_client_open(sock)) != 0) {
 			log_error(" nng_mqttv5_client_open failed %d", rv);
-			return rv;
+			goto error;
 		}
 	} else {
 		if ((rv = nng_mqtt_client_open(sock)) != 0) {
 			log_error(" nng_mqtt_client_open failed %d", rv);
-			return rv;
+			goto error;
 		}
 	}
+	sock_opened = true;
 
 	apply_sqlite_config(sock, node, "mqtt_client.db");
 	nng_socket_set_string(*sock, NNG_OPT_SOCKNAME, node->name);
 
 	if ((rv = nng_dialer_create(dialer, *sock, node->address))) {
 		log_error("nng_dialer_create failed %d", rv);
-		return rv;
+		goto error;
 	}
 	node->dialer = dialer;
 
@@ -1318,6 +1333,18 @@ bridge_tcp_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 		    topic_qos, bridge_arg->config->sub_count);
 	}
 	return 0;
+error:
+	if (node->dialer == dialer) {
+		nng_dialer_close(*dialer);
+		node->dialer = NULL;
+	}
+	if (dialer) {
+		nng_free(dialer, sizeof(*dialer));
+	}
+	if (sock_opened) {
+		nng_close(*sock);
+	}
+	return rv;
 }
 
 
@@ -1326,25 +1353,27 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 {
 	int           rv;
 	nng_dialer    *dialer = (nng_dialer *) nng_zalloc(sizeof(*dialer));
+	bool          sock_opened = false;
 
 	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 		if ((rv = nng_mqttv5_client_open(sock)) != 0) {
 			log_error("nng_mqttv5_client_open failed %d", rv);
-			return rv;
+			goto error;
 		}
 	} else {
 		if ((rv = nng_mqtt_client_open(sock)) != 0) {
 			log_error("nng_mqtt_client_open failed %d", rv);
-			return rv;
+			goto error;
 		}
 	}
+	sock_opened = true;
 
 	apply_sqlite_config(sock, node, "mqtt_client.db");
 	nng_socket_set_string(*sock, NNG_OPT_SOCKNAME, node->name);
 
 	if ((rv = nng_dialer_create(dialer, *sock, node->address))) {
 		log_error("nng_dialer_create failed %d", rv);
-		return rv;
+		goto error;
 	}
 	node->dialer = dialer;
 
@@ -1422,6 +1451,18 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 		}
 	}
 	return 0;
+error:
+	if (node->dialer == dialer) {
+		nng_dialer_close(*dialer);
+		node->dialer = NULL;
+	}
+	if (dialer) {
+		nng_free(dialer, sizeof(*dialer));
+	}
+	if (sock_opened) {
+		nng_close(*sock);
+	}
+	return rv;
 }
 
 /**
@@ -1510,6 +1551,7 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	} else {
 		nng_free(bridge_arg, sizeof(bridge_param));
 		log_error("Unsupported bridge protocol.\n");
+		return -1;
 	}
 
 	// alloc an AIO for each ctx bridging use only
@@ -1670,6 +1712,7 @@ done:
 int
 bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 {
+	int rv = 0;
 	if (node->address == NULL)
 		return -1;
 
@@ -1713,17 +1756,24 @@ bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 	// socket reuse and open a new mqtt connection
 	if (0 == strncmp(node->address, tcp_scheme, strlen(tcp_scheme)) ||
 	    0 == strncmp(node->address, tls_scheme, strlen(tls_scheme))) {
-		bridge_tcp_reload(new, config, node, bridge_arg);
+		rv = bridge_tcp_reload(new, config, node, bridge_arg);
 #if defined(SUPP_QUIC)
 	} else if (0 ==
 	    strncmp(node->address, quic_scheme, strlen(quic_scheme))) {
-		bridge_quic_reload(new, config, node, bridge_arg);
+		rv = bridge_quic_reload(new, config, node, bridge_arg);
 #endif
 	} else {
 		log_error("Unsupported bridge protocol.\n");
 		nng_mtx_unlock(reload_lock);
 		nng_free(new, sizeof(nng_socket));
 		return -1;
+	}
+	if (rv != 0) {
+		log_error("Bridge reload failed on initialization: %d", rv);
+		node->enable = _enable;
+		nng_mtx_unlock(reload_lock);
+		nng_free(new, sizeof(nng_socket));
+		return rv;
 	}
 	if (0 == strncmp(node->address, tcp_scheme, strlen(tcp_scheme)) ||
 	    0 == strncmp(node->address, tls_scheme, strlen(tls_scheme))) {

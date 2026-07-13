@@ -426,6 +426,12 @@ uri_parse_tree(const char *path, size_t *count)
 			new_root = realloc(root, sizeof(tree *) * num);
 			if (new_root == NULL) {
 				if (root != NULL) {
+					for (size_t i = 0; i < num - 1; i++) {
+						if (root[i]) {
+							nng_strfree(root[i]->node);
+							nng_free(root[i], sizeof(tree));
+						}
+					}
 					free(root);
 				}
 				return NULL;
@@ -446,6 +452,12 @@ uri_parse_tree(const char *path, size_t *count)
 				new_root = realloc(root, sizeof(tree *) * num);
 				if (new_root == NULL) {
 					if (root != NULL) {
+						for (size_t i = 0; i < num - 1; i++) {
+							if (root[i]) {
+								nng_strfree(root[i]->node);
+								nng_free(root[i], sizeof(tree));
+							}
+						}
 						free(root);
 					}
 					return NULL;
@@ -497,6 +509,9 @@ uri_param_parse(const char *path, size_t *count)
 		new_kv_str = realloc(kv_str, sizeof(char *) * num);
 		if (new_kv_str == NULL) {
 			if (kv_str != NULL) {
+				for (size_t i = 0; i < num - 1; i++) {
+					if (kv_str[i]) free(kv_str[i]);
+				}
 				free(kv_str);
 			}
 			return NULL;
@@ -513,6 +528,9 @@ uri_param_parse(const char *path, size_t *count)
 		new_kv_str = realloc(kv_str, sizeof(char *) * num);
 		if (new_kv_str == NULL) {
 			if (kv_str != NULL) {
+				for (size_t i = 0; i < num - 1; i++) {
+					if (kv_str[i]) free(kv_str[i]);
+				}
 				free(kv_str);
 			}
 			return NULL;
