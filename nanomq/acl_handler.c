@@ -1,5 +1,6 @@
 #ifdef ACL_SUPP
 #include "include/acl_handler.h"
+#include "include/acl_hazard.h"
 #include "nng/protocol/mqtt/mqtt_parser.h"
 #include "nng/supplemental/nanolib/log.h"
 
@@ -113,7 +114,18 @@ auth_acl(conf *config, acl_action_type act_type, conn_param *param,
 {
 	conn_param_clone(param);
 
-	conf_acl *acl = &config->acl;
+	// Acquire the live ACL snapshot under hazard-pointer protection so the
+	// reload writer cannot free the rules we are about to traverse. If the
+	// registry is not ready (pre-startup) or is exhausted, fall back to the
+	// config-embedded ACL: that memory is part of config and is never freed
+	// at runtime, so the fallback is memory-safe (it is empty post-init,
+	// yielding the acl_nomatch policy). Whichever we use, we traverse a single
+	// consistent snapshot.
+	conf_acl *acl        = nmq_acl_hazard_acquire();
+	bool      hp_held    = (acl != NULL);
+	if (!hp_held) {
+		acl = &config->acl;
+	}
 
 	bool match     = false;
 	bool sub_match = true;
@@ -253,6 +265,8 @@ auth_acl(conf *config, acl_action_type act_type, conn_param *param,
 			for (size_t j = 0; j < rule->topic_count && found != true; j++) {
 				rule_topic = replace_topic(rule->topics[j], param);
 				if (rule_topic == NULL) {
+					if (hp_held)
+						nmq_acl_hazard_release();
 					conn_param_free(param);
 					return false;
 				}
@@ -284,6 +298,11 @@ auth_acl(conf *config, acl_action_type act_type, conn_param *param,
 
 		break;
 	}
+
+	// Done traversing the snapshot; release the hazard pointer so the writer
+	// can reclaim this snapshot once it is retired.
+	if (hp_held)
+		nmq_acl_hazard_release();
 
 	conn_param_free(param);
 

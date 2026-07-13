@@ -37,6 +37,7 @@
 #include "nng/protocol/pubsub0/pub.h"
 
 #include "include/acl_handler.h"
+#include "include/acl_hazard.h"
 #include "include/bridge.h"
 #include "include/nng_bridge.h"
 #include "include/nanomq_rule.h"
@@ -949,6 +950,13 @@ broker(conf *nanomq_conf)
 	// add the num of other proto
 	nanomq_conf->total_ctx = nanomq_conf->parallel;		// match with num of aio
 	num_work = nanomq_conf->parallel;					// match with num of works
+
+#ifdef ACL_SUPP
+	// Publish the initial ACL snapshot and initialize the hazard registry
+	// once, before any worker context can call auth_acl, so `nanomq reload`
+	// can swap the ACL lock-free without racing readers.
+	nmq_acl_hazard_init(nanomq_conf);
+#endif
 
 
 #if defined(SUPP_RULE_ENGINE)
