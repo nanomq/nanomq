@@ -7,6 +7,7 @@
 // found online at https://opensource.org/licenses/MIT.
 //
 
+#include "include/acl_hazard.h"
 #include "include/cmd_proc.h"
 #include "include/conf_api.h"
 #include "include/nanomq.h"
@@ -86,6 +87,9 @@ handle_recv(const char *msg, size_t msg_len, conf *config, char **err_msg)
 	reload_basic_config(config, new_conf);
 	reload_sqlite_config(&config->sqlite, &new_conf->sqlite);
 	reload_auth_config(&config->auths, &new_conf->auths);
+#ifdef ACL_SUPP
+	reload_acl_config(config, &new_conf->acl);
+#endif
 	reload_log_config(config, new_conf);
 
 

@@ -49,6 +49,7 @@ set(SOURCES
     conf_api.c
     cmd_proc.c
     acl_handler.c
+    acl_hazard.c
     mqtt_api.c
     nanomq.c
     apps/broker.c
