@@ -179,6 +179,12 @@ nmq_acl_hazard_acquire(void)
 	return p;
 }
 
+bool
+nmq_acl_hazard_ready(void)
+{
+	return __atomic_load_n(&hazard_ready, __ATOMIC_SEQ_CST) != 0;
+}
+
 void
 nmq_acl_hazard_release(void)
 {
@@ -189,7 +195,7 @@ nmq_acl_hazard_release(void)
 }
 
 void
-reload_acl_config(conf *config, conf_acl *new_acl)
+reload_acl_config(conf *config, conf *new_conf)
 {
 	// If startup init never published a snapshot, readers are on the
 	// config-embedded fallback ACL and would never see this reload; no-op so
@@ -206,20 +212,27 @@ reload_acl_config(conf *config, conf_acl *new_acl)
 		          "current ACL");
 		return;
 	}
-	snap->enable     = new_acl->enable;
-	snap->rule_count = new_acl->rule_count;
-	snap->rules      = new_acl->rules;
+	snap->enable     = new_conf->acl.enable;
+	snap->rule_count = new_conf->acl.rule_count;
+	snap->rules      = new_conf->acl.rules;
 
 	// Detach the moved rules so conf_fini(new_conf) does not double-free them.
-	new_acl->rule_count = 0;
-	new_acl->rules      = NULL;
+	new_conf->acl.rule_count = 0;
+	new_conf->acl.rules      = NULL;
 
-	// Keep the caller-visible enable gate in sync with the reloaded config.
-	config->acl.enable = snap->enable;
+	// The no-match policy and deny action are companions of the rules (same
+	// auth config block) but are evaluated live from config by auth_acl and
+	// the pub/sub handlers, so reload them together with the rules.
+	config->acl_nomatch     = new_conf->acl_nomatch;
+	config->acl_deny_action = new_conf->acl_deny_action;
 
 	// Single-writer publish: load-then-store, no CAS required.
 	conf_acl *old = __atomic_load_n(&acl_current, __ATOMIC_SEQ_CST);
 	__atomic_store_n(&acl_current, snap, __ATOMIC_SEQ_CST);
+
+	// Update the caller-visible enable gate only after the snapshot is live,
+	// so a reader that passes a newly-enabled gate always finds the new rules.
+	config->acl.enable = snap->enable;
 
 	if (old != NULL) {
 		acl_retire(old);

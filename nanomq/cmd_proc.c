@@ -88,7 +88,7 @@ handle_recv(const char *msg, size_t msg_len, conf *config, char **err_msg)
 	reload_sqlite_config(&config->sqlite, &new_conf->sqlite);
 	reload_auth_config(&config->auths, &new_conf->auths);
 #ifdef ACL_SUPP
-	reload_acl_config(config, &new_conf->acl);
+	reload_acl_config(config, new_conf);
 #endif
 	reload_log_config(config, new_conf);
 

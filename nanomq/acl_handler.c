@@ -115,15 +115,20 @@ auth_acl(conf *config, acl_action_type act_type, conn_param *param,
 	conn_param_clone(param);
 
 	// Acquire the live ACL snapshot under hazard-pointer protection so the
-	// reload writer cannot free the rules we are about to traverse. If the
-	// registry is not ready (pre-startup) or is exhausted, fall back to the
-	// config-embedded ACL: that memory is part of config and is never freed
-	// at runtime, so the fallback is memory-safe (it is empty post-init,
-	// yielding the acl_nomatch policy). Whichever we use, we traverse a single
-	// consistent snapshot.
+	// reload writer cannot free the rules we are about to traverse. On
+	// acquire failure pick a path that is both memory-safe and fail-safe:
+	// before init the rules still live in config->acl, so traversing it
+	// enforces the real boot rules; after init config->acl is empty (the
+	// rules were moved into the snapshot), so evaluating it would silently
+	// fall through to the acl_nomatch policy (allow by default); deny
+	// instead.
 	conf_acl *acl        = nmq_acl_hazard_acquire();
-	bool      hp_held    = (acl != NULL);
-	if (!hp_held) {
+	bool      is_hp_held = (acl != NULL);
+	if (!is_hp_held) {
+		if (nmq_acl_hazard_ready()) {
+			conn_param_free(param);
+			return false;
+		}
 		acl = &config->acl;
 	}
 
@@ -265,7 +270,7 @@ auth_acl(conf *config, acl_action_type act_type, conn_param *param,
 			for (size_t j = 0; j < rule->topic_count && found != true; j++) {
 				rule_topic = replace_topic(rule->topics[j], param);
 				if (rule_topic == NULL) {
-					if (hp_held)
+					if (is_hp_held)
 						nmq_acl_hazard_release();
 					conn_param_free(param);
 					return false;
@@ -301,7 +306,7 @@ auth_acl(conf *config, acl_action_type act_type, conn_param *param,
 
 	// Done traversing the snapshot; release the hazard pointer so the writer
 	// can reclaim this snapshot once it is retired.
-	if (hp_held)
+	if (is_hp_held)
 		nmq_acl_hazard_release();
 
 	conn_param_free(param);
