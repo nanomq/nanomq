@@ -191,6 +191,15 @@ nmq_acl_hazard_release(void)
 void
 reload_acl_config(conf *config, conf_acl *new_acl)
 {
+	// If startup init never published a snapshot, readers are on the
+	// config-embedded fallback ACL and would never see this reload; no-op so
+	// the enable gate and the rules readers traverse stay consistent.
+	if (!__atomic_load_n(&hazard_ready, __ATOMIC_SEQ_CST)) {
+		log_error("ACL hazard: registry not initialized; skipping ACL "
+		          "reload");
+		return;
+	}
+
 	conf_acl *snap = malloc(sizeof(*snap));
 	if (snap == NULL) {
 		log_error("ACL hazard: reload snapshot alloc failed; keeping "
