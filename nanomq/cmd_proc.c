@@ -74,7 +74,7 @@ handle_recv(const char *msg, size_t msg_len, conf *config, char **err_msg)
 
 	switch (conf_type) {
 	case 2: /* OPT_HOCONFILE */
-		conf_parse_ver2(new_conf);
+		conf_parse_ver2(new_conf, true);
 		break;
 	case 3: /* OPT_CONFILE */
 		conf_parse(new_conf);

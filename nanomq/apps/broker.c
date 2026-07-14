@@ -647,13 +647,13 @@ server_cb(void *arg)
 			nng_aio_finish(work->aio, 0);
 			break;
 		}
+		// free conn_param due to clone in protocol layer
+		conn_param_free(work->cparam);
+		free_pub_packet(work->pub_packet);
 		// skip one IO switching
 		nng_msg_free(work->msg);
 		smsg = NULL;
 		work->msg = NULL;
-		// free conn_param due to clone in protocol layer
-		conn_param_free(work->cparam);
-		free_pub_packet(work->pub_packet);
 		work->pub_packet = NULL;
 		cvector_free(msg_infos);
 		work->pipe_ct->msg_infos = NULL;
@@ -1908,7 +1908,7 @@ broker_start(int argc, char **argv)
 		conf_parse(nanomq_conf);
 	} else {
 		// HOCON as default
-		conf_parse_ver2(nanomq_conf);
+		conf_parse_ver2(nanomq_conf, false);
 	}
 
 	if (!broker_parse_opts(argc, argv, nanomq_conf)) {
@@ -2119,7 +2119,7 @@ broker_reload(int argc, char **argv)
 		    nanomq_conf->conf_file);
 	}
 
-	conf_parse_ver2(nanomq_conf);
+	conf_parse_ver2(nanomq_conf, false);
 	char *msg = encode_client_cmd(nanomq_conf->conf_file, rc);
 
 	char *cmd_ipc_url = nanomq_conf->hook_ipc_url == NULL
@@ -2189,7 +2189,7 @@ broker_reload(int argc, char **argv)
 		    nanomq_conf->conf_file);
 	}
 
-	conf_parse_ver2(nanomq_conf);
+	conf_parse_ver2(nanomq_conf, false);
 
 	char *msg = encode_client_cmd(nanomq_conf->conf_file, rc);
 	char *cmd_ipc_url = nanomq_conf->hook_ipc_url == NULL
