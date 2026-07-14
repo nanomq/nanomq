@@ -502,7 +502,7 @@ get_test_conf(conf_type type)
 	}
 	conf_init(nmq_conf);
 	nmq_conf->conf_file = conf_path;
-	conf_parse_ver2(nmq_conf);
+	conf_parse_ver2(nmq_conf, false);
 
 	return nmq_conf;
 }
