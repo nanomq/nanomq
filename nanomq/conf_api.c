@@ -1097,13 +1097,7 @@ void
 reload_log_config(conf *old, conf *new)
 {
 #if defined(ENABLE_LOG)
-	int rc = 0;
-	conf_log log = old->log;
-	old->log     = new->log;
-	new->log     = log;
-	log_fini(&new->log);
-	if ((rc = log_init(&old->log)) != 0) {
-		NANO_NNG_FATAL("log_reload", rc);
-	}
+	old->log.level = new->log.level;
+	log_update_level(new->log.level);
 #endif
 }
