@@ -23,7 +23,7 @@ log = {
   - `file`: Write logs to a file.
   - `console`: Write logs to standard I/O
   - `syslog`: Write logs to syslog
-- `level`: Specifies the log level. Only messages with a severity level equal to or higher than this level will be logged. Optional values:
+- `level`: Specifies the log level. Only messages with a severity level equal to or higher than this level will be logged. Only log level support hot update with `nanomq reload --conf` command. Logging target, file path is not changable with reload command. Optional values:
   - `trace`
   - `debug`
   - `info`
