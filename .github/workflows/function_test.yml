@@ -35,7 +35,7 @@ jobs:
 
         mkdir -p build
         cd build
-        cmake -DDEBUG=ON -DASAN=ON -DNNG_ENABLE_TLS=ON -DNOLOG=OFF ..
+        cmake -DDEBUG=ON -DASAN=ON -DNNG_ENABLE_TLS=ON -DNNG_ENABLE_SQLITE=ON -DNOLOG=OFF ..
         make
         sudo make install
     - name: test
