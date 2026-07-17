@@ -418,7 +418,15 @@ sub_ctx_handle(nano_work *work)
 			bool auth_result = auth_acl(
 			    work->config, ACL_SUB, work->cparam, topic_str);
 			if (!auth_result) {
-				log_warn("acl deny");
+				const char *cid = (const char *)
+				    conn_param_get_clientid(work->cparam);
+				const char *username = (const char *)
+				    conn_param_get_username(work->cparam);
+				log_warn("acl deny subscribe clientid [%s] "
+				         "username [%s] topic [%s]",
+				    cid == NULL ? "" : cid,
+				    username == NULL ? "" : username,
+				    topic_str);
 				tn->reason_code = NMQ_AUTH_SUB_ERROR;
 				if (work->config->acl_deny_action ==
 				    ACL_DISCONNECT) {
