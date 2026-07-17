@@ -73,7 +73,9 @@ def cnt_message(cmd, n, pid, message):
             n.value += 1
 
 def test_shared_subscription():
-    p_cmd = g_pub + g_url + "-t 'topic_share' -V 5 -m message -d --repeat 10"
+    # QoS 1 so the publisher's disconnect cannot race its queued publishes
+    # on a slow broker (same failure mode as the topic-alias test)
+    p_cmd = g_pub + g_url + "-t 'topic_share' -V 5 -m message -d -q 1 --repeat 10"
     s_cmd = g_sub + g_url + "-t '$share/a/topic_share'"
     ss_cmd = g_sub + g_url + "-t '$share/b/topic_share'"
     sn_cmd = g_sub + g_url + "-t topic_share"
@@ -197,7 +199,10 @@ def test_shared_subscription():
 
 def test_topic_alias():
     s_cmd = g_sub + g_url + "-t 'topic'"
-    p_cmd = g_pub + g_url + "-t topic -V 5 -m message -D Publish topic-alias 10 -d --repeat 10"
+    # QoS 1 makes mosquitto_pub wait for each PUBACK before disconnecting;
+    # with QoS 0 the disconnect races the queued publishes on a slow broker,
+    # which drops the per-connection topic-alias mapping and loses messages
+    p_cmd = g_pub + g_url + "-t topic -V 5 -m message -D Publish topic-alias 10 -d -q 1 --repeat 10"
     pub_cmd = shlex.split(p_cmd)
     sub_cmd = shlex.split(s_cmd)
 
