@@ -1712,7 +1712,14 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 			bool rv = auth_acl(
 			    work->config, ACL_PUB, work->cparam, topic);
 			if (!rv) {
-				log_warn("acl deny");
+				const char *cid = (const char *)
+				    conn_param_get_clientid(work->cparam);
+				const char *username = (const char *)
+				    conn_param_get_username(work->cparam);
+				log_warn("acl deny publish clientid [%s] "
+				         "username [%s] topic [%s]",
+				    cid == NULL ? "" : cid,
+				    username == NULL ? "" : username, topic);
 				if (work->config->acl_deny_action ==
 				    ACL_DISCONNECT) {
 					log_warn(
