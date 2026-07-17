@@ -2077,6 +2077,18 @@ decode_pub_message(nano_work *work, uint8_t proto)
 	nng_msg                  *msg        = work->msg;
 	struct pub_packet_struct *pub_packet = work->pub_packet;
 
+	// publisher identity for per-message log attribution
+	const char *clientid = work->cparam == NULL
+	    ? NULL
+	    : (const char *) conn_param_get_clientid(work->cparam);
+	const char *username = work->cparam == NULL
+	    ? NULL
+	    : (const char *) conn_param_get_username(work->cparam);
+	if (clientid == NULL)
+		clientid = "";
+	if (username == NULL)
+		username = "";
+
 	uint8_t *msg_body = nng_msg_body(msg);
 	size_t   msg_len  = nng_msg_len(msg);
 
@@ -2134,11 +2146,12 @@ decode_pub_message(nano_work *work, uint8_t proto)
 
 		// TODO if topic_len = 0 && mqtt_version = 5.0, search topic alias from nano_db
 
-		log_debug("topic: [%.*s], len: [%d], qos: %d",
+		log_debug("topic: [%.*s], len: [%d], qos: %d, "
+		          "clientid: [%s], username: [%s]",
 		    pub_packet->var_header.publish.topic_name.len,
 		    pub_packet->var_header.publish.topic_name.body,
 			pub_packet->var_header.publish.topic_name.len,
-		    pub_packet->fixed_header.qos);
+		    pub_packet->fixed_header.qos, clientid, username);
 
 		if (pub_packet->fixed_header.qos > 0) {
 			if (pos + 2 > msg_len) {
@@ -2204,8 +2217,10 @@ decode_pub_message(nano_work *work, uint8_t proto)
 			memcpy(pub_packet->payload.data,
 			    (uint8_t *) (msg_body + pos),
 			    pub_packet->payload.len);
-			log_debug("payload: [%s], len = %u",
-			    pub_packet->payload.data, pub_packet->payload.len);
+			log_debug("payload: [%s], len = %u, "
+			          "clientid: [%s], username: [%s]",
+			    pub_packet->payload.data, pub_packet->payload.len,
+			    clientid, username);
 		}
 		break;
 
