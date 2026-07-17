@@ -336,8 +336,72 @@ def attack_test():
     time.sleep(DURATION_SEC)
     stop.set()
 
-    # Teardown
-    for t in pubs:
-        t.join(timeout=2)
+    # Teardown: wait for every worker, including churn/flapper, so no client
+    # keeps reconnecting as X while we clean up below
+    for t in pubs + [t_churn, t_flap]:
+        t.join(timeout=15)
 
     mk_logger("MAIN").info("done. publishers sent=%s", pub_counts)
+
+    # Destroy the cached session X. Leaving it behind keeps a ~250-entry
+    # subscription list plus a large queued QoS-1 backlog alive, and the
+    # broker's resend timer keeps saturating it long after this test ends,
+    # which starves the tests that run next in the suite.
+    destroy_cached_session()
+    wait_for_broker_quiesce()
+
+def destroy_cached_session():
+    log = mk_logger("CLEANUP")
+    ev = threading.Event()
+    c = new_client(CLIENTID_X)
+
+    def on_connect(cl, userdata, flags, reason_code, properties):
+        ev.set()
+
+    c.on_connect = on_connect
+    c.loop_start()
+    try:
+        connect_v5(c, log, clean_start=True, session_expiry=0)
+        if not wait_event(ev, 10):
+            log.error("cleanup connect timeout")
+        disconnect_keep_session_v5(c, log, session_expiry=0)
+        time.sleep(0.2)
+    except Exception as exc:
+        log.error("cleanup failed: %s", exc)
+    finally:
+        c.loop_stop()
+
+def wait_for_broker_quiesce(timeout_sec: float = 60.0) -> bool:
+    """
+    Block until a fresh client completes a QoS-1 subscribe/publish/receive
+    round trip promptly, proving the broker has drained the stress backlog.
+    """
+    log = mk_logger("SETTLE")
+    deadline = time.time() + timeout_sec
+    while time.time() < deadline:
+        connected = threading.Event()
+        got = threading.Event()
+        c = new_client(f"SETTLE_{random.randint(1000, 9999)}")
+        c.on_connect = lambda cl, u, f, rc, p: connected.set()
+        c.on_message = lambda cl, u, m: got.set()
+        c.loop_start()
+        try:
+            connect_v5(c, log, clean_start=True, session_expiry=0)
+            if connected.wait(5):
+                c.subscribe([(f"{TOPIC_ROOT}/settle", 1)])
+                time.sleep(0.3)
+                c.publish(f"{TOPIC_ROOT}/settle", b"ping", qos=1)
+                if got.wait(3):
+                    log.info("broker responsive again")
+                    return True
+        except Exception as exc:
+            log.info("settle probe retry: %s", exc)
+        finally:
+            try:
+                c.disconnect()
+            except Exception:
+                pass
+            c.loop_stop()
+        time.sleep(1)
+    log.error("broker still saturated after %.0fs", timeout_sec)
+    return False

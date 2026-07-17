@@ -3,9 +3,14 @@ from fileinput import close
 import os
 import subprocess
 import shlex
+import sys
 import time
 import asyncio
 from os.path import exists
+
+# Flush prints immediately so the Actions log timestamps show the real order
+# of this harness relative to the stderr logging of the stress tests
+sys.stdout.reconfigure(line_buffering=True)
 
 from mqtt_test import mqtt_test
 from mqtt_test_v5 import mqtt_v5_test
