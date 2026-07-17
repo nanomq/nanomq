@@ -31,8 +31,11 @@ def cnt_message(cmd, n, pid, message):
             n.value += 1
 
 def test_clean_session():
-    cs_cmd = g_sub + g_url + "-t topic -q 1"
-    ps_cmd = g_sub + g_url + "-t topic -c -i id -q 1"
+    # Use the same clientid as the persistent session so this final clean-start
+    # connection actually takes over and destroys the cached session; leaving it
+    # behind lets stale queued QoS-1 messages leak into later tests
+    cs_cmd = g_sub + g_url + "-t topic -i id_tls -q 1"
+    ps_cmd = g_sub + g_url + "-t topic -c -i id_tls -q 1"
     p_cmd =  g_pub + g_url + "-t topic -m message -q 1"
 
     clean_session_cmd = shlex.split(cs_cmd)
