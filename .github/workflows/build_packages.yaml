@@ -122,7 +122,14 @@ jobs:
         if [ "${{ github.event_name }}" == "release" ]; then
           LATEST_TAG="${{ github.ref_name }}"
         else
-          LATEST_TAG="$(curl -s "https://api.github.com/repos/nanomq/nanomq/tags?per_page=1" | jq -r '.[0].name')"
+          # Authenticate to avoid the anonymous rate limit shared by all
+          # Actions runners on this IP, which intermittently returns an error
+          # object that jq then fails to index as an array
+          LATEST_TAG="$(curl -s --retry 3 -H "Authorization: Bearer ${{ github.token }}" "https://api.github.com/repos/nanomq/nanomq/tags?per_page=1" | jq -r '.[0].name')"
+        fi
+        if [ -z "$LATEST_TAG" ] || [ "$LATEST_TAG" == "null" ]; then
+          echo "Failed to resolve the latest tag from the GitHub API" >&2
+          exit 1
         fi
         echo "LATEST_TAG: $LATEST_TAG"
         echo "tag=$LATEST_TAG" >> "$GITHUB_OUTPUT"
