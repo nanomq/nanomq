@@ -4,6 +4,7 @@ import os
 import subprocess
 import shlex
 import sys
+import threading
 import time
 import asyncio
 from os.path import exists
@@ -35,6 +36,21 @@ def print_nanomq_log():
     for line in log_lines:
         print(line)
     log_lines.close()
+
+
+def run_bounded(name, fn, timeout_sec=600):
+    # test.py ignores the ws results, but a wedged websocket client blocks
+    # forever inside paho's connect() when the broker's ws listener stops
+    # responding; run the stage in a daemon thread so a wedge is reported
+    # and abandoned instead of hanging the whole suite
+    print(name + " test start")
+    t = threading.Thread(target=fn, daemon=True)
+    t.start()
+    t.join(timeout_sec)
+    if t.is_alive():
+        print(name + " test timed out after " + str(timeout_sec) + "s, abandoning it")
+    else:
+        print(name + " test end")
 
 
 def run_test(name, fn, attempts=2):
@@ -91,13 +107,9 @@ if __name__=='__main__':
 
     run_test("tls v5", tls_v5_test)
 
-    print("ws v311 test start")
-    ws_test()
-    print("ws v311 test end")
+    run_bounded("ws v311", ws_test)
 
-    print("ws v5 test start")
-    ws_v5_test()
-    print("ws v5 test end")
+    run_bounded("ws v5", ws_v5_test)
 
     print("fuzzy test start")
     if( False == fuzzy_test()):
