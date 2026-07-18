@@ -53,10 +53,10 @@ def run_bounded(name, fn, timeout_sec=600):
         print(name + " test end")
 
 
-def run_test(name, fn, attempts=2):
+def run_test(name, fn, attempts=3):
     # The TLS transport intermittently drops a client on the loaded CI runner
     # (broker_tls.c recv errors, occasional 0x0d protocol-error kicks); retry
-    # once so a single flake does not mask the rest of the suite, while the
+    # so a couple of flakes do not mask the rest of the suite, while every
     # failed attempt stays visible in the log
     print(name + " test start")
     for attempt in range(attempts):

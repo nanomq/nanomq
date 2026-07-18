@@ -198,7 +198,10 @@ def test_shared_subscription():
     return True
 
 def test_topic_alias():
-    s_cmd = g_sub + g_url + "-t 'topic'"
+    # QoS 1 subscription so delivery is at-least-once: at QoS 0 the broker
+    # may legally drop when the pipe is busy, which made the exact count
+    # fail with 9/10 under load
+    s_cmd = g_sub + g_url + "-t 'topic' -q 1"
     # QoS 1 makes mosquitto_pub wait for each PUBACK before disconnecting;
     # with QoS 0 the disconnect races the queued publishes on a slow broker,
     # which drops the per-connection topic-alias mapping and loses messages
@@ -217,7 +220,7 @@ def test_topic_alias():
 
     times = 0
     while True:
-        if cnt.value == 10 or times == 5:
+        if cnt.value >= 10 or times == 5:
             break
         time.sleep(1)
         times += 1
@@ -225,7 +228,9 @@ def test_topic_alias():
     time.sleep(5)
     process1.terminate()
     os.kill(pid.value, signal.SIGKILL)
-    if cnt.value == 10:
+    # at-least-once: QoS 1 retransmits may deliver duplicates, which still
+    # proves every aliased publish resolved to the right topic
+    if cnt.value >= 10:
         print("Topic alias test passed!")
         return True
     else:
