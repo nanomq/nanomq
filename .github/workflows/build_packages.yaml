@@ -124,8 +124,10 @@ jobs:
         else
           # Authenticate to avoid the anonymous rate limit shared by all
           # Actions runners on this IP, which intermittently returns an error
-          # object that jq then fails to index as an array
-          LATEST_TAG="$(curl -s --retry 3 -H "Authorization: Bearer ${{ github.token }}" "https://api.github.com/repos/nanomq/nanomq/tags?per_page=1" | jq -r '.[0].name')"
+          # object that jq then fails to index as an array. The || true keeps
+          # a curl/jq failure on the explicit error path below instead of
+          # aborting the step via pipefail before it can report.
+          LATEST_TAG="$(curl -fsS --retry 3 -H "Authorization: Bearer ${{ github.token }}" "https://api.github.com/repos/nanomq/nanomq/tags?per_page=1" | jq -r '.[0].name' || true)"
         fi
         if [ -z "$LATEST_TAG" ] || [ "$LATEST_TAG" == "null" ]; then
           echo "Failed to resolve the latest tag from the GitHub API" >&2
