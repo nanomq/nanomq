@@ -421,5 +421,12 @@ def test_retain_as_publish():
 
 def tls_v5_test():
     # test_message_expiry()
-    return test_session_expiry() and test_user_property() and test_shared_subscription() and test_topic_alias() and test_retain_as_publish()
+    # session expiry runs last: it leaves a 5s-TTL cached session, and the
+    # broker's expiry reap has been observed to drop concurrent TLS clients
+    # (the plain-TCP variant plants the same session but reaps it with no
+    # TLS clients connected, and never fails)
+    ok = test_user_property() and test_shared_subscription() and test_topic_alias() and test_retain_as_publish() and test_session_expiry()
+    # let the reap fire while no other TLS client is connected
+    time.sleep(7)
+    return ok
 
