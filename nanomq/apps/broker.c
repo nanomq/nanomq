@@ -363,7 +363,14 @@ server_cb(void *arg)
 		work->proto_ver = conn_param_get_protover(work->cparam);
 		work->flag      = nng_msg_cmd_type(msg);
 
-		if (work->flag == CMD_SUBSCRIBE) {
+		if (work->flag == CMD_DISCONNECT) {
+			if (work->msg != NULL)
+				nng_msg_free(work->msg);
+			work->msg   = NULL;
+			work->state = RECV;
+			nng_ctx_recv(work->ctx, work->aio);
+			break;
+		} else if (work->flag == CMD_SUBSCRIBE) {
 			smsg = work->msg;
 			work->msg_ret = NULL;
 
