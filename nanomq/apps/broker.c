@@ -613,8 +613,8 @@ server_cb(void *arg)
 		msg_infos = work->pipe_ct->msg_infos;
 
 		log_trace("total subscribed pipes: %ld", cvector_size(msg_infos));
-		if (cvector_size(msg_infos))
-			if (encode_pub_message(smsg, work, PUBLISH)) {
+		if (encode_pub_message(smsg, work, PUBLISH))
+			if (cvector_size(msg_infos)) {
 				for (int i = 0; i < cvector_size(msg_infos) && rv== 0; ++i) {
 					msg_info = &msg_infos[i];
 					nng_msg_clone(smsg);
@@ -646,7 +646,6 @@ server_cb(void *arg)
 		}
 		//check webhook & rule engine
 		conf_web_hook *hook_conf = &(work->config->web_hook);
-		conf_exchange *exge_conf = &(work->config->exchange);
 		uint8_t rule_opt = RULE_ENG_OFF;
 #if defined(SUPP_RULE_ENGINE)
 		rule_opt = work->config->rule_eng.option;
@@ -663,8 +662,7 @@ server_cb(void *arg)
 			nng_msg_free(work->nmsg);
 			work->nmsg = NULL;
 		}
-		if (hook_conf->enable || exge_conf->count > 0 ||
-		    rule_opt != RULE_ENG_OFF || iceoryx_opt == 1) {
+		if (hook_conf->enable || rule_opt != RULE_ENG_OFF || iceoryx_opt == 1) {
 			work->state = SEND;
 			nng_aio_finish(work->aio, 0);
 			break;
@@ -912,14 +910,13 @@ proto_work_init(nng_socket sock, nng_socket extrasock, uint8_t proto,
 		if ((rv = nng_ctx_open(&w->extra_ctx, extrasock)) != 0) {
 			NANO_NNG_FATAL("nng_ctx_open", rv);
 		}
-	}
 #if defined(SUPP_ICEORYX)
 	} else if (proto == PROTO_ICEORYX_BRIDGE) {
 			if ((rv = nng_ctx_open(&w->extra_ctx, extrasock)) != 0) {
 				NANO_NNG_FATAL("nng_ctx_open", rv);
 			}
 #endif
-	else if (config->bridge_mode) {
+	} else if (config->bridge_mode) {
 		if (proto == PROTO_MQTT_BRIDGE) {
 			if ((rv = nng_ctx_open(&w->extra_ctx, extrasock)) != 0) {
 				NANO_NNG_FATAL("nng_ctx_open", rv);
