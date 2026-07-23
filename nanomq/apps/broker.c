@@ -526,6 +526,13 @@ server_cb(void *arg)
 		} else if (work->flag == CMD_CONNACK) {
 			uint8_t *body        = nng_msg_body(work->msg);
 			uint8_t  reason_code = *(body + 1);
+			// MQTT v5 topic aliases are per-connection state. Reset
+			// them here, before the CONNACK is sent, rather than on
+			// DISCONNECT_EV: the disconnect event is processed
+			// concurrently with publishes that are still queued on
+			// other worker ctxs, so deleting there loses aliased
+			// publishes the transport has already acknowledged.
+			dbhash_del_atpair_queue(work->pid.id);
 			if (work->proto == PROTO_MQTT_BROKER) {
 				// Return CONNACK to clients of broker
 				nng_aio_set_prov_data(work->aio, &work->pid.id);
@@ -560,8 +567,9 @@ server_cb(void *arg)
 			if (dbhash_check_id(work->pid.id)) {
 				destroy_sub_client(work->pid.id, work->db);
 			}
-			// delete topic alias
-			dbhash_del_atpair_queue(work->pid.id);
+			// topic aliases are reset at the next CONNACK for this
+			// pipe id; deleting them here would race publishes from
+			// this connection still queued on other worker ctxs
 			// bridge's will msg only valid at remote
 			if (work->proto != PROTO_MQTT_BRIDGE) {
 				if (conn_param_get_will_flag(work->cparam) == 0 ||
