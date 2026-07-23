@@ -336,8 +336,114 @@ def attack_test():
     time.sleep(DURATION_SEC)
     stop.set()
 
-    # Teardown
-    for t in pubs:
-        t.join(timeout=2)
+    # Teardown: wait for every worker, including churn/flapper, so no client
+    # keeps reconnecting as X while we clean up below
+    workers = pubs + [t_churn, t_flap]
+    for t in workers:
+        t.join(timeout=15)
+    stragglers = [t.name for t in workers if t.is_alive()]
+    if stragglers:
+        mk_logger("MAIN").error(
+            "workers still alive after join, cleanup may race them: %s",
+            stragglers)
 
     mk_logger("MAIN").info("done. publishers sent=%s", pub_counts)
+
+    # Destroy the cached session X. Leaving it behind keeps a ~250-entry
+    # subscription list plus a large queued QoS-1 backlog alive, and the
+    # broker's resend timer keeps saturating it long after this test ends,
+    # which starves the tests that run next in the suite.
+    cleaned = destroy_cached_session()
+    settled = wait_for_broker_quiesce()
+    if stragglers or not cleaned or not settled:
+        mk_logger("MAIN").error(
+            "attack teardown incomplete (stragglers=%s cleaned=%s settled=%s);"
+            " later tests may see a loaded broker",
+            stragglers, cleaned, settled)
+
+def destroy_cached_session() -> bool:
+    log = mk_logger("CLEANUP")
+    connected = threading.Event()
+    accepted = threading.Event()
+    c = new_client(CLIENTID_X)
+
+    def on_connect(cl, userdata, flags, reason_code, properties):
+        if not reason_code.is_failure:
+            accepted.set()
+        connected.set()
+
+    c.on_connect = on_connect
+    c.loop_start()
+    ok = False
+    try:
+        connect_v5(c, log, clean_start=True, session_expiry=0)
+        if not wait_event(connected, 10):
+            log.error("cleanup connect timeout")
+        elif not accepted.is_set():
+            log.error("cleanup connect rejected by broker")
+        else:
+            ok = True
+        disconnect_keep_session_v5(c, log, session_expiry=0)
+        time.sleep(0.2)
+    except Exception as exc:
+        log.error("cleanup failed: %s", exc)
+    finally:
+        c.loop_stop()
+    return ok
+
+def wait_for_broker_quiesce(timeout_sec: float = 60.0) -> bool:
+    """
+    Block until a fresh client completes a QoS-1 subscribe/publish/receive
+    round trip promptly, proving the broker has drained the stress backlog.
+    """
+    log = mk_logger("SETTLE")
+    deadline = time.monotonic() + timeout_sec
+    attempt = 0
+
+    def budget(cap):
+        return min(cap, max(0.1, deadline - time.monotonic()))
+
+    while time.monotonic() < deadline:
+        attempt += 1
+        connected = threading.Event()
+        subscribed = threading.Event()
+        got = threading.Event()
+        topic = f"{TOPIC_ROOT}/settle"
+        payload = f"ping-{attempt}".encode()
+        c = new_client(f"SETTLE_{random.randint(1000, 9999)}")
+
+        def on_connect(cl, u, f, rc, p):
+            connected.set()
+
+        def on_subscribe(cl, u, mid, rc_list, p=None):
+            subscribed.set()
+
+        def on_message(cl, u, m, topic=topic, payload=payload):
+            # only this attempt's round trip counts, not a stray message
+            if m.topic == topic and m.payload == payload:
+                got.set()
+
+        c.on_connect = on_connect
+        c.on_subscribe = on_subscribe
+        c.on_message = on_message
+        c.loop_start()
+        try:
+            connect_v5(c, log, clean_start=True, session_expiry=0)
+            if connected.wait(budget(5)):
+                c.subscribe([(topic, 1)])
+                if subscribed.wait(budget(3)):
+                    c.publish(topic, payload, qos=1)
+                    if got.wait(budget(3)):
+                        log.info("broker responsive again")
+                        return True
+        except Exception as exc:
+            log.info("settle probe retry: %s", exc)
+        finally:
+            try:
+                c.disconnect()
+            except Exception:
+                pass
+            c.loop_stop()
+        time.sleep(budget(1))
+    log.error("broker still saturated after %.0fs", timeout_sec)
+    return False
