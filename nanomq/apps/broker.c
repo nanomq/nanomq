@@ -384,7 +384,6 @@ server_cb(void *arg)
 				log_error("sub_handler: [%d]", rv);
 			}
 
-			// TODO not all codes needs to close the pipe
 			if (work->code != SUCCESS) {
 				if (work->msg_ret) {
 					for (size_t i = 0; i < cvector_size(work->msg_ret); i++)
@@ -584,7 +583,16 @@ server_cb(void *arg)
 					break;
 				}
 			}
+		} else {
+			if (work->msg != NULL)
+				nng_msg_free(work->msg);
+			work->msg   = NULL;
+			work->state = RECV;
+			log_warn("Invalid msg flag: 0x%x", work->flag);
+			nng_ctx_recv(work->ctx, work->aio);
+			break;
 		}
+		// Only CMD_DISCONNECT_EV CMD_PUBLISH CMD_CONNACK reach here.
 		work->state = WAIT;
 		nng_aio_finish(work->aio, 0);
 		break;
