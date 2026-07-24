@@ -63,7 +63,11 @@ jobs:
         sudo sed -i 's/-${RELEASE}_${ARCHITECTURE}/_${ARCHITECTURE}/g' $(which checkinstall)
         sudo apt install -y pip
         pip install Jinja2
-        sudo apt-get install pkg-config
+
+        sudo apt-get install -y pkg-config libssl-dev
+
+        sudo ln -sf /usr/include/x86_64-linux-gnu/openssl/opensslconf.h /usr/include/openssl/opensslconf.h || true
+        sudo ln -sf /usr/include/x86_64-linux-gnu/openssl/configuration.h /usr/include/openssl/configuration.h || true
 
     - name: install mbed-tls
       run: |

@@ -363,7 +363,14 @@ server_cb(void *arg)
 		work->proto_ver = conn_param_get_protover(work->cparam);
 		work->flag      = nng_msg_cmd_type(msg);
 
-		if (work->flag == CMD_SUBSCRIBE) {
+		if (work->flag == CMD_DISCONNECT) {
+			if (work->msg != NULL)
+				nng_msg_free(work->msg);
+			work->msg   = NULL;
+			work->state = RECV;
+			nng_ctx_recv(work->ctx, work->aio);
+			break;
+		} else if (work->flag == CMD_SUBSCRIBE) {
 			smsg = work->msg;
 			work->msg_ret = NULL;
 
@@ -377,7 +384,6 @@ server_cb(void *arg)
 				log_error("sub_handler: [%d]", rv);
 			}
 
-			// TODO not all codes needs to close the pipe
 			if (work->code != SUCCESS) {
 				if (work->msg_ret) {
 					for (size_t i = 0; i < cvector_size(work->msg_ret); i++)
@@ -577,33 +583,24 @@ server_cb(void *arg)
 					break;
 				}
 			}
+		} else {
+			if (work->msg != NULL)
+				nng_msg_free(work->msg);
+			work->msg   = NULL;
+			work->state = RECV;
+			log_warn("Invalid msg flag: 0x%x", work->flag);
+			nng_ctx_recv(work->ctx, work->aio);
+			break;
 		}
+		// Only CMD_DISCONNECT_EV CMD_PUBLISH CMD_CONNACK reach here.
 		work->state = WAIT;
 		nng_aio_finish(work->aio, 0);
 		break;
 	case WAIT:
-		// do not access to cparam
 		log_debug("WAIT ^^^^ ctx%d ^^^^", work->ctx.id);
 #if defined(SUPP_PLUGIN)
 		work->user_property = NULL;
 #endif
-		if (nng_msg_get_type(work->msg) != CMD_PUBLISH) {
-			if (work->msg != NULL)
-				nng_msg_free(work->msg);
-			if (work->nmsg != NULL) {
-				nng_msg_free(work->nmsg);
-				work->nmsg = NULL;
-			}
-			conn_param_free(work->cparam);
-			work->msg   = NULL;
-			work->state = RECV;
-			if (work->proto == PROTO_MQTT_BROKER) {
-				nng_ctx_recv(work->ctx, work->aio);
-			} else {
-				nng_ctx_recv(work->extra_ctx, work->aio);
-			}
-			break;
-		}
 		if ((rv = nng_aio_result(work->aio)) != 0) {
 			log_error("WAIT nng aio result error: %d", rv);
 			NANO_NNG_FATAL("WAIT nng_ctx_recv/send", rv);	// shall nerver reach here
