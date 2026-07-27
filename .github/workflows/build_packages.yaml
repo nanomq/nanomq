@@ -63,7 +63,23 @@ jobs:
         sudo sed -i 's/-${RELEASE}_${ARCHITECTURE}/_${ARCHITECTURE}/g' $(which checkinstall)
         sudo apt install -y pip
         pip install Jinja2
-        sudo apt-get install pkg-config
+        
+        # 安装 pkg-config 和 dpkg-dev 以支持架构检测
+        sudo apt-get install -y pkg-config dpkg-dev
+
+        TARGET_ARCH="${{ matrix.arch[0] }}"
+        if [ "$TARGET_ARCH" = "amd64" ] || [ "$TARGET_ARCH" = "x86_64" ]; then
+            sudo apt-get install -y libssl-dev
+            
+            # 使用您提供的动态方式获取系统多架构路径前缀
+            HOST_MULTIARCH="$(dpkg-architecture -qDEB_HOST_MULTIARCH)"
+            
+            # 建立软链接，移除 || true 以确保路径缺失时明确报错
+            sudo ln -sf "/usr/include/${HOST_MULTIARCH}/openssl/opensslconf.h" /usr/include/openssl/opensslconf.h
+            sudo ln -sf "/usr/include/${HOST_MULTIARCH}/openssl/configuration.h" /usr/include/openssl/configuration.h
+        else
+            echo "Cross-compiling for $TARGET_ARCH. Skipping native libssl-dev installation."
+        fi
 
     - name: install mbed-tls
       run: |
@@ -160,6 +176,11 @@ jobs:
             make_flags+=" -DONEBRANCH=1 "
             make_flags+=" -DCMAKE_CROSSCOMPILING=ON "
             make_flags+=" -DCMAKE_PREFIX_PATH=${{ matrix.arch[4] }} "
+            # 引入 Sysroot 隔离墙，阻止 CMake 抓取宿主机 (x86_64) 的原生库与头文件
+            make_flags+=" -DCMAKE_FIND_ROOT_PATH=${{ matrix.arch[4] }} "
+            make_flags+=" -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY "
+            make_flags+=" -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY "
+            make_flags+=" -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ONLY "
             if [ "$arch" == "arm64" ]; then
               make_flags+=" -DCMAKE_TARGET_ARCHITECTURE=arm64 "
               make_flags+=" -DGNU_MACHINE=aarch64-linux-gnu "
