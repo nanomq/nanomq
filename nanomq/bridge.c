@@ -1150,7 +1150,8 @@ bridge_tcp_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 		for (size_t i = 0; i < param->config->sub_count; i++) {
 			nng_mqtt_topic_qos_array_set(topic_qos, i,
 			    param->config->sub_list[i]->remote_topic,
-			    param->config->sub_list[i]->qos, 1,
+			    param->config->sub_list[i]->qos,
+				param->config->sub_list[i]->nolocal? 1:0,
 			    param->config->sub_list[i]->retain_as_published,
 			    param->config->sub_list[i]->retain_handling);
 			log_info("Bridge client subscribed topic %s (qos %d rap %d rh %d).",
