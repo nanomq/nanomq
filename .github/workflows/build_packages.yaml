@@ -22,10 +22,8 @@ jobs:
         arch:
         - [amd64, gcc, g++, x86_64-linux-gnu, /usr/local]
         - [arm64, aarch64-linux-gnu-gcc, aarch64-linux-gnu-g++, aarch64-linux-gnu, /usr/aarch64-linux-gnu]
-        - [mips, mips-linux-gnu-gcc, mips-linux-gnu-g++, mips-linux-gnu, /usr/mips-linux-gnu]
         - [riscv64, riscv64-linux-gnu-gcc, riscv64-linux-gnu-g++, riscv64-linux-gnu, /usr/riscv64-linux-gnu]
         - [armhf, arm-linux-gnueabihf-gcc, arm-linux-gnueabihf-g++, arm-linux-gnueabihf, /usr/arm-linux-gnueabihf]
-        - [armel, arm-linux-gnueabi-gcc, arm-linux-gnueabi-g++, arm-linux-gnueabi, /usr/arm-linux-gnueabi]
         package_type:
         - rpm
         - deb
@@ -35,50 +33,48 @@ jobs:
         - "-msquic"
         - "-full"
         exclude:
-        - arch: [mips, mips-linux-gnu-gcc, mips-linux-gnu-g++]
-          build_type: "-msquic"
         - arch: [riscv64, riscv64-linux-gnu-gcc, riscv64-linux-gnu-g++]
           build_type: "-msquic"
-        - arch: [armel, arm-linux-gnueabi-gcc, arm-linux-gnueabi-g++]
-          build_type: "-msquic"
-        - arch: [mips, mips-linux-gnu-gcc, mips-linux-gnu-g++]
-          build_type: "-full"
         - arch: [riscv64, riscv64-linux-gnu-gcc, riscv64-linux-gnu-g++]
-          build_type: "-full"
-        - arch: [armel, arm-linux-gnueabi-gcc, arm-linux-gnueabi-g++]
           build_type: "-full"
 
     steps:
     - name: install toolchains
       run: |
-        sudo apt update
+        TARGET_ARCH="${{ matrix.arch[0] }}"
+        if [ "$TARGET_ARCH" = "x86_64" ]; then TARGET_ARCH="amd64"; fi
+
+        if [ "$TARGET_ARCH" != "amd64" ]; then
+          sudo dpkg --add-architecture $TARGET_ARCH
+
+          sudo sed -i 's/Types: deb/Types: deb\nArchitectures: amd64 i386/g' /etc/apt/sources.list.d/ubuntu.sources
+
+          echo "Types: deb
+        URIs: http://ports.ubuntu.com/ubuntu-ports/
+        Suites: noble noble-updates noble-backports
+        Components: main universe restricted multiverse
+        Architectures: arm64 armhf riscv64" | sudo tee /etc/apt/sources.list.d/ports.sources
+        fi
+
+        sudo apt-get update
+
         sudo chmod 755 /usr/local/bin
-        sudo apt install -y g++-aarch64-linux-gnu gcc-aarch64-linux-gnu
-        sudo apt install -y g++-mips-linux-gnu gcc-mips-linux-gnu
-        sudo apt install -y g++-riscv64-linux-gnu gcc-riscv64-linux-gnu
-        sudo apt install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
-        sudo apt install -y gcc-arm-linux-gnueabi g++-arm-linux-gnueabi
-        sudo apt install -y cmake ninja-build rpm checkinstall
+
+        sudo apt-get install -y g++-aarch64-linux-gnu gcc-aarch64-linux-gnu
+        sudo apt-get install -y g++-riscv64-linux-gnu gcc-riscv64-linux-gnu
+        sudo apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
+
+        sudo apt-get install -y cmake ninja-build rpm checkinstall pkg-config python3-pip
+        
         sudo sed -i 's/Version: ${VERSION}-${RELEASE}/Version: ${VERSION}/g' $(which checkinstall)
         sudo sed -i 's/-${RELEASE}_${ARCHITECTURE}/_${ARCHITECTURE}/g' $(which checkinstall)
-        sudo apt install -y pip
-        pip install Jinja2
-        
-        # 安装 pkg-config 和 dpkg-dev 以支持架构检测
-        sudo apt-get install -y pkg-config dpkg-dev
 
-        TARGET_ARCH="${{ matrix.arch[0] }}"
-        if [ "$TARGET_ARCH" = "amd64" ] || [ "$TARGET_ARCH" = "x86_64" ]; then
-            sudo apt-get install -y libssl-dev
-            
-            # 使用您提供的动态方式获取系统多架构路径前缀
-            HOST_MULTIARCH="$(dpkg-architecture -qDEB_HOST_MULTIARCH)"
-            
-            # 建立软链接，移除 || true 以确保路径缺失时明确报错
-            sudo ln -sf "/usr/include/${HOST_MULTIARCH}/openssl/opensslconf.h" /usr/include/openssl/opensslconf.h
-            sudo ln -sf "/usr/include/${HOST_MULTIARCH}/openssl/configuration.h" /usr/include/openssl/configuration.h
+        python3 -m pip install Jinja2
+
+        if [ "$TARGET_ARCH" = "amd64" ]; then
+          sudo apt-get install -y libssl-dev
         else
-            echo "Cross-compiling for $TARGET_ARCH. Skipping native libssl-dev installation."
+          sudo apt-get install -y libssl-dev:$TARGET_ARCH
         fi
 
     - name: install mbed-tls
@@ -138,11 +134,6 @@ jobs:
         if [ "${{ github.event_name }}" == "release" ]; then
           LATEST_TAG="${{ github.ref_name }}"
         else
-          # Authenticate to avoid the anonymous rate limit shared by all
-          # Actions runners on this IP, which intermittently returns an error
-          # object that jq then fails to index as an array. The || true keeps
-          # a curl/jq failure on the explicit error path below instead of
-          # aborting the step via pipefail before it can report.
           LATEST_TAG="$(curl -fsS --retry 3 -H "Authorization: Bearer ${{ github.token }}" "https://api.github.com/repos/nanomq/nanomq/tags?per_page=1" | jq -r '.[0].name' || true)"
         fi
         if [ -z "$LATEST_TAG" ] || [ "$LATEST_TAG" == "null" ]; then
@@ -176,11 +167,7 @@ jobs:
             make_flags+=" -DONEBRANCH=1 "
             make_flags+=" -DCMAKE_CROSSCOMPILING=ON "
             make_flags+=" -DCMAKE_PREFIX_PATH=${{ matrix.arch[4] }} "
-            # 引入 Sysroot 隔离墙，阻止 CMake 抓取宿主机 (x86_64) 的原生库与头文件
-            make_flags+=" -DCMAKE_FIND_ROOT_PATH=${{ matrix.arch[4] }} "
-            make_flags+=" -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY "
-            make_flags+=" -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY "
-            make_flags+=" -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ONLY "
+
             if [ "$arch" == "arm64" ]; then
               make_flags+=" -DCMAKE_TARGET_ARCHITECTURE=arm64 "
               make_flags+=" -DGNU_MACHINE=aarch64-linux-gnu "
@@ -207,7 +194,6 @@ jobs:
     - name: build
       run: |
         set -eu
-
         mkdir -p build
         cd build
         cmake ${{ steps.prepare.outputs.make_flags }} ..
@@ -356,7 +342,6 @@ jobs:
           token: ${{ github.token }}
           path: "source-with-submodules.tar.gz"
           ref: ${{ github.ref }}
-
 
   publish_packages:
     needs: [build_packages, build_docker]
