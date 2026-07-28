@@ -948,7 +948,8 @@ bridge_quic_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 			    nng_mqtt_topic_qos_array_create(1);
 			nng_mqtt_topic_qos_array_set(topic_qos, 0,
 			    param->config->sub_list[i]->remote_topic,
-			    param->config->sub_list[i]->qos, 1,
+			    param->config->sub_list[i]->qos,
+				param->config->sub_list[i]->nolocal? 1:0,
 				param->config->sub_list[i]->retain_as_published,
 			    param->config->sub_list[i]->retain_handling);
 			log_info("Quic bridge client subscribe to "
@@ -1309,7 +1310,8 @@ bridge_tcp_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 		for (size_t i = 0; i < bridge_arg->config->sub_count; i++) {
 			nng_mqtt_topic_qos_array_set(topic_qos, i,
 			    bridge_arg->config->sub_list[i]->remote_topic,
-			    bridge_arg->config->sub_list[i]->qos, 1,
+			    bridge_arg->config->sub_list[i]->qos,
+				bridge_arg->config->sub_list[i]->nolocal? 1:0,
 			    bridge_arg->config->sub_list[i]->retain_as_published,
 			    bridge_arg->config->sub_list[i]->retain_handling);
 			log_info("Bridge client subscribed topic %s (qos %d rap %d rh %d).",
