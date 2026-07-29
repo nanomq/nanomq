@@ -18,6 +18,8 @@ IoT 时代数据是第一生产力，而边缘则是数据诞生的地方。在�
 
 [**NNG 桥接**](./config-description/nng_bridges.md)：支持 `bridges.nng.pub` 与 `bridges.nng.sub` 两个方向的数据桥接，打通 MQTT 与 NNG `pub/sub` 消息流。可参考[配置说明](./config-description/nng_bridges.md)与[使用教程](./tutorial/nng-bridges.md)。
 
+[**QoS 消息批量重发**](./batch_resend.md)：当 QoS1/QoS2 消息传输失败时，将多个缓存的消息一起重新发送而不是逐条重试，在高负载或频繁断开的情况下显著提升性能。
+
 [**规则引擎**](./rule/introduction.md)：内置简单规则引擎可以灵活处理边缘数据。也可以与 eKuiper 集成在边缘进行流式数据分析。
 
 [**消息持久化**](./rule/config-rule-engine.md#sqlite-规则)：针对物联网复杂网络环境场景设计数据持久化和数据缓存功能，桥接消息可以本地缓存后断网续传。重要数据可以在边缘持久化滚动更新。
