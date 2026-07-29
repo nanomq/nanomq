@@ -16,6 +16,8 @@ Fully MQTT 5.0 Compliant: Fully support MQTT 5.0/3.1.1, Compatible with all stan
 
 [**NNG Bridging**](./config-description/nng_bridges.md): Supports bidirectional data bridging with `bridges.nng.pub` and `bridges.nng.sub`, connecting MQTT with NNG `pub/sub` message flows. See [Configuration](./config-description/nng_bridges.md) and [Tutorial](./tutorial/nng-bridges.md).
 
+[**Batch Resend for QoS Messages**](./batch_resend.md): Efficiently resend multiple cached QoS 1/2 messages together instead of individually, improving performance under high message rates or frequent disconnections.
+
 [**Rule Engine**](./rule/introduction.md): Unlock the flexibility of data with a SQL-based rule engine. Integrates with eKuiper to bring stream processing to the edge.
 
 [**Message Persistence**](./rule/config-file.md#data-persistence-with-sqlite): Preserve your business-critical data with built-in data persistence, and resume uploading automatically when the connection is restored.
