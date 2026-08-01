@@ -29,11 +29,54 @@ test_cleanup_preserves_reused_fd(bool nonblock)
 	close(reused_fd);
 }
 
+static void
+test_child_closes_original_write_fd(bool nonblock)
+{
+	char *args[] = { "sh", "-c", "exec 1>&-; exec 2>&-; sleep 1", NULL };
+	struct pollfd pollfd;
+	int           outfd = -1;
+	pid_t         pid;
+	char          byte;
+
+	pid = nonblock ? popen_sub_with_cmd_nonblock(&outfd, args, "/bin/sh") :
+	                 popen_with_cmd(&outfd, args, "/bin/sh");
+	assert(pid > 0);
+	assert(outfd >= 0);
+	pollfd.fd     = outfd;
+	pollfd.events = POLLIN | POLLHUP;
+	assert(poll(&pollfd, 1, 500) > 0);
+	assert(read(outfd, &byte, sizeof(byte)) == 0);
+	close(outfd);
+	test_env_test_cleanup();
+}
+
+static void
+test_reap_failed_popen_child(void)
+{
+	pid_t pid = fork();
+	int   status;
+
+	assert(pid >= 0);
+	if (pid == 0) {
+		for (;;) {
+			pause();
+		}
+	}
+
+	test_env_kill_and_reap(pid);
+	errno = 0;
+	assert(waitpid(pid, &status, WNOHANG) == -1);
+	assert(errno == ECHILD);
+}
+
 int
 main()
 {
 	test_cleanup_preserves_reused_fd(false);
 	test_cleanup_preserves_reused_fd(true);
+	test_child_closes_original_write_fd(false);
+	test_child_closes_original_write_fd(true);
+	test_reap_failed_popen_child();
 	return 0;
 }
 

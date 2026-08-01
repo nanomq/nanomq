@@ -367,6 +367,19 @@ test_env_untrack_proc_by_stream(FILE *stream)
 	return -1;
 }
 
+static void
+test_env_kill_and_reap(pid_t pid)
+{
+	int status;
+
+	if (pid <= 0) {
+		return;
+	}
+	(void) kill(pid, SIGKILL);
+	while (waitpid(pid, &status, 0) < 0 && errno == EINTR) {
+	}
+}
+
 static FILE *
 test_env_popen(const char *command, const char *mode)
 {
@@ -399,7 +412,7 @@ test_env_popen(const char *command, const char *mode)
 		fp = fdopen(pipefd[STDIN_FILENO], "r");
 		if (fp == NULL) {
 			close(pipefd[STDIN_FILENO]);
-			kill(pid, SIGKILL);
+			test_env_kill_and_reap(pid);
 			return NULL;
 		}
 		test_env_track_proc(pid, pipefd[STDIN_FILENO], fp);
@@ -427,7 +440,7 @@ test_env_popen(const char *command, const char *mode)
 		fp = fdopen(pipefd[STDOUT_FILENO], "w");
 		if (fp == NULL) {
 			close(pipefd[STDOUT_FILENO]);
-			kill(pid, SIGKILL);
+			test_env_kill_and_reap(pid);
 			return NULL;
 		}
 		test_env_track_proc(pid, pipefd[STDOUT_FILENO], fp);
@@ -1553,6 +1566,9 @@ popen_with_cmd(int *outfp, char *arg[], char *cmd)
 		if (dup2(fd_pipe[STDOUT_FILENO], STDOUT_FILENO) == -1) {
 			exit(EXIT_FAILURE);
 		}
+		if (fd_pipe[STDOUT_FILENO] != STDOUT_FILENO) {
+			close(fd_pipe[STDOUT_FILENO]);
+		}
 		if (strchr(cmd, '/') != NULL) {
 			execv(cmd, arg);
 			cmd = strrchr(cmd, '/');
@@ -1603,6 +1619,10 @@ popen_sub_with_cmd_nonblock(int *outfp, char *arg[], char *cmd)
 		}
 		if (dup2(fd_pipe[STDOUT_FILENO], STDERR_FILENO) == -1) {
 			exit(EXIT_FAILURE);
+		}
+		if (fd_pipe[STDOUT_FILENO] != STDOUT_FILENO &&
+		    fd_pipe[STDOUT_FILENO] != STDERR_FILENO) {
+			close(fd_pipe[STDOUT_FILENO]);
 		}
 		if (strchr(cmd, '/') != NULL) {
 			execv(cmd, arg);
