@@ -1810,7 +1810,7 @@ get_prometheus(http_msg *msg, kv **params, size_t param_num,
 
 	stats.subscribers      = dbhash_get_pipe_cnt();
 	stats.topics           = get_topics_count();
-#if STATISTICS
+#ifdef STATISTICS
 	stats.message_received = nanomq_get_message_in();
 	stats.message_sent     = nanomq_get_message_out();
 	stats.message_dropped  = nanomq_get_message_drop();
