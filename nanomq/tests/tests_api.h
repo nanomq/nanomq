@@ -22,6 +22,7 @@ int webhook_msg_cnt = 0; // this is a silly signal to indicate whether the webho
 #include <nng/protocol/reqrep0/rep.h>
 #include <nng/protocol/reqrep0/req.h>
 #include <nng/supplemental/http/http.h>
+#include <nng/supplemental/nanolib/cvector.h>
 #include <nng/supplemental/util/platform.h>
 #include <nng/supplemental/nanolib/conf.h>
 #include <nng/supplemental/nanolib/utils.h>
@@ -39,10 +40,10 @@ int webhook_msg_cnt = 0; // this is a silly signal to indicate whether the webho
 #include <time.h>
 #include <assert.h>
 #include <signal.h>
-#include <netdb.h>
 #include <limits.h>
 
 #ifndef NANO_PLATFORM_WINDOWS
+#include <netdb.h>
 #include <poll.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -653,12 +654,12 @@ test_env_has_executable(const char *name)
 	while (dir != NULL) {
 		if (snprintf(fullpath, sizeof(fullpath), "%s/%s", dir, name) > 0 &&
 		    access(fullpath, X_OK) == 0) {
-			free(path_copy);
+			nng_strfree(path_copy);
 			return true;
 		}
 		dir = strtok_r(NULL, ":", &saveptr);
 	}
-	free(path_copy);
+	nng_strfree(path_copy);
 	return false;
 #else
 	return true;
@@ -1382,52 +1383,46 @@ get_webhook_conf()
 	conf_http_header   *header;
 	conf_web_hook_rule *webhook_rule;
 
-	// conf for webhook
+	// Mirror the ownership and cvector layout used by the configuration parser,
+	// because the MQTT socket releases this configuration during shutdown.
 	nanomq_conf->web_hook.enable         = true;
-	nanomq_conf->web_hook.url            = "http://127.0.0.1:8888/hook";
+	nanomq_conf->web_hook.url            = nng_strdup("http://127.0.0.1:8888/hook");
 	nanomq_conf->web_hook.encode_payload = plain;
 	nanomq_conf->web_hook.pool_size      = 32;
 
-	// set up webhook headers
-	nanomq_conf->web_hook.header_count = 1;
-	nanomq_conf->web_hook.headers = realloc(nanomq_conf->web_hook.headers,
-	    nanomq_conf->web_hook.header_count * sizeof(conf_http_header *));
-		
-	header                        = calloc(1, sizeof(conf_http_header));
-	header->key                   = "content-type";
-	header->value                 = "application/json";
-	nanomq_conf->web_hook.headers[0] = header;
+	header        = calloc(1, sizeof(conf_http_header));
+	header->key   = nng_strdup("content-type");
+	header->value = nng_strdup("application/json");
+	cvector_push_back(nanomq_conf->web_hook.headers, header);
+	nanomq_conf->web_hook.header_count =
+	    cvector_size(nanomq_conf->web_hook.headers);
 
-	// set up webhook rules
-	nanomq_conf->web_hook.rule_count = 5;
-	nanomq_conf->web_hook.rules      = realloc(nanomq_conf->web_hook.rules,
-	         nanomq_conf->web_hook.rule_count * sizeof(conf_web_hook_rule *));
-
-	webhook_rule                   = calloc(1, sizeof(conf_web_hook_rule));
-	webhook_rule->event            = MESSAGE_PUBLISH;
-	webhook_rule->rule_num         = 1;
-	webhook_rule->action           = "on_message_publish";
-	nanomq_conf->web_hook.rules[0] = webhook_rule;
+	webhook_rule           = calloc(1, sizeof(conf_web_hook_rule));
+	webhook_rule->event    = MESSAGE_PUBLISH;
+	webhook_rule->rule_num = 1;
+	webhook_rule->action   = nng_strdup("on_message_publish");
+	cvector_push_back(nanomq_conf->web_hook.rules, webhook_rule);
 	webhook_rule                   = calloc(1, sizeof(conf_web_hook_rule));
 	webhook_rule->event            = CLIENT_CONNECT;
 	webhook_rule->rule_num         = 1;
-	webhook_rule->action           = "on_client_connect";
-	nanomq_conf->web_hook.rules[1] = webhook_rule;
+	webhook_rule->action           = nng_strdup("on_client_connect");
+	cvector_push_back(nanomq_conf->web_hook.rules, webhook_rule);
 	webhook_rule                   = calloc(1, sizeof(conf_web_hook_rule));
 	webhook_rule->event            = CLIENT_CONNACK;
 	webhook_rule->rule_num         = 1;
-	webhook_rule->action           = "on_client_connack";
-	nanomq_conf->web_hook.rules[2] = webhook_rule;
+	webhook_rule->action           = nng_strdup("on_client_connack");
+	cvector_push_back(nanomq_conf->web_hook.rules, webhook_rule);
 	webhook_rule                   = calloc(1, sizeof(conf_web_hook_rule));
 	webhook_rule->event            = CLIENT_CONNECTED;
 	webhook_rule->rule_num         = 1;
-	webhook_rule->action           = "on_client_connected";
-	nanomq_conf->web_hook.rules[3] = webhook_rule;
+	webhook_rule->action           = nng_strdup("on_client_connected");
+	cvector_push_back(nanomq_conf->web_hook.rules, webhook_rule);
 	webhook_rule                   = calloc(1, sizeof(conf_web_hook_rule));
 	webhook_rule->event            = CLIENT_DISCONNECTED;
 	webhook_rule->rule_num         = 1;
-	webhook_rule->action           = "on_client_disconnected";
-	nanomq_conf->web_hook.rules[4] = webhook_rule;
+	webhook_rule->action           = nng_strdup("on_client_disconnected");
+	cvector_push_back(nanomq_conf->web_hook.rules, webhook_rule);
+	nanomq_conf->web_hook.rule_count = cvector_size(nanomq_conf->web_hook.rules);
 
 	return nanomq_conf;
 }
