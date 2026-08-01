@@ -36,6 +36,11 @@ main()
 	nng_thread_create(&nmq, (void *) broker_start_with_conf, NULL);
 	nng_msleep(50); // wait a while before sub
 
+#if (defined DEBUG) && (defined ASAN)
+	// The sanitizer broker must remain available until this test requests shutdown.
+	nng_msleep(2200);
+#endif
+
 	// pipe to sub
 	char *arg[] = { "mosquitto_sub", "-t", "topic1", "-t", "topic2", "-U",
 		"topic2", "-h", "127.0.0.1", "-p", "1883", "-q", "2", NULL };
@@ -57,6 +62,7 @@ main()
 
 	broker_stop_for_test();
 	nng_thread_destroy(nmq);
+	assert(test_env_allows_port_bind(1883));
 
 	return 0;
 }
