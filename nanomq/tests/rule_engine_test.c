@@ -50,12 +50,14 @@ run_rule_request(const char *request, const char *status, int code)
 }
 
 static bool
-wait_for_rule_api(void)
+wait_for_rule_api(uint16_t rest_port)
 {
-	const char *request =
+	char request[256];
+
+	snprintf(request, sizeof(request),
 	    "curl -sS -i --basic -u admin_test:pw_test "
 	    "--connect-timeout 1 --max-time 2 "
-	    "'http://127.0.0.1:8081/api/v4'";
+	    "'http://127.0.0.1:%hu/api/v4'", rest_port);
 
 	for (int i = 0; i < 40; ++i) {
 		FILE *fd = popen(request, "r");
@@ -70,19 +72,20 @@ wait_for_rule_api(void)
 		}
 		nng_msleep(100);
 	}
-	fprintf(stderr, "[FAIL] rule API did not become ready on 127.0.0.1:8081\n");
+	fprintf(stderr, "[FAIL] rule API did not become ready on 127.0.0.1:%hu\n",
+	    rest_port);
 	return false;
 }
 
 int
 main(void)
 {
-	const char *test_port = test_env_test_port_text();
+	char        test_port[16];
 	char        rule_request[2048];
 	conf       *nmq_conf = NULL;
 	nng_thread *nmq      = NULL;
 
-	if (!test_env_allows_network_binds()) {
+	if (!test_env_allows_network_binds() || !test_env_allows_port_bind(8081)) {
 		fprintf(stderr, "skip: test environment disallows listening sockets\n");
 		return 0;
 	}
@@ -90,12 +93,21 @@ main(void)
 		fprintf(stderr, "skip: curl not found in PATH\n");
 		return 0;
 	}
+#ifdef SUPP_RULE_ENGINE
+	if (!test_env_has_executable("mosquitto_pub") ||
+	    !test_env_has_executable("mosquitto_sub")) {
+		fprintf(stderr,
+		    "skip: required MQTT clients not found in PATH\n");
+		return 0;
+	}
+#endif
+	snprintf(test_port, sizeof(test_port), "%s", test_env_test_port_text());
 
 	nmq_conf = get_test_conf(ALL_FEATURE_CONF);
 	assert(nmq_conf != NULL);
 	assert(nng_thread_create(&nmq, (void *) broker_start_with_conf,
 	    (void *) nmq_conf) == 0);
-	assert(wait_for_rule_api());
+	assert(wait_for_rule_api(8081));
 
 	snprintf(rule_request, sizeof(rule_request),
 	    "curl -sS -i --basic -u admin_test:pw_test --connect-timeout 1 "
@@ -111,9 +123,6 @@ main(void)
 	assert(run_rule_request(rule_request, RULE_HTTP_OK, 111));
 #else
 	assert(run_rule_request(rule_request, RULE_HTTP_OK, 0));
-	assert(test_env_has_executable("mosquitto_pub"));
-	assert(test_env_has_executable("mosquitto_sub"));
-
 	char sub_command[256];
 	char pub_command[256];
 	FILE *sub;

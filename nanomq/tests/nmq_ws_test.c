@@ -14,6 +14,8 @@
 #include <sys/select.h>
 #endif
 
+#define MQTTX_MESSAGE_TIMEOUT_MS 30000
+
 static bool
 wait_for_tcp_listener(uint16_t port, int timeout_ms)
 {
@@ -125,7 +127,7 @@ main()
 {
 	int rv = 0;
 
-	if (!test_env_allows_network_binds()) {
+	if (!test_env_allows_network_binds() || !test_env_allows_port_bind(8083)) {
 		fprintf(stderr, "skip: test environment disallows listening sockets\n");
 		return 0;
 	}
@@ -139,9 +141,26 @@ main()
 		return 0;
 	}
 
+	// Some distros ship a broken mqttx_cli wrapper (e.g. a shell script with
+	// a syntax error); verify the CLI actually runs before using it.
+	char probe_cmd[256];
+	snprintf(probe_cmd, sizeof(probe_cmd), "%s version", mqttx_cmd);
+	FILE *probe_fd = popen(probe_cmd, "r");
+	char probe_buf[128] = {0};
+	bool mqttx_ok = probe_fd != NULL;
+	if (mqttx_ok) {
+		size_t got = fread(probe_buf, 1, sizeof(probe_buf) - 1, probe_fd);
+		int    rc  = pclose(probe_fd);
+		mqttx_ok   = got > 0 && rc == 0;
+	}
+	if (!mqttx_ok) {
+		fprintf(stderr, "skip: %s is present but not runnable\n", mqttx_cmd);
+		return 0;
+	}
+
 	char *cmd   = mqttx_cmd;
 	char *arg_pub[] = { mqttx_cmd, "pub", "-h", "127.0.0.1", "-p",
-		"8083", "-t", "topic1", "-m", "message", "-l", "ws", NULL };
+		"8083", "-t", "topic1", "-m", "message", "-r", "-l", "ws", NULL };
 	// pipe to sub
 	char *arg_sub[] = { mqttx_cmd, "sub", "-t", "topic1", "-h",
 		"127.0.0.1", "-p", "8083", "-l", "ws", NULL };
@@ -153,7 +172,6 @@ main()
 
 	int buf_size = 128;
 	char bufsub[buf_size];
-	char readiness[buf_size];
 	char bufpub[buf_size];
 	int  infp, outfp;
 
@@ -167,13 +185,13 @@ main()
 
 	pid_sub = popen_sub_with_cmd_nonblock(&outfp, arg_sub, cmd);
 	assert(pid_sub > 0);
-	assert(wait_for_text(outfp, "Subscribed to topic1", readiness,
-	    sizeof(readiness), 8000));
-	// pipe to pub
+	// A retained publication is delivered even when the external subscriber
+	// connects after the publisher, so this does not rely on MQTTX CLI banners.
 	pid_pub   = popen_with_cmd(&infp, arg_pub, cmd);
 	assert(pid_pub > 0);
 
-	assert(wait_for_text(outfp, "message", bufsub, sizeof(bufsub), 8000));
+	assert(wait_for_text(outfp, "message", bufsub, sizeof(bufsub),
+	    MQTTX_MESSAGE_TIMEOUT_MS));
 
 	(void) bufpub;
 	fprintf(stderr, "websocket message received: %s\n", bufsub);

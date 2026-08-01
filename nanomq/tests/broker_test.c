@@ -4,7 +4,7 @@
 int
 main()
 {
-	if (!test_env_allows_network_binds()) {
+	if (!test_env_allows_network_binds() || !test_env_allows_port_bind(1883)) {
 		fprintf(stderr, "skip: test environment disallows listening sockets\n");
 		return 0;
 	}

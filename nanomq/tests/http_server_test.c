@@ -170,9 +170,16 @@ static bool
 wait_for_http_server_ready(int timeout_ms)
 {
 	int waited_ms = 0;
+	char *cmd = CURL_CMD_PREFIX "-X GET 'http://localhost:8081/api/v4'";
 
 	while (waited_ms < timeout_ms) {
-		if (test_get_endpoints()) {
+		FILE *fd = popen(cmd, "r");
+		char  status[32] = { 0 };
+		bool  ready = fd != NULL && fgets(status, sizeof(status), fd) != NULL &&
+		    strncmp(status, STATUS_CODE_OK, strlen(STATUS_CODE_OK)) == 0;
+
+		SAFE_POPEN_CLOSE(fd);
+		if (ready) {
 			return true;
 		}
 		nng_msleep(100);
@@ -839,7 +846,7 @@ test_misuse_of_method()
 int
 main()
 {
-	if (!test_env_allows_network_binds()) {
+	if (!test_env_allows_network_binds() || !test_env_allows_port_bind(8081)) {
 		fprintf(stderr, "skip: test environment disallows listening sockets\n");
 		return 0;
 	}
@@ -910,9 +917,11 @@ main()
     assert(test_get_metrics());
     assert(test_get_uri());
 
-    assert(test_get_bridges());
-    assert(test_get_bridge());
+	assert(test_get_bridges());
+	assert(test_get_bridge());
 	assert(test_put_bridges());
+	// Reconfiguration reconnects the bridge before it can process SUB/UNSUB.
+	nng_msleep(1000);
 	assert(test_put_bridges_sub());
 	assert(test_put_bridges_unsub());
 

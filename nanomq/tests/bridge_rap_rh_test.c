@@ -60,6 +60,7 @@ main()
 	int  outfp_nmq_rap0;
 	int  outfp_nmq_rh0;
 	int  outfp_nmq_rh1;
+	int  outfp_nmq_rh1_re;
 	int  outfp_nmq_rh2;
 	char buf_rap0[buf_size];
 	char buf_rh0[buf_size];
@@ -110,6 +111,7 @@ main()
 	assert(test_env_wait_for_output(outfp_nmq_rh1, buf_rh1, buf_size, 5000, 50));
 	printf("rh1 got the msg: %s\n", buf_rh1);
 	assert(strncmp(buf_rh1, "message-to-nmq-rh1", 18) == 0);
+	close(outfp_nmq_rh1);
 	memset(buf_rap0, 0, buf_size);
 	memset(buf_rh0, 0, buf_size);
 	memset(buf_rh1, 0, buf_size);
@@ -117,11 +119,11 @@ main()
 	// resub to trigger rh1. 
 	// popen(cmd_resub, "r"); // rest api for bridge client to resub is not available now.
 	// nng_msleep(1000);
-	pid_sub_nmq_rh1_re = popen_sub_with_cmd_nonblock(&outfp_nmq_rh1, cmd_sub_nmq_rh1_no_retain, cmd);
+	pid_sub_nmq_rh1_re = popen_sub_with_cmd_nonblock(&outfp_nmq_rh1_re, cmd_sub_nmq_rh1_no_retain, cmd);
 	pid_sub_nmq_rh2 = popen_sub_with_cmd_nonblock(&outfp_nmq_rh2, cmd_sub_nmq_rh2, cmd);
 	// consider the msg is not been recvieved after 2s.
 	nng_msleep(2000);
-	assert(test_env_wait_for_no_output(outfp_nmq_rh1, 2000, 50));
+	assert(test_env_wait_for_no_output(outfp_nmq_rh1_re, 2000, 50));
 	assert(test_env_wait_for_no_output(outfp_nmq_rh2, 2500, 50));
 	printf("no additional rh1/rh2 retain messages\n");
 	// assert(read(outfp_nmq_rh1, buf_rh1, buf_size) == 0);
@@ -135,7 +137,7 @@ main()
 	kill(pid_sub_nmq_rh2, SIGKILL);
 	close(outfp_nmq_rap0);
 	close(outfp_nmq_rh0);
-	close(outfp_nmq_rh1);
+	close(outfp_nmq_rh1_re);
 	close(outfp_nmq_rh2);
 	broker_stop_for_test();
 	nng_thread_destroy(nmq);

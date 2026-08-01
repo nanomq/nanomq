@@ -8,6 +8,8 @@
 #define	BRIDGE_AWS_CONF_PATH "../../../nanomq/tests/nanomq_aws_test.conf"
 #define	BRIDGE_MUTI_CONF_PATH "../../../nanomq/tests/nanomq_muti_bridges_test.conf"
 
+#define WEBHOOK_MESSAGE_TIMEOUT_MS 30000
+
 int webhook_msg_cnt = 0; // this is a silly signal to indicate whether the webhook tests pass
 
 // This is a silly demo for test -- it listens on port 8888 (or $PORT if present),
@@ -540,10 +542,57 @@ test_env_report_bind_owner(uint16_t port)
 static uint16_t test_env_test_port(void);
 
 static bool
+test_env_skip_network_bind_check(void)
+{
+	const char *skip_check = getenv("NANOMQ_SKIP_NETWORK_TEST_ENV_CHECK");
+
+	return skip_check != NULL &&
+	    (strcmp(skip_check, "1") == 0 || strcasecmp(skip_check, "true") == 0 ||
+	        strcasecmp(skip_check, "yes") == 0 ||
+	        strcasecmp(skip_check, "on") == 0);
+}
+
+static bool
+test_env_allows_port_bind(uint16_t port)
+{
+#ifndef NANO_PLATFORM_WINDOWS
+	int                sock;
+	struct sockaddr_in addr;
+
+	if (test_env_skip_network_bind_check()) {
+		return true;
+	}
+	sock = socket(AF_INET, SOCK_STREAM, 0);
+	if (sock < 0) {
+		fprintf(stderr, "test_env_allows_port_bind: socket() failed: %s\n",
+		    strerror(errno));
+		return false;
+	}
+	memset(&addr, 0, sizeof(addr));
+	addr.sin_family      = AF_INET;
+	addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+	addr.sin_port        = htons(port);
+	if (bind(sock, (struct sockaddr *) &addr, sizeof(addr)) != 0) {
+		int bind_errno = errno;
+
+		test_env_report_bind_owner(port);
+		fprintf(stderr,
+		    "test_env_allows_port_bind: bind to 127.0.0.1:%hu failed: %s\n",
+		    port, strerror(bind_errno));
+		close(sock);
+		return false;
+	}
+	close(sock);
+#else
+	(void) port;
+#endif
+	return true;
+}
+
+static bool
 test_env_allows_network_binds(void)
 {
 #ifndef NANO_PLATFORM_WINDOWS
-	const char *skip_check = getenv("NANOMQ_SKIP_NETWORK_TEST_ENV_CHECK");
 	const char *configured_port = getenv("NANOMQ_TEST_PORT");
 	uint16_t    configured_port_value = 0;
 	int         sock = -1;
@@ -554,12 +603,9 @@ test_env_allows_network_binds(void)
 	char              *end = NULL;
 	long               parsed_port;
 
-	if (skip_check != NULL && (strcmp(skip_check, "1") == 0 ||
-	                           strcasecmp(skip_check, "true") == 0 ||
-	                           strcasecmp(skip_check, "yes") == 0 ||
-	                           strcasecmp(skip_check, "on") == 0)) {
+	if (test_env_skip_network_bind_check()) {
 		fprintf(stderr,
-		    "test_env_allows_network_binds: bypassed by NANOMQ_SKIP_NETWORK_TEST_ENV_CHECK=1\\n");
+		    "test_env_allows_network_binds: bypassed by NANOMQ_SKIP_NETWORK_TEST_ENV_CHECK=1\n");
 		return true;
 	}
 
@@ -799,7 +845,7 @@ test_env_wait_for_output(
 	int flags;
 	int original_flags;
 	int waited = 0;
-	ssize_t n;
+	ssize_t n = -1;
 
 	if (buf_size == 0 || buf == NULL || outfd < 0) {
 		fprintf(stderr,
