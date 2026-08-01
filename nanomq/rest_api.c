@@ -4443,10 +4443,33 @@ convert_topic(char **list, size_t count)
 	return topics;
 }
 
-static property *
-bridge_properties_parse(cJSON *json_prop)
+static bool
+bridge_properties_valid(cJSON *json_prop, bool allow_identifier)
 {
+	cJSON *identifier;
+
+	if (json_prop == NULL) {
+		return true;
+	}
 	if (!cJSON_IsObject(json_prop)) {
+		return false;
+	}
+	identifier = cJSON_GetObjectItem(json_prop, "identifier");
+	if (identifier == NULL) {
+		return true;
+	}
+	return allow_identifier && cJSON_IsNumber(identifier) &&
+	    identifier->valuedouble == (double) identifier->valueint &&
+	    identifier->valueint > 0 && identifier->valueint <= 268435455;
+}
+
+static property *
+bridge_properties_parse(cJSON *json_prop, bool include_identifier)
+{
+	if (json_prop == NULL) {
+		return NULL;
+	}
+	if (!bridge_properties_valid(json_prop, include_identifier)) {
 		return NULL;
 	}
 
@@ -4456,7 +4479,7 @@ bridge_properties_parse(cJSON *json_prop)
 	}
 
 	cJSON *identifier = cJSON_GetObjectItem(json_prop, "identifier");
-	if (cJSON_IsNumber(identifier)) {
+	if (include_identifier && cJSON_IsNumber(identifier)) {
 		mqtt_property_append(prop_list,
 		    mqtt_property_set_value_varint(
 			SUBSCRIPTION_IDENTIFIER, identifier->valueint));
@@ -4557,6 +4580,12 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 	cJSON *json_prop = cJSON_GetObjectItem(data_obj, "sub_properties");
 	conf_bridge_sub_properties *sub_props = NULL;
 
+	if (!bridge_properties_valid(json_prop, true)) {
+		free_topic_list(sub_topics, sub_count);
+		status = NNG_HTTP_STATUS_BAD_REQUEST;
+		code   = REQ_PARAM_ERROR;
+		goto out;
+	}
 	if (cJSON_IsObject(json_prop)) {
 		sub_props = nng_zalloc(sizeof(conf_bridge_sub_properties));
 		getNumberValue(
@@ -4607,7 +4636,7 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 		// Decode properties to nng_mqtt_property
 		property *prop_list = NULL;
 		if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
-			prop_list = bridge_properties_parse(json_prop);
+			prop_list = bridge_properties_parse(json_prop, true);
 		}
 
 		found = true;
@@ -4715,6 +4744,13 @@ post_mqtt_bridge_unsub(http_msg *msg, const char *name)
 		cvector_push_back(unsub_topics, topic);
 		unsub_count++;
 	}
+	cJSON *json_prop = cJSON_GetObjectItem(data_obj, "unsub_properties");
+	if (!bridge_properties_valid(json_prop, false)) {
+		free_string_list(unsub_topics, unsub_count);
+		status = NNG_HTTP_STATUS_BAD_REQUEST;
+		code   = REQ_PARAM_ERROR;
+		goto out;
+	}
 
 	conf *config = get_global_conf();
 
@@ -4738,11 +4774,8 @@ post_mqtt_bridge_unsub(http_msg *msg, const char *name)
 		// Get properties
 		property *prop_list = NULL;
 		if (node->proto_ver == MQTT_VERSION_V5) {
-			cJSON *json_prop =
-			    cJSON_GetObjectItem(data_obj, "unsub_properties");
-
 			if (cJSON_IsObject(json_prop)) {
-				prop_list = bridge_properties_parse(json_prop);
+				prop_list = bridge_properties_parse(json_prop, false);
 			}
 		}
 
