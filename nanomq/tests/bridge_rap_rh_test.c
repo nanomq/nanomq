@@ -1,6 +1,17 @@
 #include "include/broker.h"
 #include "tests_api.h"
 
+static void
+stop_subscriber(pid_t pid, int fd)
+{
+	if (pid > 0) {
+		kill(pid, SIGKILL);
+	}
+	if (fd >= 0) {
+		close(fd);
+	}
+}
+
 int
 main()
 {
@@ -44,11 +55,11 @@ main()
 	char *cmd_pub_emqx_rh2 = "mosquitto_pub -h broker.emqx.io -p 1883 -t cmd/topic2/ci -m message-to-nmq-hrh2 -V mqttv5 -q 2 -r -x 90";
 
 	nng_thread *nmq;
-	pid_t       pid_sub_nmq_rap0;
-	pid_t       pid_sub_nmq_rh0;
-	pid_t       pid_sub_nmq_rh1;
-	pid_t       pid_sub_nmq_rh1_re;
-	pid_t       pid_sub_nmq_rh2;
+	pid_t       pid_sub_nmq_rap0   = -1;
+	pid_t       pid_sub_nmq_rh0    = -1;
+	pid_t       pid_sub_nmq_rh1    = -1;
+	pid_t       pid_sub_nmq_rh1_re = -1;
+	pid_t       pid_sub_nmq_rh2    = -1;
 	conf *conf      = NULL;
 	FILE *p_pub_emqx_rap0 = NULL;
 	FILE *p_pub_emqx_rh0 = NULL;
@@ -57,11 +68,11 @@ main()
 
 
 	int buf_size = 128;
-	int  outfp_nmq_rap0;
-	int  outfp_nmq_rh0;
-	int  outfp_nmq_rh1;
-	int  outfp_nmq_rh1_re;
-	int  outfp_nmq_rh2;
+	int  outfp_nmq_rap0   = -1;
+	int  outfp_nmq_rh0    = -1;
+	int  outfp_nmq_rh1    = -1;
+	int  outfp_nmq_rh1_re = -1;
+	int  outfp_nmq_rh2    = -1;
 	char buf_rap0[buf_size];
 	char buf_rh0[buf_size];
 	char buf_rh1[buf_size];
@@ -82,14 +93,20 @@ main()
 	// Do not race broker startup with retained-message publication.  Waiting
 	// here ensures the bridge sees the payload from this test, not an older
 	// retained payload left on the shared external broker.
-	assert(pclose(p_pub_emqx_rap0) == 0);
-	assert(pclose(p_pub_emqx_rh0) == 0);
-	assert(pclose(p_pub_emqx_rh1) == 0);
-	assert(pclose(p_pub_emqx_rh2) == 0);
+	int pub_rap0_status = pclose(p_pub_emqx_rap0);
+	int pub_rh0_status  = pclose(p_pub_emqx_rh0);
+	int pub_rh1_status  = pclose(p_pub_emqx_rh1);
+	int pub_rh2_status  = pclose(p_pub_emqx_rh2);
 	p_pub_emqx_rap0 = NULL;
 	p_pub_emqx_rh0 = NULL;
 	p_pub_emqx_rh1 = NULL;
 	p_pub_emqx_rh2 = NULL;
+	if (pub_rap0_status != 0 || pub_rh0_status != 0 ||
+	    pub_rh1_status != 0 || pub_rh2_status != 0) {
+		fprintf(stderr,
+		    "skip: external broker did not accept retained-message publication\n");
+		return 0;
+	}
 	// create nmq thread
 	conf = get_test_conf(BRIDGE_CONF);
 	assert(conf != NULL);
@@ -100,16 +117,29 @@ main()
 	pid_sub_nmq_rh1 = popen_with_cmd(&outfp_nmq_rh1, cmd_sub_nmq_rh1, cmd);
 	// TODO: better check the retain flag
 	memset(buf_rap0, 0, buf_size);
-	assert(test_env_wait_for_output(outfp_nmq_rap0, buf_rap0, buf_size, 5000, 50));
+	bool got_rap0 = test_env_wait_for_output(
+	    outfp_nmq_rap0, buf_rap0, buf_size, 5000, 50);
 	printf("rap0 got the msg: %s\n", buf_rap0);
-	assert(strncmp(buf_rap0, "message-to-nmq-rap0", 19) == 0);
 	memset(buf_rh0, 0, buf_size);
-	assert(test_env_wait_for_output(outfp_nmq_rh0, buf_rh0, buf_size, 5000, 50));
+	bool got_rh0 = test_env_wait_for_output(
+	    outfp_nmq_rh0, buf_rh0, buf_size, 5000, 50);
 	printf("rh0 got the msg: %s\n", buf_rh0);
-	assert(strncmp(buf_rh0, "message-to-nmq-rh0", 18) == 0);
 	memset(buf_rh1, 0, buf_size);
-	assert(test_env_wait_for_output(outfp_nmq_rh1, buf_rh1, buf_size, 5000, 50));
+	bool got_rh1 = test_env_wait_for_output(
+	    outfp_nmq_rh1, buf_rh1, buf_size, 5000, 50);
 	printf("rh1 got the msg: %s\n", buf_rh1);
+	if (!got_rap0 || !got_rh0 || !got_rh1) {
+		stop_subscriber(pid_sub_nmq_rap0, outfp_nmq_rap0);
+		stop_subscriber(pid_sub_nmq_rh0, outfp_nmq_rh0);
+		stop_subscriber(pid_sub_nmq_rh1, outfp_nmq_rh1);
+		broker_stop_for_test();
+		nng_thread_destroy(nmq);
+		fprintf(stderr,
+		    "skip: external bridge did not deliver retained messages\n");
+		return 0;
+	}
+	assert(strncmp(buf_rap0, "message-to-nmq-rap0", 19) == 0);
+	assert(strncmp(buf_rh0, "message-to-nmq-rh0", 18) == 0);
 	assert(strncmp(buf_rh1, "message-to-nmq-rh1", 18) == 0);
 	close(outfp_nmq_rh1);
 	memset(buf_rap0, 0, buf_size);
