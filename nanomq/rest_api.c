@@ -4150,6 +4150,11 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 
 	bool         found  = false;
 	conf_bridge *bridge = &config->bridge;
+	if (node_obj == NULL) {
+		cJSON_Delete(req);
+		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
+		    REQ_PARAM_ERROR);
+	}
 	nng_mtx_lock(config->restapi_lk);
 	for (size_t i = 0; i < bridge->count; i++) {
 		conf_bridge_node *node     = bridge->nodes[i];
