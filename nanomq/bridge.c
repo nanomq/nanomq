@@ -845,7 +845,6 @@ hybrid_cb(void *arg)
 		nng_mtx_unlock(bridge_arg->switch_mtx);
 		// Free bridge client
 		if (bridge_arg->client) {
-			nng_aio_finish_error(bridge_arg->client->send_aio, NNG_ECLOSED);
 			nng_mqtt_client_free(bridge_arg->client, true);
 			bridge_arg->client = NULL;
 		}
@@ -941,6 +940,7 @@ bridge_quic_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	log_info("Bridge client connected! RC [%d]", reason);
 	log_info("Local ip4 address [%s] port [%d]", addr, port);
 
+	nng_mtx_lock(param->config->mtx);
 	if (reason == 0 && param->config->sub_count > 0) {
 		nng_mqtt_client *client = param->client;
 		for (size_t i = 0; i < param->config->sub_count; i++) {
@@ -970,6 +970,7 @@ bridge_quic_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 		}
 		execone ++;
 	}
+	nng_mtx_unlock(param->config->mtx);
 
 	if (addr)
 		free(addr);
@@ -1003,32 +1004,38 @@ bridge_quic_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 {
 	int           rv;
 	nng_dialer    *dialer = (nng_dialer *) nng_zalloc(sizeof(*dialer));;
+	bool          sock_opened = false;
 
 	if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 		if ((rv = nng_mqttv5_quic_client_open(sock)) != 0) {
 			log_error("Initializing mqttv5 quic client failed %d", rv);
-			return rv;
+			goto error;
 		}
 	} else {
 		if ((rv = nng_mqtt_quic_client_open(sock)) != 0) {
 			log_error("Initializing mqttv quic client failed %d", rv);
-			return rv;
+			goto error;
 		}
 	}
+	sock_opened = true;
 
 	apply_sqlite_config(sock, node, "mqtt_quic_client.db");
 	nng_socket_set_string(*sock, NNG_OPT_SOCKNAME, node->name);
 
 	if ((rv = nng_dialer_create(dialer, *sock, node->address))) {
 		log_error("nng_dialer_create failed %d", rv);
-		return rv;
+		goto error;
 	}
 	node->dialer = dialer;
 
 	nng_duration duration = (nng_duration) node->backoff_max * 1000;
 	nng_dialer_set(*dialer, NNG_OPT_MQTT_RECONNECT_BACKOFF_MAX, &duration, sizeof(nng_duration));
 
-	bridge_arg->client->sock   = *sock;
+	bridge_arg->client = nng_mqtt_client_alloc(*sock, &send_callback, true);
+	if (bridge_arg->client == NULL) {
+		rv = NNG_ENOMEM;
+		goto error;
+	}
 	bridge_arg->cancel_timeout = node->cancel_timeout;
 
 	// create a CONNECT message
@@ -1053,11 +1060,30 @@ bridge_quic_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 
 	if (node->enable) {
 		rv = nng_dialer_start(*dialer, NNG_FLAG_NONBLOCK);
-		if (rv != 0)
+		if (rv != 0) {
 			log_error("nng dialer start failed %d", rv);
+			goto error;
+		}
 	}
 
 	return 0;
+
+error:
+	if (bridge_arg->client != NULL) {
+		nng_mqtt_client_free(bridge_arg->client, true);
+		bridge_arg->client = NULL;
+	}
+	if (node->dialer == dialer) {
+		nng_dialer_close(*dialer);
+		node->dialer = NULL;
+	}
+	if (dialer != NULL) {
+		nng_free(dialer, sizeof(*dialer));
+	}
+	if (sock_opened) {
+		nng_close(*sock);
+	}
+	return rv;
 }
 
 static int
@@ -1136,6 +1162,7 @@ bridge_tcp_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	bridge_param *param  = arg;
 	int           reason = 0;
 
+	nng_mtx_lock(param->config->mtx);
 	nng_atomic_set_bool(param->config->connected, true);
 	// get connect reason
 	nng_pipe_get_int(p, NNG_OPT_MQTT_CONNECT_REASON, &reason);
@@ -1178,6 +1205,7 @@ bridge_tcp_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	if (param->config->sub_count == 0) {
 		log_info("No subscriptions were set.");
 	}
+	nng_mtx_unlock(param->config->mtx);
 }
 
 // Disconnect message callback function
@@ -1268,12 +1296,16 @@ bridge_tcp_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 		         node->tls.cert, node->tls.key, node->tls.key_password,
 		         node->tls.sni, node->tls.verify_peer)) != 0) {
 			log_error("init_dialer_tls failed %d", rv);
-			return rv;
+			goto error;
 		}
 	}
 #endif
 
-	bridge_arg->client->sock   = *sock;
+	bridge_arg->client = nng_mqtt_client_alloc(*sock, &send_callback, true);
+	if (bridge_arg->client == NULL) {
+		rv = NNG_ENOMEM;
+		goto error;
+	}
 	bridge_arg->cancel_timeout = node->cancel_timeout;
 
 	// create a CONNECT message
@@ -1294,49 +1326,22 @@ bridge_tcp_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	nng_socket_set_ms(*sock, NNG_OPT_MQTT_RETRY_INTERVAL, retry);
 	nng_time retry_wait = node->resend_wait;
 	nng_socket_set_uint64(*sock, NNG_OPT_MQTT_RETRY_WAIT_TIME, retry_wait);
-	nng_mqtt_set_connect_cb(*sock, NULL, NULL);
+	nng_mqtt_set_connect_cb(*sock, bridge_tcp_connect_cb, bridge_arg);
 	nng_mqtt_set_disconnect_cb(*sock, bridge_tcp_disconnect_cb, bridge_arg);
 
 	if (node->enable) {
 		rv = nng_dialer_start(*dialer, NNG_FLAG_NONBLOCK);
-		if (rv != 0)
+		if (rv != 0) {
 			log_warn("nng_dialer_start %d %s", rv, node->clientid);
-	}
-
-	if (bridge_arg->config->sub_count > 0) {
-		nng_mqtt_topic_qos *topic_qos =
-		    nng_mqtt_topic_qos_array_create(
-		        bridge_arg->config->sub_count);
-		for (size_t i = 0; i < bridge_arg->config->sub_count; i++) {
-			nng_mqtt_topic_qos_array_set(topic_qos, i,
-			    bridge_arg->config->sub_list[i]->remote_topic,
-			    bridge_arg->config->sub_list[i]->qos,
-				bridge_arg->config->sub_list[i]->nolocal? 1:0,
-			    bridge_arg->config->sub_list[i]->retain_as_published,
-			    bridge_arg->config->sub_list[i]->retain_handling);
-			log_info("Bridge client subscribed topic %s (qos %d rap %d rh %d).",
-			    bridge_arg->config->sub_list[i]->remote_topic,
-			    bridge_arg->config->sub_list[i]->qos,
-				bridge_arg->config->sub_list[i]->retain_as_published,
-				bridge_arg->config->sub_list[i]->retain_handling);
+			goto error;
 		}
-		nng_mqtt_client *client = bridge_arg->client;
-
-		// Property
-		property *properties = NULL;
-		if (bridge_arg->config->proto_ver ==
-		    MQTT_PROTOCOL_VERSION_v5) {
-			properties =
-			    sub_property(bridge_arg->config->sub_properties);
-		}
-		nng_aio_set_timeout(client->send_aio, node->cancel_timeout);
-		nng_mqtt_subscribe_async(client, topic_qos,
-		    bridge_arg->config->sub_count, properties);
-		nng_mqtt_topic_qos_array_free(
-		    topic_qos, bridge_arg->config->sub_count);
 	}
 	return 0;
 error:
+	if (bridge_arg->client != NULL) {
+		nng_mqtt_client_free(bridge_arg->client, true);
+		bridge_arg->client = NULL;
+	}
 	if (node->dialer == dialer) {
 		nng_dialer_close(*dialer);
 		node->dialer = NULL;
@@ -1744,17 +1749,14 @@ bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 	}
 
 	bridge_param    *bridge_arg = (bridge_param *) node->bridge_arg;
-	nng_mqtt_client *client     = bridge_arg->client;
+	nng_mqtt_client *old_client = bridge_arg->client;
 	tsock                       = bridge_arg->sock;
 	sock                        = tsock;
-
-	// no point to wait for ACK from last aio send of previous socket.
-	nng_aio_finish_error(client->send_aio, NNG_ECANCELED);
 
 	nng_mtx_lock(reload_lock);
 	bool _enable = node->enable;
 	node->enable = false;
-	// No need to Free the nng_mqtt_client, reuse it.
+	bridge_arg->client = NULL;
 
 	// socket reuse and open a new mqtt connection
 	if (0 == strncmp(node->address, tcp_scheme, strlen(tcp_scheme)) ||
@@ -1767,13 +1769,16 @@ bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 #endif
 	} else {
 		log_error("Unsupported bridge protocol.\n");
+		bridge_arg->client = old_client;
+		node->enable       = _enable;
 		nng_mtx_unlock(reload_lock);
 		nng_free(new, sizeof(nng_socket));
 		return -1;
 	}
 	if (rv != 0) {
 		log_error("Bridge reload failed on initialization: %d", rv);
-		node->enable = _enable;
+		bridge_arg->client = old_client;
+		node->enable       = _enable;
 		nng_mtx_unlock(reload_lock);
 		nng_free(new, sizeof(nng_socket));
 		return rv;
@@ -1793,12 +1798,13 @@ bridge_reload(nng_socket *sock, conf *config, conf_bridge_node *node)
 	} else {
 		log_error("Unsupported bridge protocol.\n");
 	}
-	// Update the sock in client due to it's a constant rather than pointer
-	bridge_arg->client->sock = *new;
 	node->sock               = new;
 	node->enable             = _enable;
 	bridge_arg->sock         = new;
 	nng_mtx_unlock(reload_lock);
+	if (old_client != NULL) {
+		nng_mqtt_client_free(old_client, true);
+	}
 
 	return 0;
 }
@@ -1838,14 +1844,20 @@ bridge_sub_handler(nano_work *work)
 		for (size_t t = 0; t < work->config->bridge.count; t++) {
 			conf_bridge_node *node = work->config->bridge.nodes[t];
 			bridge_param *param = node->bridge_arg;
-			if (!node->enable || !node->transparent)// check transparent enabler
+			nng_mtx_lock(node->mtx);
+			// Reload can temporarily detach the MQTT client.
+			if (!node->enable || !node->transparent || param == NULL ||
+			    param->client == NULL) {
+				nng_mtx_unlock(node->mtx);
 				continue;
+			}
 			// TODO enhance performance, reuse same Subscribe msg
 			// TODO carry the property as well
 			if (work->flag  == CMD_SUBSCRIBE)
 				nng_mqtt_subscribe_async(param->client, subscriptions, 1, NULL);
 			else if (work->flag  == CMD_UNSUBSCRIBE)
 				nng_mqtt_unsubscribe_async(param->client, topic, 1, NULL);
+			nng_mtx_unlock(node->mtx);
 		}
 		tnode = tnode->next;
 	}
