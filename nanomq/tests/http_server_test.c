@@ -1,3 +1,4 @@
+#include "include/bridge.h"
 #include "tests_api.h"
 
 #define STATUS_CODE_OK "HTTP/1.1 200"
@@ -389,6 +390,16 @@ test_put_bridges()
 }
 
 static bool
+test_put_bridges_replaces_client(conf *config)
+{
+    conf_bridge_node *node = config->bridge.nodes[0];
+    bridge_param *param = node->bridge_arg;
+    nng_mqtt_client *client = param->client;
+
+    return test_put_bridges() && param->client != client;
+}
+
+static bool
 test_put_bridges_sub()
 {
     char *cmd = CURL_CMD_PREFIX "-X PUT "
@@ -766,7 +777,7 @@ main()
     assert(test_get_bridge());
     assert(test_put_bridges_sub());
     assert(test_put_bridges_unsub()); 
-    assert(test_put_bridges()); 
+    assert(test_put_bridges_replaces_client(conf));
 
     // Rules Logic Check
     assert(test_post_rules()); // Creates Rule 1 (Repub) and Rule 2 (Sqlite)
