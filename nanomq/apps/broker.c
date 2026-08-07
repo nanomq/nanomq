@@ -1602,6 +1602,8 @@ status_check(int *pid)
 		if ((data) != NULL) {
 			if (sscanf(data, "%u", pid) < 1) {
 				log_error("read pid from file error!");
+				nng_free(data, size);
+				nng_strfree(pid_path);
 				return 1;
 			}
 			log_debug("old pid read, [%u]", *pid);
