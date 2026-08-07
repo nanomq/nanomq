@@ -1611,6 +1611,7 @@ status_check(int *pid)
 				log_warn("there is a running NanoMQ instance "
 				          ": pid [%u]",
 				    *pid);
+				nng_strfree(pid_path);
 				return 0;
 			}
 		}
