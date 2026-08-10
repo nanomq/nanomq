@@ -27,7 +27,11 @@ static unsigned int base64_no_padding_encode(
 
 // Base62 expansion factor: log2(256) / log2(62) ≈ 1.343
 // We use 1.35 to be safe, plus margin for null terminator.
-#define BASE62_ENCODE_OUT_SIZE(s) ((unsigned int) (((s) * 135) / 100) + 4)
+
+#define BASE62_ENCODE_OUT_SIZE(s)              \
+	(((size_t) (s) > (SIZE_MAX - 4) / 135) \
+	        ? 0                            \
+	        : (size_t) ((((size_t) (s) * 135) / 100) + 4))
 
 static bool
 event_filter(conf_web_hook *hook_conf, webhook_event event)
@@ -243,9 +247,14 @@ webhook_msg_publish(nng_socket *sock, conf_web_hook *hook_conf,
 	case base62:
         // Use the new mathematical macro
         out_size = BASE62_ENCODE_OUT_SIZE(pub_packet->payload.len);
-        encode   = nng_zalloc(out_size);
-        len = base62_encode(
-                 pub_packet->payload.data, pub_packet->payload.len, encode);
+		if (out_size == 0) {
+			log_error("Payload is too large for Base62 encoding.");
+			len = -1;
+		} else {
+			encode   = nng_zalloc(out_size);
+			len = base62_encode(
+					pub_packet->payload.data, pub_packet->payload.len, encode);
+		}
         if (len > 0) {
             cJSON_AddStringToObject(obj, "payload", encode);
         } else {
