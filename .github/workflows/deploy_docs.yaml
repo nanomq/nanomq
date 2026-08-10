@@ -42,7 +42,7 @@ jobs:
         node-version-file: 'frontend/.nvmrc'
 
     - name: use pnpm
-      uses: pnpm/action-setup@08c4be7e2e672a47d11bd04269e27e5f3e8529cb # v6.0.0
+      uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
       with:
         version: 8
 
