@@ -856,8 +856,8 @@ set_auth_http_req(cJSON *json, const char *conf_path, conf_auth_http_req *req,
 			//     conf_path, key_prefix, "headers.", key, value);
 			if (header_count <= index) {
 				req->header_count++;
-				req->headers = realloc(req->headers,
-				    (req->header_count) * sizeof(char *));
+				req->headers = realloc(req->headers, (req->header_count) * sizeof(conf_http_header *));
+				req->headers[index] = nng_zalloc(sizeof(conf_http_header));
 			}
 			update_string(req->headers[index]->key, key);
 			update_string(req->headers[index]->value, value);
