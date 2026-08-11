@@ -69,6 +69,10 @@ decode_sub_msg(nano_work *work)
 												(uint32_t *)&bpos,
 												&sub_pkt->prop_len,
 												true);
+		if (sub_pkt->prop_len == (uint32_t) -1) {
+			log_warn("Malformed Property");
+			return PROTOCOL_ERROR;
+		}
 		if (check_properties(sub_pkt->properties, work->msg) != SUCCESS) {
 			FREE_SUB_PROPERTIES(sub_pkt);
 			return PROTOCOL_ERROR;

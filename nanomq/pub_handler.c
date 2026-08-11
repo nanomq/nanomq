@@ -2181,6 +2181,10 @@ decode_pub_message(nano_work *work, uint8_t proto)
 			    decode_properties(msg, &pos,
 			        &pub_packet->var_header.publish.prop_len,
 			        true);
+			if (pub_packet->var_header.publish.prop_len == (uint32_t)-1) {
+				log_warn("Malformed Payload");
+				return PROTOCOL_ERROR;
+			}
 			log_debug("property len: %d",
 			    pub_packet->var_header.publish.prop_len);
 
@@ -2246,6 +2250,10 @@ decode_pub_message(nano_work *work, uint8_t proto)
 			    decode_properties(msg, &pos,
 			        &pub_packet->var_header.pub_arrc.prop_len,
 			        false);
+			if (pub_packet->var_header.pub_arrc.prop_len == (uint32_t)-1) {
+				log_warn("Malformed Property");
+				return PROTOCOL_ERROR;
+			}
 			if (check_properties(
 			        pub_packet->var_header.pub_arrc.properties, msg) !=
 			    SUCCESS) {

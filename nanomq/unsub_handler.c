@@ -60,6 +60,10 @@ decode_unsub_msg(nano_work *work)
 	if (MQTT_PROTOCOL_VERSION_v5 == proto_ver) {
 		unsub_pkt->properties =
 		    decode_properties(msg, &vpos, &unsub_pkt->prop_len, false);
+		if (unsub_pkt->prop_len == (uint32_t) -1) {
+			log_warn("Malformed Property");
+			return PROTOCOL_ERROR;
+		}
 		if (check_properties(unsub_pkt->properties, msg) != SUCCESS) {
 			FREE_UNSUB_PROPERTIES(unsub_pkt);
 			return PROTOCOL_ERROR;
