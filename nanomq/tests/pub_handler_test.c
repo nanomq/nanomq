@@ -10,7 +10,7 @@ test_handler_pub()
 	reason_code rc = 0;
 	// init work
 	nano_work *work;
-	work            = nng_alloc(sizeof(*work));
+	work            = nng_zalloc(sizeof(*work));
 	work->config    = NULL;
 	work->pipe_ct   = nng_alloc(sizeof(struct pipe_content));
 	work->proto_ver = MQTT_PROTOCOL_VERSION_v311;
@@ -66,7 +66,7 @@ main()
 	bool        rv_bool = false;
 	// init work
 	nano_work *work;
-	work            = nng_alloc(sizeof(*work));
+	work            = nng_zalloc(sizeof(*work));
 	work->proto_ver = MQTT_PROTOCOL_VERSION_v311;
 
 	nng_msg *msg, *tpcError_msg, *truncated_pub_msg;
