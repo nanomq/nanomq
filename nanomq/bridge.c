@@ -943,6 +943,11 @@ bridge_quic_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	nng_mtx_lock(param->config->mtx);
 	if (reason == 0 && param->config->sub_count > 0) {
 		nng_mqtt_client *client = param->client;
+		if (client == NULL) {
+			log_info("Orphaned bridge client ignored during connect callback.");
+			nng_mtx_unlock(param->config->mtx);
+			return;
+		}
 		for (size_t i = 0; i < param->config->sub_count; i++) {
 			nng_mqtt_topic_qos *topic_qos =
 			    nng_mqtt_topic_qos_array_create(1);
@@ -1173,6 +1178,12 @@ bridge_tcp_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 
 	/* MQTT SUBSCRIBE */
 	if (reason == 0 && param->config->sub_count > 0) {
+		nng_mqtt_client *client = param->client;
+		if (client == NULL) {
+			log_info("Orphaned bridge client ignored during connect callback.");
+			nng_mtx_unlock(param->config->mtx);
+			return;
+		}
 		nng_mqtt_topic_qos *topic_qos =
 		    nng_mqtt_topic_qos_array_create(param->config->sub_count);
 		for (size_t i = 0; i < param->config->sub_count; i++) {
@@ -1188,8 +1199,6 @@ bridge_tcp_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 				param->config->sub_list[i]->retain_as_published,
 				param->config->sub_list[i]->retain_handling);
 		}
-		nng_mqtt_client *client = param->client;
-
 		// Property
 		property *properties = NULL;
 		if (param->config->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
