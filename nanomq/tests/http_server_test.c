@@ -469,17 +469,7 @@ test_put_bridges()
 }
 
 static bool
-test_put_bridges_replaces_client(conf *config)
-{
-    conf_bridge_node *node = config->bridge.nodes[0];
-    bridge_param *param = node->bridge_arg;
-    nng_mqtt_client *client = param->client;
-
-    return test_put_bridges() && param->client != client;
-}
-
-static bool
-test_put_bridges_sub()
+test_put_bridges_sub(char *expected_status, int expected_rc)
 {
 	char *cmd = CURL_CMD_PREFIX "-X PUT "
                 "'http://localhost:8081/api/v4/bridges/sub/emqx' "
@@ -491,9 +481,25 @@ test_put_bridges_sub()
                 "\"key1\",\"value\": \"value1\"},{\"key\": "
                 "\"key2\",\"value\": \"value2\"}]}}}'";
     FILE *fd = popen(cmd, "r");
-    bool  rv = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
+	bool  rv = check_http_return(fd, expected_status, expected_rc);
     SAFE_POPEN_CLOSE(fd);
     return rv;
+}
+
+static bool
+test_put_bridges_switch(bool bridge_switch)
+{
+	char *cmd = bridge_switch ?
+	    CURL_CMD_PREFIX "-X POST "
+	                    "'http://localhost:8081/api/v4/bridges/switch/emqx' "
+	                    "-d '{\"data\": {\"bridge_switch\": true}}'" :
+	    CURL_CMD_PREFIX "-X POST "
+	                    "'http://localhost:8081/api/v4/bridges/switch/emqx' "
+	                    "-d '{\"data\": {\"bridge_switch\": false}}'";
+	FILE *fd = popen(cmd, "r");
+	bool  rv = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
+	SAFE_POPEN_CLOSE(fd);
+	return rv;
 }
 
 static bool
@@ -850,11 +856,14 @@ main()
 		fprintf(stderr, "skip: test environment disallows listening sockets\n");
 		return 0;
 	}
-	if (!test_env_has_executable("mosquitto_sub") ||
-	    !test_env_has_executable("curl")) {
-		fprintf(stderr,
-		    "skip: required CLI tools not found in PATH\n");
+	if (!test_env_has_executable("curl")) {
+		fprintf(stderr, "skip: curl not found in PATH\n");
 		return 0;
+	}
+	bool has_mosquitto_sub = test_env_has_executable("mosquitto_sub");
+	if (!has_mosquitto_sub) {
+		fprintf(stderr,
+		    "skip: mosquitto_sub not found; omitting client-specific checks\n");
 	}
 
     char *cmd = "mosquitto_sub";
@@ -867,19 +876,21 @@ main()
         "clientid-test2", NULL };
     nng_thread *nmq;
     conf       *conf;
-    pid_t       pid_sub;
-    pid_t       pid_sub2;
-    int         outfp;
-    int         outfp2;
+	pid_t       pid_sub  = -1;
+	pid_t       pid_sub2 = -1;
+	int         outfp;
+	int         outfp2;
 
     conf = get_test_conf(ALL_FEATURE_CONF);
     assert(conf != NULL);
     nng_thread_create(&nmq, (void *) broker_start_with_conf, (void *) conf);
     nng_msleep(500);  // wait a while for broker to init
     assert(wait_for_http_server_ready(2000));
-    pid_sub = popen_with_cmd(&outfp, cmd1, cmd);
-    pid_sub2 = popen_with_cmd(&outfp2, cmd2, cmd);
-    nng_msleep(500); // wait a while after sub
+	if (has_mosquitto_sub) {
+		pid_sub = popen_with_cmd(&outfp, cmd1, cmd);
+		pid_sub2 = popen_with_cmd(&outfp2, cmd2, cmd);
+		nng_msleep(500); // wait a while after sub
+	}
 
     assert(test_pub());
     assert(test_pub_batch());
@@ -891,12 +902,14 @@ main()
     assert(test_get_nodes());
     assert(test_get_prometheus());
 
-    assert(test_get_clients());
-    assert(test_get_clientid());
-    assert(test_get_client_user_name());
+	if (has_mosquitto_sub) {
+		assert(test_get_clients());
+		assert(test_get_clientid());
+		assert(test_get_client_user_name());
 
-    assert(test_get_subscriptions());
-    assert(test_get_subscriptions_clientid());
+		assert(test_get_subscriptions());
+		assert(test_get_subscriptions_clientid());
+	}
 
     assert(test_get_topic_tree());
 
@@ -922,8 +935,10 @@ main()
 	assert(test_put_bridges());
 	// Reconfiguration reconnects the bridge before it can process SUB/UNSUB.
 	nng_msleep(1000);
-	assert(test_put_bridges_sub());
+	assert(test_put_bridges_sub(STATUS_CODE_OK, SUCCEED));
 	assert(test_put_bridges_unsub());
+	assert(test_put_bridges_switch(false));
+	assert(test_put_bridges_sub(STATUS_CODE_NOT_FOUND, RESULT_CODE_PASS));
 
     // Rules Logic Check
     assert(test_post_rules());
@@ -943,8 +958,12 @@ main()
     assert(test_misuse_of_del());
     assert(test_misuse_of_method());
 
-    kill(pid_sub, SIGKILL);
-    kill(pid_sub2, SIGKILL);
+	if (pid_sub > 0) {
+		kill(pid_sub, SIGKILL);
+	}
+	if (pid_sub2 > 0) {
+		kill(pid_sub2, SIGKILL);
+	}
 
 	broker_stop_for_test();
 	nng_thread_destroy(nmq);
