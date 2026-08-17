@@ -187,11 +187,21 @@ rest_job_cb(void *arg)
 		// We got a reply, so give it back to the server.
 		http_msg *res_msg = (http_msg *) nng_msg_body(job->msg);
 
-		rv = nng_http_res_copy_data(
-		    job->http_res, res_msg->data, res_msg->data_len);
+		if (res_msg->data_len > 0) {
+			rv = nng_http_res_copy_data(
+			    job->http_res, res_msg->data, res_msg->data_len);
+		} else {
+			rv = nng_http_res_set_data(job->http_res, "", 0);
+		}
 
 		if (rv != 0) {
-			rest_http_fatal(job, "nng_http_res_copy_data: %s", rv);
+			if (res_msg->data_len > 0) {
+				rest_http_fatal(
+				    job, "nng_http_res_copy_data failed: %s", rv);
+			} else {
+				rest_http_fatal(
+				    job, "nng_http_res_set_data failed: %s", rv);
+			}
 			return;
 		}
 

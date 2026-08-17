@@ -1658,10 +1658,15 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 		if (pdata != NULL) {
 			uint16_t alias_val        = pdata->p_value.u16;
 			uint16_t server_max_alias = 0;
-
-			if (work->config != NULL) {
-				server_max_alias =
-				    work->config->max_topic_alias;
+			if (work->cparam != NULL) {
+				property_data *alias_property =
+				    property_get_value((property *) conn_param_get_property(
+				                         work->cparam),
+					    TOPIC_ALIAS_MAXIMUM);
+				if (alias_property != NULL) {
+					server_max_alias =
+					    alias_property->p_value.u16;
+				}
 			}
 
 			if (alias_val == 0 || alias_val > server_max_alias) {

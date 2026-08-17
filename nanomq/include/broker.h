@@ -102,6 +102,7 @@ extern int  broker_reload(int argc, char **argv);
 extern int  broker_dflt(int argc, char **argv);
 extern void bridge_send_cb(void *arg);
 extern void *broker_start_with_conf(void *nmq_conf);
+extern void  broker_stop_for_test(void);
 
 #ifdef STATISTICS
 extern uint64_t nanomq_get_message_in(void);
