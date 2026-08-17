@@ -60,6 +60,9 @@ int webhook_msg_cnt = 0; // this is a silly signal to indicate whether the webho
 #define TEST_ENV_MAX_TRACKED_THREADS 32
 #define TEST_ENV_MAX_TRACKED_CONF_FILES 16
 
+static nng_socket test_inproc_socket;
+static bool       test_inproc_socket_active = false;
+
 #ifndef NANO_PLATFORM_WINDOWS
 typedef struct test_env_tracked_proc {
 	pid_t    pid;
@@ -76,8 +79,6 @@ static size_t              test_env_tracked_thread_count = 0;
 static char               *test_env_tracked_conf_files[TEST_ENV_MAX_TRACKED_CONF_FILES];
 static size_t              test_env_tracked_conf_file_count = 0;
 static bool                 test_env_cleanup_registered  = false;
-static nng_socket           test_inproc_socket;
-static bool                 test_inproc_socket_active = false;
 
 static void
 test_env_track_conf_file(const char *conf_file)
@@ -1566,7 +1567,7 @@ popen_with_cmd(int *outfp, char *arg[], char *cmd)
 		// parent only need to read
 		close(fd_pipe[STDOUT_FILENO]);
 		*outfp = fd_pipe[STDIN_FILENO];
-		test_env_track_proc(pid, fd_pipe[STDIN_FILENO], NULL);
+		test_env_track_proc(pid, -1, NULL);
 	}
 
 	return pid;
@@ -1624,7 +1625,7 @@ popen_sub_with_cmd_nonblock(int *outfp, char *arg[], char *cmd)
 			return -1;
 		}
 		*outfp = fd_pipe[STDIN_FILENO];
-		test_env_track_proc(pid, fd_pipe[STDIN_FILENO], NULL);
+		test_env_track_proc(pid, -1, NULL);
 	}
 
 	return pid;
