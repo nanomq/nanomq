@@ -21,6 +21,7 @@ typedef struct {
 	nng_mtx          *exec_mtx;
 	nng_cv           *exec_cv;
 	nng_duration     cancel_timeout;
+	bool             quic_subscribed;
 } bridge_param;
 
 NNG_DECL bool topic_filter(const char *origin, const char *input);

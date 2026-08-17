@@ -47,8 +47,6 @@ static property *will_property(conf_bridge_conn_will_properties *will_prop);
 
 static nng_thread *hybrid_thr;
 
-static int execone = 0;
-
 static int
 apply_sqlite_config(
     nng_socket *sock, conf_bridge_node *config, const char *db_name)
@@ -728,7 +726,7 @@ hybrid_quic_client(bridge_param *bridge_arg)
 	nng_msg *connmsg   = create_connect_msg(node);
 	bridge_arg->connmsg = connmsg;
 
-	execone = 0;
+	bridge_arg->quic_subscribed = false;
 
 	nng_socket *tsock  = bridge_arg->sock;
 	if (tsock) {
@@ -867,6 +865,7 @@ hybrid_bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	}
 	bridge_arg->exec_mtx = NULL;
 	bridge_arg->exec_cv  = NULL;
+	bridge_arg->quic_subscribed = false;
 
 	bridge_arg->config = node;
 	bridge_arg->sock   = sock;
@@ -925,7 +924,9 @@ bridge_quic_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	char         *addr;
 	uint16_t      port;
 
-	if (execone > 0) {
+	nng_mtx_lock(node->mtx);
+	if (param->quic_subscribed) {
+		nng_mtx_unlock(node->mtx);
 		return;
 	}
 	nng_atomic_set_bool(param->config->connected, true);
@@ -973,7 +974,7 @@ bridge_quic_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 			    client, topic_qos, 1, properties);
 			nng_mqtt_topic_qos_array_free(topic_qos, 1);
 		}
-		execone ++;
+		param->quic_subscribed = true;
 	}
 	nng_mtx_unlock(param->config->mtx);
 
@@ -993,7 +994,11 @@ bridge_quic_disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	log_warn("bridge client disconnected! RC [%d] \n", reason);
 
 	bridge_param *bridge_arg = arg;
-	nng_atomic_set_bool(bridge_arg->config->connected, false);
+	conf_bridge_node *node = bridge_arg->config;
+	nng_atomic_set_bool(node->connected, false);
+	nng_mtx_lock(node->mtx);
+	bridge_arg->quic_subscribed = false;
+	nng_mtx_unlock(node->mtx);
 	// Free cparam kept
 	// void *cparam = nng_msg_get_conn_param(bridge_arg->connmsg);
 	// if (cparam != NULL)
@@ -1001,7 +1006,6 @@ bridge_quic_disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	// nng_msg_free(bridge_arg->connmsg);
 	// bridge_arg->connmsg = NULL;
 
-	execone --;
 }
 
 static int
@@ -1047,7 +1051,7 @@ bridge_quic_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 	nng_msg *connmsg           = create_connect_msg(node);
 	bridge_arg->connmsg        = connmsg;
 	bridge_arg->cancel_timeout = node->cancel_timeout;
-	execone = 0;
+	bridge_arg->quic_subscribed = false;
 
 	// TCP bridge does not support hot update of connmsg
 	if (0 != nng_dialer_set_ptr(*dialer, NNG_OPT_MQTT_CONNMSG, connmsg)) {
@@ -1549,6 +1553,7 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	bridge_arg->config = node;
 	bridge_arg->sock   = sock;
 	bridge_arg->conf   = config;
+	bridge_arg->quic_subscribed = false;
 	if (node->address == NULL) {
 		log_error("invalid bridging config! node address is null!");
 		nng_free(bridge_arg, sizeof(bridge_param));
