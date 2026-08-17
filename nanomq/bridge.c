@@ -937,6 +937,7 @@ bridge_quic_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {
 	// Connected succeed
 	bridge_param *param  = arg;
+	conf_bridge_node *node = param->config;
 	int           reason = 0;
 	char         *addr;
 	uint16_t      port;
