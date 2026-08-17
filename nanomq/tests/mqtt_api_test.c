@@ -183,6 +183,11 @@ test_pipe_get()
 int
 main()
 {
+	if (!test_env_allows_network_binds()) {
+		fprintf(stderr, "skip: test environment disallows listening sockets\n");
+		return 0;
+	}
+
 	int rv = 0;
 
 	assert(test_log() == 0);

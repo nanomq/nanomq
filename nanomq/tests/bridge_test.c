@@ -4,13 +4,30 @@
 int
 main()
 {
-	char *cmd = "/bin/mosquitto_sub";
+	if (!test_env_allows_network_binds()) {
+		fprintf(stderr, "skip: test environment disallows listening sockets\n");
+		return 0;
+	}
+	if (!test_env_has_executable("mosquitto_sub") ||
+	    !test_env_has_executable("mosquitto_pub") ||
+	    !test_env_connects_to_host("broker.emqx.io", "1883")) {
+		fprintf(stderr,
+		    "skip: external bridge test prerequisites not available in this test environment\n");
+		return 0;
+	}
+
+	char *cmd = "mosquitto_sub";
+	const char *test_port = test_env_test_port_text();
 
 	char *cmd_sub_emqx[] = {"mosquitto_sub", "-h", "broker.emqx.io", "-p", "1883", "-t", "fwd1/test/ci", "-V", "mqttv5", "-q", "2", NULL};
-	char *cmd_sub_nmq[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", "1881", "-t", "recv_lo/topic1", "-V", "mqttv5", "-q", "2", NULL};
+	char *cmd_sub_nmq[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", (char *) test_port, "-t", "recv_lo/topic1", "-V", "mqttv5", "-q", "2", NULL};
 
-	char *cmd_pub_nmq = "mosquitto_pub -h 127.0.0.1 -p 1881 -t forward1/test/ci -m message-to-emqx -V mqttv5 -q 2";
+	char cmd_pub_nmq[128];
 	char *cmd_pub_emqx = "mosquitto_pub -h broker.emqx.io -p 1883 -t recv/topic1/ci -m message-to-nmq -V mqttv5 -q 2";
+
+	snprintf(cmd_pub_nmq, sizeof(cmd_pub_nmq),
+	    "mosquitto_pub -h 127.0.0.1 -p %s -t forward1/test/ci -m message-to-emqx -V mqttv5 -q 2",
+	    test_port);
 
 	nng_thread *nmq;
 	pid_t       pid_sub_nmq;
@@ -50,6 +67,7 @@ main()
 	pclose(p_pub_emqx);
 	close(outfp_nmq);
 	close(outfp_emqx);
+	broker_stop_for_test();
 	nng_thread_destroy(nmq);
 
 	return 0;

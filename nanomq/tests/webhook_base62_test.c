@@ -82,6 +82,16 @@ static void client_recv_cb(void *arg) {}
 int
 main()
 {
+	if (!test_env_allows_network_binds()) {
+		fprintf(stderr, "skip: test environment disallows listening sockets\n");
+		return 0;
+	}
+	if (!test_env_has_executable("mosquitto_pub")) {
+		fprintf(stderr,
+		    "skip: required MQTT clients not found in PATH\n");
+		return 0;
+	}
+
     int rv;
     nng_socket sock;
     nng_ctx ctx; 

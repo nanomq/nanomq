@@ -4,18 +4,33 @@
 int
 main()
 {
+	if (!test_env_allows_network_binds()) {
+		fprintf(stderr, "skip: test environment disallows listening sockets\n");
+		return 0;
+	}
+	if (!test_env_has_executable("mosquitto_sub") ||
+	    !test_env_has_executable("mosquitto_pub") ||
+	    !test_env_has_executable("curl") ||
+	    !test_env_connects_to_host("broker.emqx.io", "1883")) {
+		fprintf(stderr,
+		    "skip: external bridge test prerequisites not available in this test environment\n");
+		return 0;
+	}
+
 	/* subs are configured as followed:
 	recv/topic1/ci: rap 0
 	recv/topic2/ci: rap 1, rh 0
 	cmd/topic1/ci: rap 1, rh 1
 	cmd/topic2/ci: rap 1, rh 2
 	*/
-	char *cmd = "/bin/mosquitto_sub";
+	char *cmd = "mosquitto_sub";
+	const char *test_port = test_env_test_port_text();
 
-	char *cmd_sub_nmq_rap0[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", "1881", "-t", "recv_lo/topic1", "-V", "mqttv5", "-q", "2", NULL};
-	char *cmd_sub_nmq_rh0[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", "1881", "-t", "recv_lo/topic2", "-V", "mqttv5", "-q", "2", NULL};
-	char *cmd_sub_nmq_rh1[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", "1881", "-t", "cmd_lo/topic1", "-V", "mqttv5", "-q", "2", NULL};
-	char *cmd_sub_nmq_rh2[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", "1881", "-t", "cmd_lo/topic2", "-V", "mqttv5", "-q", "2", NULL};
+	char *cmd_sub_nmq_rap0[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", (char *) test_port, "-t", "recv_lo/topic1", "-V", "mqttv5", "-q", "2", NULL};
+	char *cmd_sub_nmq_rh0[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", (char *) test_port, "-t", "recv_lo/topic2", "-V", "mqttv5", "-q", "2", NULL};
+	char *cmd_sub_nmq_rh1[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", (char *) test_port, "-t", "cmd_lo/topic1", "-V", "mqttv5", "-q", "2", NULL};
+	char *cmd_sub_nmq_rh1_no_retain[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", (char *) test_port, "-t", "cmd_lo/topic1", "-V", "mqttv5", "-q", "2", "-R", NULL};
+	char *cmd_sub_nmq_rh2[] = {"mosquitto_sub", "-h", "127.0.0.1", "-p", (char *) test_port, "-t", "cmd_lo/topic2", "-V", "mqttv5", "-q", "2", NULL};
 
 	// bridge client resub can not parse rh, so we can not test rh1 for now.
 	char *cmd_resub = "curl -i --location "
@@ -59,6 +74,21 @@ main()
 	p_pub_emqx_rh0 = popen(cmd_pub_emqx_rh0, "r");
 	p_pub_emqx_rh1 = popen(cmd_pub_emqx_rh1, "r");
 	p_pub_emqx_rh2 = popen(cmd_pub_emqx_rh2, "r");
+	assert(p_pub_emqx_rap0 != NULL);
+	assert(p_pub_emqx_rh0 != NULL);
+	assert(p_pub_emqx_rh1 != NULL);
+	assert(p_pub_emqx_rh2 != NULL);
+	// Do not race broker startup with retained-message publication.  Waiting
+	// here ensures the bridge sees the payload from this test, not an older
+	// retained payload left on the shared external broker.
+	assert(pclose(p_pub_emqx_rap0) == 0);
+	assert(pclose(p_pub_emqx_rh0) == 0);
+	assert(pclose(p_pub_emqx_rh1) == 0);
+	assert(pclose(p_pub_emqx_rh2) == 0);
+	p_pub_emqx_rap0 = NULL;
+	p_pub_emqx_rh0 = NULL;
+	p_pub_emqx_rh1 = NULL;
+	p_pub_emqx_rh2 = NULL;
 	// create nmq thread
 	conf = get_test_conf(BRIDGE_CONF);
 	assert(conf != NULL);
@@ -68,13 +98,16 @@ main()
 	pid_sub_nmq_rh0 = popen_with_cmd(&outfp_nmq_rh0, cmd_sub_nmq_rh0, cmd);
 	pid_sub_nmq_rh1 = popen_with_cmd(&outfp_nmq_rh1, cmd_sub_nmq_rh1, cmd);
 	// TODO: better check the retain flag
-	assert(read(outfp_nmq_rap0, buf_rap0, buf_size) > 0);
+	memset(buf_rap0, 0, buf_size);
+	assert(test_env_wait_for_output(outfp_nmq_rap0, buf_rap0, buf_size, 5000, 50));
 	printf("rap0 got the msg: %s\n", buf_rap0);
 	assert(strncmp(buf_rap0, "message-to-nmq-rap0", 19) == 0);
-	assert(read(outfp_nmq_rh0, buf_rh0, buf_size) > 0);
+	memset(buf_rh0, 0, buf_size);
+	assert(test_env_wait_for_output(outfp_nmq_rh0, buf_rh0, buf_size, 5000, 50));
 	printf("rh0 got the msg: %s\n", buf_rh0);
 	assert(strncmp(buf_rh0, "message-to-nmq-rh0", 18) == 0);
-	assert(read(outfp_nmq_rh1, buf_rh1, buf_size) > 0);
+	memset(buf_rh1, 0, buf_size);
+	assert(test_env_wait_for_output(outfp_nmq_rh1, buf_rh1, buf_size, 5000, 50));
 	printf("rh1 got the msg: %s\n", buf_rh1);
 	assert(strncmp(buf_rh1, "message-to-nmq-rh1", 18) == 0);
 	memset(buf_rap0, 0, buf_size);
@@ -84,16 +117,15 @@ main()
 	// resub to trigger rh1. 
 	// popen(cmd_resub, "r"); // rest api for bridge client to resub is not available now.
 	// nng_msleep(1000);
-	pid_sub_nmq_rh1_re = popen_sub_with_cmd_nonblock(&outfp_nmq_rh1, cmd_sub_nmq_rh1, cmd);
+	pid_sub_nmq_rh1_re = popen_sub_with_cmd_nonblock(&outfp_nmq_rh1, cmd_sub_nmq_rh1_no_retain, cmd);
 	pid_sub_nmq_rh2 = popen_sub_with_cmd_nonblock(&outfp_nmq_rh2, cmd_sub_nmq_rh2, cmd);
 	// consider the msg is not been recvieved after 2s.
 	nng_msleep(2000);
-	int rh1_buf = read(outfp_nmq_rh1, buf_rh1, buf_size);
-	int rh2_buf = read(outfp_nmq_rh2, buf_rh2, buf_size);
-	printf("rh1_buf size=%d, rh2_buf size=%d\n", rh1_buf, rh2_buf);
+	assert(test_env_wait_for_no_output(outfp_nmq_rh1, 2000, 50));
+	assert(test_env_wait_for_no_output(outfp_nmq_rh2, 2500, 50));
+	printf("no additional rh1/rh2 retain messages\n");
 	// assert(read(outfp_nmq_rh1, buf_rh1, buf_size) == 0);
 	// read is supposed to return 0, may need further check.
-	assert(read(outfp_nmq_rh2, buf_rh2, buf_size) == -1);
 	printf("rap2 got no msg\n");
 
 	kill(pid_sub_nmq_rap0, SIGKILL);
@@ -101,14 +133,11 @@ main()
 	kill(pid_sub_nmq_rh1, SIGKILL);
 	kill(pid_sub_nmq_rh1_re, SIGKILL);
 	kill(pid_sub_nmq_rh2, SIGKILL);
-	pclose(p_pub_emqx_rap0);
-	pclose(p_pub_emqx_rh0);
-	pclose(p_pub_emqx_rh1);
-	pclose(p_pub_emqx_rh2);
 	close(outfp_nmq_rap0);
 	close(outfp_nmq_rh0);
 	close(outfp_nmq_rh1);
 	close(outfp_nmq_rh2);
+	broker_stop_for_test();
 	nng_thread_destroy(nmq);
 
 	return 0;
