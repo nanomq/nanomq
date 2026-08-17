@@ -4196,7 +4196,8 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 			nng_dialer_off(*node->dialer);
 
 		// Disconnect callbacks retain the bridge node across hot reload. Keep
-		// its status flag alive until final bridge teardown.
+		// its status flag alive until final bridge teardown. Every accessor
+		// must hold node->mtx: this pointer is transiently NULL here.
 		nng_atomic_bool *connected = node->connected;
 		node->connected = NULL;
 		conf_bridge_node_destroy(node);

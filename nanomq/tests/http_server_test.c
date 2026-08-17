@@ -935,9 +935,14 @@ main()
 	assert(test_put_bridges());
 	// Reconfiguration reconnects the bridge before it can process SUB/UNSUB.
 	nng_msleep(1000);
+	// The reloaded node must survive the connect-status flag swap and
+	// re-parsing (rest_api.c) and stay queryable (bridge.c reload paths).
+	assert(test_get_bridge());
 	assert(test_put_bridges_sub(STATUS_CODE_OK, SUCCEED));
 	assert(test_put_bridges_unsub());
 	assert(test_put_bridges_switch(false));
+	// Disabled node (enable=false under node->mtx) must stay queryable.
+	assert(test_get_bridge());
 	assert(test_put_bridges_sub(STATUS_CODE_NOT_FOUND, RESULT_CODE_PASS));
 
     // Rules Logic Check
