@@ -37,9 +37,10 @@ nng_thread *nmq;
 
 	char *cmd_pub_nmq = "mosquitto_pub -h 127.0.0.1 -p 1883 -t test/anon -m 'message-to-nmq' -u admin -P public";
 	p_pub_nmq = popen(cmd_pub_nmq, "r");
+	nng_msleep(2000);
 	pclose(p_pub_nmq);
 
-
+	nng_msleep(2000);
 	assert(read(outfp_nmq, buf_nmq, buf_size) != -1);
 	printf("get the msg in nmq:%s\n", buf_nmq);
 	assert(strncmp(buf_nmq, "message-to-nmq", 14) == 0);
