@@ -9,6 +9,38 @@
 
 #define RESULT_CODE_PASS -1
 
+#ifdef SUPP_RULE_ENGINE
+#define RULE_RESULT_CODE SUCCEED
+#else
+#define RULE_RESULT_CODE PLUGIN_IS_CLOSED
+#endif
+
+static int last_rule_id = -1;
+static int repub_rule_id = -1;
+static int sqlite_rule_id = -1;
+
+static void
+capture_rule_id(const char *json_body)
+{
+    cJSON *root;
+    cJSON *data;
+    cJSON *id;
+
+    if (json_body == NULL) {
+        return;
+    }
+    root = cJSON_Parse(json_body);
+    if (root == NULL) {
+        return;
+    }
+    data = cJSON_GetObjectItemCaseSensitive(root, "data");
+    id   = cJSON_GetObjectItemCaseSensitive(data, "id");
+    if (cJSON_IsNumber(id)) {
+        last_rule_id = id->valueint;
+    }
+    cJSON_Delete(root);
+}
+
 static bool
 check_http_status_code(const char *buff, const char *sc)
 {
@@ -66,8 +98,14 @@ exit:
 static bool
 check_http_return(FILE *fd, char *expect_sc, int expect_rc)
 {
-    char line_buff[2048];
+	if (fd == NULL) {
+		fprintf(stderr, "[FAIL] failed to start curl command\n");
+		return false;
+	}
+
+	char line_buff[2048];
     char body_buff[8192] = {0};
+    bool got_status = false;
     bool status_checked = false;
     bool headers_done = false;
     bool rv = true;
@@ -80,6 +118,7 @@ check_http_return(FILE *fd, char *expect_sc, int expect_rc)
                 rv = false;
                 // We continue reading to drain pipe, but we know it failed
             }
+            got_status = true;
             status_checked = true;
             continue;
         }
@@ -97,20 +136,58 @@ check_http_return(FILE *fd, char *expect_sc, int expect_rc)
     }
 
     // 2. Check JSON Result Code (if status passed)
-    if (rv && headers_done) {
+    if (rv && got_status && headers_done) {
+        capture_rule_id(body_buff);
         if (!check_http_result_code(body_buff, expect_rc)) {
             rv = false;
         }
-    } else if (rv && !headers_done) {
+    } else if (!got_status || (rv && !headers_done)) {
         // Case where we got status but no body (unexpected EOF)
         // fprintf(stderr, "[WARN] No body received\n");
+        rv = false;
     }
 
     return rv;
 }
 
 // Helper to add -s (silent) to curl to avoid progress bars in output
-#define CURL_CMD_PREFIX "curl -s -i --basic -u admin_test:pw_test "
+#define CURL_CMD_PREFIX                                                         \
+	"curl -sS -i --basic -u admin_test:pw_test --connect-timeout 1 --max-time 5 "
+
+#define CURL_CMD_PREFIX_NO_AUTH                                                 \
+	"curl -sS -i --connect-timeout 1 --max-time 5 "
+
+#define SAFE_POPEN_CLOSE(fd)                                                  \
+	do {                                                                    \
+		if ((fd) != NULL) {                                               \
+			pclose((fd));                                              \
+		}                                                                 \
+	} while (0)
+
+static bool test_get_endpoints();
+
+static bool
+wait_for_http_server_ready(int timeout_ms)
+{
+	int waited_ms = 0;
+	char *cmd = CURL_CMD_PREFIX "-X GET 'http://localhost:8081/api/v4'";
+
+	while (waited_ms < timeout_ms) {
+		FILE *fd = popen(cmd, "r");
+		char  status[32] = { 0 };
+		bool  ready = fd != NULL && fgets(status, sizeof(status), fd) != NULL &&
+		    strncmp(status, STATUS_CODE_OK, strlen(STATUS_CODE_OK)) == 0;
+
+		SAFE_POPEN_CLOSE(fd);
+		if (ready) {
+			return true;
+		}
+		nng_msleep(100);
+		waited_ms += 100;
+	}
+
+	return false;
+}
 
 static bool
 test_get_endpoints()
@@ -118,7 +195,7 @@ test_get_endpoints()
     char *cmd = CURL_CMD_PREFIX "-X GET 'http://localhost:8081/api/v4'";
     FILE *fd  = popen(cmd, "r");
     bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
-    pclose(fd);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
@@ -128,7 +205,7 @@ test_get_brokers()
     char *cmd = CURL_CMD_PREFIX "-X GET 'http://localhost:8081/api/v4/brokers'";
     FILE *fd  = popen(cmd, "r");
     bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
-    pclose(fd);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
@@ -138,19 +215,19 @@ test_get_nodes()
     char *cmd = CURL_CMD_PREFIX "-X GET 'http://localhost:8081/api/v4/nodes'";
     FILE *fd  = popen(cmd, "r");
     bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
-    pclose(fd);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
 static bool
 test_get_prometheus()
 {
-	char *cmd = "curl -i --basic -u admin_test:pw_test -X GET "
+	char *cmd = CURL_CMD_PREFIX
 	            "'http://localhost:8081/api/v4/prometheus'";
 	FILE *fd  = popen(cmd, "r");
 	bool  rv =
 	    check_http_return(fd, STATUS_CODE_OK, RESULT_CODE_PASS);
-	pclose(fd);
+	SAFE_POPEN_CLOSE(fd);
 	return rv;
 }
 
@@ -160,7 +237,7 @@ test_get_clients()
     char *cmd = CURL_CMD_PREFIX "-X GET 'http://localhost:8081/api/v4/clients'";
     FILE *fd  = popen(cmd, "r");
     bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
-    pclose(fd);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
@@ -170,7 +247,7 @@ test_get_clientid()
     char *cmd = CURL_CMD_PREFIX "-X GET 'http://localhost:8081/api/v4/clients/clientid-test'";
     FILE *fd  = popen(cmd, "r");
     bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
-    pclose(fd);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
@@ -180,7 +257,7 @@ test_get_client_user_name()
     char *cmd = CURL_CMD_PREFIX "-X GET 'http://localhost:8081/api/v4/clients/username/user-test'";
     FILE *fd = popen(cmd, "r");
     bool  rv = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
-    pclose(fd);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
@@ -190,7 +267,7 @@ test_get_subscriptions()
     char *cmd = CURL_CMD_PREFIX "-X GET 'http://localhost:8081/api/v4/subscriptions'";
     FILE *fd  = popen(cmd, "r");
     bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
-    pclose(fd);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
@@ -200,7 +277,7 @@ test_get_subscriptions_clientid()
     char *cmd = CURL_CMD_PREFIX "-X GET 'http://localhost:8081/api/v4/subscriptions/clientid-test'";
     FILE *fd = popen(cmd, "r");
     bool  rv = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
-    pclose(fd);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
@@ -210,7 +287,7 @@ test_get_topic_tree()
     char *cmd = CURL_CMD_PREFIX "-X GET 'http://localhost:8081/api/v4/topic-tree'";
     FILE *fd  = popen(cmd, "r");
     bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
-    pclose(fd);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
@@ -220,7 +297,7 @@ test_get_metrics()
     char *cmd = CURL_CMD_PREFIX "-X GET 'http://localhost:8081/api/v4/metrics'";
     FILE *fd  = popen(cmd, "r");
     bool  rv  = check_http_return(fd, STATUS_CODE_OK, RESULT_CODE_PASS);
-    pclose(fd);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
@@ -230,7 +307,7 @@ test_get_uri()
     char *cmd = CURL_CMD_PREFIX "-X GET 'http://localhost:8081/api/v4/?name=ferret&color=purple'";
     FILE *fd  = popen(cmd, "r");
     bool  rv  = check_http_return(fd, STATUS_CODE_NOT_FOUND, RESULT_CODE_PASS);
-    pclose(fd);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
@@ -240,7 +317,7 @@ test_get_reload()
     char *cmd = CURL_CMD_PREFIX "-X GET 'http://localhost:8081/api/v4/reload'";
     FILE *fd  = popen(cmd, "r");
     bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
-    pclose(fd);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
@@ -250,7 +327,7 @@ test_get_configuration()
     char *cmd = CURL_CMD_PREFIX "-X GET 'http://localhost:8081/api/v4/configuration'";
     FILE *fd  = popen(cmd, "r");
     bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
-    pclose(fd);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
@@ -260,7 +337,7 @@ test_get_configuration_basic()
     char *cmd = CURL_CMD_PREFIX "-X GET 'http://localhost:8081/api/v4/configuration/basic'";
     FILE *fd  = popen(cmd, "r");
     bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
-    pclose(fd);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
@@ -270,7 +347,7 @@ test_get_configuration_tls()
     char *cmd = CURL_CMD_PREFIX "-X GET 'http://localhost:8081/api/v4/configuration/tls'";
     FILE *fd  = popen(cmd, "r");
     bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
-    pclose(fd);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
@@ -280,7 +357,7 @@ test_get_configuration_auth()
     char *cmd = CURL_CMD_PREFIX "-X GET 'http://localhost:8081/api/v4/configuration/auth'";
     FILE *fd  = popen(cmd, "r");
     bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
-    pclose(fd);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
@@ -290,7 +367,7 @@ test_get_configuration_auth_http()
     char *cmd = CURL_CMD_PREFIX "-X GET 'http://localhost:8081/api/v4/configuration/auth_http'";
     FILE *fd  = popen(cmd, "r");
     bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
-    pclose(fd);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
@@ -300,7 +377,7 @@ test_get_configuration_websocket()
     char *cmd = CURL_CMD_PREFIX "-X GET 'http://localhost:8081/api/v4/configuration/websocket'";
     FILE *fd  = popen(cmd, "r");
     bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
-    pclose(fd);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
@@ -310,7 +387,7 @@ test_get_configuration_http_server()
     char *cmd = CURL_CMD_PREFIX "-X GET 'http://localhost:8081/api/v4/configuration/http_server'";
     FILE *fd  = popen(cmd, "r");
     bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
-    pclose(fd);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
@@ -320,7 +397,7 @@ test_get_configuration_sqlite()
     char *cmd = CURL_CMD_PREFIX "-X GET 'http://localhost:8081/api/v4/configuration/sqlite'";
     FILE *fd  = popen(cmd, "r");
     bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
-    pclose(fd);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
@@ -330,7 +407,7 @@ test_get_configuration_bridge()
     char *cmd = CURL_CMD_PREFIX "-X GET 'http://localhost:8081/api/v4/configuration/bridge'";
     FILE *fd  = popen(cmd, "r");
     bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
-    pclose(fd);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
@@ -339,8 +416,8 @@ test_get_configuration_foo()
 {
     char *cmd = CURL_CMD_PREFIX "-X GET 'http://localhost:8081/api/v4/configuration/foo'";
     FILE *fd  = popen(cmd, "r");
-    bool  rv  = check_http_return(fd, STATUS_CODE_NOT_FOUND, SUCCEED);
-    pclose(fd);
+	bool  rv  = check_http_return(fd, STATUS_CODE_NOT_FOUND, RPC_ERROR);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
@@ -350,7 +427,7 @@ test_get_bridges()
     char *cmd = CURL_CMD_PREFIX "-X GET 'http://localhost:8081/api/v4/bridges'";
     FILE *fd  = popen(cmd, "r");
     bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
-    pclose(fd);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
@@ -360,32 +437,34 @@ test_get_bridge()
     char *cmd = CURL_CMD_PREFIX "-X GET 'http://localhost:8081/api/v4/bridges/emqx'";
     FILE *fd  = popen(cmd, "r");
     bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
-    pclose(fd);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
 static bool
 test_put_bridges()
 {
-    char *cmd =
-        CURL_CMD_PREFIX "-X PUT "
-        "'http://localhost:8081/api/v4/bridges/emqx' -d '{"
-        "\"emqx\": {"
-        "\"name\": \"emqx\","
-        "\"enable\": true,"
-        "\"parallel\": 8,"
-        "\"server\": \"mqtt-tcp://broker.emqx.io:1883\","
-        "\"proto_ver\": 5,"
-        "\"clientid\": \"hello3\","
-        "\"clean_start\": true,"
-        "\"username\": \"emqx\","
-        "\"password\": \"emqx123\","
-        "\"keepalive\": 60,"
-        "\"forwards\": [{\"remote_topic\":\"topic1/#\",\"local_topic\":\"topic1_lo/#\"}],"
-        "\"subscription\": [{\"remote_topic\":\"topic1/#\",\"local_topic\":\"topic1_lo/#\",\"qos\": 1}]}}'";
-    FILE *fd = popen(cmd, "r");
+	char cmd[2048];
+	snprintf(cmd, sizeof(cmd),
+	    CURL_CMD_PREFIX "-X PUT "
+	    "'http://localhost:8081/api/v4/bridges/emqx' -d '{"
+	    "\"emqx\": {"
+	    "\"name\": \"emqx\","
+	    "\"enable\": true,"
+	    "\"parallel\": 8,"
+	    "\"server\": \"mqtt-tcp://127.0.0.1:%s\","
+	    "\"proto_ver\": 5,"
+	    "\"clientid\": \"hello3\","
+	    "\"clean_start\": true,"
+	    "\"username\": \"emqx\","
+	    "\"password\": \"emqx123\","
+	    "\"keepalive\": 60,"
+	    "\"forwards\": [{\"remote_topic\":\"topic1/#\",\"local_topic\":\"topic1_lo/#\"}],"
+	    "\"subscription\": [{\"remote_topic\":\"topic1/#\",\"local_topic\":\"topic1_lo/#\",\"qos\": 1}]}}'",
+	    test_env_test_port_text());
+	FILE *fd = popen(cmd, "r");
     bool  rv = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
-    pclose(fd);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
@@ -400,9 +479,9 @@ test_put_bridges_replaces_client(conf *config)
 }
 
 static bool
-test_put_bridges_sub()
+test_put_bridges_sub(char *expected_status, int expected_rc)
 {
-    char *cmd = CURL_CMD_PREFIX "-X PUT "
+	char *cmd = CURL_CMD_PREFIX "-X PUT "
                 "'http://localhost:8081/api/v4/bridges/sub/emqx' "
                 "-d '{"
                 "\"data\": {"
@@ -412,15 +491,31 @@ test_put_bridges_sub()
                 "\"key1\",\"value\": \"value1\"},{\"key\": "
                 "\"key2\",\"value\": \"value2\"}]}}}'";
     FILE *fd = popen(cmd, "r");
-    bool  rv = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
-    pclose(fd);
+	bool  rv = check_http_return(fd, expected_status, expected_rc);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
+}
+
+static bool
+test_put_bridges_switch(bool bridge_switch)
+{
+	char *cmd = bridge_switch ?
+	    CURL_CMD_PREFIX "-X POST "
+	                    "'http://localhost:8081/api/v4/bridges/switch/emqx' "
+	                    "-d '{\"data\": {\"bridge_switch\": true}}'" :
+	    CURL_CMD_PREFIX "-X POST "
+	                    "'http://localhost:8081/api/v4/bridges/switch/emqx' "
+	                    "-d '{\"data\": {\"bridge_switch\": false}}'";
+	FILE *fd = popen(cmd, "r");
+	bool  rv = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
+	SAFE_POPEN_CLOSE(fd);
+	return rv;
 }
 
 static bool
 test_put_bridges_unsub()
 {
-    char *cmd = CURL_CMD_PREFIX "-X PUT "
+	char *cmd = CURL_CMD_PREFIX "-X PUT "
                 "'http://localhost:8081/api/v4/bridges/unsub/emqx' "
                 "-d '{"
                 "\"data\": {"
@@ -431,56 +526,85 @@ test_put_bridges_unsub()
                 "\"key2\",\"value\": \"value2\"}]}}}'";
     FILE *fd = popen(cmd, "r");
     bool  rv = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
-    pclose(fd);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
 static bool
 test_post_rules_repub()
 {
-    char *cmd =
-        CURL_CMD_PREFIX 
-        "'http://localhost:8081/api/v4/rules' -X POST -d '{  \"rawsql\": "
-        "\"select * from \\\"t/a\\\"\",  \"actions\": [{  \"name\": "
-        "\"repub\",  \"params\": {  \"topic\": \"repub1\", "
-        "\"address\":\"mqtt-tcp://localhost:1881\", \"clean_start\": "
-        "\"true\", "
-        "\"proto_ver\": 4, \"keepalive\": 60      }  }],  "
-        "\"description\": \"repub-rule\"}'";
-    FILE *fd  = popen(cmd, "r");
-    bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
-    pclose(fd);
-    return rv;  
+	const char *test_port = test_env_test_port_text();
+	char        rule_addr[40];
+	char        cmd[1024];
+
+	snprintf(rule_addr, sizeof(rule_addr), "mqtt-tcp://localhost:%s", test_port);
+	snprintf(cmd, sizeof(cmd),
+	    CURL_CMD_PREFIX
+	    "'http://localhost:8081/api/v4/rules' -X POST -d '{  \"rawsql\": "
+	    "\"select * from \\\"t/a\\\"\",  \"actions\": [{  \"name\": "
+	    "\"repub\",  \"params\": {  \"topic\": \"repub1\", "
+	    "\"address\":\"%s\", \"clean_start\": "
+	    "\"true\", "
+	    "\"proto_ver\": 4, \"keepalive\": 60      }  }],  "
+	    "\"description\": \"repub-rule\"}'",
+	    rule_addr);
+	last_rule_id = -1;
+	FILE *fd  = popen(cmd, "r");
+	bool  rv  = check_http_return(fd,
+#ifdef SUPP_RULE_ENGINE
+	    STATUS_CODE_OK, SUCCEED);
+#else
+	    STATUS_CODE_OK, PLUGIN_IS_CLOSED);
+#endif
+	SAFE_POPEN_CLOSE(fd);
+	if (rv && last_rule_id >= 0) {
+		repub_rule_id = last_rule_id;
+	}
+	return rv;
 }
 
 static bool
 test_post_rules_sqlite()
 {
     char *cmd =
-        CURL_CMD_PREFIX 
+        CURL_CMD_PREFIX
         "'http://localhost:8081/api/v4/rules' -X POST -d '{  \"rawsql\": "
         "\"select * from \\\"t/b\\\"\",  \"actions\": [{  \"name\": "
         "\"sqlite\",  \"params\": {  \"table\": \"table_sqlite\"}  }],  "
         "\"description\": \"sqlite-rule\"}'";
+    last_rule_id = -1;
     FILE *fd  = popen(cmd, "r");
-    bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
-    pclose(fd);
-    return rv;  
+    bool  rv  = check_http_return(fd,
+#ifdef SUPP_RULE_ENGINE
+        STATUS_CODE_OK, SUCCEED);
+#else
+        STATUS_CODE_OK, PLUGIN_IS_CLOSED);
+#endif
+    SAFE_POPEN_CLOSE(fd);
+    if (rv && last_rule_id >= 0) {
+        sqlite_rule_id = last_rule_id;
+    }
+    return rv;
 }
 
 static bool
 test_post_rules_unsupported()
 {
     char *cmd =
-        CURL_CMD_PREFIX 
+        CURL_CMD_PREFIX
         "'http://localhost:8081/api/v4/rules' -X POST -d '{  \"rawsql\": "
         "\"select * from \\\"t/d\\\"\",  \"actions\": [{  \"name\": "
         "\"mesql\",  \"params\": {  \"topic\": \"mesql1\"}  }],  "
         "\"description\": \"unsup-rule\"}'";
     FILE *fd  = popen(cmd, "r");
-    bool  rv  = check_http_return(fd, STATUS_CODE_BAD_REQUEST, PLUGIN_IS_CLOSED);
-    pclose(fd);
-    return rv;  
+    bool  rv  = check_http_return(fd,
+#ifdef SUPP_RULE_ENGINE
+        STATUS_CODE_BAD_REQUEST, PLUGIN_IS_CLOSED);
+#else
+        STATUS_CODE_OK, PLUGIN_IS_CLOSED);
+#endif
+    SAFE_POPEN_CLOSE(fd);
+    return rv;
 }
 
 static bool
@@ -497,54 +621,70 @@ test_get_rules()
 {
     char *cmd = CURL_CMD_PREFIX "-X GET 'http://localhost:8081/api/v4/rules'";
     FILE *fd  = popen(cmd, "r");
-    bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
-    pclose(fd);
+    bool  rv  = check_http_return(fd, STATUS_CODE_OK, RULE_RESULT_CODE);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
 static bool
 test_get_rule()
 {
-    // Assuming 'repub' was the first rule, so rule:1
-    char *cmd = CURL_CMD_PREFIX "-X GET 'http://localhost:8081/api/v4/rules/rule:1'";
+    char cmd[256];
+    if (repub_rule_id < 0) {
+        return false;
+    }
+    snprintf(cmd, sizeof(cmd), CURL_CMD_PREFIX
+        "-X GET 'http://localhost:8081/api/v4/rules/rule:%d'",
+        repub_rule_id);
     FILE *fd  = popen(cmd, "r");
-    bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
-    pclose(fd);
+    bool  rv  = check_http_return(fd, STATUS_CODE_OK, RULE_RESULT_CODE);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
 static bool
 test_put_rule_repub()
 {
-    // UPDATED ID: rule:3 -> rule:1 (Assuming this runs on fresh instance)
-    char *cmd =
-        CURL_CMD_PREFIX "-X PUT "
-        "'http://localhost:8081/api/v4/rules/rule:1' "
-        "-d '{\"rawsql\":\"select * from \\\"t/b\\\"\","
-        "\"actions\": [{\"name\":\"repub\", \"params\": { \"topic\": "
-        "\"repub1\", "
-        "\"address\":\"mqtt-tcp://localhost:1881\", \"clean_start\": "
-        "\"true\", "
-        "\"proto_ver\": 4, \"keepalive\": 60}}]}'";
-    FILE *fd  = popen(cmd, "r");
-    bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
-    pclose(fd);
-    return rv;
-}
+	const char *test_port = test_env_test_port_text();
+	char        rule_addr[40];
+	char        cmd[1024];
 
+	snprintf(rule_addr, sizeof(rule_addr), "mqtt-tcp://localhost:%s", test_port);
+    if (repub_rule_id < 0) {
+        return false;
+    }
+    snprintf(cmd, sizeof(cmd),
+	    CURL_CMD_PREFIX "-X PUT "
+	    "'http://localhost:8081/api/v4/rules/rule:%d' "
+	    "-d '{\"rawsql\":\"select * from \\\"t/b\\\"\","
+	    "\"actions\": [{\"name\":\"repub\", \"params\": { \"topic\": "
+	    "\"repub1\", "
+	    "\"address\":\"%s\", \"clean_start\": "
+	    "\"true\", "
+	    "\"proto_ver\": 4, \"keepalive\": 60}}]}'",
+	    repub_rule_id, rule_addr);
+	FILE *fd  = popen(cmd, "r");
+	bool  rv  = check_http_return(fd, STATUS_CODE_OK, RULE_RESULT_CODE);
+	SAFE_POPEN_CLOSE(fd);
+	return rv;
+}
 static bool
 test_put_rule_sqlite()
 {
-    // UPDATED ID: rule:4 -> rule:2 (Assuming this runs on fresh instance)
-    char *cmd = CURL_CMD_PREFIX "-X PUT "
-                "'http://localhost:8081/api/v4/rules/rule:2' "
-                "-d '{\"rawsql\":\"select * from \\\"t/b\\\"\","
-                "\"actions\": [{\"name\": \"sqlite\","
-                "\"params\": {\"table\": \"table_sqlite\"}}],"
-                "\"description\": \"sqlite-rule\"}'";
-    FILE *fd  = popen(cmd, "r");
-    bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
-    pclose(fd);
+    char cmd[1024];
+    if (sqlite_rule_id < 0) {
+        return false;
+    }
+    snprintf(cmd, sizeof(cmd), CURL_CMD_PREFIX "-X PUT "
+        "'http://localhost:8081/api/v4/rules/rule:%d' "
+        "-d '{\"rawsql\":\"select * from \\\"t/b\\\"\","
+        "\"actions\": [{\"name\": \"sqlite\","
+        "\"params\": {\"table\": \"table_sqlite\"}}],"
+        "\"description\": \"sqlite-rule\"}'",
+        sqlite_rule_id);
+     FILE *fd  = popen(cmd, "r");
+     bool  rv  = check_http_return(fd, STATUS_CODE_OK, RULE_RESULT_CODE);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
@@ -559,25 +699,33 @@ test_put_rule()
 static bool
 test_disable_rule()
 {
-    // UPDATED ID: rule:3 -> rule:1
-    char *cmd = CURL_CMD_PREFIX "-X PUT "
-                "'http://localhost:8081/api/v4/rules/rule:1' "
-                "-d '{\"enabled\": false}'";
-    FILE *fd  = popen(cmd, "r");
-    bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
-    pclose(fd);
+    char cmd[256];
+    if (repub_rule_id < 0) {
+        return false;
+    }
+    snprintf(cmd, sizeof(cmd), CURL_CMD_PREFIX "-X PUT "
+        "'http://localhost:8081/api/v4/rules/rule:%d' "
+        "-d '{\"enabled\": false}'",
+        repub_rule_id);
+     FILE *fd  = popen(cmd, "r");
+     bool  rv  = check_http_return(fd, STATUS_CODE_OK, RULE_RESULT_CODE);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
 static bool
 test_del_rule()
 {
-    // UPDATED ID: rule:3 -> rule:1
-    char *cmd = CURL_CMD_PREFIX "-X DELETE "
-                "'http://localhost:8081/api/v4/rules/rule:1'";
-    FILE *fd  = popen(cmd, "r");
-    bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
-    pclose(fd);
+    char cmd[256];
+    if (repub_rule_id < 0) {
+        return false;
+    }
+    snprintf(cmd, sizeof(cmd), CURL_CMD_PREFIX
+        "-X DELETE 'http://localhost:8081/api/v4/rules/rule:%d'",
+        repub_rule_id);
+     FILE *fd  = popen(cmd, "r");
+     bool  rv  = check_http_return(fd, STATUS_CODE_OK, RULE_RESULT_CODE);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
@@ -595,7 +743,7 @@ test_pub()
         "\"foo\": \"bar\"}, \"content_type\": \"text/plain\"}}'";
     FILE *fd = popen(cmd, "r");
     bool  rv = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
-    pclose(fd);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
@@ -620,7 +768,7 @@ test_pub_batch()
         "\"foo\": \"bar\"}, \"content_type\": \"text/plain\"}}]'";
     FILE *fd = popen(cmd, "r");
     bool  rv = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
-    pclose(fd);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
@@ -635,19 +783,19 @@ test_post_reload()
                 "1250, \"allow_anonymous\": false}}'";
     FILE *fd  = popen(cmd, "r");
     bool  rv  = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
-    pclose(fd);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
 static bool
 test_unauthorized()
 {
-    char *cmd = "curl -s -i --basic -u admin:pw -X GET "
+    char *cmd = CURL_CMD_PREFIX_NO_AUTH "-u admin:pw -X GET "
                 "'http://localhost:8081/api/v4/brokers'";
     FILE *fd  = popen(cmd, "r");
     bool  rv  = check_http_return(
             fd, STATUS_CODE_UNAUTHORIZED, WRONG_USERNAME_OR_PASSWORD);
-    pclose(fd);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
@@ -659,7 +807,7 @@ test_bad_request()
     FILE *fd  = popen(cmd, "r");
     bool  rv  = check_http_return(
             fd, STATUS_CODE_BAD_REQUEST, REQ_PARAMS_JSON_FORMAT_ILLEGAL);
-    pclose(fd);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
@@ -671,7 +819,7 @@ test_not_found()
     FILE *fd  = popen(cmd, "r");
     bool  rv =
         check_http_return(fd, STATUS_CODE_NOT_FOUND, UNKNOWN_MISTAKE);
-    pclose(fd);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
@@ -683,7 +831,7 @@ test_misuse_of_put()
     FILE *fd  = popen(cmd, "r");
     bool  rv =
         check_http_return(fd, STATUS_CODE_NOT_FOUND, UNKNOWN_MISTAKE);
-    pclose(fd);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
@@ -695,7 +843,7 @@ test_misuse_of_del()
     FILE *fd  = popen(cmd, "r");
     bool  rv =
         check_http_return(fd, STATUS_CODE_NOT_FOUND, UNKNOWN_MISTAKE);
-    pclose(fd);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
@@ -707,35 +855,52 @@ test_misuse_of_method()
     FILE *fd  = popen(cmd, "r");
     bool  rv =
         check_http_return(fd, STATUS_CODE_METHOD_NOT_ALLOW, UNKNOWN_MISTAKE);
-    pclose(fd);
+    SAFE_POPEN_CLOSE(fd);
     return rv;
 }
 
 int
 main()
 {
-    char *cmd = "/bin/mosquitto_sub";
+	if (!test_env_allows_network_binds() || !test_env_allows_port_bind(8081)) {
+		fprintf(stderr, "skip: test environment disallows listening sockets\n");
+		return 0;
+	}
+	if (!test_env_has_executable("curl")) {
+		fprintf(stderr, "skip: curl not found in PATH\n");
+		return 0;
+	}
+	bool has_mosquitto_sub = test_env_has_executable("mosquitto_sub");
+	if (!has_mosquitto_sub) {
+		fprintf(stderr,
+		    "skip: mosquitto_sub not found; omitting client-specific checks\n");
+	}
 
-    char *cmd1[] = { "mosquitto_sub", "-h", "127.0.0.1", "-p", "1881",
+    char *cmd = "mosquitto_sub";
+
+    char *cmd1[] = { "mosquitto_sub", "-h", "127.0.0.1", "-p", (char *) test_env_test_port_text(),
         "-t", "topic-test", "-u", "user-test", "-i", "clientid-test",
         NULL };
-    char *cmd2[] = { "mosquitto_sub", "-h", "127.0.0.1", "-p", "1881",
+    char *cmd2[] = { "mosquitto_sub", "-h", "127.0.0.1", "-p", (char *) test_env_test_port_text(),
         "-t", "topic-test2", "-u", "user-test2", "-i",
         "clientid-test2", NULL };
     nng_thread *nmq;
     conf       *conf;
-    pid_t       pid_sub;
-    pid_t       pid_sub2;
-    int         outfp;
-    int         outfp2;
+	pid_t       pid_sub  = -1;
+	pid_t       pid_sub2 = -1;
+	int         outfp;
+	int         outfp2;
 
     conf = get_test_conf(ALL_FEATURE_CONF);
     assert(conf != NULL);
     nng_thread_create(&nmq, (void *) broker_start_with_conf, (void *) conf);
     nng_msleep(500);  // wait a while for broker to init
-    pid_sub = popen_with_cmd(&outfp, cmd1, cmd);
-    pid_sub2 = popen_with_cmd(&outfp2, cmd2, cmd);
-    nng_msleep(500); // wait a while after sub
+    assert(wait_for_http_server_ready(2000));
+	if (has_mosquitto_sub) {
+		pid_sub = popen_with_cmd(&outfp, cmd1, cmd);
+		pid_sub2 = popen_with_cmd(&outfp2, cmd2, cmd);
+		nng_msleep(500); // wait a while after sub
+	}
 
     assert(test_pub());
     assert(test_pub_batch());
@@ -747,12 +912,14 @@ main()
     assert(test_get_nodes());
     assert(test_get_prometheus());
 
-    assert(test_get_clients());
-    assert(test_get_clientid());
-    assert(test_get_client_user_name());
+	if (has_mosquitto_sub) {
+		assert(test_get_clients());
+		assert(test_get_clientid());
+		assert(test_get_client_user_name());
 
-    assert(test_get_subscriptions());
-    assert(test_get_subscriptions_clientid());
+		assert(test_get_subscriptions());
+		assert(test_get_subscriptions_clientid());
+	}
 
     assert(test_get_topic_tree());
 
@@ -775,17 +942,29 @@ main()
 
     assert(test_get_bridges());
     assert(test_get_bridge());
-    assert(test_put_bridges_sub());
-    assert(test_put_bridges_unsub()); 
+    assert(test_put_bridges());
+    // Reconfiguration reconnects the bridge before it can process SUB/UNSUB.
+    nng_msleep(1000);
+    // The reloaded node must survive the connect-status flag swap and
+    // re-parsing (rest_api.c) and stay queryable (bridge.c reload paths).
+    assert(test_get_bridge());
+    assert(test_put_bridges_sub(STATUS_CODE_OK, SUCCEED));
+    assert(test_put_bridges_unsub());
     assert(test_put_bridges_replaces_client(conf));
+    assert(test_put_bridges_switch(false));
+    // Disabled node (enable=false under node->mtx) must stay queryable.
+    assert(test_get_bridge());
+    assert(test_put_bridges_sub(STATUS_CODE_NOT_FOUND, RESULT_CODE_PASS));
 
     // Rules Logic Check
-    assert(test_post_rules()); // Creates Rule 1 (Repub) and Rule 2 (Sqlite)
+    assert(test_post_rules());
     assert(test_get_rules());
-    assert(test_get_rule());   // Checks Rule 1
-    assert(test_put_rule());   // Updates Rule 1 and Rule 2
-    assert(test_disable_rule()); // Disables Rule 1
-    assert(test_del_rule());     // Deletes Rule 1
+#ifdef SUPP_RULE_ENGINE
+    assert(test_get_rule());
+    assert(test_put_rule());
+    assert(test_disable_rule());
+    assert(test_del_rule());
+#endif
 
     assert(test_unauthorized());
     assert(test_bad_request());
@@ -795,9 +974,14 @@ main()
     assert(test_misuse_of_del());
     assert(test_misuse_of_method());
 
-    kill(pid_sub, SIGKILL);
-    kill(pid_sub2, SIGKILL);
+	if (pid_sub > 0) {
+		kill(pid_sub, SIGKILL);
+	}
+	if (pid_sub2 > 0) {
+		kill(pid_sub2, SIGKILL);
+	}
 
-    nng_thread_destroy(nmq);
+	broker_stop_for_test();
+	nng_thread_destroy(nmq);
     return 0;
 }

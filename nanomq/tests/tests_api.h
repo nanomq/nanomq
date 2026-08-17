@@ -1,12 +1,14 @@
 // This is a test only Scenario for advanced features of NanoMQ, like webhook, etc.
 #define INPROC_TEST_URL "inproc://test"
-#define REST_TEST_URL "http://0.0.0.0:%u/hook"
+#define REST_TEST_URL "http://127.0.0.1:%u/hook"
 #define	ALL_FEATURE_CONF_PATH "../../../nanomq/tests/nanomq_test.conf"
 #define	AUTH_ANON_CONF_PATH "../../../nanomq/tests/nanomq_test_anon.conf"
 #define	BRIDGE_CONF_PATH "../../../nanomq/tests/nanomq_bridge_test.conf"
 #define	BRIDGE_TLS_CONF_PATH "../../../nanomq/tests/nanomq_bridge_tls_test.conf"
 #define	BRIDGE_AWS_CONF_PATH "../../../nanomq/tests/nanomq_aws_test.conf"
 #define	BRIDGE_MUTI_CONF_PATH "../../../nanomq/tests/nanomq_muti_bridges_test.conf"
+
+#define WEBHOOK_MESSAGE_TIMEOUT_MS 30000
 
 int webhook_msg_cnt = 0; // this is a silly signal to indicate whether the webhook tests pass
 
@@ -22,25 +24,987 @@ int webhook_msg_cnt = 0; // this is a silly signal to indicate whether the webho
 #include <nng/protocol/reqrep0/rep.h>
 #include <nng/protocol/reqrep0/req.h>
 #include <nng/supplemental/http/http.h>
+#include <nng/supplemental/nanolib/cvector.h>
 #include <nng/supplemental/util/platform.h>
 #include <nng/supplemental/nanolib/conf.h>
 #include <nng/supplemental/nanolib/utils.h>
+#ifdef NNG_SUPP_TLS
+#include <nng/supplemental/tls/tls.h>
+#endif
 #include "include/broker.h"
 #include "include/rest_api.h"
 
 #include <ctype.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <assert.h>
 #include <signal.h>
+#include <limits.h>
 
 #ifndef NANO_PLATFORM_WINDOWS
+#include <netdb.h>
+#include <poll.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <fcntl.h>
+#include <sys/wait.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #endif
+
+#define TEST_ENV_MAX_TRACKED_POPEN 32
+#define TEST_ENV_MAX_TRACKED_THREADS 32
+#define TEST_ENV_MAX_TRACKED_CONF_FILES 16
+
+static nng_socket test_inproc_socket;
+static bool       test_inproc_socket_active = false;
+
+#ifndef NANO_PLATFORM_WINDOWS
+typedef struct test_env_tracked_proc {
+	pid_t    pid;
+	int      outfd;
+	FILE    *stream;
+	bool     active;
+} test_env_tracked_proc;
+
+static test_env_tracked_proc test_env_tracked_procs[TEST_ENV_MAX_TRACKED_POPEN];
+static size_t               test_env_tracked_proc_count = 0;
+static nng_thread         *  test_env_tracked_threads[TEST_ENV_MAX_TRACKED_THREADS];
+static bool                test_env_tracked_threads_active[TEST_ENV_MAX_TRACKED_THREADS];
+static size_t              test_env_tracked_thread_count = 0;
+static char               *test_env_tracked_conf_files[TEST_ENV_MAX_TRACKED_CONF_FILES];
+static size_t              test_env_tracked_conf_file_count = 0;
+static bool                 test_env_cleanup_registered  = false;
+
+static void
+test_env_track_conf_file(const char *conf_file)
+{
+	if (conf_file == NULL || conf_file[0] == '\0') {
+		return;
+	}
+	if (test_env_tracked_conf_file_count >= TEST_ENV_MAX_TRACKED_CONF_FILES) {
+		return;
+	}
+	test_env_tracked_conf_files[test_env_tracked_conf_file_count] =
+	    nng_strdup(conf_file);
+	if (test_env_tracked_conf_files[test_env_tracked_conf_file_count] == NULL) {
+		return;
+	}
+	test_env_tracked_conf_file_count++;
+}
+
+static void
+test_env_track_conf_cleanup(void)
+{
+	for (size_t i = 0; i < test_env_tracked_conf_file_count; ++i) {
+		if (test_env_tracked_conf_files[i] == NULL) {
+			continue;
+		}
+		unlink(test_env_tracked_conf_files[i]);
+		nng_free(test_env_tracked_conf_files[i],
+		    strlen(test_env_tracked_conf_files[i]) + 1);
+		test_env_tracked_conf_files[i] = NULL;
+	}
+	test_env_tracked_conf_file_count = 0;
+}
+
+static char *
+test_env_rewrite_conf_port(const char *source, const char *new_port)
+{
+	FILE   *fp = NULL;
+	long    file_size;
+	char   *source_buf = NULL;
+	char   *target_buf = NULL;
+	size_t  source_len;
+	size_t  target_len;
+	size_t  wrote = 0;
+	int     fd = -1;
+	char    tmp_path[] = "/tmp/nanomq-conf-XXXXXX";
+	char    from_text[] = ":1881";
+	char   *to_text = NULL;
+	char   *new_path = NULL;
+	size_t  replace_count = 0;
+	size_t  to_len;
+	const size_t from_len = sizeof(from_text) - 1;
+	long   delta_len;
+
+	if (source == NULL || new_port == NULL || new_port[0] == '\0') {
+		return NULL;
+	}
+	to_len = strlen(new_port) + 2;
+	to_text = nng_zalloc(to_len);
+	if (to_text == NULL) {
+		return NULL;
+	}
+	snprintf(to_text, to_len, ":%s", new_port);
+
+	fp = fopen(source, "r");
+	if (fp == NULL) {
+		nng_free(to_text, to_len);
+		return NULL;
+	}
+	if (fseek(fp, 0, SEEK_END) != 0) {
+		fclose(fp);
+		nng_free(to_text, to_len);
+		return NULL;
+	}
+	file_size = ftell(fp);
+	if (file_size < 0) {
+		fclose(fp);
+		nng_free(to_text, to_len);
+		return NULL;
+	}
+	rewind(fp);
+	source_len = (size_t) file_size;
+	source_buf = nng_zalloc(source_len + 1);
+	if (source_buf == NULL) {
+		fclose(fp);
+		nng_free(to_text, to_len);
+		return NULL;
+	}
+	if (fread(source_buf, 1, source_len, fp) != source_len) {
+		fclose(fp);
+		nng_free(source_buf, source_len + 1);
+		nng_free(to_text, to_len);
+		return NULL;
+	}
+	fclose(fp);
+
+	for (size_t i = 0; i + from_len <= source_len; ++i) {
+		if (strncmp(&source_buf[i], from_text, from_len) == 0) {
+			replace_count++;
+			i += from_len - 1;
+		}
+	}
+	delta_len = (long) to_len - (long) from_len;
+	if (delta_len < 0 &&
+	    source_len < (size_t) (-(delta_len * (long) replace_count))) {
+		nng_free(source_buf, source_len + 1);
+		nng_free(to_text, to_len);
+		return NULL;
+	}
+	target_len = source_len + (size_t) (delta_len * (long) replace_count);
+	target_buf = nng_zalloc(target_len + 1);
+	if (target_buf == NULL) {
+		nng_free(source_buf, source_len + 1);
+		nng_free(to_text, to_len);
+		return NULL;
+	}
+
+	size_t offset = 0;
+	for (size_t i = 0; i < source_len;) {
+		if (i + from_len <= source_len &&
+		    strncmp(&source_buf[i], from_text, from_len) == 0) {
+			memcpy(&target_buf[offset], to_text, to_len - 1);
+			offset += (to_len - 1);
+			i += from_len;
+			continue;
+		}
+		target_buf[offset++] = source_buf[i++];
+	}
+	target_buf[offset] = '\0';
+
+	fd = mkstemp(tmp_path);
+	if (fd < 0) {
+		nng_free(source_buf, source_len + 1);
+		nng_free(target_buf, target_len + 1);
+		nng_free(to_text, to_len);
+		return NULL;
+	}
+
+	while (wrote < offset) {
+		ssize_t wr = write(fd, target_buf + wrote, offset - wrote);
+		if (wr < 0) {
+			if (errno == EINTR) {
+				continue;
+			}
+			close(fd);
+			unlink(tmp_path);
+			nng_free(source_buf, source_len + 1);
+			nng_free(target_buf, target_len + 1);
+			nng_free(to_text, to_len);
+			return NULL;
+		}
+		wrote += (size_t) wr;
+	}
+	close(fd);
+	nng_free(source_buf, source_len + 1);
+	nng_free(target_buf, target_len + 1);
+	nng_free(to_text, to_len);
+
+	new_path = nng_strdup(tmp_path);
+	return new_path;
+}
+
+static void
+test_env_test_cleanup(void)
+{
+	// Stop the broker before joining its wrapper thread.  The broker owns
+	// listener and webhook resources that otherwise keep the join blocked.
+	broker_stop_for_test();
+
+	for (size_t i = 0; i < test_env_tracked_thread_count; ++i) {
+		if (!test_env_tracked_threads_active[i] ||
+		    test_env_tracked_threads[i] == NULL) {
+			continue;
+		}
+		nng_thread_destroy(test_env_tracked_threads[i]);
+		test_env_tracked_threads[i] = NULL;
+		test_env_tracked_threads_active[i] = false;
+	}
+
+	for (size_t i = 0; i < test_env_tracked_proc_count; ++i) {
+		test_env_tracked_proc *proc = &test_env_tracked_procs[i];
+		int                  status = 0;
+		pid_t                pgid;
+		pid_t                target;
+
+		if (!proc->active || proc->pid <= 0) {
+			continue;
+		}
+
+		if (kill(proc->pid, 0) == 0 || errno == EPERM) {
+			pgid   = getpgid(proc->pid);
+			target = (pgid > 0) ? -pgid : -proc->pid;
+
+			kill(target, SIGTERM);
+			for (size_t j = 0; j < 10; ++j) {
+				if (kill(proc->pid, 0) != 0 && errno == ESRCH) {
+					break;
+				}
+				nng_msleep(10);
+			}
+			if (kill(proc->pid, 0) == 0 || errno == EPERM) {
+				kill(target, SIGKILL);
+			}
+			for (int j = 0; j < 10; ++j) {
+				if (waitpid(proc->pid, &status, WNOHANG) > 0) {
+					break;
+				}
+				nng_msleep(10);
+			}
+			waitpid(proc->pid, &status, 0);
+		}
+		if (proc->outfd >= 0) {
+			close(proc->outfd);
+			proc->outfd = -1;
+		}
+		proc->active = false;
+	}
+	test_env_tracked_proc_count = 0;
+	test_env_tracked_thread_count = 0;
+	test_env_track_conf_cleanup();
+}
+
+static void
+test_env_register_cleanup(void)
+{
+	if (!test_env_cleanup_registered) {
+		atexit(test_env_test_cleanup);
+		test_env_cleanup_registered = true;
+	}
+}
+
+static void
+test_env_track_proc(pid_t pid, int outfd, FILE *stream)
+{
+	if (pid <= 0) {
+		return;
+	}
+	if (test_env_tracked_proc_count >= TEST_ENV_MAX_TRACKED_POPEN) {
+		return;
+	}
+	test_env_register_cleanup();
+	test_env_tracked_procs[test_env_tracked_proc_count].pid    = pid;
+	test_env_tracked_procs[test_env_tracked_proc_count].outfd  = outfd;
+	test_env_tracked_procs[test_env_tracked_proc_count].stream = stream;
+	test_env_tracked_procs[test_env_tracked_proc_count].active = true;
+	test_env_tracked_proc_count++;
+}
+
+static void
+test_env_track_thread(nng_thread *thread)
+{
+	if (thread == NULL) {
+		return;
+	}
+	if (test_env_tracked_thread_count >= TEST_ENV_MAX_TRACKED_THREADS) {
+		return;
+	}
+	test_env_register_cleanup();
+	test_env_tracked_threads[test_env_tracked_thread_count]       = thread;
+	test_env_tracked_threads_active[test_env_tracked_thread_count] = true;
+	test_env_tracked_thread_count++;
+}
+
+static void
+test_env_untrack_thread(nng_thread *thread)
+{
+	for (size_t i = 0; i < test_env_tracked_thread_count; ++i) {
+		if (test_env_tracked_threads_active[i] &&
+		    test_env_tracked_threads[i] == thread) {
+			test_env_tracked_threads_active[i] = false;
+			test_env_tracked_threads[i]       = NULL;
+			return;
+		}
+	}
+}
+
+static pid_t
+test_env_untrack_proc_by_stream(FILE *stream)
+{
+	for (size_t i = 0; i < test_env_tracked_proc_count; ++i) {
+		if (test_env_tracked_procs[i].active &&
+		    test_env_tracked_procs[i].stream == stream) {
+			test_env_tracked_procs[i].active = false;
+			return test_env_tracked_procs[i].pid;
+		}
+	}
+	return -1;
+}
+
+static void
+test_env_kill_and_reap(pid_t pid)
+{
+	int status;
+
+	if (pid <= 0) {
+		return;
+	}
+	(void) kill(pid, SIGKILL);
+	while (waitpid(pid, &status, 0) < 0 && errno == EINTR) {
+	}
+}
+
+static FILE *
+test_env_popen(const char *command, const char *mode)
+{
+	int   pipefd[2];
+	pid_t pid = -1;
+	FILE *fp  = NULL;
+
+	if (command == NULL || mode == NULL || mode[0] == '\0') {
+		return NULL;
+	}
+	if (strcmp(mode, "r") == 0) {
+		if (pipe(pipefd) != 0) {
+			return NULL;
+		}
+		pid = fork();
+		if (pid < 0) {
+			close(pipefd[STDIN_FILENO]);
+			close(pipefd[STDOUT_FILENO]);
+			return NULL;
+		}
+		if (pid == 0) {
+			(void) setpgid(0, 0);
+			close(pipefd[STDIN_FILENO]);
+			dup2(pipefd[STDOUT_FILENO], STDOUT_FILENO);
+			close(pipefd[STDOUT_FILENO]);
+			execlp("sh", "sh", "-c", command, (char *) NULL);
+			exit(EXIT_FAILURE);
+		}
+		close(pipefd[STDOUT_FILENO]);
+		fp = fdopen(pipefd[STDIN_FILENO], "r");
+		if (fp == NULL) {
+			close(pipefd[STDIN_FILENO]);
+			test_env_kill_and_reap(pid);
+			return NULL;
+		}
+		test_env_track_proc(pid, pipefd[STDIN_FILENO], fp);
+		return fp;
+	}
+	if (strcmp(mode, "w") == 0) {
+		if (pipe(pipefd) != 0) {
+			return NULL;
+		}
+		pid = fork();
+		if (pid < 0) {
+			close(pipefd[STDIN_FILENO]);
+			close(pipefd[STDOUT_FILENO]);
+			return NULL;
+		}
+		if (pid == 0) {
+			(void) setpgid(0, 0);
+			close(pipefd[STDOUT_FILENO]);
+			dup2(pipefd[STDIN_FILENO], STDIN_FILENO);
+			close(pipefd[STDIN_FILENO]);
+			execlp("sh", "sh", "-c", command, (char *) NULL);
+			exit(EXIT_FAILURE);
+		}
+		close(pipefd[STDIN_FILENO]);
+		fp = fdopen(pipefd[STDOUT_FILENO], "w");
+		if (fp == NULL) {
+			close(pipefd[STDOUT_FILENO]);
+			test_env_kill_and_reap(pid);
+			return NULL;
+		}
+		test_env_track_proc(pid, pipefd[STDOUT_FILENO], fp);
+		return fp;
+	}
+	return NULL;
+}
+
+static int
+test_env_pclose(FILE *stream)
+{
+	pid_t pid;
+	int   status;
+
+	if (stream == NULL) {
+		return -1;
+	}
+	pid = test_env_untrack_proc_by_stream(stream);
+	fclose(stream);
+	if (pid > 0) {
+		int wrc = waitpid(pid, &status, 0);
+		if (wrc == pid) {
+			return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+		}
+	}
+	return -1;
+}
+
+static int
+test_env_nng_thread_create(
+    nng_thread **thread, void (*fn)(void *), void *arg)
+{
+	int rc = nng_thread_create(thread, fn, arg);
+	if (rc == 0 && thread != NULL && *thread != NULL) {
+		test_env_track_thread(*thread);
+	}
+	return rc;
+}
+
+static void
+test_env_nng_thread_destroy(nng_thread *thread)
+{
+	test_env_untrack_thread(thread);
+	nng_thread_destroy(thread);
+}
+
+static void
+test_env_assert_failed(const char *expr, const char *file, int line)
+{
+	fprintf(stderr, "test environment test assertion failed: %s (%s:%d)\n", expr, file, line);
+	test_env_test_cleanup();
+	exit(EXIT_FAILURE);
+}
+
+static bool
+test_env_report_bind_owner(uint16_t port)
+{
+#ifndef NANO_PLATFORM_WINDOWS
+	char    cmd[96];
+	char    pid_line[64];
+	FILE   *fp;
+	bool    has_listener = false;
+
+	snprintf(cmd, sizeof(cmd), "lsof -nP -iTCP:%hu -sTCP:LISTEN -t", port);
+	fp = test_env_popen(cmd, "r");
+	if (fp == NULL) {
+		return false;
+	}
+	while (fgets(pid_line, sizeof(pid_line), fp) != NULL) {
+		char    *end;
+		pid_t    pid = (pid_t) strtol(pid_line, &end, 10);
+		int      wstatus;
+		FILE    *cmd_fp;
+		char     cmd_line[256];
+
+		if (pid <= 0 || (end == pid_line)) {
+			continue;
+		}
+		snprintf(cmd_line, sizeof(cmd_line), "ps -p %d -o comm=", pid);
+		cmd_fp = test_env_popen(cmd_line, "r");
+		if (cmd_fp != NULL) {
+			char cmd_name[128] = { 0 };
+
+			if (fgets(cmd_name, sizeof(cmd_name), cmd_fp) != NULL) {
+				cmd_name[strcspn(cmd_name, "\n")] = '\0';
+				fprintf(stderr,
+				    "  port %hu in use by pid=%d command=%s\n", port, pid,
+				    cmd_name[0] != '\0' ? cmd_name : "<unknown>");
+			}
+			test_env_pclose(cmd_fp);
+		}
+		has_listener = true;
+		waitpid(pid, &wstatus, WNOHANG);
+	}
+	test_env_pclose(fp);
+	if (!has_listener) {
+		fprintf(stderr, "  no lsof owner output for port %hu\n", port);
+	}
+	return has_listener;
+#endif
+	return false;
+}
+
+#undef assert
+#define assert(expr)                                                         \
+	((expr) ? (void) 0 : test_env_assert_failed(#expr, __FILE__, __LINE__))
+#define popen(cmd, mode) test_env_popen((cmd), (mode))
+#define pclose(fp) test_env_pclose((fp))
+#define nng_thread_create(thread, fn, arg) test_env_nng_thread_create((thread), (fn), (arg))
+#define nng_thread_destroy(thread) test_env_nng_thread_destroy((thread))
+#endif
+
+static uint16_t test_env_test_port(void);
+
+static bool
+test_env_skip_network_bind_check(void)
+{
+	const char *skip_check = getenv("NANOMQ_SKIP_NETWORK_TEST_ENV_CHECK");
+
+	return skip_check != NULL &&
+	    (strcmp(skip_check, "1") == 0 || strcasecmp(skip_check, "true") == 0 ||
+	        strcasecmp(skip_check, "yes") == 0 ||
+	        strcasecmp(skip_check, "on") == 0);
+}
+
+static bool
+test_env_allows_port_bind(uint16_t port)
+{
+#ifndef NANO_PLATFORM_WINDOWS
+	int                sock;
+	struct sockaddr_in addr;
+
+	if (test_env_skip_network_bind_check()) {
+		return true;
+	}
+	sock = socket(AF_INET, SOCK_STREAM, 0);
+	if (sock < 0) {
+		fprintf(stderr, "test_env_allows_port_bind: socket() failed: %s\n",
+		    strerror(errno));
+		return false;
+	}
+	memset(&addr, 0, sizeof(addr));
+	addr.sin_family      = AF_INET;
+	addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+	addr.sin_port        = htons(port);
+	if (bind(sock, (struct sockaddr *) &addr, sizeof(addr)) != 0) {
+		int bind_errno = errno;
+
+		test_env_report_bind_owner(port);
+		fprintf(stderr,
+		    "test_env_allows_port_bind: bind to 127.0.0.1:%hu failed: %s\n",
+		    port, strerror(bind_errno));
+		close(sock);
+		return false;
+	}
+	close(sock);
+#else
+	(void) port;
+#endif
+	return true;
+}
+
+static bool
+test_env_allows_network_binds(void)
+{
+#ifndef NANO_PLATFORM_WINDOWS
+	const char *configured_port = getenv("NANOMQ_TEST_PORT");
+	uint16_t    configured_port_value = 0;
+	int         sock = -1;
+	struct sockaddr_in addr;
+	struct sockaddr_in bound_addr;
+	socklen_t          bound_addr_len;
+	char               test_port_text[16];
+	char              *end = NULL;
+	long               parsed_port;
+
+	if (test_env_skip_network_bind_check()) {
+		fprintf(stderr,
+		    "test_env_allows_network_binds: bypassed by NANOMQ_SKIP_NETWORK_TEST_ENV_CHECK=1\n");
+		return true;
+	}
+
+	if (configured_port != NULL && configured_port[0] != '\0') {
+		parsed_port = strtol(configured_port, &end, 10);
+		if (end == configured_port || *end != '\0' || parsed_port <= 0 ||
+		    parsed_port > UINT16_MAX) {
+			fprintf(stderr,
+			    "test_env_allows_network_binds: invalid NANOMQ_TEST_PORT=%s\n",
+			    configured_port);
+			return false;
+		}
+		configured_port_value = (uint16_t) parsed_port;
+	}
+
+	sock = socket(AF_INET, SOCK_STREAM, 0);
+	if (sock < 0) {
+		fprintf(stderr, "test_env_allows_network_binds: socket() failed: %s\n",
+		    strerror(errno));
+		return false;
+	}
+	memset(&addr, 0, sizeof(addr));
+	addr.sin_family      = AF_INET;
+	addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+	addr.sin_port        = htons(configured_port_value);
+	if (bind(sock, (struct sockaddr *) &addr, sizeof(addr)) != 0) {
+		int bind_errno = errno;
+		uint16_t failed_port = configured_port_value;
+		if (failed_port != 0) {
+			test_env_report_bind_owner(failed_port);
+		}
+		fprintf(stderr,
+		    "test_env_allows_network_binds: bind to 127.0.0.1:%hu failed: %s\n",
+		    failed_port, strerror(bind_errno));
+		close(sock);
+		return false;
+	}
+
+	if (configured_port_value == 0) {
+		bound_addr_len = sizeof(bound_addr);
+		if (getsockname(sock, (struct sockaddr *) &bound_addr,
+		        &bound_addr_len) != 0 ||
+		    bound_addr.sin_port == 0) {
+			fprintf(stderr,
+			    "test_env_allows_network_binds: getsockname() failed: %s\n",
+			    strerror(errno));
+			close(sock);
+			return false;
+		}
+		configured_port_value = ntohs(bound_addr.sin_port);
+		snprintf(test_port_text, sizeof(test_port_text), "%hu",
+		    configured_port_value);
+		if (setenv("NANOMQ_TEST_PORT", test_port_text, 1) != 0) {
+			fprintf(stderr,
+			    "test_env_allows_network_binds: setenv() failed: %s\n",
+			    strerror(errno));
+			close(sock);
+			return false;
+		}
+	}
+	close(sock);
+	test_env_register_cleanup();
+	return true;
+#else
+	return true;
+#endif
+}
+
+static bool
+test_env_has_executable(const char *name)
+{
+#ifndef NANO_PLATFORM_WINDOWS
+	char *path = getenv("PATH");
+	char *path_copy;
+	char *saveptr = NULL;
+	char *dir;
+	char  fullpath[PATH_MAX];
+
+	if (name == NULL || path == NULL) {
+		return false;
+	}
+	if (strcmp(name, "") == 0) {
+		return false;
+	}
+
+	path_copy = nng_strdup(path);
+	if (path_copy == NULL) {
+		return false;
+	}
+
+	dir = strtok_r(path_copy, ":", &saveptr);
+	while (dir != NULL) {
+		if (snprintf(fullpath, sizeof(fullpath), "%s/%s", dir, name) > 0 &&
+		    access(fullpath, X_OK) == 0) {
+			nng_strfree(path_copy);
+			return true;
+		}
+		dir = strtok_r(NULL, ":", &saveptr);
+	}
+	nng_strfree(path_copy);
+	return false;
+#else
+	return true;
+#endif
+}
+
+static bool
+test_env_connects_to_host(const char *host, const char *port)
+{
+#ifndef NANO_PLATFORM_WINDOWS
+	int                  rv;
+	int                  sock = -1;
+	struct addrinfo      hints;
+	struct addrinfo *    res = NULL;
+	struct addrinfo *    cur;
+	bool                 can_connect = false;
+
+	if (host == NULL || port == NULL) {
+		return false;
+	}
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_INET;
+	hints.ai_socktype = SOCK_STREAM;
+	rv = getaddrinfo(host, port, &hints, &res);
+	if (rv != 0) {
+		return false;
+	}
+
+	for (cur = res; cur != NULL; cur = cur->ai_next) {
+		int           flags;
+		int           connect_error = 0;
+		socklen_t     connect_error_size = sizeof(connect_error);
+		struct pollfd pollfd;
+
+		sock = socket(cur->ai_family, cur->ai_socktype, cur->ai_protocol);
+		if (sock < 0) {
+			continue;
+		}
+
+		flags = fcntl(sock, F_GETFL, 0);
+		if (flags < 0 || fcntl(sock, F_SETFL, flags | O_NONBLOCK) != 0) {
+			close(sock);
+			continue;
+		}
+		rv = connect(sock, cur->ai_addr, cur->ai_addrlen);
+		if (rv != 0 && errno == EINPROGRESS) {
+			pollfd.fd      = sock;
+			pollfd.events  = POLLOUT;
+			pollfd.revents = 0;
+			rv = poll(&pollfd, 1, 1000);
+			if (rv > 0 && (pollfd.revents & POLLOUT) != 0 &&
+			    getsockopt(sock, SOL_SOCKET, SO_ERROR, &connect_error,
+			        &connect_error_size) == 0 && connect_error == 0) {
+				rv = 0;
+			} else {
+				rv = -1;
+			}
+		}
+		if (rv == 0) {
+			can_connect = true;
+			close(sock);
+			break;
+		}
+		close(sock);
+	}
+	freeaddrinfo(res);
+	return can_connect;
+#else
+	return true;
+#endif
+}
+
+static bool
+test_env_supports_tls(void)
+{
+#ifdef NNG_SUPP_TLS
+	return true;
+#else
+	return false;
+#endif
+}
+
+static uint16_t
+test_env_test_port(void)
+{
+	const char *env_port = getenv("NANOMQ_TEST_PORT");
+	if (env_port != NULL && env_port[0] != '\0') {
+		char    *end = NULL;
+		long    parsed = strtol(env_port, &end, 10);
+		if (end != NULL && end != env_port && *end == '\0' &&
+		    parsed > 0 && parsed <= UINT16_MAX) {
+			return (uint16_t) parsed;
+		}
+	}
+	return 1881;
+}
+
+static const char *
+test_env_test_port_text(void)
+{
+	static char port_text[16];
+
+	snprintf(port_text, sizeof(port_text), "%hu", test_env_test_port());
+	return port_text;
+}
+
+static bool
+test_env_supports_tls_runtime(void)
+{
+#ifdef NNG_SUPP_TLS
+	nng_tls_config *cfg = NULL;
+
+	if (nng_tls_config_alloc(&cfg, NNG_TLS_MODE_CLIENT) != 0) {
+		return false;
+	}
+	if (cfg == NULL) {
+		return false;
+	}
+	nng_tls_config_free(cfg);
+	return true;
+#else
+	return false;
+#endif
+}
+
+static bool
+test_env_has_file(const char *path)
+{
+	return (path != NULL) ? access(path, R_OK) == 0 : false;
+}
+
+static bool
+test_env_wait_for_output(
+    int outfd, char *buf, size_t buf_size, int timeout_ms, int poll_ms)
+{
+	int flags;
+	int original_flags;
+	int waited = 0;
+	ssize_t n = -1;
+
+	if (buf_size == 0 || buf == NULL || outfd < 0) {
+		fprintf(stderr,
+		    "[FAIL] test_env_wait_for_output: invalid file descriptor %d\n",
+		    outfd);
+		return false;
+	}
+	flags = fcntl(outfd, F_GETFL, 0);
+	if (flags == -1) {
+		fprintf(stderr,
+		    "[FAIL] test_env_wait_for_output: F_GETFL failed on fd %d: %s\n",
+		    outfd, strerror(errno));
+		return false;
+	}
+	original_flags = flags;
+	if ((flags & O_NONBLOCK) == 0) {
+		if (fcntl(outfd, F_SETFL, flags | O_NONBLOCK) != 0) {
+			return false;
+		}
+	}
+
+	if (poll_ms <= 0) {
+		poll_ms = 25;
+	}
+	if (timeout_ms <= 0) {
+		timeout_ms = 0;
+	}
+
+	while (waited < timeout_ms) {
+		errno = 0;
+		n     = read(outfd, buf, buf_size - 1);
+		if (n > 0) {
+			buf[n] = '\0';
+			goto done;
+		}
+		if (n == 0 || (errno != EAGAIN && errno != EWOULDBLOCK &&
+		               errno != EINTR)) {
+			goto done;
+		}
+		nng_msleep(poll_ms);
+		waited += poll_ms;
+	}
+
+done:
+	if ((original_flags & O_NONBLOCK) == 0) {
+		fcntl(outfd, F_SETFL, original_flags);
+	}
+	if (n <= 0) {
+		if (n == 0) {
+			fprintf(stderr,
+			    "[FAIL] test_env_wait_for_output: no output from process "
+			    "within %dms\n",
+			    waited);
+		} else if (errno != 0) {
+			fprintf(stderr,
+			    "[FAIL] test_env_wait_for_output: read fd %d failed after %dms: %s\n",
+			    outfd, waited, strerror(errno));
+		} else {
+			fprintf(stderr,
+			    "[FAIL] test_env_wait_for_output: read fd %d returned %zd on fd after %dms\n",
+			    outfd, n, waited);
+		}
+	}
+	return n > 0;
+}
+
+static bool
+test_env_wait_for_no_output(int outfd, int timeout_ms, int poll_ms)
+{
+	int flags;
+	int original_flags;
+	int waited = 0;
+	ssize_t n = -1;
+	char    buf = '\0';
+
+	if (outfd < 0) {
+		return false;
+	}
+	flags = fcntl(outfd, F_GETFL, 0);
+	if (flags == -1) {
+		return false;
+	}
+	original_flags = flags;
+	if ((flags & O_NONBLOCK) == 0) {
+		if (fcntl(outfd, F_SETFL, flags | O_NONBLOCK) != 0) {
+			return false;
+		}
+	}
+
+	if (poll_ms <= 0) {
+		poll_ms = 25;
+	}
+
+	while (waited < timeout_ms) {
+		errno = 0;
+		n     = read(outfd, &buf, 1);
+		if (n > 0 || n == 0 ||
+		    (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR)) {
+			goto done;
+		}
+		nng_msleep(poll_ms);
+		waited += poll_ms;
+	}
+
+done:
+	if ((original_flags & O_NONBLOCK) == 0) {
+		fcntl(outfd, F_SETFL, original_flags);
+	}
+	return n <= 0;
+}
+
+static bool
+wait_for_webhook_message_count(int expected, int timeout_ms, int poll_ms)
+{
+	int waited_ms = 0;
+
+	if (poll_ms <= 0) {
+		poll_ms = 25;
+	}
+
+	while ((webhook_msg_cnt < expected) && (waited_ms < timeout_ms)) {
+		nng_msleep(poll_ms);
+		waited_ms += poll_ms;
+	}
+
+	// Webhook delivery can lag the test on a loaded runner; give the
+	// remaining events one more grace window before failing.
+	if (webhook_msg_cnt < expected && waited_ms >= timeout_ms) {
+		waited_ms = 0;
+		while ((webhook_msg_cnt < expected) && (waited_ms < timeout_ms)) {
+			nng_msleep(poll_ms);
+			waited_ms += poll_ms;
+		}
+	}
+
+	if (webhook_msg_cnt < expected) {
+		fprintf(stderr,
+            "[FAIL] webhook_msg_cnt=%d, expected=%d after %dms\n",
+            webhook_msg_cnt, expected, waited_ms);
+		return false;
+	}
+
+	return true;
+}
+
 
 // This server acts as a proxy.  We take HTTP POST requests, convert them to
 // REQ messages, and when the reply is received, send the reply back to
@@ -65,6 +1029,56 @@ typedef enum {
 	BRIDGE_MUTI_CONF,
 	AUTH_ANON_CONF,
 } conf_type;
+
+#ifndef NNG_SUPP_TLS
+static void
+disable_tls_for_tests(conf *nmq_conf)
+{
+	conf_tls_list *tls_list = &nmq_conf->tls_list;
+
+	if (nmq_conf->tls.enable || nmq_conf->tls.url != NULL
+            || nmq_conf->tls.cafile != NULL || nmq_conf->tls.certfile != NULL
+            || nmq_conf->tls.keyfile != NULL || nmq_conf->tls.ca != NULL
+            || nmq_conf->tls.cert != NULL || nmq_conf->tls.key != NULL
+            || nmq_conf->tls.key_password != NULL || nmq_conf->tls.sni != NULL
+            || nmq_conf->websocket.tls_url != NULL
+            || nmq_conf->websocket.tls_enable || tls_list->count > 0) {
+
+		nmq_conf->tls.enable         = false;
+		nmq_conf->tls.url            = NULL;
+		nmq_conf->tls.cafile         = NULL;
+		nmq_conf->tls.certfile       = NULL;
+		nmq_conf->tls.keyfile        = NULL;
+		nmq_conf->tls.ca             = NULL;
+		nmq_conf->tls.cert           = NULL;
+		nmq_conf->tls.key            = NULL;
+		nmq_conf->tls.key_password   = NULL;
+		nmq_conf->tls.sni            = NULL;
+		nmq_conf->websocket.tls_enable = false;
+		nmq_conf->websocket.tls_url    = NULL;
+
+		for (size_t i = 0; i < tls_list->count; ++i) {
+			conf_tls *node = tls_list->nodes[i];
+
+			if (node == NULL) {
+				continue;
+			}
+			FREE_NONULL(node->url);
+			FREE_NONULL(node->cafile);
+			FREE_NONULL(node->certfile);
+			FREE_NONULL(node->keyfile);
+			FREE_NONULL(node->ca);
+			FREE_NONULL(node->cert);
+			FREE_NONULL(node->key);
+			FREE_NONULL(node->key_password);
+			FREE_NONULL(node->sni);
+			free(node);
+		}
+		FREE_NONULL(tls_list->nodes);
+		tls_list->count = 0;
+	}
+}
+#endif
 
 typedef enum {
 	SEND_REQ, // Sending REQ request
@@ -367,11 +1381,13 @@ test_inproc_server(void *arg)
 	    ((rv = nng_listen(s, INPROC_TEST_URL, NULL, 0)) != 0)) {
 		nng_fatal("unable to set up inproc", rv);
 	}
+	test_inproc_socket = s;
+	test_inproc_socket_active = true;
 	// This is simple enough that we don't need concurrency.  Plus it
 	// makes for an easier demo.
 	for (;;) {
 		if ((rv = nng_recvmsg(s, &msg, 0)) != 0) {
-			nng_fatal("inproc recvmsg", rv);
+			break;
 		}
 		// char *body = nng_msg_body(msg);
 		// printf("\tReceived: %s\n", (char *) body);
@@ -385,17 +1401,31 @@ test_inproc_server(void *arg)
 	}
 }
 
+static void
+test_inproc_stop(void)
+{
+	if (test_inproc_socket_active) {
+		test_inproc_socket_active = false;
+		nng_close(test_inproc_socket);
+	}
+}
+
 conf*
 get_dflt_conf()
 {
 	conf               *nanomq_conf;
+	char               test_env_test_addr[128];
 	if ((nanomq_conf = nng_zalloc(sizeof(conf))) == NULL) {
 		fprintf(stderr,
 		    "Cannot allocate storge for configuration, quit\n");
 		exit(EXIT_FAILURE);
 	}
 	conf_init(nanomq_conf);
-	nanomq_conf->url                    = "nmq-tcp://0.0.0.0:1881";
+	nanomq_conf->url                    = NULL;
+	snprintf(
+	    test_env_test_addr, sizeof(test_env_test_addr), "nmq-tcp://127.0.0.1:%s",
+	    test_env_test_port_text());
+	nanomq_conf->url = nng_strdup(test_env_test_addr);
 	nanomq_conf->conf_file              = NULL;
 	nanomq_conf->daemon                 = false;
 	nanomq_conf->num_taskq_thread       = 1;
@@ -423,52 +1453,46 @@ get_webhook_conf()
 	conf_http_header   *header;
 	conf_web_hook_rule *webhook_rule;
 
-	// conf for webhook
+	// Mirror the ownership and cvector layout used by the configuration parser,
+	// because the MQTT socket releases this configuration during shutdown.
 	nanomq_conf->web_hook.enable         = true;
-	nanomq_conf->web_hook.url            = "http://0.0.0.0:8888/hook";
+	nanomq_conf->web_hook.url            = nng_strdup("http://127.0.0.1:8888/hook");
 	nanomq_conf->web_hook.encode_payload = plain;
 	nanomq_conf->web_hook.pool_size      = 32;
 
-	// set up webhook headers
-	nanomq_conf->web_hook.header_count = 1;
-	nanomq_conf->web_hook.headers = realloc(nanomq_conf->web_hook.headers,
-	    nanomq_conf->web_hook.header_count * sizeof(conf_http_header *));
-		
-	header                        = calloc(1, sizeof(conf_http_header));
-	header->key                   = "content-type";
-	header->value                 = "application/json";
-	nanomq_conf->web_hook.headers[0] = header;
+	header        = calloc(1, sizeof(conf_http_header));
+	header->key   = nng_strdup("content-type");
+	header->value = nng_strdup("application/json");
+	cvector_push_back(nanomq_conf->web_hook.headers, header);
+	nanomq_conf->web_hook.header_count =
+	    cvector_size(nanomq_conf->web_hook.headers);
 
-	// set up webhook rules
-	nanomq_conf->web_hook.rule_count = 5;
-	nanomq_conf->web_hook.rules      = realloc(nanomq_conf->web_hook.rules,
-	         nanomq_conf->web_hook.rule_count * sizeof(conf_web_hook_rule *));
-
-	webhook_rule                   = calloc(1, sizeof(conf_web_hook_rule));
-	webhook_rule->event            = MESSAGE_PUBLISH;
-	webhook_rule->rule_num         = 1;
-	webhook_rule->action           = "on_message_publish";
-	nanomq_conf->web_hook.rules[0] = webhook_rule;
+	webhook_rule           = calloc(1, sizeof(conf_web_hook_rule));
+	webhook_rule->event    = MESSAGE_PUBLISH;
+	webhook_rule->rule_num = 1;
+	webhook_rule->action   = nng_strdup("on_message_publish");
+	cvector_push_back(nanomq_conf->web_hook.rules, webhook_rule);
 	webhook_rule                   = calloc(1, sizeof(conf_web_hook_rule));
 	webhook_rule->event            = CLIENT_CONNECT;
 	webhook_rule->rule_num         = 1;
-	webhook_rule->action           = "on_client_connect";
-	nanomq_conf->web_hook.rules[1] = webhook_rule;
+	webhook_rule->action           = nng_strdup("on_client_connect");
+	cvector_push_back(nanomq_conf->web_hook.rules, webhook_rule);
 	webhook_rule                   = calloc(1, sizeof(conf_web_hook_rule));
 	webhook_rule->event            = CLIENT_CONNACK;
 	webhook_rule->rule_num         = 1;
-	webhook_rule->action           = "on_client_connack";
-	nanomq_conf->web_hook.rules[2] = webhook_rule;
+	webhook_rule->action           = nng_strdup("on_client_connack");
+	cvector_push_back(nanomq_conf->web_hook.rules, webhook_rule);
 	webhook_rule                   = calloc(1, sizeof(conf_web_hook_rule));
 	webhook_rule->event            = CLIENT_CONNECTED;
 	webhook_rule->rule_num         = 1;
-	webhook_rule->action           = "on_client_connected";
-	nanomq_conf->web_hook.rules[3] = webhook_rule;
+	webhook_rule->action           = nng_strdup("on_client_connected");
+	cvector_push_back(nanomq_conf->web_hook.rules, webhook_rule);
 	webhook_rule                   = calloc(1, sizeof(conf_web_hook_rule));
 	webhook_rule->event            = CLIENT_DISCONNECTED;
 	webhook_rule->rule_num         = 1;
-	webhook_rule->action           = "on_client_disconnected";
-	nanomq_conf->web_hook.rules[4] = webhook_rule;
+	webhook_rule->action           = nng_strdup("on_client_disconnected");
+	cvector_push_back(nanomq_conf->web_hook.rules, webhook_rule);
+	nanomq_conf->web_hook.rule_count = cvector_size(nanomq_conf->web_hook.rules);
 
 	return nanomq_conf;
 }
@@ -479,6 +1503,7 @@ get_test_conf(conf_type type)
 	// get conf from file
 	conf *nmq_conf  = NULL;
 	char *conf_path = NULL;
+	char *resolved_conf_path = NULL;
 
 	if ((nmq_conf = nng_zalloc(sizeof(conf))) == NULL) {
 		return nmq_conf;
@@ -505,9 +1530,20 @@ get_test_conf(conf_type type)
 	default:
 		break;
 	}
+	if (conf_path != NULL && test_env_test_port_text() != NULL) {
+		resolved_conf_path = test_env_rewrite_conf_port(conf_path, test_env_test_port_text());
+		if (resolved_conf_path != NULL) {
+			conf_path = resolved_conf_path;
+			test_env_track_conf_file(resolved_conf_path);
+		}
+	}
 	conf_init(nmq_conf);
 	nmq_conf->conf_file = conf_path;
 	conf_parse_ver2(nmq_conf, false);
+
+#ifndef NNG_SUPP_TLS
+	disable_tls_for_tests(nmq_conf);
+#endif
 
 	return nmq_conf;
 }
@@ -518,23 +1554,46 @@ popen_with_cmd(int *outfp, char *arg[], char *cmd)
 	int   fd_pipe[2];
 	pid_t pid;
 
-	if (pipe(fd_pipe) != 0)
+	if (outfp == NULL || arg == NULL || cmd == NULL) {
 		return -1;
+	}
+	*outfp = -1;
+	if (pipe(fd_pipe) != 0) {
+		return -1;
+	}
 
 	pid = fork();
 
-	if (pid < 0)
+	if (pid < 0) {
+		close(fd_pipe[STDIN_FILENO]);
+		close(fd_pipe[STDOUT_FILENO]);
 		return pid;
+	}
 	else if (pid == 0) {
+		(void) setpgid(0, 0);
 		// child only need to write
 		close(fd_pipe[STDIN_FILENO]);
-		dup2(fd_pipe[STDOUT_FILENO], STDOUT_FILENO);
-		execv(cmd, arg);
-		exit(1);
+		if (dup2(fd_pipe[STDOUT_FILENO], STDOUT_FILENO) == -1) {
+			exit(EXIT_FAILURE);
+		}
+		if (fd_pipe[STDOUT_FILENO] != STDOUT_FILENO) {
+			close(fd_pipe[STDOUT_FILENO]);
+		}
+		if (strchr(cmd, '/') != NULL) {
+			execv(cmd, arg);
+			cmd = strrchr(cmd, '/');
+			if (cmd != NULL && cmd[1] != '\0') {
+				execvp(cmd + 1, arg);
+			}
+		} else {
+			execvp(cmd, arg);
+		}
+		exit(EXIT_FAILURE);
 	} else {
 		// parent only need to read
 		close(fd_pipe[STDOUT_FILENO]);
 		*outfp = fd_pipe[STDIN_FILENO];
+		test_env_track_proc(pid, -1, NULL);
 	}
 
 	return pid;
@@ -546,24 +1605,57 @@ popen_sub_with_cmd_nonblock(int *outfp, char *arg[], char *cmd)
 	int   fd_pipe[2];
 	pid_t pid;
 
-	if (pipe(fd_pipe) != 0)
+	if (outfp == NULL || arg == NULL || cmd == NULL) {
 		return -1;
+	}
+	*outfp = -1;
+	if (pipe(fd_pipe) != 0) {
+		return -1;
+	}
 
 	pid = fork();
 
-	if (pid < 0)
+	if (pid < 0) {
+		close(fd_pipe[STDIN_FILENO]);
+		close(fd_pipe[STDOUT_FILENO]);
 		return pid;
+	}
 	else if (pid == 0) {
+		(void) setpgid(0, 0);
 		// child only need to write
 		close(fd_pipe[STDIN_FILENO]);
-		dup2(fd_pipe[STDOUT_FILENO], STDOUT_FILENO);
-		execv(cmd, arg);
-		exit(1);
+		if (dup2(fd_pipe[STDOUT_FILENO], STDOUT_FILENO) == -1) {
+			exit(EXIT_FAILURE);
+		}
+		if (dup2(fd_pipe[STDOUT_FILENO], STDERR_FILENO) == -1) {
+			exit(EXIT_FAILURE);
+		}
+		if (fd_pipe[STDOUT_FILENO] != STDOUT_FILENO &&
+		    fd_pipe[STDOUT_FILENO] != STDERR_FILENO) {
+			close(fd_pipe[STDOUT_FILENO]);
+		}
+		if (strchr(cmd, '/') != NULL) {
+			execv(cmd, arg);
+			cmd = strrchr(cmd, '/');
+			if (cmd != NULL && cmd[1] != '\0') {
+				execvp(cmd + 1, arg);
+			}
+		} else {
+			execvp(cmd, arg);
+		}
+		exit(EXIT_FAILURE);
 	} else {
 		// parent only need to read
 		close(fd_pipe[STDOUT_FILENO]);
-		fcntl(fd_pipe[STDIN_FILENO], F_SETFL, O_NONBLOCK);
+		if (fcntl(fd_pipe[STDIN_FILENO], F_SETFL, O_NONBLOCK) == -1) {
+			close(fd_pipe[STDIN_FILENO]);
+			*outfp = -1;
+			kill(pid, SIGKILL);
+			waitpid(pid, NULL, 0);
+			return -1;
+		}
 		*outfp = fd_pipe[STDIN_FILENO];
+		test_env_track_proc(pid, -1, NULL);
 	}
 
 	return pid;

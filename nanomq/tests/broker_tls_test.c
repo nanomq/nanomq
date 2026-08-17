@@ -4,9 +4,33 @@
 int
 main()
 {
+	if (!test_env_allows_network_binds() || !test_env_allows_port_bind(8883)) {
+		fprintf(stderr, "skip: test environment disallows listening sockets\n");
+		return 0;
+	}
+	if (!test_env_supports_tls()) {
+		fprintf(stderr, "skip: TLS support unavailable\n");
+		return 0;
+	}
+	if (!test_env_supports_tls_runtime()) {
+		fprintf(stderr,
+		    "skip: TLS runtime not available in this test environment\n");
+		return 0;
+	}
+	if (!test_env_has_file("../../../etc/certs/cacert.pem")) {
+		fprintf(stderr, "skip: CA certificate missing for TLS tests\n");
+		return 0;
+	}
+	if (!test_env_has_executable("mosquitto_sub") ||
+	    !test_env_has_executable("mosquitto_pub")) {
+		fprintf(stderr,
+		    "skip: required MQTT clients not found in PATH\n");
+		return 0;
+	}
+
 	int rv = 0;
 
-	char *cmd = "/bin/mosquitto_sub";
+	char *cmd = "mosquitto_sub";
 	char *cmd_pub =
 	    "mosquitto_pub -h 127.0.0.1 -p 8883 -t topic1 -m message -q 2 "
 	    "--cafile ../../../etc/certs/cacert.pem --insecure";
@@ -36,10 +60,11 @@ main()
 	nng_msleep(200); // pub should be slightly behind sub
 	// pipe to pub
 	p_pub   = popen(cmd_pub, "r");
+	assert(p_pub != NULL);
 
 	// check recv msg
-	nng_msleep(100);
-	assert(read(outfp, buf, buf_size) != -1);
+	memset(buf, 0, buf_size);
+	assert(test_env_wait_for_output(outfp, buf, buf_size, 8000, 50));
 	printf("what we got:%s", buf);
 	assert(strncmp(buf, "message", 7) == 0);
 
@@ -47,6 +72,7 @@ main()
 	pclose(p_pub);
 	close(outfp);
 
+	broker_stop_for_test();
 	nng_thread_destroy(nmq);
 
 	return 0;

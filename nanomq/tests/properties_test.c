@@ -12,35 +12,53 @@
 int
 main()
 {
-	int rv = 0;
+	if (!test_env_allows_network_binds()) {
+		fprintf(stderr, "skip: test environment disallows listening sockets\n");
+		return 0;
+	}
+	if (!test_env_has_executable("mosquitto_sub") ||
+	    !test_env_has_executable("mosquitto_pub")) {
+		fprintf(stderr,
+		    "skip: required MQTT clients not found in PATH\n");
+		return 0;
+	}
 
-	char *cmd_pub = "mosquitto_pub -h 127.0.0.1 -p 1881 -t topic1 -m "
-	                "message -q 2 -V mqttv5"
-	                " -D CONNECT authentication-data 101"
-	                " -D CONNECT authentication-method auth-mtd"
-	                " -D CONNECT maximum-packet-size 512"
-	                " -D CONNECT receive-maximum 16"
-	                " -D CONNECT request-problem-information 1"
-	                " -D CONNECT request-response-information 0"
-	                " -D CONNECT session-expiry-interval 32"
-	                " -D CONNECT topic-alias-maximum 16"
-	                " -D CONNECT user-property c-up-n c-up-v"
-	                " -D PUBLISH content-type ct"
-	                " -D PUBLISH correlation-data 010101"
-	                " -D PUBLISH message-expiry-interval 32"
-	                " -D PUBLISH payload-format-indicator 1"
-	                " -D PUBLISH response-topic response-t"
-	                " -D PUBLISH topic-alias 16"
-	                " -D PUBLISH user-property p-up-n p-up-v"
-	                " -D DISCONNECT session-expiry-interval 32"
-	                " -D DISCONNECT user-property d-up-n d-up-v"
-	                " -D WILL content-type ct-tp"
-	                " -D WILL correlation-data 0100101"
-	                " -D WILL message-expiry-interval 32"
-	                " -D WILL payload-format-indicator 1"
-	                " -D WILL response-topic resp-tp"
-	                " -D WILL user-property w-up-n w-up-v"
-	                " -D WILL will-delay-interval 32";
+	int rv = 0;
+	const char *test_port = test_env_test_port_text();
+	char cmd_pub[1024];
+	char port_arg[16];
+
+	snprintf(cmd_pub, sizeof(cmd_pub),
+	    "mosquitto_pub -h 127.0.0.1 -p %s -t topic1 -m "
+	    "message -q 2 -V mqttv5"
+	    " -D CONNECT authentication-data 101"
+	    " -D CONNECT authentication-method auth-mtd"
+	    " -D CONNECT maximum-packet-size 512"
+	    " -D CONNECT receive-maximum 16"
+	    " -D CONNECT request-problem-information 1"
+	    " -D CONNECT request-response-information 0"
+	    " -D CONNECT session-expiry-interval 32"
+	    " -D CONNECT topic-alias-maximum 16"
+	    " -D CONNECT user-property c-up-n c-up-v"
+	    " -D PUBLISH content-type ct"
+	    " -D PUBLISH correlation-data 010101"
+	    " -D PUBLISH message-expiry-interval 32"
+	    " -D PUBLISH payload-format-indicator 1"
+	    " -D PUBLISH response-topic response-t"
+	    " -D PUBLISH topic-alias 16"
+	    " -D PUBLISH user-property p-up-n p-up-v"
+	    " -D DISCONNECT session-expiry-interval 32"
+	    " -D DISCONNECT user-property d-up-n d-up-v"
+	    " -D WILL content-type ct-tp"
+	    " -D WILL correlation-data 0100101"
+	    " -D WILL message-expiry-interval 32"
+	    " -D WILL payload-format-indicator 1"
+	    " -D WILL response-topic resp-tp"
+	    " -D WILL user-property w-up-n w-up-v"
+	    " -D WILL will-delay-interval 32",
+	    test_port);
+
+	snprintf(port_arg, sizeof(port_arg), "%s", test_port);
 
 	nng_thread *nmq;
 	pid_t pid_sub;
@@ -59,7 +77,7 @@ main()
 
 	// pipe to sub
 	char *arg[] = { "mosquitto_sub", "-t", "topic1", "-t", "topic2", "-U",
-		"topic2", "-h", "127.0.0.1", "-p", "1881", "-q", "2", "-V",
+		"topic2", "-h", "127.0.0.1", "-p", port_arg, "-q", "2", "-V",
 		"mqttv5",
 		// regard as invalid sub and unsub packet
 		// "-D", "SUBSCRIBE", "user-property", "s-up-n",
@@ -67,7 +85,7 @@ main()
 		// "u-up-v",
 		NULL };
 
-	pid_sub = popen_with_cmd(&outfp, arg, "/bin/mosquitto_sub");
+	pid_sub = popen_with_cmd(&outfp, arg, "mosquitto_sub");
 	nng_msleep(1000); // pub should be slightly behind sub
 
 	// pipe to pub (normal case)
@@ -76,7 +94,8 @@ main()
 
 	// check recv msg
 	nng_msleep(2000);
-	assert(read(outfp, buf, buf_size) != -1);
+	memset(buf, 0, buf_size);
+	assert(test_env_wait_for_output(outfp, buf, buf_size, 4000, 50));
 	log_warn("what we got:%s", buf);
 	assert(strncmp(buf, "message", 7) == 0);
 
@@ -84,6 +103,7 @@ main()
 	pclose(p_pub);
 	close(outfp);
 
+	broker_stop_for_test();
 	nng_thread_destroy(nmq);
 
 	return 0;
