@@ -182,6 +182,18 @@ static endpoints api_ep[] = {
 		.descr = "Edit a bridge client",
 	},
 	{
+		.path = "/bridges/sub/:bridge_name",
+		.name = "put_mqtt_bridge_sub",
+		.method = "PUT",
+		.descr = "Subscribe a bridge client",
+	},
+	{
+		.path = "/bridges/unsub/:bridge_name",
+		.name = "put_mqtt_bridge_unsub",
+		.method = "PUT",
+		.descr = "Unsubscribe a bridge client",
+	},
+	{
 		.path = "/bridges/switch/:bridge_name",
 		.name = "put_mqtt_bridge_switch",
 		.method = "POST",
@@ -698,7 +710,11 @@ put_http_msg(http_msg *msg, const char *content_type, const char *method,
 
 	if (data != NULL) {
 		msg->data_len = data_sz;
-		msg->data     = nng_alloc(msg->data_len);
+		if (data_sz == 0) {
+			msg->data = NULL;
+			return;
+		}
+		msg->data = nng_alloc(msg->data_len);
 		memcpy(msg->data, data, msg->data_len);
 	}
 }
@@ -1155,7 +1171,15 @@ process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 			goto exit;
 		}
 	} else if (nng_strcasecmp(msg->method, "PUT") == 0) {
-		if (uri_ct->sub_count == 3 && uri_ct->sub_tree[2]->end &&
+		if (uri_ct->sub_count == 4 && uri_ct->sub_tree[3]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "bridges") == 0 &&
+		    strcmp(uri_ct->sub_tree[2]->node, "sub") == 0) {
+			ret = post_mqtt_bridge_sub(msg, uri_ct->sub_tree[3]->node);
+		} else if (uri_ct->sub_count == 4 && uri_ct->sub_tree[3]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "bridges") == 0 &&
+		    strcmp(uri_ct->sub_tree[2]->node, "unsub") == 0) {
+			ret = post_mqtt_bridge_unsub(msg, uri_ct->sub_tree[3]->node);
+		} else if (uri_ct->sub_count == 3 && uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "rules") == 0) {
 			ret = put_rules(msg, uri_ct->params,
 			    uri_ct->params_count, uri_ct->sub_tree[2]->node);
@@ -1780,14 +1804,13 @@ get_prometheus(http_msg *msg, kv **params, size_t param_num,
 	nng_id_map *pipe_id_map;
 
 	if (nng_socket_get_ptr(*broker_sock, NMQ_OPT_MQTT_PIPES,
-	        (void **) &pipe_id_map) != 0) {
-		goto out;
+	        (void **) &pipe_id_map) == 0) {
+		nng_id_map_foreach2(pipe_id_map, get_metric_cb, &stats);
 	}
 
-	nng_id_map_foreach2(pipe_id_map, get_metric_cb, &stats);
 	stats.subscribers      = dbhash_get_pipe_cnt();
 	stats.topics           = get_topics_count();
-#ifdef STATISTICS
+#if STATISTICS
 	stats.message_received = nanomq_get_message_in();
 	stats.message_sent     = nanomq_get_message_out();
 	stats.message_dropped  = nanomq_get_message_drop();
@@ -1801,7 +1824,6 @@ get_prometheus(http_msg *msg, kv **params, size_t param_num,
 	update_max_stats(&max_stats, &stats);
 	compose_metrics(dest, &max_stats, &stats);
 
-out:
 	put_http_msg(&res, "text/plain", NULL, NULL, NULL, dest, strlen(dest));
 
 	return res;
@@ -4146,6 +4168,11 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 	}
 	cJSON *node_obj = cJSON_GetObjectItem(req, name);
+	if (name == NULL || !cJSON_IsObject(node_obj)) {
+		cJSON_Delete(req);
+		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
+		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
+	}
 	conf * config   = get_global_conf();
 
 	bool         found  = false;
@@ -4163,13 +4190,28 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 		if (name != NULL && strcmp(node->name, name) != 0) {
 			continue;
 		}
+		nng_mtx_lock(node->mtx);
 		node->enable = false;
 		if (node->dialer != NULL)
 			nng_dialer_off(*node->dialer);
 
-		nng_mtx_lock(node->mtx);
-		conf_bridge_node_destroy(node);	// TODO potential dead lock here!!
+		// Disconnect callbacks retain the bridge node across hot reload. Keep
+		// its status flag alive until final bridge teardown.
+		nng_atomic_bool *connected = node->connected;
+		node->connected = NULL;
+		conf_bridge_node_destroy(node);
+		node->connected = connected;
 		conf_bridge_node_parse(node, &bridge->sqlite, node_obj);
+		// The URL identifies the bridge; do not let a payload field or parser
+		// detail change the identity used by subsequent bridge operations.
+		char *node_name = nng_strdup(name);
+		if (node_name == NULL) {
+			nng_mtx_unlock(node->mtx);
+			rv = NNG_ENOMEM;
+			break;
+		}
+		nng_strfree(node->name);
+		node->name = node_name;
 		node->parallel = parallel;
 		log_info("Bridge Reload with %.*s", msg->data_len, msg->data);
 		bridge->nodes[i] = node;
@@ -4369,7 +4411,7 @@ free_string_list(char **list, size_t count)
 	if (list && count > 0) {
 		for (size_t i = 0; i < count; i++) {
 			if (list[i]) {
-				free(list[i]);
+				nng_strfree(list[i]);
 				list[i] = NULL;
 			}
 		}
@@ -4399,6 +4441,48 @@ convert_topic(char **list, size_t count)
 		nng_mqtt_topic_array_set(topics, i, list[i]);
 	}
 	return topics;
+}
+
+static property *
+bridge_properties_parse(cJSON *json_prop)
+{
+	if (!cJSON_IsObject(json_prop)) {
+		return NULL;
+	}
+
+	property *prop_list = mqtt_property_alloc();
+	if (prop_list == NULL) {
+		return NULL;
+	}
+
+	cJSON *identifier = cJSON_GetObjectItem(json_prop, "identifier");
+	if (cJSON_IsNumber(identifier)) {
+		mqtt_property_append(prop_list,
+		    mqtt_property_set_value_varint(
+			SUBSCRIPTION_IDENTIFIER, identifier->valueint));
+	}
+
+	cJSON *up_array = cJSON_GetObjectItem(json_prop, "user_properties");
+	if (cJSON_IsArray(up_array)) {
+		cJSON *up_item = NULL;
+		cJSON_ArrayForEach(up_item, up_array)
+		{
+			cJSON *key_item = cJSON_GetObjectItem(up_item, "key");
+			cJSON *value_item = cJSON_GetObjectItem(up_item, "value");
+			if (!cJSON_IsString(key_item) ||
+			    !cJSON_IsString(value_item)) {
+				continue;
+			}
+			mqtt_property_append(prop_list,
+			    mqtt_property_set_value_strpair(
+				USER_PROPERTY, key_item->valuestring,
+				strlen(key_item->valuestring),
+				value_item->valuestring,
+				strlen(value_item->valuestring), true));
+		}
+	}
+
+	return prop_list;
 }
 
 static http_msg
@@ -4486,11 +4570,11 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 		for (size_t i = 0; i < up_count; i++) {
 			char *key   = NULL;
 			char *value = NULL;
+			cJSON *up_item = cJSON_GetArrayItem(up_array, i);
 
-			getStringValue(json_prop, item, "key", key, rv);
+			getStringValue(up_item, item, "key", key, rv);
 			if (rv == 0) {
-				getStringValue(
-				    json_prop, item, "value", value, rv);
+				getStringValue(up_item, item, "value", value, rv);
 				if (rv == 0) {
 					conf_user_property *up = nng_zalloc(
 					    sizeof(conf_user_property));
@@ -4513,7 +4597,8 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 		conf_bridge_node *node = bridge->nodes[i];
 
 		nng_mtx_lock(node->mtx);
-		if (name != NULL && strcmp(node->name, name) != 0) {
+		if (name != NULL &&
+		    (node->name == NULL || strcmp(node->name, name) != 0)) {
 			nng_mtx_unlock(node->mtx);
 			continue;
 		}
@@ -4522,9 +4607,7 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 		// Decode properties to nng_mqtt_property
 		property *prop_list = NULL;
 		if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
-			if (cJSON_IsObject(json_prop)) {
-				properties_parse(&prop_list, json_prop);
-			}
+			prop_list = bridge_properties_parse(json_prop);
 		}
 
 		found = true;
@@ -4556,6 +4639,8 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 
 	if (!found || rv != 0) {
 		if (!found) {
+			log_error("bridge subscribe target not found: %s",
+			    name != NULL ? name : "(null)");
 			status = NNG_HTTP_STATUS_NOT_FOUND;
 		} else if (rv != 0)
 			status = NNG_HTTP_STATUS_BAD_REQUEST;
@@ -4639,7 +4724,8 @@ post_mqtt_bridge_unsub(http_msg *msg, const char *name)
 	for (size_t i = 0; i < bridge->count; i++) {
 		conf_bridge_node *node = bridge->nodes[i];
 		nng_mtx_lock(node->mtx);
-		if (name != NULL && strcmp(node->name, name) != 0) {
+		if (name != NULL &&
+		    (node->name == NULL || strcmp(node->name, name) != 0)) {
 			nng_mtx_unlock(node->mtx);
 			continue;
 		}
@@ -4656,7 +4742,7 @@ post_mqtt_bridge_unsub(http_msg *msg, const char *name)
 			    cJSON_GetObjectItem(data_obj, "unsub_properties");
 
 			if (cJSON_IsObject(json_prop)) {
-				properties_parse(&prop_list, json_prop);
+				prop_list = bridge_properties_parse(json_prop);
 			}
 		}
 

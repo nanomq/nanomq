@@ -82,8 +82,9 @@
 #include <unistd.h>
 #endif
 
+volatile sig_atomic_t keepRunning = 1;
+
 #if (defined DEBUG) && (defined ASAN)
-int keepRunning = 1;
 void
 intHandler(int dummy)
 {
@@ -98,9 +99,6 @@ static const int all_signals[] = {
 #endif
 #ifdef SIGQUIT
 	SIGQUIT,
-#endif
-#ifdef SIGTRAP
-	SIGTRAP,
 #endif
 #ifdef SIGIO
 	SIGIO,
@@ -121,7 +119,7 @@ void sig_handler(int signum)
 		exit(EXIT_FAILURE);
 	}
 	if (signum == SIGILL || signum == SIGTERM)
-		exit(EXIT_SUCCESS);
+		keepRunning = 0;
 }
 #endif
 #endif
@@ -1490,12 +1488,20 @@ broker(conf *nanomq_conf)
 #else
 	if (is_testing == false) {
 		for (;;) {
-			nng_msleep(
-			    3600000); // neither pause() nor sleep() portable
+			if (keepRunning == 0) {
+				break;
+			}
+			nng_msleep(1000);
 		}
 	}
 #endif
 	return 0;
+}
+
+void
+broker_stop_for_test(void)
+{
+	keepRunning = 0;
 }
 
 void
