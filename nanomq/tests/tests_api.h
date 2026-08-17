@@ -2,6 +2,7 @@
 #define INPROC_TEST_URL "inproc://test"
 #define REST_TEST_URL "http://0.0.0.0:%u/hook"
 #define	ALL_FEATURE_CONF_PATH "../../../nanomq/tests/nanomq_test.conf"
+#define	AUTH_ANON_CONF_PATH "../../../nanomq/tests/nanomq_test_anon.conf"
 #define	BRIDGE_CONF_PATH "../../../nanomq/tests/nanomq_bridge_test.conf"
 #define	BRIDGE_TLS_CONF_PATH "../../../nanomq/tests/nanomq_bridge_tls_test.conf"
 #define	BRIDGE_AWS_CONF_PATH "../../../nanomq/tests/nanomq_aws_test.conf"
@@ -62,6 +63,7 @@ typedef enum {
 	BRIDGE_TLS_CONF,
 	BRIDGE_AWS_CONF,
 	BRIDGE_MUTI_CONF,
+	AUTH_ANON_CONF,
 } conf_type;
 
 typedef enum {
@@ -496,6 +498,9 @@ get_test_conf(conf_type type)
 		break;
 	case BRIDGE_MUTI_CONF:
 		conf_path = BRIDGE_MUTI_CONF_PATH;
+		break;
+	case AUTH_ANON_CONF:
+		conf_path = AUTH_ANON_CONF_PATH;
 		break;
 	default:
 		break;
