@@ -77,4 +77,4 @@ Watch for these log messages:
 ## Related Documentation
 
 - [Full Batch Resend Guide](./batch_resend.md) - Detailed explanation of how it works
-- [MQTT QoS Documentation](../MQTT_QoS.md) - Understanding MQTT message delivery guarantees
+- [MQTT QoS Documentation](https://docs.nanomq.io/) - Understanding MQTT message delivery guarantees

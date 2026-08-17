@@ -278,9 +278,9 @@ INFO: resending qos msg id X to pipe Y
 
 ## 相关功能
 
-- **[QoS Duration](../MQTT_QoS.md#qos-duration)**: 控制消息重试和缓存清理的时间间隔
-- **[SQLite 持久化存储](../Persistence.md)**: 支持 broker 重启时保存消息
-- **[消息过期属性](../MQTT_v5.md#message-expiry-interval)**: MQTT v5 的每个消息 TTL
+- **[QoS Duration](https://docs.nanomq.io/)**: 控制消息重试和缓存清理的时间间隔
+- **[SQLite 持久化存储](https://docs.nanomq.io/)**: 支持 broker 重启时保存消息
+- **[消息过期属性](https://docs.nanomq.io/)**: MQTT v5 的每个消息 TTL
 
 ## 未来改进计划
 
@@ -294,5 +294,5 @@ INFO: resending qos msg id X to pipe Y
 ## 参考资料
 
 - [MQTT QoS 规范](https://docs.oasis-open.org/mqtt/mqtt/v1.2/os/mqtt-v1.2-os.html#_Toc39875206)
-- [NanoMQ MQTT Broker 文档](../MQTT_Broker.md)
-- [NNG QoS Database API](../../nng/src/supplemental/mqtt/mqtt_qos_db_api.h)
+- [NanoMQ MQTT Broker 文档](./index.md)
+- `nng/src/supplemental/mqtt/mqtt_qos_db_api.h`（NNG QoS 数据库 API）

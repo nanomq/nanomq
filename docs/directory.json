@@ -5,6 +5,14 @@
       "path": "./"
     },
     {
+      "title": "批量重发",
+      "path": "batch_resend"
+    },
+    {
+      "title": "批量重发快速参考",
+      "path": "batch_resend_quick_ref"
+    },
+    {
       "title": "快速上手",
       "path": "quick-start/quick-start"
     },
@@ -273,6 +281,14 @@
     {
       "title": "Introduction",
       "path": "./"
+    },
+    {
+      "title": "Batch Resend",
+      "path": "batch_resend"
+    },
+    {
+      "title": "Batch Resend Quick Reference",
+      "path": "batch_resend_quick_ref"
     },
     {
       "title": "Getting Started",
