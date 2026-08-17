@@ -820,7 +820,7 @@ set_auth_config(cJSON *json, const char *conf_path, conf_auth *auth)
 	nng_free(new_auth, sizeof(conf_auth));
 }
 
-static void
+static int
 set_auth_http_req(cJSON *json, const char *conf_path, conf_auth_http_req *req,
     const char *key_prefix)
 {
@@ -858,7 +858,7 @@ set_auth_http_req(cJSON *json, const char *conf_path, conf_auth_http_req *req,
 				(req->header_count) * sizeof(conf_http_header *));
 			if (new_headers == NULL) {
 				req->header_count--;
-				return -1; // Allocation failure
+				return -1;
 			}
 			req->headers = new_headers;
 
@@ -987,6 +987,7 @@ set_auth_http_req(cJSON *json, const char *conf_path, conf_auth_http_req *req,
 		// conf_update2(conf_path, key_prefix, "", "params",
 		// param_str);
 	}
+	return 0;
 }
 
 void
