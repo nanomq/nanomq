@@ -15,7 +15,7 @@
 #include "nng/supplemental/util/platform.h"
 #include "nng/supplemental/util/idhash.h"
 #include "nng/supplemental/nanolib/log.h"
-#include "nng/supplemental/nanolib/base64.h"
+#include "nng/supplemental/nanolib/nmq_base64.h"
 #include "nng/supplemental/nanolib/cJSON.h"
 #include "nng/supplemental/nanolib/file.h"
 
@@ -853,7 +853,7 @@ basic_authorize(http_msg *msg)
 		return UNKNOWN_MISTAKE;
 	}
 
-	base64_decode((const char *) token, token_len, decode);
+	nmq_base64_decode((const char *) token, token_len, decode, decode_len);
 
 	decode[decode_len - 1] = '\0';
 
@@ -3592,8 +3592,8 @@ send_publish(nng_socket *sock, const char *clientid, char *payload,
 		if (encode_base64) {
 			size_t out_size = BASE64_ENCODE_OUT_SIZE(payload_len);
 			char * encode_data = nng_zalloc(out_size + 1);
-			size_t len         = base64_encode(
-                            (uint8_t *) payload, payload_len, encode_data);
+			size_t len         = nmq_base64_encode(
+                            (const uint8_t *) payload, payload_len, encode_data, out_size);
 			if (len > 0) {
 				nng_mqtt_msg_set_publish_payload(
 				    pub_msg, (uint8_t *) encode_data, len);
@@ -3604,9 +3604,9 @@ send_publish(nng_socket *sock, const char *clientid, char *payload,
 			nng_strfree(encode_data);
 		} else if (decode_base64){
 			size_t out_size = BASE64_DECODE_OUT_SIZE(payload_len);
-			char * decode_data = nng_zalloc(out_size);
-			size_t len         = base64_decode(
-							(uint8_t *) payload, payload_len, decode_data);
+			uint8_t * decode_data = nng_zalloc(out_size);
+			size_t len         = nmq_base64_decode(
+							(const char *) payload, payload_len, decode_data, out_size);
 			if (len > 0) {
 				nng_mqtt_msg_set_publish_payload(
 				    pub_msg, (uint8_t *) decode_data, len);
@@ -3614,7 +3614,7 @@ send_publish(nng_socket *sock, const char *clientid, char *payload,
 				nng_mqtt_msg_set_publish_payload(
 				    pub_msg, NULL, 0);
 			}
-			nng_strfree(decode_data);
+			nng_free(decode_data, 0);
 		} else {
 			nng_mqtt_msg_set_publish_payload(
 			    pub_msg, (uint8_t *) payload, payload_len);
