@@ -1,5 +1,5 @@
 #include "include/rest_api.h"
-#include "nng/supplemental/nanolib/base64.h"
+#include "nng/supplemental/nanolib/nmq_base64.h"
 #include "nng/supplemental/nanolib/cJSON.h"
 #include "nng/supplemental/nanolib/file.h"
 #include "nng/supplemental/nanolib/conf.h"
@@ -405,7 +405,7 @@ basic_authorize(http_msg *msg, conf_http_server *config)
         decode[0] = '\0';
     }
 
-    base64_decode((const char *) token, token_len, decode);
+    nmq_base64_decode((const char *) token, token_len, decode, decode_len);
 
     if (strcmp(auth, (const char *) decode) != 0) {
         result = WRONG_USERNAME_OR_PASSWORD;

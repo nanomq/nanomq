@@ -11,7 +11,7 @@
 #include "include/pub_handler.h"
 
 #include "nng/supplemental/util/platform.h"
-#include "nng/supplemental/nanolib/base64.h"
+#include "nng/supplemental/nanolib/nmq_base64.h"
 #include "nng/supplemental/nanolib/cJSON.h"
 #include "nng/protocol/mqtt/mqtt_parser.h"
 #include "nng/supplemental/nanolib/log.h"
@@ -219,9 +219,10 @@ webhook_msg_publish(nng_socket *sock, conf_web_hook *hook_conf,
 		break;
 	case base64:
 		out_size = BASE64_ENCODE_OUT_SIZE((uint64_t)pub_packet->payload.len);
-		encode   = nng_zalloc(out_size);
-		len      = base64_encode(
-		         pub_packet->payload.data, pub_packet->payload.len, encode);
+		encode = nng_zalloc(out_size);
+		len    = nmq_base64_encode(
+		    (const uint8_t *) pub_packet->payload.data,
+		    pub_packet->payload.len, encode, out_size);
 		if (len > 0) {
 			cJSON_AddStringToObject(obj, "payload", encode);
 		} else {
