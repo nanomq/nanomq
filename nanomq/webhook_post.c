@@ -19,21 +19,22 @@
 static bool event_filter(conf_web_hook *hook_conf, webhook_event event);
 static bool event_filter_with_topic(
     conf_web_hook *hook_conf, webhook_event event, const char *topic);
-static void         set_char(char *out, size_t *index, char c);
+static void         set_char(char *out, size_t *index,  size_t outlen, char c);
 static size_t       base64_no_padding_encode(
-    const unsigned char *in, size_t inlen, char *out);
+    const unsigned char *in, size_t inlen, char *out, size_t outlen);
+
 static size_t       base62_encode(
-    const unsigned char *in, size_t inlen, char *out);
+    const unsigned char *in, size_t inlen, char *out, size_t outlen);
 
-#define BASE64_NO_PADDING_ENCODE_OUT_SIZE(s) ((unsigned int) ((((s) * 8) / 6) + 2))
+#define BASE62_ENCODE_OUT_SIZE(s)                                       \
+    (((uint64_t)(s) > (((uint64_t)SIZE_MAX - 4) / 135) * 100)           \
+        ? 0                                                             \
+        : (size_t) (((((uint64_t)(s)) * 135) / 100) + 4))
 
-// Base62 expansion factor: log2(256) / log2(62) ≈ 1.343
-// We use 1.35 to be safe, plus margin for null terminator.
-
-#define BASE62_ENCODE_OUT_SIZE(s)              \
-	(((size_t) (s) > (SIZE_MAX - 4) / 135) \
-	        ? 0                            \
-	        : (size_t) ((((size_t) (s) * 135) / 100) + 4))
+#define BASE64_NO_PADDING_ENCODE_OUT_SIZE(s)                            \
+    (((uint64_t)(s) > (((uint64_t)SIZE_MAX - 2) / 8) * 6)               \
+        ? 0                                                             \
+        : (size_t) (((((uint64_t)(s)) * 8) / 6) + 2))
 
 static bool
 event_filter(conf_web_hook *hook_conf, webhook_event event)
@@ -67,9 +68,13 @@ event_filter_with_topic(
 }
 
 static void
-set_char(char *out, size_t *index, char c)
+set_char(char *out, size_t *index, size_t outlen, char c)
 {
 	size_t idx = *index;
+	if (idx >= outlen - 1) {
+		return;
+	}
+
 	switch (c) {
 	case 'i':
 		out[idx++] = 'i';
@@ -84,33 +89,23 @@ set_char(char *out, size_t *index, char c)
 		out[idx++] = c;
 		break;
 	}
-
 	*index = idx;
 }
 
-
 static size_t
-base62_encode(const unsigned char *in, size_t inlen, char *out)
+base62_encode(const unsigned char *in, size_t inlen, char *out, size_t outlen)
 {
-    // Standard GMP-style alphabet (0-9, A-Z, a-z)
-    // You can swap this string to "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-    // if you prefer the Inverted style, but this is the most common.
     const char *alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
-    if (inlen == 0 || out == NULL) {
+    if (inlen == 0 || out == NULL || outlen == 0) {
         return 0;
     }
 
-    // 1. Count leading zeros (to preserve them in encoding if desired,
-    // similar to Base58. If purely numerical, you can skip this).
-    // For general payloads, preserving leading zeros is usually safer.
     size_t zeros = 0;
     while (zeros < inlen && in[zeros] == 0) {
         zeros++;
     }
 
-    // 2. Create a mutable copy of the input for division
-    // We allocate on heap because stack size might be limited for large payloads
     unsigned char *tmp = nng_alloc(inlen);
     if (tmp == NULL) {
         return 0;
@@ -120,66 +115,71 @@ base62_encode(const unsigned char *in, size_t inlen, char *out)
     size_t out_idx = 0;
     size_t start_idx = zeros;
 
-    // 3. Perform Repeated Division by 62
     while (start_idx < inlen) {
         unsigned int remainder = 0;
-
-        // Divide the "Big Integer" represented by tmp by 62
-        for (unsigned int i = start_idx; i < inlen; i++) {
+        for (size_t i = start_idx; i < inlen; i++) {
             unsigned int dividend = (remainder << 8) | tmp[i];
             tmp[i] = (unsigned char)(dividend / 62);
             remainder = dividend % 62;
         }
 
-        // The remainder is the next Base62 digit (Least Significant first)
+        if (out_idx >= outlen - 1) {
+            nng_free(tmp, inlen);
+            return 0;
+        }
         out[out_idx++] = alphabet[remainder];
 
-        // Update start_idx to skip newly created leading zeros in tmp
         while (start_idx < inlen && tmp[start_idx] == 0) {
             start_idx++;
         }
     }
 
-    // 4. Add preserved leading zeros (mapped to the first char of alphabet '0')
-    // This is optional but recommended for binary data restoration.
     for (size_t i = 0; i < zeros; i++) {
+        if (out_idx >= outlen - 1) {
+            nng_free(tmp, inlen);
+            return 0;
+        }
         out[out_idx++] = alphabet[0];
     }
 
-    // 5. Reverse the string (We generated LSD first)
     for (size_t i = 0; i < out_idx / 2; i++) {
         char t = out[i];
         out[i] = out[out_idx - 1 - i];
         out[out_idx - 1 - i] = t;
     }
 
-    out[out_idx] = '\0'; // Null terminate
-
+    out[out_idx] = '\0';
     nng_free(tmp, inlen);
     return out_idx;
 }
 
 static size_t
-base64_no_padding_encode(const unsigned char *in, size_t inlen, char *out)
+base64_no_padding_encode(const unsigned char *in, size_t inlen, char *out, size_t outlen)
 {
-	size_t i;
-	size_t j;
-	unsigned int pos = 0, val = 0;
+	size_t i, j;
+	size_t pos = 0, val = 0;
 	const char   base62en[] =
 	    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+	if (inlen == 0 || out == NULL || outlen == 0) {
+		return 0;
+	}
 
 	for (i = j = 0; i < inlen; i++) {
 		val = (val << 8) | (in[i] & 0xFF);
 		pos += 8;
 		while (pos > 5) {
 			char c = base62en[val >> (pos -= 6)];
-			set_char(out, &j, c);
+			set_char(out, &j, outlen, c);
 			val &= ((1 << pos) - 1);
 		}
 	}
 	if (pos > 0) {
 		char c = base62en[val << (6 - pos)];
-		set_char(out, &j, c);
+		set_char(out, &j, outlen, c);
+	}
+	if (j < outlen) {
+		out[j] = '\0';
 	}
 	return j;
 }
@@ -218,7 +218,7 @@ webhook_msg_publish(nng_socket *sock, conf_web_hook *hook_conf,
 		    obj, "payload", (const char *) pub_packet->payload.data);
 		break;
 	case base64:
-		out_size = BASE64_ENCODE_OUT_SIZE(pub_packet->payload.len);
+		out_size = BASE64_ENCODE_OUT_SIZE((uint64_t)pub_packet->payload.len);
 		encode   = nng_zalloc(out_size);
 		len      = base64_encode(
 		         pub_packet->payload.data, pub_packet->payload.len, encode);
@@ -233,7 +233,7 @@ webhook_msg_publish(nng_socket *sock, conf_web_hook *hook_conf,
 		out_size = BASE64_NO_PADDING_ENCODE_OUT_SIZE(pub_packet->payload.len);
 		encode   = nng_zalloc(out_size);
 		len      = base64_no_padding_encode(
-		         pub_packet->payload.data, pub_packet->payload.len, encode);
+		         pub_packet->payload.data, pub_packet->payload.len, encode, out_size);
 		if (len > 0) {
 			cJSON_AddStringToObject(obj, "payload", encode);
 		} else {
@@ -242,14 +242,14 @@ webhook_msg_publish(nng_socket *sock, conf_web_hook *hook_conf,
 		nng_strfree(encode);
 		break;
 	case base62:
-        out_size = BASE62_ENCODE_OUT_SIZE(pub_packet->payload.len);
+		out_size = BASE62_ENCODE_OUT_SIZE(pub_packet->payload.len);
 		if (out_size == 0) {
 			log_error("Payload is too large for Base62 encoding.");
 			len = 0;
 		} else {
 			encode   = nng_zalloc(out_size);
-			len = base62_encode(
-					pub_packet->payload.data, pub_packet->payload.len, encode);
+			len      = base62_encode(
+                 pub_packet->payload.data, pub_packet->payload.len, encode, out_size);
 		}
         if (len > 0) {
             cJSON_AddStringToObject(obj, "payload", encode);
