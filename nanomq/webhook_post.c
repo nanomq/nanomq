@@ -223,7 +223,7 @@ webhook_msg_publish(nng_socket *sock, conf_web_hook *hook_conf,
 		len    = nmq_base64_encode(
 		    (const uint8_t *) pub_packet->payload.data,
 		    pub_packet->payload.len, encode, out_size);
-		if (len > 0) {
+		if (len != (size_t)-1 && len > 0) {
 			cJSON_AddStringToObject(obj, "payload", encode);
 		} else {
 			cJSON_AddNullToObject(obj, "payload");
@@ -235,7 +235,7 @@ webhook_msg_publish(nng_socket *sock, conf_web_hook *hook_conf,
 		encode   = nng_zalloc(out_size);
 		len      = base64_no_padding_encode(
 		         pub_packet->payload.data, pub_packet->payload.len, encode, out_size);
-		if (len > 0) {
+		if (len != (size_t)-1 && len > 0) {
 			cJSON_AddStringToObject(obj, "payload", encode);
 		} else {
 			cJSON_AddNullToObject(obj, "payload");
@@ -252,7 +252,7 @@ webhook_msg_publish(nng_socket *sock, conf_web_hook *hook_conf,
 			len      = base62_encode(
                  pub_packet->payload.data, pub_packet->payload.len, encode, out_size);
 		}
-        if (len > 0) {
+        if (len != (size_t)-1 && len > 0) {
             cJSON_AddStringToObject(obj, "payload", encode);
         } else {
             // Handle empty payload or alloc failure
