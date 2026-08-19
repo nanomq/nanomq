@@ -114,11 +114,6 @@ send_http(char *method, int id, char *payload)
 	// Get the connection, at the 0th output.
 	conn = nng_aio_get_output(aio, 0);
 
-
-	// char pass_user[] = "admin:public";
-
-	// base64_encode()
-
 	nng_http_req_add_header(req, "Authorization", "Basic YWRtaW46cHVibGlj");
 
 	nng_http_req_set_method(req, method);
