@@ -853,11 +853,10 @@ basic_authorize(http_msg *msg)
 		return UNKNOWN_MISTAKE;
 	}
 
-	if (0 ==
-	    nmq_base64_decode(
-	        (const char *) token, token_len, decode, decode_len)) {
-		decode[decode_len - 1] = '\0';
-
+	size_t decoded_len = nmq_base64_decode(
+	    (const char *) token, token_len, decode, decode_len);
+	if (decoded_len != (size_t) -1 && decoded_len < decode_len) {
+		decode[decoded_len] = '\0';
 		if (strcmp(auth, (const char *) decode) != 0) {
 			result = WRONG_USERNAME_OR_PASSWORD;
 		}
