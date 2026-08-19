@@ -3594,7 +3594,7 @@ send_publish(nng_socket *sock, const char *clientid, char *payload,
 			char * encode_data = nng_zalloc(out_size + 1);
 			size_t len         = nmq_base64_encode(
                             (const uint8_t *) payload, payload_len, encode_data, out_size);
-			if (len > 0) {
+			if (len != (size_t)-1 && len > 0) {
 				nng_mqtt_msg_set_publish_payload(
 				    pub_msg, (uint8_t *) encode_data, len);
 			} else {
@@ -3607,7 +3607,7 @@ send_publish(nng_socket *sock, const char *clientid, char *payload,
 			uint8_t * decode_data = nng_zalloc(out_size);
 			size_t len         = nmq_base64_decode(
 							(const char *) payload, payload_len, decode_data, out_size);
-			if (len > 0) {
+			if (len != (size_t)-1 && len > 0) {
 				nng_mqtt_msg_set_publish_payload(
 				    pub_msg, (uint8_t *) decode_data, len);
 			} else {
