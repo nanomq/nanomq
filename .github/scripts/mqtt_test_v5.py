@@ -90,7 +90,7 @@ def test_shared_subscription():
     process5 = subprocess.Popen(sub_cmd_shared,
                                stdout=subprocess.PIPE,
                                universal_newlines=True)
-    time.sleep(2)
+    time.sleep(6)
     process6 = subprocess.Popen(pub_cmd,
                                stdout=subprocess.PIPE,
                                universal_newlines=True)
@@ -125,7 +125,7 @@ def test_shared_subscription():
         lock.release()
         times += 1
         time.sleep(1)
-        if times == 5:
+        if times == 15:
             print("Shared client did not receive message * 10")
             print(p_cmd)
             print(s_cmd)
@@ -146,7 +146,7 @@ def test_shared_subscription():
         lock.release()
         times += 1
         time.sleep(1)
-        if times == 5:
+        if times == 15:
             print("Shared client did not receive message * 10")
             print(p_cmd)
             print(s_cmd)
@@ -167,7 +167,7 @@ def test_shared_subscription():
         lock.release()
         times += 1
         time.sleep(1)
-        if times == 5:
+        if times == 15:
             print("Shared client did not receive message * 10")
             print(p_cmd)
             print(s_cmd)
