@@ -19,7 +19,7 @@
 static bool event_filter(conf_web_hook *hook_conf, webhook_event event);
 static bool event_filter_with_topic(
     conf_web_hook *hook_conf, webhook_event event, const char *topic);
-static void         set_char(char *out, size_t *index,  size_t outlen, char c);
+static int          set_char(char *out, size_t *index,  size_t outlen, char c);
 static size_t       base64_no_padding_encode(
     const unsigned char *in, size_t inlen, char *out, size_t outlen);
 
@@ -67,12 +67,12 @@ event_filter_with_topic(
 	return false;
 }
 
-static void
+static int
 set_char(char *out, size_t *index, size_t outlen, char c)
 {
 	size_t idx = *index;
 	if (idx >= outlen - 1) {
-		return;
+		return -1;
 	}
 
 	switch (c) {
@@ -90,6 +90,7 @@ set_char(char *out, size_t *index, size_t outlen, char c)
 		break;
 	}
 	*index = idx;
+	return 0;
 }
 
 static size_t
@@ -170,13 +171,15 @@ base64_no_padding_encode(const unsigned char *in, size_t inlen, char *out, size_
 		pos += 8;
 		while (pos > 5) {
 			char c = base62en[val >> (pos -= 6)];
-			set_char(out, &j, outlen, c);
+			if (set_char(out, &j, outlen, c) != 0)
+				return (size_t)-1;
 			val &= ((1 << pos) - 1);
 		}
 	}
 	if (pos > 0) {
 		char c = base62en[val << (6 - pos)];
-		set_char(out, &j, outlen, c);
+		if (set_char(out, &j, outlen, c) != 0)
+			return (size_t)-1;
 	}
 	if (j < outlen) {
 		out[j] = '\0';
