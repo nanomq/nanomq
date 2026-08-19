@@ -853,12 +853,16 @@ basic_authorize(http_msg *msg)
 		return UNKNOWN_MISTAKE;
 	}
 
-	nmq_base64_decode((const char *) token, token_len, decode, decode_len);
+	if (0 ==
+	    nmq_base64_decode(
+	        (const char *) token, token_len, decode, decode_len)) {
+		decode[decode_len - 1] = '\0';
 
-	decode[decode_len - 1] = '\0';
-
-	if (strcmp(auth, (const char *) decode) != 0) {
-		result = WRONG_USERNAME_OR_PASSWORD;
+		if (strcmp(auth, (const char *) decode) != 0) {
+			result = WRONG_USERNAME_OR_PASSWORD;
+		}
+	} else {
+		result = REQ_PARAM_ERROR;
 	}
 
 	nng_free(auth, auth_len);
@@ -3590,10 +3594,17 @@ send_publish(nng_socket *sock, const char *clientid, char *payload,
 
 		size_t payload_len = strlen(payload);
 		if (encode_base64) {
+			size_t len = 0;
+			char * encode_data = NULL;
 			size_t out_size = BASE64_ENCODE_OUT_SIZE(payload_len);
-			char * encode_data = nng_zalloc(out_size + 1);
-			size_t len         = nmq_base64_encode(
+			if (out_size == 0) {
+				log_error("Payload is too large for Base64 encoding.");
+				len = 0;
+			} else {
+				encode_data = nng_zalloc(out_size + 1);
+				len         = nmq_base64_encode(
                             (const uint8_t *) payload, payload_len, encode_data, out_size);
+			}
 			if (len != (size_t)-1 && len > 0) {
 				nng_mqtt_msg_set_publish_payload(
 				    pub_msg, (uint8_t *) encode_data, len);
@@ -3604,9 +3615,17 @@ send_publish(nng_socket *sock, const char *clientid, char *payload,
 			nng_strfree(encode_data);
 		} else if (decode_base64){
 			size_t out_size = BASE64_DECODE_OUT_SIZE(payload_len);
-			uint8_t * decode_data = nng_zalloc(out_size);
-			size_t len         = nmq_base64_decode(
-							(const char *) payload, payload_len, decode_data, out_size);
+			size_t len      = 0;
+			uint8_t *decode_data = NULL;
+			if (out_size == 0) {
+				log_error("Payload is too large for Base64 "
+				          "decoding.");
+				len = 0;
+			} else {
+				decode_data = nng_zalloc(out_size);
+				len = nmq_base64_decode((const char *) payload,
+				    payload_len, decode_data, out_size);
+			}
 			if (len != (size_t)-1 && len > 0) {
 				nng_mqtt_msg_set_publish_payload(
 				    pub_msg, (uint8_t *) decode_data, len);

@@ -26,15 +26,15 @@ static size_t       base64_no_padding_encode(
 static size_t       base62_encode(
     const unsigned char *in, size_t inlen, char *out, size_t outlen);
 
-#define BASE62_ENCODE_OUT_SIZE(s)                                       \
-    (((uint64_t)(s) > (((uint64_t)SIZE_MAX - 4) / 135) * 100)           \
-        ? 0                                                             \
-        : (size_t) (((((uint64_t)(s)) * 135) / 100) + 4))
+#define BASE62_ENCODE_OUT_SIZE(s)                                           \
+    ( ((uint64_t)(s) > (UINT64_MAX / 135)) ? 0 :                            \
+      (((((uint64_t)(s) * 135) / 100) > ((uint64_t)SIZE_MAX - 4)) ? 0 :     \
+      (size_t) (((((uint64_t)(s)) * 135) / 100) + 4)) )
 
-#define BASE64_NO_PADDING_ENCODE_OUT_SIZE(s)                            \
-    (((uint64_t)(s) > (((uint64_t)SIZE_MAX - 2) / 8) * 6)               \
-        ? 0                                                             \
-        : (size_t) (((((uint64_t)(s)) * 8) / 6) + 2))
+#define BASE64_NO_PADDING_ENCODE_OUT_SIZE(s)                                \
+    ( ((uint64_t)(s) > (UINT64_MAX / 8)) ? 0 :                              \
+      (((((uint64_t)(s) * 8) / 6) > ((uint64_t)SIZE_MAX - 2)) ? 0 :         \
+      (size_t) (((((uint64_t)(s)) * 8) / 6) + 2)) )
 
 static bool
 event_filter(conf_web_hook *hook_conf, webhook_event event)
@@ -219,10 +219,15 @@ webhook_msg_publish(nng_socket *sock, conf_web_hook *hook_conf,
 		break;
 	case base64:
 		out_size = BASE64_ENCODE_OUT_SIZE((uint64_t)pub_packet->payload.len);
-		encode = nng_zalloc(out_size);
-		len    = nmq_base64_encode(
-		    (const uint8_t *) pub_packet->payload.data,
-		    pub_packet->payload.len, encode, out_size);
+		if (out_size == 0) {
+				log_error("Payload is too large for Base64 encoding.");
+				len = 0;
+		} else {
+			encode = nng_zalloc(out_size);
+			len    = nmq_base64_encode(
+				(const uint8_t *) pub_packet->payload.data,
+				pub_packet->payload.len, encode, out_size);
+		}
 		if (len != (size_t)-1 && len > 0) {
 			cJSON_AddStringToObject(obj, "payload", encode);
 		} else {
@@ -232,9 +237,14 @@ webhook_msg_publish(nng_socket *sock, conf_web_hook *hook_conf,
 		break;
 	case base64_no_padding:
 		out_size = BASE64_NO_PADDING_ENCODE_OUT_SIZE(pub_packet->payload.len);
-		encode   = nng_zalloc(out_size);
-		len      = base64_no_padding_encode(
-		         pub_packet->payload.data, pub_packet->payload.len, encode, out_size);
+		if (out_size == 0) {
+			log_error("Payload is too large for Base64 encoding.");
+			len = 0;
+		} else {
+			encode   = nng_zalloc(out_size);
+			len      = base64_no_padding_encode(
+					pub_packet->payload.data, pub_packet->payload.len, encode, out_size);
+		}
 		if (len != (size_t)-1 && len > 0) {
 			cJSON_AddStringToObject(obj, "payload", encode);
 		} else {
