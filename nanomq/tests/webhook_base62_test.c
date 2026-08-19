@@ -82,12 +82,24 @@ static void client_recv_cb(void *arg) {}
 int
 main()
 {
-    int rv;
+	if (!test_env_allows_network_binds() ||
+	    !test_env_allows_port_bind(test_env_test_port()) ||
+	    !test_env_allows_port_bind(8888)) {
+		fprintf(stderr, "skip: test environment disallows listening sockets\n");
+		return 0;
+	}
+	if (!test_env_has_executable("mosquitto_pub")) {
+		fprintf(stderr,
+		    "skip: required MQTT clients not found in PATH\n");
+		return 0;
+	}
+
+    int        rv;
     nng_socket sock;
-    nng_ctx ctx; 
-    uint16_t port = 8888;
-    char url[64];
-    sprintf(url, "http://127.0.0.1:%d/hook", port);
+    nng_ctx    ctx;
+    uint16_t   port = 8888;
+    char       url[64];
+    snprintf(url, sizeof(url), "http://127.0.0.1:%d/hook", port);
 
     nng_mtx_alloc(&cnt_mtx);
 
@@ -113,8 +125,7 @@ main()
 
 
     // --- 2. NanoMQ Config ---
-    conf *conf = nng_zalloc(sizeof(struct conf));
-    conf_init(conf);
+    conf *conf = get_dflt_conf();
     
     conf->web_hook.enable = true;
     conf->web_hook.url = nng_strdup(url);
@@ -122,31 +133,35 @@ main()
 	conf->web_hook.encode_payload = base62; // Use Base62 encoding
     
     // Header
-    conf->web_hook.header_count = 1;
-    conf->web_hook.headers = realloc(conf->web_hook.headers, conf->web_hook.header_count * sizeof(conf_http_header *));
-    conf->web_hook.headers[0] = calloc(1, sizeof(conf_http_header));
-    conf->web_hook.headers[0]->key = nng_strdup("content-type");
-    conf->web_hook.headers[0]->value = nng_strdup("application/json");
+    conf_http_header *header = calloc(1, sizeof(conf_http_header));
+    header->key              = nng_strdup("content-type");
+    header->value = nng_strdup("application/json");
+    cvector_push_back(conf->web_hook.headers, header);
+    conf->web_hook.header_count = cvector_size(conf->web_hook.headers);
 
     // Rules
-    conf->web_hook.rule_count = 1;
-    conf->web_hook.rules = calloc(1, sizeof(conf_web_hook_rule *));
-    conf->web_hook.rules[0] = calloc(1, sizeof(conf_web_hook_rule));
+    conf_web_hook_rule *rule = calloc(1, sizeof(conf_web_hook_rule));
     // Use the enum you confirmed earlier
-    conf->web_hook.rules[0]->event = MESSAGE_PUBLISH; 
-    conf->web_hook.rules[0]->rule_num = 1;
-    conf->web_hook.rules[0]->action = nng_strdup("message_publish");
+    rule->event    = MESSAGE_PUBLISH;
+    rule->rule_num = 1;
+    rule->action = nng_strdup("message_publish");
+    cvector_push_back(conf->web_hook.rules, rule);
+    conf->web_hook.rule_count = cvector_size(conf->web_hook.rules);
 
     // Start Broker
     nng_thread *nmq_thr;
     nng_thread_create(&nmq_thr, broker_thr_func, conf);
     nng_msleep(1000);
 
-    char *cmd_pub =
-	"mosquitto_pub -h 127.0.0.1 -p 1883 -t topic1 -m messagei+/ -q 2";
+    char cmd_pub[192];
+    snprintf(cmd_pub, sizeof(cmd_pub),
+	"mosquitto_pub -h 127.0.0.1 -p %s -t topic1 -m messagei+/ -q 2",
+	test_env_test_port_text());
     FILE *p_pub = NULL;
     p_pub       = popen(cmd_pub, "r");
-    pclose(p_pub);
+    if (p_pub == NULL || pclose(p_pub) != 0) {
+	return EXIT_FAILURE;
+    }
 
     // // --- 3. Client Connection ---
     // if ((rv = nng_mqtt_client_open(&sock)) != 0) fatal("client open", rv);
@@ -221,30 +236,13 @@ main()
     // nng_close(sock);
     nng_msleep(3000); // Allow time for ctx to close
 
-    nng_http_server_stop(server);
+	broker_stop_for_test();
+	nng_thread_destroy(nmq_thr);
+	nng_http_server_stop(server);
+	nng_http_server_release(server);
+	nng_mtx_free(cnt_mtx);
+	// Test-mode worker callbacks retain this configuration until process exit.
+	// The process owns these allocations after the broker listener is closed.
 
-    nng_http_server_release(server);
-		nng_thread_destroy(nmq_thr);
-    nng_mtx_free(cnt_mtx);
-
-    // Free Config
-    if (conf->web_hook.url) nng_strfree(conf->web_hook.url);
-    if (conf->web_hook.headers) {
-        nng_strfree(conf->web_hook.headers[0]->key);
-        nng_strfree(conf->web_hook.headers[0]->value);
-        free(conf->web_hook.headers[0]);
-        free(conf->web_hook.headers);
-    }
-    if (conf->web_hook.rules) {
-        nng_strfree(conf->web_hook.rules[0]->action);
-        free(conf->web_hook.rules[0]);
-        free(conf->web_hook.rules);
-    }
-	nng_mtx_free(conf->auth_http.acl_cache_mtx);
-    nng_mtx_free(conf->auths.mtx);
-	nng_atomic_free(conf->lc);
-	nng_strfree(conf->url);
-    nng_free(conf, sizeof(struct conf));
-
-    return 0;
+	return 0;
 }

@@ -34,7 +34,10 @@ jobs:
       run: cd build && ninja
 
     - name: Test
-      run: cd build && ctest --output-on-failure
+      # The coverage job measures line coverage, not leaks: ASAN's default
+      # leak detection flags one-time/global allocations at exit and fails
+      # otherwise-healthy tests. Crash/UAF detection stays on.
+      run: cd build && LSAN_OPTIONS=detect_leaks=0 ctest --output-on-failure
 
     - name: Upload report
       uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0

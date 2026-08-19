@@ -1890,8 +1890,8 @@ bridge_pub_handler(nano_work *work)
 	topic = nng_zalloc(sizeof(*topic));
 	for (size_t t = 0; t < work->config->bridge.count; t++) {
 		conf_bridge_node *node = work->config->bridge.nodes[t];
-		if (node->enable) {	// nng_atomic_get_bool for potential data racing
-			nng_mtx_lock(node->mtx);		//TODO bridge performance
+		nng_mtx_lock(node->mtx); // TODO move below enable checker
+		if (node->enable) {	// TODO switch to nng_atomic_get_bool for bridge performance
 			for (size_t i = 0; i < node->forwards_count; i++) {
 				rv = 0;
 				topic->body = work->pub_packet->var_header.publish.topic_name.body;
@@ -1996,8 +1996,8 @@ bridge_pub_handler(nano_work *work)
 					rv = SUCCESS;
 				}
 			}
-			nng_mtx_unlock(node->mtx);
 		}
+		nng_mtx_unlock(node->mtx);
 	}
 	nng_free(topic, sizeof(topic));
 	return;

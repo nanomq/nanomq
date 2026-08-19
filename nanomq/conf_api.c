@@ -820,7 +820,7 @@ set_auth_config(cJSON *json, const char *conf_path, conf_auth *auth)
 	nng_free(new_auth, sizeof(conf_auth));
 }
 
-static void
+static int
 set_auth_http_req(cJSON *json, const char *conf_path, conf_auth_http_req *req,
     const char *key_prefix)
 {
@@ -852,15 +852,22 @@ set_auth_http_req(cJSON *json, const char *conf_path, conf_auth_http_req *req,
 			char *key   = item->string;
 			char *value = item->valuestring;
 
-			// conf_update2(
-			//     conf_path, key_prefix, "headers.", key, value);
-			if (header_count <= index) {
-				conf_http_header *hdr = nng_zalloc(sizeof(conf_http_header));
-				req->header_count++;
-				req->headers = realloc(req->headers,
-				    (req->header_count) * sizeof(char *));
-				req->headers[index] = hdr;
+		if (header_count <= (size_t) index) {
+			req->header_count++;
+			conf_http_header **new_headers = realloc(req->headers,
+				(req->header_count) * sizeof(conf_http_header *));
+			if (new_headers == NULL) {
+				req->header_count--;
+				return -1;
 			}
+			req->headers = new_headers;
+
+			// Allocate the individual header structure for the new slot
+			req->headers[index] = nng_zalloc(sizeof(conf_http_header));
+			if (req->headers[index] == NULL) {
+				return -1;
+			}
+		}
 			update_string(req->headers[index]->key, key);
 			update_string(req->headers[index]->value, value);
 			index++;
@@ -980,6 +987,7 @@ set_auth_http_req(cJSON *json, const char *conf_path, conf_auth_http_req *req,
 		// conf_update2(conf_path, key_prefix, "", "params",
 		// param_str);
 	}
+	return 0;
 }
 
 void
