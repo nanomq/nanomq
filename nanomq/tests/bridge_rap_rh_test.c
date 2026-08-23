@@ -151,8 +151,7 @@ main()
 	// nng_msleep(1000);
 	pid_sub_nmq_rh1_re = popen_sub_with_cmd_nonblock(&outfp_nmq_rh1_re, cmd_sub_nmq_rh1_no_retain, cmd);
 	pid_sub_nmq_rh2 = popen_sub_with_cmd_nonblock(&outfp_nmq_rh2, cmd_sub_nmq_rh2, cmd);
-	// consider the msg is not been recvieved after 2s.
-	nng_msleep(2000);
+	// Observe the complete no-message window without a redundant pre-wait.
 	assert(test_env_wait_for_no_output(outfp_nmq_rh1_re, 2000, 50));
 	assert(test_env_wait_for_no_output(outfp_nmq_rh2, 2500, 50));
 	printf("no additional rh1/rh2 retain messages\n");
