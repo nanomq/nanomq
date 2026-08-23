@@ -61,9 +61,6 @@ nng_thread *nmq;
 
 	test_env_kill_and_reap(pid_sub_nmq);
 	close(outfp_nmq);
-    nng_msleep(2000); 
-
-    nng_msleep(2000); 
 	broker_stop_for_test();
 	nng_thread_destroy(nmq);
 
