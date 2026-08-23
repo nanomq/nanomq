@@ -240,6 +240,9 @@ main()
 	nng_thread_destroy(nmq_thr);
 	nng_http_server_stop(server);
 	nng_http_server_release(server);
+	// Let the asynchronous HTTP listener teardown complete before the next
+	// webhook test reuses port 8888.
+	nng_msleep(1000);
 	nng_mtx_free(cnt_mtx);
 	// Test-mode worker callbacks retain this configuration until process exit.
 	// The process owns these allocations after the broker listener is closed.
