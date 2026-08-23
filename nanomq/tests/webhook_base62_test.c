@@ -234,8 +234,6 @@ main()
     // nng_aio_free(recv_aio);
     // nng_ctx_close(ctx);
     // nng_close(sock);
-    nng_msleep(3000); // Allow time for ctx to close
-
 	broker_stop_for_test();
 	nng_thread_destroy(nmq_thr);
 	nng_http_server_stop(server);
