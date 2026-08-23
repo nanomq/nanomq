@@ -29,6 +29,12 @@ non_cnt = 0
 shared_cnt = 0
 lock = threading.Lock()
 
+def set_port(port):
+    global g_port
+    global g_url
+    g_port = port
+    g_url = " -h {addr} -p {port} --cafile {cacert} --insecure ".format(addr = g_addr, port = g_port, cacert = g_cacert)
+
 def clear_subclients():
     entries = os.popen("pidof mosquitto_sub")
 
@@ -430,13 +436,13 @@ def test_retain_as_publish():
     time.sleep(2)
     return ret
 
-def tls_v5_test():
+def tls_v5_test(run_topic_alias=True):
     # test_message_expiry()
     # session expiry runs last: it leaves a 5s-TTL cached session, and the
     # broker's expiry reap has been observed to drop concurrent TLS clients
     # (the plain-TCP variant plants the same session but reaps it with no
     # TLS clients connected, and never fails)
-    ok = test_user_property() and test_shared_subscription() and test_topic_alias() and test_retain_as_publish() and test_session_expiry()
+    ok = test_user_property() and test_shared_subscription() and (not run_topic_alias or test_topic_alias()) and test_retain_as_publish() and test_session_expiry()
     # let the reap fire while no other TLS client is connected
     time.sleep(7)
     return ok
