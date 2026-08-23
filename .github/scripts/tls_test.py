@@ -24,11 +24,29 @@ def cnt_message(cmd, n, pid, message):
                                stdout=subprocess.PIPE,
                                universal_newlines=True)
     pid.value = process.pid
-    
+
     while True:
         output = process.stdout.readline()
+        if output == "":
+            return
         if output.strip() == message:
             n.value += 1
+
+
+def stop_counter(process, pid):
+    process.terminate()
+    process.join(timeout=1)
+    if process.is_alive():
+        process.kill()
+        process.join()
+
+    if pid.value > 0:
+        try:
+            os.kill(pid.value, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        finally:
+            pid.value = 0
 
 def test_clean_session():
     # Use the same clientid as the persistent session so this final clean-start
@@ -66,7 +84,7 @@ def test_clean_session():
     process.start()
 
     time.sleep(5)
-    process.terminate()
+    stop_counter(process, pid)
     if cnt.value == 1:
         print("clean session test passed!")
     else:
@@ -77,14 +95,12 @@ def test_clean_session():
         print(p_cmd)
         print("clean session test failed!")
 
-    os.kill(pid.value, signal.SIGKILL)
     pid = Value('i', 0)
     process = Process(target=cnt_message, args=(clean_session_cmd, cnt, pid, "message"))
     process.start()
 
     time.sleep(1)
-    process.terminate()
-    os.kill(pid.value, signal.SIGKILL)
+    stop_counter(process, pid)
     return is_success
 
 def test_retain():
@@ -106,7 +122,7 @@ def test_retain():
     process.start()
     time.sleep(1)
 
-    process.terminate()
+    stop_counter(process, pid)
     process = subprocess.Popen(clean_retain_pub_cmd, 
                                stdout=subprocess.PIPE,
                                universal_newlines=True)
@@ -121,7 +137,6 @@ def test_retain():
         print("Retain test failed!")
     else:
         print("Retain test passed!")
-    os.kill(pid.value, signal.SIGKILL)
 
     return is_success
 
@@ -146,8 +161,7 @@ def test_v4_v5():
                                stdout=subprocess.PIPE,
                                universal_newlines=True)
     time.sleep(1)
-    process.terminate()
-    os.kill(pid.value, signal.SIGKILL)
+    stop_counter(process, pid)
     pid = Value('i', 0)
 
     if cnt.value != 1:
@@ -164,8 +178,7 @@ def test_v4_v5():
                                universal_newlines=True)
 
     time.sleep(1)
-    process.terminate()
-    os.kill(pid.value, signal.SIGKILL)
+    stop_counter(process, pid)
 
     if cnt.value != 2:
         print(s_cmd_v5)
@@ -208,8 +221,7 @@ def test_will_topic():
            print(p_cmd)
            print("Will topic test failed!")
            break
-    process.terminate()
-    os.kill(pid.value, signal.SIGKILL)
+    stop_counter(process, pid)
     return is_success
 
 def tls_test():
