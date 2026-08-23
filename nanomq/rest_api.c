@@ -4175,7 +4175,7 @@ get_mqtt_bridge(http_msg *msg, const char *name)
 static http_msg
 put_mqtt_bridge(http_msg *msg, const char *name)
 {
-	int rv;
+	int rv = 0;
 	http_msg res = { .status = NNG_HTTP_STATUS_OK };
 
 	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
@@ -4195,11 +4195,6 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 
 	bool         found  = false;
 	conf_bridge *bridge = &config->bridge;
-	if (node_obj == NULL) {
-		cJSON_Delete(req);
-		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
-		    REQ_PARAM_ERROR);
-	}
 	nng_mtx_lock(config->restapi_lk);
 	for (size_t i = 0; i < bridge->count; i++) {
 		conf_bridge_node *node     = bridge->nodes[i];

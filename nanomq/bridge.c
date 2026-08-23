@@ -958,7 +958,7 @@ bridge_quic_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 		nng_mtx_unlock(node->mtx);
 		return;
 	}
-	nng_atomic_set_bool(param->config->connected, true);
+	nng_atomic_set_bool(node->connected, true);
 
 	// get connect reason
 	nng_pipe_get_int(p, NNG_OPT_MQTT_CONNECT_REASON, &reason);
@@ -970,12 +970,13 @@ bridge_quic_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	log_info("Bridge client connected! RC [%d]", reason);
 	log_info("Local ip4 address [%s] port [%d]", addr, port);
 
-	nng_mtx_lock(param->config->mtx);
 	if (reason == 0 && param->config->sub_count > 0) {
 		nng_mqtt_client *client = param->client;
 		if (client == NULL) {
 			log_info("Orphaned bridge client ignored during connect callback.");
-			nng_mtx_unlock(param->config->mtx);
+			if (addr)
+				free(addr);
+			nng_mtx_unlock(node->mtx);
 			return;
 		}
 		for (size_t i = 0; i < param->config->sub_count; i++) {
@@ -1005,8 +1006,6 @@ bridge_quic_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 		}
 		nng_atomic_set_bool(param->quic_subscribed, true);
 	}
-	nng_mtx_unlock(param->config->mtx);
-
 	if (addr)
 		free(addr);
 	nng_mtx_unlock(node->mtx);
@@ -1218,7 +1217,7 @@ bridge_tcp_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 		nng_mqtt_client *client = param->client;
 		if (client == NULL) {
 			log_info("Orphaned bridge client ignored during connect callback.");
-			nng_mtx_unlock(param->config->mtx);
+			nng_mtx_unlock(node->mtx);
 			return;
 		}
 		nng_mqtt_topic_qos *topic_qos =
@@ -1659,6 +1658,10 @@ bridge_subscribe(nng_socket *sock, conf_bridge_node *node,
 	nng_msg *msg = NULL;
 	uint8_t *rc = NULL;
 	uint32_t rcsz;
+	nng_socket send_sock;
+	bridge_param *bridge_arg;
+
+	(void) sock;
 
 	if (sub_count < 1)
 		return -1;
@@ -1667,14 +1670,14 @@ bridge_subscribe(nng_socket *sock, conf_bridge_node *node,
 		log_info("Bridge client subscribed topic %.*s (qos %d).",
 		    topic_qos[i].topic.length, topic_qos[i].topic.buf, topic_qos[i].qos);
 	}
-	bridge_param *bridge_arg = (bridge_param *)node->bridge_arg;
-
 	nng_mtx_lock(reload_lock);
+	bridge_arg = (bridge_param *)node->bridge_arg;
 	if (bridge_arg == NULL || bridge_arg->client == NULL ||
-	    bridge_arg->client->send_aio == NULL) {
+	    bridge_arg->client->send_aio == NULL || bridge_arg->sock == NULL) {
 		nng_mtx_unlock(reload_lock);
 		return NNG_EINVAL;
 	}
+	send_sock = *bridge_arg->sock;
 	if (nng_aio_busy(bridge_arg->client->send_aio)) {
 		nng_mtx_unlock(reload_lock);
 		return NNG_EBUSY;
@@ -1699,7 +1702,7 @@ bridge_subscribe(nng_socket *sock, conf_bridge_node *node,
 	}
 	nng_aio_set_msg(aio, submsg);
 	nng_aio_set_timeout(aio, 5000);
-	nng_send_aio(*sock, aio);
+	nng_send_aio(send_sock, aio);
 	nng_mtx_unlock(reload_lock);
 
 	// Hold to get suback without blocking bridge reload.
@@ -1741,6 +1744,10 @@ bridge_unsubscribe(nng_socket *sock, conf_bridge_node *node,
 	nng_msg *msg = NULL;
 	uint8_t *rc = NULL;
 	uint32_t rcsz;
+	nng_socket send_sock;
+	bridge_param *bridge_arg;
+
+	(void) sock;
 
 	if (unsub_count < 1)
 		return -1;
@@ -1749,14 +1756,14 @@ bridge_unsubscribe(nng_socket *sock, conf_bridge_node *node,
 		log_info("Bridge client unsubscribed topic %.*s.",
 		    topics[i].length, topics[i].buf);
 	}
-	bridge_param *bridge_arg = (bridge_param *)node->bridge_arg;
-
 	nng_mtx_lock(reload_lock);
+	bridge_arg = (bridge_param *)node->bridge_arg;
 	if (bridge_arg == NULL || bridge_arg->client == NULL ||
-	    bridge_arg->client->send_aio == NULL) {
+	    bridge_arg->client->send_aio == NULL || bridge_arg->sock == NULL) {
 		nng_mtx_unlock(reload_lock);
 		return NNG_EINVAL;
 	}
+	send_sock = *bridge_arg->sock;
 	if (nng_aio_busy(bridge_arg->client->send_aio)) {
 		nng_mtx_unlock(reload_lock);
 		return NNG_EBUSY;
@@ -1781,7 +1788,7 @@ bridge_unsubscribe(nng_socket *sock, conf_bridge_node *node,
 	}
 	nng_aio_set_msg(aio, unsubmsg);
 	nng_aio_set_timeout(aio, 5000);
-	nng_send_aio(*sock, aio);
+	nng_send_aio(send_sock, aio);
 	nng_mtx_unlock(reload_lock);
 
 	// Hold to get unsuback without blocking bridge reload.
