@@ -54,15 +54,15 @@ main()
 	p_pub_emqx = popen(cmd_pub_emqx, "r");
 	p_pub_nmq= popen(cmd_pub_nmq, "r");
 	// check recv msg
-	assert(read(outfp_nmq, buf_nmq, buf_size) != -1);
+	assert(test_env_wait_for_output(outfp_nmq, buf_nmq, buf_size, 8000, 50));
 	printf("get the msg in nmq:%s\n", buf_nmq);
 	assert(strncmp(buf_nmq, "message-to-nmq", 14) == 0);
-	assert(read(outfp_emqx, buf_emqx, buf_size) != -1);
+	assert(test_env_wait_for_output(outfp_emqx, buf_emqx, buf_size, 8000, 50));
 	printf("get the msg in emqx:%s\n", buf_emqx);
 	assert(strncmp(buf_emqx, "message-to-emqx", 15) == 0);
 
-	kill(pid_sub_nmq, SIGKILL);
-	kill(pid_sub_emqx, SIGKILL);
+	test_env_kill_and_reap(pid_sub_nmq);
+	test_env_kill_and_reap(pid_sub_emqx);
 	pclose(p_pub_nmq);
 	pclose(p_pub_emqx);
 	close(outfp_nmq);

@@ -209,12 +209,10 @@ main()
 	(void) bufpub;
 	fprintf(stderr, "websocket message received: %s\n", bufsub);
 
-	kill(pid_sub, SIGKILL);
-	kill(pid_pub, SIGKILL);
+	test_env_kill_and_reap(pid_sub);
+	test_env_kill_and_reap(pid_pub);
 	close(infp);
 	close(outfp);
-	waitpid(pid_sub, NULL, 0);
-	waitpid(pid_pub, NULL, 0);
 
 	broker_stop_for_test();
 	nng_thread_destroy(nmq);

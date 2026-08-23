@@ -9,6 +9,7 @@
 #define	BRIDGE_MUTI_CONF_PATH "../../../nanomq/tests/nanomq_muti_bridges_test.conf"
 
 #define WEBHOOK_MESSAGE_TIMEOUT_MS 30000
+#define TEST_ENV_PCLOSE_TIMEOUT_MS 5000
 
 int webhook_msg_cnt = 0; // this is a silly signal to indicate whether the webhook tests pass
 
@@ -606,7 +607,7 @@ test_env_report_bind_owner(uint16_t port)
 #define assert(expr)                                                         \
 	((expr) ? (void) 0 : test_env_assert_failed(#expr, __FILE__, __LINE__))
 #define popen(cmd, mode) test_env_popen((cmd), (mode))
-#define pclose(fp) test_env_pclose((fp))
+#define pclose(fp) test_env_pclose_timeout((fp), TEST_ENV_PCLOSE_TIMEOUT_MS)
 #define nng_thread_create(thread, fn, arg) test_env_nng_thread_create((thread), (fn), (arg))
 #define nng_thread_destroy(thread) test_env_nng_thread_destroy((thread))
 #endif

@@ -55,11 +55,11 @@ nng_thread *nmq;
 	pclose(p_pub_nmq);
 
 
-	assert(read(outfp_nmq, buf_nmq, buf_size) != -1);
+	assert(test_env_wait_for_output(outfp_nmq, buf_nmq, buf_size, 8000, 50));
 	printf("get the msg in nmq:%s\n", buf_nmq);
 	assert(strncmp(buf_nmq, "message-to-nmq", 14) == 0);
 
-	kill(pid_sub_nmq, SIGKILL);
+	test_env_kill_and_reap(pid_sub_nmq);
 	close(outfp_nmq);
     nng_msleep(2000); 
 

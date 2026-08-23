@@ -73,8 +73,8 @@ main()
 	printf("get the msg in emqx:%s\n", buf_emqx);
 	assert(strncmp(buf_emqx, "message-to-emqx", 15) == 0);
 
-	kill(pid_sub_nmq, SIGKILL);
-	kill(pid_sub_emqx, SIGKILL);
+	test_env_kill_and_reap(pid_sub_nmq);
+	test_env_kill_and_reap(pid_sub_emqx);
 	assert(pclose(p_pub_nmq) == 0);
 	assert(pclose(p_pub_emqx) == 0);
 	close(outfp_nmq);

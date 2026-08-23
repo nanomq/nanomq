@@ -5,7 +5,7 @@ static void
 stop_subscriber(pid_t pid, int fd)
 {
 	if (pid > 0) {
-		kill(pid, SIGKILL);
+		test_env_kill_and_reap(pid);
 	}
 	if (fd >= 0) {
 		close(fd);
@@ -160,11 +160,11 @@ main()
 	// read is supposed to return 0, may need further check.
 	printf("rap2 got no msg\n");
 
-	kill(pid_sub_nmq_rap0, SIGKILL);
-	kill(pid_sub_nmq_rh0, SIGKILL);
-	kill(pid_sub_nmq_rh1, SIGKILL);
-	kill(pid_sub_nmq_rh1_re, SIGKILL);
-	kill(pid_sub_nmq_rh2, SIGKILL);
+	test_env_kill_and_reap(pid_sub_nmq_rap0);
+	test_env_kill_and_reap(pid_sub_nmq_rh0);
+	test_env_kill_and_reap(pid_sub_nmq_rh1);
+	test_env_kill_and_reap(pid_sub_nmq_rh1_re);
+	test_env_kill_and_reap(pid_sub_nmq_rh2);
 	close(outfp_nmq_rap0);
 	close(outfp_nmq_rh0);
 	close(outfp_nmq_rh1_re);
