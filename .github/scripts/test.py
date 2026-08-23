@@ -33,7 +33,7 @@ from test_issue_2355 import issue_2355_test
 nanomq_log_path = "/tmp/nanomq_test.log"
 nanomq_common_cmd = "nanomq start --conf ./.github/scripts/nanomq.conf --cacert etc/certs/cacert.pem --cert etc/certs/cert.pem --key etc/certs/key.pem --qos_duration 1 --log_level debug --log_stdout false"
 nanomq_cmd = nanomq_common_cmd + " --http --url tls+nmq-tcp://0.0.0.0:8883 --log_file /tmp/nanomq_test.log"
-topic_alias_nanomq_cmd = "nanomq start --conf ./.github/scripts/nanomq-topic-alias.conf --cacert etc/certs/cacert.pem --cert etc/certs/cert.pem --key etc/certs/key.pem --parallel 1 --log_level debug --log_stdout false --log_file /tmp/nanomq_topic_alias_test.log"
+topic_alias_nanomq_cmd = "nanomq start --conf ./.github/scripts/nanomq-topic-alias.conf --url tls+nmq-tcp://0.0.0.0:8884 --cacert etc/certs/cacert.pem --cert etc/certs/cert.pem --key etc/certs/key.pem --parallel 1 --log_level debug --log_stdout false --log_file /tmp/nanomq_topic_alias_test.log"
 
 def print_nanomq_log(log_path=nanomq_log_path):
     if not exists(log_path):
