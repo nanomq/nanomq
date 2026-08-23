@@ -38,7 +38,18 @@ def print_nanomq_log():
     log_lines.close()
 
 
-def run_bounded(name, fn, timeout_sec=600):
+def stop_nanomq():
+    if nanomq.poll() is not None:
+        return
+    nanomq.terminate()
+    try:
+        nanomq.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        nanomq.kill()
+        nanomq.wait()
+
+
+def run_bounded(name, fn, timeout_sec=120):
     # test.py ignores the ws results, but a wedged websocket client blocks
     # forever inside paho's connect() when the broker's ws listener stops
     # responding; run the stage in a daemon thread so a wedge is reported
@@ -64,7 +75,7 @@ def run_test(name, fn, attempts=3):
             print(name + " test end")
             return
         print(name + " test attempt " + str(attempt + 1) + " of " + str(attempts) + " failed")
-    nanomq.terminate()
+    stop_nanomq()
     print(name + " test failed")
     print_nanomq_log()
     raise AssertionError
@@ -113,7 +124,7 @@ if __name__=='__main__':
 
     print("fuzzy test start")
     if( False == fuzzy_test()):
-        nanomq.terminate()
+        stop_nanomq()
         print("fuzzy test failed")
         print_nanomq_log()
         raise AssertionError
@@ -121,7 +132,7 @@ if __name__=='__main__':
 
     print("rest api test start")
     if False == rest_api_test():
-        nanomq.terminate()
+        stop_nanomq()
         print("rest api test failed")
         print_nanomq_log()
         raise AssertionError
@@ -133,7 +144,7 @@ if __name__=='__main__':
 
     print("issue_2246 test start")
     if False == issue_2246_test():
-        nanomq.terminate()
+        stop_nanomq()
         print("issue_2246 test failed")
         print_nanomq_log()
         raise AssertionError
@@ -142,7 +153,7 @@ if __name__=='__main__':
     # runs its own broker instances on a dedicated port
     print("issue_2355 test start")
     if False == issue_2355_test():
-        nanomq.terminate()
+        stop_nanomq()
         print("issue_2355 test failed")
         print_nanomq_log()
         raise AssertionError
@@ -150,4 +161,4 @@ if __name__=='__main__':
 
     time.sleep(3)
 
-    nanomq.terminate()
+    stop_nanomq()

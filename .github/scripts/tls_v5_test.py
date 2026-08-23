@@ -10,6 +10,7 @@ from multiprocessing import Process, Value
 import time
 import threading
 import signal
+from process_utils import stop_process
 
 g_port = 8883
 g_addr = "127.0.0.1"
@@ -33,7 +34,11 @@ def clear_subclients():
 
     for line in entries:
         for pid in line.split():
-            os.kill(int(pid), signal.SIGKILL)
+            try:
+                os.kill(int(pid), signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+    entries.close()
 
 def wait_message(process, route):
     global cnt 
@@ -41,6 +46,8 @@ def wait_message(process, route):
     global shared_cnt 
     while True:
         output = process.stdout.readline()
+        if output == "":
+            return
         if output.strip() == 'message':
             lock.acquire()
             if route == 1:
@@ -58,6 +65,8 @@ def cnt_substr(cmd, n, pid, message):
     pid.value = process.pid
     while True:
         output = process.stdout.readline()
+        if output == "":
+            return
         if message in output:
             n.value += 1
 
@@ -69,6 +78,8 @@ def cnt_message(cmd, n, pid, message):
     pid.value = process.pid
     while True:
         output = process.stdout.readline()
+        if output == "":
+            return
         if output.strip() == message:
             n.value += 1
 
@@ -108,6 +119,10 @@ def test_shared_subscription():
                                stdout=subprocess.PIPE,
                                universal_newlines=True)
 
+    def cleanup():
+        for process in (process1, process2, process3, process4, process5, process6):
+            stop_process(process)
+
     t1 = threading.Thread(target=wait_message, args=(process1, 1))
     t2 = threading.Thread(target=wait_message, args=(process2, 1))
     t3 = threading.Thread(target=wait_message, args=(process3, 1))
@@ -131,9 +146,9 @@ def test_shared_subscription():
         lock.acquire()
         if cnt == 10:
             lock.release()
-            process1.terminate()
-            process2.terminate()
-            process3.terminate()
+            stop_process(process1)
+            stop_process(process2)
+            stop_process(process3)
             break
         lock.release()
         times += 1
@@ -148,6 +163,7 @@ def test_shared_subscription():
             print(sn_cmd)
 
             print("Shared subscription test failed!")
+            cleanup()
             return False
     
     times = 0
@@ -155,7 +171,7 @@ def test_shared_subscription():
         lock.acquire()
         if non_cnt == 10:
             lock.release()
-            process4.terminate()
+            stop_process(process4)
             break
         lock.release()
         times += 1
@@ -170,6 +186,7 @@ def test_shared_subscription():
             print(sn_cmd)
 
             print("Shared subscription test failed!")
+            cleanup()
             return False
     
     times = 0
@@ -177,7 +194,7 @@ def test_shared_subscription():
         lock.acquire()
         if shared_cnt == 10:
             lock.release()
-            process5.terminate()
+            stop_process(process5)
             break
         lock.release()
         times += 1
@@ -192,8 +209,10 @@ def test_shared_subscription():
             print(sn_cmd)
 
             print("Shared subscription test failed!")
+            cleanup()
             return False
 
+    cleanup()
     print("Shared subscription test passed!")
     return True
 
@@ -226,8 +245,7 @@ def test_topic_alias():
         times += 1
         
     time.sleep(5)
-    process1.terminate()
-    os.kill(pid.value, signal.SIGKILL)
+    stop_process(process1, pid)
     # at-least-once: QoS 1 retransmits may deliver duplicates, which still
     # proves every aliased publish resolved to the right topic
     if cnt.value >= 10:
@@ -260,15 +278,14 @@ def test_user_property():
     times = 0
     while True:
         if cnt.value == 1:
-            process1.terminate()
+            stop_process(process1)
             break
         time.sleep(1)
         times += 1
         if times == 5:
             break
     
-    process1.terminate()
-    os.kill(pid.value, signal.SIGKILL)
+    stop_process(process1, pid)
     if times == 5:
         print("Sub client did not receive User property")
         print(s_cmd)
@@ -290,7 +307,7 @@ def test_session_expiry():
                                universal_newlines=True)
 
     time.sleep(0.5)
-    process1.terminate()
+    stop_process(process1)
 
     process2 = subprocess.Popen(pub_cmd,
                                stdout=subprocess.PIPE,
@@ -301,8 +318,7 @@ def test_session_expiry():
     process3 = Process(target=cnt_message, args=(sub_cmd, cnt, pid, "message"))
     process3.start()
     time.sleep(4)
-    process3.terminate()
-    os.kill(pid.value, signal.SIGKILL)
+    stop_process(process3, pid)
     if cnt.value != 1:
         print("Session message was not received before session message expire")
         print(s_cmd)
@@ -342,8 +358,7 @@ def test_message_expiry():
     process2 = Process(target=cnt_message, args=(sub_cmd, cnt, pid, "message"))
     process2.start()
     time.sleep(2)
-    process2.terminate()
-    os.kill(pid.value, signal.SIGKILL)
+    stop_process(process2, pid)
     if cnt.value != 1:
         print("Message expiry interval test failed!")
         return False
@@ -354,8 +369,7 @@ def test_message_expiry():
     process2 = Process(target=cnt_message, args=(sub_cmd, cnt, pid, "message"))
     process2.start()
     time.sleep(2)
-    process2.terminate()
-    os.kill(pid.value, signal.SIGKILL)
+    stop_process(process2, pid)
     if cnt.value == 1:
         print("Message expiry interval test passed!")
         return True
@@ -408,13 +422,10 @@ def test_retain_as_publish():
                                stdout=subprocess.PIPE,
                                universal_newlines=True)
 
-    process1.terminate()
-    process2.terminate()
-    process3.terminate()
-    process4.terminate()
-
-    os.kill(pid1.value, signal.SIGKILL)
-    os.kill(pid2.value, signal.SIGKILL)
+    stop_process(process1)
+    stop_process(process2, pid1)
+    stop_process(process3, pid2)
+    stop_process(process4)
 
     time.sleep(2)
     return ret
@@ -429,4 +440,3 @@ def tls_v5_test():
     # let the reap fire while no other TLS client is connected
     time.sleep(7)
     return ok
-

@@ -39,8 +39,8 @@ jobs:
         make
         sudo make install
     - name: test
-      # A hung test should fail with the log so far, not burn the 6-hour
-      # job limit; a full passing suite takes well under this bound
-      timeout-minutes: 50
+      # A hung test should fail with the log so far, not hold the runner
+      # indefinitely; long-running stages have explicit bounds where possible.
+      timeout-minutes: 15
       run: |
-        python3 .github/scripts/test.py 
+        python3 .github/scripts/test.py
