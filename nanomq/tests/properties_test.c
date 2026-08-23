@@ -93,7 +93,6 @@ main()
 	assert(p_pub != NULL);
 
 	// check recv msg
-	nng_msleep(2000);
 	memset(buf, 0, buf_size);
 	assert(test_env_wait_for_output(outfp, buf, buf_size, 4000, 50));
 	log_warn("what we got:%s", buf);
