@@ -869,7 +869,7 @@ basic_authorize(http_msg *msg)
 		return UNKNOWN_MISTAKE;
 	}
 
-	size_t decoded_len = nmq_base64_decode(
+	size_t decoded_len = nmq_base64_decode_strict(
 	    (const char *) token, token_len, decode, decode_len);
 	if (decoded_len != (size_t) -1 && decoded_len < decode_len) {
 		decode[decoded_len] = '\0';
@@ -3644,7 +3644,7 @@ send_publish(nng_socket *sock, const char *clientid, char *payload,
 				len = 0;
 			} else {
 				decode_data = nng_zalloc(out_size);
-				len = nmq_base64_decode((const char *) payload,
+				len = nmq_base64_decode_strict((const char *) payload,
 				    payload_len, decode_data, out_size);
 			}
 			if (len != (size_t)-1 && len > 0) {
