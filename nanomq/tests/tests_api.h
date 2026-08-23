@@ -1045,17 +1045,17 @@ disable_tls_for_tests(conf *nmq_conf)
             || nmq_conf->websocket.tls_enable || tls_list->count > 0) {
 
 		nmq_conf->tls.enable         = false;
-		nmq_conf->tls.url            = NULL;
-		nmq_conf->tls.cafile         = NULL;
-		nmq_conf->tls.certfile       = NULL;
-		nmq_conf->tls.keyfile        = NULL;
-		nmq_conf->tls.ca             = NULL;
-		nmq_conf->tls.cert           = NULL;
-		nmq_conf->tls.key            = NULL;
-		nmq_conf->tls.key_password   = NULL;
-		nmq_conf->tls.sni            = NULL;
+		FREE_NONULL(nmq_conf->tls.url);
+		FREE_NONULL(nmq_conf->tls.cafile);
+		FREE_NONULL(nmq_conf->tls.certfile);
+		FREE_NONULL(nmq_conf->tls.keyfile);
+		FREE_NONULL(nmq_conf->tls.ca);
+		FREE_NONULL(nmq_conf->tls.cert);
+		FREE_NONULL(nmq_conf->tls.key);
+		FREE_NONULL(nmq_conf->tls.key_password);
+		FREE_NONULL(nmq_conf->tls.sni);
 		nmq_conf->websocket.tls_enable = false;
-		nmq_conf->websocket.tls_url    = NULL;
+		FREE_NONULL(nmq_conf->websocket.tls_url);
 
 		for (size_t i = 0; i < tls_list->count; ++i) {
 			conf_tls *node = tls_list->nodes[i];

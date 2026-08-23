@@ -169,10 +169,10 @@ static bool test_get_endpoints();
 static bool
 wait_for_http_server_ready(int timeout_ms)
 {
-	int waited_ms = 0;
+	nng_time deadline = nng_clock() + (nng_time) timeout_ms;
 	char *cmd = CURL_CMD_PREFIX "-X GET 'http://localhost:8081/api/v4'";
 
-	while (waited_ms < timeout_ms) {
+	while (nng_clock() < deadline) {
 		FILE *fd = popen(cmd, "r");
 		char  status[32] = { 0 };
 		bool  ready = fd != NULL && fgets(status, sizeof(status), fd) != NULL &&
@@ -183,7 +183,6 @@ wait_for_http_server_ready(int timeout_ms)
 			return true;
 		}
 		nng_msleep(100);
-		waited_ms += 100;
 	}
 
 	return false;
@@ -472,10 +471,20 @@ static bool
 test_put_bridges_replaces_client(conf *config)
 {
     conf_bridge_node *node = config->bridge.nodes[0];
-    bridge_param *param = node->bridge_arg;
-    nng_mqtt_client *client = param->client;
+    bridge_param *param;
+    bool replaced;
 
-    return test_put_bridges() && param->client != client;
+    if (!test_put_bridges()) {
+        return false;
+    }
+
+    nng_mtx_lock(node->mtx);
+    param = node->bridge_arg;
+    replaced = node->clientid != NULL &&
+        strcmp(node->clientid, "hello3") == 0 && param != NULL &&
+        param->client != NULL;
+    nng_mtx_unlock(node->mtx);
+    return replaced;
 }
 
 static bool

@@ -15,7 +15,13 @@ nng_thread *nmq;
 	char buf_nmq[buf_size];
 	memset(buf_nmq, 0, buf_size);
 	const char *test_port = test_env_test_port_text();
-	char anon_cmd[160];
+	char anon_cmd[192];
+
+	if (!test_env_has_executable("mosquitto_sub") ||
+	    !test_env_has_executable("mosquitto_pub")) {
+		fprintf(stderr, "skip: mosquitto_sub and mosquitto_pub are required\n");
+		return 0;
+	}
 
 	conf = get_test_conf(AUTH_ANON_CONF);
 	assert(conf != NULL);
@@ -23,11 +29,12 @@ nng_thread *nmq;
 	nng_msleep(1000);
 
 	snprintf(anon_cmd, sizeof(anon_cmd),
-	    "mosquitto_sub -h 127.0.0.1 -p %s -t 'test/#' -W 2 > /dev/null 2>&1",
+	    "mosquitto_sub -h 127.0.0.1 -p %s -t 'test/#' -V mqttv5 -W 2 > /dev/null 2>&1",
 	    test_port);
 	int anon_rv = system(anon_cmd);
 
-	assert(anon_rv != 0); 
+	assert(WIFEXITED(anon_rv));
+	assert(WEXITSTATUS(anon_rv) != 0);
 	nng_msleep(500);
 	char *cmd = "/bin/mosquitto_sub";
 	char *cmd_sub_nmq[] = {
@@ -57,6 +64,7 @@ nng_thread *nmq;
     nng_msleep(2000); 
 
     nng_msleep(2000); 
+	broker_stop_for_test();
 	nng_thread_destroy(nmq);
 
 	return 0;

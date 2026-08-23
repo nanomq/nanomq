@@ -126,8 +126,21 @@ int
 main()
 {
 	int rv = 0;
+	uint16_t test_port;
+	const char *test_port_text;
 
-	if (!test_env_allows_network_binds() || !test_env_allows_port_bind(8083)) {
+#ifdef NANO_PLATFORM_WINDOWS
+	fprintf(stderr, "skip: websocket helper is not implemented on Windows\n");
+	return 0;
+#endif
+
+	if (!test_env_allows_network_binds()) {
+		fprintf(stderr, "skip: test environment disallows listening sockets\n");
+		return 0;
+	}
+	test_port = test_env_test_port();
+	test_port_text = test_env_test_port_text();
+	if (!test_env_allows_port_bind(test_port)) {
 		fprintf(stderr, "skip: test environment disallows listening sockets\n");
 		return 0;
 	}
@@ -160,10 +173,10 @@ main()
 
 	char *cmd   = mqttx_cmd;
 	char *arg_pub[] = { mqttx_cmd, "pub", "-h", "127.0.0.1", "-p",
-		"8083", "-t", "topic1", "-m", "message", "-r", "-l", "ws", NULL };
+		(char *) test_port_text, "-t", "topic1", "-m", "message", "-r", "-l", "ws", NULL };
 	// pipe to sub
 	char *arg_sub[] = { mqttx_cmd, "sub", "-t", "topic1", "-h",
-		"127.0.0.1", "-p", "8083", "-l", "ws", NULL };
+		"127.0.0.1", "-p", (char *) test_port_text, "-l", "ws", NULL };
 
 	nng_thread *nmq;
 	conf       *nmq_conf;
@@ -181,7 +194,7 @@ main()
 	// create nmq thread
 	assert(nng_thread_create(&nmq, (void *) broker_start_with_conf,
 	    (void *) nmq_conf) == 0);
-	assert(wait_for_tcp_listener(8083, 8000));
+	assert(wait_for_tcp_listener(test_port, 8000));
 
 	pid_sub = popen_sub_with_cmd_nonblock(&outfp, arg_sub, cmd);
 	assert(pid_sub > 0);
