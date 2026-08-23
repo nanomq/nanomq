@@ -48,7 +48,7 @@ main()
 	conf = get_test_conf(ALL_FEATURE_CONF);
 	assert(conf != NULL);
 	nng_thread_create(&nmq, (void *) broker_start_with_conf, (void *) conf);
-	nng_msleep(5000); // wait a while before sub
+	assert(test_env_wait_for_tcp_listener(8883, 5000));
 
 	// pipe to sub
 	char *arg[] = { "mosquitto_sub", "-t", "topic1", "-t", "topic2", "-U",

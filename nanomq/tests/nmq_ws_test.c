@@ -17,40 +17,6 @@
 #define MQTTX_MESSAGE_TIMEOUT_MS 30000
 
 static bool
-wait_for_tcp_listener(uint16_t port, int timeout_ms)
-{
-#ifndef NANO_PLATFORM_WINDOWS
-	int waited = 0;
-
-	while (waited < timeout_ms) {
-		int                fd;
-		struct sockaddr_in addr;
-
-		fd = socket(AF_INET, SOCK_STREAM, 0);
-		if (fd >= 0) {
-			memset(&addr, 0, sizeof(addr));
-			addr.sin_family      = AF_INET;
-			addr.sin_port        = htons(port);
-			addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-			if (connect(fd, (struct sockaddr *) &addr, sizeof(addr)) == 0) {
-				close(fd);
-				return true;
-			}
-			close(fd);
-		}
-		nng_msleep(50);
-		waited += 50;
-	}
-#else
-	(void) port;
-	(void) timeout_ms;
-#endif
-	fprintf(stderr, "[FAIL] websocket listener 127.0.0.1:%u was not ready\n",
-	    port);
-	return false;
-}
-
-static bool
 wait_for_text(int fd, const char *needle, char *output, size_t output_size,
     int timeout_ms)
 {
@@ -194,7 +160,7 @@ main()
 	// create nmq thread
 	assert(nng_thread_create(&nmq, (void *) broker_start_with_conf,
 	    (void *) nmq_conf) == 0);
-	assert(wait_for_tcp_listener(test_port, 8000));
+	assert(test_env_wait_for_tcp_listener(test_port, 8000));
 
 	pid_sub = popen_sub_with_cmd_nonblock(&outfp, arg_sub, cmd);
 	assert(pid_sub > 0);

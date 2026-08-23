@@ -854,6 +854,39 @@ test_env_test_port_text(void)
 }
 
 static bool
+test_env_wait_for_tcp_listener(uint16_t port, int timeout_ms)
+{
+#ifndef NANO_PLATFORM_WINDOWS
+	nng_time deadline = nng_clock() + (nng_time) timeout_ms;
+
+	while (nng_clock() < deadline) {
+		int                fd;
+		struct sockaddr_in addr;
+
+		fd = socket(AF_INET, SOCK_STREAM, 0);
+		if (fd >= 0) {
+			memset(&addr, 0, sizeof(addr));
+			addr.sin_family      = AF_INET;
+			addr.sin_port        = htons(port);
+			addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+			if (connect(fd, (struct sockaddr *) &addr, sizeof(addr)) == 0) {
+				close(fd);
+				return true;
+			}
+			close(fd);
+		}
+		nng_msleep(25);
+	}
+#else
+	(void) port;
+	(void) timeout_ms;
+	return true;
+#endif
+	fprintf(stderr, "[FAIL] TCP listener 127.0.0.1:%hu was not ready\n", port);
+	return false;
+}
+
+static bool
 test_env_supports_tls_runtime(void)
 {
 #ifdef NNG_SUPP_TLS
