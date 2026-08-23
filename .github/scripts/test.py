@@ -33,7 +33,12 @@ from test_issue_2355 import issue_2355_test
 nanomq_log_path = "/tmp/nanomq_test.log"
 nanomq_common_cmd = "nanomq start --conf ./.github/scripts/nanomq.conf --cacert etc/certs/cacert.pem --cert etc/certs/cert.pem --key etc/certs/key.pem --qos_duration 1 --log_level debug --log_stdout false"
 nanomq_cmd = nanomq_common_cmd + " --http --url tls+nmq-tcp://0.0.0.0:8883 --log_file /tmp/nanomq_test.log"
-topic_alias_nanomq_cmd = "nanomq start --conf ./.github/scripts/nanomq-topic-alias.conf --url tls+nmq-tcp://0.0.0.0:8884 --cacert etc/certs/cacert.pem --cert etc/certs/cert.pem --key etc/certs/key.pem --parallel 1 --log_level debug --log_stdout false --log_file /tmp/nanomq_topic_alias_test.log"
+topic_alias_nanomq_cmd = "nanomq start --conf ./.github/scripts/nanomq-topic-alias.conf --url tls+nmq-tcp://127.0.0.1:{port} --cacert etc/certs/cacert.pem --cert etc/certs/cert.pem --key etc/certs/key.pem --parallel 1 --log_level debug --log_stdout false --log_file /tmp/nanomq_topic_alias_test.log"
+
+def allocate_test_port():
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
+        listener.bind(("127.0.0.1", 0))
+        return listener.getsockname()[1]
 
 def print_nanomq_log(log_path=nanomq_log_path):
     if not exists(log_path):
@@ -78,16 +83,18 @@ def wait_for_nanomq(process=None, port=8883, log_path=nanomq_log_path, timeout_s
 
 def run_topic_alias_serial():
     log_path = "/tmp/nanomq_topic_alias_test.log"
+    topic_alias_port = allocate_test_port()
     if exists(log_path):
         os.remove(log_path)
-    serial_nanomq = subprocess.Popen(shlex.split(topic_alias_nanomq_cmd),
-                                     stdout=subprocess.PIPE,
-                                     universal_newlines=True,
-                                     encoding='utf-8',
-                                     errors='replace')
+    serial_nanomq = subprocess.Popen(
+        shlex.split(topic_alias_nanomq_cmd.format(port=topic_alias_port)),
+        stdout=subprocess.PIPE,
+        universal_newlines=True,
+        encoding='utf-8',
+        errors='replace')
     try:
-        wait_for_nanomq(serial_nanomq, 8884, log_path)
-        set_tls_v5_port(8884)
+        wait_for_nanomq(serial_nanomq, topic_alias_port, log_path)
+        set_tls_v5_port(topic_alias_port)
         result = test_topic_alias()
         if not result:
             print_nanomq_log(log_path)
