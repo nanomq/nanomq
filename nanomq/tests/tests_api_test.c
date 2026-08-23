@@ -69,6 +69,15 @@ test_reap_failed_popen_child(void)
 	assert(errno == ECHILD);
 }
 
+static void
+test_pclose_timeout_reaps_process_group(void)
+{
+	FILE *stream = test_env_popen("sleep 30", "r");
+
+	assert(stream != NULL);
+	assert(test_env_pclose_timeout(stream, 50) == -1);
+}
+
 int
 main()
 {
@@ -77,6 +86,7 @@ main()
 	test_child_closes_original_write_fd(false);
 	test_child_closes_original_write_fd(true);
 	test_reap_failed_popen_child();
+	test_pclose_timeout_reaps_process_group();
 	return 0;
 }
 

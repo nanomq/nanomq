@@ -66,6 +66,7 @@ static bool       test_inproc_socket_active = false;
 #ifndef NANO_PLATFORM_WINDOWS
 typedef struct test_env_tracked_proc {
 	pid_t    pid;
+	pid_t    pgid;
 	int      outfd;
 	FILE    *stream;
 	bool     active;
@@ -268,7 +269,7 @@ test_env_test_cleanup(void)
 		}
 
 		if (kill(proc->pid, 0) == 0 || errno == EPERM) {
-			pgid   = getpgid(proc->pid);
+			pgid   = proc->pgid > 0 ? proc->pgid : proc->pid;
 			target = (pgid > 0) ? -pgid : -proc->pid;
 
 			kill(target, SIGTERM);
@@ -320,6 +321,7 @@ test_env_track_proc(pid_t pid, int outfd, FILE *stream)
 	}
 	test_env_register_cleanup();
 	test_env_tracked_procs[test_env_tracked_proc_count].pid    = pid;
+	test_env_tracked_procs[test_env_tracked_proc_count].pgid   = pid;
 	test_env_tracked_procs[test_env_tracked_proc_count].outfd  = outfd;
 	test_env_tracked_procs[test_env_tracked_proc_count].stream = stream;
 	test_env_tracked_procs[test_env_tracked_proc_count].active = true;
@@ -409,6 +411,7 @@ test_env_popen(const char *command, const char *mode)
 			exit(EXIT_FAILURE);
 		}
 		close(pipefd[STDOUT_FILENO]);
+		(void) setpgid(pid, pid);
 		fp = fdopen(pipefd[STDIN_FILENO], "r");
 		if (fp == NULL) {
 			close(pipefd[STDIN_FILENO]);
@@ -437,6 +440,7 @@ test_env_popen(const char *command, const char *mode)
 			exit(EXIT_FAILURE);
 		}
 		close(pipefd[STDIN_FILENO]);
+		(void) setpgid(pid, pid);
 		fp = fdopen(pipefd[STDOUT_FILENO], "w");
 		if (fp == NULL) {
 			close(pipefd[STDOUT_FILENO]);
@@ -465,6 +469,60 @@ test_env_pclose(FILE *stream)
 		if (wrc == pid) {
 			return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
 		}
+	}
+	return -1;
+}
+
+static int
+test_env_pclose_timeout(FILE *stream, unsigned timeout_ms)
+{
+	test_env_tracked_proc *proc = NULL;
+	pid_t                  pid;
+	int                    status;
+	unsigned               waited = 0;
+
+	if (stream == NULL) {
+		return -1;
+	}
+	for (size_t i = 0; i < test_env_tracked_proc_count; ++i) {
+		if (test_env_tracked_procs[i].active &&
+		    test_env_tracked_procs[i].stream == stream) {
+			proc = &test_env_tracked_procs[i];
+			proc->active = false;
+			break;
+		}
+	}
+	pid = proc == NULL ? -1 : proc->pid;
+	fclose(stream);
+	if (pid <= 0) {
+		return -1;
+	}
+
+	for (;;) {
+		pid_t wrc = waitpid(pid, &status, WNOHANG);
+		if (wrc == pid) {
+			return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+		}
+		if (wrc < 0 && errno != EINTR) {
+			return -1;
+		}
+		if (waited >= timeout_ms) {
+			break;
+		}
+		unsigned sleep_ms = timeout_ms - waited;
+		if (sleep_ms > 10) {
+			sleep_ms = 10;
+		}
+		nng_msleep(sleep_ms);
+		waited += sleep_ms;
+	}
+
+	if (proc->pgid > 0) {
+		(void) kill(-proc->pgid, SIGKILL);
+	} else {
+		(void) kill(pid, SIGKILL);
+	}
+	while (waitpid(pid, &status, 0) < 0 && errno == EINTR) {
 	}
 	return -1;
 }
