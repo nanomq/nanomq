@@ -98,7 +98,7 @@ main()
 	log_warn("what we got:%s", buf);
 	assert(strncmp(buf, "message", 7) == 0);
 
-	kill(pid_sub, SIGKILL);
+	test_env_kill_and_reap(pid_sub);
 	pclose(p_pub);
 	close(outfp);
 

@@ -903,7 +903,6 @@ main()
     conf = get_test_conf(ALL_FEATURE_CONF);
     assert(conf != NULL);
     nng_thread_create(&nmq, (void *) broker_start_with_conf, (void *) conf);
-    nng_msleep(500);  // wait a while for broker to init
     assert(wait_for_http_server_ready(2000));
 	if (has_mosquitto_sub) {
 		pid_sub = popen_with_cmd(&outfp, cmd1, cmd);
@@ -984,10 +983,10 @@ main()
     assert(test_misuse_of_method());
 
 	if (pid_sub > 0) {
-		kill(pid_sub, SIGKILL);
+		test_env_kill_and_reap(pid_sub);
 	}
 	if (pid_sub2 > 0) {
-		kill(pid_sub2, SIGKILL);
+		test_env_kill_and_reap(pid_sub2);
 	}
 
 	broker_stop_for_test();
