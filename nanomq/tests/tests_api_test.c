@@ -78,6 +78,68 @@ test_pclose_timeout_reaps_process_group(void)
 	assert(test_env_pclose_timeout(stream, 50) == -1);
 }
 
+typedef struct test_fake_wait_clock {
+	nng_time now;
+	unsigned sleep_calls;
+	unsigned slept_ms;
+} test_fake_wait_clock;
+
+static nng_time
+test_fake_wait_now(void *arg)
+{
+	return ((test_fake_wait_clock *) arg)->now;
+}
+
+static void
+test_fake_wait_sleep(void *arg, unsigned sleep_ms)
+{
+	test_fake_wait_clock *clock = arg;
+	clock->sleep_calls++;
+	clock->slept_ms += sleep_ms;
+	clock->now += sleep_ms;
+}
+
+static void
+test_wait_contracts_use_monotonic_deadlines(void)
+{
+	test_fake_wait_clock fake = { 100, 0, 0 };
+	test_env_wait_clock clock = {
+		.now = test_fake_wait_now,
+		.sleep = test_fake_wait_sleep,
+		.arg = &fake,
+	};
+	char output[16] = { 0 };
+	int  pipefd[2];
+
+	assert(pipe(pipefd) == 0);
+	assert(!test_env_wait_for_output_with_clock(
+	    pipefd[0], output, sizeof(output), 5, 2, &clock));
+	assert(fake.now == 105);
+	assert(fake.sleep_calls == 3);
+	assert(fake.slept_ms == 5);
+	close(pipefd[0]);
+	close(pipefd[1]);
+
+	fake = (test_fake_wait_clock) { 200, 0, 0 };
+	assert(pipe(pipefd) == 0);
+	assert(write(pipefd[1], "ready", 5) == 5);
+	assert(test_env_wait_for_output_with_clock(
+	    pipefd[0], output, sizeof(output), 5, 2, &clock));
+	assert(strcmp(output, "ready") == 0);
+	assert(fake.sleep_calls == 0);
+	close(pipefd[0]);
+	close(pipefd[1]);
+
+	fake = (test_fake_wait_clock) { 300, 0, 0 };
+	assert(pipe(pipefd) == 0);
+	assert(test_env_wait_for_no_output_with_clock(
+	    pipefd[0], 5, 2, &clock));
+	assert(fake.now == 305);
+	assert(fake.slept_ms == 5);
+	close(pipefd[0]);
+	close(pipefd[1]);
+}
+
 int
 main()
 {
@@ -87,6 +149,7 @@ main()
 	test_child_closes_original_write_fd(true);
 	test_reap_failed_popen_child();
 	test_pclose_timeout_reaps_process_group();
+	test_wait_contracts_use_monotonic_deadlines();
 	return 0;
 }
 

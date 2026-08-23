@@ -357,19 +357,6 @@ test_env_untrack_thread(nng_thread *thread)
 	}
 }
 
-static pid_t
-test_env_untrack_proc_by_stream(FILE *stream)
-{
-	for (size_t i = 0; i < test_env_tracked_proc_count; ++i) {
-		if (test_env_tracked_procs[i].active &&
-		    test_env_tracked_procs[i].stream == stream) {
-			test_env_tracked_procs[i].active = false;
-			return test_env_tracked_procs[i].pid;
-		}
-	}
-	return -1;
-}
-
 static void
 test_env_kill_and_reap(pid_t pid)
 {
@@ -452,26 +439,6 @@ test_env_popen(const char *command, const char *mode)
 		return fp;
 	}
 	return NULL;
-}
-
-static int
-test_env_pclose(FILE *stream)
-{
-	pid_t pid;
-	int   status;
-
-	if (stream == NULL) {
-		return -1;
-	}
-	pid = test_env_untrack_proc_by_stream(stream);
-	fclose(stream);
-	if (pid > 0) {
-		int wrc = waitpid(pid, &status, 0);
-		if (wrc == pid) {
-			return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
-		}
-	}
-	return -1;
 }
 
 static int
@@ -589,12 +556,12 @@ test_env_report_bind_owner(uint16_t port)
 				    "  port %hu in use by pid=%d command=%s\n", port, pid,
 				    cmd_name[0] != '\0' ? cmd_name : "<unknown>");
 			}
-			test_env_pclose(cmd_fp);
+			test_env_pclose_timeout(cmd_fp, TEST_ENV_PCLOSE_TIMEOUT_MS);
 		}
 		has_listener = true;
 		waitpid(pid, &wstatus, WNOHANG);
 	}
-	test_env_pclose(fp);
+	test_env_pclose_timeout(fp, TEST_ENV_PCLOSE_TIMEOUT_MS);
 	if (!has_listener) {
 		fprintf(stderr, "  no lsof owner output for port %hu\n", port);
 	}
@@ -911,123 +878,191 @@ test_env_has_file(const char *path)
 	return (path != NULL) ? access(path, R_OK) == 0 : false;
 }
 
-static bool
-test_env_wait_for_output(
-    int outfd, char *buf, size_t buf_size, int timeout_ms, int poll_ms)
-{
-	int flags;
-	int original_flags;
-	int waited = 0;
-	ssize_t n = -1;
+typedef nng_time (*test_env_wait_now_fn)(void *arg);
+typedef void (*test_env_wait_sleep_fn)(void *arg, unsigned sleep_ms);
 
-	if (buf_size == 0 || buf == NULL || outfd < 0) {
+typedef struct test_env_wait_clock {
+	test_env_wait_now_fn   now;
+	test_env_wait_sleep_fn sleep;
+	void                  *arg;
+} test_env_wait_clock;
+
+typedef enum test_env_read_status {
+	TEST_ENV_READ_TIMEOUT,
+	TEST_ENV_READ_EOF,
+	TEST_ENV_READ_OUTPUT,
+	TEST_ENV_READ_FULL,
+	TEST_ENV_READ_ERROR,
+} test_env_read_status;
+
+static nng_time
+test_env_wait_now_real(void *arg)
+{
+	(void) arg;
+	return nng_clock();
+}
+
+static void
+test_env_wait_sleep_real(void *arg, unsigned sleep_ms)
+{
+	(void) arg;
+	nng_msleep(sleep_ms);
+}
+
+static const test_env_wait_clock test_env_real_wait_clock = {
+	.now = test_env_wait_now_real,
+	.sleep = test_env_wait_sleep_real,
+	.arg = NULL,
+};
+
+static test_env_read_status
+test_env_read_fd_until(
+    int outfd, char *buf, size_t buf_size, int timeout_ms, int poll_ms,
+    bool stop_after_read, const test_env_wait_clock *clock, size_t *read_size)
+{
+	int       flags;
+	int       original_flags;
+	size_t    used = 0;
+	nng_time  deadline;
+	test_env_read_status status = TEST_ENV_READ_ERROR;
+
+	if (read_size != NULL) {
+		*read_size = 0;
+	}
+	if (buf == NULL || buf_size < 2 || outfd < 0 || clock == NULL ||
+	    clock->now == NULL || clock->sleep == NULL) {
+		return TEST_ENV_READ_ERROR;
+	}
+	flags = fcntl(outfd, F_GETFL, 0);
+	if (flags == -1) {
+		return TEST_ENV_READ_ERROR;
+	}
+	original_flags = flags;
+	if ((flags & O_NONBLOCK) == 0 &&
+	    fcntl(outfd, F_SETFL, flags | O_NONBLOCK) != 0) {
+		return TEST_ENV_READ_ERROR;
+	}
+	if (poll_ms <= 0) {
+		poll_ms = 25;
+	}
+	if (timeout_ms < 0) {
+		timeout_ms = 0;
+	}
+	deadline = clock->now(clock->arg) + (nng_time) timeout_ms;
+
+	for (;;) {
+		ssize_t n;
+
+		errno = 0;
+		n = read(outfd, buf + used, buf_size - used - 1);
+		if (n > 0) {
+			used += (size_t) n;
+			buf[used] = '\0';
+			if (stop_after_read) {
+				status = TEST_ENV_READ_OUTPUT;
+				break;
+			}
+			if (used + 1 >= buf_size) {
+				status = TEST_ENV_READ_FULL;
+				break;
+			}
+			continue;
+		}
+		if (n == 0) {
+			status = TEST_ENV_READ_EOF;
+			break;
+		}
+		if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
+			status = TEST_ENV_READ_ERROR;
+			break;
+		}
+
+		nng_time now = clock->now(clock->arg);
+		if (now >= deadline) {
+			status = TEST_ENV_READ_TIMEOUT;
+			break;
+		}
+		nng_time remaining = deadline - now;
+		unsigned sleep_ms = (unsigned) poll_ms;
+		if (remaining < (nng_time) sleep_ms) {
+			sleep_ms = (unsigned) remaining;
+		}
+		if (sleep_ms == 0) {
+			status = TEST_ENV_READ_TIMEOUT;
+			break;
+		}
+		clock->sleep(clock->arg, sleep_ms);
+	}
+
+	if ((original_flags & O_NONBLOCK) == 0) {
+		(void) fcntl(outfd, F_SETFL, original_flags);
+	}
+	if (read_size != NULL) {
+		*read_size = used;
+	}
+	return status;
+}
+
+static bool
+test_env_wait_for_output_with_clock(
+    int outfd, char *buf, size_t buf_size, int timeout_ms, int poll_ms,
+    const test_env_wait_clock *clock)
+{
+	test_env_read_status status;
+	size_t               read_size = 0;
+
+	if (buf_size < 2 || buf == NULL || outfd < 0) {
 		fprintf(stderr,
 		    "[FAIL] test_env_wait_for_output: invalid file descriptor %d\n",
 		    outfd);
 		return false;
 	}
-	flags = fcntl(outfd, F_GETFL, 0);
-	if (flags == -1) {
+	status = test_env_read_fd_until(outfd, buf, buf_size, timeout_ms, poll_ms,
+	    true, clock, &read_size);
+	if (status == TEST_ENV_READ_TIMEOUT) {
 		fprintf(stderr,
-		    "[FAIL] test_env_wait_for_output: F_GETFL failed on fd %d: %s\n",
-		    outfd, strerror(errno));
+		    "[FAIL] test_env_wait_for_output: no output from process "
+		    "within %dms\n",
+		    timeout_ms);
+	}
+	return status == TEST_ENV_READ_OUTPUT && read_size > 0;
+}
+
+static bool
+test_env_wait_for_output(
+    int outfd, char *buf, size_t buf_size, int timeout_ms, int poll_ms)
+{
+	return test_env_wait_for_output_with_clock(outfd, buf, buf_size, timeout_ms,
+	    poll_ms, &test_env_real_wait_clock);
+}
+
+static bool
+test_env_read_stream_timeout(
+    FILE *stream, char *buf, size_t buf_size, int timeout_ms, int poll_ms)
+{
+	if (stream == NULL) {
 		return false;
 	}
-	original_flags = flags;
-	if ((flags & O_NONBLOCK) == 0) {
-		if (fcntl(outfd, F_SETFL, flags | O_NONBLOCK) != 0) {
-			return false;
-		}
-	}
+	test_env_read_status status = test_env_read_fd_until(fileno(stream), buf,
+	    buf_size, timeout_ms, poll_ms, false, &test_env_real_wait_clock, NULL);
+	return status == TEST_ENV_READ_EOF || status == TEST_ENV_READ_FULL;
+}
 
-	if (poll_ms <= 0) {
-		poll_ms = 25;
-	}
-	if (timeout_ms <= 0) {
-		timeout_ms = 0;
-	}
-
-	while (waited < timeout_ms) {
-		errno = 0;
-		n     = read(outfd, buf, buf_size - 1);
-		if (n > 0) {
-			buf[n] = '\0';
-			goto done;
-		}
-		if (n == 0 || (errno != EAGAIN && errno != EWOULDBLOCK &&
-		               errno != EINTR)) {
-			goto done;
-		}
-		nng_msleep(poll_ms);
-		waited += poll_ms;
-	}
-
-done:
-	if ((original_flags & O_NONBLOCK) == 0) {
-		fcntl(outfd, F_SETFL, original_flags);
-	}
-	if (n <= 0) {
-		if (n == 0) {
-			fprintf(stderr,
-			    "[FAIL] test_env_wait_for_output: no output from process "
-			    "within %dms\n",
-			    waited);
-		} else if (errno != 0) {
-			fprintf(stderr,
-			    "[FAIL] test_env_wait_for_output: read fd %d failed after %dms: %s\n",
-			    outfd, waited, strerror(errno));
-		} else {
-			fprintf(stderr,
-			    "[FAIL] test_env_wait_for_output: read fd %d returned %zd on fd after %dms\n",
-			    outfd, n, waited);
-		}
-	}
-	return n > 0;
+static bool
+test_env_wait_for_no_output_with_clock(
+    int outfd, int timeout_ms, int poll_ms, const test_env_wait_clock *clock)
+{
+	char                 buf[2] = { 0 };
+	test_env_read_status status = test_env_read_fd_until(outfd, buf, sizeof(buf),
+	    timeout_ms, poll_ms, true, clock, NULL);
+	return status == TEST_ENV_READ_TIMEOUT || status == TEST_ENV_READ_EOF;
 }
 
 static bool
 test_env_wait_for_no_output(int outfd, int timeout_ms, int poll_ms)
 {
-	int flags;
-	int original_flags;
-	int waited = 0;
-	ssize_t n = -1;
-	char    buf = '\0';
-
-	if (outfd < 0) {
-		return false;
-	}
-	flags = fcntl(outfd, F_GETFL, 0);
-	if (flags == -1) {
-		return false;
-	}
-	original_flags = flags;
-	if ((flags & O_NONBLOCK) == 0) {
-		if (fcntl(outfd, F_SETFL, flags | O_NONBLOCK) != 0) {
-			return false;
-		}
-	}
-
-	if (poll_ms <= 0) {
-		poll_ms = 25;
-	}
-
-	while (waited < timeout_ms) {
-		errno = 0;
-		n     = read(outfd, &buf, 1);
-		if (n > 0 || n == 0 ||
-		    (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR)) {
-			goto done;
-		}
-		nng_msleep(poll_ms);
-		waited += poll_ms;
-	}
-
-done:
-	if ((original_flags & O_NONBLOCK) == 0) {
-		fcntl(outfd, F_SETFL, original_flags);
-	}
-	return n <= 0;
+	return test_env_wait_for_no_output_with_clock(outfd, timeout_ms, poll_ms,
+	    &test_env_real_wait_clock);
 }
 
 static bool

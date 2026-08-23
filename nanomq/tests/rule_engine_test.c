@@ -31,18 +31,14 @@ run_rule_request(const char *request, const char *status, int code)
 {
 	FILE *fd;
 	char  response[8192] = { 0 };
-	size_t used          = 0;
 
 	fd = test_env_popen(request, "r");
 	if (fd == NULL) {
 		fprintf(stderr, "[FAIL] failed to start rule API request\n");
 		return false;
 	}
-	while (used + 1 < sizeof(response) &&
-	    fgets(response + used, sizeof(response) - used, fd) != NULL) {
-		used = strlen(response);
-	}
-	if (test_env_pclose_timeout(fd, 6000) == -1) {
+	if (!test_env_read_stream_timeout(fd, response, sizeof(response), 6000, 25) ||
+	    test_env_pclose_timeout(fd, 6000) == -1) {
 		fprintf(stderr, "[FAIL] rule API request could not be reaped\n");
 		return false;
 	}
@@ -59,14 +55,15 @@ wait_for_rule_api(uint16_t rest_port)
 	    "--connect-timeout 1 --max-time 1 "
 	    "'http://127.0.0.1:%hu/api/v4'", rest_port);
 
-	for (int i = 0; i < 20; ++i) {
+	for (int i = 0; i < 10; ++i) {
 		FILE *fd = test_env_popen(request, "r");
 		char  response[512] = { 0 };
 
 		if (fd != NULL) {
-			(void) fread(response, 1, sizeof(response) - 1, fd);
-			test_env_pclose_timeout(fd, 2000);
-			if (strstr(response, RULE_HTTP_OK) != NULL) {
+			bool read_ok = test_env_read_stream_timeout(
+			    fd, response, sizeof(response), 1000, 25);
+			bool close_ok = test_env_pclose_timeout(fd, 2000) != -1;
+			if (read_ok && close_ok && strstr(response, RULE_HTTP_OK) != NULL) {
 				return true;
 			}
 		}
@@ -128,7 +125,6 @@ main(void)
 	FILE *sub;
 	FILE *pub;
 	char  output[256] = { 0 };
-	struct pollfd sub_poll = { 0 };
 
 	snprintf(sub_command, sizeof(sub_command),
 	    "mosquitto_sub -h 127.0.0.1 -p %s -t rule/output -q 1 -C 1 -W 8",
@@ -142,12 +138,9 @@ main(void)
 	pub = test_env_popen(pub_command, "r");
 	assert(pub != NULL);
 	assert(test_env_pclose_timeout(pub, 10000) == 0);
-	sub_poll.fd     = fileno(sub);
-	sub_poll.events = POLLIN | POLLHUP;
-	assert(poll(&sub_poll, 1, 10000) > 0);
-	assert(fgets(output, sizeof(output), sub) != NULL);
+	assert(test_env_read_stream_timeout(sub, output, sizeof(output), 9000, 25));
 	assert(strstr(output, "rule_message") != NULL);
-	assert(test_env_pclose_timeout(sub, 10000) == 0);
+	assert(test_env_pclose_timeout(sub, 2000) == 0);
 #endif
 
 	broker_stop_for_test();

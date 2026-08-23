@@ -1,6 +1,7 @@
 from cmath import log
 from fileinput import close
 import os
+import socket
 import subprocess
 import shlex
 import sys
@@ -32,10 +33,12 @@ nanomq_log_path = "/tmp/nanomq_test.log"
 nanomq_cmd = "nanomq start --conf ./.github/scripts/nanomq.conf --url tls+nmq-tcp://0.0.0.0:8883 --http --cacert etc/certs/cacert.pem --cert etc/certs/cert.pem --key etc/certs/key.pem --qos_duration 1 --log_level debug  --log_stdout false --log_file /tmp/nanomq_test.log"
 
 def print_nanomq_log():
-    log_lines = open(nanomq_log_path, 'r', encoding='utf-8', errors='replace')
-    for line in log_lines:
-        print(line)
-    log_lines.close()
+    if not exists(nanomq_log_path):
+        print("nanomq log was not created")
+        return
+    with open(nanomq_log_path, 'r', encoding='utf-8', errors='replace') as log_lines:
+        for line in log_lines:
+            print(line, end='')
 
 
 def stop_nanomq():
@@ -47,6 +50,25 @@ def stop_nanomq():
     except subprocess.TimeoutExpired:
         nanomq.kill()
         nanomq.wait()
+
+
+def wait_for_nanomq(timeout_sec=10):
+    deadline = time.monotonic() + timeout_sec
+    while time.monotonic() < deadline:
+        if nanomq.poll() is not None:
+            print("nanomq exited during startup")
+            print_nanomq_log()
+            raise AssertionError
+        try:
+            with socket.create_connection(("127.0.0.1", 8883), timeout=0.25):
+                return
+        except OSError:
+            time.sleep(0.05)
+
+    stop_nanomq()
+    print("nanomq did not open its TLS listener within " + str(timeout_sec) + "s")
+    print_nanomq_log()
+    raise AssertionError
 
 
 def run_bounded(name, fn, timeout_sec=120):
@@ -95,7 +117,7 @@ if __name__=='__main__':
                            errors='replace')
                            
 
-    time.sleep(2)
+    wait_for_nanomq()
 
 
     run_test("mqtt v311", mqtt_test)

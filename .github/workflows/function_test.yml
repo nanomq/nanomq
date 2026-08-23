@@ -41,6 +41,6 @@ jobs:
     - name: test
       # A hung test should fail with the log so far, not hold the runner
       # indefinitely; long-running stages have explicit bounds where possible.
-      timeout-minutes: 15
+      timeout-minutes: 10
       run: |
         python3 .github/scripts/test.py
