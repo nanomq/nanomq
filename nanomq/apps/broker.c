@@ -1162,6 +1162,9 @@ broker(conf *nanomq_conf)
 	// add nng_proxy ctx
 	if (nanomq_conf->nng_proxy.sub_enable) {
 		for (size_t t = 0; t < nanomq_conf->nng_proxy.sub_count; t++) {
+			if (!nanomq_conf->nng_proxy.snodes[t]->enable) {
+				continue;
+			}
 			// Only need ctx for SUB side. one node as one ctx.
 			num_work += 1;
 			nanomq_conf->total_ctx += 1;
@@ -1267,8 +1270,11 @@ broker(conf *nanomq_conf)
 	}
 	// create nng_proxy sub ctx
 	if (nanomq_conf->nng_proxy.sub_enable) {
-		size_t t = 0;
-		for (size_t i = tmp; i < tmp + nanomq_conf->nng_proxy.sub_count; i++) {
+		size_t i = tmp;
+		for (size_t t = 0; t < nanomq_conf->nng_proxy.sub_count; t++) {
+			if (!nanomq_conf->nng_proxy.snodes[t]->enable) {
+				continue;
+			}
 			works[i]          = proto_work_init(sock,
 			    nanomq_conf->nng_proxy.snodes[t]->sub_sock,
 				PROTO_NNG_BRIDGE,
@@ -1276,13 +1282,16 @@ broker(conf *nanomq_conf)
 			works[i]->work_id = i; // assign id to work
 						works[i]->nng_snode_idx = t;
 			nng_proxy_sub_init(nanomq_conf->nng_proxy.snodes[t], works[i]);
-			t ++;
+			i ++;
 		}
-		tmp += nanomq_conf->nng_proxy.sub_count;
+		tmp = i;
 	}
 	// init nng_proxy pub, but without ctx
 	if (nanomq_conf->nng_proxy.pub_enable) {
 		for (size_t i = 0; i < nanomq_conf->nng_proxy.pub_count; i++) {
+			if (!nanomq_conf->nng_proxy.pnodes[i]->enable) {
+				continue;
+			}
 			nng_proxy_pub_init(nanomq_conf->nng_proxy.pnodes[i]);
 			// Is it necessary to init a conn_param for pub also?
 		}
