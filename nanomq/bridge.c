@@ -2063,8 +2063,13 @@ bridge_pub_handler(nano_work *work)
 
 					// what if send qos msg failed?
 					// nanosdk deal with fail send and close the pipe
-					if (nng_aio_busy(node->bridge_aio[index]) || 
-						!nng_atomic_get_bool(node->connected)) {
+					if (nng_aio_busy(node->bridge_aio[index]) ||
+					// put SQLite cache to use first
+						(!nng_atomic_get_bool(node->connected)
+#if defined(NNG_SUPP_SQLITE)
+						&& !node->sqlite->enable
+#endif
+						)) {
 						if (qos == 0) {
 							nng_msg_free(bridge_msg);
 							log_warn(
@@ -2083,7 +2088,7 @@ bridge_pub_handler(nano_work *work)
 								log_warn("Msg lost! put msg to ctx_msgs failed!");
 								nng_msg_free(bridge_msg);
 							} else {
-								log_info("msg cached!!");
+								log_debug("msg cached in mem lmq!");
 							}
 						}
 					} else {
