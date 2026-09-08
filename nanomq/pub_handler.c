@@ -1632,10 +1632,8 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 	topic        = work->pub_packet->var_header.publish.topic_name.body;
 	uint32_t len = work->pub_packet->var_header.publish.topic_name.len;
 
-	// deal with topic alias BEFORE any ACL check: a v5 PUBLISH that
-	// reuses a topic alias carries an empty topic name, and parsing
-	// such an empty topic in the ACL logic below would reject the
-	// publish even if all auth switches are disabled (issue #658)
+	// deal with topic alias BEFORE any ACL check in case a v5 PUBLISH that
+	// reuses a topic alias carries an empty topic name
 	if (proto == MQTT_PROTOCOL_VERSION_v5) {
 		property_data *pdata = property_get_value(
 		    work->pub_packet->var_header.publish.properties,
