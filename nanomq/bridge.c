@@ -962,10 +962,13 @@ bridge_quic_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 		nng_mtx_unlock(node->mtx);
 		return;
 	}
-	nng_atomic_set_bool(node->connected, true);
 
 	// get connect reason
 	nng_pipe_get_int(p, NNG_OPT_MQTT_CONNECT_REASON, &reason);
+	if (reason != 0)
+		nng_mtx_unlock(node->mtx);
+		return;
+	nng_atomic_set_bool(node->connected, true);
 	addr = nano_pipe_get_local_address(p);
 	port = nano_pipe_get_local_port(p);
 	// get property for MQTT V5
@@ -974,7 +977,7 @@ bridge_quic_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	log_info("Bridge client connected! RC [%d]", reason);
 	log_info("Local ip4 address [%s] port [%d]", addr, port);
 
-	if (reason == 0 && param->config->sub_count > 0) {
+	if (param->config->sub_count > 0) {
 		nng_mqtt_client *client = param->client;
 		if (client == NULL) {
 			log_info("Orphaned bridge client ignored during connect callback.");
@@ -1222,16 +1225,19 @@ bridge_tcp_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	int           reason = 0;
 
 	nng_mtx_lock(node->mtx);
-	nng_atomic_set_bool(param->config->connected, true);
 	// get connect reason
 	nng_pipe_get_int(p, NNG_OPT_MQTT_CONNECT_REASON, &reason);
+	if (reason != 0)
+		nng_mtx_unlock(node->mtx);
+		return;
+	nng_atomic_set_bool(param->config->connected, true);
 	// get property for MQTT V5
 	// property *prop;
 	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_CONNECT_PROPERTY, &prop);
 	log_info("Bridge [%s] connected! RC [%d]", param->config->address, reason);
 
 	/* MQTT SUBSCRIBE */
-	if (reason == 0 && param->config->sub_count > 0) {
+	if (param->config->sub_count > 0) {
 		nng_mqtt_client *client = param->client;
 		if (client == NULL) {
 			log_info("Orphaned bridge client ignored during connect callback.");
