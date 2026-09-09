@@ -966,9 +966,10 @@ bridge_quic_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 
 	// get connect reason
 	nng_pipe_get_int(p, NNG_OPT_MQTT_CONNECT_REASON, &reason);
-	if (reason != 0)
+	if (reason != 0) {
 		nng_mtx_unlock(node->mtx);
 		return;
+	}
 	nng_atomic_set_bool(node->connected, true);
 	addr = nano_pipe_get_local_address(p);
 	port = nano_pipe_get_local_port(p);
@@ -1228,9 +1229,10 @@ bridge_tcp_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	nng_mtx_lock(node->mtx);
 	// get connect reason
 	nng_pipe_get_int(p, NNG_OPT_MQTT_CONNECT_REASON, &reason);
-	if (reason != 0)
+	if (reason != 0) {
 		nng_mtx_unlock(node->mtx);
 		return;
+	}
 	nng_atomic_set_bool(param->config->connected, true);
 	// get property for MQTT V5
 	// property *prop;
@@ -1649,6 +1651,14 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	if (reload_lock == NULL) {
 		nng_mtx_alloc(&reload_lock);
 	}
+	// alloc an AIO for each ctx bridging use only
+	node->bridge_aio = nng_alloc(config->total_ctx * sizeof(nng_aio *));
+	if ((rv = nng_aio_alloc(
+		         &node->resend_aio, bridge_resend_cb, node)) != 0) {
+			NANO_NNG_FATAL("bridge_aio nng_aio_alloc", rv);
+	}
+	node->sock = (void *) sock;
+	node->bridge_arg = (void *) bridge_arg;
 
 	if (0 == strncmp(node->address, tcp_scheme, strlen(tcp_scheme)) ||
 	    0 == strncmp(node->address, tls_scheme, strlen(tls_scheme))) {
@@ -1660,19 +1670,12 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	} else {
 		nng_atomic_free_bool(bridge_arg->quic_subscribed);
 		nng_atomic_free_bool(bridge_arg->reloading);
+		nng_aio_free(node->resend_aio);
 		nng_free(bridge_arg, sizeof(bridge_param));
 		log_error("Unsupported bridge protocol.\n");
 		return -1;
 	}
 
-	// alloc an AIO for each ctx bridging use only
-	node->bridge_aio = nng_alloc(config->total_ctx * sizeof(nng_aio *));
-	if ((rv = nng_aio_alloc(
-		         &node->resend_aio, bridge_resend_cb, node)) != 0) {
-			NANO_NNG_FATAL("bridge_aio nng_aio_alloc", rv);
-	}
-	node->sock = (void *) sock;
-	node->bridge_arg = (void *) bridge_arg;
 
 	uint32_t num;
 	for ( num = 0; num < config->total_ctx; num++ ) {
