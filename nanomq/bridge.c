@@ -881,7 +881,7 @@ int
 hybrid_bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 {
 	bridge_param *bridge_arg = NULL;
-	if ((bridge_arg = nng_alloc(sizeof(bridge_param))) == NULL) {
+	if ((bridge_arg = nng_zalloc(sizeof(bridge_param))) == NULL) {
 		log_error("memory error in allocating bridge client");
 		return NNG_ENOMEM;
 	}
@@ -900,6 +900,7 @@ hybrid_bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	bridge_arg->config = node;
 	bridge_arg->sock   = sock;
 	bridge_arg->conf   = config;
+	bridge_arg->client = NULL;
 	if (reload_lock == NULL) {
 		nng_mtx_alloc(&reload_lock);
 	}
@@ -1621,7 +1622,7 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	int rv;
 
 	bridge_param *bridge_arg;
-	bridge_arg = (bridge_param *) nng_alloc(sizeof(bridge_param));
+	bridge_arg = (bridge_param *) nng_zalloc(sizeof(bridge_param));
 	if (bridge_arg == NULL) {
 		log_error("memory error in allocating bridge client");
 		return NNG_ENOMEM;
