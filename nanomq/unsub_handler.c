@@ -196,6 +196,7 @@ unsub_ctx_handle(nano_work *work)
 	struct client *cli     = NULL;
 	void *         cli_ctx = NULL;
 	int rv;
+	conn_param *cp = (conn_param *) nng_msg_get_conn_param(work->msg);
 
 	client_id = (char *) conn_param_get_clientid(
 	    (conn_param *) nng_msg_get_conn_param(work->msg));
@@ -212,6 +213,16 @@ unsub_ctx_handle(nano_work *work)
 		log_info("UnSub topic [%s] in client [%s]. pid [%d]",
 		         topic_str, client_id, work->unsub_pkt->packet_id);
 
+		// must match the (possibly rewritten) filter registered at
+		// SUBSCRIBE time, see nmq_mount_point_rewrite_filter() usage
+		// in sub_ctx_handle()
+		char *rewritten_topic = nmq_mount_point_rewrite_filter(
+		    cp ? conn_param_get_mount_point(cp) : NULL, topic_str);
+		if (rewritten_topic != NULL) {
+			nng_free(topic_str, tn->topic.len + 1);
+			topic_str = rewritten_topic;
+		}
+
 		rv = sub_ctx_del(work->db, topic_str, work->pid.id);
 
 		if (rv == 0) { // find the topic
@@ -223,7 +234,7 @@ unsub_ctx_handle(nano_work *work)
 		}
 
 		// free local varibale
-		nng_free(topic_str, tn->topic.len + 1);
+		nng_free(topic_str, strlen(topic_str) + 1);
 
 		tn = tn->next;
 	}

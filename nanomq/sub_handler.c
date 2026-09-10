@@ -410,12 +410,24 @@ sub_ctx_handle(nano_work *work)
 	nng_msg **retain = work->msg_ret;
 	tn = work->sub_pkt->node;
 	while (tn != NULL && auth_http_reject == false) {
+		char *rewritten_topic = NULL;
 		topic_len = tn->topic.len;
 		topic_str = tn->topic.body;
 		log_debug("topicLen: [%d] body: [%s]", topic_len, topic_str);
 
 		if (!topic_str)
 			goto next;
+
+		// internal/stored topic is always the mount_point-prefixed one;
+		// $SYS and unmounted listeners are left untouched (see nanomq.h)
+		rewritten_topic = nmq_mount_point_rewrite_filter(
+		    work->cparam ? conn_param_get_mount_point(work->cparam)
+		                 : NULL,
+		    topic_str);
+		if (rewritten_topic != NULL) {
+			topic_str = rewritten_topic;
+			topic_len = (int) strlen(rewritten_topic);
+		}
 #ifdef ACL_SUPP
 		/* Add items which not included in dbhash */
 		if (work->config->acl.enable) {
@@ -503,6 +515,9 @@ sub_ctx_handle(nano_work *work)
 		}
 
 	next:
+		if (rewritten_topic != NULL) {
+			nng_free(rewritten_topic, strlen(rewritten_topic));
+		}
 		tn = tn->next;
 	}
 
