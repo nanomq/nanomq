@@ -957,8 +957,8 @@ set_auth_http_req(cJSON *json, const char *conf_path, conf_auth_http_req *req,
 				// str_append(&param_str, "=");
 				// str_append(&param_str, "%d");
 				update_string(
-				    req_param[index]->name, "protocol");
-				update_var(req_param[index]->type, PROTOCOL);
+				    req_param[index]->name, "subject");
+				update_var(req_param[index]->type, SUBJECT);
 			} else if (nng_strcasecmp(arg, "mountpoint") == 0) {
 				// str_append(&param_str, "mountpoint");
 				// str_append(&param_str, "=");
