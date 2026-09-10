@@ -116,6 +116,12 @@ static endpoints api_ep[] = {
 	    .descr  = "Lookup a client via username in the cluster",
 	},
 	{
+	    .path   = "/clients/:clientid",
+	    .name   = "kickout_client",
+	    .method = "DELETE",
+	    .descr  = "Kick out a client by clientid, closing its connection",
+	},
+	{
 	    .path   = "/subscriptions/",
 	    .name   = "list_subscriptions",
 	    .method = "GET",
@@ -384,6 +390,8 @@ static http_msg  put_rules(
     http_msg *msg, kv **params, size_t param_num, const char *rule_id);
 static http_msg  delete_rules(
     http_msg *msg, kv **params, size_t param_num, const char *rule_id);
+static http_msg  delete_clients(http_msg *msg, kv **params, size_t param_num,
+    const char *client_id, nng_socket *broker_sock);
 static http_msg post_rules(http_msg *msg);
 static http_msg get_tree(http_msg *msg);
 static http_msg post_ctrl(http_msg *msg, const char *type);
@@ -1201,6 +1209,12 @@ process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 		    strcmp(uri_ct->sub_tree[1]->node, "rules") == 0) {
 			ret = delete_rules(msg, uri_ct->params,
 			    uri_ct->params_count, uri_ct->sub_tree[2]->node);
+		} else if (uri_ct->sub_count == 3 &&
+		    uri_ct->sub_tree[2]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "clients") == 0) {
+			ret = delete_clients(msg, uri_ct->params,
+			    uri_ct->params_count, uri_ct->sub_tree[2]->node,
+			    hconfig->broker_sock);
 		} else {
 			status = NNG_HTTP_STATUS_NOT_FOUND;
 			code   = UNKNOWN_MISTAKE;
@@ -1614,6 +1628,92 @@ bad_request:
  	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
 
  	cJSON_free(dest);
+
+	return res;
+}
+
+typedef struct {
+	const char *client_id;
+	uint32_t    pipe_id;
+	bool        found;
+	bool        online;
+} kick_client_info;
+
+static void
+kick_client_cb(void *key, void *value, void *arg)
+{
+	kick_client_info *info    = arg;
+	uint32_t          pipe_id = *(uint32_t *) key;
+	nng_pipe          pipe    = { .id = pipe_id };
+
+	if (info->found) {
+		// already located the target pipe, skip remaining entries
+		return;
+	}
+
+	conn_param *cp  = nng_pipe_cparam(pipe);
+	const char *cid = conn_param_get_clientid(cp);
+	if (cid == NULL || strcmp(info->client_id, cid) != 0) {
+		conn_param_free(cp);
+		return;
+	}
+
+	info->found   = true;
+	info->pipe_id = pipe_id;
+	// nng_pipe_status returns true when the pipe is a cached/offline session
+	info->online  = !nng_pipe_status(pipe);
+
+	conn_param_free(cp);
+}
+
+// DELETE /clients/:clientid - kick out a connected client by closing its
+// underlying pipe/connection. Persisted (offline) sessions and unknown
+// client ids are reported as CLIENT_IS_OFFLINE since there is no live
+// connection to close.
+static http_msg
+delete_clients(http_msg *msg, kv **params, size_t param_num,
+    const char *client_id, nng_socket *broker_sock)
+{
+	http_msg res = { .status = NNG_HTTP_STATUS_OK };
+
+	if (client_id == NULL || strlen(client_id) == 0) {
+		return error_response(
+		    msg, NNG_HTTP_STATUS_BAD_REQUEST, REQ_PARAM_ERROR);
+	}
+
+	nng_id_map *pipe_id_map;
+	if (nng_socket_get_ptr(*broker_sock, NMQ_OPT_MQTT_PIPES,
+	        (void **) &pipe_id_map) != 0) {
+		return error_response(
+		    msg, NNG_HTTP_STATUS_INTERNAL_SERVER_ERROR, UNKNOWN_MISTAKE);
+	}
+
+	kick_client_info info = {
+		.client_id = client_id,
+		.pipe_id   = 0,
+		.found     = false,
+		.online    = false,
+	};
+
+	nng_id_map_foreach2(pipe_id_map, kick_client_cb, &info);
+
+	if (!info.found || !info.online) {
+		return error_response(
+		    msg, NNG_HTTP_STATUS_NOT_FOUND, CLIENT_IS_OFFLINE);
+	}
+
+	nng_pipe pipe = { .id = info.pipe_id };
+	nng_pipe_close(pipe);
+
+	cJSON *res_obj = cJSON_CreateObject();
+	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+	char *dest = cJSON_PrintUnformatted(res_obj);
+
+	put_http_msg(
+	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
+
+	cJSON_free(dest);
+	cJSON_Delete(res_obj);
 
 	return res;
 }
