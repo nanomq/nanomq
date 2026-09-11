@@ -29,8 +29,10 @@
 #include "include/version.h"
 #include "include/mqtt_api.h"
 
+#include <ctype.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <inttypes.h>
 #include <string.h>
 #include <time.h>
@@ -369,6 +371,7 @@ static kv **        uri_param_parse(const char *path, size_t *count);
 static void         uri_param_free(uri_content *ct);
 static uri_content *uri_parse(const char *uri);
 static void         uri_free(uri_content *ct);
+static char        *uri_component_decode(const char *in);
 
 static http_msg error_response(
     http_msg *msg, uint16_t status, enum result_code code);
@@ -1212,9 +1215,13 @@ process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 		} else if (uri_ct->sub_count == 3 &&
 		    uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "clients") == 0) {
+			char *client_id =
+			    uri_component_decode(uri_ct->sub_tree[2]->node);
 			ret = delete_clients(msg, uri_ct->params,
-			    uri_ct->params_count, uri_ct->sub_tree[2]->node,
+			    uri_ct->params_count,
+			    client_id ? client_id : uri_ct->sub_tree[2]->node,
 			    hconfig->broker_sock);
+			nng_strfree(client_id);
 		} else {
 			status = NNG_HTTP_STATUS_NOT_FOUND;
 			code   = UNKNOWN_MISTAKE;
@@ -1630,6 +1637,37 @@ bad_request:
  	cJSON_free(dest);
 
 	return res;
+}
+
+// Percent-decode a URI path component (RFC 3986) so client ids containing
+// reserved characters (e.g. '/' encoded as %2F) match the stored MQTT
+// Client Identifier. Returns a newly nng_alloc'd string the caller must
+// free with nng_strfree, or NULL on allocation failure.
+static char *
+uri_component_decode(const char *in)
+{
+	if (in == NULL) {
+		return NULL;
+	}
+	size_t len = strlen(in);
+	char  *out = nng_alloc(len + 1);
+	if (out == NULL) {
+		return NULL;
+	}
+	size_t j = 0;
+	for (size_t i = 0; i < len; i++) {
+		if (in[i] == '%' && i + 2 < len &&
+		    isxdigit((unsigned char) in[i + 1]) &&
+		    isxdigit((unsigned char) in[i + 2])) {
+			char hex[3] = { in[i + 1], in[i + 2], '\0' };
+			out[j++] = (char) strtol(hex, NULL, 16);
+			i += 2;
+		} else {
+			out[j++] = in[i];
+		}
+	}
+	out[j] = '\0';
+	return out;
 }
 
 typedef struct {
