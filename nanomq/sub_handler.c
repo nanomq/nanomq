@@ -411,6 +411,7 @@ sub_ctx_handle(nano_work *work)
 	tn = work->sub_pkt->node;
 	while (tn != NULL && auth_http_reject == false) {
 		char *rewritten_topic = NULL;
+		bool  oom             = false;
 		topic_len = tn->topic.len;
 		topic_str = tn->topic.body;
 		log_debug("topicLen: [%d] body: [%s]", topic_len, topic_str);
@@ -423,7 +424,12 @@ sub_ctx_handle(nano_work *work)
 		rewritten_topic = nmq_mount_point_rewrite_filter(
 		    work->cparam ? conn_param_get_mount_point(work->cparam)
 		                 : NULL,
-		    topic_str);
+		    topic_str, &oom);
+		if (oom) {
+			log_error("mount_point rewrite failed: out of memory");
+			tn->reason_code = UNSPECIFIED_ERROR;
+			goto next;
+		}
 		if (rewritten_topic != NULL) {
 			topic_str = rewritten_topic;
 			topic_len = (int) strlen(rewritten_topic);
@@ -516,7 +522,7 @@ sub_ctx_handle(nano_work *work)
 
 	next:
 		if (rewritten_topic != NULL) {
-			nng_free(rewritten_topic, strlen(rewritten_topic));
+			nng_free(rewritten_topic, strlen(rewritten_topic) + 1);
 		}
 		tn = tn->next;
 	}

@@ -882,6 +882,7 @@ nmq_fanout_publish(nano_work *work, nng_msg *smsg,
 		const char *mp = rcp == NULL ? NULL : conn_param_get_mount_point(rcp);
 		nng_msg *out    = smsg;
 		bool     cloned = false;
+		bool     skip   = false;
 
 		if (mp != NULL && mp[0] != '\0') {
 			size_t mp_len = strlen(mp);
@@ -894,10 +895,17 @@ nmq_fanout_publish(nano_work *work, nng_msg *smsg,
 				if (nng_msg_alloc(&out, 0) == 0) {
 					nng_msg_set_cmd_type(
 					    out, nng_msg_cmd_type(smsg));
-					encode_pub_message(out, work, PUBLISH);
-					cloned = true;
+					if (encode_pub_message(out, work, PUBLISH)) {
+						cloned = true;
+					} else {
+						// never submit a half-encoded message
+						nng_msg_free(out);
+						skip = true;
+					}
 				} else {
-					out = smsg;
+					// don't fall back to smsg: it still carries
+					// the internal mount_point-prefixed topic
+					skip = true;
 				}
 				topic->body = orig_body;
 				topic->len  = orig_len;
@@ -905,6 +913,9 @@ nmq_fanout_publish(nano_work *work, nng_msg *smsg,
 		}
 		conn_param_free(rcp);
 
+		if (skip) {
+			continue;
+		}
 		if (!cloned) {
 			nng_msg_clone(out);
 		}
