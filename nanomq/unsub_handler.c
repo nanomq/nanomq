@@ -216,8 +216,17 @@ unsub_ctx_handle(nano_work *work)
 		// must match the (possibly rewritten) filter registered at
 		// SUBSCRIBE time, see nmq_mount_point_rewrite_filter() usage
 		// in sub_ctx_handle()
+		bool  oom             = false;
 		char *rewritten_topic = nmq_mount_point_rewrite_filter(
-		    cp ? conn_param_get_mount_point(cp) : NULL, topic_str);
+		    cp ? conn_param_get_mount_point(cp) : NULL, topic_str,
+		    &oom);
+		if (oom) {
+			log_error("mount_point rewrite failed: out of memory");
+			tn->reason_code = UNSPECIFIED_ERROR;
+			nng_free(topic_str, tn->topic.len + 1);
+			tn = tn->next;
+			continue;
+		}
 		if (rewritten_topic != NULL) {
 			nng_free(topic_str, tn->topic.len + 1);
 			topic_str = rewritten_topic;
