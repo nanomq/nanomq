@@ -139,7 +139,12 @@ core/file 增 `nni_file_exists/size` 中间层,公共 `nng.h` 暴露
 ## 5. 编译步骤
 
 ### 5.1 环境
-- Zephyr 4.x west workspace(SDK 含 qemu_x86 hosttools);Zephyr checkout **必须**含 §5.4 补丁
+- Zephyr 4.x west workspace;**`west` 来自该工作区的 python venv**(不在系统 `PATH` 上),
+  先 `source <venv>/bin/activate`,再 `export ZEPHYR_SDK_INSTALL_DIR=<SDK 目录>`
+  (本文验证环境:venv 在 `~/zephyr-venv`,SDK 1.0.1)
+- Zephyr checkout **必须**含 §5.4 补丁
+- qemu 从 Zephyr SDK 的 hosttools 或 `PATH` 上取(实测环境用的是发行版包
+  `/usr/bin/qemu-system-i386`,SDK 里没有 hosttools 那一份)
 - 验收另需 mosquitto-clients(实测环境为 Fedora;任意发行版均可)
 - 代码同步:`git submodule update --init nng`(锁定 `c66e0cb`)
 
