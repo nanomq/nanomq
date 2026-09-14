@@ -1,7 +1,7 @@
 # 在 Fedora 上使用 Zephyr 和 ESP\-IDF 编译 ESP32\-S3 完整指南
 
 > **适用范围**：本指南面向 **Fedora**，是
-> [demo/nanomq_esp32s3_broker](README.md) 的环境搭建参考。其他发行版步骤相同，
+> [demo/nanomq_zephyr_esp32s3](README.md) 的环境搭建参考。其他发行版步骤相同，
 > 只需替换包管理器与包名（如 Debian/Ubuntu 的 `apt`）。文中出现的路径
 > （如 `~/Projects/EMQ/ZephyrProject`）仅为示例，可自行选择。
 

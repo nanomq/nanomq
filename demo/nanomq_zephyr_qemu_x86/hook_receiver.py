@@ -11,7 +11,7 @@ Run it on the machine the broker can reach at CONFIG_BROKER_WEBHOOK_URL:
   * qemu_x86 — 10.0.2.2 is SLIRP's alias for the machine running qemu, so
     the receiver belongs on that same machine (no container needed):
 
-        python3 demo/zephyr_broker/hook_receiver.py --port 18080 --out /tmp/webhook.log
+        python3 demo/nanomq_zephyr_qemu_x86/hook_receiver.py --port 18080 --out /tmp/webhook.log
 
   * real board — the URL has to be the LAN address of whichever machine
     runs this, set in local.conf:

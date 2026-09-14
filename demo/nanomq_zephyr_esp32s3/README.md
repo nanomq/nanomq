@@ -5,7 +5,7 @@ the NanoNNG submodule `nng/`) on an **ESP32-S3** over **Wi-Fi (STA) +
 DHCP**, demonstrated on the Espressif **ESP32-S3-LCD-EV-Board** with an
 ESP32-S3-WROOM-1-N16R16V module (16 MB flash + 16 MB octal PSRAM).
 
-Sibling of [demo/zephyr_broker](../zephyr_broker/) (qemu_x86): same app
+Sibling of [demo/nanomq_zephyr_qemu_x86](../nanomq_zephyr_qemu_x86/) (qemu_x86): same app
 sources and NanoNNG ExternalProject build, different board/networking
 layer.  Feature surface here matches the qemu demo: MQTT over TCP (:1883) +
 REST API (:8081, Basic auth `admin`/`public`) + MQTT over WebSocket
@@ -59,12 +59,12 @@ Final footprint (linker report): FLASH ~958 KB, internal SRAM
 ## Build
 
 ```sh
-west build -b esp32s3_devkitc/esp32s3/procpu demo/nanomq_esp32s3_broker \
+west build -b esp32s3_devkitc/esp32s3/procpu demo/nanomq_zephyr_esp32s3 \
     -- -DEXTRA_CONF_FILE=local.conf     # Wi-Fi credentials
 ```
 
 Without `-d` the build lands next to the app
-(`demo/nanomq_esp32s3_broker/build/`, git-ignored) and `west flash` from
+(`demo/nanomq_zephyr_esp32s3/build/`, git-ignored) and `west flash` from
 the repo root picks it up.  The bring-up record was produced with an
 explicit `-d` into the west workspace instead; pass the same directory to
 both commands:
@@ -72,7 +72,7 @@ both commands:
 ```sh
 west build -b esp32s3_devkitc/esp32s3/procpu \
     -d /path/to/ZephyrProject/build/esp32s3_nanomq \
-    demo/nanomq_esp32s3_broker -- -DEXTRA_CONF_FILE=local.conf
+    demo/nanomq_zephyr_esp32s3 -- -DEXTRA_CONF_FILE=local.conf
 ```
 
 `local.conf` is git-ignored; start from `local.conf.example`.  Wi-Fi
@@ -144,7 +144,7 @@ Client traffic now passes on the ESP32-S3-LCD-EV-Board:
 Run the suite against the board with:
 
 ```sh
-python3 demo/zephyr_broker/function_test.py --no-manage --addr <board-ip> \
+python3 demo/nanomq_zephyr_qemu_x86/function_test.py --no-manage --addr <board-ip> \
     --group mqtt_v311 --group mqtt_v5 --group rest_get
 ```
 
@@ -152,10 +152,10 @@ The full run, including the webhook group (see below):
 
 ```sh
 # terminal 1 — or let the suite start it itself, see below
-python3 demo/zephyr_broker/hook_receiver.py --port 18080 --out /tmp/webhook.log
+python3 demo/nanomq_zephyr_qemu_x86/hook_receiver.py --port 18080 --out /tmp/webhook.log
 
 # terminal 2
-python3 demo/zephyr_broker/function_test.py --no-manage --addr <board-ip> --webhook
+python3 demo/nanomq_zephyr_qemu_x86/function_test.py --no-manage --addr <board-ip> --webhook
 ```
 
 ### Webhook
@@ -189,7 +189,7 @@ clear of the `test/#` tree the CI WebSocket suite publishes through, since a
 POST per test message is real load over Wi-Fi.  To exercise it by hand:
 
 ```sh
-python3 demo/zephyr_broker/hook_receiver.py --port 18080 --out /tmp/webhook.log &
+python3 demo/nanomq_zephyr_qemu_x86/hook_receiver.py --port 18080 --out /tmp/webhook.log &
 mosquitto_pub -h <board-ip> -t 'hook/demo' -m 'hello'
 ```
 

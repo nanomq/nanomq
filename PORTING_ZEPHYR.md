@@ -6,7 +6,7 @@
 
 - 工作分支:nanomq `nanomq-zephyr-v1`(基于 b6f1c422,未 rebase 上游)
 - NanoNNG(nng fork)子模块:`develop` @ `a5ad52ca4`(原冻结点 `fa25da9` + 2 个修复)
-- 演示应用:`demo/zephyr_broker/`(本仓库)
+- 演示应用:`demo/nanomq_zephyr_qemu_x86/`(本仓库)
 - 目标板:qemu_x86(Zephyr 4.4 @ 11a87708d41);真实板卡适配见 §8
 - 复核:§9 待办清单 2026-09 复核 —— REST/webhook(§9-4)、持久会话/离线
   (§9-6)、$SYS client_status(§9-7)、性能(§9-10)已完成验证并补记
@@ -37,7 +37,7 @@ nanomq/  (工作分支 nanomq-zephyr-v1)
 │   └── src/platform/zephyr/zephyr_pollq_poll.c   修复:zvfs_poll 失败降级(§4/§7-10)
 └── demo/
     ├── cmake/nanonng_external.cmake      共享 NanoNNG ExternalProject 构建
-    └── zephyr_broker/                    演示应用(CMakeLists/prj.conf/main.c/stubs/
+    └── nanomq_zephyr_qemu_x86/                    演示应用(CMakeLists/prj.conf/main.c/stubs/
                                            mqtt_accept.py/hook_receiver.py 验收工具)
 ```
 
@@ -94,13 +94,13 @@ broker 应用层的 POSIX 残留是唯一硬阻断,统一用 `__ZEPHYR__` 预定
 ### demo(commit `606dfcbe`)
 ```
 demo/cmake/nanonng_external.cmake   共享构建(§5.2)
-demo/zephyr_broker/CMakeLists.txt   SOURCES 镜像 + 宏契约(§3.3)
-demo/zephyr_broker/Kconfig          app 级 Kconfig 壳(KCONFIG_ROOT 语义)
-demo/zephyr_broker/prj.conf         资源/网络配置(§5.3)
-demo/zephyr_broker/src/main.c       入口:conf 最小覆盖 → broker()
-demo/zephyr_broker/src/process_stub.c      §3.2(nng 文件缺口已上提,§4)
-demo/zephyr_broker/accept.sh        宿主验收脚本(§6.2)
-demo/zephyr_broker/README.md        构建/运行/验收速览
+demo/nanomq_zephyr_qemu_x86/CMakeLists.txt   SOURCES 镜像 + 宏契约(§3.3)
+demo/nanomq_zephyr_qemu_x86/Kconfig          app 级 Kconfig 壳(KCONFIG_ROOT 语义)
+demo/nanomq_zephyr_qemu_x86/prj.conf         资源/网络配置(§5.3)
+demo/nanomq_zephyr_qemu_x86/src/main.c       入口:conf 最小覆盖 → broker()
+demo/nanomq_zephyr_qemu_x86/src/process_stub.c      §3.2(nng 文件缺口已上提,§4)
+demo/nanomq_zephyr_qemu_x86/accept.sh        宿主验收脚本(§6.2)
+demo/nanomq_zephyr_qemu_x86/README.md        构建/运行/验收速览
 ```
 `CMakeLists.txt` 的 SOURCES 镜像自 `nanomq/nanomq/CMakeLists.txt`,剔除
 `process.c`(stub 替代)与 `tests/`,`plugin/plugin.c` 随 `NNG_ENABLE_PLUGIN=OFF`
@@ -152,17 +152,17 @@ docker exec -u root zephyr-tap sh -lc '
   cd /workdir/nanomq &&
   git submodule update --init nng &&
   ZEPHYR_TOOLCHAIN_VARIANT=zephyr ZEPHYR_SDK_INSTALL_DIR=/opt/toolchains/zephyr-sdk-1.0.1 \
-    west build -b qemu_x86 -d /workdir/build/zephyr_broker demo/zephyr_broker'
+    west build -b qemu_x86 -d /workdir/build/nanomq_zephyr_qemu_x86 demo/nanomq_zephyr_qemu_x86'
 ```
 普通(非容器)west workspace 同命令去掉两个环境变量即可;输出目录默认
-`build/zephyr_broker/`,本环境为 `/workdir/build/zephyr_broker/`。
-- NanoNNG 经 ExternalProject 编入 `build/zephyr_broker/nanonng_build/`
+`build/nanomq_zephyr_qemu_x86/`,本环境为 `/workdir/build/nanomq_zephyr_qemu_x86/`。
+- NanoNNG 经 ExternalProject 编入 `build/nanomq_zephyr_qemu_x86/nanonng_build/`
   (`cmake --build <dir> --target nng`),libnng.a 静态导入链接
 - 架构旗标(32 位 x86):`-march=i686 -mno-sse2/-sse3/-ssse3/-movbe`
   (cmpxchg8b 提供 64 位原子;剥离 SoC 的 `-march=atom`,QEMU `qemu32` CPU 不支持 movbe,#UD)
 - **坑**:子模块源改动后 `west build` 增量可能不触发 ExternalProject 重编 ——
   用 `strings zephyr.elf | grep <旧串>` 断言;必要时
-  `cmake --build build/zephyr_broker/nanonng_build --target nng` 强制
+  `cmake --build build/nanomq_zephyr_qemu_x86/nanonng_build --target nng` 强制
 - 产物:RAM 占用约 2.4 MB / 31 MB(≈1 MB 为 malloc arena)
 
 ### 5.3 prj.conf 关键项(完整见文件)
@@ -195,7 +195,7 @@ docker exec -u root zephyr-tap sh -lc '
     -serial file:/tmp/qemu3.log -display none \
     -netdev user,id=n1,hostfwd=tcp:0.0.0.0:1883-:1883,hostfwd=tcp:0.0.0.0:8081-:8081,hostfwd=tcp:0.0.0.0:8083-:8083 \
     -device e1000,netdev=n1 \
-    -kernel /workdir/build/zephyr_broker/zephyr/zephyr.elf &'
+    -kernel /workdir/build/nanomq_zephyr_qemu_x86/zephyr/zephyr.elf &'
 ```
 **就绪判据**(`docker exec zephyr-tap tail -f /tmp/qemu3.log`):依次出现
 `rtc: CMOS clock … UTC, realtime seeded` → `net: ipv4 10.0.2.15` →
@@ -237,7 +237,7 @@ iow32(dev, RCTL, RCTL_EN | RCTL_MPE | RCTL_BAM | DT_INST_PROP(inst, rdmts) << RD
 
 ### 6.2 功能验收(宿主 mosquitto)
 ```sh
-./demo/zephyr_broker/accept.sh [host] [port]   # 默认 127.0.0.1:1883
+./demo/nanomq_zephyr_qemu_x86/accept.sh [host] [port]   # 默认 127.0.0.1:1883
 # 容器开发环境:accept.sh 172.17.0.2 1883
 ```
 用例与结果(干净构建 ×2 轮,均 7/7 PASS):
@@ -413,7 +413,7 @@ REST 走 `:8081`,webhook 接收器 `hook_receiver.py` 挂在 10.0.2.2 别名
     触发条件:真实板需要运行时改配置/持久会话落盘;此前维持内嵌最小
     conf(§1),无动作
 13. **Zephyr 专用功能测试套件**(✅ 2026-09-08 8/8 全绿):
-    `demo/zephyr_broker/function_test.py` —— 宿主侧 runner,自管 qemu
+    `demo/nanomq_zephyr_qemu_x86/function_test.py` —— 宿主侧 runner,自管 qemu
     生命周期(杀旧实例 → 全新日志名启动 → 轮询就绪串 → 结束回收),8 组
     各以独立子进程执行(组级崩溃/超时隔离),`--group` 单组重跑、
     `--no-manage` 复用已在跑的 broker、`--list` 列组、`-v` 显示通过组输出。
@@ -462,26 +462,26 @@ REST 走 `:8081`,webhook 接收器 `hook_receiver.py` 挂在 10.0.2.2 别名
 # 1) 构建(§5.2 全文;镜像 zephyr-build:main 已含 SDK/工具链)
 docker exec -u root zephyr-tap sh -lc 'cd /workdir/nanomq && ZEPHYR_TOOLCHAIN_VARIANT=zephyr \
   ZEPHYR_SDK_INSTALL_DIR=/opt/toolchains/zephyr-sdk-1.0.1 \
-  west build -b qemu_x86 -d /workdir/build/zephyr_broker demo/zephyr_broker'
+  west build -b qemu_x86 -d /workdir/build/nanomq_zephyr_qemu_x86 demo/nanomq_zephyr_qemu_x86'
 # 2) 启动(先 pkill 旧实例再启动,命令全文见 §5.4);就绪判据:
 docker exec zephyr-tap sh -lc 'grep -a "NanoMQ Broker is started" /tmp/qemu3.log || tail -f /tmp/qemu3.log'
 # 3) 验收(宿主;期望 RESULT: pass=7 fail=0;IP 用 §5.4 的 docker inspect 结果)
-./demo/zephyr_broker/accept.sh 172.17.0.2 1883
+./demo/nanomq_zephyr_qemu_x86/accept.sh 172.17.0.2 1883
 # 3b) 功能测试套件(§9-13;宿主,自管 qemu 生命周期,期望 RESULT: pass=8 fail=0)
-python3 demo/zephyr_broker/function_test.py
-python3 demo/zephyr_broker/function_test.py --group ws_v5 -v      # 单组重跑
-python3 demo/zephyr_broker/function_test.py --no-manage --addr 172.17.0.2  # 复用已跑 broker
+python3 demo/nanomq_zephyr_qemu_x86/function_test.py
+python3 demo/nanomq_zephyr_qemu_x86/function_test.py --group ws_v5 -v      # 单组重跑
+python3 demo/nanomq_zephyr_qemu_x86/function_test.py --no-manage --addr 172.17.0.2  # 复用已跑 broker
 # 4) 扩展场景(§9-4/6/7:容器内跑 python,宿主跑 curl)
-docker exec -d zephyr-tap python3 /workdir/nanomq/demo/zephyr_broker/hook_receiver.py \
+docker exec -d zephyr-tap python3 /workdir/nanomq/demo/nanomq_zephyr_qemu_x86/hook_receiver.py \
     --port 18080 --out /tmp/webhook.log            # webhook 接收器(§9-4)
-docker exec zephyr-tap python3 /workdir/nanomq/demo/zephyr_broker/mqtt_accept.py 127.0.0.1 1883 \
+docker exec zephyr-tap python3 /workdir/nanomq/demo/nanomq_zephyr_qemu_x86/mqtt_accept.py 127.0.0.1 1883 \
     sub --proto 5 --clean 0 --expiry 30 --topic v5/offline --qos 1   # 离线会话(§9-6②)
 curl -s http://172.17.0.2:8081/api/v4/clients      # REST(§9-4;键为 data)
 ```
 
 ---
 
-## §22 ESP32-S3 实机 bring-up(demo/nanomq_esp32s3_broker)
+## §22 ESP32-S3 实机 bring-up(demo/nanomq_zephyr_esp32s3)
 
 实机:ESP32-S3-LCD-EV-Board(N16R16V,16 MB flash + 16 MB octal PSRAM),
 宿主 Fedora + `esp-zephyr` 环境,`west flash` + idf-monitor。验证记录
@@ -658,7 +658,7 @@ UNSUBSCRIBE**,所以 v5/v311 组连跑 6 轮全绿照样漏掉。这不是"偶�
 5. SCRAM 路径(`mqtt_tcp.c` / `mqtt_tls.c`)libc `strndup` ↔ `nng_free(pwd2, 0)`,
    由 `NNG_ENABLE_SCRAM` 关闭,当前不可达。
 6. **同现场但不同根因**(panic 长相一样,记录以免误判):
-   - `demo/zephyr_broker/src/main.c:248,286` 把**字符串字面量**赋给
+   - `demo/nanomq_zephyr_qemu_x86/src/main.c:248,286` 把**字符串字面量**赋给
      `nmq_conf->url` / `websocket.url`,而 `conf_fini` 用 `nng_strfree` 释放
      (即释放字面量;当前 `broker()` 不返回故不可达);
    - `conf_fini` 释放 `nanomq_conf`,而同一指针归 `nano_sock_fini`
@@ -723,7 +723,7 @@ worker 子进程:不存在,只剩 <defunct> 僵尸
 超时才返回。**这是 (e) 那个泄漏的第二个症状:失败不只毒化下一轮,还把
 "快速失败"伪装成"卡死"。**
 
-修复(已落地 `demo/zephyr_broker/function_test.py`,未动 vendored 上游脚本):
+修复(已落地 `demo/nanomq_zephyr_qemu_x86/function_test.py`,未动 vendored 上游脚本):
 1. worker 输出改为重定向到**临时文件**而非管道 —— 文件没有 EOF 可等;
 2. worker 以 `start_new_session=True` 启动,每次尝试后
    `os.killpg(worker_pid, SIGKILL)` —— 精确清掉它自己那一组的泄漏客户端,
@@ -843,7 +843,7 @@ Kconfig 层与 CMake 层是两个独立门禁,前者能开不代表后者会编�
 
 **为何 qemu 姊妹 demo 不接 SNTP(勿"顺手补齐")**:qemu 侧已有更优时间源 ——
 `seed_realtime_from_cmos()` 读 QEMU 仿真 CMOS RTC
-(`zephyr_broker/src/main.c:123-185`),即时且不依赖网络。而 SNTP 的自动路径在
+(`nanomq_zephyr_qemu_x86/src/main.c:123-185`),即时且不依赖网络。而 SNTP 的自动路径在
 `SYS_INIT` 执行,**先于** `main()` 里的 CMOS 播种,结果是 SNTP 的值会被 CMOS
 无条件覆盖,除多一次启动期往返外毫无收益;要让它有意义就得把 CMOS 降级为
 兜底,那是给一台本来就有 RTC 的目标增加启动延迟与复杂度。故两 demo 时间源
