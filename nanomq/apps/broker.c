@@ -1470,6 +1470,7 @@ broker(conf *nanomq_conf)
 	bool is_testing = false;
 #endif
 
+#if !defined(__ZEPHYR__) // no POSIX signal semantics; the broker loop exits on its own
 #if (defined DEBUG)  && (defined ASAN)
 	signal(SIGINT, intHandler);
 #else
@@ -1489,6 +1490,7 @@ broker(conf *nanomq_conf)
 	} while (all_signals[i++] != SIGTERM);
 #endif
 #endif
+#endif // !defined(__ZEPHYR__)
 
 #if (defined DEBUG) && (defined ASAN)
 	if (is_testing == true) {

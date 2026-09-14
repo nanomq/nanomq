@@ -203,7 +203,7 @@ log_file_init(conf_log *log)
 			return NNG_EINVAL;
 		}
 	}
-#ifndef NANO_PLATFORM_WINDOWS
+#if !defined(NANO_PLATFORM_WINDOWS) && !defined(__ZEPHYR__) // no W_OK in picolibc; file logging is off there anyway
 	if (nng_access(log->dir, W_OK) < 0) {
         log_fatal("Write %s failed, please check path\n", log->dir);
         return NNG_EINVAL;
