@@ -49,8 +49,9 @@ Final footprint (linker report): FLASH ~958 KB, internal SRAM
 ## Environment / prerequisites
 
 * A Zephyr ≥ 4.4 west workspace with its python venv — `west` lives in that
-  venv, not on the system `PATH`.  [setup-fedora-zh.md](setup-fedora-zh.md)
-  walks through creating it on Fedora.
+  venv, not on the system `PATH`.  The Fedora setup guides are available in
+  [English](setup-fedora-en.md) and
+  [简体中文](setup-fedora-zh.md).
 
 * An activated ESP-IDF.  The ESP32 build takes `west`, `esptool` and
   `idf-monitor` from the ESP-IDF environment rather than from the Zephyr

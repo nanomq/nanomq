@@ -7,9 +7,7 @@
 
 以下是在 **Fedora** 环境下，结合 **VSCode \+ ESP\-IDF** 编译 Zephyr 到 **ESP32\-S3** 的完整详细指南。
 
-
-
-本指南总结了开发过程中常见的环境冲突（如 Python 虚拟环境冲突、目录权限问题）以及 Zephyr 新版本（v4\.x/main 分支）工具链机制的变化，提供了一套最稳定、最省事的配置方案。
+本指南总结了开发过程中常见的环境问题（如 Python 虚拟环境冲突、目录权限问题），以及 Zephyr 新版本（v4\.x / main 分支）工具链机制的变化，并提供一套稳定、低维护成本的配置方案。
 
 
 
@@ -23,9 +21,9 @@
 
 1. **复用 ESP\-IDF 的 Python 环境**：避免 Zephyr 和 ESP\-IDF 两个 Python 虚拟环境（venv）互相冲突，直接将 `west` 等工具安装到 ESP\-IDF 的 venv 中。
 
-2. **使用 Zephyr SDK 作为编译器**：Zephyr 新版本（v4\.x 及 main 分支）已经移除了源码树内自带的 `espressif` 工具链 CMake 配置。编译 ESP32 系列必须依赖官方提供的 **Zephyr SDK**（其内部已包含 Espressif 专用的 Xtensa 工具链）。
+2. **使用 Zephyr SDK 工具链**：Zephyr 新版本（v4\.x 及 main 分支）已经移除了源码树内自带的 `espressif` 工具链 CMake 配置。编译 ESP32 系列必须依赖官方提供的 **Zephyr SDK**，其内部已包含 Espressif 专用的 Xtensa 工具链。
 
-3. **避免使用 ****`sudo`**：所有源码拉取、编译和构建操作必须在普通用户下进行，否则会导致严重的目录权限问题。
+3. **避免使用 `sudo`**：所有源码拉取、编译和构建操作必须在普通用户下进行，否则会导致严重的目录权限问题。
 
     
 
@@ -71,7 +69,7 @@ sudo usermod -aG dialout $USER
 
 
 
-不要使用系统全局 Python，也不要单独创建 Zephyr 的 venv，直接复用你现有的 ESP\-IDF 环境。
+不要使用系统 Python，也不要额外创建单独的 Zephyr venv；直接复用你现有的 ESP\-IDF 环境。
 
 
 
@@ -130,7 +128,7 @@ west blobs fetch hal_espressif
 
 
 
-由于新版 Zephyr 不再内置 Espressif 工具链的 CMake 描述文件，必须安装 Zephyr SDK。SDK 内部已经包含了专为 ESP32 系列优化的 `xtensa-espressif_esp32s3_zephyr-elf` 工具链。
+由于新版 Zephyr 不再内置 Espressif 工具链的 CMake 配置文件，因此必须安装 Zephyr SDK。SDK 内部已经包含了专为 ESP32 系列优化的 `xtensa-espressif_esp32s3_zephyr-elf` 工具链。
 
 
 
