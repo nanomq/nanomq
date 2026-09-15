@@ -2007,10 +2007,10 @@ encode_pub_message(
 		arr_len = put_var_integer(
 		    tmp, work->pub_packet->fixed_header.remain_len);
 		append_res = nng_msg_header_append(dest_msg, tmp, arr_len);
-		// Have to break it apart for remaining length encoder
-		if (proto == MQTT_VERSION_V5)
-			// Do not delete! msg expiry checker need this!
-			nng_mqttv5_msg_decode(dest_msg);
+		// Do not delete! msg expiry checker need this!
+		if (proto == MQTT_VERSION_V5) {
+			decode_pub_msg_expiry_property(dest_msg);
+		}
 		log_debug("header len [%ld] remain len [%d]\n",
 		    nng_msg_header_len(dest_msg),
 		    work->pub_packet->fixed_header.remain_len);
