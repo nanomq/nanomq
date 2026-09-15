@@ -40,8 +40,25 @@ def main():
     args = ap.parse_args()
 
     class Handler(BaseHTTPRequestHandler):
+        # A webhook event is a few hundred bytes.  This listener binds
+        # 0.0.0.0 and ThreadingHTTPServer gives every request its own
+        # thread, so neither the declared length nor a stalled sender may
+        # be allowed to hold one open indefinitely.
+        MAX_BODY = 64 * 1024
+        READ_TIMEOUT = 5.0
+
         def do_POST(self):
-            n = int(self.headers.get("Content-Length", 0))
+            try:
+                n = int(self.headers.get("Content-Length", 0))
+            except (TypeError, ValueError):
+                n = -1
+            if n < 0 or n > self.MAX_BODY:
+                self.send_response(413)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+
+            self.connection.settimeout(self.READ_TIMEOUT)
             body = self.rfile.read(n).decode("utf-8", "replace")
             line = "%d %s %s" % (time.time(), self.path, body)
             print(line, flush=True)
@@ -58,6 +75,7 @@ def main():
             pass
 
     srv = ThreadingHTTPServer(("0.0.0.0", args.port), Handler)
+    srv.daemon_threads = True
     srv.serve_forever()
 
 
