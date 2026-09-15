@@ -1868,9 +1868,11 @@ get_metrics(http_msg *msg, kv **params, size_t param_num,
 			cJSON *bridge_info = cJSON_CreateObject();
 			child              = nng_stat_find(st1, "name");
 			if (child) {
+				// CJSON only supports str ends with '\0'
+				char name[65] = {'\0'};
+				strncpy(name, nng_stat_string(child), 64);
 				cJSON_AddStringToObject(bridge_info,
-				    "bridge name",
-				    nng_stat_string(child));
+				    "bridge name", name);
 			}
 			child = nng_stat_find(st1, "tx_msgs");
 			if (child) {
