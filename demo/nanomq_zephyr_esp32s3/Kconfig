@@ -22,6 +22,27 @@ config BROKER_REST_API
 	  Basic over plain HTTP is base64, not encryption — TLS is compiled
 	  out of the Zephyr NanoNNG.  Keep this off untrusted networks.
 
+config BROKER_REST_USER
+	string "REST API Basic-auth username"
+	depends on BROKER_REST_API
+	default "admin"
+	help
+	  Username for the REST API's Basic auth.  The default is the value
+	  published in etc/nanomq.conf upstream, so it is public knowledge
+	  rather than a secret: the board is on your LAN, so set your own from
+	  local.conf (see local.conf.example) for anything but a bench setup.
+	  basic_authorize() (rest_api.c) does strlen() on this, so it must not
+	  be empty.
+
+config BROKER_REST_PASS
+	string "REST API Basic-auth password"
+	depends on BROKER_REST_API
+	default "public"
+	help
+	  Password matching BROKER_REST_USER.  Same caveat: "public" is the
+	  published demo default and the board serves tcp:8081 to the whole
+	  LAN, so change it.
+
 config BROKER_WEBHOOK
 	bool "Enable the NanoMQ webhook forwarder (POST to BROKER_WEBHOOK_URL)"
 	help
@@ -49,9 +70,10 @@ config BROKER_WS
 	  Sets conf websocket.enable / websocket.url in main.c so the broker
 	  also accepts MQTT over WebSocket on nmq-ws://0.0.0.0:8083/mqtt.
 	  Requires the mqttws transport in the NanoNNG build (enabled by this
-	  app's CMakeLists via NNG_TRANSPORT_MQTT_BROKER_WS=ON) and an extra
-	  SLIRP hostfwd for tcp:8083 (see prj.conf) to be reachable from the
-	  host.  TLS is built out of the Zephyr NanoNNG, so WSS stays inert.
+	  app's CMakeLists via NNG_TRANSPORT_MQTT_BROKER_WS=ON).  On the board
+	  the listener is reached directly over Wi-Fi at the address DHCP
+	  handed out — there is no SLIRP host forward here (that is the qemu
+	  demo).  TLS is built out of the Zephyr NanoNNG, so WSS stays inert.
 
 config BROKER_WIFI_SSID
 	string "Wi-Fi SSID (STA mode)"

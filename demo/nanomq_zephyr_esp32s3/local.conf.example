@@ -10,3 +10,9 @@
 
 CONFIG_BROKER_WIFI_SSID=""
 CONFIG_BROKER_WIFI_PSK=""
+
+# REST API Basic-auth credentials (prj.conf sets CONFIG_BROKER_REST_API=y).
+# Left unset, the demo serves the published admin/public pair and warns
+# about it at boot.  The board listens on the LAN, so set your own:
+#CONFIG_BROKER_REST_USER=""
+#CONFIG_BROKER_REST_PASS=""
