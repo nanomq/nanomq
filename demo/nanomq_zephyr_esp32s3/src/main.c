@@ -522,24 +522,40 @@ main(void)
 	// local.conf alongside the Wi-Fi credentials.  With the URL left empty
 	// the forwarder stays disabled rather than POSTing into the void.
 	if (strlen(CONFIG_BROKER_WEBHOOK_URL) > 0) {
-		nmq_conf->web_hook.enable = true;
-		nmq_conf->web_hook.url =
-		    nng_strdup(CONFIG_BROKER_WEBHOOK_URL);
-		nmq_conf->hook_ipc_url = nng_strdup("inproc://nanomq_hook");
-
+		// Every allocation here can fail and the rules are filled in field
+		// by field, so build them first and only switch the forwarder on
+		// once all of them succeeded.  nng_free(NULL, ...) is a no-op, so
+		// the failure path can free unconditionally.
 		conf_web_hook_rule *hook_msg =
 		    nng_zalloc(sizeof(conf_web_hook_rule));
-		hook_msg->event = MESSAGE_PUBLISH; // fire on every publish
-		hook_msg->topic = nng_strdup("hook/#");
 		conf_web_hook_rule *hook_conn =
 		    nng_zalloc(sizeof(conf_web_hook_rule));
-		hook_conn->event = CLIENT_CONNACK; // fire when a client connects
-
-		nmq_conf->web_hook.rules =
+		conf_web_hook_rule **rules =
 		    nng_zalloc(2 * sizeof(conf_web_hook_rule *));
-		nmq_conf->web_hook.rules[0]   = hook_msg;
-		nmq_conf->web_hook.rules[1]   = hook_conn;
-		nmq_conf->web_hook.rule_count = 2;
+		char *hook_topic = nng_strdup("hook/#");
+
+		if (hook_msg != NULL && hook_conn != NULL && rules != NULL &&
+		    hook_topic != NULL) {
+			hook_msg->event  = MESSAGE_PUBLISH; // every publish
+			hook_msg->topic  = hook_topic;
+			hook_conn->event = CLIENT_CONNACK;  // every connect
+			rules[0]         = hook_msg;
+			rules[1]         = hook_conn;
+
+			nmq_conf->web_hook.enable     = true;
+			nmq_conf->web_hook.url =
+			    nng_strdup(CONFIG_BROKER_WEBHOOK_URL);
+			nmq_conf->hook_ipc_url =
+			    nng_strdup("inproc://nanomq_hook");
+			nmq_conf->web_hook.rules      = rules;
+			nmq_conf->web_hook.rule_count = 2;
+		} else {
+			printk("webhook: allocation failed, forwarder stays off\n");
+			nng_free(hook_msg, sizeof(conf_web_hook_rule));
+			nng_free(hook_conn, sizeof(conf_web_hook_rule));
+			nng_free(rules, 2 * sizeof(conf_web_hook_rule *));
+			nng_free(hook_topic, sizeof("hook/#"));
+		}
 	}
 #endif
 
