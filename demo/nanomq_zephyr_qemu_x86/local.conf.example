@@ -8,8 +8,9 @@
 #
 # local.conf is git-ignored so credentials stay out of the tree.
 
-# REST API Basic-auth credentials (prj.conf sets CONFIG_BROKER_REST_API=y
-# and the listener binds 0.0.0.0:8081 inside the guest).  Left unset, the
-# demo serves the published admin/public pair and warns about it at boot:
-#CONFIG_BROKER_REST_USER=""
-#CONFIG_BROKER_REST_PASS=""
+# REST API Basic-auth credentials.  prj.conf sets CONFIG_BROKER_REST_API=y
+# and the guest listens on 8081, but the listener stays off until both of
+# these are set to something other than the published admin/public pair --
+# so this is what turns the API on:
+CONFIG_BROKER_REST_USER=""
+CONFIG_BROKER_REST_PASS=""

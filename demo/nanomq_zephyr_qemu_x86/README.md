@@ -240,17 +240,20 @@ exercisable (Kconfig options wired to main.c overrides, see
 
 REST is served on `tcp:8081` (the second of the three SLIRP hostfwd entries
 in [prj.conf](prj.conf))
-behind **Basic auth**, default `admin`/`public` (set in `main.c`; same
-credentials as `etc/nanomq.conf` and the upstream docs).  Note this is
-base64 over plain HTTP, not encryption — TLS is not in the Zephyr NanoNNG
-build — so keep it off untrusted networks.  curl exists on the outer host
-only — use the container IP (see the table in "Run"):
+behind **Basic auth**.  The listener stays **off until you set
+`CONFIG_BROKER_REST_USER` / `CONFIG_BROKER_REST_PASS`** to credentials of
+your own: they have no default, and the published `admin`/`public` pair from
+`etc/nanomq.conf` is refused rather than accepted — see
+[local.conf.example](local.conf.example) and pass the file to `west build`.
+Note this is base64 over plain HTTP, not encryption — TLS is not in the
+Zephyr NanoNNG build — and the host forward is bound to loopback:
 
 ```sh
-curl -s -u admin:public http://<container-ip>:8081/api/v4/clients  # key is "data"
+curl -s -u <user>:<pass> http://127.0.0.1:8081/api/v4/clients  # key is "data"
 ```
 
-Override the credentials for the suite with `--rest-user`/`--rest-pass`.
+Give the suite the same credentials with `--rest-user`/`--rest-pass`;
+without them the `rest_get` group skips rather than failing.
 
 Webhook is **off by default** here too (the two `CONFIG_BROKER_WEBHOOK*`
 lines in [prj.conf](prj.conf) are commented out).  The `CLIENT_CONNACK` rule

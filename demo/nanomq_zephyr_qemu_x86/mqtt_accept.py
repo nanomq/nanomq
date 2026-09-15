@@ -271,10 +271,13 @@ def main():
     c = Mqtt(args.host, args.port, cid, proto=args.proto,
              clean=bool(args.clean), keepalive=args.keepalive,
              expiry=args.expiry)
-    sp, rc = c.wait_connack()
-    if sp is None:
+    connack = c.wait_connack()
+    if connack is None:
+        # wait_connack() returns None (not a pair) on timeout or EOF, so the
+        # result has to be tested before it is unpacked.
         print("EXIT 1 connack-timeout", flush=True)
         sys.exit(1)
+    sp, rc = connack
     print("CONNACK %d %d" % (sp, rc), flush=True)
     if rc != 0:
         print("EXIT 2 connack-rejected", flush=True)
