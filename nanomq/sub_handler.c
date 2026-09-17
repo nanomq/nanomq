@@ -458,8 +458,7 @@ sub_ctx_handle(nano_work *work)
 
 		// Note.
 		// if topic already exists then update sub options.
-		// qos, retain handling, no local (already did in protocol
-		// layer)
+		// qos, retain handling, no local (already did in protocol layer)
 
 		// Retain msg
 		uint8_t rh = tn->retain_handling;

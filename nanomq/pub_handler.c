@@ -2306,32 +2306,3 @@ print_hex(const char *prefix, const unsigned char *src, int src_len)
 		nng_free(dest, src_len * 3 + 1);
 	}
 }
-
-bool
-check_msg_exp(nng_msg *msg, property *prop)
-{
-	if (nng_msg_cmd_type(msg) == CMD_PUBLISH_V5) {
-		// change to nng msg get
-		nng_time       rtime = nng_msg_get_timestamp(msg);
-		nng_time       ntime = nng_clock();
-		property_data *data  = property_get_value(prop, MESSAGE_EXPIRY_INTERVAL);
-#if defined(NNG_SUPP_SQLITE)
-		if (!data) {
-			property *pub_prop = (void *)nng_mqtt_msg_get_publish_property(msg);
-			data = property_get_value(pub_prop, MESSAGE_EXPIRY_INTERVAL);
-		}
-#endif
-		if (data && ntime > rtime + data->p_value.u32 * 1000) {
-#if defined(NNG_SUPP_SQLITE)
-			nng_msg_free(msg);
-#endif
-			return false;
-		} else if (data) {
-			// TODO replace exp interval with new value without
-			// touching prop?
-			//  data->p_value.u32 =
-			//      data->p_value.u32 - (ntime - rtime) / 1000;
-		}
-	}
-	return true;
-}
