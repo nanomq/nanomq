@@ -413,10 +413,9 @@ server_cb(void *arg)
 			if (work->msg_ret) {
 				log_debug("retain msg [%p] size [%ld] \n",
 				    work->msg_ret, cvector_size(work->msg_ret));
-				for (int i = 0; i < cvector_size(work->msg_ret) &&
-				     check_msg_exp(work->msg_ret[i],
-				         nng_mqtt_msg_get_publish_property(
-				             work->msg_ret[i])); i++) {
+				for (int i = 0; i < cvector_size(work->msg_ret); i++) {
+					// if (!check_msg_exp(work->msg_ret[i]))
+					// 	continue;
 					nng_msg *m = work->msg_ret[i];
 					work->msg = m;
 					work->pub_packet = (struct pub_packet_struct *) nng_zalloc(
