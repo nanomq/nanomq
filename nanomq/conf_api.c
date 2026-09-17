@@ -794,8 +794,8 @@ set_auth_config(cJSON *json, const char *conf_path, conf_auth *auth)
 	cJSON *item;
 	int    rv;
 
-	new_auth->count     = cJSON_GetArraySize(json);
-	for (size_t i = 0; i < new_auth->count; i++) {
+	size_t array_size = cJSON_GetArraySize(json);
+	for (size_t i = 0; i < array_size; i++) {
 		cJSON *kv = cJSON_GetArrayItem(json, i);
 		char * username = NULL, *password = NULL;
 		getStringValue(kv, item, "username", username, rv);
@@ -810,6 +810,7 @@ set_auth_config(cJSON *json, const char *conf_path, conf_auth *auth)
 			log_warn("Invalid username/password pair in HTTP Data");
 		}
 	}
+	new_auth->count = cvector_size(new_auth->usernames); // M, the valid count
 	reload_auth_config(auth, new_auth);
 	for (size_t i = 0; i < new_auth->count; i++) {
 		free(new_auth->usernames[i]);
