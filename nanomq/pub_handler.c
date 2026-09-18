@@ -1795,7 +1795,12 @@ static void inline handle_pub_retain(nano_work *work, char *topic)
 			if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 				nng_msg_set_cmd_type(ret, CMD_PUBLISH_V5);
 				encode_pub_message(ret, work, PUBLISH);
-				// Already decoded in encode_pub_message
+				if (nng_mqttv5_msg_decode(ret) != 0) {
+					log_warn("decode retain msg failed, "
+					         "drop msg");
+					nng_msg_free(ret);
+					return;
+				}
 			} else if (work->proto_ver == MQTT_PROTOCOL_VERSION_v311 ||
 					   work->proto_ver == MQTT_PROTOCOL_VERSION_v31) {
 				nng_msg_set_cmd_type(ret, CMD_PUBLISH);
