@@ -2203,7 +2203,7 @@ decode_pub_message(nano_work *work, uint8_t proto)
 			if (pub_packet->var_header.publish.properties) {
 				if (sanitize_out_pub_properties(
 				        pub_packet->var_header.publish
-				            .properties, msg) != 0) {
+				            .properties) != 0) {
 					// check if subid exist in publish msg from client
 				    // property_get_value(pub_packet->var_header
 				    //                        .publish.properties,
