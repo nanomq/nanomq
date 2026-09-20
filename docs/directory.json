@@ -262,6 +262,10 @@
       ]
     },
     {
+      "title": "Zephyr 移植",
+      "path": "zephyr/port-to-zephyr"
+    },
+    {
       "title": "拓展阅读",
       "path": "config-description/more-config",
       "collapsed": true,
@@ -538,6 +542,10 @@
           "path": "tutorial/SSL_TLS"
         }
       ]
+    },
+    {
+      "title": "Zephyr Port",
+      "path": "zephyr/port-to-zephyr"
     },
     {
       "title": "Appendix",
