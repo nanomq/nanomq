@@ -428,8 +428,8 @@ server_cb(void *arg)
 						if (nng_msg_dup(&rmsg, work->msg) != 0) {
 							log_error("System Failure while duplicating retain msg");
 						} else {
-							if (work->proto_ver == MQTT_VERSION_V5) {
-								nng_msg_set_cmd_type(rmsg,CMD_PUBLISH_V5);
+							if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
+								nng_msg_set_cmd_type(rmsg, CMD_PUBLISH_V5);
 							} else {
 								nng_msg_set_cmd_type(rmsg, CMD_PUBLISH);
 							}
@@ -492,7 +492,7 @@ server_cb(void *arg)
 			break;
 		} else if (work->flag == CMD_PUBLISH) {
 			// Set V4/V5 flag for publish msg
-			if (work->proto_ver == MQTT_VERSION_V5) {
+			if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 				nng_msg_set_cmd_type(msg, CMD_PUBLISH_V5);
 			} else {
 				nng_msg_set_cmd_type(msg, CMD_PUBLISH);

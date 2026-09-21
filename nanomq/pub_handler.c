@@ -2023,7 +2023,7 @@ encode_pub_message(
 		    tmp, work->pub_packet->fixed_header.remain_len);
 		append_res = nng_msg_header_append(dest_msg, tmp, arr_len);
 		// Do not delete! msg expiry checker need this!
-		if (proto == MQTT_VERSION_V5) {
+		if (proto == MQTT_PROTOCOL_VERSION_v5) {
 			decode_pub_msg_expiry_property(dest_msg);
 		}
 		log_debug("header len [%ld] remain len [%d]\n",

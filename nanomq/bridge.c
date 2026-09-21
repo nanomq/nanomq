@@ -284,9 +284,9 @@ bridge_downward_msg_coding(nano_work *work)
 				    work->msg, topic->len);
 				nng_mqtt_msg_set_publish_payload(
 				    work->msg, payload, plen);
-				if (work->proto_ver == MQTT_VERSION_V311) {
+				if (work->proto_ver == MQTT_PROTOCOL_VERSION_v311) {
 					nng_mqtt_msg_encode(work->msg);
-				} else if (work->proto_ver == MQTT_VERSION_V5) {
+				} else if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 					nng_mqttv5_msg_encode(work->msg);
 				}
 				nng_mqtt_msg_free_publish_buf(work->msg);
