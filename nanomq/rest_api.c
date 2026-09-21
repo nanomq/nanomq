@@ -4806,7 +4806,7 @@ post_mqtt_bridge_unsub(http_msg *msg, const char *name)
 
 		// Get properties
 		property *prop_list = NULL;
-		if (node->proto_ver == MQTT_VERSION_V5) {
+		if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 			if (cJSON_IsObject(json_prop)) {
 				prop_list = bridge_properties_parse(json_prop, false);
 			}
