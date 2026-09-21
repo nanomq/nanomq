@@ -1688,6 +1688,29 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 
 	topic = work->pub_packet->var_header.publish.topic_name.body;
 
+	// internal/plugin-facing topic is always the mount_point-prefixed
+	// one; $SYS and unmounted listeners are left untouched (see nanomq.h)
+	if (!is_event && work->cparam) {
+		bool  oom       = false;
+		char *rewritten = nmq_mount_point_prepend(
+		    conn_param_get_mount_point(work->cparam), topic, len,
+		    &oom);
+		if (oom) {
+			log_error("mount_point rewrite failed: out of memory");
+			return UNSPECIFIED_ERROR;
+		}
+		if (rewritten != NULL) {
+			nng_free(topic, len + 1);
+			work->pub_packet->var_header.publish.topic_name.body =
+			    rewritten;
+			work->pub_packet->var_header.publish.topic_name.len =
+			    (uint32_t) strlen(rewritten);
+			topic = rewritten;
+			len = work->pub_packet->var_header.publish.topic_name
+			          .len;
+		}
+	}
+
 #ifdef ACL_SUPP
 	if (work->config != NULL && work->config->auth_http.enable) {
 		struct topic_queue *tq = topic_queue_init(topic, len);
