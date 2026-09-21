@@ -1631,24 +1631,9 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 
 	topic        = work->pub_packet->var_header.publish.topic_name.body;
 	uint32_t len = work->pub_packet->var_header.publish.topic_name.len;
-#ifdef ACL_SUPP
-	if (work->config != NULL && work->config->auth_http.enable) {
-		struct topic_queue *tq = topic_queue_init(topic, len);
-		if (tq == NULL) {
-			log_error("topic_queue_init failed!");
-		} else {
-			int rv = nmq_auth_http_sub_pub(work->cparam, false, tq, &work->config->auth_http);
-			if (rv != 0) {
-				log_error("Auth failed! publish packet!");
-				topic_queue_release(tq);
-				return NOT_AUTHORIZED;
-			}
-		}
 
-		topic_queue_release(tq);
-	}
-#endif
-	// deal with topic alias
+	// deal with topic alias BEFORE any ACL check in case a v5 PUBLISH that
+	// reuses a topic alias carries an empty topic name
 	if (proto == MQTT_PROTOCOL_VERSION_v5) {
 		property_data *pdata = property_get_value(
 		    work->pub_packet->var_header.publish.properties,
@@ -1704,6 +1689,24 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 	topic = work->pub_packet->var_header.publish.topic_name.body;
 
 #ifdef ACL_SUPP
+	if (work->config != NULL && work->config->auth_http.enable) {
+		struct topic_queue *tq = topic_queue_init(topic, len);
+		if (tq == NULL) {
+			log_error("topic_queue_init failed!");
+		} else {
+			int rv = nmq_auth_http_sub_pub(work->cparam, false, tq, &work->config->auth_http);
+			if (rv != 0) {
+				log_error("Auth failed! stop publishing packet!");
+				topic_queue_release(tq);
+				return NOT_AUTHORIZED;
+			}
+		}
+
+		topic_queue_release(tq);
+	}
+#endif
+
+#ifdef ACL_SUPP
 	if (!is_event && work->cparam) {
 		if (work->config->acl.enable) {
 			bool rv = auth_acl(
@@ -1719,11 +1722,18 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 				    username == NULL ? "" : username, topic);
 				if (work->config->acl_deny_action ==
 				    ACL_DISCONNECT) {
+					// Deny & disconnect: a non-SUCCESS code makes
+					// the broker close the connection (see
+					// broker.c). NORMAL_DISCONNECTION cannot be
+					// used here: it aliases SUCCESS (0).
 					log_warn(
 					    "acl deny, disconnect client");
-					return NORMAL_DISCONNECTION;
-				} else {
 					return BANNED;
+				} else {
+					// Deny & ignore: drop the message but
+					// keep the connection.
+					log_warn("acl deny, ignore");
+					return SUCCESS;
 				}
 			} else {
 				log_debug("acl allow");
@@ -1795,7 +1805,12 @@ static void inline handle_pub_retain(nano_work *work, char *topic)
 			if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 				nng_msg_set_cmd_type(ret, CMD_PUBLISH_V5);
 				encode_pub_message(ret, work, PUBLISH);
-				// Already decoded in encode_pub_message
+				if (nng_mqttv5_msg_decode(ret) != 0) {
+					log_warn("decode retain msg failed, "
+					         "drop msg");
+					nng_msg_free(ret);
+					return;
+				}
 			} else if (work->proto_ver == MQTT_PROTOCOL_VERSION_v311 ||
 					   work->proto_ver == MQTT_PROTOCOL_VERSION_v31) {
 				nng_msg_set_cmd_type(ret, CMD_PUBLISH);
@@ -2007,10 +2022,10 @@ encode_pub_message(
 		arr_len = put_var_integer(
 		    tmp, work->pub_packet->fixed_header.remain_len);
 		append_res = nng_msg_header_append(dest_msg, tmp, arr_len);
-		// Have to break it apart for remaining length encoder
-		if (proto == MQTT_VERSION_V5)
-			// Do not delete! msg expiry checker need this!
-			nng_mqttv5_msg_decode(dest_msg);
+		// Do not delete! msg expiry checker need this!
+		if (proto == MQTT_PROTOCOL_VERSION_v5) {
+			decode_pub_msg_expiry_property(dest_msg);
+		}
 		log_debug("header len [%ld] remain len [%d]\n",
 		    nng_msg_header_len(dest_msg),
 		    work->pub_packet->fixed_header.remain_len);
@@ -2186,9 +2201,9 @@ decode_pub_message(nano_work *work, uint8_t proto)
 			    pub_packet->var_header.publish.prop_len);
 
 			if (pub_packet->var_header.publish.properties) {
-				if (check_properties(
+				if (sanitize_out_pub_properties(
 				        pub_packet->var_header.publish
-				            .properties, msg) != 0) {
+				            .properties) != 0) {
 					// check if subid exist in publish msg from client
 				    // property_get_value(pub_packet->var_header
 				    //                        .publish.properties,
@@ -2305,33 +2320,4 @@ print_hex(const char *prefix, const unsigned char *src, int src_len)
 
 		nng_free(dest, src_len * 3 + 1);
 	}
-}
-
-bool
-check_msg_exp(nng_msg *msg, property *prop)
-{
-	if (nng_msg_cmd_type(msg) == CMD_PUBLISH_V5) {
-		// change to nng msg get
-		nng_time       rtime = nng_msg_get_timestamp(msg);
-		nng_time       ntime = nng_clock();
-		property_data *data  = property_get_value(prop, MESSAGE_EXPIRY_INTERVAL);
-#if defined(NNG_SUPP_SQLITE)
-		if (!data) {
-			property *pub_prop = (void *)nng_mqtt_msg_get_publish_property(msg);
-			data = property_get_value(pub_prop, MESSAGE_EXPIRY_INTERVAL);
-		}
-#endif
-		if (data && ntime > rtime + data->p_value.u32 * 1000) {
-#if defined(NNG_SUPP_SQLITE)
-			nng_msg_free(msg);
-#endif
-			return false;
-		} else if (data) {
-			// TODO replace exp interval with new value without
-			// touching prop?
-			//  data->p_value.u32 =
-			//      data->p_value.u32 - (ntime - rtime) / 1000;
-		}
-	}
-	return true;
 }

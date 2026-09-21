@@ -407,7 +407,7 @@ sub_ctx_handle(nano_work *work)
 #ifdef STATISTICS
 	// TODO
 #endif
-	nng_msg **retain = work->msg_ret;
+	// nng_msg **retain = NULL;
 	tn = work->sub_pkt->node;
 	while (tn != NULL && auth_http_reject == false) {
 		topic_len = tn->topic.len;
@@ -434,11 +434,17 @@ sub_ctx_handle(nano_work *work)
 				tn->reason_code = NMQ_AUTH_SUB_ERROR;
 				if (work->config->acl_deny_action ==
 				    ACL_DISCONNECT) {
+					// Deny & disconnect: abort processing and
+					// return a non-SUCCESS code so the broker
+					// closes the connection without a SUBACK
+					// (see broker.c).
 					log_warn("acl deny, disconnect client");
-					// TODO disconnect client or return error code
-					goto next;
+					return BANNED;
 				} else if (work->config->acl_deny_action ==
 				    ACL_IGNORE) {
+					// Deny & ignore: reject this topic filter
+					// (SUBACK failure reason code) but keep
+					// the connection.
 					log_warn("acl deny, ignore");
 					goto next;
 				}
@@ -458,8 +464,7 @@ sub_ctx_handle(nano_work *work)
 
 		// Note.
 		// if topic already exists then update sub options.
-		// qos, retain handling, no local (already did in protocol
-		// layer)
+		// qos, retain handling, no local (already did in protocol layer)
 
 		// Retain msg
 		uint8_t rh = tn->retain_handling;
@@ -481,25 +486,7 @@ sub_ctx_handle(nano_work *work)
 		}
 #endif
 		if (rh == 0 || (rh == 1 && !topic_exist)) {
-			retain = dbtree_find_retain(work->db_ret, topic_str);
-		}
-		work->msg_ret = (work->msg_ret == NULL) ? retain : work->msg_ret;
-		for (size_t i = 0; retain != NULL &&
-				i < cvector_size(retain) &&
-				work->msg_ret != retain;
-				i++) {
-			if (!retain[i]) {
-				continue;
-			}
-			cvector_push_back(work->msg_ret, retain[i]);
-		}
-		if (retain != work->msg_ret) {
-			cvector_free(retain);
-			retain = NULL;
-		}
-		
-		if (!work->msg_ret) {
-			goto next;
+			dbtree_find_retain(work->db_ret, topic_str, &(work->msg_ret));
 		}
 
 	next:

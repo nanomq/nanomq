@@ -413,10 +413,9 @@ server_cb(void *arg)
 			if (work->msg_ret) {
 				log_debug("retain msg [%p] size [%ld] \n",
 				    work->msg_ret, cvector_size(work->msg_ret));
-				for (int i = 0; i < cvector_size(work->msg_ret) &&
-				     check_msg_exp(work->msg_ret[i],
-				         nng_mqtt_msg_get_publish_property(
-				             work->msg_ret[i])); i++) {
+				for (int i = 0; i < cvector_size(work->msg_ret); i++) {
+					// if (!check_msg_exp(work->msg_ret[i]))
+					// 	continue;
 					nng_msg *m = work->msg_ret[i];
 					work->msg = m;
 					work->pub_packet = (struct pub_packet_struct *) nng_zalloc(
@@ -429,8 +428,8 @@ server_cb(void *arg)
 						if (nng_msg_dup(&rmsg, work->msg) != 0) {
 							log_error("System Failure while duplicating retain msg");
 						} else {
-							if (work->proto_ver == MQTT_VERSION_V5) {
-								nng_msg_set_cmd_type(rmsg,CMD_PUBLISH_V5);
+							if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
+								nng_msg_set_cmd_type(rmsg, CMD_PUBLISH_V5);
 							} else {
 								nng_msg_set_cmd_type(rmsg, CMD_PUBLISH);
 							}
@@ -493,7 +492,7 @@ server_cb(void *arg)
 			break;
 		} else if (work->flag == CMD_PUBLISH) {
 			// Set V4/V5 flag for publish msg
-			if (work->proto_ver == MQTT_VERSION_V5) {
+			if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 				nng_msg_set_cmd_type(msg, CMD_PUBLISH_V5);
 			} else {
 				nng_msg_set_cmd_type(msg, CMD_PUBLISH);
@@ -1163,6 +1162,9 @@ broker(conf *nanomq_conf)
 	// add nng_proxy ctx
 	if (nanomq_conf->nng_proxy.sub_enable) {
 		for (size_t t = 0; t < nanomq_conf->nng_proxy.sub_count; t++) {
+			if (!nanomq_conf->nng_proxy.snodes[t]->enable) {
+				continue;
+			}
 			// Only need ctx for SUB side. one node as one ctx.
 			num_work += 1;
 			nanomq_conf->total_ctx += 1;
@@ -1268,8 +1270,11 @@ broker(conf *nanomq_conf)
 	}
 	// create nng_proxy sub ctx
 	if (nanomq_conf->nng_proxy.sub_enable) {
-		size_t t = 0;
-		for (size_t i = tmp; i < tmp + nanomq_conf->nng_proxy.sub_count; i++) {
+		size_t i = tmp;
+		for (size_t t = 0; t < nanomq_conf->nng_proxy.sub_count; t++) {
+			if (!nanomq_conf->nng_proxy.snodes[t]->enable) {
+				continue;
+			}
 			works[i]          = proto_work_init(sock,
 			    nanomq_conf->nng_proxy.snodes[t]->sub_sock,
 				PROTO_NNG_BRIDGE,
@@ -1277,13 +1282,16 @@ broker(conf *nanomq_conf)
 			works[i]->work_id = i; // assign id to work
 						works[i]->nng_snode_idx = t;
 			nng_proxy_sub_init(nanomq_conf->nng_proxy.snodes[t], works[i]);
-			t ++;
+			i ++;
 		}
-		tmp += nanomq_conf->nng_proxy.sub_count;
+		tmp = i;
 	}
 	// init nng_proxy pub, but without ctx
 	if (nanomq_conf->nng_proxy.pub_enable) {
 		for (size_t i = 0; i < nanomq_conf->nng_proxy.pub_count; i++) {
+			if (!nanomq_conf->nng_proxy.pnodes[i]->enable) {
+				continue;
+			}
 			nng_proxy_pub_init(nanomq_conf->nng_proxy.pnodes[i]);
 			// Is it necessary to init a conn_param for pub also?
 		}
