@@ -30,6 +30,8 @@ IoT 时代数据是第一生产力，而边缘则是数据诞生的地方。在�
 
 [**MQTT STREAM**](./mqtt-stream/introduction.md): 对于同一topic的MQTT消息，可以看做一条数据流，并且这个数据流是可以进行落盘存储以及查询操作的，对于一些网络较差的环境下，为数据的完整性和可靠性提供了解决方案.
 
+[**Zephyr RTOS 移植**](./tutorial/port-to-zephyr.md)：将 broker 核心直接运行在 Zephyr RTOS 上，使不具备 POSIX 环境的 MCU 也能承载 MQTT Broker，省去现场的一台 Linux 边缘网关。已在 ESP32-S3 实机与 `qemu_x86` 上验证。
+
 ## 核心优势
 
 **超轻量**：MQTT 服务可以低至 200Kb 的内存占用启动。
