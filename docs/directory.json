@@ -258,12 +258,12 @@
         {
           "title": "SSL/TLS",
           "path": "tutorial/SSL_TLS"
+        },
+        {
+          "title": "Zephyr 移植",
+          "path": "tutorial/port-to-zephyr"
         }
       ]
-    },
-    {
-      "title": "Zephyr 移植",
-      "path": "zephyr/port-to-zephyr"
     },
     {
       "title": "拓展阅读",
@@ -540,12 +540,12 @@
         {
           "title": "SSL/TLS",
           "path": "tutorial/SSL_TLS"
+        },
+        {
+          "title": "Zephyr Port",
+          "path": "tutorial/port-to-zephyr"
         }
       ]
-    },
-    {
-      "title": "Zephyr Port",
-      "path": "zephyr/port-to-zephyr"
     },
     {
       "title": "Appendix",
