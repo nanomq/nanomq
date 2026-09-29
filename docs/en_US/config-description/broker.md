@@ -41,7 +41,7 @@ sqlite {
 
 ### Configuration Items
 
-- `disk_cache_size`: Specifies the maximum number of messages that can be cached in the SQLite database.
+- `disk_cache_size`: Specifies the maximum number of messages that can be cached in the SQLite database. Applies to the QoS message store and to the client and bridge offline cache. It does **not** bound the retained-message store: that table keeps one row per retained topic until the topic is cleared or the message expires.
   - Value range: 1 - infinity. If the value is set to 0, then cache for messages is ineffecitve.
   - default: 102400.
 - `mounted_file_path`: Specifies the file path where SQLite database file is mounted.

@@ -41,7 +41,7 @@ sqlite {
 
 ### 配置项
 
-- `disk_cache_size`：最大缓存消息数。
+- `disk_cache_size`：最大缓存消息数。作用于 QoS 消息存储以及客户端与桥接的离线缓存；**不约束** retain 表——retain 表每个 topic 保留一行，直到该 topic 被清除或消息过期。
   - 取值范围 1 ～ ∞，如设为0，则不生效。
   - 缺省值：102400。
 - `mounted_file_path`：数据库文件存储路径。
