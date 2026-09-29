@@ -58,7 +58,9 @@ sqlite {
 - `resend_interval`: (Currently not implemented) Specifies the interval, in milliseconds, for resending the messages after a failure is recovered. This is unrelated to the trigger for the resend operation. Note:  **Only work for the NanoMQ broker to resend cached messages to local client, not for bridging connections**.
   -  default: 5000. 
 
-Retained messages are therefore no longer written to disk the instant they are published: a retained write becomes durable when its batch is committed, or when the broker exits normally — the pending batch is committed on the way out. Only an abrupt stop (a kill or a crash) loses up to `retain_flush_threshold` entries or `flush_interval` milliseconds of retained writes, whichever is smaller. A retained message that is superseded or cleared before the batch is committed never reaches disk at all.
+Retained messages are therefore no longer written to disk the instant they are published: a retained write becomes durable when its batch is committed, or when the broker exits normally — the pending batch is committed on the way out. Only an abrupt stop (a kill or a crash) loses the retained writes still in the buffer. That loss is bounded by the same two triggers that would otherwise have committed them: at most `retain_flush_threshold` entries, and at most the writes produced within `flush_interval` milliseconds. A retained message that is superseded or cleared before the batch is committed never reaches disk at all.
+
+Both `retain_flush_threshold` and `flush_interval` are re-read on a configuration reload and applied to the running broker. Turning batching on or off — the `retain_flush_threshold = 0` case — requires a restart.
 
 ## Preset Sessions
 

@@ -58,7 +58,9 @@ sqlite {
 - `resend_interval`：故障恢复后的重发时间间隔，单位：ms。注意: **该参数只对 Broker 有效**
   - 缺省值：5000。
 
-因此 retain 消息不再在发布的瞬间落盘：一批提交后该写入才算持久化，正常退出时残留的批次也会被提交。只有被强杀或崩溃才会丢失最多 `retain_flush_threshold` 条或 `flush_interval` 毫秒（以较小者为准）的 retain 写入。若一条 retain 消息在提交前就被新值取代或被清除，则完全不会写入磁盘。
+因此 retain 消息不再在发布的瞬间落盘：一批提交后该写入才算持久化，正常退出时残留的批次也会被提交。只有被强杀或崩溃才会丢失仍在缓冲区中的 retain 写入；其损失受两个提交触发条件限制——最多 `retain_flush_threshold` 条，且最多 `flush_interval` 毫秒内产生的写入。若一条 retain 消息在提交前就被新值取代或被清除，则完全不会写入磁盘。
+
+`retain_flush_threshold` 与 `flush_interval` 在配置 reload 时会重新读取并作用于运行中的 broker；打开或关闭批处理（即 `retain_flush_threshold = 0` 的情况）需要重启。
 
 ## 预设会话配置
 使用预设会话，您可以向尚未连接的无效客户端发布消息。QoS 1/2 消息将像会话保持一样被缓存。但是，新的客户端仍然需要自行订阅目标主题。

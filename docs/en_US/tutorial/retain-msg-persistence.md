@@ -15,7 +15,7 @@ sqlite {
 ```
 Check [configration](../config-description/broker.md#cache) for more detail about every configration item.
 
-Retained messages are written in batches: a retained publish reaches the database at most `flush_interval` milliseconds after it is published, sooner once `retain_flush_threshold` topics are pending, or when the broker exits. We set `flush_interval` to its minimum of 1000 ms so the write lands about a second after publishing. Note that `retain_flush_threshold` counts pending *topics*, so lowering it will not make a single-topic test flush any sooner. Stopping NanoMQ normally commits the pending batch, so the messages survive the restart below.
+Retained messages are written in batches: a retained publish reaches the database at most `flush_interval` milliseconds after it is published, sooner once `retain_flush_threshold` topics are pending, or when the broker exits. We set `flush_interval` to its minimum of 1000 ms so the write lands about a second after publishing. Note that `retain_flush_threshold` counts pending *topics*: while it stays above the number of pending topics, lowering it will not make a single-topic test flush any sooner. Stopping NanoMQ normally commits the pending batch, so the messages survive the restart below.
 
 ## Test Retain message persistence
 

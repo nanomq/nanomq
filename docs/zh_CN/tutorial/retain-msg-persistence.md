@@ -15,7 +15,7 @@ sqlite {
 ```
 在[配置](../config-description/broker.md#cache) 中可以查看每一个配置项的细节。
 
-retain 消息是批量落盘的：一次发布最多在 `flush_interval` 毫秒之后写入数据库，或在待写 topic 数达到 `retain_flush_threshold` 时更早写入，也会在 broker 退出时写入。这里把 `flush_interval` 设为其最小值 1000 ms，即发布后约 1 秒落盘。注意 `retain_flush_threshold` 统计的是待写 **topic 数**，把单 topic 测试的它调小并不会更早落盘。正常停止 NanoMQ 会提交残留的批次，因此下面的重启步骤可以正常验证持久化。
+retain 消息是批量落盘的：一次发布最多在 `flush_interval` 毫秒之后写入数据库，或在待写 topic 数达到 `retain_flush_threshold` 时更早写入，也会在 broker 退出时写入。这里把 `flush_interval` 设为其最小值 1000 ms，即发布后约 1 秒落盘。注意 `retain_flush_threshold` 统计的是待写 **topic 数**：只要它仍大于待写 topic 数，把它调小就不会让单 topic 测试更早落盘。正常停止 NanoMQ 会提交残留的批次，因此下面的重启步骤可以正常验证持久化。
 
 ## 测试保留消息持久化
 
