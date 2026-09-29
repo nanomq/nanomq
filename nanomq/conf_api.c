@@ -186,6 +186,10 @@ get_sqlite_config(conf_sqlite *sqlite)
 	    sqlite_obj, "disk_cache_size", sqlite->disk_cache_size);
 	cJSON_AddNumberToObject(
 	    sqlite_obj, "flush_mem_threshold", sqlite->flush_mem_threshold);
+	cJSON_AddNumberToObject(sqlite_obj, "retain_flush_threshold",
+	    sqlite->retain_flush_threshold);
+	cJSON_AddNumberToObject(
+	    sqlite_obj, "flush_interval", sqlite->flush_interval);
 	cJSON_AddNumberToObject(
 	    sqlite_obj, "resend_interval", sqlite->resend_interval);
 	cJSON_AddStringOrNullToObject(
@@ -750,6 +754,8 @@ set_sqlite_config(cJSON *json, const char *conf_path, conf_sqlite *sqlite,
 	char * mount_path;
 	size_t disk_cache_size;
 	size_t mem_cache_size;
+	size_t retain_flush_threshold;
+	size_t flush_interval;
 	size_t resend_interval;
 
 	getBoolValue(json, item, "enable", sqlite_enable, rv);
@@ -782,6 +788,19 @@ set_sqlite_config(cJSON *json, const char *conf_path, conf_sqlite *sqlite,
 		// conf_update2_u64(conf_path, key_prefix, "",
 		// "sqlite.resend_interval", resend_interval);
 		update_var(sqlite->resend_interval, resend_interval);
+	}
+	getNumberValue(json, item, "flush_interval", flush_interval, rv);
+	if (rv == 0) {
+		// conf_update2_u64(conf_path, key_prefix, "",
+		// "sqlite.flush_interval", flush_interval);
+		update_var(sqlite->flush_interval, flush_interval);
+	}
+	getNumberValue(
+	    json, item, "retain_flush_threshold", retain_flush_threshold, rv);
+	if (rv == 0) {
+		// conf_update2_u64(conf_path, key_prefix, "",
+		// "sqlite.retain_flush_threshold", retain_flush_threshold);
+		update_var(sqlite->retain_flush_threshold, retain_flush_threshold);
 	}
 }
 
@@ -1066,6 +1085,8 @@ void
 reload_sqlite_config(conf_sqlite *cur_conf, conf_sqlite *new_conf)
 {
 	cur_conf->flush_mem_threshold = new_conf->flush_mem_threshold;
+	cur_conf->retain_flush_threshold = new_conf->retain_flush_threshold;
+	cur_conf->flush_interval      = new_conf->flush_interval;
 }
 
 void
