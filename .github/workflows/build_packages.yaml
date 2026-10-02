@@ -81,6 +81,12 @@ jobs:
       run: |
         set -eu
         git clone --depth 1 --branch v3.5.2 https://github.com/Mbed-TLS/mbedtls.git && cd mbedtls
+        # NanoNNG shares one mbedtls_ssl_config, and the one mbedtls_pk_context
+        # holding the server key, across every connection, so concurrent
+        # handshakes need mbed-tls's own locking. The default config leaves it
+        # off, and without it the shared key and PSA state race.
+        python3 scripts/config.py set MBEDTLS_THREADING_C
+        python3 scripts/config.py set MBEDTLS_THREADING_PTHREAD
         mkdir build && cd build
         cmake -DCMAKE_C_COMPILER=${{ matrix.arch[1] }} -DCMAKE_CXX_COMPILER=${{ matrix.arch[2] }} -DENABLE_TESTING=OFF ..
         cmake --build .
