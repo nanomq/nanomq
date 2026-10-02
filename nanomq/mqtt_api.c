@@ -36,13 +36,14 @@
  */
 int
 nano_listen(nng_socket sid, const char *addr, nng_listener *lp, int flags,
-    conf *config)
+    conf *config, const char *mount_point)
 {
 	int          rv;
 	nng_listener l;
 
 	nng_listener_create(&l, sid, addr);
 	nng_listener_set(l, NANO_CONF, config, sizeof(conf));
+	nng_listener_set(l, NANO_MOUNT_POINT, mount_point, 0);
 	if ((rv = nng_listener_start(l, 0)) != 0) {
 		nng_listener_close(l);
 		return (rv);
