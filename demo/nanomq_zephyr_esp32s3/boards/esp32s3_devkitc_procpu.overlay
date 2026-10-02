@@ -1,0 +1,20 @@
+/*
+ * ESP32-S3-LCD-EV-Board module differences vs the esp32s3_devkitc board
+ * default (an ESP32-S3-WROOM-1-N8: 8 MB flash, no PSRAM).
+ *
+ * The LCD-EV board carries an ESP32-S3-WROOM-1-N16R16V: 16 MB flash and
+ * 16 MB octal PSRAM.  PSRAM is what lets the NanoMQ broker data plane
+ * (MBs, served via the shared multi-heap — see prj.conf
+ * ESP_SPIRAM_HEAP_SIZE and the NNG_ZEPHYR_ALLOC_SMH allocator in the
+ * nng submodule) live off the ~512 KB internal SRAM.
+ */
+
+&flash0 {
+	reg = <0x0 DT_SIZE_M(16)>;
+	ranges = <0x0 0x0 DT_SIZE_M(16)>;
+};
+
+&psram0 {
+	status = "okay";
+	size = <DT_SIZE_M(16)>;
+};

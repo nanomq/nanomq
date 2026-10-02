@@ -109,6 +109,9 @@ There are some configuration options specified using CMake defines in addition t
   
   - [Official website](https://nanomq.io/)
 
+- Zephyr RTOS
+  - [Porting NanoMQ to Zephyr RTOS: Running an MQTT Broker Directly on an MCU](./docs/en_US/tutorial/port-to-zephyr.md)
+
 - MQTT Specifications 
   - [MQTT Version 3.1.1](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html)
   - [MQTT Version 5.0](https://docs.oasis-open.org/mqtt/mqtt/v5.0/cs02/mqtt-v5.0-cs02.html)
