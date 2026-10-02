@@ -6,13 +6,16 @@ NanoMQ 用SQLite实现消息的持久化。将下面一部分配置加入配置�
 
 ```hcl
 sqlite {
-    disk_cache_size = 102400  # 最大缓存消息数
-    mounted_file_path="/tmp/" # 数据库文件存储路径 
-    flush_mem_threshold = 3   # 内存缓存消息数阈值
-    resend_interval = 5000    # 故障恢复后的重发时间间隔 (ms)
+    disk_cache_size = 102400       # 最大缓存消息数
+    mounted_file_path="/tmp/"      # 数据库文件存储路径 
+    retain_flush_threshold = 1000  # retain 消息批量写入的触发阈值
+    flush_interval = 1000          # 缓冲中的 retain 消息最长等待时间 (ms)
+    resend_interval = 5000         # 故障恢复后的重发时间间隔 (ms)
 }
 ```
-在[配置](../config-description/broker.md#cache) 中可以查看每一个配置项的细节。为了简化教程，这里设置了`flush_mem_threshold = 3`，需要根据使用场景来确定不同的值。
+在[配置](../config-description/broker.md#cache) 中可以查看每一个配置项的细节。
+
+retain 消息是批量落盘的：一次发布最多在 `flush_interval` 毫秒之后写入数据库，或在待写 topic 数达到 `retain_flush_threshold` 时更早写入，也会在 broker 退出时写入。这里把 `flush_interval` 设为其最小值 1000 ms，即发布后约 1 秒落盘。注意 `retain_flush_threshold` 统计的是待写 **topic 数**：只要它仍大于待写 topic 数，把它调小就不会让单 topic 测试更早落盘。正常停止 NanoMQ 会提交残留的批次，因此下面的重启步骤可以正常验证持久化。
 
 ## 测试保留消息持久化
 
@@ -30,7 +33,7 @@ $ nanomq start --conf nanomq.conf
 
 **发送保留消息**
 
-发布3个不同的保留消息以达到缓存消息的阈值。
+发布 3 条保留消息。
 
 ![Alt text](../images/rmsg-persistence-pub.png)
 
