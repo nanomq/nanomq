@@ -1979,6 +1979,10 @@ broker_start(int argc, char **argv)
 	if ((rc = log_init(&nanomq_conf->log)) != 0) {
 		NANO_NNG_FATAL("log_init", rc);
 	}
+	if ((rc = log_trace_init(
+	         &nanomq_conf->log, &nanomq_conf->log_trace)) != 0) {
+		NANO_NNG_FATAL("log_trace_init", rc);
+	}
 #endif
 	print_conf(nanomq_conf);
 
@@ -2064,6 +2068,10 @@ broker_start_with_conf(void *nmq_conf)
 #if defined(ENABLE_LOG)
 	if ((rc = log_init(&nanomq_conf->log)) != 0) {
 		NANO_NNG_FATAL("log_init", rc);
+	}
+	if ((rc = log_trace_init(
+	         &nanomq_conf->log, &nanomq_conf->log_trace)) != 0) {
+		NANO_NNG_FATAL("log_trace_init", rc);
 	}
 #endif
 	print_conf(nanomq_conf);

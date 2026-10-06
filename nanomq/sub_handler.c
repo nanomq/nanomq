@@ -316,6 +316,16 @@ encode_suback_msg(nng_msg *msg, nano_work *work)
 			log_error("nng_msg_append [%d]", rv);
 			return PROTOCOL_ERROR;
 		}
+		// One line per topic filter, carrying the code actually put on
+		// the wire rather than the intent recorded earlier.
+		nmq_trace(NMQ_TRACE_SUB,
+		    "SUBSCRIBE pipe=%u clientid=%s packet_id=%u topic=%s "
+		    "req_qos=%d nolocal=%d rap=%d retain_handling=%d "
+		    "granted=0x%02x",
+		    work->pid.id,
+		    NMQ_TRACE_STR(conn_param_get_clientid(work->cparam)),
+		    sub_pkt->packet_id, NMQ_TRACE_STR(tn->topic.body), tn->qos,
+		    tn->no_local, tn->rap, tn->retain_handling, reason_code);
 		tn = tn->next;
 	}
 
@@ -381,6 +391,13 @@ sub_ctx_handle(nano_work *work)
 			log_error("topic_queue is NULL");
 		} else {
 			int rv = nmq_auth_http_sub_pub(work->cparam, true, tq, &work->config->auth_http);
+			nmq_trace(NMQ_TRACE_ACL,
+			    "acl %s action=subscribe clientid=%s username=%s "
+			    "reason=http_acl result=%d",
+			    rv == 0 ? "allow" : "deny",
+			    NMQ_TRACE_STR(conn_param_get_clientid(work->cparam)),
+			    NMQ_TRACE_STR(conn_param_get_username(work->cparam)),
+			    rv);
 			if (rv != 0) {
 				log_error("Auth failed! subscribe packet!");
 				/*

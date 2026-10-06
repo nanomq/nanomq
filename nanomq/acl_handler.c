@@ -126,15 +126,23 @@ auth_acl(conf *config, acl_action_type act_type, conn_param *param,
 	bool      is_hp_held = (acl != NULL);
 	if (!is_hp_held) {
 		if (nmq_acl_hazard_ready()) {
+			nmq_trace(NMQ_TRACE_ACL,
+			    "acl deny action=%s clientid=%s username=%s "
+			    "topic=%s reason=no_hazard_slot",
+			    act_type == ACL_SUB ? "subscribe" : "publish",
+			    NMQ_TRACE_STR(conn_param_get_clientid(param)),
+			    NMQ_TRACE_STR(conn_param_get_username(param)),
+			    NMQ_TRACE_STR(topic));
 			conn_param_free(param);
 			return false;
 		}
 		acl = &config->acl;
 	}
 
-	bool match     = false;
-	bool sub_match = true;
-	bool result    = false;
+	bool   match       = false;
+	bool   sub_match   = true;
+	bool   result      = false;
+	size_t matched_rule = 0;
 
 	for (size_t i = 0; i < acl->rule_count; i++) {
 		acl_rule *      rule   = acl->rules[i];
@@ -299,10 +307,34 @@ auth_acl(conf *config, acl_action_type act_type, conn_param *param,
 			}
 		}
 
-		result = rule->permit == ACL_ALLOW ? match : !match;
+		result       = rule->permit == ACL_ALLOW ? match : !match;
+		matched_rule = i;
 
 		break;
 	}
+
+	bool allowed = match
+	    ? result
+	    : (config->acl_nomatch == ACL_ALLOW ? true : result);
+
+	// Emitted while the hazard pointer still protects the snapshot and
+	// before the conn_param clone is dropped, so nothing it reads can have
+	// been reclaimed. It names the rule that decided, because "denied" on
+	// its own does not say whether a deny rule matched or nothing matched
+	// and no_match took over, and those two are fixed in different places.
+	char rule_desc[32] = "-";
+	if (match) {
+		snprintf(rule_desc, sizeof(rule_desc), "%zu", matched_rule);
+	}
+	nmq_trace(NMQ_TRACE_ACL,
+	    "acl %s action=%s clientid=%s username=%s topic=%s reason=%s "
+	    "rule=%s rules=%zu",
+	    allowed ? "allow" : "deny",
+	    act_type == ACL_SUB ? "subscribe" : "publish",
+	    NMQ_TRACE_STR(conn_param_get_clientid(param)),
+	    NMQ_TRACE_STR(conn_param_get_username(param)),
+	    NMQ_TRACE_STR(topic), match ? "rule_match" : "no_match_policy",
+	    rule_desc, acl->rule_count);
 
 	// Done traversing the snapshot; release the hazard pointer so the writer
 	// can reclaim this snapshot once it is retired.
@@ -311,10 +343,6 @@ auth_acl(conf *config, acl_action_type act_type, conn_param *param,
 
 	conn_param_free(param);
 
-	if (match) {
-		return result;
-	} else {
-		return config->acl_nomatch == ACL_ALLOW ? true : result;
-	}
+	return allowed;
 }
 #endif

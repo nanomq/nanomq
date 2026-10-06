@@ -1101,5 +1101,25 @@ reload_log_config(conf *old, conf *new)
 #if defined(ENABLE_LOG)
 	old->log.level = new->log.level;
 	log_update_level(new->log.level);
+
+	// Trace categories and the payload limit are hot updatable, so an
+	// operator turns tracing on and off with `nanomq reload` and never
+	// restarts the broker. The sinks are not: a reload cannot open a new
+	// file, so log.trace.to has to be set at boot for this to do anything.
+	old->log_trace.categories    = new->log_trace.categories;
+	old->log_trace.payload_limit = new->log_trace.payload_limit;
+	if (old->log_trace.sink.type == 0 && new->log_trace.categories != 0) {
+		log_warn("log.trace.categories ignored: no log.trace sink was "
+		         "configured when the broker started");
+	} else {
+		log_trace_set_payload_limit(new->log_trace.payload_limit);
+		log_trace_set_categories(new->log_trace.categories);
+		char categories[NMQ_TRACE_CATEGORIES_STR_MAX];
+		log_trace_categories_string(new->log_trace.categories,
+		    categories, sizeof(categories));
+		log_info("MQTT protocol trace categories now [%s], payload "
+		         "limit %zu bytes",
+		    categories, new->log_trace.payload_limit);
+	}
 #endif
 }

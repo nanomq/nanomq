@@ -192,7 +192,8 @@ encode_common_mqtt_msg(
 	return 0;
 }
 
-static nng_mtx *log_file_mtx = NULL;
+static nng_mtx *log_file_mtx       = NULL;
+static nng_mtx *log_trace_file_mtx = NULL;
 
 static int
 log_file_init(conf_log *log)
@@ -246,6 +247,55 @@ log_init(conf_log *log)
 		log_add_syslog("nng-nanomq", log->level, NULL);
 	}
 #endif
+
+	return 0;
+}
+
+// The protocol-trace sink is separate from the ordinary log sink so the trace
+// file can sit on its own volume with its own rotation, and so leaving
+// log.level at info costs nothing when a trace category is switched on.
+int
+log_trace_init(conf_log *log, conf_log_trace *trace)
+{
+	int rv = 0;
+
+	if (trace->sink.type == 0) {
+		// No trace sink configured: nothing to trace to, so the
+		// categories cannot be armed either, at boot or at reload.
+		log_trace_set_categories(0);
+		return 0;
+	}
+
+	if (trace->sink.dir == NULL && log->dir != NULL) {
+		trace->sink.dir = nng_strdup(log->dir);
+	}
+	if (trace->sink.file == NULL) {
+		trace->sink.file = nng_strdup("nanomq-trace.log");
+	}
+
+	if (0 != (trace->sink.type & LOG_TO_CONSOLE)) {
+		log_add_trace_console(NULL);
+	}
+
+	if (0 != (trace->sink.type & LOG_TO_FILE)) {
+		if (0 != (rv = log_file_init(&trace->sink)) ||
+		    0 != (rv = nng_mtx_alloc(&log_trace_file_mtx))) {
+			return rv;
+		}
+		log_add_trace_fp(
+		    trace->sink.fp, log_trace_file_mtx, &trace->sink);
+	}
+
+	log_trace_set_payload_limit(trace->payload_limit);
+	log_trace_set_categories(trace->categories);
+
+	char categories[NMQ_TRACE_CATEGORIES_STR_MAX];
+	log_trace_categories_string(
+	    trace->categories, categories, sizeof(categories));
+	log_info("MQTT protocol trace armed: categories [%s], payload limit "
+	         "%zu bytes, file %s",
+	    categories, trace->payload_limit,
+	    trace->sink.abs_path == NULL ? "console" : trace->sink.abs_path);
 
 	return 0;
 }

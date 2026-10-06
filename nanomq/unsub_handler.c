@@ -222,6 +222,15 @@ unsub_ctx_handle(nano_work *work)
 			log_debug("not find and response ack.");
 		}
 
+		// Traced here rather than in encode_unsuback_msg because
+		// MQTT v3.1.1 UNSUBACK carries no reason codes at all, and the
+		// outcome is worth seeing on both versions.
+		nmq_trace(NMQ_TRACE_SUB,
+		    "UNSUBSCRIBE pipe=%u clientid=%s packet_id=%u topic=%s "
+		    "result=0x%02x",
+		    work->pid.id, NMQ_TRACE_STR(client_id),
+		    work->unsub_pkt->packet_id, topic_str, tn->reason_code);
+
 		// free local varibale
 		nng_free(topic_str, tn->topic.len + 1);
 
