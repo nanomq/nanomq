@@ -794,8 +794,8 @@ set_auth_config(cJSON *json, const char *conf_path, conf_auth *auth)
 	cJSON *item;
 	int    rv;
 
-	new_auth->count     = cJSON_GetArraySize(json);
-	for (size_t i = 0; i < new_auth->count; i++) {
+	size_t array_size = cJSON_GetArraySize(json);
+	for (size_t i = 0; i < array_size; i++) {
 		cJSON *kv = cJSON_GetArrayItem(json, i);
 		char * username = NULL, *password = NULL;
 		getStringValue(kv, item, "username", username, rv);
@@ -810,6 +810,7 @@ set_auth_config(cJSON *json, const char *conf_path, conf_auth *auth)
 			log_warn("Invalid username/password pair in HTTP Data");
 		}
 	}
+	new_auth->count = cvector_size(new_auth->usernames); // M, the valid count
 	reload_auth_config(auth, new_auth);
 	for (size_t i = 0; i < new_auth->count; i++) {
 		free(new_auth->usernames[i]);
@@ -956,8 +957,8 @@ set_auth_http_req(cJSON *json, const char *conf_path, conf_auth_http_req *req,
 				// str_append(&param_str, "=");
 				// str_append(&param_str, "%d");
 				update_string(
-				    req_param[index]->name, "protocol");
-				update_var(req_param[index]->type, PROTOCOL);
+				    req_param[index]->name, "subject");
+				update_var(req_param[index]->type, SUBJECT);
 			} else if (nng_strcasecmp(arg, "mountpoint") == 0) {
 				// str_append(&param_str, "mountpoint");
 				// str_append(&param_str, "=");

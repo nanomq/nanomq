@@ -77,4 +77,4 @@ log {
 ## 相关文档
 
 - [完整的批量重发指南](./batch_resend.md) - 详细解释工作原理
-- [MQTT QoS 文档](../MQTT_QoS.md) - 了解 MQTT 消息传递保证
+- [MQTT QoS 文档](https://docs.nanomq.io/) - 了解 MQTT 消息传递保证

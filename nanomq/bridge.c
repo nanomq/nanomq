@@ -47,8 +47,6 @@ static property *will_property(conf_bridge_conn_will_properties *will_prop);
 
 static nng_thread *hybrid_thr;
 
-static int execone = 0;
-
 static int
 apply_sqlite_config(
     nng_socket *sock, conf_bridge_node *config, const char *db_name)
@@ -165,7 +163,11 @@ create_connect_msg(conf_bridge_node *node)
 			nng_mqtt_msg_set_connect_will_property(
 			    connmsg, will_properties);
 		}
+		nng_mqttv5_msg_encode(connmsg);
+	} else if (node->proto_ver == MQTT_PROTOCOL_VERSION_v311){
+		nng_mqtt_msg_encode(connmsg);
 	}
+	
 	return connmsg;
 }
 
@@ -282,9 +284,9 @@ bridge_downward_msg_coding(nano_work *work)
 				    work->msg, topic->len);
 				nng_mqtt_msg_set_publish_payload(
 				    work->msg, payload, plen);
-				if (work->proto_ver == MQTT_VERSION_V311) {
+				if (work->proto_ver == MQTT_PROTOCOL_VERSION_v311) {
 					nng_mqtt_msg_encode(work->msg);
-				} else if (work->proto_ver == MQTT_VERSION_V5) {
+				} else if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 					nng_mqttv5_msg_encode(work->msg);
 				}
 				nng_mqtt_msg_free_publish_buf(work->msg);
@@ -568,7 +570,16 @@ hybrid_tcp_disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	log_warn("bridge client disconnected! RC [%d] \n", reason);
 	bridge_param *bridge_arg = arg;
 
-	nng_atomic_set_bool(bridge_arg->config->connected, false);
+	// node->connected is swapped to NULL during REST hot reload
+	// (rest_api.c); node->mtx guards that pointer, not the atomic value.
+	// A reload holds node->mtx while closing the old socket; blocking here
+	// would deadlock nng_close, so skip the update while a reload is in flight.
+	conf_bridge_node *node = bridge_arg->config;
+	if (!nng_atomic_get_bool(bridge_arg->reloading)) {
+		nng_mtx_lock(node->mtx);
+		nng_atomic_set_bool(node->connected, false);
+		nng_mtx_unlock(node->mtx);
+	}
 	nng_mtx_lock(bridge_arg->switch_mtx);
 	nng_cv_wake1(bridge_arg->switch_cv);
 	nng_mtx_unlock(bridge_arg->switch_mtx);
@@ -678,7 +689,16 @@ hybrid_quic_disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	nng_pipe_get_int(p, NNG_OPT_MQTT_DISCONNECT_REASON, &reason);
 	log_warn("quic bridge client disconnected! RC [%d] \n", reason);
 	bridge_param *bridge_arg = arg;
-	nng_atomic_set_bool(bridge_arg->config->connected, false);
+	// node->connected is swapped to NULL during REST hot reload
+	// (rest_api.c); node->mtx guards that pointer, not the atomic value.
+	// A reload holds node->mtx while closing the old socket; blocking here
+	// would deadlock nng_close, so skip the update while a reload is in flight.
+	conf_bridge_node *node = bridge_arg->config;
+	if (!nng_atomic_get_bool(bridge_arg->reloading)) {
+		nng_mtx_lock(node->mtx);
+		nng_atomic_set_bool(node->connected, false);
+		nng_mtx_unlock(node->mtx);
+	}
 	nng_mtx_lock(bridge_arg->switch_mtx);
 	nng_cv_wake1(bridge_arg->switch_cv);
 	nng_mtx_unlock(bridge_arg->switch_mtx);
@@ -728,7 +748,7 @@ hybrid_quic_client(bridge_param *bridge_arg)
 	nng_msg *connmsg   = create_connect_msg(node);
 	bridge_arg->connmsg = connmsg;
 
-	execone = 0;
+	nng_atomic_set_bool(bridge_arg->quic_subscribed, false);
 
 	nng_socket *tsock  = bridge_arg->sock;
 	if (tsock) {
@@ -861,16 +881,26 @@ int
 hybrid_bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 {
 	bridge_param *bridge_arg = NULL;
-	if ((bridge_arg = nng_alloc(sizeof(bridge_param))) == NULL) {
+	if ((bridge_arg = nng_zalloc(sizeof(bridge_param))) == NULL) {
 		log_error("memory error in allocating bridge client");
 		return NNG_ENOMEM;
 	}
 	bridge_arg->exec_mtx = NULL;
 	bridge_arg->exec_cv  = NULL;
+	if (nng_atomic_alloc_bool(&bridge_arg->quic_subscribed) != 0 ||
+	    nng_atomic_alloc_bool(&bridge_arg->reloading) != 0) {
+		log_error("memory error in allocating bridge status flags");
+		nng_atomic_free_bool(bridge_arg->quic_subscribed);
+		nng_atomic_free_bool(bridge_arg->reloading);
+		nng_free(bridge_arg, sizeof(bridge_param));
+		return NNG_ENOMEM;
+	}
+	nng_atomic_set_bool(bridge_arg->quic_subscribed, false);
 
 	bridge_arg->config = node;
 	bridge_arg->sock   = sock;
 	bridge_arg->conf   = config;
+	bridge_arg->client = NULL;
 	if (reload_lock == NULL) {
 		nng_mtx_alloc(&reload_lock);
 	}
@@ -907,6 +937,8 @@ error:
 		nng_mtx_free(bridge_arg->exec_mtx);
 	}
 	if(bridge_arg != NULL) {
+		nng_atomic_free_bool(bridge_arg->quic_subscribed);
+		nng_atomic_free_bool(bridge_arg->reloading);
 		nng_free(bridge_arg, sizeof(bridge_param));
 	}
 
@@ -921,17 +953,24 @@ bridge_quic_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {
 	// Connected succeed
 	bridge_param *param  = arg;
+	conf_bridge_node *node = param->config;
 	int           reason = 0;
 	char         *addr;
 	uint16_t      port;
 
-	if (execone > 0) {
+	nng_mtx_lock(node->mtx);
+	if (nng_atomic_get_bool(param->quic_subscribed)) {
+		nng_mtx_unlock(node->mtx);
 		return;
 	}
-	nng_atomic_set_bool(param->config->connected, true);
 
 	// get connect reason
 	nng_pipe_get_int(p, NNG_OPT_MQTT_CONNECT_REASON, &reason);
+	if (reason != 0) {
+		nng_mtx_unlock(node->mtx);
+		return;
+	}
+	nng_atomic_set_bool(node->connected, true);
 	addr = nano_pipe_get_local_address(p);
 	port = nano_pipe_get_local_port(p);
 	// get property for MQTT V5
@@ -940,12 +979,13 @@ bridge_quic_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	log_info("Bridge client connected! RC [%d]", reason);
 	log_info("Local ip4 address [%s] port [%d]", addr, port);
 
-	nng_mtx_lock(param->config->mtx);
-	if (reason == 0 && param->config->sub_count > 0) {
+	if (param->config->sub_count > 0) {
 		nng_mqtt_client *client = param->client;
 		if (client == NULL) {
 			log_info("Orphaned bridge client ignored during connect callback.");
-			nng_mtx_unlock(param->config->mtx);
+			if (addr)
+				free(addr);
+			nng_mtx_unlock(node->mtx);
 			return;
 		}
 		for (size_t i = 0; i < param->config->sub_count; i++) {
@@ -973,12 +1013,25 @@ bridge_quic_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 			    client, topic_qos, 1, properties);
 			nng_mqtt_topic_qos_array_free(topic_qos, 1);
 		}
-		execone ++;
+		nng_atomic_set_bool(param->quic_subscribed, true);
 	}
-	nng_mtx_unlock(param->config->mtx);
-
+	if (param->config->sub_count == 0) {
+		log_info("No subscriptions were set.");
+		nng_socket       *socket;
+		nng_msg *msg = NULL;
+		socket = node->sock;
+		if (!node->busy)
+			if (nng_lmq_get(node->ctx_msgs, &msg) == 0) {
+				log_debug("resending cached msg from broker ctx");
+				nng_aio_set_msg(node->resend_aio, msg);
+				nng_aio_set_timeout(node->resend_aio, node->cancel_timeout);
+				nng_send_aio(*socket, node->resend_aio);
+				node->busy = true;
+			}
+	}
 	if (addr)
 		free(addr);
+	nng_mtx_unlock(node->mtx);
 }
 
 // Disconnect message callback function
@@ -993,7 +1046,13 @@ bridge_quic_disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	log_warn("bridge client disconnected! RC [%d] \n", reason);
 
 	bridge_param *bridge_arg = arg;
-	nng_atomic_set_bool(bridge_arg->config->connected, false);
+	conf_bridge_node *node = bridge_arg->config;
+	if (!nng_atomic_get_bool(bridge_arg->reloading)) {
+		nng_mtx_lock(node->mtx);
+		nng_atomic_set_bool(node->connected, false);
+		nng_atomic_set_bool(bridge_arg->quic_subscribed, false);
+		nng_mtx_unlock(node->mtx);
+	}
 	// Free cparam kept
 	// void *cparam = nng_msg_get_conn_param(bridge_arg->connmsg);
 	// if (cparam != NULL)
@@ -1001,7 +1060,6 @@ bridge_quic_disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	// nng_msg_free(bridge_arg->connmsg);
 	// bridge_arg->connmsg = NULL;
 
-	execone --;
 }
 
 static int
@@ -1047,7 +1105,7 @@ bridge_quic_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 	nng_msg *connmsg           = create_connect_msg(node);
 	bridge_arg->connmsg        = connmsg;
 	bridge_arg->cancel_timeout = node->cancel_timeout;
-	execone = 0;
+	nng_atomic_set_bool(bridge_arg->quic_subscribed, false);
 
 	// TCP bridge does not support hot update of connmsg
 	if (0 != nng_dialer_set_ptr(*dialer, NNG_OPT_MQTT_CONNMSG, connmsg)) {
@@ -1165,23 +1223,28 @@ bridge_tcp_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 {
 	// Connected succeed
 	bridge_param *param  = arg;
+	conf_bridge_node *node = param->config;
 	int           reason = 0;
 
-	nng_mtx_lock(param->config->mtx);
-	nng_atomic_set_bool(param->config->connected, true);
+	nng_mtx_lock(node->mtx);
 	// get connect reason
 	nng_pipe_get_int(p, NNG_OPT_MQTT_CONNECT_REASON, &reason);
+	if (reason != 0) {
+		nng_mtx_unlock(node->mtx);
+		return;
+	}
+	nng_atomic_set_bool(param->config->connected, true);
 	// get property for MQTT V5
 	// property *prop;
 	// nng_pipe_get_ptr(p, NNG_OPT_MQTT_CONNECT_PROPERTY, &prop);
 	log_info("Bridge [%s] connected! RC [%d]", param->config->address, reason);
 
 	/* MQTT SUBSCRIBE */
-	if (reason == 0 && param->config->sub_count > 0) {
+	if (param->config->sub_count > 0) {
 		nng_mqtt_client *client = param->client;
 		if (client == NULL) {
 			log_info("Orphaned bridge client ignored during connect callback.");
-			nng_mtx_unlock(param->config->mtx);
+			nng_mtx_unlock(node->mtx);
 			return;
 		}
 		nng_mqtt_topic_qos *topic_qos =
@@ -1213,8 +1276,19 @@ bridge_tcp_connect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	}
 	if (param->config->sub_count == 0) {
 		log_info("No subscriptions were set.");
+		nng_socket       *socket;
+		nng_msg *msg = NULL;
+		socket = node->sock;
+		if (!node->busy)
+			if (nng_lmq_get(node->ctx_msgs, &msg) == 0) {
+				log_debug("resending cached msg from broker ctx");
+				nng_aio_set_msg(node->resend_aio, msg);
+				nng_aio_set_timeout(node->resend_aio, node->cancel_timeout);
+				nng_send_aio(*socket, node->resend_aio);
+				node->busy = true;
+			}
 	}
-	nng_mtx_unlock(param->config->mtx);
+	nng_mtx_unlock(node->mtx);
 }
 
 // Disconnect message callback function
@@ -1229,7 +1303,16 @@ bridge_tcp_disconnect_cb(nng_pipe p, nng_pipe_ev ev, void *arg)
 	log_warn("bridge client disconnected! RC [%d] \n", reason);
 
 	bridge_param *bridge_arg = arg;
-	nng_atomic_set_bool(bridge_arg->config->connected, false);
+	conf_bridge_node *node = bridge_arg->config;
+	// The atomic value is lock-free; the mutex guards the connected pointer,
+	// which REST hot reload swaps to NULL across conf_bridge_node_destroy.
+	// A reload holds node->mtx while closing the old socket; blocking here
+	// would deadlock nng_close, so skip the update while a reload is in flight.
+	if (!nng_atomic_get_bool(bridge_arg->reloading)) {
+		nng_mtx_lock(node->mtx);
+		nng_atomic_set_bool(node->connected, false);
+		nng_mtx_unlock(node->mtx);
+	}
 	// Free cparam kept
 	// void *cparam = nng_msg_get_conn_param(bridge_arg->connmsg);
 	// if (cparam != NULL)
@@ -1541,22 +1624,41 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 	int rv;
 
 	bridge_param *bridge_arg;
-	bridge_arg = (bridge_param *) nng_alloc(sizeof(bridge_param));
+	bridge_arg = (bridge_param *) nng_zalloc(sizeof(bridge_param));
 	if (bridge_arg == NULL) {
 		log_error("memory error in allocating bridge client");
+		return NNG_ENOMEM;
+	}
+	if (nng_atomic_alloc_bool(&bridge_arg->quic_subscribed) != 0 ||
+	    nng_atomic_alloc_bool(&bridge_arg->reloading) != 0) {
+		log_error("memory error in allocating bridge status flags");
+		nng_atomic_free_bool(bridge_arg->quic_subscribed);
+		nng_atomic_free_bool(bridge_arg->reloading);
+		nng_free(bridge_arg, sizeof(bridge_param));
 		return NNG_ENOMEM;
 	}
 	bridge_arg->config = node;
 	bridge_arg->sock   = sock;
 	bridge_arg->conf   = config;
+	nng_atomic_set_bool(bridge_arg->quic_subscribed, false);
 	if (node->address == NULL) {
 		log_error("invalid bridging config! node address is null!");
+		nng_atomic_free_bool(bridge_arg->quic_subscribed);
+		nng_atomic_free_bool(bridge_arg->reloading);
 		nng_free(bridge_arg, sizeof(bridge_param));
 		return -1;
 	}
 	if (reload_lock == NULL) {
 		nng_mtx_alloc(&reload_lock);
 	}
+	// alloc an AIO for each ctx bridging use only
+	node->bridge_aio = nng_alloc(config->total_ctx * sizeof(nng_aio *));
+	if ((rv = nng_aio_alloc(
+		         &node->resend_aio, bridge_resend_cb, node)) != 0) {
+			NANO_NNG_FATAL("bridge_aio nng_aio_alloc", rv);
+	}
+	node->sock = (void *) sock;
+	node->bridge_arg = (void *) bridge_arg;
 
 	if (0 == strncmp(node->address, tcp_scheme, strlen(tcp_scheme)) ||
 	    0 == strncmp(node->address, tls_scheme, strlen(tls_scheme))) {
@@ -1566,19 +1668,14 @@ bridge_client(nng_socket *sock, conf *config, conf_bridge_node *node)
 		bridge_quic_client(sock, config, node, bridge_arg);
 #endif
 	} else {
+		nng_atomic_free_bool(bridge_arg->quic_subscribed);
+		nng_atomic_free_bool(bridge_arg->reloading);
+		nng_aio_free(node->resend_aio);
 		nng_free(bridge_arg, sizeof(bridge_param));
 		log_error("Unsupported bridge protocol.\n");
 		return -1;
 	}
 
-	// alloc an AIO for each ctx bridging use only
-	node->bridge_aio = nng_alloc(config->total_ctx * sizeof(nng_aio *));
-	if ((rv = nng_aio_alloc(
-		         &node->resend_aio, bridge_resend_cb, node)) != 0) {
-			NANO_NNG_FATAL("bridge_aio nng_aio_alloc", rv);
-	}
-	node->sock = (void *) sock;
-	node->bridge_arg = (void *) bridge_arg;
 
 	uint32_t num;
 	for ( num = 0; num < config->total_ctx; num++ ) {
@@ -1600,6 +1697,10 @@ bridge_subscribe(nng_socket *sock, conf_bridge_node *node,
 	nng_msg *msg = NULL;
 	uint8_t *rc = NULL;
 	uint32_t rcsz;
+	nng_socket send_sock;
+	bridge_param *bridge_arg;
+
+	(void) sock;
 
 	if (sub_count < 1)
 		return -1;
@@ -1608,13 +1709,24 @@ bridge_subscribe(nng_socket *sock, conf_bridge_node *node,
 		log_info("Bridge client subscribed topic %.*s (qos %d).",
 		    topic_qos[i].topic.length, topic_qos[i].topic.buf, topic_qos[i].qos);
 	}
-	bridge_param *bridge_arg = (bridge_param *)node->bridge_arg;
-
 	nng_mtx_lock(reload_lock);
+	bridge_arg = (bridge_param *)node->bridge_arg;
+	if (bridge_arg == NULL || bridge_arg->client == NULL ||
+	    bridge_arg->client->send_aio == NULL || bridge_arg->sock == NULL) {
+		nng_mtx_unlock(reload_lock);
+		return NNG_EINVAL;
+	}
+	send_sock = *bridge_arg->sock;
+	if (nng_aio_busy(bridge_arg->client->send_aio)) {
+		nng_mtx_unlock(reload_lock);
+		return NNG_EBUSY;
+	}
 	// create a SUBSCRIBE message
 	nng_msg *submsg;
-	if (nng_mqtt_msg_alloc(&submsg, 0) != 0)
+	if (nng_mqtt_msg_alloc(&submsg, 0) != 0) {
+		nng_mtx_unlock(reload_lock);
 		return NNG_ENOMEM;
+	}
 	nng_mqtt_msg_set_packet_type(submsg, NNG_MQTT_SUBSCRIBE);
 	nng_mqtt_msg_set_subscribe_topics(submsg, topic_qos, sub_count);
 	if (properties)
@@ -1623,19 +1735,23 @@ bridge_subscribe(nng_socket *sock, conf_bridge_node *node,
 	// Send message
 	nng_aio *aio;
 	if ((rv = nng_aio_alloc(&aio, NULL, NULL)) != 0) {
+		nng_msg_free(submsg);
 		nng_mtx_unlock(reload_lock);
 		return rv;
 	}
 	nng_aio_set_msg(aio, submsg);
-	nng_send_aio(*sock, aio);
-
-	// Hold to get suback
-	nng_aio_wait(aio);
+	nng_aio_set_timeout(aio, 5000);
+	nng_send_aio(send_sock, aio);
 	nng_mtx_unlock(reload_lock);
 
-	if (nng_aio_result(aio) != 0 || (msg = nng_aio_get_msg(aio)) == NULL) {
-		// Connection losted
-		log_warn("Can't get suback. Maybe connection of bridge was closed.");
+	// Hold to get suback without blocking bridge reload.
+	nng_aio_wait(aio);
+
+	rv = nng_aio_result(aio);
+	if (rv != 0 || (msg = nng_aio_get_msg(aio)) == NULL) {
+		// Connection lost
+		log_warn("Can't get suback: %s (%d). Maybe connection of bridge was closed.",
+		    nng_strerror(rv), rv);
 		rv = -3;
 		goto done;
 	}
@@ -1667,6 +1783,10 @@ bridge_unsubscribe(nng_socket *sock, conf_bridge_node *node,
 	nng_msg *msg = NULL;
 	uint8_t *rc = NULL;
 	uint32_t rcsz;
+	nng_socket send_sock;
+	bridge_param *bridge_arg;
+
+	(void) sock;
 
 	if (unsub_count < 1)
 		return -1;
@@ -1675,13 +1795,24 @@ bridge_unsubscribe(nng_socket *sock, conf_bridge_node *node,
 		log_info("Bridge client unsubscribed topic %.*s.",
 		    topics[i].length, topics[i].buf);
 	}
-	bridge_param *bridge_arg = (bridge_param *)node->bridge_arg;
-
 	nng_mtx_lock(reload_lock);
+	bridge_arg = (bridge_param *)node->bridge_arg;
+	if (bridge_arg == NULL || bridge_arg->client == NULL ||
+	    bridge_arg->client->send_aio == NULL || bridge_arg->sock == NULL) {
+		nng_mtx_unlock(reload_lock);
+		return NNG_EINVAL;
+	}
+	send_sock = *bridge_arg->sock;
+	if (nng_aio_busy(bridge_arg->client->send_aio)) {
+		nng_mtx_unlock(reload_lock);
+		return NNG_EBUSY;
+	}
 	// create a UNSUBSCRIBE message
 	nng_msg *unsubmsg;
-	if (nng_mqtt_msg_alloc(&unsubmsg, 0) != 0)
+	if (nng_mqtt_msg_alloc(&unsubmsg, 0) != 0) {
+		nng_mtx_unlock(reload_lock);
 		return NNG_ENOMEM;
+	}
 	nng_mqtt_msg_set_packet_type(unsubmsg, NNG_MQTT_UNSUBSCRIBE);
 	nng_mqtt_msg_set_unsubscribe_topics(unsubmsg, topics, unsub_count);
 	if (properties)
@@ -1689,20 +1820,24 @@ bridge_unsubscribe(nng_socket *sock, conf_bridge_node *node,
 
 	// Send message
 	nng_aio *aio;
-	if ((rv = nng_aio_alloc(&aio, NULL, NULL)) != 0){
+	if ((rv = nng_aio_alloc(&aio, NULL, NULL)) != 0) {
+		nng_msg_free(unsubmsg);
 		nng_mtx_unlock(reload_lock);
 		return rv;
 	}
 	nng_aio_set_msg(aio, unsubmsg);
-	nng_send_aio(*sock, aio);
-
-	// Hold to get suback
-	nng_aio_wait(aio);
+	nng_aio_set_timeout(aio, 5000);
+	nng_send_aio(send_sock, aio);
 	nng_mtx_unlock(reload_lock);
 
-	if (nng_aio_result(aio) != 0 || (msg = nng_aio_get_msg(aio)) == NULL) {
-		// Connection losted
-		log_warn("Can't get unsuback. Maybe connection of bridge was closed.");
+	// Hold to get unsuback without blocking bridge reload.
+	nng_aio_wait(aio);
+
+	rv = nng_aio_result(aio);
+	if (rv != 0 || (msg = nng_aio_get_msg(aio)) == NULL) {
+		// Connection lost
+		log_warn("Can't get unsuback: %s (%d). Maybe connection of bridge was closed.",
+		    nng_strerror(rv), rv);
 		rv = -3;
 		goto done;
 	}
@@ -1890,8 +2025,8 @@ bridge_pub_handler(nano_work *work)
 	topic = nng_zalloc(sizeof(*topic));
 	for (size_t t = 0; t < work->config->bridge.count; t++) {
 		conf_bridge_node *node = work->config->bridge.nodes[t];
-		if (node->enable) {	// nng_atomic_get_bool for potential data racing
-			nng_mtx_lock(node->mtx);		//TODO bridge performance
+		nng_mtx_lock(node->mtx);	// reload toggles enable under node->mtx
+		if (node->enable) {
 			for (size_t i = 0; i < node->forwards_count; i++) {
 				rv = 0;
 				topic->body = work->pub_packet->var_header.publish.topic_name.body;
@@ -1963,8 +2098,13 @@ bridge_pub_handler(nano_work *work)
 
 					// what if send qos msg failed?
 					// nanosdk deal with fail send and close the pipe
-					if (nng_aio_busy(node->bridge_aio[index]) || 
-						!nng_atomic_get_bool(node->connected)) {
+					if (nng_aio_busy(node->bridge_aio[index]) ||
+					// put SQLite cache to use first
+						(!nng_atomic_get_bool(node->connected)
+#if defined(NNG_SUPP_SQLITE)
+						&& !node->sqlite->enable
+#endif
+						)) {
 						if (qos == 0) {
 							nng_msg_free(bridge_msg);
 							log_warn(
@@ -1975,15 +2115,15 @@ bridge_pub_handler(nano_work *work)
 							// pass index of aio via timestamp;
 							if (nng_lmq_full(node->ctx_msgs)) {
 								log_warn("Cached Message in ctx_msgs is lost!");
-								nng_msg *tmsg;
-								(void) nng_lmq_get(node->ctx_msgs, &tmsg);
-								nng_msg_free(tmsg);
+								nng_msg *tmsg = NULL;
+								if (nng_lmq_get(node->ctx_msgs, &tmsg) == 0)
+									nng_msg_free(tmsg);
 							}
 							if (nng_lmq_put(node->ctx_msgs, bridge_msg) != 0) {
 								log_warn("Msg lost! put msg to ctx_msgs failed!");
 								nng_msg_free(bridge_msg);
 							} else {
-								log_info("msg cached!!");
+								log_debug("msg cached in mem lmq!");
 							}
 						}
 					} else {
@@ -1996,8 +2136,8 @@ bridge_pub_handler(nano_work *work)
 					rv = SUCCESS;
 				}
 			}
-			nng_mtx_unlock(node->mtx);
 		}
+		nng_mtx_unlock(node->mtx);
 	}
 	nng_free(topic, sizeof(topic));
 	return;

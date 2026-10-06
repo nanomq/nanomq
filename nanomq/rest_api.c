@@ -29,8 +29,10 @@
 #include "include/version.h"
 #include "include/mqtt_api.h"
 
+#include <ctype.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <inttypes.h>
 #include <string.h>
 #include <time.h>
@@ -116,6 +118,12 @@ static endpoints api_ep[] = {
 	    .descr  = "Lookup a client via username in the cluster",
 	},
 	{
+	    .path   = "/clients/:clientid",
+	    .name   = "kickout_client",
+	    .method = "DELETE",
+	    .descr  = "Kick out a client by clientid, closing its connection",
+	},
+	{
 	    .path   = "/subscriptions/",
 	    .name   = "list_subscriptions",
 	    .method = "GET",
@@ -180,6 +188,18 @@ static endpoints api_ep[] = {
 		.name = "put_mqtt_bridge",
 		.method = "PUT",
 		.descr = "Edit a bridge client",
+	},
+	{
+		.path = "/bridges/sub/:bridge_name",
+		.name = "put_mqtt_bridge_sub",
+		.method = "PUT",
+		.descr = "Subscribe a bridge client",
+	},
+	{
+		.path = "/bridges/unsub/:bridge_name",
+		.name = "put_mqtt_bridge_unsub",
+		.method = "PUT",
+		.descr = "Unsubscribe a bridge client",
 	},
 	{
 		.path = "/bridges/switch/:bridge_name",
@@ -351,6 +371,7 @@ static kv **        uri_param_parse(const char *path, size_t *count);
 static void         uri_param_free(uri_content *ct);
 static uri_content *uri_parse(const char *uri);
 static void         uri_free(uri_content *ct);
+static char        *uri_component_decode(const char *in);
 
 static http_msg error_response(
     http_msg *msg, uint16_t status, enum result_code code);
@@ -372,6 +393,8 @@ static http_msg  put_rules(
     http_msg *msg, kv **params, size_t param_num, const char *rule_id);
 static http_msg  delete_rules(
     http_msg *msg, kv **params, size_t param_num, const char *rule_id);
+static http_msg  delete_clients(http_msg *msg, kv **params, size_t param_num,
+    const char *client_id, nng_socket *broker_sock);
 static http_msg post_rules(http_msg *msg);
 static http_msg get_tree(http_msg *msg);
 static http_msg post_ctrl(http_msg *msg, const char *type);
@@ -698,7 +721,11 @@ put_http_msg(http_msg *msg, const char *content_type, const char *method,
 
 	if (data != NULL) {
 		msg->data_len = data_sz;
-		msg->data     = nng_alloc(msg->data_len);
+		if (data_sz == 0) {
+			msg->data = NULL;
+			return;
+		}
+		msg->data = nng_alloc(msg->data_len);
 		memcpy(msg->data, data, msg->data_len);
 	}
 }
@@ -853,7 +880,7 @@ basic_authorize(http_msg *msg)
 		return UNKNOWN_MISTAKE;
 	}
 
-	size_t decoded_len = nmq_base64_decode(
+	size_t decoded_len = nmq_base64_decode_strict(
 	    (const char *) token, token_len, decode, decode_len);
 	if (decoded_len != (size_t) -1 && decoded_len < decode_len) {
 		decode[decoded_len] = '\0';
@@ -1158,7 +1185,15 @@ process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 			goto exit;
 		}
 	} else if (nng_strcasecmp(msg->method, "PUT") == 0) {
-		if (uri_ct->sub_count == 3 && uri_ct->sub_tree[2]->end &&
+		if (uri_ct->sub_count == 4 && uri_ct->sub_tree[3]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "bridges") == 0 &&
+		    strcmp(uri_ct->sub_tree[2]->node, "sub") == 0) {
+			ret = post_mqtt_bridge_sub(msg, uri_ct->sub_tree[3]->node);
+		} else if (uri_ct->sub_count == 4 && uri_ct->sub_tree[3]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "bridges") == 0 &&
+		    strcmp(uri_ct->sub_tree[2]->node, "unsub") == 0) {
+			ret = post_mqtt_bridge_unsub(msg, uri_ct->sub_tree[3]->node);
+		} else if (uri_ct->sub_count == 3 && uri_ct->sub_tree[2]->end &&
 		    strcmp(uri_ct->sub_tree[1]->node, "rules") == 0) {
 			ret = put_rules(msg, uri_ct->params,
 			    uri_ct->params_count, uri_ct->sub_tree[2]->node);
@@ -1177,6 +1212,16 @@ process_request(http_msg *msg, conf_http_server *hconfig, nng_socket *sock)
 		    strcmp(uri_ct->sub_tree[1]->node, "rules") == 0) {
 			ret = delete_rules(msg, uri_ct->params,
 			    uri_ct->params_count, uri_ct->sub_tree[2]->node);
+		} else if (uri_ct->sub_count == 3 &&
+		    uri_ct->sub_tree[2]->end &&
+		    strcmp(uri_ct->sub_tree[1]->node, "clients") == 0) {
+			char *client_id =
+			    uri_component_decode(uri_ct->sub_tree[2]->node);
+			ret = delete_clients(msg, uri_ct->params,
+			    uri_ct->params_count,
+			    client_id ? client_id : uri_ct->sub_tree[2]->node,
+			    hconfig->broker_sock);
+			nng_strfree(client_id);
 		} else {
 			status = NNG_HTTP_STATUS_NOT_FOUND;
 			code   = UNKNOWN_MISTAKE;
@@ -1594,6 +1639,123 @@ bad_request:
 	return res;
 }
 
+// Percent-decode a URI path component (RFC 3986) so client ids containing
+// reserved characters (e.g. '/' encoded as %2F) match the stored MQTT
+// Client Identifier. Returns a newly nng_alloc'd string the caller must
+// free with nng_strfree, or NULL on allocation failure.
+static char *
+uri_component_decode(const char *in)
+{
+	if (in == NULL) {
+		return NULL;
+	}
+	size_t len = strlen(in);
+	char  *out = nng_alloc(len + 1);
+	if (out == NULL) {
+		return NULL;
+	}
+	size_t j = 0;
+	for (size_t i = 0; i < len; i++) {
+		if (in[i] == '%' && i + 2 < len &&
+		    isxdigit((unsigned char) in[i + 1]) &&
+		    isxdigit((unsigned char) in[i + 2])) {
+			char hex[3] = { in[i + 1], in[i + 2], '\0' };
+			out[j++] = (char) strtol(hex, NULL, 16);
+			i += 2;
+		} else {
+			out[j++] = in[i];
+		}
+	}
+	out[j] = '\0';
+	return out;
+}
+
+typedef struct {
+	const char *client_id;
+	uint32_t    pipe_id;
+	bool        found;
+	bool        online;
+} kick_client_info;
+
+static void
+kick_client_cb(void *key, void *value, void *arg)
+{
+	kick_client_info *info    = arg;
+	uint32_t          pipe_id = *(uint32_t *) key;
+	nng_pipe          pipe    = { .id = pipe_id };
+
+	if (info->found) {
+		// already located the target pipe, skip remaining entries
+		return;
+	}
+
+	conn_param *cp  = nng_pipe_cparam(pipe);
+	const char *cid = conn_param_get_clientid(cp);
+	if (cid == NULL || strcmp(info->client_id, cid) != 0) {
+		conn_param_free(cp);
+		return;
+	}
+
+	info->found   = true;
+	info->pipe_id = pipe_id;
+	// nng_pipe_status returns true when the pipe is a cached/offline session
+	info->online  = !nng_pipe_status(pipe);
+
+	conn_param_free(cp);
+}
+
+// DELETE /clients/:clientid - kick out a connected client by closing its
+// underlying pipe/connection. Persisted (offline) sessions and unknown
+// client ids are reported as CLIENT_IS_OFFLINE since there is no live
+// connection to close.
+static http_msg
+delete_clients(http_msg *msg, kv **params, size_t param_num,
+    const char *client_id, nng_socket *broker_sock)
+{
+	http_msg res = { .status = NNG_HTTP_STATUS_OK };
+
+	if (client_id == NULL || strlen(client_id) == 0) {
+		return error_response(
+		    msg, NNG_HTTP_STATUS_BAD_REQUEST, REQ_PARAM_ERROR);
+	}
+
+	nng_id_map *pipe_id_map;
+	if (nng_socket_get_ptr(*broker_sock, NMQ_OPT_MQTT_PIPES,
+	        (void **) &pipe_id_map) != 0) {
+		return error_response(
+		    msg, NNG_HTTP_STATUS_INTERNAL_SERVER_ERROR, UNKNOWN_MISTAKE);
+	}
+
+	kick_client_info info = {
+		.client_id = client_id,
+		.pipe_id   = 0,
+		.found     = false,
+		.online    = false,
+	};
+
+	nng_id_map_foreach2(pipe_id_map, kick_client_cb, &info);
+
+	if (!info.found || !info.online) {
+		return error_response(
+		    msg, NNG_HTTP_STATUS_NOT_FOUND, CLIENT_IS_OFFLINE);
+	}
+
+	nng_pipe pipe = { .id = info.pipe_id };
+	nng_pipe_close(pipe);
+
+	cJSON *res_obj = cJSON_CreateObject();
+	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
+	char *dest = cJSON_PrintUnformatted(res_obj);
+
+	put_http_msg(
+	    &res, "application/json", NULL, NULL, NULL, dest, strlen(dest));
+
+	cJSON_free(dest);
+	cJSON_Delete(res_obj);
+
+	return res;
+}
+
 static void
 compose_metrics(char *ret, client_stats *ms, client_stats *s)
 {
@@ -1783,11 +1945,10 @@ get_prometheus(http_msg *msg, kv **params, size_t param_num,
 	nng_id_map *pipe_id_map;
 
 	if (nng_socket_get_ptr(*broker_sock, NMQ_OPT_MQTT_PIPES,
-	        (void **) &pipe_id_map) != 0) {
-		goto out;
+	        (void **) &pipe_id_map) == 0) {
+		nng_id_map_foreach2(pipe_id_map, get_metric_cb, &stats);
 	}
 
-	nng_id_map_foreach2(pipe_id_map, get_metric_cb, &stats);
 	stats.subscribers      = dbhash_get_pipe_cnt();
 	stats.topics           = get_topics_count();
 #ifdef STATISTICS
@@ -1804,7 +1965,6 @@ get_prometheus(http_msg *msg, kv **params, size_t param_num,
 	update_max_stats(&max_stats, &stats);
 	compose_metrics(dest, &max_stats, &stats);
 
-out:
 	put_http_msg(&res, "text/plain", NULL, NULL, NULL, dest, strlen(dest));
 
 	return res;
@@ -1846,9 +2006,11 @@ get_metrics(http_msg *msg, kv **params, size_t param_num,
 			cJSON *bridge_info = cJSON_CreateObject();
 			child              = nng_stat_find(st1, "name");
 			if (child) {
+				// CJSON only supports str ends with '\0'
+				char name[65] = {'\0'};
+				strncpy(name, nng_stat_string(child), 64);
 				cJSON_AddStringToObject(bridge_info,
-				    "bridge name",
-				    nng_stat_string(child));
+				    "bridge name", name);
 			}
 			child = nng_stat_find(st1, "tx_msgs");
 			if (child) {
@@ -3622,7 +3784,7 @@ send_publish(nng_socket *sock, const char *clientid, char *payload,
 				len = 0;
 			} else {
 				decode_data = nng_zalloc(out_size);
-				len = nmq_base64_decode((const char *) payload,
+				len = nmq_base64_decode_strict((const char *) payload,
 				    payload_len, decode_data, out_size);
 			}
 			if (len != (size_t)-1 && len > 0) {
@@ -4153,7 +4315,7 @@ get_mqtt_bridge(http_msg *msg, const char *name)
 static http_msg
 put_mqtt_bridge(http_msg *msg, const char *name)
 {
-	int rv;
+	int rv = 0;
 	http_msg res = { .status = NNG_HTTP_STATUS_OK };
 
 	cJSON *req = cJSON_ParseWithLength(msg->data, msg->data_len);
@@ -4164,15 +4326,15 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
 	}
 	cJSON *node_obj = cJSON_GetObjectItem(req, name);
+	if (name == NULL || !cJSON_IsObject(node_obj)) {
+		cJSON_Delete(req);
+		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
+		    REQ_PARAMS_JSON_FORMAT_ILLEGAL);
+	}
 	conf * config   = get_global_conf();
 
 	bool         found  = false;
 	conf_bridge *bridge = &config->bridge;
-	if (node_obj == NULL) {
-		cJSON_Delete(req);
-		return error_response(msg, NNG_HTTP_STATUS_BAD_REQUEST,
-		    REQ_PARAM_ERROR);
-	}
 	nng_mtx_lock(config->restapi_lk);
 	for (size_t i = 0; i < bridge->count; i++) {
 		conf_bridge_node *node     = bridge->nodes[i];
@@ -4181,13 +4343,38 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 		if (name != NULL && strcmp(node->name, name) != 0) {
 			continue;
 		}
+		// While the reload closes the old socket under node->mtx, disconnect
+		// callbacks must not block on that mutex (nng_close would deadlock);
+		// flag the reload before taking node->mtx so callbacks racing the
+		// dialer_off below skip the connect-status update.
+		bridge_param *reload_arg = (bridge_param *) node->bridge_arg;
+		if (reload_arg != NULL)
+			nng_atomic_set_bool(reload_arg->reloading, true);
+		nng_mtx_lock(node->mtx);
 		node->enable = false;
 		if (node->dialer != NULL)
 			nng_dialer_off(*node->dialer);
 
-		nng_mtx_lock(node->mtx);
-		conf_bridge_node_destroy(node);	// TODO potential dead lock here!!
+		// Disconnect callbacks retain the bridge node across hot reload. Keep
+		// its status flag alive until final bridge teardown. Every accessor
+		// must hold node->mtx: this pointer is transiently NULL here.
+		nng_atomic_bool *connected = node->connected;
+		node->connected = NULL;
+		conf_bridge_node_destroy(node);
+		node->connected = connected;
 		conf_bridge_node_parse(node, &bridge->sqlite, node_obj);
+		// The URL identifies the bridge; do not let a payload field or parser
+		// detail change the identity used by subsequent bridge operations.
+		char *node_name = nng_strdup(name);
+		if (node_name == NULL) {
+			if (reload_arg != NULL)
+				nng_atomic_set_bool(reload_arg->reloading, false);
+			nng_mtx_unlock(node->mtx);
+			rv = NNG_ENOMEM;
+			break;
+		}
+		nng_strfree(node->name);
+		node->name = node_name;
 		node->parallel = parallel;
 		log_info("Bridge Reload with %.*s", msg->data_len, msg->data);
 		bridge->nodes[i] = node;
@@ -4195,8 +4382,12 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 		if ((rv = bridge_reload(node->sock, config, node)) != 0) {
 			// Error might happened in reload bridge
 			log_warn("bridge reload failed!");
+			if (reload_arg != NULL)
+				nng_atomic_set_bool(reload_arg->reloading, false);
 			nng_mtx_unlock(node->mtx);
 		} else {
+			if (reload_arg != NULL)
+				nng_atomic_set_bool(reload_arg->reloading, false);
 			nng_mtx_unlock(node->mtx);
 			found = true;
 			if (node->enable == true) {
@@ -4387,7 +4578,7 @@ free_string_list(char **list, size_t count)
 	if (list && count > 0) {
 		for (size_t i = 0; i < count; i++) {
 			if (list[i]) {
-				free(list[i]);
+				nng_strfree(list[i]);
 				list[i] = NULL;
 			}
 		}
@@ -4417,6 +4608,71 @@ convert_topic(char **list, size_t count)
 		nng_mqtt_topic_array_set(topics, i, list[i]);
 	}
 	return topics;
+}
+
+static bool
+bridge_properties_valid(cJSON *json_prop, bool allow_identifier)
+{
+	cJSON *identifier;
+
+	if (json_prop == NULL) {
+		return true;
+	}
+	if (!cJSON_IsObject(json_prop)) {
+		return false;
+	}
+	identifier = cJSON_GetObjectItem(json_prop, "identifier");
+	if (identifier == NULL) {
+		return true;
+	}
+	return allow_identifier && cJSON_IsNumber(identifier) &&
+	    identifier->valuedouble == (double) identifier->valueint &&
+	    identifier->valueint > 0 && identifier->valueint <= 268435455;
+}
+
+static property *
+bridge_properties_parse(cJSON *json_prop, bool include_identifier)
+{
+	if (json_prop == NULL) {
+		return NULL;
+	}
+	if (!bridge_properties_valid(json_prop, include_identifier)) {
+		return NULL;
+	}
+
+	property *prop_list = mqtt_property_alloc();
+	if (prop_list == NULL) {
+		return NULL;
+	}
+
+	cJSON *identifier = cJSON_GetObjectItem(json_prop, "identifier");
+	if (include_identifier && cJSON_IsNumber(identifier)) {
+		mqtt_property_append(prop_list,
+		    mqtt_property_set_value_varint(
+			SUBSCRIPTION_IDENTIFIER, identifier->valueint));
+	}
+
+	cJSON *up_array = cJSON_GetObjectItem(json_prop, "user_properties");
+	if (cJSON_IsArray(up_array)) {
+		cJSON *up_item = NULL;
+		cJSON_ArrayForEach(up_item, up_array)
+		{
+			cJSON *key_item = cJSON_GetObjectItem(up_item, "key");
+			cJSON *value_item = cJSON_GetObjectItem(up_item, "value");
+			if (!cJSON_IsString(key_item) ||
+			    !cJSON_IsString(value_item)) {
+				continue;
+			}
+			mqtt_property_append(prop_list,
+			    mqtt_property_set_value_strpair(
+				USER_PROPERTY, key_item->valuestring,
+				strlen(key_item->valuestring),
+				value_item->valuestring,
+				strlen(value_item->valuestring), true));
+		}
+	}
+
+	return prop_list;
 }
 
 static http_msg
@@ -4491,6 +4747,12 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 	cJSON *json_prop = cJSON_GetObjectItem(data_obj, "sub_properties");
 	conf_bridge_sub_properties *sub_props = NULL;
 
+	if (!bridge_properties_valid(json_prop, true)) {
+		free_topic_list(sub_topics, sub_count);
+		status = NNG_HTTP_STATUS_BAD_REQUEST;
+		code   = REQ_PARAM_ERROR;
+		goto out;
+	}
 	if (cJSON_IsObject(json_prop)) {
 		sub_props = nng_zalloc(sizeof(conf_bridge_sub_properties));
 		getNumberValue(
@@ -4504,11 +4766,11 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 		for (size_t i = 0; i < up_count; i++) {
 			char *key   = NULL;
 			char *value = NULL;
+			cJSON *up_item = cJSON_GetArrayItem(up_array, i);
 
-			getStringValue(json_prop, item, "key", key, rv);
+			getStringValue(up_item, item, "key", key, rv);
 			if (rv == 0) {
-				getStringValue(
-				    json_prop, item, "value", value, rv);
+				getStringValue(up_item, item, "value", value, rv);
 				if (rv == 0) {
 					conf_user_property *up = nng_zalloc(
 					    sizeof(conf_user_property));
@@ -4531,7 +4793,12 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 		conf_bridge_node *node = bridge->nodes[i];
 
 		nng_mtx_lock(node->mtx);
-		if (name != NULL && strcmp(node->name, name) != 0) {
+		if (name != NULL &&
+		    (node->name == NULL || strcmp(node->name, name) != 0)) {
+			nng_mtx_unlock(node->mtx);
+			continue;
+		}
+		if (!node->enable) {
 			nng_mtx_unlock(node->mtx);
 			continue;
 		}
@@ -4540,9 +4807,7 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 		// Decode properties to nng_mqtt_property
 		property *prop_list = NULL;
 		if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
-			if (cJSON_IsObject(json_prop)) {
-				properties_parse(&prop_list, json_prop);
-			}
+			prop_list = bridge_properties_parse(json_prop, true);
 		}
 
 		found = true;
@@ -4574,6 +4839,8 @@ post_mqtt_bridge_sub(http_msg *msg, const char *name)
 
 	if (!found || rv != 0) {
 		if (!found) {
+			log_error("bridge subscribe target not found: %s",
+			    name != NULL ? name : "(null)");
 			status = NNG_HTTP_STATUS_NOT_FOUND;
 		} else if (rv != 0)
 			status = NNG_HTTP_STATUS_BAD_REQUEST;
@@ -4648,6 +4915,13 @@ post_mqtt_bridge_unsub(http_msg *msg, const char *name)
 		cvector_push_back(unsub_topics, topic);
 		unsub_count++;
 	}
+	cJSON *json_prop = cJSON_GetObjectItem(data_obj, "unsub_properties");
+	if (!bridge_properties_valid(json_prop, false)) {
+		free_string_list(unsub_topics, unsub_count);
+		status = NNG_HTTP_STATUS_BAD_REQUEST;
+		code   = REQ_PARAM_ERROR;
+		goto out;
+	}
 
 	conf *config = get_global_conf();
 
@@ -4657,7 +4931,8 @@ post_mqtt_bridge_unsub(http_msg *msg, const char *name)
 	for (size_t i = 0; i < bridge->count; i++) {
 		conf_bridge_node *node = bridge->nodes[i];
 		nng_mtx_lock(node->mtx);
-		if (name != NULL && strcmp(node->name, name) != 0) {
+		if (name != NULL &&
+		    (node->name == NULL || strcmp(node->name, name) != 0)) {
 			nng_mtx_unlock(node->mtx);
 			continue;
 		}
@@ -4669,12 +4944,9 @@ post_mqtt_bridge_unsub(http_msg *msg, const char *name)
 
 		// Get properties
 		property *prop_list = NULL;
-		if (node->proto_ver == MQTT_VERSION_V5) {
-			cJSON *json_prop =
-			    cJSON_GetObjectItem(data_obj, "unsub_properties");
-
+		if (node->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 			if (cJSON_IsObject(json_prop)) {
-				properties_parse(&prop_list, json_prop);
+				prop_list = bridge_properties_parse(json_prop, false);
 			}
 		}
 

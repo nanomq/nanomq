@@ -109,6 +109,9 @@ nng_pub_handler(nano_work *work)
     for (size_t t = 0; t < work->config->nng_proxy.pub_count; t++) {
 	    // iterate all pub node
 	    conf_nng_pub_node *node = work->config->nng_proxy.pnodes[t];
+	    if (!node->enable) {
+		    continue;
+	    }
 	    for (size_t i = 0; i < node->forwards_count; i++) {
 		    log_debug("local topic %s msg topic %s",
 			node->pub_list[i]->local_topic, sub_topic->body);

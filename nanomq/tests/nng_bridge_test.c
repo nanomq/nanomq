@@ -103,7 +103,7 @@ int
 main(void)
 {
 	nng_msg *origin, *mqtt_msg;
-	topics *rules[2];
+	topics *rules[2] = { NULL, NULL };
 
 	// --- 1. ":" delimiter, exact topic match -> forwarded ---
 	conf_nng_sub_node *node = mk_node(rules, 1);

@@ -1,8 +1,71 @@
 #include <assert.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "include/nanomq.h"
 #include "include/pub_handler.h"
+#include "nng/supplemental/nanolib/conf.h"
+#include "nng/supplemental/nanolib/hash_table.h"
+#include "nng/protocol/mqtt/mqtt_parser.h" // conn_param_alloc/free
+
+// Build a MQTT v5 PUBLISH message carrying an optional topic and a
+// TOPIC_ALIAS property: [topic][props: 0x23 alias u16][payload]
+static void
+build_v5_pub_msg(nng_msg **msgp, const char *topic, uint16_t alias,
+    const char *payload)
+{
+	uint32_t topic_len = strlen(topic);
+	uint32_t pay_len   = strlen(payload);
+	uint32_t prop_len  = 3; // TOPIC_ALIAS id (1) + alias value (2)
+	uint32_t remain    = 2 + topic_len + 1 + prop_len + pay_len;
+
+	nng_msg *msg;
+	nng_msg_alloc(&msg, 0);
+
+	uint8_t topic_buf[2];
+	NNI_PUT16(topic_buf, (uint16_t) topic_len);
+	nng_msg_append(msg, topic_buf, 2);
+	if (topic_len > 0) {
+		nng_msg_append(msg, topic, topic_len);
+	}
+	uint8_t prop_buf[4] = { (uint8_t) prop_len, 0x23, 0x00, 0x00 };
+	NNI_PUT16(prop_buf + 2, alias);
+	nng_msg_append(msg, prop_buf, prop_len + 1);
+	nng_msg_append(msg, payload, pay_len);
+
+	uint8_t fix_header[2] = { 0x30, (uint8_t) remain };
+	nng_msg_header_append(msg, fix_header, 2);
+
+	*msgp = msg;
+}
+
+static void
+init_v5_pub_work(nano_work *work, conf *cfg, uint32_t pid, nng_msg *msg)
+{
+	work->config    = cfg;
+	work->proto     = PROTO_MQTT_BROKER;
+	work->proto_ver = MQTT_PROTOCOL_VERSION_v5;
+	work->pipe_ct   = nng_zalloc(sizeof(struct pipe_content));
+	work->pid.id    = pid;
+	conn_param_alloc(&work->cparam);
+	work->msg       = msg;
+	// the transport attaches the conn_param to each incoming message;
+	// check_properties() requires it when a TOPIC_ALIAS property is
+	// present in a v5 PUBLISH
+	nng_msg_set_conn_param(msg, work->cparam);
+	dbtree_create(&work->db);
+}
+
+static void
+release_v5_pub_work(nano_work *work)
+{
+	free_pub_packet(work->pub_packet);
+	nng_msg_free(work->msg);
+	conn_param_free(work->cparam);
+	nng_free(work->pipe_ct, sizeof(struct pipe_content));
+	dbtree_destory(work->db);
+	nng_free(work, sizeof(*work));
+}
 
 void
 test_handler_pub()
@@ -56,6 +119,101 @@ test_handler_pub()
 	nng_free(work, sizeof(*work));
 
 	return;
+}
+
+// Regression for issue #658: with the auth http section enabled but all
+// sub requests disabled (the default config template), a v5 PUBLISH that
+// reuses a topic alias (empty topic name) must not be rejected by the
+// ACL topic parsing, and must be resolved back to the aliased topic.
+void
+test_pub_v5_topic_alias_all_auth_disabled()
+{
+	conf *cfg = nng_zalloc(sizeof(conf));
+	conf_init(cfg);
+	// mimic the reported config: the auth.http_auth section is present
+	// so its top-level enable flag ends up true, every sub request is
+	// disabled, yet urls are configured. The entry guard must honor the
+	// per-request enable flags: checking the urls alone would still run
+	// the ACL flow below and reject the empty topic of msg2 (#658)
+	cfg->auth_http.enable         = true;
+	cfg->auth_http.super_req.url  = nng_strdup("http://127.0.0.1:8080/super");
+	cfg->auth_http.acl_req.url    = nng_strdup("http://127.0.0.1:8080/acl");
+	cfg->max_topic_alias          = 5;
+
+	nano_work *work = nng_zalloc(sizeof(*work));
+	dbhash_init_pipe_table();
+	// the topic alias table is a global hash initialized once at broker
+	// startup (broker.c), mirror it here for the alias insert/lookup
+	dbhash_init_alias_table();
+
+	nng_msg *msg1, *msg2;
+	build_v5_pub_msg(&msg1, "alias/reuse/test", 1, "message-1");
+	build_v5_pub_msg(&msg2, "", 1, "message-2");
+
+	// first message establishes topic alias 1
+	init_v5_pub_work(work, cfg, 0x65801, msg1);
+	reason_code rc = handle_pub(work, work->pipe_ct, work->proto_ver, false);
+	assert(rc == SUCCESS);
+	free_pub_packet(work->pub_packet);
+	work->pub_packet = NULL;
+
+	// second message carries an empty topic and reuses topic alias 1
+	work->msg = msg2;
+	nng_msg_set_conn_param(msg2, work->cparam);
+	rc        = handle_pub(work, work->pipe_ct, work->proto_ver, false);
+	assert(rc == SUCCESS);
+	assert(work->pub_packet->var_header.publish.topic_name.body != NULL);
+	assert(strcmp(work->pub_packet->var_header.publish.topic_name.body,
+	           "alias/reuse/test") == 0);
+
+	nng_msg_free(msg1);
+	release_v5_pub_work(work);
+	dbhash_destroy_pipe_table();
+	dbhash_destroy_alias_table();
+	conf_fini(cfg);
+}
+
+// Regression for issue #658: with the acl sub request truly enabled, the
+// ACL check must run on the resolved topic (after topic alias lookup),
+// not on the raw empty topic of an alias-reusing v5 PUBLISH. The endpoint
+// below refuses connections, so the publish is denied by the ACL request
+// itself; the important part is that the topic has been resolved before
+// the ACL stage sees it.
+void
+test_pub_v5_topic_alias_auth_enabled()
+{
+	conf *cfg = nng_zalloc(sizeof(conf));
+	conf_init(cfg);
+	cfg->auth_http.enable        = true;
+	cfg->auth_http.acl_req.enable = true;
+	cfg->auth_http.acl_req.url    = nng_strdup("http://127.0.0.1:9/acl");
+	// the hocon parser allocates the per-request mutex (conf_ver2.c);
+	// conf_init does not, mirror it here (freed by conf_fini)
+	nng_mtx_alloc(&cfg->auth_http.acl_req.mtx);
+	cfg->max_topic_alias          = 5;
+
+	nano_work *work = nng_zalloc(sizeof(*work));
+	dbhash_init_pipe_table();
+	dbhash_init_alias_table();
+	// topic alias 1 was established by an earlier (allowed) publish
+	dbhash_insert_atpair(0x65802, 1, "alias/reuse/test");
+
+	nng_msg *msg2;
+	build_v5_pub_msg(&msg2, "", 1, "message-2");
+	init_v5_pub_work(work, cfg, 0x65802, msg2);
+
+	reason_code rc = handle_pub(work, work->pipe_ct, work->proto_ver, false);
+	assert(rc == NOT_AUTHORIZED);
+	// the ACL stage must have received the resolved topic, i.e. the raw
+	// empty topic must no longer be able to fail the ACL topic parsing
+	assert(work->pub_packet->var_header.publish.topic_name.body != NULL);
+	assert(strcmp(work->pub_packet->var_header.publish.topic_name.body,
+	           "alias/reuse/test") == 0);
+
+	release_v5_pub_work(work);
+	dbhash_destroy_pipe_table();
+	dbhash_destroy_alias_table();
+	conf_fini(cfg);
 }
 
 int
@@ -220,6 +378,8 @@ main()
 	nng_free(work, sizeof(*work));
 
 	test_handler_pub();
+	test_pub_v5_topic_alias_all_auth_disabled();
+	test_pub_v5_topic_alias_auth_enabled();
 
 	return SUCCESS;
 }

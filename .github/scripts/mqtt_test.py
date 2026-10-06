@@ -6,6 +6,7 @@ from multiprocessing import Process, Value
 import time
 import signal
 import os
+from process_utils import stop_process
 
 g_port = 1883
 g_addr = "127.0.0.1"
@@ -22,6 +23,8 @@ def cnt_message(cmd, n, pid, message):
     
     while True:
         output = process.stdout.readline()
+        if output == "":
+            return
         if output.strip() == message:
             n.value += 1
 
@@ -44,7 +47,7 @@ def test_clean_session():
                                universal_newlines=True)
 
     time.sleep(1)
-    process.terminate()
+    stop_process(process)
     time.sleep(1)
 
     process = subprocess.Popen(pub_cmd, 
@@ -52,7 +55,7 @@ def test_clean_session():
                                universal_newlines=True)
 
     time.sleep(1)
-    process.terminate()
+    stop_process(process)
     time.sleep(1)
 
     cnt = Value('i', 0)
@@ -61,7 +64,7 @@ def test_clean_session():
     process.start()
 
     time.sleep(5)
-    process.terminate()
+    stop_process(process, pid)
     if cnt.value == 1:
         print("clean session test passed!")
     else:
@@ -72,14 +75,12 @@ def test_clean_session():
         print(p_cmd)
         print("clean session test failed!")
 
-    os.kill(pid.value, signal.SIGKILL)
     pid = Value('i', 0)
     process = Process(target=cnt_message, args=(clean_session_cmd, cnt, pid, "message"))
     process.start()
 
     time.sleep(1)
-    process.terminate()
-    os.kill(pid.value, signal.SIGKILL)
+    stop_process(process, pid)
     return is_success
 
 def test_retain():
@@ -91,9 +92,9 @@ def test_retain():
     clean_retain_pub_cmd = shlex.split(crp_cmd)
     sub_cmd = shlex.split(s_cmd)
 
-    process = subprocess.Popen(retain_pub_cmd, 
-                               stdout=subprocess.PIPE,
-                               universal_newlines=True)
+    retain_process = subprocess.Popen(retain_pub_cmd,
+                                      stdout=subprocess.PIPE,
+                                      universal_newlines=True)
 
 
     is_success = True
@@ -103,13 +104,14 @@ def test_retain():
     process.start()
     time.sleep(1)
 
-    process.terminate()
+    stop_process(process, pid)
+    stop_process(retain_process)
     process = subprocess.Popen(clean_retain_pub_cmd, 
                                stdout=subprocess.PIPE,
                                universal_newlines=True)
 
     time.sleep(1)
-    process.terminate()
+    stop_process(process)
     if cnt.value != 1:
         is_success = False
         print(rp_cmd)
@@ -118,7 +120,7 @@ def test_retain():
         print("Retain test failed!")
     else:
         print("Retain test passed!")
-    os.kill(pid.value, signal.SIGKILL)
+    stop_process(process, pid)
 
     return is_success
 
@@ -143,8 +145,7 @@ def test_v4_v5():
                                stdout=subprocess.PIPE,
                                universal_newlines=True)
     time.sleep(1)
-    process.terminate()
-    os.kill(pid.value, signal.SIGKILL)
+    stop_process(process, pid)
     pid = Value('i', 0)
 
     if cnt.value != 1:
@@ -161,8 +162,7 @@ def test_v4_v5():
                                universal_newlines=True)
 
     time.sleep(1)
-    process.terminate()
-    os.kill(pid.value, signal.SIGKILL)
+    stop_process(process, pid)
 
     if cnt.value != 2:
         print(s_cmd_v5)
@@ -190,7 +190,7 @@ def test_will_topic():
                                stdout=subprocess.PIPE,
                                universal_newlines=True)
     time.sleep(1)
-    process2.terminate()
+    stop_process(process2)
     times = 0
     while True:
         if cnt.value == 1:
@@ -205,8 +205,7 @@ def test_will_topic():
             print(p_cmd)
             print("Will topic test failed!")
             break
-    process.terminate()
-    os.kill(pid.value, signal.SIGKILL)
+    stop_process(process, pid)
     return is_success
 
 def mqtt_test():

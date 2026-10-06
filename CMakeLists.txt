@@ -18,6 +18,7 @@ set(CMAKE_MODULE_PATH
 )
 
 include(NanoMQHelpers)
+include(GNUInstallDirs)
 
 option (BUILD_NANOMQ_CLI "Build nanomq CLI" OFF)
 option (BUILD_CLIENT "Build nanomq client" ON)
@@ -422,7 +423,7 @@ message("Install prefix: " ${CMAKE_INSTALL_PREFIX})
 FILE(GLOB CONFIG_FILES "${PROJECT_SOURCE_DIR}/etc/*.conf")
 
 if (NOT WIN32 AND NOT CYGWIN)
-  install(FILES ${CONFIG_FILES} DESTINATION ${CMAKE_INSTALL_PREFIX}/etc)
+  install(FILES ${CONFIG_FILES} DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/nanomq)
 else ()
   install(FILES ${CONFIG_FILES}  DESTINATION config)
   install(FILES libwinpthread-1.dll DESTINATION bin)

@@ -278,9 +278,9 @@ If you don't see expected behavior:
 
 ## Related Features
 
-- **[QoS Duration](../MQTT_QoS.md#qos-duration)**: Controls the timing of message retries and cache cleanup
-- **[SQLite Persistence](../Persistence.md)**: Enables message storage across broker restarts
-- **[Message Expiry Property](../MQTT_v5.md#message-expiry-interval)**: MQTT v5 property for per-message TTL
+- **[QoS Duration](https://docs.nanomq.io/)**: Controls the timing of message retries and cache cleanup
+- **[SQLite Persistence](https://docs.nanomq.io/)**: Enables message storage across broker restarts
+- **[Message Expiry Property](https://docs.nanomq.io/)**: MQTT v5 property for per-message TTL
 
 ## Future Enhancements
 
@@ -294,5 +294,5 @@ Potential future improvements could include:
 ## References
 
 - [MQTT QoS Specification](https://docs.oasis-open.org/mqtt/mqtt/v1.2/os/mqtt-v1.2-os.html#_Toc39875206)
-- [NanoMQ MQTT Broker Documentation](../MQTT_Broker.md)
-- [NNG QoS Database API](../../nng/src/supplemental/mqtt/mqtt_qos_db_api.h)
+- [NanoMQ MQTT Broker Documentation](./index.md)
+- `nng/src/supplemental/mqtt/mqtt_qos_db_api.h` (NNG QoS database API)

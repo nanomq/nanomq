@@ -82,8 +82,9 @@
 #include <unistd.h>
 #endif
 
+volatile sig_atomic_t keepRunning = 1;
+
 #if (defined DEBUG) && (defined ASAN)
-int keepRunning = 1;
 void
 intHandler(int dummy)
 {
@@ -98,9 +99,6 @@ static const int all_signals[] = {
 #endif
 #ifdef SIGQUIT
 	SIGQUIT,
-#endif
-#ifdef SIGTRAP
-	SIGTRAP,
 #endif
 #ifdef SIGIO
 	SIGIO,
@@ -121,7 +119,7 @@ void sig_handler(int signum)
 		exit(EXIT_FAILURE);
 	}
 	if (signum == SIGILL || signum == SIGTERM)
-		exit(EXIT_SUCCESS);
+		keepRunning = 0;
 }
 #endif
 #endif
@@ -217,6 +215,10 @@ server_cb(void *arg)
 
 	mqtt_msg_info *msg_info;
 	nng_socket    *newsock = NULL;
+
+	if (keepRunning == 0) {
+		return;
+	}
 
 	switch (work->state) {
 	case INIT:
@@ -411,10 +413,9 @@ server_cb(void *arg)
 			if (work->msg_ret) {
 				log_debug("retain msg [%p] size [%ld] \n",
 				    work->msg_ret, cvector_size(work->msg_ret));
-				for (int i = 0; i < cvector_size(work->msg_ret) &&
-				     check_msg_exp(work->msg_ret[i],
-				         nng_mqtt_msg_get_publish_property(
-				             work->msg_ret[i])); i++) {
+				for (int i = 0; i < cvector_size(work->msg_ret); i++) {
+					// if (!check_msg_exp(work->msg_ret[i]))
+					// 	continue;
 					nng_msg *m = work->msg_ret[i];
 					work->msg = m;
 					work->pub_packet = (struct pub_packet_struct *) nng_zalloc(
@@ -427,8 +428,8 @@ server_cb(void *arg)
 						if (nng_msg_dup(&rmsg, work->msg) != 0) {
 							log_error("System Failure while duplicating retain msg");
 						} else {
-							if (work->proto_ver == MQTT_VERSION_V5) {
-								nng_msg_set_cmd_type(rmsg,CMD_PUBLISH_V5);
+							if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
+								nng_msg_set_cmd_type(rmsg, CMD_PUBLISH_V5);
 							} else {
 								nng_msg_set_cmd_type(rmsg, CMD_PUBLISH);
 							}
@@ -491,7 +492,7 @@ server_cb(void *arg)
 			break;
 		} else if (work->flag == CMD_PUBLISH) {
 			// Set V4/V5 flag for publish msg
-			if (work->proto_ver == MQTT_VERSION_V5) {
+			if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
 				nng_msg_set_cmd_type(msg, CMD_PUBLISH_V5);
 			} else {
 				nng_msg_set_cmd_type(msg, CMD_PUBLISH);
@@ -957,6 +958,57 @@ get_broker_db(void)
 	return db;
 }
 
+static void
+broker_release_workers(
+    conf *nanomq_conf, struct work **works, uint64_t num_work, bool is_testing,
+    nng_socket broker_sock, nng_socket inproc_sock)
+{
+	if (works == NULL || num_work == 0) {
+		return;
+	}
+	if (is_testing) {
+		// Bridge disconnect callbacks retain config until their NNG pipes finish
+		// reaping. Keep the test process ownership model for bridge suites.
+		if (nanomq_conf->bridge.count == 0 &&
+		    nanomq_conf->aws_bridge.count == 0) {
+			nng_close(broker_sock);
+			nng_close(inproc_sock);
+			nng_msleep(50);
+		}
+		return;
+	}
+#if defined(SUPP_RULE_ENGINE) && defined(FDB_SUPPORT)
+	if (nanomq_conf->rule_eng.option & RULE_ENG_FDB) {
+		fdb_database_destroy(nanomq_conf->rule_eng.rdb[1]);
+		fdb_stop_network();
+	}
+#endif
+	conf *conf = works[0]->config;
+
+	for (size_t t = 0; t < conf->bridge.count; t++) {
+		conf_bridge_node *node = conf->bridge.nodes[t];
+		size_t            aio_count = conf->total_ctx;
+
+		for (size_t i = 0; i < aio_count; i++) {
+			nng_aio_stop(node->bridge_aio[i]);
+		}
+		if (node->resend_aio != NULL) {
+			nng_aio_stop(node->resend_aio);
+		}
+		for (size_t i = 0; i < aio_count; i++) {
+			nng_aio_free(node->bridge_aio[i]);
+		}
+		nng_free(node->bridge_aio, aio_count * sizeof(nng_aio *));
+		nng_aio_free(node->resend_aio);
+		node->resend_aio = NULL;
+	}
+	for (size_t i = 0; i < num_work; i++) {
+		nng_free(works[i]->pipe_ct, sizeof(struct pipe_content));
+		nng_free(works[i], sizeof(struct work));
+	}
+	nng_free(works, num_work * sizeof(struct work *));
+}
+
 int
 broker(conf *nanomq_conf)
 {
@@ -1110,6 +1162,9 @@ broker(conf *nanomq_conf)
 	// add nng_proxy ctx
 	if (nanomq_conf->nng_proxy.sub_enable) {
 		for (size_t t = 0; t < nanomq_conf->nng_proxy.sub_count; t++) {
+			if (!nanomq_conf->nng_proxy.snodes[t]->enable) {
+				continue;
+			}
 			// Only need ctx for SUB side. one node as one ctx.
 			num_work += 1;
 			nanomq_conf->total_ctx += 1;
@@ -1215,8 +1270,11 @@ broker(conf *nanomq_conf)
 	}
 	// create nng_proxy sub ctx
 	if (nanomq_conf->nng_proxy.sub_enable) {
-		size_t t = 0;
-		for (size_t i = tmp; i < tmp + nanomq_conf->nng_proxy.sub_count; i++) {
+		size_t i = tmp;
+		for (size_t t = 0; t < nanomq_conf->nng_proxy.sub_count; t++) {
+			if (!nanomq_conf->nng_proxy.snodes[t]->enable) {
+				continue;
+			}
 			works[i]          = proto_work_init(sock,
 			    nanomq_conf->nng_proxy.snodes[t]->sub_sock,
 				PROTO_NNG_BRIDGE,
@@ -1224,13 +1282,16 @@ broker(conf *nanomq_conf)
 			works[i]->work_id = i; // assign id to work
 						works[i]->nng_snode_idx = t;
 			nng_proxy_sub_init(nanomq_conf->nng_proxy.snodes[t], works[i]);
-			t ++;
+			i ++;
 		}
-		tmp += nanomq_conf->nng_proxy.sub_count;
+		tmp = i;
 	}
 	// init nng_proxy pub, but without ctx
 	if (nanomq_conf->nng_proxy.pub_enable) {
 		for (size_t i = 0; i < nanomq_conf->nng_proxy.pub_count; i++) {
+			if (!nanomq_conf->nng_proxy.pnodes[i]->enable) {
+				continue;
+			}
 			nng_proxy_pub_init(nanomq_conf->nng_proxy.pnodes[i]);
 			// Is it necessary to init a conn_param for pub also?
 		}
@@ -1444,58 +1505,30 @@ broker(conf *nanomq_conf)
 	}
 
 	for (;;) {
-		if (keepRunning == 0 || is_testing == true) {
-#if defined(SUPP_RULE_ENGINE)
-
-#if defined(FDB_SUPPORT)
-			if (nanomq_conf->rule_eng.option & RULE_ENG_FDB) {
-				fdb_database_destroy(
-				    nanomq_conf->rule_eng.rdb[1]);
-				fdb_stop_network();
-			}
-#endif
-#endif
-			conf *conf = works[0]->config;
-			if(is_testing == true && (conf->bridge.count > 0 || conf->aws_bridge.count > 0)) {
-				// bridge might need more time to response to the resquest
-				nng_msleep(8 * 1000);
-			}
-			for (size_t t = 0; t < conf->bridge.count; t++) {
-				conf_bridge_node *node = conf->bridge.nodes[t];
-				size_t aio_count = conf->total_ctx;
-				for (size_t i = 0; i < aio_count; i++) {
-					nng_aio_finish_error(node->bridge_aio[i], 0);
-					nng_aio_abort(node->bridge_aio[i], NNG_ECLOSED);
-					nng_aio_free(node->bridge_aio[i]);
-				}
-				nng_free(node->bridge_aio, aio_count * sizeof(nng_aio *));
-				// free(node->name);
-				// free(node->address);
-				// free(node->clientid);
-				// nng_free(node, sizeof(conf_bridge_node));
-			}
-			// nng_free(
-			//     conf->bridge.nodes, sizeof(conf_bridge_node **));
-
-			for (size_t i = 0; i < num_work; i++) {
-				nng_free(works[i]->pipe_ct,
-				    sizeof(struct pipe_content));
-				nng_free(works[i], sizeof(struct work));
-			}
-			nng_free(works, num_work * sizeof(struct work *));
+		if (keepRunning == 0) {
+			broker_release_workers(
+			    nanomq_conf, works, num_work, is_testing, sock, inproc_sock);
 			break;
 		}
 		nng_msleep(6000);
 	}
 #else
-	if (is_testing == false) {
-		for (;;) {
-			nng_msleep(
-			    3600000); // neither pause() nor sleep() portable
+	for (;;) {
+		if (keepRunning == 0) {
+			break;
 		}
+		nng_msleep(1000);
 	}
+	broker_release_workers(
+	    nanomq_conf, works, num_work, is_testing, sock, inproc_sock);
 #endif
 	return 0;
+}
+
+void
+broker_stop_for_test(void)
+{
+	keepRunning = 0;
 }
 
 void
@@ -2004,6 +2037,8 @@ broker_start_with_conf(void *nmq_conf)
 	int rc = 0;
 	int pid = 0;
 	conf *nanomq_conf = nmq_conf;
+
+	keepRunning = 1;
 
 	if (!status_check(&pid)) {
 		fprintf(stderr,
