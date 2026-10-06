@@ -20,6 +20,7 @@ extern int encode_common_mqtt_msg(
 
 extern int log_init(conf_log *log);
 extern int log_fini(conf_log *log);
+extern int log_trace_init(conf_log *log, conf_log_trace *trace);
 
 extern char *nano_pipe_get_local_address(nng_pipe p);
 extern uint8_t *nano_pipe_get_local_address6(nng_pipe p);
