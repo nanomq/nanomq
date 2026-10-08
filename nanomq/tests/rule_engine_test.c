@@ -141,6 +141,49 @@ main(void)
 	assert(test_env_read_stream_timeout(sub, output, sizeof(output), 9000, 25));
 	assert(strstr(output, "rule_message") != NULL);
 	assert(test_env_pclose_timeout(sub, 2000) == 0);
+
+	// #2251: object subfield then array must not use-after-free on republish
+	char uaf_sub_command[256];
+	char uaf_pub_command[256];
+	char uaf_output[256] = { 0 };
+
+	snprintf(rule_request, sizeof(rule_request),
+	    "curl -sS -i --basic -u admin_test:pw_test --connect-timeout 1 "
+	    "--max-time 5 'http://127.0.0.1:8081/api/v4/rules' -X POST -d "
+	    "'{\"rawsql\":\"select payload.x as y from \\\"rule/input2\\\"\","
+	    "\"actions\":[{\"name\":\"repub\",\"params\":{"
+	    "\"topic\":\"rule/output2\",\"address\":\"mqtt-tcp://127.0.0.1:%s\","
+	    "\"clean_start\":true,\"proto_ver\":4,\"keepalive\":60}}],"
+	    "\"description\":\"rule-engine-2251\"}'",
+	    test_port);
+	assert(run_rule_request(rule_request, RULE_HTTP_OK, 0));
+
+	snprintf(uaf_sub_command, sizeof(uaf_sub_command),
+	    "mosquitto_sub -h 127.0.0.1 -p %s -t rule/output2 -q 1 -C 2 -W 8",
+	    test_port);
+	sub = test_env_popen(uaf_sub_command, "r");
+	assert(sub != NULL);
+	nng_msleep(300);
+
+	snprintf(uaf_pub_command, sizeof(uaf_pub_command),
+	    "mosquitto_pub -h 127.0.0.1 -p %s -t rule/input2 -m '{\"x\":{}}' -q 1",
+	    test_port);
+	pub = test_env_popen(uaf_pub_command, "r");
+	assert(pub != NULL);
+	assert(test_env_pclose_timeout(pub, 10000) == 0);
+	nng_msleep(300);
+
+	snprintf(uaf_pub_command, sizeof(uaf_pub_command),
+	    "mosquitto_pub -h 127.0.0.1 -p %s -t rule/input2 -m '{\"x\":[]}' -q 1",
+	    test_port);
+	pub = test_env_popen(uaf_pub_command, "r");
+	assert(pub != NULL);
+	assert(test_env_pclose_timeout(pub, 10000) == 0);
+
+	assert(test_env_read_stream_timeout(
+	    sub, uaf_output, sizeof(uaf_output), 9000, 25));
+	assert(strstr(uaf_output, "\"y\"") != NULL);
+	assert(test_env_pclose_timeout(sub, 2000) == 0);
 #endif
 
 	broker_stop_for_test();
