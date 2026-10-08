@@ -638,7 +638,7 @@ add_info_to_json(rule *info, cJSON *jso, int j, nano_work *work)
 						if (info->payload[pi]->pas) {
 							cJSON_AddItemToObject(jso,
 							    info->payload[pi]->pas,
-							    (cJSON*) info->payload[pi]->value);
+							    cJSON_Duplicate((cJSON*) info->payload[pi]->value, 1));
 						}
 						break;
 					default:
