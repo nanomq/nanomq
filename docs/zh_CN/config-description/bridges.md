@@ -267,22 +267,41 @@ bridges.mqtt.emqx2 {
   ......
 }
 
-## 缓存设置
+## 缓存默认值，所有桥接客户端继承
 bridges.mqtt.cache {
     disk_cache_size = 102400   # 缓存的最大消息限制
     mounted_file_path="/tmp/"  # 挂载的文件路径
     flush_mem_threshold = 100  # 刷新消息到闪存的阈值
     resend_interval = 5000     # 故障恢复后消息的重发间隔
 }
+
+## 可选的单客户端缓存：只替换该客户端的默认值
+bridges.mqtt.emqx1 {
+  ......
+  cache {
+    disk_cache_size = 2048
+    mounted_file_path = "/tmp/emqx1/"
+  }
+}
 ```
 
 ### **配置项**
 
+每个桥接客户端把缓存消息存放在独立的文件中：
+`<mounted_file_path>/mqtt_client_<客户端名>.db`（QUIC 为
+`mqtt_quic_client_...`），因此一个客户端的淘汰不会删掉其它客户端积压的消息。
+
+缓存项写在 `bridges.mqtt.cache` 中时对所有桥接客户端生效，写在单个客户端的
+`cache` 块中时只对该客户端生效。声明 `cache` 块即隐含启用该客户端的缓存，除非块里写
+`enable = false`。该块整体替换 `bridges.mqtt.cache` 里的值，块里没写的字段使用内置
+默认值。块里的 `resend_interval` 不生效且已弃用：仍会解析以保证旧配置可用，被设置时
+加载会打印告警。改用桥接客户端级的 `resend_interval`。
+
 - `retry_qos_0`：指定 MQTT 桥接中可以缓存的消息的QoS。False 表示不缓存 QoS 0。
-- `disk_cache_size`：指定 MQTT 桥接中可以缓存的消息的最大数量。0 表示不生效。
-- `mounted_file_path`：指定 MQTT 桥接缓存文件的挂载路径。
+- `disk_cache_size`：指定每个桥接客户端可以缓存的消息的最大数量。0 表示不限制，不淘汰任何消息。只有旧版扁平配置格式和 REST API 能设置 0，HOCON 会忽略 0。
+- `mounted_file_path`：指定缓存文件挂载的目录。客户端名会被净化为文件名，两个净化后相同的名字会在启动时报错退出。
 - `flush_mem_threshold`：指定刷新消息到缓存文件的阈值。当消息数量达到阈值时，就会被刷新到缓存文件中。
-- `resend_interval`：指定在故障恢复后消息的重发间隔，单位：毫秒。注意：该配置项与是否触发消息重发无关。
+- `resend_interval`（桥接客户端级）：指定在故障恢复后消息的重发间隔，单位：毫秒。注意：该配置项与是否触发消息重发无关。
 
 ::: tip
 

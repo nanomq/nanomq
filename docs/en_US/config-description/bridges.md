@@ -298,20 +298,42 @@ bridges.mqtt.emqx2 {
   cancel_timeout  = 10000
 }
 
+## Cache defaults, inherited by every bridge client
 bridges.mqtt.cache {
     disk_cache_size = 102400   # Max message limitation for caching
     mounted_file_path="/tmp/"  # Mounted file path 
     flush_mem_threshold = 100  # The threshold of flushing messages to flash
 }
+
+## Optional per-client cache: replaces the defaults for this client only
+bridges.mqtt.emqx1 {
+  ......
+  cache {
+    disk_cache_size = 2048
+    mounted_file_path = "/tmp/emqx1/"
+  }
+}
 ```
 
 ### **Configuration Items**
 
+Each bridge client stores its cached messages in its own file,
+`<mounted_file_path>/mqtt_client_<client name>.db` (`mqtt_quic_client_...` over
+QUIC), so one client's eviction cannot drop another client's backlog.
+
+Cache settings go in `bridges.mqtt.cache`, which applies to every bridge client,
+or in a `cache` block inside one client. A `cache` block enables the cache for
+that client unless the block sets `enable = false`, and it replaces the values
+from `bridges.mqtt.cache` as a whole, so a field the block leaves out uses the
+built-in default. The block's `resend_interval` has no effect and is deprecated:
+it still parses so existing configs keep working, and a warning is logged when
+it is set. Use the bridge client's own `resend_interval` instead.
+
 - `retry_qos_0`: Specifies the maximum level of QoS that can be cached in the MQTT bridges. Set to `false` will disable QoS 0 message cache, Which reserve disk space for MQTT QoS 1/2. This is helpful when prioritization is required.
-- `disk_cache_size`: Specifies the maximum number of messages that can be cached in the MQTT bridges. A value of 0 indicates that the cache for messages is inefficient.
-- `mounted_file_path`: Specifies the file path where the cache file for the MQTT bridges is mounted.
+- `disk_cache_size`: Specifies the maximum number of messages that can be cached per bridge client. A value of 0 means no limit, and no messages are evicted. Only the legacy flat config format and the REST API can set 0, because HOCON ignores a 0 value.
+- `mounted_file_path`: Specifies the directory the cache file is mounted in. Client names are sanitised into the file name, and two names that sanitise to the same token are rejected at startup.
 - `flush_mem_threshold`: Specifies the threshold for flushing messages to the cache file. When the number of messages reaches this threshold, they will be flushed to the cache file.
-- `resend_interval`: Specifies the interval, in milliseconds, for resending the messages interval. Only takes effect in bridging. This is a timer per bridging connection, also in charge of sending PINGREQ, resending msg cached in SQLite and healthy checking. Please set it with cautious.
+- `resend_interval` (bridge client level): Specifies the interval, in milliseconds, for resending the messages interval. Only takes effect in bridging. This is a timer per bridging connection, also in charge of sending PINGREQ, resending msg cached in SQLite and healthy checking. Please set it with cautious.
   -  default: 5000 ms. 
 - `resend_wait`: Specifies the wait time, in milliseconds, for start resending this messages after certain period aftet it was published. Only takes effect in bridging.
   -  default: 3000 ms. 
