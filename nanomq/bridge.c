@@ -49,12 +49,33 @@ static nng_thread *hybrid_thr;
 
 static int
 apply_sqlite_config(
-    nng_socket *sock, conf_bridge_node *config, const char *db_name)
+    nng_socket *sock, conf_bridge_node *config, const char *db_prefix)
 {
 	// Whether flush qos 0 msg to disk for retrying
 	nng_socket_set_bool(*sock, NNG_OPT_MQTT_RETRY_QOS_0, config->retry_qos_0);
 #if defined(NNG_SUPP_SQLITE)
-	int rv;
+	int  rv;
+	char db_name[BRIDGE_CACHE_NAME_MAX + 32] = { 0 };
+
+	// Every Bridge Node owns its own Bridge Cache database file.
+	if (bridge_cache_db_name(db_prefix, config->name, db_name,
+	        sizeof(db_name)) < 0) {
+		log_error("Bridge '%s': cannot derive a cache file name",
+		    config->name != NULL ? config->name : "<unnamed>");
+		return NNG_EINVAL;
+	}
+	// A disabled cache opens no file, so say nothing about it.
+	if (config->sqlite.enable) {
+		if (config->sqlite.mounted_file_path == NULL) {
+			log_warn("Bridge '%s': Bridge Cache path is not set, "
+			         "falling back to the current directory (%s)",
+			    config->name, db_name);
+		} else {
+			log_info("Bridge '%s': Bridge Cache file '%s%s'",
+			    config->name, config->sqlite.mounted_file_path,
+			    db_name);
+		}
+	}
 	// create sqlite option
 	nng_mqtt_sqlite_option *opt;
 	if ((rv = nng_mqtt_alloc_sqlite_opt(&opt)) != 0) {
@@ -607,7 +628,7 @@ hybrid_tcp_client(bridge_param *bridge_arg)
 	}
 	sock_opened = true;
 
-	apply_sqlite_config(new, node, "mqtt_client.db");
+	apply_sqlite_config(new, node, "mqtt_client");
 	nng_socket_set_string(*new, NNG_OPT_SOCKNAME, node->name);
 
 	if ((rv = nng_dialer_create(dialer, *new, node->address))) {
@@ -734,7 +755,7 @@ hybrid_quic_client(bridge_param *bridge_arg)
 		}
 	}
 
-	apply_sqlite_config(new, node, "mqtt_quic_client.db");
+	apply_sqlite_config(new, node, "mqtt_quic_client");
 	nng_socket_set_string(*new, NNG_OPT_SOCKNAME, node->name);
 
 	if ((rv = nng_dialer_create(dialer, *new, node->address))) {
@@ -1082,7 +1103,7 @@ bridge_quic_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 	}
 	sock_opened = true;
 
-	apply_sqlite_config(sock, node, "mqtt_quic_client.db");
+	apply_sqlite_config(sock, node, "mqtt_quic_client");
 	nng_socket_set_string(*sock, NNG_OPT_SOCKNAME, node->name);
 
 	if ((rv = nng_dialer_create(dialer, *sock, node->address))) {
@@ -1168,7 +1189,7 @@ bridge_quic_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridg
 		}
 	}
 
-	apply_sqlite_config(sock, node, "mqtt_quic_client.db");
+	apply_sqlite_config(sock, node, "mqtt_quic_client");
 	nng_socket_set_string(*sock, NNG_OPT_SOCKNAME, node->name);
 
 	if ((rv = nng_dialer_create(dialer, *sock, node->address))) {
@@ -1342,7 +1363,7 @@ bridge_tcp_reload(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	}
 	sock_opened = true;
 
-	apply_sqlite_config(sock, node, "mqtt_client.db");
+	apply_sqlite_config(sock, node, "mqtt_client");
 	nng_socket_set_string(*sock, NNG_OPT_SOCKNAME, node->name);
 
 	if ((rv = nng_dialer_create(dialer, *sock, node->address))) {
@@ -1468,7 +1489,7 @@ bridge_tcp_client(nng_socket *sock, conf *config, conf_bridge_node *node, bridge
 	}
 	sock_opened = true;
 
-	apply_sqlite_config(sock, node, "mqtt_client.db");
+	apply_sqlite_config(sock, node, "mqtt_client");
 	nng_socket_set_string(*sock, NNG_OPT_SOCKNAME, node->name);
 
 	if ((rv = nng_dialer_create(dialer, *sock, node->address))) {
