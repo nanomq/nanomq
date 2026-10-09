@@ -1172,6 +1172,12 @@ broker(conf *nanomq_conf)
 	}
 	// init bridging client
 	if (nanomq_conf->bridge_mode) {
+		// A Bridge Node owns its Bridge Cache file; two names that sanitise
+		// to the same token would silently share one file again.
+		if (conf_bridge_cache_validate(&nanomq_conf->bridge) != 0) {
+			NANO_NNG_FATAL(
+			    "bridge cache file name collision", NNG_EINVAL);
+		}
 		for (size_t t = 0; t < nanomq_conf->bridge.count; t++) {
 			conf_bridge_node *node = nanomq_conf->bridge.nodes[t];
 			node->sock = (nng_socket *) nng_alloc(
