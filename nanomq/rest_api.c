@@ -4360,9 +4360,24 @@ put_mqtt_bridge(http_msg *msg, const char *name)
 		// must hold node->mtx: this pointer is transiently NULL here.
 		nng_atomic_bool *connected = node->connected;
 		node->connected = NULL;
+
+		// A Bridge Cache is only replaced when the payload asks for it.
+		// Silently resetting it would move the node's cache file and drop the
+		// backlog it still owes the remote broker.
+		conf_sqlite saved_sqlite = node->sqlite;
+		bool        keep_sqlite =
+		    (cJSON_GetObjectItem(node_obj, "cache") == NULL);
+		node->sqlite.mounted_file_path = NULL;
+
 		conf_bridge_node_destroy(node);
 		node->connected = connected;
 		conf_bridge_node_parse(node, &bridge->sqlite, node_obj);
+		if (keep_sqlite) {
+			conf_sqlite_reset(&node->sqlite);
+			node->sqlite = saved_sqlite;
+		} else {
+			conf_sqlite_reset(&saved_sqlite);
+		}
 		// The URL identifies the bridge; do not let a payload field or parser
 		// detail change the identity used by subsequent bridge operations.
 		char *node_name = nng_strdup(name);
