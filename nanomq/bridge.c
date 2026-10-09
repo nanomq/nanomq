@@ -61,7 +61,7 @@ apply_sqlite_config(
 		NANO_NNG_FATAL("Initializing SQLite with nng_mqtt_alloc_sqlite_opt", rv);
 	}
 
-	nng_mqtt_set_sqlite_conf(opt, config, config->name, config->proto_ver, config->sqlite);
+	nng_mqtt_set_sqlite_conf(opt, config, config->name, config->proto_ver, &config->sqlite);
 	// init sqlite db
 	nng_mqtt_sqlite_db_init(opt, db_name);
 
@@ -2102,7 +2102,7 @@ bridge_pub_handler(nano_work *work)
 					// put SQLite cache to use first
 						(!nng_atomic_get_bool(node->connected)
 #if defined(NNG_SUPP_SQLITE)
-						&& !node->sqlite->enable
+						&& !node->sqlite.enable
 #endif
 						)) {
 						if (qos == 0) {
