@@ -73,7 +73,7 @@ decode_sub_msg(nano_work *work)
 			log_warn("Malformed Property");
 			return PROTOCOL_ERROR;
 		}
-		if (check_properties(sub_pkt->properties, work->msg) != SUCCESS) {
+		if (check_properties(sub_pkt->properties, work->msg) != NNG_MQTT_SUCCESS) {
 			FREE_SUB_PROPERTIES(sub_pkt);
 			return PROTOCOL_ERROR;
 		}

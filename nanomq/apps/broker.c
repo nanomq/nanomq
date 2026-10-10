@@ -386,7 +386,7 @@ server_cb(void *arg)
 				log_error("sub_handler: [%d]", rv);
 			}
 
-			if (work->code != SUCCESS) {
+			if (work->code != NNG_MQTT_SUCCESS) {
 				if (work->msg_ret) {
 					for (size_t i = 0; i < cvector_size(work->msg_ret); i++)
 						nng_msg_free(work->msg_ret[i]);
@@ -422,7 +422,7 @@ server_cb(void *arg)
 										sizeof(struct pub_packet_struct));
 					uint8_t ver = nng_mqtt_msg_get_publish_proto_version(work->msg);
 					// ver = ver == 0 ? work->proto_ver : ver;
-					if (SUCCESS == decode_pub_message(work, ver)) {
+					if (NNG_MQTT_SUCCESS == decode_pub_message(work, ver)) {
 						// we simply change the msg itself
 						nng_msg *rmsg = NULL;
 						if (nng_msg_dup(&rmsg, work->msg) != 0) {
@@ -505,14 +505,14 @@ server_cb(void *arg)
 				nng_msg *rep_msg;
 				nng_msg_alloc(&rep_msg, 0);
 				nng_aio_set_msg(work->aio, rep_msg);
-				if (work->code == SUCCESS)
+				if (work->code == NNG_MQTT_SUCCESS)
 					work->state = WAIT;
 				else
 					work->state = SEND;
 				nng_ctx_send(work->extra_ctx, work->aio);
 				break;
 			}
-			if (work->code != SUCCESS) {
+			if (work->code != NNG_MQTT_SUCCESS) {
 				//what if extra ctx brings a wrong msg?
 				if (work->proto != PROTO_MQTT_BROKER) {
 					work->state = SEND;
@@ -833,7 +833,7 @@ server_cb(void *arg)
 		nng_ctx_send(work->ctx, work->aio);
 
 		// clear reason code
-		work->code = SUCCESS;
+		work->code = NNG_MQTT_SUCCESS;
 		work->state = RECV;
 		nng_ctx_recv(work->ctx, work->aio);
 		break;
@@ -881,7 +881,7 @@ proto_work_init(nng_socket sock, nng_socket extrasock, uint8_t proto,
 	w->db_ret = db_tree_ret;
 	w->proto  = proto;
 	w->config = config;
-	w->code   = SUCCESS;
+	w->code   = NNG_MQTT_SUCCESS;
 
 #if defined(SUPP_ICEORYX)
 	w->iceoryx_suber = NULL;
@@ -1478,6 +1478,7 @@ broker(conf *nanomq_conf)
 	bool is_testing = false;
 #endif
 
+#if !defined(__ZEPHYR__) // no POSIX signal semantics; the broker loop exits on its own
 #if (defined DEBUG)  && (defined ASAN)
 	signal(SIGINT, intHandler);
 #else
@@ -1497,6 +1498,7 @@ broker(conf *nanomq_conf)
 	} while (all_signals[i++] != SIGTERM);
 #endif
 #endif
+#endif // !defined(__ZEPHYR__)
 
 #if (defined DEBUG) && (defined ASAN)
 	if (is_testing == true) {

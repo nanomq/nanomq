@@ -1,0 +1,14 @@
+# Site-specific build configuration (REST credentials, webhook URL, ...).
+# Copy local.conf.example to local.conf and pass it to west build with
+#   -- -DEXTRA_CONF_FILE=local.conf
+local.conf
+
+# Local build directories
+build*/
+
+# Byte-compiled flash/verify helpers
+__pycache__/
+
+# Vendor QSPI flash algorithm (see tools/artpi_flash.py): fetched locally from
+# the ART-Pi SDK, not redistributed here.
+tools/ART-Pi_W25Q64.FLM

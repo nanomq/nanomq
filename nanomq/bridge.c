@@ -190,7 +190,7 @@ bridge_downward_msg_coding(nano_work *work)
 {
 	int               rv     = 0;
 	char             *topic_body;
-	reason_code       result = SUCCESS;
+	reason_code       result = NNG_MQTT_SUCCESS;
 	conf_bridge_node *node   = work->node;
 	mqtt_string      *topic;
 
@@ -203,7 +203,7 @@ bridge_downward_msg_coding(nano_work *work)
 
 	result = decode_pub_message(work, work->proto_ver);
 	topic_body = work->pub_packet->var_header.publish.topic_name.body;
-	if (SUCCESS != result) {
+	if (NNG_MQTT_SUCCESS != result) {
 		log_warn("decode message failed.");
 		return;
 	}
@@ -2133,7 +2133,7 @@ bridge_pub_handler(nano_work *work)
 						// switch to nng_ctx_send!
 						nng_send_aio(*socket, node->bridge_aio[index]);
 					}
-					rv = SUCCESS;
+					rv = NNG_MQTT_SUCCESS;
 				}
 			}
 		}

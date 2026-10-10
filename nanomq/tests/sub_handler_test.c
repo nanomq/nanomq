@@ -29,7 +29,7 @@ main()
 	work->proto_ver = MQTT_PROTOCOL_VERSION_v311;
 	work->config    = nanomq_conf;
 	work->pid.id    = 2;
-	// work->code       = SUCCESS;
+	// work->code       = NNG_MQTT_SUCCESS;
 	// init dbtree
 	dbtree_create(&work->db);
 	dbtree_create(&work->db_ret);

@@ -258,6 +258,14 @@
         {
           "title": "SSL/TLS",
           "path": "tutorial/SSL_TLS"
+        },
+        {
+          "title": "Zephyr 移植",
+          "path": "tutorial/port-to-zephyr"
+        },
+        {
+          "title": "ART-Pi 移植",
+          "path": "tutorial/port-to-art-pi"
         }
       ]
     },
@@ -536,6 +544,14 @@
         {
           "title": "SSL/TLS",
           "path": "tutorial/SSL_TLS"
+        },
+        {
+          "title": "Zephyr Port",
+          "path": "tutorial/port-to-zephyr"
+        },
+        {
+          "title": "ART-Pi Port",
+          "path": "tutorial/port-to-art-pi"
         }
       ]
     },

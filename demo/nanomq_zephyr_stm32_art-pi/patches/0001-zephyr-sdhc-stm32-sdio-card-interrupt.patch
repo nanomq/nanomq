@@ -1,0 +1,154 @@
+diff --git a/drivers/sdhc/sdhc_stm32.c b/drivers/sdhc/sdhc_stm32.c
+index e36f432f3f0..fa43970a7fa 100644
+--- a/drivers/sdhc/sdhc_stm32.c
++++ b/drivers/sdhc/sdhc_stm32.c
+@@ -86,6 +86,10 @@ struct sdhc_stm32_data {
+ 	uint32_t rx_xfer_size; /* SD Rx Transfer size */
+ 	uint32_t tx_xfer_size; /* SD Tx Transfer size */
+ 	bool is_multi_block;   /* Flag for multi-block transfers */
++
++	const struct device *dev;       /* owning device, for the SDIO callback */
++	sdhc_interrupt_cb_t sdio_cb;    /* SDIO card interrupt callback */
++	void *sdio_cb_user_data;        /* user data passed to sdio_cb */
+ };
+ 
+ static SDMMC_TypeDef *sdhc_stm32_get_instance(const struct device *dev)
+@@ -186,12 +190,22 @@ static void sdhc_stm32_log_err_type(struct sdhc_stm32_data *dev_data)
+ 		for (size_t i = 0; i < ARRAY_SIZE(sdmmc_errors); i++) {
+ 			if ((errors & sdmmc_errors[i].mask) != 0U) {
+ 				errors &= ~sdmmc_errors[i].mask;
+-				LOG_ERR("%s", sdmmc_errors[i].msg);
++				/* Rate-limited: a failing command repeats, and one
++				 * error per transfer floods a 115200 console.  On
++				 * boards whose SDIO Wi-Fi chip never asserts the
++				 * card interrupt (see
++				 * demo/nanomq_zephyr_stm32_art-pi) the driver is
++				 * polled continuously, so this can fire thousands
++				 * of times a minute once the chip stops answering.
++				 * The "Skipped N messages" line keeps the volume
++				 * visible without drowning everything else.
++				 */
++				LOG_ERR_RATELIMIT("%s", sdmmc_errors[i].msg);
+ 			}
+ 		}
+ 
+ 		if (errors != 0U) {
+-			LOG_ERR("Unknown error bit(s): 0x%08X", errors);
++			LOG_ERR_RATELIMIT("Unknown error bit(s): 0x%08X", errors);
+ 		}
+ 	}
+ #endif /* CONFIG_SDHC_LOG_LEVEL  >= LOG_LEVEL_ERR */
+@@ -1154,6 +1168,20 @@ void sdhc_stm32_irq_handler(SDMMC_TypeDef *instance, struct sdhc_stm32_data *dev
+ 	uint32_t errorcode = __SDMMC_GET_FLAG(instance, SDMMC_DATA_ERROR_FLAGS);
+ 	bool data_end = __SDMMC_GET_FLAG(instance, SDMMC_FLAG_DATAEND) != 0U;
+ 
++	/* SDIO card interrupt (DAT1).  Handle it before the data-path early-out
++	 * below, which would otherwise swallow it: SDIO function drivers (e.g.
++	 * the Infineon AIROC Wi-Fi stack) rely on this for asynchronous events
++	 * and ioctl responses. */
++	if (__SDMMC_GET_FLAG(instance, SDMMC_FLAG_SDIOIT) != 0U) {
++		/* Write-1-to-clear */
++		instance->ICR = SDMMC_ICR_SDIOITC;
++
++		if (dev_data->sdio_cb != NULL) {
++			dev_data->sdio_cb(dev_data->dev, SDHC_INT_SDIO,
++					  dev_data->sdio_cb_user_data);
++		}
++	}
++
+ 	if ((errorcode == 0U) && !data_end) {
+ 		/* Clear IDMA buffer transfer complete interrupt flag */
+ 		__SDMMC_CLEAR_FLAG(instance, SDMMC_FLAG_IDMABTC);
+@@ -1862,7 +1890,10 @@ void sdhc_stm32_event_isr(const struct device *dev)
+ 	sdhc_stm32_irq_handler(instance, data);
+ 
+ 	if (data->error_code != SDMMC_ERROR_NONE) {
+-		LOG_ERR("Error Interrupt");
++		/* Same reasoning as in sdhc_stm32_log_err_type(): this runs per
++		 * failed transfer, which is a flood once a card stops
++		 * answering. */
++		LOG_ERR_RATELIMIT("Error Interrupt");
+ 		sdhc_stm32_log_err_type(data);
+ 	}
+ }
+@@ -1873,6 +1904,8 @@ static int sdhc_stm32_init(const struct device *dev)
+ 	struct sdhc_stm32_data *data = dev->data;
+ 	const struct sdhc_stm32_config *config = dev->config;
+ 
++	data->dev = dev;
++
+ 	DEVICE_MMIO_MAP(dev, K_MEM_CACHE_NONE);
+ 
+ 	if (config->sdhi_on_gpio.port != NULL) {
+@@ -1919,6 +1952,62 @@ static int sdhc_stm32_init(const struct device *dev)
+ 	return ret;
+ }
+ 
++/*
++ * SDIO card interrupt support.
++ *
++ * Function drivers (the Infineon AIROC Wi-Fi stack among them) wait for the
++ * card's asynchronous events and ioctl responses; without this the SDMMC
++ * controller never forwards the DAT1 interrupt and those waits time out.
++ */
++static int sdhc_stm32_enable_interrupt(const struct device *dev, sdhc_interrupt_cb_t callback,
++				       int sources, void *user_data)
++{
++	struct sdhc_stm32_data *dev_data = dev->data;
++	SDMMC_TypeDef *instance = sdhc_stm32_get_instance(dev);
++
++	/* Only the SDIO card interrupt is wired up. */
++	if (sources != SDHC_INT_SDIO) {
++		return -ENOTSUP;
++	}
++	if (callback == NULL) {
++		return -EINVAL;
++	}
++
++	dev_data->sdio_cb = callback;
++	dev_data->sdio_cb_user_data = user_data;
++
++	/* Unmask "SDIO interrupt received" (SDMMC_MASK.SDIOITIE).
++	 *
++	 * This is enough for the API to work, but note for STM32 + CYW43xxx
++	 * boards: DCTRL.SDIOEN (the peripheral's "SD I/O mode") is deliberately
++	 * *not* set here.  It was tried on the ART-Pi's AP6212 and is not the
++	 * missing piece — SDMMC_STA.SDIOIT still never latched, and enabling it
++	 * made 4-bit transfers fail with "Command response timeout".  That chip
++	 * does not drive DAT1 on this board at all, so a function driver that
++	 * waits on the card interrupt alone (WHD does) has to poll instead; see
++	 * demo/nanomq_zephyr_stm32_art-pi, docs/en_US/port-to-art-pi.md.
++	 */
++	instance->MASK |= SDMMC_MASK_SDIOITIE;
++
++	return 0;
++}
++
++static int sdhc_stm32_disable_interrupt(const struct device *dev, int sources)
++{
++	struct sdhc_stm32_data *dev_data = dev->data;
++	SDMMC_TypeDef *instance = sdhc_stm32_get_instance(dev);
++
++	if (sources != SDHC_INT_SDIO) {
++		return -ENOTSUP;
++	}
++
++	instance->MASK &= ~SDMMC_MASK_SDIOITIE;
++	dev_data->sdio_cb = NULL;
++	dev_data->sdio_cb_user_data = NULL;
++
++	return 0;
++}
++
+ static DEVICE_API(sdhc, sdhc_stm32_api) = {
+ 	.request = sdhc_stm32_request,
+ 	.set_io = sdhc_stm32_set_io,
+@@ -1926,6 +2015,8 @@ static DEVICE_API(sdhc, sdhc_stm32_api) = {
+ 	.get_card_present = sdhc_stm32_get_card_present,
+ 	.card_busy = sdhc_stm32_card_busy,
+ 	.reset = sdhc_stm32_reset,
++	.enable_interrupt = sdhc_stm32_enable_interrupt,
++	.disable_interrupt = sdhc_stm32_disable_interrupt,
+ };
+ 
+ #ifdef CONFIG_PM_DEVICE

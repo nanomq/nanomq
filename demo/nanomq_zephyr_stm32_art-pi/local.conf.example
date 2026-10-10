@@ -1,0 +1,42 @@
+# Local, git-ignored configuration for the ART-Pi demo.
+#
+# Copy to local.conf and pass it at build time:
+#   west build -b art_pi demo/nanomq_zephyr_stm32_art-pi \
+#       -- -DEXTRA_CONF_FILE=local.conf
+#
+# Nothing here belongs in prj.conf: it is either site-specific (credentials)
+# or weakens a shipped default on purpose.
+
+# ── Wi-Fi STA credentials (wifi.conf / --wifi builds only) ──────────
+# The AP must be 2.4 GHz.  An empty PSK selects an open network; leaving
+# the SSID empty starts the broker without joining anything (the console
+# then says "wifi: BROKER_WIFI_SSID is empty").
+CONFIG_BROKER_WIFI_SSID=""
+CONFIG_BROKER_WIFI_PSK=""
+
+# ── REST API credentials ────────────────────────────────────────────
+# The listener stays off unless both are set.  Prefer credentials of your
+# own; the published admin/public pair needs the explicit opt-in below.
+CONFIG_BROKER_REST_USER="admin"
+CONFIG_BROKER_REST_PASS="public"
+
+# Bench-only: accept the published admin/public pair.  Needed when running
+# demo/nanomq_zephyr_qemu_x86/function_test.py with its default credentials.
+# It puts an administrative surface behind a password that ships in every
+# copy of this repository — do not enable it on an untrusted network.
+CONFIG_BROKER_REST_ALLOW_PUBLISHED=y
+
+# ── Optional: webhook forwarder ─────────────────────────────────────
+# Off in prj.conf.  Set both to exercise it; URL must be this host's LAN
+# address with hook_receiver.py listening there.
+#CONFIG_BROKER_WEBHOOK=y
+#CONFIG_BROKER_WEBHOOK_URL="http://192.168.1.13:18080/"
+
+# ── Optional: real log timestamps ───────────────────────────────────
+# Off by default: costs up to ~9 s of SNTP timeouts at boot when the LAN has
+# no route to the NTP servers.
+#CONFIG_BROKER_SNTP=y
+
+# ── Optional: verbose logs ──────────────────────────────────────────
+# Per-packet nanolib tracing; makes the 115200 console the bottleneck.
+#CONFIG_BROKER_LOG_DEBUG=y
