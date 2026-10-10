@@ -27,7 +27,7 @@ RGB LCD 排线、USB-OTG，ST-Link V2.1 与串口在同一个 USB-C 口上（SWD
 这个 demo 有两个关键决策，各自有一份 ADR。
 
 **镜像从 QSPI 以 XIP 方式运行在 0x90000000**
-（[../../docs/adr/0001](../../docs/adr/0001-qspi-xip-behind-art-pi-factory-bootloader.md)）。
+（[docs/adr/0001](docs/adr/0001-qspi-xip-behind-art-pi-factory-bootloader.md)）。
 broker 约 1 MB 代码，而内部 Flash 只有 128 KB，且已被睿赛德的出厂 bootloader
 占满；该 bootloader 会把 QUADSPI 映射好并跳到 0x90000000 处的向量表。overlay
 把 `zephyr,flash` 指向 8 MB 的 QSPI 窗口
@@ -36,7 +36,7 @@ broker 约 1 MB 代码，而内部 Flash 只有 128 KB，且已被睿赛德的�
 （[tools/artpi_flash.py](tools/artpi_flash.py)）。
 
 **broker 数据面放在 SDRAM**
-（[../../docs/adr/0002](../../docs/adr/0002-broker-heap-in-sdram-through-the-external-ram-allocator.md)）。
+（[docs/adr/0002](docs/adr/0002-broker-heap-in-sdram-through-the-external-ram-allocator.md)）。
 设备树中 0xC0000000 处 6 MB 的 `SDRAM1` 区域，通过 NanoNNG 的外部 RAM 分配器
 （`NNG_ZEPHYR_ALLOC_SMH`）交给一个普通 `k_heap`（用其中 4 MB），边界定义在链接
 脚本片段 [src/artpi_ext_ram.ld](src/artpi_ext_ram.ld)。显示控制器被关闭，避免
@@ -97,7 +97,7 @@ WL_REG_ON 即 `libraries/drivers/drv_wlan.c` 中的
    out-of-band host-wake 接成 PE3 同样没有唤醒。轮询也正是这块板子**厂商栈的
    做法** —— ART-Pi SDK 的 `libraries/drivers/drv_sdio.c` 根本没有打开
    `SDMMC_MASK.SDIOITIE`。详见
-   [../../docs/adr/0003](../../docs/adr/0003-poll-the-whd-thread-because-the-art-pi-never-asserts-the-sdio-card-interrupt.md)。
+   [docs/adr/0003](docs/adr/0003-poll-the-whd-thread-because-the-art-pi-never-asserts-the-sdio-card-interrupt.md)。
 
 3. **STA 连接流程由应用负责**，与 ESP32-S3 同类 demo 一致：`src/main.c`
    等接口就绪，用应用 Kconfig 里的凭据（`CONFIG_BROKER_WIFI_SSID` / `_PSK`，
@@ -434,7 +434,7 @@ REST :8081、WebSocket :8083 均在监听（REST `/api/v4/brokers` 返回
 * Wi-Fi 中断走的是轮询而不是中断（`CONFIG_AIROC_WIFI_WHD_POKE`，在 `wifi.conf`
   里打开）。in-band 控制器路径和 out-of-band host-wake 引脚都试过且在这块板子
   上不可行，厂商栈同样靠轮询。详见
-  [../../docs/adr/0003](../../docs/adr/0003-poll-the-whd-thread-because-the-art-pi-never-asserts-the-sdio-card-interrupt.md)。
+  [docs/adr/0003](docs/adr/0003-poll-the-whd-thread-because-the-art-pi-never-asserts-the-sdio-card-interrupt.md)。
 * 链路起来几分钟后，这套 backplane 轮询会开始失败，控制台被
   `sdhc_stm32: Command response timeout` 刷屏。它**不致命** —— 刷屏期间
   MQTT/REST/WebSocket 各分组依然全绿，复位板子即恢复 —— 但这种状态下 ICMP 可能
@@ -457,7 +457,7 @@ REST :8081、WebSocket :8083 均在监听（REST `/api/v4/brokers` 返回
 * [docs/zh_CN/port-to-art-pi.md](docs/zh_CN/port-to-art-pi.md) /
   [docs/en_US/port-to-art-pi.md](docs/en_US/port-to-art-pi.md) —— 移植记录：
   与 ESP32-S3 同类 demo 的差异、各环节踩坑顺序与证据。
-* [../../docs/adr/](../../docs/adr/) —— QSPI XIP 与 SDRAM 堆两个决策，以及记录
+* [docs/adr/](docs/adr/) —— QSPI XIP 与 SDRAM 堆两个决策，以及记录
   "为什么 Wi-Fi 用轮询而不是中断"的 ADR 0003。
 * [../nanomq_zephyr_esp32s3/README.md](../nanomq_zephyr_esp32s3/README.md) ——
   本 demo 的蓝本（PSRAM、ESP-IDF 工具链、webhook）。

@@ -202,7 +202,7 @@ host driver (`libraries/drivers/drv_sdio.c`) never enables
 `SDMMC_MASK.SDIOITIE` and registers no card-interrupt callback, so its
 WICED-based stack is fed by polling the chip's status registers.  The decision
 and its consequences are recorded in
-[ADR 0003](../../../../docs/adr/0003-poll-the-whd-thread-because-the-art-pi-never-asserts-the-sdio-card-interrupt.md).
+[ADR 0003](../adr/0003-poll-the-whd-thread-because-the-art-pi-never-asserts-the-sdio-card-interrupt.md).
 
 Note for the next person: because the missing interrupt makes *every* ioctl
 time out, it also produced two convincing but wrong earlier conclusions — that
