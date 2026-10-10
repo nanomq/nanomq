@@ -69,9 +69,11 @@ if [ "$do_build" = 1 ]; then
     if [ -n "$extra_conf" ]; then
         build_args+=(-DEXTRA_CONF_FILE="$extra_conf")
     fi
-    if [ -n "$overlay" ]; then
-        build_args+=(-DEXTRA_DTC_OVERLAY_FILE="$overlay")
-    fi
+    # Always pass it, even empty for --eth: CMake caches -D values in the
+    # build directory, so omitting the argument would let the previous
+    # variant's overlay stay in effect (and both the Wi-Fi and USB overlays
+    # disable the Ethernet nodes, which leaves --eth with no interface).
+    build_args+=(-DEXTRA_DTC_OVERLAY_FILE="$overlay")
     echo "+ variant: $variant"
     echo "+ ${build_args[*]}"
     "${build_args[@]}"
