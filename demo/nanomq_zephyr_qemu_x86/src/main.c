@@ -375,11 +375,11 @@ main(void)
 	// Activate the nanolib log backend (console) and apply conf->log.level
 	// — broker_start_with_conf() normally does this, but the embedded demo
 	// calls broker() directly.
-	log_init(&nmq_conf->log);
-	// Use the configured level rather than a fixed WARN: with
-	// CONFIG_BROKER_LOG_DEBUG the level set above is DEBUG, and a
-	// hard-coded WARN sink filters everything below it straight back out.
-	log_add_console(nmq_conf->log.level, NULL);
+	// nanomq's log_init() applies log->level and registers the console sink
+	// itself, since conf_init() defaults log.type to LOG_TO_CONSOLE.
+	// Registering one here as well would add a second sink and print every
+	// line twice.
+	(void) log_init(&nmq_conf->log);
 #endif
 
 	broker(nmq_conf);
