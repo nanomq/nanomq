@@ -288,7 +288,7 @@ main()
 	// test for commom case.
 	*(header + 1) = 13;
 	rv_rc = decode_pub_message(work, MQTT_PROTOCOL_VERSION_v311);
-	assert(rv_rc == SUCCESS);
+	assert(rv_rc == NNG_MQTT_SUCCESS);
 	// check work->pub_packet
 	assert(work->pub_packet->var_header.publish.topic_name.len == 5);
 	assert(strcmp(work->pub_packet->var_header.publish.topic_name.body, "$MQTT") == 0);
@@ -381,5 +381,5 @@ main()
 	test_pub_v5_topic_alias_all_auth_disabled();
 	test_pub_v5_topic_alias_auth_enabled();
 
-	return SUCCESS;
+	return NNG_MQTT_SUCCESS;
 }

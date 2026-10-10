@@ -307,7 +307,7 @@ webhook_client_connack(nng_socket *sock, conf_web_hook *hook_conf,
 	cJSON_AddNumberToObject(obj, "keepalive", keepalive);
 	// TODO get reason string
 	cJSON_AddStringToObject(
-	    obj, "conn_ack", reason == SUCCESS ? "success" : "fail");
+	    obj, "conn_ack", reason == NNG_MQTT_SUCCESS ? "success" : "fail");
 	cJSON_AddStringToObject(
 	    obj, "username", username == NULL ? "undefined" : username);
 	cJSON_AddStringToObject(obj, "clientid", client_id);
@@ -336,7 +336,7 @@ webhook_client_disconnect(nng_socket *sock, conf_web_hook *hook_conf,
 	cJSON *obj = cJSON_CreateObject();
 	// TODO get reason string
 	cJSON_AddStringToObject(
-	    obj, "reason", reason == SUCCESS ? "normal" : "abnormal");
+	    obj, "reason", reason == NNG_MQTT_SUCCESS ? "normal" : "abnormal");
 	cJSON_AddStringToObject(
 	    obj, "username", username == NULL ? "undefined" : username);
 	cJSON_AddStringToObject(obj, "clientid", client_id);

@@ -23,7 +23,7 @@ main()
 	work->proto     = PROTO_MQTT_BROKER;
 	work->proto_ver = MQTT_PROTOCOL_VERSION_v311;
 	work->config    = nanomq_conf;
-	// work->code       = SUCCESS;
+	// work->code       = NNG_MQTT_SUCCESS;
 
 	// init msg.
 	nng_msg *msg;
