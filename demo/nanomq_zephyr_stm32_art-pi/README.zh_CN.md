@@ -99,6 +99,10 @@ WL_REG_ON 即 `libraries/drivers/drv_wlan.c` 中的
    `SDMMC_MASK.SDIOITIE`。详见
    [docs/adr/0003](docs/adr/0003-poll-the-whd-thread-because-the-art-pi-never-asserts-the-sdio-card-interrupt.md)。
 
+   芯片还被保持在清醒状态（`CONFIG_AIROC_WIFI_DISABLE_POWERSAVE`，在 `wifi.conf`
+   打开）：睡着的设备不回应唤醒它的第一笔写，而主机只能把它报成命令失败。实测见
+   [docs/adr/0004](docs/adr/0004-keep-the-art-pi-wifi-chip-awake.md)。
+
 3. **STA 连接流程由应用负责**，与 ESP32-S3 同类 demo 一致：`src/main.c`
    等接口就绪，用应用 Kconfig 里的凭据（`CONFIG_BROKER_WIFI_SSID` / `_PSK`，
    通过 git-ignored 的 `local.conf` 提供）发出 `NET_REQUEST_WIFI_CONNECT`，
@@ -343,20 +347,23 @@ net: ipv4 192.168.1.3
 * **烧完串口却是静默的**，通常是内核被留在 halted，而不是镜像有问题：pyocd 在
   烧写结束时会把目标停在 halted，所以 `tools/artpi_flash.py` 结尾会再复位并
   resume 一次。用别的方式烧写时，记得自己复位一下。
-* **`sdhc_stm32: Command response timeout` 反复出现**（大约在启动 4 分钟后开始）是
-  已知且**非致命**的状态：WHD 的后台状态轮询（替代芯片 SDIO 中断的那套，见
-  ADR 0003）开始失败，而 WLAN 数据面仍在正常工作 —— **它出现期间整套功能测试依然
-  全绿**，复位板子即恢复。驱动对这条消息做了限流，所以你看到的是每 5 秒一行，旁边
-  带着真实速率：
+* **`sdhc_stm32: Command response timeout` 反复出现**（原先在连接建立约 50 秒后
+  开始并不停）是 Wi-Fi 芯片自己的低功耗（KSO）睡眠造成的，**现已修复**：设备睡着
+  时故意不回应把它唤醒的第一笔写（WHD 源码里写明并忽略该错误），而主机控制器只能
+  把这种沉默报成命令失败 —— 于是每秒约 300 条。现在 demo 让芯片保持清醒
+  （`CONFIG_AIROC_WIFI_DISABLE_POWERSAVE`），这些消息不再出现；驱动仍保留限流，
+  所以万一出现**真实**的突发，看起来是这样的而不是整屏刷屏：
 
   ```
   [00:04:11.518,000] <err> sdhc_stm32: Skipped 1621 messages
   [00:04:11.518,000] <err> sdhc_stm32: Command response timeout
   ```
 
-  （约 324 次/秒，压成一行；限流之前这里每分钟是上千行。）有个副作用值得记住：
-  **`ping` 可能失败但 TCP 仍然可用**，所以判断 broker 是否在线请用
-  `tools/verify.sh <ip>`（或 `curl` 打 `:8081`），不要用 `ping`。
+  实测与决策见
+  [docs/adr/0004](docs/adr/0004-keep-the-art-pi-wifi-chip-awake.md)。那轮排查还留下
+  一条值得记住的副作用：链路退化状态下 **`ping` 可能失败但 TCP 仍然可用**，所以判断
+  broker 是否在线请用 `tools/verify.sh <ip>`（或 `curl` 打 `:8081`），不要用
+  `ping`。
 * **板子上现在是哪个变体？** 日志写得很明白：`wifi: connecting to "<SSID>"` /
   `wifi: connected` 是 Wi-Fi 构建，`eth: waiting for link` /
   `net: iface ... dev=ethernet@40028000` 是以太网构建，
@@ -435,11 +442,11 @@ REST :8081、WebSocket :8083 均在监听（REST `/api/v4/brokers` 返回
   里打开）。in-band 控制器路径和 out-of-band host-wake 引脚都试过且在这块板子
   上不可行，厂商栈同样靠轮询。详见
   [docs/adr/0003](docs/adr/0003-poll-the-whd-thread-because-the-art-pi-never-asserts-the-sdio-card-interrupt.md)。
-* 链路起来几分钟后，这套 backplane 轮询会开始失败，控制台被
-  `sdhc_stm32: Command response timeout` 刷屏。它**不致命** —— 刷屏期间
-  MQTT/REST/WebSocket 各分组依然全绿，复位板子即恢复 —— 但这种状态下 ICMP 可能
-  失败，所以判断 broker 在线与否请用 TCP（`tools/verify.sh <ip>`、`curl`），不要
-  用 `ping`。
+* Wi-Fi 芯片的低功耗睡眠曾让控制台从连接建立约 50 秒起被
+  `sdhc_stm32: Command response timeout` 刷屏；根因已定位并通过"让芯片保持清醒"
+  修好（[docs/adr/0004](docs/adr/0004-keep-the-art-pi-wifi-chip-awake.md)），驱动
+  还对该消息保留了限流以防真实超时。如果哪天又成片出现，先检查
+  `CONFIG_AIROC_WIFI_DISABLE_POWERSAVE`。
 * **webhook 不是"打开开关"就能用的**：编了 `CONFIG_BROKER_WEBHOOK=y` 的构建能连上
   Wi-Fi 并拿到地址，但随后 SDIO 链路几乎立刻卡死（同样是
   `Command response timeout` 刷屏），因此 `webhook_smoke` 分组在这个构建上没能
@@ -457,8 +464,8 @@ REST :8081、WebSocket :8083 均在监听（REST `/api/v4/brokers` 返回
 * [docs/zh_CN/port-to-art-pi.md](docs/zh_CN/port-to-art-pi.md) /
   [docs/en_US/port-to-art-pi.md](docs/en_US/port-to-art-pi.md) —— 移植记录：
   与 ESP32-S3 同类 demo 的差异、各环节踩坑顺序与证据。
-* [docs/adr/](docs/adr/) —— QSPI XIP 与 SDRAM 堆两个决策，以及记录
-  "为什么 Wi-Fi 用轮询而不是中断"的 ADR 0003。
+* [docs/adr/](docs/adr/) —— 决策记录：QSPI XIP、SDRAM 堆、为什么 Wi-Fi 用轮询
+  而不是中断，以及为什么让 Wi-Fi 芯片保持清醒。
 * [../nanomq_zephyr_esp32s3/README.md](../nanomq_zephyr_esp32s3/README.md) ——
   本 demo 的蓝本（PSRAM、ESP-IDF 工具链、webhook）。
 * [../../docs/zh_CN/tutorial/port-to-zephyr.md](../../docs/zh_CN/tutorial/port-to-zephyr.md)
