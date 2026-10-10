@@ -525,5 +525,5 @@ REST :8081 and WebSocket :8083 all listening (REST
   the sibling this demo is derived from (PSRAM, ESP-IDF tooling, webhook).
 * [../../docs/en_US/tutorial/port-to-zephyr.md](../../docs/en_US/tutorial/port-to-zephyr.md)
   — the general Zephyr port tutorial.
-* [../../CONTEXT.md](../../CONTEXT.md) — the vocabulary used in these docs
+* [docs/CONTEXT.md](docs/CONTEXT.md) — the vocabulary used in these docs
   (Zephyr broker demo, ART-Pi factory bootloader, broker heap, …).
