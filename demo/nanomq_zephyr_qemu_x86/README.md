@@ -54,7 +54,16 @@ iow32(dev, RCTL, RCTL_EN | RCTL_MPE | RCTL_BAM | DT_INST_PROP(inst, rdmts) << RD
 ## Build
 
 Needs a Zephyr 4.x SDK workspace with the NanoNNG submodule checked out and
-the e1000 patch above applied.  From the repo root:
+the e1000 patch above applied.  `west` comes from that workspace's python
+venv, not from the system `PATH`, so activate it first — the ESP32-S3 demo
+gets `west` from ESP-IDF instead, this one does not need ESP-IDF at all:
+
+```sh
+source <workspace>/.venv/bin/activate
+export ZEPHYR_SDK_INSTALL_DIR=$HOME/zephyr-sdk-1.0.1
+```
+
+From the repo root:
 
 ```sh
 git submodule update --init nng
