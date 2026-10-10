@@ -82,10 +82,11 @@ bring-up 过程中，把它误判成"出厂应用还在跑、我的镜像没烧�
   常态，而不是运气。
 * **broker 的启动日志只打印一次，而且只在它真的启动时才有。** nanolib 是在
   `broker()` 运行过程中宣告它的；晚接上控制台就只能看到驱动在干什么。由此引出的两个
-  修复：Wi-Fi 连接循环改成**有限次**（以前是无限重试，于是连不上的板子根本不会启动
-  broker，也就一条相关日志都没有 —— 正是"看不到 broker 启动日志"那次报告），以及
-  demo 现在每 `CONFIG_BROKER_STATUS_INTERVAL_S` 秒（默认 60）打一行状态心跳，带上
-  uptime、各监听端口和当前 IPv4 地址，让"它还在跑吗"不再依赖是否赶上了启动瞬间。
+  修复：启动阶段的 Wi-Fi 连接循环改成**有限次**（以前是无限重试，于是连不上的板子
+  根本不会启动 broker，也就一条相关日志都没有 —— 正是"看不到 broker 启动日志"那次
+  报告），之后的链路交给守护线程（§4.8）；以及 demo 现在每
+  `CONFIG_BROKER_STATUS_INTERVAL_S` 秒（默认 60）打一行状态心跳，带上 uptime、
+  各监听端口和当前 IPv4 地址，让"它还在跑吗"不再依赖是否赶上了启动瞬间。
 
 ## 4. 网络
 
@@ -265,6 +266,37 @@ asleep"）并忽略该错误。省电开着时，连接稳定后芯片会进入�
 **零**；三道门禁照样全绿；连续三分钟抓取中心跳与 DHCP 租约稳定。决策与备选方案见
 [ADR 0004](../adr/0004-keep-the-art-pi-wifi-chip-awake.md)。
 
+### 4.8 链路丢了不会有事件，所以 demo 自己去轮询
+
+这块板上的关联可以以三种方式结束，而其中只有一种会作为 Wi-Fi mgmt 事件到达应用：
+
+| 链路怎么断的 | 驱动做了什么 | 应用收到的事件 |
+| --- | --- | --- |
+| 显式 `NET_REQUEST_WIFI_DISCONNECT` | `airoc_mgmt_disconnect()` 抛出结果 | `NET_EVENT_WIFI_DISCONNECT_RESULT` |
+| AP 发来 deauth / disassoc | 事件任务调用 `net_if_dormant_on()` | 无 |
+| AP 直接消失（信标丢失） | 事件任务把 `WLC_E_LINK`（link 标志为清）放过去 | 无 |
+
+于是启动时那次关联成了应用与链路唯一的接触：之后 AP 消失不会产生任何事件，而
+broker（监听在 `0.0.0.0`，它根本不会注意到）就只剩下一个板子其实已经没有的地址。
+症状是每 60 秒的状态心跳丢掉 `ipv4 ...` 那一截，唯一的恢复手段是复位。
+
+覆盖上表三行的现成信号其实就在 WHD 里：`JOIN_LINK_READY` 位，
+`whd_wifi_api.c` 在 `WLC_E_LINK`（link 标志为清）、`WLC_E_DEAUTH_IND` 和
+`WLC_E_DISASSOC_IND` 三种情况下都会清它。`NET_REQUEST_WIFI_IFACE_STATUS` 正是
+能读到 `whd_wifi_is_ready_to_transceive()`（也就是这一位）的 mgmt 请求。所以
+守护线程每 `CONFIG_BROKER_WIFI_MONITOR_PERIOD_S` 秒（默认 10）轮询一次，只要
+答案不是 `WIFI_STATE_COMPLETED` 就重新关联 —— 等连接结果，再
+`net_dhcpv4_restart()`。AP 一直不回来时按 5 秒起步的退避重试，翻倍到 60 秒封顶。
+它同时也等 `NET_EVENT_WIFI_DISCONNECT_RESULT`，所以唯一会发事件的那种断开是立即
+处理，而不是等下一个轮询周期。
+
+broker 本身什么都不用做：监听在 `0.0.0.0` 上，重连后拿到同一个租约的话，除了客户端
+自己的重连之外无感；拿到不同租约也只是心跳里的地址变了。启动行为不变 —— 开头
+3 × 30 秒仍然有限次，连不上的板子照样启动 broker 并说明情况，守护线程从那时起
+一直重试。备选方案（只看 dormant 标志、给驱动补 `WLC_E_LINK` 处理、什么都不做）
+以及它们为什么落选，见
+[ADR 0005](../adr/0005-poll-the-join-state-to-recover-a-lost-wi-fi-link.md)。
+
 ## 5. 让功能测试套件适配一块 Wi-Fi 板
 
 `function_test.py` 是按 qemu/localhost 写的：CI 脚本里的 sleep 都假定 broker 在
@@ -309,6 +341,26 @@ RESULT: pass=3 fail=0
 REST :8081 / WebSocket :8083 均在监听、`NanoMQ Broker is started successfully!`，
 REST `/api/v4/brokers` 返回 `node_status: Running`。
 
+链路恢复（§4.8）之后单独做了一轮实机验证。用一个临时构建（钩子没有提交）在启动
+180 秒后发 `NET_REQUEST_WIFI_DISCONNECT`，**并且**故意不注册
+`NET_EVENT_WIFI_DISCONNECT_RESULT`，也就是说只能靠守护线程的状态轮询发现掉线 ——
+对应的是"AP 悄悄消失"，而不是容易的那条路：
+
+```
+selftest: NET_REQUEST_WIFI_DISCONNECT -> 0                (uptime 180 s)
+[00:03:07.558] <err> sdhc_stm32: Command response timeout  <- leave 序列
+wifi: link down — reconnecting to "TP-LINK_A57B"          (uptime 约 188 s)
+wifi: connected to "TP-LINK_A57B"
+[00:03:13.738] <inf> net_dhcpv4: Received: 192.168.1.8
+wifi: IPv4 address assigned (DHCPv4)
+broker: status running — uptime 244s, ... , ipv4 192.168.1.8
+```
+
+轮询在掉线 7 秒后（10 秒周期之内）就发现了，重新关联加重新拿租约又花了约 6 秒，
+拿回的是同一个地址，broker 全程没有重启 —— 监听端口没有重开，租约一恢复
+`/api/v4/brokers` 就又能访问。那条 `Command response timeout` 属于 leave 序列，
+不是 §4.7 的 KSO 刷屏：它只在切换时出现一次，之后不再出现。
+
 ## 7. 改动都在哪里
 
 | 改动 | 位置 |
@@ -335,3 +387,6 @@ bring-up 期间用的探针（Zephyr 树与 WHD 里的 `nanomq-probe` 打印、�
 4. 在目标板内埋探针；如果一个调试器在串口还在不停打印时报 `LOCKUP`，不要信它。
 5. NVRAM 要和模块匹配；把缺少 CLM 当作致命错误处理。
 6. 下结论说 broker 坏了之前，先按板子的网络条件重新调一遍主机侧测试套件。
+7. 给网络链路配一个守护线程（§4.8）。驱动的断开事件通常只覆盖显式断开 —— AP
+   自己消失是无声的 —— 所以要轮询驱动自己的关联状态，并在一个与应用同生命周期的
+   线程里重新关联。

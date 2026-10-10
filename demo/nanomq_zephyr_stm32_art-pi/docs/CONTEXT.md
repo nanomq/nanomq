@@ -31,6 +31,12 @@ The memory NanoNNG's allocator serves the broker's data plane from — on the
 ART-Pi, a `k_heap` over the SDRAM region, not the internal SRAM.
 _Avoid_: "the heap" (ambiguous with the kernel heap and the libc arena)
 
+**Wi-Fi link supervisor**:
+The ART-Pi demo's thread that watches the Wi-Fi join state after the bounded
+boot-time association and re-associates (then re-requests a lease) when the
+link is gone.
+_Avoid_: "watchdog" (that is the hardware timer, and it resets the board)
+
 ## Relationships
 
 - The **Zephyr broker demo** family has three siblings: qemu_x86
@@ -39,6 +45,9 @@ _Avoid_: "the heap" (ambiguous with the kernel heap and the libc arena)
 - The ART-Pi demo starts through the **ART-Pi factory bootloader**.
 - The **Broker heap** lives in SDRAM; the kernel heap and libc arena stay in
   internal SRAM.
+- The ART-Pi demo's **Wi-Fi link supervisor** polls the driver's join state; it
+  does not depend on the driver's disconnect event, which only an explicit
+  disconnect raises.
 
 ## Example dialogue
 
