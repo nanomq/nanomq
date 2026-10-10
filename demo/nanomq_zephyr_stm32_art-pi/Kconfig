@@ -1,0 +1,181 @@
+# NanoMQ broker demo options
+#
+# An application-level Kconfig file replaces the top of the Zephyr tree
+# (kconfig.cmake: KCONFIG_ROOT = <app>/Kconfig when it exists), so the whole
+# Zephyr tree must be pulled back in explicitly.  See samples/basic/minimal/
+# Kconfig for the same pattern.
+
+config BROKER_LOG_DEBUG
+	bool "Set NanoMQ log level to DEBUG"
+	help
+	  Bumps nanolib log level from INFO to DEBUG so the MQTT session flow is
+	  visible on the console.  Disable for normal runs (less noise, fewer
+	  cycles spent formatting logs, and the 115200 console is a throughput
+	  bottleneck once every packet is traced).
+
+config BROKER_REST_API
+	bool "Enable the NanoMQ REST API (HTTP tcp:8081, Basic auth)"
+	help
+	  Sets conf http_server.enable / auth_type=BASIC plus the credentials
+	  from BROKER_REST_USER / _PASS in main.c, so the broker serves
+	  /api/v4 over plain HTTP behind Basic auth.
+
+	  Basic over plain HTTP is base64, not encryption — TLS is compiled out
+	  of the Zephyr NanoNNG.  Keep this off untrusted networks.
+
+config BROKER_REST_USER
+	string "REST API Basic-auth username"
+	depends on BROKER_REST_API
+	default ""
+	help
+	  Username for the REST API's Basic auth.  Deliberately no default:
+	  the board serves this port to the whole LAN, so the API stays off
+	  until a deployment supplies its own credentials.  Set both this and
+	  BROKER_REST_PASS from local.conf (see local.conf.example).
+
+config BROKER_REST_PASS
+	string "REST API Basic-auth password"
+	depends on BROKER_REST_API
+	default ""
+	help
+	  Password matching BROKER_REST_USER.  Both must be set, and must not be
+	  the published admin/public pair unless
+	  BROKER_REST_ALLOW_PUBLISHED is enabled, for the listener to come up.
+
+config BROKER_REST_ALLOW_PUBLISHED
+	bool "Allow the published admin/public REST credentials"
+	depends on BROKER_REST_API
+	default n
+	help
+	  The sibling demos refuse the published admin/public pair outright.
+	  This switch relaxes that refusal so the demo can be exercised with the
+	  credentials function_test.py defaults to, without passing
+	  --rest-user/--rest-pass.  Intended for a bench LAN only: it puts an
+	  administrative surface behind a password that is in every copy of the
+	  repository.  Enable it from local.conf, never in prj.conf.
+
+config BROKER_WEBHOOK
+	bool "Enable the NanoMQ webhook forwarder (POST to BROKER_WEBHOOK_URL)"
+	help
+	  Sets conf web_hook.enable, an inproc hook channel (Zephyr has no IPC
+	  transport) and two rules (MESSAGE_PUBLISH on "hook/#",
+	  CLIENT_CONNACK).  Off by default: the CLIENT_CONNACK rule fires on
+	  every client connect, so with no receiver up each connect costs a
+	  failed HTTP attempt (see the ESP32-S3 demo's README).
+
+config BROKER_WEBHOOK_URL
+	string "Webhook receiver URL"
+	depends on BROKER_WEBHOOK
+	default ""
+	help
+	  Where the broker POSTs event JSON, e.g. "http://192.168.1.5:18080/".
+	  Must be the LAN address of the machine running hook_receiver.py and
+	  reachable from the board.  With it empty the forwarder stays off.
+
+config BROKER_WS
+	bool "Enable the WebSocket listener (MQTT over RFC6455, tcp:8083)"
+	help
+	  Sets conf websocket.enable / websocket.url in main.c so the broker also
+	  accepts MQTT over WebSocket on nmq-ws://0.0.0.0:8083/mqtt.  Requires
+	  the mqttws transport in the NanoNNG build (enabled by this app's
+	  CMakeLists via NNG_TRANSPORT_MQTT_BROKER_WS=ON).  TLS is built out of
+	  the Zephyr NanoNNG, so WSS stays inert.
+
+config BROKER_SNTP
+	bool "Seed CLOCK_REALTIME from SNTP after DHCP"
+	default n
+	select SNTP
+	select DNS_RESOLVER
+	help
+	  nanolib's log module formats time(NULL), so without a real clock every
+	  log line is stamped 1970-01-01.  The ART-Pi has no battery-backed RTC,
+	  so enabling this queries public NTP servers once DHCP has bound and
+	  seeds CLOCK_REALTIME.  Best effort: with no server reachable the broker
+	  still starts, just with the wrong clock, after up to ~9 s of timeouts.
+
+config BROKER_WIFI_SSID
+	string "Wi-Fi SSID (STA mode)"
+	depends on WIFI
+	default ""
+	help
+	  SSID of the 2.4 GHz access point the demo connects to.  Meant to be set
+	  from a local, git-ignored conf file (see local.conf.example) so real
+	  credentials never land in the tree.
+
+config BROKER_WIFI_PSK
+	string "Wi-Fi passphrase (STA mode; empty = open network)"
+	depends on WIFI
+	default ""
+	help
+	  WPA2-PSK passphrase for BROKER_WIFI_SSID.  Empty selects an open
+	  (unsecured) network.
+
+config BROKER_STATUS_INTERVAL_S
+	int "Periodic broker status line (seconds, 0 = off)"
+	default 60
+	range 0 3600
+	help
+	  Every N seconds the demo prints one line with the broker's uptime, its
+	  listeners and the current IPv4 address, e.g.
+
+	    broker: status running — uptime 63s, MQTT tcp://0.0.0.0:1883,
+	    REST http://0.0.0.0:8081, WS :8083/mqtt, ipv4 192.168.1.3
+
+	  nanolib prints the broker's banner and "NanoMQ Broker is started
+	  successfully!" only once, while broker() starts, so a console attached
+	  after boot (or one whose buffered backlog already scrolled past) never
+	  shows them — and on this board the SDIO driver's own error logging can
+	  fill the console.  One line a minute keeps "is it up, and on which
+	  address?" answerable at any time.  Set 0 for a quiet console.
+
+config AIROC_WIFI_NO_CLM
+	bool "Build the AIROC Wi-Fi driver without a CLM blob"
+	depends on WIFI_AIROC
+	help
+	  WHD normally downloads a CLM (regulatory/RF calibration) blob to the
+	  chip during init and treats a rejected blob as fatal.  The only CLM
+	  published for the CYW43438 is the AW-CU427-P module's; it is not this
+	  module's calibration data, but the ART-Pi's AP6212 accepts it, and
+	  without *some* CLM the firmware refuses the "country" ioctl that
+	  whd_wifi_on() issues and the driver never initialises at all
+	  ("Could not set Country code" -> ret = -19).  So this option does not
+	  produce a working link on this board — it exists only to bisect CLM
+	  problems during bring-up.  Leave it off.
+
+config AIROC_WIFI_WHD_DEBUG
+	bool "Enable WHD's verbose debug (and its download verification)"
+	depends on WIFI_AIROC
+	help
+	  Defines WPRINT_ENABLE_WHD_DEBUG in the WHD build.  Besides very
+	  verbose tracing this compiles in whd_bus_sdio_verify_resource(), which
+	  reads every downloaded firmware/CLM block back and reports
+	  "Downloaded image is corrupted" when the transfer did not arrive
+	  intact — the quickest way to tell a broken SDIO bulk write from a
+	  firmware the chip refuses to boot.  Diagnostic only.
+
+config AIROC_WIFI_WHD_POKE
+	bool "Poll the WHD thread instead of waiting for the SDIO card interrupt"
+	depends on WIFI_AIROC
+	help
+	  For boards whose SDIO Wi-Fi chip never asserts the in-band card
+	  interrupt on DAT1.  WHD's worker thread only enters its receive path
+	  when it is woken with the bus-interrupt flag, and only the card
+	  interrupt sets that flag, so without this every ioctl is written to
+	  the WLAN function and then times out without its reply ever being
+	  read.  With it enabled a 20 ms timer calls whd_thread_notify_irq(),
+	  handing the thread the wake-up the interrupt would have delivered so
+	  that its poll picks the reply up.
+
+	  Required on the ART-Pi's AP6212: measured on hardware, the controller's
+	  SDMMC_STA.SDIOIT stays clear for a whole boot while
+	  SDMMC_MASK.SDIOITIE is set and CCCR INTEN has function 2 enabled.
+	  Background: demo/nanomq_zephyr_stm32_art-pi/docs/en_US/port-to-art-pi.md
+	  ("no in-band SDIO card interrupt").
+
+	  Note what it is: a workaround for a chip that probably signals
+	  out-of-band (the vendor NVRAM sets muxenab bit 0x10 = "HW OOB" and the
+	  board wires a GPIO_WIFI_HOST_WAKE net).  Mapping that pin as
+	  wifi-host-wake-gpios is the clean fix; this costs a periodic wake-up of
+	  the WLAN worker thread.
+
+source "Kconfig.zephyr"
