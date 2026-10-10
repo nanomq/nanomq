@@ -83,16 +83,22 @@ mosquitto_pub -h $H -p $P -V mqttv5 -t "z/v5" -q 1 \
     -m "hello-v5" -D publish user-property k v
 wait_msg "$T0.v5" 1 && ok "v5 message delivered" || bad "v5 message lost"
 
-# ── v5 response-topic / correlation (request/response helper) ───
-note "MQTT v5 response-topic + correlation-data roundtrip"
+# ── v5 properties: a publish carrying response-topic / correlation-data ──
+# Scope: this asserts the broker accepts a PUBLISH that carries these v5
+# properties and still delivers it.  It does NOT exercise the request/
+# response round trip (a responder reading response-topic and answering on
+# it) — mosquitto_pub/sub cannot echo properties back — so a broker that
+# silently dropped the properties would still pass here.  The callback leg
+# needs a property-aware client (mqtt_accept.py would have to grow one).
+note "MQTT v5 publish with response-topic + correlation-data properties"
 mosquitto_sub -h $H -p $P -V mqttv5 -t "z/v5resp" -q 1 -C 1 \
     > "$T0.v5r" 2>/dev/null &
 wait_conn
 timeout -s KILL 8 mosquitto_pub -h $H -p $P -V mqttv5 -t "z/v5resp" -q 1 -m "rpc-call" \
     -D publish response-topic "z/v5cb" -D publish correlation-data "abc123"
 PRC=$?
-wait_msg "$T0.v5r" 1 && ok "v5 response msg delivered (pub rc=$PRC)" \
-                       || bad "v5 response msg lost (pub rc=$PRC)"
+wait_msg "$T0.v5r" 1 && ok "v5 publish carrying the properties delivered (pub rc=$PRC)" \
+                       || bad "v5 publish carrying the properties lost (pub rc=$PRC)"
 
 echo
 echo "RESULT: pass=$PASS fail=$FAIL"

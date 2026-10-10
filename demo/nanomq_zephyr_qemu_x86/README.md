@@ -70,6 +70,21 @@ git submodule update --init nng
 west build -b qemu_x86 -d build/nanomq_zephyr_qemu_x86 demo/nanomq_zephyr_qemu_x86
 ```
 
+> **NanoNNG dependency.**  The `nng` gitlink recorded in this PR is still
+> the existing upstream pin, and that commit does **not** carry the Zephyr
+> platform layer — that half of the port lives on the NanoNNG side
+> (NanoNNG PR #1647).  Until it lands and the pin is bumped, a fresh
+> checkout has to point the submodule at the branch explicitly, or the
+> build fails in `nanonng_build` with a missing `platform/zephyr/`:
+>
+> ```sh
+> git -C nng fetch origin alvin/zephyr-port
+> git -C nng checkout alvin/zephyr-port
+> ```
+>
+> Bumping the pin is deliberately left to the nanomq maintainers rather
+> than being folded into this PR.
+
 The NanoNNG library is built by an ExternalProject
 ([demo/cmake/nanonng_external.cmake](../cmake/nanonng_external.cmake))
 into `<build-dir>/nanonng_build/`, mirroring the NanoNNG `zephyr_mqtt`
