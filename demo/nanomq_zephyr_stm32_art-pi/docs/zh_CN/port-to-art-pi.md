@@ -75,10 +75,11 @@ bring-up 过程中，把它误判成"出厂应用还在跑、我的镜像没烧�
   显式给 `--eth`/`--usb`）；早期版本只带 `prj.conf`，也就是以太网变体，在没有网线的
   调试台上会一直停在 `eth: still no link`。这个错误看起来和"板子坏了"一模一样，
   白花了一轮排查。
-* **刷屏本身就是缺陷。** STM32 SDHC 驱动每失败一条命令就打一行日志，而一旦芯片停止
-  应答（见下），那就是每秒几百次 —— 控制台变成一整面 `Command response timeout`
-  墙，别的内容都读不到。现在这些消息加了限流：每 5 秒一行，外加
-  `Skipped N messages` 计数，既保住了可读性，也保留了真实数量。
+* **刷屏本身就是缺陷。** STM32 SDHC 驱动每失败一条命令就打一行日志，而 Wi-Fi 芯片
+  进入睡眠（见 §4.7）后那就是每秒几百次 —— 控制台变成一整面
+  `Command response timeout` 墙，别的内容都读不到。现在既加了限流（每 5 秒一行，
+  外加 `Skipped N messages` 计数），也把根因本身修掉了，所以"控制台安静"重新变成
+  常态，而不是运气。
 * **broker 的启动日志只打印一次，而且只在它真的启动时才有。** nanolib 是在
   `broker()` 运行过程中宣告它的；晚接上控制台就只能看到驱动在干什么。由此引出的两个
   修复：Wi-Fi 连接循环改成**有限次**（以前是无限重试，于是连不上的板子根本不会启动
@@ -233,6 +234,36 @@ Wi-Fi 通了之后，又把板子的 USB-OTG 口当成另一条网络通路试�
 接法布线的 Type-C 母座需要 CC 下拉，没有下拉时 C-to-C 线插上去就是一片漆黑）。
 
 这件事就停在这里：它是硬件侧问题（换线/换口），不是还有代码要写。
+
+### 4.7 控制台刷屏：芯片睡着了，而这是被允许的
+
+连接建立约 50 秒后，控制台开始被 `sdhc_stm32: Command response timeout` 填满 ——
+限流后每 5 秒一行，但每行都带着 `Skipped ~1500 messages`，也就是每秒约 300 次
+失败 —— 而 broker 与数据面完全正常（**刷屏期间整套功能测试依然全绿**）。
+
+把 SDHC 驱动的命令按类别统计（临时探针，用完全部移除）后，特征一目了然：
+
+| 命令类别 | 发出 | 失败 |
+| --- | --- | --- |
+| CMD52（任意 function，寄存器访问、无数据阶段） | ~215 000 | ~108 000 |
+| CMD53 func1 byte 模式（SDIO backplane） | ~20 000 | **0** |
+| CMD53 func1 block 模式（SDIO backplane） | 412 | **0** |
+| CMD53 func2（WLAN 数据） | ~2 100 | **0** |
+
+只有 CMD52 失败（约一半），而第一条失败的总是
+`CMD52 write, function 1, address 0x1001F, value 1`：即写 `SDIO_SLEEP_CSR` 的
+`SBSDIO_SLPCSR_KEEP_WL_KSO`，也就是 WHD 唤醒设备序列的第一笔写。WHD 在那里的注释
+写着设备可能不回应（"1st KSO write goes to AOS wake up core if device is
+asleep"）并忽略该错误。省电开着时，连接稳定后芯片会进入睡眠；**睡着时它按设计
+保持沉默**，而 STM32 主机控制器只能把沉默报成命令超时（它对 CMD8 已经为同样的
+原因开了豁免）。
+
+修法是让芯片保持清醒：`whd_wifi_on()` 成功后调用
+`whd_wifi_disable_powersave()`，由 `CONFIG_AIROC_WIFI_DISABLE_POWERSAVE` 控制
+（`wifi.conf` 打开），驱动的限流则作为安全网保留。改动后的实测：原先从 ~50 秒起
+每秒约 300 次失败的那次启动，现在 `Command response timeout` 与 CMD52 失败都是
+**零**；三道门禁照样全绿；连续三分钟抓取中心跳与 DHCP 租约稳定。决策与备选方案见
+[ADR 0004](../adr/0004-keep-the-art-pi-wifi-chip-awake.md)。
 
 ## 5. 让功能测试套件适配一块 Wi-Fi 板
 

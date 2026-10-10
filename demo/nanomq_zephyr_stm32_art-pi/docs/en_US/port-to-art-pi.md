@@ -89,11 +89,12 @@ during the bring-up.
   `eth: still no link` forever on a bench with no cable.  That mistake looks
   exactly like a dead board and cost one round of debugging.
 * **A flooding console is a defect too.**  The STM32 SDHC driver logged one
-  line per failed command, and once the chip stops answering (below) that is
-  hundreds of failures a second — the console becomes a wall of
-  `Command response timeout` and nothing else is readable.  Those messages are
-  now rate-limited: one line per 5 s plus a `Skipped N messages` counter, so
-  the console stays usable and the true volume is still visible.
+  line per failed command, and the Wi-Fi chip's sleep (see §4.7) produced
+  hundreds of them a second — the console became a wall of
+  `Command response timeout` and nothing else was readable.  They are now
+  rate-limited (one line per 5 s plus a `Skipped N messages` counter) *and* the
+  cause itself is fixed, so a quiet console is the normal state again rather
+  than a lucky one.
 * **The broker's startup log is printed once, and only if the broker starts.**
   nanolib announces it while `broker()` runs; anything attached to the console
   later sees only what the drivers are doing.  Two fixes came out of that: the
@@ -278,6 +279,43 @@ and a C-to-C cable into a port without them stays dark).
 
 That is where this stopped: it is a hardware-side question (try another
 cable/port) rather than anything left to implement.
+
+### 4.7 The console flood: the chip was asleep, and that is allowed
+
+From about 50 s after association the console filled with
+`sdhc_stm32: Command response timeout` — rate-limited to one line per 5 s, but
+each carrying a `Skipped ~1500 messages` counter, i.e. ~300 failures a second —
+while the broker and its data path stayed perfectly healthy (the whole
+functional suite passed in that state).
+
+Classifying the SDHC driver's commands (temporary probes, removed afterwards)
+gave the signature that identified it:
+
+| command class | sent | failed |
+| --- | --- | --- |
+| CMD52, any function (register access, no data phase) | ~215 000 | ~108 000 |
+| CMD53, function 1, byte mode (the SDIO backplane) | ~20 000 | **0** |
+| CMD53, function 1, block mode (the SDIO backplane) | 412 | **0** |
+| CMD53, function 2 (WLAN data) | ~2 100 | **0** |
+
+Only CMD52 failed, roughly half of them, and the first one always was
+`CMD52 write, function 1, address 0x1001F, value 1`:
+`SBSDIO_SLPCSR_KEEP_WL_KSO` in `SDIO_SLEEP_CSR`, the first write of WHD's
+device-wake sequence.  WHD's comment at that write says the device may not
+answer ("1st KSO write goes to AOS wake up core if device is asleep") and it
+ignores the error.  With its power save on, the chip sleeps once the
+connection settles; **while asleep it stays silent on purpose**, and the STM32
+host controller can only report that silence as a command timeout (it already
+carves out CMD8 for exactly this reason, on cards that do not support it).
+
+The fix is to keep the chip awake — `whd_wifi_disable_powersave()` right after
+`whd_wifi_on()`, gated by `CONFIG_AIROC_WIFI_DISABLE_POWERSAVE` and on in
+`wifi.conf` — with the driver's rate limiter kept as a safety net.  Measured
+after the change: zero `Command response timeout` lines and zero CMD52 failures
+in a boot that previously produced ~300 a second from ~50 s onward, the three
+gates still green, and a continuous three-minute capture with heartbeats and
+the DHCP lease steady.  The reasoning and the alternatives are in
+[ADR 0004](../adr/0004-keep-the-art-pi-wifi-chip-awake.md).
 
 ## 5. Tuning the functional suite for a board on Wi-Fi
 

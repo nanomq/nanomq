@@ -108,6 +108,12 @@ for the full record.
    `libraries/drivers/drv_sdio.c` never enables `SDMMC_MASK.SDIOITIE` at all.
    See [docs/adr/0003](docs/adr/0003-poll-the-whd-thread-because-the-art-pi-never-asserts-the-sdio-card-interrupt.md).
 
+   The chip is also kept out of its low-power (KSO) sleep
+   (`CONFIG_AIROC_WIFI_DISABLE_POWERSAVE`, on in `wifi.conf`): a sleeping
+   device does not answer the first write that wakes it, and the host can only
+   report that as a failed command.  Measurements:
+   [docs/adr/0004](docs/adr/0004-keep-the-art-pi-wifi-chip-awake.md).
+
 3. **The STA connect flow is the application's job**, exactly as in the
    ESP32-S3 sibling: `src/main.c` waits for the interface, issues
    `NET_REQUEST_WIFI_CONNECT` with the credentials from app Kconfig
@@ -392,21 +398,25 @@ uptime instead.  Zephyr has no timezone database, so displayed times are UTC.
   halted, not that the image is bad: pyocd leaves the target halted when its
   programmer finishes, which is why `tools/artpi_flash.py` resets *and resumes*
   once more at the end.  If you flash some other way, reset the board.
-* **`sdhc_stm32: Command response timeout`, repeating**, starting ~4 minutes
-  into a boot, is a known **non-fatal** state: WHD's backplane status polls
-  (the polling that stands in for the chip's SDIO interrupt, ADR 0003) start
-  failing while WLAN data traffic keeps working — the full test suite passes
-  while it happens, and a board reset clears it.  The driver rate-limits that
-  message, so what you see is one line per 5 s with the true rate next to it:
+* **`sdhc_stm32: Command response timeout`, repeating**, used to start ~50 s
+  after association and never stop.  It was the Wi-Fi chip's own low-power
+  (KSO) sleep, and it is fixed: while asleep the device deliberately does not
+  answer the first write that wakes it (WHD's source says so and ignores the
+  error), and a host controller can only report that silence as a failed
+  command — ~300 of them a second.  The demo now keeps the chip awake
+  (`CONFIG_AIROC_WIFI_DISABLE_POWERSAVE`), so those messages do not appear at
+  all; the driver also rate-limits them, so a *real* burst still looks like
+  this rather than a wall of text:
 
   ```
   [00:04:11.518,000] <err> sdhc_stm32: Skipped 1621 messages
   [00:04:11.518,000] <err> sdhc_stm32: Command response timeout
   ```
 
-  (~324 failures/second, collapsed to one line; before the rate limit this was
-  thousands of lines a minute.)  A side effect worth knowing: **`ping` can
-  fail while TCP still works**, so judge the broker with
+  The measurements and the decision are in
+  [docs/adr/0004](docs/adr/0004-keep-the-art-pi-wifi-chip-awake.md).  A side
+  effect worth knowing from that episode: **`ping` can fail while TCP still
+  works** in a degraded link state, so judge the broker with
   `tools/verify.sh <ip>` (or `curl` on `:8081`), not with `ping`.
 * **Which variant is on the board?**  The log says so without ambiguity:
   `wifi: connecting to "<SSID>"` / `wifi: connected` is the Wi-Fi build,
@@ -491,11 +501,13 @@ REST :8081 and WebSocket :8083 all listening (REST
   controller path and the out-of-band host-wake pin were tried and do not
   work on this board; the vendor stack polls too.  See
   [docs/adr/0003](docs/adr/0003-poll-the-whd-thread-because-the-art-pi-never-asserts-the-sdio-card-interrupt.md).
-* After the link has been up for a few minutes, that backplane polling starts
-  failing and the console floods with `sdhc_stm32: Command response timeout`.
-  It is **not** fatal — the MQTT/REST/WebSocket groups all pass while it is
-  flooding, and a board reset clears it — but ICMP can fail in that state, so
-  judge the broker by TCP (`tools/verify.sh <ip>`, `curl`), not by `ping`.
+* The Wi-Fi chip's low-power sleep used to flood the console with
+  `sdhc_stm32: Command response timeout` from ~50 s after association; it is
+  root-caused and fixed by keeping the chip awake
+  ([docs/adr/0004](docs/adr/0004-keep-the-art-pi-wifi-chip-awake.md)), and the
+  driver rate-limits the message in case a real one appears.  If it ever does
+  reappear in bulk, `CONFIG_AIROC_WIFI_DISABLE_POWERSAVE` is the first thing
+  to check.
 * **Webhook is left off, and cannot simply be switched on**: a build with
   `CONFIG_BROKER_WEBHOOK=y` joins Wi-Fi and leases an address, but the SDIO
   link then wedges almost immediately (the same `Command response timeout`
@@ -519,8 +531,9 @@ REST :8081 and WebSocket :8083 all listening (REST
   [docs/zh_CN/port-to-art-pi.md](docs/zh_CN/port-to-art-pi.md) — the porting
   record: what differs from the ESP32-S3 sibling, in what order the traps
   appeared, and the evidence for each.
-* [docs/adr/](docs/adr/) — the QSPI XIP and SDRAM heap decisions, and ADR
-  0003, which records why Wi-Fi polls instead of being interrupted.
+* [docs/adr/](docs/adr/) — the decision records: QSPI XIP, the SDRAM heap, why
+  Wi-Fi polls instead of being interrupted, and why the Wi-Fi chip is kept
+  awake.
 * [../nanomq_zephyr_esp32s3/README.md](../nanomq_zephyr_esp32s3/README.md) —
   the sibling this demo is derived from (PSRAM, ESP-IDF tooling, webhook).
 * [../../docs/en_US/tutorial/port-to-zephyr.md](../../docs/en_US/tutorial/port-to-zephyr.md)
