@@ -124,6 +124,22 @@ extra boot latency, no effect.  Rationale in PORTING_ZEPHYR.md §22-4.
 The guest broker listens on `10.0.2.15:1883` (static IP set in
 [prj.conf](prj.conf)); SLIRP forwards host `tcp:1883` to it.  Pick a
 different `hostfwd` port (e.g. `11883`) if 1883 is taken on the host.
+
+**Clear the previous instance before relaunching.**  A leftover qemu keeps
+1883/8081/8083 bound and the next launch dies with
+
+```
+qemu-system-i386: ... Could not set up host forwarding rule 'tcp:127.0.0.1:8083-:8083'
+```
+
+`-t run` is the usual source of one: stopping it does not necessarily take
+the qemu it spawned with it.  Kill by port rather than by name — a
+`pkill -f "qemu-system-i386"` matches its own command line:
+
+```sh
+ss -ltnp | grep -E ':(1883|8081|8083)' | grep -oP 'pid=\K[0-9]+' | sort -u | xargs -r kill
+```
+
 A rebuild must be followed by a relaunch.
 
 ### Where to run the clients
