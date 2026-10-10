@@ -1733,7 +1733,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 					// Deny & ignore: drop the message but
 					// keep the connection.
 					log_warn("acl deny, ignore");
-					return SUCCESS;
+					return NNG_MQTT_SUCCESS;
 				}
 			} else {
 				log_debug("acl allow");
