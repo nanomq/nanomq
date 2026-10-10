@@ -425,6 +425,12 @@ get_bridge_config(conf_bridge *bridge, const char *node_name)
 
 		cJSON *tls = get_tls_config(&node->tls, false);
 		cJSON_AddItemToObject(node_obj, "tls", tls);
+#if defined(NNG_SUPP_SQLITE)
+		// This node's own Bridge Cache; the bridge-level "sqlite" below stays
+		// as the defaults inherited by nodes without a cache block.
+		cJSON_AddItemToObject(
+		    node_obj, "cache", get_sqlite_config(&node->sqlite));
+#endif
 		cJSON_AddItemToArray(bridge_node_obj, node_obj);
 
 		add_bridge_quic(node_obj, node);

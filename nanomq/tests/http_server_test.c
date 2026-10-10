@@ -487,6 +487,144 @@ test_put_bridges_replaces_client(conf *config)
     return replaced;
 }
 
+/* PUT /bridges/emqx carrying an explicit cache block. */
+static bool
+test_put_bridges_with_cache(int disk_cache_size, const char *mounted_file_path)
+{
+	char cmd[4096];
+	snprintf(cmd, sizeof(cmd),
+	    CURL_CMD_PREFIX "-X PUT "
+	    "'http://localhost:8081/api/v4/bridges/emqx' -d '{"
+	    "\"emqx\": {"
+	    "\"name\": \"emqx\","
+	    "\"enable\": true,"
+	    "\"parallel\": 8,"
+	    "\"server\": \"mqtt-tcp://127.0.0.1:%s\","
+	    "\"proto_ver\": 5,"
+	    "\"clientid\": \"hello3\","
+	    "\"clean_start\": true,"
+	    "\"keepalive\": 60,"
+	    "\"cache\": {\"disk_cache_size\": %d, \"mounted_file_path\": \"%s\", "
+	    "\"flush_mem_threshold\": 7},"
+	    "\"forwards\": [{\"remote_topic\":\"topic1/#\","
+	    "\"local_topic\":\"topic1_lo/#\"}],"
+	    "\"subscription\": [{\"remote_topic\":\"topic1/#\","
+	    "\"local_topic\":\"topic1_lo/#\",\"qos\": 1}]}}'",
+	    test_env_test_port_text(), disk_cache_size, mounted_file_path);
+	FILE *fd = popen(cmd, "r");
+	bool  rv = check_http_return(fd, STATUS_CODE_OK, SUCCEED);
+	SAFE_POPEN_CLOSE(fd);
+	return rv;
+}
+
+static bool
+check_cache_int(cJSON *cache, const char *field, int want)
+{
+	cJSON *value = cJSON_GetObjectItemCaseSensitive(cache, field);
+
+	if (!cJSON_IsNumber(value) || value->valueint != want) {
+		fprintf(stderr, "[FAIL] cache.%s: want %d, got %s\n", field, want,
+		    cJSON_IsNumber(value) ? "a different number" : "<missing>");
+		return false;
+	}
+	return true;
+}
+
+static bool
+check_cache_bool(cJSON *cache, const char *field, bool want)
+{
+	cJSON *value = cJSON_GetObjectItemCaseSensitive(cache, field);
+
+	if (!cJSON_IsBool(value) || cJSON_IsTrue(value) != want) {
+		fprintf(stderr, "[FAIL] cache.%s: want %s, got %s\n", field,
+		    want ? "true" : "false",
+		    cJSON_IsBool(value) ? "the other value" : "<missing>");
+		return false;
+	}
+	return true;
+}
+
+static bool
+check_cache_string(cJSON *cache, const char *field, const char *want)
+{
+	cJSON *value = cJSON_GetObjectItemCaseSensitive(cache, field);
+
+	if (!cJSON_IsString(value) || strcmp(value->valuestring, want) != 0) {
+		fprintf(stderr, "[FAIL] cache.%s: want '%s', got '%s'\n", field,
+		    want, cJSON_IsString(value) ? value->valuestring : "<missing>");
+		return false;
+	}
+	return true;
+}
+
+/*
+ * GET /bridges/<node> has to report this cache for that node. The response
+ * shape is data.bridge.nodes[] -> the node -> "cache".
+ */
+static bool
+test_get_bridge_cache(const char *node_name, int disk_cache_size,
+    int flush_mem_threshold, const char *mounted_file_path)
+{
+	char  cmd[512];
+	char  line_buff[2048];
+	char  body[16384]  = { 0 };
+	bool  headers_done = false;
+	bool  rv           = false;
+	cJSON *root = NULL, *item = NULL, *nodes = NULL, *node = NULL,
+	      *cache = NULL;
+
+	snprintf(cmd, sizeof(cmd),
+	    CURL_CMD_PREFIX "-X GET "
+	    "'http://localhost:8081/api/v4/bridges/%s'",
+	    node_name);
+	FILE *fd = popen(cmd, "r");
+	if (fd == NULL) {
+		fprintf(stderr, "[FAIL] failed to start curl command\n");
+		return false;
+	}
+	while (fgets(line_buff, sizeof(line_buff), fd) != NULL) {
+		if (!headers_done) {
+			if (strcmp(line_buff, "\r\n") == 0 ||
+			    strcmp(line_buff, "\n") == 0) {
+				headers_done = true;
+			}
+			continue;
+		}
+		strncat(body, line_buff, sizeof(body) - strlen(body) - 1);
+	}
+	SAFE_POPEN_CLOSE(fd);
+
+	if (!headers_done || (root = cJSON_Parse(body)) == NULL) {
+		fprintf(stderr, "[FAIL] no JSON body from GET /bridges/%s\n",
+		    node_name);
+		goto exit;
+	}
+	item = cJSON_GetObjectItemCaseSensitive(root, "data");
+	item = item ? cJSON_GetObjectItemCaseSensitive(item, "bridge") : NULL;
+	nodes = item ? cJSON_GetObjectItemCaseSensitive(item, "nodes") : NULL;
+	cJSON_ArrayForEach(node, nodes)
+	{
+		cJSON *name = cJSON_GetObjectItemCaseSensitive(node, "name");
+		if (cJSON_IsString(name) &&
+		    strcmp(name->valuestring, node_name) == 0) {
+			cache = cJSON_GetObjectItemCaseSensitive(node, "cache");
+			break;
+		}
+	}
+	if (cache == NULL) {
+		fprintf(stderr, "[FAIL] no per-node cache for '%s'\n", node_name);
+		goto exit;
+	}
+	rv = check_cache_bool(cache, "enable", true) &&
+	    check_cache_int(cache, "disk_cache_size", disk_cache_size) &&
+	    check_cache_int(cache, "flush_mem_threshold", flush_mem_threshold) &&
+	    check_cache_string(cache, "mounted_file_path", mounted_file_path);
+
+exit:
+	cJSON_Delete(root);
+	return rv;
+}
+
 static bool
 test_put_bridges_sub(char *expected_status, int expected_rc)
 {
@@ -963,6 +1101,18 @@ main()
     // Disabled node (enable=false under node->mtx) must stay queryable.
     assert(test_get_bridge());
     assert(test_put_bridges_sub(STATUS_CODE_NOT_FOUND, RESULT_CODE_PASS));
+
+    // Per-node cache over REST. A payload with a "cache" block replaces the
+    // node's cache; a payload without one leaves the current values alone,
+    // which is what keeps a PUT of forwards or tls from moving the cache file.
+    // These PUTs reload the bridge, so they run after the SUB/UNSUB checks
+    // that need the previous reconnection to settle.
+    assert(test_put_bridges_with_cache(4242, "/tmp/"));
+    assert(test_get_bridge_cache("emqx", 4242, 7, "/tmp/"));
+    assert(test_put_bridges());
+    assert(test_get_bridge_cache("emqx", 4242, 7, "/tmp/"));
+    assert(test_put_bridges_with_cache(99, "/tmp/"));
+    assert(test_get_bridge_cache("emqx", 99, 7, "/tmp/"));
 
     // Rules Logic Check
     assert(test_post_rules());
