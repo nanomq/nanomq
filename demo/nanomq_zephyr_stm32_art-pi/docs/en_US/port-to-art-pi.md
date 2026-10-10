@@ -1,13 +1,13 @@
 # Porting the Zephyr NanoMQ broker to the ART-Pi (STM32H750XBH6)
 
-This is the record of adding `demo/nanomq_zephyr_stm32_art-pi` — the third
+This is the record of adding `demo/nanomq_zephyr_stm32_art-pi`, the third
 Zephyr broker demo, after qemu_x86 (simulation) and ESP32-S3 (Wi-Fi).  It
-keeps the order in which the problems actually appeared, because the order is
-the lesson: three separate faults look identical from the console
-(`airoc_wifi_init_primary failed ret = -19`, no link, no DHCP).
+keeps the order in which the problems appeared, because three separate faults
+look identical from the console (`airoc_wifi_init_primary failed ret = -19`,
+no link, no DHCP).
 
 Acceptance: buildable, **board-verified**, and at **functional parity** with
-the other two demos — the suite's three hard gates pass against the board.
+the other two demos; the suite's three hard gates pass against the board.
 
 ## 1. What differs from the ESP32-S3 sibling
 
@@ -28,19 +28,20 @@ the Wi-Fi bring-up kept as-is and an Ethernet path added beside it, and
 
 The ART-Pi's internal flash holds the Ruiside/RT-Thread **factory bootloader**.
 It maps the QUADSPI and jumps to the vector table at 0x90000000, so the demo
-does not have to be a first-stage loader — it only has to *be there*:
+does not have to be a first-stage loader; it only has to *be there*:
 
 ```dts
 / { chosen { zephyr,flash = &ext_memory; }; };   /* 8 MB QSPI, 0x90000000 */
 ```
 
-Two consequences worth stating explicitly:
+Two consequences follow:
 
 * **The QSPI driver must stay off** (`CONFIG_FLASH` / `FLASH_STM32_QSPI`).
   Its init would reconfigure the peripheral the CPU is fetching instructions
   from.  This demo has no filesystem, so nothing is lost.
 * A plain `west build -b art_pi` links into the 128 KB internal flash and
-  cannot hold the broker — the overlay that sets `zephyr,flash` is mandatory.
+  cannot hold the broker, so the overlay that sets `zephyr,flash` is
+  mandatory.
 
 The `Powered by RT-Thread.` logo on the console is **the bootloader's own
 banner** (see `projects/art_pi_bootloader/applications/boot.c` in the ART-Pi
@@ -53,8 +54,8 @@ during the bring-up.
 * **pyocd 0.45 + this ST-Link.**  While connecting, pyocd sends
   `JTAG_GET_BOARD_IDENTIFIERS` and expects 128 bytes; this probe answers with a
   2-byte status, which pyocd turns into a fatal
-  `received incomplete command response from STLink (got 2, expected 128)` —
-  no SWD access at all, although the probe itself is healthy.  The board ID
+  `received incomplete command response from STLink (got 2, expected 128)`,
+  and no SWD access at all, although the probe itself is healthy.  The board ID
   only feeds a human-readable name, so `tools/artpi_flash.py` neutralises the
   query (`StlinkProbe._get_board_id = lambda self: None`) before importing the
   connect helper.
@@ -73,7 +74,7 @@ during the bring-up.
 * **Console backlog.**  The ST-Link's virtual COM port buffers; a capture
   started right after a reset can replay the previous boot first (two
   `Powered by RT-Thread.` banners in one log).  Split the log on the last
-  bootloader banner before reading it, or discard the backlog first —
+  bootloader banner before reading it, or discard the backlog first with
   `tools/console.sh --drain <s>`.  The commands for opening/capturing the
   console, and an annotated example of what a good boot prints, are in the
   README's "Console and boot log" section.
@@ -90,7 +91,7 @@ during the bring-up.
   exactly like a dead board and cost one round of debugging.
 * **A flooding console is a defect too.**  The STM32 SDHC driver logged one
   line per failed command, and the Wi-Fi chip's sleep (see §4.7) produced
-  hundreds of them a second — the console became a wall of
+  hundreds of them a second, so the console became a wall of
   `Command response timeout` and nothing else was readable.  They are now
   rate-limited (one line per 5 s plus a `Skipped N messages` counter) *and* the
   cause itself is fixed, so a quiet console is the normal state again rather
@@ -100,7 +101,7 @@ during the bring-up.
   later sees only what the drivers are doing.  Two fixes came out of that: the
   boot-time Wi-Fi connect loop is now **bounded** (it used to retry forever,
   so a board that could not associate never started the broker and printed
-  nothing about it — the "the board shows no broker log" report) with a
+  nothing about it, the "the board shows no broker log" report) with a
   supervisor thread taking over afterwards (§4.8), and the demo prints a
   one-line status heartbeat every `CONFIG_BROKER_STATUS_INTERVAL_S` seconds
   (default 60) carrying the uptime, the listeners and the current IPv4
@@ -112,10 +113,10 @@ during the bring-up.
 
 The ART-Pi has an STM32 MAC + LAN8720A PHY, so the first attempt was the
 simpler path (`eth.conf`).  It never came up: an SWD-driven MDIO scan of every
-address 0–31 found nothing, `phy_mii: PHY (0) ID FFFF`, `HAL_ETH_Init failed`.
+address 0 to 31 found nothing, `phy_mii: PHY (0) ID FFFF`, `HAL_ETH_Init failed`.
 The obvious explanation was a PHY held in reset, so the overlay drove PA3 (the
 vendor BSP's `ETH_RESET_PIN`) as `reset-gpios = <&gpioa 3 GPIO_ACTIVE_LOW>`.
-That did not help, which looked like a dead PHY — until the override was
+That did not help, which looked like a dead PHY, until the override was
 removed again and the MAC initialised cleanly with no PHY error at all.  PA3
 is evidently not this board's PHY reset, and driving it low is what kept the
 PHY quiet; the override is gone from the overlay.
@@ -135,7 +136,7 @@ the overlay adds an SDIO host on SDMMC2 and the AIROC device node:
 | SDMMC2 CK/CMD | PD6/PD7 (AF11) | same |
 | WL_REG_ON | PC13 | `libraries/drivers/drv_wlan.c`: `AP6212_WL_REG_ON` |
 
-`WL_REG_ON` is worth calling out: an early guess based on the schematic text
+`WL_REG_ON` is easy to get wrong: an early guess based on the schematic text
 (PI14) gave "no CMD5 response" at all, because the chip was never powered.
 The vendor driver's own `GET_PIN(C, 13)` is the authority.  With PC13 driven
 high, SDIO enumerates: CMD5, CCCR rev 2, CIS for functions 0/1/2, 4-bit bus,
@@ -145,7 +146,7 @@ high, SDIO enumerates: CMD5, CCCR rev 2, CIS for functions 0/1/2, 4-bit bus,
 
 Symptom: firmware download succeeded, the WLAN function became ready
 (`SDIOD_CCCR_IORDY` reached `0x6`), the first ioctl was written to function 2
-(768 + 36 bytes) — and then nothing.  No reply was ever read, every ioctl
+(768 + 36 bytes), and then nothing.  No reply was ever read, every ioctl
 timed out (`iovar "cap" -> 101580800`, 5 s each), and
 `airoc_wifi_init_primary failed ret = -19`.
 
@@ -157,14 +158,13 @@ handler.  So no card interrupt = no received frame, forever.
 
 The obvious suspects were ruled out with on-target instrumentation rather than
 debugger reads (pyocd's halt/register access on this setup turned out to be
-unreliable — it reports `LOCKUP` and returns garbage for registers while the
+unreliable: it reports `LOCKUP` and returns garbage for registers while the
 application is demonstrably running):
 
 * `SDMMC_MASK.SDIOITIE` **is** set: `enable_interrupt -> MASK=0x00400000`.
 * The SDMMC interrupt works: the ISR fires for data transfers.
-* `SDMMC_STA.SDIOIT` is **never** set — not once in a whole boot, including
-  while WHD sits in its 5 s ioctl timeout.  The chip simply never asserts
-  DAT1.
+* `SDMMC_STA.SDIOIT` is **never** set, not once in a whole boot, including
+  while WHD sits in its 5 s ioctl timeout.  The chip never asserts DAT1.
 * CCCR `INTEN` is programmed (`wr cccr[0x4] = 0x7`) and the WLAN function is
   ready, so the host side is fully armed.
 
@@ -182,11 +182,11 @@ WLAN MAC Address : 70:4A:0E:51:77:9A
 Every other way of getting a real interrupt was then tried and ruled out:
 
 * **`DCTRL.SDIOEN`** (the STM32 SDMMC's "SD I/O enable", i.e. "treat DAT1 as
-  the interrupt line").  With it set the host is undeniably armed
+  the interrupt line").  With it set the host is fully armed
   (`MASK=0x00400000`, `DCTRL=0x00000800`, and the bit stays set through the
-  transfers) yet `SDMMC_STA.SDIOIT` still never latched — and once traffic
-  flows it makes 4-bit transfers fail with a `Command response timeout`
-  flood, so it is deliberately not set.
+  transfers) yet `SDMMC_STA.SDIOIT` still never latched.  Once traffic flows
+  it makes 4-bit transfers fail with a `Command response timeout` flood, so
+  it is deliberately not set.
 * **A 1-bit bus**, where DAT1 is a dedicated interrupt line rather than a data
   line (`bus-width = <1>` plus WHD's `sdio_1bit_mode`).  Same result: no
   `SDIOIT`, no link.
@@ -206,10 +206,10 @@ WICED-based stack is fed by polling the chip's status registers.  The decision
 and its consequences are recorded in
 [ADR 0003](../adr/0003-poll-the-whd-thread-because-the-art-pi-never-asserts-the-sdio-card-interrupt.md).
 
-Note for the next person: because the missing interrupt makes *every* ioctl
-time out, it also produced two convincing but wrong earlier conclusions — that
-the CLM blob "hangs the chip", and that the packed firmware blob from the
-vendor's SPI flash is needed.  Both were symptoms, not causes.
+Because the missing interrupt makes *every* ioctl time out, it also produced
+two convincing but wrong earlier conclusions: that the CLM blob "hangs the
+chip", and that the packed firmware blob from the vendor's SPI flash is
+needed.  Both were symptoms, not causes.
 
 ### 4.4 NVRAM must be this module's
 
@@ -241,17 +241,17 @@ in, the chip accepts it and reports:
                Creation: 2021-03-28 22:47:33
 ```
 
-It is the AW-CU427-P module's CLM — the only one Infineon publishes for this
-part — so it is not this module's calibration data, but it is accepted and the
-link works.
+It is the AW-CU427-P module's CLM, the only one Infineon publishes for this
+part, so it is not this module's calibration data; it is accepted and the link
+works.
 
 ### 4.6 USB-ECM: a third path, and where it stopped
 
 With Wi-Fi working, the board's USB-OTG port was tried as an alternative
 network path (`usb.conf` + `boards/art_pi_usb.overlay`): the board becomes a
-USB **device** exposing CDC-ECM, and — since a host attaching to it has no
-reason to run a DHCP server — the board is also the DHCPv4 server for that
-link, so the host's desktop configures the new interface with no manual
+USB **device** exposing CDC-ECM, and since a host attaching to it has no
+reason to run a DHCP server, the board is also the DHCPv4 server for that
+link.  The host's desktop then configures the new interface with no manual
 `ip(8)` and no host-side privileges.  Nothing in the west tree needed
 changing: the ART-Pi's Zephyr board file already enables `zephyr_udc0`, the
 ECM class is in `subsys/usb/device/class/netusb/`, and Zephyr has a DHCPv4
@@ -268,10 +268,10 @@ reads are unreliable on this setup, so the app prints them):
   `vbus_sensing_enable` disabled for a board whose pin mux has no
   `usb_otg_fs_vbus_pa9`).
 * PA11/PA12 are muxed to **AF10** (`pinmux = <0x16a>`, `<0x18a>` in the
-  resolved devicetree) — the correct USB OTG FS alternate function.
+  resolved devicetree), the correct USB OTG FS alternate function.
 
 What never happens is host activity: `GINTSTS` has neither `USBRST` (12) nor
-`ENUMDNE` (13) set, and on the PC `journalctl -k` logs **nothing** — not even
+`ENUMDNE` (13) set, and on the PC `journalctl -k` logs **nothing**, not even
 when the firmware cycles the D+ pull-up, an event every xHCI host reports if
 the port is electrically connected.  So the physical path is the blocker, not
 the firmware.  Candidate causes and the checks are in the demo README (cable
@@ -284,10 +284,10 @@ cable/port) rather than anything left to implement.
 ### 4.7 The console flood: the chip was asleep, and that is allowed
 
 From about 50 s after association the console filled with
-`sdhc_stm32: Command response timeout` — rate-limited to one line per 5 s, but
-each carrying a `Skipped ~1500 messages` counter, i.e. ~300 failures a second —
-while the broker and its data path stayed perfectly healthy (the whole
-functional suite passed in that state).
+`sdhc_stm32: Command response timeout`, rate-limited to one line per 5 s but
+each carrying a `Skipped ~1500 messages` counter, i.e. ~300 failures a second,
+while the broker and its data path stayed healthy (the whole functional suite
+passed in that state).
 
 Classifying the SDHC driver's commands (temporary probes, removed afterwards)
 gave the signature that identified it:
@@ -309,9 +309,9 @@ connection settles; **while asleep it stays silent on purpose**, and the STM32
 host controller can only report that silence as a command timeout (it already
 carves out CMD8 for exactly this reason, on cards that do not support it).
 
-The fix is to keep the chip awake — `whd_wifi_disable_powersave()` right after
+The fix is to keep the chip awake: `whd_wifi_disable_powersave()` right after
 `whd_wifi_on()`, gated by `CONFIG_AIROC_WIFI_DISABLE_POWERSAVE` and on in
-`wifi.conf` — with the driver's rate limiter kept as a safety net.  Measured
+`wifi.conf`, with the driver's rate limiter kept as a safety net.  Measured
 after the change: zero `Command response timeout` lines and zero CMD52 failures
 in a boot that previously produced ~300 a second from ~50 s onward, the three
 gates still green, and a continuous three-minute capture with heartbeats and
@@ -330,8 +330,8 @@ reaches the application as a Wi-Fi mgmt event:
 | AP disappears (beacon loss) | event task passes `WLC_E_LINK` (link flag clear) through | none |
 
 So the boot-time association was the application's only contact with the
-link: an AP that went away after that produced no event, and the broker — its
-listeners are on `0.0.0.0`, so it never notices — stayed reachable only at an
+link: an AP that went away after that produced no event, and the broker, whose
+listeners are on `0.0.0.0` and never notice, stayed reachable only at an
 address the board no longer had.  The symptom was the 60 s status heartbeat
 losing its `ipv4 ...` part, and the only recovery was a reset.
 
@@ -341,7 +341,7 @@ flag clear), `WLC_E_DEAUTH_IND` and `WLC_E_DISASSOC_IND`.
 `NET_REQUEST_WIFI_IFACE_STATUS` is the mgmt request that reaches
 `whd_wifi_is_ready_to_transceive()`, i.e. that bit, so a supervisor thread
 polls it every `CONFIG_BROKER_WIFI_MONITOR_PERIOD_S` seconds (default 10) and
-re-associates — wait for the connect result, then `net_dhcpv4_restart()` —
+re-associates (wait for the connect result, then `net_dhcpv4_restart()`)
 whenever the answer is not `WIFI_STATE_COMPLETED`.  While the AP stays away
 it backs off 5 s, doubling to 60 s.  It also waits on
 `NET_EVENT_WIFI_DISCONNECT_RESULT`, so the one loss that *does* produce an
@@ -350,7 +350,7 @@ event is handled immediately rather than at the next tick.
 The broker itself needs no help: with the listeners on `0.0.0.0`, a reconnect
 that gets the same lease back is invisible to clients beyond their own
 reconnects, and a different lease only changes the address in the heartbeat.
-Boot is unchanged — the initial 3 × 30 s is still bounded, so a board that
+Boot is unchanged: the initial 3 × 30 s is still bounded, so a board that
 cannot associate still starts the broker and says so; the supervisor just
 keeps trying from then on.  [ADR 0005](../adr/0005-poll-the-join-state-to-recover-a-lost-wi-fi-link.md)
 has the alternatives (dormant flag, patching `WLC_E_LINK` handling into the
@@ -360,15 +360,15 @@ driver, doing nothing) and why they lost.
 
 `function_test.py` was written for qemu/localhost: its CI scripts sleep as if
 the broker were local.  Measured against this board the TCP round trip is
-30–100 ms, so the suite's "not localhost" heuristic
+30 to 100 ms, so the suite's "not localhost" heuristic
 (`function_test.py`, one-line change: non-loopback ⇒ `--time-scale 4 --retry
-2`) is what makes the run reliable — the stretched scale covers the
+2`) is what makes the run reliable: the stretched scale covers the
 localhost-tuned sleeps, and the retry covers two subtests that are racy by
 construction (`retain-as-published` in `mqtt_v5` failed the first attempt on
 this bench and passed on retry).  `tools/verify.sh <board-ip>` wraps that.
 
 It is a heuristic, not a guarantee: one run on a congested link (RTT ~200 ms,
-about 3× the usual 30–100 ms) exhausted both `mqtt_v5` retries, and an
+about 3× the usual 30 to 100 ms) exhausted both `mqtt_v5` retries, and an
 immediate re-run passed.  A failure isolated to `mqtt_v5` is worth a re-run
 before any investigation.
 
@@ -383,14 +383,14 @@ RESULT: pass=3 fail=0
 ```
 
 Runs of the same gates on the instrumented build passed too (`mqtt_v5` took
-235.8 s, after one `retain-as-published` retry — that subtest is racy by
+235.8 s, after one `retain-as-published` retry; that subtest is racy by
 construction on this bench and the suite retries it).
 
 One of the acceptance runs was made deliberately while the console was
 flooding with `sdhc_stm32: Command response timeout` (§3), which is what
 established that the state is non-fatal: the gates passed during it.
 
-The full group set passes as well — the two WebSocket groups and the
+The full group set passes as well, the two WebSocket groups and the
 robustness groups included (`verify.sh <ip> --full` → `pass=7 fail=0`:
 `ws_v311` 260.5 s, `ws_v5` 7.7 s, `capacity` 7.5 s, `ws_abort` 11.5 s on top
 of the three gates).  That run also found a bug in the demo's own helper:
@@ -401,7 +401,7 @@ filtered out properly.
 `webhook_smoke` is the exception.  It needs a build with
 `CONFIG_BROKER_WEBHOOK=y` and the receiver's address baked in; such a build
 joins Wi-Fi and leases an address, but the SDIO link then wedges almost
-immediately (`Command response timeout` flood) — internal SRAM is at ~88 %
+immediately (`Command response timeout` flood).  Internal SRAM is at ~88 %
 there and the forwarder needs more room, so the group could not be brought up
 and `prj.conf` keeps webhook off.
 
@@ -412,8 +412,8 @@ successfully!`, REST `/api/v4/brokers` → `node_status: Running`.
 Link recovery (§4.8) got its own bench run afterwards.  A temporary build (the
 hook was not committed) issued `NET_REQUEST_WIFI_DISCONNECT` 180 s into the
 run *and* left `NET_EVENT_WIFI_DISCONNECT_RESULT` unregistered, so only the
-supervisor's status poll could notice the loss — i.e. the silent-AP case, not
-the easy one:
+supervisor's status poll could notice the loss, i.e. an AP that disappears
+without raising an event:
 
 ```
 selftest: NET_REQUEST_WIFI_DISCONNECT -> 0                (uptime 180 s)
@@ -427,7 +427,7 @@ broker: status running — uptime 244s, ... , ipv4 192.168.1.8
 
 The poll caught it 7 s after the drop (inside the 10 s period), re-association
 and a fresh lease took another ~6 s, the same address came back, and the
-broker kept running throughout — its listeners never restarted, and it was
+broker kept running throughout: its listeners never restarted, and it was
 serving `/api/v4/brokers` again as soon as the lease was up.  The single
 `Command response timeout` belongs to the leave sequence, not the KSO flood of
 §4.7: it appears once, at the transition, and not afterwards.
@@ -441,7 +441,7 @@ serving `/api/v4/brokers` again as soon as the lease was up.  The single
 | STM32 SDHC SDIO card-interrupt support; AIROC/WHD SDIO bring-up (poke timer) | `patches/0001`, `patches/0002` (Zephyr tree) |
 | 43438 CLM/NVRAM wiring in the WHD glue | `patches/0002` (Zephyr tree) |
 | 43438 NVRAM contents | `patches/0003` (west module `hal_infineon`) |
-| USB-ECM network path (`usb.conf`, `boards/art_pi_usb.overlay`, the app's bring-up) | demo only — no west-tree change was needed |
+| USB-ECM network path (`usb.conf`, `boards/art_pi_usb.overlay`, the app's bring-up) | demo only, no west-tree change was needed |
 
 The bring-up instrumentation (`nanomq-probe` prints in the Zephyr tree and in
 WHD, on-target flag probes) was removed once this configuration passed, and
@@ -451,8 +451,8 @@ final tree.
 
 ## 8. Checklist for the next board of this family
 
-1. Confirm which flash the image must live in before fighting the loader —
-   here: QSPI XIP, internal flash belongs to the bootloader.
+1. Confirm which flash the image must live in before fighting the loader:
+   here, QSPI XIP, internal flash belongs to the bootloader.
 2. Find the module's power-up and clock pins in the *vendor's own* driver
    rather than in schematic text extraction.
 3. When an SDIO Wi-Fi chip enumerates but never answers, check
@@ -460,10 +460,10 @@ final tree.
    implemented) before suspecting firmware or NVRAM.
 4. Instrument on-target; distrust a debugger that reports `LOCKUP` while the
    console keeps printing.
-5. Give the network link a supervisor (§4.8).  A driver's disconnect event is
-   usually only for an explicit disconnect — an AP that disappears is silent —
-   so poll the driver's own join state and re-associate from a thread that
-   lives as long as the application does.
 5. Match NVRAM to the module, and treat a missing CLM as fatal.
 6. Re-tune the host test suite for the board's network before concluding the
    broker is broken.
+7. Give the network link a supervisor (§4.8).  A driver's disconnect event is
+   usually only for an explicit disconnect, and an AP that disappears is
+   silent, so poll the driver's own join state and re-associate from a thread
+   that lives as long as the application does.
