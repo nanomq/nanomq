@@ -711,7 +711,7 @@ This Zephyr port is **not an equivalent replacement for general NanoMQ**. It dif
 
 **Memory allocation.** The allocator differs by target: `qemu_x86` uses the libc `malloc()`, whose arena is the broker heap (see the qemu section); the ESP32-S3 cannot fit the data plane in internal SRAM, so `NNG_ZEPHYR_ALLOC_SMH` is defined to switch nng's allocation to a `k_heap` on PSRAM (see "The Porting Process → 4. Two Framework-Level Traps"); and the ART-Pi serves the same `k_heap` from its FMC SDRAM, reached through the external-RAM allocator ([the ART-Pi article](./port-to-art-pi.md)).
 
-**Time source.** All three demos use real UTC, but obtain it differently: `qemu_x86` seeds it from the QEMU CMOS RTC, while both hardware boards have no RTC: the ESP32-S3 seeds it through SNTP, and on the ART-Pi SNTP is optional (`CONFIG_BROKER_SNTP`). Zephyr does not include a timezone database, so displayed time is always UTC.
+**Time source.** All three demos use real UTC, but obtain it differently: `qemu_x86` seeds it from the QEMU CMOS RTC, while both hardware boards have no RTC: the ESP32-S3 seeds it through SNTP, and on the ART-Pi that sync is optional (`CONFIG_BROKER_SNTP`, off by default), so without it the log timestamps stay at the 1970 epoch. Zephyr does not include a timezone database, so displayed time is always UTC.
 
 **Removed module.** The broker's `process.c` depends on `fork` / `kill` / `chdir` and cannot be compiled on Zephyr; it is replaced by a stub in the demo that provides the same symbols. Those symbols are called either from daemon and CLI paths or not at all, so the embedded broker does not reach them (see the corresponding table entry in "The Porting Process → 1. Application Layer").
 

@@ -683,7 +683,7 @@ net_mgmt_add_event_callback(&dhcp_cb);
 
 **内存分配。** 分配器按目标而异：`qemu_x86` 用 libc `malloc()`，libc 的 malloc arena 就是 broker 堆（见 qemu 一节的说明）；ESP32-S3 内部 SRAM 放不下数据面，因此定义了 `NNG_ZEPHYR_ALLOC_SMH`，把 nng 的分配切到 PSRAM 上的 `k_heap`（见「移植过程 → 四、两个框架层陷阱」）；ART-Pi 则把这个 `k_heap` 放在 FMC SDRAM 上，经 external-RAM 分配器接入（见[ART-Pi 专文](./port-to-art-pi.md)）。
 
-**时间源。** 三个 demo 均使用真实 UTC，但来源不同：`qemu_x86` 从 QEMU 的 CMOS RTC 播种；两块实机都没有 RTC，ESP32-S3 通过 SNTP 播种，ART-Pi 上 SNTP 则是可选开关（`CONFIG_BROKER_SNTP`）。Zephyr 不带时区数据库，显示恒为 UTC。
+**时间源。** 三个 demo 均使用真实 UTC，但来源不同：`qemu_x86` 从 QEMU 的 CMOS RTC 播种；两块实机都没有 RTC，ESP32-S3 通过 SNTP 播种，ART-Pi 上这一步则是可选开关（`CONFIG_BROKER_SNTP`，默认关闭），不开时日志时间戳停在 1970 纪元。Zephyr 不带时区数据库，显示恒为 UTC。
 
 **已剔除的模块。** broker 的 `process.c` 依赖 `fork`/`kill`/`chdir`，无法在 Zephyr 上编译，由 demo 中一个提供同名符号的 stub 替代。这些符号的调用点要么位于 daemon 与 CLI 路径、要么根本不存在，嵌入式 broker 都不会触达（替代方式见「移植过程 → 一、应用层」的对应表项）。
 
