@@ -247,7 +247,7 @@ west flash
 如果提示找不到串口，可以手动指定：
 
 ```Bash
-west flash -- --port /dev/ttyUSB0  # 或 /dev/ttyACM0
+west flash --runner esp32 --esp-device /dev/ttyUSB0  # 或 /dev/ttyACM0
 ```
 
 

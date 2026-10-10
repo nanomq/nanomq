@@ -83,11 +83,12 @@ west build -b esp32s3_devkitc/esp32s3/procpu demo/nanomq_zephyr_esp32s3 \
     -- -DEXTRA_CONF_FILE=local.conf     # Wi-Fi credentials
 ```
 
-Without `-d` the build lands next to the app
-(`demo/nanomq_zephyr_esp32s3/build/`, git-ignored) and `west flash` from
-the repo root picks it up.  The bring-up record was produced with an
-explicit `-d` into the west workspace instead; pass the same directory to
-both commands:
+Without `-d`, `west build` uses `build/` **relative to the current
+directory**, not a directory next to the app: run the command above from
+the repo root and the build lands in `build/` there (git-ignored), which
+is also where a bare `west flash` looks for it.  The bring-up record was
+produced with an explicit `-d` into the west workspace instead; pass the
+same directory to both commands:
 
 ```sh
 west build -b esp32s3_devkitc/esp32s3/procpu \
