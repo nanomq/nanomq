@@ -118,15 +118,29 @@ for the full record.
    ESP32-S3 sibling: `src/main.c` waits for the interface, issues
    `NET_REQUEST_WIFI_CONNECT` with the credentials from app Kconfig
    (`CONFIG_BROKER_WIFI_SSID` / `_PSK`, supplied through the git-ignored
-   `local.conf`), retries every 30 s, then starts the DHCPv4 client and waits
-   for `NET_EVENT_IPV4_DHCP_BOUND` before starting the broker.  The retries
+   `local.conf`), then starts the DHCPv4 client and waits for
+   `NET_EVENT_IPV4_DHCP_BOUND` before starting the broker.  The boot retries
    are **bounded** (3 attempts): a link that never associates must not keep
    the broker from starting, because then there is no broker log at all and
-   the board looks dead — it starts anyway, prints
-   `wifi: no association after 3 attempts ... starting the broker anyway`,
-   starts the DHCP client too (so an address that turns up later is picked
-   up), and leaves the association to a board reset — nothing retries it for
-   you.  The Wi-Fi
+   the board looks dead — it starts anyway and prints
+   `wifi: no association after 3 attempts ... starting the broker anyway`.
+
+   After that bring-up a **supervisor thread** owns the link for the rest of
+   the run: every `CONFIG_BROKER_WIFI_MONITOR_PERIOD_S` seconds (default 10)
+   it asks the driver for its join state and, when the link is gone,
+   re-associates and re-requests a lease (5 s backoff doubling to 60 s).  It
+   is needed because the airoc driver raises
+   `NET_EVENT_WIFI_DISCONNECT_RESULT` only for an explicit disconnect
+   request: an AP that goes away — deauth, disassoc or plain beacon loss —
+   produces no event, so before the supervisor a dropped link left the broker
+   listening on an address it no longer had until the board was reset.  The
+   poll reads WHD's `JOIN_LINK_READY` state through
+   `NET_REQUEST_WIFI_IFACE_STATUS`, and that state is cleared for all three
+   kinds of loss; the reasoning is in
+   [docs/adr/0005](docs/adr/0005-poll-the-join-state-to-recover-a-lost-wi-fi-link.md).
+   The supervisor prints nothing while the link is healthy, so seeing
+   `wifi: link down — reconnecting ...` in a log means it noticed a real
+   outage.  The Wi-Fi
    build passes [boards/art_pi_wifi.overlay](boards/art_pi_wifi.overlay) as
    an extra DTC overlay (`&mac`/`&mdio`/`&eth_phy` disabled) so the image has
    a single interface.
@@ -355,7 +369,14 @@ Reading it, in order:
 * `*** Booting Zephyr OS build v4.4.0-4779-g11a87708d415 ***` — the demo
   itself, i.e. the point where `main()` starts doing work.
 * `wifi: connecting to "<SSID>"` → `wifi: connected` →
-  `wifi: IPv4 address assigned (DHCPv4)` — `src/main.c`'s STA flow.
+  `wifi: IPv4 address assigned (DHCPv4)` — `src/main.c`'s STA flow.  The
+  `wifi:` lines go through Zephyr's logging (`printk` is routed into the
+  deferred log thread in this build) while nanolib's `printf` writes straight
+  to the console, so `NanoMQ Broker is started successfully!` can appear
+  between `wifi: connecting` and `wifi: connected` even though the broker
+  starts afterwards — cosmetic, exactly like the WHD lines above.  A
+  `wifi: link down — reconnecting ...` line would not be cosmetic: that is
+  the supervisor reacting to a link that went away.
 * `net_ipv6_nd: DAD failed, no ll IPv6 address!` is an **error-severity log
   that is expected**: IPv6 is enabled in the net stack but this link has no
   IPv6, so duplicate-address detection has nothing to work on.  The broker uses
@@ -480,6 +501,14 @@ Wi-Fi link: WPA2 AP on 2.4 GHz, MAC `70:4A:0E:51:77:9A`, firmware
 REST :8081 and WebSocket :8083 all listening (REST
 `/api/v4/brokers` → `node_status: Running`, `version 0.25.6-8`).
 
+Link recovery was exercised on the bench as well: a temporary build (the hook
+was not committed) forced a disconnect 180 s into a run *and* left the
+disconnect event unregistered, so only the supervisor's status poll could
+notice.  It caught the loss 7 s later, re-associated, and leased the same
+address — the broker and its listeners never restarted.  The captured
+sequence is in
+[docs/en_US/port-to-art-pi.md](docs/en_US/port-to-art-pi.md) §6.
+
 ## Configuration files
 
 | File | Purpose |
@@ -510,6 +539,12 @@ REST :8081 and WebSocket :8083 all listening (REST
   driver rate-limits the message in case a real one appears.  If it ever does
   reappear in bulk, `CONFIG_AIROC_WIFI_DISABLE_POWERSAVE` is the first thing
   to check.
+* Wi-Fi link recovery is polled, not event-driven: the supervisor asks the
+  driver for its join state every `CONFIG_BROKER_WIFI_MONITOR_PERIOD_S`
+  seconds (default 10), so a lost AP is noticed up to that long after it
+  happens.  Only an explicit disconnect is immediate (the driver raises
+  `NET_EVENT_WIFI_DISCONNECT_RESULT` for that and nothing else).  See
+  [docs/adr/0005](docs/adr/0005-poll-the-join-state-to-recover-a-lost-wi-fi-link.md).
 * **Webhook is left off, and cannot simply be switched on**: a build with
   `CONFIG_BROKER_WEBHOOK=y` joins Wi-Fi and leases an address, but the SDIO
   link then wedges almost immediately (the same `Command response timeout`
@@ -520,8 +555,9 @@ REST :8081 and WebSocket :8083 all listening (REST
 * The CLM in use is the AW-CU427-P module's — the only one published for this
   part.  The link works and the chip accepts it, but it is not this module's
   calibration data.
-* Internal SRAM is at 86 % in the Wi-Fi build; there is little headroom for
-  more concurrent connections.
+* Internal SRAM is at 87 % in the Wi-Fi build (the Wi-Fi link supervisor's
+  4 KB stack included); there is little headroom for more concurrent
+  connections.
 * The Ethernet variant is unverified (PHY silent on the bring-up unit).
 * `CONFIG_BROKER_WEBHOOK` is off by default (see above), so the webhook group
   of the suite reports SKIP unless a build with room for it is made.  See the
@@ -534,8 +570,8 @@ REST :8081 and WebSocket :8083 all listening (REST
   record: what differs from the ESP32-S3 sibling, in what order the traps
   appeared, and the evidence for each.
 * [docs/adr/](docs/adr/) — the decision records: QSPI XIP, the SDRAM heap, why
-  Wi-Fi polls instead of being interrupted, and why the Wi-Fi chip is kept
-  awake.
+  Wi-Fi polls instead of being interrupted, why the Wi-Fi chip is kept awake,
+  and why a lost Wi-Fi link is noticed by polling the join state.
 * [../nanomq_zephyr_esp32s3/README.md](../nanomq_zephyr_esp32s3/README.md) —
   the sibling this demo is derived from (PSRAM, ESP-IDF tooling, webhook).
 * [../../docs/en_US/tutorial/port-to-zephyr.md](../../docs/en_US/tutorial/port-to-zephyr.md)

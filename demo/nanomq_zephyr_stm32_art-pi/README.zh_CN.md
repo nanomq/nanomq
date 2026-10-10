@@ -106,12 +106,24 @@ WL_REG_ON 即 `libraries/drivers/drv_wlan.c` 中的
 3. **STA 连接流程由应用负责**，与 ESP32-S3 同类 demo 一致：`src/main.c`
    等接口就绪，用应用 Kconfig 里的凭据（`CONFIG_BROKER_WIFI_SSID` / `_PSK`，
    通过 git-ignored 的 `local.conf` 提供）发出 `NET_REQUEST_WIFI_CONNECT`，
-   每 30 秒重试，然后启动 DHCPv4 客户端并等待 `NET_EVENT_IPV4_DHCP_BOUND`，
-   之后才启动 broker。重试是**有限次**（3 次）：连不上的链路绝不该连带让 broker
+   然后启动 DHCPv4 客户端并等待 `NET_EVENT_IPV4_DHCP_BOUND`，之后才启动
+   broker。启动阶段的重试是**有限次**（3 次）：连不上的链路绝不该连带让 broker
    起不来 —— 那样控制台上就一条 broker 日志都没有，板子看起来像死的。现在它会照常
    启动并打印 `wifi: no association after 3 attempts ... starting the broker
-   anyway`，同时照旧启动 DHCP 客户端（所以后来真拿到地址也能用上）；但关联本身
-   没有人在重试，要再试只能复位板子。Wi-Fi 构建额外传入
+   anyway`。
+
+   启动之后，链路交给一个**守护线程**管到底：每
+   `CONFIG_BROKER_WIFI_MONITOR_PERIOD_S` 秒（默认 10）向驱动查询一次关联状态，
+   发现链路已断就重新关联并重新申请租约（退避从 5 秒起翻倍，60 秒封顶）。之所以
+   需要它，是因为 airoc 驱动只在显式断开时才抛
+   `NET_EVENT_WIFI_DISCONNECT_RESULT`：AP 自己消失（deauth、disassoc，或纯粹的
+   信标丢失）不产生任何事件，所以在有守护线程之前，链路一断 broker 就守着一个
+   自己已经没有的地址，直到有人复位板子。轮询读的是 WHD 的 `JOIN_LINK_READY`
+   状态（`NET_REQUEST_WIFI_IFACE_STATUS`），上述三种断链方式都会把它清掉；理由
+   记录在
+   [docs/adr/0005](docs/adr/0005-poll-the-join-state-to-recover-a-lost-wi-fi-link.md)。
+   链路健康时守护线程不打印任何东西，所以日志里出现
+   `wifi: link down — reconnecting ...` 就说明它真的发现了一次掉线。Wi-Fi 构建额外传入
    [boards/art_pi_wifi.overlay](boards/art_pi_wifi.overlay)
    （关掉 `&mac`/`&mdio`/`&eth_phy`），让镜像里只有一个网络接口。
 
@@ -314,7 +326,12 @@ net: ipv4 192.168.1.3
 * `*** Booting Zephyr OS build v4.4.0-4779-g11a87708d415 ***` —— demo 本体，
   也就是 `main()` 开始干活的时刻。
 * `wifi: connecting to "<SSID>"` → `wifi: connected` →
-  `wifi: IPv4 address assigned (DHCPv4)` —— `src/main.c` 的 STA 流程。
+  `wifi: IPv4 address assigned (DHCPv4)` —— `src/main.c` 的 STA 流程。这些
+  `wifi:` 行走的是 Zephyr 日志（本构建里 `printk` 被接进了 deferred 日志线程），
+  而 nanolib 的 `printf` 直接写控制台，所以 `NanoMQ Broker is started
+  successfully!` 可能夹在 `wifi: connecting` 和 `wifi: connected` 之间 —— 纯属
+  观感问题，和上面 WHD 那几行同理。但 `wifi: link down — reconnecting ...`
+  不是观感问题：那是守护线程真的发现了一次掉线。
 * `net_ipv6_nd: DAD failed, no ll IPv6 address!` 是**预期内的错误级别日志**：
   网络栈开了 IPv6，但这条链路没有 IPv6，重复地址检测无事可做。broker 用 IPv4。
 * `NanoMQ Broker is started successfully!` 以及上面两行 `broker:`/`web_server:`
@@ -421,6 +438,11 @@ Wi-Fi 链路：2.4 GHz WPA2 AP，MAC `70:4A:0E:51:77:9A`，固件
 REST :8081、WebSocket :8083 均在监听（REST `/api/v4/brokers` 返回
 `node_status: Running`、`version 0.25.6-8`）。
 
+链路恢复也在调试台上验证过：用一个临时构建（钩子没有提交）在启动 180 秒后强制
+断开，**并且**不注册断开事件，于是只有守护线程的状态轮询能发现它。轮询在 7 秒后
+发现了掉线，重新关联后拿回同一个地址 —— broker 和它的监听端口全程没有重启。抓到的
+完整序列见 [docs/zh_CN/port-to-art-pi.md](docs/zh_CN/port-to-art-pi.md) §6。
+
 ## 配置文件
 
 | 文件 | 用途 |
@@ -448,6 +470,11 @@ REST :8081、WebSocket :8083 均在监听（REST `/api/v4/brokers` 返回
   修好（[docs/adr/0004](docs/adr/0004-keep-the-art-pi-wifi-chip-awake.md)），驱动
   还对该消息保留了限流以防真实超时。如果哪天又成片出现，先检查
   `CONFIG_AIROC_WIFI_DISABLE_POWERSAVE`。
+* Wi-Fi 链路恢复是**轮询**而非事件驱动：守护线程每
+  `CONFIG_BROKER_WIFI_MONITOR_PERIOD_S` 秒（默认 10）查一次驱动的关联状态，
+  所以 AP 掉线最多要这么久才被发现。只有显式断开是即时的（驱动也只为这种
+  情况抛 `NET_EVENT_WIFI_DISCONNECT_RESULT`）。详见
+  [docs/adr/0005](docs/adr/0005-poll-the-join-state-to-recover-a-lost-wi-fi-link.md)。
 * **webhook 不是"打开开关"就能用的**：编了 `CONFIG_BROKER_WEBHOOK=y` 的构建能连上
   Wi-Fi 并拿到地址，但随后 SDIO 链路几乎立刻卡死（同样是
   `Command response timeout` 刷屏），因此 `webhook_smoke` 分组在这个构建上没能
@@ -455,7 +482,8 @@ REST :8081、WebSocket :8083 均在监听（REST `/api/v4/brokers` 返回
   余量（或搬走某个内存池）再启用它。`prj.conf` 因此保持关闭。
 * 现在用的 CLM 是 AW-CU427-P 模块的 —— 这颗芯片公开发布的只有这一份。链路可用
   且芯片接受它，但它并不是本模块的校准数据。
-* Wi-Fi 构建下内部 SRAM 已用 86 %，余量不多，不适合更高的并发连接数。
+* Wi-Fi 构建下内部 SRAM 已用 87 %（含 Wi-Fi 链路守护线程的 4 KB 栈），余量
+  不多，不适合更高的并发连接数。
 * 以太网变体未验证（本机 PHY 无响应）。
 * `CONFIG_BROKER_WEBHOOK` 默认关闭（见上），所以套件的 webhook 分组会报告 SKIP，
   除非专门做一个有余量的构建。权衡见 ESP32-S3 的 README。
@@ -466,7 +494,8 @@ REST :8081、WebSocket :8083 均在监听（REST `/api/v4/brokers` 返回
   [docs/en_US/port-to-art-pi.md](docs/en_US/port-to-art-pi.md) —— 移植记录：
   与 ESP32-S3 同类 demo 的差异、各环节踩坑顺序与证据。
 * [docs/adr/](docs/adr/) —— 决策记录：QSPI XIP、SDRAM 堆、为什么 Wi-Fi 用轮询
-  而不是中断，以及为什么让 Wi-Fi 芯片保持清醒。
+  而不是中断、为什么让 Wi-Fi 芯片保持清醒，以及为什么靠轮询关联状态来发现
+  Wi-Fi 掉线。
 * [../nanomq_zephyr_esp32s3/README.md](../nanomq_zephyr_esp32s3/README.md) ——
   本 demo 的蓝本（PSRAM、ESP-IDF 工具链、webhook）。
 * [../../docs/zh_CN/tutorial/port-to-zephyr.md](../../docs/zh_CN/tutorial/port-to-zephyr.md)

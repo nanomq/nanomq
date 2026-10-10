@@ -98,9 +98,10 @@ during the bring-up.
 * **The broker's startup log is printed once, and only if the broker starts.**
   nanolib announces it while `broker()` runs; anything attached to the console
   later sees only what the drivers are doing.  Two fixes came out of that: the
-  Wi-Fi connect loop is now **bounded** (it used to retry forever, so a board
-  that could not associate never started the broker and printed nothing about
-  it — the "the board shows no broker log" report), and the demo prints a
+  boot-time Wi-Fi connect loop is now **bounded** (it used to retry forever,
+  so a board that could not associate never started the broker and printed
+  nothing about it — the "the board shows no broker log" report) with a
+  supervisor thread taking over afterwards (§4.8), and the demo prints a
   one-line status heartbeat every `CONFIG_BROKER_STATUS_INTERVAL_S` seconds
   (default 60) carrying the uptime, the listeners and the current IPv4
   address, so "is it up?" never depends on catching the boot.
@@ -317,6 +318,44 @@ gates still green, and a continuous three-minute capture with heartbeats and
 the DHCP lease steady.  The reasoning and the alternatives are in
 [ADR 0004](../adr/0004-keep-the-art-pi-wifi-chip-awake.md).
 
+### 4.8 A lost link has no event, so the demo polls for it
+
+An association on this board can end in three ways, and only one of them
+reaches the application as a Wi-Fi mgmt event:
+
+| How the link ends | What the driver does | Event the app sees |
+| --- | --- | --- |
+| explicit `NET_REQUEST_WIFI_DISCONNECT` | `airoc_mgmt_disconnect()` raises the result | `NET_EVENT_WIFI_DISCONNECT_RESULT` |
+| AP sends deauth / disassoc | event task calls `net_if_dormant_on()` | none |
+| AP disappears (beacon loss) | event task passes `WLC_E_LINK` (link flag clear) through | none |
+
+So the boot-time association was the application's only contact with the
+link: an AP that went away after that produced no event, and the broker — its
+listeners are on `0.0.0.0`, so it never notices — stayed reachable only at an
+address the board no longer had.  The symptom was the 60 s status heartbeat
+losing its `ipv4 ...` part, and the only recovery was a reset.
+
+The one signal that covers all three rows already exists inside WHD: its
+`JOIN_LINK_READY` bit, which `whd_wifi_api.c` clears for `WLC_E_LINK` (link
+flag clear), `WLC_E_DEAUTH_IND` and `WLC_E_DISASSOC_IND`.
+`NET_REQUEST_WIFI_IFACE_STATUS` is the mgmt request that reaches
+`whd_wifi_is_ready_to_transceive()`, i.e. that bit, so a supervisor thread
+polls it every `CONFIG_BROKER_WIFI_MONITOR_PERIOD_S` seconds (default 10) and
+re-associates — wait for the connect result, then `net_dhcpv4_restart()` —
+whenever the answer is not `WIFI_STATE_COMPLETED`.  While the AP stays away
+it backs off 5 s, doubling to 60 s.  It also waits on
+`NET_EVENT_WIFI_DISCONNECT_RESULT`, so the one loss that *does* produce an
+event is handled immediately rather than at the next tick.
+
+The broker itself needs no help: with the listeners on `0.0.0.0`, a reconnect
+that gets the same lease back is invisible to clients beyond their own
+reconnects, and a different lease only changes the address in the heartbeat.
+Boot is unchanged — the initial 3 × 30 s is still bounded, so a board that
+cannot associate still starts the broker and says so; the supervisor just
+keeps trying from then on.  [ADR 0005](../adr/0005-poll-the-join-state-to-recover-a-lost-wi-fi-link.md)
+has the alternatives (dormant flag, patching `WLC_E_LINK` handling into the
+driver, doing nothing) and why they lost.
+
 ## 5. Tuning the functional suite for a board on Wi-Fi
 
 `function_test.py` was written for qemu/localhost: its CI scripts sleep as if
@@ -370,6 +409,29 @@ Link state at the same time: `wifi: connected`, DHCPv4 `192.168.1.3`, MQTT
 :1883 / REST :8081 / WebSocket :8083 listening, `NanoMQ Broker is started
 successfully!`, REST `/api/v4/brokers` → `node_status: Running`.
 
+Link recovery (§4.8) got its own bench run afterwards.  A temporary build (the
+hook was not committed) issued `NET_REQUEST_WIFI_DISCONNECT` 180 s into the
+run *and* left `NET_EVENT_WIFI_DISCONNECT_RESULT` unregistered, so only the
+supervisor's status poll could notice the loss — i.e. the silent-AP case, not
+the easy one:
+
+```
+selftest: NET_REQUEST_WIFI_DISCONNECT -> 0                (uptime 180 s)
+[00:03:07.558] <err> sdhc_stm32: Command response timeout  <- the leave sequence
+wifi: link down — reconnecting to "TP-LINK_A57B"          (uptime ~188 s)
+wifi: connected to "TP-LINK_A57B"
+[00:03:13.738] <inf> net_dhcpv4: Received: 192.168.1.8
+wifi: IPv4 address assigned (DHCPv4)
+broker: status running — uptime 244s, ... , ipv4 192.168.1.8
+```
+
+The poll caught it 7 s after the drop (inside the 10 s period), re-association
+and a fresh lease took another ~6 s, the same address came back, and the
+broker kept running throughout — its listeners never restarted, and it was
+serving `/api/v4/brokers` again as soon as the lease was up.  The single
+`Command response timeout` belongs to the leave sequence, not the KSO flood of
+§4.7: it appears once, at the transition, and not afterwards.
+
 ## 7. Where the changes live
 
 | Change | Where |
@@ -398,6 +460,10 @@ final tree.
    implemented) before suspecting firmware or NVRAM.
 4. Instrument on-target; distrust a debugger that reports `LOCKUP` while the
    console keeps printing.
+5. Give the network link a supervisor (§4.8).  A driver's disconnect event is
+   usually only for an explicit disconnect — an AP that disappears is silent —
+   so poll the driver's own join state and re-associate from a thread that
+   lives as long as the application does.
 5. Match NVRAM to the module, and treat a missing CLM as fatal.
 6. Re-tune the host test suite for the board's network before concluding the
    broker is broken.
