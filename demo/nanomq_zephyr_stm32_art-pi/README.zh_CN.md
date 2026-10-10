@@ -246,10 +246,10 @@ bootloader 的横幅，不代表 demo 没跑起来。
 demo/nanomq_zephyr_stm32_art-pi/tools/console.sh
 
 # 同时写文件
-demo/nanomq_zephyr_stm32_art-pi/tools/console.sh -o boot.log
+demo/nanomq_zephyr_stm32_art-pi/tools/console.sh -o /tmp/boot.log
 
 # 先丢掉串口缓冲里的旧数据（原因见下文"区分两次启动"）
-demo/nanomq_zephyr_stm32_art-pi/tools/console.sh -o boot.log --drain 10
+demo/nanomq_zephyr_stm32_art-pi/tools/console.sh -o /tmp/boot.log --drain 10
 ```
 
 任何 115200 8N1 的终端都一样：`tio /dev/ttyACM0`、
@@ -257,7 +257,7 @@ demo/nanomq_zephyr_stm32_art-pi/tools/console.sh -o boot.log --drain 10
 
 ```sh
 stty -F /dev/ttyACM0 115200 raw -echo      # 8N1、无流控、不回显
-cat /dev/ttyACM0 | tee boot.log            # Ctrl-C 结束
+cat /dev/ttyACM0 | tee /tmp/boot.log       # Ctrl-C 结束
 ```
 
 `tools/flash.sh` 退出时板子已经复位并在运行，所以启动日志立刻就在线上了 —— 想从
