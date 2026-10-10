@@ -48,8 +48,27 @@ Final footprint (linker report): FLASH ~958 KB, internal SRAM
 
 ## Environment / prerequisites
 
-* A Zephyr ≥ 4.4 west workspace (`esp-zephyr` alias per the repo guide:
-  ESP-IDF venv + `ZEPHYR_SDK_INSTALL_DIR`, `unset ZEPHYR_TOOLCHAIN_VARIANT`).
+* A Zephyr ≥ 4.4 west workspace with its python venv — `west` lives in that
+  venv, not on the system `PATH`.  [setup-fedora-zh.md](setup-fedora-zh.md)
+  walks through creating it on Fedora.
+
+* An activated ESP-IDF.  The ESP32 build takes `west`, `esptool` and
+  `idf-monitor` from the ESP-IDF environment rather than from the Zephyr
+  venv (activate one or the other — the last activation wins):
+
+  ```sh
+  source ~/.espressif/tools/activate_idf_v<version>.sh   # EIM install
+  #   ... or <esp-idf>/export.sh for a git-clone install
+  export ZEPHYR_SDK_INSTALL_DIR=$HOME/zephyr-sdk-1.0.1
+  ```
+
+  The repo guide wraps exactly this pair in an `esp-zephyr` alias.  Note the
+  cross compiler still comes from the Zephyr SDK (1.0.1 ships the
+  `xtensa-espressif_esp32s3_zephyr-elf` toolchain); ESP-IDF only supplies
+  the tools.  `ZEPHYR_TOOLCHAIN_VARIANT=zephyr` states that explicitly, and
+  leaving it unset works too — but do **not** set it to `espressif`, a
+  variant current Zephyr has dropped.
+
 * Espressif HAL **blobs** must be fetched once — without them
   `CONFIG_WIFI_ESP32` stays silently hidden and the build has no Wi-Fi:
   ```sh
