@@ -569,9 +569,27 @@ main(void)
 	// Activate the nanolib log backend (console) and apply conf->log.level
 	// — broker_start_with_conf() normally does this, but the embedded demo
 	// calls broker() directly.
-	log_init(&nmq_conf->log);
-	log_add_console(NNG_LOG_DEBUG, NULL);
+	//
+	// nanomq's log_init() (mqtt_api.c) applies log->level and registers the
+	// console sink itself, since conf_init() defaults log.type to
+	// LOG_TO_CONSOLE.  Registering one here as well would add a second sink
+	// and print every line twice.
+	//
+	// Console at INFO by default: the board's boot sequence is short and
+	// the DEBUG firehose buries it (the radio and net stack log at INFO,
+	// the broker's per-packet tracing at DEBUG).  CONFIG_BROKER_LOG_DEBUG
+	// raises it when that tracing is what you are after.
+	nmq_conf->log.level = NNG_LOG_INFO;
+#ifdef CONFIG_BROKER_LOG_DEBUG
+	nmq_conf->log.level = NNG_LOG_DEBUG;
+#endif
+	(void) log_init(&nmq_conf->log);
+	// print_conf() dumps every field of the conf at INFO, which is a dozen
+	// lines of noise in front of the boot sequence -- keep it with the
+	// DEBUG tracing it belongs to.
+#ifdef CONFIG_BROKER_LOG_DEBUG
 	print_conf(nmq_conf);
+#endif
 #endif
 
 
