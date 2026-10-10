@@ -72,11 +72,14 @@ card interrupt") has the measurements.
 
 ### 0003 — west module `hal_infineon`
 
-* The CYW43438 NVRAM now holds the ART-Pi module's own parameters, taken from
-  the vendor's `wifi_nvram_image[]` (`libraries/drivers/drv_wlan.c` in the
-  ART-Pi SDK): `prodid=boardtype=0x0726`, `boardrev=0x1101`, `xtalfreq=26000`.
-  The AW-CU427-P data the manifest ships for this part makes the firmware
-  abort its init.
+* A CYW43438 NVRAM for the ART-Pi module, added as its own
+  `nvram/COMPONENT_43438/COMPONENT_AP6212/cyw943438_ap6212.txt` (the 0002
+  CMake change points the 43438 build at it).  Its parameters are the vendor's
+  `wifi_nvram_image[]` (`libraries/drivers/drv_wlan.c` in the ART-Pi SDK):
+  `prodid=boardtype=0x0726`, `boardrev=0x1101`, `xtalfreq=26000`.  The
+  AW-CU427-P NVRAM the manifest ships for this chip is left untouched — the
+  firmware aborts its init on that module's board type, and overwriting
+  another module's calibration file would have been the wrong way to say so.
 
 The firmware blob itself is *not* part of any patch: fetching it is what
 `west blobs fetch hal_infineon` is for.  The demo uses it unchanged.

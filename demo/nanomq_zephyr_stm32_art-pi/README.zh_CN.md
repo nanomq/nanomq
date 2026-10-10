@@ -110,7 +110,8 @@ WL_REG_ON 即 `libraries/drivers/drv_wlan.c` 中的
    之后才启动 broker。重试是**有限次**（3 次）：连不上的链路绝不该连带让 broker
    起不来 —— 那样控制台上就一条 broker 日志都没有，板子看起来像死的。现在它会照常
    启动并打印 `wifi: no association after 3 attempts ... starting the broker
-   anyway`，一旦后来拿到租约就能被访问。Wi-Fi 构建额外传入
+   anyway`，同时照旧启动 DHCP 客户端（所以后来真拿到地址也能用上）；但关联本身
+   没有人在重试，要再试只能复位板子。Wi-Fi 构建额外传入
    [boards/art_pi_wifi.overlay](boards/art_pi_wifi.overlay)
    （关掉 `&mac`/`&mdio`/`&eth_phy`），让镜像里只有一个网络接口。
 

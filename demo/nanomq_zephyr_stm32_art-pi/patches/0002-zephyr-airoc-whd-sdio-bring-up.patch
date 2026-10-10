@@ -1,5 +1,5 @@
 diff --git a/drivers/wifi/infineon/airoc_whd_hal_sdio.c b/drivers/wifi/infineon/airoc_whd_hal_sdio.c
-index cf9f254be42..dcf6a661351 100644
+index cf9f254be42..19d018c2dcf 100644
 --- a/drivers/wifi/infineon/airoc_whd_hal_sdio.c
 +++ b/drivers/wifi/infineon/airoc_whd_hal_sdio.c
 @@ -11,6 +11,8 @@
@@ -93,27 +93,21 @@ index cf9f254be42..dcf6a661351 100644
  			whd_deinit(*interface);
  			return -ENODEV;
  		}
-@@ -155,6 +221,7 @@ whd_result_t whd_bus_sdio_cmd52(whd_driver_t whd_driver, whd_bus_transfer_direct
- 	} else {
- 		ret = sdio_read_byte(func, address, response);
- 	}
-+
- 	WHD_BUS_STATS_CONDITIONAL_INCREMENT_VARIABLE(whd_driver->bus_priv, (ret != WHD_SUCCESS),
- 						     cmd52_fail);
- 
 diff --git a/modules/hal_infineon/whd-expansion/CMakeLists.txt b/modules/hal_infineon/whd-expansion/CMakeLists.txt
-index 113be7a193a..8d05ae4b7c4 100644
+index 113be7a193a..313bb438025 100644
 --- a/modules/hal_infineon/whd-expansion/CMakeLists.txt
 +++ b/modules/hal_infineon/whd-expansion/CMakeLists.txt
-@@ -125,6 +125,42 @@ if(CONFIG_CYW43438 AND NOT CONFIG_AIROC_WIFI_CUSTOM)
+@@ -125,6 +125,46 @@ if(CONFIG_CYW43438 AND NOT CONFIG_AIROC_WIFI_CUSTOM)
    endif()
  endif()
  
 +# CYW43438 clm/nvram
 +#
-+# Upstream wires only the firmware for this part.  The ART-Pi's AP6212 is a
-+# plain CYW43438 and the WHD blob manifest ships this chip's CLM and NVRAM for
-+# the AW-CU427-P module, so mirror the per-module blocks above.
++# Upstream wires only the firmware for this part.  Two modules use this chip
++# here: the CLM stays the AW-CU427-P one (the only blob published for it), but
++# the NVRAM has to be the module's own -- the ART-Pi's AP6212 is
++# prodid/boardtype 0x0726 and its firmware aborts its init on a foreign board
++# type.  Keep the per-module split the other blocks above use.
 +if(CONFIG_CYW43438 AND NOT CONFIG_AIROC_WIFI_CUSTOM)
 +  # clm
 +  if(CONFIG_AIROC_WLAN_MFG_FIRMWARE)
@@ -122,16 +116,18 @@ index 113be7a193a..8d05ae4b7c4 100644
 +    set(CLM_IMAGE_NAME ${hal_blobs_dir}/clm/COMPONENT_43438/COMPONENT_AW-CU427-P/43438A1.clm_blob)
 +  endif()
 +  # nvram
-+  set(NVRAM_IMAGE_NAME ${hal_wifi_dir_resources}/nvram/COMPONENT_43438/COMPONENT_AW-CU427-P/cyw943438_aw-cu427.txt)
++  set(NVRAM_IMAGE_NAME ${hal_wifi_dir_resources}/nvram/COMPONENT_43438/COMPONENT_AP6212/cyw943438_ap6212.txt)
 +endif()
 +
-+# The only CLM published for the 43438 is the AW-CU427-P module's, and the
-+# ART-Pi's AP6212 rejects it at CLM download time ("CLM blob file not found or
-+# corrupted" -> WHD init fails with -ENODEV).  Building WHD without a CLM
-+# resource makes whd_process_clm_data() log "No loading CLM blob file" and
-+# carry on, which is enough to bring the link up; regulatory/RF calibration
-+# data is absent until the board's own CLM is wired in.  Opt in with
-+# CONFIG_AIROC_WIFI_NO_CLM (see the demo's wifi.conf).
++# The only CLM published for this part is the AW-CU427-P module's.  It is not
++# this module's calibration data, but the ART-Pi's AP6212 accepts it and the
++# firmware needs *some* CLM: without one, the "country" ioctl that
++# whd_wifi_on() issues fails ("Could not set Country code") and the driver
++# never initialises at all (ret = -19).  So building WHD without a CLM
++# resource does not produce a working link on this board -- the option exists
++# only to bisect CLM problems during bring-up.  Leave it off; see the demo's
++# Kconfig help and
++# demo/nanomq_zephyr_stm32_art-pi/docs/en_US/port-to-art-pi.md.
 +if(CONFIG_AIROC_WIFI_NO_CLM)
 +  zephyr_compile_definitions(NO_CLM_BLOB_FILE)
 +endif()

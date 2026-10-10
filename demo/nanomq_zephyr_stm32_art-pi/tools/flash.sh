@@ -3,6 +3,10 @@
 #
 # Usage: tools/flash.sh [VARIANT] [--no-build] [--dry-run] [--build-dir DIR]
 #
+# --no-build programs the last build instead of rebuilding; --dry-run loads the
+# flash algorithm and reports the plan without writing anything (it still
+# builds first unless --no-build is given as well).
+#
 # VARIANT selects the network layer (default: --wifi, the configuration this
 # demo is verified with):
 #   --wifi   Wi-Fi STA on the on-board AP6212  (wifi.conf + art_pi_wifi.overlay)
