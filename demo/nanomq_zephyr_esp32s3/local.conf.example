@@ -1,9 +1,9 @@
-# Local (untracked) Wi-Fi credentials for demo/nanomq_esp32s3_broker.
+# Local (untracked) Wi-Fi credentials for demo/nanomq_zephyr_esp32s3.
 #
 # Copy this file to local.conf next to prj.conf, fill in the real values
 # and pass it to the build:
 #
-#   west build -b esp32s3_devkitc/esp32s3/procpu demo/nanomq_esp32s3_broker \
+#   west build -b esp32s3_devkitc/esp32s3/procpu demo/nanomq_zephyr_esp32s3 \
 #       -- -DEXTRA_CONF_FILE=local.conf
 #
 # local.conf is git-ignored so credentials stay out of the tree.

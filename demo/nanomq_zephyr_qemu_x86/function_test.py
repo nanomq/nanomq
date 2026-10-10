@@ -2,13 +2,13 @@
 """Zephyr broker functional test suite (host side).
 
 Runs a functional test matrix against the qemu_x86 NanoMQ broker from
-[demo/zephyr_broker](.) — the same client libraries the upstream CI uses
+[demo/nanomq_zephyr_qemu_x86](.) — the same client libraries the upstream CI uses
 (mosquitto CLI, paho, requests), but pointed at the guest broker and
 scoped to what the Zephyr build supports (no TLS, no SQLite, no IPC).
 
 The runner owns the qemu lifecycle: it stops any previous instance,
-launches the image built by `west build -b qemu_x86 -d /workdir/build/zephyr_broker
-demo/zephyr_broker` inside the `zephyr-tap` container (SLIRP hostfwd binds
+launches the image built by `west build -b qemu_x86 -d /workdir/build/nanomq_zephyr_qemu_x86
+demo/nanomq_zephyr_qemu_x86` inside the `zephyr-tap` container (SLIRP hostfwd binds
 in the container's netns), waits for the broker banner, and tears it down
 at the end.  Every group runs in its own subprocess so a hang or a crash
 cannot poison the next one, and a group that dies with the guest triggers
@@ -28,11 +28,11 @@ Groups (see `--list`):
 
 Usage (outer host, from anywhere in the repo):
 
-    python3 demo/zephyr_broker/function_test.py              # all groups
-    python3 demo/zephyr_broker/function_test.py --list
-    python3 demo/zephyr_broker/function_test.py --group ws_v311,ws_v5
-    python3 demo/zephyr_broker/function_test.py --no-manage --addr 172.17.0.2
-    python3 demo/zephyr_broker/function_test.py --keep-running
+    python3 demo/nanomq_zephyr_qemu_x86/function_test.py              # all groups
+    python3 demo/nanomq_zephyr_qemu_x86/function_test.py --list
+    python3 demo/nanomq_zephyr_qemu_x86/function_test.py --group ws_v311,ws_v5
+    python3 demo/nanomq_zephyr_qemu_x86/function_test.py --no-manage --addr 172.17.0.2
+    python3 demo/nanomq_zephyr_qemu_x86/function_test.py --keep-running
 
 Exit status: 0 all groups passed, 1 at least one group failed, 2 the
 harness itself could not run (no docker/container, broker won't start).
@@ -67,7 +67,7 @@ DEFAULT_QEMU = (
     "/opt/toolchains/zephyr-sdk-1.0.1/hosttools/sysroots/"
     "x86_64-pokysdk-linux/usr/bin/qemu-system-i386"
 )
-DEFAULT_KERNEL = "/workdir/build/zephyr_broker/zephyr/zephyr.elf"
+DEFAULT_KERNEL = "/workdir/build/nanomq_zephyr_qemu_x86/zephyr/zephyr.elf"
 DEFAULT_WORKDIR = "/workdir/nanomq"  # repo path inside the container
 
 READY_MARKER = "NanoMQ Broker is started successfully!"
