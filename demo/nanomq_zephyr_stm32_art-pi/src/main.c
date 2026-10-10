@@ -60,6 +60,15 @@ static K_SEM_DEFINE(dhcp_bound_sem, 0, 1);
 static volatile bool broker_running;
 
 #if defined(CONFIG_BROKER_STATUS_INTERVAL_S) && (CONFIG_BROKER_STATUS_INTERVAL_S > 0)
+// The heartbeat reports the listeners that are actually up.  REST and
+// WebSocket are both optional (credentials, CONFIG_BROKER_WS), and main()
+// sets these where it decides that, so the line cannot advertise a port
+// nothing is listening on.
+static volatile bool broker_rest_listening;
+static volatile bool broker_ws_listening;
+#endif
+
+#if defined(CONFIG_BROKER_STATUS_INTERVAL_S) && (CONFIG_BROKER_STATUS_INTERVAL_S > 0)
 //
 // Periodic status line — see CONFIG_BROKER_STATUS_INTERVAL_S.
 //
@@ -109,9 +118,10 @@ broker_status_thread(void *a, void *b, void *c)
 		}
 
 		printk("broker: status running — uptime %us, MQTT "
-		    "tcp://0.0.0.0:1883, REST http://0.0.0.0:8081, "
-		    "WS :8083/mqtt, ipv4 %s\n",
+		    "tcp://0.0.0.0:1883%s%s, ipv4 %s\n",
 		    (unsigned int)(k_uptime_get() / 1000),
+		    broker_rest_listening ? ", REST http://0.0.0.0:8081" : "",
+		    broker_ws_listening ? ", WS :8083/mqtt" : "",
 		    (buf[0] != '\0') ? buf : "(none yet)");
 	}
 	ARG_UNUSED(a); ARG_UNUSED(b); ARG_UNUSED(c);
@@ -722,6 +732,18 @@ main(void)
 		    nng_strdup(CONFIG_BROKER_REST_USER);
 		nmq_conf->http_server.password =
 		    nng_strdup(CONFIG_BROKER_REST_PASS);
+		if ((nmq_conf->http_server.username == NULL) ||
+		    (nmq_conf->http_server.password == NULL)) {
+			// basic_authorize() (rest_api.c) strlen()s both, so a
+			// copy that failed would crash the first request;
+			// keep the listener off instead.
+			printk("rest: credentials could not be copied, REST "
+			    "API stays off\n");
+			nmq_conf->http_server.enable = false;
+		}
+#if defined(CONFIG_BROKER_STATUS_INTERVAL_S) && (CONFIG_BROKER_STATUS_INTERVAL_S > 0)
+		broker_rest_listening = nmq_conf->http_server.enable;
+#endif
 	} else {
 		printk("rest: REST API stays off - set "
 		    "CONFIG_BROKER_REST_USER and CONFIG_BROKER_REST_PASS to "
@@ -739,6 +761,9 @@ main(void)
 	// the Zephyr NanoNNG, so the wss: sibling listener stays inert.
 	nmq_conf->websocket.enable = true;
 	nmq_conf->websocket.url    = "nmq-ws://0.0.0.0:8083/mqtt";
+#if defined(CONFIG_BROKER_STATUS_INTERVAL_S) && (CONFIG_BROKER_STATUS_INTERVAL_S > 0)
+	broker_ws_listening = true;
+#endif
 #endif
 
 #ifdef CONFIG_BROKER_WEBHOOK
