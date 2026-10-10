@@ -8,7 +8,7 @@ This approach can be useful in edge scenarios where a dedicated Linux gateway ad
 
 [NanoMQ](https://nanomq.io/) is an open-source edge MQTT broker from EMQ, originally designed for Linux and other POSIX environments. This article explores what it takes to run the NanoMQ broker core on Zephyr RTOS. The application layer uses the same `nanomq/` source code and NanoNNG MQTT protocol stack without feature trimming. Peripheral capabilities are disabled or remain unverified where required by the constraints of the Zephyr platform; see [Appendix A](#appendix-a-differences-from-general-nanomq) for the complete list of differences and limitations.
 
-The repository includes two demos: one running on real ESP32-S3 hardware and the other in a `qemu_x86` simulation environment. See [Appendix B](#appendix-b-comparing-the-two-demos) for a comparison of the two demos and guidance on choosing between them.
+The repository includes three demos: one running on real ESP32-S3 hardware, one on the ART-Pi (an ARM Cortex-M7 board with an on-board Wi-Fi module), and one in a `qemu_x86` simulation environment. See [Appendix B](#appendix-b-comparing-the-demos) for a comparison of the demos and guidance on choosing between them. The ART-Pi port has its own article, [Porting the Broker to the ART-Pi (STM32H750)](./port-to-art-pi.md).
 
 The rest of this article walks through the environment setup, build and deployment process, functional testing, and the porting process itself, including the framework-level issues encountered along the way.
 
@@ -119,7 +119,7 @@ export ZEPHYR_SDK_INSTALL_DIR=$HOME/zephyr-sdk-1.0.1
 export ZEPHYR_TOOLCHAIN_VARIANT=zephyr
 ```
 
-**Activating this environment replaces the Zephyr venv from the previous section**: ESP-IDF's Python environment ships its own `west` (and `python3`), and activating one of the two is enough — whichever is activated last wins. Use this one to build for ESP32 targets; use the Zephyr venv from the previous section to build for `qemu_x86` only, without installing ESP-IDF.
+**Activating this environment replaces the Zephyr venv from the previous section**: ESP-IDF's Python environment ships its own `west` (and `python3`), and activating one of the two is enough, since whichever is activated last wins. Use this one to build for ESP32 targets; use the Zephyr venv from the previous section to build for `qemu_x86` only, without installing ESP-IDF.
 
 Activating ESP-IDF is independent of which compiler is used. It only puts `west`, `esptool` (which the ESP32 runner of `west flash` invokes), and `idf-monitor` on `PATH`. The compiler is selected by `ZEPHYR_SDK_INSTALL_DIR` and `ZEPHYR_TOOLCHAIN_VARIANT=zephyr`, the latter pointing to the matching Xtensa toolchain in the Zephyr SDK. **Do not** set it to `espressif`: that variant has been removed from the current Zephyr release and causes CMake to look for files that do not exist in the source tree. You can also omit `ZEPHYR_TOOLCHAIN_VARIANT` entirely, since Zephyr locates the Zephyr SDK on its own, but setting it explicitly is less error-prone.
 
@@ -158,7 +158,7 @@ All subsequent commands in this article are run from the repository root (`~/zep
 
 The `qemu_x86` demo requires a two-line patch to the Zephyr e1000 driver. **This patch is required.** Without it, the broker starts normally and prints `NanoMQ Broker is started successfully!`. However, no client can establish a connection.
 
-The issue is caused by the QEMU e1000 device model clearing the RCTL register during reset, including **RCTL_BAM** (Broadcast Accept Mode, bit 15) — real hardware sets this bit by default, but the device model does not.
+The issue is caused by the QEMU e1000 device model clearing the RCTL register during reset, including **RCTL_BAM** (Broadcast Accept Mode, bit 15); real hardware sets this bit by default, but the device model does not.
 
 Zephyr's `eth_e1000` driver writes only `RCTL_EN | RCTL_MPE` and never sets BAM. As a result, **all broadcast frames are silently dropped by the device model**. ARP resolution therefore fails, preventing SLIRP from delivering the initial TCP connection. This issue remains present in upstream Zephyr as of 4.4 (`11a87708d41`).
 
@@ -203,7 +203,7 @@ This patch only affects the emulated QEMU network adapter. **It is not required 
 
 ### Ports and Services
 
-With the configurations validated in this article, both demos expose the same MQTT, REST, and WebSocket ports. For `qemu_x86`, actual reachability depends on the port-forwarding configuration described in the next section.
+With the configurations validated in this article, all three demos expose the same MQTT, REST, and WebSocket ports. For `qemu_x86`, actual reachability depends on the port-forwarding configuration described in the next section.
 
 | Service | Port | ESP32-S3 | qemu_x86 | Authentication / Encryption |
 | --- | --- | --- | --- | --- |
@@ -211,16 +211,16 @@ With the configurations validated in this article, both demos expose the same MQ
 | REST API | 8081 | Supported | Supported | Basic authentication; credentials must be configured by you (there is no usable default), no TLS |
 | MQTT over WebSocket | 8083 | Supported | Supported | No authentication, no TLS; path `/mqtt` |
 
-The REST listener is enabled through the Kconfig option `CONFIG_BROKER_REST_API`: `main.c` uses it to set `http_server.enable` and `auth_type`, while the default value in `conf_init` is disabled. **This switch alone is not enough, however** — `CONFIG_BROKER_REST_USER` / `CONFIG_BROKER_REST_PASS` both default to the empty string, which is to say there are no usable default credentials, and the publicly known upstream credentials `admin` / `public` are rejected as well. Only when both are set to credentials of your own does anything listen on 8081; otherwise the broker prints an explanatory line at startup and leaves the port closed. If you remove this switch from the configuration yourself, nothing will listen on port 8081 either, and clients will receive an RST. That is expected behavior rather than a failure.
+The REST listener is enabled through the Kconfig option `CONFIG_BROKER_REST_API`: `main.c` uses it to set `http_server.enable` and `auth_type`, while the default value in `conf_init` is disabled. **This switch alone is not enough, however**: `CONFIG_BROKER_REST_USER` / `CONFIG_BROKER_REST_PASS` both default to the empty string, which is to say there are no usable default credentials, and the publicly known upstream credentials `admin` / `public` are rejected as well. Only when both are set to credentials of your own does anything listen on 8081; otherwise the broker prints an explanatory line at startup and leaves the port closed. If you remove this switch from the configuration yourself, nothing will listen on port 8081 either, and clients will receive an RST. That is expected behavior rather than a failure.
 
 ### Security Considerations
 
-The default configuration of both demos assumes a **controlled experimental environment**. Deploying it unchanged introduces security risks.
+The default configuration of all three demos assumes a **controlled experimental environment**. Deploying it unchanged introduces security risks.
 
 | Item | Current Configuration |
 | --- | --- |
 | Listening addresses | MQTT `nmq-tcp://0.0.0.0:1883`, WebSocket `nmq-ws://0.0.0.0:8083/mqtt`, and REST `0.0.0.0:8081` all listen on all network interfaces |
-| REST authentication | Basic authentication; credentials come from the Kconfig options `CONFIG_BROKER_REST_USER` / `_PASS`, both of which **default to the empty string (there are no usable default credentials)** — when they are unset, or still set to the publicly known upstream `admin` / `public`, nothing listens on 8081 |
+| REST authentication | Basic authentication; credentials come from the Kconfig options `CONFIG_BROKER_REST_USER` / `_PASS`, both of which **default to the empty string (there are no usable default credentials)**; when they are unset, or still set to the publicly known upstream `admin` / `public`, nothing listens on 8081 |
 | MQTT authentication | Disabled; any client can connect, publish, and subscribe |
 | Transport encryption | None. TLS is not enabled in the NanoNNG Zephyr port, so MQTT, WebSocket, and REST traffic is sent in plaintext |
 
@@ -284,8 +284,8 @@ Two figures are particularly important here:
 
 Connect the development board to the host computer over USB. Depending on whether the board uses an onboard USB-UART bridge or the ESP32-S3's native USB-JTAG/Serial interface, the device may appear as either:
 
-- `/dev/ttyUSB*` — a separate USB-UART bridge such as CP2102 or CH34x
-- `/dev/ttyACM*` — native USB CDC, including the ESP32-S3 USB-JTAG/Serial interface
+- `/dev/ttyUSB*`: a separate USB-UART bridge such as CP2102 or CH34x
+- `/dev/ttyACM*`: native USB CDC, including the ESP32-S3 USB-JTAG/Serial interface
 
 This article uses `/dev/ttyUSB0` as an example. Check the actual device name on your system:
 
@@ -371,9 +371,9 @@ The demo was validated on the [ESP32-S3-LCD-EV-Board](https://docs.espressif.com
 
 The link report shows: FLASH 961,204 B, internal SRAM 379,640 B / 399,108 B (95.12%), and 5,152,752 B placed in external PSRAM.
 
-The last figure (approximately 5.2 MB) is easy to misread as the PSRAM capacity or the size of its address window, so it is worth spelling out how these three values relate. The module's physical PSRAM capacity is **16 MB** (`CONFIG_ESP_SPIRAM_SIZE`). The linker script declares `ext_dram_seg` as a **32 MB region** — a DCACHE0 address window it shares with `drom0_0_seg`, which is an address-space limit rather than usable capacity. The **5,152,752 B (≈5.2 MB)** shown in the link report is that region's **Used Size**, the amount actually placed in PSRAM. It includes the 4 MB broker heap specified by `CONFIG_ESP_SPIRAM_HEAP_SIZE`, as well as static pools moved out of internal SRAM, such as the Wi-Fi driver's `.noinit` section, the net_buf pools, and the Zephyr POSIX object pools. In other words, 5.2 MB is neither the PSRAM capacity nor the size of its mapped window.
+The last figure (approximately 5.2 MB) is easy to misread as the PSRAM capacity or the size of its address window. The three values differ: the module's physical PSRAM capacity is **16 MB** (`CONFIG_ESP_SPIRAM_SIZE`). The linker script declares `ext_dram_seg` as a **32 MB region**, a DCACHE0 address window it shares with `drom0_0_seg`, which is an address-space limit rather than usable capacity. The **5,152,752 B (≈5.2 MB)** shown in the link report is that region's **Used Size**, the amount actually placed in PSRAM. It includes the 4 MB broker heap specified by `CONFIG_ESP_SPIRAM_HEAP_SIZE`, as well as static pools moved out of internal SRAM, such as the Wi-Fi driver's `.noinit` section, the net_buf pools, and the Zephyr POSIX object pools. In other words, 5.2 MB is neither the PSRAM capacity nor the size of its mapped window.
 
-**Clock.** The development board has no RTC. After DHCP completes, `main.c` performs a one-shot SNTP sync to seed `CLOCK_REALTIME` — up to two passes over two public SNTP servers, returning as soon as one answers — so the timestamps in the log are real UTC. This step is best-effort: if no server responds, the broker still starts normally, and only the timestamps remain at the Unix epoch (2 seconds per query and 1 second between the two passes, so the worst case adds roughly 9 seconds to startup).
+**Clock.** The development board has no RTC. After DHCP completes, `main.c` performs a one-shot SNTP sync to seed `CLOCK_REALTIME` (up to two passes over two public SNTP servers, returning as soon as one answers), so the timestamps in the log are real UTC. This step is best-effort: if no server responds, the broker still starts normally, and only the timestamps remain at the Unix epoch (2 seconds per query and 1 second between the two passes, so the worst case adds roughly 9 seconds to startup).
 
 ## Build and Run: qemu_x86
 
@@ -402,7 +402,7 @@ The `qemu_x86/atom` shown at the end is the fully qualified board name. `atom` i
 
 ### 2. Run
 
-Starting QEMU in the background and writing the serial console to a file is the recommended approach — it leaves the terminal free for the verification steps that follow:
+Starting QEMU in the background and writing the serial console to a file is the recommended approach, because it leaves the terminal free for the verification steps that follow:
 
 ```sh
 qemu-system-i386 -m 32 -cpu qemu32,+nx,+pae,sse,sse2,pni -machine q35 \
@@ -429,7 +429,7 @@ This picks up the three port forwards from `prj.conf` automatically, **but it at
 qemu-system-i386: ... Could not set up host forwarding rule 'tcp:127.0.0.1:8083-:8083'
 ```
 
-`-t run` is especially prone to leaving such a process behind — stopping it does not necessarily take the QEMU instance it started with it. To clean up, look the PIDs up by port:
+`-t run` is especially prone to leaving such a process behind, since stopping it does not necessarily take the QEMU instance it started with it. To clean up, look the PIDs up by port:
 
 ```sh
 ss -ltnp | grep -E ':(1883|8081|8083)' | grep -oP 'pid=\K[0-9]+' | sort -u | xargs -r kill
@@ -472,7 +472,7 @@ The `prj.conf` configuration therefore increases the arena to 1 MB. As a result,
 
 ## Functional Testing
 
-The repository includes a functional test suite that runs the same set of tests against both demos. Before running the tests, install the required Python dependencies (the runner checks for them and exits with an error if they are missing):
+The repository includes a functional test suite that runs the same set of tests against every demo. Before running the tests, install the required Python dependencies (the runner checks for them and exits with an error if they are missing):
 
 ```sh
 python3 -m pip install paho-mqtt requests
@@ -547,7 +547,7 @@ The runner adjusts its parameters automatically: it first measures the TCP round
 
 ## The Porting Process
 
-NanoMQ's layering already includes a platform adaptation layer (nng's `nni_plat_*`), so most of the porting work is **filling in that layer for Zephyr**. The real hard blockers, on the other hand, are in the application layer: a few places in `nanomq/` call POSIX directly and cannot be worked around. The sections below go layer by layer.
+NanoMQ's layering already includes a platform adaptation layer (nng's `nni_plat_*`), so most of the porting work is **filling in that layer for Zephyr**. The real hard blockers, on the other hand, are in the application layer: a few places in `nanomq/` call POSIX directly and cannot be worked around. The sections below go layer by layer, and they describe the framework-level issues these targets exposed. Board bring-up is a separate class of problem: the ART-Pi port ran into a bootloader that owns the flash the image must live in, and an SDIO radio with three independent faults that all present as "no link"; [its article](./port-to-art-pi.md) is the record.
 
 ### 1. Application Layer: Trimming POSIX Dependencies
 
@@ -560,11 +560,11 @@ The application layer's POSIX dependencies are concentrated in four places, all 
 | `mqtt_api.c` | `nng_access(dir, W_OK)` (writability check of the file-log directory) | Conditional compilation. picolibc has no `W_OK`; the file-log backend is always off on embedded, so skipping the check has no side effect |
 | `process.c` (the whole translation unit) | `fork` / `kill` / `chdir`, `<paths.h>` | Not built; the demo provides `process_stub.c` supplying its public symbols (all returning -1) |
 
-`process_stub.c` can "pretend" like this because the five symbols either have no call sites at all or are only reached from paths that never execute: both calls to `process_daemonize()` are guarded by `daemon == true`, `process_send_signal()` is called only by `check_trace()` on the CLI path, and `process_is_alive()` / `pidgrp_send_signal()` / `process_create_child()` have **no call sites anywhere in the application**. An embedded broker calls `broker()` and `conf_init()` with `daemon` defaulting to false, so none of those paths is reached — **the stub's actual job is simply to let the link succeed**.
+`process_stub.c` can "pretend" like this because the five symbols either have no call sites at all or are only reached from paths that never execute: both calls to `process_daemonize()` are guarded by `daemon == true`, `process_send_signal()` is called only by `check_trace()` on the CLI path, and `process_is_alive()` / `pidgrp_send_signal()` / `process_create_child()` have **no call sites anywhere in the application**. An embedded broker calls `broker()` and `conf_init()` with `daemon` defaulting to false, so none of those paths is reached; **the stub's job is simply to let the link succeed**.
 
 ### 2. Platform Adaptation Layer: Interface Inventory and POSIX Differences
 
-This layer is nng's Zephyr implementation (`src/platform/zephyr/`, 22 files, 18 of them `.c`: 16 implementing the interface families below, plus 2 stubs — `zephyr_peerid.c` and `zephyr_socketpair.c`, corresponding to the two unsupported facilities in the table). It is organized by nng's interface families, each mapped onto a Zephyr facility:
+This layer is nng's Zephyr implementation (`src/platform/zephyr/`, 22 files, 18 of them `.c`: 16 implementing the interface families below, plus 2 stubs, `zephyr_peerid.c` and `zephyr_socketpair.c`, corresponding to the two unsupported facilities in the table). It is organized by nng's interface families, each mapped onto a Zephyr facility:
 
 **Interface inventory**
 
@@ -599,13 +599,13 @@ This layer is nng's Zephyr implementation (`src/platform/zephyr/`, 22 files, 18 
 | 64-bit atomic operations | 32-bit non-x86 targets have no native support | Falls back to "atomics built on an embedded mutex" (Detail 2) |
 | `SO_BINDTODEVICE` | No interface binding | Returns `NNG_ENOTSUP` at the option-setting point, rather than accepting the option and silently using the default interface |
 | `getaddrinfo()` | Present, but synchronous | Synchronous semantics are accepted: resolution happens on the caller's thread, with no worker thread introduced |
-| `pthread_condattr_setclock()` | Depends on `CONFIG_POSIX_CLOCK_SELECTION` | Validated at startup; if the monotonic clock is unavailable, the process terminates — otherwise every timed wait would silently time out immediately |
+| `pthread_condattr_setclock()` | Depends on `CONFIG_POSIX_CLOCK_SELECTION` | Validated at startup; if the monotonic clock is unavailable, the process terminates, since otherwise every timed wait would silently time out immediately |
 
-**Detail 1: Short-transfer semantics of `readv` / `writev`.** Simply "looping until all iovecs are written" is wrong. POSIX `readv` / `writev` return at the **first short transfer** and report the bytes transferred, leaving the caller to resubmit the rest. An emulation that carries on past an iovec creates holes in the byte stream; one that returns -1 after a successful transfer but a subsequent `EAGAIN` makes the caller believe nothing was sent and resend it. The correct approach is to stop at the first short transfer and return the accumulated value — the comment in `posix_sockfd.c` ("we didn't send all the data, the caller will resubmit") is the contract the caller relies on.
+**Detail 1: Short-transfer semantics of `readv` / `writev`.** Simply "looping until all iovecs are written" is wrong. POSIX `readv` / `writev` return at the **first short transfer** and report the bytes transferred, leaving the caller to resubmit the rest. An emulation that carries on past an iovec creates holes in the byte stream; one that returns -1 after a successful transfer but a subsequent `EAGAIN` makes the caller believe nothing was sent and resend it. The correct approach is to stop at the first short transfer and return the accumulated value; the comment in `posix_sockfd.c` ("we didn't send all the data, the caller will resubmit") is the contract the caller relies on.
 
 **Detail 2: Why atomic operations do not use pthread mutexes.** The intuitive approach is to embed a `pthread_mutex_t` in every atomic variable, but Zephyr's `pthread_mutex_init()` **allocates from a fixed pool** (`posix_mutex_pool`, bitmap allocation, returning `ENOMEM` once the pool is exhausted). Of the 26 places where nng initializes an atomic variable, only 5 have a matching `nni_atomic_fini*()` call to hand the slot back (three on the pipe, the message refcount, and the inproc pair); the rest have no corresponding release call. Using the kernel's own `struct k_mutex` avoids the problem: it is embedded, takes nothing from the pool, and needs no release.
 
-**Detail 3: `ENABLE_LOG` must reach both sides.** Whether nanolib's `conf.c` initializes the log backend and whether `log_*()` is compiled into an entity is decided by `-DENABLE_LOG`, and it must be passed to **both** the application and libnng. The reason lies in the build system: nng's CMake only recognizes cache variables of the form `NNG_*`, so plain macros must be routed in through `CMAKE_C_FLAGS`. The consequence of passing it to only one side is silent — the link succeeds and the broker runs, but not a single log line appears (`conf->log.type` is left uninitialized). The same applies to `ACL_SUPP`, where an unsatisfied condition is more dangerous still: mismatched definitions on the two sides misalign the layout of `struct conf`.
+**Detail 3: `ENABLE_LOG` must reach both sides.** Whether nanolib's `conf.c` initializes the log backend and whether `log_*()` is compiled into an entity is decided by `-DENABLE_LOG`, and it must be passed to **both** the application and libnng. The reason lies in the build system: nng's CMake only recognizes cache variables of the form `NNG_*`, so plain macros must be routed in through `CMAKE_C_FLAGS`. The consequence of passing it to only one side is silent: the link succeeds and the broker runs, but not a single log line appears (`conf->log.type` is left uninitialized). The same applies to `ACL_SUPP`, where an unsatisfied condition is more dangerous still: mismatched definitions on the two sides misalign the layout of `struct conf`.
 
 ### 3. Compile-Time Macro Contract
 
@@ -676,11 +676,11 @@ Taken together with the list in [Appendix A](#appendix-a-differences-from-genera
 - TLS, disk persistence, and MQTT-side authentication are not included (all three are marked as planned in the "Future plan" column of Appendix A), so **at this stage it is not suitable as a broker on the public Internet or an untrusted network**; the demos in this article listen on all interfaces by default, and although REST provides Basic authentication, it is unencrypted and its credentials must be configured by you (there are no usable default credentials). See "Security Considerations".
 - There is no filesystem, so cached messages and persistent sessions do not survive a power loss.
 - Concurrency is constrained by the Zephyr thread quota. This article does not publish formal throughput or concurrency benchmarks; the official performance figures cited in Appendix A come from multicore POSIX environments and do not represent the performance of this demo.
-- Apart from `qemu_x86` and ESP32-S3, no other boards have been validated.
+- Apart from `qemu_x86`, the ESP32-S3 and the ART-Pi, no other boards have been validated.
 
 ### Code and Demos
 
-The code is available in the `zephyr-rtos` branch of [nanomq/nanomq](https://github.com/nanomq/nanomq/tree/zephyr-rtos), with both demos under the `demo/` directory. The respective READMEs document the complete bring-up process.
+The code is available in the `zephyr-rtos` branch of [nanomq/nanomq](https://github.com/nanomq/nanomq/tree/zephyr-rtos), with all three demos under the `demo/` directory. The respective READMEs document the complete bring-up process.
 
 If you validate the port on another board or encounter new issues, you are welcome to join the discussion in the [NanoMQ community](https://github.com/nanomq/nanomq/discussions).
 
@@ -705,33 +705,33 @@ This Zephyr port is **not an equivalent replacement for general NanoMQ**. It dif
 | IPC transport | Turned off in the demos (`main.c` sets `ipc_internal = false`; a runtime assignment, not a build option), so the `nanomq ctl` management channel is unavailable | **Pending platform support**: requires named AF_UNIX, while Zephyr currently offers only anonymous `socketpair` |
 | QUIC | Not included (`NNG_ENABLE_QUIC=OFF`). nng's QUIC implementation depends on msquic | **Not planned**: the dependency footprint does not fit an embedded target |
 
-**Thread model.** The Linux version relies on a full POSIX dynamic thread pool. On Zephyr, the number of NanoNNG threads is fixed (taskq = 2 / poller = 1 / expire = 1), and together with the Zephyr POSIX thread pool limit of `CONFIG_POSIX_THREAD_THREADS_MAX=16` — with each pthread's stack fixed at 16 KB by `CONFIG_DYNAMIC_THREAD_STACK_SIZE` — broker concurrency is constrained accordingly.
+**Thread model.** The Linux version relies on a full POSIX dynamic thread pool. On Zephyr, the number of NanoNNG threads is fixed (taskq = 2 / poller = 1 / expire = 1), and with the Zephyr POSIX thread pool limit of `CONFIG_POSIX_THREAD_THREADS_MAX=16` (each pthread's stack fixed at 16 KB by `CONFIG_DYNAMIC_THREAD_STACK_SIZE`), broker concurrency is constrained accordingly.
 
-**Performance data.** The figures published by [NanoMQ](https://nanomq.io/) include: a startup footprint of under 200 KB with a minimal feature set; throughput of up to millions of TPS; and performance up to 10 times faster than Mosquitto on multicore CPUs. It is important to stress the scope of these figures: they come from benchmarks in **multicore POSIX environments**, the official page does not give the hardware and configuration details of the corresponding tests, and they **do not represent the performance of the demos in this article** — the thread quota on the Zephyr side is far smaller than that of a multicore Linux system (see the previous point), so the actual concurrency characteristics differ. No formal performance testing was conducted on the demos in this article.
+**Performance data.** The figures published by [NanoMQ](https://nanomq.io/) include: a startup footprint of under 200 KB with a minimal feature set; throughput of up to millions of TPS; and performance up to 10 times faster than Mosquitto on multicore CPUs. It is important to stress the scope of these figures: they come from benchmarks in **multicore POSIX environments**, the official page does not give the hardware and configuration details of the corresponding tests, and they **do not represent the performance of the demos in this article**: the thread quota on the Zephyr side is far smaller than that of a multicore Linux system (see the previous point), so the actual concurrency characteristics differ. No formal performance testing was conducted on the demos in this article.
 
-**Memory allocation.** The allocator differs by target: `qemu_x86` uses the libc `malloc()`, whose arena is the broker heap (see the qemu section); the ESP32-S3 cannot fit the data plane in internal SRAM, so `NNG_ZEPHYR_ALLOC_SMH` is defined to switch nng's allocation to a `k_heap` on PSRAM (see "The Porting Process → 4. Two Framework-Level Traps").
+**Memory allocation.** The allocator differs by target: `qemu_x86` uses the libc `malloc()`, whose arena is the broker heap (see the qemu section); the ESP32-S3 cannot fit the data plane in internal SRAM, so `NNG_ZEPHYR_ALLOC_SMH` is defined to switch nng's allocation to a `k_heap` on PSRAM (see "The Porting Process → 4. Two Framework-Level Traps"); and the ART-Pi serves the same `k_heap` from its FMC SDRAM, reached through the external-RAM allocator ([the ART-Pi article](./port-to-art-pi.md)).
 
-**Time source.** Both demos use real UTC, but obtain it differently: `qemu_x86` seeds it from the QEMU CMOS RTC, while the ESP32-S3 has no RTC and seeds it through SNTP. Zephyr does not include a timezone database, so displayed time is always UTC.
+**Time source.** All three demos use real UTC, but obtain it differently: `qemu_x86` seeds it from the QEMU CMOS RTC, while both hardware boards have no RTC: the ESP32-S3 seeds it through SNTP, and on the ART-Pi SNTP is optional (`CONFIG_BROKER_SNTP`). Zephyr does not include a timezone database, so displayed time is always UTC.
 
 **Removed module.** The broker's `process.c` depends on `fork` / `kill` / `chdir` and cannot be compiled on Zephyr; it is replaced by a stub in the demo that provides the same symbols. Those symbols are called either from daemon and CLI paths or not at all, so the embedded broker does not reach them (see the corresponding table entry in "The Porting Process → 1. Application Layer").
 
-**Validated platforms.** `qemu_x86` (32-bit) and ESP32-S3. The build system enables the atomic-operation fallback (`NNG_ZEPHYR_NO_STDATOMIC`, see Detail 2 in "The Porting Process → 2. Platform Adaptation Layer") for **every 32-bit non-x86 target** (ARM, RISC-V, Xtensa, and so on) — **the ESP32-S3 is itself using it**, so that path is covered by the hardware validation. What remains unvalidated is the ARM / RISC-V **board** itself (future plans: validating on ARM / RISC-V and other boards, where the network driver, interrupts, and memory budget would all need to be revalidated).
+**Validated platforms.** `qemu_x86` (32-bit), the ESP32-S3 (Xtensa) and the ART-Pi (ARM Cortex-M7). The build system enables the atomic-operation fallback (`NNG_ZEPHYR_NO_STDATOMIC`, see Detail 2 in "The Porting Process → 2. Platform Adaptation Layer") for **every 32-bit non-x86 target** (ARM, RISC-V, Xtensa, and so on); the ESP32-S3 and the ART-Pi are both using it, so that path is covered by hardware validation. What remains unvalidated is any other board: on RISC-V and on other ARM boards the network driver, the interrupts and the memory budget would all need to be revalidated.
 
-## Appendix B: Comparing the Two Demos
+## Appendix B: Comparing the Demos
 
-|  | `demo/nanomq_zephyr_esp32s3` | `demo/nanomq_zephyr_qemu_x86` |
-| --- | --- | --- |
-| **Target platform** | ESP32-S3 hardware | `qemu_x86` |
-| **Hardware requirement** | ESP32-S3 development board | None |
-| **Network** | Wi-Fi STA + DHCP | QEMU SLIRP user-mode networking |
-| **Memory / storage** | 16 MB flash + octal PSRAM (data plane in PSRAM) | 31 MB simulated RAM, no persistent storage |
-| **Additional prerequisite** | Wi-Fi credentials | Zephyr e1000 driver patch |
-| **Typical use** | Real-world evaluation and hardware testing | Quick verification during development |
+|  | `demo/nanomq_zephyr_esp32s3` | `demo/nanomq_zephyr_stm32_art-pi` | `demo/nanomq_zephyr_qemu_x86` |
+| --- | --- | --- | --- |
+| **Target platform** | ESP32-S3 hardware | ART-Pi (STM32H750XBH6) hardware | `qemu_x86` |
+| **Hardware requirement** | ESP32-S3 development board | ART-Pi development board | None |
+| **Network** | Wi-Fi STA + DHCP | Wi-Fi STA + DHCP, on the on-board AP6212 | QEMU SLIRP user-mode networking |
+| **Memory / storage** | 16 MB flash + octal PSRAM (data plane in PSRAM) | 8 MB QSPI flash, executed in place + 32 MB SDRAM (data plane in SDRAM) | 31 MB simulated RAM, no persistent storage |
+| **Additional prerequisite** | Wi-Fi credentials | Wi-Fi credentials, plus the three out-of-tree patches | Zephyr e1000 driver patch |
+| **Typical use** | Real-world evaluation and hardware testing | Real-world evaluation on ARM; a reference for board bring-up | Quick verification during development |
 
-Both demos share the same application source and the same NanoNNG ExternalProject build; they differ only in board support and the network layer.
+The three demos share the same application source and the same NanoNNG ExternalProject build; they differ only in board support and the network layer.
 
 For development, `qemu_x86` is recommended. A complete build-and-run cycle takes only a few seconds, making it significantly faster than flashing and resetting the hardware.
 
-For real-world evaluation and hardware testing, use the ESP32-S3 demo.
+For real-world evaluation both hardware demos work, so the board you have is the board to use. The ESP32-S3 is the longer-established one; the ART-Pi shows the same port on an ARM Cortex-M7 with a different flash layout, a different radio path, and its own set of bring-up traps, so [its article](./port-to-art-pi.md) is the place to start with it.
 
-The complete build and run procedures for both demos are provided in the corresponding sections of this article.
+The complete build and run procedures are provided in the corresponding sections of this article, and for the ART-Pi also in [its own article](./port-to-art-pi.md).

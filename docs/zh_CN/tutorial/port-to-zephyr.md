@@ -2,11 +2,11 @@
 
 ## 引言
 
-MQTT 与 Zephyr 的组合通常出现在客户端侧：Zephyr 设备作为 MQTT 客户端，连接到远端 broker。本文讨论的是另一个方向——**将 broker 本身运行在 MCU 上**。
+MQTT 与 Zephyr 的组合通常出现在客户端侧：Zephyr 设备作为 MQTT 客户端，连接到远端 broker。本文讨论的是另一个方向：**将 broker 本身运行在 MCU 上**。
 
 这一需求来自边缘侧的典型场景：现场数十个设备使用 Modbus、串口或私有协议，需要统一收敛为 MQTT；或者现场网络不稳定，数据需要先在本地缓存，待链路恢复后再上传。常规方案是在设备旁部署一台 Linux 网关，但其供电、维护与防护成本往往不划算。若 broker 能直接运行在既有的 MCU 上，这一层即可省去。
 
-[NanoMQ](https://nanomq.io/) 是 EMQX 旗下的开源边缘 MQTT Broker，原本面向 Linux 等 POSIX 环境。本文所述的移植将 broker 核心运行于 Zephyr RTOS：应用层仍是同一份 `nanomq/` 源码加上 NanoNNG 的 MQTT 协议栈，未做裁剪；外围能力则依 Zephyr 平台的实际条件禁用或尚未验证——完整的边界清单见[附录 A](#附录-a与通用版-nanomq-的差异)。仓库包含两个 demo，分别运行于 ESP32-S3 实机与 `qemu_x86` 模拟环境，两者的对比与选择见[附录 B](#附录-b两个-demo-的对比)。
+[NanoMQ](https://nanomq.io/) 是 EMQX 旗下的开源边缘 MQTT Broker，原本面向 Linux 等 POSIX 环境。本文所述的移植将 broker 核心运行于 Zephyr RTOS：应用层仍是同一份 `nanomq/` 源码加上 NanoNNG 的 MQTT 协议栈，未做裁剪；外围能力则依 Zephyr 平台的实际条件禁用或尚未验证，完整的边界清单见[附录 A](#附录-a与通用版-nanomq-的差异)。仓库包含三个 demo：ESP32-S3 实机、ART-Pi（一块带板载 Wi-Fi 模块的 ARM Cortex-M7 板子）实机，以及 `qemu_x86` 模拟环境；三者的对比与选择见[附录 B](#附录-b三个-demo-的对比)。ART-Pi 的移植另有一篇专文：[《NanoMQ 移植到 Zephyr RTOS：把 broker 搬到 ART-Pi（STM32H750）》](./port-to-art-pi.md)。
 
 ## Zephyr 简介
 
@@ -27,7 +27,7 @@ Zephyr 是由 Linux Foundation 托管的开源实时操作系统（RTOS），面
 
 NanoMQ 采用分层设计，自下而上为：
 
-- **平台适配层**：探测硬件与操作系统，向上提供兼容 API，避免绑定特定平台——这也是本次移植能够仅通过新增一个平台适配层来完成的基础。
+- **平台适配层**：探测硬件与操作系统，向上提供兼容 API，避免绑定特定平台。本次移植只新增一个平台适配层就完成了，靠的就是这一层。
 - **任务层**：内置 Actor 模型与线程级并行，可在 SMP 系统上横向扩展。
 - **传输层**：按 pipe / client 管理 TCP、UDP 流，采用 zero-copy 降低内存占用。
 - **协议层**：将字节流解析为 MQTT 报文，生成事件并维护 in-flight 窗口。
@@ -107,9 +107,9 @@ export ZEPHYR_SDK_INSTALL_DIR=$HOME/zephyr-sdk-1.0.1
 export ZEPHYR_TOOLCHAIN_VARIANT=zephyr
 ```
 
-**这样做时它会代替上一节的 Zephyr venv**：ESP-IDF 的 python 环境里自带一份 `west`（以及 `python3`），两者激活其一即可——后激活的那个生效。要构建 ESP32 目标就用这一套；只构建 `qemu_x86` 则用上一节的 Zephyr venv，不必安装 ESP-IDF。
+**这样做时它会代替上一节的 Zephyr venv**：ESP-IDF 的 python 环境里自带一份 `west`（以及 `python3`），两者激活其一即可，后激活的那个生效。要构建 ESP32 目标就用这一套；只构建 `qemu_x86` 则用上一节的 Zephyr venv，不必安装 ESP-IDF。
 
-激活 ESP-IDF 与编译器来源无关：它只是把 `west`、`esptool`（`west flash` 的 esp32 runner 会调用）和 `idf-monitor` 放进 `PATH`；真正决定编译器的是 `ZEPHYR_SDK_INSTALL_DIR` 与 `ZEPHYR_TOOLCHAIN_VARIANT=zephyr`——后者指向 Zephyr SDK 中与本目标匹配的那套 xtensa 工具链。**不要**设为 `espressif`：该变体已被当前 Zephyr 移除，会让 CMake 去源码树里找不存在的文件。`ZEPHYR_TOOLCHAIN_VARIANT` 也可以不设（Zephyr 会自行定位 Zephyr SDK），显式写出更不容易出错。
+激活 ESP-IDF 与编译器来源无关：它只是把 `west`、`esptool`（`west flash` 的 esp32 runner 会调用）和 `idf-monitor` 放进 `PATH`；真正决定编译器的是 `ZEPHYR_SDK_INSTALL_DIR` 与 `ZEPHYR_TOOLCHAIN_VARIANT=zephyr`，后者指向 Zephyr SDK 中与本目标匹配的那套 xtensa 工具链。**不要**设为 `espressif`：该变体已被当前 Zephyr 移除，会让 CMake 去源码树里找不存在的文件。`ZEPHYR_TOOLCHAIN_VARIANT` 也可以不设（Zephyr 会自行定位 Zephyr SDK），显式写出更不容易出错。
 
 **3. 拉取 Espressif HAL blobs**（在 workspace 内执行一次）：
 
@@ -118,7 +118,7 @@ cd ~/zephyrproject
 west blobs fetch hal_espressif
 ```
 
-**这一步不能跳过**：若未拉取，`CONFIG_WIFI_ESP32` 会静默变为不可见——构建照常成功、固件照常启动，只是没有 Wi-Fi，且构建系统不会给出任何警告。表现为串口上始终等不到 `wifi: connected`。
+**这一步不能跳过**：若未拉取，`CONFIG_WIFI_ESP32` 会静默变为不可见：构建照常成功、固件照常启动，只是没有 Wi-Fi，且构建系统不会给出任何警告。表现为串口上始终等不到 `wifi: connected`。
 
 更详细的发行版相关步骤（系统依赖、SDK 安装、权限与常见报错）见 [setup-fedora-zh.md（中文）](https://github.com/nanomq/nanomq/blob/zephyr-rtos/demo/nanomq_zephyr_esp32s3/setup-fedora-zh.md) 或 [setup-fedora-en.md（English）](https://github.com/nanomq/nanomq/blob/zephyr-rtos/demo/nanomq_zephyr_esp32s3/setup-fedora-en.md)（以 Fedora 为例，其他发行版替换包管理器即可）。
 
@@ -142,7 +142,7 @@ git submodule update --init --recursive
 
 使用 `qemu_x86` demo 需要为 Zephyr 打一个两行补丁。**该补丁为必需项**：未打补丁时 broker 会正常启动并输出 `NanoMQ Broker is started successfully!`，但任何客户端都无法建立连接。
 
-原因是 QEMU 的 e1000 设备模型在复位后会清空 RCTL 寄存器，其中包括 **RCTL_BAM**（Broadcast Accept Mode，bit 15）——真实硬件默认置位，而设备模型不置位。Zephyr 的 `eth_e1000` 驱动只写入 `RCTL_EN | RCTL_MPE`，从不设置 BAM，导致**所有广播帧被设备模型静默丢弃**，ARP 无法完成解析，SLIRP 也就无法递交第一个 TCP 连接。上游 Zephyr 截至 4.4（`11a87708d41`）仍存在该问题。
+原因是 QEMU 的 e1000 设备模型在复位后会清空 RCTL 寄存器，其中包括 **RCTL_BAM**（Broadcast Accept Mode，bit 15）；真实硬件默认置位，而设备模型不置位。Zephyr 的 `eth_e1000` 驱动只写入 `RCTL_EN | RCTL_MPE`，从不设置 BAM，导致**所有广播帧被设备模型静默丢弃**，ARP 无法完成解析，SLIRP 也就无法递交第一个 TCP 连接。上游 Zephyr 截至 4.4（`11a87708d41`）仍存在该问题。
 
 补丁打在 **Zephyr 自身的源码树**（workspace 下的 `zephyr/` 目录，不是本仓库）。将下面的 diff 存为 `zephyr-e1000-bam.patch` 后应用：
 
@@ -177,13 +177,13 @@ diff --git a/drivers/ethernet/eth_e1000_priv.h b/drivers/ethernet/eth_e1000_priv
  #define TDESC_RS	(1 << 3) /* Report Status */
 ```
 
-注意 `RCTL_MPE` 是 **Multicast** Promiscuous Enabled（bit 4），只影响组播，与广播接收无关——驱动已有的这一位不能替代 BAM，这正是该问题长期未被发现的原因。
+注意 `RCTL_MPE` 是 **Multicast** Promiscuous Enabled（bit 4），只影响组播，与广播接收无关；驱动已有的这一位不能替代 BAM，这正是该问题长期未被发现的原因。
 
 该补丁仅影响 qemu 的模拟网卡，ESP32-S3 实机 demo 无需应用。
 
 ### 端口与服务
 
-两个 demo 在本文验证的配置下对外提供的 MQTT / REST / WebSocket 端口一致（qemu 一侧的实际可达性取决于端口转发，见下节）：
+三个 demo 在本文验证的配置下对外提供的 MQTT / REST / WebSocket 端口一致（qemu 一侧的实际可达性取决于端口转发，见下节）：
 
 | 服务 | 端口 | ESP32-S3 | qemu_x86 | 认证 / 加密 |
 |---|---:|---|---|---|
@@ -191,22 +191,22 @@ diff --git a/drivers/ethernet/eth_e1000_priv.h b/drivers/ethernet/eth_e1000_priv
 | REST API | 8081 | 支持 | 支持 | Basic 认证，凭据须自行配置（没有可用的默认凭据），无 TLS |
 | MQTT over WebSocket | 8083 | 支持 | 支持 | 无认证，无 TLS（路径 `/mqtt`） |
 
-其中 REST 监听由 Kconfig `CONFIG_BROKER_REST_API` 打开：`main.c` 据此设置 `http_server.enable` 与 `auth_type`，而 `conf_init` 的默认值是关闭。**但光有这个开关还不够**——`CONFIG_BROKER_REST_USER` / `CONFIG_BROKER_REST_PASS` 的 Kconfig 默认值是空串，也就是没有可用的默认凭据，而上游已公开的 `admin` / `public` 也会被拒绝：两者都设成自有凭据后 8081 才会监听，否则 broker 启动时打印一行说明并保持关闭。若自行裁剪掉这个开关，8081 上同样不会有任何监听，客户端会收到 RST，这是预期结果而非故障。
+其中 REST 监听由 Kconfig `CONFIG_BROKER_REST_API` 打开：`main.c` 据此设置 `http_server.enable` 与 `auth_type`，而 `conf_init` 的默认值是关闭。**但光有这个开关还不够**：`CONFIG_BROKER_REST_USER` / `CONFIG_BROKER_REST_PASS` 的 Kconfig 默认值是空串，也就是没有可用的默认凭据，而上游已公开的 `admin` / `public` 也会被拒绝：两者都设成自有凭据后 8081 才会监听，否则 broker 启动时打印一行说明并保持关闭。若自行裁剪掉这个开关，8081 上同样不会有任何监听，客户端会收到 RST，这是预期结果而非故障。
 
 ### 安全前提
 
-两个 demo 的默认配置都以**受控实验环境**为前提，直接照搬会带来风险：
+三个 demo 的默认配置都以**受控实验环境**为前提，直接照搬会带来风险：
 
 | 项 | 现状 |
 |---|---|
 | 监听地址 | MQTT `nmq-tcp://0.0.0.0:1883`、WebSocket `nmq-ws://0.0.0.0:8083/mqtt`、REST `0.0.0.0:8081`，**均监听所有网卡** |
-| REST 认证 | Basic 认证；凭据由 Kconfig `CONFIG_BROKER_REST_USER` / `_PASS` 提供，两者**默认为空串（没有可用的默认凭据）**——未配置、或仍用上游公开的 `admin` / `public` 时，8081 上不会启动监听 |
+| REST 认证 | Basic 认证；凭据由 Kconfig `CONFIG_BROKER_REST_USER` / `_PASS` 提供，两者**默认为空串（没有可用的默认凭据）**；未配置、或仍用上游公开的 `admin` / `public` 时，8081 上不会启动监听 |
 | MQTT 认证 | 未启用，任何客户端均可连接、发布与订阅 |
 | 传输加密 | 无。TLS 在 NanoNNG 的 Zephyr 移植中未启用，MQTT / WebSocket / REST 均为明文 |
 
 需要特别说明：**Basic 认证在明文 HTTP 上只是 Base64 编码，不是加密。** 凭据可被同一链路上的嗅探者还原，因此它挡得住无意访问，挡不住有意攻击。真正的访问控制仍然依赖网络边界。
 
-因此在实验网络之外使用前，至少需要：将监听地址收窄到特定网卡、为 REST 设置自有凭据（公开的 `admin` / `public` 现已被拒绝）、并把管理接口置于可信网络之后或额外的 TLS 代理之后。至于 MQTT 认证：若本移植的认证路径已被验证即可直接启用，否则应在链路层或 TLS 代理上实施访问控制——**不要假设通用版 NanoMQ 的认证配置能直接套用到本 demo 的内嵌 conf 上**（配置来源的差异见[附录 A](#附录-a与通用版-nanomq-的差异)）。**不要将 demo 的默认配置直接暴露到公网或不可信网络。**
+因此在实验网络之外使用前，至少需要：将监听地址收窄到特定网卡、为 REST 设置自有凭据（公开的 `admin` / `public` 现已被拒绝）、并把管理接口置于可信网络之后或额外的 TLS 代理之后。至于 MQTT 认证：若本移植的认证路径已被验证即可直接启用，否则应在链路层或 TLS 代理上实施访问控制。**不要假设通用版 NanoMQ 的认证配置能直接套用到本 demo 的内嵌 conf 上**（配置来源的差异见[附录 A](#附录-a与通用版-nanomq-的差异)）。**不要将 demo 的默认配置直接暴露到公网或不可信网络。**
 
 ## 编译与运行：ESP32-S3 实机
 
@@ -254,14 +254,14 @@ Memory region         Used Size  Region Size  %age Used
 Successfully created ESP32-S3 image.
 ```
 
-看点有两个：`dram0_0_seg`（内部 SRAM）已用 **95.12%**——这是最紧张的一块，也是为什么要把 broker 堆与静态池挪进 PSRAM；`ext_dram_seg` 一行的 5152752 B（≈5.2 MB）是**已放进外部 PSRAM 的量**，占该 region 的 15.36%——它与「region 大小 32 MB」「模组容量 16 MB」三者的关系见「关于开发板」一节。
+看点有两个：`dram0_0_seg`（内部 SRAM）已用 **95.12%**，这是最紧张的一块，也是为什么要把 broker 堆与静态池挪进 PSRAM；`ext_dram_seg` 一行的 5152752 B（≈5.2 MB）是**已放进外部 PSRAM 的量**，占该 region 的 15.36%。它与「region 大小 32 MB」「模组容量 16 MB」三者的关系见「关于开发板」一节。
 
 ### 3. 烧录
 
 开发板通过 USB 连接主机后，会在系统中枚举出一个串口设备，设备名取决于是走板载 USB-UART 桥接芯片还是 USB-JTAG/Serial：
 
-- `/dev/ttyUSB*` —— 独立桥接芯片（常见 CP2102、CH34x）；
-- `/dev/ttyACM*` —— 芯片原生 USB CDC（ESP32-S3 的 USB-JTAG/Serial 即属此类）。
+- `/dev/ttyUSB*`：独立桥接芯片（常见 CP2102、CH34x）；
+- `/dev/ttyACM*`：芯片原生 USB CDC（ESP32-S3 的 USB-JTAG/Serial 即属此类）。
 
 本文示例使用 `/dev/ttyUSB0`，实际设备名以下列命令为准：
 
@@ -278,7 +278,7 @@ ls -l /dev/ttyUSB0                 # 第 4 列就是属组
 sudo usermod -aG <group> "$USER"
 ```
 
-Debian/Ubuntu 与 Fedora 上这个组通常是 `dialout`（Arch 为 `uucp`）——以 `ls -l` 的结果为准，不要照搬。
+Debian/Ubuntu 与 Fedora 上这个组通常是 `dialout`（Arch 为 `uucp`），以 `ls -l` 的结果为准，不要照搬。
 
 确认后执行烧录（将 `/dev/ttyUSB0` 替换为实际设备名）：
 
@@ -321,7 +321,7 @@ NanoMQ Broker is started successfully!
 
 ### 5. 验证连接
 
-确认 broker 就绪后，从同一网段的主机发起验证。REST 接口（凭据即 `local.conf` 里设的那对；没设的话 8081 上不会有监听，curl 直接连接失败——那是预期）：
+确认 broker 就绪后，从同一网段的主机发起验证。REST 接口（凭据即 `local.conf` 里设的那对；没设的话 8081 上不会有监听，curl 直接连接失败，那是预期）：
 
 ```sh
 curl -u <rest-user>:<rest-pass> http://<board-ip>:8081/api/v4/brokers/
@@ -343,13 +343,13 @@ mosquitto_pub -h <board-ip> -t 'test/hello' -m 'hello from mosquitto' -q 1
 
 ### 关于开发板
 
-本 demo 在 [ESP32-S3-LCD-EV-Board](https://docs.espressif.com/projects/esp-dev-kits/zh_CN/latest/esp32s3/esp32-s3-lcd-ev-board/user_guide.html#esp32-s3-lcd-ev-board-v1-5) 上验证，使用 ESP32-S3-WROOM-1-**N16R16V** 模组（16 MB flash + 16 MB **八线** PSRAM）。板级配置使用 SoC 相同的 `esp32s3_devkitc/esp32s3/procpu`，模组差异由两处表达：`boards/esp32s3_devkitc_procpu.overlay`（flash 与 PSRAM 容量）和 `prj.conf` 的 `CONFIG_SPIRAM_MODE_OCT`（八线模式）。**若所用模组不是 N16R16V，这两处都要改**——八线与四线 PSRAM 并非修改参数即可互换：四线模组还需把 `CONFIG_SPIRAM_MODE_OCT` 换成 `CONFIG_SPIRAM_MODE_QUAD`。
+本 demo 在 [ESP32-S3-LCD-EV-Board](https://docs.espressif.com/projects/esp-dev-kits/zh_CN/latest/esp32s3/esp32-s3-lcd-ev-board/user_guide.html#esp32-s3-lcd-ev-board-v1-5) 上验证，使用 ESP32-S3-WROOM-1-**N16R16V** 模组（16 MB flash + 16 MB **八线** PSRAM）。板级配置使用 SoC 相同的 `esp32s3_devkitc/esp32s3/procpu`，模组差异由两处表达：`boards/esp32s3_devkitc_procpu.overlay`（flash 与 PSRAM 容量）和 `prj.conf` 的 `CONFIG_SPIRAM_MODE_OCT`（八线模式）。**若所用模组不是 N16R16V，这两处都要改**：八线与四线 PSRAM 不能只改参数就互换，四线模组还需把 `CONFIG_SPIRAM_MODE_OCT` 换成 `CONFIG_SPIRAM_MODE_QUAD`。
 
 资源占用（链接报告）：FLASH 961204 B，内部 SRAM 379640 B / 399108 B（95.12%），放进外部 PSRAM 的部分 5152752 B。
 
-这里的最后一个数字（约 5.2 MB）容易被误读成 PSRAM 的容量或窗口大小，把三者的关系说清：模组的 PSRAM 物理容量是 **16 MB**（`CONFIG_ESP_SPIRAM_SIZE`）；链接脚本给 `ext_dram_seg` 声明的 region 是 **32 MB**，那是它与 `drom0_0_seg` 共享的 DCACHE0 地址窗口，属于地址空间上限而非可用容量；而链接报告里的 **5152752 B（约 5.2 MB）是这个 region 的 `Used Size`**，即真正放进 PSRAM 的量——包含 `CONFIG_ESP_SPIRAM_HEAP_SIZE` 指定的 4 MB broker 堆，以及从内部 SRAM 迁出的静态池（Wi-Fi 驱动 `.noinit`、net_buf 池、Zephyr POSIX 对象池等）。换言之，5.2 MB 既不是 PSRAM 的容量，也不是它的映射窗口大小。
+这里的最后一个数字（约 5.2 MB）容易被误读成 PSRAM 的容量或窗口大小，把三者的关系说清：模组的 PSRAM 物理容量是 **16 MB**（`CONFIG_ESP_SPIRAM_SIZE`）；链接脚本给 `ext_dram_seg` 声明的 region 是 **32 MB**，那是它与 `drom0_0_seg` 共享的 DCACHE0 地址窗口，属于地址空间上限而非可用容量；而链接报告里的 **5152752 B（约 5.2 MB）是这个 region 的 `Used Size`**，即真正放进 PSRAM 的量，包含 `CONFIG_ESP_SPIRAM_HEAP_SIZE` 指定的 4 MB broker 堆，以及从内部 SRAM 迁出的静态池（Wi-Fi 驱动 `.noinit`、net_buf 池、Zephyr POSIX 对象池等）。换言之，5.2 MB 既不是 PSRAM 的容量，也不是它的映射窗口大小。
 
-关于时钟：开发板无 RTC，因此 DHCP 绑定完成后 `main.c` 会做一次播种式对时——依次尝试 2 台公共 SNTP 服务器、最多 2 轮，命中即返回——以播种 `CLOCK_REALTIME`，日志时间戳由此为真实 UTC。该步骤是尽力而为的：若无服务器应答，broker 仍会正常启动，仅时间戳停留在 1970 纪元（每次查询超时 2 秒、两轮之间间隔 1 秒，最坏情况会额外增加约 9 秒启动延迟）。
+关于时钟：开发板无 RTC，因此 DHCP 绑定完成后 `main.c` 会做一次播种式对时（依次尝试 2 台公共 SNTP 服务器、最多 2 轮，命中即返回），以播种 `CLOCK_REALTIME`，日志时间戳由此为真实 UTC。该步骤是尽力而为的：若无服务器应答，broker 仍会正常启动，仅时间戳停留在 1970 纪元（每次查询超时 2 秒、两轮之间间隔 1 秒，最坏情况会额外增加约 9 秒启动延迟）。
 
 ## 编译与运行：qemu_x86
 
@@ -374,11 +374,11 @@ Generating files from build/nanomq_zephyr_qemu_x86/zephyr/zephyr.elf for board: 
 
 （该数字对代码布局敏感：改动几十字节的代码就可能让某个段跨过页边界，报告值随之整页平移 4 KB，这属于对齐填充而非真实增长。）
 
-末尾的 `qemu_x86/atom` 是该 board 的完整限定名——`atom` 是 qemu_x86 的 SoC 限定符（与 ESP32 侧的 `esp32s3_devkitc/esp32s3/procpu` 同一个机制），并不表示 `-b qemu_x86` 选错了板子。
+末尾的 `qemu_x86/atom` 是该 board 的完整限定名：`atom` 是 qemu_x86 的 SoC 限定符（与 ESP32 侧的 `esp32s3_devkitc/esp32s3/procpu` 同一个机制），并不表示 `-b qemu_x86` 选错了板子。
 
 ### 2. 运行
 
-以后台方式启动，串口写入文件（推荐——终端要留给后面的验证步骤）：
+以后台方式启动，串口写入文件（推荐，终端要留给后面的验证步骤）：
 
 ```sh
 qemu-system-i386 -m 32 -cpu qemu32,+nx,+pae,sse,sse2,pni -machine q35 \
@@ -405,7 +405,7 @@ west build -d build/nanomq_zephyr_qemu_x86 -t run
 qemu-system-i386: ... Could not set up host forwarding rule 'tcp:127.0.0.1:8083-:8083'
 ```
 
-`-t run` 尤其容易留下这样的进程——停掉它未必会带走它启动的 qemu。清理时按端口反查 PID：
+`-t run` 尤其容易留下这样的进程：停掉它未必会带走它启动的 qemu。清理时按端口反查 PID：
 
 ```sh
 ss -ltnp | grep -E ':(1883|8081|8083)' | grep -oP 'pid=\K[0-9]+' | sort -u | xargs -r kill
@@ -446,7 +446,7 @@ curl -u <rest-user>:<rest-pass> http://127.0.0.1:8081/api/v4/brokers/
 
 ## 运行功能测试
 
-仓库提供了一套功能测试，覆盖两个 demo 的同一批用例。运行前需要以下依赖（runner 会检查，缺失时直接报错退出）：
+仓库提供了一套功能测试，覆盖所有 demo 的同一批用例。运行前需要以下依赖（runner 会检查，缺失时直接报错退出）：
 
 ```sh
 python3 -m pip install paho-mqtt requests
@@ -473,7 +473,7 @@ python3 demo/nanomq_zephyr_qemu_x86/function_test.py --no-manage --addr <board-i
     --group mqtt_v311 --group rest_get
 ```
 
-以下为针对 ESP32-S3 实机的实际运行输出——用 `--group` 逐项挂上下表中的 8 个组；为便于阅读，省略了路径前缀：
+以下为针对 ESP32-S3 实机的实际运行输出，用 `--group` 逐项挂上下表中的 8 个组；为便于阅读，省略了路径前缀：
 
 ```
 ========================================================================
@@ -521,7 +521,7 @@ runner 会自动调整参数：它先测量到 broker 的 TCP 往返时延（本
 
 ## 移植过程
 
-NanoMQ 的分层里本来就有一层平台适配层（nng 的 `nni_plat_*`），所以移植的大头是**把这层在 Zephyr 上补齐**；真正的硬阻断反而在应用层——`nanomq/` 里有几处直接调用 POSIX，绕不过去。以下按层说明。
+NanoMQ 的分层里本来就有一层平台适配层（nng 的 `nni_plat_*`），所以移植的大头是**把这层在 Zephyr 上补齐**；真正的硬阻断反而在应用层，`nanomq/` 里有几处直接调用 POSIX，绕不过去。以下按层说明，讲的是这些目标暴露出来的框架层问题。板级 bring-up 是另一类问题：ART-Pi 的移植撞上了一个占着镜像落脚 flash 的 bootloader，以及一颗三个互不相干的故障都表现为"没有链路"的 SDIO 射频芯片，记录见[它的专文](./port-to-art-pi.md)。
 
 ### 一、应用层：POSIX 依赖裁剪
 
@@ -534,11 +534,11 @@ NanoMQ 的分层里本来就有一层平台适配层（nng 的 `nni_plat_*`）�
 | `mqtt_api.c` | `nng_access(dir, W_OK)`（文件日志目录可写性检查） | 条件编译。picolibc 没有 `W_OK`；文件日志后端在嵌入式上恒关，跳过检查无副作用 |
 | `process.c`（整个编译单元） | `fork` / `kill` / `chdir`、`<paths.h>` | 不参与构建；demo 提供 `process_stub.c` 补齐其公开符号（一律返回 -1） |
 
-`process_stub.c` 能这样"假装"，是因为这五个符号要么没有调用点，要么其调用点都在不执行的路径上：`process_daemonize()` 的两处调用都先判 `daemon == true`，`process_send_signal()` 只被 CLI 路径上的 `check_trace()` 调用，而 `process_is_alive()` / `pidgrp_send_signal()` / `process_create_child()` 在整个应用里**根本没有调用点**。嵌入式 broker 直接调用 `broker()`、`conf_init()` 的 `daemon` 默认为 false，上述路径永不触达——**stub 的实际作用只是让链接通过**。
+`process_stub.c` 能这样"假装"，是因为这五个符号要么没有调用点，要么其调用点都在不执行的路径上：`process_daemonize()` 的两处调用都先判 `daemon == true`，`process_send_signal()` 只被 CLI 路径上的 `check_trace()` 调用，而 `process_is_alive()` / `pidgrp_send_signal()` / `process_create_child()` 在整个应用里**根本没有调用点**。嵌入式 broker 直接调用 `broker()`、`conf_init()` 的 `daemon` 默认为 false，上述路径永不触达；**stub 的作用只是让链接通过**。
 
 ### 二、平台适配层：接口清单与 POSIX 差异
 
-这一层是 nng 的 Zephyr 实现（`src/platform/zephyr/`，22 个文件，其中 18 个 `.c`：16 个实现下面的接口族，另 2 个是 stub——`zephyr_peerid.c` 与 `zephyr_socketpair.c`，对应下表里那两行不支持的设施）。它按 nng 的接口族划分，每个族落在 Zephyr 的一项设施上：
+这一层是 nng 的 Zephyr 实现（`src/platform/zephyr/`，22 个文件，其中 18 个 `.c`：16 个实现下面的接口族，另 2 个是 stub，即 `zephyr_peerid.c` 与 `zephyr_socketpair.c`，对应下表里那两行不支持的设施）。它按 nng 的接口族划分，每个族落在 Zephyr 的一项设施上：
 
 **接口清单**
 
@@ -573,13 +573,13 @@ NanoMQ 的分层里本来就有一层平台适配层（nng 的 `nni_plat_*`）�
 | 64 位原子操作 | 32 位非 x86 目标没有原生支持 | 回退为"内嵌互斥量上做原子"（展开②） |
 | `SO_BINDTODEVICE` | 无接口绑定 | 在选项设置点直接返回 `NNG_ENOTSUP`，而不是接受后静默走默认接口 |
 | `getaddrinfo()` | 有，但是同步的 | 接受同步语义：解析在调用者线程上完成，不引入 worker 线程 |
-| `pthread_condattr_setclock()` | 依赖 `CONFIG_POSIX_CLOCK_SELECTION` | 启动时校验；取不到单调时钟即终止——否则所有定时等待会静默地立即超时 |
+| `pthread_condattr_setclock()` | 依赖 `CONFIG_POSIX_CLOCK_SELECTION` | 启动时校验；取不到单调时钟即终止，否则所有定时等待会静默地立即超时 |
 
-**展开①：`readv` / `writev` 的短传输语义。** 直接"循环把所有 iovec 写完"是错的。POSIX 的 `readv` / `writev` 在**第一次短传输**处就返回，并报告已传字节数，余下部分由调用方重新提交。模拟实现若跨过 iovec 继续写，就会在字节流里制造空洞；若在一次成功之后又遇到 `EAGAIN` 却返回 -1，调用方会认为这段根本没发出去而重发。正确做法是首个短传输即停、返回累计值——`posix_sockfd.c` 里那句注释（"we didn't send all the data, the caller will resubmit"）就是调用方对它的契约。
+**展开①：`readv` / `writev` 的短传输语义。** 直接"循环把所有 iovec 写完"是错的。POSIX 的 `readv` / `writev` 在**第一次短传输**处就返回，并报告已传字节数，余下部分由调用方重新提交。模拟实现若跨过 iovec 继续写，就会在字节流里制造空洞；若在一次成功之后又遇到 `EAGAIN` 却返回 -1，调用方会认为这段根本没发出去而重发。正确做法是首个短传输即停、返回累计值；`posix_sockfd.c` 里那句注释（"we didn't send all the data, the caller will resubmit"）就是调用方对它的契约。
 
 **展开②：原子操作为什么不用 pthread 互斥量。** 直觉做法是给每个原子变量内嵌一个 `pthread_mutex_t`，但 Zephyr 的 `pthread_mutex_init()` 是**从固定池里分配**的（`posix_mutex_pool`，位图分配，池耗尽时返回 `ENOMEM`）。而 nng 有 26 处原子变量初始化，其中只有 5 处配了 `nni_atomic_fini*()` 归还（pipe 的 3 个、消息的 refcnt、inproc 的 pair），其余都没有对应的归还调用。改用内核自带的 `struct k_mutex` 没有这个问题：内嵌、不占池、也无需释放。
 
-**展开③：`ENABLE_LOG` 必须同时到达两侧。** nanolib 的 `conf.c` 是否初始化日志后端、`log_*()` 是否编出实体，由 `-DENABLE_LOG` 决定，而它必须**同时**传给应用与 libnng。原因在构建系统：nng 的 CMake 只认 `NNG_*` 形式的缓存变量，普通宏必须经 `CMAKE_C_FLAGS` 送进去。只给一侧的后果是静默的——链接照过、broker 照跑，只是一行日志都没有（`conf->log.type` 未初始化）。`ACL_SUPP` 同理，且不满足时的表现更危险：两侧定义不一致会让 `struct conf` 的布局错位。
+**展开③：`ENABLE_LOG` 必须同时到达两侧。** nanolib 的 `conf.c` 是否初始化日志后端、`log_*()` 是否编出实体，由 `-DENABLE_LOG` 决定，而它必须**同时**传给应用与 libnng。原因在构建系统：nng 的 CMake 只认 `NNG_*` 形式的缓存变量，普通宏必须经 `CMAKE_C_FLAGS` 送进去。只给一侧的后果是静默的：链接照过、broker 照跑，只是一行日志都没有（`conf->log.type` 未初始化）。`ACL_SUPP` 同理，且不满足时的表现更危险：两侧定义不一致会让 `struct conf` 的布局错位。
 
 ### 三、编译期宏契约
 
@@ -596,7 +596,7 @@ NanoMQ 的分层里本来就有一层平台适配层（nng 的 `nni_plat_*`）�
 
 #### 一、PSRAM 堆在首个客户端连接时损坏
 
-ESP32-S3 的内部 SRAM 约 512 KB（可用 416 KB），而 broker 的数据面需要数 MB，因此必须使用 PSRAM。Zephyr 提供了 `shared_multi_heap` 用于管理此类多堆区域，看似正合适——**但它不是线程安全的**，底层是未加锁的裸 `sys_heap`。
+ESP32-S3 的内部 SRAM 约 512 KB（可用 416 KB），而 broker 的数据面需要数 MB，因此必须使用 PSRAM。Zephyr 提供了 `shared_multi_heap` 用于管理此类多堆区域，看似正合适，**但它不是线程安全的**：底层是未加锁的裸 `sys_heap`。
 
 而 nng 会从多个线程分配内存：poller、taskq worker，以及每条连接自身的 aio。结果是**第一个客户端连接建立时堆即损坏**。
 
@@ -648,11 +648,11 @@ net_mgmt_add_event_callback(&dhcp_cb);
 - 不含 TLS、磁盘持久化与 MQTT 侧认证（这三项在附录 A 的「后续计划」列中标注为会补），**现阶段不适合直接作为公网或不可信网络中的 broker**；本文 demo 的默认配置监听全网卡，REST 虽提供 Basic 认证但无加密、且必须自行配置凭据（没有可用的默认凭据），见「安全前提」。
 - 无文件系统，断电后缓存消息与持久会话不会保留。
 - 并发能力受 Zephyr 线程配额约束；本文未将吞吐与并发作为正式 benchmark 发布，附录 A 中列出的官方性能数据出自多核 POSIX 环境，不代表本 demo 的表现。
-- 除 `qemu_x86` 与 ESP32-S3 外，其他板卡均未验证。
+- 除 `qemu_x86`、ESP32-S3 与 ART-Pi 外，其他板卡均未验证。
 
 ### 代码与 Demo
 
-代码位于 [nanomq/nanomq](https://github.com/nanomq/nanomq) 的 `zephyr-rtos` 分支，两个 demo 均在 `demo/` 目录下，各自的 README 记录了完整的 bring-up 过程。
+代码位于 [nanomq/nanomq](https://github.com/nanomq/nanomq) 的 `zephyr-rtos` 分支，三个 demo 均在 `demo/` 目录下，各自的 README 记录了完整的 bring-up 过程。
 
 若在其他板卡上完成验证，或遇到新的问题，欢迎在 [NanoMQ 社区](https://github.com/nanomq/nanomq/discussions)参与讨论。
 
@@ -662,7 +662,7 @@ net_mgmt_add_event_callback(&dhcp_cb);
 
 **基线版本。** 本移植基于 upstream `master`，即 NanoMQ **0.25.6**。
 
-**配置来源。** 通用版 NanoMQ 从 `nanomq.conf` 文件读取配置；Zephyr 版采用**内嵌最小 conf**——由 `conf_init()` 的内置默认值加上启动代码直接设置关键字段（如监听地址），绕过配置文件解析。`conf` 结构体的语义保持不变，仅配置来源由文件换为内存构造。
+**配置来源。** 通用版 NanoMQ 从 `nanomq.conf` 文件读取配置；Zephyr 版采用**内嵌最小 conf**，由 `conf_init()` 的内置默认值加上启动代码直接设置关键字段（如监听地址），绕过配置文件解析。`conf` 结构体的语义保持不变，仅配置来源由文件换为内存构造。
 
 **功能裁剪。** 外围功能（REST、rule 引擎、bridge 等）的策略是**全量编译 + 运行时开关**，而非编译期裁剪，以保证同一份源码在两个平台行为一致。下表列出本版本不可用或未经验证的能力，并区分**移植尚未完成（后续会补）**与**受平台或依赖所限（不补）**：
 
@@ -679,25 +679,29 @@ net_mgmt_add_event_callback(&dhcp_cb);
 
 **线程模型。** Linux 版依赖完整的 POSIX 动态线程池。Zephyr 版的 nng 线程数固定（taskq=2 / poller=1 / expire=1），叠加 Zephyr 的 POSIX 线程池上限（`CONFIG_POSIX_THREAD_THREADS_MAX=16`，每个 pthread 的栈由 `CONFIG_DYNAMIC_THREAD_STACK_SIZE` 定为 16 KB），broker 的并发能力受此约束。
 
-**性能数据。** [NanoMQ 官方](https://nanomq.io/)公布的指标包括：最小功能集下启动占用低于 200 KB；百万级 TPS；在多核 CPU 上相较 Mosquitto 快至 10 倍。需要强调这些指标的适用范围：它们出自**多核 POSIX 环境**的 benchmark，官方页面未给出对应测试的硬件与配置细节，也**不代表本文 demo 的性能**——Zephyr 侧的线程配额远小于多核 Linux（见上一条），实际并发能力与此不同。本文未对 demo 做正式的性能测试。
+**性能数据。** [NanoMQ 官方](https://nanomq.io/)公布的指标包括：最小功能集下启动占用低于 200 KB；百万级 TPS；在多核 CPU 上相较 Mosquitto 快至 10 倍。需要强调这些指标的适用范围：它们出自**多核 POSIX 环境**的 benchmark，官方页面未给出对应测试的硬件与配置细节，也**不代表本文 demo 的性能**：Zephyr 侧的线程配额远小于多核 Linux（见上一条），实际并发能力与此不同。本文未对 demo 做正式的性能测试。
 
-**内存分配。** 分配器按目标而异：`qemu_x86` 用 libc `malloc()`，libc 的 malloc arena 就是 broker 堆（见 qemu 一节的说明）；ESP32-S3 内部 SRAM 放不下数据面，因此定义了 `NNG_ZEPHYR_ALLOC_SMH`，把 nng 的分配切到 PSRAM 上的 `k_heap`（见「移植过程 → 四、两个框架层陷阱」）。
+**内存分配。** 分配器按目标而异：`qemu_x86` 用 libc `malloc()`，libc 的 malloc arena 就是 broker 堆（见 qemu 一节的说明）；ESP32-S3 内部 SRAM 放不下数据面，因此定义了 `NNG_ZEPHYR_ALLOC_SMH`，把 nng 的分配切到 PSRAM 上的 `k_heap`（见「移植过程 → 四、两个框架层陷阱」）；ART-Pi 则把这个 `k_heap` 放在 FMC SDRAM 上，经 external-RAM 分配器接入（见[ART-Pi 专文](./port-to-art-pi.md)）。
 
-**时间源。** 两个 demo 均使用真实 UTC，但来源不同：`qemu_x86` 从 QEMU 的 CMOS RTC 播种，ESP32-S3 实机因无 RTC 而通过 SNTP 播种。Zephyr 不带时区数据库，显示恒为 UTC。
+**时间源。** 三个 demo 均使用真实 UTC，但来源不同：`qemu_x86` 从 QEMU 的 CMOS RTC 播种；两块实机都没有 RTC，ESP32-S3 通过 SNTP 播种，ART-Pi 上 SNTP 则是可选开关（`CONFIG_BROKER_SNTP`）。Zephyr 不带时区数据库，显示恒为 UTC。
 
 **已剔除的模块。** broker 的 `process.c` 依赖 `fork`/`kill`/`chdir`，无法在 Zephyr 上编译，由 demo 中一个提供同名符号的 stub 替代。这些符号的调用点要么位于 daemon 与 CLI 路径、要么根本不存在，嵌入式 broker 都不会触达（替代方式见「移植过程 → 一、应用层」的对应表项）。
 
-**已验证的目标平台。** `qemu_x86`（32 位）与 ESP32-S3。构建系统对**所有 32 位非 x86 目标**（ARM、RISC-V、Xtensa 等）启用原子操作回退（`NNG_ZEPHYR_NO_STDATOMIC`，机制见「移植过程 → 二、平台适配层」的展开②）——**ESP32-S3（Xtensa）本身就在使用该回退**，因此这条路径已随实机验证一并覆盖；尚未验证的是 ARM / RISC-V **板卡**本身（后续计划：ARM / RISC-V 等板卡的验证，网络驱动、中断与内存预算均需重验）。
+**已验证的目标平台。** `qemu_x86`（32 位）、ESP32-S3（Xtensa）与 ART-Pi（ARM Cortex-M7）。构建系统对**所有 32 位非 x86 目标**（ARM、RISC-V、Xtensa 等）启用原子操作回退（`NNG_ZEPHYR_NO_STDATOMIC`，机制见「移植过程 → 二、平台适配层」的展开②）：ESP32-S3 与 ART-Pi 都在使用该回退，因此这条路径已随实机验证覆盖；尚未验证的是其他板卡，换成 RISC-V 或其他 ARM 板，网络驱动、中断与内存预算都需要重验。
 
-## 附录 B：两个 demo 的对比
+## 附录 B：三个 demo 的对比
 
-| | `demo/nanomq_zephyr_esp32s3` | `demo/nanomq_zephyr_qemu_x86` |
-|---|---|---|
-| 目标平台 | ESP32-S3 实机 | `qemu_x86` |
-| 硬件需求 | ESP32-S3 开发板 | 无 |
-| 网络 | Wi-Fi STA + DHCP | QEMU SLIRP 用户态网络 |
-| 内存 / 存储 | 16 MB flash + 八线 PSRAM（数据面在 PSRAM） | 31 MB 模拟内存，无持久存储 |
-| 额外前提 | Wi-Fi 凭据 | Zephyr e1000 驱动补丁 |
-| 适用场景 | 真实评估、硬件测试 | 开发阶段的快速验证 |
+| | `demo/nanomq_zephyr_esp32s3` | `demo/nanomq_zephyr_stm32_art-pi` | `demo/nanomq_zephyr_qemu_x86` |
+|---|---|---|---|
+| 目标平台 | ESP32-S3 实机 | ART-Pi（STM32H750XBH6）实机 | `qemu_x86` |
+| 硬件需求 | ESP32-S3 开发板 | ART-Pi 开发板 | 无 |
+| 网络 | Wi-Fi STA + DHCP | Wi-Fi STA + DHCP，走板载 AP6212 | QEMU SLIRP 用户态网络 |
+| 内存 / 存储 | 16 MB flash + 八线 PSRAM（数据面在 PSRAM） | 8 MB QSPI flash 原地执行 + 32 MB SDRAM（数据面在 SDRAM） | 31 MB 模拟内存，无持久存储 |
+| 额外前提 | Wi-Fi 凭据 | Wi-Fi 凭据，外加三处树外补丁 | Zephyr e1000 驱动补丁 |
+| 适用场景 | 真实评估、硬件测试 | ARM 上的真实评估；板级 bring-up 的参考 | 开发阶段的快速验证 |
 
-两个 demo 共用同一份应用源码与同一个 NanoNNG ExternalProject 构建，差异仅在板级与网络层。开发阶段建议使用 `qemu_x86`：一轮构建加运行仅需数秒，显著快于烧录与复位。两者的完整编译与运行步骤见正文对应章节。
+三个 demo 共用同一份应用源码与同一个 NanoNNG ExternalProject 构建，差异仅在板级与网络层。开发阶段建议使用 `qemu_x86`：一轮构建加运行仅需数秒，显著快于烧录与复位。
+
+两块实机都适合真实评估，手上有哪块就用哪块：ESP32-S3 是更早验证的那条路，ART-Pi 则把同一份移植放到了 ARM Cortex-M7 上，flash 布局不同、射频通路不同、踩的坑也不同，从[它的专文](./port-to-art-pi.md)读起。
+
+完整的编译与运行步骤见正文对应章节，ART-Pi 另见[它的专文](./port-to-art-pi.md)。
