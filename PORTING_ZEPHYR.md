@@ -140,22 +140,16 @@ core/file 增 `nni_file_exists/size` 中间层,公共 `nng.h` 暴露
 
 ### 5.1 环境
 - Zephyr 4.x west workspace(SDK 含 qemu_x86 hosttools);Zephyr checkout **必须**含 §5.4 补丁
-- 本文档开发环境:docker 容器 `zephyr-tap`,`ZephyrProject` 目录 bind-mount 到 `/workdir`;宿主 Fedora 提供 mosquitto-clients(仅验收用)
+- 验收另需 mosquitto-clients(实测环境为 Fedora;任意发行版均可)
 - 代码同步:`git submodule update --init nng`(锁定 `c66e0cb`)
 
 ### 5.2 构建
-在容器 `zephyr-tap` 内构建(仓库 bind 于 `/workdir/nanomq`,west 顶在
-`/workdir`;SDK/工具链只在容器里,宿主不可编译;`-u root` 因 bind 文件
-属主是宿主 uid 1001 而容器默认用户是 1000):
+在 west workspace 内、仓库根目录执行:
 ```sh
-docker exec -u root zephyr-tap sh -lc '
-  cd /workdir/nanomq &&
-  git submodule update --init nng &&
-  ZEPHYR_TOOLCHAIN_VARIANT=zephyr ZEPHYR_SDK_INSTALL_DIR=/opt/toolchains/zephyr-sdk-1.0.1 \
-    west build -b qemu_x86 -d /workdir/build/nanomq_zephyr_qemu_x86 demo/nanomq_zephyr_qemu_x86'
+git submodule update --init nng
+west build -b qemu_x86 -d build/nanomq_zephyr_qemu_x86 demo/nanomq_zephyr_qemu_x86
 ```
-普通(非容器)west workspace 同命令去掉两个环境变量即可;输出目录默认
-`build/nanomq_zephyr_qemu_x86/`,本环境为 `/workdir/build/nanomq_zephyr_qemu_x86/`。
+产物落在 `build/nanomq_zephyr_qemu_x86/`。
 - NanoNNG 经 ExternalProject 编入 `build/nanomq_zephyr_qemu_x86/nanonng_build/`
   (`cmake --build <dir> --target nng`),libnng.a 静态导入链接
 - 架构旗标(32 位 x86):`-march=i686 -mno-sse2/-sse3/-ssse3/-movbe`
@@ -183,21 +177,20 @@ CONFIG_BROKER_LOG_DEBUG=y                  # 调试用;正式运行可关
 ```
 
 ### 5.4 运行与 Zephyr 补丁
-杀旧实例与启动分两条独立 `docker exec`(`[i]` 括号防 pkill 自匹配,
-§7-5/8);串口日志在容器内 `/tmp/qemu3.log`:
+杀旧实例与启动分两条独立命令(`[i]` 括号防 pkill 自匹配,§7-5/8);
+串口日志写 `/tmp/qemu.log`:
 ```sh
-docker exec -u root zephyr-tap pkill -f "qemu-system-[i]386" || true
+pkill -f "qemu-system-[i]386" || true
 
-docker exec -u root zephyr-tap sh -lc '
-  /opt/toolchains/zephyr-sdk-1.0.1/hosttools/sysroots/x86_64-pokysdk-linux/usr/bin/qemu-system-i386 \
+qemu-system-i386 \
     -m 32 -cpu qemu32,+nx,+pae,sse,sse2,pni -machine q35 \
     -device isa-debug-exit,iobase=0xf4,iosize=0x04 -no-reboot -machine acpi=off \
-    -serial file:/tmp/qemu3.log -display none \
-    -netdev user,id=n1,hostfwd=tcp:0.0.0.0:1883-:1883,hostfwd=tcp:0.0.0.0:8081-:8081,hostfwd=tcp:0.0.0.0:8083-:8083 \
+    -serial file:/tmp/qemu.log -display none \
+    -netdev user,id=n1,hostfwd=tcp:127.0.0.1:1883-:1883,hostfwd=tcp:127.0.0.1:8081-:8081,hostfwd=tcp:127.0.0.1:8083-:8083 \
     -device e1000,netdev=n1 \
-    -kernel /workdir/build/nanomq_zephyr_qemu_x86/zephyr/zephyr.elf &'
+    -kernel build/nanomq_zephyr_qemu_x86/zephyr/zephyr.elf &
 ```
-**就绪判据**(`docker exec zephyr-tap tail -f /tmp/qemu3.log`):依次出现
+**就绪判据**(`tail -f /tmp/qemu.log`):依次出现
 `rtc: CMOS clock … UTC, realtime seeded` → `net: ipv4 10.0.2.15` →
 `broker: NanoMQ (ver 0.25.1) Serving HTTP Server on http://(null):8081` →
 `NanoMQ Broker is started successfully!`。日志时间为**真实 UTC**(demo
@@ -206,12 +199,10 @@ Zephyr 无 TZ 数据库,显示恒为 UTC,见 §8)。hostfwd 三端口(1883/8081/
 prj.conf `CONFIG_NET_QEMU_USER_EXTRA_ARGS` 一致 —— `west build -t run`
 会自动带上,手动 qemu 必须显式列出,漏 8081 则 REST(§9-4)不通,漏
 8083 则 WS(§9-2)不通。
-客户端落点:宿主 mosquitto/accept.sh → 容器 IP(`docker inspect -f
-'{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' zephyr-tap`,
-实测 172.17.0.2):1883,或经宿主 socat 转发用 127.0.0.1(命令见 demo
-README);容器内 python(mqtt_accept.py/hook_receiver.py) → 127.0.0.1;
-宿主 curl → 容器 IP:8081(容器内无 mosquitto/curl);宿主 paho
-(`transport="websockets"`,路径 `/mqtt`)→ 容器 IP:8083。
+客户端落点:全部在跑 qemu 的这台机器上,经上面的 hostfwd 走 `127.0.0.1`
+—— mosquitto/accept.sh → 1883,python(mqtt_accept.py/hook_receiver.py)
+→ 1883/18080,curl → 8081,paho(`transport="websockets"`,路径 `/mqtt`)
+→ 8083。
 **必需环境补丁(RCTL_BAM)**:QEMU e1000 设备模型复位后清零 RCTL(真实硬件
 默认置位 BAM=bit15),Zephyr `eth_e1000` 驱动从不置 BAM → **所有广播帧
 (ARP!)被模型静默丢弃**,SLIRP 永远无法完成首个 TCP 连接。
@@ -238,7 +229,7 @@ iow32(dev, RCTL, RCTL_EN | RCTL_MPE | RCTL_BAM | DT_INST_PROP(inst, rdmts) << RD
 ### 6.2 功能验收(宿主 mosquitto)
 ```sh
 ./demo/nanomq_zephyr_qemu_x86/accept.sh [host] [port]   # 默认 127.0.0.1:1883
-# 容器开发环境:accept.sh 172.17.0.2 1883
+# accept.sh 127.0.0.1 1883
 ```
 用例与结果(干净构建 ×2 轮,均 7/7 PASS):
 
@@ -274,19 +265,18 @@ iow32(dev, RCTL, RCTL_EN | RCTL_MPE | RCTL_BAM | DT_INST_PROP(inst, rdmts) << RD
 | 6 | will 用例失败 | mosquitto `-k 2` 非法(min 5),客户端从未连接 | 改 `-k 5`(§6.3) | 脚本 |
 | 7 | v5r 用例"挂起" | v5r pub 无超时等待 PUBACK;当时环境偶发(单测与终验均通过,多轮 7/7) | pub 全部加 `timeout -s KILL` 包裹;脚本永不无限挂 | 脚本健壮性 |
 | 8 | qemu hostfwd 端口被旧实例占用(qemu25 无网) | 旧 qemu 未杀净,hostfwd 绑定失败 | 统一 kill 流程(bracket 技巧) | 流程 |
-| 9 | 容器 heredoc/python 相对路径失效、git checkout 权限拒绝 | bind mount + 容器 root/宿主 uid 差异;`docker exec` 默认不接 stdin | `docker exec -i -u root`、`-w <dir>` 显式化;宿主对 zephyr/.git 只读操作改容器内 root 执行 | 环境操作 |
-| 10 | connect 后首个 MQTT 包 ~5 s 才处理,负载下间歇 stall | Zephyr `CONFIG_ZVFS_POLL_MAX` 默认 3;fd 集超限时 `zvfs_poll` 整组返回 -1/ENOMEM 且不标 POLLNVAL,nng pollq 无错误分支 → 忙等自旋,全部 socket I/O 饿死 | `CONFIG_ZVFS_POLL_MAX=16` + nng `zephyr_pollq_poll.c` `poll()` 失败降级(msleep 10)与 100 ms 超时轮询(commit `7e16adc47`/`a5ad52ca4`) | 配置 + nng 平台修复 |
-| 11 | REST+webhook 同开时 boot 期线程不可见挂死 | pthread mutex/cond 固定池耗尽(nng 动态分配,REST+webhook 基线即 ~245/256);`zephyr_thread.c` 池耗尽 RETRY FOREVER | `CONFIG_MAX_PTHREAD_MUTEX_COUNT/COND_COUNT=1024` | 配置 |
-| 12 | REST 开时偶发 boot 崩溃(`pthread_mutex_lock: Invalid argument` → nni_panic) | `struct conf` 布局两侧不一致:app 侧 `-DACL_SUPP`、libnng 侧未定义 → `auth_http` 字段错位,锁到垃圾 `acl_cache_mtx` | `ACL_SUPP` 并入 `NNG_EXTRA_CFLAGS`(与 ENABLE_LOG 同机制,§3.3) | 构建契约 |
-| 13 | keepalive/会话到期按 10 s 粒度触发,验收不可控 | `conf_init` 默认 `qos_duration=10 s`,NanoMQ 每 qos_duration tick 做一次检查 | main.c 覆盖 `qos_duration=1`(嵌入式 demo 无配置文件) | 配置 |
-| 14 | v5 QoS1 发布被 broker 断开(rc 130 Malformed Packet) | 验收客户端照抄 SUBSCRIBE 布局,把 v5 PUBLISH properties 放在包标识符前;MQTT5 PUBLISH 头顺序 = topic → pid → properties,broker 解析 pid=0 → 130 | `mqtt_accept.py` 修正(properties 移至 pid 后;broker 行为合规) | 脚本 |
-| 15 | REST `clients` 查询恒空 | 返回 JSON 顶层键是 `data`(非 `clients`) | 轮询脚本取 `data` 数组 | 脚本 |
-| 16 | 每 host↔guest 交换固定 ~110 ms(QoS1 PUBACK、PINGRESP 等) | Zephyr TCP delayed-ACK(`tcp.c ACK_DELAY=K_MSEC(100)`,RFC 813:无 PSH 段或小窗口时推迟 ACK ~100 ms) | 识别为栈特性非缺陷;QoS0 单向数据面不受影响(§9-10) | 环境(Zephyr 栈) |
-| 17 | DEBUG 日志镜像吞吐骤降(qos0 ~150-250 msg/s) | 每包多次 DEBUG 经仿真串口,串口是吞吐瓶颈(~380 行/s) | 压测用静默镜像(临时去 `CONFIG_BROKER_LOG_DEBUG`),产线默认关 | 方法/环境 |
-| 18 | 并发/连发新连接被 RST(mosquitto `Connection was lost`,CI v5 套件逐轮随机失败) | Zephyr 连接池默认过小:`NET_MAX_CONTEXTS=6`(每 socket 一个 context)+`NET_MAX_CONN=8`,两个 listener 已占 2;池尽时 `tcp_conn_new()` 的 `net_context_get()` 失败 → `net_tcp_reply_rst()`(`subsys/net/ip/tcp.c`),客户端见 RST | prj.conf 提池:`NET_MAX_CONTEXTS/NET_MAX_CONN=32`、`ZVFS_OPEN_ADD_SIZE_NET=32`、`ZVFS_POLL_MAX=64`(§9-12) | 配置 |
-| 19 | 无流量时 guest CPU ~90% 自旋(webhook 接收器未启动时必现) | webhook 的 HTTP 出站拨号失败后该 pfd 未被 fini,仍以 POLLOUT(0x04)挂在 pollq;`poll()` 每轮都报 POLLERR(0x08),而 `pfd->events &= ~events` 用 0x08 清不掉 0x04 → 每轮立即返回,空转 | nng `zephyr_pollq_poll.c`:revents 含 POLLERR/POLLHUP/POLLNVAL 时置 `pfd->events = 0`(该描述符已不可用,重挂或拆除交由回调决定);复现脚本 CPU 86–94% → 1.3–3.0% | nng 平台修复 |
-| 20 | WS 反复连接/断开后 broker 停摆:新连接能 CONNACK,但管道不再收发也不回收 | `nmq_websocket.c` 的 `wstran_pipe_recv_cancel` 先清空 `p->user_rxaio` 再 abort rxaio,却没完成用户 aio(完成行被注释掉);rxaio 的完成路径见 `user_rxaio` 已空即跳过完成 → 该 aio 永久挂起 → `nano_pipe_stop` 中 `nni_aio_stop(&p->aio_recv)` 阻塞全局唯一的 reap 线程 → 所有 pipe 回收停摆 | 采用上游修复 `6467b6c` + `1d8127c`(两个 cancel 路径都完成用户 aio;cb 在 `skip:`/`reset:` 先释放 `user_rxaio` 再完成;qsaio 回调不再无锁读 `user_txaio`);gdb 复核 reap 线程空闲、pollq 仅剩 3 个 listener fd | 真实 bug(上游已修) |
-| 21 | 生存组压到 ~30 个主题时 guest `panic: pthread_rwlock_init: pool exhausted` → 客户端 `Connection refused` | Zephyr rwlock 为固定池(默认 32),nanolib 每个 topic 树节点取一把(`mqtt_db.c` 的 `dbtree_node_new`/`dbtree_node_free` 成对),负载测试的主题数轻易超池 | prj.conf `CONFIG_MAX_PTHREAD_RWLOCK_COUNT=256`(§5.3/§9-13);宿主 POSIX 无固定池,仅 Zephyr 需显式预算 | 配置 |
+| 9 | connect 后首个 MQTT 包 ~5 s 才处理,负载下间歇 stall | Zephyr `CONFIG_ZVFS_POLL_MAX` 默认 3;fd 集超限时 `zvfs_poll` 整组返回 -1/ENOMEM 且不标 POLLNVAL,nng pollq 无错误分支 → 忙等自旋,全部 socket I/O 饿死 | `CONFIG_ZVFS_POLL_MAX=16` + nng `zephyr_pollq_poll.c` `poll()` 失败降级(msleep 10)与 100 ms 超时轮询(commit `7e16adc47`/`a5ad52ca4`) | 配置 + nng 平台修复 |
+| 10 | REST+webhook 同开时 boot 期线程不可见挂死 | pthread mutex/cond 固定池耗尽(nng 动态分配,REST+webhook 基线即 ~245/256);`zephyr_thread.c` 池耗尽 RETRY FOREVER | `CONFIG_MAX_PTHREAD_MUTEX_COUNT/COND_COUNT=1024` | 配置 |
+| 11 | REST 开时偶发 boot 崩溃(`pthread_mutex_lock: Invalid argument` → nni_panic) | `struct conf` 布局两侧不一致:app 侧 `-DACL_SUPP`、libnng 侧未定义 → `auth_http` 字段错位,锁到垃圾 `acl_cache_mtx` | `ACL_SUPP` 并入 `NNG_EXTRA_CFLAGS`(与 ENABLE_LOG 同机制,§3.3) | 构建契约 |
+| 12 | keepalive/会话到期按 10 s 粒度触发,验收不可控 | `conf_init` 默认 `qos_duration=10 s`,NanoMQ 每 qos_duration tick 做一次检查 | main.c 覆盖 `qos_duration=1`(嵌入式 demo 无配置文件) | 配置 |
+| 13 | v5 QoS1 发布被 broker 断开(rc 130 Malformed Packet) | 验收客户端照抄 SUBSCRIBE 布局,把 v5 PUBLISH properties 放在包标识符前;MQTT5 PUBLISH 头顺序 = topic → pid → properties,broker 解析 pid=0 → 130 | `mqtt_accept.py` 修正(properties 移至 pid 后;broker 行为合规) | 脚本 |
+| 14 | REST `clients` 查询恒空 | 返回 JSON 顶层键是 `data`(非 `clients`) | 轮询脚本取 `data` 数组 | 脚本 |
+| 15 | 每 host↔guest 交换固定 ~110 ms(QoS1 PUBACK、PINGRESP 等) | Zephyr TCP delayed-ACK(`tcp.c ACK_DELAY=K_MSEC(100)`,RFC 813:无 PSH 段或小窗口时推迟 ACK ~100 ms) | 识别为栈特性非缺陷;QoS0 单向数据面不受影响(§9-10) | 环境(Zephyr 栈) |
+| 16 | DEBUG 日志镜像吞吐骤降(qos0 ~150-250 msg/s) | 每包多次 DEBUG 经仿真串口,串口是吞吐瓶颈(~380 行/s) | 压测用静默镜像(临时去 `CONFIG_BROKER_LOG_DEBUG`),产线默认关 | 方法/环境 |
+| 17 | 并发/连发新连接被 RST(mosquitto `Connection was lost`,CI v5 套件逐轮随机失败) | Zephyr 连接池默认过小:`NET_MAX_CONTEXTS=6`(每 socket 一个 context)+`NET_MAX_CONN=8`,两个 listener 已占 2;池尽时 `tcp_conn_new()` 的 `net_context_get()` 失败 → `net_tcp_reply_rst()`(`subsys/net/ip/tcp.c`),客户端见 RST | prj.conf 提池:`NET_MAX_CONTEXTS/NET_MAX_CONN=32`、`ZVFS_OPEN_ADD_SIZE_NET=32`、`ZVFS_POLL_MAX=64`(§9-12) | 配置 |
+| 18 | 无流量时 guest CPU ~90% 自旋(webhook 接收器未启动时必现) | webhook 的 HTTP 出站拨号失败后该 pfd 未被 fini,仍以 POLLOUT(0x04)挂在 pollq;`poll()` 每轮都报 POLLERR(0x08),而 `pfd->events &= ~events` 用 0x08 清不掉 0x04 → 每轮立即返回,空转 | nng `zephyr_pollq_poll.c`:revents 含 POLLERR/POLLHUP/POLLNVAL 时置 `pfd->events = 0`(该描述符已不可用,重挂或拆除交由回调决定);复现脚本 CPU 86–94% → 1.3–3.0% | nng 平台修复 |
+| 19 | WS 反复连接/断开后 broker 停摆:新连接能 CONNACK,但管道不再收发也不回收 | `nmq_websocket.c` 的 `wstran_pipe_recv_cancel` 先清空 `p->user_rxaio` 再 abort rxaio,却没完成用户 aio(完成行被注释掉);rxaio 的完成路径见 `user_rxaio` 已空即跳过完成 → 该 aio 永久挂起 → `nano_pipe_stop` 中 `nni_aio_stop(&p->aio_recv)` 阻塞全局唯一的 reap 线程 → 所有 pipe 回收停摆 | 采用上游修复 `6467b6c` + `1d8127c`(两个 cancel 路径都完成用户 aio;cb 在 `skip:`/`reset:` 先释放 `user_rxaio` 再完成;qsaio 回调不再无锁读 `user_txaio`);gdb 复核 reap 线程空闲、pollq 仅剩 3 个 listener fd | 真实 bug(上游已修) |
+| 20 | 生存组压到 ~30 个主题时 guest `panic: pthread_rwlock_init: pool exhausted` → 客户端 `Connection refused` | Zephyr rwlock 为固定池(默认 32),nanolib 每个 topic 树节点取一把(`mqtt_db.c` 的 `dbtree_node_new`/`dbtree_node_free` 成对),负载测试的主题数轻易超池 | prj.conf `CONFIG_MAX_PTHREAD_RWLOCK_COUNT=256`(§5.3/§9-13);宿主 POSIX 无固定池,仅 Zephyr 需显式预算 | 配置 |
 
 ## 8. 局限与已知取舍
 - 线程模型:nng 平台 poller/taskq + POSIX 动态线程池上限 16(`CONFIG_POSIX_THREAD_THREADS_MAX`),broker 连接并发受其约束;栈 16 KB/线程
@@ -395,10 +385,10 @@ REST 走 `:8081`,webhook 接收器 `hook_receiver.py` 挂在 10.0.2.2 别名
     `mqtt.max_topic_alias`:`conf_init` 默认 0(CONNACK 广播
     `TOPIC_ALIAS_MAXIMUM=0`,带别名的 PUBLISH 被拒),宿主 CI conf 在
     **master** 上是 `max_topic_alias=1024`、develop 分支缺该行 —— demo
-    main.c 现按 1024 对齐。运行须知:宿主 python 走系统代理会把
-    `172.17.0.2:8081` 打成 502,跑 REST 套件需 `NO_PROXY=<容器 IP>`;
-    本 demo 侧套件(§9-13)的 REST 组只做 GET(不碰会翻转运行配置的
-    POST `/reload`)
+    main.c 现按 1024 对齐。运行须知:宿主 python 若走系统代理,请求会
+    被代理拦走导致 REST 502,跑 REST 套件前需把 broker 地址加入
+    `NO_PROXY`;本 demo 侧套件(§9-13)的 REST 组只做 GET(不碰会翻转
+    运行配置的 POST `/reload`)
 12. **VFS 支持变体**(待定,2026-09 评估):做"可挂文件系统、进而按宿主
     方式解析 HOCON 配置/落盘"的编译开关版本。nng 平台层 `zephyr_file.c`
     已按 Zephyr 官方 Kconfig `CONFIG_FILE_SYSTEM` 分双分支(无 FS 桩:
@@ -447,7 +437,7 @@ REST 走 `:8081`,webhook 接收器 `hook_receiver.py` 挂在 10.0.2.2 别名
       `attack.py` 常量缩规模(30 s、2 发布者、8 噪声客户端、2 节点共享
       订阅):宿主规模是崩溃放大器,SLIRP 每连接约 9 msg/s
     - 失败语义:默认跑完全部组(`--fail-fast` 可停);FAIL 组打印末 40 行
-      输出 + 串口日志尾部;组失败 exit 1,结构性失败(docker/qemu/依赖
+      输出 + 串口日志尾部;组失败 exit 1,结构性失败(qemu/依赖
       缺失)exit 2
     - 失败路径实测(2026-09-08):① `--no-manage --addr 10.255.255.1` →
       `ERROR: no broker answering` / exit 2;② 组间容器内 pkill qemu →
@@ -456,27 +446,25 @@ REST 走 `:8081`,webhook 接收器 `hook_receiver.py` 挂在 10.0.2.2 别名
     - 完整用法与组说明见 demo README「Functional test suite」;命令速查见
       §10 第 3b 步
 
-## 10. 复现命令速查(容器环境 `zephyr-tap`,§5.1)
+## 10. 复现命令速查(§5.1)
 ```sh
-# 0) 打 Zephyr 补丁(§5.4 两行,改 /workdir/zephyr 内树,须 -u root)
-# 1) 构建(§5.2 全文;镜像 zephyr-build:main 已含 SDK/工具链)
-docker exec -u root zephyr-tap sh -lc 'cd /workdir/nanomq && ZEPHYR_TOOLCHAIN_VARIANT=zephyr \
-  ZEPHYR_SDK_INSTALL_DIR=/opt/toolchains/zephyr-sdk-1.0.1 \
-  west build -b qemu_x86 -d /workdir/build/nanomq_zephyr_qemu_x86 demo/nanomq_zephyr_qemu_x86'
+# 0) 打 Zephyr 补丁(§5.4 两行,改 workspace 内的 zephyr/ 树)
+# 1) 构建(§5.2 全文)
+west build -b qemu_x86 -d build/nanomq_zephyr_qemu_x86 demo/nanomq_zephyr_qemu_x86
 # 2) 启动(先 pkill 旧实例再启动,命令全文见 §5.4);就绪判据:
-docker exec zephyr-tap sh -lc 'grep -a "NanoMQ Broker is started" /tmp/qemu3.log || tail -f /tmp/qemu3.log'
-# 3) 验收(宿主;期望 RESULT: pass=7 fail=0;IP 用 §5.4 的 docker inspect 结果)
-./demo/nanomq_zephyr_qemu_x86/accept.sh 172.17.0.2 1883
-# 3b) 功能测试套件(§9-13;宿主,自管 qemu 生命周期,期望 RESULT: pass=8 fail=0)
+grep -a "NanoMQ Broker is started" /tmp/qemu.log || tail -f /tmp/qemu.log
+# 3) 验收(期望 RESULT: pass=7 fail=0)
+./demo/nanomq_zephyr_qemu_x86/accept.sh 127.0.0.1 1883
+# 3b) 功能测试套件(§9-13;自管 qemu 生命周期,期望 RESULT: pass=8 fail=0)
 python3 demo/nanomq_zephyr_qemu_x86/function_test.py
 python3 demo/nanomq_zephyr_qemu_x86/function_test.py --group ws_v5 -v      # 单组重跑
-python3 demo/nanomq_zephyr_qemu_x86/function_test.py --no-manage --addr 172.17.0.2  # 复用已跑 broker
-# 4) 扩展场景(§9-4/6/7:容器内跑 python,宿主跑 curl)
-docker exec -d zephyr-tap python3 /workdir/nanomq/demo/nanomq_zephyr_qemu_x86/hook_receiver.py \
+python3 demo/nanomq_zephyr_qemu_x86/function_test.py --no-manage --addr 127.0.0.1  # 复用已跑 broker
+# 4) 扩展场景(§9-4/6/7)
+python3 demo/nanomq_zephyr_qemu_x86/hook_receiver.py \
     --port 18080 --out /tmp/webhook.log            # webhook 接收器(§9-4)
-docker exec zephyr-tap python3 /workdir/nanomq/demo/nanomq_zephyr_qemu_x86/mqtt_accept.py 127.0.0.1 1883 \
+python3 demo/nanomq_zephyr_qemu_x86/mqtt_accept.py 127.0.0.1 1883 \
     sub --proto 5 --clean 0 --expiry 30 --topic v5/offline --qos 1   # 离线会话(§9-6②)
-curl -s http://172.17.0.2:8081/api/v4/clients      # REST(§9-4;键为 data)
+curl -s http://127.0.0.1:8081/api/v4/clients       # REST(§9-4;键为 data)
 ```
 
 ---
@@ -693,7 +681,7 @@ UNSUBSCRIBE**,所以 v5/v311 组连跑 6 轮全绿照样漏掉。这不是"偶�
 
 **实机验收操作建议**:
 1. **实机参数已自动判定,无需再手记**:`function_test.py` 启动时实测到 broker 的
-   TCP 连接中位延迟(loopback <1 ms、docker 桥 ~1 ms、ESP32-S3 经 Wi-Fi 实测
+   TCP 连接中位延迟(loopback <1 ms、ESP32-S3 经 Wi-Fi 实测
    14–600 ms),慢则默认 `--time-scale 4 --retry 2`,快则 `1.0/0`;显式传入的
    `--time-scale` / `--retry` 始终优先,启动时会打印实际取值与依据。二者
    **缺一不可**:scale 治"sleep 余量不足",retry 治"子测试本身带竞速"(见 (g));
