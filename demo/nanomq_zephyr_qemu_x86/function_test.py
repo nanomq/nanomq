@@ -6,13 +6,13 @@ Runs a functional test matrix against the qemu_x86 NanoMQ broker from
 (mosquitto CLI, paho, requests), but pointed at the guest broker and
 scoped to what the Zephyr build supports (no TLS, no SQLite, no IPC).
 
-The runner owns the qemu lifecycle: it stops any previous instance,
-launches the image built by `west build -b qemu_x86 -d /workdir/build/nanomq_zephyr_qemu_x86
-demo/nanomq_zephyr_qemu_x86` inside the `zephyr-tap` container (SLIRP hostfwd binds
-in the container's netns), waits for the broker banner, and tears it down
-at the end.  Every group runs in its own subprocess so a hang or a crash
-cannot poison the next one, and a group that dies with the guest triggers
-a broker restart before the suite continues.
+The runner owns the qemu lifecycle: it launches the image built by
+`west build -b qemu_x86 -d build/nanomq_zephyr_qemu_x86
+demo/nanomq_zephyr_qemu_x86` with qemu-system-i386 directly on this host
+(SLIRP host forwards on loopback), waits for the broker banner, and tears
+it down at the end.  Every group runs in its own subprocess so a hang or a
+crash cannot poison the next one, and a group that dies with the guest
+triggers a broker restart before the suite continues.
 
 Groups (see `--list`):
 
@@ -31,11 +31,11 @@ Usage (outer host, from anywhere in the repo):
     python3 demo/nanomq_zephyr_qemu_x86/function_test.py              # all groups
     python3 demo/nanomq_zephyr_qemu_x86/function_test.py --list
     python3 demo/nanomq_zephyr_qemu_x86/function_test.py --group ws_v311,ws_v5
-    python3 demo/nanomq_zephyr_qemu_x86/function_test.py --no-manage --addr 172.17.0.2
+    python3 demo/nanomq_zephyr_qemu_x86/function_test.py --no-manage --addr 127.0.0.1
     python3 demo/nanomq_zephyr_qemu_x86/function_test.py --keep-running
 
 Exit status: 0 all groups passed, 1 at least one group failed, 2 the
-harness itself could not run (no docker/container, broker won't start).
+harness itself could not run (no qemu or kernel image, broker won't start).
 """
 
 from __future__ import annotations
@@ -62,14 +62,11 @@ HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parents[1]
 CI_SCRIPTS = REPO_ROOT / ".github" / "scripts"
 
-DEFAULT_CONTAINER = "zephyr-tap"
-DEFAULT_ADDR = "172.17.0.2"          # zephyr-tap bridge address (dev setup)
-DEFAULT_QEMU = (
-    "/opt/toolchains/zephyr-sdk-1.0.1/hosttools/sysroots/"
-    "x86_64-pokysdk-linux/usr/bin/qemu-system-i386"
-)
-DEFAULT_KERNEL = "/workdir/build/nanomq_zephyr_qemu_x86/zephyr/zephyr.elf"
-DEFAULT_WORKDIR = "/workdir/nanomq"  # repo path inside the container
+DEFAULT_ADDR = "127.0.0.1"           # qemu's SLIRP host forwards bind loopback
+DEFAULT_QEMU = "qemu-system-i386"    # taken from PATH
+DEFAULT_KERNEL = str(REPO_ROOT / "build" / "nanomq_zephyr_qemu_x86"
+                     / "zephyr" / "zephyr.elf")
+DEFAULT_WORKDIR = str(REPO_ROOT)     # what the CI scripts read as ZF_WORKDIR
 
 READY_MARKER = "NanoMQ Broker is started successfully!"
 
@@ -130,21 +127,31 @@ def log(msg: str = "") -> None:
 
 # ── small helpers ────────────────────────────────────────────────────
 
-def docker(container: str, args, check: bool = False, timeout: float = 120,
-           capture: bool = True, detach: bool = False):
-    cmd = ["docker", "exec"]
-    if detach:
-        cmd.append("-d")
-    cmd += ["-u", "root", container] + list(args)
-    return subprocess.run(cmd, check=check, capture_output=capture,
-                          text=True, timeout=timeout)
+def _read_text(path: str, limit: int = 262144) -> str:
+    """Read the tail of a file, tolerating a missing or binary one."""
+    try:
+        with open(path, "rb") as f:
+            f.seek(0, os.SEEK_END)
+            f.seek(max(0, f.tell() - limit))
+            return f.read().decode("utf-8", "replace")
+    except OSError:
+        return ""
+
+
+def port_in_use(host: str, port: int) -> bool:
+    """True if something accepts a TCP connection at host:port."""
+    try:
+        with socket.create_connection((host, port), timeout=1.0):
+            return True
+    except OSError:
+        return False
 
 
 # The CI scripts settle with fixed 1-2 s sleeps tuned for a localhost broker
 # (see _scale_ci_sleeps).  Which multiplier to use is decided by measuring the
 # path rather than by guessing from the address: loopback is well under 1 ms
-# and the docker bridge is around 1 ms, while the ESP32-S3 over Wi-Fi measured
-# 14-600 ms — two orders of magnitude apart.
+# while the ESP32-S3 over Wi-Fi measured 14-600 ms — two orders of magnitude
+# apart.
 TIME_SCALE_LOCAL = 1.0
 TIME_SCALE_REMOTE = 4.0
 REMOTE_RTT_MS = 10.0
@@ -158,8 +165,8 @@ def measure_connect_ms(addr: str, samples: int = 5) -> float:
     """Median TCP connect time to the broker port, in ms (-1.0 if refused).
 
     A lower bound on the MQTT round trip, and enough to tell "same machine"
-    from "real hardware on Wi-Fi" without misclassifying the container bridge
-    the way an address-based rule would.
+    from "real hardware on Wi-Fi" without misclassifying a local bridge the
+    way an address-based rule would.
     """
     ts = []
     for _ in range(samples):
@@ -234,41 +241,55 @@ def kill_host_mosquitto_clients(addr: str) -> int:
 # ── qemu lifecycle ───────────────────────────────────────────────────
 
 class QemuBroker:
+    """Owns the qemu process the suite talks to.
+
+    qemu runs directly on this host, so its SLIRP host forwards land on
+    loopback and the process belongs to us: it is tracked by handle and
+    killed by pid along with its process group, never by matching
+    "qemu-system-i386" in the process table -- that would also take out an
+    unrelated qemu the user happens to be running.
+    """
+
     def __init__(self, args):
-        self.container = args.container
         self.addr = args.addr
         self.qemu = args.qemu
         self.kernel = args.kernel
         self.manage = not args.no_manage
         self.keep_running = args.keep_running
         self.serial_log = None
+        self.proc = None
         self.starts = 0
 
     # -- process control ---------------------------------------------
 
-    def _pids(self) -> int:
-        # -f, not -x: pgrep truncates a -x pattern at 15 chars and
-        # "qemu-system-i386" is 16, which makes -x match nothing.  The
-        # bracket keeps pgrep from matching its own command line.
-        p = docker(self.container, ["pgrep", "-c", "-f", "qemu-system-[i]386"])
-        if p.returncode != 0 or not p.stdout.strip().isdigit():
-            return 0
-        return int(p.stdout.strip())
+    def _alive(self) -> bool:
+        return self.proc is not None and self.proc.poll() is None
 
     def kill(self) -> None:
-        # Bracket pattern: the pkill command line must not match itself.
-        docker(self.container, ["pkill", "-f", "qemu-system-[i]386"])
-        deadline = time.time() + 10
-        while self._pids() and time.time() < deadline:
-            time.sleep(0.3)
+        if self._alive():
+            try:
+                os.killpg(self.proc.pid, signal.SIGTERM)
+            except OSError:
+                pass
+            try:
+                self.proc.wait(timeout=10)
+            except Exception:                       # noqa: BLE001
+                try:
+                    os.killpg(self.proc.pid, signal.SIGKILL)
+                except OSError:
+                    pass
+                try:
+                    self.proc.wait(timeout=5)
+                except Exception:                   # noqa: BLE001
+                    pass
+        self.proc = None
 
     def _new_serial_log(self) -> str:
         stamp = time.strftime("%Y%m%d_%H%M%S")
         n = 1
         while True:
             path = "/tmp/qemu_fz_%s_%d.log" % (stamp, n)
-            p = docker(self.container, ["test", "-e", path])
-            if p.returncode != 0:          # fresh name: stale logs may be
+            if not os.path.exists(path):   # fresh name: stale logs may be
                 return path                # owned by another uid and unwritable
             n += 1
 
@@ -277,17 +298,20 @@ class QemuBroker:
         serial = self._new_serial_log()
         errlog = serial.replace(".log", ".qemu.log")
         forwards = ",".join(
-            "hostfwd=tcp:0.0.0.0:%d-:%d" % (p, p)
+            "hostfwd=tcp:127.0.0.1:%d-:%d" % (p, p)
             for p in (MQTT_PORT, REST_PORT, WS_PORT)
         )
-        cmd = (
-            "%s -m 32 -cpu qemu32,+nx,+pae,sse,sse2,pni -machine q35 "
-            "-device isa-debug-exit,iobase=0xf4,iosize=0x04 -no-reboot "
-            "-machine acpi=off -serial file:%s -display none "
-            "-netdev user,id=n1,%s -device e1000,netdev=n1 -kernel %s "
-            ">%s 2>&1 &"
-        ) % (self.qemu, serial, forwards, self.kernel, errlog)
-        docker(self.container, ["sh", "-lc", cmd], check=True)
+        with open(errlog, "wb") as err:
+            self.proc = subprocess.Popen(
+                [self.qemu, "-m", "32",
+                 "-cpu", "qemu32,+nx,+pae,sse,sse2,pni", "-machine", "q35",
+                 "-device", "isa-debug-exit,iobase=0xf4,iosize=0x04",
+                 "-no-reboot", "-machine", "acpi=off",
+                 "-serial", "file:" + serial, "-display", "none",
+                 "-netdev", "user,id=n1," + forwards,
+                 "-device", "e1000,netdev=n1", "-kernel", self.kernel],
+                stdout=err, stderr=subprocess.STDOUT,
+                stdin=subprocess.DEVNULL, start_new_session=True)
         self.serial_log = serial
         self.starts += 1
         return serial
@@ -295,10 +319,9 @@ class QemuBroker:
     def wait_ready(self, serial: str, timeout: float = 90.0) -> bool:
         deadline = time.time() + timeout
         while time.time() < deadline:
-            if docker(self.container, ["grep", "-q", READY_MARKER,
-                                       serial]).returncode == 0:
+            if READY_MARKER in _read_text(serial):
                 return True
-            if self._pids() == 0:
+            if not self._alive():
                 return False           # guest died before the banner
             time.sleep(0.5)
         return False
@@ -325,11 +348,12 @@ class QemuBroker:
     def tail_serial(self, serial: str, lines: int = 20) -> None:
         if not serial:
             return
-        p = docker(self.container, ["tail", "-n", str(lines), serial])
-        if p.returncode == 0 and p.stdout.strip():
-            log("    --- %s ---" % serial)
-            for line in p.stdout.rstrip().splitlines():
-                log("    | " + line)
+        text = _read_text(serial)
+        if not text.strip():
+            return
+        log("    --- %s ---" % serial)
+        for line in text.rstrip().splitlines()[-lines:]:
+            log("    | " + line)
 
 
 # ── groups (run inside the worker subprocess) ────────────────────────
@@ -398,8 +422,8 @@ def group_rest_get(addr: str, env: dict) -> None:
     POST /reload/ (and /write_file) mutate the running broker — the demo
     has no config file to reload, so the suite stays on the read side.
     trust_env=False because the host shell may carry HTTP_PROXY, which
-    would send these requests through a proxy that cannot reach the
-    container network.
+    would send these requests through a proxy that cannot reach the guest's
+    forwarded port.
     """
     import requests
 
@@ -860,7 +884,6 @@ def run_worker(name: str, addr: str, args, timeout: float, attempts: int):
         "ZF_REST_USER": args.rest_user,
         "ZF_REST_PASS": args.rest_pass,
         "ZF_WEBHOOK": "1" if args.webhook else "",
-        "ZF_CONTAINER": args.container,
         "ZF_WORKDIR": args.workdir,
         "ZF_TIME_SCALE": str(args.time_scale),
         # Unbuffered worker stdout: with block buffering the CI modules'
@@ -922,7 +945,7 @@ def parse_args(argv=None):
                     help="run only these groups (repeatable)")
     ap.add_argument("--list", action="store_true", help="list groups and exit")
     ap.add_argument("--addr", default=None,
-                    help="broker address (default: container IP)")
+                    help="broker address (default: %s)" % DEFAULT_ADDR)
     ap.add_argument("--rest-user", default=REST_USER,
                     help="REST Basic auth user (default: %s)" % REST_USER)
     ap.add_argument("--rest-pass", default=REST_PASS,
@@ -933,15 +956,15 @@ def parse_args(argv=None):
                          "events.  Without it the webhook_smoke group skips "
                          "(the demos leave it off; set "
                          "CONFIG_BROKER_WEBHOOK_URL to turn it on)")
-    ap.add_argument("--container", default=DEFAULT_CONTAINER,
-                    help="docker container running qemu (default: %s)"
-                         % DEFAULT_CONTAINER)
     ap.add_argument("--qemu", default=DEFAULT_QEMU,
-                    help="qemu-system-i386 path inside the container")
+                    help="qemu-system-i386 to launch (default: %s)"
+                         % DEFAULT_QEMU)
     ap.add_argument("--kernel", default=DEFAULT_KERNEL,
-                    help="zephyr.elf path inside the container")
+                    help="zephyr.elf image to boot (default: %s)"
+                         % DEFAULT_KERNEL)
     ap.add_argument("--workdir", default=DEFAULT_WORKDIR,
-                    help="repo path inside the container")
+                    help="repo path the CI scripts read as ZF_WORKDIR "
+                         "(default: %s)" % DEFAULT_WORKDIR)
     ap.add_argument("--no-manage", action="store_true",
                     help="do not start/stop qemu; test the broker already "
                          "running at --addr")
@@ -996,25 +1019,14 @@ def main(argv=None) -> int:
         log("ERROR: mosquitto_pub not on PATH (mqtt_v311/mqtt_v5 need it)")
         return 2
 
-    addr = args.addr
-    if not args.no_manage:
-        p = subprocess.run(
-            ["docker", "inspect", "-f",
-             "{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}",
-             args.container], capture_output=True, text=True)
-        if p.returncode != 0:
-            log("ERROR: docker container %r not reachable: %s"
-                % (args.container, (p.stderr or "").strip()))
-            return 2
-        if not addr:
-            ips = p.stdout.split()
-            if not ips:
-                log("ERROR: container %r has no IP" % args.container)
-                return 2
-            addr = ips[0]
-    if not addr:
-        addr = DEFAULT_ADDR
+    addr = args.addr or DEFAULT_ADDR
     args.addr = addr
+
+    if not args.no_manage and not os.path.exists(args.kernel):
+        log("ERROR: kernel image not found: %s" % args.kernel)
+        log("       build it with: west build -b qemu_x86 "
+            "-d build/nanomq_zephyr_qemu_x86 demo/nanomq_zephyr_qemu_x86")
+        return 2
 
     selected = []
     if args.group:
@@ -1033,8 +1045,9 @@ def main(argv=None) -> int:
         selected = list(GROUP_NAMES)
 
     log("=" * 72)
-    log("Zephyr broker functional test suite — broker %s:%d (container %s)"
-        % (addr, MQTT_PORT, args.container))
+    log("Zephyr broker functional test suite — broker %s:%d%s"
+        % (addr, MQTT_PORT,
+           "" if args.no_manage else " (qemu managed here)"))
     log("groups: %s" % ", ".join(selected))
     log("=" * 72)
 
@@ -1050,6 +1063,17 @@ def main(argv=None) -> int:
             "mosquitto clients are NOT cleaned up")
 
     if broker.manage:
+        # A qemu left behind by an earlier run (--keep-running, or a crash)
+        # still holds the SLIRP host forwards, so the instance about to be
+        # launched cannot bind them and dies with "Could not set up host
+        # forwarding rule".  We do not go hunting for qemu processes to kill
+        # -- that is how an unrelated qemu the user is running gets killed --
+        # so say what is in the way instead.
+        if port_in_use(addr, MQTT_PORT):
+            log("ERROR: something is already serving %s:%d — a broker or a "
+                "qemu left over from an earlier run." % (addr, MQTT_PORT))
+            log("       stop it, or use --no-manage to test against it.")
+            return 2
         log("starting qemu ...")
         serial = broker.start()
         if not broker.wait_ready(serial):
