@@ -134,7 +134,7 @@ seed_realtime_from_cmos(void)
 {
 	struct timespec ts;
 	uint8_t sec, min, hour, day, mon, year, stat_b;
-	bool binary, h24;
+	bool binary, h24, pm = false;
 	unsigned tries, y_full;
 	int64_t epoch;
 
@@ -152,6 +152,14 @@ seed_realtime_from_cmos(void)
 	binary = (stat_b & CMOS_BIN_BIT) != 0;
 	h24    = (stat_b & CMOS_24H_BIT) != 0;
 
+	// 12 h mode keeps the PM flag in bit 7 of the hour register.  Take it
+	// off before the BCD conversion: cmos_bcd2bin(0x92) would otherwise
+	// turn 12 PM into 92 and the range check below would reject it.
+	if (!h24) {
+		pm = (hour & 0x80U) != 0;
+		hour &= 0x7FU;
+	}
+
 	if (!binary) {
 		sec  = cmos_bcd2bin(sec);
 		min  = cmos_bcd2bin(min);
@@ -161,10 +169,6 @@ seed_realtime_from_cmos(void)
 		year = cmos_bcd2bin(year);
 	}
 	if (!h24) {
-		// 12 h mode: bit 7 of the hour register means PM.
-		bool pm = (hour & 0x80U) != 0;
-
-		hour &= 0x7FU;
 		if (pm) {
 			if (hour != 12U) {
 				hour += 12U;
@@ -474,16 +478,25 @@ main(void)
 	// auth_type defaults to BASIC, but conf_http_server_init() leaves
 	// username/password NULL — and basic_authorize() (rest_api.c) does
 	// strlen() on both, so the credentials must be filled in here or the
-	// first REST request dereferences NULL.  admin/public matches
-	// etc/nanomq.conf and the upstream docs.
+	// first REST request dereferences NULL.  They come from Kconfig
+	// (BROKER_REST_USER/PASS) rather than from this file, so the board can
+	// take deployment credentials from local.conf without patching C.
 	//
 	// NB: Basic over plain HTTP is base64, not encryption — TLS is
 	// compiled out of the Zephyr NanoNNG, so keep this off untrusted
 	// networks regardless.
 	nmq_conf->http_server.enable    = true;
 	nmq_conf->http_server.auth_type = BASIC;
-	nmq_conf->http_server.username  = nng_strdup("admin");
-	nmq_conf->http_server.password  = nng_strdup("public");
+	nmq_conf->http_server.username  = nng_strdup(CONFIG_BROKER_REST_USER);
+	nmq_conf->http_server.password  = nng_strdup(CONFIG_BROKER_REST_PASS);
+
+	if (strcmp(CONFIG_BROKER_REST_USER, "admin") == 0 &&
+	    strcmp(CONFIG_BROKER_REST_PASS, "public") == 0) {
+		printk("rest: WARNING serving tcp:8081 on the LAN with the "
+		    "published default credentials admin/public - set "
+		    "CONFIG_BROKER_REST_USER/PASS (local.conf) before "
+		    "exposing this board\n");
+	}
 #endif
 
 #ifdef CONFIG_BROKER_WS

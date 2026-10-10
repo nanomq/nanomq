@@ -1,0 +1,15 @@
+# Local (untracked) overrides for demo/nanomq_zephyr_qemu_x86.
+#
+# Copy this file to local.conf next to prj.conf, fill in the real values
+# and pass it to the build:
+#
+#   west build -b qemu_x86 demo/nanomq_zephyr_qemu_x86 \
+#       -- -DEXTRA_CONF_FILE=local.conf
+#
+# local.conf is git-ignored so credentials stay out of the tree.
+
+# REST API Basic-auth credentials (prj.conf sets CONFIG_BROKER_REST_API=y
+# and the listener binds 0.0.0.0:8081 inside the guest).  Left unset, the
+# demo serves the published admin/public pair and warns about it at boot:
+#CONFIG_BROKER_REST_USER=""
+#CONFIG_BROKER_REST_PASS=""
