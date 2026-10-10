@@ -1108,7 +1108,11 @@ def main(argv=None) -> int:
     # stretched scale and a retry.  Deciding from a measured round trip beats
     # making every hardware run remember the flags; explicit flags always win.
     rtt = measure_connect_ms(addr)
-    remote = rtt >= REMOTE_RTT_MS
+    # A broker that is not on this machine is real hardware, whatever the
+    # round trip says: wired Ethernet to a board measures well under
+    # REMOTE_RTT_MS, but its CI-script timings still need the stretched scale
+    # and the retry (the qemu demos are loopback and keep the local values).
+    remote = rtt >= REMOTE_RTT_MS or not _is_loopback(addr)
     explicit_scale = args.time_scale is not None
     explicit_retry = args.retry is not None
     if not explicit_scale:
