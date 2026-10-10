@@ -1,4 +1,4 @@
-# NanoMQ → ESP32-S3 broker demo (sibling of demo/zephyr_broker, the
+# NanoMQ → ESP32-S3 broker demo (sibling of demo/nanomq_zephyr_qemu_x86, the
 # qemu_x86 version of the same app).
 #
 # Cross-compiles the NanoNNG submodule (nng/) with ExternalProject exactly
@@ -9,9 +9,9 @@
 # Zephyr board of its own; module differences (16 MB flash + PSRAM) are in
 # boards/<target>.overlay.
 #
-# Build:  west build -b esp32s3_devkitc/esp32s3/procpu demo/nanomq_esp32s3_broker
+# Build:  west build -b esp32s3_devkitc/esp32s3/procpu demo/nanomq_zephyr_esp32s3
 #          (add:  -- -DEXTRA_CONF_FILE=local.conf   for Wi-Fi credentials)
-# Flash:  west flash -d build/nanomq_esp32s3_broker
+# Flash:  west flash -d build/nanomq_zephyr_esp32s3
 
 cmake_minimum_required(VERSION 3.20.0)
 if(NOT DEFINED ZEPHYR_BASE)
@@ -28,9 +28,9 @@ set(DTC_OVERLAY_FILE
   CACHE STRING "Board overlay: ESP32-S3-LCD-EV-Board module (N16R16V)" FORCE)
 
 find_package(Zephyr REQUIRED HINTS ${ZEPHYR_BASE})
-project(nanomq_esp32s3_broker)
+project(nanomq_zephyr_esp32s3)
 
-# Repo layout: this demo is <repo>/demo/zephyr_broker; the NanoNNG
+# Repo layout: this demo is <repo>/demo/nanomq_zephyr_qemu_x86; the NanoNNG
 # submodule (nng fork incl. nanolib) lives at <repo>/nng.
 set(NANOMQ_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 set(NNG_ROOT ${NANOMQ_ROOT}/nng)

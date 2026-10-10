@@ -4,7 +4,7 @@
 # like the NanoNNG zephyr_mqtt demo does, then compiles the NanoMQ broker
 # core sources (nanomq/nanomq/) against it.
 #
-# Build:  west build -b qemu_x86 demo/zephyr_broker
+# Build:  west build -b qemu_x86 demo/nanomq_zephyr_qemu_x86
 # Run:    west build -t run  (SLIRP hostfwd: host tcp:1883 -> guest)
 
 cmake_minimum_required(VERSION 3.20.0)
@@ -12,9 +12,9 @@ if(NOT DEFINED ZEPHYR_BASE)
   set(ZEPHYR_BASE $ENV{ZEPHYR_BASE})
 endif()
 find_package(Zephyr REQUIRED HINTS ${ZEPHYR_BASE})
-project(nanomq_zephyr_broker)
+project(nanomq_zephyr_qemu_x86)
 
-# Repo layout: this demo is <repo>/demo/zephyr_broker; the NanoNNG
+# Repo layout: this demo is <repo>/demo/nanomq_zephyr_qemu_x86; the NanoNNG
 # submodule (nng fork incl. nanolib) lives at <repo>/nng.
 set(NANOMQ_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 set(NNG_ROOT ${NANOMQ_ROOT}/nng)

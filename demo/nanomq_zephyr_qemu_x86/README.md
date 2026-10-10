@@ -19,7 +19,7 @@ Three layers of changes, kept apart deliberately:
 | NanoNNG port | already Zephyr-ready (branch `develop`, no TLS/Parquet) | `nng/` submodule |
 | NanoMQ core | POSIX-only bits gated behind `__ZEPHYR__`: signal handlers in `apps/broker.c`, `ptrace.h` in `nanomq.c`, `W_OK` file-log check in `mqtt_api.c` | this repo |
 | broker bug fix | `nano_nni_lmq_fini`/`nano_nni_lmq_resize` freed the in-struct `lmq_buf` when the rlmq never grew (guard `lmq_alloc > 0`, mirroring `core/lmq.c`) — heap corruption on client disconnect on Zephyr | `nng/` submodule (commit in this branch) |
-| Demo | this directory | `demo/zephyr_broker` |
+| Demo | this directory | `demo/nanomq_zephyr_qemu_x86` |
 
 The one POSIX-only piece nng itself cannot build on Zephyr is the
 broker's `process.c` (fork/kill/chdir) — a small app-side stand-in
@@ -69,15 +69,15 @@ docker exec -u root zephyr-tap sh -lc '
   git submodule update --init nng &&            # NanoNNG fork, branch develop
   ZEPHYR_TOOLCHAIN_VARIANT=zephyr \
   ZEPHYR_SDK_INSTALL_DIR=/opt/toolchains/zephyr-sdk-1.0.1 \
-    west build -b qemu_x86 -d /workdir/build/zephyr_broker demo/zephyr_broker'
+    west build -b qemu_x86 -d /workdir/build/nanomq_zephyr_qemu_x86 demo/nanomq_zephyr_qemu_x86'
 ```
 
 (In a plain west workspace the two env vars are unnecessary and the build
-dir defaults to the repo's `build/zephyr_broker/`.)  The NanoNNG library
+dir defaults to the repo's `build/nanomq_zephyr_qemu_x86/`.)  The NanoNNG library
 is built by an ExternalProject
 ([demo/cmake/nanonng_external.cmake](../cmake/nanonng_external.cmake))
 into `<build-dir>/nanonng_build/` (here
-`/workdir/build/zephyr_broker/nanonng_build/`), mirroring the NanoNNG
+`/workdir/build/nanomq_zephyr_qemu_x86/nanonng_build/`), mirroring the NanoNNG
 `zephyr_mqtt` demo's build.  RAM footprint of the linked image: ~2.4 MB
 of the qemu_x86 31 MB RAM (≈1 MB of it the libc malloc arena — see
 below).
@@ -110,7 +110,7 @@ docker exec -u root zephyr-tap sh -lc '
     -serial file:/tmp/qemu3.log -display none \
     -netdev user,id=n1,hostfwd=tcp:0.0.0.0:1883-:1883,hostfwd=tcp:0.0.0.0:8081-:8081,hostfwd=tcp:0.0.0.0:8083-:8083 \
     -device e1000,netdev=n1 \
-    -kernel /workdir/build/zephyr_broker/zephyr/zephyr.elf &'
+    -kernel /workdir/build/nanomq_zephyr_qemu_x86/zephyr/zephyr.elf &'
 ```
 
 (qemu is the SDK's hosttools build.  `west build -t run` is equivalent —
@@ -118,7 +118,7 @@ the runner applies the `hostfwd` triple from [prj.conf](prj.conf)'s
 `CONFIG_NET_QEMU_USER_EXTRA_ARGS` automatically — but keeps the serial
 console on stdio and occupies the terminal.  In the hand-launched form
 above all three port forwards must be listed explicitly, exactly as here;
-the kernel path matches the `-d /workdir/build/zephyr_broker` of the Build
+the kernel path matches the `-d /workdir/build/nanomq_zephyr_qemu_x86` of the Build
 step.)
 
 **Confirm the broker came up** — within a second or two the log shows the
@@ -138,7 +138,7 @@ NanoMQ Broker is started successfully!
 ```
 
 This CMOS seeding is **deliberately qemu-only**.  The sibling ESP32-S3 demo
-([../nanomq_esp32s3_broker](../nanomq_esp32s3_broker/)) has no RTC at all
+([../nanomq_zephyr_esp32s3](../nanomq_zephyr_esp32s3/)) has no RTC at all
 and seeds the same clock over SNTP instead.  Do not "fix" the difference by
 enabling SNTP here: its auto-init path runs from `SYS_INIT`, i.e. *before*
 the CMOS seed in `main()`, so CMOS would simply overwrite the SNTP result —
@@ -214,10 +214,10 @@ these inside the container (it has python3 but no mosquitto), e.g. from
 the host:
 
 ```sh
-docker exec zephyr-tap python3 /workdir/nanomq/demo/zephyr_broker/mqtt_accept.py 127.0.0.1 1883 ...
+docker exec zephyr-tap python3 /workdir/nanomq/demo/nanomq_zephyr_qemu_x86/mqtt_accept.py 127.0.0.1 1883 ...
 ```
 
-or `cd demo/zephyr_broker` inside the container and use the shorter
+or `cd demo/nanomq_zephyr_qemu_x86` inside the container and use the shorter
 `python3 mqtt_accept.py ...` forms below:
 
 ```sh
@@ -265,7 +265,7 @@ measurably perturbs the suite's timing-sensitive subtests
 ```sh
 # uncomment CONFIG_BROKER_WEBHOOK / CONFIG_BROKER_WEBHOOK_URL in prj.conf,
 # or keep prj.conf pristine and use an overlay:
-west build -b qemu_x86 -d build/zephyr_broker demo/zephyr_broker -- \
+west build -b qemu_x86 -d build/nanomq_zephyr_qemu_x86 demo/nanomq_zephyr_qemu_x86 -- \
     -DEXTRA_CONF_FILE=webhook.conf      # holding the same two lines
 ```
 
@@ -277,7 +277,7 @@ round-trip).  To watch events by hand, start it before publishing to
 `hook/#`:
 
 ```sh
-python3 demo/zephyr_broker/hook_receiver.py --port 18080 --out /tmp/webhook.log
+python3 demo/nanomq_zephyr_qemu_x86/hook_receiver.py --port 18080 --out /tmp/webhook.log
 ```
 
 Stop it again before running the suite: the `webhook_smoke` group starts its
@@ -296,7 +296,7 @@ and one per `hook/#` publish (`message_publish` — ts, topic, qos, payload):
 Re-run it end to end with:
 
 ```sh
-python3 demo/zephyr_broker/function_test.py --group webhook_smoke --webhook \
+python3 demo/nanomq_zephyr_qemu_x86/function_test.py --group webhook_smoke --webhook \
     --no-manage --addr 127.0.0.1
 ```
 
@@ -319,10 +319,10 @@ nanomq binary with TLS/WS listeners and drives host-only tooling
 Run it from the repo root on the outer host:
 
 ```sh
-python3 demo/zephyr_broker/function_test.py                  # all groups
-python3 demo/zephyr_broker/function_test.py --group ws_v5 -v # one group, show output
-python3 demo/zephyr_broker/function_test.py --no-manage --addr 172.17.0.2  # broker already up
-python3 demo/zephyr_broker/function_test.py --list           # groups + timeouts
+python3 demo/nanomq_zephyr_qemu_x86/function_test.py                  # all groups
+python3 demo/nanomq_zephyr_qemu_x86/function_test.py --group ws_v5 -v # one group, show output
+python3 demo/nanomq_zephyr_qemu_x86/function_test.py --no-manage --addr 172.17.0.2  # broker already up
+python3 demo/nanomq_zephyr_qemu_x86/function_test.py --list           # groups + timeouts
 ```
 
 | Group | What it drives | Driver |
