@@ -28,7 +28,7 @@ connector (SWD + a 115200 virtual COM port on `/dev/ttyACM0`).
 Two decisions carry this demo; both have an ADR.
 
 **The image runs from QSPI XIP at 0x90000000**
-([../../docs/adr/0001](../../docs/adr/0001-qspi-xip-behind-art-pi-factory-bootloader.md)).
+([docs/adr/0001](docs/adr/0001-qspi-xip-behind-art-pi-factory-bootloader.md)).
 The broker is ~1 MB of code and the internal flash is 128 KB — all of it
 occupied by the Ruiside factory bootloader, which already maps the QUADSPI
 and jumps to the vector table it finds at 0x90000000.  The overlay points
@@ -38,7 +38,7 @@ off so nothing reconfigures the peripheral the CPU fetches from.  Flashing
 is SWD only ([tools/artpi_flash.py](tools/artpi_flash.py)).
 
 **The broker data plane lives in SDRAM**
-([../../docs/adr/0002](../../docs/adr/0002-broker-heap-in-sdram-through-the-external-ram-allocator.md)).
+([docs/adr/0002](docs/adr/0002-broker-heap-in-sdram-through-the-external-ram-allocator.md)).
 The devicetree's 6 MB `SDRAM1` region at 0xC0000000 feeds a plain `k_heap`
 (4 MB of it) through NanoNNG's external-RAM allocator
 (`NNG_ZEPHYR_ALLOC_SMH`), with the bounds in the linker fragment
@@ -106,7 +106,7 @@ for the full record.
    schematic's `GPIO_WIFI_HOST_WAKE` net (PE3) produced no wake-up either.
    Polling is also what the board's vendor stack does — the ART-Pi SDK's
    `libraries/drivers/drv_sdio.c` never enables `SDMMC_MASK.SDIOITIE` at all.
-   See [../../docs/adr/0003](../../docs/adr/0003-poll-the-whd-thread-because-the-art-pi-never-asserts-the-sdio-card-interrupt.md).
+   See [docs/adr/0003](docs/adr/0003-poll-the-whd-thread-because-the-art-pi-never-asserts-the-sdio-card-interrupt.md).
 
 3. **The STA connect flow is the application's job**, exactly as in the
    ESP32-S3 sibling: `src/main.c` waits for the interface, issues
@@ -490,7 +490,7 @@ REST :8081 and WebSocket :8083 all listening (REST
   (`CONFIG_AIROC_WIFI_WHD_POKE`, enabled in `wifi.conf`).  Both the in-band
   controller path and the out-of-band host-wake pin were tried and do not
   work on this board; the vendor stack polls too.  See
-  [../../docs/adr/0003](../../docs/adr/0003-poll-the-whd-thread-because-the-art-pi-never-asserts-the-sdio-card-interrupt.md).
+  [docs/adr/0003](docs/adr/0003-poll-the-whd-thread-because-the-art-pi-never-asserts-the-sdio-card-interrupt.md).
 * After the link has been up for a few minutes, that backplane polling starts
   failing and the console floods with `sdhc_stm32: Command response timeout`.
   It is **not** fatal — the MQTT/REST/WebSocket groups all pass while it is
@@ -519,9 +519,8 @@ REST :8081 and WebSocket :8083 all listening (REST
   [docs/zh_CN/port-to-art-pi.md](docs/zh_CN/port-to-art-pi.md) — the porting
   record: what differs from the ESP32-S3 sibling, in what order the traps
   appeared, and the evidence for each.
-* [../../docs/adr/](../../docs/adr/) — the QSPI XIP and SDRAM heap decisions
-  (kept at the repository root, next to `CONTEXT.md`), and ADR 0003, which
-  records why Wi-Fi polls instead of being interrupted.
+* [docs/adr/](docs/adr/) — the QSPI XIP and SDRAM heap decisions, and ADR
+  0003, which records why Wi-Fi polls instead of being interrupted.
 * [../nanomq_zephyr_esp32s3/README.md](../nanomq_zephyr_esp32s3/README.md) —
   the sibling this demo is derived from (PSRAM, ESP-IDF tooling, webhook).
 * [../../docs/en_US/tutorial/port-to-zephyr.md](../../docs/en_US/tutorial/port-to-zephyr.md)

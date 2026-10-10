@@ -170,7 +170,7 @@ WLAN MAC Address : 70:4A:0E:51:77:9A
 （`libraries/drivers/drv_sdio.c`）从未打开 `SDMMC_MASK.SDIOITIE`，也没有注册任何
 卡中断回调，它上面那套 WICED 是靠轮询芯片状态寄存器拿中断的。这个决策及其后果
 记录在
-[ADR 0003](../../../../docs/adr/0003-poll-the-whd-thread-because-the-art-pi-never-asserts-the-sdio-card-interrupt.md)。
+[ADR 0003](../adr/0003-poll-the-whd-thread-because-the-art-pi-never-asserts-the-sdio-card-interrupt.md)。
 
 给后来者留个提醒：因为"中断不来"会让**每一条** ioctl 都超时，它顺带制造了两个
 很有说服力但错误的早期结论 —— "CLM blob 会让芯片卡住"，以及"必须用厂商 SPI
