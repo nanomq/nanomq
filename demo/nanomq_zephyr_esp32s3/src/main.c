@@ -497,6 +497,15 @@ main(void)
 		    nng_strdup(CONFIG_BROKER_REST_USER);
 		nmq_conf->http_server.password =
 		    nng_strdup(CONFIG_BROKER_REST_PASS);
+		if ((nmq_conf->http_server.username == NULL) ||
+		    (nmq_conf->http_server.password == NULL)) {
+			// basic_authorize() (rest_api.c) strlen()s both, so a
+			// copy that failed would crash the first request;
+			// keep the listener off instead.
+			printk("rest: credentials could not be copied, REST "
+			    "API stays off\n");
+			nmq_conf->http_server.enable = false;
+		}
 	} else {
 		printk("rest: REST API stays off - set "
 		    "CONFIG_BROKER_REST_USER and CONFIG_BROKER_REST_PASS to "
