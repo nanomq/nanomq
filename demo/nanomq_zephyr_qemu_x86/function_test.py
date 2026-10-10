@@ -42,6 +42,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import shutil
 import signal
 import socket
@@ -210,14 +211,22 @@ def broker_alive(addr: str, timeout: float = 5.0) -> bool:
         return False
 
 
-def kill_host_mosquitto_clients() -> int:
-    """Drop leftover mosquitto_sub/pub clients.
+def kill_host_mosquitto_clients(addr: str) -> int:
+    """Drop leftover mosquitto_sub/pub clients talking to *this* broker.
 
     They auto-reconnect and can silently steal $share traffic or hold a
     clean-session subscription open, which makes the CI groups flaky.
-    The bracket pattern keeps pkill from matching its own command line.
+
+    The match is deliberately narrow — the broker address under test, or
+    the MQTT port we drive it on — because an unscoped
+    `pkill -f mosquitto_[sp]ub` also takes out every such client the user
+    happens to be running against an unrelated broker.  Clients started by
+    this run itself are reaped by process group in _kill_worker_group(),
+    not here, so this is only about stragglers from an earlier run.
     """
-    p = subprocess.run(["pkill", "-f", "mosquitto_[sp]ub"],
+    pattern = r"mosquitto_[sp]ub.*(%s|-p\s+%d\b|:%d\b)" % (
+        re.escape(addr), MQTT_PORT, MQTT_PORT)
+    p = subprocess.run(["pkill", "-f", pattern],
                        capture_output=True, text=True)
     return 0 if p.returncode else 1
 
@@ -555,6 +564,13 @@ def group_ws_v5(addr: str, env: dict) -> None:
     connected.
 
     Like group_ws_v311 this one is deliberately left unscaled (see there).
+
+    Scope: the upstream suite reports a verdict per sub-case by printing
+    it, not by returning one — its own comment says "test.py ignores the
+    ws results" — so this group asserts that the suite runs to completion,
+    not that every sub-case passed.  Tightening that means changing the
+    upstream CI script, not this harness; the per-case PASS/FAIL still
+    appears in the worker output.
     """
     import paho.mqtt.client as pmqtt
 
@@ -590,8 +606,9 @@ def group_webhook_smoke(addr: str, env: dict) -> None:
     if not env.get("ZF_WEBHOOK"):
         raise SkipGroup(
             "broker webhook not declared — pass --webhook if it was built "
-            "with CONFIG_BROKER_WEBHOOK (qemu_x86 enables it by default; a "
-            "real board needs CONFIG_BROKER_WEBHOOK_URL in local.conf)")
+            "with CONFIG_BROKER_WEBHOOK (off by default in both demos; set "
+            "CONFIG_BROKER_WEBHOOK_URL — local.conf on a board, an overlay "
+            "or webhook.conf on qemu_x86 — to turn the forwarder on)")
 
     import paho.mqtt.client as mqtt
     from paho.mqtt.client import CallbackAPIVersion
@@ -914,8 +931,8 @@ def parse_args(argv=None):
                     help="the broker under test has the webhook forwarder "
                          "enabled; run hook_receiver.py locally and expect "
                          "events.  Without it the webhook_smoke group skips "
-                         "(qemu_x86 enables it by default, a real board "
-                         "needs CONFIG_BROKER_WEBHOOK_URL in local.conf)")
+                         "(the demos leave it off; set "
+                         "CONFIG_BROKER_WEBHOOK_URL to turn it on)")
     ap.add_argument("--container", default=DEFAULT_CONTAINER,
                     help="docker container running qemu (default: %s)"
                          % DEFAULT_CONTAINER)
@@ -1025,7 +1042,7 @@ def main(argv=None) -> int:
 
     # Leftover clients steal $share traffic and hold clean sessions open.
     if broker.manage:
-        killed = kill_host_mosquitto_clients()
+        killed = kill_host_mosquitto_clients(addr)
         if killed:
             log("killed %d leftover mosquitto_sub/pub client(s)" % killed)
     else:
