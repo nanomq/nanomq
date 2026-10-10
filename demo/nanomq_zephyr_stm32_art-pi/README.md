@@ -124,7 +124,9 @@ for the full record.
    the broker from starting, because then there is no broker log at all and
    the board looks dead — it starts anyway, prints
    `wifi: no association after 3 attempts ... starting the broker anyway`,
-   and becomes reachable if a lease ever arrives.  The Wi-Fi
+   starts the DHCP client too (so an address that turns up later is picked
+   up), and leaves the association to a board reset — nothing retries it for
+   you.  The Wi-Fi
    build passes [boards/art_pi_wifi.overlay](boards/art_pi_wifi.overlay) as
    an extra DTC overlay (`&mac`/`&mdio`/`&eth_phy` disabled) so the image has
    a single interface.

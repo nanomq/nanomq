@@ -458,11 +458,19 @@ wifi_sta_connect(void)
 			break;
 		}
 		if (tries == WIFI_CONNECT_ATTEMPTS) {
+			/* Give up on the link, not on the broker: it starts and
+			 * says so, because a board that cannot associate must
+			 * still be visible on the console.  The DHCP client is
+			 * started as well, so an address that turns up later --
+			 * the chip joining on its own, say -- is picked up.  No
+			 * one retries the association for us, so a reset is the
+			 * way back. */
 			printk("wifi: no association after %d attempts (%d s each) "
-			    "— starting the broker anyway; it will only be "
-			    "reachable once a lease arrives.  Check the "
-			    "credentials in local.conf, then reset the board.\n",
-			    WIFI_CONNECT_ATTEMPTS, 30);
+			    "— starting the broker anyway, but this link has no "
+			    "address, so nothing can reach it yet.  Check the "
+			    "credentials in local.conf, then reset the board to "
+			    "retry.\n", WIFI_CONNECT_ATTEMPTS, 30);
+			net_dhcpv4_start(iface);
 			return (-1);
 		}
 		printk("wifi: connect timed out — retrying (iface up=%d "

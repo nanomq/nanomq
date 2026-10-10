@@ -1,63 +1,56 @@
-diff --git a/whd-expansion/WHD/COMPONENT_WIFI5/resources/nvram/COMPONENT_43438/COMPONENT_AW-CU427-P/cyw943438_aw-cu427.txt b/whd-expansion/WHD/COMPONENT_WIFI5/resources/nvram/COMPONENT_43438/COMPONENT_AW-CU427-P/cyw943438_aw-cu427.txt
-index 1f2d10f..09bbd5b 100644
---- a/whd-expansion/WHD/COMPONENT_WIFI5/resources/nvram/COMPONENT_43438/COMPONENT_AW-CU427-P/cyw943438_aw-cu427.txt
-+++ b/whd-expansion/WHD/COMPONENT_WIFI5/resources/nvram/COMPONENT_43438/COMPONENT_AW-CU427-P/cyw943438_aw-cu427.txt
-@@ -1,33 +1,40 @@
--NVRAMRev=$Rev$
-+# NVRAM for the ART-Pi's AP6212A1 (BCM43438A1, 26 MHz).
+diff --git a/whd-expansion/WHD/COMPONENT_WIFI5/resources/nvram/COMPONENT_43438/COMPONENT_AP6212/cyw943438_ap6212.txt b/whd-expansion/WHD/COMPONENT_WIFI5/resources/nvram/COMPONENT_43438/COMPONENT_AP6212/cyw943438_ap6212.txt
+new file mode 100644
+index 0000000..b3cb652
+--- /dev/null
++++ b/whd-expansion/WHD/COMPONENT_WIFI5/resources/nvram/COMPONENT_43438/COMPONENT_AP6212/cyw943438_ap6212.txt
+@@ -0,0 +1,50 @@
++# NVRAM for the ART-Pi's AP6212A1 module (BCM43438A1, 26 MHz).
 +#
-+# These are the exact parameters the board's vendor RT-Thread WICED port
-+# ships (libraries/drivers/drv_wlan.c, wifi_nvram_image[]): the AM/AP module
-+# body is prodid/boardtype 0x0726 rather than the AW-CU427-P's 0x0865, and the
-+# firmware aborts its init if the NVRAM's board type is not one it was built
-+# for.  Note the module has no 32 kHz crystal of its own in use here, so the
-+# 26 MHz crystal frequency (matching the "BCM43438A1 26MHz" string in the
-+# board's BT image) is what the WLAN core needs.
- manfid=0x2d0
--prodid=0x0727
++# These are the parameters the board's vendor RT-Thread WICED port ships
++# (libraries/drivers/drv_wlan.c, wifi_nvram_image[]): this module reports
++# prodid/boardtype 0x0726, not the AW-CU427-P's 0x0865, and its firmware aborts
++# its init on a board type it was not built for.  The module runs on its 26 MHz
++# crystal -- the same frequency the "BCM43438A1 26MHz" string in the board's BT
++# image reports -- which is what xtalfreq tells the WLAN core.
++#
++# Consumed by demo/nanomq_zephyr_stm32_art-pi in the NanoMQ tree.
++manfid=0x2d0
 +prodid=0x0726
- vendid=0x14e4
- devid=0x43e2
--boardtype=0x0865
--boardrev=0x1100
++vendid=0x14e4
++devid=0x43e2
 +boardtype=0x0726
 +boardrev=0x1101
- boardnum=22
--macaddr=00:90:4c:2b:f0:02
++boardnum=22
 +xtalfreq=26000
- sromrev=11
- boardflags=0x00404201
- boardflags3=0x08000000
--xtalfreq=26000
++sromrev=11
++boardflags=0x00404201
++boardflags3=0x08000000
 +macaddr=02:0A:F7:fe:86:1c
- nocrc=1
- ag0=255
- aa2g=1
- ccode=ALL
- swdiv_en=1
--swdiv_gpio=1
--swdiv_gpio_1=2
++nocrc=1
++ag0=255
++aa2g=1
++ccode=ALL
++swdiv_en=1
 +swdiv_gpio=2
- pa0itssit=0x20
- extpagain2g=0
--pa2ga0=-148,6421,-710
++pa0itssit=0x20
++extpagain2g=0
 +pa2ga0=-215,5267,-656
- AvVmid_c0=0x0,0xc8
- cckpwroffset0=5
--maxp2ga0=84
++AvVmid_c0=0x0,0xc8
++cckpwroffset0=5
 +maxp2ga0=80
- txpwrbckof=6
--cckbw202gpo=0
--legofdmbw202gpo=0x66111111
--mcsbw202gpo=0x77711111
++txpwrbckof=6
 +cckbw202gpo=0x6666
 +legofdmbw202gpo=0xaaaaaaaa
 +mcsbw202gpo=0xbbbbbbbb
- propbw202gpo=0xdd
- ofdmdigfilttype=18
- ofdmdigfilttypebe=18
-@@ -40,4 +47,3 @@ wl0id=0x431b
- deadman_to=0xffffffff
- muxenab=0x11
- spurconfig=0x3
--rssicorrnorm=3
++propbw202gpo=0xdd
++ofdmdigfilttype=18
++ofdmdigfilttypebe=18
++papdmode=1
++papdvalidtest=1
++pacalidx2g=32
++papdepsoffset=-36
++papdendidx=61
++wl0id=0x431b
++deadman_to=0xffffffff
++muxenab=0x11
++spurconfig=0x3
