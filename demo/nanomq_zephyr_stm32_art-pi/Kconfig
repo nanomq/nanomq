@@ -110,6 +110,27 @@ config BROKER_WIFI_PSK
 	  WPA2-PSK passphrase for BROKER_WIFI_SSID.  Empty selects an open
 	  (unsecured) network.
 
+config BROKER_WIFI_MONITOR_PERIOD_S
+	int "How often to check the Wi-Fi link state (seconds, 0 = off)"
+	depends on WIFI
+	default 10
+	range 0 3600
+	help
+	  After the bounded boot-time association, a supervisor thread asks
+	  the driver for its join state every N seconds and re-associates
+	  (then re-requests a lease) whenever the link has gone away.
+
+	  Needed because the airoc driver raises
+	  NET_EVENT_WIFI_DISCONNECT_RESULT only for an explicit disconnect
+	  request: a lost AP — deauth, disassoc or plain beacon loss — leaves
+	  the interface with no event and no address, so the broker used to
+	  sit on a dead link until the board was reset.  The supervisor polls
+	  the driver's WHD join state, which WHD clears for every one of those
+	  losses, and reconnects.
+
+	  0 turns the monitor off: the boot path still associates, but a link
+	  that drops afterwards is not recovered.
+
 config BROKER_STATUS_INTERVAL_S
 	int "Periodic broker status line (seconds, 0 = off)"
 	default 60

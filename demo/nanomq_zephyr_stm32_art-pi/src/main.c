@@ -357,16 +357,43 @@ seed_realtime_from_sntp(void)
 
 #if defined(CONFIG_WIFI)
 //
-// Wi-Fi STA bring-up (the ART-Pi's AP6212 — an Infineon CYW43438 on SDMMC2).
+// Wi-Fi STA bring-up and link supervision (the ART-Pi's AP6212 — an Infineon
+// CYW43438 on SDMMC2).
 //
 // The driver enumerates the chip over SDIO and implements Zephyr's Wi-Fi mgmt
-// API; connecting and getting a lease is the application's job, exactly as in
-// the ESP32-S3 sibling demo.  Credentials come from app Kconfig
-// (BROKER_WIFI_SSID / BROKER_WIFI_PSK), supplied through the git-ignored
-// local.conf.
+// API; connecting, getting a lease and *keeping* both are the application's
+// job.  Credentials come from app Kconfig (BROKER_WIFI_SSID / BROKER_WIFI_PSK),
+// supplied through the git-ignored local.conf.
 //
+// main() runs one bounded bring-up, then hands the link to
+// wifi_supervisor_thread().  The broker's listeners stay on 0.0.0.0, so
+// surviving a lost AP is only a matter of re-associating and re-leasing —
+// there is nothing to restart in the broker itself.
+//
+#define WIFI_CONNECT_ATTEMPTS   3
+#define WIFI_CONNECT_TIMEOUT_S  30
+#define WIFI_DHCP_TIMEOUT_S     30
+
+// Reconnect backoff: start eager (an AP that rebooted is usually back within
+// seconds) and settle at a minute, so a board parked next to a switched-off
+// AP does not keep the radio busy.
+#define WIFI_RECONNECT_MIN_S    5
+#define WIFI_RECONNECT_MAX_S    60
+
 static K_SEM_DEFINE(wifi_connected_sem, 0, 1);
 static K_SEM_DEFINE(wifi_dhcp_sem, 0, 1);
+static K_SEM_DEFINE(wifi_link_down_sem, 0, 1);
+static K_SEM_DEFINE(wifi_supervisor_go_sem, 0, 1);
+
+static struct net_mgmt_event_callback wifi_connect_cb;
+static struct net_mgmt_event_callback wifi_disconnect_cb;
+static struct net_mgmt_event_callback wifi_dhcp_cb;
+
+// Cached at bring-up and reused by every reconnect: the Wi-Fi interface is
+// the default one (the Ethernet nodes are disabled in this build) and the
+// connect parameters point at the Kconfig strings, which live forever.
+static struct net_if *wifi_iface;
+static struct wifi_connect_req_params wifi_cnx;
 
 static void
 wifi_mgmt_event_handler(struct net_mgmt_event_callback *cb, uint64_t mgmt_event,
@@ -386,6 +413,15 @@ wifi_mgmt_event_handler(struct net_mgmt_event_callback *cb, uint64_t mgmt_event,
 		}
 		break;
 	}
+	case NET_EVENT_WIFI_DISCONNECT_RESULT:
+		// The airoc driver only raises this for an explicit
+		// NET_REQUEST_WIFI_DISCONNECT — never for an AP that walked
+		// away, which is what the supervisor's status poll is for.
+		// Waking it here just makes the reconnect immediate when the
+		// event does arrive.
+		printk("wifi: disconnected\n");
+		k_sem_give(&wifi_link_down_sem);
+		break;
 	case NET_EVENT_IPV4_DHCP_BOUND:
 		printk("wifi: IPv4 address assigned (DHCPv4)\n");
 		k_sem_give(&wifi_dhcp_sem);
@@ -393,20 +429,143 @@ wifi_mgmt_event_handler(struct net_mgmt_event_callback *cb, uint64_t mgmt_event,
 	default:
 		break;
 	}
-	ARG_UNUSED(cb);
 	ARG_UNUSED(iface);
 }
 
+//
+// One NET_REQUEST_WIFI_CONNECT and wait for its result.  Shared by the boot
+// path and the supervisor; returns 0 once the driver reports association.
+//
 static int
-wifi_sta_connect(void)
+wifi_sta_join(void)
+{
+	int ret;
+
+	k_sem_reset(&wifi_connected_sem);
+	ret = net_mgmt(NET_REQUEST_WIFI_CONNECT, wifi_iface, &wifi_cnx,
+	    sizeof(wifi_cnx));
+	if (ret != 0) {
+		printk("wifi: connect request failed (%d)\n", ret);
+		return (ret);
+	}
+	if (k_sem_take(&wifi_connected_sem, K_SECONDS(WIFI_CONNECT_TIMEOUT_S))
+	    != 0) {
+		printk("wifi: connect timed out after %d s (iface up=%d "
+		    "dormant=%d)\n", WIFI_CONNECT_TIMEOUT_S,
+		    net_if_is_up(wifi_iface), net_if_is_dormant(wifi_iface));
+		return (-ETIMEDOUT);
+	}
+	return (0);
+}
+
+//
+// (Re)negotiate the lease.  net_dhcpv4_restart() rather than _start(): the
+// interface keeps its old address across a link drop, and a client that is
+// already BOUND ignores _start(), so only a restart forces a fresh DISCOVER.
+// The driver restarts the client itself on every successful connect
+// (CONFIG_WIFI_STA_AUTO_DHCPV4, on in this build) — doing it here as well
+// keeps the bring-up path independent of that option and also covers the
+// link-up-but-no-address case.
+//
+static void
+wifi_dhcp_acquire(void)
+{
+	k_sem_reset(&wifi_dhcp_sem);
+	net_dhcpv4_restart(wifi_iface); // outcome arrives as the BOUND event
+	if (k_sem_take(&wifi_dhcp_sem, K_SECONDS(WIFI_DHCP_TIMEOUT_S)) != 0) {
+		printk("wifi: no DHCPv4 lease within %d s\n",
+		    WIFI_DHCP_TIMEOUT_S);
+	}
+}
+
+//
+// Does the driver still consider the STA associated?
+//
+// NET_REQUEST_WIFI_IFACE_STATUS is the only honest answer available here.
+// whd_wifi_is_ready_to_transceive() (which is what the airoc driver reports)
+// is built from WHD's JOIN_LINK_READY bit, and WHD clears that bit for every
+// way the link can end: deauth, disassoc, and plain beacon loss (WLC_E_LINK
+// with the link flag clear, whd_wifi_api.c).  The Zephyr driver's own event
+// task, by contrast, only reacts to deauth/disassoc — it passes WLC_E_LINK
+// through — so nothing else tells this application that an AP it can no
+// longer hear is gone.
+//
+static bool
+wifi_sta_is_associated(void)
+{
+	struct wifi_iface_status status = { 0 };
+
+	if (net_mgmt(NET_REQUEST_WIFI_IFACE_STATUS, wifi_iface, &status,
+	    sizeof(status)) != 0) {
+		return (false);
+	}
+	return (status.state == WIFI_STATE_COMPLETED);
+}
+
+//
+// Link supervisor: re-associate and re-lease whenever the link is gone, for
+// as long as the board runs.  Without it a lost AP left the broker listening
+// on an address it no longer had — visible only as the 60 s status line
+// dropping its "ipv4 ..." — until someone reset the board.
+//
+static void
+wifi_supervisor_thread(void *a, void *b, void *c)
+{
+	unsigned int backoff_s = WIFI_RECONNECT_MIN_S;
+
+	// Do not race the bounded bring-up in main() for the driver's single
+	// connect path.
+	k_sem_take(&wifi_supervisor_go_sem, K_FOREVER);
+
+	for (;;) {
+		if (wifi_sta_is_associated()) {
+			if (net_if_ipv4_get_global_addr(wifi_iface,
+			    NET_ADDR_ANY_STATE) == NULL) {
+				printk("wifi: link is up but carries no IPv4 "
+				    "address — renewing the lease\n");
+				wifi_dhcp_acquire();
+			}
+			backoff_s = WIFI_RECONNECT_MIN_S;
+			// Sleep until a disconnect event pokes us, or re-check
+			// ourselves after the monitor period.
+			k_sem_reset(&wifi_link_down_sem);
+			(void) k_sem_take(&wifi_link_down_sem,
+			    K_SECONDS(CONFIG_BROKER_WIFI_MONITOR_PERIOD_S));
+			continue;
+		}
+
+		printk("wifi: link down — reconnecting to \"%s\"\n",
+		    CONFIG_BROKER_WIFI_SSID);
+		if (wifi_sta_join() == 0) {
+			wifi_dhcp_acquire();
+			backoff_s = WIFI_RECONNECT_MIN_S;
+			continue;
+		}
+		printk("wifi: reconnect failed — retrying in %u s\n",
+		    backoff_s);
+		k_sleep(K_SECONDS(backoff_s));
+		backoff_s = MIN(backoff_s * 2, WIFI_RECONNECT_MAX_S);
+	}
+	ARG_UNUSED(a); ARG_UNUSED(b); ARG_UNUSED(c);
+}
+
+#if CONFIG_BROKER_WIFI_MONITOR_PERIOD_S > 0
+K_THREAD_DEFINE(wifi_supervisor, 4096, wifi_supervisor_thread, NULL, NULL,
+		NULL, 12, 0, 0);
+#endif
+
+//
+// Bounded boot bring-up.  Returns 0 when there is a link to supervise (even
+// if this boot could not reach the AP) and -1 when Wi-Fi is unusable (no
+// credentials or no interface), so main() knows whether starting the
+// supervisor means anything.
+//
+static int
+wifi_sta_bringup(void)
 {
 	const char *ssid = CONFIG_BROKER_WIFI_SSID;
 	const char *psk  = CONFIG_BROKER_WIFI_PSK;
-	struct wifi_connect_req_params cnx = { 0 };
-	struct net_mgmt_event_callback wifi_cb;
-	struct net_mgmt_event_callback dhcp_cb;
-	struct net_if *iface;
-	int ret;
+	bool associated = false;
 
 	if (ssid[0] == '\0') {
 		printk("wifi: BROKER_WIFI_SSID is empty (set it via local.conf) — "
@@ -415,77 +574,68 @@ wifi_sta_connect(void)
 	}
 	// With the Ethernet node disabled in this build, the Wi-Fi interface is
 	// the default one.
-	iface = net_if_get_default();
-	if (iface == NULL) {
+	wifi_iface = net_if_get_default();
+	if (wifi_iface == NULL) {
 		printk("wifi: no network interface found\n");
 		return (-1);
 	}
 
-	cnx.ssid        = (const uint8_t *) ssid;
-	cnx.ssid_length = strlen(ssid);
-	cnx.channel     = WIFI_CHANNEL_ANY;
-	cnx.band        = WIFI_FREQ_BAND_2_4_GHZ;
-	cnx.security    = psk[0] != '\0' ? WIFI_SECURITY_TYPE_PSK
-					 : WIFI_SECURITY_TYPE_NONE;
-	cnx.psk         = (const uint8_t *) psk;
-	cnx.psk_length  = strlen(psk);
-	cnx.timeout     = 30000U;
+	wifi_cnx.ssid        = (const uint8_t *) ssid;
+	wifi_cnx.ssid_length = strlen(ssid);
+	wifi_cnx.channel     = WIFI_CHANNEL_ANY;
+	wifi_cnx.band        = WIFI_FREQ_BAND_2_4_GHZ;
+	wifi_cnx.security    = psk[0] != '\0' ? WIFI_SECURITY_TYPE_PSK
+					      : WIFI_SECURITY_TYPE_NONE;
+	wifi_cnx.psk         = (const uint8_t *) psk;
+	wifi_cnx.psk_length  = strlen(psk);
+	wifi_cnx.timeout     = WIFI_CONNECT_TIMEOUT_S * 1000U;
 
 	/* One callback per event: net_mgmt's dispatch compares the whole
 	 * layer-code field of mask vs event (subsys/net/ip/net_mgmt.c
 	 * mgmt_run_slist_callbacks), so OR'ing events from different
-	 * layer-codes into one mask silently drops every delivery. */
-	net_mgmt_init_event_callback(&wifi_cb, wifi_mgmt_event_handler,
+	 * layer-codes into one mask silently drops every delivery.  These stay
+	 * registered for the life of the demo: the supervisor needs them. */
+	net_mgmt_init_event_callback(&wifi_connect_cb, wifi_mgmt_event_handler,
 	    NET_EVENT_WIFI_CONNECT_RESULT);
-	net_mgmt_add_event_callback(&wifi_cb);
-	net_mgmt_init_event_callback(&dhcp_cb, wifi_mgmt_event_handler,
+	net_mgmt_add_event_callback(&wifi_connect_cb);
+	net_mgmt_init_event_callback(&wifi_disconnect_cb,
+	    wifi_mgmt_event_handler, NET_EVENT_WIFI_DISCONNECT_RESULT);
+	net_mgmt_add_event_callback(&wifi_disconnect_cb);
+	net_mgmt_init_event_callback(&wifi_dhcp_cb, wifi_mgmt_event_handler,
 	    NET_EVENT_IPV4_DHCP_BOUND);
-	net_mgmt_add_event_callback(&dhcp_cb);
+	net_mgmt_add_event_callback(&wifi_dhcp_cb);
 
 	// Bounded on purpose: the broker must start (and say so) even when the
 	// link does not come up, otherwise a board that cannot associate shows
 	// no broker log at all and looks dead.  The Ethernet and USB paths
 	// below are bounded for the same reason.
-#define WIFI_CONNECT_ATTEMPTS 3
 	for (int tries = 1; tries <= WIFI_CONNECT_ATTEMPTS; tries++) {
 		printk("wifi: connecting to \"%s\" (attempt %d)\n", ssid, tries);
-		ret = net_mgmt(NET_REQUEST_WIFI_CONNECT, iface, &cnx,
-		    sizeof(cnx));
-		if (ret != 0) {
-			printk("wifi: connect request failed (%d)\n", ret);
-		}
-		if (k_sem_take(&wifi_connected_sem, K_SECONDS(30)) == 0) {
+		if (wifi_sta_join() == 0) {
+			associated = true;
 			break;
 		}
 		if (tries == WIFI_CONNECT_ATTEMPTS) {
-			/* Give up on the link, not on the broker: it starts and
-			 * says so, because a board that cannot associate must
-			 * still be visible on the console.  The DHCP client is
-			 * started as well, so an address that turns up later --
-			 * the chip joining on its own, say -- is picked up.  No
-			 * one retries the association for us, so a reset is the
-			 * way back. */
-			printk("wifi: no association after %d attempts (%d s each) "
-			    "— starting the broker anyway, but this link has no "
-			    "address, so nothing can reach it yet.  Check the "
-			    "credentials in local.conf, then reset the board to "
-			    "retry.\n", WIFI_CONNECT_ATTEMPTS, 30);
-			net_dhcpv4_start(iface);
-			return (-1);
+			/* Give up on this boot's link, not on the broker:
+			 * it starts and says so, because a board that cannot
+			 * associate must still be visible on the console.
+			 * The supervisor keeps retrying in the background,
+			 * so a link that comes back is picked up without a
+			 * reset; wrong credentials show up as that loop
+			 * never succeeding. */
+			printk("wifi: no association after %d attempts (%d s "
+			    "each) — starting the broker anyway; the Wi-Fi "
+			    "supervisor keeps retrying in the background.  "
+			    "Check the credentials in local.conf if this "
+			    "never clears.\n", WIFI_CONNECT_ATTEMPTS,
+			    WIFI_CONNECT_TIMEOUT_S);
 		}
-		printk("wifi: connect timed out — retrying (iface up=%d "
-		    "dormant=%d)\n", net_if_is_up(iface),
-		    net_if_is_dormant(iface));
 	}
 
-	printk("wifi: connected — starting DHCPv4 client\n");
-	net_dhcpv4_start(iface); // outcome arrives as the BOUND event
-	if (k_sem_take(&wifi_dhcp_sem, K_SECONDS(30)) != 0) {
-		printk("wifi: no DHCPv4 lease within 30 s\n");
+	if (associated) {
+		printk("wifi: connected — starting DHCPv4 client\n");
+		wifi_dhcp_acquire();
 	}
-
-	net_mgmt_del_event_callback(&wifi_cb);
-	net_mgmt_del_event_callback(&dhcp_cb);
 	return (0);
 }
 #endif /* CONFIG_WIFI */
@@ -496,7 +646,11 @@ main(void)
 	conf *nmq_conf;
 
 #if defined(CONFIG_WIFI)
-	wifi_sta_connect();
+	if (wifi_sta_bringup() == 0) {
+#if CONFIG_BROKER_WIFI_MONITOR_PERIOD_S > 0
+		k_sem_give(&wifi_supervisor_go_sem);
+#endif
+	}
 #elif defined(CONFIG_USB_DEVICE_NETWORK_ECM)
 	usb_net_bringup();
 #else
