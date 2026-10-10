@@ -206,7 +206,7 @@ west flash
 If the serial port cannot be found, specify it manually:
 
 ```Bash
-west flash -- --port /dev/ttyUSB0  # or /dev/ttyACM0
+west flash --runner esp32 --esp-device /dev/ttyUSB0  # or /dev/ttyACM0
 ```
 
 ### 6.4 View the serial log
