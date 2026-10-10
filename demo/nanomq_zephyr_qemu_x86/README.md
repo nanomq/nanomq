@@ -53,34 +53,19 @@ iow32(dev, RCTL, RCTL_EN | RCTL_MPE | RCTL_BAM | DT_INST_PROP(inst, rdmts) << RD
 
 ## Build
 
-Needs a Zephyr 4.x SDK workspace with the NanoNNG submodule checked out.
-In this repo's dev setup everything runs inside the `zephyr-tap` docker
-container (image `ghcr.io/zephyrproject-rtos/zephyr-build:main`): the
-repo is bind-mounted at `/workdir/nanomq` inside a west workspace rooted
-at `/workdir` (Zephyr 4.4 @ 11a87708d41 in `/workdir/zephyr`, SDK at
-`/opt/toolchains/zephyr-sdk-1.0.1`).  Use `-u root` — the bind-mounted
-files are owned by the host uid (1001), while the container's default
-user is uid 1000 and cannot write them.
+Needs a Zephyr 4.x SDK workspace with the NanoNNG submodule checked out and
+the e1000 patch above applied.  From the repo root:
 
 ```sh
-# host → container
-docker exec -u root zephyr-tap sh -lc '
-  cd /workdir/nanomq &&
-  git submodule update --init nng &&            # NanoNNG fork, branch develop
-  ZEPHYR_TOOLCHAIN_VARIANT=zephyr \
-  ZEPHYR_SDK_INSTALL_DIR=/opt/toolchains/zephyr-sdk-1.0.1 \
-    west build -b qemu_x86 -d /workdir/build/nanomq_zephyr_qemu_x86 demo/nanomq_zephyr_qemu_x86'
+git submodule update --init nng
+west build -b qemu_x86 -d build/nanomq_zephyr_qemu_x86 demo/nanomq_zephyr_qemu_x86
 ```
 
-(In a plain west workspace the two env vars are unnecessary and the build
-dir defaults to the repo's `build/nanomq_zephyr_qemu_x86/`.)  The NanoNNG library
-is built by an ExternalProject
+The NanoNNG library is built by an ExternalProject
 ([demo/cmake/nanonng_external.cmake](../cmake/nanonng_external.cmake))
-into `<build-dir>/nanonng_build/` (here
-`/workdir/build/nanomq_zephyr_qemu_x86/nanonng_build/`), mirroring the NanoNNG
-`zephyr_mqtt` demo's build.  RAM footprint of the linked image: ~2.4 MB
-of the qemu_x86 31 MB RAM (≈1 MB of it the libc malloc arena — see
-below).
+into `<build-dir>/nanonng_build/`, mirroring the NanoNNG `zephyr_mqtt`
+demo's build.  RAM footprint of the linked image: ~2.5 MB of the qemu_x86
+31 MB RAM (≈1 MB of it the libc malloc arena — see below).
 
 ### Why the big malloc arena
 
@@ -93,33 +78,25 @@ only serves `k_malloc()` and is irrelevant to nng.
 
 ## Run
 
-The broker boots inside the `zephyr-tap` container — SLIRP `hostfwd` ports
-live in the container's network namespace, not on the outer host (client
-addressing table below).  Launch qemu headless, serial console to a file:
+SLIRP forwards the three ports to the host, so clients connect through
+`127.0.0.1` (table below).  `west build -t run` applies the `hostfwd` triple
+from [prj.conf](prj.conf)'s `CONFIG_NET_QEMU_USER_EXTRA_ARGS` automatically,
+but keeps the serial console on stdio and occupies the terminal.  To run
+detached, with the console going to a file you can still read after a
+crash:
 
 ```sh
-# host → container.  Stop any previous instance first; the bracket pattern
-# keeps pkill from matching its own command line (PORTING_ZEPHYR.md §7-5).
-docker exec -u root zephyr-tap pkill -f "qemu-system-[i]386" || true
-
-# launch detached; serial console → /tmp/qemu3.log in the container
-docker exec -u root zephyr-tap sh -lc '
-  /opt/toolchains/zephyr-sdk-1.0.1/hosttools/sysroots/x86_64-pokysdk-linux/usr/bin/qemu-system-i386 \
-    -m 32 -cpu qemu32,+nx,+pae,sse,sse2,pni -machine q35 \
+qemu-system-i386 -m 32 -cpu qemu32,+nx,+pae,sse,sse2,pni -machine q35 \
     -device isa-debug-exit,iobase=0xf4,iosize=0x04 -no-reboot -machine acpi=off \
-    -serial file:/tmp/qemu3.log -display none \
-    -netdev user,id=n1,hostfwd=tcp:0.0.0.0:1883-:1883,hostfwd=tcp:0.0.0.0:8081-:8081,hostfwd=tcp:0.0.0.0:8083-:8083 \
+    -serial file:/tmp/qemu.log -display none \
+    -netdev user,id=n1,hostfwd=tcp:127.0.0.1:1883-:1883,hostfwd=tcp:127.0.0.1:8081-:8081,hostfwd=tcp:127.0.0.1:8083-:8083 \
     -device e1000,netdev=n1 \
-    -kernel /workdir/build/nanomq_zephyr_qemu_x86/zephyr/zephyr.elf &'
+    -kernel build/nanomq_zephyr_qemu_x86/zephyr/zephyr.elf &
 ```
 
-(qemu is the SDK's hosttools build.  `west build -t run` is equivalent —
-the runner applies the `hostfwd` triple from [prj.conf](prj.conf)'s
-`CONFIG_NET_QEMU_USER_EXTRA_ARGS` automatically — but keeps the serial
-console on stdio and occupies the terminal.  In the hand-launched form
-above all three port forwards must be listed explicitly, exactly as here;
-the kernel path matches the `-d /workdir/build/nanomq_zephyr_qemu_x86` of the Build
-step.)
+`qemu-system-i386` is not provided by Zephyr itself: `-t run` locates it in
+the Zephyr SDK's hosttools, so when launching by hand make sure it is on
+`PATH` — a distribution package (Fedora's `qemu-system-x86`) works too.
 
 **Confirm the broker came up** — within a second or two the log shows the
 interface address, the HTTP/REST listener and the broker banner.  Log
@@ -129,7 +106,7 @@ the host clock; without this the nanolib log module — log.c formats
 `time(NULL)` — would print the 1970 epoch):
 
 ```
-$ docker exec zephyr-tap tail -f /tmp/qemu3.log
+$ tail -f /tmp/qemu.log
 rtc: CMOS clock 2026-09-08 06:49:01 UTC, realtime seeded
 net: iface 0x1991b4 dev=eth0 up=1
 net: ipv4 10.0.2.15
@@ -145,48 +122,29 @@ the CMOS seed in `main()`, so CMOS would simply overwrite the SNTP result —
 extra boot latency, no effect.  Rationale in PORTING_ZEPHYR.md §22-4.
 
 The guest broker listens on `10.0.2.15:1883` (static IP set in
-[prj.conf](prj.conf)); SLIRP forwards container `tcp:1883` to it.  Pick a
+[prj.conf](prj.conf)); SLIRP forwards host `tcp:1883` to it.  Pick a
 different `hostfwd` port (e.g. `11883`) if 1883 is taken on the host.
-Stop the broker by running the first (pkill) command again; a rebuild
-must be followed by a relaunch.
+A rebuild must be followed by a relaunch.
 
-### Where to run the clients (docker dev setup)
+### Where to run the clients
 
-SLIRP forwards bind inside the container, so the address a client must
-use depends on where it runs — mosquitto and curl exist only on the
-outer host, python3 only inside the container:
+qemu and the SLIRP forwards run on this machine, so every client runs here
+too and reaches the broker through the forwarded ports:
 
-| Client | Run on | Address |
-|---|---|---|
-| `mosquitto_sub` / `mosquitto_pub`, `accept.sh` | outer host | `127.0.0.1:1883` via the socat forward below, or `<container-ip>:1883` |
-| `mqtt_accept.py`, `hook_receiver.py` | inside container | `127.0.0.1:1883`, `127.0.0.1:18080` |
-| REST `curl` | outer host | `http://127.0.0.1:8081` via the socat forward, or `http://<container-ip>:8081` |
-| MQTT over WebSocket (paho `transport="websockets"`, path `/mqtt`) | outer host | `ws://<container-ip>:8083/mqtt` |
-| `function_test.py` (whole suite) | outer host | manages qemu itself, targets `<container-ip>:1883/8081/8083` |
-
-```sh
-docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' zephyr-tap   # → e.g. 172.17.0.2
-```
-
-To use plain `localhost` from the outer host instead of the container IP,
-forward the three ports on the host (the container itself has no published
-ports).  Needs socat; the forwards die with the host (or when the
-container IP changes) and are restarted the same way:
-
-```sh
-socat TCP-LISTEN:1883,reuseaddr,fork,bind=127.0.0.1 TCP:172.17.0.2:1883 &
-socat TCP-LISTEN:8081,reuseaddr,fork,bind=127.0.0.1 TCP:172.17.0.2:8081 &
-socat TCP-LISTEN:8083,reuseaddr,fork,bind=127.0.0.1 TCP:172.17.0.2:8083 &
-```
+| Client | Address |
+|---|---|
+| `mosquitto_sub` / `mosquitto_pub`, `accept.sh` | `127.0.0.1:1883` |
+| `mqtt_accept.py`, `hook_receiver.py` | `127.0.0.1:1883`, `127.0.0.1:18080` |
+| REST `curl` | `http://127.0.0.1:8081` |
+| MQTT over WebSocket (paho `transport="websockets"`, path `/mqtt`) | `ws://127.0.0.1:8083/mqtt` |
+| `function_test.py` (whole suite) | manages qemu itself; pass `--addr 127.0.0.1` to reuse one you started |
 
 ## Acceptance
 
-Host-side mosquitto clients against the forwarded port — run on the outer
-host, targeting the container IP (see the table in "Run"; the container
-image has no mosquitto):
+Mosquitto clients against the forwarded port:
 
 ```sh
-./accept.sh <container-ip> 1883      # e.g. ./accept.sh 172.17.0.2 1883
+./accept.sh 127.0.0.1 1883
 ```
 
 Covers QoS0/1/2 pub/sub, retained messages, will messages (client
@@ -209,15 +167,14 @@ below (verification record: `PORTING_ZEPHYR.md` §9-4/6/7/10) need packet
 control the mosquitto CLI does not give you (clean=0 without auto-reconnect,
 MQTT 5 session-expiry, arbitrary keepalive), so they are driven by
 [`mqtt_accept.py`](mqtt_accept.py) — a stdlib-only raw-socket MQTT 3.1.1/5
-client with machine-friendly `CONNACK/SUBACK/MSG/MATCH/EXIT` output.  Run
-these inside the container (it has python3 but no mosquitto), e.g. from
-the host:
+client with machine-friendly `CONNACK/SUBACK/MSG/MATCH/EXIT` output.  It is
+stdlib-only, so it runs anywhere python3 does:
 
 ```sh
-docker exec zephyr-tap python3 /workdir/nanomq/demo/nanomq_zephyr_qemu_x86/mqtt_accept.py 127.0.0.1 1883 ...
+python3 demo/nanomq_zephyr_qemu_x86/mqtt_accept.py 127.0.0.1 1883 ...
 ```
 
-or `cd demo/nanomq_zephyr_qemu_x86` inside the container and use the shorter
+or `cd demo/nanomq_zephyr_qemu_x86` first and use the shorter
 `python3 mqtt_accept.py ...` forms below:
 
 ```sh
@@ -321,7 +278,7 @@ Run it from the repo root on the outer host:
 ```sh
 python3 demo/nanomq_zephyr_qemu_x86/function_test.py                  # all groups
 python3 demo/nanomq_zephyr_qemu_x86/function_test.py --group ws_v5 -v # one group, show output
-python3 demo/nanomq_zephyr_qemu_x86/function_test.py --no-manage --addr 172.17.0.2  # broker already up
+python3 demo/nanomq_zephyr_qemu_x86/function_test.py --no-manage --addr 127.0.0.1  # broker already up
 python3 demo/nanomq_zephyr_qemu_x86/function_test.py --list           # groups + timeouts
 ```
 
@@ -360,8 +317,8 @@ Notes from bring-up:
   liveness under churn on qemu, not throughput.  Host-side scale is a crash
   amplifier — SLIRP forwards roughly 9 msg/s per connection.
 * Exit status: `0` all groups pass, `1` at least one failed, `2` structural
-  failure (docker/qemu/module prerequisites).  A failing group prints its
-  last 40 output lines plus the serial-log tail.
+  failure (qemu/module prerequisites).  A failing group prints its last 40
+  output lines plus the serial-log tail.
 
 Verification record: `PORTING_ZEPHYR.md` §9-13.
 
@@ -401,6 +358,4 @@ Best-effort numbers (see PORTING_ZEPHYR.md §9-10 for the record):
   refused").  [prj.conf](prj.conf) sets `CONFIG_MAX_PTHREAD_RWLOCK_COUNT=256`.
 
 SLIRP is a proxy network: absolute numbers need re-measuring on real
-hardware/network.  For the docker dev setup, MQTT/REST are reachable
-inside the `zephyr-tap` container (hostfwd binds in its namespace), not
-on the outer host.
+hardware and a real network.
