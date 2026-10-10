@@ -26,23 +26,22 @@ config BROKER_REST_API
 config BROKER_REST_USER
 	string "REST API Basic-auth username"
 	depends on BROKER_REST_API
-	default "admin"
+	default ""
 	help
-	  Username for the REST API's Basic auth.  The default is the value
-	  published in etc/nanomq.conf upstream, so it is public knowledge
-	  rather than a secret: set your own from a local, git-ignored conf
-	  file (see local.conf.example) whenever the REST port is reachable
-	  from a network you do not control.  basic_authorize() (rest_api.c)
-	  does strlen() on this, so it must not be empty.
+	  Username for the REST API's Basic auth.  Deliberately no default:
+	  the API is an administrative surface on a port the host forwards,
+	  so it stays off until a deployment supplies its own credentials.
+	  Set both this and BROKER_REST_PASS from a local, git-ignored conf
+	  file (see local.conf.example).  The published admin/public pair
+	  from etc/nanomq.conf is refused rather than accepted.
 
 config BROKER_REST_PASS
 	string "REST API Basic-auth password"
 	depends on BROKER_REST_API
-	default "public"
+	default ""
 	help
-	  Password matching BROKER_REST_USER.  Same caveat: "public" is the
-	  published demo default, so change it wherever the REST port is
-	  reachable beyond your own machine.
+	  Password matching BROKER_REST_USER.  Both must be set, and must not
+	  be the published admin/public pair, for the listener to come up.
 
 config BROKER_WEBHOOK
 	bool "Enable the NanoMQ webhook forwarder (POST to BROKER_WEBHOOK_URL)"

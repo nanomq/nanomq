@@ -477,25 +477,31 @@ main(void)
 	//
 	// auth_type defaults to BASIC, but conf_http_server_init() leaves
 	// username/password NULL — and basic_authorize() (rest_api.c) does
-	// strlen() on both, so the credentials must be filled in here or the
-	// first REST request dereferences NULL.  They come from Kconfig
-	// (BROKER_REST_USER/PASS) rather than from this file, so the board can
-	// take deployment credentials from local.conf without patching C.
+	// strlen() on both, so the credentials must be filled in or the first
+	// REST request dereferences NULL.  They come from Kconfig
+	// (BROKER_REST_USER/PASS), which has no default: the board serves this
+	// port to the whole LAN, so the listener stays off until the
+	// deployment supplies credentials of its own.  The published
+	// admin/public pair is refused rather than warned about.
 	//
 	// NB: Basic over plain HTTP is base64, not encryption — TLS is
 	// compiled out of the Zephyr NanoNNG, so keep this off untrusted
 	// networks regardless.
-	nmq_conf->http_server.enable    = true;
-	nmq_conf->http_server.auth_type = BASIC;
-	nmq_conf->http_server.username  = nng_strdup(CONFIG_BROKER_REST_USER);
-	nmq_conf->http_server.password  = nng_strdup(CONFIG_BROKER_REST_PASS);
-
-	if (strcmp(CONFIG_BROKER_REST_USER, "admin") == 0 &&
-	    strcmp(CONFIG_BROKER_REST_PASS, "public") == 0) {
-		printk("rest: WARNING serving tcp:8081 on the LAN with the "
-		    "published default credentials admin/public - set "
-		    "CONFIG_BROKER_REST_USER/PASS (local.conf) before "
-		    "exposing this board\n");
+	if ((strlen(CONFIG_BROKER_REST_USER) > 0) &&
+	    (strlen(CONFIG_BROKER_REST_PASS) > 0) &&
+	    !((strcmp(CONFIG_BROKER_REST_USER, "admin") == 0) &&
+	        (strcmp(CONFIG_BROKER_REST_PASS, "public") == 0))) {
+		nmq_conf->http_server.enable    = true;
+		nmq_conf->http_server.auth_type = BASIC;
+		nmq_conf->http_server.username =
+		    nng_strdup(CONFIG_BROKER_REST_USER);
+		nmq_conf->http_server.password =
+		    nng_strdup(CONFIG_BROKER_REST_PASS);
+	} else {
+		printk("rest: REST API stays off - set "
+		    "CONFIG_BROKER_REST_USER and CONFIG_BROKER_REST_PASS to "
+		    "credentials of your own (local.conf); the published "
+		    "admin/public pair is refused\n");
 	}
 #endif
 
