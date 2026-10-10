@@ -433,6 +433,21 @@ def group_rest_get(addr: str, env: dict) -> None:
     s.auth = (env.get("ZF_REST_USER", REST_USER),
               env.get("ZF_REST_PASS", REST_PASS))
     base = "http://%s:%d/api/v4" % (addr, REST_PORT)
+
+    # A port probe cannot answer whether the API is up: qemu's SLIRP host
+    # forward accepts the TCP connection even when the guest has nothing on
+    # 8081, then closes it.  Make one real request and treat a refused or
+    # closed connection as "this build leaves the API off" -- the demos now
+    # require CONFIG_BROKER_REST_USER/PASS to be set before it listens.
+    # A 401 is not caught here: that is a credential mismatch worth failing.
+    try:
+        s.get(base + "/brokers/", timeout=10)
+    except requests.ConnectionError:
+        raise SkipGroup(
+            "no REST API on %s:%d — the demos leave it off until "
+            "CONFIG_BROKER_REST_USER/PASS are set (local.conf); pass "
+            "--rest-user/--rest-pass for a broker that has them"
+            % (addr, REST_PORT))
     paths = [
         "/nodes/",
         "/brokers/",
