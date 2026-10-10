@@ -1600,7 +1600,7 @@ reason_code
 handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
     bool is_event)
 {
-	reason_code result          = SUCCESS;
+	reason_code result          = NNG_MQTT_SUCCESS;
 	char      **topic_queue     = NULL;
 	uint32_t   *cli_ctx_list    = NULL;
 	uint32_t   *shared_cli_list = NULL;
@@ -1619,7 +1619,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 		    sizeof(struct pub_packet_struct));
 
 		result = decode_pub_message(work, proto);
-		if (SUCCESS != result) {
+		if (NNG_MQTT_SUCCESS != result) {
 			log_warn("decode message failed.");
 			return result;
 		}
@@ -2268,7 +2268,7 @@ decode_pub_message(nano_work *work, uint8_t proto)
 			}
 			if (check_properties(
 			        pub_packet->var_header.pub_arrc.properties, msg) !=
-			    SUCCESS) {
+			    NNG_MQTT_SUCCESS) {
 				property_free(pub_packet->var_header.pub_arrc.properties);
 				pub_packet->var_header.pub_arrc.properties = NULL;
 				pub_packet->var_header.pub_arrc.prop_len   = 0;
@@ -2280,7 +2280,7 @@ decode_pub_message(nano_work *work, uint8_t proto)
 	default:
 		break;
 	}
-	return SUCCESS;
+	return NNG_MQTT_SUCCESS;
 }
 
 /**
