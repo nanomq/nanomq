@@ -49,10 +49,12 @@ interrupt would have delivered so that its poll reads the queued frames.
 - The SDIO host controller's card-interrupt support is still worth having
   upstream (it is the standard path for SDIO function drivers), but on this
   board + chip combination it is inert.
-- Consequence of polling: after the link has been up for a few minutes the
-  backplane status reads start failing and the console floods with
-  `sdhc_stm32: Command response timeout`.  Measured on hardware, that state is
-  **not** fatal — the whole functional suite passes while it floods, and a
-  board reset clears it — but ICMP can fail in it, so liveness has to be
-  judged over TCP.  This is the price of not having the interrupt, and it is
-  why the board is reset between long runs on the bench.
+- Consequence of polling, as first measured: after the link had been up for a
+  few minutes the console flooded with `sdhc_stm32: Command response timeout`.
+  It was **not** fatal — the whole functional suite passed while it flooded —
+  but ICMP could fail in that state, so liveness had to be judged over TCP.
+  That flood was not a property of polling: ADR 0004 traced it to the chip's
+  own KSO sleep (a sleeping device does not answer the write that wakes it)
+  and fixed it by keeping the chip awake, which is the demo's default now.  If
+  the messages ever come back in bulk, check
+  `CONFIG_AIROC_WIFI_DISABLE_POWERSAVE` first.
