@@ -492,9 +492,11 @@ ws_abort  PASS 11.5s
 RESULT: pass=7 fail=0
 ```
 
-`webhook_smoke` is the one group that has not been exercised: the demo builds
-with the forwarder off by default, and a build with `CONFIG_BROKER_WEBHOOK=y`
-wedges the SDIO link (see the limitations below).
+`webhook_smoke` and `survival` are the two groups that have not been exercised.
+The first needs a build with the forwarder switched on, and a build with
+`CONFIG_BROKER_WEBHOOK=y` wedges the SDIO link (see the limitations below); the
+second is not in `verify.sh --full`'s list, so the scaled-down load/session
+churn has not been run against this board either.
 
 Wi-Fi link: WPA2 AP on 2.4 GHz, MAC `70:4A:0E:51:77:9A`, firmware
 `7.45.98.117`, WHD `3.3.3.26653`, DHCPv4 lease `192.168.1.3`; MQTT :1883,
