@@ -1,0 +1,62 @@
+# NanoMQ broker demo options
+#
+# An application-level Kconfig file replaces the top of the Zephyr tree
+# (kconfig.cmake: KCONFIG_ROOT = <app>/Kconfig when it exists), so the
+# whole Zephyr tree must be pulled back in explicitly.  See
+# samples/basic/minimal/Kconfig for the same pattern.
+
+config BROKER_LOG_DEBUG
+	bool "Set NanoMQ log level to DEBUG"
+	help
+	  Bumps nanolib log level from the default WARN to DEBUG so the
+	  MQTT session flow is visible on the console.  Disable for normal
+	  runs (less noise, fewer cycles in log formatting).
+
+config BROKER_REST_API
+	bool "Enable the NanoMQ REST API (HTTP tcp:8081, Basic auth)"
+	help
+	  Sets conf http_server.enable / auth_type=BASIC plus the admin/public
+	  credentials in main.c, so the broker serves /api/v4 over plain HTTP
+	  behind Basic auth.  Requires an extra SLIRP hostfwd for tcp:8081
+	  (see prj.conf) to be reachable from the host.
+
+	  Basic over plain HTTP is base64, not encryption — TLS is compiled
+	  out of the Zephyr NanoNNG.  Keep this off untrusted networks.
+
+config BROKER_WEBHOOK
+	bool "Enable the NanoMQ webhook forwarder (POST to BROKER_WEBHOOK_URL)"
+	help
+	  Sets conf web_hook.enable, an inproc hook channel (Zephyr has no IPC
+	  transport) and two rules (MESSAGE_PUBLISH on "hook/#", CLIENT_CONNACK).
+	  The receiver URL comes from BROKER_WEBHOOK_URL below; leave that empty
+	  and the forwarder stays off.
+
+config BROKER_WEBHOOK_URL
+	string "Webhook receiver URL"
+	depends on BROKER_WEBHOOK
+	default ""
+	help
+	  Where the broker POSTs event JSON, e.g. "http://10.0.2.2:18080/" or
+	  "http://192.168.1.5:18080/".  Must be reachable from the broker and
+	  end with a path the receiver serves ("/" is fine).
+
+	  Left empty by default: main.c enables the forwarder only when this
+	  is non-empty, and it is deliberately off in both demos — see the
+	  BROKER_WEBHOOK help above.
+
+	  qemu_x86: 10.0.2.2 is the SLIRP alias for the machine running qemu,
+	  so a receiver started there works as-is.
+	  Real board: set this to the LAN address of the machine running
+	  hook_receiver.py, e.g. in local.conf.
+
+config BROKER_WS
+	bool "Enable the WebSocket listener (MQTT over RFC6455, tcp:8083)"
+	help
+	  Sets conf websocket.enable / websocket.url in main.c so the broker
+	  also accepts MQTT over WebSocket on nmq-ws://0.0.0.0:8083/mqtt.
+	  Requires the mqttws transport in the NanoNNG build (enabled by this
+	  app's CMakeLists via NNG_TRANSPORT_MQTT_BROKER_WS=ON) and an extra
+	  SLIRP hostfwd for tcp:8083 (see prj.conf) to be reachable from the
+	  host.  TLS is built out of the Zephyr NanoNNG, so WSS stays inert.
+
+source "Kconfig.zephyr"
