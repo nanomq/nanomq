@@ -1,0 +1,125 @@
+diff --git a/drivers/wifi/infineon/airoc_whd_hal_sdio.c b/drivers/wifi/infineon/airoc_whd_hal_sdio.c
+index cf9f254be42..66619c09681 100644
+--- a/drivers/wifi/infineon/airoc_whd_hal_sdio.c
++++ b/drivers/wifi/infineon/airoc_whd_hal_sdio.c
+@@ -11,6 +11,7 @@
+ #include <bus_protocols/whd_bus_sdio_protocol.h>
+ #include <bus_protocols/whd_bus.h>
+ #include <bus_protocols/whd_sdio.h>
++#include <whd_thread.h>
+ #include <zephyr/logging/log.h>
+ #include <zephyr/sd/sd.h>
+ 
+@@ -32,6 +33,36 @@ static whd_init_config_t init_config_default = {.thread_stack_size = CY_WIFI_THR
+ 							(uint32_t)CY_WIFI_THREAD_PRIORITY,
+ 						.country = CY_WIFI_COUNTRY};
+ 
++#if defined(CONFIG_AIROC_WIFI_WHD_POKE)
++/*
++ * Boards whose SDIO Wi-Fi chip never asserts the in-band card interrupt.
++ *
++ * WHD's thread only polls for received frames when it is woken with the
++ * "bus interrupt" flag set (whd_bus_sdio_use_status_report_scheme() returns
++ * WHD_FALSE for this transport), so it depends entirely on the SDIO card
++ * interrupt on DAT1.  On the ART-Pi's AP6212 that interrupt is never
++ * asserted -- the controller's SDMMC_STA.SDIOIT stays clear even though
++ * SDMMC_MASK.SDIOITIE is set and CCCR INTEN has function 2 enabled -- so
++ * the first WLAN ioctl (WLC_GET_VAR "cap") is written to function 2 and
++ * then times out without the reply ever being read.
++ *
++ * Poking the thread from a timer gives it the same wake-up the interrupt
++ * would have, and its poll then picks up whatever the chip has queued.
++ * See demo/nanomq_zephyr_stm32_art-pi, docs/en_US/port-to-art-pi.md (the
++ * "no in-band SDIO card interrupt" section), for the measurements.
++ */
++static struct k_timer whd_poke_timer;
++
++static void whd_poke_expiry(struct k_timer *timer)
++{
++	whd_driver_t drv = k_timer_user_data_get(timer);
++
++	if (drv != NULL) {
++		whd_thread_notify_irq(drv);
++	}
++}
++#endif /* CONFIG_AIROC_WIFI_WHD_POKE */
++
+ /******************************************************
+  *                 Function
+  ******************************************************/
+@@ -113,10 +144,20 @@ int airoc_wifi_init_primary(const struct device *dev, whd_interface_t *interface
+ 					      (whd_sdio_t)&data->card);
+ 
+ 		if (whd_ret == CY_RSLT_SUCCESS) {
++#if defined(CONFIG_AIROC_WIFI_WHD_POKE)
++			/* See whd_poke_timer: stand in for the card interrupt. */
++			k_timer_init(&whd_poke_timer, whd_poke_expiry, NULL);
++			k_timer_user_data_set(&whd_poke_timer, data->whd_drv);
++			k_timer_start(&whd_poke_timer, K_MSEC(20), K_MSEC(20));
++#endif
+ 			whd_ret = whd_wifi_on(data->whd_drv, interface);
+ 		}
+ 
+ 		if (whd_ret != CY_RSLT_SUCCESS) {
++#if defined(CONFIG_AIROC_WIFI_WHD_POKE)
++			/* Do not keep poking a thread we are about to tear down. */
++			k_timer_stop(&whd_poke_timer);
++#endif
+ 			whd_deinit(*interface);
+ 			return -ENODEV;
+ 		}
+@@ -155,6 +196,7 @@ whd_result_t whd_bus_sdio_cmd52(whd_driver_t whd_driver, whd_bus_transfer_direct
+ 	} else {
+ 		ret = sdio_read_byte(func, address, response);
+ 	}
++
+ 	WHD_BUS_STATS_CONDITIONAL_INCREMENT_VARIABLE(whd_driver->bus_priv, (ret != WHD_SUCCESS),
+ 						     cmd52_fail);
+ 
+diff --git a/modules/hal_infineon/whd-expansion/CMakeLists.txt b/modules/hal_infineon/whd-expansion/CMakeLists.txt
+index 113be7a193a..8d05ae4b7c4 100644
+--- a/modules/hal_infineon/whd-expansion/CMakeLists.txt
++++ b/modules/hal_infineon/whd-expansion/CMakeLists.txt
+@@ -125,6 +125,42 @@ if(CONFIG_CYW43438 AND NOT CONFIG_AIROC_WIFI_CUSTOM)
+   endif()
+ endif()
+ 
++# CYW43438 clm/nvram
++#
++# Upstream wires only the firmware for this part.  The ART-Pi's AP6212 is a
++# plain CYW43438 and the WHD blob manifest ships this chip's CLM and NVRAM for
++# the AW-CU427-P module, so mirror the per-module blocks above.
++if(CONFIG_CYW43438 AND NOT CONFIG_AIROC_WIFI_CUSTOM)
++  # clm
++  if(CONFIG_AIROC_WLAN_MFG_FIRMWARE)
++    set(CLM_IMAGE_NAME ${hal_blobs_dir}/clm/COMPONENT_43438/COMPONENT_AW-CU427-P/43438A1-mfgtest.clm_blob)
++  else()
++    set(CLM_IMAGE_NAME ${hal_blobs_dir}/clm/COMPONENT_43438/COMPONENT_AW-CU427-P/43438A1.clm_blob)
++  endif()
++  # nvram
++  set(NVRAM_IMAGE_NAME ${hal_wifi_dir_resources}/nvram/COMPONENT_43438/COMPONENT_AW-CU427-P/cyw943438_aw-cu427.txt)
++endif()
++
++# The only CLM published for the 43438 is the AW-CU427-P module's, and the
++# ART-Pi's AP6212 rejects it at CLM download time ("CLM blob file not found or
++# corrupted" -> WHD init fails with -ENODEV).  Building WHD without a CLM
++# resource makes whd_process_clm_data() log "No loading CLM blob file" and
++# carry on, which is enough to bring the link up; regulatory/RF calibration
++# data is absent until the board's own CLM is wired in.  Opt in with
++# CONFIG_AIROC_WIFI_NO_CLM (see the demo's wifi.conf).
++if(CONFIG_AIROC_WIFI_NO_CLM)
++  zephyr_compile_definitions(NO_CLM_BLOB_FILE)
++endif()
++
++# WHD's verbose debug also compiles in the post-download verification
++# (whd_bus_sdio_verify_resource(), which reads every downloaded block back and
++# memcmp's it, logging "Downloaded image is corrupted" on a mismatch).  That
++# is the only in-tree way to tell a broken SDIO bulk write from a firmware
++# that the chip simply refuses to boot, so it is exposed as an option.
++if(CONFIG_AIROC_WIFI_WHD_DEBUG)
++  zephyr_compile_definitions(WPRINT_ENABLE_WHD_DEBUG)
++endif()
++
+ # CYW43439 firmware
+ if(CONFIG_CYW43439 AND NOT CONFIG_AIROC_WIFI_CUSTOM)
+   if(CONFIG_AIROC_WLAN_MFG_FIRMWARE)
