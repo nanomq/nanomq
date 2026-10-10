@@ -280,10 +280,10 @@ flashing.
 demo/nanomq_zephyr_stm32_art-pi/tools/console.sh
 
 # capture to a file while still showing it
-demo/nanomq_zephyr_stm32_art-pi/tools/console.sh -o boot.log
+demo/nanomq_zephyr_stm32_art-pi/tools/console.sh -o /tmp/boot.log
 
 # ... throwing away the port's backlog first (see "Telling boots apart")
-demo/nanomq_zephyr_stm32_art-pi/tools/console.sh -o boot.log --drain 10
+demo/nanomq_zephyr_stm32_art-pi/tools/console.sh -o /tmp/boot.log --drain 10
 ```
 
 Any 115200 8N1 terminal does the same — `tio /dev/ttyACM0`,
@@ -292,7 +292,7 @@ capture is:
 
 ```sh
 stty -F /dev/ttyACM0 115200 raw -echo      # 8N1, no flow control, no echo
-cat /dev/ttyACM0 | tee boot.log            # Ctrl-C to stop
+cat /dev/ttyACM0 | tee /tmp/boot.log       # Ctrl-C to stop
 ```
 
 `tools/flash.sh` leaves the board reset and running when it exits, so the
