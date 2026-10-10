@@ -430,8 +430,10 @@ ws_abort  PASS 11.5s
 RESULT: pass=7 fail=0
 ```
 
-唯一没跑过的是 `webhook_smoke`：demo 默认不编 webhook 转发器，而打开
-`CONFIG_BROKER_WEBHOOK=y` 的构建会让 SDIO 链路很快卡死（见下方已知限制）。
+没跑过的是 `webhook_smoke` 和 `survival` 两个分组：前者需要一个打开 webhook
+转发器的构建，而 `CONFIG_BROKER_WEBHOOK=y` 会让 SDIO 链路很快卡死（见下方已知
+限制）；后者不在 `verify.sh --full` 的分组列表里，所以那套缩小版的负载与会话
+churn 也没在这块板子上跑过。
 
 Wi-Fi 链路：2.4 GHz WPA2 AP，MAC `70:4A:0E:51:77:9A`，固件
 `7.45.98.117`，WHD `3.3.3.26653`，DHCPv4 租约 `192.168.1.3`；MQTT :1883、

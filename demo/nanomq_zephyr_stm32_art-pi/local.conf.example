@@ -7,6 +7,13 @@
 # Nothing here belongs in prj.conf: it is either site-specific (credentials)
 # or weakens a shipped default on purpose.
 
+# ── Wi-Fi STA credentials (wifi.conf / --wifi builds only) ──────────
+# The AP must be 2.4 GHz.  An empty PSK selects an open network; leaving
+# the SSID empty starts the broker without joining anything (the console
+# then says "wifi: BROKER_WIFI_SSID is empty").
+CONFIG_BROKER_WIFI_SSID=""
+CONFIG_BROKER_WIFI_PSK=""
+
 # ── REST API credentials ────────────────────────────────────────────
 # The listener stays off unless both are set.  Prefer credentials of your
 # own; the published admin/public pair needs the explicit opt-in below.
