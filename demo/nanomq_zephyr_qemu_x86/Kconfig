@@ -15,13 +15,34 @@ config BROKER_LOG_DEBUG
 config BROKER_REST_API
 	bool "Enable the NanoMQ REST API (HTTP tcp:8081, Basic auth)"
 	help
-	  Sets conf http_server.enable / auth_type=BASIC plus the admin/public
-	  credentials in main.c, so the broker serves /api/v4 over plain HTTP
-	  behind Basic auth.  Requires an extra SLIRP hostfwd for tcp:8081
-	  (see prj.conf) to be reachable from the host.
+	  Sets conf http_server.enable / auth_type=BASIC, so the broker serves
+	  /api/v4 over plain HTTP behind Basic auth with the credentials from
+	  BROKER_REST_USER / BROKER_REST_PASS below.  Requires an extra SLIRP
+	  hostfwd for tcp:8081 (see prj.conf) to be reachable from the host.
 
 	  Basic over plain HTTP is base64, not encryption — TLS is compiled
 	  out of the Zephyr NanoNNG.  Keep this off untrusted networks.
+
+config BROKER_REST_USER
+	string "REST API Basic-auth username"
+	depends on BROKER_REST_API
+	default "admin"
+	help
+	  Username for the REST API's Basic auth.  The default is the value
+	  published in etc/nanomq.conf upstream, so it is public knowledge
+	  rather than a secret: set your own from a local, git-ignored conf
+	  file (see local.conf.example) whenever the REST port is reachable
+	  from a network you do not control.  basic_authorize() (rest_api.c)
+	  does strlen() on this, so it must not be empty.
+
+config BROKER_REST_PASS
+	string "REST API Basic-auth password"
+	depends on BROKER_REST_API
+	default "public"
+	help
+	  Password matching BROKER_REST_USER.  Same caveat: "public" is the
+	  published demo default, so change it wherever the REST port is
+	  reachable beyond your own machine.
 
 config BROKER_WEBHOOK
 	bool "Enable the NanoMQ webhook forwarder (POST to BROKER_WEBHOOK_URL)"

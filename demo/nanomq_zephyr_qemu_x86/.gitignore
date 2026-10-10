@@ -1,0 +1,10 @@
+# Local build overrides — never commit real credentials.
+# Copy local.conf.example to local.conf and pass it to west build with
+#   -- -DEXTRA_CONF_FILE=local.conf
+local.conf
+
+# Local build directories
+build*/
+
+# Byte-compiled test helpers
+__pycache__/

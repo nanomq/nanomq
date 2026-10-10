@@ -22,14 +22,18 @@
 zephyr_get_compile_options_for_lang_as_string(C options)
 set(arch_flags "")
 if(CONFIG_X86 AND NOT CONFIG_64BIT)
-  if(CONFIG_SOC_ATOM)
-    set(arch_flags "-march=atom")
-  elseif(BOARD MATCHES "qemu_x86")
+  if(BOARD MATCHES "qemu_x86")
     # QEMU uses "-cpu qemu32" which lacks SSE2+ and movbe.  i686 gives
     # us cmpxchg8b (for 64-bit atomics) without SSE2+/movbe.
     # Zephyr's SoC-level flags may add "-march=atom" — strip it;
     # we supply the correct -march below.
+    #
+    # This must be tested before CONFIG_SOC_ATOM: qemu_x86 selects
+    # SOC_ATOM, so an SoC-first ordering picks "-march=atom" here and
+    # re-adds exactly the flag the strip above removed.
     set(arch_flags "-march=i686 -mno-sse2 -mno-sse3 -mno-ssse3 -mno-movbe")
+  elseif(CONFIG_SOC_ATOM)
+    set(arch_flags "-march=atom")
   elseif(CONFIG_SOC_INTEL_ISH)
     set(arch_flags "-march=pentium-m")
   elseif(CONFIG_SOC_QUARK_SE)
