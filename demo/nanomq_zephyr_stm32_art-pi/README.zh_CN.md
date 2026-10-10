@@ -463,5 +463,5 @@ REST :8081、WebSocket :8083 均在监听（REST `/api/v4/brokers` 返回
   本 demo 的蓝本（PSRAM、ESP-IDF 工具链、webhook）。
 * [../../docs/zh_CN/tutorial/port-to-zephyr.md](../../docs/zh_CN/tutorial/port-to-zephyr.md)
   —— 通用的 Zephyr 移植教程。
-* [../../CONTEXT.md](../../CONTEXT.md) —— 这些文档使用的术语（Zephyr broker
+* [docs/CONTEXT.md](docs/CONTEXT.md) —— 这些文档使用的术语（Zephyr broker
   demo、ART-Pi factory bootloader、broker heap 等）。
