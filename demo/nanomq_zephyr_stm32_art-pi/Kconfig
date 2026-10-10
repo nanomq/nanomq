@@ -178,4 +178,25 @@ config AIROC_WIFI_WHD_POKE
 	  wifi-host-wake-gpios is the clean fix; this costs a periodic wake-up of
 	  the WLAN worker thread.
 
+config AIROC_WIFI_DISABLE_POWERSAVE
+	bool "Keep the Wi-Fi chip out of its low-power (KSO) sleep"
+	depends on WIFI_AIROC
+	default y
+	help
+	  Calls whd_wifi_disable_powersave() once the chip is up.
+
+	  With power save on, the device sleeps and the *first* wake-up write to
+	  SDIO_SLEEP_CSR is deliberately not answered -- WHD's own comment says
+	  the device may not respond and it ignores the error.  A host
+	  controller cannot know that, so the STM32 SDHC driver logs every
+	  unanswered command as a command-response timeout; on the ART-Pi that
+	  begins ~50 s after association (when the chip's PM2 mode engages) and
+	  floods the console at ~300 lines/second while the WLAN data path stays
+	  healthy (measured: zero failures on CMD53 transfers, thousands on the
+	  CMD52 wake writes).
+
+	  A mains-powered broker does not need the chip to sleep, so this is on
+	  by default here.  Turn it off to keep the vendor's power behaviour and
+	  accept the log noise.
+
 source "Kconfig.zephyr"

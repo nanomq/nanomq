@@ -1,16 +1,17 @@
 diff --git a/drivers/wifi/infineon/airoc_whd_hal_sdio.c b/drivers/wifi/infineon/airoc_whd_hal_sdio.c
-index cf9f254be42..66619c09681 100644
+index cf9f254be42..dcf6a661351 100644
 --- a/drivers/wifi/infineon/airoc_whd_hal_sdio.c
 +++ b/drivers/wifi/infineon/airoc_whd_hal_sdio.c
-@@ -11,6 +11,7 @@
+@@ -11,6 +11,8 @@
  #include <bus_protocols/whd_bus_sdio_protocol.h>
  #include <bus_protocols/whd_bus.h>
  #include <bus_protocols/whd_sdio.h>
++#include <whd_wifi_api.h>
 +#include <whd_thread.h>
  #include <zephyr/logging/log.h>
  #include <zephyr/sd/sd.h>
  
-@@ -32,6 +33,36 @@ static whd_init_config_t init_config_default = {.thread_stack_size = CY_WIFI_THR
+@@ -32,6 +34,36 @@ static whd_init_config_t init_config_default = {.thread_stack_size = CY_WIFI_THR
  							(uint32_t)CY_WIFI_THREAD_PRIORITY,
  						.country = CY_WIFI_COUNTRY};
  
@@ -47,7 +48,7 @@ index cf9f254be42..66619c09681 100644
  /******************************************************
   *                 Function
   ******************************************************/
-@@ -113,10 +144,20 @@ int airoc_wifi_init_primary(const struct device *dev, whd_interface_t *interface
+@@ -113,10 +145,44 @@ int airoc_wifi_init_primary(const struct device *dev, whd_interface_t *interface
  					      (whd_sdio_t)&data->card);
  
  		if (whd_ret == CY_RSLT_SUCCESS) {
@@ -60,6 +61,30 @@ index cf9f254be42..66619c09681 100644
  			whd_ret = whd_wifi_on(data->whd_drv, interface);
  		}
  
++#if defined(CONFIG_AIROC_WIFI_DISABLE_POWERSAVE)
++		if (whd_ret == CY_RSLT_SUCCESS) {
++			/*
++			 * Keep the chip awake.
++			 *
++			 * With its power save enabled the device drops into the
++			 * KSO sleep, and the *first* wake-up write to
++			 * SDIO_SLEEP_CSR (0x1001F) is deliberately not answered
++			 * -- WHD's own comment says so and it ignores the error
++			 * -- while a host controller reports every unanswered
++			 * command as a command-response timeout.  On the ART-Pi
++			 * that starts ~50 s after association (when the chip's
++			 * PM2 kicks in) and buries the console in
++			 * "sdhc_stm32: Command response timeout" at ~300/s while
++			 * the data path is fine (measured: CMD53 transfers never
++			 * fail, only the CMD52 wake writes do).
++			 */
++			whd_result_t ps_ret = whd_wifi_disable_powersave(*interface);
++
++			LOG_INF("Wi-Fi power save %s",
++				(ps_ret == WHD_SUCCESS) ? "disabled" : "not disabled");
++		}
++#endif /* CONFIG_AIROC_WIFI_DISABLE_POWERSAVE */
++
  		if (whd_ret != CY_RSLT_SUCCESS) {
 +#if defined(CONFIG_AIROC_WIFI_WHD_POKE)
 +			/* Do not keep poking a thread we are about to tear down. */
@@ -68,7 +93,7 @@ index cf9f254be42..66619c09681 100644
  			whd_deinit(*interface);
  			return -ENODEV;
  		}
-@@ -155,6 +196,7 @@ whd_result_t whd_bus_sdio_cmd52(whd_driver_t whd_driver, whd_bus_transfer_direct
+@@ -155,6 +221,7 @@ whd_result_t whd_bus_sdio_cmd52(whd_driver_t whd_driver, whd_bus_transfer_direct
  	} else {
  		ret = sdio_read_byte(func, address, response);
  	}

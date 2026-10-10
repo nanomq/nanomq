@@ -54,7 +54,11 @@ card interrupt") has the measurements.
 * `drivers/wifi/infineon/airoc_whd_hal_sdio.c` — the WHD thread poke timer,
   the workaround for the never-asserted card interrupt, behind
   `CONFIG_AIROC_WIFI_WHD_POKE` (the demo's `wifi.conf` enables it).  Without
-  it WHD's worker thread is never woken and every ioctl times out.
+  it WHD's worker thread is never woken and every ioctl times out.  Also
+  keeps the chip out of its KSO sleep (`CONFIG_AIROC_WIFI_DISABLE_POWERSAVE`):
+  a sleeping device deliberately does not answer the write that wakes it,
+  which a host controller reports as a command-response timeout — measured at
+  ~300 a second, and the reason the console used to flood (ADR 0004).
 * `modules/hal_infineon/whd-expansion/CMakeLists.txt` — wire CLM and NVRAM
   for the CYW43438 the way the 4343W/43439 entries already are (upstream
   publishes only firmware for this part), and add two options used while
