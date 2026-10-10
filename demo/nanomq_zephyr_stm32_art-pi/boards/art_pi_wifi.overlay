@@ -1,0 +1,41 @@
+/*
+ * Extra overlay for Wi-Fi builds (pass with -DEXTRA_DTC_OVERLAY_FILE).
+ *
+ * The ART-Pi's Ethernet PHY does not answer MDIO on this board and there is
+ * no cable, so the Wi-Fi configuration drops the MAC node entirely: that
+ * keeps a single network interface, saves the net-stack buffers the Ethernet
+ * driver would hold, and avoids the driver's boot-time error log.
+ */
+
+&mac {
+	status = "disabled";
+};
+
+/* The PHY nodes live under &mdio; with the MAC gone they would be orphaned. */
+&mdio {
+	status = "disabled";
+};
+
+&eth_phy {
+	status = "disabled";
+};
+
+/*
+ * 32.768 kHz LPO for the AP6212.
+ *
+ * The CYW4343x WLAN firmware needs a 32.768 kHz low-power clock; its SDIO
+ * backplane enumerates and accepts the firmware download without it, but the
+ * WLAN core then never starts (WHD's whd_wifi_read_fw_capabilities fails).
+ * The ART-Pi's Wi-Fi clock comes from the low-speed oscillator, so bring the
+ * LSE up through the RTC (the vendor's own Wi-Fi how-to also enables its RTC
+ * driver for this reason).
+ */
+
+&clk_lse {
+	status = "okay";
+};
+
+&rtc {
+	status = "okay";
+	clocks = <&rcc STM32_CLOCK(APB4, 16)>, <&rcc STM32_SRC_LSE RTC_SEL(1)>;
+};

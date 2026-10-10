@@ -1,0 +1,123 @@
+/*
+ * ART-Pi (-b art_pi) demo overlay.
+ *
+ * 1. Run from QSPI, not the 128 KB internal flash.
+ *
+ * The board devicetree already describes the QSPI NOR part (w25q64_qspi,
+ * 8 MB, memory-mapped at 0x90000000) and a memory region named EXTMEM
+ * covering that window.  Pointing zephyr,flash at that region is enough for
+ * the linker to place the image at 0x90000000 with an 8 MB FLASH region;
+ * the ART-Pi factory bootloader maps the QUADSPI and jumps to the vector
+ * table it finds there.  See
+ * docs/adr/0001-qspi-xip-behind-art-pi-factory-bootloader.md.
+ *
+ * Note: do NOT enable the QSPI flash driver (CONFIG_FLASH /
+ * FLASH_STM32_QSPI) in this build.  Its init would reprogram the QUADSPI
+ * while the CPU is fetching instructions from it.  This demo has no
+ * filesystem, so no flash driver is needed.  (CONFIG_FLASH is off by default
+ * in this Zephyr revision — keep it that way.)
+ */
+
+/ {
+	chosen {
+		zephyr,flash = &ext_memory;
+	};
+};
+
+/*
+ * 2. Give the display up.
+ *
+ * &ltdc is enabled by the board devicetree and would allocate its
+ * framebuffer inside the SDRAM1 region (ext-sdram = <&sdram1>) — the same
+ * 6 MB window whose k_heap serves the broker data plane.  A headless broker
+ * has no use for it.
+ */
+
+&ltdc {
+	status = "disabled";
+};
+
+/*
+ * 3. The Ethernet PHY needs no reset-line override — do not add one.
+ *
+ * During bring-up the PHY's reset line was assumed to be PA3 (the RT-Thread
+ * BSP's ETH_RESET_PIN) and driven as
+ *
+ *     &eth_phy { reset-gpios = <&gpioa 3 GPIO_ACTIVE_LOW>; ... };
+ *
+ * With that override the PHY never answered: `phy_mii: PHY (0) ID FFFF` and
+ * `HAL_ETH_Init failed`.  With the override removed, the MAC initialises and
+ * no PHY error is reported (the interface comes up dormant and waits for
+ * carrier — this bench has no Ethernet cable, so the link itself is
+ * untested).  PA3 is therefore not this board's PHY reset, and the override
+ * is not shipped.
+ */
+
+/*
+ * 4. Wi-Fi: the on-board AP6212 (BCM43438) on SDMMC2.
+ *
+ * The AP6212's Wi-Fi side is an SDIO function; the board devicetree wires
+ * nothing for it, so both the SDIO host and the AIROC/WHD device node are
+ * added here.  Pin usage comes from the ART-Pi Wi-Fi project's CubeMX
+ * configuration (projects/art_pi_wifi/board/CubeMX_Config):
+ *
+ *   PB14/PB15 = SDMMC2_D0/D1, PB3/PB4 = SDMMC2_D2/D3  (AF9)
+ *   PD6/PD7   = SDMMC2_CK/CMD                          (AF11)
+ *
+ * The chip's power-up line WL_REG_ON is PC13 — taken from the ART-Pi's own
+ * Wi-Fi driver (libraries/drivers/drv_wlan.c: AP6212_WL_REG_ON GET_PIN(C, 13),
+ * driven high very early at INIT_PREV_EXPORT).
+ *
+ * wifi-host-wake-gpios is deliberately absent, but note what that costs:
+ * measured on hardware, this module never asserts the in-band SDIO card
+ * interrupt (SDMMC_STA.SDIOIT stays clear with SDMMC_MASK.SDIOITIE set, CCCR
+ * INTEN=0x7 and the WLAN function ready), yet WHD's receive path is only
+ * entered when that interrupt wakes its thread.  The driver therefore pokes
+ * whd_thread_notify_irq() from a timer so the thread polls instead — see
+ * patches/0002 and docs/en_US/port-to-art-pi.md §4.3.  The vendor NVRAM sets
+ * muxenab=0x11 (bit 0x10 = "HW OOB") and the schematic carries a
+ * GPIO_WIFI_HOST_WAKE net, so mapping that pin here is the likely clean fix.
+ */
+
+&sdmmc2 {
+	status = "okay";
+	interrupt-names = "event";
+	pinctrl-0 = <&sdmmc2_d0_pb14 &sdmmc2_d1_pb15 &sdmmc2_d2_pb3
+		     &sdmmc2_d3_pb4 &sdmmc2_ck_pd6 &sdmmc2_cmd_pd7>;
+	pinctrl-names = "default";
+	bus-width = <4>;
+	min-bus-freq = <DT_FREQ_K(400)>;
+	max-bus-freq = <DT_FREQ_M(50)>;
+
+	airoc_wifi: airoc-wifi {
+		compatible = "infineon,airoc-wifi";
+		status = "okay";
+		wifi-reg-on-gpios = <&gpioc 13 GPIO_ACTIVE_HIGH>;
+		/* wifi-host-wake-gpios is deliberately absent.
+		 *
+		 * The schematic's SDIO_WLAN connector (U8 pin 13, WL_HOST_WAKE)
+		 * carries a GPIO_WIFI_HOST_WAKE net, and the vendor NVRAM sets
+		 * muxenab=0x11 whose 0x10 bit is documented as "HW OOB", so an
+		 * out-of-band host-wake is plausible.  It was tried as
+		 *
+		 *     wifi-host-wake-gpios = <&gpioe 3 GPIO_ACTIVE_HIGH>;
+		 *
+		 * (PE3 is the only MCU pin the schematic text plausibly pairs
+		 * with that net — the PI14/PI15 hits are the LCD's
+		 * LTDC_CLK/LTDC_R0, see Zephyr's own art_pi.dts) and made no
+		 * difference: WHD still never saw a wake-up.  The driver's
+		 * in-band path is what this demo uses; see
+		 * docs/en_US/port-to-art-pi.md and CONFIG_AIROC_WIFI_WHD_POKE.
+		 */
+	};
+};
+
+/*
+ * The TF card slot (SDMMC1) is unused by this demo, and the SDHC driver
+ * instantiates for every enabled st,stm32-sdmmc node — disabling it keeps the
+ * card-detect/disk stack out of the image and leaves SDMMC2 solely for Wi-Fi.
+ */
+
+&sdmmc1 {
+	status = "disabled";
+};

@@ -1,0 +1,26 @@
+/*
+ * Extra overlay for the USB-ECM build (pass with
+ * -DEXTRA_DTC_OVERLAY_FILE=boards/art_pi_usb.overlay).
+ *
+ * Here the board is a USB *device*: the ART-Pi's USB-OTG port (PA11/PA12
+ * through the board's already-enabled zephyr_udc0) presents a CDC-ECM
+ * Ethernet function, and that link is the only network interface.  So the
+ * Wi-Fi and Ethernet nodes are dropped, exactly like the Wi-Fi overlay drops
+ * the MAC.
+ */
+
+&sdmmc2 {
+	status = "disabled";	/* also removes its airoc-wifi child */
+};
+
+&mac {
+	status = "disabled";
+};
+
+&mdio {
+	status = "disabled";
+};
+
+&eth_phy {
+	status = "disabled";
+};
