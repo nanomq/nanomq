@@ -164,6 +164,23 @@ check_http_return(FILE *fd, char *expect_sc, int expect_rc)
 		}                                                                 \
 	} while (0)
 
+static bool
+test_http_with_cred(const char *user, const char *pass, const char *curl_args,
+    char *expect_sc, int expect_rc)
+{
+	char cmd[1024];
+	int  n = snprintf(cmd, sizeof(cmd),
+	    "curl -sS -i --basic -u %s:%s --connect-timeout 1 --max-time 5 %s",
+	    user, pass, curl_args);
+	if (n <= 0 || (size_t) n >= sizeof(cmd)) {
+		return false;
+	}
+	FILE *fd = popen(cmd, "r");
+	bool  rv = check_http_return(fd, expect_sc, expect_rc);
+	SAFE_POPEN_CLOSE(fd);
+	return rv;
+}
+
 static bool test_get_endpoints();
 
 static bool
@@ -809,6 +826,61 @@ test_unauthorized()
 }
 
 static bool
+test_auth_legacy_fallback()
+{
+    return test_http_with_cred("admin_test", "pw_test",
+        "-X GET 'http://localhost:8081/api/v4'", STATUS_CODE_OK, SUCCEED);
+}
+
+static bool
+test_auth_multi_user_credentials()
+{
+    bool rv = test_http_with_cred("user_a", "pw_a",
+        "-X GET 'http://localhost:8081/api/v4'", STATUS_CODE_OK, SUCCEED);
+    if (!rv) {
+        return false;
+    }
+    return test_http_with_cred("user_b", "pw_b",
+        "-X GET 'http://localhost:8081/api/v4'", STATUS_CODE_OK, SUCCEED);
+}
+
+static bool
+test_auth_wrong_password()
+{
+    return test_http_with_cred("user_a", "wrong",
+        "-X GET 'http://localhost:8081/api/v4'", STATUS_CODE_UNAUTHORIZED,
+        WRONG_USERNAME_OR_PASSWORD);
+}
+
+static bool
+test_auth_hot_reload()
+{
+    bool rv = test_http_with_cred("admin_test", "pw_test",
+        "-X POST -H 'Content-Type: application/json' -d "
+        "'{\"data\":{\"http_server\":{\"users\":"
+        "[{\"username\":\"user_c\",\"password\":\"pw_c\"}]}}}' "
+        "'http://localhost:8081/api/v4/configuration/http_server'",
+        STATUS_CODE_OK, SUCCEED);
+    if (!rv) {
+        return false;
+    }
+    rv = test_http_with_cred("user_c", "pw_c",
+        "-X GET 'http://localhost:8081/api/v4'", STATUS_CODE_OK, SUCCEED);
+    if (!rv) {
+        return false;
+    }
+    // The reload replaced user_a; the legacy admin_test pair stays valid.
+    rv = test_http_with_cred("user_a", "pw_a",
+        "-X GET 'http://localhost:8081/api/v4'", STATUS_CODE_UNAUTHORIZED,
+        WRONG_USERNAME_OR_PASSWORD);
+    if (!rv) {
+        return false;
+    }
+    return test_http_with_cred("admin_test", "pw_test",
+        "-X GET 'http://localhost:8081/api/v4'", STATUS_CODE_OK, SUCCEED);
+}
+
+static bool
 test_bad_request()
 {
     char *cmd = CURL_CMD_PREFIX "-X POST "
@@ -973,6 +1045,11 @@ main()
     assert(test_disable_rule());
     assert(test_del_rule());
 #endif
+
+    assert(test_auth_legacy_fallback());
+    assert(test_auth_multi_user_credentials());
+    assert(test_auth_wrong_password());
+    assert(test_auth_hot_reload());
 
     assert(test_unauthorized());
     assert(test_bad_request());

@@ -381,18 +381,9 @@ basic_authorize(http_msg *msg, conf_http_server *config)
     memcpy(token, msg->token, token_len);
     token[token_len] = '\0';
 
-    size_t auth_len = strlen(config->username) + strlen(config->password) + 2;
-    char *auth = nng_alloc(auth_len);
-    if (auth == NULL) {
-        nng_free(token, token_alloc_len);
-        return UNKNOWN_MISTAKE;
-    }
-    snprintf(auth, auth_len, "%s:%s", config->username, config->password);
-
     size_t decode_len = (token_len * 6 / 8) + 1;
     uint8_t *decode = nng_alloc(decode_len);
     if (decode == NULL) {
-        nng_free(auth, auth_len);
         nng_free(token, token_alloc_len);
         return UNKNOWN_MISTAKE;
     }
@@ -409,14 +400,14 @@ basic_authorize(http_msg *msg, conf_http_server *config)
         (const char *) token, token_len, decode, decode_len);
     if (decoded_len != (size_t) -1 && decoded_len < decode_len) {
         decode[decoded_len] = '\0';
-        if (strcmp(auth, (const char *) decode) != 0) {
+        if (!conf_http_server_cred_check(
+                config, (const char *) decode, decoded_len)) {
             result = WRONG_USERNAME_OR_PASSWORD;
         }
     } else {
         result = REQ_PARAM_ERROR;
     }
 
-    nng_free(auth, auth_len);
     nng_free(decode, decode_len);
     nng_free(token, token_alloc_len);
 

@@ -170,8 +170,36 @@ get_http_config(conf_http_server *http)
 	cJSON_AddBoolToObject(http_obj, "enable", http->enable);
 	cJSON_AddNumberToObject(http_obj, "port", http->port);
 	cJSON_AddStringOrNullToObject(http_obj, "addr", http->ip_addr);
-	cJSON_AddStringOrNullToObject(http_obj, "username", http->username);
-	cJSON_AddStringOrNullToObject(http_obj, "password", http->password);
+
+	if (http->cred_mtx != NULL) {
+		nng_mtx_lock(http->cred_mtx);
+	}
+	if (http->users_present) {
+		cJSON *users = cJSON_CreateArray();
+		for (size_t i = 0; i < http->users_count; i++) {
+			conf_http_user *user = http->users[i];
+			if (user == NULL) {
+				continue;
+			}
+			cJSON *user_obj = cJSON_CreateObject();
+			cJSON_AddStringOrNullToObject(
+			    user_obj, "username", user->username);
+			cJSON_AddStringOrNullToObject(
+			    user_obj, "password", user->password);
+			cJSON_AddItemToArray(users, user_obj);
+		}
+		cJSON_AddItemToObject(http_obj, "users", users);
+	}
+	if (http->username != NULL || http->password != NULL) {
+		cJSON_AddStringOrNullToObject(
+		    http_obj, "username", http->username);
+		cJSON_AddStringOrNullToObject(
+		    http_obj, "password", http->password);
+	}
+	if (http->cred_mtx != NULL) {
+		nng_mtx_unlock(http->cred_mtx);
+	}
+
 	cJSON_AddStringToObject(
 	    http_obj, "auth_type", http->auth_type == JWT ? "jwt" : "basic");
 	return http_obj;
@@ -687,17 +715,26 @@ set_http_config(cJSON *json, const char *conf_path, conf_http_server *http)
 		// conf_update_u16(conf_path, "http_server.port", http_port);
 		update_var(http->port, http_port);
 	}
+
+	cJSON *jso_users = cJSON_GetObjectItem(json, "users");
+	if (jso_users != NULL) {
+		size_t           users_count = 0;
+		conf_http_user **users =
+		    conf_http_users_parse(jso_users, &users_count);
+		conf_http_server_set_users(http, users, users_count);
+	}
+
 	getStringValue(json, item, "username", http_username, rv);
 	if (rv == 0) {
 		// conf_update(conf_path, "http_server.username",
 		// http_username);
-		update_string(http->username, http_username);
+		conf_http_server_update_legacy(http, http_username, NULL);
 	}
 	getStringValue(json, item, "password", http_password, rv);
 	if (rv == 0) {
 		// conf_update(conf_path, "http_server.password",
 		// http_password);
-		update_string(http->password, http_password);
+		conf_http_server_update_legacy(http, NULL, http_password);
 	}
 	getStringValue(json, item, "auth_type", auth_type, rv);
 	if (rv == 0) {
