@@ -290,11 +290,18 @@ log_trace_init(conf_log *log, conf_log_trace *trace)
 	log_trace_set_categories(trace->categories);
 
 	char categories[NMQ_TRACE_CATEGORIES_STR_MAX];
+	char payload_limit[32];
 	log_trace_categories_string(
 	    trace->categories, categories, sizeof(categories));
+	if (trace->payload_limit == 0) {
+		snprintf(payload_limit, sizeof(payload_limit), "whole payload");
+	} else {
+		snprintf(payload_limit, sizeof(payload_limit), "%zu bytes",
+		    trace->payload_limit);
+	}
 	log_info("MQTT protocol trace armed: categories [%s], payload limit "
-	         "%zu bytes, file %s",
-	    categories, trace->payload_limit,
+	         "%s, file %s",
+	    categories, payload_limit,
 	    trace->sink.abs_path == NULL ? "console" : trace->sink.abs_path);
 
 	return 0;
