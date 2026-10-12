@@ -505,11 +505,15 @@ void
 set_http_server_conf(conf_http_server *conf)
 {
 
-	if (conf->username == NULL) {
-		conf->username = HTTP_DEFAULT_USER;
-	}
-	if (conf->password == NULL) {
-		conf->password = HTTP_DEFAULT_PASSWORD;
+	// `users` is the multi-credential source. Only fall back to the built-in
+	// default credential when the config declares no credential at all.
+	if (!conf->users_present) {
+		if (conf->username == NULL) {
+			conf->username = nng_strdup(HTTP_DEFAULT_USER);
+		}
+		if (conf->password == NULL) {
+			conf->password = nng_strdup(HTTP_DEFAULT_PASSWORD);
+		}
 	}
 
 	http_server_conf = conf;
