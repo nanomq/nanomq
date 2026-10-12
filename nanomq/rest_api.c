@@ -3645,9 +3645,15 @@ post_config(http_msg *msg, const char *type)
 				cJSON *http = cJSON_GetObjectItem(
 				    conf_data, "http_server");
 				if (cJSON_IsObject(http)) {
-					set_http_config(http,
+					enum result_code rc = set_http_config(http,
 					    config->conf_file,
 					    &config->http_server);
+					if (rc != SUCCEED) {
+						cJSON_Delete(req);
+						return error_response(msg,
+						    NNG_HTTP_STATUS_BAD_REQUEST,
+						    rc);
+					}
 				}
 			} else if (strcmp(type, "sqlite") == 0) {
 				cJSON *sqlite =
@@ -3699,8 +3705,14 @@ post_config(http_msg *msg, const char *type)
 			cJSON *http =
 			    cJSON_GetObjectItem(conf_data, "http_server");
 			if (cJSON_IsObject(http)) {
-				set_http_config(http, config->conf_file,
+				enum result_code rc = set_http_config(http,
+				    config->conf_file,
 				    &config->http_server);
+				if (rc != SUCCEED) {
+					cJSON_Delete(req);
+					return error_response(msg,
+					    NNG_HTTP_STATUS_BAD_REQUEST, rc);
+				}
 			}
 
 			cJSON *sqlite =
