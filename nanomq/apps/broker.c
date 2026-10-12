@@ -1419,8 +1419,10 @@ broker(conf *nanomq_conf)
 			nng_listener_set(tls_listener, NANO_MOUNT_POINT,
 			    nanomq_conf->tls_list.nodes[i]->mount_point, 0);
 
-			init_listener_tls(
-			    tls_listener, nanomq_conf->tls_list.nodes[i]);
+			if ((rv = init_listener_tls(tls_listener,
+			         nanomq_conf->tls_list.nodes[i])) != 0) {
+				NANO_NNG_FATAL("init_listener_tls", rv);
+			}
 			if ((rv = nng_listener_start(tls_listener, 0)) != 0) {
 				NANO_NNG_FATAL("nng_listener_start tls", rv);
 			}
@@ -1436,7 +1438,10 @@ broker(conf *nanomq_conf)
 			}
 			nng_listener_set(tls_listener, NANO_CONF, nanomq_conf,
 			    sizeof(conf));
-			init_listener_tls(tls_listener, &nanomq_conf->tls);
+			if ((rv = init_listener_tls(
+			         tls_listener, &nanomq_conf->tls)) != 0) {
+				NANO_NNG_FATAL("init_listener_tls", rv);
+			}
 			if ((rv = nng_listener_start(tls_listener, 0)) != 0) {
 				NANO_NNG_FATAL("nng_listener_start tls", rv);
 			}
@@ -1454,7 +1459,10 @@ broker(conf *nanomq_conf)
 			nng_listener_set(wss_listener, NANO_MOUNT_POINT,
 			    nanomq_conf->websocket.mount_point, 0);
 
-			init_listener_tls(wss_listener, &nanomq_conf->tls);
+			if ((rv = init_listener_tls(
+			         wss_listener, &nanomq_conf->tls)) != 0) {
+				NANO_NNG_FATAL("init_listener_tls wss", rv);
+			}
 			if ((rv = nng_listener_start(wss_listener, 0)) != 0) {
 				NANO_NNG_FATAL("nng_listener_start wss", rv);
 			}
