@@ -1019,6 +1019,24 @@ test_auth_hot_reload()
 }
 
 static bool
+test_auth_reject_bad_users()
+{
+    // A `users` value that is not an array has to be rejected without
+    // touching the credentials that are currently in use.
+    bool rv = test_http_with_cred("admin_test", "pw_test",
+        "-X POST -H 'Content-Type: application/json' -d "
+        "'{\"data\":{\"http_server\":{\"users\":{}}}}' "
+        "'http://localhost:8081/api/v4/configuration/http_server'",
+        STATUS_CODE_BAD_REQUEST, REQ_PARAMS_JSON_FORMAT_ILLEGAL);
+    if (!rv) {
+        return false;
+    }
+    // user_c was installed by the hot-reload test and must still work.
+    return test_http_with_cred("user_c", "pw_c",
+        "-X GET 'http://localhost:8081/api/v4'", STATUS_CODE_OK, SUCCEED);
+}
+
+static bool
 test_bad_request()
 {
     char *cmd = CURL_CMD_PREFIX "-X POST "
@@ -1200,6 +1218,7 @@ main()
     assert(test_auth_multi_user_credentials());
     assert(test_auth_wrong_password());
     assert(test_auth_hot_reload());
+    assert(test_auth_reject_bad_users());
 
     assert(test_unauthorized());
     assert(test_bad_request());

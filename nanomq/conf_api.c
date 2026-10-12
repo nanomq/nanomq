@@ -699,7 +699,7 @@ set_tls_config(
 	}
 }
 
-void
+enum result_code
 set_http_config(cJSON *json, const char *conf_path, conf_http_server *http)
 {
 	cJSON *item;
@@ -710,6 +710,16 @@ set_http_config(cJSON *json, const char *conf_path, conf_http_server *http)
 	char *   http_username = NULL;
 	char *   http_password = NULL;
 	char *   auth_type     = NULL;
+
+	// Validate before applying anything: a malformed request must leave the
+	// running credentials untouched.
+	cJSON *jso_users = cJSON_GetObjectItem(json, "users");
+	if (jso_users != NULL && !cJSON_IsArray(jso_users)) {
+		log_error("http_server.users must be an array, credentials "
+		          "unchanged");
+		return REQ_PARAMS_JSON_FORMAT_ILLEGAL;
+	}
+
 	getBoolValue(json, item, "enable", http_enable, rv);
 	if (rv == 0) {
 		// conf_update_bool(conf_path, "http_server.enable",
@@ -722,7 +732,6 @@ set_http_config(cJSON *json, const char *conf_path, conf_http_server *http)
 		update_var(http->port, http_port);
 	}
 
-	cJSON *jso_users = cJSON_GetObjectItem(json, "users");
 	if (jso_users != NULL) {
 		size_t           users_count = 0;
 		conf_http_user **users =
@@ -754,6 +763,8 @@ set_http_config(cJSON *json, const char *conf_path, conf_http_server *http)
 			update_var(http->auth_type, JWT);
 		}
 	}
+
+	return SUCCEED;
 }
 
 void

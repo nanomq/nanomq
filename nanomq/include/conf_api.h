@@ -28,7 +28,7 @@ extern void set_auth_config(
     cJSON *json, const char *conf_path, conf_auth *auth);
 extern void set_auth_http_config(
     cJSON *json, const char *conf_path, conf_auth_http *auth);
-extern void set_http_config(
+extern enum result_code set_http_config(
     cJSON *json, const char *conf_path, conf_http_server *http);
 extern void set_websocket_config(
     cJSON *json, const char *conf_path, conf_websocket *ws);
