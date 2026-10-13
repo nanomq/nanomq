@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This article is the ART-Pi companion to [NanoMQ on Zephyr RTOS: Running an MQTT Broker Directly on an MCU](./port-to-zephyr.md). That article explains the port itself and covers the two targets it was first validated on, the ESP32-S3 (Wi-Fi hardware) and `qemu_x86` (simulation). This one is the record of a third target, `demo/nanomq_zephyr_stm32_art-pi`: an ARM Cortex-M7 board with an on-board Wi-Fi module and 32 MB of SDRAM.
+This article is the ART-Pi companion to [NanoMQ on Zephyr RTOS: Running an MQTT Broker Directly on an MCU](./port-to-zephyr.md). That article explains the port itself and covers the two targets it was first validated on, the ESP32-S3 (Wi-Fi hardware) and `qemu_x86` (simulation). This one is the record of a third target, `examples/nanomq_zephyr_stm32_art-pi`: an ARM Cortex-M7 board with an on-board Wi-Fi module and 32 MB of SDRAM.
 
 It follows the order the problems appeared in, because three unrelated faults produced the same console output (`airoc_wifi_init_primary failed ret = -19`, no link, no DHCP) and each one first looked like the others.
 
@@ -34,7 +34,7 @@ The environment is the one the [main article](./port-to-zephyr.md#environment-se
 
 ### Get the Source Code and the Out-of-Tree Patches
 
-The ART-Pi demo lives under `demo/nanomq_zephyr_stm32_art-pi/` in the `zephyr-rtos` branch of the repository. It needs three deltas that live outside it, two in the Zephyr tree and one in a west module, because they cannot travel on this repository's branches:
+The ART-Pi example lives under `examples/nanomq_zephyr_stm32_art-pi/` in [nanomq/NanoMQ-Zephyr-Example](https://github.com/nanomq/NanoMQ-Zephyr-Example), the repository the [main article](./port-to-zephyr.md#get-the-source-code) has you clone and fetch nanomq into. It needs three deltas that live outside it, two in the Zephyr tree and one in a west module, because they cannot travel on a branch of either repository:
 
 | Patch | Repository | What it does |
 | --- | --- | --- |
@@ -46,7 +46,7 @@ The patches are generated from the tree that passed acceptance, and the base rev
 
 ```sh
 ZEPHYR_WORKSPACE=~/zephyrproject          # your west workspace
-PATCHES=$PWD/demo/nanomq_zephyr_stm32_art-pi/patches
+PATCHES=$PWD/examples/nanomq_zephyr_stm32_art-pi/patches
 
 git -C $ZEPHYR_WORKSPACE/zephyr apply $PATCHES/0001-zephyr-sdhc-stm32-sdio-card-interrupt.patch
 git -C $ZEPHYR_WORKSPACE/zephyr apply $PATCHES/0002-zephyr-airoc-whd-sdio-bring-up.patch
@@ -69,7 +69,7 @@ Flashing the QSPI part needs the vendor's CMSIS flash algorithm (`ART-Pi_W25Q64.
 git clone --depth 1 --filter=blob:none --no-checkout \
     https://github.com/RT-Thread-Studio/sdk-bsp-stm32h750-realthread-artpi /tmp/artpi_sdk
 git -C /tmp/artpi_sdk show HEAD:debug/flm/ART-Pi_W25Q64.FLM \
-    > demo/nanomq_zephyr_stm32_art-pi/tools/ART-Pi_W25Q64.FLM
+    > examples/nanomq_zephyr_stm32_art-pi/tools/ART-Pi_W25Q64.FLM
 ```
 
 ## Build and Run: ART-Pi Hardware
@@ -79,8 +79,8 @@ git -C /tmp/artpi_sdk show HEAD:debug/flm/ART-Pi_W25Q64.FLM \
 Wi-Fi credentials and REST credentials are site-specific, so they live in a git-ignored `local.conf`, copied from `local.conf.example`:
 
 ```sh
-cp demo/nanomq_zephyr_stm32_art-pi/local.conf.example \
-   demo/nanomq_zephyr_stm32_art-pi/local.conf
+cp examples/nanomq_zephyr_stm32_art-pi/local.conf.example \
+   examples/nanomq_zephyr_stm32_art-pi/local.conf
 
 # then edit:
 #   CONFIG_BROKER_WIFI_SSID="<your AP>"
@@ -96,13 +96,13 @@ REST is optional but is what the suite's `rest_get` group exercises; if you leav
 The demo links into the QSPI window, not the internal flash, and that comes from an overlay the app sets for itself, so `west build -b art_pi` with no extra arguments does not produce a usable image. `tools/flash.sh` builds and programs in one step with the right arguments:
 
 ```sh
-demo/nanomq_zephyr_stm32_art-pi/tools/flash.sh --wifi
+examples/nanomq_zephyr_stm32_art-pi/tools/flash.sh --wifi
 ```
 
 `--wifi` is the default and the only variant verified here; it passes `wifi.conf` and `boards/art_pi_wifi.overlay`, which also disables the Ethernet nodes so the image has a single network interface. If you want the build step on its own:
 
 ```sh
-west build -b art_pi demo/nanomq_zephyr_stm32_art-pi -- \
+west build -b art_pi examples/nanomq_zephyr_stm32_art-pi -- \
     -DEXTRA_CONF_FILE="local.conf;wifi.conf" \
     -DEXTRA_DTC_OVERLAY_FILE=boards/art_pi_wifi.overlay
 ```
@@ -121,8 +121,8 @@ Two things are worth knowing before the first flash:
 There is no login, just the boot log and the broker's output at 115200 8N1:
 
 ```sh
-demo/nanomq_zephyr_stm32_art-pi/tools/console.sh            # live view, Ctrl-C to quit
-demo/nanomq_zephyr_stm32_art-pi/tools/console.sh -o boot.log # capture while showing it
+examples/nanomq_zephyr_stm32_art-pi/tools/console.sh            # live view, Ctrl-C to quit
+examples/nanomq_zephyr_stm32_art-pi/tools/console.sh -o boot.log # capture while showing it
 ```
 
 The ST-Link's virtual COM port buffers, so a capture started right after a reset can replay the *previous* boot first: you will see two `Powered by RT-Thread.` banners and two `*** Booting Zephyr OS ***` lines. Split the log on the last bootloader banner, or discard the backlog first with `console.sh --drain <seconds>`. Only one reader at a time: if the output looks truncated or interleaved, check that no other `cat`/`minicom`/`tio` still holds the port.
@@ -132,7 +132,7 @@ The ST-Link's virtual COM port buffers, so a capture started right after a reset
 `tools/verify.sh` wraps the functional suite for a board that is already running:
 
 ```sh
-demo/nanomq_zephyr_stm32_art-pi/tools/verify.sh <board-ip>
+examples/nanomq_zephyr_stm32_art-pi/tools/verify.sh <board-ip>
 ```
 
 The broker's REST API is a quick manual check:
@@ -361,6 +361,20 @@ The one signal that covers all three rows already exists inside WHD: its `JOIN_L
 
 The broker itself needs no help: with the listeners on `0.0.0.0`, a reconnect that gets the same lease back is invisible to clients beyond their own reconnects, and a different lease only changes the address in the heartbeat. Boot is unchanged: the initial 3 × 30 s is still bounded, so a board that cannot associate still starts the broker and says so; the supervisor just keeps trying from then on.
 
+### 10. USB-ECM: a Third Network Path, and Where It Stopped
+
+With Wi-Fi working, the board's USB-OTG port was tried as an alternative network path (`usb.conf` plus `boards/art_pi_usb.overlay`): the board becomes a USB **device** exposing CDC-ECM, and since a host attaching to it has no reason to run a DHCP server, the board is also the DHCPv4 server for that link. The host's desktop then configures the new interface with no manual `ip(8)` and no host-side privileges. Nothing in the west tree needed changing: the ART-Pi's Zephyr board file already enables `zephyr_udc0`, the ECM class is in `subsys/usb/device/class/netusb/`, and Zephyr has a DHCPv4 server.
+
+Firmware-side evidence, read from the board itself (the debugger's register reads are unreliable on this setup, so the application prints them):
+
+* `usb_dc_attach` → `HAL_PCD_Init` → `HAL_PCD_Start`, then endpoints configured and enabled, and the ECM function registered.
+* The OTG core reports `GCCFG=0x00010000` (PHY powered), `DCTL=0x00000000` (`SDIS=0`: soft-connected, D+ pull-up on), `GOTGCTL=0x030900c0` (the HAL's B-session-valid override, as expected with `vbus_sensing_enable` disabled for a board whose pin mux has no `usb_otg_fs_vbus_pa9`).
+* PA11/PA12 are muxed to **AF10** (`pinmux = <0x16a>`, `<0x18a>` in the resolved devicetree), the correct USB OTG FS alternate function.
+
+What never happens is host activity: `GINTSTS` has neither `USBRST` (12) nor `ENUMDNE` (13) set, and on the PC `journalctl -k` logs **nothing**, not even when the firmware cycles the D+ pull-up — an event every xHCI host reports if the port is electrically connected. So the physical path is the blocker, not the firmware; the candidate causes and the checks are in [the example's README](https://github.com/nanomq/NanoMQ-Zephyr-Example/blob/main/examples/nanomq_zephyr_stm32_art-pi/README.md) (cable type first: a Type-C receptacle wired for legacy devices needs CC pulldowns, and a C-to-C cable into a port without them stays dark).
+
+That is where it stopped: a hardware-side question (try another cable or port), not something left to implement.
+
 ## Conclusion
 
 ### Where This Approach Fits
@@ -369,29 +383,29 @@ The ART-Pi is the ARM board the main article listed as unvalidated: the Cortex-M
 
 Two things generalize past this board. Polling a chip does not always mean the hardware is broken: this board's own vendor stack polls, and the interrupt the datasheet describes is not wired here. A link that can disappear also needs a supervisor, because a driver's disconnect event usually covers only an explicit disconnect; an AP that silently walks away has to be found by asking the driver for its own join state.
 
-### Code and Demos
+### Code and Examples
 
-The demo lives under `demo/nanomq_zephyr_stm32_art-pi` in the `zephyr-rtos` branch of [nanomq/nanomq](https://github.com/nanomq/nanomq/tree/zephyr-rtos), next to the ESP32-S3 and `qemu_x86` demos, and its README carries the full build, flash and console procedure. The three out-of-tree patches are in the demo's `patches/` directory, with their base revisions in `patches/README.md`.
+The example lives under `examples/nanomq_zephyr_stm32_art-pi` in [nanomq/NanoMQ-Zephyr-Example](https://github.com/nanomq/NanoMQ-Zephyr-Example), next to the ESP32-S3 and `qemu_x86` examples, and [its README](https://github.com/nanomq/NanoMQ-Zephyr-Example/blob/main/examples/nanomq_zephyr_stm32_art-pi/README.md) carries the full build, flash and console procedure. The three out-of-tree patches are in the example's `patches/` directory, with their base revisions in `patches/README.md`.
 
 If you bring the port up on another board of this family, or hit a fault this article does not cover, join the discussion in the [NanoMQ community](https://github.com/nanomq/nanomq/discussions).
 
 ### Further Reading: The Port's Decision Records
 
-Five decisions from this port are recorded in full, with the alternatives that were rejected, in the demo's own `docs/adr/` directory:
+Five decisions from this port are recorded in full, with the alternatives that were rejected, in the example's own `docs/adr/` directory:
 
 | Record | Decision |
 | --- | --- |
-| [ADR 0001](https://github.com/nanomq/nanomq/blob/zephyr-rtos/demo/nanomq_zephyr_stm32_art-pi/docs/adr/0001-qspi-xip-behind-art-pi-factory-bootloader.md) | Run the image from QSPI XIP behind the ART-Pi factory bootloader |
-| [ADR 0002](https://github.com/nanomq/nanomq/blob/zephyr-rtos/demo/nanomq_zephyr_stm32_art-pi/docs/adr/0002-broker-heap-in-sdram-through-the-external-ram-allocator.md) | Put the broker heap in SDRAM, reached through the external-RAM allocator |
-| [ADR 0003](https://github.com/nanomq/nanomq/blob/zephyr-rtos/demo/nanomq_zephyr_stm32_art-pi/docs/adr/0003-poll-the-whd-thread-because-the-art-pi-never-asserts-the-sdio-card-interrupt.md) | Poll the WHD thread, because the board never asserts the SDIO card interrupt |
-| [ADR 0004](https://github.com/nanomq/nanomq/blob/zephyr-rtos/demo/nanomq_zephyr_stm32_art-pi/docs/adr/0004-keep-the-art-pi-wifi-chip-awake.md) | Keep the Wi-Fi chip awake instead of letting it KSO-sleep |
-| [ADR 0005](https://github.com/nanomq/nanomq/blob/zephyr-rtos/demo/nanomq_zephyr_stm32_art-pi/docs/adr/0005-poll-the-join-state-to-recover-a-lost-wi-fi-link.md) | Recover a lost Wi-Fi link by polling the join state |
+| [ADR 0001](https://github.com/nanomq/NanoMQ-Zephyr-Example/blob/main/examples/nanomq_zephyr_stm32_art-pi/docs/adr/0001-qspi-xip-behind-art-pi-factory-bootloader.md) | Run the image from QSPI XIP behind the ART-Pi factory bootloader |
+| [ADR 0002](https://github.com/nanomq/NanoMQ-Zephyr-Example/blob/main/examples/nanomq_zephyr_stm32_art-pi/docs/adr/0002-broker-heap-in-sdram-through-the-external-ram-allocator.md) | Put the broker heap in SDRAM, reached through the external-RAM allocator |
+| [ADR 0003](https://github.com/nanomq/NanoMQ-Zephyr-Example/blob/main/examples/nanomq_zephyr_stm32_art-pi/docs/adr/0003-poll-the-whd-thread-because-the-art-pi-never-asserts-the-sdio-card-interrupt.md) | Poll the WHD thread, because the board never asserts the SDIO card interrupt |
+| [ADR 0004](https://github.com/nanomq/NanoMQ-Zephyr-Example/blob/main/examples/nanomq_zephyr_stm32_art-pi/docs/adr/0004-keep-the-art-pi-wifi-chip-awake.md) | Keep the Wi-Fi chip awake instead of letting it KSO-sleep |
+| [ADR 0005](https://github.com/nanomq/NanoMQ-Zephyr-Example/blob/main/examples/nanomq_zephyr_stm32_art-pi/docs/adr/0005-poll-the-join-state-to-recover-a-lost-wi-fi-link.md) | Recover a lost Wi-Fi link by polling the join state |
 
 ## Appendix A: What the Port Needed Upstream
 
 | Change | Where it lives |
 | --- | --- |
-| The demo itself, and the non-localhost tuning of `function_test.py` | this repository, `zephyr-rtos` branch |
+| The example itself, and the non-localhost tuning of `function_test.py` | the `NanoMQ-Zephyr-Example` repository |
 | `nng`: `SUCCESS` → `NNG_MQTT_SUCCESS` (the CMSIS `ErrorStatus.SUCCESS` collision on STM32) | the `nng` submodule, on top of the Zephyr port work |
 | STM32 SDHC SDIO card-interrupt support | `patches/0001` (Zephyr tree) |
 | AIROC/WHD SDIO bring-up: the poke timer, the power-save fix, and the 43438 CLM/NVRAM wiring | `patches/0002` (Zephyr tree) |
