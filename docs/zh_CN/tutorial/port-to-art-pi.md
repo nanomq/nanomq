@@ -2,7 +2,7 @@
 
 ## 引言
 
-本文是 [NanoMQ 移植到 Zephyr RTOS：把 MQTT Broker 跑在 MCU 上](./port-to-zephyr.md)的 ART-Pi 篇。那篇文章讲清楚了为什么要把 broker 核心搬到 Zephyr，以及最早验证的两个目标：ESP32-S3（Wi-Fi 实机）和 `qemu_x86`（仿真）。这一篇记录的是第三个目标 `demo/nanomq_zephyr_stm32_art-pi`：一块带板载 Wi-Fi 模块和 32 MB SDRAM 的 ARM Cortex-M7 板子。
+本文是 [NanoMQ 移植到 Zephyr RTOS：把 MQTT Broker 跑在 MCU 上](./port-to-zephyr.md)的 ART-Pi 篇。那篇文章讲清楚了为什么要把 broker 核心搬到 Zephyr，以及最早验证的两个目标：ESP32-S3（Wi-Fi 实机）和 `qemu_x86`（仿真）。这一篇记录的是第三个目标 `examples/nanomq_zephyr_stm32_art-pi`：一块带板载 Wi-Fi 模块和 32 MB SDRAM 的 ARM Cortex-M7 板子。
 
 本文按问题**实际出现的顺序**来写：有三个互不相同的故障，从控制台看却完全一样（`airoc_wifi_init_primary failed ret = -19`、没有链路、没有 DHCP），每一个第一眼都像是另外两个。
 
@@ -34,7 +34,7 @@ ART-Pi 是睿赛德（RT-Thread 团队的硬件分支）围绕 **STM32H750XBH6**
 
 ### 获取源码与树外补丁
 
-ART-Pi demo 位于仓库 `zephyr-rtos` 分支的 `demo/nanomq_zephyr_stm32_art-pi/` 下。它还需要三处落在这个目录**之外**的改动，两处在 Zephyr 树、一处在 west 模块，因为它们无法随本仓库的分支一起走：
+ART-Pi 示例位于 [nanomq/NanoMQ-Zephyr-Example](https://github.com/nanomq/NanoMQ-Zephyr-Example) 的 `examples/nanomq_zephyr_stm32_art-pi/` 下 —— 也就是主篇让你克隆并把 nanomq 取进来的那个仓库。它还需要三处落在这个目录**之外**的改动，两处在 Zephyr 树、一处在 west 模块，因为这些东西没法挂在任何一个仓库的分支上：
 
 | 补丁 | 所在仓库 | 作用 |
 | --- | --- | --- |
@@ -46,7 +46,7 @@ ART-Pi demo 位于仓库 `zephyr-rtos` 分支的 `demo/nanomq_zephyr_stm32_art-p
 
 ```sh
 ZEPHYR_WORKSPACE=~/zephyrproject          # 你的 west 工作区
-PATCHES=$PWD/demo/nanomq_zephyr_stm32_art-pi/patches
+PATCHES=$PWD/examples/nanomq_zephyr_stm32_art-pi/patches
 
 git -C $ZEPHYR_WORKSPACE/zephyr apply $PATCHES/0001-zephyr-sdhc-stm32-sdio-card-interrupt.patch
 git -C $ZEPHYR_WORKSPACE/zephyr apply $PATCHES/0002-zephyr-airoc-whd-sdio-bring-up.patch
@@ -69,7 +69,7 @@ west blobs fetch hal_infineon
 git clone --depth 1 --filter=blob:none --no-checkout \
     https://github.com/RT-Thread-Studio/sdk-bsp-stm32h750-realthread-artpi /tmp/artpi_sdk
 git -C /tmp/artpi_sdk show HEAD:debug/flm/ART-Pi_W25Q64.FLM \
-    > demo/nanomq_zephyr_stm32_art-pi/tools/ART-Pi_W25Q64.FLM
+    > examples/nanomq_zephyr_stm32_art-pi/tools/ART-Pi_W25Q64.FLM
 ```
 
 ## 编译与运行：ART-Pi 实机
@@ -79,8 +79,8 @@ git -C /tmp/artpi_sdk show HEAD:debug/flm/ART-Pi_W25Q64.FLM \
 Wi-Fi 凭据和 REST 凭据都是站点相关的，所以放在 git-ignored 的 `local.conf` 里，从 `local.conf.example` 复制：
 
 ```sh
-cp demo/nanomq_zephyr_stm32_art-pi/local.conf.example \
-   demo/nanomq_zephyr_stm32_art-pi/local.conf
+cp examples/nanomq_zephyr_stm32_art-pi/local.conf.example \
+   examples/nanomq_zephyr_stm32_art-pi/local.conf
 
 # 然后编辑：
 #   CONFIG_BROKER_WIFI_SSID="<你的 AP>"
@@ -96,13 +96,13 @@ REST 是可选的，但它正是套件里 `rest_get` 分组要测的东西；不
 本 demo 链接进 QSPI 窗口而不是内部 flash，而这来自应用自己带的 overlay，所以光敲 `west build -b art_pi` 得到的镜像装不进 broker。`tools/flash.sh` 会用正确的参数一次完成编译与烧写：
 
 ```sh
-demo/nanomq_zephyr_stm32_art-pi/tools/flash.sh --wifi
+examples/nanomq_zephyr_stm32_art-pi/tools/flash.sh --wifi
 ```
 
 `--wifi` 是默认值，也是本文验证过的唯一变体；它会带上 `wifi.conf` 与 `boards/art_pi_wifi.overlay`，后者同时关掉以太网相关节点，让镜像里只有一个网络接口。只想编译的话：
 
 ```sh
-west build -b art_pi demo/nanomq_zephyr_stm32_art-pi -- \
+west build -b art_pi examples/nanomq_zephyr_stm32_art-pi -- \
     -DEXTRA_CONF_FILE="local.conf;wifi.conf" \
     -DEXTRA_DTC_OVERLAY_FILE=boards/art_pi_wifi.overlay
 ```
@@ -121,8 +121,8 @@ west build -b art_pi demo/nanomq_zephyr_stm32_art-pi -- \
 没有登录，115200 8N1 上就是启动日志和 broker 的输出：
 
 ```sh
-demo/nanomq_zephyr_stm32_art-pi/tools/console.sh             # 实时查看，Ctrl-C 退出
-demo/nanomq_zephyr_stm32_art-pi/tools/console.sh -o boot.log # 同时写文件
+examples/nanomq_zephyr_stm32_art-pi/tools/console.sh             # 实时查看，Ctrl-C 退出
+examples/nanomq_zephyr_stm32_art-pi/tools/console.sh -o boot.log # 同时写文件
 ```
 
 ST-Link 的虚拟串口会缓冲，所以复位后立刻开始的抓取，可能先把**上一次**启动重放出来，一份日志里会出现两个 `Powered by RT-Thread.` 横幅和两条 `*** Booting Zephyr OS ***`。读之前按最后一个 bootloader 横幅切分，或者先丢缓冲：`console.sh --drain <秒>`。同一时刻只能有一个读者：输出看起来被截断或交织时，先确认没有别的 `cat`/`minicom`/`tio` 还占着这个口。
@@ -132,7 +132,7 @@ ST-Link 的虚拟串口会缓冲，所以复位后立刻开始的抓取，可能
 `tools/verify.sh` 把功能套件封装成对一块已在运行的板子执行：
 
 ```sh
-demo/nanomq_zephyr_stm32_art-pi/tools/verify.sh <板子IP>
+examples/nanomq_zephyr_stm32_art-pi/tools/verify.sh <板子IP>
 ```
 
 broker 的 REST API 是个快速的手工检查：
@@ -361,6 +361,20 @@ airoc_wifi_init_primary failed ret = -19
 
 broker 本身什么都不用做：监听在 `0.0.0.0` 上，重连后拿到同一个租约的话，除了客户端自己的重连之外无感；拿到不同租约也只是心跳里的地址变了。启动行为不变：开头 3 × 30 秒仍然有限次，连不上的板子照样启动 broker 并说明情况，守护线程从那时起一直重试。
 
+### 10. USB-ECM：第三条路，以及它停在哪
+
+Wi-Fi 通了之后，又把板子的 USB-OTG 口当成另一条网络通路试了一遍（`usb.conf` 加 `boards/art_pi_usb.overlay`）：板子变成暴露 CDC-ECM 的 USB **设备**；而接到它这一端的主机没有理由去跑 DHCP 服务器，所以板子同时充当这条链路的 DHCPv4 **服务器**，主机端桌面环境自己就把新接口配好，既不需要手工 `ip(8)` 也不需要主机侧特权。west 树里一行都不用改：ART-Pi 的 Zephyr 板级文件本来就使能了 `zephyr_udc0`，ECM 类在 `subsys/usb/device/class/netusb/` 里，DHCPv4 服务器也是树内现成的。
+
+固件侧的实测证据（这套调试环境下调试器读寄存器不可靠，所以由固件自己打印）：
+
+* `usb_dc_attach` → `HAL_PCD_Init` → `HAL_PCD_Start`，随后端点配置并使能，ECM 功能注册完成。
+* OTG 核心自报 `GCCFG=0x00010000`（PHY 已上电）、`DCTL=0x00000000`（`SDIS=0`，软连接、D+ 上拉已使能）、`GOTGCTL=0x030900c0`（HAL 的 B-session valid 覆盖，对于引脚复用里没有 `usb_otg_fs_vbus_pa9` 的板子、`vbus_sensing_enable` 关闭时正是这个值）。
+* PA11/PA12 复用为 **AF10**（展开后的设备树里 `pinmux = <0x16a>`、`<0x18a>`），是正确的 USB OTG FS 复用功能。
+
+始终没发生的是主机侧动作：`GINTSTS` 既没有 `USBRST`(12) 也没有 `ENUMDNE`(13)，而 PC 上 `journalctl -k` **什么也没记录**，即使固件把 D+ 上拉做了断开/接通循环也一样（只要端口电气上连着，任何 xHCI 主机都会报告这个事件）。所以卡点在物理通路，不在固件；候选原因与检查步骤写在这个[示例的 README](https://github.com/nanomq/NanoMQ-Zephyr-Example/blob/main/examples/nanomq_zephyr_stm32_art-pi/README.md) 里（先查线型：按旧式设备接法布线的 Type-C 母座需要 CC 下拉，没有下拉时 C-to-C 线插上去就是一片漆黑）。
+
+这件事就停在这里：它是硬件侧问题（换线/换口），不是还有代码要写。
+
 ## 结语
 
 ### 这个方案适合什么场景
@@ -369,29 +383,29 @@ ART-Pi 补上了主篇里"ARM 板卡尚未验证"那一格：Cortex-M7 路径、
 
 有两点能带出这块板子。轮询芯片并不总是"硬件坏了才用的退路"：这块板子厂商自己的协议栈就在轮询，datasheet 描述的那个中断在这里确实没有接线。另外，一条会消失的链路需要有人看着，驱动的断开事件通常只覆盖显式断开，悄悄走掉的 AP 只能靠问驱动自己的关联状态来发现。
 
-### 代码与 demo
+### 代码与示例
 
-demo 位于 [nanomq/nanomq](https://github.com/nanomq/nanomq/tree/zephyr-rtos) 的 `zephyr-rtos` 分支下的 `demo/nanomq_zephyr_stm32_art-pi`，与 ESP32-S3、`qemu_x86` 这两块 demo 并列；完整的编译、烧写与控制台步骤在其 README 里。三处树外补丁在 demo 的 `patches/` 目录，适配的基线版本见 `patches/README.md`。
+示例位于 [nanomq/NanoMQ-Zephyr-Example](https://github.com/nanomq/NanoMQ-Zephyr-Example) 的 `examples/nanomq_zephyr_stm32_art-pi`，与 ESP32-S3、`qemu_x86` 两个示例并列；完整的编译、烧写与控制台步骤在[它的 README](https://github.com/nanomq/NanoMQ-Zephyr-Example/blob/main/examples/nanomq_zephyr_stm32_art-pi/README.md) 里。三处树外补丁在示例的 `patches/` 目录，适配的基线版本见 `patches/README.md`。
 
 如果你把移植带到同族的另一块板子上，或者遇到本文没覆盖的故障，欢迎到 [NanoMQ 社区](https://github.com/nanomq/nanomq/discussions)讨论。
 
 ### 延伸阅读：本次移植的决策记录
 
-本移植有五个决策做了完整记录（含被否掉的备选方案），就在 demo 自己的 `docs/adr/` 目录里：
+本移植有五个决策做了完整记录（含被否掉的备选方案），就在示例自己的 `docs/adr/` 目录里：
 
 | 记录 | 决策 |
 | --- | --- |
-| [ADR 0001](https://github.com/nanomq/nanomq/blob/zephyr-rtos/demo/nanomq_zephyr_stm32_art-pi/docs/adr/0001-qspi-xip-behind-art-pi-factory-bootloader.md) | 镜像从 QSPI XIP 运行，挂在 ART-Pi 出厂 bootloader 之后 |
-| [ADR 0002](https://github.com/nanomq/nanomq/blob/zephyr-rtos/demo/nanomq_zephyr_stm32_art-pi/docs/adr/0002-broker-heap-in-sdram-through-the-external-ram-allocator.md) | broker 堆放进 SDRAM，走 external-RAM 分配器 |
-| [ADR 0003](https://github.com/nanomq/nanomq/blob/zephyr-rtos/demo/nanomq_zephyr_stm32_art-pi/docs/adr/0003-poll-the-whd-thread-because-the-art-pi-never-asserts-the-sdio-card-interrupt.md) | 轮询 WHD 线程，因为这块板子从不触发 SDIO 卡中断 |
-| [ADR 0004](https://github.com/nanomq/nanomq/blob/zephyr-rtos/demo/nanomq_zephyr_stm32_art-pi/docs/adr/0004-keep-the-art-pi-wifi-chip-awake.md) | 让 Wi-Fi 芯片保持清醒，不让它进 KSO 睡眠 |
-| [ADR 0005](https://github.com/nanomq/nanomq/blob/zephyr-rtos/demo/nanomq_zephyr_stm32_art-pi/docs/adr/0005-poll-the-join-state-to-recover-a-lost-wi-fi-link.md) | 掉线靠轮询关联状态来恢复 |
+| [ADR 0001](https://github.com/nanomq/NanoMQ-Zephyr-Example/blob/main/examples/nanomq_zephyr_stm32_art-pi/docs/adr/0001-qspi-xip-behind-art-pi-factory-bootloader.md) | 镜像从 QSPI XIP 运行，挂在 ART-Pi 出厂 bootloader 之后 |
+| [ADR 0002](https://github.com/nanomq/NanoMQ-Zephyr-Example/blob/main/examples/nanomq_zephyr_stm32_art-pi/docs/adr/0002-broker-heap-in-sdram-through-the-external-ram-allocator.md) | broker 堆放进 SDRAM，走 external-RAM 分配器 |
+| [ADR 0003](https://github.com/nanomq/NanoMQ-Zephyr-Example/blob/main/examples/nanomq_zephyr_stm32_art-pi/docs/adr/0003-poll-the-whd-thread-because-the-art-pi-never-asserts-the-sdio-card-interrupt.md) | 轮询 WHD 线程，因为这块板子从不触发 SDIO 卡中断 |
+| [ADR 0004](https://github.com/nanomq/NanoMQ-Zephyr-Example/blob/main/examples/nanomq_zephyr_stm32_art-pi/docs/adr/0004-keep-the-art-pi-wifi-chip-awake.md) | 让 Wi-Fi 芯片保持清醒，不让它进 KSO 睡眠 |
+| [ADR 0005](https://github.com/nanomq/NanoMQ-Zephyr-Example/blob/main/examples/nanomq_zephyr_stm32_art-pi/docs/adr/0005-poll-the-join-state-to-recover-a-lost-wi-fi-link.md) | 掉线靠轮询关联状态来恢复 |
 
 ## 附录 A：这次移植向上游要了什么
 
 | 改动 | 位置 |
 | --- | --- |
-| demo 本体，以及 `function_test.py` 的非 localhost 调参 | 本仓库 `zephyr-rtos` 分支 |
+| 示例本体，以及 `function_test.py` 的非 localhost 调参 | `NanoMQ-Zephyr-Example` 仓库 |
 | `nng`：`SUCCESS` → `NNG_MQTT_SUCCESS`（与 CMSIS `ErrorStatus.SUCCESS` 重名） | `nng` 子模块，叠在 Zephyr 移植工作之上 |
 | STM32 SDHC 的 SDIO 卡中断支持 | `patches/0001`（Zephyr 树） |
 | AIROC/WHD 的 SDIO bring-up：poke 定时器、省电修复，以及 43438 的 CLM/NVRAM 接线 | `patches/0002`（Zephyr 树） |

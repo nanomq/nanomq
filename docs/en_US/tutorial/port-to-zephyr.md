@@ -71,7 +71,7 @@ The versions used for validation are fixed as follows. The e1000 patch is specif
 | Zephyr | 4.4, `11a87708d41` (the e1000 patch applies to this revision) |
 | Zephyr SDK | 1.0.1 |
 | NanoMQ | 0.25.6 (based on upstream `master`) |
-| NanoNNG (`nng/` submodule) | Based on upstream `main`, plus the Zephyr platform adaptation layer. The `zephyr-rtos` branch commits the submodule gitlink, so `git clone --recursive` checks out the complete platform adaptation layer |
+| NanoNNG (`nng/` submodule) | Based on upstream `main`, plus the Zephyr platform adaptation layer. The examples fetch it together with nanomq and check out the gitlink the pinned revision records, so the checkout always matches the pair in the examples' `nanomq.ref` |
 
 If you have not created a Zephyr workspace yet (the commands below put the venv at `~/zephyr-venv`, which is where the validation environment for this article keeps it; putting it elsewhere, or at `<workspace>/.venv` as the official documentation suggests, works just as well):
 
@@ -132,27 +132,26 @@ west blobs fetch hal_espressif
 
 **Do not skip this step.** Without the blobs, `CONFIG_WIFI_ESP32` silently becomes unavailable. The build still succeeds and the firmware still boots, but Wi-Fi is not available, and the build system reports no warning. On the serial console, the expected `wifi: connected` message will never appear.
 
-For distribution-specific setup instructions (including system dependencies, SDK installation, permissions, and common errors), see [setup-fedora-en.md](https://github.com/nanomq/nanomq/blob/zephyr-rtos/demo/nanomq_zephyr_esp32s3/setup-fedora-en.md). The guide uses Fedora as an example; for other distributions, replace the package manager commands as needed.
+For distribution-specific setup instructions (including system dependencies, SDK installation, permissions, and common errors), see [setup-fedora-en.md](https://github.com/nanomq/NanoMQ-Zephyr-Example/blob/main/examples/nanomq_zephyr_esp32s3/setup-fedora-en.md). The guide uses Fedora as an example; for other distributions, replace the package manager commands as needed.
 
 ### Get the Source Code
 
+The examples live in their own repository, [nanomq/NanoMQ-Zephyr-Example](https://github.com/nanomq/NanoMQ-Zephyr-Example), and build against a nanomq checkout:
+
 ```sh
 cd ~/zephyrproject
-git clone --recursive -b zephyr-rtos https://github.com/nanomq/nanomq.git
-cd nanomq
+git clone https://github.com/nanomq/NanoMQ-Zephyr-Example.git
+cd NanoMQ-Zephyr-Example
+scripts/fetch-nanomq.sh
 ```
 
-The `--recursive` option also fetches the `nng/` submodule, which contains the NanoNNG branch with the Zephyr platform adaptation layer. The `zephyr-rtos` branch commits the submodule's gitlink in the repository, so the checkout matches the commit listed in the table above. `git clone --recursive` always checks out the gitlink recorded by the repository; switching commits requires an explicit checkout.
+`fetch-nanomq.sh` clones nanomq into `extern/nanomq` (git-ignored) and checks out the revision pinned in the examples' `nanomq.ref`, the `nng/` submodule included — that is the NanoNNG branch with the Zephyr platform adaptation layer, at the commit the pinned nanomq revision records. The examples compile the broker core and NanoNNG straight out of that checkout.
 
-If you cloned the repository without `--recursive`, initialize the submodules with:
+To build against a checkout you already have — a worktree where you edited the nng sources, say — pass `-DNANOMQ_ROOT=/path/to/nanomq` to `west build` and skip the script.
 
-```sh
-git submodule update --init --recursive
-```
+The examples repository has to sit **inside** the west workspace: `west build` resolves the workspace from the application directory, so a clone outside one cannot build.
 
-After cloning, verify the submodule with `git submodule status nng`: if the output **does not start with `-` or `+`**, the submodule has been checked out at the gitlink recorded by the repository (`-` means it has not been initialized, `+` means the checked-out commit differs from the recorded one).
-
-All subsequent commands in this article are run from the repository root (`~/zephyrproject/nanomq`).
+All subsequent commands in this article are run from the examples repository root (`~/zephyrproject/NanoMQ-Zephyr-Example`).
 
 ### qemu_x86: Zephyr e1000 Driver Patch
 
@@ -162,7 +161,7 @@ The issue is caused by the QEMU e1000 device model clearing the RCTL register du
 
 Zephyr's `eth_e1000` driver writes only `RCTL_EN | RCTL_MPE` and never sets BAM. As a result, **all broadcast frames are silently dropped by the device model**. ARP resolution therefore fails, preventing SLIRP from delivering the initial TCP connection. This issue remains present in upstream Zephyr as of 4.4 (`11a87708d41`).
 
-The patch must be applied to the **Zephyr source tree itself** (the `zephyr/` directory in the workspace, not this repository).
+The patch must be applied to the **Zephyr source tree itself** (the `zephyr/` directory in the workspace, not the examples repository).
 
 Save the following diff as `zephyr-e1000-bam.patch` and apply it with:
 
@@ -235,11 +234,11 @@ Before using the demo outside an experimental network, at minimum: restrict the 
 Copy `local.conf.example` to `local.conf`. The file is already listed in `.gitignore`, so your credentials will not be committed to the repository.
 
 ```sh
-cp demo/nanomq_zephyr_esp32s3/local.conf.example \
-   demo/nanomq_zephyr_esp32s3/local.conf
+cp examples/nanomq_zephyr_esp32s3/local.conf.example \
+   examples/nanomq_zephyr_esp32s3/local.conf
 ```
 
-Edit `demo/nanomq_zephyr_esp32s3/local.conf` and fill in the SSID and PSK:
+Edit `examples/nanomq_zephyr_esp32s3/local.conf` and fill in the SSID and PSK:
 
 ```conf
 CONFIG_BROKER_WIFI_SSID="your-ssid"
@@ -258,7 +257,7 @@ CONFIG_BROKER_REST_PASS="your-rest-passphrase"
 
 ```sh
 west build -b esp32s3_devkitc/esp32s3/procpu -d build/esp32s3_nanomq \
-    demo/nanomq_zephyr_esp32s3 -- -DEXTRA_CONF_FILE=local.conf
+    examples/nanomq_zephyr_esp32s3 -- -DEXTRA_CONF_FILE=local.conf
 ```
 
 For the configuration validated in this article, with MQTT, REST, and WebSocket enabled, a successful build produces the following memory report:
@@ -382,7 +381,7 @@ The last figure (approximately 5.2 MB) is easy to misread as the PSRAM capacity 
 After applying the e1000 patch (activate the Zephyr workspace venv from "Environment Setup → Prerequisites" first so that `west` is available; ESP-IDF is not needed):
 
 ```sh
-west build -b qemu_x86 -d build/nanomq_zephyr_qemu_x86 demo/nanomq_zephyr_qemu_x86
+west build -b qemu_x86 -d build/nanomq_zephyr_qemu_x86 examples/nanomq_zephyr_qemu_x86
 ```
 
 A successful build ends with output similar to:
@@ -483,19 +482,19 @@ The system must also have the Mosquitto command-line clients (`mosquitto_pub` an
 `--list` shows all test groups (this article covers 8 of them, listed in the table below):
 
 ```sh
-python3 demo/nanomq_zephyr_qemu_x86/function_test.py --list
+python3 examples/nanomq_zephyr_qemu_x86/function_test.py --list
 ```
 
 For a running hardware demo, use `--no-manage` to tell the runner that the broker is already running and should not be managed by the runner:
 
 ```sh
-python3 demo/nanomq_zephyr_qemu_x86/function_test.py --no-manage --addr <board-ip>
+python3 examples/nanomq_zephyr_qemu_x86/function_test.py --no-manage --addr <board-ip>
 ```
 
 You can also run specific test groups:
 
 ```sh
-python3 demo/nanomq_zephyr_qemu_x86/function_test.py --no-manage --addr <board-ip> \
+python3 examples/nanomq_zephyr_qemu_x86/function_test.py --no-manage --addr <board-ip> \
     --group mqtt_v311 --group rest_get
 ```
 
@@ -680,7 +679,7 @@ Taken together with the list in [Appendix A](#appendix-a-differences-from-genera
 
 ### Code and Demos
 
-The code is available in the `zephyr-rtos` branch of [nanomq/nanomq](https://github.com/nanomq/nanomq/tree/zephyr-rtos), with all three demos under the `demo/` directory. The respective READMEs document the complete bring-up process.
+The code is available in [nanomq/NanoMQ-Zephyr-Example](https://github.com/nanomq/NanoMQ-Zephyr-Example), with all three examples under the `examples/` directory. The respective READMEs document the complete bring-up process, and the repository's `nanomq.ref` records the nanomq revision they were verified against.
 
 If you validate the port on another board or encounter new issues, you are welcome to join the discussion in the [NanoMQ community](https://github.com/nanomq/nanomq/discussions).
 
@@ -719,7 +718,7 @@ This Zephyr port is **not an equivalent replacement for general NanoMQ**. It dif
 
 ## Appendix B: Comparing the Demos
 
-|  | `demo/nanomq_zephyr_esp32s3` | `demo/nanomq_zephyr_stm32_art-pi` | `demo/nanomq_zephyr_qemu_x86` |
+|  | `examples/nanomq_zephyr_esp32s3` | `examples/nanomq_zephyr_stm32_art-pi` | `examples/nanomq_zephyr_qemu_x86` |
 | --- | --- | --- | --- |
 | **Target platform** | ESP32-S3 hardware | ART-Pi (STM32H750XBH6) hardware | `qemu_x86` |
 | **Hardware requirement** | ESP32-S3 development board | ART-Pi development board | None |
