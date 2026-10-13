@@ -183,6 +183,7 @@ main(void)
 	assert(test_env_read_stream_timeout(
 	    sub, uaf_output, sizeof(uaf_output), 9000, 25));
 	assert(strstr(uaf_output, "\"y\"") != NULL);
+	assert(strstr(uaf_output, "[]") != NULL);
 	assert(test_env_pclose_timeout(sub, 2000) == 0);
 #endif
 
