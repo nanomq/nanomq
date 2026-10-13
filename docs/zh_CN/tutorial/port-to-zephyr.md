@@ -59,7 +59,7 @@ NanoMQ 为纯 C 实现，无外部运行时依赖，便于交叉编译到各类�
 | Zephyr | 4.4，`11a87708d41`（e1000 补丁针对此版本） |
 | Zephyr SDK | 1.0.1 |
 | NanoMQ | 0.25.6（基于 upstream `master`） |
-| NanoNNG（`nng/` 子模块） | 基于 upstream `main` + Zephyr 平台适配层。`zephyr-rtos` 分支已把子模块 gitlink 一并提交，`git clone --recursive` 即可检出完整平台适配层 |
+| NanoNNG（`nng/` 子模块） | 基于 upstream `main` + Zephyr 平台适配层。示例仓库把它和 nanomq 一起拉取，检出的就是 pin 住的 nanomq 提交所记录的 gitlink，因此始终与示例仓库 `nanomq.ref` 里那一对一致 |
 
 workspace 尚未搭建时（下面把 venv 放在 `~/zephyr-venv`，也就是本文验证环境的位置；放别处、或按官方文档放进 `<workspace>/.venv` 都可以）：
 
@@ -120,23 +120,26 @@ west blobs fetch hal_espressif
 
 **这一步不能跳过**：若未拉取，`CONFIG_WIFI_ESP32` 会静默变为不可见：构建照常成功、固件照常启动，只是没有 Wi-Fi，且构建系统不会给出任何警告。表现为串口上始终等不到 `wifi: connected`。
 
-更详细的发行版相关步骤（系统依赖、SDK 安装、权限与常见报错）见 [setup-fedora-zh.md（中文）](https://github.com/nanomq/nanomq/blob/zephyr-rtos/demo/nanomq_zephyr_esp32s3/setup-fedora-zh.md) 或 [setup-fedora-en.md（English）](https://github.com/nanomq/nanomq/blob/zephyr-rtos/demo/nanomq_zephyr_esp32s3/setup-fedora-en.md)（以 Fedora 为例，其他发行版替换包管理器即可）。
+更详细的发行版相关步骤（系统依赖、SDK 安装、权限与常见报错）见 [setup-fedora-zh.md（中文）](https://github.com/nanomq/NanoMQ-Zephyr-Example/blob/main/examples/nanomq_zephyr_esp32s3/setup-fedora-zh.md) 或 [setup-fedora-en.md（English）](https://github.com/nanomq/NanoMQ-Zephyr-Example/blob/main/examples/nanomq_zephyr_esp32s3/setup-fedora-en.md)（以 Fedora 为例，其他发行版替换包管理器即可）。
 
 ### 获取源码
 
+三个示例在独立仓库 [nanomq/NanoMQ-Zephyr-Example](https://github.com/nanomq/NanoMQ-Zephyr-Example) 里，编译时依赖一份 nanomq checkout：
+
 ```sh
 cd ~/zephyrproject
-git clone --recursive -b zephyr-rtos https://github.com/nanomq/nanomq.git
-cd nanomq
+git clone https://github.com/nanomq/NanoMQ-Zephyr-Example.git
+cd NanoMQ-Zephyr-Example
+scripts/fetch-nanomq.sh
 ```
 
-`--recursive` 会同时拉取 `nng/` 子模块（即包含 Zephyr 平台适配层的 NanoNNG 分支）。`zephyr-rtos` 分支把子模块的 gitlink 一并提交在仓库里，所以检出的就是上表列出的那个提交；`git clone --recursive` 检出的始终是仓库记录的 gitlink，切换提交需要显式 checkout。若克隆时未加 `--recursive`，可补执行：
+`fetch-nanomq.sh` 把 nanomq 克隆到 `extern/nanomq`（已 gitignore），并切到示例仓库 `nanomq.ref` 里 pin 住的提交，其中包含 `nng/` 子模块 —— 也就是带 Zephyr 平台适配层的 NanoNNG 分支，版本由 nanomq 那个提交的 gitlink 决定。示例的 broker 核心和 NanoNNG 都是直接从这份 checkout 编译的。
 
-```sh
-git submodule update --init --recursive
-```
+如果你手上已经有一份 checkout（比如改了 nng 源码的开发 worktree），给 `west build` 传 `-DNANOMQ_ROOT=/path/to/nanomq` 即可，不用跑脚本。
 
-克隆完成后可用 `git submodule status nng` 核对：输出**不以 `-` 或 `+` 开头**即说明子模块已按仓库记录的 gitlink 检出（`-` 表示尚未初始化，`+` 表示检出的提交与记录不一致）。后续命令均在本仓库根目录（`~/zephyrproject/nanomq`）执行。
+示例仓库必须放在 west workspace **里面**：`west build` 是从应用目录往上找 workspace 的，放在外面根本编不了。
+
+后续命令均在示例仓库根目录（`~/zephyrproject/NanoMQ-Zephyr-Example`）执行。
 
 ### qemu_x86：Zephyr e1000 驱动补丁
 
@@ -144,7 +147,7 @@ git submodule update --init --recursive
 
 原因是 QEMU 的 e1000 设备模型在复位后会清空 RCTL 寄存器，其中包括 **RCTL_BAM**（Broadcast Accept Mode，bit 15）；真实硬件默认置位，而设备模型不置位。Zephyr 的 `eth_e1000` 驱动只写入 `RCTL_EN | RCTL_MPE`，从不设置 BAM，导致**所有广播帧被设备模型静默丢弃**，ARP 无法完成解析，SLIRP 也就无法递交第一个 TCP 连接。上游 Zephyr 截至 4.4（`11a87708d41`）仍存在该问题。
 
-补丁打在 **Zephyr 自身的源码树**（workspace 下的 `zephyr/` 目录，不是本仓库）。将下面的 diff 存为 `zephyr-e1000-bam.patch` 后应用：
+补丁打在 **Zephyr 自身的源码树**（workspace 下的 `zephyr/` 目录，不是示例仓库）。将下面的 diff 存为 `zephyr-e1000-bam.patch` 后应用：
 
 ```sh
 cd ~/zephyrproject/zephyr
@@ -215,11 +218,11 @@ diff --git a/drivers/ethernet/eth_e1000_priv.h b/drivers/ethernet/eth_e1000_priv
 将 `local.conf.example` 复制为 `local.conf`（该文件已在 `.gitignore` 中，凭据不会进入仓库），并填入 SSID 与 PSK：
 
 ```sh
-cp demo/nanomq_zephyr_esp32s3/local.conf.example \
-   demo/nanomq_zephyr_esp32s3/local.conf
+cp examples/nanomq_zephyr_esp32s3/local.conf.example \
+   examples/nanomq_zephyr_esp32s3/local.conf
 ```
 
-编辑 `demo/nanomq_zephyr_esp32s3/local.conf`：
+编辑 `examples/nanomq_zephyr_esp32s3/local.conf`：
 
 ```conf
 CONFIG_BROKER_WIFI_SSID="your-ssid"
@@ -237,7 +240,7 @@ CONFIG_BROKER_REST_PASS="your-rest-passphrase"
 
 ```sh
 west build -b esp32s3_devkitc/esp32s3/procpu -d build/esp32s3_nanomq \
-    demo/nanomq_zephyr_esp32s3 -- -DEXTRA_CONF_FILE=local.conf
+    examples/nanomq_zephyr_esp32s3 -- -DEXTRA_CONF_FILE=local.conf
 ```
 
 构建成功后输出的内存报告（本文验证的配置，已启用 MQTT/REST/WS）：
@@ -358,7 +361,7 @@ mosquitto_pub -h <board-ip> -t 'test/hello' -m 'hello from mosquitto' -q 1
 应用 e1000 补丁后（先按「环境搭建 → 依赖」激活 Zephyr 工作区的 venv，让 `west` 可用；不需要 ESP-IDF）：
 
 ```sh
-west build -b qemu_x86 -d build/nanomq_zephyr_qemu_x86 demo/nanomq_zephyr_qemu_x86
+west build -b qemu_x86 -d build/nanomq_zephyr_qemu_x86 examples/nanomq_zephyr_qemu_x86
 ```
 
 构建成功后的输出：
@@ -457,19 +460,19 @@ python3 -m pip install paho-mqtt requests
 `--list` 可列出全部测试组（本文覆盖其中 8 组，见后文表格）：
 
 ```sh
-python3 demo/nanomq_zephyr_qemu_x86/function_test.py --list
+python3 examples/nanomq_zephyr_qemu_x86/function_test.py --list
 ```
 
 针对实机运行（`--no-manage` 表示 broker 已在运行，不由 runner 管理）：
 
 ```sh
-python3 demo/nanomq_zephyr_qemu_x86/function_test.py --no-manage --addr <board-ip>
+python3 examples/nanomq_zephyr_qemu_x86/function_test.py --no-manage --addr <board-ip>
 ```
 
 也可只运行指定测试组：
 
 ```sh
-python3 demo/nanomq_zephyr_qemu_x86/function_test.py --no-manage --addr <board-ip> \
+python3 examples/nanomq_zephyr_qemu_x86/function_test.py --no-manage --addr <board-ip> \
     --group mqtt_v311 --group rest_get
 ```
 
@@ -652,7 +655,7 @@ net_mgmt_add_event_callback(&dhcp_cb);
 
 ### 代码与 Demo
 
-代码位于 [nanomq/nanomq](https://github.com/nanomq/nanomq) 的 `zephyr-rtos` 分支，三个 demo 均在 `demo/` 目录下，各自的 README 记录了完整的 bring-up 过程。
+代码位于 [nanomq/NanoMQ-Zephyr-Example](https://github.com/nanomq/NanoMQ-Zephyr-Example)，三个示例都在 `examples/` 目录下，各自的 README 记录了完整的 bring-up 过程；仓库里的 `nanomq.ref` 记着它们验证时对应的 nanomq 版本。
 
 若在其他板卡上完成验证，或遇到新的问题，欢迎在 [NanoMQ 社区](https://github.com/nanomq/nanomq/discussions)参与讨论。
 
@@ -691,7 +694,7 @@ net_mgmt_add_event_callback(&dhcp_cb);
 
 ## 附录 B：三个 demo 的对比
 
-| | `demo/nanomq_zephyr_esp32s3` | `demo/nanomq_zephyr_stm32_art-pi` | `demo/nanomq_zephyr_qemu_x86` |
+| | `examples/nanomq_zephyr_esp32s3` | `examples/nanomq_zephyr_stm32_art-pi` | `examples/nanomq_zephyr_qemu_x86` |
 |---|---|---|---|
 | 目标平台 | ESP32-S3 实机 | ART-Pi（STM32H750XBH6）实机 | `qemu_x86` |
 | 硬件需求 | ESP32-S3 开发板 | ART-Pi 开发板 | 无 |
