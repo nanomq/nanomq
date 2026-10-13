@@ -206,6 +206,33 @@ cmp_str(
 	return filter;
 }
 
+
+static void
+rule_payload_release_value(rule_payload *payload)
+{
+	if (payload == NULL) {
+		return;
+	}
+	switch (payload->type) {
+	case cJSON_String:
+		if (payload->value) {
+			nng_strfree((char *) payload->value);
+			payload->value = NULL;
+		}
+		break;
+	case cJSON_Object:
+	case cJSON_Array:
+		if (payload->value) {
+			cJSON_Delete((cJSON *) payload->value);
+			payload->value = NULL;
+		}
+		break;
+	default:
+		/* Number / Invalid / NULL: value is not an owned pointer */
+		break;
+	}
+}
+
 static bool
 payload_filter(pub_packet_struct *pp, rule *info)
 {
@@ -237,6 +264,7 @@ payload_filter(pub_packet_struct *pp, rule *info)
 			if (payload->filter && !cmp_int(num, atoi(payload->filter), payload->cmp_type)) {
 				filter = false;
 			} else {
+				rule_payload_release_value(payload);
 				payload->value = (void *) num;
 				payload->type  = cJSON_Number;
 			}
@@ -246,8 +274,7 @@ payload_filter(pub_packet_struct *pp, rule *info)
 			if (payload->filter && !cmp_str(str, strlen(str), payload->filter, payload->cmp_type)) {
 				filter = false;
 			} else {
-				// if (payload->value)
-				// 	free(payload->value);
+				rule_payload_release_value(payload);
 				payload->value = nng_strdup(str);
 				payload->type  = cJSON_String;
 			}
@@ -258,8 +285,7 @@ payload_filter(pub_packet_struct *pp, rule *info)
 			if (!payload->is_store && filter_obj && !cJSON_Compare(jp, filter_obj, true)) {
 				filter = false;
 			} else {
-				// if (payload->value)
-				// 	cJSON_Delete((cJSON*) payload->value);
+				rule_payload_release_value(payload);
 				payload->value = cJSON_Duplicate(jp, 1);
 				payload->type  = jp->type & 0xFF;
 			}
@@ -268,6 +294,7 @@ payload_filter(pub_packet_struct *pp, rule *info)
 
 		default:
 			// unsupported type: do not republish a value stored from an earlier message
+			rule_payload_release_value(payload);
 			payload->type = cJSON_Invalid;
 			break;
 		}
