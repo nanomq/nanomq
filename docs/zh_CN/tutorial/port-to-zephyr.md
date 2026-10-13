@@ -58,7 +58,7 @@ NanoMQ 为纯 C 实现，无外部运行时依赖，便于交叉编译到各类�
 |---|---|
 | Zephyr | 4.4，`11a87708d41`（e1000 补丁针对此版本） |
 | Zephyr SDK | 1.0.1 |
-| NanoMQ | 0.25.6（基于 upstream `master`） |
+| NanoMQ | 0.25.7（跟 upstream `master`；端口分支当前携带的版本） |
 | NanoNNG（`nng/` 子模块） | 基于 upstream `main` + Zephyr 平台适配层。示例仓库把它和 nanomq 一起拉取，检出的就是 pin 住的 nanomq 提交所记录的 gitlink，因此始终与示例仓库 `nanomq.ref` 里那一对一致 |
 
 workspace 尚未搭建时（下面把 venv 放在 `~/zephyr-venv`，也就是本文验证环境的位置；放别处、或按官方文档放进 `<workspace>/.venv` 都可以）：
@@ -663,7 +663,7 @@ net_mgmt_add_event_callback(&dhcp_cb);
 
 本移植并非 NanoMQ 在 Zephyr 上的等价替代，在若干维度上存在明确差异。了解这些边界有助于判断其是否适用于具体场景。
 
-**基线版本。** 本移植基于 upstream `master`，即 NanoMQ **0.25.6**。
+**基线版本。** 本移植跟 upstream `master`，端口分支当前携带的是 NanoMQ **0.25.7**；本文的 bring-up 记录是在代码树还报 0.25.6 时留下的，示例日志里的 0.25.6 就是当时的抓取。
 
 **配置来源。** 通用版 NanoMQ 从 `nanomq.conf` 文件读取配置；Zephyr 版采用**内嵌最小 conf**，由 `conf_init()` 的内置默认值加上启动代码直接设置关键字段（如监听地址），绕过配置文件解析。`conf` 结构体的语义保持不变，仅配置来源由文件换为内存构造。
 

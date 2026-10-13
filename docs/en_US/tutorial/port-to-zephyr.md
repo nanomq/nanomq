@@ -70,7 +70,7 @@ The versions used for validation are fixed as follows. The e1000 patch is specif
 | --- | --- |
 | Zephyr | 4.4, `11a87708d41` (the e1000 patch applies to this revision) |
 | Zephyr SDK | 1.0.1 |
-| NanoMQ | 0.25.6 (based on upstream `master`) |
+| NanoMQ | 0.25.7 (upstream `master`; the version the port branches carry) |
 | NanoNNG (`nng/` submodule) | Based on upstream `main`, plus the Zephyr platform adaptation layer. The examples fetch it together with nanomq and check out the gitlink the pinned revision records, so the checkout always matches the pair in the examples' `nanomq.ref` |
 
 If you have not created a Zephyr workspace yet (the commands below put the venv at `~/zephyr-venv`, which is where the validation environment for this article keeps it; putting it elsewhere, or at `<workspace>/.venv` as the official documentation suggests, works just as well):
@@ -687,7 +687,7 @@ If you validate the port on another board or encounter new issues, you are welco
 
 This Zephyr port is **not an equivalent replacement for general NanoMQ**. It differs from the general version in several areas, and these differences should be considered when evaluating the port for a specific use case.
 
-**Baseline version.** The port is based on upstream `master`, that is, NanoMQ **0.25.6**.
+**Baseline version.** The port tracks upstream `master`, and the port branches carry NanoMQ **0.25.7**. The bring-up records in these articles were taken when the tree still reported 0.25.6, and the 0.25.6 lines in their sample logs are those captures.
 
 **Configuration source.** The general NanoMQ version reads its configuration from `nanomq.conf`. The Zephyr version instead uses an **embedded minimal configuration**: built-in defaults from `conf_init()` are combined with startup code that directly sets key fields such as listener addresses, bypassing the configuration file parser. The `conf` structure and its semantics remain unchanged; only the configuration source changes from a file to in-memory construction.
 
