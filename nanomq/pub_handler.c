@@ -252,7 +252,8 @@ payload_filter(pub_packet_struct *pp, rule *info)
 				payload->type  = cJSON_String;
 			}
 			break;
-		case cJSON_Object:;
+		case cJSON_Object:
+		case cJSON_Array:;
 			cJSON *filter_obj = cJSON_Parse(payload->filter);
 			if (!payload->is_store && filter_obj && !cJSON_Compare(jp, filter_obj, true)) {
 				filter = false;
@@ -260,11 +261,14 @@ payload_filter(pub_packet_struct *pp, rule *info)
 				// if (payload->value)
 				// 	cJSON_Delete((cJSON*) payload->value);
 				payload->value = cJSON_Duplicate(jp, 1);
-				payload->type  = cJSON_Object;
+				payload->type  = jp->type & 0xFF;
 			}
+			cJSON_Delete(filter_obj);
 			break;
 
 		default:
+			// unsupported type: do not republish a value stored from an earlier message
+			payload->type = cJSON_Invalid;
 			break;
 		}
 	}
@@ -635,6 +639,7 @@ add_info_to_json(rule *info, cJSON *jso, int j, nano_work *work)
 						}
 						break;
 					case cJSON_Object:
+					case cJSON_Array:
 						if (info->payload[pi]->pas) {
 							cJSON_AddItemToObject(jso,
 							    info->payload[pi]->pas,
@@ -890,7 +895,7 @@ compose_sql_clause(rule *info, char *key, char *value,
                 sbuf_appendf(&val_sb, "'%s', ", esc);
                 free(esc);
 				free(p->value);
-            } else if (p->type == cJSON_Object) {
+            } else if (p->type == cJSON_Object || p->type == cJSON_Array) {
                 char *json = cJSON_PrintUnformatted((cJSON *)p->value);
                 char *esc  = sql_escape(json);
                 sbuf_appendf(&val_sb, "'%s', ", esc);
@@ -1083,7 +1088,7 @@ compose_sql_clause_new(rule *info, sbuf_t *key, sbuf_t *value,
                 sbuf_appendf(&val_sb, "'%s', ", esc);
                 free(esc);
 				free(p->value);
-            } else if (p->type == cJSON_Object) {
+            } else if (p->type == cJSON_Object || p->type == cJSON_Array) {
                 char *json = cJSON_PrintUnformatted((cJSON *)p->value);
                 char *esc  = sql_escape(json);
                 sbuf_appendf(&val_sb, "'%s', ", esc);
