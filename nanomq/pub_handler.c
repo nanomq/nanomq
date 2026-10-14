@@ -1693,8 +1693,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 	if (!is_event && work->cparam) {
 		bool  oom       = false;
 		char *rewritten = nmq_mount_point_prepend(
-		    conn_param_get_mount_point(work->cparam), topic, len,
-		    &oom);
+		    conn_param_get_mount_point(work->cparam), topic, len, &oom);
 		if (oom) {
 			log_error("mount_point rewrite failed: out of memory");
 			return UNSPECIFIED_ERROR;
@@ -1706,8 +1705,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 			work->pub_packet->var_header.publish.topic_name.len =
 			    (uint32_t) strlen(rewritten);
 			topic = rewritten;
-			len = work->pub_packet->var_header.publish.topic_name
-			          .len;
+			len = work->pub_packet->var_header.publish.topic_name.len;
 		}
 	}
 
