@@ -423,8 +423,7 @@ sub_ctx_handle(nano_work *work)
 		// $SYS and unmounted listeners are left untouched (see nanomq.h)
 		rewritten_topic = nmq_mount_point_rewrite_filter(
 		    work->cparam ? conn_param_get_mount_point(work->cparam)
-		                 : NULL,
-		    topic_str, &oom);
+		                 : NULL, topic_str, &oom);
 		if (oom) {
 			log_error("mount_point rewrite failed: out of memory");
 			tn->reason_code = UNSPECIFIED_ERROR;

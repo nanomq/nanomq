@@ -214,12 +214,10 @@ unsub_ctx_handle(nano_work *work)
 		         topic_str, client_id, work->unsub_pkt->packet_id);
 
 		// must match the (possibly rewritten) filter registered at
-		// SUBSCRIBE time, see nmq_mount_point_rewrite_filter() usage
-		// in sub_ctx_handle()
+		// SUBSCRIBE time, see nmq_mount_point_rewrite_filter() usage in sub_ctx_handle()
 		bool  oom             = false;
 		char *rewritten_topic = nmq_mount_point_rewrite_filter(
-		    cp ? conn_param_get_mount_point(cp) : NULL, topic_str,
-		    &oom);
+		    cp ? conn_param_get_mount_point(cp) : NULL, topic_str, &oom);
 		if (oom) {
 			log_error("mount_point rewrite failed: out of memory");
 			tn->reason_code = UNSPECIFIED_ERROR;
