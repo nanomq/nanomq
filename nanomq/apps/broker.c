@@ -425,32 +425,6 @@ server_cb(void *arg)
 					uint8_t ver = nng_mqtt_msg_get_publish_proto_version(work->msg);
 					// ver = ver == 0 ? work->proto_ver : ver;
 					if (SUCCESS == decode_pub_message(work, ver)) {
-						// strip this subscriber's own mount_point,
-						// mirroring the live-publish delivery path
-						const char *mp = work->cparam
-						    ? conn_param_get_mount_point(
-						          work->cparam)
-						    : NULL;
-						if (mp != NULL && mp[0] != '\0') {
-							mqtt_string *rtopic =
-							    &work->pub_packet
-							         ->var_header
-							         .publish
-							         .topic_name;
-							size_t mp_len = strlen(mp);
-							if (rtopic->len > mp_len &&
-							    rtopic->body[mp_len] == '/' &&
-							    strncmp(rtopic->body, mp,
-							        mp_len) == 0) {
-								memmove(rtopic->body,
-								    rtopic->body + mp_len + 1,
-								    rtopic->len - mp_len - 1);
-								rtopic->len -=
-								    (uint32_t) (mp_len + 1);
-								rtopic->body[rtopic->len] =
-								    '\0';
-							}
-						}
 						// we simply change the msg itself
 						nng_msg *rmsg = NULL;
 						if (nng_msg_dup(&rmsg, work->msg) != 0) {
@@ -804,23 +778,18 @@ server_cb(void *arg)
 			}
 
 			if (has_will && msg != NULL) {
+
 				work->msg  = msg;
 				work->flag = CMD_PUBLISH;
-				// will_topic was already prefixed once at
-				// CONNECT time; suspend mount_point for this
-				// call so handle_pub does not prefix it again
-				const char *cur_mp = conn_param_get_mount_point(
-				    work->cparam);
-				char *saved_mp = cur_mp != NULL
-				    ? nng_strdup(cur_mp)
-				    : NULL;
+
+				// suspend mountpoint ptr
+				const char *saved_mp = conn_param_get_mount_point(work->cparam);
 				conn_param_set_mount_point(work->cparam, NULL);
+
 				handle_pub(work, work->pipe_ct,
-				    conn_param_get_protover(work->cparam),
-				    false);
-				conn_param_set_mount_point(
-				    work->cparam, saved_mp);
-				nng_strfree(saved_mp);
+				    conn_param_get_protover(work->cparam), false);
+
+				conn_param_set_mount_point(work->cparam, saved_mp);
 				work->state = WAIT;
 				nng_aio_finish(work->aio, 0);
 			} else {
@@ -861,9 +830,6 @@ server_cb(void *arg)
 	}
 }
 
-// Deliver PUBLISH to every matched pipe. A recipient whose own listener is
-// mounted receives the topic with its "<mount_point>/" prefix stripped;
-// unmounted recipients are unaffected (zero extra work).
 static void
 nmq_fanout_publish(nano_work *work, nng_msg *smsg,
     cvector(mqtt_msg_info) msg_infos)
@@ -872,52 +838,13 @@ nmq_fanout_publish(nano_work *work, nng_msg *smsg,
 	if (n == 0 || !encode_pub_message(smsg, work, PUBLISH)) {
 		return;
 	}
-	mqtt_string *topic = &work->pub_packet->var_header.publish.topic_name;
 
 	for (size_t i = 0; i < n; i++) {
 		mqtt_msg_info *msg_info = &msg_infos[i];
-		nng_pipe       rpipe    = { .id = msg_info->pipe };
-		conn_param    *rcp      = nng_pipe_cparam(rpipe);
-		const char *mp = rcp == NULL ? NULL : conn_param_get_mount_point(rcp);
-		nng_msg *out    = smsg;
-		bool     cloned = false;
-		bool     skip   = false;
+		nng_msg       *out      = smsg;
 
-		if (mp != NULL && mp[0] != '\0') {
-			size_t mp_len = strlen(mp);
-			if (topic->len > mp_len && topic->body[mp_len] == '/' &&
-			    strncmp(topic->body, mp, mp_len) == 0) {
-				char    *orig_body = topic->body;
-				uint32_t orig_len  = topic->len;
-				topic->body = orig_body + mp_len + 1;
-				topic->len  = orig_len - (uint32_t) (mp_len + 1);
-				if (nng_msg_alloc(&out, 0) == 0) {
-					nng_msg_set_cmd_type(
-					    out, nng_msg_cmd_type(smsg));
-					if (encode_pub_message(out, work, PUBLISH)) {
-						cloned = true;
-					} else {
-						// never submit a half-encoded message
-						nng_msg_free(out);
-						skip = true;
-					}
-				} else {
-					// don't fall back to smsg: it still carries
-					// the internal mount_point-prefixed topic
-					skip = true;
-				}
-				topic->body = orig_body;
-				topic->len  = orig_len;
-			}
-		}
-		conn_param_free(rcp);
-
-		if (skip) {
-			continue;
-		}
-		if (!cloned) {
-			nng_msg_clone(out);
-		}
+		// 零拷贝克隆（仅原子引用计数自增）
+		nng_msg_clone(out);
 		work->pid.id = msg_info->pipe;
 		nng_aio_set_prov_data(work->aio, &work->pid.id);
 		work->msg = out;
