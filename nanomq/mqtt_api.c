@@ -97,6 +97,11 @@ init_listener_tls(nng_listener l, conf_tls *tls)
 	}
 
 	rv = nng_listener_set_ptr(l, NNG_OPT_TLS_CONFIG, cfg);
+	if ((rv == 0) &&
+	    (tls->peer_cert_as_username != PEER_CERT_AS_USERNAME_DISABLE)) {
+		rv = nng_listener_set_int(
+		    l, NANO_PEER_CERT_AS_USERNAME, tls->peer_cert_as_username);
+	}
 
 out:
 	nng_tls_config_free(cfg);
