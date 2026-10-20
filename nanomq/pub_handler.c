@@ -1691,15 +1691,14 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 				dbhash_insert_atpair(
 				    work->pid.id, alias_val, topic);
 			} else {
-				const char *tp = dbhash_find_atpair(
+				char *tp = dbhash_find_atpair(
 				    work->pid.id, alias_val);
 				if (tp) {
 					topic = work->pub_packet->var_header
-					            .publish.topic_name.body =
-					    nng_strdup(tp);
+					        .publish.topic_name.body = tp;
 					len = work->pub_packet->var_header
-					          .publish.topic_name.len =
-					    strlen(tp);
+					        .publish.topic_name.len =
+					    (uint32_t) strlen(tp);
 				} else {
 					log_error("could not find topic by "
 					          "alias: %d",
