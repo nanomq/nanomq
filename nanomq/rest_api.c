@@ -1421,6 +1421,9 @@ get_client_cb(void *key, void *value, void *json_obj)
 	bool           status  = nng_pipe_status(pipe);
 	conn_param    *cp      = nng_pipe_cparam(pipe);
 	const char    *cid     = conn_param_get_clientid(cp);
+	if (cp == NULL) {
+		return;
+	}
 	if (cid == NULL) {
 		conn_param_free(cp);
 		return;
@@ -1511,6 +1514,9 @@ get_metric_cb(void *key, void *value, void *stats)
 	bool           status  = nng_pipe_status(pipe);
 
 	conn_param    *cp      = nng_pipe_cparam(pipe);
+	if (cp == NULL) {
+		return;
+	}
 	const char    *cid     = conn_param_get_clientid(cp);
 	if (!status) s->connections++;
 
@@ -1677,6 +1683,9 @@ kick_client_cb(void *key, void *value, void *arg)
 	}
 
 	conn_param *cp  = nng_pipe_cparam(pipe);
+	if (cp == NULL) {
+		return;
+	}
 	const char *cid = conn_param_get_clientid(cp);
 	if (cid == NULL || strcmp(info->client_id, cid) != 0) {
 		conn_param_free(cp);
