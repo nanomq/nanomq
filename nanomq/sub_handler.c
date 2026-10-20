@@ -51,7 +51,9 @@ decode_sub_msg(nano_work *work)
 	}
 
 	remaining_len = nng_msg_len(work->msg);
-
+	if (remaining_len < 2) {
+		return PROTOCOL_ERROR;
+	}
 	sub_pkt = work->sub_pkt;
 	sub_pkt->node = NULL;
 	sub_pkt->prop_len = 0;
@@ -65,6 +67,9 @@ decode_sub_msg(nano_work *work)
 
 	// Only Mqtt_v5 include property.
 	if (work->proto_ver == MQTT_PROTOCOL_VERSION_v5) {
+		if (remaining_len < 3) {
+			return PROTOCOL_ERROR;
+		}
 		sub_pkt->properties = decode_properties(work->msg,
 												(uint32_t *)&bpos,
 												&sub_pkt->prop_len,
