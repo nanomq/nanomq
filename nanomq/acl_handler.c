@@ -21,91 +21,100 @@ match_rule_content_str(acl_rule_ct *ct, const char *cmp_str)
 	return match;
 }
 
-static char * 
-replace_placeholder(char *origin, const char *placeholder, const char *replacement)
-{
-	size_t originLen      = strlen(origin);
-	size_t placeholderLen = strlen(placeholder);
-	size_t replacementLen = strlen(replacement);
-	size_t resultLen      = originLen;
-
-	const char *p = origin;
-	while ((p = strstr(p, placeholder)) != NULL) {
-		resultLen += replacementLen - placeholderLen;
-		p += placeholderLen;
-	}
-
-	char *result = (char *) malloc(resultLen + 1);
-	if (result == NULL) {
-		log_error("ACL topic placeholder Memory allocation failed\n");
-	}
-
-	char *currentPos = result;
-	p                = origin;
-	char *nextPlaceholder;
-	while ((nextPlaceholder = strstr(p, placeholder)) != NULL) {
-		size_t segmentLen = nextPlaceholder - p;
-		strncpy(currentPos, p, segmentLen);
-		currentPos += segmentLen;
-
-		strcpy(currentPos, replacement);
-		currentPos += replacementLen;
-
-		p = nextPlaceholder + placeholderLen;
-	}
-
-	strcpy(currentPos, p);
-
-	origin = result;
-
-	return result;
-}
-
+/*
+ * replace_topic performs single-pass substitution of placeholders.
+ * Substituted values are written linearly and never re-scanned
+ */
 static char *
 replace_topic(const char *origin, conn_param *param)
 {
-	char *topic = (char *)origin;
-	char *out_topic  = NULL;
-
-	if (origin == NULL)
+	if (origin == NULL) {
 		return NULL;
+	}
+
+	const char *cid_ph = placeholder_clientid;
+	const char *usr_ph = placeholder_username;
+	const size_t cid_ph_len = sizeof(placeholder_clientid) - 1;
+	const size_t usr_ph_len = sizeof(placeholder_username) - 1;
 
 	const char *clientid = (const char *) conn_param_get_clientid(param);
-	if (clientid != NULL && strstr(topic, placeholder_clientid) != NULL) {
+	const char *username = (const char *) conn_param_get_username(param);
+
+	bool has_cid = (clientid != NULL && strstr(origin, cid_ph) != NULL);
+	bool has_usr = (username != NULL && strstr(origin, usr_ph) != NULL);
+
+	// Fast path: if no placeholders match, return origin directly (Zero Allocation)
+	if (!has_cid && !has_usr) {
+		return (char *) origin;
+	}
+
+	// [Security] Fail-closed: only validate fields that are actively required by this rule
+	if (has_cid) {
 		if (strchr(clientid, '+') != NULL ||
 		    strchr(clientid, '#') != NULL ||
 		    strchr(clientid, '/') != NULL) {
 			log_warn("Security: Client ID [%s] contains wildcards (+, #) or separator (/). ACL substitution aborted.", clientid);
 			return NULL;
 		}
-
-		out_topic = replace_placeholder(topic, placeholder_clientid, clientid);
-		topic = out_topic;
 	}
 
-	const char *username = (const char *) conn_param_get_username(param);
-	if (username != NULL && strstr(topic, placeholder_username) != NULL) {
+	if (has_usr) {
 		if (strchr(username, '+') != NULL ||
 		    strchr(username, '#') != NULL ||
 		    strchr(username, '/') != NULL) {
 			log_warn("Security: Username [%s] contains wildcards (+, #) or separator (/). ACL substitution aborted.", username);
-			if (topic != origin) {
-				free(topic);
-			}
 			return NULL;
 		}
-
-		out_topic = replace_placeholder(topic, placeholder_username, username);
-
-		if (topic != origin) {
-			free(topic);
-		}
-		topic = out_topic;
 	}
 
-	if (out_topic == NULL)
-		out_topic = topic;
-	return out_topic;
+	size_t cid_len = has_cid ? strlen(clientid) : 0;
+	size_t usr_len = has_usr ? strlen(username) : 0;
+
+	// First pass: compute exact required memory length without negative subtractions
+	size_t alloc_len = 0;
+	const char *p = origin;
+	while (*p != '\0') {
+		if (has_cid && strncmp(p, cid_ph, cid_ph_len) == 0) {
+			alloc_len += cid_len;
+			p += cid_ph_len;
+		} else if (has_usr && strncmp(p, usr_ph, usr_ph_len) == 0) {
+			alloc_len += usr_len;
+			p += usr_ph_len;
+		} else {
+			alloc_len++;
+			p++;
+		}
+	}
+
+	char *result = (char *) malloc(alloc_len + 1);
+	if (result == NULL) {
+		log_error("ACL topic placeholder memory allocation failed\n");
+		return NULL;
+	}
+
+	// Second pass: linear copy without re-evaluating substituted content
+	char *out = result;
+	p = origin;
+	while (*p != '\0') {
+		if (has_cid && strncmp(p, cid_ph, cid_ph_len) == 0) {
+			if (cid_len > 0) {
+				memcpy(out, clientid, cid_len);
+				out += cid_len;
+			}
+			p += cid_ph_len;
+		} else if (has_usr && strncmp(p, usr_ph, usr_ph_len) == 0) {
+			if (usr_len > 0) {
+				memcpy(out, username, usr_len);
+				out += usr_len;
+			}
+			p += usr_ph_len;
+		} else {
+			*out++ = *p++;
+		}
+	}
+	*out = '\0';
+
+	return result;
 }
 
 bool
