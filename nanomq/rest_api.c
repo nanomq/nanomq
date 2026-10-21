@@ -1420,10 +1420,10 @@ get_client_cb(void *key, void *value, void *json_obj)
 	nng_pipe       pipe    = { .id = pipe_id };
 	bool           status  = nng_pipe_status(pipe);
 	conn_param    *cp      = nng_pipe_cparam(pipe);
-	const char    *cid     = conn_param_get_clientid(cp);
 	if (cp == NULL) {
 		return;
 	}
+	const char    *cid     = conn_param_get_clientid(cp);
 	if (cid == NULL) {
 		conn_param_free(cp);
 		return;
