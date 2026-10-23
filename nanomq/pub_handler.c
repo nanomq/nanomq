@@ -1747,6 +1747,13 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 			log_error("topic_queue_init failed!");
 		} else {
 			int rv = nmq_auth_http_sub_pub(work->cparam, false, tq, &work->config->auth_http);
+			nmq_trace(NMQ_TRACE_ACL,
+			    "acl %s action=publish clientid=%s username=%s "
+			    "topic=%.*s reason=http_acl result=%d",
+			    rv == 0 ? "allow" : "deny",
+			    NMQ_TRACE_STR(conn_param_get_clientid(work->cparam)),
+			    NMQ_TRACE_STR(conn_param_get_username(work->cparam)),
+			    (int) len, NMQ_TRACE_STR(topic), rv);
 			if (rv != 0) {
 				log_error("Auth failed! stop publishing packet!");
 				topic_queue_release(tq);
@@ -1793,6 +1800,31 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 		}
 	}
 #endif
+	// Emitted after the ACL decision and the topic-alias resolution, so the
+	// topic shown is the one the broker routed on. Payload bodies ride on
+	// their own category, because metadata is a line per message and the
+	// body can be two orders of magnitude more bytes than that.
+	if (nmq_trace_on(NMQ_TRACE_PUB)) {
+		struct pub_packet_struct *pkt = work->pub_packet;
+		bool want_payload = nmq_trace_on(NMQ_TRACE_PAYLOAD);
+
+		// The body is handed over as a pointer and a length, written
+		// raw as the last field of the record. payload_len in front of
+		// it is the whole length, so a reader can tell a payload the
+		// limit cut short from one that ended there.
+		nmq_trace_data(NMQ_TRACE_PUB,
+		    want_payload ? pkt->payload.data : NULL,
+		    want_payload ? pkt->payload.len : 0,
+		    "PUBLISH pipe=%u clientid=%s topic=%s qos=%d retain=%d "
+		    "dup=%d packet_id=%u payload_len=%u event=%d%s",
+		    work->pid.id,
+		    NMQ_TRACE_STR(conn_param_get_clientid(work->cparam)),
+		    NMQ_TRACE_STR(topic), pkt->fixed_header.qos,
+		    pkt->fixed_header.retain, pkt->fixed_header.dup,
+		    pkt->var_header.publish.packet_id, pkt->payload.len,
+		    is_event ? 1 : 0, want_payload ? " payload=" : "");
+	}
+
 	cli_ctx_list = dbtree_find_clients(work->db, topic);
 
 	shared_cli_list = dbtree_find_shared_clients(work->db, topic);
