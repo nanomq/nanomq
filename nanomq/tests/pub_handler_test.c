@@ -4,6 +4,7 @@
 
 #include "include/nanomq.h"
 #include "include/pub_handler.h"
+#include "nng/mqtt/mqtt_client.h"
 #include "nng/supplemental/nanolib/conf.h"
 #include "nng/supplemental/nanolib/hash_table.h"
 #include "nng/protocol/mqtt/mqtt_parser.h" // conn_param_alloc/free
