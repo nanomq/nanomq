@@ -154,7 +154,7 @@ test_pub_v5_topic_alias_all_auth_disabled()
 	// first message establishes topic alias 1
 	init_v5_pub_work(work, cfg, 0x65801, msg1);
 	reason_code rc = handle_pub(work, work->pipe_ct, work->proto_ver, false);
-	assert(rc == SUCCESS);
+	assert(rc == NNG_MQTT_SUCCESS);
 	free_pub_packet(work->pub_packet);
 	work->pub_packet = NULL;
 
@@ -162,7 +162,7 @@ test_pub_v5_topic_alias_all_auth_disabled()
 	work->msg = msg2;
 	nng_msg_set_conn_param(msg2, work->cparam);
 	rc        = handle_pub(work, work->pipe_ct, work->proto_ver, false);
-	assert(rc == SUCCESS);
+	assert(rc == NNG_MQTT_SUCCESS);
 	assert(work->pub_packet->var_header.publish.topic_name.body != NULL);
 	assert(strcmp(work->pub_packet->var_header.publish.topic_name.body,
 	           "alias/reuse/test") == 0);
