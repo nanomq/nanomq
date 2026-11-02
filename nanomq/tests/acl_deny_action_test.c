@@ -223,7 +223,7 @@ test_pub_deny_ignore(void)
 	// deny & ignore: message dropped but connection kept -> SUCCESS
 	reason_code rc = handle_pub(
 	    work, work->pipe_ct, MQTT_PROTOCOL_VERSION_v311, false);
-	assert(rc == SUCCESS);
+	assert(rc == NNG_MQTT_SUCCESS);
 
 	free_work(work);
 	conn_param_free(cp);
@@ -242,7 +242,7 @@ test_pub_allowed(void)
 
 		reason_code rc = handle_pub(
 		    work, work->pipe_ct, MQTT_PROTOCOL_VERSION_v311, false);
-		assert(rc == SUCCESS);
+		assert(rc == NNG_MQTT_SUCCESS);
 
 		free_work(work);
 		conn_param_free(cp);
@@ -282,7 +282,7 @@ test_sub_deny_ignore_rejects_one_filter(void)
 	nano_work *work = new_sub_work(c, cp, ALLOW_TOPIC, DENY_TOPIC);
 
 	reason_code rc = sub_ctx_handle(work);
-	assert(rc == SUCCESS);
+	assert(rc == NNG_MQTT_SUCCESS);
 
 	bool saw_allow       = false;
 	bool saw_deny_reason = false;
@@ -324,7 +324,7 @@ test_sub_allowed(void)
 		nano_work  *work = new_sub_work(c, cp, ALLOW_TOPIC, DENY_TOPIC);
 
 		reason_code rc = sub_ctx_handle(work);
-		assert(rc == SUCCESS);
+		assert(rc == NNG_MQTT_SUCCESS);
 
 		uint32_t *clients = dbtree_find_clients(work->db, ALLOW_TOPIC);
 		assert(clients != NULL);
