@@ -441,8 +441,17 @@ sub_ctx_handle(nano_work *work)
 #ifdef ACL_SUPP
 		/* Add items which not included in dbhash */
 		if (work->config->acl.enable) {
-			bool auth_result = auth_acl(
-			    work->config, ACL_SUB, work->cparam, topic_str);
+			// a shared subscription gets the messages of the filter
+			// after "$share/<group>/", so the rules apply to that one
+			const char *acl_topic = topic_str;
+			const char *group_end = NULL;
+			bool        auth_result;
+			if (strncmp(topic_str, "$share/", 7) == 0 &&
+			    (group_end = strchr(topic_str + 7, '/')) != NULL) {
+				acl_topic = group_end + 1;
+			}
+			auth_result = auth_acl(
+			    work->config, ACL_SUB, work->cparam, acl_topic);
 			if (!auth_result) {
 				const char *cid = (const char *)
 				    conn_param_get_clientid(work->cparam);

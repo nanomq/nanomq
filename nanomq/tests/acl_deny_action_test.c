@@ -13,6 +13,8 @@
  * connection kept); a denied SUBSCRIBE filter gets reason code
  * NMQ_AUTH_SUB_ERROR in the SUBACK but allowed filters on the same packet
  * are still processed.
+ * A shared subscription "$share/<group>/<filter>" is checked against
+ * <filter>, the topic it receives messages from (issue #2463).
  */
 #include <assert.h>
 #include <stdio.h>
@@ -34,6 +36,8 @@
 #define DENY_TOPIC   "deny/#"
 #define DENY_PUB_TOP "deny/x"
 #define ALLOW_TOPIC  "ok/x"
+#define DENY_SHARE   "$share/g/deny/#"
+#define ALLOW_SHARE  "$share/g/ok/x"
 
 /* ---- fixtures ---------------------------------------------------------- */
 
@@ -342,6 +346,61 @@ test_sub_allowed(void)
 }
 
 static void
+test_sub_share_deny_disconnect(void)
+{
+	conf       *c    = new_conf(ACL_DISCONNECT);
+	conn_param *cp   = new_cparam(DENY_USER);
+	// the shared form of the denied filter must be denied too, before the
+	// allowed filter after it is installed
+	nano_work *work = new_sub_work(c, cp, DENY_SHARE, ALLOW_TOPIC);
+
+	reason_code rc = sub_ctx_handle(work);
+	assert(rc == BANNED);
+
+	uint32_t *clients = dbtree_find_clients(work->db, ALLOW_TOPIC);
+	assert(clients == NULL);
+
+	sub_pkt_free(work->sub_pkt);
+	free_work(work);
+	conn_param_free(cp);
+	free_conf(c);
+}
+
+static void
+test_sub_share_deny_ignore(void)
+{
+	conf       *c    = new_conf(ACL_IGNORE);
+	conn_param *cp   = new_cparam(DENY_USER);
+	// a shared subscription to an allowed topic is granted, one to the
+	// denied topic gets NMQ_AUTH_SUB_ERROR like the plain filter
+	nano_work *work = new_sub_work(c, cp, ALLOW_SHARE, DENY_SHARE);
+
+	reason_code rc = sub_ctx_handle(work);
+	assert(rc == NNG_MQTT_SUCCESS);
+
+	bool saw_allow       = false;
+	bool saw_deny_reason = false;
+	for (topic_node *tn = work->sub_pkt->node; tn != NULL; tn = tn->next) {
+		if (strncmp(tn->topic.body, ALLOW_SHARE, strlen(ALLOW_SHARE)) ==
+		    0) {
+			saw_allow = true;
+			assert(tn->reason_code != NMQ_AUTH_SUB_ERROR);
+		} else if (strncmp(tn->topic.body, DENY_SHARE,
+		               strlen(DENY_SHARE)) == 0) {
+			saw_deny_reason =
+			    (tn->reason_code == NMQ_AUTH_SUB_ERROR);
+		}
+	}
+	assert(saw_allow && saw_deny_reason);
+
+	del_topics(work, ALLOW_SHARE, NULL); // only the allowed filter was installed
+	sub_pkt_free(work->sub_pkt);
+	free_work(work);
+	conn_param_free(cp);
+	free_conf(c);
+}
+
+static void
 test_disconnect_kick_reason(void)
 {
 	// The broker's close kick (broker.c CLOSE state -> the composer)
@@ -370,6 +429,8 @@ main(int argc, char **argv)
 	test_sub_deny_disconnect_aborts();
 	test_sub_deny_ignore_rejects_one_filter();
 	test_sub_allowed();
+	test_sub_share_deny_disconnect();
+	test_sub_share_deny_ignore();
 	test_disconnect_kick_reason();
 	printf("acl_deny_action_test: all passed\n");
 	return 0;
