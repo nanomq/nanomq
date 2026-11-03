@@ -1414,7 +1414,12 @@ broker(conf *nanomq_conf)
 		}
 
 		// TODO: multi for websocket
-		if (nanomq_conf->websocket.tls_enable) {
+		if (nanomq_conf->websocket.tls_enable &&
+		    nanomq_conf->websocket.tls_url == NULL) {
+			log_warn("WSS listener enabled without a URL; skipping");
+		}
+		if (nanomq_conf->websocket.tls_enable &&
+		    nanomq_conf->websocket.tls_url != NULL) {
 			nng_listener wss_listener;
 			if ((rv = nng_listener_create(&wss_listener, sock,
 			         nanomq_conf->websocket.tls_url)) != 0) {
