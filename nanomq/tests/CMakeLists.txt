@@ -5,6 +5,13 @@ if(ENABLE_ACL)
 nanomq_test(acl_deny_action_test)
 endif()
 nanomq_test(broker_test)
+nanomq_test(broker_dup_test)
+if(NANOMQ_TESTS)
+    target_compile_definitions(broker_dup_test PRIVATE
+        NANOMQ_TEST_CERT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../../etc/certs")
+    set_tests_properties(nanomq.broker_dup_test PROPERTIES
+        RUN_SERIAL TRUE SKIP_RETURN_CODE 77)
+endif()
 nanomq_test(webhook_test)
 nanomq_test(webhook_base62_test)
 nanomq_test(webhook_base64_test)
