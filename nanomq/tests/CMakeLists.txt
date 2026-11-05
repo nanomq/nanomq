@@ -7,10 +7,11 @@ endif()
 nanomq_test(broker_test)
 nanomq_test(broker_dup_test)
 if(NANOMQ_TESTS)
+    target_include_directories(broker_dup_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../nng/src")
     target_compile_definitions(broker_dup_test PRIVATE
         NANOMQ_TEST_CERT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../../etc/certs")
     set_tests_properties(nanomq.broker_dup_test PROPERTIES
-        RUN_SERIAL TRUE SKIP_RETURN_CODE 77)
+        RUN_SERIAL TRUE SKIP_RETURN_CODE 77 TIMEOUT 240)
 endif()
 nanomq_test(webhook_test)
 nanomq_test(webhook_base62_test)
