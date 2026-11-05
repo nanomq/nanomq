@@ -1,6 +1,7 @@
 // Check the actual MQTT wire headers, including broker retransmissions.
 #include "include/broker.h"
 #include "tests_api.h"
+#include "core/reap.h"
 #include <nng/supplemental/nanolib/file.h>
 
 typedef struct {
@@ -62,10 +63,11 @@ expect_ack(wire_client *client, uint8_t expected, uint16_t pid)
 }
 
 static void
-wire_open(wire_client *client, const char *url, uint8_t version, char id)
+wire_open_quota(wire_client *client, const char *url, uint8_t version, char id,
+    uint16_t receive_max)
 {
 	uint8_t header, body[128];
-	uint8_t connect[] = {
+	uint8_t connect[17] = {
 		0, 4, 'M', 'Q', 'T', 'T', version, 2, 0, 60,
 		0, 0, 1, (uint8_t) id
 	};
@@ -86,12 +88,26 @@ wire_open(wire_client *client, const char *url, uint8_t version, char id)
 	nng_aio_wait(client->aio);
 	assert(nng_aio_result(client->aio) == 0);
 	client->stream = nng_aio_get_output(client->aio, 0);
+	size_t connect_len = version == 5 ? 14 : 13;
 	if (version == 4) {
 		memmove(connect + 10, connect + 11, 3);
+	} else if (receive_max != 0) {
+		memmove(connect + 14, connect + 11, 3);
+		connect[10] = 3;
+		connect[11] = 0x21; // Receive Maximum
+		connect[12] = receive_max >> 8;
+		connect[13] = receive_max & 0xff;
+		connect_len = 17;
 	}
-	wire_send(client, 0x10, connect, version == 5 ? 14 : 13);
+	wire_send(client, 0x10, connect, connect_len);
 	assert(wire_recv(client, &header, body) >= 2);
 	assert(header == 0x20 && body[1] == 0);
+}
+
+static void
+wire_open(wire_client *client, const char *url, uint8_t version, char id)
+{
+	wire_open_quota(client, url, version, id, 0);
 }
 
 static void
@@ -118,13 +134,14 @@ subscribe(wire_client *client, uint8_t version, uint8_t qos)
 }
 
 static void
-publish(wire_client *client, uint8_t version, uint8_t qos, bool dup)
+publish_id(wire_client *client, uint8_t version, uint8_t qos, bool dup,
+    uint16_t pid)
 {
 	uint8_t body[16] = { 0, 3, 'd', 'u', 'p' };
 	size_t  len = 5;
 	if (qos > 0) {
-		body[len++] = 0;
-		body[len++] = 7;
+		body[len++] = pid >> 8;
+		body[len++] = pid & 0xff;
 	}
 	if (version == 5) {
 		body[len++] = 0; // Property Length
@@ -133,13 +150,19 @@ publish(wire_client *client, uint8_t version, uint8_t qos, bool dup)
 	body[len++] = 'k';
 	wire_send(client, 0x30 | (qos << 1) | (dup ? 8 : 0), body, len);
 	if (qos > 0) {
-		expect_ack(client, qos == 1 ? 0x40 : 0x50, 7);
+		expect_ack(client, qos == 1 ? 0x40 : 0x50, pid);
 	}
 	if (qos == 2) {
-		uint8_t pid[] = { 0, 7 };
-		wire_send(client, 0x62, pid, sizeof(pid));
-		expect_ack(client, 0x70, 7);
+		uint8_t packet_id[] = { pid >> 8, pid & 0xff };
+		wire_send(client, 0x62, packet_id, sizeof(packet_id));
+		expect_ack(client, 0x70, pid);
 	}
+}
+
+static void
+publish(wire_client *client, uint8_t version, uint8_t qos, bool dup)
+{
+	publish_id(client, version, qos, dup, 7);
 }
 
 static uint16_t
@@ -258,9 +281,160 @@ test_overlapping_retry(const char *puburl, const char *url, uint8_t version)
 	wire_close(&pub);
 }
 
+static void
+expect_ping(wire_client *client)
+{
+	uint8_t header, body[128] = { 0 };
+	wire_send(client, 0xc0, body, 0);
+	assert(wire_recv(client, &header, body) == 0 && header == 0xd0);
+}
+
+static void
+repeat_ack(wire_client *client, uint8_t qos, uint16_t pid)
+{
+	// Several already-completed acknowledgements in the same stream write.
+	uint8_t packets[12];
+	for (int i = 0; i < 3; i++) {
+		packets[4 * i] = qos == 1 ? 0x40 : 0x70;
+		packets[4 * i + 1] = 2;
+		packets[4 * i + 2] = pid >> 8;
+		packets[4 * i + 3] = pid & 0xff;
+	}
+	wire_io(client, packets, sizeof(packets), true);
+}
+
+static void
+repeat_ack_with_ping(wire_client *client, uint8_t qos, uint16_t pid)
+{
+	// Accepted packets on both sides of a filtered ACK in one WS frame.
+	uint8_t packets[] = { 0xc0, 0, qos == 1 ? 0x40 : 0x70, 2,
+		pid >> 8, pid & 0xff, 0xc0, 0 };
+	uint8_t header, body[128];
+	wire_io(client, packets, sizeof(packets), true);
+	for (int i = 0; i < 2; i++) {
+		assert(wire_recv(client, &header, body) == 0 && header == 0xd0);
+	}
+}
+
+static char next_test_client_id = '!';
+
+static void
+test_ack_filter(const char *url, uint8_t version)
+{
+	wire_client pub, sub;
+	wire_open(&pub, url, version, next_test_client_id++);
+	wire_open(&sub, url, version, next_test_client_id++);
+	subscribe(&sub, version, 2);
+	for (uint8_t qos = 1; qos <= 2; qos++) {
+		publish(&pub, version, qos, false);
+		uint16_t pid = expect_publish(&sub, version, qos, false);
+		ack_publish(&sub, qos, pid);
+		expect_ping(&sub);
+		repeat_ack(&sub, qos, pid);
+		expect_ping(&sub);
+		repeat_ack_with_ping(&sub, qos, pid);
+		publish(&pub, version, qos, false);
+		pid = expect_publish(&sub, version, qos, false);
+		ack_publish(&sub, qos, pid);
+		expect_ping(&sub);
+	}
+	// Closing after a filtered ACK must not strand the pending receive AIO.
+	repeat_ack(&sub, 2, 65535);
+	wire_close(&sub);
+	wire_close(&pub);
+	printf("PASS ACK filter/receive/peer close %s MQTT %u\n", url, version);
+}
+
+static void
+test_batch_ack_progress(const char *url, uint8_t version, bool overlapping)
+{
+	wire_client pub, sub;
+	uint16_t ids[3];
+	int copies = overlapping ? 3 : 1;
+	wire_open(&pub, url, version, next_test_client_id++);
+	wire_open(&sub, url, version, next_test_client_id++);
+	if (overlapping) {
+		// Cache once even when TCP/TLS must continue in another send callback.
+		uint8_t body[] = { 0, 2, 0, 0, 3, 'd', 'u', 'p', 1,
+			0, 1, '+', 1, 0, 1, '#', 1 };
+		uint8_t header, reply[128];
+		if (version == 4) {
+			memmove(body + 2, body + 3, sizeof(body) - 3);
+		}
+		wire_send(&sub, 0x82, body, sizeof(body) - (version == 4 ? 1 : 0));
+		size_t len = wire_recv(&sub, &header, reply);
+		assert(len == (version == 4 ? 5 : 6) && header == 0x90);
+		assert(reply[0] == 0 && reply[1] == 2);
+		assert(memcmp(reply + len - 3, "\1\1\1", 3) == 0);
+	} else {
+		subscribe(&sub, version, 1);
+	}
+	for (int i = 0; i < 3; i++) {
+		publish_id(&pub, version, 1, false, 20 + i);
+		ids[i] = expect_publish(&sub, version, 1, false);
+		for (int j = 1; j < copies; j++) {
+			uint16_t copy_pid = expect_publish(&sub, version, 1, false);
+			assert(copy_pid != ids[i]);
+			ack_publish(&sub, 1, copy_pid);
+		}
+		if (i > 0) {
+			assert(ids[i] != ids[i - 1]);
+		}
+	}
+	for (int j = 0; j < copies; j++) {
+		assert(expect_publish(&sub, version, 1, true) == ids[0]);
+	}
+	for (int i = 0; i < 3; i++) {
+		ack_publish(&sub, 1, ids[i]);
+		if (i < 2) {
+			for (int j = 0; j < copies; j++) {
+				assert(expect_publish(&sub, version, 1, true) == ids[i + 1]);
+			}
+		}
+		repeat_ack(&sub, 1, ids[i]);
+		// Old ACKs must not immediately resend the next cached message.
+		expect_ping(&sub);
+	}
+	nng_msleep(2200);
+	// Cross multiple resend ticks after all rows have been acknowledged.
+	expect_ping(&sub);
+	wire_close(&sub);
+	wire_close(&pub);
+	printf("PASS batch progress/no further retry %s MQTT %u, %d matching subscriptions\n",
+	    url, version, copies);
+}
+
+static void
+test_quota_boundary(const char *url)
+{
+	wire_client pub, sub;
+	wire_open(&pub, url, 5, next_test_client_id++);
+	wire_open_quota(&sub, url, 5, next_test_client_id++, 1);
+	uint8_t body[] = { 0, 2, 0, 0, 3, 'd', 'u', 'p', 1,
+		0, 1, '+', 1, 0, 1, '#', 1 };
+	uint8_t header, reply[128];
+	wire_send(&sub, 0x82, body, sizeof(body));
+	assert(wire_recv(&sub, &header, reply) == 6 && header == 0x90);
+	publish_id(&pub, 5, 1, false, 30);
+	uint16_t pid = expect_publish(&sub, 5, 1, false);
+	expect_ping(&sub); // The other subscription copies consumed no extra slots.
+	publish_id(&pub, 5, 1, false, 31);
+	expect_ping(&sub); // New source messages are dropped when quota is zero.
+	ack_publish(&sub, 1, pid);
+	expect_ping(&sub);
+	publish_id(&pub, 5, 1, false, 32);
+	pid = expect_publish(&sub, 5, 1, false);
+	ack_publish(&sub, 1, pid);
+	expect_ping(&sub);
+	wire_close(&sub);
+	wire_close(&pub);
+	printf("PASS quota=1/drop/recovery %s MQTT 5\n", url);
+}
+
 int
 main(void)
 {
+	setvbuf(stdout, NULL, _IOLBF, 0);
 	if (!test_env_allows_network_binds()) {
 		fprintf(stderr, "skip: listening sockets unavailable\n");
 		return 77;
@@ -299,6 +473,14 @@ main(void)
 	cfg->url = nng_strdup(broker_urls[0]);
 	cfg->parallel = 4;
 	cfg->qos_duration = 1;
+	cfg->batch_resend = true;
+	char dbdir[] = "/tmp/nanomq-ack-test-XXXXXX";
+	if (getenv("NANOMQ_ACK_TEST_SQLITE") != NULL) {
+		assert(mkdtemp(dbdir) != NULL);
+		cfg->sqlite.enable = true;
+		cfg->sqlite.mounted_file_path = nng_strdup(dbdir);
+		printf("SQLite test database: %s\n", dbdir);
+	}
 	cfg->websocket.enable = true;
 	cfg->websocket.url = nng_strdup(broker_urls[1]);
 #ifdef NNG_SUPP_TLS
@@ -319,7 +501,7 @@ main(void)
 	for (size_t i = 0; i < transports; i++) {
 		assert(test_env_wait_for_tcp_listener(ports[i], 5000));
 	}
-	for (size_t i = 0; i < transports; i++) {
+	for (size_t i = 0; getenv("NANOMQ_ACK_FILTER_ONLY") == NULL && i < transports; i++) {
 		for (uint8_t pubver = 4; pubver <= 5; pubver++) {
 			for (uint8_t subver = 4; subver <= 5; subver++) {
 				test_forward(urls[0], urls[i], pubver, subver);
@@ -330,7 +512,27 @@ main(void)
 			}
 		}
 	}
+	for (size_t i = 0; i < transports; i++) {
+		for (uint8_t version = 4; version <= 5; version++) {
+			test_ack_filter(urls[i], version);
+			test_batch_ack_progress(urls[i], version, false);
+			test_batch_ack_progress(urls[i], version, true);
+		}
+		test_quota_boundary(urls[i]);
+	}
+	wire_client pending[4];
+	for (size_t i = 0; i < transports; i++) {
+		wire_open(&pending[i], urls[i], 5, next_test_client_id++);
+		repeat_ack(&pending[i], 1, 65535);
+		expect_ping(&pending[i]);
+	}
 	broker_stop_for_test();
 	nng_thread_destroy(broker);
+	for (size_t i = 0; i < transports; i++) {
+		wire_close(&pending[i]);
+	}
+	// Wait for pipe stop/fini, including cancellation of its receive AIO.
+	nni_reap_drain();
+	printf("PASS broker shutdown with a pending receive\n");
 	return 0;
 }
