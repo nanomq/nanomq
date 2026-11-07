@@ -47,6 +47,12 @@ main()
 	// create nmq thread
 	conf = get_test_conf(ALL_FEATURE_CONF);
 	assert(conf != NULL);
+	if (conf->websocket.tls_url != NULL) {
+		nng_strfree(conf->websocket.tls_url);
+	}
+	conf->websocket.tls_url = NULL;
+	conf->websocket.tls_enable = true;
+	conf->websocket.enable = false;
 	nng_thread_create(&nmq, (void *) broker_start_with_conf, (void *) conf);
 	assert(test_env_wait_for_tcp_listener(8883, 5000));
 
