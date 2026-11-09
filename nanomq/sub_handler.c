@@ -379,10 +379,28 @@ sub_ctx_handle(nano_work *work)
 	tn = work->sub_pkt->node;
 #ifdef ACL_SUPP
 	if (work->config->auth_http.enable) {
-		topic_queue *tq = NULL;
+		topic_queue *tq  = NULL;
+		bool         oom = false;
 		tn = work->sub_pkt->node;
 		tq = init_topic_queue_with_topic_node(tn);
-		if (tq == NULL) {
+		// HTTP ACL must see the same mount_point-prefixed filters as auth_acl
+		for (topic_queue *t = tq; t != NULL && !oom; t = t->next) {
+			char *rewritten = nmq_mount_point_rewrite_filter(
+			    work->cparam ? conn_param_get_mount_point(work->cparam)
+			                 : NULL, t->topic, &oom);
+			if (rewritten != NULL) {
+				nng_strfree(t->topic);
+				t->topic = rewritten;
+			}
+		}
+		if (oom) {
+			log_error("mount_point rewrite failed: out of memory");
+			auth_http_reject = true;
+			for (tn = work->sub_pkt->node; tn != NULL; tn = tn->next) {
+				tn->reason_code = UNSPECIFIED_ERROR;
+			}
+			topic_queue_release(tq);
+		} else if (tq == NULL) {
 			log_error("topic_queue is NULL");
 		} else {
 			int rv = nmq_auth_http_sub_pub(work->cparam, true, tq, &work->config->auth_http);
@@ -480,7 +498,8 @@ sub_ctx_handle(nano_work *work)
 					goto next;
 				}
 			} else {
-				log_debug("acl allow");
+				log_debug("acl allow subscribe topic [%s]",
+				    acl_topic);
 			}
 		}
 #endif

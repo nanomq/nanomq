@@ -2001,6 +2001,12 @@ bridge_sub_handler(nano_work *work)
 	}
 
 	while (tnode != NULL) {
+		// filters rejected locally must not reach the remote broker
+		if (work->flag == CMD_SUBSCRIBE &&
+		    tnode->reason_code >= UNSPECIFIED_ERROR) {
+			tnode = tnode->next;
+			continue;
+		}
 		// keep no_local to 1, we dont want looping msg
 		nng_mqtt_topic topic[] = {
 			{

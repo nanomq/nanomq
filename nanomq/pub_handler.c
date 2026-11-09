@@ -1788,7 +1788,7 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 					return NNG_MQTT_SUCCESS;
 				}
 			} else {
-				log_debug("acl allow");
+				log_debug("acl allow publish topic [%s]", topic);
 			}
 		}
 	}
