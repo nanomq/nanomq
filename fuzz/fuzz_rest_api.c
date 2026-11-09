@@ -16,6 +16,7 @@
 #include <string.h>
 
 #include "nng/nng.h"
+#include "nng/protocol/mqtt/nmq_mqtt.h"
 #include "nng/supplemental/nanolib/conf.h"
 #include "nng/supplemental/nanolib/hash_table.h"
 
@@ -23,6 +24,7 @@
 #include "include/web_server.h"
 
 static conf g_conf;
+static nng_socket g_broker_sock = NNG_SOCKET_INITIALIZER;
 static bool g_inited = false;
 
 typedef struct {
@@ -77,6 +79,23 @@ ensure_inited(void)
 		nng_atomic_alloc(&g_conf.lc);
 	}
 
+	// Client queries need a real protocol socket, even with no listeners.
+	// The socket owns its configuration; g_conf remains the REST fixture.
+	conf *broker_conf = nng_zalloc(sizeof(*broker_conf));
+	if (broker_conf == NULL) {
+		abort();
+	}
+	conf_init(broker_conf);
+	g_broker_sock.data = broker_conf;
+	int rv = nng_nmq_tcp0_open(&g_broker_sock);
+	if (rv != 0) {
+		fprintf(stderr, "Cannot open REST fuzz broker socket: %s\n",
+		    nng_strerror(rv));
+		conf_fini(broker_conf);
+		abort();
+	}
+	g_conf.http_server.broker_sock = &g_broker_sock;
+
 	set_global_conf(&g_conf);
 	set_http_server_conf(&g_conf.http_server);
 	dbhash_init_pipe_table();
@@ -91,6 +110,8 @@ fuzz_rest_api_detailed_cleanup(void)
 		return;
 	}
 
+	nng_close(g_broker_sock);
+	g_conf.http_server.broker_sock = NULL;
 	dbhash_destroy_pipe_table();
 
 	if (g_conf.http_server.username != NULL) {
@@ -116,6 +137,7 @@ fuzz_rest_api_detailed_cleanup(void)
 		nng_atomic_free(g_conf.lc);
 		g_conf.lc = NULL;
 	}
+	nng_fini();
 }
 
 static void
@@ -136,7 +158,6 @@ run_clients_query_regression_cases(void)
 	set_http_server_conf(&g_conf.http_server);
 
 	nng_socket sock = { 0 };
-	g_conf.http_server.broker_sock = &sock;
 
 	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
 		http_msg req = { 0 };
@@ -145,6 +166,8 @@ run_clients_query_regression_cases(void)
 		http_msg resp =
 		    process_request(&req, &g_conf.http_server, &sock);
 		if (resp.status != cases[i].expected_status) {
+			fprintf(stderr, "%s: expected HTTP %u, got %u\n",
+			    cases[i].uri, cases[i].expected_status, resp.status);
 			abort();
 		}
 		destory_http_msg(&resp);
@@ -384,7 +407,6 @@ LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 	put_http_msg(&req, ctype, method, uri, token, body, strlen(body));
 
 	nng_socket sock = { 0 };
-	g_conf.http_server.broker_sock = &sock;
 	http_msg resp = process_request(&req, &g_conf.http_server, &sock);
 
 	destory_http_msg(&resp);
