@@ -1316,7 +1316,7 @@ broker(conf *nanomq_conf)
 	if (nanomq_conf->enable) {
 		if (nanomq_conf->url) {
 			if ((rv = nano_listen(sock, nanomq_conf->url, NULL, 0,
-			         nanomq_conf, NULL)) != 0) {
+			         nanomq_conf, nanomq_conf->mount_point)) != 0) {
 				NANO_NNG_FATAL("broker nng_listen", rv);
 			}
 		}
@@ -1371,6 +1371,8 @@ broker(conf *nanomq_conf)
 			}
 			nng_listener_set(tls_listener, NANO_CONF, nanomq_conf,
 			    sizeof(conf));
+			nng_listener_set(tls_listener, NANO_MOUNT_POINT,
+			    nanomq_conf->tls.mount_point, 0);
 			if ((rv = init_listener_tls(
 			         tls_listener, &nanomq_conf->tls)) != 0) {
 				NANO_NNG_FATAL("init_listener_tls", rv);
