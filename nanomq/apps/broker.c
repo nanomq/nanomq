@@ -796,19 +796,31 @@ server_cb(void *arg)
 				    NULL);
 			}
 
+			// copy the mountpoint first, setting NULL frees the original
+			char *saved_mp = NULL;
+			if (has_will && msg != NULL) {
+				const char *cur_mp = conn_param_get_mount_point(work->cparam);
+				if (cur_mp != NULL &&
+				    (saved_mp = nng_strdup(cur_mp)) == NULL) {
+					log_error("will msg dropped: out of memory");
+					nng_msg_free(msg);
+					msg = NULL;
+				}
+			}
+
 			if (has_will && msg != NULL) {
 
 				work->msg  = msg;
 				work->flag = CMD_PUBLISH;
 
-				// suspend mountpoint ptr
-				const char *saved_mp = conn_param_get_mount_point(work->cparam);
+				// suspend mountpoint
 				conn_param_set_mount_point(work->cparam, NULL);
 
 				handle_pub(work, work->pipe_ct,
 				    conn_param_get_protover(work->cparam), false);
 
 				conn_param_set_mount_point(work->cparam, saved_mp);
+				nng_strfree(saved_mp);
 				work->state = WAIT;
 				nng_aio_finish(work->aio, 0);
 			} else {
