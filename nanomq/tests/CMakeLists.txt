@@ -1,5 +1,21 @@
 nanomq_test(sub_handler_test)
 nanomq_test(unsub_handler_test)
+if(NANOMQ_TESTS AND CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT BUILD_SHARED_LIBS)
+    # GNU-compatible linker wrapping keeps fault injection out of production.
+    nanomq_test(unsub_failure_contract_test)
+    foreach(unsub_symbol decode_unsub_msg unsub_ctx_handle bridge_sub_handler
+            encode_unsuback_msg decode_properties property_free nng_zalloc
+            nng_free nng_aio_finish nng_ctx_send)
+        set_property(TARGET unsub_failure_contract_test APPEND_STRING PROPERTY
+            LINK_FLAGS " -Wl,--wrap=${unsub_symbol}")
+    endforeach()
+    nanomq_test(unsub_workflow_test)
+    foreach(unsub_symbol nng_mqtt_unsubscribe_async nng_ctx_send nng_ctx_recv
+            nng_aio_finish)
+        set_property(TARGET unsub_workflow_test APPEND_STRING PROPERTY
+            LINK_FLAGS " -Wl,--wrap=${unsub_symbol}")
+    endforeach()
+endif()
 nanomq_test(pub_handler_test)
 if(ENABLE_ACL)
 nanomq_test(acl_deny_action_test)

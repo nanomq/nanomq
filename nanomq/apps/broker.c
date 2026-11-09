@@ -467,22 +467,29 @@ server_cb(void *arg)
 			break;
 		} else if (work->flag == CMD_UNSUBSCRIBE) {
 			smsg = work->msg;
-			if ((work->unsub_pkt = nng_alloc(
-			         sizeof(packet_unsubscribe))) == NULL)
-				log_error("nng_alloc");
+			if ((work->unsub_pkt = nng_zalloc(
+			         sizeof(packet_unsubscribe))) == NULL) {
+				rv = NNG_ENOMEM;
+				work->code = UNSPECIFIED_ERROR;
+				goto unsub_error;
+			}
 
 			if ((rv = decode_unsub_msg(work)) != 0 ||
 			    (rv = unsub_ctx_handle(work)) != 0) {
-				log_error("unsub_handler [%d]", rv);
+				work->code = rv == NNG_ENOMEM ? UNSPECIFIED_ERROR : rv;
+				goto unsub_error;
 			}
 			// proxy unsub action to bridge
 			bridge_sub_handler(work);
 
-			if (0 != (rv = encode_unsuback_msg(smsg, work)))
-				log_error("in unsuback [%d]", rv);
+			if ((rv = encode_unsuback_msg(smsg, work)) != 0) {
+				work->code = UNSPECIFIED_ERROR;
+				goto unsub_error;
+			}
 
 			// free unsub_pkt
 			unsub_pkt_free(work->unsub_pkt);
+			work->unsub_pkt = NULL;
 			nng_aio_set_prov_data(work->aio, &work->pid.id);
 			nng_aio_set_msg(work->aio, work->msg);
 			work->msg   = NULL;
@@ -491,6 +498,18 @@ server_cb(void *arg)
 			smsg = NULL;
 			nng_aio_finish(work->aio, 0);
 			//free conn_param in SEND state
+			break;
+
+		unsub_error:
+			log_error("unsub_handler [%d]", rv);
+			unsub_pkt_free(work->unsub_pkt);
+			work->unsub_pkt = NULL;
+			// CLOSE owns the message; this reference normally goes to SEND.
+			nng_msg_set_conn_param(work->msg, NULL);
+			conn_param_free(work->cparam);
+			work->cparam = NULL;
+			work->state = CLOSE;
+			nng_aio_finish(work->aio, 0);
 			break;
 		} else if (work->flag == CMD_PUBLISH) {
 			// Set V4/V5 flag for publish msg

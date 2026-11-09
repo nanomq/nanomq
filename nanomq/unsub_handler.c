@@ -32,18 +32,18 @@ decode_unsub_msg(nano_work *work)
 	uint32_t vpos = 0; // pos in variable
 	uint32_t bpos = 0; // pos in payload
 
-	uint32_t len_of_varint = 0, len_of_property = 0, len_of_properties = 0;
-	uint32_t len_of_str = 0;
-	int      len_of_topic;
+	int len_of_topic;
 
 	packet_unsubscribe *unsub_pkt     = work->unsub_pkt;
 	nng_msg *           msg           = work->msg;
 	size_t              remaining_len = nng_msg_len(msg);
 
-	uint8_t property_id;
-	topic_node *       tn, *_tn;
+	topic_node *tn, *_tn;
 
 	const uint8_t proto_ver = work->proto_ver;
+
+	// Every decode result, including an early error, must be safe to free.
+	*unsub_pkt = (packet_unsubscribe) { 0 };
 
 	// handle varibale header
 	variable_ptr = nng_msg_body(msg);
@@ -52,11 +52,11 @@ decode_unsub_msg(nano_work *work)
 	}
 	NNI_GET16(variable_ptr, unsub_pkt->packet_id);
 	vpos += 2;
+	if (unsub_pkt->packet_id == 0) {
+		return PROTOCOL_ERROR;
+	}
 
-	unsub_pkt->properties = NULL;
-	unsub_pkt->prop_len = 0;
 	// Mqtt_v5 include property
-	unsub_pkt->properties = NULL;
 	if (MQTT_PROTOCOL_VERSION_v5 == proto_ver) {
 		unsub_pkt->properties =
 		    decode_properties(msg, &vpos, &unsub_pkt->prop_len, false);
@@ -74,41 +74,40 @@ decode_unsub_msg(nano_work *work)
 	    unsub_pkt->packet_id);
 
 	// handle payload
-	if (vpos > remaining_len) {
+	if (vpos >= remaining_len) {
+		FREE_UNSUB_PROPERTIES(unsub_pkt);
 		return PROTOCOL_ERROR;
 	}
 	payload_ptr = variable_ptr + vpos;
 	nng_msg_set_payload_ptr(msg, payload_ptr);
 
-	if ((tn = nng_alloc(sizeof(topic_node))) == NULL) {
-		log_debug("nng_alloc");
+	if ((tn = nng_zalloc(sizeof(topic_node))) == NULL) {
+		log_debug("nng_zalloc");
 		FREE_UNSUB_PROPERTIES(unsub_pkt);
 		return NNG_ENOMEM;
 	}
 	unsub_pkt->node = tn;
-	tn->next = NULL;
 
 	while (1) {
 		_tn = tn;
 
 		len_of_topic = get_utf8_str(&tn->topic.body, payload_ptr, &bpos,
 		    nng_msg_len(msg) - vpos);
-		if (len_of_topic != -1) {
+		if (len_of_topic > 0) {
 			tn->topic.len = len_of_topic;
 		} else {
 			tn->reason_code = UNSPECIFIED_ERROR;
-			log_debug("not utf-8 format string.");
+			log_debug("invalid or empty topic filter.");
 			FREE_UNSUB_PROPERTIES(unsub_pkt);
 			return PROTOCOL_ERROR;
 		}
 
 		log_debug("bpos+vpos: [%d] remain_len: [%ld]", bpos + vpos, remaining_len);
 		if (bpos < remaining_len - vpos) {
-			if ((tn = nng_alloc(sizeof(topic_node))) == NULL) {
+			if ((tn = nng_zalloc(sizeof(topic_node))) == NULL) {
 				FREE_UNSUB_PROPERTIES(unsub_pkt);
 				return NNG_ENOMEM;
 			}
-			tn->next  = NULL;
 			_tn->next = tn;
 		} else {
 			break;
@@ -257,11 +256,6 @@ void
 unsub_pkt_free(packet_unsubscribe *unsub_pkt)
 {
 	if (!unsub_pkt) {
-		log_error("ctx->sub is nil");
-		return;
-	}
-	if (!unsub_pkt->node) {
-		log_error("not find topic");
 		return;
 	}
 
@@ -271,12 +265,10 @@ unsub_pkt_free(packet_unsubscribe *unsub_pkt)
 	topic_node *next_tn;
 	while (tn) {
 		next_tn = tn->next;
+		// Topic strings borrow storage from the message body.
 		nng_free(tn, sizeof(topic_node));
 		tn = next_tn;
 	}
 
-	if (tn == NULL) {
-		nng_free(unsub_pkt, sizeof(packet_unsubscribe));
-		unsub_pkt = NULL;
-	}
+	nng_free(unsub_pkt, sizeof(packet_unsubscribe));
 }
