@@ -438,9 +438,9 @@ test_ws_receive_capacity(const char *url, uint8_t version)
 			packets[i * 2] = 0xc0;
 			packets[i * 2 + 1] = 0;
 		}
-		// This publication has no receive slot and must get no QoS ACK.
+		// Keep this publication buffered until a receive slot is available.
 		uint8_t tail[] = { 0x30 | (qos << 1), 10,
-			0, 3, 'd', 'u', 'p', 0, 40 + qos, 0, 'n', 'o' };
+			0, 3, 'd', 'u', 'p', 0, 40 + qos, 0, 'o', 'k' };
 		size_t tail_len = sizeof(tail);
 		if (version == 4) {
 			tail[1]--;
@@ -449,10 +449,30 @@ test_ws_receive_capacity(const char *url, uint8_t version)
 		}
 		memcpy(packets + accepted_packets * 2, tail, tail_len);
 		wire_io(&pub, packets, accepted_packets * 2 + tail_len, true);
-		for (size_t i = 0; i < accepted_packets; i++) {
+		size_t ping_responses = 0;
+		bool got_ack = false;
+		// Transport ACKs and protocol PINGRESPs may complete in either order.
+		for (size_t i = 0; i < accepted_packets + 1; i++) {
 			uint8_t header, body[128];
-			assert(wire_recv(&pub, &header, body) == 0 && header == 0xd0);
+			size_t len = wire_recv(&pub, &header, body);
+			if (header == 0xd0) {
+				assert(len == 0);
+				ping_responses++;
+			} else {
+				assert(!got_ack && header == (qos == 1 ? 0x40 : 0x50));
+				assert(len >= 2 && body[0] == 0 && body[1] == 40 + qos);
+				got_ack = true;
+			}
 		}
+		assert(ping_responses == accepted_packets && got_ack);
+		if (qos == 2) {
+			uint8_t packet_id[] = { 0, 40 + qos };
+			wire_send(&pub, 0x62, packet_id, sizeof(packet_id));
+			expect_ack(&pub, 0x70, 40 + qos);
+		}
+		// No extra network write is needed to resume the buffered publication.
+		expect_publish(&sub, version, 0, false);
+		expect_ping(&sub);
 		expect_ping(&pub);
 		publish_id(&pub, version, qos, false, 50 + qos);
 		expect_publish(&sub, version, 0, false);
@@ -461,7 +481,7 @@ test_ws_receive_capacity(const char *url, uint8_t version)
 	}
 	wire_close(&sub);
 	wire_close(&pub);
-	printf("PASS receive capacity/no ACK for dropped publication %s MQTT %u\n",
+	printf("PASS receive capacity/buffered publication delivered once %s MQTT %u\n",
 	    url, version);
 }
 
