@@ -325,6 +325,25 @@ test_ack_filter(const char *url, uint8_t version)
 	wire_open(&pub, url, version, next_test_client_id++);
 	wire_open(&sub, url, version, next_test_client_id++);
 	subscribe(&sub, version, 2);
+	if (strncmp(url, "ws", 2) == 0) {
+		// Filtered ACKs must not consume capacity ahead of a valid packet.
+		uint8_t packets[1025 * 4 + 10];
+		for (size_t i = 0; i < 1025; i++) {
+			memcpy(packets + i * 4, "\x40\x02\xff\xff", 4);
+		}
+		uint8_t *tail = packets + 1025 * 4;
+		uint8_t publish[] = { 0x30, 7, 0, 3, 'd', 'u', 'p', 'o', 'k' };
+		memcpy(tail, publish, sizeof(publish));
+		if (version == 5) {
+			tail[1] = 8;
+			tail[7] = 0;
+			tail[8] = 'o';
+			tail[9] = 'k';
+		}
+		wire_io(&pub, packets, 1025 * 4 + (version == 5 ? 10 : 9), true);
+		expect_publish(&sub, version, 0, false);
+		expect_ping(&pub);
+	}
 	for (uint8_t qos = 1; qos <= 2; qos++) {
 		publish(&pub, version, qos, false);
 		uint16_t pid = expect_publish(&sub, version, qos, false);
@@ -405,25 +424,70 @@ test_batch_ack_progress(const char *url, uint8_t version, bool overlapping)
 }
 
 static void
+test_ws_receive_capacity(const char *url, uint8_t version)
+{
+	// One immediate receive plus the 1,024-entry WebSocket receive queue.
+	enum { accepted_packets = 1025 };
+	wire_client pub, sub;
+	wire_open(&pub, url, version, next_test_client_id++);
+	wire_open(&sub, url, version, next_test_client_id++);
+	subscribe(&sub, version, 0);
+	for (uint8_t qos = 1; qos <= 2; qos++) {
+		uint8_t packets[accepted_packets * 2 + 12];
+		for (size_t i = 0; i < accepted_packets; i++) {
+			packets[i * 2] = 0xc0;
+			packets[i * 2 + 1] = 0;
+		}
+		// This publication has no receive slot and must get no QoS ACK.
+		uint8_t tail[] = { 0x30 | (qos << 1), 10,
+			0, 3, 'd', 'u', 'p', 0, 40 + qos, 0, 'n', 'o' };
+		size_t tail_len = sizeof(tail);
+		if (version == 4) {
+			tail[1]--;
+			memmove(tail + 9, tail + 10, 2);
+			tail_len--;
+		}
+		memcpy(packets + accepted_packets * 2, tail, tail_len);
+		wire_io(&pub, packets, accepted_packets * 2 + tail_len, true);
+		for (size_t i = 0; i < accepted_packets; i++) {
+			uint8_t header, body[128];
+			assert(wire_recv(&pub, &header, body) == 0 && header == 0xd0);
+		}
+		expect_ping(&pub);
+		publish_id(&pub, version, qos, false, 50 + qos);
+		expect_publish(&sub, version, 0, false);
+		expect_ping(&sub);
+		expect_ping(&pub);
+	}
+	wire_close(&sub);
+	wire_close(&pub);
+	printf("PASS receive capacity/no ACK for dropped publication %s MQTT %u\n",
+	    url, version);
+}
+
+static void
 test_quota_boundary(const char *url)
 {
 	wire_client pub, sub;
 	wire_open(&pub, url, 5, next_test_client_id++);
 	wire_open_quota(&sub, url, 5, next_test_client_id++, 1);
 	uint8_t body[] = { 0, 2, 0, 0, 3, 'd', 'u', 'p', 1,
-		0, 1, '+', 1, 0, 1, '#', 1 };
+		0, 1, '+', 1, 0, 1, '#', 0 };
 	uint8_t header, reply[128];
 	wire_send(&sub, 0x82, body, sizeof(body));
 	assert(wire_recv(&sub, &header, reply) == 6 && header == 0x90);
 	publish_id(&pub, 5, 1, false, 30);
 	uint16_t pid = expect_publish(&sub, 5, 1, false);
+	expect_publish(&sub, 5, 0, false);
 	expect_ping(&sub); // The other subscription copies consumed no extra slots.
 	publish_id(&pub, 5, 1, false, 31);
-	expect_ping(&sub); // New source messages are dropped when quota is zero.
+	expect_publish(&sub, 5, 0, false);
+	expect_ping(&sub); // QoS > 0 copies are dropped; the QoS 0 match still arrives.
 	ack_publish(&sub, 1, pid);
 	expect_ping(&sub);
 	publish_id(&pub, 5, 1, false, 32);
 	pid = expect_publish(&sub, 5, 1, false);
+	expect_publish(&sub, 5, 0, false);
 	ack_publish(&sub, 1, pid);
 	expect_ping(&sub);
 	wire_close(&sub);
@@ -515,6 +579,9 @@ main(void)
 	for (size_t i = 0; i < transports; i++) {
 		for (uint8_t version = 4; version <= 5; version++) {
 			test_ack_filter(urls[i], version);
+			if (strncmp(urls[i], "ws", 2) == 0) {
+				test_ws_receive_capacity(urls[i], version);
+			}
 			test_batch_ack_progress(urls[i], version, false);
 			test_batch_ack_progress(urls[i], version, true);
 		}

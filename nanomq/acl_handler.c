@@ -274,7 +274,7 @@ auth_acl(conf *config, acl_action_type act_type, conn_param *param,
 		if (rule->topic_count > 0) {
 			char **topic_array = rule->topics;
 			bool   found       = false;
-			bool   free_flag        = false;
+			bool   free_flag   = false;
 			char  *rule_topic  = NULL;
 			for (size_t j = 0; j < rule->topic_count && found != true; j++) {
 				rule_topic = replace_topic(rule->topics[j], param);
