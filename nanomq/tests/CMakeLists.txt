@@ -17,6 +17,20 @@ nanomq_test(webhook_test)
 nanomq_test(webhook_base62_test)
 nanomq_test(webhook_base64_test)
 nanomq_test(http_server_test)
+nanomq_test(rest_pipe_snapshot_contract_test)
+if(NANOMQ_TESTS)
+    # The synthetic transport uses NNG's internal structs and must share its
+    # platform definitions as well as the feature definitions in nng_private.
+    get_directory_property(snapshot_nng_definitions
+        DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../../nng" COMPILE_DEFINITIONS)
+    target_compile_definitions(rest_pipe_snapshot_contract_test PRIVATE
+        ${snapshot_nng_definitions})
+    target_link_libraries(rest_pipe_snapshot_contract_test nng_private)
+    target_include_directories(rest_pipe_snapshot_contract_test PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../nng/src")
+    set_tests_properties(nanomq.rest_pipe_snapshot_contract_test PROPERTIES
+        RUN_SERIAL TRUE)
+endif()
 nanomq_test(bridge_test)
 nanomq_test(rule_engine_test)
 nanomq_test(hashmap_test)

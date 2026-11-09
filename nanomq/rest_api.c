@@ -13,7 +13,6 @@
 #include "nng/protocol/mqtt/nmq_mqtt.h"
 #include "nng/supplemental/http/http.h"
 #include "nng/supplemental/util/platform.h"
-#include "nng/supplemental/util/idhash.h"
 #include "nng/supplemental/nanolib/log.h"
 #include "nng/supplemental/nanolib/nmq_base64.h"
 #include "nng/supplemental/nanolib/cJSON.h"
@@ -1338,18 +1337,25 @@ get_brokers(http_msg *msg)
 	return res;
 }
 
-static void
-get_conn_count_cb(void *key, void *value, void *arg)
+static int
+get_pipe_snapshot(nng_socket *sock, nng_mqtt_pipe_snapshot *snapshot)
 {
-	uint32_t count = *(uint32_t *) arg;
-	count++;
-	*(uint32_t *) arg = count;
+	size_t size = sizeof(*snapshot);
+	return nng_socket_get(
+	    *sock, NMQ_OPT_MQTT_PIPE_SNAPSHOT, snapshot, &size);
 }
 
 static http_msg
 get_nodes(http_msg *msg, nng_socket *broker_sock)
 {
 	http_msg res = { .status = NNG_HTTP_STATUS_OK };
+	nng_mqtt_pipe_snapshot snapshot = { 0 };
+	if (get_pipe_snapshot(broker_sock, &snapshot) != 0) {
+		return error_response(
+		    msg, NNG_HTTP_STATUS_INTERNAL_SERVER_ERROR, UNKNOWN_MISTAKE);
+	}
+	size_t conn_count = snapshot.count;
+	nng_mqtt_pipe_snapshot_free(&snapshot);
 
 	char runtime[100] = { 0 };
 	get_uptime(runtime, 100);
@@ -1361,16 +1367,6 @@ get_nodes(http_msg *msg, nng_socket *broker_sock)
 	cJSON_AddNumberToObject(res_obj, "code", SUCCEED);
 	cJSON *array = cJSON_CreateArray();
 	cJSON *item  = cJSON_CreateObject();
-
-	uint32_t conn_count = 0;
-
-	nng_id_map *pipe_id_map;
-
-	if (nng_socket_get_ptr(*broker_sock, NMQ_OPT_MQTT_PIPES,
-	        (void **) &pipe_id_map) == 0) {
-		nng_id_map_foreach2(
-		    pipe_id_map, get_conn_count_cb, &conn_count);
-	}
 
 	cJSON_AddNumberToObject(item, "connections", conn_count);
 	cJSON_AddStringToObject(item, "node_status", "Running");
@@ -1413,12 +1409,12 @@ typedef struct {
 } client_stats;
 
 static void
-get_client_cb(void *key, void *value, void *json_obj)
+get_client_info(uint32_t pipe_id, client_info *info)
 {
-	client_info   *info    = json_obj;
-	uint32_t       pipe_id = *(uint32_t *) key;
 	nng_pipe       pipe    = { .id = pipe_id };
 	bool           status  = nng_pipe_status(pipe);
+	// A pipe may close after the snapshot. Resolve the ID through the
+	// reference-counted API and skip entries whose parameters are gone.
 	conn_param    *cp      = nng_pipe_cparam(pipe);
 	if (cp == NULL) {
 		return;
@@ -1505,11 +1501,9 @@ get_client_cb(void *key, void *value, void *json_obj)
 }
 
 static void
-get_metric_cb(void *key, void *value, void *stats)
+get_pipe_metrics(uint32_t pipe_id, client_stats *s)
 {
-	client_stats *s = (client_stats *) stats;
 	s->sessions++;
-	uint32_t       pipe_id = *(uint32_t *) key;
 	nng_pipe       pipe    = { .id = pipe_id };
 	bool           status  = nng_pipe_status(pipe);
 
@@ -1517,7 +1511,6 @@ get_metric_cb(void *key, void *value, void *stats)
 	if (cp == NULL) {
 		return;
 	}
-	const char    *cid     = conn_param_get_clientid(cp);
 	if (!status) s->connections++;
 
 	conn_param_free(cp);
@@ -1538,7 +1531,7 @@ get_clients(http_msg *msg, kv **params, size_t param_num,
 	cJSON *res_obj;
 	data_info = cJSON_CreateArray();
 
-	nng_id_map *pipe_id_map;
+	nng_mqtt_pipe_snapshot snapshot = { 0 };
 
 	client_info info = {
 		.array           = data_info,
@@ -1599,12 +1592,16 @@ get_clients(http_msg *msg, kv **params, size_t param_num,
 		}
 	}
 
-	if (nng_socket_get_ptr(*broker_sock, NMQ_OPT_MQTT_PIPES,
-	        (void **) &pipe_id_map) != 0) {
-		goto out;
+	if (get_pipe_snapshot(broker_sock, &snapshot) != 0) {
+		cJSON_Delete(data_info);
+		return error_response(
+		    msg, NNG_HTTP_STATUS_INTERNAL_SERVER_ERROR, UNKNOWN_MISTAKE);
 	}
 
-	nng_id_map_foreach2(pipe_id_map, get_client_cb, &info);
+	for (size_t i = 0; i < snapshot.count; i++) {
+		get_client_info(snapshot.ids[i], &info);
+	}
+	nng_mqtt_pipe_snapshot_free(&snapshot);
 	goto out;
 
 bad_request:
@@ -1671,10 +1668,8 @@ typedef struct {
 } kick_client_info;
 
 static void
-kick_client_cb(void *key, void *value, void *arg)
+find_kick_client(uint32_t pipe_id, kick_client_info *info)
 {
-	kick_client_info *info    = arg;
-	uint32_t          pipe_id = *(uint32_t *) key;
 	nng_pipe          pipe    = { .id = pipe_id };
 
 	if (info->found) {
@@ -1715,9 +1710,8 @@ delete_clients(http_msg *msg, kv **params, size_t param_num,
 		    msg, NNG_HTTP_STATUS_BAD_REQUEST, REQ_PARAM_ERROR);
 	}
 
-	nng_id_map *pipe_id_map;
-	if (nng_socket_get_ptr(*broker_sock, NMQ_OPT_MQTT_PIPES,
-	        (void **) &pipe_id_map) != 0) {
+	nng_mqtt_pipe_snapshot snapshot = { 0 };
+	if (get_pipe_snapshot(broker_sock, &snapshot) != 0) {
 		return error_response(
 		    msg, NNG_HTTP_STATUS_INTERNAL_SERVER_ERROR, UNKNOWN_MISTAKE);
 	}
@@ -1729,7 +1723,10 @@ delete_clients(http_msg *msg, kv **params, size_t param_num,
 		.online    = false,
 	};
 
-	nng_id_map_foreach2(pipe_id_map, kick_client_cb, &info);
+	for (size_t i = 0; i < snapshot.count && !info.found; i++) {
+		find_kick_client(snapshot.ids[i], &info);
+	}
+	nng_mqtt_pipe_snapshot_free(&snapshot);
 
 	if (!info.found || !info.online) {
 		return error_response(
@@ -1938,12 +1935,15 @@ get_prometheus(http_msg *msg, kv **params, size_t param_num,
 
 	client_stats stats = { 0 };
 	static client_stats max_stats = { 0 };
-	nng_id_map *pipe_id_map;
-
-	if (nng_socket_get_ptr(*broker_sock, NMQ_OPT_MQTT_PIPES,
-	        (void **) &pipe_id_map) == 0) {
-		nng_id_map_foreach2(pipe_id_map, get_metric_cb, &stats);
+	nng_mqtt_pipe_snapshot snapshot = { 0 };
+	if (get_pipe_snapshot(broker_sock, &snapshot) != 0) {
+		return error_response(
+		    msg, NNG_HTTP_STATUS_INTERNAL_SERVER_ERROR, UNKNOWN_MISTAKE);
 	}
+	for (size_t i = 0; i < snapshot.count; i++) {
+		get_pipe_metrics(snapshot.ids[i], &stats);
+	}
+	nng_mqtt_pipe_snapshot_free(&snapshot);
 
 	stats.subscribers      = dbhash_get_pipe_cnt();
 	stats.topics           = get_topics_count();
