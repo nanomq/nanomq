@@ -534,11 +534,9 @@ server_cb(void *arg)
 				break;
 			}
 			if (work->code != NNG_MQTT_SUCCESS) {
-				//what if extra ctx brings a wrong msg?
 				if (work->proto != PROTO_MQTT_BROKER) {
 					work->state = SEND;
 					nng_aio_finish(work->aio, 0);
-					// break or return?
 					break;
 				}
 				work->state = CLOSE;
@@ -548,7 +546,6 @@ server_cb(void *arg)
 				// free conn_param due to clone in protocol layer
 				conn_param_free(work->cparam);
 				nng_aio_finish(work->aio, 0);
-				// break or return?
 				break;
 			}
 		} else if (work->flag == CMD_CONNACK) {
