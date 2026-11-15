@@ -215,6 +215,7 @@ server_cb(void *arg)
 	nng_msg       *msg  = NULL;
 	nng_msg       *smsg = NULL;
 	int            rv;
+	bool           forward_now = false;
 
 	nng_socket    *newsock = NULL;
 
@@ -551,6 +552,11 @@ server_cb(void *arg)
 				// break or return?
 				break;
 			}
+			// Forward the message before this callback returns. The
+			// publisher may have its PUBACK already and send the next
+			// message; that one must not be forwarded first (MQTT
+			// 3.1.1 and 5.0, section 4.6, Ordered Topic).
+			forward_now = true;
 		} else if (work->flag == CMD_CONNACK) {
 			uint8_t *body        = nng_msg_body(work->msg);
 			uint8_t  reason_code = *(body + 1);
@@ -616,8 +622,12 @@ server_cb(void *arg)
 		}
 		// Only CMD_DISCONNECT_EV CMD_PUBLISH CMD_CONNACK reach here.
 		work->state = WAIT;
-		nng_aio_finish(work->aio, 0);
-		break;
+		if (!forward_now) {
+			nng_aio_finish(work->aio, 0);
+			break;
+		}
+		// A client's PUBLISH: forward it on this thread, in WAIT.
+		// fall through
 	case WAIT:
 		log_debug("WAIT ^^^^ ctx%d ^^^^", work->ctx.id);
 #if defined(SUPP_PLUGIN)
