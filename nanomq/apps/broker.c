@@ -250,6 +250,13 @@ server_cb(void *arg)
 			if (work->proto == PROTO_MQTT_BROKER) {
 				if (msg != NULL)
 					nng_msg_free(msg);
+				// ESTATE rejects a duplicate receive from nano_ctx_recv
+				if (rv == NNG_ECLOSED || rv == NNG_ECANCELED ||
+				    rv == NNG_ESTATE) {
+					if (rv == NNG_ESTATE)
+						log_error("Duplicate broker context receive");
+					break;
+				}
 				nng_ctx_recv(work->ctx, work->aio);
 				break;
 			} else {
@@ -571,6 +578,11 @@ server_cb(void *arg)
 			work->flag = CMD_PUBLISH;
 			// remember to free conn_param in WAIT
 			// due to clone in protocol layer
+			// Preserve the CONNACK path's AIO completion after ctx_send.
+			// Client PUBLISH ordering does not require this event inline.
+			work->state = WAIT;
+			nng_aio_finish(work->aio, 0);
+			break;
 		} else if (work->flag == CMD_DISCONNECT_EV) {
 			// Now v4 as default/send V5 notify msg?
 			hook_entry(work, 0);
@@ -611,10 +623,11 @@ server_cb(void *arg)
 			nng_ctx_recv(work->ctx, work->aio);
 			break;
 		}
-		// Only CMD_DISCONNECT_EV CMD_PUBLISH CMD_CONNACK reach here.
+		// Only CMD_DISCONNECT_EV and CMD_PUBLISH reach here.
 		work->state = WAIT;
-		nng_aio_finish(work->aio, 0);
-		break;
+		// PUBLISH has no pending I/O here. Fan out before returning to
+		// the protocol, which rearms this publisher after the callback.
+		// Fall through without another task dispatch or recursive callback.
 	case WAIT:
 		log_debug("WAIT ^^^^ ctx%d ^^^^", work->ctx.id);
 #if defined(SUPP_PLUGIN)
@@ -806,16 +819,12 @@ server_cb(void *arg)
 			}
 
 			if (has_will && msg != NULL) {
-
 				work->msg  = msg;
 				work->flag = CMD_PUBLISH;
-
 				// suspend mountpoint
 				conn_param_set_mount_point(work->cparam, NULL);
-
 				handle_pub(work, work->pipe_ct,
 				    conn_param_get_protover(work->cparam), false);
-
 				conn_param_set_mount_point(work->cparam, saved_mp);
 				nng_strfree(saved_mp);
 				work->state = WAIT;
@@ -828,8 +837,7 @@ server_cb(void *arg)
 				if (work->proto == PROTO_MQTT_BROKER) {
 					nng_ctx_recv(work->ctx, work->aio);
 				} else {
-					nng_ctx_recv(
-					    work->extra_ctx, work->aio);
+					nng_ctx_recv(work->extra_ctx, work->aio);
 				}
 			}
 			// for notification clone & WAIT state
@@ -1410,7 +1418,6 @@ broker(conf *nanomq_conf)
 			}
 		}
 
-		// TODO: multi for websocket
 		if (nanomq_conf->websocket.tls_enable &&
 		    nanomq_conf->websocket.tls_url == NULL) {
 			log_warn("WSS listener enabled without a URL; skipping");
