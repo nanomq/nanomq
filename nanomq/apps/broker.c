@@ -614,6 +614,11 @@ server_cb(void *arg)
 					break;
 				}
 			}
+			// Bridge notifications arrive with NNG_ECONNSHUT. Complete
+			// the event before WAIT, outside the client's close callback.
+			work->state = WAIT;
+			nng_aio_finish(work->aio, 0);
+			break;
 		} else {
 			if (work->msg != NULL)
 				nng_msg_free(work->msg);
@@ -623,7 +628,7 @@ server_cb(void *arg)
 			nng_ctx_recv(work->ctx, work->aio);
 			break;
 		}
-		// Only CMD_DISCONNECT_EV and CMD_PUBLISH reach here.
+		// Only a successful CMD_PUBLISH reaches here.
 		work->state = WAIT;
 		// PUBLISH has no pending I/O here. Fan out before returning to
 		// the protocol, which rearms this publisher after the callback.
