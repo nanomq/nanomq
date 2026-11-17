@@ -1,6 +1,9 @@
 nanomq_test(sub_handler_test)
 nanomq_test(unsub_handler_test)
 if(NANOMQ_TESTS AND CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT BUILD_SHARED_LIBS)
+    nanomq_test(broker_recv_error_test)
+    set_property(TARGET broker_recv_error_test APPEND_STRING PROPERTY
+        LINK_FLAGS " -Wl,--wrap=nng_ctx_recv")
     # GNU-compatible linker wrapping keeps fault injection out of production.
     nanomq_test(unsub_failure_contract_test)
     foreach(unsub_symbol decode_unsub_msg unsub_ctx_handle bridge_sub_handler
@@ -22,7 +25,15 @@ nanomq_test(acl_deny_action_test)
 endif()
 nanomq_test(broker_test)
 nanomq_test(broker_dup_test)
+nanomq_test(broker_order_test)
+nanomq_test(broker_order_contract_test)
 if(NANOMQ_TESTS)
+    set_tests_properties(nanomq.broker_order_test PROPERTIES
+        RUN_SERIAL TRUE SKIP_RETURN_CODE 77 TIMEOUT 240)
+    add_test(NAME nanomq.broker_order_backpressure_test COMMAND broker_order_test)
+    set_tests_properties(nanomq.broker_order_backpressure_test PROPERTIES
+        ENVIRONMENT "ORDER_TEST_PARALLEL=2;ORDER_TEST_PUBLISHERS=4"
+        RUN_SERIAL TRUE SKIP_RETURN_CODE 77 TIMEOUT 240)
     target_include_directories(broker_dup_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../nng/src")
     target_compile_definitions(broker_dup_test PRIVATE
         NANOMQ_TEST_CERT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../../etc/certs")
@@ -46,6 +57,13 @@ if(NANOMQ_TESTS)
         "${CMAKE_CURRENT_SOURCE_DIR}/../../nng/src")
     set_tests_properties(nanomq.rest_pipe_snapshot_contract_test PROPERTIES
         RUN_SERIAL TRUE)
+    target_compile_definitions(broker_order_contract_test PRIVATE
+        ${snapshot_nng_definitions})
+    target_link_libraries(broker_order_contract_test nng_private)
+    target_include_directories(broker_order_contract_test PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../nng/src")
+    set_tests_properties(nanomq.broker_order_contract_test PROPERTIES
+        RUN_SERIAL TRUE TIMEOUT 30)
 endif()
 nanomq_test(bridge_test)
 nanomq_test(rule_engine_test)
