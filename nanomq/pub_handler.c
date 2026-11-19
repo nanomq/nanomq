@@ -1741,20 +1741,21 @@ handle_pub(nano_work *work, struct pipe_content *pipe_ct, uint8_t proto,
 	}
 
 #ifdef ACL_SUPP
-	if (work->config != NULL && work->config->auth_http.enable) {
+	if (!is_event && work->cparam != NULL && work->config != NULL &&
+	    work->config->auth_http.enable) {
+		len = work->pub_packet->var_header.publish.topic_name.len;
 		struct topic_queue *tq = topic_queue_init(topic, len);
 		if (tq == NULL) {
 			log_error("topic_queue_init failed!");
-		} else {
-			int rv = nmq_auth_http_sub_pub(work->cparam, false, tq, &work->config->auth_http);
-			if (rv != 0) {
-				log_error("Auth failed! stop publishing packet!");
-				topic_queue_release(tq);
-				return NOT_AUTHORIZED;
-			}
+			return NOT_AUTHORIZED;
 		}
-
+		int rv = nmq_auth_http_sub_pub(
+		    work->cparam, false, tq, &work->config->auth_http);
 		topic_queue_release(tq);
+		if (rv != 0) {
+			log_error("Auth failed! stop publishing packet!");
+			return NOT_AUTHORIZED;
+		}
 	}
 #endif
 

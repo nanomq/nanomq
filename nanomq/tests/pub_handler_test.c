@@ -60,6 +60,7 @@ init_v5_pub_work(nano_work *work, conf *cfg, uint32_t pid, nng_msg *msg)
 static void
 release_v5_pub_work(nano_work *work)
 {
+	dbhash_del_atpair_queue(work->pid.id);
 	free_pub_packet(work->pub_packet);
 	nng_msg_free(work->msg);
 	conn_param_free(work->cparam);
