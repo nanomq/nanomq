@@ -1,6 +1,11 @@
 nanomq_test(sub_handler_test)
 nanomq_test(unsub_handler_test)
 if(NANOMQ_TESTS AND CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT BUILD_SHARED_LIBS)
+    nanomq_test(auth_config_validation_test)
+    foreach(auth_symbol set_auth_config nng_zalloc nng_strdup malloc)
+        set_property(TARGET auth_config_validation_test APPEND_STRING PROPERTY
+            LINK_FLAGS " -Wl,--wrap=${auth_symbol}")
+    endforeach()
     nanomq_test(broker_recv_error_test)
     set_property(TARGET broker_recv_error_test APPEND_STRING PROPERTY
         LINK_FLAGS " -Wl,--wrap=nng_ctx_recv")
