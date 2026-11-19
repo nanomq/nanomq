@@ -24,7 +24,8 @@ extern void set_reload_config(cJSON *json, conf *config);
 extern void set_basic_config(cJSON *json, conf *config);
 extern void set_tls_config(
     cJSON *json, const char *conf_path, conf_tls *tls, const char *key_prefix);
-extern void set_auth_config(
+// Returns -1 without changing auth on invalid input or allocation failure.
+extern int set_auth_config(
     cJSON *json, const char *conf_path, conf_auth *auth);
 extern void set_auth_http_config(
     cJSON *json, const char *conf_path, conf_auth_http *auth);
@@ -37,6 +38,7 @@ extern void set_sqlite_config(cJSON *json, const char *conf_path,
 
 extern void reload_basic_config(conf *cur_conf, conf *new_conf);
 extern void reload_sqlite_config(conf_sqlite *cur_conf, conf_sqlite *new_conf);
+// Swap credential lists; new_conf retains the old list for caller cleanup.
 extern void reload_auth_config(conf_auth *cur_conf, conf_auth *new_conf);
 extern void reload_log_config(conf *cur_conf, conf *new_conf);
 
