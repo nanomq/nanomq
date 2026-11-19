@@ -1,7 +1,11 @@
 #ifdef ACL_SUPP
+#include "include/acl_handler.h"
 #include "include/acl_hazard.h"
 #include "nng/nng.h"
+#include "nng/protocol/mqtt/mqtt_parser.h"
+#include "nng/supplemental/nanolib/hash_table.h"
 #include "nng/supplemental/nanolib/log.h"
+#include "nng/supplemental/nanolib/mqtt_db.h"
 
 #include <stdlib.h>
 
@@ -333,6 +337,34 @@ nmq_acl_hazard_release(void)
 	}
 }
 
+static bool
+acl_subscription_revoked(uint32_t pid, char *topic, void *arg)
+{
+	conf       *config = arg;
+	conn_param *cp     = nng_pipe_cparam((nng_pipe) { .id = pid });
+	if (cp == NULL) {
+		// Preset sessions have no connection identity. Closing pipes are
+		// cleaned up by their existing disconnect path.
+		return false;
+	}
+
+	// Match the same effective filter as SUBSCRIBE, including exact (@)
+	// ACL rules and already-applied listener mount points.
+	const char *filter = topic;
+	const char *group_end;
+	if (strncmp(topic, "$share/", 7) == 0 &&
+	    (group_end = strchr(topic + 7, '/')) != NULL) {
+		filter = group_end + 1;
+	}
+	bool revoked = !auth_acl(config, ACL_SUB, cp, filter);
+	conn_param_free(cp);
+	if (revoked) {
+		// Same lock order as destroy_sub_client: pipe table, then tree.
+		dbtree_delete_client(config->db_root, topic, pid);
+	}
+	return revoked;
+}
+
 void
 reload_acl_config(conf *config, conf *new_conf)
 {
@@ -365,6 +397,13 @@ reload_acl_config(conf *config, conf *new_conf)
 	// Update the caller-visible enable gate only after the snapshot is live,
 	// so a reader that passes a newly-enabled gate always finds the new rules.
 	config->acl.enable = snap->enable;
+
+	// Revoke existing routes on the reload path only: no per-message checks,
+	// subscription metadata or snapshot allocation. Concurrent SUBSCRIBEs
+	// that already passed the old ACL may still finish after this sweep.
+	if (snap->enable && config->db_root != NULL) {
+		dbhash_del_topic_if(acl_subscription_revoked, config);
+	}
 
 	if (old != NULL) {
 		acl_retire(old);
