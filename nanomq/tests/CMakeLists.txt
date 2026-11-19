@@ -1,5 +1,6 @@
 nanomq_test(sub_handler_test)
 nanomq_test(unsub_handler_test)
+nanomq_test(auth_config_read_test)
 if(NANOMQ_TESTS AND CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT BUILD_SHARED_LIBS)
     nanomq_test(auth_config_validation_test)
     foreach(auth_symbol set_auth_config nng_zalloc nng_strdup malloc)

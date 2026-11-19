@@ -88,7 +88,18 @@ cJSON *
 get_auth_config(conf_auth *auth)
 {
 	cJSON *auth_arr = cJSON_CreateArray();
-	for (size_t i = 0; i < auth->count; i++) {
+	// Keep credentials alive until cJSON has copied the strings.
+	if (auth->mtx != NULL) {
+		nng_mtx_lock(auth->mtx);
+	}
+	size_t count = auth->count;
+	if (count > cvector_size(auth->usernames)) {
+		count = cvector_size(auth->usernames);
+	}
+	if (count > cvector_size(auth->passwords)) {
+		count = cvector_size(auth->passwords);
+	}
+	for (size_t i = 0; i < count; i++) {
 		cJSON *item = cJSON_CreateObject();
 		// TODO Does the password need to be encrypted ?
 		cJSON_AddStringOrNullToObject(
@@ -97,6 +108,9 @@ get_auth_config(conf_auth *auth)
 		    item, "password", auth->passwords[i]);
 
 		cJSON_AddItemToArray(auth_arr, item);
+	}
+	if (auth->mtx != NULL) {
+		nng_mtx_unlock(auth->mtx);
 	}
 
 	return auth_arr;
