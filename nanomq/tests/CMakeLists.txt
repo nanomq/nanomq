@@ -26,6 +26,12 @@ if(NANOMQ_TESTS AND CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT BUILD_SHARED_LIBS
     nanomq_test(acl_reload_test)
     set_property(TARGET acl_reload_test APPEND_STRING PROPERTY
         LINK_FLAGS " -Wl,--wrap=nng_pipe_cparam")
+    nanomq_test(auth_http_fail_closed_test)
+    foreach(auth_symbol topic_queue_init init_topic_queue_with_topic_node
+            nni_alloc nni_zalloc nmq_auth_http_sub_pub topic_queue_release)
+        set_property(TARGET auth_http_fail_closed_test APPEND_STRING PROPERTY
+            LINK_FLAGS " -Wl,--wrap=${auth_symbol}")
+    endforeach()
 endif()
 endif()
 nanomq_test(broker_test)

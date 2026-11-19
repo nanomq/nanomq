@@ -378,7 +378,7 @@ sub_ctx_handle(nano_work *work)
 
 	tn = work->sub_pkt->node;
 #ifdef ACL_SUPP
-	if (work->config->auth_http.enable) {
+	if (work->config != NULL && work->config->auth_http.enable) {
 		topic_queue *tq  = NULL;
 		bool         oom = false;
 		tn = work->sub_pkt->node;
@@ -402,6 +402,10 @@ sub_ctx_handle(nano_work *work)
 			topic_queue_release(tq);
 		} else if (tq == NULL) {
 			log_error("topic_queue is NULL");
+			auth_http_reject = true;
+			for (tn = work->sub_pkt->node; tn != NULL; tn = tn->next) {
+				tn->reason_code = NMQ_AUTH_SUB_ERROR;
+			}
 		} else {
 			int rv = nmq_auth_http_sub_pub(work->cparam, true, tq, &work->config->auth_http);
 			if (rv != 0) {
