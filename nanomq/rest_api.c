@@ -3629,11 +3629,14 @@ post_config(http_msg *msg, const char *type)
 			} else if (strcmp(type, "auth") == 0) {
 				cJSON *auth =
 				    cJSON_GetObjectItem(conf_data, "auth");
-				if (cJSON_IsArray(auth)) {
-					if (rv == 0)
-						config->auths.enable = enable;
-					set_auth_config(auth,
-					    config->conf_file, &config->auths);
+				if (set_auth_config(auth, config->conf_file,
+				        &config->auths) != 0) {
+					cJSON_Delete(req);
+					return error_response(msg,
+					    NNG_HTTP_STATUS_BAD_REQUEST, REQ_PARAM_ERROR);
+				}
+				if (rv == 0) {
+					config->auths.enable = enable;
 				}
 			} else if (strcmp(type, "auth_http") == 0) {
 				cJSON *auth_http = cJSON_GetObjectItem(
@@ -3680,6 +3683,14 @@ post_config(http_msg *msg, const char *type)
 #endif
 
 		} else {
+			cJSON *auth = cJSON_GetObjectItem(conf_data, "auth");
+			if (auth != NULL && set_auth_config(auth, config->conf_file,
+			        &config->auths) != 0) {
+				cJSON_Delete(req);
+				return error_response(msg,
+				    NNG_HTTP_STATUS_BAD_REQUEST, REQ_PARAM_ERROR);
+			}
+
 			cJSON *basic = cJSON_GetObjectItem(conf_data, "basic");
 			if (cJSON_IsObject(basic)) {
 				set_basic_config(basic, config);
@@ -3689,12 +3700,6 @@ post_config(http_msg *msg, const char *type)
 			if (cJSON_IsObject(tls)) {
 				set_tls_config(
 				    tls, config->conf_file, &config->tls, "");
-			}
-
-			cJSON *auth = cJSON_GetObjectItem(conf_data, "auth");
-			if (cJSON_IsArray(auth)) {
-				set_auth_config(
-				    auth, config->conf_file, &config->auths);
 			}
 
 			cJSON *auth_http =

@@ -1,6 +1,12 @@
 nanomq_test(sub_handler_test)
 nanomq_test(unsub_handler_test)
+nanomq_test(auth_config_read_test)
 if(NANOMQ_TESTS AND CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT BUILD_SHARED_LIBS)
+    nanomq_test(auth_config_validation_test)
+    foreach(auth_symbol set_auth_config nng_zalloc nng_strdup malloc)
+        set_property(TARGET auth_config_validation_test APPEND_STRING PROPERTY
+            LINK_FLAGS " -Wl,--wrap=${auth_symbol}")
+    endforeach()
     nanomq_test(broker_recv_error_test)
     set_property(TARGET broker_recv_error_test APPEND_STRING PROPERTY
         LINK_FLAGS " -Wl,--wrap=nng_ctx_recv")
@@ -22,6 +28,17 @@ endif()
 nanomq_test(pub_handler_test)
 if(ENABLE_ACL)
 nanomq_test(acl_deny_action_test)
+if(NANOMQ_TESTS AND CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT BUILD_SHARED_LIBS)
+    nanomq_test(acl_reload_test)
+    set_property(TARGET acl_reload_test APPEND_STRING PROPERTY
+        LINK_FLAGS " -Wl,--wrap=nng_pipe_cparam")
+    nanomq_test(auth_http_fail_closed_test)
+    foreach(auth_symbol topic_queue_init init_topic_queue_with_topic_node
+            nni_alloc nni_zalloc nmq_auth_http_sub_pub topic_queue_release)
+        set_property(TARGET auth_http_fail_closed_test APPEND_STRING PROPERTY
+            LINK_FLAGS " -Wl,--wrap=${auth_symbol}")
+    endforeach()
+endif()
 endif()
 nanomq_test(broker_test)
 nanomq_test(broker_dup_test)

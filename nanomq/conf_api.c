@@ -88,7 +88,18 @@ cJSON *
 get_auth_config(conf_auth *auth)
 {
 	cJSON *auth_arr = cJSON_CreateArray();
-	for (size_t i = 0; i < auth->count; i++) {
+	// Keep credentials alive until cJSON has copied the strings.
+	if (auth->mtx != NULL) {
+		nng_mtx_lock(auth->mtx);
+	}
+	size_t count = auth->count;
+	if (count > cvector_size(auth->usernames)) {
+		count = cvector_size(auth->usernames);
+	}
+	if (count > cvector_size(auth->passwords)) {
+		count = cvector_size(auth->passwords);
+	}
+	for (size_t i = 0; i < count; i++) {
 		cJSON *item = cJSON_CreateObject();
 		// TODO Does the password need to be encrypted ?
 		cJSON_AddStringOrNullToObject(
@@ -97,6 +108,9 @@ get_auth_config(conf_auth *auth)
 		    item, "password", auth->passwords[i]);
 
 		cJSON_AddItemToArray(auth_arr, item);
+	}
+	if (auth->mtx != NULL) {
+		nng_mtx_unlock(auth->mtx);
 	}
 
 	return auth_arr;
@@ -839,40 +853,77 @@ set_sqlite_config(cJSON *json, const char *conf_path, conf_sqlite *sqlite,
 	}
 }
 
-// We choose the easy way to reuse reload_auth_config() API
-void
+// Reserve cvector storage explicitly: cvector_grow asserts on allocation failure.
+static char **
+auth_vector_alloc(size_t count)
+{
+	if (count > (SIZE_MAX - 2 * sizeof(size_t)) / sizeof(char *)) {
+		return NULL;
+	}
+	size_t *storage = malloc(2 * sizeof(size_t) + count * sizeof(char *));
+	if (storage == NULL) {
+		return NULL;
+	}
+	char **vec = (char **) (storage + 2);
+	cvector_set_size(vec, 0);
+	cvector_set_capacity(vec, count);
+	return vec;
+}
+
+int
 set_auth_config(cJSON *json, const char *conf_path, conf_auth *auth)
 {
+	if (json == NULL || !cJSON_IsArray(json) || auth == NULL) {
+		return -1;
+	}
 	conf_auth *new_auth = nng_zalloc(sizeof(conf_auth));
-	size_t user_count = auth->count;
-	cJSON *item;
-	int    rv;
+	if (new_auth == NULL) {
+		return -1;
+	}
+	int rv = -1;
 
 	size_t array_size = cJSON_GetArraySize(json);
-	for (size_t i = 0; i < array_size; i++) {
-		cJSON *kv = cJSON_GetArrayItem(json, i);
-		char * username = NULL, *password = NULL;
-		getStringValue(kv, item, "username", username, rv);
-		getStringValue(kv, item, "password", password, rv);
-
-		if (username && password) {
-			cvector_push_back(
-			    new_auth->usernames, nng_strdup(username));
-			cvector_push_back(
-			    new_auth->passwords, nng_strdup(password));
-		} else {
-			log_warn("Invalid username/password pair in HTTP Data");
+	if (array_size != 0) {
+		new_auth->usernames = auth_vector_alloc(array_size);
+		new_auth->passwords = auth_vector_alloc(array_size);
+		if (new_auth->usernames == NULL || new_auth->passwords == NULL) {
+			goto out;
 		}
 	}
-	new_auth->count = cvector_size(new_auth->usernames); // M, the valid count
+	cJSON *kv;
+	cJSON_ArrayForEach(kv, json) {
+		char *username = cJSON_GetStringValue(
+		    cJSON_GetObjectItem(kv, "username"));
+		char *password = cJSON_GetStringValue(
+		    cJSON_GetObjectItem(kv, "password"));
+		if (!cJSON_IsObject(kv) || username == NULL || password == NULL) {
+			log_warn("Invalid username/password pair in HTTP Data");
+			goto out;
+		}
+		char *new_username = nng_strdup(username);
+		char *new_password = nng_strdup(password);
+		if (new_username == NULL || new_password == NULL) {
+			nng_strfree(new_username);
+			nng_strfree(new_password);
+			goto out;
+		}
+		cvector_push_back(new_auth->usernames, new_username);
+		cvector_push_back(new_auth->passwords, new_password);
+		new_auth->count++;
+	}
 	reload_auth_config(auth, new_auth);
-	for (size_t i = 0; i < new_auth->count; i++) {
+	rv = 0;
+out:
+	for (size_t i = 0; i < cvector_size(new_auth->usernames); i++) {
 		free(new_auth->usernames[i]);
+	}
+	for (size_t i = 0; i < cvector_size(new_auth->passwords); i++) {
 		free(new_auth->passwords[i]);
 	}
 	cvector_free(new_auth->usernames);
 	cvector_free(new_auth->passwords);
 	nng_free(new_auth, sizeof(conf_auth));
+	return rv;
 }
 
 static void
@@ -1125,28 +1176,23 @@ reload_sqlite_config(conf_sqlite *cur_conf, conf_sqlite *new_conf)
 void
 reload_auth_config(conf_auth *cur_conf, conf_auth *new_conf)
 {
-	nng_mtx_lock(cur_conf->mtx);
-	for (size_t i = 0; i < cur_conf->count; i++) {
-		free(cur_conf->usernames[i]);
-		free(cur_conf->passwords[i]);
-	}
-	cvector_free(cur_conf->usernames);
-	cvector_free(cur_conf->passwords);
-	cur_conf->usernames = NULL;
-	cur_conf->passwords = NULL;
-
-	cur_conf->count = new_conf->count;
-	if (new_conf->count == 0) {
-		nng_mtx_unlock(cur_conf->mtx);
+	if (cur_conf == NULL || new_conf == NULL ||
+	    new_conf->count != cvector_size(new_conf->usernames) ||
+	    new_conf->count != cvector_size(new_conf->passwords)) {
+		log_error("Invalid authentication configuration");
 		return;
 	}
-	for (size_t i = 0; i < new_conf->count; i++) {
-		cvector_push_back(
-			    cur_conf->usernames, nng_strdup(new_conf->usernames[i]));
-		cvector_push_back(
-			    cur_conf->passwords, nng_strdup(new_conf->passwords[i]));
-	}
+	// Applying a complete list must not allocate after discarding live credentials.
+	nng_mtx_lock(cur_conf->mtx);
+	size_t count = cur_conf->count;
+	char **usernames = cur_conf->usernames;
+	char **passwords = cur_conf->passwords;
 	cur_conf->count = new_conf->count;
+	cur_conf->usernames = new_conf->usernames;
+	cur_conf->passwords = new_conf->passwords;
+	new_conf->count = count;
+	new_conf->usernames = usernames;
+	new_conf->passwords = passwords;
 	nng_mtx_unlock(cur_conf->mtx);
 }
 
