@@ -22,6 +22,8 @@ Example: The Rule Engine, SQLite-related features, Configuration Reload Interfac
 
 DDS Proxy and NanoMQ command-line tool share the same policy as Rule Engine Module. But as an Open-Source project, we continue to support our free users, still accepting bugs report regarding non-core parts. Fix & release will be out when time permits.
 
+**Nov 28th 2026, There are 5-6 pages of AI-generated security reports in the queue. Each of them is like thousands of words with AI wording; dozens of them are duplicated, which takes time to read and understand. Additionally, Github is responding slowly on CVE assignments; 5 CVE requests have not been responded to. The reply of your report is expected to be slow.**
+
 
 Best,
 
